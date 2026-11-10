@@ -177,7 +177,7 @@ void previewInMenu(const hands::State& s)
     }
     const int hand = 0; // the off hand (the main one points at the menu)
     const glm::vec3 fwd = hands::forward(s.rot[hand]);
-    const glm::vec3 palm = s.pos[hand] + fwd * 2.f;
+    const glm::vec3 palm = palmOrigin(s, hand);
     const float pulse = 0.85f + 0.15f * static_cast<float>(za::sin(realtime * 17.0));
     tendril(palm, palm + fwd * 28.f, pulse, 4242);
 }
@@ -249,7 +249,7 @@ void queue(const hands::State& s, bool flat)
         {
             continue;
         }
-        const glm::vec3 palm = s.pos[hand] + hands::forward(s.rot[hand]) * 2.f;
+        const glm::vec3 palm = palmOrigin(s, hand);
         // To where it is seen from the hand: through a teleporter, its image behind the gate's surface (the beam is drawn
         // over the scene, so it goes on into the gate to the thing seen there), not its place in the room beyond.
         const glm::vec3 to = portals::pullImageSeen(palm, centre(t.ent));
@@ -295,6 +295,28 @@ float entityGlow(const entity_t* e)
 glm::vec3 glowColor()
 {
     return tint(0.65f, 1.f);
+}
+
+bool handTarget(int hand, int& ent, int& state, glm::vec3& at)
+{
+    if(hand < 0 || hand > 1 || cls.state != ca_connected)
+    {
+        return false;
+    }
+    const Target t = target(hand == 1 ? protocol::STAT_QVR_FGMAIN : protocol::STAT_QVR_FGOFF);
+    if(t.state == None || !valid(t.ent))
+    {
+        return false;
+    }
+    ent = t.ent;
+    state = t.state;
+    at = centre(t.ent);
+    return true;
+}
+
+glm::vec3 palmOrigin(const hands::State& s, int hand)
+{
+    return hands::palmPoint(s, hand);
 }
 
 } // namespace qvr::fgfx

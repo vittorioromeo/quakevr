@@ -346,11 +346,20 @@ void(entity e) VR_Forcegrab_Restore =
     setorigin(e, e.origin);
 }
 
+// Flatscreen play: whether `xHand` may take E's grab now: free (VR_Hand_Free, its own lock allowed) and not already
+// pulling something to it. One object at a time per hand (his note 2026-11-10: two presses in quick succession sent two
+// objects flying at the same hand, and only the first was collected): the next press waits for the first pull to end.
+float(float xHand) VR_Forcegrab_FlatFree =
+{
+    return VR_Hand_Free(self, xHand, VR_HANDFREE_LOCKED) && !VR_Forcegrab_IsPulling(xHand);
+};
+
 // Flatscreen play (-flatscreenmode): E. What the view is pointed at, taken with the free hand: the same search, the
 // same flight and the same catch as a force grab in VR, only asked for by a key instead of an open hand held out and
 // flicked (vr_flatplay.cpp sends impulse 46; weapons.qc answers it). With both hands full there is no hand to collect
-// with, and E does nothing.
-void() VR_Forcegrab_FlatGrab =
+// with, and E does nothing. `xWant`: the hand the client turned palm out for it (vr_flatfgrab.cpp: impulse 57 the off
+// hand, 58 the main), taken when it is still free; -1 (impulse 46) or not free: the rule below.
+void(float xWant) VR_Forcegrab_FlatGrab =
 {
     if(!cvar_hget(cvarh_vr_forcegrab_mode) || !self.ishuman || self.health <= 0)
     {
@@ -359,10 +368,14 @@ void() VR_Forcegrab_FlatGrab =
 
     // The dominant (main) hand when both are empty (his note, 2026-11-08), else the empty one.
     float xHand = cVR_MainHand;
-    if(!VR_Hand_Free(self, xHand, VR_HANDFREE_LOCKED))
+    if(xWant >= 0 && VR_Forcegrab_FlatFree(xWant))
+    {
+        xHand = xWant;
+    }
+    else if(!VR_Forcegrab_FlatFree(xHand))
     {
         xHand = cVR_OffHand;
-        if(!VR_Hand_Free(self, xHand, VR_HANDFREE_LOCKED))
+        if(!VR_Forcegrab_FlatFree(xHand))
         {
             dprint("flat grab: neither hand is free\n");
             return;
@@ -397,7 +410,7 @@ void(float xHand) VR_Forcegrab_FlatPreview =
 {
     entity best = world;
     if(cvar_hget(cvarh_vr_flat_grab_preview) && !VR_Forcegrab_IsPulling(xHand) &&
-       (xHand == cVR_MainHand || !VR_Hand_Free(self, cVR_MainHand, VR_HANDFREE_LOCKED)))
+       (xHand == cVR_MainHand || !VR_Forcegrab_FlatFree(cVR_MainHand)))
     {
         makeforward(self.v_angle);
         best = VR_Forcegrab_FindTargetAlong(VRGetHeadPos(self), v_forward);
@@ -501,6 +514,13 @@ void(entity e, entity xPlayer, float xHand) VR_Forcegrab_Catch =
     e.velocity = '0 0 0';
     e.avelocity = '0 0 0';
     e.vr_spin = '0 0 0';
+    // As it lay (the settle above brought it most of the way; a catch early in the window, or with the settle off,
+    // takes the rest now), so its grip takes it as a hand would there. The grab point is measured again on that turn.
+    if(cvar_hget(cvarh_vr_forcegrab_settle) > 0)
+    {
+        e.angles = e.fg_angles;
+        grabPoint = VR_Forcegrab_GrabPoint(e);
+    }
     setorigin(e, handPos - (grabPoint - e.origin));
 
     // Handed over as the hand touching it would, the grab taken as started.
@@ -651,6 +671,19 @@ void() VR_Forcegrab_FlightThink =
         vector target = handPos - grabOffset;
         self.velocity = (target - self.origin) * (1 / remaining);
         self.velocity_z = self.velocity_z + 0.5 * self.fg_gravity * remaining;
+        // Its tumble settles over the flight's last vr_forcegrab_settle seconds back to how it lay (his note 2026-11-10:
+        // caught at whatever turn the spin left it, a prop sat in the hand askew, not as a hand takes it where it lies):
+        // turned the short way round each axis, there as it arrives. Its grip then places it from that turn (vr_carry.qc
+        // VR_Carry_Start), as a hand closing on it there would.
+        float settle = cvar_hget(cvarh_vr_forcegrab_settle);
+        if(settle > 0 && remaining < settle)
+        {
+            vector turn = self.fg_angles - self.angles;
+            turn_x = turn_x - 360 * rint(turn_x / 360);
+            turn_y = turn_y - 360 * rint(turn_y / 360);
+            turn_z = turn_z - 360 * rint(turn_z / 360);
+            self.avelocity = turn * (1 / remaining);
+        }
         return;
     }
 
@@ -691,6 +724,7 @@ void(entity e, float xHand) VR_Forcegrab_Launch =
 
     e.fg_movetype = e.movetype;
     e.fg_origin = e.origin;
+    e.fg_angles = e.angles;
     e.fg_solid = e.solid;
     e.fg_think = e.think;
     e.fg_player = self;

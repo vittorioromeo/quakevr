@@ -53,6 +53,7 @@
 // None of it runs outside flatscreen play: every entry point says so, and a headset run is untouched.
 
 #include "vr_flatsight.hpp"
+#include "vr_flatfgrab.hpp"
 #include "vr_flatreload.hpp"
 #include "vr_flatspeedfov.hpp"
 
@@ -1597,7 +1598,8 @@ void stanceAndLook(const hands::State& s, const glm::vec3& aim, const glm::vec3&
     {
         st.lookFar = soft >= 1.f;
     }
-    const bool reaching = st.helping == HAND_OFF && glm::length(reach) > 0.f; // E: a force grab reaches out with it
+    // E: a force grab takes the free hand off the gun to turn its palm out (vr_flatfgrab.cpp), and back on after.
+    const bool reaching = (st.helping >= 0 && flatfgrab::busy(st.helping)) || (st.helping == HAND_OFF && glm::length(reach) > 0.f);
     st.lookFast = longGun && (reaching || flatplay::punching(st.helping));
     st.lookWanted = st.stanceWanted && !carry && !st.lookFar && !st.lookFast;
     if(st.lookWanted)
@@ -1804,7 +1806,8 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     // A punch of the free hand takes it off the grip, as fast as it came (gripEase: done before the throw), and it goes back
     // when the punch is over; twohand lets go of the hold for as long (flatplay::punching there).
     // The gun's reload trip takes it off the grip the same way (vr_flatreload.cpp), and it goes back when the gun is back.
-    st.gripWanted = carryToGrip && !flatplay::punching(st.helping) && !flatreload::busy(st.holding);
+    // So does E's force grab with it (vr_flatfgrab.cpp: off the grip smoothly, palm out, back after the pull).
+    st.gripWanted = carryToGrip && !flatplay::punching(st.helping) && !flatreload::busy(st.holding) && !flatfgrab::busy(st.helping);
     QVR_TRACY_CALL("flatsight: pin to grip", pinToGrip(s, reach, carryToGrip));
     QVR_TRACY_CALL("flatsight: centre on sight", centreOnSight(s, aim));
     QVR_TRACY_CALL("flatsight: push back", pushBack(s, aim));

@@ -843,3 +843,23 @@ barrel's way against the shot's, the wall's share, the dimming). "Flatscreen Cro
 [deg/s] [frames] [frames each way] [1: a line a frame]`: the mock mouse turns the view back and forth; each crosshair's move
 from frame to frame, RMS and most, and its hit's distance off the centre, pixels at 1080 rows). Test: `bash
 Misc/quakevr/flatxhair_test.sh <agent>` (one e1m1 run; `flatxhair_test: N passed, M failed`).
+
+## Force grab
+
+The grab key (`vr_flat_key_grab`) no longer pulls at once (his note 2026-11-10; `vr_flatfgrab.cpp`). The hand that will take it
+(the main one if it is free, else the off one, the game's own choice) first turns its open palm to what it pulls
+(`vr_flat_fg_turn_time`, 0.12 s); a hand on a held gun's two-handed grip lets go of it first and comes out beside the gun
+(`vr_flat_fg_detach_time`, 0.15 s more). Then the client asks for the grab with that hand (`impulse 57` the off hand, `58` the
+main; `46` still lets the game choose), and the beam and tendril start from the palm (`fgfx::palmOrigin`: the jointed hand's
+palm, in the headset too; flat play draws them from the hands as drawn). The pose holds, the palm on the flying object, until it
+is caught or missed, then eases back (`vr_flat_fg_release_time`). A hand pulling something takes no second grab (QC
+`VR_Forcegrab_FlatFree`): a second press goes to the other hand, or does nothing. The pose: Debug > Tunables > Flatscreen > Force
+Grab (`vr_flat_fg_*`; `vr_flat_fg_pose 0` the old instant grab).
+
+A pulled object's tumble settles back to how it lay over the flight's last `vr_forcegrab_settle` seconds (0.2), and it is caught
+at that turn, so its grip places it as a hand closing on it there would (headset too). A prop held in one hand is held up in
+front (Debug > Tunables > Flatscreen > Held Props, `vr_flat_carry_*`), and drawn in the hand as drawn
+(`held::followDrawnHands`, `vr_flat_carry_drawn`): the view's sway, bob and turn's lag carry it with the hand, where before it
+was drawn at the game's hand and bobbed, lagged or led as the mouse turned. `vr_flat_fg_report` (Debug > Reports) prints each
+hand's step; `vr_flat_fg_press` presses the key. Test: `vr_flatitems_test 6` (palm first, no double grab); scene
+`flat_force_grab`.
