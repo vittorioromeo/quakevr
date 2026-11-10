@@ -120,6 +120,8 @@ vr_wpnholster.qc
 vr_flatreload.qc
 // Flat-screen play's holsters (the holster menu's impulses): after vr_wpnholster.qc and vr_wpnforcegrab.qc.
 vr_flatholster.qc
+// Flat-screen play's quick grenade (G): after vr_grenade.qc's pouch grenade and vr_flatreload.qc.
+vr_flatgrenade.qc
 // The single-player test and debug impulses (ImpulseCommands calls VR_TestImpulse first).
 vr_impulse_test.qc
 weapons_test.qc

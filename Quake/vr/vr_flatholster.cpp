@@ -222,9 +222,16 @@ void click()
         }
         return;
     }
-    char cmd[32];
-    q_snprintf(cmd, sizeof(cmd), "impulse %d\n", impulseOf(*b));
-    Cbuf_InsertText(cmd);
+    if(b->act == Act::Swap)
+    {
+        flatplay::swapHands("the holster menu's SWAP"); // (3's own: the hands meet first, vr_flatswap.cpp)
+    }
+    else
+    {
+        char cmd[32];
+        q_snprintf(cmd, sizeof(cmd), "impulse %d\n", impulseOf(*b));
+        Cbuf_InsertText(cmd);
+    }
     st.clicks++;
     Con_DPrintf("flat holsters: %s (impulse %d)\n", b->name, impulseOf(*b));
 }

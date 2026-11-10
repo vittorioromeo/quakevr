@@ -198,6 +198,9 @@ enum Stat : int
     STAT_QVR_AMMOLAVA,   // Rogue's lava nails, multi-rockets and plasma carried (QC .ammo_lava_nails, .ammo_multi_rockets, .ammo_plasma): the
     STAT_QVR_AMMOMULTI,  // flat-screen visor's ammo grid (vr_gadget_visor.inc); 0 outside the mission pack
     STAT_QVR_AMMOPLASMA,
+    // Flat-screen play's quick grenade (QC vr_flatgrenade.qc .vr_flatgren; vr_flatgrenade.cpp): its phase (1 the hand to the
+    // pouch, 2 held, 3 armed, 4 wound up, 5 thrown: the follow-through; 0 none) + 8 when it is the main hand's.
+    STAT_QVR_FLATGREN,
     STAT_QVR_END
 
 };

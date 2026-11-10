@@ -868,6 +868,14 @@ za::Vector<Item> pageDebugReports()
             .help("vr_flatholster_test: the holster menu driven by the mouse (needs the shotgun in the right hand and the "
                   "nailgun in the left: Misc/quakevr/flatholster_test.sh sets it up): DROP, L, R, SWAP, the weapon keys, "
                   "a hand's DROP, the time scale; ends \"flatholster_test: N passed, M failed\"."),
+        command("Flatscreen Grenade Report", "vr_flatgrenade_report")
+            .help("vr_flatgrenade_report: the quick grenade's phase and hand as the game sends them, each hand's shares of "
+                  "the pouch trip, the held place, the wind-up and the follow-through, and G's presses."),
+        row(opt::vr_flat_grenade_debug),
+        command("Flatscreen Swap Report", "vr_flatswap_report")
+            .help("vr_flatswap_report: the hand swap's animation (running, which kind, sent, seen, its share) and the swap "
+                  "key's presses."),
+        row(opt::vr_flat_swap_debug),
         row(opt::vr_flat_reload_pose),
         row(opt::vr_handsource_debug),
         row(opt::vr_handsource_force),
