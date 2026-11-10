@@ -7862,6 +7862,49 @@ His notes 2026-11-10, items 1, 2 and 10 (flat-screen play; docs/vr-port/FLATPLAY
   press, three clicks with it open, closes on the next press, Esc closes). flathands 43/0, flatkeys 37/0, flatitems 9/0.
   Scenes: `flat_holsters_pick`, `flat_holsters_toggle`.
 
+## Flat-screen: blood at point blank (his note 2026-11-10; branch `agent/flat_blood2`)
+
+His note: "Even setting both vr_particle_near_fade and vr_particle_near_cull to 0 still results in some blood particles not
+spawning if for example I stand really close to a ragdoll and shoot it."
+
+- **Measured, not reproduced.** New `vr_flatblood_test 1` (QC/vr_flatblood_test.qc; Debug > Tests > Blood at Point Blank):
+  a live grunt (aimed at its chest) and a settled corpse ragdoll (aimed at a point on its root bone's surface: a ragdoll's
+  box middle can lie between its limbs and a shot there misses it) shot with the shotgun, super shotgun and nailgun from
+  60, 30, 12 and 4 units (eye level distance less 16), a fresh target each, through the real flat path (+attack, the view
+  turned onto it, 36 frames for the flat hand to settle). Per shot: the impacts' blood the game sent (`vr_blood_sent`), and
+  the client's blood particles made and made where the view draws them (new `vr_blood_tally`, `vr_blood_tally_drawn`: every
+  blood emitter, `particles::blood`, `bloodTrail`, `bloodMist`, `bloodDrip`, `bloodSpecks`, `bloodDroplet`, counted as made,
+  drawn = ahead of the eye past `vr_nearclip` and outside `vr_particle_near_cull`). Flat (fade and cull 0, mist near 0):
+  24/0. Every shot at 4/12/30 sent its pellets' blood (6 shotgun, 14 super shotgun, 1 nail) and made as many particles as
+  at 60 (grunt shotgun 975 at 60, 1026 at 4; super shotgun 2348 / 2309; corpse shotgun 719 / 736); drawn 94-100 % of made
+  at 4 units (the rest made behind the eye's plane, the spray's spread round a hit 10-20 units off the eye).
+- **The suspects checked:** no spawn gate near the eye in the particles (`spawn`, `blood`, `mist`: only `vr_gore_mist_near`,
+  default 0 since agent/flat_gibs), in the client's particle message (vr_client.cpp) or the wounds. At point blank the flat
+  shot's start eases onto the crosshair ray (vr_flatsight.cpp `shotFrom`) and the pellets still hit (vr_debug_shots: all on
+  the grunt / corpse at 4 units, none on the world); the start-inside rule (FireBulletsImpl `xStartHits`, the hit model's
+  `startInside`) holds. Not checked: particles hidden behind the gun's view model.
+- **Headset, compared** (the same test without -flatscreenmode: the mock hand placed the same distance off, the gun's own
+  shot from it; printed, not judged): the grunt bleeds the same at 4 as at 60 (shotgun 971 / 1023, super shotgun 2284 /
+  2138); the corpse too at 4 (shotgun 2724, super shotgun 3922) but the mock hand's aim misses a lying corpse's limb now and
+  then at any range (one 30-unit shotgun shot 0), and the nailgun fired directly makes no nail in this harness.
+- **Config:** his `quakevr/ironwail.cfg` has no `vr_gore_mist_near` line: he plays at the default, 0. The tests' local
+  `quakevr/ironwail.cfg.baseline` (untracked) still has `vr_gore_mist_near "40"`; the test's script sets 0.
+- **His repro** ("in the vrfiringrange map, I had killed a grunt, then I was crouching over his dead body and shooting it
+  with a shotgun"): `vr_flatblood_test 2` (case 12, the corpse's shotgun shot from 60, then cases 24-27) crouches (`+flatcrouch`)
+  over a settled corpse, his eye 20, 12, 6 and 3 units off the point level (pitch 52, 73, 81, 85 down; the eye 11-25 over
+  it), one tap of the shotgun each. Every pellet still hits the body (`vr_debug_shots`: 6 on it, 0 the world) and bleeds:
+  6-7 blood sent, 686-862 particles, all drawn (from 60: 6 sent, 650-720 particles on a plain hit; more when a pellet cuts a
+  limb or gibs, so the check is per pellet: every pellet's blood, at least 60 particles each). `vr_flatblood_test 3` takes a
+  picture 4 frames after each crouched shot: the spray is all over the view, the near drops big. What can hide part of it
+  there: the off hand's arm and the gun, drawn over the world, cover the lower half of the view right where the body lies at
+  his feet (occlusion, not a spawn gate). Still not reproduced as a drop.
+- **The test's earlier "startup hangs"** were the test running silently: `VR_Test_Begin` prints its lines only with
+  `developer 1`, and the run without it outlasted the 300 s timeout under the low-impact mode (the author's game up). Now
+  `VR_Test_BeginFlags(..., VR_TEST_LOUD)`; a shot is a one-frame tap (holding +attack until the ammo changed fired the
+  shotgun ten times a case).
+- **Open:** what he saw is not yet pinned down. Candidates left: the arm and gun over the hit at his feet (a picture from
+  him would tell), the particle pool's cap after many gibs (`vr_limits`), the blood decals (not counted).
+- Scene `flat_blood_pointblank`.
 ## Flat-screen: the two-handed melee grip, and the right mouse button's parry guard (his notes 2026-11-10, items 2 and 3; branch `agent/flat_parry`)
 
 - **Item 2, "the two-handed melee holding spot seems to default to the 'sword' hotspot, not the 'grip' one."** Two ways a

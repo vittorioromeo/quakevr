@@ -32,6 +32,7 @@ dispatch vr_flatgate_test QC/vr_flatgate_test.qc VR_FlatGateTest_Frame ask
 dispatch vr_selfshot_test QC/vr_selfshot_test.qc VR_SelfShotTest_Frame ask
 dispatch vr_projinherit_test QC/vr_projinherit_test.qc VR_ProjInheritTest_Frame ask
 dispatch vr_flatmove_test QC/vr_flatmove_test.qc VR_FlatMoveTest_Frame ask
+dispatch vr_flatblood_test QC/vr_flatblood_test.qc VR_FlatBloodTest_Frame ask
 
 vr_embed_test    1        vr_embed_test.qc                 embedded blades: thrown swords, sag, bodies, cuts, plates, vr_embed 0
 vr_embed_test    2        vr_embed_test.qc                 the pictures' scene: a sword in the wall, one in a corpse
@@ -709,3 +710,6 @@ vr_flatmove_test 3        vr_flatmove_test.qc              flat-screen: out of t
 vr_flatmove_test 4        vr_flatmove_test.qc              flat-screen: his eyes' height under a ceiling once settled, the ceiling's, his box
 vr_flatmove_test 8        vr_flatmove_test.qc              flat-screen test aid: deep water near him (room to swim 128 up and down)
 vr_flatmove_test 9        vr_flatmove_test.qc              flat-screen test aid: the spots near him where the water jump lifts him out, with their yaw
+vr_flatblood_test 1       vr_flatblood_test.qc             blood at point blank: a grunt and a corpse shot with the shotgun, super shotgun, nailgun at 60/30/12/4 units, its particles made and drawn
+vr_flatblood_test 2       vr_flatblood_test.qc             blood at point blank, his repro: crouched over a corpse, the shotgun down at it from 20/12/6/3 units (after the 60-unit corpse shot)
+vr_flatblood_test 3       vr_flatblood_test.qc             test aid: as 2, with a picture of each crouched shot's blood 4 frames after it

@@ -12,6 +12,41 @@ using namespace detail;
 namespace detail
 {
 
+// vr_blood_tally / vr_blood_tally_drawn (diagnostics; vr_flatblood_test): the blood particles an emitter made (those
+// past `before` in the pool), and those made where the view draws them: ahead of the eye past the near plane
+// (vr_nearclip), not inside the near cull (vr_particle_near_cull).
+void tallyBlood(za::SizeT before)
+{
+    if(pool.size() <= before)
+    {
+        return;
+    }
+    vec3_t f, r, u;
+    AngleVectors(r_refdef.viewangles, f, r, u);
+    const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+    const glm::vec3 fwd{f[0], f[1], f[2]};
+    const float cull = nearLimits().cull;
+    const float nearPlane = za::max(vr_nearclip.value, 0.f);
+    int drawn = 0;
+    for(za::SizeT i = before; i < pool.size(); i++)
+    {
+        const glm::vec3 d = pool[i].org - eye;
+        drawn += glm::dot(d, fwd) > nearPlane && glm::length(d) >= cull ? 1 : 0;
+    }
+    Cvar_SetValueQuick(&vr_blood_tally, vr_blood_tally.value + static_cast<float>(pool.size() - before));
+    Cvar_SetValueQuick(&vr_blood_tally_drawn, vr_blood_tally_drawn.value + static_cast<float>(drawn));
+}
+
+// Tallies what the emitter it is made in makes (tallyBlood), as it returns.
+struct BloodTally
+{
+    za::SizeT before = pool.size();
+    BloodTally() = default;
+    BloodTally(const BloodTally&) = delete;
+    BloodTally& operator=(const BloodTally&) = delete;
+    ~BloodTally() { tallyBlood(before); }
+};
+
 // Blood let in a liquid (water::bloodInLiquid, vr_water_blood: one point test a burst, not a particle): its spray
 // slowed to a stop in a few tenths of a second, sinking slowly, growing bigger and fainter and lasting a few seconds:
 // a slowly blooming cloud. (Blood crossing a surface on its way, a ragdoll half in: not yet; BACKLOG.md.)
@@ -34,6 +69,7 @@ void soak(Particle& p, float lifeMult)
 
 void blood(const glm::vec3& org, const glm::vec3& dir, int count)
 {
+    const BloodTally tally; // (vr_blood_tally)
     const bool wet = water::bloodInLiquid(org);
     mist(org, dir, count, wet);
     constexpr int colors[] = {247, 248, 249, 250, 251};
@@ -90,6 +126,7 @@ void blood(const glm::vec3& org, const glm::vec3& dir, int count)
 // Behind a flying gib, a few steps apart: a faint smear left in the air and drops falling from it.
 void bloodTrail(const glm::vec3& org, const glm::vec3& dir, int count)
 {
+    const BloodTally tally; // (vr_blood_tally)
     constexpr int colors[] = {247, 248, 249, 250, 251};
     const bool wet = water::bloodInLiquid(org); // (a gib sinking: a trail of little clouds, hanging)
     make(static_cast<float>(count), [&](Particle& p, int) {
@@ -215,6 +252,7 @@ void sparkles(const glm::vec3& org, int count, int lo, int hi, float alphaLo, fl
 
 void bloodMist(const glm::vec3& org, const glm::vec3& dir, int count)
 {
+    const BloodTally tally; // (vr_blood_tally)
     if(enabled())
     {
         lastMistTime = -1.0; // (asked for: never merged with the last)
@@ -224,6 +262,7 @@ void bloodMist(const glm::vec3& org, const glm::vec3& dir, int count)
 
 void bloodDrip(const glm::vec3& org, float fall, float floorZ, float size, const glm::vec3& color, float alpha)
 {
+    const BloodTally tally; // (vr_blood_tally)
     if(!vr_particles.value || !ensureAtlas())
     {
         return;
@@ -246,6 +285,7 @@ void bloodDrip(const glm::vec3& org, float fall, float floorZ, float size, const
 
 void bloodSpecks(const glm::vec3& org, const glm::vec3& normal, int count, const glm::vec3& color, float alpha)
 {
+    const BloodTally tally; // (vr_blood_tally)
     if(!vr_particles.value || !ensureAtlas())
     {
         return;
@@ -269,6 +309,7 @@ void bloodSpecks(const glm::vec3& org, const glm::vec3& normal, int count, const
 
 void bloodDroplet(const glm::vec3& org, const glm::vec3& vel, float size, float life, const glm::vec3& color, float floorZ, bool wet)
 {
+    const BloodTally tally; // (vr_blood_tally)
     if(!vr_particles.value || pool.size() >= maxParticles || !ensureAtlas())
     {
         return;

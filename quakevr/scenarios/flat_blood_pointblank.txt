@@ -1,0 +1,14 @@
+# flat_blood_pointblank: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Blood at point blank (vr_flatblood_test 1 measures it: each shot's blood particles made and drawn at 4, 12, 30 units as at 60). ROUND24.md, "Flat-screen: blood at point blank".
+title Blood at point blank: guns, grunts close by
+hint Play with -flatscreenmode (or the headset). Kill one grunt, crouch (Left Ctrl) over its ragdoll and shoot down into it; walk right up to a live one too. Shoot each from as close as you can with the shotgun, then the super shotgun (2), then the nailgun: each shot bleeds as much as from a few steps back. Particle Fade Near Eyes and Particles Hidden Nearer are 0 here.
+map vrtesthall
+god
+give "Shotgun" main
+give "Super Shotgun" main
+give "Nailgun" main
+cvar vr_gore_mist_near 0
+cvar vr_particle_near_fade 0
+cvar vr_particle_near_cull 0
+spawn "Grunt" 80 0
+spawn "Grunt" 110 50
+spawn "Grunt" 110 -50
