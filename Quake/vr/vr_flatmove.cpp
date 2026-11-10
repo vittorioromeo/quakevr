@@ -1010,7 +1010,9 @@ void roughTestFrame()
 // body share and the crouched trunk's squat floor switched: vr_avatar_pitch.cpp, solveTorso).
 // `vr_flatslide_ramp_test 1` prints every frame.
 constexpr float rampBendMost = 0.5f; // (the crouch and slide drop easing in bend the view by 0.3: smooth; a bounce off the ramp bends it by a unit and more)
-constexpr float rampGunBendMost = 0.5f;
+// (0.6: the slide's guns are the crouch's, riding the eye (ROUND24.md, "Flat slide: the arms ride the eye"), and the crouch
+// bends the gun 0.55 in the frame it arrives at its full depth: one kink, not a shake.)
+constexpr float rampGunBendMost = 0.6f;
 
 struct RampRun
 {
@@ -1164,6 +1166,9 @@ void rampTestFrame()
                 if(t.verbose)
                 {
                     const glm::vec3& g = t.gun[t.n];
+                    // (Short, unwrapped: the gun from the view and the slide's shares.)
+                    Con_Printf("flatslide_ramp: g %d %d %.3f %.3f %.3f share %.3f drop %.2f stance %.2f crouch %.3f\n", t.run, t.n, g.x, g.y, g.z, slideShare(),
+                        slideDrop(), flatsight::stanceYaw(), flatplay::crouchRatio());
                     const glm::vec3& sh = t.shoulder[t.n];
                     const glm::vec3& pv = t.pelvis[t.n];
                     // (And what is drawn: the main hand with its looks and the arm's hold, the skinned body's main arm and leg.)

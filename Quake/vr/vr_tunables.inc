@@ -2130,9 +2130,11 @@ QVR_TUNABLE(vr_flat_slide_body_angle, "80") // the slide: the trunk leant back a
 QVR_TUNABLE(vr_flat_slide_hip_floor, "4.5") // the slide: units the hips (the pelvis joint) sit over the floor, the buttocks on it: the trunk leans back about the neck until they are there (0..12)
 QVR_TUNABLE(vr_flat_slide_turn_smooth, "0.15") // the slide: seconds the hips and legs take to follow a change of the slide's way or of the view (95%; 0: at once, the old steps)
 QVR_TUNABLE(vr_flat_gun_ahead_slide, "0") // the held weapon in a slide: moved this far forward of its pose (units, -30..30), by the slide's share; vr_flat_gun_down_slide, vr_flat_gun_out_slide the same down and out
-QVR_TUNABLE(vr_flat_gun_down_slide, "6") // the held weapon in a slide: moved this far down (units, -30..30; positive is lower)
-QVR_TUNABLE(vr_flat_gun_out_slide, "2") // the held weapon in a slide: moved this far out at the holding hand's side (units, -30..30)
-QVR_TUNABLE(vr_flat_slide_neck_back, "10") // the slide: how far behind the eye the leant-back trunk hangs from (units, 0..20): the chest under the view, the legs in front seen past it
+QVR_TUNABLE(vr_flat_gun_down_slide, "0") // the held weapon in a slide: moved this far down (units, -30..30; positive is lower)
+QVR_TUNABLE(vr_flat_gun_out_slide, "0") // the held weapon in a slide: moved this far out at the holding hand's side (units, -30..30)
+QVR_TUNABLE(vr_flat_slide_arms, "1") // the slide: 1 the arms and guns posed as he crouches at the slide's eye, riding it (the trunk's lean back not in them); 0 off the leant-back trunk's shoulders (as before 2026-11-10)
+QVR_TUNABLE(vr_flat_slide_gun_roll, "0") // the held weapon in a slide: rolled this far about its bore, its top out to its hand's side (degrees, -45..45), by the slide's share; its shots stay on the crosshair
+QVR_TUNABLE(vr_flat_slide_neck_back, "7") // the slide: how far behind the eye the leant-back trunk hangs from (units, 0..20): the chest under the view, the legs in front seen past it
 QVR_TUNABLE(vr_flat_slide_body_time, "0.2") // the slide: seconds the body and the view take into the slide pose and out of it
 QVR_TUNABLE(vr_flat_slide_leg_reach, "0.993") // the slide: the legs out in front reach this share of their length from hip to foot, the foot on the floor (0.85..1; 1: dead straight, less bends the knees up)
 QVR_TUNABLE(vr_flat_slide_turn_time, "0.12") // the slide: seconds the two-handed stance's turn of the torso takes to go (and come back after): sliding, the trunk faces the view or the slide's way

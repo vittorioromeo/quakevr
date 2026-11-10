@@ -7701,6 +7701,53 @@ His feedback of 2026-11-10, items 7, 8, 9, 10 and 22 (FLATPLAY.md, "Sliding", ha
   and checks the bent one (30..150 deg) instead. Its "slide: no bob (the pelvis 2.69 .. 4.50)" fails on origin/next
   (2e84384d4) as well: not this branch's, left alone. Scenarios `flat_slide_hit`, `flat_slide_stamina` validate (SCNOK).
 
+## Flat slide: the arms ride the eye (branch `agent/slide_pose`, worktree `phases`, 2026-11-10)
+
+His words: "We recently tweaked the leaning weapon pose to make it look more natural, do we have the same issues for the
+sliding pose? The weapons look a bit off in terms of pose."
+
+**Measured** (new `vr_flatslidepose_test`, below; each gun in the screen's frame: right, up, forward of the view's angles,
+off the pose's eye; crouched still against mid-slide; vrtesthall's floor):
+
+| | crouched | slide before (defaults) | slide before, Gun Down/Out Slide 0 | slide now |
+|---|---|---|---|---|
+| shotgun, level | (3.9, -2.6, 2.0) | (5.8, -6.3, 2.3) | (3.9, -0.4, 1.1) | (3.8, -2.8, 2.1) |
+| shotgun, 30 down | (3.9, -2.5, 5.1), pitch 4.5 | (6.4, -8.2, 5.0), pitch 13.2 | (4.4, -2.9, 3.6) | as crouched (20 down: 0.25 off) |
+| two shotguns, level (main) | (5.2, -4.2, 12.5) | (6.7, -8.0, 7.7) | (4.7, -2.1, 6.3) | (5.3, -4.4, 12.5) |
+
+**What was wrong.** The shoulders the arms stand on came off the slide's leant-back trunk, which hangs from a neck
+`vr_flat_slide_neck_back` behind the eye: two guns came 6 units nearer the eye and 2 higher, one shotgun 2 higher; Gun Down
+Slide 6 and Gun Out Slide 2 then put them back down and out, so mid-slide two guns sat 5 units nearer the face and 4 lower
+than crouched, the shotgun 4 lower, and looking down the shotgun pitched 9 degrees up off its crouched angle (its shot
+0.13 degrees off the crosshair's point). No view roll or pitch is in the slide, so nothing turned the drawn hands apart
+from the pose; drawn and pose agreed (as crouched).
+
+**Now** (`vr_flatplay.cpp` poseHands, the lean's `LeanRig` reused): with `vr_flat_slide_arms` 1 (default) the hands are
+posed as he crouches -- at the crouch's eye (the slide's drop taken back), the body solved without the slide in it
+(new `avatar::SlideOff`, a scope that takes the lean back and the neck back out of `bodyPitch` for `restShoulders` and the
+torso's clearances; `avatar::slideIn`), the stance's turn the slide eases out of the trunk given back -- then moved down
+with the eye by the slide's drop (the rig's shift, no turn). The guns aim from there as ever (the crosshair's point). Posed
+at the slide's lower eye instead (tried first) the crouched trunk tilts further forward: the guns 3 higher, 4 further out.
+Gun Down Slide and Gun Out Slide now default 0 (the slide's own offsets on top of this). New `vr_flat_slide_gun_roll` (0;
+the top out to the hand's side, kept by the aim: `flatplay::gunRoll(h)`, which replaces `gunLeanRoll` and also carries the
+lean's roll; flatsight's aimAtPoint takes it per hand). `vr_flat_slide_neck_back` 10 -> 7: from the leant-back trunk's
+shoulders the drawn arms could not quite reach the crouched hands (the arm's hold pulled the drawn gun in on 34 of 44
+frames on the level run, under 0.5 units); at 7, none. Not done: pitch and yaw offsets for the slid gun (a turned gun's
+shots leave the crosshair: drawn = pose); Gun Forward / Down / Out Slide already move it.
+
+**Test** `vr_flatslidepose_test [x y z yaw] [keep] [shots] [level] [main:off ...]` (`vr_flatleanpose.cpp`, sharing the lean
+test's pair giving; in `flatslide_test.sh` on vrtesthall's floor and e1m1's spiral ramp): a shotgun, two shotguns, two
+nail pistols; level, 20 down, 20 up; crouched still, then a slide sampled at 0.1 s, 0.35 s and 3 frames before its end:
+each gun mid and at the end within 1 unit of the crouched one on the screen (pose and drawn), its drawn-off-pose no more
+than 1 beyond the crouched's, its roll within 1.5 degrees, firing through the crosshair's point (0.25 degrees). The slide's
+own offsets are zeroed for the run ("keep" leaves them). Not 30 down: from the slide's lower eye the floor's point is
+nearer than the muzzles, which then aim as at a wall (2-7 degrees of yaw, the shots on the point). Looking up or down the
+arm's hold pulls a crouched gun in too (1.5-3.4 units drawn off the pose at 30 up, crouched or sliding): not the slide's.
+Before/after frames: `scratch/shots_before.png`, `scratch/shots_after.png` (crouched, slide start, mid; one shotgun, then
+two). `vr_flatslide_ramp_test`: its gun limit 0.5 -> 0.6 a frame: the slide's guns are now the crouch's, and the crouch
+bends the gun 0.55 the frame it reaches full depth (0.24 s in; `vr_flatslide_ramp_test 1` prints the gun, the shares, the
+stance and the crouch per frame); the drawn hand's jitter 0.17-0.25 cm rms (0.20-0.31 before), no arm holds.
+
 ## Standing up under a low ceiling (branch `agent/vn1110_ceiling`, worktree `lowceil`, 2026-11-10)
 
 His notes vrteleporters_2026-11-10_01-54-06 (crawling in the 20-high vent, getting up physically hits the teleporter

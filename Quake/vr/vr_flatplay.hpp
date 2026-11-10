@@ -203,9 +203,10 @@ void poseHands(hands::State& s, const glm::vec3& aim);
 void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles);
 // Where drawnOffset drew hand `h` last (world; before a wall's tilt): vr_flatleanpose_test's drawn guns.
 [[nodiscard]] glm::vec3 drawnHand(int h);
-// Leaning (Q / E), the held guns' roll about their bore, degrees: vr_flat_lean_gun_roll of the view's lean roll
-// (flatmove::leanRoll). poseHands turns the hands with it and flatsight's aim at the crosshair's point keeps it. 0 otherwise.
-[[nodiscard]] float gunLeanRoll();
+// Hand `h`'s gun's roll about its bore, degrees (as the view's roll): leaning (Q / E), vr_flat_lean_gun_roll of the view's
+// lean roll (flatmove::leanRoll); sliding, vr_flat_slide_gun_roll by the slide's share, its top out to its hand's side.
+// poseHands turns the hands with it and flatsight's aim at the crosshair's point keeps it. 0 otherwise.
+[[nodiscard]] float gunRoll(int h);
 
 // The tilt at a wall drawnOffset gave hand `h` last (flatsight::wallTilt; identity outside the mode), and the drawn hand's
 // move by it (`shift`): the view puts the hotspot it placed on that drawn weapon back off it, so the game's two-handed grip

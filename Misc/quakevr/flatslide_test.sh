@@ -14,6 +14,9 @@
 #          away from it, and facing a wall he stands against (either way), the eye goes all of vr_flat_lean_dist out.
 #          vr_flatleanmouse_test: leant (right and left, level and pitched) a pure up, down or across mouse move moves
 #          the middle of the screen along the rolled screen's axis; upright and with vr_flat_lean_mouse 0, Quake's own.
+#   slidepose vr_flatslidepose_test on vrtesthall's floor and e1m1's spiral ramp (a shotgun, two shotguns, two nail
+#          pistols; level, 20 down, 20 up): mid-slide and at its end each gun within 1 unit of the crouched one on the
+#          screen, drawn too, its roll within 1.5 degrees, firing through the crosshair's point.
 #   pose   vr_flatleanpose_test in vrtesthall (a shotgun alone, two shotguns, two nail pistols, two grunt's guns): leant
 #          full left and right each gun's pose and drawn hand stay within 1 unit of the upright one moved rigidly with the
 #          eye (vr_flat_lean_arms, vr_flat_lean_arms_pivot), fire, the shot on the crosshair's point; leant into and away
@@ -78,6 +81,14 @@ out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatleanpose: [0-9]+ passed" -
     -Script "$H; vr_flatleanpose_test; wait30000; toggleconsole; quit" 2>&1)
 echo "$out" | grep -a "^flatleanpose.*FAIL"
 expect_verdict "$out" "flatleanpose" "lean pose: guns move rigidly with the eye and fire on the crosshair, alone and dual; none stopped at a wall"
+
+# The slide's pose (vr_flatslidepose_test, Quake/vr/vr_flatleanpose.cpp): vrtesthall's open floor and e1m1's spiral ramp.
+for where in "vrtesthall|-580 -440 24 0" "e1m1|900 2048 -150 0"; do
+    out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatslidepose: [0-9]+ passed" -Timeout 300 -Filter "^flatslidepose: (FAIL|[0-9]+ passed)" \
+        -Script "vr_flat_holsters 0; map ${where%%|*}; wait60; god; notarget; cl_alwaysrun 1; vr_stamina_speed 0; vr_flat_slide_stamina 0; wait10; vr_flatslidepose_test ${where#*|}; wait90000; toggleconsole; quit" 2>&1)
+    echo "$out" | grep -a "^flatslidepose.*FAIL"
+    expect_verdict "$out" "flatslidepose" "slide pose (${where%%|*}): the guns ride the eye as crouched, the drawn as the pose, on the crosshair"
+done
 
 for where in "vrtesthall|" "vrslopes|setpos 208 24 80 0 90 0"; do
     out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatpronedual: [0-9]+ passed" -Timeout 300 -Filter "^flatpronedual" \
