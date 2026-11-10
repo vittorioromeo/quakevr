@@ -8118,3 +8118,24 @@ His note on `vr_flatblood_test 3`'s picture: "the particles seem like red square
   hand keeps its shotgun, whose pose moves after bullet time, so the old base (shot 3) saw the gun in the middle. It is
   now read against a new shot 7, the same moment at viewsize 120.
 - Tests: flathud 11/0, visor_test 32/0, flatitems 9/0, `vr_pp_test 1` 63/0; Release-TracyFull builds.
+
+## Flat: the open guns' pose, the revolver's hammer and its shells' timing (branch `agent/flat_ssg_pose`, worktree `flatwall`, 2026-11-10)
+
+- **The open pose** (his words: "smoothly adjust the pitch/yaw/roll of the gun at the same time to give it a more
+  natural pose"): `Quake/vr/vr_flatreload.cpp` `OpenPose`, from the server's state (the super shotgun's
+  QVR_WPNFLAG_SSG_OPEN, the revolver's STAT_QVR_REVOLVER swung-out bit): `vr_flat_ssg_open_{pitch,yaw,roll,fwd,up,out}`
+  (-10, 12, -15, 0, 3, -1: raised, turned in, the breech's face shown; picked from a strip of three tries, the muzzle
+  tipped down sank it out of the view) over `_in_time` / `_out_time` (0.2 s each); the left hand's yaw, roll and out
+  mirrored. The revolver's `vr_flat_rv_open_*` are all 0 (its swung-out cylinder already reads well). Drawn, and the
+  server sees the hand so (as the reload trip's), but the gun can't fire open; its crosshair is held on the centre and
+  dimmed as a reloading gun's.
+- **The hammer "goes down instantly"**: not the flat_revolver_eject change. The revolver drawn in its parts copies the
+  gun's entity each frame, frame blending too, and the gun itself isn't drawn, so its blending never moved on: every
+  hammer frame was put on at once (the probe, `vr_reload_debug 3` "revolver frames:", showed poses 0 0 blend 1 through a
+  pull). The frame part now keeps its own blending from frame to frame (`setRevolverPart`): the hammer cocks and falls
+  over the renderer's usual blend, in VR and flat, ADS or not. (Cocked for vr_revolver_cock_time 0.05 s, shorter than a
+  blend: the fall starts from the full cock.)
+- **The shells as the cylinder opens**: they now leave once it is fully out (the drawn swing, 95 degrees at 700 a second)
+  and `vr_flat_revolver_eject_delay` (0.1 s) after (`VR_FlatReload_RvOpen` / `RvEjectFrame`).
+- Tests: flatreload_test.sh adds `ssgpose` (both hands in in 0.2 s, mirrored, out again after R) and `hammer` (the blend
+  part-way over the frames after each pull, the second in ADS), and the shells' timing on `revempty` and `revolver`.
