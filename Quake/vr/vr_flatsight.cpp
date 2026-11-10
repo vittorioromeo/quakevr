@@ -1549,7 +1549,7 @@ void centreOnSight(hands::State& s, const glm::vec3& aim)
     // (Hands on the body: from the rest shoulder, which the free hand's own place doesn't move. The posed one swings to its hand, so
     // the need read lower with the hand on the hotspot than off it, and the hand snapped between the two.)
     avatar::Skeleton k;
-    const glm::vec3 root = !flatplay::onBody() && avatar::skeleton(k) ? k.shoulder[helper] : flatplay::shoulderOf(s, helper);
+    const glm::vec3 root = !flatplay::onBody() && flatplay::drawnSkeleton(s, k) ? k.shoulder[helper] : flatplay::shoulderOf(s, helper);
     return glm::distance(root, at) / za::max(flatplay::armReach(), 1.f);
 }
 

@@ -226,8 +226,14 @@ struct Skeleton
     glm::vec3 toe[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // the foot's tip, as posed (the bloody footprints' way and length)
     float sole[2]{0.f, 0.f};                          // the ankle's height over the sole, world units
     unsigned steps[2]{0u, 0u}; // each foot's touchdowns so far: the walk's swings ending, the standing steps (counting up)
+    glm::vec3 head{0.f};       // the head it was posed under (hands::State::head)
 };
 [[nodiscard]] bool skeleton(Skeleton& out);
+// The same body carried by the head's move since it was posed, to under `head` (this frame's hands::State::head): for
+// what is placed before this frame's body is posed (flatplay::drawnOffset's arm hold, flatsight's helping hand). The body
+// as drawn is a frame old there, and a frame's move (a slide at 400 u/s, a long frame) is units: a frame-time-dependent
+// offset, jitter (measured 2026-11-10, ROUND24.md "Slide jitter"). Its pose is the old one; its place is this frame's.
+[[nodiscard]] bool skeletonUnder(const glm::vec3& head, Skeleton& out);
 
 // The drawn body as last posed, skinned here as the shader does (world units, the eye views' collapsed neck and head), for a
 // test (vr_flat_sweep): the vertices, three indices a triangle, and per triangle its part: 0 the torso and legs, 1 the neck and
