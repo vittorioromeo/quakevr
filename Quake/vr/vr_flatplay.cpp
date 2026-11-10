@@ -125,6 +125,13 @@ struct FlatState
     glm::vec3 local[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     float hang[2]{0.f, 0.f}; // how far an empty hand has gone to hanging at rest (poseHands)
     float guard[2]{0.f, 0.f}; // that rest's share of the guard (vr_flat_empty_hand_pose: 1 the guard, 0 relaxed), eased
+    // The melee parry's guard (vr_flat_parry_*): each hand's linear share of the way into it (0..1; parryShare eases it),
+    // whether the right mouse button asks for it, and the times it was last asked for and last reached (the status).
+    float parry[2]{0.f, 0.f};
+    bool parryWant[2]{false, false};
+    double parryAskedAt[2]{-1e9, -1e9};
+    double parryReachedAt[2]{-1e9, -1e9};
+    int parries{0};              // guards raised this session (vr_flatplay_status)
     float wallBack[2]{0.f, 0.f}; // how far an empty hand is back towards its shoulder off a wall (units; handOffWall)
     float wallDepth[2]{0.f, 0.f}; // and how deep in it the pose had it this frame (units, its margin in; the status prints it)
     glm::vec3 shoulders[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // the arms' joints this pose stands on (avatar::restShoulders)
@@ -932,6 +939,97 @@ constexpr float dualProneTurnMost = 45.f;
     const glm::vec3 f1 = f * za::cos(p) + u * za::sin(p), u1 = u * za::cos(p) - f * za::sin(p);
     const glm::vec3 f2 = f1 * za::cos(y) + r * za::sin(y), r2 = r * za::cos(y) - f1 * za::sin(y);
     return hands::anglesFromVectors(f2, u1 * za::cos(z) + r2 * za::sin(z));
+}
+
+// The melee parry's guard (vr_flat_parry; his notes 2026-11-10): the right mouse button held with one melee weapon (where a
+// gun's ironsight is) raises it almost level across the view in front of the chest and face, its edge forward, and
+// releasing it brings it back to the hold. Asked for this frame by hand `h`: the button, held in the game, routed to the
+// ironsight (one weapon held, nothing else on the button: flatplay::routeFire), the hand holding a melee weapon and not
+// swinging it (a press of the fire button swings out of the guard), nor on a trip of its own (a reload, the hands' swap).
+[[nodiscard]] bool parryAsked(int h)
+{
+    return vr_flat_parry.value != 0.f && meleeIn(h) && loneWeaponHand() == h && key_dest == key_game &&
+           client::offhandButton() && routeFire(false, false).rmbAims && !punching(h) && !shoving(h) && !flatreload::busy(h) &&
+           !flatswap::busy();
+}
+
+// One frame's step of the guard's share (fs.parry, linear): in over vr_flat_parry_in_time, out over _out_time (0: at once).
+void stepParry(int h, float dt)
+{
+    const bool want = parryAsked(h);
+    if(want && !fs.parryWant[h])
+    {
+        fs.parryAskedAt[h] = vr_gametime;
+        fs.parries++;
+    }
+    fs.parryWant[h] = want;
+    const float time = za::clamp((want ? vr_flat_parry_in_time : vr_flat_parry_out_time).value, 0.f, 2.f);
+    const float step = time > 0.f ? dt / time : 1.f;
+    const float was = fs.parry[h];
+    fs.parry[h] = za::clamp(fs.parry[h] + (want ? step : -step), 0.f, 1.f);
+    if(want && was < 1.f && fs.parry[h] >= 1.f)
+    {
+        fs.parryReachedAt[h] = vr_gametime;
+        if(vr_flatplay_debug.value)
+        {
+            Con_Printf("flatparry: %s hand in the guard, %.3f s after the button\n", h == HAND_MAIN ? "main" : "off",
+                vr_gametime - fs.parryAskedAt[h]);
+        }
+    }
+}
+
+[[nodiscard]] glm::vec3 blendAngles(const glm::vec3& a, const glm::vec3& b, float k);
+
+// The guard over the hold just posed: the hand vr_flat_parry_fwd ahead of the eye, _up above it and _out at its own side
+// (in the frame the hands are placed in; within the arm's reach of `root`, its shoulder), and the weapon's own line (its
+// hand to its tip, as the view placed it: flatsight::muzzleInHand) laid level across the view towards the other side,
+// its tip _yaw forward of straight across and _pitch up off level, the weapon rolled about that line by _roll -- whatever
+// way the weapon stands in the hand (a sword's blade and an axe's haft stand up the hand; the super axe's leans forward):
+// the hand first rolled a quarter turn inwards from the hold (the least turn that lays a haft standing up the hand across;
+// a weapon not yet placed keeps that), then turned the least way that lays the line where it is asked. By the share,
+// eased both ways. The parry itself is the game's, as a headset's guard held there (QC VR_Parry_Blocks, vr_dirparry.qc):
+// the pose is all it reads, so a blow it meets is parried, stamina and all. The pose's motion is the view's
+// (vr_handsource.hpp): it strikes nothing.
+void parryPose(hands::State& s, int h, const glm::vec3& root, const glm::vec3& eye, const glm::vec3& fwd, const glm::vec3& right,
+    const glm::vec3& up, float yaw)
+{
+    const float share = geom::smooth01(fs.parry[h]);
+    if(share <= 0.f)
+    {
+        return;
+    }
+    const float side = h == HAND_OFF ? -1.f : 1.f;
+    const auto offset = [](const Tunable& t) { return za::clamp(t.value, -40.f, 40.f); };
+    glm::vec3 at = eye + fwd * offset(vr_flat_parry_fwd) + up * offset(vr_flat_parry_up) + right * (side * offset(vr_flat_parry_out));
+    const glm::vec3 d = at - root;
+    const float most = za::max(4.f, armSpan()) * 0.98f, len = glm::length(d);
+    if(len > most)
+    {
+        at = root + d * (most / len);
+    }
+    s.pos[h] += (at - s.pos[h]) * share;
+
+    // The line asked for: across, level (the view's yaw alone: a look up or down keeps it level), towards the other side.
+    glm::vec3 levelFwd, levelRight, levelUp;
+    hands::angleVectors({0.f, yaw, 0.f}, levelFwd, levelRight, levelUp);
+    const float y = glm::radians(za::clamp(vr_flat_parry_yaw.value, -89.f, 89.f));
+    const float p = glm::radians(za::clamp(vr_flat_parry_pitch.value, -89.f, 89.f));
+    const glm::vec3 flatWay = -side * levelRight * za::cos(y) + levelFwd * za::sin(y);
+    const glm::vec3 way = flatWay * za::cos(p) + levelUp * za::sin(p);
+    glm::vec3 guard = turnedHand(s.rot[h], {0.f, 0.f, -90.f}, side);
+    if(glm::vec3 tip; flatsight::muzzleInHand(h, tip))
+    {
+        glm::vec3 f, r, u;
+        hands::angleVectors(guard, f, r, u);
+        const glm::vec3 now = glm::normalize(f * tip.x + r * tip.y + u * tip.z);
+        const float c = za::clamp(glm::dot(now, way), -1.f, 1.f);
+        const glm::vec3 axis = glm::cross(now, way);
+        const glm::quat lay = glm::length(axis) > 1e-5f ? glm::angleAxis(za::acos(c), glm::normalize(axis))
+                                                        : glm::quat{1.f, 0.f, 0.f, 0.f};
+        const glm::quat roll = glm::angleAxis(glm::radians(za::clamp(vr_flat_parry_roll.value, -180.f, 180.f)) * side, way);
+        guard = hands::anglesFromVectors(roll * (lay * f), roll * (lay * u));
+    }
+    s.rot[h] = blendAngles(s.rot[h], guard, share);
 }
 
 // A shoving hand's angles: the palm to `toTarget`, the fingers up (vr_flat_shove_palm_up above level; vr_flat_shove_palm_turn
@@ -1889,6 +1987,16 @@ bool meleeIn(int h)
     case WID_SUPERAXE: return true;
     default: return false;
     }
+}
+
+bool swungMelee(int h)
+{
+    return h >= 0 && h < HAND_COUNT && meleeIn(h) && heldWid(h) != WID_CHAINSAW;
+}
+
+float parryShare(int h)
+{
+    return h >= 0 && h < HAND_COUNT ? geom::smooth01(fs.parry[h]) : 0.f;
 }
 
 bool punching(int h)
@@ -2966,6 +3074,13 @@ void poseHands(hands::State& s, const glm::vec3& aim)
                 sideOf);
         }
 
+        // The melee parry's guard (vr_flat_parry_*: the right mouse button held), over the hold; a swing goes from it.
+        if(dt > 0.0)
+        {
+            stepParry(h, static_cast<float>(dt));
+        }
+        parryPose(s, h, shoulder(s, h) + nudge, eye, fwd, right, up, aim.y);
+
         // A weapon's overhead swing (vr_flat_swing): its own way round the shoulder from where the hand is posed, the
         // weapon turned up over the head and down through the strike (overheadSwing).
         if(fs.punchOverhead[h] && punching(h))
@@ -3459,6 +3574,17 @@ void status_f()
                "keyboard, not from bindings; each hand's punch starts from V, from its fire button with a weapon a swing "
                "strikes with (LMB / +attack the main hand, RMB / +offhandattack the off hand), or from vr_flat_punch.\n",
         fs.grabs, fs.punches[HAND_MAIN], fs.punches[HAND_OFF]);
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        // The melee parry's guard (vr_flat_parry_*): RMB held with one melee weapon.
+        if(meleeIn(h) || fs.parry[h] > 0.f)
+        {
+            Con_Printf("  parry guard: %s hand %s, share %.2f (vr_flat_parry %g, in %g s, out %g s; raised %d times)%s\n",
+                h == HAND_MAIN ? "main" : "off", fs.parryWant[h] ? "asked for" : "not asked for", parryShare(h),
+                vr_flat_parry.value, vr_flat_parry_in_time.value, vr_flat_parry_out_time.value, fs.parries,
+                fs.parryReachedAt[h] >= fs.parryAskedAt[h] && fs.parryAskedAt[h] > -1e8 ? "" : ", not reached yet");
+        }
+    }
     const int lone = loneWeaponHand();
     Con_Printf("  The mouse: %s (one weapon held, either hand: LMB fires it, RMB the ironsight, vr_flat_aim_mode %g %s; "
                "else LMB the right hand, RMB the left). %s pressed %d times (vr_flat_key_swap: the hands swapped), %s %d "

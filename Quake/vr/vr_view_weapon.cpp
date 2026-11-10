@@ -1115,7 +1115,30 @@ void chooseGrip(const WeaponFrame& wf)
             chosenGripSlot[hand] = slot;
         }
         const bool holdsOne = twohand::helping(1 - hand) && chosen >= 0 && weapons::isGripType(worldHotspots[hand][chosen].type);
-        if(!holdsOne)
+        // Flatscreen play, a melee weapon swung by its handle (flatplay::swungMelee: the axe, Mjolnir, the swords, the
+        // crowbar, the super axe, AD's blades): always its grip, the one lowest on the handle (least far along the line from
+        // the holding hand to its tip), never one further up near the head, whichever the free hand hangs nearest (his
+        // notes 2026-11-10: the two-handed hold took the "sword" spot, not the grip). A headset's hand chooses as before.
+        int lowest = -1;
+        if(flatplay::active() && vr_flat_melee_grip.value != 0.f && flatplay::swungMelee(hand) && s.muzzleValid[hand])
+        {
+            const glm::vec3 toTip = s.muzzle[hand] - held.pos;
+            float least = 1e30f;
+            for(int i = 0; i < weapons::maxHotspots; i++)
+            {
+                const float along = glm::dot(worldHotspots[hand][i].pos - held.pos, toTip);
+                if(weapons::isGripType(worldHotspots[hand][i].type) && i != magSpot[hand] && along < least)
+                {
+                    least = along;
+                    lowest = i;
+                }
+            }
+        }
+        if(lowest >= 0)
+        {
+            chosen = lowest;
+        }
+        else if(!holdsOne)
         {
             float best = 1e30f;
             for(int i = 0; i < weapons::maxHotspots; i++)

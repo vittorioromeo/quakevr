@@ -1,0 +1,8 @@
+# flat_melee_grip: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one" (FLATPLAY.md, "Parry guard")
+title Flat-screen two-handed melee grip: an axe in your hand, a knight to swing at
+map vrtesthall
+god
+notarget
+give "Axe" main
+spawn "Knight" 120
+hint Swing the axe (fire) until the free hand takes it two-handed: it holds the grip just above your other hand, never up by the head. Then try a sword the same way: never on its blade.

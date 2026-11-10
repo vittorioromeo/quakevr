@@ -49,6 +49,10 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach);
 // the hand before the next placing carries it by. Nothing outside the mode.
 void notePlaced(const hands::State& s);
 
+// Hand `h`'s weapon's muzzle (a melee weapon's tip) in that hand's own frame (forward, right, up), as the view last placed
+// it (notePlaced); false while none is known.
+[[nodiscard]] bool muzzleInHand(int h, glm::vec3& out);
+
 // vr_view.cpp, the frame's weapons placed, the hands still as drawn: each weapon's sight line in its hand's frame, what the
 // ironsight is solved from. Nothing outside the mode.
 void noteDrawn(const hands::State& s);

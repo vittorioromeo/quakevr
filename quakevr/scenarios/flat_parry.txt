@@ -1,0 +1,7 @@
+# flat_parry: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one" (FLATPLAY.md, "Parry guard")
+title Flat-screen parry guard: a sword grunt attacks you, a knight's sword in your hand
+map vrtesthall
+god
+give "Knight's Sword" main
+spawnarmed monster_vr_grunt 13 0 90
+hint Hold the right mouse button: the sword comes up level across your view, and the grunt's blows on it are parried (a clang, it staggers). Let go: back to the hold, and its blows land.

@@ -92,7 +92,7 @@ console.
 | Key | |
 |---|---|
 | mouse LMB | with **one weapon held, in either hand**, fires it; with a weapon in each hand, or none, fires the right hand (as in VR). With a weapon a swing strikes with in the hand it drives â€” an empty hand (the fist), the axe, the maul, the sword, the crowbar, the super axe â€” it is also the punch `V` makes |
-| mouse RMB | with **one weapon held, in either hand**, the ironsight: held while the button is held (`vr_flat_aim_mode 0`, the default) or a click on and the next off (`1`; VR Settings > Locomotion, Desktop Screen Play > Right Click Ironsight), and it fires nothing; with a weapon in each hand, or none, fires the left hand (as in VR; the same punch with a swinging weapon or the fist) |
+| mouse RMB | with **one weapon held, in either hand**, the ironsight: held while the button is held (`vr_flat_aim_mode 0`, the default) or a click on and the next off (`1`; VR Settings > Locomotion, Desktop Screen Play > Right Click Ironsight), and it fires nothing; with a weapon in each hand, or none, fires the left hand (as in VR; the same punch with a swinging weapon or the fist) With **one melee weapon** held it is the parry's guard instead (since 2026-11-10; see "Parry guard"). |
 | `Q`, `E` | lean left and right while held (`vr_flat_lean_toggle 1`: a press leans, the next stands straight): see Leaning below. The keys are `vr_flat_key_lean_left` and `vr_flat_key_lean_right` (default `q`, `e`; `""` none); `+flatleanleft` / `+flatleanright` hold them from the console. E was the force grab (now mouse 4, `R` too) and Quake's `+moveup` (dropped from the default binds: jump swims up) |
 | `3` | swaps what the two hands hold (`impulse 48` â†’ `VR_FlatSwapHands`, `QC/vr_wpnholster.qc`): each weapon with its magazine and its next shot's time; one weapon goes to the empty hand. A hand carrying a box or a prop keeps it and nothing swaps (`H` lets it go). The key is `vr_flat_key_swap` (a bind name, default `3`; `""` none). 3 was the third weapon's slot key (`impulse 3`): in the mode the weapons are reached with `1`, `2` and the mouse wheel, which cycle through every weapon collected, the third included |
 | `Z` | starts and stops bullet time (`vr_bullettime.cpp keyPress`): the headset's own rules â€” `vr_bullettime_enabled`, a single-player game, the meter's `vr_bullettime_min`, the cooldown, the bounce guard `vr_bullettime_trigger_cooldown` â€” and its meter is the status bar's bar (below). The key is `vr_flat_key_bullettime` (default `z`). Z was bound to nothing before |
@@ -986,3 +986,31 @@ as it changes hands), they ease back over `vr_flat_swap_out` to their own poses,
 places are kept in the body's level frame off the head, so a turn carries them. No fire meanwhile. Not drawn (the swap at
 once) with `vr_flat_swap_anim 0`, both hands empty, a carried thing, a reload or the quick grenade under way.
 `vr_flat_swap_debug 1`, `vr_flatswap_report`. Test: `Misc/quakevr/flathands_test.sh` (swap1, swap2h, swapdual, swapoff).
+
+## Parry guard
+
+His notes 2026-11-10: "When holding a single melee weapon, make holding the right mouse button result in a parrying pose
+that holds the weapon almost horizontally in front of the player." The right mouse button held with one melee weapon (the
+axe, Mjolnir, a sword, the crowbar, the super axe, the chainsaw, AD's blades; either hand; `vr_flat_parry 1`) raises it
+into a guard over `vr_flat_parry_in_time` (0.15 s) and lets it back to the hold over `_out_time` (0.2 s) when let go
+(`flatplay::parryPose`, over the hold in `poseHands`; a swing goes from it, and while the hand swings the guard eases out).
+The hand stands `vr_flat_parry_fwd` (14) ahead of the eye, `_up` (-3) above it and `_out` (6) out at its own side; the
+weapon's own line (its hand to its tip, as the view placed it: `flatsight::muzzleInHand`) is laid level across the view
+towards the other side, its tip `_yaw` (10) degrees forward of straight across and `_pitch` (5) up, the weapon rolled
+`_roll` (0) about that line: whatever way the weapon stands in the hand (a sword's blade and an axe's haft stand up it, the
+super axe's leans forward), the hand is first rolled a quarter turn inwards and then turned the least way that lays the
+line there. Nothing parries for it: the game's parry reads the pose, as a headset's guard held there (QC
+`VR_Parry_Blocks`, the directional parry of `vr_dirparry.qc`), so the blows it meets are parried with the stamina, the
+counter's window and the stagger as in VR, and the hold's upright weapon parries no more than it did (a knight's chop
+lands). Not while dual wielding (the button fires the off hand there). Debug > Tunables > Flatscreen > Parry Guard;
+`vr_flatplay_status` prints a "parry guard:" line per hand holding a melee weapon, `vr_flatplay_debug 1` the time the
+guard was reached. Test: `Misc/quakevr/flatparry_test.sh <agent>` (the guard per weapon by QC's probe, `impulse 249`; a
+sword grunt's and a knight's first blow); scene `flat_parry`.
+
+The two-handed grip (the same notes: "The two-handed melee holding spot seems to default to the 'sword' hotspot, not the
+'grip' one"): with `vr_flat_melee_grip 1` the free hand on a melee weapon swung by a handle always takes its grip, the
+hotspot lowest on the handle (least far along the line from the holding hand to the tip: the axe's, Mjolnir's and the
+super axe's hs1 just above the holding hand, not hs2 up by the head; a sword's and the crowbar's hs1 below it), never the
+one the hanging hand happens to be nearest (`chooseGrip`, `vr_view_weapon.cpp`), and `vr_twohand`'s sword grips never take
+the blade (the half-sword grip, hs2) on the flat screen. A headset's hand chooses as before. `vr_flatplay_status` prints
+"melee grip: hs1 (type 1), the free hand on that grip". Scene `flat_melee_grip`.

@@ -846,6 +846,17 @@ int twoHandSpot(const hands::State& s, int hand, glm::vec3& at)
     return best;
 }
 
+int chosenGripSpot(int hand, int& type)
+{
+    type = 0;
+    if(hand < 0 || hand >= HAND_COUNT || chosenGrip[hand] < 0 || chosenGrip[hand] >= weapons::maxHotspots)
+    {
+        return -1;
+    }
+    type = static_cast<int>(worldHotspots[hand][chosenGrip[hand]].type);
+    return chosenGrip[hand];
+}
+
 bool drawnHandPose(int hand, glm::vec3& pos, glm::vec3& rot)
 {
     const GhostDrawn& d = ghostDrawn[hand];
