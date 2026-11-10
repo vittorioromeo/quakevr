@@ -347,6 +347,23 @@ QVR_CVAR(vr_obs, "1", CVAR_ARCHIVE)                    // 1: while a menu is ope
 QVR_CVAR(vr_obs_port, "4455", CVAR_ARCHIVE)            // obs-websocket's port (OBS's default 4455)
 QVR_CVAR(vr_obs_password, "", CVAR_ARCHIVE)            // obs-websocket's password (OBS: Show Connect Info), if its authentication is on. Kept in the config in plain text; never printed
 QVR_CVAR(vr_obs_process_check, "1", CVAR_NONE)         // 1: on this PC, connect only while OBS's process runs (obs64.exe), and say when its WebSocket server is off; 0: always try; 2 (test aid): act as if OBS were running
+QVR_CVAR(vr_obs_mock, "0", CVAR_NONE)                  // 1 (tests): no OBS; requests answered by a mock that prints each and makes dummy recording files in vr_obs_mock_dir
+QVR_CVAR(vr_obs_mock_dir, "", CVAR_NONE)               // the mock's recording folder ("": <game dir>/obsmock)
+// Takes and clips for trailers (vr_takes.cpp; TRAILER.md, "Takes and clips"): OBS's recordings as named, rated takes.
+QVR_CVAR(vr_takes, "1", CVAR_ARCHIVE)                  // 1: each OBS recording is a take: renamed <date>_<scene>_t<NN>_<rating>, rated keep / maybe / reject; 0: OBS's files left alone
+QVR_CVAR(vr_take_scene, "", CVAR_NONE)                 // the scene's name in the takes' names ("": the map's)
+QVR_CVAR(vr_takes_replay, "1", CVAR_ARCHIVE)           // 1: OBS's replay buffer kept on while connected (vr_clip saves its last seconds); 0: left as OBS has it
+QVR_CVAR(vr_takes_light, "1", CVAR_ARCHIVE)            // 1: a recording light while a take runs and the rating prompt after (headset: only in it, not the mirror; flat: a corner); 0: none
+QVR_CVAR(vr_takes_light_size, "1", CVAR_ARCHIVE)       // the light's and the prompt's size (times the default)
+QVR_CVAR(vr_takes_light_right, "-0.33", CVAR_ARCHIVE)  // headset: where the light is, right of the view's middle (share of the distance)
+QVR_CVAR(vr_takes_light_up, "0.27", CVAR_ARCHIVE)      // headset: and up
+QVR_CVAR(vr_takes_light_dist, "1.2", CVAR_ARCHIVE)     // headset: and how far (metres)
+QVR_CVAR(vr_takes_prompt_time, "10", CVAR_ARCHIVE)     // seconds the rating prompt shows after a take or a clip (0: never)
+QVR_CVAR(vr_takes_gadget, "1", CVAR_ARCHIVE)           // 1: the wrist gadget's screen shows the takes' touch buttons while a take session is open (vr_takes_session); 0: never
+QVR_CVAR(vr_takes_chord, "1", CVAR_ARCHIVE)            // in/out marks by controller during a take: 1 both thumbsticks clicked (in, then out); 2 off-hand stick click while the off grip is held; 0 off
+QVR_CVAR(vr_takes_clip_seconds, "30", CVAR_ARCHIVE)    // a clip's length on the timeline when OBS does not say (its Replay Buffer's Maximum Replay Time)
+QVR_CVAR(vr_takes_connect_wait, "5", CVAR_ARCHIVE)     // seconds an action waits for OBS's connection (a take asked for before it is connected)
+QVR_CVAR(vr_takes_keys, "0", CVAR_ARCHIVE)             // the take keys' version set (F7 take, F8 clip, Home in, PgUp out, keypad 1/2/3 keep/maybe/reject): set once where unbound
 // Slow motion (vr_timescale.cpp; ROUND21.md, "Slow motion"): the whole simulation slowed (the server, the client's time,
 // VR's own simulations on vr_gametime); the headset's view in real time; the hands follow their controllers slowed.
 QVR_CVAR(vr_timescale, "1", CVAR_NONE)                 // the game's time per real second (0.05 .. 4; 1 normal); single player. Not saved: a game never starts slowed

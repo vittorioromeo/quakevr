@@ -78,6 +78,7 @@
 #include "vr_mapindex.hpp"
 #include "vr_update.hpp"
 #include "vr_obs.hpp"
+#include "vr_takes.hpp"
 #include "vr_renderdoc.hpp"
 #include "vr_modelwatch.hpp"
 #include "vr_blender.hpp"
@@ -2342,6 +2343,7 @@ extern "C" void VR_Init()
     mapindex::registerCommands(); // maps_list, maps_info, maps_stats, maps_fetch
     update::registerCommands(); // vr_update_status, vr_update_check_now, vr_update_compare (vr_update.cpp)
     obs::registerCommands(); // vr_obs_status, vr_obs_toggle, vr_obs_connect (vr_obs.cpp)
+    takes::registerCommands(); // vr_take, vr_clip, the ratings and marks (vr_takes.cpp)
     renderdoc::registerCommands(); // vr_renderdoc_capture, vr_renderdoc_status (vr_renderdoc.cpp)
     modelwatch::registerCommands(); // vr_model_watch_status (vr_modelwatch.cpp)
     blender::registerCommands(); // vr_edit_in_blender, vr_model_show, vr_blender_test (vr_blender.cpp)
@@ -2904,6 +2906,7 @@ extern "C" void VR_HostFrameEnd()
     qvr::mapindex::poll(); // the map index the fetch thread finished, taken here (vr_mapindex.cpp)
     qvr::update::poll(); // the update check's answer (vr_update.cpp)
     qvr::obs::poll(); // OBS's recording state, and the menus' state to its thread (vr_obs.cpp)
+    qvr::takes::frame(); // the takes: OBS's answers and events, pending moves (vr_takes.cpp)
     qvr::renderdoc::poll(); // the delayed RenderDoc capture (vr_renderdoc.cpp)
     qvr::modelwatch::frame(); // vr_model_watch: a loaded model whose file changed read again (vr_modelwatch.cpp)
     qvr::blender::frame(); // vr_blender_link: the Blender add-on's Show in Game (vr_blender.cpp)

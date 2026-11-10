@@ -2,6 +2,7 @@
 // vr_voicenotes.cpp -- see vr_voicenotes.hpp.
 
 #include "vr_voicenotes.hpp"
+#include "vr_takes.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
@@ -334,6 +335,7 @@ void start(bool fromButton)
     za::String when;
     newBase(when);
     saveContext(baseName, when);
+    takes::voiceNote(baseName.cStr()); // (a take running: its time kept in the take, vr_takes.cpp)
 
     recording = true;
     byButton = fromButton;

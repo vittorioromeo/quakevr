@@ -1241,6 +1241,28 @@ static void SCR_DrawRelight (void)
 
 /*
 ==============
+SCR_DrawTakes -- QVR: flat play's take light and rating prompt, small in the top right corner (vr_takes.cpp)
+==============
+*/
+static void SCR_DrawTakes (void)
+{
+	const float red[3] = {1.f, 0.1f, 0.1f};
+	int light = 0;
+	float s = 1.f, x;
+	const char *text = VR_TakesIndicator (&light, &s);
+
+	if (!text)
+		return;
+
+	GL_SetCanvas (CANVAS_TOPRIGHT); // (the top left holds the notify lines)
+	x = 320.f - 4.f - 8.f * s * (float) strlen (text);
+	if (light && fmod (realtime, 1.0) < 0.7)
+		Draw_FillEx (x - 8.f * s, 4.f, 6.f * s, 6.f * s, red, 1.f);
+	Draw_StringEx (x, 4.f, 8.f * s, text);
+}
+
+/*
+==============
 SCR_DrawCrosshair -- johnfitz
 ==============
 */
@@ -2339,6 +2361,7 @@ void SCR_UpdateScreen (void)
 		SCR_DrawFPS (); //johnfitz
 		SCR_DrawSaving ();
 		SCR_DrawRelight (); // QVR
+		SCR_DrawTakes (); // QVR
 	}
 
 	Draw_ResetClipping (); // QVR: (and flushed) a clip rectangle left on (a mod's QC without drawresetcliparea) would cut the canvas's draw into the window and the next frame's clears

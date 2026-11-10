@@ -9,6 +9,9 @@ Tools to save editing time on gameplay footage:
    files (nothing re-encoded).
 3. **Slow motion's sound** (in the game): the game's sound as at normal speed, in the game's time, for footage
    recorded slowed and sped up in editing; and how to speed the recording's own sound up in Resolve.
+4. **Takes and clips** (in the game, through OBS): each recording a numbered take of a scene, rated keep / maybe /
+   reject as you go; "clip that" from OBS's replay buffer; in and out marks. A session ends with a small, clean set of
+   files.
 
 ## 1. Highlight markers
 
@@ -165,6 +168,64 @@ Even sped up exactly, the slowed sound isn't the game at normal speed: everythin
 HRTF, the near field, the reverb, Quake's 5 kHz lowpass for its 11 kHz sounds, the limiter) worked on the slowed
 sound, so sped up those effects land at the wrong frequencies and times (ROUND21.md, "Slow motion's sound for
 editing": measured). The game-time file has none of that.
+
+## 4. Takes and clips
+
+For acting scenes out: several takes per scene, each started and stopped from the game, rated while you're still in
+it, so a session ends with the good takes named and the bad ones out of the way (`Quake/vr/vr_takes.cpp`).
+
+### Setting up OBS (once)
+
+- **WebSocket:** Tools > WebSocket Server Settings > Enable WebSocket server (the game connects as the menus' OBS row
+  does: Graphics > Recording, OBS; `vr_obs_password` if authentication is on).
+- **Replay buffer** (for Clip That): Settings > Output > Replay Buffer > Enable Replay Buffer. Its **Maximum Replay
+  Time** is a clip's length (the game reads it; 20-30 s is a good start). The game starts and stops the buffer itself
+  (`vr_takes_replay`).
+- **Format:** record to MP4 (or Hybrid MP4 / fragmented MP4 in OBS 30+), which Resolve imports directly; leave
+  "Automatically remux to mp4" off (the game renames the file OBS reports, not a remuxed copy made after).
+
+### A take
+
+- **Start / stop:** `vr_take` (F7; VR: the wrist gadget's TAKE / STOP; Graphics > Recording > Start or Stop a Take).
+  Any recording OBS makes while `vr_takes` is on is a take, its own hotkey's too.
+- **While it runs:** a small blinking red light with the scene and the time, in the headset only (never the mirror or
+  the spectator camera, so OBS never records it); flat play: a small top-right line (which OBS does record:
+  `vr_takes_light 0` for clean shots). Size and place: `vr_takes_light_size`, `_right`, `_up`, `_dist`.
+- **After it:** the rating prompt (`vr_takes_prompt_time` s): **keep** (keypad 1, `vr_take_keep`, gadget KEEP),
+  **maybe** (keypad 2), **reject** (keypad 3). A rating goes to the last take or clip; rate again to change it;
+  `vr_take_rate <rating> <number>` rates an earlier take of this scene.
+- **Names:** in OBS's recording folder, `<date>_<scene>_t<NN>_<rating>.<ext>`: `2026-11-10_e1m1_t03_keep.mp4`. The
+  scene is `vr_take_scene` (set it: `vr_take_scene door-breach`), else the map's name; letters, digits and `-`. Numbers
+  go on per scene and date, past the files already in the folder (its `rejected/` and `session_*/` too). A take not yet
+  rated is `_unrated`. **Reject** moves it to `<folder>/rejected/`: nothing is ever deleted.
+
+### Clip that
+
+`vr_clip` (F8; gadget CLIP; Graphics > Recording > Clip That) saves OBS's replay buffer: the last Maximum Replay Time
+seconds, whatever you were doing. It is named as a take with the rating `clip` (`..._t04_clip.mp4`) and rated like one
+(keep, maybe, reject). The buffer runs while a take session is open (below); the first `vr_clip` with it off starts it
+(that clip holds nothing yet: press again later).
+
+### In and out marks
+
+During a take, `vr_take_in` (Home) and `vr_take_out` (PgUp) keep the moment (seconds from the take's start), and ask
+OBS for a chapter there (`CreateRecordChapter`: OBS 30.2+, Hybrid MP4 only; elsewhere OBS refuses and only the take
+keeps them). VR: the gadget's IN / OUT, or the chord (`vr_takes_chord`): hold the left grip and press X (in) or Y
+(out); 2: the right grip with A / B. Those presses never reach the game, and only during a take. `vr_take_list`
+prints the session's takes with their marks.
+
+### The session
+
+`vr_takes_session start` (Graphics > Recording > Start Take Session; the first take or clip opens one too) keeps OBS's
+connection and its replay buffer on, and shows the take buttons on the wrist gadget's screen in place of the HUD
+(`vr_takes_gadget`; touch them as Doom's). The gadget is in the spectator camera's view: its HIDE button brings the HUD
+back until the next take ends. `vr_takes_session end` lists the session and stops the replay buffer.
+
+### Tests
+
+`vr_obs_mock 1` answers every OBS request in the game (no OBS: each request printed, dummy recording files in
+`vr_obs_mock_dir`). `vr_takes_test <folder>` runs takes, marks, ratings, a clip and the numbering against it
+(`run.sh <tree> -Script "vr_takes_test <folder>" -QuitOn "vr_takes_test: \d+ passed"`).
 
 ## Notes
 

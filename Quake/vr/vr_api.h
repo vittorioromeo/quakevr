@@ -175,6 +175,10 @@ void VR_FileCacheDerived (int on);	// a limb model's load in play (VR_LatePrecac
 // The in-game relighting's line outside the menu on a flat screen (vr_relight.cpp; gl_screen.c SCR_DrawRelight): its text
 // ("RELIGHT 3/12 45% 2:10") and how far it is (0..1), or null when none runs, the wrist gadget shows it, or a menu does.
 const char *VR_RelightIndicator (float *fraction);
+// Flat play's take light and rating prompt (vr_takes.cpp; gl_screen.c SCR_DrawTakes): its text, in *light whether a take
+// runs (the red light), in *scale its size (vr_takes_light_size); null when nothing shows (vr_takes_light 0, no take and
+// no prompt) or the headset shows it (in the headset alone: vr_stereo.cpp drawUi).
+const char *VR_TakesIndicator (int *light, float *scale);
 
 // The flatscreen ironsight (vr_flatsight.cpp, -flatscreenmode): the field of view to render at. For flatscreen play only
 // -- a headset's field of view is its own, and there the answer is the base fov given, whatever the player pressed.
