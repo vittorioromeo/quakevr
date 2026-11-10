@@ -7742,3 +7742,33 @@ seems to get bloody in other situations".
   0.8 of it: 16/0 (axe/dummy 856 -> 963, sword/dummy 210 -> 422, axe/grunt 1347 -> 1377, sword/grunt 496 -> 626). Before:
   the part-that-went-in checks and three keep checks fail. `embed1108` 24/0 (case 6, an axe into a ragdoll, fails now and
   then: the ragdoll's random pose).
+
+## Flat-screen: gibs on the blade, blood at the camera (his notes 2026-11-10, items 8 and 5; branch `agent/flat_gibs`)
+
+- **Item 8, gibs on the axe** ("bob up and down while walking and lag behind/forward ... they also look jittery"). The
+  same bug as the flat force-grabbed props: `skewerFrame` (vr_held.cpp, from `VR_RelinkHeld`) put each gib on the hand
+  as the frame began, and flat play's view then moved the drawn weapon by its sway, bob and turn lag
+  (`flatplay::drawnOffset`). Now `held::followDrawnHands` (the props' fix, `vr_flat_carry_drawn`) puts the skewered gibs
+  on the hand as drawn too: their place in the server's hand (`SkewerDrawn`) on `drawn.pos/rot`. Shared, not copied:
+  one function for the props and the gibs; VR untouched (its drawn hand is the tracked one; the call is flat-only).
+- **The jitter's source** measured: the new `vr_embed_probe_skewj` (cm the gib's place in the server's hand moved from one
+  frame to the next) is 0.003 cm in flat, fast mode and `-RealTime` (189 frames in 0.75 s): the server's skewer think is
+  consistent with the hand it reports; the jitter was the sway/lag mismatch, gone with it. With the headset the probe
+  shows 4.9 cm on a smooth stick turn and 48 cm on a 45-degree snap turn (the gib placed from the hand before the turn
+  for a frame): not changed here (VR unchanged by the brief), a candidate for a later look.
+- **Test** `vr_embed_test 29` (embed1108b) also runs in flat play (`-flatscreenmode`): the keys (+right, +forward; case 1
+  +speed for the snap turns), each case facing as the first did; flat checks the jitter too (<= 0.1 cm). Flat: 10/0, at
+  most 0.00 cm off (before, `vr_flat_carry_drawn 0`: 4.89 cm turning, 19.6 cm walking, 29.7 cm both; 6/4). Headset: 10/0
+  as before. `scratch1 29` takes a 4-picture strip of case 3 (the turn and the walk). Embed tests 26 31/0, 27 36/0,
+  31 4/0; 28 23/1 (case 6 "the axe stays in it, held", the same on origin/next without this branch).
+- **Item 5, blood near the camera.** Spawn-time gates near the eyes, all of them:
+  - `vr_gore_mist_near` (the gore page's "Mist Clear of Eyes", a developer row): the mist made no clouds within 40 units
+    of the eyes, 1.5 m: none from any blow in arm's reach. Default now 0 (always made). His config keeps 40 until he sets
+    it (`vr_gore_mist_near 0`). Measured (flat, `vr_gore_mist_test`): 0 clouds at 4 and 30 units with 40, 4 with 0.
+  - `vr_player_gore_eye_clear` (your own streams, drips and splashes near the face): default 0 already.
+  - None in the blood particles themselves (`particles::blood`, `make`), the gore events, the wounds or the QC: a hit's
+    blood 4 units from the eye makes its 781 particles either way (`vr_water_blood_spray 4`).
+  - Drawing only: `vr_particle_near_fade` 30 / `vr_particle_near_cull` 10 cm (his choice), `vr_particle_max_screen` 0.15
+    (shrinks, never hides). Flat's view uses the same eye (`r_refdef.vieworg`) and a near plane of `vr_nearclip` 0.1
+    units: no flat-only gate. With fade and cull 0 a spray 30 cm ahead draws there.
+- **Scene** `flat_skewer_gibs` (an axe, three grunts close by, `vr_gore_mist_near 0` for the scene).
