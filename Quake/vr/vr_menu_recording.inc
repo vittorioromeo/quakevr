@@ -43,7 +43,19 @@
         command("Start Take Session", "vr_takes_session start")
             .help("vr_takes_session start: OBS's connection kept, its replay buffer started (vr_clip), the wrist gadget's "
                   "take buttons shown. The first take or clip starts one too."),
-        command("End Take Session", "vr_takes_session end").help("vr_takes_session end: the session's takes listed; the replay buffer stopped."),
+        command("End Take Session", "vr_takes_session end")
+            .help("vr_takes_session end: the keep and maybe files moved to <OBS's folder>/session_<when>/ with session.json "
+                  "(every take, its rating, marks and voice notes with their transcripts) and timeline.fcpxml (Resolve: "
+                  "File > Import > Timeline: the keep takes trimmed to their in and out marks, then the maybe ones, the "
+                  "marks and voice notes as markers). The replay buffer stopped."),
+        command("Set Up Scene", "vr_take_setup")
+            .help("vr_take_setup: this moment saved as the scene's snapshot (a savegame, take_<scene>: the map, the "
+                  "toolgun's props, where you stand)."),
+        command("Retake", "vr_take_retake")
+            .help("vr_take_retake: the scene's snapshot loaded and a new take started as soon as it runs (Retake Delay "
+                  "later)."),
+        slider("Retake Delay", "vr_takes_retake_delay", 0.f, 5.f, 0.1f, "%.1f s")
+            .help("vr_takes_retake_delay: how long after a retake's snapshot is loaded its take starts."),
         toggle("Replay Buffer in a Session", "vr_takes_replay")
             .help("vr_takes_replay: OBS's replay buffer kept running while a take session is open, for Clip That."),
         toggle("Wrist Gadget Buttons", "vr_takes_gadget")

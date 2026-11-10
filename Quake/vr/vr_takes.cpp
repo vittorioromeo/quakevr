@@ -101,6 +101,7 @@ struct Session
     double clipSeconds{0.0};   // OBS's replay buffer's length (0: not known)
     bool replayActive{false};
     bool replayOurs{false};    // started by the session (stopped at its end)
+    double replaySince{-1.0};  // realtime it started (a clip holds no more than it has run)
     za::Vector<Take> takes;
     int current{-1}; // the take or clip a rating goes to
     int running{-1};
@@ -425,6 +426,10 @@ void replaySaved(const char* path)
     t.date = today();
     t.map = za::String{cl.mapname[0] ? cl.mapname : "menu"};
     t.length = session.clipSeconds > 0.0 ? session.clipSeconds : static_cast<double>(vr_takes_clip_seconds.value);
+    if(session.replaySince >= 0.0)
+    {
+        t.length = za::min(t.length, za::max(0.1, realtime - session.replaySince));
+    }
     t.started = realtime - t.length;
     session.takes.emplaceBack(static_cast<Take&&>(t));
     const int index = static_cast<int>(session.takes.size()) - 1;
@@ -465,6 +470,10 @@ void message(const za::String& text)
         }
         else if(type && state && !strcmp(type, "ReplayBufferStateChanged"))
         {
+            if(!strcmp(state, "OBS_WEBSOCKET_OUTPUT_STARTED"))
+            {
+                session.replaySince = realtime;
+            }
             session.replayActive = !strcmp(state, "OBS_WEBSOCKET_OUTPUT_STARTED") ||
                                    (session.replayActive && strcmp(state, "OBS_WEBSOCKET_OUTPUT_STOPPED"));
         }
@@ -667,6 +676,10 @@ void rate(Rating r, int number)
 
 // ---------------------------------------------------------------- commands
 
+void endSession();
+void setup_f();
+void retake_f();
+
 void take_f()
 {
     if(Cmd_Argc() > 1 && obs::ready())
@@ -756,7 +769,7 @@ void session_f()
             Con_Printf("vr_takes_session end: a take runs (stop it first)\n");
             return;
         }
-        closeSession();
+        endSession();
     }
     else
     {
@@ -832,6 +845,381 @@ bool indicatorLines(char (&line1)[64], char (&line2)[96], bool flat)
     return line1[0] || line2[0];
 }
 
+// ---------------------------------------------------------------- the session's end: its folder, session.json, FCPXML
+
+// A voice note's transcript (transcribe_notes.py's <note>.transcript.txt), its lines joined; "" until there is one.
+[[nodiscard]] za::String transcript(const za::String& base)
+{
+    za::String text;
+    if(!files::readText((base + ".transcript.txt").cStr(), text))
+    {
+        return {};
+    }
+    za::String out;
+    for(const char c : text.toStringView())
+    {
+        const bool space = c == '\n' || c == '\r' || c == '\t' || c == ' ';
+        if(!(space && (out.empty() || out[out.size() - 1] == ' ')))
+        {
+            out += space ? ' ' : c;
+        }
+    }
+    while(!out.empty() && out[out.size() - 1] == ' ')
+    {
+        out.popBack();
+    }
+    return out;
+}
+
+[[nodiscard]] za::String xmlText(za::StringView text)
+{
+    za::String out;
+    for(const char c : text)
+    {
+        switch(c)
+        {
+            case '&': out += "&amp;"; break;
+            case '<': out += "&lt;"; break;
+            case '>': out += "&gt;"; break;
+            case '"': out += "&quot;"; break;
+            case '\'': out += "&apos;"; break;
+            default: out += static_cast<unsigned char>(c) < 0x20 ? ' ' : c;
+        }
+    }
+    return out;
+}
+
+// A file's URL (file:///C:/Videos/a%20b.mp4): '/' between the parts, all but the unreserved characters escaped.
+[[nodiscard]] za::String fileUrl(const za::String& path)
+{
+    za::String out{"file://"};
+    if(!path.empty() && path[0] != '/')
+    {
+        out += "/";
+    }
+    for(const char c : path.toStringView())
+    {
+        const unsigned char u = static_cast<unsigned char>(c);
+        const bool plain = (u >= 'a' && u <= 'z') || (u >= 'A' && u <= 'Z') || (u >= '0' && u <= '9') || c == '-' || c == '_' ||
+                           c == '.' || c == '~' || c == '/' || c == ':';
+        if(plain)
+        {
+            out += c;
+        }
+        else
+        {
+            char hex[4];
+            q_snprintf(hex, sizeof(hex), "%%%02X", u);
+            out += hex;
+        }
+    }
+    return out;
+}
+
+// Seconds as FCPXML's rational time on the frame grid: frames * den / num seconds ("0s" for none).
+struct Rate
+{
+    za::I64 num{60}, den{1};
+    [[nodiscard]] za::I64 frames(double seconds) const { return static_cast<za::I64>(llround(seconds * static_cast<double>(num) / static_cast<double>(den))); }
+    [[nodiscard]] const char* time(za::I64 frames) const
+    {
+        return frames == 0 ? "0s" : va("%lld/%llds", static_cast<long long>(frames * den), static_cast<long long>(num));
+    }
+};
+
+// A take's in and out on its file: the first in mark and the first out mark after it (else its start and end).
+void inOut(const Take& t, double& in, double& out)
+{
+    in = 0.0;
+    out = t.length;
+    for(const Mark& m : t.marks)
+    {
+        if(m.kind == MarkKind::In)
+        {
+            in = m.t;
+            break;
+        }
+    }
+    for(const Mark& m : t.marks)
+    {
+        if(m.kind == MarkKind::Out && m.t > in)
+        {
+            out = m.t;
+            break;
+        }
+    }
+}
+
+[[nodiscard]] const char* markName(const Take& t, const Mark& m)
+{
+    int n = 0;
+    for(const Mark& o : t.marks)
+    {
+        n += o.kind == m.kind ? 1 : 0;
+        if(&o == &m)
+        {
+            break;
+        }
+    }
+    return va("%s %d", m.kind == MarkKind::In ? "In" : m.kind == MarkKind::Out ? "Out" : "Voice note", n);
+}
+
+[[nodiscard]] za::String sessionJson(const za::String& folder, bool fpsGuessed)
+{
+    za::String j{"{\n  \"session\": "};
+    j += obs::jsonString(session.stamp.toStringView());
+    j += ",\n  \"folder\": ";
+    j += obs::jsonString(folder.toStringView());
+    j += va(",\n  \"fps\": [%d, %d],\n  \"fps_from_obs\": %s,\n  \"width\": %d,\n  \"height\": %d,\n  \"timeline\": \"timeline.fcpxml\",\n  \"takes\": [",
+        session.fpsNum > 0 ? session.fpsNum : 60, session.fpsDen, fpsGuessed ? "false" : "true", session.width, session.height);
+    for(za::SizeT i = 0; i < session.takes.size(); i++)
+    {
+        const Take& t = session.takes[i];
+        double in, out;
+        inOut(t, in, out);
+        j += i ? ",\n    {" : "\n    {";
+        j += va("\"label\": \"%s\", \"number\": %d, \"clip\": %s, \"rating\": \"%s\", \"scene\": ", label(t), t.number,
+            t.clip ? "true" : "false", ratingNames[static_cast<int>(t.rating)]);
+        j += obs::jsonString(t.scene.toStringView());
+        j += ", \"map\": ";
+        j += obs::jsonString(t.map.toStringView());
+        j += ", \"file\": ";
+        j += obs::jsonString(t.path.toStringView());
+        j += va(", \"length\": %.3f, \"in\": %.3f, \"out\": %.3f, \"marks\": [", t.length, in, out);
+        for(za::SizeT k = 0; k < t.marks.size(); k++)
+        {
+            const Mark& m = t.marks[k];
+            j += va("%s{\"kind\": \"%s\", \"t\": %.3f, \"name\": \"%s\"", k ? ", " : "",
+                m.kind == MarkKind::In ? "in" : m.kind == MarkKind::Out ? "out" : "note", m.t, markName(t, m));
+            if(m.kind == MarkKind::Note)
+            {
+                const za::String said = transcript(m.text);
+                j += ", \"note\": ";
+                j += obs::jsonString(m.text.toStringView());
+                j += ", \"text\": ";
+                j += said.empty() ? za::String{"null"} : obs::jsonString(said.toStringView());
+            }
+            j += "}";
+        }
+        j += "]}";
+    }
+    j += "\n  ]\n}\n";
+    return j;
+}
+
+// The timeline (FCPXML 1.10, as DaVinci Resolve imports: File > Import > Timeline): the keep takes in order, then the
+// maybe takes, each trimmed to its in and out marks (the whole take without), its marks and voice notes as markers.
+[[nodiscard]] za::String timelineXml(const za::String& name)
+{
+    const Rate rate{session.fpsNum > 0 ? session.fpsNum : 60, session.fpsDen > 0 ? session.fpsDen : 1};
+    const int width = session.width > 0 ? session.width : 1920, height = session.height > 0 ? session.height : 1080;
+    za::Vector<const Take*> order;
+    for(const Rating r : {Rating::Keep, Rating::Maybe})
+    {
+        for(const Take& t : session.takes)
+        {
+            if(t.rating == r && !t.running && !t.path.empty())
+            {
+                order.emplaceBack(&t);
+            }
+        }
+    }
+    za::String x{"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE fcpxml>\n<fcpxml version=\"1.10\">\n  <resources>\n"};
+    x += va("    <format id=\"r1\" frameDuration=\"%s\" width=\"%d\" height=\"%d\"/>\n", rate.time(1), width, height);
+    for(za::SizeT i = 0; i < order.size(); i++)
+    {
+        const Take& t = *order[i];
+        x += va("    <asset id=\"r%d\" name=\"", static_cast<int>(i) + 2);
+        x += xmlText(files::fileName(t.path.toStringView()));
+        x += va("\" start=\"0s\" duration=\"%s\" hasVideo=\"1\" format=\"r1\" hasAudio=\"1\" audioSources=\"1\" "
+                "audioChannels=\"2\" audioRate=\"48000\">\n      <media-rep kind=\"original-media\" src=\"",
+            rate.time(za::max<za::I64>(1, rate.frames(t.length))));
+        x += xmlText(fileUrl(t.path).toStringView());
+        x += "\"/>\n    </asset>\n";
+    }
+    za::String spine;
+    za::I64 offset = 0;
+    for(za::SizeT i = 0; i < order.size(); i++)
+    {
+        const Take& t = *order[i];
+        double in, out;
+        inOut(t, in, out);
+        const za::I64 f0 = rate.frames(in), f1 = za::max(f0 + 1, rate.frames(out));
+        spine += va("            <asset-clip ref=\"r%d\" offset=\"%s\" name=\"", static_cast<int>(i) + 2, rate.time(offset));
+        spine += xmlText(files::fileName(t.path.toStringView()));
+        spine += va("\" start=\"%s\"", rate.time(f0));
+        spine += va(" duration=\"%s\" format=\"r1\">\n", rate.time(f1 - f0));
+        for(const Mark& m : t.marks)
+        {
+            const za::I64 f = rate.frames(m.t);
+            if(f < f0 || f >= f1)
+            {
+                continue; // (outside the trimmed clip: in session.json only)
+            }
+            const za::String said = m.kind == MarkKind::Note ? transcript(m.text) : za::String{};
+            spine += va("              <marker start=\"%s\" duration=\"%s\" value=\"", rate.time(f), rate.time(1));
+            spine += xmlText(said.empty() ? za::StringView{markName(t, m)} : said.toStringView());
+            if(m.kind == MarkKind::Note)
+            {
+                spine += "\" note=\"";
+                spine += xmlText(files::fileName(m.text.toStringView()));
+            }
+            spine += "\"/>\n";
+        }
+        spine += "            </asset-clip>\n";
+        offset += f1 - f0;
+    }
+    x += "  </resources>\n  <library>\n    <event name=\"";
+    x += xmlText(name.toStringView());
+    x += "\">\n      <project name=\"";
+    x += xmlText(name.toStringView());
+    x += va("\">\n        <sequence format=\"r1\" duration=\"%s\" tcStart=\"0s\" tcFormat=\"NDF\" audioLayout=\"stereo\" "
+            "audioRate=\"48k\">\n          <spine>\n",
+        rate.time(offset));
+    x += spine;
+    x += "          </spine>\n        </sequence>\n      </project>\n    </event>\n  </library>\n</fcpxml>\n";
+    return x;
+}
+
+// vr_takes_session end: the keep and maybe files moved to <folder>/session_<when it opened>/ with session.json and
+// timeline.fcpxml; rejected/ and the unrated takes and clips stay where they are (listed in session.json).
+void endSession()
+{
+    if(!session.open)
+    {
+        Con_Printf("takes: no session open\n");
+        return;
+    }
+    za::String base = session.recordDir;
+    for(const Take& t : session.takes)
+    {
+        if(!t.dir.empty())
+        {
+            base = t.dir;
+            break;
+        }
+    }
+    if(session.takes.empty() || base.empty())
+    {
+        closeSession();
+        return;
+    }
+    const za::String folder = files::join(base.toStringView(), (za::String{"session_"} + session.stamp).toStringView());
+    files::createDirectories(folder.cStr());
+    int moved = 0;
+    for(Take& t : session.takes)
+    {
+        if((t.rating != Rating::Keep && t.rating != Rating::Maybe) || t.path.empty() || t.running)
+        {
+            continue;
+        }
+        const za::String to = files::join(folder.toStringView(), files::fileName(t.path.toStringView()));
+        if(!files::exists(to.cStr()) && files::rename(t.path.cStr(), to.cStr()))
+        {
+            t.path = to;
+            moved++;
+        }
+        else
+        {
+            Con_Printf("takes: could not move %s into the session's folder (left where it is)\n", t.path.cStr());
+        }
+    }
+    const bool fpsGuessed = session.fpsNum <= 0;
+    const bool jsonOk = files::writeText(files::join(folder.toStringView(), "session.json").cStr(), sessionJson(folder, fpsGuessed).toStringView());
+    const za::String name = za::String{"Quake VR takes "} + session.stamp;
+    const bool xmlOk = files::writeText(files::join(folder.toStringView(), "timeline.fcpxml").cStr(), timelineXml(name).toStringView());
+    Con_Printf("takes: session written: %s (%d files moved; session.json %s, timeline.fcpxml %s%s)\n", folder.cStr(), moved,
+        jsonOk ? "written" : "NOT written", xmlOk ? "written" : "NOT written", fpsGuessed ? "; OBS's frame rate unknown: 60 assumed" : "");
+    closeSession();
+}
+
+// ---------------------------------------------------------------- scene snapshots and retakes
+
+// The snapshot's save: <game dir>/take_<scene>.sav (a savegame: the map, the toolgun's props and every entity, the
+// player's place and angles).
+[[nodiscard]] za::String snapshotName()
+{
+    return za::String{"take_"} + sceneName();
+}
+
+void setup_f()
+{
+    if(!sv.active || cl.intermission)
+    {
+        Con_Printf("vr_take_setup: not in a game (a snapshot is a savegame)\n");
+        return;
+    }
+    Cbuf_InsertText(va("save %s\n", snapshotName().cStr()));
+    Con_Printf("takes: scene %s set up (vr_take_retake loads it and starts a take)\n", sceneName().cStr());
+}
+
+// The retake: the snapshot loaded, then a take once the game runs again (its load seen, the view settled for
+// vr_takes_retake_delay seconds).
+struct Retake
+{
+    int stage{0}; // 0 none, 1 load asked (waiting to see it start), 2 loading, 3 settling
+    double at{0.0};
+};
+Retake retake;
+int retakesStarted = 0; // (vr_takes_test)
+
+void retake_f()
+{
+    const za::String name = snapshotName();
+    if(!files::exists(files::join(com_gamedir, (name + ".sav").toStringView()).cStr()))
+    {
+        Con_Printf("vr_take_retake: scene %s has no snapshot (vr_take_setup first)\n", sceneName().cStr());
+        return;
+    }
+    if(obs::recording())
+    {
+        (void)obs::request("StopRecord"); // (the take before ends: the retake is a new one)
+    }
+    Cbuf_InsertText(va("load %s\n", name.cStr()));
+    retake.stage = 1;
+    retake.at = realtime;
+    if(!obs::ready())
+    {
+        obs::connectNow();
+    }
+    Con_Printf("takes: retake of scene %s\n", sceneName().cStr());
+}
+
+void retakeFrame()
+{
+    const bool inGame = cls.state == ca_connected && cls.signon == SIGNONS && sv.active;
+    switch(retake.stage)
+    {
+        case 1:
+            if(!inGame)
+            {
+                retake.stage = 2;
+            }
+            else if(realtime - retake.at > 10.0)
+            {
+                retake.stage = 0;
+                Con_Printf("takes: the retake's load did not start\n");
+            }
+            break;
+        case 2:
+            if(inGame)
+            {
+                retake.stage = 3;
+                retake.at = realtime;
+            }
+            break;
+        case 3:
+            if(realtime - retake.at >= vr_takes_retake_delay.value && !obs::recording())
+            {
+                retake.stage = 0;
+                retakesStarted++;
+                act(Pending::Take);
+            }
+            break;
+        default: break;
+    }
+}
+
 // ---------------------------------------------------------------- vr_takes_test
 
 // vr_takes_test <folder>: takes, marks, ratings, a clip and the numbering against the OBS mock (vr_obs_mock), its files
@@ -843,17 +1231,19 @@ struct Test
     int step{0};
     int wait{0};
     int frames{0};
+    int retakes{0};
     testkit::Tally tally;
     za::String dir;
 };
 Test test;
 
-void check(bool ok, const char* what)
+bool check(bool ok, const char* what)
 {
     if(test.tally.check(ok, "vr_takes_test", what))
     {
         Con_Printf("vr_takes_test: ok %s\n", what);
     }
+    return ok;
 }
 
 [[nodiscard]] bool there(int number, const char* rating, bool rejected = false)
@@ -914,9 +1304,14 @@ void testStep()
             test.wait = 35; // (the in mark 36 frames on: 0.5 s)
             break;
         case 3:
+        {
             mark(MarkKind::In);
+            const za::String note = files::join(test.dir.toStringView(), "note1");
+            (void)files::writeText((note + ".transcript.txt").cStr(), " Nice\nshot \n");
+            voiceNote(note.cStr()); // (as a voice note started now: its transcript as transcribe_notes.py leaves it)
             test.wait = 35;
             break;
+        }
         case 4:
             mark(MarkKind::Out);
             test.wait = 35;
@@ -929,16 +1324,17 @@ void testStep()
                 break;
             }
             check(there(1, "unrated"), "take 1 named <date>_testscene_t01_unrated.mkv");
-            check(last->marks.size() == 2 && near(last->marks[0].t, 0.5) && near(last->marks[1].t, 1.0),
-                va("in and out marks at 0.5 and 1.0 s (%d marks: %.3f, %.3f)", static_cast<int>(last->marks.size()),
-                    last->marks.size() > 0 ? last->marks[0].t : -1.0, last->marks.size() > 1 ? last->marks[1].t : -1.0));
+            check(last->marks.size() == 3 && last->marks[0].kind == MarkKind::In && near(last->marks[0].t, 0.5) &&
+                      last->marks[1].kind == MarkKind::Note && near(last->marks[1].t, 0.5) &&
+                      last->marks[2].kind == MarkKind::Out && near(last->marks[2].t, 1.0),
+                va("in mark, voice note and out mark at 0.5, 0.5 and 1.0 s (%d marks)", static_cast<int>(last->marks.size())));
             check(last->length > 1.49 && last->length < 1.55, va("take 1 is 1.5 s long (%.3f)", last->length));
             check(chaptersAsked == 2, va("two OBS chapters asked for (%d)", chaptersAsked));
             check(currentTake() == last && realtime < session.promptUntil, "the rating prompt shows for take 1");
-            rate(Rating::Keep, 0);
+            rate(Rating::Maybe, 0);
             break;
         case 7:
-            check(there(1, "keep") && !there(1, "unrated"), "kept: renamed t01_keep");
+            check(there(1, "maybe") && !there(1, "unrated"), "rated maybe: renamed t01_maybe");
             act(Pending::Take);
             break;
         case 8:
@@ -971,18 +1367,42 @@ void testStep()
                 break;
             }
             check(last->clip && there(3, "clip"), "a clip saved and named t03_clip");
-            check(near(last->length, 20.0), va("the clip's length is OBS's replay time (%.1f)", last->length));
+            check(last->length > 1.0 && last->length < 20.0,
+                va("the clip holds what the buffer ran, under OBS's 20 s (%.2f)", last->length));
             rate(Rating::Maybe, 0);
             break;
         case 13:
             check(there(3, "maybe") && !there(3, "clip"), "the clip rated maybe: t03_maybe");
-            rate(Rating::Maybe, 1);
+            rate(Rating::Keep, 1);
             break;
         case 14:
-            check(there(1, "maybe") && !there(1, "keep"), "take 1 rated again by number: t01_maybe");
-            closeSession();
+        {
+            check(there(1, "keep") && !there(1, "maybe"), "take 1 rated again by number: t01_keep");
+            const za::String folder = files::join(test.dir.toStringView(), (za::String{"session_"} + session.stamp).toStringView());
+            endSession();
+            const auto in = [&](int n, const char* rating) {
+                return files::exists(files::join(folder.toStringView(), va("%s_testscene_t%02d_%s.mkv", today().cStr(), n, rating)).cStr());
+            };
+            check(in(1, "keep") && in(3, "maybe") && !there(1, "keep") && !there(3, "maybe") && there(2, "reject", true),
+                "the session's end moved keep and maybe into session_<when>/, rejected/ left");
+            za::String json, xml;
+            const bool haveJson = files::readText(files::join(folder.toStringView(), "session.json").cStr(), json);
+            const bool haveXml = files::readText(files::join(folder.toStringView(), "timeline.fcpxml").cStr(), xml);
+            check(haveJson && json.toStringView().find("\"text\": \"Nice shot\"") != za::StringView::nPos &&
+                      json.toStringView().find("\"rating\": \"reject\"") != za::StringView::nPos,
+                "session.json: every take, the voice note's transcript");
+            const za::SizeT keepAt = xml.toStringView().find("t01_keep.mkv\" start=\"30/60s\" duration=\"30/60s\"");
+            const za::SizeT maybeAt = keepAt == za::StringView::nPos ? keepAt : xml.toStringView().find("t03_maybe.mkv\" start=\"0s\"", keepAt); // (in the spine: after the keep clip)
+            check(haveXml && keepAt != za::StringView::nPos && maybeAt != za::StringView::nPos && keepAt < maybeAt,
+                va("timeline.fcpxml: the keep take trimmed to its in and out (0.5-1.0 s), then the maybe clip whole (%d %d %d)",
+                    haveXml ? 1 : 0, static_cast<int>(keepAt), static_cast<int>(maybeAt)));
+            check(xml.toStringView().find("value=\"Nice shot\" note=\"note1\"") != za::StringView::nPos &&
+                      xml.toStringView().find("value=\"In 1\"") != za::StringView::nPos && xml.toStringView().find("value=\"Out 1\"") == za::StringView::nPos,
+                "timeline.fcpxml: the in mark and the voice note as markers (the out mark is the clip's end)");
+            Con_Printf("vr_takes_test: timeline %s/timeline.fcpxml\n", folder.cStr());
             act(Pending::Take);
             break;
+        }
         case 15:
             if(!runningTake())
             {
@@ -998,6 +1418,39 @@ void testStep()
                 break;
             }
             check(last->number == 4 && there(4, "unrated"), va("a new session's take goes on from the files: t04 (t%02d)", last->number));
+            if(!check(sv.active, "a map runs (the retake's snapshot is a savegame)"))
+            {
+                testEnd();
+                break;
+            }
+            setup_f();
+            break;
+        case 17:
+            if(!files::exists(files::join(com_gamedir, (snapshotName() + ".sav").toStringView()).cStr()))
+            {
+                test.step--;
+                break;
+            }
+            test.retakes = retakesStarted;
+            retake_f();
+            break;
+        case 18:
+            if(retake.stage != 0 || !runningTake())
+            {
+                test.step--;
+                break;
+            }
+            check(retakesStarted == test.retakes + 1 && sv.active && cls.signon == SIGNONS,
+                "retake: the snapshot loaded, then a take started by itself");
+            act(Pending::Take);
+            break;
+        case 19:
+            if(!named)
+            {
+                test.step--;
+                break;
+            }
+            check(last->number == 5, va("the retake is take 5 (t%02d)", last->number));
             closeSession();
             testEnd();
             break;
@@ -1038,6 +1491,8 @@ void registerCommands()
     Cmd_AddCommand("vr_takes_session", session_f);
     Cmd_AddCommand("vr_takes_page_hide", hide_f);
     Cmd_AddCommand("vr_takes_test", test_f);
+    Cmd_AddCommand("vr_take_setup", setup_f);
+    Cmd_AddCommand("vr_take_retake", retake_f);
 }
 
 void frame()
@@ -1086,6 +1541,7 @@ void frame()
             }
         }
     }
+    retakeFrame();
     testStep();
     if(gadgetPage())
     {
@@ -1225,7 +1681,19 @@ void drawGadgetPage(float width, float height)
     {
         rate(Rating::Reject, 0);
     }
-    if(btn(8, 0, 3, 2, "HIDE", touch::Look::Quiet).pressed)
+    if(btn(8, 0, 4, 2, "SET UP", touch::Look::Normal).pressed)
+    {
+        setup_f();
+    }
+    if(btn(9, 1, 4, 2, "RETAKE", touch::Look::Normal).pressed)
+    {
+        retake_f();
+    }
+    if(btn(10, 2, 4, 2, "END", run ? touch::Look::Quiet : touch::Look::Normal).released && !run)
+    {
+        endSession(); // (on release: the page goes with the session)
+    }
+    if(btn(11, 3, 4, 2, "HIDE", touch::Look::Quiet).pressed)
     {
         pageHidden = true;
     }

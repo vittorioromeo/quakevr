@@ -8611,3 +8611,26 @@ set of files at the end. TRAILER.md, "Takes and clips", is the user's guide.
   rejected/, the session's replay buffer, a clip t03_clip of 20 s, rated maybe, take 1 rated again by number, a new
   session's take numbered t04 from the files. Eyeshot (`vr_eyeshot 3`): the red light and "REC start 0:00 [1]" upper
   left in the eye; the prompt "T01: KEEP / MAYBE / REJECT?" after; the gadget page dumped (`vr_gadget_screen_dump`).
+
+### Takes, second part: voice notes, the session's folder and timeline, scene snapshots and retakes
+
+- **Voice notes in a take.** voicenotes::start tells the takes its note's base path; the take keeps its time. At the
+  session's end the note's `<base>.transcript.txt` (transcribe_notes.py), its whitespace folded, is the marker's text
+  and session.json's `text` (null, and the marker named "Voice note N", before it is transcribed).
+- **The session's end** (`vr_takes_session end`, gadget END): keep and maybe files renamed into
+  `<OBS's folder>/session_<opened>/` (never over a file there); rejected/, unrated takes and clips stay (a decision:
+  the brief names keep and maybe; unrated ones are undecided, so left with OBS's files). session.json: all takes,
+  ratings, files, lengths, in/out, marks, notes. timeline.fcpxml (1.10): format from OBS's GetVideoSettings
+  (fpsNumerator/fpsDenominator, output size: the rate OBS records at; 60 assumed and flagged when unknown), one asset
+  per file (media-rep file:/// URL, percent-escaped), the spine keep then maybe, each trimmed to its first in and the
+  first out after it, markers for the marks and notes inside the trimmed range. A clip's length is OBS's
+  max_time_sec, capped by how long the buffer has run (a fresh buffer's clip is shorter).
+- **Validation:** DaVinci Resolve is installed but is a GUI app (not run unattended): `Misc/quakevr/fcpxml_check.py`
+  checks the file against the DTD's rules for every element and attribute it uses, the rational times on the frame
+  grid, gapless spine, clips within assets, markers within clips, files there: 113 passed, 0 failed on the test's
+  timeline. **The author should import one in Resolve** (File > Import > Timeline) to confirm.
+- **Snapshots and retakes:** `vr_take_setup` = `save take_<scene>`; `vr_take_retake` stops a running take, `load`s
+  it, waits until the load is seen (signon below SIGNONS) and the game runs again, then `vr_takes_retake_delay`
+  (0.5 s), then starts the take. Gadget: SET UP, RETAKE, END, HIDE.
+- **Test:** `vr_takes_test` (in `map start`): 21 passed, 0 failed (adds the voice note mark, session folder moves,
+  session.json transcript, the trimmed timeline's order and markers, the snapshot, a retake as take 5).
