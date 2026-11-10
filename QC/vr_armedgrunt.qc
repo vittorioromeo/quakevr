@@ -652,6 +652,7 @@ float(float dt, float firing) VR_AG_WalkFire =
 float VR_AG_CODE_SHADOWAXE = 101;
 float VR_AG_CODE_WIDOWMAKER = 102;
 float VR_AG_CODE_PLASMAGUN = 103;
+float VR_AG_CODE_HKSWORD = 104;  // the death knight's (hell knight's) sword: the knight's sword with its secondary flag
 float VR_AG_CODE_ADMELEE = 110; // 111..120: kind 1..10 (VR_ADMELEE_*; not the flail, 11: its head on its chain is only
                                 // a player's hand's, vr_box3d_flail.cpp: a grunt would swing a bare handle)
 
@@ -670,6 +671,12 @@ float(float code) VR_AG_Decode =
         vr_ag_dec_wid = code == VR_AG_CODE_SHADOWAXE ? WID_AXE : code == VR_AG_CODE_WIDOWMAKER ? WID_SUPER_SHOTGUN : WID_LIGHTNING;
         vr_ag_dec_up = AD_UpgradeFor(vr_ag_dec_wid);
         return vr_ad_data && VR_AD_FeatureScope(AD_UpgradeScope()); // (elsewhere a plain one: not this)
+    }
+    if(code == VR_AG_CODE_HKSWORD)
+    {
+        vr_ag_dec_wid = WID_SWORD;
+        vr_ag_dec_flags = QVR_WPNFLAG_USE_SECONDARY_AMMO; // (weapon_hknight_sword's: the player's own, every campaign)
+        return TRUE;
     }
     if(code > VR_AG_CODE_ADMELEE && code <= VR_AG_CODE_ADMELEE + VR_ADMELEE_JUDGE) // (the flail, 11: not a grunt's)
     {

@@ -220,6 +220,18 @@ float(float xWid) VR_AT_GunCount =
     return n;
 }
 
+// How many of the plan's (non-boss) humanoids hold a gun of the weapon schedule's row `xRow` (any code of its run).
+float(float xRow) VR_AT_RowCount =
+{
+    float n = 0;
+    float j;
+    for(j = 0; j < ar_plan_n; j++)
+    {
+        if(VR_AT_IsHumanoid(ar_plan_kind[j]) && !ar_plan_boss[j] && VR_ARENA_GunRow(ar_plan_gun[j]) == xRow) { n = n + 1; }
+    }
+    return n;
+}
+
 // How many of the plan's (non-boss) humanoids hold a gun the weapon schedule has not made eligible by wave xWave
 // (vr_arena.qc's table: a row's VR_ARENA_GunEligible; the nail pistol at wave 2 is that wave's own plan).
 float(float xWave) VR_AT_OffSchedule =
@@ -232,10 +244,8 @@ float(float xWave) VR_AT_OffSchedule =
         if(!VR_AT_IsHumanoid(ar_plan_kind[j]) || ar_plan_boss[j] || ar_plan_gun[j] == AR_FIST) { continue; }
         if(xWave == 2 && ar_plan_gun[j] == WID_NAILPISTOL) { continue; }
         float ok = FALSE;
-        for(i = 0; i < AR_GUN_N; i++)
-        {
-            if(ar_plan_gun[j] == VR_ARENA_GunWid(i) && xWave >= VR_ARENA_GunEligible(i)) { ok = TRUE; }
-        }
+        i = VR_ARENA_GunRow(ar_plan_gun[j]);
+        if(i >= 0 && xWave >= VR_ARENA_GunEligible(i)) { ok = TRUE; }
         if(!ok) { bad = bad + 1; }
     }
     return bad;
@@ -2487,7 +2497,11 @@ void() VR_AT11_Frame =
         if(!e.vr_ag) { continue; } // (a grunt or an enforcer: what the waves send in armed)
         hums = hums + 1;
         if(e.vr_ag_prop != world) { held = held + 1; }
-        tier = VR_ARENA_WeaponTier(AR_SP_GRUNT, e.vr_ag_wid); // (the gun in its hand now, not the one its plan named)
+        // (the gun in its hand now, not the one its plan named: by the code it came with while it holds that weapon --
+        // an AD upgrade's or a sword kind's row, not the plain weapon's)
+        float code = e.vr_ag_wid;
+        if(VR_AG_Decode(e.vr_ag_code) && vr_ag_dec_wid == e.vr_ag_wid) { code = e.vr_ag_code; }
+        tier = VR_ARENA_WeaponTier(AR_SP_GRUNT, code);
         if(tier >= 2) { worn = worn + 1; }
     }
 
@@ -2508,16 +2522,20 @@ void() VR_AT11_Frame =
 // Test 12: the weapon schedule (vr_arena.qc's table above VR_ARENA_PickGun) over seeded runs, plans only
 // ---------------------------------------------------------------------------
 
-#define AR_T12_ROWS 11 // (AR_GUN_N)
+#define AR_T12_ROWS 34 // (AR_GUN_N)
 float AR_T12_SEEDS = 24;  // seeded runs per skill
 float AR_T12_LAST  = 30;  // waves planned per run
 float vr_at12_first[AR_T12_ROWS]; // the first wave a row's gun was in a (non-boss) humanoid's hands, over the runs
+float vr_at12_cnt[AR_T12_ROWS];   // this plan's (non-boss) humanoids holding a row's gun (VR_AT12_Count)
+float vr_at12_ntr[AR_T12_ROWS];   // over the runs: a row's guns on its trickle waves (eligible .. pool - 1) ...
+float vr_at12_npool[AR_T12_ROWS]; // ... and in the pool after (up to wave AR_T12_LAST)
 
 float vr_at12_early;     // a row's gun in hands before its wave
 float vr_at12_bad;       // a trickle wave whose count is not the table's
 float vr_at12_short;     // a trickle wave with fewer humanoids than carriers (not checked: reported)
 float vr_at12_trickled;  // the trickle waves checked
 float vr_at12_bossDealt; // a boss given a trickle gun
+float vr_at12_offrow;    // a humanoid's gun no row of the table has (not its fists)
 float vr_at12_k;         // the skill being run (its index in VR_AT12_SkillAt)
 float vr_at12_s;         // its next seed
 
@@ -2525,12 +2543,27 @@ void(float xSkill) VR_AT12_SkillBegin =
 {
     VR_AT_SetSkill(xSkill);
     float i;
-    for(i = 0; i < AR_T12_ROWS; i++) { vr_at12_first[i] = 0; }
+    for(i = 0; i < AR_T12_ROWS; i++) { vr_at12_first[i] = 0; vr_at12_ntr[i] = 0; vr_at12_npool[i] = 0; }
     vr_at12_early = 0;
     vr_at12_bad = 0;
     vr_at12_short = 0;
     vr_at12_trickled = 0;
     vr_at12_bossDealt = 0;
+    vr_at12_offrow = 0;
+}
+
+// The plan's (non-boss) humanoids by their guns' rows (vr_at12_cnt), in one pass.
+void() VR_AT12_Count =
+{
+    float i;
+    for(i = 0; i < AR_T12_ROWS; i++) { vr_at12_cnt[i] = 0; }
+    for(float j = 0; j < ar_plan_n; j++)
+    {
+        if(!VR_AT_IsHumanoid(ar_plan_kind[j]) || ar_plan_boss[j] || ar_plan_gun[j] == AR_FIST) { continue; }
+        i = VR_ARENA_GunRow(ar_plan_gun[j]);
+        if(i < 0) { vr_at12_offrow = vr_at12_offrow + 1; continue; }
+        vr_at12_cnt[i] = vr_at12_cnt[i] + 1;
+    }
 }
 
 // One seeded run's 30 plans (one a frame: the whole sweep at once would run past the QC's instruction limit).
@@ -2544,6 +2577,7 @@ void(float xSkill, float s) VR_AT12_Seed =
         for(w = 1; w <= AR_T12_LAST; w++)
         {
             VR_ARENA_Plan(w);
+            VR_AT12_Count();
             float free = 0;
             for(j = 0; j < ar_plan_n; j++)
             {
@@ -2552,10 +2586,16 @@ void(float xSkill, float s) VR_AT12_Seed =
             }
             float need = 0;
             for(i = 0; i < AR_T12_ROWS; i++) { need = need + VR_ARENA_GunCarriers(i, w); }
+            if(need > free && xSkill == 1)
+            {
+                dprint(sprintf("arena: t12 skill %g seed %g wave %g short: %g carriers, %g humanoids\n", xSkill, s, w, need, free));
+            }
             for(i = 0; i < AR_T12_ROWS; i++)
             {
-                float n = VR_AT_GunCount(VR_ARENA_GunWid(i));
+                float n = vr_at12_cnt[i];
                 if(n > 0 && (vr_at12_first[i] == 0 || w < vr_at12_first[i])) { vr_at12_first[i] = w; }
+                if(w >= VR_ARENA_GunPoolFrom(i)) { vr_at12_npool[i] = vr_at12_npool[i] + n; }
+                else if(w >= VR_ARENA_GunEligible(i)) { vr_at12_ntr[i] = vr_at12_ntr[i] + n; }
                 if(VR_ARENA_GunFrom(i) <= 0) { continue; }
                 if(w < VR_ARENA_GunEligible(i) && n > 0) { vr_at12_early = vr_at12_early + 1; }
                 float c = VR_ARENA_GunCarriers(i, w);
@@ -2565,8 +2605,8 @@ void(float xSkill, float s) VR_AT12_Seed =
                 if(n != c)
                 {
                     vr_at12_bad = vr_at12_bad + 1;
-                    dprint(sprintf("arena: t12 skill %g seed %g wave %g gun %g: %g carriers, table %g\n", xSkill, s, w,
-                                   VR_ARENA_GunWid(i), n, c));
+                    dprint(sprintf("arena: t12 skill %g seed %g wave %g row %g (%s): %g carriers, table %g\n", xSkill, s, w,
+                                   i, VR_ARENA_GunName(i), n, c));
                 }
             }
         }
@@ -2580,28 +2620,35 @@ void(float xSkill) VR_AT12_Finish =
     {
         float from = VR_ARENA_GunFrom(i);
 
-        dprint(sprintf("arena: t12 skill %g row %g gun %g eligible %g pool from %g first seen %g\n", xSkill, i,
-                       VR_ARENA_GunWid(i), from > 0 ? VR_ARENA_GunEligible(i) : AR_GUN_FIRST,
-                       VR_ARENA_GunPoolFrom(i), vr_at12_first[i]));
+        // (the counts over the skill's AR_T12_SEEDS runs: on its trickle waves, then in the pool to wave AR_T12_LAST)
+        dprint(sprintf("arena: t12 skill %g row %g %s tier %g ok %g ", xSkill, i, VR_ARENA_GunName(i),
+                       VR_ARENA_GunTier(i), VR_ARENA_GunOk(i)));
+        dprint(sprintf("eligible %g pool from %g first seen %g trickle %g pool %g\n", VR_ARENA_GunEligible(i),
+                       VR_ARENA_GunPoolFrom(i), vr_at12_first[i], vr_at12_ntr[i], vr_at12_npool[i]));
         if(!VR_ARENA_GunOk(i))
         {
-            VR_AT_Check(vr_at12_first[i] == 0, sprintf("skill %g: gun %g (not in this game) never comes", xSkill, VR_ARENA_GunWid(i)));
+            VR_AT_Check(vr_at12_first[i] == 0, sprintf("skill %g: %s (not in this game) never comes", xSkill, VR_ARENA_GunName(i)));
         }
         else if(from > 0)
         {
             VR_AT_Check(vr_at12_first[i] == VR_ARENA_GunEligible(i),
-                        sprintf("skill %g: gun %g first at wave %g, the table's %g", xSkill, VR_ARENA_GunWid(i),
+                        sprintf("skill %g: %s first at wave %g, the table's %g", xSkill, VR_ARENA_GunName(i),
                                 vr_at12_first[i], VR_ARENA_GunEligible(i)));
+        }
+        else
+        {
+            VR_AT_Check(vr_at12_first[i] > 0, sprintf("skill %g: %s (a bottom rung) comes", xSkill, VR_ARENA_GunName(i)));
         }
     }
     VR_AT_Check(vr_at12_first[1] == 2, sprintf("skill %g: the nail pistol first at wave 2 (its own plan)", xSkill));
     VR_AT_Check(vr_at12_first[0] == AR_GUN_FIRST, sprintf("skill %g: the shotgun first at wave 3", xSkill));
     VR_AT_Check(vr_at12_early == 0, sprintf("skill %g: no gun before its wave (%g seen)", xSkill, vr_at12_early));
+    VR_AT_Check(vr_at12_offrow == 0, sprintf("skill %g: every humanoid's gun is one of the table's (%g not)", xSkill, vr_at12_offrow));
     VR_AT_Check(vr_at12_bad == 0 && vr_at12_trickled > 0, sprintf("skill %g: every trickle wave carries the table's count (%g of %g off)",
                                                   xSkill, vr_at12_bad, vr_at12_trickled));
     VR_AT_Check(vr_at12_bossDealt == 0, sprintf("skill %g: the bosses keep their own picks", xSkill));
-    if(xSkill == 1) { VR_AT_Check(vr_at12_short == 0, "Normal: no trickle wave is vr_at12_short of humanoids"); }
-    dprint(sprintf("arena: t12 skill %g trickle waves %g, vr_at12_short %g\n", xSkill, vr_at12_trickled, vr_at12_short));
+    if(xSkill == 1) { VR_AT_Check(vr_at12_short == 0, "Normal: no trickle wave is short of humanoids"); }
+    dprint(sprintf("arena: t12 skill %g trickle waves %g, short %g\n", xSkill, vr_at12_trickled, vr_at12_short));
 }
 
 float(float k) VR_AT12_SkillAt = { if(k == 0) { return 1; } if(k == 1) { return 0; } return k; }
@@ -2609,8 +2656,21 @@ float(float k) VR_AT12_SkillAt = { if(k == 0) { return 1; } if(k == 1) { return 
 void() VR_AT12_Run =
 {
     // The pool's weights: a newcomer rarer on joining than four waves on, an old gun fading, never to nothing.
-    float sng = 5;
+    float sng = VR_ARENA_GunRow(WID_SUPER_NAILGUN);
     float pf = VR_ARENA_GunPoolFrom(sng);
+    // The rows of the whole table: each its own code(s), in order of the wave it comes at; the tiers rise with it.
+    float i;
+    float rowsOk = TRUE;
+    for(i = 0; i < AR_GUN_N; i++)
+    {
+        if(VR_ARENA_GunRow(VR_ARENA_GunWid(i)) != i) { rowsOk = FALSE; }
+        if(i > 0 && VR_ARENA_GunFrom(i) < VR_ARENA_GunFrom(i - 1)) { rowsOk = FALSE; }
+    }
+    VR_AT_Check(rowsOk, "each row of the weapon schedule is its own code, the rows in the order of their waves");
+    VR_AT_Check(VR_ARENA_WeaponTier(AR_SP_GRUNT, WID_REVOLVER) == 2 && VR_ARENA_WeaponTier(AR_SP_GRUNT, WID_ENFRIFLE) == 2 &&
+                VR_ARENA_WeaponTier(AR_SP_GRUNT, WID_ADPYRO) == 3 && VR_ARENA_WeaponTier(AR_SP_GRUNT, WID_CROWBAR) == 1 &&
+                VR_ARENA_WeaponTier(AR_SP_GRUNT, VR_AG_CODE_ADMELEE + VR_ADMELEE_DKNIGHT) == 2,
+                "the new rows' tiers: the revolver and the rifles the second, the flamethrower the third, the crowbar the first");
     VR_AT_Check(VR_ARENA_GunWeight(sng, pf) > 0 && VR_ARENA_GunWeight(sng, pf) < VR_ARENA_GunWeight(sng, pf + 4),
                 "a gun joining the pool starts rarer than it gets");
     VR_AT_Check(VR_ARENA_GunWeight(0, 25) < VR_ARENA_GunWeight(0, 5) && VR_ARENA_GunWeight(0, 60) > 0,
