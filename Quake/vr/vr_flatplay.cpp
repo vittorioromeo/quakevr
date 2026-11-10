@@ -117,6 +117,15 @@ struct FlatState
     // told yet (QC VR_FlatShove, as the hand reaches out), and when the key shoves again (vr_flat_shove_cooldown).
     int shoveHand{HAND_OFF};
     bool shoveBoth{false};       // both hands push (QC's two-handed shove: both free, a weapon in each, or vr_flat_shove_both_always)
+    // The shove's smoothing (smoothShove): each hand's smoothed place in the body's level frame off the head, as the last pose
+    // made it and as the last frame left it (the frame's several poses each step from there), and whether it still runs.
+    glm::vec3 smoothOut[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    glm::vec3 smoothFrom[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    glm::vec3 smoothVel[2]{glm::vec3{0.f}, glm::vec3{0.f}};     // its speed (units/s), as the last pose made it
+    glm::vec3 smoothVelFrom[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // ... and as the last frame left it
+    bool smoothOn[2]{false, false};
+    double smoothAt{-1e9};
+    float smoothDt{0.f};
     double shoveAt{-1e9};
     bool shoveSent{true};
     double shoveReady{-1e9};
@@ -2946,6 +2955,60 @@ void meleeProbe_f()
     Con_Printf("flatmelee: probe %s\n", meleeProbe.on ? "on" : "off");
 }
 
+// The shove's fast smoothing (vr_flat_shove_smooth; his note 2026-11-10, "Yes, please add some fast smoothing"): the push moved
+// the hand up to 25 units in a frame (measured at 72 fps, a gun's free hand off its grip and a melee weapon's alike). Each
+// shoving hand's place, in the body's level frame off the head (so a mouse turn isn't smoothed), follows the pose made 95% of
+// the way in vr_flat_shove_smooth (an exponential follow on the game clock, the same at any frame rate), from the frame the
+// shove starts until the hand has caught up after it ends (critically damped: its speed eased too). The shove's clock, its landing (QC's, sent on its own time) and
+// its parts' times are unchanged: the hand trails them by about a third of the smoothing. Last over the pose (the grips', the
+// swap's and the grenade's places included), before the melee probe: the game gets the smoothed hand.
+void smoothShove(hands::State& s, const glm::vec3& aim)
+{
+    const float T = za::clamp(vr_flat_shove_smooth.value, 0.f, 0.3f);
+    glm::vec3 f, r, u;
+    hands::angleVectors({0.f, aim.y, 0.f}, f, r, u);
+    const auto toLocal = [&](const glm::vec3& p) {
+        const glm::vec3 d = p - s.head;
+        return glm::vec3{glm::dot(d, f), glm::dot(d, r), glm::dot(d, u)};
+    };
+    const bool newFrame = fs.smoothAt != vr_gametime;
+    if(newFrame)
+    {
+        fs.smoothDt = za::clamp(static_cast<float>(vr_gametime - fs.smoothAt), 0.f, 0.1f);
+        fs.smoothAt = vr_gametime;
+        fs.smoothFrom[0] = fs.smoothOut[0];
+        fs.smoothFrom[1] = fs.smoothOut[1];
+        fs.smoothVelFrom[0] = fs.smoothVel[0];
+        fs.smoothVelFrom[1] = fs.smoothVel[1];
+    }
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        const glm::vec3 target = toLocal(s.pos[h]);
+        if(T <= 0.f || !(shoving(h) || fs.smoothOn[h]))
+        {
+            fs.smoothOut[h] = target;
+            fs.smoothVel[h] = glm::vec3{0.f};
+            fs.smoothOn[h] = false;
+            continue;
+        }
+        // A critically damped follow (the hand's speed eased as well as its place: a plain exponential one still took the
+        // push's whole speed at once), stable at any frame time: 95% of a step in T, its own time 2.37 times less.
+        const float omega = 2.f / (T / 2.37f);
+        const float x = omega * fs.smoothDt;
+        const float decay = 1.f / (1.f + x + 0.48f * x * x + 0.235f * x * x * x);
+        const glm::vec3 change = fs.smoothFrom[h] - target;
+        const glm::vec3 temp = (fs.smoothVelFrom[h] + omega * change) * fs.smoothDt;
+        fs.smoothVel[h] = (fs.smoothVelFrom[h] - omega * temp) * decay;
+        const glm::vec3 out = target + (change + temp) * decay;
+        fs.smoothOut[h] = out;
+        if(newFrame)
+        {
+            fs.smoothOn[h] = shoving(h) || glm::distance(out, target) > 0.05f || glm::length(fs.smoothVel[h]) > 1.f;
+        }
+        s.pos[h] = s.head + f * out.x + r * out.y + u * out.z;
+    }
+}
+
 void poseHands(hands::State& s, const glm::vec3& aim)
 {
     // Made at the frame's start, again for the move and again for the view (hands::relatch): the same frame's poses
@@ -3304,6 +3367,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
             s.rot[h] = blendAngles(s.rot[h], palmAt(h, at - (shoulder(s, h) + nudge), viewUp), palm);
         }
     }
+    QVR_TRACY_CALL("flat pose: shove smoothing", smoothShove(s, aim));
     probeMelee(s, aim, eye, viewUp);
     traceHandZ = s.pos[HAND_MAIN].z;
     traceHand = s.pos[HAND_MAIN];

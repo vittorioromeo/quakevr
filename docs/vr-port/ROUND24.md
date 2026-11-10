@@ -8687,6 +8687,20 @@ set of files at the end. TRAILER.md, "Takes and clips", is the user's guide.
   session's take numbered t04 from the files. Eyeshot (`vr_eyeshot 3`): the red light and "REC start 0:00 [1]" upper
   left in the eye; the prompt "T01: KEEP / MAYBE / REJECT?" after; the gadget page dumped (`vr_gadget_screen_dump`).
 
+## Flat: the shove's fast smoothing (branch `agent/fg2h`, 2026-11-10)
+
+His answer to the shove's 25-unit frame: "Yes, please add some fast smoothing". Measured per frame (`vr_flatplay_debug 3`'s
+`flatfgrab: frame` lines): no discontinuity at the shove's start or end; the jump is the push itself (about 75 units in its
+0.06 s: 9, 23, 25, 17 units over four frames at 72 fps), from a gun's grip and a melee weapon's alike, so the grips' `gripT`
+ease (fg2h above) does not reach it. `smoothShove` (vr_flatplay.cpp, last over the pose, before the melee probe): each shoving hand's
+place, in the body's level frame off the head, follows the pose critically damped (SmoothDamp's form: speed eased as well as
+place; a plain exponential follow cut only 20%), 95% of a step in `vr_flat_shove_smooth` (0.08; 0 off; Debug > Tunables >
+Flatscreen), until it has caught up after the shove. The shove's clock, parts and landing are unchanged. Game hand's most a frame
+(off the head; `vr_flat_fg_report`'s new "game off hand" line), launcher / axe: 60 fps 29.8 / 30.0 -> 19.2 / 19.5; 144 fps
+13.1 / 13.1 -> 8.5 / 8.6 (0.06: 21 and 9.8). Drawn: 60 fps 11.0 / 11.8 -> 7.8 / 9.0; 144 fps 8.0 / 8.5 -> 5.8 / 6.3. A fast
+push can't move much less a frame without being slower. Test `Misc/quakevr/flatshovesmooth_test.sh` (6 passed); flatmelee 12
+passed; flatfg2h 9 passed.
+
 ### Takes, second part: voice notes, the session's folder and timeline, scene snapshots and retakes
 
 - **Voice notes in a take.** voicenotes::start tells the takes its note's base path; the take keeps its time. At the

@@ -2005,6 +2005,7 @@ QVR_TUNABLE(vr_flat_punch_aim_dist, "96") // the point on the crosshair's ray th
 QVR_TUNABLE(vr_flat_shove_both, "1") // flatscreen: with both hands free the shove pushes with both, the headset's two-handed shove (QC VR_FlatShove; 0: one hand, as before)
 QVR_TUNABLE(vr_flat_shove_both_apart, "8") // both hands pushing: their places this far apart across the view at full push (units, 0..24)
 QVR_TUNABLE(vr_flat_shove_width, "1.15") // the shove's sweep is this much wider round its line than the headset's (its pad; with Shove Reach 1.15 his notes' 15% more lenient)
+QVR_TUNABLE(vr_flat_shove_smooth, "0.08") // flatscreen: the shoving hand's place smoothed, 95% of the way in this time (seconds; 0: off): its push moved it 25 units in a frame
 QVR_TUNABLE(vr_flat_shove_anim_speed, "1") // the shove plays this much faster than its times (Shove Windup / Push / Hold / Recovery Time; 0.25..4); it lands as the hand reaches out, and the cooldown is at least its time
 QVR_TUNABLE(vr_flat_shove_main_fwd, "0") // the main hand at full push: this much further forward (units)
 QVR_TUNABLE(vr_flat_shove_main_out, "0") // and out at its own side (units; negative: in towards the middle)
