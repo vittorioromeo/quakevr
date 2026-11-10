@@ -110,7 +110,8 @@ void viewPush(int hand, const glm::vec3& push);
 // Client side, the view (vr_view.cpp; flatscreen play, vr_flat_carry_drawn): each prop held in one hand moved with its hand
 // from the hand it was placed on as the frame began (the game's, VR_RelinkHeld) onto `drawn`, the hand as the view draws it
 // now (made again from the view, with its sway, bob and turn's lag: his note 2026-11-10, a force-grabbed prop bobbed and
-// lagged or led the hand as the mouse turned). Before viewPush, which moves it on from there.
+// lagged or led the hand as the mouse turned). Before viewPush, which moves it on from there. The gibs skewered on a blade
+// in a hand (skewerFrame) too, with vr_carry_local.
 void followDrawnHands(const hands::State& drawn);
 
 // Client side: the throw estimate of `hand` (tracking clock `at`) holding a prop in both hands: the prop's own motion

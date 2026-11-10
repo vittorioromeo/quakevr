@@ -9,11 +9,21 @@
 // 3  a smooth turn and a move at once
 // 4  the same with vr_carry_local 0 (the gib drawn where the server has it, as before): how far it lagged (no check but that
 //    the probe sees it)
+// Flat-screen play (-flatscreenmode; his note 2026-11-10, item 8: gibs on the axe bobbed, lagged and led it walking and turning):
+// the keys instead of the sticks, +right and +forward (case 1: a faster turn, +speed, for the snap turns), the drawn
+// gib against the blade as flat play draws it (its sway, bob and turn's lag: vr_held.cpp followDrawnHands).
+// Each case also checks vr_embed_probe_skewj: the most the gib's place in the server's hand moved frame to frame (a jitter).
 // Ends `embed1108b: N passed, M failed`.
 
 float VR_E9_MOST = 0.5;  // cm: the most a drawn gib may be off its place on the drawn blade
+float VR_E9_JITTER = 0.1; // cm: the most its place in the server's hand may move from one frame to the next
 float VR_E9_HOLD = 0.75; // s of the stick held (54 frames)
 float vr_e9_snap;        // vr_snap_turn as the test began
+float vr_e9_flat;        // flat-screen play: the keys, not the sticks
+vector vr_e9_face;       // flat: the player's angles as the test began
+float VR_E9_SHOTS = 4;   // scratch1 29: the frame strip's pictures in case 3
+float VR_E9_SHOT_EVERY = 0.15; // s between them
+float vr_e9_shots;       // taken so far
 entity vr_e9_g;
 float vr_e9_yaw;         // the player's yaw as the stick went on
 vector vr_e9_at;         // and its place
@@ -22,6 +32,8 @@ void() VR_E9_Begin =
 {
     VR_Test_BeginFlags("embed1108b", VR_TEST_LOUD);
     vr_e9_snap = cvar_hget(cvarh_vr_snap_turn);
+    vr_e9_flat = cvar_hget(cvarh_vr_flatplay) != 0;
+    vr_e9_face = VR_Player().angles;
     vr_eh_home = VR_Player().origin;
     localcmd("vr_mock_hand_to_absolute 1\n");
     cvar_set("vr_embed_probe", "on");
@@ -33,6 +45,10 @@ void() VR_E9_Begin =
 void() VR_E9_Next =
 {
     localcmd("vr_mock_stick main 0 0\nvr_mock_stick off 0 0\n");
+    if(vr_e9_flat)
+    {
+        localcmd("-right\n-forward\n-speed\n");
+    }
     cvar_set("vr_carry_local", "1");
     cvar_set("vr_snap_turn", ftos(vr_e9_snap));
     VR_EH_NextCase();
@@ -53,6 +69,12 @@ void() VR_E9_Step =
     {
         setorigin(p, vr_eh_home);
         p.velocity = '0 0 0';
+        if(vr_e9_flat)
+        {
+            // (each case facing as the first did: the keys' turns add up, and a walk the other way meets a wall)
+            p.angles = vr_e9_face;
+            p.fixangle = TRUE;
+        }
         localcmd("+grabmain\n");
         VR_ET_To(1);
     }
@@ -78,7 +100,14 @@ void() VR_E9_Step =
         }
         if(vr_et_case == 1)
         {
-            cvar_set("vr_snap_turn", "45");
+            if(vr_e9_flat)
+            {
+                localcmd("+speed\n");
+            }
+            else
+            {
+                cvar_set("vr_snap_turn", "45");
+            }
         }
         if(vr_et_case == 4)
         {
@@ -86,12 +115,30 @@ void() VR_E9_Step =
         }
         float turn = vr_et_case != 2;
         float walk = vr_et_case >= 2;
-        localcmd(sprintf("vr_mock_stick main %g 0\nvr_mock_stick off 0 %g\n", turn, walk));
+        if(vr_e9_flat)
+        {
+            localcmd(strcat(turn ? "+right\n" : "", walk ? "+forward\n" : ""));
+        }
+        else
+        {
+            localcmd(sprintf("vr_mock_stick main %g 0\nvr_mock_stick off 0 %g\n", turn, walk));
+        }
         cvar_set("vr_embed_probe_skew", "-1");
         cvar_set("vr_embed_probe_skewn", "0");
+        cvar_set("vr_embed_probe_skewj", "0");
         vr_e9_yaw = p.angles_y;
         vr_e9_at = p.origin;
+        vr_e9_shots = 0;
         VR_ET_To(4);
+    }
+    else if(vr_et_s == 4 && vr_e9_g.vr_skewer_p == p && t <= VR_E9_HOLD)
+    {
+        // (scratch1 29: a frame strip of case 3, the turn and the walk, VR_E9_SHOTS pictures VR_E9_SHOT_EVERY apart)
+        if(vr_et_case == 3 && cvar_hget(cvarh_scratch1) == 29 && vr_e9_shots < VR_E9_SHOTS && t >= (vr_e9_shots + 1) * VR_E9_SHOT_EVERY)
+        {
+            localcmd("screenshot\n");
+            vr_e9_shots = vr_e9_shots + 1;
+        }
     }
     else if(vr_et_s == 4 && vr_e9_g.vr_skewer_p == p && t > VR_E9_HOLD)
     {
@@ -99,7 +146,9 @@ void() VR_E9_Step =
         float n = cvar_hget(cvarh_vr_embed_probe_skewn);
         float turned = fabs(anglemod(p.angles_y - vr_e9_yaw + 180) - 180);
         float moved = vlen(p.origin - vr_e9_at);
-        string what = sprintf("(turned %.0f deg, moved %.0f units; %g frames; at most %.2f cm off)", turned, moved, n, off);
+        float jit = cvar_hget(cvarh_vr_embed_probe_skewj);
+        string what = sprintf("(%s: turned %.0f deg, moved %.0f units; %g frames; at most %.2f cm off; jitter %.3f cm)",
+            vr_e9_flat ? "flat" : "headset", turned, moved, n, off, jit);
         if(vr_et_case == 4)
         {
             VR_Test_Check(n > 10 && off > VR_E9_MOST, sprintf("vr_carry_local 0: the gib lags the drawn blade %s", what));
@@ -107,7 +156,9 @@ void() VR_E9_Step =
         else
         {
             float did = vr_et_case == 2 ? moved > 32 : turned > 30;
-            VR_Test_Check(did && n > 10 && off >= 0 && off <= VR_E9_MOST,
+            // (Flat: the gib's place in the server's hand steady too. With the headset only printed: a stick turn moves it
+            // for a frame, up to the snap's whole turn: ROUND24.md, "Flat-screen: gibs on the blade".)
+            VR_Test_Check(did && n > 10 && off >= 0 && off <= VR_E9_MOST && (!vr_e9_flat || jit <= VR_E9_JITTER),
                 sprintf("case %g (%s): the drawn gib stays on the drawn blade %s", vr_et_case,
                 vr_et_case == 0 ? "smooth turn" : (vr_et_case == 1 ? "snap turns" : (vr_et_case == 2 ? "a move" : "a turn and a move")), what));
         }
