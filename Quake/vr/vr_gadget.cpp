@@ -1444,7 +1444,7 @@ VisorImage visorImage(int panel)
         return out;
     }
     out.texture = visor.targets[panel].texture;
-    out.size = {visorSizes[panel][0], visorSizes[panel][1]};
+    out.size = panel == VisorCenter ? visor.centerSize : glm::vec2{visorSizes[panel][0], visorSizes[panel][1]};
     out.shown = visor.shown[panel] && out.texture != 0;
     out.version = visor.versions[panel];
     return out;

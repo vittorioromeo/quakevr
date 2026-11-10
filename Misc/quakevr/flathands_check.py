@@ -121,14 +121,37 @@ for tag, two in (("swap1", False), ("swap2h", True), ("swapdual", False)):
     h = hud(ls)
     check(len(h) >= 2 and h[1] == (h[0][1], h[0][0]) and h[0] != (0, 0), "%s: swapped (%s -> %s)" % (tag, h[0] if h else "?",
                                                                                                     h[1] if len(h) > 1 else "?"))
-    kind = "a weapon in both hands: the free hand to it" if two else "the hands to each other"
+    kind = "a weapon in both hands: release, pass, attach" if two else "the hands to each other"
     check(has(ls, r"flatswap: start \(%s" % re.escape(kind)), "%s: the swap drawn: %s" % (tag, kind))
-    met = [re.search(r"met: the hands ([\d.]+) units apart \(were ([\d.]+)\)", l) for l in ls]
-    met = [x for x in met if x]
-    check(bool(met) and float(met[0].group(1)) < 6 and float(met[0].group(2)) > float(met[0].group(1)) + 2,
-          "%s: the hands meet (%s units apart, were %s)" % (tag, met[0].group(1) if met else "?", met[0].group(2) if met else "?"))
-    sent = [l for l in ls if "swap sent" in l]
-    check(bool(sent) and abs(float(re.search(r"\(([\d.]+) s\)", sent[0]).group(1)) - 0.15) < 0.03,
+    if two:
+        # The release, then the pass, then the attach (his words 2026-11-10): the free hand at the empty hand's guard
+        # before the gun comes across, the swap there, the other hand on the grip at the end.
+        idx = lambda pat: next((i for i, l in enumerate(ls) if re.search(pat, l)), -1)
+        rel = [re.search(r"2h: released \(([\d.]+) s\): the off hand ([\d.]+) units from the empty hand's guard, ([\d.]+) from the main hand \(moved ([\d.]+)", l) for l in ls]
+        rel = [x for x in rel if x]
+        check(bool(rel) and abs(float(rel[0].group(1)) - 0.2) < 0.03 and float(rel[0].group(2)) < 1 and float(rel[0].group(3)) > 6,
+              "swap2h: first the off hand off the grip to the empty hand's guard (%s)" % (rel[0].group(0) if rel else "none",))
+        i_rel, i_met, i_sent, i_seen, i_done = (idx(p) for p in (r"2h: released", r"flatswap: met: .*\(the pass\)", r"swap sent",
+                                                                 r"flatswap: swapped", r"flatswap: done"))
+        check(-1 < i_rel < i_met and -1 < i_rel < i_sent < i_seen < i_done,
+              "swap2h: the phases in order: released, passed (met), sent, swapped, done (%s)" % ((i_rel, i_met, i_sent, i_seen, i_done),))
+        met = [re.search(r"met: the hands ([\d.]+) units apart \(the pass\), the off hand ([\d.]+) from the guard", l) for l in ls]
+        met = [x for x in met if x]
+        check(bool(met) and float(met[0].group(1)) < 6 and float(met[0].group(2)) < 1,
+              "swap2h: the gun passed to the hand at the guard (%s)" % (met[0].group(0) if met else "none",))
+        sent = [l for l in ls if "swap sent" in l]
+        want = 0.45
+        stance = [l for l in ls if l.startswith("  stance:")]
+        check(len(stance) >= 2 and "holding its grip" in stance[-1] and "torso 15.0" in stance[-1],
+              "swap2h: ends with the main hand holding the gun's grip, the gun in the off hand (%s)" % (stance[-1] if stance else "none",))
+    else:
+        met = [re.search(r"met: the hands ([\d.]+) units apart \(were ([\d.]+)\)", l) for l in ls]
+        met = [x for x in met if x]
+        check(bool(met) and float(met[0].group(1)) < 6 and float(met[0].group(2)) > float(met[0].group(1)) + 2,
+              "%s: the hands meet (%s units apart, were %s)" % (tag, met[0].group(1) if met else "?", met[0].group(2) if met else "?"))
+        sent = [l for l in ls if "swap sent" in l]
+        want = 0.15
+    check(bool(sent) and abs(float(re.search(r"\(([\d.]+) s\)", sent[0]).group(1)) - want) < 0.03,
           "%s: the swap sent as they meet (%s)" % (tag, sent[0] if sent else "none"))
     check(has(ls, r"flatswap: done"), "%s: the hands back, the animation over" % tag)
 ls = lines("swapoff")

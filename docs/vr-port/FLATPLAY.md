@@ -339,7 +339,7 @@ engine telling it the slide by `.vr_sliding`): the same hit (`VR_KdTrig_ChargeHi
 the Shoulder Charges' chance, its cry), the strike its speed over that least, `vr_flat_slide_charge_stamina` (0) on top
 of the slide's. A prop slid into (`VR_PlayerBumps`, `shoveBumped`) is pushed on at `vr_flat_slide_prop_push` (1) of his
 speed shared by his and its masses, turned `vr_flat_slide_prop_side` (20) degrees to the side its middle is off his
-line. The prone key does nothing mid-slide (`toggleProne`), and the server never lays a sliding body down
+line. Lying down, the jump key stands him up (`vr_flat_prone_jump_stands` 1; `flatplay::jumpBit`, hooked in `CL_SendMove` by `VR_MoveJump`): the prone key's get-up (a low ceiling keeps him lying, as the key does) and no jump, the press swallowed until the key is let go (a held jump never jumps on after it; a fresh press does). The prone key does nothing mid-slide (`toggleProne`), and the server never lays a sliding body down
 (`hull::updateCrouch`, `flatmove::slideOnServer`). All of it is in Debug > Tunables > Flatscreen > Slide; `vr_flat_slide 0` (Desktop Screen Play > Slide) turns it off. Tests: `bash
 Misc/quakevr/flatslide_test.sh <agent>` (`vr_flatslide_selftest`, `vr_flatslide_test`, `vr_flatslide_hit_test 0|1`), `bash
 Misc/quakevr/body_lie_test.sh <agent>` (`vr_body_lie_test`: the slid and lying body).
@@ -993,11 +993,19 @@ His words (2026-11-10): the swap key (3) gets a short animation: the hands come 
 held in both hands: the off hand detaches, comes to the main hand, the swap, then the hands to their places.
 
 `Quake/vr/vr_flatswap.cpp`: the press starts the trip (no impulse yet); over `vr_flat_swap_in` the hands go to their
-meeting point (each half of `vr_flat_swap_gap` off their middle, `vr_flat_swap_down` lower; held in both hands: the free
-hand off its grip to `vr_flat_swap_gap` off the holding hand, which stays); `impulse 48` (`VR_FlatSwapHands`, unchanged)
-is sent as they meet; once the hands' weapons have changed, each hand turned as the other was (the weapon keeps its turn
-as it changes hands), they ease back over `vr_flat_swap_out` to their own poses, the free hand onto the grip again. The
-places are kept in the body's level frame off the head, so a turn carries them. No fire meanwhile. Not drawn (the swap at
+meeting point (each half of `vr_flat_swap_gap` off their middle, at the higher hand's height and reach,
+`vr_flat_swap_down` lower); `impulse 48` (`VR_FlatSwapHands`, unchanged) is sent as they meet; once the hands' weapons
+have changed, each hand turned as the other was (the weapon keeps its turn as it changes hands), they ease back over
+`vr_flat_swap_out` to their own poses.
+
+A weapon held in both hands goes in three steps (his follow-up, 2026-11-10: "The off-hand should be released first and
+go to the regular 'empty hand in front' pose, then the weapon should be passed to that empty hand, and then the new
+off-hand should be attached"; `apply2h`): the release (`vr_flat_swap_2h_release_time`, 0.2 s), the free hand off the grip
+to the empty hand's guard (`vr_flat_guard_*`), the gun held still as it was; the pass (`_pass_time`, 0.25 s), the gun
+brought across to `vr_flat_swap_gap` off that hand, the swap sent there; the attach (`_attach_time`, 0.25 s), the hand
+that took the gun to its hold and the one that let it go onto the gun's two-hand grip. The grip is blocked
+(`flatswap::gripBlocked`, in flatsight's `gripWanted` and twohand's `canGrab`) until the swap has happened, free from
+the attach on. The places are kept in the body's level frame off the head, so a turn carries them. No fire meanwhile. Not drawn (the swap at
 once) with `vr_flat_swap_anim 0`, both hands empty, a carried thing, a reload or the quick grenade under way.
 `vr_flat_swap_debug 1`, `vr_flatswap_report`. Test: `Misc/quakevr/flathands_test.sh` (swap1, swap2h, swapdual, swapoff).
 

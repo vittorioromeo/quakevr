@@ -1008,6 +1008,11 @@ extern "C" int VR_MoveMainFire(int lmb)
     return flatplay::routeFire(moveLmb, offhandAttack || offhandAttackImpulse).fire[HAND_MAIN] ? 1 : 0;
 }
 
+extern "C" int VR_MoveJump(int state)
+{
+    return flatplay::jumpBit(state);
+}
+
 extern "C" void VR_WriteMoveExtras(sizebuf_t* buf)
 {
     if(vrProtocol())

@@ -1,0 +1,6 @@
+# flat_visor_center: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen visor HUD: the game's centre prints in a popup panel under the log's mount (vr_flat_visor_centerprint, _center_gap, _center_width, _center_pop, _center_fade).
+title Flat-screen visor HUD: centre messages in a popup panel
+hint Play with -flatscreenmode. "You need the gold key" pops into a small visor panel just under the top message panel, then fades when its time is up. Debug > Visor: Long Centre Message shows a long one wrapped in a taller panel; Hide Empty Log Panel off and on, the popup stays where the log panel ends. Find one of e1m1's secrets for a real one; with the visor off (or Centre Messages in Visor off) they are drawn over the view as before.
+map e1m1
+god
+cmd vr_flat_visor_fx center "You need the gold key"

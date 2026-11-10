@@ -288,6 +288,13 @@ static void SCR_DrawCenterStringBG (int y, float alpha)
 	}
 }
 
+// QVR: the centre print's fade out at the end of its time (con_notifyfade; shared with the visor's popup)
+static float SCR_CenterPrintFade (void)
+{
+	float fade = q_max (con_notifyfade.value * con_notifyfadetime.value, 0.f);
+	return fade ? q_min (scr_centertime_off / fade, 1.f) : 1.f;
+}
+
 void SCR_DrawCenterString (void) //actually do the drawing
 {
 	char	*start;
@@ -307,9 +314,8 @@ void SCR_DrawCenterString (void) //actually do the drawing
 	}
 	else
 	{
-		float fade = q_max (con_notifyfade.value * con_notifyfadetime.value, 0.f);
 		remaining = 9999;
-		alpha = fade ? q_min (scr_centertime_off / fade, 1.f) : 1.f;
+		alpha = SCR_CenterPrintFade ();
 	}
 
 	if (M_ForcedCenterPrint (&forcedalpha))
@@ -378,6 +384,8 @@ void SCR_CheckDrawCenterString (void)
 		if (cl.paused) //johnfitz -- don't show centerprint during a pause
 			return;
 		if (VR_CenterPrintOnWrist ()) // QVR: the wrist gadget's hologram shows it
+			return;
+		if (VR_CenterPrintOnVisor (scr_centerstring, SCR_CenterPrintFade ())) // QVR: flatscreen play's visor's popup shows it
 			return;
 	}
 
