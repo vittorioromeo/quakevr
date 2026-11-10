@@ -322,7 +322,8 @@ void update(int w, int h)
             continue;
         }
         a.blocked = flatsight::wallBlocksFire(k);
-        a.reloading = flatreload::busy(k);
+        // (Or drawn open, its muzzle turned away by its open pose: it can't fire either.)
+        a.reloading = flatreload::busy(k) || flatreload::openShare(k) > 0.f;
         // Dimmed while the wall stops it or it is away reloading, eased both ways (a gun that can't fire now).
         const float dimTo = za::min(a.blocked ? blockedDim : 1.f, a.reloading ? tune(vr_flat_xhair_reload_alpha, 0.f, 1.f) : 1.f);
         a.dim = a.had ? a.dim + (dimTo - a.dim) * (1.f - za::exp(-dt / dimEase)) : dimTo;

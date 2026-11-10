@@ -154,6 +154,13 @@ Flatscreen > Reload's times:
   (`VR_Reload_SsgBreak`: its spent shells thrown out; the clients draw it open, `ssgBreaks()`), only dry-clicks open
   (`VR_Reload_SsgIsOpen`), and the reload snaps it shut `vr_flat_reload_close_delay` (0.1 s) after its rounds go in at
   the hip (`VR_Reload_SsgClose`). The hip's reload no longer throws out shells of its own (`VRReloadWeapon`).
+- Open, the held gun eases into a pose of its own (his words 2026-11-10; `Quake/vr/vr_flatreload.cpp` `OpenPose`, from
+  the server's weapon flag): `vr_flat_ssg_open_pitch` (-10: muzzle up), `_yaw` (12: inward), `_roll` (-15), `_fwd` (0),
+  `_up` (3), `_out` (-1) over `vr_flat_ssg_open_in_time` (0.2 s), back over `_out_time` (0.2 s) once shut; the left hand's
+  yaw, roll and outward move mirrored. The revolver's cylinder out has the same set, `vr_flat_rv_open_*`, all 0 by
+  default (its swung-out cylinder reads well as held). A drawn pose that the server sees as the hand's (as the reload
+  trip's): the gun can't fire open, so no shot follows it, and its crosshair is held on the centre and dimmed as a
+  reloading gun's (`flatreload::openShare`). `vr_flatreload_report` prints each hand's turn and move.
 - `vr_flat_mag_eject` (1): a magazine gun (`VR_Reload_UsesMag`) fired empty drops its magazine
   `vr_flat_mag_eject_delay` (0.1 s) after its last round (`VR_Reload_EjectOut`, VR's eject button's: a round lying about,
   pushed out at `vr_flat_mag_eject_speed`, 40 u/s; the nail pistol's slides out of its grip first), and the reload seats
@@ -162,8 +169,9 @@ Flatscreen > Reload's times:
   the holsters', the guns lying about; full with `vr_flat_reload 0`). Its box is sent as in VR (where an ejected one
   starts), but a flat hand never takes hold of it (`magazineHand`).
 - `vr_flat_revolver_eject` (1): the revolver fired empty swings its cylinder out by itself
-  `vr_flat_revolver_open_delay` (0.15 s) after its last shot (`VR_Revolver_Open`), its six spent shells thrown out
-  (`VR_Revolver_Eject`), and stays out until the reload (its HandFrame no longer swings it home), a dry click a pull
+  `vr_flat_revolver_open_delay` (0.15 s) after its last shot (`VR_Revolver_Open`), its six spent shells thrown out once
+  it is fully out (the drawn swing, 0.14 s) and `vr_flat_revolver_eject_delay` (0.1 s) after (`VR_Revolver_Eject`;
+  `VR_FlatReload_RvEjectFrame`, at the hip at once if the hand gets there first), and stays out until the reload (its HandFrame no longer swings it home), a dry click a pull
   (`VR_Revolver_Attack`, flat play only; in a headset a pull out does nothing, as before). A reload with live shells left
   swings it out as the trip starts, only the spent ones out (`vr_rv_keep_live`). Either way it swings home
   `vr_flat_reload_close_delay` after the rounds go in (`VR_Revolver_Close`); brought back loaded (a weapon cycle, a
