@@ -985,11 +985,19 @@ His words (2026-11-10): the swap key (3) gets a short animation: the hands come 
 held in both hands: the off hand detaches, comes to the main hand, the swap, then the hands to their places.
 
 `Quake/vr/vr_flatswap.cpp`: the press starts the trip (no impulse yet); over `vr_flat_swap_in` the hands go to their
-meeting point (each half of `vr_flat_swap_gap` off their middle, `vr_flat_swap_down` lower; held in both hands: the free
-hand off its grip to `vr_flat_swap_gap` off the holding hand, which stays); `impulse 48` (`VR_FlatSwapHands`, unchanged)
-is sent as they meet; once the hands' weapons have changed, each hand turned as the other was (the weapon keeps its turn
-as it changes hands), they ease back over `vr_flat_swap_out` to their own poses, the free hand onto the grip again. The
-places are kept in the body's level frame off the head, so a turn carries them. No fire meanwhile. Not drawn (the swap at
+meeting point (each half of `vr_flat_swap_gap` off their middle, at the higher hand's height and reach,
+`vr_flat_swap_down` lower); `impulse 48` (`VR_FlatSwapHands`, unchanged) is sent as they meet; once the hands' weapons
+have changed, each hand turned as the other was (the weapon keeps its turn as it changes hands), they ease back over
+`vr_flat_swap_out` to their own poses.
+
+A weapon held in both hands goes in three steps (his follow-up, 2026-11-10: "The off-hand should be released first and
+go to the regular 'empty hand in front' pose, then the weapon should be passed to that empty hand, and then the new
+off-hand should be attached"; `apply2h`): the release (`vr_flat_swap_2h_release_time`, 0.2 s), the free hand off the grip
+to the empty hand's guard (`vr_flat_guard_*`), the gun held still as it was; the pass (`_pass_time`, 0.25 s), the gun
+brought across to `vr_flat_swap_gap` off that hand, the swap sent there; the attach (`_attach_time`, 0.25 s), the hand
+that took the gun to its hold and the one that let it go onto the gun's two-hand grip. The grip is blocked
+(`flatswap::gripBlocked`, in flatsight's `gripWanted` and twohand's `canGrab`) until the swap has happened, free from
+the attach on. The places are kept in the body's level frame off the head, so a turn carries them. No fire meanwhile. Not drawn (the swap at
 once) with `vr_flat_swap_anim 0`, both hands empty, a carried thing, a reload or the quick grenade under way.
 `vr_flat_swap_debug 1`, `vr_flatswap_report`. Test: `Misc/quakevr/flathands_test.sh` (swap1, swap2h, swapdual, swapoff).
 
