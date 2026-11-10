@@ -29,6 +29,8 @@
 #include "vr_hitmodel.hpp"
 #include "vr_jobs.hpp"
 #include "vr_cvars.hpp"
+#include "vr_monstervalues.hpp"
+#include "vr_tunables.hpp"
 #include "vr_grip.hpp"
 #include "vr_held.hpp"
 #include "vr_ledges.hpp"

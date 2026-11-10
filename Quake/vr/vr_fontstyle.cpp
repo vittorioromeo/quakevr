@@ -19,13 +19,14 @@
 // 157-159, the text box), so they join without a notch. The textured cells of conchars' rows 0 and 8 stay nearest.
 
 #include "vr_fontstyle.hpp"
-#include "vr_cvars.hpp"
+#include "vr_cvars.hpp" // the vr_font_* cvars (by token pasting)
 #include "vr_engine.hpp"
 #include "vr_testkit.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "vr_api.h"
 
 #include <math.h>
 #include <string.h>

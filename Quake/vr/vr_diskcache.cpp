@@ -16,6 +16,7 @@
 #include "Zancle/Concurrency/LockGuard.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
+#include "vr_api.h"
 
 #include <atomic>
 

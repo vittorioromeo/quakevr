@@ -102,7 +102,7 @@ set FTEQCC=C:\path\to\fteqcc64.exe
 QC\build.bat
 ```
 
-This writes `quakevr\progs.dat` (`QC/build.sh` does the same elsewhere), then runs `check_qc_precedence.py` (no
+This writes `quakevr\progs.dat` (`QC/build.sh` does the same elsewhere), then runs `qvr_checks qc_precedence` (no
 expression that FTEQCC reads differently from C) and TrenchBroom's entity-definition check (`fgdgen.py --check`). A new engine with old progs, or the other
 way round, can break level changes and saves, so rebuild both together.
 
@@ -177,8 +177,8 @@ in regular use.
 | `improve_weapons*.py`, `make_bloody_hands.py` | Rework the weapon and hand models (grips, trigger guards, details, sights, damage skins) from the sources in `src_models/` |
 | `make_detail.py`, `make_grades.py`, `make_sounds.py` | Generate the detail textures, the colour grades and the synthesised sounds |
 | `quakepak.py` | Reads Quake's `.pak` files (used by the others) |
-| `check_statics.py`, `check_qc_precedence.py` | The code checks: no function-local statics in `Quake/vr` ([CODE_STYLE.md](vr-port/CODE_STYLE.md)), no QuakeC expression read differently from C |
-| `check_canonical.py`, `canonical_allowlist.txt` | No new copy of a canonical helper (a local `vec`/`wrap180`, an `rnd` wrapper, a direct `->haptic(`, `PR_PushQCVM` outside `progs::ServerVm`, a QC `find(world, classname, "player")`, ...): today's sites are allowlisted ([ARCHITECTURE.md](vr-port/ARCHITECTURE.md), "Checks the build runs") |
+| `qvr_checks statics`, `qvr_checks qc_precedence` | The code checks: no function-local statics in `Quake/vr` ([CODE_STYLE.md](vr-port/CODE_STYLE.md)), no QuakeC expression read differently from C |
+| `qvr_checks canonical`, `canonical_allowlist.txt` | No new copy of a canonical helper (a local `vec`/`wrap180`, an `rnd` wrapper, a direct `->haptic(`, `PR_PushQCVM` outside `progs::ServerVm`, a QC `find(world, classname, "player")`, ...): today's sites are allowlisted ([ARCHITECTURE.md](vr-port/ARCHITECTURE.md), "Checks the build runs") |
 | `bench/qvrbench.py` | The benchmark scenarios, summaries and comparisons ([BENCHMARKS.md](vr-port/BENCHMARKS.md)) |
 | `menu_coverage.py` | Checks the VR menu tree from `menu_vr dump`: every setting reached, nothing lost in a reorganisation |
 | `make_vrcalibration_map.py` | Writes (and with `--compile` builds) the VR Calibration room's map (id's textures: `Misc/trenchbroom/make_id_wad.py` first) |

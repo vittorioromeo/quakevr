@@ -71,7 +71,7 @@ float(entity xPlayer, float xHand) VR_Forcegrab_IsHandBusy =
 // catch and tug). Free: empty (VRIsHandEmpty: no weapon, its slot carries nothing), not busy (no enemy, flashlight, gun's
 // fore-end, seated magazine or tug in its slot: VR_HOLD_FOE and after) and not locked on to a force grab's pull. A
 // site's exceptions are said in `xAllow` (VR_HANDFREE_*, vr_fields.qc; 0: none), never written out beside the call
-// (check_canonical.py, qc-busy-hand). The engine's climb asks its own (vr_climb.cpp handBusy: it runs before the move,
+// (qvr_checks canonical, qc-busy-hand). The engine's climb asks its own (vr_climb.cpp handBusy: it runs before the move,
 // with the client's flashlight bit and a pull in flight; it does not see the busy kinds), and the client's grips theirs
 // (held::handEmpty: no slot there).
 float(entity xPlayer, float xHand, float xAllow) VR_Hand_Free =

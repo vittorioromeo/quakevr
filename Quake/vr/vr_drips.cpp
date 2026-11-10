@@ -5,6 +5,7 @@
 #include "vr_ambient.hpp"
 #include "vr_bloodstream.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_gore.hpp"
 #include "vr_goresound.hpp"

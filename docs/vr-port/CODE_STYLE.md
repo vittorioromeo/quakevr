@@ -13,6 +13,14 @@ code goes: [ARCHITECTURE.md](ARCHITECTURE.md).
 - `vr_engine.hpp` has only SDL's core headers (quakedef.h with `QVR_ENGINE_SDL_CORE`), and quakedef.h no longer pulls
   in windows.h: a file that calls SDL includes `SDL.h`, one that uses the Windows API includes `<windows.h>` (or
   declares the few functions it calls, as `vr_ao.cpp` does).
+- Include the narrowest header (the tables' headers are the hot ones: an edit of a table recompiles every file that
+  includes its header): a cvar by name `vr_cvars.hpp` (vr_cvars.inc), a tuning constant by name `vr_tunables.hpp`
+  (vr_tunables.inc), their type and functions only `vr_tunables_api.hpp`, the data tables' named values
+  `vr_monstervalues.hpp` / `vr_weaponvalues.hpp`, `cvars::Override/Snapshot/forEach` `vr_cvars_util.hpp`, the
+  settings' registration and config writer `vr_config.hpp`. The engine hooks: `vr_api.h` / `vr_api_render.h`, included
+  by the files that call or define a hook (no longer by quakedef.h or vr_engine.hpp, so not by every file).
+- A file that includes `<windows.h>` defines `WIN32_LEAN_AND_MEAN` and `NOMINMAX` before it (and includes the extra
+  Windows headers it needs, e.g. `<shellapi.h>`, `<mmsystem.h>`).
 - A shared header doesn't include a heavy header (windows.h, phonon.h, OpenXR, box3d) for one inline function: the
   function goes into the .cpp. A large file splits into parts with an `_internal.hpp` (`vr_view_internal.hpp`,
   `vr_menu_internal.hpp`: the old anonymous namespace a named `*_detail` one).
@@ -130,7 +138,7 @@ state instead:
 
 `vr_memstats` prints the registered sets' bytes (totals and the largest), `vr_limits` the totals.
 
-`Misc/quakevr/check_statics.py` (run by the kit's `build.sh`, which fails on it) rejects every function-local `static`
+`qvr_checks statics` (run by the kit's `build.sh`, which fails on it) rejects every function-local `static`
 or `thread_local` in `Quake/vr` that is not `static constexpr`, of any type, in any function or lambda body (an
 `if(static bool once = false; !once)` too); class members and namespace-scope variables are not function-local. It
 reads the source's scopes (comments, strings and raw strings skipped), so it needs no compiler. A line that must stay
@@ -178,7 +186,7 @@ could be drawn in the multiview pass, even when it is not ported to it yet (deci
 - **Every new graphics program gets its multiview twin.** It is made in gl_shaders.c with `GL_CreateProgram` (its
   sources are kept and the twin is the same text compiled under `QVR_MULTIVIEW`: `GL_CreateShader`), not through
   `gfx::glProgram` / `gfx::linkProgram`, and its twin must build. `vr_multiview_check` builds every twin (run by
-  `Misc/quakevr/selfchecks_test.sh`); `check_canonical.py`'s `gl-program-no-twin` fails the build on a new program
+  `Misc/quakevr/selfchecks_test.sh`); `qvr_checks canonical`'s `gl-program-no-twin` fails the build on a new program
   made outside gl_shaders.c, unless its allowlist line says why it needs none (compute, a light's or a probe's view,
   per eye for good).
 - **A new pass says where it sits.** In `R_RenderScene` (gl_rmain.c) the multiview pass (`R_RenderStereoSingle`)
@@ -222,13 +230,13 @@ scratch vector across nested/reentrant calls or workers. `vr_alloc_test` checks 
 fteqcc's operator priorities are QC's, not C's: parenthesise every `&&`/`||` on the right of an assignment,
 `x = (a && b);`, since `x = a && b` (also `+=` and `self.f = a && b`) is `(x = a) && b`. Also `a && b ? c : d` is
 `a && (b ? c : d)`, `a || b && c` is `(a || b) && c`, `!a == b` is `!(a == b)` and `a & b == c` is `(a & b) == c`.
-`Misc/quakevr/check_qc_precedence.py` (run by `QC/build.sh`, `QC/build.bat` and the kit's `build.sh`) fails on any
+`qvr_checks qc_precedence` (run by `QC/build.sh`, `QC/build.bat` and the kit's `build.sh`) fails on any
 expression that compiles differently under C's priorities; the repro that showed each case, `Misc/quakevr/qcrepro/repro.qc`, is in git history (commit `2f6ffb4ba`).
 
 Test code stays out of releases: a QC file of tests (`*_test.qc`, listed in `progs.src`) is wrapped whole in
 `#ifdef QVR_TESTS` ... `#endif` (the macro is defined in `QC/vr_macros.qc` unless fteqcc is given `-DQVR_NO_TESTS`, which
 the release packaging does), and every call or declaration of it from game code is wrapped the same way. A new test file:
-wrap it. `Misc/quakevr/check_release_qc.py` (run by `QC/build.sh`, `QC/build.bat`, Visual Studio's QC step and the kit's
+wrap it. `qvr_checks release_qc` (run by `QC/build.sh`, `QC/build.bat`, Visual Studio's QC step and the kit's
 `build.sh`; ~3 s) fails on a `*_test.qc` not wholly inside the guard and on any error or warning of the `-DQVR_NO_TESTS`
 compile, which it writes to `build/qcrelease/` (`quakevr/progs.dat` is not touched).
 
@@ -289,7 +297,7 @@ promote <config>`, `props_data.py promote <config>`, `monsters_data.py promote <
 ## Canonical helpers
 
 One implementation each; new code uses these, a local copy is a review finding. Other clusters add their own lists below.
-`Misc/quakevr/check_canonical.py` (run by the kit's build.sh) fails the build on a new copy of the main families
+`qvr_checks canonical` (run by the kit's build.sh) fails the build on a new copy of the main families
 (ARCHITECTURE.md, "Checks the build runs"; today's left sites: `Misc/quakevr/canonical_allowlist.txt`).
 
 ### Geometry and math (`Quake/vr/vr_geom.hpp`, namespace `qvr::geom`)
@@ -326,9 +334,9 @@ constants, and then its body calls the canonical one).
 | point contents, liquids | `worldtrace::contents(p)` (server), `clientContents(p)`, `liquidContents(p, client)`, `isLiquid(c, currents)`; each site keeps its own rule of what is liquid | vr_trace.hpp |
 | a server line trace | `worldtrace::serverLine(a, b)` (passes the world) / `serverLine(a, b, pass, type)` | vr_trace.hpp |
 | a controller buzz | `haptics::pulse(hand, seconds, amplitude, hz = 160)` (vr_disablehaptics and the hand's bounds inside) | vr_backend.hpp |
-| a cvar set for a scope | `cvars::Override o{cvar, value};` (RAII) | vr_cvars.hpp |
-| cvars kept and put back later | `cvars::Snapshot` (`keep(cvar)`, `restore()`) | vr_cvars.hpp |
-| every cvar | `cvars::forEach(fn)` | vr_cvars.hpp |
+| a cvar set for a scope | `cvars::Override o{cvar, value};` (RAII) | vr_cvars_util.hpp |
+| cvars kept and put back later | `cvars::Snapshot` (`keep(cvar)`, `restore()`) | vr_cvars_util.hpp |
+| every cvar | `cvars::forEach(fn)` | vr_cvars_util.hpp |
 | a VR cvar's value | `vr_x.value` directly, never `Cvar_VariableValue("vr_x")` (by name only for names typed or made at run time) | vr_cvars.hpp |
 | a client entity's number | `client::entityNumber(e, limit)` (-1: null, the world, not one of cl_entities) | vr_client.hpp |
 
@@ -364,7 +372,7 @@ Do not write a local copy (a second `rnd`, `lower`, `trim`, `startsWith`, `appen
 | a bounded undo stack (oldest dropped); a tool's feedback line (panel + console) | `toolpanel::pushUndo(stack, max, item)`, `toolpanel::say(line, until, tool, text, seconds)` | `vr_toolpanel.hpp` |
 | a panel image's 2D text and boxes (Quake's font, gold/white, shrunk to fit) | `toolpanel::Rect`, `fill`, `text`, `textFit` | `vr_toolpanel.hpp` |
 | a client one-shot sound at a place / on the local player | `audio::playAt(sfx, at, volume, attenuation, entity = 0)`, `audio::playLocal(sfx, volume)` | `vr_audio.hpp` |
-| per-slot values from a data file (`quakevr/data/<x>.txt`; their `vr_<x>_<key>_NN` stand-ins): storage, names, a value's key | `DataTable<Key, Slots, Keys>` (`load`, `at`, `keyOf`, `find`, `set`, iteration); every table's stand-ins: `standInTables()` (vr_cvars.hpp) | `vr_slottable.hpp` |
+| per-slot values from a data file (`quakevr/data/<x>.txt`; their `vr_<x>_<key>_NN` stand-ins): storage, names, a value's key | `DataTable<Key, Slots, Keys>` (`load`, `at`, `keyOf`, `find`, `set`, iteration); every table's stand-ins: `standInTables()` (vr_config.hpp) | `vr_slottable.hpp` |
 | QC functions the engine calls every frame | a `progs::Bindings` member resolved once per map (`bindings().arenaCards.CardSerial`), never `findFunction("...")` per frame | `vr_progs.hpp` |
 | work done at each map load, in order | a row of `prewarmSteps` (vr_main.cpp `VR_NewMap`) | `vr_main.cpp` |
 | a new view entity (hands, weapons, body parts) | a member of `Entities` listed in `Entities::members` at its place in the draw order (`zip(a, b)` for arrays visited per index); `forEachEntity` walks the list, a static_assert fails on a member left out | `vr_view_internal.hpp` |
@@ -387,12 +395,12 @@ Use these instead of a local copy (refactor 2026-10-29, cluster A4).
   check line, counted), `VR_Test_Nest(tag, flags)` / `VR_Test_Unnest()` (a test run inside another: agtest's agshot).
   One spawner: `VR_Test_Spawn(player, kind, at, yaw)` (the dispenser's numbers; impulse 241's). The armed
   grunts' harness (`VR_AGT_Check/Print/Spawn/Remove/Hunt`, vr_armedgrunt_test.qc) and the arena's `VR_AT_Check` count
-  on that tally. A new test never keeps its own pass/fail globals or verdict line (check_canonical.py's test-*
+  on that tally. A new test never keeps its own pass/fail globals or verdict line (qvr_checks canonical's test-*
   families). Scripts: `Misc/quakevr/qvrtest.py` / `qvrtest.sh` (TESTING.md, "Writing a test").
 - Cvars: read with a handle, `cvar_hget(cvarh_<name>)` (`QC/vr_cvars.qc`, compiled right after defs.qc so every file
-  sees it), never `cvar("...")` (check_canonical.py's qc-cvar-by-name: only the allowlisted sites, names built at run
+  sees it), never `cvar("...")` (qvr_checks canonical's qc-cvar-by-name: only the allowlisted sites, names built at run
   time or tests' cvar tables put back by name; QC/ad, the import, keeps its own). Every handle is generated: write
-  `cvarh_<name>` and run `python Misc/quakevr/gen_vr_cvars_qc.py` (it writes `QC/vr_cvars_gen.qc`, the global and its
+  `cvarh_<name>` and run `build/qvr_checks/qvr_checks.exe cvars_qc` (it writes `QC/vr_cvars_gen.qc`, the global and its
   make for every handle the QC's code uses and no other: each costs a global; `--check`
   fails a stale file or a name that is no cvar, tunable, weapon/monster/group value or engine cvar). Handles are made
   again at every load (their numbers are the session's); one the engine does not find prints `cvar_hmake: unknown
@@ -407,5 +415,5 @@ Use these instead of a local copy (refactor 2026-10-29, cluster A4).
   `MGH_SQUADS` / `MGH_WAVES` (vr_mg_horde.qc); AD's weapon upgrades `AD_UPGRADES` (vr_ad_bridge.qc).
   A struct array with an initializer (`MG_poses`, these) is the form; a value a setting or a function decides stays a
   line of code before the table read. Each table costs a global per value: QC globals are near the id format's 64k.
-- Builtins: a `= #0` prototype is bound by name; `Misc/quakevr/check_builtins.py` (run by the kit's build.sh) fails the
+- Builtins: a `= #0` prototype is bound by name; `qvr_checks builtins` (run by the kit's build.sh) fails the
   build when one names no engine builtin, or a `vrBuiltins` entry has no prototype.

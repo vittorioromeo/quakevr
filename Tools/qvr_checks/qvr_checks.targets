@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- qvr_checks in the IDE build (imported by Windows/VisualStudio/ironwail.vcxproj): builds the tool before the QC step
+     when its sources are newer than build/qvr_checks/qvr_checks.exe (Release x64, whatever the solution builds), so the
+     QC step's progs-format check can run it. The kit's build.sh builds it the same way and runs `qvr_checks all`. -->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <QvrChecksExe>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\build\qvr_checks\qvr_checks.exe'))</QvrChecksExe>
+  </PropertyGroup>
+  <ItemGroup>
+    <QvrChecksSource Include="$(MSBuildThisFileDirectory)*.cpp;$(MSBuildThisFileDirectory)*.hpp;$(MSBuildThisFileDirectory)qvr_checks.vcxproj" />
+  </ItemGroup>
+  <Target Name="QvrBuildChecks" BeforeTargets="QvrCompileQC" Inputs="@(QvrChecksSource)" Outputs="$(QvrChecksExe)">
+    <MSBuild Projects="$(MSBuildThisFileDirectory)qvr_checks.vcxproj" Properties="Configuration=Release;Platform=x64" />
+  </Target>
+</Project>

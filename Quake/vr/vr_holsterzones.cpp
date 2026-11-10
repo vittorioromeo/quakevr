@@ -4,6 +4,7 @@
 #include "vr_backend.hpp"
 #include "vr_bodyclone.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_lines.hpp"
 #include "vr_main.hpp"

@@ -191,7 +191,7 @@ Checked that it catches one: a sprites vertex shader broken under `QVR_MULTIVIEW
 (`sprites|DITHER 0` and `1`), and with `sprites|` on the allow-list `allowed sprites|* (2 failing): ...` and a pass.
 
 Not covered by the twins: Quake VR's own programs, made through `gfx::glProgram` / `gfx::linkProgram` with their own
-sources (no `GL_CreateShader`, so no twin). `check_canonical.py`'s `gl-program-no-twin` family holds today's sites,
+sources (no `GL_CreateShader`, so no twin). `qvr_checks canonical`'s `gl-program-no-twin` family holds today's sites,
 each with why (Misc/quakevr/canonical_allowlist.txt), and fails the build on a new one:
 
 | Programs | Why no twin (today) |

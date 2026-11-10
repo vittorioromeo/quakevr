@@ -27,6 +27,9 @@
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Tan.hpp"
+#include "Zancle/String/String.hpp"
+#include "vr_api.h"
+#include "vr_api_render.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>

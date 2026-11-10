@@ -64,6 +64,7 @@
 #include "Zancle/Math/Pow.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
+#include "vr_api.h"
 
 #include <math.h>
 #include <stdio.h>

@@ -8,7 +8,6 @@
 #include "vr_animsmooth.hpp"
 #include "vr_hitreact.hpp"
 #include "vr_engine.hpp"
-#include "vr_cvars.hpp"
 #include "vr_mdldequant.hpp"
 #include "vr_mem.hpp"
 #include "vr_ragdoll.hpp"

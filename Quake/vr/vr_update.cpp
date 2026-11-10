@@ -18,6 +18,7 @@
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
 #include "vr_zancle.hpp"
+#include "vr_api.h"
 
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>

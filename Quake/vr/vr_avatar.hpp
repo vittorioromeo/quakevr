@@ -14,6 +14,7 @@
 
 #include "vr_engine.hpp" // qmodel_t, entity_t
 #include "vr_hands.hpp"
+#include "Zancle/Container/Vector.hpp"
 
 namespace qvr::avatar
 {

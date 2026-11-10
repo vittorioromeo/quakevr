@@ -10,7 +10,6 @@
 #include "vr_api.h"
 #include "vr_box3d.hpp"
 #include "vr_climb.hpp"
-#include "vr_cvars.hpp"
 #include "vr_grip.hpp"
 #include "vr_hands.hpp"
 #include "vr_held.hpp"

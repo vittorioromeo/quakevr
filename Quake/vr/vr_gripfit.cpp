@@ -3,6 +3,7 @@
 #include "vr_gripfit.hpp"
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_handfit.hpp"
 #include "vr_handrig.hpp"
 #include "vr_held.hpp"
@@ -16,6 +17,7 @@
 #include "Zancle/Math/Fmax.hpp"
 #include "Zancle/Math/Fmin.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Container/Vector.hpp"
 
 
 namespace qvr::gripfit

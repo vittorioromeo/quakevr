@@ -21,6 +21,8 @@
 #include "vr_backend.hpp"
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
+#include "vr_monstervalues.hpp"
+#include "vr_weaponvalues.hpp"
 #include "vr_mgroups.hpp"
 #include "vr_engine.hpp"
 #include "vr_files.hpp"

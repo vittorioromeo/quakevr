@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "vr/vr_tracy.h"
+#include "vr/vr_api.h"
 
 // QVR: `call` in a profiling zone of its own (Release-Tracy; nothing in other builds): the player's physics, a few a tick
 #define SV_ZONE(name, call) do { VR_TRACY_SCOPE (name); call; } while (0)

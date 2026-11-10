@@ -11,6 +11,7 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/Pair.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
 
 #include <glm/glm.hpp>
 

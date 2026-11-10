@@ -26,6 +26,7 @@
 #include "vr_cvars.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Random/FastNonCryptoRng.hpp"
+#include "vr_api.h"
 #include <stdlib.h>
 
 namespace qvr::srvrandom

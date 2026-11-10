@@ -30,6 +30,7 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
+#include "vr_api.h"
 
 extern "C" void VR_FileCacheEnable(int on); // vr_fscache.cpp
 extern "C" int VR_FileCacheEnabled();

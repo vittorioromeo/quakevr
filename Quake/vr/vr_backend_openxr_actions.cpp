@@ -2,6 +2,8 @@
 // the interaction profiles, the input read, haptics and the hand poses.
 
 #include "vr_backend_openxr_internal.hpp"
+#include "vr_cvars.hpp"
+#include "Zancle/Container/Vector.hpp"
 
 #ifdef QVR_HAVE_OPENXR
 

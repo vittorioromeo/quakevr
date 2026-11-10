@@ -4,6 +4,12 @@
 
 #include "vr_foegrab_internal.hpp"
 #include "vr_progs.hpp"
+#include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/Vocabulary/Span.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
 
 namespace foegrab::detail
 {

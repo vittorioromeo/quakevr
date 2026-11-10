@@ -40,7 +40,7 @@ has QVR fields again since (+3).
 | `Quake/vr/vr_cmdtoken.cpp` | `cmd.c` | the console's tokenizer for arguments of any length |
 | `Quake/vr/vr_crash.cpp` | `pl_win.c`, `platform.h` | test runs' crash report and error file |
 | `Quake/vr/vr_sleep.cpp` | `main_sdl.c` | the frame cap's high-resolution sleep |
-| `Quake/vr/vr_api.h`, `vr_api_render.h` | per-file includes, `glquake.h`, `cmd.h`, `vr_ao.hpp`, `vr_sights.hpp`, `vr_tonemap.h` | `quakedef.h` includes both for every engine file; `VR_TIMED` (load timing) |
+| `Quake/vr/vr_api.h`, `vr_api_render.h` | per-file includes, `glquake.h`, `cmd.h`, `vr_ao.hpp`, `vr_sights.hpp`, `vr_tonemap.h` | each engine file that calls a hook includes them after `quakedef.h` (`#include "vr/vr_api.h"`; no longer in quakedef.h, so an edit recompiles those files alone); `VR_TIMED` (load timing) |
 | `Quake/vr/vr_engine.hpp` | engine headers | declarations of engine functions only the module calls |
 | `Quake/vr/vr.mk` | the three Makefiles | the module's objects, flags and rules |
 | `Windows/VisualStudio/quakevr.toolset.props`, `quakevr.props` | `ironwail.vcxproj` | the ClangCL toolset; Release flags (evaluated project items checked identical) |
@@ -115,7 +115,7 @@ after; `models` 0.028 / 0.026 ms.
 | `Windows/VisualStudio/ironwail.sln` | +10 -0 | +10 -0 | 2 | the zancle project (a .sln has no comments: not marked) |
 | `Quake/Makefile.w32` | +28 -3 | +7 -2 | 4 | include vr/vr.mk; static libstdc++; clean |
 | `Quake/Makefile.w64` | +28 -3 | +7 -2 | 4 | include vr/vr.mk; static libstdc++; clean |
-| `Quake/quakedef.h` | +3 -3 | +6 -1 | 3 | MAX_NUM_ARGVS 256; enum-defining headers first; the module's C headers (vr_api.h, vr_api_render.h) for every engine file |
+| `Quake/quakedef.h` | +3 -3 | +6 -1 | 3 | MAX_NUM_ARGVS 256; enum-defining headers first |
 | `Quake/cl_input.c` | +5 -2 | +4 -2 | 3 | more commands per frame |
 | `Quake/Makefile` | +27 -2 | +5 -1 | 3 | include vr/vr.mk; clean |
 | `.gitignore` | +30 -0 | +6 -0 | 1 | build and packaging output (the game folder: quakevr/.gitignore) |

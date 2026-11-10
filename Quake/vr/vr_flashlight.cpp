@@ -9,6 +9,7 @@
 #include "vr_body.hpp"
 #include "vr_bodyclone.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_gfx.hpp"
 #include "vr_held.hpp"
 #include "vr_hue.hpp"
@@ -49,6 +50,7 @@
 #include "Zancle/Vocabulary/Optional.hpp"
 #include "vr_zancle.hpp"
 #include "vr_geom.hpp"
+#include "vr_api.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 

@@ -3,6 +3,8 @@
 #include "vr_ao_internal.hpp"
 #include "vr_diskcache.hpp"
 #include "vr_sha256.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
 
 #include <stdio.h>
 #include <string.h>

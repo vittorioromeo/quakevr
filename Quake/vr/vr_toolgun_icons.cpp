@@ -19,6 +19,7 @@
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/Floor.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "vr_api.h"
 
 #include <string.h>
 

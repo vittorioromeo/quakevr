@@ -8,7 +8,6 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_weight.hpp"
 #include "vr_box3d.hpp"
-#include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_fatigue.hpp"
 #include "vr_flashlight.hpp"

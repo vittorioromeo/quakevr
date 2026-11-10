@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "gl_shaders.h"
 #include "q_ctype.h"
+#include "vr/vr_api.h"
 
 glprogs_t glprogs;
 static GLuint gl_programs[256]; // QVR: 256 (the multiview twins)

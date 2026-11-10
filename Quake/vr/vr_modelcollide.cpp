@@ -11,6 +11,7 @@
 #include "vr_chainsaw.hpp"
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_grasp.hpp"
 #include "vr_held.hpp"
@@ -44,6 +45,7 @@
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 #include "vr_zancle.hpp"
+#include "vr_api.h"
 #include <glm/gtc/type_ptr.hpp>
 
 

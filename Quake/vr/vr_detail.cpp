@@ -6,6 +6,7 @@
 #include "vr_extmaps.hpp"
 #include "vr_main.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 
 #include "Zancle/Base/GetArraySize.hpp"
@@ -24,6 +25,7 @@
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
 #include "vr_zancle.hpp"
+#include "vr_api_render.h"
 
 #include <ctype.h>
 #include <stdlib.h>

@@ -11,7 +11,6 @@
 
 #include "vr_weaponstudio_internal.hpp"
 
-#include "vr_cvars.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_units.hpp"
 #include "vr_weapons.hpp"

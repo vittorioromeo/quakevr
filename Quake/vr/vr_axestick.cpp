@@ -34,6 +34,7 @@
 #include "vr_lines.hpp"
 #include "vr_text3d.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_held.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_mem.hpp"
@@ -57,6 +58,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "vr_zancle.hpp"
 #include "vr_geom.hpp"
+#include "vr_api.h"
 
 #include <stdarg.h>
 #include <string.h>

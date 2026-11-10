@@ -52,6 +52,7 @@
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/Pair.hpp"
 #include "vr_zancle.hpp"
+#include "vr_api.h"
 
 #include <glm/gtc/constants.hpp>
 

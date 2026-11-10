@@ -7,6 +7,14 @@
 #include "vr_flatsight.hpp"
 #include "vr_progs.hpp"
 #include "vr_testkit.hpp"
+#include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "vr_api.h"
 #include <glm/gtc/type_ptr.hpp>
 
 namespace view_detail

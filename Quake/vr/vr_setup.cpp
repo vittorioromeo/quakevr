@@ -3,6 +3,7 @@
 #include "vr_menuui.hpp"
 #include "vr_setup.hpp"
 #include "vr_bodycal.hpp"
+#include "vr_config.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
@@ -26,6 +27,8 @@
 #include "Zancle/Math/Remainder.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "vr_api.h"
 
 #include <string.h>
 

@@ -44,7 +44,6 @@ int Draw_CachedPicsMax (void);						// gl_draw.c
 extern int menu_numcachepics;						// gl_draw.c
 int Cmd_AliasCount (void);							// cmd.c
 int Cmd_CommandCount (void);						// cmd.c
-extern cmdlimits_t cmd_limits;						// cmd.c: the command system's high-water marks (vr_api.h)
 extern int num_temp_entities;						// cl_tent.c
 extern qboolean scr_drawloading;					// gl_screen.c
 extern qboolean scr_drawdialog;						// gl_screen.c
@@ -132,5 +131,3 @@ void Z_Usage (int *used, int *peak, int *size);		// zone.c: the zone's bytes in 
 void Hunk_Usage (int *used, int *peak, int *size, int *segments, int *maxsegments); // zone.c (vr_limits)
 }
 
-#include "vr_api.h"
-#include "vr_api_render.h"

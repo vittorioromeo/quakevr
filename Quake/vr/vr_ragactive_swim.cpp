@@ -3,6 +3,10 @@
 // they share is vr_ragactive_internal.hpp.
 
 #include "vr_ragactive_internal.hpp"
+#include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
 
 namespace qvr::ragactive
 {

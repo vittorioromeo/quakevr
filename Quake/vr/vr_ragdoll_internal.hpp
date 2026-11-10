@@ -9,7 +9,6 @@
 #include "vr_ragdoll.hpp"
 #include "vr_tracy.h"
 #include "vr_api_render.h"
-#include "vr_cvars.hpp"
 #include "vr_box3d.hpp"
 #include "vr_decals.hpp"
 #include "vr_diskcache.hpp"

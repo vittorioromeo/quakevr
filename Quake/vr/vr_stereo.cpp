@@ -49,6 +49,9 @@
 #include "Zancle/Math/Lround.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Tan.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "vr_api.h"
+#include "vr_api_render.h"
 
 
 namespace qvr::stereo

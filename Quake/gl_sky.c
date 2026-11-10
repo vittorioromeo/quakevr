@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //gl_sky.c
 
 #include "quakedef.h"
+#include "vr/vr_api.h"
 
 extern	int	rs_skypolys; //for r_speeds readout
 extern	int rs_skypasses; //for r_speeds readout

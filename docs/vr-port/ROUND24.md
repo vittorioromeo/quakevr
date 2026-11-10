@@ -8355,6 +8355,37 @@ two-handed gun must not go back to the gun's hotspot with it: the gun goes one-h
 - Test: `vr_flatitems_test 7` (flatitems_test.sh `prop`), `vr_flat_fg_report` now prints `fist prop`, `fist`, `torch`,
   `upright` and the stick's `off`.
 
+## Build checks in C++, run beside the compile (branch `agent/checksrw`, worktree `checksrw`, 2026-11-10)
+
+Vittorio: the Python checks ran one after another; rewrite them in C or C++, run them in parallel, and alongside the
+compile.
+
+- `Tools/qvr_checks` (C++20, no dependencies, its own small vcxproj outside the solution; README.md there): one exe
+  with a subcommand per check (`statics`, `test_numbers`, `builtins`, `cvars_qc`, `canonical`, `release_qc`,
+  `qc_precedence`, `progs_format`, and `fgd`, which runs the still-Python `fgdgen.py`), and `all`: every check in its
+  own thread, each one's result printed as a block in a fixed order. The Python scripts are gone (git rm); every
+  caller now runs the tool: the kit's build.sh, `ironwail.vcxproj`'s QC step (progs format, release QC; the tool is
+  built first by `qvr_checks.targets`), `QC/build.sh`, `QC/build.bat`, `make_release.ps1`, the docs.
+- Same verdicts and messages: each check run old and new on the tree (identical output) and on injected violations,
+  one per rule (statics: 9 kinds incl. lambdas, `if(static ...)`, raw strings, `statics-ok`; test numbers: registry
+  clash, undispatched, bad lines, missing dispatcher, dispatch clash, menu number; builtins: unknown `#0`, duplicate,
+  dead; canonical: C++ and QC families; cvars: unknown handle; release QC: unguarded test file and its warning;
+  precedence: `x = a && b`; progs format: 16-bit, short, missing): identical verdicts, the only text differences
+  being the commands named in messages (`qvr_checks cvars_qc` for `python .../gen_vr_cvars_qc.py`) and the path
+  separator in progs_format's error line. QC/vr_cvars_gen.qc's header comment now names the tool (body identical).
+- Times (s, Python -> C++): statics 11.3 -> 0.4, canonical 3.9 -> 0.5, test numbers 0.7 -> 0.1, builtins 0.9 -> 0.1,
+  cvars 1.1 -> 0.2, release QC 2.0 -> 2.0 (fteqcc), precedence 13.7 -> ~8-11 (its two compiles were already parallel;
+  fteqcc writes a 1.7 GB listing each: now emptied after parsing, build/qcprec stays ~100 KB instead of GBs).
+  `all`: ~11 s wall, all hidden behind MSBuild.
+- Kit build.sh: VS 2026's MSBuild when installed (`F:/VS2026`), else 2022's; `--lto` builds `ReleaseLTO` when the
+  tree's vcxproj has it, else Release without QvrNoLto; the checks start before MSBuild and are collected after it (a
+  tree without Tools/qvr_checks runs the old scripts in the background the same way); it also lists clang-style
+  `: warning` lines from MSBuild now. Ship-like build (vr_cvars.inc and a QC file touched, precedence due): see the
+  timings in the report.
+- Left: `Misc/trenchbroom/fgdgen.py` is still Python (1,262 lines with an FGD parser and a model() expression
+  evaluator; 2.2 s, run in parallel so it costs no wall time); `Tools/fteqcc/test_fteqcc.py` still runs only when the
+  compiler changes. Linux/macOS: the tool is Win32-only; `progs_format.sh` keeps the flatpak's and QC/build.sh's
+  progs-format check, the other QC checks run on Windows only (as the flatpak already said).
 ## Build: Release without ThinLTO, ReleaseLTO, day-only build date, no second ship build (branch `agent/buildcfg`, worktree `buildcfg`, 2026-11-10)
 
 Vittorio's build-speed feedback (items 3, 5, 6, 7 of the build report `qvr-kit/scratch/buildprof_1110.md`).
@@ -8417,3 +8448,36 @@ PostBuildEvent DLL copies (0.06 s) and QvrBuildVersion's four git calls (0.3 s).
   0.08 s. VR's break keeps its 0.08 s. Its eject sound still plays at the break (server side).
 - Tests: `Misc/quakevr/flateject_test.sh` (ssg, ssgold, rv, rvold, vr; flateject_check.py: 15 checks); scenario
   `shell_eject`.
+## Build speed: the hot headers split (hdrsplit, 2026-11-10)
+
+vr_cvars.hpp held every table (cvars, tunables, monster and weapon values) and helper, and vr_api.h /
+vr_api_render.h came with quakedef.h and vr_engine.hpp (so both PCHs): an edit of any of them recompiled 371-504 of
+~570 objects. Now (SOURCE_MAP.md, "The cvar and tunable headers"):
+
+- vr_cvars.hpp: the cvars by name only. vr_tunables.hpp (the constants by name; vr_tunables.inc),
+  vr_tunables_api.hpp (Tunable, tunableFind, the Tunables page's API; no table), vr_monstervalues.hpp,
+  vr_weaponvalues.hpp, vr_cvars_util.hpp (cvars::Override/Snapshot/forEach), vr_config.hpp (registerCvars, the config's
+  writer, standInTables). Each file includes what it uses (a script over the symbols, then the compiler). weaponSlotCount
+  stays in vr_cvars.hpp: gen_vr_cvars_qc reads it there.
+- vr_api.h / vr_api_render.h: included by the 52 engine files and ~240 VR files that call or define a hook; they
+  include vr_engine.hpp themselves in C++ (self-contained). `cmd_limits`'s extern moved into vr_api.h.
+- WIN32_LEAN_AND_MEAN + NOMINMAX before every Quake/vr `<windows.h>` (7 files lacked one or both; the two Ironwail
+  files left as upstream has them).
+- The no-PCH build (check_nopch.sh) had rotted (za::clamp, ankerl, ZA_FLOAT_MAX, za::exchange used without their
+  includes): fixed, it passes.
+
+Objects recompiled after touching each (Release no-LTO, VS 2022 MSBuild; times are wall clock with other workers
+building, so noisy):
+
+| touched | before | after |
+|---|---|---|
+| vr_tunables.inc | 371 (52 s) | 169 (53 s) |
+| vr_cvars.inc | 372 (60 s) | 357 |
+| vr_api.h | 504 (82 s) | 291 (49 s) |
+| vr_api_render.h | 504 (87 s) | 98 (36 s) |
+| vr_menu_internal.hpp | 8 | 8 (left: its 8 includers use most of what it includes) |
+
+Left: vr_cvars.inc is used by ~330 files, so one header can't do better. The next step would be a generated
+names-only declaration header written only when the names change (a default's edit, most of tune_promote's and many
+merges, would then recompile vr_cvars.cpp / vr_tunables.cpp alone), or splitting vr_cvars.inc per subsystem: both
+change the generators' inputs (the checks' lane), so not done here.

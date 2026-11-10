@@ -8,6 +8,8 @@
 
 #include "Zancle/Algorithm/StableSort.hpp"
 #include "Zancle/String/StringView.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
 
 #include <ctype.h>
 #include <stdio.h>

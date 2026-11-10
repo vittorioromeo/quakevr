@@ -27,6 +27,7 @@
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/StringView.hpp"
+#include "vr_api.h"
 
 #include <stdlib.h>
 #include <string.h>

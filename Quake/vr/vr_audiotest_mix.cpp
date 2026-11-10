@@ -1,6 +1,13 @@
 // vr_audiotest_mix.cpp -- vr_snd_test's bench, full band and golden (see vr_audiotest.cpp).
 
 #include "vr_audiotest_internal.hpp"
+#include "vr_cvars.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "vr_api.h"
 
 namespace qvr::audio::testkit
 {

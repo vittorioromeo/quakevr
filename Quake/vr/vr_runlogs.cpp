@@ -20,13 +20,13 @@
 // diagnostics folder since, and summary.txt (the build, Windows, the GPU, the runtime, the API layers and overlays, the
 // files); the folder opened in Explorer.
 
-#include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_runlogs.hpp"
 #include "vr_xr_runtime.hpp"
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
+#include "vr_api.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -35,6 +35,12 @@
 #include <ctime>
 
 #ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <windows.h>
 #include <shellapi.h>
 #else

@@ -4,6 +4,7 @@
 #include "vr_sightalign.hpp"
 #include "vr_still.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_hands.hpp"
 #include "vr_input.hpp"
 #include "vr_lines.hpp"

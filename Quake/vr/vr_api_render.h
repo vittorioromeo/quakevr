@@ -26,6 +26,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef QVR_VR_API_RENDER_H
 #define QVR_VR_API_RENDER_H
 
+#ifdef __cplusplus
+#include "vr_engine.hpp" // the engine's types (quakedef.h) for a VR file that includes this before it
+#endif
+
 #include "vr_retro.h" // QVR_RETRO_LUT_UNIT_* (VR_RetroBind)
 
 #ifdef __cplusplus

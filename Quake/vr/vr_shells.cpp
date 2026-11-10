@@ -18,6 +18,7 @@
 #include "vr_anchor.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_flatreload.hpp"
 #include "vr_flick.hpp"

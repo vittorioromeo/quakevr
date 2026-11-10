@@ -4,6 +4,11 @@
 
 #include "vr_ambient.hpp"
 #include "vr_particles_internal.hpp"
+#include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
+#include "vr_api.h"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
 
 namespace qvr::particles
 {

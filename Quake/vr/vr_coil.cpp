@@ -16,6 +16,8 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "vr_api.h"
+#include "vr_api_render.h"
 
 
 namespace qvr::coil

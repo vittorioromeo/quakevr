@@ -20,6 +20,14 @@
 #include "vr_flataimsens.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_flatsight.hpp"
+#include "vr_cvars.hpp"
+#include "vr_monstervalues.hpp"
+#include "vr_tunables.hpp"
+#include "vr_weaponvalues.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "vr_api.h"
 
 extern "C" cvar_t scr_fov; // gl_screen.c (Aim Sensitivity's help)
 

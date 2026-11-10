@@ -10,6 +10,7 @@
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Vocabulary/Optional.hpp"
+#include "vr_api.h"
 
 namespace qvr::worldtrace
 {

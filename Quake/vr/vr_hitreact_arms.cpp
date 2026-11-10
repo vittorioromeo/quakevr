@@ -3,6 +3,9 @@
 // spec for vr_agarms. Moved out of vr_hitreact.cpp (see vr_hitreact.hpp); what they share is vr_hitreact_internal.hpp.
 
 #include "vr_hitreact_internal.hpp"
+#include "vr_tunables.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
 
 namespace hitreact_detail
 {
