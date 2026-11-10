@@ -417,6 +417,10 @@ za::Vector<Item> pageDebugLogging()
         row(opt::vr_debug_hands),
         row(opt::vr_swim_debug),
         row(opt::vr_prone_crawl_debug),
+        command("Low Ceiling Status", "vr_lowceil_status")
+            .help("vr_lowceil_status: whether a low ceiling holds you where you are (1 lying, 2 crouched; vr_lowceil), "
+                  "whether your eyes are past it, the view's darkness and blur, the message, your eyes' height over your "
+                  "feet, the ceiling's and your box's. The test is Misc/quakevr/lowceil_test.py."),
         row(opt::vr_grapple_debug),
         row(opt::vr_debug_buttons),
         command("Restore Controller Bindings", "vr_bindings_reset")

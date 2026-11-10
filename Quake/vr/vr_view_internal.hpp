@@ -61,6 +61,7 @@
 #include "vr_shock.hpp"
 #include "vr_smoulder.hpp"
 #include "vr_comfortfade.hpp"
+#include "vr_lowceil.hpp"
 #include "vr_deathview.hpp"
 #include "vr_stereo.hpp"
 #include "vr_window.hpp"

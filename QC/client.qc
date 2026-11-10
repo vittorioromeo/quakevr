@@ -219,6 +219,8 @@ void() OnLoadGame =
     }
 }
 
+float() VR_FlatReload_NewGameFlat; // (vr_flatreload.qc)
+
 void() SetNewParms =
 {
     // HONEY
@@ -310,8 +312,10 @@ void() SetNewParms =
     parm38 = 0;
     // Immersive reloading (vr_reload.qc): the shotgun you start with (in the right hip holster) comes loaded from your
     // shells, as a map's pickup does; after that its magazine is loaded by hand from the ammo pouch. (The holsters'
-    // reload filled it as it was first drawn.)
-    if(VR_Reload_ManualFor(parm14))
+    // reload filled it as it was first drawn.) Not flat-screen play's: its weapon cycle (1, 2) takes a gun into the hand's
+    // own record and loads it from the reserve then (VRCycleEntWeaponInst, VR_FlatReload_CycleIn), so the rounds loaded
+    // here stayed in the holster's record, never seen: a new game's 25 shells were 9 and 8 in the clip (2026-11-10).
+    if(VR_Reload_ManualFor(parm14) && !VR_FlatReload_NewGameFlat())
     {
         parm36 = min(WeaponIdToBaseClipSize(parm14), parm4);
         parm4 = parm4 - parm36;

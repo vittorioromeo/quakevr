@@ -56,6 +56,19 @@ string(float xHand) VR_FlatReload_HandName =
     return xHand == cVR_MainHand ? "main" : "off";
 };
 
+// SetNewParms (client.qc): whether a new game's player plays flat-screen (his starting shotgun then left unloaded in its
+// holster: his weapon cycle loads it from the reserve as he takes it). He isn't known to yet when his first parms are
+// made (.vr_flatscreen comes with his moves): self if he is, else the local game's mode (vr_flatplay, set by the engine;
+// single player only, where his is the only client).
+float() VR_FlatReload_NewGameFlat =
+{
+    if(self.classname == "player" && VR_FlatPlay(self))
+    {
+        return TRUE;
+    }
+    return !deathmatch && !coop && cvar_hget(cvarh_vr_flatplay);
+};
+
 float(entity p, float xHand) VR_FlatReload_Busy =
 {
     return (p.vr_flatrl & VR_FlatReload_Bit(xHand)) != 0;
