@@ -1,8 +1,0 @@
-# housing_ssg: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The super shotgun in the main hand with shells (its ammo screen in the low bezel on the breech block's sloped top).
-title Super shotgun: the ammo screen housing on the breech block
-map vrtesthall
-god
-notarget
-give "Super Shotgun" main
-cmd impulse 9
-hint Look at the breech block's sloped top: the ammo screen sits in a low bezel (square window, cut outer corners) in the breech's own metal at its own texel size, a lit inner edge, with a round rivet each side, the glass flush in the opening, the digits readable. Fire and reload: the housing and glass stay together.

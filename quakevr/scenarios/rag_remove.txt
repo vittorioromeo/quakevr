@@ -1,6 +1,0 @@
-# rag_remove: # see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The 2026-11-08 ragdoll and armed-humanoid fixes (ROUND24.md, "Ragdolls and armed humanoids, 11-08"); the automated check runs as a console command.
-title Removing an armed flamethrower grunt: its pack, weapon and tank go too (automated check)
-map e1m1
-god
-notarget
-cmd vr_rag1108_test 1
