@@ -41,6 +41,38 @@ def sight_tris(path):
     return n
 
 
+def open_holes(progs, deg):
+    """(back, seen, worst): the super shotgun broken open `deg` degrees (its two parts, make_ssg_open.py) seen round its
+    hinge from 26 ways (orthographic, 160 px): pixels whose nearest surface is a triangle's back (a hole, a missing face:
+    the author's 2026-11-10 marks), of the pixels the parts cover, and the most in one view."""
+    import numpy as np
+    sys.path.insert(0, os.path.join(HERE, "..", "mdltopo"))
+    import mdlio
+    import raster
+    hx, hz = 12.6, 3.2  # (vr_view.cpp's ssgHinge)
+    a = np.radians(deg)
+    parts = []
+    for fn, turn in (("vr_ssg_frame_on_v_shot2.mdl", False), ("vr_ssg_barrels_on_v_shot2.mdl", True)):
+        m = mdlio.read(os.path.join(progs, fn))
+        P = m.pos[0].copy()
+        if turn:
+            dx, dz = P[:, 0] - hx, P[:, 2] - hz
+            P[:, 0], P[:, 2] = hx + dx * np.cos(a) + dz * np.sin(a), hz - dx * np.sin(a) + dz * np.cos(a)
+        parts.append(P[m.tris])
+    tri = np.concatenate(parts)
+    n = mdlio.outward_normals(tri)
+    back = seen = worst = 0
+    for d in raster.cube_dirs():
+        view = raster.View(d, (13.0, 0.0, 5.0), 4.5, 160)
+        x, y, z = view.project(tri.reshape(-1, 3))
+        k = len(tri)
+        tid, _, _, _ = raster.raster(x.reshape(k, 3), y.reshape(k, 3), z.reshape(k, 3), 160, None, 1e-7, False)
+        hit = tid >= 0
+        b = int(((n[tid[hit]] @ view.d) < 0).sum())
+        back, seen, worst = back + b, seen + int(hit.sum()), max(worst, b)
+    return back, seen, worst
+
+
 def snail_well(gun):
     """(proud, over, into): how far vr_magwell_on_<gun>'s vertices stand off the band's plane, past its two edges, and
     into the body below the plane."""
@@ -86,6 +118,11 @@ def main():
         return
     if sys.argv[1] == "snailwell":
         print(" ".join("snailwell %s proud %.2f over %.2f into %.2f" % ((g,) + snail_well(g)) for g in ("v_nail2.mdl", "v_lava2.mdl")))
+        return
+    if sys.argv[1] == "openmodel":
+        progs = sys.argv[2] if len(sys.argv) > 2 else os.path.join(HERE, "..", "..", "..", "quakevr", "progs")
+        print("openmodel %s" % " ".join("%d deg: back %d of %d px, worst view %d" % ((a,) + open_holes(progs, a))
+                                        for a in (10, 45, 80)))
         return
     if sys.argv[1] == "ring":
         progs = os.path.join(HERE, "..", "..", "..", "quakevr", "progs")

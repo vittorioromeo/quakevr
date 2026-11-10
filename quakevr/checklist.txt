@@ -38,6 +38,7 @@ Flat-screen: slide backwards and diagonally backwards while looking ahead and do
 Fire the super shotgun and the heavy revolver empty and open them: their spent shells fly off sideways past your view and a little up before they fall, instead of dropping straight down (tunable under Weapons > Immersion). {test:shell_eject}
 Flat-screen: fire the heavy revolver empty: while its cylinder is out the gun eases up, turns in and rolls to show the cylinder, and eases back after R. {test:flat_revolver_eject}
 Flat-screen: fire the super shotgun empty: its shells leave only once it is fully broken open and in its open pose, not as it starts to open. {test:flat_ssg_break}
+Break the super shotgun open in either hand (flat: fire it empty; VR: break it yourself) and look at it from your view, from above and close at the hinge: the two bores are hollow tubes you can see into, nothing flickers between them, the breech face's corners are clean, the rivets by the hinge stay on the frame, no faces are missing, the barrels pivot on a round knuckle and the two parts meet with no gap even from above; shut, it looks as before. {test:flat_ssg_break}
 
 [2. VR: melee and embedded blades]
 Hit a grunt with the axe right in front of you: the blood and its red mist come right at the camera, not only further off (your config still has Mist Clear of Eyes at 40: set vr_gore_mist_near 0; Particle Fade Near Eyes and Particles Hidden Nearer at 0 draw it at the eyes too). {test:flat_skewer_gibs}
