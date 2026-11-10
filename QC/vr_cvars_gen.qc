@@ -974,6 +974,7 @@ float cvarh_vr_flat_slide_charge_speed;
 float cvarh_vr_flat_slide_charge_stamina;
 float cvarh_vr_flat_ssg_break;
 float cvarh_vr_flat_ssg_break_delay;
+float cvarh_vr_flat_ssg_eject_delay;
 float cvarh_vr_flatblood_test;
 float cvarh_vr_flatgate_test;
 float cvarh_vr_flatitems_test;
@@ -2980,6 +2981,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_flat_slide_charge_stamina = VR_CVar_Make("vr_flat_slide_charge_stamina");
     cvarh_vr_flat_ssg_break = VR_CVar_Make("vr_flat_ssg_break");
     cvarh_vr_flat_ssg_break_delay = VR_CVar_Make("vr_flat_ssg_break_delay");
+    cvarh_vr_flat_ssg_eject_delay = VR_CVar_Make("vr_flat_ssg_eject_delay");
     cvarh_vr_flatblood_test = VR_CVar_Make("vr_flatblood_test");
     cvarh_vr_flatgate_test = VR_CVar_Make("vr_flatgate_test");
     cvarh_vr_flatitems_test = VR_CVar_Make("vr_flatitems_test");

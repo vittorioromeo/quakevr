@@ -1864,6 +1864,10 @@ void(entity p, float xHand) VR_Reload_SsgSetToggled =
     }
 };
 
+// Set by flat-screen play's break (VR_FlatReload_EjectNow): its spent shells leave once the gun is drawn fully open and
+// vr_flat_ssg_eject_delay after (the clients' wait, QVR_EJECT_AFTER_OPEN; his words 2026-11-10).
+float vr_ssg_eject_after_open;
+
 // The super shotgun in `xHand` of `p` breaks open (`xHow`: what did it, for the log): its spent shells thrown out (the
 // clients' casings, vr_shells.cpp), its live ones too, as rounds lying about to take again; open, empty, until closed.
 void(entity p, float xHand, string xHow) VR_Reload_SsgBreak =
@@ -1886,7 +1890,15 @@ void(entity p, float xHand, string xHow) VR_Reload_SsgBreak =
     {
         entity oself = self;
         self = p;
-        ejectcasings(xHand, QVR_CASING_SHOTGUNSHELL, spent, 0.08, 0);
+        if(vr_ssg_eject_after_open)
+        {
+            ejectcasings(xHand, QVR_CASING_SHOTGUNSHELL, spent, max(0, cvar_hget(cvarh_vr_flat_ssg_eject_delay)),
+                QVR_EJECT_AFTER_OPEN);
+        }
+        else
+        {
+            ejectcasings(xHand, QVR_CASING_SHOTGUNSHELL, spent, 0.08, 0);
+        }
         self = oself;
     }
     // The live ones: out of the chambers (the breech face, as drawn), back over the hand and up.

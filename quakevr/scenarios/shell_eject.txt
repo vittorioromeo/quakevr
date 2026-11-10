@@ -1,0 +1,10 @@
+# shell_eject: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The super shotgun's and the heavy revolver's spent shells thrown off away from their chambers (Quake/vr/vr_shells.cpp, vr_shells_ssg_* / vr_shells_rv_*, vr_shells_face_deflect; flateject_test.sh). Flat-screen or VR.
+title Spent shells fly off the super shotgun and the revolver
+hint Fire the super shotgun empty and break it open (flat-screen: it breaks by itself), then fire the heavy revolver empty and swing its cylinder out: the spent shells fly off sideways past your view and a little up, then fall, instead of dropping straight down. Debug > Tunables > Weapons > Immersion: Super Shotgun Shells, Revolver Shells, Shells Past the Face.
+map vrtesthall
+god
+cvar vr_flat_reload 1
+cvar vr_flat_ssg_break 1
+cvar vr_flat_revolver_eject 1
+give "Super Shotgun" main
+give "Heavy Revolver" off

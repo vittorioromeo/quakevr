@@ -637,6 +637,20 @@ QVR_TUNABLE(vr_shoulder_holster_roll, "0")
 // Weapons > Immersion
 QVR_TUNABLE(vr_shells_life, "20") // seconds they lie on the floor before fading out
 QVR_TUNABLE(vr_shells_sound, "1") // volume of their tink as they land (0 off)
+QVR_TUNABLE(vr_shells_face_deflect, "1") // share of a casing's speed towards the face (within an arm's length) turned sideways past it instead of lost (0: dropped there, the old; his words 2026-11-10: "fly off away from the ejection sites")
+QVR_TUNABLE(vr_shells_face_clear, "0.3") // metres to the side of (or ahead of) the head, level, by its highest point that let a casing thrown off past the face rise higher than 15 cm under the eyes (100: never, the old)
+QVR_TUNABLE(vr_shells_ssg_speed, "2.4") // the super shotgun's spent shells out of its broken-open chambers: metres a second (on the gun's own velocity)
+QVR_TUNABLE(vr_shells_ssg_back, "1") // their way out, in the gun's frame (turned with the barrels as drawn): back along the barrels
+QVR_TUNABLE(vr_shells_ssg_up, "0.5") // up
+QVR_TUNABLE(vr_shells_ssg_out, "0.3") // outward, away from the body's middle (the left hand's mirrored); each chamber's also a little to its own side
+QVR_TUNABLE(vr_shells_ssg_spread, "0.15") // random spread, a share of their speed
+QVR_TUNABLE(vr_shells_ssg_spin, "12") // their tumble, radians a second (and a little random)
+QVR_TUNABLE(vr_shells_rv_speed, "1.3") // the revolver's spent shells out of its swung-out cylinder's chambers: metres a second (on the gun's own velocity; a VR push adds the hand's)
+QVR_TUNABLE(vr_shells_rv_back, "1") // their way out, in the gun's frame: back along the cylinder's axis (the ejector's)
+QVR_TUNABLE(vr_shells_rv_up, "0.6") // up
+QVR_TUNABLE(vr_shells_rv_out, "0.25") // outward, away from the body's middle (the left hand's mirrored)
+QVR_TUNABLE(vr_shells_rv_spread, "0.12") // random spread, a share of their speed
+QVR_TUNABLE(vr_shells_rv_spin, "8") // their tumble, radians a second (and a little random)
 QVR_TUNABLE(vr_holster_haptic_time, "0.25") // seconds of the buzz as a hand reaches a holster (vr_holster_haptics 2: once)
 QVR_TUNABLE(vr_weapon_throw_velocity_mult, "1.0")
 QVR_TUNABLE(vr_weapon_draw_blend, "0.3") // seconds a gun drawn from a holster takes to ease from its holstered pose into the hand (0 at once; visual only)
@@ -1874,6 +1888,7 @@ QVR_TUNABLE(vr_flat_reload_hold, "0.2") // seconds it stays there
 QVR_TUNABLE(vr_flat_reload_up, "0.3") // seconds it takes back to its pose (it fires again after it)
 QVR_TUNABLE(vr_flat_reload_angle, "90") // degrees the gun turns muzzle-down at the holster (0..150)
 QVR_TUNABLE(vr_flat_ssg_break_delay, "0.15") // vr_flat_ssg_break: seconds after the shot that empties it the super shotgun breaks open, its shells thrown out (his words 2026-11-10: "a tiny customizable delay")
+QVR_TUNABLE(vr_flat_ssg_eject_delay, "0.05") // and seconds after it is drawn fully open (its barrels down, vr_reload_ssg_open_angle; its open pose eased in, vr_flat_ssg_open_in_time) its spent shells leave (his words 2026-11-10: "so that they eject when the SSG is fully open and the rotation has been completed")
 QVR_TUNABLE(vr_flat_mag_eject_delay, "0.1") // vr_flat_mag_eject: seconds after the last round a magazine gun drops its empty magazine
 QVR_TUNABLE(vr_flat_mag_eject_speed, "40") // and its push out of the well (units a second, on the hand's velocity; VR's eject button's 40)
 QVR_TUNABLE(vr_flat_revolver_open_delay, "0.15") // vr_flat_revolver_eject: seconds after the shot that empties it the revolver's cylinder swings out, its spent shells thrown out (his words 2026-11-10)
