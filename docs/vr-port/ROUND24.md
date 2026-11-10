@@ -8635,3 +8635,77 @@ holding it is felled ahead of the player; its drop is taken into the player's ma
 that weapon (sword kinds and the death knight's flag kept); a gun must come loaded and fire with its trigger held:
 `41 codes tried, 41 taken and held`, 211 passed, 0 failed. Tests 1, 3 and 11 (vrtesthall, `vr_arena 1`) pass.
 Scene `arena_newguns` (vrarena): frozen grunts with the base game's new weapons.
+## Flat: two-handed melee lets go like a gun (branch `agent/fg2h`, 2026-11-10)
+
+His report: "when holding a melee weapon with two hands and force-grabbing, the off hand doesn't seem to detach first. It
+should animate like when holding a gun with two hands." Cause: the axe's, Mjolnir's and the super axe's two-handed grip (hs1, up
+the handle) is not ahead of the holding hand, so flatsight's `carryToGrip` never pins the free hand there; vr_twohand takes it only
+at a swing's end, while the pose leaves the hand hanging (not drawn on the handle), and every let-go skipped the gun's
+`gripT` ease. Fix (`vr_flatsight.cpp`, shared with the guns' path): such a hold is `keptGrip`: pinned while held, `gripT` 1, and
+from the let-go it falls at `gripEase` as a gun's, so E (`vr_flat_fg_detach_time`), the shove, G, 3 and a punch all start from the
+grip. `vr_flat_melee_letgo` (1; 0 the old way), Debug > Tunables. Probe: `vr_flat_fg_report` prints the drawn off hand's most
+per frame since the last report. Test `Misc/quakevr/flatfg2h_test.sh` (9 checks; `vr_flatitems_test 9`). Drawn off hand, most
+units a frame, launcher vs axe: E 2.41 / 1.62, shove 8.77 / 9.26, H 20.6 / 24.1 (the weapon dropped: no grip left, both go to the
+guard at once), G 3.79 / 2.73, 3 1.74 / 1.75. Seen, not changed: the shove's push moves the gun's free hand 25 units in a frame
+(game hand) from its grip, gun and melee alike.
+## Takes and clips for trailers: takes, ratings, clip that, in/out marks (branch `agent/clips`, worktree `clips`, 2026-11-10)
+
+His words (2026-11-10): he records trailer and short clips with OBS, several takes a scene, starts too early, forgets to
+stop, then sifts long OBS files in DaVinci. He wants takes rated in the game (VR first, flat too), and a small, clean
+set of files at the end. TRAILER.md, "Takes and clips", is the user's guide.
+
+- **vr_obs.cpp: requests of other modules.** `obs::request(type, data)` sends any obs-websocket request on the
+  connection's thread; answers (requestId `qvt<n>`) and the Outputs events (RecordStateChanged, ReplayBufferStateChanged,
+  ReplayBufferSaved) come back raw to the main thread (`obs::takeMessage`). `obs::stayConnected` keeps the connection
+  while a take session is open (as an open menu does). `vr_obs_request <type> [json]` sends one by hand.
+- **The mock (`vr_obs_mock 1`).** No socket: the main thread answers StartRecord/StopRecord/ToggleRecord,
+  GetRecordDirectory, GetVideoSettings (60/1, 1920x1080), Start/Stop/Save/GetReplayBufferStatus, GetOutputSettings
+  (max_time_sec 20), CreateRecordChapter, each printed (`obs mock: ...`), with dummy files in `vr_obs_mock_dir`. The
+  menus' OBS row and `vr_obs_toggle` go through it too. (The existing obs_mock_server.py tests the socket itself.)
+- **vr_takes.cpp.** A take is whatever OBS records while `vr_takes` is on (event-driven: OBS's own hotkey too); its
+  times are the game's realtime from the "started" event. The file OBS reports (the event's outputPath, or StopRecord's)
+  is renamed `<date>_<scene>_t<NN>_<rating><ext>` at once (`unrated`), then on each rating; reject moves it to
+  `rejected/`. Never deleted, never overwritten (a `-2` suffix); a failed rename (OBS still closing) is tried every
+  0.5 s for 20 s. Numbers per scene and date continue past the files in the folder, `rejected/` and `session_*/`.
+  Clips: SaveReplayBuffer, then ReplayBufferSaved's path, rated `clip`; their length is OBS's Replay Buffer
+  max_time_sec (GetOutputSettings "Replay Buffer"), else `vr_takes_clip_seconds`.
+- **Light and prompt.** Headset: drawn in the eye's own UI pass only (`stereo::drawUi(..., headset)`: the swapchain
+  image), never the mirror's composite or the spectator camera, so OBS does not record it. Flat: `SCR_DrawTakes`, a
+  small top-right line (recorded: `vr_takes_light 0` for clean shots).
+- **Controls.** Console commands for all; keys set once where unbound (`vr_takes_keys`): F7 take, F8 clip, Home in,
+  PgUp out, keypad 1/2/3 keep/maybe/reject (his F11/F12 and every bound key left alone). VR: the wrist gadget's page
+  (TAKE/STOP, CLIP, IN, OUT, KEEP, MAYBE, REJECT, HIDE: touch buttons as Doom's) while a session is open; the in/out
+  chord `vr_takes_chord` 1: left grip held + X (in) / Y (out), 2: right grip + A / B; only during a take (both stick
+  clicks were taken: the menu gesture).
+- **Settings** (Graphics > Recording > Takes and Clips): vr_takes 1, vr_takes_replay 1, vr_takes_gadget 1,
+  vr_takes_chord 1, vr_takes_light 1, vr_takes_light_size 1, vr_takes_light_right -0.33, vr_takes_light_up 0.27,
+  vr_takes_light_dist 1.2, vr_takes_prompt_time 10, vr_takes_clip_seconds 30, vr_takes_connect_wait 5; vr_take_scene
+  (not saved), vr_obs_mock 0, vr_obs_mock_dir "".
+- **Test:** `vr_takes_test <folder>` (C++, one step a frame on conditions, the fixed clock): 14 passed, 0 failed -- the
+  t01_unrated name, in/out marks at 0.500 / 1.000 s, a 1.514 s take, two chapters asked, the prompt, keep, reject into
+  rejected/, the session's replay buffer, a clip t03_clip of 20 s, rated maybe, take 1 rated again by number, a new
+  session's take numbered t04 from the files. Eyeshot (`vr_eyeshot 3`): the red light and "REC start 0:00 [1]" upper
+  left in the eye; the prompt "T01: KEEP / MAYBE / REJECT?" after; the gadget page dumped (`vr_gadget_screen_dump`).
+
+### Takes, second part: voice notes, the session's folder and timeline, scene snapshots and retakes
+
+- **Voice notes in a take.** voicenotes::start tells the takes its note's base path; the take keeps its time. At the
+  session's end the note's `<base>.transcript.txt` (transcribe_notes.py), its whitespace folded, is the marker's text
+  and session.json's `text` (null, and the marker named "Voice note N", before it is transcribed).
+- **The session's end** (`vr_takes_session end`, gadget END): keep and maybe files renamed into
+  `<OBS's folder>/session_<opened>/` (never over a file there); rejected/, unrated takes and clips stay (a decision:
+  the brief names keep and maybe; unrated ones are undecided, so left with OBS's files). session.json: all takes,
+  ratings, files, lengths, in/out, marks, notes. timeline.fcpxml (1.10): format from OBS's GetVideoSettings
+  (fpsNumerator/fpsDenominator, output size: the rate OBS records at; 60 assumed and flagged when unknown), one asset
+  per file (media-rep file:/// URL, percent-escaped), the spine keep then maybe, each trimmed to its first in and the
+  first out after it, markers for the marks and notes inside the trimmed range. A clip's length is OBS's
+  max_time_sec, capped by how long the buffer has run (a fresh buffer's clip is shorter).
+- **Validation:** DaVinci Resolve is installed but is a GUI app (not run unattended): `Misc/quakevr/fcpxml_check.py`
+  checks the file against the DTD's rules for every element and attribute it uses, the rational times on the frame
+  grid, gapless spine, clips within assets, markers within clips, files there: 113 passed, 0 failed on the test's
+  timeline. **The author should import one in Resolve** (File > Import > Timeline) to confirm.
+- **Snapshots and retakes:** `vr_take_setup` = `save take_<scene>`; `vr_take_retake` stops a running take, `load`s
+  it, waits until the load is seen (signon below SIGNONS) and the game runs again, then `vr_takes_retake_delay`
+  (0.5 s), then starts the take. Gadget: SET UP, RETAKE, END, HIDE.
+- **Test:** `vr_takes_test` (in `map start`): 21 passed, 0 failed (adds the voice note mark, session folder moves,
+  session.json transcript, the trimmed timeline's order and markers, the snapshot, a retake as take 5).

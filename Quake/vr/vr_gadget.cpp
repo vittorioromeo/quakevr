@@ -33,6 +33,7 @@
 #include "vr_protocol.hpp"
 #include "vr_relight.hpp"
 #include "vr_text3d.hpp"
+#include "vr_takes.hpp"
 #include "vr_visor.hpp"
 #include "vr_weapon_ids.h"
 #include "vr_worldtext.hpp"
@@ -941,6 +942,7 @@ void layout()
     fill(0.f, height - 2.f, width, 2.f, frame);
     fill(0.f, 0.f, 2.f, height, frame);
     fill(width - 2.f, 0.f, 2.f, height, frame);
+    if(takes::gadgetPage()) { takes::drawGadgetPage(width, height); return; } // a take session's buttons (vr_takes_gadget)
     if(adPageShown()) { adPage(r, pal); return; } // AD support: the Arcane Dimensions page in its place (togglePage)
 
     // Health (the face its icon; red under 25) and armour.

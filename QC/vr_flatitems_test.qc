@@ -18,6 +18,8 @@
 //   V's overhead swing and the fist's punch with it each hurt a grunt; a wall torch caught turned flame up.
 // `vr_flatitems_test 8`: E on a backpack: taken at once (vr_forcegrab_pack_collect); an empty backpack touched: taken without
 //   a word; one with a negative amount: only what is more than none.
+// `vr_flatitems_test 9`: the rocket launcher, then the axe, held in both hands: E, then the shove: the off hand lets
+//   go of the grip and eases off it (E: before the brick flies), the axe as the gun (the release shared by guns and melee).
 // Ends `flatitems: N passed, M failed`.
 
 float vr_ffx_on;    // the running test's number
@@ -884,6 +886,192 @@ void(entity p) VR_FFX_Packs =
     }
 };
 
+// ---- 9: the off hand let go of a weapon held in both hands (his note 2026-11-10: "when holding a melee weapon with two
+// hands and force-grabbing, the off hand doesn't seem to detach first. It should animate like when holding a gun with two
+// hands"). The rocket launcher (its fore-end) and the axe (its grip up the handle, which a swing's end gives the free hand),
+// in the main hand, the off hand on its two-handed grip; then what lets go of it: E on a brick where he looks
+// (vr_flat_fg_press), then the shove (vr_flat_shove_now) (the swap, H and G: flatfg2h_test.sh, by their keys). Case = action * 2 +
+// weapon (0 the rocket launcher, 1 the axe: the gun first, its numbers the axe's reference). From the action each frame: when the
+// grip lets go (weaponanygrip), the off hand's place off the main hand and its most per frame (no jump).
+// Checks: the grip let go; its most a frame within VR_FFX_STEP_MOST, or the gun's own for that action and a unit; E: the
+// off hand's grab, the grip let go before the brick flies, the hand well off the grip by then, the flight no sooner than the
+// palm's turn and the grip's detach (vr_flat_fg_turn_time + vr_flat_fg_detach_time), screenshots every 4 frames from the
+// press (the release, as a strip: run.sh -Out). `flatfg2h:` lines with the numbers.
+float VR_FFX_STEP_MOST = 4;  // units a frame the off hand may move as it leaves the grip (a snap off it is 10 and more)
+float VR_FFX_2H_ACTIONS = 2; // E, the shove
+float VR_FFX_2H_WINDOW = 36; // frames watched after the shove (its push and the hand's way back)
+float vr_ffx_gripGone;       // when the grip let go after the action (0: not yet)
+float vr_ffx_stepMost;       // the off hand's biggest move in a frame from the action on
+float vr_ffx_offAtFlight;    // the off hand's distance from its place on the grip when the brick began to fly
+float vr_ffx_shotsLeft;      // screenshots still to take in the strip
+float vr_ffx_actAt;          // when the action was asked for
+float vr_ffx_gunStep[2];     // the launcher's most a frame, per action
+vector vr_ffx_relPrev;       // the off hand off the main hand, last frame
+
+string(float xAction) VR_FFX_2HActionName =
+{
+    return xAction == 0 ? "E" : "shove";
+};
+
+void(entity p) VR_FFX_TwoHandGrab =
+{
+    vector rel = VRGetEntHandPos(p, cVR_OffHand) - VRGetEntHandPos(p, cVR_MainHand);
+    float weapon = vr_ffx_case & 1; // (0 the rocket launcher, 1 the axe)
+    float action = floor(vr_ffx_case / 2);
+    string wname = sprintf("%s, %s", weapon ? "axe" : "launcher", VR_FFX_2HActionName(action));
+    if(vr_ffx_s == 0) // both hands emptied, the weapon in the main hand, the view level
+    {
+        VR_FFX_MakeBare(p);
+        p.ammo_rockets = 10; // (the quick grenade's)
+        localcmd("impulse 150\nimpulse 170\n");
+        localcmd(weapon ? "impulse 152\n" : "impulse 160\n"); // (the axe; the rocket launcher: its grip ahead, FLATPLAY.md)
+        localcmd(sprintf("setpos %g %g %g 0 %g 0\n", p.origin_x, p.origin_y, p.origin_z, p.v_angle_y));
+        vr_ffx_frames = 0;
+        if(weapon)
+        {
+            // (The axe's grip stands up the handle, where no pose carries the free hand: at rest it takes it only now and
+            // then, at a swing's end. The test lets the pose carry it there for the take -- the hands' line held good any
+            // way round, vr_2h_angle_threshold -1 -- and resets the threshold once it holds: the hold is then the one a
+            // swing leaves, vr_twohand's own, kept with no pose on the grip.)
+            localcmd("vr_2h_angle_threshold -1\n");
+        }
+        VR_FFX_To(1, 10);
+        return;
+    }
+    if(vr_ffx_s == 1) // until the off hand holds its grip, then (the threshold back) a second to settle
+    {
+        if(weaponanygrip(p, cVR_OffHand) != 0)
+        {
+            if(weapon)
+            {
+                localcmd("reset vr_2h_angle_threshold\n");
+            }
+            VR_FFX_To(2, weapon ? 4 : 72);
+        }
+        return;
+    }
+    if(vr_ffx_s == 2) // the action
+    {
+        if(weaponanygrip(p, cVR_OffHand) == 0)
+        {
+            VR_Test_Check(FALSE, sprintf("%s: the off hand let go of the grip by itself before the action", wname));
+            VR_FFX_To(6, 0);
+            return;
+        }
+        VR_Test_Check(TRUE, sprintf("%s: the off hand holds the two-handed grip (kind %g)", wname, weaponanygrip(p, cVR_OffHand)));
+        vr_ffx_rel = rel;
+        vr_ffx_relPrev = rel;
+        vr_ffx_gripGone = 0;
+        vr_ffx_stepMost = 0;
+        vr_ffx_frames = 0;
+        vr_ffx_flewAt = 0;
+        vr_ffx_shotsLeft = 0;
+        vr_ffx_actAt = time;
+        if(action == 0)
+        {
+            entity oldself = self;
+            vr_ffx_item = spawn();
+            setorigin(vr_ffx_item, p.origin + VR_FFX_Ahead(p) * 64);
+            vr_ffx_item.model = "progs/vr_brick1.mdl";
+            self = vr_ffx_item;
+            vr_debris_piece();
+            self = oldself;
+            VR_FFX_LookAt(p, vr_ffx_item);
+            localcmd("vr_flat_fg_press\nscreenshot\n");
+            vr_ffx_shotsLeft = 8;
+        }
+        else { localcmd("vr_flat_shove_now\n"); }
+        localcmd("vr_flat_fg_report\n"); // (its drawn hand's most a frame from here: the next report's)
+        VR_FFX_To(3, 0);
+        return;
+    }
+    if(vr_ffx_s == 3) // each frame: E until the brick flies, the others over the window
+    {
+        vr_ffx_frames = vr_ffx_frames + 1;
+        vr_ffx_stepMost = max(vr_ffx_stepMost, vlen(rel - vr_ffx_relPrev));
+        vr_ffx_relPrev = rel;
+        if(!vr_ffx_gripGone && weaponanygrip(p, cVR_OffHand) == 0)
+        {
+            vr_ffx_gripGone = time;
+        }
+        if(vr_ffx_shotsLeft > 0 && vr_ffx_frames % 4 == 0)
+        {
+            localcmd("screenshot\n");
+            vr_ffx_shotsLeft = vr_ffx_shotsLeft - 1;
+        }
+        if(action == 0 && vr_ffx_item.fg_state == 1 && vr_ffx_item.fg_player == p)
+        {
+            vr_ffx_flewAt = time;
+            vr_ffx_flewHand = vr_ffx_item.fg_hand;
+            vr_ffx_offAtFlight = vlen(rel - vr_ffx_rel);
+            VR_FFX_To(4, 0);
+        }
+        if(action != 0 && vr_ffx_frames >= VR_FFX_2H_WINDOW)
+        {
+            VR_FFX_To(4, 0);
+        }
+        return;
+    }
+    if(vr_ffx_s == 4)
+    {
+        float gone = vr_ffx_gripGone ? vr_ffx_gripGone - vr_ffx_actAt : -1;
+        bprint(sprintf("flatfg2h: %s: grip let go %g s after it, the off hand at most %g units a frame", wname, gone, vr_ffx_stepMost));
+        if(action == 0)
+        {
+            bprint(sprintf(", the brick flew at %g s, the hand %g units off the grip then", vr_ffx_flewAt - vr_ffx_actAt, vr_ffx_offAtFlight));
+        }
+        bprint("\n");
+        localcmd("vr_flat_fg_report\n"); // (the drawn off hand's most a frame since the action: the script reads it)
+        if(!weapon)
+        {
+            vr_ffx_gunStep[action] = vr_ffx_stepMost;
+        }
+        // (E: within VR_FFX_STEP_MOST. The shove's push moves the hand fast whatever it held: the axe's no more than the gun's.)
+        float most = weapon ? max(VR_FFX_STEP_MOST, vr_ffx_gunStep[action] + 1) : action == 0 ? VR_FFX_STEP_MOST : 1000;
+        VR_Test_Check(vr_ffx_gripGone > 0, sprintf("%s: the off hand lets go of the grip (%g s)", wname, gone));
+        VR_Test_Check(vr_ffx_stepMost <= most, sprintf("%s: ... eased off it, no jump (%g units a frame at most, %g allowed)", wname, vr_ffx_stepMost, most));
+        if(action == 0)
+        {
+            float need = cvar_hget(cvarh_vr_flat_fg_turn_time) + cvar_hget(cvarh_vr_flat_fg_detach_time);
+            float took = vr_ffx_flewAt - vr_ffx_actAt;
+            VR_Test_Check(vr_ffx_flewHand == cVR_OffHand, sprintf("%s: the grab goes to the off hand (%g)", wname, vr_ffx_flewHand));
+            VR_Test_Check(vr_ffx_gripGone > 0 && vr_ffx_gripGone < vr_ffx_flewAt,
+                sprintf("%s: the grip let go before the grab starts (%g s before)", wname, vr_ffx_gripGone ? vr_ffx_flewAt - vr_ffx_gripGone : 0));
+            VR_Test_Check(vr_ffx_offAtFlight > 8, sprintf("%s: ... and the hand off it when the brick flies (%g units)", wname, vr_ffx_offAtFlight));
+            VR_Test_Check(took >= need - 0.02, sprintf("%s: the brick flies after the palm's turn and the grip's detach (%g s, %g)", wname, took, need));
+        }
+        VR_FFX_To(5, 0);
+        return;
+    }
+    if(vr_ffx_s == 5) // the action finished (the brick caught and dropped, impulse 47), then a second to settle
+    {
+        if(action == 0)
+        {
+            if(VR_Carry_Held(p, cVR_OffHand) != vr_ffx_item && VR_Carry_Held(p, cVR_MainHand) != vr_ffx_item)
+            {
+                return;
+            }
+            localcmd("impulse 47\n");
+        }
+        VR_FFX_To(6, 72);
+        return;
+    }
+    if(vr_ffx_s == 6)
+    {
+        if(vr_ffx_case + 1 < VR_FFX_2H_ACTIONS * 2)
+        {
+            vr_ffx_case = vr_ffx_case + 1;
+            VR_FFX_To(0, 0);
+            return;
+        }
+        localcmd("impulse 150\nimpulse 170\n");
+        VR_Test_Verdict();
+        vr_ffx_on = 0;
+        cvar_set("vr_flatitems_test", "0");
+        return;
+    }
+};
+
 void() VR_FlatItemsTest_Frame =
 {
     float ask = cvar_hget(cvarh_vr_flatitems_test);
@@ -928,6 +1116,7 @@ void() VR_FlatItemsTest_Frame =
     if(ask == 6) { VR_FFX_PalmFirst(p); }
     if(ask == 7) { VR_FFX_PropFist(p); }
     if(ask == 8) { VR_FFX_Packs(p); }
+    if(ask == 9) { VR_FFX_TwoHandGrab(p); }
 };
 
 #endif
