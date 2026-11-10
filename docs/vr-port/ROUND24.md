@@ -7394,8 +7394,13 @@ the mouse's cursor) with the holsters on a rough figure, [L] [DROP] [R] each, th
 - Old flat tests that drive the weapon keys pin `vr_flat_holsters 0` (flatgate, flatplay, flatramp, flatreload, body_lie,
   flatitems 5, the flat_taa scene).
 - Test: `Misc/quakevr/flatholster_test.sh` (`vr_flatholster_test`: the menu driven by mouse counts and clicks; DROP, L, R,
-  SWAP, the weapon keys, the full-hands pickup, a hand's DROP, the time scale restored). Not run yet (he was playing in
-  VR when this was written): owed with the menu's screenshot and `menu_paths.txt`.
+  SWAP, the weapon keys, the full-hands pickup, a hand's DROP, the time scale restored): 10 passed, 0 failed, the
+  pickup left lying. SWAP is 3's own (`flatplay::swapHands`: agent/flat_hands' animated swap). The first picture showed
+  the guns' thumbnails as nothing (dark on the dark face): they sit on a lit plate, brightened; the text went from 5 to 6
+  pixels. The changed flat tests: flatgate 5/0, flatplay 31/0, flatramp 1/0, flatreload 26/0, the flat_taa scene loads with
+  the holsters off; flatitems 6/2 (cases 1 and 5 wait for the reserve's shells to drop on a shot, but flat play's reload
+  fires from the clip since 2026-11-08: with `vr_flat_reload 0` case 1 is 15/0) and body_lie 1/1 (the slide's "no bob"
+  check, agent/flat_slide2's new one): neither from the holsters.
 ## Flat hands: the drop key, the quick grenade, the hand swap (agent/flat_hands, 2026-11-10)
 
 His items 12, 13, 14, 17 (flat-screen feedback of 2026-11-10).
