@@ -1538,7 +1538,7 @@ QVR_TUNABLE(vr_nailpistol_slide_delay, "0.175") // s from a magazine seated to i
 QVR_TUNABLE(vr_dmg_revolver, "28") // the heavy revolver (QC vr_revolver.qc): a slug's (a grunt, 30: one in the head at x1.5, two in the body, or one when its roll reaches 30; vr_revolver_heavy_mult in a big body; his 28 of 2026-10-27, was 26)
 QVR_TUNABLE(vr_revolver_dmg_random, "0.15") // up to this share more damage at random, each slug (at damage 28 a grunt's body shot reaches its 30 about half the time)
 QVR_TUNABLE(vr_revolver_heavy_health, "150") // the full health from which a monster's body is big (vr_revolver_heavy_mult)
-QVR_TUNABLE(vr_revolver_cock_time, "0.05") // s from the pull to the shot: the hammer cocks and the cylinder turns a chamber, then the hammer falls (0: at once)
+QVR_TUNABLE(vr_revolver_cock_time, "0.10") // s from the pull to the shot: the hammer cocks and the cylinder turns a chamber, then the hammer falls (0: at once)
 QVR_TUNABLE(vr_revolver_spread, "0.15") // degrees its slugs stray at most from its aim
 QVR_TUNABLE(vr_dmg_lightning, "30") // the lightning gun: a bolt's (10 a second)
 QVR_TUNABLE(vr_dmg_proximity, "95") // Scourge of Armagon's proximity gun: a mine's blast
