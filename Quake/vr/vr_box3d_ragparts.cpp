@@ -7,6 +7,7 @@
 
 #include "vr_box3d_internal.hpp"
 #include "vr_goresound.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_handfit.hpp"
 #include "vr_physics.hpp"
 
@@ -141,8 +142,10 @@ bool cutLimb(RagdollBodies& r, edict_t* ent, int bone, const glm::vec3& blade, b
     r.headSpin = glmv(b3Body_GetAngularVelocity(hb));
     if(launch)
     {
-        const float share = za::max(vr_decap_head_speed.value, 0.f);
-        r.headVel += blade * share + glm::vec3{0.f, 0.f, za::max(vr_decap_head_lift.value, 0.f) * (isHead ? 1.f : 0.5f)};
+        // (On a flat screen faster, vr_flat_cutoff_fling_mult: his note 2026-11-10.)
+        const float flat = qvr::flatplay::active() ? za::max(vr_flat_cutoff_fling_mult.value, 0.f) : 1.f;
+        const float share = za::max(vr_decap_head_speed.value, 0.f) * flat;
+        r.headVel += blade * share + glm::vec3{0.f, 0.f, za::max(vr_decap_head_lift.value, 0.f) * (isHead ? 1.f : 0.5f) * flat};
         const float lever = glm::distance(r.headMid, neck);
         const glm::vec3 n = lever > 0.1f ? (r.headMid - neck) / lever : glm::vec3{0.f, 0.f, 1.f};
         const glm::vec3 across = blade - n * glm::dot(blade, n);

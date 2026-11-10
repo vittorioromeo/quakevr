@@ -2195,6 +2195,7 @@ QVR_TUNABLE(vr_flat_hitdir_width, "0.012") // a mark's thickness, a share of the
 QVR_TUNABLE(vr_flat_hitdir_arc, "40") // a mark's length round the crosshair (5..180 degrees)
 QVR_TUNABLE(vr_flat_blood_health_size, "0.5") // low on health, how far in the screen's blood reaches (0..1; vr_blood_health_size in a headset)
 QVR_TUNABLE(vr_flat_blood_health_opacity, "0.35") // and its strongest opacity at a beat (0..0.8; vr_blood_health_intensity in a headset)
+QVR_TUNABLE(vr_flat_cutoff_fling_mult, "1.25") // flat screen: a cut-off head's or limb's fling (vr_decap_head_speed's share of the blade, vr_decap_head_lift) times this (his note 2026-11-10)
 
 // Combat > Embedded Blades: held stabs and swung axes (QC/vr_embedhold.qc; ROUND23.md, "Embedded blades, stage 2")
 // Embedded Blades: Thrown
