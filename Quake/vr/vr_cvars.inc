@@ -3035,6 +3035,7 @@ QVR_CVAR(vr_armourstudio_tier, "3", CVAR_NONE)        // debug: its subject's ar
 QVR_CVAR(vr_armourstudio_turn, "0", CVAR_NONE)        // debug: its subject turned this many degrees from facing you
 QVR_CVAR(vr_armourstudio_ghost, "0.4", CVAR_NONE)     // debug: its subject's body drawn this opaque (1 as it is)
 QVR_CVAR(vr_armourstudio_alone, "0", CVAR_NONE)       // debug: 1 its subject wears the part picked alone (both sides), 0 every piece
+QVR_CVAR(vr_armourstudio_autoclose, "1", CVAR_ARCHIVE) // debug: 1 closing its window, or the menu it was used from, closes the studio (the armed humanoids free again); 0 it runs until its Close
 QVR_CVAR(vr_armourstudio_part, "0", CVAR_NONE)        // debug: the part edited: 0 cuirass, 1 helmet, 2 pauldron, 3 bracer, 4 thigh, 5 shin, 6..9 their sleeves
 QVR_CVAR(vr_armourstudio_side, "0", CVAR_NONE)        // debug: 0 both sides (the right mirrored), 1 the left's own, 2 the right's own
 QVR_CVAR(vr_armourstudio_offset_x, "0", CVAR_NONE)    // debug: the part's values as edited (vr_armourdata.hpp Field): units forward

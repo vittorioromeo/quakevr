@@ -8139,3 +8139,16 @@ His note on `vr_flatblood_test 3`'s picture: "the particles seem like red square
   (before: 12 of 32 parried, the flat slashes landing); turned away from it, guard up: its first blow lands ("179 degrees
   off the view (the cone 120): not in front"); the knight's chop as before. The glow: after a parry the knight's sword in
   the flat guard glows gold with embers (screenshots before/after the parry).
+
+## The Armour Studio closed lets the armed humanoids go (his note 2026-11-10, item 12; branch `agent/flat_parry2`)
+
+- "After closing the armour studio it seems that armed humanoids do not recover their AI/damageability." The studio holds
+  every armed humanoid still while it runs (`vr_agrunt_freeze` 1: QC `VR_AG_Still`, its AI held, its enemy dropped) and puts
+  the old value back on Close (`vr_armourstudio_close`), which does restore them (measured: the grunt strikes again, a test
+  shot hurts it). But closing its ImGui window (X, Escape, its close command) or leaving the menu left the studio running,
+  so they stayed frozen. Now both close it (`armourstudio::windowClosed`, `autoClose`: the menu once it has been open since
+  the studio started, so a script's studio is left alone), with `vr_armourstudio_autoclose` 1 (Debug > Tools > Armour Studio >
+  Close With the Menu or Window; 0: as before). Another tool or a headset closing the window leaves it running.
+- Test: `Misc/quakevr/armourstudio_close_test.sh <agent>` (14 checks): closed by its command, its window and the menu: closed,
+  `vr_agrunt_freeze` 0, the sword grunt strikes at you again, `vr_test_hurt 5` takes its health 30 -> 25; with autoclose 0
+  the window's close leaves it running and them held. `vr_armour_test` 30/30, `vr_armourstudio_window test` 17/17.

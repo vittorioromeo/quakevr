@@ -8897,6 +8897,7 @@ vr_armourstudio_tier|2|Armour Studio|Tier|Advanced VR Options > Debug > Tools > 
 vr_armourstudio_turn|2|Armour Studio|Turn|Advanced VR Options > Debug > Tools > Armour Studio > Turn
 vr_armourstudio_ghost|2|Armour Studio|Body Ghost|Advanced VR Options > Debug > Tools > Armour Studio > Body Ghost
 vr_armourstudio_alone|2|Armour Studio|Wear the Part Alone|Advanced VR Options > Debug > Tools > Armour Studio > Wear the Part Alone
+vr_armourstudio_autoclose|2|Armour Studio|Close With the Menu or Window|Advanced VR Options > Debug > Tools > Armour Studio > Close With the Menu or Window
 vr_armourstudio_part|2|Armour Studio|Part|Advanced VR Options > Debug > Tools > Armour Studio > Part
 vr_armourstudio_side|2|Armour Studio|Side|Advanced VR Options > Debug > Tools > Armour Studio > Side
 vr_armourstudio_offset_x|2|Armour Studio|Forward|Advanced VR Options > Debug > Tools > Armour Studio > Forward
