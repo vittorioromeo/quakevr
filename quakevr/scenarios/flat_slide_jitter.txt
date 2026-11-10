@@ -1,0 +1,8 @@
+# flat_slide_jitter: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode) slides on vrtesthall's open floor with a gun in hand: the drawn gun and arms steady while sliding (docs/vr-port/ROUND24.md, "Slide jitter"; vr_flatslide_ramp_test's arm-hold and jitter checks, Quake/vr/vr_flatmove.cpp).
+title Flat-screen slide: the gun and the arms steady
+hint Play with -flatscreenmode. Run and crouch at speed to slide, several times, looking ahead and then down at the arms and legs: the gun and the arms ride the slide steadily, no shake or flutter.
+map vrtesthall
+start -580 -440 24 0
+god
+notarget
+give "Shotgun" main

@@ -5650,6 +5650,39 @@ then: the origin bends 1.36, 4 frames off the ground, the view 0.13 (hidden); th
 the real clock. Not covered: sliding up a ramp (a slide up 13 degrees ends at once, "slowed"); the spiral's second flight
 from its landing (the slide begins at the lip, in the air: gun bend 0.56 at the slide's start, left out of the test).
 
+### Slide jitter (agent/slide_jitter, 2026-11-10)
+
+His report: sliding, "a little bit of jitter in the player IK / arms / weapons". Measured with `vr_flatslide_ramp_test 1`
+(now also prints, per frame, the drawn main hand with its looks, the skinned body's main shoulder, elbow, knee and ankle,
+all from the view, and the view off the pose's head), on the two ramps and a new level-floor run (north of the button
+ramp), at several frame clocks (`vr_fixed_frames_rate`, `vr_fixed_frames_jitter`: deterministic uneven frames) and the
+real clock. Jitter = rms of each frame's offset from its neighbours' line in time (cm, 3.81 a unit).
+
+- **Cause: the arm's hold took a frame-old shoulder.** flatplay::drawnOffset puts a drawn hand the arm can't reach back
+  on a line from the shoulder, and took that shoulder from the body as last drawn (avatar::skeleton): a frame old, so
+  behind by the frame's move. Sliding at ~400 u/s, the frame's move is 3.3 units at 120 fps, 5.5 at 72, 14 in a 35 ms
+  hitch; the slide's leant-back body leaves the hand within ~2 units of its reach, so the hold pulled the gun (and the
+  elbow after it) in by a frame-time-dependent amount: jitter. At an even 360 fps (1.1 units) it did not fire; at his
+  `host_maxfps 120`, at 72, and in any long frame it did.
+- **Fix:** the last posed body is carried by the head's move since (avatar::skeletonUnder: the Skeleton now records the
+  head it was posed under; flatplay::drawnSkeleton carries it to this frame's s.head plus bodyRide, the head this frame's
+  body is posed under). Used by the arm's hold and by flatsight's helping hand (armShare, off the body pose), the two
+  things placed before this frame's body is posed. Nothing about the slide's move changed.
+- **Numbers, drawn main hand from the view, rms / max cm (spiral ramp, button ramp, level floor):** 72 fps even: before
+  0.35/0.41/0.28 (holds every run), after 0.27/0.31/0.20, no holds. 120 fps (10% frame jitter): before 0.61/0.25/0.17
+  (max 1.95), after 0.14/0.13/0.13 (max 0.70). 100 fps (45% jitter): before 5.8/3.9/3.5 (max 12.6), after 0.40/0.36/0.32.
+  40 fps (45%): before 16.6/10.4/20.0, after 0.6/0.6/0.45. The real clock with long frames (his game running beside):
+  level floor before 3.05 (max 18), after 0.05-0.10, no holds. 360 fps even or jittered: unchanged (0.09-0.18; the hold
+  never fired). The pose's own points (gun, shoulder, pelvis) were never noisy: 0.03 cm rms at 360 fps.
+- **Not changed (measured, small):** the skinned shoulder and knee from the view at 360 fps with 45% frame jitter, 0.14-0.23
+  and 0.16-0.38 cm rms (the legs' ease of the slide pose); the view sits up to 2.5 units over the pose's head for the
+  slide's first ~0.15 s (smooth). On the level floor the pose's pelvis turns round from its settle at the slide's start
+  (0.52 a frame at 72 fps, one kink): said, not counted in the level run.
+
+Test: `vr_flatslide_ramp_test` gains the level-floor run and, per run, "the arm's hold pulled the drawn gun in 0 times
+sliding" (with the drawn hand's jitter printed). `flatramp_test.sh` 12/12 (before the fix the new check fails at 72 fps:
+holds in every run). Checklist scene `{test:flat_slide_jitter}` (vrtesthall's open floor, a shotgun in hand).
+
 ## vr_pp_test 1's two single failures (branch `agent/pptest`, 2026-11-10)
 
 Two different 62/1 runs of `map vrtesthall; vr_pp_test 1` were reported (one on agent/elbow3, one on next at 0eed92f65).

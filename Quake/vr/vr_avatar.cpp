@@ -1687,6 +1687,7 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
     {
         Skeleton& k = posedSkeleton;
         k.m2w = b.m2w;
+        k.head = s.head;
         k.legs = legs;
         for(int side = 0; side < 2; side++)
         {
@@ -1820,6 +1821,27 @@ bool skeleton(Skeleton& out)
         return false;
     }
     out = posedSkeleton;
+    return true;
+}
+
+bool skeletonUnder(const glm::vec3& head, Skeleton& out)
+{
+    if(!skeleton(out))
+    {
+        return false;
+    }
+    const glm::vec3 move = head - out.head;
+    for(int i = 0; i < 2; i++)
+    {
+        out.shoulder[i] += move;
+        out.elbow[i] += move;
+        out.wrist[i] += move;
+        out.hip[i] += move;
+        out.knee[i] += move;
+        out.ankle[i] += move;
+        out.toe[i] += move;
+    }
+    out.head = head;
     return true;
 }
 
