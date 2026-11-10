@@ -70,6 +70,9 @@ Flat-screen: fire the shotgun and the nailgun; the visor crosshair's lines sprea
 Stab a grunt deep with the sword, set Blade Hold Strength to x10 and lift it over your head with one hand, pointing the sword up: the body comes all the way up with the blade, along it too, and swings round with your wrist; at x1 it lags as before. {test:embed_stab}
 Get hurt with your hands near your face: your blood streams, splashes and drips still show right at your face (Your Gore: Eye Clearance now 0), and each stream starts on your drawn body or arm, moving with it, not floating off it. {test:playergore}
 Cut a limb or head off onto the blade, then punch it or strike it with the other hand's weapon: it bursts with a spray of blood right where it sat on the blade, not just small gibs; if the blood still doesn't show with the blade close to your face, lower Particle Fade Near Eyes and try again. {test:embed_stab}
+Swing and chop an axe or sword at a grunt's chest and shoulders: it dies without losing its head; a cut across the neck still beheads it, and the training dummy says "would behead" only for blows it calls a head hit.
+Swing the axe hard into a dead grunt's ragdoll: the axe stays in it (grab it back out) instead of the body bursting into gibs.
+Chop and slash with the Super Axe's blade: the blows land as the head (and stay in when hard enough), not as pommel strikes; the white blow line with Show Melee Blades ends at the middle of the blade's edge. {test:superaxe_blade}
 [2. VR: body, lying down and swimming]
 Lie down and crawl with your arms: a hand only drags you when its knuckles are on the floor (a hand a few cm up swims no more; Arm Crawl Floor Height 1, steps of 0.25, 0 allowed) {test:prone_floor}
 Crawl hand pose: with Empty Hand Crawls When = Closed (default) an open empty hand resting or sliding on the floor does nothing, a fist (grip or trigger) drags you; Open and Either do as named; the shotgun hand always drags {test:prone_floor}
