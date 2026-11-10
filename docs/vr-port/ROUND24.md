@@ -8150,3 +8150,26 @@ His note on `vr_flatblood_test 3`'s picture: "the particles seem like red square
 - The fire delay grows from 0.056 s (4 ticks) to 0.111 s (8 ticks): +0.055 s. The rate of fire is unchanged:
   `vr_revolver_cooldown` (0.3 s) counts from the pull, not from the fall.
 - Test: flatreload_test.sh `hammer` run / flatreload_check.py: each pull's hammer reaches blend 1.000 on the cocked pose.
+
+## Flat: always standing; sliding backwards keeps the legs in front (branch `agent/flat_slideback`, worktree `slideback`, 2026-11-10)
+
+- **Seated ignored in flat play** (his item 1): `seated::active()` (Quake/vr/vr_seated.cpp) is false while
+  `flatplay::active()`, so every reader (the holsters' and pouches' seated layouts in vr_body.cpp / vr_view.cpp, the leg
+  fit in vr_avatar.cpp, the crouch toggle, the holster setup) behaves as standing; vr_server.cpp's `.vr_stand` no longer
+  stays 1 for a flat client with Seated set (only standing did the crouch key lower it). The eye height was already
+  untouched (`seated::raise` needs a headset). `vr_seated_status` prints a `server stand` line (QC .vr_stand, the
+  crouched box, prone, the view height). Test: `Misc/quakevr/flatseated_test.sh`: Seated and Standing set give the same
+  42 status lines standing, crouched and lying down (stand 1.00 / 0.63 / 0.30, prone 1).
+- **Sliding backwards** (his item 8): straight back, the slide way's side flipped with every twitch of the view, so the
+  hips swung between +70 and -70 (`vr_flat_slide_legs_twist`). Now the legs come back to the view past
+  `vr_flat_slide_back_start` (90) degrees off it, all of the way by `vr_flat_slide_back_full` (120) (a smoothstep, flat
+  at 90 so a sideways slide is as before;
+  Tunables rows "Slide Back Legs Start" / "Full"). The slide's way is also taken once a frame (with the easing's step):
+  the frame's later poses had the server's newer velocity and went past `vr_flat_slide_turn_smooth` (sideways, an
+  11-degree step in a frame once the fade made the way's jitter visible).
+- Test: `vr_body_slideback_test [shot]` (vr_avatar_lie.cpp; in flatslide_test.sh) at 120 fps, the view wobbling 4 degrees
+  at 1.3 Hz. Before: straight back 4 flips, steps a frame of 146.6 deg (hips), 146.5 deg (legs), 25.8 units (knees);
+  back-left (120 degrees off: Quake's back and side keys) the hips 72 degrees off the view. After: back, back-left and
+  back-right the hips at most 3.7 degrees off the view, no flips, steps under 0.3 deg / 0.2 units a frame; sideways the
+  hips still turn 72 degrees (steps 0.39 deg a frame). 80 / 115 first: the e1m1 ramp slide's end at the wall (its
+  way deflected sideways) moved the hips enough to fail flatslidepose's drawn-off-pose (1.08 over 1.0); 90 / 120 pass.

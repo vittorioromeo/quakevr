@@ -7,7 +7,8 @@
 #          parts; slide again and jump: the speed kept in the air, its first stamina part alone; too tired: no slide.
 #          Then vr_flatslide_rough_test: up vrtesthall's stairs and ramp, no step nor ramp ending it; A alone and D
 #          alone curve it, the view turned 10 degrees off its way. vr_flatslide_hit_test 0 and 1: a slide into a crate
-#          pushes it on and to the side; into a grunt knocks it (the slide's charge).
+#          pushes it on and to the side; into a grunt knocks it (the slide's charge). vr_body_slideback_test at 120 fps:
+#          slides straight back and diagonally back keep the legs out in front (no flips, no jitter), sideways not.
 #   lean   vr_flatlean_test in vrtesthall: a full lean right moves the eye vr_flat_lean_dist and rolls the view; a shot
 #          across the leant head out of his box meets him (and not with his box alone); walking leant is
 #          vr_flat_lean_speed of upright; leant into a wall at his side the eye stays vr_flat_lean_margin off it; leant
@@ -61,6 +62,15 @@ out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatslide_rough: [0-9]+ passed
     -Script "$H; vr_flatslide_rough_test; wait3000; toggleconsole; quit" 2>&1)
 echo "$out" | grep -a "^flatslide_rough.*FAIL"
 expect_verdict "$out" "flatslide_rough" "slide: up stairs and a ramp (no step, no ramp ends it), A alone and D alone curve it"
+
+# Slides away from the view at 120 fps (vr_body_slideback_test, Quake/vr/vr_avatar_lie.cpp; his note 2026-11-10): straight
+# back and diagonally back the hips face the view and the legs stay out in front (vr_flat_slide_back_start/_full), the
+# view wobbling a few degrees: no flips of the hips from side to side, no jitter of the hips, legs or knees; sideways the
+# legs still turn the slide's way.
+out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatslideback: [0-9]+ passed" -Timeout 180 -Filter "^flatslideback" \
+    -Script "vr_fixed_frames_rate 120; vr_flat_holsters 0; $H; vr_flat_slide_stamina 0; impulse 9; wait5; impulse 3; wait30; vr_body_slideback_test; wait30000; toggleconsole; quit" 2>&1)
+echo "$out" | grep -a "^flatslideback: \([a-z-]*: [0-9]\|.*FAIL\)"
+expect_verdict "$out" "flatslideback" "slide back and diagonally back: the legs out in front, no flips, no jitter; sideways the legs the slide's way"
 
 out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatlean: [0-9]+ passed" -Timeout 120 -Filter "^flatlean" \
     -Script "$H; vr_flatlean_test; wait3000; toggleconsole; quit" 2>&1)

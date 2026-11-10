@@ -2895,7 +2895,9 @@ void poseHands(hands::State& s, const glm::vec3& aim)
             t.lin += za::clamp((slide ? 1.f : 0.f) - t.lin, -step, step);
         }
         const glm::vec2 vel{cl.velocity[0], cl.velocity[1]};
-        if(slide && glm::length(vel) > 60.f)
+        // (Taken once a frame, with the easing's step: the frame's later poses had the server's newer velocity, and its
+        // change went into the body past the easing below -- a step of 11 degrees in a frame sliding sideways.)
+        if(slide && glm::length(vel) > 60.f && (dt > 0.0 || !t.easing))
         {
             t.yaw = geom::yawOf(glm::vec3{vel, 0.f});
         }
@@ -2905,7 +2907,15 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         {
             off = geom::yawDelta(t.yaw, aim.y);
             const float most = za::clamp(vr_flat_slide_legs_twist.value, 0.f, 90.f);
-            off = za::clamp(off, -most, most) * share;
+            // Sliding away from the view (his note 2026-11-10: "Sliding backwards or diagonally backwards while looking
+            // ahead looks a bit jittery/funky -- the legs should still stay in front"): the legs come back to the view
+            // as the slide's way goes past vr_flat_slide_back_start off it, all of the way by vr_flat_slide_back_full
+            // (on the back, the legs out in front, as a forward slide). Straight back the way's side flipped with every
+            // twitch of the view, and the hips swung from one most twist to the other.
+            const float backStart = za::clamp(vr_flat_slide_back_start.value, 0.f, 180.f);
+            const float backFull = za::clamp(vr_flat_slide_back_full.value, backStart, 180.f);
+            const float back = geom::smoothstep(backStart, backFull, za::fabs(off), 0.01f);
+            off = za::clamp(off, -most, most) * (1.f - back) * share;
         }
         // The hips eased after it (his note 2026-11-08: the body turned in abrupt steps sliding): the slide's way follows the
         // velocity, which steps with the server's frames and the steering, and a look past the twist's limit drags them

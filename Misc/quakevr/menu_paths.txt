@@ -4096,7 +4096,24 @@ vr_flat_ssg_break_delay|2|Tunables|Reload: Super Shotgun Break Delay|Advanced VR
 vr_flat_mag_eject_delay|2|Tunables|Reload: Magazine Eject Delay|Advanced VR Options > Debug > Tunables > Reload: Magazine Eject Delay
 vr_flat_mag_eject_speed|2|Tunables|Reload: Magazine Eject Speed|Advanced VR Options > Debug > Tunables > Reload: Magazine Eject Speed
 vr_flat_revolver_open_delay|2|Tunables|Reload: Revolver Swing-Out Delay|Advanced VR Options > Debug > Tunables > Reload: Revolver Swing-Out Delay
+vr_flat_revolver_eject_delay|2|Tunables|Reload: Revolver Shells Out Delay|Advanced VR Options > Debug > Tunables > Reload: Revolver Shells Out Delay
 vr_flat_reload_close_delay|2|Tunables|Reload: Close Delay|Advanced VR Options > Debug > Tunables > Reload: Close Delay
+vr_flat_ssg_open_pitch|2|Tunables|Super Shotgun Open: Pitch|Advanced VR Options > Debug > Tunables > Super Shotgun Open: Pitch
+vr_flat_ssg_open_yaw|2|Tunables|Super Shotgun Open: Yaw|Advanced VR Options > Debug > Tunables > Super Shotgun Open: Yaw
+vr_flat_ssg_open_roll|2|Tunables|Super Shotgun Open: Roll|Advanced VR Options > Debug > Tunables > Super Shotgun Open: Roll
+vr_flat_ssg_open_fwd|2|Tunables|Super Shotgun Open: Forward|Advanced VR Options > Debug > Tunables > Super Shotgun Open: Forward
+vr_flat_ssg_open_up|2|Tunables|Super Shotgun Open: Up|Advanced VR Options > Debug > Tunables > Super Shotgun Open: Up
+vr_flat_ssg_open_out|2|Tunables|Super Shotgun Open: Out|Advanced VR Options > Debug > Tunables > Super Shotgun Open: Out
+vr_flat_ssg_open_in_time|2|Tunables|Super Shotgun Open: In Time|Advanced VR Options > Debug > Tunables > Super Shotgun Open: In Time
+vr_flat_ssg_open_out_time|2|Tunables|Super Shotgun Open: Out Time|Advanced VR Options > Debug > Tunables > Super Shotgun Open: Out Time
+vr_flat_rv_open_pitch|2|Tunables|Revolver Open: Pitch|Advanced VR Options > Debug > Tunables > Revolver Open: Pitch
+vr_flat_rv_open_yaw|2|Tunables|Revolver Open: Yaw|Advanced VR Options > Debug > Tunables > Revolver Open: Yaw
+vr_flat_rv_open_roll|2|Tunables|Revolver Open: Roll|Advanced VR Options > Debug > Tunables > Revolver Open: Roll
+vr_flat_rv_open_fwd|2|Tunables|Revolver Open: Forward|Advanced VR Options > Debug > Tunables > Revolver Open: Forward
+vr_flat_rv_open_up|2|Tunables|Revolver Open: Up|Advanced VR Options > Debug > Tunables > Revolver Open: Up
+vr_flat_rv_open_out|2|Tunables|Revolver Open: Out|Advanced VR Options > Debug > Tunables > Revolver Open: Out
+vr_flat_rv_open_in_time|2|Tunables|Revolver Open: In Time|Advanced VR Options > Debug > Tunables > Revolver Open: In Time
+vr_flat_rv_open_out_time|2|Tunables|Revolver Open: Out Time|Advanced VR Options > Debug > Tunables > Revolver Open: Out Time
 vr_flat_fg_pose|2|Tunables|Force Grab: Palm Out First|Advanced VR Options > Debug > Tunables > Force Grab: Palm Out First
 vr_flat_fg_turn_time|2|Tunables|Force Grab: Turn Time|Advanced VR Options > Debug > Tunables > Force Grab: Turn Time
 vr_flat_fg_detach_time|2|Tunables|Force Grab: Off The Grip Time|Advanced VR Options > Debug > Tunables > Force Grab: Off The Grip Time
@@ -4339,6 +4356,8 @@ vr_flat_slide_leg_reach|2|Tunables|Slide Leg Reach|Advanced VR Options > Debug >
 vr_flat_slide_turn_time|2|Tunables|Slide Stance Turn Time|Advanced VR Options > Debug > Tunables > Slide Stance Turn Time
 vr_flat_slide_legs|2|Tunables|Slide Legs Follow Slide|Advanced VR Options > Debug > Tunables > Slide Legs Follow Slide
 vr_flat_slide_legs_twist|2|Tunables|Slide Legs Most Twist|Advanced VR Options > Debug > Tunables > Slide Legs Most Twist
+vr_flat_slide_back_start|2|Tunables|Slide Back Legs Start|Advanced VR Options > Debug > Tunables > Slide Back Legs Start
+vr_flat_slide_back_full|2|Tunables|Slide Back Legs Full|Advanced VR Options > Debug > Tunables > Slide Back Legs Full
 vr_flat_slide_bob|2|Tunables|Slide Walk Bob|Advanced VR Options > Debug > Tunables > Slide Walk Bob
 vr_flat_slide_sound|2|Tunables|Slide Sound Volume|Advanced VR Options > Debug > Tunables > Slide Sound Volume
 vr_flat_slide_stamina|2|Tunables|Slide Stamina Cost|Advanced VR Options > Debug > Tunables > Slide Stamina Cost

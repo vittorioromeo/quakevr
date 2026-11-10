@@ -321,7 +321,10 @@ behind the eye, straight like lying down's, the chest's share of the look off, t
 (`vr_avatar_legs.cpp`, `BodyPitch::sliding`), eased over `vr_flat_slide_body_time` (0.2 s): looking down he sees his
 legs past his chest. The legs reach `vr_flat_slide_leg_reach` (0.993) of their length to the floor (nearly straight);
 the two-handed stance's torso turn goes in `vr_flat_slide_turn_time` (0.12 s); with `vr_flat_slide_legs` (1) the hips
-and legs point the slide's way and the chest turns back to the view, at most `vr_flat_slide_legs_twist` (70) degrees;
+and legs point the slide's way and the chest turns back to the view, at most `vr_flat_slide_legs_twist` (70) degrees,
+except sliding away from the view: past `vr_flat_slide_back_start` (90) degrees off it the legs come back towards the
+view, all of the way by `vr_flat_slide_back_full` (120), so a slide straight or diagonally back keeps the legs out in
+front (on the back, as a forward slide) instead of swinging the hips from one side to the other;
 `vr_flat_slide_bob` (0) of the walk's bob stays (the view's, the hands', the body's ride). Its sound
 (`vr_slidesound.cpp`, `Misc/quakevr/make_slide_sounds.py`): a scuff as it starts, a scrape following the speed that
 fades as it slows and stops when it ends, `vr_flat_slide_sound` (0.6) loud. The pose is a little untidy on purpose:
