@@ -7402,4 +7402,7 @@ His feedback of 2026-11-10, items 7, 8, 9, 10 and 22 (FLATPLAY.md, "Sliding", ha
 - **Tests.** `vr_flatslide_test` gained: the prone key 0.1 s into the slide does nothing (it ends "slowed"); a whole
   slide pays all parts; the jump-cut slide pays its first alone; at 2 stamina a crouch at speed is no slide. New
   `vr_flatslide_hit_test 0|1` (crate, grunt in vrtesthall's south-west lane). Both in `flatslide_test.sh` and Debug >
-  Tests.
+  Tests. Results: `flatslide_test.sh` 23 passed, 0 failed (flatslide 9/0; the crate went on 62.8 units and 23.2 to the
+  side; the grunt slid into at 253 u/s went down). `vr_body_lie_test`'s "legs straighter" now measures the straight leg
+  and checks the bent one (30..150 deg) instead. Its "slide: no bob (the pelvis 2.69 .. 4.50)" fails on origin/next
+  (2e84384d4) as well: not this branch's, left alone. Scenarios `flat_slide_hit`, `flat_slide_stamina` validate (SCNOK).
