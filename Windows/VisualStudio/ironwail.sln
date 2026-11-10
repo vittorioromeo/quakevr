@@ -15,6 +15,7 @@ Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
 		Release|x64 = Release|x64
+		ReleaseLTO|x64 = ReleaseLTO|x64
 		Release-Tracy|x64 = Release-Tracy|x64
 		Release-TracyFull|x64 = Release-TracyFull|x64
 	EndGlobalSection
@@ -25,6 +26,8 @@ Global
 		{AE77266F-0A23-4F08-A491-369DE664B273}.Release-Tracy|x64.ActiveCfg = Release-Tracy|x64
 		{AE77266F-0A23-4F08-A491-369DE664B273}.Release-TracyFull|x64.ActiveCfg = Release-TracyFull|x64
 		{AE77266F-0A23-4F08-A491-369DE664B273}.Release|x64.Build.0 = Release|x64
+		{AE77266F-0A23-4F08-A491-369DE664B273}.ReleaseLTO|x64.ActiveCfg = ReleaseLTO|x64
+		{AE77266F-0A23-4F08-A491-369DE664B273}.ReleaseLTO|x64.Build.0 = ReleaseLTO|x64
 		{AE77266F-0A23-4F08-A491-369DE664B273}.Release-Tracy|x64.Build.0 = Release-Tracy|x64
 		{AE77266F-0A23-4F08-A491-369DE664B273}.Release-TracyFull|x64.Build.0 = Release-TracyFull|x64
 		{E286BCD0-E4E0-4F68-B335-083019EA8E02}.Debug|x64.ActiveCfg = Debug|x64
@@ -33,6 +36,8 @@ Global
 		{E286BCD0-E4E0-4F68-B335-083019EA8E02}.Release-Tracy|x64.ActiveCfg = Release-Tracy|x64
 		{E286BCD0-E4E0-4F68-B335-083019EA8E02}.Release-TracyFull|x64.ActiveCfg = Release-TracyFull|x64
 		{E286BCD0-E4E0-4F68-B335-083019EA8E02}.Release|x64.Build.0 = Release|x64
+		{E286BCD0-E4E0-4F68-B335-083019EA8E02}.ReleaseLTO|x64.ActiveCfg = ReleaseLTO|x64
+		{E286BCD0-E4E0-4F68-B335-083019EA8E02}.ReleaseLTO|x64.Build.0 = ReleaseLTO|x64
 		{E286BCD0-E4E0-4F68-B335-083019EA8E02}.Release-Tracy|x64.Build.0 = Release-Tracy|x64
 		{E286BCD0-E4E0-4F68-B335-083019EA8E02}.Release-TracyFull|x64.Build.0 = Release-TracyFull|x64
 		{6D1F3C2A-9B4E-4F5D-8E21-7A0C5D9E3B41}.Debug|x64.ActiveCfg = Debug|x64
@@ -41,6 +46,8 @@ Global
 		{6D1F3C2A-9B4E-4F5D-8E21-7A0C5D9E3B41}.Release-Tracy|x64.ActiveCfg = Release-Tracy|x64
 		{6D1F3C2A-9B4E-4F5D-8E21-7A0C5D9E3B41}.Release-TracyFull|x64.ActiveCfg = Release-TracyFull|x64
 		{6D1F3C2A-9B4E-4F5D-8E21-7A0C5D9E3B41}.Release|x64.Build.0 = Release|x64
+		{6D1F3C2A-9B4E-4F5D-8E21-7A0C5D9E3B41}.ReleaseLTO|x64.ActiveCfg = ReleaseLTO|x64
+		{6D1F3C2A-9B4E-4F5D-8E21-7A0C5D9E3B41}.ReleaseLTO|x64.Build.0 = ReleaseLTO|x64
 		{6D1F3C2A-9B4E-4F5D-8E21-7A0C5D9E3B41}.Release-Tracy|x64.Build.0 = Release-Tracy|x64
 		{6D1F3C2A-9B4E-4F5D-8E21-7A0C5D9E3B41}.Release-TracyFull|x64.Build.0 = Release-TracyFull|x64
 		{38CD0922-A220-4CCA-BCD1-64B6B0688C89}.Debug|x64.ActiveCfg = Debug|x64
@@ -49,6 +56,8 @@ Global
 		{38CD0922-A220-4CCA-BCD1-64B6B0688C89}.Release-Tracy|x64.ActiveCfg = Release-Tracy|x64
 		{38CD0922-A220-4CCA-BCD1-64B6B0688C89}.Release-TracyFull|x64.ActiveCfg = Release-TracyFull|x64
 		{38CD0922-A220-4CCA-BCD1-64B6B0688C89}.Release|x64.Build.0 = Release|x64
+		{38CD0922-A220-4CCA-BCD1-64B6B0688C89}.ReleaseLTO|x64.ActiveCfg = ReleaseLTO|x64
+		{38CD0922-A220-4CCA-BCD1-64B6B0688C89}.ReleaseLTO|x64.Build.0 = ReleaseLTO|x64
 		{38CD0922-A220-4CCA-BCD1-64B6B0688C89}.Release-Tracy|x64.Build.0 = Release-Tracy|x64
 		{38CD0922-A220-4CCA-BCD1-64B6B0688C89}.Release-TracyFull|x64.Build.0 = Release-TracyFull|x64
 	EndGlobalSection
