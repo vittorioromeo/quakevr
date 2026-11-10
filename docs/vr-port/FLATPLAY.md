@@ -946,7 +946,7 @@ Misc/quakevr/flatxhair_test.sh <agent>` (one e1m1 run; `flatxhair_test: N passed
 The grab key (`vr_flat_key_grab`) no longer pulls at once (his note 2026-11-10; `vr_flatfgrab.cpp`). The hand that will take it
 (the main one if it is free, else the off one, the game's own choice) first turns its open palm to what it pulls
 (`vr_flat_fg_turn_time`, 0.12 s); a hand on a held gun's two-handed grip lets go of it first and comes out beside the gun
-(`vr_flat_fg_detach_time`, 0.15 s more). Then the client asks for the grab with that hand (`impulse 50` the off hand, `51` the
+(`vr_flat_fg_detach_time`, 0.15 s more; a melee weapon held in both hands too: `vr_flat_melee_letgo`, below). Then the client asks for the grab with that hand (`impulse 50` the off hand, `51` the
 main; `46` still lets the game choose), and the beam and tendril start from the palm (`fgfx::palmOrigin`: the jointed hand's
 palm's middle, moved `vr_forcegrab_fx_along` towards the fingers and `vr_forcegrab_fx_out` out of the palm, in the headset too;
 flat play draws them from the hands as drawn). The pose holds, the palm on the flying object, until it
@@ -1051,3 +1051,10 @@ super axe's hs1 just above the holding hand, not hs2 up by the head; a sword's a
 one the hanging hand happens to be nearest (`chooseGrip`, `vr_view_weapon.cpp`), and `vr_twohand`'s sword grips never take
 the blade (the half-sword grip, hs2) on the flat screen. A headset's hand chooses as before. `vr_flatplay_status` prints
 "melee grip: hs1 (type 1), the free hand on that grip". Scene `flat_melee_grip`.
+
+A melee weapon held in both hands lets go as a gun does (his note 2026-11-10: "the off hand doesn't seem to detach
+first"; `vr_flat_melee_letgo` 1, Debug > Tunables): the axe's, Mjolnir's and the super axe's grip up the handle is one no pose
+carries the free hand to, taken only at a swing's end; held, the pose is now pinned on it (`flatsight` `keptGrip`), and E's
+grab, the shove, G, 3 and a punch take it off the grip over the gun's own ease (`gripEase`, then `vr_flat_fg_detach_time` for
+E). 0: the old way (the hand hanging while held, off at once). Test: `Misc/quakevr/flatfg2h_test.sh <agent> [letgo]`
+(`vr_flatitems_test 9`; the drawn off hand's most a frame, `vr_flat_fg_report`'s "drawn off hand" line); scene `flat_fg_melee2h`.

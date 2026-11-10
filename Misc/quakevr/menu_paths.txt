@@ -4328,6 +4328,7 @@ vr_flat_swing_cam_down|2|Tunables|Swing View Tip Down|Advanced VR Options > Debu
 vr_flat_swing_torso_up|2|Tunables|Swing Chest Back|Advanced VR Options > Debug > Tunables > Swing Chest Back
 vr_flat_swing_torso_down|2|Tunables|Swing Chest Forward|Advanced VR Options > Debug > Tunables > Swing Chest Forward
 vr_flat_melee_grip|2|Tunables|Two-Handed Melee On The Grip|Advanced VR Options > Debug > Tunables > Two-Handed Melee On The Grip
+vr_flat_melee_letgo|2|Tunables|Two-Handed Melee Eased Off The Grip|Advanced VR Options > Debug > Tunables > Two-Handed Melee Eased Off The Grip
 vr_flat_parry|2|Tunables|Right Mouse Parries|Advanced VR Options > Debug > Tunables > Right Mouse Parries
 vr_flat_parry_fwd|2|Tunables|Guard Ahead|Advanced VR Options > Debug > Tunables > Guard Ahead
 vr_flat_parry_up|2|Tunables|Guard Up|Advanced VR Options > Debug > Tunables > Guard Up

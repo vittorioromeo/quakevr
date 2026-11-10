@@ -110,6 +110,8 @@ struct Sight
     bool gripWanted{false};     // what apply found last frame: a grip to hold, a weapon to centre
     bool adsWanted{false};
     float gripT{0.f};           // how far the empty hand has gone onto the grip (0: flatplay's own support pose)
+    bool heldOffPose{false};    // last frame: vr_twohand held the free hand on a grip no pose carries it to (keptGrip)
+    bool keptGrip{false};       // ... it did, or did until its let-go, and gripT is still easing the hand off that grip
     float adsT{0.f};            // how far the held weapon has come onto the crosshair
 
     int holding{-1};            // this frame: the hand that holds a weapon while the other is empty (-1: neither)
@@ -1700,6 +1702,7 @@ void frame()
         st.ads = st.keyWas = false;
         st.gripWanted = st.adsWanted = false;
         st.gripT = st.adsT = 0.f;
+        st.heldOffPose = st.keptGrip = false;
         st.lastTime = -1e9;
         st.holding = st.helping = st.lastHolding = st.lastHelping = -1;
         st.pinned = st.atGrip = st.armed = false;
@@ -1734,7 +1737,9 @@ void frame()
     const double t = vr_gametime;
     const float dt = st.lastTime > -1e8 ? za::clamp(static_cast<float>(t - st.lastTime), 0.f, 0.1f) : 0.f;
     st.lastTime = t;
-    st.gripT = za::clamp(st.gripT + (st.gripWanted ? 1.f : -1.f) * ease(gripEase, dt), 0.f, 1.f);
+    // (A grip vr_twohand holds with no pose carrying the hand there, a melee weapon's up its handle: all the way on while
+    // held, so its let-go eases the hand off it from there, as a gun's pinned grip does: keptGrip in apply.)
+    st.gripT = st.heldOffPose ? 1.f : za::clamp(st.gripT + (st.gripWanted ? 1.f : -1.f) * ease(gripEase, dt), 0.f, 1.f);
     {
         const float to = st.lookWanted ? st.lookTarget : 0.f;
         const float step = ease(st.lookFast ? gripEase : lookEase, dt);
@@ -1871,7 +1876,24 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     st.gripWanted = carryToGrip && !flatplay::punching(st.helping) && !flatplay::shoving(st.helping) &&
                     !flatreload::busy(st.holding) && !flatgrenade::busy(st.helping) && !flatswap::gripBlocked() &&
                     !flatfgrab::busy(st.helping) && !flatplay::holdsThing(st.helping);
-    QVR_TRACY_CALL("flatsight: pin to grip", pinToGrip(s, reach, carryToGrip));
+    // A grip no pose carries the free hand to (a melee weapon's hs1 up the handle: the axe's, Mjolnir's, the super axe's;
+    // carryToGrip false) that vr_twohand holds anyway, taken at a swing's end: held, the pose is pinned on it as a gun's
+    // free hand is (before 2026-11-10 it was left hanging, the hand not drawn on the handle). When it lets go -- E's force
+    // grab, the shove, the quick grenade, the swap, a punch -- the hand eases off the grip the way a gun's free hand does
+    // (his note 2026-11-10: "It should animate like when holding a gun with two hands"): gripT, all the way on while held
+    // (frame), falls at gripEase from the let-go, and pinToGrip holds the pose that share of the way on the grip, so the
+    // force grab's palm turn (vr_flat_fg_detach_time), the shove's, the grenade's and the swap's poses start from the grip.
+    // (vr_flat_melee_letgo 0: as before, the hand off the grip at once.)
+    const bool heldOffPose = vr_flat_melee_letgo.value != 0.f && st.holding >= 0 && st.helping >= 0 && !carryToGrip && s.grip2HValid[st.holding] &&
+                             flatplay::meleeIn(st.holding) && twohand::helping(st.helping) && emptyHand(st.helping);
+    if(freshFrame)
+    {
+        const bool same = st.holding == st.lastHolding && st.helping == st.lastHelping;
+        st.keptGrip = heldOffPose || (st.keptGrip && same && st.holding >= 0 && st.helping >= 0 && st.gripT > 0.f &&
+                                      s.grip2HValid[st.holding] && emptyHand(st.helping));
+        st.heldOffPose = heldOffPose;
+    }
+    QVR_TRACY_CALL("flatsight: pin to grip", pinToGrip(s, reach, carryToGrip || st.keptGrip));
     QVR_TRACY_CALL("flatsight: centre on sight", centreOnSight(s, aim));
     QVR_TRACY_CALL("flatsight: push back", pushBack(s, aim));
     QVR_TRACY_CALL("flatsight: free off wall", freeOffWall(s));

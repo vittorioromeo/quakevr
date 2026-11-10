@@ -1,0 +1,10 @@
+# flat_fg_melee2h: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode): a melee weapon held in both hands lets the off hand off its grip as a two-handed gun does (vr_flat_melee_letgo; docs/vr-port/FLATPLAY.md, "Force grab").
+title Flat-screen force grab from a two-handed axe: an axe in the right hand, rocks to pull
+hint Play with -flatscreenmode. Swing the axe (fire) until the left hand takes its handle, then look at a rock and press the grab key: the left hand slides off the handle first, then turns its palm out and pulls, as it does off a rocket launcher's fore-end. The same off the handle for the shove, G, 3 and a punch.
+map vrtesthall
+god
+notarget
+give "Axe" main
+spawn "Rock" 120 30
+spawn "Rock" 160 0
+spawn "Rock" 140 -40
