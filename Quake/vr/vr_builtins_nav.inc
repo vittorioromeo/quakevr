@@ -114,6 +114,13 @@ void PF_portal_ai_map()
     VectorCopy(&point.x, G_VECTOR(OFS_RETURN));
 }
 
+// float navsteer(entity monster, entity goal): the yaw toward the next corner of its navmesh path to the goal, or -1:
+// Quake's chase (vr_nav.cpp nav::steer).
+void PF_navsteer()
+{
+    G_FLOAT(OFS_RETURN) = qvr::nav::steer(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1));
+}
+
 // portal_ai_gateinfo(gate, what): 0 the gates' count (0: off), 1 the gate's flags, 2 its face (portals::aiGateFlags).
 void PF_portal_ai_gateinfo()
 {

@@ -290,6 +290,15 @@ za::Vector<Item> pageDebugViews()
             .help("vr_blade_dump fist: the empty hand's blow line (vr_melee_fist_*) as vr_cvars.inc lines (* changed)."),
         row(opt::vr_debug_hand_bones),
         row(opt::vr_debug_ledges),
+        row(opt::vr_nav_debug),
+        row(opt::vr_nav_debug_range),
+        row(opt::vr_nav_debug_class),
+        command("Print Navmesh Info", "vr_nav_info")
+            .help("vr_nav_info: the map's navmesh input (brushes, clip brushes, triangles) and each monster size class's "
+                  "mesh: tiles, polygons, size, built or read from disk and how long it took; the paths found."),
+        command("Check Clip Brushes Block Paths", "vr_nav_cliptest")
+            .help("vr_nav_cliptest: no navmesh polygon lies inside one of the map's clip brushes (the console; ends on "
+                  "'nav cliptest: N passed, M failed')."),
         row(opt::vr_debug_hand_collide),
         row(opt::vr_debug_carry),
         row(opt::vr_debug_grab),

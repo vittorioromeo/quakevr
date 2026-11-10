@@ -159,6 +159,23 @@ if (UNIX AND NOT APPLE)
 endif()
 target_link_libraries(ironwail PRIVATE qvr_box3d)
 
+# Recast/Detour (external/recastnavigation/README.md): the navmesh library (vr_nav.cpp), a static library of Recast and
+# Detour only, always optimised without its asserts (NDEBUG), Debug too; warnings off (vendored code).
+file(GLOB QVR_RECAST_SRC CONFIGURE_DEPENDS
+	"${CMAKE_CURRENT_LIST_DIR}/external/recastnavigation/Recast/Source/*.cpp"
+	"${CMAKE_CURRENT_LIST_DIR}/external/recastnavigation/Detour/Source/*.cpp")
+add_library(qvr_recast STATIC ${QVR_RECAST_SRC})
+target_include_directories(qvr_recast PUBLIC
+	"${CMAKE_CURRENT_LIST_DIR}/external/recastnavigation/Recast/Include"
+	"${CMAKE_CURRENT_LIST_DIR}/external/recastnavigation/Detour/Include")
+target_compile_definitions(qvr_recast PRIVATE NDEBUG)
+if (MSVC)
+	target_compile_options(qvr_recast PRIVATE /O2 /Ob2 /RTC- /w)
+else()
+	target_compile_options(qvr_recast PRIVATE -O2 -w)
+endif()
+target_link_libraries(ironwail PRIVATE qvr_recast)
+
 # Zancle (external/zancle/README.md): the modules the Quake VR code uses, a static library with its own settings: C++23;
 # optimised and without Zancle's asserts (NDEBUG) in Release; in Debug by QVR_ZANCLE_DEBUG: ON, built as the engine's
 # Debug with its asserts on (a failure calls vr_zancle.cpp's handler, installed by za::setAssertHandler, as in the

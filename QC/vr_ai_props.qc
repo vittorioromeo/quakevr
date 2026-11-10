@@ -121,8 +121,27 @@ void(float dist) VR_AI_MoveRound =
 
 // movetogoal(dist) for ai_run, ai_walk and the stealth AI's walks: by way of the map's stairs when the foe is on another
 // level (vr_arena_nav.qc), round the props in the way.
+// The chase on the map's navmesh (vr_nav, docs/vr-port/NAVMESH.md): a walker after its foe turns toward its path's next
+// corner and steps there with Quake's walkmove. FALSE: Quake's chase as before (no path, the foe straight ahead on the
+// mesh, or the step blocked: a prop, another monster).
+float(float dist) VR_NAV_Step =
+{
+    entity g = self.goalentity;
+    if(!cvar_hget(cvarh_vr_nav) || dist <= 0 || g == world || g != self.enemy || !(self.flags & FL_MONSTER) ||
+       (self.flags & (FL_FLY | FL_SWIM)))
+    {
+        return FALSE;
+    }
+    float yaw = navsteer(self, g);
+    if(yaw < 0) { return FALSE; }
+    self.ideal_yaw = yaw;
+    ChangeYaw();
+    return walkmove(yaw, dist);
+};
+
 void(float dist) VR_AI_MoveToGoal =
 {
+    if(VR_NAV_Step(dist)) { return; }
     entity nav = VR_ARENA_NavStep(dist);
     if(nav == world)
     {

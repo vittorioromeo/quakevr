@@ -1134,6 +1134,26 @@ QVR_TOGGLE(vr_arena_scatter, "Supplies Anywhere",
     "the tower tops, the wall walks, anywhere you can walk to -- never right next to you, so you go "
     "looking for them; the middle of your view says what came. 0: they land on the map's own item "
     "points (vr_arena_scatter).")
+QVR_TOGGLE(vr_nav, "Monsters Find Their Way",
+    "1: a walking monster chasing you follows a path on the map's navmesh: round corners and pillars, up stairs and "
+    "ramps, past what Quake's chase walks into, stepping as Quake moves it. Backpedalling, sidesteps and melee are as "
+    "before. 0: Quake's chase, which heads straight at you and tries other ways at random when blocked (vr_nav).")
+QVR_TOGGLE(vr_nav_async, "Monster Paths for New Sizes in Play",
+    "1: a monster whose size the map's load did not prepare a navmesh for (a later spawn) has one built on the "
+    "thread pool while it chases as Quake does. 0: built at once, a hitch (vr_nav_async).")
+QVR_CYCLE(vr_nav_cache, "Navmeshes on Disk",
+    "The monsters' navmeshes kept on disk (cache/navmesh) and read at the map's next load instead of built again. "
+    "Check: read, then built anyway and compared. Off: built at every load (vr_nav_cache).",
+    {0.f, "Off"}, {1.f, "On"}, {2.f, "Check"})
+QVR_CYCLE(vr_nav_debug, "Show Navmesh",
+    "The monsters' navmesh drawn round you: its polygons by area (ground teal, water blue, slime green, lava orange, "
+    "blocked by a door or lift red) and edges. Paths: also each chasing monster's path (yellow, its next corner a "
+    "white post) (vr_nav_debug).",
+    {0.f, "Off"}, {1.f, "Navmesh"}, {2.f, "Navmesh and Paths"})
+QVR_SLIDER(vr_nav_debug_range, "Show Navmesh: Range", 256.f, 4096.f, 64.f, "%.0f", noExt,
+    "Show Navmesh draws polygons this far from you (vr_nav_debug_range).")
+QVR_SLIDER(vr_nav_debug_class, "Show Navmesh: Size Class", -1.f, 8.f, 1.f, "%.0f", noExt,
+    "Which monster size class's navmesh is drawn (vr_nav_info lists them); -1 the nearest monster's (vr_nav_debug_class).")
 QVR_TOGGLE(vr_arena_nav, "Foes Use The Stairs",
     "1: a walking foe whose target is on another level (you on the dais or a tower, it on the floor, or the other way) "
     "heads for the stairs that serve it best, on maps that mark them. 0: Quake's chase, which only finds the stairs by "

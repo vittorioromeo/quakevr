@@ -1394,6 +1394,7 @@ float cvarh_vr_nailpistol_slide_travel;
 float cvarh_vr_nailpistol_speed;
 float cvarh_vr_nailpistol_spread;
 float cvarh_vr_nailpistol_volume;
+float cvarh_vr_nav;
 float cvarh_vr_np_seen_holster;
 float cvarh_vr_np_seen_prop;
 float cvarh_vr_np_seen_screen;
@@ -3403,6 +3404,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_nailpistol_speed = VR_CVar_Make("vr_nailpistol_speed");
     cvarh_vr_nailpistol_spread = VR_CVar_Make("vr_nailpistol_spread");
     cvarh_vr_nailpistol_volume = VR_CVar_Make("vr_nailpistol_volume");
+    cvarh_vr_nav = VR_CVar_Make("vr_nav");
     cvarh_vr_np_seen_holster = VR_CVar_Make("vr_np_seen_holster");
     cvarh_vr_np_seen_prop = VR_CVar_Make("vr_np_seen_prop");
     cvarh_vr_np_seen_screen = VR_CVar_Make("vr_np_seen_screen");

@@ -2376,3 +2376,16 @@ QVR_TUNABLE(vr_player_gore_drip_rate, "0.6") // ... your wounds' drips (vr_playe
 QVR_TUNABLE(vr_player_gore_splash_amount, "1") // ... drops a hit splashes out of the wound, times 6 (vr_player_gore_splash)
 QVR_TUNABLE(vr_player_gore_eye_clear, "0") // ... metres: no stream pours, no drop splashes or drips this close to the eyes, nor from over them (0, his 2026-11-10: none kept back, a hand at the face bleeds there too; it was 0.35)
 QVR_TUNABLE(vr_drips_blood_marks, "0.25") // ... the chance a drop leaves a mark on the floor
+QVR_TUNABLE(vr_nav_cell, "4") // the navmesh's voxel width (units): smaller follows the map more closely and builds slower
+QVR_TUNABLE(vr_nav_cell_height, "2") // the navmesh's voxel height (units)
+QVR_TUNABLE(vr_nav_tile, "64") // the navmesh's tiles, in voxels a side (built in parallel on the pool)
+QVR_TUNABLE(vr_nav_climb, "18") // the highest step a monster walks up on the navmesh (Quake's movestep: 18)
+QVR_TUNABLE(vr_nav_slope, "45.57") // the steepest floor a monster walks on the navmesh (degrees; Quake's floor rule, normal z 0.7: 45.57)
+QVR_TUNABLE(vr_nav_radius_step, "4") // monsters' widths grouped into navmesh classes: half widths rounded up to this many units (each class its own navmesh)
+QVR_TUNABLE(vr_nav_repath, "0.6") // a chasing monster finds its path again at most this often (seconds; staggered between monsters)
+QVR_TUNABLE(vr_nav_repath_move, "64") // ... or when its foe moved this far from where the path led (units)
+QVR_TUNABLE(vr_nav_corner_reached, "8") // a path corner this close (units, flat) counts as reached: the monster heads for the next
+QVR_TUNABLE(vr_nav_water_cost, "2") // the paths' cost of a unit of floor under water (1 a dry floor's)
+QVR_TUNABLE(vr_nav_slime_cost, "20") // ... under slime
+QVR_TUNABLE(vr_nav_lava_cost, "60") // ... under lava
+QVR_TUNABLE(vr_nav_movers, "0.25") // how often the floor under doors, lifts and trains is checked (seconds): blocked while one stands in the way

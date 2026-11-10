@@ -29,6 +29,7 @@
 #include "vr_hitmodel.hpp"
 #include "vr_box3d.hpp"
 #include "vr_hull.hpp"
+#include "vr_nav.hpp"
 #include "vr_unstick.hpp"
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
@@ -2252,6 +2253,7 @@ extern "C" void VR_Init()
     imgcache::init();
     modelkeep::init();
     hull::init();
+    nav::init();
     unstick::init();
     particles::init();
     decals::init();

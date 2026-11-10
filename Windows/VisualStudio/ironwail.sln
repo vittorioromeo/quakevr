@@ -11,6 +11,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "qvr_doom", "qvr_doom.vcxpro
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mimalloc", "mimalloc.vcxproj", "{38CD0922-A220-4CCA-BCD1-64B6B0688C89}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "recast", "recast.vcxproj", "{7C3E2A91-5B4D-4E8F-9A16-2D0B8C4F7E53}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -60,6 +62,16 @@ Global
 		{38CD0922-A220-4CCA-BCD1-64B6B0688C89}.ReleaseLTO|x64.Build.0 = ReleaseLTO|x64
 		{38CD0922-A220-4CCA-BCD1-64B6B0688C89}.Release-Tracy|x64.Build.0 = Release-Tracy|x64
 		{38CD0922-A220-4CCA-BCD1-64B6B0688C89}.Release-TracyFull|x64.Build.0 = Release-TracyFull|x64
+		{7C3E2A91-5B4D-4E8F-9A16-2D0B8C4F7E53}.Debug|x64.ActiveCfg = Debug|x64
+		{7C3E2A91-5B4D-4E8F-9A16-2D0B8C4F7E53}.Debug|x64.Build.0 = Debug|x64
+		{7C3E2A91-5B4D-4E8F-9A16-2D0B8C4F7E53}.Release|x64.ActiveCfg = Release|x64
+		{7C3E2A91-5B4D-4E8F-9A16-2D0B8C4F7E53}.Release|x64.Build.0 = Release|x64
+		{7C3E2A91-5B4D-4E8F-9A16-2D0B8C4F7E53}.ReleaseLTO|x64.ActiveCfg = ReleaseLTO|x64
+		{7C3E2A91-5B4D-4E8F-9A16-2D0B8C4F7E53}.ReleaseLTO|x64.Build.0 = ReleaseLTO|x64
+		{7C3E2A91-5B4D-4E8F-9A16-2D0B8C4F7E53}.Release-Tracy|x64.ActiveCfg = Release-Tracy|x64
+		{7C3E2A91-5B4D-4E8F-9A16-2D0B8C4F7E53}.Release-Tracy|x64.Build.0 = Release-Tracy|x64
+		{7C3E2A91-5B4D-4E8F-9A16-2D0B8C4F7E53}.Release-TracyFull|x64.ActiveCfg = Release-TracyFull|x64
+		{7C3E2A91-5B4D-4E8F-9A16-2D0B8C4F7E53}.Release-TracyFull|x64.Build.0 = Release-TracyFull|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
