@@ -1,0 +1,10 @@
+# flat_fling: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+# (Misc/quakevr/flat_fling_test.sh measures it: the cut head 1.25x as fast flat as in a headset)
+title The axe and grunts to cut heads and limbs off (flat screen)
+map vrtesthall
+god
+notarget
+give "Axe" main
+spawn "Grunt" 80 0
+spawn "Grunt" 80 60
+hint Flat screen: swing the axe (V) at a grunt's neck and arms: the cut-off head or limb flies off a little faster than in a headset (Debug > Tunables > Flatscreen > Gore: Cut-Off Parts: Fling Speed, 1.25x).

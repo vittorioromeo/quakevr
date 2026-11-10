@@ -1,0 +1,9 @@
+# ragdoll_gunswing: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+# (vr_limb_test 46 swings a shotgun into a corpse's torso 12 times scripted)
+title A shotgun and a grunt corpse on the floor to club (flat screen: V)
+map vrtesthall
+god
+notarget
+give "Shotgun" main
+spawn "Grunt Corpse" 60 0
+hint Club the corpse with the gun (flat screen: look down at it and press V) several times: it is knocked about and bleeds but does not burst into gibs.
