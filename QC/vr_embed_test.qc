@@ -37,6 +37,7 @@ float vr_et_v2;
 entity vr_et_m;      // the case's body
 entity vr_et_w;      // the case's blade
 entity vr_et_w2;
+float vr_ef_strength; // Blade Hold Strength as it was (test 11 and 27's cases at x10 set it, then back)
 vector vr_et_at;
 float vr_et_flags;   // the blade's weapon flags (AD's kinds)
 
@@ -1748,7 +1749,16 @@ float vr_em_shallow;  // ... a shallow one's
 float vr_em_axe;      // ... an axe's
 float vr_em_share;    // the least .vr_heavy_move seen in the case
 vector vr_em_org;
+vector vr_em_inhand;  // case 45: the way from the hand to the wound in the hand's own frame, as the move began
+float vr_em_turned;   // ... degrees the wrist has turned up so far
 string vr_em_class;   // the body counts as this kind (string_null: the grunt it is)
+
+// The way `xTo` (from the main hand) in the hand's own frame, unit length.
+vector(vector xTo) VR_EM_InHand =
+{
+    makevectors(VRGetHandRot(cVR_MainHand));
+    return normalize('1 0 0' * (xTo * v_forward) + '0 1 0' * (xTo * v_right) + '0 0 1' * (xTo * v_up));
+};
 entity vr_em_box;     // what blocks it
 
 float(entity p) VR_EM_Speed =
@@ -2572,17 +2582,21 @@ void() VR_EM_Step =
     // force"): staggering, a deep sword swung sideways (35), lifted over your head (36), an axe swung sideways (37); dead, a deep
     // sword pulled slowly (38), lifted (39), swung sideways (40), an axe pulled slowly (41). One hand. Follow: how far the wound
     // went along the hand's way of the hand's distance, at the move's end and once settled; lag: the most the hand got ahead.
-    if(c >= 35 && c <= 41)
+    // 43, 44 (his 2026-11-10 "x10 and I'm still not able to lift a ragdoll over my head"): Blade Hold Strength x10, a deep sword
+    // lifted 110 cm in 1 s, staggering (43) and dead (44): the body comes with the hand all the way, along the blade too.
+    float cmF = 0.01 * VRMetersToUnits();
+    if((c >= 35 && c <= 41) || (c >= 43 && c <= 45))
     {
-        float dead = c >= 38;
+        float dead = (c >= 38 && c <= 41) || c == 44;
         float axeF = c == 37 || c == 41;
-        float cmF = 0.01 * VRMetersToUnits();
+        float strongF = c >= 43;
         if(vr_et_s < 10)
         {
             if(vr_et_s == 0)
             {
                 // (A long sure-footed stagger: the hand moves it, not its own fall or getting up.)
                 localcmd("tune vr_embed_stagger_sword 6\ntune vr_embed_stagger_axe 6\ntune vr_embed_stagger_amount 0.3\n");
+                cvar_set("vr_embed_hold_strength", strongF ? "10" : ftos(vr_ef_strength));
             }
             vr_et_up = axeF ? 0 : 6;
             float blownF = axeF ? VR_EH_Blow(WID_AXE, 13, 0, TRUE, t) : VR_EM_Blow(WID_SWORD, 9, t);
@@ -2614,7 +2628,7 @@ void() VR_EM_Step =
         else if(vr_et_s == 11 && t > (dead ? 1.2 : 0.05))
         {
             // The move: sideways 40 cm in 0.4 s; up 50 cm in 1 s; a slow pull back 30 cm in 1 s.
-            float liftF = c == 36 || c == 39;
+            float liftF = c == 36 || c == 39 || strongF;
             float pullF = c == 38 || c == 41;
             vr_em_org = liftF ? '0 0 1' : (pullF ? vr_eh_fw * -1 : VR_AxeStick_Turn(vr_eh_fw, '0 0 1', 90));
             if(axeF)
@@ -2623,18 +2637,26 @@ void() VR_EM_Step =
                 vr_em_org = vr_eh_fw * -1;
                 vr_em_org = normalize(vr_em_org - vr_et_w.vr_stick_dir * (vr_em_org * vr_et_w.vr_stick_dir));
             }
-            vr_et_v = (liftF ? 50 : (pullF ? 30 : 40)) * cmF;
+            vr_et_v = (strongF ? 110 : (liftF ? 50 : (pullF ? 30 : 40))) * cmF;
             vr_eh_for = (liftF || pullF) ? 1 : 0.4;
             vr_et_at = vr_et_w.vr_stick_at;
             vr_eh_start = VRGetHandPos(h);
             vr_ef_max = 0;
             vr_ef_at_x = 0;
             vr_et_v2 = 0;
+            vr_em_inhand = VR_EM_InHand(vr_et_at - vr_eh_start);
+            vr_em_turned = 0;
             VR_EH_HandTo(vr_eh_start + vr_em_org * vr_et_v, vr_eh_for);
             VR_ET_To(12);
         }
         else if(vr_et_s == 12 || vr_et_s == 13)
         {
+            if(c == 45 && vr_et_s == 12 && vr_em_turned < 50)
+            {
+                // (The wrist turned up 50 degrees over the lift, as an arm raising a sword overhead does.)
+                vr_em_turned = vr_em_turned + 1;
+                localcmd("vr_mock_hand_turn main -1 0 0\n");
+            }
             vector handWent = VRGetHandPos(h) - vr_eh_start;
             vector woundWent = vr_et_w.vr_stick_at - vr_et_at;
             vr_ef_max = max(vr_ef_max, vlen(handWent - woundWent));
@@ -2647,21 +2669,81 @@ void() VR_EM_Step =
                 vr_ef_hand_y = vr_et_w.vr_hold_strain;
                 VR_ET_To(13);
             }
-            else if(vr_et_s == 13 && (t >= 0.4 || VR_EH_Blade() == world))
+            else if(vr_et_s == 13 && (t >= (strongF ? 1 : 0.4) || VR_EH_Blade() == world))
             {
                 string what = c == 35 ? "staggering, sword, sideways" : (c == 36 ? "staggering, sword, lifted" : (c == 37 ? "staggering, axe, pulled back" :
-                    (c == 38 ? "dead, sword, slow pull" : (c == 39 ? "dead, sword, lifted" : (c == 40 ? "dead, sword, sideways" : "dead, axe, slow pull")))));
-                // (end/settled: the body's follow; lag: cm; strain: the spring's pull now of its most, as the move ended.)
-                VR_Test_Print(strcat(sprintf("%s: case %g %s: end %.0f%% settled %.0f%% ", vr_test_tag, c, what, vr_et_v2 * 100, follow * 100),
-                    sprintf("lag %.1f spring %.1f strain %.2f hand %.0f%%\n", vr_ef_max / cmF, vr_ef_at_x / cmF, vr_ef_hand_y, vr_ef_hand_x * 100)));
+                    (c == 38 ? "dead, sword, slow pull" : (c == 39 ? "dead, sword, lifted" : (c == 40 ? "dead, sword, sideways" :
+                    (c == 41 ? "dead, axe, slow pull" : (c == 43 ? "x10, staggering, sword, lifted overhead" : (c == 44 ? "x10, dead, sword, lifted overhead" : "x10, staggering, sword, lifted overhead, the wrist turning up"))))))));
+                // (Of the hand's own way: the mock hand's glide is a little short of its mark.)
+                float ofHand = (woundWent * vr_em_org) / max(0.01, handWent * vr_em_org);
+                // (end/settled: the body's follow; lag: cm; strain: the spring's pull now of its most, as the move ended; axial: cm of
+                // the hand's way along the blade the body didn't take.)
+                VR_Test_Print(strcat(sprintf("%s: case %g %s: end %.0f%% settled %.0f%% (%.0f%% of the hand's) ", vr_test_tag, c, what, vr_et_v2 * 100, follow * 100, ofHand * 100),
+                    sprintf("lag %.1f spring %.1f strain %.2f hand %.0f%% axial %.1f\n", vr_ef_max / cmF, vr_ef_at_x / cmF, vr_ef_hand_y, vr_ef_hand_x * 100, vr_et_w.vr_hold_axial / cmF)));
                 VR_Test_Check(VR_EH_Blade() != world, sprintf("case %g: %s: still held", c, what));
-                // (By the defaults: a deep sword follows closely; an axe, a dead body pulled slowly, still well.)
+                // (By the defaults: a deep sword follows closely; an axe, a dead body pulled slowly, still well. At x10: all the way.)
                 float leastF = axeF ? 0.5 : 0.75;
-                VR_Test_Check(follow >= leastF, sprintf("case %g: %s: it follows (%.0f%% settled, at least %.0f%%)", c, what, follow * 100, leastF * 100));
+                if(strongF)
+                {
+                    VR_Test_Check(ofHand >= 0.9, sprintf("case %g: %s: it comes all the way (%.0f%% of the hand's way, at least 90%%)", c, what, ofHand * 100));
+                }
+                if(c == 45)
+                {
+                    // (The wound kept on the blade's line from the hand as the wrist turned: not left out in front, level.)
+                    vector inHand = VR_EM_InHand(vr_et_w.vr_stick_at - VRGetHandPos(h));
+                    float offDeg = atan2(vlen(inHand - vr_em_inhand * (inHand * vr_em_inhand)), inHand * vr_em_inhand) * 57.29578;
+                    VR_Test_Print(sprintf("%s: case 45: the wound %.0f degrees off its way from the hand as it took hold (the wrist turned %g)\n", vr_test_tag, offDeg, vr_em_turned));
+                    VR_Test_Check(offDeg <= 20, sprintf("case 45: the body goes round with the wrist (the wound %.0f degrees off its way in the hand, at most 20; level, as before, 37)", offDeg));
+                }
+                else
+                {
+                    VR_Test_Check(follow >= leastF, sprintf("case %g: %s: it follows (%.0f%% settled, at least %.0f%%)", c, what, follow * 100, leastF * 100));
+                }
                 if(c == 36)
                 {
                     VR_Test_Check(vr_et_v2 >= 0.6, sprintf("one hand lifts a grunt on a deep sword (%.0f%% of the hand's 50 cm by the move's end)", vr_et_v2 * 100));
                 }
+                cvar_set("vr_embed_hold_strength", ftos(vr_ef_strength));
+                VR_EM_NextCase();
+            }
+        }
+        return;
+    }
+    // ---- 42 (test 27; his checklist 2026-11-10 "keep holding while it goes active ragdoll: the grip holds"): by the defaults (Blade
+    // Hold Strength x1, the stagger's own push and length), a strong stab held, the hand still: the grip holds all through its stagger,
+    // until it stands again or lies still (4 s at most: a stagger is over by then).
+    if(c == 42)
+    {
+        if(vr_et_s < 10)
+        {
+            if(vr_et_s == 0)
+            {
+                localcmd("tune_reset vr_embed_stagger_push\ntune_reset vr_embed_stagger_sword\ntune_reset vr_embed_stagger_amount\n");
+            }
+            vr_et_up = 6;
+            if(VR_EM_Blow(WID_SWORD, 9, t))
+            {
+                VR_Test_Check(w != world && m.vr_knockdown, sprintf("case 42: stuck and gone active ragdoll (%g, knockdown %g)", w != world, m.vr_knockdown));
+                if(w == world || !m.vr_knockdown)
+                {
+                    VR_EM_NextCase();
+                    return;
+                }
+                vr_et_w = w;
+                vr_ef_max = 0;
+                vr_et_v2 = 0;
+                VR_ET_To(10);
+            }
+        }
+        else if(vr_et_s == 10)
+        {
+            vr_ef_max = max(vr_ef_max, vr_et_w.vr_hold_far);
+            vr_et_v2 = max(vr_et_v2, m.vr_kd_stagger ? 0 : 1); // (it toppled: knocked down, no longer staggering)
+            if(VR_EH_Blade() == world || !m.vr_knockdown || t >= 4)
+            {
+                VR_Test_Print(sprintf("%s: case 42 held through its stagger: %.1f s, held %g, %s, the hand %.1f cm off at most\n", vr_test_tag, t,
+                    VR_EH_Blade() != world, m.vr_knockdown ? (vr_et_v2 ? "down" : "staggering") : "standing again", vr_ef_max));
+                VR_Test_Check(VR_EH_Blade() != world, sprintf("case 42: the grip holds while it goes active ragdoll (%.1f s, the hand %.1f cm off at most)", t, vr_ef_max));
                 VR_EM_NextCase();
             }
         }
@@ -2671,6 +2753,7 @@ void() VR_EM_Step =
     vr_eh_ahead = 0;
     localcmd("tune_reset vr_embed_stagger_axe_speed\ntune_reset vr_embed_stagger_push\ntune_reset vr_embed_stagger_sword\ntune_reset vr_embed_stagger_axe\ntune_reset vr_embed_stagger_amount\n");
     localcmd("vr_mock_hand_to_absolute 0\n");
+    cvar_set("vr_embed_hold_strength", ftos(vr_ef_strength));
     cvar_set("vr_hit_stagger", "1");
     cvar_set("vr_kdtrig", "1");
     vr_et_on = 0;
@@ -2748,6 +2831,67 @@ vector(float xBack) VR_ETS_OnLine =
 };
 
 // A head as a gibbing throws it (ThrowHead: its .gorging for life; 1.5 of a gib's health).
+// vr_embed_test 31 (his note vrtesthall_2026-11-10_02-13-13: a skewered limb punched off the blade, "I see the small gibs, but I
+// don't see the blood particles"): a limb on the sword in the main hand, the other hand's blow bursts it: its blood bursts where
+// it is on the blade (developer 1: each blood effect's `particle2:` line, how near the eyes). Ends `embedburst: N passed, M failed`.
+void() VR_ETB_Step =
+{
+    entity p = self;
+    entity g = vr_ets_r;
+    float t = time - vr_et_t0;
+    if(vr_et_s == 0)
+    {
+        cvar_set("vr_embed", "1");
+        localcmd("+grabmain\n");
+        VR_ET_To(10);
+    }
+    else if(vr_et_s == 10 && VR_HandGrabUtil_IsHandGrabbing(p, cVR_MainHand))
+    {
+        VR_EH_Give(WID_SWORD, 0);
+        VR_Blow(cVR_MainHand).mh_far = '0 0 0';
+        VR_ET_To(1);
+    }
+    else if(vr_et_s == 1 && VR_Blow(cVR_MainHand).mh_far != '0 0 0')
+    {
+        makevectors(p.v_angle);
+        vr_ets_r = VR_ETS_Gib(p, VR_ETS_OnLine(0));
+        vr_ets_r.vr_prop_mass = 12.4; // (a soldier's leg)
+        VR_ET_To(2);
+    }
+    else if(vr_et_s == 2 && g.takedamage)
+    {
+        VR_ETS_PutOn(g, 0);
+        VR_ETS_Blow(p, g, VR_MKIND_STAB, 6);
+        VR_Test_Check(g.vr_gib && g.vr_skewer_p == p, "the limb on the blade");
+        VR_ET_To(3);
+    }
+    else if(vr_et_s == 3 && t > 0.3) // (riding the blade a while: the hand's moves carry it)
+    {
+        makevectors(p.v_angle);
+        vector at = VR_Gib_Middle(g);
+        vector unturned = (g.absmin + g.absmax) * 0.5;
+        makevectors(p.v_angle);
+        vr_gib_burst_at = '0 0 0';
+        VR_Gib_Blow(cVR_OffHand, g, 12, at, v_right);
+        float cmF = 0.01 * VRMetersToUnits();
+        vector eyes = p.origin + p.view_ofs;
+        VR_Test_Print(sprintf("%s: burst at %v, the limb's middle as drawn %v (its box's unturned %v), %.0f cm from the eyes\n", vr_test_tag, vr_gib_burst_at, at,
+            unturned, vlen(vr_gib_burst_at - eyes) / cmF));
+        VR_Test_Check(vr_gib_burst_at != '0 0 0' && !g.vr_gib, "the other hand's blow bursts it");
+        VR_Test_Check(vlen(vr_gib_burst_at - at) < 3, sprintf("its blood bursts at the limb as drawn on the blade (%.1f units off; its unturned box's middle %.1f)",
+            vlen(vr_gib_burst_at - at), vlen(unturned - at)));
+        VR_Test_Check(vlen(vr_gib_burst_at - eyes) / cmF > max(0, cvar_hget(cvarh_vr_particle_near_cull)) + 5,
+            sprintf("further than the particles hidden near the eyes (%.0f cm, Particles Hidden Nearer %.0f)", vlen(vr_gib_burst_at - eyes) / cmF, cvar_hget(cvarh_vr_particle_near_cull)));
+        VR_ET_To(4);
+    }
+    else if(vr_et_s == 4 && t > 0.2) // (the effects' messages out and drawn)
+    {
+        localcmd("-grabmain\n");
+        VR_Test_Verdict();
+        vr_et_on = 0;
+    }
+};
+
 entity(entity p, vector xAt) VR_ETS_Head =
 {
     entity g = VR_ETS_Gib(p, xAt);
@@ -3940,6 +4084,11 @@ void() VR_LA_Step =
         VR_Test_Check(vlen(hm) > 20 * cm && vlen(gm - hm) < 1.5, sprintf("it rides the blade: the hand went %.1f units, the %s %.1f, %.2f apart", vlen(hm), what, vlen(gm), vlen(gm - hm)));
         VR_Test_Check(fabs(p.vr_skewer_load_main_x - VR_Skewer_Mass(g)) < 0.01 && p.vr_skewer_load_main_x > 0,
             sprintf("its weight in the hand: %.2f kg (its %.2f)", p.vr_skewer_load_main_x, VR_Skewer_Mass(g)));
+        // (His note 2026-11-10: a limb on the blade burst, its blood unseen. A burst's blood goes to VR_Gib_Middle: where it rides, not
+        // its unturned box's middle, which a cut part's box off its origin puts elsewhere.)
+        vector unturned = (g.absmin + g.absmax) * 0.5;
+        VR_Test_Check(vlen(VR_Gib_Middle(g) - g.vr_skewer_c) < 2, sprintf("case %g: a burst's blood would come where it rides (%.1f units off; its unturned box's middle %.1f; %.0f cm from the eyes)",
+            vr_et_case, vlen(VR_Gib_Middle(g) - g.vr_skewer_c), vlen(unturned - g.vr_skewer_c), vlen(g.vr_skewer_c - (p.origin + p.view_ofs)) / cm));
         vr_la_h0 = VRGetHandPos(cVR_MainHand);
         if(vr_et_case <= 1)
         {
@@ -4050,6 +4199,12 @@ void() VR_Embed_TestFrame =
             vr_et_on = 21;
             VR_ET_To(0);
         }
+        if(ask == 31)
+        {
+            VR_Test_BeginFlags("embedburst", VR_TEST_LOUD);
+            vr_et_on = 31;
+            VR_ET_To(0);
+        }
         if(ask == 22)
         {
             VR_Test_BeginFlags("embedstream", VR_TEST_LOUD);
@@ -4099,6 +4254,7 @@ void() VR_Embed_TestFrame =
         if(ask == 11 || ask == 23 || ask == 27) // (23: its last cases alone, the fist run into a grunt; 27: how closely a body follows)
         {
             VR_Test_BeginFlags(ask == 27 ? "embedforce" : "embedmove", VR_TEST_LOUD);
+            vr_ef_strength = cvar_hget(cvarh_vr_embed_hold_strength);
 cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stagger here)
             cvar_set("vr_kdtrig", "0");
             vr_eh_home = VR_Player().origin;
@@ -4206,6 +4362,20 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
             VR_ET_NextCase();
         }
         VR_ET_Step();
+    }
+    else if(vr_et_on == 31)
+    {
+        if(time - vr_et_t0 > VR_ET_GIVEUP)
+        {
+            VR_Test_Check(FALSE, sprintf("timed out: state %g", vr_et_s));
+            localcmd("-grabmain\n");
+            VR_Test_Verdict();
+            vr_et_on = 0;
+        }
+        else
+        {
+            VR_ETB_Step();
+        }
     }
     else if(vr_et_on == 21)
     {

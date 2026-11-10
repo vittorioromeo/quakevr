@@ -3068,6 +3068,7 @@ void() VR_Head_RemoveSilenced =
 };
 
 float vr_gib_burstsoundtime;
+vector vr_gib_burst_at; // the last gib burst's blood's place (the tests': vr_embed_test 31)
 
 // A mist of blood at `org`, `size` times a gib's: soft clouds of blood through it, a spray of blood
 // all round (splatting the walls and floor near by: the particles' decals), and more along the blow
@@ -3102,6 +3103,22 @@ void(vector org, vector xDir, float size) VR_BloodMist =
     }
 };
 
+// A gib's middle as drawn: its box's middle turned with its angles (a cut limb's or head's box lies off its origin, its body's: the
+// unturned middle, absmin's and absmax's, is that far off on the other side once it turns, as on a blade, vr_skewer.qc).
+vector(entity g) VR_Gib_Middle =
+{
+    vector f0 = v_forward, r0 = v_right, u0 = v_up; // (the caller's kept)
+    vector a = g.angles;
+    a_x = -a_x;
+    makevectors(a);
+    vector mid = (g.mins + g.maxs) * 0.5;
+    vector at = g.origin + v_forward * mid_x - v_right * mid_y + v_up * mid_z;
+    v_forward = f0;
+    v_right = r0;
+    v_up = u0;
+    return at;
+};
+
 // Bursts in a mist of blood (VR_BloodMist) and is gone, with the gib sound.
 void(entity xGib, vector xDir) VR_Gib_Burst =
 {
@@ -3109,8 +3126,10 @@ void(entity xGib, vector xDir) VR_Gib_Burst =
     {
         VR_Skewer_Gone(xGib); // (its think is the burst's from here)
     }
-    vector org = (xGib.absmin + xGib.absmax) * 0.5;
-    dprint("gib: burst at "); dprint(vtos(org)); dprint("\n");
+    // (Its middle as drawn: the unturned box's, absmin's and absmax's, put a head burst on a blade 11 units off it, 2026-11-10.)
+    vector org = VR_Gib_Middle(xGib);
+    dprint(sprintf("gib: burst at %v (its origin %v)\n", org, xGib.origin));
+    vr_gib_burst_at = org;
     float size = max(1, xGib.vr_gib_healthmult);
     if(xGib.vr_sgib)
     {
