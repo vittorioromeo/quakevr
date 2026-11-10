@@ -2531,6 +2531,10 @@ extern "C" void VR_FlatViewLean(float* vieworg, float* viewangles)
     vieworg[1] += shift.y;
     vieworg[2] += shift.z;
     viewangles[ROLL] += flatmove::leanRoll();
+    // A blow's tilt (a punch into it, a weapon's overhead swing with its arc: flatplay::meleeViewTilt), the view's only.
+    const glm::vec3 blowTilt = flatplay::meleeViewTilt();
+    viewangles[PITCH] += blowTilt.x;
+    viewangles[ROLL] += blowTilt.z;
     // The roll he sees, every one on the view by here (the lean's, cl_rollangle's strafe roll, a hit's kick): the look
     // turns along it (VR_FlatLookTurn). The strafe roll counts too -- the screen is as tilted by it, and it only turns
     // the mouse's way with the screen, adding no motion of its own, so strafing straight is no less steady. Dead (the

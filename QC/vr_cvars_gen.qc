@@ -960,6 +960,8 @@ float cvarh_vr_flat_shove;
 float cvarh_vr_flat_shove_damage;
 float cvarh_vr_flat_shove_push;
 float cvarh_vr_flat_shove_reach;
+float cvarh_vr_flat_shove_swish;
+float cvarh_vr_flat_shove_swish_pitch;
 float cvarh_vr_flat_shove_width;
 float cvarh_vr_flat_slide_charge;
 float cvarh_vr_flat_slide_charge_speed;
@@ -2954,6 +2956,8 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_flat_shove_damage = VR_CVar_Make("vr_flat_shove_damage");
     cvarh_vr_flat_shove_push = VR_CVar_Make("vr_flat_shove_push");
     cvarh_vr_flat_shove_reach = VR_CVar_Make("vr_flat_shove_reach");
+    cvarh_vr_flat_shove_swish = VR_CVar_Make("vr_flat_shove_swish");
+    cvarh_vr_flat_shove_swish_pitch = VR_CVar_Make("vr_flat_shove_swish_pitch");
     cvarh_vr_flat_shove_width = VR_CVar_Make("vr_flat_shove_width");
     cvarh_vr_flat_slide_charge = VR_CVar_Make("vr_flat_slide_charge");
     cvarh_vr_flat_slide_charge_speed = VR_CVar_Make("vr_flat_slide_charge_speed");

@@ -2008,6 +2008,41 @@ QVR_TUNABLE(vr_flat_prone_eye, "14") // lying down, his eyes this many units ove
 QVR_TUNABLE(vr_flat_prone_neck_drop, "4.5") // lying down, the drawn trunk hangs from this many units further under the eye (0..10; the head is not drawn): the body turns until its hips rest on the floor, so the chest lies lower, almost on it (his note 2026-11-08: the torso too high; 0 before)
 QVR_TUNABLE(vr_flat_flashlight_hide, "1") // flatscreen play: the torch's model is not drawn (its light still is)
 QVR_TUNABLE(vr_flat_support_out, "3") // the same free hand: how far out at its own side (-30..30; 6 off the old anchor)
+QVR_TUNABLE(vr_flat_shove_wind_share, "0.35") // flatscreen shove: the share of its time the hands wind up in (drawn back, palms turning to the target) before the push
+QVR_TUNABLE(vr_flat_shove_push_share, "0.15") // and the share the push out takes (it lands at its end: fast, his notes 2026-11-10)
+QVR_TUNABLE(vr_flat_shove_hold_share, "0.1") // and the share held out before the hands come back
+QVR_TUNABLE(vr_flat_shove_wind_back, "8") // the windup: the hands drawn this far back (units)
+QVR_TUNABLE(vr_flat_shove_wind_up, "2") // and this far up (units)
+QVR_TUNABLE(vr_flat_shove_aim_up, "8") // the push goes for this far above the crosshair's point (units; his notes 2026-11-10: higher, like the fist)
+QVR_TUNABLE(vr_flat_shove_palm, "1") // how far the shoving hands turn to palms at the target, fingers up (0: kept as they were)
+QVR_TUNABLE(vr_flat_shove_palm_up, "80") // the shoving hand's fingers this far above level (degrees)
+QVR_TUNABLE(vr_flat_shove_palm_turn, "90") // and turned this far about the fingers so the palm faces the target (degrees; negative the other way)
+QVR_TUNABLE(vr_flat_shove_both_armed, "1") // a weapon in each hand: both hands shove, weapons held, palms out (the armed humanoids' shove; 0: the off hand alone)
+QVR_TUNABLE(vr_flat_shove_both_always, "0") // 1: every shove is the two-handed one, whatever the hands hold
+QVR_TUNABLE(vr_flat_shove_swish, "0.35") // the shove's whoosh: the fist's swish at this volume (0: none; QC VR_FlatShove)
+QVR_TUNABLE(vr_flat_shove_swish_pitch, "8") // and this many percent higher (a lighter sound)
+QVR_TUNABLE(vr_flat_punch_both, "0") // 1: both hands may punch at once (as before 2026-11-10); 0: a hand punches only once the other's punch draws back
+QVR_TUNABLE(vr_flat_punch_cam_pitch, "1.5") // a punch tips the view this far down into it at its reach (degrees; the view only, the aim stays)
+QVR_TUNABLE(vr_flat_punch_cam_roll, "1.5") // and rolls it this far toward the punching hand's side (degrees; negative the other way)
+QVR_TUNABLE(vr_flat_punch_torso_twist, "8") // and turns the chest this far, the punching shoulder forward (degrees)
+QVR_TUNABLE(vr_flat_punch_torso_lean, "4") // and leans the chest this far forward (degrees)
+QVR_TUNABLE(vr_flat_swing, "1") // a weapon's melee (V, or its fire button with a melee weapon) is the overhead swing; 0: thrown straight like the fist, as before
+QVR_TUNABLE(vr_flat_swing_wind, "0.26") // the overhead swing: seconds the windup takes, the hand up over the head, the weapon turned up
+QVR_TUNABLE(vr_flat_swing_top, "0.06") // seconds held at the top
+QVR_TUNABLE(vr_flat_swing_strike, "0.14") // seconds the strike takes, down to the crosshair
+QVR_TUNABLE(vr_flat_swing_dwell, "0.08") // seconds held at its end
+QVR_TUNABLE(vr_flat_swing_back, "0.25") // seconds back to the rest
+QVR_TUNABLE(vr_flat_swing_raise_up, "4") // the top of the windup: the hand this far above the eye (units)
+QVR_TUNABLE(vr_flat_swing_raise_fwd, "4") // and this far ahead of it (units)
+QVR_TUNABLE(vr_flat_swing_raise_out, "6") // and this far out at its own side (units)
+QVR_TUNABLE(vr_flat_swing_wind_pitch, "90") // the weapon turned up this far at the top (degrees from the aim)
+QVR_TUNABLE(vr_flat_swing_end_pitch, "50") // and down this far at the strike's end (degrees below the aim)
+QVR_TUNABLE(vr_flat_swing_end_pitch_melee, "100") // a melee weapon (its haft stands up the hand, not along the aim) follows through to this far down over the hold after the strike, its head below the hand (degrees; the blow is the strike at vr_flat_swing_end_pitch)
+QVR_TUNABLE(vr_flat_swing_end_down, "4") // the strike ends with the hand this far under the crosshair's line (units)
+QVR_TUNABLE(vr_flat_swing_cam_up, "1.5") // the view tips up this far with the windup (degrees; the view only, the aim stays)
+QVR_TUNABLE(vr_flat_swing_cam_down, "2.5") // and down this far with the strike (degrees)
+QVR_TUNABLE(vr_flat_swing_torso_up, "3") // the chest leans back this far with the windup (degrees)
+QVR_TUNABLE(vr_flat_swing_torso_down, "6") // and forward this far with the strike (degrees)
 
 // Flatscreen > Model FOV
 QVR_TUNABLE(vr_flat_model_fov, "0") // the player's own models and what leaves them drawn at this field of view, in the same terms as fov (0: off, as the world's; flatplay::modelFov). Looks only

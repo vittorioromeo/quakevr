@@ -891,6 +891,10 @@ za::Vector<Item> pageDebugReports()
                   "hands' motion is the look's, not theirs (vr_handsource_debug shows it)."),
         command("Flatscreen Shove", "vr_flat_shove_now")
             .help("vr_flat_shove_now: the shove key's shove (mouse 5, vr_flat_key_shove), with its cooldown."),
+        command("Flatscreen Melee Probe", "vr_flat_melee_probe")
+            .help("vr_flat_melee_probe: from now on each punch, overhead weapon swing and shove prints its numbers to the "
+                  "console as it ends: the hand over the eye, the weapon turned up and down, the shove's palm and fingers, "
+                  "the view's tilt (`vr_flat_melee_probe 0` stops it)."),
         command("Flatscreen Test Hit From The Right", "vr_blood_test packet right")
             .help("A made-up 20-point hit from your right, through the game's own damage message (no health lost): the "
                   "flatscreen punch, the mark round the crosshair, the hands' knock, the screen's blood. Tuned under "
