@@ -8448,6 +8448,29 @@ PostBuildEvent DLL copies (0.06 s) and QvrBuildVersion's four git calls (0.3 s).
 - Tests: flatholster_test (24 passed: shells 17 -> 25, clip 8 -> 0, UNLOAD dim when empty, not reloaded),
   `vr_flatitems_test 8` (4 passed: E on a 20-shell pack taken at once; an empty one silent; -3 shells 5 nails takes the
   nails only). Scenes flat_backpacks, flat_unload.
+## Shells thrown off the super shotgun and the revolver; the revolver's open pose; the super shotgun's shells once open (branch `agent/flateject`, worktree `flateject`, 2026-11-10)
+
+- **"They just sort of fall straight down"**: the cause was the shared face rule (`vr_shells.cpp` `awayFromFace`, VR and
+  flat alike): a casing starting within an arm's length of the head lost all its speed towards the face (left with
+  0.3 m/s away) and could not rise above 15 cm under the eyes. The super shotgun's breech and the revolver's cylinder
+  face the eyes, so their shells (1.6 and 0.5 m/s, back) were left with ~0.3 m/s and no rise: measured 0.3 m/s forward,
+  under 0.6 sideways, 0 up. Now the speed towards the face is turned sideways past it (`vr_shells_face_deflect` 1: to
+  the side it already goes, else the side of the look the gun is on), and a casing clear of the face by its highest
+  point (`vr_shells_face_clear` 0.3 m, level) may rise. The two guns' ejections are tunables (Debug > Tunables >
+  Weapons > Immersion): `vr_shells_ssg_{speed,back,up,out,spread,spin}` 2.4 m/s, 1, 0.5, 0.3, 0.15, 12 rad/s (turned
+  with the barrels as drawn; each chamber still a little to its own side) and `vr_shells_rv_*` 1.3 m/s, 1, 0.6, 0.25,
+  0.12, 8 (back along the cylinder's axis); both on the gun's own velocity, as before. Measured (flat): the super
+  shotgun's ~2.0 m/s outward and 2.2 up, the revolver's 1-2.7 outward. VR had the same problem (the same code): it gets
+  the same fix; a VR push on the revolver still adds the hand's velocity.
+- **The revolver's open pose**: the pose itself was already there (`vr_flat_rv_open_*`, agent/flat_ssg_pose, all 0);
+  its defaults are now pitch -15 (muzzle up), yaw 15 in, roll -30 (the swung-out cylinder's face to the view), up 3,
+  out -1, in/out 0.2 s; over ADS as the super shotgun's.
+- **The super shotgun's shells once it is open**: flat-screen play's break sends its casings with QVR_EJECT_AFTER_OPEN
+  (`vr_ssg_eject_after_open` around VR_Reload_SsgBreak): the client waits for the barrels drawn fully down and the open
+  pose eased in, then `vr_flat_ssg_eject_delay` (0.05 s): out 0.26 s after the break (0.21 open + 0.05) instead of
+  0.08 s. VR's break keeps its 0.08 s. Its eject sound still plays at the break (server side).
+- Tests: `Misc/quakevr/flateject_test.sh` (ssg, ssgold, rv, rvold, vr; flateject_check.py: 15 checks); scenario
+  `shell_eject`.
 ## Build speed: the hot headers split (hdrsplit, 2026-11-10)
 
 vr_cvars.hpp held every table (cvars, tunables, monster and weapon values) and helper, and vr_api.h /
@@ -8481,3 +8504,26 @@ Left: vr_cvars.inc is used by ~330 files, so one header can't do better. The nex
 names-only declaration header written only when the names change (a default's edit, most of tune_promote's and many
 merges, would then recompile vr_cvars.cpp / vr_tunables.cpp alone), or splitting vr_cvars.inc per subsystem: both
 change the generators' inputs (the checks' lane), so not done here.
+
+## QC precedence check: compares progs.dat, not asm listings (branch `agent/qcprec2`, worktree `qcprec2`, 2026-11-10)
+
+Vittorio asked why the precedence check is slow ("Yes, do it"): it compiled the QC twice with `-Fwasm` and fteqcc
+wrote, and the tool read, ~1.7 GB of listing per compile.
+
+- `Tools/qvr_checks/qc_compiles.cpp`: both compiles (QC priorities, `-Fcpriority`; still in parallel) now write only
+  `progs.dat`, plus `progs.lno` (fteqcc writes it, each statement's source line, when the file names are kept:
+  `-Ono-filenames` after `-O3`; no warning). The tool reads both progs (FTE 32-bit: statements, functions, globaldefs)
+  and compares each function's statements, operands written by what they are, not where (the two compiles number
+  globals and immediates independently): return/parm globals by offset, locals and local temporaries by their offset
+  in the function's locals, named globals by name, anything else (immediates; shared temporaries, always 0) by value
+  (a string immediate by its text, a vector's three words); jump operands raw. The line is the first differing
+  statement's (`.lno`), the file the function's own (`s_file`): no more guessing the file from the QC sources.
+- Message format unchanged except the function's name: the progs has no signature, so `visible: QC/ai.qc:12`, not
+  `float(entity) visible: ...` (sorted by name).
+- Same verdicts: the current tree passes; with injected bugs (assignment `x = a && b`, a field's `self.f = a || b`,
+  `a && b ? c : d` in an assignment and a return, `a || b && c` in a return and an `if`, `!a == b`, `a & b == c`,
+  a constant-folded `6 & 2 == 2`, a three-statement function with the bug on its last line, and a parenthesised
+  control) in an early file (vr_util.qc: every later global shifts) and a late one (ai.qc), the old exe and the new
+  report the same 10 functions with the same files and lines, the control in neither.
+- Time (`qvr_checks all --times`, back to back): qc_precedence 9.95 s -> 3.36 s (about one compile). Work files: two
+  13 MB progs + 2.6 MB .lno, emptied after use (was 2 x 1.7 GB).

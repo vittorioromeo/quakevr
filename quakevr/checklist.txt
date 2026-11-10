@@ -35,6 +35,9 @@ Flat-screen: force-grab a wall torch: in your hand it stands upright, flame up (
 Start a new game (start or e1m1), on the screen or in the headset, and draw the shotgun from the right hip holster: it comes loaded 8 of 8 with 17 shells left and fires at once without a reload; after the next level it still holds what it had. {test:start_shotgun}
 Flat-screen: with Position: Seated set (VR Calibration), flat-screen play still stands: your full eye height, Ctrl crouches, lying down lies down and the holsters sit where they do standing. {test:flat_seated}
 Flat-screen: slide backwards and diagonally backwards while looking ahead and down: your legs stay out in front (on your back, as in a forward slide) with no twisting from side to side and no jitter; sliding sideways they still turn the slide's way. {test:flat_slide_back}
+Fire the super shotgun and the heavy revolver empty and open them: their spent shells fly off sideways past your view and a little up before they fall, instead of dropping straight down (tunable under Weapons > Immersion). {test:shell_eject}
+Flat-screen: fire the heavy revolver empty: while its cylinder is out the gun eases up, turns in and rolls to show the cylinder, and eases back after R. {test:flat_revolver_eject}
+Flat-screen: fire the super shotgun empty: its shells leave only once it is fully broken open and in its open pose, not as it starts to open. {test:flat_ssg_break}
 
 [2. VR: melee and embedded blades]
 Hit a grunt with the axe right in front of you: the blood and its red mist come right at the camera, not only further off (your config still has Mist Clear of Eyes at 40: set vr_gore_mist_near 0; Particle Fade Near Eyes and Particles Hidden Nearer at 0 draw it at the eyes too). {test:flat_skewer_gibs}

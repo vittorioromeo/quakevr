@@ -3021,6 +3021,20 @@ vr_shoulder_holster_yaw|2|Tunables|Shoulder Yaw|Advanced VR Options > Debug > Tu
 vr_shoulder_holster_roll|2|Tunables|Shoulder Roll|Advanced VR Options > Debug > Tunables > Shoulder Roll
 vr_shells_life|2|Tunables|Shell Casing Life|Advanced VR Options > Debug > Tunables > Shell Casing Life
 vr_shells_sound|2|Tunables|Shell Casing Sound|Advanced VR Options > Debug > Tunables > Shell Casing Sound
+vr_shells_face_deflect|2|Tunables|Shells Past the Face|Advanced VR Options > Debug > Tunables > Shells Past the Face
+vr_shells_face_clear|2|Tunables|Shells Clear of the Face|Advanced VR Options > Debug > Tunables > Shells Clear of the Face
+vr_shells_ssg_speed|2|Tunables|Super Shotgun Shells: Speed|Advanced VR Options > Debug > Tunables > Super Shotgun Shells: Speed
+vr_shells_ssg_back|2|Tunables|Super Shotgun Shells: Back|Advanced VR Options > Debug > Tunables > Super Shotgun Shells: Back
+vr_shells_ssg_up|2|Tunables|Super Shotgun Shells: Up|Advanced VR Options > Debug > Tunables > Super Shotgun Shells: Up
+vr_shells_ssg_out|2|Tunables|Super Shotgun Shells: Out|Advanced VR Options > Debug > Tunables > Super Shotgun Shells: Out
+vr_shells_ssg_spread|2|Tunables|Super Shotgun Shells: Spread|Advanced VR Options > Debug > Tunables > Super Shotgun Shells: Spread
+vr_shells_ssg_spin|2|Tunables|Super Shotgun Shells: Spin|Advanced VR Options > Debug > Tunables > Super Shotgun Shells: Spin
+vr_shells_rv_speed|2|Tunables|Revolver Shells: Speed|Advanced VR Options > Debug > Tunables > Revolver Shells: Speed
+vr_shells_rv_back|2|Tunables|Revolver Shells: Back|Advanced VR Options > Debug > Tunables > Revolver Shells: Back
+vr_shells_rv_up|2|Tunables|Revolver Shells: Up|Advanced VR Options > Debug > Tunables > Revolver Shells: Up
+vr_shells_rv_out|2|Tunables|Revolver Shells: Out|Advanced VR Options > Debug > Tunables > Revolver Shells: Out
+vr_shells_rv_spread|2|Tunables|Revolver Shells: Spread|Advanced VR Options > Debug > Tunables > Revolver Shells: Spread
+vr_shells_rv_spin|2|Tunables|Revolver Shells: Spin|Advanced VR Options > Debug > Tunables > Revolver Shells: Spin
 vr_holster_haptic_time|2|Tunables|Holster Haptic Time|Advanced VR Options > Debug > Tunables > Holster Haptic Time
 vr_weapon_throw_velocity_mult|2|Tunables|Throw Speed|Advanced VR Options > Debug > Tunables > Throw Speed
 vr_weapon_draw_blend|2|Tunables|Draw Blend Time|Advanced VR Options > Debug > Tunables > Draw Blend Time
@@ -4095,6 +4109,7 @@ vr_flat_reload_hold|2|Tunables|Reload: Hold Time|Advanced VR Options > Debug > T
 vr_flat_reload_up|2|Tunables|Reload: Up Time|Advanced VR Options > Debug > Tunables > Reload: Up Time
 vr_flat_reload_angle|2|Tunables|Reload: Muzzle Down|Advanced VR Options > Debug > Tunables > Reload: Muzzle Down
 vr_flat_ssg_break_delay|2|Tunables|Reload: Super Shotgun Break Delay|Advanced VR Options > Debug > Tunables > Reload: Super Shotgun Break Delay
+vr_flat_ssg_eject_delay|2|Tunables|Reload: Super Shotgun Shells Out Delay|Advanced VR Options > Debug > Tunables > Reload: Super Shotgun Shells Out Delay
 vr_flat_mag_eject_delay|2|Tunables|Reload: Magazine Eject Delay|Advanced VR Options > Debug > Tunables > Reload: Magazine Eject Delay
 vr_flat_mag_eject_speed|2|Tunables|Reload: Magazine Eject Speed|Advanced VR Options > Debug > Tunables > Reload: Magazine Eject Speed
 vr_flat_revolver_open_delay|2|Tunables|Reload: Revolver Swing-Out Delay|Advanced VR Options > Debug > Tunables > Reload: Revolver Swing-Out Delay
