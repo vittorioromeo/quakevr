@@ -1,0 +1,11 @@
+# flat_quick_grenade: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode) quick grenade: G, the back pouch's grenade, the fire button arming, the wind-up and the throw (docs/vr-port/FLATPLAY.md, "The quick grenade").
+title Flat-screen quick grenade: a nail gun held in both hands, rockets, grunts to throw at
+hint Play with -flatscreenmode. G: the left hand comes off the nail gun's grip, goes down to the pouch and comes back up with a grenade. Right mouse arms it (the pin, the fizz), right mouse again held raises it overhead, let go throws it at the crosshair: longer held, further. The hand goes back onto the gun's grip. Drop the nail gun (H) and try G with both hands empty: the right hand takes it, left mouse is its button. G again before arming puts it back.
+map vrtesthall
+god
+notarget
+give "Nailgun" main
+cmd give r 20
+spawn "Grunt" 360 40
+spawn "Grunt" 420 -40
+spawn "Wooden Crate" 200 0

@@ -88,6 +88,7 @@ void(float xHolster, float v) setHolsterWeaponFlags =
 }
 
 void(float xHand) VR_FlatReload_HandFrame; // (vr_flatreload.qc)
+void() VR_FlatGrenade_Frame; // (vr_flatgrenade.qc)
 
 float(float xHotspot, float xWeapon, entity xInst) isReloadHolsterHotspot =
 {
@@ -1752,6 +1753,7 @@ void() W_Frame =
     VR_Reload_HandFrame(cVR_OffHand);
     VR_FlatReload_HandFrame(cVR_MainHand); // flat-screen play's reload: R, the empty clip, the trip to the hip (vr_flatreload.qc)
     VR_FlatReload_HandFrame(cVR_OffHand);
+    VR_FlatGrenade_Frame(); // flat-screen play's quick grenade: G, the pouch, the arming, the wind-up and the throw (vr_flatgrenade.qc)
 
     UpdateHolsterHover(self);
 

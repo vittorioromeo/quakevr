@@ -94,7 +94,7 @@ console.
 | mouse LMB | with **one weapon held, in either hand**, fires it; with a weapon in each hand, or none, fires the right hand (as in VR). With a weapon a swing strikes with in the hand it drives â€” an empty hand (the fist), the axe, the maul, the sword, the crowbar, the super axe â€” it is also the punch `V` makes |
 | mouse RMB | with **one weapon held, in either hand**, the ironsight: held while the button is held (`vr_flat_aim_mode 0`, the default) or a click on and the next off (`1`; VR Settings > Locomotion, Desktop Screen Play > Right Click Ironsight), and it fires nothing; with a weapon in each hand, or none, fires the left hand (as in VR; the same punch with a swinging weapon or the fist) |
 | `Q`, `E` | lean left and right while held (`vr_flat_lean_toggle 1`: a press leans, the next stands straight): see Leaning below. The keys are `vr_flat_key_lean_left` and `vr_flat_key_lean_right` (default `q`, `e`; `""` none); `+flatleanleft` / `+flatleanright` hold them from the console. E was the force grab (now mouse 4, `R` too) and Quake's `+moveup` (dropped from the default binds: jump swims up) |
-| `3` | swaps what the two hands hold (`impulse 48` â†’ `VR_FlatSwapHands`, `QC/vr_wpnholster.qc`): each weapon with its magazine and its next shot's time; one weapon goes to the empty hand. A hand carrying a box or a prop keeps it and nothing swaps (`G` lets it go). The key is `vr_flat_key_swap` (a bind name, default `3`; `""` none). 3 was the third weapon's slot key (`impulse 3`): in the mode the weapons are reached with `1`, `2` and the mouse wheel, which cycle through every weapon collected, the third included |
+| `3` | swaps what the two hands hold (`impulse 48` â†’ `VR_FlatSwapHands`, `QC/vr_wpnholster.qc`): each weapon with its magazine and its next shot's time; one weapon goes to the empty hand. A hand carrying a box or a prop keeps it and nothing swaps (`H` lets it go). The key is `vr_flat_key_swap` (a bind name, default `3`; `""` none). 3 was the third weapon's slot key (`impulse 3`): in the mode the weapons are reached with `1`, `2` and the mouse wheel, which cycle through every weapon collected, the third included |
 | `Z` | starts and stops bullet time (`vr_bullettime.cpp keyPress`): the headset's own rules â€” `vr_bullettime_enabled`, a single-player game, the meter's `vr_bullettime_min`, the cooldown, the bounce guard `vr_bullettime_trigger_cooldown` â€” and its meter is the status bar's bar (below). The key is `vr_flat_key_bullettime` (default `z`). Z was bound to nothing before |
 | `R` | reloads (Reloading, below): `vr_flat_key_reload` (default `r`; `""` none) |
 | Mouse 4 | force-grabs what the view is pointed at (`impulse 46` → `VR_Forcegrab_FlatGrab`; the search, the flight and the catch are the game's own force grab, with the headset's sparks, glow outline, tendril, trail and sound). With both hands empty the dominant hand grabs (`vr_lefthanded`; the right by default), else the empty one; with both hands holding weapons there is no hand to collect with and it does nothing. The keys are `vr_flat_key_grab` (default `mouse4`, the side button the shove leaves) and `vr_flat_key_grab_alt` (default `""`: it was `r` until R became the reload key, 2026-11-08; a full config's old `r` is
@@ -107,7 +107,8 @@ moved by `fullConfigChanges`, a sparse config never held it); `""` none |
 | Mouse 5 | a shove: an open hand pushed out in front of you, the headset's one-hand shove (`vr_flat_key_shove`, `vr_flat_shove_*`; QC `VR_FlatShove`). The view's own motion of the hands never swings, flicks or pries anything (ROUND24.md, "Hand motion source"). |
 | Left Ctrl | crouches while it is held, stands up as it is let go; `+flatcrouch` and `-flatcrouch` hold and release the same from the console (see Crouching below). Right Ctrl is the same key to the engine (`K_CTRL`: `Quake/in_sdl.c`). While the mode runs it is the crouch key **only** â€” the plain game's `+attack` is taken off it, so holding Ctrl crouches and fires nothing; `vr_flat_crouch_fire 1` gives Ctrl its own bind back and then it fires as it crouches (see Ctrl's firing bind below) |
 | `F` | switches the flashlight: the engine's own `vr_flashlight_toggle`; put out, it stays out (a level change and a saved game included) |
-| `G` | lets go of what a hand holds, the main hand first and the off hand after (`impulse 47` â†’ `VR_Forcegrab_FlatDrop`, `QC/vr_wpnforcegrab.qc`): a weapon out of the hand the way the game drops one, a box or a prop carried in it let go at his feet (physics again, free to take again); carried in both hands, one press frees both |
+| `H` | lets go of what a hand holds, the main hand first and the off hand after (`impulse 47` -> `VR_Forcegrab_FlatDrop`, `QC/vr_wpnforcegrab.qc`): a weapon out of the hand the way the game drops one -- never handed to the other hand on its grip (his words 2026-11-10: the grip hand caught a dropped Enforcer's rifle as a prop) -- a box or a prop carried in it let go at his feet (physics again, free to take again); carried in both hands, one press frees both. The key is `vr_flat_key_drop` (default `h`; `G` until 2026-11-10, then hard-coded: no saved bind to move) |
+| `G` | the quick grenade (The quick grenade, below): `vr_flat_key_grenade` (default `g`; `""` none) |
 
 `1` and `2` go through the existing weapon cycling (`CycleWeaponCommand`, the controller's B and Y); `getWeaponCycleMode`
 In this mode the cycle (1, 2 and the mouse wheel) also stops at the empty hand (the fist), both directions; VR cycling is unchanged.
@@ -228,7 +229,7 @@ and the biggest step each took against what the ease allows; `Misc/quakevr/flatc
 **The keys the mode reads, and an old config's binds.** The mode reads its keys itself (above), so a bind on the
 same key ran as well: an old config's `bind e +moveup` swam up as E leant, `bind 3 "impulse 3"` picked the third
 weapon as 3 swapped the hands. While the mode runs, `Key_Event` (`Quake/keys.c`) skips the bind of a key the mode
-reads (`VR_FlatKeyOwned`, `vr_flatmove.cpp`: the leans, swap, grab, prone, bullet time, F, G and V), so an old
+reads (`VR_FlatKeyOwned`, `vr_flatmove.cpp`: the leans, swap, grab, prone, bullet time, drop, quick grenade, F and V), so an old
 config works as it is and nothing in it needs changing; outside the mode, and in a headset, the binds run as ever.
 `vr_flat_keys_own 0` (VR Settings > Locomotion, Desktop Screen Play > Desktop Keys Only Do Theirs) lets them run too.
 `bind e +moveup` is gone from the default binds (`Quake/default_cfg.h`, `quakevr/default.cfg`): jump swims up.
@@ -843,3 +844,46 @@ barrel's way against the shot's, the wall's share, the dimming). "Flatscreen Cro
 [deg/s] [frames] [frames each way] [1: a line a frame]`: the mock mouse turns the view back and forth; each crosshair's move
 from frame to frame, RMS and most, and its hit's distance off the centre, pixels at 1080 rows). Test: `bash
 Misc/quakevr/flatxhair_test.sh <agent>` (one e1m1 run; `flatxhair_test: N passed, M failed`).
+
+## The quick grenade
+
+His words (2026-11-10): G is a quick grenade key; not dual wielding, a free hand takes the back pouch's grenade -- an
+empty hand first, the dominant one first, else the off hand on a weapon's grip -- going back to a relaxed place for it
+and coming back into view with it unarmed; the hand's fire button arms it, then held winds up an overhead throw, and let
+go throws it.
+
+- **The game** (`QC/vr_flatgrenade.qc`): G sends `impulse 57` (`vr_flat_key_grenade`, `Quake/vr/vr_flatgrenade.cpp`);
+  `VR_FlatGrenade_Choose` picks the hand, the trip to the pouch takes `vr_flat_grenade_fetch_time`, then the headset's
+  own pouch grenade is taken (`VR_HandGrenade_Take`: a rocket leaves the reserve; the proximity launcher's round if the
+  other hand holds it), carried in the hand. The fire button arms it with the headset's arming (`VR_HandGrenade_Arm`: the
+  pin, `vr_handgrenade_fuse`, the cues); `vr_flat_grenade_arm_mode` 1 (default): the next press, held, winds up; 0: the
+  arming press itself winds up. Let go, it leaves just ahead of the eyes along the crosshair, `vr_flat_grenade_throw_up`
+  above it, at `vr_flat_grenade_speed_min` .. `_max` by the wind-up's share of `vr_flat_grenade_wind_full`, with his own
+  motion; the carry's own throw (`VR_Carry_Throw`) and release (`VR_Grenade_Released`). G again with it unarmed puts it
+  back (the rocket back). No rockets: "No rockets for a grenade." `VR_HandGrenade_Trigger` doesn't arm for a flat-screen
+  player (the quick grenade's frame does, whatever `vr_handgrenade_arm` says).
+- **The buttons**: while a grenade is held, LMB is the main hand's and RMB the off hand's, whatever the other hand holds
+  (`flatplay::routeFire`; no ironsight on RMB then). The grenade's hand doesn't punch.
+- **As drawn** (`STAT_QVR_FLATGREN`: the phase + 8 for the main hand): shares of the way to four places off the hand's
+  shoulder in shares of the arm's reach (Debug > Tunables > Flatscreen > Quick Grenade): the pouch (`vr_flat_grenade_fetch_*`,
+  at his side and behind, out of view), held (`_hold_*`, along the look), overhead (`_wind_*`), the follow-through
+  (`_follow_*`); `_up_time`, `_wind_time`, `_follow_time`, `_back_time` their eases. The off hand leaves a weapon's grip
+  while busy (`vr_flatsight.cpp` `gripWanted`, `vr_twohand.cpp` `canGrab`; the stance is one-handed meanwhile) and eases
+  from the follow-through straight back onto it.
+- Toggle: `vr_flat_grenade` (Locomotion > Desktop Screen Play: Quick Grenade (G), Quick Grenade Fire Button).
+  `vr_flat_grenade_debug 1` prints the drawn places (`flatgren:`), developer 1 the game's steps (`flat grenade:`);
+  `vr_flatgrenade_report`. Test: `Misc/quakevr/flathands_test.sh` (gren2h, grenempty, grendual).
+
+## The hand swap
+
+His words (2026-11-10): the swap key (3) gets a short animation: the hands come together, swap, and go back; a weapon
+held in both hands: the off hand detaches, comes to the main hand, the swap, then the hands to their places.
+
+`Quake/vr/vr_flatswap.cpp`: the press starts the trip (no impulse yet); over `vr_flat_swap_in` the hands go to their
+meeting point (each half of `vr_flat_swap_gap` off their middle, `vr_flat_swap_down` lower; held in both hands: the free
+hand off its grip to `vr_flat_swap_gap` off the holding hand, which stays); `impulse 48` (`VR_FlatSwapHands`, unchanged)
+is sent as they meet; once the hands' weapons have changed, each hand turned as the other was (the weapon keeps its turn
+as it changes hands), they ease back over `vr_flat_swap_out` to their own poses, the free hand onto the grip again. The
+places are kept in the body's level frame off the head, so a turn carries them. No fire meanwhile. Not drawn (the swap at
+once) with `vr_flat_swap_anim 0`, both hands empty, a carried thing, a reload or the quick grenade under way.
+`vr_flat_swap_debug 1`, `vr_flatswap_report`. Test: `Misc/quakevr/flathands_test.sh` (swap1, swap2h, swapdual, swapoff).

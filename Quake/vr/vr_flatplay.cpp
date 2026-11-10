@@ -41,7 +41,9 @@
 #include "vr_flatxhair.hpp"
 #include "vr_flatleanpose.hpp"
 #include "vr_flatmove.hpp"
+#include "vr_flatgrenade.hpp"
 #include "vr_flatreload.hpp"
+#include "vr_flatswap.hpp"
 #include "vr_flycam.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_flataimsens.hpp"
@@ -965,14 +967,15 @@ void pollKeys()
             Con_Printf("flatplay: %s: force grab\n", vr_flat_key_grab.string);
         }
     }
-    if(v && !fs.keyV)
+    if(v && !fs.keyV && !flatgrenade::busy(HAND_MAIN))
     {
         startPunch(HAND_MAIN, "V"); // as it has always been: V punches with the main hand
     }
     for(int h = 0; h < HAND_COUNT; h++)
     {
         // The fire button punches only with a weapon a swing strikes with; a gun's trigger fires the gun as it does now.
-        if(fire[h] && !fs.keyFire[h] && punchesWith(h))
+        // (Not a hand busy with the quick grenade: its fire button arms and throws it, vr_flatgrenade.cpp.)
+        if(fire[h] && !fs.keyFire[h] && punchesWith(h) && !flatgrenade::busy(h))
         {
             startPunch(h, h == HAND_MAIN ? "the main hand's fire button" : "the off hand's fire button");
         }
@@ -1223,7 +1226,11 @@ void pollKeysFlat()
         keyState.swaps++;
         // The same InsertText as F and H: the swap travels as the impulse the game code reads (QC weapons.qc, 48 ->
         // vr_wpnholster.qc VR_FlatSwapHands), so `impulse 48` on the console swaps the same.
-        Cbuf_InsertText("impulse 48\n");
+        // With vr_flat_swap_anim the hands meet first and the swap is sent as they do (vr_flatswap.cpp).
+        if(!flatswap::press())
+        {
+            Cbuf_InsertText("impulse 48\n");
+        }
         if(vr_flatplay_debug.value)
         {
             Con_Printf("flatplay: %s: swap hands\n", vr_flat_key_swap.string);
@@ -1524,6 +1531,14 @@ namespace
 [[nodiscard]] FireRoute routeButtons(bool lmb, bool rmb)
 {
     FireRoute r;
+    // A hand holding the quick grenade (vr_flatgrenade.cpp): each button its own hand's, LMB the main and RMB the off hand,
+    // so the grenade has its button whatever the other hand holds (and RMB no ironsight while it is held).
+    if(flatgrenade::heldHand() >= 0)
+    {
+        r.fire[HAND_MAIN] = lmb;
+        r.fire[HAND_OFF] = rmb;
+        return r;
+    }
     const int lone = loneWeaponHand();
     if(lone >= 0)
     {
@@ -1547,6 +1562,11 @@ FireRoute routeFire(bool lmb, bool rmb)
     {
         // (Nor a gun on its way to the hip and back to reload: vr_flatreload.cpp; the game stops it too.)
         if(r.fire[h] && !punchesWith(h) && (flatsight::wallBlocksFire(h) || flatreload::busy(h)))
+        {
+            r.fire[h] = false;
+        }
+        // (Nor while the hands swap what they hold: vr_flatswap.cpp.)
+        if(flatswap::busy())
         {
             r.fire[h] = false;
         }
@@ -1720,6 +1740,8 @@ void init()
     flatsweep::init(); // vr_flat_sweep (vr_flatsweep.cpp)
     flathud::init();   // vr_flathud_report (vr_flathud.cpp)
     flatreload::init(); // vr_flatreload_report (vr_flatreload.cpp)
+    flatgrenade::init(); // vr_flatgrenade_report (vr_flatgrenade.cpp)
+    flatswap::init(); // vr_flatswap_report (vr_flatswap.cpp)
     flathit::init();   // vr_flat_hit_probe, vr_flat_hit_test (vr_flathit.cpp)
     flatxhair::init(); // vr_flat_xhair_probe (vr_flatxhair.cpp)
     flatspeedfov::init(); // vr_flat_speed_fov_test, _status (vr_flatspeedfov.cpp)
@@ -1786,6 +1808,8 @@ void frame()
         flatmove::frame(false);
         slidesound::frame(false);
         flatreload::frame(false);
+        flatgrenade::frame(false);
+        flatswap::frame(false);
         return;
     }
 
@@ -1797,6 +1821,8 @@ void frame()
     pollKeys();
     pollKeysFlat();
     flatreload::frame(true); // R, and each hand's trip to the hip as the server says (vr_flatreload.cpp)
+    flatgrenade::frame(true); // G, and the grenade's hand as the server says (vr_flatgrenade.cpp)
+    flatswap::frame(true); // the hands' swap, sent as they meet (vr_flatswap.cpp)
     flatmove::frame(true); // the lean (Q / E) and the slide's pose (vr_flatmove.cpp)
     flatleanpose::frame(); // vr_flatleanpose_test's next step, when one runs
     slidesound::frame(true); // its scrape (vr_slidesound.cpp)
@@ -2473,6 +2499,9 @@ void poseHands(hands::State& s, const glm::vec3& aim)
     QVR_TRACY_CALL("flat pose: sight", flatsight::apply(s, aim, fwd * grabOffset().x + right * grabOffset().y + up * grabOffset().z));
     // A reload's trip (vr_flatreload.cpp): the gun's hand to the hip holster and back, over all of the above.
     QVR_TRACY_CALL("flat pose: reload", flatreload::apply(s));
+    // The quick grenade's hand (vr_flatgrenade.cpp) and the hands' swap (vr_flatswap.cpp), over all of it.
+    QVR_TRACY_CALL("flat pose: grenade", flatgrenade::apply(s));
+    QVR_TRACY_CALL("flat pose: swap", flatswap::apply(s));
     traceHandZ = s.pos[HAND_MAIN].z;
     traceHand = s.pos[HAND_MAIN];
     traceHead = s.head;

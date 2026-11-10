@@ -223,6 +223,7 @@ QVR_FIELD(carry_teleported) // until then what the hands carry follows them from
 QVR_FIELD(vr_hot_hud)   // the hands' incandescent blades' glow (vr_hotblade.qc VR_HotBlade_Hud; STAT_QVR_HOTBLADE: vr_meleehud.cpp)
 QVR_FIELD(vr_hot_hud2)  // the holsters' (STAT_QVR_HOTBLADEHOLSTER)
 QVR_FIELD(vr_flatrl)    // flat-screen play: the hands on their reload trip: 1 off, 2 main (QC vr_flatreload.qc; STAT_QVR_FLATRELOAD: vr_flatreload.cpp)
+QVR_FIELD(vr_flatgren)   // flat-screen play: the quick grenade's phase + 8 for the main hand (QC vr_flatgrenade.qc; STAT_QVR_FLATGREN: vr_flatgrenade.cpp)
 QVR_FIELD(vr_mag_out)   // the hands whose gun's magazine is sliding out: 1 off, 2 main (QC vr_reload.qc; STAT_QVR_MAGOUT: vr_view.cpp magSlideStep)
 QVR_FIELD(vr_rv_hud)    // the heavy revolver in the main hand: its chambers, swung out, the rod, the chamber under the hammer (QC vr_revolver.qc; STAT_QVR_REVOLVER: vr_view.cpp setupRevolverParts)
 QVR_FIELD(vr_rv_hud2)   // the off hand's (STAT_QVR_REVOLVER2)

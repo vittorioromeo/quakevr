@@ -100,6 +100,7 @@ void(float xHand, float xAid) updateAmmoCounter =
 
 float(entity p, float xHand) VR_FlatReload_Busy; // (vr_flatreload.qc)
 void() VR_FlatReload_Key;
+void() VR_FlatGrenade_Key; // (vr_flatgrenade.qc)
 void(float xHand, float xWeapon, float xWeaponFlags) VR_FlatReload_CycleOut;
 void(float xHand) VR_FlatReload_CycleIn;
 
@@ -4705,6 +4706,15 @@ void() ImpulseCommands =
     {
         self.impulse = 0;
         VR_FlatReload_Key();
+        return;
+    }
+
+    // Flatscreen play: G takes a grenade from the back pouch into a free hand (vr_flatgrenade.cpp reads the key,
+    // vr_flat_key_grenade; vr_flatgrenade.qc). Nobody else's impulse.
+    if(self.impulse == 57 && VR_FlatPlay(self))
+    {
+        self.impulse = 0;
+        VR_FlatGrenade_Key();
         return;
     }
 
