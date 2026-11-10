@@ -2643,7 +2643,13 @@ QVR_CVAR(vr_arena_wave_rest, "5", CVAR_ARCHIVE)               // s of rest from 
 QVR_CVAR(vr_arena_countdown_sound, "1", CVAR_ARCHIVE)         // the countdown's beeps' volume (Quake's own menu tick and chime, pitched; 0: silent)
 QVR_CVAR(vr_arena_scatter, "1", CVAR_ARCHIVE)                 // 1: a wave clear's medkits, armour and shards land at random walkable places all over the map, ledges too (QC vr_arena_supply.qc); 0: on the map's info_arena_item points
 QVR_CVAR(vr_arena_nav, "1", CVAR_ARCHIVE)                     // 1: a walker whose foe is on another level walks through the map's info_arena_nav stairs (vr_arena_nav.qc); 0: Quake's chase, which finds them by chance. Maps without them: no effect
-QVR_CVAR(vr_arena_shards, "2", CVAR_ARCHIVE)                  // armour shards (+5 each) a wave clear drops on top: 1 to this many at random (0: none)
+QVR_CVAR(vr_nav, "1", CVAR_ARCHIVE)                           // 1: a walking monster chasing its foe follows a path on the map's navmesh (vr_nav.cpp, docs/vr-port/NAVMESH.md) round corners, up stairs and past obstacles, stepping with Quake's own walkmove; 0: Quake's chase exactly as before
+QVR_CVAR(vr_nav_debug, "0", CVAR_NONE)                        // the navmesh drawn round the view (vr_nav.cpp): 1 its polygons (by area: ground teal, water blue, slime green, lava orange, blocked by a door or lift red) and edges; 2 also each monster's path (yellow, its next corner white)
+QVR_CVAR(vr_nav_debug_range, "1200", CVAR_NONE)               // vr_nav_debug: polygons this far from the view are drawn (units)
+QVR_CVAR(vr_nav_debug_class, "-1", CVAR_NONE)                 // vr_nav_debug: which size class's navmesh is drawn (vr_nav_info lists them); -1 the nearest monster's
+QVR_CVAR(vr_nav_cache, "1", CVAR_ARCHIVE)                     // navmeshes kept on disk (cache/navmesh): 0 built at every load, 1 read and written, 2 built anyway and compared
+QVR_CVAR(vr_nav_async, "1", CVAR_ARCHIVE)                     // a monster size the map's load did not build a navmesh for (a later spawn): 1 built on the pool, the monster on Quake's chase until it is ready; 0 built at once (a hitch)
+QVR_CVAR(vr_arena_shards, "2", CVAR_ARCHIVE)                // armour shards (+5 each) a wave clear drops on top: 1 to this many at random (0: none)
 QVR_CVAR(vr_arena_countdown, "5", CVAR_ARCHIVE)               // s of countdown in the middle of the view before each wave ("Wave 7 in 5..."; 0: none)
 QVR_CVAR(vr_arena_max_alive, "8", CVAR_ARCHIVE)               // the ceiling on a wave's alive pool (foes up at once), by the difficulty
 QVR_CVAR(vr_arena_wave_size, "1.75", CVAR_ARCHIVE)            // a wave's crowd groups times this (1: the ladder's own counts)

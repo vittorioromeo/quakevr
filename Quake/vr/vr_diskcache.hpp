@@ -34,6 +34,7 @@ enum class Product : int
     ReliefMaps, // derived weapons' relief maps (vr_skinrelief.cpp; vr_normalmap_cache): their own folder, as a
                 // product keeps one build (sharing normalmaps/, each removed the other's files every session)
     LightGrid,  // big maps' model light grids (vr_ambient.cpp; vr_model_light_grid_cache)
+    NavMesh,    // the maps' navmeshes, one per monster size class (vr_nav.cpp; vr_nav_cache)
     Count
 };
 

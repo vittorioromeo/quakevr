@@ -8687,6 +8687,17 @@ set of files at the end. TRAILER.md, "Takes and clips", is the user's guide.
   session's take numbered t04 from the files. Eyeshot (`vr_eyeshot 3`): the red light and "REC start 0:00 [1]" upper
   left in the eye; the prompt "T01: KEEP / MAYBE / REJECT?" after; the gadget page dumped (`vr_gadget_screen_dump`).
 
+## Navmesh pathfinding for walking monsters (branch `agent/navmesh`, worktree `navmesh`, 2026-11-10)
+
+Recast/Detour 1.6.0 vendored (Recast and Detour only) and built as its own always-optimised static library
+(`recast.vcxproj`, `qvr_recast` in vr.cmake, vr.mk). At each map load `vr_nav.cpp` builds a navmesh per monster size
+class (vr_mhull widths at Quake's heights) from vr_hull's convex brushes, clip brushes included and every brush filled
+as a solid, tiled on the pool and kept in `cache/navmesh`; the chase (`VR_AI_MoveToGoal`) asks builtin `navsteer` for
+the next corner and steps there with Quake's walkmove. Doors block the floor they stand on while closed; lifts and drops
+are designed but not done. `vr_nav` 1 (Monster AI page), `vr_nav_debug` 1/2 (Debug page), `vr_nav_info`,
+`vr_nav_cliptest`; numbers are tunables (`vr_nav_*`). Arena stairs test (`vr_arena_test 36`): 0 of 64 capped with the new
+default, 2 with the old one, 29 with Quake's chase alone; e1m1 builds in 53 ms, e4m7's three classes in 0.3-0.5 s, a
+cached class reads in under 1 ms. Details, shortcomings and the next steps: `docs/vr-port/NAVMESH.md`.
 ## Flat: the shove's fast smoothing (branch `agent/fg2h`, 2026-11-10)
 
 His answer to the shove's 25-unit frame: "Yes, please add some fast smoothing". Measured per frame (`vr_flatplay_debug 3`'s

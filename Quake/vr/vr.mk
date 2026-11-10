@@ -47,7 +47,21 @@ ZANCLE_CXXFLAGS = $(filter-out -std=% -O%,$(CFLAGS)) -std=c++23 -fno-exceptions 
 	-I$(ZANCLE_DIR)/src -I$(ZANCLE_DIR)/extlibs/moodycamel
 endif
 
-QVR_CLEAN = vr/*.o vr/*.d $(ZANCLEOBJS) $(ZANCLEOBJS:%.o=%.d)
+# Recast/Detour (vr/external/recastnavigation/README.md), the navmesh library: Recast and Detour only, always optimised
+# without its asserts (-O2 -DNDEBUG), debug builds too; warnings off (vendored code).
+RECAST_DIR = vr/external/recastnavigation
+RECASTOBJS := $(patsubst %.cpp,%.o,$(wildcard $(RECAST_DIR)/Recast/Source/*.cpp $(RECAST_DIR)/Detour/Source/*.cpp))
+OBJS += $(RECASTOBJS)
+OBJDEPS += $(RECASTOBJS:%.o=%.d)
+VR_CXXFLAGS += -I$(RECAST_DIR)/Recast/Include -I$(RECAST_DIR)/Detour/Include
+RECAST_CXXFLAGS = $(filter-out -std=% -O% -g -W%,$(CFLAGS)) -O2 -DNDEBUG -w -fno-exceptions \
+	-I$(RECAST_DIR)/Recast/Include -I$(RECAST_DIR)/Detour/Include
+
+QVR_CLEAN = vr/*.o vr/*.d $(ZANCLEOBJS) $(ZANCLEOBJS:%.o=%.d) $(RECASTOBJS) $(RECASTOBJS:%.o=%.d)
+
+$(RECAST_DIR)/%.o:	$(RECAST_DIR)/%.cpp $(MAKEFILE)
+	@echo "Compiling $<" && \
+	$(CXX) -c $(RECAST_CXXFLAGS) -MMD -MP -o $@ $<
 
 vr/%.o:	vr/%.cpp $(MAKEFILE)
 	@echo "Compiling $<" && \

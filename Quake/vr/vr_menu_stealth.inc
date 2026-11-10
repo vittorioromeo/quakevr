@@ -27,6 +27,8 @@
         row(opt::vr_stealth_chase_trail),
         row(opt::vr_stealth_chase_predict),
         header("Getting Round"),
+        row(opt::vr_nav),
+        row(opt::vr_nav_async),
         row(opt::vr_ai_props),
         row(opt::vr_ai_prop_push),
         header("Spreading the Alarm"),

@@ -3,6 +3,7 @@
 #include "vr_ad.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_hull.hpp"
+#include "vr_nav.hpp"
 #include "vr_brushes.hpp"
 #include "vr_permdecals.hpp"
 #include "vr_progs.hpp"
@@ -820,6 +821,8 @@ extern "C" void VR_OnSpawnServerAfterLoad()
     timed("VR after load: hit models");
     qvr::hull::afterLoad(); // the player's narrower box: the map as brushes (vr_hull_width)
     timed("VR after load: hulls");
+    qvr::nav::afterLoad(); // the monsters' navmeshes: gathered here, built (or read) on the pool
+    timed("VR after load: navmesh");
     qvr::climb::reset();
     qvr::foegrab::reset();
     qvr::tips::serverMapStarted(loadingSaveGame); // (a tutorial's tips forgotten at its start: _vr_tips_reset_on_start)

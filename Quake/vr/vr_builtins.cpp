@@ -41,6 +41,7 @@
 #include "vr_engine.hpp"
 #include "vr_physics.hpp"
 #include "vr_portals.hpp"
+#include "vr_nav.hpp"
 #include "vr_props.hpp"
 #include "vr_propthink.hpp"
 #include "vr_protocol.hpp"
@@ -978,6 +979,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"portal_ai_client", PF_portal_ai_client},
     {"portal_ai_gateinfo", PF_portal_ai_gateinfo},
     {"portal_ai_gate", PF_portal_ai_gate},
+    {"navsteer", PF_navsteer},
     {"bodyshock", PF_bodyshock},
     {"bodyshockdeath", PF_bodyshockdeath},
     {"collectfx", PF_collectfx},

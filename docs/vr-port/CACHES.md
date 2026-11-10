@@ -27,6 +27,7 @@ committed or shipped: everything is derived from the player's own game files.
 | big maps' model light grids | `lightgrid` | `vr_ambient.cpp` | lightmaps, styles and planes, the grid's size, `vr_model_light_grid_near`, the lit liquids' colours | `GRID_CACHE_VERSION` | `vr_model_light_grid_cache` | 256 MB |
 | occlusion bakes | `ao` | `vr_ao.cpp` | SHA-256 of poses, triangles, scale, origin, the bake's numbers | `BAKE_VERSION` | `vr_ao_cache` | 64 MB |
 | dequantised poses | `dequant` | `vr_mdldequant.cpp` | poses, frames (poses, names), the progs' loops it takes | `dequantVersion` | `vr_mdl_dequant_cache` | 256 MB |
+| monsters' navmeshes | `navmesh` | `vr_nav.cpp` | the map's solids as triangles (world, clip brushes, still brush entities), the build's settings, the size class | `navVersion` (+ Detour's `DT_NAVMESH_VERSION`) | `vr_nav_cache` | 256 MB |
 | ragdoll rigs | `rigs` | `vr_ragdoll.cpp` derive | the seed table, poses, scale and origin, triangles' vertices | `rigVersion` | `vr_ragdoll_rig_cache` | - |
 
 **Bump the version constant** whenever a change could make a different result from the same inputs (the maker, its

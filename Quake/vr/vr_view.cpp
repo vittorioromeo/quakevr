@@ -13,6 +13,7 @@
 #include "vr_dirparryviz.hpp"
 #include "vr_disarmviz.hpp"
 #include "vr_ledgeshow.hpp"
+#include "vr_nav.hpp"
 #include "vr_gunsfx.hpp"
 #include "vr_holstersetup.hpp"
 #include "vr_hotblade.hpp"
@@ -5156,6 +5157,7 @@ extern "C" void VR_SetupViewEntities()
         }
         ragtool::draw(); // the ragdoll tool's subject: its skeleton, limits, targets, contacts, balance
         ledges::debugDraw(); // vr_debug_ledges
+        nav::debugDraw(s.head); // vr_nav_debug
         hitmodel::debugDraw(); // vr_debug_hits
         ambient::gridDebugDraw(s.head); // vr_model_light_grid_show
         hitmodel::zonesDraw(); // vr_debug_hitzones

@@ -4754,6 +4754,52 @@ bool touchBox(const edict_t* touch, const edict_t* mover, float* boxMins, float*
     return false;
 }
 
+bool navSolids(int sub, bool clips, za::Vector<glm::vec4>& planes, za::Vector<NavBrush>& brushes)
+{
+    const Brushes* b = sv.active ? detail::worldBrushes(sv.worldmodel) : nullptr;
+    if(!b || sub < 0 || static_cast<za::SizeT>(sub) >= b->worldSubs)
+    {
+        return false;
+    }
+    const auto add = [&](const Brush& br)
+    {
+        brushes.pushBack(NavBrush{static_cast<int>(planes.size()), static_cast<int>(br.count), br.clip});
+        for(za::U32 i = 0; i < br.count; ++i)
+        {
+            const Plane& p = b->planes[br.first + i];
+            planes.emplaceBack(p.normal, p.dist); // a box of no size: the brush itself
+        }
+    };
+    const SubModel& s = b->subs[static_cast<za::SizeT>(sub)];
+    for(za::U32 i = 0; i < s.numBrushes; ++i)
+    {
+        add(b->brushes[s.firstBrush + i]);
+    }
+    if(clips && sub == 0)
+    {
+        for(const int c : b->clips)
+        {
+            add(b->brushes[static_cast<za::SizeT>(c)]);
+        }
+    }
+    return true;
+}
+
+void moveSize(const edict_t* ent, float& width, float& height)
+{
+    if(monsterWidth(ent, width, height))
+    {
+        return;
+    }
+    if(sv.worldmodel)
+    {
+        quakeHull(ent->v.size[0], width, height);
+        return;
+    }
+    width = ent->v.size[0] <= 32.f ? 32.f : 64.f;
+    height = ent->v.size[0] <= 32.f ? 56.f : 88.f;
+}
+
 bool footprint(const edict_t* ent, float* absMins, float* absMaxs)
 {
     float width = 0.f;

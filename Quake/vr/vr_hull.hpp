@@ -19,6 +19,8 @@
 
 #include "vr_engine.hpp"
 
+#include "Zancle/Container/Vector.hpp"
+
 namespace qvr::hull
 {
 
@@ -51,6 +53,22 @@ void afterLoad();
 
 // A player's box as a body moving into it (mover; null: none) meets it: true if narrowed, filled in.
 [[nodiscard]] bool touchBox(const edict_t* touch, const edict_t* mover, float* boxMins, float* boxMaxs);
+
+// The navmesh (vr_nav.cpp): the server map's solid space as the convex brushes this file rebuilt (hull 0's solid leaves,
+// and with `clips` the world's recovered clip brushes), for the world's model `sub` (0 the world, i its "*i"), in the
+// model's own space. Each brush is `count` planes from `first` in `planes` (normal xyz, distance w: inside is
+// dot(normal, p) < w; a clip brush's floor and top faces stand at its box centres' height for Quake's 32 box). Main
+// thread; false without a server map.
+struct NavBrush
+{
+    int first, count;
+    bool clip;
+};
+[[nodiscard]] bool navSolids(int sub, bool clips, za::Vector<glm::vec4>& planes, za::Vector<NavBrush>& brushes);
+
+// A walking monster's box against the map as it moves (vr_mhull: its class's width and Quake's height; else Quake's hull
+// for its size): its width and height.
+void moveSize(const edict_t* ent, float& width, float& height);
 
 // A monster's corners for SV_CheckBottom (vr_mhull_ledges): absMins..absMaxs narrowed to its width; true if narrowed.
 [[nodiscard]] bool footprint(const edict_t* ent, float* absMins, float* absMaxs);
