@@ -221,6 +221,8 @@ HAM = re.compile(r"^revolver frames: t ([\d.]+) hand 1 frame (\d) gun \d poses (
 ham = [m.groups() for m in (HAM.match(l) for l in lines("hammer")) if m]
 mid = [g for g in ham if g[2] != g[3] and 0 < float(g[4]) < 1]
 check(len(ham) > 20 and len(mid) >= 8, f"hammer: the hammer's frames blended over the frames after each pull ({len(mid)} part-way of {len(ham)}; 2 pulls, ADS the second)")
+full = [g for g in ham if g[1] == "2" and g[2] == "1" and g[3] == "1" and float(g[4]) == 1.0]
+check(len(full) >= 2, f"hammer: each pull's hammer reaches the full cock (poses 1 1 blend 1.000) before it falls ({len(full)} of 2 pulls)")
 kicks = [float(m.group(1)) for m in (re.match(r"^flatxhair: main kick [\d.]+ spread ([\d.]+) px", l) for l in lines("kick")) if m]
 check(len(kicks) == 3 and kicks[0] == 0 and kicks[1] > 2 and kicks[2] < 0.5,
       f"kick: the crosshair spreads with the shot's recoil and settles back (spread {kicks} px)")
