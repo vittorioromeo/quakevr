@@ -1922,6 +1922,9 @@ QVR_TUNABLE(vr_flat_swap_in, "0.15") // seconds the hands take to meet (the swap
 QVR_TUNABLE(vr_flat_swap_out, "0.2") // seconds they take back to their poses once swapped
 QVR_TUNABLE(vr_flat_swap_gap, "3") // units apart they meet (a weapon in both hands: the free hand this far off the holding one)
 QVR_TUNABLE(vr_flat_swap_down, "2") // units below the middle of the two hands they meet (-16..16)
+QVR_TUNABLE(vr_flat_swap_2h_release_time, "0.2") // a weapon held in both hands: seconds the free hand takes off the grip to the empty hand's guard
+QVR_TUNABLE(vr_flat_swap_2h_pass_time, "0.25") // then the seconds the weapon takes across to it (the swap happens as it gets there)
+QVR_TUNABLE(vr_flat_swap_2h_attach_time, "0.25") // then the seconds the hands take to their places: the weapon to its hold, the other hand onto its grip
 
 // Flatscreen > Quick Grenade (vr_flatgrenade.cpp, QC vr_flatgrenade.qc; vr_flat_key_grenade). Places off the hand's
 // shoulder as shares of the arm's reach: forward, out at the hand's own side, down (or up); angles Quake's (pitch down +).

@@ -7664,6 +7664,10 @@ His items 12, 13, 14, 17 (flat-screen feedback of 2026-11-10).
   steps (arm, then a press held winds up) are the default, `vr_flat_grenade_arm_mode 0` makes it one press (his words read
   either way; two presses lets a grenade be cooked). The throw assist (`VRThrowAssist`) is not used: the crosshair aims.
 - **17, the hand swap.** FLATPLAY.md, "The hand swap": client-side timing, the game's swap unchanged.
+  Follow-up (agent/flat_swap2): a weapon held in both hands swaps in three timed steps -- the free hand off the grip to
+  the empty hand's guard while the gun holds still (`vr_flat_swap_2h_release_time` 0.2), the gun passed across to it and
+  swapped there (`_pass_time` 0.25), the other hand onto the grip (`_attach_time` 0.25); `apply2h` in vr_flatswap.cpp.
+  flathands_test's swap2h checks the order and that the hand is at the guard (0.0 units) before the pass.
 - Files: `QC/vr_flatgrenade.qc`, `Quake/vr/vr_flatgrenade.cpp`, `vr_flatswap.cpp`; hooks in `vr_flatplay.cpp` (keys,
   `routeFire`, punches), `vr_flatsight.cpp`, `vr_twohand.cpp`; `STAT_QVR_FLATGREN`; tunables Flatscreen > Hand Swap and
   > Quick Grenade; rows on Desktop Screen Play; Debug > Reports: the grenade's and the swap's reports and prints.
