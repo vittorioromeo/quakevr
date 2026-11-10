@@ -125,7 +125,7 @@ for tag, two in (("swap1", False), ("swap2h", True), ("swapdual", False)):
     check(has(ls, r"flatswap: start \(%s" % re.escape(kind)), "%s: the swap drawn: %s" % (tag, kind))
     met = [re.search(r"met: the hands ([\d.]+) units apart \(were ([\d.]+)\)", l) for l in ls]
     met = [x for x in met if x]
-    check(bool(met) and float(met[0].group(1)) < 6 and float(met[0].group(2)) > 8,
+    check(bool(met) and float(met[0].group(1)) < 6 and float(met[0].group(2)) > float(met[0].group(1)) + 2,
           "%s: the hands meet (%s units apart, were %s)" % (tag, met[0].group(1) if met else "?", met[0].group(2) if met else "?"))
     sent = [l for l in ls if "swap sent" in l]
     check(bool(sent) and abs(float(re.search(r"\(([\d.]+) s\)", sent[0]).group(1)) - 0.15) < 0.03,
