@@ -8109,3 +8109,12 @@ His note on `vr_flatblood_test 3`'s picture: "the particles seem like red square
   change). Its corpse cases are flaky: the 60-unit super shotgun shot sometimes gibs the corpse (11-12k particles,
   against which the 30/4-unit shots' 1-4k fail "a third"), and the nailgun misses a lying corpse at 12/4 (0 sent).
 - Scene `flat_blood_pointblank` (hint: the near drops are blobs, not squares).
+
+## flathud test: H drops the off hand first (agent/flathud_fix)
+
+- flathud went 9/2 on next after 12428e52f (H, impulse 47, drops the off hand's object first: his words 2026-11-10). A
+  stale test, not a game bug: its "right hand emptied" shot pressed H expecting the main hand to drop. Now it checks the
+  left (off) hand emptied, its counter gone and the right one kept. The `vr_flat_hud 0` shot then failed too: the right
+  hand keeps its shotgun, whose pose moves after bullet time, so the old base (shot 3) saw the gun in the middle. It is
+  now read against a new shot 7, the same moment at viewsize 120.
+- Tests: flathud 11/0, visor_test 32/0, flatitems 9/0, `vr_pp_test 1` 63/0; Release-TracyFull builds.

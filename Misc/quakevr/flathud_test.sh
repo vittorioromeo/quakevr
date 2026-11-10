@@ -41,11 +41,12 @@ l5=$(hand counts left 5); r5=$(hand counts right 5); p5=$(pool counts 5)
 check $([ "${l5%% *}" = 6 ] && [ "$(echo $l5 | cut -d' ' -f3)" = "$(echo $p5 | cut -d' ' -f2)" ] && [ "$(echo $r5 | cut -d' ' -f3)" = "$(echo $r4 | cut -d' ' -f3)" ] && echo 1 || echo 0) \
     "counts: dual wielding, each hand its own counter (left: $l5 = the nails, $p5; right: $r5, the grunt's shotgun)"
 
-# 2. pixels. Shot 1: no bar (viewsize 120); 2: dual wield, bullet time ready; 3: the right hand emptied (G); 4: bullet
-# time running; 5: vr_flat_hud 0.
+# 2. pixels. Shot 1: no bar (viewsize 120); 2: dual wield, bullet time ready; 3/4: the left hand emptied (H), without
+# and with the bar; 5: bullet time running; 6: vr_flat_hud 0, read against 7, the same moment with no bar (the right
+# hand keeps its shotgun now, and its pose moves after bullet time: an older base would see the gun, not the bar).
 SET="r_norefresh 0; viewsize 120; scr_sbarscale 2; scr_sbaralpha 1; crosshair 0; vr_crosshair 0; tune vr_flat_bob 0; tune vr_flat_sway 0; vr_bullettime_enabled 1; vr_bullettime_fx 0"
-run pixels "$P; $SET; impulse 154; wait5; give n 50; wait2; impulse 176; wait30; vr_flathud_report; screenshot; wait2; viewsize 100; wait3; screenshot; wait2; impulse 47; wait20; vr_flathud_report; viewsize 120; wait3; screenshot; wait2; viewsize 100; wait3; screenshot; vr_bullettime; wait10; vr_flathud_report; screenshot; vr_bullettime; wait5; vr_flat_hud 0; wait3; screenshot" "^flathud:" -Clean -Out "$S/flathud.png"
-python "$HERE/flathud_check.py" "$S/flathud.png" "$S/pixels.log" 0,1,0,3,3,3 > "$S/flathudpx.log" 2>&1
+run pixels "$P; $SET; impulse 154; wait5; give n 50; wait2; impulse 176; wait30; vr_flathud_report; screenshot; wait2; viewsize 100; wait3; screenshot; wait2; impulse 47; wait20; vr_flathud_report; viewsize 120; wait3; screenshot; wait2; viewsize 100; wait3; screenshot; vr_bullettime; wait10; vr_flathud_report; screenshot; vr_bullettime; wait5; vr_flat_hud 0; wait3; screenshot; wait2; viewsize 120; wait3; screenshot" "^flathud:" -Clean -Out "$S/flathud.png"
+python "$HERE/flathud_check.py" "$S/flathud.png" "$S/pixels.log" 0,1,0,3,3,7,0 > "$S/flathudpx.log" 2>&1
 px() { awk -v s="$1" -v p="$2" '$2==s && $3==p {print $5; exit}' "$S/flathudpx.log"; }
 mean() { awk -v s="$1" -v p="$2" '$2==s && $3==p {print $7, $8, $9; exit}' "$S/flathudpx.log"; }
 over() { awk -v v="$1" -v t="$2" 'BEGIN{exit !(v+0 >= t+0)}' && echo 1 || echo 0; }
@@ -57,8 +58,9 @@ check $([ "$(over "$(px 2 lefthand)" 0.1)$(over "$(px 2 righthand)" 0.1)" = 11 ]
 b2=$(mean 2 timebar)
 check $(echo "$b2" | awk '{exit !($3 > $1 + 60 && $2 > $1 + 40)}' && [ "$(over "$(px 2 timebar)" 0.3)" = 1 ] && echo 1 || echo 0) \
     "pixels: bullet time's bar over them, full and cyan while ready (changed $(px 2 timebar), mean rgb $b2)"
-check $([ "$(under "$(px 4 righthand)" 0.05)$(over "$(px 4 lefthand)" 0.1)" = 11 ] && grep -qa "^flathud: right hand: weapon 0 shown 0" "$S/pixels.log" && echo 1 || echo 0) \
-    "pixels: the right hand emptied (G), its counter is gone and the left one stays (changed: right $(px 4 righthand), left $(px 4 lefthand))"
+# (H, impulse 47, drops the off hand's object first since 12428e52f -- his words 2026-11-10 -- so the left hand empties.)
+check $([ "$(under "$(px 4 lefthand)" 0.05)$(over "$(px 4 righthand)" 0.1)" = 11 ] && grep -qa "^flathud: left hand: weapon 0 shown 0" "$S/pixels.log" && echo 1 || echo 0) \
+    "pixels: the left (off) hand emptied (H), its counter is gone and the right one stays (changed: left $(px 4 lefthand), right $(px 4 righthand))"
 b5=$(mean 5 timebar)
 check $(echo "$b5" | awk '{exit !($1 > $3 + 60 && $2 > $3 + 40)}' && grep -qa "time bar 1 level [0-9.]* state 2" "$S/pixels.log" && echo 1 || echo 0) \
     "pixels: the bar turns yellow while bullet time runs (mean rgb $b5; the report's state 2)"
