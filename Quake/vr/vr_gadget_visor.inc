@@ -8,8 +8,11 @@
 //   [armr]   50                  STAM  [][][][][][]...    parry stamina (vr_gadget_stamina)
 //   ========== health bar        [s] 25 [n] 0 [r] 3 [c] 0 every ammo carried, the held guns' kinds framed; Rogue's
 //                                [l]  0 [m] 0 [p] 0       row in the mission pack (or once any is carried)
-//   side left: keys, sigils,     side right: powerups and their seconds, AD's artifacts (seconds) and debuffs
-//   AD's custom keys
+//   side left                    side right (a row each, shrunk to fit, then "+N")
+//   [silver] [gold]   keys       [quad]  27     a powerup, its seconds (red, blinking: the last five)
+//     [s1] [s2]       sigils     [aegis] --     AD's artifacts ("--" held for good)
+//     [s3] [s4]       (2 x 2)    POISON  18     AD's debuffs and their amounts
+//   [ckey] KEY1       AD's keys
 //   left hand (bottom left)      log (bottom middle)      right hand (bottom right)
 //   [ammo]  8                    the console's notify      8  [ammo]   the magazine big (warning colours as the
 //          /24                   lines, the last three   /24          ammo screens'), the total small and dim
