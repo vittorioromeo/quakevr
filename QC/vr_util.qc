@@ -541,6 +541,24 @@ float(entity p, float xHand) VR_HandMotionAction =
     return (p.handsynth & (xHand == cVR_MainHand ? VR_HANDACTION_MAIN : VR_HANDACTION_OFF)) != 0;
 };
 
+// The hand of flat-screen player `p` holding its melee weapon up in the parry's guard this move (the engine's
+// vr_flatplay.cpp: the right mouse button held with one melee weapon; 64 and 128 of .handsynth), or -1: none (a headset
+// player never has one). VR_Parry_FlatGuard parries what comes at it from the front.
+float VR_HANDGUARD_OFF = 64;
+float VR_HANDGUARD_MAIN = 128;
+float(entity p) VR_FlatGuardHand =
+{
+    if(!VR_FlatPlay(p))
+    {
+        return -1;
+    }
+    if(p.handsynth & VR_HANDGUARD_MAIN)
+    {
+        return cVR_MainHand;
+    }
+    return (p.handsynth & VR_HANDGUARD_OFF) ? cVR_OffHand : -1;
+};
+
 float(entity ent) VRIsWeaponReloadingEnabled =
 {
     // Flatscreen play (-flatscreenmode): every gun reloads at the hip holsters (VR's Hip Holsters mode, whatever the

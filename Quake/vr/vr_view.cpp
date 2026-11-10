@@ -19,6 +19,7 @@
 #include "vr_goresound.hpp"
 #include "vr_adcrossbow.hpp"
 #include "vr_fgfx.hpp"
+#include "vr_meleehud.hpp"
 #include "vr_flail.hpp"
 #include "vr_adweapons.hpp"
 #include "vr_mdldequant.hpp"
@@ -5254,6 +5255,9 @@ extern "C" void VR_SetupViewEntities()
     if(flatplay::active() && !stereo::isRenderingEye())
     {
         fgfx::queue(s, true);
+        // And the counter's glow and embers on the weapon after a parry (vr_counter_glow; his notes 2026-11-10: it never
+        // showed on the flat screen, queued only by the headset's frame, vr_stereo.cpp).
+        meleehud::queue(s);
     }
     if(!posingNow)
     {

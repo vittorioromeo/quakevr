@@ -6365,6 +6365,22 @@ QVR_SLIDER(vr_flat_visor_log_width, "Log Panel Size", 0.3f, 2.f, 0.05f, "x%.2f",
 QVR_SLIDER(vr_flat_visor_log_out, "Log Panel Reach", -4.f, 8.f, 0.05f, "x%.2f", noExt,
     "How far the visor's message panel reaches down from the top edge: under 1 tucked against it, over 1 further down; "
     "under 0 pulled up past the edge, sliding off the screen (vr_flat_visor_log_out).")
+QVR_TOGGLE(vr_flat_visor_centerprint, "Centre Messages in Visor",
+    "The game's centre-screen messages (a locked door's, a secret's, a level's) in a popup panel of the visor's, just "
+    "under the message panel at the top; off: drawn over the view as before. The intermission's and the end of an "
+    "episode's text always are (vr_flat_visor_centerprint).")
+QVR_SLIDER(vr_flat_visor_center_gap, "Centre Panel Gap", -20.f, 80.f, 1.f, "%.0f", noExt,
+    "How far under the message panel (where it ends, shown or hidden) the centre message panel sits, in the visor's "
+    "pixels (vr_flat_visor_center_gap).")
+QVR_SLIDER(vr_flat_visor_center_width, "Centre Panel Width", 120.f, 600.f, 10.f, "%.0f", noExt,
+    "The centre message panel's widest, in the visor's pixels: longer lines wrap; never wider than the view "
+    "(vr_flat_visor_center_width).")
+QVR_SLIDER(vr_flat_visor_center_pop, "Centre Panel Pop In", 0.f, 1.f, 0.05f, "%.2f s", noExt,
+    "How long the centre message panel takes to pop in (growing, fading in and its power-on scan); 0 at once "
+    "(vr_flat_visor_center_pop).")
+QVR_SLIDER(vr_flat_visor_center_fade, "Centre Panel Fade Out", 0.f, 1.f, 0.05f, "%.2f s", noExt,
+    "How long the centre message panel takes to fade out once the message's time is up; 0 at once "
+    "(vr_flat_visor_center_fade).")
 QVR_SLIDER(vr_flat_visor_side_out, "Side Panels Reach", -4.f, 8.f, 0.05f, "x%.2f", noExt,
     "How far the visor's side panels (keys on the left, powerups on the right) reach in from the screen's edges: under "
     "1 tucked against them, over 1 further in; under 0 pulled back past the edges, sliding off the screen. Their "

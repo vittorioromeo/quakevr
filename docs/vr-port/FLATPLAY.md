@@ -339,7 +339,7 @@ engine telling it the slide by `.vr_sliding`): the same hit (`VR_KdTrig_ChargeHi
 the Shoulder Charges' chance, its cry), the strike its speed over that least, `vr_flat_slide_charge_stamina` (0) on top
 of the slide's. A prop slid into (`VR_PlayerBumps`, `shoveBumped`) is pushed on at `vr_flat_slide_prop_push` (1) of his
 speed shared by his and its masses, turned `vr_flat_slide_prop_side` (20) degrees to the side its middle is off his
-line. The prone key does nothing mid-slide (`toggleProne`), and the server never lays a sliding body down
+line. Lying down, the jump key stands him up (`vr_flat_prone_jump_stands` 1; `flatplay::jumpBit`, hooked in `CL_SendMove` by `VR_MoveJump`): the prone key's get-up (a low ceiling keeps him lying, as the key does) and no jump, the press swallowed until the key is let go (a held jump never jumps on after it; a fresh press does). The prone key does nothing mid-slide (`toggleProne`), and the server never lays a sliding body down
 (`hull::updateCrouch`, `flatmove::slideOnServer`). All of it is in Debug > Tunables > Flatscreen > Slide; `vr_flat_slide 0` (Desktop Screen Play > Slide) turns it off. Tests: `bash
 Misc/quakevr/flatslide_test.sh <agent>` (`vr_flatslide_selftest`, `vr_flatslide_test`, `vr_flatslide_hit_test 0|1`), `bash
 Misc/quakevr/body_lie_test.sh <agent>` (`vr_body_lie_test`: the slid and lying body).
@@ -993,11 +993,19 @@ His words (2026-11-10): the swap key (3) gets a short animation: the hands come 
 held in both hands: the off hand detaches, comes to the main hand, the swap, then the hands to their places.
 
 `Quake/vr/vr_flatswap.cpp`: the press starts the trip (no impulse yet); over `vr_flat_swap_in` the hands go to their
-meeting point (each half of `vr_flat_swap_gap` off their middle, `vr_flat_swap_down` lower; held in both hands: the free
-hand off its grip to `vr_flat_swap_gap` off the holding hand, which stays); `impulse 48` (`VR_FlatSwapHands`, unchanged)
-is sent as they meet; once the hands' weapons have changed, each hand turned as the other was (the weapon keeps its turn
-as it changes hands), they ease back over `vr_flat_swap_out` to their own poses, the free hand onto the grip again. The
-places are kept in the body's level frame off the head, so a turn carries them. No fire meanwhile. Not drawn (the swap at
+meeting point (each half of `vr_flat_swap_gap` off their middle, at the higher hand's height and reach,
+`vr_flat_swap_down` lower); `impulse 48` (`VR_FlatSwapHands`, unchanged) is sent as they meet; once the hands' weapons
+have changed, each hand turned as the other was (the weapon keeps its turn as it changes hands), they ease back over
+`vr_flat_swap_out` to their own poses.
+
+A weapon held in both hands goes in three steps (his follow-up, 2026-11-10: "The off-hand should be released first and
+go to the regular 'empty hand in front' pose, then the weapon should be passed to that empty hand, and then the new
+off-hand should be attached"; `apply2h`): the release (`vr_flat_swap_2h_release_time`, 0.2 s), the free hand off the grip
+to the empty hand's guard (`vr_flat_guard_*`), the gun held still as it was; the pass (`_pass_time`, 0.25 s), the gun
+brought across to `vr_flat_swap_gap` off that hand, the swap sent there; the attach (`_attach_time`, 0.25 s), the hand
+that took the gun to its hold and the one that let it go onto the gun's two-hand grip. The grip is blocked
+(`flatswap::gripBlocked`, in flatsight's `gripWanted` and twohand's `canGrab`) until the swap has happened, free from
+the attach on. The places are kept in the body's level frame off the head, so a turn carries them. No fire meanwhile. Not drawn (the swap at
 once) with `vr_flat_swap_anim 0`, both hands empty, a carried thing, a reload or the quick grenade under way.
 `vr_flat_swap_debug 1`, `vr_flatswap_report`. Test: `Misc/quakevr/flathands_test.sh` (swap1, swap2h, swapdual, swapoff).
 
@@ -1016,7 +1024,16 @@ super axe's leans forward), the hand is first rolled a quarter turn inwards and 
 line there. Nothing parries for it: the game's parry reads the pose, as a headset's guard held there (QC
 `VR_Parry_Blocks`, the directional parry of `vr_dirparry.qc`), so the blows it meets are parried with the stamina, the
 counter's window and the stagger as in VR, and the hold's upright weapon parries no more than it did (a knight's chop
-lands). Not while dual wielding (the button fires the off hand there). Debug > Tunables > Flatscreen > Parry Guard;
+lands). Not while dual wielding (the button fires the off hand there). Since his notes of 2026-11-10 (item 5: "In flat screen only, parrying should always parry any melee
+attack coming from the front of the player (not sides or back), regardless of the direction"), the guard held up (half way
+in and still asked for: the move's `.handsynth` 64 / 128, `handsource::guarding`) parries every melee blow whose attacker
+stands within `vr_flat_parry_cone` (120: the whole cone, centred on the view's yaw) of where he looks, whatever its way
+(QC `VR_Parry_FlatGuard`, before the directional parry in `VR_Parry`): no directional parry, no meeting of the weapons;
+a blow with a line stops as a directional parry would stop it (its damage through, the armed one's swing stopped), with
+the guard's sparks; stamina, the counter's window and the stagger as ever. From the sides and behind, the headset's rules
+(`not in front` in the developer log). The counter's glow and embers on the weapon after a parry (`vr_counter_glow`,
+vr_meleehud.cpp) now show on the flat screen too: they were queued only by the headset's frame; a headset shows none while
+guarding, so neither does the flat screen. Debug > Tunables > Flatscreen > Parry Guard;
 `vr_flatplay_status` prints a "parry guard:" line per hand holding a melee weapon, `vr_flatplay_debug 1` the time the
 guard was reached. Test: `Misc/quakevr/flatparry_test.sh <agent>` (the guard per weapon by QC's probe, `impulse 249`; a
 sword grunt's and a knight's first blow); scene `flat_parry`.

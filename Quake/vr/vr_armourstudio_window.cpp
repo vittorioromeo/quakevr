@@ -493,7 +493,7 @@ void drawWindow()
         {
             fileValues();
         }
-        ImGui::TextDisabled("Escape or the X closes this window (the studio keeps running); the menu page is the same studio.");
+        ImGui::TextDisabled("Escape or the X closes this window, and the studio with it (vr_armourstudio_autoclose 0: it keeps running); the menu page is the same studio.");
     }
     const ImVec2 p = ImGui::GetWindowPos();
     win.x = p.x;
@@ -554,6 +554,19 @@ void closeWindow()
     imgui::want(false);
     IN_Activate();
     Con_Printf("armourstudio: window closed\n");
+}
+
+// Closed by the player (its X, Escape, vr_armourstudio_window close or toggle, vr_armourstudio_window_close): the studio
+// with it (vr_armourstudio_autoclose; his note 2026-11-10: the armed humanoids stayed frozen after it). Not when another
+// tool or a headset takes the screen, nor on shutdown.
+void closeWindowByPlayer()
+{
+    const bool was = win.open;
+    closeWindow();
+    if(was)
+    {
+        windowClosed();
+    }
 }
 
 // ---- The test (vr_armourstudio_window test) ----------------------------------------------------------------------
@@ -788,7 +801,7 @@ void window_f()
     }
     else if(!strcmp(sub, "close"))
     {
-        closeWindow();
+        closeWindowByPlayer();
     }
     else if(!strcmp(sub, "test"))
     {
@@ -798,7 +811,7 @@ void window_f()
     {
         if(win.open)
         {
-            closeWindow();
+            closeWindowByPlayer();
         }
         else
         {
@@ -816,7 +829,7 @@ void window_f()
 void windowInit()
 {
     Cmd_AddCommand("vr_armourstudio_window", window_f);
-    Cmd_AddCommand("vr_armourstudio_window_close", closeWindow);
+    Cmd_AddCommand("vr_armourstudio_window_close", closeWindowByPlayer);
 }
 
 void windowFrame()
@@ -857,7 +870,7 @@ void windowFrame()
     drawWindow();
     if(win.askClose)
     {
-        closeWindow(); // (after ImGui::End)
+        closeWindowByPlayer(); // (after ImGui::End)
     }
 }
 

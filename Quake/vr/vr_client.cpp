@@ -617,14 +617,6 @@ void parseParticle2()
 
     const glm::vec3 o{org[0], org[1], org[2]};
     const glm::vec3 d{dir[0], dir[1], dir[2]};
-    if(developer.value)
-    {
-        // (A burst's blood: where it came, how near the eyes: vr_particle_near_cull hides what is nearer.)
-        const glm::vec3 eyes{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
-        Con_DPrintf("particle2: preset %d, %d at %.1f %.1f %.1f, %.0f cm from the eyes\n", static_cast<int>(preset), count,
-            static_cast<double>(o.x), static_cast<double>(o.y), static_cast<double>(o.z),
-            static_cast<double>(glm::distance(o, eyes) * 100.f / za::max(1.f, units::metresToUnits())));
-    }
     if(gore::event(o, d, static_cast<int>(preset), count) || decals::meleeEvent(o, d, static_cast<int>(preset), count))
     {
         return; // the gore's (vr_gore.cpp), a melee blow's mark (vr_decals.cpp): marks only
@@ -1014,6 +1006,11 @@ extern "C" int VR_MoveMainFire(int lmb)
         return moveLmb ? 1 : 0;
     }
     return flatplay::routeFire(moveLmb, offhandAttack || offhandAttackImpulse).fire[HAND_MAIN] ? 1 : 0;
+}
+
+extern "C" int VR_MoveJump(int state)
+{
+    return flatplay::jumpBit(state);
 }
 
 extern "C" void VR_WriteMoveExtras(sizebuf_t* buf)

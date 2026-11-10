@@ -38,9 +38,18 @@ for line in log.split("\n"):
         continue
     m = re.match(r"visor: panel (\w+) drawn (\d) rect ([-\d.]+) ([-\d.]+) ([-\d.]+) ([-\d.]+) contact (\d) "
                  r"\(view (\d+) x (\d+)\)", line.strip())
-    if m and m.group(1) not in phases[phase]["panels"]:
-        phases[phase]["panels"][m.group(1)] = (int(m.group(2)), *(float(x) for x in m.groups()[2:6]),
-                                               int(m.group(8)), int(m.group(9)), int(m.group(7)))
+    if m:
+        v = (int(m.group(2)), *(float(x) for x in m.groups()[2:6]), int(m.group(8)), int(m.group(9)), int(m.group(7)))
+        if m.group(1) == "center":  # (the centre print's popup: its own checks, off the edges)
+            phases[phase].setdefault("center_panel", v)
+        else:
+            phases[phase]["panels"].setdefault(m.group(1), v)
+        continue
+    m = re.match(r"visor: center fade ([-\d.]+) pop ([-\d.]+) pops (\d+) size ([-\d.]+) ([-\d.]+) scale ([-\d.]+) claimed (\d)",
+                 line.strip())
+    if m and "center" not in phases[phase]:
+        v = [float(x) for x in m.groups()]
+        phases[phase]["center"] = dict(fade=v[0], pop=v[1], pops=int(v[2]), size=(v[3], v[4]), scale=v[5], claimed=int(v[6]))
 
 passed = failed = 0
 
@@ -162,5 +171,33 @@ A, B = pan("sides ad", "sideleft"), pan("sides big", "sideleft")
 ratio = (B[4] - B[2]) / (A[4] - A[2]) if A and B and A[4] > A[2] else 0
 check(1.4 < ratio < 1.6 and contact_all("sides big") and B[1] < 0.02 * B[5],
       f"sides: vr_flat_visor_side_scale 1.5 the side panels half as tall again ({ratio:.2f}), the edges met")
+
+# The centre print's popup (vr_visor.cpp VR_CenterPrintOnVisor; vr_visor_mounts.inc MountKind::Popup).
+def cen(p):
+    return get(p, "center", {}), get(p, "center_panel")
+
+
+c1, p1 = cen("center shown")
+lg = pan("center shown", "log")
+okc = bool(c1) and p1 is not None and lg is not None and p1[0] == 1 and c1["claimed"] == 1 and c1["fade"] == 1
+if okc:
+    w, h = p1[5], p1[6]
+    gap = p1[2] - lg[4]
+    okc = abs((p1[1] + p1[3]) * 0.5 - w * 0.5) < 1.5 and 0 < gap < 0.06 * h and lg[0] == 1
+check(okc, f"center: a centre print in the popup, centred just under the log's mount ({c1}, {p1}, log {lg})")
+c2, p2 = cen("center long")
+check(bool(c2) and p2 is not None and p1 is not None and c2["pops"] == c1.get("pops", 0) + 1 and p2[0] == 1
+      and p2[4] - p2[2] > 3 * (p1[4] - p1[2]) and abs(p2[2] - p1[2]) < 1.0 and c2["size"][0] <= 320,
+      f"center: a long message replaces it, wrapped to the width, taller, its top the same ({c2}, {p2})")
+c3, p3 = cen("center log hidden")
+check(bool(c3) and p3 is not None and p2 is not None and p3[0] == 1 and c3["claimed"] == 1
+      and get("center log hidden", "logfade", 1) == 0 and abs(p3[2] - p2[2]) < 1.0,
+      f"center: the log hidden, the popup still where the log ends, still up 65 frames on ({c3}, {p3})")
+c4, p4 = cen("center gone")
+check(bool(c4) and c4["claimed"] == 0 and c4["fade"] == 0 and (p4 is None or p4[0] == 0),
+      f"center: gone after scr_centertime 1 and the fade ({c4}, {p4})")
+c5, _ = cen("center flat")
+check(bool(c5) and c5["claimed"] == 0 and c5["fade"] == 0,
+      f"center: vr_flat_visor_centerprint 0 leaves the centre print to the view ({c5})")
 print(f"visor_test: {passed} passed, {failed} failed")
 sys.exit(1 if failed else 0)

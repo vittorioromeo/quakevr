@@ -3035,6 +3035,7 @@ QVR_CVAR(vr_armourstudio_tier, "3", CVAR_NONE)        // debug: its subject's ar
 QVR_CVAR(vr_armourstudio_turn, "0", CVAR_NONE)        // debug: its subject turned this many degrees from facing you
 QVR_CVAR(vr_armourstudio_ghost, "0.4", CVAR_NONE)     // debug: its subject's body drawn this opaque (1 as it is)
 QVR_CVAR(vr_armourstudio_alone, "0", CVAR_NONE)       // debug: 1 its subject wears the part picked alone (both sides), 0 every piece
+QVR_CVAR(vr_armourstudio_autoclose, "1", CVAR_ARCHIVE) // debug: 1 closing its window, or the menu it was used from, closes the studio (the armed humanoids free again); 0 it runs until its Close
 QVR_CVAR(vr_armourstudio_part, "0", CVAR_NONE)        // debug: the part edited: 0 cuirass, 1 helmet, 2 pauldron, 3 bracer, 4 thigh, 5 shin, 6..9 their sleeves
 QVR_CVAR(vr_armourstudio_side, "0", CVAR_NONE)        // debug: 0 both sides (the right mirrored), 1 the left's own, 2 the right's own
 QVR_CVAR(vr_armourstudio_offset_x, "0", CVAR_NONE)    // debug: the part's values as edited (vr_armourdata.hpp Field): units forward
@@ -4173,6 +4174,11 @@ QVR_CVAR(vr_flat_visor_log, "1", CVAR_ARCHIVE)          // the console's notify 
 QVR_CVAR(vr_flat_visor_autohide_log, "1", CVAR_ARCHIVE) // 1: the visor's log panel (top middle) fades away while it has no lines and back when a message arrives; 0 always shown
 QVR_CVAR(vr_flat_visor_log_width, "1", CVAR_ARCHIVE)   // the log panel's size (top middle: its width, the text shrinking or growing with it; 0.3 .. 2, shrunk to fit between the top corners' panels)
 QVR_CVAR(vr_flat_visor_log_out, "0", CVAR_ARCHIVE)     // how far the log panel reaches down from the top edge: its gap to the edge times this (-4 .. 8; under 0 pulled up past the edge, sliding off the screen; at 0 and over the edge still met)
+QVR_CVAR(vr_flat_visor_centerprint, "1", CVAR_ARCHIVE)  // 1: the game's centre prints (a key door's, a secret's, a level's messages) in a popup panel of the visor's just under the log's mount; 0 drawn over the view as before (the intermission's and the finale's text always are)
+QVR_CVAR(vr_flat_visor_center_gap, "6", CVAR_ARCHIVE)   // the centre print panel's gap under where the log's mount ends (shown or hidden), the visor's virtual pixels (-20 .. 80)
+QVR_CVAR(vr_flat_visor_center_width, "320", CVAR_ARCHIVE) // the centre print panel's widest, the visor's virtual pixels (its lines wrapped to it; 120 .. 600, never wider than the view)
+QVR_CVAR(vr_flat_visor_center_pop, "0.2", CVAR_ARCHIVE) // seconds the centre print panel takes to pop in (a scale, a fade and the power-on scan; 0 at once)
+QVR_CVAR(vr_flat_visor_center_fade, "0.3", CVAR_ARCHIVE) // seconds the centre print panel takes to fade out when the game's centre print time ends (0 at once)
 QVR_CVAR(vr_flat_visor_side_out, "0", CVAR_ARCHIVE)     // how far the side mounts (keys left, powerups right) reach in from the screen's edges: their gap to the edge and their padding times this (-4 .. 8; under 0 pulled back past the edges, sliding off the screen; at 0 and over the edges still met)
 QVR_CVAR(vr_flat_visor_scanline_width, "4", CVAR_ARCHIVE) // the visor's scanlines' thickness (a dark line and its gap), pixels at 1080p (1.5 .. 16)
 QVR_CVAR(vr_flat_visor_side_scale, "1", CVAR_ARCHIVE)   // the side panels' size (keys left, powerups right), times the panels' own (0.5 .. 2; scaled with the screen's height as the rest)

@@ -237,6 +237,7 @@ struct ProneTest
     float biggestStep{0.f};  // the largest frame's move of it, the crouch out of lying down
     bool pitchHeld{false};   // the look held at `pitch` each frame
     float pitch{0.f};
+    float maxUp{0.f};        // the highest upward speed seen since the jump key went down (the jump-stands phases)
 };
 
 // vr_flatpronedual_test [main:off ...]: lying down with a gun in each hand, each pair of weapon ids given in turn, the look
@@ -1690,6 +1691,59 @@ void proneTestFrame()
                 testCheck(t.tally, tag, !flatsight::floorFlush(HAND_MAIN) && !flatsight::wallBlocksFire(HAND_MAIN) && flatsight::adsShare() > 0.9f, line);
                 Cbuf_InsertText("vr_flat_aim 0; vr_prone_toggle\n");
                 t.pitchHeld = false;
+                next(10);
+            }
+            break;
+        case 10: // standing again: lie down once more, then the jump key (vr_flat_prone_jump_stands)
+            if(inPhase > 0.8 && flatplay::proneRatio() <= 0.f)
+            {
+                Cbuf_InsertText("vr_prone_toggle\n");
+                next(11);
+            }
+            break;
+        case 11:
+            if(inPhase > 0.3 && flatplay::proneRatio() >= 1.f)
+            {
+                t.maxUp = 0.f;
+                Cbuf_InsertText("+jump\n"); // (held: it must not jump after standing either)
+                next(12);
+            }
+            break;
+        case 12:
+            t.maxUp = za::max(t.maxUp, cl.velocity[2]);
+            if(inPhase > 0.4 && flatplay::proneRatio() <= 0.f)
+            {
+                q_snprintf(line, sizeof(line), "the jump key lying down, held: up (prone %.2f, crouch %.2f, server lying %d), no jump (upward speed %.0f)",
+                    flatplay::proneRatio(), flatplay::crouchRatio(), qvr::hull::localProne() == 1 ? 1 : 0, t.maxUp);
+                testCheck(t.tally, tag, qvr::hull::localProne() != 1 && t.maxUp < 10.f, line);
+                next(13);
+            }
+            break;
+        case 13: // still held a little longer: no jump after standing
+            t.maxUp = za::max(t.maxUp, cl.velocity[2]);
+            if(inPhase > 0.4)
+            {
+                q_snprintf(line, sizeof(line), "the held jump key after standing: still no jump (upward speed %.0f)", t.maxUp);
+                testCheck(t.tally, tag, t.maxUp < 10.f, line);
+                Cbuf_InsertText("-jump\n");
+                next(14);
+            }
+            break;
+        case 14: // let go, a fresh press: it jumps
+            if(inPhase > 0.3)
+            {
+                t.maxUp = 0.f;
+                Cbuf_InsertText("+jump\n");
+                next(15);
+            }
+            break;
+        case 15:
+            t.maxUp = za::max(t.maxUp, cl.velocity[2]);
+            if(inPhase > 0.3)
+            {
+                q_snprintf(line, sizeof(line), "a fresh jump press standing: jumps (upward speed %.0f)", t.maxUp);
+                testCheck(t.tally, tag, t.maxUp > 100.f, line);
+                Cbuf_InsertText("-jump\n");
                 next(99);
             }
             break;

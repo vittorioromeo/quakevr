@@ -52,6 +52,9 @@ struct FireRoute
     bool rmbAims{false}; // the right button is the ironsight's (one weapon held)
 };
 [[nodiscard]] FireRoute routeFire(bool lmb, bool rmb);
+// The move's jump bit from the jump key's state (bit 1 held, bit 2 fresh): lying down, a fresh press stands him up as the
+// prone key does and sends no jump, nor does the held key after it (vr_flat_prone_jump_stands).
+[[nodiscard]] int jumpBit(int state);
 
 // A pose number (vr_flat_gun_*, vr_flat_ads_*, vr_flat_empty_*, vr_flat_support_*) clamped to the room it may move in, the
 // view's frame either way: -30..30 units.

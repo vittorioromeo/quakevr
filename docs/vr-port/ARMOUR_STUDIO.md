@@ -19,6 +19,11 @@ Debug > Tools > Armour Studio (VR Settings menu: the headset's laser or the flat
 4. The sliders (below), live: each change makes the kind's armour again (a grunt's in about 40 ms).
 5. **Undo** (a slider's run of steps on one value is one step), **Reset Part**, **Reset Kind**, **Save** (writes armour.txt),
    **Reload the File**, **Print the Tweaks**, **Close** (the subject removed, the armed humanoids move again).
+   Since 2026-11-10 (his note: "After closing the armour studio it seems that armed humanoids do not recover their
+   AI/damageability") leaving the menu closes it too, once the menu has been open since it started, and so does closing
+   its window (Close With the Menu or Window, `vr_armourstudio_autoclose` 1; 0: it runs until Close, as before). While it
+   runs every armed humanoid is held still (`vr_agrunt_freeze` 1): the menu or the window closed used to leave it running,
+   and them frozen. Test: `Misc/quakevr/armourstudio_close_test.sh <agent>`.
 
 ## The ImGui window (flat screen)
 
@@ -27,7 +32,7 @@ The same studio in a floating window over play, so it can be tweaked without ope
 page's first row, Open the ImGui Window, opens it. It ships no key: `bind F7 vr_armourstudio_window` (any key) gives it one,
 and that key closes it again while the window is open (a key bound to `vr_armourstudio_window` still reaches its binding
 while the window holds the keys, unless a value box is being typed in). Escape or the window's X closes it too; closing it
-leaves the studio running (Stop removes the subject). It can be moved, resized and collapsed; it opens where it was left.
+closes the studio too (`vr_armourstudio_autoclose` 1; 0: the studio keeps running until Stop). It can be moved, resized and collapsed; it opens where it was left.
 
 - Its rows are the page's: Start / Stop the subject, Undo, Reset Part, Reset Kind, Save, Reload the File, Print the Tweaks at
   the top; Kind, Tier, Turn, Body Ghost, Wear the Part Alone; Part and Side; every value as a slider (Ctrl+click types into

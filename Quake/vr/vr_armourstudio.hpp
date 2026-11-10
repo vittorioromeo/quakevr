@@ -17,6 +17,9 @@ void frame(); // the sliders against the table, the subject kept, the test's ste
 [[nodiscard]] const char* status();
 // Whether the studio runs (Start given, not closed): its subject kept ahead of you.
 [[nodiscard]] bool running();
+// Its window closed by the player (its X, Escape, its close command): the studio closed too with vr_armourstudio_autoclose
+// (its subject removed, the armed humanoids free again: vr_agrunt_freeze back).
+void windowClosed();
 
 // The subject's animations (its model's frames grouped by name: stand, run, pain...; none without a subject), played by
 // vr_armourstudio_anim / _anim_group / _anim_play / _anim_speed / _anim_frame; the line saying which and where.

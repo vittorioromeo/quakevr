@@ -7664,6 +7664,10 @@ His items 12, 13, 14, 17 (flat-screen feedback of 2026-11-10).
   steps (arm, then a press held winds up) are the default, `vr_flat_grenade_arm_mode 0` makes it one press (his words read
   either way; two presses lets a grenade be cooked). The throw assist (`VRThrowAssist`) is not used: the crosshair aims.
 - **17, the hand swap.** FLATPLAY.md, "The hand swap": client-side timing, the game's swap unchanged.
+  Follow-up (agent/flat_swap2): a weapon held in both hands swaps in three timed steps -- the free hand off the grip to
+  the empty hand's guard while the gun holds still (`vr_flat_swap_2h_release_time` 0.2), the gun passed across to it and
+  swapped there (`_pass_time` 0.25), the other hand onto the grip (`_attach_time` 0.25); `apply2h` in vr_flatswap.cpp.
+  flathands_test's swap2h checks the order and that the hand is at the guard (0.0 units) before the pass.
 - Files: `QC/vr_flatgrenade.qc`, `Quake/vr/vr_flatgrenade.cpp`, `vr_flatswap.cpp`; hooks in `vr_flatplay.cpp` (keys,
   `routeFire`, punches), `vr_flatsight.cpp`, `vr_twohand.cpp`; `STAT_QVR_FLATGREN`; tunables Flatscreen > Hand Swap and
   > Quick Grenade; rows on Desktop Screen Play; Debug > Reports: the grenade's and the swap's reports and prints.
@@ -8150,6 +8154,102 @@ too easily"; "a flatscreen-only multiplier for the cut-off limbs fling speed, de
   (vr_box3d_ragparts.cpp cutLimb). (The Embedded Blades "Cut-Off Parts: Fling Speed" tunable is something else: how fast a
   part riding a blade must go before a stop flings it off.) `Misc/quakevr/flat_fling_test.sh`: the same slash's cut head
   126 u/s in a headset, 157 flat (x1.25). Scene `flat_fling`.
+## Flat-screen guard parries everything from the front; the counter's glow on the flat screen (his notes 2026-11-10, item 5; branch `agent/flat_parry2`)
+
+- His words: "In flat screen only, parrying should always parry any melee attack coming from the front of the player (not
+  sides or back), regardless of the direction. Directional parry and weapon collision requirements should only be for VR.
+  Additionally, the parry glow effect doesn't seem to play in flatscreen mode, please fix it."
+- The client says the guard is up in the move (`.handsynth` 64 the off hand, 128 the main: `handsource::guarding` from
+  `flatplay::poseHands` once the guard is half way in, the button still held; the U8 had those two bits free, so no
+  protocol change). QC `VR_FlatGuardHand` reads them (flat players only); `VR_Parry_FlatGuard` takes the blow when its
+  attacker is within `vr_flat_parry_cone` (new tunable, 120 degrees in all, Debug > Tunables > Flatscreen > Parry Guard;
+  0: the headset's rules) of the view's yaw, and `VR_Parry` then skips the directional parry and `VR_Parry_HandFor`'s
+  weapon line. A blow with a line is still cut as a directional parry cuts it and the armed one's swing still stops (its
+  flinch), but with the guard's sparks (`VR_DRP_Effects` needs the meeting point it no longer has). The headset is unchanged:
+  the bits are never set there, and `VR_FlatGuardHand` asks `VR_FlatPlay` too.
+- The glow: `meleehud::queue` (the counter's glow on the weapon, its embers) was called only from vr_stereo.cpp's eye
+  frame; now vr_view.cpp queues it for the flat frame beside the force grab's effects. A headset shows none while guarding
+  (only the counter window after a parry), so the flat screen neither.
+- Tests: `flatparry_test.sh` now 43 checks: the sword grunt in front, guard up: its first 6 blows all parried, none landed
+  (before: 12 of 32 parried, the flat slashes landing); turned away from it, guard up: its first blow lands ("179 degrees
+  off the view (the cone 120): not in front"); the knight's chop as before. The glow: after a parry the knight's sword in
+  the flat guard glows gold with embers (screenshots before/after the parry).
+
+## The Armour Studio closed lets the armed humanoids go (his note 2026-11-10, item 12; branch `agent/flat_parry2`)
+
+- "After closing the armour studio it seems that armed humanoids do not recover their AI/damageability." The studio holds
+  every armed humanoid still while it runs (`vr_agrunt_freeze` 1: QC `VR_AG_Still`, its AI held, its enemy dropped) and puts
+  the old value back on Close (`vr_armourstudio_close`), which does restore them (measured: the grunt strikes again, a test
+  shot hurts it). But closing its ImGui window (X, Escape, its close command) or leaving the menu left the studio running,
+  so they stayed frozen. Now both close it (`armourstudio::windowClosed`, `autoClose`: the menu once it has been open since
+  the studio started, so a script's studio is left alone), with `vr_armourstudio_autoclose` 1 (Debug > Tools > Armour Studio >
+  Close With the Menu or Window; 0: as before). Another tool or a headset closing the window leaves it running.
+- Test: `Misc/quakevr/armourstudio_close_test.sh <agent>` (14 checks): closed by its command, its window and the menu: closed,
+  `vr_agrunt_freeze` 0, the sword grunt strikes at you again, `vr_test_hurt 5` takes its health 30 -> 25; with autoclose 0
+  the window's close leaves it running and them held. `vr_armour_test` 30/30, `vr_armourstudio_window test` 17/17.
+## A popped limb's blood fountain very close, and the particle2 log (his notes 2026-11-10, items 9 and 11; branch `agent/near_particles`)
+
+Item 9: "if I shoot a limb and pop it while I'm very close to it, the blood particle waterfall will not appear until I
+move a little bit". **Not reproduced.**
+
+- **The waterfall** is the stump's fountain: `VR_Decap_FountainThink` (vr_decap.qc; limbs too, `vr_limb_bone` >= 0).
+  Every 0.05 s it sends a `particle2` BloodTrail burst at the stump, `ragdollcut(c, 4/5, bone)`. That goes out as a
+  broadcast (`sv.datagram`, no PVS), and the client spawns it with `particles::bloodTrail`. Nothing near the eye stops
+  it on that path.
+- **New `vr_flatblood_test 5`** (Debug > Tests > Blood Fountain of a Limb Popped Close; flat or headset). He crouches by
+  a settled corpse, his eye 30, 12 and 4 units across from a limb's point (15-24 over it), and keeps still. The limb
+  pops (vr_limb_test 24's blow on that corpse alone). Frames 6-36 after the pop (the pop's own burst before that)
+  measure the fountain's blood particles, made and drawn (`vr_blood_tally`, `_drawn`), with pictures at frames 8
+  and 24.
+  - **Variants:** `6` steps 3 units 4 frames after the pop (him moving, to compare). `7` pops the limb his way,
+    shotgun taps at it (each popped on the first tap).
+  - **Every case:** popped 1, its fountain there, 240-860 particles in those 30 frames. Drawn: all at 30 and 4 units,
+    53-87 % at 12 units. The rest are thrown up past his head, behind the eye's plane. That is the same with him still
+    and stepped, at his near fade/cull 0 and at the defaults, flat and headset.
+  - `vr_debug_net 1` shows no broadcast bytes left unsent.
+- **Not found in this harness:** the server sends the fountain, the client makes the particles, and they are where the
+  view draws them, from the first frames.
+- **Left for his repro:** a picture or a short demo of the moment (where his eye and the stump are) would tell. The
+  candidates are the flat off-hand arm and gun over the stump at his feet, which moving sways (the earlier
+  point-blank note's), or a pose the harness doesn't reach (standing right over a limb, or a live grunt's limb popped
+  by the killing shot).
+- **Item 11:** the developer-1 `particle2:` console line (vr_client.cpp `parseParticle2`) is removed.
+- Tests: flatblood 5 3/0 (flat, his near 0; headset), 7 3/0 (flat, defaults), 2 5/0. flatblood 1 26/2: its known flaky
+  corpse cases, the 60-unit reference against a gibbed corpse. `vr_pp_test 1` 63/0, `vr_player_gore_test` 8/0,
+  `vr_embed_test 31` 4/0, embed_blood_test.sh 16/0. Release-TracyFull builds.
+## Visor: centre prints in a popup panel (branch `agent/visor_centerprint`, worktree `release`, 2026-11-10)
+
+His words: "make the 'centered messages' in flat screen appear as a rectangular popup panel in the visor, a little bit
+below where the top-center panel would end at".
+
+- **What:** with the visor on (flat), `SCR_CheckDrawCenterString` hands the game's centre print to the visor
+  (`VR_CenterPrintOnVisor`, after the wrist hologram's check) instead of drawing it. Quake's own rules still decide
+  when one is due: `scr_centertime` (and the notify fade, `con_notifyfade`, followed: `SCR_CenterPrintFade`, now shared
+  by both), hidden with the console or a menu up and while paused, the menu's centre-print preview drawn as before.
+  The intermission's and the finale's text (`cl.intermission`: the visor is off there anyway) stay full screen as
+  today, typed out letter by letter. The tips (vr_tips.cpp) still wait on `SCR_CenterPrintShowing`.
+- **The panel:** an eighth visor panel, `gadget::VisorCenter` (vr_gadget_visor.inc `visorCenterLayout` /
+  `visorCenter`): Quake's lines (its own breaks; the blank lines before and after dropped), each wrapped (the log's
+  `wrap`) to `vr_flat_visor_center_width` virtual pixels, 8-pixel characters centred as Quake's, at most 14 rows; its
+  image sized to the text. Mounted by the visor's own code (vr_visor_mounts.inc `MountKind::Popup`: a closed
+  chamfered rectangle) with the same face, frame, bevel, glows, back plate, glass, sway, lens and the readings' ink
+  (`vr_flat_visor_ink_crt`): nothing drawn for it alone. It sits centred, its frame `vr_flat_visor_center_gap` under
+  where the log's mount ends (`logBottom`: from `_log_out`, `_log_width`; the same whether the log is shown or
+  autohidden), shrunk only if the view is narrower than it. Not in `vr_flat_visor_panels`' mask (127 saved in configs).
+- **Pop and fade:** a new text (or one after the popup had gone) pops in over `vr_flat_visor_center_pop` s: fading
+  up, growing from 85% (the composite's new `Pop` uniform: the layer point scaled about the panel's middle) and the
+  panels' power-on scan down its image; the same text again (a locked door touched again) just stays. Out over
+  `vr_flat_visor_center_fade` s once Quake stops handing it over; a different message replaces it and pops again.
+- **Cvars (Visor HUD Look):** `vr_flat_visor_centerprint` 1, `_center_gap` 6, `_center_width` 320, `_center_pop` 0.2,
+  `_center_fade` 0.3. Debug > Visor: Centre Message / Long Centre Message (`vr_flat_visor_fx center <text>|long`,
+  `\n` a new line: through `SCR_CenterPrint`, so with Quake's timing). Report: `visor: center fade .. pop .. pops ..
+  size .. scale .. claimed ..` and `panel center`.
+- **Tests:** visor_test 37/0 (new: centred just under the log's mount, a long one replacing it taller with the same
+  top, the log hidden and the popup unmoved and still up 65 frames on, gone 105 frames on at `scr_centertime 1`,
+  `_centerprint 0` left to the view); flathud 11/0; `vr_pp_test 1` 62/0 flat, 63/0 VR; checklist_tests_check 139/0;
+  Release-TracyFull builds. Shots (1920x1080, 3440x1440): gold key, secret, long, long with the log hidden, and off.
+- **Shared:** the mounts, rings, atlas, composite, glass and lens are the visor's own; the text is the gadget's font and
+  `wrap`; the timing is Quake's. Nothing flat-only copied from VR (the wrist hologram is its VR counterpart, untouched).
 ## Flat: the open guns' pose, the revolver's hammer and its shells' timing (branch `agent/flat_ssg_pose`, worktree `flatwall`, 2026-11-10)
 
 - **The open pose** (his words: "smoothly adjust the pitch/yaw/roll of the gun at the same time to give it a more
