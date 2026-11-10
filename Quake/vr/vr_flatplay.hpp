@@ -22,6 +22,10 @@ namespace qvr::flatplay
 // The mode runs now: -flatscreenmode was given and no headset session is up.
 [[nodiscard]] bool active();
 
+// What the swap key (vr_flat_key_swap, 3) does: the hands swap what they hold, met first with vr_flat_swap_anim
+// (vr_flatswap.cpp), else at once (impulse 48). The holster menu's SWAP too (vr_flatholster.cpp); `what` for the debug line.
+void swapHands(const char* what);
+
 // -flatscreenmode was given, whatever the headset: vr_main.cpp's backend selection, which the flag implies no backend
 // for (noteBackendImplied).
 [[nodiscard]] bool flagGiven();

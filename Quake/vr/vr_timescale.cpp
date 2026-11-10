@@ -1,6 +1,7 @@
 // vr_timescale.cpp -- see vr_timescale.hpp.
 
 #include "vr_timescale.hpp"
+#include "vr_flatholster.hpp"
 #include "vr_backend.hpp"
 #include "vr_box3d.hpp"
 #include "vr_bullettime.hpp"
@@ -92,7 +93,8 @@ PlayerTime playerTime;
     {
         s = za::clamp(vr_timescale.value, minScale, 4.f);
     }
-    const float bullet = bullettime::scale();
+    // Bullet time's, or flatscreen play's holster menu's (vr_flatholster.cpp: vr_flat_holster_menu_timescale while open).
+    const float bullet = za::min(bullettime::scale(), flatholster::timeScale());
     return bullet < s ? za::max(bullet, minScale) : s;
 }
 

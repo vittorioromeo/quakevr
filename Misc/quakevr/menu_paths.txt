@@ -1352,6 +1352,15 @@ vr_flat_xhair_kick_smooth|1|Locomotion|Visor Crosshair Kick Smoothing|Advanced V
 vr_flat_xhair_reload_alpha|1|Locomotion|Visor Crosshair While Reloading|Advanced VR Options > Movement > Locomotion > Visor Crosshair While Reloading
 vr_flat_reload|1|Locomotion|Reloading|Advanced VR Options > Movement > Locomotion > Reloading
 vr_flat_autoreload|1|Locomotion|Auto Reload|Advanced VR Options > Movement > Locomotion > Auto Reload
+vr_flat_holsters|1|Locomotion|Holsters|Advanced VR Options > Movement > Locomotion > Holsters
+vr_flat_holster_menu_timescale|1|Locomotion|Holster Menu Time Speed|Advanced VR Options > Movement > Locomotion > Holster Menu Time Speed
+vr_flat_holster_menu_blur|1|Locomotion|Holster Menu Blur|Advanced VR Options > Movement > Locomotion > Holster Menu Blur
+vr_flat_holster_menu_xhair_fade|1|Locomotion|Holster Menu Crosshair Fade|Advanced VR Options > Movement > Locomotion > Holster Menu Crosshair Fade
+vr_flat_holster_menu_size|1|Locomotion|Holster Menu Size|Advanced VR Options > Movement > Locomotion > Holster Menu Size
+vr_flat_holster_menu_fade_time|1|Locomotion|Holster Menu Fade Time|Advanced VR Options > Movement > Locomotion > Holster Menu Fade Time
+vr_flat_holster_menu_cursor_speed|1|Locomotion|Holster Menu Cursor Speed|Advanced VR Options > Movement > Locomotion > Holster Menu Cursor Speed
+vr_flat_holster_menu_crt|1|Locomotion|Holster Menu Screen Look|Advanced VR Options > Movement > Locomotion > Holster Menu Screen Look
+vr_flat_holster_drop_ahead|1|Locomotion|Holster Drop Distance|Advanced VR Options > Movement > Locomotion > Holster Drop Distance
 vr_flat_ssg_break|1|Locomotion|Super Shotgun Breaks Open|Advanced VR Options > Movement > Locomotion > Super Shotgun Breaks Open
 vr_flat_mag_eject|1|Locomotion|Ejects Empty Magazines|Advanced VR Options > Movement > Locomotion > Ejects Empty Magazines
 vr_flat_revolver_eject|1|Locomotion|Revolver Ejects Its Shells|Advanced VR Options > Movement > Locomotion > Revolver Ejects Its Shells
@@ -2569,6 +2578,7 @@ vr_ragimpact_crush_mass|2|Tunables|Ragimpact Crush Mass|Advanced VR Options > De
 vr_decap_pop_projectile|2|Tunables|Decap Pop Projectile|Advanced VR Options > Debug > Tunables > Decap Pop Projectile
 vr_parry_muzzle_angle|2|Tunables|Parry Muzzle Angle|Advanced VR Options > Debug > Tunables > Parry Muzzle Angle
 vr_forcegrab_miss_speed|2|Tunables|Forcegrab Miss Speed|Advanced VR Options > Debug > Tunables > Forcegrab Miss Speed
+vr_forcegrab_settle|2|Tunables|Force Grab: Settle Time|Advanced VR Options > Debug > Tunables > Force Grab: Settle Time
 vr_forcegrabbable_ammo_boxes|2|Tunables|Forcegrabbable Ammo Boxes|Advanced VR Options > Debug > Tunables > Forcegrabbable Ammo Boxes
 vr_forcegrabbable_health_boxes|2|Tunables|Forcegrabbable Health Boxes|Advanced VR Options > Debug > Tunables > Forcegrabbable Health Boxes
 vr_forcegrabbable_return_time_deathmatch|2|Tunables|Forcegrabbable Return Time Deathmatch|Advanced VR Options > Debug > Tunables > Forcegrabbable Return Time Deathmatch
@@ -2759,6 +2769,8 @@ vr_crate_crowbar_max|2|Tunables|Most Crowbars|Advanced VR Options > Debug > Tuna
 vr_crate_flaregun|2|Tunables|Flare Gun on Crates|Advanced VR Options > Debug > Tunables > Flare Gun on Crates
 vr_crate_flaregun_max|2|Tunables|Most Flare Guns|Advanced VR Options > Debug > Tunables > Most Flare Guns
 vr_forcegrab_outline|2|Tunables|Outline|Advanced VR Options > Debug > Tunables > Outline
+vr_forcegrab_fx_along|2|Tunables|Effect Start: Towards Fingers|Advanced VR Options > Debug > Tunables > Effect Start: Towards Fingers
+vr_forcegrab_fx_out|2|Tunables|Effect Start: Off The Palm|Advanced VR Options > Debug > Tunables > Effect Start: Off The Palm
 vr_forcegrab_distance|2|Tunables|Distance|Advanced VR Options > Debug > Tunables > Distance
 vr_forcegrab_cone|2|Tunables|Aim Cone|Advanced VR Options > Debug > Tunables > Aim Cone
 vr_forcegrab_flick_speed|2|Tunables|Flick Speed|Advanced VR Options > Debug > Tunables > Flick Speed
@@ -4071,6 +4083,24 @@ vr_flat_ssg_break_delay|2|Tunables|Reload: Super Shotgun Break Delay|Advanced VR
 vr_flat_mag_eject_delay|2|Tunables|Reload: Magazine Eject Delay|Advanced VR Options > Debug > Tunables > Reload: Magazine Eject Delay
 vr_flat_mag_eject_speed|2|Tunables|Reload: Magazine Eject Speed|Advanced VR Options > Debug > Tunables > Reload: Magazine Eject Speed
 vr_flat_reload_close_delay|2|Tunables|Reload: Close Delay|Advanced VR Options > Debug > Tunables > Reload: Close Delay
+vr_flat_fg_pose|2|Tunables|Force Grab: Palm Out First|Advanced VR Options > Debug > Tunables > Force Grab: Palm Out First
+vr_flat_fg_turn_time|2|Tunables|Force Grab: Turn Time|Advanced VR Options > Debug > Tunables > Force Grab: Turn Time
+vr_flat_fg_detach_time|2|Tunables|Force Grab: Off The Grip Time|Advanced VR Options > Debug > Tunables > Force Grab: Off The Grip Time
+vr_flat_fg_release_time|2|Tunables|Force Grab: Back Time|Advanced VR Options > Debug > Tunables > Force Grab: Back Time
+vr_flat_fg_fwd|2|Tunables|Force Grab: Hand Forward|Advanced VR Options > Debug > Tunables > Force Grab: Hand Forward
+vr_flat_fg_out|2|Tunables|Force Grab: Hand Out|Advanced VR Options > Debug > Tunables > Force Grab: Hand Out
+vr_flat_fg_down|2|Tunables|Force Grab: Hand Down|Advanced VR Options > Debug > Tunables > Force Grab: Hand Down
+vr_flat_fg_palm_aim|2|Tunables|Force Grab: Palm At Object|Advanced VR Options > Debug > Tunables > Force Grab: Palm At Object
+vr_flat_fg_finger_tilt|2|Tunables|Force Grab: Finger Lean|Advanced VR Options > Debug > Tunables > Force Grab: Finger Lean
+vr_flat_carry_pose|2|Tunables|Held Prop: Carry Pose|Advanced VR Options > Debug > Tunables > Held Prop: Carry Pose
+vr_flat_carry_time|2|Tunables|Held Prop: Pose Time|Advanced VR Options > Debug > Tunables > Held Prop: Pose Time
+vr_flat_carry_fwd|2|Tunables|Held Prop: Hand Forward|Advanced VR Options > Debug > Tunables > Held Prop: Hand Forward
+vr_flat_carry_out|2|Tunables|Held Prop: Hand Out|Advanced VR Options > Debug > Tunables > Held Prop: Hand Out
+vr_flat_carry_down|2|Tunables|Held Prop: Hand Down|Advanced VR Options > Debug > Tunables > Held Prop: Hand Down
+vr_flat_carry_pitch|2|Tunables|Held Prop: Pitch|Advanced VR Options > Debug > Tunables > Held Prop: Pitch
+vr_flat_carry_yaw|2|Tunables|Held Prop: Turn In|Advanced VR Options > Debug > Tunables > Held Prop: Turn In
+vr_flat_carry_roll|2|Tunables|Held Prop: Palm Up|Advanced VR Options > Debug > Tunables > Held Prop: Palm Up
+vr_flat_carry_drawn|2|Tunables|Held Prop: In The Drawn Hand|Advanced VR Options > Debug > Tunables > Held Prop: In The Drawn Hand
 vr_flat_swap_in|2|Tunables|Swap: Meet Time|Advanced VR Options > Debug > Tunables > Swap: Meet Time
 vr_flat_swap_out|2|Tunables|Swap: Back Time|Advanced VR Options > Debug > Tunables > Swap: Back Time
 vr_flat_swap_gap|2|Tunables|Swap: Hands Apart|Advanced VR Options > Debug > Tunables > Swap: Hands Apart
@@ -4376,6 +4406,7 @@ vr_embed_move_sword_force_deep|2|Tunables|Moving: Sword's Force, Deep|Advanced V
 vr_embed_move_give|2|Tunables|Moving: Stance Gives Way|Advanced VR Options > Debug > Tunables > Moving: Stance Gives Way
 vr_embed_move_hertz|2|Tunables|Moving: Stiffness|Advanced VR Options > Debug > Tunables > Moving: Stiffness
 vr_embed_move_at_wound|2|Tunables|Moving: Held At|Advanced VR Options > Debug > Tunables > Moving: Held At
+vr_embed_move_turn|2|Tunables|Moving: Turns With the Wrist|Advanced VR Options > Debug > Tunables > Moving: Turns With the Wrist
 vr_embed_drag_slack|2|Tunables|Dragging: Slack|Advanced VR Options > Debug > Tunables > Dragging: Slack
 vr_embed_tether_speed|2|Tunables|Tether: Your Speed|Advanced VR Options > Debug > Tunables > Tether: Your Speed
 vr_embed_brake|2|Tunables|Running Stab: Brake|Advanced VR Options > Debug > Tunables > Running Stab: Brake
@@ -4784,7 +4815,13 @@ vr_xr_skip_incompatible_layers|2|Debug - Profiling and Memory|Skip Incompatible 
 |2|Debug - Reports|Visor: Fog Up|Advanced VR Options > Debug > Reports > Visor: Fog Up
 vr_flatplay_debug|2|Debug - Reports|Flatscreen Play Print|Advanced VR Options > Debug > Reports > Flatscreen Play Print
 |2|Debug - Reports|Flatscreen Reload Report|Advanced VR Options > Debug > Reports > Flatscreen Reload Report
+|2|Debug - Reports|Flatscreen Force Grab Report|Advanced VR Options > Debug > Reports > Flatscreen Force Grab Report
+|2|Debug - Reports|Flatscreen Force Grab: Press E|Advanced VR Options > Debug > Reports > Flatscreen Force Grab: Press E
 vr_flat_reload_debug|2|Debug - Reports|Flatscreen Reload Print|Advanced VR Options > Debug > Reports > Flatscreen Reload Print
+|2|Debug - Reports|Holster Menu Dump|Advanced VR Options > Debug > Reports > Holster Menu Dump
+|2|Debug - Reports|Holster Menu: Hold Open|Advanced VR Options > Debug > Reports > Holster Menu: Hold Open
+|2|Debug - Reports|Holster Menu: Let Go|Advanced VR Options > Debug > Reports > Holster Menu: Let Go
+|2|Debug - Reports|Holster Menu Test|Advanced VR Options > Debug > Reports > Holster Menu Test
 |2|Debug - Reports|Flatscreen Grenade Report|Advanced VR Options > Debug > Reports > Flatscreen Grenade Report
 vr_flat_grenade_debug|2|Debug - Reports|Flatscreen Grenade Print|Advanced VR Options > Debug > Reports > Flatscreen Grenade Print
 |2|Debug - Reports|Flatscreen Swap Report|Advanced VR Options > Debug > Reports > Flatscreen Swap Report
@@ -5829,6 +5866,7 @@ vr_smallgibs_trace|2|Debug - Automation & Self-Tests|Trace Small Gibs|Advanced V
 |2|Debug - Automation & Self-Tests|Shotgun at Its Head, Not Killing|Advanced VR Options > Debug > Automation & Self-Tests > Shotgun at Its Head, Not Killing
 |2|Debug - Automation & Self-Tests|Lightning at Its Body|Advanced VR Options > Debug > Automation & Self-Tests > Lightning at Its Body
 |2|Debug - Automation & Self-Tests|Sweep the Head Zone|Advanced VR Options > Debug > Automation & Self-Tests > Sweep the Head Zone
+|2|Debug - Automation & Self-Tests|Sweep the Head Zone, Chops|Advanced VR Options > Debug > Automation & Self-Tests > Sweep the Head Zone, Chops
 |2|Debug - Automation & Self-Tests|A Grunt Ahead|Advanced VR Options > Debug > Automation & Self-Tests > A Grunt Ahead
 |2|Debug - Automation & Self-Tests|A Grunt's Corpse Ahead|Advanced VR Options > Debug > Automation & Self-Tests > A Grunt's Corpse Ahead
 |2|Debug - Automation & Self-Tests|Spawn Its Limbs|Advanced VR Options > Debug > Automation & Self-Tests > Spawn Its Limbs

@@ -12,6 +12,8 @@
 //   wrote a count where the game keeps the ammo id. The armour is only there as it was in his report.
 // `vr_flatitems_test 4`: red armour ahead, to look at: walks over it and takes two pictures of him from the front (vr_flat_orbit),
 //   before and after (`flatplates: before`, `flatplates: after`).
+// `vr_flatitems_test 6`: E's palm first (vr_flatfgrab.cpp): two keys where he looks, E pressed twice a frame apart: the first
+//   flies only after the palm's turn, never two at one hand, the first ends in the hand it flew to.
 // Ends `flatitems: N passed, M failed`.
 
 float vr_ffx_on;    // the running test's number
@@ -243,6 +245,7 @@ void(entity p) VR_FFX_Hold =
             VR_FFX_To(11, 4);
             return;
         }
+        cvar_set("vr_flat_holsters", "0"); // (2's cycle, as he played: the holsters off, vr_flatholster.qc)
         p.impulse = 2;
         vr_ffx_wait = 4;
         return;
@@ -433,6 +436,98 @@ void(entity p) VR_FFX_Better =
     }
 };
 
+// ---- 6: E's palm first (vr_flatfgrab.cpp; his note 2026-11-10): two keys where he looks, E pressed through the engine's
+// own path (vr_flat_fg_press) and again a frame later. The first key flies no sooner than the palm's turn
+// (vr_flat_fg_turn_time); no two objects ever fly at one hand at once; the first one ends in the hand it flew to.
+float vr_ffx_pressAt;   // when E was pressed (the first time)
+float vr_ffx_flewAt;    // when the first key began to fly
+float vr_ffx_flewHand;  // the hand it flew to
+float vr_ffx_doubled;   // frames two objects flew at one hand
+entity vr_ffx_item2;    // the second key
+
+float(entity p, entity xKey) VR_FFX_InHand =
+{
+    return xKey.model == string_null || VR_Carry_Held(p, cVR_OffHand) == xKey || VR_Carry_Held(p, cVR_MainHand) == xKey;
+};
+
+void(entity p) VR_FFX_PalmFirst =
+{
+    if(vr_ffx_s == 0)
+    {
+        VR_FFX_MakeFull(p);
+        vr_ffx_item = VR_FFX_SpawnKind(3, p.origin + VR_FFX_Ahead(p) * 96);
+        vr_ffx_item2 = VR_FFX_SpawnKind(4, p.origin + VR_FFX_Ahead(p) * 96 + '0 0 16');
+        vr_ffx_flewAt = 0;
+        vr_ffx_doubled = 0;
+        VR_FFX_To(1, 0);
+        return;
+    }
+    if(vr_ffx_s == 1)
+    {
+        if(VR_FFX_Placed(vr_ffx_item) && VR_FFX_Placed(vr_ffx_item2))
+        {
+            VR_FFX_LookAt(p, vr_ffx_item);
+            VR_FFX_LookAt(p, vr_ffx_item2);
+            setorigin(vr_ffx_item2, vr_ffx_item2.origin + '0 0 8');
+            VR_FFX_To(2, 0);
+        }
+        return;
+    }
+    if(vr_ffx_s == 2)
+    {
+        localcmd("vr_flat_fg_press\n");
+        vr_ffx_pressAt = time;
+        VR_FFX_To(3, 1);
+        return;
+    }
+    // Watching: the second press once, the first flight's time and hand, two at one hand never.
+    if(vr_ffx_s == 3 || vr_ffx_s == 4)
+    {
+        if(vr_ffx_s == 3)
+        {
+            localcmd("vr_flat_fg_press\n");
+            vr_ffx_s = 4;
+        }
+        float a = vr_ffx_item.fg_state == 1 && vr_ffx_item.fg_player == p;
+        float b = vr_ffx_item2.fg_state == 1 && vr_ffx_item2.fg_player == p;
+        if(a && b && vr_ffx_item.fg_hand == vr_ffx_item2.fg_hand)
+        {
+            vr_ffx_doubled = vr_ffx_doubled + 1;
+        }
+        if(!vr_ffx_flewAt && (a || b))
+        {
+            vr_ffx_flewAt = time;
+            vr_ffx_flewHand = a ? vr_ffx_item.fg_hand : vr_ffx_item2.fg_hand;
+            if(!a)
+            {
+                entity swap = vr_ffx_item;
+                vr_ffx_item = vr_ffx_item2;
+                vr_ffx_item2 = swap;
+            }
+        }
+        if(vr_ffx_flewAt && !a && !b && vr_ffx_item.fg_state != 1)
+        {
+            VR_FFX_To(5, 36); // (half a second more: a second grab's flight, if one went, ends and is watched no more)
+        }
+        return;
+    }
+    if(vr_ffx_s == 5)
+    {
+        float turn = cvar_hget(cvarh_vr_flat_fg_turn_time);
+        float took = vr_ffx_flewAt - vr_ffx_pressAt;
+        VR_Test_Check(vr_ffx_flewAt > 0 && took >= turn - 0.02,
+            sprintf("E: the palm turns out first: the key flew %g s after the press (turn %g s)", took, turn));
+        VR_Test_Check(took <= turn + cvar_hget(cvarh_vr_flat_fg_detach_time) + 0.15, sprintf("... and not long after it (%g s)", took));
+        VR_Test_Check(vr_ffx_doubled == 0, sprintf("two quick presses: never two objects flying at one hand (%g frames)", vr_ffx_doubled));
+        VR_Test_Check(VR_FFX_InHand(p, vr_ffx_item) && (vr_ffx_item.model == string_null || VR_Carry_Held(p, vr_ffx_flewHand) == vr_ffx_item),
+            sprintf("the first key ends in the hand it flew to (%g)", vr_ffx_flewHand));
+        VR_Test_Verdict();
+        vr_ffx_on = 0;
+        cvar_set("vr_flatitems_test", "0");
+        return;
+    }
+};
+
 // ---- 4: to look at: pictures looking down, before and after the walk.
 void(entity p) VR_FFX_Pictures =
 {
@@ -533,6 +628,7 @@ void() VR_FlatItemsTest_Frame =
     if(ask == 2) { VR_FFX_Walk(p); }
     if(ask == 3) { VR_FFX_Better(p); }
     if(ask == 4) { VR_FFX_Pictures(p); }
+    if(ask == 6) { VR_FFX_PalmFirst(p); }
 };
 
 #endif
