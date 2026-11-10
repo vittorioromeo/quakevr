@@ -216,7 +216,34 @@ Built 2026-11-09 (branch `agent/systems1`). Use these instead of new classname c
 - Every monster's lightning (`VR_AI_Lightning`) conducts into water as the player's beam does (`VR_LGWater_Beam`):
   `vr_waterzap_test 4` logs "lgwater: electrified".
 
-### Style detection (open)
+### Style detection (built)
 
-Planned: per-area map style from the surrounding textures (base, medieval, runic, liquids), a debug command and a
-builtin. Not built in this round.
+- **What:** Quake/vr/vr_mapstyle.cpp. Each world surface's texture names a style (`mapstyle::ofTexture`: tech, comp,
+  plat, base, slip, twall, tlight = base; wbrick, wizmet, city, wood, wwall, wceil, wswamp, wiz1 = medieval; rune,
+  wizard, skill, metal = runic (E2-E4's metal panels are their runic metal, not E1's base); `*` liquids = water, slime or lava; sky, clip, triggers and the rest unknown). The map is binned once into
+  512-unit cells by surface area; an area's style is the heaviest round its cell (its own weights and half its
+  neighbours'), a liquid's when liquids are a quarter of it or more.
+- **Use:** QC `mapstyle(p)` returns `VR_STYLE_*` (QC/builtins.qc); C++ `mapstyle::at(p)`. Placement rules for the spawn
+  ideas go on top of it ("on a wall of base texture, 64 units up, near a door"). Nothing reads it yet: no gameplay
+  change.
+- **Debug:** `vr_mapstyle [x y z]` (the style where you stand, or at a point, with its weights);
+  `vr_mapstyle_dump [1]` (the map's overall style and how many areas of each; 1 lists every area).
+
+### Merged in round 3 (no behaviour change)
+
+- One "a lit thing strikes" path: `VR_Burn_IsSource(thing)` (a lit torch, a thrown incandescent blade) and
+  `VR_Burn_FromThing(victim, thing, by, at, dir)` (vr_burning.qc), used by the corpse blow (combat.qc), a piece struck
+  (`VR_Burn_PieceStruck`), a thrown torch's touch and blow (vr_walltorch.qc) and a thrown hot blade (vr_hotblade.qc).
+  The toolgun's flame props keep their own touch (they are always lit and have no "lit" state); a held hot blade is a
+  hand's, not a thing's (`VR_HotBlade_Struck`).
+- One set of liquid tests in vr_liquids.qc: `VR_Liquid_Is`, `VR_Liquid_IsWet`, `VR_Liquid_WetAt`, `VR_Liquid_Touches`,
+  `VR_Liquid_AtFeet`, and the burns' numbers `VR_Liquid_BurnDamage`, `VR_Liquid_BurnEvery`, `VR_Liquid_LandDamage`
+  (read by the player's `WaterMove`, the monsters' `VR_Liquid_Monster` and the shove's landing). Gone:
+  `VR_LGWater_IsLiquid`, `VR_LGWater_InLiquid`, `VR_Burn_InWater` and the shove's hard-coded lava and slime.
+- Not merged: the player's and the monsters' drowning. Their rules differ in shipped ways (the player's damage steps
+  2, 4 .. 14 then back to 10, with id's air supply times `vr_air_supply`; a monster's steps up to 15 and stays, 12 s of
+  breath, a ragdoll struggle first). One path would change one of them.
+- Not moved onto the table: `physsound::materialOf` (model recordings: brick, soft, stone) and `debris::materialOf`
+  (wall textures: fieldstone, masonry, natural). Their classes are finer than the table's materials and pick sounds and
+  chunks, not properties; folding them would change sounds and debris.
+

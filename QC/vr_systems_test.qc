@@ -39,7 +39,8 @@ void() VR_SysTest_MatDump =
 // 12 floor buttons: a monster on one presses it only with vr_monsters_press_buttons 1
 // 13 the status component: a grunt and you burning (the fire's own state), doused, soaked, dried
 // 14 a grunt's thrown thing knocks another grunt's weapon away, and the disarmed one turns on the thrower
-// 15 the author's chain: a killing hit flings the body into a wall torch, the torch falls lit onto crates, a crate catches
+// 15 the author's chain: a blast kills a grunt and flings its body into a wall torch, the torch falls lit onto crates,
+//    a crate catches
 // 16 a crate dropped (no hand) on a grunt and the same crate thrown by the player: the same stagger chance
 
 float vr_st_case;  // the running scene (0 none)
@@ -327,14 +328,27 @@ void() VR_ST_Run =
         }
         else if(vr_st_step == 1 && t > 0.3)
         {
-            // Killed by a hard hit from your side: its death flings its body at the torch (a blast's kill flings it the
-            // same way in play, but a test's blast lands while the death animation still plays: see ROUND24.md).
+            // A rocket's blast (120) between you and the grunt kills it and flings its body at the torch
+            // (vr_kill_blast_fling: its ragdoll made as it dies). The torch is kept out of the blast's own damage, so what
+            // knocks it off here is the body alone.
             vr_mount_last_by = world;
-            T_Damage(vr_st_a, p, p, vr_st_a.health + 1);
+            entity bl = spawn();
+            setorigin(bl, VR_ST_At(185, 0, -8));
+            float td = vr_st_b.takedamage;
+            vr_st_b.takedamage = DAMAGE_NO;
+            T_RadiusDamage(bl, p, 120, world);
+            vr_st_b.takedamage = td;
+            remove(bl);
             VR_ST_Next(3);
         }
         else if(vr_st_step == 3)
         {
+            if(time >= vr_st_n)
+            {
+                vr_st_n = time + 0.1;
+                dprint(sprintf("systems_test: 15: at %.2f s the body at %v (ragdoll %g), the torch at %v\n", t, vr_st_a.origin,
+                    isragdoll(vr_st_a), vr_st_b.origin));
+            }
             if(vr_st_b.wt_state != 0)
             {
                 if(vr_mount_last_by == world || vr_mount_last_by.classname != vr_st_a.classname) // (the corpse: its ragdoll's entity)
@@ -349,7 +363,7 @@ void() VR_ST_Run =
             }
             else if(t > 4)
             {
-                VR_ST_End(FALSE, sprintf("the flung corpse never knocked the torch off (corpse at %v, torch at %v)", vr_st_a.origin, vr_st_b.origin));
+                VR_ST_End(FALSE, sprintf("the blast's body never knocked the torch off (corpse at %v, torch at %v)", vr_st_a.origin, vr_st_b.origin));
             }
         }
         else if(vr_st_c.burn_fire != world || vr_st_d.burn_fire != world)

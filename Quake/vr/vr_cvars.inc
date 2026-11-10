@@ -3493,6 +3493,7 @@ QVR_CVAR(vr_foegrab_debug, "0", CVAR_NONE)                      // 1: logs holds
 QVR_CVAR(vr_push, "0.6", CVAR_ARCHIVE)                    // knockback: all of it (the others scale this)
 QVR_CVAR(vr_hit_push, "1", CVAR_ARCHIVE)                 // heavy weapon hits shove monsters
 QVR_CVAR(vr_kill_push, "1", CVAR_ARCHIVE)                // killing blows throw the bodies
+QVR_CVAR(vr_kill_blast_fling, "1", CVAR_ARCHIVE)        // a blast that kills a monster throws its body at once (its ragdoll made as it dies, the blast's push and falloff on it), not after its death animation (0: as before)
 QVR_CVAR(vr_enemy_liquid_damage, "1", CVAR_ARCHIVE)      // monsters burn in slime/lava and drown underwater (QC vr_liquids.qc)
 QVR_CVAR(vr_knockdown_wiggle, "1.5", CVAR_ARCHIVE) // physical struggling of living knockdowns; 0 disables (0.7 before config 89)
 QVR_CVAR(vr_knockdown_wiggle_frequency, "1.5", CVAR_ARCHIVE) // struggling frequency, Hz (1.2 before config 89)
