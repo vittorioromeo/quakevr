@@ -8810,6 +8810,18 @@ all three, the brick flies 0.29 s later. Launcher numbers unchanged (E 2.41, sho
 `flatfg2h_test.sh`: 11 passed (the shove's drawn comparison now within a quarter: the axe's 9.48 vs 8.46 already failed
 the old one-unit slack since the shove smoothing). Scene `flat_fg_crowbar2h`.
 
+## Navmesh: the arena's towers (branch `agent/navtower`, 2026-11-11)
+
+Grunts never reached him on a tower top, and a grunt on the tower across ran into its own top's corner. Causes: the
+flight's top two treads (32 wide between the tower's face and a drop) were eroded off the mesh by the clearance, so each
+tower's top, bridge and deck were an island; armed humanoids' range keeping walks straight at him without the mesh; a
+dog on the stair leapt at him into the tower's wall. Fixes: a narrow band (`vr_nav_narrow` 0.5, `vr_nav_narrow_cost` 3:
+Recast eroded twice, the strip between the two its own costlier area, yellow in Show Navmesh; drop links still from the
+clearance's edge; `navVersion` 4); `vr_nav_level` 64 (an armed humanoid with its foe on another level follows its path,
+not its range keeping); a dog's leap needs a clear box line (`vr_nav` on). New `vr_arena_test 41` (the towers: 5 kinds,
+up, down and across, 4 towers): 27 capped of 60 before, 6 after (open: a dog or knight standing at one stair step by the
+tower's wall). Test 36 16 passed 0 failed, `nav_crowd` 12 of 12 within 6.9 s, cliptest/toptest pass on e1m1 and e4m7;
+e1m1 1,578 -> 2,924 polygons. Table and details: NAVMESH.md 13. Scene `nav_tower`.
 ## Flat: a prop in a hand routes the mouse like a second weapon (branch `agent/flatpropctl`, 2026-11-11)
 
 His report: a super shotgun in the right hand and a rock in the left, and RMB aimed the shotgun instead of swinging the

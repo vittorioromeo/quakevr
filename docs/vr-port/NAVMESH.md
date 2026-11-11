@@ -309,3 +309,61 @@ biggest gain (the pack takes several flights), the three together the fastest. `
 passed, 0 failed with the defaults and with all three on; `vr_nav_cliptest` and `vr_nav_toptest` on e1m1 pass.
 **Defaults left off** (the author's call: they change every melee walker's approach);
 recommendation: turn on `vr_nav_slots 8` at least, all three for the best numbers.
+
+## 13. The arena's towers (2026-11-11)
+
+Reported: grunts never reached him on a tower's top (narrow, broken mesh on the stairs) and a grunt on the tower across
+ran into its own top's corner instead of taking the stair. `vr_arena_test 36` passed: it only tests the dais, its grunts
+at their fists. **`vr_arena_test 41`** (`map vrarena; god; vr_arena_test 41`): one foe at a time per
+tower, up (him on the top, it on the floor past the tower's far side), down, across (top to the next tower's top);
+an armed grunt with a shotgun, an enforcer with a rifle, a knight, an ogre, a dog; done when on his level within a blow
+(a gun's holder within 400); 40 s cap; `towerpath: capped N of 60`.
+
+Causes found (hypotheses that held):
+- **The stair's top was cut off the tower.** A flight (64 wide, 16 steps of 16 x 16) climbs beside the tower's face;
+  only its top two treads (y 460..492: 32 units, a drop beyond) are within a step of the top. Eroded by the clearance
+  (12 x 1.41 = 17, rounded up to 5 voxels = 20 a side, plus Recast's ledge filter's voxel) the 32-wide join had nothing
+  left: the top, its bridge and deck were an island for every class; a path from the floor ended at the stair's top
+  (partial: handed to Quake's chase) and one from the top had no way down (256 drop: over the small classes' 192).
+  The stairs themselves were 20 units of mesh for a grunt and none for an ogre (20 x 1.41 = 8 voxels a side).
+- **Armed humanoids' range keeping** (`VR_AG_RangeMove`: gaining ground at a slant, strafing, holding a melee
+  standoff) are flat moves straight at him that never consult the mesh: with him on the tower across and in range,
+  the slant walked it into its own top's edge for good.
+- A dog on a stair beside the tower leapt at him on the top into the tower's wall (its leap's check has no line test).
+
+Fixes (tunables, Debug > Tunables):
+- **Narrow band** (`vr_nav_narrow` 0.5, `vr_nav_narrow_cost` 3): Recast's erosion is run twice (`erodeWithBand`): the
+  spans the clearance takes but `radius x vr_nav_narrow` keeps become their own area (`areaNarrow`, yellow in Show
+  Navmesh), with their own regions and polygons at 3x the cost: paths keep to the clearance where there is room and use
+  the band only where nothing else leads. The box still collides with the real walls. Drop links still start at the
+  clearance's edge (a core polygon's edge facing the band counts as open; none from band polygons), as before.
+  At 1.0 (the box's own half width) the join is a single voxel wide: knights and dogs stalled at the stairs' top
+  (9 capped of 60), so 0.5. Known cost: the band admits gaps a little narrower than the box (16-24 units for a
+  grunt); at 3x it is taken only when nothing else leads there. Meshes: e1m1 1,578 -> 2,924 polygons (1,707 band),
+  277 -> 485 KB; e4m7 2,287-2,716 -> 4,072-4,470. `vr_nav_cliptest` and `vr_nav_toptest` pass on e1m1 and e4m7.
+  `navVersion` 4.
+- **Armed humanoids follow the path to another level** (`vr_nav_level` 64): its foe's feet more than that above or
+  below its own and `navsteer` giving a path (not straight ahead on the mesh), the range keeping gives way to
+  `VR_NAV_Step` (its speed slider applied); no path: as before. Shots still come first (`CheckAnyAttack`).
+- **Dogs leap only on a clear line** (`vr_nav` on): `CheckDogJump` adds a box trace to him (world only).
+
+Measured (`vr_arena_test 41`, seed 7, no-LTO low-impact runs; "there" the mean seconds, capped ones counted 40):
+
+| case | before | band 0.5 + level 64 (default) | band only | band 1.0 |
+|---|---|---|---|---|
+| armed grunt up / down / across | 10.0 / 34.6 (3 capped) / 19.9 | 8.1 / 13.5 (1) / 16.2 | 5.7 / 4.2 / 12.1 | 5.6 / 5.0 / 13.1 |
+| enforcer | 8.7 / 28.0 (2) / 23.1 (1) | 5.8 / 5.3 / 10.9 | 5.7 / 5.1 / 10.8 | 13.5 / 6.6 / 17.7 |
+| knight | 26.7 (2) / 31.4 (3) / 21.5 (1) | 4.7 / 4.2 / 16.7 (1) | 5.6 / 4.3 / 8.9 | 18.3 (1) / 9.6 / 16.5 (1) |
+| ogre | 40 (4) / 40 (4) / 39.4 (3) | 13.7 / 5.4 / 19.7 | 9.5 / 22.8 (2) / 34.1 (3) | 21.2 (1) / 5.4 / 29.5 (1) |
+| dog | 15.1 (1) / 31.5 (3) / 13.9 | 25.5 (2) / 16.9 (1) / 15.5 (1) | 25.8 (2) / 6.5 / 22.1 (2) | 23.0 (2) / 15.4 (1) / 22.1 (2) |
+| capped of 60 | 27 | 6 | 9 (old drop links) | 9 |
+
+(The "band only" and "band 1.0" columns were run before the drop links' fix: the ogre's failures there were drops off
+the band's edge beside a bridge.) `vr_arena_test 36` with the defaults: 16 passed, 0 failed; `nav_crowd` (seed 1):
+12 of 12 within 6.9 s, 0 stalls.
+
+**Open:** the 6 left are one place: a dog or knight on a south-east or north-west stair's step 12 against the tower's
+wall (x +-428, y -+296, z 232), standing 30+ s (the crowd test calls it a `wall` stall); the same dog and a knight placed by a scene at the same
+floor place came up in 5 s, so it depends on the approach; not found within this round. One armed grunt down the south-east tower stalled at its
+stair's foot (242 -320 56). Scene `nav_tower` (you on the north-east top, walkers on the floor and on the tower
+across).
