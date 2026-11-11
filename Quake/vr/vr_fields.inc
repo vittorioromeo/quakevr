@@ -375,3 +375,4 @@ QVR_FIELD(pos2)
 QVR_FIELD(wait)
 // The navmesh's approach slots (vr_nav.cpp approach): a walker with no missile attack is a melee one.
 QVR_FIELD(th_missile)
+QVR_FIELD(vr_nav_melee) // set by the QC before each navsteer (vr_ai_props.qc VR_NAV_Melee): 1 a melee walker

@@ -251,4 +251,61 @@ Arena stairs (`vr_arena_test 36`: one foe at a time from 8 floor places up to th
   may have a missile function, or the arena's own AI drives the approach); separation 0 gave 191 of 457 (42%). The
   arena's own waves change the walker count between runs, so the test is noisy. No benefit shown, so the three stay off
   by default (the `nav_crowd` scene turns them on to look at). `vr_arena_test 36` with the defaults: 0 capped of 64.
-  To do: a crowd scene without the arena's waves (a plain map), check which walkers count as melee, then tune.
+  To do: a crowd scene without the arena's waves (a plain map), check which walkers count as melee, then tune. (Done in
+  12: the 40% was two knights placed in walls.)
+
+## 12. Crowd stalls diagnosed (2026-11-11)
+
+**The test now says why.** `vr_nav_crowdtest <s> [near] [dump]` (Debug > Views: Crowd Stall Test) waits a frame at a
+time till a scene's monsters have started (none still in `walkmonster_start_go`; it can be the first command after
+`vr_scenario`), takes the walkers alive then as its fixed set (the arena's later spawns are left out of the counts),
+wakes them onto the player and samples each half second. A sample whose monster is busy (an attack, pain, a leap, a
+weapon pickup or pose, knocked down, in the air: by its frame function and state) is left out of the rate. Each stall is
+given one cause from the monster's state and its steers in that half second (each steer's outcome is recorded:
+`Agent::why`, and whether it moved since): `insolid` (its box in a wall), `idle` (standing, walking, the knight's
+pause, an armed one's taunt), `infight` (after another monster), `nochase` (no steer that half second), `offmesh`,
+`nopath`, `link`, `end-blocked` / `unreach` / `end-other` (handed to Quake's chase: blocked ahead, path short of him,
+else), `monster` / `wall` / `ledge` (steered but did not move: a box trace a step ahead meets a monster, a wall, or
+nothing: walkmove's ledge test), `slow` (steered and moved, under 8 units). The end prints `nav crowd causes:` rows by
+monster type (samples, busy, stalls, then the causes in that order), the frames of the busy, idle and no-chase ones,
+and whether each walker had a whole path to him at the start; each stall is logged (`navstall|type|cause|x|y|z`), and
+Show Navmesh 2 draws a post at each (red a monster in the way, blue a wall, green a ledge, black in a wall, purple no
+chase, grey the rest). `dump` (or `vr_nav_crowdtest dump` before a scene) logs the walkers' classes' polygons
+(`navpoly|...`) for a top-down heatmap (the round's script: scratch `heatmap.py`).
+
+**Why 40%: two of the twelve knights were placed in walls** (the scene's `450 450` and `-450 450` are on a 258-high
+ledge's side: "placed in a wall"). Stuck there, each was a stall every half second for the whole 40 s (464-468 of the
+470-491 stalls in 3 seeds), and the test never ended early. Also: the scene never started in the earlier runs (its
+`cvar` lines named tunables, which are not cvars: "no setting"), and its crowd test ran before the map had loaded, so
+part 4's numbers measured the arena's own waves. Fixed: the knights at `600 450` / `-600 450`; a scene's `cvar` line
+takes a tuning constant too (set live, put back after; ignored in a release build); the scene runs the test itself.
+
+**Why the slots never acted:** they took a walker with no `th_missile` as melee, and none in the scene was: the armed
+knights (on by default, `vr_agknight`) have `VR_AG_Missile`, dogs their leap. Now the QC says (`vr_nav_melee`, set
+before each `navsteer`: no missile attack, a dog, or an armed humanoid holding no ranged weapon).
+
+**Measured** (nav_crowd, seeds 1-3, no-LTO low-impact runs; "came" the mean seconds till every walker was within 128
+of him; the stall rate without busy samples):
+
+| knights | setting | came | stalls | causes |
+|---|---|---|---|---|
+| armed (default) | before, all off | 40.4 (2 never) | 54% | insolid 468, monster 6, nochase 6, rest 11 |
+| armed | all off | 12.7 | 2% | end-other 4, end-blocked 3, slow 3, monster 1, idle 1 |
+| armed | separation 0.8 only | 12.1 | 3% | |
+| armed | smoothing 24 only | 14.2 | 2% | |
+| armed | slots 8 only | 7.9 | 1% | |
+| armed | all three (the scene) | 7.1 | 0% | nochase 1 |
+| Quake's (`vr_agknight 0`) | all off | 23.1 | 10% | infight 29, monster 25, slow 13, end-blocked 12 |
+| Quake's | separation only / smoothing only | 11.6 / 11.0 | 3% / 1% | |
+| Quake's | slots only | 7.7 | 0% | |
+| Quake's | all three | 7.8 | 2% | |
+
+With the stuck knights gone, the real stalls are a few percent and are crowding at the foot of the dais' flights
+(heatmap: two clusters where the pack files onto one flight: `monster` and `end-blocked` together) and, with Quake's
+knights, infighting (one cuts another in the press and they fight: the walker count falls to 4-5 in some runs, which
+also makes the samples noisy). No `offmesh`, `nopath`, `unreach` or `link` stall in any run; every walker had a whole
+path to him on its class's mesh at the start (the dais is reachable for each walker's size class). The slots are the
+biggest gain (the pack takes several flights), the three together the fastest. `vr_arena_test 36` (seed 7): 16
+passed, 0 failed with the defaults and with all three on; `vr_nav_cliptest` and `vr_nav_toptest` on e1m1 pass.
+**Defaults left off** (the author's call: they change every melee walker's approach);
+recommendation: turn on `vr_nav_slots 8` at least, all three for the best numbers.
