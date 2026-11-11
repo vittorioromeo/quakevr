@@ -115,7 +115,7 @@ entity(vector org, vector vec) LaunchLaser =
 
     setorigin(newmis, org);
 
-    newmis.velocity = vec * 600;
+    newmis.velocity = vec * max(100, cvar_hget(cvarh_vr_enforcer_laser_speed)); // QVR: 690 (id's 600: 15% faster, 2026-11-11)
     newmis.angles = vectoangles(newmis.velocity);
 
     newmis.nextthink = time + 5;

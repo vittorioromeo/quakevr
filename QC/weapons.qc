@@ -3428,7 +3428,7 @@ launch_spike
 Used for both the player and the ogre
 ===============
 */
-// QVR: the nailguns' nails' speed (vr_nail_speed: 2065, 18% above Quake VR's 1750 of before round 23; id's 1000), the
+// QVR: the nailguns' nails' speed (vr_nail_speed: 2375, 15% above round 23's 2065, 18% above Quake VR's 1750 before; id's 1000), the
 // player's and every monster's firing them through launch_spike or launch_lava_spike (a caller may set its own after).
 float() VR_NailSpeed =
 {
