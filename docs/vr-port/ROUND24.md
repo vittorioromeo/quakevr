@@ -9345,3 +9345,16 @@ only it showed: 0.256 model units off (the window is 2.21 wide: 12%).
   gun in the right hand, then swapped to the left): the centres agree within 0.01 (0.0001-0.0010 now). Shots:
   fbmisc worktree `scratch/before_gl.png` and `scratch/after_gl.png` (left half the right hand, right half the left;
   `vr_debug_screen_cam 45`).
+
+### His recent values promoted
+
+`tune_promote.py --check` on his tunables.cfg, and his ironwail.cfg's vr_ lines against vr_cvars.inc (the audit's
+personal and debug rules: calibration, comfort, toolgun, cosmetics, graphics, menu and migration lines stay his):
+
+- `vr_flat_grenade_throw_pitch` 0 -> 5 and `vr_flat_grenade_speed_scale` 1 -> 0.75 (tunables: the quick grenade's
+  throw a little higher and slower). flathands_check.py reads the new defaults (grenmain: 11 deg above the crosshair,
+  453 u/s; grenarc's 20 / 1.5 now 15 deg higher and twice as fast; its arc compared above the crosshair, where the
+  angles add exactly: above level the steeper launch reads a degree less). flathands: 74 passed, 0 failed.
+- weapons.txt slot 5 (grenade launcher) `wpntxt_y` -1.65 -> -1.645 (`weapons_data.py promote`; 0.005 units, his).
+- Not promoted (personal): `vr_stick_swap 1` (which stick moves: a handedness choice), `vr_menu_flat_scale/_x/_y`
+  (where he parked the flat menu), `vr_menu_positions`. Every other line was in the audit's personal/debug lists.
