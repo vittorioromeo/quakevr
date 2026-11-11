@@ -1012,9 +1012,17 @@ to the empty hand's guard (`vr_flat_guard_*`), the gun held still as it was; the
 brought across to `vr_flat_swap_gap` off that hand, the swap sent there; the attach (`_attach_time`, 0.25 s), the hand
 that took the gun to its hold and the one that let it go onto the gun's two-hand grip. The grip is blocked
 (`flatswap::gripBlocked`, in flatsight's `gripWanted` and twohand's `canGrab`) until the swap has happened, free from
-the attach on. The places are kept in the body's level frame off the head, so a turn carries them. No fire meanwhile. Not drawn (the swap at
+the attach on. The places are kept in the view's frame off the eye (`Frame`: its pitch held to `vr_flat_pose_pitch` as
+the hands' own poses hold it; the eye the neck pivot carries, `flatplay::eyeNudge`), so a turn, up and down as well as
+around, carries the hands and the weapon, and the swap plays the same against the view looking up, level or down (his
+note 2026-11-11: the off hand had gone to a level look's place). The free hand's guard is placed as at a level look
+(`flatplay::levelShoulderOf`: the shoulders with the chest's share of the pitch taken out) and carried into the view's
+frame, taken at the press. The swap tunables are offsets in that frame. No fire meanwhile. Not drawn (the swap at
 once) with `vr_flat_swap_anim 0`, both hands empty, a carried thing, a reload or the quick grenade under way.
-`vr_flat_swap_debug 1`, `vr_flatswap_report`. Test: `Misc/quakevr/flathands_test.sh` (swap1, swap2h, swapdual, swapoff).
+`vr_flat_swap_debug 1` (with `flatswap: in view P F: <hand> x y z turn p y r` as the hands meet), `vr_flatswap_report`.
+Tests: `Misc/quakevr/flathands_test.sh` (swap1, swap2h, swapdual, swapoff); `Misc/quakevr/flatswappitch_test.sh` (the
+free hand at the same place and turn in the view at pitch -60, 0, +60, +-85: the rocket launcher, sighted, the
+chainsaw; the shotgun's meeting).
 
 ## Parry guard
 

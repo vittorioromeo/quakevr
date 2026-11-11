@@ -1,0 +1,8 @@
+# flat_swap_pitch: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode) hand swap animation at a pitch (3: vr_flatswap.cpp, Frame; docs/vr-port/FLATPLAY.md, "The hand swap").
+title Flat-screen hand swap looking up and down: a rocket launcher held in both hands, a shotgun
+hint Play with -flatscreenmode. Take the rocket launcher (two hands), look well down and press 3: the left hand lets go to the empty hand's pose low on the screen, as at a level look, and the gun is passed to it there. Look well up and press 3 again: the same place on the screen. Then the shotgun.
+map vrtesthall
+god
+notarget
+give "Shotgun" main
+spawn "Rocket Launcher" 40 70
