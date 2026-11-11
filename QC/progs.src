@@ -566,6 +566,7 @@ vr_armedrepl.qc
 vr_wornpack.qc // worn backpacks (armed ones with a ranged weapon)
 // Survival Arena: the wave director (the waves, their ladder, their boss, their drops).
 vr_arena.qc
+vr_arena_director.qc // Survival Arena: the budget director's waves (vr_arena_director 1; the planner: vr_arenadirector.cpp)
 vr_arena_perks.qc // Survival Arena: the boss wave's perk choice (its offers, and what each perk does)
 vr_arena_supply.qc // Survival Arena: where a wave clear's supplies land (the map's walkable places, at random)
 vr_arena_banners.qc // Survival Arena: the run's numbers on the map's boards (info_arena_banner)

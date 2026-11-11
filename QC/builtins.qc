@@ -224,6 +224,14 @@ string(float wave, float entry, float field) arenawavesfield = #0;
 void(string s) arenawavesreport = #0;
 // Whether a map is an arena map (the engine's one list: arenawaves::arenaMaps).
 float(string map) isarenamap = #0;
+// The Survival Arena's budget director (vr_arenadirector.hpp has the fields): arenadirstart a run (rows: '0'/'1' per weapon
+// ladder row this game has: two 17-bit masks), arenadirplan a wave (its foes), arenadirget(what, i, field) a number of it, arenadirname its
+// theme's word (0) or its boss's name (1), arenadirsupply a clear's supplies (their count; arenadirget(2, i, 0) each code).
+float(float skill, float seed, float rowsLo, float rowsHi) arenadirstart = #0;
+float(float wave) arenadirplan = #0;
+float(float what, float i, float field) arenadirget = #0;
+string(float what, float i) arenadirname = #0;
+float(float wave, float threat, float hp, float dom) arenadirsupply = #0;
 vector(entity player, float hand, float what) weapondrawnpose = #0;
 // Embedded blades (vr_embedhold.qc; vr_axestick.cpp stickHeld): the just-made blade w put into the body host at `at`, going at
 // `vel` (units/s), from where `hand`'s weapon is drawn: 1 if it stuck (VR_AxeStick_Stuck called), 0 not, -1 not yet: the blade as drawn

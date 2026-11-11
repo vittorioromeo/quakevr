@@ -4548,6 +4548,131 @@ void() VR_AT39_Frame =
 }
 
 // ---------------------------------------------------------------------------
+// Test 42 (vrarena): the budget director's gun knights (his ask 2026-11-11: knights and death knights with actual guns,
+// a death knight boss with a rocket launcher and red armour). Ahead of the player: a knight with a shotgun, a knight
+// with a super nailgun and a death knight boss with a rocket launcher in red armour (as VR_ARENA_SpawnMonster dresses
+// one: its plan's gun held, VR_AgArmor_Give, the boss's bulk). The player hunted (god mode): each must hold its gun and
+// fire it at him (its .vr_ag_total_shots); a screenshot while they do; each felled must drop its gun (a thrown_weapon of
+// that weapon by it). Verdict `arena: test 42 over: N passed, M failed`.
+// ---------------------------------------------------------------------------
+
+entity vr_at42_g[3];
+vector vr_at42_at[3]; // where each fell
+float vr_at42_wid[3];
+float vr_at42_shot;   // the screenshot taken
+
+float vr_at42_wait; // when the wait for the arena and the player gives up (0: not waiting yet)
+
+void() VR_AT42_Begin =
+{
+    entity p = VR_PlayerAlive();
+    if(!ar_mgr || !p || time < 2) // (the map's start: its arena and its player a few frames in; the frames retry)
+    {
+        if(vr_at42_wait <= 0) { vr_at42_wait = time + 30; }
+        if(time > vr_at42_wait) { VR_AT_Check(FALSE, "test 42 needs the arena running (vrarena) and a player"); VR_AT_End(); }
+        vr_at_step = 0;
+        return;
+    }
+    entity keep = self;
+    p.flags = p.flags | FL_GODMODE;
+    p.angles = [0, p.angles_y, 0]; // (turned to face them, level: the screenshot shows them)
+    p.v_angle = p.angles;
+    p.fixangle = TRUE;
+    makevectors(p.angles);
+    float k;
+    for(k = 0; k < 3; k++)
+    {
+        entity g = spawn();
+        self = g;
+        g.classname = k < 2 ? "monster_knight" : "monster_hell_knight";
+        float wid = WID_SHOTGUN;
+        if(k == 1) { wid = WID_SUPER_NAILGUN; }
+        if(k == 2) { wid = WID_ROCKET_LAUNCHER; }
+        vr_at42_wid[k] = wid;
+        setorigin(g, p.origin + v_forward * (k == 2 ? 300 : 420) + v_right * (k == 0 ? -140 : k == 1 ? 140 : 0) + '0 0 24');
+        g.angles = [0, p.angles_y + 180, 0];
+        g.weapon = wid;
+        vr_ar_hold_roll = 1;
+        if(k < 2) { monster_vr_knight(); } else { monster_vr_hknight(); }
+        vr_ar_hold_roll = 0;
+        if(k == 2)
+        {
+            VR_AgArmor_Give(g, 3, 1023);
+            g.health = VR_ARENA_BossHealth(g.health, 1);
+        }
+        g.enemy = p;
+        vr_at42_g[k] = g;
+        self = keep;
+        VR_AT_Check(g.vr_ag_wid == wid && g.vr_ag_prop != world,
+                    sprintf("%s given weapon %g holds it (%g, %s)", k < 2 ? "a knight" : "the death knight boss", wid,
+                            g.vr_ag_wid, g.vr_ag_prop ? "a prop in its hand" : "nothing"));
+    }
+    VR_AT_Check(vr_at42_g[2].vr_ar_type == 3, sprintf("the death knight boss wears red armour (type %g)", vr_at42_g[2].vr_ar_type));
+    vr_at42_shot = 0;
+    vr_at_step = 1;
+    vr_at_until = time + 60;
+}
+
+void() VR_AT42_Frame =
+{
+    if(vr_at_step == 0) { VR_AT42_Begin(); return; } // (still waiting for the arena and the player)
+    entity p = VR_PlayerAlive();
+    if(!p) { VR_AT_Check(FALSE, "the player died"); VR_AT_End(); return; }
+    float k;
+    if(vr_at_step == 1) // (each has fired its gun at him)
+    {
+        float fired = 0;
+        for(k = 0; k < 3; k++) { fired = fired + (vr_at42_g[k].vr_ag_total_shots > 0); }
+        if(!vr_at42_shot && vr_at42_g[2].vr_ag_total_shots > 0) // (the boss's first shot)
+        {
+            vr_at42_shot = 1;
+            localcmd("screenshot\n");
+        }
+        if(fired < 3 && time < vr_at_until - 5) { return; } // (55 s for the three to fire: a knight off to the side may take its time)
+        for(k = 0; k < 3; k++)
+        {
+            VR_AT_Check(vr_at42_g[k].vr_ag_total_shots > 0 && vr_at42_g[k].vr_ag_wid == vr_at42_wid[k],
+                        sprintf("%s fired its weapon %g at the player (%g shots)", k < 2 ? "a knight" : "the death knight boss",
+                                vr_at42_wid[k], vr_at42_g[k].vr_ag_total_shots));
+        }
+        vr_at_step = 2;
+        vr_at_until = time + 8;
+        return;
+    }
+    if(vr_at_step == 2) // (each felled drops its gun)
+    {
+        for(k = 0; k < 3; k++) // (felled, not gibbed, as test 40: its armour soaked up, a blow it shrugged off again)
+        {
+            entity f = vr_at42_g[k];
+            if(f.health > 0 && f.takedamage)
+            {
+                vr_at42_at[k] = f.origin;
+                T_Damage(f, p, p, f.health + f.armorvalue + 20);
+            }
+        }
+        float lying = 0;
+        for(k = 0; k < 3; k++)
+        {
+            entity e = find(world, classname, "thrown_weapon");
+            while(e)
+            {
+                if(e.weapon == vr_at42_wid[k] && vlen(e.origin - vr_at42_at[k]) < 320) { lying = lying + 1; break; }
+                e = find(e, classname, "thrown_weapon");
+            }
+        }
+        if(lying < 3 && time < vr_at_until) { return; }
+        for(entity w = find(world, classname, "thrown_weapon"); w; w = find(w, classname, "thrown_weapon"))
+        {
+            dprint(sprintf("arena: t42 lying %s (weapon %g) at %.0f / %.0f / %.0f from the three\n", w.netname, w.weapon,
+                           vlen(w.origin - vr_at42_at[0]), vlen(w.origin - vr_at42_at[1]), vlen(w.origin - vr_at42_at[2])));
+        }
+        VR_AT_Check(lying == 3, sprintf("each felled dropped its gun by it (%g of 3)", lying));
+        p.flags = p.flags - (p.flags & FL_GODMODE);
+        VR_AT_End();
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Test 40 (vrarena): the weapon schedule's weapons in the player's hands (ROUND24.md, "Survival Arena: every armed
 // humanoid's weapon"). For each code of each row this game has (VR_ARENA_GunOk; a run's every code), an armed grunt
 // holding it is spawned the way the director spawns one and felled ahead of the player; the weapon it drops is taken
@@ -4786,6 +4911,7 @@ void() VR_ARENA_Test_Frame =
         if(c == 39) { VR_AT39_Begin(); return; }
         if(c == 40) { VR_AT40_Begin(); return; }
         if(c == 41) { VR_AT41_Begin(); return; }
+        if(c == 42) { VR_AT42_Begin(); return; }
 
         VR_AT_Check(FALSE, "no such arena test");
         VR_AT_End();
@@ -4827,5 +4953,6 @@ void() VR_ARENA_Test_Frame =
     if(vr_at_case == 39) { VR_AT39_Frame(); return; }
     if(vr_at_case == 40) { VR_AT40_Frame(); return; }
     if(vr_at_case == 41) { VR_AT41_Frame(); return; }
+    if(vr_at_case == 42) { VR_AT42_Frame(); return; }
 }
 #endif

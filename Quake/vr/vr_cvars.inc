@@ -2665,6 +2665,16 @@ QVR_CVAR(vr_arena_score_kill, "100", CVAR_ARCHIVE)            // the score of a 
 QVR_CVAR(vr_arena_foe_armor, "1", CVAR_ARCHIVE)               // 1: the waves' grunts and enforcers may wear armour plates (the arena's roll, rising with the wave and the skill; replaces vr_agarmor_skill* there)
 QVR_CVAR(vr_arena_foe_armor_scale, "1", CVAR_ARCHIVE)         // the arena armour's chance times this (1: 10% at its first wave at Normal, 3% more a wave, cap 85%)
 QVR_CVAR(vr_arena_foe_armor_from, "4", CVAR_ARCHIVE)          // the first wave a foe may wear armour at Normal (moved by the skill as every gate: 7 / 4 / 2 / 2)
+// The budget director (vr_arenadirector.cpp, docs/vr-port/ARENA_DIRECTOR.md; its costs: quakevr/data/arena_director.txt).
+QVR_CVAR(vr_arena_director, "0", CVAR_ARCHIVE)                // 0: the classic waves (the ladder), 1: the budget director's (themes, costs, surges)
+QVR_CVAR(vr_arena_themes, "1", CVAR_ARCHIVE)                  // director 1: 1 a theme rolled per wave, 0 every wave Mixed
+QVR_CVAR(vr_arena_theme_banner, "1", CVAR_ARCHIVE)            // director 1: 1 the wave's theme named in its countdown
+QVR_CVAR(vr_arena_reinforce, "1", CVAR_ARCHIVE)               // director 1: 1 a wave holds back budget for surges (groups at once, round you); 0 none
+QVR_CVAR(vr_arena_supply_reactive, "1", CVAR_ARCHIVE)         // director 1: 1 a clear's supplies lean on how you are doing (hurt: heals; dominating: a power-up)
+QVR_CVAR(vr_arena_supply_scale, "1", CVAR_ARCHIVE)            // director 1: a clear's supply budget times this
+QVR_CVAR(vr_arena_quick_kill, "1", CVAR_ARCHIVE)              // director 1: 1 a foe killed soon after it came in pays more (the data file's quick_time, quick_pay)
+QVR_CVAR(vr_arena_alive_cap, "20", CVAR_ARCHIVE)              // director 1: foes up at once at most, a safety cap for the frame rate (the cadence paces the waves)
+QVR_CVAR(vr_arena_director_log, "0", CVAR_NONE)               // director 1: 1 each wave's plan printed (budget, theme, foes, surges)
 QVR_CVAR(vr_arena_seed, "0", CVAR_NONE)                       // the waves' rolls: 0 a different ladder every run, else that seed's ladder
 QVR_CVAR(vr_arena_waves_dir, "arena_waves", CVAR_NONE)         // the folder of the arena's wave presets, under the game folder (vr_arenawaves.hpp; the tests' keep apart)
 QVR_CVAR(vr_arena_waves_as_release, "0", CVAR_NONE)            // 1: a development build keeps the presets as a release does (saves in <folder>_user: the tests'; a release always does)

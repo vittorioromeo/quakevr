@@ -65,6 +65,13 @@ Flat-screen: with the crowbar in the right hand and the left empty, swing until 
 Shove a grunt off a ledge and knock one down on the flat: a fleshy thud as each hits the floor (with its scream when the fall kills it), softer on the flat, and no rattle as it tumbles. {test:ragthud}
 Flat-screen: hold a gun in one hand and pull a rock or brick into the other: LMB acts with the right hand and RMB with the left, whatever each holds (the gun fires, the rock swings), exactly as with two guns, and RMB never aims then; with the other hand empty RMB aims down the sights as before. Try it both ways round (gun left, rock right too) and with two props. {test:flat_prop_buttons}
 Stand on one of the arena's corner towers with Monsters Find Their Way on: walkers and armed grunts on the floor should come round to its stair and up onto the top, and a grunt on the tower across should go down its own stair and come up yours rather than run into its tower's edge; Show Navmesh draws the stairs joined to the top (the narrow band in yellow). {test:nav_tower}
+Survival Arena budget director (vr_arena_director 1; Combat > Survival Arena; docs/vr-port/ARENA_DIRECTOR.md):
+- With vr_arena_director 1 a run's waves change every run: the countdown names the wave's theme ("Wave 9 in 3... Melee Rush"), and a wave's foes follow it (a Melee Rush brings blades and dogs, a Ranged Siege guns from far, an Elite few armoured big ones). {test:vr_arena_test 42}
+- Spawns come in small groups with a pause after each; kill an arrival quickly and the next group waits for you, dawdle and they pile up. Once or twice a wave a "SURGE!" (or "AMBUSH!", behind you) with a horn brings a bigger group from several sides at once.
+- Knights and death knights carry real guns from about wave 12 / 18 (shotguns, nailguns, launchers), fire them at you and drop them when they fall; a Knightfall wave is mostly them; a boss wave can bring a death knight in red armour with the best gun so far (a rocket launcher, a laser cannon). {test:vr_arena_test 42}
+- A kill within 4 s of the foe coming in counts as a quick kill: the wave clear line says "N quick kills: +score".
+- A clear's supplies grow with the wave beaten and lean on how you're doing: badly hurt, more medkits (a megahealth when very low); untouched, now and then a quad, a ring or (late) a pentagram; red armour from wave 22.
+- vr_arena_director 0 (the default) plays exactly the classic waves.
 
 [2. VR: melee and embedded blades]
 Hit a grunt with the axe right in front of you: the blood and its red mist come right at the camera, not only further off (your config still has Mist Clear of Eyes at 40: set vr_gore_mist_near 0; Particle Fade Near Eyes and Particles Hidden Nearer at 0 draw it at the eyes too). {test:flat_skewer_gibs}

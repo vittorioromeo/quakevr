@@ -147,6 +147,7 @@
 #include "vr_rigdata.hpp"
 #include "vr_rigseq.hpp"
 #include "vr_rigstudio.hpp"
+#include "vr_arenadirector.hpp"
 #include "vr_waveeditor.hpp"
 #include "vr_weaponstudio.hpp" // (its own window: vr_weaponstudio.cpp, its keys' page layout: vr_weaponstudio_ui.cpp)
 #include "vr_gearlights.hpp"
@@ -2135,6 +2136,7 @@ extern "C" void VR_Init()
     ragtool::init();  // -ragtool, vr_ragtool (vr_ragtool.cpp): before flatplay, whose mode the flag implies
     flatplay::init(); // -flatscreenmode (vr_flatplay.cpp): the flag the whole mode hangs on, read once here
     waveeditor::init(); // vr_waveeditor, vr_arena_play (vr_waveeditor.cpp, vr_arenawaves.cpp)
+    arenadirector::registerCommands(); // vr_arena_director_test/_print/_reload (vr_arenadirector.cpp)
     rigstudio::init(); // vr_rigstudio (vr_rigstudio.cpp), its data (vr_rigdata.cpp) and the game's side (vr_rigseq.cpp): their commands
     weaponstudio::init(); // vr_weaponstudio, vr_weaponstudio_open/_close/_slot/_align/_preview/_test (vr_weaponstudio.cpp):
                           // the keys' window (vr_weaponstudio_ui.cpp); its own pages over the menus' stand-ins; its camera's fly speed is a tunable
