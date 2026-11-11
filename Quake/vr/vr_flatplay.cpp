@@ -1422,11 +1422,11 @@ void getUp(const char* why)
 // while a get-up waits for room, it takes the wish back: he stays lying.
 void toggleProne(const char* why)
 {
-    if(vr_prone.value == 0.f || vr_crouch_hull.value == 0.f)
+    if(vr_prone.value == 0.f)
     {
         keyState.prone = false;
         keyState.riseWanted = false;
-        Con_Printf("flatplay: lying down is off (vr_prone, vr_crouch_hull)\n");
+        Con_Printf("flatplay: lying down is off (vr_prone)\n");
         return;
     }
     if(keyState.prone && keyState.riseWanted)
@@ -1711,10 +1711,10 @@ void pollKeysFlat()
         keyState.lin += za::clamp(want - keyState.lin, -step, step);
     }
     keyState.ratio = crouchShape(keyState.lin);
-    // Lying down (vr_flat_key_prone): down while asked, up when not, each way in vr_prone_body_time; off (vr_prone 0, or
-    // the crouched box off) it never goes down.
+    // Lying down (vr_flat_key_prone): down while asked, up when not, each way in vr_prone_body_time; off
+    // (vr_prone 0) it never goes down.
     // (Dead, or between maps: up again, so a respawn or the next map starts standing, as the server starts him.)
-    if(!(vr_prone.value != 0.f && vr_crouch_hull.value != 0.f) || cls.signon != SIGNONS || cl.stats[STAT_HEALTH] <= 0)
+    if(vr_prone.value == 0.f || cls.signon != SIGNONS || cl.stats[STAT_HEALTH] <= 0)
     {
         keyState.prone = false;
         keyState.riseWanted = false;

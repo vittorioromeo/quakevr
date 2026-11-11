@@ -601,7 +601,7 @@ void(vector xA, vector xB) VR_Crate_MonsterShot =
 
 // A monster's bullets at a player in VR (EnemyFireBullets, vr_hull_hit_head): aimed no higher than 70% of his real
 // height (his head's), as Quake's aim at his box's middle is for a player standing: crouched, the shots come lower
-// (into the crate he crouches behind), not all over his head. With a crouched box (vr_crouch_hull: the engine's
+// (into the crate he crouches behind), not all over his head. With a crouched box (always: the engine's
 // QVR_VRBITS0_CROUCHED), no higher than 60% of the lowest crouched box (vr_crouch_height) either.
 vector(vector xSrc, vector xDir, entity xEnemy) VR_Crate_ShotAim =
 {

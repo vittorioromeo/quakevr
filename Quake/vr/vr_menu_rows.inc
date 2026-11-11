@@ -4319,12 +4319,6 @@ QVR_SLIDER(vr_ragdoll_max, "Most Ragdolls", 0.f, 16.f, 1.f, "%.0f", ext(0.f, 64.
     "At most this many at once. New deaths replace the oldest dead ragdoll first, then the oldest living knockdown if necessary. 0: ragdolls off.")
 QVR_TOGGLE(vr_ragdoll_collide_each, "Ragdolls Meet Each Other",
     "Ragdolls fall onto and pile on each other; off, they pass through each other (vr_ragdoll_collide_each).")
-QVR_TOGGLE(vr_ragdoll_self_collide, "Limbs Meet Each Other",
-    "A ragdoll's own limbs meet: an arm stays out of his chest, a leg out of the other, a body folded over "
-    "lies on itself. Jointed neighbours (a forearm and its upper arm), parts deep in each other as he went "
-    "limp (until they come apart) and an arm reaching for his wound, a stump or a wall pass through; his gun "
-    "never meets him. Off: his limbs pass through each other, as before. Ragdolls made from now on "
-    "(vr_ragdoll_self_collide).")
 QVR_TOGGLE(vr_ragdoll_active, "Active Deaths",
     "A dying grunt, enforcer, knight, death knight, ogre or zombie (AD's soldiers, knights and zombies too) goes limp as soon as he stops being solid, "
     "his body playing his death animation as his strength fades (legs first): he stumbles if he dies on the "
@@ -5362,10 +5356,6 @@ QVR_TOGGLE(vr_hull_hit_head, "Height Shots Hit: Your Head's",
     "Shots and missiles meet you only up to the top of your head: crouched behind a crate, those flying "
     "over it miss you (Quake's box stands as tall), and monsters' bullets aim no higher than your body. "
     "Off: Quake's height, crouched or not (vr_hull_hit_head).")
-QVR_TOGGLE(vr_crouch_hull, "Crouched Hitbox",
-    "Crouch in real life and your box is lower: you walk under low ceilings and through small teleporters, "
-    "and behind cover shots meet only what shows of you. Standing up somewhere too low, you keep the low box "
-    "until there is room. Off: always Quake's standing height (vr_crouch_hull).")
 QVR_SLIDER(vr_crouch_height, "Lowest Crouched Height", 24.f, 52.f, 4.f, "%.0f units", noExt,
     "Your box's height with your eyes under it (Quake's standing box: 56; the crouching room's tunnel in "
     "the teleporter test map: 40) (vr_crouch_height).")
@@ -5631,12 +5621,6 @@ QVR_CYCLE(vr_agarmor, "Armed Humanoids' Armour (P0)",
 QVR_CYCLE(vr_agarmor_pieces, "Armour Pieces",
     "vr_agarmor_pieces: which pieces the armoured grunts wear (each piece hidden by collapsing its bones).",
     {3.f, "Cuirass and Helmet"}, {1.f, "Cuirass"}, {2.f, "Helmet"})
-QVR_CYCLE(vr_agarmor_bridge, "Elbow and Knee Leather",
-    "vr_agarmor_bridge: the leather between the armour plates at the elbows and knees. Bending: one tube made every "
-    "frame from the upper plates' last row to the lower plates' first, curved round the joint, its folds bunched "
-    "on the inside of the bend and stretched flat on the outside. Old Sleeves: the two rigid halves made once at "
-    "load (for comparison). The shells are made again when it changes.",
-    {1.f, "Bending"}, {0.f, "Old Sleeves"})
 QVR_TOGGLE(vr_agarmor_details, "Armour Plate Details",
     "vr_agarmor_details: the plates' painted details by place: the chest's recessed panel, ribs down the belly, "
     "vents on the forearms' cuffs and the shins, raised cops on the elbows and knees, the emblem on an upper arm. "
@@ -6907,10 +6891,6 @@ QVR_CYCLE(vr_hull_cache, "Hitboxes on Disk",
     "A big map's compiled hulls kept on disk (cache/hulls) and read at its next load instead of compiled "
     "again (vrstart: 9 s to 0.1 s). Check: read, then compiled anyway and compared (Hitbox Stats counts "
     "them). Off: compiled at every load (vr_hull_cache).",
-    {0.f, "Off"}, {1.f, "On"}, {2.f, "Check"})
-QVR_CYCLE(vr_model_light_grid_cache, "Model Light Grids on Disk",
-    "A big map's model light grid kept on disk (cache/lightgrid) and read at its next load instead of built "
-    "again (vrstart: 2.2 s). Check: read, then built anyway and compared. Off: built at every load (vr_model_light_grid_cache).",
     {0.f, "Off"}, {1.f, "On"}, {2.f, "Check"})
 QVR_CYCLE(vr_hull_async, "New Monster Sizes in Play",
     "A monster whose box size the map's load did not compile (a delayed or triggered spawn, the test "

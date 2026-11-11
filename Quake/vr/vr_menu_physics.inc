@@ -277,7 +277,6 @@
         row(opt::vr_ragdoll_start),
         row(opt::vr_ragdoll_max),
         row(opt::vr_ragdoll_collide_each),
-        row(opt::vr_ragdoll_self_collide),
         header("Active Deaths (Experimental)"),
         open("Test Them", pageIndex(pageRagdollTests))
             .help("Debug > Tests > Ragdoll Behaviours: each behaviour below set going on the nearest grunt, enforcer, "

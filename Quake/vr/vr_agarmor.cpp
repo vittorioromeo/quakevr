@@ -138,7 +138,7 @@ constexpr Block helmCapBlock{160.f, 64.f, 192.f, 96.f};
 constexpr Block liningBlock{192.f, 64.f, 224.f, 96.f};
 constexpr Block innerBlock{160.f, 96.f, 208.f, 128.f};
 constexpr Block rimBlock{208.f, 96.f, 256.f, 128.f};
-constexpr Block jointBlock{224.f, 64.f, 256.f, 96.f}; // an elbow's or a knee's sleeve: leather bellows round it (u round, v down to the joint)
+// (224, 64) .. (256, 96): an elbow's or a knee's leather bridge, round it (vr_agarmor_bridge.cpp)
 
 // A limb piece's bone (its region: the triangles weighing mostly on it), by piece.
 constexpr const char* limbBone[NumPieces] = {nullptr, nullptr, "upperarm_l", "upperarm_r", "forearm_l", "forearm_r", "thigh_l", "thigh_r",
@@ -939,21 +939,15 @@ constexpr float plateYoke = 1.2f;               // the cuirass's first row's hei
 constexpr float plateWaist = 1.2f;              // the cuirass past its region's lower edge
 // The joints (elbows, knees) bare of plates, so the limb bends without the plates going through it (his notes, 2026-11-05: a plate
 // floating at the elbow, the forearm coming out through the upper arm's plates): the upper arm's and the thigh's plates end this far
-// short of the joint, the forearm's and the shin's start this far past it; a sleeve of leather bellows on the skin between (sleeveOf).
+// short of the joint, the forearm's and the shin's start this far past it; the joint's leather bridge between (bridgesOf).
 constexpr float plateElbowAbove = 1.6f, plateKneeAbove = 2.0f, plateElbowBelow = 0.9f, plateKneeBelow = 1.2f; // units
 // A humanoid's forearm's plates stop this far short of the wrist, its shin's of the ankle (its bones' ends); its thigh's start: plateHipFrom.
 constexpr float plateWristAbove = 0.9f, plateAnkleAbove = 0.6f;
 // How far a humanoid's limb's corner may stand over its rays' radius for the skin's vertices between (plateRidge: the cuirass's and the
 // player's): their low-poly limbs' corners made the plates wide and bulky (his notes, 2026-11-06).
 constexpr float plateRidgeLimb = 0.5f, plateRidgeThigh = 0.8f; // (a thigh's more: the low-poly knee's point)
-constexpr float sleeveFit = 0.22f, sleeveFitLower = 0.34f; // the sleeves' units off the skin (the lower part's over the upper's where they meet)
-constexpr int sleeveRings = 4;       // rings down a sleeve
-constexpr float sleeveRidge = 0.8f;  // units a sleeve's corner may go out for the skin's vertices between its rings
-constexpr float sleeveRidgeHumanoid = 1.6f; // (a humanoid's: over the knee's and the elbow's points, which its limb's slimmer end rows no longer cover; eased round)
 constexpr float sleevePast = 0.3f;   // units a sleeve may go past its joint, under the next part's (its region past the joint; 0.8 till
                                      // 2026-11-06: the two halves overlapped, his note "leather seam overlap")
-constexpr float sleeveRoundLeast = 0.85f, sleeveRoundMost = 1.25f, sleeveRoundIn = 0.3f; // a humanoid's sleeve's corners within these of its ring's mean
-constexpr float sleeveUnder = 0.45f; // how far up under the end row of plates a sleeve starts (of that row's height)
 constexpr float capBulge = 1.18f;    // a knight's pauldron's dome (Wearer::shoulderCap): its middle ring this much wider than its rim
 // The body's vertices weighing on a piece's bones less than its region's cut but at least this much (a deltoid between the
 // cuirass and the upper arm, a buttock over the thigh) push its plates out over them too, if a plate needn't swell past
@@ -1987,187 +1981,6 @@ void platesOf(Shell& s, const Local& L, const PieceFrame& f, const PlateGrid& g,
     return found;
 }
 
-// An elbow's or a knee's sleeve, the half on this limb's part: a band of leather bellows round the skin from under its end row of
-// plates to the joint, weighted as the skin under it is, so it bends as the joint does (a part worn alone ends at the joint, the
-// next part's skin carrying on from it). 36 triangles. `taperStart`, `taperEnd`: armour.txt's taper on the sleeve part (1 as made).
-void sleeveOf(Shell& s, const Body& b, const PieceFrame& f, const PlateGrid& g, int piece, float taperStart, float taperEnd)
-{
-    const bool upper = piece == PauldronL || piece == PauldronR || piece == ThighL || piece == ThighR;
-    const int endRing = upper ? g.rows : 0, nextRing = upper ? g.rows - 1 : 1;
-    const float hEnd = g.hAt(endRing);
-    const float h0 = hEnd + (g.hAt(nextRing) - hEnd) * sleeveUnder, h1 = g.sleeveEnd;
-    const float fit = upper ? sleeveFit : sleeveFitLower;
-    const glm::vec2 c = at(g.axis, endRing);
-    float ringMean = 0.f;
-    for(int col = 0; col < g.cols; col++)
-    {
-        ringMean += g.at2(endRing, col) / static_cast<float>(g.cols);
-    }
-    const auto dirOf = [&](float az) { return f.fwd * za::cos(az) + f.left * za::sin(az); };
-    const int first = count(s.verts);
-    const float most = ringMean * 1.6f + 1.f, chord = za::cos(pi / static_cast<float>(g.cols));
-    constexpr int mostCols = 8;
-    glm::vec3 centre[sleeveRings];
-    float rad[sleeveRings][mostCols]{};
-    for(int ring = 0; ring < sleeveRings; ring++)
-    {
-        const float along = static_cast<float>(ring) / static_cast<float>(sleeveRings - 1);
-        const float h = h0 + (h1 - h0) * along;
-        glm::vec3 o = f.origin + f.up * h + f.fwd * c.x + f.left * c.y;
-        // (the ring round the limb's own middle at that height: where the skin is left from the plates' axis, its exits' middle)
-        glm::vec3 mid{0.f};
-        int found = 0;
-        for(int col = 0; col < g.cols * 2; col++)
-        {
-            float t = 0.f;
-            W w;
-            const glm::vec3 d = dirOf(static_cast<float>(col) * pi / static_cast<float>(g.cols));
-            if(bodyExit(b, o, d, most, t, w))
-            {
-                mid += o + d * t;
-                found++;
-            }
-        }
-        if(found >= g.cols)
-        {
-            mid /= static_cast<float>(found);
-            o = mid - f.up * glm::dot(mid - o, f.up);
-        }
-        for(int col = 0; col <= g.cols; col++)
-        {
-            const float az = g.azOf(col % g.cols);
-            const glm::vec3 d = dirOf(az);
-            float t = 0.f;
-            W w;
-            if(!bodyExit(b, o, d, most, t, w))
-            {
-                t = ringMean * 0.8f;
-                w = W{};
-                const int bone = s.tubes[piece].bone;
-                w.w[bone >= 0 ? bone : 0] = 1.f;
-            }
-            // (the skin half way round to each neighbour under the flat face between)
-            float r = t;
-            for(const float side : {-1.f, 1.f})
-            {
-                float tm = 0.f;
-                W wm;
-                r = bodyExit(b, o, dirOf(az + side * pi / static_cast<float>(g.cols)), most, tm, wm) ? za::max(r, tm / chord) : r;
-            }
-            // (under the plates at the start: no further out than their feet)
-            r = ring == 0 ? za::min(r + fit, g.at2(endRing, col) + plateFit) : r + fit;
-            centre[ring] = o;
-            rad[ring][col % g.cols] = r;
-            Vert v;
-            v.p = o + d * r;
-            v.n = d;
-            v.st = toBlock(jointBlock, static_cast<float>(col) / static_cast<float>(g.cols), upper ? along : 1.f - along);
-            v.w = w;
-            v.piece = piece;
-            v.layer = 3;
-            s.verts.pushBack(v);
-        }
-    }
-    // The skin's own vertices between the rings under the sleeve's flat faces, as the plates' (fillRadii): each corner out by at
-    // most sleeveRidge for them (a low-poly knee's point past that is left to show, rather than a bulging sleeve).
-    const float colWide = 2.f * pi / static_cast<float>(g.cols);
-    const auto ridgeOut = [&]
-    {
-        for(int v = 0; v < count(b.p) && g.cols <= mostCols; v++)
-        {
-            const float h = glm::dot(at(b.p, v) - f.origin, f.up);
-            const float ringF = (h - h0) / (h1 - h0 + (h1 >= h0 ? 1e-6f : -1e-6f)) * static_cast<float>(sleeveRings - 1);
-            if(ringF < 0.f || ringF > static_cast<float>(sleeveRings - 1))
-            {
-                continue;
-            }
-            const int ring = za::min(static_cast<int>(ringF), sleeveRings - 2);
-            const float t = ringF - static_cast<float>(ring);
-            const glm::vec3 cen = centre[ring] + (centre[ring + 1] - centre[ring]) * t;
-            glm::vec3 rel = at(b.p, v) - cen;
-            rel -= f.up * glm::dot(rel, f.up);
-            const float radial = glm::length(rel);
-            if(radial > most)
-            {
-                continue;
-            }
-            float az = za::atan2(glm::dot(rel, f.left), glm::dot(rel, f.fwd)) - g.azOf(0);
-            az = az < 0.f ? az + 2.f * pi : az;
-            const float colF = za::min(az / colWide, static_cast<float>(g.cols) - 1e-3f);
-            const int col = static_cast<int>(colF), col1 = (col + 1) % g.cols;
-            const float u = colF - static_cast<float>(col);
-            const float need = radial * za::cos((u - 0.5f) * colWide) / chord + fit;
-            const float w00 = (1.f - t) * (1.f - u), w01 = (1.f - t) * u, w10 = t * (1.f - u), w11 = t * u;
-            const float have = rad[ring][col] * w00 + rad[ring][col1] * w01 + rad[ring + 1][col] * w10 + rad[ring + 1][col1] * w11;
-            if(need > have && need - have <= (f.ends ? sleeveRidgeHumanoid : sleeveRidge))
-            {
-                const float k = (need - have) / za::max(w00 * w00 + w01 * w01 + w10 * w10 + w11 * w11, 1e-3f);
-                rad[ring][col] += k * w00;
-                rad[ring][col1] += k * w01;
-                rad[ring + 1][col] += k * w10;
-                rad[ring + 1][col1] += k * w11;
-            }
-        }
-    };
-    ridgeOut();
-    // (a humanoid's: each ring a clean band, its corners eased towards their neighbours' and none far past the ring's mean: a low-poly
-    // knee's or elbow's point made them spiky and disjoint; his notes, 2026-11-06)
-    for(int ring = 0; f.ends && ring < sleeveRings && g.cols <= mostCols; ring++)
-    {
-        float eased[mostCols]{};
-        float mean = 0.f;
-        for(int col = 0; col < g.cols; col++)
-        {
-            eased[col] = rad[ring][col] * 0.5f + (rad[ring][(col + g.cols - 1) % g.cols] + rad[ring][(col + 1) % g.cols]) * 0.25f;
-            mean += eased[col] / static_cast<float>(g.cols);
-        }
-        for(int col = 0; col < g.cols; col++)
-        {
-            rad[ring][col] = za::max(za::clamp(eased[col], mean * sleeveRoundLeast, mean * sleeveRoundMost), rad[ring][col] - sleeveRoundIn); // (no further in: a knee's point showed)
-        }
-    }
-    // (and the points it covered still under it: easing a corner in by up to sleeveRoundIn bared a grunt's knee's point)
-    if(f.ends)
-    {
-        ridgeOut();
-    }
-    // (armour.txt's taper on the sleeve part: each ring's radii scaled round its middle, in the limb's order as the plates' rows
-    // are: the taper at start on its end nearer the body (an upper part's under its plates, a lower part's at the joint), lerped
-    // to the taper at end on the other. Its ring under the plates stays under their feet (below), so the seam holds.)
-    if(taperStart != 1.f || taperEnd != 1.f)
-    {
-        for(int ring = 0; ring < sleeveRings && g.cols <= mostCols; ring++)
-        {
-            const float along = static_cast<float>(ring) / static_cast<float>(sleeveRings - 1);
-            const float k = taperStart + (taperEnd - taperStart) * (upper ? along : 1.f - along);
-            for(int col = 0; col < g.cols; col++)
-            {
-                rad[ring][col] = za::max(rad[ring][col] * k, 0.05f);
-            }
-        }
-    }
-    const int row = g.cols + 1;
-    for(int ring = 0; ring < sleeveRings && g.cols <= mostCols; ring++)
-    {
-        for(int col = 0; col <= g.cols; col++)
-        {
-            const float r = ring == 0 ? za::min(rad[ring][col % g.cols], g.at2(endRing, col) + plateFit) : rad[ring][col % g.cols];
-            at(s.verts, first + ring * row + col).p = centre[ring] + dirOf(g.azOf(col % g.cols)) * r;
-        }
-    }
-    for(int ring = 0; ring + 1 < sleeveRings; ring++)
-    {
-        for(int col = 0; col < g.cols; col++)
-        {
-            const int a = first + ring * row + col, bb = a + 1, cc = a + row + 1, dd = a + row;
-            const glm::vec3 out = dirOf(g.azOf(col) + pi / static_cast<float>(g.cols));
-            const bool flip = glm::dot(glm::cross(at(s.verts, bb).p - at(s.verts, a).p, at(s.verts, cc).p - at(s.verts, a).p), out) < 0.f;
-            addTri(s, a, flip ? cc : bb, flip ? bb : cc);
-            addTri(s, a, flip ? dd : cc, flip ? cc : dd);
-        }
-    }
-}
-
 // ---- The helmet: the Ranger's (the player's face in the status bar), built round the head ----
 // A flat-topped bucket over the crown (its top edge chamfered, its lower edge a ledge over the brow), cheek guards from
 // under it down the sides of the face to the jaw line, the back down to the nape, the face open (the eyes under the
@@ -2573,15 +2386,15 @@ void topFour(W& w)
     w = o;
 }
 
-// armour.txt's tweaks (vr_armourdata.hpp) on the vertices [from, to) of a piece just made: `push` 1 a sleeve's stand-off, out
-// from its middle square to `up` (its bone), 2 the helmet's, out from its middle; 0 none (a grid piece's is in its radii). Then
-// scaled and turned round the middle of their box, and moved. Nothing set: not a vertex touched.
-void tweakVerts(Shell& s, int from, int to, const armourdata::Override& o, int push, const glm::vec3& up, int boxTo = -1)
+// armour.txt's tweaks (vr_armourdata.hpp) on the vertices [from, to) of a piece just made: `push` the helmet's stand-off, out
+// from its middle (a grid piece's is in its radii). Then scaled and turned round the middle of their box, and moved. Nothing
+// set: not a vertex touched.
+void tweakVerts(Shell& s, int from, int to, const armourdata::Override& o, bool push, int boxTo = -1)
 {
     boxTo = boxTo < 0 ? to : boxTo; // (the middle: of [from, boxTo) alone; a bridge's end ring after the plates moves with them)
     using armourdata::Override;
     const auto has = [&](int field) { return ((o.has >> static_cast<unsigned>(field)) & 1u) != 0u; };
-    const bool pushed = has(armourdata::Standoff) && push != 0;
+    const bool pushed = has(armourdata::Standoff) && push;
     const bool moved = has(armourdata::OffsetX) || has(armourdata::OffsetY) || has(armourdata::OffsetZ) || has(armourdata::Pitch) ||
         has(armourdata::Yaw) || has(armourdata::Roll) || has(armourdata::Scale);
     if(from >= to || (!pushed && !moved))
@@ -2595,12 +2408,11 @@ void tweakVerts(Shell& s, int from, int to, const armourdata::Override& o, int p
         hi = glm::max(hi, at(s.verts, i).p);
     }
     const glm::vec3 mid = (lo + hi) * 0.5f;
-    if(has(armourdata::Standoff) && push)
+    if(pushed)
     {
         for(int i = from; i < to; i++)
         {
-            glm::vec3 d = at(s.verts, i).p - mid;
-            d = push == 1 ? d - up * glm::dot(d, up) : d;
+            const glm::vec3 d = at(s.verts, i).p - mid;
             at(s.verts, i).p += geom::safeNormalize(d, glm::vec3{0.f}, 1e-6f) * o.v[armourdata::Standoff];
         }
     }
@@ -2648,7 +2460,7 @@ bool skinRingOf(const Body& b, const PieceFrame& f, const PlateGrid& g, int ring
         ringMean += g.at2(ring, col) / static_cast<float>(g.cols);
     }
     const float most = ringMean * 1.6f + 1.f, chord = za::cos(pi / static_cast<float>(g.cols));
-    // (round the limb's own middle there, as sleeveOf's rings)
+    // (round the limb's own middle there)
     glm::vec3 mid{0.f};
     int found = 0;
     for(int k = 0; k < g.cols * 2; k++)
@@ -2916,8 +2728,7 @@ bool buildShell(qmodel_t* src, Shell& s)
     za::Vector<uint8_t> overs[NumPieces];
     za::Vector<glm::vec3> fringes[NumPieces];
     PlateGrid grids[NumPieces];
-    // (the joints' leather: a bridge made each frame (vr_agarmor_bridge 1), else each limb part's sleeve made here)
-    const bool bridged = vr_agarmor_bridge.value != 0.f;
+    // (the joints' leather: a bridge made each frame, bridgesOf; each limb part's end ring kept for it here)
     BridgeEnd rows[NumPieces];
     for(int piece = 0; piece < NumPieces; piece++)
     {
@@ -3073,7 +2884,7 @@ bool buildShell(qmodel_t* src, Shell& s)
     {
         const PieceFrame& f = frames[piece];
         const int firstVert = count(s.verts), firstTri = count(s.tris);
-        int sleeveVert = -1, ringVert = -1;
+        int ringVert = -1;
         s.tubes[piece] = PlateTube{};
         s.tubes[piece].grid = grids[piece];
         s.tubes[piece].origin = f.origin;
@@ -3092,7 +2903,7 @@ bool buildShell(qmodel_t* src, Shell& s)
             // (a joint's bridge: this part's end ring at the joint, its plates' feet there, weighted as they are; moved by
             // armour.txt's tweaks with the plates, then kept apart: bridgesOf)
             const PlateGrid& g = grids[piece];
-            if(bridged && piece >= PauldronL && g.cols == bridgeCols && g.rows >= 1)
+            if(piece >= PauldronL && g.cols == bridgeCols && g.rows >= 1)
             {
                 ringVert = count(s.verts);
                 const int ring = f.upper ? g.rows : 0;
@@ -3107,26 +2918,11 @@ bool buildShell(qmodel_t* src, Shell& s)
                     s.verts.pushBack(v);
                 }
             }
-            // (armour.txt's `leather "0"` on a sleeve part: that sleeve not made at all)
-            const bool leatherOff = tweaked(sleeveTweak[piece], armourdata::Leather) && sleeveTweak[piece].v[armourdata::Leather] < 0.5f;
-            if(!bridged && piece >= PauldronL && grids[piece].cols == 6 && grids[piece].rows >= 2 && !leatherOff)
-            {
-                sleeveVert = count(s.verts);
-                // (its taper: as the plates', clamped 0.2 .. 3)
-                const armourdata::Override& st = sleeveTweak[piece];
-                const float ta = tweaked(st, armourdata::TaperStart) ? za::clamp(st.v[armourdata::TaperStart], 0.2f, 3.f) : 1.f;
-                const float tb = tweaked(st, armourdata::TaperEnd) ? za::clamp(st.v[armourdata::TaperEnd], 0.2f, 3.f) : 1.f;
-                sleeveOf(s, s.body, f, grids[piece], piece, ta, tb);
-            }
         }
-        // (armour.txt's tweaks on what was made: the helmet pushed out round its middle, a sleeve round its bone's line; then
-        // each moved, turned and scaled round its middle)
-        const int plateEnd = sleeveVert >= 0 ? sleeveVert : count(s.verts);
-        tweakVerts(s, firstVert, plateEnd, tweak[piece], piece == Helmet ? 2 : 0, f.up, ringVert >= 0 ? ringVert : plateEnd);
-        if(sleeveVert >= 0)
-        {
-            tweakVerts(s, sleeveVert, count(s.verts), sleeveTweak[piece], 1, f.up);
-        }
+        // (armour.txt's tweaks on what was made: the helmet pushed out round its middle; then each moved, turned and scaled
+        // round its middle)
+        const int plateEnd = count(s.verts);
+        tweakVerts(s, firstVert, plateEnd, tweak[piece], piece == Helmet, ringVert >= 0 ? ringVert : plateEnd);
         if(ringVert >= 0)
         {
             BridgeEnd& e = rows[piece];
@@ -3152,10 +2948,7 @@ bool buildShell(qmodel_t* src, Shell& s)
     s.bridgeRestP.clear();
     s.bridgeRestN.clear();
     s.bridgeTris.clear();
-    if(bridged)
-    {
-        bridgesOf(s, *rig, frames, grids, sleeveTweak, rows);
-    }
+    bridgesOf(s, *rig, frames, grids, sleeveTweak, rows);
     // Slots: each piece's bones its own.
     int slotOf[NumPieces][rig2::maxBones];
     for(auto& row : slotOf)
@@ -3257,7 +3050,8 @@ float bridgeBonesOf[maxBridges][bridgeMostVerts * 12]{};
 // (the player's body's: vr_view_body.cpp's entity, made once a frame)
 float playerBridgeBones[bridgeMostVerts * 12]{};
 int playerBridgeFrame = -1, playerBridgePieces = -1;
-float bridgeKey[6]{-1.f, -1.f, -1.f, -1.f, -1.f, -1.f}; // (vr_agarmor_bridge, _folds, _fold_depth, _details, _emblem, _hero as the shells were made with)
+float bridgeKey[5]{}; // (vr_agarmor_folds, _fold_depth, _details, _emblem, _hero as the shells were made with)
+bool bridgeKeyed = false; // (bridgeKey set: the first shells made)
 
 // Whether a kind's armour is still the model it found: a campaign switch (Mod_ResetAll) empties the slots of the models
 // it does not keep, the "#armor" ones among them, and gives them to the next models loaded (a body it keeps finds its
@@ -3937,10 +3731,11 @@ void relink()
     numWorn = 0;
     numBridges = 0;
     // (the joints' leather's settings changed: every shell made again, as vr_agarmor_rebuild)
-    const float key[6] = {vr_agarmor_bridge.value != 0.f ? 1.f : 0.f, vr_agarmor_folds.value, vr_agarmor_fold_depth.value, vr_agarmor_details.value, vr_agarmor_emblem.value, vr_agarmor_hero.value};
-    if(memcmp(key, bridgeKey, sizeof(key)))
+    const float key[5] = {vr_agarmor_folds.value, vr_agarmor_fold_depth.value, vr_agarmor_details.value, vr_agarmor_emblem.value, vr_agarmor_hero.value};
+    if(!bridgeKeyed || memcmp(key, bridgeKey, sizeof(key)))
     {
-        const bool first = bridgeKey[0] < 0.f;
+        const bool first = !bridgeKeyed;
+        bridgeKeyed = true;
         memcpy(bridgeKey, key, sizeof(key));
         if(!first)
         {
@@ -4707,11 +4502,9 @@ void debugDraw()
             {
                 continue;
             }
-            // (a sleeve's triangles: the atlas's joint block)
-            const glm::vec2 st = at(s->verts, at(s->tris, k)).st;
-            const bool sleeveTri = piece >= PauldronL && st.x >= jointBlock.x0 && st.y >= jointBlock.y0 && st.y <= jointBlock.y1;
+            // (a sleeve part picked: its leather is the joints' bridge model's, none of these plates)
             const bool studioOne = picked && i == studio.ent;
-            if(studioOne && (!((studio.pieces >> piece) & 1) || sleeveTri != studio.sleeve))
+            if(studioOne && (studio.sleeve || !((studio.pieces >> piece) & 1)))
             {
                 continue;
             }

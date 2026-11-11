@@ -229,13 +229,8 @@ void measure(const Shell& s, const rig2::Rig& rig, const rig2::Pose& pose, Tally
             }
             const glm::vec3 p = at(cd.body, v);
             float wn = 0.f;
-            // (a joint's sleeve isn't a slab: a band on the skin, its winding round the limb meaningless)
             for(int k = firstTri; k < firstTri + nt; k++)
             {
-                if(at(s.verts, at(s.tris, 3 * k)).layer == 3)
-                {
-                    continue;
-                }
                 wn += solidAngle(at(cd.shell, at(s.tris, 3 * k)) - p, at(cd.shell, at(s.tris, 3 * k + 1)) - p,
                     at(cd.shell, at(s.tris, 3 * k + 2)) - p);
             }
@@ -252,10 +247,6 @@ void measure(const Shell& s, const rig2::Rig& rig, const rig2::Pose& pose, Tally
                 float d = 1e9f;
                 for(int k = firstTri; k < firstTri + nt; k++)
                 {
-                    if(at(s.verts, at(s.tris, 3 * k)).layer == 3)
-                    {
-                        continue;
-                    }
                     d = za::min(d, closestDistance(p, at(cd.shell, at(s.tris, 3 * k)), at(cd.shell, at(s.tris, 3 * k + 1)),
                                        at(cd.shell, at(s.tris, 3 * k + 2))));
                 }
@@ -358,7 +349,7 @@ void checkModel(const char* modelName, int randoms, int& passed, int& failed)
     Con_Printf("agarmor check: helmet fit: %s\n", sp->helmFit);
     verdict(again.hash == sp->hash && again.hash != 0u, "made alike twice");
     const Shell& s = *sp;
-    // Closed: every edge of each piece's plates used twice (a joint's sleeve, a band on the skin, open at its ends).
+    // Closed: every edge of each piece's plates used twice.
     {
         EdgeMap uses;
         uses.init(count(s.tris));
@@ -378,7 +369,7 @@ void checkModel(const char* modelName, int randoms, int& passed, int& failed)
         }
         for(int k = 0; k + 2 < count(s.tris); k += 3)
         {
-            for(int e = 0; e < 3 && at(s.verts, at(s.tris, k)).layer != 3; e++)
+            for(int e = 0; e < 3; e++)
             {
                 bool fresh = false;
                 int& n = uses.get(at(weld, at(s.tris, k + e)), at(weld, at(s.tris, k + (e + 1) % 3)), fresh);
@@ -401,9 +392,9 @@ void checkModel(const char* modelName, int randoms, int& passed, int& failed)
         for(int piece = 0; piece < NumPieces; piece++)
         {
             const int end = firstVert + s.pieceVerts[piece];
-            for(int a = firstVert; piece != Helmet && a + plateVerts <= end && at(s.verts, a).layer != 3; a += plateVerts)
+            for(int a = firstVert; piece != Helmet && a + plateVerts <= end; a += plateVerts)
             {
-                for(int b = firstVert; b + plateVerts <= end && at(s.verts, b).layer != 3; b += plateVerts)
+                for(int b = firstVert; b + plateVerts <= end; b += plateVerts)
                 {
                     const bool meet = a != b && glm::distance(at(s.verts, a + 1).p, at(s.verts, b).p) < 0.02f &&
                                       glm::distance(at(s.verts, a + 2).p, at(s.verts, b + 3).p) < 0.02f;
@@ -1185,7 +1176,7 @@ struct PopChunk
     {
         const int end = firstVert + s.pieceVerts[piece];
         za::Vector<int> plates;
-        for(int vi = firstVert; piece != Helmet && vi + plateVerts <= end && at(s.verts, vi).layer != 3; vi += plateVerts)
+        for(int vi = firstVert; piece != Helmet && vi + plateVerts <= end; vi += plateVerts)
         {
             plates.pushBack(vi);
         }
@@ -1433,7 +1424,7 @@ void popPose(const Shell& s, const rig2::Rig& rig, const glm::mat4* pose, PopTot
     for(int piece = 0; piece < NumPieces; piece++)
     {
         const int end = firstVert + s.pieceVerts[piece];
-        for(int vi = firstVert; piece != Helmet && vi + plateVerts <= end && at(s.verts, vi).layer != 3; vi += plateVerts)
+        for(int vi = firstVert; piece != Helmet && vi + plateVerts <= end; vi += plateVerts)
         {
             const glm::vec3 mid = (at(posed, vi) + at(posed, vi + 1) + at(posed, vi + 2) + at(posed, vi + 3)) * 0.25f;
             const glm::vec3 n = geom::safeNormalize(popSkin(pose, at(s.verts, vi).w, at(s.verts, vi).n, 0.f), glm::vec3{0.f, 0.f, 1.f}, 1e-6f);
@@ -1488,7 +1479,7 @@ void popBulk(const Shell& s, float* mean, float* most)
     for(int piece = 0; piece < NumPieces; piece++)
     {
         const int end = firstVert + s.pieceVerts[piece];
-        for(int vi = firstVert; piece != Helmet && vi + plateVerts <= end && at(s.verts, vi).layer != 3; vi += plateVerts)
+        for(int vi = firstVert; piece != Helmet && vi + plateVerts <= end; vi += plateVerts)
         {
             const glm::vec3 mid = (at(s.verts, vi).p + at(s.verts, vi + 1).p + at(s.verts, vi + 2).p + at(s.verts, vi + 3).p) * 0.25f;
             float nearest = 9.f;

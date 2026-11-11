@@ -185,7 +185,7 @@ struct PlateTube
 };
 
 // ---- The elbows' and the knees' leather (vr_agarmor_bridge.cpp; ROUND24.md, "Leather bridge at elbows and knees") ----
-// One tube per joint made every frame the body is drawn (vr_agarmor_bridge 1): from the posed end row of the upper part's plates
+// One tube per joint made every frame the body is drawn: from the posed end row of the upper part's plates
 // (pauldron, thigh) to the posed first row of the lower part's (bracer, shin), curved along each row's direction, its bellows
 // bunched on the inside of the bend and stretched flat on the outside. A part not worn: that end on the skin past the joint.
 // Drawn as an entity of its own whose every vertex is a bone of its own (bridgeBones: each frame's places, through the
@@ -260,7 +260,7 @@ struct Shell
 {
     PlateTube tubes[NumPieces];
     Bridge bridges[NumJoints];
-    int bridgeVerts{0};          // the bridge model's vertices (0: none, vr_agarmor_bridge 0's sleeves instead)
+    int bridgeVerts{0};          // the bridge model's vertices (0: none)
     za::Vector<glm::vec3> bridgeRestP, bridgeRestN; // its rest places and normals (the model's bind pose)
     za::Vector<int> bridgeTris;
     za::String model;

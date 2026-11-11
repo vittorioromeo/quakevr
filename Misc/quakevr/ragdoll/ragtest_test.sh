@@ -6,7 +6,6 @@
 # `ragact` line), then the totals; NAMES (or the arguments): only those (death_body crawl ...).
 #   MON=n     the monster (vr_test_spawn's numbers: 0 grunt (default), 1 ogre, 2 zombie, 5 knight, 6 death knight,
 #             8 enforcer); the zombie only dies beheaded, so most of its deaths fail by design
-#   SELF=0|1  vr_ragdoll_self_collide for the run (default: the game's)
 AGENT=${1:?worktree name}; shift
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 export TB_NODRAW=${TB_NODRAW-1} # (batched frames not drawn: no check here reads the drawing; testbatch.sh)
@@ -22,7 +21,6 @@ mkdir -p "$TREE/scratch"
 # Each row: name|label (the table's first line of each row: {"vr_ragdoll_act <name>", "<group>", "<label>",).
 ROWS=$(grep -o '{"vr_ragdoll_act [a-z_]*", "[^"]*", "[^"]*"' "$SRC" | sed -E 's/\{"vr_ragdoll_act ([a-z_]+)", "[^"]*", "([^"]*)"/\1|\2/')
 PRE="sv_random_seed ${SEED:-7};map vrtesthall;wait30;god;notarget;vr_ragdoll_active_seed ${SEED:-0}"
-[ -n "${SELF:-}" ] && PRE="$PRE;vr_ragdoll_self_collide $SELF"
 S="$PRE"
 LEDGES=""
 while IFS='|' read -r name label; do

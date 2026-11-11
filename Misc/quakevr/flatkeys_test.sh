@@ -5,7 +5,7 @@
 # flatscreen's: the game code says so and the engine does nothing). Prints PASS/FAIL, exits 1 on a failure.
 #   crouch  Left Ctrl holds and releases (+flatcrouch / -flatcrouch, the console's way): vr_flatkeys_test 1 read standing,
 #           held and let go again — his eyes come down vr_flat_crouch_drop (18 units) while the key is held and go back to
-#           where they were when it is released, and the crouched box (vr_crouch_hull) follows the key: held crouched, let
+#           where they were when it is released, and the crouched box follows the key: held crouched, let
 #           go standing again, since his eyes stand under the tallest crouched box's top whatever he does. Without the
 #           flag the same key does nothing: the game code answers "flat play off".
 #   torch   F switches the flashlight (the engine's vr_flashlight_toggle): worn on the head and lit at the start, put out

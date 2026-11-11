@@ -874,7 +874,6 @@ za::Vector<Item> pageHitbox()
                   "damage go by distance, not by this box; monsters see and chase you as before."),
         row(opt::vr_hull_hit_head),
         header("Crouching"),
-        row(opt::vr_crouch_hull),
         row(opt::vr_crouch_height),
         row(opt::vr_crouch_sight),
         row(opt::vr_crouch_step),
