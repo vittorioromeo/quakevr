@@ -163,3 +163,61 @@ Arena stairs (`vr_arena_test 36`: one foe at a time from 8 floor places up to th
 
 (With `vr_arena_nav 0` the stealth AI's lost-target search also runs on the arena, which slows the navmesh-alone row:
 `VR_Stealth_Lose` is skipped on maps with arena nav points.)
+
+## 10. Round 2 (2026-11-11): fixes, drop links, lift links
+
+- **Clip tops.** Why they stood high: `recoverClips` keeps a clip brush's faces that lie against more of hull 1's solid
+  (not "open") in the centre space of Quake's box (28 over the real face; 56 for a face that moves with the box's
+  height), and `hull::navSolids` handed those planes on as a point's. Fixed in `navSolids`: a floor-like (normal z 0.7+)
+  non-open face is moved to the brush's own face (the open faces' rule), unless the point just over it is inside another
+  clip brush (a tall clip brush cut in two by hull 1's tree: the cut is no real top). e1m1 1,592 -> 1,578 polygons
+  (12 x 56), e4m7 unchanged. `vr_nav_toptest` (verdict line): every polygon over a clip brush's or a brush entity's top
+  (where Quake's box stops higher than a point, or on an entity) is within the climb of where the box stands: e1m1 80,
+  e4m7 262, e2m1 351 such polygons, worst 14 units, pass; func_wall tops come from hull 0's brushes and were right.
+- **Debug view** draws in flat-screen play and in VR alike (same `nav::debugDraw` from the view's debug draws).
+- **Arcane Dimensions, ad_tears** (no-LTO build, low-impact run): 68,237 brushes (2,223 clip, 440 of brush entities),
+  1,150,037 triangles gathered in 72-89 ms (main thread, at the load); 16 x 56 built in 3.5 s and 12 x 56 in 1.8 s on
+  the pool (1,122 tiles, ~20,000 polygons, 3.7-3.9 MB each); read back from the cache in 4.6 and 5.7 ms. The join on
+  the main thread was 12-23 ms (the file's data, the mesh's tiles): now the job makes the mesh, its query and the file's
+  data, the join only hands the write over (0.1 ms). AD's monsters get classes from `moveSize` (dknight 16 x 56, knight
+  12 x 56); a walker spawned in play (ad_tears' hogremac) used to wait for its first chase: every `vr_nav_movers` tick
+  now starts the classes of the walkers present, so they build before they chase.
+- **Drop links** (`vr_nav_drop` 1; `vr_nav_drop_max` 192, `vr_nav_drop_max_big` 256 for the 88-tall classes;
+  `vr_nav_drop_cost` 3 per unit of the link's length). Found at the build on the mesh without links: the middle of each
+  mesh edge with no neighbour; out past it by the clearance plus the box's reach at any angle; the box (the class's
+  width and height) must walk off unhindered (`sweepClear` over the solids: the same brushes the mesh is made of) and
+  fall clear to the first floor polygon right under that place, more than a step down and at most the highest drop, not
+  slime or lava. Links closer than 32 units at both ends are one. Detour off-mesh connections (one way), so each tile
+  with links is made again with them; they are in the cached file (`navVersion` 2; the drop and lift settings and the
+  rides are in the key). e1m1 26 drops (12 x 56), e1m2 32-69, e2m2 8-48 by class.
+  Following one: at its start the monster commits (`followLink`); `navlink` 1 asks the QC to walk toward the far end,
+  and where `walkmove` stops at the edge the QC sets `FL_PARTIALGROUND` (Quake's own "floor pulled out" rule: the step
+  may hang over the edge, and once wholly off it falls with Quake's physics), pushing it on at `vr_nav_drop_push` (100)
+  as it goes over. In the air it stands (`navlink` 2); on landing its sideways speed is cleared and it finds its path
+  again. Not over the edge within `vr_nav_drop_time` (3 s): given up, no links for `vr_nav_link_retry` (5 s).
+- **Lift links** (`vr_nav_lifts` 1, `vr_nav_lift_cost` 2): rides gathered at the load from the QC's fields (Quake's
+  spawn functions name them "plat" and "train"): a plat between `pos2` and `pos1` (both ways); a train from each corner
+  it waits at (`wait` > 0) to the next such (one way). Each stop's boarding places: beside each side of the mover's
+  footprint where the mesh comes within reach at the mover's top's height and the way on is clear; a link from each at
+  one stop to each at the other (Detour joins a link's far end only to its start tile's neighbours: a longer train leg
+  gets none). e1m1 2 plats, 4-6 links. Following: at the start the monster stands (`navlink` 2) till the mover is
+  stopped at that stop (else gives up after `vr_nav_lift_wait`, 10 s), walks to its middle, stands while it rides (the
+  pusher carries it), and when the mover stops at the far stop walks to the link's end and finds its path again.
+  QC `plat_center_touch`: a monster calls the lift as a player does (`vr_nav_plat_monsters` 1, and `vr_nav` 1; players
+  unchanged). A lift waiting at the top comes down by itself (3 s after its last touch); one at the bottom is only
+  called from it, so a monster at the top waits for someone below or gives up.
+- **Tests**: `vr_nav_reachtest <name> <distance> <seconds> [drop|ride] [classname]` ends a scene on its verdict line (the
+  monster within the distance of the player after a link of that kind was taken; `nav: <t> s: ...` logs the links'
+  events meanwhile; with a classname, those monsters are woken onto the player). `nav_drop` (e1m1, a knight on a ledge
+  144 over you): passes (seeds 1-5, and 4 again after the merge; 6-31 s), but the scene says its knight is "placed in a
+  wall" and the player does not stay at the scene's start in the headless runs (200-500 units away at the verdict): the
+  spots are still to fix. Open: in two seeded runs the knight's first drop failed (the `FL_PARTIALGROUND` step did not
+  go over; it slid along the ledge under Quake's chase and gave up after `vr_nav_drop_time`); the retry 5 s later
+  dropped. Cause not found. `vr_nav_links [class]` lists a class's rides and links. Debug view: drops orange, rides
+  magenta.
+- **Lifts off by default** (`vr_nav_lifts 0`, `vr_nav_plat_monsters 0`; the `nav_lift` scene turns both on). Seen once
+  end to end on e1m1's plat at -544 2656 (seed 4): the knight waited, boarded at the bottom (7.4 s), rode up as the lift
+  rose (7.9 s), stepped off at the top (8.7 s), ride done (9.0 s). The scene's check (the knight within reach of the
+  player at the top) never passed: the player does not stay at the top in the headless run (found below, -584 2784
+  -104), and the knight then waits at the top for the lift (a lift at the bottom is only called from it) and gives up.
+  Before lifts go on: a scene whose player stays put, its reach verdict, the waiting-at-the-top case.

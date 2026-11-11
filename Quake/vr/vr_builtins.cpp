@@ -980,6 +980,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"portal_ai_gateinfo", PF_portal_ai_gateinfo},
     {"portal_ai_gate", PF_portal_ai_gate},
     {"navsteer", PF_navsteer},
+    {"navlink", PF_navlink},
     {"bodyshock", PF_bodyshock},
     {"bodyshockdeath", PF_bodyshockdeath},
     {"collectfx", PF_collectfx},

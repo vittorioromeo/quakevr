@@ -4777,9 +4777,56 @@ bool navSolids(int sub, bool clips, za::Vector<glm::vec4>& planes, za::Vector<Na
     }
     if(clips && sub == 0)
     {
+        // A point inside one of the clip brushes as a point meets them (their planes as they are).
+        const auto inClip = [b](const glm::vec3& q, za::SizeT skip)
+        {
+            for(const int c : b->clips)
+            {
+                if(static_cast<za::SizeT>(c) == skip)
+                {
+                    continue;
+                }
+                const Brush& o = b->brushes[static_cast<za::SizeT>(c)];
+                bool in = true;
+                for(za::U32 k = 0; k < o.count && in; ++k)
+                {
+                    const Plane& p = b->planes[o.first + k];
+                    in = glm::dot(p.normal, q) < p.dist;
+                }
+                if(in)
+                {
+                    return true;
+                }
+            }
+            return false;
+        };
         for(const int c : b->clips)
         {
-            add(b->brushes[static_cast<za::SizeT>(c)]);
+            const Brush& br = b->brushes[static_cast<za::SizeT>(c)];
+            const za::SizeT first = planes.size();
+            add(br);
+            // A floor-like face that lies against more of hull 1's solid (recoverClips: a face not facing the open) is
+            // kept in the centre space of Quake's box (28 over the brush's real top; 56 for a face that moves with a
+            // box's height): a monster's navmesh stood that high over the brush. Moved down to the brush's own face
+            // (the open faces' rule, recoverClips: Quake's box's reach out), unless that leaves a gap inside another
+            // clip brush (a tall clip brush cut in two by hull 1's tree: the cut is no real top).
+            for(za::U32 i = 0; i < br.count; ++i)
+            {
+                const Plane& p = b->planes[br.first + i];
+                if(p.grows != 0.f || p.normal.z < 0.7f)
+                {
+                    continue;
+                }
+                const glm::vec3 n = p.normal;
+                const float reachZ = za::abs(n.z) * 28.f;
+                const float real = p.dist + p.growsZ * reachZ - (za::abs(n.x) * 16.f + za::abs(n.y) * 16.f + reachZ);
+                const glm::vec2 mid = (glm::vec2{br.mins} + glm::vec2{br.maxs}) * 0.5f;
+                const glm::vec3 over{mid.x, mid.y, (real - n.x * mid.x - n.y * mid.y) / n.z + 1.f};
+                if(!inClip(over, static_cast<za::SizeT>(c)))
+                {
+                    planes[first + i].w = real;
+                }
+            }
         }
     }
     return true;

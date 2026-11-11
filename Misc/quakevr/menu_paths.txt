@@ -1312,6 +1312,8 @@ vr_stealth_lose_time|1|Stealth AI|Gives Up After|Advanced VR Options > Combat > 
 vr_stealth_lose_far|1|Stealth AI|Sooner Beyond|Advanced VR Options > Combat > Stealth AI > Sooner Beyond
 vr_stealth_chase_trail|1|Stealth AI|Follows Your Trail|Advanced VR Options > Combat > Stealth AI > Follows Your Trail
 vr_stealth_chase_predict|1|Stealth AI|Guesses Ahead|Advanced VR Options > Combat > Stealth AI > Guesses Ahead
+vr_nav|1|Stealth AI|Monsters Find Their Way|Advanced VR Options > Combat > Stealth AI > Monsters Find Their Way
+vr_nav_async|1|Stealth AI|Monster Paths for New Sizes in Play|Advanced VR Options > Combat > Stealth AI > Monster Paths for New Sizes in Play
 vr_ai_props|1|Stealth AI|Round Props|Advanced VR Options > Combat > Stealth AI > Round Props
 vr_ai_prop_push|1|Stealth AI|Push Props|Advanced VR Options > Combat > Stealth AI > Push Props
 vr_stealth_share_near|1|Stealth AI|Near Monsters Join|Advanced VR Options > Combat > Stealth AI > Near Monsters Join
@@ -4590,6 +4592,32 @@ vr_player_gore_drip_rate|2|Tunables|Your Gore: Drip Rate|Advanced VR Options > D
 vr_player_gore_splash_amount|2|Tunables|Your Gore: Splash|Advanced VR Options > Debug > Tunables > Your Gore: Splash
 vr_player_gore_eye_clear|2|Tunables|Your Gore: Eye Clearance|Advanced VR Options > Debug > Tunables > Your Gore: Eye Clearance
 vr_drips_blood_marks|2|Tunables|Wounded Drips: Marks|Advanced VR Options > Debug > Tunables > Wounded Drips: Marks
+vr_nav_cell|2|Tunables|Navmesh: Voxel Width|Advanced VR Options > Debug > Tunables > Navmesh: Voxel Width
+vr_nav_cell_height|2|Tunables|Navmesh: Voxel Height|Advanced VR Options > Debug > Tunables > Navmesh: Voxel Height
+vr_nav_tile|2|Tunables|Navmesh: Tile Size|Advanced VR Options > Debug > Tunables > Navmesh: Tile Size
+vr_nav_climb|2|Tunables|Navmesh: Step Height|Advanced VR Options > Debug > Tunables > Navmesh: Step Height
+vr_nav_slope|2|Tunables|Navmesh: Steepest Floor|Advanced VR Options > Debug > Tunables > Navmesh: Steepest Floor
+vr_nav_radius_step|2|Tunables|Navmesh: Size Classes|Advanced VR Options > Debug > Tunables > Navmesh: Size Classes
+vr_nav_repath|2|Tunables|Navmesh: Repath Every|Advanced VR Options > Debug > Tunables > Navmesh: Repath Every
+vr_nav_repath_move|2|Tunables|Navmesh: Repath When Foe Moved|Advanced VR Options > Debug > Tunables > Navmesh: Repath When Foe Moved
+vr_nav_corner_reached|2|Tunables|Navmesh: Corner Reached|Advanced VR Options > Debug > Tunables > Navmesh: Corner Reached
+vr_nav_water_cost|2|Tunables|Navmesh: Water Cost|Advanced VR Options > Debug > Tunables > Navmesh: Water Cost
+vr_nav_slime_cost|2|Tunables|Navmesh: Slime Cost|Advanced VR Options > Debug > Tunables > Navmesh: Slime Cost
+vr_nav_lava_cost|2|Tunables|Navmesh: Lava Cost|Advanced VR Options > Debug > Tunables > Navmesh: Lava Cost
+vr_nav_movers|2|Tunables|Navmesh: Doors and Lifts Check|Advanced VR Options > Debug > Tunables > Navmesh: Doors and Lifts Check
+vr_nav_clearance|2|Tunables|Navmesh: Clearance|Advanced VR Options > Debug > Tunables > Navmesh: Clearance
+vr_nav_sidestep|2|Tunables|Navmesh: Blocked Step Angle|Advanced VR Options > Debug > Tunables > Navmesh: Blocked Step Angle
+vr_nav_drop|2|Tunables|Navmesh: Drop Links|Advanced VR Options > Debug > Tunables > Navmesh: Drop Links
+vr_nav_drop_max|2|Tunables|Navmesh: Highest Drop|Advanced VR Options > Debug > Tunables > Navmesh: Highest Drop
+vr_nav_drop_max_big|2|Tunables|Navmesh: Highest Drop (Tall)|Advanced VR Options > Debug > Tunables > Navmesh: Highest Drop (Tall)
+vr_nav_drop_cost|2|Tunables|Navmesh: Drop Cost|Advanced VR Options > Debug > Tunables > Navmesh: Drop Cost
+vr_nav_drop_push|2|Tunables|Navmesh: Drop Push|Advanced VR Options > Debug > Tunables > Navmesh: Drop Push
+vr_nav_drop_time|2|Tunables|Navmesh: Drop Give-Up Time|Advanced VR Options > Debug > Tunables > Navmesh: Drop Give-Up Time
+vr_nav_lifts|2|Tunables|Navmesh: Lift Links|Advanced VR Options > Debug > Tunables > Navmesh: Lift Links
+vr_nav_lift_cost|2|Tunables|Navmesh: Lift Cost|Advanced VR Options > Debug > Tunables > Navmesh: Lift Cost
+vr_nav_lift_wait|2|Tunables|Navmesh: Lift Give-Up Time|Advanced VR Options > Debug > Tunables > Navmesh: Lift Give-Up Time
+vr_nav_link_retry|2|Tunables|Navmesh: Link Retry Time|Advanced VR Options > Debug > Tunables > Navmesh: Link Retry Time
+vr_nav_plat_monsters|2|Tunables|Monsters Call Lifts|Advanced VR Options > Debug > Tunables > Monsters Call Lifts
 |2|Tunables|Reset This Page|Advanced VR Options > Debug > Tunables > Reset This Page
 @page|2|Debug - Cheats and Recording||Advanced VR Options > Debug > Cheats and Recording
 |2|Debug - Cheats and Recording|God Mode|Advanced VR Options > Debug > Cheats and Recording > God Mode
@@ -4699,6 +4727,11 @@ vr_agarmor_bridge_trace|2|Debug - Views|Trace the Joints' Leather|Advanced VR Op
 |2|Debug - Views|Print Fist Line|Advanced VR Options > Debug > Views > Print Fist Line
 vr_debug_hand_bones|2|Debug - Views|Show Hand Bones|Advanced VR Options > Debug > Views > Show Hand Bones
 vr_debug_ledges|2|Debug - Views|Show Ledges|Advanced VR Options > Debug > Views > Show Ledges
+vr_nav_debug|2|Debug - Views|Show Navmesh|Advanced VR Options > Debug > Views > Show Navmesh
+vr_nav_debug_range|2|Debug - Views|Show Navmesh: Range|Advanced VR Options > Debug > Views > Show Navmesh: Range
+vr_nav_debug_class|2|Debug - Views|Show Navmesh: Size Class|Advanced VR Options > Debug > Views > Show Navmesh: Size Class
+|2|Debug - Views|Print Navmesh Info|Advanced VR Options > Debug > Views > Print Navmesh Info
+|2|Debug - Views|Check Clip Brushes Block Paths|Advanced VR Options > Debug > Views > Check Clip Brushes Block Paths
 vr_debug_hand_collide|2|Debug - Views|Log Empty Hand Against Held|Advanced VR Options > Debug > Views > Log Empty Hand Against Held
 vr_debug_carry|2|Debug - Views|Show Grab Test|Advanced VR Options > Debug > Views > Show Grab Test
 vr_debug_grab|2|Debug - Views|Log Grab Query|Advanced VR Options > Debug > Views > Log Grab Query
@@ -5683,6 +5716,7 @@ vr_debug_sound_log|2|Debug - Tests|Log Sounds|Advanced VR Options > Debug > Test
 vr_hull_keep|2|Debug - Tests|Keep Hitboxes for Reloads|Advanced VR Options > Debug > Tests > Keep Hitboxes for Reloads
 vr_hull_cache|2|Debug - Tests|Hitboxes on Disk|Advanced VR Options > Debug > Tests > Hitboxes on Disk
 vr_model_light_grid_cache|2|Debug - Tests|Model Light Grids on Disk|Advanced VR Options > Debug > Tests > Model Light Grids on Disk
+vr_nav_cache|2|Debug - Tests|Navmeshes on Disk|Advanced VR Options > Debug > Tests > Navmeshes on Disk
 vr_hull_async|2|Debug - Tests|New Monster Sizes in Play|Advanced VR Options > Debug > Tests > New Monster Sizes in Play
 |2|Debug - Tests|The Gates In This Map|Advanced VR Options > Debug > Tests > The Gates In This Map
 |2|Debug - Tests|Teleporter Test Map|Advanced VR Options > Debug > Tests > Teleporter Test Map

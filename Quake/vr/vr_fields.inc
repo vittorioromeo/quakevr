@@ -368,3 +368,8 @@ QVR_FIELD(stl_meter)
 QVR_FIELD(stl_lost_time)
 QVR_FIELD(stl_trail)
 QVR_FIELD(stl_class)
+
+// The navmesh's lift and train rides (vr_nav.cpp gatherRides): a func_plat's bottom (its top: pos1, above), a
+// path_corner's wait.
+QVR_FIELD(pos2)
+QVR_FIELD(wait)

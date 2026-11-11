@@ -1,0 +1,10 @@
+# nav_drop: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". A knight on a ledge in e1m1 walks off
+# its edge along a navmesh drop link (vr_nav_drop) and falls to you below, links drawn (vr_nav_debug 2: drops orange).
+title Navmesh: a knight drops off the ledge to you
+map e1m1
+start 116 1880 -182 -90
+god
+spawn "Knight" 100 0 160
+cvar vr_nav 1
+cvar vr_nav_debug 2
+hint The knight on the ledge walks off its edge and drops to you (drop links orange, its path yellow). With Navmesh: Drop Links off (Debug > Tunables, then reload) it goes the long way round.
