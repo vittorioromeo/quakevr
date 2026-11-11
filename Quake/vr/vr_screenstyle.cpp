@@ -151,9 +151,10 @@ constexpr Entry table[] = {
     // The rocket launcher: a raised bronze enclosure on the sloped shoulder where the tube steps down to the rear
     // exhaust, near the grip (v_rock2.blend, Misc/quakevr/make_screen_housing_rocket.py reads `opening`, `radius`,
     // `size` and `offset` from here). Its face leans 38.7 degrees from level; the window square, 1h (h 2.016 model
-    // units: four of the grid's rows up the face); the glass leans with it (weapons.txt wpntxt_pitch 51.26), rounded
-    // 0.15h in the square window, 0.02h behind the face (the offset: from weapons.txt's place onto it, world units
-    // right/up/out). Rounded, chamfered edges; two round rivets each side. No box.
+    // units: four of the grid's rows up the face); the glass a little more upright (weapons.txt wpntxt_pitch 40, his;
+    // the face's would be 51.26), rounded 0.15h in the square window, its middle 0.02h behind the face (the offset:
+    // from weapons.txt's place onto it, world units right/up/out, at that pitch). Rounded, chamfered edges; two round
+    // rivets each side. No box.
     {"rock2",
         {.radius = 4.61f,
             .bevel = 1.6f,
@@ -164,10 +165,26 @@ constexpr Entry table[] = {
             .tint = {0.9f, 1.f, 0.9f},
             .crt = 0.4f,
             .size = 1.f,
-            .offset = {-0.0039f, 0.0315f, 0.033f},
+            .offset = {-0.0038f, 0.0374f, 0.0261f},
             .box = 0.f,
             .housing = true,
             .opening = {15.54f, 15.35f}}},
+    // The rocket launcher's multi-rocket model (v_multi2.blend): the same housing, by the same script, on its own grid
+    // and its shoulder (one X step further forward); the glass at slot 14's place and the same pitch.
+    {"multi2",
+        {.radius = 4.59f,
+            .bevel = 1.6f,
+            .vignette = 0.4f,
+            .sheen = 0.6f,
+            .soft = 0.55f,
+            .glass = 0.13f,
+            .tint = {0.9f, 1.f, 0.9f},
+            .crt = 0.4f,
+            .size = 1.f,
+            .offset = {0.0012f, 0.1609f, -0.0655f},
+            .box = 0.f,
+            .housing = true,
+            .opening = {15.60f, 15.29f}}},
     // The grenade launcher: a square riveted bronze bezel on the rear face of the top block (the pyramid's upper face
     // under the top ridge), the window chamfered, a rivet in each of the bezel's corners (v_rock.blend,
     // Misc/quakevr/make_screen_housing_gl.py reads `opening`, `radius` and `offset` from here). The plate leans on the

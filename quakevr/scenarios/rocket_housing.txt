@@ -1,0 +1,9 @@
+# rocket_housing: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The rocket launcher's ammo screen
+# in its riveted bronze enclosure (make_screen_housing_rocket.py): the launcher in the right hand switched to its
+# multi-rocket model with the gun's button, another launcher in the left hand.
+title Rocket launcher ammo screen housing, both hands and the multi-rocket
+map vrtesthall
+god
+notarget
+cmd impulse 9; impulse 160; impulse 180
+hint Both hands hold a rocket launcher: on the sloped shoulder near the grip the ammo screen sits in a raised bronze enclosure with two round rivets each side. Press the right gun's button for the multi-rocket model: the same enclosure. Check the digits read and nothing of the enclosure covers them.

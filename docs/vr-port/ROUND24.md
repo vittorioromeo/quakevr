@@ -8939,3 +8939,32 @@ before: `scratch/gl_probe.png` (right: the close-up).
   AD's data: `vr_test_give_ad 1` (new test cvar, impulse 149).
 - Tests: `Misc/quakevr/flatfx_test.sh` (ssg, centurion: 10 checks), `flateject_test.sh` (rv checks rewritten: 17).
   Scenario `flat_centurion` (needs AD).
+
+## Ammo screen housings: the multi-rocket, AD's Widowmaker and Plasma Gun (branch `agent/housing3`, 2026-11-11)
+
+Shots in the housing3 worktree's `scratch/`: `before_*.png` / `after_*.png` (left the hand view, right the close-up,
+`vr_debug_screen_cam 45`), `after_*_close.png` (the close-up cropped).
+
+### The multi-rocket model (v_multi2)
+
+- **Why it had none:** the table's `"rock2"` entry matches `v_rock2.mdl` only (`stemIs`: the stem then `.` or the end),
+  and `make_screen_housing_rocket.py` was written for v_rock2's grid and shoulder alone.
+- **The script now takes either model** from the .blend's mesh (as the GL's does): a `Gun` per model holds the table
+  stem, the weapons.txt slot, the glass as `vr_debug_screen_where` measures it, the window's centre in grid steps and
+  the shoulder pyramid's point. v_multi2's grid is v_rock2's within 0.6% and its shoulder one X step further forward
+  (its point at x -0.53, not -0.89), so its window centre is (51, 129, 195): four X steps and 28 Z steps from that point
+  (v_rock2: 27). One level lower, as on v_rock2, the steeper shoulder's ridge stood 0.04 in front of the glass (the
+  script's own check refused it). Same design: window 24 Y steps x 4 rows (2.05 x 2.01), the chamfered, rounded
+  enclosure, two rivets each side (width/height 1.021). 80 vertices, 124 triangles; the gun's own faces' UVs unchanged.
+  The skin places are v_rock2's (the shoulder's island, its lit streak and the dark row are at the same texels).
+- **The glass's lean:** he set slot 6's `wpntxt_pitch` to 40 on 2026-11-10 (the face's would be 51.26), so the script
+  now says how far the glass leans off the face (11.3 degrees: its top and bottom edges 0.20 in front of / behind its
+  middle) instead of refusing, and refuses only if an edge would sink through the window's floor. Both models are
+  measured at 40; slot 14 takes 40 too (was 28; `vr_wofs_version` 77, `takeMultiRocketHousing77`). Measured at 40, the
+  `"rock2"` offset is {-0.0038, 0.0374, 0.0261} (was {-0.0039, 0.0315, 0.033}, measured at 51.26: the glass 0.024 units
+  off its window at his pitch). New entry `"multi2"`: radius 4.59, opening 15.60 x 15.29, offset {0.0012, 0.1609,
+  -0.0655}; `vr_debug_screen_where`: centre 1.0575 -0.0505 7.6735 (designed 1.0572 -0.0505 7.6736).
+- **Left as it is:** v_multi2's shoulder pyramid's own lower corners show below the bezel's bottom corners (pale: the
+  shoulder's lit streak), more than on v_rock2, the enclosure sitting a level higher on the steeper shoulder.
+- Re-run on v_rock2: 0 moved, 124 kept, its .mdl unchanged. Scene `rocket_housing` (new: both hands, the button for the
+  multi-rocket).
