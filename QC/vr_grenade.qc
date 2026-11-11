@@ -1007,6 +1007,7 @@ void(entity g) VR_HandGrenade_GoLive =
     g.classname = g.vr_hgren_prox ? "proximity_grenade" : (g.vr_hgren_multi ? "MultiGrenade" : "grenade");
     g.vr_ammo_pass = 0; // (no longer passing through a gun to its muzzle: VR_Reload_LooseFrame)
     VR_HandGrenade_Look(g);
+    VR_Hand_Rekind(g); // (held: the hand's kind a grenade's now, no longer a round's: vr_carry.qc)
 };
 
 // Arms the hand grenade `g` (`xHand` the hand holding or letting go of it, `xHow` for the log): its fuse

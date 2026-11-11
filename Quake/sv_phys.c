@@ -122,7 +122,8 @@ void SV_CheckVelocity (edict_t *ent)
 	if ((int)ent->v.movetype == MOVETYPE_FLYMISSILE)
 	{
 		// No faster than the axis-at-a-time bound ever let anything go (sv_maxvelocity along all three axes at once).
-		const float top = sv_maxvelocity.value * 1.7320508f;
+		// (and at least 4500: the nail pistol's nails fly 3530 u/s since 2026-11-11, past the 3464 of sv_maxvelocity 2000)
+		const float top = q_max (sv_maxvelocity.value * 1.7320508f, 4500.f);
 		const float speed = VectorLength (ent->v.velocity);
 		if (speed > top && top > 0.f)
 			VectorScale (ent->v.velocity, top / speed, ent->v.velocity);

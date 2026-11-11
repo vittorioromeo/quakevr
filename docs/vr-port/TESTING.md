@@ -1493,6 +1493,10 @@ the weapons; `8`/`9` the worldspawn give/take_weapons and no_axestart on the cur
 0.3`). The gadget's AD page: `vr_gadget_page` (or `vr_gadget_page_press`, the
 outer button's press), `vr_gadget_test_state 6` for made-up readings, `vr_gadget_screen_dump <name>` to look at it.
 
+Arena director: the budget director is the default (`vr_arena_director 1`, ARENA_DIRECTOR.md section 13). The arena
+tests were written for the classic waves, so every `vr_arena_test` but 6 (the soak) and 42 (the gun knights) holds the
+run's director off for itself (the begin line says `(classic director)`); 6 and 42 follow the cvar the map started with
+(`vr_arena_director 0` before `map` runs them classic). The planner's own checks: `vr_arena_director_test` (C++).
 Arena messages on the wrist (ROUND24.md "Survival Arena: its messages on the wrist gadget"): `developer 1;map vrarena;
 wait5;god;vr_arena_test 39` with `-QuitOn "arena: test [0-9]+ over"` (`panelboard_read` what 4..8: the hologram's arena block).
 Arena weapon schedule (ROUND24.md "Survival Arena: every armed humanoid's weapon"): `developer 1;map vrarena;wait5;god;

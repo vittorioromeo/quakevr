@@ -238,6 +238,8 @@ void() VR_FlatGrenade_Frame =
     {
         if(since >= max(0.02, cvar_hget(cvarh_vr_flat_grenade_follow_time)) - 0.001)
         {
+            dprint(sprintf("flat grenade: done; the %s hand holds %s (kind %g)\n", VR_FlatGrenade_HandName(h),
+                VR_Carry_Held(self, h) == world ? "nothing" : VR_Carry_Held(self, h).classname, VR_Hand_Kind(self, h)));
             VR_FlatGrenade_Set(VR_FLATGREN_NONE);
         }
         return;

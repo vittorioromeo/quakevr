@@ -2489,11 +2489,11 @@ QVR_CVAR(vr_flare_burn, "1", CVAR_ARCHIVE)            // 1: a flare sets what it
 // The nail pistol (QC vr_nailpistol.qc; Combat > Weapon Damage > Nail Pistol): one-handed, semi-automatic (a shot a pull
 // of the trigger), a magazine in its grip fed from your nails (immersive reloading: ejected, a new one from the pouch,
 // slapped in), fast precise nails.
-QVR_CVAR(vr_nailpistol_speed, "3070", CVAR_ARCHIVE)    // its nails' speed, units a second (the nailgun's vr_nail_speed), plus the hand's (2600 until round 23: 18% faster)
+QVR_CVAR(vr_nailpistol_speed, "3530", CVAR_ARCHIVE)    // its nails' speed, units a second (the nailgun's vr_nail_speed), plus the hand's (2600 until round 23, 3070 until 2026-11-11: 15% faster again)
 // The nailgun's and the super nailgun's nails (QC launch_spike, launch_lava_spike), the player's and every monster's
 // that fires them (armed grunts, Scourges, Gremlins): units a second, plus the hand's. Quake's 1000; Quake VR's 1750
-// until round 23 ("15-20%" faster: 2065). Not a trap's (500) nor Arcane Dimensions' monsters' (AD's own speeds).
-QVR_CVAR(vr_nail_speed, "2065", CVAR_ARCHIVE)
+// until round 23 ("15-20%" faster: 2065), 15% more on 2026-11-11 (2375). Not a trap's (500) nor Arcane Dimensions' monsters' (AD's own speeds).
+QVR_CVAR(vr_nail_speed, "2375", CVAR_ARCHIVE)
 QVR_CVAR(vr_nailpistol_cooldown, "0.12", CVAR_ARCHIVE) // s at least from a shot to the next (each a new pull)
 QVR_CVAR(vr_nailpistol_spread, "0.25", CVAR_ARCHIVE)   // degrees its nails stray at most from its aim
 QVR_CVAR(vr_nailpistol_mag_pull, "0", CVAR_ARCHIVE)   // 1: its magazine pulls off by hand as the other guns' (vr_reload_pull_*); 0: only its eject button lets it out (his note 2026-10-29)
@@ -2666,7 +2666,7 @@ QVR_CVAR(vr_arena_foe_armor, "1", CVAR_ARCHIVE)               // 1: the waves' g
 QVR_CVAR(vr_arena_foe_armor_scale, "1", CVAR_ARCHIVE)         // the arena armour's chance times this (1: 10% at its first wave at Normal, 3% more a wave, cap 85%)
 QVR_CVAR(vr_arena_foe_armor_from, "4", CVAR_ARCHIVE)          // the first wave a foe may wear armour at Normal (moved by the skill as every gate: 7 / 4 / 2 / 2)
 // The budget director (vr_arenadirector.cpp, docs/vr-port/ARENA_DIRECTOR.md; its costs: quakevr/data/arena_director.txt).
-QVR_CVAR(vr_arena_director, "0", CVAR_ARCHIVE)                // 0: the classic waves (the ladder), 1: the budget director's (themes, costs, surges)
+QVR_CVAR(vr_arena_director, "1", CVAR_ARCHIVE)                // 1 (default since 2026-11-11): the budget director's (themes, costs, surges), 0: the classic waves (the ladder)
 QVR_CVAR(vr_arena_themes, "1", CVAR_ARCHIVE)                  // director 1: 1 a theme rolled per wave, 0 every wave Mixed
 QVR_CVAR(vr_arena_theme_banner, "1", CVAR_ARCHIVE)            // director 1: 1 the wave's theme named in its countdown
 QVR_CVAR(vr_arena_reinforce, "1", CVAR_ARCHIVE)               // director 1: 1 a wave holds back budget for surges (groups at once, round you); 0 none

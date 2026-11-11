@@ -1,0 +1,9 @@
+# flat_quick_grenade: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode) quick grenade (G: QC/vr_flatgrenade.qc; docs/vr-port/FLATPLAY.md, "The quick grenade") and the hand slot's kind (QC/vr_carry.qc VR_Hand_Rekind).
+title Flat-screen quick grenade: both hands empty, then one gun in either hand
+hint Play with -flatscreenmode, the console open now and then. Hands empty: G, fire to arm it, hold fire and let go to throw it: no "handslot: mismatch" line in the console. Take the shotgun into one hand and do it again with the other hand, then with the gun in the other hand. G with a grenade held unarmed puts it back.
+map vrtesthall
+god
+notarget
+spawn "Shotgun" 40 70
+spawn "Nailgun" 40 -70
+cmd give r 20

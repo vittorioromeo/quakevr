@@ -3589,6 +3589,8 @@ vr_chainsaw_drop_run|2|Tunables|Runs On When Let Go|Advanced VR Options > Debug 
 vr_gruntgun_ammo|2|Tunables|Rounds|Advanced VR Options > Debug > Tunables > Rounds
 vr_grunt_burst_damage|2|Tunables|Grunts' Round Damage|Advanced VR Options > Debug > Tunables > Grunts' Round Damage
 vr_enfrifle_speed|2|Tunables|Laser Speed|Advanced VR Options > Debug > Tunables > Laser Speed
+vr_enforcer_laser_speed|2|Tunables|Enforcer Laser Speed|Advanced VR Options > Debug > Tunables > Enforcer Laser Speed
+vr_adknight_bolt_scale|2|Tunables|AD Knight Bolt Speed|Advanced VR Options > Debug > Tunables > AD Knight Bolt Speed
 vr_enfrifle_ammo|2|Tunables|Shots|Advanced VR Options > Debug > Tunables > Shots
 vr_enemygun_spent_volume|2|Tunables|Crackle Volume|Advanced VR Options > Debug > Tunables > Crackle Volume
 vr_foegrab_drag_speed|2|Tunables|Pull Speed|Advanced VR Options > Debug > Tunables > Pull Speed
