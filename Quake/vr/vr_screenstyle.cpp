@@ -221,6 +221,27 @@ constexpr Entry table[] = {
             .box = 0.f,
             .housing = true,
             .opening = {15.51f, 15.70f}}},
+    // AD's Widowmaker (the hand-made model, Misc/quakevr/models_src/widowmaker/widowmaker.blend; its drawn name
+    // "progs/v_shot3.mdl#vr", the stem exact so that AD's own v_shot3.mdl never takes it): a bevelled bronze bezel with
+    // four rivets on the receiver's top-rear chamfer (Misc/quakevr/make_screen_housing_widow.py reads `opening`, `radius`
+    // and `offset` from here). The window is the glass the screen had without a housing (its digits at the font's size:
+    // fillMax 1, the look the default's), 3 grid rows tall on the grid's plane nearest the chamfer; the glass 0.05h
+    // behind the bezel's front (the offset). No box.
+    {"shot3.mdl#vr",
+        {.radius = -2.15f,
+            .bevel = 1.6f,
+            .vignette = 0.35f,
+            .sheen = 0.6f,
+            .soft = 0.5f,
+            .glass = 0.13f,
+            .tint = {1.f, 1.f, 1.f},
+            .crt = 0.4f,
+            .size = 1.f,
+            .offset = {0.0043f, -0.0040f, -0.0088f},
+            .box = 0.f,
+            .housing = true,
+            .opening = {10.03f, 9.79f},
+            .fillMax = 1.f}},
 };
 
 [[nodiscard]] bool stemIs(const char* model, const char* stem)

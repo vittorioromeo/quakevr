@@ -522,6 +522,10 @@ same way on the gun's source .blend (`housing_common.py` holds what they share):
 | multi-rocket (the rocket launcher's other ammo) | `make_screen_housing_rocket.py` | `src_models/blend/v_multi2/v_multi2.blend` | `"multi2"` |
 | grenade launcher | `make_screen_housing_gl.py` | `src_models/blend/v_rock/v_rock.blend` | `"rock"` |
 | multi-grenade (the grenade launcher's other ammo) | `make_screen_housing_gl.py` | `src_models/blend/v_multi/v_multi.blend` | `"multi"` |
+| AD's Widowmaker (the hand-made model; its own object `ScreenHousing`, exported by its `export_mdl.py`) | `make_screen_housing_widow.py` | `models_src/widowmaker/widowmaker.blend` | `"shot3.mdl#vr"` |
+
+AD's Plasma Gun has no .blend (it is made from AD's model as it loads): its housing is made there too, in C++
+(`Quake/vr/vr_adweapons.cpp` plasmaHousing, its numbers beside the `"plasma.mdl#vr"` entry).
 
 From the repository root, in PowerShell (the separator `--` before the script's own options must be quoted, `'--'`:
 PowerShell drops a bare one):

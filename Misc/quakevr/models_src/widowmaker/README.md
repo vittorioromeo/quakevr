@@ -60,6 +60,10 @@ on the spin axis (anything parented to `Barrels` turns with it). A new face need
 ones). The face attribute `wm_part` only tells `build_widowmaker.py` what to paint where. An object whose name starts
 with `_` is left out of the export.
 
+The ammo screen's housing (a bevelled bezel with four rivets on the receiver's top-rear chamfer) is the object
+`ScreenHousing`, made on the model file's grid by `Misc/quakevr/make_screen_housing_widow.py` (it exports too): don't
+edit it by hand; change the script's numbers (or the `"shot3.mdl#vr"` entry of `Quake/vr/vr_screenstyle.cpp`) and run it.
+
 ## Exporting
 
 From the repository root:

@@ -37,6 +37,11 @@ struct Style
     // both edges; a rounded radius is taken as a chamfer), and the text, upright and centred, is made finer when its
     // top line wouldn't fit the narrower top (make_screen_housing_light.py reads it).
     float taper{1.f};
+    // Reloading on, the magazine's rounds over the total are grown to fill the opening (vr_ammo_mag_scale, text3d's
+    // Glyphs::fill): never past the font's size times this (0: no cap). 1 for a housing built round its screen's text as
+    // it was without one (the Widowmaker's, the AD Plasma Gun's): the digits keep their size, made smaller only when
+    // they would not fit.
+    float fillMax{0.f};
 };
 
 // The style of the weapon whose model is `model` (a model's name, "progs/v_shot.mdl"; null or unknown: the default).
