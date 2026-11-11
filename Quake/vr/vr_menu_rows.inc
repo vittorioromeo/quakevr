@@ -1169,7 +1169,7 @@ QVR_TOGGLE(vr_arena_perks, "Boss Perks",
     "waiting (no countdown, no next wave) until you point at one and pull the trigger (or press its "
     "number); that perk is yours for the rest of the run. 0: it offers nothing (vr_arena_perks).")
 QVR_TOGGLE(vr_arena_director, "Budget Director",
-    "1: the waves are bought from a threat budget off one price list (quakevr/data/arena_director.txt): a theme a "
+    "1 (the default): the waves are bought from a threat budget off one price list (quakevr/data/arena_director.txt): a theme a "
     "wave (Swarm, Melee Rush, Ranged Siege, Elite, Ambush, Knightfall...), foes in groups with pauses that wait for "
     "you, surges from all sides, knights and death knights with guns, supplies that follow how you are doing. 0: the "
     "classic waves and their ladder. Takes effect at the next run (vr_arena_director).")

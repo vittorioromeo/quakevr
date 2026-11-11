@@ -2666,7 +2666,7 @@ QVR_CVAR(vr_arena_foe_armor, "1", CVAR_ARCHIVE)               // 1: the waves' g
 QVR_CVAR(vr_arena_foe_armor_scale, "1", CVAR_ARCHIVE)         // the arena armour's chance times this (1: 10% at its first wave at Normal, 3% more a wave, cap 85%)
 QVR_CVAR(vr_arena_foe_armor_from, "4", CVAR_ARCHIVE)          // the first wave a foe may wear armour at Normal (moved by the skill as every gate: 7 / 4 / 2 / 2)
 // The budget director (vr_arenadirector.cpp, docs/vr-port/ARENA_DIRECTOR.md; its costs: quakevr/data/arena_director.txt).
-QVR_CVAR(vr_arena_director, "0", CVAR_ARCHIVE)                // 0: the classic waves (the ladder), 1: the budget director's (themes, costs, surges)
+QVR_CVAR(vr_arena_director, "1", CVAR_ARCHIVE)                // 1 (default since 2026-11-11): the budget director's (themes, costs, surges), 0: the classic waves (the ladder)
 QVR_CVAR(vr_arena_themes, "1", CVAR_ARCHIVE)                  // director 1: 1 a theme rolled per wave, 0 every wave Mixed
 QVR_CVAR(vr_arena_theme_banner, "1", CVAR_ARCHIVE)            // director 1: 1 the wave's theme named in its countdown
 QVR_CVAR(vr_arena_reinforce, "1", CVAR_ARCHIVE)               // director 1: 1 a wave holds back budget for surges (groups at once, round you); 0 none
