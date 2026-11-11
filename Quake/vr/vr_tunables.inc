@@ -1969,6 +1969,8 @@ QVR_TUNABLE(vr_flat_grenade_wind_full, "1.5") // seconds of wind-up for the hard
 QVR_TUNABLE(vr_flat_grenade_speed_min, "350") // the throw's speed let go at once (units/s)
 QVR_TUNABLE(vr_flat_grenade_speed_max, "900") // and wound up fully (units/s)
 QVR_TUNABLE(vr_flat_grenade_throw_up, "6") // degrees above the crosshair the throw leaves at (-30..60)
+QVR_TUNABLE(vr_flat_grenade_throw_pitch, "0") // degrees more upward on top of vr_flat_grenade_throw_up, for a higher arc (-30..60; the two add, the launch at most 80 above the crosshair)
+QVR_TUNABLE(vr_flat_grenade_speed_scale, "1") // the throw's speed (speed_min .. speed_max by the wind-up) times this (0.1..3)
 QVR_TUNABLE(vr_flat_grenade_follow_time, "0.1") // seconds of the throw's follow-through (the arm out along the look)
 QVR_TUNABLE(vr_flat_grenade_follow_fwd, "0.9") // the follow-through's place: forward along the look
 QVR_TUNABLE(vr_flat_grenade_follow_out, "0.05") // out at its side

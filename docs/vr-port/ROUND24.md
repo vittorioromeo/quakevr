@@ -9122,3 +9122,16 @@ props.txt), arena 41 (a dog or a grunt late; 2 failures with the old nav values 
 | props.txt | slots 65-68 (vr_prop_id_66..69) | (none) | progs/v_shot.mdl, v_shot2.mdl, v_nail.mdl, v_gruntgun.mdl blocks |
 | props.txt | slot 69 (vr_prop_id_70) | (none) | progs/v_rock.mdl block (his config after the audit) |
 | pose/grip/IK | vr_agrunt_poses / _grips / _ik_stretch | shipped | unchanged: pose_defaults.py found 0 new or changed (already shipped) |
+
+### The flat grenade's arc
+
+- `vr_flat_grenade_throw_pitch` (tunable, default 0, -30..60): degrees more upward, added to Throw Above Aim
+  (`vr_flat_grenade_throw_up`, now 6), the sum at most 80 above the crosshair. throw_up already is the launch's pitch
+  above the crosshair; the new one adds on top of it, so either can be tuned (6 + 14 is 20 either way).
+- `vr_flat_grenade_speed_scale` (tunable, default 1, 0.1..3): the throw's speed (speed_min .. speed_max by the
+  wind-up) times this. A higher pitch and a lower scale lob it.
+- Rows: Debug > Tunables, after Throw Above Aim ("Grenade: Throw Arc Pitch", "Grenade: Throw Speed Scale");
+  menu_paths.txt regenerated. At 0 and 1 the throw is today's exactly.
+- developer 1 adds a line per throw: `flat grenade: launched <deg> above level, <deg> above the crosshair, <speed>`.
+- Test: `flathands_test.sh` run grenarc (pitch 20, scale 1.5) against grenmain (the defaults): 5.0 -> 25.0 deg above
+  level (6 -> 26 above the crosshair), 604.6 -> 906.9 u/s (x1.5). Scene: `quakevr/scenarios/flat_grenade_arc.txt`.

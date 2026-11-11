@@ -951,6 +951,8 @@ float cvarh_vr_flat_grenade_fetch_time;
 float cvarh_vr_flat_grenade_follow_time;
 float cvarh_vr_flat_grenade_speed_max;
 float cvarh_vr_flat_grenade_speed_min;
+float cvarh_vr_flat_grenade_speed_scale;
+float cvarh_vr_flat_grenade_throw_pitch;
 float cvarh_vr_flat_grenade_throw_up;
 float cvarh_vr_flat_grenade_wind_full;
 float cvarh_vr_flat_holster_drop_ahead;
@@ -2976,6 +2978,8 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_flat_grenade_follow_time = VR_CVar_Make("vr_flat_grenade_follow_time");
     cvarh_vr_flat_grenade_speed_max = VR_CVar_Make("vr_flat_grenade_speed_max");
     cvarh_vr_flat_grenade_speed_min = VR_CVar_Make("vr_flat_grenade_speed_min");
+    cvarh_vr_flat_grenade_speed_scale = VR_CVar_Make("vr_flat_grenade_speed_scale");
+    cvarh_vr_flat_grenade_throw_pitch = VR_CVar_Make("vr_flat_grenade_throw_pitch");
     cvarh_vr_flat_grenade_throw_up = VR_CVar_Make("vr_flat_grenade_throw_up");
     cvarh_vr_flat_grenade_wind_full = VR_CVar_Make("vr_flat_grenade_wind_full");
     cvarh_vr_flat_holster_drop_ahead = VR_CVar_Make("vr_flat_holster_drop_ahead");

@@ -1,0 +1,12 @@
+# flat_grenade_arc: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode) quick
+# grenade's arc (QC/vr_flatgrenade.qc VR_FlatGrenade_Throw): Debug > Tunables, Grenade: Throw Arc Pitch
+# (vr_flat_grenade_throw_pitch, added on top of Throw Above Aim) and Throw Speed Scale (vr_flat_grenade_speed_scale).
+title Flat-screen grenade arc: tune the throw's pitch and speed
+hint Play with -flatscreenmode. G, fire to arm, hold fire and let go to throw at the grunts down the hall. In Debug > Tunables set Grenade: Throw Arc Pitch higher and Throw Speed Scale lower for a lob, and throw again (developer 1 prints the launch angle and speed).
+map vrtesthall
+god
+notarget
+cvar developer 1
+spawn "Grunt" 600 0
+spawn "Grunt" 700 120
+cmd give r 30

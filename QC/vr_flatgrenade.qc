@@ -16,8 +16,9 @@
 // as the pouch gives them), carried in the hand unarmed. The hand's fire button (LMB the main hand, RMB the off hand while
 // a grenade is held: flatplay::routeFire) arms it (VR_HandGrenade_Arm: the pin, the fuse, vr_handgrenade_fuse; the
 // headset's own countdown and cues); then, held, winds up the throw (vr_flat_grenade_arm_mode 1: the next press; 0: the
-// arming press itself), and let go, throws it along the crosshair vr_flat_grenade_throw_up above it, as fast as the
-// wind-up was long (vr_flat_grenade_speed_min .. _max over vr_flat_grenade_wind_full), with his own motion
+// arming press itself), and let go, throws it along the crosshair vr_flat_grenade_throw_up (plus the arc's
+// vr_flat_grenade_throw_pitch) above it, as fast as the wind-up was long (vr_flat_grenade_speed_min .. _max over
+// vr_flat_grenade_wind_full, times vr_flat_grenade_speed_scale), with his own motion
 // (VR_Throw_Inherit): the carry's own throw (VR_Carry_Throw) and the grenade's release (VR_Grenade_Released: the player's).
 // G again while it is unarmed puts it back in the pouch (the rocket back). Gone from the hand (it went off, the drop key let
 // go of it), it is forgotten. The hand then goes back to its pose: an off hand to the gun's grip (vr_flatsight.cpp).
@@ -168,9 +169,12 @@ void(float xHand, entity g, float xHeld) VR_FlatGrenade_Throw =
     float k = min(1, max(0, xHeld / full));
     float lo = max(0, cvar_hget(cvarh_vr_flat_grenade_speed_min));
     float hi = max(lo, cvar_hget(cvarh_vr_flat_grenade_speed_max));
-    float speed = lo + (hi - lo) * k;
+    float speed = (lo + (hi - lo) * k) * min(3, max(0.1, cvar_hget(cvarh_vr_flat_grenade_speed_scale)));
     vector ang = self.v_angle;
-    ang_x = ang_x - min(60, max(-30, cvar_hget(cvarh_vr_flat_grenade_throw_up))); // (Quake's pitch: up is negative)
+    // Above the crosshair: Throw Above Aim, and the arc's pitch on top of it (the two add).
+    float up = min(60, max(-30, cvar_hget(cvarh_vr_flat_grenade_throw_up)));
+    up = min(80, up + min(60, max(-30, cvar_hget(cvarh_vr_flat_grenade_throw_pitch))));
+    ang_x = ang_x - up; // (Quake's pitch: up is negative)
     makevectors(ang);
     vector dir = v_forward;
     // It leaves just ahead of his eyes (the wound-up hand is behind his head): never inside a wall.
@@ -188,8 +192,15 @@ void(float xHand, entity g, float xHeld) VR_FlatGrenade_Throw =
     vr_flatgren_lastspeed = speed;
     vr_flatgren_lastheld = xHeld;
     vr_flatgren_last = g;
+    vector launchAng = vectoangles(g.velocity);
+    float launch = launchAng_x; // (up positive)
+    if(launch > 180)
+    {
+        launch = launch - 360;
+    }
     dprint(sprintf("flat grenade: thrown by the %s hand after %.2f s wound up: %.0f u/s (%.0f%% of the way to %.0f), %.2f s of fuse left\n",
         VR_FlatGrenade_HandName(xHand), xHeld, vlen(g.velocity), k * 100, hi, g.vr_gren_fuse - time));
+    dprint(sprintf("flat grenade: launched %.1f deg above level, %.1f above the crosshair, %.1f u/s\n", launch, up, vlen(g.velocity)));
     self.vr_flatgren_ent = world;
     VR_FlatGrenade_Set(VR_FLATGREN_THROWN);
 };
