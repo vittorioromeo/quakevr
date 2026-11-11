@@ -328,6 +328,19 @@ void reportLetGo(int holding, const char* why, float value, float limit, float s
     return hands::anglesFromVectors(turn(fwd), turn(up));
 }
 
+// Flatscreen play: what takes the free hand `helping` off a two-handed grip of the weapon `holding` holds, whatever the
+// weapon's Two-Handed mode (a gun's hotspots, a sword's grip: the knights' swords, the crowbar, AD's swords, hammer, mace
+// and flail): its punch, the shove, the gun's reload trip to the hip (vr_flatreload.cpp), the quick grenade, the hands'
+// swap, E's force grab (vr_flatfgrab.cpp: the hand off the grip, palm out, the grab sent only after the detach). A
+// flatscreen hand is always gripping, so these stand in for opening the hand. Never true in a headset (each is the flat
+// mode's own clock). Before 2026-11-11 only applyHotspots asked: a sword-mode grip (applySword) stayed held through E's
+// force grab, the hand pinned on the crowbar's tape while the brick flew to it.
+[[nodiscard]] bool flatLetsGo(int holding, int helping)
+{
+    return flatplay::punching(helping) || flatplay::shoving(helping) || flatreload::busy(holding) || flatgrenade::busy(helping) ||
+           flatswap::gripBlocked() || flatfgrab::busy(helping);
+}
+
 void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding, int helping, int slot)
 {
     const glm::vec3 holdingPos = s.pos[holding];
@@ -342,7 +355,9 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     const glm::vec3 blade = bladeDirection(slot, holding, originalRots[holding]);
     // (An empty hand: no weapon, and not carrying a box either: held::handEmpty.)
     const bool wasHeld = shouldAim[holding];
-    const bool canGrab = client::grabbing(helping) && held::handEmpty(helping) && (wasHeld || !carry2h::reachesSkewered(helping));
+    // (Flatscreen: let go as a gun's grip is, flatLetsGo; not at a wall, below.)
+    const bool canGrab = client::grabbing(helping) && held::handEmpty(helping) && (wasHeld || !carry2h::reachesSkewered(helping)) &&
+                         !flatLetsGo(holding, helping);
 
     // The grips (round 18). The grip point below the holding hand (GRIP_FOREGRIP): the blade along the
     // line from the helping hand through the holding hand. Unlike a gun's, it holds when the blade
@@ -944,10 +959,7 @@ void applyHotspots(hands::State& s, const glm::vec3 (&originalRots)[2], int hold
     // mode's own clock, never running in a headset. And at a wall, halfway into the wall state: flatsight::wallLetGo.)
     const bool canGrab = client::grabbing(helping) && wpnMode != WPN_2H_FORBIDDEN &&
                          held::handEmpty(helping) && beforeMuzzle && !handpose::gunColliding(holding) &&
-                         !flatplay::punching(helping) && !flatplay::shoving(helping) && flatsight::wallLetGo(holding) < 0.5f &&
-                         !flatreload::busy(holding) && // (flatscreen: the gun on its reload trip to the hip: vr_flatreload.cpp)
-                         !flatgrenade::busy(helping) && !flatswap::gripBlocked() && // (the quick grenade, the hands' swap)
-                         !flatfgrab::busy(helping); // (flatscreen: the free hand off the grip for E's force grab: vr_flatfgrab.cpp)
+                         flatsight::wallLetGo(holding) < 0.5f && !flatLetsGo(holding, helping);
     // A cup (a two-handed pistol grip) is held wherever the hands point: it doesn't aim.
     const bool cup = fixedMode && s.grip2HCup[holding];
     const float dotNeed = wasHeld ? heldDot(vr_2h_angle_threshold.value, stick) : vr_2h_angle_threshold.value;

@@ -8787,3 +8787,25 @@ Added:
 If he still hears nothing on the flat: raise Living Bodies (to 1.5-2) rather than the corpses' Bodies.
 Checklist line: "Shove a grunt off a ledge and knock one down on the flat: a fleshy thud as each hits the floor (with
 its scream when the fall kills it), softer on the flat, and no rattle as it tumbles. {test:ragthud}"
+## Flat: the crowbar's two-handed grip lets go for the force grab (branch `agent/fgcrowbar`, 2026-11-11)
+
+His report: with the crowbar in the main hand, once the free hand had taken its two-handed grip, E's force grab ran with
+the off hand still on the grip. Cause (gap a of the brief): the crowbar is Two-Handed: Sword, held by vr_twohand's
+`applySword`, whose `canGrab` never had the flatscreen let-go list that `applyHotspots` (guns, the axe, Mjolnir, the super
+axe, the chainsaw) has; so the grip held through E, the shove, G, 3 and a punch. The force grab's sequencing (b) was
+already the guns' own: `flatfgrab::press` sees the hand on the grip (`twohand::drawnHelping`), adds
+`vr_flat_fg_detach_time`, and sends impulse 50/51 only after turn + detach; flatsight's `keptGrip` eases the drawn hand
+off at `gripEase`. Fix (`vr_twohand.cpp`): one `flatLetsGo(holding, helping)` (punch, shove, reload trip, quick grenade,
+swap, force grab) asked by both paths; the sword path keeps holding at walls (a swing's end), as before. Weapons now
+covered: slots 18/19 (knights' swords), 23 (crowbar), 40-50 (AD: Death Fury's, death knight's, zombie's, death guard's,
+prince's, justice and judge swords, sword.mdl, ogre hammer, ogre mace, blue flail).
+
+Repro: headless, the free hand never took the crowbar's grip on its own (idle 5 s, 30 swings at six pitches, walking,
+turning, crouching, a crowbar picked up off the floor): its hotspot is 2.6 units below the main hand and comes ahead of it
+(`carryToGrip`) only for a few frames after a swing, with the hands' line 0.00 against the 0.65 dot. So the test takes it
+as the axe's case does (vr_2h_angle_threshold -1 until held, then reset; the hold stays). `vr_flatitems_test 9` gained the
+crowbar (case = action * 3 + weapon) and a check that the pull starts at least `vr_flat_fg_turn_time` after the grip let
+go. Before: crowbar E "grip let go -1 s" (never), 4 failed; after: 33 passed; the grip lets go 1 frame after the press for
+all three, the brick flies 0.29 s later. Launcher numbers unchanged (E 2.41, shove 8.46, H 20.63, G 3.79, 3 1.74).
+`flatfg2h_test.sh`: 11 passed (the shove's drawn comparison now within a quarter: the axe's 9.48 vs 8.46 already failed
+the old one-unit slack since the shove smoothing). Scene `flat_fg_crowbar2h`.
