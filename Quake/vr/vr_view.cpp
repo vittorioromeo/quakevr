@@ -3532,6 +3532,16 @@ float ssgOpenAngle(int hand)
                : 0.f;
 }
 
+bool ssgBarrelsDrawn(int hand, const glm::vec3& p, glm::vec3& out)
+{
+    if(hand < 0 || hand > 1 || !ssgHands[hand].parts || !entities.ssgBarrels[hand].visible)
+    {
+        return false;
+    }
+    out = view::modelPoint(entities.ssgBarrels[hand], p);
+    return true;
+}
+
 glm::vec3 revolverChamber(int hand, int chamber, float back)
 {
     const RevolverDrawn& st = rvHands[hand < 0 || hand > 1 ? 0 : hand];
