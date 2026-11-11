@@ -19,6 +19,8 @@ Flat-screen: G with both hands empty, then with a gun in either hand: arm the gr
 Flat-screen: set Debug > Tunables > Grenade: Throw Arc Pitch and Throw Speed Scale and throw a quick grenade (G); a higher pitch with a lower speed should lob it in a clear arc, and at 0 and 1 the throw is as before. {test:flat_grenade_arc}
 Flat-screen: hold AD's centurion's plasma gun: the other hand takes its fore-end like the other long guns, and ADS lines up a sight picture over its glass drum instead of filling the view with it. {test:flat_centurion}
 Flat-screen: in the holster menu, UNLOAD under each hand is lit while that hand's gun has rounds in it; clicking it plays a short sound, empties the clip into your ammo storage (only what fits; spent shells stay) and the gun is not auto-reloaded until you press R. {test:flat_unload}
+Flat-screen: with that gun's ammo full up in storage, the holster menu's UNLOAD under that hand is greyed and does nothing; with room for only some rounds it stays lit and moves just those, leaving the rest in the gun. {test:flat_unload_full}
+Flat-screen: a grenade grabbed with E (a dud you dropped, or an ogre's live one) comes into the hand held out as after G: a dud needs fire to arm it, then fire held winds up and letting go throws; a live one throws straight away. {test:flat_grenade_grab}
 
 [2. Flat-screen: movement, melee, HUD and menus]
 Flat-screen: with the visor on, centre messages (a locked door's, a secret's, a long tutorial text) pop into a small visor panel just under the top message panel, wrapped to fit, and fade when their time is up; it stays put whether the message panel is shown or hidden, and Visor HUD Look > Centre Messages in Visor off puts them back over the view. {test:flat_visor_center}
