@@ -491,7 +491,7 @@ void() VR_ADXbow_Think =
         float bspeed = (bolt != before && bolt.vr_adgun_wid == WID_ADCROSSBOW) ? vlen(bolt.velocity) : 0;
         float bwant = cvar_hget(cvarh_vr_adgun_crossbow_speed);
         VR_ADXbow_Report(sprintf("its bolt at %.0f u/s (setting %g; the knights' %g on this skill, 700 on normal), along the "
-            "shot %.4f", bspeed, bwant, ad_SPEED_DCROSS + ad_skill * ad_SPEED_BOLTSKILL, (bspeed > 0) ? (normalize(bolt.velocity) * fwd) : 0),
+            "shot %.4f", bspeed, bwant, VR_ADKnightBoltSpeed(), (bspeed > 0) ? (normalize(bolt.velocity) * fwd) : 0),
             bspeed > 0 && fabs(bspeed - bwant) < bwant * 0.05 + 10 && bwant >= 1.5 * 700 - 1 &&
             normalize(bolt.velocity) * fwd > 0.999);
         VR_ADXbow_Report(sprintf("its bolt leaves from the drawn bolt's place (%.2f off; launch offset %v)",

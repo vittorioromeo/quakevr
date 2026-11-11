@@ -90,6 +90,12 @@ void() ad_dcrossbow_hold1;
 void() ad_dcrossbow_slide1;
 void() ad_dcrossbow_checkmelee;
 void() ad_dcrossbow_crossbow_sound;
+// QVR: the knights' bolts' speed (the launch and the tracking's lead): AD's skill formula (500 + 200 a skill) times
+// vr_adknight_bolt_scale (1.15: 15% faster, 2026-11-11).
+float() VR_ADKnightBoltSpeed =
+{
+	return (ad_SPEED_DCROSS + (ad_skill*ad_SPEED_BOLTSKILL)) * cvar_hget(cvarh_vr_adknight_bolt_scale);
+};
 float ad_CROSS_DOWN = 1;
 float ad_CROSS_UP = 2;
 float ad_CROSS_TIMEOUT = 1;
@@ -311,7 +317,7 @@ void() ad_dcrossbow_shot =
 	sound (self, ad_CHAN_WEAPON, "weapons/crossbow_fire.wav", 1, ad_ATTN_NORM);
 
 	// Skill level adjustment
-	self.ad_attack_speed = ad_SPEED_DCROSS + (ad_skill*ad_SPEED_BOLTSKILL);
+	self.ad_attack_speed = VR_ADKnightBoltSpeed();
 
 	makevectors (self.angles);
 	ad_org = self.origin + ad_attack_vector(self.ad_attack_offset);
@@ -375,7 +381,7 @@ void() ad_dcrossbow_checkattack =
 				if (ad_ai_checkmelee(ad_MONAI_MELEEKNIGHT,ad_FALSE)) self.ad_th_melee();
 				else {
 					// Skill level adjustment for bolt speed
-					ad_boltspeed = ad_SPEED_DCROSS + (ad_skill*ad_SPEED_BOLTSKILL);
+					ad_boltspeed = VR_ADKnightBoltSpeed();
 					self.ad_attack_track = ad_SUB_Tracking(self.ad_attack_track, self.ad_attack_offset, self.enemy, ad_boltspeed);
 		
 					// Chance of attack? start out low and get better chance+tracking over time	
