@@ -81,9 +81,9 @@ check $(awk -v i="$gin" -v n="$gnow" 'BEGIN{exit !(i>1 && n<=0.01)}' && echo 1 |
 run wallpunch "$FLAT" "$WALL; vr_flat_punch main; wait60; echo flatinput: wallpunch done" "^flatinput: wallpunch done"
 pnow=$(deepest wallpunch punch)
 check $(awk -v n="$pnow" 'BEGIN{exit !(n!="" && n<=0.51)}' && grep -aq "^melee event: punch.* a wall" "$S/wallpunch.log" && echo 1 || echo 0) "wallpunch: the punch stops on the wall (deepest ${pnow:-?} units in) and its wall blow lands"
-# (vr_flat_swing_strike 0.14, the old default: at his 0.075 of 2026-11-11 the wall-stop holds the axe 0.1 unit out and
-# no wall blow lands: ROUND24.md, "His values as defaults", an open question.)
-run wallswing "$FLAT" "$WALL; tune vr_flat_swing_strike 0.14; impulse 152; wait30; vr_flat_punch main; wait60; tune_reset vr_flat_swing_strike; echo flatinput: wallswing done" "^flatinput: wallswing done"
+# (At his vr_flat_swing_strike 0.075, the default: the stop on the swing's own path, vr_flat_swing_path_stop, lands it;
+# the old stop towards the shoulder held the axe off the wall here. flatswing_test.sh: from 10 places, at 0.075 and 0.14.)
+run wallswing "$FLAT" "$WALL; impulse 152; wait30; vr_flat_punch main; wait60; echo flatinput: wallswing done" "^flatinput: wallswing done"
 snow=$(deepest wallswing swing)
 check $(awk -v n="$snow" 'BEGIN{exit !(n!="" && n<=0.51)}' && grep -aq "^melee event: .* a wall" "$S/wallswing.log" && echo 1 || echo 0) "wallswing: the axe's swing stops at the wall (deepest point ${snow:-?} units in) and its wall blow lands"
 

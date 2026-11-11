@@ -4268,6 +4268,8 @@ vr_flat_wall_fold|2|Tunables|Wall: Fold Arm To|Advanced VR Options > Debug > Tun
 vr_flat_wall_margin|2|Tunables|Wall: Keep Off Distance|Advanced VR Options > Debug > Tunables > Wall: Keep Off Distance
 vr_flat_mantle_hand_spread|2|Tunables|Mantle Hands Apart|Advanced VR Options > Debug > Tunables > Mantle Hands Apart
 vr_flat_hand_collide|2|Tunables|Wall: Empty Hands And Swings|Advanced VR Options > Debug > Tunables > Wall: Empty Hands And Swings
+vr_flat_swing_wind_strikes|2|Tunables|Swing Windup Strikes|Advanced VR Options > Debug > Tunables > Swing Windup Strikes
+vr_flat_swing_path_stop|2|Tunables|Wall: Swing Stops On Its Path|Advanced VR Options > Debug > Tunables > Wall: Swing Stops On Its Path
 vr_flat_punch_wall_margin|2|Tunables|Wall: Swing Stops Short|Advanced VR Options > Debug > Tunables > Wall: Swing Stops Short
 vr_flat_wall_tilt|2|Tunables|Wall: Muzzle Tilt Up|Advanced VR Options > Debug > Tunables > Wall: Muzzle Tilt Up
 vr_flat_wall_tilt_fixed|2|Tunables|Wall: Tilt Pitch|Advanced VR Options > Debug > Tunables > Wall: Tilt Pitch

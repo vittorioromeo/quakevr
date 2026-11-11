@@ -1294,7 +1294,8 @@ void pushBack(hands::State& s, const glm::vec3& aim)
             // units into the wall the frame it arrived) left the blade's lines that frame off the wall and sliding down
             // along it, and no wall blow landed from 2 of 10 places (QC VR_Melee_Sweep sweeps the frame before's pose to
             // this one: on the path, it meets the wall as it came in).
-            const float pathBite = za::max(0.f, -m) + swingStopSlack;
+            // (Its bite exactly: the halvings find the furthest point no deeper, so no slack is needed past it.)
+            const float pathBite = za::max(0.f, -m);
             const auto pathDepth = [&](const glm::vec3& p, const glm::vec3& r) {
                 return handpose::gunDepth(h, s.head, p, r, muzzleOff(s, h, r), 0.f, 0.f);
             };

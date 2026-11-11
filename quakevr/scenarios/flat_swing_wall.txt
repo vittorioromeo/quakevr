@@ -1,0 +1,10 @@
+# flat_swing_wall: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one" (ROUND24.md, "The swing's wall
+# blow and the raised swing")
+title Flat-screen axe swings at a wall and at a knight up close
+map vrtesthall
+start 0 612 25 90
+god
+notarget
+give "Axe" main
+spawn "Knight" 0 96
+hint Swing the axe (fire) at the wall ahead, from right against it and from a step or two back: every swing lands one blow on the wall. Then turn left and swing at the knight from close by: one hard blow a swing, the raise never hits it.
