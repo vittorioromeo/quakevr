@@ -427,9 +427,16 @@ now also waits for the player before its first spawn: it had a program error whe
 - **Walls the step meets** (`vr_nav_slide` 1): a step toward the next corner whose box meets a wall (traced a step's
   height up, so a riser is not a wall) turns along the wall instead (Quake's walkmove never slides); the narrow band can
   put a corner nearer a wall than the box's half width.
-- **The dog that stopped on the floor at -160 -400 going down** was dead: it went off the south-west tower's top by a
-  drop link, missed the stair and fell 256 (1.3 s to his level), and monsters take fall damage beyond 150 (combat.qc
-  `VR_Monster_Fall`; a dog has 25 health). The links' comment said monsters take none. `vr_nav_drop_max` 192 -> 150
-  (the tall classes keep 256: an ogre lives through 42).
+- **The dog that stopped on the floor at -160 -400 going down** is dead: it leaves the south-west tower's top within
+  1.3 s of its start and falls 256 to the floor (its box is then a corpse's, 31 wide), and monsters take fall damage
+  beyond 150 (combat.qc `VR_Monster_Fall`; a dog has 25 health). Not a drop link: with them capped at 150 (below) it
+  still happens. How it goes over the edge (its leap's height test forbids a leap down; a shove?) is not found: the
+  one capped trial left. The links' comment said monsters take no fall damage: `vr_nav_drop_max` 192 -> 150 anyway, so a
+  drop link never hurts a short walker (the tall classes keep 256: an ogre lives through 42).
+- **Measured** (`vr_arena_test 41`, seed 7, no-LTO low-impact run, after the merge): **capped 1 of 60** (was 6). There
+  (mean s) up / down / across: armed grunt 7.9 / 4.2 / 12.9, enforcer 5.7 / 4.8 / 10.6, knight 4.4 / 4.2 / 8.9, ogre
+  7.8 / 5.4 / 19.4, dog 6.9 / 17.1 (the dead one counted 40) / 8.5. The tests now keep the player god-moded themselves
+  (a `god` typed with the map's load can come before the player: he was shot dead and test 41 stood for an hour) and
+  wait for him before their first spawn.
 - **The armed grunt at the south-east stair's foot** (255 -324): logged steering south with a clear step yet not
   moving, in the earlier (fixed) run; not seen again in the runs below.
