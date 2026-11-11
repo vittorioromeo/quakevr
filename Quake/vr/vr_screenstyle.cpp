@@ -288,6 +288,30 @@ constexpr Entry table[] = {
     return *s == '\0' && (*base == '\0' || *base == '.');
 }
 
+// The table's styles for a model drawn mirrored (a gun in the left hand): the offset's right turned round. The offset is
+// along the glass's right, which a mirrored model does not turn (the screen reads the same in either hand), while the
+// housing it seats the glass in is mirrored with the model: unturned, the glass sat 2 * offset.x to the side in the left
+// hand (the grenade launcher's 0.054 the most of any: his report, 2026-11-11). The default's offset is 0.
+constexpr size_t tableSize = sizeof(table) / sizeof(table[0]);
+
+struct MirroredTable
+{
+    Style styles[tableSize];
+};
+
+[[nodiscard]] MirroredTable makeMirroredTable()
+{
+    MirroredTable t{};
+    for(size_t i = 0; i < tableSize; i++)
+    {
+        t.styles[i] = table[i].style;
+        t.styles[i].offset.x = -t.styles[i].offset.x;
+    }
+    return t;
+}
+
+const MirroredTable mirroredTable = makeMirroredTable();
+
 } // namespace
 
 const Style& fallback()
@@ -295,15 +319,15 @@ const Style& fallback()
     return defaultStyle;
 }
 
-const Style& forModel(const char* model)
+const Style& forModel(const char* model, bool mirrored)
 {
     if(model)
     {
-        for(const Entry& e : table)
+        for(size_t i = 0; i < tableSize; i++)
         {
-            if(stemIs(model, e.stem))
+            if(stemIs(model, table[i].stem))
             {
-                return e.style;
+                return mirrored ? mirroredTable.styles[i] : table[i].style;
             }
         }
     }
