@@ -2046,7 +2046,7 @@ QVR_TUNABLE(vr_flat_wall_slide_from, "15") // all along the wall up to this angl
 QVR_TUNABLE(vr_flat_wall_slide_to, "40") // and none from this angle (head-on: back and up); one smooth curve between (degrees)
 QVR_TUNABLE(vr_flat_wall_slide_time, "0.12") // the slide's share and turn ease over about this many seconds (0..1; 0: at once)
 QVR_TUNABLE(vr_flat_wall_block_ads, "1") // no ironsight while the gun is tilted up at a wall: the aim key waits until it comes down (0: the ironsight as ever)
-QVR_TUNABLE(vr_flat_prone_floor, "1") // lying down, a gun that would go into the floor (looking down) lies flush on it instead: turned up out of it as at a wall (vr_flat_wall_tilt's turn, its fire and ironsight blocks: vr_flat_wall_block_fire / _ads); 0 off, its end in the floor
+QVR_TUNABLE(vr_flat_prone_floor, "1") // lying down, a gun that would go into the floor (looking down) lies flush on it instead: turned up out of it as at a wall (vr_flat_wall_tilt's turn, its fire block and its ironsight block, vr_flat_wall_block_ads); 0 off, its end in the floor
 QVR_TUNABLE(vr_flat_prone_floor_margin, "1") // the flush gun keeps this far off the floor (0..6 units)
 QVR_TUNABLE(vr_flat_prone_eye, "14") // lying down, his eyes this many units over his feet (6..vr_prone_eye less 2; until 2026-11-08 vr_prone_eye less 4, the same 14): the view, and the gun's poses with it (lower, a gun looking down cannot clear the floor)
 QVR_TUNABLE(vr_flat_prone_neck_drop, "4.5") // lying down, the drawn trunk hangs from this many units further under the eye (0..10; the head is not drawn): the body turns until its hips rest on the floor, so the chest lies lower, almost on it (his note 2026-11-08: the torso too high; 0 before)
