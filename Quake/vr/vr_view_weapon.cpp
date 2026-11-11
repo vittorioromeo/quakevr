@@ -302,6 +302,7 @@ void queueWeaponText(const glm::vec3& handRot, bool mirrored, int hand, const vi
     glm::vec3 angles = weapons::vec(slot, Key::WpnTextPitch, Key::WpnTextYaw, Key::WpnTextRoll);
     if(mirrored)
     {
+        angles.y = -angles.y; // (mirrored as the gun's own angle offsets are: weaponAngleOffsets)
         angles.z = -angles.z;
     }
     // Read from behind the weapon, along its aim: the weapon's offset turned by the hand (composed,
@@ -352,10 +353,12 @@ void queueWeaponText(const glm::vec3& handRot, bool mirrored, int hand, const vi
         }
     }
 
-    const screenstyle::Style& style = screenstyle::forModel(ve.ent.model ? ve.ent.model->name : nullptr);
+    const screenstyle::Style& style = screenstyle::forModel(ve.ent.model ? ve.ent.model->name : nullptr, mirrored);
     text3d::queue(buf, pos, angles, text3d::Align::Centre, 0.1f * weapons::value(slot, Key::WpnTextScale),
         vr_weapon_screen.value != 0.f, warning ? &tint : nullptr, &style, screenGlyphs(slot, clip, clipSize, ammo));
-    if(main && vr_debug_screen_where.value != 0.f)
+    // The two reports below: the main hand's screen, the off hand's with vr_debug_screen_offhand.
+    const bool debugHand = main == (vr_debug_screen_offhand.value == 0.f);
+    if(debugHand && vr_debug_screen_where.value != 0.f)
     {
         // Where the screen is on its model (make_screen_housing_<gun>.py's numbers; Debug > Reports > Ammo Screen on
         // Model): the glass's centre (the style's offset in), its right and up, a font pixel, in the model's own units.
@@ -371,11 +374,12 @@ void queueWeaponText(const glm::vec3& handRot, bool mirrored, int hand, const vi
                                  glm::normalize(glm::cross(right, up)) * style.offset.z;
         const glm::vec3 c = inv * (centre - o), mr = inv * right, mu = inv * up;
         const float px = 0.1f * weapons::value(slot, Key::WpnTextScale) * style.size * glm::length(mr); // (8 * scale / 8)
-        Con_Printf("screenwhere: %s centre %.4f %.4f %.4f right %.4f %.4f %.4f up %.4f %.4f %.4f pixel %.5f\n",
+        Con_Printf("screenwhere: %s centre %.4f %.4f %.4f right %.4f %.4f %.4f up %.4f %.4f %.4f pixel %.5f%s\n",
             ve.ent.model ? ve.ent.model->name : "?", c.x, c.y, c.z, mr.x / glm::length(mr), mr.y / glm::length(mr),
-            mr.z / glm::length(mr), mu.x / glm::length(mu), mu.y / glm::length(mu), mu.z / glm::length(mu), px);
+            mr.z / glm::length(mr), mu.x / glm::length(mu), mu.y / glm::length(mu), mu.z / glm::length(mu), px,
+            main ? "" : mirrored ? " (off hand, mirrored)" : " (off hand)");
     }
-    if(main && vr_debug_screen_cam.value > 0.f)
+    if(debugHand && vr_debug_screen_cam.value > 0.f)
     {
         // The fly camera square in front of the held gun's glass, that many of its font pixels away (Debug > Reports >
         // Look at Ammo Screen; flatscreen play): a straight look at its text for shots of every gun's screen, as a hand

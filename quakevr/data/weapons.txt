@@ -950,7 +950,7 @@ weapon 5
     wpntxt_roll "0.0"
     wpntxt_scale "0.3"
     wpntxt_x "-2.7"
-    wpntxt_y "-1.65"
+    wpntxt_y "-1.645"
     wpntxt_yaw "0"
     wpntxt_z "2.6"
     wpntxtmode "1"
