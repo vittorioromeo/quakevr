@@ -53,12 +53,21 @@ v = vels(log("ssgold"))
 ended("ssgold", log("ssgold"))
 check("ssgold: the old ejection drops them (< 0.8 m/s sideways)", len(v) == 2 and all(abs(r) < 0.8 for f, r, u in v), str(v))
 
-# rv: six shells thrown off sideways; the revolver's open pose (the defaults) in the report.
+# rv: six shells straight back out of their chambers (along the cylinder's axis as drawn, on each chamber's axis), then
+# turned past the face away from the frame (the side the cylinder hangs out on; his 2026-11-11: they went across the gun,
+# 80-89 deg off the axis, -1.1..-1.4 m/s into the frame); the revolver's open pose (the defaults) in the report.
+RVL = re.compile(r"shells rv hand \d chamber \d: back (-?[\d.]+) out (-?[\d.]+) up (-?[\d.]+) m/s, (\d+) deg off the axis; "
+                 r"starts (-?[\d.]+) across")
+RVDONE = re.compile(r"shells rv stroke done hand \d after [\d.]+ s: out (-?[\d.]+) \(away from the frame\), up (-?[\d.]+)")
 t = log("rv")
 ended("rv", t)
 v = vels(t)
 check("rv: six shells", len(v) == 6, str(len(v)))
-check("rv: thrown off sideways (>= 0.9 m/s right)", len(v) == 6 and all(r >= 0.9 for f, r, u in v), str(v))
+r = [tuple(float(x) for x in m.groups()) for m in RVL.finditer(t)]
+check("rv: straight back out of their chambers (>= 0.5 m/s back, <= 35 deg off the cylinder's axis, on the chamber's axis)",
+      len(r) == 6 and all(b >= 0.5 and o >= 0.0 and a <= 35 and abs(c) < 0.05 for b, o, u, a, c in r), str(r))
+d = [tuple(float(x) for x in m.groups()) for m in RVDONE.finditer(t)]
+check("rv: then off away from the frame (>= 0.8 m/s out), not across the gun", len(d) == 6 and all(o >= 0.8 for o, u in d), str(d))
 m = re.search(r"flatreload: main hand: open 1 kind 2 share 1\.00, turned (\S+) (\S+) (\S+), moved (\S+) (\S+) (\S+)", t)
 check("rv: the main hand in the revolver's open pose (-15 15 -30, moved 0 3 -1)",
       bool(m) and [float(x) for x in m.groups()] == [-15.0, 15.0, -30.0, 0.0, 3.0, -1.0], m.group(0) if m else "no line")
@@ -75,6 +84,8 @@ b = befores(t)
 lv = lambda f, r: (f * f + r * r) ** 0.5
 check("vr: two shells keep their level speed past the face (>= 80%)",
       len(v) == 2 and len(b) == 2 and all(lv(x[0], x[1]) >= 0.8 * lv(y[0], y[1]) for x, y in zip(v, b)), str(v) + " from " + str(b))
+d = [tuple(float(x) for x in m.groups()) for m in RVDONE.finditer(t)]
+check("vr: the same stroke out of the chambers first (VR and flat share it)", len(d) == 2, str(d))
 
 print("flateject: %d passed, %d failed" % (sum(results), len(results) - sum(results)))
 sys.exit(0 if all(results) else 1)

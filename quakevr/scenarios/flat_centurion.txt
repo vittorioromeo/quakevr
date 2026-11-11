@@ -1,0 +1,8 @@
+# flat_centurion: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode): AD's centurion's plasma gun held two-handed like the other long guns, its ironsight (ADS) working (vr_sightalign_table.inc; flatfx_test.sh centurion).
+title Flat-screen: the centurion's plasma gun, two-handed, with ADS
+hint Play with -flatscreenmode. The AD centurion's plasma gun is in your hand: the other hand takes its fore-end like the other long guns, and holding the ADS button brings its sights to your eye. Compare with the AD plasma rifle.
+map vrtesthall
+god
+cvar vr_ad_everywhere 1
+give "AD Centurion's Plasma Gun" main
+spawn "Grunt" 360 0
