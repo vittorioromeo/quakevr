@@ -8758,3 +8758,15 @@ Defaults still off: recommended on (slots at least). Debug > Views: Crowd Stall 
 all twelve knights and dogs leave their spots (none stuck in a wall) and reach you on the dais within about ten
 seconds, the knights taking places round you from several flights; the console's crowd test table shows almost no
 stalls, and Show Navmesh 2 puts a post wherever one stalled. {test:nav_crowd}"
+
+## Survival Arena: the budget director, design for review (branch `agent/arenabudget`)
+
+Design only, no QC or engine change. The design is `docs/vr-port/ARENA_DIRECTOR.md`: one threat currency
+(body + weapon + extras), the cost table for every body, the 34 ladder rows and the extras, budget curves with a
+boss-cycle sawtooth, role split, themes, anti-repetition, the progression guarantee, reinforcements, a separate
+reactive supply budget, the data file format, cvars, and 12 open questions. The draft data file
+`Misc/quakevr/arena_director_draft.txt` and the simulation `Misc/quakevr/arena_director_sim.py` (Python, offline; it
+also ports today's director so both are priced with the same table) produced the numbers. At Normal over 400 seeds:
+the same total threat (4613 vs 4549), repeats from one wave to the next 17% vs 42%, distinct combos per 5-wave window
+up 30-80% from wave 6 on, gun droughts 0.06 vs 1.89 a run. Nine design changes came out of the simulation (the doc's section 11).
+No checklist lines yet; they come with the implementation.
