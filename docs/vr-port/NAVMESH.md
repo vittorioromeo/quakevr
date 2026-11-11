@@ -367,3 +367,76 @@ wall (x +-428, y -+296, z 232), standing 30+ s (the crowd test calls it a `wall`
 floor place came up in 5 s, so it depends on the approach; not found within this round. One armed grunt down the south-east tower stalled at its
 stair's foot (242 -320 56). Scene `nav_tower` (you on the north-east top, walkers on the floor and on the tower
 across).
+
+## 14. Props as obstacles (2026-11-11)
+
+`vr_nav_props` 1 (Debug > Tunables, "Navmesh: Props Block Paths"). A loose solid prop (Box3D's, SOLID_BBOX, not in a
+hand: a crate, a barrel, an explosive box; `box3d::climbShape`, the climbing hands' own view of a prop) that has rested
+`vr_nav_prop_rest` (1 s) is cut out of every class's mesh when it blocks a walker: higher than a step (`vr_nav_climb`:
+a box under it is stepped over), at least `vr_nav_prop_size` (20) across its narrower side and `vr_nav_prop_mass` (10 kg)
+heavy (a lighter one is pushed aside). The mark goes when it moves more than `vr_nav_prop_move` (6 units) or turns 10
+degrees from where it was marked, is taken in a hand, broken or removed; it is marked again once it rests.
+
+- **How: our own tile rebuild, not DetourTileCache.** The tile cache rebuilds from compressed heightfield layers
+  (`RecastLayers.cpp`, left out of the import) and would need its own build path: our tiles fill brushes as solids,
+  run the narrow band's double erosion and carry drop and lift links, none of which the tile cache's builder does. So a
+  tile is built again from its own input (its triangles and brushes, binned the first time; `binTiles`, shared with the
+  build) with each obstacle's outline marked unwalkable in the compact heightfield before the erosion (`markObstacles`:
+  `rcMarkConvexPolyArea` on the spans whose floor is within the class's height under the prop's bottom and more than a
+  step under its top), so the clearance keeps the box off a prop as off a wall, the narrow band included. The outline
+  is the convex hull of the prop's shape where it lies (a barrel's round, a tipped crate's turned square), at most 16
+  corners. A tile keeps its links (taken from the tile as it was).
+- **Batches on the pool.** The props are looked at every `vr_nav_movers` tick (0.25 s) from each server frame
+  (`nav::serverFrame`, whether or not anything chases); a mark made or gone flags the tiles it reaches (with the tiles'
+  border) in each class. Each class runs one batch at a time (`jobs::async`, its tiles in `parallelFor`), no more
+  often than `vr_nav_prop_batch` (0.5 s); the main thread only swaps the finished tiles in (`removeTile`/`addTile`). A
+  tile with no obstacle left gets its first data back (kept when the first obstacle reached it), with no rebuild.
+- **Paths:** a walker whose path crossed a changed tile (one of its polygons no longer valid) finds its path again at
+  once; the doors' and lifts' blocked flags are set again at the next tick.
+- **The disk cache stays valid:** the file is written from the build (no obstacles), and a class read or built later
+  gets the marks there are as its first batch.
+- **Show Navmesh** draws each blocking prop's outline in purple (its foot, its top, the corners joined), over the hole
+  it leaves in the mesh. `vr_nav_info` counts them (blocking, marks, batches, tiles rebuilt and given back, the pool's
+  and the main thread's time, what is pending). Builtin `navobstacles(what)` (0 pending: 0 when the mesh is current).
+- **Measured** (`vr_arena_test 43`, scene `nav_props`; no-LTO, low-impact runs): a knight from the floor east of the dais
+  comes up the east flight in 3.9 s; with 7 large crates (4 across, 3 on them) on the dais at the flight's top it takes
+  the north flight (7.1 s); cleared, the east flight again (3.9 s); the pile set down as it starts out (marked 1.1-1.3 s
+  later, its path found again): another flight (9.8 s); a barrel on its line: its middle never nearer than 32.6 units
+  to the barrel's (touching is 23.5), no stall. 60 small crates set down at once west of the dais: marked in one batch
+  of 6 tiles, 3.3-6.0 ms on the pool, 0.11-0.14 ms on the main thread; no rebuild in the 5 s they lie. A pile is marked
+  1.1 s after it is set down. vrarena's own crates (11, vr_crates' layout) are marked too.
+- Not done: a walker does not push a light prop out of its way on purpose (it walks round a blocking one, and a light
+  one still meets Quake's chase and the props' detours, vr_ai_props.qc).
+
+## 15. The towers' last stalls (2026-11-11)
+
+Found with `vr_nav_stuck_log` (Debug > Tunables: a walker chasing on the mesh that stood still that long is logged
+once, `navstuck|...`) and the tower test run one kind at a time (`vr_nav_test_kinds`, a bit mask; `vr_arena_test 41`
+now also waits for the player before its first spawn: it had a program error when run straight after `map`).
+
+- **The step beside the tower's wall: melee range through the stair.** The dog or knight stood on step 12-14 of a
+  stair hugging the tower, him on the top 33-49 above: Quake's melee range is 120 in a straight line (`range()`), so it
+  was in range from below. It bit or swung at air, and its attack's charge (`ai_charge`: Quake's `movetogoal`) ran it
+  into the tower's wall; still in range, it attacked again, for good (no `navstuck` line: it never steered). The
+  "depends on the approach" note of 13 was this: from where it came up the stair it was in range or not. Fix
+  (`vr_nav_melee_level` 24, QC `VR_NAV_MeleeOff`, builtin `navreach`): a walker in melee range of a foe whose feet are
+  more than that above or below its own doesn't attack when a whole path to him is on its mesh (`wholePath`): it walks
+  the path. Applied where Quake decides a melee attack (fight.qc's CheckAttack, the shambler's and ogre's, the dog's and
+  the fiend's). No path (a ledge it can't climb, a crate he stands on): as before. 24: a stair's step and the dais' pad
+  (16) still count as his level. The leap rule of 13 stays (the dogs' slowness came from this, not from it).
+- **Walls the step meets** (`vr_nav_slide` 1): a step toward the next corner whose box meets a wall (traced a step's
+  height up, so a riser is not a wall) turns along the wall instead (Quake's walkmove never slides); the narrow band can
+  put a corner nearer a wall than the box's half width.
+- **The dog that stopped on the floor at -160 -400 going down** is dead: it leaves the south-west tower's top within
+  1.3 s of its start and falls 256 to the floor (its box is then a corpse's, 31 wide), and monsters take fall damage
+  beyond 150 (combat.qc `VR_Monster_Fall`; a dog has 25 health). Not a drop link: with them capped at 150 (below) it
+  still happens. How it goes over the edge (its leap's height test forbids a leap down; a shove?) is not found: the
+  one capped trial left. The links' comment said monsters take no fall damage: `vr_nav_drop_max` 192 -> 150 anyway, so a
+  drop link never hurts a short walker (the tall classes keep 256: an ogre lives through 42).
+- **Measured** (`vr_arena_test 41`, seed 7, no-LTO low-impact run, after the merge): **capped 1 of 60** (was 6). There
+  (mean s) up / down / across: armed grunt 7.9 / 4.2 / 12.9, enforcer 5.7 / 4.8 / 10.6, knight 4.4 / 4.2 / 8.9, ogre
+  7.8 / 5.4 / 19.4, dog 6.9 / 17.1 (the dead one counted 40) / 8.5. The tests now keep the player god-moded themselves
+  (a `god` typed with the map's load can come before the player: he was shot dead and test 41 stood for an hour) and
+  wait for him before their first spawn.
+- **The armed grunt at the south-east stair's foot** (255 -324): logged steering south with a clear step yet not
+  moving, in the earlier (fixed) run; not seen again in the runs below.

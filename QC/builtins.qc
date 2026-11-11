@@ -814,4 +814,6 @@ entity(entity observer) portal_ai_client = #0;
 float(float gate, float what) portal_ai_gateinfo = #0;     // QVR: what 0 the gates' count (0: off), 1 a gate's flags (1 active, 2 paired, 4 monsters walk through), 2 its face (an exit: its pair's side; 0 none)
 float(entity monster, entity goal) navsteer = #0; // QVR: the yaw toward the next corner of its navmesh path to goal (vr_nav), -1: Quake's chase
 float(entity monster) navlink = #0; // QVR: what its last navsteer asks besides the yaw: 0 walk, 1 walk off the ledge (a drop link), 2 stand (waiting for or riding a lift, falling)
+float(entity monster, entity goal) navreach = #0; // QVR: 1 a whole navmesh path from the monster's feet to the goal's (vr_nav), 0 none, -1 no navmesh for it (yet)
+float(float what) navobstacles = #0; // QVR: props as obstacles (vr_nav_props): 0 what is left to do (0: the navmesh current), 1 props blocking, 2 rebuild batches, 3 tiles rebuilt or given back, 4 the rebuilds' pool ms in all, 5 the worst batch's, 6 its worst main-thread ms
 vector(float gate, float what, vector p) portal_ai_gate = #0; // QVR: what 0 its face's middle, 1 its normal (into its room), 2 p held to its aperture, 3 p carried through

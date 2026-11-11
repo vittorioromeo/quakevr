@@ -2,6 +2,7 @@
 
 #include "vr_nav.hpp"
 
+#include "vr_box3d.hpp"
 #include "vr_brushes.hpp"
 #include "vr_cvars.hpp"
 #include "vr_diskcache.hpp"
@@ -127,6 +128,36 @@ struct Link
     unsigned id;
 };
 
+// The build's settings (settingsNow).
+struct Settings
+{
+    float cs, ch, climb, slope, clearance;
+    int tile;
+    float drops, dropMax, dropMaxBig, lifts; // (the links': vr_nav_drop, its heights, vr_nav_lifts)
+    float narrow; // (vr_nav_narrow: the narrow band's clearance, times the half width; 0 none)
+};
+
+// A prop's footprint cut out of the navmesh (props as obstacles): a convex outline (Quake's x, y) and its height's span.
+constexpr int maxObstacleVerts = 16;
+struct Obstacle
+{
+    float xy[maxObstacleVerts * 2];
+    int count = 0;
+    float zlo = 0.f, zhi = 0.f;
+    glm::vec2 lo{0.f}, hi{0.f}; // its outline's bounds
+};
+
+// One tile rebuilt with the props' obstacles on it (a batch's, on the pool): its tile, the obstacles reaching it and its
+// links (as the mesh has them), and the job's data (null: nothing walkable left).
+struct ObstacleTile
+{
+    int x = 0, y = 0;
+    za::Vector<Obstacle> obstacles;
+    za::Vector<Link> links;
+    Tile out{0, 0, nullptr, 0};
+    double ms = 0.0;
+};
+
 // One size class: its monsters' radius (half width) and height, its navmesh and query.
 struct NavClass
 {
@@ -149,6 +180,22 @@ struct NavClass
     dtNavMeshQuery* jobQuery = nullptr;
     za::Vector<char> blob;
     unsigned blobCount = 0, blobSum = 0;
+    // Props as obstacles (runtime only: the cached file is the mesh without them). The settings it was made with (its
+    // tiles are rebuilt with the same), per tile: changed since its last batch, its data before any obstacle (empty:
+    // unchanged), its triangles and brushes (the batches' bins, made the first time a tile is rebuilt). One batch at a
+    // time on the pool (obsJob: obsTiles), no sooner than obsAt.
+    Settings settings{};
+    int tilesX = 0, tilesY = 0;
+    bool obsInit = false; // the marks there were when its mesh came made its first batch
+    za::Vector<unsigned char> dirty;
+    za::Vector<za::Vector<unsigned char>> original;
+    za::Vector<za::Vector<Link>> originalLinks;
+    za::Vector<za::Vector<int>> obsBins, obsBrushBins;
+    za::Vector<unsigned char> binned;
+    jobs::Future<void> obsJob;
+    bool obsPending = false;
+    za::Vector<ObstacleTile> obsTiles;
+    double obsAt = 0.0, obsJobMs = 0.0;
 };
 
 // A monster's path (by edict number).
@@ -183,6 +230,10 @@ struct Agent
     glm::vec3 lastPos{0.f};
     double lastAt = -1.0;
     float lastYaw = 0.f;
+    // vr_nav_stuck_log: where it stood still since when, logged.
+    glm::vec3 stuckAt{0.f};
+    double stuckSince = -1.0;
+    bool stuckLogged = false;
 };
 
 // Why a steer returned what it did (the crowd test's causes).
@@ -195,6 +246,26 @@ enum Why : int
     whyLink,      // following a drop or a ride
     whySteered,   // a yaw toward the next corner
     whyCount
+};
+
+// A loose solid prop as the obstacles see it (by edict number): its pose at the last look, since when it rests, its mark
+// (where it was marked: the mark goes when it moves on from there).
+struct PropTrack
+{
+    bool live = false, marked = false, small = false; // (small: looked at at rest, too small or light to block)
+    glm::vec3 origin{0.f};
+    glm::mat3 turn{1.f};
+    double stillSince = -1.0;
+    glm::vec3 markOrigin{0.f};
+    glm::mat3 markTurn{1.f};
+    Obstacle mark;
+};
+
+// The obstacles' counts (vr_nav_info, builtin navobstacles).
+struct ObstacleStats
+{
+    int batches = 0, tiles = 0, restored = 0, marks = 0, unmarks = 0;
+    double jobMs = 0.0, worstJobMs = 0.0, applyMs = 0.0, worstApplyMs = 0.0;
 };
 
 // A walker as the crowd's separation sees it (crowdNow: once a frame).
@@ -217,6 +288,8 @@ struct State
     int drops = 0, rides = 0, linkFails = 0; // links taken to their end, given up
     za::Vector<Crowd> crowd;  // the live walkers, as of crowdAt
     double crowdAt = -1.0;
+    za::Vector<PropTrack> props; // by edict number (refreshProps)
+    ObstacleStats obs;
 };
 
 State state;
@@ -445,14 +518,6 @@ void triangulate(const BrushSet& set, Geometry& g)
 // ---------------------------------------------------------------------------------------------------------------------
 // The build.
 
-struct Settings
-{
-    float cs, ch, climb, slope, clearance;
-    int tile;
-    float drops, dropMax, dropMaxBig, lifts; // (the links': vr_nav_drop, its heights, vr_nav_lifts)
-    float narrow; // (vr_nav_narrow: the narrow band's clearance, times the half width; 0 none)
-};
-
 Settings settingsNow()
 {
     return Settings{za::max(vr_nav_cell.value, 0.5f), za::max(vr_nav_cell_height.value, 0.25f), za::max(vr_nav_climb.value, 0.f),
@@ -561,8 +626,31 @@ bool erodeWithBand(rcContext& ctx, int radius, int narrowRadius, rcCompactHeight
     return true;
 }
 
+// The props' obstacles cut out of the tile's floor before its erosion (so the clearance keeps the box off them as off a
+// wall): the spans under each outline whose floor is under the prop's bottom by less than the class's height (its head
+// would meet it) and under its top by more than a step (it can't step over it).
+void markObstacles(rcContext& ctx, const za::Vector<Obstacle>& obstacles, const rcConfig& cfg, rcCompactHeightfield& chf)
+{
+    const float height = static_cast<float>(cfg.walkableHeight) * cfg.ch, climb = static_cast<float>(cfg.walkableClimb) * cfg.ch;
+    for(const Obstacle& o : obstacles)
+    {
+        float verts[maxObstacleVerts * 3];
+        for(int k = 0; k < o.count; ++k)
+        {
+            verts[k * 3] = o.xy[k * 2];
+            verts[k * 3 + 1] = 0.f;
+            verts[k * 3 + 2] = -o.xy[k * 2 + 1];
+        }
+        const float hmin = o.zlo - height + cfg.ch, hmax = o.zhi - climb;
+        if(hmax > hmin && o.count >= 3)
+        {
+            rcMarkConvexPolyArea(&ctx, verts, o.count, hmin, hmax, RC_NULL_AREA, chf);
+        }
+    }
+}
+
 bool buildTile(const Geometry& g, const za::Vector<int>& bin, const za::Vector<int>& brushBin, const rcConfig& base, int narrowRadius,
-    int tx, int ty, TileSrc& out)
+    int tx, int ty, TileSrc& out, const za::Vector<Obstacle>* obstacles = nullptr)
 {
     rcConfig cfg = base;
     const float tw = static_cast<float>(cfg.tileSize) * cfg.cs;
@@ -608,8 +696,15 @@ bool buildTile(const Geometry& g, const za::Vector<int>& bin, const za::Vector<i
         rcFilterLowHangingWalkableObstacles(&ctx, cfg.walkableClimb, *hf);
         rcFilterLedgeSpans(&ctx, cfg.walkableHeight, cfg.walkableClimb, *hf);
         rcFilterWalkableLowHeightSpans(&ctx, cfg.walkableHeight, *hf);
-        if(!rcBuildCompactHeightfield(&ctx, cfg.walkableHeight, cfg.walkableClimb, *hf, *chf) ||
-            !erodeWithBand(ctx, cfg.walkableRadius, narrowRadius, *chf, band) || !rcBuildDistanceField(&ctx, *chf) ||
+        if(!rcBuildCompactHeightfield(&ctx, cfg.walkableHeight, cfg.walkableClimb, *hf, *chf))
+        {
+            break;
+        }
+        if(obstacles)
+        {
+            markObstacles(ctx, *obstacles, cfg, *chf);
+        }
+        if(!erodeWithBand(ctx, cfg.walkableRadius, narrowRadius, *chf, band) || !rcBuildDistanceField(&ctx, *chf) ||
             !rcBuildRegions(&ctx, *chf, cfg.borderSize, cfg.minRegionArea, cfg.mergeRegionArea) ||
             !rcBuildContours(&ctx, *chf, cfg.maxSimplificationError, cfg.maxEdgeLen, *cset) || cset->nconts == 0 ||
             !rcBuildPolyMesh(&ctx, *cset, cfg.maxVertsPerPoly, *pmesh) || pmesh->npolys == 0 ||
@@ -1059,12 +1154,9 @@ void findRides(const Geometry& g, const Settings& s, const NavClass& c, const Br
     }
 }
 
-// The class's tiles built (any thread: the pool's job), into c.built.
-void buildClass(const Geometry& g, const Settings& s, NavClass& c)
+// The class's Recast settings (each tile's bounds are set by buildTile) and its narrow band's radius (voxels).
+rcConfig classConfig(const Settings& s, const NavClass& c, const Grid& grid, int& narrowRadius)
 {
-    const auto t0 = za::Clock::nowNanoseconds();
-    const Grid grid = gridFor(g, s);
-    c.params = meshParams(g, s, grid);
     rcConfig cfg{};
     cfg.cs = s.cs;
     cfg.ch = s.ch;
@@ -1075,7 +1167,7 @@ void buildClass(const Geometry& g, const Settings& s, NavClass& c)
     // path's corner never puts a box corner over a ledge (SV_CheckBottom) or into a slanted wall.
     cfg.walkableRadius = static_cast<int>(za::ceil(c.radius * s.clearance / s.cs));
     // ... and the narrow band's, closer (erodeWithBand).
-    const int narrowRadius = s.narrow > 0.f ? static_cast<int>(za::ceil(c.radius * s.narrow / s.cs)) : 0;
+    narrowRadius = s.narrow > 0.f ? static_cast<int>(za::ceil(c.radius * s.narrow / s.cs)) : 0;
     cfg.maxEdgeLen = static_cast<int>(48.f / s.cs);
     cfg.maxSimplificationError = 1.3f;
     cfg.minRegionArea = static_cast<int>(rcSqr(24.f / s.cs));
@@ -1087,12 +1179,20 @@ void buildClass(const Geometry& g, const Settings& s, NavClass& c)
     cfg.height = cfg.width;
     cfg.detailSampleDist = s.cs * 6.f;
     cfg.detailSampleMaxError = s.ch;
-    // Each triangle into the tiles its bounds (with the border) reach.
+    return cfg;
+}
+
+// Each triangle and brush into the tiles its bounds (with the border) reach; `want` (per tile; null: all) the tiles
+// binned (a props' batch: the few it rebuilds).
+void binTiles(const Geometry& g, const Grid& grid, const rcConfig& cfg, const za::Vector<unsigned char>* want,
+    za::Vector<za::Vector<int>>& bins, za::Vector<za::Vector<int>>& brushBins)
+{
     const int tilesX = grid.tilesX, tilesY = grid.tilesY;
-    const float tw = static_cast<float>(cfg.tileSize) * s.cs;
-    const float border = static_cast<float>(cfg.borderSize) * s.cs;
-    za::Vector<za::Vector<int>> bins;
+    const float tw = static_cast<float>(cfg.tileSize) * cfg.cs;
+    const float border = static_cast<float>(cfg.borderSize) * cfg.cs;
     bins.resize(static_cast<za::SizeT>(tilesX * tilesY));
+    brushBins.resize(bins.size());
+    const auto wanted = [want](za::SizeT i) { return !want || (*want)[i] != 0; };
     const int triCount = static_cast<int>(g.walkable.size());
     for(int t = 0; t < triCount; ++t)
     {
@@ -1113,12 +1213,14 @@ void buildClass(const Geometry& g, const Settings& s, NavClass& c)
         {
             for(int x = x0; x <= x1; ++x)
             {
-                bins[static_cast<za::SizeT>(y * tilesX + x)].pushBack(t);
+                const auto i = static_cast<za::SizeT>(y * tilesX + x);
+                if(wanted(i))
+                {
+                    bins[i].pushBack(t);
+                }
             }
         }
     }
-    za::Vector<za::Vector<int>> brushBins;
-    brushBins.resize(bins.size());
     for(za::SizeT b = 0; b < g.boxes.size(); ++b)
     {
         const glm::vec4& box = g.boxes[b];
@@ -1134,10 +1236,28 @@ void buildClass(const Geometry& g, const Settings& s, NavClass& c)
         {
             for(int x = x0; x <= x1; ++x)
             {
-                brushBins[static_cast<za::SizeT>(y * tilesX + x)].pushBack(static_cast<int>(b));
+                const auto i = static_cast<za::SizeT>(y * tilesX + x);
+                if(wanted(i))
+                {
+                    brushBins[i].pushBack(static_cast<int>(b));
+                }
             }
         }
     }
+}
+
+// The class's tiles built (any thread: the pool's job), into c.built.
+void buildClass(const Geometry& g, const Settings& s, NavClass& c)
+{
+    const auto t0 = za::Clock::nowNanoseconds();
+    const Grid grid = gridFor(g, s);
+    c.params = meshParams(g, s, grid);
+    int narrowRadius = 0;
+    const rcConfig cfg = classConfig(s, c, grid, narrowRadius);
+    const int tilesX = grid.tilesX, tilesY = grid.tilesY;
+    const float tw = static_cast<float>(cfg.tileSize) * s.cs;
+    za::Vector<za::Vector<int>> bins, brushBins;
+    binTiles(g, grid, cfg, nullptr, bins, brushBins);
     za::Vector<TileSrc> srcs;
     za::Vector<unsigned char> has;
     srcs.resize(bins.size(), TileSrc{0, 0, nullptr, nullptr});
@@ -1311,6 +1431,17 @@ void releaseClass(NavClass& c)
         c.job.wait();
         c.pending = false;
     }
+    if(c.obsPending)
+    {
+        c.obsJob.wait();
+        c.obsPending = false;
+    }
+    for(ObstacleTile& t : c.obsTiles)
+    {
+        dtFree(t.out.data);
+        t.out.data = nullptr;
+    }
+    c.obsTiles.clear();
     freeTiles(c.built);
     dtFreeNavMeshQuery(c.query);
     dtFreeNavMesh(c.mesh);
@@ -1331,6 +1462,8 @@ void resetAll()
     state.classes.clear();
     state.movers.clear();
     state.agents.clear();
+    state.props.clear();
+    state.obs = ObstacleStats{};
     state.ready = false;
 }
 
@@ -1374,6 +1507,10 @@ void startClass(za::SizeT index, bool async)
 {
     NavClass& c = state.classes[index];
     const Settings s = settingsNow();
+    c.settings = s;
+    const Grid grid = gridFor(state.geo, s);
+    c.tilesX = grid.tilesX;
+    c.tilesY = grid.tilesY;
     c.key = keyOf(state.geo, s, c);
     const int mode = diskcache::modeOf(diskcache::Product::NavMesh);
     const za::String build = buildName();
@@ -1504,6 +1641,8 @@ NavClass* readyClass(int index)
 // ---------------------------------------------------------------------------------------------------------------------
 // Movers: the floor a door, lift or train stands on is blocked while it does.
 
+void refreshProps(double now); // (below: props as obstacles)
+
 void refreshMovers()
 {
     const double now = sv.qcvm.time;
@@ -1519,6 +1658,7 @@ void refreshMovers()
             (void)classFor(e, true);
         }
     });
+    refreshProps(now); // (and the props come to rest or moved on: props as obstacles)
     for(NavClass& c : state.classes)
     {
         if(c.pending || !c.mesh)
@@ -1571,6 +1711,498 @@ void refreshMovers()
             }
         }
     }
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Props as obstacles (vr_nav_props; NAVMESH.md 14): a loose solid prop (a crate, a barrel, an explosive box: Box3D's,
+// not in a hand) that has rested vr_nav_prop_rest, wide and heavy enough, is cut out of every class's mesh. The tiles it
+// reaches are built again from their own input with the obstacles on them, in batches on the pool (one per class at a
+// time, no more often than vr_nav_prop_batch); its mark goes when it moves on from where it was marked, is taken up or
+// goes, and a tile with none left gets its data back as it was. The cached file is the mesh without them.
+
+// The convex outline of `pts` (Quake's x, y; sorted here) counter-clockwise (Andrew's monotone chain), at most
+// maxObstacleVerts corners (a rounder one thinned: a little inside its outline).
+int outlineOf(za::Vector<glm::vec2>& pts, float* out)
+{
+    const za::SizeT n = pts.size();
+    for(za::SizeT i = 1; i < n; ++i) // (a prop's few points: insertion sort)
+    {
+        const glm::vec2 p = pts[i];
+        za::SizeT j = i;
+        for(; j > 0 && (pts[j - 1].x > p.x || (pts[j - 1].x == p.x && pts[j - 1].y > p.y)); --j)
+        {
+            pts[j] = pts[j - 1];
+        }
+        pts[j] = p;
+    }
+    za::Vector<glm::vec2> h;
+    h.resize(n * 2 + 1);
+    const auto cross = [](const glm::vec2& o, const glm::vec2& a, const glm::vec2& b) {
+        return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+    };
+    za::SizeT k = 0;
+    for(za::SizeT i = 0; i < n; ++i)
+    {
+        for(; k >= 2 && cross(h[k - 2], h[k - 1], pts[i]) <= 0.f; --k) {}
+        h[k++] = pts[i];
+    }
+    for(za::SizeT i = n - 1, lower = k + 1; i-- > 0;)
+    {
+        for(; k >= lower && cross(h[k - 2], h[k - 1], pts[i]) <= 0.f; --k) {}
+        h[k++] = pts[i];
+    }
+    const int count = static_cast<int>(k > 0 ? k - 1 : 0);
+    const int keep = za::min(count, maxObstacleVerts);
+    for(int i = 0; i < keep; ++i)
+    {
+        const glm::vec2& p = h[static_cast<za::SizeT>(i * count / keep)];
+        out[i * 2] = p.x;
+        out[i * 2 + 1] = p.y;
+    }
+    return keep;
+}
+
+// A prop's obstacle from its shape where it lies (its pieces' points: box3d::ClimbShape); false if it should not block:
+// no higher than a step (stepped over), narrower than vr_nav_prop_size across, lighter than vr_nav_prop_mass.
+bool obstacleOf(const box3d::ClimbShape& shape, const box3d::ClimbBody& body, Obstacle& o)
+{
+    if(shape.points.size() < 3 || body.mass < vr_nav_prop_mass.value)
+    {
+        return false;
+    }
+    za::Vector<glm::vec2> pts;
+    pts.reserve(shape.points.size());
+    o.zlo = 1e30f;
+    o.zhi = -1e30f;
+    for(const glm::vec3& p : shape.points)
+    {
+        const glm::vec3 w = body.turn * p + body.origin;
+        pts.pushBack({w.x, w.y});
+        o.zlo = za::min(o.zlo, w.z);
+        o.zhi = za::max(o.zhi, w.z);
+    }
+    o.count = outlineOf(pts, o.xy);
+    if(o.count < 3 || o.zhi - o.zlo <= vr_nav_climb.value)
+    {
+        return false;
+    }
+    // Its width across its narrower side: the least, over its edges, of how far its outline reaches from the edge.
+    float narrow = 1e30f;
+    o.lo = o.hi = {o.xy[0], o.xy[1]};
+    for(int i = 0; i < o.count; ++i)
+    {
+        const glm::vec2 a{o.xy[i * 2], o.xy[i * 2 + 1]};
+        const int j = (i + 1) % o.count;
+        const glm::vec2 e = glm::vec2{o.xy[j * 2], o.xy[j * 2 + 1]} - a;
+        const float len = glm::length(e);
+        o.lo = glm::min(o.lo, a);
+        o.hi = glm::max(o.hi, a);
+        if(len < 1e-3f)
+        {
+            continue;
+        }
+        const glm::vec2 inward{-e.y / len, e.x / len};
+        float reach = 0.f;
+        for(int k = 0; k < o.count; ++k)
+        {
+            reach = za::max(reach, glm::dot(glm::vec2{o.xy[k * 2], o.xy[k * 2 + 1]} - a, inward));
+        }
+        narrow = za::min(narrow, reach);
+    }
+    return narrow >= vr_nav_prop_size.value;
+}
+
+// The class's tiles an obstacle's outline reaches (with the tiles' border: the clearance round it reaches into them).
+template <typename F>
+void obstacleTiles(const NavClass& c, const Obstacle& o, F&& fn)
+{
+    const Settings& s = c.settings;
+    const float tw = c.params.tileWidth;
+    const float border = (za::ceil(c.radius * s.clearance / s.cs) + 3.f) * s.cs;
+    // Recast's x is Quake's x, its z Quake's -y.
+    const int x0 = za::max(0, static_cast<int>(za::floor((o.lo.x - border - c.params.orig[0]) / tw)));
+    const int x1 = za::min(c.tilesX - 1, static_cast<int>(za::floor((o.hi.x + border - c.params.orig[0]) / tw)));
+    const int y0 = za::max(0, static_cast<int>(za::floor((-o.hi.y - border - c.params.orig[2]) / tw)));
+    const int y1 = za::min(c.tilesY - 1, static_cast<int>(za::floor((-o.lo.y + border - c.params.orig[2]) / tw)));
+    for(int y = y0; y <= y1; ++y)
+    {
+        for(int x = x0; x <= x1; ++x)
+        {
+            fn(y * c.tilesX + x);
+        }
+    }
+}
+
+void dirtyFor(const Obstacle& o)
+{
+    for(NavClass& c : state.classes)
+    {
+        if(c.obsInit)
+        {
+            obstacleTiles(c, o, [&c](int ti) { c.dirty[static_cast<za::SizeT>(ti)] = 1; });
+        }
+    }
+}
+
+void unmark(PropTrack& t)
+{
+    if(t.marked)
+    {
+        t.marked = false;
+        dirtyFor(t.mark);
+        ++state.obs.unmarks;
+    }
+}
+
+// The props looked at (the movers' tick): each loose solid prop's rest, its mark made or taken off.
+void refreshProps(double now)
+{
+    const bool on = vr_nav_props.value != 0.f;
+    const int count = sv.qcvm.num_edicts;
+    if(state.props.size() < static_cast<za::SizeT>(count))
+    {
+        state.props.resize(static_cast<za::SizeT>(count));
+    }
+    const float moveOn = za::max(vr_nav_prop_move.value, 0.f);
+    constexpr float cosTurned = 0.9848f; // (10 degrees)
+    for(za::SizeT n = 1; n < state.props.size(); ++n)
+    {
+        PropTrack& t = state.props[n];
+        const int num = static_cast<int>(n);
+        box3d::ClimbBody body;
+        const bool loose = on && progs::edictAt(num) && box3d::isBox3DProp(num) && box3d::climbBody(num, body);
+        if(!loose)
+        {
+            unmark(t);
+            t = PropTrack{};
+            continue;
+        }
+        const bool moving = (!body.asleep && (glm::length(body.velocity) > 4.f || glm::length(body.spin) > 0.3f)) ||
+                            (t.live && glm::length(body.origin - t.origin) > 1.f);
+        t.live = true;
+        t.origin = body.origin;
+        t.turn = body.turn;
+        if(moving)
+        {
+            t.stillSince = -1.0;
+            t.small = false;
+        }
+        else if(t.stillSince < 0.0)
+        {
+            t.stillSince = now;
+        }
+        if(t.marked)
+        {
+            const bool turned = glm::dot(t.markTurn[0], body.turn[0]) < cosTurned || glm::dot(t.markTurn[2], body.turn[2]) < cosTurned;
+            if(glm::length(body.origin - t.markOrigin) <= moveOn && !turned)
+            {
+                continue;
+            }
+            unmark(t);
+        }
+        if(t.small || t.stillSince < 0.0 || now - t.stillSince < static_cast<double>(vr_nav_prop_rest.value))
+        {
+            continue;
+        }
+        box3d::ClimbBody at;
+        const box3d::ClimbShape* shape = box3d::climbShape(num, at);
+        Obstacle o;
+        if(!shape || !obstacleOf(*shape, at, o))
+        {
+            t.small = true;
+            continue;
+        }
+        t.marked = true;
+        t.mark = o;
+        t.markOrigin = body.origin;
+        t.markTurn = body.turn;
+        dirtyFor(o);
+        ++state.obs.marks;
+    }
+}
+
+// After tiles of class `ci` changed: walkers whose path crossed one find theirs again, the movers' flags are set again.
+void afterTilesChanged(const NavClass& c, int ci)
+{
+    for(Agent& a : state.agents)
+    {
+        if(a.cls != ci)
+        {
+            continue;
+        }
+        for(const dtPolyRef r : a.path)
+        {
+            if(!c.mesh->isValidPolyRef(r))
+            {
+                a.path.clear();
+                a.repathAt = 0.0;
+                break;
+            }
+        }
+    }
+    state.moversAt = 0.0;
+}
+
+// The class's tile `ti` back as the mesh had it before any obstacle.
+void restoreTile(NavClass& c, za::SizeT ti)
+{
+    za::Vector<unsigned char>& orig = c.original[ti];
+    const int x = static_cast<int>(ti) % c.tilesX, y = static_cast<int>(ti) / c.tilesX;
+    if(const dtTileRef old = c.mesh->getTileRefAt(x, y, 0))
+    {
+        (void)c.mesh->removeTile(old, nullptr, nullptr);
+    }
+    auto* data = static_cast<unsigned char*>(dtAlloc(static_cast<za::SizeT>(orig.size()), DT_ALLOC_PERM));
+    if(data)
+    {
+        memcpy(data, orig.data(), orig.size());
+        if(dtStatusFailed(c.mesh->addTile(data, static_cast<int>(orig.size()), DT_TILE_FREE_DATA, 0, nullptr)))
+        {
+            dtFree(data);
+        }
+    }
+    orig = za::Vector<unsigned char>{};
+    ++state.obs.restored;
+}
+
+// A tile's links as the mesh has them (a tile rebuilt keeps its drops and rides).
+void linksOf(const dtMeshTile& tile, za::Vector<Link>& out)
+{
+    for(int k = 0; k < tile.header->offMeshConCount; ++k)
+    {
+        const dtOffMeshConnection& con = tile.offMeshCons[k];
+        const dtPoly& poly = tile.polys[con.poly];
+        Link l{};
+        memcpy(l.pos, con.pos, sizeof(l.pos));
+        l.rad = con.rad;
+        l.dir = (con.flags & DT_OFFMESH_CON_BIDIR) ? DT_OFFMESH_CON_BIDIR : 0;
+        l.area = poly.getArea();
+        l.flags = poly.flags;
+        l.id = con.userId;
+        out.pushBack(l);
+    }
+}
+
+// A batch's tiles built (the pool's job): their bins made the first time, then each with its obstacles and links.
+void runObstacleBatch(NavClass& c)
+{
+    const auto t0 = za::Clock::nowNanoseconds();
+    const Geometry& g = state.geo;
+    const Settings& s = c.settings;
+    const Grid grid = gridFor(g, s);
+    int narrowRadius = 0;
+    const rcConfig cfg = classConfig(s, c, grid, narrowRadius);
+    za::Vector<unsigned char> want;
+    want.resize(c.binned.size(), 0);
+    bool need = false;
+    for(const ObstacleTile& t : c.obsTiles)
+    {
+        const auto ti = static_cast<za::SizeT>(t.y * c.tilesX + t.x);
+        if(!c.binned[ti])
+        {
+            want[ti] = 1;
+            need = true;
+        }
+    }
+    if(need)
+    {
+        za::Vector<za::Vector<int>> bins, brushBins;
+        binTiles(g, grid, cfg, &want, bins, brushBins);
+        for(za::SizeT ti = 0; ti < want.size(); ++ti)
+        {
+            if(want[ti])
+            {
+                c.obsBins[ti] = ZA_MOVE(bins[ti]);
+                c.obsBrushBins[ti] = ZA_MOVE(brushBins[ti]);
+                c.binned[ti] = 1;
+            }
+        }
+    }
+    jobs::parallelFor(tileSite, c.obsTiles.size(), 1, [&](za::SizeT begin, za::SizeT end) {
+        for(za::SizeT i = begin; i < end; ++i)
+        {
+            ObstacleTile& t = c.obsTiles[i];
+            const auto t1 = za::Clock::nowNanoseconds();
+            const auto ti = static_cast<za::SizeT>(t.y * c.tilesX + t.x);
+            TileSrc src{t.x, t.y, nullptr, nullptr};
+            if(!c.obsBins[ti].empty() && buildTile(g, c.obsBins[ti], c.obsBrushBins[ti], cfg, narrowRadius, t.x, t.y, src, &t.obstacles))
+            {
+                (void)tileData(src, c, s, t.links, t.out);
+                rcFreePolyMesh(src.pmesh);
+                rcFreePolyMeshDetail(src.dmesh);
+            }
+            t.ms = msSince(t1);
+        }
+    });
+    c.obsJobMs = msSince(t0);
+}
+
+// The batch done: its tiles into the mesh (main thread).
+void applyObstacleBatch(NavClass& c, int ci)
+{
+    const auto t0 = za::Clock::nowNanoseconds();
+    for(ObstacleTile& t : c.obsTiles)
+    {
+        if(const dtTileRef old = c.mesh->getTileRefAt(t.x, t.y, 0))
+        {
+            (void)c.mesh->removeTile(old, nullptr, nullptr);
+        }
+        if(t.out.data && dtStatusFailed(c.mesh->addTile(t.out.data, t.out.size, DT_TILE_FREE_DATA, 0, nullptr)))
+        {
+            dtFree(t.out.data);
+        }
+        t.out.data = nullptr;
+    }
+    afterTilesChanged(c, ci);
+    const double apply = msSince(t0);
+    ObstacleStats& st = state.obs;
+    ++st.batches;
+    st.tiles += static_cast<int>(c.obsTiles.size());
+    st.jobMs += c.obsJobMs;
+    st.worstJobMs = za::max(st.worstJobMs, c.obsJobMs);
+    st.applyMs += apply;
+    st.worstApplyMs = za::max(st.worstApplyMs, apply);
+    Con_DPrintf("nav: props: class r%.0f h%.0f: %d tiles rebuilt in %.1f ms on the pool, put in in %.2f ms\n", c.radius, c.height,
+        static_cast<int>(c.obsTiles.size()), c.obsJobMs, apply);
+    c.obsTiles.clear();
+}
+
+// The class's changed tiles: those with no obstacle left get their data back, the others go to the pool together.
+void startObstacleBatch(NavClass& c, int ci, double now)
+{
+    c.obsTiles.clear();
+    bool restored = false;
+    for(za::SizeT ti = 0; ti < c.dirty.size(); ++ti)
+    {
+        if(!c.dirty[ti])
+        {
+            continue;
+        }
+        c.dirty[ti] = 0;
+        const int x = static_cast<int>(ti) % c.tilesX, y = static_cast<int>(ti) / c.tilesX;
+        ObstacleTile t;
+        t.x = x;
+        t.y = y;
+        for(const PropTrack& p : state.props)
+        {
+            if(p.marked)
+            {
+                obstacleTiles(c, p.mark, [&](int k) {
+                    if(static_cast<za::SizeT>(k) == ti)
+                    {
+                        t.obstacles.pushBack(p.mark);
+                    }
+                });
+            }
+        }
+        if(t.obstacles.empty())
+        {
+            if(!c.original[ti].empty())
+            {
+                restoreTile(c, ti);
+                restored = true;
+            }
+            continue;
+        }
+        // The tile as it was (and its links) kept the first time an obstacle reaches it.
+        if(c.original[ti].empty())
+        {
+            const dtMeshTile* tile = static_cast<const dtNavMesh*>(c.mesh)->getTileAt(x, y, 0);
+            if(!tile || !tile->header)
+            {
+                continue; // (nothing walkable there)
+            }
+            c.original[ti].emplaceBackRange(tile->data, static_cast<za::SizeT>(tile->dataSize));
+            c.originalLinks[ti].clear();
+            linksOf(*tile, c.originalLinks[ti]);
+        }
+        t.links.emplaceBackRange(c.originalLinks[ti].data(), c.originalLinks[ti].size());
+        c.obsTiles.pushBack(ZA_MOVE(t));
+    }
+    if(restored)
+    {
+        afterTilesChanged(c, ci);
+    }
+    if(c.obsTiles.empty())
+    {
+        return;
+    }
+    c.obsAt = now + static_cast<double>(za::max(vr_nav_prop_batch.value, 0.f));
+    c.obsPending = true;
+    const auto i = static_cast<za::SizeT>(ci);
+    c.obsJob = jobs::async([i]() { runObstacleBatch(state.classes[i]); });
+}
+
+// Each class's batch joined when done, the next started when due (main thread; each steer, the debug view, navobstacles).
+void pollObstacles(double now)
+{
+    for(za::SizeT i = 0; i < state.classes.size(); ++i)
+    {
+        NavClass& c = state.classes[i];
+        if(c.pending || !c.mesh || c.failed)
+        {
+            continue;
+        }
+        const auto ci = static_cast<int>(i);
+        if(!c.obsInit)
+        {
+            const auto tiles = static_cast<za::SizeT>(c.tilesX * c.tilesY);
+            c.dirty.resize(tiles, 0);
+            c.original.resize(tiles);
+            c.originalLinks.resize(tiles);
+            c.obsBins.resize(tiles);
+            c.obsBrushBins.resize(tiles);
+            c.binned.resize(tiles, 0);
+            c.obsInit = true;
+            for(const PropTrack& p : state.props)
+            {
+                if(p.marked)
+                {
+                    obstacleTiles(c, p.mark, [&c](int ti) { c.dirty[static_cast<za::SizeT>(ti)] = 1; });
+                }
+            }
+        }
+        if(c.obsPending)
+        {
+            if(!c.obsJob.ready())
+            {
+                continue;
+            }
+            c.obsJob.get();
+            c.obsPending = false;
+            applyObstacleBatch(c, ci);
+        }
+        if(now >= c.obsAt)
+        {
+            startObstacleBatch(c, ci, now);
+        }
+    }
+}
+
+// What's left to do: props coming to rest that may block, tiles waiting for their batch, batches on the pool.
+int obstaclesPending()
+{
+    int n = 0;
+    for(const PropTrack& p : state.props)
+    {
+        n += p.live && !p.marked && !p.small ? 1 : 0;
+    }
+    for(const NavClass& c : state.classes)
+    {
+        n += c.obsPending ? 1 : 0;
+        for(const unsigned char d : c.dirty)
+        {
+            n += d;
+        }
+    }
+    return n;
+}
+
+// The movers' and the props' tick, and the props' batches (main thread).
+void tickWorld()
+{
+    refreshMovers();
+    pollObstacles(sv.qcvm.time);
 }
 
 void setCosts()
@@ -1659,6 +2291,46 @@ void info_f()
     Con_Printf("nav: %d steers, %d paths found, %d left to Quake's chase; %d drops and %d rides taken, %d links given up; %d rides "
                "on the map\n",
         state.steers, state.paths, state.fallbacks, state.drops, state.rides, state.linkFails, static_cast<int>(g.rides.size()));
+    int marked = 0;
+    for(const PropTrack& p : state.props)
+    {
+        marked += p.marked ? 1 : 0;
+    }
+    const ObstacleStats& st = state.obs;
+    Con_Printf("nav: props: %d blocking now (%d marked, %d unmarked); %d batches, %d tiles rebuilt, %d restored; pool %.1f ms "
+               "(worst batch %.1f), main thread %.2f ms (worst %.2f); %d pending\n",
+        marked, st.marks, st.unmarks, st.batches, st.tiles, st.restored, st.jobMs, st.worstJobMs, st.applyMs, st.worstApplyMs,
+        obstaclesPending());
+}
+
+// Builtin navobstacles (vr_nav.hpp).
+float obstacleInfo(int what)
+{
+    if(!sv.active || !state.ready)
+    {
+        return 0.f;
+    }
+    tickWorld();
+    if(what == 0)
+    {
+        return static_cast<float>(obstaclesPending());
+    }
+    if(what == 1)
+    {
+        int marked = 0;
+        for(const PropTrack& p : state.props)
+        {
+            marked += p.marked ? 1 : 0;
+        }
+        return static_cast<float>(marked);
+    }
+    const ObstacleStats& st = state.obs;
+    return what == 2   ? static_cast<float>(st.batches)
+           : what == 3 ? static_cast<float>(st.tiles + st.restored)
+           : what == 4 ? static_cast<float>(st.jobMs)
+           : what == 5 ? static_cast<float>(st.worstJobMs)
+           : what == 6 ? static_cast<float>(st.worstApplyMs)
+                       : 0.f;
 }
 
 // vr_nav_cliptest: no navmesh polygon stands inside a clip brush (it would be a path through it). Ends on its verdict.
@@ -2774,6 +3446,81 @@ glm::vec3 approach(edict_t* ent, Agent& a, int num, int goalNum, const glm::vec3
 
 // The yaw toward the path's next corner, its turn rounded (vr_nav_smooth: near the corner, already toward the one
 // after) and kept apart from the walkers close by (vr_nav_separation: never turned back on its path).
+// vr_nav_stuck_log (seconds; 0 off): a walker that has stood within 4 units that long while chasing is logged once
+// (`navstuck|...`: where, its last steer's outcome, yaw and what a step that way meets, its next corners), so a stall's
+// cause shows in a test's log (vr_arena_test 41's towers).
+void stuckLog(edict_t* ent, Agent& a, const glm::vec3& pos, double now)
+{
+    const float after = vr_nav_stuck_log.value;
+    if(after <= 0.f)
+    {
+        return;
+    }
+    if(a.stuckSince < 0.0 || glm::length(pos - a.stuckAt) > 4.f)
+    {
+        a.stuckAt = pos;
+        a.stuckSince = now;
+        a.stuckLogged = false;
+        return;
+    }
+    if(a.stuckLogged || now - a.stuckSince < static_cast<double>(after))
+    {
+        return;
+    }
+    a.stuckLogged = true;
+    char corners[256] = "";
+    int at = 0;
+    for(int i = 0; i < a.cornerCount && at < 200; ++i)
+    {
+        const glm::vec3 q = fromRc(&a.corners[i * 3]);
+        at += q_snprintf(corners + at, sizeof(corners) - static_cast<za::SizeT>(at), " (%.0f %.0f %.0f)", q.x, q.y, q.z);
+    }
+    Con_Printf("navstuck|%s|%d|%.0f %.0f %.0f|why %d|yaw %.0f (facing %.0f) meets %d|next %d of%s|partial %d|path %d\n",
+        PR_GetString(ent->v.classname), NUM_FOR_EDICT(ent), pos.x, pos.y, pos.z, a.why, a.lastYaw, ent->v.angles[1],
+        stepMeets(ent, a.lastYaw), a.next, corners, a.partial ? 1 : 0, static_cast<int>(a.path.size()));
+}
+
+// vr_nav_slide: the yaw along a wall standing in its way. Quake's walkmove doesn't slide: a step whose box meets a wall
+// fails whole. The path's corners keep the clearance where there is room, but in the narrow band (a stair beside a
+// tower's wall) a corner can lie nearer the wall than the box's half width: the yaw toward it runs the box into the wall,
+// the side steps too, and the walker stood (vr_arena_test 41). The step is traced a step's height up (a stair's riser is
+// stepped up, not slid along), world and brush entities only; a wall met (not a floor or a ceiling) turns the yaw along
+// it, unless it stands nearly square across the way (then the corner is beyond it: as before).
+float slideYaw(edict_t* ent, float yaw)
+{
+    if(vr_nav_slide.value == 0.f)
+    {
+        return yaw;
+    }
+    const float r = glm::radians(yaw);
+    const glm::vec3 dir{glm::cos(r), glm::sin(r), 0.f};
+    const glm::vec3 start = geom::vec(ent->v.origin) + glm::vec3{0.f, 0.f, za::max(vr_nav_climb.value, 0.f)};
+    const glm::vec3 end = start + dir * 16.f;
+    vec3_t s, t;
+    VectorCopy(&start.x, s);
+    VectorCopy(&end.x, t);
+    const trace_t tr = SV_Move(s, ent->v.mins, ent->v.maxs, t, MOVE_NOMONSTERS, ent);
+    if(tr.fraction >= 1.f || tr.startsolid || tr.allsolid || za::abs(tr.plane.normal[2]) > 0.7f)
+    {
+        return yaw;
+    }
+    glm::vec3 n{tr.plane.normal[0], tr.plane.normal[1], 0.f};
+    const float nl = glm::length(n);
+    if(nl < 1e-3f)
+    {
+        return yaw;
+    }
+    n /= nl;
+    const glm::vec3 along = dir - n * glm::dot(dir, n);
+    const float al = glm::length(along);
+    if(al < 0.25f) // (within about 15 degrees of square on)
+    {
+        return yaw;
+    }
+    const float slid = glm::degrees(glm::atan(along.y, along.x));
+    return slid < 0.f ? slid + 360.f : slid;
+}
+
 float steerToward(const NavClass& c, const Agent& a, const glm::vec3& pos, int next, int nc, const unsigned char* flags, int num)
 {
     glm::vec3 target = fromRc(&a.corners[next * 3]);
@@ -2835,7 +3582,7 @@ float steer(edict_t* ent, edict_t* goal)
         ++state.fallbacks;
         return -1.f;
     }
-    refreshMovers();
+    tickWorld();
     setCosts();
     const int num = NUM_FOR_EDICT(ent);
     if(state.agents.size() <= static_cast<za::SizeT>(num))
@@ -2850,6 +3597,7 @@ float steer(edict_t* ent, edict_t* goal)
     reachCheck(ent);
     crowdCheck();
     crowdNote(ent, a, pos, now);
+    stuckLog(ent, a, pos, now);
     if(a.link)
     {
         if(a.cls == cls)
@@ -2969,7 +3717,7 @@ float steer(edict_t* ent, edict_t* goal)
         return -1.f;
     }
     a.why = whySteered;
-    a.lastYaw = steerToward(*c, a, pos, next, nc, flags, num);
+    a.lastYaw = slideYaw(ent, steerToward(*c, a, pos, next, nc, flags, num));
     return a.lastYaw;
 }
 
@@ -2977,6 +3725,31 @@ int action(const edict_t* ent)
 {
     const int num = ent ? NUM_FOR_EDICT(const_cast<edict_t*>(ent)) : 0;
     return num > 0 && static_cast<za::SizeT>(num) < state.agents.size() ? state.agents[static_cast<za::SizeT>(num)].action : 0;
+}
+
+float obstacles(int what)
+{
+    return obstacleInfo(what);
+}
+
+float reach(edict_t* ent, edict_t* goal)
+{
+    if(vr_nav.value == 0.f || !sv.active || !state.ready || !ent || !goal || !walker(ent) || !readyClass(classFor(ent, true)))
+    {
+        return -1.f;
+    }
+    tickWorld();
+    setCosts();
+    float gap = 0.f;
+    return wholePath(ent, feet(goal), gap) ? 1.f : 0.f;
+}
+
+void serverFrame()
+{
+    if(vr_nav.value != 0.f && sv.active && state.ready)
+    {
+        tickWorld();
+    }
 }
 
 void debugDraw(const glm::vec3& view)
@@ -3010,8 +3783,28 @@ void debugDraw(const glm::vec3& view)
     {
         return;
     }
+    tickWorld(); // (the props' marks kept current while nothing chases)
     const float range = vr_nav_debug_range.value;
     const glm::vec3 lift{0.f, 0.f, 2.f};
+    // The props cut out of the mesh: each one's outline at its foot and its top, joined at the corners (purple).
+    const glm::vec4 purple{0.75f, 0.3f, 1.f, 1.f};
+    for(const PropTrack& p : state.props)
+    {
+        if(!p.marked || glm::length(p.markOrigin - view) > range)
+        {
+            continue;
+        }
+        const Obstacle& o = p.mark;
+        for(int k = 0; k < o.count; ++k)
+        {
+            const int j = (k + 1) % o.count;
+            const glm::vec3 a{o.xy[k * 2], o.xy[k * 2 + 1], o.zlo + 2.f}, b{o.xy[j * 2], o.xy[j * 2 + 1], o.zlo + 2.f};
+            const glm::vec3 up{0.f, 0.f, o.zhi - o.zlo};
+            lines::sceneLine(a, b, 2.f, purple, purple);
+            lines::sceneLine(a + up, b + up, 1.5f, purple, purple);
+            lines::sceneLine(a, a + up, 1.f, purple, purple);
+        }
+    }
     for(int t = 0; t < c->mesh->getMaxTiles(); ++t)
     {
         const dtMeshTile* tile = static_cast<const dtNavMesh*>(c->mesh)->getTile(t);

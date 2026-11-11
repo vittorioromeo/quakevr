@@ -1,0 +1,21 @@
+# nav_props: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". You on the arena's dais; a pile of
+# large crates across the top of its east flight and a barrel on the floor before it. Props at rest that are big and
+# heavy enough are cut out of the navmesh (vr_nav_props; Show Navmesh draws them in purple): the knights come round to
+# another flight; take the pile apart and the next ones come up the east flight again. Test: vr_arena_test 43.
+title Navmesh: walkers go round crate piles and barrels, and back once they are cleared
+map vrarena
+start 0 0 137 0
+god
+spawn "Large Crate" 212 -60
+spawn "Large Crate" 212 -20
+spawn "Large Crate" 212 20
+spawn "Large Crate" 212 60
+spawn "Large Crate" 212 -40 50
+spawn "Large Crate" 212 0 50
+spawn "Large Crate" 212 40 50
+spawn "Barrel" 480 0
+spawn "Knight" 650 0
+spawn "Knight" 640 -140
+cvar vr_nav 1
+cvar vr_nav_debug 2
+hint The knights come round the dais to another flight: the crate pile blocks the east one and the barrel is walked round (Show Navmesh: purple outlines, holes in the mesh). Throw the crates off the dais: the hole closes a second after they come to rest, and walkers take the east flight again.

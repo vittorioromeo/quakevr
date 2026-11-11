@@ -2401,7 +2401,7 @@ QVR_TUNABLE(vr_nav_narrow_cost, "3") // the paths' cost of a unit of the narrow 
 QVR_TUNABLE(vr_nav_level, "64") // an armed humanoid whose foe stands more than this higher or lower (units, feet to feet) follows its navmesh path there instead of keeping its fighting distance, strafing or holding its standoff (0: never)
 QVR_TUNABLE(vr_nav_sidestep, "35") // a navmesh step toward the path's corner blocked (a prop, another monster): tried this many degrees to either side before Quake's chase takes over (0: not tried)
 QVR_TUNABLE(vr_nav_drop, "1") // 1: the navmesh has drop links (off a ledge to the floor below, found at its build): a walker takes one when it is clearly shorter, walking off the ledge and falling (the one place Quake's never-step-off-a-ledge rule is relaxed); 0: none
-QVR_TUNABLE(vr_nav_drop_max, "192") // the highest drop a walker of Quake's short height (56) takes (units; monsters take no fall damage)
+QVR_TUNABLE(vr_nav_drop_max, "150") // the highest drop a walker of Quake's short height (56) takes (units; 150: the most a monster falls unhurt, combat.qc VR_SHOVE_SAFEFALL: a dog's 25 health died of a missed 256 drop)
 QVR_TUNABLE(vr_nav_drop_max_big, "256") // ... a tall walker's (ogre, shambler, vore: height 88)
 QVR_TUNABLE(vr_nav_drop_cost, "3") // a drop link's cost per unit of its length, a floor's being 1: a long drop is taken only when it is clearly shorter than walking round
 QVR_TUNABLE(vr_nav_drop_push, "100") // a walker stepping off a ledge on a drop link is pushed on at this speed (units/s), so it lands clear of the wall below
@@ -2417,3 +2417,13 @@ QVR_TUNABLE(vr_nav_smooth, "0") // a walker this close to a path corner (units) 
 QVR_TUNABLE(vr_nav_slots, "0") // melee walkers (no missile attack) farther than vr_nav_slot_engage from their foe head for one of this many places on a ring round him, each its own, so they come at him from several sides (0: all at his feet)
 QVR_TUNABLE(vr_nav_slot_radius, "80") // ... the ring's radius (units)
 QVR_TUNABLE(vr_nav_slot_engage, "120") // ... nearer than this (units) a melee walker goes straight at him (Quake's chase and melee range)
+QVR_TUNABLE(vr_nav_props, "1") // 1: loose solid props at rest (crates, barrels, explosive boxes) big and heavy enough to block a walker are holes in the navmesh: paths go round them; only their tiles are rebuilt, on the pool; 0: none
+QVR_TUNABLE(vr_nav_prop_size, "20") // ... a prop blocks only if its footprint is at least this wide across its narrower side (units); one under a step high never does
+QVR_TUNABLE(vr_nav_prop_mass, "10") // ... and at least this heavy (kg): a lighter one is pushed aside
+QVR_TUNABLE(vr_nav_prop_rest, "1") // ... after resting this long (seconds): a prop in motion or in a hand is left out
+QVR_TUNABLE(vr_nav_prop_move, "6") // ... a marked prop moved this far (units) or turned 10 degrees from where it was marked loses its mark (marked again once it rests)
+QVR_TUNABLE(vr_nav_melee_level, "24") // a walker in melee range of a foe whose feet are more than this higher or lower (units) doesn't swing or bite at him when a whole navmesh path leads there: it walks the path (0: Quake's, in range is in range)
+QVR_TUNABLE(vr_nav_test_kinds, "0") // test: vr_arena_test 41 runs only these kinds of walker (bits: 1 armed grunt, 2 enforcer, 4 knight, 8 ogre, 16 dog; 0 all)
+QVR_TUNABLE(vr_nav_slide, "1") // 1: a walker on the navmesh whose step toward its path's next corner meets a wall (traced a step up: not a stair's riser) steps along the wall instead (Quake's walkmove doesn't slide); 0: straight at the corner
+QVR_TUNABLE(vr_nav_stuck_log, "0") // debug: a walker chasing on the navmesh that stood still this long (seconds) is logged once (navstuck|...: its steer, the step's way, its corners); 0 off
+QVR_TUNABLE(vr_nav_prop_batch, "0.5") // ... a class's tiles changed by props are rebuilt together at most this often (seconds)

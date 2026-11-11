@@ -11,6 +11,7 @@
 #include "vr_decals.hpp"
 #include "vr_material_shared.h"
 #include "vr_move.hpp"
+#include "vr_nav.hpp"
 #include "vr_ragtool.hpp"
 #include "vr_timescale.hpp"
 #include "vr_cvars.hpp"
@@ -1403,6 +1404,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
         const progs::ServerVm vm;
         pressTestFrame(); // (vr_prop_press_test under way: the hand's next target)
         strikeTestFrame(); // (vr_prop_strike_test under way: the hand's next move)
+        nav::serverFrame(); // (the props' marks on the navmesh: their rests looked at, their tiles' rebuilds joined)
     }
     QVR_PROFILE("box3d");
     if(!world || world->map != sv.worldmodel || world->generation != worldGeneration() || world->m2u != units::metresToUnits() ||

@@ -270,7 +270,7 @@ Returns TRUE if a melee attack would hit right now
 */
 float()    CheckDogMelee =
 {
-    if(enemy_range == RANGE_MELEE)
+    if(enemy_range == RANGE_MELEE && !VR_NAV_MeleeOff()) // QVR: not at a foe on another level it can walk to
     {    // FIXME: check canreach
         self.attack_state = AS_MELEE;
         return TRUE;

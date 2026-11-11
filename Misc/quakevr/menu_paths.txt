@@ -4640,6 +4640,16 @@ vr_nav_smooth|2|Tunables|Navmesh: Corner Smoothing|Advanced VR Options > Debug >
 vr_nav_slots|2|Tunables|Navmesh: Approach Slots|Advanced VR Options > Debug > Tunables > Navmesh: Approach Slots
 vr_nav_slot_radius|2|Tunables|Navmesh: Slot Ring Radius|Advanced VR Options > Debug > Tunables > Navmesh: Slot Ring Radius
 vr_nav_slot_engage|2|Tunables|Navmesh: Slot Engage Distance|Advanced VR Options > Debug > Tunables > Navmesh: Slot Engage Distance
+vr_nav_props|2|Tunables|Navmesh: Props Block Paths|Advanced VR Options > Debug > Tunables > Navmesh: Props Block Paths
+vr_nav_prop_size|2|Tunables|Navmesh: Blocking Prop Width|Advanced VR Options > Debug > Tunables > Navmesh: Blocking Prop Width
+vr_nav_prop_mass|2|Tunables|Navmesh: Blocking Prop Mass|Advanced VR Options > Debug > Tunables > Navmesh: Blocking Prop Mass
+vr_nav_prop_rest|2|Tunables|Navmesh: Prop Rest Time|Advanced VR Options > Debug > Tunables > Navmesh: Prop Rest Time
+vr_nav_prop_move|2|Tunables|Navmesh: Prop Mark Tolerance|Advanced VR Options > Debug > Tunables > Navmesh: Prop Mark Tolerance
+vr_nav_melee_level|2|Tunables|Navmesh: Melee Height Gap|Advanced VR Options > Debug > Tunables > Navmesh: Melee Height Gap
+vr_nav_test_kinds|2|Tunables|Navmesh: Tower Test Kinds|Advanced VR Options > Debug > Tunables > Navmesh: Tower Test Kinds
+vr_nav_slide|2|Tunables|Navmesh: Slide Along Walls|Advanced VR Options > Debug > Tunables > Navmesh: Slide Along Walls
+vr_nav_stuck_log|2|Tunables|Navmesh: Log Stuck Walkers|Advanced VR Options > Debug > Tunables > Navmesh: Log Stuck Walkers
+vr_nav_prop_batch|2|Tunables|Navmesh: Prop Rebuild Interval|Advanced VR Options > Debug > Tunables > Navmesh: Prop Rebuild Interval
 |2|Tunables|Reset This Page|Advanced VR Options > Debug > Tunables > Reset This Page
 @page|2|Debug - Cheats and Recording||Advanced VR Options > Debug > Cheats and Recording
 |2|Debug - Cheats and Recording|God Mode|Advanced VR Options > Debug > Cheats and Recording > God Mode
