@@ -648,8 +648,9 @@ QVR_TUNABLE(vr_shells_ssg_spread, "0.15") // random spread, a share of their spe
 QVR_TUNABLE(vr_shells_ssg_spin, "12") // their tumble, radians a second (and a little random)
 QVR_TUNABLE(vr_shells_rv_speed, "1.3") // the revolver's spent shells out of its swung-out cylinder's chambers: metres a second (on the gun's own velocity; a VR push adds the hand's)
 QVR_TUNABLE(vr_shells_rv_back, "1") // their way out, in the gun's frame: back along the cylinder's axis (the ejector's)
-QVR_TUNABLE(vr_shells_rv_up, "0.6") // up
-QVR_TUNABLE(vr_shells_rv_out, "0.25") // outward, away from the body's middle (the left hand's mirrored)
+QVR_TUNABLE(vr_shells_rv_up, "0") // the gun's up (the swung-out cylinder hangs down and out: up is towards the frame)
+QVR_TUNABLE(vr_shells_rv_out, "0.4") // out, away from the frame: the side the swung-out cylinder hangs out on (his words 2026-11-11: "away from the cylinder")
+QVR_TUNABLE(vr_shells_rv_stroke, "0.06") // metres the shells go straight out of the back of their chambers (the ejector's stroke) before the face's rule turns them past it (vr_shells_face_deflect); 0: turned at once, the old
 QVR_TUNABLE(vr_shells_rv_spread, "0.12") // random spread, a share of their speed
 QVR_TUNABLE(vr_shells_rv_spin, "8") // their tumble, radians a second (and a little random)
 QVR_TUNABLE(vr_holster_haptic_time, "0.25") // seconds of the buzz as a hand reaches a holster (vr_holster_haptics 2: once)

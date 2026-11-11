@@ -181,6 +181,12 @@ struct Shell
     bool onGround{false};
     bool resting{false};
     bool wet{false}; // in a liquid (as of its last move)
+    // The heavy revolver's: units it goes straight out of its chamber (the ejector's stroke, from `strokeFrom`) before
+    // the face's rule turns it (awayFromFace, to `strokeOut`'s side: away from the frame); 0: done.
+    float stroke{0.f};
+    int hand{0};
+    glm::vec3 strokeFrom{0.f};
+    glm::vec3 strokeOut{0.f};
     entity_t ent{};
 };
 
@@ -363,7 +369,9 @@ void trackPorts(const view::ViewEntity (&weapons)[2])
 // the face is turned sideways past it (vr_shells_face_deflect of it: a gun's breech facing the eyes, the super shotgun
 // broken open in front of them or the revolver's cylinder, throws its shells off to the side instead of dropping them
 // straight down; his words 2026-11-10): to the side it already goes to, else the side of the look the gun is on.
-[[nodiscard]] glm::vec3 awayFromFace(const glm::vec3& pos, glm::vec3 vel, int hand)
+// `prefer` (a world way, or none): the side to turn it to when that way runs across the line to the head (the revolver's
+// shells: out, away from its frame, the side its cylinder hangs out on; not across the gun).
+[[nodiscard]] glm::vec3 awayFromFace(const glm::vec3& pos, glm::vec3 vel, int hand, const glm::vec3* prefer = nullptr)
 {
     const hands::State& hs = hands::current();
     if(!hs.valid)
@@ -396,7 +404,11 @@ void trackPorts(const view::ViewEntity (&weapons)[2])
             const float off = glm::dot(pos - hs.head, right);
             const float toRight = glm::dot(side, right) >= 0.f ? 1.f : -1.f; // (`side` to the look's right: +1)
             float sign = 0.f;
-            if(za::fabs(across) >= 0.5f * (towards - wanted))
+            if(const float pref = prefer ? glm::dot(*prefer, side) : 0.f; za::fabs(pref) > 0.2f)
+            {
+                sign = pref > 0.f ? 1.f : -1.f;
+            }
+            else if(za::fabs(across) >= 0.5f * (towards - wanted))
             {
                 sign = across > 0.f ? 1.f : -1.f;
             }
@@ -481,14 +493,16 @@ void eject(const view::ViewEntity (&weapons)[2], const Pending& p)
             at = view::ssgTurned(glm::vec3{12.7f, w->port[port].y, 7.f}, open) + shift;
             portDir = view::ssgTurned(portDir, open, false);
         }
-        if(w->model == modelmeta::Id::VRevolver)
+        const bool revolver = w->model == modelmeta::Id::VRevolver;
+        glm::vec3 rvOut{0.f, 1.f, 0.f};
+        if(revolver)
         {
-            // The heavy revolver swung out: each out of a chamber of its cylinder as drawn (its back face 3.764 0 5.608 home,
-            // its chambers 1.45 round its axis, on the crane), back along the bore.
-            const float swing = view::revolverSwing(p.hand);
-            const float a = glm::radians(90.f + 60.f * static_cast<float>(i) - swing);
-            at = view::revolverTurned(glm::vec3{3.4f, 0.f, 5.608f}, swing) +
-                 glm::vec3{0.f, 1.45f * std::cos(a), 1.45f * std::sin(a)} + shift;
+            // The heavy revolver swung out: each out of a chamber of its cylinder as drawn (vr_view.cpp
+            // setupRevolverParts: the crane's swing, the cylinder's own turn; its middle 0.364 behind the back face),
+            // back along the bore and out, away from the frame (the side the cylinder hangs out on: not across the gun).
+            rvOut = view::revolverOutward(view::revolverSwing(p.hand));
+            at = view::revolverChamber(p.hand, i % 6, -0.364f) + shift;
+            portDir = glm::vec3{-vr_shells_rv_back.value, 0.f, vr_shells_rv_up.value} + rvOut * vr_shells_rv_out.value;
         }
         const glm::vec3 pos = view::modelPoint(ve, at);
 
@@ -538,7 +552,18 @@ void eject(const view::ViewEntity (&weapons)[2], const Pending& p)
             }
         }
         const glm::vec3 before = s.vel;
-        s.vel = awayFromFace(pos, s.vel, p.hand);
+        s.hand = p.hand;
+        s.strokeOut = revolver ? worldDir(ve, at, rvOut) : glm::vec3{0.f};
+        if(revolver && !flick && vr_shells_rv_stroke.value > 0.f)
+        {
+            // Straight out of the back of its chamber first (the ejector's push), then turned past the face (fly).
+            s.stroke = vr_shells_rv_stroke.value * upm;
+            s.strokeFrom = pos;
+        }
+        else
+        {
+            s.vel = awayFromFace(pos, s.vel, p.hand, revolver ? &s.strokeOut : nullptr);
+        }
         if(vr_debug_weaponfx.value)
         {
             // (In the look's frame, relative to the player's own movement: forward, right, up, m/s; and the gun's.)
@@ -553,6 +578,22 @@ void eject(const view::ViewEntity (&weapons)[2], const Pending& p)
             Con_Printf("shells from the eyes hand %d: %.2f m forward %.2f right %.2f down, the gun at %.2f m/s\n", p.hand,
                 glm::dot(pos - hs.head, look) / upm, glm::dot(pos - hs.head, right) / upm, (hs.head.z - pos.z) / upm,
                 glm::length(tracks[p.hand].vel) / upm);
+            if(w->model == modelmeta::Id::VRevolver)
+            {
+                // (Against its cylinder as drawn: back along its axis, out (away from the frame, the side the cylinder
+                // hangs out on), the gun's up; how far off straight back it goes; how far it starts off its chamber.)
+                const float swing = view::revolverSwing(p.hand);
+                const glm::vec3 out = worldDir(ve, at, view::revolverOutward(swing));
+                const glm::vec3 chamber = view::modelPoint(ve, view::revolverChamber(p.hand, i % 6, 0.f));
+                const glm::vec3 rel = s.vel - geom::vec(cl.velocity) - tracks[p.hand].vel * 0.9f;
+                const float len = glm::length(rel);
+                const float off = len > 1e-4f ? glm::degrees(std::acos(za::clamp(glm::dot(rel / len, -fwd), -1.f, 1.f))) : 0.f;
+                const glm::vec3 d = pos - chamber;
+                Con_Printf("shells rv hand %d chamber %d: back %.2f out %.2f up %.2f m/s, %.0f deg off the axis; starts "
+                           "%.2f across its chamber's axis, %.2f along\n",
+                    p.hand, i % 6, glm::dot(rel, -fwd) / upm, glm::dot(rel, out) / upm, glm::dot(rel, up) / upm, off,
+                    glm::length(d - fwd * glm::dot(d, fwd)), glm::dot(d, fwd));
+            }
         }
 
         // Lying in the chamber: its open end forward, the weapon's up its up.
@@ -683,6 +724,19 @@ void spinBy(Shell& s, const glm::vec3& angVel, float dt)
 
 void fly(Shell& s, float dt)
 {
+    if(s.stroke > 0.f && glm::length(s.pos - s.strokeFrom) >= s.stroke)
+    {
+        // The revolver's shell out of its chamber: now the face's rule (past it, out, away from the frame).
+        s.stroke = 0.f;
+        s.vel = awayFromFace(s.pos, s.vel, s.hand, &s.strokeOut);
+        if(vr_debug_weaponfx.value)
+        {
+            const glm::vec3 rel = s.vel - geom::vec(cl.velocity);
+            const float upm = unitsPerMetre();
+            Con_Printf("shells rv stroke done hand %d after %.3f s: out %.2f (away from the frame), up %.2f m/s\n", s.hand,
+                cl.time - s.born, glm::dot(rel, s.strokeOut) / upm, rel.z / upm);
+        }
+    }
     const bool liquid = s.wet;
     s.vel.z -= gravity() * dt * (liquid ? 0.2f : 1.f);
     s.vel *= za::exp(-(liquid ? 4.f : 0.15f) * dt);

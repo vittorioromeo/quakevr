@@ -1904,6 +1904,7 @@ float cvarh_vr_test_drop_height;
 float cvarh_vr_test_fling_at;
 float cvarh_vr_test_fling_away;
 float cvarh_vr_test_fling_speed;
+float cvarh_vr_test_give_ad;
 float cvarh_vr_test_give_wid;
 float cvarh_vr_test_grenade_dist;
 float cvarh_vr_test_grenade_height;
@@ -3928,6 +3929,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_test_fling_at = VR_CVar_Make("vr_test_fling_at");
     cvarh_vr_test_fling_away = VR_CVar_Make("vr_test_fling_away");
     cvarh_vr_test_fling_speed = VR_CVar_Make("vr_test_fling_speed");
+    cvarh_vr_test_give_ad = VR_CVar_Make("vr_test_give_ad");
     cvarh_vr_test_give_wid = VR_CVar_Make("vr_test_give_wid");
     cvarh_vr_test_grenade_dist = VR_CVar_Make("vr_test_grenade_dist");
     cvarh_vr_test_grenade_height = VR_CVar_Make("vr_test_grenade_height");
