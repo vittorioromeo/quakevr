@@ -9,6 +9,7 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_trace.hpp"
 #include "vr_particles.hpp"
+#include "vr_testkit.hpp"
 #include "vr_tracy.h"
 #include "vr_units.hpp"
 #include "vr_engine.hpp"
@@ -78,6 +79,36 @@ namespace detail
 
 za::Vector<Particle> pool; // reserved to maxParticles at startup (init): it never reallocates in play
 double lastRun = -1.0;
+PoolTally poolTally;
+
+// The oldest particles taken out at once when the pool is full (vr_particle_evict): one shift of the pool makes room for
+// this many new ones (his note 2026-11-11: "instead of the oldest particles being replaced (a la circular buffer) the new
+// ones simply don't spawn?"). The pool is in the order the particles were made (the frame's compaction keeps it; new ones
+// go on its end), so its front is the oldest.
+constexpr za::SizeT evictChunk = 1024;
+
+bool room()
+{
+    if(pool.size() < maxParticles)
+    {
+        return true;
+    }
+    if(vr_particle_evict.value == 0.f)
+    {
+        ++poolTally.refused;
+        return false;
+    }
+    const za::SizeT n = pool.size();
+    const za::SizeT gone = za::min(evictChunk, n);
+    for(za::SizeT i = gone; i < n; i++)
+    {
+        pool[i - gone] = pool[i];
+    }
+    pool.resize(n - gone);
+    poolTally.evicted += gone;
+    ++poolTally.roomMade;
+    return true;
+}
 
 za::FastNonCryptoRng rng{static_cast<za::U64>(za::Clock::nowNanoseconds())}; // a new sequence every run (vr_particle_seed: a fixed one)
 
@@ -208,13 +239,13 @@ void bulletPuff(const glm::vec3& org, const glm::vec3& dir, int color, int count
 
 
 
-// The particles made since `first` in the force grab's hue (vr_forcegrab_hue; by default the
+// The particles made since `since` in the force grab's hue (vr_forcegrab_hue; by default the
 // player's, vr_hue.hpp) and saturation (vr_forcegrab_saturation), each as bright as its palette
 // colour was.
-void inForceGrabHue(za::SizeT first)
+void inForceGrabHue(const Since& since)
 {
     const glm::vec3 c = hue::color(vr_forcegrab_hue, vr_forcegrab_saturation, 0.75f, 1.f);
-    for(za::SizeT i = first; i < pool.size(); i++)
+    for(za::SizeT i = since.first(); i < pool.size(); i++)
     {
         Particle& p = pool[i];
         p.color = glm::vec4{c * za::max(p.color.r, p.color.g, p.color.b), p.color.a};
@@ -362,6 +393,7 @@ void simulate(float dt)
     // In the pool's order on this thread: the liquids' rise (water::surfaceRise fills a cache as it goes), the rings, and
     // the dead ones taken out.
     const glm::vec3 eye = geom::vec(r_refdef.vieworg);
+    poolTally.peak = za::max(poolTally.peak, pool.size());
     za::SizeT kept = 0;
     for(za::SizeT i = 0; i < pool.size(); i++)
     {
@@ -393,7 +425,7 @@ void simulate(float dt)
 
     for(const Plink& k : plinks)
     {
-        if(pool.size() >= maxParticles)
+        if(pool.size() >= maxParticles) // (ambient: a ring makes no room, room())
         {
             break;
         }
@@ -773,7 +805,7 @@ bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count)
         case Preset::GunPickup: sparkles(org, count, 12, 16, 70, 120, 1.6, 0.22f, -0.03f, 6.f, 2.f, 1.f, 6.f); break;
         case Preset::GunForceGrab: // QVR r18: in the player's hue
         {
-            const za::SizeT first = pool.size();
+            const Since first;
             sparkles(org, count, 106, 111, 90, 140, 1.2, 0.25f, -0.04f, 5.f, 3.f, 1.f, 8.f);
             inForceGrabHue(first);
             break;
@@ -782,7 +814,7 @@ bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count)
         case Preset::BigSmoke: smoke(org, count, true); break;
         case Preset::ForceGrabTrail: // QVR r18: in the player's hue
         {
-            const za::SizeT first = pool.size();
+            const Since first;
             sparkles(org, count, 208, 214, 170, 230, 0.4, 0.28f, 0.f, 1.5f, 4.f, -2.f, 2.f);
             inForceGrabHue(first);
             break;
@@ -991,6 +1023,91 @@ int liveCount()
 int capacity()
 {
     return static_cast<int>(maxParticles);
+}
+
+int peakCount()
+{
+    return static_cast<int>(za::max(poolTally.peak, pool.size()));
+}
+
+void stats_f()
+{
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "reset"))
+    {
+        poolTally = PoolTally{};
+    }
+    Con_Printf("particle stats: %d live, peak %d of %d; full: %llu made room (%llu oldest taken out), %llu refused "
+               "(vr_particle_evict %g)\n",
+        liveCount(), peakCount(), capacity(), static_cast<unsigned long long>(poolTally.roomMade),
+        static_cast<unsigned long long>(poolTally.evicted), static_cast<unsigned long long>(poolTally.refused),
+        static_cast<double>(vr_particle_evict.value));
+}
+
+void evictTest_f()
+{
+    if(!cl.worldmodel)
+    {
+        Con_Printf("particle evict test: no map\n");
+        return;
+    }
+    const za::Vector<Particle> saved = pool;
+    const PoolTally savedTally = poolTally;
+    const float savedEvict = vr_particle_evict.value;
+    vec3_t f, r, u;
+    AngleVectors(r_refdef.viewangles, f, r, u);
+    const glm::vec3 at = geom::vec(r_refdef.vieworg) + glm::vec3{f[0], f[1], f[2]} * 64.f;
+    testkit::Tally tally;
+    const auto check = [&](bool ok, const char* what) {
+        Con_Printf("particle evict test: %s %s\n", ok ? "PASS" : "FAIL", what);
+        tally.check(ok);
+    };
+    char line[256];
+    for(int evict = 1; evict >= 0; evict--)
+    {
+        // Full: lasting particles numbered by their scale (1 the oldest), far below the map.
+        pool.clear();
+        for(za::SizeT i = 0; i < maxParticles; i++)
+        {
+            Particle p;
+            p.type = Static;
+            p.org = {0.f, 0.f, -1e5f};
+            p.floor = -1e9f;
+            p.die = cl.time + 60.0;
+            p.scale = static_cast<float>(i + 1);
+            pool.pushBack(p);
+        }
+        Cvar_SetValueQuick(&vr_particle_evict, static_cast<float>(evict));
+        const za::U64 refused0 = poolTally.refused;
+        const Since since;
+        (void)spawn(at, {0.f, 0.f, 1.f}, Preset::Blood, 20);
+        const za::SizeT first = since.first();
+        const za::SizeT made = since.made();
+        if(evict)
+        {
+            // (The old ones left: #gone+1 to #max, in order, before the new.)
+            const bool kept = first > 0 && pool[0].scale == static_cast<float>(maxParticles - first + 1) &&
+                              pool[first - 1].scale == static_cast<float>(maxParticles);
+            q_snprintf(line, sizeof(line), "vr_particle_evict 1: the blood made in the full pool (%d particles; %d oldest taken "
+                "out, the rest in order: the oldest now #%.0f, the newest old #%.0f; %d in the pool of %d)", static_cast<int>(made),
+                static_cast<int>(maxParticles - first), static_cast<double>(pool[0].scale),
+                static_cast<double>(pool[first - 1].scale), static_cast<int>(pool.size()), static_cast<int>(maxParticles));
+            check(made > 0 && kept && pool.size() <= maxParticles, line);
+        }
+        else
+        {
+            q_snprintf(line, sizeof(line), "vr_particle_evict 0: none of it made in the full pool (%d made, %d refused)",
+                static_cast<int>(made), static_cast<int>(poolTally.refused - refused0));
+            check(made == 0 && poolTally.refused > refused0, line);
+        }
+    }
+    pool.clear();
+    for(const Particle& p : saved)
+    {
+        pool.pushBack(p);
+    }
+    poolTally = savedTally;
+    Cvar_SetValueQuick(&vr_particle_evict, savedEvict);
+    tally.verdict("particle evict test");
 }
 
 // ---- Soft particles (vr_soft_particles) -----------------------------------------------------

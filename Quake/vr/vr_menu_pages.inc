@@ -1856,6 +1856,7 @@ void addFoamRows(za::Vector<Item>& items, const FoamRows& r)
         row(opt::vr_soft_particles_scale),
         row(opt::vr_particle_near_fade),
         row(opt::vr_particle_near_cull),
+        row(opt::vr_particle_evict),
         row(opt::vr_particle_max_screen),
         row(opt::vr_particle_retro_min_blocks),
         row(opt::vr_particle_halfres),

@@ -152,6 +152,37 @@ inline constexpr za::SizeT maxParticles = 32768;
 
 extern za::Vector<Particle> pool; // reserved to maxParticles at startup (init): it never reallocates in play
 extern double lastRun;
+
+// The pool's tally (vr_limits, vr_particle_stats): the most it held at once, the particles asked for at the cap and made by
+// the oldest making room (vr_particle_evict 1: the oldest evictChunk taken out at once), or refused (vr_particle_evict 0).
+struct PoolTally
+{
+    za::SizeT peak{0};
+    za::U64 evicted{0}; // particles taken out to make room, ever (Since: the indices past a mark move down by them)
+    za::U64 roomMade{0}; // times the oldest made room
+    za::U64 refused{0}; // particles not made: the pool full
+};
+extern PoolTally poolTally;
+
+// Room for one more particle at the pool's end: true, or (full) the oldest make room (vr_particle_evict), or false and the
+// particle is refused (counted). Every emitter asks it before its pushBack.
+[[nodiscard]] bool room();
+
+// The particles made since this mark: pool[first()] on (the oldest making room moves them down).
+struct Since
+{
+    za::SizeT size = pool.size();
+    za::U64 evicted = poolTally.evicted;
+    [[nodiscard]] za::SizeT first() const
+    {
+        const za::U64 gone = poolTally.evicted - evicted;
+        return size > gone ? size - static_cast<za::SizeT>(gone) : 0;
+    }
+    [[nodiscard]] za::SizeT made() const
+    {
+        return pool.size() - za::min(first(), pool.size());
+    }
+};
 extern za::FastNonCryptoRng rng;
 
 [[nodiscard]] inline int rndi(int lo, int hiExclusive)
@@ -180,8 +211,13 @@ template <typename F>
 inline void make(float count, F&& f, bool multiply = true)
 {
     const int n = static_cast<int>(count * (multiply ? za::max(0.f, vr_particle_mult.value) : 1.f));
-    for(int i = 0; i < n && pool.size() < maxParticles; i++)
+    for(int i = 0; i < n; i++)
     {
+        if(!room())
+        {
+            poolTally.refused += static_cast<za::U64>(n - i - 1); // (room() counted this one)
+            return;
+        }
         Particle p;
         p.angle = rndAngle();
         f(p, i);
