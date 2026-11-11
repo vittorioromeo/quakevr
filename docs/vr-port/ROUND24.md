@@ -9241,3 +9241,43 @@ dropped quietly (cmd.c), and CVAR_AUDIT.md lists them.
   the weapon `vr_test_give_wid 4; impulse 149` gives is not in the hand, `main no`; the path is the same as with the
   old switch on); `vr_systems_test 15` (the blast's body never knocks the torch off; the blast-kill path is the old
   switch's default). Both worth a look by whoever owns those tests.
+
+## Failing tests after the promotions and retirements, triaged (branch `agent/triage1111`, 2026-11-11)
+
+Each run on this tree, then at 9d0fe497a (before swappitch, cvarretire and promote1111) and, where it differed, at
+ce54b84b3 (after cvarretire, before the promotion).
+
+- **flatmelee "shove ... ends 30 further"** (11/1): outdated expectation, from `vr_flat_swing_strike` 0.075. The faster
+  axe swing kills the knight outright, so the next `vr_test_hurt` (the nearest live monster) read a grunt 1044 units
+  off, and the shove's distance list began with it (the "knight hurt" check passed only by reading that grunt's health).
+  The test reads the shove's own `-1 damage` lines, and a knight line or 0. 12/0 at 9d0fe497a.
+- **flatads "launchers"** (6/1): outdated expectation, from the arm rig promoted (`vr_body_arm_stretch` 1.2 -> 1.5 alone
+  reproduces it): the two-handed guns' hipfire muzzles turn, the shotgun -14.2 -> -12.9 deg on the screen, the rocket
+  launcher -13.6 -> -10.5, 2.5 apart (1.5 before). The tolerance is 3 degrees; heights still within 1.5 units.
+- **flatwall d "off the wall, it fires"**: older failure (also at 9d0fe497a, where the option-off case did not fire
+  either). The gun does fire: since the clips of 2026-11-08 a shot spends the clip (8 -> 7), not the shells pool the
+  test read (17 throughout). It reads the right hand's clip now.
+- **flatstance "the free hand's punch ..."**: older failure (3 fails at 9d0fe497a). The damage parse took the last field
+  of the first `test hurt:` line, which is "away" since the line gained its distance, so it compared minus the
+  knight's health after each punch. It reads the health after the first read now.
+- **flatstance "the drawn hand stands on the hotspot"**: older failure (5.31 units at 9d0fe497a, 4.93 now). Two guns
+  (`vr_test_give_wid` 1 and 29) have the 2H hotspot behind and below the held hand (fwd -3.5, up -3.5): the free hand
+  is kept about 5 units off it. Not changed: either those hotspots or the check's scope need his call.
+- **flatpose 21/1 (the control 6.5 < 8 units)**: random. Passed at 9d0fe497a, at ce54b84b3 and on a rerun here (9.8);
+  the failing run's crosshair met something 40 away instead of the knight at 64 (cf. the note above: `vr_test_spawn 5`
+  is sometimes a grunt). A rerun in a second lane failed `pose` and `near` instead (screenshot checks, low-impact lane).
+- **visor_test "sides: test state 6 AD's two custom keys"**: older failure (the same at 9d0fe497a): `adKeyPic` needs
+  AD's `gfx/adib_ckey*.lmp`, which the test base (id1) doesn't have, so the left count is 0. Needs AD in the test's
+  base, or the check skipped without it.
+- **vr_systems_test 15**: older and random: failed at 9d0fe497a, here passed twice and failed once (the body at x 96 or
+  90 at 0.01 s, then past the torch or into it).
+- **vr_arena_test 41** (1 of 60 capped, a dog going down): older failure, identical at 9d0fe497a (dog down: 1 of 4
+  capped, stall 9.6 s).
+- **`vr_flat_swing_strike` 0.075 and the axe's wall blow**: a frame-sampling bug the short strike exposes, not his value.
+  From 10 standing distances off vrtesthall's wall, 0.075 lands the wall blow from 8 (misses at y 620 and 621), 0.14
+  from all 9 in reach. Where it misses, the frame the swing arrives would have put the axe 7 units into the wall: the
+  wall stop pulls the hand back toward the shoulder until the deepest point (the head's top) is 0.08 in, which leaves
+  QC's head lines (`VR_Melee_Sweep`) 2.9 units off the wall, past their `rr` reach, and they then slide down along it
+  (no blow: grazing). At 0.14 the arrival frame happened to touch (0.01 back), and the head lines crossed. Fix not
+  made (larger than a triage): the stop on the arrival frame should go back along the swing's own path (the contact
+  in the arc), or the flat stop should tell QC its wall contact. flatinput's wallswing keeps 0.14 until then.

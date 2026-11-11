@@ -54,7 +54,8 @@ check $(grep -a -q "Unknown" "$log" && echo 0 || echo 1) "vr_flat_rest's old lin
 PUNCH() {
   log=$HERE/scratch/flatstance_e$1.log
   bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; r_norefresh 0; $2 impulse 154; wait90; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait20; vr_test_hurt 1; wait3; vr_flat_punch off; wait27; vr_test_hurt 1; wait5; toggleconsole; quit" -Filter "test hurt:" -Timeout 60 > "$log" 2>&1
-  grep -a "test hurt:" "$log" | awk 'NR == 1 { a = $NF } NR == 2 { for (i = 1; i <= NF; i++) if ($i == "health") b = $(i+1) + 0 } END { print a - b }'
+  # (the knight's health after the first read, "health 75 -> 75, 24.0 u away", less its health before the second)
+  grep -a "test hurt:" "$log" | awk 'NR == 1 { for (i = 1; i <= NF; i++) if ($i == "->") a = $(i+1) + 0 } NR == 2 { for (i = 1; i <= NF; i++) if ($i == "health") b = $(i+1) + 0 } END { print a - b }'
 }
 on=$(PUNCH on ""); off=$(PUNCH off "tune vr_flat_stance 0;")
 echo "  the free hand's punch from the shotgun took ${on:-none} with the stance, ${off:-none} without it"
