@@ -6,8 +6,8 @@ reads it (each line a known directive with its arguments, exactly one `map`, a `
 quoted name and offsets, a `start`'s numbers), and its map is one of ours (quakevr/maps/<map>.bsp) or an id, mission
 pack or Arcane Dimensions map. Lists the untagged lines and the scene files no line uses (bench_* are the benchmarks').
 Also the format: no "(agent/", "Test:" / "Test scene:" outside the tag, no scratch/ qvr-agents paths or .sh names, no
-"[ ]" / "- [ ]" prefix, and the section headers in order ([Failed...] and [0. ...] optional, then 1, 2, 3 with no gap or
-duplicate). `checklist_tests_check.py --lines <file>` vets only the item lines of a cl_lines file (for cl_insert.py).
+"[ ]" / "- [ ]" prefix, and the section headers in order ([New...] (a ship's unsorted lines), [Failed...] and [0. ...]
+optional, then 1, 2, 3 with no gap or duplicate). `checklist_tests_check.py --lines <file>` vets only the item lines of a cl_lines file (for cl_insert.py).
 Prints "checklist_tests_check: N passed, M failed" and exits 1 on a failure."""
 import os
 import re
@@ -88,15 +88,16 @@ def line_problems(line):
 
 
 def check_sections(headers):
-    """An optional unnumbered "[Failed..." first, an optional "[0. ..." next, then "[1. ...", "[2. ..." with no gap,
-    duplicate or reorder."""
+    """Optional unnumbered "[New..." (the lines ships add, not yet sorted) and "[Failed..." first, an optional "[0. ..."
+    next, then "[1. ...", "[2. ..." with no gap, duplicate or reorder."""
     nums = []
     for h in headers:
         m = re.match(r"^\[(\d+)\.\s", h)
         if m:
             nums.append(int(m.group(1)))
         else:
-            check(h.startswith("[Failed") and not nums, f"section '{h}': not numbered (only a leading [Failed...] may be)")
+            check((h.startswith("[New") or h.startswith("[Failed")) and not nums,
+                  f"section '{h}': not numbered (only a leading [New...] or [Failed...] may be)")
     first = 0 if nums and nums[0] == 0 else 1
     check(nums == list(range(first, first + len(nums))), f"sections out of order, duplicated or with a gap: {nums}")
 
