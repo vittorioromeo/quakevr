@@ -243,7 +243,9 @@ namespace
 // 74: the recoil in cm, degrees and seconds, the old multipliers converted (takeRecoilUnits74).
 // 75: the Thunderbolt's plasma model's new name, v_light_plasma.mdl, for a config's old slot ID (takeLightPlasma75).
 // 76: the grenade launcher's ammo screen housings (slots 5, 13): the glass leans with the plate (takeGlHousing76).
-constexpr int settingsVersion = 76;
+// 77: the multi-rocket model's ammo screen housing (slot 14): the glass at the rocket launcher's lean
+// (takeMultiRocketHousing77).
+constexpr int settingsVersion = 77;
 
 // The AD melee weapons' tips (slots 40-44) before 49.
 constexpr const char* oldAdMeleeTips[] = {"41.5783 -0.0077 82.5216", "35.5648 -0.2178 93.7809",
@@ -1082,6 +1084,17 @@ void takeGlHousing76()
     }
 }
 
+// 77: the multi-rocket model's ammo screen housing (make_screen_housing_rocket.py on v_multi2): its glass at the
+// rocket launcher's lean (slot 6's 40, his); a config still holding the old 28 takes it.
+void takeMultiRocketHousing77()
+{
+    cvar_t& var = cvarAt(14, Key::WpnTextPitch);
+    if(fabsf(var.value - 28.f) < 1e-3f)
+    {
+        Cvar_SetQuick(&var, var.default_string);
+    }
+}
+
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
 struct Step
 {
@@ -1125,6 +1138,7 @@ constexpr Step steps[] = {
     {74, takeRecoilUnits74},
     {75, takeLightPlasma75},
     {76, takeGlHousing76},
+    {77, takeMultiRocketHousing77},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 

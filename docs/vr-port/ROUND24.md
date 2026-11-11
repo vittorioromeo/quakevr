@@ -8950,3 +8950,53 @@ before: `scratch/gl_probe.png` (right: the close-up).
   AD's data: `vr_test_give_ad 1` (new test cvar, impulse 149).
 - Tests: `Misc/quakevr/flatfx_test.sh` (ssg, centurion: 10 checks), `flateject_test.sh` (rv checks rewritten: 17).
   Scenario `flat_centurion` (needs AD).
+
+## Ammo screen housings: the multi-rocket, AD's Widowmaker and Plasma Gun (branch `agent/housing3`, 2026-11-11)
+
+Shots in the housing3 worktree's `scratch/`: `before_*.png` / `after_*.png` (left the hand view, right the close-up,
+`vr_debug_screen_cam 45`), `after_*_close.png` (the close-up cropped).
+
+### The multi-rocket model (v_multi2)
+
+- **Why it had none:** the table's `"rock2"` entry matches `v_rock2.mdl` only (`stemIs`: the stem then `.` or the end),
+  and `make_screen_housing_rocket.py` was written for v_rock2's grid and shoulder alone.
+- **The script now takes either model** from the .blend's mesh (as the GL's does): a `Gun` per model holds the table
+  stem, the weapons.txt slot, the glass as `vr_debug_screen_where` measures it, the window's centre in grid steps and
+  the shoulder pyramid's point. v_multi2's grid is v_rock2's within 0.6% and its shoulder one X step further forward
+  (its point at x -0.53, not -0.89), so its window centre is (51, 129, 195): four X steps and 28 Z steps from that point
+  (v_rock2: 27). One level lower, as on v_rock2, the steeper shoulder's ridge stood 0.04 in front of the glass (the
+  script's own check refused it). Same design: window 24 Y steps x 4 rows (2.05 x 2.01), the chamfered, rounded
+  enclosure, two rivets each side (width/height 1.021). 80 vertices, 124 triangles; the gun's own faces' UVs unchanged.
+  The skin places are v_rock2's (the shoulder's island, its lit streak and the dark row are at the same texels).
+- **The glass's lean:** he set slot 6's `wpntxt_pitch` to 40 on 2026-11-10 (the face's would be 51.26), so the script
+  now says how far the glass leans off the face (11.3 degrees: its top and bottom edges 0.20 in front of / behind its
+  middle) instead of refusing, and refuses only if an edge would sink through the window's floor. Both models are
+  measured at 40; slot 14 takes 40 too (was 28; `vr_wofs_version` 77, `takeMultiRocketHousing77`). Measured at 40, the
+  `"rock2"` offset is {-0.0038, 0.0374, 0.0261} (was {-0.0039, 0.0315, 0.033}, measured at 51.26: the glass 0.024 units
+  off its window at his pitch). New entry `"multi2"`: radius 4.59, opening 15.60 x 15.29, offset {0.0012, 0.1609,
+  -0.0655}; `vr_debug_screen_where`: centre 1.0575 -0.0505 7.6735 (designed 1.0572 -0.0505 7.6736).
+- **Left as it is:** v_multi2's shoulder pyramid's own lower corners show below the bezel's bottom corners (pale: the
+  shoulder's lit streak), more than on v_rock2, the enclosure sitting a level higher on the steeper shoulder.
+- Re-run on v_rock2: 0 moved, 124 kept, its .mdl unchanged. Scene `rocket_housing` (new: both hands, the button for the
+  multi-rocket).
+
+### The Widowmaker and the Plasma Gun: not done (out of budget), what was found
+
+- **AD in an agent's base:** the guns need AD's data. `-Games "-game hipnotic -game rogue -game ad -game quakevr"` with
+  AD's three paks copied (not linked) into the kit base's `qbase/ad` (pak0 alone: "ad: incomplete installation"). Then
+  `vr_ad_upgrades 2; vr_ad_test 98` (the Widowmaker in the main hand) or `99` (the Plasma Gun); `vr_debug_screen_where`:
+  Widowmaker `progs/v_shot3.mdl#vr` centre 0.2319 0.0107 10.9434, up 0.7349 0 0.6782, pixel 0.0465; Plasma Gun
+  `progs/v_plasma.mdl#vr` centre -5.7315 -0.0617 9.2135, up 0 0 1 (upright), pixel 0.05357.
+- **Table stems:** the drawn models are named `progs/v_shot3.mdl#vr` and `progs/v_plasma.mdl#vr`; `stemIs` matches
+  stems "shot3.mdl#vr" / "plasma.mdl#vr" exactly. A bare "plasma" would also match Rogue's own `progs/v_plasma.mdl`.
+- **Today's digits:** with an `opening`, reloading on (vr_reload_mode 3, the default) the clip over the total grows to
+  fill the glass (`fillSize`, vr_ammo_mag_scale): not today's size. Keeping them exact needs a style switch for no fill
+  (screenFit's three callers in vr_text3d.cpp) and an opening the default text fits at k 1 (about 22 x 19 font px:
+  "16" over a 0.6-size "100", the 3 px padding each side; 1.02 x 0.88 units on the Widowmaker).
+- **Widowmaker (hand-made, `models_src/widowmaker/widowmaker.blend`, own exporter `export_mdl.py`):** the glass is
+  0.15 in front of the receiver's top-rear 45-degree chamfer (Body face 12, wm_part 18: x 0.4..0.9, z 10.9..11.4,
+  y +-1.89..2.1; only 0.71 along its slope), its lean 42.7 degrees. The .mdl's grid is X 0.234, Y 0.033, Z 0.065: the
+  spec's 0.09-unit bezel is under one X step, so it must be designed on a grid plane as the GL's script is (rows (1,3)
+  39.6 degrees, 0.304 apart; levels 0.050 out, each shifting 0.041 along the face).
+- **Plasma Gun:** made from AD's model at load (`vr_adweapons.cpp` plasmaParts, the made parts' box/extrude helpers in
+  AD's 128x128 texels): its housing belongs there, in C++, as the cell receiver is.

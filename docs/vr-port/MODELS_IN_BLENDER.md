@@ -519,6 +519,7 @@ same way on the gun's source .blend (`housing_common.py` holds what they share):
 | lightning gun | `make_screen_housing_light.py` | `src_models/blend/v_light/v_light.blend` | `"light"` |
 | nailgun | `make_screen_housing_nail.py` | `src_models/blend/v_nail/v_nail.blend` | `"nail"` |
 | rocket launcher | `make_screen_housing_rocket.py` | `src_models/blend/v_rock2/v_rock2.blend` | `"rock2"` |
+| multi-rocket (the rocket launcher's other ammo) | `make_screen_housing_rocket.py` | `src_models/blend/v_multi2/v_multi2.blend` | `"multi2"` |
 | grenade launcher | `make_screen_housing_gl.py` | `src_models/blend/v_rock/v_rock.blend` | `"rock"` |
 | multi-grenade (the grenade launcher's other ammo) | `make_screen_housing_gl.py` | `src_models/blend/v_multi/v_multi.blend` | `"multi"` |
 

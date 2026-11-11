@@ -2,20 +2,22 @@
 # make_screen_housing_rocket.py -- the rocket launcher's ammo screen housing, modelled on v_rock2.blend (ROUND24.md, "The
 # rocket launcher's ammo screen housing" and its second pass, "less steep, softer"; his mockup, kit
 # scratch/mockups/rocket_housing.webp: the screen in a raised bronze enclosure on the sloped shoulder where the tube
-# steps down to the rear exhaust, near the grip, two round rivets each side of the window, made symmetric).
+# steps down to the rear exhaust, near the grip, two round rivets each side of the window, made symmetric), and the same
+# one on its multi-rocket model v_multi2.blend (ROUND24.md, "Ammo screen housings: the multi-rocket, ...").
 #
 # Usage: blender -b --factory-startup Misc/quakevr/src_models/blend/v_rock2/v_rock2.blend
 #            --python Misc/quakevr/make_screen_housing_rocket.py -- [--save other.blend] [--dry]
+#        (the same with v_multi2/v_multi2.blend: the script takes the model from the .blend's mesh)
 # Builds or moves the housing, exports the model as blend_export.py does (quakevr/progs, weapons.txt) and saves the
-# .blend (in place, or as --save) as the export left it. Ends with "housing_rock2: ok, ..." or "housing_rock2: REFUSED:
-# ..." (exit code 1). --dry: builds and checks it, exports and saves nothing. The housing scripts work alike
+# .blend (in place, or as --save) as the export left it. Ends with "housing_<stem>: ok, ..." or "housing_<stem>:
+# REFUSED: ..." (exit code 1). --dry: builds and checks it, exports and saves nothing. The housing scripts work alike
 # (housing_common.py; docs/vr-port/MODELS_IN_BLENDER.md, "Tweaking the ammo screen housings").
 #
 # One definition: the window's half size (`opening`, font pixels), the glass's corner `radius`, `size` and `offset` are
-# the "rock2" entry of Quake/vr/vr_screenstyle.cpp (the table the engine shapes and places the glass by), and the
-# glass's lean is weapons.txt slot 6's wpntxt_pitch (51.26: the face's). The script refuses when the window it builds or
-# the glass's place disagree with the table (by more than 0.3 font pixels, or 0.01 units), printing the entry that
-# matches.
+# the "rock2" / "multi2" entry of Quake/vr/vr_screenstyle.cpp (the table the engine shapes and places the glass by);
+# the glass's lean is weapons.txt slot 6's / 14's wpntxt_pitch (his 40; the face's would be 51.26: said, not refused).
+# The script refuses when the window it builds or the glass's place disagree with the table (by more than 0.3 font
+# pixels, or 0.01 units), printing the entry that matches.
 #
 # The grid. The model's vertices are bytes: X 0.393 a step (coarse), Y 0.085, Z 0.105. The face leans 38.7 degrees
 # from level: one X step and three Z steps make a "row" up it (0.504), and every grid point on the face is on a row.
@@ -52,19 +54,46 @@ from mathutils.bvhtree import BVHTree
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import housing_common as hc  # noqa: E402
 
-STEM = "rock2"
-MODEL = "v_rock2"
-
-# Measured with vr_debug_screen_where 1 (weapons.txt slot 6's wpntxt offsets and pitch 51.26, the table's offset 0):
-# the glass's centre, right and up, and a font pixel (wpntxt_scale 0.25, size 1) in model units.
-BASE_CENTRE = Vector((0.6940, -0.0511, 7.4683))
-BASE_RIGHT = Vector((0.0068, -1.0, 0.0055)).normalized()
-BASE_UP = Vector((0.7800, 0.0087, 0.6258)).normalized()
 PIXEL1 = 0.06565
 MPU = PIXEL1 / (0.1 * 0.25)  # model units a world unit (the offset's unit)
 
-# The design, in grid steps (X, Y, Z) from the window's centre on the face (a grid point; Y the gun's middle line).
-CENTRE = (50, 129, 194)
+
+class Gun:
+    """What differs between the rocket launcher and its multi-rocket model: the table entry, the weapons.txt slot, the
+    glass as measured with vr_debug_screen_where 1 (Debug > Reports > Ammo Screen on Model: weapons.txt's wpntxt
+    offsets and pitch, the table's offset 0; its centre, right and up in model units), the window's centre on the face
+    (grid steps X, Y, Z: four X steps and 27 Z steps from the shoulder's point on v_rock2, 28 on v_multi2, whose
+    shoulder is steeper: one level lower its ridge stood 0.04 in front of the glass), the shoulder pyramid's point and
+    the tube's top line (muzzle_av's height, for the printout)."""
+
+    def __init__(self, stem, slot, base_centre, base_right, base_up, centre, shoulder, tube_top):
+        self.stem, self.slot = stem, slot
+        self.base_centre = base_centre
+        self.base_right, self.base_up = base_right.normalized(), base_up.normalized()
+        self.centre, self.shoulder, self.tube_top = centre, shoulder, tube_top
+
+
+# Both measured at wpntxt_pitch 40 (his pick for slot 6, 2026-11-10; slot 14 the same): the glass leans 11 degrees
+# more upright than the face (51.26 would lean with it), said, not refused. The same grid within 0.6% (v_multi2's own
+# bytes), the same skin places (v_multi2's skin repaints some of v_rock2's and has 16 more rows below; the shoulder's
+# island, its lit streak and the dark row are where v_rock2's are).
+GUNS = {
+    "v_rock2": Gun("rock2", 6, Vector((0.6936, -0.0511, 7.4683)), Vector((0.0056, -1.0, 0.0067)),
+                   Vector((0.6427, 0.0087, 0.7660)), (50, 129, 194), Vector((-0.8935, -0.0402, 4.7805)), 7.8293),
+    # The multi-rocket model: its shoulder one X step further forward (the pyramid's point at x -0.53, not -0.89). Its
+    # pyramid's own lower corners (y +-2.78, the lit streak's texels) show below the bezel's bottom corners, more than
+    # on v_rock2 (the enclosure sits a level higher on the steeper shoulder): the gun's faces, left as they are.
+    "v_multi2": Gun("multi2", 14, Vector((0.6538, -0.0511, 7.4604)), Vector((0.0057, -1.0, 0.0067)),
+                    Vector((0.6427, 0.0087, 0.7660)), (51, 129, 195), Vector((-0.5321, -0.0505, 4.7688)), 7.8097),
+}
+
+
+def model_of_blend():
+    """The gun the .blend holds (its mesh named after the model)."""
+    return next(o.name for o in bpy.data.objects if o.type == 'MESH' and o.name in GUNS)
+
+
+# The design, in grid steps (X, Y, Z) from the window's centre on the face (a grid point, Gun.centre; Y the middle).
 ROW = (1, 3)          # one row up the face
 BACK = (1, -5)        # the walls' step back into the gun (0.656; 0.022 down the face)
 WIN_ROWS = 2          # the window's half height, rows
@@ -85,18 +114,20 @@ RIVET_ANGLES = 8      # points round each rivet's ring
 INNER_ROWS = (62.5, 64.5)                   # the window's walls (front edge, back) on the dark row
 INNER_COLS = (292.0, 330.0)
 RIVET_TEX = (297.5, 33.5, 2.5)              # the lit streak (the point) and the ring's radius round it
-SHOULDER_POINT = Vector((-0.8935, -0.0402, 4.7805))   # the shoulder pyramid's point (behind the rim, on the middle)
-TUBE_TOP = 7.8293                           # the tube's top line (for the printout)
 
 
 def main(h):
+    MODEL = h.model
+    gun = GUNS[MODEL]
+    BASE_CENTRE, BASE_RIGHT, BASE_UP = gun.base_centre, gun.base_right, gun.base_up
+    SHOULDER_POINT, TUBE_TOP = gun.shoulder, gun.tube_top
     st = h.style
     (ow, oh), orad, size, offset = st["opening"], st["radius"], st["size"], st["offset"]
     if ow <= 0 or orad <= 0:
-        h.fail("the \"%s\" entry needs .opening and a rounded .radius (> 0)" % STEM)
+        h.fail("the \"%s\" entry needs .opening and a rounded .radius (> 0)" % gun.stem)
     px = PIXEL1 * size
     sc, og = h.grid
-    i0, j0, k0 = CENTRE
+    i0, j0, k0 = gun.centre
 
     def P(a, b, j=0):
         """The grid point a X steps, b Z steps and j Y steps (to the gun's left) from the centre."""
@@ -136,9 +167,17 @@ def main(h):
                "entry: .radius = %.2ff, .opening = {%.2ff, %.2ff}, .offset = {%.4ff, %.4ff, %.4ff}"
                % (off_px + ((glass - have).length, 0.15 * hgt / px, wwin / px, hgt / 2 / px,
                             dg.dot(BASE_RIGHT) / MPU, dg.dot(BASE_UP) / MPU, dg.dot(out_base) / MPU)))
-    if abs(BASE_UP.angle(up)) > math.radians(0.6):
-        h.fail("the glass leans %.2f degrees off the face: weapons.txt slot 6 wpntxt_pitch %.2f"
-               % (math.degrees(BASE_UP.angle(up)), 90 - lean))
+    # The glass's lean is his (weapons.txt): said when it isn't the face's; refused only when an edge would sink
+    # through the window's floor.
+    floor_d = -(P(*BACK) - centre).dot(out)
+    tilt = math.degrees(math.atan2(BASE_UP.dot(out), BASE_UP.dot(up)))
+    poke = abs(math.sin(math.radians(tilt))) * hgt / 2
+    if abs(tilt) > 0.6:
+        h.say("the glass leans %.2f degrees off the face (weapons.txt slot %d wpntxt_pitch %.2f; the face's %.2f): its "
+              "top and bottom edges %.4f in front of / behind its middle" % (tilt, gun.slot, 90 - math.degrees(
+                  math.atan2(BASE_UP.z, BASE_UP.x)), 90 - lean, poke))
+    if poke > floor_d - GLASS_IN * hgt:
+        h.fail("the glass leans too far off the face (%.2f degrees): its edges out of the window" % tilt)
 
     ob = bpy.data.objects[MODEL]
     if ob.mode != 'OBJECT':
@@ -460,4 +499,5 @@ def main(h):
 
 
 if __name__ == "__main__":
-    hc.Run(STEM, MODEL).main(main)
+    _model = model_of_blend()
+    hc.Run(GUNS[_model].stem, _model).main(main)

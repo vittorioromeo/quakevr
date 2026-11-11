@@ -1637,7 +1637,7 @@ weapon 14
     wpnbtn_z "1.3"
     wpnbtnmode "1"
     wpntxt_av "1.0321 2.596 3.3007"
-    wpntxt_pitch "28"
+    wpntxt_pitch "40" // (the housing, make_screen_housing_rocket.py: slot 6's lean; vr_wofs_version 77: was 28)
     wpntxt_roll "-0.5"
     wpntxt_scale "0.25"
     wpntxt_x "-0.1"
@@ -1657,7 +1657,7 @@ weapon 14
     fx_kick_cm "23.4"
     fx_rise_deg "10.125"
     fx_return_s "0.265"
-    fx_gfx_mask "811:YAAGS4___fGY-_hH-h-BAAAAAAAAAAAAAAAAAAAAAAAA4_HAAe4________________________f-___f-_________________________________BAAAAAAAAAAAAAAAAAAAA"
+    fx_gfx_mask "935:YAAGS4___fGY-_hH-h-BAAAAAAAAAAAAAAAAAAAAAAAA4_HAAe4________________________f-___f-_________________________________BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 }
 
 // slot 15: progs/v_light_plasma.mdl (vr_wofs_*_16)
