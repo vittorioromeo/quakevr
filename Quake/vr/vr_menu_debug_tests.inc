@@ -702,6 +702,10 @@ za::Vector<Item> pageDebugTests()
         command("Blood at Point Blank", "god; notarget; vr_flatblood_test 1")
             .help("vr_flatblood_test 1 (flat-screen or headset): a grunt, then a corpse, shot with the shotgun, super shotgun and "
                   "nailgun from 60, 30, 12 and 4 units: each shot's blood made and drawn, as at 60 (flatblood: lines)."),
+        command("Particle Pool: Full", "vr_particle_evict_test; vr_particle_stats; vr_decal_count")
+            .help("vr_particle_evict_test: the particle pool filled to its cap (32768), then a blood spray: made in the oldest's "
+                  "place with New Particles Replace Oldest, none without (particle evict test: line). Then the pool's peak "
+                  "and what it and the gore's queues left out while full this session (particle stats:, gore: lines)."),
         command("Blood Crouched Over a Corpse", "god; notarget; vr_flatblood_test 2")
             .help("vr_flatblood_test 2 (-flatscreenmode): crouched over a corpse, the shotgun down into it from 20, 12, 6 and 3 "
                   "units: every pellet's blood as from 60 (flatblood: lines). 3: and a screenshot of each shot's blood."),

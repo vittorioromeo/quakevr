@@ -108,11 +108,23 @@ constexpr za::SizeT maxRays = 320;
 constexpr int raysPerFrame = 24;
 Ring<Ray> rays{maxRays}; // the oldest traced first; while it is full, new ones are left out
 
+// What the pools below left out while full, this session (count(), vr_decal_count: his note 2026-11-11, "Could it be
+// that particle/gore limits are being hit").
+struct LeftOut
+{
+    za::U64 rays{0}, sources{0}, landings{0}, pending{0};
+};
+LeftOut leftOut;
+
 void queue(const Ray& r)
 {
     if(!rays.full())
     {
         rays.pushBack() = r;
+    }
+    else
+    {
+        ++leftOut.rays;
     }
 }
 
@@ -166,6 +178,7 @@ void addSource(int ent, const glm::vec3& pos, float seconds, float spread, float
 {
     if(seconds <= 0.f || drops <= 0 || sources.size() >= maxSources)
     {
+        leftOut.sources += sources.size() >= maxSources ? 1 : 0;
         return;
     }
     Source s;
@@ -197,6 +210,7 @@ bool fall(const glm::vec3& p, float dropSize, const glm::vec3& color, float mark
         }
         return false;
     }
+    leftOut.landings += landings.size() >= maxLandings ? 1 : 0;
     if(landings.size() >= maxLandings || !decals::trace(p, p - glm::vec3{0.f, 0.f, 768.f}, where, normal, f))
     {
         return false;
@@ -556,6 +570,7 @@ void corpse(const glm::vec3& org, float radius, int lvl)
     const float mult = za::clamp(vr_gore_pools.value, 0.f, 3.f);
     if(mult <= 0.f || pending.size() >= maxPending)
     {
+        leftOut.pending += mult > 0.f && pending.size() >= maxPending ? 1 : 0;
         return;
     }
     // The corpse: the entity where the monster died.
@@ -892,9 +907,13 @@ void clear()
 
 void count()
 {
-    Con_Printf("gore (vr_gore %d): %d lines of blood queued, %d dripping, %d drops falling, %d pools to come\n", level(),
+    Con_Printf("gore (vr_gore %d): %d lines of blood queued, %d dripping, %d drops falling, %d pools to come; left out "
+               "while full: %llu lines (of %d), %llu drips (of %d), %llu drops (of %d), %llu pools (of %d)\n", level(),
         static_cast<int>(rays.size()), static_cast<int>(sources.size()), static_cast<int>(landings.size()),
-        static_cast<int>(pending.size()));
+        static_cast<int>(pending.size()), static_cast<unsigned long long>(leftOut.rays), static_cast<int>(maxRays),
+        static_cast<unsigned long long>(leftOut.sources), static_cast<int>(maxSources),
+        static_cast<unsigned long long>(leftOut.landings), static_cast<int>(maxLandings),
+        static_cast<unsigned long long>(leftOut.pending), static_cast<int>(maxPending));
     bloodstream::count();
 }
 
