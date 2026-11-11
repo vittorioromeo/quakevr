@@ -9319,6 +9319,31 @@ short-strike symptom (flatmelee's "raised behind the head" swing doing 24 damage
 - flatmelee's damage read (`vr_test_hurt` after a swing) reads the nearest live monster: when the swing gibs the knight
   it is another monster's health (the triage's note); flatswing counts a gibbing blow as 75.
 
+## The swap key: every two-handed hold, and carried things (branch `agent/fbswap`, 2026-11-11)
+
+His notes 2026-11-11: the one-weapon two-handed swap steps worked for the rocket launcher only ("Was the rocket launcher
+handled as a special case?"), and "The swap hands key should also seamlessly work when a prop is being held, or any
+combination of props/weapons".
+
+- Cause: `vr_flatswap.cpp` took the release/pass/attach steps only when vr_twohand held the free hand on the gun
+  (`twohand::helping`). Flatsight carries the free hand onto a two-hand grip only when it stands ahead of the trigger
+  hand (rocket and grenade launchers); the shotguns', nailguns' and melee grips stand on or behind it, so those guns'
+  free hand sits in the support pose beside them, never "helping", and they took the meeting path. Now any weapon held
+  alone with the other hand empty is two-handed (`vr_flat_swap_2h_all` 1; 0: the old rule).
+- Carried things: QC `VR_FlatSwapHands` swaps what the hands carry with the weapons (`vr_flat_swap_things` 1; 0 as
+  before): a carried thing refitted to the new hand's grip (`VR_Carry_FitToHand`, split out of `VR_Carry_Start`), a
+  ragdoll's limb released and re-grabbed by the other hand (fallback: back to its hand; untested headless). Refused: one
+  thing in both hands (nothing drawn), a busy hand (foe grab, reload round, flashlight, SSG grip, tug, embed hold).
+  The engine waits for the carry stats to change too. A hand whose content changes in a meeting swap goes straight to
+  its new pose in flatplay (`flatswap::meeting`), the swap easing it there: before, the guard eased up from the relaxed
+  rest and the brick dipped out of view mid-way.
+- Tests: `Misc/quakevr/flatswap_test.sh` (`vr_flatswap_test 1`: 10 weapons, 20/20; `2`: 7 hand combinations, 26/26;
+  strips 11-15). `flatswappitch_test.sh` 20/20 and `flathands_test.sh` 76/76 with sg1h/swap1 now expected two-handed.
+  AD's plasma rifle given by `VRGiveEntWeapon` vanished from the hand after the swap in id1 (the swap itself ran: "flat
+  swap: main hand 22 -> 0, off hand 0 -> 22"); dropped from the test, not looked into.
+- Debug: `vr_flat_swap_debug 2` prints each hand's own pose and drawn place every frame of a meeting swap; test aid
+  `vr_flat_swap_seen`. Debug > Tests: "Flat Swap: Two-Handed Weapons", "Flat Swap: Props And Weapons". Scene
+  `flat_swap_props`.
 ## Gibs on the axe through mouse turns; the particle pool full (branch `agent/fbgore`, 2026-11-11)
 
 His notes: "If I turn my camera with the mouse quickly enough, gibs attached to the axe still fall out very easily, even

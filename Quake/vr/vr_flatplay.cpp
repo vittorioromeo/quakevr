@@ -3377,6 +3377,18 @@ void poseHands(hands::State& s, const glm::vec3& aim)
             {
                 fs.guard[h] += ((guardWanted ? 1.f : 0.f) - fs.guard[h]) * ease(handEase, static_cast<float>(dt));
             }
+            if(flatswap::meeting())
+            {
+                // (The hands' swap draws the way from where they met to their poses (vr_flatswap.cpp): a hand that took a
+                // prop or a weapon is in its new pose at once, which the swap eases it into. Eased here as well, the
+                // pose went down through the relaxed rest and back up on the way, a brick out of sight under the view:
+                // vr_flatswap_test 15.)
+                fs.hang[h] = heldIn(h) >= 0 ? 0.f : hangs ? 1.f : 0.f;
+                if(heldIn(h) < 0)
+                {
+                    fs.guard[h] = guardWanted ? 1.f : 0.f;
+                }
+            }
             if(fs.hang[h] < 0.01f && heldIn(h) >= 0)
             {
                 fs.hang[h] = 0.f;

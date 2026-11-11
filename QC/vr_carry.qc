@@ -719,18 +719,10 @@ string(entity e) VR_Carry_GrabSound =
     return "";
 };
 
-void(entity xPlayer, float xHand, entity xBox) VR_Carry_Start =
+// `xBox`'s place and turn in `xHand` from where it is now (VR_Carry_Start's take; the flat swap's pass to the other
+// hand, VR_FlatSwapHands).
+void(entity xPlayer, float xHand, entity xBox) VR_Carry_FitToHand =
 {
-    dprint("carry: taken\n");
-    VR_WP_Taken(xBox); // (a dead one's worn backpack: off its back, vr_wornpack.qc)
-    xBox.carry_player = xPlayer;
-    xBox.vr_ammo_ejected_by = world; // (a hand has it: no longer falling into a pouch by itself)
-    VR_AgArmor_DebrisGrabbed(xBox); // (a plate's debris: its fade put off, vr_agarmor.qc)
-    xBox.vr_slam_armed = 0;
-    xBox.vr_slam_thrown = 0;
-    portal_carry(xBox, xPlayer, xHand, TRUE);
-    VR_Head_StopFlies(xBox); // (they would buzz on where it lay)
-
     vector handPos = VRGetEntHandPos(xPlayer, xHand);
     vector handRot = VRGetEntHandRot(xPlayer, xHand);
     makevectors(handRot);
@@ -754,6 +746,20 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Start =
         dprint(sprintf("carry: %s held at %v (forward, right, up) of the hand, turned %v\n", xBox.classname,
             xBox.carry_offset, xBox.angles));
     }
+};
+
+void(entity xPlayer, float xHand, entity xBox) VR_Carry_Start =
+{
+    dprint("carry: taken\n");
+    VR_WP_Taken(xBox); // (a dead one's worn backpack: off its back, vr_wornpack.qc)
+    xBox.carry_player = xPlayer;
+    xBox.vr_ammo_ejected_by = world; // (a hand has it: no longer falling into a pouch by itself)
+    VR_AgArmor_DebrisGrabbed(xBox); // (a plate's debris: its fade put off, vr_agarmor.qc)
+    xBox.vr_slam_armed = 0;
+    xBox.vr_slam_thrown = 0;
+    portal_carry(xBox, xPlayer, xHand, TRUE);
+    VR_Head_StopFlies(xBox); // (they would buzz on where it lay)
+    VR_Carry_FitToHand(xPlayer, xHand, xBox);
 
     xBox.movetype = MOVETYPE_NONE;
     xBox.solid = SOLID_NOT;

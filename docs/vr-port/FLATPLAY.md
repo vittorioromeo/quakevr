@@ -1027,7 +1027,24 @@ around, carries the hands and the weapon, and the swap plays the same against th
 note 2026-11-11: the off hand had gone to a level look's place). The free hand's guard is placed as at a level look
 (`flatplay::levelShoulderOf`: the shoulders with the chest's share of the pitch taken out) and carried into the view's
 frame, taken at the press. The swap tunables are offsets in that frame. No fire meanwhile. Not drawn (the swap at
-once) with `vr_flat_swap_anim 0`, both hands empty, a carried thing, a reload or the quick grenade under way.
+once) with `vr_flat_swap_anim 0`, both hands empty, one thing held in both hands, a reload or the quick grenade under way.
+
+Which holds are two-handed (his question 2026-11-11: "Was the rocket launcher handled as a special case?"): until then
+only a weapon whose two-hand grip the free hand held in `vr_twohand` (`twohand::helping`): a grip ahead of the trigger
+hand, which flatsight carries the free hand onto (the rocket and grenade launchers). The shotguns', the nailguns' and
+the melee weapons' grips stand on or behind the trigger hand, so their free hand sits in the support pose beside the gun
+(`vr_flat_support_*`) without vr_twohand's hold, and the swap took the hands' meeting way. Now (`vr_flat_swap_2h_all 1`)
+every weapon held alone with the other hand empty takes the release, pass and attach.
+
+Carried things (his words 2026-11-11: "The swap hands key should also seamlessly work when a prop is being held, or any
+combination of props/weapons"; `vr_flat_swap_things 1`): `VR_FlatSwapHands` moves what each hand carries (a prop, a gib,
+a torch, a carried hand grenade, a ragdoll's limb) to the other hand with the weapons: a carried thing refitted to its
+new hand's grip (`VR_Carry_FitToHand`, shared with the take), a limb let go of and taken again by the other hand (none in
+reach: kept). Drawn the meeting way; the hand that took a prop keeps its own turn (a weapon's hand takes the other's), and
+flatplay puts a hand whose content changed straight into its new pose while the swap eases it there (`flatswap::meeting`;
+eased twice, the prop's guard went down through the relaxed rest, out of sight). Not swapped: one thing in both hands,
+a hand busy otherwise (a foe held, a reload's round, the flashlight, a tug). The engine's `vr_flat_swap_seen` (test
+aid): 0 at once, 1 met, 2 two-handed. Test: `Misc/quakevr/flatswap_test.sh` (`vr_flatswap_test 1`, 2; strips 11-15).
 `vr_flat_swap_debug 1` (with `flatswap: in view P F: <hand> x y z turn p y r` as the hands meet), `vr_flatswap_report`.
 Tests: `Misc/quakevr/flathands_test.sh` (swap1, swap2h, swapdual, swapoff); `Misc/quakevr/flatswappitch_test.sh` (the
 free hand at the same place and turn in the view at pitch -60, 0, +60, +-85: the rocket launcher, sighted, the

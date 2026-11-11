@@ -1458,20 +1458,111 @@ void(entity ent, float xHand) VRSwitchWeaponHands =
 
 // Flatscreen play's Q (impulse 48, vr_flatplay.cpp; his words 2026-11-05: "a button to swap left/right hand contents"):
 // what the two hands hold changes hands, each weapon with its record (its magazine, its id) and its next shot's time; a
-// weapon in one hand goes to the empty other. A hand carrying a thing (a box, a prop: VR_Carry_Held) keeps it, and then
-// nothing is swapped (a carried thing is the drop key's (H) to let go). Prints "flat swap:" (developer 1).
+// weapon in one hand goes to the empty other. What a hand carries (a box, a prop, a gib, a torch, a ragdoll's limb:
+// VR_Carry_Held) goes to the other hand too (his words 2026-11-11: "The swap hands key should also seamlessly work when a
+// prop is being held, or any combination of props/weapons"; vr_flat_swap_things 1): a prop and a gun, two props, a prop
+// and an empty hand. Not swapped: one thing held in both hands (nothing to change), a hand busy otherwise (a foe held, a
+// round or a magazine of a reload, the flashlight, a tug: VR_FlatSwap_Passable), and with vr_flat_swap_things 0 any
+// carried thing (as before 2026-11-11). Prints "flat swap:" (developer 1).
+
+// Whether what `xHand` holds can change hands: nothing, or a carried thing (a prop, a gib, a torch, a hand grenade, a
+// ragdoll's limb).
+float(entity ent, float xHand) VR_FlatSwap_Passable =
+{
+    float k = VR_Hand_Kind(ent, xHand);
+    return k == VR_HOLD_NONE || k == VR_HOLD_PROP || k == VR_HOLD_TORCH || k == VR_HOLD_GRENADE || k == VR_HOLD_RAGDOLL;
+};
+
+// `xBox`, let go of by `xFrom` (VR_Hand_Release already done), taken by `xHand` of `ent`: a carried thing fitted to that
+// hand's grip from where it is (VR_Carry_FitToHand, as a take); a ragdoll's limb let go of and taken again by that hand
+// (the limb nearest it; none in reach: the hand it came from takes it back). FALSE: lost.
+float(entity ent, float xHand, float xFrom, entity xBox) VR_FlatSwap_Give =
+{
+    if(xBox.carry_player == ent)
+    {
+        VR_Hand_Take(ent, xHand, xBox);
+        portal_carry(xBox, ent, xHand, FALSE);
+        VR_Carry_FitToHand(ent, xHand, xBox);
+        return TRUE;
+    }
+    if(isragdoll(xBox))
+    {
+        if(ragdollgrab(xBox, ent, xHand) == 1)
+        {
+            VR_Hand_Take(ent, xHand, xBox);
+            return TRUE;
+        }
+        if(ragdollgrab(xBox, ent, xFrom) == 1)
+        {
+            VR_Hand_Take(ent, xFrom, xBox);
+            dprint("flat swap: the limb out of the other hand's reach: kept\n");
+            return TRUE;
+        }
+    }
+    dprint(sprintf("flat swap: %s lost on the way\n", xBox.classname));
+    return FALSE;
+};
+
 void(entity ent) VR_FlatSwapHands =
 {
-    if(VR_Carry_Held(ent, cVR_MainHand) != world || VR_Carry_Held(ent, cVR_OffHand) != world)
+    entity tm = VR_Carry_Held(ent, cVR_MainHand);
+    entity to = VR_Carry_Held(ent, cVR_OffHand);
+    if(!cvar_hget(cvarh_vr_flat_swap_things) && (tm != world || to != world))
     {
         dprint("flat swap: a hand carries something: nothing swapped\n");
         return;
     }
+    if(tm != world && tm == to)
+    {
+        dprint("flat swap: one thing in both hands: nothing swapped\n");
+        return;
+    }
+    if(!VR_FlatSwap_Passable(ent, cVR_MainHand) || !VR_FlatSwap_Passable(ent, cVR_OffHand))
+    {
+        dprint(sprintf("flat swap: a hand is busy (main %g, off %g): nothing swapped\n", VR_Hand_Kind(ent, cVR_MainHand),
+            VR_Hand_Kind(ent, cVR_OffHand)));
+        return;
+    }
     float wm = VRGetEntWeapon(ent, cVR_MainHand);
     float wo = VRGetEntWeapon(ent, cVR_OffHand);
-    if(wm == WID_FIST && wo == WID_FIST)
+    if(wm == WID_FIST && wo == WID_FIST && tm == world && to == world)
     {
         dprint("flat swap: both hands empty\n");
+        return;
+    }
+    // The things first out of both hands (a ragdoll's limbs let go of), then each into the other.
+    if(tm != world)
+    {
+        VR_Hand_Release(ent, cVR_MainHand, "swap");
+        if(tm.carry_player != ent && isragdoll(tm))
+        {
+            ragdollrelease(ent, cVR_MainHand, '0 0 0');
+        }
+    }
+    if(to != world)
+    {
+        VR_Hand_Release(ent, cVR_OffHand, "swap");
+        if(to.carry_player != ent && isragdoll(to))
+        {
+            ragdollrelease(ent, cVR_OffHand, '0 0 0');
+        }
+    }
+    if(tm != world)
+    {
+        VR_FlatSwap_Give(ent, cVR_OffHand, cVR_MainHand, tm);
+    }
+    if(to != world)
+    {
+        VR_FlatSwap_Give(ent, cVR_MainHand, cVR_OffHand, to);
+    }
+    if(tm != world || to != world)
+    {
+        dprint(sprintf("flat swap: carried main %s -> %s, off %s -> %s\n", tm.classname,
+            VR_Carry_Held(ent, cVR_MainHand).classname, to.classname, VR_Carry_Held(ent, cVR_OffHand).classname));
+    }
+    if(wm == WID_FIST && wo == WID_FIST)
+    {
+        VR_SoundVaried(ent, VRGetHandChannel(cVR_OffHand), "knight/sword2.wav", 0.4, ATTN_NORM);
         return;
     }
     float fm = VRGetEntWeaponFlags(ent, cVR_MainHand);

@@ -18,8 +18,8 @@
 #   grenmain  a nailgun in the off hand: G takes the main hand; LMB arms, LMB held winds up, let go throws
 #   (every run, vr_debug_carry 2: the hand slot's kind follows the grenade, a round's (4) unarmed, a grenade's (5) once
 #   armed, at once: no "handslot: mismatch/clash/stale" line; the hand empty (kind 0) once it is thrown or put back)
-#   swap1     a shotgun in the main hand: 3 brings the hands together, swaps at the meeting point, the shotgun in the off
-#             hand after, the hands back
+#   swap1     a shotgun in the main hand, the off hand beside it: held in both (since 2026-11-11, vr_flat_swap_2h_all), so
+#             the release, pass and attach as swap2h: the shotgun in the off hand after
 #   swap2h    the rocket launcher in both hands: 3 first takes the free hand off the grip to the empty hand's guard, then the gun
 #             across to it (the swap there), then the other hand onto its grip: the gun in the off hand, the main on the grip
 #   swapdual  a gun in each hand: they meet and swap

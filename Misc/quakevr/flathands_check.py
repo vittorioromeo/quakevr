@@ -165,7 +165,7 @@ bad = [(tag, l) for tag in ("drop", "gren2h", "grenempty", "grendual", "grenoff"
 check(not bad, "no handslot mismatch/clash/stale line in any run (%s)" % (bad[:2],))
 
 # swaps
-for tag, two in (("swap1", False), ("swap2h", True), ("swapdual", False)):
+for tag, two in (("swap1", True), ("swap2h", True), ("swapdual", False)):  # (swap1: two-handed since 2026-11-11, vr_flat_swap_2h_all)
     ls = lines(tag)
     done(tag, ls)
     h = hud(ls)
@@ -193,8 +193,9 @@ for tag, two in (("swap1", False), ("swap2h", True), ("swapdual", False)):
         sent = [l for l in ls if "swap sent" in l]
         want = 0.2  # (the release's 0.1 and the pass's 0.1)
         stance = [l for l in ls if l.startswith("  stance:")]
-        check(len(stance) >= 2 and "holding its grip" in stance[-1] and "torso 15.0" in stance[-1],
-              "swap2h: ends with the main hand holding the gun's grip, the gun in the off hand (%s)" % (stance[-1] if stance else "none",))
+        if tag == "swap2h":  # (swap1's shotgun has no forward grip: its free hand sits beside it, no stance printed)
+            check(len(stance) >= 2 and "holding its grip" in stance[-1] and "torso 15.0" in stance[-1],
+                  "swap2h: ends with the main hand holding the gun's grip, the gun in the off hand (%s)" % (stance[-1] if stance else "none",))
     else:
         met = [re.search(r"met: the hands ([\d.]+) units apart \(were ([\d.]+)\)", l) for l in ls]
         met = [x for x in met if x]
