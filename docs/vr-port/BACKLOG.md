@@ -191,6 +191,13 @@ Left: the custom keys' names on the gadget's AD page (strings, not stats) and th
   author's own repaint (commit 24fa2de6d): a re-map or a bigger skin only resamples his paint; a sharper sleeve needs
   him to paint the wrist and bracer at a higher resolution (or make_vrbody.py's painter at 512, losing his repaint).
 
+### Maps
+
+- **Slipseer in the map library (the author, 2026-11-11):** scrape slipseer.com's
+  map pages for the map library's downloads (title, author, release date, description, screenshots, download
+  link, required base game or mod), alongside the existing sources. Keep the scraper polite (rate-limited, cached, but with randomized human-looking User-Agent, no personal data nor mentions of LLMs/AI/bots) and
+  credit Slipseer and each map's author in the library.
+
 ## 7. Refactors, right after 1.1
 
 In this order (pure refactors; waiting avoids conflicts with beta fixes and keeps refactor risk away from a release):
