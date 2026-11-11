@@ -1732,13 +1732,14 @@ void idleAttachments(const entity_t& e, bool mirrored, int slot, view::ViewEntit
         glm::vec3 angles = weapons::vec(slot, Key::WpnTextPitch, Key::WpnTextYaw, Key::WpnTextRoll);
         if(mirrored)
         {
+            angles.y = -angles.y; // (mirrored as the gun's own angle offsets are: weaponAngleOffsets)
             angles.z = -angles.z;
         }
         glm::vec3 tint{};
         const bool warn = idleAmmoWarning(e.model, clip, clipSize, tint, seenCvar); // (low or empty: vr_ammo_color_warn)
         text3d::queue(idleWeaponText(e.model, clip, clipSize, total), pos, idleAttachmentAngles(drawn, slot, mirrored, angles),
             text3d::Align::Centre, 0.1f * weapons::value(slot, Key::WpnTextScale), vr_weapon_screen.value != 0.f,
-            warn ? &tint : nullptr, &screenstyle::forModel(e.model ? e.model->name : nullptr),
+            warn ? &tint : nullptr, &screenstyle::forModel(e.model ? e.model->name : nullptr, mirrored),
             screenGlyphs(slot, clip, clipSize, -1));
     }
 }
