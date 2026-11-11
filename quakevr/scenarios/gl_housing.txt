@@ -1,0 +1,9 @@
+# gl_housing: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The grenade launcher's ammo screen in
+# its riveted bronze bezel (make_screen_housing_gl.py): the launcher in the right hand, another in the left, and
+# multi-rockets to switch the right one to its multi-grenade model with the gun's button.
+title Grenade launcher ammo screen housing, both hands and the multi-grenade
+map vrtesthall
+god
+notarget
+cmd impulse 9; impulse 158; impulse 178
+hint Both hands hold a grenade launcher: on the rear face of each one's top block the ammo screen sits in a square bronze bezel, its window's corners cut, a round rivet in each of the bezel's corners. Press the right gun's button for the multi-grenade model: the same housing. Check the digits read and nothing of the bezel covers them.

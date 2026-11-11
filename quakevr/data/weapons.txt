@@ -946,7 +946,7 @@ weapon 5
     wpnbtn_z "1.8"
     wpnbtnmode "1"
     wpntxt_av "3.6666 3.8101 2.1858"
-    wpntxt_pitch "28.400007"
+    wpntxt_pitch "33.58" // (the housing's plate, make_screen_housing_gl.py; vr_wofs_version 76: was 28.4)
     wpntxt_roll "0.0"
     wpntxt_scale "0.3"
     wpntxt_x "-2.7"
@@ -1578,7 +1578,7 @@ weapon 13
     wpnbtn_z "1.8"
     wpnbtnmode "1"
     wpntxt_av "3.49 3.8227 2.3105"
-    wpntxt_pitch "28.400009"
+    wpntxt_pitch "33.34" // (the housing's plate, make_screen_housing_gl.py; vr_wofs_version 76: was 28.4)
     wpntxt_roll "0.0"
     wpntxt_scale "0.3"
     wpntxt_x "-2.7"
