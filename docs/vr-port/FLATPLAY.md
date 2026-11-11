@@ -222,8 +222,10 @@ weapon with its record, through `VRDrawHolsterWeapon` and `VRPutWeaponInHolster`
 refused as in a headset; a hand carrying a prop keeps it; `VR_FlatHolster_Drop`: the weapon laid
 `vr_flat_holster_drop_ahead` units ahead, with its record), 78 and 79 the left and right hand's DROP
 (`VR_Forcegrab_FlatDropHand`), 81 DROP BOTH (each hand's `VR_Forcegrab_FlatDropHand`, the off hand's first, as `H`; dim
-when both hands are empty), 48 SWAP (`VR_FlatSwapHands`, 3's). A button that would do nothing is dim and its click does
-nothing. Saves and level changes keep the holsters as in a headset (they are the same fields). Debug > Reports >
+when both hands are empty), 48 SWAP (`VR_FlatSwapHands`, 3's), 82 and 83 the left and right hand's UNLOAD
+(`VR_FlatHolster_Unload`: the clip's live rounds back into the reserve, as many as fit under its cap; dim with the clip
+empty, and greyed with that ammo full up so that no round would fit: `.vr_flatrl_full`, `STAT_QVR_FLATUNLOADFULL`, his
+words 2026-11-11). A button that would do nothing is dim and its click does nothing. Saves and level changes keep the holsters as in a headset (they are the same fields). Debug > Reports >
 Flatscreen Play: `vr_flat_holster_menu_dump`, hold and let go, `vr_flatholster_test` (`Misc/quakevr/flatholster_test.sh`).
 
 **Pickups: walked over, or taken with `E`.** A flat-screen player has no torso to let armour go over and no holster to reach
@@ -982,6 +984,13 @@ go throws it.
   motion; the carry's own throw (`VR_Carry_Throw`) and release (`VR_Grenade_Released`). G again with it unarmed puts it
   back (the rocket back). No rockets: "No rockets for a grenade." `VR_HandGrenade_Trigger` doesn't arm for a flat-screen
   player (the quick grenade's frame does, whatever `vr_handgrenade_arm` says).
+- **A grenade taken another way** (his words 2026-11-11: force-grabbing a grenade, live or not, should leave it as G
+  does): a hand that comes to hold any grenade (`.vr_grenade`: E's force grab, impulses 50 and 51; a grab of one lying
+  by; a catch in flight) while no quick grenade is under way takes the quick grenade's state (`VR_FlatGrenade_Adopt`,
+  each frame the phase is 0): a live one (an ogre's, a hand grenade armed) armed, the fire button held winding up and
+  its release throwing; a dud (a hand grenade with its pin in) held, the fire button arming it first and G putting it
+  in the pouch. A live grenade that isn't a hand grenade has its fire button the quick grenade's too
+  (`VR_HandGrenade_Trigger` via `VR_FlatGrenade_Owns`: not the carry's take). Test: `vr_flatitems_test 11`.
 - **The buttons**: while a grenade is held, LMB is the main hand's and RMB the off hand's, whatever the other hand holds
   (`flatplay::routeFire`; no ironsight on RMB then). The grenade's hand doesn't punch.
 - **As drawn** (`STAT_QVR_FLATGREN`: the phase + 8 for the main hand): shares of the way to four places off the hand's

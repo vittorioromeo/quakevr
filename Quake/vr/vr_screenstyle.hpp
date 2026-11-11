@@ -45,7 +45,9 @@ struct Style
 };
 
 // The style of the weapon whose model is `model` (a model's name, "progs/v_shot.mdl"; null or unknown: the default).
-[[nodiscard]] const Style& forModel(const char* model);
+// `mirrored`: the model drawn mirrored (a gun in the left hand): the offset's right (x) turned round, so the glass keeps
+// its place in the mirrored housing (the glass itself is never mirrored: its right stays the reader's right).
+[[nodiscard]] const Style& forModel(const char* model, bool mirrored = false);
 
 // The default style (the ammo pouch's counter, the tool gun's screen, any screen of no weapon).
 [[nodiscard]] const Style& fallback();

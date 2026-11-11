@@ -9344,3 +9344,65 @@ combination of props/weapons".
 - Debug: `vr_flat_swap_debug 2` prints each hand's own pose and drawn place every frame of a meeting swap; test aid
   `vr_flat_swap_seen`. Debug > Tests: "Flat Swap: Two-Handed Weapons", "Flat Swap: Props And Weapons". Scene
   `flat_swap_props`.
+## The ammo screen in the left hand; cvar promotions; checklist ticks retired (branch `agent/fbmisc`, 2026-11-11)
+
+### The ammo screen in the left hand
+
+His report: the grenade launcher's screen sat centred in its bezel in the right hand, but in the left hand a bit to the
+right, into the enclosure. Cause: a housed gun's screen style (vr_screenstyle.cpp) has an `offset` that seats the glass
+in the housing, along the glass's own right, up and out. The glass is never mirrored (it reads the same way in either
+hand), so its right stays the reader's right in the left hand, while the housing, part of the gun's model, is mirrored
+with it: the glass landed 2 * offset.x to the side. The grenade launcher's offset.x is the largest of any (0.0544 world
+units; the multi-grenade's 0.0443, the nailguns' 0.013-0.026, the shotgun's -0.019, the rocket launcher's -0.004), so
+only it showed: 0.256 model units off (the window is 2.21 wide: 12%).
+
+- `screenstyle::forModel(model, mirrored)`: a mirrored gun's style has offset.x turned round (a file-scope table of the
+  mirrored copies, so the queued screens' style pointers stay valid). Both screen paths pass it: the held gun
+  (vr_view_weapon.cpp queueWeaponText) and the holstered or lying gun (vr_view.cpp).
+- The screen's yaw offset (wpntxt_yaw) is now turned round in a mirrored hand too, as the roll was and as the gun's own
+  angle offsets are (weaponAngleOffsets). Only slot 1 has one (-0.05): no visible change.
+- `vr_debug_screen_offhand` (new, 0; Debug > Reports > Off Hand's Ammo Screen): Ammo Screen on Model
+  (`vr_debug_screen_where`) and Look at Ammo Screen (`vr_debug_screen_cam`) act on the off hand's gun. The screenwhere
+  line ends "(off hand, mirrored)" for it.
+- Measured (`vr_debug_screen_where`, the glass's centre in the model's own units, right hand / left hand): before
+  -2.6607 -0.0396 7.1872 / -2.6606 0.2164 7.1872; after -2.6607 -0.0396 7.1872 / -2.6606 -0.0393 7.1872.
+- Test `Misc/quakevr/screenhands_test.sh` (4 runs, flat play: shotgun, nailgun, grenade launcher, rocket launcher; the
+  gun in the right hand, then swapped to the left): the centres agree within 0.01 (0.0001-0.0010 now). Shots:
+  fbmisc worktree `scratch/before_gl.png` and `scratch/after_gl.png` (left half the right hand, right half the left;
+  `vr_debug_screen_cam 45`).
+
+### His recent values promoted
+
+`tune_promote.py --check` on his tunables.cfg, and his ironwail.cfg's vr_ lines against vr_cvars.inc (the audit's
+personal and debug rules: calibration, comfort, toolgun, cosmetics, graphics, menu and migration lines stay his):
+
+- `vr_flat_grenade_throw_pitch` 0 -> 5 and `vr_flat_grenade_speed_scale` 1 -> 0.75 (tunables: the quick grenade's
+  throw a little higher and slower). flathands_check.py reads the new defaults (grenmain: 11 deg above the crosshair,
+  453 u/s; grenarc's 20 / 1.5 now 15 deg higher and twice as fast; its arc compared above the crosshair, where the
+  angles add exactly: above level the steeper launch reads a degree less). flathands: 74 passed, 0 failed.
+- weapons.txt slot 5 (grenade launcher) `wpntxt_y` -1.65 -> -1.645 (`weapons_data.py promote`; 0.005 units, his).
+- Not promoted (personal): `vr_stick_swap 1` (which stick moves: a handedness choice), `vr_menu_flat_scale/_x/_y`
+  (where he parked the flat menu), `vr_menu_positions`. Every other line was in the audit's personal/debug lists.
+## UNLOAD greyed at full ammo; a grabbed grenade held as after G (branch `agent/fbitems`, 2026-11-11)
+
+His words: "if the player is at full ammo capacity, the unload button should be greyed out", and "Grabbing a grenade
+(live or non-live) via force-grabbing should put it in the same state as when 'G' is pressed".
+
+- **UNLOAD** (holster menu, impulses 82/83): the menu only knew the clip (`VR_FlatHudClip`), not the reserve's cap
+  (`VR_MaxAmmo`, campaign-dependent: Dawn of the Machine's grow), so the server says it: `VR_FlatReload_HandFrame` sets
+  `.vr_flatrl_full` (1 off, 2 main) when the hand's gun has rounds to unload and `VR_FlatReload_UnloadFits` (the same cap
+  rule as `VR_FlatReload_ClipBack`'s `xCapped`) is 0; sent as the new `STAT_QVR_FLATUNLOADFULL`; `vr_flatholster.cpp`
+  `enabled()` greys the button on it. Some room: lit, and only what fits moves (as before). No new cvars.
+- Test: `flatholster_test.sh` gains 6 checks (29 passed, 0 failed): lit with room; `give n 200`: the nailgun's UNLOAD
+  greyed, its click does nothing, the shotgun's still lit; `give n 195`: lit again, the click moves 5 (nails 195 -> 200,
+  clip 24 -> 19). Scene `flat_unload_full`.
+- **Grenades** (`VR_FlatGrenade_Adopt`, `QC/vr_flatgrenade.qc`): while no quick grenade is under way (phase 0), a hand
+  holding any `.vr_grenade` (force grab's catch, a hand's grab, a catch in flight) takes the quick grenade's state, the
+  same path G's grenade then runs: live (an ogre's, an armed hand grenade) `VR_FLATGREN_ARMED`, fire held winds up, let go
+  throws; a dud `VR_FLATGREN_HELD`, fire arms first, G puts it in the pouch. The client already draws phase 0 -> 2/3 (the
+  hold eases in, no pouch trip). An ogre's grenade (not a hand grenade) had its fire button go to the carry's take:
+  `VR_HandGrenade_Trigger` now also claims it while the quick grenade owns it (`VR_FlatGrenade_Owns`). Shared: the whole
+  quick grenade path (state, buttons, wind-up, throw, `VR_Grenade_Released`); nothing flat-only added beyond the adopt.
+- Test: `vr_flatitems_test 11` (11 passed, 0 failed): looking 35 degrees down at a dud on the floor, E: off hand HELD,
+  RMB arms (state 3), RMB held winds up (4), let go throws (508 u/s); an ogre's live grenade: ARMED at once, wind-up,
+  throw ("thrown back: goes off as your launcher's"). Scene `flat_grenade_grab`.

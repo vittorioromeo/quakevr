@@ -8,6 +8,9 @@ import sys
 
 D = sys.argv[1]
 passed = failed = 0
+# The shipped vr_flat_grenade_throw_pitch and vr_flat_grenade_speed_scale (his values, promoted 2026-11-11: were 0 and 1).
+ARC_PITCH = 5.0
+SPEED_SCALE = 0.75
 
 
 def lines(tag):
@@ -90,8 +93,8 @@ t = [re.search(r"thrown by the off hand after ([\d.]+) s wound up: (\d+) u/s", l
 t = [x for x in t if x]
 if t:
     held_s, speed = float(t[0].group(1)), float(t[0].group(2))
-    want = 350 + 550 * min(1.0, held_s / 1.5)  # (vr_flat_grenade_wind_full 1.5 since 2026-11-11)
-check(bool(t) and abs(held_s - 0.69) < 0.05 and abs(speed - want) < 40,
+    want = (350 + 550 * min(1.0, held_s / 1.5)) * SPEED_SCALE  # (vr_flat_grenade_wind_full 1.5 since 2026-11-11)
+check(bool(t) and abs(held_s - 0.69) < 0.05 and abs(speed - want) < 40 * SPEED_SCALE,
       "gren2h: let go, thrown as fast as it was wound up (%s)" % (str((t[0].group(1), t[0].group(2))) if t else "none"))
 stance = [l for l in ls if l.startswith("  stance:")]
 check(len(stance) >= 2 and all(("going on it" in s or "holding its grip" in s) for s in (stance[0], stance[-1])),
@@ -121,8 +124,9 @@ for tag, hand, other in (("grenoff", "off", "main"), ("grenmain", "main", "off")
     check(has(ls, r"flat grenade: G: the %s hand goes for the pouch$" % hand), "%s: the %s hand empty: it goes" % (tag, hand))
     check(has(ls, r"thrown by the %s hand after" % hand), "%s: armed, wound up and thrown by the %s hand" % (tag, hand))
 
-# grenarc: grenmain's throw with vr_flat_grenade_throw_pitch 20 and vr_flat_grenade_speed_scale 1.5: launched 20 degrees
-# higher and 1.5 times as fast; grenmain (the defaults 0 and 1) leaves Throw Above Aim's 6 degrees above the level look.
+# grenarc: grenmain's throw with vr_flat_grenade_throw_pitch 20 and vr_flat_grenade_speed_scale 1.5: launched 20 - 5
+# degrees higher and 1.5 / 0.75 times as fast; grenmain (the defaults 5 and 0.75) Throw Above Aim's 6 degrees plus the
+# arc pitch's 5 above the level look.
 def launch(tag):
     for l in lines(tag):
         m = re.search(r"flat grenade: launched ([-\d.]+) deg above level, ([-\d.]+) above the crosshair, ([\d.]+) u/s", l)
@@ -135,12 +139,15 @@ def launch(tag):
 ls = lines("grenarc")
 done("grenarc", ls)
 a, b = launch("grenmain"), launch("grenarc")
-check(a is not None and a[3] == 6 and abs(a[2] - 6) < 1.5,
-      "grenmain: the defaults (Arc Pitch 0, Speed Scale 1): Throw Above Aim's 6 deg above the crosshair, about level ahead (%s)" % (a,))
-check(a is not None and b is not None and abs(b[0] - a[0]) < 0.02 and abs((b[2] - a[2]) - 20) < 0.5 and b[3] == 26,
-      "grenarc: Throw Arc Pitch 20: launched 20 deg higher (%s vs %s)" % (b and b[2], a and a[2]))
-check(a is not None and b is not None and a[1] > 0 and abs(b[1] / a[1] - 1.5) < 0.01,
-      "grenarc: Throw Speed Scale 1.5: 1.5 times as fast (%s vs %s u/s)" % (b and b[1], a and a[1]))
+check(a is not None and a[3] == 6 + ARC_PITCH and abs(a[2] - (6 + ARC_PITCH)) < 1.5,
+      "grenmain: the defaults (Arc Pitch %g, Speed Scale %g): Throw Above Aim's 6 deg and the arc's above the crosshair, "
+      "the look level (%s)" % (ARC_PITCH, SPEED_SCALE, a))
+# (Above the crosshair: the angles add exactly there; above level the steeper launch reads a degree less, 25 vs 11.)
+check(a is not None and b is not None and abs(b[0] - a[0]) < 0.02 and abs((b[3] - a[3]) - (20 - ARC_PITCH)) < 0.5 and b[3] == 26,
+      "grenarc: Throw Arc Pitch 20: launched %g deg higher above the crosshair than the default's (%s vs %s)"
+      % (20 - ARC_PITCH, b and b[3], a and a[3]))
+check(a is not None and b is not None and a[1] > 0 and abs(b[1] / a[1] - 1.5 / SPEED_SCALE) < 0.01,
+      "grenarc: Throw Speed Scale 1.5: %g times the default's speed (%s vs %s u/s)" % (1.5 / SPEED_SCALE, b and b[1], a and a[1]))
 
 # The hand slot (every grenade run, vr_debug_carry 2): the grenade a round's kind (4) unarmed, a grenade's (5) once armed,
 # the hand changing with it at once; no mismatch, clash or stale line anywhere; the hand empty once it is thrown.

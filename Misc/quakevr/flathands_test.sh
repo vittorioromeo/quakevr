@@ -12,8 +12,8 @@
 #   grenempty both hands empty, one-press mode: G takes the main hand; LMB held arms and winds up, let go throws; G again
 #             with one held unarmed puts it back (the rocket back)
 #   grendual  a gun in each hand: G does nothing (no free hand)
-#   grenarc   grenmain with vr_flat_grenade_throw_pitch 20 and vr_flat_grenade_speed_scale 1.5: launched 20 deg higher
-#             and 1.5 times as fast as grenmain (whose defaults, 0 and 1, keep Throw Above Aim's 6 deg)
+#   grenarc   grenmain with vr_flat_grenade_throw_pitch 20 and vr_flat_grenade_speed_scale 1.5: launched 15 deg higher
+#             and twice as fast as grenmain (the defaults, 5 and 0.75: Throw Above Aim's 6 deg plus 5)
 #   grenoff   a shotgun in the main hand: G takes the off hand; RMB arms, RMB held winds up, let go throws
 #   grenmain  a nailgun in the off hand: G takes the main hand; LMB arms, LMB held winds up, let go throws
 #   (every run, vr_debug_carry 2: the hand slot's kind follows the grenade, a round's (4) unarmed, a grenade's (5) once

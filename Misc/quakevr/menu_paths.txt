@@ -5132,6 +5132,7 @@ vr_ao_cache|2|Debug - Reports|Keep AO Bakes on Disk|Advanced VR Options > Debug 
 |2|Debug - Reports|Weapon Anchors|Advanced VR Options > Debug > Reports > Weapon Anchors
 |2|Debug - Reports|Ammo Screen on Model|Advanced VR Options > Debug > Reports > Ammo Screen on Model
 |2|Debug - Reports|Look at Ammo Screen|Advanced VR Options > Debug > Reports > Look at Ammo Screen
+vr_debug_screen_offhand|2|Debug - Reports|Off Hand's Ammo Screen|Advanced VR Options > Debug > Reports > Off Hand's Ammo Screen
 |2|Debug - Reports|Sight Lines|Advanced VR Options > Debug > Reports > Sight Lines
 |2|Debug - Reports|Sight Check|Advanced VR Options > Debug > Reports > Sight Check
 |2|Debug - Reports|Wrist Gadget|Advanced VR Options > Debug > Reports > Wrist Gadget

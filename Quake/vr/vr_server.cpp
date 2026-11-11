@@ -933,6 +933,7 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
     statsi[STAT_QVR_RELOADMODE] = vr_holster_mode.value != 0.f ? 0 : flatPlayer ? (vr_flat_reload.value != 0.f ? 2 : 0) : reloadModeBest();
     stat(STAT_QVR_FLATRELOAD, f.vr_flatrl);
     stat(STAT_QVR_FLATGREN, f.vr_flatgren); // the quick grenade's phase and hand (vr_flatgrenade.cpp)
+    stat(STAT_QVR_FLATUNLOADFULL, f.vr_flatrl_full); // the holster menu's UNLOAD greyed, that ammo full up (vr_flatholster.cpp)
     stat(STAT_QVR_POUCHKIND, f.vr_pouch_kind);
     stat(STAT_QVR_POUCHCOUNT, f.vr_pouch_count);
     stat(STAT_QVR_AMMOLAVA, f.ammo_lava_nails); // Rogue's ammo: the flat-screen visor's ammo grid
