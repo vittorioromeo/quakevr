@@ -168,6 +168,42 @@ constexpr Entry table[] = {
             .box = 0.f,
             .housing = true,
             .opening = {15.54f, 15.35f}}},
+    // The grenade launcher: a square riveted bronze bezel on the rear face of the top block (the pyramid's upper face
+    // under the top ridge), the window chamfered, a rivet in each of the bezel's corners (v_rock.blend,
+    // Misc/quakevr/make_screen_housing_gl.py reads `opening`, `radius` and `offset` from here). The plate leans on the
+    // grid's plane nearest the face (56.4 degrees from level; weapons.txt slot 5 wpntxt_pitch 33.58); the window 1H
+    // square (H 2.21 model units: four of its rows), corners cut 0.12H (radius < 0: cut); the glass 0.04H behind the
+    // plate's front (the offset: from weapons.txt's place onto it, world units right/up/out). No box.
+    {"rock",
+        {.radius = -3.87f,
+            .bevel = 1.6f,
+            .vignette = 0.4f,
+            .sheen = 0.6f,
+            .soft = 0.55f,
+            .glass = 0.13f,
+            .tint = {0.9f, 1.f, 0.9f},
+            .crt = 0.4f,
+            .size = 1.f,
+            .offset = {0.0544f, -0.3619f, -0.1192f},
+            .box = 0.f,
+            .housing = true,
+            .opening = {15.48f, 15.64f}}},
+    // The grenade launcher's multi-grenade model (v_multi.blend): the same housing, by the same script, on its own grid
+    // and its face (slot 13).
+    {"multi",
+        {.radius = -3.88f,
+            .bevel = 1.6f,
+            .vignette = 0.4f,
+            .sheen = 0.6f,
+            .soft = 0.55f,
+            .glass = 0.13f,
+            .tint = {0.9f, 1.f, 0.9f},
+            .crt = 0.4f,
+            .size = 1.f,
+            .offset = {0.0443f, -0.2030f, -0.3323f},
+            .box = 0.f,
+            .housing = true,
+            .opening = {15.51f, 15.70f}}},
 };
 
 [[nodiscard]] bool stemIs(const char* model, const char* stem)
