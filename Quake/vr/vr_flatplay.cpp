@@ -1544,6 +1544,11 @@ void toolgunKeys()
 
 } // namespace
 
+glm::vec3 blendHandAngles(const glm::vec3& a, const glm::vec3& b, float k)
+{
+    return blendAngles(a, b, k);
+}
+
 void swapHands(const char* what)
 {
     keyState.swaps++;
@@ -3257,7 +3262,15 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         const glm::vec3 restOld = rest - fromAnchor; // the numbers off the old anchor: the punch's, and vr_flat_body_pose 0's
         // A punch is the melee rules' to judge, a real blow (vr_handsource.hpp: an action); the rest of the pose is made
         // up, the shove's push too (its blow is the game's own: VR_FlatShove), and no gesture reads it.
-        if(punching(h))
+        // (A weapon's overhead swing: not its windup, unless vr_flat_swing_wind_strikes. The raise went up through a knight
+        // 20 to 26 units ahead and landed a weak blow there, x0.5 to x0.8, which knocked it out of the strike's way: the
+        // raised-behind-the-head swing then did 11 to 24 damage, not 70, 2026-11-11.)
+        if(punching(h) && fs.punchOverhead[h] && vr_flat_swing_wind_strikes.value == 0.f &&
+           vr_gametime - fs.punchAt[h] < static_cast<double>(swingTimes().wind))
+        {
+            handsource::mark(h, handsource::Source::Synthesized, "swing windup");
+        }
+        else if(punching(h))
         {
             handsource::mark(h, handsource::Source::Action, "punch");
         }

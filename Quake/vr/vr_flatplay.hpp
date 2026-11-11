@@ -84,6 +84,8 @@ struct FireRoute
 // How far empty hand `h`'s fingers close into a fist (0 open .. 1): its rest's share of the guard
 // (vr_flat_empty_hand_pose), and all the way while it punches.
 [[nodiscard]] float fistShare(int h);
+// Hand angles `k` of the way from `a` to `b` (degrees; 0 `a`, 1 `b`): the shortest turn between them.
+[[nodiscard]] glm::vec3 blendHandAngles(const glm::vec3& a, const glm::vec3& b, float k);
 
 // Whether this hand holds a melee weapon (the axe, mjolnir, a sword, the chainsaw, the crowbar, the super axe; AD's melee
 // weapons are these ids too): at a wall it only goes back, never turns muzzle up (vr_flatsight.cpp).

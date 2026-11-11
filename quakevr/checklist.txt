@@ -98,6 +98,7 @@ Flat-screen: the holster menu's Toggle mode (Locomotion, Holster Menu Wheel Butt
 The menus no longer show Main Menu Lettering, Flat: Tone Mapping or Models Lit From All Sides; the main menu, the flat window's colours and the models' light look as before.
 Flat-screen: set Debug > Tunables > Grenade: Throw Arc Pitch and Throw Speed Scale and throw a quick grenade (G); a higher pitch with a lower speed should lob it in a clear arc, and at 0 and 1 the throw is as before. {test:flat_grenade_arc}
 Let a pack of knights and dogs come at you on the navmesh with nothing changed in Debug > Tunables: they should now keep apart, round their corners and close in from several sides by default (Crowd Separation 1, Corner Smoothing 1, Approach Slots 8). {test:nav_crowd}
+Flat-screen: swing the axe at a wall from right against it and from a step or two back: every swing lands one blow on the wall (sound, sparks), and swung at a knight close by it hits once and hard, never on the way up. {test:flat_swing_wall}
 
 [2. VR: melee and embedded blades]
 Hit a grunt with the axe right in front of you: the blood and its red mist come right at the camera, not only further off (your config still has Mist Clear of Eyes at 40: set vr_gore_mist_near 0; Particle Fade Near Eyes and Particles Hidden Nearer at 0 draw it at the eyes too). {test:flat_skewer_gibs}

@@ -9285,3 +9285,36 @@ ce54b84b3 (after cvarretire, before the promotion).
   (no blow: grazing). At 0.14 the arrival frame happened to touch (0.01 back), and the head lines crossed. Fix not
   made (larger than a triage): the stop on the arrival frame should go back along the swing's own path (the contact
   in the arc), or the flat stop should tell QC its wall contact. flatinput's wallswing keeps 0.14 until then.
+
+## The swing's wall blow and the raised swing (branch `agent/swingwall`, 2026-11-11)
+
+His "Yes, fix it" to the triage's finding above (`vr_flat_swing_strike` 0.075 and the axe's wall blow), and its other
+short-strike symptom (flatmelee's "raised behind the head" swing doing 24 damage, not 30+). His 0.075 is unchanged.
+
+- **The wall blow: the flat swing's stop now goes back along the swing's own path** (`vr_flat_swing_path_stop`, 1;
+  Debug > Tunables > Flatscreen, "Wall: Swing Stops On Its Path"; vr_flatsight.cpp pushBack). The frame a swing would
+  put the weapon deeper than its bite (`vr_flat_punch_wall_margin` -0.5, and 0.25 slack), the hand is moved and turned
+  back towards the pose its stop left last frame (clear of the wall), by halvings (10) to the furthest point on that way
+  that is no deeper: where its path met the wall. QC's sweep (`VR_Melee_Sweep`, already swept from the pose before to
+  this one) then crosses the wall as the blade came in. The old stop (back towards the shoulder, then by the weapon's
+  depth) is kept for the first frame of a swing, a pose the frame before that was itself in the wall, and
+  `vr_flat_swing_path_stop 0`. `vr_flatplay_debug 2` prints "flatwall: ... swing path at <share of the frame's way>,
+  back <units> now <depth>". 10 places off vrtesthall's wall (y 612 to 626): misses before 4 at 0.075 (616 to 620),
+  2 at 0.14 (612, 616); after, none at either (one wall blow from each).
+- **VR**: nothing changes. The headset's hands are held out of walls by vr_handpose.cpp's slide, which already sweeps
+  the weapon's points from last frame's place along the move (and pushes a turn into a wall out along its normal); QC's
+  sweep is the same code for both. The gap was the flat stop's pull towards the shoulder alone. melee_wall_takes.sh
+  (axe set, VR takes into the wall): see the numbers below.
+- **The raised swing's 24 damage was not the sampling gap**: the windup. Raised behind the head (`vr_flat_swing_raise_fwd`
+  -12), the raise went up through a knight 20 to 26 units ahead and, the whole punch being a button's action, landed a
+  weak blow on it ("chop (diagonal, up)" or a pommel strike, x0.46 to x0.77, 11 to 24 damage), which knocked it out of
+  the strike's way, or the strike then landed too (two blows on one knight in one swing). Now the windup is the game's
+  motion (`handsource` Synthesized, "swing windup"), the swing a button's action from its top on
+  (`vr_flat_swing_wind_strikes`, 0; "Swing Windup Strikes"; 1 is the old way). 8 raised swings at 20 to 28 units and 3
+  default ones: never two knight blows in a swing (before: windup and strike both hit). On vrtesthall the hits did 20 to 75; flatmelee (e1m1) reads 62. One or two of 11 meet nothing, the knight off where it spawned after
+  (it was not where it spawned; seen before the change too, 56 off: open, not the swing).
+- Test `Misc/quakevr/flatswing_test.sh` (4 runs): the 10 places at 0.075 and 0.14, the control (path stop 0 misses),
+  and the knight swings (never two blows on the knight a swing, at least 9 of 11 land: random, a knight sometimes not where it spawned; 9 to 10 seen). flatinput's
+  wallswing runs at the default strike again. Scene `flat_swing_wall`.
+- flatmelee's damage read (`vr_test_hurt` after a swing) reads the nearest live monster: when the swing gibs the knight
+  it is another monster's health (the triage's note); flatswing counts a gibbing blow as 75.

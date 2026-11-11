@@ -170,6 +170,15 @@ struct Sight
 
     float backNeed[2]{0.f, 0.f}; // how far each hand's weapon must go back to be out of the walls, this pose's measure
     float swingStop[2]{0.f, 0.f}; // how far a melee weapon's swing was stopped short of the walls this pose (pushBack)
+    // Each hand's pose as its swing's stop left it (pushBack, vr_flat_swing_path_stop): this frame's (at swingPoseTime)
+    // and the frame's before, the one its path goes on from; valid while it swung with the stop on.
+    glm::vec3 swingPos[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    glm::vec3 swingRot[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    bool swingValid[2]{false, false};
+    glm::vec3 swingPrevPos[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    glm::vec3 swingPrevRot[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    bool swingPrevValid[2]{false, false};
+    double swingPoseTime[2]{-1e9, -1e9};
     float back[2]{0.f, 0.f};     // and how far it is back, eased once a frame (pushBack)
     glm::vec3 backWay[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // the way it goes, in the view's frame
     float tiltNeed[2]{0.f, 0.f}; // how far each drawn weapon's muzzle must tilt up to be out of what the way back can't clear
@@ -276,6 +285,7 @@ constexpr float wallMarginMax = 24.f; // vr_flat_wall_margin's range (units)
 constexpr int swingStopPasses = 4;     // a swing's stop at a wall (pushBack): passes at most, each from where the last left it
 constexpr float swingStopSlack = 0.25f; // and done once no deeper than its bite and this (units)
 constexpr int swingStopHalvings = 8;   // then by the weapon's own depth, found in this many halvings
+constexpr int swingPathHalvings = 10;  // or where its own path from the frame before met the wall (vr_flat_swing_path_stop)
 // At a wall a gun turns muzzle up only (vr_flat_wall_tilt's pose; his choice, 2026-11-07: the left, right and down poses
 // of the third pass looked wrong); a melee weapon only goes back (flatplay::meleeIn). What the turn leaves in the wall,
 // the weapon goes further back for (pushBack's room, roomFor): past the fold and the stock's place, the arm into the
@@ -445,16 +455,22 @@ struct Sighted
 
 // The muzzle the hand's shots go from this frame: the one the view placed last frame, carried with the hand since, its
 // move and its turn. keepMuzzle hands it to the shot (hands::handMuzzle carries only the move, vr_client.cpp).
-[[nodiscard]] glm::vec3 muzzleNow(const hands::State& s, int h)
+// (Its offset off a hand turned to `rot`.)
+[[nodiscard]] glm::vec3 muzzleOff(const hands::State& s, int h, const glm::vec3& rot)
 {
     if(!s.muzzleValid[h] || !st.muzzleKnown[h])
     {
-        return s.pos[h] + hands::forward(s.rot[h]) * 8.f;
+        return hands::forward(rot) * 8.f;
     }
     glm::vec3 fwd, right, up;
-    hands::angleVectors(s.rot[h], fwd, right, up);
+    hands::angleVectors(rot, fwd, right, up);
     const glm::vec3& l = st.muzzleLocal[h];
-    return s.pos[h] + fwd * l.x + right * l.y + up * l.z;
+    return fwd * l.x + right * l.y + up * l.z;
+}
+
+[[nodiscard]] glm::vec3 muzzleNow(const hands::State& s, int h)
+{
+    return s.pos[h] + muzzleOff(s, h, s.rot[h]);
 }
 
 // A line from `a` towards `b`, as a shot's goes (QC FireBulletsImpl: monsters' models, gibs and heads; him and what he owns
@@ -1260,7 +1276,55 @@ void pushBack(hands::State& s, const glm::vec3& aim)
         // no further. Any weapon, a gun's too (his notes 2026-11-10: a melee strike with a weapon went into the wall; a gun
         // swung with V was not stopped at all). An empty hand's punch: flatplay's handOffWall.
         st.swingStop[h] = 0.f;
+        if(st.swingPoseTime[h] != vr_gametime) // (the pose is made several times a frame: the frame before's, kept)
+        {
+            st.swingPrevPos[h] = st.swingPos[h];
+            st.swingPrevRot[h] = st.swingRot[h];
+            st.swingPrevValid[h] = st.swingValid[h];
+            st.swingPoseTime[h] = vr_gametime;
+        }
+        st.swingValid[h] = false;
         if(flatplay::punching(h) && vr_flat_hand_collide.value != 0.f)
+        {
+            // (A negative margin: that far into it, the swing's bite, as flatplay's handOffWall.)
+            const float m = za::clamp(vr_flat_punch_wall_margin.value, -wallMarginMax, wallMarginMax);
+            // Where its own path met the wall (vr_flat_swing_path_stop; 2026-11-11): from the frame before's pose, clear
+            // of it, towards this one, the hand moved and turned as far along as keeps the weapon no deeper than its
+            // bite. Pulled back towards the shoulder instead, a short strike (vr_flat_swing_strike 0.075: the axe 7
+            // units into the wall the frame it arrived) left the blade's lines that frame off the wall and sliding down
+            // along it, and no wall blow landed from 2 of 10 places (QC VR_Melee_Sweep sweeps the frame before's pose to
+            // this one: on the path, it meets the wall as it came in).
+            // (Its bite exactly: the halvings find the furthest point no deeper, so no slack is needed past it.)
+            const float pathBite = za::max(0.f, -m);
+            const auto pathDepth = [&](const glm::vec3& p, const glm::vec3& r) {
+                return handpose::gunDepth(h, s.head, p, r, muzzleOff(s, h, r), 0.f, 0.f);
+            };
+            const bool onPath = vr_flat_swing_path_stop.value != 0.f && st.swingPrevValid[h] &&
+                                pathDepth(s.pos[h], s.rot[h]) > pathBite &&
+                                pathDepth(st.swingPrevPos[h], st.swingPrevRot[h]) <= pathBite;
+            if(onPath)
+            {
+                float lo = 0.f, hi = 1.f;
+                for(int i = 0; i < swingPathHalvings; i++)
+                {
+                    const float mid = 0.5f * (lo + hi);
+                    const glm::vec3 p = st.swingPrevPos[h] + (s.pos[h] - st.swingPrevPos[h]) * mid;
+                    (pathDepth(p, flatplay::blendHandAngles(st.swingPrevRot[h], s.rot[h], mid)) > pathBite ? hi : lo) = mid;
+                }
+                const glm::vec3 p = st.swingPrevPos[h] + (s.pos[h] - st.swingPrevPos[h]) * lo;
+                const glm::vec3 r = flatplay::blendHandAngles(st.swingPrevRot[h], s.rot[h], lo);
+                st.swingStop[h] = za::max(glm::distance(p, s.pos[h]), 0.001f);
+                if(vr_flatplay_debug.value >= 2)
+                {
+                    Con_Printf("flatwall: %s hand t %.3f swing path at %.3f of the frame's way, back %.2f now %.2f\n",
+                        h == HAND_MAIN ? "main" : "off", vr_gametime, static_cast<double>(lo),
+                        static_cast<double>(st.swingStop[h]), static_cast<double>(pathDepth(p, r)));
+                }
+                s.rot[h] = r;
+                s.pos[h] = p;
+            }
+        }
+        if(flatplay::punching(h) && vr_flat_hand_collide.value != 0.f && st.swingStop[h] <= 0.f)
         {
             // (A negative margin: that far into it, the swing's bite, as flatplay's handOffWall.)
             const float m = za::clamp(vr_flat_punch_wall_margin.value, -wallMarginMax, wallMarginMax);
@@ -1316,6 +1380,12 @@ void pushBack(hands::State& s, const glm::vec3& aim)
                 Con_Printf("flatwall: %s hand t %.3f swing back %.2f now %.2f\n", h == HAND_MAIN ? "main" : "off", vr_gametime,
                     st.swingStop[h], handpose::gunDepth(h, s.head, now.pos, now.rot, now.muzzle, 0.f, 0.f));
             }
+        }
+        if(flatplay::punching(h) && vr_flat_hand_collide.value != 0.f)
+        {
+            st.swingPos[h] = s.pos[h];
+            st.swingRot[h] = s.rot[h];
+            st.swingValid[h] = true;
         }
     }
 }
