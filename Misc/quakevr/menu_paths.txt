@@ -1116,6 +1116,15 @@ vr_arena_alive_grow|1|Survival Arena|Pool Grows Every|Advanced VR Options > Comb
 vr_arena_burst|1|Survival Arena|Opening Burst|Advanced VR Options > Combat > Survival Arena > Opening Burst
 vr_arena_spawn_gap|2|Survival Arena|Spawn Gap|Advanced VR Options > Combat > Survival Arena > Spawn Gap
 vr_arena_max_alive|1|Survival Arena|Foes Up At Once|Advanced VR Options > Combat > Survival Arena > Foes Up At Once
+vr_arena_director|1|Survival Arena|Budget Director|Advanced VR Options > Combat > Survival Arena > Budget Director
+vr_arena_themes|1|Survival Arena|Wave Themes|Advanced VR Options > Combat > Survival Arena > Wave Themes
+vr_arena_theme_banner|1|Survival Arena|Theme In Countdown|Advanced VR Options > Combat > Survival Arena > Theme In Countdown
+vr_arena_reinforce|1|Survival Arena|Surges|Advanced VR Options > Combat > Survival Arena > Surges
+vr_arena_quick_kill|1|Survival Arena|Quick Kill Bonus|Advanced VR Options > Combat > Survival Arena > Quick Kill Bonus
+vr_arena_supply_reactive|1|Survival Arena|Supplies Follow You|Advanced VR Options > Combat > Survival Arena > Supplies Follow You
+vr_arena_supply_scale|1|Survival Arena|Supply Amount|Advanced VR Options > Combat > Survival Arena > Supply Amount
+vr_arena_alive_cap|1|Survival Arena|Foes Up At Most|Advanced VR Options > Combat > Survival Arena > Foes Up At Most
+vr_arena_director_log|2|Survival Arena|Director Log|Advanced VR Options > Combat > Survival Arena > Director Log
 vr_arena_boss_every|1|Survival Arena|Boss Every|Advanced VR Options > Combat > Survival Arena > Boss Every
 vr_arena_boss_health|1|Survival Arena|Boss Bulk|Advanced VR Options > Combat > Survival Arena > Boss Bulk
 vr_arena_foe_armor|1|Survival Arena|Armoured Foes|Advanced VR Options > Combat > Survival Arena > Armoured Foes
@@ -5175,6 +5184,9 @@ vr_obs_process_check|2|Debug - Reports|OBS: Process Check|Advanced VR Options > 
 |2|Debug - Tools|Decal Atlas|Advanced VR Options > Debug > Tools > Decal Atlas
 |2|Debug - Tools|Hand Mesh|Advanced VR Options > Debug > Tools > Hand Mesh
 |2|Debug - Tools|Gadget Screen|Advanced VR Options > Debug > Tools > Gadget Screen
+|2|Debug - Tools|Arena Director Plans|Advanced VR Options > Debug > Tools > Arena Director Plans
+|2|Debug - Tools|Arena Director Test|Advanced VR Options > Debug > Tools > Arena Director Test
+|2|Debug - Tools|Arena Director Reload|Advanced VR Options > Debug > Tools > Arena Director Reload
 |2|Debug - Tools|Arena Banner|Advanced VR Options > Debug > Tools > Arena Banner
 |2|Debug - Tools|Eye Images (with the UI)|Advanced VR Options > Debug > Tools > Eye Images (with the UI)
 |2|Debug - Tools|Texture Checksums|Advanced VR Options > Debug > Tools > Texture Checksums
