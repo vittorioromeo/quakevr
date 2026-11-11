@@ -16,6 +16,7 @@
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Lround.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 
@@ -102,7 +103,9 @@ struct Recipe
 //   vertices 151, 241, 281); the open bottom fanned from its middle, flat (13.5 0 3).
 // - The Plasma Gun (v_plasma.mdl, base1: level, centred): as it is, its pistol grip, trigger and stock's bar (the pieces
 //   of vertices 78, 711, 409) off, the grip's place (-9 0 -13) onto the lightning gun's grip (-0.5 0 4.5), cut just
-//   behind the hand (x -5.55: the stock out, the lightning gun's corner kept); the lightning gun's grip, trigger guard and
+//   behind the hand (x -5.33: the stock out, the lightning gun's corner kept; the cut's face on the grid's third X byte,
+//   two steps in front of the corner: room for the ammo screen's bezel and rivets, plasmaHousing; it was -5.55, drawn at
+//   the corner's byte); the lightning gun's grip, trigger guard and
 //   trigger (v_light.mdl's pieces of vertices 234, 403, 493), the trigger 0.6 up (his notes 2026-10-19: it hung 0.48 below
 //   the body, detached; vr_adweapon_models prints each grafted piece's least gap up to the body).
 const Recipe recipes[] = {
@@ -116,7 +119,7 @@ const Recipe recipes[] = {
         {"progs/v_shot2.mdl", 0, 0, 0, 0}, {151, 241, 281}, {-15.5775f, -4.6938f, -4.2402f}, false, {0.f, 0.f, 0.f},
         {0.f, 0.f, 0.f}, "progs/v_shot2.mdl", false, noRect, widowmakerParts, -1, {0.f, 0.f, 0.f}},
     {"progs/v_plasma.mdl#vr", {"progs/v_plasma.mdl", 786, 427, 128, 128}, "base1", {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f},
-        {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 1.f, {-9.f, 0.f, -13.f}, {-0.5f, 0.f, 4.5f}, {78, 711, 409}, true, {1.f, 0.f, 0.f}, -5.55f,
+        {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 1.f, {-9.f, 0.f, -13.f}, {-0.5f, 0.f, 4.5f}, {78, 711, 409}, true, {1.f, 0.f, 0.f}, -5.33f,
         {"progs/v_light.mdl", 0, 0, 0, 0}, {234, 403, 493}, {-5.6211f, -9.3429f, -6.0018f}, false, {0.f, 0.f, 0.f},
         {0.f, 0.f, 0.f}, "progs/v_light.mdl", true, {1.f, 74.f, 31.f, 97.f, false}, plasmaParts, 493, {0.f, 0.f, 0.6f}},
 };
@@ -721,6 +724,10 @@ struct Built
     glm::vec3 noteLo{0.f}, noteHi{0.f};
     float noteTop[noteBins]{};
     int spinVerts{0};                    // the vertices turned in the spin frames (spinFrames)
+    bool housing{false};                 // an ammo screen housing made (Parts::housing*)
+    glm::vec3 housingGlass{0.f};         // its glass's middle as designed
+    glm::vec2 housingWindow{0.f};        // its window's width and height
+    int housingOnFace{0};                // its outline's corners on the gun's face behind it (of 4)
 };
 
 [[nodiscard]] const Recipe* recipeOf(const char* name)
@@ -757,6 +764,12 @@ struct Parts
     const char* noteName{nullptr};
     glm::vec3 noteLo{0.f}, noteHi{0.f};
     float noteTop[noteBins]{};
+    glm::vec3 corner{0.f}; // the recipe's: the model is packed from it (its grid: a made part laid on it, the housing)
+    // An ammo screen housing made (vr_adweapon_models prints it: the table entry's numbers, vr_screenstyle.cpp).
+    bool housing{false};
+    glm::vec3 housingGlass{0.f};
+    glm::vec2 housingWindow{0.f};
+    int housingOnFace{0};
 };
 
 // The box of the vertices from `from` on as the part `name` (Parts::note*).
@@ -1027,6 +1040,201 @@ void widowmakerParts(Parts& p)
     p.muzzleSet = true;
 }
 
+// The Plasma Gun's ammo screen housing (his mockup, kit scratch/adplasma_housing_mockup_1111.webp; ROUND24.md, "The
+// Widowmaker's and the AD Plasma Gun's ammo screen housings"): a flat bronze bezel on the gun's rear face (the cut's cap)
+// round the screen, its window chamfered, a round rivet each side. Made on the model's grid (its bytes: X 0.148 a step,
+// Y 0.055, Z 0.073, packed from the recipe's corner; the parts made so far give its far corner, the housing is inside
+// it): the cut's face on the third X byte, the bezel's front on the second (one step proud), the rivets' tops on the
+// first (the corner's: nothing may go past it). h = the window's width:
+// - the window 2 plasmaWinY Y steps (1.20: the glass the screen had without a housing, so its digits keep the font's
+//   size: the "plasma.mdl#vr" entry's fillMax 1) by plasmaWinZ Z steps (0.91h; its middle half way between two), its
+//   corners cut 2 Y steps along the top and bottom, 1 Z step down the sides (about 0.08h); its walls straight in to
+//   the cut's face, dark (AD's dark slots);
+// - the bezel 2 Z steps (0.12h) above and below, 6 Y steps (0.27h) at the sides (the mockup's: room for the rivets), one
+//   X step proud (0.12h: the grid's least; the spec's 0.06h is half a step), flat, closed behind; AD's bronze plate;
+// - the rivets in the side bands' middles, level with the window's middle: an octagon 0.22 across on the bezel (r about
+//   0.09h) up to a small flat top on the corner's byte, smoothed (a low dome), gunmetal on bronze (one of AD's painted
+//   rivets on its riveted panel);
+// - the glass plasmaGlassIn h behind the bezel's front (the entry's offset).
+constexpr glm::vec2 plasmaGlassAt{-0.0617f, 9.2136f}; // y z: the screen's middle as weapons.txt slot 35 places it
+constexpr int plasmaWinY = 11, plasmaWinZ = 15;       // the window's half width, its height (grid steps)
+constexpr int plasmaSideY = 6, plasmaBandZ = 2;       // the bezel's bands (grid steps)
+constexpr int plasmaCutY = 2, plasmaCutZ = 1;         // the window's corners cut (grid steps)
+constexpr int plasmaRivetY = 14;                      // the rivets' middles from the window's (Y steps)
+constexpr float plasmaGlassIn = 0.04f;                // the glass behind the bezel's front, in h
+constexpr glm::vec2 plasmaBronze{48.5f, 6.5f};        // the bezel's middle's texel (AD's bronze plate, 33..64 x 1..12)
+constexpr float plasmaBronzeK = 7.f;                  // its texels a unit
+constexpr glm::vec2 plasmaRivetTex{34.f, 55.f};       // a painted rivet on AD's riveted panel (its dark dot)
+constexpr float plasmaDarkS0 = 7.f, plasmaDarkS1 = 8.f, plasmaDarkT0 = 51.f, plasmaDarkT1 = 61.f; // a dark slot
+
+void plasmaHousing(Parts& p)
+{
+    Out& o = p.o;
+    const za::SizeT trisFrom = o.tris.size(); // (the gun so far: the housing's own after)
+    glm::vec3 hi{-1e30f};
+    for(const glm::vec3& q : o.pos)
+    {
+        hi = glm::max(hi, q);
+    }
+    const glm::vec3 lo = p.corner;
+    const glm::vec3 step = (hi - lo) / 255.f;
+    const float jc = static_cast<float>(za::lround((plasmaGlassAt.x - lo.y) / step.y));
+    const float kb = static_cast<float>(za::lround((plasmaGlassAt.y - lo.z) / step.z - 0.5f * static_cast<float>(plasmaWinZ)));
+    const float kt = kb + static_cast<float>(plasmaWinZ), km = kb + 0.5f * static_cast<float>(plasmaWinZ);
+    const auto at = [&](float xb, float j, float k) { return lo + glm::vec3{step.x * xb, step.y * j, step.z * k}; };
+    const glm::vec3 mid = at(1.f, jc, km);
+    const float W = static_cast<float>(plasmaWinY), S = static_cast<float>(plasmaSideY), B = static_cast<float>(plasmaBandZ);
+    const float cY = static_cast<float>(plasmaCutY), cZ = static_cast<float>(plasmaCutZ);
+    // The bronze laid flat on the bezel (right = -y, up = z), `out` units further out from its edge (a wall folded out).
+    const auto bronze = [&](const glm::vec3& q, const glm::vec2& outward, float out) {
+        const glm::vec2 f{mid.y - q.y + outward.x * out, mid.z - q.z - outward.y * out}; // (right, down)
+        return glm::ivec2{texel(plasmaBronze.x + f.x * plasmaBronzeK), texel(plasmaBronze.y + f.y * plasmaBronzeK)};
+    };
+    // The outline (O), the window's top/bottom edges' ends (E) and its sides' (F), each (side, up/down).
+    const auto O = [&](float sy, float sz) { return glm::vec2{jc + sy * (W + S), sz > 0.f ? kt + B : kb - B}; };
+    const auto E = [&](float sy, float sz) { return glm::vec2{jc + sy * (W - cY), sz > 0.f ? kt : kb}; };
+    const auto F = [&](float sy, float sz) { return glm::vec2{jc + sy * W, sz > 0.f ? kt - cZ : kb + cZ}; };
+    // The bezel's front (byte 1) and back (byte 2, against the gun's face): bands and corner triangles.
+    for(int side = 0; side < 2; side++)
+    {
+        const float xb = side == 0 ? 1.f : 2.f;
+        const glm::vec3 facing{side == 0 ? -1.f : 1.f, 0.f, 0.f};
+        const int g = o.newGroup();
+        const auto v = [&](const glm::vec2& jk) {
+            const glm::vec3 q = at(xb, jk.x, jk.y);
+            const glm::ivec2 st = side == 0 ? bronze(q, glm::vec2{0.f}, 0.f)
+                                            : glm::ivec2{texel(plasmaDarkS1), texel(plasmaDarkT0)};
+            return o.vert(q, st.x, st.y, g);
+        };
+        for(const float sz : {1.f, -1.f})
+        {
+            const int a = v(O(1.f, sz)), b = v(O(-1.f, sz)), c = v(E(-1.f, sz)), d = v(E(1.f, sz));
+            face(o, a, b, c, facing);
+            face(o, a, c, d, facing);
+        }
+        for(const float sy : {1.f, -1.f})
+        {
+            const int a = v(O(sy, 1.f)), b = v(O(sy, -1.f)), c = v(F(sy, -1.f)), d = v(F(sy, 1.f));
+            face(o, a, b, c, facing);
+            face(o, a, c, d, facing);
+            for(const float sz : {1.f, -1.f})
+            {
+                face(o, v(O(sy, sz)), v(E(sy, sz)), v(F(sy, sz)), facing);
+            }
+        }
+    }
+    // Its outer walls (the bronze folded out from the front's edge) and the window's walls (dark), byte 1 to 2.
+    const glm::vec2 outline[4] = {O(1.f, 1.f), O(-1.f, 1.f), O(-1.f, -1.f), O(1.f, -1.f)};
+    for(int n = 0; n < 4; n++)
+    {
+        const glm::vec2 a = outline[n], b = outline[(n + 1) % 4];
+        const glm::vec2 m = (a + b) * 0.5f - glm::vec2{jc, km};
+        const glm::vec2 outward = za::abs(m.x * step.y) > za::abs(m.y * step.z) ? glm::vec2{m.x > 0.f ? -1.f : 1.f, 0.f}
+                                                                                : glm::vec2{0.f, m.y > 0.f ? 1.f : -1.f};
+        const int g = o.newGroup();
+        const auto v = [&](const glm::vec2& jk, float xb) {
+            const glm::vec3 q = at(xb, jk.x, jk.y);
+            const glm::ivec2 st = bronze(at(1.f, jk.x, jk.y), outward, step.x * (xb - 1.f));
+            return o.vert(q, st.x, st.y, g);
+        };
+        const int a0 = v(a, 1.f), b0 = v(b, 1.f), b1 = v(b, 2.f), a1 = v(a, 2.f);
+        const glm::vec3 wallOut{0.f, (m.x > 0.f ? 1.f : -1.f) * (outward.x != 0.f ? 1.f : 0.f), outward.y};
+        face(o, a0, b0, b1, wallOut);
+        face(o, a0, b1, a1, wallOut);
+    }
+    const glm::vec2 window[8] = {E(1.f, 1.f), E(-1.f, 1.f), F(-1.f, 1.f), F(-1.f, -1.f), E(-1.f, -1.f), E(1.f, -1.f),
+        F(1.f, -1.f), F(1.f, 1.f)};
+    for(int n = 0; n < 8; n++)
+    {
+        const glm::vec2 a = window[n], b = window[(n + 1) % 8];
+        const glm::vec2 m = (a + b) * 0.5f - glm::vec2{jc, km};
+        const glm::vec3 inward = -glm::normalize(glm::vec3{0.f, m.x * step.y, m.y * step.z});
+        const int g = o.newGroup();
+        const int a0 = o.vert(at(1.f, a.x, a.y), texel(plasmaDarkS0), texel(plasmaDarkT0), g);
+        const int b0 = o.vert(at(1.f, b.x, b.y), texel(plasmaDarkS0), texel(plasmaDarkT1), g);
+        const int b1 = o.vert(at(2.f, b.x, b.y), texel(plasmaDarkS1), texel(plasmaDarkT1), g);
+        const int a1 = o.vert(at(2.f, a.x, a.y), texel(plasmaDarkS1), texel(plasmaDarkT0), g);
+        face(o, a0, b0, b1, inward);
+        face(o, a0, b1, a1, inward);
+    }
+    // The rivets: an octagon on the bezel's front (half steps up and down: the window's middle is half way between two
+    // rows) to a flat top on byte 0, its sides and top one smoothing group (a low dome); closed under it.
+    constexpr float ring[8][2] = {{2.f, 0.5f}, {1.f, 1.5f}, {-1.f, 1.5f}, {-2.f, 0.5f}, {-2.f, -0.5f}, {-1.f, -1.5f},
+        {1.f, -1.5f}, {2.f, -0.5f}};
+    constexpr float top[4][2] = {{1.f, 0.5f}, {-1.f, 0.5f}, {-1.f, -0.5f}, {1.f, -0.5f}};
+    constexpr int topOf[8] = {0, 0, 1, 1, 2, 2, 3, 3};
+    for(const float sy : {1.f, -1.f})
+    {
+        const float rj = jc + sy * static_cast<float>(plasmaRivetY);
+        const int g = o.newGroup();
+        const auto v = [&](const float (&d)[2], float xb, float spread) {
+            return o.vert(at(xb, rj + d[0], km + d[1]), texel(plasmaRivetTex.x - d[0] * spread),
+                texel(plasmaRivetTex.y - d[1] * spread), g);
+        };
+        int rv[8], tv[4];
+        for(int n = 0; n < 8; n++)
+        {
+            rv[n] = v(ring[n], 1.f, 1.f);
+        }
+        for(int n = 0; n < 4; n++)
+        {
+            tv[n] = v(top[n], 0.f, 0.5f);
+        }
+        const glm::vec3 c = at(0.5f, rj, km);
+        for(int n = 0; n < 8; n++)
+        {
+            const int m = (n + 1) % 8;
+            const glm::vec3 outward = (o.pos[rv[n]] + o.pos[rv[m]]) * 0.5f - c + glm::vec3{-0.05f, 0.f, 0.f};
+            if(topOf[n] == topOf[m])
+            {
+                face(o, rv[n], rv[m], tv[topOf[n]], outward);
+            }
+            else
+            {
+                face(o, rv[n], rv[m], tv[topOf[m]], outward);
+                face(o, rv[n], tv[topOf[m]], tv[topOf[n]], outward);
+            }
+        }
+        face(o, tv[0], tv[1], tv[2], glm::vec3{-1.f, 0.f, 0.f});
+        face(o, tv[0], tv[2], tv[3], glm::vec3{-1.f, 0.f, 0.f});
+        const int gb = o.newGroup();
+        int base[8];
+        for(int n = 0; n < 8; n++)
+        {
+            base[n] = o.vert(o.pos[rv[n]], texel(plasmaDarkS1), texel(plasmaDarkT0), gb);
+        }
+        for(int n = 1; n + 1 < 8; n++)
+        {
+            face(o, base[0], base[n], base[n + 1], glm::vec3{1.f, 0.f, 0.f});
+        }
+    }
+    // Its outline's corners on the gun's face: inside the gun's section a little in front of the cut (its cap is made
+    // later, closing the holes: the gun's surfaces crossed an odd number of times along +z from there).
+    p.housingOnFace = 0;
+    for(const glm::vec2& c : outline)
+    {
+        const glm::vec3 q = at(2.f, c.x, c.y) + glm::vec3{0.3f * step.x, 0.f, 0.f};
+        int crossed = 0;
+        for(za::SizeT t = 0; t + 2 < trisFrom; t += 3)
+        {
+            const glm::vec3 &a = o.pos[o.tris[t]], &b = o.pos[o.tris[t + 1]], &e = o.pos[o.tris[t + 2]];
+            const float den = (b.y - e.y) * (a.x - e.x) + (e.x - b.x) * (a.y - e.y);
+            if(za::abs(den) < 1e-9f)
+            {
+                continue;
+            }
+            const float u = ((b.y - e.y) * (q.x - e.x) + (e.x - b.x) * (q.y - e.y)) / den;
+            const float v = ((e.y - a.y) * (q.x - e.x) + (a.x - e.x) * (q.y - e.y)) / den;
+            const float z = u * a.z + v * b.z + (1.f - u - v) * e.z;
+            crossed += u >= 0.f && v >= 0.f && u + v <= 1.f && z > q.z ? 1 : 0;
+        }
+        p.housingOnFace += crossed % 2;
+    }
+    p.housing = true;
+    p.housingGlass = at(1.f, jc, km) + glm::vec3{plasmaGlassIn * 2.f * W * step.y, 0.f, 0.f};
+    p.housingWindow = {2.f * W * step.y, static_cast<float>(plasmaWinZ) * step.z};
+}
+
 // The Plasma Gun's cell receiver (his note 2026-10-18: the cell on the inner side, not below as the lightning gun's): a
 // block on its +y side round the cell's way out (plasmaSeat: the cell 3.7 along x, 3.2 tall, turned out of it), AD's
 // texels (v_plasma.mdl's 128x128 skin): the riveted panel outside, the rusty plate round it.
@@ -1081,6 +1289,7 @@ void plasmaParts(Parts& p)
     const za::SizeT floorFrom = o.pos.size();
     box(o, {hx0, floorY - 0.4f, hz0}, {hx1, floorY + 0.05f, hz1}, {dark, dark, dark, dark}, dark, dark);
     note(p, o, floorFrom, "cell pocket's floor");
+    plasmaHousing(p);
 }
 
 // The vertices' welding for their normals: at one place (to a 0.001 grid) and in one smoothing group (Out::group).
@@ -1236,10 +1445,15 @@ void plasmaParts(Parts& p)
         }
     }
     Parts parts{o, graft, -rx0, src.skinH - ry0, skinW - 2, skinH - 2, 1, skinH - 2};
+    parts.corner = r.corner;
     if(r.parts)
     {
         r.parts(parts);
     }
+    out.housing = parts.housing;
+    out.housingGlass = parts.housingGlass;
+    out.housingWindow = parts.housingWindow;
+    out.housingOnFace = parts.housingOnFace;
     out.noteName = parts.noteName;
     out.noteLo = parts.noteLo;
     out.noteHi = parts.noteHi;
@@ -1991,6 +2205,12 @@ void info_f()
                     b.seedLo[k].z, b.seedHi[k].x, b.seedHi[k].y, b.seedHi[k].z,
                     b.adAbove[k] < 1e29f ? va("at z %.2f (the least gap %.2f)", b.adAbove[k], b.adGap[k]) : "none");
             }
+        }
+        if(b.housing)
+        {
+            Con_Printf("  ammo screen housing: glass %.4f %.4f %.4f, window %.4f x %.4f, %d of its outline's 4 corners on "
+                       "the gun's face\n",
+                b.housingGlass.x, b.housingGlass.y, b.housingGlass.z, b.housingWindow.x, b.housingWindow.y, b.housingOnFace);
         }
         if(b.noteName)
         {

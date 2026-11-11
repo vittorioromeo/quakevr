@@ -3479,10 +3479,10 @@ extern "C" void VR_MenuDrawOverlay()
 extern "C" int VR_MenuKey(int key, int repeat)
 {
     // On a flat screen (VR off), in either layout (Quake's own or vr_menu_flat_vr_style's panel), Escape is Back to game
-    // (vr_menu_flat_esc_game, on): the menu closes from whatever page and resumes, as the menu button does in a headset,
-    // and opens again on that page. Not without a game (Quake's main menu then: the demos), nor while Escape is the
-    // page's own (a drop-down open, a slider held) or a key binding waits. Off: Escape goes back a page, as Quake's.
-    if(key == K_ESCAPE && !repeat && vr_menu_flat_esc_game.value && !vrActive() && !M_WaitingForKeyBinding() &&
+    // (always): the menu closes from whatever page and resumes, as the menu button does in a headset, and opens again
+    // on that page. Not without a game (Quake's main menu then: the demos), nor while Escape is the
+    // page's own (a drop-down open, a slider held) or a key binding waits.
+    if(key == K_ESCAPE && !repeat && !vrActive() && !M_WaitingForKeyBinding() &&
         key_dest == key_menu && m_state != m_none && cls.state == ca_connected && !menu::escapeLocal())
     {
         tb().focused = -1;

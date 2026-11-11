@@ -201,15 +201,17 @@ struct ImageFit
     }
     const float ox = opening.x * (1.f - 2.f * g.fillMargin - 2.f * fabsf(g.shift.x));
     const float oy = opening.y * (1.f - 2.f * g.fillMargin - 2.f * fabsf(g.shift.y));
-    if(ox <= 0.f || oy <= 0.f)
+    float fill = g.fill;
+    if(ox > 0.f && oy > 0.f)
     {
-        return g.fill;
+        const float w = 8.f * za::max(g.fillCols.x, g.restSize * g.fillCols.y);
+        const float h = 8.f * (1.f + (g.fillCols.y > 0.f ? g.restSize : 0.f));
+        const float t = CLAMP(0.1f, opening.z, 1.f);
+        const float kw = (w + ox * (1.f - t) * h / (2.f * oy)) / (ox * (1.f + t));
+        fill = g.fill / za::max(kw, h / (2.f * oy));
     }
-    const float w = 8.f * za::max(g.fillCols.x, g.restSize * g.fillCols.y);
-    const float h = 8.f * (1.f + (g.fillCols.y > 0.f ? g.restSize : 0.f));
-    const float t = CLAMP(0.1f, opening.z, 1.f);
-    const float kw = (w + ox * (1.f - t) * h / (2.f * oy)) / (ox * (1.f + t));
-    return g.fill / za::max(kw, h / (2.f * oy));
+    // (A style's cap, `fillMax`: the numbers never grown past the font's size times it.)
+    return g.fillMax > 0.f ? za::min(fill, g.fillMax) : fill;
 }
 
 // The opening a queued screen's style gives it, and its taper (none unless styled: vr_weapon_screen_style).
@@ -1401,7 +1403,7 @@ void queue(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, A
     q.glyphs = {CLAMP(0.05f, glyphs.size, 20.f), glm::clamp(glyphs.shift, glm::vec2{-2.f}, glm::vec2{2.f}),
         CLAMP(0.1f, glyphs.restSize, 4.f), CLAMP(0.f, glyphs.restBright, 1.f),
         glm::clamp(glyphs.fillCols, glm::vec2{0.f}, glm::vec2{16.f}), CLAMP(0.1f, glyphs.fill, 4.f),
-        CLAMP(0.f, glyphs.fillMargin, 0.4f)};
+        CLAMP(0.f, glyphs.fillMargin, 0.4f), style && style->fillMax > 0.f ? CLAMP(0.1f, style->fillMax, 4.f) : 0.f};
     q.overlay = false;
     q.bars.clear();
     builtFrame = -1;

@@ -447,7 +447,7 @@ Quake's hull 1, 0.015 with B at 16 and 0.015 with A at 16 (29 traces and 66-73 h
    the compiled hull is the default (config 51 moves a config's old 0 to 16). The load-time build (B's brushes and A's
    hull: 137 ms on average, 257 at most on id's maps) could move to a worker thread before it is on by default.
 
-## Crouching (`vr_crouch_hull`, 2026-10-08)
+## Crouching (2026-10-08; always since 2026-11-11, its switch `vr_crouch_hull` retired)
 
 Your note (vrteleporters_2026-10-08_14-46-51): crouching in real life should get you through a small teleporter and any
 low opening, but the box stayed standing. Now, crouched, the box is lower: the same compiled-hull machinery as the width
@@ -479,7 +479,6 @@ Settings (Movement > Player Hitbox > Crouching):
 
 | Setting | cvar | Default | What |
 |---|---|---|---|
-| Crouched Hitbox | `vr_crouch_hull` | 1 | 0: always standing |
 | Lowest Crouched Height | `vr_crouch_height` | 36 | 24-52 units |
 | Heights Above It | `vr_crouch_step` | 8 | 0 (that one only), 4, 8, 12 |
 | Crouch Status | `vr_crouch_status` | | your eyes' height, your box's (0 standing), whether you could stand |

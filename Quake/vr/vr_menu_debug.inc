@@ -261,7 +261,6 @@ za::Vector<Item> pageDebugViews()
                   "envelope prints how far each joint turns cleanly."),
         row(opt::vr_agarmor),
         row(opt::vr_agarmor_pieces),
-        row(opt::vr_agarmor_bridge),
         row(opt::vr_agarmor_details),
         row(opt::vr_agarmor_hero),
         row(opt::vr_agarmor_emblem),

@@ -702,7 +702,6 @@ float cvarh_vr_decap_speed;
 float cvarh_vr_decap_super_shotgun;
 float cvarh_vr_decap_test;
 float cvarh_vr_decap_thrown;
-float cvarh_vr_decap_touch_point;
 float cvarh_vr_decap_zombies;
 float cvarh_vr_deflect;
 float cvarh_vr_deflect_aim_assist;
@@ -2729,7 +2728,6 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_decap_super_shotgun = VR_CVar_Make("vr_decap_super_shotgun");
     cvarh_vr_decap_test = VR_CVar_Make("vr_decap_test");
     cvarh_vr_decap_thrown = VR_CVar_Make("vr_decap_thrown");
-    cvarh_vr_decap_touch_point = VR_CVar_Make("vr_decap_touch_point");
     cvarh_vr_decap_zombies = VR_CVar_Make("vr_decap_zombies");
     cvarh_vr_deflect = VR_CVar_Make("vr_deflect");
     cvarh_vr_deflect_aim_assist = VR_CVar_Make("vr_deflect_aim_assist");

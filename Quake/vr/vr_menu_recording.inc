@@ -157,7 +157,6 @@
         row(opt::vr_bullettime_tap_both_held),
         row(opt::vr_bullettime_tap_butt),
         row(opt::vr_bullettime_tap_holding),
-        row(opt::vr_bullettime_tap_twohanded),
         row(opt::vr_bullettime_trigger_cooldown),
         row(opt::vr_bullettime_tap_sound),
         command("Try: First Tap", "vr_bullettime_tap_feedback_test")

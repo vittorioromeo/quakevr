@@ -1,10 +1,9 @@
 #!/bin/bash
-# crouch_test.sh <agent>: headless checks of the crouched box (vr_crouch_hull; ROUND21.md, "Crouching: a smaller box";
+# crouch_test.sh <agent>: headless checks of the crouched box (always; ROUND21.md, "Crouching: a smaller box";
 # HULLS.md "Crouching") in vrteleporters' crouching room, with the agent kit (C:/OHWorkspace/qvr-kit). One game run.
 # The mock headset's head at 1.7 m stands (eyes 55.5 units over the feet), at 1.3 m half crouches (42.9: the 44 box),
 # at 1.0 m crouches (33.5: the 36 box). Each case prints its name, then `crouch:` (vr_crouch_status: box 0 standing).
-#   tunnel_*   walk east into the 40-high tunnel: standing stops at its mouth (x 552), crouched comes out (x > 688);
-#              with vr_crouch_hull 0 crouched stops too
+#   tunnel_*   walk east into the 40-high tunnel: standing stops at its mouth (x 552), crouched comes out (x > 688)
 #   gap_*      the 48-high gap: standing stops, half crouched passes
 #   rise_*     crouched inside the tunnel, the head back up: the 36 box kept (standfits 0); walked out east (crouched
 #              again first: up in it, a low ceiling holds you where you are, vr_lowceil), up outside: standing
@@ -22,8 +21,6 @@ walk() { echo -n "echo CASE $1;$2;wait5;setpos $3;wait5;noclip 0;wait5;vr_mock_s
 S="developer 1;map vrteleporters;wait60;god;notarget;"
 S+=$(walk tunnel_standing "$STAND" "480 -320 24 0 0 0")
 S+=$(walk tunnel_crouched "$LOW" "480 -320 24 0 0 0")
-S+=$(walk tunnel_crouched_off "vr_crouch_hull 0;$LOW" "480 -320 24 0 0 0")
-S+="vr_crouch_hull 1;"
 S+=$(walk gap_standing "$STAND" "480 -192 24 0 0 0")
 S+=$(walk gap_half "$HALF" "480 -192 24 0 0 0")
 S+="echo CASE rise_inside;$LOW;wait5;setpos 624 -320 24 0 0 0;wait5;noclip 0;wait5;$STAND;wait10;vr_crouch_status;"

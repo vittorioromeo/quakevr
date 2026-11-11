@@ -236,6 +236,9 @@ void crosshairRay(const hands::State& s, const glm::vec3& aim, glm::vec3& org, g
 
 // Where `h`'s shoulder is as the pose measures from it, and what an arm can hold a hand at from it (world units).
 [[nodiscard]] glm::vec3 shoulderOf(const hands::State& s, int h);
+// The same as a level look would have it (the chest's share of the look's pitch out of it), while the hand swap runs
+// (vr_flatswap.cpp: its guard plays the same against the view at any pitch); shoulderOf otherwise.
+[[nodiscard]] glm::vec3 levelShoulderOf(const hands::State& s, int h);
 [[nodiscard]] float armReach();
 
 // The eye's nudge (vr_flat_cam_*) in the world at the view's angles `aim`: 0 0 0 at the defaults, and outside the mode. The

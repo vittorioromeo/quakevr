@@ -1038,10 +1038,9 @@ void gridBuild()
 
     glowPrepare();
 
-    // A big map's grid, kept from an earlier load (vr_model_light_grid_cache).
-    const int cacheMode = diskcache::modeOf(diskcache::Product::LightGrid);
-    const unsigned long long cacheKey = cacheMode ? gridCacheKey() : 0ull;
-    if(cacheMode == 1 && cacheKey != 0ull && cacheKey == lastKey && lastCells.size() == grid.cells.size())
+    // A big map's grid, kept from an earlier load (always: its switch vr_model_light_grid_cache retired 2026-11-11).
+    const unsigned long long cacheKey = gridCacheKey();
+    if(cacheKey != 0ull && cacheKey == lastKey && lastCells.size() == grid.cells.size())
     {
         grid.cells.swap(lastCells);
         grid.entries.swap(lastEntries);
@@ -1052,11 +1051,11 @@ void gridBuild()
     const za::String cacheBuild = diskcache::buildOf(&GRID_CACHE_VERSION, 1);
     za::Vector<char> cached;
     unsigned cachedCells = 0u, cachedEntries = 0u;
-    const bool hit = cacheMode && diskcache::read(diskcache::Product::LightGrid, cacheBuild.cStr(), cacheKey, "mlg", "QMLG", cachedCells,
+    const bool hit = diskcache::read(diskcache::Product::LightGrid, cacheBuild.cStr(), cacheKey, "mlg", "QMLG", cachedCells,
                                                   cachedEntries, cached, "(the model light grid)") &&
                      cachedCells == grid.cells.size() &&
                      cached.size() == cachedCells * sizeof(unsigned) + cachedEntries * sizeof(GridEntry);
-    if(hit && cacheMode == 1)
+    if(hit)
     {
         memcpy(grid.cells.data(), cached.data(), cachedCells * sizeof(unsigned));
         grid.entries.resize(cachedEntries, GridEntry{});
@@ -1157,13 +1156,7 @@ void gridBuild()
 
     const size_t cellBytes = grid.cells.size() * sizeof(unsigned);
     const size_t entryBytes = grid.entries.size() * sizeof(GridEntry);
-    if(hit)
-    {
-        diskcache::noteChecked(diskcache::Product::LightGrid, cachedCells == grid.cells.size() && cached.size() == cellBytes + entryBytes &&
-            memcmp(cached.data(), grid.cells.data(), cellBytes) == 0 && memcmp(cached.data() + cellBytes, grid.entries.data(), entryBytes) == 0,
-            "(the model light grid)");
-    }
-    else if(cacheMode && Sys_DoubleTime() - start >= GRID_CACHE_SECONDS)
+    if(Sys_DoubleTime() - start >= GRID_CACHE_SECONDS)
     {
         za::Vector<char> bytes;
         bytes.resize(cellBytes + entryBytes);

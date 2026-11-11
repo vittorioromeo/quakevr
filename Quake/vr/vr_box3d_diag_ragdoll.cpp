@@ -134,8 +134,7 @@ void ragdollList_f()
             static_cast<int>(ent->v.frame), r.cut ? ", headless" : "");
         int pairs = 0, deep = 0;
         const int overlapping = partsOverlapping(r, pairs, deep);
-        Con_Printf("  self: %d of its %d unjointed part pairs overlapping, %d deep (Limbs Meet Each Other %s)\n", overlapping, pairs, deep,
-            vr_ragdoll_self_collide.value != 0.f ? "on" : "off");
+        Con_Printf("  self: %d of its %d unjointed part pairs overlapping, %d deep\n", overlapping, pairs, deep);
         int armSamples = 0;
         const int buriedArms = armsInsideChest(r, armSamples);
         Con_Printf("  arm interiors: %d of %d distal arm points inside chest\n", buriedArms, armSamples);

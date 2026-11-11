@@ -8,7 +8,7 @@
 // hand lets go, the gadget takes no input: no screen tap (bullet time's single or double tap, a double tap's first
 // dropped), no side button (the gear lights, Doom's opening presses), no outer button (AD's pages), no touch on its
 // screen (an app's: Doom). A finger or hand still on a button or the screen when it ends must leave it first. Different
-// things in each hand: unchanged. vr_gadget_lock_twohand 0: off.
+// things in each hand: unchanged. Always on (its switch, vr_gadget_lock_twohand, retired 2026-11-11).
 
 #pragma once
 

@@ -82,6 +82,20 @@ Hold a grenade launcher in each hand and look at the rear of the top block: the 
 Stand on the arena's dais with Monsters Find Their Way on: the knights come round to another flight because the crate pile blocks the east one, and they walk round the barrel rather than bump into it; throw the crates off the dais and, a second after they come to rest, walkers take the east flight again; Show Navmesh outlines each blocking prop in purple over a hole in the mesh. {test:nav_props}
 Stand on one of the arena's corner towers: dogs and knights coming up its stair no longer stop on a step beside the tower's wall, biting or swinging at you from below; they come on up onto the top and fight you there. {test:nav_tower}
 Hold a rocket launcher in each hand and press the right one's button for the multi-rocket model: its ammo screen now sits in the same raised bronze enclosure with two round rivets each side as the plain rocket launcher's; the digits read whole and nothing of the enclosure covers them. {test:rocket_housing}
+Hold AD's Widowmaker and look at the receiver's top-rear corner: the ammo screen now sits in a small bevelled bezel with four small rivets (two above the window, two below), the window's corners cut; the digits are the same size and look as before, read whole, and nothing of the bezel or the gun covers them, also while reloading. {test:ad_housings}
+Hold AD's Plasma Gun (vr_ad_test 99) and look at its rear face: the ammo screen sits in a flat bronze bezel with a round rivet on each side, the dark vent below it; the digits read whole inside the glass, also while reloading, and the rear end looks right where the stock was cut (a little shorter than before). {test:ad_housings}
+Flat-screen: look well down, then well up, and press 3 with the rocket launcher held in both hands and with a shotgun: the hands pass the weapon at the same place on the screen as at a level look. {test:flat_swap_pitch}
+Death knights' elbows and knees: the leather between the plates bends with the joint as before (the old rigid sleeves are gone for good); look for gaps or stretched leather as they walk and swing. {test:bench_dknights_armour}
+A rocket kill throws the grunt's body at once (no death animation first); check it still feels like the fling you chose. {test:ragdoll_behaviours}
+Ragdolls always keep their limbs out of each other: corpses in a pile and a body folded over a ledge show no arm through the chest. {test:ragdoll_behaviours}
+Crouch under a low ceiling and behind cover: your box always shrinks with you (there is no switch any more), and lying down still works. {test:flatprone}
+Flat-screen: R reloads and only mouse 4 force-grabs; Q, E and 3 never run an old config's binds while you play (the menu has no switch for that now). {test:flat_force_grab}
+Flat-screen: against a wall, a gun tilted up never fires (no menu switch now); laid along a wall it fires. {test:flat_force_grab}
+Flat-screen: mantle onto a ledge with empty hands: they grab the lip (always, no switch).
+Flat-screen: Escape in any menu while in a game takes you straight back to the game (no menu switch now).
+The wrist gadget ignores taps while both hands hold one gun, crate or body (always; the menu rows for it and for bullet time's two-handed taps are gone).
+Flat-screen: the holster menu's Toggle mode (Locomotion, Holster Menu Wheel Button): the wheel's button opens and closes it, a left click picks, as often as you like.
+The menus no longer show Main Menu Lettering, Flat: Tone Mapping or Models Lit From All Sides; the main menu, the flat window's colours and the models' light look as before.
 
 [2. VR: melee and embedded blades]
 Hit a grunt with the axe right in front of you: the blood and its red mist come right at the camera, not only further off (your config still has Mist Clear of Eyes at 40: set vr_gore_mist_near 0; Particle Fade Near Eyes and Particles Hidden Nearer at 0 draw it at the eyes too). {test:flat_skewer_gibs}

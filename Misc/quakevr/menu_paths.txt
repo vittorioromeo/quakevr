@@ -760,7 +760,6 @@ vr_gadget_show_level|1|Screens|Level and Stats|Advanced VR Options > Tips > Wris
 vr_dead_hide_gear|1|Screens|Hide Gear When Dead|Advanced VR Options > Tips > Wrist Gadget Messages > Hide Gear When Dead
 vr_gadget_stamina|1|Screens|Stamina and Counters|Advanced VR Options > Tips > Wrist Gadget Messages > Stamina and Counters
 vr_gadget_light|2|Screens|Screen Light|Advanced VR Options > Tips > Wrist Gadget Messages > Screen Light
-vr_gadget_lock_twohand|1|Screens|Lock While Both Hands Hold One Thing|Advanced VR Options > Tips > Wrist Gadget Messages > Lock While Both Hands Hold One Thing
 vr_gadget_lock_grace|2|Screens|Lock After Letting Go|Advanced VR Options > Tips > Wrist Gadget Messages > Lock After Letting Go
 vr_gear_lights|1|Screens|Gear Lights|Advanced VR Options > Tips > Wrist Gadget Messages > Gear Lights
 vr_gear_lights_dim|2|Screens|Lights When Dimmed|Advanced VR Options > Tips > Wrist Gadget Messages > Lights When Dimmed
@@ -1270,7 +1269,6 @@ vr_bullettime_tap_calm_speed|1|Bullet Time|Calm Hands Speed|Advanced VR Options 
 vr_bullettime_tap_both_held|1|Bullet Time|Not While Both Hands Hold|Advanced VR Options > Combat > Bullet Time > Not While Both Hands Hold
 vr_bullettime_tap_butt|1|Bullet Time|The Gun's Butt Taps Too|Advanced VR Options > Combat > Bullet Time > The Gun's Butt Taps Too
 vr_bullettime_tap_holding|1|Bullet Time|Tap While Holding|Advanced VR Options > Combat > Bullet Time > Tap While Holding
-vr_bullettime_tap_twohanded|1|Bullet Time|Tap During Two-Handed Holds|Advanced VR Options > Combat > Bullet Time > Tap During Two-Handed Holds
 vr_bullettime_trigger_cooldown|1|Bullet Time|Ignore Repeats For|Advanced VR Options > Combat > Bullet Time > Ignore Repeats For
 vr_bullettime_tap_sound|1|Bullet Time|Tap Click Volume|Advanced VR Options > Combat > Bullet Time > Tap Click Volume
 |1|Bullet Time|Try: First Tap|Advanced VR Options > Combat > Bullet Time > Try: First Tap
@@ -1369,7 +1367,6 @@ vr_slope_walk|1|Locomotion|Walk Up Slopes Slowly|Advanced VR Options > Movement 
 vr_flat_aim_mode|1|Locomotion|Right Click Ironsight|Advanced VR Options > Movement > Locomotion > Right Click Ironsight
 vr_flat_aim_sens|1|Locomotion|Aim Sensitivity|Advanced VR Options > Movement > Locomotion > Aim Sensitivity
 vr_flat_aim_sens_match|1|Locomotion|Aim Sensitivity Match|Advanced VR Options > Movement > Locomotion > Aim Sensitivity Match
-vr_flat_wall_block_fire|1|Locomotion|No Fire With Gun Raised|Advanced VR Options > Movement > Locomotion > No Fire With Gun Raised
 vr_flat_wall_shot|1|Locomotion|Shots Follow Gun At Walls|Advanced VR Options > Movement > Locomotion > Shots Follow Gun At Walls
 vr_flat_xhair|1|Locomotion|Visor Crosshair|Advanced VR Options > Movement > Locomotion > Visor Crosshair
 vr_flat_xhair_style|1|Locomotion|Visor Crosshair Style|Advanced VR Options > Movement > Locomotion > Visor Crosshair Style
@@ -1430,7 +1427,6 @@ vr_flat_mantle_look|1|Locomotion|Mantle Look Up|Advanced VR Options > Movement >
 vr_flat_mantle_look_max|1|Locomotion|Mantle Look Up Most|Advanced VR Options > Movement > Locomotion > Mantle Look Up Most
 vr_flat_mantle_time|1|Locomotion|Mantle Window|Advanced VR Options > Movement > Locomotion > Mantle Window
 vr_flat_mantle_grunt_delay|1|Locomotion|Mantle Grunt Delay|Advanced VR Options > Movement > Locomotion > Mantle Grunt Delay
-vr_flat_mantle_hands|1|Locomotion|Mantle Hands On The Ledge|Advanced VR Options > Movement > Locomotion > Mantle Hands On The Ledge
 vr_flat_slide|1|Locomotion|Slide|Advanced VR Options > Movement > Locomotion > Slide
 vr_flat_speed_fov|1|Locomotion|Speed FOV|Advanced VR Options > Movement > Locomotion > Speed FOV
 vr_flat_speed_fov_max|1|Locomotion|Speed FOV Most|Advanced VR Options > Movement > Locomotion > Speed FOV Most
@@ -1442,7 +1438,6 @@ vr_flat_speed_fov_ease_out|1|Locomotion|Speed FOV Ease Out|Advanced VR Options >
 vr_flat_lean|1|Locomotion|Lean (Q / E)|Advanced VR Options > Movement > Locomotion > Lean (Q / E)
 vr_flat_lean_toggle|1|Locomotion|Lean Keys|Advanced VR Options > Movement > Locomotion > Lean Keys
 vr_flat_lean_mouse|1|Locomotion|Mouse Follows Lean|Advanced VR Options > Movement > Locomotion > Mouse Follows Lean
-vr_flat_keys_own|1|Locomotion|Desktop Keys Only Do Theirs|Advanced VR Options > Movement > Locomotion > Desktop Keys Only Do Theirs
 vr_flat_flycam|1|Locomotion|Fly Camera (F8)|Advanced VR Options > Movement > Locomotion > Fly Camera (F8)
 vr_flat_flycam_pause|1|Locomotion|Fly Camera Pauses|Advanced VR Options > Movement > Locomotion > Fly Camera Pauses
 vr_flat_flycam_speed|1|Locomotion|Fly Camera Speed|Advanced VR Options > Movement > Locomotion > Fly Camera Speed
@@ -1551,7 +1546,6 @@ vr_hull_brushmodels|2|Player Hitbox|Doors, Lifts and Walls Too|Advanced VR Optio
 vr_hull_ent_width|2|Player Hitbox|Width Against Them|Advanced VR Options > Movement > Player Hitbox > Width Against Them
 vr_hull_hit_width|2|Player Hitbox|Width Shots Hit|Advanced VR Options > Movement > Player Hitbox > Width Shots Hit
 vr_hull_hit_head|2|Player Hitbox|Height Shots Hit: Your Head's|Advanced VR Options > Movement > Player Hitbox > Height Shots Hit: Your Head's
-vr_crouch_hull|2|Player Hitbox|Crouched Hitbox|Advanced VR Options > Movement > Player Hitbox > Crouched Hitbox
 vr_crouch_height|2|Player Hitbox|Lowest Crouched Height|Advanced VR Options > Movement > Player Hitbox > Lowest Crouched Height
 vr_crouch_sight|2|Player Hitbox|Monsters See Your Eyes|Advanced VR Options > Movement > Player Hitbox > Monsters See Your Eyes
 vr_crouch_step|2|Player Hitbox|Heights Above It|Advanced VR Options > Movement > Player Hitbox > Heights Above It
@@ -2219,7 +2213,6 @@ vr_menu_status|1|Menu|Status Box|Advanced VR Options > HUD and Menus > Menu > St
 vr_menu_version|1|Menu|Version Label|Advanced VR Options > HUD and Menus > Menu > Version Label
 vr_update_check|1|Menu|Check for Updates|Advanced VR Options > HUD and Menus > Menu > Check for Updates
 vr_menu_flat_shortcuts|1|Menu|Corner Buttons on a Flat Screen|Advanced VR Options > HUD and Menus > Menu > Corner Buttons on a Flat Screen
-vr_menu_flat_esc_game|1|Menu|Escape Returns to the Game|Advanced VR Options > HUD and Menus > Menu > Escape Returns to the Game
 vr_menu_flat_vr_style|1|Menu|VR Menu Layout on a Flat Screen|Advanced VR Options > HUD and Menus > Menu > VR Menu Layout on a Flat Screen
 vr_menu_flat_scale|1|Menu|Flat Menu Panel Size|Advanced VR Options > HUD and Menus > Menu > Flat Menu Panel Size
 |1|Menu|Reset Flat Menu Panel|Advanced VR Options > HUD and Menus > Menu > Reset Flat Menu Panel
@@ -2227,7 +2220,6 @@ vr_menu_main_mods|1|Menu|Mods on the Main Menu|Advanced VR Options > HUD and Men
 vr_menu_fine_step|1|Menu|Fine Step|Advanced VR Options > HUD and Menus > Menu > Fine Step
 vr_menu_section_gap|1|Menu|Section Gap|Advanced VR Options > HUD and Menus > Menu > Section Gap
 vr_menu_vr_style|1|Menu|VR Menu Style|Advanced VR Options > HUD and Menus > Menu > VR Menu Style
-vr_menu_bigfont|1|Menu|Main Menu Lettering|Advanced VR Options > HUD and Menus > Menu > Main Menu Lettering
 vr_menu_recolor|1|Menu|Blood Red Menus|Advanced VR Options > HUD and Menus > Menu > Blood Red Menus
 vr_menu_recolor_strength|1|Menu|Red Strength|Advanced VR Options > HUD and Menus > Menu > Red Strength
 vr_menu_recolor_hue|1|Menu|Red Hue|Advanced VR Options > HUD and Menus > Menu > Red Hue
@@ -2423,7 +2415,6 @@ vr_exposure|1|Graphics - Post-processing|Exposure|Advanced VR Options > Graphics
 vr_grade|1|Graphics - Post-processing|Colour Grade|Advanced VR Options > Graphics > Post-processing > Colour Grade
 vr_grade_strength|1|Graphics - Post-processing|Grade Strength|Advanced VR Options > Graphics > Post-processing > Grade Strength
 vr_dither|1|Graphics - Post-processing|Dither|Advanced VR Options > Graphics > Post-processing > Dither
-vr_flat_tonemap|1|Graphics - Post-processing|Flat: Tone Mapping|Advanced VR Options > Graphics > Post-processing > Flat: Tone Mapping
 vr_flat_bloom|1|Graphics - Post-processing|Flat: Bloom|Advanced VR Options > Graphics > Post-processing > Flat: Bloom
 vr_flat_grade|1|Graphics - Post-processing|Flat: Colour Grade|Advanced VR Options > Graphics > Post-processing > Flat: Colour Grade
 vr_flat_grade_exposure|1|Graphics - Post-processing|Flat: Exposure|Advanced VR Options > Graphics > Post-processing > Flat: Exposure
@@ -2438,7 +2429,6 @@ vr_flat_taa|1|Graphics - Post-processing|Flat: TAA|Advanced VR Options > Graphic
 @page|1|Graphics - Models and Effects||Advanced VR Options > Graphics > Models and Effects
 vr_model_lighting|1|Graphics - Models and Effects|Model Lighting|Advanced VR Options > Graphics > Models and Effects > Model Lighting
 vr_model_light_parity|1|Graphics - Models and Effects|Models Lit as the World|Advanced VR Options > Graphics > Models and Effects > Models Lit as the World
-vr_model_light_grid|1|Graphics - Models and Effects|Models Lit From All Sides|Advanced VR Options > Graphics > Models and Effects > Models Lit From All Sides
 vr_model_ambient_dir|1|Graphics - Models and Effects|Directional Ambient|Advanced VR Options > Graphics > Models and Effects > Directional Ambient
 vr_model_ambient_contrast|1|Graphics - Models and Effects|Ambient Contrast|Advanced VR Options > Graphics > Models and Effects > Ambient Contrast
 r_lerpmodels|1|Graphics - Models and Effects|Model Animation|Advanced VR Options > Graphics > Models and Effects > Model Animation
@@ -4745,7 +4735,6 @@ vr_agrunt_shotdisarm_debug|2|Debug - Views|Show Shot Disarms|Advanced VR Options
 |2|Debug - Views|Check the Authored Grunt Rig|Advanced VR Options > Debug > Views > Check the Authored Grunt Rig
 vr_agarmor|2|Debug - Views|Armed Humanoids' Armour (P0)|Advanced VR Options > Debug > Views > Armed Humanoids' Armour (P0)
 vr_agarmor_pieces|2|Debug - Views|Armour Pieces|Advanced VR Options > Debug > Views > Armour Pieces
-vr_agarmor_bridge|2|Debug - Views|Elbow and Knee Leather|Advanced VR Options > Debug > Views > Elbow and Knee Leather
 vr_agarmor_details|2|Debug - Views|Armour Plate Details|Advanced VR Options > Debug > Views > Armour Plate Details
 vr_agarmor_hero|2|Debug - Views|Armour Hero Plates|Advanced VR Options > Debug > Views > Armour Hero Plates
 vr_agarmor_emblem|2|Debug - Views|Armour Emblem|Advanced VR Options > Debug > Views > Armour Emblem
@@ -5753,7 +5742,6 @@ vr_debug_sound_log|2|Debug - Tests|Log Sounds|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Hitbox Stats|Advanced VR Options > Debug > Tests > Hitbox Stats
 vr_hull_keep|2|Debug - Tests|Keep Hitboxes for Reloads|Advanced VR Options > Debug > Tests > Keep Hitboxes for Reloads
 vr_hull_cache|2|Debug - Tests|Hitboxes on Disk|Advanced VR Options > Debug > Tests > Hitboxes on Disk
-vr_model_light_grid_cache|2|Debug - Tests|Model Light Grids on Disk|Advanced VR Options > Debug > Tests > Model Light Grids on Disk
 vr_nav_cache|2|Debug - Tests|Navmeshes on Disk|Advanced VR Options > Debug > Tests > Navmeshes on Disk
 vr_hull_async|2|Debug - Tests|New Monster Sizes in Play|Advanced VR Options > Debug > Tests > New Monster Sizes in Play
 |2|Debug - Tests|The Gates In This Map|Advanced VR Options > Debug > Tests > The Gates In This Map
@@ -8307,7 +8295,6 @@ vr_flat_visor_boot|1|Visor HUD Look|Visor Power On|Advanced VR Options > Movemen
 vr_ragdoll_start|2|Gibs and Corpses - Ragdolls|Go Limp At|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Go Limp At
 vr_ragdoll_max|2|Gibs and Corpses - Ragdolls|Most Ragdolls|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Most Ragdolls
 vr_ragdoll_collide_each|2|Gibs and Corpses - Ragdolls|Ragdolls Meet Each Other|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Ragdolls Meet Each Other
-vr_ragdoll_self_collide|2|Gibs and Corpses - Ragdolls|Limbs Meet Each Other|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Limbs Meet Each Other
 vr_ragdoll_active|2|Gibs and Corpses - Ragdolls|Active Deaths|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Active Deaths
 vr_ragdoll_active_dismember|2|Gibs and Corpses - Ragdolls|React to Lost Limbs|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > React to Lost Limbs
 vr_ragdoll_active_wound|2|Gibs and Corpses - Ragdolls|Hold the Wound|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Hold the Wound

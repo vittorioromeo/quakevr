@@ -114,7 +114,7 @@ void benchPose();
 [[nodiscard]] qmodel_t* playerArmorModel(qmodel_t* body);
 // That model's bone slots: each one's bone (the body model's bone order) and piece. False: no shell yet.
 [[nodiscard]] bool playerSlots(const qmodel_t* body, int& numSlots, const int*& slotBone, const int*& slotPiece);
-// Its joints' leather (vr_agarmor_bridge 1; ROUND24.md, "Leather bridge at elbows and knees"): the model ("<body>#bridge";
+// Its joints' leather (ROUND24.md, "Leather bridge at elbows and knees"): the model ("<body>#bridge";
 // null: none), and its bones for `pieces` worn from the body's `bones` (`have` of them; made once a frame): the count.
 [[nodiscard]] qmodel_t* playerBridgeModel(qmodel_t* body);
 int playerBridgePoses(const qmodel_t* body, int pieces, const float* bones, int have, const float** out);

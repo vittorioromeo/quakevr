@@ -148,6 +148,10 @@ struct FlatState
     float wallDepth[2]{0.f, 0.f}; // and how deep in it the pose had it this frame (units, its margin in; the status prints it)
     glm::vec3 shoulders[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // the arms' joints this pose stands on (avatar::restShoulders)
     bool shouldersKnown{false};
+    // The same as a level look would have them (the chest's share of the look's pitch out of them): made only while the
+    // hand swap runs, for its guard (levelShoulderOf, vr_flatswap.cpp).
+    glm::vec3 levelShoulders[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    bool levelShouldersKnown{false};
     bool localSeen[2]{false, false};
     double lastTime{-1e9};
 
@@ -1336,13 +1340,12 @@ void shoveFrame()
 void pollKeys()
 {
     const bool inGame = key_dest == key_game;
-    // The force grab's keys (vr_flat_key_grab, mouse 4: the side button the shove leaves; vr_flat_key_grab_alt, none: R
-    // reloads now, vr_flatreload.cpp).
+    // The force grab's key (vr_flat_key_grab, mouse 4: the side button the shove leaves; R reloads, vr_flatreload.cpp).
     const auto down = [inGame](const cvar_t& c) {
         const int k = c.string[0] ? Key_StringToKeynum(c.string) : -1;
         return inGame && k > 0 && k < MAX_KEYS && keydown[k] != 0;
     };
-    const bool grab = down(vr_flat_key_grab) || down(vr_flat_key_grab_alt);
+    const bool grab = down(vr_flat_key_grab);
     const bool v = inGame && keydown['v'] != 0;
     bool fire[2];
     fire[HAND_OFF] = client::attacking(HAND_OFF);
@@ -1423,11 +1426,11 @@ void getUp(const char* why)
 // while a get-up waits for room, it takes the wish back: he stays lying.
 void toggleProne(const char* why)
 {
-    if(vr_prone.value == 0.f || vr_crouch_hull.value == 0.f)
+    if(vr_prone.value == 0.f)
     {
         keyState.prone = false;
         keyState.riseWanted = false;
-        Con_Printf("flatplay: lying down is off (vr_prone, vr_crouch_hull)\n");
+        Con_Printf("flatplay: lying down is off (vr_prone)\n");
         return;
     }
     if(keyState.prone && keyState.riseWanted)
@@ -1712,10 +1715,10 @@ void pollKeysFlat()
         keyState.lin += za::clamp(want - keyState.lin, -step, step);
     }
     keyState.ratio = crouchShape(keyState.lin);
-    // Lying down (vr_flat_key_prone): down while asked, up when not, each way in vr_prone_body_time; off (vr_prone 0, or
-    // the crouched box off) it never goes down.
+    // Lying down (vr_flat_key_prone): down while asked, up when not, each way in vr_prone_body_time; off
+    // (vr_prone 0) it never goes down.
     // (Dead, or between maps: up again, so a respawn or the next map starts standing, as the server starts him.)
-    if(!(vr_prone.value != 0.f && vr_crouch_hull.value != 0.f) || cls.signon != SIGNONS || cl.stats[STAT_HEALTH] <= 0)
+    if(vr_prone.value == 0.f || cls.signon != SIGNONS || cl.stats[STAT_HEALTH] <= 0)
     {
         keyState.prone = false;
         keyState.riseWanted = false;
@@ -2032,7 +2035,7 @@ int jumpBit(int state)
 
 FireRoute routeFire(bool lmb, bool rmb)
 {
-    // A gun turned up out of a wall does not fire (vr_flat_wall_block_fire): the button does nothing till it comes down.
+    // A gun turned up out of a wall does not fire (flatsight::wallBlocksFire): the button does nothing till it comes down.
     // A melee weapon swings as ever (a blow is never stopped at a wall).
     // The holster menu open: the left button is its click (vr_flatholster.cpp), nothing fires and nothing aims.
     if(flatholster::open())
@@ -3189,6 +3192,21 @@ void poseHands(hands::State& s, const glm::vec3& aim)
             fs.shoulders[h] = rig(roots[h]);
         }
     }
+    fs.levelShouldersKnown = onBody && flatswap::busy();
+    if(fs.levelShouldersKnown)
+    {
+        // (The hand swap's guard plays the same against the view at any pitch: off the shoulders of a level look.)
+        hands::State levelLook = upright;
+        levelLook.headAngles.x = 0.f;
+        glm::vec3 levelRoots[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+        avatar::restShoulders(levelLook, levelRoots);
+        const float lift = proneNeckDrop() * proneShare();
+        for(int h = 0; h < HAND_COUNT; h++)
+        {
+            levelRoots[h].z += lift;
+            fs.levelShoulders[h] = rig(levelRoots[h]);
+        }
+    }
 
     // The frame the hands are placed in: the view's way and roll, its up and down held to vr_flat_pose_pitch degrees.
     // The anchor the flat hands are built on does not tip with the head (hands::bodyAnchor, vr_hands.cpp) while the body
@@ -3660,6 +3678,11 @@ float gunRoll(int h)
 glm::vec3 shoulderOf(const hands::State& s, int h)
 {
     return shoulder(s, h);
+}
+
+glm::vec3 levelShoulderOf(const hands::State& s, int h)
+{
+    return bodyPose() && fs.shouldersKnown && fs.levelShouldersKnown ? fs.levelShoulders[h] : shoulder(s, h);
 }
 
 float armReach()

@@ -49,7 +49,8 @@ enum class Align : int
 // `fillCols` (a screen with a housing's opening; 0 0 none): the block grown (or shrunk) to fill the glass, less
 // `fillMargin` of its width and height each side and the room its shift takes, sized for the widest text it can show
 // (a first line of fillCols.x characters over one of fillCols.y; 0: none), so its size holds as the numbers change;
-// times `fill` (vr_ammo_mag_scale), then `size`.
+// times `fill` (vr_ammo_mag_scale), then `size`. `fillMax` (> 0): the fill never past it (queue sets it from the screen's
+// style, vr_screenstyle.hpp: a housing whose numbers keep the font's size, only made smaller when they don't fit).
 struct Glyphs
 {
     float size{1.f};
@@ -59,6 +60,7 @@ struct Glyphs
     glm::vec2 fillCols{0.f};
     float fill{1.f};
     float fillMargin{0.08f};
+    float fillMax{0.f};
 };
 void queue(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale,
     bool screen = false, const glm::vec3* tint = nullptr, const screenstyle::Style* style = nullptr,

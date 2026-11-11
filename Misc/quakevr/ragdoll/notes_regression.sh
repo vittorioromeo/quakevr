@@ -11,7 +11,7 @@ for d in 64 100 160 240; do
     echo "VORE $d"
     bash "$KIT/run.sh" "$AGENT" -Script "developer 1;sv_random_seed 7;map vrtesthall;wait30;god;vr_enemy_shove 1;vr_enemy_shove_vore 1;vr_enemy_shove_range 52;vr_enemy_shove_damage 0;vr_enemy_shove_distance 0;vr_test_spawn 10;vr_test_spawn_dist $d;impulse 241;wait260;toggleconsole;quit" -Filter "enemy shove:|Error|CRASH" -Timeout 180
 done
-SETUP="developer 1;sv_random_seed 7;map vrfiringrange;wait30;god;notarget;vr_limbs 1;vr_limbs_corpses 1;vr_ragdoll 1;vr_ragdoll_self_collide 1;vr_test_spawn 0;vr_test_spawn_dist 90;impulse 241;wait30;vr_test_kill 1;wait160"
+SETUP="developer 1;sv_random_seed 7;map vrfiringrange;wait30;god;notarget;vr_limbs 1;vr_limbs_corpses 1;vr_ragdoll 1;vr_test_spawn 0;vr_test_spawn_dist 90;impulse 241;wait30;vr_test_kill 1;wait160"
 : > "$OUT"
 for n in 24 25 26 27 28; do
     echo "CORPSE $n"

@@ -2261,8 +2261,6 @@ QVR_TOGGLE_BYNAME(vr_update_check, "Check for Updates",
     "At start-up (at most once an hour) the game asks the release page whether a newer Quake VR is out, and says so above the version label: point at it and press to open its page in your desktop's browser. Only the release list is read; nothing about you or your game is sent. Off: never asked, no notice.")
 QVR_TOGGLE_BYNAME(vr_menu_flat_shortcuts, "Corner Buttons on a Flat Screen",
     "With VR off: the buttons at the menus' top left (Back to Game, Main Menu, Search, Console, Advanced VR, Levels, Map Library) on the desktop menus too, for the mouse.")
-QVR_TOGGLE_BYNAME(vr_menu_flat_esc_game, "Escape Returns to the Game",
-    "With VR off, in a game: Escape in any menu closes it and resumes, from whatever page (as Back to game does; the menu opens again on that page). Off: Escape goes back a page, as in Quake.")
 QVR_TOGGLE_BYNAME(vr_menu_flat_vr_style, "VR Menu Layout on a Flat Screen",
     "With VR off: the menus as the headset shows them, on a panel in the window: the corner's buttons in a column beside the menu, rows spaced out, modern sliders and switches; the mouse points and clicks as the laser does, the wheel scrolls lists. Press a corner of the panel and drag it to move it; turn the wheel while dragging to resize it. The - and + buttons under the corner's buttons zoom it too.")
 QVR_SLIDER_BYNAME(vr_menu_flat_scale, "Flat Menu Panel Size", 0.4f, 1.f, 0.05f, "%.2f", noExt,
@@ -2275,8 +2273,6 @@ QVR_SLIDER_BYNAME(vr_menu_section_gap, "Section Gap", 0.f, 2.f, 0.25f, "%.2f row
     "Space above each section's header on the settings pages (and under the page's title), so the sections stand apart. 0: none.")
 QVR_TOGGLE_BYNAME(vr_menu_vr_style, "VR Menu Style",
     "The menus fill the panel with their rows spaced out, with modern sliders and switches, and a laser from your hand points at them: trigger to click and drag.")
-QVR_TOGGLE_BYNAME(vr_menu_bigfont, "Main Menu Lettering",
-    "The main menu's rows as text in Quake's own lettering (its letters cut from the menu pictures), VR Calibration among them, and the other menus' pictures of rows (difficulty, Single Player, Multiplayer) in the Fonts page's style. Off: Quake's pictures as they are, with VR Calibration above the main menu's in the console's letters.")
 QVR_TOGGLE_BYNAME(vr_menu_recolor, "Blood Red Menus",
     "The menus' browns and tans (the letters, Quake's pictures, sliders, switches and panels) turned blood red, in Quake VR's colours. Off: Quake's own browns.")
 QVR_SLIDER_BYNAME(vr_menu_recolor_strength, "Red Strength", 0.f, 1.f, 0.05f, "%.2f", noExt,
@@ -3612,8 +3608,6 @@ QVR_CYCLE_BYNAME(vr_dither, "Dither",
     "A faint noise of one step that hides banding in dark gradients (fog, dark rooms, under water).",
     {0.f, "Off"}, {1.f, "Per Eye"}, {2.f, "Per Eye, Moving"}, {3.f, "Same in Both Eyes"})
 // vr_menu_pages.inc: pageGraphicsPost, "Flat Screen" (vr_flatlook.cpp; the headset never uses these)
-QVR_TOGGLE_BYNAME(vr_flat_tonemap, "Flat: Tone Mapping",
-    "Flat-screen play: bright lights, flashes, lava and explosions keep their colour and detail instead of clipping to yellow and white (the headset's Tone Mapping curve; Flat: Exposure before it). The rest is unchanged. Off: Quake's.")
 QVR_SLIDER_BYNAME(vr_flat_bloom, "Flat: Bloom", 0.f, 1.5f, 0.02f, "%.2f", ext(),
     "Flat-screen play: glow around lamps, lava and flashes (0 off). Its threshold, size and weights are the Bloom rows'.")
 QVR_SLIDER_BYNAME(vr_flat_grade, "Flat: Colour Grade", 0.f, 1.f, 0.05f, "%.2f", noExt,
@@ -3638,8 +3632,6 @@ QVR_TOGGLE_BYNAME(vr_model_lighting, "Model Lighting",
     "Monsters, items and weapons are shaded from the map's lights, not one fixed direction.")
 QVR_TOGGLE_BYNAME(vr_model_light_parity, "Models Lit as the World",
     "Monsters and items as bright as the world around them (off: Quake's brighter models).")
-QVR_TOGGLE_BYNAME(vr_model_light_grid, "Models Lit From All Sides",
-    "Monsters, items, weapons and hands take the baked light of the walls, floor and ceiling around them (off: Quake's, the floor under their feet).")
 QVR_TOGGLE_BYNAME(vr_model_ambient_dir, "Directional Ambient",
     "Monsters, items, weapons and hands take the light around them: brighter on the side facing lit walls, darker facing shade.")
 QVR_SLIDER_BYNAME(vr_model_ambient_contrast, "Ambient Contrast", 0.f, 1.5f, 0.05f, "%.2f", ext(),
@@ -4321,12 +4313,6 @@ QVR_SLIDER(vr_ragdoll_max, "Most Ragdolls", 0.f, 16.f, 1.f, "%.0f", ext(0.f, 64.
     "At most this many at once. New deaths replace the oldest dead ragdoll first, then the oldest living knockdown if necessary. 0: ragdolls off.")
 QVR_TOGGLE(vr_ragdoll_collide_each, "Ragdolls Meet Each Other",
     "Ragdolls fall onto and pile on each other; off, they pass through each other (vr_ragdoll_collide_each).")
-QVR_TOGGLE(vr_ragdoll_self_collide, "Limbs Meet Each Other",
-    "A ragdoll's own limbs meet: an arm stays out of his chest, a leg out of the other, a body folded over "
-    "lies on itself. Jointed neighbours (a forearm and its upper arm), parts deep in each other as he went "
-    "limp (until they come apart) and an arm reaching for his wound, a stump or a wall pass through; his gun "
-    "never meets him. Off: his limbs pass through each other, as before. Ragdolls made from now on "
-    "(vr_ragdoll_self_collide).")
 QVR_TOGGLE(vr_ragdoll_active, "Active Deaths",
     "A dying grunt, enforcer, knight, death knight, ogre or zombie (AD's soldiers, knights and zombies too) goes limp as soon as he stops being solid, "
     "his body playing his death animation as his strength fades (legs first): he stumbles if he dies on the "
@@ -5209,10 +5195,6 @@ QVR_SLIDER(vr_gadget_fingertip_roll, "Fingertip Roll", -45.f, 45.f, 1.f, "%.0f d
     "... rolled about your hand's forward (positive: its top outward).")
 QVR_SLIDER(vr_gadget_button_cooldown, "Button Cooldown", 0.f, 2.f, 0.1f, "%.1f s", ext(0.f, 5.f),
     "After a press counts, how long before the next one does (no double toggles from a bounce).")
-QVR_TOGGLE(vr_gadget_lock_twohand, "Lock While Both Hands Hold One Thing",
-    "On: while both your hands hold the same thing (a weapon two-handed, one prop or crate, one body or "
-    "enemy, one embedded blade) the gadget ignores taps, buttons and touches: no slow motion by accident "
-    "in a fight. Different things in each hand: it works as ever.")
 QVR_SLIDER(vr_gadget_lock_grace, "Lock After Letting Go", 0.f, 1.f, 0.05f, "%.2f s", ext(0.f, 3.f),
     "How long the gadget stays locked after your second hand lets go, so that letting go never taps it.")
 QVR_CYCLE(vr_debug_gadget_button, "Show the Button",
@@ -5368,10 +5350,6 @@ QVR_TOGGLE(vr_hull_hit_head, "Height Shots Hit: Your Head's",
     "Shots and missiles meet you only up to the top of your head: crouched behind a crate, those flying "
     "over it miss you (Quake's box stands as tall), and monsters' bullets aim no higher than your body. "
     "Off: Quake's height, crouched or not (vr_hull_hit_head).")
-QVR_TOGGLE(vr_crouch_hull, "Crouched Hitbox",
-    "Crouch in real life and your box is lower: you walk under low ceilings and through small teleporters, "
-    "and behind cover shots meet only what shows of you. Standing up somewhere too low, you keep the low box "
-    "until there is room. Off: always Quake's standing height (vr_crouch_hull).")
 QVR_SLIDER(vr_crouch_height, "Lowest Crouched Height", 24.f, 52.f, 4.f, "%.0f units", noExt,
     "Your box's height with your eyes under it (Quake's standing box: 56; the crouching room's tunnel in "
     "the teleporter test map: 40) (vr_crouch_height).")
@@ -5637,12 +5615,6 @@ QVR_CYCLE(vr_agarmor, "Armed Humanoids' Armour (P0)",
 QVR_CYCLE(vr_agarmor_pieces, "Armour Pieces",
     "vr_agarmor_pieces: which pieces the armoured grunts wear (each piece hidden by collapsing its bones).",
     {3.f, "Cuirass and Helmet"}, {1.f, "Cuirass"}, {2.f, "Helmet"})
-QVR_CYCLE(vr_agarmor_bridge, "Elbow and Knee Leather",
-    "vr_agarmor_bridge: the leather between the armour plates at the elbows and knees. Bending: one tube made every "
-    "frame from the upper plates' last row to the lower plates' first, curved round the joint, its folds bunched "
-    "on the inside of the bend and stretched flat on the outside. Old Sleeves: the two rigid halves made once at "
-    "load (for comparison). The shells are made again when it changes.",
-    {1.f, "Bending"}, {0.f, "Old Sleeves"})
 QVR_TOGGLE(vr_agarmor_details, "Armour Plate Details",
     "vr_agarmor_details: the plates' painted details by place: the chest's recessed panel, ribs down the belly, "
     "vents on the forearms' cuffs and the shins, raised cops on the elbows and knees, the emblem on an upper arm. "
@@ -6233,10 +6205,6 @@ QVR_CYCLE(vr_flat_aim_sens_match, "Aim Sensitivity Match",
     "(slowest). 1.33: the 4:3 edge (Battlefield's uniform aiming, CS:GO-like). 1.78: a 16:9 screen's edge (fastest) "
     "(vr_flat_aim_sens_match, 0..4 from the console).",
     {0.f, "Centre"}, {0.75f, "0.75"}, {1.33f, "1.33 (4:3 Edge)"}, {1.78f, "1.78 (16:9 Edge)"})
-QVR_TOGGLE(vr_flat_wall_block_fire, "No Fire With Gun Raised",
-    "Playing on the desktop screen (-flatscreenmode): right against a wall the gun is raised, muzzle up, out of it. "
-    "On: a raised gun does not fire, a click does nothing (no shot, no ammo) until it comes back down. Off: it fires "
-    "as it is, through the crosshair. Melee weapons always swing (vr_flat_wall_block_fire).")
 QVR_TOGGLE(vr_flat_xhair, "Visor Crosshair",
     "Playing on the desktop screen (-flatscreenmode): the crosshair in the visor's colours, at the true place on the "
     "screen each gun's shot will hit. Centred nearly always; near a wall or an edge, where the gun's line differs, it "
@@ -6558,10 +6526,6 @@ QVR_SLIDER(vr_flat_body_height, "Body Height", 1.f, 2.2f, 0.01f, "%.2f m", noExt
 QVR_SLIDER(vr_flat_mantle_grunt_delay, "Mantle Grunt Delay", 0.f, 1.f, 0.05f, "%.2f s", noExt,
     "Playing on the desktop screen: how long after the jump the mantle's grunt plays, so the jump's own grunt has ended "
     "and both are heard (vr_flat_mantle_grunt_delay; 0: as the mantle starts).")
-QVR_TOGGLE(vr_flat_mantle_hands, "Mantle Hands On The Ledge",
-    "Playing on the desktop screen: as you mantle, each empty hand goes onto the ledge, as your hands hold it in VR: both "
-    "when both are empty, the free one when the other holds a weapon (it lets go of that weapon's grip for the mantle), "
-    "none when both hold weapons (vr_flat_mantle_hands).")
 QVR_TOGGLE(vr_flat_slide, "Slide",
     "Playing on the desktop screen (-flatscreenmode): crouching (Left Ctrl) while running starts a slide, faster at "
     "first, down a slope faster still, up one slowing to a crouch; jump out of it to keep the speed. Tuning: Debug > "
@@ -6600,10 +6564,6 @@ QVR_TOGGLE(vr_flat_lean_mouse, "Mouse Follows Lean",
     "On: while the view is rolled (a lean, strafing, a hit) the mouse moves it along the tilted screen -- straight up "
     "on the mouse is straight up on the screen. Off: Quake's way, the mouse turns and pitches as if level, so leant it "
     "moves the view at a slant (vr_flat_lean_mouse).")
-QVR_TOGGLE(vr_flat_keys_own, "Desktop Keys Only Do Theirs",
-    "Playing on the desktop screen (-flatscreenmode): the keys the mode reads itself (Q, E, 3, R, X, Z, F, H, G, V) do only "
-    "that, whatever an old config binds to them (E +moveup, 3 the third weapon). Off: their binds run as well "
-    "(vr_flat_keys_own).")
 QVR_TOGGLE(vr_flat_flycam, "Fly Camera (F8)",
     "Playing on the desktop screen (-flatscreenmode): the view flies free while you stand exactly as you were -- the mouse "
     "looks, W A S D fly, Space up, Ctrl down, Shift faster, through walls. Nothing of yours moves, fires or turns; your "
@@ -6926,10 +6886,6 @@ QVR_CYCLE(vr_hull_cache, "Hitboxes on Disk",
     "again (vrstart: 9 s to 0.1 s). Check: read, then compiled anyway and compared (Hitbox Stats counts "
     "them). Off: compiled at every load (vr_hull_cache).",
     {0.f, "Off"}, {1.f, "On"}, {2.f, "Check"})
-QVR_CYCLE(vr_model_light_grid_cache, "Model Light Grids on Disk",
-    "A big map's model light grid kept on disk (cache/lightgrid) and read at its next load instead of built "
-    "again (vrstart: 2.2 s). Check: read, then built anyway and compared. Off: built at every load (vr_model_light_grid_cache).",
-    {0.f, "Off"}, {1.f, "On"}, {2.f, "Check"})
 QVR_CYCLE(vr_hull_async, "New Monster Sizes in Play",
     "A monster whose box size the map's load did not compile (a delayed or triggered spawn, the test "
     "spawner): On the Pool compiles its hull in the background while it moves with Quake's own hull, "
@@ -7168,9 +7124,6 @@ QVR_TOGGLE_BYNAME(vr_bullettime_tap_butt, "The Gun's Butt Taps Too",
     "On: the butt of the gun in your other hand taps the screen as your hand does. Off: only your hand.")
 QVR_TOGGLE_BYNAME(vr_bullettime_tap_holding, "Tap While Holding",
     "On: the tapping hand may hold a weapon or a prop. Off: only an empty hand taps.")
-QVR_TOGGLE_BYNAME(vr_bullettime_tap_twohanded, "Tap During Two-Handed Holds",
-    "Off: no taps while both hands hold one weapon (your gadget hand on its foregrip), against accidents. "
-    "Moving together, the hands never tap anyway.")
 QVR_SLIDER_BYNAME(vr_bullettime_trigger_cooldown, "Ignore Repeats For", 0.f, 2.f, 0.1f, "%.1f s", noExt,
     "After a tap counts, how long before the next one does (a bounce is one).")
 QVR_SLIDER_BYNAME(vr_bullettime_tap_sound, "Tap Click Volume", 0.f, 1.f, 0.05f, "%.2f", noExt,

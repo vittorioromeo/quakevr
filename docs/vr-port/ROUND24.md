@@ -9135,3 +9135,109 @@ props.txt), arena 41 (a dog or a grunt late; 2 failures with the old nav values 
 - developer 1 adds a line per throw: `flat grenade: launched <deg> above level, <deg> above the crosshair, <speed>`.
 - Test: `flathands_test.sh` run grenarc (pitch 20, scale 1.5) against grenmain (the defaults): 5.0 -> 25.0 deg above
   level (6 -> 26 above the crosshair), 604.6 -> 906.9 u/s (x1.5). Scene: `quakevr/scenarios/flat_grenade_arc.txt`.
+
+## Flat-screen hand swap follows the view's pitch (branch `agent/swappitch`, 2026-11-11)
+
+His note: "The off-hand's position is always put at the same height/angle during the animation, as if the player is
+looking straight ahead -- the current camera angle should be taken into account."
+
+- **Cause:** `vr_flatswap.cpp` kept the hands' places and turns in the body's level frame (yaw only) off the head, and
+  put the free hand at the empty hand's guard placed level off the shoulder: looking down 60 degrees the off hand rose
+  into the middle of the screen, looking up it went out of sight below.
+- **Now:** one `Frame` for the whole swap: the view's yaw and pitch (held to `vr_flat_pose_pitch`, as the guns' own
+  poses hold it), off the eye the view is drawn from (`flatplay::eyeNudge`: the neck pivot). Places are (fwd, right,
+  up) in it; turns are Quake angles against its axes (`rotToLocal`/`rotToWorld`, through the axes: exact at any pitch,
+  equal to the old pitch/relative-yaw/roll numbers at a level look). The free hand's guard is placed as at a level look
+  (new `flatplay::levelShoulderOf`: the shoulders re-solved with the look's pitch at 0, only while a swap runs) and
+  carried into the view's frame, taken once at the press (the sight's stance easing out during the pass moved it ~1 unit
+  at -65 sighted otherwise). No tunable or default changed; they are offsets in the view's frame as before (identical
+  at a level look).
+- **Measured** (`Misc/quakevr/flatswappitch_test.sh`, 18 passed): the free hand's place and turn in the view as the
+  weapon is passed, at pitch -60, 0, +60, +85 and -85 (frame +-65), there and back: 0.000 units and 0.00 degrees apart
+  for the rocket launcher, sighted, and the chainsaw (two-handed melee); the shotgun's meeting plays at every pitch.
+  Before: the off hand's guard in view space moved with the look (screens: at +60 it filled the left of the screen).
+- **Not changed:** the guns' own flat poses at a pitch (Gun Out's curve, `vr_flat_pose_pitch`) still place the held
+  gun differently looking up or down; the swap starts from wherever they have it.
+- Checklist: Flat-screen: look well up, then well down, and press 3 with the rocket launcher in both hands and with a
+  shotgun: the hands pass the weapon at the same place on the screen as at a level look.
+## The Widowmaker's and the AD Plasma Gun's ammo screen housings (branch `agent/housing4`, 2026-11-11)
+
+His mockups: kit `scratch/widowmaker_housing_mockup_1111.webp`, `scratch/adplasma_housing_mockup_1111.webp`. Shots in
+the housing3 worktree's `scratch/` (flat play, AD mounted; left the hand, then `vr_debug_screen_cam` 110 / 300 and 45):
+`h4_before_widow.png` / `h4_after_widow.png` (`h4_wm_zoom.png` the close-up cropped), `h4_before_plasma.png` /
+`h4_after_plasma.png`. Scenario `ad_housings` (needs AD).
+
+- **The digits as they were (shared, `fillMax`):** with an `opening`, reloading on, the clip over the total grew to fill
+  the glass (fillSize, times vr_ammo_mag_scale). Screen styles have `fillMax` (vr_screenstyle.hpp): the fill never past
+  it; `queue` hands it to the glyphs (text3d `Glyphs::fillMax`), fillSize caps there. 1 on these two: their windows are
+  the glass each had without a housing (its text plus padding: "16" over a 0.6-size "100" fits at the font's size), so
+  the digits keep their size and place on the glass (the look the default's: no box, the frame the model's); made
+  smaller only if a number would not fit. 0 (no cap) on every other gun: their screens unchanged.
+- **Widowmaker** (`Misc/quakevr/make_screen_housing_widow.py`, the hand-made `widowmaker.blend`; its own object
+  `ScreenHousing` and the Widowmaker's exporter: the Body untouched): on the receiver's top-rear chamfer, built on the
+  .mdl grid's plane nearest it (one X, three Z steps: 39.6 degrees, rows 0.304; the glass keeps slot 34's pitch, 3.1
+  degrees off: its edges 0.02 / 0.07 behind the front). h = 3 rows = 0.91. Window 28 Y steps x 3 rows (0.93 x 0.91 =
+  20.1 x 19.6 font px: 1.02w x 1h, not the spec's 0.9w: today's "16" needs 19.1 px across at the font's size),
+  corners cut 0.11h along the top/bottom edges (the sides 0.14h above, 0.11h below: the grid). Bezel 0.11h at the sides,
+  one row (0.33h: the grid's least; the spec's 0.1h is a third of a row) above and below, 0.11h proud of the chamfer as
+  the file has it; bevelled to 0.15 back (top 40, bottom 50, sides 48 degrees: the levels the grid has); walls into the
+  gun, closed. Glass 0.05h behind the front. 4 rivets r 0.08h (not 0.06h: at 0.06h the grid's 0.149-tall points make
+  spikes; round to w/h 1.016) at +-0.39 of the window's width in the top and bottom bands (0.028 below their middles:
+  the grid), not at the spec's (+-0.4w, +-0.4h), which is inside the window. Texels from the gun: the plate from the
+  receiver's top, the bevels and walls from its back beside the rear plate, the window's walls from the shell port's
+  dark inside, the rivets on a painted rivet of the rear plate. 64 vertices, 72 triangles; the .mdl's grid unchanged.
+  Re-run in place: 0 moved, 72 kept, the .blend unchanged. Table `"shot3.mdl#vr"`: radius -2.15, opening 10.03 x 9.79,
+  offset {0.0043, -0.0040, -0.0088} (the glass 0.02 off its old place).
+- **The grid, not the .blend:** the first try put the glass 0.025 in front of the chamfer as the .blend has it, but the
+  file's bytes move the chamfer 0.06 further out (its X 0.11 off): the gun cut the "2". The script measures the gun as
+  the file has it (its vertices on the grid).
+- **AD Plasma Gun** (`Quake/vr/vr_adweapons.cpp` plasmaHousing, made with the model as it loads, on its grid: X 0.148,
+  Y 0.055, Z 0.073): on the rear face (the cut's cap), upright. The cut moved from x -5.55 (drawn at the corner's byte,
+  which nothing may pass: the settings scale about it) to -5.33 (the third byte): the bezel's front on the second
+  (proud one X step: 0.12h; the spec's 0.06h is half a step), the rivets' tops on the first. h = the window's width =
+  22 Y steps = 1.20 (today's glass); height 15 Z steps (0.91h); corners cut 2 Y / 1 Z steps (about 0.08h). Bezel 2 Z
+  steps (0.12h) above and below, 6 Y steps (0.27h) at the sides (the mockup's: the rivets need 0.19h); flat, closed
+  behind; all 4 outline corners on the gun's face (`vr_adweapon_models` prints it). 2 rivets: octagons 0.22 across (r
+  0.09h) up to a flat top, one smoothing group (a low dome), in the side bands' middles, level with the window's middle.
+  AD's texels: the bronze plate (the cell block's) on the bezel, a dark slot inside the window, a painted rivet's dark
+  dot on the rivets. 88 triangles. Glass 0.04h behind the front: table `"plasma.mdl#vr"` (the stem exact: Rogue's
+  `progs/v_plasma.mdl` never matches) radius -1.70, opening 11.23 x 10.21, offset {-0.0055, -0.0044, -0.1200}.
+- Tests: `vr_ad_test 103` (the Plasma Gun's ball) 2/0; `vr_scenario validate ad_housings` OK; Release-TracyFull built.
+- **Not verified:** the headset (flat shots); the left hand (the shapes are symmetric).
+
+## Retired switches (branch `agent/cvarretire`, 2026-11-11)
+
+His decisions on the cvar audit (`qvr-kit/scratch/cvar_audit_1111.md`, part 1). Each retired switch's default was
+checked first and is now the only path; the names are in `vr_cvars.cpp retiredCvars`, so an old config's line is
+dropped quietly (cmd.c), and CVAR_AUDIT.md lists them.
+
+- **Retired:** `vr_agarmor_bridge` (the leather bridge made each frame; the load-time sleeves, `sleeveOf` and its
+  eight constants, `tweakVerts`' sleeve push, the armour check's sleeve-layer guards and the Armour Studio test's
+  sleeve checks deleted; its bridge key is five settings now), `vr_kill_blast_fling` (a blast kill's ragdoll at once),
+  `vr_model_light_grid_cache` (always cached when the grid is built: its Off/Check modes, the Check's compare and the
+  Debug > Tests row gone; a disk cache product may now have no setting: `diskcache::modeOf` 1, `vr_cache_info` says
+  "(always)"), `vr_flat_key_grab_alt` (and its migration row), `vr_flat_wall_block_fire`, `vr_flat_mantle_hands`,
+  `vr_flat_keys_own` (BACKLOG: the flat keys bindable from the menu), `vr_decap_touch_point` (QC A/B),
+  `vr_menu_flat_esc_game`, `vr_gadget_lock_twohand`, `vr_crouch_hull` (`crouchOn` and its eight gates gone; the hull
+  system is always wanted with a world; `vr_crouch_status` no longer prints `on`), `vr_ragdoll_self_collide` (the
+  group/preSolve toggles in the ragdoll's and the worn pack's shapes gone).
+- **Cascade:** `vr_bullettime_tap_twohanded` (0): a two-handed hold is one of the gadget lock's, now always on, which
+  stops the tap first; its 1 did nothing any more. Retired with its row (bullet time's tap stays off while two-handed).
+- **Hidden** (working, no menu row, comment says so): `vr_flat_tonemap`, `vr_model_light_grid`, `vr_menu_bigfont`.
+- **Kept:** `vr_flat_holster_menu_mode` as the user option (Release to Pick / Toggle; its self-test runs both modes).
+  `vr_flat_wall_shot` stays (a gun laid along a wall still fires through its muzzle; flatxhair's flush case now holds
+  the tilt at 4 degrees, under the 5 that block). `vr_ragdoll_collide_each` stays (other ragdolls' parts).
+- Tests changed: flatwall d (no off case), flatxhair flush (`vr_flat_wall_tilt 4`), flatslide keys (the binds never
+  run), flatmenu_esc (no off case), gadget_lock (no G), decap_test, crouch_test (no off tunnel), selfcollide_test
+  (one run each case), corpse_notes/notes_regression/ragtest (no setting), vr_armour_test (no sleeve checks).
+- Verified (after merging origin/next): build and Release-TracyFull; menu_paths.txt regenerated (13 rows gone);
+  `vr_menu_path_check` vrcalibration 6/0 missing, vrtesthall 14/0; flatxhair 31/0 (flush fires at 4 degrees, its
+  shot along the barrel); flatslide 26/0 (mantle hands, keys, binds never run); flatmenu_esc 7/0; gadget_lock 17/0;
+  flatholster 24/0 (the Toggle mode: a press opens, three clicks keep it open, the next press or Esc closes);
+  flatkeys 37/0; vr_armour_test 23/0; vr_agarmor_bridge_check 121/0; crouch_test's prints as before (tunnel crouched
+  out at 880.7, cover crouched 0 damage of 12 shots); the light grid on vrstart: written at the first run, read at the
+  second (47.7 MB, 24 ms).
+- **Not passing, not from this branch:** flatwall d "off the wall, it fires" (no shell is spent anywhere in that run:
+  the weapon `vr_test_give_wid 4; impulse 149` gives is not in the hand, `main no`; the path is the same as with the
+  old switch on); `vr_systems_test 15` (the blast's body never knocks the torch off; the blast-kill path is the old
+  switch's default). Both worth a look by whoever owns those tests.

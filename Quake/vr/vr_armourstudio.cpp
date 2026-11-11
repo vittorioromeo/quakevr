@@ -96,7 +96,6 @@ struct Test
     uint32_t hashEmpty{0}, hashTweaked{0}, hashHand{0}, hashShipped{0};
     int genBefore{0}; // (the table's generation before the hand-edited file: the watcher's read bumps it)
     char fileWas[64]{};
-    float bridgeWas{1.f}; // (vr_agarmor_bridge before the test: its sleeves' checks are the load-time sleeves')
     char mapWas[64]{};
 };
 Test test;
@@ -529,8 +528,8 @@ constexpr double testStepMost = 10.0; // seconds a step may wait (a safety net: 
     return src ? agarmor::detail::shellFor(src) : nullptr;
 }
 
-// Whether the vertices of `piece` (its plates, or its sleeve) in `b` are those of `a` moved by `move` (within 1e-3); `same`: unmoved.
-[[nodiscard]] bool movedBy(const za::Vector<agarmor::detail::Vert>& a, const za::Vector<agarmor::detail::Vert>& b, int piece, bool sleeve,
+// Whether the vertices of `piece` (its plates) in `b` are those of `a` moved by `move` (within 1e-3); `same`: unmoved.
+[[nodiscard]] bool movedBy(const za::Vector<agarmor::detail::Vert>& a, const za::Vector<agarmor::detail::Vert>& b, int piece,
     const glm::vec3& move, int& n)
 {
     n = 0;
@@ -541,8 +540,7 @@ constexpr double testStepMost = 10.0; // seconds a step may wait (a safety net: 
     for(int i = 0; i < count(a); i++)
     {
         const auto& va = at(a, i);
-        const bool isSleeve = va.st.x >= 224.f && va.st.y >= 64.f && va.st.y <= 96.f && va.piece >= agarmor::PauldronL;
-        if(va.piece != piece || isSleeve != sleeve)
+        if(va.piece != piece)
         {
             continue;
         }
@@ -570,11 +568,8 @@ void testStep1()
         const agarmor::detail::Shell* shipped = gruntShell();
         test.hashShipped = shipped ? shipped->hash : 0u;
     }
-    // (the sleeves' checks below are the load-time sleeves' (vr_agarmor_bridge 0); the joints' leather made each frame has
-    // its own, vr_agarmor_bridge_check's, armour.txt's settings on it included)
-    test.bridgeWas = vr_agarmor_bridge.value;
-    Cvar_SetValueQuick(&vr_agarmor_bridge, 0.f);
-    Cmd_ExecuteString("vr_agarmor_rebuild", src_command);
+    // (the joints' leather, made each frame, has its own checks, vr_agarmor_bridge_check's, armour.txt's settings on it
+    // included)
     Cvar_Set("vr_armour_file", testFile);
     (void)files::writeText(filePath(), ""); // (the test's own file, empty)
     (void)load();
@@ -587,51 +582,24 @@ void testStep1()
     }
     testVerts = s->verts;
     test.hashEmpty = s->hash;
-    // An override on the bracers (both sides: the right mirrored) and on the right thigh's sleeve alone.
+    // An override on the bracers (both sides: the right mirrored).
     Override* o = entry("grunt", PartBracer, SideBoth, true);
     o->v[OffsetX] = 0.f;
     o->v[OffsetY] = 1.5f;
     o->v[OffsetZ] = 0.5f;
     o->has |= (1u << OffsetX) | (1u << OffsetY) | (1u << OffsetZ);
-    Override* sl = entry("grunt", PartThighSleeve, SideRight, true);
-    sl->v[Standoff] = 0.5f;
-    sl->has |= 1u << Standoff;
     changed();
     s = gruntShell();
     int n = 0;
-    t.check(s && movedBy(testVerts, s->verts, agarmor::BracerL, false, glm::vec3{0.f, 1.5f, 0.5f}, n), testName, "the left bracer's plates not moved by (0 1.5 0.5)");
-    t.check(s && movedBy(testVerts, s->verts, agarmor::BracerR, false, glm::vec3{0.f, -1.5f, 0.5f}, n), testName, "the right bracer's plates not moved by the mirror image (0 -1.5 0.5)");
-    t.check(s && movedBy(testVerts, s->verts, agarmor::BracerL, true, glm::vec3{0.f}, n), testName, "the bracers' sleeves moved");
+    t.check(s && movedBy(testVerts, s->verts, agarmor::BracerL, glm::vec3{0.f, 1.5f, 0.5f}, n), testName, "the left bracer's plates not moved by (0 1.5 0.5)");
+    t.check(s && movedBy(testVerts, s->verts, agarmor::BracerR, glm::vec3{0.f, -1.5f, 0.5f}, n), testName, "the right bracer's plates not moved by the mirror image (0 -1.5 0.5)");
     for(const int p : {agarmor::Cuirass, agarmor::Helmet, agarmor::PauldronL, agarmor::PauldronR, agarmor::ThighL, agarmor::ThighR, agarmor::ShinL, agarmor::ShinR})
     {
         char what[96];
         q_snprintf(what, sizeof(what), "%s's plates moved (only the bracers were tweaked)", agarmor::detail::pieceNames[p]);
-        t.check(s && movedBy(testVerts, s->verts, p, false, glm::vec3{0.f}, n), testName, what);
+        t.check(s && movedBy(testVerts, s->verts, p, glm::vec3{0.f}, n), testName, what);
     }
-    t.check(s && movedBy(testVerts, s->verts, agarmor::ThighL, true, glm::vec3{0.f}, n), testName, "the left thigh's sleeve moved (only the right's tweaked)");
-    // (the right thigh's sleeve: further out from its middle, by the stand-off)
-    float before = 0.f, after = 0.f;
-    glm::vec3 mid{0.f};
-    int m = 0;
-    for(int i = 0; s && i < count(testVerts); i++)
-    {
-        const auto& v = at(testVerts, i);
-        const bool isSleeve = v.st.x >= 224.f && v.st.y >= 64.f && v.st.y <= 96.f;
-        mid += v.piece == agarmor::ThighR && isSleeve ? v.p : glm::vec3{0.f};
-        m += v.piece == agarmor::ThighR && isSleeve ? 1 : 0;
-    }
-    mid /= static_cast<float>(za::max(m, 1));
-    for(int i = 0; s && i < count(testVerts) && s->verts.size() == testVerts.size(); i++)
-    {
-        const auto& v = at(testVerts, i);
-        const bool isSleeve = v.st.x >= 224.f && v.st.y >= 64.f && v.st.y <= 96.f;
-        before += v.piece == agarmor::ThighR && isSleeve ? glm::length(glm::vec2{v.p.x - mid.x, v.p.y - mid.y}) : 0.f;
-        after += v.piece == agarmor::ThighR && isSleeve ? glm::length(glm::vec2{at(s->verts, i).p.x - mid.x, at(s->verts, i).p.y - mid.y}) : 0.f;
-    }
-    const float out = (after - before) / static_cast<float>(za::max(m, 1));
     char what[96];
-    q_snprintf(what, sizeof(what), "the right thigh's sleeve out by %.2f on average (0.3 .. 0.6 wanted)", static_cast<double>(out));
-    t.check(m > 0 && out > 0.3f && out < 0.6f, testName, what);
     test.hashTweaked = s ? s->hash : 0u;
     t.check(test.hashTweaked != test.hashEmpty, testName, "the tweaked shell's hash is the untweaked one's");
     // Rows: the shins' 4 rows, both sides alike.
@@ -675,111 +643,13 @@ void testStep1()
         static_cast<double>(topRatio), static_cast<double>(lowRatio));
     t.check(za::abs(topRatio - 1.3f) < 0.01f && za::abs(lowRatio - 0.8f) < 0.01f, testName, what);
     taper->has &= ~((1u << TaperStart) | (1u << TaperEnd));
-    // Leather: the left thigh's sleeve hidden, the right's kept.
-    const auto sleeveVerts = [](const agarmor::detail::Shell* sh, int piece) {
-        int n = 0;
-        for(const auto& v : sh->verts)
-        {
-            n += v.piece == piece && v.st.x >= 224.f && v.st.y >= 64.f && v.st.y <= 96.f ? 1 : 0;
-        }
-        return n;
-    };
-    const int rightSleeve = s ? sleeveVerts(s, agarmor::ThighR) : 0;
+    changed();
+    s = gruntShell();
+    t.check(s && s->hash == test.hashTweaked, testName, "the taper cleared: not the same shell as before");
+    // (the leather's settings, on the sleeve parts, go to the joints' leather made each frame: vr_agarmor_bridge_check
+    // checks them; here only the file's round trip of one, below)
     Override* leather = entry("grunt", PartThighSleeve, SideLeft, true);
     leather->v[Leather] = 0.f;
-    leather->has |= 1u << Leather;
-    changed();
-    s = gruntShell();
-    q_snprintf(what, sizeof(what), "leather \"0\" on the left thigh's sleeve: its vertices %d (0 wanted), the right's %d (%d wanted)",
-        s ? sleeveVerts(s, agarmor::ThighL) : -1, s ? sleeveVerts(s, agarmor::ThighR) : -1, rightSleeve);
-    t.check(s && sleeveVerts(s, agarmor::ThighL) == 0 && rightSleeve > 0 && sleeveVerts(s, agarmor::ThighR) == rightSleeve, testName, what);
-    leather->has &= ~(1u << Leather);
-    changed();
-    s = gruntShell();
-    t.check(s && s->hash == test.hashTweaked, testName, "taper and leather cleared: not the same shell as before");
-    // Leather taper: the left knee's two sleeves, the thigh's half 1 -> 1.4, the shin's 1.4 -> 0.7 (in the limb's order: the
-    // shin's start is its joint end), each ring's size round its middle; their plates and the right knee's sleeves untouched.
-    const auto sleeveRing = [](const agarmor::detail::Shell* sh, int piece, int ring) {
-        constexpr int ringVerts = 7; // (a sleeve's 6 columns and its seam's copy)
-        glm::vec3 p[6];
-        int n = 0, k = 0;
-        for(const auto& v : sh->verts)
-        {
-            if(v.piece != piece || v.st.x < 224.f || v.st.y < 64.f || v.st.y > 96.f)
-            {
-                continue;
-            }
-            if(k >= ring * ringVerts && k < ring * ringVerts + 6)
-            {
-                p[n++] = v.p;
-            }
-            k++;
-        }
-        if(n < 6)
-        {
-            return 0.f;
-        }
-        const glm::vec3 mid = (p[0] + p[1] + p[2] + p[3] + p[4] + p[5]) / 6.f;
-        float sum = 0.f;
-        for(const glm::vec3& q : p)
-        {
-            sum += glm::length(q - mid) / 6.f;
-        }
-        return sum;
-    };
-    float ringsWas[4][4]{}; // (thigh L, shin L, thigh R, shin R; rings 0 .. 3)
-    const int kneePieces[4] = {agarmor::ThighL, agarmor::ShinL, agarmor::ThighR, agarmor::ShinR};
-    for(int i = 0; s && i < 4; i++)
-    {
-        for(int ring = 0; ring < 4; ring++)
-        {
-            ringsWas[i][ring] = sleeveRing(s, kneePieces[i], ring);
-        }
-    }
-    za::Vector<agarmor::detail::Vert> vertsWas;
-    if(s)
-    {
-        vertsWas = s->verts;
-    }
-    Override* thighLeather = entry("grunt", PartThighSleeve, SideLeft, true);
-    Override* shinLeather = entry("grunt", PartShinSleeve, SideLeft, true);
-    thighLeather->v[TaperStart] = 1.f;
-    thighLeather->v[TaperEnd] = 1.4f;
-    shinLeather->v[TaperStart] = 1.4f;
-    shinLeather->v[TaperEnd] = 0.7f;
-    thighLeather->has |= (1u << TaperStart) | (1u << TaperEnd);
-    shinLeather->has |= (1u << TaperStart) | (1u << TaperEnd);
-    changed();
-    s = gruntShell();
-    const float shinWant[4] = {0.f, 1.4f - 0.7f * 2.f / 3.f, 1.4f - 0.7f / 3.f, 1.4f};
-    float ratio[4][4]{};
-    bool taperOk = s != nullptr;
-    for(int i = 0; s && i < 4; i++)
-    {
-        for(int ring = 0; ring < 4; ring++)
-        {
-            ratio[i][ring] = ringsWas[i][ring] > 0.f ? sleeveRing(s, kneePieces[i], ring) / ringsWas[i][ring] : 0.f;
-            // (the left's against the lerp, but for the shin's ring 0: under its plates' feet, so no wider than it was; the
-            // right's unchanged)
-            const float want = i >= 2 ? 1.f : i == 0 ? 1.f + 0.4f * static_cast<float>(ring) / 3.f : shinWant[ring];
-            taperOk = taperOk && (ringsWas[i][ring] > 0.f) && (i == 1 && ring == 0 ? ratio[i][ring] <= 1.f : za::abs(ratio[i][ring] - want) < 0.01f);
-        }
-    }
-    char taperWhat[320];
-    q_snprintf(taperWhat, sizeof(taperWhat), "the left knee's leather taper: thigh's rings %.3f %.3f %.3f %.3f (1 1.133 1.267 1.4 wanted), shin's %.3f %.3f %.3f %.3f "
-                                   "(<=1 0.933 1.167 1.4), the right's %.3f %.3f (1 1)",
-        static_cast<double>(ratio[0][0]), static_cast<double>(ratio[0][1]), static_cast<double>(ratio[0][2]), static_cast<double>(ratio[0][3]),
-        static_cast<double>(ratio[1][0]), static_cast<double>(ratio[1][1]), static_cast<double>(ratio[1][2]), static_cast<double>(ratio[1][3]),
-        static_cast<double>(ratio[2][3]), static_cast<double>(ratio[3][3]));
-    Con_Printf("%s: %s\n", testName, taperWhat);
-    t.check(taperOk, testName, taperWhat);
-    t.check(s && movedBy(vertsWas, s->verts, agarmor::ThighL, false, glm::vec3{0.f}, n) && movedBy(vertsWas, s->verts, agarmor::ShinL, false, glm::vec3{0.f}, n),
-        testName, "the leather taper moved the left thigh's or shin's plates");
-    thighLeather->has &= ~((1u << TaperStart) | (1u << TaperEnd));
-    shinLeather->has &= ~((1u << TaperStart) | (1u << TaperEnd));
-    changed();
-    s = gruntShell();
-    t.check(s && s->hash == test.hashTweaked, testName, "the leather taper cleared: not the same shell as before");
     // (both again, for the file's round trip below)
     taper->has |= (1u << TaperStart) | (1u << TaperEnd);
     leather->has |= 1u << Leather;
@@ -817,7 +687,7 @@ void testStep2()
     }
     agarmor::detail::Shell* s = gruntShell();
     int n = 0;
-    t.check(s && movedBy(testVerts, s->verts, agarmor::BracerR, false, glm::vec3{2.f, 0.f, 0.f}, n), testName, "the hand-edited file read: the right bracer not moved forward 2");
+    t.check(s && movedBy(testVerts, s->verts, agarmor::BracerR, glm::vec3{2.f, 0.f, 0.f}, n), testName, "the hand-edited file read: the right bracer not moved forward 2");
     test.hashHand = s ? s->hash : 0u;
     // A map change: the tweaks still there.
     Cbuf_AddText(va("map %s\n", test.mapWas));
@@ -842,7 +712,6 @@ void testStep3()
     agarmor::detail::Shell* s = gruntShell();
     t.check(s && s->hash == test.hashHand, testName, "after a map change the tweaked shell is not the same");
     // Back as it was: the shipped file, its armour as before the test.
-    Cvar_SetValueQuick(&vr_agarmor_bridge, test.bridgeWas);
     Cmd_ExecuteString("vr_agarmor_rebuild", src_command);
     Cvar_Set("vr_armour_file", test.fileWas);
     (void)load();

@@ -72,7 +72,7 @@ constexpr float selfApart = 0.002f; // m: two of a ragdoll's parts nearer than t
 // push-out resolves initial overlaps. Living animation/pin safeguards remain in selfTouches below.
 [[nodiscard]] bool selfMeets(b3ShapeId a, b3ShapeId b, int num)
 {
-    if(vr_ragdoll_self_collide.value == 0.f || num >= static_cast<int>(world->slots.size()) || world->slots[num].ragdoll < 0)
+    if(num >= static_cast<int>(world->slots.size()) || world->slots[num].ragdoll < 0)
     {
         return false;
     }
@@ -275,7 +275,7 @@ bool shouldCollide(b3ShapeId a, b3ShapeId b, void*)
     {
         return true;
     }
-    // Two ragdolls (a self-colliding one has catCorpse in its mask whatever vr_ragdoll_collide_each: it decides here).
+    // Two ragdolls (each has catCorpse in its mask, for its own parts: vr_ragdoll_collide_each decides here).
     if(vr_ragdoll_collide_each.value == 0.f && na < static_cast<int>(world->slots.size()) &&
         nb < static_cast<int>(world->slots.size()) && world->slots[na].ragdoll >= 0 && world->slots[nb].ragdoll >= 0)
     {
@@ -375,7 +375,7 @@ bool preSolve(b3ShapeId a, b3ShapeId b, b3Pos point, b3Vec3 normal, float separa
         }
     }
     if(level) { return true; }
-    // (A ragdoll's own parts: self-collision, vr_ragdoll_self_collide.)
+    // (A ragdoll's own parts: self-collision, always.)
     if(const int na = numOf(a); na > svs.maxclients && na == numOf(b) && na < static_cast<int>(world->slots.size()) &&
                                 world->slots[na].ragdoll >= 0)
     {

@@ -75,11 +75,9 @@ void createRagdollPack(RagdollBodies& r, edict_t* ent, int num, const Slot& s)
     const glm::vec3 h = half * (packShrink / world->m2u);
     const b3BoxHull box = b3MakeTransformedBoxHull(h.x, h.y, h.z, r.packLocal);
     // (As its parts' shapes: createRagdollParts.)
-    const bool selfCollide = vr_ragdoll_self_collide.value != 0.f;
-    b3ShapeDef sd = shapeDef(num, catCorpse, s.corpseMask | (vr_ragdoll_collide_each.value || selfCollide ? catCorpse : 0));
+    b3ShapeDef sd = shapeDef(num, catCorpse, s.corpseMask | catCorpse);
     sd.enableCustomFiltering = true;
-    sd.filter.groupIndex = selfCollide ? 0 : -num;
-    sd.enablePreSolveEvents = selfCollide;
+    sd.enablePreSolveEvents = true;
     sd.enableHitEvents = true;
     sd.baseMaterial.friction = s.corpseFriction;
     sd.density = za::max(vr_worn_backpack_mass.value, 0.1f) / za::max(8.f * h.x * h.y * h.z, 1e-6f);
