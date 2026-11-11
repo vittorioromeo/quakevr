@@ -313,6 +313,7 @@ QVR_TUNABLE(vr_physsound_min_speed, "1.5") // m/s, the slowest hit that knocks (
 QVR_TUNABLE(vr_physsound_full_speed, "10") // m/s, a hit this hard or harder at full volume (a 1 m drop: 7.8)
 QVR_TUNABLE(vr_physsound_interval, "0.12") // s, a prop knocks at most this often (a harder hit, twice as loud, sooner)
 QVR_TUNABLE(vr_physsound_bodies, "1") // ragdolls and pushable corpses hitting the level, props and each other (flesh): volume (0 off, up to 2)
+QVR_TUNABLE(vr_physsound_living, "1") // a living monster down as a ragdoll (knocked down, thrown, falling) knocking as a corpse does: volume, times Bodies' (0 off, up to 2)
 QVR_TUNABLE(vr_physsound_body_min_speed, "2") // m/s, the slowest hit of a body's that knocks (a settling pile's twitches are slower)
 QVR_TUNABLE(vr_physsound_scrape, "0.8") // props sliding with friction (dragged, shoved, skidding): volume (0 off)
 QVR_TUNABLE(vr_physsound_scrape_min, "0.3") // m/s, the slowest slide that scrapes

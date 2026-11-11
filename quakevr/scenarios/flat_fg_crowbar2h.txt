@@ -1,0 +1,10 @@
+# flat_fg_crowbar2h: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode): a Two-Handed: Sword grip (the crowbar, the knights' swords, AD's swords, hammer, mace and flail) lets the off hand off it before E's force grab pulls, as a two-handed gun does (vr_twohand.cpp flatLetsGo; docs/vr-port/ROUND24.md, "Flat: the crowbar's two-handed grip lets go for the force grab").
+title Flat-screen force grab from a two-handed crowbar: a crowbar in the right hand, rocks to pull
+hint Play with -flatscreenmode. Keep the crowbar in the right hand, the left empty, and swing (fire) until the left hand takes the tape below the right; then look at a rock and press the grab key: the left hand comes off the crowbar first, turns its palm out, and only then the rock flies to it. Then the knight's sword the same way.
+map vrtesthall
+god
+notarget
+give "Crowbar" main
+spawn "Rock" 120 30
+spawn "Rock" 160 0
+spawn "Rock" 140 -40

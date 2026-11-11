@@ -40,3 +40,4 @@ quakevr/maps/vrfiringrange_recovered_20261012.lux
 
 # Blender save backups
 *.blend1
+Windows/VisualStudio/*.vcxproj.user

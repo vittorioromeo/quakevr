@@ -445,6 +445,13 @@ void PF_limbplace()
     out[2] = v.z;
 }
 
+// float physsoundinfo(entity e, float what): the physics sounds' impacts from e (a prop, a ragdoll, a corpse): 0 how many
+// played since the map began, 1 the server's time of the last (-1 none), 2 its volume (vr_physsound.cpp info).
+void PF_physsoundinfo()
+{
+    G_FLOAT(OFS_RETURN) = physsound::info(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), static_cast<int>(G_FLOAT(OFS_PARM1)));
+}
+
 // float ragdollhead(entity e, vector p, [float neck]): 1 if p is on the head of e's ragdoll (its head part, or at the
 // neck: within 4 units of it, or `neck` units if more: the melee's vr_decap_neck), 0 not (or headless), -1 e isn't a
 // ragdoll.

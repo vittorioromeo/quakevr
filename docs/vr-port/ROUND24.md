@@ -8758,3 +8758,54 @@ Defaults still off: recommended on (slots at least). Debug > Views: Crowd Stall 
 all twelve knights and dogs leave their spots (none stuck in a wall) and reach you on the dais within about ten
 seconds, the knights taking places round you from several flights; the console's crowd test table shows almost no
 stalls, and Show Navmesh 2 puts a post wherever one stalled. {test:nav_crowd}"
+
+## Active ragdolls' thuds (branch `agent/ragthud`, 2026-11-11)
+
+His question: do ragdolls knock when they hit the level (a grunt falling off a ledge as an active ragdoll: its scream,
+no physics impact)? Found: they already did. A living monster down as a ragdoll (knocked down, staggering, thrown,
+falling) has a corpse's slot (vr_box3d_ragdoll.cpp createRagdoll: `Kind::Corpse`, its ragdoll), so soundHits gave its
+parts the corpse's flesh knocks all along (the brief's reading, a `Kind::Actor` slot skipped, was not the case). Measured
+(vr_agrunt_test 225, vrclimb): off the long ledge, the landing in the trench 20.7 m/s on the torso (11.2 kg): volume
+0.85, then a limb's 0.31; killed by its landing, the same knock with its death scream; knocked down on the flat: one
+knock, 3.3 m/s, volume 0.21 (quiet: under 0.35 it also carries less far, attenuation 1.5), which the shove's and its
+pain sounds can cover. Rate: the body rule (one knock per body per two vr_physsound_interval, one per pair of bodies,
+bounces' tails) held: at most 3 in any second.
+
+Added:
+- `vr_physsound_living` (1; 0..2, Debug > Tunables > Living Bodies): a living one's knocks and drags, times Bodies
+  (vr_physsound.cpp bodyGain; living: health > 0, not dead). 0: only corpses knock. Corpses unchanged.
+- One sound, not two, with the smash: a living one whose strike smashed (QC VR_RagSmash: the zombie's flesh hit and
+  dland2, a thud already) knocks no flesh knock while its smash's cooldown runs (`.vr_rsmash_next`, now an engine field:
+  vr_fields.inc). Corpses keep both as before (a held corpse smashed into a wall: the knock and the smash), as the
+  brief asked; making them one sound too is a one-line change in frameEnd.
+- `physsoundinfo(e, what)` (QC builtin, the tests): e's knocks played since the map began, the last one's time, its
+  volume.
+- Test `sv_random_seed 1;map vrclimb;wait30;god;vr_agrunt_test 225`, `-QuitOn "test 225 over"` (vr_ragthud_test.qc):
+  off the ledge (knocked as it landed), on the flat, killed by its landing, Living Bodies 0 on both (none), the smash
+  sounding (none); no trial more than 5 knocks in a second. 12 passed, 0 failed. Scene `{test:ragthud}`.
+
+If he still hears nothing on the flat: raise Living Bodies (to 1.5-2) rather than the corpses' Bodies.
+Checklist line: "Shove a grunt off a ledge and knock one down on the flat: a fleshy thud as each hits the floor (with
+its scream when the fall kills it), softer on the flat, and no rattle as it tumbles. {test:ragthud}"
+## Flat: the crowbar's two-handed grip lets go for the force grab (branch `agent/fgcrowbar`, 2026-11-11)
+
+His report: with the crowbar in the main hand, once the free hand had taken its two-handed grip, E's force grab ran with
+the off hand still on the grip. Cause (gap a of the brief): the crowbar is Two-Handed: Sword, held by vr_twohand's
+`applySword`, whose `canGrab` never had the flatscreen let-go list that `applyHotspots` (guns, the axe, Mjolnir, the super
+axe, the chainsaw) has; so the grip held through E, the shove, G, 3 and a punch. The force grab's sequencing (b) was
+already the guns' own: `flatfgrab::press` sees the hand on the grip (`twohand::drawnHelping`), adds
+`vr_flat_fg_detach_time`, and sends impulse 50/51 only after turn + detach; flatsight's `keptGrip` eases the drawn hand
+off at `gripEase`. Fix (`vr_twohand.cpp`): one `flatLetsGo(holding, helping)` (punch, shove, reload trip, quick grenade,
+swap, force grab) asked by both paths; the sword path keeps holding at walls (a swing's end), as before. Weapons now
+covered: slots 18/19 (knights' swords), 23 (crowbar), 40-50 (AD: Death Fury's, death knight's, zombie's, death guard's,
+prince's, justice and judge swords, sword.mdl, ogre hammer, ogre mace, blue flail).
+
+Repro: headless, the free hand never took the crowbar's grip on its own (idle 5 s, 30 swings at six pitches, walking,
+turning, crouching, a crowbar picked up off the floor): its hotspot is 2.6 units below the main hand and comes ahead of it
+(`carryToGrip`) only for a few frames after a swing, with the hands' line 0.00 against the 0.65 dot. So the test takes it
+as the axe's case does (vr_2h_angle_threshold -1 until held, then reset; the hold stays). `vr_flatitems_test 9` gained the
+crowbar (case = action * 3 + weapon) and a check that the pull starts at least `vr_flat_fg_turn_time` after the grip let
+go. Before: crowbar E "grip let go -1 s" (never), 4 failed; after: 33 passed; the grip lets go 1 frame after the press for
+all three, the brick flies 0.29 s later. Launcher numbers unchanged (E 2.41, shove 8.46, H 20.63, G 3.79, 3 1.74).
+`flatfg2h_test.sh`: 11 passed (the shove's drawn comparison now within a quarter: the axe's 9.48 vs 8.46 already failed
+the old one-unit slack since the shove smoothing). Scene `flat_fg_crowbar2h`.
