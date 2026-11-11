@@ -1544,6 +1544,11 @@ void toolgunKeys()
 
 } // namespace
 
+glm::vec3 blendHandAngles(const glm::vec3& a, const glm::vec3& b, float k)
+{
+    return blendAngles(a, b, k);
+}
+
 void swapHands(const char* what)
 {
     keyState.swaps++;
