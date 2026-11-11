@@ -9340,7 +9340,7 @@ combination of props/weapons".
 - Tests: `Misc/quakevr/flatswap_test.sh` (`vr_flatswap_test 1`: 10 weapons, 20/20; `2`: 7 hand combinations, 26/26;
   strips 11-15). `flatswappitch_test.sh` 20/20 and `flathands_test.sh` 76/76 with sg1h/swap1 now expected two-handed.
   AD's plasma rifle given by `VRGiveEntWeapon` vanished from the hand after the swap in id1 (the swap itself ran: "flat
-  swap: main hand 22 -> 0, off hand 0 -> 22"); dropped from the test, not looked into.
+  swap: main hand 22 -> 0, off hand 0 -> 22"); dropped from the test (found and fixed: "AD guns through the hand swap").
 - Debug: `vr_flat_swap_debug 2` prints each hand's own pose and drawn place every frame of a meeting swap; test aid
   `vr_flat_swap_seen`. Debug > Tests: "Flat Swap: Two-Handed Weapons", "Flat Swap: Props And Weapons". Scene
   `flat_swap_props`.
@@ -9444,3 +9444,23 @@ His words: "if the player is at full ammo capacity, the unload button should be 
 - Test: `vr_flatitems_test 11` (11 passed, 0 failed): looking 35 degrees down at a dud on the floor, E: off hand HELD,
   RMB arms (state 3), RMB held winds up (4), let go throws (508 u/s); an ogre's live grenade: ARMED at once, wind-up,
   throw ("thrown back: goes off as your launcher's"). Scene `flat_grenade_grab`.
+
+## AD guns through the hand swap (branch `agent/plasmaswap`, 2026-11-12)
+
+The hand-swap round found AD's Plasma Soldier's Rifle (WID_ADPLASMA 22) gone after the swap key in an id1 game. Cause:
+`VRSetEntWeapon` (vr_util.qc), the setter every hand-to-hand move used, checks `VR_Pack_WeaponAvailable` and puts the
+fist instead of a weapon whose pack is missing; AD's soldiers' guns count as missing without AD's data
+(`vr_ad_mounted` 0). A gun that is already in a hand got there through a check of its own (pickups, the impulses,
+level parms, spawners) or through the test aids (`vr_test_give_ad`, `VRGiveEntWeapon`, which check nothing); passing
+it to the other hand checked it again and dropped it. With AD mounted the check passes: never seen there.
+
+- Fix: `VRPassEntWeapon` (vr_util.qc), the setter without the check, for a weapon the player already carries: the flat
+  swap key (`VR_FlatSwapHands`), VR's hand switch (`VRSwitchWeaponHands`), a two-handed hand-off and its take-back
+  (`VRHandOffWeapon`, `VRTakeCarriedWeapon`), a holster's draw (`VRDrawHolsterWeapon`; a holster is filled from a
+  hand or from checked level parms) and the flat toolgun's put-away (`VR_FlatToolgun_Toggle`, the kept weapon back).
+  `VRSetEntWeapon` keeps the check for a weapon set by its id. Every AD soldier's gun (20-28) and the MG3 Super Axe
+  went through the same path, in VR as in flat play; only guns let in without the check (the test aids) were hit.
+- Test: `vr_flatswap_test 1` has the Plasma Soldier's Rifle again (case 10, given by `VRGiveEntWeapon` in id1 without
+  AD): before, "FAIL weapon 22: now in the left hand (left 0, right 0)"; after 22 passed, 0 failed (`2`: 26/26).
+  Headless: give 22, flat toolgun on and off ("back to weapon 22"), two swaps (22 to the left and back). Scene
+  `flat_swap_adgun` (the rifle in the right hand through the test aid; runall: HELD, main now 22).

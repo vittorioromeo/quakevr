@@ -13,6 +13,7 @@ Flat-screen: cut a head or limb onto the axe, then turn the view fast with the m
 Flat-screen or VR: in a big fight with lots of blood on screen, shoot a corpse up close: its blood spray always appears (New Particles Replace Oldest on in Graphics, Effects).
 Flat-screen: hold the super shotgun, the nailgun or the axe alone and press 3: the left hand lets go to the empty hand's pose, the weapon is passed to it, then the right hand comes back beside it, the same steps as the rocket launcher. {test:flat_swap_props}
 Flat-screen: with a prop in one hand and a gun in the other (or two props, or a prop and an empty hand) press 3: the hands meet and exchange what they hold smoothly, the prop never vanishing on the way. {test:flat_swap_props}
+Flat-screen or VR: with an AD soldier's gun in your right hand (the Plasma Soldier's Rifle, even without AD installed), press 3 (in VR: pass it to the other hand, or holster and draw it): it changes hands and stays the rifle, never gone. {test:flat_swap_adgun}
 
 [2. Flat-screen: movement, melee, HUD and menus]
 Flat-screen: cut a grunt's head or arm off with the axe: the cut-off part flies off a little faster than in a headset (Cut-Off Parts: Fling Speed, 1.25x). {test:flat_fling}

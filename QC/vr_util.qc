@@ -284,11 +284,21 @@ inline float(float xHand) VRGetOtherHand =
     return VR_IMPL_SELECT(xHand, cVR_MainHand, cVR_OffHand);
 }
 
+// A weapon the player already carries (in a hand or a holster) put in `xHand`: passed hand to hand (the flat swap key,
+// VR's hand switch, a hand-off and its take-back) or drawn from a holster. Not checked again: it was let in as it came
+// (a pickup, a give, the level's parms: VR_Pack_WeaponAvailable), its model made then. (Checked here, an AD soldier's
+// gun held without AD's data, the test aid's, became the fist in the other hand: the flat swap, 2026-11-12.)
+void(entity e, float xHand, float v) VRPassEntWeapon =
+{
+    if(xHand == cVR_OffHand) e.weapon2 = v;
+    else                     e.weapon = v;
+}
+
+// A weapon by its id in `xHand`: none where its pack's data is missing (the fist).
 void(entity e, float xHand, float v) VRSetEntWeapon =
 {
     if(!VR_Pack_WeaponAvailable(v)) { v = WID_FIST; }
-    if(xHand == cVR_OffHand) e.weapon2 = v;
-    else                     e.weapon = v;
+    VRPassEntWeapon(e, xHand, v);
 }
 
 void(entity e, float xHand, float v) VRSetEntWeaponFlags =

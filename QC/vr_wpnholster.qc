@@ -1351,7 +1351,7 @@ void(entity ent, float xHand) VRHandOffWeapon =
 {
     float other = VRGetOtherHand(xHand);
     float wflags = VRGetEntWeaponFlags(ent, xHand);
-    VRSetEntWeapon(ent, other, VRGetEntWeapon(ent, xHand));
+    VRPassEntWeapon(ent, other, VRGetEntWeapon(ent, xHand));
     VRSetEntWeaponFlags(ent, other, (wflags - (wflags & QVR_WPNFLAG_FOREGRIP_CARRIED)) | QVR_WPNFLAG_FOREGRIP_CARRIED);
     VRMoveEntWeaponInst(ent, xHand, other);
     VRSetHandEmpty(ent, xHand);
@@ -1387,7 +1387,7 @@ void(entity ent, float xHand) VRTakeCarriedWeapon =
     float other = VRGetOtherHand(xHand);
     float flags = VRGetEntWeaponFlags(ent, other);
 
-    VRSetEntWeapon(ent, xHand, VRGetEntWeapon(ent, other));
+    VRPassEntWeapon(ent, xHand, VRGetEntWeapon(ent, other));
     VRSetEntWeaponFlags(ent, xHand, flags - (flags & QVR_WPNFLAG_FOREGRIP_CARRIED));
     VRMoveEntWeaponInst(ent, other, xHand); // (its magazine, its id)
     VRSetHandEmpty(ent, other);
@@ -1449,7 +1449,7 @@ void(entity ent, float xHand) VRSwitchWeaponHands =
     float other = VRGetOtherHand(xHand);
     float wflags = VRGetEntWeaponFlags(ent, xHand);
     VR_SoundVaried(ent, VRGetHandChannel(other), "knight/sword2.wav", 0.7, ATTN_NORM);
-    VRSetEntWeapon(ent, other, VRGetEntWeapon(ent, xHand));
+    VRPassEntWeapon(ent, other, VRGetEntWeapon(ent, xHand));
     VRSetEntWeaponFlags(ent, other, wflags - (wflags & QVR_WPNFLAG_FOREGRIP_CARRIED));
     VRMoveEntWeaponInst(ent, xHand, other); // (its magazine, its id)
     VRSetHandEmpty(ent, xHand);
@@ -1572,10 +1572,10 @@ void(entity ent) VR_FlatSwapHands =
     float am = ent.attack_finished;
     VRHandStopFiring(ent, cVR_MainHand);
     VRHandStopFiring(ent, cVR_OffHand);
-    VRSetEntWeapon(ent, cVR_MainHand, wo);
+    VRPassEntWeapon(ent, cVR_MainHand, wo);
     VRSetEntWeaponFlags(ent, cVR_MainHand, fo - (fo & QVR_WPNFLAG_FOREGRIP_CARRIED));
     VRSetEntWeaponInst(ent, cVR_MainHand, io);
-    VRSetEntWeapon(ent, cVR_OffHand, wm);
+    VRPassEntWeapon(ent, cVR_OffHand, wm);
     VRSetEntWeaponFlags(ent, cVR_OffHand, fm - (fm & QVR_WPNFLAG_FOREGRIP_CARRIED));
     VRSetEntWeaponInst(ent, cVR_OffHand, im);
     ent.attack_finished = ent.offhand_attack_finished;
@@ -1599,7 +1599,7 @@ void(entity ent, float xHand, float xHotspot) VRDrawHolsterWeapon =
     entity holstered = VRGetEntHolsterWeaponInst(ent, xHotspot);
     VR_SoundVaried(ent, VRGetHandChannel(xHand), "weapons/holster0.wav", 1, ATTN_NORM);
     VR_MagHolster_DrawSound(ent, xHand, xHotspot, holstered); // (bound: the chain heard too)
-    VRSetEntWeapon(ent, xHand, wid);
+    VRPassEntWeapon(ent, xHand, wid);
     VRSetEntWeaponFlags(ent, xHand, getHolsterWeaponFlags(xHotspot));
     if(getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE)
     {
