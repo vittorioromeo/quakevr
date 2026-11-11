@@ -11,7 +11,8 @@
 #   vrwalk  headset: walking over armour still leaves it lying (his rule unchanged)
 #   palm    E's palm turns out before the grab; two quick presses never send two objects at one hand (test 6)
 #   prop    a brick force-grabbed beside the shotgun: one-handed gun, the brick in the guard, V swings and punches with it, a
-#           torch turned flame up (test 7)
+#           torch turned flame up (test 7); RMB swings it too
+#   route   the mouse by what the hands hold: a prop in a hand makes the buttons the hands' own, as dual wielding (test 10)
 # Prints PASS/FAIL, exits 1 on a failure; ends with `flatitems_sh: N passed, M failed`.
 AGENT=${1:?agent}
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
@@ -64,6 +65,13 @@ expect_verdict "$(cat "$S/fi_prop.log")" "flatitems" "a prop in the fist beside 
 grip=$(grep -a "flatfgrab: off hand: idle" "$S/fi_prop.log" | head -1 | grep -c "from the grip")
 fist=$(grep -a "flatfgrab: off prop:" "$S/fi_prop.log" | head -1 | grep -c "in fist 1, fist 1.00")
 check $([ "$grip$fist" = 11 ] && echo 1 || echo 0) "... the off hand came off the fore-end (from the grip: $grip) into the guard, its fist closed on the brick ($fist)"
+
+# The mouse by what the hands hold (his notes 2026-11-11, test 10): gun+brick, brick+gun, two bricks, two guns, brick+nothing,
+# gun+nothing, nothing+gun: LMB the right hand's and RMB the left's as soon as it holds anything (the server's triggers, the
+# engine's routing, the brick's hand strikes); RMB the ironsight only with one gun and the other hand empty.
+run fi_route flat "$P; vr_flatitems_test 10" "$V"
+grep -a "FAIL" "$S/fi_route.log" | cut -c1-160
+expect_verdict "$(cat "$S/fi_route.log")" "flatitems" "the mouse by what the hands hold: props as dual wielding, the ironsight with an empty hand"
 
 # Backpacks (his notes 2026-11-10, test 8): E on one takes it at once (vr_forcegrab_pack_collect); an empty one says nothing.
 run fi_packs flat "$P; vr_flatitems_test 8" "$V"

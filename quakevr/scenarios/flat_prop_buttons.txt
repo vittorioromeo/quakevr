@@ -1,0 +1,9 @@
+# flat_prop_buttons: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode): the mouse's buttons by what the hands hold (docs/vr-port/FLATPLAY.md, "The keys"; flatplay::routeFire; vr_flatitems_test 10).
+title Flat-screen mouse buttons: a super shotgun in the right hand, rocks and bricks to pull, a grunt to hit
+map vrtesthall
+god
+give "Super Shotgun" main
+spawn "Rock" 120 30
+spawn "Brick" 120 -30
+spawn "Grunt" 260 0
+hint Play with -flatscreenmode. With only the shotgun, RMB aims down its sights. Pull a rock into your left hand (grab key): now RMB swings the rock and LMB fires the shotgun, as with two guns, and RMB no longer aims. Drop it (H) and RMB aims again. Press 3 to swap hands (gun left, nothing right), pull the brick into your right hand: LMB swings the brick, RMB fires the gun.

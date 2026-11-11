@@ -8822,3 +8822,18 @@ not its range keeping); a dog's leap needs a clear box line (`vr_nav` on). New `
 up, down and across, 4 towers): 27 capped of 60 before, 6 after (open: a dog or knight standing at one stair step by the
 tower's wall). Test 36 16 passed 0 failed, `nav_crowd` 12 of 12 within 6.9 s, cliptest/toptest pass on e1m1 and e4m7;
 e1m1 1,578 -> 2,924 polygons. Table and details: NAVMESH.md 13. Scene `nav_tower`.
+## Flat: a prop in a hand routes the mouse like a second weapon (branch `agent/flatpropctl`, 2026-11-11)
+
+His report: a super shotgun in the right hand and a rock in the left, and RMB aimed the shotgun instead of swinging the
+rock; he wants props and guns to behave alike ("as if I were dual wielding"). Cause: `flatplay::routeFire` keyed the
+ironsight on `loneWeaponHand` (one weapon held), which does not see props. Fix (`routeButtons`, `vr_flatplay.cpp`): the
+lone-weapon path (LMB fires it, RMB aims) now needs the other hand empty (`!holdsThing`: no carried entity, no prop drawn in
+it); with anything in it (a prop, rock, brick, torch, body part, carried monster) the buttons are the hands' own, LMB the
+right and RMB the left, each doing what it already does in its hand (a gun fires; a fist with a prop strikes: `pollKeys`'
+punch, the overhead swing or the fist's punch per `vr_flat_prop_melee`). One routing, shared: the server's triggers, the
+punches, the ironsight (`flatsight::pollKey`), the parry and the status all read it. Unchanged: a lone gun with the other
+hand empty, in either hand (LMB fires it, RMB aims); V (`vr_flat_prop_v`), the grenade, holster, force grab, drop and swap
+keys. Test aid: `vr_flat_route_probe [start]` (its bits into `vr_flat_route_seen`). `vr_flatitems_test 10`: seven
+combinations (gun+brick, brick+gun, two bricks, two guns, brick+nothing, gun+nothing, nothing+gun), LMB and RMB each: 63
+passed. Test 7 gained an RMB swing that hurts the grunt (13 passed); test 1 (RMB with each off-hand item: the hand keeps
+it) 15 passed. Docs: FLATPLAY.md "The keys" and "Force grab", the Right Click Ironsight row's help. Scene `flat_prop_buttons`.

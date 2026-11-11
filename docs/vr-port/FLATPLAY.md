@@ -91,8 +91,8 @@ console.
 
 | Key | |
 |---|---|
-| mouse LMB | with **one weapon held, in either hand**, fires it; with a weapon in each hand, or none, fires the right hand (as in VR). With a weapon a swing strikes with in the hand it drives â€” an empty hand (the fist), the axe, the maul, the sword, the crowbar, the super axe â€” it is also the punch `V` makes |
-| mouse RMB | with **one weapon held, in either hand**, the ironsight: held while the button is held (`vr_flat_aim_mode 0`, the default) or a click on and the next off (`1`; VR Settings > Locomotion, Desktop Screen Play > Right Click Ironsight), and it fires nothing; with a weapon in each hand, or none, fires the left hand (as in VR; the same punch with a swinging weapon or the fist) With **one melee weapon** held it is the parry's guard instead (since 2026-11-10; see "Parry guard"). |
+| mouse LMB | with **one weapon held, in either hand, and the other hand empty**, fires it; otherwise (a weapon in each hand, none, or anything in the hand beside the weapon: a prop, a rock, a brick, a torch, a body part, a carried monster) acts with the right hand, whatever it holds (as in VR, and as when dual wielding: a gun fires, a prop strikes; his notes 2026-11-11). With a weapon a swing strikes with in the hand it drives â€” an empty hand (the fist), the axe, the maul, the sword, the crowbar, the super axe â€” it is also the punch `V` makes |
+| mouse RMB | with **one weapon held, in either hand, and the other hand empty**, the ironsight: held while the button is held (`vr_flat_aim_mode 0`, the default) or a click on and the next off (`1`; VR Settings > Locomotion, Desktop Screen Play > Right Click Ironsight), and it fires nothing; otherwise (a weapon in each hand, none, or the left hand holding anything beside the one weapon) acts with the left hand, whatever it holds (as in VR; the same punch with a swinging weapon, a prop in the fist or the fist; `vr_flatitems_test 10`). With **one melee weapon** held it is the parry's guard instead (since 2026-11-10; see "Parry guard"). |
 | `Q`, `E` | lean left and right while held (`vr_flat_lean_toggle 1`: a press leans, the next stands straight): see Leaning below. The keys are `vr_flat_key_lean_left` and `vr_flat_key_lean_right` (default `q`, `e`; `""` none); `+flatleanleft` / `+flatleanright` hold them from the console. E was the force grab (now mouse 4, `R` too) and Quake's `+moveup` (dropped from the default binds: jump swims up) |
 | `3` | swaps what the two hands hold (`impulse 48` â†’ `VR_FlatSwapHands`, `QC/vr_wpnholster.qc`): each weapon with its magazine and its next shot's time; one weapon goes to the empty hand. A hand carrying a box or a prop keeps it and nothing swaps (`H` lets it go). The key is `vr_flat_key_swap` (a bind name, default `3`; `""` none). 3 was the third weapon's slot key (`impulse 3`): in the mode the weapons are reached with `1`, `2` and the mouse wheel, which cycle through every weapon collected, the third included |
 | `Z` | starts and stops bullet time (`vr_bullettime.cpp keyPress`): the headset's own rules â€” `vr_bullettime_enabled`, a single-player game, the meter's `vr_bullettime_min`, the cooldown, the bounce guard `vr_bullettime_trigger_cooldown` â€” and its meter is the status bar's bar (below). The key is `vr_flat_key_bullettime` (default `z`). Z was bound to nothing before |
@@ -551,7 +551,7 @@ cup hotspot at all has no stance, and its hand hangs: the toolgun and the glowin
 `vr_flatplay_status` prints four `stance` lines: its state, the arm's share, the hotspot in the held hand's frame, and the drawn hand
 there with how far off the hotspot it stands.
 
-The right mouse button with one weapon held (held, or a click with `vr_flat_aim_mode 1`; the wheel's button no longer does:
+The right mouse button with one weapon held and the other hand empty (held, or a click with `vr_flat_aim_mode 1`; the wheel's button no longer does:
 his words 2026-11-05, "no need for dedicated ADS button"), or `vr_flat_aim` from the console, turns the ironsight on: the held weapon is brought
 onto its sight line (see The ironsight's solve, below), and the field of view narrows by `vr_flat_aim_fov`: `gl_screen.c` asks
 `VR_FlatAdsFov` where it chooses `r_refdef.basefov`, and the mouse look's own measure comes from the same `basefov` (`in_sdl.c`'s
@@ -957,8 +957,9 @@ Grab (`vr_flat_fg_*`; `vr_flat_fg_pose 0` the old instant grab).
 A pulled object's tumble settles back to how it lay over the flight's last `vr_forcegrab_settle` seconds (0.2), and it is caught
 at that turn, so its grip places it as a hand closing on it there would (headset too). A prop held in one hand sits in the
 fist in the empty hand's guard (`vr_flat_carry_pose 2`; 1 held up in front, Debug > Tunables > Flatscreen > Held Props,
-`vr_flat_carry_*`) and V or its fire button strikes with it: the overhead swing (`vr_flat_prop_melee 1`) or the fist's punch
-(0); V takes the prop's hand (`vr_flat_prop_v`). A torch held in one hand is turned flame up (`vr_flat_torch_upright`). A free
+`vr_flat_carry_*`) and V or its own mouse button strikes with it (LMB the right hand's, RMB the left's, beside a gun in the
+other hand too, as when dual wielding: his notes 2026-11-11; no ironsight on RMB then): the overhead swing
+(`vr_flat_prop_melee 1`) or the fist's punch (0); V takes the prop's hand (`vr_flat_prop_v`). A torch held in one hand is turned flame up (`vr_flat_torch_upright`). A free
 hand holding anything never takes the other hand's gun's grip: that gun is held one-handed. The prop is drawn in the hand as drawn
 (`held::followDrawnHands`, `vr_flat_carry_drawn`): the view's sway, bob and turn's lag carry it with the hand, where before it
 was drawn at the game's hand and bobbed, lagged or led as the mouse turned. `vr_flat_fg_report` (Debug > Reports) prints each
