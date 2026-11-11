@@ -3069,6 +3069,7 @@ vr_shells_rv_speed|2|Tunables|Revolver Shells: Speed|Advanced VR Options > Debug
 vr_shells_rv_back|2|Tunables|Revolver Shells: Back|Advanced VR Options > Debug > Tunables > Revolver Shells: Back
 vr_shells_rv_up|2|Tunables|Revolver Shells: Up|Advanced VR Options > Debug > Tunables > Revolver Shells: Up
 vr_shells_rv_out|2|Tunables|Revolver Shells: Out|Advanced VR Options > Debug > Tunables > Revolver Shells: Out
+vr_shells_rv_stroke|2|Tunables|Revolver Shells: Stroke|Advanced VR Options > Debug > Tunables > Revolver Shells: Stroke
 vr_shells_rv_spread|2|Tunables|Revolver Shells: Spread|Advanced VR Options > Debug > Tunables > Revolver Shells: Spread
 vr_shells_rv_spin|2|Tunables|Revolver Shells: Spin|Advanced VR Options > Debug > Tunables > Revolver Shells: Spin
 vr_holster_haptic_time|2|Tunables|Holster Haptic Time|Advanced VR Options > Debug > Tunables > Holster Haptic Time
