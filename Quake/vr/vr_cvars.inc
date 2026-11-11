@@ -4110,6 +4110,8 @@ QVR_CVAR(vr_flat_grenade_arm_mode, "1", CVAR_ARCHIVE)   // the quick grenade's f
 QVR_CVAR(vr_flat_grenade_debug, "0", CVAR_NONE)         // 1: the quick grenade's drawn hand printed step by step (flatgren: ...; vr_flatgrenade.cpp); developer 1 prints the game's side (flat grenade: ...)
 QVR_CVAR(vr_flat_swap_anim, "1", CVAR_ARCHIVE)          // flat-screen play: 1 the swap key's hands meet, swap and go back (vr_flatswap.cpp: vr_flat_swap_in / _out / _gap); 0 the swap at once, as before
 QVR_CVAR(vr_flat_swap_debug, "0", CVAR_NONE)            // 1: the hand swap's animation printed step by step (flatswap: ...; vr_flatswap.cpp)
+QVR_CVAR(vr_flat_swap_seen, "-1", CVAR_NONE)            // test aid: how the last swap key press was drawn (vr_flatswap.cpp): 0 at once (nothing drawn), 1 the hands met, 2 a weapon in both hands (release, pass, attach); QC vr_flatswap_test
+QVR_CVAR(vr_flatswap_test, "0", CVAR_NONE)              // -flatscreenmode only: the swap key with every two-handed weapon and with carried things (vr_flatswap_test.qc; Debug > Tests > Flat Swap)
 QVR_CVAR(vr_flat_reload, "1", CVAR_ARCHIVE)             // flat-screen play reloads: every gun has its clip, filled from the ammo by the hip-holster reload (VR's Reloading: Hip Holsters), started by R or vr_flat_autoreload; 0: no clips, every shot from the ammo (as before 2026-11-08)
 QVR_CVAR(vr_flat_reload_debug, "0", CVAR_NONE)         // 1: the flat-screen reload's drawn trip printed step by step (flatreload: ...; vr_flatreload.cpp)
 QVR_CVAR(vr_flat_reload_pose, "-1", CVAR_NONE)         // test aid: 0..1 holds the main hand that far on the way to its hip holster, muzzle down, with no reload (-1 off): a hand at the holster that must not reload

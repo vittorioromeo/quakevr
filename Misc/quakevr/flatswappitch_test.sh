@@ -9,7 +9,7 @@
 #   rl2h    the rocket launcher held in both hands: release, pass, attach
 #   ads2h   the same, sighted (vr_flat_aim 1)
 #   saw2h   the chainsaw, a two-handed melee weapon (vr_flat_melee_two_hand)
-#   sg1h    a shotgun in the main hand: the hands meet
+#   sg1h    a shotgun in the main hand, the off hand beside it: two-handed too since 2026-11-11 (vr_flat_swap_2h_all)
 # With a shots prefix, the rl2h run also takes a screenshot mid-pass at pitch -60, 0 and +60 (composed into
 # scratch/<prefix>_rl2h.png: the before and after strips).
 AGENT=${1:?agent}

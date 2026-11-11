@@ -16,6 +16,11 @@
 // took it to its hold and the hand that let go onto the gun's two-hand grip (_attach_time; vr_flatsight.cpp,
 // vr_twohand.cpp: the grip is blocked until the swap has happened, gripBlocked).
 //
+// Every weapon held alone with the other hand empty counts as held in both (2026-11-11, vr_flat_swap_2h_all): on its
+// grip (the rocket launcher) or in the support pose beside it (the shotguns, the nailguns, melee weapons). What a hand
+// carries (a prop, a gib, a torch, a ragdoll's limb) changes hands as a weapon does (vr_flat_swap_things; QC
+// VR_FlatSwapHands moves it to the other hand's grip): a prop and a gun, two props, a prop and an empty hand meet and swap.
+//
 // The places are kept in the view's frame off the head (taken on the first pose after the press; Frame), so a turn of the
 // view, up and down as well as around, carries the hands and the weapon with it, and the swap plays the same against
 // the view whether he looks up, level or down (his words 2026-11-11). The empty hand's guard the free hand goes to is
@@ -61,6 +66,7 @@ struct Swap
     bool twoHand{false};     // a weapon held in both hands at the press: the free hand goes to the holding one
     int holder{HAND_MAIN};   // (twoHand) the hand holding the weapon
     int widWas[2]{WID_FIST, WID_FIST}; // what each hand held at the press (STAT_QVR_WEAPON2, STAT_QVR_WEAPON)
+    int carryWas[2]{0, 0};   // and what each carried (STAT_QVR_CARRYOFF, STAT_QVR_CARRYMAIN: a prop, a gib, a torch, a limb)
     double startAt{-1e9};
     double sentAt{-1e9};
     double peakAt{-1e9};     // when the swap was seen: the way back starts
@@ -97,6 +103,12 @@ Swap sw;
 [[nodiscard]] int widIn(int h)
 {
     return cl.stats[h == HAND_MAIN ? protocol::STAT_QVR_WEAPON : protocol::STAT_QVR_WEAPON2];
+}
+
+// The entity `h` carries (the server's word), 0 none.
+[[nodiscard]] int carryIn(int h)
+{
+    return cl.stats[h == HAND_MAIN ? protocol::STAT_QVR_CARRYMAIN : protocol::STAT_QVR_CARRYOFF];
 }
 
 [[nodiscard]] const char* handName(int h)
@@ -250,15 +262,28 @@ bool press()
     }
     const int wo = widIn(HAND_OFF);
     const int wm = widIn(HAND_MAIN);
-    const bool nothing = wo == WID_FIST && wm == WID_FIST;
-    const bool carrying = held::heldEntity(HAND_OFF) != 0 || held::heldEntity(HAND_MAIN) != 0;
+    const int co = carryIn(HAND_OFF);
+    const int cm = carryIn(HAND_MAIN);
+    // What a hand carries changes hands too (his words 2026-11-11: "The swap hands key should also seamlessly work when a
+    // prop is being held, or any combination of props/weapons"; QC VR_FlatSwapHands, vr_flat_swap_things), drawn the way
+    // two weapons are: the hands meet, swap and go back. One thing held in both hands (a big prop, two limbs of one body)
+    // has nothing to change: the game swaps nothing, and nothing is drawn.
+    const bool things = vr_flat_swap_things.value != 0.f;
+    const bool nothing = wo == WID_FIST && wm == WID_FIST && (!things || (co == 0 && cm == 0));
+    const bool carrying = things ? co != 0 && co == cm
+                                 : co != 0 || cm != 0 || held::heldEntity(HAND_OFF) != 0 || held::heldEntity(HAND_MAIN) != 0;
     const bool grenade = flatgrenade::busy(HAND_OFF) || flatgrenade::busy(HAND_MAIN);
     if(nothing || carrying || grenade || flatreload::busy(HAND_OFF) || flatreload::busy(HAND_MAIN))
     {
+        Cvar_SetValueQuick(&vr_flat_swap_seen, 0.f);
         if(vr_flat_swap_debug.value)
         {
             Con_Printf("flatswap: not drawn (%s): the swap at once\n",
-                nothing ? "both hands empty" : carrying ? "a hand carries a thing" : grenade ? "the quick grenade" : "a reload under way");
+                nothing                ? "both hands empty"
+                : carrying && things   ? "one thing in both hands"
+                : carrying             ? "a hand carries a thing"
+                : grenade              ? "the quick grenade"
+                                       : "a reload under way");
         }
         return false;
     }
@@ -267,13 +292,23 @@ bool press()
     sw.startAt = vr_gametime;
     sw.widWas[HAND_OFF] = wo;
     sw.widWas[HAND_MAIN] = wm;
+    sw.carryWas[HAND_OFF] = co;
+    sw.carryWas[HAND_MAIN] = cm;
+    // A weapon in both hands (his words 2026-11-11: "All cases where a single weapon is held with two hands should follow
+    // those animation steps"): one weapon, the other hand empty. That hand is on the weapon's two-hand grip (the rocket
+    // launcher's, the grenade launcher's: a grip ahead of the trigger hand, vr_twohand's hold) or, where the grip stands on
+    // or behind the trigger hand (the shotguns', the nailguns'), on the melee weapons, in the support pose beside it
+    // (flatplay's targetOffset, vr_flat_support_*): held in both either way. Before, only vr_twohand's hold counted
+    // (twohand::helping), and every gun of the second kind went the hands' meeting way: vr_flat_swap_2h_all 0.
     const int lone = flatplay::loneWeaponHand();
-    sw.twoHand = lone >= 0 && twohand::helping(1 - lone);
+    const bool freeEmpty = lone >= 0 && !flatplay::holdsThing(1 - lone);
+    sw.twoHand = lone >= 0 && (vr_flat_swap_2h_all.value != 0.f ? freeEmpty : twohand::helping(1 - lone));
     sw.holder = lone >= 0 ? lone : HAND_MAIN;
+    Cvar_SetValueQuick(&vr_flat_swap_seen, sw.twoHand ? 2.f : 1.f);
     if(vr_flat_swap_debug.value)
     {
-        Con_Printf("flatswap: start (%s; off %d, main %d)\n",
-            sw.twoHand ? "a weapon in both hands: release, pass, attach" : "the hands to each other", wo, wm);
+        Con_Printf("flatswap: start (%s; off %d, main %d; carried off %d, main %d)\n",
+            sw.twoHand ? "a weapon in both hands: release, pass, attach" : "the hands to each other", wo, wm, co, cm);
     }
     return true;
 }
@@ -307,9 +342,10 @@ void frame(bool on)
     }
     if(sw.sent && !sw.seen)
     {
-        const bool changed = widIn(HAND_OFF) != sw.widWas[HAND_OFF] || widIn(HAND_MAIN) != sw.widWas[HAND_MAIN];
+        const bool changed = widIn(HAND_OFF) != sw.widWas[HAND_OFF] || widIn(HAND_MAIN) != sw.widWas[HAND_MAIN] ||
+                             carryIn(HAND_OFF) != sw.carryWas[HAND_OFF] || carryIn(HAND_MAIN) != sw.carryWas[HAND_MAIN];
         // (Two of the same weapon swap with no change to see: the wait's end is the answer then.)
-        const bool same = sw.widWas[HAND_OFF] == sw.widWas[HAND_MAIN];
+        const bool same = sw.widWas[HAND_OFF] == sw.widWas[HAND_MAIN] && sw.carryWas[HAND_OFF] == sw.carryWas[HAND_MAIN];
         if(changed || now - sw.sentAt >= (same ? 0.05 : answerWait))
         {
             sw.seen = true;
@@ -488,12 +524,25 @@ void apply(hands::State& s)
         meet[HAND_MAIN] = mid + way * (gap * 0.5f);
         meet[HAND_OFF] = mid - way * (gap * 0.5f);
     }
+    if(vr_flat_swap_debug.value >= 2.f)
+    {
+        // (2: every frame, each hand's own pose and where the swap puts it, in the view's frame.)
+        for(int h : {HAND_OFF, HAND_MAIN})
+        {
+            const glm::vec3 own = v.toLocal(s.pos[h]), put = v.toLocal(s.pos[h] + (meet[h] - s.pos[h]) * a);
+            Con_Printf("flatswap: frame %.2f %s: own %.1f %.1f %.1f, drawn %.1f %.1f %.1f\n", a, handName(h), own.x, own.y, own.z,
+                put.x, put.y, put.z);
+        }
+    }
     for(int h : {HAND_OFF, HAND_MAIN})
     {
         s.pos[h] += (meet[h] - s.pos[h]) * a;
-        // On the way in each hand keeps its own turn; once swapped each is turned as the other was, so the weapon keeps
-        // its turn as it changes hands, and eases into its new hand's pose on the way back.
-        turnTo(s, h, v.rotToWorld(sw.seen ? sw.rot[1 - h] : sw.rot[h]), a);
+        // On the way in each hand keeps its own turn; once swapped a hand that took a weapon is turned as the other was,
+        // so the weapon keeps its turn as it changes hands, and eases into its new hand's pose on the way back. A hand
+        // that took a carried thing (or nothing) keeps its own: the game fits the thing to that hand's own grip
+        // (VR_Carry_FitToHand, mirrored for the left), and the other hand's turn put a brick out of sight under the view.
+        const bool crossTurn = sw.seen && widIn(h) != WID_FIST;
+        turnTo(s, h, v.rotToWorld(crossTurn ? sw.rot[1 - h] : sw.rot[h]), a);
     }
     if(vr_flat_swap_debug.value && a >= 0.999f && !sw.meetPrinted)
     {
@@ -508,6 +557,11 @@ void apply(hands::State& s)
 bool busy()
 {
     return sw.running;
+}
+
+bool meeting()
+{
+    return sw.running && !sw.twoHand;
 }
 
 bool gripBlocked()

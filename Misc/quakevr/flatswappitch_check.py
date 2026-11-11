@@ -14,7 +14,7 @@ import sys
 
 POS_TOL = 0.1  # units
 ROT_TOL = 0.25  # degrees
-CASES = [("rl2h", True), ("ads2h", True), ("saw2h", True), ("sg1h", False)]
+CASES = [("rl2h", True), ("ads2h", True), ("saw2h", True), ("sg1h", True)]  # (sg1h: two-handed since 2026-11-11, vr_flat_swap_2h_all)
 NPITCH = 5
 LINE = re.compile(r"flatswap: in view (\S+) (\S+): off (\S+) (\S+) (\S+) turn (\S+) (\S+) (\S+)\s*\n"
                   r"flatswap: in view \S+ \S+: main (\S+) (\S+) (\S+) turn (\S+) (\S+) (\S+)")

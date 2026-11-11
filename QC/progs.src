@@ -193,6 +193,7 @@ vr_selfshot_test.qc
 vr_projinherit_test.qc
 vr_flatmove_test.qc
 vr_flatblood_test.qc // blood at point blank (vr_flatblood_test)
+vr_flatswap_test.qc // the flat-screen swap key (vr_flatswap_test)
 vr_melee_sweep_test.qc
 vr_blade_test.qc
 world.qc

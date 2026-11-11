@@ -689,6 +689,10 @@ za::Vector<Item> pageDebugTests()
                   "the limit you lie down under, your speed, on the ground, and whether a crouch fits (you could get up)."),
         command("Lie Down / Get Up (Flat-Screen)", "vr_prone_toggle")
             .help("vr_prone_toggle: flat-screen play's prone key (X). In a headset you lie down for real."),
+        command("Flat Swap: Two-Handed Weapons", "vr_flatswap_test 1")
+            .help("vr_flatswap_test 1 (-flatscreenmode only): every weapon held alone in the right hand, swapped with 3: the two-handed release, pass and attach, the weapon in the left hand after (flatswap_test: lines)."),
+        command("Flat Swap: Props And Weapons", "vr_flatswap_test 2")
+            .help("vr_flatswap_test 2 (-flatscreenmode only): a shotgun and a brick, two bricks, a brick and an empty hand, a brick in both, swapped with 3: each hand ends with what the other held (flatswap_test: lines)."),
         command("Flat Items: Hold And Shoot", "vr_flatitems_test 1")
             .help("vr_flatitems_test 1 (-flatscreenmode only): armour, a key, the biosuit, a rune, shells and health each grabbed with E into the off hand, the shotgun fired through it (flatitems: lines)."),
         command("Flat Items: Walk Over", "vr_flatitems_test 2")
