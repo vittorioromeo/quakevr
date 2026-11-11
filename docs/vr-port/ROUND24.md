@@ -9250,7 +9250,9 @@ ce54b84b3 (after cvarretire, before the promotion).
 - **flatmelee "shove ... ends 30 further"** (11/1): outdated expectation, from `vr_flat_swing_strike` 0.075. The faster
   axe swing kills the knight outright, so the next `vr_test_hurt` (the nearest live monster) read a grunt 1044 units
   off, and the shove's distance list began with it (the "knight hurt" check passed only by reading that grunt's health).
-  The test reads the shove's own `-1 damage` lines, and a knight line or 0. 12/0 at 9d0fe497a.
+  The test reads the shove's own `-1 damage` lines, and a knight line or 0. 12/0 at 9d0fe497a. Its rerun here passed
+  that and failed "the axe raised behind the head ... 30 or more" (24 damage; 74 in the first run, the knight 131 units
+  off by then): that check is random run to run (the knight knocked back or not), open.
 - **flatads "launchers"** (6/1): outdated expectation, from the arm rig promoted (`vr_body_arm_stretch` 1.2 -> 1.5 alone
   reproduces it): the two-handed guns' hipfire muzzles turn, the shotgun -14.2 -> -12.9 deg on the screen, the rocket
   launcher -13.6 -> -10.5, 2.5 apart (1.5 before). The tolerance is 3 degrees; heights still within 1.5 units.
@@ -9259,7 +9261,9 @@ ce54b84b3 (after cvarretire, before the promotion).
   test read (17 throughout). It reads the right hand's clip now.
 - **flatstance "the free hand's punch ..."**: older failure (3 fails at 9d0fe497a). The damage parse took the last field
   of the first `test hurt:` line, which is "away" since the line gained its distance, so it compared minus the
-  knight's health after each punch. It reads the health after the first read now.
+  knight's health after each punch. It reads the health after the first read now, and still fails, for real: 32
+  damage with the stance, 21 without (11 against 21 at the old `vr_flat_punch_torso_twist` 8, promotion1111's run): the
+  stance's torso twist changes the free hand's punch. Left failing: whether the twist should reach the blow is his call.
 - **flatstance "the drawn hand stands on the hotspot"**: older failure (5.31 units at 9d0fe497a, 4.93 now). Two guns
   (`vr_test_give_wid` 1 and 29) have the 2H hotspot behind and below the held hand (fwd -3.5, up -3.5): the free hand
   is kept about 5 units off it. Not changed: either those hotspots or the check's scope need his call.
