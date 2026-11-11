@@ -54,6 +54,10 @@ Survival Arena with Arcane Dimensions' data: from wave 11 (Normal) the waves als
 Flat-screen: shove a grunt with a gun held in both hands, then with an axe held in both hands: the free hand pushes out fast but no longer jumps a long way in a frame, at high and low frame rates, and the shove still lands when it did. {test:flat_shove_smooth}
 Stand on the arena's dais and let walkers come at you from the floor: they should head for the stairs, come up them and round the corners without wandering along the edge or sticking (Debug > Show Navmesh: Navmesh and Paths draws the mesh and their paths). {test:nav_arena}
 Play a stretch of e1m1 and e4m7 with Monsters Find Their Way on, then off (Monster AI page): chasing monsters should take sensible routes round pillars, doorways and stairs and still backpedal, sidestep and melee as before; say if any route looks wrong or a monster gets stuck where it didn't before. {test:nav_arena}
+# agent/navmesh2: navmesh round 2, parts 1-3 (clip tops, drop links; lift links off by default)
+A knight on a ledge above you walks off its edge and drops down to reach you instead of pacing the edge; the drop links show orange in Show Navmesh. {test:nav_drop}
+Experimental, off by default: with vr_nav_lifts 1 and vr_nav_plat_monsters 1, a knight at the bottom of e1m1's lift walks onto it, rides it up and steps off at the top; lift links show magenta in Show Navmesh. {test:nav_lift}
+Show Navmesh draws the mesh, the monsters' paths and the new drop and lift links in flat-screen play as in VR.
 
 [2. VR: melee and embedded blades]
 Hit a grunt with the axe right in front of you: the blood and its red mist come right at the camera, not only further off (your config still has Mist Clear of Eyes at 40: set vr_gore_mist_near 0; Particle Fade Near Eyes and Particles Hidden Nearer at 0 draw it at the eyes too). {test:flat_skewer_gibs}
