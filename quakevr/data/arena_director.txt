@@ -1,0 +1,153 @@
+// quakevr/data/arena_director.txt -- the Survival Arena budget director's costs, curves, themes and supplies
+// (vr_arena_director 1; Quake/vr/vr_arenadirector.cpp reads it, vr_arena_director_reload reads it again;
+// docs/vr-port/ARENA_DIRECTOR.md explains every number; Misc/quakevr/arena_director_sim.py simulates it).
+// `<kind> <name> { key "value" ... }`, // comments.
+//
+// Costs are THREAT points: an unarmed grunt is 4, a shotgun grunt 8, an ogre 25. Waves are Normal's (the difficulty
+// moves every `from` past wave 3 as the classic waves' gates: +3 Easy, -2 Hard, -4 Nightmare, by vr_arena_skill_impact).
+//   cost   threat points          from   first wave it may appear   until  last wave (0: no end)
+//   share  max share of a wave's threat budget it may take            weight base pick weight (before biases)
+//   tags   what the themes bias on (humanoid, monster, knight, melee, ranged, far, flying, fast, cheap ...)
+//   arms   a body's weapons: any, melee (blades only), guns (anything but blades), none (its own attack)
+//   family a weapon's family (One Family): shotguns, bullets, explosives, energy, blades
+//   title  its words in a boss's countdown
+
+// The budget: threat(w) = base + slope * (w-1)^power, times the sawtooth's step (the boss cycle's position:
+// vr_arena_boss_every waves, the boss wave last), times the skill's factor and vr_arena_wave_size.
+// count: a wave's foes at most, a + b * w (times vr_arena_wave_size and the skill's factor); the budget a full wave
+// could not place goes to upgrades, then carries over. overshoot: the last foe may overspend by this many points (the
+// debt comes off the next wave). boss_share: a boss takes at most this share of its wave (the cheapest when none fits).
+// reserve: the share held back for the wave's surges (from reserve_from).
+curve threat { base "9" slope "7.5" power "1.05" count "3 0.5" saw "0.85 0.95 1.05 1.15 1.6" carry_max "0.25" reserve "0.2" reserve_from "6" overshoot "2" boss_share "0.55" }
+// The roles: a foe's role is its total cost's band. The split: the share of the budget each role gets -- fodder,
+// mid, heavy, and extras (the upgrades: armour, a second weapon, infection) -- at key waves (linear in between, the
+// last held). humanoid: each pick is from the armed humanoids alone with this chance (when one fits).
+curve roles { fodder_max "12" mid_max "24" humanoid "0.7" split "1:1,0,0,0 4:0.78,0.2,0,0.02 8:0.54,0.3,0.1,0.06 14:0.36,0.3,0.17,0.17 22:0.24,0.29,0.2,0.27 30:0.2,0.27,0.2,0.33" }
+// Anti-repetition: an item last seen d waves ago weighs recent[d] (d >= 4: 1, +bonus a wave unseen, at most cap);
+// an item already in this wave weighs `again` per copy. Old items fade past fade_after waves in play.
+curve novelty { recent "0.4 0.6 0.85" bonus "0.1" cap "1.6" again "0.75" fade_after "10" fade "0.05" floor "0.35" }
+// Progression: every `every` waves at least one foe carries a weapon no earlier wave offered (lowest tier first;
+// up to `peek` waves before its own wave when every unlocked one was offered).
+curve progress { every "3" from "3" peek "3" }
+// The player's supplies after a clear: points = base + per_threat * threat just beaten, divided by the skill's factor.
+// The power-ups' share is banked from clear to clear until it buys one (a gap of `gap` waves between two).
+curve supply { base "8" per_threat "0.06" max "60" heal "0.55" armour "0.30" ammo "0.08" power "0.07" reactive "1" }
+// The cadence (a theme's own values win): gap s between two spawn groups at Normal (the skill divides it), stretched
+// by 1 + stretch x the threat up / the wave's threat, and doubled again past `soft` of it; group: a spawn group's
+// foes, min max; surges "a b max": a + b x wave surges a wave (from reserve_from), each warned surge_warn s ahead and
+// spread round the player; spread 1: every group from places spread round him; ambush 1: surges behind him first.
+// quick_time, quick_pay: a foe killed within this many s of coming in pays this much more (vr_arena_quick_kill).
+curve cadence { gap "3" group "1 2" stretch "1.5" soft "0.6" spread "0" surges "1 0.05 3" surge_warn "2" quick_time "4" quick_pay "0.25" }
+
+// ---- bodies (threat of the body alone; an armed humanoid adds its weapon's cost)
+body grunt          { kind "grunt"             cost "4"  from "1"  share "1"    arms "any"   tags "humanoid fodder" title "a grunt" }
+body enforcer       { kind "enforcer"          cost "8"  from "6"  share "0.5"  arms "any"   tags "humanoid" title "an enforcer" }
+body armed_knight   { kind "armed_knight"      cost "7"  from "9"  share "0.35" arms "melee" tags "humanoid melee knight" title "a knight" }
+body armed_dk       { kind "armed_deathknight" cost "18" from "17" share "0.4"  arms "melee" tags "humanoid melee knight" title "a death knight" }
+// knights and death knights with guns (his ask, 2026-11-11): the same bodies, any gun, rarer
+body gun_knight     { kind "armed_knight"      cost "7"  from "12" share "0.35" weight "0.3" arms "guns" tags "humanoid knight" title "a knight" }
+body gun_dk         { kind "armed_deathknight" cost "18" from "18" share "0.4"  weight "0.3" arms "guns" tags "humanoid knight" title "a death knight" }
+body zombie         { kind "zombie"            cost "6"  from "3"  share "0.3"  weight "0.7" arms "none" tags "monster melee slow cheap" title "a zombie" }
+body dog            { kind "dog"               cost "5"  from "6"  share "0.3"  weight "0.7" arms "none" tags "monster melee fast cheap" title "a dog" }
+body knight         { kind "knight"            cost "8"  from "4"  share "0.3"  weight "0.7" arms "none" tags "monster melee" title "a knight" }
+body wizard         { kind "wizard"            cost "12" from "10" share "0.25" arms "none"  tags "monster ranged flying far" title "a scrag" }
+body ogre           { kind "ogre"              cost "25" from "8"  share "0.4"  arms "none"  tags "monster ranged" title "an ogre" }
+body fiend          { kind "demon"             cost "30" from "12" share "0.4"  arms "none"  tags "monster melee fast" title "a fiend" }
+body hknight        { kind "hellknight"        cost "30" from "16" share "0.4"  arms "none"  tags "monster ranged" title "a death knight" }
+body shalrath       { kind "shalrath"          cost "45" from "20" share "0.35" arms "none"  tags "monster ranged" title "a vore" }
+body shambler       { kind "shambler"          cost "60" from "26" share "0.4"  arms "none"  tags "monster ranged far" title "a shambler" }
+body plain_grunt    { kind "plain_grunt"       cost "8"  from "0"  share "0"    arms "none"  tags "monster ranged" }
+body plain_enforcer { kind "plain_enforcer"    cost "14" from "0"  share "0"    arms "none"  tags "monster ranged" }
+
+// ---- weapons (the 34-row ladder's rows, QC vr_arena.qc VR_ARENA_GunRowSet; `from` its row's eligible wave, the
+// bottom rungs' 3; weight its pool share; fists the plan's AR_FIST)
+weapon fists        { row "-1" cost "0"  tier "0" from "1"  until "6" share "1" weight "1"    family "none"       tags "melee cheap" title "fists" }
+weapon shotgun      { row "0"  cost "4"  tier "1" from "3"  share "0.5"  weight "0.6" family "shotguns"   tags "ranged cheap" title "shotgun" }
+weapon nail_pistol  { row "1"  cost "3"  tier "1" from "2"  share "0.5"  weight "0.3" family "bullets"    tags "ranged cheap" title "nail pistol" }
+weapon axe          { row "2"  cost "3"  tier "1" from "3"  share "0.25" weight "0.1" family "blades"     tags "melee cheap" title "axe" }
+weapon crowbar      { row "3"  cost "3"  tier "1" from "3"  share "0.25" weight "0.1" family "blades"     tags "melee cheap" title "crowbar" }
+weapon ssg          { row "4"  cost "8"  tier "2" from "3"  share "0.4"  weight "0.5" family "shotguns"   tags "ranged" title "super shotgun" }
+weapon nailgun      { row "5"  cost "8"  tier "2" from "5"  share "0.4"  weight "0.5" family "bullets"    tags "ranged far" title "nailgun" }
+weapon revolver     { row "6"  cost "7"  tier "2" from "6"  share "0.3"  weight "0.5" family "bullets"    tags "ranged" title "heavy revolver" }
+weapon sng          { row "7"  cost "12" tier "2" from "7"  share "0.4"  weight "1"   family "bullets"    tags "ranged far" title "super nailgun" }
+weapon burst_rifle  { row "8"  cost "9"  tier "2" from "8"  share "0.3"  weight "0.6" family "bullets"    tags "ranged far" title "burst rifle" }
+weapon sword        { row "9"  cost "5"  tier "1" from "9"  share "0.3"  weight "0.3" family "blades"     tags "melee" title "sword" }
+weapon gl           { row "10" cost "14" tier "3" from "10" share "0.4"  weight "1"   family "explosives" tags "ranged" title "grenade launcher" }
+weapon laser_rifle  { row "11" cost "9"  tier "2" from "11" share "0.3"  weight "0.6" family "energy"     tags "ranged far" title "laser rifle" }
+weapon defender_sg  { row "12" cost "9"  tier "2" from "11" share "0.3"  weight "0.5" family "shotguns"   tags "ranged" title "defender's shotgun" }
+weapon prox_gun     { row "13" cost "15" tier "3" from "12" share "0.3"  weight "0.5" family "explosives" tags "ranged" title "proximity gun" }
+weapon rl           { row "14" cost "16" tier "3" from "13" share "0.4"  weight "1"   family "explosives" tags "ranged far" title "rocket launcher" }
+weapon crossbow     { row "15" cost "9"  tier "2" from "13" share "0.3"  weight "0.5" family "bullets"    tags "ranged far" title "crossbow" }
+weapon lg           { row "16" cost "20" tier "3" from "16" share "0.4"  weight "1"   family "energy"     tags "ranged" title "lightning gun" }
+weapon chainsaw     { row "17" cost "8"  tier "2" from "16" share "0.25" weight "0.3" family "blades"     tags "melee" title "chainsaw" }
+weapon dk_sword     { row "18" cost "9"  tier "2" from "16" share "0.25" weight "0.3" family "blades"     tags "melee" title "death knight's sword" }
+weapon shadow_axe   { row "19" cost "9"  tier "2" from "17" share "0.25" weight "0.3" family "blades"     tags "melee" title "Shadow Axe" }
+weapon widowmaker   { row "20" cost "10" tier "2" from "17" share "0.3"  weight "0.5" family "shotguns"   tags "ranged" title "Widowmaker" }
+weapon ad_gl        { row "21" cost "14" tier "3" from "17" share "0.3"  weight "0.5" family "explosives" tags "ranged" title "grenade launcher" }
+weapon ad_plasma    { row "22" cost "15" tier "3" from "18" share "0.3"  weight "0.5" family "energy"     tags "ranged far" title "plasma rifle" }
+weapon laser_cannon { row "23" cost "18" tier "3" from "19" share "0.4"  weight "1"   family "energy"     tags "ranged far" title "laser cannon" }
+weapon mjolnir      { row "24" cost "12" tier "2" from "19" share "0.25" weight "0.3" family "blades"     tags "melee" title "Mjolnir" }
+weapon ad_swords    { row "25" cost "9"  tier "2" from "19" share "0.25" weight "0.3" family "blades"     tags "melee" title "sword" }
+weapon super_axe    { row "26" cost "10" tier "2" from "20" share "0.25" weight "0.3" family "blades"     tags "melee" title "Super Axe" }
+weapon ad_rl        { row "27" cost "16" tier "3" from "20" share "0.3"  weight "0.5" family "explosives" tags "ranged far" title "rocket launcher" }
+weapon flamethrower { row "28" cost "16" tier "3" from "21" share "0.3"  weight "0.5" family "energy"     tags "ranged" title "flamethrower" }
+weapon monster_swords { row "29" cost "13" tier "3" from "23" share "0.2" weight "0.2" family "blades"    tags "melee" title "great sword" }
+weapon hammer_mace  { row "30" cost "14" tier "3" from "24" share "0.25" weight "0.3" family "blades"     tags "melee" title "hammer" }
+weapon centurion    { row "31" cost "16" tier "3" from "24" share "0.3"  weight "0.5" family "energy"     tags "ranged far" title "plasma gun" }
+weapon fumigator    { row "32" cost "15" tier "3" from "25" share "0.3"  weight "0.5" family "energy"     tags "ranged" title "poison sprayer" }
+weapon plasma_gun   { row "33" cost "18" tier "3" from "26" share "0.3"  weight "0.5" family "energy"     tags "ranged far" title "Plasma Gun" }
+
+// ---- extras: bought on top of a foe (upgrades) from the wave's extras share and its leftover
+// armour: cost + plate * limb plates past the cuirass and helmet (vr_agarmor.qc); 2 plates at the first armour wave,
+// one more every plate_every waves; share: all armour's at most.
+extra armour_green  { cost "3"  plate "0.5" plate_every "3" from "4"  share "0.5" }
+extra armour_yellow { cost "6"  plate "0.5" from "12" }
+extra armour_red    { cost "10" plate "0.5" from "22" }
+// a second weapon (QC ar_plan_gun2): this share of the weapon's own cost
+extra second_weapon { mult "0.6" from "14" share "0.15" }
+// infected (QC ar_plan_infect): a flat cost
+extra infected      { cost "4" from "10" share "0.1" }
+// a boss: its body + weapon times mult, plus its armour (a type above the wave's best, 4 more plates); Nightmare's
+// second boss times `second`
+extra boss          { mult "2.5" second "0.6" }
+
+// ---- bosses: candidates by wave; weapon "tierpick": the best tier unlocked; armour: its type (else above the wave's)
+boss enforcer_gun  { body "enforcer"  weapon "tierpick" from "5"  until "14" weight "1" }
+boss ogre          { body "ogre"      from "10" weight "1" }
+boss grunt_top     { body "grunt"     weapon "tierpick" from "15" weight "0.7" }
+boss hknight       { body "hknight"   from "16" weight "1" }
+boss armed_dk      { body "armed_dk"  weapon "tierpick" from "18" weight "1" }
+// a death knight with the best gun unlocked and red armour (his ask, 2026-11-11)
+boss dk_gunner     { body "gun_dk"    weapon "tierpick" armour "3" from "18" weight "1.2" }
+boss shalrath      { body "shalrath"  from "20" weight "0.8" }
+boss shambler      { body "shambler"  from "25" weight "0.8" }
+
+// ---- themes: rolled per wave from wave 4 (never the last wave's; weight halved if seen in the last 3). The first is
+// the default (waves 1-3, vr_arena_themes 0).
+//   name   its word in the countdown         split  added to the role split (fodder,mid,heavy,extras)
+//   bias "tag:mult ..." on the foe's tags   again  the in-wave repeat factor   family "1": one family rolled, x5
+//   humanoid  the armed humanoids' share of picks   needs  bodies that must be unlocked
+//   gap group stretch soft spread surges ambush reserve: its cadence (curve cadence's otherwise)
+theme mixed       { from "1"  weight "2.5" name "Mixed" }
+theme swarm       { from "4"  weight "1"   name "Swarm"        split "0.25,-0.1,-0.12,-0.03" bias "cheap:2 fast:1.5" gap "2" group "2 4" }
+theme melee_rush  { from "5"  weight "1"   name "Melee Rush"   bias "melee:4 ranged:0.4" gap "2.5" group "1 3" surges "2 0.05 3" spread "1" }
+theme siege       { from "6"  weight "1"   name "Ranged Siege" bias "ranged:2.5 far:2 melee:0.3" gap "3.5" spread "1" }
+theme family      { from "7"  weight "1"   name "One Family"   family "1" again "1" }
+theme elite       { from "8"  weight "1"   name "Elite"        split "-0.3,0.08,0.14,0.08" gap "4.5" group "1 1" surges "0 0 0" }
+theme ambush      { from "8"  weight "0.8" name "Ambush"       gap "3.5" group "1 1" surges "2 0.05 4" reserve "0.35" ambush "1" spread "1" }
+theme monsters    { from "8"  weight "0.8" name "Monster Mash" bias "monster:3 humanoid:0.4" humanoid "0.25" group "1 3" }
+theme armory      { from "10" weight "0.8" name "Armory"       bias "humanoid:2 monster:0.3" again "0.35" humanoid "0.9" }
+theme knightfall  { from "18" weight "0.8" name "Knightfall"   needs "gun_knight gun_dk" bias "knight:6" humanoid "0.9" gap "3.5" }
+
+// ---- the player's supplies (supply points; code: vr_arenadirector.hpp SupplyCode)
+supply small_medkit  { code "1"  cost "3"  from "1"  kind "heal"   heal "15" }
+supply medkit        { code "2"  cost "5"  from "1"  kind "heal"   heal "25" }
+supply megahealth    { code "3"  cost "18" from "10" kind "heal"   heal "100" max "1" }
+supply shard         { code "4"  cost "1"  from "1"  kind "armour" }
+supply green_armour  { code "5"  cost "12" from "3"  kind "armour" max "1" }
+supply yellow_armour { code "6"  cost "20" from "12" kind "armour" max "1" }
+supply red_armour    { code "7"  cost "30" from "22" kind "armour" max "1" }
+supply ammo_pack     { code "8"  cost "3"  from "3"  kind "ammo" }
+supply quad          { code "9"  cost "20" from "8"  kind "power" max "1" gap "3" }
+supply ring          { code "10" cost "12" from "8"  kind "power" max "1" gap "3" }
+supply pent          { code "11" cost "30" from "15" kind "power" max "1" gap "4" }
