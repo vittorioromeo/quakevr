@@ -201,6 +201,7 @@ vr_agrunt_test   100-199  vr_armedgrunt_test.qc            one weapon's every-we
 vr_agrunt_test   200      vr_armedgrunt_aware_test.qc      disarm attempts on unaware grunts: punch, shots (notarget), parry, blade wake them; dual wield drops the struck one alone
 vr_agrunt_test   202      vr_armedgrunt_impact_test.qc     the impact rule: a push, you walking into it, a topple or a swing in the air keep the weapon; a fall, a throw into the floor or a wall, a body banged into a wall drop it
 vr_agrunt_test   210      vr_ledgeshove_test.qc            humanoids shoved off a ledge backpedal on their feet and go over it
+vr_agrunt_test   225      vr_ragthud_test.qc               living ragdolls' thuds: off a ledge, knocked down on the flat, no rattle; Living Thuds off: none
 vr_agrunt_test   203      vr_armedgrunt_dualdisarm_test.qc a dual wielder disarmed of its off hand, then its main: slots, each weapon drawn on its hand, its pick-up
 vr_agrunt_test   204      vr_ogre_friends_test.qc          ogres (and MG3 rocket ogres) behind a friend: friendly hits careless, careful, its attack rate, one always in the way
 vr_agrunt_test   205      vr_armedgrunt_gunlag_test.qc     a held gun stays with its body as it walks

@@ -8758,3 +8758,32 @@ Defaults still off: recommended on (slots at least). Debug > Views: Crowd Stall 
 all twelve knights and dogs leave their spots (none stuck in a wall) and reach you on the dais within about ten
 seconds, the knights taking places round you from several flights; the console's crowd test table shows almost no
 stalls, and Show Navmesh 2 puts a post wherever one stalled. {test:nav_crowd}"
+
+## Active ragdolls' thuds (branch `agent/ragthud`, 2026-11-11)
+
+His question: do ragdolls knock when they hit the level (a grunt falling off a ledge as an active ragdoll: its scream,
+no physics impact)? Found: they already did. A living monster down as a ragdoll (knocked down, staggering, thrown,
+falling) has a corpse's slot (vr_box3d_ragdoll.cpp createRagdoll: `Kind::Corpse`, its ragdoll), so soundHits gave its
+parts the corpse's flesh knocks all along (the brief's reading, a `Kind::Actor` slot skipped, was not the case). Measured
+(vr_agrunt_test 225, vrclimb): off the long ledge, the landing in the trench 20.7 m/s on the torso (11.2 kg): volume
+0.85, then a limb's 0.31; killed by its landing, the same knock with its death scream; knocked down on the flat: one
+knock, 3.3 m/s, volume 0.21 (quiet: under 0.35 it also carries less far, attenuation 1.5), which the shove's and its
+pain sounds can cover. Rate: the body rule (one knock per body per two vr_physsound_interval, one per pair of bodies,
+bounces' tails) held: at most 3 in any second.
+
+Added:
+- `vr_physsound_living` (1; 0..2, Debug > Tunables > Living Bodies): a living one's knocks and drags, times Bodies
+  (vr_physsound.cpp bodyGain; living: health > 0, not dead). 0: only corpses knock. Corpses unchanged.
+- One sound, not two, with the smash: a living one whose strike smashed (QC VR_RagSmash: the zombie's flesh hit and
+  dland2, a thud already) knocks no flesh knock while its smash's cooldown runs (`.vr_rsmash_next`, now an engine field:
+  vr_fields.inc). Corpses keep both as before (a held corpse smashed into a wall: the knock and the smash), as the
+  brief asked; making them one sound too is a one-line change in frameEnd.
+- `physsoundinfo(e, what)` (QC builtin, the tests): e's knocks played since the map began, the last one's time, its
+  volume.
+- Test `sv_random_seed 1;map vrclimb;wait30;god;vr_agrunt_test 225`, `-QuitOn "test 225 over"` (vr_ragthud_test.qc):
+  off the ledge (knocked as it landed), on the flat, killed by its landing, Living Bodies 0 on both (none), the smash
+  sounding (none); no trial more than 5 knocks in a second. 12 passed, 0 failed. Scene `{test:ragthud}`.
+
+If he still hears nothing on the flat: raise Living Bodies (to 1.5-2) rather than the corpses' Bodies.
+Checklist line: "Shove a grunt off a ledge and knock one down on the flat: a fleshy thud as each hits the floor (with
+its scream when the fall kills it), softer on the flat, and no rattle as it tumbles. {test:ragthud}"
