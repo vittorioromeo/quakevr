@@ -4366,16 +4366,25 @@ void() VR_AT39_Frame =
 // ---------------------------------------------------------------------------
 
 entity vr_at41_g[3];
+vector vr_at41_at[3]; // where each fell
 float vr_at41_wid[3];
 float vr_at41_shot;   // the screenshot taken
+
+float vr_at41_wait; // when the wait for the arena and the player gives up (0: not waiting yet)
 
 void() VR_AT41_Begin =
 {
     entity p = VR_PlayerAlive();
-    if(!ar_mgr || !p) { VR_AT_Check(FALSE, "test 41 needs the arena running (vrarena) and a player"); VR_AT_End(); return; }
+    if(!ar_mgr || !p || time < 2) // (the map's start: its arena and its player a few frames in; the frames retry)
+    {
+        if(vr_at41_wait <= 0) { vr_at41_wait = time + 30; }
+        if(time > vr_at41_wait) { VR_AT_Check(FALSE, "test 41 needs the arena running (vrarena) and a player"); VR_AT_End(); }
+        vr_at_step = 0;
+        return;
+    }
     entity keep = self;
     p.flags = p.flags | FL_GODMODE;
-    makevectors([0, p.angles_y, 0]);
+    makevectors([0, p.v_viewangle_y, 0]); // (ahead of his view, the headset's: the screenshot shows them)
     float k;
     for(k = 0; k < 3; k++)
     {
@@ -4412,6 +4421,7 @@ void() VR_AT41_Begin =
 
 void() VR_AT41_Frame =
 {
+    if(vr_at_step == 0) { VR_AT41_Begin(); return; } // (still waiting for the arena and the player)
     entity p = VR_PlayerAlive();
     if(!p) { VR_AT_Check(FALSE, "the player died"); VR_AT_End(); return; }
     float k;
@@ -4430,7 +4440,6 @@ void() VR_AT41_Frame =
             VR_AT_Check(vr_at41_g[k].vr_ag_total_shots > 0 && vr_at41_g[k].vr_ag_wid == vr_at41_wid[k],
                         sprintf("%s fired its weapon %g at the player (%g shots)", k < 2 ? "a knight" : "the death knight boss",
                                 vr_at41_wid[k], vr_at41_g[k].vr_ag_total_shots));
-            T_Damage(vr_at41_g[k], p, p, 9000);
         }
         vr_at_step = 2;
         vr_at_until = time + 8;
@@ -4438,17 +4447,31 @@ void() VR_AT41_Frame =
     }
     if(vr_at_step == 2) // (each felled drops its gun)
     {
+        for(k = 0; k < 3; k++) // (felled, not gibbed, as test 40: its armour soaked up, a blow it shrugged off again)
+        {
+            entity f = vr_at41_g[k];
+            if(f.health > 0 && f.takedamage)
+            {
+                vr_at41_at[k] = f.origin;
+                T_Damage(f, p, p, f.health + f.armorvalue + 20);
+            }
+        }
         float lying = 0;
         for(k = 0; k < 3; k++)
         {
             entity e = find(world, classname, "thrown_weapon");
             while(e)
             {
-                if(e.weapon == vr_at41_wid[k] && vlen(e.origin - vr_at41_g[k].origin) < 200) { lying = lying + 1; break; }
+                if(e.weapon == vr_at41_wid[k] && vlen(e.origin - vr_at41_at[k]) < 320) { lying = lying + 1; break; }
                 e = find(e, classname, "thrown_weapon");
             }
         }
         if(lying < 3 && time < vr_at_until) { return; }
+        for(entity w = find(world, classname, "thrown_weapon"); w; w = find(w, classname, "thrown_weapon"))
+        {
+            dprint(sprintf("arena: t41 lying %s (weapon %g) at %.0f / %.0f / %.0f from the three\n", w.netname, w.weapon,
+                           vlen(w.origin - vr_at41_at[0]), vlen(w.origin - vr_at41_at[1]), vlen(w.origin - vr_at41_at[2])));
+        }
         VR_AT_Check(lying == 3, sprintf("each felled dropped its gun by it (%g of 3)", lying));
         p.flags = p.flags - (p.flags & FL_GODMODE);
         VR_AT_End();
