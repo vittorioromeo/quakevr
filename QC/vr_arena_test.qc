@@ -3741,6 +3741,7 @@ void() VR_AT36_Spawn =
         at_z = 121;
     }
     p.velocity = '0 0 0';
+    p.flags = p.flags | FL_GODMODE; // (as test 41)
     float kind = VR_AT36_Kind(at36_kind);
     entity oself = self;
     self = spawn();
@@ -3943,6 +3944,7 @@ void() VR_AT41_Spawn =
     else if(at41_dir == 1) { setorigin(p, VR_AT41_Floor(at41_tower)); at = VR_AT41_Top(at41_tower); }
     else { setorigin(p, VR_AT41_Top(at41_tower + 1)); at = VR_AT41_Top(at41_tower); }
     p.velocity = '0 0 0';
+    p.flags = p.flags | FL_GODMODE; // (a `god` typed with the map's load can come before the player: shot dead, the test stood)
     float kind = VR_AT41_Kind(at41_kind);
     entity oself = self;
     self = spawn();
@@ -4169,6 +4171,7 @@ void() VR_AT43_Spawn =
     entity p = VR_Player();
     setorigin(p, '0 0 137');
     p.velocity = '0 0 0';
+    p.flags = p.flags | FL_GODMODE; // (as test 41)
     entity oself = self;
     self = spawn();
     at43_m = self;
