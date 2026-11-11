@@ -1625,7 +1625,7 @@ void defaultsCommand()
     {
         Cvar_SetQuick(c, c->default_string);
     }
-    say("settings back to their defaults (relight_maps.py's look)");
+    say("settings back to their defaults");
 }
 
 // vr_relight_lights [file]: the lights the map in play's textures get with the page's settings, into the file

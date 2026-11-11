@@ -67,7 +67,7 @@ if [[ $SECTIONS == *e* ]]; then
   #    at its end, and back after release.
   log=$HERE/scratch/flatads_e.log
   ON="crosshair 1; vr_crosshair 1; vr_flat_xhair 1; wait2; screenshot; crosshair 0; vr_crosshair 0; vr_flat_xhair 0; wait2; screenshot; crosshair 1; vr_crosshair 1; vr_flat_xhair 1; wait2; screenshot;"
-  bash $KIT/run.sh $AGENT -Clean -ExtraArgs "-flatscreenmode" -Script "$P; vr_flat_bob 0; impulse 154; wait40; $ON vr_flat_aim 1; wait4; vr_flat_sight_check; wait40; vr_flat_sight_check; $ON vr_flat_aim 0; wait40; vr_flat_sight_check; toggleconsole; quit" -Filter "^flatcrosshair" -Out flatads_e.png -Timeout 60 > "$log" 2>&1
+  bash $KIT/run.sh $AGENT -Clean -ExtraArgs "-flatscreenmode" -Script "$P; vr_flat_bob 0; vr_flat_xhair_opacity 1; impulse 154; wait40; $ON vr_flat_aim 1; wait4; vr_flat_sight_check; wait40; vr_flat_sight_check; $ON vr_flat_aim 0; wait40; vr_flat_sight_check; reset vr_flat_xhair_opacity; toggleconsole; quit" -Filter "^flatcrosshair" -Out flatads_e.png -Timeout 60 > "$log" 2>&1
   fades=$(grep -a "^flatcrosshair" "$log" | awk '{ printf "%s ", $2 }')
   shots=$(grep -a "full size in" "$log" | sed 's/.*full size in //' | tr -d '\r' | tail -1)
   px=$(python "$HERE/flatads_xhair.py" "$shots")

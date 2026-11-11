@@ -4207,6 +4207,8 @@ vr_flat_grenade_wind_full|2|Tunables|Grenade: Full Wind-Up|Advanced VR Options >
 vr_flat_grenade_speed_min|2|Tunables|Grenade: Throw Speed Min|Advanced VR Options > Debug > Tunables > Grenade: Throw Speed Min
 vr_flat_grenade_speed_max|2|Tunables|Grenade: Throw Speed Max|Advanced VR Options > Debug > Tunables > Grenade: Throw Speed Max
 vr_flat_grenade_throw_up|2|Tunables|Grenade: Throw Above Aim|Advanced VR Options > Debug > Tunables > Grenade: Throw Above Aim
+vr_flat_grenade_throw_pitch|2|Tunables|Grenade: Throw Arc Pitch|Advanced VR Options > Debug > Tunables > Grenade: Throw Arc Pitch
+vr_flat_grenade_speed_scale|2|Tunables|Grenade: Throw Speed Scale|Advanced VR Options > Debug > Tunables > Grenade: Throw Speed Scale
 vr_flat_grenade_follow_time|2|Tunables|Grenade: Follow-Through Time|Advanced VR Options > Debug > Tunables > Grenade: Follow-Through Time
 vr_flat_grenade_follow_fwd|2|Tunables|Grenade: Follow Forward|Advanced VR Options > Debug > Tunables > Grenade: Follow Forward
 vr_flat_grenade_follow_out|2|Tunables|Grenade: Follow Out|Advanced VR Options > Debug > Tunables > Grenade: Follow Out

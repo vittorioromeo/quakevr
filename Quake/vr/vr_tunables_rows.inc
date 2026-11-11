@@ -1961,6 +1961,8 @@ QVR_TUNABLE_SLIDER(vr_flat_grenade_wind_full, "Grenade: Full Wind-Up", 0.1f, 3.f
 QVR_TUNABLE_SLIDER(vr_flat_grenade_speed_min, "Grenade: Throw Speed Min", 0.f, 1500.f, 25.f, "%.0f u/s", 0.f, 3000.f, "The throw's speed let go at once (vr_flat_grenade_speed_min).")
 QVR_TUNABLE_SLIDER(vr_flat_grenade_speed_max, "Grenade: Throw Speed Max", 0.f, 2000.f, 25.f, "%.0f u/s", 0.f, 3000.f, "The throw's speed wound up fully (vr_flat_grenade_speed_max).")
 QVR_TUNABLE_SLIDER(vr_flat_grenade_throw_up, "Grenade: Throw Above Aim", -30.f, 60.f, 1.f, "%.0f deg", -30.f, 60.f, "How far above the crosshair the throw leaves (vr_flat_grenade_throw_up).")
+QVR_TUNABLE_SLIDER(vr_flat_grenade_throw_pitch, "Grenade: Throw Arc Pitch", -30.f, 60.f, 1.f, "%+.0f deg", -30.f, 60.f, "Tips the throw this much more upward, on top of Throw Above Aim (the two add): a higher arc (vr_flat_grenade_throw_pitch).")
+QVR_TUNABLE_SLIDER(vr_flat_grenade_speed_scale, "Grenade: Throw Speed Scale", 0.1f, 3.f, 0.05f, "x%.2f", 0.1f, 3.f, "The throw's speed (Throw Speed Min to Max by the wind-up) times this: lower with a higher arc for a lob (vr_flat_grenade_speed_scale).")
 QVR_TUNABLE_SLIDER(vr_flat_grenade_follow_time, "Grenade: Follow-Through Time", 0.02f, 1.f, 0.01f, "%.2f s", 0.02f, 2.f, "The throw's follow-through, the arm out along the look (vr_flat_grenade_follow_time).")
 QVR_TUNABLE_SLIDER(vr_flat_grenade_follow_fwd, "Grenade: Follow Forward", -1.f, 1.f, 0.05f, "%.2f", -1.f, 1.f, "The follow-through: how far forward along the look (vr_flat_grenade_follow_fwd).")
 QVR_TUNABLE_SLIDER(vr_flat_grenade_follow_out, "Grenade: Follow Out", -1.f, 1.f, 0.05f, "%.2f", -1.f, 1.f, "...out at the hand's side (vr_flat_grenade_follow_out).")

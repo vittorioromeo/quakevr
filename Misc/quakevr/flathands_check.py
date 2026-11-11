@@ -90,7 +90,7 @@ t = [re.search(r"thrown by the off hand after ([\d.]+) s wound up: (\d+) u/s", l
 t = [x for x in t if x]
 if t:
     held_s, speed = float(t[0].group(1)), float(t[0].group(2))
-    want = 350 + 550 * min(1.0, held_s / 1.0)
+    want = 350 + 550 * min(1.0, held_s / 1.5)  # (vr_flat_grenade_wind_full 1.5 since 2026-11-11)
 check(bool(t) and abs(held_s - 0.69) < 0.05 and abs(speed - want) < 40,
       "gren2h: let go, thrown as fast as it was wound up (%s)" % (str((t[0].group(1), t[0].group(2))) if t else "none"))
 stance = [l for l in ls if l.startswith("  stance:")]
@@ -121,6 +121,27 @@ for tag, hand, other in (("grenoff", "off", "main"), ("grenmain", "main", "off")
     check(has(ls, r"flat grenade: G: the %s hand goes for the pouch$" % hand), "%s: the %s hand empty: it goes" % (tag, hand))
     check(has(ls, r"thrown by the %s hand after" % hand), "%s: armed, wound up and thrown by the %s hand" % (tag, hand))
 
+# grenarc: grenmain's throw with vr_flat_grenade_throw_pitch 20 and vr_flat_grenade_speed_scale 1.5: launched 20 degrees
+# higher and 1.5 times as fast; grenmain (the defaults 0 and 1) leaves Throw Above Aim's 6 degrees above the level look.
+def launch(tag):
+    for l in lines(tag):
+        m = re.search(r"flat grenade: launched ([-\d.]+) deg above level, ([-\d.]+) above the crosshair, ([\d.]+) u/s", l)
+        if m:
+            # (as before: the wind-up's seconds (unused: 0), the speed, the launch above level, above the crosshair)
+            return (0.0, float(m.group(3)), float(m.group(1)), float(m.group(2)))
+    return None
+
+
+ls = lines("grenarc")
+done("grenarc", ls)
+a, b = launch("grenmain"), launch("grenarc")
+check(a is not None and a[3] == 6 and abs(a[2] - 6) < 1.5,
+      "grenmain: the defaults (Arc Pitch 0, Speed Scale 1): Throw Above Aim's 6 deg above the crosshair, about level ahead (%s)" % (a,))
+check(a is not None and b is not None and abs(b[0] - a[0]) < 0.02 and abs((b[2] - a[2]) - 20) < 0.5 and b[3] == 26,
+      "grenarc: Throw Arc Pitch 20: launched 20 deg higher (%s vs %s)" % (b and b[2], a and a[2]))
+check(a is not None and b is not None and a[1] > 0 and abs(b[1] / a[1] - 1.5) < 0.01,
+      "grenarc: Throw Speed Scale 1.5: 1.5 times as fast (%s vs %s u/s)" % (b and b[1], a and a[1]))
+
 # The hand slot (every grenade run, vr_debug_carry 2): the grenade a round's kind (4) unarmed, a grenade's (5) once armed,
 # the hand changing with it at once; no mismatch, clash or stale line anywhere; the hand empty once it is thrown.
 for tag, hand in (("gren2h", "off"), ("grenempty", "main"), ("grenoff", "off"), ("grenmain", "main")):
@@ -132,7 +153,7 @@ for tag, hand in (("gren2h", "off"), ("grenempty", "main"), ("grenoff", "off"), 
     check(bool(end) and end[-1] == "flat grenade: done; the %s hand holds nothing (kind 0)" % hand,
           "%s: after the throw the %s hand is empty, kind 0 (%s)" % (tag, hand, end[-1] if end else "none"))
 check(has(lines("grenempty"), r"^handslot: main hand lets go of vr_ammo_front \(stow\)"), "grenempty: put back: the main hand lets go of it")
-bad = [(tag, l) for tag in ("drop", "gren2h", "grenempty", "grendual", "grenoff", "grenmain", "swap1", "swap2h", "swapdual", "swapoff")
+bad = [(tag, l) for tag in ("drop", "gren2h", "grenempty", "grendual", "grenoff", "grenmain", "grenarc", "swap1", "swap2h", "swapdual", "swapoff")
        for l in lines(tag) if re.match(r"handslot: (mismatch|clash|stale)", l)]
 check(not bad, "no handslot mismatch/clash/stale line in any run (%s)" % (bad[:2],))
 
@@ -151,7 +172,8 @@ for tag, two in (("swap1", False), ("swap2h", True), ("swapdual", False)):
         idx = lambda pat: next((i for i, l in enumerate(ls) if re.search(pat, l)), -1)
         rel = [re.search(r"2h: released \(([\d.]+) s\): the off hand ([\d.]+) units from the empty hand's guard, ([\d.]+) from the main hand \(moved ([\d.]+)", l) for l in ls]
         rel = [x for x in rel if x]
-        check(bool(rel) and abs(float(rel[0].group(1)) - 0.2) < 0.03 and float(rel[0].group(2)) < 1 and float(rel[0].group(3)) > 6,
+        # (vr_flat_swap_2h_release_time, _pass_time, _attach_time 0.1 each since 2026-11-11, his values: were 0.2, 0.25, 0.25)
+        check(bool(rel) and abs(float(rel[0].group(1)) - 0.1) < 0.03 and float(rel[0].group(2)) < 1 and float(rel[0].group(3)) > 6,
               "swap2h: first the off hand off the grip to the empty hand's guard (%s)" % (rel[0].group(0) if rel else "none",))
         i_rel, i_met, i_sent, i_seen, i_done = (idx(p) for p in (r"2h: released", r"flatswap: met: .*\(the pass\)", r"swap sent",
                                                                  r"flatswap: swapped", r"flatswap: done"))
@@ -162,7 +184,7 @@ for tag, two in (("swap1", False), ("swap2h", True), ("swapdual", False)):
         check(bool(met) and float(met[0].group(1)) < 6 and float(met[0].group(2)) < 1,
               "swap2h: the gun passed to the hand at the guard (%s)" % (met[0].group(0) if met else "none",))
         sent = [l for l in ls if "swap sent" in l]
-        want = 0.45
+        want = 0.2  # (the release's 0.1 and the pass's 0.1)
         stance = [l for l in ls if l.startswith("  stance:")]
         check(len(stance) >= 2 and "holding its grip" in stance[-1] and "torso 15.0" in stance[-1],
               "swap2h: ends with the main hand holding the gun's grip, the gun in the off hand (%s)" % (stance[-1] if stance else "none",))
