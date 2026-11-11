@@ -230,6 +230,10 @@ struct Agent
     glm::vec3 lastPos{0.f};
     double lastAt = -1.0;
     float lastYaw = 0.f;
+    // vr_nav_stuck_log: where it stood still since when, logged.
+    glm::vec3 stuckAt{0.f};
+    double stuckSince = -1.0;
+    bool stuckLogged = false;
 };
 
 // Why a steer returned what it did (the crowd test's causes).
@@ -3442,6 +3446,81 @@ glm::vec3 approach(edict_t* ent, Agent& a, int num, int goalNum, const glm::vec3
 
 // The yaw toward the path's next corner, its turn rounded (vr_nav_smooth: near the corner, already toward the one
 // after) and kept apart from the walkers close by (vr_nav_separation: never turned back on its path).
+// vr_nav_stuck_log (seconds; 0 off): a walker that has stood within 4 units that long while chasing is logged once
+// (`navstuck|...`: where, its last steer's outcome, yaw and what a step that way meets, its next corners), so a stall's
+// cause shows in a test's log (vr_arena_test 41's towers).
+void stuckLog(edict_t* ent, Agent& a, const glm::vec3& pos, double now)
+{
+    const float after = vr_nav_stuck_log.value;
+    if(after <= 0.f)
+    {
+        return;
+    }
+    if(a.stuckSince < 0.0 || glm::length(pos - a.stuckAt) > 4.f)
+    {
+        a.stuckAt = pos;
+        a.stuckSince = now;
+        a.stuckLogged = false;
+        return;
+    }
+    if(a.stuckLogged || now - a.stuckSince < static_cast<double>(after))
+    {
+        return;
+    }
+    a.stuckLogged = true;
+    char corners[256] = "";
+    int at = 0;
+    for(int i = 0; i < a.cornerCount && at < 200; ++i)
+    {
+        const glm::vec3 q = fromRc(&a.corners[i * 3]);
+        at += q_snprintf(corners + at, sizeof(corners) - static_cast<za::SizeT>(at), " (%.0f %.0f %.0f)", q.x, q.y, q.z);
+    }
+    Con_Printf("navstuck|%s|%d|%.0f %.0f %.0f|why %d|yaw %.0f (facing %.0f) meets %d|next %d of%s|partial %d|path %d\n",
+        PR_GetString(ent->v.classname), NUM_FOR_EDICT(ent), pos.x, pos.y, pos.z, a.why, a.lastYaw, ent->v.angles[1],
+        stepMeets(ent, a.lastYaw), a.next, corners, a.partial ? 1 : 0, static_cast<int>(a.path.size()));
+}
+
+// vr_nav_slide: the yaw along a wall standing in its way. Quake's walkmove doesn't slide: a step whose box meets a wall
+// fails whole. The path's corners keep the clearance where there is room, but in the narrow band (a stair beside a
+// tower's wall) a corner can lie nearer the wall than the box's half width: the yaw toward it runs the box into the wall,
+// the side steps too, and the walker stood (vr_arena_test 41). The step is traced a step's height up (a stair's riser is
+// stepped up, not slid along), world and brush entities only; a wall met (not a floor or a ceiling) turns the yaw along
+// it, unless it stands nearly square across the way (then the corner is beyond it: as before).
+float slideYaw(edict_t* ent, float yaw)
+{
+    if(vr_nav_slide.value == 0.f)
+    {
+        return yaw;
+    }
+    const float r = glm::radians(yaw);
+    const glm::vec3 dir{glm::cos(r), glm::sin(r), 0.f};
+    const glm::vec3 start = geom::vec(ent->v.origin) + glm::vec3{0.f, 0.f, za::max(vr_nav_climb.value, 0.f)};
+    const glm::vec3 end = start + dir * 16.f;
+    vec3_t s, t;
+    VectorCopy(&start.x, s);
+    VectorCopy(&end.x, t);
+    const trace_t tr = SV_Move(s, ent->v.mins, ent->v.maxs, t, MOVE_NOMONSTERS, ent);
+    if(tr.fraction >= 1.f || tr.startsolid || tr.allsolid || za::abs(tr.plane.normal[2]) > 0.7f)
+    {
+        return yaw;
+    }
+    glm::vec3 n{tr.plane.normal[0], tr.plane.normal[1], 0.f};
+    const float nl = glm::length(n);
+    if(nl < 1e-3f)
+    {
+        return yaw;
+    }
+    n /= nl;
+    const glm::vec3 along = dir - n * glm::dot(dir, n);
+    const float al = glm::length(along);
+    if(al < 0.25f) // (within about 15 degrees of square on)
+    {
+        return yaw;
+    }
+    const float slid = glm::degrees(glm::atan(along.y, along.x));
+    return slid < 0.f ? slid + 360.f : slid;
+}
+
 float steerToward(const NavClass& c, const Agent& a, const glm::vec3& pos, int next, int nc, const unsigned char* flags, int num)
 {
     glm::vec3 target = fromRc(&a.corners[next * 3]);
@@ -3518,6 +3597,7 @@ float steer(edict_t* ent, edict_t* goal)
     reachCheck(ent);
     crowdCheck();
     crowdNote(ent, a, pos, now);
+    stuckLog(ent, a, pos, now);
     if(a.link)
     {
         if(a.cls == cls)
@@ -3637,7 +3717,7 @@ float steer(edict_t* ent, edict_t* goal)
         return -1.f;
     }
     a.why = whySteered;
-    a.lastYaw = steerToward(*c, a, pos, next, nc, flags, num);
+    a.lastYaw = slideYaw(ent, steerToward(*c, a, pos, next, nc, flags, num));
     return a.lastYaw;
 }
 
@@ -3650,6 +3730,18 @@ int action(const edict_t* ent)
 float obstacles(int what)
 {
     return obstacleInfo(what);
+}
+
+float reach(edict_t* ent, edict_t* goal)
+{
+    if(vr_nav.value == 0.f || !sv.active || !state.ready || !ent || !goal || !walker(ent) || !readyClass(classFor(ent, true)))
+    {
+        return -1.f;
+    }
+    tickWorld();
+    setCosts();
+    float gap = 0.f;
+    return wholePath(ent, feet(goal), gap) ? 1.f : 0.f;
 }
 
 void serverFrame()

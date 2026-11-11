@@ -135,6 +135,25 @@ float() VR_NAV_Melee =
     return !self.th_missile || self.th_missile == dog_leap1;
 };
 
+// No melee at a foe on another level (feet more than vr_nav_melee_level apart) that a whole navmesh path leads to.
+// Quake's melee range is 120 in a straight line, so a dog or a knight on a tower's stair below him on the top was "in
+// range": it bit or swung at air, its attack's charge (ai_charge: movetogoal) ran it into the tower's wall, and it stood
+// there for good (vr_arena_test 41; NAVMESH.md 15). It walks the path up instead; on his level it fights as before. No
+// path there (a ledge it can't climb): as before.
+float() VR_NAV_MeleeOff =
+{
+    if(!cvar_hget(cvarh_vr_nav) || !(self.flags & FL_MONSTER) || (self.flags & (FL_FLY | FL_SWIM)) || self.enemy == world)
+    {
+        return FALSE;
+    }
+    float lev = cvar_hget(cvarh_vr_nav_melee_level);
+    if(lev <= 0 || fabs((self.enemy.origin_z + self.enemy.mins_z) - (self.origin_z + self.mins_z)) <= lev)
+    {
+        return FALSE;
+    }
+    return navreach(self, self.enemy) > 0;
+};
+
 float(float dist) VR_NAV_Step =
 {
     entity g = self.goalentity;

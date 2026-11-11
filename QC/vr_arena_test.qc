@@ -3887,6 +3887,15 @@ vector(vector xAt, float xTower) VR_AT41_Turn =
 vector(float xTower) VR_AT41_Top = { return VR_AT41_Turn('402 402 281', xTower); }
 vector(float xTower) VR_AT41_Floor = { return VR_AT41_Turn('620 260 25', xTower); } // (the NE tower's: past its east face)
 
+// The kinds left out by vr_nav_test_kinds (a tunable: bit k is VR_AT41_Kind(k); 0 all): a shorter run while looking at
+// one kind.
+float() VR_AT41_SkipKinds =
+{
+    float mask = cvar_hget(cvarh_vr_nav_test_kinds);
+    while(mask > 0 && at41_kind < AT41_KINDS && !(mask & pow(2, at41_kind))) { at41_kind = at41_kind + 1; }
+    return at41_kind;
+};
+
 void() VR_AT41_Begin =
 {
     if(!ar_mgr) { VR_AT_Check(FALSE, "test 41 needs the arena on (map vrarena)"); VR_AT_End(); return; }
@@ -3894,6 +3903,7 @@ void() VR_AT41_Begin =
     ar_mgr.think = SUB_Null; // (no waves)
     ar_mgr.nextthink = 0;
     at41_kind = 0;
+    VR_AT41_SkipKinds();
     at41_dir = 0;
     at41_tower = 0;
     at41_state = 0;
@@ -3960,6 +3970,7 @@ void(float xArrived) VR_AT41_Close =
         {
             at41_dir = 0;
             at41_kind = at41_kind + 1;
+            VR_AT41_SkipKinds();
         }
     }
 }
@@ -3985,7 +3996,12 @@ void() VR_AT41_Frame =
         VR_AT_End();
         return;
     }
-    if(at41_state == 0) { VR_AT41_Spawn(); return; }
+    if(at41_state == 0)
+    {
+        if(VR_Player() == world) { return; } // (the player not in yet: the map's first frames)
+        VR_AT41_Spawn();
+        return;
+    }
     entity m = at41_m;
     entity p = VR_Player();
     if(at41_state == 1)
@@ -4219,6 +4235,7 @@ void() VR_AT43_Frame =
             at43_state = 4;
             return;
         }
+        if(VR_Player() == world) { return; } // (the player not in yet)
         VR_AT43_Spawn();
         return;
     }

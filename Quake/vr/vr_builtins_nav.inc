@@ -128,6 +128,13 @@ void PF_navlink()
     G_FLOAT(OFS_RETURN) = static_cast<float>(qvr::nav::action(G_EDICT(OFS_PARM0)));
 }
 
+// float navreach(entity monster, entity goal): 1 a whole navmesh path from its feet to the goal's, 0 none, -1 no navmesh
+// for it (vr_nav.cpp nav::reach).
+void PF_navreach()
+{
+    G_FLOAT(OFS_RETURN) = qvr::nav::reach(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1));
+}
+
 // float navobstacles(float what): props as obstacles: 0 what is left to do (0: the mesh current), 1 props blocking, 2
 // rebuild batches, 3 tiles rebuilt or given back (vr_nav.cpp nav::obstacles).
 void PF_navobstacles()

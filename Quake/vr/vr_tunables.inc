@@ -2419,4 +2419,8 @@ QVR_TUNABLE(vr_nav_prop_size, "20") // ... a prop blocks only if its footprint i
 QVR_TUNABLE(vr_nav_prop_mass, "10") // ... and at least this heavy (kg): a lighter one is pushed aside
 QVR_TUNABLE(vr_nav_prop_rest, "1") // ... after resting this long (seconds): a prop in motion or in a hand is left out
 QVR_TUNABLE(vr_nav_prop_move, "6") // ... a marked prop moved this far (units) or turned 10 degrees from where it was marked loses its mark (marked again once it rests)
+QVR_TUNABLE(vr_nav_melee_level, "40") // a walker in melee range of a foe whose feet are more than this higher or lower (units) doesn't swing or bite at him when a whole navmesh path leads there: it walks the path (0: Quake's, in range is in range)
+QVR_TUNABLE(vr_nav_test_kinds, "0") // test: vr_arena_test 41 runs only these kinds of walker (bits: 1 armed grunt, 2 enforcer, 4 knight, 8 ogre, 16 dog; 0 all)
+QVR_TUNABLE(vr_nav_slide, "1") // 1: a walker on the navmesh whose step toward its path's next corner meets a wall (traced a step up: not a stair's riser) steps along the wall instead (Quake's walkmove doesn't slide); 0: straight at the corner
+QVR_TUNABLE(vr_nav_stuck_log, "0") // debug: a walker chasing on the navmesh that stood still this long (seconds) is logged once (navstuck|...: its steer, the step's way, its corners); 0 off
 QVR_TUNABLE(vr_nav_prop_batch, "0.5") // ... a class's tiles changed by props are rebuilt together at most this often (seconds)

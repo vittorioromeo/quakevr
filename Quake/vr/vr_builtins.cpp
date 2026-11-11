@@ -990,6 +990,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"navsteer", PF_navsteer},
     {"navlink", PF_navlink},
     {"navobstacles", PF_navobstacles},
+    {"navreach", PF_navreach},
     {"bodyshock", PF_bodyshock},
     {"bodyshockdeath", PF_bodyshockdeath},
     {"collectfx", PF_collectfx},

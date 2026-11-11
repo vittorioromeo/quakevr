@@ -27,6 +27,10 @@ void afterLoad();
 // in the air off a ledge).
 [[nodiscard]] int action(const edict_t* ent);
 
+// Builtin navreach(monster, goal): 1 if its class's navmesh has a whole path from its feet to the goal's (vr_nav on), 0
+// if not, -1 if there is no navmesh for it (yet), vr_nav is off or it isn't a walker. (QC VR_NAV_MeleeOff.)
+[[nodiscard]] float reach(edict_t* ent, edict_t* goal);
+
 // Each server frame (VR_PhysicsFrameEnd, the server's VM current): the movers' and the props' tick (props as obstacles:
 // their rests looked at, their tiles' rebuilds started and joined), whether or not anything chases.
 void serverFrame();
