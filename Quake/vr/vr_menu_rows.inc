@@ -1168,6 +1168,32 @@ QVR_TOGGLE(vr_arena_perks, "Boss Perks",
     "1: clearing a boss wave offers your choice of perks -- cards floating in front of you, the arena "
     "waiting (no countdown, no next wave) until you point at one and pull the trigger (or press its "
     "number); that perk is yours for the rest of the run. 0: it offers nothing (vr_arena_perks).")
+QVR_TOGGLE(vr_arena_director, "Budget Director",
+    "1: the waves are bought from a threat budget off one price list (quakevr/data/arena_director.txt): a theme a "
+    "wave (Swarm, Melee Rush, Ranged Siege, Elite, Ambush, Knightfall...), foes in groups with pauses that wait for "
+    "you, surges from all sides, knights and death knights with guns, supplies that follow how you are doing. 0: the "
+    "classic waves and their ladder. Takes effect at the next run (vr_arena_director).")
+QVR_TOGGLE(vr_arena_themes, "Wave Themes",
+    "Budget Director: 1 a theme rolled every wave biases its foes and its pace; 0 every wave Mixed (vr_arena_themes).")
+QVR_TOGGLE(vr_arena_theme_banner, "Theme In Countdown",
+    "Budget Director: 1 the wave's theme is named in its countdown and its banner (vr_arena_theme_banner).")
+QVR_TOGGLE(vr_arena_reinforce, "Surges",
+    "Budget Director: 1 a wave holds part of its budget back for surges -- announced, then a bigger group at once "
+    "from several sides (an ambush: behind you). 0: none (vr_arena_reinforce).")
+QVR_TOGGLE(vr_arena_quick_kill, "Quick Kill Bonus",
+    "Budget Director: 1 a foe killed within a few seconds of coming in pays a quarter more (the data file's "
+    "quick_time and quick_pay) (vr_arena_quick_kill).")
+QVR_TOGGLE(vr_arena_supply_reactive, "Supplies Follow You",
+    "Budget Director: 1 a wave clear's supplies lean on how you are doing -- hurt: more healing (a megahealth when "
+    "very low); untouched: now and then a power-up. 0: always the same mix (vr_arena_supply_reactive).")
+QVR_SLIDER(vr_arena_supply_scale, "Supply Amount", 0.f, 4.f, 0.05f, "%.2f", noExt,
+    "Budget Director: a wave clear's supply budget times this (vr_arena_supply_scale).")
+QVR_SLIDER(vr_arena_alive_cap, "Foes Up At Most", 1.f, 40.f, 1.f, "%.0f", noExt,
+    "Budget Director: a safety cap for the frame rate, not the pace (the pauses between groups pace a wave): never "
+    "more of a wave's foes up at once than this (vr_arena_alive_cap).")
+QVR_TOGGLE(vr_arena_director_log, "Director Log",
+    "Budget Director: 1 each wave's plan printed to the console -- its budget, theme, foes, surges "
+    "(vr_arena_director_log; vr_arena_director_print <seed> <skill> <waves> prints a run's).")
 QVR_TOGGLE(vr_arena_banners, "Arena Banners",
     "1: the boards high on the arena's walls show the wave, the foes left, the time and the score, live. "
     "0: they are off (vr_arena_banners).")

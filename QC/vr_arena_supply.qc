@@ -198,9 +198,18 @@ string() VR_ARENA_SupplyLine =
     string s = "";
     if(ar_drop_health == 1) { s = "a medkit"; }
     else if(ar_drop_health > 1) { s = sprintf("%g medkits", ar_drop_health); }
-    if(ar_drop_armour > 0) { s = VR_ARENA_ListAdd(s, ar_drop_armour_kind == 3 ? "yellow armour" : "green armour"); }
+    if(ar_drop_armour > 0)
+    {
+        s = VR_ARENA_ListAdd(s, ar_drop_armour_kind == 4 ? "red armour" : ar_drop_armour_kind == 3 ? "yellow armour" : "green armour");
+    }
     if(ar_drop_shards == 1) { s = VR_ARENA_ListAdd(s, "an armour shard"); }
     else if(ar_drop_shards > 1) { s = VR_ARENA_ListAdd(s, sprintf("%g armour shards", ar_drop_shards)); }
+    // (the budget director's own: vr_arena_director.qc)
+    if(ar_dir_drop_mega > 0) { s = VR_ARENA_ListAdd(s, "a megahealth"); }
+    if(ar_dir_drop_ammo > 0) { s = VR_ARENA_ListAdd(s, ar_dir_drop_ammo > 1 ? sprintf("%g boxes of shells", ar_dir_drop_ammo) : "a box of shells"); }
+    if(ar_dir_drop_power == 9) { s = VR_ARENA_ListAdd(s, "a QUAD DAMAGE"); }
+    else if(ar_dir_drop_power == 10) { s = VR_ARENA_ListAdd(s, "a RING OF SHADOWS"); }
+    else if(ar_dir_drop_power == 11) { s = VR_ARENA_ListAdd(s, "a PENTAGRAM"); }
     if(s == "") { return ""; }
     return sprintf("%s: %s", ar_sc_n > 0 ? "Supplies around the arena" : "Supplies", s);
 }

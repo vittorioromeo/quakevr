@@ -1229,12 +1229,30 @@ void planOne(int w)
             seenMain = seenMain >= 0 ? seenMain + 1 : seenMain;
         }
     }
-    for(int i = nMain; i < run.nFoes; i++)
+    // Each surge after its share of the wave's own (surge k of S after k / (S + 1) of them): QC reads them in order.
+    Foe withSurges[maxPlan];
+    int ns = 0;
+    int k = 1;
+    for(int i = 0; i <= no; i++)
     {
-        ordered[no++] = run.foes[i];
+        while(k <= run.surges && i >= za::min(no, za::max(1, (k * no) / (run.surges + 1))))
+        {
+            for(int j = nMain; j < run.nFoes; j++)
+            {
+                if(run.foes[j].surge == k)
+                {
+                    withSurges[ns++] = run.foes[j];
+                }
+            }
+            k++;
+        }
+        if(i < no)
+        {
+            withSurges[ns++] = ordered[i];
+        }
     }
-    memcpy(run.foes, ordered, sizeof(Foe) * static_cast<size_t>(no));
-    run.nFoes = no;
+    memcpy(run.foes, withSurges, sizeof(Foe) * static_cast<size_t>(ns));
+    run.nFoes = ns;
 
     run.spent = 0.f;
     for(int i = 0; i < run.nFoes; i++)
@@ -1628,7 +1646,16 @@ void pfStart()
 {
     const int skill = static_cast<int>(G_FLOAT(OFS_PARM0));
     const uint32_t seed = static_cast<uint32_t>(za::max(1.f, G_FLOAT(OFS_PARM1)));
-    G_FLOAT(OFS_RETURN) = start(skill, seed, G_STRING(OFS_PARM2)) ? 1.f : 0.f;
+    // The rows this game has: two 17-bit masks (rows 0..16, 17..33), a float holding 24 bits exactly.
+    const int lo = static_cast<int>(G_FLOAT(OFS_PARM2));
+    const int hi = static_cast<int>(G_FLOAT(OFS_PARM3));
+    char rows[gunRows + 1];
+    for(int i = 0; i < gunRows; i++)
+    {
+        rows[i] = ((i < 17 ? lo >> i : hi >> (i - 17)) & 1) ? '1' : '0';
+    }
+    rows[gunRows] = 0;
+    G_FLOAT(OFS_RETURN) = start(skill, seed, rows) ? 1.f : 0.f;
 }
 
 void pfPlan()
@@ -1687,6 +1714,7 @@ void pfGet()
         case WaveQuickPay: v = data.cadence->num("quick_pay", 0.25f); break;
         case WaveSurgeWarn: v = data.cadence->num("surge_warn", 2.f); break;
         case WaveAmbush: v = cad(th, "ambush", 0.f); break;
+        case WaveGapRef: v = za::max(1.f, cad(th, "gap_ref", 10.f)); break;
         default: break;
         }
     }

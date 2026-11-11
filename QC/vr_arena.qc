@@ -59,6 +59,8 @@
 .float ar_slot; // > 0: one of the arena's wave monsters, of the wave that number (its fall flips it to that number's negative)
 .float vr_xray; // 1: one of a wave's last foes, seen through walls (VR_ARENA_XrayMark; the engine's vr_arenaxray.cpp draws it)
 .float ar_tier; // what a wave monster is worth on the ladder: 1, 2, 3 (a boss: plus AR_BOSS_MARK)
+.float ar_cost; // the budget director's (vr_arena_director 1): its threat points (its kill's score)
+.float ar_born; // the time it came in (a quick kill: vr_arena_director.qc)
 .float ar_armour; // the armour type the arena dressed a wave monster in (0 none): its kill pays more
 .float ar_drop; // > 0: an arena's own drop between waves: 1 a medkit, 2 an armour (or an armour shard)
 .float ar_drop_wave; // a drop: the wave whose clear dropped it (vr_arena_item_waves)
@@ -268,6 +270,18 @@ void() VR_ARENA_SupplyReset;
 void() VR_ARK_Frame;
 void() VR_ARK_HoldThink;
 void() VR_ARENA_BannerFrame;
+
+// The budget director (vr_arena_director.qc, compiled after this file; vr_arena_director 1).
+float() VR_ARENA_DirOn;
+void() VR_ARENA_DirStart;
+void(float xWave) VR_ARENA_DirPlan;
+string(float xWave) VR_ARENA_DirTheme;
+void() VR_ARENA_DirWaveStart;
+float(float xAlive) VR_ARENA_DirCadence;
+float(entity xFoe) VR_ARENA_DirWorth;
+string() VR_ARENA_DirClearLine;
+void(float xWave) VR_ARENA_DirDrops;
+float(vector xAt) VR_ARENA_DirSector;
 
 // ---------------------------------------------------------------------------
 // The knobs, and the small maths they need
@@ -1196,6 +1210,11 @@ void(float xWave) VR_ARENA_Plan =
         VR_ARENA_PresetPlan(xWave);
         return;
     }
+    if(VR_ARENA_DirOn())
+    {
+        VR_ARENA_DirPlan(xWave); // (the budget director's: vr_arena_director.qc)
+        return;
+    }
     VR_ARENA_PlanFoes(xWave);
     VR_ARENA_PlanTrickle(xWave);
     VR_ARENA_PlanArmour(xWave);
@@ -1683,6 +1702,7 @@ vector(float xHigh) VR_ARENA_SpawnPlace =
             if(VR_ARENA_PlaceTaken(here)) { continue; }
             float seen = VR_ARENA_PlaceSeen(here);
             if((pass == 0 && seen != 0) || (pass == 1 && seen == 2)) { continue; }
+            if(pass == 0 && !VR_ARENA_DirSector(here)) { continue; } // (a surge's spread round the player)
             ar_spot_next = ar_spot_next + 1;
             ar_place_ok = TRUE;
             return here;
@@ -1916,19 +1936,37 @@ void() VR_ARENA_PlainShard =
     VR_PickupObj_Mark(QVR_PICKUPOBJ_ARMOUR);
 }
 
-// xWhat: 1 a medkit, 2 the light armour, 3 the heavier one, 4 an armour shard. xAt: the middle of its floor.
+// xWhat: 1 a medkit, 2 the light armour, 3 the heavier one, 4 an armour shard; the budget director's too: 5 a small
+// medkit, 6 a megahealth, 7 the red armour, 8 a box of shells, 9 a quad, 10 a ring of shadows, 11 a pentagram.
+// xAt: the middle of its floor.
 entity(float xWhat, vector xAt) VR_ARENA_SpawnDrop =
 {
     entity manager = self;
     entity it = spawn();
     self = it;
 
-    if(xWhat == 1)
+    if(xWhat == 1 || xWhat == 5 || xWhat == 6)
     {
         it.classname = "item_health";
-        it.spawnflags = 0; // (items.qc's plain medkit: 25 health, its own grabbable placement)
+        it.spawnflags = xWhat == 5 ? H_ROTTEN : xWhat == 6 ? H_MEGA : 0; // (items.qc's: 15, 25 or 100 health)
         setorigin(it, xAt + '-16 -16 8'); // (its box's corner is its origin: centred on the place)
         item_health();
+    }
+    else if(xWhat >= 8)
+    {
+        setorigin(it, xAt + '-16 -16 8');
+        if(xWhat == 8) { it.classname = "item_shells"; item_shells(); }
+        else if(xWhat == 9) { it.classname = "item_artifact_super_damage"; item_artifact_super_damage(); }
+        else if(xWhat == 10) { it.classname = "item_artifact_invisibility"; item_artifact_invisibility(); }
+        else { it.classname = "item_artifact_invulnerability"; item_artifact_invulnerability(); }
+    }
+    else if(xWhat == 7)
+    {
+        it.classname = "item_armorInv";
+        setorigin(it, xAt + '0 0 8');
+        item_armorInv();
+        self.armortype = 0.8;
+        self.armorvalue = 200;
     }
     else if(xWhat == 4)
     {
@@ -1963,6 +2001,11 @@ entity(float xWhat, vector xAt) VR_ARENA_SpawnDrop =
 
 void(float xWave) VR_ARENA_Drops =
 {
+    if(VR_ARENA_DirOn())
+    {
+        VR_ARENA_DirDrops(xWave); // (the budget director's supply budget)
+        return;
+    }
     float n = VR_ARENA_MedkitCount(xWave);
     float armour = VR_ARENA_ArmourKind(xWave);
     float i;
@@ -2064,8 +2107,13 @@ void() VR_ARENA_MonsterDie =
     self.ar_slot = -ar_wave;
     ar_kills = ar_kills + 1;
     ar_wave_kills = ar_wave_kills + 1;
-    float worth = VR_ARENA_KillScore(VR_ARENA_TierOf(self.ar_tier), self.ar_tier >= AR_BOSS_MARK);
-    if(self.ar_armour > 0) { worth = VR_ARENA_ArmourWorth(worth, self.ar_armour); } // (an armoured foe pays more)
+    float worth;
+    if(VR_ARENA_DirOn() && self.ar_cost > 0) { worth = VR_ARENA_DirWorth(self); } // (by its cost: armour, boss in it)
+    else
+    {
+        worth = VR_ARENA_KillScore(VR_ARENA_TierOf(self.ar_tier), self.ar_tier >= AR_BOSS_MARK);
+        if(self.ar_armour > 0) { worth = VR_ARENA_ArmourWorth(worth, self.ar_armour); } // (an armoured foe pays more)
+    }
     ar_score = ar_score + worth;
     VR_ARENA_BodyDown(self); // (its body's time: the cleanup)
 
@@ -2299,6 +2347,8 @@ float() VR_ARENA_SpawnNext =
     ar_spawn_gun2 = 0;
     ar_spawn_infect = 0;
     if(!m) { return FALSE; }
+    m.ar_born = time;
+    if(VR_ARENA_DirOn()) { m.ar_cost = arenadirget(0, i, 8); } // (its cost: its score; the threat up)
     ar_plan_left = ar_plan_left - 1;
     ar_plan_live = ar_plan_live + 1;
     ar_last_spawn = time;
@@ -2342,7 +2392,8 @@ void() VR_ARENA_WaveStart =
     ar_gap_lo = 0;
     ar_gap_hi = 0;
     ar_gap_n = 0;
-    if(ar_preset_n <= 0) { VR_ARENA_BossMidway(); } // (a preset's come in the order it has them)
+    if(VR_ARENA_DirOn()) { VR_ARENA_DirWaveStart(); } // (its own order and cadence: vr_arena_director.qc)
+    else if(ar_preset_n <= 0) { VR_ARENA_BossMidway(); } // (a preset's come in the order it has them)
 
     float armoured = 0;
     float i;
@@ -2350,6 +2401,8 @@ void() VR_ARENA_WaveStart =
     string foes = sprintf("%g foes", ar_plan_n);
     if(armoured > 0) { foes = sprintf("%g foes, %g in armour", ar_plan_n, armoured); }
     string head = VR_ARENA_IsBossWave(ar_wave) ? sprintf("WAVE %g - BOSS WAVE", ar_wave) : sprintf("WAVE %g", ar_wave);
+    string theme = VR_ARENA_DirTheme(ar_wave);
+    if(theme != "") { head = sprintf("%s\n%s", head, theme); }
     VR_ARENA_PrintAll(sprintf("%s\n\n%s\nscore %g\n", head, foes, ar_score));
     dprint(sprintf("arena: wave %g score %g alive %g pool %g armoured %g trickle %g\n", ar_wave, ar_score, ar_plan_n,
                    ar_pool, armoured, ar_trickle_n));
@@ -2381,8 +2434,8 @@ void() VR_ARENA_WaveClear =
 
     float rest = VR_ARENA_RestTime();
     string supplies = VR_ARENA_SupplyLine(); // (what the clear dropped: "" nothing)
-    VR_ARENA_ShowAll(sprintf("WAVE %g CLEAR\n\n%g foes down\nscore %g\n%s", w, ar_wave_kills, ar_score,
-                             supplies != "" ? sprintf("\n%s\n", supplies) : ""), max(AR_SAY, rest));
+    VR_ARENA_ShowAll(sprintf("WAVE %g CLEAR\n\n%g foes down\nscore %g\n%s%s", w, ar_wave_kills, ar_score,
+                             VR_ARENA_DirClearLine(), supplies != "" ? sprintf("\n%s\n", supplies) : ""), max(AR_SAY, rest));
     dprint(sprintf("arena: wave %g clear kills %g medkits %g armour %g shards %g score %g\n", w, ar_wave_kills,
                    ar_drop_health, ar_drop_armour, ar_drop_shards, ar_score));
 
@@ -2420,6 +2473,12 @@ string(float xWave) VR_ARENA_BossName =
 {
     if(!VR_ARENA_IsBossWave(xWave)) { return ""; }
     if(ar_preset_n > 0) { return VR_ARENA_PresetBossName(xWave); }
+    if(VR_ARENA_DirOn())
+    {
+        arenadirplan(xWave);
+        string bn = arenadirname(1, 0);
+        return VR_ARENA_BossTwice() ? sprintf("%s, twice", bn) : bn;
+    }
     float k = VR_ARENA_BossKind(xWave);
     if(VR_ARENA_BossTwice())
     {
@@ -2444,8 +2503,10 @@ void() VR_ARENA_CountThink =
 
     float w = ar_wave + 1;
     string boss = VR_ARENA_BossName(w);
-    if(boss != "") { VR_ARENA_ShowAll(sprintf("BOSS WAVE %g in %g...\n\n%s\n", w, ar_count, boss), 1.2); }
-    else { VR_ARENA_ShowAll(sprintf("Wave %g in %g...\n\n", w, ar_count), 1.2); }
+    string theme = VR_ARENA_DirTheme(w); // (the budget director's theme word: "" none)
+    if(theme != "") { theme = sprintf("%s\n", theme); }
+    if(boss != "") { VR_ARENA_ShowAll(sprintf("BOSS WAVE %g in %g...\n\n%s\n%s", w, ar_count, boss, theme), 1.2); }
+    else { VR_ARENA_ShowAll(sprintf("Wave %g in %g...\n\n%s", w, ar_count, theme), 1.2); }
     dprint(sprintf("arena: countdown wave %g %g at %g\n", w, ar_count, time - ar_count_at));
     VR_ARENA_CountSound(ar_count);
 
@@ -2502,6 +2563,9 @@ void() VR_ARENA_ManagerThink =
 
     // The alive pool (ar_pool, VR_ARENA_Pool): its opening burst comes in at once; after that, each free slot is
     // filled a randomized gap after it freed up (vr_arena_spawn_gap), a boss after its warning instead.
+    // The budget director paces its own (vr_arena_director.qc).
+    if(VR_ARENA_DirOn()) { alive = VR_ARENA_DirCadence(alive); }
+    else {
     while(ar_burst_left > 0 && ar_plan_left > 0 && alive < ar_pool && !VR_ARENA_NextIsBoss() && VR_ARENA_NextDue())
     {
         if(!VR_ARENA_SpawnNext()) { break; } // (held back: the next beat tries again)
@@ -2546,6 +2610,7 @@ void() VR_ARENA_ManagerThink =
             }
         }
     }
+    } // (the classic pacing)
     if(alive > ar_wave_peak) { ar_wave_peak = alive; }
     if(alive > ar_alive_peak) { ar_alive_peak = alive; }
 
@@ -2651,6 +2716,7 @@ void() VR_ARENA_WorldSpawn =
     ar_preset_over = 0;
     ar_preset_n = arenawavesload(VR_ARENA_SkillLevel());
     if(ar_preset_n > 0) { VR_ARENA_PresetCheck(); }
+    VR_ARENA_DirStart(); // (vr_arena_director 1, no preset: the budget director's waves)
 
     // QVR: the supplies' and the countdown's own (vr_arena_supply.qc): the shard's model (Dawn of the Machine's, else
     // the armour's), the beeps.

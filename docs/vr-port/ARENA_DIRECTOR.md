@@ -1,9 +1,13 @@
-# Survival Arena: the budget director (design, for review)
+# Survival Arena: the budget director
 
-Status: **design only**, nothing in the game reads this yet. Branch `agent/arenabudget`, 2026-11-11.
-Files: this doc; the draft cost table `Misc/quakevr/arena_director_draft.txt` (the proposed data file's format, read by
-the simulation); the simulation `Misc/quakevr/arena_director_sim.py` (`python Misc/quakevr/arena_director_sim.py
-[--seeds 400] [--skill 0..3] [--wave-size 2] [--no-reactive]`).
+Status: **built** (2026-11-11, branch `agent/arenabudget`), behind `vr_arena_director 1` (default 0 for your test round).
+Approved with every open question at its recommendation. Section 13 has what was built, your two additions (knights
+and death knights with guns, the spawn cadence), and their numbers. Sections 1-12 are the design as reviewed.
+Files: the data file `quakevr/data/arena_director.txt` (`vr_arena_director_reload` rereads it); the planner
+`Quake/vr/vr_arenadirector.cpp`; its QC side `QC/vr_arena_director.qc`; the simulation
+`Misc/quakevr/arena_director_sim.py` (`python Misc/quakevr/arena_director_sim.py [--seeds 400] [--skill 0..3]
+[--wave-size 1.75] [--no-reactive] [--cadence]`, reading the shipped data file). `Misc/quakevr/arena_director_draft.txt`
+is the reviewed draft, kept for the record.
 
 ## 1. One-screen summary
 
@@ -362,3 +366,141 @@ enforcer 83%, zombie 67%, dog 43%, the classic launchers and LG 24-29%, the bott
     Nightmare only, which brings it near 290.
 12. **Planner in C++ handing waves to the preset path** (section 8) rather than in QC? Rec: C++, for the globals
     limit, speed and unit tests. The QC keeps spawning, armour dressing and everything after the plan.
+
+## 13. As built (2026-11-11)
+
+**Where things are.** The planner is `Quake/vr/vr_arenadirector.cpp`, a port of the simulation's `Budget` class.
+A wave's plan depends only on the seed and the waves before it, so a wave that isn't the next one gets replayed from
+wave 1 and nothing is saved. QC reads the plan through five builtins: `arenadirstart`, `arenadirplan`, `arenadirget`,
+`arenadirname` and `arenadirsupply` (`QC/builtins.qc`). `QC/vr_arena_director.qc` turns it into the plan arrays the
+classic and preset waves already fill (`ar_plan_*`), so placing, armour plates (`VR_AgArmor_Give`), the boss's bulk,
+the cleanup and the banners are unchanged.
+
+One departure from section 8: plans don't go through the preset files' text fields. Those name a single weapon, while
+a ladder row can be a run of codes (the AD swords), so QC gets the row and deals the code with `VR_ARENA_GunDeal`, as
+the classic waves do. With `vr_arena_seed 0` a run draws one random base for the whole run.
+
+**Your recommendations taken:**
+- `vr_arena_director 0` by default.
+- The guarantee counts guns offered, not the player's inventory.
+- Scrags, vores and shamblers join the waves.
+- Second weapons are on. Infection is off (`extra infected` share 0) until you've seen it in the arena.
+- Power-ups are in the supplies.
+- Score follows cost: `vr_arena_score_kill` x cost / 8 x the skill factor.
+- The theme is shown in the countdown and the wave's banner (`vr_arena_theme_banner`).
+- The C++ planner.
+
+Not done: Nightmare's supply-by-factor-squared (open question 11). The supply budget still divides by the factor
+once; `vr_arena_supply_scale` is the knob.
+
+**Cvars** (`vr_cvars.inc`): `vr_arena_director` 0, `vr_arena_themes` 1, `vr_arena_theme_banner` 1,
+`vr_arena_reinforce` 1 (surges), `vr_arena_supply_reactive` 1, `vr_arena_supply_scale` 1, `vr_arena_quick_kill` 1,
+`vr_arena_alive_cap` 20, `vr_arena_director_log` 0. **Commands**: `vr_arena_director_test` (the planner's checks),
+`vr_arena_director_print <seed> <skill> <waves>` (the plans, as the log prints them), `vr_arena_director_reload`.
+
+**Supplies.** Small medkit, medkit, megahealth (only when he's under 35% health), shards, green/yellow/red armour, a
+box of shells for "ammo", quad, ring and pentagram, all through `VR_ARENA_SpawnDrop` and the scatter. The reactive lean
+reads his health at the clear (hp) and his health plus half his armour against the wave's start ("dom": 1 means
+untouched).
+
+### Knights and death knights with guns (your ask)
+
+1. **Can they carry guns today?** Yes. Both rows (`VR_AM_Row` in `QC/vr_armedmon.qc`) take every weapon class.
+   `monster_vr_knight` and `monster_vr_hknight` hold a gun given by `weapon`, aim and fire it with their posed arms
+   over their stand frames (no aiming frames of their own: `vr_am_atk_stand`), wear the pack, and drop it on death.
+   They don't reload (no reload frames: they stand). The death knight still casts his volley on a cooldown while he
+   holds a gun (`vr_agdknight_cast_cooldown`). These paths are shared with the grunts and are already covered by
+   `vr_armedknight_test` (a knight and a death knight spawned with a shotgun hold it, fire it, are disarmed, and take
+   it up again). Nothing needed fixing. Arena test 41 checks it in the arena with the guns the director gives them
+   (results below).
+2. **Cost table.** Two more bodies on the same kinds: `gun_knight` (armed knight body, 7 + gun, from wave 12,
+   weight 0.12) and `gun_dk` (armed death knight body, 18 + gun, from 18, weight 0.15). `arms "guns"` means
+   anything but blades. The blade-only `armed_knight` and `armed_dk` stay as they were.
+3. **Knightfall** theme: from wave 18, and only once both gun bodies are unlocked (`needs`). Knights x6, humanoid
+   quota 0.9, gap 3.5 s.
+4. **Boss** `dk_gunner`: a death knight with the best gun unlocked and red armour (`armour "3"`), from wave 18 (16 at
+   Hard, 14 at Nightmare, 21 at Easy). The countdown names it: "a death knight with a rocket
+   launcher".
+
+Variety with and without them (Normal, wave size 1, 300 seeds; distinct per 5-wave window, without / with):
+
+| waves | combos | guns | bodies |
+|---|---|---|---|
+| 11-15 | 26.4 / 27.4 | 15.0 / 15.1 | 7.2 / 8.1 |
+| 16-20 | 35.0 / 36.1 | 22.2 / 22.3 | 8.4 / 9.4 |
+| 21-25 | 41.2 / 42.0 | 26.4 / 26.6 | 9.3 / 10.3 |
+| 26-30 | 46.5 / 47.7 | 29.3 / 29.2 | 9.2 / 10.7 |
+
+Gun knights appear in 25% of all waves (about 40% of the waves from 12 on), gun death knights in 9%, Knightfall in
+3%. Repeats from wave to wave: 17% in both. The planner's own test over 160 runs counted 5586 gun-knight foes, 1413
+gun death knights, 179 red gun death knight bosses and 168 Knightfall waves (`vr_arena_director_test`).
+
+### The spawn cadence (your ask)
+
+Director 0's pacing is unchanged. Director 1 paces with these rules, all of them data-file values (`curve cadence`,
+overridable per theme):
+- **Groups.** Each spawn event brings 1 to N of the wave's own foes. N is the theme's `group`: Swarm 2-4, Melee Rush
+  and Monster Mash 1-3, Elite and Ambush 1, the rest 1-2.
+- **The gap** to the next group is the theme's base gap (3 s; Swarm 2, Melee Rush 2.5, Siege, Ambush and Knightfall
+  3.5, Elite 4.5), divided by the skill factor, give or take 20%. It is lengthened by the group's own threat (x
+  group threat / `gap_ref` 10, at least 1) and by the threat still up: x (1 + 2 x threat up / wave threat), doubled
+  again past half the wave's threat. A player who finds and kills each arrival fast meets them a few at a time; a slow
+  one piles them up.
+- **Surges.** 30% of the budget (Melee Rush 35%, Ambush 40%) is held back for one surge a wave (two from wave 25;
+  Melee Rush two, three late; Elite none). A surge is announced ("SURGE!", or "AMBUSH! behind you"), with a low horn,
+  2 s before it comes in all at once. Its foes are placed in different sixths round the player; an ambush takes the
+  three behind him first (`VR_ARENA_DirSector`). Spread themes (Melee Rush, Siege, Ambush) spread their ordinary
+  groups the same way.
+- **Places.** Singles keep the classic order: out of his sight and not within 320 units first.
+- **Cues.** Every arrival keeps the arena's teleport flash and sound at its place (`VR_ARENA_Tfog`: Quake's
+  `misc/r_tele` sounds, heard at normal attenuation, about 1000 units).
+- **Quick kills.** A kill within 4 s of the foe's arrival pays 25% more. The clear's line says "N quick kills: +score".
+- **No pacing cap.** `vr_arena_alive_cap` 20 is a safety cap only. An armed humanoid's posed arms, IK and ragdoll cost
+  frame time, and 20 is past what the simulation's slow player reaches by wave 30 (19.6), so it binds only on extreme
+  runs. The classic pool (6, +1 every 4 waves, 8 at most) doesn't apply to director 1.
+
+Simulated (wave size 1.75 as shipped, Normal, 60 seeds; each player handles one foe at a time, taking the time to
+find it plus cost / damage rate; CURRENT / BUDGET):
+
+| player | wave | peak alive | mean alive | wave length (s) |
+|---|---|---|---|---|
+| fast (1 s to find, 4 threat/s) | 10 | 8.0 / 4.0 | 5.4 / 1.4 | 60 / 83 |
+| | 20 | 8.0 / 6.8 | 5.9 / 1.9 | 90 / 163 |
+| | 30 | 8.0 / 6.7 | 6.7 / 2.0 | 171 / 242 |
+| average (2 s, 2.5/s) | 10 | 8.0 / 7.0 | 5.6 / 2.7 | 99 / 126 |
+| | 20 | 8.0 / 11.8 | 6.1 / 4.1 | 149 / 243 |
+| | 30 | 8.0 / 14.0 | 6.9 / 5.4 | 282 / 364 |
+| slow (3.5 s, 1.5/s) | 10 | 8.0 / 10.3 | 5.8 / 4.4 | 166 / 209 |
+| | 20 | 8.0 / 16.6 | 6.2 / 7.0 | 250 / 404 |
+| | 30 | 8.0 / 19.6 | 6.9 / 9.6 | 472 / 596 |
+
+Peak alive by theme for the average player (with the mean surge size): Elite 2.1 (no surges), Mixed 6.9 (4.6),
+Siege 7.2 (4.4), Armory 8.9 (4.5), Ambush 9.0 (6.1), Knightfall 9.0 (5.1), Melee Rush 9.3 (3.4 each, more of them),
+Monster Mash 10.9 (5.4), Swarm 11.1 (3.8). Today's waves stay at the pool's 8 whoever plays.
+
+A fast player now meets 1-2 foes at a time between surges, and 4-7 at a surge. A slow one gets swamped (up to 20). The
+cost is wave length: slower overall, since the gaps wait for him. `gap` and `gap_ref` set it: lower `gap` or raise
+`gap_ref` for shorter waves. This is the first number to tune by feel.
+
+What the cadence simulation changed: with a flat 3 s gap, even the fast model piled up 12-19 foes late (the gap didn't
+scale with how big a group was), so the gap now lengthens with the group's threat (`gap_ref`). The first surges were
+2-3 foes, too small to read as an event, so they became fewer and bigger (30% held back, one a wave until 25).
+
+### Tests
+
+See the report's numbers. The planner's own test is `vr_arena_director_test` (C++; every skill, 40 seeds each, waves
+1-30). It checks:
+- the same seed gives the same plans, also when replayed out of order;
+- no wave over budget (but for the 2-point overshoot and a boss that fits no share);
+- no wave over the foe cap;
+- no 3-wave drought while a gun was still left to offer;
+- themes never repeat, never come before their wave, and all of them appear;
+- gun knights, gun death knights, red gun death knight bosses and Knightfall all appear;
+- surges come;
+- supplies stay within budget, and power-ups at least 3 waves apart;
+- a row the game lacks is never planned.
+
+Arena test 41 is the gun knights scene (`vrarena`): a knight with a shotgun, a knight with a super nailgun, and a
+red-armoured death knight boss with a rocket launcher. Each must hold its gun, fire it at the player, and drop it when
+felled; it takes a screenshot as the boss fires. Arena test 6 (the 32-wave soak) runs with `vr_arena_director 1` at
+each skill.

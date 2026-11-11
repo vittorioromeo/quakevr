@@ -4357,6 +4357,105 @@ void() VR_AT39_Frame =
 }
 
 // ---------------------------------------------------------------------------
+// Test 41 (vrarena): the budget director's gun knights (his ask 2026-11-11: knights and death knights with actual guns,
+// a death knight boss with a rocket launcher and red armour). Ahead of the player: a knight with a shotgun, a knight
+// with a super nailgun and a death knight boss with a rocket launcher in red armour (as VR_ARENA_SpawnMonster dresses
+// one: its plan's gun held, VR_AgArmor_Give, the boss's bulk). The player hunted (god mode): each must hold its gun and
+// fire it at him (its .vr_ag_total_shots); a screenshot while they do; each felled must drop its gun (a thrown_weapon of
+// that weapon by it). Verdict `arena: test 41 over: N passed, M failed`.
+// ---------------------------------------------------------------------------
+
+entity vr_at41_g[3];
+float vr_at41_wid[3];
+float vr_at41_shot;   // the screenshot taken
+
+void() VR_AT41_Begin =
+{
+    entity p = VR_PlayerAlive();
+    if(!ar_mgr || !p) { VR_AT_Check(FALSE, "test 41 needs the arena running (vrarena) and a player"); VR_AT_End(); return; }
+    entity keep = self;
+    p.flags = p.flags | FL_GODMODE;
+    makevectors([0, p.angles_y, 0]);
+    float k;
+    for(k = 0; k < 3; k++)
+    {
+        entity g = spawn();
+        self = g;
+        g.classname = k < 2 ? "monster_knight" : "monster_hell_knight";
+        float wid = WID_SHOTGUN;
+        if(k == 1) { wid = WID_SUPER_NAILGUN; }
+        if(k == 2) { wid = WID_ROCKET_LAUNCHER; }
+        vr_at41_wid[k] = wid;
+        setorigin(g, p.origin + v_forward * (k == 2 ? 520 : 380) + v_right * (k == 0 ? -140 : k == 1 ? 140 : 0) + '0 0 24');
+        g.angles = [0, p.angles_y + 180, 0];
+        g.weapon = wid;
+        vr_ar_hold_roll = 1;
+        if(k < 2) { monster_vr_knight(); } else { monster_vr_hknight(); }
+        vr_ar_hold_roll = 0;
+        if(k == 2)
+        {
+            VR_AgArmor_Give(g, 3, 1023);
+            g.health = VR_ARENA_BossHealth(g.health, 1);
+        }
+        g.enemy = p;
+        vr_at41_g[k] = g;
+        self = keep;
+        VR_AT_Check(g.vr_ag_wid == wid && g.vr_ag_prop != world,
+                    sprintf("%s given weapon %g holds it (%g, %s)", k < 2 ? "a knight" : "the death knight boss", wid,
+                            g.vr_ag_wid, g.vr_ag_prop ? "a prop in its hand" : "nothing"));
+    }
+    VR_AT_Check(vr_at41_g[2].vr_ar_type == 3, sprintf("the death knight boss wears red armour (type %g)", vr_at41_g[2].vr_ar_type));
+    vr_at41_shot = 0;
+    vr_at_step = 1;
+    vr_at_until = time + 60;
+}
+
+void() VR_AT41_Frame =
+{
+    entity p = VR_PlayerAlive();
+    if(!p) { VR_AT_Check(FALSE, "the player died"); VR_AT_End(); return; }
+    float k;
+    if(vr_at_step == 1) // (each has fired its gun at him)
+    {
+        float fired = 0;
+        for(k = 0; k < 3; k++) { fired = fired + (vr_at41_g[k].vr_ag_total_shots > 0); }
+        if(!vr_at41_shot && vr_at41_g[2].vr_ag_total_shots > 0)
+        {
+            vr_at41_shot = 1;
+            localcmd("screenshot\n");
+        }
+        if(fired < 3 && time < vr_at_until - 20) { return; }
+        for(k = 0; k < 3; k++)
+        {
+            VR_AT_Check(vr_at41_g[k].vr_ag_total_shots > 0 && vr_at41_g[k].vr_ag_wid == vr_at41_wid[k],
+                        sprintf("%s fired its weapon %g at the player (%g shots)", k < 2 ? "a knight" : "the death knight boss",
+                                vr_at41_wid[k], vr_at41_g[k].vr_ag_total_shots));
+            T_Damage(vr_at41_g[k], p, p, 9000);
+        }
+        vr_at_step = 2;
+        vr_at_until = time + 8;
+        return;
+    }
+    if(vr_at_step == 2) // (each felled drops its gun)
+    {
+        float lying = 0;
+        for(k = 0; k < 3; k++)
+        {
+            entity e = find(world, classname, "thrown_weapon");
+            while(e)
+            {
+                if(e.weapon == vr_at41_wid[k] && vlen(e.origin - vr_at41_g[k].origin) < 200) { lying = lying + 1; break; }
+                e = find(e, classname, "thrown_weapon");
+            }
+        }
+        if(lying < 3 && time < vr_at_until) { return; }
+        VR_AT_Check(lying == 3, sprintf("each felled dropped its gun by it (%g of 3)", lying));
+        p.flags = p.flags - (p.flags & FL_GODMODE);
+        VR_AT_End();
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Test 40 (vrarena): the weapon schedule's weapons in the player's hands (ROUND24.md, "Survival Arena: every armed
 // humanoid's weapon"). For each code of each row this game has (VR_ARENA_GunOk; a run's every code), an armed grunt
 // holding it is spawned the way the director spawns one and felled ahead of the player; the weapon it drops is taken
@@ -4594,6 +4693,7 @@ void() VR_ARENA_Test_Frame =
         if(c == 38) { VR_AT38_Begin(); return; }
         if(c == 39) { VR_AT39_Begin(); return; }
         if(c == 40) { VR_AT40_Begin(); return; }
+        if(c == 41) { VR_AT41_Begin(); return; }
 
         VR_AT_Check(FALSE, "no such arena test");
         VR_AT_End();
@@ -4634,5 +4734,6 @@ void() VR_ARENA_Test_Frame =
     if(vr_at_case == 38) { VR_AT38_Frame(); return; }
     if(vr_at_case == 39) { VR_AT39_Frame(); return; }
     if(vr_at_case == 40) { VR_AT40_Frame(); return; }
+    if(vr_at_case == 41) { VR_AT41_Frame(); return; }
 }
 #endif

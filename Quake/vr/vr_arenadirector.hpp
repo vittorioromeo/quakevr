@@ -60,6 +60,7 @@ enum WaveField
     WaveQuickPay = 12,  // ... its score times 1 + this
     WaveSurgeWarn = 13, // s a surge is announced before it comes in
     WaveAmbush = 14,    // 1: its surges are ambushes (behind the player first)
+    WaveGapRef = 15,    // a group's gap times its threat / this (at least 1): a bigger group, a longer gap
 };
 
 enum SupplyCode

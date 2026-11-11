@@ -306,6 +306,8 @@ class Budget:
         for n, d in th.items():
             if not self.t.unlocked(d, w) or (self.themes and self.themes[-1] == n and n != "mixed"):
                 continue
+            if not all(self.t.unlocked(self.t.bodies[b], w) for b in d.get("needs", "").split()):
+                continue
             k = num(d, "weight") * (0.5 if n in self.themes[-3:] and n != "mixed" else 1)
             names.append(n); ws.append(k)
         return self.r.choices(names, ws)[0]
@@ -324,6 +326,8 @@ class Budget:
                 if not t.unlocked(g, w) or (wn == "fists" and bn != "grunt"):
                     continue
                 if arms == "melee" and g.get("family") != "blades":
+                    continue
+                if arms == "guns" and (g.get("family") == "blades" or wn == "fists"):
                     continue
                 out.append((bn, wn, num(b, "cost") + num(g, "cost"), tags(b) | tags(g)))
         return out
@@ -397,13 +401,15 @@ class Budget:
         if d.get("weapon") == "tierpick":
             arms = t.bodies[d["body"]].get("arms")
             gs = [wn for wn, g in t.weapons.items() if t.unlocked(g, w) and wn != "fists"
-                  and (arms != "melee" or g.get("family") == "blades")]
+                  and (arms != "melee" or g.get("family") == "blades")
+                  and (arms != "guns" or g.get("family") != "blades")]
             top = max(int(num(t.weapons[g], "tier")) for g in gs)
             gun = self.r.choice([g for g in gs if int(num(t.weapons[g], "tier")) == top])
         for i in range(2 if t.skill == 3 else 1):
             f = foe(d["body"], gun, boss=1 + i)
             if t.bodies[d["body"]].get("arms") != "none" and t.armour_best(w):
-                f["armour"], f["pieces"] = min(3, t.armour_best(w) + 1), min(10, t.armour_pieces(w) + 4)
+                f["armour"] = int(d["armour"]) if "armour" in d else min(3, t.armour_best(w) + 1)
+                f["pieces"] = min(10, t.armour_pieces(w) + 4)
             out.append(f)
         return out
 
@@ -499,7 +505,10 @@ class Budget:
         if boss:
             budget -= self.boss(w, P, total)
         budget, forced = self.progression(w, P, budget, spent_items, counts, combos)
-        reserve = num(self.cv, "reserve") * budget if w >= t.wave_adj(num(self.cv, "reserve_from")) else 0
+        cad = t.d["curve"].get("cadence", {})
+        sv = [float(x) for x in theme.get("surges", cad.get("surges", "1 0.05 3")).split()]
+        self.surges = int(min(sv[2], max(0, sv[0] + sv[1] * w))) if w >= t.wave_adj(num(self.cv, "reserve_from")) else 0
+        reserve = float(theme.get("reserve", self.cv.get("reserve", 0.2))) * budget if self.surges else 0
         main = max(0.0, budget - reserve)
         s = self.split(w, theme)
         r = self.roles
@@ -510,10 +519,12 @@ class Budget:
         for role in (2, 1, 0):
             left = self.spend(P, main * s[role] + left, bands[role], w, theme, fam, total, spent_items, counts, combos)
         left = self.upgrades(P, left + extras, w, total)
-        left = self.spend(P, left, bands[0], w, theme, fam, total, spent_items, counts, combos)
         n_main = len(P)
-        left = self.spend(P, reserve + left, (0, mm), w, theme, fam, total, spent_items, counts, combos,
-                          reinf=1 if reserve > 0 else 0, last=True)
+        left = self.spend(P, left, bands[0], w, theme, fam, total, spent_items, counts, combos,
+                          last=not self.surges)
+        for k in range(1, self.surges + 1):
+            left = self.spend(P, reserve / self.surges + left, (0, mm), w, theme, fam, total, spent_items, counts,
+                              combos, reinf=k, last=k == self.surges)
         if left > 0:
             left = self.upgrades(P, left, w, total)  # (a full wave: its budget left turned into upgrades)
         self.carry = min(left, num(self.cv, "carry_max") * self.threat(w + 1))  # (negative: the overshoot's debt)
@@ -634,6 +645,115 @@ def mean(xs):
     return sum(xs) / max(1, len(xs))
 
 
+
+# ---------------------------------------------------------------------------------------------------------------
+# The cadence: the alive count over a wave, for three player models (rough: one foe at a time, each taking the time
+# to find it and the time to kill it, its cost / his damage rate). Classic: its burst and alive pool; budget: its
+# spawn groups, gaps stretched by the threat up, surges.
+# ---------------------------------------------------------------------------------------------------------------
+PLAYERS = {"fast": (1.0, 4.0), "average": (2.0, 2.5), "slow": (3.5, 1.5)}  # (s to find a foe, threat points / s)
+CAP = 20       # vr_arena_alive_cap
+DT = 0.1
+
+
+def timeline(t, P, info, player, rng, budget, cad_theme):
+    find, dps = PLAYERS[player]
+    queue = list(P)
+    alive = []           # [cost, work left]
+    time_, last, gap, warn_at = 0.0, -1e9, 0.0, None
+    peak, series, groups, surges = 0, [], [], []
+    wt = max(1.0, sum(t.foe_cost(f) for f in P))
+    pool = min(6 + (info["w"] - 1) // 4, 8) * t.factor if not budget else CAP
+    burst = 3
+    work = None
+    while (queue or alive) and time_ < 600:
+        up = sum(a[0] for a in alive)
+        if budget:
+            cad = cad_theme
+            if queue and warn_at is None and time_ >= last + gap * (1 + cad["stretch"] * up / wt) * (2 if up / wt > cad["soft"] else 1):
+                f = queue[0]
+                if f.get("boss") or f.get("reinf"):
+                    warn_at = time_ + (3 if f.get("boss") else cad["warn"])
+                else:
+                    g = rng.randint(int(cad["gmin"]), int(cad["gmax"]))
+                    n, gc = 0, 0.0
+                    while queue and n < g and len(alive) < CAP and not queue[0].get("boss") and not queue[0].get("reinf"):
+                        c = t.foe_cost(queue.pop(0)); alive.append([c, find + c / dps]); n += 1; gc += c
+                    last, gap = time_, cad["gap"] / t.factor * rng.uniform(0.8, 1.2) * max(1.0, gc / cad["ref"])
+                    groups.append(n)
+            elif warn_at is not None and time_ >= warn_at:
+                k = queue[0].get("reinf", 0) if not queue[0].get("boss") else -1
+                n, gc = 0, 0.0
+                while queue and len(alive) < CAP and ((k == -1 and queue[0].get("boss")) or (k > 0 and queue[0].get("reinf") == k)):
+                    c = t.foe_cost(queue.pop(0)); alive.append([c, find + c / dps]); n += 1; gc += c
+                if k > 0:
+                    surges.append(n)
+                warn_at, last = None, time_
+                gap = cad["gap"] / t.factor * rng.uniform(0.8, 1.2) * max(1.0, gc / cad["ref"])
+        else:
+            while queue and burst > 0 and len(alive) < pool:
+                c = t.foe_cost(queue.pop(0)); alive.append([c, find + c / dps]); burst -= 1; last = time_
+            if burst <= 0 and queue and len(alive) < pool:
+                if gap <= 0:
+                    gap = time_ + 1.5 / t.factor * (1 + rng.random())
+                elif time_ >= gap:
+                    c = t.foe_cost(queue.pop(0)); alive.append([c, find + c / dps]); gap = 0
+        if alive:  # (he works on the oldest)
+            alive[0][1] -= DT
+            if alive[0][1] <= 0:
+                alive.pop(0)
+        peak = max(peak, len(alive))
+        if int(time_ / DT) % 50 == 0:
+            series.append(len(alive))
+        time_ += DT
+    return peak, time_, series, groups, surges
+
+
+def run_cadence(t, seeds, waves):
+    cad = t.d["curve"]["cadence"]
+    print("cadence (wave size %g, skill %d): per player model, CURRENT / BUDGET" % (t.wave_size, t.skill))
+    for player in PLAYERS:
+        rows = collections.defaultdict(list)
+        theme_peak = collections.defaultdict(list)
+        theme_surge = collections.defaultdict(list)
+        theme_group = collections.defaultdict(list)
+        sample = {}
+        for seed in range(seeds):
+            for cls, budget in ((Current, False), (Budget, True)):
+                rng = random.Random(seed * 7919 + 1)
+                d = cls(t, rng) if cls is Current else cls(t, rng, reactive=True)
+                for w in range(1, waves + 1):
+                    P, info = d.plan(w)
+                    info["w"] = w
+                    th = t.d["theme"].get(info["theme"], {})
+                    g = th.get("group", cad.get("group", "1 2")).split()
+                    ct = {"gap": float(th.get("gap", cad["gap"])), "gmin": float(g[0]), "gmax": float(g[-1]),
+                          "stretch": float(th.get("stretch", cad["stretch"])), "soft": float(th.get("soft", cad["soft"])),
+                          "warn": float(cad["surge_warn"]), "ref": float(th.get("gap_ref", cad.get("gap_ref", 12)))}
+                    peak, dur, series, groups, surges = timeline(t, P, info, player, random.Random(seed * 31 + w), budget, ct)
+                    rows[(budget, w)].append((peak, dur, len(P), sum(series) / max(1, len(series))))
+                    if budget:
+                        theme_peak[info["theme"]].append(peak)
+                        theme_surge[info["theme"]] += surges
+                        theme_group[info["theme"]] += groups
+                    if seed == 0 and w == 15:
+                        sample[budget] = series
+        print("  %s player (finds a foe in %.1f s, %.1f threat/s):" % (player, *PLAYERS[player]))
+        for w in (3, 6, 10, 15, 20, 25, 30):
+            if w > waves:
+                continue
+            c = rows[(False, w)]
+            n = rows[(True, w)]
+            m = lambda r, i: sum(x[i] for x in r) / len(r)
+            print("    wave %2d: peak alive %4.1f / %4.1f, mean alive %4.1f / %4.1f, wave %4.0f / %4.0f s" % (
+                w, m(c, 0), m(n, 0), m(c, 3), m(n, 3), m(c, 1), m(n, 1)))
+        print("    by theme (budget): " + "; ".join(
+            "%s peak %.1f, groups %.1f, surges %.1f" % (k, sum(v) / len(v), sum(theme_group[k]) / max(1, len(theme_group[k])),
+                                                      sum(theme_surge[k]) / max(1, len(theme_surge[k])))
+            for k, v in sorted(theme_peak.items())))
+        print("    wave 15 seed 0, alive every 5 s: current %s | budget %s" % (sample.get(False), sample.get(True)))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--seeds", type=int, default=400)
@@ -641,9 +761,13 @@ def main():
     ap.add_argument("--skill", type=int, default=1)
     ap.add_argument("--wave-size", type=float, default=1.0)
     ap.add_argument("--no-reactive", action="store_true")
-    ap.add_argument("--data", default=os.path.join(HERE, "arena_director_draft.txt"))
+    ap.add_argument("--data", default=os.path.join(HERE, "..", "..", "quakevr", "data", "arena_director.txt"))
+    ap.add_argument("--cadence", action="store_true", help="the alive count over waves for three player models")
     a = ap.parse_args()
     t = Table(load(a.data), a.skill, a.wave_size)
+    if a.cadence:
+        run_cadence(t, a.seeds, a.waves)
+        return
     W = a.waves
     cur = run(Current, t, a.seeds, W)
     new = run(Budget, t, a.seeds, W, reactive=not a.no_reactive)

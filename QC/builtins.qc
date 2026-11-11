@@ -225,9 +225,9 @@ void(string s) arenawavesreport = #0;
 // Whether a map is an arena map (the engine's one list: arenawaves::arenaMaps).
 float(string map) isarenamap = #0;
 // The Survival Arena's budget director (vr_arenadirector.hpp has the fields): arenadirstart a run (rows: '0'/'1' per weapon
-// ladder row this game has), arenadirplan a wave (its foes), arenadirget(what, i, field) a number of it, arenadirname its
+// ladder row this game has: two 17-bit masks), arenadirplan a wave (its foes), arenadirget(what, i, field) a number of it, arenadirname its
 // theme's word (0) or its boss's name (1), arenadirsupply a clear's supplies (their count; arenadirget(2, i, 0) each code).
-float(float skill, float seed, string rows) arenadirstart = #0;
+float(float skill, float seed, float rowsLo, float rowsHi) arenadirstart = #0;
 float(float wave) arenadirplan = #0;
 float(float what, float i, float field) arenadirget = #0;
 string(float what, float i) arenadirname = #0;
