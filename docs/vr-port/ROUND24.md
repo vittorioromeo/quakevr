@@ -8746,3 +8746,15 @@ off-mesh connections, followed by `followLink` with builtin `navlink` (QC `VR_NA
 with `FL_PARTIALGROUND`); QC `plat_center_touch` lets monsters call lifts (`vr_nav_plat_monsters` 1). Scenes `nav_drop`
 (passes: `vr_nav_reachtest`), `nav_lift` (its knight spot is in a wall: to fix). Part 4 (crowds, smoothing, slots) not
 started.
+
+### Navmesh crowd stalls (agent/navstall)
+
+`vr_nav_crowdtest` now gives each stall its cause and prints a table by monster type (NAVMESH.md section 12). The 40%
+stall rate in `nav_crowd` was two knights placed in walls (moved to `600 450` / `-600 450`); the scene's tunable
+settings had never applied (scenario `cvar` lines now take tuning constants) and the slots never saw a melee walker
+(QC `vr_nav_melee`: armed sword knights and dogs count). After: 0-2% stalls, all twelve within 128 of the player in
+7-8 s with separation, smoothing and slots on, 12.7 s (armed knights) / 23.1 s (Quake's knights) with them off.
+Defaults still off: recommended on (slots at least). Debug > Views: Crowd Stall Test. Checklist line: "Experimental:
+all twelve knights and dogs leave their spots (none stuck in a wall) and reach you on the dais within about ten
+seconds, the knights taking places round you from several flights; the console's crowd test table shows almost no
+stalls, and Show Navmesh 2 puts a post wherever one stalled. {test:nav_crowd}"
