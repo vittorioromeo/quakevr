@@ -1,0 +1,9 @@
+# flat_swap_adgun: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". An AD soldier's gun (the Plasma Soldier's Rifle) in the right hand without AD's data (the test aid vr_test_give_ad), passed hand to hand by the swap key (vr_util.qc VRPassEntWeapon; ROUND24.md, "AD guns through the hand swap").
+title Hand swap with an AD soldier's gun: the Plasma Soldier's Rifle stays in the hand
+hint The Plasma Soldier's Rifle is in your right hand. Flat-screen: press 3, it goes to the left hand and back with another 3, never gone. VR: pass it to the other hand (the hand switch) or holster it and draw it again: still the rifle.
+map vrtesthall
+god
+notarget
+cmd vr_test_give_ad 1
+cmd vr_test_give_wid 22
+cmd impulse 149

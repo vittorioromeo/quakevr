@@ -4602,7 +4602,7 @@ void() VR_FlatToolgun_Toggle =
     }
     if(self.weapon == WID_TOOLGUN && self.vr_flattg_on)
     {
-        VRSetEntWeapon(self, cVR_MainHand, self.vr_flattg_wid);
+        VRPassEntWeapon(self, cVR_MainHand, self.vr_flattg_wid); // (the weapon kept meanwhile: back as it was)
         VRSetEntWeaponFlags(self, cVR_MainHand, self.vr_flattg_flags);
         VRSetEntWeaponInst(self, cVR_MainHand, self.vr_flattg_inst);
         self.vr_flattg_on = FALSE;

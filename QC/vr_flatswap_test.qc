@@ -4,7 +4,7 @@
 // props/weapons"; the engine's vr_flatswap.cpp, QC vr_wpnholster.qc VR_FlatSwapHands). -flatscreenmode only.
 //
 // `vr_flatswap_test 1`: each weapon in the right hand alone, the left empty (the shotgun, the super shotgun, the nailgun,
-//   the super nailgun, the grenade and rocket launchers, the thunderbolt, the axe, the chainsaw, the crowbar): the
+//   the super nailgun, the grenade and rocket launchers, the thunderbolt, the axe, the chainsaw, the crowbar, AD's Plasma Gun): the
 //   key (vr_mock_key 3) is drawn the two-handed way (release, pass, attach: vr_flat_swap_seen 2), and the weapon ends in
 //   the left hand, the right empty.
 // `vr_flatswap_test 2`: what each hand holds (right / left): shotgun+brick, brick+shotgun, brick+brick, brick+empty,
@@ -25,7 +25,7 @@ entity vr_fsw_bm;   // the brick the case gave the right hand
 entity vr_fsw_bo;   // and the left
 
 float VR_FSW_GIVEUP = 8; // seconds a state may last
-float VR_FSW_WEAPON_CASES = 10;
+float VR_FSW_WEAPON_CASES = 11;
 float VR_FSW_THING_CASES = 7;
 
 void(float s, float frames) VR_FSW_To =
@@ -47,7 +47,10 @@ float(float c) VR_FSW_Weapon =
     if(c == 6) return WID_LIGHTNING;
     if(c == 7) return WID_AXE;
     if(c == 8) return WID_CHAINSAW;
-    return WID_CROWBAR;
+    if(c == 9) return WID_CROWBAR;
+    // AD's Plasma Gun, given as the test aid gives it (VRGiveEntWeapon; without AD's data too, as vr_test_give_ad): a
+    // gun already in a hand keeps going hand to hand (VRPassEntWeapon; it vanished in the swap until 2026-11-12).
+    return WID_ADPLASMA;
 };
 
 // Test 2's case `c` in hand `h`: 0 nothing, 1 a shotgun, 2 a brick, 3 the one brick in both hands.
