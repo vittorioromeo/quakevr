@@ -40,6 +40,7 @@
 #include "vr_mem.hpp"
 #include "vr_engine.hpp"
 #include "vr_physics.hpp"
+#include "vr_physsound.hpp"
 #include "vr_portals.hpp"
 #include "vr_nav.hpp"
 #include "vr_props.hpp"
@@ -907,6 +908,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"ragdolldecap", PF_ragdolldecap},
     {"ragdollcut", PF_ragdollcut},
     {"ragdollhead", PF_ragdollhead},
+    {"physsoundinfo", PF_physsoundinfo},
     {"ragdollcutlimb", PF_ragdollcutlimb},
     {"ragdolllimb", PF_ragdolllimb},
     {"ragdolllimbs", PF_ragdolllimbs},

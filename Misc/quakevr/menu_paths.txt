@@ -2751,6 +2751,7 @@ vr_physsound_min_speed|2|Tunables|Quietest Knock|Advanced VR Options > Debug > T
 vr_physsound_full_speed|2|Tunables|Loudest Knock From|Advanced VR Options > Debug > Tunables > Loudest Knock From
 vr_physsound_interval|2|Tunables|Knock Spacing|Advanced VR Options > Debug > Tunables > Knock Spacing
 vr_physsound_bodies|2|Tunables|Bodies|Advanced VR Options > Debug > Tunables > Bodies
+vr_physsound_living|2|Tunables|Living Bodies|Advanced VR Options > Debug > Tunables > Living Bodies
 vr_physsound_body_min_speed|2|Tunables|Quietest Body Knock|Advanced VR Options > Debug > Tunables > Quietest Body Knock
 vr_physsound_scrape|2|Tunables|Scrapes|Advanced VR Options > Debug > Tunables > Scrapes
 vr_physsound_scrape_min|2|Tunables|Quietest Scrape|Advanced VR Options > Debug > Tunables > Quietest Scrape

@@ -680,8 +680,9 @@ void noteBodySlide(int num, const Slot& s, float dt)
 }
 
 // The step's hits for the physics sounds (vr_physsound.cpp): a prop's against the level, a door, a fixture, another prop,
-// a hand's or a held weapon's body (each prop of a pair its own); a ragdoll's parts' and a pushable corpse's, as flesh
-// (each body one knock at a time: physsound::hit's `body`); not a monster's or a player's body (their touches have
+// a hand's or a held weapon's body (each prop of a pair its own); a ragdoll's parts' (a living one's down as a ragdoll
+// too: its slot is a corpse's; vr_physsound_living) and a pushable corpse's, as flesh (each body one knock at a time:
+// physsound::hit's `body`); not a standing monster's or a player's body (their touches have
 // QC's sounds). Cheap: Box3D reports only the contacts that met faster than its hit threshold (1 m/s).
 void soundHits(const b3ContactEvents& events)
 {

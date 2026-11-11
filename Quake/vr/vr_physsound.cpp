@@ -147,6 +147,7 @@ struct Body
     double nextGrain{0.0};
     double lastSlide{-1e9};     // a body's (slide's `body`): the server's time it last slid
     double scrapeStopped{-1e9}; // the server's time its last scrape stopped
+    int knocks{0};              // impact sounds played since the map began (the tests: info)
 };
 
 struct Hit
@@ -199,6 +200,17 @@ mem::Scratch<PhysSoundScratch> scratch{"physsound"};
 [[nodiscard]] float master()
 {
     return za::clamp(vr_physsound.value, 0.f, 1.f);
+}
+
+// A body's (a ragdoll's, a pushable corpse's) knocks and drags: vr_physsound_bodies loud, and a living monster's down as a
+// ragdoll (knocked down, thrown, falling: its slot a corpse's, vr_box3d_step.cpp soundHits) vr_physsound_living times
+// that.
+[[nodiscard]] float bodyGain(int num)
+{
+    const float gain = za::clamp(vr_physsound_bodies.value, 0.f, 2.f);
+    const edict_t* const ent = num > 0 && num < qcvm->num_edicts ? EDICT_NUM(num) : nullptr;
+    const bool living = ent && !ent->free && ent->v.health > 0.f && ent->v.deadflag == 0.f;
+    return living ? gain * za::clamp(vr_physsound_living.value, 0.f, 2.f) : gain;
 }
 
 [[nodiscard]] Body& bodyOf(int num)
@@ -593,6 +605,16 @@ void hit(int num, Material material, float mass, float speed, const glm::vec3& a
     state.hits.pushBack({num, material, mass, speed, at, 0.f, body});
 }
 
+float info(int num, int what)
+{
+    if(num <= 0 || num >= static_cast<int>(state.bodies.size()) || state.bodies[num].knocks == 0)
+    {
+        return what == 1 ? -1.f : 0.f;
+    }
+    const Body& b = state.bodies[num];
+    return what == 0 ? static_cast<float>(b.knocks) : what == 1 ? static_cast<float>(b.lastHit) : b.lastVolume;
+}
+
 bool scrapesWanted()
 {
     return master() > 0.f && vr_physsound_scrape.value > 0.f;
@@ -656,7 +678,7 @@ void frameEnd()
     za::Vector<Hit>& hits = state.hits;
     for(Hit& h : hits)
     {
-        h.volume = impactVolume(h.material, h.mass, h.speed) * (h.body ? za::clamp(vr_physsound_bodies.value, 0.f, 2.f) : 1.f);
+        h.volume = impactVolume(h.material, h.mass, h.speed) * (h.body ? bodyGain(h.num) : 1.f);
     }
     za::quickSort(hits.begin(), hits.end(), [](const Hit& a, const Hit& b) { return a.volume > b.volume || (a.volume == b.volume && a.num < b.num); });
     int played = 0;
@@ -667,6 +689,18 @@ void frameEnd()
             continue;
         }
         Body& b = bodyOf(h.num);
+        // A living one down as a ragdoll whose strike smashed (QC VR_RagSmash: its flesh hit and a thud, this frame or
+        // within its cooldown): the smash is its sound, not a knock too. (A corpse's knock plays as before.)
+        edict_t* const ent = EDICT_NUM(h.num);
+        if(h.body && ent->v.health > 0.f && progs::fieldFloatOr(ent, progs::fields().vr_rsmash_next, 0.f) > static_cast<float>(now))
+        {
+            state.skipped++;
+            if(debug(2))
+            {
+                Con_Printf("physsound: %.2f %d flesh hit at %.1f m/s skipped (its smash sounds it)\n", qcvm->time, h.num, h.speed);
+            }
+            continue;
+        }
         // Too soon after its last knock (unless twice as loud); or, a little later, a bounce's tail (a small hop after a
         // landing: far quieter than the knock).
         const double since = now - b.lastHit;
@@ -697,6 +731,7 @@ void frameEnd()
         state.played++;
         b.lastHit = now;
         b.lastVolume = h.volume;
+        b.knocks++;
         stealthNoise(h.num, h.volume);
         if(debug())
         {
@@ -722,7 +757,7 @@ void frameEnd()
             b.lastSlide = now;
         }
         const float volume = scrapeVolume(s.material, s.mass, s.slip, s.press) *
-                             (s.body ? za::clamp(vr_physsound_bodies.value, 0.f, 2.f) * bodyScrapeGain : 1.f);
+                             (s.body ? bodyGain(s.num) * bodyScrapeGain : 1.f);
         if(volume <= 0.01f)
         {
             b.slideFrame = 0; // (not sliding enough: as if it didn't)

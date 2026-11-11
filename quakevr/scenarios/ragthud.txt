@@ -1,0 +1,13 @@
+# ragthud: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Living ragdolls' thuds (vr_agrunt_test
+# 225, vr_ragthud_test.qc): on vrclimb's long ledge (its lip at x 96, top z 48, a 240-unit drop into the trench), grunts
+# between you and the lip to shove off it, and one well back from it to knock down on the flat.
+title Living ragdolls' thuds: grunts to shove off a ledge and knock down
+map vrclimb
+start 176 300 73 180
+god
+notarget
+spawn "Grunt" 48 30
+spawn "Grunt" 48 -40
+spawn "Grunt" -120 0 0 180
+cvar vr_knockdown_chance 100
+hint Shove the two near the lip over it: a thud as each lands in the trench (with its scream if the fall kills it). Shove the one behind you down on the flat: a softer thud. No rattle as they tumble.
