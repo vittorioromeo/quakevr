@@ -72,6 +72,7 @@ Survival Arena budget director (vr_arena_director 1; Combat > Survival Arena; do
 - A kill within 4 s of the foe coming in counts as a quick kill: the wave clear line says "N quick kills: +score".
 - A clear's supplies grow with the wave beaten and lean on how you're doing: badly hurt, more medkits (a megahealth when very low); untouched, now and then a quad, a ring or (late) a pentagram; red armour from wave 22.
 - vr_arena_director 0 (the default) plays exactly the classic waves.
+- Start a Survival Arena run without changing any setting: the budget director now runs it by default (each countdown names the wave's theme, such as "Wave 3 in 3... Melee Rush"); turning Combat > Survival Arena > Budget Director off brings back the classic waves from the next run. {test:arena_run}
 
 [2. VR: melee and embedded blades]
 Hit a grunt with the axe right in front of you: the blood and its red mist come right at the camera, not only further off (your config still has Mist Clear of Eyes at 40: set vr_gore_mist_near 0; Particle Fade Near Eyes and Particles Hidden Nearer at 0 draw it at the eyes too). {test:flat_skewer_gibs}

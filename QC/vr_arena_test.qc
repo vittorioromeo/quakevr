@@ -3,6 +3,10 @@
 // Self-Tests; VR_ARENA_Test_Frame, world.qc's StartFrame), the player kept alive (`god`); each ends on
 // - 36 (vrarena, god): how long walkers take between the floor and the dais, by the marked flights (Misc/quakevr/arenapath_test.sh).
 // `arena: test N over: P passed, F failed` (run.sh -QuitOn "arena: test [0-9]+ over").
+// The director: the budget director is the default (vr_arena_director 1, 2026-11-11), but these tests were written for
+// the classic waves and their ladder: every test but 6 and 42 runs on the classic director (VR_AT_Classic: the run's
+// director held off for the test, put back after it). 6 (the soak) and 42 (the gun knights) follow the cvar the map
+// started with; `vr_arena_director 0` before the map runs them on the classic one.
 // - 1 (any open map): the waves' plans: wave 1 unarmed, the ladder's rungs no earlier than their wave, Quake's own
 //   monsters no earlier than theirs, the boss cadence and its kind, a plan never thicker than the cap, the score's
 //   sums, a wave clear's drops, the knobs at work, the seed's determinism, and a fall counted once through
@@ -69,6 +73,7 @@ float vr_at_step;
 float vr_at_until;
 float vr_at_keep[35];    // the cvars the tests set, put back at the end
 float vr_at_skill0;      // the skill the run had (its cvar's value; the tests pin it and put it back)
+float vr_at_dir0;        // the run's budget director (ar_dir) before the test held it off (VR_AT_Classic)
 float vr_at_kills0;
 float vr_at_score0;
 float vr_at_a[AR_PLAN_MAX];
@@ -156,10 +161,17 @@ void() VR_AT_SetDefaults =
 
 void(float ok, string what) VR_AT_Check = { VR_Test_Check(ok, what); }; // (`arena: FAIL <what>`)
 
+// A test written for the classic waves (every one but 6, the soak, and 42, the gun knights: those follow the map's
+// vr_arena_director): the budget director held off for it, whatever the cvar says (VR_ARENA_DirOn false, so the plans,
+// pacing, scores and supplies are the classic ones). VR_AT_DirBack puts the run's back.
+float(float c) VR_AT_Classic = { return c != 6 && c != 42; }
+void() VR_AT_DirBack = { ar_dir = vr_at_dir0; }
+
 void() VR_AT_End =
 {
     VR_Test_VerdictPart(sprintf("test %g over:", vr_at_case));
     VR_AT_Restore();
+    VR_AT_DirBack();
     VR_AT_SetSkill(vr_at_skill0);
     cvar_set("vr_arena_test", "0");
     vr_at_case = 0;
@@ -4859,7 +4871,7 @@ void() VR_ARENA_Test_Frame =
 
     if(c == 0)
     {
-        if(vr_at_case) { VR_AT_Restore(); VR_AT_SetSkill(vr_at_skill0); vr_at_case = 0; dprint("arena: test stopped\n"); }
+        if(vr_at_case) { VR_AT_Restore(); VR_AT_DirBack(); VR_AT_SetSkill(vr_at_skill0); vr_at_case = 0; dprint("arena: test stopped\n"); }
         return;
     }
 
@@ -4872,7 +4884,9 @@ void() VR_ARENA_Test_Frame =
         VR_AT_Save();
         vr_at_skill0 = cvar_hget(cvarh_skill);
         VR_AT_SetDefaults();
-        dprint(sprintf("arena: test %g begin\n", c));
+        vr_at_dir0 = ar_dir;
+        if(VR_AT_Classic(c)) { ar_dir = 0; } // (the classic waves: the tests' numbers are theirs)
+        dprint(sprintf("arena: test %g begin (%s director)\n", c, VR_ARENA_DirOn() ? "budget" : "classic"));
 
         if(c == 1)
         {

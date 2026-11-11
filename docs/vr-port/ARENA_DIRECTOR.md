@@ -1,6 +1,7 @@
 # Survival Arena: the budget director
 
-Status: **built** (2026-11-11, branch `agent/arenabudget`), behind `vr_arena_director 1` (default 0 for your test round).
+Status: **built** (2026-11-11, branch `agent/arenabudget`), as `vr_arena_director 1`, the default since 2026-11-11 (your "Can we enable the arena director by default?");
+`vr_arena_director 0` is the classic director.
 Approved with every open question at its recommendation. Section 13 has what was built, your two additions (knights
 and death knights with guns, the spawn cadence), and their numbers. Sections 1-12 are the design as reviewed.
 Files: the data file `quakevr/data/arena_director.txt` (`vr_arena_director_reload` rereads it); the planner
@@ -47,7 +48,7 @@ those waves' plans are unique across seeds today, 100% with the budget director.
 
 | knob | where | default | what it does |
 |---|---|---|---|
-| `vr_arena_director` | cvar | 0 (1 after your test) | 0 the current director, 1 the budget director |
+| `vr_arena_director` | cvar | 1 (since 2026-11-11) | 0 the classic director, 1 the budget director |
 | `vr_arena_wave_size` | cvar (exists) | 1 | multiplies the threat budget and the foe cap |
 | `vr_arena_supply_reactive` | cvar | 1 | 0: supplies ignore how the player is doing |
 | `vr_arena_themes` | cvar | 1 | 0: every wave is Mixed |
@@ -343,7 +344,7 @@ enforcer 83%, zombie 67%, dog 43%, the classic launchers and LG 24-29%, the bott
 ## 12. Open questions (each with a recommendation)
 
 1. **Default director?** Rec: ship `vr_arena_director 0` for one round of your testing, then make 1 the default and
-   keep 0 as the classic option.
+   keep 0 as the classic option. **Done 2026-11-11:** 1 is the default, 0 the classic director (section 13).
 2. **Does the guarantee follow the guns offered or his real inventory?** Rec: offered. It keeps seeds reproducible and
    the memory rebuildable; a gun he left on the floor still counts as offered.
 3. **Scrags, vores and shamblers in the arena's own waves** (never in today's)? Rec: yes, at 10/20/26, with the
@@ -381,7 +382,9 @@ a ladder row can be a run of codes (the AD swords), so QC gets the row and deals
 the classic waves do. With `vr_arena_seed 0` a run draws one random base for the whole run.
 
 **Your recommendations taken:**
-- `vr_arena_director 0` by default.
+- `vr_arena_director 0` by default for your test round; then, at your request (2026-11-11), `vr_arena_director 1` is
+  the default and 0 the classic director. A saved config needs no step: configs are sparse (version 218 on), so one
+  that never set the cvar takes the new default, and none written before 218 held it (it is newer).
 - The guarantee counts guns offered, not the player's inventory.
 - Scrags, vores and shamblers join the waves.
 - Second weapons are on. Infection is off (`extra infected` share 0) until you've seen it in the arena.
@@ -393,7 +396,7 @@ the classic waves do. With `vr_arena_seed 0` a run draws one random base for the
 Not done: Nightmare's supply-by-factor-squared (open question 11). The supply budget still divides by the factor
 once; `vr_arena_supply_scale` is the knob.
 
-**Cvars** (`vr_cvars.inc`): `vr_arena_director` 0, `vr_arena_themes` 1, `vr_arena_theme_banner` 1,
+**Cvars** (`vr_cvars.inc`): `vr_arena_director` 1, `vr_arena_themes` 1, `vr_arena_theme_banner` 1,
 `vr_arena_reinforce` 1 (surges), `vr_arena_supply_reactive` 1, `vr_arena_supply_scale` 1, `vr_arena_quick_kill` 1,
 `vr_arena_alive_cap` 20, `vr_arena_director_log` 0. **Commands**: `vr_arena_director_test` (the planner's checks),
 `vr_arena_director_print <seed> <skill> <waves>` (the plans, as the log prints them), `vr_arena_director_reload`.

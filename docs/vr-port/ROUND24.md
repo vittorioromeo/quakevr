@@ -8771,7 +8771,8 @@ the same total threat (4613 vs 4549), repeats from one wave to the next 17% vs 4
 up 30-80% from wave 6 on, gun droughts 0.06 vs 1.89 a run. Nine design changes came out of the simulation (the doc's section 11).
 No checklist lines yet; they come with the implementation.
 
-**Built (same branch, after his approval):** `vr_arena_director 1` (default 0). The C++ planner is
+**Built (same branch, after his approval):** `vr_arena_director 1` (default 0 then; the default since 2026-11-11: "The
+budget director by default"). The C++ planner is
 `Quake/vr/vr_arenadirector.cpp` with its data file `quakevr/data/arena_director.txt`; the QC side is
 `QC/vr_arena_director.qc`. It adds the spawn cadence (groups, gaps stretched by the threat still up, surges and
 ambushes from several sides), knights and death knights with guns (`gun_knight`, `gun_dk`), the Knightfall theme, a
@@ -8857,3 +8858,23 @@ keys. Test aid: `vr_flat_route_probe [start]` (its bits into `vr_flat_route_seen
 combinations (gun+brick, brick+gun, two bricks, two guns, brick+nothing, gun+nothing, nothing+gun), LMB and RMB each: 63
 passed. Test 7 gained an RMB swing that hurts the grunt (13 passed); test 1 (RMB with each off-hand item: the hand keeps
 it) 15 passed. Docs: FLATPLAY.md "The keys" and "Force grab", the Right Click Ironsight row's help. Scene `flat_prop_buttons`.
+
+## The budget director by default (branch `agent/dirdefault`, 2026-11-11)
+
+His question: "Can we enable the arena director by default?" Yes: `vr_arena_director` defaults to 1 (the budget
+director; ARENA_DIRECTOR.md section 13 and its open question 1). `vr_arena_director 0` stays as the classic director.
+The menu help (Combat > Survival Arena > Budget Director) says 1 is the default.
+
+**His saved config.** Nothing to migrate. Configs are sparse since version 218 (a vr_ setting's line only when it
+differs from its default), and his `ironwail.cfg` (version 223) has no `vr_arena_director` line, so the new default
+reaches him. The full configs before 218 never held it (the cvar is newer), so `fullConfigChanges` needs no row. A
+player who set 1 keeps 1; a 0 was never written (it was the default).
+
+**Tests.** The arena tests were written for the classic waves and their ladder. Every `vr_arena_test` but 6 (the soak)
+and 42 (the gun knights) now holds the run's director off for itself (`VR_AT_Classic`: `ar_dir` 0 for the test, put
+back by `VR_AT_End` or a stop; the begin line says which director). 6 and 42 follow the cvar the map started with.
+With the new default: `vr_arena_director_test` 328 passed; arena test 1 257 passed, 3 9 passed, 11 25 passed, 12 166
+passed, 42 8 passed (budget director), 36 16 passed. Test 11 failed once of three runs ("its humanoids hold
+its 5 tier-2 and tier-3 guns (3 hold one)"): an unseeded run draws its director seed from random(), which moves the
+classic waves' dice; the same check passed with the classic director from the map's start and on the rerun. Seed-
+dependent, not the flip's: worth a look if it recurs. Release-TracyFull builds.
