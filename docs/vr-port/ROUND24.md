@@ -9001,6 +9001,31 @@ Shots in the housing3 worktree's `scratch/`: `before_*.png` / `after_*.png` (lef
 - **Plasma Gun:** made from AD's model at load (`vr_adweapons.cpp` plasmaParts, the made parts' box/extrude helpers in
   AD's 128x128 texels): its housing belongs there, in C++, as the cell receiver is.
 
+
+## Flat-screen hand swap follows the view's pitch (branch `agent/swappitch`, 2026-11-11)
+
+His note: "The off-hand's position is always put at the same height/angle during the animation, as if the player is
+looking straight ahead -- the current camera angle should be taken into account."
+
+- **Cause:** `vr_flatswap.cpp` kept the hands' places and turns in the body's level frame (yaw only) off the head, and
+  put the free hand at the empty hand's guard placed level off the shoulder: looking down 60 degrees the off hand rose
+  into the middle of the screen, looking up it went out of sight below.
+- **Now:** one `Frame` for the whole swap: the view's yaw and pitch (held to `vr_flat_pose_pitch`, as the guns' own
+  poses hold it), off the eye the view is drawn from (`flatplay::eyeNudge`: the neck pivot). Places are (fwd, right,
+  up) in it; turns are Quake angles against its axes (`rotToLocal`/`rotToWorld`, through the axes: exact at any pitch,
+  equal to the old pitch/relative-yaw/roll numbers at a level look). The free hand's guard is placed as at a level look
+  (new `flatplay::levelShoulderOf`: the shoulders re-solved with the look's pitch at 0, only while a swap runs) and
+  carried into the view's frame, taken once at the press (the sight's stance easing out during the pass moved it ~1 unit
+  at -65 sighted otherwise). No tunable or default changed; they are offsets in the view's frame as before (identical
+  at a level look).
+- **Measured** (`Misc/quakevr/flatswappitch_test.sh`, 18 passed): the free hand's place and turn in the view as the
+  weapon is passed, at pitch -60, 0, +60, +85 and -85 (frame +-65), there and back: 0.000 units and 0.00 degrees apart
+  for the rocket launcher, sighted, and the chainsaw (two-handed melee); the shotgun's meeting plays at every pitch.
+  Before: the off hand's guard in view space moved with the look (screens: at +60 it filled the left of the screen).
+- **Not changed:** the guns' own flat poses at a pitch (Gun Out's curve, `vr_flat_pose_pitch`) still place the held
+  gun differently looking up or down; the swap starts from wherever they have it.
+- Checklist: Flat-screen: look well up, then well down, and press 3 with the rocket launcher in both hands and with a
+  shotgun: the hands pass the weapon at the same place on the screen as at a level look.
 ## The Widowmaker's and the AD Plasma Gun's ammo screen housings (branch `agent/housing4`, 2026-11-11)
 
 His mockups: kit `scratch/widowmaker_housing_mockup_1111.webp`, `scratch/adplasma_housing_mockup_1111.webp`. Shots in
