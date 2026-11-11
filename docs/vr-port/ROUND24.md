@@ -9000,3 +9000,125 @@ Shots in the housing3 worktree's `scratch/`: `before_*.png` / `after_*.png` (lef
   39.6 degrees, 0.304 apart; levels 0.050 out, each shifting 0.041 along the face).
 - **Plasma Gun:** made from AD's model at load (`vr_adweapons.cpp` plasmaParts, the made parts' box/extrude helpers in
   AD's 128x128 texels): its housing belongs there, in C++, as the cell receiver is.
+
+## His values as defaults, and the flat grenade's arc (branch `agent/promote1111`, 2026-11-11)
+
+His asks: "Please promote all of my values", "I've tweaked the 'open revolver cylinder' flatscreen pose cvars, please
+promote to default", the flat two-handed swap's timings ("Promote my new values as defaults"), and "add some cvars to
+control the flatscreen grenade throw pitch and throw speed multiplier". Sources (his checkout, read only):
+`quakevr/tunables.cfg` and `quakevr/ironwail.cfg` (sparse, vr_cfg_version 223), as classed by the cvar audit
+(`qvr-kit/scratch/cvar_audit_1111.md`, part 2).
+
+### What was promoted (the table below: old -> new)
+
+- **43 tuning constants** (`tune_promote.py`, run again on his file just before the commit: 0 left): the audit's 36,
+  the revolver's flat open pose (`vr_flat_rv_open_pitch/_yaw/_up/_out`) and the two-handed swap's three timings
+  (`vr_flat_swap_2h_release/_pass/_attach_time`, values only: the swap code is another worker's).
+- **25 cvars** the audit classed "promote", the borderline "confirm" ones too (the visor's side reach, the crosshair's
+  opacity, the particle near cull and fade, the light cap, the relight look): `vr_cvars.inc`. The ones a 1.0.x/beta full
+  config (vr_cfg_version 217 and before) already held get a `fullConfigChanges` row with their 217 value (vr_cvars.cpp:
+  the arm rig's five, the particle near cull/fade, the relight's map lights and sunlight; ao, bounce and minlight had
+  rows), so an upgrading full config still at the old value takes the new one. The flat ones are newer than 217.
+- **props.txt slots 65-69** (`props_data.py promote`): v_shot, v_shot2, v_nail, v_gruntgun and v_rock blocks.
+- **Armed-grunt pose keys, grips, IK stretch**: `pose_defaults.py --cfg` found 0 new or changed (358 keys shipped):
+  already shipped, nothing to write.
+- Not promoted (personal/debug; the memory rule): calibration, comfort, toolgun, cosmetics, graphics preset, menu/tool
+  prefs, migration markers, vr_debug_spawn_toolgun, vr_motion_category. None of the cvars being retired in parallel
+  (vr_agarmor_bridge, vr_kill_blast_fling, ...) was among the promoted.
+
+Side effects and questions for him:
+- The relight's in-game defaults are no longer relight_maps.py's look (the shipped relit maps); `vr_relight_defaults`
+  says only "settings back to their defaults" now.
+- `vr_nav_smooth` ships as 1 (units: a walker within 1 u of a corner turns early, about corner to corner); his file had
+  1, maybe meant as "on" (the slider steps by 4; the nav_crowd scene used 24). nav_crowd now runs the shipped values.
+- `vr_flat_swing_strike` 0.075: the axe's swing at a wall is held 0.1 unit out by the wall-stop and lands no wall blow
+  (0.14 lands it; flatinput_test's wallswing now sets 0.14 for its wall-stop check).
+- `flatstance_test` "the free hand's punch off the look does what it does with the stance off" fails at his values (32
+  damage with the stance, 21 without; with the old torso twist 8, 11 against 21, so not the twist alone): left failing.
+
+Tests that assumed the old defaults, updated: `flatmelee_test.sh` and `flatinput_test.sh` shove1 (the one-hand shove sets
+vr_flat_shove_both_always 0 itself), `flathands_check.py` (gren2h's speed with wind_full 1.5; swap2h's 0.1 s phases),
+`flatads_test.sh` section e (the crosshair at opacity 1: at 0.6 its pixels were 67 against a 61 bar),
+`config_fullupgrade_test.sh` (the ambient 64, and the arm stretch 1.2 -> 1.5 row checked).
+
+Runs (headless, fast mode): config_fullupgrade 8/0, config_sparse 16/0, flatparry 43/0, flatshovesmooth 6/0,
+flatspeedfov 7/0, flatslide 26/0, flatxhair 31/0, flathud 11/0, flathands 74/0, flathit 11/0, flatinput 19/0, flatplay
+31/0, flatreload 54/0, bodytrack_solve 240/0, bodytrack_elbow and parry_pose all ok, arena 36 16/0, arena 43 13/0,
+agrunt 36 4/0. Failing, not from the promotion: visor_test "sides: test state 6 AD's two custom keys" (left 0 at side
+reach -1 and at 0 alike), flatads "launchers" (the rocket launcher's muzzle 2.5 deg off; the same with the old
+props.txt), arena 41 (a dog or a grunt late; 2 failures with the old nav values too). flatmelee 11/1 and flatpose
+21/1: one check each, not looked into (budget). agrunt 43 ended 0/0 (its frame sweep prints no checks).
+
+| Kind | Name | Old | New |
+|---|---|---|---|
+| tunable | vr_flat_ssg_open_pitch | -10 | -60 |
+| tunable | vr_flat_ssg_open_up | 3 | -4 |
+| tunable | vr_flat_ssg_open_out | -1 | 0 |
+| tunable | vr_flat_rv_open_pitch | -15 | -35 |
+| tunable | vr_flat_rv_open_yaw | 15 | 0 |
+| tunable | vr_flat_rv_open_up | 3 | -2 |
+| tunable | vr_flat_rv_open_out | -1 | 1 |
+| tunable | vr_flat_swap_2h_release_time | 0.2 | 0.1 |
+| tunable | vr_flat_swap_2h_pass_time | 0.25 | 0.1 |
+| tunable | vr_flat_swap_2h_attach_time | 0.25 | 0.1 |
+| tunable | vr_flat_grenade_hold_fwd | 0.85 | 0.75 |
+| tunable | vr_flat_grenade_hold_down | -0.05 | -0.2 |
+| tunable | vr_flat_grenade_hold_pitch | 10 | -20 |
+| tunable | vr_flat_grenade_wind_fwd | 0.7 | 0.5 |
+| tunable | vr_flat_grenade_wind_out | 0.1 | 0.4 |
+| tunable | vr_flat_grenade_wind_up | 0.5 | 0.85 |
+| tunable | vr_flat_grenade_wind_full | 1 | 1.5 |
+| tunable | vr_flat_grenade_throw_up | 10 | 6 |
+| tunable | vr_flat_grenade_follow_time | 0.15 | 0.1 |
+| tunable | vr_flat_grenade_follow_down | -0.05 | 0.25 |
+| tunable | vr_flat_shove_aim_up | 8 | 0 |
+| tunable | vr_flat_shove_both_always | 0 | 1 |
+| tunable | vr_flat_punch_torso_twist | 8 | 30 |
+| tunable | vr_flat_swing_strike | 0.14 | 0.075 |
+| tunable | vr_flat_swing_raise_up | 4 | 8 |
+| tunable | vr_flat_swing_raise_fwd | 4 | 0 |
+| tunable | vr_flat_swing_raise_roll | 0 | 10 |
+| tunable | vr_flat_swing_end_pitch_melee | 100 | 90 |
+| tunable | vr_flat_swing_end_down | 4 | 8 |
+| tunable | vr_flat_swing_end_yaw | 0 | -10 |
+| tunable | vr_flat_swing_end_roll | 0 | -10 |
+| tunable | vr_flat_melee_hold_roll | 0 | 10 |
+| tunable | vr_flat_swing_cam_up | 1.5 | 3.5 |
+| tunable | vr_flat_parry_up | -3 | -2 |
+| tunable | vr_flat_parry_out | 6 | 4 |
+| tunable | vr_flat_parry_yaw | 10 | 0 |
+| tunable | vr_flat_parry_roll | 0 | -5 |
+| tunable | vr_flat_parry_in_time | 0.15 | 0.05 |
+| tunable | vr_flat_parry_out_time | 0.2 | 0.1 |
+| tunable | vr_embed_cuton_fling | 4 | 6 |
+| tunable | vr_nav_separation | 0 | 1 |
+| tunable | vr_nav_smooth | 0 | 1 |
+| tunable | vr_nav_slots | 0 | 8 |
+| cvar | vr_body_arm_stretch | 1.2 | 1.5 |
+| cvar | vr_body_elbow_back | 0.25 | 0.35 |
+| cvar | vr_body_elbow_hand | 0.4 | 0.5 |
+| cvar | vr_body_elbow_lift | 4 | 8 |
+| cvar | vr_bodytrack_arm_fit | 1 | 0.25 |
+| cvar | vr_flat_speed_fov_from | 320 | 340 |
+| cvar | vr_flat_speed_fov_top | 400 | 420 |
+| cvar | vr_flat_speed_fov_max | 1.1 | 1.2 |
+| cvar | vr_flat_speed_fov_ease_out | 0.6 | 0.15 |
+| cvar | vr_flat_slide_fov_bonus | 0 | 0.15 |
+| cvar | vr_flat_mantle_look | 30 | 25 |
+| cvar | vr_flat_shove_anim_reach | 64 | 32 |
+| cvar | vr_flat_visor_damage | 1 | 2 |
+| cvar | vr_flat_visor_side_out | 0 | -1 |
+| cvar | vr_flat_xhair_opacity | 0.75 | 0.6 |
+| cvar | vr_flat_xhair_smooth | 0.1 | 0.15 |
+| cvar | vr_revolver_eject_speed | 0.6 | 1.2 |
+| cvar | vr_particle_near_cull | 10 | 0 |
+| cvar | vr_particle_near_fade | 30 | 0 |
+| cvar | vr_light_cap | 0 | 1.75 |
+| cvar | vr_relight_ao | 1.2 | 0.5 |
+| cvar | vr_relight_bounce | 1 | 1.2 |
+| cvar | vr_relight_maplights | 1 | 0.6 |
+| cvar | vr_relight_minlight | 32 | 64 |
+| cvar | vr_relight_sunlight | 1 | 0 |
+| props.txt | slots 65-68 (vr_prop_id_66..69) | (none) | progs/v_shot.mdl, v_shot2.mdl, v_nail.mdl, v_gruntgun.mdl blocks |
+| props.txt | slot 69 (vr_prop_id_70) | (none) | progs/v_rock.mdl block (his config after the audit) |
+| pose/grip/IK | vr_agrunt_poses / _grips / _ik_stretch | shipped | unchanged: pose_defaults.py found 0 new or changed (already shipped) |

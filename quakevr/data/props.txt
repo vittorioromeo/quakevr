@@ -763,6 +763,36 @@ prop 64
     mass "-1"
 }
 
+// slot 65 (vr_prop_*_66)
+prop 65
+{
+    id "progs/v_shot.mdl"
+}
+
+// slot 66 (vr_prop_*_67)
+prop 66
+{
+    id "progs/v_shot2.mdl"
+}
+
+// slot 67 (vr_prop_*_68)
+prop 67
+{
+    id "progs/v_nail.mdl"
+}
+
+// slot 68 (vr_prop_*_69)
+prop 68
+{
+    id "progs/v_gruntgun.mdl"
+}
+
+// slot 69 (vr_prop_*_70)
+prop 69
+{
+    id "progs/v_rock.mdl"
+}
+
 // slot 70: progs/h_hogre.mdl (vr_prop_*_71)
 prop 70
 {

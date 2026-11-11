@@ -1898,20 +1898,20 @@ QVR_TUNABLE(vr_flat_mag_eject_speed, "40") // and its push out of the well (unit
 QVR_TUNABLE(vr_flat_revolver_open_delay, "0.15") // vr_flat_revolver_eject: seconds after the shot that empties it the revolver's cylinder swings out, its spent shells thrown out (his words 2026-11-10)
 QVR_TUNABLE(vr_flat_revolver_eject_delay, "0.1") // and seconds after its cylinder is fully out (the drawn swing, 0.14 s) its spent shells leave (his note 2026-11-10: not as it opens)
 QVR_TUNABLE(vr_flat_reload_close_delay, "0.1") // seconds after the rounds go in at the hip the super shotgun snaps shut and the revolver's cylinder swings home (within the trip)
-QVR_TUNABLE(vr_flat_ssg_open_pitch, "-10") // flat-screen play: the super shotgun broken open (fired empty, until the reload shuts it): the held gun's pose, degrees its muzzle tips down (negative: up) (his words 2026-11-10; vr_flatreload.cpp)
+QVR_TUNABLE(vr_flat_ssg_open_pitch, "-60") // flat-screen play: the super shotgun broken open (fired empty, until the reload shuts it): the held gun's pose, degrees its muzzle tips down (negative: up) (his words 2026-11-10; vr_flatreload.cpp)
 QVR_TUNABLE(vr_flat_ssg_open_yaw, "12") // flat-screen play: the super shotgun broken open (fired empty, until the reload shuts it): the held gun's pose, degrees it turns inward, towards the body's middle (the left hand's mirrored) (his words 2026-11-10; vr_flatreload.cpp)
 QVR_TUNABLE(vr_flat_ssg_open_roll, "-15") // flat-screen play: the super shotgun broken open (fired empty, until the reload shuts it): the held gun's pose, degrees it rolls, its top inward (the left hand's mirrored) (his words 2026-11-10; vr_flatreload.cpp)
 QVR_TUNABLE(vr_flat_ssg_open_fwd, "0") // flat-screen play: the super shotgun broken open (fired empty, until the reload shuts it): the held gun's pose, units it moves forward along the body's way (his words 2026-11-10; vr_flatreload.cpp)
-QVR_TUNABLE(vr_flat_ssg_open_up, "3") // flat-screen play: the super shotgun broken open (fired empty, until the reload shuts it): the held gun's pose, units it moves up (his words 2026-11-10; vr_flatreload.cpp)
-QVR_TUNABLE(vr_flat_ssg_open_out, "-1") // flat-screen play: the super shotgun broken open (fired empty, until the reload shuts it): the held gun's pose, units it moves outward, away from the body's middle (the left hand's mirrored) (his words 2026-11-10; vr_flatreload.cpp)
+QVR_TUNABLE(vr_flat_ssg_open_up, "-4") // flat-screen play: the super shotgun broken open (fired empty, until the reload shuts it): the held gun's pose, units it moves up (his words 2026-11-10; vr_flatreload.cpp)
+QVR_TUNABLE(vr_flat_ssg_open_out, "0") // flat-screen play: the super shotgun broken open (fired empty, until the reload shuts it): the held gun's pose, units it moves outward, away from the body's middle (the left hand's mirrored) (his words 2026-11-10; vr_flatreload.cpp)
 QVR_TUNABLE(vr_flat_ssg_open_in_time, "0.2") // flat-screen play: the super shotgun broken open (fired empty, until the reload shuts it): the held gun's pose, seconds it takes into that pose (his words 2026-11-10; vr_flatreload.cpp)
 QVR_TUNABLE(vr_flat_ssg_open_out_time, "0.2") // flat-screen play: the super shotgun broken open (fired empty, until the reload shuts it): the held gun's pose, seconds it takes back out of it, once shut (his words 2026-11-10; vr_flatreload.cpp)
-QVR_TUNABLE(vr_flat_rv_open_pitch, "-15") // flat-screen play: the revolver's cylinder swung out (fired empty, or the reload's): the held gun's pose, degrees its muzzle tips down (negative: up) (his words 2026-11-10; vr_flatreload.cpp)
-QVR_TUNABLE(vr_flat_rv_open_yaw, "15") // flat-screen play: the revolver's cylinder swung out (fired empty, or the reload's): the held gun's pose, degrees it turns inward, towards the body's middle (the left hand's mirrored) (his words 2026-11-10; vr_flatreload.cpp)
+QVR_TUNABLE(vr_flat_rv_open_pitch, "-35") // flat-screen play: the revolver's cylinder swung out (fired empty, or the reload's): the held gun's pose, degrees its muzzle tips down (negative: up) (his words 2026-11-10; vr_flatreload.cpp)
+QVR_TUNABLE(vr_flat_rv_open_yaw, "0") // flat-screen play: the revolver's cylinder swung out (fired empty, or the reload's): the held gun's pose, degrees it turns inward, towards the body's middle (the left hand's mirrored) (his words 2026-11-10; vr_flatreload.cpp)
 QVR_TUNABLE(vr_flat_rv_open_roll, "-30") // flat-screen play: the revolver's cylinder swung out (fired empty, or the reload's): the held gun's pose, degrees it rolls, its top inward (the left hand's mirrored) (his words 2026-11-10; vr_flatreload.cpp)
 QVR_TUNABLE(vr_flat_rv_open_fwd, "0") // flat-screen play: the revolver's cylinder swung out (fired empty, or the reload's): the held gun's pose, units it moves forward along the body's way (his words 2026-11-10; vr_flatreload.cpp)
-QVR_TUNABLE(vr_flat_rv_open_up, "3") // flat-screen play: the revolver's cylinder swung out (fired empty, or the reload's): the held gun's pose, units it moves up (his words 2026-11-10; vr_flatreload.cpp)
-QVR_TUNABLE(vr_flat_rv_open_out, "-1") // flat-screen play: the revolver's cylinder swung out (fired empty, or the reload's): the held gun's pose, units it moves outward, away from the body's middle (the left hand's mirrored) (his words 2026-11-10; vr_flatreload.cpp)
+QVR_TUNABLE(vr_flat_rv_open_up, "-2") // flat-screen play: the revolver's cylinder swung out (fired empty, or the reload's): the held gun's pose, units it moves up (his words 2026-11-10; vr_flatreload.cpp)
+QVR_TUNABLE(vr_flat_rv_open_out, "1") // flat-screen play: the revolver's cylinder swung out (fired empty, or the reload's): the held gun's pose, units it moves outward, away from the body's middle (the left hand's mirrored) (his words 2026-11-10; vr_flatreload.cpp)
 QVR_TUNABLE(vr_flat_rv_open_in_time, "0.2") // flat-screen play: the revolver's cylinder swung out (fired empty, or the reload's): the held gun's pose, seconds it takes into that pose (his words 2026-11-10; vr_flatreload.cpp)
 QVR_TUNABLE(vr_flat_rv_open_out_time, "0.2") // flat-screen play: the revolver's cylinder swung out (fired empty, or the reload's): the held gun's pose, seconds it takes back out of it, once shut (his words 2026-11-10; vr_flatreload.cpp)
 
@@ -1944,9 +1944,9 @@ QVR_TUNABLE(vr_flat_swap_in, "0.15") // seconds the hands take to meet (the swap
 QVR_TUNABLE(vr_flat_swap_out, "0.2") // seconds they take back to their poses once swapped
 QVR_TUNABLE(vr_flat_swap_gap, "3") // units apart they meet (a weapon in both hands: the free hand this far off the holding one)
 QVR_TUNABLE(vr_flat_swap_down, "2") // units below the middle of the two hands they meet (-16..16)
-QVR_TUNABLE(vr_flat_swap_2h_release_time, "0.2") // a weapon held in both hands: seconds the free hand takes off the grip to the empty hand's guard
-QVR_TUNABLE(vr_flat_swap_2h_pass_time, "0.25") // then the seconds the weapon takes across to it (the swap happens as it gets there)
-QVR_TUNABLE(vr_flat_swap_2h_attach_time, "0.25") // then the seconds the hands take to their places: the weapon to its hold, the other hand onto its grip
+QVR_TUNABLE(vr_flat_swap_2h_release_time, "0.1") // a weapon held in both hands: seconds the free hand takes off the grip to the empty hand's guard
+QVR_TUNABLE(vr_flat_swap_2h_pass_time, "0.1") // then the seconds the weapon takes across to it (the swap happens as it gets there)
+QVR_TUNABLE(vr_flat_swap_2h_attach_time, "0.1") // then the seconds the hands take to their places: the weapon to its hold, the other hand onto its grip
 
 // Flatscreen > Quick Grenade (vr_flatgrenade.cpp, QC vr_flatgrenade.qc; vr_flat_key_grenade). Places off the hand's
 // shoulder as shares of the arm's reach: forward, out at the hand's own side, down (or up); angles Quake's (pitch down +).
@@ -1956,23 +1956,23 @@ QVR_TUNABLE(vr_flat_grenade_fetch_fwd, "-0.2") // the pouch trip's place: in fro
 QVR_TUNABLE(vr_flat_grenade_fetch_out, "0.25") // out at its side
 QVR_TUNABLE(vr_flat_grenade_fetch_down, "0.9") // below the shoulder
 QVR_TUNABLE(vr_flat_grenade_fetch_pitch, "70") // the hand's pitch there (fingers down)
-QVR_TUNABLE(vr_flat_grenade_hold_fwd, "0.85") // the held grenade's place: forward along the look
+QVR_TUNABLE(vr_flat_grenade_hold_fwd, "0.75") // the held grenade's place: forward along the look
 QVR_TUNABLE(vr_flat_grenade_hold_out, "0.1") // out at its side
-QVR_TUNABLE(vr_flat_grenade_hold_down, "-0.05") // below the shoulder (negative: above; in view at the screen's lower corner)
-QVR_TUNABLE(vr_flat_grenade_hold_pitch, "10") // its pitch against the look's
+QVR_TUNABLE(vr_flat_grenade_hold_down, "-0.2") // below the shoulder (negative: above; in view at the screen's lower corner)
+QVR_TUNABLE(vr_flat_grenade_hold_pitch, "-20") // its pitch against the look's
 QVR_TUNABLE(vr_flat_grenade_wind_time, "0.25") // seconds the hand takes up into the overhead throw pose once the fire button winds up
-QVR_TUNABLE(vr_flat_grenade_wind_fwd, "0.7") // the overhead pose: forward of the shoulder (negative: behind; 0.7 keeps the raised hand in view at the top corner), level with the body
-QVR_TUNABLE(vr_flat_grenade_wind_out, "0.1") // out at its side
-QVR_TUNABLE(vr_flat_grenade_wind_up, "0.5") // above the shoulder
+QVR_TUNABLE(vr_flat_grenade_wind_fwd, "0.5") // the overhead pose: forward of the shoulder (negative: behind; 0.7 keeps the raised hand in view at the top corner), level with the body
+QVR_TUNABLE(vr_flat_grenade_wind_out, "0.4") // out at its side
+QVR_TUNABLE(vr_flat_grenade_wind_up, "0.85") // above the shoulder
 QVR_TUNABLE(vr_flat_grenade_wind_pitch, "-45") // the hand's pitch there (negative: tipped back)
-QVR_TUNABLE(vr_flat_grenade_wind_full, "1") // seconds of wind-up for the hardest throw (0.1..5)
+QVR_TUNABLE(vr_flat_grenade_wind_full, "1.5") // seconds of wind-up for the hardest throw (0.1..5)
 QVR_TUNABLE(vr_flat_grenade_speed_min, "350") // the throw's speed let go at once (units/s)
 QVR_TUNABLE(vr_flat_grenade_speed_max, "900") // and wound up fully (units/s)
-QVR_TUNABLE(vr_flat_grenade_throw_up, "10") // degrees above the crosshair the throw leaves at (-30..60)
-QVR_TUNABLE(vr_flat_grenade_follow_time, "0.15") // seconds of the throw's follow-through (the arm out along the look)
+QVR_TUNABLE(vr_flat_grenade_throw_up, "6") // degrees above the crosshair the throw leaves at (-30..60)
+QVR_TUNABLE(vr_flat_grenade_follow_time, "0.1") // seconds of the throw's follow-through (the arm out along the look)
 QVR_TUNABLE(vr_flat_grenade_follow_fwd, "0.9") // the follow-through's place: forward along the look
 QVR_TUNABLE(vr_flat_grenade_follow_out, "0.05") // out at its side
-QVR_TUNABLE(vr_flat_grenade_follow_down, "-0.05") // below the shoulder
+QVR_TUNABLE(vr_flat_grenade_follow_down, "0.25") // below the shoulder
 QVR_TUNABLE(vr_flat_grenade_follow_pitch, "25") // its pitch against the look's
 QVR_TUNABLE(vr_flat_grenade_back_time, "0.3") // seconds the hand takes from the follow-through back to its pose (an empty hand's rest, a weapon's grip)
 
@@ -2056,44 +2056,44 @@ QVR_TUNABLE(vr_flat_support_out, "3") // the same free hand: how far out at its 
 QVR_TUNABLE(vr_flat_shove_wind_back, "8") // the windup: the hands drawn this far back (units)
 QVR_TUNABLE(vr_flat_shove_pass_bodies, "1") // from the shove's landing until its hands are back, they pass through ragdolls and corpses (their physics bodies: what they shoved is not dragged back with them; 0: they meet them, as before 2026-11-10)
 QVR_TUNABLE(vr_flat_shove_wind_up, "2") // and this far up (units)
-QVR_TUNABLE(vr_flat_shove_aim_up, "8") // the push goes for this far above the crosshair's point (units; his notes 2026-11-10: higher, like the fist)
+QVR_TUNABLE(vr_flat_shove_aim_up, "0") // the push goes for this far above the crosshair's point (units; his notes 2026-11-10: higher, like the fist)
 QVR_TUNABLE(vr_flat_shove_palm, "1") // how far the shoving hands turn to palms at the target, fingers up (0: kept as they were)
 QVR_TUNABLE(vr_flat_shove_palm_up, "80") // the shoving hand's fingers this far above level (degrees)
 QVR_TUNABLE(vr_flat_shove_palm_turn, "90") // and turned this far about the fingers so the palm faces the target (degrees; negative the other way)
 QVR_TUNABLE(vr_flat_shove_both_armed, "1") // a weapon in each hand: both hands shove, weapons held, palms out (the armed humanoids' shove; 0: the off hand alone)
-QVR_TUNABLE(vr_flat_shove_both_always, "0") // 1: every shove is the two-handed one, whatever the hands hold
+QVR_TUNABLE(vr_flat_shove_both_always, "1") // 1: every shove is the two-handed one, whatever the hands hold
 QVR_TUNABLE(vr_flat_shove_swish, "0.35") // the shove's whoosh: the fist's swish at this volume (0: none; QC VR_FlatShove)
 QVR_TUNABLE(vr_flat_shove_swish_pitch, "8") // and this many percent higher (a lighter sound)
 QVR_TUNABLE(vr_flat_punch_both, "0") // 1: both hands may punch at once (as before 2026-11-10); 0: a hand punches only once the other's punch draws back
 QVR_TUNABLE(vr_flat_punch_cam_pitch, "1.5") // a punch tips the view this far down into it at its reach (degrees; the view only, the aim stays)
 QVR_TUNABLE(vr_flat_punch_cam_roll, "1.5") // and rolls it this far toward the punching hand's side (degrees; negative the other way)
-QVR_TUNABLE(vr_flat_punch_torso_twist, "8") // and turns the chest this far, the punching shoulder forward (degrees)
+QVR_TUNABLE(vr_flat_punch_torso_twist, "30") // and turns the chest this far, the punching shoulder forward (degrees)
 QVR_TUNABLE(vr_flat_punch_torso_lean, "4") // and leans the chest this far forward (degrees)
 QVR_TUNABLE(vr_flat_swing, "1") // a weapon's melee (V, or its fire button with a melee weapon) is the overhead swing; 0: thrown straight like the fist, as before
 QVR_TUNABLE(vr_flat_swing_wind, "0.26") // the overhead swing: seconds the windup takes, the hand up over the head, the weapon turned up
 QVR_TUNABLE(vr_flat_swing_top, "0.06") // seconds held at the top
-QVR_TUNABLE(vr_flat_swing_strike, "0.14") // seconds the strike takes, down to the crosshair
+QVR_TUNABLE(vr_flat_swing_strike, "0.075") // seconds the strike takes, down to the crosshair
 QVR_TUNABLE(vr_flat_swing_dwell, "0.08") // seconds held at its end
 QVR_TUNABLE(vr_flat_swing_back, "0.25") // seconds back to the rest
-QVR_TUNABLE(vr_flat_swing_raise_up, "4") // the top of the windup: the hand this far above the eye (units)
-QVR_TUNABLE(vr_flat_swing_raise_fwd, "4") // and this far ahead of it (units)
+QVR_TUNABLE(vr_flat_swing_raise_up, "8") // the top of the windup: the hand this far above the eye (units)
+QVR_TUNABLE(vr_flat_swing_raise_fwd, "0") // and this far ahead of it (units)
 QVR_TUNABLE(vr_flat_swing_raise_out, "6") // and this far out at its own side (units)
 QVR_TUNABLE(vr_flat_swing_raise_pitch, "90") // the weapon turned up this far at the top (degrees from the aim; until 2026-11-10 vr_flat_swing_wind_pitch)
 QVR_TUNABLE(vr_flat_swing_raise_yaw, "0") // and turned this far out to its own side (degrees; negative inwards)
-QVR_TUNABLE(vr_flat_swing_raise_roll, "0") // and rolled this far, its top out to its own side (degrees; negative inwards)
+QVR_TUNABLE(vr_flat_swing_raise_roll, "10") // and rolled this far, its top out to its own side (degrees; negative inwards)
 QVR_TUNABLE(vr_flat_swing_end_pitch, "50") // and down this far at the strike's end (degrees below the aim)
-QVR_TUNABLE(vr_flat_swing_end_pitch_melee, "100") // a melee weapon (its haft stands up the hand, not along the aim) follows through to this far down over the hold after the strike, its head below the hand (degrees; the blow is the strike at vr_flat_swing_end_pitch)
-QVR_TUNABLE(vr_flat_swing_end_down, "4") // the strike ends with the hand this far under the crosshair's line (units)
+QVR_TUNABLE(vr_flat_swing_end_pitch_melee, "90") // a melee weapon (its haft stands up the hand, not along the aim) follows through to this far down over the hold after the strike, its head below the hand (degrees; the blow is the strike at vr_flat_swing_end_pitch)
+QVR_TUNABLE(vr_flat_swing_end_down, "8") // the strike ends with the hand this far under the crosshair's line (units)
 QVR_TUNABLE(vr_flat_swing_end_fwd, "0") // and this far further ahead (units; negative short of it; the arm's reach still holds)
 QVR_TUNABLE(vr_flat_swing_end_out, "0") // and this far out at its own side (units; negative inwards)
-QVR_TUNABLE(vr_flat_swing_end_yaw, "0") // the weapon turned this far out to its own side at the strike's end (degrees; negative inwards)
-QVR_TUNABLE(vr_flat_swing_end_roll, "0") // and rolled this far, its top out to its own side (degrees; negative inwards)
+QVR_TUNABLE(vr_flat_swing_end_yaw, "-10") // the weapon turned this far out to its own side at the strike's end (degrees; negative inwards)
+QVR_TUNABLE(vr_flat_swing_end_roll, "-10") // and rolled this far, its top out to its own side (degrees; negative inwards)
 QVR_TUNABLE(vr_flat_swing_end_yaw_melee, "0") // a melee weapon's follow-through turns on this much further out over the hold after the strike (degrees; as vr_flat_swing_end_pitch_melee)
 QVR_TUNABLE(vr_flat_swing_end_roll_melee, "0") // and rolls on this much further (degrees)
 QVR_TUNABLE(vr_flat_melee_hold_yaw, "0") // flatscreen: a melee weapon (axe, sword, crowbar...) held is always turned this far out to its own side (degrees; negative inwards; the swing turns from it)
-QVR_TUNABLE(vr_flat_melee_hold_roll, "0") // and rolled this far, its top out to its own side (degrees; negative inwards)
+QVR_TUNABLE(vr_flat_melee_hold_roll, "10") // and rolled this far, its top out to its own side (degrees; negative inwards)
 QVR_TUNABLE(vr_flat_melee_aim_hit, "1") // the punch, the swing and the shove go for what the crosshair's ray hits (as the guns aim), no further than the arm reaches along it; 0: the point vr_flat_punch_aim_dist along the ray, as before 2026-11-10
-QVR_TUNABLE(vr_flat_swing_cam_up, "1.5") // the view tips up this far with the windup (degrees; the view only, the aim stays)
+QVR_TUNABLE(vr_flat_swing_cam_up, "3.5") // the view tips up this far with the windup (degrees; the view only, the aim stays)
 QVR_TUNABLE(vr_flat_swing_cam_down, "2.5") // and down this far with the strike (degrees)
 QVR_TUNABLE(vr_flat_swing_torso_up, "3") // the chest leans back this far with the windup (degrees)
 QVR_TUNABLE(vr_flat_swing_torso_down, "6") // and forward this far with the strike (degrees)
@@ -2101,13 +2101,13 @@ QVR_TUNABLE(vr_flat_melee_grip, "1") // flatscreen: a melee weapon held in two h
 QVR_TUNABLE(vr_flat_melee_letgo, "1") // flatscreen: a melee weapon held in two hands lets the free hand off its grip eased, as a gun's (E's force grab, the shove, G, 3, a punch): 0 it jumps off, as before 2026-11-10
 QVR_TUNABLE(vr_flat_parry, "1") // flatscreen: the right mouse button held with one melee weapon raises it into the parry's guard, almost level across the view (0: nothing, as before 2026-11-10)
 QVR_TUNABLE(vr_flat_parry_fwd, "14") // the guard: the hand this far ahead of the eye (units)
-QVR_TUNABLE(vr_flat_parry_up, "-3") // and this far above it (units; negative below)
-QVR_TUNABLE(vr_flat_parry_out, "6") // and this far out at its own side (units; negative inwards)
+QVR_TUNABLE(vr_flat_parry_up, "-2") // and this far above it (units; negative below)
+QVR_TUNABLE(vr_flat_parry_out, "4") // and this far out at its own side (units; negative inwards)
 QVR_TUNABLE(vr_flat_parry_pitch, "5") // the weapon's tip this far up off level (degrees; negative down)
-QVR_TUNABLE(vr_flat_parry_yaw, "10") // and this far forward of straight across the view (degrees; negative back towards you; past 45 it points at what it parries and no longer does)
-QVR_TUNABLE(vr_flat_parry_roll, "0") // and the weapon rolled this far about its own line (degrees; its edge from forward towards up)
-QVR_TUNABLE(vr_flat_parry_in_time, "0.15") // seconds into the guard from the hold (0: at once)
-QVR_TUNABLE(vr_flat_parry_out_time, "0.2") // seconds back to the hold when the button is let go (0: at once)
+QVR_TUNABLE(vr_flat_parry_yaw, "0") // and this far forward of straight across the view (degrees; negative back towards you; past 45 it points at what it parries and no longer does)
+QVR_TUNABLE(vr_flat_parry_roll, "-5") // and the weapon rolled this far about its own line (degrees; its edge from forward towards up)
+QVR_TUNABLE(vr_flat_parry_in_time, "0.05") // seconds into the guard from the hold (0: at once)
+QVR_TUNABLE(vr_flat_parry_out_time, "0.1") // seconds back to the hold when the button is let go (0: at once)
 QVR_TUNABLE(vr_flat_parry_cone, "120") // flatscreen: in the guard, any melee blow from within this many degrees of where you look (all of the cone, centred on the view) is parried, whatever its way (QC VR_Parry_FlatGuard; the headset keeps the directional parry); 0: the headset's rules
 
 // Flatscreen > Model FOV
@@ -2276,7 +2276,7 @@ QVR_TUNABLE(vr_embed_skewer_mass_gib, "1.2") // kg a gib of a middling size weig
 QVR_TUNABLE(vr_embed_skewer_mass_limb, "0.6") // kg a limb of a middling size does (by size, not its share of the body: a soldier's leg was 12 kg)
 QVR_TUNABLE(vr_embed_skewer_mass_head, "1.5") // kg a head does
 QVR_TUNABLE(vr_embed_cuton, "1") // a head or limb a held blade's swing cuts off stays on it at the cut (QC VR_Skewer_CutOn): 0 never, 1 an edge's (the axes), 2 a point's too (the swords)
-QVR_TUNABLE(vr_embed_cuton_fling, "4") // m/s: a part on the edge flies off at a sharp stop (to half within 0.25 s) from at least this fast: a hard swing, a hard shake (0: never; was 2.5, too easy: his note 2026-11-08)
+QVR_TUNABLE(vr_embed_cuton_fling, "6") // m/s: a part on the edge flies off at a sharp stop (to half within 0.25 s) from at least this fast: a hard swing, a hard shake (0: never; was 2.5, too easy: his note 2026-11-08)
 QVR_TUNABLE(vr_embed_cuton_depth, "0.6") // share of a cut-off part's radius the edge sits in it, its middle ahead of the edge the way the swing went (0: its cut end on the edge, beside the blade; his note 2026-11-08)
 // Embedded Blades: Axe
 QVR_TUNABLE(vr_embed_swing_speed, "1") // m/s the hand must drive a swung axe at
@@ -2411,10 +2411,10 @@ QVR_TUNABLE(vr_nav_lift_cost, "2") // a lift link's cost per unit of its length,
 QVR_TUNABLE(vr_nav_lift_wait, "10") // a walker waiting this long for a lift to come to its level gives up (seconds); its links are left alone for vr_nav_link_retry
 QVR_TUNABLE(vr_nav_link_retry, "5") // a walker that gave up a drop or lift link plans without links this long (seconds)
 QVR_TUNABLE(vr_nav_plat_monsters, "0") // 1: a monster stepping on a lift's (func_plat's) trigger calls it as a player does (vr_nav 1; players unchanged); 0: Quake's, players only
-QVR_TUNABLE(vr_nav_separation, "0") // walkers on the navmesh steer away from other walkers close by (their boxes within vr_nav_separation_range): this much of a turn per unit of closeness, so a pack spreads rather than files through doors and up stairs (0: none; never turned back on its path)
+QVR_TUNABLE(vr_nav_separation, "1") // walkers on the navmesh steer away from other walkers close by (their boxes within vr_nav_separation_range): this much of a turn per unit of closeness, so a pack spreads rather than files through doors and up stairs (0: none; never turned back on its path)
 QVR_TUNABLE(vr_nav_separation_range, "24") // ... how far apart (units, between their boxes) another walker still pushes
-QVR_TUNABLE(vr_nav_smooth, "0") // a walker this close to a path corner (units) already turns toward the corner after it, rounding the turn (0: corner to corner)
-QVR_TUNABLE(vr_nav_slots, "0") // melee walkers (no missile attack) farther than vr_nav_slot_engage from their foe head for one of this many places on a ring round him, each its own, so they come at him from several sides (0: all at his feet)
+QVR_TUNABLE(vr_nav_smooth, "1") // a walker this close to a path corner (units) already turns toward the corner after it, rounding the turn (0: corner to corner)
+QVR_TUNABLE(vr_nav_slots, "8") // melee walkers (no missile attack) farther than vr_nav_slot_engage from their foe head for one of this many places on a ring round him, each its own, so they come at him from several sides (0: all at his feet)
 QVR_TUNABLE(vr_nav_slot_radius, "80") // ... the ring's radius (units)
 QVR_TUNABLE(vr_nav_slot_engage, "120") // ... nearer than this (units) a melee walker goes straight at him (Quake's chase and melee range)
 QVR_TUNABLE(vr_nav_props, "1") // 1: loose solid props at rest (crates, barrels, explosive boxes) big and heavy enough to block a walker are holes in the navmesh: paths go round them; only their tiles are rebuilt, on the pool; 0: none

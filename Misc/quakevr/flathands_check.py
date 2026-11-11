@@ -90,7 +90,7 @@ t = [re.search(r"thrown by the off hand after ([\d.]+) s wound up: (\d+) u/s", l
 t = [x for x in t if x]
 if t:
     held_s, speed = float(t[0].group(1)), float(t[0].group(2))
-    want = 350 + 550 * min(1.0, held_s / 1.0)
+    want = 350 + 550 * min(1.0, held_s / 1.5)  # (vr_flat_grenade_wind_full 1.5 since 2026-11-11)
 check(bool(t) and abs(held_s - 0.69) < 0.05 and abs(speed - want) < 40,
       "gren2h: let go, thrown as fast as it was wound up (%s)" % (str((t[0].group(1), t[0].group(2))) if t else "none"))
 stance = [l for l in ls if l.startswith("  stance:")]
@@ -151,7 +151,8 @@ for tag, two in (("swap1", False), ("swap2h", True), ("swapdual", False)):
         idx = lambda pat: next((i for i, l in enumerate(ls) if re.search(pat, l)), -1)
         rel = [re.search(r"2h: released \(([\d.]+) s\): the off hand ([\d.]+) units from the empty hand's guard, ([\d.]+) from the main hand \(moved ([\d.]+)", l) for l in ls]
         rel = [x for x in rel if x]
-        check(bool(rel) and abs(float(rel[0].group(1)) - 0.2) < 0.03 and float(rel[0].group(2)) < 1 and float(rel[0].group(3)) > 6,
+        # (vr_flat_swap_2h_release_time, _pass_time, _attach_time 0.1 each since 2026-11-11, his values: were 0.2, 0.25, 0.25)
+        check(bool(rel) and abs(float(rel[0].group(1)) - 0.1) < 0.03 and float(rel[0].group(2)) < 1 and float(rel[0].group(3)) > 6,
               "swap2h: first the off hand off the grip to the empty hand's guard (%s)" % (rel[0].group(0) if rel else "none",))
         i_rel, i_met, i_sent, i_seen, i_done = (idx(p) for p in (r"2h: released", r"flatswap: met: .*\(the pass\)", r"swap sent",
                                                                  r"flatswap: swapped", r"flatswap: done"))
@@ -162,7 +163,7 @@ for tag, two in (("swap1", False), ("swap2h", True), ("swapdual", False)):
         check(bool(met) and float(met[0].group(1)) < 6 and float(met[0].group(2)) < 1,
               "swap2h: the gun passed to the hand at the guard (%s)" % (met[0].group(0) if met else "none",))
         sent = [l for l in ls if "swap sent" in l]
-        want = 0.45
+        want = 0.2  # (the release's 0.1 and the pass's 0.1)
         stance = [l for l in ls if l.startswith("  stance:")]
         check(len(stance) >= 2 and "holding its grip" in stance[-1] and "torso 15.0" in stance[-1],
               "swap2h: ends with the main hand holding the gun's grip, the gun in the off hand (%s)" % (stance[-1] if stance else "none",))
