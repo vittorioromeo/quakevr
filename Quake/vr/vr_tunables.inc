@@ -648,8 +648,9 @@ QVR_TUNABLE(vr_shells_ssg_spread, "0.15") // random spread, a share of their spe
 QVR_TUNABLE(vr_shells_ssg_spin, "12") // their tumble, radians a second (and a little random)
 QVR_TUNABLE(vr_shells_rv_speed, "1.3") // the revolver's spent shells out of its swung-out cylinder's chambers: metres a second (on the gun's own velocity; a VR push adds the hand's)
 QVR_TUNABLE(vr_shells_rv_back, "1") // their way out, in the gun's frame: back along the cylinder's axis (the ejector's)
-QVR_TUNABLE(vr_shells_rv_up, "0.6") // up
-QVR_TUNABLE(vr_shells_rv_out, "0.25") // outward, away from the body's middle (the left hand's mirrored)
+QVR_TUNABLE(vr_shells_rv_up, "0") // the gun's up (the swung-out cylinder hangs down and out: up is towards the frame)
+QVR_TUNABLE(vr_shells_rv_out, "0.4") // out, away from the frame: the side the swung-out cylinder hangs out on (his words 2026-11-11: "away from the cylinder")
+QVR_TUNABLE(vr_shells_rv_stroke, "0.06") // metres the shells go straight out of the back of their chambers (the ejector's stroke) before the face's rule turns them past it (vr_shells_face_deflect); 0: turned at once, the old
 QVR_TUNABLE(vr_shells_rv_spread, "0.12") // random spread, a share of their speed
 QVR_TUNABLE(vr_shells_rv_spin, "8") // their tumble, radians a second (and a little random)
 QVR_TUNABLE(vr_holster_haptic_time, "0.25") // seconds of the buzz as a hand reaches a holster (vr_holster_haptics 2: once)
@@ -890,7 +891,7 @@ QVR_TUNABLE(vr_adgun_fumigator_range, "260") // ... how far its puffs reach, uni
 QVR_TUNABLE(vr_adgun_fumigator_fuel, "100") // ... its fuel: the puffs it holds
 QVR_TUNABLE(vr_adgun_fumigator_rate, "0.1") // ... seconds between its puffs, the trigger held
 QVR_TUNABLE(vr_adgun_crossbow_damage, "30") // the crossbow knight's dropped crossbow: a bolt's damage (AD's bolt: 15; positional: a head more)
-QVR_TUNABLE(vr_adgun_crossbow_speed, "1050") // ... your bolts' speed: 1.5 times the knights' (AD's on normal skill: 700; his notes 2026-10-19; 700 before vr_cfg_version 161)
+QVR_TUNABLE(vr_adgun_crossbow_speed, "1208") // ... your bolts' speed: 1.5 times the knights' (AD's on normal skill: 700; his notes 2026-10-19; 1050 until 2026-11-11: 15% faster)
 QVR_TUNABLE(vr_adgun_crossbow_ammo, "10") // ... the bolts it holds as it drops (its own: never refilled)
 QVR_TUNABLE(vr_adgun_crossbow_refire, "1") // ... seconds from a shot to the next (the knight reloads in 2)
 QVR_TUNABLE(vr_admelee_sword_damage, "1.25") // ... their swords' damage, times the knight's sword's (vr_sword_damage_mult; the hell knight's: 1.25)
@@ -1250,7 +1251,9 @@ QVR_TUNABLE(vr_enemy_weapon_drop_max, "48") // most single-use enemy weapons lyi
 QVR_TUNABLE(vr_chainsaw_drop_run, "3") // seconds a running chainsaw dropped or thrown runs on (QC VR_Saw_PropRuns); taken back meanwhile, still running. 0: it stops at once
 QVR_TUNABLE(vr_gruntgun_ammo, "30") // the rounds a grunt's dropped burst rifle holds (its own: never refilled; a multiple of 3)
 QVR_TUNABLE(vr_grunt_burst_damage, "5") // a grunt's burst: each round's damage to what it hits (id's shotgun: 4 pellets of 4)
-QVR_TUNABLE(vr_enfrifle_speed, "1800") // an enforcer's dropped laser rifle: its lasers' speed, units a second (the enforcer's own: 600)
+QVR_TUNABLE(vr_enfrifle_speed, "2070") // an enforcer's dropped laser rifle: its lasers' speed, units a second (1800 until 2026-11-11: 15% faster; the enforcer's own: vr_enforcer_laser_speed)
+QVR_TUNABLE(vr_enforcer_laser_speed, "690") // the enforcer's own laser bolts' speed (QC LaunchLaser: every monster's and armed humanoid's), units a second (id's 600: 15% faster)
+QVR_TUNABLE(vr_adknight_bolt_scale, "1.15") // the Arcane Dimensions crossbow knights' bolts' speed times this (AD's skill formula, 700 on normal skill; 15% faster)
 QVR_TUNABLE(vr_enfrifle_ammo, "20") // the shots an enforcer's dropped rifle holds (its own: never refilled)
 QVR_TUNABLE(vr_enemygun_spent_volume, "0.5") // the volume of the corpses' crackle (misc/power.wav) as it starts (0: silent)
 

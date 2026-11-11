@@ -1,0 +1,9 @@
+# projspeed: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The nailguns and an enforcer with its rifle, to feel the faster projectiles.
+title Faster nails and enforcer lasers: nailguns at your feet, an enforcer with a rifle ahead
+map vrtesthall
+god
+notarget
+spawn "Nailgun" 64 14
+spawn "Super Nailgun" 64 -14
+spawnarmed monster_vr_enforcer 16 0 300 0
+hint Pick up the nailguns and shoot: the nails fly about 15% faster than before. The enforcer ahead fires its rifle at you (you are in god mode): its lasers are about 15% faster too.

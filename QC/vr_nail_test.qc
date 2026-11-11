@@ -544,10 +544,10 @@ void() VR_NailTest_Frame =
         {
             float flown = vlen(vr_nlt_nail.origin - vr_nlt_o1) / max(0.001, time - vr_nlt_t1);
             float want = vr_nlt_case == 2 ? cvar_hget(cvarh_vr_nailpistol_speed) : cvar_hget(cvarh_vr_nail_speed);
-            float before = vr_nlt_case == 2 ? 2600 : 1750;
+            float before = vr_nlt_case == 2 ? 3070 : 2065; // (round 23's; 2026-11-11: 15% more)
             float r = flown / before;
-            VR_Test_Check(fabs(flown - want) <= want * 0.01 && r >= 1.15 && r <= 1.2,
-                sprintf("%s: %.0f u/s flown (setting %g; before %g: x%.3f, want x1.15..1.20)", VR_NLT_CaseName(vr_nlt_case),
+            VR_Test_Check(fabs(flown - want) <= want * 0.01 && r >= 1.14 && r <= 1.16,
+                sprintf("%s: %.0f u/s flown (setting %g; before %g: x%.3f, want x1.14..1.16)", VR_NLT_CaseName(vr_nlt_case),
                     flown, want, before, r));
             remove(vr_nlt_nail);
             vr_nlt_nail = world;

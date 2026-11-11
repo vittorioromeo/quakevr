@@ -40,6 +40,7 @@ struct Muzzle
     glm::vec3 up{0.f, 0.f, 1.f};
     glm::vec3 drift{0.f};
     float gunLength{0.f};
+    float ssgOpen{0.f}; // the super shotgun broken open: degrees its barrels are turned down (`at`, `fwd`, `up` with them)
     // The gun as drawn, for points of its model (the nail pistol's vents, a rocket launcher's exhaust): your hand's
     // view entity, else an armed grunt's held weapon's entity; neither for a monster's own gun.
     const view::ViewEntity* view{nullptr};

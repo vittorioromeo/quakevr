@@ -1818,7 +1818,7 @@ QVR_CVAR(vr_smoke_blow, "0", CVAR_ARCHIVE)            // 1: blow into the microp
 QVR_CVAR(vr_gunfx_impacts, "1", CVAR_ARCHIVE)          // bullets' and nails' wall hits by the surface's material (vr_impacts.cpp): dust off stone, sparks off metal, chips off wood
 QVR_CVAR(vr_gunfx_ozone, "1", CVAR_ARCHIVE)            // a faint bluish ozone haze where the thunderbolt's beam plays on a surface
 QVR_CVAR(vr_gunfx_enemies, "1", CVAR_ARCHIVE)          // the monsters' guns too (the grunts', the enforcers', the armed grunts')
-QVR_CVAR(vr_debug_gunfx, "0", CVAR_NONE)               // 1: each shot's gunfire particles ("gunfx shot ...", "gunfx port ...") and your barrels' heat ("gunfx heat ...")
+QVR_CVAR(vr_debug_gunfx, "0", CVAR_NONE)               // 1: each shot's gunfire particles ("gunfx shot ...", "gunfx port ...") and your barrels' heat ("gunfx heat ..."); 2: also each frame the super shotgun is broken open, its muzzle turned with the barrels ("gunfx ssg open ...")
 QVR_CVAR(vr_debug_mic_level, "0", CVAR_NONE)          // 1: the microphone open, its live level floating low in the view against vr_smoke_blow_threshold
 QVR_CVAR(vr_test_mic_level, "-1", CVAR_NONE)          // 0 or more: taken for the microphone's level (no microphone opened); below 0: the real one
 QVR_CVAR(vr_debug_impacts, "0", CVAR_NONE)             // 1: every particle2 message and QC sound the server sends ("impfx p2 ...", "impfx snd ...": the impact table's output, vr_impacts.cpp)
@@ -2489,11 +2489,11 @@ QVR_CVAR(vr_flare_burn, "1", CVAR_ARCHIVE)            // 1: a flare sets what it
 // The nail pistol (QC vr_nailpistol.qc; Combat > Weapon Damage > Nail Pistol): one-handed, semi-automatic (a shot a pull
 // of the trigger), a magazine in its grip fed from your nails (immersive reloading: ejected, a new one from the pouch,
 // slapped in), fast precise nails.
-QVR_CVAR(vr_nailpistol_speed, "3070", CVAR_ARCHIVE)    // its nails' speed, units a second (the nailgun's vr_nail_speed), plus the hand's (2600 until round 23: 18% faster)
+QVR_CVAR(vr_nailpistol_speed, "3530", CVAR_ARCHIVE)    // its nails' speed, units a second (the nailgun's vr_nail_speed), plus the hand's (2600 until round 23, 3070 until 2026-11-11: 15% faster again)
 // The nailgun's and the super nailgun's nails (QC launch_spike, launch_lava_spike), the player's and every monster's
 // that fires them (armed grunts, Scourges, Gremlins): units a second, plus the hand's. Quake's 1000; Quake VR's 1750
-// until round 23 ("15-20%" faster: 2065). Not a trap's (500) nor Arcane Dimensions' monsters' (AD's own speeds).
-QVR_CVAR(vr_nail_speed, "2065", CVAR_ARCHIVE)
+// until round 23 ("15-20%" faster: 2065), 15% more on 2026-11-11 (2375). Not a trap's (500) nor Arcane Dimensions' monsters' (AD's own speeds).
+QVR_CVAR(vr_nail_speed, "2375", CVAR_ARCHIVE)
 QVR_CVAR(vr_nailpistol_cooldown, "0.12", CVAR_ARCHIVE) // s at least from a shot to the next (each a new pull)
 QVR_CVAR(vr_nailpistol_spread, "0.25", CVAR_ARCHIVE)   // degrees its nails stray at most from its aim
 QVR_CVAR(vr_nailpistol_mag_pull, "0", CVAR_ARCHIVE)   // 1: its magazine pulls off by hand as the other guns' (vr_reload_pull_*); 0: only its eject button lets it out (his note 2026-10-29)
@@ -3592,6 +3592,7 @@ QVR_CVAR(vr_model_collide_rest, "1", CVAR_ARCHIVE)    // a thing lying on a hand
 QVR_CVAR(vr_debug_model_collide, "0", CVAR_NONE)      // 1: print each hand's push while a model stops it; 2: and draw its rays (grey as tracked, green/red as drawn) and the push (yellow)
 QVR_CVAR(vr_debug_hand_offset, "0", CVAR_NONE)       // 3: also each fast frame's strike-pass test (vr_melee_world_pass_*: the far part's box, the body found); 1: print each hand drawn away from where it is tracked (0.01 units or more), and by what: the walls, the weight's spring, the models, a prop in the other hand, the body; 2: every frame (tests)
 QVR_CVAR(vr_test_give_wid, "-1", CVAR_NONE)           // impulse 149 (tests): that weapon id, loaded, in the main hand (any id: impulse 150 + id reaches 19)
+QVR_CVAR(vr_test_give_ad, "0", CVAR_NONE)            // impulse 149 (tests): 1 gives the AD soldiers' guns without AD's data too (their models made from the burst rifle's, as armed grunts hold them anywhere; flatfx_test.sh)
 QVR_CVAR(vr_test_spawn, "0", CVAR_NONE)               // impulse 241 (tests): what it puts ahead of you: 0..17 the firing range's dispenser monsters (0 grunt, 1 ogre, 2 zombie, 3 shambler, ...; 18 the Guardian, 19 the dragon, 20 the marksman ogre: tests only), 100 a health box, 101 a shells box, 102/103 an explosive box/a small one, 104 an explosive box that never blows up, 107-109 crates, 110 the rocks and bricks (a row of each), 111/112 a barrel upright/lying, 113 the silver key, 114 a long plank, 115 a brick (the leg sweep tests), 120..124 the climbing tests' crates square to you (a large one, two large stacked, a large one on its side, a small one on a large one, a small one)
 QVR_CVAR(vr_test_spawn_dist, "56", CVAR_NONE)         // and how far ahead (units)
 QVR_CVAR(vr_test_spawn_facing, "0", CVAR_NONE)        // the test spawners' monsters (impulse 241 and 244, vr_physics_spawn): 0 as each did (241 and 244 facing you, vr_physics_spawn its own angle), 1 facing you, 2 facing away (trailer shots), 3 their own angle (a map's 0), 4 its left side to you, 5 its right side to you

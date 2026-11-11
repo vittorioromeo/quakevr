@@ -8914,3 +8914,28 @@ before: `scratch/gl_probe.png` (right: the close-up).
   changed.
 - **Tests:** vr_pp_test 1 63/0; checklist_tests_check 101/0; `vr_scenario validate` gl_housing OK. Scene `gl_housing`.
 - **Not verified:** the headset (flat shots only: the mock headset's hands were out of view).
+## Flat-screen: the super shotgun's wisps, the revolver's shells, the centurion's plasma gun (branch `agent/flatfx`, worktree `flatfx`, 2026-11-11)
+
+- **The super shotgun's wisps "at the wrong spot"**: the muzzle wisps (and the heat glow, the after-smoke) took the
+  shut gun's muzzle and bore ends while its barrels were broken open: 6.67 units off at 45 deg. `vr_gunfx.cpp`
+  `openBarrels` turns the muzzle, its way and up with the barrels and `wispGun` the bore ends (`view::ssgTurned`, the
+  turn the drawn barrels and the shells use). Flat's break and VR's (immersive reloading) share `view::ssgOpenAngle`:
+  one fix for both. Checked against the barrels' own drawn part each frame (`vr_debug_gunfx 2`): 0.001 units off.
+- **The revolver's shells' direction**: the face rule turned their speed towards the face to the gun's side of the
+  look, which for the revolver is across its frame: measured 80-89 deg off the cylinder's axis, 1.1-1.4 m/s into the
+  frame. Now each starts on its chamber as drawn (`view::revolverChamber`: the crane's swing and the cylinder's own
+  turn), goes straight back out of it, 18-27 deg off the axis (back plus out, away from the frame:
+  `view::revolverOutward`), for `vr_shells_rv_stroke` (0.06 m, new), then the face rule turns it past the face to the
+  cylinder's side (awayFromFace's new `prefer`): 1.6-1.9 m/s away from the frame, falling. `vr_shells_rv_out` now means
+  away from the frame (0.4; was 0.25 body-outward), `vr_shells_rv_up` 0 (was 0.6: up is towards the frame). ADS: the
+  same (18-24 deg off the axis). VR shares it (the same eject path).
+- **The centurion's plasma gun: not two-handed, ADS doing nothing**: AD guns without a sights entry learn a line
+  along their top (`sightalign::learnLine`); the centurion's gun has a capacitor drum on top, so its line lay 0.05 over
+  the drum and the ironsight's view was all drum. It now has a table line a unit over the drum
+  (`vr_sightalign_table.inc`, `#adv5` and the old `#adv4`). And a learn tried while the hand and muzzle were not yet
+  where they are held (a grab's first frames: a span under 4 units) gave the model up for the session (no sight line:
+  no stance, no second hand, no ADS); it is now tried again next frame. Its VR two-handed hotspots are slot 29's
+  (`hs1`, `hs2`, as the defender's shotgun). AD isn't mounted in the agents' game folders, so the test gives it without
+  AD's data: `vr_test_give_ad 1` (new test cvar, impulse 149).
+- Tests: `Misc/quakevr/flatfx_test.sh` (ssg, centurion: 10 checks), `flateject_test.sh` (rv checks rewritten: 17).
+  Scenario `flat_centurion` (needs AD).
