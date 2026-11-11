@@ -130,10 +130,11 @@ fi
 if [[ $ONLY == *d* ]]; then
 log=$HERE/scratch/flatwall_d.log
 K="vr_mock_key mouse1 down; wait30; vr_mock_key mouse1 up; wait40; vr_flathud_report; wait2"
-bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map vrtesthall; god; notarget; developer 1; r_norefresh 0; vr_test_give_wid 4; impulse 149; give s 50; wait25; $ON; wait$F; vr_flathud_report; wait2; vr_flatplay_debug 2; echo flatwallfire click; $K; vr_flatplay_debug 0; $OFF; wait$F; $K; echo flatwallfire done; toggleconsole; quit" -Filter "^flathud: pools|^flatwallfire|^flatwallturn" -QuitOn "flatwallfire done" -Timeout 120 > "$log" 2>&1
-read -r s0 s1 s3 <<<"$(grep -a "^flathud: pools" "$log" | sed 's/.*shells \([0-9]*\).*/\1/' | tr '\n' ' ')"
+bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map vrtesthall; god; notarget; developer 1; r_norefresh 0; vr_test_give_wid 4; impulse 149; give s 50; wait25; $ON; wait$F; vr_flathud_report; wait2; vr_flatplay_debug 2; echo flatwallfire click; $K; vr_flatplay_debug 0; $OFF; wait$F; $K; echo flatwallfire done; toggleconsole; quit" -Filter "^flathud: right hand|^flatwallfire|^flatwallturn" -QuitOn "flatwallfire done" -Timeout 120 > "$log" 2>&1
+# (The shells in the gun's clip, not the pool: since the clips of 2026-11-08 a shot spends the clip, the pool stays.)
+read -r s0 s1 s3 <<<"$(grep -a "^flathud: right hand" "$log" | sed 's/.* clip \([0-9]*\)\/.*/\1/' | tr '\n' ' ')"
 turned=$(grep -a "^flatwallturn" "$log" | awk '{ if ($7 < m || !n) m = $7; n++; b += $15 } END { printf "%.1f deg at least, blocked %d of %d frames", m, b, n }')
-echo "  shells: at the wall $s0, clicked $s1 (turned $turned); off the wall, clicked $s3"
+echo "  shells in the clip: at the wall $s0, clicked $s1 (turned $turned); off the wall, clicked $s3"
 check $( [ -n "$s3" ] && [ "$s1" = "$s0" ] && echo 1 || echo 0) "tilted at the wall, a click fires nothing (no shell spent)"
 check $( [ -n "$s3" ] && [ "$s3" -lt "$s1" ] && echo 1 || echo 0) "off the wall, it fires"
 fi
