@@ -1,0 +1,16 @@
+# arena_gunknights: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one" (ARENA_DIRECTOR.md section 13: knights and death knights with guns; the full check is vr_arena_test 42)
+title Survival Arena: knights and death knights holding guns (shotgun, nailgun, rocket launcher)
+map vrarena
+start 0 0 120 45
+god
+notarget
+cvar vr_agrunt_freeze 1
+cvar vr_agrunt_dual_chance 0
+# Knight with a shotgun
+spawnarmed monster_vr_knight 4 0 170 -96
+# Knight with a nailgun
+spawnarmed monster_vr_knight 6 0 170 -32
+# Death knight with a rocket launcher
+spawnarmed monster_vr_hknight 10 0 190 48
+# Death knight with a super nailgun
+spawnarmed monster_vr_hknight 7 0 190 128
