@@ -8859,6 +8859,17 @@ combinations (gun+brick, brick+gun, two bricks, two guns, brick+nothing, gun+not
 passed. Test 7 gained an RMB swing that hurts the grunt (13 passed); test 1 (RMB with each off-hand item: the hand keeps
 it) 15 passed. Docs: FLATPLAY.md "The keys" and "Force grab", the Right Click Ironsight row's help. Scene `flat_prop_buttons`.
 
+## Navmesh: props as obstacles, the towers' last stalls (branch `agent/navprops`)
+
+Details: NAVMESH.md 14 and 15. Resting crates, barrels and explosive boxes big and heavy enough (`vr_nav_props` 1,
+`vr_nav_prop_size` 20, `vr_nav_prop_mass` 10 kg, `vr_nav_prop_rest` 1 s, `vr_nav_prop_move` 6, `vr_nav_prop_batch`
+0.5 s) are cut out of the navmesh: their tiles rebuilt from their own input on the pool (not DetourTileCache: it can't
+fill brushes, run the narrow band or keep the links), given back when cleared; walkers repath; Show Navmesh outlines them
+in purple; the disk cache is untouched. `vr_arena_test 43` (13 passed), scene `nav_props`. Towers: no melee at a foe on
+another level with a path there (`vr_nav_melee_level` 24: the dogs and knights biting and swinging from the stair beside
+the tower's wall), walls slid along (`vr_nav_slide`), short walkers' drops capped at the safe fall (`vr_nav_drop_max`
+150: a dog died of a missed 256 drop), `vr_nav_stuck_log` and `vr_nav_test_kinds` to find such stalls. Checklist
+suggestions: the two lines in the kit's cl_lines_navprops.txt.
 ## The budget director by default (branch `agent/dirdefault`, 2026-11-11)
 
 His question: "Can we enable the arena director by default?" Yes: `vr_arena_director` defaults to 1 (the budget

@@ -3741,6 +3741,7 @@ void() VR_AT36_Spawn =
         at_z = 121;
     }
     p.velocity = '0 0 0';
+    p.flags = p.flags | FL_GODMODE; // (as test 41)
     float kind = VR_AT36_Kind(at36_kind);
     entity oself = self;
     self = spawn();
@@ -3807,7 +3808,12 @@ void() VR_AT36_Frame =
         VR_AT_End();
         return;
     }
-    if(at36_state == 0) { VR_AT36_Spawn(); return; }
+    if(at36_state == 0)
+    {
+        if(VR_Player() == world) { return; } // (the player not in yet: the map's first frames)
+        VR_AT36_Spawn();
+        return;
+    }
     entity m = at36_m;
     entity p = VR_Player();
     if(at36_state == 1)
@@ -3899,6 +3905,15 @@ vector(vector xAt, float xTower) VR_AT41_Turn =
 vector(float xTower) VR_AT41_Top = { return VR_AT41_Turn('402 402 281', xTower); }
 vector(float xTower) VR_AT41_Floor = { return VR_AT41_Turn('620 260 25', xTower); } // (the NE tower's: past its east face)
 
+// The kinds left out by vr_nav_test_kinds (a tunable: bit k is VR_AT41_Kind(k); 0 all): a shorter run while looking at
+// one kind.
+float() VR_AT41_SkipKinds =
+{
+    float mask = cvar_hget(cvarh_vr_nav_test_kinds);
+    while(mask > 0 && at41_kind < AT41_KINDS && !(mask & pow(2, at41_kind))) { at41_kind = at41_kind + 1; }
+    return at41_kind;
+};
+
 void() VR_AT41_Begin =
 {
     if(!ar_mgr) { VR_AT_Check(FALSE, "test 41 needs the arena on (map vrarena)"); VR_AT_End(); return; }
@@ -3906,6 +3921,7 @@ void() VR_AT41_Begin =
     ar_mgr.think = SUB_Null; // (no waves)
     ar_mgr.nextthink = 0;
     at41_kind = 0;
+    VR_AT41_SkipKinds();
     at41_dir = 0;
     at41_tower = 0;
     at41_state = 0;
@@ -3928,6 +3944,7 @@ void() VR_AT41_Spawn =
     else if(at41_dir == 1) { setorigin(p, VR_AT41_Floor(at41_tower)); at = VR_AT41_Top(at41_tower); }
     else { setorigin(p, VR_AT41_Top(at41_tower + 1)); at = VR_AT41_Top(at41_tower); }
     p.velocity = '0 0 0';
+    p.flags = p.flags | FL_GODMODE; // (a `god` typed with the map's load can come before the player: shot dead, the test stood)
     float kind = VR_AT41_Kind(at41_kind);
     entity oself = self;
     self = spawn();
@@ -3972,6 +3989,7 @@ void(float xArrived) VR_AT41_Close =
         {
             at41_dir = 0;
             at41_kind = at41_kind + 1;
+            VR_AT41_SkipKinds();
         }
     }
 }
@@ -3997,7 +4015,12 @@ void() VR_AT41_Frame =
         VR_AT_End();
         return;
     }
-    if(at41_state == 0) { VR_AT41_Spawn(); return; }
+    if(at41_state == 0)
+    {
+        if(VR_Player() == world) { return; } // (the player not in yet: the map's first frames)
+        VR_AT41_Spawn();
+        return;
+    }
     entity m = at41_m;
     entity p = VR_Player();
     if(at41_state == 1)
@@ -4035,6 +4058,255 @@ void() VR_AT41_Frame =
         at41_sample = time + 0.5;
     }
 }
+
+// ---------------------------------------------------------------------------
+// Test 43: props as obstacles (vrarena; NAVMESH.md 14). A knight on the floor east of the dais, the player god-moded on
+// its top. "open": it comes up the east flight. "blocked": a pile of large crates (4 across, 3 on them) on the dais at
+// the east flight's top: it takes another flight. "cleared": the crates removed: the east flight again. "late": the
+// pile set down as it starts out (its path found again when the tiles under it change): another flight. "barrel": a
+// barrel on its line: it goes round (its middle never closer to the barrel's than the two touching) without a stall.
+// "room": 60 crates set down at once west of the dais: the rebuilds timed (navobstacles 4..6), then none at all while
+// they lie (5 s): many props don't keep the mesh rebuilding. Each phase waits on the mesh: its props marked and
+// navobstacles(0) 0 (no prop coming to rest, no tile waiting, no rebuild on the pool).
+// ---------------------------------------------------------------------------
+
+float AT43_CAP = 30;            // seconds for the knight to reach him
+float AT43_SETTLE = 20;         // seconds for the props to rest and the mesh to be rebuilt (a stuck test's give-up)
+float AT43_QUIET = 360;         // frames (5 s) the room must lie without a rebuild
+float at43_phase;               // 0 open, 1 blocked, 2 cleared, 3 late, 4 barrel, 5 room, 6 done
+float at43_state;               // 0 the phase's props, 1 waiting for the mesh, 2 the knight's own start, 3 walking, 4 quiet
+entity at43_m;
+float at43_t0;
+float at43_east;                // it was on the east flight
+float at43_near;                // the nearest (flat) its middle came to the barrel's
+float at43_stall;
+float at43_sample;
+vector at43_was;
+float at43_wait0;
+float at43_batches0;
+float at43_quiet;
+vector AT43_KNIGHT = '650 0 25';
+vector AT43_BARREL = '480 0 20';
+
+// A crate (`xLarge`: 40 x 40 x 48) set down at `xAt` (it rests on what is under it), raised `xUp` (a crate on another).
+void(vector xAt, float xLarge, float xUp) VR_AT43_Crate =
+{
+    entity oself = self;
+    self = spawn();
+    self.spawnflags = xLarge ? 1 : 0;
+    setorigin(self, xAt);
+    vr_crate();
+    if(self.classname == "vr_crate" && xUp > 0) { setorigin(self, self.origin + [0, 0, xUp + 0.1]); }
+    self = oself;
+};
+
+// The props removed (every crate and barrel: vrarena has none of its own).
+void() VR_AT43_Clear =
+{
+    entity e = nextent(world);
+    while(e)
+    {
+        entity n = nextent(e);
+        if(e.classname == "vr_crate") { remove(e); }
+        e = n;
+    }
+};
+
+// The pile on the dais at the east flight's top: 4 large crates across it, 3 on them.
+void() VR_AT43_Pile =
+{
+    float i;
+    for(i = 0; i < 4; i++) { VR_AT43_Crate([212, -60 + 40 * i, 100], TRUE, 0); }
+    for(i = 0; i < 3; i++) { VR_AT43_Crate([212, -40 + 40 * i, 100], TRUE, 48); }
+};
+
+void() VR_AT43_Props =
+{
+    float i;
+    float j;
+    if(at43_phase == 0)
+    {
+        VR_AT43_Clear(); // (the arena's own crates: vr_crates' layout)
+    }
+    else if(at43_phase == 1)
+    {
+        VR_AT43_Pile();
+    }
+    else if(at43_phase >= 2 && at43_phase <= 4)
+    {
+        VR_AT43_Clear();
+        if(at43_phase == 4)
+        {
+            entity oself = self;
+            self = spawn();
+            setorigin(self, AT43_BARREL);
+            vr_barrel();
+            self = oself;
+        }
+    }
+    else if(at43_phase == 5)
+    {
+        VR_AT43_Clear();
+        at43_batches0 = navobstacles(2);
+        for(i = 0; i < 5; i++)
+        {
+            for(j = 0; j < 12; j++) { VR_AT43_Crate([-740 + 48 * i, -264 + 48 * j, 20], FALSE, 0); }
+        }
+    }
+    at43_wait0 = time;
+    at43_state = 1;
+};
+
+// The props the phase waits to see blocking.
+float() VR_AT43_Marks =
+{
+    if(at43_phase == 1) { return 7; }
+    if(at43_phase == 4) { return 1; }
+    if(at43_phase == 5) { return 60; }
+    return 0;
+};
+
+void() VR_AT43_Spawn =
+{
+    entity p = VR_Player();
+    setorigin(p, '0 0 137');
+    p.velocity = '0 0 0';
+    p.flags = p.flags | FL_GODMODE; // (as test 41)
+    entity oself = self;
+    self = spawn();
+    at43_m = self;
+    self.classname = VR_ARENA_ClassName(AR_SP_KNIGHT);
+    setorigin(self, AT43_KNIGHT);
+    self.angles = [0, 180, 0];
+    vr_ar_hold_roll = 1;
+    vr_agr_hold = vr_agr_hold + 1;
+    VR_ARENA_CallSpawn(AR_SP_KNIGHT);
+    vr_agr_hold = vr_agr_hold - 1;
+    vr_ar_hold_roll = 0;
+    self = oself;
+    at43_state = 2;
+};
+
+void(float xArrived) VR_AT43_Close =
+{
+    string name = at43_phase == 0 ? "open" : (at43_phase == 1 ? "blocked" : (at43_phase == 2 ? "cleared" :
+                  (at43_phase == 3 ? "late" : "barrel")));
+    float took = time - at43_t0;
+    dprint(sprintf("navprops: %s: %s %.1f s, east flight %g, nearest the barrel %.1f, stall %.1f, ended %v\n", name,
+                   xArrived ? "there in" : "CAPPED at", took, at43_east, at43_near, at43_stall, at43_m.origin));
+    VR_AT_Check(xArrived, sprintf("%s: the knight reached him inside %g s", name, AT43_CAP));
+    if(at43_phase == 0 || at43_phase == 2) { VR_AT_Check(at43_east, sprintf("%s: it came up the east flight", name)); }
+    if(at43_phase == 1) { VR_AT_Check(!at43_east, "blocked: it kept off the east flight the crates block"); }
+    if(at43_phase == 3) { VR_AT_Check(!at43_east, "late: on its way when the crates came, it found another way"); }
+    if(at43_phase == 4)
+    {
+        VR_AT_Check(at43_near >= 25, sprintf("barrel: it went round the barrel (nearest %.1f, touching 23.5)", at43_near));
+        VR_AT_Check(at43_stall <= 1, sprintf("barrel: no stall (%.1f s)", at43_stall));
+    }
+    remove(at43_m);
+    at43_m = world;
+    at43_phase = at43_phase + 1;
+    at43_state = 0;
+};
+
+void() VR_AT43_Begin =
+{
+    if(!ar_mgr) { VR_AT_Check(FALSE, "test 43 needs the arena on (map vrarena)"); VR_AT_End(); return; }
+    vr_at_until = time + 5 * (AT43_CAP + AT43_SETTLE + 1) + 2 * AT43_SETTLE + AT43_QUIET / 72 + 30;
+    ar_mgr.think = SUB_Null; // (no waves)
+    ar_mgr.nextthink = 0;
+    at43_phase = 0;
+    at43_state = 0;
+    at43_m = world;
+};
+
+void() VR_AT43_Frame =
+{
+    if(at43_phase >= 6)
+    {
+        VR_AT43_Clear();
+        VR_AT_End();
+        return;
+    }
+    if(at43_state == 0) { VR_AT43_Props(); return; }
+    if(at43_state == 1)
+    {
+        float marks = navobstacles(1);
+        float left = navobstacles(0);
+        if(left > 0 || marks != VR_AT43_Marks()) // (exactly its own: the last phase's gone)
+        {
+            if(time - at43_wait0 > AT43_SETTLE)
+            {
+                VR_AT_Check(FALSE, sprintf("phase %g: the mesh never settled (%g blocking, %g left to do)", at43_phase, marks, left));
+                at43_phase = 6;
+            }
+            return;
+        }
+        dprint(sprintf("navprops: phase %g: %g props blocking, settled in %.2f s\n", at43_phase, marks, time - at43_wait0));
+        if(at43_phase == 5)
+        {
+            float batches = navobstacles(2) - at43_batches0;
+            dprint(sprintf("navprops: room: %g crates blocking in %g batches; rebuilds %.1f ms on the pool in all (worst batch "
+                           "%.1f ms), worst main-thread put-in %.2f ms; %g tiles rebuilt or given back since the load\n",
+                           marks, batches, navobstacles(4), navobstacles(5), navobstacles(6), navobstacles(3)));
+            VR_AT_Check(navobstacles(6) < 2, sprintf("room: the main thread's part of a rebuild under 2 ms (%.2f)", navobstacles(6)));
+            at43_batches0 = navobstacles(2);
+            at43_quiet = AT43_QUIET;
+            at43_state = 4;
+            return;
+        }
+        if(VR_Player() == world) { return; } // (the player not in yet)
+        VR_AT43_Spawn();
+        return;
+    }
+    if(at43_state == 4)
+    {
+        float extra = navobstacles(2) - at43_batches0;
+        at43_quiet = at43_quiet - 1;
+        if(at43_quiet > 0 && extra == 0) { return; }
+        VR_AT_Check(extra == 0, sprintf("room: no rebuild while the crates lie (%g)", extra));
+        dprint(sprintf("navprops: room: %g rebuilds in the quiet 5 s\n", extra));
+        at43_phase = 6;
+        return;
+    }
+    entity m = at43_m;
+    entity p = VR_Player();
+    if(at43_state == 2)
+    {
+        if(!m.takedamage) { return; } // (its own start's think)
+        m.enemy = p;
+        m.think = FoundTarget;
+        m.nextthink = time + 0.05;
+        at43_t0 = time;
+        at43_east = 0;
+        at43_near = 99999;
+        at43_stall = 0;
+        at43_sample = time + 0.5;
+        at43_was = m.origin;
+        at43_state = 3;
+        if(at43_phase == 3) { VR_AT43_Pile(); } // (late: the pile comes while it is on its way)
+        return;
+    }
+    float feet = m.origin_z + m.mins_z;
+    if(m.origin_x > 228 && m.origin_x < 390 && fabs(m.origin_y) < 60 && feet > 6) { at43_east = 1; }
+    vector b = m.origin - AT43_BARREL;
+    b_z = 0;
+    at43_near = min(at43_near, vlen(b));
+    float onLevel = fabs(feet - (p.origin_z + p.mins_z)) <= 20;
+    vector d = m.origin - p.origin;
+    d_z = 0;
+    float reach = (m.vr_ag && VR_WP_CarriesRanged(m)) ? 400 : 120;
+    if(onLevel && vlen(d) < reach) { VR_AT43_Close(TRUE); return; }
+    if(time - at43_t0 >= AT43_CAP) { VR_AT43_Close(FALSE); return; }
+    if(time >= at43_sample)
+    {
+        vector moved = m.origin - at43_was;
+        moved_z = 0;
+        if(vlen(moved) < 8) { at43_stall = at43_stall + 0.5; }
+        at43_was = m.origin;
+        at43_sample = time + 0.5;
+    }
+};
 
 // The toolgun's spawn with outcome `xRow` (vr_toolgun_armed_infected_test, vr_toolgun.cpp): it carries it, and rises as it.
 float(entity e, float xRow) VR_Infect_TestOne =
@@ -4926,6 +5198,7 @@ void() VR_ARENA_Test_Frame =
         if(c == 40) { VR_AT40_Begin(); return; }
         if(c == 41) { VR_AT41_Begin(); return; }
         if(c == 42) { VR_AT42_Begin(); return; }
+        if(c == 43) { VR_AT43_Begin(); return; }
 
         VR_AT_Check(FALSE, "no such arena test");
         VR_AT_End();
@@ -4968,5 +5241,6 @@ void() VR_ARENA_Test_Frame =
     if(vr_at_case == 40) { VR_AT40_Frame(); return; }
     if(vr_at_case == 41) { VR_AT41_Frame(); return; }
     if(vr_at_case == 42) { VR_AT42_Frame(); return; }
+    if(vr_at_case == 43) { VR_AT43_Frame(); return; }
 }
 #endif

@@ -57,7 +57,7 @@ float() CheckAttack =
     if(trace_inopen && trace_inwater)
         return FALSE;            // sight line crossed contents
 
-    if(enemy_range == RANGE_MELEE)
+    if(enemy_range == RANGE_MELEE && !VR_NAV_MeleeOff()) // QVR: not at a foe on another level it can walk to
     {    // melee attack
         if(self.th_melee)
         {
@@ -682,7 +682,7 @@ float() ShamCheckAttack =
     vector    spot1, spot2;
     entity    targ;
 
-    if(enemy_range == RANGE_MELEE)
+    if(enemy_range == RANGE_MELEE && !VR_NAV_MeleeOff()) // QVR: not at a foe on another level it can walk to
     {
         if(CanDamage(self.enemy, self))
         {
@@ -741,7 +741,7 @@ float() OgreCheckAttack =
     entity    targ;
     float        chance;
 
-    if(enemy_range == RANGE_MELEE)
+    if(enemy_range == RANGE_MELEE && !VR_NAV_MeleeOff()) // QVR: not at a foe on another level it can walk to
     {
         if(CanDamage(self.enemy, self))
         {
