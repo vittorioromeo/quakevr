@@ -1,0 +1,25 @@
+# nav_crowd: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Twelve melee walkers on the arena's
+# floor come up the dais to you together: they keep apart (vr_nav_separation), round their corners (vr_nav_smooth) and
+# take places round you (vr_nav_slots) instead of filing up one flight; paths drawn (vr_nav_debug 2).
+title Navmesh: a pack of knights and dogs comes at you from several sides
+map vrarena
+start 0 0 137 0
+god
+spawn "Knight" 600 200
+spawn "Knight" 600 -250
+spawn "Knight" 450 450
+spawn "Knight" 500 -500
+spawn "Knight" -600 200
+spawn "Knight" -600 -250
+spawn "Knight" -450 450
+spawn "Knight" -500 -500
+spawn "Rottweiler" 200 600
+spawn "Rottweiler" -200 600
+spawn "Rottweiler" 200 -600
+spawn "Rottweiler" -200 -600
+cvar vr_nav 1
+cvar vr_nav_debug 2
+cvar vr_nav_separation 0.8
+cvar vr_nav_smooth 24
+cvar vr_nav_slots 8
+hint The pack comes up the dais' flights spread out and closes round you from several sides rather than in one file. Compare with Navmesh: Crowd Separation and Approach Slots at 0 (Debug > Tunables).
