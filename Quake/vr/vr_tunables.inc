@@ -2414,3 +2414,9 @@ QVR_TUNABLE(vr_nav_smooth, "0") // a walker this close to a path corner (units) 
 QVR_TUNABLE(vr_nav_slots, "0") // melee walkers (no missile attack) farther than vr_nav_slot_engage from their foe head for one of this many places on a ring round him, each its own, so they come at him from several sides (0: all at his feet)
 QVR_TUNABLE(vr_nav_slot_radius, "80") // ... the ring's radius (units)
 QVR_TUNABLE(vr_nav_slot_engage, "120") // ... nearer than this (units) a melee walker goes straight at him (Quake's chase and melee range)
+QVR_TUNABLE(vr_nav_props, "1") // 1: loose solid props at rest (crates, barrels, explosive boxes) big and heavy enough to block a walker are holes in the navmesh: paths go round them; only their tiles are rebuilt, on the pool; 0: none
+QVR_TUNABLE(vr_nav_prop_size, "20") // ... a prop blocks only if its footprint is at least this wide across its narrower side (units); one under a step high never does
+QVR_TUNABLE(vr_nav_prop_mass, "10") // ... and at least this heavy (kg): a lighter one is pushed aside
+QVR_TUNABLE(vr_nav_prop_rest, "1") // ... after resting this long (seconds): a prop in motion or in a hand is left out
+QVR_TUNABLE(vr_nav_prop_move, "6") // ... a marked prop moved this far (units) or turned 10 degrees from where it was marked loses its mark (marked again once it rests)
+QVR_TUNABLE(vr_nav_prop_batch, "0.5") // ... a class's tiles changed by props are rebuilt together at most this often (seconds)

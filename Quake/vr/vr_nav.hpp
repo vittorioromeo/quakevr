@@ -27,6 +27,16 @@ void afterLoad();
 // in the air off a ledge).
 [[nodiscard]] int action(const edict_t* ent);
 
+// Each server frame (VR_PhysicsFrameEnd, the server's VM current): the movers' and the props' tick (props as obstacles:
+// their rests looked at, their tiles' rebuilds started and joined), whether or not anything chases.
+void serverFrame();
+
+// Builtin navobstacles(what): props as obstacles (vr_nav_props), looked at now: 0 what is left to do (props coming to
+// rest that may block, tiles waiting for their rebuild, rebuilds on the pool: 0 when the mesh is current), 1 props
+// blocking, 2 rebuild batches done, 3 tiles rebuilt or given back since the map's load; 4 the batches' pool time in
+// all (ms), 5 the worst batch's, 6 the worst batch's put-in on the main thread.
+[[nodiscard]] float obstacles(int what);
+
 // The view's debug draws (vr_nav_debug): the navmesh round `view`, and with 2 the monsters' paths.
 void debugDraw(const glm::vec3& view);
 
