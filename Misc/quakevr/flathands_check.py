@@ -114,6 +114,28 @@ ls = lines("grendual")
 done("grendual", ls)
 check(has(ls, r"flat grenade: G: no free hand") and not has(ls, r"goes for the pouch"), "grendual: dual wielding: G does nothing")
 
+# grenoff, grenmain: one hand empty (either side): G takes it, two presses arm and wind up, let go throws.
+for tag, hand, other in (("grenoff", "off", "main"), ("grenmain", "main", "off")):
+    ls = lines(tag)
+    done(tag, ls)
+    check(has(ls, r"flat grenade: G: the %s hand goes for the pouch$" % hand), "%s: the %s hand empty: it goes" % (tag, hand))
+    check(has(ls, r"thrown by the %s hand after" % hand), "%s: armed, wound up and thrown by the %s hand" % (tag, hand))
+
+# The hand slot (every grenade run, vr_debug_carry 2): the grenade a round's kind (4) unarmed, a grenade's (5) once armed,
+# the hand changing with it at once; no mismatch, clash or stale line anywhere; the hand empty once it is thrown.
+for tag, hand in (("gren2h", "off"), ("grenempty", "main"), ("grenoff", "off"), ("grenmain", "main")):
+    ls = lines(tag)
+    check(has(ls, r"^handslot: %s hand takes vr_ammo_front \(kind 4\)" % hand), "%s: the unarmed grenade in the %s hand: a round (kind 4)" % (tag, hand))
+    check(has(ls, r"^handslot: %s hand's grenade now kind 5 \(was 4\)" % hand), "%s: armed: the %s hand's kind a grenade's (5) at once" % (tag, hand))
+    check(has(ls, r"^handslot: %s hand lets go of grenade \(throw\)" % hand), "%s: thrown: the %s hand lets go of it" % (tag, hand))
+    end = [l for l in ls if l.startswith("flat grenade: done;")]
+    check(bool(end) and end[-1] == "flat grenade: done; the %s hand holds nothing (kind 0)" % hand,
+          "%s: after the throw the %s hand is empty, kind 0 (%s)" % (tag, hand, end[-1] if end else "none"))
+check(has(lines("grenempty"), r"^handslot: main hand lets go of vr_ammo_front \(stow\)"), "grenempty: put back: the main hand lets go of it")
+bad = [(tag, l) for tag in ("drop", "gren2h", "grenempty", "grendual", "grenoff", "grenmain", "swap1", "swap2h", "swapdual", "swapoff")
+       for l in lines(tag) if re.match(r"handslot: (mismatch|clash|stale)", l)]
+check(not bad, "no handslot mismatch/clash/stale line in any run (%s)" % (bad[:2],))
+
 # swaps
 for tag, two in (("swap1", False), ("swap2h", True), ("swapdual", False)):
     ls = lines(tag)

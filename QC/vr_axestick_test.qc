@@ -426,6 +426,24 @@ void() VR_SlotTest_Run =
     VR_Hand_Check(self, h);
     VR_Test_Check(VR_Hand_Kind(self, h) == VR_HOLD_NONE, "a stale tug ends");
     remove(e);
+
+    // A pouch grenade (the headset's back pouch and flat-screen play's G alike: VR_HandGrenade_Take): a launcher's round
+    // while unarmed, a grenade once armed, the hand's kind changing with it at once (no mismatch line from the frame's
+    // check), empty again once let go of.
+    entity g = VR_HandGrenade_Make(self, WID_GRENADE_LAUNCHER, AID_ROCKETS, VRGetEntHandPos(self, h), VRGetEntHandRot(self, h));
+    vr_carry_quiet = TRUE;
+    VR_Carry_Start(self, h, g);
+    vr_carry_quiet = FALSE;
+    VR_Test_Check(VR_Hand_Thing(self, h) == g && VR_Hand_Kind(self, h) == VR_HOLD_ROUND, "an unarmed pouch grenade held: a round");
+    VR_HandGrenade_Arm(g, h, "slot test");
+    VR_Test_Check(VR_Hand_Thing(self, h) == g && VR_Hand_Kind(self, h) == VR_HOLD_GRENADE, "armed: the hand's kind a grenade's at once");
+    VR_Hand_Check(self, h);
+    VR_Test_Check(VR_Hand_Kind(self, h) == VR_HOLD_GRENADE, "the frame's check agrees");
+    VR_Hand_Release(self, h, "test");
+    g.carry_player = world;
+    VR_Test_Check(VR_Hand_Thing(self, h) == world && VR_Hand_Kind(self, h) == VR_HOLD_NONE && VR_Hand_Free(self, h, 0),
+        "let go of: the hand empty and free");
+    remove(g);
     VR_Test_Verdict();
 };
 #endif

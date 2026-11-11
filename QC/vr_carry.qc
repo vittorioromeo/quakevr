@@ -323,6 +323,34 @@ void(entity xPlayer, entity xThing, string xWhy) VR_Hand_ReleaseThing =
     }
 };
 
+// `xThing` became another kind while held (a pouch grenade armed: a live grenade, no longer a launcher's round, VR_Hand_KindOf
+// VR_HOLD_GRENADE for VR_HOLD_ROUND): the hand or hands of its carrier holding it take it again, so their kind is its new
+// one (not VR_Hand_Check's mismatch a frame later).
+void(entity xPlayer, float xHand, entity xThing) VR_Hand_RekindHand =
+{
+    float want = VR_Hand_KindOf(xThing);
+    if(VR_Hand_Thing(xPlayer, xHand) != xThing || VR_Hand_Kind(xPlayer, xHand) == want)
+    {
+        return;
+    }
+    if(cvar_hget(cvarh_vr_debug_carry) >= 2)
+    {
+        bprint(sprintf("handslot: %s hand's %s now kind %g (was %g)\n", xHand == cVR_OffHand ? "off" : "main",
+            xThing.classname, want, VR_Hand_Kind(xPlayer, xHand)));
+    }
+    VR_Hand_Take(xPlayer, xHand, xThing);
+};
+
+void(entity xThing) VR_Hand_Rekind =
+{
+    entity p = xThing.carry_player;
+    if(p != world)
+    {
+        VR_Hand_RekindHand(p, cVR_OffHand, xThing);
+        VR_Hand_RekindHand(p, cVR_MainHand, xThing);
+    }
+};
+
 // The per-frame check (the slot's tests): each hand's kind is its thing's. A kind that disagrees (a write past
 // VR_Hand_Take, a save from before the slot, a thing that became another kind while held) takes its thing's, with a line.
 void(entity xPlayer, float xHand) VR_Hand_Check =
