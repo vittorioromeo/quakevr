@@ -42,12 +42,13 @@ namespace
 {
 
 // Bumped whenever the build could make another mesh from the same input (the steps, their constants, the areas).
-// 2: drop and lift links.
-constexpr unsigned navVersion = 2;
+// 2: drop and lift links. 4: the narrow band (vr_nav_narrow; 3 its first try, drop links from the band).
+constexpr unsigned navVersion = 4;
 constexpr char navMagic[5] = "QVNM";
 
-// Detour's areas and flags.
-constexpr unsigned char areaGround = 1, areaWater = 2, areaSlime = 3, areaLava = 4, areaDrop = 5, areaLift = 6;
+// Detour's areas and flags. areaNarrow: the narrow band's dry floor (closer to walls and ledges than the clearance).
+constexpr unsigned char areaGround = 1, areaWater = 2, areaSlime = 3, areaLava = 4, areaDrop = 5, areaLift = 6, areaNarrow = 7;
+constexpr unsigned char rcNarrowArea = 62; // (Recast's area of the band's spans, till the polygons get theirs)
 constexpr unsigned short flagWalk = 1, flagBlocked = 2, flagDrop = 4, flagLift = 8;
 
 constexpr int maxPath = 256;    // polygons in a monster's path
@@ -449,6 +450,7 @@ struct Settings
     float cs, ch, climb, slope, clearance;
     int tile;
     float drops, dropMax, dropMaxBig, lifts; // (the links': vr_nav_drop, its heights, vr_nav_lifts)
+    float narrow; // (vr_nav_narrow: the narrow band's clearance, times the half width; 0 none)
 };
 
 Settings settingsNow()
@@ -456,7 +458,7 @@ Settings settingsNow()
     return Settings{za::max(vr_nav_cell.value, 0.5f), za::max(vr_nav_cell_height.value, 0.25f), za::max(vr_nav_climb.value, 0.f),
         vr_nav_slope.value, za::max(vr_nav_clearance.value, 0.f), za::max(static_cast<int>(vr_nav_tile.value), 8),
         vr_nav_drop.value != 0.f ? 1.f : 0.f, za::max(vr_nav_drop_max.value, 0.f), za::max(vr_nav_drop_max_big.value, 0.f),
-        vr_nav_lifts.value != 0.f ? 1.f : 0.f};
+        vr_nav_lifts.value != 0.f ? 1.f : 0.f, za::max(vr_nav_narrow.value, 0.f)};
 }
 
 unsigned char areaAt(const glm::vec3& q)
@@ -521,8 +523,46 @@ void fillSolids(rcContext& ctx, const Geometry& g, const za::Vector<int>& brushB
 }
 
 // One tile of a class's mesh: its triangles (bins), Recast's steps, Detour's data. False: nothing walkable there.
-bool buildTile(const Geometry& g, const za::Vector<int>& bin, const za::Vector<int>& brushBin, const rcConfig& base, int tx, int ty,
-    TileSrc& out)
+// The narrow band (`narrowRadius` voxels, under the clearance's cfg.walkableRadius; 0 none): eroded by the clearance, a
+// place that only a gap a little wider than the box leads to (a stair's top two treads beside a tower's wall and over
+// a drop: the arena's towers) was cut off. The spans the smaller erosion keeps and the clearance's took become the band's
+// own area (their own regions and polygons, at vr_nav_narrow_cost), so a path keeps to the clearance where there is
+// room and goes through the band only where nothing else leads (the box still collides with the real walls).
+bool erodeWithBand(rcContext& ctx, int radius, int narrowRadius, rcCompactHeightfield& chf, za::Vector<unsigned char>& keep)
+{
+    if(narrowRadius <= 0 || narrowRadius >= radius)
+    {
+        return rcErodeWalkableArea(&ctx, radius, chf);
+    }
+    const auto n = static_cast<za::SizeT>(chf.spanCount);
+    keep.clear();
+    keep.emplaceBackRange(chf.areas, n);
+    if(!rcErodeWalkableArea(&ctx, radius, chf))
+    {
+        return false;
+    }
+    for(za::SizeT i = 0; i < n; ++i)
+    {
+        const unsigned char eroded = chf.areas[i]; // (keep: the clearance's; chf: the original again)
+        chf.areas[i] = keep[i];
+        keep[i] = eroded;
+    }
+    if(!rcErodeWalkableArea(&ctx, narrowRadius, chf))
+    {
+        return false;
+    }
+    for(za::SizeT i = 0; i < n; ++i)
+    {
+        if(chf.areas[i] != RC_NULL_AREA && keep[i] == RC_NULL_AREA)
+        {
+            chf.areas[i] = rcNarrowArea;
+        }
+    }
+    return true;
+}
+
+bool buildTile(const Geometry& g, const za::Vector<int>& bin, const za::Vector<int>& brushBin, const rcConfig& base, int narrowRadius,
+    int tx, int ty, TileSrc& out)
 {
     rcConfig cfg = base;
     const float tw = static_cast<float>(cfg.tileSize) * cfg.cs;
@@ -546,6 +586,7 @@ bool buildTile(const Geometry& g, const za::Vector<int>& bin, const za::Vector<i
     }
     rcContext ctx{false};
     bool ok = false;
+    za::Vector<unsigned char> band;
     rcHeightfield* hf = rcAllocHeightfield();
     rcCompactHeightfield* chf = rcAllocCompactHeightfield();
     rcContourSet* cset = rcAllocContourSet();
@@ -568,7 +609,7 @@ bool buildTile(const Geometry& g, const za::Vector<int>& bin, const za::Vector<i
         rcFilterLedgeSpans(&ctx, cfg.walkableHeight, cfg.walkableClimb, *hf);
         rcFilterWalkableLowHeightSpans(&ctx, cfg.walkableHeight, *hf);
         if(!rcBuildCompactHeightfield(&ctx, cfg.walkableHeight, cfg.walkableClimb, *hf, *chf) ||
-            !rcErodeWalkableArea(&ctx, cfg.walkableRadius, *chf) || !rcBuildDistanceField(&ctx, *chf) ||
+            !erodeWithBand(ctx, cfg.walkableRadius, narrowRadius, *chf, band) || !rcBuildDistanceField(&ctx, *chf) ||
             !rcBuildRegions(&ctx, *chf, cfg.borderSize, cfg.minRegionArea, cfg.mergeRegionArea) ||
             !rcBuildContours(&ctx, *chf, cfg.maxSimplificationError, cfg.maxEdgeLen, *cset) || cset->nconts == 0 ||
             !rcBuildPolyMesh(&ctx, *cset, cfg.maxVertsPerPoly, *pmesh) || pmesh->npolys == 0 ||
@@ -591,7 +632,9 @@ bool buildTile(const Geometry& g, const za::Vector<int>& bin, const za::Vector<i
             }
             const float inv = 1.f / static_cast<float>(za::max(nv, 1));
             const float m[3]{mid[0] * inv, mid[1] * inv + 8.f, mid[2] * inv};
-            pmesh->areas[i] = pmesh->areas[i] == RC_WALKABLE_AREA ? areaAt(fromRc(m)) : 0;
+            const unsigned char rcArea = pmesh->areas[i];
+            const unsigned char under = rcArea == RC_WALKABLE_AREA || rcArea == rcNarrowArea ? areaAt(fromRc(m)) : 0;
+            pmesh->areas[i] = rcArea == rcNarrowArea && under == areaGround ? areaNarrow : under;
             pmesh->flags[i] = flagWalk;
         }
         ok = true;
@@ -850,7 +893,10 @@ void findDrops(const Geometry& g, const Settings& s, const NavClass& c, const Br
         for(int p = 0; p < tile->header->polyCount; ++p)
         {
             const dtPoly& poly = tile->polys[p];
-            if(poly.getType() != DT_POLYTYPE_GROUND || poly.getArea() == areaLava || poly.getArea() == areaSlime)
+            // (Not from the narrow band: a link starts at the clearance's edge, where the box stands clear of the ledge, as
+            // without the band; that edge's neighbour is a band polygon now.)
+            if(poly.getType() != DT_POLYTYPE_GROUND || poly.getArea() == areaLava || poly.getArea() == areaSlime ||
+                poly.getArea() == areaNarrow)
             {
                 continue;
             }
@@ -862,7 +908,9 @@ void findDrops(const Geometry& g, const Settings& s, const NavClass& c, const Br
             dtVscale(cen, cen, 1.f / static_cast<float>(poly.vertCount));
             for(int k = 0; k < poly.vertCount; ++k)
             {
-                if(poly.neis[k] != 0)
+                const unsigned short nei = poly.neis[k];
+                const bool toBand = nei != 0 && !(nei & DT_EXT_LINK) && tile->polys[nei - 1].getArea() == areaNarrow;
+                if(nei != 0 && !toBand)
                 {
                     continue;
                 }
@@ -1026,6 +1074,8 @@ void buildClass(const Geometry& g, const Settings& s, NavClass& c)
     // Kept off walls and ledges by the box's reach at any angle (a square's corner: radius times up to 1.41), so a
     // path's corner never puts a box corner over a ledge (SV_CheckBottom) or into a slanted wall.
     cfg.walkableRadius = static_cast<int>(za::ceil(c.radius * s.clearance / s.cs));
+    // ... and the narrow band's, closer (erodeWithBand).
+    const int narrowRadius = s.narrow > 0.f ? static_cast<int>(za::ceil(c.radius * s.narrow / s.cs)) : 0;
     cfg.maxEdgeLen = static_cast<int>(48.f / s.cs);
     cfg.maxSimplificationError = 1.3f;
     cfg.minRegionArea = static_cast<int>(rcSqr(24.f / s.cs));
@@ -1096,7 +1146,7 @@ void buildClass(const Geometry& g, const Settings& s, NavClass& c)
         for(za::SizeT i = begin; i < end; ++i)
         {
             const int x = static_cast<int>(i) % tilesX, y = static_cast<int>(i) / tilesX;
-            has[i] = !bins[i].empty() && buildTile(g, bins[i], brushBins[i], cfg, x, y, srcs[i]) ? 1 : 0;
+            has[i] = !bins[i].empty() && buildTile(g, bins[i], brushBins[i], cfg, narrowRadius, x, y, srcs[i]) ? 1 : 0;
         }
     });
     // The mesh without links, then the links found on it, then each tile with links made again with them.
@@ -1193,7 +1243,7 @@ za::String buildName()
 za::U64 keyOf(const Geometry& g, const Settings& s, const NavClass& c)
 {
     const float v[] = {s.cs, s.ch, s.climb, s.slope, static_cast<float>(s.tile), c.radius, c.height, s.clearance, s.drops, s.dropMax,
-        s.dropMaxBig, s.lifts};
+        s.dropMaxBig, s.lifts, s.narrow};
     za::U64 h = diskcache::fnv(g.hash, v, sizeof(v));
     for(const Ride& r : g.rides)
     {
@@ -1528,6 +1578,7 @@ void setCosts()
     filter.setIncludeFlags(flagWalk);
     filter.setExcludeFlags(flagBlocked);
     filter.setAreaCost(areaGround, 1.f);
+    filter.setAreaCost(areaNarrow, za::max(vr_nav_narrow_cost.value, 1.f));
     filter.setAreaCost(areaWater, za::max(vr_nav_water_cost.value, 1.f));
     filter.setAreaCost(areaSlime, za::max(vr_nav_slime_cost.value, 1.f));
     filter.setAreaCost(areaLava, za::max(vr_nav_lava_cost.value, 1.f));
@@ -1562,10 +1613,23 @@ void info_f()
     for(za::SizeT i = 0; i < state.classes.size(); ++i)
     {
         const NavClass& c = state.classes[i];
-        Con_Printf("nav: class %d: radius %.0f height %.0f: %s, %d tiles, %d polygons, %d drop and %d lift links, %.1f KB, %s in %.1f ms "
-                   "(joined in %.1f ms), %d blocked\n",
-            static_cast<int>(i), c.radius, c.height, c.pending ? "building" : c.failed ? "FAILED" : "ready", c.tiles, c.polys, c.drops,
-            c.lifts, static_cast<double>(c.bytes) / 1024.0, c.fromDisk ? "read" : "built", c.ms, c.joinMs,
+        int narrow = 0; // (the narrow band's polygons: vr_nav_narrow)
+        if(c.mesh && !c.pending)
+        {
+            const dtNavMesh& m = *c.mesh;
+            for(int t = 0; t < m.getMaxTiles(); ++t)
+            {
+                const dtMeshTile* tile = m.getTile(t);
+                for(int p = 0; tile && tile->header && p < tile->header->polyCount; ++p)
+                {
+                    narrow += tile->polys[p].getArea() == areaNarrow ? 1 : 0;
+                }
+            }
+        }
+        Con_Printf("nav: class %d: radius %.0f height %.0f: %s, %d tiles, %d polygons (%d narrow), %d drop and %d lift links, %.1f KB, %s "
+                   "in %.1f ms (joined in %.1f ms), %d blocked\n",
+            static_cast<int>(i), c.radius, c.height, c.pending ? "building" : c.failed ? "FAILED" : "ready", c.tiles, c.polys, narrow,
+            c.drops, c.lifts, static_cast<double>(c.bytes) / 1024.0, c.fromDisk ? "read" : "built", c.ms, c.joinMs,
             static_cast<int>(c.blocked.size()));
     }
     // The walkers now on the map by class (a class's first one named), and any without a class (none expected).
@@ -2981,6 +3045,7 @@ void debugDraw(const glm::vec3& view)
                             : area == areaWater ? glm::vec4{0.1f, 0.3f, 0.9f, 0.4f}
                             : area == areaSlime ? glm::vec4{0.3f, 0.9f, 0.1f, 0.4f}
                             : area == areaLava  ? glm::vec4{1.f, 0.5f, 0.05f, 0.45f}
+                            : area == areaNarrow ? glm::vec4{0.85f, 0.85f, 0.2f, 0.3f}
                                                 : glm::vec4{0.1f, 0.75f, 0.7f, 0.3f};
             const glm::vec4 edge{col.r * 0.5f, col.g * 0.5f, col.b * 0.5f, 0.9f};
             glm::vec3 prev = fromRc(&tile->verts[poly.verts[poly.vertCount - 1] * 3]) + lift;

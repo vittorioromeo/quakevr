@@ -239,6 +239,7 @@ float vr_ag_rthreat; // ... its enemy threatens it up close (a melee weapon in h
 .float vr_ag_hp0;         // its health at its fullest (seen)
 .float vr_ag_rwalk_at;    // its last step walking as it fired (VR_AG_WalkFire)
 float vr_ag_range_backs;  // steps it took backing off (the tests)
+float vr_ag_range_paths;  // steps it took along its path to a foe on another level instead (the tests)
 
 // Weapon `wid` keeps a fighting distance (not a melee weapon or its fists).
 float(float wid) VR_AG_HasRanges =
@@ -471,8 +472,18 @@ float(float dist) VR_AG_MeleeSpaceMove =
 };
 
 // ai_run (its moves between its attacks, `dist` its run frame's): keeping its distance; FALSE: as before.
+// Its foe on another level (more than vr_nav_level up or down: a tower's top, a balcony) and a path there on the navmesh:
+// on along the path instead (its range keeping, its strafes and its standoff are flat moves that ran it into the
+// tower's edge, under him, for good: NAVMESH.md 13). No path (none there, or he is straight ahead on the mesh): as before.
 float(float dist) VR_AG_RangeMove =
 {
+    float lev = cvar_hget(cvarh_vr_nav_level);
+    if(lev > 0 && fabs((self.enemy.origin_z + self.enemy.mins_z) - (self.origin_z + self.mins_z)) > lev &&
+       VR_NAV_Step(dist * VR_AG_Speed()))
+    {
+        vr_ag_range_paths = vr_ag_range_paths + 1;
+        return TRUE;
+    }
     if(!enemy_vis || !VR_AG_Ranges(self))
     {
         self.vr_ag_rback = 0;

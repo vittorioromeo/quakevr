@@ -388,6 +388,7 @@ vr_arena_test    37       vr_arena_test.qc                 ammo boxes' weapons: 
 vr_arena_test    38       vr_arena_test.qc                 arena map check, banners and their image's pixels (vrarena, and e1m1 for the half off the arena)
 vr_arena_test    39       vr_arena_test.qc                 the arena's messages on the wrist gadget (vrarena, headset mock; vr_arena_wrist on, out of view, off)
 vr_arena_test    40       vr_arena_test.qc                 the weapon schedule's weapons dropped by felled grunts, taken and fired by the player (vrarena)
+vr_arena_test    41       vr_arena_test.qc                 the corner towers: armed grunts, enforcers, knights, ogres, dogs up, down and across the towers on the navmesh (vrarena)
 
 vr_burn_test     1*       vr_burning_test.qc               (the Debug menu runs it: the dispatcher's fall-through)
 vr_burn_test     2*       vr_burning_test.qc               (the Debug menu runs it: the dispatcher's fall-through)

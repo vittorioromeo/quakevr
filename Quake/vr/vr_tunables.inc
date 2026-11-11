@@ -2392,6 +2392,9 @@ QVR_TUNABLE(vr_nav_slime_cost, "20") // ... under slime
 QVR_TUNABLE(vr_nav_lava_cost, "60") // ... under lava
 QVR_TUNABLE(vr_nav_movers, "0.25") // how often the floor under doors, lifts and trains is checked (seconds): blocked while one stands in the way
 QVR_TUNABLE(vr_nav_clearance, "1.41") // the navmesh kept this many times a monster's half width off walls and ledges (1.41: a square box's corner at any angle; 1: its side)
+QVR_TUNABLE(vr_nav_narrow, "0.5") // the navmesh's narrow band: floor this many times a monster's half width off walls and ledges (under the clearance) is kept too, at a higher cost, so a gap a little wider than the box (the arena towers' stair tops) still joins the mesh; 0: none (NAVMESH.md 13)
+QVR_TUNABLE(vr_nav_narrow_cost, "3") // the paths' cost of a unit of the narrow band's floor (1 the mesh's): a path keeps to the clearance where there is room
+QVR_TUNABLE(vr_nav_level, "64") // an armed humanoid whose foe stands more than this higher or lower (units, feet to feet) follows its navmesh path there instead of keeping its fighting distance, strafing or holding its standoff (0: never)
 QVR_TUNABLE(vr_nav_sidestep, "35") // a navmesh step toward the path's corner blocked (a prop, another monster): tried this many degrees to either side before Quake's chase takes over (0: not tried)
 QVR_TUNABLE(vr_nav_drop, "1") // 1: the navmesh has drop links (off a ledge to the floor below, found at its build): a walker takes one when it is clearly shorter, walking off the ledge and falling (the one place Quake's never-step-off-a-ledge rule is relaxed); 0: none
 QVR_TUNABLE(vr_nav_drop_max, "192") // the highest drop a walker of Quake's short height (56) takes (units; monsters take no fall damage)

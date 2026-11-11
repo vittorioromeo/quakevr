@@ -3833,6 +3833,197 @@ void() VR_AT36_Frame =
     }
 }
 
+// ---------------------------------------------------------------------------
+// Test 41: the corner towers (vrarena; NAVMESH.md 13). One foe at a time, the player god-moded and standing: "up" (him
+// on a tower's top, the foe on the floor off the tower's far side, so its way is round the tower to the stair), "down"
+// (the foe on the top, him on that floor place) and "across" (the foe on one tower's top, him on the next tower's,
+// a quarter turn on: NE to NW and SW to SE go down a stair, over the floor and up the other; NW to SW and SE to NE go
+// over a wall walk). Each of the 4 towers, each kind: an armed grunt with a shotgun and an enforcer with a rifle (their
+// own range keeping and strafes: the case vr_arena_test 36 missed, its grunts at their fists), a knight, an ogre (the
+// widest walker: 20 x 88 on 64-wide stairs), a dog. Done: its feet on his level and within a blow of him (a gun's
+// holder: within 400, its fighting distance). It fails if any foe never got there inside the cap.
+// ---------------------------------------------------------------------------
+
+float AT41_KINDS = 5;
+float AT41_DIRS = 3;
+float AT41_TOWERS = 4;
+float AT41_CAP = 40;            // seconds: across is a stair down, the floor and a stair up
+float AT41_LEVEL = 20;          // feet this close to his are on his level
+float at41_kind;
+float at41_dir;                 // 0 up, 1 down, 2 across
+float at41_tower;
+entity at41_m;
+float at41_state;               // 0 place the next; 1 its own start; 2 walking
+float at41_t0;
+float at41_level;
+float at41_stall;
+float at41_sample;
+vector at41_was;
+vector at41_stallat;
+float at41_sum_level[15];       // per kind and direction: kind * 3 + dir
+float at41_sum_arrive[15];
+float at41_sum_stall[15];
+float at41_capped[15];
+
+float(float xKind) VR_AT41_Kind =
+{
+    if(xKind == 0) { return AR_SP_GRUNT; }
+    if(xKind == 1) { return AR_SP_ENFORCER; }
+    if(xKind == 2) { return AR_SP_KNIGHT; }
+    if(xKind == 3) { return AR_SP_OGRE; }
+    return AR_SP_DOG;
+}
+
+// `xAt` turned a quarter turn `xTower` times (NE, NW, SW, SE: the towers and their pinwheel stairs turn so).
+vector(vector xAt, float xTower) VR_AT41_Turn =
+{
+    float k = xTower - 4 * floor(xTower / 4);
+    if(k == 1) { return [0 - xAt_y, xAt_x, xAt_z]; }
+    if(k == 2) { return [0 - xAt_x, 0 - xAt_y, xAt_z]; }
+    if(k == 3) { return [xAt_y, 0 - xAt_x, xAt_z]; }
+    return xAt;
+}
+
+vector(float xTower) VR_AT41_Top = { return VR_AT41_Turn('402 402 281', xTower); }
+vector(float xTower) VR_AT41_Floor = { return VR_AT41_Turn('620 260 25', xTower); } // (the NE tower's: past its east face)
+
+void() VR_AT41_Begin =
+{
+    if(!ar_mgr) { VR_AT_Check(FALSE, "test 41 needs the arena on (map vrarena)"); VR_AT_End(); return; }
+    vr_at_until = time + AT41_KINDS * AT41_DIRS * AT41_TOWERS * (AT41_CAP + 1) + 60;
+    ar_mgr.think = SUB_Null; // (no waves)
+    ar_mgr.nextthink = 0;
+    at41_kind = 0;
+    at41_dir = 0;
+    at41_tower = 0;
+    at41_state = 0;
+    at41_m = world;
+    float i;
+    for(i = 0; i < 15; i++)
+    {
+        at41_sum_level[i] = 0;
+        at41_sum_arrive[i] = 0;
+        at41_sum_stall[i] = 0;
+        at41_capped[i] = 0;
+    }
+}
+
+void() VR_AT41_Spawn =
+{
+    entity p = VR_Player();
+    vector at;
+    if(at41_dir == 0) { setorigin(p, VR_AT41_Top(at41_tower)); at = VR_AT41_Floor(at41_tower); }
+    else if(at41_dir == 1) { setorigin(p, VR_AT41_Floor(at41_tower)); at = VR_AT41_Top(at41_tower); }
+    else { setorigin(p, VR_AT41_Top(at41_tower + 1)); at = VR_AT41_Top(at41_tower); }
+    p.velocity = '0 0 0';
+    float kind = VR_AT41_Kind(at41_kind);
+    entity oself = self;
+    self = spawn();
+    at41_m = self;
+    self.classname = VR_ARENA_ClassName(kind);
+    setorigin(self, at);
+    self.angles = [0, vectoyaw(p.origin - at), 0];
+    if(kind == AR_SP_GRUNT) { self.weapon = WID_SHOTGUN; self.weapon2 = 0; }
+    else if(kind == AR_SP_ENFORCER) { self.weapon = WID_ENFRIFLE; self.weapon2 = 0; }
+    vr_ar_hold_roll = 1;
+    vr_agr_hold = vr_agr_hold + 1;
+    VR_ARENA_CallSpawn(kind);
+    vr_agr_hold = vr_agr_hold - 1;
+    vr_ar_hold_roll = 0;
+    self = oself;
+    at41_state = 1;
+}
+
+void(float xArrived) VR_AT41_Close =
+{
+    entity m = at41_m;
+    float idx = at41_kind * 3 + at41_dir;
+    float took = xArrived ? time - at41_t0 : AT41_CAP;
+    float lev = at41_level >= 0 ? at41_level : AT41_CAP;
+    at41_sum_level[idx] = at41_sum_level[idx] + lev;
+    at41_sum_arrive[idx] = at41_sum_arrive[idx] + took;
+    at41_sum_stall[idx] = at41_sum_stall[idx] + at41_stall;
+    if(!xArrived) { at41_capped[idx] = at41_capped[idx] + 1; }
+    string way = at41_dir == 0 ? "up" : (at41_dir == 1 ? "down" : "across");
+    dprint(sprintf("towerpath: %s %s tower %g size %g: level %.1f there %.1f%s", m.classname, way, at41_tower, m.maxs_x, lev,
+                   took, xArrived ? "" : " CAPPED"));
+    dprint(sprintf(" stall %.1f last at %v ended %v\n", at41_stall, at41_stallat, m.origin));
+    remove(m);
+    at41_m = world;
+    at41_state = 0;
+    at41_tower = at41_tower + 1;
+    if(at41_tower >= AT41_TOWERS)
+    {
+        at41_tower = 0;
+        at41_dir = at41_dir + 1;
+        if(at41_dir >= AT41_DIRS)
+        {
+            at41_dir = 0;
+            at41_kind = at41_kind + 1;
+        }
+    }
+}
+
+void() VR_AT41_Frame =
+{
+    if(at41_kind >= AT41_KINDS)
+    {
+        float i;
+        float n = AT41_TOWERS;
+        float capped = 0;
+        for(i = 0; i < 15; i++)
+        {
+            string name = VR_ARENA_ClassName(VR_AT41_Kind(floor(i / 3)));
+            float dir = i - 3 * floor(i / 3);
+            string way = dir == 0 ? "up" : (dir == 1 ? "down" : "across");
+            capped = capped + at41_capped[i];
+            dprint(sprintf("towerpath: SUM %s %s: level %.1f there %.1f stall %.1f capped %g of %g\n", name, way,
+                           at41_sum_level[i] / n, at41_sum_arrive[i] / n, at41_sum_stall[i] / n, at41_capped[i], n));
+            VR_AT_Check(at41_capped[i] == 0, sprintf("%s %s: all got to him inside %g s (%g did not)", name, way, AT41_CAP, at41_capped[i]));
+        }
+        dprint(sprintf("towerpath: capped %g of %g\n", capped, AT41_KINDS * AT41_DIRS * AT41_TOWERS));
+        VR_AT_End();
+        return;
+    }
+    if(at41_state == 0) { VR_AT41_Spawn(); return; }
+    entity m = at41_m;
+    entity p = VR_Player();
+    if(at41_state == 1)
+    {
+        if(!m.takedamage) { return; } // (its own start's think)
+        m.enemy = p;
+        m.think = FoundTarget;
+        m.nextthink = time + 0.05;
+        at41_t0 = time;
+        at41_level = -1;
+        at41_stall = 0;
+        at41_stallat = '0 0 0';
+        at41_sample = time + 0.5;
+        at41_was = m.origin;
+        at41_state = 2;
+        return;
+    }
+    float onLevel = fabs((m.origin_z + m.mins_z) - (p.origin_z + p.mins_z)) <= AT41_LEVEL;
+    if(onLevel && at41_level < 0) { at41_level = time - at41_t0; }
+    vector d = m.origin - p.origin;
+    d_z = 0;
+    float reach = (m.vr_ag && VR_WP_CarriesRanged(m)) ? 400 : 120;
+    if(onLevel && vlen(d) < reach) { VR_AT41_Close(TRUE); return; }
+    if(time - at41_t0 >= AT41_CAP) { VR_AT41_Close(FALSE); return; }
+    if(time >= at41_sample)
+    {
+        vector moved = m.origin - at41_was;
+        moved_z = 0;
+        if(vlen(moved) < 8)
+        {
+            at41_stall = at41_stall + 0.5;
+            at41_stallat = m.origin;
+        }
+        at41_was = m.origin;
+        at41_sample = time + 0.5;
+    }
+}
+
 // The toolgun's spawn with outcome `xRow` (vr_toolgun_armed_infected_test, vr_toolgun.cpp): it carries it, and rises as it.
 float(entity e, float xRow) VR_Infect_TestOne =
 {
@@ -4594,6 +4785,7 @@ void() VR_ARENA_Test_Frame =
         if(c == 38) { VR_AT38_Begin(); return; }
         if(c == 39) { VR_AT39_Begin(); return; }
         if(c == 40) { VR_AT40_Begin(); return; }
+        if(c == 41) { VR_AT41_Begin(); return; }
 
         VR_AT_Check(FALSE, "no such arena test");
         VR_AT_End();
@@ -4634,5 +4826,6 @@ void() VR_ARENA_Test_Frame =
     if(vr_at_case == 38) { VR_AT38_Frame(); return; }
     if(vr_at_case == 39) { VR_AT39_Frame(); return; }
     if(vr_at_case == 40) { VR_AT40_Frame(); return; }
+    if(vr_at_case == 41) { VR_AT41_Frame(); return; }
 }
 #endif
