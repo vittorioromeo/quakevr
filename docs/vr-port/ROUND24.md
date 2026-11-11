@@ -9344,6 +9344,44 @@ combination of props/weapons".
 - Debug: `vr_flat_swap_debug 2` prints each hand's own pose and drawn place every frame of a meeting swap; test aid
   `vr_flat_swap_seen`. Debug > Tests: "Flat Swap: Two-Handed Weapons", "Flat Swap: Props And Weapons". Scene
   `flat_swap_props`.
+## Gibs on the axe through mouse turns; the particle pool full (branch `agent/fbgore`, 2026-11-11)
+
+His notes: "If I turn my camera with the mouse quickly enough, gibs attached to the axe still fall out very easily, even
+for extreme values. Is there any other value that dictates gib detachment?" and "Could it be that particle/gore limits
+are being hit, and instead of the oldest particles being replaced (a la circular buffer) the new ones simply don't spawn?"
+
+**Gibs on the axe.** What sheds a part on the blade in the hand (QC/vr_skewer.qc): (1) the fling, `VR_Skewer_Fling`, for
+a head or limb cut onto the edge: its own speed (the world move less the player's walk) at least `vr_embed_cuton_fling`
+(6 m/s; Embedded Blades' "Cut-Off Parts: Fling Speed"), then down to half within 0.25 s (`VR_SKEWER_FLING_WINDOW`); (2)
+the burst, `VR_Skewer_Impact`: going at `vr_embed_skewer_swing_burst` with something just ahead; (3) the other hand's
+tug (`vr_embed_skewer_tug_speed`, `_tug_stretch`); (4) the blade gone (holstered, switched, thrown, dead). The "fling
+speed multiplier" he tried, `vr_flat_cutoff_fling_mult` (Flatscreen's row of the same name), only scales how fast a part
+flies when cut free: it never kept anything on. The cause: on the flat screen the hands turn with the look, so a mouse
+turn swings the head on the axe round the eye: `vr_flat_flick_test` read 4.9 m/s at 430 degrees a second, 9.7 at 860,
+19.9 at 1800, 28.6 at 3170; past 6 m/s the turn's stop flung it (reproduced at 860). And a speed over 30 m/s (a snap,
+`VR_SKEWER_SNAP`) was read as 0, so it counted as a stop too. Now the hand's own motion is the rule
+(`VR_HandMotionTracked`, the gestures' rule: a controller, or flat play's swing and punch, a button's action): a move
+the game makes (the look, a lean, the wall tilt) makes no fast move for the fling and bursts nothing; the stop after a
+swing may come in such frames (the swing eases back into the look's pose). A snap is neither a fast move nor a stop. The
+headset is unchanged (its hands are always its own).
+- Test `vr_embed_test 32` (flatskewer, -flatscreenmode, vrtesthall's floor): a head on the axe through 36-frame flicks
+  at 6, 12, 25 and 44 degrees a frame: stays on (before: off at 12); the mouse button's swing then flings it off (28.8
+  m/s read). 6/0. `vr_embed_test 26` (headset): 31/0 at the Fling Speed the test was written for (4); at the default 6 its
+  cases 0, 2, 3 fail before and after this change (the mock hand's "8 m/s" moves read 4.9-6.0 m/s: the test needs a
+  faster move since the default went to 6).
+
+**The particle pool.** His mechanism is right: the pool (32768, `maxParticles`) refused new particles once full. Measured
+at point blank (`vr_flatblood_test` now prints `vr_particle_stats` and the gore queues at its end): test 1 (a grunt and a
+corpse, shotgun, super shotgun and nailgun from 60 to 4 units) peaks at 11560 of 32768, test 7 (a limb popped by
+shotgun taps) at 3415; nothing refused, and the gore queues left nothing out. So in those scenes the cap is not what he
+saw; it is reachable only in heavy ones (a super shotgun hit makes 2300). Now `vr_particle_evict 1` (Graphics Effects,
+"New Particles Replace Oldest"): full, a new effect's particles take the oldest's place (the oldest 1024 taken out at
+once, the pool kept in the order made; `room()` in vr_particles.cpp, every effect's emitter asks it). Ambient water
+rings and shore foam make no room. 0: as before. `vr_particle_stats [reset]`: the pool, its peak, room made, refused;
+`vr_limits` shows the peak. The gore's own queues (`vr_decal_count`'s gore line: lines of blood 320, drips 48, drops
+falling 192, pools 32) still leave new ones out while full, now counted; decals already replace the oldest.
+- Test `vr_particle_evict_test` (Debug > Tests > Particle Pool: Full): the pool filled, a blood spray: with 1, 525 made,
+  the oldest 1024 out, the rest in order; with 0, none (521 refused). 2/0.
 ## The ammo screen in the left hand; cvar promotions; checklist ticks retired (branch `agent/fbmisc`, 2026-11-11)
 
 ### The ammo screen in the left hand

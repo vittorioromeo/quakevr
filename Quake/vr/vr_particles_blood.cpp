@@ -17,10 +17,11 @@ namespace detail
 {
 
 // vr_blood_tally / vr_blood_tally_drawn (diagnostics; vr_flatblood_test): the blood particles an emitter made (those
-// past `before` in the pool), and those made where the view draws them: ahead of the eye past the near plane
+// past `since` in the pool), and those made where the view draws them: ahead of the eye past the near plane
 // (vr_nearclip), not inside the near cull (vr_particle_near_cull).
-void tallyBlood(za::SizeT before)
+void tallyBlood(const Since& since)
 {
+    const za::SizeT before = since.first();
     if(pool.size() <= before)
     {
         return;
@@ -44,11 +45,11 @@ void tallyBlood(za::SizeT before)
 // Tallies what the emitter it is made in makes (tallyBlood), as it returns.
 struct BloodTally
 {
-    za::SizeT before = pool.size();
+    Since since;
     BloodTally() = default;
     BloodTally(const BloodTally&) = delete;
     BloodTally& operator=(const BloodTally&) = delete;
-    ~BloodTally() { tallyBlood(before); }
+    ~BloodTally() { tallyBlood(since); }
 };
 
 // Blood let in a liquid (water::bloodInLiquid, vr_water_blood: one point test a burst, not a particle): its spray
@@ -272,7 +273,7 @@ void bloodDrip(const glm::vec3& org, float fall, float floorZ, float size, const
         return;
     }
     // The drop, and two fainter behind it: a short streak as it falls (they fall together).
-    for(int i = 0; i < 3 && pool.size() < maxParticles; i++)
+    for(int i = 0; i < 3 && room(); i++)
     {
         Particle p;
         p.cell = CellCircle;
@@ -294,7 +295,7 @@ void bloodSpecks(const glm::vec3& org, const glm::vec3& normal, int count, const
     {
         return;
     }
-    for(int i = 0; i < count && pool.size() < maxParticles; i++)
+    for(int i = 0; i < count && room(); i++)
     {
         Particle p;
         p.cell = CellCircle;
@@ -314,7 +315,7 @@ void bloodSpecks(const glm::vec3& org, const glm::vec3& normal, int count, const
 void bloodDroplet(const glm::vec3& org, const glm::vec3& vel, float size, float life, const glm::vec3& color, float floorZ, bool wet)
 {
     const BloodTally tally; // (vr_blood_tally)
-    if(!vr_particles.value || pool.size() >= maxParticles || !ensureAtlas())
+    if(!vr_particles.value || !ensureAtlas() || !room())
     {
         return;
     }

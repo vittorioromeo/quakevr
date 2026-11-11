@@ -4156,6 +4156,109 @@ void() VR_LA_Step =
     }
 };
 
+// ---- vr_embed_test 32 (flatskewer): his note of 2026-11-11, flat screen: "If I turn my camera with the mouse quickly enough, gibs
+// attached to the axe still fall out very easily, even for extreme values." Run with -flatscreenmode, on vrtesthall's open floor. A
+// head put on the axe's edge in the main hand (VR_Skewer_CutOn, as a swing's cut puts it); the tests' mouse flicked hard
+// (vr_flat_flick_test: 36 frames at 6, 12, 25 and 44 degrees a frame, 430 to 3170 degrees a second, then its 36 still frames): it
+// stays on through each, its own speed as the fling reads it printed; then the swing (vr_flat_punch main, the mouse button's
+// overhead swing): its stop flings it off (or its blow bursts it). Ends `flatskewer: N passed, M failed`.
+entity vr_fs_g;    // the head on the axe
+float vr_fs_i;     // the flick being run (0 to 3), then 4 the swing
+float vr_fs_peak;  // its fastest own speed as the fling reads it, this flick (m/s)
+float vr_fs_synth; // frames of this flick the hand's motion was the game's (VR_HandMotionTracked no)
+float vr_fs_n;     // and frames
+float(float xI) VR_FS_Deg =
+{
+    return xI == 0 ? 6 : (xI == 1 ? 12 : (xI == 2 ? 25 : 44));
+};
+void() VR_FS_Step =
+{
+    entity p = self;
+    entity g = vr_fs_g;
+    float t = time - vr_et_t0;
+    if(vr_et_s == 0)
+    {
+        VR_EH_Give(WID_AXE, 0);
+        VR_ET_To(1);
+        return;
+    }
+    if(vr_et_s == 1 && t > 0.2 && VR_Melee_Line(p, cVR_MainHand, VR_Melee_Thing(p, cVR_MainHand)))
+    {
+        vector at = vr_mline_far - normalize(vr_mline_far - vr_mline_grip) * 2;
+        vr_fs_g = VR_ETS_Head(p, at);
+        float on = VR_Skewer_CutOn(vr_fs_g, world, p, QVR_DECAP_SWING, at);
+        VR_Test_Check(on && vr_fs_g.vr_skewer_p == p && vr_fs_g.vr_skewer_cut, sprintf("a head on the axe's edge in the main hand (flat screen %g)", VR_FlatPlay(p)));
+        if(!on)
+        {
+            VR_Test_Verdict();
+            vr_et_on = 0;
+            return;
+        }
+        vr_fs_i = 0;
+        VR_ET_To(2);
+        return;
+    }
+    if(vr_et_s == 2 && t > 0.5) // (past VR_SKEWER_CUT_SETTLE)
+    {
+        localcmd(sprintf("vr_flat_flick_test 36 %g\n", VR_FS_Deg(vr_fs_i)));
+        vr_fs_peak = 0;
+        vr_fs_synth = 0;
+        vr_fs_n = 0;
+        VR_ET_To(3);
+        return;
+    }
+    if(vr_et_s == 3)
+    {
+        if(g.vr_skewer_p == p)
+        {
+            vr_fs_peak = max(vr_fs_peak, g.vr_skewer_lastsp);
+            vr_fs_n = vr_fs_n + 1;
+            if(!VR_HandMotionTracked(p, cVR_MainHand))
+            {
+                vr_fs_synth = vr_fs_synth + 1;
+            }
+        }
+        // (The flick's 36 frames and its 36 still ones: 72 frames, a second; a frame's slack for the command.)
+        if(g.vr_skewer_p != p || t > 74 / 72)
+        {
+            VR_Test_Check(g.vr_gib && g.vr_skewer_p == p && g.vr_skewer_cut,
+                sprintf("flicks of %g degrees a frame (%.0f a second): the head stays on the axe (on %g; its own speed read at most %.1f m/s, Fling Speed %.1f; the hand's motion the game's %g of %g frames)",
+                    VR_FS_Deg(vr_fs_i), VR_FS_Deg(vr_fs_i) * 72, g.vr_skewer_p == p, vr_fs_peak, cvar_hget(cvarh_vr_embed_cuton_fling), vr_fs_synth, vr_fs_n));
+            vr_fs_i = vr_fs_i + 1;
+            if(g.vr_skewer_p != p)
+            {
+                VR_Test_Verdict();
+                vr_et_on = 0;
+                return;
+            }
+            if(vr_fs_i < 4)
+            {
+                VR_ET_To(2);
+                return;
+            }
+            localcmd("vr_flat_punch main\n");
+            vr_fs_peak = 0;
+            VR_ET_To(4);
+        }
+        return;
+    }
+    if(vr_et_s == 4)
+    {
+        if(g.vr_skewer_p == p)
+        {
+            vr_fs_peak = max(vr_fs_peak, g.vr_skewer_lastsp);
+        }
+        float burst = !g.vr_gib || !g.modelindex;
+        if(g.vr_skewer_p != p || burst || t > 1.5) // (the swing: 0.8 s)
+        {
+            VR_Test_Check(g.vr_skewer_p != p || burst, sprintf("the swing (the mouse button's): the head comes off the axe (%s; going %.1f m/s; its own speed read at most %.1f m/s)",
+                g.vr_skewer_p == p ? "still on" : (burst ? "burst" : "flung off"), vlen(g.velocity) / VRMetersToUnits(), vr_fs_peak));
+            VR_Test_Verdict();
+            vr_et_on = 0;
+        }
+    }
+};
+
 void() VR_E8_Begin; // (vr_embed_1108_test.qc: test 28)
 void() VR_E8_Step;
 void() VR_E9_Begin; // (vr_embed_1108b_test.qc: test 29)
@@ -4203,6 +4306,13 @@ void() VR_Embed_TestFrame =
         {
             VR_Test_BeginFlags("embedburst", VR_TEST_LOUD);
             vr_et_on = 31;
+            VR_ET_To(0);
+        }
+        if(ask == 32)
+        {
+            VR_Test_BeginFlags("flatskewer", VR_TEST_LOUD);
+            cvar_set("vr_embed", "1");
+            vr_et_on = 32;
             VR_ET_To(0);
         }
         if(ask == 22)
@@ -4375,6 +4485,19 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
         else
         {
             VR_ETB_Step();
+        }
+    }
+    else if(vr_et_on == 32)
+    {
+        if(time - vr_et_t0 > VR_ET_GIVEUP)
+        {
+            VR_Test_Check(FALSE, sprintf("timed out: state %g", vr_et_s));
+            VR_Test_Verdict();
+            vr_et_on = 0;
+        }
+        else
+        {
+            VR_FS_Step();
         }
     }
     else if(vr_et_on == 21)

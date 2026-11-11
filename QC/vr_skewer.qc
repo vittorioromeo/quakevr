@@ -32,7 +32,7 @@
 .vector vr_skewer_axis;    // the blade's line in that frame
 .vector vr_skewer_c;       // its middle now
 .vector vr_skewer_lastv;   // its move last frame (units)
-.float  vr_skewer_lastsp;  // and its speed (m/s)
+.float  vr_skewer_lastsp;  // and its speed (m/s; -1 a snap, VR_Skewer_Impact)
 .float  vr_skewer_lastt;   // when it was placed last
 .void() vr_skewer_think;   // its own think, waiting
 .float  vr_skewer_next;    // s left of it when it went on (0: it had none)
@@ -557,15 +557,22 @@ float(entity g) VR_Skewer_Impact =
     {
         g.vr_skewer_gentle = FALSE;
     }
-    if(w == world && sp > VR_SKEWER_SNAP)
+    float snap = w == world && sp > VR_SKEWER_SNAP;
+    if(snap)
     {
         sp = 0;
     }
-    g.vr_skewer_lastsp = sp;
+    g.vr_skewer_lastsp = snap ? -1 : sp; // (a snap: no speed read, for VR_Skewer_Fling neither a fast move nor a stop)
     g.vr_skewer_lastv = v;
     if(g.vr_skewer_cut && time < g.vr_skewer_cutt + VR_SKEWER_CUT_SETTLE)
     {
         return FALSE; // (the swing that cut it, still going on through the body it came from)
+    }
+    // A hand the game moves (VR_HandMotionTracked no: the flat screen's hands turned with the mouse's look, a lean, the wall
+    // tilt) swings nothing: its move bursts nothing (his note 2026-11-11, flat screen: a fast mouse turn shed what was on the axe).
+    if(w == world && !VR_HandMotionTracked(p, g.vr_skewer_hand))
+    {
+        return FALSE;
     }
     if(max(sp, lastsp) < cvar_hget(w != world ? cvarh_vr_embed_skewer_throw_burst : cvarh_vr_embed_skewer_swing_burst) || (w != world && g.vr_skewer_gentle))
     {
@@ -633,7 +640,12 @@ void(entity g) VR_Skewer_Tally =
 
 // On the edge (vr_skewer_cut), in the hand: a sharp stop from a fast move (a hard swing that stops, a shake's turn back) flings it off
 // the way it was going (TRUE): its own speed (VR_Skewer_Impact's, not the walk) at least vr_embed_cuton_fling, then within
-// VR_SKEWER_FLING_WINDOW down to half that. Not while the swing that cut it settles.
+// VR_SKEWER_FLING_WINDOW down to half that. Not while the swing that cut it settles. The fast move is the hand's own
+// (VR_HandMotionTracked: a controller, or flat-screen play's swing or punch, a button's action): his note 2026-11-11, flat
+// screen, "If I turn my camera with the mouse quickly enough, gibs attached to the axe still fall out very easily, even for
+// extreme values": the flat screen's hands turn with the look (a 860-degree-a-second mouse turn moved the head at 9.7 m/s,
+// past Fling Speed 6, and its stop flung it). The game's moves make no fast move; the stop after the hand's own may come in
+// them (a swing's end eases back into the look's pose). A snap (VR_Skewer_Impact: -1) is neither.
 float(entity g) VR_Skewer_Fling =
 {
     float fling = cvar_hget(cvarh_vr_embed_cuton_fling);
@@ -643,7 +655,23 @@ float(entity g) VR_Skewer_Fling =
         g.vr_skewer_peak = 0;
         return FALSE;
     }
-    if(sp >= g.vr_skewer_peak || time - g.vr_skewer_peakt > VR_SKEWER_FLING_WINDOW)
+    if(sp < 0)
+    {
+        return FALSE;
+    }
+    if(!VR_HandMotionTracked(g.vr_skewer_p, g.vr_skewer_hand))
+    {
+        if(time - g.vr_skewer_peakt > VR_SKEWER_FLING_WINDOW)
+        {
+            g.vr_skewer_peak = 0; // (the hand's own move long past: none)
+            return FALSE;
+        }
+        if(sp >= g.vr_skewer_peak)
+        {
+            return FALSE; // (the look turning on: no stop, and no fast move of the hand's)
+        }
+    }
+    else if(sp >= g.vr_skewer_peak || time - g.vr_skewer_peakt > VR_SKEWER_FLING_WINDOW)
     {
         g.vr_skewer_peak = sp;
         g.vr_skewer_peakv = vlen(g.vr_skewer_lastv) > 0.001 ? normalize(g.vr_skewer_lastv) * sp * VRMetersToUnits() : '0 0 0';

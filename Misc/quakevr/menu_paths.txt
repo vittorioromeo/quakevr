@@ -2445,6 +2445,7 @@ vr_soft_particles|1|Graphics - Models and Effects|Soft Particles|Advanced VR Opt
 vr_soft_particles_scale|1|Graphics - Models and Effects|Soft Particle Distance|Advanced VR Options > Graphics > Models and Effects > Soft Particle Distance
 vr_particle_near_fade|1|Graphics - Models and Effects|Particle Fade Near Eyes|Advanced VR Options > Graphics > Models and Effects > Particle Fade Near Eyes
 vr_particle_near_cull|1|Graphics - Models and Effects|Particles Hidden Nearer|Advanced VR Options > Graphics > Models and Effects > Particles Hidden Nearer
+vr_particle_evict|1|Graphics - Models and Effects|New Particles Replace Oldest|Advanced VR Options > Graphics > Models and Effects > New Particles Replace Oldest
 vr_particle_max_screen|1|Graphics - Models and Effects|Largest Particle|Advanced VR Options > Graphics > Models and Effects > Largest Particle
 vr_particle_retro_min_blocks|1|Graphics - Models and Effects|Retro Particle Detail|Advanced VR Options > Graphics > Models and Effects > Retro Particle Detail
 vr_particle_halfres|1|Graphics - Models and Effects|Half-Res Heavy Particles|Advanced VR Options > Graphics > Models and Effects > Half-Res Heavy Particles
@@ -5455,6 +5456,7 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Flat Gate|Advanced VR Options > Debug > Tests > Flat Gate
 |2|Debug - Tests|Flat Move: Speed|Advanced VR Options > Debug > Tests > Flat Move: Speed
 |2|Debug - Tests|Blood at Point Blank|Advanced VR Options > Debug > Tests > Blood at Point Blank
+|2|Debug - Tests|Particle Pool: Full|Advanced VR Options > Debug > Tests > Particle Pool: Full
 |2|Debug - Tests|Blood Crouched Over a Corpse|Advanced VR Options > Debug > Tests > Blood Crouched Over a Corpse
 |2|Debug - Tests|Blood Near the Eye: Pictures|Advanced VR Options > Debug > Tests > Blood Near the Eye: Pictures
 |2|Debug - Tests|Blood Fountain of a Limb Popped Close|Advanced VR Options > Debug > Tests > Blood Fountain of a Limb Popped Close
