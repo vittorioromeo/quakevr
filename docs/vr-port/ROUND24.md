@@ -8979,3 +8979,24 @@ Shots in the housing3 worktree's `scratch/`: `before_*.png` / `after_*.png` (lef
   shoulder's lit streak), more than on v_rock2, the enclosure sitting a level higher on the steeper shoulder.
 - Re-run on v_rock2: 0 moved, 124 kept, its .mdl unchanged. Scene `rocket_housing` (new: both hands, the button for the
   multi-rocket).
+
+### The Widowmaker and the Plasma Gun: not done (out of budget), what was found
+
+- **AD in an agent's base:** the guns need AD's data. `-Games "-game hipnotic -game rogue -game ad -game quakevr"` with
+  AD's three paks copied (not linked) into the kit base's `qbase/ad` (pak0 alone: "ad: incomplete installation"). Then
+  `vr_ad_upgrades 2; vr_ad_test 98` (the Widowmaker in the main hand) or `99` (the Plasma Gun); `vr_debug_screen_where`:
+  Widowmaker `progs/v_shot3.mdl#vr` centre 0.2319 0.0107 10.9434, up 0.7349 0 0.6782, pixel 0.0465; Plasma Gun
+  `progs/v_plasma.mdl#vr` centre -5.7315 -0.0617 9.2135, up 0 0 1 (upright), pixel 0.05357.
+- **Table stems:** the drawn models are named `progs/v_shot3.mdl#vr` and `progs/v_plasma.mdl#vr`; `stemIs` matches
+  stems "shot3.mdl#vr" / "plasma.mdl#vr" exactly. A bare "plasma" would also match Rogue's own `progs/v_plasma.mdl`.
+- **Today's digits:** with an `opening`, reloading on (vr_reload_mode 3, the default) the clip over the total grows to
+  fill the glass (`fillSize`, vr_ammo_mag_scale): not today's size. Keeping them exact needs a style switch for no fill
+  (screenFit's three callers in vr_text3d.cpp) and an opening the default text fits at k 1 (about 22 x 19 font px:
+  "16" over a 0.6-size "100", the 3 px padding each side; 1.02 x 0.88 units on the Widowmaker).
+- **Widowmaker (hand-made, `models_src/widowmaker/widowmaker.blend`, own exporter `export_mdl.py`):** the glass is
+  0.15 in front of the receiver's top-rear 45-degree chamfer (Body face 12, wm_part 18: x 0.4..0.9, z 10.9..11.4,
+  y +-1.89..2.1; only 0.71 along its slope), its lean 42.7 degrees. The .mdl's grid is X 0.234, Y 0.033, Z 0.065: the
+  spec's 0.09-unit bezel is under one X step, so it must be designed on a grid plane as the GL's script is (rows (1,3)
+  39.6 degrees, 0.304 apart; levels 0.050 out, each shifting 0.041 along the face).
+- **Plasma Gun:** made from AD's model at load (`vr_adweapons.cpp` plasmaParts, the made parts' box/extrude helpers in
+  AD's 128x128 texels): its housing belongs there, in C++, as the cell receiver is.
