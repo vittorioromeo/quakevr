@@ -890,15 +890,18 @@ void(entity p) VR_FFX_Packs =
 // hands and force-grabbing, the off hand doesn't seem to detach first. It should animate like when holding a gun with two
 // hands"). The rocket launcher (its fore-end) and the axe (its grip up the handle, which a swing's end gives the free hand),
 // in the main hand, the off hand on its two-handed grip; then what lets go of it: E on a brick where he looks
-// (vr_flat_fg_press), then the shove (vr_flat_shove_now) (the swap, H and G: flatfg2h_test.sh, by their keys). Case = action * 2 +
-// weapon (0 the rocket launcher, 1 the axe: the gun first, its numbers the axe's reference). From the action each frame: when the
+// (vr_flat_fg_press), then the shove (vr_flat_shove_now) (the swap, H and G: flatfg2h_test.sh, by their keys). Case = action * 3 +
+// weapon (0 the rocket launcher, 1 the axe, 2 the crowbar -- Two-Handed: Sword, his note 2026-11-11: the force grab ran with
+// the off hand still on its grip -- the gun first, its numbers the others' reference). From the action each frame: when the
 // grip lets go (weaponanygrip), the off hand's place off the main hand and its most per frame (no jump).
 // Checks: the grip let go; its most a frame within VR_FFX_STEP_MOST, or the gun's own for that action and a unit; E: the
 // off hand's grab, the grip let go before the brick flies, the hand well off the grip by then, the flight no sooner than the
-// palm's turn and the grip's detach (vr_flat_fg_turn_time + vr_flat_fg_detach_time), screenshots every 4 frames from the
+// palm's turn and the grip's detach (vr_flat_fg_turn_time + vr_flat_fg_detach_time) and no sooner than a palm's turn after the
+// grip let go (the pull waits for the hand off the grip), screenshots every 4 frames from the
 // press (the release, as a strip: run.sh -Out). `flatfg2h:` lines with the numbers.
 float VR_FFX_STEP_MOST = 4;  // units a frame the off hand may move as it leaves the grip (a snap off it is 10 and more)
 float VR_FFX_2H_ACTIONS = 2; // E, the shove
+float VR_FFX_2H_WEAPONS = 3; // the rocket launcher, the axe, the crowbar (2026-11-11: a sword-mode grip, vr_twohand's applySword)
 float VR_FFX_2H_WINDOW = 36; // frames watched after the shove (its push and the hand's way back)
 float vr_ffx_gripGone;       // when the grip let go after the action (0: not yet)
 float vr_ffx_stepMost;       // the off hand's biggest move in a frame from the action on
@@ -913,18 +916,24 @@ string(float xAction) VR_FFX_2HActionName =
     return xAction == 0 ? "E" : "shove";
 };
 
+string(float xWeapon) VR_FFX_2HWeaponName =
+{
+    return xWeapon == 2 ? "crowbar" : xWeapon ? "axe" : "launcher";
+};
+
 void(entity p) VR_FFX_TwoHandGrab =
 {
     vector rel = VRGetEntHandPos(p, cVR_OffHand) - VRGetEntHandPos(p, cVR_MainHand);
-    float weapon = vr_ffx_case & 1; // (0 the rocket launcher, 1 the axe)
-    float action = floor(vr_ffx_case / 2);
-    string wname = sprintf("%s, %s", weapon ? "axe" : "launcher", VR_FFX_2HActionName(action));
+    float weapon = vr_ffx_case - floor(vr_ffx_case / VR_FFX_2H_WEAPONS) * VR_FFX_2H_WEAPONS; // (0 the launcher, 1 the axe, 2 the crowbar)
+    float action = floor(vr_ffx_case / VR_FFX_2H_WEAPONS);
+    string wname = sprintf("%s, %s", VR_FFX_2HWeaponName(weapon), VR_FFX_2HActionName(action));
     if(vr_ffx_s == 0) // both hands emptied, the weapon in the main hand, the view level
     {
         VR_FFX_MakeBare(p);
         p.ammo_rockets = 10; // (the quick grenade's)
         localcmd("impulse 150\nimpulse 170\n");
-        localcmd(weapon ? "impulse 152\n" : "impulse 160\n"); // (the axe; the rocket launcher: its grip ahead, FLATPLAY.md)
+        // (The rocket launcher: its grip ahead, FLATPLAY.md; the axe; the crowbar: Two-Handed Sword, vr_twohand's applySword.)
+        localcmd(weapon == 2 ? "impulse 167\n" : weapon ? "impulse 152\n" : "impulse 160\n");
         localcmd(sprintf("setpos %g %g %g 0 %g 0\n", p.origin_x, p.origin_y, p.origin_z, p.v_angle_y));
         vr_ffx_frames = 0;
         if(weapon)
@@ -1039,6 +1048,11 @@ void(entity p) VR_FFX_TwoHandGrab =
                 sprintf("%s: the grip let go before the grab starts (%g s before)", wname, vr_ffx_gripGone ? vr_ffx_flewAt - vr_ffx_gripGone : 0));
             VR_Test_Check(vr_ffx_offAtFlight > 8, sprintf("%s: ... and the hand off it when the brick flies (%g units)", wname, vr_ffx_offAtFlight));
             VR_Test_Check(took >= need - 0.02, sprintf("%s: the brick flies after the palm's turn and the grip's detach (%g s, %g)", wname, took, need));
+            // (2026-11-11, the crowbar: its grip stayed held through the pull. The pull starts only once the off hand has
+            // left the grip, a whole palm's turn later, as a gun's.)
+            float turn = cvar_hget(cvarh_vr_flat_fg_turn_time);
+            float offFor = vr_ffx_gripGone ? vr_ffx_flewAt - vr_ffx_gripGone : -1;
+            VR_Test_Check(offFor >= turn - 0.02, sprintf("%s: the pull starts %g s after the hand left the grip (at least the turn, %g)", wname, offFor, turn));
         }
         VR_FFX_To(5, 0);
         return;
@@ -1058,7 +1072,7 @@ void(entity p) VR_FFX_TwoHandGrab =
     }
     if(vr_ffx_s == 6)
     {
-        if(vr_ffx_case + 1 < VR_FFX_2H_ACTIONS * 2)
+        if(vr_ffx_case + 1 < VR_FFX_2H_ACTIONS * VR_FFX_2H_WEAPONS)
         {
             vr_ffx_case = vr_ffx_case + 1;
             VR_FFX_To(0, 0);
