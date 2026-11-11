@@ -1389,7 +1389,7 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 	    (key_dest == key_console && !consolekeys[key]) ||
 	    (key_dest == key_game && (!con_forcedup || !consolekeys[key])))
 	{
-		if (key_dest == key_game && VR_FlatKeyOwned (key)) // QVR: flatscreen play reads this key itself (vr_flat_keys_own)
+		if (key_dest == key_game && VR_FlatKeyOwned (key)) // QVR: flatscreen play reads this key itself (VR_FlatKeyOwned)
 			return;
 		kb = keybindings[key];
 		if (kb)

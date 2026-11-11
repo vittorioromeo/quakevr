@@ -1123,7 +1123,7 @@ struct Climber
     double gruntAt{-1.0};     // the flat mantle's grunt, put off until the jump's own has ended (-1: none waiting)
     bool flatGrounded{false}; // on the ground at the last frame
     int flatMantles{0};       // mantles it started (vr_flat_mantle_test)
-    // And its hands on the ledge while it mantles (vr_flat_mantle_hands): each empty hand's place on the lip, drawn there
+    // And its hands on the ledge while it mantles (flatMantleHands): each empty hand's place on the lip, drawn there
     // as a grip's hold is (calcStats, drawnHand); no grip (the mantle has let go of them all).
     struct FlatHold
     {
@@ -3024,10 +3024,6 @@ void tryMantle(Hang& hang)
 // grip's (holdLedge: on the edge's line); a new hold to the drawn hand (its serial), eased on from where it was drawn.
 void flatMantleHands(edict_t* ent, Climber& c, const VrMove* move, const Grip& g)
 {
-    if(vr_flat_mantle_hands.value == 0.f)
-    {
-        return;
-    }
     const glm::vec3 right{-g.ledge.out.y, g.ledge.out.x, 0.f}; // (facing the ledge, away from `out`: his right)
     const float half = 0.5f * za::clamp(vr_flat_mantle_hand_spread.value, 0.f, 32.f);
     for(int h = 0; h < 2; h++)

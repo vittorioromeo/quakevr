@@ -39,6 +39,10 @@ Staying in the backlog by his decision (2026-11-05): pickup thinks, heart gib an
 - **Flat-screen left-handed mode** (Vittorio, 2026-11-05: "We can add a 'flatscreen lefthanded mode' later"): the mouse's
   buttons route by what the hands hold (`flatplay::routeFire`: one weapon, LMB fires it and RMB aims; dual wielding, LMB
   the right hand, RMB the left). A left-handed mode would change that behaviour (e.g. LMB the left hand when dual wielding).
+- **Flat-screen keys customizable/bindable from the menu** (Vittorio, 2026-11-11): the keys flat-screen play reads
+  itself (`vr_flat_key_*`: leans, swap, grab, reload, prone, bullet time, drop, quick grenade, holster menu...) are
+  settable only from the console now; give them rebind rows in the menu, as Quake's own key bindings have. Their binds
+  never run while the mode reads them (`VR_FlatKeyOwned`; the switch `vr_flat_keys_own` was retired 2026-11-11).
 - **Recording motions for flat-screen** (Vittorio, 2026-11-05): an easy way to record motions in VR for melee attacks and reloading, so they can be used in flat-screen mode as realistic animations.
 - **The graphics on the flat screen** (asked round 20): most features already draw on the desktop; to do: the
   float scene, tone mapping, grades and bloom for the window, and a check of each feature with VR off.

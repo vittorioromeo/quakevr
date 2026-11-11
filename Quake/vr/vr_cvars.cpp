@@ -538,7 +538,6 @@ const FullConfigChange fullConfigChanges[] = {
     {&vr_ammo_low_frac, "0.25"},
     {&vr_ammo_pouch_leg_follow, "0.5"},
     {&vr_deadzone_outer, "5"},
-    {&vr_flat_key_grab_alt, "r"}, // R reloads in flat-screen play now (2026-11-08); a sparse config never held the old default
     {&vr_ghost_hands_fade_from, "6"},
     {&vr_relight_ao, "1.5"},
     {&vr_relight_bounce, "0"},
@@ -1378,6 +1377,20 @@ constexpr const char* retiredCvars[] = {
     "vr_agrunt_tug_time",             // the old tug's pull time
     "vr_agrunt_tug_fight",            // the old tug: how often it fought back
     "vr_agrunt_tug_pull",             // the old tug's pull distance (a tuning constant)
+    // 2026-11-11: switches whose default became the only path (his cvar audit; ROUND24.md, "Retired switches").
+    "vr_flat_key_grab_alt",           // a second force-grab key (none since R reloads)
+    "vr_flat_wall_block_fire",        // a gun tilted up at a wall does not fire (0: it fired)
+    "vr_flat_mantle_hands",           // the empty hands on the ledge in a flat mantle (0: none)
+    "vr_flat_keys_own",               // the flat-owned keys' binds do not run (0: they ran too)
+    "vr_menu_flat_esc_game",          // Escape in the flat menu is Back to game (0: back a page)
+    "vr_decap_touch_point",           // A/B: the beheading zone judged at the first touch (0: at the cut)
+    "vr_gadget_lock_twohand",         // the gadget locks while both hands hold one thing (0: off)
+    "vr_agarmor_bridge",              // the leather bridged between plate rows each frame (0: per-limb sleeves)
+    "vr_kill_blast_fling",            // a blast kill flings the ragdoll at once (0: after the death anim)
+    "vr_model_light_grid_cache",      // the light grid cached on disk (0: rebuilt each load)
+    "vr_crouch_hull",                 // the crouched hull smaller (0: the standing hull)
+    "vr_ragdoll_self_collide",        // a ragdoll's limbs collide with each other (0: they pass)
+    "vr_bullettime_tap_twohanded",    // (cascade) taps while two-handed: the gadget lock, always on, stops them anyway
 };
 
 // Settings renamed: the old name still reads and sets the new one (Cvar_FindVar asks here when a name is not found):

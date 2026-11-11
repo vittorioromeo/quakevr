@@ -206,10 +206,6 @@ float VR_DECAP_PATH_ON = 8;
 vector(entity e, vector xAt, vector xDir) VR_Decap_ZonePoint =
 {
     vector d = normalize(xDir);
-    if(cvar_hget(cvarh_vr_decap_touch_point))
-    {
-        d = '0 0 0'; // (as before 2026-11-10: the A/B)
-    }
     if(d != '0 0 0')
     {
         vector a = xAt - d * VR_DECAP_PATH_BACK;

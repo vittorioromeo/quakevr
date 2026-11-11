@@ -2261,8 +2261,6 @@ QVR_TOGGLE_BYNAME(vr_update_check, "Check for Updates",
     "At start-up (at most once an hour) the game asks the release page whether a newer Quake VR is out, and says so above the version label: point at it and press to open its page in your desktop's browser. Only the release list is read; nothing about you or your game is sent. Off: never asked, no notice.")
 QVR_TOGGLE_BYNAME(vr_menu_flat_shortcuts, "Corner Buttons on a Flat Screen",
     "With VR off: the buttons at the menus' top left (Back to Game, Main Menu, Search, Console, Advanced VR, Levels, Map Library) on the desktop menus too, for the mouse.")
-QVR_TOGGLE_BYNAME(vr_menu_flat_esc_game, "Escape Returns to the Game",
-    "With VR off, in a game: Escape in any menu closes it and resumes, from whatever page (as Back to game does; the menu opens again on that page). Off: Escape goes back a page, as in Quake.")
 QVR_TOGGLE_BYNAME(vr_menu_flat_vr_style, "VR Menu Layout on a Flat Screen",
     "With VR off: the menus as the headset shows them, on a panel in the window: the corner's buttons in a column beside the menu, rows spaced out, modern sliders and switches; the mouse points and clicks as the laser does, the wheel scrolls lists. Press a corner of the panel and drag it to move it; turn the wheel while dragging to resize it. The - and + buttons under the corner's buttons zoom it too.")
 QVR_SLIDER_BYNAME(vr_menu_flat_scale, "Flat Menu Panel Size", 0.4f, 1.f, 0.05f, "%.2f", noExt,
@@ -5209,10 +5207,6 @@ QVR_SLIDER(vr_gadget_fingertip_roll, "Fingertip Roll", -45.f, 45.f, 1.f, "%.0f d
     "... rolled about your hand's forward (positive: its top outward).")
 QVR_SLIDER(vr_gadget_button_cooldown, "Button Cooldown", 0.f, 2.f, 0.1f, "%.1f s", ext(0.f, 5.f),
     "After a press counts, how long before the next one does (no double toggles from a bounce).")
-QVR_TOGGLE(vr_gadget_lock_twohand, "Lock While Both Hands Hold One Thing",
-    "On: while both your hands hold the same thing (a weapon two-handed, one prop or crate, one body or "
-    "enemy, one embedded blade) the gadget ignores taps, buttons and touches: no slow motion by accident "
-    "in a fight. Different things in each hand: it works as ever.")
 QVR_SLIDER(vr_gadget_lock_grace, "Lock After Letting Go", 0.f, 1.f, 0.05f, "%.2f s", ext(0.f, 3.f),
     "How long the gadget stays locked after your second hand lets go, so that letting go never taps it.")
 QVR_CYCLE(vr_debug_gadget_button, "Show the Button",
@@ -6233,10 +6227,6 @@ QVR_CYCLE(vr_flat_aim_sens_match, "Aim Sensitivity Match",
     "(slowest). 1.33: the 4:3 edge (Battlefield's uniform aiming, CS:GO-like). 1.78: a 16:9 screen's edge (fastest) "
     "(vr_flat_aim_sens_match, 0..4 from the console).",
     {0.f, "Centre"}, {0.75f, "0.75"}, {1.33f, "1.33 (4:3 Edge)"}, {1.78f, "1.78 (16:9 Edge)"})
-QVR_TOGGLE(vr_flat_wall_block_fire, "No Fire With Gun Raised",
-    "Playing on the desktop screen (-flatscreenmode): right against a wall the gun is raised, muzzle up, out of it. "
-    "On: a raised gun does not fire, a click does nothing (no shot, no ammo) until it comes back down. Off: it fires "
-    "as it is, through the crosshair. Melee weapons always swing (vr_flat_wall_block_fire).")
 QVR_TOGGLE(vr_flat_xhair, "Visor Crosshair",
     "Playing on the desktop screen (-flatscreenmode): the crosshair in the visor's colours, at the true place on the "
     "screen each gun's shot will hit. Centred nearly always; near a wall or an edge, where the gun's line differs, it "
@@ -6558,10 +6548,6 @@ QVR_SLIDER(vr_flat_body_height, "Body Height", 1.f, 2.2f, 0.01f, "%.2f m", noExt
 QVR_SLIDER(vr_flat_mantle_grunt_delay, "Mantle Grunt Delay", 0.f, 1.f, 0.05f, "%.2f s", noExt,
     "Playing on the desktop screen: how long after the jump the mantle's grunt plays, so the jump's own grunt has ended "
     "and both are heard (vr_flat_mantle_grunt_delay; 0: as the mantle starts).")
-QVR_TOGGLE(vr_flat_mantle_hands, "Mantle Hands On The Ledge",
-    "Playing on the desktop screen: as you mantle, each empty hand goes onto the ledge, as your hands hold it in VR: both "
-    "when both are empty, the free one when the other holds a weapon (it lets go of that weapon's grip for the mantle), "
-    "none when both hold weapons (vr_flat_mantle_hands).")
 QVR_TOGGLE(vr_flat_slide, "Slide",
     "Playing on the desktop screen (-flatscreenmode): crouching (Left Ctrl) while running starts a slide, faster at "
     "first, down a slope faster still, up one slowing to a crouch; jump out of it to keep the speed. Tuning: Debug > "
@@ -6600,10 +6586,6 @@ QVR_TOGGLE(vr_flat_lean_mouse, "Mouse Follows Lean",
     "On: while the view is rolled (a lean, strafing, a hit) the mouse moves it along the tilted screen -- straight up "
     "on the mouse is straight up on the screen. Off: Quake's way, the mouse turns and pitches as if level, so leant it "
     "moves the view at a slant (vr_flat_lean_mouse).")
-QVR_TOGGLE(vr_flat_keys_own, "Desktop Keys Only Do Theirs",
-    "Playing on the desktop screen (-flatscreenmode): the keys the mode reads itself (Q, E, 3, R, X, Z, F, H, G, V) do only "
-    "that, whatever an old config binds to them (E +moveup, 3 the third weapon). Off: their binds run as well "
-    "(vr_flat_keys_own).")
 QVR_TOGGLE(vr_flat_flycam, "Fly Camera (F8)",
     "Playing on the desktop screen (-flatscreenmode): the view flies free while you stand exactly as you were -- the mouse "
     "looks, W A S D fly, Space up, Ctrl down, Shift faster, through walls. Nothing of yours moves, fires or turns; your "
@@ -7168,9 +7150,6 @@ QVR_TOGGLE_BYNAME(vr_bullettime_tap_butt, "The Gun's Butt Taps Too",
     "On: the butt of the gun in your other hand taps the screen as your hand does. Off: only your hand.")
 QVR_TOGGLE_BYNAME(vr_bullettime_tap_holding, "Tap While Holding",
     "On: the tapping hand may hold a weapon or a prop. Off: only an empty hand taps.")
-QVR_TOGGLE_BYNAME(vr_bullettime_tap_twohanded, "Tap During Two-Handed Holds",
-    "Off: no taps while both hands hold one weapon (your gadget hand on its foregrip), against accidents. "
-    "Moving together, the hands never tap anyway.")
 QVR_SLIDER_BYNAME(vr_bullettime_trigger_cooldown, "Ignore Repeats For", 0.f, 2.f, 0.1f, "%.1f s", noExt,
     "After a tap counts, how long before the next one does (a bounce is one).")
 QVR_SLIDER_BYNAME(vr_bullettime_tap_sound, "Tap Click Volume", 0.f, 1.f, 0.05f, "%.2f", noExt,

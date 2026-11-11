@@ -504,7 +504,7 @@ constexpr float calmTime = 0.3f; // s
 // vr_bullettime_tap_depth of its face, the fastest point's speed into it down to vr_bullettime_tap_stop of the peak
 // within vr_bullettime_tap_window seconds: an impact; a hand passing by keeps its speed). A swing across the screen (the
 // melee) comes from the side; resting, brushing or soft touches are too slow; hands moving together (a two-handed hold)
-// have no speed towards each other, and are ignored anyway unless vr_bullettime_tap_twohanded. After a tap counts, the
+// have no speed towards each other, and are ignored anyway (twoHanded; the gadget lock too). After a tap counts, the
 // volume must lift off the face before the next can (a bounce, or a hand left resting, is never a second tap). With
 // vr_bullettime_tap_gesture 1 (Double Tap) it takes two taps, each at vr_bullettime_tap_double_speed or more, the second
 // within vr_bullettime_tap_double_window of the first but no sooner than vr_bullettime_tap_min_gap; one alone does nothing.
@@ -520,8 +520,7 @@ void tapScreen(const hands::State& s, int hand, const Screen& z)
         }
         state.firstTapAt = -1.0;
     }
-    const bool allowed = (vr_bullettime_tap_holding.value != 0.f || held::handEmpty(hand)) &&
-                         (vr_bullettime_tap_twohanded.value != 0.f || !twoHanded());
+    const bool allowed = (vr_bullettime_tap_holding.value != 0.f || held::handEmpty(hand)) && !twoHanded();
     if(!allowed)
     {
         if(vr_debug_bullettime.value >= 2.f)

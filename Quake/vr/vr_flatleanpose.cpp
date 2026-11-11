@@ -603,7 +603,7 @@ void slideJudge(const int (&p)[2])
             q_snprintf(line, sizeof(line), "%d:%d p%.0f %s %s fires on the crosshair (%s, %.3f deg off, wall %.1f)", p[0], p[1], pitch,
                 slideMomentName[moment], h == HAND_MAIN ? "main" : "off", now.fires ? "fires" : "STOPPED", now.shotDeg, now.depth);
             // (A gun in a wall ahead -- the ramp's slide ends at the spiral room's wall -- keeps the wall's own rule:
-            // vr_flat_wall_block_fire.)
+            // flatsight::wallBlocksFire.)
             slideCheck((now.fires || now.depth > 0.f) && (!now.aims || now.shotDeg < slideShotDegMost), line);
         }
     }

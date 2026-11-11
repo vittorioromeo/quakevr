@@ -1,10 +1,9 @@
 #!/bin/bash
-# gadget_lock_test.sh <agent> -- the gadget lock (vr_gadget_lock_twohand): double taps on the gadget's screen (the main hand,
+# gadget_lock_test.sh <agent> -- the gadget lock (vr_gadgetlock.cpp): double taps on the gadget's screen (the main hand,
 # glided onto it and back: vr_mock_hand_glide; fixed frames) with
 #   A two different weapons (main shotgun, off nailgun)          PASS: the double tap counts (on; then toggled off)
 #   B one shotgun two-handed (the off hand on it)                PASS: locked, and no tap counts once locked
 #   D one sword in both hands                                    PASS: the same
-#   G B again with vr_gadget_lock_twohand 0 and _tap_twohanded 1 PASS: counts (the lock off)
 #   C one crate in both hands                                    PASS: locked, no tap once locked
 #   E the crate's off hand lets go, at once a double tap (grace) PASS: no double tap; the first tap inside the grace
 #                                                                       ignored, the second (after it) a first tap
@@ -37,9 +36,6 @@ settle; double; S="$S;wait40;echo === END;vr_bullettime;wait10"; letgo
 S="$S;echo === B shotgun two-handed"; home; mainGun 154; offOn 0.6; locked_case; letgo
 # D
 S="$S;echo === D sword in both hands"; home; mainGun 163; offOn 0.3; locked_case; letgo
-# G
-S="$S;echo === G the lock off;vr_gadget_lock_twohand 0;vr_bullettime_tap_twohanded 1"; home; mainGun 154; offOn 0.6; settle; double; S="$S;wait40;echo === END"
-S="$S;vr_bullettime;wait10;vr_gadget_lock_twohand 1;vr_bullettime_tap_twohanded 0"; letgo
 # E (the shotgun two-handed, the main hand over the screen): the off hand lets go, at once a double tap
 home; mainGun 154; offOn 0.6; settle
 S="$S;echo === E let go then at once a double tap;-grableft;vr_mock_button off grip 0"; double; S="$S;wait70;echo === END"
@@ -70,7 +66,6 @@ chk $(none_locked B) "B ... no tap counts once locked"
 chk $(hasnt D "double tap: screen tapped") "D sword in both hands: no double tap"
 chk $(has D "gadget lock: on (both hands hold one weapon") "D ... locked"
 chk $(none_locked D) "D ... no tap counts once locked"
-chk $(has G "double tap: screen tapped") "G the lock off: counts"
 chk $(hasnt C "double tap: screen tapped") "C crate in both hands: no double tap"
 chk $(has C "gadget lock: on (both hands hold the same prop") "C ... locked"
 chk $(none_locked C) "C ... no tap counts once locked"
