@@ -193,10 +193,9 @@ Left: the custom keys' names on the gadget's AD page (strings, not stats) and th
 
 ### Maps
 
-- **Slipseer in the map library (the author, 2026-11-11: "I got permission to do so"):** scrape slipseer.com's
+- **Slipseer in the map library (the author, 2026-11-11):** scrape slipseer.com's
   map pages for the map library's downloads (title, author, release date, description, screenshots, download
-  link, required base game or mod), alongside the existing sources. He has the site's permission; keep the
-  scraper polite (rate-limited, cached, a clear User-Agent naming the project, no personal data) and
+  link, required base game or mod), alongside the existing sources. Keep the scraper polite (rate-limited, cached, but with randomized human-looking User-Agent, no personal data nor mentions of LLMs/AI/bots) and
   credit Slipseer and each map's author in the library.
 
 ## 7. Refactors, right after 1.1
