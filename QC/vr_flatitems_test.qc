@@ -15,11 +15,15 @@
 // `vr_flatitems_test 6`: E's palm first (vr_flatfgrab.cpp): two keys where he looks, E pressed twice a frame apart: the first
 //   flies only after the palm's turn, never two at one hand, the first ends in the hand it flew to.
 // `vr_flatitems_test 7`: a brick force-grabbed beside the shotgun: the gun one-handed, the brick in the off hand's guard,
-//   V's overhead swing and the fist's punch with it each hurt a grunt; a wall torch caught turned flame up.
+//   V's overhead swing and the fist's punch with it each hurt a grunt, and so does RMB's swing (the left hand's own button
+//   now that it holds something); a wall torch caught turned flame up.
 // `vr_flatitems_test 8`: E on a backpack: taken at once (vr_forcegrab_pack_collect); an empty backpack touched: taken without
 //   a word; one with a negative amount: only what is more than none.
 // `vr_flatitems_test 9`: the rocket launcher, then the axe, held in both hands: E, then the shove: the off hand lets
 //   go of the grip and eases off it (E: before the brick flies), the axe as the gun (the release shared by guns and melee).
+// `vr_flatitems_test 10`: the mouse by what the hands hold: gun+brick, brick+gun, two bricks, two guns, brick+nothing,
+//   gun+nothing, nothing+gun: LMB the right hand's, RMB the left's as soon as it holds anything; RMB the ironsight only
+//   with one gun and the other hand empty (vr_flat_route_probe).
 // Ends `flatitems: N passed, M failed`.
 
 float vr_ffx_on;    // the running test's number
@@ -647,7 +651,9 @@ void(entity p, float xMelee) VR_FFX_Blow =
     vr_ffx_top = -1000;
     vr_ffx_near = 1000;
     vr_ffx_frames = 0;
-    localcmd(sprintf("vr_flat_prop_melee %g\nvr_flat_punch v\n", xMelee));
+    localcmd(sprintf("vr_flat_prop_melee %g\n", xMelee));
+    // (V, or the right mouse button: the left hand's own button now that it holds something, his notes 2026-11-11.)
+    localcmd(vr_ffx_s == 30 ? "+offhandattack\n" : "vr_flat_punch v\n");
 };
 
 void(entity p) VR_FFX_PropFist =
@@ -712,8 +718,18 @@ void(entity p) VR_FFX_PropFist =
         VR_FFX_To(vr_ffx_s + 1, 0);
         return;
     }
-    if(vr_ffx_s == 6 || vr_ffx_s == 8) // the blow: watched until it hurts the grunt, then until the hand is back
+    if(vr_ffx_s == 30) // RMB: the overhead swing again, from the off hand's own button (+offhandattack)
     {
+        VR_FFX_Blow(p, TRUE);
+        VR_FFX_To(31, 0);
+        return;
+    }
+    if(vr_ffx_s == 6 || vr_ffx_s == 8 || vr_ffx_s == 31) // the blow: watched until it hurts the grunt, then until the hand is back
+    {
+        if(vr_ffx_s == 31 && vr_ffx_frames == 6)
+        {
+            localcmd("-offhandattack\n");
+        }
         vr_ffx_frames = vr_ffx_frames + 1;
         if(vr_ffx_s == 6 && vr_ffx_frames == 22)
         {
@@ -730,10 +746,10 @@ void(entity p) VR_FFX_PropFist =
         float hurt = vr_ffx_grunt.health < vr_ffx_gruntHp;
         if(vr_ffx_frames >= 72) // (a second: the swing is 0.79 s, the punch 0.6, with their ways back)
         {
-            string how = vr_ffx_s == 6 ? "the overhead swing" : "the fist's punch";
+            string how = vr_ffx_s == 6 ? "the overhead swing" : vr_ffx_s == 31 ? "the overhead swing from RMB" : "the fist's punch";
             dprint(sprintf("flatitems: %s: the off hand came %g units from the grunt's box\n", how, vr_ffx_near));
-            VR_Test_Check(hurt, sprintf("V with the brick in the off hand, %s: the grunt hurt (%g)", how, vr_ffx_gruntHp - vr_ffx_grunt.health));
-            if(vr_ffx_s == 6)
+            VR_Test_Check(hurt, sprintf("%s with the brick in the off hand, %s: the grunt hurt (%g)", vr_ffx_s == 31 ? "RMB" : "V", how, vr_ffx_gruntHp - vr_ffx_grunt.health));
+            if(vr_ffx_s == 6 || vr_ffx_s == 31)
             {
                 VR_Test_Check(vr_ffx_top > 0, sprintf("... the hand up over the eye (%g units over it)", vr_ffx_top));
                 vr_ffx_swingTop = vr_ffx_top;
@@ -743,7 +759,7 @@ void(entity p) VR_FFX_PropFist =
                 VR_Test_Check(vr_ffx_top < 0, sprintf("... thrown straight, the hand under the eye all the way (%g units over it; the swing %g)", vr_ffx_top, vr_ffx_swingTop));
             }
             VR_Test_Check(VR_Carry_Held(p, cVR_OffHand) == vr_ffx_item, "... the brick still in the off hand");
-            VR_FFX_To(vr_ffx_s + 1, 36); // (the hand settled in the guard again)
+            VR_FFX_To(vr_ffx_s == 8 ? 30 : vr_ffx_s == 31 ? 9 : vr_ffx_s + 1, 36); // (the hand settled in the guard again)
         }
         return;
     }
@@ -1086,6 +1102,183 @@ void(entity p) VR_FFX_TwoHandGrab =
     }
 };
 
+// ---- 10: the mouse's buttons by what the hands hold (his notes 2026-11-11: "props in my offhand to behave in terms of
+// controls ... as if I were dual wielding"; flatplay::routeFire). Each case puts a shotgun, a brick or nothing in each hand,
+// then holds RMB (+offhandattack) and LMB (+attack) in turn: the hand the server sees firing (button0 / button3), and the
+// engine's own routing, ironsight and punches (vr_flat_route_probe, its bits in vr_flat_route_seen: 1 LMB main, 2 LMB off,
+// 4 RMB main, 8 RMB off, 16 RMB aims, 32 the ironsight up, 64 the main hand punched, 128 the off hand). LMB is the right
+// hand's and RMB the left's as soon as the left holds anything; the ironsight only with one gun and an empty other hand.
+float VR_FFX_ROUTE_CASES = 7;
+float vr_ffx_b0, vr_ffx_b3; // the server's main and off triggers while a button is held
+// (Its bricks: vr_ffx_item the right hand's, vr_ffx_item2 the left's.)
+
+// What case `c` puts in hand `h`: 0 nothing, 1 a shotgun, 2 a brick.
+float(float c, float h) VR_FFX_RouteHolds =
+{
+    // main / off: gun+prop, prop+gun, prop+prop, gun+gun, prop+empty, gun+empty, empty+gun
+    if(c == 0) return h == cVR_MainHand ? 1 : 2;
+    if(c == 1) return h == cVR_MainHand ? 2 : 1;
+    if(c == 2) return 2;
+    if(c == 3) return 1;
+    if(c == 4) return h == cVR_MainHand ? 2 : 0;
+    if(c == 5) return h == cVR_MainHand ? 1 : 0;
+    return h == cVR_MainHand ? 0 : 1;
+};
+
+string(float x) VR_FFX_HoldName =
+{
+    return x == 0 ? "empty" : x == 1 ? "shotgun" : "brick";
+};
+
+float(float bits, float b) VR_FFX_Bit =
+{
+    return (bits & b) ? 1 : 0;
+};
+
+void(entity p) VR_FFX_RouteSetup =
+{
+    entity oldself = self;
+    self = p;
+    float h;
+    for(h = 0; h < 2; h++)
+    {
+        float hand = h == 0 ? cVR_OffHand : cVR_MainHand;
+        float what = VR_FFX_RouteHolds(vr_ffx_case, hand);
+        VRGiveEntWeapon(p, hand, what == 1 ? WID_SHOTGUN : WID_FIST, 0, what == 1 ? WeaponIdToBaseClipSize(WID_SHOTGUN) : 0);
+        W_SetCurrentAmmoFor(hand);
+    }
+    self = oldself;
+    p.ammo_shells = 50;
+    for(h = 0; h < 2; h++)
+    {
+        float pHand = h == 0 ? cVR_OffHand : cVR_MainHand;
+        if(VR_FFX_RouteHolds(vr_ffx_case, pHand) != 2)
+        {
+            continue;
+        }
+        entity b = spawn();
+        setorigin(b, VRGetEntHandPos(p, pHand));
+        b.model = "progs/vr_brick1.mdl";
+        self = b;
+        vr_debris_piece();
+        self = p;
+        VR_Carry_Start(p, pHand, b);
+        self = oldself;
+        if(pHand == cVR_MainHand) vr_ffx_item = b; else vr_ffx_item2 = b;
+    }
+};
+
+void(entity p) VR_FFX_RouteDrop =
+{
+    float h;
+    for(h = 0; h < 2; h++)
+    {
+        float hand = h == 0 ? cVR_OffHand : cVR_MainHand;
+        entity b = hand == cVR_MainHand ? vr_ffx_item : vr_ffx_item2;
+        if(b == world)
+        {
+            continue;
+        }
+        if(VR_Carry_Held(p, hand) == b)
+        {
+            VR_Hand_Release(p, hand, "test");
+            VR_Carry_Loose(b);
+        }
+        remove(b);
+    }
+    vr_ffx_item = world;
+    vr_ffx_item2 = world;
+};
+
+// The checks of one button: `rmb` which, `bits` the probe's.
+void(entity p, float rmb, float bits) VR_FFX_RouteCheck =
+{
+    float m = VR_FFX_RouteHolds(vr_ffx_case, cVR_MainHand);
+    float o = VR_FFX_RouteHolds(vr_ffx_case, cVR_OffHand);
+    string what = sprintf("%s right, %s left, %s", VR_FFX_HoldName(m), VR_FFX_HoldName(o), rmb ? "RMB" : "LMB");
+    // The ironsight's case: one gun and nothing in the other hand. Otherwise LMB the right hand's, RMB the left's.
+    float aims = (m == 1 && o == 0) || (m == 0 && o == 1);
+    float wantMain = rmb ? FALSE : !(aims && o == 1);
+    float wantOff = rmb ? !aims : aims && o == 1;
+    float gotMain = VR_FFX_Bit(bits, rmb ? 4 : 1);
+    float gotOff = VR_FFX_Bit(bits, rmb ? 8 : 2);
+    VR_Test_Check(gotMain == wantMain && gotOff == wantOff, sprintf("%s: acts with the %s (routing main %g off %g, bits %g)",
+        what, wantMain ? "right hand" : wantOff ? "left hand" : "neither hand", gotMain, gotOff, bits));
+    VR_Test_Check(vr_ffx_b0 == wantMain && vr_ffx_b3 == wantOff, sprintf("%s: the server's triggers main %g off %g", what,
+        vr_ffx_b0, vr_ffx_b3));
+    if(rmb)
+    {
+        VR_Test_Check(VR_FFX_Bit(bits, 16) == aims && VR_FFX_Bit(bits, 32) == aims,
+            sprintf("%s: the ironsight %s (aims %g, up %g)", what, aims ? "comes up" : "stays down", VR_FFX_Bit(bits, 16),
+            VR_FFX_Bit(bits, 32)));
+    }
+    // The hand that acts with a brick strikes with it (the fist's punch, the prop in it); a gun's hand never punches.
+    float h;
+    for(h = 0; h < 2; h++)
+    {
+        float hand = h == 0 ? cVR_OffHand : cVR_MainHand;
+        float acts = hand == cVR_MainHand ? wantMain : wantOff;
+        float what2 = hand == cVR_MainHand ? m : o;
+        float punched = VR_FFX_Bit(bits, hand == cVR_MainHand ? 64 : 128);
+        float want = acts && what2 != 1;
+        VR_Test_Check(punched == want, sprintf("%s: the %s hand (%s) %s (punched %g)", what, hand == cVR_MainHand ? "right" : "left",
+            VR_FFX_HoldName(what2), want ? "strikes" : "does not strike", punched));
+    }
+};
+
+void(entity p) VR_FFX_Route =
+{
+    float bits;
+    if(vr_ffx_s == 0)
+    {
+        if(vr_ffx_case >= VR_FFX_ROUTE_CASES)
+        {
+            VR_Test_Verdict();
+            vr_ffx_on = 0;
+            cvar_set("vr_flatitems_test", "0");
+            return;
+        }
+        VR_FFX_RouteSetup(p);
+        VR_FFX_To(1, 36); // (half a second: the hands' stats, the props drawn in them)
+        return;
+    }
+    if(vr_ffx_s == 1 || vr_ffx_s == 5) // the probe's punch counts from here; then the button down
+    {
+        localcmd(vr_ffx_s == 1 ? "vr_flat_route_probe start\n+offhandattack\n" : "vr_flat_route_probe start\n+attack\n");
+        VR_FFX_To(vr_ffx_s + 1, 4);
+        return;
+    }
+    if(vr_ffx_s == 2 || vr_ffx_s == 6) // the server's triggers; then (RMB) the ironsight's travel
+    {
+        vr_ffx_b0 = VRGetEntFireButtonPressed(p, cVR_MainHand) ? 1 : 0;
+        vr_ffx_b3 = VRGetEntFireButtonPressed(p, cVR_OffHand) ? 1 : 0;
+        VR_FFX_To(vr_ffx_s + 1, vr_ffx_s == 2 ? 20 : 0);
+        return;
+    }
+    if(vr_ffx_s == 3 || vr_ffx_s == 7) // the probe, read the frame after it ran
+    {
+        localcmd("vr_flat_route_probe\n");
+        VR_FFX_To(vr_ffx_s + 1, 2);
+        return;
+    }
+    if(vr_ffx_s == 4 || vr_ffx_s == 8)
+    {
+        bits = cvar_hget(cvarh_vr_flat_route_seen);
+        localcmd(vr_ffx_s == 4 ? "-offhandattack\n" : "-attack\n");
+        VR_FFX_RouteCheck(p, vr_ffx_s == 4, bits);
+        // (A second and a half: the blow and its way back, the ironsight down, before the next button.)
+        VR_FFX_To(vr_ffx_s == 4 ? 5 : 9, 108);
+        return;
+    }
+    if(vr_ffx_s == 9)
+    {
+        VR_FFX_RouteDrop(p);
+        vr_ffx_case = vr_ffx_case + 1;
+        VR_FFX_To(0, 4);
+        return;
+    }
+};
+
 void() VR_FlatItemsTest_Frame =
 {
     float ask = cvar_hget(cvarh_vr_flatitems_test);
@@ -1131,6 +1324,7 @@ void() VR_FlatItemsTest_Frame =
     if(ask == 7) { VR_FFX_PropFist(p); }
     if(ask == 8) { VR_FFX_Packs(p); }
     if(ask == 9) { VR_FFX_TwoHandGrab(p); }
+    if(ask == 10) { VR_FFX_Route(p); }
 };
 
 #endif

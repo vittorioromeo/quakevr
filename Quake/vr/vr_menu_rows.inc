@@ -6192,9 +6192,11 @@ QVR_TOGGLE(vr_flat_crouch_fire, "Left Ctrl Also Fires",
     "Playing on the desktop screen (-flatscreenmode), Left Ctrl crouches. Off: that is all it does. On: it keeps its own "
     "bind too, so it fires as it crouches (vr_flat_crouch_fire).")
 QVR_CYCLE(vr_flat_aim_mode, "Right Click Ironsight",
-    "Playing on the desktop screen (-flatscreenmode) with one weapon held, in either hand: the left mouse button fires it "
-    "and the right one aims down its sights. Hold: aimed while the button is held. Toggle: a click aims, the next stops "
-    "(vr_flat_aim_mode). With a weapon in each hand the right button fires the left hand's.",
+    "Playing on the desktop screen (-flatscreenmode) with one weapon held, in either hand, and the other hand empty: the "
+    "left mouse button fires it and the right one aims down its sights. Hold: aimed while the button is held. Toggle: a "
+    "click aims, the next stops (vr_flat_aim_mode). With anything in the other hand (a weapon, a prop, a rock, a torch) "
+    "the buttons are the hands' own, as when dual wielding: the left button the right hand's, the right button the left "
+    "hand's (a gun fires, a melee weapon or a prop strikes).",
     {0.f, "Hold"}, {1.f, "Toggle"})
 QVR_SLIDER(vr_flat_aim_sens, "Aim Sensitivity", 0.1f, 2.f, 0.05f, "%.2fx", ext(0.05f, 5.f),
     "Playing on the desktop screen: the mouse's, gyro's and stick's look speed while aiming down the sights, times this, "
