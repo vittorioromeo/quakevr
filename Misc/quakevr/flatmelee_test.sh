@@ -59,7 +59,9 @@ for n in 1 2; do
   what=$([ $n = 1 ] && echo "the axe" || echo "the shotgun")
   check $(ok "$(pick 'main swing' $n eye) > 0 && $(pick 'main swing' $n up) > 60 && $(pick 'main swing' $n dn) < -20 && $(pick 'main swing' $n vp) < -0.5 && $(hi 'main swing' $n) > 1") "overhead swing, $what: the hand over the eye, the weapon up then down, the view back then forward"
 done
-health=$(grep -a "test hurt:" "$log" | head -1 | grep -ao "health [0-9.]*" | awk '{ print $2 + 0 }')
+# (vr_test_hurt reads the nearest live monster: at vr_flat_swing_strike 0.075, the default since 2026-11-11, the axe's
+# swing can kill the knight outright, and the line is then a grunt far off: the knight's health is 0.)
+health=$(grep -a "test hurt:" "$log" | head -1 | awk '/monster_knight/ { for(i = 1; i <= NF; i++) if($i == "health") print $(i + 1) + 0; next } { print 0 }')
 echo "  the knight after the axe's swing: ${health:-?} of 75 ($log)"
 check $(ok "${health:-75} < 75") "overhead swing, the axe: the knight in front is hurt"
 back=$(grep -a "test hurt:" "$log" | sed -n 2p | grep -ao "health [0-9.]*" | awk '{ print 75 - $2 }')
@@ -68,7 +70,7 @@ check $(ok "${back:-0} >= 30") "overhead swing, the axe raised behind the head: 
 offAxe=$(pick 'main swing' 1 off); offGun=$(pick 'main swing' 2 off); offOld=$(pick 'main swing' 3 off)
 echo "  the hand beside the crosshair's ray at the strike's end: the axe ${offAxe:-?}, the shotgun ${offGun:-?} units (the shotgun at the old fixed point: ${offOld:-?})"
 check $(ok "${offAxe:-99} >= 0 && ${offAxe:-99} < 1.5 && ${offGun:-99} >= 0 && ${offGun:-99} < 1.5") "overhead swing: it ends on the crosshair's ray"
-ds=$(grep -a "test hurt: monster_army" "$log" | grep -ao "[0-9.]* u away" | awk '{ print $1 }' | tr '\n' ' ')
+ds=$(grep -a "test hurt: monster_army -1 damage" "$log" | grep -ao "[0-9.]* u away" | awk '{ print $1 }' | tr '\n' ' ')
 echo "  the shoved grunt, from the landing on: $ds"
 check $(echo "$ds" | awk '{ ok = NF >= 6; for(i = 2; i <= NF; i++) if($i < $(i - 1) - 1) ok = 0; if($NF < $1 + 30) ok = 0; print ok }') "shove: the grunt is never pulled back by the hands' way back, and ends 30 further"
 verdict
