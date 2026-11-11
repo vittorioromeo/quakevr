@@ -8777,7 +8777,7 @@ No checklist lines yet; they come with the implementation.
 ambushes from several sides), knights and death knights with guns (`gun_knight`, `gun_dk`), the Knightfall theme, a
 red-armoured death knight boss with the best gun, a reactive supply budget, score from cost, quick kills, menu rows
 (Combat > Survival Arena > Budget Director) and Debug rows. Tests: `vr_arena_director_test` (C++, 328 checks) and
-arena test 41 (gun knights). Details, sim numbers and test results: `docs/vr-port/ARENA_DIRECTOR.md` section 13.
+arena test 42 (gun knights). Details, sim numbers and test results: `docs/vr-port/ARENA_DIRECTOR.md` section 13.
 
 ## Active ragdolls' thuds (branch `agent/ragthud`, 2026-11-11)
 
@@ -8829,3 +8829,31 @@ go. Before: crowbar E "grip let go -1 s" (never), 4 failed; after: 33 passed; th
 all three, the brick flies 0.29 s later. Launcher numbers unchanged (E 2.41, shove 8.46, H 20.63, G 3.79, 3 1.74).
 `flatfg2h_test.sh`: 11 passed (the shove's drawn comparison now within a quarter: the axe's 9.48 vs 8.46 already failed
 the old one-unit slack since the shove smoothing). Scene `flat_fg_crowbar2h`.
+
+## Navmesh: the arena's towers (branch `agent/navtower`, 2026-11-11)
+
+Grunts never reached him on a tower top, and a grunt on the tower across ran into its own top's corner. Causes: the
+flight's top two treads (32 wide between the tower's face and a drop) were eroded off the mesh by the clearance, so each
+tower's top, bridge and deck were an island; armed humanoids' range keeping walks straight at him without the mesh; a
+dog on the stair leapt at him into the tower's wall. Fixes: a narrow band (`vr_nav_narrow` 0.5, `vr_nav_narrow_cost` 3:
+Recast eroded twice, the strip between the two its own costlier area, yellow in Show Navmesh; drop links still from the
+clearance's edge; `navVersion` 4); `vr_nav_level` 64 (an armed humanoid with its foe on another level follows its path,
+not its range keeping); a dog's leap needs a clear box line (`vr_nav` on). New `vr_arena_test 41` (the towers: 5 kinds,
+up, down and across, 4 towers): 27 capped of 60 before, 6 after (open: a dog or knight standing at one stair step by the
+tower's wall). Test 36 16 passed 0 failed, `nav_crowd` 12 of 12 within 6.9 s, cliptest/toptest pass on e1m1 and e4m7;
+e1m1 1,578 -> 2,924 polygons. Table and details: NAVMESH.md 13. Scene `nav_tower`.
+## Flat: a prop in a hand routes the mouse like a second weapon (branch `agent/flatpropctl`, 2026-11-11)
+
+His report: a super shotgun in the right hand and a rock in the left, and RMB aimed the shotgun instead of swinging the
+rock; he wants props and guns to behave alike ("as if I were dual wielding"). Cause: `flatplay::routeFire` keyed the
+ironsight on `loneWeaponHand` (one weapon held), which does not see props. Fix (`routeButtons`, `vr_flatplay.cpp`): the
+lone-weapon path (LMB fires it, RMB aims) now needs the other hand empty (`!holdsThing`: no carried entity, no prop drawn in
+it); with anything in it (a prop, rock, brick, torch, body part, carried monster) the buttons are the hands' own, LMB the
+right and RMB the left, each doing what it already does in its hand (a gun fires; a fist with a prop strikes: `pollKeys`'
+punch, the overhead swing or the fist's punch per `vr_flat_prop_melee`). One routing, shared: the server's triggers, the
+punches, the ironsight (`flatsight::pollKey`), the parry and the status all read it. Unchanged: a lone gun with the other
+hand empty, in either hand (LMB fires it, RMB aims); V (`vr_flat_prop_v`), the grenade, holster, force grab, drop and swap
+keys. Test aid: `vr_flat_route_probe [start]` (its bits into `vr_flat_route_seen`). `vr_flatitems_test 10`: seven
+combinations (gun+brick, brick+gun, two bricks, two guns, brick+nothing, gun+nothing, nothing+gun), LMB and RMB each: 63
+passed. Test 7 gained an RMB swing that hurts the grunt (13 passed); test 1 (RMB with each off-hand item: the hand keeps
+it) 15 passed. Docs: FLATPLAY.md "The keys" and "Force grab", the Right Click Ironsight row's help. Scene `flat_prop_buttons`.

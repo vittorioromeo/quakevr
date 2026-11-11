@@ -308,6 +308,15 @@ float()    CheckDogJump =
     if(d > 150)
         return FALSE;
 
+    // QVR (vr_nav on): only with a clear line for its box to him. From a tower's stair a dog leapt at him on the top
+    // into the tower's wall, fell back and leapt again for good (vr_arena_test 41; NAVMESH.md 13).
+    if(cvar_hget(cvarh_vr_nav))
+    {
+        tracebox(self.origin, self.mins, self.maxs, self.enemy.origin, TRUE, self); // (nomonsters)
+        if(trace_fraction < 1 || trace_startsolid)
+            return FALSE;
+    }
+
     return TRUE;
 };
 

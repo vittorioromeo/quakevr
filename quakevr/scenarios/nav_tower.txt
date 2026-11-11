@@ -1,0 +1,16 @@
+# nav_tower: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". You on the arena's north-east tower
+# top; an armed grunt on the north-west tower's top (across: down its stair, over the floor, up yours), another and an
+# ogre on the floor, a knight by the north-west tower. They path up your tower's stair (the navmesh's narrow band joins
+# the stair's top to the tower: yellow in Show Navmesh), the armed grunts too (their range keeping gives way to the path
+# while you are on another level: vr_nav_level). Test: vr_arena_test 41 (every tower, up, down and across).
+title Navmesh: walkers and armed grunts come up the arena's towers
+map vrarena
+start 402 402 281 225
+god
+spawn "Armed Grunt: Shotgun" -54 254
+spawn "Armed Grunt: Shotgun" 568 -568
+spawn "Knight" 314 -622
+spawn "Ogre" 286 566
+cvar vr_nav 1
+cvar vr_nav_debug 2
+hint Stay on the tower top: the grunt on the far tower should go down its stair, cross the floor and come up yours rather than run into its tower's edge; the others come round to your stair and up it. Show Navmesh draws the stairs' mesh joined to the top (the narrow band yellow).

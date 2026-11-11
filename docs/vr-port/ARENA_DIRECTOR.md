@@ -411,7 +411,7 @@ untouched).
    They don't reload (no reload frames: they stand). The death knight still casts his volley on a cooldown while he
    holds a gun (`vr_agdknight_cast_cooldown`). These paths are shared with the grunts and are already covered by
    `vr_armedknight_test` (a knight and a death knight spawned with a shotgun hold it, fire it, are disarmed, and take
-   it up again). Nothing needed fixing. Arena test 41 checks it in the arena with the guns the director gives them
+   it up again). Nothing needed fixing. Arena test 42 checks it in the arena with the guns the director gives them
    (results below).
 2. **Cost table.** Two more bodies on the same kinds: `gun_knight` (armed knight body, 7 + gun, from wave 12,
    weight 0.12) and `gun_dk` (armed death knight body, 18 + gun, from 18, weight 0.15). `arms "guns"` means
@@ -500,7 +500,7 @@ See the report's numbers. The planner's own test is `vr_arena_director_test` (C+
 - supplies stay within budget, and power-ups at least 3 waves apart;
 - a row the game lacks is never planned.
 
-Arena test 41 is the gun knights scene (`vrarena`): a knight with a shotgun, a knight with a super nailgun, and a
+Arena test 42 is the gun knights scene (`vrarena`): a knight with a shotgun, a knight with a super nailgun, and a
 red-armoured death knight boss with a rocket launcher. Each must hold its gun, fire it at the player, and drop it when
 felled; it takes a screenshot as the boss fires. Arena test 6 (the 32-wave soak) runs with `vr_arena_director 1` at
 each skill.

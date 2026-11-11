@@ -4616,6 +4616,9 @@ vr_nav_slime_cost|2|Tunables|Navmesh: Slime Cost|Advanced VR Options > Debug > T
 vr_nav_lava_cost|2|Tunables|Navmesh: Lava Cost|Advanced VR Options > Debug > Tunables > Navmesh: Lava Cost
 vr_nav_movers|2|Tunables|Navmesh: Doors and Lifts Check|Advanced VR Options > Debug > Tunables > Navmesh: Doors and Lifts Check
 vr_nav_clearance|2|Tunables|Navmesh: Clearance|Advanced VR Options > Debug > Tunables > Navmesh: Clearance
+vr_nav_narrow|2|Tunables|Navmesh: Narrow Band|Advanced VR Options > Debug > Tunables > Navmesh: Narrow Band
+vr_nav_narrow_cost|2|Tunables|Navmesh: Narrow Band Cost|Advanced VR Options > Debug > Tunables > Navmesh: Narrow Band Cost
+vr_nav_level|2|Tunables|Navmesh: Armed Climb Height|Advanced VR Options > Debug > Tunables > Navmesh: Armed Climb Height
 vr_nav_sidestep|2|Tunables|Navmesh: Blocked Step Angle|Advanced VR Options > Debug > Tunables > Navmesh: Blocked Step Angle
 vr_nav_drop|2|Tunables|Navmesh: Drop Links|Advanced VR Options > Debug > Tunables > Navmesh: Drop Links
 vr_nav_drop_max|2|Tunables|Navmesh: Highest Drop|Advanced VR Options > Debug > Tunables > Navmesh: Highest Drop
