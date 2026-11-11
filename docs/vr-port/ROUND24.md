@@ -9000,3 +9000,48 @@ Shots in the housing3 worktree's `scratch/`: `before_*.png` / `after_*.png` (lef
   39.6 degrees, 0.304 apart; levels 0.050 out, each shifting 0.041 along the face).
 - **Plasma Gun:** made from AD's model at load (`vr_adweapons.cpp` plasmaParts, the made parts' box/extrude helpers in
   AD's 128x128 texels): its housing belongs there, in C++, as the cell receiver is.
+
+## The Widowmaker's and the AD Plasma Gun's ammo screen housings (branch `agent/housing4`, 2026-11-11)
+
+His mockups: kit `scratch/widowmaker_housing_mockup_1111.webp`, `scratch/adplasma_housing_mockup_1111.webp`. Shots in
+the housing3 worktree's `scratch/` (flat play, AD mounted; left the hand, then `vr_debug_screen_cam` 110 / 300 and 45):
+`h4_before_widow.png` / `h4_after_widow.png` (`h4_wm_zoom.png` the close-up cropped), `h4_before_plasma.png` /
+`h4_after_plasma.png`. Scenario `ad_housings` (needs AD).
+
+- **The digits as they were (shared, `fillMax`):** with an `opening`, reloading on, the clip over the total grew to fill
+  the glass (fillSize, times vr_ammo_mag_scale). Screen styles have `fillMax` (vr_screenstyle.hpp): the fill never past
+  it; `queue` hands it to the glyphs (text3d `Glyphs::fillMax`), fillSize caps there. 1 on these two: their windows are
+  the glass each had without a housing (its text plus padding: "16" over a 0.6-size "100" fits at the font's size), so
+  the digits keep their size and place on the glass (the look the default's: no box, the frame the model's); made
+  smaller only if a number would not fit. 0 (no cap) on every other gun: their screens unchanged.
+- **Widowmaker** (`Misc/quakevr/make_screen_housing_widow.py`, the hand-made `widowmaker.blend`; its own object
+  `ScreenHousing` and the Widowmaker's exporter: the Body untouched): on the receiver's top-rear chamfer, built on the
+  .mdl grid's plane nearest it (one X, three Z steps: 39.6 degrees, rows 0.304; the glass keeps slot 34's pitch, 3.1
+  degrees off: its edges 0.02 / 0.07 behind the front). h = 3 rows = 0.91. Window 28 Y steps x 3 rows (0.93 x 0.91 =
+  20.1 x 19.6 font px: 1.02w x 1h, not the spec's 0.9w: today's "16" needs 19.1 px across at the font's size),
+  corners cut 0.11h along the top/bottom edges (the sides 0.14h above, 0.11h below: the grid). Bezel 0.11h at the sides,
+  one row (0.33h: the grid's least; the spec's 0.1h is a third of a row) above and below, 0.11h proud of the chamfer as
+  the file has it; bevelled to 0.15 back (top 40, bottom 50, sides 48 degrees: the levels the grid has); walls into the
+  gun, closed. Glass 0.05h behind the front. 4 rivets r 0.08h (not 0.06h: at 0.06h the grid's 0.149-tall points make
+  spikes; round to w/h 1.016) at +-0.39 of the window's width in the top and bottom bands (0.028 below their middles:
+  the grid), not at the spec's (+-0.4w, +-0.4h), which is inside the window. Texels from the gun: the plate from the
+  receiver's top, the bevels and walls from its back beside the rear plate, the window's walls from the shell port's
+  dark inside, the rivets on a painted rivet of the rear plate. 64 vertices, 72 triangles; the .mdl's grid unchanged.
+  Re-run in place: 0 moved, 72 kept, the .blend unchanged. Table `"shot3.mdl#vr"`: radius -2.15, opening 10.03 x 9.79,
+  offset {0.0043, -0.0040, -0.0088} (the glass 0.02 off its old place).
+- **The grid, not the .blend:** the first try put the glass 0.025 in front of the chamfer as the .blend has it, but the
+  file's bytes move the chamfer 0.06 further out (its X 0.11 off): the gun cut the "2". The script measures the gun as
+  the file has it (its vertices on the grid).
+- **AD Plasma Gun** (`Quake/vr/vr_adweapons.cpp` plasmaHousing, made with the model as it loads, on its grid: X 0.148,
+  Y 0.055, Z 0.073): on the rear face (the cut's cap), upright. The cut moved from x -5.55 (drawn at the corner's byte,
+  which nothing may pass: the settings scale about it) to -5.33 (the third byte): the bezel's front on the second
+  (proud one X step: 0.12h; the spec's 0.06h is half a step), the rivets' tops on the first. h = the window's width =
+  22 Y steps = 1.20 (today's glass); height 15 Z steps (0.91h); corners cut 2 Y / 1 Z steps (about 0.08h). Bezel 2 Z
+  steps (0.12h) above and below, 6 Y steps (0.27h) at the sides (the mockup's: the rivets need 0.19h); flat, closed
+  behind; all 4 outline corners on the gun's face (`vr_adweapon_models` prints it). 2 rivets: octagons 0.22 across (r
+  0.09h) up to a flat top, one smoothing group (a low dome), in the side bands' middles, level with the window's middle.
+  AD's texels: the bronze plate (the cell block's) on the bezel, a dark slot inside the window, a painted rivet's dark
+  dot on the rivets. 88 triangles. Glass 0.04h behind the front: table `"plasma.mdl#vr"` (the stem exact: Rogue's
+  `progs/v_plasma.mdl` never matches) radius -1.70, opening 11.23 x 10.21, offset {-0.0055, -0.0044, -0.1200}.
+- Tests: `vr_ad_test 103` (the Plasma Gun's ball) 2/0; `vr_scenario validate ad_housings` OK; Release-TracyFull built.
+- **Not verified:** the headset (flat shots); the left hand (the shapes are symmetric).
