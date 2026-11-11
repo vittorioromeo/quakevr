@@ -4737,6 +4737,7 @@ vr_nav_debug|2|Debug - Views|Show Navmesh|Advanced VR Options > Debug > Views > 
 vr_nav_debug_range|2|Debug - Views|Show Navmesh: Range|Advanced VR Options > Debug > Views > Show Navmesh: Range
 vr_nav_debug_class|2|Debug - Views|Show Navmesh: Size Class|Advanced VR Options > Debug > Views > Show Navmesh: Size Class
 |2|Debug - Views|Print Navmesh Info|Advanced VR Options > Debug > Views > Print Navmesh Info
+|2|Debug - Views|Crowd Stall Test (40 s)|Advanced VR Options > Debug > Views > Crowd Stall Test (40 s)
 |2|Debug - Views|Check Clip Brushes Block Paths|Advanced VR Options > Debug > Views > Check Clip Brushes Block Paths
 vr_debug_hand_collide|2|Debug - Views|Log Empty Hand Against Held|Advanced VR Options > Debug > Views > Log Empty Hand Against Held
 vr_debug_carry|2|Debug - Views|Show Grab Test|Advanced VR Options > Debug > Views > Show Grab Test

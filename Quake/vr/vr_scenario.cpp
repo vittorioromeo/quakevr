@@ -17,6 +17,7 @@
 #include "vr_testbatch.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_trace.hpp"
+#include "vr_tunables_api.hpp"
 #include "vr_zancle.hpp"
 
 #include "Zancle/Algorithm/Find.hpp"
@@ -440,7 +441,7 @@ bool read(const char* id, Scenario& out)
                 error(lineNo, "cvar <name> <value>");
                 return;
             }
-            if(!Cvar_FindVar(w[1].cStr()))
+            if(!settingByName(w[1].cStr()) && !tunableFind(w[1].cStr())) // (a tuning constant too: set live in a development build)
             {
                 error(lineNo, va("no setting %s", w[1].cStr()));
                 return;
@@ -898,7 +899,11 @@ bool start(const char* id, const char* hint)
     state.lastHint = hint ? hint : "";
     for(const Setting& c : state.run.cvars)
     {
-        cvar_t* var = Cvar_FindVar(c.name.cStr());
+        cvar_t* var = settingByName(c.name.cStr()); // (a tuning constant's stand-in sets it live; none in a release build)
+        if(!var)
+        {
+            continue;
+        }
         state.saved.take(var); // (its first value kept: the one before the scenario)
         Cvar_SetQuick(var, c.value.cStr());
     }

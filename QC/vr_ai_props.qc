@@ -9,6 +9,9 @@
 .vector vr_detour_at;     // the point beside the prop it walks to
 .float vr_detour_until;   // until when (given up after that)
 .entity vr_detour_prop;   // and the prop
+.float vr_nav_melee;      // 1: a melee walker (VR_NAV_Melee), for the navmesh's approach slots (vr_nav.cpp approach)
+
+void() dog_leap1;
 
 float(entity e) VR_AI_IsSolidProp =
 {
@@ -124,6 +127,14 @@ void(float dist) VR_AI_MoveRound =
 // The chase on the map's navmesh (vr_nav, docs/vr-port/NAVMESH.md): a walker after its foe turns toward its path's next
 // corner and steps there with Quake's walkmove. FALSE: Quake's chase as before (no path, the foe straight ahead on the
 // mesh, or the step blocked: a prop, another monster).
+// A walker that fights up close: no missile attack, a dog (its leap is a lunge at arm's length), or an armed humanoid
+// holding no ranged weapon (a knight's sword).
+float() VR_NAV_Melee =
+{
+    if(self.vr_ag) { return !VR_WP_CarriesRanged(self); }
+    return !self.th_missile || self.th_missile == dog_leap1;
+};
+
 float(float dist) VR_NAV_Step =
 {
     entity g = self.goalentity;
@@ -132,6 +143,7 @@ float(float dist) VR_NAV_Step =
     {
         return FALSE;
     }
+    self.vr_nav_melee = VR_NAV_Melee();
     float yaw = navsteer(self, g);
     if(yaw < 0) { return FALSE; }
     float act = navlink(self);

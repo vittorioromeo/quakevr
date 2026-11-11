@@ -296,6 +296,10 @@ za::Vector<Item> pageDebugViews()
         command("Print Navmesh Info", "vr_nav_info")
             .help("vr_nav_info: the map's navmesh input (brushes, clip brushes, triangles) and each monster size class's "
                   "mesh: tiles, polygons, size, built or read from disk and how long it took; the paths found."),
+        command("Crowd Stall Test (40 s)", "vr_nav_crowdtest 40")
+            .help("vr_nav_crowdtest 40: every walker comes at you; each half second one moved under 8 units while over 128 "
+                  "away is a stall, given its cause (a monster or a wall in the way, a ledge, in a wall, no chase...). The "
+                  "console prints the causes by monster type; Show Navmesh 2 draws a post where each stalled."),
         command("Check Clip Brushes Block Paths", "vr_nav_cliptest")
             .help("vr_nav_cliptest: no navmesh polygon lies inside one of the map's clip brushes (the console; ends on "
                   "'nav cliptest: N passed, M failed')."),

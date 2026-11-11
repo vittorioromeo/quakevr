@@ -176,6 +176,24 @@ struct Agent
     int action = 0;           // navlink: 0 walk, 1 walk off the ledge (a drop), 2 stand (waiting, riding, falling)
     int slot = -1, slotGoal = 0; // its approach slot round that goal (approach), claimed when
     double slotAt = 0.0;
+    // Its last steer (the crowd test's stall causes): why it returned (Why), where it stood, when, which way.
+    int why = 0;
+    bool partial = false;     // its path stops short of the goal (no way there on the mesh)
+    glm::vec3 lastPos{0.f};
+    double lastAt = -1.0;
+    float lastYaw = 0.f;
+};
+
+// Why a steer returned what it did (the crowd test's causes).
+enum Why : int
+{
+    whyNone,
+    whyOffMesh,   // its feet on no polygon: Quake's chase
+    whyNoPath,    // no polygon at the goal, or no path: Quake's chase
+    whyEnd,       // no corner left, or the goal straight ahead on the mesh: Quake's chase
+    whyLink,      // following a drop or a ride
+    whySteered,   // a yaw toward the next corner
+    whyCount
 };
 
 // A walker as the crowd's separation sees it (crowdNow: once a frame).
@@ -1974,26 +1992,330 @@ const edict_t* rideMover(int ride)
     return m && !m->free && static_cast<int>(m->v.solid) == SOLID_BSP ? m : nullptr;
 }
 
-// vr_nav_crowdtest <seconds> [near]: every walker on the map woken onto the player; every half second each one's move
-// sampled: a stall is a half second it moved under 8 units while farther than `near` (128) from him. Its end prints the
-// walkers, their stalls and how many came within `near` of him; it passes when every one did. (Stuck counts in a crowd:
-// vr_nav_separation, vr_nav_slots.)
+// vr_nav_crowdtest <seconds> [near] [dump]: every walker on the map woken onto the player; every half second each one's
+// move sampled: a stall is a half second it moved under 8 units while farther than `near` (128) from him. A sample whose
+// monster is busy (an attack, pain, a leap, knocked down, in the air) is left out. Each stall is given its cause (Cause,
+// from the monster's state and its steers that half second) and logged (`navstall|<class>|<cause>|x|y|z`); the end
+// prints a table of causes by monster type, the frames the "no chase" and "busy" ones were in, whether each walker had a
+// whole path to him at the start, and the walkers, their stalls and how many came within `near` of him; it passes when
+// every one did. `dump`: the walkers' classes' polygons logged too (`navpoly|...`, for a top-down heatmap).
+enum Cause : int
+{
+    causeInSolid,    // its box in a wall (placed there): it cannot move at all
+    causeIdle,       // waiting by design: standing, walking, the knight's pause, an armed one's taunt (vr_ag_hunt)
+    causeInfight,    // after another monster (infighting: one struck another in the crowd)
+    causeNoChase,    // after him, but no steer that half second (ai_run did something else: turned, gated, searched)
+    causeOffMesh,    // its feet on no polygon: Quake's chase
+    causeNoPath,     // no polygon at his feet, or no path: Quake's chase
+    causeLink,       // on a drop or a ride
+    causeEndBlocked, // the path handed to Quake's chase (him straight ahead, or none left), blocked
+    causeUnreach,    // as above, its path stopping short of him (no way to him on the mesh)
+    causeEndOther,   // as above, otherwise
+    causeMonster,    // steered, its step blocked by another monster's box
+    causeWall,       // steered, its step blocked by a wall or a brush entity
+    causeLedge,      // steered, the way clear but walkmove refused (the ledge test)
+    causeSlow,       // steered and moved, but under 8 units (back and forth)
+    causeCount
+};
+constexpr const char* causeNames[causeCount] = {"insolid", "idle", "infight", "nochase", "offmesh", "nopath", "link", "end-blocked", "unreach",
+    "end-other", "monster", "wall", "ledge", "slow"};
+
+struct CrowdWin
+{
+    int steers = 0, steered = 0, blocked = 0;
+    int whys[whyCount]{};
+};
+
+struct CrowdType
+{
+    const char* name;
+    int samples = 0, busy = 0, stalls = 0;
+    int busyAir = 0, busyKnock = 0; // (of busy: in the air, knocked down)
+    int causes[causeCount]{};
+};
+
+struct CrowdFrame
+{
+    const char* name;
+    int count;
+};
+
 struct CrowdTest
 {
-    bool armed = false;
+    bool armed = false, dump = false;
     double since = 0.0, until = 0.0, nextSample = 0.0;
     float near = 128.f;
     za::Vector<glm::vec4> last; // by edict number: the last sample's place (w: 1 sampled)
-    za::Vector<unsigned char> came;
-    int stalls = 0, samples = 0;
+    za::Vector<unsigned char> came, reachDone;
+    za::Vector<CrowdWin> win;   // by edict number: its steers since the last sample
+    za::Vector<CrowdType> types;
+    za::Vector<CrowdFrame> noChaseFrames, busyFrames, idleFrames;
+    za::Vector<unsigned char> member; // by edict number: a walker alive at the start (those that came later left out)
+    za::Vector<glm::vec4> stallAt;    // each stall's place (w: its Cause), drawn at vr_nav_debug 2
+    int stalls = 0, samples = 0, busy = 0;
+    int reachWhole = 0, reachShort = 0;
+    float reachWorst = 0.f;
 };
 CrowdTest crowdTest;
+bool crowdDump = false; // vr_nav_crowdtest dump: the next test's end logs the polygons
+int crowdWaits = 0;      // frames waited for a scene's monsters to start
+
+const char* functionName(func_t f)
+{
+    return f > 0 && f < qcvm->progs->numfunctions ? PR_GetString(qcvm->functions[f].s_name) : "(none)";
+}
+
+void countFrame(za::Vector<CrowdFrame>& frames, const char* name)
+{
+    for(CrowdFrame& f : frames)
+    {
+        if(!strcmp(f.name, name))
+        {
+            ++f.count;
+            return;
+        }
+    }
+    frames.pushBack(CrowdFrame{name, 1});
+}
+
+CrowdType& crowdType(const char* name)
+{
+    for(CrowdType& t : crowdTest.types)
+    {
+        if(!strcmp(t.name, name))
+        {
+            return t;
+        }
+    }
+    crowdTest.types.pushBack(CrowdType{name});
+    return crowdTest.types.back();
+}
+
+// (Each steer while the crowd test runs: the last steer's outcome counted, now it has moved or not.)
+void crowdNote(const edict_t* ent, Agent& a, const glm::vec3& pos, double now)
+{
+    const auto n = static_cast<za::SizeT>(NUM_FOR_EDICT(const_cast<edict_t*>(ent)));
+    if(crowdTest.armed && n < crowdTest.win.size())
+    {
+        CrowdWin& w = crowdTest.win[n];
+        ++w.steers;
+        if(a.lastAt >= 0.0 && now - a.lastAt < 0.3)
+        {
+            w.whys[a.why] += 1;
+            const bool moved = flatDist(pos, a.lastPos) > 0.5f;
+            w.steered += a.why == whySteered ? 1 : 0;
+            w.blocked += a.why == whySteered && !moved ? 1 : 0;
+        }
+    }
+    a.lastPos = pos;
+    a.lastAt = now;
+}
+
+bool busyFrame(const char* f)
+{
+    constexpr const char* busy[] = {"atk", "att", "pain", "leap", "die", "death", "dead", "knock", "jump", "shove", "slam",
+        "smash", "stun", "melee", "swing", "slice", "magic", "getup", "fall", "char", "take", "agp_act"};
+    for(const char* b : busy)
+    {
+        if(strstr(f, b))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Its box in a wall or a brush entity (a spot in a wall: it never moves).
+bool inSolid(edict_t* e)
+{
+    const trace_t tr = SV_Move(e->v.origin, e->v.mins, e->v.maxs, e->v.origin, MOVE_NOMONSTERS, e);
+    return tr.startsolid || tr.allsolid;
+}
+
+// In the air: off the ground with no floor right under its box (the armed humanoids walk without FL_ONGROUND).
+bool airborne(edict_t* e)
+{
+    if((static_cast<int>(e->v.flags) & FL_ONGROUND) || inSolid(e))
+    {
+        return false;
+    }
+    vec3_t down;
+    VectorCopy(e->v.origin, down);
+    down[2] -= 4.f;
+    return SV_Move(e->v.origin, e->v.mins, e->v.maxs, down, MOVE_NOMONSTERS, e).fraction >= 1.f;
+}
+
+// What a stalled walker's step meets a little ahead along that yaw: 0 nothing, 1 a monster, 2 anything else.
+int stepMeets(edict_t* e, float yaw)
+{
+    const float r = glm::radians(yaw);
+    const glm::vec3 at = geom::vec(e->v.origin);
+    const glm::vec3 to = at + glm::vec3{glm::cos(r), glm::sin(r), 0.f} * 16.f;
+    vec3_t s, t;
+    VectorCopy(&at.x, s);
+    VectorCopy(&to.x, t);
+    const trace_t tr = SV_Move(s, e->v.mins, e->v.maxs, t, MOVE_NORMAL, e);
+    if(tr.fraction >= 1.f && !tr.allsolid && !tr.startsolid)
+    {
+        return 0;
+    }
+    return tr.ent && tr.ent != sv.qcvm.edicts && (static_cast<int>(tr.ent->v.flags) & FL_MONSTER) ? 1 : 2;
+}
+
+Cause stallCause(edict_t* e, const Agent* a, const CrowdWin& w, const edict_t* p)
+{
+    if(inSolid(e))
+    {
+        return causeInSolid;
+    }
+    const char* frame = functionName(e->v.think);
+    if(p && e->v.enemy && e->v.enemy != EDICT_TO_PROG(p))
+    {
+        return causeInfight;
+    }
+    if(!p || !e->v.enemy || strstr(frame, "stand") || strstr(frame, "walk") || strstr(frame, "pause") || strstr(frame, "hunt"))
+    {
+        countFrame(crowdTest.idleFrames, frame);
+        return causeIdle;
+    }
+    if(w.steers == 0 || !a)
+    {
+        countFrame(crowdTest.noChaseFrames, frame);
+        return causeNoChase;
+    }
+    if(w.whys[whyLink] > 0)
+    {
+        return causeLink;
+    }
+    if(w.blocked > 0)
+    {
+        const int meets = stepMeets(e, a->lastYaw);
+        return meets == 1 ? causeMonster : meets == 2 ? causeWall : causeLedge;
+    }
+    if(w.steered > 0 && w.steered * 2 >= w.steers)
+    {
+        return causeSlow;
+    }
+    if(w.whys[whyOffMesh] > 0 && a->why == whyOffMesh)
+    {
+        return causeOffMesh;
+    }
+    if(w.whys[whyNoPath] > 0 && a->why == whyNoPath)
+    {
+        return causeNoPath;
+    }
+    if(a->partial)
+    {
+        return causeUnreach;
+    }
+    return stepMeets(e, e->v.angles[1]) != 0 ? causeEndBlocked : causeEndOther;
+}
+
+// Whether a walker has a whole path to him on its class's mesh (else how far short its path stops).
+bool wholePath(const edict_t* e, const glm::vec3& him, float& gap)
+{
+    gap = 0.f;
+    NavClass* c = readyClass(classFor(e, false));
+    if(!c)
+    {
+        return false;
+    }
+    const glm::vec3 a = toRc(feet(e)), b = toRc(him);
+    const float ext[3] = {c->radius + 16.f, 32.f, c->radius + 16.f}, goalExt[3] = {64.f, 96.f, 64.f};
+    dtPolyRef s = 0, g = 0;
+    float sp[3], gp[3];
+    if(dtStatusFailed(c->query->findNearestPoly(&a.x, ext, &filter, &s, sp)) || !s ||
+       dtStatusFailed(c->query->findNearestPoly(&b.x, goalExt, &filter, &g, gp)) || !g)
+    {
+        gap = -1.f;
+        return false;
+    }
+    dtPolyRef buf[maxPath];
+    int n = 0;
+    (void)c->query->findPath(s, g, sp, gp, &filter, buf, &n, maxPath);
+    if(n > 0 && buf[n - 1] == g)
+    {
+        return true;
+    }
+    float end[3];
+    (void)c->query->closestPointOnPoly(n > 0 ? buf[n - 1] : s, gp, end, nullptr);
+    gap = glm::length(fromRc(end) - fromRc(gp));
+    return false;
+}
+
+void dumpPolys()
+{
+    za::Vector<int> seen;
+    progs::forEachEdict(1, [&](edict_t* e) {
+        const int cls = walker(e) ? classFor(e, false) : -1;
+        NavClass* c = readyClass(cls);
+        for(const int k : seen)
+        {
+            c = k == cls ? nullptr : c;
+        }
+        if(!c)
+        {
+            return;
+        }
+        seen.pushBack(cls);
+        for(int i = 0; i < c->mesh->getMaxTiles(); ++i)
+        {
+            const dtMeshTile* tile = static_cast<const dtNavMesh*>(c->mesh)->getTile(i);
+            for(int k = 0; tile && tile->header && k < tile->header->polyCount; ++k)
+            {
+                const dtPoly& poly = tile->polys[k];
+                if(poly.getType() == DT_POLYTYPE_OFFMESH_CONNECTION)
+                {
+                    continue;
+                }
+                char line[512];
+                int len = q_snprintf(line, sizeof(line), "navpoly|%d|%.0f", cls, static_cast<double>(c->radius));
+                for(int v = 0; v < poly.vertCount && len < 440; ++v)
+                {
+                    const glm::vec3 q = fromRc(&tile->verts[poly.verts[v] * 3]);
+                    len += q_snprintf(line + len, sizeof(line) - static_cast<size_t>(len), "|%.0f %.0f %.0f", static_cast<double>(q.x),
+                        static_cast<double>(q.y), static_cast<double>(q.z));
+                }
+                Con_Printf("%s\n", line);
+            }
+        }
+    });
+}
 
 void crowdtest_f()
 {
-    if(Cmd_Argc() < 2 || !sv.active)
+    if(Cmd_Argc() == 2 && !strcmp(Cmd_Argv(1), "dump"))
     {
-        Con_Printf("vr_nav_crowdtest <seconds> [near]\n");
+        crowdDump = true; // (before a scene that runs the test)
+        return;
+    }
+    if(Cmd_Argc() < 2)
+    {
+        Con_Printf("vr_nav_crowdtest <seconds> [near] [dump]; vr_nav_crowdtest dump: the next one dumps\n");
+        return;
+    }
+    // A scene's map loads and its monsters start a few frames after they are placed (walkmonster_start_go): the test
+    // waits a frame at a time till the server runs, none is still to start and there are walkers (at most 10 s of
+    // frames: then it goes ahead with what there is).
+    int walkers = 0, starting = 0;
+    if(sv.active)
+    {
+        const progs::ServerVm vm;
+        progs::forEachEdict(1, [&](edict_t* e) {
+            walkers += walker(e) && e->v.health > 0.f ? 1 : 0;
+            starting += strstr(functionName(e->v.think), "monster_start_go") ? 1 : 0;
+        });
+    }
+    if((!sv.active || walkers == 0 || starting > 0) && crowdWaits < 720)
+    {
+        ++crowdWaits;
+        Cbuf_InsertText(va("wait\nvr_nav_crowdtest %s %s %s\n", Cmd_Argv(1), Cmd_Argc() > 2 ? Cmd_Argv(2) : "128",
+            Cmd_Argc() > 3 ? Cmd_Argv(3) : "0"));
+        return;
+    }
+    crowdWaits = 0;
+    if(!sv.active)
+    {
         return;
     }
     const progs::ServerVm vm;
@@ -2003,8 +2325,13 @@ void crowdtest_f()
     crowdTest.until = sv.qcvm.time + atof(Cmd_Argv(1));
     crowdTest.nextSample = sv.qcvm.time + 0.5;
     crowdTest.near = Cmd_Argc() > 2 ? static_cast<float>(atof(Cmd_Argv(2))) : 128.f;
-    crowdTest.last.resize(static_cast<za::SizeT>(sv.qcvm.max_edicts), glm::vec4{0.f});
-    crowdTest.came.resize(static_cast<za::SizeT>(sv.qcvm.max_edicts), 0);
+    crowdTest.dump = crowdDump || (Cmd_Argc() > 3 && atoi(Cmd_Argv(3)) != 0);
+    const auto edicts = static_cast<za::SizeT>(sv.qcvm.max_edicts);
+    crowdTest.last.resize(edicts, glm::vec4{0.f});
+    crowdTest.came.resize(edicts, 0);
+    crowdTest.reachDone.resize(edicts, 0);
+    crowdTest.win.resize(edicts, CrowdWin{});
+    crowdTest.member.resize(edicts, 0);
     edict_t* p = progs::playerEdict();
     const func_t found = progs::findFunction("FoundTarget");
     if(!p || !found)
@@ -2015,6 +2342,7 @@ void crowdtest_f()
     progs::forEachEdict(1, [&](edict_t* e) {
         if(walker(e) && e->v.health > 0.f)
         {
+            crowdTest.member[static_cast<za::SizeT>(NUM_FOR_EDICT(e))] = 1;
             e->v.enemy = EDICT_TO_PROG(p);
             pr_global_struct->self = EDICT_TO_PROG(e);
             pr_global_struct->time = sv.qcvm.time;
@@ -2022,6 +2350,44 @@ void crowdtest_f()
         }
     });
     pr_global_struct->self = oldSelf;
+}
+
+void crowdReport()
+{
+    Con_Printf("nav crowd causes: type samples busy stalls |");
+    for(const char* c : causeNames)
+    {
+        Con_Printf(" %s", c);
+    }
+    Con_Printf("\n");
+    for(const CrowdType& t : crowdTest.types)
+    {
+        Con_Printf("nav crowd causes: %s %d %d(air %d, down %d) %d |", t.name, t.samples, t.busy, t.busyAir, t.busyKnock, t.stalls);
+        for(const int c : t.causes)
+        {
+            Con_Printf(" %d", c);
+        }
+        Con_Printf("\n");
+    }
+    for(const CrowdFrame& f : crowdTest.noChaseFrames)
+    {
+        Con_Printf("nav crowd nochase frame: %s %d\n", f.name, f.count);
+    }
+    for(const CrowdFrame& f : crowdTest.busyFrames)
+    {
+        Con_Printf("nav crowd busy frame: %s %d\n", f.name, f.count);
+    }
+    for(const CrowdFrame& f : crowdTest.idleFrames)
+    {
+        Con_Printf("nav crowd idle frame: %s %d\n", f.name, f.count);
+    }
+    Con_Printf("nav crowd paths at the start: %d whole, %d short (worst %.0f units short)\n", crowdTest.reachWhole,
+        crowdTest.reachShort, static_cast<double>(crowdTest.reachWorst));
+    if(crowdTest.dump)
+    {
+        crowdDump = false;
+        dumpPolys();
+    }
 }
 
 // (Each steer: the armed crowd test's samples and end.)
@@ -2032,35 +2398,75 @@ void crowdCheck()
         return;
     }
     crowdTest.nextSample = sv.qcvm.time + 0.5;
-    const edict_t* p = progs::playerEdict();
+    edict_t* p = progs::playerEdict();
     const glm::vec3 him = p ? geom::vec(p->v.origin) : glm::vec3{0.f};
+    const int knock = progs::fields().vr_knockdown;
     int walkers = 0, came = 0;
     progs::forEachEdict(1, [&](edict_t* e) {
         const auto n = static_cast<za::SizeT>(NUM_FOR_EDICT(e));
-        if(!walker(e) || e->v.health <= 0.f || n >= crowdTest.last.size())
+        if(!walker(e) || e->v.health <= 0.f || n >= crowdTest.last.size() || !crowdTest.member[n])
         {
             return;
         }
         ++walkers;
         const glm::vec3 at = geom::vec(e->v.origin);
+        if(!crowdTest.reachDone[n] && p)
+        {
+            float gap = 0.f;
+            const bool whole = wholePath(e, feet(p), gap);
+            crowdTest.reachDone[n] = gap >= 0.f ? 1 : 0;
+            crowdTest.reachWhole += whole && gap >= 0.f ? 1 : 0;
+            crowdTest.reachShort += !whole && gap >= 0.f ? 1 : 0;
+            crowdTest.reachWorst = za::max(crowdTest.reachWorst, gap);
+        }
         const bool near = glm::length(at - him) < crowdTest.near;
         crowdTest.came[n] = crowdTest.came[n] || near ? 1 : 0;
         came += crowdTest.came[n];
         glm::vec4& l = crowdTest.last[n];
+        CrowdWin& w = crowdTest.win[n];
         if(l.w > 0.f && !near)
         {
-            ++crowdTest.samples;
-            crowdTest.stalls += glm::length(glm::vec3{l} - at) < 8.f ? 1 : 0;
+            CrowdType& t = crowdType(PR_GetString(e->v.classname));
+            const char* frame = functionName(e->v.think);
+            const bool busy = (knock >= 0 && progs::fieldFloat(e, knock) != 0.f) || airborne(e) || busyFrame(frame);
+            if(busy)
+            {
+                ++t.busy;
+                t.busyAir += airborne(e) ? 1 : 0;
+                t.busyKnock += knock >= 0 && progs::fieldFloat(e, knock) != 0.f ? 1 : 0;
+                ++crowdTest.busy;
+                countFrame(crowdTest.busyFrames, frame);
+            }
+            else
+            {
+                ++t.samples;
+                ++crowdTest.samples;
+                if(glm::length(glm::vec3{l} - at) < 8.f)
+                {
+                    const Agent* a = n < state.agents.size() ? &state.agents[n] : nullptr;
+                    const Cause c = stallCause(e, a, w, p);
+                    ++t.stalls;
+                    ++t.causes[c];
+                    ++crowdTest.stalls;
+                    crowdTest.stallAt.pushBack(glm::vec4{at, static_cast<float>(c)});
+                    Con_Printf("navstall|%s|%s|%.0f|%.0f|%.0f\n", t.name, causeNames[c], static_cast<double>(at.x),
+                        static_cast<double>(at.y), static_cast<double>(at.z));
+                }
+            }
         }
         l = glm::vec4{at, 1.f};
+        w = CrowdWin{};
     });
     if(sv.qcvm.time < crowdTest.until && came < walkers)
     {
         return;
     }
     crowdTest.armed = false;
-    Con_Printf("nav crowd: %d walkers, %d of them came within %.0f of him in %.1f s; %d stalls in %d samples away from him\n",
-        walkers, came, static_cast<double>(crowdTest.near), sv.qcvm.time - crowdTest.since, crowdTest.stalls, crowdTest.samples);
+    crowdReport();
+    Con_Printf("nav crowd: %d walkers, %d of them came within %.0f of him in %.1f s; %d stalls in %d samples away from him "
+               "(%d busy left out)\n",
+        walkers, came, static_cast<double>(crowdTest.near), sv.qcvm.time - crowdTest.since, crowdTest.stalls, crowdTest.samples,
+        crowdTest.busy);
     testkit::verdict("nav crowd", came == walkers && walkers > 0 ? 1 : 0, came == walkers && walkers > 0 ? 0 : 1);
 }
 
@@ -2250,14 +2656,16 @@ const za::Vector<Crowd>& crowdNow()
     return state.crowd;
 }
 
-// Where a walker heads for its foe: a melee one (no missile attack) farther than vr_nav_slot_engage takes a slot on a
+// Where a walker heads for its foe: a melee one (the QC's vr_nav_melee: no missile attack, a dog's leap, an armed one
+// with no ranged weapon; else no th_missile) farther than vr_nav_slot_engage takes a slot on a
 // ring round him (vr_nav_slots, vr_nav_slot_radius): its own (none other chasing him holds it), the free one nearest
 // its bearing from him, kept while it stays free; others his feet.
 glm::vec3 approach(edict_t* ent, Agent& a, int num, int goalNum, const glm::vec3& pos, const glm::vec3& goalPos, double now)
 {
     const int k = za::min(static_cast<int>(vr_nav_slots.value), 32);
-    const int missile = progs::fields().th_missile;
-    if(k <= 0 || missile < 0 || progs::fieldInt(ent, missile) != 0 || flatDist(pos, goalPos) <= vr_nav_slot_engage.value)
+    const int melee = progs::fields().vr_nav_melee, missile = progs::fields().th_missile;
+    const bool isMelee = melee >= 0 ? progs::fieldFloat(ent, melee) != 0.f : missile >= 0 && progs::fieldInt(ent, missile) == 0;
+    if(k <= 0 || !isMelee || flatDist(pos, goalPos) <= vr_nav_slot_engage.value)
     {
         a.slot = -1;
         return goalPos;
@@ -2377,10 +2785,12 @@ float steer(edict_t* ent, edict_t* goal)
     a.action = 0;
     reachCheck(ent);
     crowdCheck();
+    crowdNote(ent, a, pos, now);
     if(a.link)
     {
         if(a.cls == cls)
         {
+            a.why = whyLink;
             return followLink(ent, a, *c, pos, now);
         }
         a.link = 0;
@@ -2395,6 +2805,7 @@ float steer(edict_t* ent, edict_t* goal)
     float startPt[3];
     if(dtStatusFailed(c->query->findNearestPoly(&startRc.x, startExt, &filt, &startRef, startPt)) || !startRef)
     {
+        a.why = whyOffMesh;
         a.path.clear();
         ++state.fallbacks;
         return -1.f;
@@ -2423,6 +2834,7 @@ float steer(edict_t* ent, edict_t* goal)
         float endPt[3];
         if(dtStatusFailed(c->query->findNearestPoly(&goalRc.x, goalExt, &filt, &endRef, endPt)) || !endRef)
         {
+            a.why = whyNoPath;
             a.path.clear();
             ++state.fallbacks;
             return -1.f;
@@ -2432,7 +2844,8 @@ float steer(edict_t* ent, edict_t* goal)
         (void)c->query->findPath(startRef, endRef, startPt, endPt, &filt, buf, &n, maxPath);
         a.path.clear();
         a.path.emplaceBackRange(buf, static_cast<za::SizeT>(n));
-        if(n > 0 && buf[n - 1] != endRef)
+        a.partial = n > 0 && buf[n - 1] != endRef;
+        if(a.partial)
         {
             (void)c->query->closestPointOnPoly(buf[n - 1], endPt, endPt, nullptr); // (partial: as near as it gets)
         }
@@ -2448,6 +2861,7 @@ float steer(edict_t* ent, edict_t* goal)
     }
     if(a.path.empty())
     {
+        a.why = whyNoPath;
         ++state.fallbacks;
         return -1.f;
     }
@@ -2477,6 +2891,7 @@ float steer(edict_t* ent, edict_t* goal)
         if((flags[i] & DT_STRAIGHTPATH_OFFMESH_CONNECTION) && i + 1 < nc)
         {
             a.cls = cls;
+            a.why = whyLink;
             return beginLink(ent, a, *c, pos, now, refs[i], i);
         }
     }
@@ -2485,10 +2900,13 @@ float steer(edict_t* ent, edict_t* goal)
     // ahead is still walked to.
     if(next < 0 || ((flags[next] & DT_STRAIGHTPATH_END) && a.slot < 0))
     {
+        a.why = whyEnd;
         ++state.fallbacks;
         return -1.f;
     }
-    return steerToward(*c, a, pos, next, nc, flags, num);
+    a.why = whySteered;
+    a.lastYaw = steerToward(*c, a, pos, next, nc, flags, num);
+    return a.lastYaw;
 }
 
 int action(const edict_t* ent)
@@ -2621,6 +3039,20 @@ void debugDraw(const glm::vec3& view)
             const glm::vec3 n = fromRc(&a.corners[a.next * 3]) + up;
             lines::sceneLine(n, n + glm::vec3{0.f, 0.f, 24.f}, 3.f, white, white);
         }
+    }
+    // The crowd test's stalls (this one's or the last one's): a post by cause, red another monster in the way, blue a
+    // wall, green a ledge, black in a wall, purple no chase, grey the rest.
+    for(const glm::vec4& s : crowdTest.stallAt)
+    {
+        const int c = static_cast<int>(s.w);
+        const glm::vec4 col = c == causeMonster ? glm::vec4{1.f, 0.1f, 0.1f, 1.f}
+                              : c == causeWall  ? glm::vec4{0.2f, 0.4f, 1.f, 1.f}
+                              : c == causeLedge ? glm::vec4{0.1f, 0.9f, 0.1f, 1.f}
+                              : c == causeInSolid ? glm::vec4{0.f, 0.f, 0.f, 1.f}
+                              : c == causeNoChase ? glm::vec4{0.6f, 0.2f, 0.9f, 1.f}
+                                                  : glm::vec4{0.6f, 0.6f, 0.6f, 1.f};
+        const glm::vec3 p{s};
+        lines::sceneLine(p, p + glm::vec3{0.f, 0.f, 48.f}, 4.f, col, col);
     }
 }
 
