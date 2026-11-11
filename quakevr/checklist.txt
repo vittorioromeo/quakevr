@@ -9,6 +9,8 @@
 [1. Flat-screen: weapons and hands]
 Flat-screen: with that gun's ammo full up in storage, the holster menu's UNLOAD under that hand is greyed and does nothing; with room for only some rounds it stays lit and moves just those, leaving the rest in the gun. {test:flat_unload_full}
 Flat-screen: a grenade grabbed with E (a dud you dropped, or an ogre's live one) comes into the hand held out as after G: a dud needs fire to arm it, then fire held winds up and letting go throws; a live one throws straight away. {test:flat_grenade_grab}
+Flat-screen: cut a head or limb onto the axe, then turn the view fast with the mouse several times: it stays on the blade; a swing of the axe (mouse button) that stops flings it off.
+Flat-screen or VR: in a big fight with lots of blood on screen, shoot a corpse up close: its blood spray always appears (New Particles Replace Oldest on in Graphics, Effects).
 
 [2. Flat-screen: movement, melee, HUD and menus]
 Flat-screen: cut a grunt's head or arm off with the axe: the cut-off part flies off a little faster than in a headset (Cut-Off Parts: Fling Speed, 1.25x). {test:flat_fling}
