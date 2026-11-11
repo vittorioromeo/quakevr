@@ -28,7 +28,6 @@
         row(opt::vr_menu_section_gap),
         row(opt::vr_menu_vr_style),
         open("Laser Hue: Colours", pageIndex(pageColours)).help("Every hue is on HUD and Menus > Colours."),
-        row(opt::vr_menu_bigfont),
         row(opt::vr_menu_recolor),
         row(opt::vr_menu_recolor_strength),
         hueSlider("Red Hue", vr_menu_recolor_hue).help("With Blood Red Menus: the hue they turn to. 0 red, the banner's (as shipped); 345 crimson, 20 a fiery red-orange. Player's: the Player Effects Hue."),
@@ -1818,7 +1817,6 @@ void addFoamRows(za::Vector<Item>& items, const FoamRows& r)
         row(opt::vr_grade_strength),
         row(opt::vr_dither),
         header("Flat Screen"),
-        row(opt::vr_flat_tonemap),
         row(opt::vr_flat_bloom),
         row(opt::vr_flat_grade),
         row(opt::vr_flat_grade_exposure),
@@ -1838,7 +1836,6 @@ void addFoamRows(za::Vector<Item>& items, const FoamRows& r)
     return {
         row(opt::vr_model_lighting),
         row(opt::vr_model_light_parity),
-        row(opt::vr_model_light_grid),
         row(opt::vr_model_ambient_dir),
         row(opt::vr_model_ambient_contrast),
         row(opt::r_lerpmodels),

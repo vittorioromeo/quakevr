@@ -2273,8 +2273,6 @@ QVR_SLIDER_BYNAME(vr_menu_section_gap, "Section Gap", 0.f, 2.f, 0.25f, "%.2f row
     "Space above each section's header on the settings pages (and under the page's title), so the sections stand apart. 0: none.")
 QVR_TOGGLE_BYNAME(vr_menu_vr_style, "VR Menu Style",
     "The menus fill the panel with their rows spaced out, with modern sliders and switches, and a laser from your hand points at them: trigger to click and drag.")
-QVR_TOGGLE_BYNAME(vr_menu_bigfont, "Main Menu Lettering",
-    "The main menu's rows as text in Quake's own lettering (its letters cut from the menu pictures), VR Calibration among them, and the other menus' pictures of rows (difficulty, Single Player, Multiplayer) in the Fonts page's style. Off: Quake's pictures as they are, with VR Calibration above the main menu's in the console's letters.")
 QVR_TOGGLE_BYNAME(vr_menu_recolor, "Blood Red Menus",
     "The menus' browns and tans (the letters, Quake's pictures, sliders, switches and panels) turned blood red, in Quake VR's colours. Off: Quake's own browns.")
 QVR_SLIDER_BYNAME(vr_menu_recolor_strength, "Red Strength", 0.f, 1.f, 0.05f, "%.2f", noExt,
@@ -3610,8 +3608,6 @@ QVR_CYCLE_BYNAME(vr_dither, "Dither",
     "A faint noise of one step that hides banding in dark gradients (fog, dark rooms, under water).",
     {0.f, "Off"}, {1.f, "Per Eye"}, {2.f, "Per Eye, Moving"}, {3.f, "Same in Both Eyes"})
 // vr_menu_pages.inc: pageGraphicsPost, "Flat Screen" (vr_flatlook.cpp; the headset never uses these)
-QVR_TOGGLE_BYNAME(vr_flat_tonemap, "Flat: Tone Mapping",
-    "Flat-screen play: bright lights, flashes, lava and explosions keep their colour and detail instead of clipping to yellow and white (the headset's Tone Mapping curve; Flat: Exposure before it). The rest is unchanged. Off: Quake's.")
 QVR_SLIDER_BYNAME(vr_flat_bloom, "Flat: Bloom", 0.f, 1.5f, 0.02f, "%.2f", ext(),
     "Flat-screen play: glow around lamps, lava and flashes (0 off). Its threshold, size and weights are the Bloom rows'.")
 QVR_SLIDER_BYNAME(vr_flat_grade, "Flat: Colour Grade", 0.f, 1.f, 0.05f, "%.2f", noExt,
@@ -3636,8 +3632,6 @@ QVR_TOGGLE_BYNAME(vr_model_lighting, "Model Lighting",
     "Monsters, items and weapons are shaded from the map's lights, not one fixed direction.")
 QVR_TOGGLE_BYNAME(vr_model_light_parity, "Models Lit as the World",
     "Monsters and items as bright as the world around them (off: Quake's brighter models).")
-QVR_TOGGLE_BYNAME(vr_model_light_grid, "Models Lit From All Sides",
-    "Monsters, items, weapons and hands take the baked light of the walls, floor and ceiling around them (off: Quake's, the floor under their feet).")
 QVR_TOGGLE_BYNAME(vr_model_ambient_dir, "Directional Ambient",
     "Monsters, items, weapons and hands take the light around them: brighter on the side facing lit walls, darker facing shade.")
 QVR_SLIDER_BYNAME(vr_model_ambient_contrast, "Ambient Contrast", 0.f, 1.5f, 0.05f, "%.2f", ext(),
