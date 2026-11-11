@@ -208,6 +208,16 @@ Arena stairs (`vr_arena_test 36`: one foe at a time from 8 floor places up to th
   called from it, so a monster at the top waits for someone below or gives up.
 - **Tests**: `vr_nav_reachtest <name> <distance> <seconds> [drop|ride] [classname]` ends a scene on its verdict line (the
   monster within the distance of the player after a link of that kind was taken; `nav: <t> s: ...` logs the links'
-  events meanwhile). `nav_drop` (e1m1, a knight on a ledge 144 over you): passes, the knight reached you at 21 s (its
-  first drop given up, the second taken). `nav_lift`: the scene's knight spot is in a wall: to fix. `vr_nav_links
-  [class]` lists a class's links. Debug view: drops orange (out, then down), rides magenta.
+  events meanwhile; with a classname, those monsters are woken onto the player). `nav_drop` (e1m1, a knight on a ledge
+  144 over you): passes (seeds 1-5, and 4 again after the merge; 6-31 s), but the scene says its knight is "placed in a
+  wall" and the player does not stay at the scene's start in the headless runs (200-500 units away at the verdict): the
+  spots are still to fix. Open: in two seeded runs the knight's first drop failed (the `FL_PARTIALGROUND` step did not
+  go over; it slid along the ledge under Quake's chase and gave up after `vr_nav_drop_time`); the retry 5 s later
+  dropped. Cause not found. `vr_nav_links [class]` lists a class's rides and links. Debug view: drops orange, rides
+  magenta.
+- **Lifts off by default** (`vr_nav_lifts 0`, `vr_nav_plat_monsters 0`; the `nav_lift` scene turns both on). Seen once
+  end to end on e1m1's plat at -544 2656 (seed 4): the knight waited, boarded at the bottom (7.4 s), rode up as the lift
+  rose (7.9 s), stepped off at the top (8.7 s), ride done (9.0 s). The scene's check (the knight within reach of the
+  player at the top) never passed: the player does not stay at the top in the headless run (found below, -584 2784
+  -104), and the knight then waits at the top for the lift (a lift at the bottom is only called from it) and gives up.
+  Before lifts go on: a scene whose player stays put, its reach verdict, the waiting-at-the-top case.
