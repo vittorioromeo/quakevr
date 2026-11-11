@@ -113,6 +113,12 @@ void bareShade(const entity_t* e, float lightdir[4], float ambient[6][4]);
 // `ssgOpen` for the revolver).
 [[nodiscard]] float revolverSwing(int hand);
 [[nodiscard]] glm::vec3 revolverTurned(const glm::vec3& p, float swing);
+// Chamber `chamber` (0..5) of the heavy revolver in `hand` as drawn now (setupRevolverParts: its crane's swing, its
+// cylinder's own turn): the point on its axis `back` units along the bore from the cylinder's back face (its model's
+// space). The way from the bore's axis out to the cylinder's, the crane swung `swing` degrees (a unit vector, across the
+// bore: the side the cylinder hangs out on).
+[[nodiscard]] glm::vec3 revolverChamber(int hand, int chamber, float back);
+[[nodiscard]] glm::vec3 revolverOutward(float swing);
 
 // A gun model's loading port in its model space (frame 0; +x forward, +y left, +z up), moved by its Load Point offsets:
 // its point, the way a round goes in (a unit vector) and its opening's outward way (one), the super shotgun's turned down
