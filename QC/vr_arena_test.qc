@@ -4575,7 +4575,10 @@ void() VR_AT42_Begin =
     }
     entity keep = self;
     p.flags = p.flags | FL_GODMODE;
-    makevectors([0, p.v_viewangle_y, 0]); // (ahead of his view, the headset's: the screenshot shows them)
+    p.angles = [0, p.angles_y, 0]; // (turned to face them, level: the screenshot shows them)
+    p.v_angle = p.angles;
+    p.fixangle = TRUE;
+    makevectors(p.angles);
     float k;
     for(k = 0; k < 3; k++)
     {
@@ -4586,7 +4589,7 @@ void() VR_AT42_Begin =
         if(k == 1) { wid = WID_SUPER_NAILGUN; }
         if(k == 2) { wid = WID_ROCKET_LAUNCHER; }
         vr_at42_wid[k] = wid;
-        setorigin(g, p.origin + v_forward * (k == 2 ? 520 : 380) + v_right * (k == 0 ? -140 : k == 1 ? 140 : 0) + '0 0 24');
+        setorigin(g, p.origin + v_forward * (k == 2 ? 300 : 420) + v_right * (k == 0 ? -140 : k == 1 ? 140 : 0) + '0 0 24');
         g.angles = [0, p.angles_y + 180, 0];
         g.weapon = wid;
         vr_ar_hold_roll = 1;
@@ -4620,12 +4623,12 @@ void() VR_AT42_Frame =
     {
         float fired = 0;
         for(k = 0; k < 3; k++) { fired = fired + (vr_at42_g[k].vr_ag_total_shots > 0); }
-        if(!vr_at42_shot && vr_at42_g[2].vr_ag_total_shots > 0)
+        if(!vr_at42_shot && vr_at42_g[2].vr_ag_total_shots > 0) // (the boss's first shot)
         {
             vr_at42_shot = 1;
             localcmd("screenshot\n");
         }
-        if(fired < 3 && time < vr_at_until - 20) { return; }
+        if(fired < 3 && time < vr_at_until - 5) { return; } // (55 s for the three to fire: a knight off to the side may take its time)
         for(k = 0; k < 3; k++)
         {
             VR_AT_Check(vr_at42_g[k].vr_ag_total_shots > 0 && vr_at42_g[k].vr_ag_wid == vr_at42_wid[k],
