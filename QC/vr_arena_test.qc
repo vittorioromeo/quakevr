@@ -3795,7 +3795,12 @@ void() VR_AT36_Frame =
         VR_AT_End();
         return;
     }
-    if(at36_state == 0) { VR_AT36_Spawn(); return; }
+    if(at36_state == 0)
+    {
+        if(VR_Player() == world) { return; } // (the player not in yet: the map's first frames)
+        VR_AT36_Spawn();
+        return;
+    }
     entity m = at36_m;
     entity p = VR_Player();
     if(at36_state == 1)
@@ -4213,7 +4218,7 @@ void() VR_AT43_Frame =
     {
         float marks = navobstacles(1);
         float left = navobstacles(0);
-        if(left > 0 || marks < VR_AT43_Marks() || (VR_AT43_Marks() == 0 && marks > 0))
+        if(left > 0 || marks != VR_AT43_Marks()) // (exactly its own: the last phase's gone)
         {
             if(time - at43_wait0 > AT43_SETTLE)
             {
