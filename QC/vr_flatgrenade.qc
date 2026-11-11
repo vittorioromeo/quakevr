@@ -205,12 +205,53 @@ void(float xHand, entity g, float xHeld) VR_FlatGrenade_Throw =
     VR_FlatGrenade_Set(VR_FLATGREN_THROWN);
 };
 
-// Each server frame (W_Frame, after the carry's hands): the trip's end, the fire button's arming, wind-up and throw.
+// A grenade that came into a hand some other way (his words 2026-11-11: "Grabbing a grenade (live or non-live) via
+// force-grabbing should put it in the same state as when 'G' is pressed, so that the player can throw it if live, or
+// trigger + throw if not live"): a force grab's catch (E, impulses 50, 51), a hand's grab of one lying by, a catch in flight.
+// The hand takes the quick grenade's state as after G's trip to the pouch: a live one (an ogre's, a hand grenade armed)
+// ready to throw (VR_FLATGREN_ARMED: the fire button held winds up, let go throws), a dud (a hand grenade with its pin in)
+// held (VR_FLATGREN_HELD: the fire button arms it first; G puts it in the pouch). The main hand first if both hold one.
+void() VR_FlatGrenade_Adopt =
+{
+    if(!VR_FlatPlay(self) || !cvar_hget(cvarh_vr_flat_grenade) || self.health <= 0 || !self.ishuman)
+    {
+        return;
+    }
+    float h = cVR_MainHand;
+    entity g = VR_Carry_Held(self, h);
+    if(g == world || !g.vr_grenade)
+    {
+        h = cVR_OffHand;
+        g = VR_Carry_Held(self, h);
+    }
+    if(g == world || !g.vr_grenade || VR_Carry_Held(self, VRGetOtherHand(h)) == g)
+    {
+        return; // (none; or held in both hands: the carry's two-handed throw)
+    }
+    self.vr_flatgren_hand = h;
+    self.vr_flatgren_ent = g;
+    self.vr_flatgren_btn = VRGetFireButtonPressed(h); // (a button already down arms nothing)
+    VR_FlatGrenade_Set(VR_HandGrenade_Armed(g) ? VR_FLATGREN_ARMED : VR_FLATGREN_HELD);
+    dprint(sprintf("flat grenade: the %s hand took a %s grenade (%s): as after G, %s\n", VR_FlatGrenade_HandName(h),
+        VR_HandGrenade_Armed(g) ? "live" : "dud", g.classname, VR_HandGrenade_Armed(g) ? "the fire button throws it" :
+        "the fire button arms it"));
+};
+
+// Whether the fire button of the hand holding `g` is the quick grenade's (VR_HandGrenade_Trigger: not the carry's take).
+float(entity g) VR_FlatGrenade_Owns =
+{
+    return g != world && self.vr_flatgren_ent == g && self.vr_flatgren_phase >= VR_FLATGREN_HELD &&
+           self.vr_flatgren_phase <= VR_FLATGREN_WIND;
+};
+
+// Each server frame (W_Frame, after the carry's hands): the trip's end, the fire button's arming, wind-up and throw; a
+// grenade taken some other way adopted.
 void() VR_FlatGrenade_Frame =
 {
     float ph = self.vr_flatgren_phase;
     if(!ph)
     {
+        VR_FlatGrenade_Adopt();
         return;
     }
     float h = self.vr_flatgren_hand;

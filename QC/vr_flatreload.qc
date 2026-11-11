@@ -34,6 +34,8 @@
 .float vr_flatrl;        // the hands on the trip (1 off, 2 main: STAT_QVR_FLATRELOAD)
 .float vr_flatrl_unl0;   // the off hand's gun (its weapon id) emptied by the holster menu's UNLOAD: not auto reloaded
 .float vr_flatrl_unl1;   // the main hand's (VR_FlatReload_HandFrame; 0 none)
+.float vr_flatrl_full;   // the hands whose UNLOAD is greyed, its rounds having no room in the reserve (1 off, 2 main:
+                         // STAT_QVR_FLATUNLOADFULL; VR_FlatReload_HandFrame)
 .float vr_flatrl_due0;   // the off hand's gun fired empty: when it breaks open or drops its magazine (0 nothing due),
 .float vr_flatrl_due1;   // the main hand's
 .entity vr_flatrl_duei0; // and the gun's record it is for
@@ -469,6 +471,19 @@ float(float xHand) VR_FlatReload_Unloadable =
     return max(0, VRGetEntWeaponClip(self, xHand));
 };
 
+// How many of the rounds UNLOAD can take out of `xHand`'s gun fit in self's reserve now (its cap, VR_MaxAmmo, as
+// VR_FlatReload_ClipBack's `xCapped`): 0 with that ammo full up.
+float(float xHand) VR_FlatReload_UnloadFits =
+{
+    float clip = VR_FlatReload_Unloadable(xHand);
+    if(clip <= 0)
+    {
+        return 0;
+    }
+    float aid = WeaponIdToAmmoId(VRGetEntWeapon(self, xHand), VRGetEntWeaponFlags(self, xHand));
+    return max(0, min(clip, VR_MaxAmmo(self, aid) - VR_AmmoUtil_GetAmmoCountByAmmoId(self, aid)));
+};
+
 // The clip of `xHand` (weapon `xWeapon`, flags `xWeaponFlags`) back into self's reserve (the weapon cycle's put-away, the
 // holster menu's UNLOAD); `xCapped`: only what fits under the reserve's cap (VR_MaxAmmo, as a pickup's), the rest left in the
 // clip. The rounds moved.
@@ -514,6 +529,17 @@ void(float xHand) VR_FlatReload_CycleIn =
 // Each server frame, each hand (vr_wpnholster.qc's player frame): the trip's steps, its cancel, and the empty clip's start.
 void(float xHand) VR_FlatReload_HandFrame =
 {
+    // UNLOAD greyed with its ammo full up (his words 2026-11-11: "if the player is at full ammo capacity, the unload button
+    // should be greyed out"): rounds to take out and none would fit (some fit: it stays lit and moves those).
+    float fbit = VR_FlatReload_Bit(xHand);
+    if(VR_FlatReload_Unloadable(xHand) > 0 && VR_FlatReload_UnloadFits(xHand) <= 0)
+    {
+        self.vr_flatrl_full = self.vr_flatrl_full | fbit;
+    }
+    else
+    {
+        self.vr_flatrl_full = self.vr_flatrl_full - (self.vr_flatrl_full & fbit);
+    }
     if(VR_FlatPlay(self))
     {
         VR_FlatReload_RvEjectFrame(xHand, FALSE);

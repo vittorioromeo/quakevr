@@ -1216,11 +1216,15 @@ float(float xHand, entity g) VR_HandGrenade_LetGo =
 
 // The trigger's press (not held) while `xHand` of self holds the hand grenade `g`: its pin pulled (vr_handgrenade_arm
 // 0). TRUE if it is a hand grenade (the trigger is its own, not the carry's take).
+float(entity g) VR_FlatGrenade_Owns; // vr_flatgrenade.qc
+
 float(float xHand, entity g, float xPressed) VR_HandGrenade_Trigger =
 {
     if(!g.vr_hgren)
     {
-        return FALSE;
+        // (Flat-screen play: a live grenade the quick grenade adopted, an ogre's caught: its fire button winds up and
+        // throws it, not the carry's take: VR_FlatGrenade_Adopt.)
+        return VR_FlatPlay(self) && VR_FlatGrenade_Owns(g);
     }
     // (Flat-screen play: the fire button's press, its wind-up and its throw are the quick grenade's, whatever
     // vr_handgrenade_arm says: vr_flatgrenade.qc VR_FlatGrenade_Frame.)

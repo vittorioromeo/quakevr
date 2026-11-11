@@ -1,0 +1,10 @@
+# flat_grenade_grab: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode): a
+# grenade taken with E (the force grab) or by hand puts the hand in the quick grenade's state (QC vr_flatgrenade.qc
+# VR_FlatGrenade_Adopt; vr_flatitems_test 11).
+title Flat-screen: a grenade force-grabbed is held as after G
+hint Play with -flatscreenmode. G for a grenade, then H to drop it unarmed: E on it brings it back into the hand held out as after G; fire arms it, fire held winds up, let go throws it. Then let the ogre lob a grenade and grab it with E as it lands: it comes in ready to throw (fire held winds up, let go throws).
+map vrtesthall
+god
+give "Shotgun" main
+spawn "Ogre" 520 0
+cmd give r 20
