@@ -2399,8 +2399,8 @@ QVR_TUNABLE(vr_nav_drop_max_big, "256") // ... a tall walker's (ogre, shambler, 
 QVR_TUNABLE(vr_nav_drop_cost, "3") // a drop link's cost per unit of its length, a floor's being 1: a long drop is taken only when it is clearly shorter than walking round
 QVR_TUNABLE(vr_nav_drop_push, "100") // a walker stepping off a ledge on a drop link is pushed on at this speed (units/s), so it lands clear of the wall below
 QVR_TUNABLE(vr_nav_drop_time, "3") // a walker that has not gone over the ledge this long after reaching a drop link gives it up (seconds); its links are left alone for vr_nav_link_retry
-QVR_TUNABLE(vr_nav_lifts, "1") // 1: the navmesh has lift links (func_plat bottom to top and back, a func_train from one stop to the next): a walker waits for the lift, rides it and steps off at the other end; 0: none
+QVR_TUNABLE(vr_nav_lifts, "0") // 1: the navmesh has lift links (func_plat bottom to top and back, a func_train from one stop to the next): a walker waits for the lift, rides it and steps off at the other end; 0: none
 QVR_TUNABLE(vr_nav_lift_cost, "2") // a lift link's cost per unit of its length, a floor's being 1
 QVR_TUNABLE(vr_nav_lift_wait, "10") // a walker waiting this long for a lift to come to its level gives up (seconds); its links are left alone for vr_nav_link_retry
 QVR_TUNABLE(vr_nav_link_retry, "5") // a walker that gave up a drop or lift link plans without links this long (seconds)
-QVR_TUNABLE(vr_nav_plat_monsters, "1") // 1: a monster stepping on a lift's (func_plat's) trigger calls it as a player does (vr_nav 1; players unchanged); 0: Quake's, players only
+QVR_TUNABLE(vr_nav_plat_monsters, "0") // 1: a monster stepping on a lift's (func_plat's) trigger calls it as a player does (vr_nav 1; players unchanged); 0: Quake's, players only

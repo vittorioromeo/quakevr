@@ -1775,6 +1775,13 @@ void links_f()
         Con_Printf("nav links: no such class\n");
         return;
     }
+    for(za::SizeT i = 0; i < state.geo.rides.size(); ++i)
+    {
+        const Ride& r = state.geo.rides[i];
+        Con_Printf("nav ride %d: edict %d, %s, from %.0f %.0f %.0f to %.0f %.0f %.0f, bounds %.0f %.0f %.0f .. %.0f %.0f %.0f\n",
+            static_cast<int>(i) + 1, r.mover, r.both ? "both ways" : "one way", r.a.x, r.a.y, r.a.z, r.b.x, r.b.y, r.b.z, r.mins.x,
+            r.mins.y, r.mins.z, r.maxs.x, r.maxs.y, r.maxs.z);
+    }
     const dtNavMesh* mesh = c->mesh;
     for(int t = 0; t < mesh->getMaxTiles(); ++t)
     {
@@ -1818,6 +1825,25 @@ void reachtest_f()
     reachTest.only = Cmd_Argc() > 5 ? Cmd_Argv(5) : "";
     reachTest.armed = true;
     state.drops = state.rides = state.linkFails = 0;
+    // The named monsters woken onto the player (FoundTarget), seen or not: the scene's foe may start out of his sight.
+    const progs::ServerVm vm;
+    edict_t* p = progs::playerEdict();
+    const func_t found = progs::findFunction("FoundTarget");
+    if(!p || !found || !Cmd_Argv(5)[0])
+    {
+        return;
+    }
+    const int oldSelf = pr_global_struct->self;
+    progs::forEachEdict(1, [&](edict_t* e) {
+        if(e->v.health > 0.f && e->v.classname && !strcmp(PR_GetString(e->v.classname), reachTest.only.cStr()))
+        {
+            e->v.enemy = EDICT_TO_PROG(p);
+            pr_global_struct->self = EDICT_TO_PROG(e);
+            pr_global_struct->time = sv.qcvm.time;
+            PR_ExecuteProgram(found);
+        }
+    });
+    pr_global_struct->self = oldSelf;
 }
 
 // (Each steer: the armed reach test's check.)
