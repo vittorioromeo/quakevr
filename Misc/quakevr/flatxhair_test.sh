@@ -13,7 +13,8 @@
 #   styles   vr_flat_xhair_style 0..7, then vr_flat_xhair 0: each style draws at the centre (pixels against the last, plain)
 #   turn1/2  at 144 frames a second (two a server tick), vr_flat_xhair_turntest turning the view 360 degrees a second back and
 #            forth, one gun then two: the crosshair stays on the centre (no jitter: before the fix its hit swung 22 px rms)
-#   flush    the shotgun flush against a wall, its muzzle turned up out of it (vr_flat_wall_block_fire 0, so it fires):
+#   flush    the shotgun flush against a wall, its muzzle turned up out of it by at most 4 degrees (vr_flat_wall_tilt 4: under
+#            the 5 past which it does not fire, flatsight::wallBlocksFire):
 #            the shot goes the way the drawn barrel points (vr_flat_wall_shot), the crosshair is on the barrel's hit, off
 #            the centre, and the pellets land on it
 #   flushold the same with vr_flat_wall_shot 0: the pellets on the centre, as before
@@ -42,8 +43,8 @@ vr_flat_visor 0; wait3; echo flatxhair_test: visor; $X; vr_flat_visor 1; \
 impulse 170; setpos 480 -352 88; wait40; echo flatxhair_test: styles; $X; $STY; \
 vr_fixed_frames_rate 144; wait4; echo flatxhair_test: turn1; vr_flat_xhair_turntest 360 144 36; wait146; \
 impulse 174; wait40; echo flatxhair_test: turn2; vr_flat_xhair_turntest 360 144 36; wait146; impulse 170; vr_fixed_frames_rate 72; \
-vr_flat_wall_block_fire 0; setpos 480 750 88; wait200; echo flatxhair_test: flush; $X; $FIRE; $X; screenshot; \
-vr_flat_wall_shot 0; wait20; echo flatxhair_test: flushold; $X; $FIRE; $X; vr_flat_wall_shot 1; vr_flat_wall_block_fire 1; \
+vr_flat_wall_tilt 4; setpos 480 750 88; wait200; echo flatxhair_test: flush; $X; $FIRE; $X; screenshot; \
+vr_flat_wall_shot 0; wait20; echo flatxhair_test: flushold; $X; $FIRE; $X; vr_flat_wall_shot 1; vr_flat_wall_tilt 85; \
 setpos 480 -352 88; vr_flat_reload 1; wait40; $FIRE; impulse 55; wait12; echo flatxhair_test: reload; $X; \
 tune_reset; echo flatxhair_test: end"
 bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Clean -Out "$S/flatxhair_strip.png" -QuitOn "flatxhair_test: end" -Timeout 180 \

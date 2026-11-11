@@ -1340,13 +1340,12 @@ void shoveFrame()
 void pollKeys()
 {
     const bool inGame = key_dest == key_game;
-    // The force grab's keys (vr_flat_key_grab, mouse 4: the side button the shove leaves; vr_flat_key_grab_alt, none: R
-    // reloads now, vr_flatreload.cpp).
+    // The force grab's key (vr_flat_key_grab, mouse 4: the side button the shove leaves; R reloads, vr_flatreload.cpp).
     const auto down = [inGame](const cvar_t& c) {
         const int k = c.string[0] ? Key_StringToKeynum(c.string) : -1;
         return inGame && k > 0 && k < MAX_KEYS && keydown[k] != 0;
     };
-    const bool grab = down(vr_flat_key_grab) || down(vr_flat_key_grab_alt);
+    const bool grab = down(vr_flat_key_grab);
     const bool v = inGame && keydown['v'] != 0;
     bool fire[2];
     fire[HAND_OFF] = client::attacking(HAND_OFF);
@@ -1427,11 +1426,11 @@ void getUp(const char* why)
 // while a get-up waits for room, it takes the wish back: he stays lying.
 void toggleProne(const char* why)
 {
-    if(vr_prone.value == 0.f || vr_crouch_hull.value == 0.f)
+    if(vr_prone.value == 0.f)
     {
         keyState.prone = false;
         keyState.riseWanted = false;
-        Con_Printf("flatplay: lying down is off (vr_prone, vr_crouch_hull)\n");
+        Con_Printf("flatplay: lying down is off (vr_prone)\n");
         return;
     }
     if(keyState.prone && keyState.riseWanted)
@@ -1716,10 +1715,10 @@ void pollKeysFlat()
         keyState.lin += za::clamp(want - keyState.lin, -step, step);
     }
     keyState.ratio = crouchShape(keyState.lin);
-    // Lying down (vr_flat_key_prone): down while asked, up when not, each way in vr_prone_body_time; off (vr_prone 0, or
-    // the crouched box off) it never goes down.
+    // Lying down (vr_flat_key_prone): down while asked, up when not, each way in vr_prone_body_time; off
+    // (vr_prone 0) it never goes down.
     // (Dead, or between maps: up again, so a respawn or the next map starts standing, as the server starts him.)
-    if(!(vr_prone.value != 0.f && vr_crouch_hull.value != 0.f) || cls.signon != SIGNONS || cl.stats[STAT_HEALTH] <= 0)
+    if(vr_prone.value == 0.f || cls.signon != SIGNONS || cl.stats[STAT_HEALTH] <= 0)
     {
         keyState.prone = false;
         keyState.riseWanted = false;
@@ -2036,7 +2035,7 @@ int jumpBit(int state)
 
 FireRoute routeFire(bool lmb, bool rmb)
 {
-    // A gun turned up out of a wall does not fire (vr_flat_wall_block_fire): the button does nothing till it comes down.
+    // A gun turned up out of a wall does not fire (flatsight::wallBlocksFire): the button does nothing till it comes down.
     // A melee weapon swings as ever (a blow is never stopped at a wall).
     // The holster menu open: the left button is its click (vr_flatholster.cpp), nothing fires and nothing aims.
     if(flatholster::open())

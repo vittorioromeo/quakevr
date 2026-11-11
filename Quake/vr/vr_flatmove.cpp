@@ -2013,8 +2013,8 @@ void mantleTestFrame()
             testCheck(t.tally, tag, ok, line);
             if(mantled)
             {
-                // The empty hands on the ledge, the others not (vr_flat_mantle_hands; his notes 2026-11-08).
-                const int want = vr_flat_mantle_hands.value != 0.f ? za::max(t.empty, 0) : 0;
+                // The empty hands on the ledge, the others not (his notes 2026-11-08).
+                const int want = za::max(t.empty, 0);
                 q_snprintf(line, sizeof(line), "lip %.0f: hands on the ledge off %d main %d (empty: off %d main %d)", k.lip,
                     t.onLedge & 1, (t.onLedge >> 1) & 1, za::max(t.empty, 0) & 1, (za::max(t.empty, 0) >> 1) & 1);
                 testCheck(t.tally, tag, t.empty >= 0 && t.onLedge == want, line);
@@ -2584,11 +2584,11 @@ extern "C" int VR_LeanHitBoxes(edict_t* touch, float (*boxes)[6])
 
 extern "C" int VR_FlatKeyOwned(int key)
 {
-    if(!flatplay::active() || vr_flat_keys_own.value == 0.f || key <= 0 || key >= MAX_KEYS)
+    if(!flatplay::active() || key <= 0 || key >= MAX_KEYS)
     {
         return 0;
     }
-    for(const cvar_t* c : {&vr_flat_key_lean_left, &vr_flat_key_lean_right, &vr_flat_key_swap, &vr_flat_key_grab, &vr_flat_key_grab_alt, &vr_flat_key_reload,
+    for(const cvar_t* c : {&vr_flat_key_lean_left, &vr_flat_key_lean_right, &vr_flat_key_swap, &vr_flat_key_grab, &vr_flat_key_reload,
             &vr_flat_key_prone, &vr_flat_key_bullettime, &vr_flat_key_flycam, &vr_flat_key_toolgun, &vr_flat_key_toolgun_menu, &vr_flat_key_toolgun_adjust,
             &vr_flat_key_drop, &vr_flat_key_grenade, &vr_flat_key_holster_menu})
     {

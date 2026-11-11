@@ -86,7 +86,7 @@ void moveSize(const edict_t* ent, float& width, float& height);
 // world: 1 if it gets there, 0 if not, -1 when narrowing is off (Quake's hull 1 is used).
 [[nodiscard]] int playerBoxFits(qmodel_t* world, const glm::vec3& start, const glm::vec3& end);
 
-// A client's move received (vr_server.cpp): his crouch (vr_crouch_hull) from his head's height over his feet: crouched
+// A client's move received (vr_server.cpp): his crouch from his head's height over his feet: crouched
 // when his eyes are under the crouched box's top (vr_crouch_height); standing again once they are back over it and the
 // standing box fits where he is. flatscreenCrouch (vr_flatplay.cpp, vr_server.cpp): whether the flatscreen player's
 // crouch key is held now -- his eyes stand under the tallest crouched box's top whatever he does, so his key, not their

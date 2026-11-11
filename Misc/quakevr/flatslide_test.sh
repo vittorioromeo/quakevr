@@ -37,7 +37,7 @@
 #   sights e1m1, the shotgun on the ironsight: the sights on the drawn ray upright, leant right, leant right crouched
 #          and leant left (vr_flat_sight_check), and the shot along the view (flataim).
 #   keys   E and Q lean (vr_mock_key), 3 swaps the hands, R reloads (not a grab: mouse 4 alone force-grabs); an old config's binds on E and 3 do not run
-#          while the mode reads those keys (vr_flat_keys_own 1), and do with vr_flat_keys_own 0.
+#          while the mode reads those keys (VR_FlatKeyOwned).
 AGENT=${1:-selfshot}
 QT_NAME=flatslidelean
 source "$(dirname "$0")/qvrtest.sh"
@@ -130,7 +130,7 @@ check $(grep -q "off its point 0\.0[0-9]* deg" <<<"$aim" && echo 1 || echo 0) "s
 KEY() { echo "vr_mock_key $1 down; wait${2:-3}; vr_mock_key $1 up; wait10"; }
 K="$H; impulse 154; wait10; bind e \"echo BOUND_E\"; bind 3 \"echo BOUND_3\"; vr_flatplay_debug 1; vr_flat_reload_debug 1"
 out=$(bash $KIT/run.sh $AGENT "${F[@]}" -Timeout 120 -Filter "^flatmove: lean|^BOUND_|^flatplay: [3r]:|^flatplay: mouse4:|^flatreload: r:|^KEYS_" \
-    -Script "$K; vr_mock_key e down; wait30; vr_flatmove_status; vr_mock_key e up; wait30; vr_mock_key q down; wait30; vr_flatmove_status; vr_mock_key q up; wait30; $(KEY 3); echo KEYS_R; $(KEY r); echo KEYS_M4; $(KEY mouse4); echo OWN_OFF; vr_flat_keys_own 0; $(KEY e); $(KEY 3); vr_flat_keys_own 1; bind e +moveup; bind 3 \"impulse 3\"; toggleconsole; quit" 2>&1)
+    -Script "$K; vr_mock_key e down; wait30; vr_flatmove_status; vr_mock_key e up; wait30; vr_mock_key q down; wait30; vr_flatmove_status; vr_mock_key q up; wait30; $(KEY 3); echo KEYS_R; $(KEY r); echo KEYS_M4; $(KEY mouse4); echo OWN_OFF; $(KEY e); $(KEY 3); bind e +moveup; bind 3 \"impulse 3\"; toggleconsole; quit" 2>&1)
 check $(echo "$out" | grep -qa "^flatmove: lean 1\.00" && echo 1 || echo 0) "keys: E held leans right"
 check $(echo "$out" | grep -qa "^flatmove: lean -1\.00" && echo 1 || echo 0) "keys: Q held leans left"
 check $(echo "$out" | grep -qa "^flatplay: 3: swap hands" && echo 1 || echo 0) "keys: 3 swaps the hands"
@@ -138,5 +138,5 @@ rk=$(echo "$out" | sed -n '/^KEYS_R/,/^KEYS_M4/p'); mk=$(echo "$out" | sed -n '/
 check $(grep -qa "^flatreload: r: reload" <<<"$rk" && ! grep -qa "force grab" <<<"$rk" && echo 1 || echo 0) "keys: R reloads and does not force-grab"
 check $(grep -qa "^flatplay: mouse4: force grab" <<<"$mk" && ! grep -qa "reload" <<<"$mk" && echo 1 || echo 0) "keys: mouse 4 force-grabs (the only grab key)"
 nb=$(echo "$out" | grep -ac "^BOUND_")
-check $([ "$nb" = 2 ] && echo 1 || echo 0) "keys: E's and 3's own binds ran only with vr_flat_keys_own 0 ($nb lines, 2 wanted)"
+check $([ "$nb" = 0 ] && echo 1 || echo 0) "keys: E's and 3's own binds never ran ($nb lines, 0 wanted)"
 verdict; exit $fail

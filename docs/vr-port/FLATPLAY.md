@@ -301,7 +301,7 @@ same key ran as well: an old config's `bind e +moveup` swam up as E leant, `bind
 weapon as 3 swapped the hands. While the mode runs, `Key_Event` (`Quake/keys.c`) skips the bind of a key the mode
 reads (`VR_FlatKeyOwned`, `vr_flatmove.cpp`: the leans, swap, grab, prone, bullet time, drop, quick grenade, F and V), so an old
 config works as it is and nothing in it needs changing; outside the mode, and in a headset, the binds run as ever.
-`vr_flat_keys_own 0` (VR Settings > Locomotion, Desktop Screen Play > Desktop Keys Only Do Theirs) lets them run too.
+(Its switch, `vr_flat_keys_own`, retired 2026-11-11: the flat keys are not yet bindable from the menu, BACKLOG.md.)
 `bind e +moveup` is gone from the default binds (`Quake/default_cfg.h`, `quakevr/default.cfg`): jump swims up.
 
 **Sliding.** Crouching (Left Ctrl) while running faster than `vr_flat_slide_min` (220 u/s; a walk is 200, the run
@@ -404,7 +404,7 @@ The crouch pressed lying down gets him up into the crouch, the one easing out as
 prone pose to the crouch one (it used to stay lying down with the crouch's gun pose). Lying down and looking down, the
 floor is a wall to the gun (`vr_flat_prone_floor` 1): the wall's tilt lays it flush on it (`vr_flat_prone_floor_margin`
 1 off it; all of the tilt, sighted too), the room takes it back out, and the tilt's blocks hold: no shot
-(`vr_flat_wall_block_fire`) and the ironsight waits (`vr_flat_wall_block_ads`) until he looks up off the floor.
+(`flatsight::wallBlocksFire`) and the ironsight waits (`vr_flat_wall_block_ads`) until he looks up off the floor.
 Standing the gun's end in the floor stays hidden there, as before. Test: `vr_flatprone_test` (the same script).
 Dual wielding lying down, no stance lifts the guns as it lifts one gun onto the eye, and at Gun Down Prone they hung a
 hand's width over the floor: their grips met it at a level look, the floor's tilt turned them up 65 to 85 degrees (a
@@ -661,7 +661,7 @@ turn the gun across the body, `vr_flat_wall_tilt_yaw` (0, -60..60: muzzle inward
 (0, -90..90: its top inwards), both mirrored for the left hand (the off hand); the least pitch is searched with them on. The
 pose eases in when the wall is met, and out when it clears, over `vr_flat_wall_tilt_time` (0.2 s, smoothstep; 0 at once); in
 it, the pitch follows the least that clears at 4 over that time (so 0.075 s at 0.3), and easing out it keeps the pitch it had.
-**No Fire With Gun Raised** (`vr_flat_wall_block_fire`, on; Movement > Locomotion, Desktop Screen Play): a gun turned more than
+**No fire with the gun raised** (always; its switch `vr_flat_wall_block_fire` retired 2026-11-11): a gun turned more than
 5 degrees out of a wall does not fire, the click does nothing (no shot, no ammo) until it comes back down (`flatplay::routeFire`,
 `flatsight::wallBlocksFire`); melee weapons always swing. It turns round the hand
 (`vr_flat_wall_tilt_pivot` 0; 1 is the shoulder, which swings the gun up into the face). Walls only: a floor or a ceiling (a
@@ -901,8 +901,8 @@ crosshair "that follows the visor's style and colour scheme, and displays the ta
   drawn barrel points: the move's shot angles get the drawn turn (`flatsight::wallShotAngles`), and its muzzle is the steady
   one turned the same way round the drawn hand's pivot (`keepMuzzle`), in place of the start eased onto the crosshair's ray.
   By the turn's angle: none level, all of it from 4 degrees, so it eases in and out with the turn (no snap leaving the wall).
-  The crosshair, tracing the move's line, shows that hit. 0: the shots go through the crosshair as before. With
-  `vr_flat_wall_block_fire` on a gun tilted up more than 5 degrees still doesn't fire; one laid along a wall does.
+  The crosshair, tracing the move's line, shows that hit. 0: the shots go through the crosshair as before. A
+  gun tilted up more than 5 degrees still doesn't fire; one laid along a wall does.
 - **Reloading.** A gun away on its reload trip (`flatreload::busy`) has its crosshair held on the centre (its muzzle points
   at the floor by the hip) and dimmed to `vr_flat_xhair_reload_alpha` (0.35) of its opacity, as a gun the wall stops is
   (0.35); both eased in and out over about 0.06 s.
@@ -919,7 +919,7 @@ crosshair "that follows the visor's style and colour scheme, and displays the ta
   the hit within a few frames. With the guns shooting straight ahead (`tune vr_flat_aim_point 0`, Debug > Reports >
   Flatscreen Guns Shoot Straight Ahead) it moves to each gun's own hit near a wall.
 - **Two guns.** One crosshair while both places are within the snap of each other (or both on the centre); two when they part,
-  each with a short upright mark on its own hand's side. A gun the wall stops from firing (`vr_flat_wall_block_fire`) has
+  each with a short upright mark on its own hand's side. A gun the wall stops from firing (`flatsight::wallBlocksFire`) has
   its crosshair dimmed.
 - **Look.** In the visor's colours (`gadget::visorColors`: the frame's green at full brightness, its dark face as the outline,
   the frame's glow), antialiased by its own edge coverage (a one-pixel ramp across every edge). Drawn over the view right

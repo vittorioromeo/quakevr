@@ -9070,3 +9070,40 @@ the housing3 worktree's `scratch/` (flat play, AD mounted; left the hand, then `
   `progs/v_plasma.mdl` never matches) radius -1.70, opening 11.23 x 10.21, offset {-0.0055, -0.0044, -0.1200}.
 - Tests: `vr_ad_test 103` (the Plasma Gun's ball) 2/0; `vr_scenario validate ad_housings` OK; Release-TracyFull built.
 - **Not verified:** the headset (flat shots); the left hand (the shapes are symmetric).
+
+## Retired switches (branch `agent/cvarretire`, 2026-11-11)
+
+His decisions on the cvar audit (`qvr-kit/scratch/cvar_audit_1111.md`, part 1). Each retired switch's default was
+checked first and is now the only path; the names are in `vr_cvars.cpp retiredCvars`, so an old config's line is
+dropped quietly (cmd.c), and CVAR_AUDIT.md lists them.
+
+- **Retired:** `vr_agarmor_bridge` (the leather bridge made each frame; the load-time sleeves, `sleeveOf` and its
+  eight constants, `tweakVerts`' sleeve push, the armour check's sleeve-layer guards and the Armour Studio test's
+  sleeve checks deleted; its bridge key is five settings now), `vr_kill_blast_fling` (a blast kill's ragdoll at once),
+  `vr_model_light_grid_cache` (always cached when the grid is built: its Off/Check modes, the Check's compare and the
+  Debug > Tests row gone; a disk cache product may now have no setting: `diskcache::modeOf` 1, `vr_cache_info` says
+  "(always)"), `vr_flat_key_grab_alt` (and its migration row), `vr_flat_wall_block_fire`, `vr_flat_mantle_hands`,
+  `vr_flat_keys_own` (BACKLOG: the flat keys bindable from the menu), `vr_decap_touch_point` (QC A/B),
+  `vr_menu_flat_esc_game`, `vr_gadget_lock_twohand`, `vr_crouch_hull` (`crouchOn` and its eight gates gone; the hull
+  system is always wanted with a world; `vr_crouch_status` no longer prints `on`), `vr_ragdoll_self_collide` (the
+  group/preSolve toggles in the ragdoll's and the worn pack's shapes gone).
+- **Cascade:** `vr_bullettime_tap_twohanded` (0): a two-handed hold is one of the gadget lock's, now always on, which
+  stops the tap first; its 1 did nothing any more. Retired with its row (bullet time's tap stays off while two-handed).
+- **Hidden** (working, no menu row, comment says so): `vr_flat_tonemap`, `vr_model_light_grid`, `vr_menu_bigfont`.
+- **Kept:** `vr_flat_holster_menu_mode` as the user option (Release to Pick / Toggle; its self-test runs both modes).
+  `vr_flat_wall_shot` stays (a gun laid along a wall still fires through its muzzle; flatxhair's flush case now holds
+  the tilt at 4 degrees, under the 5 that block). `vr_ragdoll_collide_each` stays (other ragdolls' parts).
+- Tests changed: flatwall d (no off case), flatxhair flush (`vr_flat_wall_tilt 4`), flatslide keys (the binds never
+  run), flatmenu_esc (no off case), gadget_lock (no G), decap_test, crouch_test (no off tunnel), selfcollide_test
+  (one run each case), corpse_notes/notes_regression/ragtest (no setting), vr_armour_test (no sleeve checks).
+- Verified (after merging origin/next): build and Release-TracyFull; menu_paths.txt regenerated (13 rows gone);
+  `vr_menu_path_check` vrcalibration 6/0 missing, vrtesthall 14/0; flatxhair 31/0 (flush fires at 4 degrees, its
+  shot along the barrel); flatslide 26/0 (mantle hands, keys, binds never run); flatmenu_esc 7/0; gadget_lock 17/0;
+  flatholster 24/0 (the Toggle mode: a press opens, three clicks keep it open, the next press or Esc closes);
+  flatkeys 37/0; vr_armour_test 23/0; vr_agarmor_bridge_check 121/0; crouch_test's prints as before (tunnel crouched
+  out at 880.7, cover crouched 0 damage of 12 shots); the light grid on vrstart: written at the first run, read at the
+  second (47.7 MB, 24 ms).
+- **Not passing, not from this branch:** flatwall d "off the wall, it fires" (no shell is spent anywhere in that run:
+  the weapon `vr_test_give_wid 4; impulse 149` gives is not in the hand, `main no`; the path is the same as with the
+  old switch on); `vr_systems_test 15` (the blast's body never knocks the torch off; the blast-kill path is the old
+  switch's default). Both worth a look by whoever owns those tests.

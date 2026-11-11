@@ -97,7 +97,7 @@ void noteDrawn(const hands::State& s);
 // where its shots go). False with no muzzle placed, outside the mode.
 [[nodiscard]] bool drawnGun(int h, glm::vec3& muzzle, glm::vec3& rot);
 
-// Whether hand `h`'s trigger is stopped: its gun is turned out of a wall past a few degrees and vr_flat_wall_block_fire is on
+// Whether hand `h`'s trigger is stopped: its gun is turned out of a wall past a few degrees
 // (flatplay::routeFire). A melee weapon is never stopped (the caller's: it knows what punches).
 [[nodiscard]] bool wallBlocksFire(int h);
 

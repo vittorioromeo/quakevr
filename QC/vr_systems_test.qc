@@ -329,7 +329,7 @@ void() VR_ST_Run =
         else if(vr_st_step == 1 && t > 0.3)
         {
             // A rocket's blast (120) between you and the grunt kills it and flings its body at the torch
-            // (vr_kill_blast_fling: its ragdoll made as it dies). The torch is kept out of the blast's own damage, so what
+            // (a blast kill's ragdoll is made as it dies). The torch is kept out of the blast's own damage, so what
             // knocks it off here is the body alone.
             vr_mount_last_by = world;
             entity bl = spawn();

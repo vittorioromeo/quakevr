@@ -3208,7 +3208,7 @@ bool isPlayerBox(const edict_t* ent, const float* mins, const float* maxs)
     return num >= 1 && num <= svs.maxclients && maxs[0] - mins[0] == 32.f && maxs[1] - mins[1] == 32.f;
 }
 
-// Crouching (vr_crouch_hull; HULLS.md "Crouching"): a client whose eyes are low has a box only as tall from his feet as
+// Crouching (always; HULLS.md "Crouching"): a client whose eyes are low has a box only as tall from his feet as
 // the lowest of the crouched heights his eyes are under (vr_crouch_height, then every vr_crouch_step up to Quake's 56
 // less 4), against the map, bodies and shots; he keeps it, standing up, until a taller box fits where he is. Indexed by
 // client number (1..maxclients): the box's height, 0 standing; cleared at each map's load.
@@ -3254,11 +3254,6 @@ float holdEye[crouchSlots]{};
 constexpr float flatEyeHeadroom = 8.f;
 constexpr float flatProneHeadroom = 4.f;
 
-bool crouchOn()
-{
-    return vr_crouch_hull.value != 0.f;
-}
-
 // The crouched heights, lowest first: vr_crouch_height (24 to hull 1's height less 4), then every vr_crouch_step (0:
 // that one alone). Returns how many (at least 1, at most maxCrouchLevels).
 int crouchLevels(const qmodel_t* world, float* out)
@@ -3293,7 +3288,7 @@ float crouchLevelFor(const qmodel_t* world, float eye)
 
 bool proneOn()
 {
-    return crouchOn() && vr_prone.value != 0.f;
+    return vr_prone.value != 0.f;
 }
 
 // The lying-down box's height (its own slot: proneNow, not a crouched height): vr_prone_height, 16, from
@@ -3328,7 +3323,7 @@ float proneRiseEye(const qmodel_t* world)
 // The client's box's height: lying down's (its own slot), else the crouched one's (0: standing).
 float crouchTopNum(int num)
 {
-    if(!crouchOn() || num < 1 || num >= crouchSlots)
+    if(num < 1 || num >= crouchSlots)
     {
         return 0.f;
     }
@@ -3377,7 +3372,7 @@ void crouchStatus_f()
     const glm::vec3 head = headOfs >= 0 ? progs::fieldVec(ent, headOfs) : glm::vec3{0.f};
     const float eye = head == glm::vec3{0.f} ? 0.f : head.z - (ent->v.origin[2] + ent->v.mins[2]);
     const float top = crouchTopNum(1);
-    Con_Printf("crouch: on %d box %.0f eye %.1f lowest %.0f standfits %d origin %.1f %.1f %.1f\n", crouchOn() ? 1 : 0,
+    Con_Printf("crouch: box %.0f eye %.1f lowest %.0f standfits %d origin %.1f %.1f %.1f\n",
         static_cast<double>(top), static_cast<double>(eye), static_cast<double>(crouchLevelFor(sv.worldmodel, 0.f)),
         top > 0.f ? (boxFitsAt(ent, 1, 0.f) ? 1 : 0) : 1, static_cast<double>(ent->v.origin[0]),
         static_cast<double>(ent->v.origin[1]), static_cast<double>(ent->v.origin[2]));
@@ -4391,7 +4386,7 @@ namespace detail
 {
 bool wanted()
 {
-    return sv.worldmodel && (vr_hull_width.value > 0.f || vr_mhull.value != 0.f || crouchOn());
+    return sv.worldmodel != nullptr; // (the crouched boxes always want it)
 }
 } // namespace detail
 namespace
@@ -4412,13 +4407,12 @@ za::Vector<glm::vec3> wantedExts(bool loading)
     {
         exts.pushBack(playerExt(sv.worldmodel));
     }
-    if(crouchOn())
     {
         float levels[maxCrouchLevels];
         const int n = crouchLevels(sv.worldmodel, levels);
         for(int i = 0; i < n; ++i)
         {
-            exts.pushBack(crouchExt(levels[i])); // the crouched player's (vr_crouch_hull)
+            exts.pushBack(crouchExt(levels[i])); // the crouched player's
         }
         if(proneOn() && proneHeight(sv.worldmodel) < levels[0])
         {
@@ -4534,7 +4528,6 @@ void init()
     Cvar_SetCallback(&vr_hull_width, onWidthChanged);
     Cvar_SetCallback(&vr_hull_brushmodels, onWidthChanged);
     Cvar_SetCallback(&vr_mhull, onWidthChanged);
-    Cvar_SetCallback(&vr_crouch_hull, onWidthChanged);
     Cvar_SetCallback(&vr_crouch_height, onWidthChanged);
     Cvar_SetCallback(&vr_crouch_step, onWidthChanged);
     Cvar_SetCallback(&vr_prone, onWidthChanged);
@@ -4718,7 +4711,7 @@ bool entBox(const edict_t* passedict, const float* mins, const float* maxs, floa
         narrowBox(mins, maxs, width > 0.f ? width : 32.f, boxMins, boxMaxs);
         if(crouch > 0.f)
         {
-            boxMaxs[2] = za::min(boxMaxs[2], mins[2] + crouch); // crouched (vr_crouch_hull)
+            boxMaxs[2] = za::min(boxMaxs[2], mins[2] + crouch); // crouched
         }
         return true;
     }
@@ -4736,7 +4729,7 @@ bool touchBox(const edict_t* touch, const edict_t* mover, float* boxMins, float*
     const float crouch = crouchTop(touch);
     if(sv.active && isPlayerBox(touch, touch->v.mins, touch->v.maxs) && crouch > 0.f)
     {
-        // Crouched (vr_crouch_hull): a body meets his crouched box, narrowed as below if it would be.
+        // Crouched: a body meets his crouched box, narrowed as below if it would be.
         narrowBox(touch->v.mins, touch->v.maxs, width > 0.f ? width : 32.f, boxMins, boxMaxs);
         boxMaxs[2] = za::min(boxMaxs[2], touch->v.mins[2] + crouch);
         return true;
@@ -5101,7 +5094,7 @@ void updateCrouchBox(edict_t* ent, const glm::vec3& head, bool flatscreenCrouch)
     crouchFlatHeld[num] = flatscreen && flatscreenCrouch;
     float& c = crouchBox[num];
     bool& prone = proneNow[num];
-    if(!crouchOn() || !sv.active || !sv.worldmodel || ent->free || head == glm::vec3{0.f})
+    if(!sv.active || !sv.worldmodel || ent->free || head == glm::vec3{0.f})
     {
         c = 0.f;
         prone = false;
@@ -5220,7 +5213,7 @@ void updateHold(edict_t* ent, const glm::vec3& head)
     const float top = crouchTopNum(num);
     const float feet = ent->v.origin[2] + ent->v.mins[2];
     holdEye[num] = (ent->free || head == glm::vec3{0.f}) ? 0.f : head.z - feet;
-    if(vr_lowceil.value == 0.f || !crouchOn() || !sv.active || !sv.worldmodel || ent->free || head == glm::vec3{0.f} ||
+    if(vr_lowceil.value == 0.f || !sv.active || !sv.worldmodel || ent->free || head == glm::vec3{0.f} ||
         crouchFlat[num] || top <= 0.f || static_cast<int>(ent->v.movetype) == MOVETYPE_NOCLIP)
     {
         hold = 0;
@@ -5306,7 +5299,7 @@ bool isProne(const edict_t* ent)
 bool hasLyingBox(const edict_t* ent)
 {
     const int num = clientNum(ent);
-    return crouchOn() && num >= 1 && num < crouchSlots && proneNow[num];
+    return num >= 1 && num < crouchSlots && proneNow[num];
 }
 
 int localProne()

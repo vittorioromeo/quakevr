@@ -308,7 +308,7 @@ constexpr float tiltTimeMax = 1.5f;  // vr_flat_wall_tilt_time's range (seconds)
 constexpr float tiltPitchEase = 4.f; // in the pose, its pitch follows the least that clears at this many over vr_flat_wall_tilt_time (1/s)
 constexpr float tiltYawMax = 60.f;   // vr_flat_wall_tilt_yaw's range (degrees)
 constexpr float tiltRollMax = 90.f;  // vr_flat_wall_tilt_roll's range (degrees)
-constexpr float tiltBlocksFire = 5.f; // a gun turned more than this out of a wall does not fire (vr_flat_wall_block_fire; degrees)
+constexpr float tiltBlocksFire = 5.f; // a gun turned more than this out of a wall does not fire (flatsight::wallBlocksFire; degrees)
 constexpr float tiltShortOfUp = 5.f; // the tilt leaves the muzzle at least this far short of straight up (degrees)
 constexpr float wallShotFull = 4.f;  // vr_flat_wall_shot: a gun turned this far by a wall shoots wholly from its own muzzle (degrees)
 constexpr float slideYawStep = 5.f;  // the level turn's search along a wall (slideFor): in steps this big (degrees), then halved
@@ -2148,7 +2148,7 @@ glm::vec3 wallShotAngles(int h, const glm::vec3& angles)
 bool wallBlocksFire(int h)
 {
     // (The tilt up only: laid along a wall, turned level, it fires.)
-    return vr_flat_wall_block_fire.value != 0.f && flatplay::active() && h >= 0 && h < HAND_COUNT && st.upAngle[h] > tiltBlocksFire;
+    return flatplay::active() && h >= 0 && h < HAND_COUNT && st.upAngle[h] > tiltBlocksFire;
 }
 
 bool floorFlush(int h, float* left)

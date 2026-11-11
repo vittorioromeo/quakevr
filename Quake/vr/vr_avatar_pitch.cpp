@@ -420,7 +420,7 @@ void updateBodyPitch(const hands::State& s, float dt)
     // (Flat-screen: the eyes over the box's feet -- his standing eyes are Quake's 46 there, not the calibrated height his
     // head's headHeight is measured from.)
     const float eyeOverFloor = flatplay::active() ? s.head.z - (s.playerOrigin.z - 24.f) : s.headHeight * units::metresToUnits();
-    const bool lying = vr_prone.value != 0.f && vr_crouch_hull.value != 0.f &&
+    const bool lying = vr_prone.value != 0.f &&
                        (served >= 0 ? served == 1 : eyeOverFloor < vr_prone_eye.value);
     // The drawn trunk's own lengths (solveTorso: the pelvis to the head's bind, vr_body_torso_back behind the neck's top,
     // that vr_body_eye_up under the eye) and the neck's top over the floor: lying down and sliding turn the trunk about it

@@ -121,14 +121,10 @@ namespace
 
 // Killed (or dying) inside a blast's reach that went off within recentBlastTime (its damage + 40, T_RadiusDamage's): his
 // ragdoll at once, so the blast throws his body (createRagdoll's recentBlasts, its falloff) instead of his death animation
-// playing first and the body being made after the blast is over (vr_kill_blast_fling; the author, 2026-11-10: "Yes, fling
-// them"). A gibbed kill has no rig left to make; a corpse already a ragdoll is pushed by the blast as before, once.
+// playing first and the body being made after the blast is over (the author, 2026-11-10: "Yes, fling them"; always
+// since 2026-11-11). A gibbed kill has no rig left to make; a corpse already a ragdoll is pushed by the blast as before, once.
 [[nodiscard]] bool blastKilled(const edict_t* ent)
 {
-    if(vr_kill_blast_fling.value == 0.f)
-    {
-        return false;
-    }
     const glm::vec3 mid{(ent->v.absmin[0] + ent->v.absmax[0]) * 0.5f, (ent->v.absmin[1] + ent->v.absmax[1]) * 0.5f,
         (ent->v.absmin[2] + ent->v.absmax[2]) * 0.5f};
     for(const World::RecentBlast& rb : world->recentBlasts)
@@ -1004,15 +1000,11 @@ void createRagdollParts(CreateWork& w, edict_t* ent, int num, Slot& s, bool now)
         const b3BodyId body = b3CreateBody(world->id, &def);
         r.body[static_cast<za::SizeT>(b)] = body;
 
-        // (Other ragdolls too, vr_ragdoll_collide_each: theirs have catCorpse in their masks, a corpse's not. Its own parts
-        // with vr_ragdoll_self_collide: catCorpse in its mask too, no group, shouldCollide's selfMeets deciding which, and
-        // whether other ragdolls' parts meet them.)
-        const bool selfCollide = vr_ragdoll_self_collide.value != 0.f;
-        b3ShapeDef sd = shapeDef(num, catCorpse,
-            s.corpseMask | (vr_ragdoll_collide_each.value || selfCollide ? catCorpse : 0));
+        // (Its own parts meet each other: catCorpse in its mask, no group, shouldCollide's selfMeets deciding which, and
+        // whether other ragdolls' parts meet them, vr_ragdoll_collide_each.)
+        b3ShapeDef sd = shapeDef(num, catCorpse, s.corpseMask | catCorpse);
         sd.enableCustomFiltering = true; // (shouldCollide: thrown things, vr_corpse_collide_thrown; what it is made in)
-        sd.filter.groupIndex = selfCollide ? 0 : -num; // (off: its own parts never meet)
-        sd.enablePreSolveEvents = selfCollide;         // (preSolve also honours the live toggle)
+        sd.enablePreSolveEvents = true;
         sd.enableHitEvents = true;       // (a knocked-down monster's fall damage: touches, callFalls)
         sd.baseMaterial.friction = friction;
         sd.density = bone.joint == ragdoll::Joint::Loose ? looseMass / za::max(volumes[static_cast<za::SizeT>(b)], 1e-6f) : density;
@@ -1363,7 +1355,7 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now)
     createRagdollPack(r, ent, num, s); // (its worn backpack on its chest: vr_box3d_wornpack.cpp)
     createRagdollOverlaps(w, num, s);
     createRagdollStart(w, ent, num, s, now);
-    // A blast that has just killed him (or hit him as he died) throws him now (vr_kill_blast_fling makes him at once).
+    // A blast that has just killed him (or hit him as he died) throws him now (blastKilled makes him at once).
     for(const World::RecentBlast& rb : world->recentBlasts)
     {
         if(rb.damage > 0.f && qcvm->time - rb.time < recentBlastTime)

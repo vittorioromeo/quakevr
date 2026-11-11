@@ -67,7 +67,7 @@ constexpr float unsnapShare = 1.5f;   // a snapped place lets go of the centre o
 constexpr float glowWidth = 5.f;      // the glow's reach past the lines at vr_flat_xhair_glow 1 (pixels at 1080)
 constexpr float markLength = 0.55f;   // two crosshairs: each one's mark on its hand's side, this share of its size
 constexpr int discSegments = 40;      // a circle or a dot, drawn as this many pieces round it
-constexpr float blockedDim = 0.35f;   // a gun the wall stops from firing (vr_flat_wall_block_fire): its crosshair this dim
+constexpr float blockedDim = 0.35f;   // a gun the wall stops from firing (flatsight::wallBlocksFire): its crosshair this dim
 constexpr float dimEase = 0.06f;      // its dimming (the wall, a reload) eases in and out with this time constant (seconds)
 
 // The last move's shot line for each hand (noteMove).

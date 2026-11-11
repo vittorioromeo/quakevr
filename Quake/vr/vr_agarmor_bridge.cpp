@@ -711,7 +711,7 @@ bool makeBridgeModel(qmodel_t* mod, const Shell& s, const aliashdr_t* kh)
     }
     // (the leather's place in the atlas, as the sleeves': round it u; along it v, a fold of geometry a fold of paint (make_agarmor.py
     // paints four down the block); no folds: the paint's eight, mirrored about the joint)
-    constexpr float jx0 = 224.f, jy0 = 64.f, jx1 = 256.f, jy1 = 96.f; // (vr_agarmor.cpp jointBlock)
+    constexpr float jx0 = 224.f, jy0 = 64.f, jx1 = 256.f, jy1 = 96.f; // (the atlas's joint block, make_agarmor.py)
     const float padW = static_cast<float>(TexMgr_PadConditional(kh->skinwidth)), padH = static_cast<float>(TexMgr_PadConditional(kh->skinheight));
     for(int j = 0; j < NumJoints; j++)
     {

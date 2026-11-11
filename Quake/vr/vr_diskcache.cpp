@@ -32,7 +32,7 @@ struct ProductInfo
     const char* kind;
     const char* what;
     unsigned long long budget; // bytes kept in its build's folder (0: no limit)
-    cvar_t* mode;
+    cvar_t* mode; // (nullptr: always on, no setting)
 };
 
 const ProductInfo products[] = {
@@ -43,7 +43,7 @@ const ProductInfo products[] = {
     {"dequant", "dequantised poses", 256ull << 20, &qvr::vr_mdl_dequant_cache},
     {"rigs", "ragdoll rigs", 0, &qvr::vr_ragdoll_rig_cache},
     {"reliefmaps", "weapons' relief maps", 0, &qvr::vr_normalmap_cache},
-    {"lightgrid", "big maps' model light grids", 256ull << 20, &qvr::vr_model_light_grid_cache},
+    {"lightgrid", "big maps' model light grids", 256ull << 20, nullptr},
     {"navmesh", "monsters' navmeshes", 256ull << 20, &qvr::vr_nav_cache},
 };
 static_assert(sizeof(products) / sizeof(products[0]) == static_cast<size_t>(Product::Count));
@@ -260,7 +260,12 @@ bool writeAtomic(const za::String& path, const Part* parts, int count)
 
 int modeOf(Product p)
 {
-    const float v = infoOf(p).mode->value;
+    const cvar_t* mode = infoOf(p).mode;
+    if(!mode)
+    {
+        return 1;
+    }
+    const float v = mode->value;
     return v <= 0.f ? 0 : v >= 2.f ? 2 : 1;
 }
 
@@ -449,7 +454,7 @@ void info_f()
         allBytes += bytes;
         Con_Printf("  %-10s %-24s %s %g: %lld files, %.1f MB on disk; this session %lld read (%.1f MB, %.1f ms), %lld "
                    "missed (%lld in play), %lld written (%.1f MB), %lld rejected, checked %lld same %lld differed\n",
-            info.kind, info.what, info.mode->name, info.mode->value, files, static_cast<double>(bytes) / 1048576.0,
+            info.kind, info.what, info.mode ? info.mode->name : "(always)", info.mode ? info.mode->value : 1.f, files, static_cast<double>(bytes) / 1048576.0,
             c.hits.load(), static_cast<double>(c.bytesRead.load()) / 1048576.0, static_cast<double>(c.readUs.load()) / 1000.0,
             c.misses.load(), c.missesInPlay.load(), c.written.load(), static_cast<double>(c.bytesWritten.load()) / 1048576.0,
             c.rejected.load(), c.same.load(), c.differed.load());

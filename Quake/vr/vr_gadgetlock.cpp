@@ -89,7 +89,7 @@ bool locked()
         return state.locked;
     }
     state.frame = host_framecount;
-    const bool on = vr_gadget_lock_twohand.value != 0.f && cls.state == ca_connected && cls.signon == SIGNONS;
+    const bool on = cls.state == ca_connected && cls.signon == SIGNONS;
     state.what = on ? bothHold() : nullptr;
     if(state.what)
     {

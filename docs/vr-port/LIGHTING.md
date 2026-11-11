@@ -284,7 +284,7 @@ textures are filtered smoothly; and `r_shadow_gloss 2` gives dynamic lights a fa
   shaded 0.6 .. 1.4 by the normal (on average the light given), instead of over 200 with MH's 0.7 .. 2 and the 96 cap:
   models were 1.5 to 2.6 times as bright as the floor under them. Hands and weapons keep at least
   `vr_viewmodel_minlight` (8; Quake's 24). `vr_light_contrast`'s curve still applies first.
-- **Models lit from all sides** (`vr_model_light_grid` 1, his decision 2026-11-02; 0 is the floor's light above): probes
+- **Models lit from all sides** (`vr_model_light_grid` 1, his decision 2026-11-02; 0 is the floor's light above, console only since 2026-11-11): probes
   over the map gather the baked light of every surface round them, per light style; a model reads the eight round it.
   `vr_ambient.cpp`, "The light grid"; ROUND23.md, "Models lit by all baked lights". What's drawn beside models reads the
   same probes (`ambient::lightPoint`: coils, ropes, gore, blood, impacts, smoke, lit particles), lava, slime and

@@ -35,14 +35,14 @@ for c in $CASES; do
     popzombie) run "map vrfiringrange;$PRE;$(SPAWN 2);vr_decap_test 17;wait5;$(SPAWN 2);vr_decap_test 15;wait5;vr_decap_zombies 0;$(SPAWN 2);vr_decap_test 17;wait5;vr_decap_zombies 1" ;;
     chest) # his note 2026-11-10: an axe's chop into the upper chest kills without beheading (29), its slash through the
         # neck beheads (61); on a grunt, then on the motion recorder's dummy (judged as a grunt: its "would (not) behead")
-        # (The zone's settings given: the kit's baseline config may still hold the old 1.15 and 3. ZONE_OLD=1: as before.)
-        Z="vr_decap_touch_point 0;vr_decap_head_size 1;vr_decap_neck 0"
-        [ "${ZONE_OLD:-0}" = 1 ] && Z="vr_decap_touch_point 1;vr_decap_head_size 1.15;vr_decap_neck 3"
+        # (The zone's settings given: the kit's baseline config may still hold the old 1.15 and 3. ZONE_OLD=1: the old zone.)
+        Z="vr_decap_head_size 1;vr_decap_neck 0"
+        [ "${ZONE_OLD:-0}" = 1 ] && Z="vr_decap_head_size 1.15;vr_decap_neck 3"
         run "map e1m1;$PRE;$Z;$(SPAWN 0);vr_decap_test 61;wait30;$(SPAWN 0);vr_decap_test 29"
         FILTER="^decaptest: (29|61) [a-z]|Dummy: .*melee|rror" run "map vrmelee-recording;$PRE;$Z;vr_decap_test 29;wait90;vr_decap_test 61" ;;
     sweep) # the melee's head zone swept (vr_decap_test 19 level, 28 chops) on each monster at each Head Zone Size:Neck in ZONES
         for m in ${MONS:-0 5 1 8 6 7}; do
-            sw=";vr_decap_touch_point ${OLD:-0}"; for z in ${ZONES:-1:0 1.25:0 1:8 1.25:8}; do sw="$sw;vr_decap_head_size ${z%%:*};vr_decap_neck ${z##*:};vr_decap_test 19;wait2;vr_decap_test 28;wait2"; done
+            sw=""; for z in ${ZONES:-1:0 1.25:0 1:8 1.25:8}; do sw="$sw;vr_decap_head_size ${z%%:*};vr_decap_neck ${z##*:};vr_decap_test 19;wait2;vr_decap_test 28;wait2"; done
             FILTER="^decapsweep|rror" run "map vrfiringrange;$PRE;$(SPAWN $m)$sw;vr_decap_head_size 1;vr_decap_neck 0"
         done ;;
     monsters) for m in ${MONS:-0 5 1 8 6 7 4 9 3 12 14 10 13}; do run "map vrfiringrange;$PRE;$(SPAWN $m);vr_decap_test 1;wait60;vr_ragdoll_list 1"; done ;;

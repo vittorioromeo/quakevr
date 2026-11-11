@@ -793,7 +793,7 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     // Bits 21 and 22 (QVR_VRBITS0_OFFHAND_PRIMARY, _MAINHAND_PRIMARY): the hand's A/X held (the grapple's unreel).
     const int primary = ((move.buttons & QVR_BUTTON_OFFHANDPRIMARY) ? (1 << 21) : 0) |
                         ((move.buttons & QVR_BUTTON_MAINHANDPRIMARY) ? (1 << 22) : 0);
-    // Bit 23 (QVR_VRBITS0_CROUCHED): the player has his crouched box (vr_crouch_hull: vr_hull.cpp). Flatscreen play
+    // Bit 23 (QVR_VRBITS0_CROUCHED): the player has his crouched box (vr_hull.cpp). Flatscreen play
     // (his own client: vr_flatplay.cpp) crouches with a key, not with a head, and his eyes stand under the tallest
     // crouched box's top either way -- so his client's word for it (protocol::moveFlatCrouchBit: Left Ctrl held; let go,
     // standing if it fits, else the tallest crouched box that does, and his view rises only as far as that box: hull::

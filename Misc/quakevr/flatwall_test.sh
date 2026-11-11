@@ -9,7 +9,7 @@
 #      crosshair's point while it is tilted, and it comes back down with no jump.
 #   c. the tilted pose eases in and out over vr_flat_wall_tilt_time (0.2 s, the default, then 0.6); a fixed pitch with yaw and roll, the
 #      left hand's mirrored.
-#   d. vr_flat_wall_block_fire: tilted at the wall a click fires nothing (no shell spent); the option off, or off the wall, it fires.
+#   d. tilted at the wall a click fires nothing (no shell spent; flatsight::wallBlocksFire); off the wall it fires.
 #   e. along a wall (vr_flat_wall_slide): the rifle, his box on the south wall at his right, the view turning towards it
 #      at 5 deg/s from along it to 50 in: the drawn gun's place and turn frame to frame (flatwalldrawn) have no step; it
 #      lies along the wall first (a level turn), tilts up only later; tilted up, the ironsight waits (vr_flat_wall_block_ads).
@@ -125,18 +125,17 @@ check $(awk -v mu="$mu" -v ms="$ms" -v mc="$mc" -v ou="$ou" -v os="$os" -v oc="$
   "pitch up, yaw and roll inwards; the left hand's yaw and roll mirrored, its pitch the same"
 fi
 
-# d. Firing at the wall (vr_flat_wall_block_fire): tilted, a click fires nothing (no shell spent); with the option off it
-#    fires; off the wall it fires. The default pose (the least tilt that clears).
+# d. Firing at the wall (flatsight::wallBlocksFire, always on since 2026-11-11): tilted, a click fires nothing (no shell
+#    spent); off the wall it fires. The default pose (the least tilt that clears).
 if [[ $ONLY == *d* ]]; then
 log=$HERE/scratch/flatwall_d.log
 K="vr_mock_key mouse1 down; wait30; vr_mock_key mouse1 up; wait40; vr_flathud_report; wait2"
-bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map vrtesthall; god; notarget; developer 1; r_norefresh 0; vr_flat_wall_block_fire 1; vr_test_give_wid 4; impulse 149; give s 50; wait25; $ON; wait$F; vr_flathud_report; wait2; vr_flatplay_debug 2; echo flatwallfire click; $K; vr_flatplay_debug 0; vr_flat_wall_block_fire 0; $K; vr_flat_wall_block_fire 1; $OFF; wait$F; $K; vr_flat_wall_block_fire 1; echo flatwallfire done; toggleconsole; quit" -Filter "^flathud: pools|^flatwallfire|^flatwallturn" -QuitOn "flatwallfire done" -Timeout 120 > "$log" 2>&1
-read -r s0 s1 s2 s3 <<<"$(grep -a "^flathud: pools" "$log" | sed 's/.*shells \([0-9]*\).*/\1/' | tr '\n' ' ')"
+bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map vrtesthall; god; notarget; developer 1; r_norefresh 0; vr_test_give_wid 4; impulse 149; give s 50; wait25; $ON; wait$F; vr_flathud_report; wait2; vr_flatplay_debug 2; echo flatwallfire click; $K; vr_flatplay_debug 0; $OFF; wait$F; $K; echo flatwallfire done; toggleconsole; quit" -Filter "^flathud: pools|^flatwallfire|^flatwallturn" -QuitOn "flatwallfire done" -Timeout 120 > "$log" 2>&1
+read -r s0 s1 s3 <<<"$(grep -a "^flathud: pools" "$log" | sed 's/.*shells \([0-9]*\).*/\1/' | tr '\n' ' ')"
 turned=$(grep -a "^flatwallturn" "$log" | awk '{ if ($7 < m || !n) m = $7; n++; b += $15 } END { printf "%.1f deg at least, blocked %d of %d frames", m, b, n }')
-echo "  shells: at the wall $s0, clicked $s1 (turned $turned); the option off, clicked $s2; off the wall, clicked $s3"
+echo "  shells: at the wall $s0, clicked $s1 (turned $turned); off the wall, clicked $s3"
 check $( [ -n "$s3" ] && [ "$s1" = "$s0" ] && echo 1 || echo 0) "tilted at the wall, a click fires nothing (no shell spent)"
-check $( [ -n "$s3" ] && [ "$s2" -lt "$s1" ] && echo 1 || echo 0) "vr_flat_wall_block_fire 0: it fires tilted"
-check $( [ -n "$s3" ] && [ "$s3" -lt "$s2" ] && echo 1 || echo 0) "off the wall, it fires"
+check $( [ -n "$s3" ] && [ "$s3" -lt "$s1" ] && echo 1 || echo 0) "off the wall, it fires"
 fi
 
 # e. Along a wall: one continuous pose over the angle (his jitter: along a wall, turning a little towards it).
