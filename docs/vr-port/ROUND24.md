@@ -8770,6 +8770,15 @@ also ports today's director so both are priced with the same table) produced the
 the same total threat (4613 vs 4549), repeats from one wave to the next 17% vs 42%, distinct combos per 5-wave window
 up 30-80% from wave 6 on, gun droughts 0.06 vs 1.89 a run. Nine design changes came out of the simulation (the doc's section 11).
 No checklist lines yet; they come with the implementation.
+
+**Built (same branch, after his approval):** `vr_arena_director 1` (default 0). The C++ planner is
+`Quake/vr/vr_arenadirector.cpp` with its data file `quakevr/data/arena_director.txt`; the QC side is
+`QC/vr_arena_director.qc`. It adds the spawn cadence (groups, gaps stretched by the threat still up, surges and
+ambushes from several sides), knights and death knights with guns (`gun_knight`, `gun_dk`), the Knightfall theme, a
+red-armoured death knight boss with the best gun, a reactive supply budget, score from cost, quick kills, menu rows
+(Combat > Survival Arena > Budget Director) and Debug rows. Tests: `vr_arena_director_test` (C++, 328 checks) and
+arena test 41 (gun knights). Details, sim numbers and test results: `docs/vr-port/ARENA_DIRECTOR.md` section 13.
+
 ## Active ragdolls' thuds (branch `agent/ragthud`, 2026-11-11)
 
 His question: do ragdolls knock when they hit the level (a grunt falling off a ledge as an active ragdoll: its scream,
