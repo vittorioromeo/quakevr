@@ -221,3 +221,34 @@ Arena stairs (`vr_arena_test 36`: one foe at a time from 8 floor places up to th
   player at the top) never passed: the player does not stay at the top in the headless run (found below, -584 2784
   -104), and the knight then waits at the top for the lift (a lift at the bottom is only called from it) and gives up.
   Before lifts go on: a scene whose player stays put, its reach verdict, the waiting-at-the-top case.
+
+## 11. Round 2, part 4 (2026-11-11): crowds, smoothing, approach slots (all off by default)
+
+- **Separation** (`vr_nav_separation`, a weight; `vr_nav_separation_range` 24): the yaw toward the next corner is bent
+  away from walkers whose boxes are within the range (each pushes by its closeness), never turned back on the path, not
+  on a link's corner. The walkers are gathered once a frame (`crowdNow`). Not DetourCrowd: our monsters step with
+  Quake's walkmove at their own animation speeds, so a velocity planner's output would be thrown away; a steering term
+  on the corridor is what fits.
+- **Smoothing** (`vr_nav_smooth`, units): within that distance of a corner the monster already aims along the next
+  segment (at most half of it), rounding the turn; `ChangeYaw` keeps limiting the turn rate as before. The mesh's
+  clearance (1.41 x the half width) leaves room for that cut.
+- **Approach slots** (`vr_nav_slots`, `vr_nav_slot_radius` 80, `vr_nav_slot_engage` 120): a walker with no missile
+  attack (`th_missile` 0) farther than the engage distance paths to a slot on a ring round its foe, its own (none other
+  chasing him holds it this half second), the free one nearest its bearing, kept while free; nearer it is Quake's chase.
+  A slot straight ahead on the mesh is still walked to (round 1 handed that case to Quake's chase).
+- **vr_nav 0** is untouched (navsteer returns -1 before any of this). Backpedal, sidestep, strafe, the armed humanoids'
+  moves don't use movetogoal: unchanged.
+- **Measured** (`vr_nav_crowdtest <s>`: every walker woken onto the player; a stall is a half second moved under 8
+  units while over 128 from him; verdict when all came within 128) on scene `nav_crowd` (vrarena, 8 knights and 4 dogs,
+  you on the dais), 40 s, no-LTO low-impact runs:
+
+  | seed | all off (Quake-like steering on the mesh) | separation 0.8, smooth 24, slots 8 |
+  |---|---|---|
+  | 1 | 7 alive, 4 came, 160 stalls of 402 samples (40%) | 8 alive, 6 came, 173 of 433 (40%) |
+  | 2 | 14 alive, 11 came, 190 of 480 (40%) | 10 alive, 7 came, 195 of 400 (49%) |
+
+  Seed 2 with slots 0 gave exactly the "on" numbers, so the slots likely never took effect in the arena (its knights
+  may have a missile function, or the arena's own AI drives the approach); separation 0 gave 191 of 457 (42%). The
+  arena's own waves change the walker count between runs, so the test is noisy. No benefit shown, so the three stay off
+  by default (the `nav_crowd` scene turns them on to look at). `vr_arena_test 36` with the defaults: 0 capped of 64.
+  To do: a crowd scene without the arena's waves (a plain map), check which walkers count as melee, then tune.

@@ -373,3 +373,5 @@ QVR_FIELD(stl_class)
 // path_corner's wait.
 QVR_FIELD(pos2)
 QVR_FIELD(wait)
+// The navmesh's approach slots (vr_nav.cpp approach): a walker with no missile attack is a melee one.
+QVR_FIELD(th_missile)

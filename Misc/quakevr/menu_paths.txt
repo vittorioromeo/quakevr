@@ -4618,6 +4618,12 @@ vr_nav_lift_cost|2|Tunables|Navmesh: Lift Cost|Advanced VR Options > Debug > Tun
 vr_nav_lift_wait|2|Tunables|Navmesh: Lift Give-Up Time|Advanced VR Options > Debug > Tunables > Navmesh: Lift Give-Up Time
 vr_nav_link_retry|2|Tunables|Navmesh: Link Retry Time|Advanced VR Options > Debug > Tunables > Navmesh: Link Retry Time
 vr_nav_plat_monsters|2|Tunables|Monsters Call Lifts|Advanced VR Options > Debug > Tunables > Monsters Call Lifts
+vr_nav_separation|2|Tunables|Navmesh: Crowd Separation|Advanced VR Options > Debug > Tunables > Navmesh: Crowd Separation
+vr_nav_separation_range|2|Tunables|Navmesh: Separation Range|Advanced VR Options > Debug > Tunables > Navmesh: Separation Range
+vr_nav_smooth|2|Tunables|Navmesh: Corner Smoothing|Advanced VR Options > Debug > Tunables > Navmesh: Corner Smoothing
+vr_nav_slots|2|Tunables|Navmesh: Approach Slots|Advanced VR Options > Debug > Tunables > Navmesh: Approach Slots
+vr_nav_slot_radius|2|Tunables|Navmesh: Slot Ring Radius|Advanced VR Options > Debug > Tunables > Navmesh: Slot Ring Radius
+vr_nav_slot_engage|2|Tunables|Navmesh: Slot Engage Distance|Advanced VR Options > Debug > Tunables > Navmesh: Slot Engage Distance
 |2|Tunables|Reset This Page|Advanced VR Options > Debug > Tunables > Reset This Page
 @page|2|Debug - Cheats and Recording||Advanced VR Options > Debug > Cheats and Recording
 |2|Debug - Cheats and Recording|God Mode|Advanced VR Options > Debug > Cheats and Recording > God Mode

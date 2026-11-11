@@ -174,6 +174,16 @@ struct Agent
     double waitSince = 0.0;
     double noLinksUntil = 0.0; // a link given up: plans without links till then
     int action = 0;           // navlink: 0 walk, 1 walk off the ledge (a drop), 2 stand (waiting, riding, falling)
+    int slot = -1, slotGoal = 0; // its approach slot round that goal (approach), claimed when
+    double slotAt = 0.0;
+};
+
+// A walker as the crowd's separation sees it (crowdNow: once a frame).
+struct Crowd
+{
+    glm::vec3 pos;
+    float radius;
+    int num;
 };
 
 struct State
@@ -186,6 +196,8 @@ struct State
     bool ready = false;       // a map's geometry gathered
     int steers = 0, paths = 0, fallbacks = 0;
     int drops = 0, rides = 0, linkFails = 0; // links taken to their end, given up
+    za::Vector<Crowd> crowd;  // the live walkers, as of crowdAt
+    double crowdAt = -1.0;
 };
 
 State state;
@@ -1881,6 +1893,8 @@ void rebuild_f()
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+void crowdtest_f(); // (below, by the steering)
+
 void init()
 {
     Cmd_AddCommand("vr_nav_info", info_f);
@@ -1888,6 +1902,7 @@ void init()
     Cmd_AddCommand("vr_nav_toptest", toptest_f);
     Cmd_AddCommand("vr_nav_links", links_f);
     Cmd_AddCommand("vr_nav_reachtest", reachtest_f);
+    Cmd_AddCommand("vr_nav_crowdtest", crowdtest_f);
     Cmd_AddCommand("vr_nav_rebuild", rebuild_f);
 }
 
@@ -1957,6 +1972,96 @@ const edict_t* rideMover(int ride)
     }
     const edict_t* m = progs::edictAt(state.geo.rides[static_cast<za::SizeT>(ride)].mover);
     return m && !m->free && static_cast<int>(m->v.solid) == SOLID_BSP ? m : nullptr;
+}
+
+// vr_nav_crowdtest <seconds> [near]: every walker on the map woken onto the player; every half second each one's move
+// sampled: a stall is a half second it moved under 8 units while farther than `near` (128) from him. Its end prints the
+// walkers, their stalls and how many came within `near` of him; it passes when every one did. (Stuck counts in a crowd:
+// vr_nav_separation, vr_nav_slots.)
+struct CrowdTest
+{
+    bool armed = false;
+    double since = 0.0, until = 0.0, nextSample = 0.0;
+    float near = 128.f;
+    za::Vector<glm::vec4> last; // by edict number: the last sample's place (w: 1 sampled)
+    za::Vector<unsigned char> came;
+    int stalls = 0, samples = 0;
+};
+CrowdTest crowdTest;
+
+void crowdtest_f()
+{
+    if(Cmd_Argc() < 2 || !sv.active)
+    {
+        Con_Printf("vr_nav_crowdtest <seconds> [near]\n");
+        return;
+    }
+    const progs::ServerVm vm;
+    crowdTest = CrowdTest{};
+    crowdTest.armed = true;
+    crowdTest.since = sv.qcvm.time;
+    crowdTest.until = sv.qcvm.time + atof(Cmd_Argv(1));
+    crowdTest.nextSample = sv.qcvm.time + 0.5;
+    crowdTest.near = Cmd_Argc() > 2 ? static_cast<float>(atof(Cmd_Argv(2))) : 128.f;
+    crowdTest.last.resize(static_cast<za::SizeT>(sv.qcvm.max_edicts), glm::vec4{0.f});
+    crowdTest.came.resize(static_cast<za::SizeT>(sv.qcvm.max_edicts), 0);
+    edict_t* p = progs::playerEdict();
+    const func_t found = progs::findFunction("FoundTarget");
+    if(!p || !found)
+    {
+        return;
+    }
+    const int oldSelf = pr_global_struct->self;
+    progs::forEachEdict(1, [&](edict_t* e) {
+        if(walker(e) && e->v.health > 0.f)
+        {
+            e->v.enemy = EDICT_TO_PROG(p);
+            pr_global_struct->self = EDICT_TO_PROG(e);
+            pr_global_struct->time = sv.qcvm.time;
+            PR_ExecuteProgram(found);
+        }
+    });
+    pr_global_struct->self = oldSelf;
+}
+
+// (Each steer: the armed crowd test's samples and end.)
+void crowdCheck()
+{
+    if(!crowdTest.armed || sv.qcvm.time < crowdTest.nextSample)
+    {
+        return;
+    }
+    crowdTest.nextSample = sv.qcvm.time + 0.5;
+    const edict_t* p = progs::playerEdict();
+    const glm::vec3 him = p ? geom::vec(p->v.origin) : glm::vec3{0.f};
+    int walkers = 0, came = 0;
+    progs::forEachEdict(1, [&](edict_t* e) {
+        const auto n = static_cast<za::SizeT>(NUM_FOR_EDICT(e));
+        if(!walker(e) || e->v.health <= 0.f || n >= crowdTest.last.size())
+        {
+            return;
+        }
+        ++walkers;
+        const glm::vec3 at = geom::vec(e->v.origin);
+        const bool near = glm::length(at - him) < crowdTest.near;
+        crowdTest.came[n] = crowdTest.came[n] || near ? 1 : 0;
+        came += crowdTest.came[n];
+        glm::vec4& l = crowdTest.last[n];
+        if(l.w > 0.f && !near)
+        {
+            ++crowdTest.samples;
+            crowdTest.stalls += glm::length(glm::vec3{l} - at) < 8.f ? 1 : 0;
+        }
+        l = glm::vec4{at, 1.f};
+    });
+    if(sv.qcvm.time < crowdTest.until && came < walkers)
+    {
+        return;
+    }
+    crowdTest.armed = false;
+    Con_Printf("nav crowd: %d walkers, %d of them came within %.0f of him in %.1f s; %d stalls in %d samples away from him\n",
+        walkers, came, static_cast<double>(crowdTest.near), sv.qcvm.time - crowdTest.since, crowdTest.stalls, crowdTest.samples);
+    testkit::verdict("nav crowd", came == walkers && walkers > 0 ? 1 : 0, came == walkers && walkers > 0 ? 0 : 1);
 }
 
 // (While a reach test runs: the links' events, logged.)
@@ -2128,6 +2233,123 @@ float beginLink(edict_t* ent, Agent& a, const NavClass& c, const glm::vec3& pos,
     return yawTo(pos, moverMiddle(m));
 }
 
+// The live walkers (their feet, half widths, numbers), gathered once a frame.
+const za::Vector<Crowd>& crowdNow()
+{
+    if(state.crowdAt != sv.qcvm.time)
+    {
+        state.crowdAt = sv.qcvm.time;
+        state.crowd.clear();
+        progs::forEachEdict(1, [](edict_t* e) {
+            if(walker(e) && e->v.health > 0.f)
+            {
+                state.crowd.pushBack(Crowd{feet(e), e->v.size[0] * 0.5f, NUM_FOR_EDICT(e)});
+            }
+        });
+    }
+    return state.crowd;
+}
+
+// Where a walker heads for its foe: a melee one (no missile attack) farther than vr_nav_slot_engage takes a slot on a
+// ring round him (vr_nav_slots, vr_nav_slot_radius): its own (none other chasing him holds it), the free one nearest
+// its bearing from him, kept while it stays free; others his feet.
+glm::vec3 approach(edict_t* ent, Agent& a, int num, int goalNum, const glm::vec3& pos, const glm::vec3& goalPos, double now)
+{
+    const int k = za::min(static_cast<int>(vr_nav_slots.value), 32);
+    const int missile = progs::fields().th_missile;
+    if(k <= 0 || missile < 0 || progs::fieldInt(ent, missile) != 0 || flatDist(pos, goalPos) <= vr_nav_slot_engage.value)
+    {
+        a.slot = -1;
+        return goalPos;
+    }
+    unsigned taken = 0;
+    for(za::SizeT i = 0; i < state.agents.size(); ++i)
+    {
+        const Agent& o = state.agents[i];
+        if(static_cast<int>(i) != num && o.slot >= 0 && o.slot < k && o.slotGoal == goalNum && now - o.slotAt < 0.5)
+        {
+            taken |= 1u << static_cast<unsigned>(o.slot);
+        }
+    }
+    const float step = glm::two_pi<float>() / static_cast<float>(k);
+    int pick = a.slotGoal == goalNum && a.slot >= 0 && a.slot < k && !(taken & (1u << static_cast<unsigned>(a.slot))) ? a.slot : -1;
+    if(pick < 0)
+    {
+        const float bearing = glm::atan(pos.y - goalPos.y, pos.x - goalPos.x);
+        const int pref = ((static_cast<int>(za::floor(bearing / step + 0.5f)) % k) + k) % k;
+        pick = pref;
+        for(int d = 0; d <= k / 2; ++d)
+        {
+            const int up = (pref + d) % k, down = (pref - d + k) % k;
+            if(!(taken & (1u << static_cast<unsigned>(up))))
+            {
+                pick = up;
+                break;
+            }
+            if(!(taken & (1u << static_cast<unsigned>(down))))
+            {
+                pick = down;
+                break;
+            }
+        }
+    }
+    a.slot = pick;
+    a.slotGoal = goalNum;
+    a.slotAt = now;
+    const float angle = static_cast<float>(pick) * step;
+    return goalPos + glm::vec3{glm::cos(angle), glm::sin(angle), 0.f} * vr_nav_slot_radius.value;
+}
+
+// The yaw toward the path's next corner, its turn rounded (vr_nav_smooth: near the corner, already toward the one
+// after) and kept apart from the walkers close by (vr_nav_separation: never turned back on its path).
+float steerToward(const NavClass& c, const Agent& a, const glm::vec3& pos, int next, int nc, const unsigned char* flags, int num)
+{
+    glm::vec3 target = fromRc(&a.corners[next * 3]);
+    const bool link = (flags[next] & DT_STRAIGHTPATH_OFFMESH_CONNECTION) != 0;
+    const float smooth = vr_nav_smooth.value;
+    if(smooth > 0.f && next + 1 < nc && !link)
+    {
+        const float d = flatDist(pos, target);
+        const glm::vec3 after = fromRc(&a.corners[(next + 1) * 3]);
+        const glm::vec2 dir{after.x - target.x, after.y - target.y};
+        const float len = glm::length(dir);
+        if(d < smooth && len > 1.f)
+        {
+            const glm::vec2 on = dir / len * za::min(smooth - d, len * 0.5f);
+            target += glm::vec3{on.x, on.y, 0.f};
+        }
+    }
+    glm::vec2 want{target.x - pos.x, target.y - pos.y};
+    const float wl = glm::length(want);
+    if(wl < 0.01f)
+    {
+        return yawTo(pos, target);
+    }
+    want /= wl;
+    const float sep = vr_nav_separation.value;
+    if(sep > 0.f && !link)
+    {
+        glm::vec2 push{0.f};
+        for(const Crowd& w : crowdNow())
+        {
+            const glm::vec2 off{pos.x - w.pos.x, pos.y - w.pos.y};
+            const float dist = glm::length(off);
+            const float range = c.radius + w.radius + vr_nav_separation_range.value;
+            if(w.num != num && za::abs(pos.z - w.pos.z) < 48.f && dist > 0.01f && dist < range)
+            {
+                push += off / dist * (1.f - dist / range);
+            }
+        }
+        const glm::vec2 sum = want + push * sep;
+        const float sl = glm::length(sum);
+        if(sl > 0.01f && glm::dot(sum / sl, want) > 0.f)
+        {
+            want = sum / sl;
+        }
+    }
+    return yawTo(pos, pos + glm::vec3{want.x, want.y, 0.f});
+}
+
 float steer(edict_t* ent, edict_t* goal)
 {
     if(vr_nav.value == 0.f || !sv.active || !state.ready || !ent || !goal || !walker(ent))
@@ -2154,6 +2376,7 @@ float steer(edict_t* ent, edict_t* goal)
     const double now = sv.qcvm.time;
     a.action = 0;
     reachCheck(ent);
+    crowdCheck();
     if(a.link)
     {
         if(a.cls == cls)
@@ -2163,7 +2386,10 @@ float steer(edict_t* ent, edict_t* goal)
         a.link = 0;
     }
     const dtQueryFilter& filt = now < a.noLinksUntil ? filterNoLinks : filter;
-    const glm::vec3 startRc = toRc(pos), goalRc = toRc(goalPos);
+    const int goalNum = NUM_FOR_EDICT(goal);
+    const int slotBefore = a.slot;
+    const glm::vec3 aim = approach(ent, a, num, goalNum, pos, goalPos, now);
+    const glm::vec3 startRc = toRc(pos), goalRc = toRc(aim);
     const float startExt[3] = {c->radius + 16.f, 32.f, c->radius + 16.f};
     dtPolyRef startRef = 0;
     float startPt[3];
@@ -2173,8 +2399,7 @@ float steer(edict_t* ent, edict_t* goal)
         ++state.fallbacks;
         return -1.f;
     }
-    const int goalNum = NUM_FOR_EDICT(goal);
-    bool repath = a.cls != cls || a.goal != goalNum || a.path.empty() || now >= a.repathAt ||
+    bool repath = a.cls != cls || a.goal != goalNum || a.path.empty() || now >= a.repathAt || a.slot != slotBefore ||
                   glm::length(goalPos - a.goalAt) > vr_nav_repath_move.value;
     int from = 0;
     if(!repath)
@@ -2256,13 +2481,14 @@ float steer(edict_t* ent, edict_t* goal)
         }
     }
     a.waitLink = 0;
-    // None left, or the goal straight ahead on the mesh: Quake's own chase (its melee range, its dodges).
-    if(next < 0 || (flags[next] & DT_STRAIGHTPATH_END))
+    // None left, or the goal straight ahead on the mesh: Quake's own chase (its melee range, its dodges). A slot straight
+    // ahead is still walked to.
+    if(next < 0 || ((flags[next] & DT_STRAIGHTPATH_END) && a.slot < 0))
     {
         ++state.fallbacks;
         return -1.f;
     }
-    return yawTo(pos, fromRc(&a.corners[next * 3]));
+    return steerToward(*c, a, pos, next, nc, flags, num);
 }
 
 int action(const edict_t* ent)

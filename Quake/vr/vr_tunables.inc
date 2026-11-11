@@ -2404,3 +2404,9 @@ QVR_TUNABLE(vr_nav_lift_cost, "2") // a lift link's cost per unit of its length,
 QVR_TUNABLE(vr_nav_lift_wait, "10") // a walker waiting this long for a lift to come to its level gives up (seconds); its links are left alone for vr_nav_link_retry
 QVR_TUNABLE(vr_nav_link_retry, "5") // a walker that gave up a drop or lift link plans without links this long (seconds)
 QVR_TUNABLE(vr_nav_plat_monsters, "0") // 1: a monster stepping on a lift's (func_plat's) trigger calls it as a player does (vr_nav 1; players unchanged); 0: Quake's, players only
+QVR_TUNABLE(vr_nav_separation, "0") // walkers on the navmesh steer away from other walkers close by (their boxes within vr_nav_separation_range): this much of a turn per unit of closeness, so a pack spreads rather than files through doors and up stairs (0: none; never turned back on its path)
+QVR_TUNABLE(vr_nav_separation_range, "24") // ... how far apart (units, between their boxes) another walker still pushes
+QVR_TUNABLE(vr_nav_smooth, "0") // a walker this close to a path corner (units) already turns toward the corner after it, rounding the turn (0: corner to corner)
+QVR_TUNABLE(vr_nav_slots, "0") // melee walkers (no missile attack) farther than vr_nav_slot_engage from their foe head for one of this many places on a ring round him, each its own, so they come at him from several sides (0: all at his feet)
+QVR_TUNABLE(vr_nav_slot_radius, "80") // ... the ring's radius (units)
+QVR_TUNABLE(vr_nav_slot_engage, "120") // ... nearer than this (units) a melee walker goes straight at him (Quake's chase and melee range)
