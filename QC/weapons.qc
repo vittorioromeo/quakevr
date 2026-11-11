@@ -4659,7 +4659,16 @@ void() ImpulseCommands =
         }
         // (The hand's own id: checked before the off hand's 170 came off, 170 + a shotgun read as an AD gun's id and gave
         // nothing without AD's data: grip_state, reload_front.)
-        if(cheatWid < 0 || (cheatWid >= WID_ADROCKET && cheatWid <= WID_ADCROSSBOW && !VR_ADGun_Available()))
+        // (vr_test_give_ad 1, tests: an AD soldier's gun without AD's data all the same, made from the burst rifle's
+        // model as an armed grunt's is anywhere; precached here.)
+        float adAnyway = self.impulse == 149 && cvar_hget(cvarh_vr_test_give_ad) && VR_IsADGun(cheatWid);
+        if(adAnyway)
+        {
+            entity made = spawn(); // (VR_ADGun_Ensure's, defined later: setmodel makes and precaches it)
+            setmodel(made, WeaponIdToModel(cheatWid, 0));
+            remove(made);
+        }
+        if(cheatWid < 0 || (cheatWid >= WID_ADROCKET && cheatWid <= WID_ADCROSSBOW && !VR_ADGun_Available() && !adAnyway))
         {
             // (none; an AD gun without AD's data: its model is never precached)
             self.impulse = 0;

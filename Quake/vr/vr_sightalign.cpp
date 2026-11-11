@@ -1130,6 +1130,14 @@ bool learnLine(const qmodel_t* model, float handX, float muzzleX)
     {
         return false;
     }
+    const float x0 = za::min(handX, muzzleX), x1 = za::max(handX, muzzleX);
+    if(x1 - x0 < learnShortest)
+    {
+        // (Not given up on: the hand and the muzzle not yet where they are held (a grab's first frames, the gun pulled
+        // to the hand): tried again next frame. Given up on, the gun had no sight line for the session: no stance, no
+        // second hand, no ironsight; his 2026-11-11 note on the centurion's plasma gun.)
+        return false;
+    }
     learnTried[name] = true;
     for(const char* m : melee)
     {
@@ -1140,11 +1148,6 @@ bool learnLine(const qmodel_t* model, float handX, float muzzleX)
     }
     const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(model)));
     if(!hdr || hdr->poseverttype != aliashdr_t::PV_QUAKE1 || !hdr->vertexes || hdr->numframes <= 0 || hdr->numverts <= 0)
-    {
-        return false;
-    }
-    const float x0 = za::min(handX, muzzleX), x1 = za::max(handX, muzzleX);
-    if(x1 - x0 < learnShortest)
     {
         return false;
     }

@@ -3532,6 +3532,31 @@ float ssgOpenAngle(int hand)
                : 0.f;
 }
 
+bool ssgBarrelsDrawn(int hand, const glm::vec3& p, glm::vec3& out)
+{
+    if(hand < 0 || hand > 1 || !ssgHands[hand].parts || !entities.ssgBarrels[hand].visible)
+    {
+        return false;
+    }
+    out = view::modelPoint(entities.ssgBarrels[hand], p);
+    return true;
+}
+
+glm::vec3 revolverChamber(int hand, int chamber, float back)
+{
+    const RevolverDrawn& st = rvHands[hand < 0 || hand > 1 ? 0 : hand];
+    const float swing = -revolverSwing(hand);
+    return rvPivot + rvTurnX(rvCylInCrane, swing) + rvChamberOff(chamber, swing + st.cyl, back);
+}
+
+glm::vec3 revolverOutward(float swing)
+{
+    // (From the bore's axis to the cylinder's as drawn: the cylinder's middle's turn off home, along the bore none.)
+    const glm::vec3 d = rvTurnX(rvCylInCrane, -swing) - rvCylInCrane;
+    const float len = std::sqrt(d.y * d.y + d.z * d.z);
+    return len > 1e-4f ? glm::vec3{0.f, d.y / len, d.z / len} : glm::vec3{0.f, 1.f, 0.f};
+}
+
 glm::vec3 ssgTurned(const glm::vec3& p, float deg, bool point)
 {
     return ssgTurn(p, deg, point);

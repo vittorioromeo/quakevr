@@ -23,6 +23,12 @@
 // The heavy revolver: its modelled sights (Misc/quakevr/models_src/revolver/README.md, the Body's frame): the rear notch's
 // top, the front blade's top, 2.12 over the bore.
 {"progs/v_revolver.mdl", {3.764f, 0.f, 9.178f}, {20.314f, 0.f, 9.178f}},
+// AD support: the centurion's plasma gun (vr_adgunart.cpp: the burst rifle with a capacitor drum on top, its rings' tops
+// at z 18.8 from x -2.4 to 17, and two cathode tubes standing to 18.2 ahead of it): learnt along its top the line lay
+// 0.05 over the drum, the eye on it and the ironsight's view all drum (his 2026-11-11 note: "the ADS button does
+// nothing"); over it by a clear unit, from the fist to the muzzle (#adv4: an older save's eliminator's, the same gun).
+{"progs/v_gruntgun.mdl#adv5", {4.98f, 0.f, 19.85f}, {33.15f, 0.f, 19.85f}},
+{"progs/v_gruntgun.mdl#adv4", {4.98f, 0.f, 19.85f}, {33.15f, 0.f, 19.85f}},
 // AD support: AD's crossbow (turned, vr_adguns.cpp): along its rail, just over the string's latch (measured on AD 1.80p1).
 {"progs/w_dcrossbow.mdl#gun0", {0.00f, 0.f, 4.39f}, {26.00f, 0.f, -0.64f}},
 {"progs/w_dcrossbow.mdl#gun", {0.00f, 0.f, 4.39f}, {26.00f, 0.f, -0.64f}},

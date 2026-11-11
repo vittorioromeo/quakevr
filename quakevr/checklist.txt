@@ -75,6 +75,9 @@ Survival Arena budget director (vr_arena_director 1; Combat > Survival Arena; do
 - Start a Survival Arena run without changing any setting: the budget director now runs it by default (each countdown names the wave's theme, such as "Wave 3 in 3... Melee Rush"); turning Combat > Survival Arena > Budget Director off brings back the classic waves from the next run. {test:arena_run}
 Flat-screen: G with both hands empty, then with a gun in either hand: arm the grenade with fire and throw it; the console shows no "handslot: mismatch" line, and the hand is empty and works normally after the throw (G with one held unarmed puts it back). {test:flat_quick_grenade}
 Fire the nail pistol, nailgun and super nailgun, an enforcer rifle and the AD crossbow, and watch the grunts' nails, enforcers' lasers and crossbow knights' bolts: every one flies about 15% faster than before, and still hits where you aim. {test:projspeed}
+Fire the super shotgun and wait for it to break open: the smoke wisps rise from the ends of its dropped barrels, not from where the muzzles were when it was shut (flat and VR). {test:flat_ssg_break}
+Flat-screen: fire the heavy revolver empty: when the cylinder swings out, the six shells slide straight back out of their chambers and then drop away on the cylinder's side, never across the gun. {test:flat_revolver_eject}
+Flat-screen: hold AD's centurion's plasma gun: the other hand takes its fore-end like the other long guns, and ADS lines up a sight picture over its glass drum instead of filling the view with it. {test:flat_centurion}
 
 [2. VR: melee and embedded blades]
 Hit a grunt with the axe right in front of you: the blood and its red mist come right at the camera, not only further off (your config still has Mist Clear of Eyes at 40: set vr_gore_mist_near 0; Particle Fade Near Eyes and Particles Hidden Nearer at 0 draw it at the eyes too). {test:flat_skewer_gibs}

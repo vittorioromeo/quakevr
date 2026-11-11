@@ -1023,8 +1023,9 @@ constexpr ModelBarrels barrelEnds[] = {
         }
         if(e)
         {
-            g.at[0] = at(f, e->at[0]);
-            g.at[1] = at(f, e->at[1]);
+            // (The super shotgun broken open: its bores' ends turned down with its barrels, as drawn.)
+            g.at[0] = at(f, view::ssgTurned(e->at[0], m.ssgOpen));
+            g.at[1] = at(f, view::ssgTurned(e->at[1], m.ssgOpen));
         }
         else
         {
@@ -1052,6 +1053,38 @@ constexpr ModelBarrels barrelEnds[] = {
     m.up = glm::normalize(az);
     m.view = &w;
     return true;
+}
+
+// The super shotgun in `hand` broken open (its barrels turned down `deg` about the hinge: vr_view.cpp, flat-screen
+// play's break and VR's alike): its muzzle, the way it points and its up turned with the barrels, so the smoke and the
+// heat stay at their ends (his words 2026-11-11: the wisps came out "at the wrong spot").
+void openBarrels(Muzzle& m, float deg, int hand)
+{
+    GunFrame f;
+    if(deg <= 0.f || !gunFrame(m, f))
+    {
+        return;
+    }
+    const glm::mat3 basis{f.x, f.y, f.z};
+    if(std::abs(glm::determinant(basis)) < 1e-9f)
+    {
+        return;
+    }
+    const glm::mat3 inv = glm::inverse(basis);
+    const glm::vec3 closed = m.at;
+    m.at = at(f, view::ssgTurned(inv * (m.at - f.o), deg));
+    m.fwd = glm::normalize(basis * view::ssgTurned(inv * m.fwd, deg, false));
+    m.up = glm::normalize(basis * view::ssgTurned(inv * m.up, deg, false));
+    m.ssgOpen = deg;
+    if(vr_debug_gunfx.value >= 2) // (each frame)
+    {
+        // (Against the barrels' own part as drawn open: a bore's end, both ways; and how far the muzzle moved.)
+        const glm::vec3 bore = barrelEnds[0].at[0];
+        glm::vec3 drawn;
+        const float off = view::ssgBarrelsDrawn(hand, bore, drawn) ? glm::distance(drawn, at(f, view::ssgTurned(bore, deg))) : -1.f;
+        Con_Printf("gunfx ssg open hand %d %.1f deg: muzzle moved %.2f with the barrels, a bore's end %.3f off the drawn barrels'\n",
+            hand, deg, glm::distance(closed, m.at), off);
+    }
 }
 
 // A gun that left your hand still smoking (muzzlewisps::release): found on the prop it became (QC's thrown_weapon:
@@ -1311,6 +1344,10 @@ void handFrame(int hand, const view::ViewEntity& w, int slot)
     }
     m.drift = glm::vec3{cl.velocity[0], cl.velocity[1], cl.velocity[2]};
     m.gunLength = 1.1f * units::metresToUnits();
+    if(wid == WID_SUPER_SHOTGUN)
+    {
+        openBarrels(m, view::ssgOpenAngle(hand), hand);
+    }
     h.wid = wid;
     h.muzzle = m.at;
     if(due && on(vr_gunfx))
