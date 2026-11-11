@@ -52,9 +52,10 @@ void swapHands(const char* what);
 [[nodiscard]] int loneWeaponHand();
 
 // The mouse's two buttons as a flatscreen player's hands take them (his words 2026-11-05; FLATPLAY.md, "The keys"): `lmb`
-// is +attack's state (the left mouse button), `rmb` +offhandattack's (the right). With one weapon held, whichever hand
-// holds it, the left button fires it and the right is the ironsight (vr_flatsight.cpp, vr_flat_aim_mode), so it fires
-// nothing; with a weapon in each hand, or none, the left button is the right hand's and the right the left's, as in VR.
+// is +attack's state (the left mouse button), `rmb` +offhandattack's (the right). With one weapon held and the other hand
+// empty, whichever hand holds it, the left button fires it and the right is the ironsight (vr_flatsight.cpp,
+// vr_flat_aim_mode), so it fires nothing; otherwise (a weapon in each hand, none, or anything in the hand beside the one
+// weapon: a prop, a rock, a torch, holdsThing) the left button is the right hand's and the right the left's, as in VR.
 // fire[HAND_MAIN], fire[HAND_OFF]: what each hand's trigger reads.
 struct FireRoute
 {

@@ -1323,7 +1323,7 @@ void shoveFrame()
 }
 
 // The hand V punches with: the main hand, as it has always been; a prop in a fist is what V strikes with (the main hand's
-// first: vr_flat_prop_v), so a prop in the off hand beside a gun can be swung (the right button aims that gun).
+// first: vr_flat_prop_v), so a prop in the off hand beside a gun can be swung with V as with the right button.
 [[nodiscard]] int vKeyHand()
 {
     return vr_flat_prop_v.value != 0.f && !propInFist(HAND_MAIN) && propInFist(HAND_OFF) ? HAND_OFF : HAND_MAIN;
@@ -1978,8 +1978,13 @@ namespace
         r.fire[HAND_OFF] = rmb;
         return r;
     }
+    // One weapon held and the other hand empty: LMB fires it, whichever hand holds it, and RMB is its ironsight. The other
+    // hand holding anything (a prop, a rock, a torch, a body part, a carried monster: holdsThing) and the buttons are the
+    // hands' own as with a weapon in each (his notes 2026-11-11: "props in my offhand to behave in terms of controls ...
+    // as if I were dual wielding"): LMB the right hand's, RMB the left's, each doing what it does with what it holds (a gun
+    // fires, a melee weapon, a prop or the fist strikes: pollKeys' punch), and no ironsight on RMB.
     const int lone = loneWeaponHand();
-    if(lone >= 0)
+    if(lone >= 0 && !holdsThing(1 - lone))
     {
         r.fire[lone] = lmb;
         r.rmbAims = true;
@@ -2050,6 +2055,41 @@ FireRoute routeFire(bool lmb, bool rmb)
     }
     return r;
 }
+
+namespace
+{
+
+// The punch counts (fs.punches) at vr_flat_route_probe's last `start`: what punched since.
+int routeProbePunches[HAND_COUNT]{0, 0};
+
+// vr_flat_route_probe [start]: the mouse's routing by what the hands hold now, into vr_flat_route_seen for a test to read
+// (QC vr_flatitems_test 10) and printed: bits 1 LMB fires the main hand, 2 LMB the off hand, 4 RMB the main hand, 8 RMB
+// the off hand, 16 RMB is the ironsight's, 32 the ironsight is up (flatsight::adsShare), 64 the main hand punched (struck
+// with what it holds) since the last `start`, 128 the off hand did. Only the hands' contents decide the routing
+// (routeButtons: not a wall, a reload or a swap). `start` only notes the punch counts.
+void routeProbe_f()
+{
+    if(Cmd_Argc() > 1 && q_strcasecmp(Cmd_Argv(1), "start") == 0)
+    {
+        routeProbePunches[HAND_MAIN] = fs.punches[HAND_MAIN];
+        routeProbePunches[HAND_OFF] = fs.punches[HAND_OFF];
+        return;
+    }
+    const FireRoute l = routeButtons(true, false);
+    const FireRoute r = routeButtons(false, true);
+    int bits = (l.fire[HAND_MAIN] ? 1 : 0) | (l.fire[HAND_OFF] ? 2 : 0) | (r.fire[HAND_MAIN] ? 4 : 0) |
+               (r.fire[HAND_OFF] ? 8 : 0) | (r.rmbAims ? 16 : 0) | (flatsight::adsShare() > 0.f ? 32 : 0);
+    bits |= (fs.punches[HAND_MAIN] != routeProbePunches[HAND_MAIN] ? 64 : 0) |
+            (fs.punches[HAND_OFF] != routeProbePunches[HAND_OFF] ? 128 : 0);
+    Cvar_SetValueQuick(&vr_flat_route_seen, static_cast<float>(bits));
+    Con_Printf("flatroute: %d (main weapon %d thing %d, off weapon %d thing %d; LMB main %d off %d, RMB main %d off %d, "
+               "aims %d, ads %.2f, punched main %d off %d)\n",
+        bits, heldIn(HAND_MAIN), holdsThing(HAND_MAIN) ? 1 : 0, heldIn(HAND_OFF), holdsThing(HAND_OFF) ? 1 : 0, bits & 1,
+        (bits >> 1) & 1, (bits >> 2) & 1, (bits >> 3) & 1, (bits >> 4) & 1, static_cast<double>(flatsight::adsShare()),
+        (bits >> 6) & 1, (bits >> 7) & 1);
+}
+
+} // namespace
 
 float poseNum(const Tunable& c)
 {
@@ -2241,6 +2281,7 @@ void init()
     Cmd_AddCommand("vr_flat_melee_probe", meleeProbe_f); // each punch's, swing's and shove's numbers (flatmelee_test.sh)
     Cmd_AddCommand("vr_flat_flick_test", flickTest_f); // the tests' mouse, flicked hard (no gesture may come of it)
     Cmd_AddCommand("vr_flat_orbit", orbit_f);
+    Cmd_AddCommand("vr_flat_route_probe", routeProbe_f); // the mouse's routing by what the hands hold (vr_flatitems_test 10)
     flycam::init(); // vr_flat_flycam_toggle, vr_flat_flycam_test (vr_flycam.cpp)
     flatsweep::init(); // vr_flat_sweep (vr_flatsweep.cpp)
     flathud::init();   // vr_flathud_report (vr_flathud.cpp)
@@ -3790,10 +3831,10 @@ void status_f()
                 fs.parryReachedAt[h] >= fs.parryAskedAt[h] && fs.parryAskedAt[h] > -1e8 ? "" : ", not reached yet");
         }
     }
-    const int lone = loneWeaponHand();
-    Con_Printf("  The mouse: %s (one weapon held, either hand: LMB fires it, RMB the ironsight, vr_flat_aim_mode %g %s; "
-               "else LMB the right hand, RMB the left). %s pressed %d times (vr_flat_key_swap: the hands swapped), %s %d "
-               "(vr_flat_key_bullettime: bullet time).\n",
+    const int lone = routeButtons(false, false).rmbAims ? loneWeaponHand() : -1;
+    Con_Printf("  The mouse: %s (one weapon held, either hand, the other empty: LMB fires it, RMB the ironsight, "
+               "vr_flat_aim_mode %g %s; else LMB the right hand, RMB the left, whatever each holds). %s pressed %d times "
+               "(vr_flat_key_swap: the hands swapped), %s %d (vr_flat_key_bullettime: bullet time).\n",
         lone < 0 ? "LMB the right hand, RMB the left" : lone == HAND_MAIN ? "LMB the right hand's weapon, RMB aims"
                                                                            : "LMB the left hand's weapon, RMB aims",
         vr_flat_aim_mode.value, vr_flat_aim_mode.value != 0.f ? "toggle" : "hold", vr_flat_key_swap.string, keyState.swaps,

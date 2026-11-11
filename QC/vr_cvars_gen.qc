@@ -961,6 +961,7 @@ float cvarh_vr_flat_reload_up;
 float cvarh_vr_flat_revolver_eject;
 float cvarh_vr_flat_revolver_eject_delay;
 float cvarh_vr_flat_revolver_open_delay;
+float cvarh_vr_flat_route_seen;
 float cvarh_vr_flat_saw_autostart;
 float cvarh_vr_flat_shove;
 float cvarh_vr_flat_shove_damage;
@@ -2974,6 +2975,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_flat_revolver_eject = VR_CVar_Make("vr_flat_revolver_eject");
     cvarh_vr_flat_revolver_eject_delay = VR_CVar_Make("vr_flat_revolver_eject_delay");
     cvarh_vr_flat_revolver_open_delay = VR_CVar_Make("vr_flat_revolver_open_delay");
+    cvarh_vr_flat_route_seen = VR_CVar_Make("vr_flat_route_seen");
     cvarh_vr_flat_saw_autostart = VR_CVar_Make("vr_flat_saw_autostart");
     cvarh_vr_flat_shove = VR_CVar_Make("vr_flat_shove");
     cvarh_vr_flat_shove_damage = VR_CVar_Make("vr_flat_shove_damage");
