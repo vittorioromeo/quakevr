@@ -61,6 +61,7 @@ Show Navmesh draws the mesh, the monsters' paths and the new drop and lift links
 # agent/navmesh2 part 4: crowd separation, corner smoothing, approach slots (all off by default; the scene turns them on)
 Experimental: a pack of knights and dogs comes up the arena's dais keeping apart, rounding their turns and closing round you from several sides; compare with Crowd Separation, Corner Smoothing and Approach Slots at 0 in Debug > Tunables. {test:nav_crowd}
 Experimental: all twelve knights and dogs leave their spots (none stuck in a wall) and reach you on the dais within about ten seconds, the knights taking places round you from several flights; the console's crowd test table shows almost no stalls, and Show Navmesh 2 puts a post wherever one stalled. {test:nav_crowd}
+Flat-screen: with the crowbar in the right hand and the left empty, swing until the left hand takes the crowbar's tape, then force-grab a rock: the left hand comes off the crowbar first, turns its palm out, and only then the rock flies to it (the knight's sword and AD's swords, hammer, mace and flail the same way). {test:flat_fg_crowbar2h}
 
 [2. VR: melee and embedded blades]
 Hit a grunt with the axe right in front of you: the blood and its red mist come right at the camera, not only further off (your config still has Mist Clear of Eyes at 40: set vr_gore_mist_near 0; Particle Fade Near Eyes and Particles Hidden Nearer at 0 draw it at the eyes too). {test:flat_skewer_gibs}
