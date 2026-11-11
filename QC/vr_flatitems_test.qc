@@ -1279,6 +1279,137 @@ void(entity p) VR_FFX_Route =
     }
 };
 
+// `vr_flatitems_test 11` (his words 2026-11-11: "Grabbing a grenade (live or non-live) via force-grabbing should put it in
+// the same state as when 'G' is pressed"): the shotgun in the main hand, a grenade where he looks, E (vr_flat_fg_press):
+// the off hand catches it and is in the quick grenade's state (VR_FlatGrenade_Adopt): case 0 a dud (a hand grenade with its
+// pin in): held, RMB arms it, RMB held winds up, let go throws it; case 1 an ogre's live grenade: armed at once, RMB held
+// winds up, let go throws it. Run with vr_flat_grenade_arm_mode 1 (a press arms, the next winds up) and god.
+void() OgreGrenadeTouch;   // orig_mon_ogre.qc
+void() OgreGrenadeExplode;
+entity vr_ffx_gren;    // the grenade of this case
+float vr_ffx_thrown;   // vr_flatgren_thrown before the throw
+float VR_FFX_GREN_CASES = 2;
+
+void(entity p) VR_FFX_Grenade =
+{
+    entity g = vr_ffx_gren;
+    string what = vr_ffx_case == 0 ? "the dud" : "the ogre's live grenade";
+    if(vr_ffx_s == 0)
+    {
+        if(vr_ffx_case >= VR_FFX_GREN_CASES)
+        {
+            VR_Test_Verdict();
+            vr_ffx_on = 0;
+            cvar_set("vr_flatitems_test", "0");
+            return;
+        }
+        localcmd("impulse 154\n"); // (the shotgun in the main hand: the off hand catches)
+        // (Looking 35 degrees down: the grenade lies on the floor where he looks, as one he'd grab.)
+        localcmd(sprintf("setpos %g %g %g 35 %g 0\n", p.origin_x, p.origin_y, p.origin_z, p.v_angle_y));
+        VR_FFX_To(1, 36);
+        return;
+    }
+    if(vr_ffx_s == 1) // the grenade on the floor where he looks
+    {
+        makeforward(p.v_angle);
+        traceline(VRGetHeadPos(p), VRGetHeadPos(p) + v_forward * 200, TRUE, p);
+        vector at = trace_endpos - v_forward * 2 + '0 0 2';
+        if(vr_ffx_case == 0)
+        {
+            g = VR_HandGrenade_Make(world, WID_GRENADE_LAUNCHER, AID_ROCKETS, at, '0 0 0');
+        }
+        else
+        {
+            g = spawn();
+            g.classname = "grenade";
+            g.movetype = MOVETYPE_BOUNCE;
+            g.solid = SOLID_BBOX;
+            g.touch = OgreGrenadeTouch;
+            g.nextthink = time + 6;
+            g.think = OgreGrenadeExplode;
+            setmodel(g, "progs/grenade.mdl");
+            setsize(g, '0 0 0', '0 0 0');
+            setorigin(g, at);
+            VR_Grenade_Make(g, OgreGrenadeExplode, 6, FALSE);
+        }
+        vr_ffx_gren = g;
+        VR_FFX_To(2, 2);
+        return;
+    }
+    if(vr_ffx_s == 2)
+    {
+        VR_Test_Check(g.vr_grenade, sprintf("%s is a catchable grenade (armed %g)", what, VR_HandGrenade_Armed(g)));
+        localcmd("vr_flat_fg_press\n");
+        VR_FFX_To(3, 0);
+        return;
+    }
+    if(vr_ffx_s == 3) // caught
+    {
+        if(VR_Carry_Held(p, cVR_OffHand) == g)
+        {
+            VR_FFX_To(4, 2); // (the quick grenade's frame, and its stat)
+        }
+        return;
+    }
+    float want = vr_ffx_case == 0 ? VR_FLATGREN_HELD : VR_FLATGREN_ARMED;
+    if(vr_ffx_s == 4)
+    {
+        VR_Test_Check(p.vr_flatgren_phase == want && p.vr_flatgren_hand == cVR_OffHand && p.vr_flatgren_ent == g,
+            sprintf("%s force-grabbed: the off hand in the quick grenade's state %g (want %g, as after G), hand %g", what,
+            p.vr_flatgren_phase, want, p.vr_flatgren_hand));
+        VR_Test_Check(p.vr_flatgren == p.vr_flatgren_phase, sprintf("... its stat %g (the off hand's)", p.vr_flatgren));
+        if(vr_ffx_case == 0)
+        {
+            localcmd("+offhandattack\n");
+            VR_FFX_To(5, 3);
+        }
+        else
+        {
+            VR_FFX_To(7, 0);
+        }
+        return;
+    }
+    if(vr_ffx_s == 5)
+    {
+        localcmd("-offhandattack\n");
+        VR_FFX_To(6, 3);
+        return;
+    }
+    if(vr_ffx_s == 6)
+    {
+        VR_Test_Check(VR_HandGrenade_Armed(g) && p.vr_flatgren_phase == VR_FLATGREN_ARMED,
+            sprintf("%s: RMB armed it (armed %g, state %g)", what, VR_HandGrenade_Armed(g), p.vr_flatgren_phase));
+        VR_FFX_To(7, 0);
+        return;
+    }
+    if(vr_ffx_s == 7)
+    {
+        localcmd("+offhandattack\n");
+        VR_FFX_To(8, 30);
+        return;
+    }
+    if(vr_ffx_s == 8)
+    {
+        VR_Test_Check(p.vr_flatgren_phase == VR_FLATGREN_WIND, sprintf("%s: RMB held winds up the throw (state %g)", what,
+            p.vr_flatgren_phase));
+        vr_ffx_thrown = vr_flatgren_thrown;
+        localcmd("-offhandattack\n");
+        VR_FFX_To(9, 0);
+        return;
+    }
+    if(vr_ffx_s == 9) // thrown
+    {
+        if(vr_flatgren_thrown > vr_ffx_thrown)
+        {
+            VR_Test_Check(vr_flatgren_last == g && VR_Carry_Held(p, cVR_OffHand) != g,
+                sprintf("%s: let go, thrown (%.0f u/s)", what, vr_flatgren_lastspeed));
+            vr_ffx_case = vr_ffx_case + 1;
+            VR_FFX_To(0, 108); // (it goes off away from him; the hand back)
+        }
+        return;
+    }
+};
+
 void() VR_FlatItemsTest_Frame =
 {
     float ask = cvar_hget(cvarh_vr_flatitems_test);
@@ -1325,6 +1456,7 @@ void() VR_FlatItemsTest_Frame =
     if(ask == 8) { VR_FFX_Packs(p); }
     if(ask == 9) { VR_FFX_TwoHandGrab(p); }
     if(ask == 10) { VR_FFX_Route(p); }
+    if(ask == 11) { VR_FFX_Grenade(p); }
 };
 
 #endif

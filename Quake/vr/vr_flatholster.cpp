@@ -121,6 +121,7 @@ struct Contents
     int handModel[2]{}; // model indices
     int carry[2]{};     // the entity each carries (a box, a prop), 0 none
     int clip[2]{};      // the live rounds in each hand's gun's clip (the flat HUD's clip: VR_FlatHudClip), 0 none or no clip
+    bool unloadFull[2]{}; // that gun's ammo full up in the reserve: no round would go back (UNLOAD greyed)
 };
 
 [[nodiscard]] Contents contents()
@@ -146,6 +147,10 @@ struct Contents
             c.clip[h] = clip;
         }
     }
+    // (UNLOAD greyed when none of the clip's rounds would fit in the reserve: STAT_QVR_FLATUNLOADFULL, bit 0 the off hand.)
+    const int full = cl.stats[protocol::STAT_QVR_FLATUNLOADFULL];
+    c.unloadFull[0] = (full & 1) != 0;
+    c.unloadFull[1] = (full & 2) != 0;
     return c;
 }
 
@@ -205,7 +210,7 @@ void layOut()
     case Act::HandDrop: return handHas(b.index);
     case Act::DropBoth: return handHas(0) || handHas(1);
     case Act::Swap: return (c.hand[0] != WID_FIST || c.hand[1] != WID_FIST) && !c.carry[0] && !c.carry[1];
-    case Act::Unload: return c.clip[b.index] > 0;
+    case Act::Unload: return c.clip[b.index] > 0 && !c.unloadFull[b.index];
     }
     return false;
 }
@@ -567,7 +572,8 @@ namespace
 // weapons: the shotgun in the right hand, the nailgun in the left): the menu held open (+flatholsters) and driven by the
 // mouse (the cursor moved onto each button by its counts, vr_flat_mouse_move's, and the left button's click there):
 // slow motion at vr_flat_holster_menu_timescale; every holster emptied by its DROP; L and R trading the hands' guns
-// with a holster; SWAP; the weapon keys doing nothing; a hand's DROP; the menu let go and time back at 1. Each step
+// with a holster; SWAP; the weapon keys doing nothing; a hand's DROP; UNLOAD (greyed with that ammo full up, partial with
+// room for some, then whole); the menu let go and time back at 1. Each step
 // waits on the stats it changes (at most `giveUp` frames: a FAIL "timed out"). Ends "flatholster_test: N passed, M
 // failed".
 struct Test
@@ -580,6 +586,7 @@ struct Test
     float mode{0.f};   // vr_flat_holster_menu_mode before the test (put back at its end)
     int shells{0};     // the shells before the right hand's UNLOAD
     int clip{0};       // ... and the shotgun's clip
+    int sub{0};        // a step's own stages (the greyed UNLOAD's)
 };
 Test test;
 constexpr int giveUp = 400;
@@ -616,6 +623,7 @@ void next()
 {
     test.step++;
     test.frames = 0;
+    test.sub = 0;
 }
 
 void testStep()
@@ -750,9 +758,47 @@ void testStep()
         }
         break;
     case 10:
-        // (Loaded as a pickup loads them: VR_FlatReload_CycleIn's clip.)
-        if(wait(c.hand[1] == WID_SHOTGUN && c.hand[0] == WID_NAILGUN && c.clip[1] > 0 && c.clip[0] > 0, "both hands full again, loaded"))
+        // (Loaded as a pickup loads them: VR_FlatReload_CycleIn's clip.) The left hand's nailgun first: its UNLOAD greyed with
+        // the nails full up (his words 2026-11-11), lit again with room for some, which go back (the rest stay in the gun).
+        if(test.sub == 0)
         {
+            if(wait(c.hand[1] == WID_SHOTGUN && c.hand[0] == WID_NAILGUN && c.clip[1] > 0 && c.clip[0] > 5, "both hands full again, loaded"))
+            {
+                result(!c.unloadFull[0] && !c.unloadFull[1], "UNLOAD lit with room in the reserve");
+                Cbuf_AddText("give n 200\n"); // (the nails' cap: VR_MaxAmmo)
+                test.sub = 1;
+                test.frames = 0;
+            }
+        }
+        else if(test.sub == 1)
+        {
+            if(wait(c.unloadFull[0] && cl.stats[STAT_NAILS] == 200, "the nails full up: the left hand's UNLOAD greyed"))
+            {
+                const int was = st.clicks;
+                test.clip = c.clip[0];
+                press("left unload");
+                result(st.clicks == was, "UNLOAD greyed (does nothing) with the nails full up");
+                result(!c.unloadFull[1], "the right hand's UNLOAD still lit (the shells not full)");
+                Cbuf_AddText("give n 195\n");
+                test.sub = 2;
+                test.frames = 0;
+            }
+        }
+        else if(test.sub == 2)
+        {
+            if(wait(!c.unloadFull[0] && cl.stats[STAT_NAILS] == 195, "room for 5 nails: the left hand's UNLOAD lit again"))
+            {
+                result(c.clip[0] == test.clip, "the greyed UNLOAD left the nailgun's clip as it was");
+                press("left unload");
+                test.sub = 3;
+                test.frames = 0;
+            }
+        }
+        else if(wait(cl.stats[STAT_NAILS] == 200, "the left hand's UNLOAD with room for 5"))
+        {
+            Con_Printf("flatholster_test: UNLOAD with room for 5: nails 195 -> %d, the nailgun's clip %d -> %d\n",
+                cl.stats[STAT_NAILS], test.clip, c.clip[0]);
+            result(c.clip[0] == test.clip - 5, "UNLOAD with room for 5: those went back, the rest stayed in the nailgun");
             // UNLOAD (82, 83): the right hand's shotgun's shells back into the reserve, then the left hand's DROP.
             test.shells = cl.stats[STAT_SHELLS];
             test.clip = c.clip[1];

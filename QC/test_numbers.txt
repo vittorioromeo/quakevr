@@ -704,6 +704,7 @@ vr_flatitems_test 7       vr_flatitems_test.qc             flat-screen: a brick 
 vr_flatitems_test 8       vr_flatitems_test.qc             flat-screen: E on a backpack takes it at once; an empty backpack is taken without a word; a negative amount is not taken
 vr_flatitems_test 9       vr_flatitems_test.qc             flat-screen: the rocket launcher, then the axe, in both hands: E and the shove ease the off hand off the grip (E: before the brick flies)
 vr_flatitems_test 10      vr_flatitems_test.qc             flat-screen: the mouse by what the hands hold: LMB the right hand, RMB the left as soon as it holds anything (gun, brick); the ironsight only with one gun and an empty other hand
+vr_flatitems_test 11      vr_flatitems_test.qc             flat-screen: a grenade force-grabbed (a dud, an ogre's live one) puts the hand in the quick grenade's state: RMB arms the dud, RMB held winds up, let go throws
 
 vr_flatgate_test 1        vr_flatgate_test.qc              flat-screen: walks through teleporters: pitch, yaw by the gate alone, heading, body, aim
 vr_flatgate_test 2        vr_flatgate_test.qc              flat-screen: a plain teleporter (vr_portals_walk 0) still sets the view
