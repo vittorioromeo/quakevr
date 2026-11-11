@@ -148,6 +148,10 @@ struct FlatState
     float wallDepth[2]{0.f, 0.f}; // and how deep in it the pose had it this frame (units, its margin in; the status prints it)
     glm::vec3 shoulders[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // the arms' joints this pose stands on (avatar::restShoulders)
     bool shouldersKnown{false};
+    // The same as a level look would have them (the chest's share of the look's pitch out of them): made only while the
+    // hand swap runs, for its guard (levelShoulderOf, vr_flatswap.cpp).
+    glm::vec3 levelShoulders[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    bool levelShouldersKnown{false};
     bool localSeen[2]{false, false};
     double lastTime{-1e9};
 
@@ -3188,6 +3192,21 @@ void poseHands(hands::State& s, const glm::vec3& aim)
             fs.shoulders[h] = rig(roots[h]);
         }
     }
+    fs.levelShouldersKnown = onBody && flatswap::busy();
+    if(fs.levelShouldersKnown)
+    {
+        // (The hand swap's guard plays the same against the view at any pitch: off the shoulders of a level look.)
+        hands::State levelLook = upright;
+        levelLook.headAngles.x = 0.f;
+        glm::vec3 levelRoots[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+        avatar::restShoulders(levelLook, levelRoots);
+        const float lift = proneNeckDrop() * proneShare();
+        for(int h = 0; h < HAND_COUNT; h++)
+        {
+            levelRoots[h].z += lift;
+            fs.levelShoulders[h] = rig(levelRoots[h]);
+        }
+    }
 
     // The frame the hands are placed in: the view's way and roll, its up and down held to vr_flat_pose_pitch degrees.
     // The anchor the flat hands are built on does not tip with the head (hands::bodyAnchor, vr_hands.cpp) while the body
@@ -3659,6 +3678,11 @@ float gunRoll(int h)
 glm::vec3 shoulderOf(const hands::State& s, int h)
 {
     return shoulder(s, h);
+}
+
+glm::vec3 levelShoulderOf(const hands::State& s, int h)
+{
+    return bodyPose() && fs.shouldersKnown && fs.levelShouldersKnown ? fs.levelShoulders[h] : shoulder(s, h);
 }
 
 float armReach()
