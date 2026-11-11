@@ -201,6 +201,9 @@ enum Stat : int
     // Flat-screen play's quick grenade (QC vr_flatgrenade.qc .vr_flatgren; vr_flatgrenade.cpp): its phase (1 the hand to the
     // pouch, 2 held, 3 armed, 4 wound up, 5 thrown: the follow-through; 0 none) + 8 when it is the main hand's.
     STAT_QVR_FLATGREN,
+    // Flat-screen play's holster menu (QC vr_flatreload.qc .vr_flatrl_full; vr_flatholster.cpp): the hands whose UNLOAD is
+    // greyed, their gun's rounds having no room in the reserve (that ammo full up), bit 0 the off hand, 1 the main.
+    STAT_QVR_FLATUNLOADFULL,
     STAT_QVR_END
 
 };

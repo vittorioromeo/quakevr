@@ -9318,3 +9318,27 @@ short-strike symptom (flatmelee's "raised behind the head" swing doing 24 damage
   wallswing runs at the default strike again. Scene `flat_swing_wall`.
 - flatmelee's damage read (`vr_test_hurt` after a swing) reads the nearest live monster: when the swing gibs the knight
   it is another monster's health (the triage's note); flatswing counts a gibbing blow as 75.
+
+## UNLOAD greyed at full ammo; a grabbed grenade held as after G (branch `agent/fbitems`, 2026-11-11)
+
+His words: "if the player is at full ammo capacity, the unload button should be greyed out", and "Grabbing a grenade
+(live or non-live) via force-grabbing should put it in the same state as when 'G' is pressed".
+
+- **UNLOAD** (holster menu, impulses 82/83): the menu only knew the clip (`VR_FlatHudClip`), not the reserve's cap
+  (`VR_MaxAmmo`, campaign-dependent: Dawn of the Machine's grow), so the server says it: `VR_FlatReload_HandFrame` sets
+  `.vr_flatrl_full` (1 off, 2 main) when the hand's gun has rounds to unload and `VR_FlatReload_UnloadFits` (the same cap
+  rule as `VR_FlatReload_ClipBack`'s `xCapped`) is 0; sent as the new `STAT_QVR_FLATUNLOADFULL`; `vr_flatholster.cpp`
+  `enabled()` greys the button on it. Some room: lit, and only what fits moves (as before). No new cvars.
+- Test: `flatholster_test.sh` gains 6 checks (29 passed, 0 failed): lit with room; `give n 200`: the nailgun's UNLOAD
+  greyed, its click does nothing, the shotgun's still lit; `give n 195`: lit again, the click moves 5 (nails 195 -> 200,
+  clip 24 -> 19). Scene `flat_unload_full`.
+- **Grenades** (`VR_FlatGrenade_Adopt`, `QC/vr_flatgrenade.qc`): while no quick grenade is under way (phase 0), a hand
+  holding any `.vr_grenade` (force grab's catch, a hand's grab, a catch in flight) takes the quick grenade's state, the
+  same path G's grenade then runs: live (an ogre's, an armed hand grenade) `VR_FLATGREN_ARMED`, fire held winds up, let go
+  throws; a dud `VR_FLATGREN_HELD`, fire arms first, G puts it in the pouch. The client already draws phase 0 -> 2/3 (the
+  hold eases in, no pouch trip). An ogre's grenade (not a hand grenade) had its fire button go to the carry's take:
+  `VR_HandGrenade_Trigger` now also claims it while the quick grenade owns it (`VR_FlatGrenade_Owns`). Shared: the whole
+  quick grenade path (state, buttons, wind-up, throw, `VR_Grenade_Released`); nothing flat-only added beyond the adopt.
+- Test: `vr_flatitems_test 11` (11 passed, 0 failed): looking 35 degrees down at a dud on the floor, E: off hand HELD,
+  RMB arms (state 3), RMB held winds up (4), let go throws (508 u/s); an ogre's live grenade: ARMED at once, wind-up,
+  throw ("thrown back: goes off as your launcher's"). Scene `flat_grenade_grab`.
