@@ -51,6 +51,10 @@ void hit(int num, Material material, float mass, float speed, const glm::vec3& a
 // `body`: a ragdoll's or a pushable corpse's drag (`mass` the sliding part's), vr_physsound_bodies loud.
 void slide(int num, Material material, float mass, float slip, float press, const glm::vec3& at, bool body = false);
 
+// The tests (QC physsoundinfo): entity `num`'s impact sounds played since the map began (what 0), the server's time of
+// its last (1; -1 none), that one's volume (2).
+[[nodiscard]] float info(int num, int what);
+
 // The end of Box3D's frame (VR_PhysicsFrameEnd): the frame's hits played (rate-limited per prop, the loudest first) and
 // the scrapes carried on or stopped.
 void frameEnd();
