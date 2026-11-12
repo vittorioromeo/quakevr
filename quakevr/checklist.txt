@@ -66,6 +66,8 @@ Flat-screen or VR: shove a grunt standing at the very edge of a step or platform
 
 [6. Both modes: weapons, ammo screens and housings]
 Flat-screen or VR: fire the grenade launcher and let an ogre lob at you: each grenade fizzes and ticks quicker and quicker until it blows, like a hand grenade with its pin pulled, and all three take the same 2.5 s from the shot or the pin to the blast (Thrown Grenades Tick in Batting and Catching turns the launched ones' ticking off). {test:grenade_countdown}
+Clip the flashlight on the super shotgun and break it open: the torch and its beam drop with the barrels instead of the barrels swinging through it. {test:ssg_open_torch}
+Flat-screen or VR: load shells into the open super shotgun: their brass heads sit flush with the barrels' breech face, not sunk in the bores; an empty chamber still shows its open bore. {test:ssg_open_torch}
 
 [7. Survival Arena (Play > Survival Arena)]
 The arena is nice: play it, feels good? Note improvements. {test:arena_run}
