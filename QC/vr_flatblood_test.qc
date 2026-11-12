@@ -95,8 +95,6 @@ void() VR_FBT_Finish =
     }
     vr_gore_test_only = world;
     vr_fbt_on = 0;
-    // (The particle pool's peak and the gore's queues, and anything asked for while they were full: his note 2026-11-11.)
-    localcmd("vr_particle_stats\nvr_decal_count\n");
     VR_Test_Verdict();
 };
 

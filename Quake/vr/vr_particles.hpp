@@ -227,13 +227,5 @@ void shoreFoamInfo_f();
 // Live particles (vr_memstats).
 [[nodiscard]] int liveCount();
 [[nodiscard]] int capacity(); // the pool's size (vr_limits)
-[[nodiscard]] int peakCount(); // the most at once this session (vr_limits)
-// vr_particle_stats: the pool now, its peak, and the particles asked for while it was full: made by the oldest making room
-// (vr_particle_evict 1) or refused (0); `vr_particle_stats reset` zeroes them. One line, "particle stats: ...".
-void stats_f();
-// vr_particle_evict_test: the pool filled to its cap with lasting particles, then a blood spray asked for: with
-// vr_particle_evict 1 it is made in the oldest's place (the rest kept, in order), with 0 none of it is; the pool and the
-// cvar put back. Ends "particle evict test: N passed, M failed".
-void evictTest_f();
 
 } // namespace qvr::particles

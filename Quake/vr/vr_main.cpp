@@ -2290,8 +2290,6 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_water_blood_test", water::bloodTest_f);
     Cmd_AddCommand("vr_water_blood_info", water::bloodInfo_f);
     Cmd_AddCommand("vr_water_foam_info", particles::shoreFoamInfo_f);
-    Cmd_AddCommand("vr_particle_stats", particles::stats_f); // the pool's peak, and what was asked for while it was full
-    Cmd_AddCommand("vr_particle_evict_test", particles::evictTest_f); // the pool full: a blood spray made in the oldest's place
     Cmd_AddCommand("vr_water_blood_spray", particles::bloodSprayTest_f);
     Cmd_AddCommand("vr_particle_light_report", particles::lightReport_f);
     Cmd_AddCommand("vr_particle_waste_report", particles::wasteReport_f);

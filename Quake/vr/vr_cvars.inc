@@ -1999,7 +1999,6 @@ QVR_CVAR(vr_explosion_debris_lights, "8", CVAR_ARCHIVE) // nearest glowing chunk
 QVR_CVAR(vr_explosion_debris_light_radius, "48", CVAR_ARCHIVE) // units at world scale 1
 
 QVR_CVAR(vr_particle_mult, "1", CVAR_ARCHIVE)         // how many of them
-QVR_CVAR(vr_particle_evict, "1", CVAR_ARCHIVE)        // the pool full (32768), a new effect's particles take the oldest ones' place (1); 0: new ones are not made (as before, his note 2026-11-11)
 QVR_CVAR(vr_particle_seed, "0", CVAR_NONE)            // tests: the particles' random numbers restarted from this seed at each map (0: random)
 QVR_CVAR(vr_particle_light, "1", CVAR_ARCHIVE)        // lit particles: blood, smoke, dust, chips and water take the place's light (the lightmap and dynamic lights: dark in the dark, lit by your flashlight); fire, sparks, glows and explosions stay bright (0: all as bright as their colours)
 QVR_CVAR(vr_soft_particles, "1", CVAR_ARCHIVE)        // soft particles: smoke, fire, blood and explosion sprites fade out where they meet walls and floors instead of cutting hard lines (0 off)
