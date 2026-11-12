@@ -1595,7 +1595,9 @@ void(float request, entity p) AD_GunTest =
         // Carried through a level change: the rocket soldier's launcher in the main hand (with vr_weapon_grip_mode 1)
         // and the plasma soldier's rifle in the left shoulder holster; then `changelevel` to a map without those
         // soldiers (or vr_adgun_drops 0) and `vr_ad_test 88`.
-        vr_grip_sticky_test = TRUE;
+        // (The hold must outlast the level change, which the QC global does not: this one sets the cvar, and 88 puts it back to
+        // the default 0, as the player's setting is 0 unless they chose Sticky.)
+        cvar_set("vr_weapon_grip_mode", "1");
         entity was2 = self;
         self = p;
         VR_ADGun_Ensure(WID_ADROCKET);
@@ -1614,6 +1616,7 @@ void(float request, entity p) AD_GunTest =
     }
     if(request == 88)
     {
+        cvar_set("vr_weapon_grip_mode", "0");
         float okHand = p.weapon == WID_ADROCKET && p.weaponmodel == WeaponIdToModel(WID_ADROCKET, 0);
         float okHolster = p.holsterweapon0 == WID_ADPLASMA && p.holsterweaponmodel0 == WeaponIdToModel(WID_ADPLASMA, 0);
         bprint(sprintf("adgun carry: %s: hand %g (%s), holster %g (%s), drops %g: %s\n", mapname, p.weapon,
