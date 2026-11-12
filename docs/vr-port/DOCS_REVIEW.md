@@ -186,3 +186,5 @@ history"); `MODEL_METADATA_20261005.md` and `PROFILING_2026-10.md` stay.
   THROWING.md, KNOCKDOWNS and IK.md name cvars by hand. After its removals, rerun the doc-defaults check (or grep the
   removed names in `docs/`).
 - `repoclean` (REPO_CLEANUP.md) owns the repository layout: the archive moves above may fit its plan.
+- **TESTING.md split (2026-11-12):** its per-feature recipes (about 1,400 lines) moved word for word to
+  `archive/TESTING_RECIPES.md` (grep-only, one `##` a feature); TESTING.md is the guide plus an index of those sections.
