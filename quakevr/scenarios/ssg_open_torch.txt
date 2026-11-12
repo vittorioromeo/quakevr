@@ -2,8 +2,8 @@
 # with the flashlight clipped under its barrels (vr_view.cpp ssgBarrelsCarry, vr_flashlight.cpp gunPose) and its
 # chambers loaded (make_ssg_open.py loaded_frames: the shells' heads flush with the breech face); ssgtorch_test.sh.
 title The super shotgun broken open: the flashlight rides its barrels, the shells sit flush
-hint The super shotgun is in your left hand with the flashlight clipped under its barrels (if not: take the torch from your belt and press B/Y by the gun). Flick it open: the torch and its beam drop with the barrels. Load a pair from the pouch: their brass heads sit flush with the breech face.
+hint The super shotgun is in your left hand: take the torch from your belt, hold it by the gun and press B/Y to clip it under the barrels, switch it on. Flick it open: the torch and its beam drop with the barrels. Load a pair from the pouch: their brass heads sit flush with the breech face.
 map vrtesthall
 god
 give "Super Shotgun" off
-cmd give s 30; wait30; vr_flashlight_clip_gun left; wait30; vr_flashlight_toggle
+cmd give s 30
