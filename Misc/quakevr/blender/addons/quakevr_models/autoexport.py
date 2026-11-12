@@ -4,7 +4,7 @@
 # the export changes the object it exports (it triangulates it, leaves Edit Mode, sets its frame), so it can't run on
 # the scene being edited, and in the background it doesn't hold up the editing. It writes the game's files into the
 # repository's quakevr/progs (or the folder set in the add-on's preferences) and nothing when a check fails; the
-# result shows in Blender's status bar, a refusal in a popup too. The game reads changed models again by itself
+# result shows in Blender's status bar, a refusal or a grown box in the panel too (the "Why?" button). The game reads changed models again by itself
 # (vr_model_watch).
 
 import os
@@ -109,13 +109,10 @@ def finish():
             name, tail, os.path.dirname(wrote[0]) if wrote else "?", secs)
         box = [l[len("  box: "):] for l in lines if l.startswith("  box: ")]  # (Grow the Box grew it: the offsets)
         if box:
-            msg += "; THE BOX GREW (see the popup)"
+            msg += "; THE BOX GREW (see the panel: Why?)"
         state["result"] = (True, [msg] + box)
         print(msg + "".join("\n  " + l for l in box))
         show('WARNING' if box else 'INFO', msg)
-        if box:
-            popup("Quake VR: exported; the model's box grew", box + ["(the whole report: %s)" % log_path()],
-                  icon='INFO')
     else:
         at = next((i for i, l in enumerate(lines) if "REFUSED" in l), None)
         why = [l.strip() for l in lines[at:]] if at is not None else lines[-12:]
@@ -124,7 +121,6 @@ def finish():
         state["result"] = (False, why)
         print(msg + "\n  " + "\n  ".join(why) + "\n  (the whole report: %s)" % log_path())
         show('ERROR', msg)
-        popup("Quake VR: not exported, nothing written", why + ["(the whole report: %s)" % log_path()])
     redraw()
     again, state["again"] = state["again"], None
     if again:
@@ -179,23 +175,6 @@ def show(level, msg):
         bpy.ops.quakevr_models.save_export_report(level=level, message=msg)
 
 
-def popup(title, lines, icon='ERROR'):
-    if bpy.app.background:
-        return
-
-    import textwrap
-    rows = [r for line in lines for r in (textwrap.wrap(line, 120, subsequent_indent="    ") or [""])]
-
-    def draw(self, _context):
-        for row in rows[:30]:
-            self.layout.label(text=row)
-    o = window_override()
-    if o is None:
-        return
-    with o:
-        bpy.context.window_manager.popup_menu(draw, title=title, icon=icon)
-
-
 @persistent
 def on_save(*args):
     if not enabled():
@@ -223,6 +202,38 @@ class QVR_OT_save_export_report(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class QVR_OT_why(bpy.types.Operator):
+    """Why the last export was refused (or what its grown box needs): every line of the report, and where the whole
+    report is. A dialog the user opens, so it has a window and stays until it is closed"""
+    bl_idname = "quakevr_models.export_why"
+    bl_label = "Quake VR Export Report"
+    bl_options = {'INTERNAL'}
+
+    copy: bpy.props.BoolProperty(name="Copy the report to the clipboard", default=False)
+
+    def report_lines(self):
+        res = state["result"]
+        return (res[1] if res else ["(no export yet)"]) + ["(the whole report: %s)" % log_path()]
+
+    def invoke(self, context, event):
+        self.copy = False
+        return context.window_manager.invoke_props_dialog(self, width=700)
+
+    def execute(self, context):
+        if self.copy:
+            context.window_manager.clipboard = "\n".join(self.report_lines())
+            self.report({'INFO'}, "Quake VR: the export report is on the clipboard")
+        return {'FINISHED'}
+
+    def draw(self, context):
+        import textwrap
+        col = self.layout.column(align=True)
+        for line in self.report_lines():
+            for row in textwrap.wrap(line, 110, subsequent_indent="    ") or [""]:
+                col.label(text=row)
+        self.layout.prop(self, "copy")
+
+
 def draw_panel(layout):
     p = prefs()
     box = layout.box()
@@ -247,14 +258,27 @@ def draw_panel(layout):
     if busy:
         col.label(text="Exporting...", icon='SORTTIME')
     elif res:
-        col.label(text=("Last: exported" if res[0] else "Last: NOT exported (see the popup)"),
-                  icon='CHECKMARK' if res[0] else 'ERROR')
+        extra = res[1][1:] if res[0] else res[1]  # (a success's first line is its message; the rest is the box)
+        col.label(text=("Last: exported" + ("; the box grew" if extra else "") if res[0] else
+                        "Last: NOT exported (why: below)"),
+                  icon=('INFO' if extra else 'CHECKMARK') if res[0] else 'ERROR')
+        if extra:
+            import textwrap
+            sub = col.column(align=True)
+            sub.scale_y = 0.8
+            rows = [r for l in extra for r in (textwrap.wrap(l, 48, subsequent_indent="  ") or [""])]
+            for r in rows[:6]:
+                sub.label(text=r)
+            if len(rows) > 6:
+                sub.label(text="...")
+            col.operator("quakevr_models.export_why", text="Why?", icon='QUESTION')
     if p:
         col.prop(p, "progs_dir", text="Game folder")
 
 
 def register():
     bpy.utils.register_class(QVR_OT_save_export_report)
+    bpy.utils.register_class(QVR_OT_why)
     bpy.types.Object.qvr_grow_box = bpy.props.BoolProperty(
         name="Grow the Box", default=False, options=set(),
         description="Vertices past the model's box (its byte grid) make the export make the box bigger instead of "
@@ -282,4 +306,5 @@ def unregister():
     del bpy.types.Object.qvr_grow_box
     del bpy.types.Object.qvr_allow_moved
     del bpy.types.Object.qvr_allow_sights
+    bpy.utils.unregister_class(QVR_OT_why)
     bpy.utils.unregister_class(QVR_OT_save_export_report)

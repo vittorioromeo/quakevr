@@ -205,7 +205,7 @@ What growing does:
   ```
 
   A source .blend's export (Ctrl+S, or blend_export.py into `quakevr/progs`) writes them into weapons.txt's defaults
-  itself (`  box:` lines in its report; Ctrl+S shows them in a popup). Your config keeps its own offsets over
+  itself (`  box:` lines in its report; the panel shows them, and its "Why?" button lists them all). Your config keeps its own offsets over
   weapons.txt's, so type the `inc` lines into the game's console too (they're saved); a grown model that ships needs
   a `vr_wofs_version` step for other players' saved configs, as any changed default does. From File > Export, only
   the console lines. The gadget has no Scale setting, so its origin can move freely.
@@ -685,7 +685,7 @@ leaves weapons.txt alone. Before writing anything it checks, and refuses with a 
 - the box (section 2, [The box](#the-box)): a vertex past it refuses, unless **Grow the Box** is ticked (the panel's
   top box, under Export on Save: kept in the .blend) or `--grow` is given. Growing starts from the grid of the model
   file the export replaces (so a grown box stays grown and doesn't grow again), and when the origin moves, the
-  offsets that keep the weapon in place go into weapons.txt (with `--out`: listed only) and a popup shows them with
+  offsets that keep the weapon in place go into weapons.txt (with `--out`: listed only) and the panel's "Why?" dialog shows them with
   the console lines for your config (`  box:` lines in the report);
 - the parts (every face in one);
 - the anchors: each on the surface (0.1 units at most), and the surface under an unmoved one where it was in every
