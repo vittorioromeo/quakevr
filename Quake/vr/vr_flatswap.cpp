@@ -409,6 +409,13 @@ void apply2h(hands::State& s, const Frame& v)
         sw.share = a;
         for(int h : {HAND_OFF, HAND_MAIN})
         {
+            if(vr_flat_swap_debug.value >= 2.f)
+            {
+                // (2: every frame of the attach, each hand's own pose and where the swap puts it, in the view's frame.)
+                const glm::vec3 own = v.toLocal(s.pos[h]), put = v.toLocal(s.pos[h] + (v.toWorld(sw.passLocal[h]) - s.pos[h]) * a);
+                Con_Printf("flatswap: attach %.2f %s: own %.1f %.1f %.1f, drawn %.1f %.1f %.1f\n", a, handName(h), own.x, own.y, own.z,
+                    put.x, put.y, put.z);
+            }
             s.pos[h] += (v.toWorld(sw.passLocal[h]) - s.pos[h]) * a;
             turnTo(s, h, v.rotToWorld(sw.passRot[1 - h]), a);
         }

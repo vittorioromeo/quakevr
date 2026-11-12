@@ -10,8 +10,8 @@
 // `vr_flatswap_test 2`: what each hand holds (right / left): shotgun+brick, brick+shotgun, brick+brick, brick+empty,
 //   empty+brick, two shotguns, a brick in both hands: drawn the hands' meeting way (vr_flat_swap_seen 1; a brick in both:
 //   0, nothing to change), and each hand ends with what the other held, a brick in its new hand (within 16 units of it).
-// `vr_flatswap_test 11..15`: a strip each (screenshots before the press and through the swap; the rocket launcher, the
-//   super shotgun, the nailgun, the axe, the shotgun with a brick in the left hand), then the verdict line.
+// `vr_flatswap_test 11..17`: a strip each (screenshots before the press and through the swap; the rocket launcher, the
+//   super shotgun, the nailgun, the axe, the shotgun with a brick in the left hand, the grenade launcher, AD's plasma rifle), then the verdict line.
 // Each ends on its "flatswap_test: N passed, M failed" line (Misc/quakevr/flatswap_test.sh).
 #ifdef QVR_TESTS
 
@@ -70,13 +70,16 @@ string(float x) VR_FSW_HoldName =
     return x == 0 ? "empty" : x == 1 ? "shotgun" : x == 2 ? "brick" : "the brick in both";
 };
 
-// The strips' case: what the right hand holds (the left empty; 15: the shotgun, a brick in the left).
+// The strips' case: what the right hand holds (the left empty; 15: the shotgun, a brick in the left; 16 the grenade
+// launcher, 17 AD's plasma rifle).
 float(float ask) VR_FSW_StripWeapon =
 {
     if(ask == 11) return WID_ROCKET_LAUNCHER;
     if(ask == 12) return WID_SUPER_SHOTGUN;
     if(ask == 13) return WID_NAILGUN;
     if(ask == 14) return WID_AXE;
+    if(ask == 16) return WID_GRENADE_LAUNCHER;
+    if(ask == 17) return WID_ADPLASMA;
     return WID_SHOTGUN;
 };
 
@@ -281,7 +284,7 @@ void(entity p) VR_FSW_Things =
     }
 };
 
-// ---- 11..15: a strip: a picture before the press, then every 5 frames through the swap (0.3 s and the way back), then
+// ---- 11..17: a strip: a picture before the press, then every 5 frames through the swap (0.3 s and the way back), then
 // one at rest.
 void(entity p, float ask) VR_FSW_Strip =
 {
@@ -367,6 +370,6 @@ void() VR_FlatSwapTest_Frame =
     }
     if(ask == 1) { VR_FSW_Weapons(p); }
     if(ask == 2) { VR_FSW_Things(p); }
-    if(ask >= 11 && ask <= 15) { VR_FSW_Strip(p, ask); }
+    if(ask >= 11 && ask <= 17) { VR_FSW_Strip(p, ask); }
 };
 #endif

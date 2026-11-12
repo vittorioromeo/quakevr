@@ -4,7 +4,7 @@
 # Headless, fast mode, -flatscreenmode; each run ends on its own verdict line (-QuitOn).
 #   weapons  vr_flatswap_test 1: each weapon alone in the right hand swaps the two-handed way, ends in the left
 #   things   vr_flatswap_test 2: props with weapons and each other: each hand ends with what the other held
-# With a shots prefix, also the strips (vr_flatswap_test 11..15: the rocket launcher, the super shotgun, the nailgun, the
+# With a shots prefix, also the strips (vr_flatswap_test 11..17: the rocket launcher, the super shotgun, the nailgun, the
 # axe, the shotgun with a brick in the left hand), each composed into scratch/<prefix>_<name>.png.
 AGENT=${1:?agent}
 PREFIX=$2
@@ -25,7 +25,7 @@ grep -aq "flatswap_test: [0-9]* passed, 0 failed" "$S/weapons.log" || fails=$((f
 run things 2 || true
 grep -aq "flatswap_test: [0-9]* passed, 0 failed" "$S/things.log" || fails=$((fails + 1))
 if [ -n "$PREFIX" ]; then
-    for k in 11:rl 12:ssg 13:ng 14:axe 15:sgprop; do
+    for k in 11:rl 12:ssg 13:ng 14:axe 15:sgprop 16:gl 17:adplasma; do
         run "strip_${k#*:}" "${k%%:*}" "-Out ${PREFIX}_${k#*:}.png -Clean"
         grep -a "composed" "$S/strip_${k#*:}.log"
     done

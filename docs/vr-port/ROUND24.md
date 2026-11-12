@@ -9464,3 +9464,28 @@ it to the other hand checked it again and dropped it. With AD mounted the check 
   AD): before, "FAIL weapon 22: now in the left hand (left 0, right 0)"; after 22 passed, 0 failed (`2`: 26/26).
   Headless: give 22, flat toolgun on and off ("back to weapon 22"), two swaps (22 to the left and back). Scene
   `flat_swap_adgun` (the rifle in the right hand through the test aid; runall: HELD, main now 22).
+
+## The hand swap: long guns as the rocket launcher (branch `agent/swappose`, 2026-11-12)
+
+His words: "The hand-swap pose for other 2H weapons is not working as desired. The rocket launcher is the only one where
+it looks good. Please look at what the rocket launcher does, and use the same logic for other similar 2H weapons."
+
+- Cause: vr_flatswap.cpp's three steps are one code path for every weapon (the same guard, pass point, hand-off and
+  turns: `vr_flat_swap_debug 1` printed identical "in view" lines for the RL, GL, SSG, NG and AD plasma rifle). What
+  differs is how the free hand is on the gun. The RL's (and the GL's) is on a real grip ahead of the trigger hand
+  (flatsight `carryToGrip`, vr_twohand's hold), and `flatswap::gripBlocked` lets it go at `gripEase` (9/s) during the
+  release and lets the new free hand take it at the same pace during the attach. The shotguns', nailguns', LG's and AD
+  guns' free hand is drawn on the gun's hotspot by flatsight's look (drawn only; the game hand hangs in the support
+  pose). The swap never touched the look: it kept the hand drawn on the gun through the release, snapped off when the
+  weapon changed hands, and came to the new free hand at `lookEase` (0.4 s) after the attach had ended. On screen: no
+  let-go, the hand hidden behind the gun, the new free hand arriving late.
+- Fix (`vr_flat_swap_look`, default 1; row "Swap 2H: Long Guns As Rocket L." in Debug > Tunables): while the swap
+  runs, the look lets go at `gripEase` until the weapon has changed hands (as `lookFast`, the punch/shove/E path) and
+  comes back on the new free hand at `gripEase` during the attach (`lookSwap`). No virtual fore-end grip was needed: the
+  look's hotspot already is that grip; only its timing was wrong. 0: as before.
+- Melee: not changed (the melee2h tree owns the 2H melee stance). Found: the axe disappears for about 6 frames right
+  after the swap (frames 18-24 after the press; `vr_flat_swap_anim 0` shows it at once), the hands drawn low out of
+  view while `vr_flat_swap_debug 2` (new: the attach's per-frame "own/drawn" lines) prints them at the pass point.
+  Not found yet; worth a look once the 2H melee stance lands.
+- Tests: `vr_flatswap_test 16` (grenade launcher) and `17` (AD plasma rifle) strips added (flatswap_test.sh).
+  flatswap_test.sh 0 failed, flatswappitch 20/20, flathands 76/76.
