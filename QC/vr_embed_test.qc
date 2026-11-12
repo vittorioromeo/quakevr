@@ -4,6 +4,7 @@ float vr_eh_sounds; // and its slide sounds, its wound's spurts as it was struck
 float vr_eh_spurts;
 float vr_eh_bloods;
 float vr_eh_travel; // units of pull so far
+float vr_eh_keep_speed, vr_eh_keep_angle; // test 7: vr_embed_stab_speed and _angle as they were (set for its cases 0 and 1)
 // vr_embed_test.qc -- Embedded blades, stage 1 (ROUND23.md, "Embedded blades"; vr_axestick.qc, vr_axestick.cpp).
 // `vr_embed_test 1` (Debug > Tests > Embedded Blades; god, notarget, map vrtesthall, on your feet in the open): a thrown
 // sword point first, flat and by the hilt at a wall; its sag; at a live body, and it bleeds; the body dying with it in; a
@@ -1705,6 +1706,7 @@ void() VR_EH_Step =
         return;
     }
     localcmd("vr_mock_hand_to_absolute 0\n");
+    localcmd(sprintf("tune vr_embed_stab_speed %g\ntune vr_embed_stab_angle %g\n", vr_eh_keep_speed, vr_eh_keep_angle));
     cvar_set("vr_knockdown", "1");
     vr_et_on = 0;
     VR_Test_Verdict();
@@ -4355,6 +4357,11 @@ void() VR_Embed_TestFrame =
         {
             VR_Test_BeginFlags("embedheld", VR_TEST_LOUD);
             cvar_set("vr_knockdown", "0"); // (a blow's chance of one takes the body from the hand)
+            // Cases 0 and 1 (too slow at 2.8 m/s, 60 degrees off its line) were laid out for the stab's first need, 3.5 m/s and 35
+            // degrees; the defaults are now 2.5 and 90 (his tuning). Set for the test, his values back at its end.
+            vr_eh_keep_speed = cvar_hget(cvarh_vr_embed_stab_speed);
+            vr_eh_keep_angle = cvar_hget(cvarh_vr_embed_stab_angle);
+            localcmd("tune vr_embed_stab_speed 3.5\ntune vr_embed_stab_angle 35\n");
             vr_eh_home = VR_Player().origin;
             localcmd("vr_mock_hand_to_absolute 1\n");
             vr_et_on = 7;

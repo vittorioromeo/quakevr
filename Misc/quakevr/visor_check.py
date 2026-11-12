@@ -165,8 +165,11 @@ check(SL is not None and SR is not None and SL[1] < 0.02 * SL[5] and SR[3] > 0.9
 check(get("sides keys", "sides") == (6, 4, 4, 1.0),
       f"sides: test state 5 two keys and four sigils at the left, four powerups full size at the right ({get('sides keys', 'sides')})")
 sa = get("sides ad", "sides", (0, 0, 0, 0.0))
-check(sa[:3] == (2, 9, 9) and 0.5 <= sa[3] < 0.9,
-      f"sides: test state 6 AD's two custom keys; six artifacts and three debuffs, all shown, shrunk to fit ({sa})")
+# (--no-ad: AD isn't in the run's base, so its custom keys' pics, gfx/adib_ckey*.lmp, aren't there: the left count unchecked.)
+noad = "--no-ad" in sys.argv[2:]
+keys = "(no AD here: its custom keys skipped)" if noad else "AD's two custom keys"
+check((noad or sa[0] == 2) and sa[1:3] == (9, 9) and 0.5 <= sa[3] < 0.9,
+      f"sides: test state 6 {keys}; six artifacts and three debuffs, all shown, shrunk to fit ({sa})")
 A, B = pan("sides ad", "sideleft"), pan("sides big", "sideleft")
 ratio = (B[4] - B[2]) / (A[4] - A[2]) if A and B and A[4] > A[2] else 0
 check(1.4 < ratio < 1.6 and contact_all("sides big") and B[1] < 0.02 * B[5],
