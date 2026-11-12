@@ -595,6 +595,11 @@ void platesResync()
     playerPlates.resync = true;
 }
 
+bool playerArmourShown()
+{
+    return vr_player_plates.value != 0.f && playerPlates.type > 0 && playerPlates.pieces != 0 && entities.body.visible;
+}
+
 void platesInfo_f()
 {
     const PlayerPlates& p = playerPlates;

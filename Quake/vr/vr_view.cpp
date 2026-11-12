@@ -2066,8 +2066,10 @@ void setSsgPart(view::ViewEntity& part, const view::ViewEntity& gun, const char*
     part.ent.model = m;
     part.ent.skinnum = skin;
     // At rest (open, it can't fire): never the gun's firing frames, whose blending, frozen while the gun itself isn't
-    // drawn, would hold its muzzle flash (the author's note, vrfiringrange_2026-10-07_22-07-20).
-    part.ent.frame = 0;
+    // drawn, would hold its muzzle flash (the author's note, vrfiringrange_2026-10-07_22-07-20). The barrels' frame is
+    // their skin's (make_ssg_open.py loaded_frames: a loaded chamber's shell head flush with the breech face, his words
+    // 2026-11-12; an empty one's bore open behind it).
+    part.ent.frame = skin < m->numframes ? skin : 0;
     part.ent.lerpflags |= LERP_RESETANIM;
     part.zeroBlend = 0.f;
     part.lastModel = last;
@@ -2119,9 +2121,10 @@ void setupSsgParts()
             const glm::vec3 breech{12.7f, 0.f, 7.f};
             const glm::vec3 a = view::modelPoint(entities.ssgBarrels[hand], breech);
             const glm::vec3 b = view::modelPoint(gun, ssgTurn(breech, st.angle));
-            Con_Printf("ssg: hand %d open %.1f deg, its breech %.2f %.2f %.2f (turned %.2f off)\n", hand,
-                static_cast<double>(st.angle), static_cast<double>(a.x), static_cast<double>(a.y),
-                static_cast<double>(a.z), static_cast<double>(glm::distance(a, b)));
+            Con_Printf("ssg: hand %d open %.1f deg, its breech %.2f %.2f %.2f (turned %.2f off), barrels frame %d skin %d\n",
+                hand, static_cast<double>(st.angle), static_cast<double>(a.x), static_cast<double>(a.y),
+                static_cast<double>(a.z), static_cast<double>(glm::distance(a, b)), entities.ssgBarrels[hand].ent.frame,
+                entities.ssgBarrels[hand].ent.skinnum);
         }
     }
     for(int h = 0; h < HolsterCount; h++)
@@ -3543,6 +3546,23 @@ bool ssgBarrelsDrawn(int hand, const glm::vec3& p, glm::vec3& out)
     return true;
 }
 
+bool ssgBarrelsCarry(int hand, const glm::vec3& on, glm::vec3& hinge, glm::mat3& turn)
+{
+    const float deg = ssgOpenAngle(hand);
+    if(deg <= 0.f)
+    {
+        return false;
+    }
+    const view::ViewEntity& gun = entities.weapon[hand];
+    if(ssgTurnWorld(gun, on, deg) == on) // (behind the hinge: the frame's, left where it is)
+    {
+        return false;
+    }
+    hinge = view::modelPoint(gun, ssgHinge);
+    turn = ssgWorldTurn(gun, deg);
+    return true;
+}
+
 glm::vec3 revolverChamber(int hand, int chamber, float back)
 {
     const RevolverDrawn& st = rvHands[hand < 0 || hand > 1 ? 0 : hand];
@@ -4118,6 +4138,7 @@ bool weaponMount(int hand, WeaponMount& out)
     out.rot = drawnAs[hand].rot;
     out.mirrored = drawnAs[hand].mirrored;
     out.slot = slot;
+    out.hand = hand;
     out.muzzle = anchorPosition(ve, weapons::anchor(slot, Key::MuzzleAnchor),
         weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
     return true;

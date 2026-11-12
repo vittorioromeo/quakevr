@@ -1182,6 +1182,7 @@ void resetHandMoves()
         header("Ammo Pouch"),
         row(opt::vr_ammo_pouch_show),
         row(opt::vr_ammo_pouch_x),
+        row(opt::vr_ammo_pouch_armor_x),
         row(opt::vr_ammo_pouch_y),
         row(opt::vr_ammo_pouch_z),
         row(opt::vr_ammo_pouch_thresh),

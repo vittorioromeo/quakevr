@@ -1210,6 +1210,8 @@ QVR_CVAR(vr_embed_probe_on, "0", CVAR_NONE)            // frames a hand was draw
 QVR_CVAR(vr_embed_probe_grip, "-1", CVAR_NONE)         // cm the most the drawn hand was from where it holds the drawn weapon, easing off a blade
 QVR_CVAR(vr_embed_probe_wstep, "0", CVAR_NONE)         // cm the most the drawn weapon's offset from its controller changed in a frame, off a blade (the blade's before)
 QVR_CVAR(vr_embed_probe_eased, "0", CVAR_NONE)         // frames a weapon was drawn easing off a blade
+QVR_CVAR(vr_embed_probe_hoff, "-1", CVAR_NONE)         // vr_embed_test 33: cm the most a hand on a blade's handle was drawn from its place on that weapon held in it
+QVR_CVAR(vr_embed_probe_hturn, "-1", CVAR_NONE)        // and degrees the most it was turned from it
 QVR_CVAR(vr_embed_probe_skew, "-1", CVAR_NONE)         // vr_embed_test 29 (set -1 to start): cm the most a gib on a blade in the hand was drawn off its place on the drawn blade
 QVR_CVAR(vr_embed_probe_skewn, "0", CVAR_NONE)         // and the frames it was measured in
 QVR_CVAR(vr_embed_probe_skewj, "0", CVAR_NONE)         // and cm the most its place in the server's hand moved from one frame to the next (a jitter: 0 riding the blade)
@@ -1667,6 +1669,7 @@ QVR_CVAR(vr_flashlight_tilt, "-5", CVAR_ARCHIVE)       // degrees the stored lam
 QVR_CVAR(vr_flashlight_forward, "0.025", CVAR_ARCHIVE)    // metres the belt clip sits further forward,
 QVR_CVAR(vr_flashlight_up, "0.25", CVAR_ARCHIVE)         // up,
 QVR_CVAR(vr_flashlight_out, "-0.05", CVAR_ARCHIVE)        // and out (towards its side)
+QVR_CVAR(vr_flashlight_armor_forward, "0", CVAR_ARCHIVE) // metres more forward on the belt while the armour's plates show on your body (they can pass through the torch); 0 off
 QVR_CVAR(vr_flashlight_side, "0", CVAR_ARCHIVE)       // the hip it hangs on: 0 the left, 1 the right
 QVR_CVAR(vr_flashlight_grab_range, "1", CVAR_ARCHIVE) // times how far from the torch a hand reaches it (lit, taken; 9 cm from its axis at 1), 0.25..4
 QVR_CVAR(vr_flashlight_head_range, "1.5", CVAR_ARCHIVE) // times the head's zone's radius (vr_flashlight_head_zone_radius: clipping it on, taking it off), 0.25..4
@@ -3669,6 +3672,7 @@ QVR_CVAR(vr_reload_mode_revolver, "-1", CVAR_ARCHIVE) // the heavy revolver's
 // holsters' competition: the one a hand is most within). Pitch, Yaw, Roll: degrees, its top away from the body, about
 // where the hand reaches for it; Size: times the model's.
 QVR_CVAR(vr_ammo_pouch_x, "3", CVAR_ARCHIVE)
+QVR_CVAR(vr_ammo_pouch_armor_x, "0", CVAR_ARCHIVE) // units the pouch moves further forward while the armour's plates show on your body (they can pass through it); 0 off
 QVR_CVAR(vr_ammo_pouch_y, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_z, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_thresh, "5", CVAR_ARCHIVE)

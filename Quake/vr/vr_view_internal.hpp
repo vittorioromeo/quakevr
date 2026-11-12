@@ -629,6 +629,7 @@ inline view::DrawnWeapon drawnWeapons[2];
 [[nodiscard]] glm::mat3 anglesBasis(const glm::vec3& a);
 [[nodiscard]] glm::vec3 basisAngles(const glm::mat3& b);
 [[nodiscard]] glm::vec3 weaponTurn(const glm::vec3& rot, int slot, bool mirrored);
+[[nodiscard]] glm::vec3 handTurnOfWeapon(const glm::vec3& wt, int slot, bool mirrored);
 
 // A hand's turn carried by a weapon (round 21, second pass). The weapon's Pitch/Yaw/Roll are added to the hand's
 // angles, which is no rigid turn: a hand turned by angle offsets of its own would slide round the weapon as the wrist

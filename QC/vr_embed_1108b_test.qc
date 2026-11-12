@@ -237,6 +237,7 @@ void() VR_EP_Step =
     float t = time - vr_et_t0;
     if(vr_et_case > 4)
     {
+        cvar_set("vr_embed_probe", "");
         VR_Test_Verdict();
         vr_et_on = 0;
         return;
@@ -249,6 +250,10 @@ void() VR_EP_Step =
             setorigin(p, vr_eh_home);
             p.velocity = '0 0 0';
             vr_ee_target = VR_EP_Crate(vr_et_case == 3 ? 3 : 1, vr_et_case == 3 ? 42 : 50);
+            if(vr_et_case == 0)
+            {
+                cvar_set("vr_embed_probe", "reset"); // (the hand on the handle against the hand that held the sword: below)
+            }
             if(vr_et_case == 4)
             {
                 localcmd("tune vr_embed_props 0\n");
@@ -297,6 +302,13 @@ void() VR_EP_Step =
             VR_ET_To(30);
         }
         return;
+    }
+    // ---- 0: the hand on the handle of a sword in a crate is drawn as it held that sword (his note 2026-11-12; the engine's
+    // vr_embed_probe_hoff, _hturn: embedGripProbe), all through the drag
+    if(vr_et_s == 11 && t > 1)
+    {
+        VR_Test_Check(cvar_hget(cvarh_vr_embed_probe_hoff) >= 0 && cvar_hget(cvarh_vr_embed_probe_hoff) < 0.2 && cvar_hget(cvarh_vr_embed_probe_hturn) < 1,
+            sprintf("in a crate: the hand on the handle is drawn as it held the sword (%.2f cm, %.2f degrees off; under 0.2, 1)", cvar_hget(cvarh_vr_embed_probe_hoff), cvar_hget(cvarh_vr_embed_probe_hturn)));
     }
     // ---- 0: dragged aside, not lifted, let go of
     if(vr_et_s == 11 && t > 1)
