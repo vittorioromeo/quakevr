@@ -817,6 +817,8 @@ GLuint halfCompositeProgram = 0;
 bool halfCompositeFailed = false;
 GLuint halfDepthCompositeProgram = 0; // the depth-aware blend's (halfDepthCompositeFs)
 bool halfDepthCompositeFailed = false;
+GLuint halfReactiveProgram = 0; // the TAA's reactive marks of what the depth-aware blend put in (halfReactiveFs)
+bool halfReactiveFailed = false;
 // Its framebuffer: the scene's colour alone (its depth is read), attached at each use (GL reuses a deleted texture's
 // name: the scene's targets made again at another size can come back under the same one).
 GLuint halfCompositeFbo = 0;
@@ -844,9 +846,12 @@ GLuint underMarkProgram = 0;
 GLuint underCompositeProgram = 0;
 bool underFailed = false; // its programs
 bool underWarned = false; // an incomplete framebuffer said once
-constexpr GLuint underStencilBits = 0x7c; // the marks' (sky 1, OIT 2: gl_sky.c, gl_rmain.c; 0x80 State::once's)
-constexpr int underStencilShift = 2;
-constexpr int underGenerations = 31; // the marks' values, 1..31 (0: cleared)
+// The marks' (sky 1, OIT 2: gl_sky.c, gl_rmain.c; the TAA's reactive pixels 4: VR_TemporalReactive, read as the OIT's
+// are; 0x80 State::once's). (They were 0x7c: a mark of an odd generation read as reactive by the TAA, and the haze's
+// reactive pixels as generation 1's marks.)
+constexpr GLuint underStencilBits = 0x78;
+constexpr int underStencilShift = 3;
+constexpr int underGenerations = 15; // the marks' values, 1..15 (0: cleared)
 constexpr GLenum underTextureUnit = GL_TEXTURE7;
 
 // A full-screen triangle (halfCompositeVs). Marks (the stencil bit) the pixels as opaque as Opaque.
@@ -888,6 +893,25 @@ void main()
 {
     result = texture(Half, gl_FragCoord.xy * Scale);
     if(result == vec4(0.0))
+        discard;
+}
+)";
+// The TAA's reactive marks (stencil bit 4, VR_TemporalReactive) of the pixels the depth-aware blend below put particles
+// in: those with anything in the four texels round them (its own test). The blend draws into the scene's colour alone
+// (it reads the depth), so it marks nothing itself; drawn after it, into the scene's framebuffer, colour writes off.
+// Unmarked, a still view's TAA kept its history there (vr_taa_blend: a tenth a frame, clipped to the pixels round it),
+// and a popped limb's fountain near the eye (large, half size) was not seen until the view moved or it spread out
+// (ROUND24.md, "A limb's fountain hidden by the TAA").
+constexpr const char* halfReactiveFs = R"(#version 430
+layout(binding = 0) uniform sampler2D Half;
+void main()
+{
+    vec2 t = gl_FragCoord.xy * 0.5 - 0.5;
+    ivec2 b = ivec2(floor(t));
+    ivec2 last = textureSize(Half, 0) - 1;
+    vec4 c = texelFetch(Half, clamp(b, ivec2(0), last), 0) + texelFetch(Half, clamp(b + ivec2(1, 0), ivec2(0), last), 0) +
+             texelFetch(Half, clamp(b + ivec2(0, 1), ivec2(0), last), 0) + texelFetch(Half, clamp(b + ivec2(1, 1), ivec2(0), last), 0);
+    if(c == vec4(0.0))
         discard;
 }
 )";
@@ -1281,8 +1305,8 @@ void flatFovUniforms(bool on)
     return true;
 }
 
-// State::once's: the stencil bit marking the pixels drawn (no one else's: sky 1, OIT 2, the particles' reverse-order
-// marks 0x7c), and the bands of Shade::SoftEdge's falloff drawn one after another, the strongest first.
+// State::once's: the stencil bit marking the pixels drawn (no one else's: sky 1, OIT 2, the TAA's reactive 4, the
+// particles' reverse-order marks 0x78), and the bands of Shade::SoftEdge's falloff drawn one after another, the strongest first.
 constexpr GLuint onceStencilBit = 0x80;
 constexpr int onceBands = 4;
 
@@ -1719,10 +1743,13 @@ namespace
         foveated::shadeBoundAsScene(true);
     }
 
-    // The stencil as the others expect it, and the particles over the scene (at full rate: a copy of its pixels).
+    // The stencil as the others expect it, and the particles over the scene (at full rate: a copy of its pixels). Under
+    // the TAA the reactive marks' state again (its marking draws turned it off): the composite marks the pixels it puts
+    // particles in (else a still view's history kept them out: halfReactiveFs).
     glStencilMask(~0u);
     glStencilFunc(GL_ALWAYS, 0, ~0u);
     glDisable(GL_STENCIL_TEST);
+    VR_TemporalReactive(VR_TemporalReactiveOn());
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, sceneFbo);
     foveated::shadeBoundAsScene(false);
     GL_UseProgram(underCompositeProgram);
@@ -1853,6 +1880,33 @@ void drawParticlesWith(GLuint program, const ParticleBatch& batch, bool pull, bo
     }
     glEnable(GL_SAMPLE_SHADING);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // what GLS_BLEND_ALPHA expects
+}
+
+// Under the TAA (VR_TemporalReactiveOn), the pixels the depth-aware blend just put particles in marked reactive
+// (halfReactiveFs; the half target on unit 0, the scene's framebuffer bound), at full rate.
+void markHalfReactive()
+{
+    if(!VR_TemporalReactiveOn() || halfReactiveFailed)
+    {
+        return;
+    }
+    if(!halfReactiveProgram)
+    {
+        halfReactiveProgram = glProgram(halfCompositeVs, halfReactiveFs, "vr particles (half size, taa reactive marks)");
+        halfReactiveFailed = !halfReactiveProgram;
+        if(halfReactiveFailed)
+        {
+            return;
+        }
+    }
+    VR_TemporalReactive(1); // (the stencil state the reactive draws set)
+    foveated::shadeBoundAsScene(false);
+    GL_UseProgram(halfReactiveProgram);
+    GL_SetState(GLS_CULL_NONE | GLS_ATTRIBS(0) | GLS_BLEND_OPAQUE | GLS_NO_ZTEST | GLS_NO_ZWRITE);
+    glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    foveated::shadeBoundAsScene(true);
 }
 
 // drawParticlesHalf's depth-aware blend (halfDepthCompositeFs) set up: its program in use, its depth on unit 2, the
@@ -2006,12 +2060,13 @@ bool drawParticlesHalf(const ParticleBatch& batch, bool pull, Texture texture, c
         GL_Uniform2fFunc(0, 0.5f / static_cast<float>(width), 0.5f / static_cast<float>(height));
     }
     glDrawArrays(GL_TRIANGLES, 0, 3);
-    glEnable(GL_SAMPLE_SHADING);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     if(depthAware)
     {
         GL_BindFramebufferFunc(GL_FRAMEBUFFER, sceneFbo);
+        markHalfReactive(); // (the blend into the colour alone marked nothing: halfReactiveFs)
     }
+    glEnable(GL_SAMPLE_SHADING);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     return true;
 }
 

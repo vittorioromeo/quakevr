@@ -9464,3 +9464,22 @@ it to the other hand checked it again and dropped it. With AD mounted the check 
   AD): before, "FAIL weapon 22: now in the left hand (left 0, right 0)"; after 22 passed, 0 failed (`2`: 26/26).
   Headless: give 22, flat toolgun on and off ("back to weapon 22"), two swaps (22 to the left and back). Scene
   `flat_swap_adgun` (the rifle in the right hand through the test aid; runall: HELD, main now 22).
+## A limb's fountain hidden by the TAA (branch `agent/limbpfx`, 2026-11-12; investigation not finished)
+
+His note: the pool was not the cause, revert the eviction; a popped limb's blood stream plays its sound but its
+particles show late, or only once he moves or turns the camera.
+- **Reverted** agent/fbgore's dfa12af92 (`vr_particle_evict`, its menu row and test, `vr_particle_stats`, the pool tally).
+- **Found:** his `ironwail.cfg` has `vr_flat_taa 1` (default 0). With it, a still flat view loses the VR particles.
+  `vr_flatblood_test 5` (limb popped at 30/12/4 units, still): a bright fountain cloud in every picture with TAA off;
+  with TAA on, a few drops only (scratch `pop_taa0.png` / `pop_taa1.png`). A fixed scene (vrfiringrange, still,
+  `vr_water_blood_spray 24 400`: 10407 particles 24 units ahead; pixels of the lower half changed 22 frames on): TAA off
+  20.6 %, TAA on 2.1 %; TAA off with the scene in its own target (`r_scale 2`) 20.0 %, so it is the TAA, not the target.
+  Under TAA still 2.1 % with half size off, soft off, `vr_taa_reactive 1` (the current frame taken whole where marked),
+  without the reactive stencil, and without the jitter. `vr_temporal_debug 2` shows the spray's pixels marked reactive
+  in its shape, so its fragments are drawn and pass the depth test, but the scene colour the resolve reads has no
+  particles in it. Not found yet: what takes their colour (next: a GPU capture of the window's view, or the particle pass
+  drawn into a copy of the scene colour before and after it).
+- **Fixed on the way** (vr_gfx_gl.cpp, vr_temporal.cpp): the particles' own targets marked nothing for the TAA (the
+  half-size depth-aware blend draws into the scene's colour alone: `halfReactiveFs` now marks its pixels; the reverse
+  order turned the reactive stencil off: put back before its composite), and the reverse order's stencil marks (0x7c)
+  overlapped the reactive bit 4 (now 0x78, 15 generations). `VR_TemporalReactiveOn`.
