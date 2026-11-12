@@ -218,22 +218,24 @@ void hand(const hands::State& s, int hand, entity_t& e, bool gun)
             st.lostAt = vr_gametime;
             st.lostHolster = recent;
         }
+        // Passed from the other hand, which let go of it in this very update: first, whatever holster this hand is at.
+        // (Before 2026-11-12 the holster came first: flat play's swap key passes a melee weapon held alone with the
+        // free hand at its guard, by the hip holster, and the axe was eased in from the holster, turned 177 degrees,
+        // 25 units off, out of sight under the view for 9 frames; vr_flatswap_test 3.)
+        const float passTime = vr_weapon_pass_blend.value;
+        const Pose* const passed = model ? passedFrom(hand, model) : nullptr;
+        if(passed && passTime > 0.f)
+        {
+            start(st.blend, *passed, poseOf(e), passTime);
+        }
         const float time = vr_weapon_draw_blend.value;
-        if(model && recent >= 0 && time > 0.f)
+        if(model && !passed && recent >= 0 && time > 0.f)
         {
             // Taken from the holster the hand is at, which showed this gun a moment ago.
             const HolsterState& from = holsterStates[recent];
             if(sameGun(from.model, model) && vr_gametime - from.shownAt <= pairing)
             {
                 start(st.blend, from.drawn, poseOf(e), time);
-            }
-        }
-        const float passTime = vr_weapon_pass_blend.value;
-        if(model && !st.blend.on && passTime > 0.f)
-        {
-            if(const Pose* const from = passedFrom(hand, model))
-            {
-                start(st.blend, *from, poseOf(e), passTime);
             }
         }
     }

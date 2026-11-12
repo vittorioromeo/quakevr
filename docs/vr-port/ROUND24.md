@@ -9525,6 +9525,42 @@ it looks good. Please look at what the rocket launcher does, and use the same lo
 - Melee: not changed (the melee2h tree owns the 2H melee stance). Found: the axe disappears for about 6 frames right
   after the swap (frames 18-24 after the press; `vr_flat_swap_anim 0` shows it at once), the hands drawn low out of
   view while `vr_flat_swap_debug 2` (new: the attach's per-frame "own/drawn" lines) prints them at the pass point.
-  Not found yet; worth a look once the 2H melee stance lands.
+  Fixed: see "The hand swap: melee weapons stay in sight" below (agent/axeswap).
 - Tests: `vr_flatswap_test 16` (grenade launcher) and `17` (AD plasma rifle) strips added (flatswap_test.sh).
   flatswap_test.sh 0 failed, flatswappitch 20/20, flathands 76/76.
+
+## The hand swap: melee weapons stay in sight (branch `agent/axeswap`, 2026-11-12)
+
+The swappose open bug (the axe and both hands gone for about 6 frames right after the swap key, `vr_flat_swap_anim 1`,
+the axe held alone) had two causes, both in shared code:
+
+- **The weapon eased in from the hip holster** (`vr_drawblend.cpp hand`): when a gun appears in a hand, the draw blend
+  looked first for a holster the hand was at that showed the same gun, and only then for the other hand letting go of it
+  (the pass blend). The two-handed swap releases the free hand to the empty hand's guard, which sits at the hip holster's
+  hotspot; with an axe holstered there (the spawn's axe, a second one given at the console) the axe in the new hand was
+  eased from the holster, 25 units off and turned 177 degrees, out of sight under the view for 9 frames. Now a weapon the
+  other hand let go of in this very update is a pass first, whatever holster the hand is at (VR's hand switch too).
+- **The hands sank under the view in the attach** (`vr_flatplay.cpp`, the rest's hang): the hand that took the weapon
+  rose out of the empty hand's relaxed rest over `vr_flat_empty_take_time`, and the one that let go eased down into it,
+  while the swap's attach eased each from the pass point to that pose: down and back up. The meeting kind of swap already
+  put the hands straight into their new poses (`flatswap::meeting`); the two-handed kind now does too from the swap on
+  (`flatswap::easesIntoPoses`: the meeting kind all through, the two-handed kind once swapped; before it the free hand's
+  own pose eases off the grip under the release as before). Guns and props: the meeting kind unchanged; the
+  two-handed guns' attach now ends on their poses without the rise (vr_flatswap_test 1 unchanged: 0 failed).
+
+The two-handed melee stance (`vr_flat_melee_2h`) changed only the size of it (with it on, the axe stayed in view but
+both hands left it for 4 to 7 frames). No NaN or degenerate grip axis was involved.
+
+**The watch** (`vr_flatswap.cpp probe`, `vr_flatswap_vis_report`, test aid cvar `vr_flat_swap_vis_faults`): from each
+press of the key until 48 frames after the swap, every frame: both hands drawn (`view::drawnHandPose`), the weapon drawn
+(`view::weaponFrame`) with a part of its box on the screen, nothing not a number, and each hand's distance past the
+screen's edge; a hand counts as dipping in the frames it is more than 4 units further past the edge than at both ends of
+the watch (an empty hand resting below the view, or the super axe's low grip on the edge, is no fault).
+`vr_flat_swap_debug 2` prints each frame (each hand's place off the eye, the weapon's origin and axis).
+
+Tests: `vr_flatswap_test 3` (axe, Mjolnir, sword, crowbar, super axe, chainsaw; stance off then on; right to left and
+back; 48 checks): 12 failed before the fix (the axe, Mjolnir, the chainsaw: hands 4+ units further out of sight), 0
+after. `vr_flatswap_test 4`: AD's six (death fury, death knight, zombie knight, death guard swords, hammer, mace) with
+AD's data (`-game ad`). flatswap_test.sh's "holster" run: the axe given at the console, the stance off, one swap: 9
+frames with the axe off the screen before, 0 after. Strips (the stance off, frames 13 to 27 after the press): `scratch/axe_off_fix.png` (before the holster fix:
+the axe gone in 9 of them), `scratch/axe_after.png` (in sight in all).
