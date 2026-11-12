@@ -469,7 +469,9 @@ const NamedDefaultChange namedDefaultChanges[] = {
 // 223: vr_prone_crawl_plant_height's meaning changed (the controller's place over the feet, a pull on under twice it ->
 // the hand's lowest point, the knuckles or fingers, a pull on 1.5 over it): whatever was saved goes back to the default
 // (his 4 of 2026-11-08 too: "I can sort of swim in the air", his note vrtesthall_2026-11-08_16-54-47).
-constexpr int configVersion = 223;
+// 224: his Pose Studio poses, grips and IK stretch of 2026-11-12 are the shipped tables (nothing differed: the archived
+// strings were copies); an archived key or grip equal to its default is dropped (his strings then empty).
+constexpr int configVersion = 224;
 // 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;
@@ -910,6 +912,12 @@ void migrateConfig()
         Con_DPrintf("VR: vr_prone_crawl_plant_height: %s for %s (its meaning changed)\n",
             vr_prone_crawl_plant_height.default_string, vr_prone_crawl_plant_height.string);
         Cvar_SetQuick(&vr_prone_crawl_plant_height, vr_prone_crawl_plant_height.default_string);
+    }
+    if(from < 224)
+    {
+        const int poses = agpose::dropShippedEqual();
+        const int grips = aggrip::dropDefaultEqual();
+        Con_DPrintf("VR: armed grunts: %d pose keys and %d grips equal to the shipped ones dropped\n", poses, grips);
     }
     Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
 }

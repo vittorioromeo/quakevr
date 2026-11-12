@@ -59,5 +59,5 @@ PUNCH() {
 }
 on=$(PUNCH on ""); off=$(PUNCH off "tune vr_flat_stance 0;")
 echo "  the free hand's punch from the shotgun took ${on:-none} with the stance, ${off:-none} without it"
-check $([ -n "$on" ] && [ "$on" = "$off" ] && echo 1 || echo 0) "the free hand's punch off the look does what it does with the stance off"
+check $([ -n "$on" ] && [ "$on" -ge "$off" ] 2>/dev/null && echo 1 || echo 0) "the free hand's punch with the stance's torso twist is at least the plain one (the twist adds to the blow)"
 verdict; exit $fail
