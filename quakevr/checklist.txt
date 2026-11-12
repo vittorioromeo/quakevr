@@ -19,6 +19,8 @@ Flat-screen or VR: in vrteleporters' flush galleries, a dog in the gallery behin
 Flat-screen or VR: a dog at e1m1's one-way teleporter's destination never runs into a teleporter to reach you by its entry (there is no way back through): it takes the long way round. {test:nav_tele_oneway}
 Flat-screen or VR: on e1m1's big lift by the start, a knight below walks onto the lift, rides it up and comes for you at the top. {test:nav_lift}
 Flat-screen or VR: in the test hall, stand by the NEW GAME / VR HUB buttons at the back wall and let an unarmed or melee grunt chase you: it should come straight at you and fight, not pace back and forth at the edge of the start mat.
+Flat-screen or VR: open VR Settings > Gore and pick Gore Preset Minimal, then shoot and cut a grunt and gib one: you should see a little blood on the hit and the wound, but no stains on the walls and floor, no blood streams, drips or pools, no meat or brain chunks, no beheading or limbs flying off. Pick Full to get everything back, and change any one gore row by hand to see the preset read Custom.
+Flat-screen or VR: Gore Preset Off should show no blood at all from hits; the Hit Blood slider (Gore page) scales the blood of a hit between none and double, and Stain Darkness makes the stains that remain keep their red (0) or go darker (2).
 
 [1. Flat-screen: weapons and hands]
 Flat-screen: hold the axe (then a sword, the crowbar, Mjolnir, the super axe) with the left hand empty: it goes onto the handle by itself without swinging and the weapon sits in a two-handed stance; take a weapon or a prop in the left hand and it eases back to the one-handed hold, with no jumps either way. Tune it in Debug > Tunables > Flatscreen > Two-Handed Melee Stance. {test:flat_melee2h}
