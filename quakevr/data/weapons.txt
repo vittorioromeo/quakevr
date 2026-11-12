@@ -4769,7 +4769,7 @@ weapon 51
     hand_z "3.453"
     hide_hand "0.0"
     id "progs/v_dagger.mdl"
-    muzzle_av "13.3470 0.0082 32.8094"
+    muzzle_av "12.5665 0.0082 30.3419"
     muzzle_x "0"
     muzzle_y "0"
     muzzle_z "0"
