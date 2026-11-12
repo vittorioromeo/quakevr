@@ -132,7 +132,8 @@ struct Item
         Slider,
         Cycle,
         Action,
-        Info // a line of text (info()), centred, not selectable
+        Info, // a line of text (info()), centred, not selectable
+        Key   // a key's bind name kept in a string cvar (keyRow(), QVR_KEY): enter or a click waits for a key
     };
 
     Kind kind;
@@ -588,6 +589,7 @@ enum Id : int
 #define QVR_SLIDER_BYNAME(name, ...) name,
 #define QVR_CYCLE(name, ...) name,
 #define QVR_CYCLE_BYNAME(name, ...) name,
+#define QVR_KEY(name, ...) name,
 #include "vr_menu_rows.inc"
 #undef QVR_TOGGLE
 #undef QVR_TOGGLE_BYNAME
@@ -595,6 +597,7 @@ enum Id : int
 #undef QVR_SLIDER_BYNAME
 #undef QVR_CYCLE
 #undef QVR_CYCLE_BYNAME
+#undef QVR_KEY
     Count
 };
 } // namespace opt
@@ -716,6 +719,7 @@ za::Vector<Item> pageHudHub();
 za::Vector<Item> pageLightningWater();
 [[nodiscard]] za::Vector<Item> pageLocomotionSettings();
 [[nodiscard]] za::Vector<Item> pageVisorSettings();
+[[nodiscard]] za::Vector<Item> pageFlatKeys();
 za::Vector<Item> pageMain();
 [[nodiscard]] za::Vector<Item> pageMeleeSettings();
 [[nodiscard]] za::Vector<Item> pageMenuSettings();

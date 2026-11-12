@@ -11,6 +11,7 @@
 // says once what the flag implied). Start the game without the flag to play in a headset.
 
 #pragma once
+#include <span>
 
 #include "vr_tunables_api.hpp"
 #include "vr_engine.hpp"
@@ -288,5 +289,9 @@ void meleeProbe_f();
 // vr_flat_flick_test [frames] [degrees]: the view flicked hard, as the tests' mouse ("flatflick: done" at its end).
 void flickTest_f();
 void flickTestFrame();
+
+// The keys flat play reads itself (vr_flat_key_*): each cvar holds a key's bind name ("" none). VR_FlatKeyOwned and the Flat
+// Keys menu page (rebinding, conflicts) read this one list (vr_flatmove.cpp).
+[[nodiscard]] std::span<cvar_t* const> keyCvars();
 
 } // namespace qvr::flatplay

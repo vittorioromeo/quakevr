@@ -476,7 +476,7 @@ void buildSearchIndex()
             e.lowHelp = lowered(item.helpText);
             e.lowPath = lowered(e.path.cStr());
             e.lowCvar = item.cvar ? lowered(item.cvar->name) : za::String{};
-            e.cvar = item.kind != Item::Action ? item.cvar : nullptr;
+            e.cvar = item.kind != Item::Action && item.kind != Item::Key ? item.cvar : nullptr;
             search.index.pushBack(ZA_MOVE(e));
         }
     }
