@@ -140,6 +140,31 @@ void PF_embedproppull()
     G_FLOAT(OFS_RETURN) = applied;
 }
 
+// float(entity prop, entity player, float hand, vector handle, vector wound, vector shift, float force, float lift) embedprophold:
+// box3d::propBladeHold (`lift`: times the prop's weight); `force` under 0: that hand's hold is over.
+void PF_embedprophold()
+{
+    edict_t* prop = G_EDICT(OFS_PARM0);
+    edict_t* player = G_EDICT(OFS_PARM1);
+    const int hand = static_cast<int>(G_FLOAT(OFS_PARM2)) == 0 ? 0 : 1;
+    const float force = G_FLOAT(OFS_PARM6);
+    G_FLOAT(OFS_RETURN) = -1.f;
+    if(force < 0.f)
+    {
+        box3d::propBladeRelease(NUM_FOR_EDICT(player), hand);
+        return;
+    }
+    box3d::ClimbBody body;
+    const int num = NUM_FOR_EDICT(prop);
+    if(prop == qcvm->edicts || prop->free || !box3d::climbBody(num, body) || body.fixed)
+    {
+        return;
+    }
+    const float weight = za::max(body.mass, 1.f) * za::max(sv_gravity.value / units::metresToUnits(), 0.f); // N
+    G_FLOAT(OFS_RETURN) = box3d::propBladeHold(num, player, hand, geom::vec(G_VECTOR(OFS_PARM3)), geom::vec(G_VECTOR(OFS_PARM4)),
+        geom::vec(G_VECTOR(OFS_PARM5)), force, za::max(G_FLOAT(OFS_PARM7), 0.f) * weight);
+}
+
 void PF_weaponanygrip()
 {
     edict_t* player = G_EDICT(OFS_PARM0);

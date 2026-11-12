@@ -831,6 +831,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"weapondrawnpose", PF_weapondrawnpose},
     {"embedstick", PF_embedstick},
     {"embedproppull", PF_embedproppull},
+    {"embedprophold", PF_embedprophold},
     {"arenawavesload", arenawaves::pfLoad},
     {"arenawavesfield", arenawaves::pfField},
     {"arenawavesreport", arenawaves::pfReport},

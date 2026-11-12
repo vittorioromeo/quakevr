@@ -84,6 +84,7 @@ void(entity p) VR_Skewer_AllOff; // (vr_skewer.qc)
 .float  vr_hold_proppull; // its pull then, N (the test's)
 .float  vr_hold_byhandle; // in a ragdoll: its spring holds it by the handle (vr_embed_move_handle; the engine's ragdolltug 17)
 .float  vr_hold_slide0;   // ... and how far it had slid as that spring began
+.float  vr_hold_gap0;     // in a crate: how far along the blade the handle was ahead of the real hand as its hold began (kept: the slack's)
 
 // Whether a blow may leave a blade in `m`: a wooden crate or barrel lying loose (not in a hand), with vr_embed_props.
 float(entity m) VR_Embed_PropHost =
@@ -167,6 +168,7 @@ void(entity e, entity p, float xHand) VR_Embed_SetG0 =
         {
             e.vr_hold_propon = FALSE; // (the crate's pull takes its hold again: VR_Embed_PropSpring)
             e.vr_hold_axial = 0;
+            embedprophold(e.vr_stick_ent, p, xHand, '0 0 0', '0 0 0', '0 0 0', -1, 0);
         }
     }
 };
@@ -244,6 +246,7 @@ void(entity e, float xHand, string xWhy) VR_Embed_DropHand =
     if(p != world && e.vr_stick_ent != world)
     {
         ragdolltug(e.vr_stick_ent, p, xHand, 4); // (its spring, if this hand's: VR_Embed_Spring)
+        embedprophold(e.vr_stick_ent, p, xHand, '0 0 0', '0 0 0', '0 0 0', -1, 0); // (and a crate's hold: VR_Embed_PropSpring)
     }
     e.vr_hold_hands = e.vr_hold_hands - bit;
     if(e.vr_hold_handle == bit)
@@ -592,6 +595,36 @@ float(entity e, entity p, entity h, float xAxial, float xDt) VR_Embed_PropSpring
 {
     float hand = (e.vr_hold_handle ? e.vr_hold_handle : e.vr_hold_hands) == 2 ? cVR_MainHand : cVR_OffHand;
     vector at = VRGetEntHandPos(p, hand);
+    float byH = (e.vr_hold_hands == 3 ? max(1, cvar_hget(cvarh_vr_embed_move_twohand)) : 1) * max(0, cvar_hget(cvarh_vr_embed_hold_strength));
+    float forceH = max(0, cvar_hget(cvarh_vr_embed_prop_force)) * byH;
+    e.vr_hold_byhandle = FALSE;
+    if(cvar_hget(cvarh_vr_embed_move_handle))
+    {
+        // By its handle, as a ragdoll's (VR_Embed_Spring; his notes 2026-11-05, 2026-11-12): a joint from the hand to the crate at the
+        // handle, at the same most force. Across the blade the handle comes to the hand; along it the gap as the hold began stays, the
+        // slack's (VR_Embed_SetG0: a crate isn't pulled onto the hand after a stab), and the hand's way along it is the blade's slide.
+        if(!e.vr_hold_propon)
+        {
+            e.vr_hold_propon = TRUE;
+            e.vr_hold_axial = 0;
+            e.vr_hold_slide0 = e.vr_stick_slide;
+            e.vr_hold_gap0 = (e.origin - at) * e.vr_stick_dir;
+            e.vr_hold_off = '0 0 0';
+            e.vr_hold_offslack = 0;
+        }
+        e.vr_hold_axial = e.vr_hold_axial + xAxial;
+        vector shift = e.vr_stick_dir * (e.vr_hold_gap0 - (e.vr_hold_axial - (e.vr_stick_slide - e.vr_hold_slide0)));
+        e.vr_hold_proptgt = at + shift;
+        float pullH = embedprophold(h, p, hand, e.origin, e.vr_stick_at, shift, forceH, max(0, cvar_hget(cvarh_vr_embed_prop_lift)) * byH);
+        e.vr_hold_proppull = max(0, pullH);
+        e.vr_hold_strain = (pullH >= 0 && forceH > 0) ? pullH / forceH : 0;
+        e.vr_hold_byhandle = pullH >= 0;
+        if(cvar_hget(cvarh_vr_debug_axestick) >= 3)
+        {
+            dprint(sprintf("embedprop: %s holds %s by its handle, %.0f N of %.0f, the handle %.1f units off its place\n", e.netname, h.classname, pullH, forceH, vlen(e.vr_hold_proptgt - e.origin)));
+        }
+        return pullH >= 0;
+    }
     if(!e.vr_hold_propon)
     {
         e.vr_hold_propon = TRUE;
@@ -934,9 +967,9 @@ float() VR_Embed_HoldThink =
     e.vr_hold_carrying = carry;
     float axialNow = (carry && armAlong < 0) ? 0 : (((armAlong < 0 || e.vr_stick_slide < deepest - 0.01) ? armAlong : 0) + carriedNow);
     float sprung = inProp ? VR_Embed_PropSpring(e, p, h, axialNow, dt) : VR_Embed_Spring(e, p, h, inShare, axialNow);
-    if(sprung && !inProp && e.vr_hold_byhandle && e.vr_hold_handle)
+    if(sprung && e.vr_hold_byhandle && e.vr_hold_handle)
     {
-        // (Held by its handle the body itself turns with the wrist: no leeway on top, which would turn the handle out of the hand.)
+        // (Held by its handle the body, or the crate, itself turns with the wrist: no leeway on top, which would turn the handle out of the hand.)
         e.vr_hold_rot0 = VRGetEntHandRot(p, e.vr_hold_handle == 2 ? cVR_MainHand : cVR_OffHand);
     }
     // Off the axis: a ragdoll comes along; only a yank tears it out of one. What stands can't: the hand's gone too far.

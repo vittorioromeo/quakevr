@@ -825,6 +825,7 @@ float cvarh_vr_embed_probe_eased;
 float cvarh_vr_embed_probe_ghost;
 float cvarh_vr_embed_probe_gib;
 float cvarh_vr_embed_probe_gibctl;
+float cvarh_vr_embed_probe_gibsnap;
 float cvarh_vr_embed_probe_grip;
 float cvarh_vr_embed_probe_hoff;
 float cvarh_vr_embed_probe_hturn;
@@ -2862,6 +2863,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_embed_probe_ghost = VR_CVar_Make("vr_embed_probe_ghost");
     cvarh_vr_embed_probe_gib = VR_CVar_Make("vr_embed_probe_gib");
     cvarh_vr_embed_probe_gibctl = VR_CVar_Make("vr_embed_probe_gibctl");
+    cvarh_vr_embed_probe_gibsnap = VR_CVar_Make("vr_embed_probe_gibsnap");
     cvarh_vr_embed_probe_grip = VR_CVar_Make("vr_embed_probe_grip");
     cvarh_vr_embed_probe_hoff = VR_CVar_Make("vr_embed_probe_hoff");
     cvarh_vr_embed_probe_hturn = VR_CVar_Make("vr_embed_probe_hturn");

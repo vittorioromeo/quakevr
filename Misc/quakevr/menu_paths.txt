@@ -5749,6 +5749,7 @@ vr_test_throw_up_body|2|Debug - Tests|Throw Up From Your Body|Advanced VR Option
 |2|Debug - Tests|Moving the Body Check|Advanced VR Options > Debug > Tests > Moving the Body Check
 |2|Debug - Tests|Blade Hold Strength Check|Advanced VR Options > Debug > Tests > Blade Hold Strength Check
 |2|Debug - Tests|Skewered Gibs Through Stick Turns Check|Advanced VR Options > Debug > Tests > Skewered Gibs Through Stick Turns Check
+|2|Debug - Tests|Blades in Crates by the Handle, Gibs by the Other Hand Check|Advanced VR Options > Debug > Tests > Blades in Crates by the Handle, Gibs by the Other Hand Check
 |2|Debug - Tests|Blades in Crates and Barrels Check|Advanced VR Options > Debug > Tests > Blades in Crates and Barrels Check
 |2|Debug - Tests|Embedded Blades: Skewering Check|Advanced VR Options > Debug > Tests > Embedded Blades: Skewering Check
 |2|Debug - Tests|Embedded Blades: the Hand on the Handle Check|Advanced VR Options > Debug > Tests > Embedded Blades: the Hand on the Handle Check

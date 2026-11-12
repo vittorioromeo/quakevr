@@ -815,6 +815,24 @@ struct World
         glm::vec3 target{0.f};
     };
     za::Vector<RagdollGrab> ragdollGrabs;
+    // A hand's blade held in a crate or a barrel by its handle (QC embedprophold; vr_box3d_ragparts.cpp, "A blade held in a
+    // prop"): a ragdoll's handle hold (RagdollGrab::bladeHandle) on a prop's body.
+    struct PropBlade
+    {
+        int player{0};
+        int hand{0};
+        int num{0}; // the prop
+        b3BodyId anchor{b3_nullBodyId}; // kinematic, where the hand has the handle
+        b3JointId joint{b3_nullJointId}; // its motor joint to the prop, at the handle's point on it
+        float force{0.f};     // N at most, level and down
+        float lift{0.f};      // N at most, up
+        float lever{0.f};     // m: the handle from the wound (its most torque: its force at it)
+        glm::vec3 shift{0.f}; // from the hand to where it holds the handle (the QC's: the hand's way along the blade not slid yet)
+        glm::vec3 gap{0.f};   // the handle from there as it took hold: eased away (vr_embed_move_match)
+        double gapAt{0.0};
+        double called{0.0};   // the QC's last call (a hold it no longer makes ends)
+    };
+    za::Vector<PropBlade> propBlades;
     // Ragdolls made in each other (two grunts dying on one spot, vr_ragdoll_collide_each): they pass through each other
     // until no part of one is in the other (pruneRagdollsInside), as a small gib made in a body does.
     struct RagdollPair
@@ -1330,6 +1348,7 @@ void createRagdollPack(RagdollBodies& r, edict_t* ent, int num, const Slot& s);
 // staggering), -1 none (vr_box3d_ragdoll.cpp).
 [[nodiscard]] int looseHolder(const ragdoll::Rig& rig, int loose);
 void syncRagdollGrabs(float dt);
+void syncPropBlades(float dt);
 [[nodiscard]] float grabReach(int player, int hand);
 inline unsigned shapeGeneration = 1;
 

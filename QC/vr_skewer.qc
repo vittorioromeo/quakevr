@@ -426,10 +426,13 @@ float(entity g) VR_Skewer_Grip =
             g.vr_skewer_grip = h + 1;
             g.vr_skewer_gripat = VR_Skewer_Back(g, len) - along;
             g.vr_skewer_gripoff = vlen(d + vr_skewer_way * along);
-            // (On its surface, not inside it: the engine draws the hand so, vr_view_hands.cpp skewerDrawnHand.)
-            vector gd = VRGetEntHandPos(p, h) - g.vr_skewer_c;
-            float gr = VR_Skewer_Radius(g) + VR_SKEWER_PALM;
-            g.vr_skewer_gripd = vlen(gd) < gr ? (vlen(gd) > 0.01 ? normalize(gd) : '0 0 1') * gr : gd;
+            // On its drawn surface, as a hand takes a prop lying about (VR_Carry_FitToHand: the engine's carryfit, the fist against the
+            // model as drawn), the hand going to the gib here, the gib staying on its blade; the engine draws the hand there
+            // (vr_view_hands.cpp skewerDrawnHand). It was put on a ball of the gib's box's size round its middle, 9 cm and more off
+            // the gib itself: "the grabbing position can be far away from the actual visual model", his note 2026-11-12 19:52.
+            makevectors(VRGetEntHandRot(p, h));
+            vector palmWay = h == cVR_MainHand ? v_right * -1 : v_right;
+            g.vr_skewer_gripd = VRGetEntHandPos(p, h) - carryfit(g, VRGetEntHandPos(p, h), palmWay) - g.vr_skewer_c;
             if(g.vr_skewer_cut)
             {
                 VR_Skewer_Basis(g);
