@@ -2,8 +2,8 @@
 // and go over it (vr_knockdown.qc VR_Knockdown_LedgeBackpedal; ROUND24.md, "Shoves off ledges"). A real shove
 // (VR_Bash_Hit) of a grunt on the long ledge (its lip at x 96, its top at z 48, a 240-unit drop into the trench), its back
 // to the lip, at the cells below: one hand, two hands, two hands running into it, each from two distances in the
-// backpedal zone (48, 72: within vr_knockdown_ledge_backpedal_reach 80); then each from 24 (within
-// vr_knockdown_ledge_topple 32: toppled over at once, the old launch) and from 128 (too far: an ordinary shove, the ledge
+// backpedal zone (48, 72: within vr_knockdown_ledge_backpedal_reach 80, which the test sets); then each from 24 (within
+// vr_knockdown_ledge_topple 32, likewise: toppled over at once, the old launch) and from 128 (too far: an ordinary shove, the ledge
 // plays no part); then, from the same spot, shoved the other way (it stays up). `sv_random_seed` picks the seed:
 //   sv_random_seed 1;map vrclimb;wait30;god;vr_agrunt_test 210     -QuitOn "test 210 over"
 // A trial's numbers:
@@ -29,7 +29,7 @@ float LST_SAG = 0.5;     // of how high its pelvis stood: under this, it is down
 
 float lst_cell, lst_rep, lst_step, lst_t0, lst_z0, lst_shin0, lst_air, lst_grounded, lst_flying, lst_lipv, lst_still;
 vector lst_last;
-float lst_keep_chance, lst_pelvis0;
+float lst_keep_chance, lst_keep_topple, lst_keep_reach, lst_pelvis0;
 float lst_over_n, lst_over_ok;     // all the trials that should go over; how many did
 float lst_away_ok;                 // shoved away from the edge: stayed up
 float lst_zone_n, lst_zone_ok;     // trials whose zone was its distance's
@@ -110,6 +110,7 @@ void() VR_LST_Frame =
             p.flags = p.flags - (p.flags & FL_NOTARGET);
             vr_test_shove_run = 0;
             cvar_set("vr_knockdown_chance", ftos(lst_keep_chance));
+            localcmd(sprintf("tune vr_knockdown_ledge_topple %g\ntune vr_knockdown_ledge_backpedal_reach %g\n", lst_keep_topple, lst_keep_reach));
             cvar_set("vr_agrunt_test", "0");
             return;
         }
@@ -117,6 +118,12 @@ void() VR_LST_Frame =
         {
             lst_keep_chance = cvar_hget(cvarh_vr_knockdown_chance);
             cvar_set("vr_knockdown_chance", "100");
+            // The zones the cells were laid out for (the shipped defaults moved to 56 and 92 on 2026-11-08, putting
+            // the 48 cells in the topple zone): the probe reads the edge about 8 units past the lip, so 24 topples,
+            // 48 and 72 backpedal, 128 is too far.
+            lst_keep_topple = cvar_hget(cvarh_vr_knockdown_ledge_topple);
+            lst_keep_reach = cvar_hget(cvarh_vr_knockdown_ledge_backpedal_reach);
+            localcmd("tune vr_knockdown_ledge_topple 32\ntune vr_knockdown_ledge_backpedal_reach 80\n"); // (tunables; the first shove is 0.4 s on)
         }
         p.flags = p.flags | FL_NOTARGET;
         VR_AGPT_EmptyHand(p);
