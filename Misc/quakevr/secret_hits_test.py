@@ -19,9 +19,11 @@ steps = ["vr_enabled 1", "vr_fixed_frames 1", "developer 1", "vr_weapon_grip_mod
          "vr_handcal_roll 0", "vr_handcal_off_mirror 0", "vr_handcal_off_x 0", "vr_handcal_off_y 0",
          "vr_handcal_off_z 0", "vr_handcal_off_roll 0"]
 cases = []
+# (target: the door's brush model, *15 the quad's, *14 the secret door; their entity numbers move as entities are added
+# before them, e.g. the worn backpack.)
 for fixture, pos, yaw, direction, target in [
-    ("quad", (490, 2016, -88), 180, (-1, 0, 0), 40),
-    ("door", (544, 2290, -88), 270, (0, -1, 0), 39),
+    ("quad", (490, 2016, -88), 180, (-1, 0, 0), "*15"),
+    ("door", (544, 2290, -88), 270, (0, -1, 0), "*14"),
     ("enemy", (480, -352, 84), 90, (0, 1, 0), None),
 ]:
     for attack in ("shot", "punch"):
@@ -74,8 +76,9 @@ for case, target in cases:
     blood = float(after[0]["vr_blood_sent"]) - float(before[0]["vr_blood_sent"])
     case_log = log.split(f"SECRET_CASE_{case}", 1)[1].split("SECRET_CASE_", 1)[0]
     if target is not None:
-        # Both fixtures retain their brush identity; use bounds because a closed door's origin is zero.
-        moved = after[target + 1]["absmin"] != before[target + 1]["absmin"]
+        # Both fixtures found by their brush model; use bounds because a closed door's origin is zero.
+        door = lambda ents: next(e for e in ents if e.get("classname") == "door" and e.get("model") == target)
+        moved = door(after)["absmin"] != door(before)["absmin"]
         sparks = len(re.findall(r"hit: .* is metal: sparks", case_log))
         assert blood == 0, f"{case} bled {blood} times"
         for counter in ("vr_gore_sent", "vr_wound_sent"):

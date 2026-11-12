@@ -815,7 +815,7 @@ void quad(za::Vector<gfx::Vertex>& out, const glm::vec3& at, const glm::vec3& ri
 bool indicatorLines(char (&line1)[64], char (&line2)[96], bool flat)
 {
     line1[0] = line2[0] = '\0';
-    if(!vr_takes.value || !vr_takes_light.value)
+    if(!vr_takes.value || !vr_takes_light.value || (flat && !vr_takes_light_flat.value))
     {
         return false;
     }
@@ -1300,6 +1300,15 @@ void testStep()
             {
                 test.step--;
                 break;
+            }
+            {
+                bool lit = false;
+                const float saved = vr_takes_light_flat.value;
+                Cvar_SetValueQuick(&vr_takes_light_flat, 0.f);
+                check(flatIndicator(lit) == nullptr && !lit, "flat: no corner indicator by default (vr_takes_light_flat 0)");
+                Cvar_SetValueQuick(&vr_takes_light_flat, 1.f);
+                check(flatIndicator(lit) != nullptr && lit, "flat: the corner indicator shows with vr_takes_light_flat 1");
+                Cvar_SetValueQuick(&vr_takes_light_flat, saved);
             }
             test.wait = 35; // (the in mark 36 frames on: 0.5 s)
             break;

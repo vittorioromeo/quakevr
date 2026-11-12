@@ -352,6 +352,7 @@ QVR_CVAR(vr_takes, "1", CVAR_ARCHIVE)                  // 1: each OBS recording 
 QVR_CVAR(vr_take_scene, "", CVAR_NONE)                 // the scene's name in the takes' names ("": the map's)
 QVR_CVAR(vr_takes_replay, "1", CVAR_ARCHIVE)           // 1: OBS's replay buffer kept on while connected (vr_clip saves its last seconds); 0: left as OBS has it
 QVR_CVAR(vr_takes_light, "1", CVAR_ARCHIVE)            // 1: a recording light while a take runs and the rating prompt after (headset: only in it, not the mirror; flat: a corner); 0: none
+QVR_CVAR(vr_takes_light_flat, "0", CVAR_ARCHIVE)       // flat screen: 1: the light and prompt as a top-right corner line (OBS records it); 0: none (needs vr_takes_light 1; the headset light is unaffected)
 QVR_CVAR(vr_takes_light_size, "1", CVAR_ARCHIVE)       // the light's and the prompt's size (times the default)
 QVR_CVAR(vr_takes_light_right, "-0.33", CVAR_ARCHIVE)  // headset: where the light is, right of the view's middle (share of the distance)
 QVR_CVAR(vr_takes_light_up, "0.27", CVAR_ARCHIVE)      // headset: and up

@@ -346,6 +346,10 @@ void(entity m, float xPhase) VR_Stealth_Phase =
         // (walking: the time it allows itself, by the way's length: a grunt walks about 18 units a second)
         m.stl_look_time = time + 10 + vlen((xPhase == STL_WALK ? m.stl_point : m.stl_post) - m.origin) / 10;
     }
+    if(cvar_hget(cvarh_vr_stealth_debug))
+    {
+        VR_Stealth_Log(m, sprintf("phase %g (stuck %g, walks %g)", xPhase, m.stl_stuck, VR_Stealth_Walks(m)));
+    }
 };
 
 // Back to Quake's AI (the umbrella switched off, or the rules no longer apply to it): the meter cleared, an Alert
@@ -1061,9 +1065,16 @@ float(float dist) VR_Stealth_WalkNow =
     }
     if(time >= self.stl_walk_check)
     {
-        self.stl_stuck = vlen(self.origin - self.stl_walk_from) < 16 ? self.stl_stuck + 1 : 0;
+        // (Under half a walk's way a second: a grunt walks about 16-18 units a second in the open and less steering round
+        // a prop, so the old 16 counted a walk round a crate as stuck and gave up beside it.)
+        self.stl_stuck = vlen(self.origin - self.stl_walk_from) < 8 ? self.stl_stuck + 1 : 0;
         self.stl_walk_from = self.origin;
         self.stl_walk_check = time + 1;
+        if(self.stl_stuck && cvar_hget(cvarh_vr_stealth_debug))
+        {
+            VR_Stealth_Log(self, sprintf("stuck %g walking to %v (goal %s, yaw %.0f, ideal %.0f)", self.stl_stuck, goal,
+                self.goalentity.classname, self.angles_y, self.ideal_yaw));
+        }
         // Each second, headed for it again (movetogoal keeps stepping the way it goes while it can: round an
         // obstacle it chose another).
         if(!self.stl_stuck)
@@ -1085,6 +1096,11 @@ float(float dist) VR_Stealth_WalkNow =
     if((via <= 0 && vlen(to) < (self.stl_phase == STL_WALK ? 64 : 24)) || self.stl_stuck >= 3 || time > self.stl_look_time ||
        molten)
     {
+        if(cvar_hget(cvarh_vr_stealth_debug))
+        {
+            VR_Stealth_Log(self, sprintf("walk over: %.0f to go (via %g), stuck %g, timed out %g, molten %g", vlen(to), via,
+                self.stl_stuck, time > self.stl_look_time, molten));
+        }
         if(self.stl_phase == STL_WALK)
         {
             VR_Stealth_Phase(self, STL_SEARCH);
