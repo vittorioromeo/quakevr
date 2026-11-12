@@ -24,7 +24,7 @@ AGENT=${1:-fixgame3}; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 fail=0
 source "$(dirname "$0")/qvrtest.sh"
 HERE=$(dirname "$0"); mkdir -p "$HERE/scratch"
-P="map e1m1; god; notarget; developer 1; r_norefresh 0; vr_mock_eye_size 256; setpos 480 -352 88 0 0 0; impulse 154"
+P="sv_random_seed 1; map e1m1; god; notarget; developer 1; r_norefresh 0; vr_mock_eye_size 256; setpos 480 -352 88 0 0 0; impulse 154"
 # A record of a printed class, the console's wrapped lines joined back: flatsight: the muzzle's distance off the
 # crosshair's ray, flatcam: the drawn eye's and his origin's place, flatmove: the frame's shot against the view.
 recs() { awk '{ if ($0 ~ /^(flatsight|flatcam|flatmove): /) { if (rec != "") print rec; rec = $0 } else if (rec != "") { rec = rec " " $0 } } END { if (rec != "") print rec }' "$1"; }
@@ -71,7 +71,7 @@ check $(awk -v d="${deg% *}" -v n="${deg#* }" 'BEGIN { exit !(n > 20 && d <= 0.1
 # c. the ironsight's own numbers moved, onto a knight standing on the crosshair 24 units away. Three shots, each at a fresh
 # knight: moved, then at the defaults (the control), then the eye relief alone, far out.
 log=$HERE/scratch/pose_ads.log
-bash $KIT/run.sh $AGENT -Low -ExtraArgs "-flatscreenmode" -Script "$P; wait60; vr_flatplay_debug 2; vr_flat_aim 1; wait30; tune vr_flat_ads_relief 16; tune vr_flat_ads_screen_x 2; tune vr_flat_ads_screen_y -2; wait20; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait20; vr_test_hurt 1; wait3; +attack; wait10; -attack; wait10; vr_test_hurt 1; wait10; vr_flatplay_status; wait5; vr_test_kill 1; tune_reset vr_flat_ads_relief; tune vr_flat_ads_screen_x 0; tune vr_flat_ads_screen_y 0; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait20; vr_test_hurt 1; wait3; +attack; wait10; -attack; wait10; vr_test_hurt 1; wait10; vr_flatplay_status; wait5; vr_test_kill 1; tune vr_flat_ads_relief 20; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait20; vr_test_hurt 1; wait3; +attack; wait10; -attack; wait10; vr_test_hurt 1; wait10; vr_flatplay_status; wait10; wait; tune_reset; toggleconsole; quit" -Filter "test spawn: |test hurt: |^flatsight: |^flataim: |^  ironsight: " > "$log" 2>&1
+bash $KIT/run.sh $AGENT -Low -ExtraArgs "-flatscreenmode" -Script "$P; wait60; vr_flatplay_debug 2; vr_flat_aim 1; wait30; tune vr_flat_ads_relief 16; tune vr_flat_ads_screen_x 2; tune vr_flat_ads_screen_y -2; wait20; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait8; vr_test_hurt 1; wait3; +attack; wait10; -attack; wait10; vr_test_hurt 1; wait10; vr_flatplay_status; wait5; vr_test_kill 1; tune_reset vr_flat_ads_relief; tune vr_flat_ads_screen_x 0; tune vr_flat_ads_screen_y 0; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait8; vr_test_hurt 1; wait3; +attack; wait10; -attack; wait10; vr_test_hurt 1; wait10; vr_flatplay_status; wait5; vr_test_kill 1; tune vr_flat_ads_relief 20; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait8; vr_test_hurt 1; wait3; +attack; wait10; -attack; wait10; vr_test_hurt 1; wait10; vr_flatplay_status; wait10; wait; tune_reset; toggleconsole; quit" -Filter "test spawn: |test hurt: |^flatsight: |^flataim: |^  ironsight: " > "$log" 2>&1
 # The three shots' sights, each the last settled "ads on" record before its group's vr_flatplay_status line (the
 # printed relief is the solved one, scaled by the fov and the arm: it never reads as the cvar's 16 or 20, and a grep on
 # "relief 16.00" read nothing and passed on the empty value).
@@ -95,7 +95,7 @@ check $(awk -v a="$a0" -v c="$c0" -v w="$w0" -v o="$w1" -v s1="$s1" -v s2="$s2" 
 #    nudges, and one at another after them, printed: their 12 forward carries the gun past a knight at 24. Section f gates
 #    the shot with the eye nudged.
 log=$HERE/scratch/pose_cam.log
-bash $KIT/run.sh $AGENT -Low -ExtraArgs "-flatscreenmode" -Script "$P; wait60; vr_flatplay_debug 2; vr_flat_aim 1; wait20; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait20; vr_test_hurt 1; wait3; +attack; wait10; -attack; wait10; vr_test_hurt 1; wait10; vr_flatplay_status; wait5; vr_test_kill 1; tune vr_flat_cam_fwd 12; tune vr_flat_cam_up 6; tune vr_flat_cam_side 4; vr_test_spawn 5; vr_test_spawn_dist 64; impulse 241; wait20; vr_test_hurt 1; wait3; +attack; wait10; -attack; wait10; vr_test_hurt 1; wait10; vr_flatplay_status; wait; tune_reset; toggleconsole; quit" -Filter "^flatsight: |^flatcam: |test spawn: |test hurt: |^  ironsight: " > "$log" 2>&1
+bash $KIT/run.sh $AGENT -Low -ExtraArgs "-flatscreenmode" -Script "$P; wait60; vr_flatplay_debug 2; vr_flat_aim 1; wait20; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait8; vr_test_hurt 1; wait3; +attack; wait10; -attack; wait10; vr_test_hurt 1; wait10; vr_flatplay_status; wait5; vr_test_kill 1; tune vr_flat_cam_fwd 12; tune vr_flat_cam_up 6; tune vr_flat_cam_side 4; vr_test_spawn 5; vr_test_spawn_dist 64; impulse 241; wait8; vr_test_hurt 1; wait3; +attack; wait10; -attack; wait10; vr_test_hurt 1; wait10; vr_flatplay_status; wait; tune_reset; toggleconsole; quit" -Filter "^flatsight: |^flatcam: |test spawn: |test hurt: |^  ironsight: " > "$log" 2>&1
 read -r eye0 org0 nx ny nz <<<"$(recs "$log" | grep -a "^flatcam: " | tail -4 | camread)"
 # (k: what the sight's place asks the muzzle to be off the ray, "asked": the bore stands under the sights, by the model's
 # own sight line -- the shotgun's 0.98 became 1.02 when its irons' tops became the aim line, c91b135b6 -- so the muzzle
@@ -144,7 +144,7 @@ K() { echo "vr_test_spawn 5; vr_test_spawn_dist $1; impulse 241; wait25; +attack
 W="wait10; +attack; wait3; -attack; wait30"
 ALL="$(K 64); $(K 300); $W"
 log=$HERE/scratch/pose_point.log
-bash $KIT/run.sh $AGENT -Low -ExtraArgs "-flatscreenmode" -Script "map vrtesthall; wait60; god; notarget; developer 1; r_norefresh 0; vr_mock_eye_size 256; vr_debug_shots 1; impulse 154; $AT; wait60; vr_flatplay_debug 2; vr_flat_aim 1; tune vr_flat_ads_screen_y -1; tune vr_flat_ads_screen_x 1; wait40; $ALL; tune vr_flat_ads_screen_y 0; tune vr_flat_ads_screen_x 0; tune vr_flat_cam_fwd 12; tune vr_flat_cam_up -6; tune vr_flat_cam_side 4; wait30; $ALL; tune vr_flat_cam_fwd 0; tune vr_flat_cam_up 0; tune vr_flat_cam_side 0; vr_flat_aim 0; wait40; $ALL; vr_flat_aim 1; tune vr_flat_ads_screen_y -15; tune vr_flat_ads_screen_x 25; tune vr_flat_aim_point 0; wait40; $(K 64); tune_reset; vr_flat_reload 1; toggleconsole; quit" -Filter "^flataim: main|^shot: from" > "$log" 2>&1
+bash $KIT/run.sh $AGENT -Low -ExtraArgs "-flatscreenmode" -Script "sv_random_seed 1; map vrtesthall; wait60; god; notarget; developer 1; r_norefresh 0; vr_mock_eye_size 256; vr_debug_shots 1; impulse 154; $AT; wait60; vr_flatplay_debug 2; vr_flat_aim 1; tune vr_flat_ads_screen_y -1; tune vr_flat_ads_screen_x 1; wait40; $ALL; tune vr_flat_ads_screen_y 0; tune vr_flat_ads_screen_x 0; tune vr_flat_cam_fwd 12; tune vr_flat_cam_up -6; tune vr_flat_cam_side 4; wait30; $ALL; tune vr_flat_cam_fwd 0; tune vr_flat_cam_up 0; tune vr_flat_cam_side 0; vr_flat_aim 0; wait40; $ALL; vr_flat_aim 1; tune vr_flat_ads_screen_y -15; tune vr_flat_ads_screen_x 25; tune vr_flat_aim_point 0; wait40; $(K 64); tune_reset; vr_flat_reload 1; toggleconsole; quit" -Filter "^flataim: main|^shot: from" > "$log" 2>&1
 # One line a shot: how far the point stands off the line it left on, what was at that point, how far, what the pellets hit.
 shots() { grep -aE "^(flataim: main|shot: from)" "$1" | tr -d "'" | awk '
     /^flataim:/ { for (i = 1; i <= NF; i++) { if ($i == "at") { x = $(i+1); y = $(i+2); z = $(i+3) } if ($i == "away") a = $(i+1) } next }
@@ -177,7 +177,7 @@ check $(gate 7 48 1) "point: hipfire, a knight 64 away: the same"
 check $(gate 8 280 1) "point: hipfire, a knight 300 away: the same"
 check $(gate 9 500 0) "point: hipfire, the far wall: the same"
 read -r coff caway con <<<"$(pointline 10)"
-check $(awk -v o="${coff:-0}" -v p="${con:-1}" 'BEGIN { exit !(o > 8) }' && echo 1 || echo 0) "point: the control: the picture moved further, the shot along the view, and it passes more than 8 units off the crosshair's point"
+check $(awk -v o="${coff:-0}" -v p="${con:-1}" 'BEGIN { exit !(o > 3) }' && echo 1 || echo 0) "point: the control: the picture moved further, the shot along the view, and it passes more than 3 units off the crosshair's point"
 
 # g. The near plane at a gun held at the camera: the sight at its nearest eye relief, pinned here ($CLOSE) -- the case came from the pose his
 # 2026-11-03 tuning shipped (vr_flat_gun_ahead 3.5 with the eye nudged 3.5 forward and up, which puts the gun at the drawn

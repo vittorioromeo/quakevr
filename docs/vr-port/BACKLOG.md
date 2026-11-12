@@ -9,10 +9,9 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
 - **`vr_flatswap_test 4`** (AD's six blades through the hand swap, needs `-game ad`): never run; it checks nothing in vrtesthall, so it needs a spot on an AD map, then to pass with AD
   mounted (ROUND24.md, "The hand swap: melee weapons stay in sight").
 - **visor_test "AD's two custom keys"**: needs AD in the test's base, or the check skipped without it.
-- **Random run to run** (re-run 3 times each on 2026-11-12, ROUND25.md "Test triage B"): flatpose (21/1, 22/0, 20/2: the
-  pose and point checks' crosshair meets something else: TEST), `vr_systems_test 15` (1 of 3 fails: the blast's body
-  never knocks the torch off; the body's flight varies: UNKNOWN), flatswing's knight trial (1 of 3: 8 of 11 landed, the
-  knight not where it spawned: TEST), ragdoll_ragtest (1 of 3: "catch: NOT begun in 3.0 s"), reload (1 of 3: "a hit: the
+- **Random run to run** (re-run 3 times each on 2026-11-12, ROUND25.md "Test triage B"; flatpose and flatswing seeded
+  and read earlier, ROUND25.md "testfix": flatpose's last version unrun): `vr_systems_test 15` (1 of 3 fails: the
+  blast's body never knocks the torch off; the body's flight varies: UNKNOWN), ragdoll_ragtest (1 of 3: "catch: NOT begun in 3.0 s"), reload (1 of 3: "a hit: the
   old one knocked out, the new one not seated by the same touch").
 - **ragdoll_stagger: the third grunt shoved in a game falls** (ROUND25.md "Always-failing monster tests"): steady
   (balance 1.00) grunts after the first two fall at 0.36-0.39 s, 2 steps, pelvis 53 %; armed or plain, not time-bound.
@@ -29,8 +28,8 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
   `test_flaky.txt` still names some: take them off after more runs unseeded).
 - **Embedded blades** (`vr_embed` on since 2026-11-08): recheck `vr_embed_test` 7, 13 and 21 (failing 2026-11-06);
   real heavy monsters, saves, level change and multiplayer unproven (tests 14-20 written).
-- **`vrtutorial_playtest.py` room 8**: the mock's hand throws the shells instead of loading them; the `weapons` gate and
-  every later one fail (3 of 3 from `--from weapons`, the player stays at 4772 290: TEST, the mock's hand).
+- **`vrtutorial_playtest.py` room 8**: the shells' throw is fixed (ROUND25.md "testfix"); still open: the mock's main
+  hand never grips the bench's shotgun (stops ~25 units short), so nothing loads; the `weapons` gate and later fail.
 - **Tooling:** Tracy GPU zones lost after toggling GPU detail mid-run; some hidden-mock eye/window captures come back
   black; 15 test commands still registered in `vr_main.cpp`; `vr_physsound.cpp` keeps its own copy of the box test
   `R_SurfaceHoldsPoint` replaced for the light.
