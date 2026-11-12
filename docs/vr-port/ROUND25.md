@@ -606,3 +606,6 @@ His words: a running sword throw that lands point first fully gibs a grunt; keep
 ## allowmoved
 
 - The Blender panel gets **Allow Moved Anchors** (`qvr_allow_moved`) and **Allow Moved Sights** (`qvr_allow_sights`) next to Grow the Box, kept in the .blend and read by `source.export` (so Ctrl+S, Export on Save and `blend_export.py` share one path); the refusal texts now say to tick them. Checked with `blender -b v_nail.blend` and the property on/off: the "surface under it moved" refusals disappear when ticked.
+## blendwhy
+
+- Blender add-on: the timer-driven `popup_menu` (never showed) is gone; the panel lists the refusal (or grown-box) lines under "Last:" and a "Why?" button opens a dialog with all of them, the log path and a Copy tick. `py_compile` ok; no background Blender test covers the panel.
