@@ -546,3 +546,33 @@ His words: a running sword throw that lands point first fully gibs a grunt; keep
   `VR_AG_SecondOk` 0, `VR_AG_WantsSecond` 1, `VR_AG_Reachable` 1, not shunned; it hunted 150 units off first); next look:
   which of SecondOk's conditions (the weapon-to-you sight line, the combat time) says no. agrunt 16 (disarm hulls vs the
   WIP nail pistol) and `vr_embed_test 40` case 1 not looked at.
+
+## agfails2: the three leftovers of agfails (branch agent/agfails2)
+
+- **agrunt 211 case 3: the test (and a question for him).** With a target in sight `VR_AG_SecondOk` takes the trip as
+  the walk at 150 u/s plus the reach down (`VR_AG_SECOND_TAKE` 1.3 s), against `vr_agrunt_second_combat_time`, his
+  1 s (2026-11-08): the reach alone is over it, so a grunt that sees you never goes for a second, however near (the
+  sight line from the weapon to you was clear; 42 units off, range 64). The case passed only in runs where the grunt
+  happened not to see you at its look (then the idle 3.5 s applies); regfix merely moved the seeded run. The test now
+  tunes the combat time to 2 s (`VR_AGSN_COMBAT_TIME`, `tune`, put back after): 5/0 twice, the trip 1.90 s; 212 6/0
+  (210 needs a ledge map, 213 AD: not run in vrtesthall). Open: whether his 1 s means "never in a fight" or the walk
+  alone (then the reach shouldn't count, or the default wants 1.7+).
+- **agrunt 16: the check measured vertices nothing draws.** `v_nailpistol.mdl` carries 53 of its 1270 vertices and
+  `v_shot.mdl` 98 of 3972 that no triangle uses; the hull (drawn triangles' corners) rightly leaves them out, the check
+  (`renderedVertices`, disarmhull 10) counted every pose vertex. It now takes the triangles' corners: 0.000 out for both
+  (were 0.104 / 0.063), boxes 0.998 / 1.000. 273/1 twice; the one left is the hunt check (the drawn grip 2.7-2.8 units
+  off the drawn hand hull, limit 2.5 since 2026-11-01; not looked at: BACKLOG).
+- **`vr_embed_test 40` case 1: the test's aim.** `VR_EH_Blow` lays the blade's line along the blow by nudging the mock
+  hand's aim (`aim += want - line`, 12 at most). The dagger is held square to the aim with the hand barely rolled, so
+  its line needs the aim near straight down, and the nudges crept there: after 12 the line was still 29 degrees off
+  (dot 0.87; the sword's, rolled 86 degrees, lies right in 2). Its stab went in at that slant at 7.2 m/s: stuck 1.0 deep,
+  or 5.6 cm off the model and not stuck (1 in 8 runs here). Not a timing race: the same in every run, only the grunt's
+  pose decided the glancing blow. Now, still off after the 12 nudges, up to 6 turns of the aim by the rotation that
+  lays the line (`VR_EH_TURNS`); the nudges stay first, so cases they lay right keep their hand's roll (turning from
+  the start changed it and failed embedprops cases 1-2). Dagger stab: along 1.00 (was 0.88), stuck in 10 of 10 runs;
+  test 40 12/0 in 6 of 6 (its case 0 swing now reads as a stab, still hurts, still in the hand). Limited to the dagger's
+  stab alone, case 4's throw missed its grunt 6 of 6: the later cases lean on the hand as the earlier ones leave it.
+  Others (one run each, baseline old aim in brackets): embedprops 30 12/0 (12/0), embedgrip 33 15/0 (13/2, case 46),
+  throwgib 41 19/0, embedheld 7 75/7 (76/6: the same six, plus case 18 "a body lying down takes it too" once; it
+  passed in the stab-only variant, whose stabs aim the same, so likely its known flake).
+- No checklist line: all three are the tests' own.

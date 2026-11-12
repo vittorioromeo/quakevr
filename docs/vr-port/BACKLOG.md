@@ -37,9 +37,8 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
   black; 15 test commands still registered in `vr_main.cpp`; `vr_physsound.cpp` keeps its own copy of the box test
   `R_SurfaceHoldsPoint` replaced for the light.
 - **Baseline 2026-11-12, still failing alone** (ROUND25.md "basefix1112": first-bad merges by bisect, alone, seed 1):
-  agrunt 16 (drawn shotgun / nail pistol vertices 0.06 / 0.10 out of their disarm hulls, the check allows 0.05: since the
-  nail pistol's model edits), 211 (case 3 "not taken in time": the hunting grunt never sets out, VR_AG_SecondOk says no;
-  since regfix's armour look; ROUND25.md "agfails"), stealth props_round (knight within 77
+  agrunt 16's hunt check (the drawn grip 2.7-2.8 units off the drawn hand hull, limit 2.5; its vertex checks fixed,
+  ROUND25.md "agfails2"), stealth props_round (knight within 77
   units; since housing_nailpistol: likely a seeded run's butterfly), vrtrailer (no beheading: fails alone at 330f70409
   too). Older: agrunt 3, 91, 92; 213 needs AD's start (the baseline runs it in vrtesthall: a runner fix).
 
