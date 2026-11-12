@@ -4521,7 +4521,7 @@ namespace
         "vr_shoulder_offset_", "vr_virtual_stock", "vr_body_pauldron", "vr_holster_zone"};
     constexpr const char* names[] = {"vr_show_hip_holsters", "vr_show_shoulder_holsters", "vr_show_upper_holsters",
         "vr_show_grenade_pouch", "vr_show_flashlight_zones", "vr_show_virtual_stock", "vr_flashlight_forward",
-        "vr_flashlight_up", "vr_flashlight_out", "vr_flashlight_tilt", "vr_gadget_scale", "vr_gadget_x", "vr_gadget_y",
+        "vr_flashlight_armor_forward", "vr_flashlight_up", "vr_flashlight_out", "vr_flashlight_tilt", "vr_gadget_scale", "vr_gadget_x", "vr_gadget_y",
         "vr_gadget_z", "vr_gadget_pitch", "vr_gadget_yaw", "vr_gadget_roll"};
     for(const char* p : prefixes)
     {

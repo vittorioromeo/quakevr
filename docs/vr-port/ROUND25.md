@@ -278,3 +278,9 @@ wins), and the fuse's countdown sound on launched grenades too.
 - Menu "Hold the Flamethrower/Poison Sprayer" ran `vr_weapon_grip_mode 1; vr_ad_test 79/80` and never restored it. Now they run `vr_ad_test 79/80` only: the QC global `vr_grip_sticky_test` (vr_fields.qc; set by vr_ad_test 73-80, 87, 184; ends with the level) makes the three grip checks (vr_wpnholster.qc weapon let-go, vr_embedhold.qc, vr_grapple.qc) behave as mode 1. The archived cvar is untouched.
 - Audit: the other tests that set the cvar (adgun 70/71/73 fx, 81-84, admelee, ammocolor, agrunt 35) already save and restore it. No other menu command sets it.
 - Check: build 0 warnings; `vr_ad_test 79` on e1m1 printed nothing (AD not mounted in agent bases); the cvar reads 0 before and after (trivially: nothing sets it now). Not exercised with AD.
+
+## armorgear: his weapon tweaks promoted; pouch and torso torch stand forward of the armour
+
+- Promoted (weapons_data.py promote, 22 fields): slot 24 (super axe) blade shape bl_* (bl_from, bl_org, bl_spine, bl_width, bl_s1..s5 off/side, added) and muzzle (-0.071,0.21,-0.82 -> -0.3337,0.2381,4.688); slot 36 torch_fwd/out/up added. weapons.txt is sparse so no vr_wofs_version bump. Also tunables vr_nav_lifts 1 and vr_nav_plat_monsters 1 (tune_promote.py; --check 0). No test reads them.
+- New: vr_ammo_pouch_armor_x (units) and vr_flashlight_armor_forward (m), both default 0 (not measured: the screenshot's armour needs a headset view), applied only while view::playerArmourShown() (plates on, a piece worn, body drawn). Menu rows beside the pouch X and the belt torch Forward; Reset Body and Equipment resets them.
+- Check: Misc/quakevr/armorgear_test.sh (vr_armorgear_check): with plates the pouch moved 5.000 units and the torch 0.0400 m forward as set, without none: 2 passed, 0 failed. vr_menu_path_check: 0 missing.
