@@ -157,9 +157,10 @@ void(entity p) VR_AFT_Run =
     float armed = VR_Limb_Arm(b, p, at, normalize(at - p.origin) * 300, QVR_DECAP_SWING, joint);
     self = oldself;
     VR_ART_Hit(b, at, 2, 20);
-    VR_ART_Check(armed && b.health <= 0 && !VR_AgArmor_On(b, pb) && vr_ar_debris_made == made + 1 && ragdolllimbs(b, 2) == 0,
-        sprintf("active ragdoll: a killing cut armed at joint %g (armed %g) under the plate: the plate broke (debris %g), no limb cut (cut %g)",
-        joint, armed, vr_ar_debris_made - made, ragdolllimbs(b, 2)));
+    float halves = cvar_hget(cvarh_vr_agarmor_split) ? 2 : 1; // (a broken limb plate falls as two halves: vr_agarmor_split)
+    VR_ART_Check(armed && b.health <= 0 && !VR_AgArmor_On(b, pb) && vr_ar_debris_made == made + halves && ragdolllimbs(b, 2) == 0,
+        sprintf("active ragdoll: a killing cut armed at joint %g (armed %g) under the plate: the plate broke (debris %g of %g), no limb cut (cut %g)",
+        joint, armed, vr_ar_debris_made - made, halves, ragdolllimbs(b, 2)));
     VR_ART_Check(vr_ar_break_sound_last == "vr/armor_crack.wav" && vr_ar_break_sound_last != "items/armor1.wav",
         sprintf("the break's sound %s (not the pickup's items/armor1.wav)", vr_ar_break_sound_last));
 

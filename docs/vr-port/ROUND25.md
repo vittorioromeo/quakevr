@@ -110,6 +110,36 @@ Each case run 3 times (agrunt cases seeded as the baseline seeds them, the rest 
 
 flatstance_test.sh no longer measures the drawn hand against cup grips (grapple, nail pistol): the status prints cup 0/1 (grip2HCup) on the stance spot line and the check skips cup reads. 7/0.
 
+## Always-failing monster tests diagnosed (branch agent/faildiag_a, 2026-11-12)
+
+- **`vr_agrunt_test 60`: the test's.** Step 5's one-sword grunt reaches down for a sword lying near
+  (`vr_agrunt_dual_pickup` 1: it takes a second that pairs), and while it takes it (`vr_ag_took_at` > 0)
+  `VR_AGPar_Able` says "no weapon in hand", never "from behind". The test turns dual pickup off for its run (put back
+  at its end); the "behind" line now prints armed / taking / tugged. 5/1 -> 6/0.
+- **`vr_agarmor_test 5`: the test's.** Broken plates fall as two halves since `vr_agarmor_split` (a619b613c,
+  11-08): the killing cut under the plate makes 2 debris, the check wanted 1. It counts the halves now. 23/1 -> 24/0
+  (`vr_agarmor_test 1` 38/0).
+- **limb_wear (`vr_limb_test 36`, 28, 29): the tests'.** They hit the point on the test bone's own bone
+  (`limbplace` 3), which on the firing range's grunt reads as the next joint (7 -> 8) since ROUND23's plate-aware piece
+  lookup: the wear went into joint 8 while the checks read 7 (ROUND23's "found, not fixed"). 36's axe now strikes the
+  skin point its aim read as the piece (as 41-44 do); 28 and 29 read the joint the blow's point reads as. Its fail line
+  also prints the hit's piece and the plates. 14/17 -> 17/17.
+- **stealth `gate_seen_walk`/`_back`: real, fixed.** An Alert monster's walk (`VR_Stealth_WalkNow`) counted a second
+  with under 16 units moved as stuck, three in a row ending the walk; a grunt walks about 16-18 units a second in the
+  open and less steering round a prop. The 110 scene's grunt met vrteleporters' crate at -1300 640 on its way to the
+  gate and gave up beside it (the noise scene after it passed only because the first grunt had pushed the crate).
+  Now under 8 units. With `vr_stealth_debug 1` the walk logs each stuck second, why it ended, and each phase change.
+  Gates 2 failed -> 0; stealth_tests.sh all 57/2 -> 59/0.
+- **ragdoll_stagger: real, not fixed.** steady (`vr_knockdown_chance 0.01`, 8 shoves in one game): the first two grunts
+  recover, every later one falls at 0.36-0.39 s after 2 steps (leaning 39 deg, pelvis 53 % of its height, under
+  `staggerSag` 0.55), balance 1.00 or not. The same with `vr_agrunt_repl 0` and with 600 frames' wait before the first
+  shove: it goes by the count of shoves, not time or the armed version. Each shove's monster is removed between
+  (`vr_knockdown_test 20`, `VR_Knockdown_RemoveBody`). Suspect: something left by the removed active ragdolls (Box3D
+  bodies, or per-ragdoll stagger state) that the next one meets. Next: `vr_debug_ragdoll 1` on the third shove, the
+  world's body count before and after mode 20. The backpedal case's grunt row fails the same way (R, then F F).
+- **ragdoll_climb: real, pre-existing, not looked into further.** The enforcer is knocked off the lip but never grabs
+  it (falls 184 units; the same with `vr_agrunt_repl 0`); the grunt grabs with one hand and is "too weak to rise", the
+  ogre loses its hold, the hell knight sticks at the lip. ROUND24 saw the grunt's and the enforcer's the same.
 ## Always-failing tests, part b: autopump, cellcord, animsmooth, xr_runtime, secret_hits (branch agent/faildiag_b, 2026-11-12)
 
 - **autopump (test's)**: 9543170a6 (2026-10-27) put "kind K skin S xN" before the time in the `shells eject` line; the

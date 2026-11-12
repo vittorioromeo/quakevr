@@ -6,22 +6,20 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
 
 ## 1. Open bugs and failing tests
 
-- **`vr_agrunt_test 210`** (shoves off ledges, vrclimb; ROUND24.md "Shoves off ledges"): still failing: 5 checks fail on the base code, 48 of 54 trials pass (seen 2026-11-11).
 - **`vr_flatswap_test 4`** (AD's six blades through the hand swap, needs `-game ad`): never run; it checks nothing in vrtesthall, so it needs a spot on an AD map, then to pass with AD
   mounted (ROUND24.md, "The hand swap: melee weapons stay in sight").
-- **Stance and the free hand's punch** (flatstance): the stance's torso twist raises the free hand's punch (32 damage
-  against 21 without). Should the twist reach the blow? His call. Also his call: flatstance "the drawn hand stands on
-  the hotspot" (`vr_test_give_wid` 1 and 29 have their 2H hotspot behind and below the hand). ROUND24.md, the triage.
 - **visor_test "AD's two custom keys"**: needs AD in the test's base, or the check skipped without it.
 - **Random run to run** (re-run 3 times each on 2026-11-12, ROUND25.md "Test triage B"): flatpose (21/1, 22/0, 20/2: the
   pose and point checks' crosshair meets something else: TEST), `vr_systems_test 15` (1 of 3 fails: the blast's body
   never knocks the torch off; the body's flight varies: UNKNOWN), flatswing's knight trial (1 of 3: 8 of 11 landed, the
   knight not where it spawned: TEST), ragdoll_ragtest (1 of 3: "catch: NOT begun in 3.0 s"), reload (1 of 3: "a hit: the
   old one knocked out, the new one not seated by the same touch").
-- **Always failing** (3 of 3, 2026-11-12): agrunt_60 (seeded; "agparry behind: no weapon in hand"), agarmor_5 (a killing
-  cut under the plate: the plate did not break), limb_wear (15/3), ragdoll_climb (22/6, enforcer never grabs),
-  ragdoll_stagger (52/5), stealth (gate_seen_*). Not chased: no task. (autopump, cellcord, animsmooth, xr_runtime and
-  secret_hits settled: ROUND25.md, "Always-failing tests, part b".)
+- **ragdoll_stagger: the third grunt shoved in a game falls** (ROUND25.md "Always-failing monster tests"): steady
+  (balance 1.00) grunts after the first two fall at 0.36-0.39 s, 2 steps, pelvis 53 %; armed or plain, not time-bound.
+- **ragdoll_climb**: the enforcer never grabs a lip (falls 184 units, armed or plain); grunt "too weak to rise" (one
+  hand), ogre "lost its hold", hell knight "stuck at the lip" on the pull-up. Pre-existing since the phase-0 baseline.
+  (agrunt 60, agarmor_5, limb_wear, stealth settled 2026-11-12; autopump, cellcord, animsmooth, xr_runtime and
+  secret_hits too: ROUND25.md, "Always-failing monster tests" and "Always-failing tests, part b".)
 - **secret_hits "door-punch"**: the fist swung through e1m1's shootable secret door (`*14`) swishes but never hits it (no
   melee event; the quad's trigger is struck): failing since at least 2026-10-30 (ROUND25.md, "Always-failing tests, part b").
 - Stale, passing 3 of 3 (2026-11-12, seeded where the runner seeds): agrunt 47/63/66/67/71/72/76/86/209, ragdoll_grab,
