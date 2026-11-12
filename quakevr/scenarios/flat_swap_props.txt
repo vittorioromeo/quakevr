@@ -1,9 +1,0 @@
-# flat_swap_props: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode) swap key (3) with every two-handed weapon and with carried props (vr_flatswap.cpp; QC VR_FlatSwapHands; docs/vr-port/FLATPLAY.md, "The hand swap").
-title Flat-screen hand swap: two-handed weapons and props
-hint Play with -flatscreenmode. Hold the super shotgun, the nailgun or the axe alone and press 3: the left hand lets go to the empty hand's pose, the weapon is passed to it, then the right hand comes back beside it, as with the rocket launcher. Then grab a brick with E beside a gun and press 3: the brick and the gun change hands smoothly; two bricks, a brick and an empty hand the same.
-map vrtesthall
-god
-notarget
-give "Super Shotgun" main
-spawn "Nailgun" 40 70
-spawn "Axe" 40 -70

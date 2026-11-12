@@ -21,7 +21,7 @@ S=C:/OHWorkspace/qvr-agents/$AGENT/scratch/flatmelee2h
 mkdir -p "$S"
 L="$S/run.log"
 R="vr_flat_melee_2h_report"
-SC="map vrtesthall;wait60;god;notarget;developer 1;vr_debug_2h_grip 1;setpos 0 300 25 0 90 0"
+SC="map vrtesthall;wait60;god;notarget;developer 1;tune vr_flat_melee_2h 1;vr_debug_2h_grip 1;setpos 0 300 25 0 90 0"
 for w in "axe 152" "mjolnir 153" "sword 163" "crowbar 167" "superaxe 168"; do
   set -- $w
   SC="$SC;impulse $2;wait90;echo fm2: $1;$R;wait2"
