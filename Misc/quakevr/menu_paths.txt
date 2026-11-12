@@ -4353,6 +4353,20 @@ vr_flat_parry_roll|2|Tunables|Guard Roll|Advanced VR Options > Debug > Tunables 
 vr_flat_parry_in_time|2|Tunables|Guard In Time|Advanced VR Options > Debug > Tunables > Guard In Time
 vr_flat_parry_out_time|2|Tunables|Guard Out Time|Advanced VR Options > Debug > Tunables > Guard Out Time
 vr_flat_parry_cone|2|Tunables|Guard Parries From The Front|Advanced VR Options > Debug > Tunables > Guard Parries From The Front
+vr_flat_melee_2h|2|Tunables|Two-Handed Melee Stance|Advanced VR Options > Debug > Tunables > Two-Handed Melee Stance
+vr_flat_melee_2h_time|2|Tunables|Stance Blend Time|Advanced VR Options > Debug > Tunables > Stance Blend Time
+vr_flat_melee_2h_fwd|2|Tunables|Stance Ahead|Advanced VR Options > Debug > Tunables > Stance Ahead
+vr_flat_melee_2h_up|2|Tunables|Stance Up|Advanced VR Options > Debug > Tunables > Stance Up
+vr_flat_melee_2h_out|2|Tunables|Stance Out|Advanced VR Options > Debug > Tunables > Stance Out
+vr_flat_melee_2h_pitch|2|Tunables|Stance Pitch|Advanced VR Options > Debug > Tunables > Stance Pitch
+vr_flat_melee_2h_yaw|2|Tunables|Stance Yaw|Advanced VR Options > Debug > Tunables > Stance Yaw
+vr_flat_melee_2h_roll|2|Tunables|Stance Roll|Advanced VR Options > Debug > Tunables > Stance Roll
+vr_flat_melee_2h_parry_fwd|2|Tunables|Two-Handed Guard Ahead|Advanced VR Options > Debug > Tunables > Two-Handed Guard Ahead
+vr_flat_melee_2h_parry_up|2|Tunables|Two-Handed Guard Up|Advanced VR Options > Debug > Tunables > Two-Handed Guard Up
+vr_flat_melee_2h_parry_out|2|Tunables|Two-Handed Guard Out|Advanced VR Options > Debug > Tunables > Two-Handed Guard Out
+vr_flat_melee_2h_parry_pitch|2|Tunables|Two-Handed Guard Pitch|Advanced VR Options > Debug > Tunables > Two-Handed Guard Pitch
+vr_flat_melee_2h_parry_yaw|2|Tunables|Two-Handed Guard Yaw|Advanced VR Options > Debug > Tunables > Two-Handed Guard Yaw
+vr_flat_melee_2h_parry_roll|2|Tunables|Two-Handed Guard Roll|Advanced VR Options > Debug > Tunables > Two-Handed Guard Roll
 vr_flat_model_fov|2|Tunables|Model FOV|Advanced VR Options > Debug > Tunables > Model FOV
 vr_flat_model_fov_near|2|Tunables|Model FOV Full Up To|Advanced VR Options > Debug > Tunables > Model FOV Full Up To
 vr_flat_model_fov_far|2|Tunables|Model FOV None Past|Advanced VR Options > Debug > Tunables > Model FOV None Past

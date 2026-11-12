@@ -99,6 +99,13 @@ struct FireRoute
 // `h` (0 at rest .. 1 in the guard), eased in and out over vr_flat_parry_in_time / _out_time.
 [[nodiscard]] float parryShare(int h);
 
+// The two-handed melee stance (vr_flat_melee_2h_*: a melee weapon swung by a handle, the other hand empty): its share for
+// hand `h`, the one holding the weapon (0 the one-handed hold .. 1 the stance), eased in and out over
+// vr_flat_melee_2h_time. While it is above 0 vr_flatsight.cpp carries the free hand onto the weapon's grip, and
+// vr_twohand.cpp takes that grip whatever the line between the hands (the stance decides the pose, not the hands' line).
+// 0 outside flatscreen play.
+[[nodiscard]] float melee2HShare(int h);
+
 // How hand `h` must be turned for the weapon it holds to shoot along the forward of `angles`, whatever its Shot Pitch and
 // Yaw (the drawn gun and its muzzle follow the hand). A hand holding nothing: `angles`.
 [[nodiscard]] glm::vec3 aimRotAt(const glm::vec3& angles, int h);
