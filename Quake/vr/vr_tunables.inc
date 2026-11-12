@@ -2117,6 +2117,23 @@ QVR_TUNABLE(vr_flat_parry_in_time, "0.05") // seconds into the guard from the ho
 QVR_TUNABLE(vr_flat_parry_out_time, "0.1") // seconds back to the hold when the button is let go (0: at once)
 QVR_TUNABLE(vr_flat_parry_cone, "120") // flatscreen: in the guard, any melee blow from within this many degrees of where you look (all of the cone, centred on the view) is parried, whatever its way (QC VR_Parry_FlatGuard; the headset keeps the directional parry); 0: the headset's rules
 
+// Flatscreen > Two-Handed Melee Stance (his notes 2026-11-12: a melee weapon with a two-handed grip is always held in both
+// hands while the other hand is empty; vr_flatplay.cpp twoHandPose, vr_flatsight.cpp carries the free hand onto the grip)
+QVR_TUNABLE(vr_flat_melee_2h, "1") // flatscreen: a melee weapon swung by a handle (axe, swords, crowbar, Mjolnir, super axe) is held in both hands, the free hand on its grip, while the other hand is empty (0: one hand, the free hand takes the grip only by chance, as before 2026-11-12)
+QVR_TUNABLE(vr_flat_melee_2h_time, "0.25") // seconds from the one-handed hold into the two-handed stance and back (0: at once)
+QVR_TUNABLE(vr_flat_melee_2h_fwd, "2") // the two-handed stance: the weapon's hand this far further ahead than in the one-handed hold (units)
+QVR_TUNABLE(vr_flat_melee_2h_up, "0") // and this far higher (units; negative lower)
+QVR_TUNABLE(vr_flat_melee_2h_out, "-3") // and this far further out at its own side (units; negative in towards the middle)
+QVR_TUNABLE(vr_flat_melee_2h_pitch, "-10") // and turned up this far over the hold (degrees; negative: the weapon's top leans forward)
+QVR_TUNABLE(vr_flat_melee_2h_yaw, "-10") // and this far out to its own side (degrees; negative inwards)
+QVR_TUNABLE(vr_flat_melee_2h_roll, "-15") // and rolled this far, its top out to its own side (degrees; negative: the top leans in across the body)
+QVR_TUNABLE(vr_flat_melee_2h_parry_fwd, "0") // the parry's guard held in two hands: the hand this far further ahead than the one-handed guard (units)
+QVR_TUNABLE(vr_flat_melee_2h_parry_up, "0") // and this far higher (units; negative lower)
+QVR_TUNABLE(vr_flat_melee_2h_parry_out, "0") // and this far further out at its own side (units; negative inwards)
+QVR_TUNABLE(vr_flat_melee_2h_parry_pitch, "0") // and turned up this far over the one-handed guard (degrees; negative down)
+QVR_TUNABLE(vr_flat_melee_2h_parry_yaw, "0") // and this far out to its own side (degrees; negative inwards)
+QVR_TUNABLE(vr_flat_melee_2h_parry_roll, "0") // and rolled this far, its top out to its own side (degrees; negative inwards)
+
 // Flatscreen > Model FOV
 QVR_TUNABLE(vr_flat_model_fov, "0") // the player's own models and what leaves them drawn at this field of view, in the same terms as fov (0: off, as the world's; flatplay::modelFov). Looks only
 QVR_TUNABLE(vr_flat_model_fov_near, "18") // the model FOV in full up to this far from the eye (units): past the elbows (16.5) and a hipfire muzzle (17.5), short of the hips (22)
