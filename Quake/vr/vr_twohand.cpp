@@ -442,7 +442,10 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     // The blade grip is on the blade already: the wrist may point it anywhere.
     const float stick = stickinessOf(grip[holding] == GRIP_BLADE ? bladeSticky : s.grip2HSticky[holding]);
     const float dotNeed = wasHeld ? heldDot(vr_2h_angle_threshold.value, stick) : vr_2h_angle_threshold.value;
-    const bool goodDot = grip[holding] == GRIP_BLADE || dotNeed <= -1.f || glm::dot(line, blade) > dotNeed;
+    // (Flatscreen play's two-handed melee stance, flatplay::melee2HShare: its pose decides where the hands stand, and the
+    // free hand is put on the grip by it, so any line between them holds.)
+    const bool goodDot = grip[holding] == GRIP_BLADE || dotNeed <= -1.f || glm::dot(line, blade) > dotNeed ||
+                         flatplay::melee2HShare(holding) > 0.f;
     if(wasHeld && held && !goodDot)
     {
         reportLetGo(holding, "angle (cosine)", glm::dot(line, blade), dotNeed, stick);
@@ -963,7 +966,9 @@ void applyHotspots(hands::State& s, const glm::vec3 (&originalRots)[2], int hold
     // A cup (a two-handed pistol grip) is held wherever the hands point: it doesn't aim.
     const bool cup = fixedMode && s.grip2HCup[holding];
     const float dotNeed = wasHeld ? heldDot(vr_2h_angle_threshold.value, stick) : vr_2h_angle_threshold.value;
-    const bool goodDot = cup || dotNeed <= -1.f || glm::dot(handDir, lineAxis) > dotNeed;
+    // (Flatscreen play's two-handed melee stance, flatplay::melee2HShare: as a cup, the stance's pose puts the free hand on
+    // the grip, the axe's up its handle, whatever the line from the holding hand's forward; applySword says the same.)
+    const bool goodDot = cup || dotNeed <= -1.f || glm::dot(handDir, lineAxis) > dotNeed || flatplay::melee2HShare(holding) > 0.f;
 
     // A grip takes hold only closed on the weapon (the author: a fist moving onto a two-handed hotspot must not attach;
     // round 23 dropped the old way, vr_2h_grip_edge 0): its rising edge with the hand there then arms it, until it opens. Held, it keeps hold as before.
@@ -1215,6 +1220,11 @@ float stock(int hand)
 bool helping(int hand)
 {
     return helpingHand[hand];
+}
+
+bool forbidden(int hand)
+{
+    return twoHandsForbidden(weapons::heldSlot(hand));
 }
 
 bool flickAllowed(int holding)

@@ -653,7 +653,8 @@ void oneHanded(int& holding, int& helping)
 // flatplay's support pose as it is today.
 // `cupTaken`: a melee weapon's cup the pose carries the hand to (vr_flat_melee_two_hand: the chainsaw's front handle) is
 // pressed for on arrival too, with no line to measure (a cup has no two-handed aim): twohand's own rules take it.
-bool gripArrival(const hands::State& s, float& offGrip, float& dot, bool cupTaken)
+// `anyLine`: the two-handed melee stance's grip (flatplay::melee2HShare): taken on arrival whatever the hands' line.
+bool gripArrival(const hands::State& s, float& offGrip, float& dot, bool cupTaken, bool anyLine)
 {
     offGrip = dot = 0.f;
     if(st.helping < 0 || st.holding < 0 || !s.grip2HValid[st.holding] || (s.grip2HCup[st.holding] && !cupTaken) ||
@@ -672,7 +673,7 @@ bool gripArrival(const hands::State& s, float& offGrip, float& dot, bool cupTake
     const glm::vec3 line = s.pos[st.helping] - s.pos[st.holding];
     // vr_2h_angle_threshold is twohand's dot, not an angle in degrees (vr_twohand.cpp's goodDot): compared as it is there.
     dot = glm::length(line) > 1e-4f ? glm::dot(glm::normalize(line), fwd) : 0.f;
-    return offGrip < twohand::gripTakeUnits && dot > vr_2h_angle_threshold.value;
+    return offGrip < twohand::gripTakeUnits && (dot > vr_2h_angle_threshold.value || anyLine);
 }
 
 // The ironsight asked for, and holding what it applies to: a ranged weapon, in one hand alone. In flatscreen play
@@ -1933,9 +1934,13 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     // trigger hand, held as a cup) is taken too (vr_flat_melee_two_hand; his notes 2026-11-08): no sight line, so no
     // stance puts the free hand on it, and it has no aim for the two hands to spoil.
     const bool meleeCup = st.holding >= 0 && flatplay::meleeIn(st.holding) && vr_flat_melee_two_hand.value != 0.f;
+    // A melee weapon in the two-handed stance (vr_flat_melee_2h; his notes 2026-11-12): its grip wherever it stands (the
+    // axe's up its handle, a sword's below the hand), the free hand put on it by the pose rather than found there by a
+    // swing's end; the stance's pose is what makes the hands' line, so no line is asked of it (nor by vr_twohand.cpp).
+    const bool meleeStance = st.holding >= 0 && flatplay::melee2HShare(st.holding) > 0.f;
     const bool carryToGrip = st.holding >= 0 && st.helping >= 0 && s.grip2HValid[st.holding] &&
                              (!s.grip2HCup[st.holding] || meleeCup) && !s.grip2HPalm[st.holding] &&
-                             st.gripFwd > vr_2h_angle_threshold.value * st.gripReach;
+                             (st.gripFwd > vr_2h_angle_threshold.value * st.gripReach || meleeStance);
     // A punch of the free hand takes it off the grip, as fast as it came (gripEase: done before the throw), and it goes back
     // when the punch is over; twohand lets go of the hold for as long (flatplay::punching there).
     // The gun's reload trip takes it off the grip the same way (vr_flatreload.cpp), and it goes back when the gun is back.
@@ -1971,7 +1976,7 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     // The grip's press, and only its press: true on the frame the empty hand arrives on the hotspot, false the frame it
     // leaves it or the weapon changes. applyHotspots' goodDistance, goodDot, the stickiness and the weapon's own
     // Two-Handed setting decide the hold from here on, exactly as they do for a controller's grip button.
-    const bool inside = gripArrival(s, st.gripOff, st.gripDot, carryToGrip && meleeCup);
+    const bool inside = gripArrival(s, st.gripOff, st.gripDot, carryToGrip && meleeCup, carryToGrip && meleeStance);
     st.handGap = st.muzzleGap = 0.f;
     if(st.holding >= 0 && st.helping >= 0)
     {

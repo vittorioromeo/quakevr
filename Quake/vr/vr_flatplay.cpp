@@ -62,6 +62,8 @@
 #include "vr_protocol.hpp"
 #include "vr_stereo.hpp"
 #include "vr_toolgun.hpp"
+#include "vr_twohand.hpp"
+#include "vr_view.hpp"
 #include "vr_ragtool.hpp"
 #include "vr_slidesound.hpp"
 #include "vr_units.hpp"
@@ -144,6 +146,23 @@ struct FlatState
     double parryAskedAt[2]{-1e9, -1e9};
     double parryReachedAt[2]{-1e9, -1e9};
     int parries{0};              // guards raised this session (vr_flatplay_status)
+    // The two-handed melee stance (vr_flat_melee_2h_*): each hand's linear share of the way into it (0..1; melee2HShare
+    // eases it), whether it is asked for, the times it was last asked for and last reached, how often it was taken (the
+    // status), and its probe (vr_flat_melee_2h_report): the drawn hands' largest moves a frame since the last report.
+    float twoH[2]{0.f, 0.f};
+    bool twoHWant[2]{false, false};
+    double twoHAskedAt[2]{-1e9, -1e9};
+    double twoHReachedAt[2]{-1e9, -1e9};
+    int twoHTaken{0};
+    struct TwoHProbe
+    {
+        bool known{false};
+        glm::vec3 rel[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // each drawn hand off the head, last frame
+        glm::vec3 rot[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // and its angles
+        float step[2]{0.f, 0.f};                          // the most either moved a frame (units)
+        float turn[2]{0.f, 0.f};                          // and turned a frame (degrees)
+        int frames{0};
+    } twoHProbe;
     float wallBack[2]{0.f, 0.f}; // how far an empty hand is back towards its shoulder off a wall (units; handOffWall)
     float wallDepth[2]{0.f, 0.f}; // and how deep in it the pose had it this frame (units, its margin in; the status prints it)
     glm::vec3 shoulders[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // the arms' joints this pose stands on (avatar::restShoulders)
@@ -1047,6 +1066,129 @@ void parryPose(hands::State& s, int h, const glm::vec3& root, const glm::vec3& e
         guard = hands::anglesFromVectors(roll * (lay * f), roll * (lay * u));
     }
     s.rot[h] = blendAngles(s.rot[h], guard, share);
+}
+
+// The two-handed melee stance (vr_flat_melee_2h; his notes 2026-11-12: "tweak the position/rotation of melee weapons that
+// support 2H usage with cvars so that they're always held 2H and the pose looks good"): asked for hand `h` while it holds
+// the one weapon held, a melee weapon swung by a handle (swungMelee: not the chainsaw, whose front handle
+// vr_flat_melee_two_hand takes) with a two-handed grip its Two-Handed mode allows, and the other hand holds nothing: no
+// weapon (dual wielding), no prop, item or carried thing. The other hand's own trips (E's force grab, the shove, the quick
+// grenade, a punch) keep the stance: the free hand lets go of the grip and takes it again as off a gun's
+// (vr_flatsight.cpp gripWanted, vr_twohand.cpp flatLetsGo), the weapon kept where the stance holds it.
+[[nodiscard]] bool twoHandAsked(const hands::State& s, int h)
+{
+    const int other = 1 - h;
+    return vr_flat_melee_2h.value != 0.f && swungMelee(h) && loneWeaponHand() == h && s.grip2HValid[h] && !s.grip2HPalm[h] &&
+           !twohand::forbidden(h) && !holdsThing(other) && !twohand::carrying(other);
+}
+
+// One frame's step of the stance's share (fs.twoH, linear): in and out over vr_flat_melee_2h_time (0: at once). Another
+// weapon in the hand starts from the one-handed hold (its own take is its motion).
+void stepTwoHand(const hands::State& s, int h, float dt)
+{
+    const bool want = twoHandAsked(s, h);
+    if(want && !fs.twoHWant[h])
+    {
+        fs.twoHAskedAt[h] = vr_gametime;
+    }
+    fs.twoHWant[h] = want;
+    if(!swungMelee(h))
+    {
+        fs.twoH[h] = 0.f;
+        return;
+    }
+    const float time = za::clamp(vr_flat_melee_2h_time.value, 0.f, 2.f);
+    const float step = time > 0.f ? dt / time : 1.f;
+    const float was = fs.twoH[h];
+    fs.twoH[h] = za::clamp(was + (want ? step : -step), 0.f, 1.f);
+    if(want && was < 1.f && fs.twoH[h] >= 1.f)
+    {
+        fs.twoHReachedAt[h] = vr_gametime;
+        fs.twoHTaken++;
+        if(vr_flatplay_debug.value)
+        {
+            Con_Printf("flat2h: %s hand in the two-handed stance, %.3f s after it was asked for\n", h == HAND_MAIN ? "main" : "off",
+                vr_gametime - fs.twoHAskedAt[h]);
+        }
+    }
+}
+
+// Offsets (`fwdT` ahead, `upT` up, `outT` out at the hand's own side; units, in the frame the hands are placed in) and turns
+// (`pitchT`, `yawT`, `rollT`: turnedHand's, mirrored for the off hand) over hand `h`'s pose, `share` of the way.
+void offsetHand(hands::State& s, int h, const glm::vec3& fwd, const glm::vec3& right, const glm::vec3& up, float share,
+    const Tunable& fwdT, const Tunable& upT, const Tunable& outT, const Tunable& pitchT, const Tunable& yawT, const Tunable& rollT)
+{
+    if(share <= 0.f)
+    {
+        return;
+    }
+    const float side = h == HAND_OFF ? -1.f : 1.f;
+    const auto units = [](const Tunable& t) { return za::clamp(t.value, -20.f, 20.f); };
+    const auto degrees = [](const Tunable& t) { return za::clamp(t.value, -90.f, 90.f); };
+    s.pos[h] += (fwd * units(fwdT) + right * (side * units(outT)) + up * units(upT)) * share;
+    s.rot[h] = blendAngles(s.rot[h], turnedHand(s.rot[h], {degrees(pitchT), degrees(yawT), degrees(rollT)}, side), share);
+}
+
+// The stance over the one-handed hold just posed (vr_flat_melee_2h_fwd .. _roll), by its share: the swing and the guard go
+// from it. The free hand is put on the weapon's grip by vr_flatsight.cpp (pinToGrip), wherever the stance takes it.
+void twoHandPose(hands::State& s, int h, const glm::vec3& fwd, const glm::vec3& right, const glm::vec3& up)
+{
+    offsetHand(s, h, fwd, right, up, melee2HShare(h), vr_flat_melee_2h_fwd, vr_flat_melee_2h_up, vr_flat_melee_2h_out,
+        vr_flat_melee_2h_pitch, vr_flat_melee_2h_yaw, vr_flat_melee_2h_roll);
+}
+
+// The parry's guard held in two hands (vr_flat_melee_2h_parry_*): over the guard's pose, by both shares (only in the stance).
+void twoHandParryPose(hands::State& s, int h, const glm::vec3& fwd, const glm::vec3& right, const glm::vec3& up)
+{
+    offsetHand(s, h, fwd, right, up, melee2HShare(h) * parryShare(h), vr_flat_melee_2h_parry_fwd, vr_flat_melee_2h_parry_up,
+        vr_flat_melee_2h_parry_out, vr_flat_melee_2h_parry_pitch, vr_flat_melee_2h_parry_yaw, vr_flat_melee_2h_parry_roll);
+}
+
+// The probe (vr_flat_melee_2h_report): each drawn hand's move and turn a frame, off the head, the largest since the last
+// report. A jump in a transition (into or out of the stance, a let-go and a take of the grip) shows here.
+void probeTwoHand()
+{
+    auto& p = fs.twoHProbe;
+    const hands::State& hs = hands::current();
+    glm::vec3 pos[2], rot[2];
+    if(!view::drawnHandPose(HAND_MAIN, pos[HAND_MAIN], rot[HAND_MAIN]) || !view::drawnHandPose(HAND_OFF, pos[HAND_OFF], rot[HAND_OFF]))
+    {
+        p.known = false;
+        return;
+    }
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        const glm::vec3 rel = pos[h] - hs.head;
+        if(p.known)
+        {
+            glm::vec3 f0, r0, u0, f1, r1, u1;
+            hands::angleVectors(p.rot[h], f0, r0, u0);
+            hands::angleVectors(rot[h], f1, r1, u1);
+            const auto apart = [](const glm::vec3& a, const glm::vec3& b) {
+                return glm::degrees(za::acos(za::clamp(glm::dot(a, b), -1.f, 1.f)));
+            };
+            const float turn = za::max(apart(f0, f1), apart(u0, u1));
+            p.step[h] = za::max(p.step[h], glm::distance(rel, p.rel[h]));
+            p.turn[h] = za::max(p.turn[h], turn);
+        }
+        p.rel[h] = rel;
+        p.rot[h] = rot[h];
+    }
+    p.known = true;
+    p.frames++;
+}
+
+void twoHandReport_f()
+{
+    auto& p = fs.twoHProbe;
+    const int h = loneWeaponHand();
+    Con_Printf("flat2h: drawn hands, most a frame since the last report (%d frames): main %.2f units %.1f deg, off %.2f units "
+               "%.1f deg; stance share main %.2f off %.2f, asked %d %d; the free hand %s\n",
+        p.frames, p.step[HAND_MAIN], p.turn[HAND_MAIN], p.step[HAND_OFF], p.turn[HAND_OFF], melee2HShare(HAND_MAIN),
+        melee2HShare(HAND_OFF), fs.twoHWant[HAND_MAIN] ? 1 : 0, fs.twoHWant[HAND_OFF] ? 1 : 0,
+        h >= 0 && twohand::helping(1 - h) ? "holds the grip" : "does not hold the grip");
+    p.step[0] = p.step[1] = p.turn[0] = p.turn[1] = 0.f;
+    p.frames = 0;
 }
 
 // A shoving hand's angles: the palm to `toTarget`, the fingers up (vr_flat_shove_palm_up above level; vr_flat_shove_palm_turn
@@ -2128,6 +2270,11 @@ float parryShare(int h)
     return h >= 0 && h < HAND_COUNT ? geom::smooth01(fs.parry[h]) : 0.f;
 }
 
+float melee2HShare(int h)
+{
+    return active() && h >= 0 && h < HAND_COUNT ? geom::smooth01(fs.twoH[h]) : 0.f;
+}
+
 bool punching(int h)
 {
     const double t = vr_gametime - fs.punchAt[h];
@@ -2280,6 +2427,7 @@ void init()
 {
     fs.flag = COM_CheckParm("-flatscreenmode") != 0 || ragtool::flagGiven(); // (-ragtool: the ragdoll tool, flat)
     Cmd_AddCommand("vr_flatplay_status", status_f);
+    Cmd_AddCommand("vr_flat_melee_2h_report", twoHandReport_f); // the two-handed stance's probe (tests)
     flatmove::init(); // the slide and the lean (vr_flatmove.cpp)
     Cmd_AddCommand("+flatcrouch", crouchHold_f); // Left Ctrl's hold, the console's way (a bind or a script can hold it)
     Cmd_AddCommand("-flatcrouch", crouchRelease_f);
@@ -2324,6 +2472,10 @@ void frame()
         flatspeedfov::frame(on); // the speed FOV's ease (vr_flat_speed_fov); gone at once when the mode is off
         flathit::frame();   // a hit's punch of the view: this frame's part of it into the aim, before the pose reads the look
     }
+    if(on && !frozen)
+    {
+        probeTwoHand(); // the two-handed stance's probe: the hands as last drawn (vr_flat_melee_2h_report)
+    }
 
     if(on && !fs.announced)
     {
@@ -2357,6 +2509,9 @@ void frame()
     {
         fs.localSeen[0] = fs.localSeen[1] = false;
         fs.mountSeen[0] = fs.mountSeen[1] = false;
+        fs.twoH[0] = fs.twoH[1] = 0.f;
+        fs.twoHWant[0] = fs.twoHWant[1] = false;
+        fs.twoHProbe.known = false;
         fs.probeTime[0] = fs.probeTime[1] = -1e9;
         fs.lastTime = -1e9;
         feel = Feel{};
@@ -3324,12 +3479,21 @@ void poseHands(hands::State& s, const glm::vec3& aim)
                 sideOf);
         }
 
+        // The two-handed melee stance (vr_flat_melee_2h_*: the other hand empty), over the hold; the guard and a swing go from it.
+        if(dt > 0.0)
+        {
+            stepTwoHand(s, h, static_cast<float>(dt));
+        }
+        twoHandPose(s, h, fwd, right, up);
+
         // The melee parry's guard (vr_flat_parry_*: the right mouse button held), over the hold; a swing goes from it.
+        // (Held in two hands: vr_flat_melee_2h_parry_* over it.)
         if(dt > 0.0)
         {
             stepParry(h, static_cast<float>(dt));
         }
         parryPose(s, h, shoulder(s, h) + nudge, eye, fwd, right, up, aim.y);
+        twoHandParryPose(s, h, fwd, right, up);
         // Up (half way in and still asked for): the server parries any melee blow from in front with it, whatever its way
         // (QC VR_Parry_FlatGuard, vr_flat_parry_cone; his notes 2026-11-10: the directional parry is the headset's).
         if(fs.parryWant[h] && meleeIn(h) && parryShare(h) >= 0.5f)
@@ -3877,6 +4041,14 @@ void status_f()
                 h == HAND_MAIN ? "main" : "off", fs.parryWant[h] ? "asked for" : "not asked for", parryShare(h),
                 vr_flat_parry.value, vr_flat_parry_in_time.value, vr_flat_parry_out_time.value, fs.parries,
                 fs.parryReachedAt[h] >= fs.parryAskedAt[h] && fs.parryAskedAt[h] > -1e8 ? "" : ", not reached yet");
+        }
+        // The two-handed melee stance (vr_flat_melee_2h_*): the other hand empty.
+        if(swungMelee(h) || fs.twoH[h] > 0.f)
+        {
+            Con_Printf("  two-handed stance: %s hand %s, share %.2f (vr_flat_melee_2h %g, %g s; taken %d times)%s\n",
+                h == HAND_MAIN ? "main" : "off", fs.twoHWant[h] ? "asked for" : "not asked for", melee2HShare(h),
+                vr_flat_melee_2h.value, vr_flat_melee_2h_time.value, fs.twoHTaken,
+                fs.twoHReachedAt[h] >= fs.twoHAskedAt[h] && fs.twoHAskedAt[h] > -1e8 ? "" : ", not reached yet");
         }
     }
     const int lone = routeButtons(false, false).rmbAims ? loneWeaponHand() : -1;
