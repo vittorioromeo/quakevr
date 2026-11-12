@@ -3121,6 +3121,68 @@ bool liquidPending(const State& s, double now)
     return liquidsOn() && s.death.on && !s.death.collapse && s.swim.from < 0.0 && now - s.begun <= liquidWindow;
 }
 
+// A monster held on a lip by its box's edge (a step's, a platform's), both its feet out over the floor below: its model
+// stood in the air, and its stagger, pinned at that height, stepped on air and sagged as it came down (ROUND25.md,
+// "ragdoll_stagger"). Its feet over a floor more than staggerSetDownLeast and up to a stair (staggerSetDownMost) under
+// where its box stood as its ragdoll was made from its model: every part set down by that before its stance is read.
+// One foot over the lip's top: it stands there, as it is.
+namespace
+{
+constexpr float staggerSetDownMost = 18.f; // units: Quake's stair (STEPSIZE); lower, it is a ledge it goes over
+constexpr float staggerSetDownLeast = 4.f; // units: less, a hop off the floor (a blow's lift): it comes down by itself
+
+void staggerSetDown(State& s, const Parts& p, const StaggerInfo& info)
+{
+    if(!info.floorBelow || info.boxFloor < -1e29f)
+    {
+        return;
+    }
+    const float boxFloor = info.boxFloor;
+    const float most = staggerSetDownMost / p.m2u;
+    float ground = -1e30f;
+    for(int leg = 2; leg < 4; leg++)
+    {
+        if(!limbWhole(s, p, leg))
+        {
+            continue;
+        }
+        const glm::vec3 foot = limbEnd(s, p, leg);
+        // (From half a stair over its foot's end or its box's floor, the higher: a foot over the lip's top finds the top,
+        // one out over the drop the floor below; a foot's end below its sole (the ogre's) never starts under the floor.)
+        const float from = za::max(foot.z, boxFloor) + 0.5f * most;
+        const float f = info.floorBelow(glm::vec3{foot.x, foot.y, from}, from - (boxFloor - most));
+        if(f < -1e29f)
+        {
+            return; // (nothing within a stair under a foot: a ledge, left to its stagger's own "no floor under it")
+        }
+        ground = za::max(ground, f);
+    }
+    const float hang = boxFloor - ground;
+    if(vr_debug_ragdoll.value >= 2.f)
+    {
+        Con_Printf("stagger: its model's floor %.1f, the floor under its feet %.1f\n", boxFloor * p.m2u, ground * p.m2u);
+    }
+    if(ground < -1e29f || hang * p.m2u < staggerSetDownLeast || hang > most)
+    {
+        return;
+    }
+    for(int b = 0; b < p.count; b++)
+    {
+        if(cut(p, b))
+        {
+            continue;
+        }
+        const b3WorldTransform xf = b3Body_GetTransform(p.body[b]);
+        b3Body_SetTransform(p.body[b], b3v(glmv(xf.p) - glm::vec3{0.f, 0.f, hang}), xf.q);
+    }
+    if(vr_debug_ragdoll.value || vr_knockdown_debug.value)
+    {
+        Con_Printf("stagger: set down %.1f units onto the floor below its feet (it stood on a lip by its box)\n",
+            hang * p.m2u);
+    }
+}
+} // namespace
+
 void beginStagger(State& s, const Parts& p, const StaggerInfo& info, double now)
 {
     struggleGivesWay(s);
@@ -3161,6 +3223,7 @@ void beginStagger(State& s, const Parts& p, const StaggerInfo& info, double now)
     // (A backpedal over a ledge goes on longer than its legs alone hold it up: stiffer, or it sits down on its way.)
     s.pin.hertz = info.ledge ? za::clamp(vr_knockdown_ledge_backpedal_hertz.value, 1.f, 30.f) : 5.f;
     s.pin.offset = glm::vec3{0.f};
+    staggerSetDown(s, p, info);
     // Where it stands: its pelvis over its feet (each foot's place and its stance from its middle, level).
     const glm::vec3 pelvis = glmv(b3Body_GetWorldCenter(p.body[0]));
     const glm::vec3 middle = massCentre(p);
