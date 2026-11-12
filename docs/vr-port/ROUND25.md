@@ -38,3 +38,7 @@ MULTIPLAYER, PERF_DECISIONS, STEALTH). `.gitattributes` merges ROUND25.md as `un
 ## TESTING.md split into the guide and an archive of recipes (branch agent/testsplit, 2026-11-12)
 
 TESTING.md (1,725 lines) is now the guide (about 320 lines: the mock headset, Writing a test, Test numbers, Checklist scenarios, Debug build assertions, Batched test cases, and an index). The per-feature recipes moved word for word to archive/TESTING_RECIPES.md (82 `##` sections, grep-only); a feature's scattered paragraphs are merged into its section. Retired or vanished cvars named in recipes are marked inline "(retired cvar: <name>)" (9). Code and script comments that quote a moved section ("Climbing", "Swimming", "OpenXR runtime choice", "Body calibration", ...) still say TESTING.md: the index at its end names the archive section.
+
+## Test triage B (branch agent/testtriage_b, 2026-11-12)
+
+Each case run 3 times (agrunt cases seeded as the baseline seeds them, the rest as shipped). Results and one-line causes are in BACKLOG.md section 1; no code changed. Note: run_baseline.py finds no agrunt numbers any more (check_test_numbers.py moved to Tools/qvr_checks), so its agrunt group is empty; the kit script needs the new lister.
