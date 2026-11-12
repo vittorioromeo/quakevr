@@ -357,3 +357,37 @@ enemy becomes an active ragdoll only in specific, clearly-readable situations (t
 shoves, strong hits that topple, leg sweeps, etc.), with the small hit reactions (`vr_hit_react`, 2026-10-11) and
 Quake's pains for ordinary hits. Strong-hit toppling, the one part of the flinch the author liked, lives on in the
 knockdown. [I for the exact scope of the triggers; the removal itself is the coordinator's statement.]
+
+## Open items moved from BACKLOG.md (2026-11-12)
+
+BACKLOG.md keeps a one-line pointer to each; remove an item here when it ships.
+
+### Active ragdolls: research references (author, 2026-10-22)
+
+Research https://www.youtube.com/watch?v=r8Q1nwHPwJ0 for active ragdoll improvements (stagger, balance, get-up, the
+active deaths), plus the references below. Target: Box3D active ragdolls on monsters with custom rigs; procedural, no
+ML at runtime. Borrow ideas only unless noted. Not started.
+
+- physics-4-fun (github.com/slopezjur/physics-4-fun), Godot 4 C#, a Euphoria tribute; no licence stated (ideas only).
+  Steal: ankle, hip and stepping balance strategies; capture-point foot placement with 2-bone IK (could fix our
+  stagger glide); implicit stable PD after Tan-Liu-Turk (no chatter under load); local motor collapse at a hit and
+  wound clutching (a hand to the wound); parachute fall bracing (arms out before landing); raycast wall bracing; a
+  5-phase get-up (hands, torso, lead knee, half-kneel, stand).
+- bevy-ragdoll (github.com/sagan-software/bevy-ragdoll), Rust, MIT/Apache, early. Steal: hit profiles from pistol to
+  explosion that weaken muscles locally and spread the impulse through the body; partial ragdolls (legs animated,
+  upper body loose).
+- UE5 PhysicsControl plugin (Epic, in the engine source; licensees only): mature design reference for per-body
+  strength and damping profiles, named control sets and blending between them.
+- Shrimple Ragdolls (sbox.game/fish/shrimple_ragdolls, s&box): a "Motor" mode like Euphoria plus procedural hit
+  reactions taking position, force, radius and duration.
+- Unity.Humanoid.ActiveRagdoll (github.com/EggyStudio/Unity.Humanoid.ActiveRagdoll), MPL-2.0: limbs weaken while in
+  contact and regain strength after (Following, Losing, Gaining, Dead states); a mask for contacts that shouldn't
+  weaken.
+- Simpler, popular references: ashleve/ActiveRagdoll (PID, Unity), davidkimighty/TARS (MIT, Unity, 122 stars),
+  TildeAsterisk/Physicanim (Unity, Mixamo), kressdev/RagdollTrainer (Unity ML-Agents).
+- Research (heavy, offline training, not for runtime now): NVlabs/ProtoMotions, nv-tlabs/ASE, PARC (SIGGRAPH 2025,
+  github.com/mshoe/PARC); push-recovery ideas only.
+- Delirium physics (author, 2026-10-23): research for future active ragdoll improvements:
+  https://github.com/PVCPC/delirium-physics, https://github.com/YoucefNabil/delirium-physics and
+  https://github.com/YoucefNabil/skyrim-delirium (a Skyrim port). Not read yet: check their licences before borrowing
+  anything beyond ideas.

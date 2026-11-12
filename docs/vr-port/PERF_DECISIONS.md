@@ -393,3 +393,50 @@ not pay off; ROUND22.md, "Removed perf attempts"):
 - **Water faces once a frame** (`vr_water_pick_once`): the pick was 0.004-0.005 ms a frame.
 - **The server tick on a worker** (`vr_server_thread_check`, the audit): shelved with the threading itself;
   SERVER_THREAD.md keeps the design and the audit's findings.
+
+## Open items moved from BACKLOG.md (2026-11-12)
+
+BACKLOG.md keeps a one-line pointer to each; remove an item here when it ships.
+
+### Performance leads
+
+- **Optimise decals** (PERF_DECISIONS.md 15): in a rocket fight (`play_e1m1_lights`) ~900 marks are 1.34 ms of the
+  world pass's 2.67 at 2048 per eye, about half (~2.4 ms at his 2782 eyes); each pixel walks its cell's bucket (up to
+  64 marks, a whole 80-byte record each before its early-out). Reading a mark's normal and middle first was tried and
+  reverted (no gain, 0.6-0.9% of the pixels changed). `vr_decal_max` lowered to 768 meanwhile (config version 118).
+  Left: the options with a visible change (PERF_DECISIONS.md 15), for him.
+- Parallax option B (about a day; recovers about 15% wasted world shading, roughly 0.05-0.15 ms per eye net; extra
+  depth copy pass and buffer; correctness risk for depth readers). Only if world shading stays the top GPU cost.
+- Parallax depth write (off in High, on in Ultra since 2026-10-23; ~1.3 ms over off in an AD fight even with the near
+  split): a tiled-depth early-out was tried and didn't pay (ROUND22.md "Parallax depth write: the tiles' early-out";
+  local branch `agent/pdepthhiz`). Revisit only with a cheaper depth source (no MSAA decompress) or a driver that keeps
+  early depth with conservative depth.
+- Physics world built once per map (about 33 ms per load; props would keep their spawn-frame bodies). Cleanup only.
+- Body triangles reordered arms-first (most of the pre-pass gain without the pass).
+- View-entity leftovers (easeWrist 27-30 us, lying guns' buttons 19 us, tap verts 8 us, rig hand 10-13 us).
+- Mid-game limb loads still on the main thread for unpredictable spawns (4-9 ms vs 1.2 ms at load).
+- The "2D" pass in VR (0.18-0.2 ms) and the gadget screen's p95 spikes; empty OIT clears and sky draw.
+
+- **Performance leads left open by the 2026-10-03/05 reports** (the reports were removed 2026-10-06; git history has
+  them: `PHYSICS_PERFORMANCE_RESULTS_2026-10-03.md`, "Not done", and `PERFORMANCE_BENCHMARK_20261005.md`, items 4-5):
+  - *Hit-box traces:* skip `touchNearby` for props too slow to hurt, after checking the monsters' QC touch functions
+    (a leaping dog's or fiend's touch acts on what it meets).
+  - *Floating props' equilibrium sleep:* a design decision (they would stop bobbing).
+  - *Touch queries:* `FL_EASYHANDTOUCH` grows every prop's box for the hands; prop-to-prop queries could use the
+    ungrown box.
+  - *Shadows in crowded, brightly lit scenes* (32 overlapping lights: 1.59 ms GPU against 1.15 ms without shadows):
+    bone reuse, caching for stable lights and objects (the dlights' world casters: PERF_DECISIONS.md, "Leads"),
+    per-light update budgets, resolution by projected importance (`vr_lighting.cpp`; the casters are set up once a
+    pass over the lights since BENCHMARKS.md's "Second follow-up").
+  - *Teleporter views* (about 0.8 ms GPU and CPU for one doorway): the destination's resolution chosen by the
+    aperture's projected size, tighter destination draw lists, per-frame entity preparation shared across views, the
+    shadow atlas drawn once for the portal views (PERF_DECISIONS.md, item 2).
+
+### Loading leads
+
+- **Model loading in parallel (check: partly covered by "Map-load work off the main thread", ROUND24.md: skins' normal
+  maps now go to jobs; its "Not done" keeps authored normal maps' PNG decode and the limb models' wait)** (the calibration room's alias models, now 270 of the 430 ms: texture uploads, skins'
+  decoding and copies, md5 replacements): the loaders share the hunk, cache and GL; would need each loader split into
+  a decode into its own buffers (on the pool) and a commit in order on the main thread. Two exact pieces done instead.
+- **Drop the remaining kept copies** (ROUND21.md, "The hull build's memory"): the last level's kept copies, 550 MB at
+  once without the budget (about 240 with it), could go as the levels' between did.
