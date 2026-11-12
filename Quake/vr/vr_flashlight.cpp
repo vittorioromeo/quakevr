@@ -7,6 +7,7 @@
 #include "vr_avatar.hpp"
 #include "vr_coil.hpp"
 #include "vr_body.hpp"
+#include "vr_testkit.hpp"
 #include "vr_bodyclone.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
@@ -18,6 +19,7 @@
 #include "vr_main.hpp"
 #include "vr_menu.hpp"
 #include "vr_mem.hpp"
+#include "vr_modelmetadata.hpp"
 #include "vr_profile.hpp"
 #include "vr_protocol.hpp"
 #include "vr_timescale.hpp"
@@ -648,7 +650,8 @@ bool headModeWas = false; // vr_flashlight was 2 when last set (onModeChanged)
     // radius and 2.5 mm in front of it (2.2 cm: the head's). The torch hangs from there by its tail, over the hip.
     const float depth = avatar::buildShape(avatar::bodyBuild()).belt;
     const float m2w = bodyUnits();
-    const glm::vec3 clip = torso.pelvis.pos + (fwd * (beltFront * depth + torchThickness() + 0.0025f + vr_flashlight_forward.value) +
+    const glm::vec3 clip = torso.pelvis.pos + (fwd * (beltFront * depth + torchThickness() + 0.0025f + vr_flashlight_forward.value +
+                                                   (view::playerArmourShown() ? vr_flashlight_armor_forward.value : 0.f)) +
                                                   left * (side * (beltSide + vr_flashlight_out.value)) +
                                                   up * (beltUp + vr_flashlight_up.value + vr_body_belt_up.value)) *
                                                   m2w;
@@ -924,6 +927,16 @@ struct GunMountOwn
     const glm::quat turn = glm::angleAxis(glm::radians(-own.turn.y * out), up) * glm::angleAxis(glm::radians(own.turn.x), right) *
                            glm::angleAxis(glm::radians(own.turn.z * out), fwd);
     p.rot = glm::normalize(turn * p.rot);
+    // On the super shotgun's barrels broken open (his words 2026-11-12: it "seems like it goes through the barrel"):
+    // carried down with them about the hinge, as they are drawn (decided by its lens: on the barrels, in front of the
+    // hinge, or on the frame).
+    glm::vec3 hinge;
+    glm::mat3 down;
+    if(view::ssgBarrelsCarry(m.hand, modelPointAt(p, shape().lens), hinge, down))
+    {
+        p.pos = hinge + down * (p.pos - hinge);
+        p.rot = glm::normalize(glm::quat_cast(down) * p.rot);
+    }
     return p;
 }
 
@@ -2222,6 +2235,25 @@ void probe_f()
             glm::dot(d, up), glm::dot(d, outward), glm::degrees(za::asin(za::clamp(glm::dot(beam, up), -1.f, 1.f))),
             glm::degrees(za::atan2(glm::dot(beam, outward), glm::dot(beam, fwd))),
             glm::degrees(za::atan2(-glm::dot(sw, up), glm::dot(sw, outward))));
+        // The super shotgun: its barrels' open angle and the lens's distance (metres) from two points of the barrels as
+        // drawn (the breech's middle, a point 30 units along: its own part's when open, the gun's shut): the same open and
+        // shut when the torch rides the barrels down (ssg_torch_test.sh).
+        if(modelmeta::is(gm.model, modelmeta::Id::VShot2))
+        {
+            const glm::vec3 lens = modelPointAt(st.pose, shape().lens);
+            float dist[2] = {-1.f, -1.f};
+            const glm::vec3 pts[2] = {{12.7f, 0.f, 7.f}, {30.f, 0.f, 7.f}};
+            for(int i = 0; i < 2; i++)
+            {
+                glm::vec3 w;
+                if(view::ssgBarrelsDrawn(st.gunHand, pts[i], w) || view::gunToWorld(st.gunHand, pts[i], w))
+                {
+                    dist[i] = glm::distance(lens, w) / units::metresToUnits();
+                }
+            }
+            Con_Printf("torchprobe %s ssg open %.1f lens to breech %.4f to barrel %.4f\n", tag, view::ssgOpenAngle(st.gunHand),
+                dist[0], dist[1]);
+        }
     }
     // Held, a gun in the other hand: the held torch's middle from the middle of the gun's zone (metres along the gun, up,
     // out from the body), the zone's radius, and the muzzle and the gun's hand from that middle along the gun (metres;
@@ -2290,11 +2322,57 @@ struct FlashlightScratch
 };
 mem::Scratch<FlashlightScratch> scratch{"flashlight"};
 
+// vr_armorgear_check [end]: the ammo pouch and the belt torch with the armour's plates shown against not (vr_player_plates
+// 1 then 0, the cvars set), each call a sample; `end` checks the shown one is forward of the other by the cvars' amounts.
+// Misc/quakevr/armorgear_test.sh. Ends `armorgear: N passed, M failed`.
+struct ArmorGearSample
+{
+    bool have[2]{};
+    glm::vec3 pouch[2]{}, torch[2]{}, fwd{};
+};
+ArmorGearSample armorGearSample;
+testkit::Tally armorGearTally;
+
+void armorGearCheck_f()
+{
+    testkit::Tally& c = armorGearTally;
+    ArmorGearSample& a = armorGearSample;
+    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "end"))
+    {
+        if(a.have[0] && a.have[1])
+        {
+            const float pouch = glm::dot(a.pouch[1] - a.pouch[0], a.fwd);
+            const float torch = glm::dot(a.torch[1] - a.torch[0], a.fwd) / bodyUnits();
+            Con_Printf("armorgear: pouch %.3f units (cvar %.3f), torch %.4f m (cvar %.4f)\n", pouch, vr_ammo_pouch_armor_x.value,
+                torch, vr_flashlight_armor_forward.value);
+            c.check(za::abs(pouch - vr_ammo_pouch_armor_x.value) < 0.01f, "armorgear", "pouch");
+            c.check(za::abs(torch - vr_flashlight_armor_forward.value) < 0.0005f, "armorgear", "torch");
+        }
+        else
+        {
+            c.check(false, "armorgear", "a sample missing");
+        }
+        c.verdict("armorgear");
+        c.reset();
+        a = ArmorGearSample{};
+        return;
+    }
+    const bool shown = view::playerArmourShown();
+    const hands::State& s = hands::current();
+    glm::vec3 up, right;
+    hands::angleVectors({0.f, s.bodyYaw, 0.f}, a.fwd, right, up);
+    a.have[shown] = true;
+    a.pouch[shown] = body::ammoPouchPosition(s);
+    a.torch[shown] = mountPose(s).pos;
+    Con_Printf("armorgear: sample, armour shown %d\n", shown ? 1 : 0);
+}
+
 } // namespace
 
 void init()
 {
     Cmd_AddCommand("vr_flashlight_toggle", toggle_f);
+    Cmd_AddCommand("vr_armorgear_check", armorGearCheck_f);
     Cmd_AddCommand("vr_flashlight_probe", probe_f);
     Cmd_AddCommand("vr_flashlight_clip_gun", clipGun_f);
     Cmd_AddCommand("vr_flashlight_give", give_f);

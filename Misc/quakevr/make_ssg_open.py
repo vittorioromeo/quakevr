@@ -10,7 +10,9 @@
 #   quakevr/progs/vr_ssg_barrels_on_v_shot2.mdl  the barrels with the fore-end and the rear sight; their back (the breech
 #                                                face) one flat steel face with the two bores open in it (short tubes, dark
 #                                                inside): skin 0 both empty, 1 the left one (model +y) loaded, 2 both
-#                                                loaded (the shells' brass heads and primers at the bores' bottoms)
+#                                                loaded (the shells' brass heads and primers at the bores' bottoms),
+#                                                its frames alike (the rest pose; a loaded bore's bottom moved out
+#                                                flush with the breech face: HEAD_INSET; drawn frame = skin)
 #
 # Both keep the gun's vertices, poses, scale and origin (so they lie on it: the engine draws them with the gun's place,
 # the barrels turned about the hinge), its skin with rows added under it for the new faces. The gun closed is drawn as
@@ -55,8 +57,11 @@ STEP_TOP = 5.4       # the frame's step under the barrels (the water table) is u
 CHAMBERS = ((1.25, 7.0), (-1.25, 7.0))  # (y, z) of the chambers' (and the firing pins') middles
 CHAMBER_R = 0.6      # the bores' radius at the breech face
 BORE_SIDES = 8       # the bores' tubes: sides (the model's low-poly look)
-BORE_STEPS = 2       # their depth in the model's x steps (0.227 each): you see into them a little, the loaded chambers'
-                     # brass heads at their bottoms
+BORE_STEPS = 2       # their depth in the model's x steps (0.227 each): you see into them a little (an empty one)
+HEAD_INSET = 0       # a loaded chamber's shell head: model x steps in from the breech face (0: flush, his words
+                     # 2026-11-12: "the golden part that gets hit by the hammers" flush with the open barrels' face).
+                     # The barrels' frames: 0 both empty, 1 the left one loaded, 2 both (as their skins): a loaded
+                     # bore's bottom (its brass head) moved out to here; the engine draws frame = skin (setSsgPart)
 KNUCKLE_SIDES = 8    # the hinge's knuckle round the pin: an octagonal tube between the frame's sides, its bottom level
 KNUCKLE_R = 0.76     # with the barrels' underside (the hinge's height over it), so it fills the turning barrels' heel
 PX = 12.0            # skin pixels per model unit on the new faces
@@ -278,6 +283,28 @@ class Builder:
         ids = [self.vert(p, outward, *uv(p)) for p in pts3]
         for a, b, c in tri_ids:
             self.tri(ids[a], ids[b], ids[c], pts3[a], pts3[b], pts3[c], outward)
+
+
+def loaded_frames(path, heads, rear_x):
+    """The barrels written to `path` given three frames, all the gun's rest pose (the parts are drawn at rest only):
+    frame k as skin k (0 both empty, 1 the left one, CHAMBERS[0], loaded, 2 both), a loaded bore's bottom (`heads`: its
+    vertices) moved out to HEAD_INSET steps in from the breech face (rear_x): the shell's brass head there, not at the
+    bottom of the bore an empty chamber shows."""
+    m = mp.Model(path)
+    rest = bytes(m.pose_bytes(0))
+    hdr = m.pose_blocks()[0][1] if m.frames[0][0] == "simple" else m.pose_blocks()[0][0]
+    x = int(round((rear_x - m.origin[0]) / m.scale[0])) + HEAD_INSET
+    frames = []
+    for k, loaded in enumerate(((False, False), (True, False), (True, True))):
+        vb = bytearray(rest)
+        for bore, ids in zip(loaded, heads):
+            for i in ids if bore else ():
+                vb[4 * i] = x
+        name = ("loaded%d" % k).encode().ljust(16, b"\0")
+        frames.append(["simple", bytearray(bytes(hdr[:8]) + name), vb])
+    m.frames = frames
+    m.h[17] = len(frames)  # (the header's frame count)
+    m.write(path)
 
 
 def move_verts(m, carrier, verts, x):
@@ -510,6 +537,7 @@ def build(src=SRC, out_dir=PROGS, guarded=True):
     bb.face([(rear_x, y, z) for y, z in poly], tris, (-1.0, 0.0, 0.0),
             lambda p: ((cap_ymax - p[1]) * PX, t0 + (cap_zmax - p[2]) * PX))
     walls = []
+    heads = []  # per bore: its bottom's vertices
     for bi, (b, (cy, cz)) in enumerate(zip(bores, CHAMBERS)):
         # The tube: the bore's sides from the breech face in to its bottom (facing in), shared vertices round it (one
         # seam), then the bottom (facing back).
@@ -534,6 +562,7 @@ def build(src=SRC, out_dir=PROGS, guarded=True):
         td = t0 + 2 * (wall_h + 2)
         ymax_d, zmax_d = cy + CHAMBER_R + 0.1, cz + CHAMBER_R + 0.1
         bottom = [(rear_x + depth, y, z) for y, z in b]
+        heads.append(range(len(bm.st), len(bm.st) + len(bottom)))  # (its vertices: loaded_frames moves them out)
         bb.face(bottom, ear_clip(b), (-1.0, 0.0, 0.0),
                 lambda p, sd=sd, td=td, ymax_d=ymax_d, zmax_d=zmax_d: (sd + (ymax_d - p[1]) * PX,
                                                                        td + (zmax_d - p[2]) * PX))
@@ -562,6 +591,7 @@ def build(src=SRC, out_dir=PROGS, guarded=True):
     bm.skins = skins
     bm.h[12] = len(skins)  # (the header's skin count)
     bm.write(out_b)
+    loaded_frames(out_b, heads, rear_x)
     mid = np.array([rear_x, sum(c[0] for c in CHAMBERS) / 2, sum(c[1] for c in CHAMBERS) / 2])
 
     # ---- The frame: the tapers cut off flat at the standing breech (BREECH_X), the face there with the firing pins;
