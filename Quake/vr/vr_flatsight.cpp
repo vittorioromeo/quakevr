@@ -2453,7 +2453,8 @@ void statusLine()
                 st.stanceGun ? 1 : 0, st.lookFar ? 1 : 0, st.lookFast ? 1 : 0, st.gripWanted ? 1 : 0, st.gripT);
             Con_Printf("  stance arm: hipfire %.2f sight %.2f of %.1f, keeps %.2f%s\n", st.armHip, st.armSight, flatplay::armReach(),
                 gripKeep, st.lookFar ? ", out of reach" : "");
-            Con_Printf("  stance spot: hs%d fwd %.2f right %.2f up %.2f relief %.1f\n", st.spot[st.holding] + 1, l.x, l.y, l.z, st.relief);
+            Con_Printf("  stance spot: hs%d fwd %.2f right %.2f up %.2f relief %.1f cup %d\n", st.spot[st.holding] + 1, l.x, l.y, l.z, st.relief,
+                hands::current().grip2HCup[st.holding] ? 1 : 0);
             Con_Printf("  stance hand: off %.2f fwd %.2f right %.2f up %.2f turned %.1f %.1f %.1f\n", glm::length(d), st.drawnLocal.x,
                 st.drawnLocal.y, st.drawnLocal.z, st.drawnTurn.x, st.drawnTurn.y, st.drawnTurn.z);
         }

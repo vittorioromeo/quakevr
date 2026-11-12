@@ -102,3 +102,7 @@ TESTING.md (1,725 lines) is now the guide (about 320 lines: the mock headset, Wr
 - flatstance: the free hand's punch check now expects the stance punch >= the plain one (32 vs 21); the twist adds to the
   blow. 6 passed, 1 failed: "the drawn hand stands on the hotspot" still fails (guns 1 and 29, WID_GRAPPLE and
   WID_NAILPISTOL, hotspot behind/below the hand, 4.93 units off).
+
+## cupskip
+
+flatstance_test.sh no longer measures the drawn hand against cup grips (grapple, nail pistol): the status prints cup 0/1 (grip2HCup) on the stance spot line and the check skips cup reads. 7/0.
