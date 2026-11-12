@@ -1762,6 +1762,12 @@ vector(vector xTo) VR_EM_InHand =
     return normalize('1 0 0' * (xTo * v_forward) + '0 1 0' * (xTo * v_right) + '0 0 1' * (xTo * v_up));
 };
 entity vr_em_box;     // what blocks it
+float  vr_eg_on;       // test 33 (cases 46, 47): the hand on an embedded blade's handle
+vector vr_eg_handle0;  // ... the handle's place as the lift began
+float  vr_eg_gap;      // ... units the most the handle (the drawn hand) was from the real hand
+float  vr_eg_ratio;    // ... the most the handle rose of the hand's own rise
+float  vr_eg_n;        // ... frames into the lift
+float  vr_eg_grip;     // ... units the hand was off the handle as it gripped it again
 
 float(entity p) VR_EM_Speed =
 {
@@ -2627,8 +2633,10 @@ void() VR_EM_Step =
             }
             VR_ET_To(11);
         }
-        else if(vr_et_s == 11 && t > (dead ? 1.2 : 0.05))
+        else if(vr_et_s == 11 && t > (dead ? 1.2 : 0.4))
         {
+            // (Once the handle has come to the hand, Moving: Handle Comes to the Hand: the mock hand stops dead 16 units past it as
+            // its stab ends, and what is measured here is the body following a hand that moves.)
             // The move: sideways 40 cm in 0.4 s; up 50 cm in 1 s; a slow pull back 30 cm in 1 s.
             float liftF = c == 36 || c == 39 || strongF;
             float pullF = c == 38 || c == 41;
@@ -2684,7 +2692,9 @@ void() VR_EM_Step =
                     sprintf("lag %.1f spring %.1f strain %.2f hand %.0f%% axial %.1f\n", vr_ef_max / cmF, vr_ef_at_x / cmF, vr_ef_hand_y, vr_ef_hand_x * 100, vr_et_w.vr_hold_axial / cmF)));
                 VR_Test_Check(VR_EH_Blade() != world, sprintf("case %g: %s: still held", c, what));
                 // (By the defaults: a deep sword follows closely; an axe, a dead body pulled slowly, still well. At x10: all the way.)
-                float leastF = axeF ? 0.5 : 0.75;
+                // (35, held by the handle since 2026-11-12: a sword swung sideways in a standing body turns it about itself as well as
+                // moving it, the handle staying in the hand: its wound comes some 70% of the way, not 75.)
+                float leastF = axeF ? 0.5 : (c == 35 ? 0.6 : 0.75);
                 if(strongF)
                 {
                     VR_Test_Check(ofHand >= 0.9, sprintf("case %g: %s: it comes all the way (%.0f%% of the hand's way, at least 90%%)", c, what, ofHand * 100));
@@ -2751,6 +2761,115 @@ void() VR_EM_Step =
         }
         return;
     }
+    // ---- 46, 47 (test 33; his notes 2026-11-12: "I barely move my hand upwards, the sword and the game hand go up four or five times
+    // more", "the position in which my hand stays when grabbing onto the embedded blade is very far from my real life hand"): a deep
+    // sword held in a dead grunt, the hand lifted 20 units in 0.5 s: level (46), the wrist turning up 10 degrees as it rises, as an arm
+    // does (47). The handle (where the hand is drawn: the blade's origin) stays on the real hand, rises with it and no more, the body
+    // comes. 47, then: let go, gripped again 6 units off the handle: the handle comes to the hand. 46: the hand as drawn on the handle
+    // is the hand that held that sword (the engine's vr_embed_probe_hoff, _hturn).
+    if((c == 46 || c == 47) && vr_eg_on)
+    {
+        if(vr_et_s < 10)
+        {
+            if(vr_et_s == 0)
+            {
+                cvar_set("vr_embed_probe", "reset");
+            }
+            vr_et_up = 6;
+            if(VR_EM_Blow(WID_SWORD, 9, t))
+            {
+                VR_Test_Check(w != world, sprintf("case %g: stuck", c));
+                if(w == world)
+                {
+                    VR_EM_NextCase();
+                    return;
+                }
+                vr_et_w = w;
+                VR_ET_To(10);
+            }
+        }
+        else if(vr_et_s == 10 && (w == world || w.vr_stick_goal == 0))
+        {
+            m.health = 1;
+            T_Damage(m, p, p, 5);
+            localcmd("vr_mock_hand_aim main off\n");
+            VR_ET_To(11);
+        }
+        else if(vr_et_s == 11 && t > 1.2)
+        {
+            if(c == 46)
+            {
+                VR_Test_Print(sprintf("%s: the hand on the handle from its place on the sword held: %.2f cm, %.2f degrees\n", vr_test_tag, cvar_hget(cvarh_vr_embed_probe_hoff), cvar_hget(cvarh_vr_embed_probe_hturn)));
+                VR_Test_Check(cvar_hget(cvarh_vr_embed_probe_hoff) >= 0 && cvar_hget(cvarh_vr_embed_probe_hoff) < 0.2 && cvar_hget(cvarh_vr_embed_probe_hturn) < 1,
+                    sprintf("in a body: the hand on the handle is drawn as it held the sword (%.2f cm, %.2f degrees off; under 0.2, 1)", cvar_hget(cvarh_vr_embed_probe_hoff), cvar_hget(cvarh_vr_embed_probe_hturn)));
+            }
+            vr_eh_start = VRGetHandPos(h);
+            vr_eg_handle0 = vr_et_w.origin;
+            vr_et_at = vr_et_w.vr_stick_at;
+            vr_eg_gap = 0;
+            vr_eg_ratio = 0;
+            vr_eg_n = 0;
+            vr_em_turned = 0;
+            // (The stab went on into the body past where the hand stopped, the body died and turned on the blade: the handle comes
+            // to the hand all the same, eased, Moving: Handle Comes to the Hand. 12 units off before 2026-11-12.)
+            vr_eg_grip = vlen(vr_et_w.origin - vr_eh_start);
+            VR_Test_Print(sprintf("%s: case %g: held, still: the handle %.1f units from the real hand\n", vr_test_tag, c, vr_eg_grip));
+            VR_Test_Check(vr_eg_grip <= 1.5, sprintf("case %g: held still, the handle is in the real hand (%.1f units off, 1.5 allowed)", c, vr_eg_grip));
+            VR_EH_HandTo(vr_eh_start + '0 0 20', 0.5);
+            VR_ET_To(12);
+        }
+        else if(vr_et_s == 12 || vr_et_s == 13)
+        {
+            if(c == 47 && vr_et_s == 12 && vr_em_turned < 10)
+            {
+                vr_em_turned = vr_em_turned + 1;
+                localcmd("vr_mock_hand_turn main -1 0 0\n");
+            }
+            vector handG = VRGetHandPos(h);
+            float handUp = handG_z - vr_eh_start_z;
+            float handleUp = vr_et_w.origin_z - vr_eg_handle0_z;
+            float woundUp = vr_et_w.vr_stick_at_z - vr_et_at_z;
+            // (Across the blade: along it, the hand's way is the blade's own, its slide's resistance: Hold: Sword's Stick, Rate.)
+            vector gapV = vr_et_w.origin - handG;
+            float gapAlong = gapV * vr_et_w.vr_stick_dir;
+            float gapG = vlen(gapV - vr_et_w.vr_stick_dir * gapAlong);
+            vr_eg_gap = max(vr_eg_gap, gapG);
+            if(handUp > 2)
+            {
+                vr_eg_ratio = max(vr_eg_ratio, handleUp / handUp);
+            }
+            vr_eg_n = vr_eg_n + 1;
+            if(vr_eg_n - floor(vr_eg_n / 6) * 6 == 0)
+            {
+                VR_Test_Print(strcat(sprintf("%s: case %g trace %.2f s: hand up %.1f, handle up %.1f, wound up %.1f, ", vr_test_tag, c, vr_eg_n / 72, handUp, handleUp, woundUp),
+                    sprintf("handle from hand %.1f units across the blade, %.1f along it (slid %.1f, strain %.2f)\n", gapG, gapAlong, vr_et_w.vr_stick_slide - vr_et_w.vr_hold_slide0, vr_et_w.vr_hold_strain)));
+            }
+            if(vr_et_s == 12 && t >= 0.5)
+            {
+                VR_ET_To(13);
+            }
+            else if(vr_et_s == 13 && (t >= 0.6 || VR_EH_Blade() == world))
+            {
+                string whatG = c == 46 ? "lifted 20 units, level" : "lifted 20 units, the wrist turning up 10 degrees";
+                VR_Test_Print(strcat(sprintf("%s: case %g %s: the handle %.1f units from the real hand at most across the blade, %.1f settled (%.1f along it); ", vr_test_tag, c, whatG, vr_eg_gap, gapG, gapAlong),
+                    sprintf("it rose %.0f%% of the hand's rise at most; the wound came %.0f%%\n", vr_eg_ratio * 100, woundUp / max(0.01, handUp) * 100)));
+                VR_Test_Check(VR_EH_Blade() != world, sprintf("case %g: %s: still held", c, whatG));
+                // (Before 2026-11-12: 14 and 12 units level, 11.6 and 5.2 with the wrist turning, the wound coming 50%.)
+                VR_Test_Check(vr_eg_gap <= 5, sprintf("case %g: %s: the handle stays on the real hand (%.1f units off across the blade at most, 5 allowed)", c, whatG, vr_eg_gap));
+                VR_Test_Check(gapG <= 2, sprintf("case %g: %s: settled, the handle is on the hand (%.1f units off across the blade, 2 allowed)", c, whatG, gapG));
+                VR_Test_Check(vr_eg_ratio <= 1.25, sprintf("case %g: %s: the handle rises with the hand, no more (%.0f%% of its rise at most, 125%% allowed)", c, whatG, vr_eg_ratio * 100));
+                // (Less the lift's share along the blade, which is the blade's own, its slide: 4 units of the 20, level.)
+                VR_Test_Check(woundUp >= 0.6 * handUp, sprintf("case %g: %s: the body comes (the wound %.1f of the hand's %.1f units, at least 60%%)", c, whatG, woundUp, handUp));
+                VR_EM_NextCase();
+            }
+        }
+        return;
+    }
+    if(vr_eg_on)
+    {
+        cvar_set("vr_embed_probe", "");
+    }
+    vr_eg_on = FALSE;
     vr_et_up = 0;
     vr_eh_ahead = 0;
     localcmd("tune_reset vr_embed_stagger_axe_speed\ntune_reset vr_embed_stagger_push\ntune_reset vr_embed_stagger_sword\ntune_reset vr_embed_stagger_axe\ntune_reset vr_embed_stagger_amount\n");
@@ -4344,6 +4463,10 @@ void() VR_Embed_TestFrame =
             VR_ET_To(0);
         }
         cvar_set("vr_embed", "1"); // (off by default for 1.1, on in his config: with it off blades don't stick and these all fail)
+        if(ask == 40)
+        {
+            VR_DG_Begin(); // (the dagger: vr_dagger_test.qc)
+        }
         if(ask == 1)
         {
             VR_Test_BeginFlags("embedtest", VR_TEST_LOUD);
@@ -4387,9 +4510,10 @@ void() VR_Embed_TestFrame =
             vr_et_case = 0;
             VR_ET_To(0);
         }
-        if(ask == 11 || ask == 23 || ask == 27) // (23: its last cases alone, the fist run into a grunt; 27: how closely a body follows)
+        if(ask == 11 || ask == 23 || ask == 27 || ask == 33) // (23: its last cases alone, the fist run into a grunt; 27: how closely a body follows; 33: the hand on the handle)
         {
-            VR_Test_BeginFlags(ask == 27 ? "embedforce" : "embedmove", VR_TEST_LOUD);
+            VR_Test_BeginFlags(ask == 33 ? "embedgrip" : (ask == 27 ? "embedforce" : "embedmove"), VR_TEST_LOUD);
+            vr_eg_on = ask == 33;
             vr_ef_strength = cvar_hget(cvarh_vr_embed_hold_strength);
 cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stagger here)
             cvar_set("vr_kdtrig", "0");
@@ -4402,7 +4526,7 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
             // (Short sure-footed staggers in the first cases, by these; the cases by each kind of body take the defaults.)
             localcmd("tune vr_embed_stagger_axe_speed 8\ntune vr_embed_stagger_push 0\ntune vr_embed_stagger_sword 0.6\ntune vr_embed_stagger_axe 0.3\ntune vr_embed_stagger_amount 0.3\n");
             vr_et_on = 11;
-            vr_et_case = ask == 23 ? 32 : (ask == 27 ? 35 : 0);
+            vr_et_case = ask == 23 ? 32 : (ask == 27 ? 35 : (ask == 33 ? 46 : 0));
             VR_ET_To(0);
         }
         if(ask == 24)
@@ -4559,6 +4683,10 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
     else if(vr_et_on == 6)
     {
         VR_ET_Kinds();
+    }
+    else if(vr_et_on == 40)
+    {
+        VR_DG_Frame(); // (the dagger: vr_dagger_test.qc)
     }
     else if(vr_et_on == 7)
     {

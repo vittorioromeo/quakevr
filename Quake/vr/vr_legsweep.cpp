@@ -190,6 +190,10 @@ using geom::vec;
     {
         return 0.2f; // the blade past the guard
     }
+    if(modelmeta::is(model, Id::VDagger))
+    {
+        return 0.43f; // the dagger's blade past its guard
+    }
     if(modelmeta::is(model, Id::VChainsaw))
     {
         return 0.45f; // the bar past the engine block

@@ -19,6 +19,7 @@
 #include "vr_main.hpp"
 #include "vr_menu.hpp"
 #include "vr_mem.hpp"
+#include "vr_modelmetadata.hpp"
 #include "vr_profile.hpp"
 #include "vr_protocol.hpp"
 #include "vr_timescale.hpp"
@@ -926,6 +927,16 @@ struct GunMountOwn
     const glm::quat turn = glm::angleAxis(glm::radians(-own.turn.y * out), up) * glm::angleAxis(glm::radians(own.turn.x), right) *
                            glm::angleAxis(glm::radians(own.turn.z * out), fwd);
     p.rot = glm::normalize(turn * p.rot);
+    // On the super shotgun's barrels broken open (his words 2026-11-12: it "seems like it goes through the barrel"):
+    // carried down with them about the hinge, as they are drawn (decided by its lens: on the barrels, in front of the
+    // hinge, or on the frame).
+    glm::vec3 hinge;
+    glm::mat3 down;
+    if(view::ssgBarrelsCarry(m.hand, modelPointAt(p, shape().lens), hinge, down))
+    {
+        p.pos = hinge + down * (p.pos - hinge);
+        p.rot = glm::normalize(glm::quat_cast(down) * p.rot);
+    }
     return p;
 }
 
@@ -2224,6 +2235,25 @@ void probe_f()
             glm::dot(d, up), glm::dot(d, outward), glm::degrees(za::asin(za::clamp(glm::dot(beam, up), -1.f, 1.f))),
             glm::degrees(za::atan2(glm::dot(beam, outward), glm::dot(beam, fwd))),
             glm::degrees(za::atan2(-glm::dot(sw, up), glm::dot(sw, outward))));
+        // The super shotgun: its barrels' open angle and the lens's distance (metres) from two points of the barrels as
+        // drawn (the breech's middle, a point 30 units along: its own part's when open, the gun's shut): the same open and
+        // shut when the torch rides the barrels down (ssg_torch_test.sh).
+        if(modelmeta::is(gm.model, modelmeta::Id::VShot2))
+        {
+            const glm::vec3 lens = modelPointAt(st.pose, shape().lens);
+            float dist[2] = {-1.f, -1.f};
+            const glm::vec3 pts[2] = {{12.7f, 0.f, 7.f}, {30.f, 0.f, 7.f}};
+            for(int i = 0; i < 2; i++)
+            {
+                glm::vec3 w;
+                if(view::ssgBarrelsDrawn(st.gunHand, pts[i], w) || view::gunToWorld(st.gunHand, pts[i], w))
+                {
+                    dist[i] = glm::distance(lens, w) / units::metresToUnits();
+                }
+            }
+            Con_Printf("torchprobe %s ssg open %.1f lens to breech %.4f to barrel %.4f\n", tag, view::ssgOpenAngle(st.gunHand),
+                dist[0], dist[1]);
+        }
     }
     // Held, a gun in the other hand: the held torch's middle from the middle of the gun's zone (metres along the gun, up,
     // out from the body), the zone's radius, and the muzzle and the gun's hand from that middle along the gun (metres;

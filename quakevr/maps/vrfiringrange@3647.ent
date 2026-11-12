@@ -1168,3 +1168,8 @@
 "worldtext_scale" "0.25"
 "_proparea" "1"
 }
+{
+"classname" "weapon_dagger"
+"origin" "216 -868 33"
+"_proparea" "1"
+}

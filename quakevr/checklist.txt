@@ -14,9 +14,11 @@ Let an idle grunt glimpse you or hear a knock through a seamless teleporter with
 Set Ammo Pouch X With Armour and Torch Forward With Armour (VR Settings) to a small value (about 3 units, 0.03 m) with armour on: the pouch and the belt torch should stand clear of the plates, and go back to normal when the armour is gone.
 Monsters now ride lifts and plats by default (vr_nav_lifts, vr_nav_plat_monsters on): watch a monster follow you onto a lift.
 The super axe's blade shape and muzzle, and the slot 36 torch offsets, are now your tuned defaults: check they look as you left them.
+With drips on, get something wet, then reload the same map (a restart or a save of this level): no crash. Survival Arena waves start without a hitch at each new wave.
 
 [1. Flat-screen: weapons and hands]
 Flat-screen: hold the axe (then a sword, the crowbar, Mjolnir, the super axe) with the left hand empty: it goes onto the handle by itself without swinging and the weapon sits in a two-handed stance; take a weapon or a prop in the left hand and it eases back to the one-handed hold, with no jumps either way. Tune it in Debug > Tunables > Flatscreen > Two-Handed Melee Stance. {test:flat_melee2h}
+Flat-screen: Open the menu, Locomotion > Desktop Screen Play > Flat Keys. Press Enter on Drop, press a new key: the row shows it, and in play that key drops what the hand holds (the old one no longer does). Escape while it waits keeps the old key, Backspace clears it, Reset Flat Keys restores all. Look for a "!" note when a key is also another flat key's or has a Quake binding.
 
 [2. Flat-screen: movement, melee, HUD and menus]
 
@@ -49,6 +51,9 @@ Stab the training dummy with the sword and chop the axe into a grunt so they sta
 In VR, force grab a brick or a gib: the beam starts from your palm, and the thing stops tumbling as it arrives and sits in the hand upright as it lay.
 Neck snap standing and on a lifted body: it goes limp, still held. Leg grabs: pull one down by the shins, drag it by the legs, lift it by the legs. Hold one with both hands: no crash. {test:grunts_to_throw}
 Punch e1m1's shootable secret door by the Quad (and any wall you punch going south or west): the fist lands, sparks fly and the door opens, as a shot does. Your hand rests right on walls on every side now, not a unit short on some and a unit in on others.
+Hold a sword left in a dead grunt (or a staggering one) by its handle and lift your hand a little, turning your wrist as you do: the sword and the drawn hand stay on your real hand and rise with it, no further (they used to drift 30 cm off and jump up with the wrist); the body comes with the blade and goes round with your wrist. Grip the handle again a little off it: the handle comes to your hand in a fifth of a second. {test:embed_handle}
+Grip the handle of a sword left in a crate or in a body, the blade rolled or tilted any way: the drawn hand lies on the handle exactly as it holds that sword normally, not turned on it. {test:embed_handle}
+Stab a standing grunt hard so that it staggers and keep hold: if your hand went on past the hilt, or stopped short of it, the body is pushed or pulled along the blade until the handle is in your hand. Say if that feels wrong after a stab (Debug > Tunables > Moving: Held by the Handle turns it off, Moving: Handle Comes to the Hand sets how fast). {test:embed_handle}
 
 [5. Both modes: monsters, bodies, gore, props and navmesh]
 Flat-screen or VR: kick or drop the crate (not a hand throw) hard into the lit wall torch: it falls off its wall as a thrown crate knocks it; nudged slowly against it, the torch stays. {test:systems_torch_knock}
@@ -66,6 +71,13 @@ Flat-screen or VR: shove a grunt standing at the very edge of a step or platform
 
 [6. Both modes: weapons, ammo screens and housings]
 Flat-screen or VR: fire the grenade launcher and let an ogre lob at you: each grenade fizzes and ticks quicker and quicker until it blows, like a hand grenade with its pin pulled, and all three take the same 2.5 s from the shot or the pin to the blast (Thrown Grenades Tick in Batting and Catching turns the launched ones' ticking off). {test:grenade_countdown}
+Clip the flashlight on the super shotgun and break it open: the torch and its beam drop with the barrels instead of the barrels swinging through it. {test:ssg_open_torch}
+Flat-screen or VR: load shells into the open super shotgun: their brass heads sit flush with the barrels' breech face, not sunk in the bores; an empty chamber still shows its open bore. {test:ssg_open_torch}
+Pick up the new dagger (it lies in your main hand here, the knight's sword in the other to compare): it should look like the sword's clean steel, a third of its blade, a smaller guard and grip, and sit in your hand as the sword does. {test:dagger}
+Swing and stab the grunt with the dagger: a stab should stick in a third as deep as the sword's and hold the body as a sword stab does; a throw should stick point first; it hurts about 0.6 of the sword (Combat > Weapon Damage > Melee > Dagger). {test:dagger}
+Let the armed grunt with the dagger fight you, and disarm it: it should hold and swing the dagger one-handed as grunts hold swords, and pick it up again. {test:dagger}
+Flat-screen or VR: daggers lie beside the two swords in the firing range and in the toolgun's Weapons list; holster one and throw one as you would the sword. {test:dagger}
+Flat-screen or VR: fire the grenade launcher, then force-grab the lit grenade out of the air: its fuse starts over at the full 2.5 s with a small re-arm click and a flare of sparks, the fizz and ticks start again from the top (one stream, no leftover from before), and you can throw it again and hear it properly. {test:grenade_countdown}
 
 [7. Survival Arena (Play > Survival Arena)]
 The arena is nice: play it, feels good? Note improvements. {test:arena_run}

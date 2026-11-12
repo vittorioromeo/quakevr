@@ -79,6 +79,7 @@ void M_DrawPanel (void);		// QVR: the current menu drawn as M_Draw does, into a 
 void M_RefreshBounds (void);	// QVR: the current menu's bounds laid out again (after another panel's menu was drawn)
 enum textmode_t M_TextEntry (void);
 qboolean M_WaitingForKeyBinding (void);
+void M_VRKeyCapture (qboolean on);	// QVR: a VR page's key row waits for a key (Flat Keys): VR_Menu_Key takes it
 qboolean M_WantsConsole (float *alpha);
 qboolean M_ForcedCenterPrint (float *alpha);
 qboolean M_ForcedUnderwater (void);

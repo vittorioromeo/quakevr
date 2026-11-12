@@ -30,7 +30,7 @@ INC = os.path.join(ROOT, "Quake", "vr", "vr_weapons.inc")
 BEFORE48 = os.path.join(ROOT, "Quake", "vr", "vr_weapons_before48.inc")
 VALUES = os.path.join(ROOT, "Quake", "vr", "vr_weaponvalues.inc")
 DATA = os.path.join(ROOT, "quakevr", "data", "weapons.txt")
-NUM_SLOTS = 51
+NUM_SLOTS = 52  # vr_weapons.hpp numSlots (51 the dagger)
 UNINHERITED_SLOTS = (27, 28, 29, 30, 31, 33, 34, 35)  # vr_weapons.cpp uninherited[]
 
 KEY_RE = re.compile(r'^QVR_WEAPON_KEY\((\w+), "([^"]+)"\)')

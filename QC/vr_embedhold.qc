@@ -82,6 +82,8 @@ void(entity p) VR_Skewer_AllOff; // (vr_skewer.qc)
 .vector vr_hold_propoff;  // the wound's place from the handle hand as it took hold
 .vector vr_hold_proptgt;  // where the pull wanted the wound last think
 .float  vr_hold_proppull; // its pull then, N (the test's)
+.float  vr_hold_byhandle; // in a ragdoll: its spring holds it by the handle (vr_embed_move_handle; the engine's ragdolltug 17)
+.float  vr_hold_slide0;   // ... and how far it had slid as that spring began
 
 // Whether a blow may leave a blade in `m`: a wooden crate or barrel lying loose (not in a hand), with vr_embed_props.
 float(entity m) VR_Embed_PropHost =
@@ -545,11 +547,41 @@ float(entity e, entity p, entity h, float xIn, float xAxial) VR_Embed_Spring =
     if(now >= 0)
     {
         e.vr_hold_axial = e.vr_hold_axial + xAxial;
-        ragdolltug(h, p, hand, 14, e.vr_stick_dir * -e.vr_hold_axial);
+        if(e.vr_hold_byhandle)
+        {
+            // (By its handle, as drawn now: what the blade has slid of the hand's way along it has moved the handle already.)
+            ragdolltug(h, p, hand, 14, e.vr_stick_dir * -(e.vr_hold_axial - (e.vr_stick_slide - e.vr_hold_slide0)));
+            ragdolltug(h, p, hand, 17, e.origin);
+        }
+        else
+        {
+            ragdolltug(h, p, hand, 14, e.vr_stick_dir * -e.vr_hold_axial);
+        }
         return ragdolltug(h, p, hand, 13, '0 0 0', 0, force) > 0;
     }
     e.vr_hold_axial = 0;
-    return ragdolltug(h, p, hand, 12, e.vr_stick_at, 0, force) > 0;
+    e.vr_hold_byhandle = FALSE;
+    if(ragdolltug(h, p, hand, 12, e.vr_stick_at, 0, force) <= 0)
+    {
+        return FALSE;
+    }
+    // (By its handle, where the hand is drawn on it: the handle stays in the real hand. His notes 2026-11-12.)
+    if(cvar_hget(cvarh_vr_embed_move_handle))
+    {
+        ragdolltug(h, p, hand, 14, '0 0 0');
+        e.vr_hold_byhandle = ragdolltug(h, p, hand, 17, e.origin) > 0;
+    }
+    if(e.vr_hold_byhandle)
+    {
+        // (The body comes to the hand, the engine's, eased: the gap between the real hand and the drawn one closes by itself, along
+        // the blade and across it. No slack is left of it: VR_Embed_SetG0's.)
+        e.vr_hold_slide0 = e.vr_stick_slide;
+        e.vr_hold_err = 0;
+        e.vr_hold_slack = 0;
+        e.vr_hold_off = '0 0 0';
+        e.vr_hold_offslack = 0;
+    }
+    return TRUE;
 };
 
 // A crate or barrel (VR_Embed_InProp) held by the blade `e`: its body pulled at the wound towards where the hand on the handle has it (the
@@ -902,6 +934,11 @@ float() VR_Embed_HoldThink =
     e.vr_hold_carrying = carry;
     float axialNow = (carry && armAlong < 0) ? 0 : (((armAlong < 0 || e.vr_stick_slide < deepest - 0.01) ? armAlong : 0) + carriedNow);
     float sprung = inProp ? VR_Embed_PropSpring(e, p, h, axialNow, dt) : VR_Embed_Spring(e, p, h, inShare, axialNow);
+    if(sprung && !inProp && e.vr_hold_byhandle && e.vr_hold_handle)
+    {
+        // (Held by its handle the body itself turns with the wrist: no leeway on top, which would turn the handle out of the hand.)
+        e.vr_hold_rot0 = VRGetEntHandRot(p, e.vr_hold_handle == 2 ? cVR_MainHand : cVR_OffHand);
+    }
     // Off the axis: a ragdoll comes along; only a yank tears it out of one. What stands can't: the hand's gone too far.
     float across = armLen / max(0.001, dt) / VRMetersToUnits();
     if(off > max(0, cvar_hget(cvarh_vr_embed_hold_break)) * cm && (!sprung || across >= cvar_hget(cvarh_vr_embed_hold_yank)))

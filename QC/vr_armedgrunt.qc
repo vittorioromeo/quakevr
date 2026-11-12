@@ -664,6 +664,7 @@ float VR_AG_CODE_SHADOWAXE = 101;
 float VR_AG_CODE_WIDOWMAKER = 102;
 float VR_AG_CODE_PLASMAGUN = 103;
 float VR_AG_CODE_HKSWORD = 104;  // the death knight's (hell knight's) sword: the knight's sword with its secondary flag
+float VR_AG_CODE_DAGGER = 105;   // the dagger: the knight's sword of its kind (VR_SWORDKIND_DAGGER; every campaign)
 float VR_AG_CODE_ADMELEE = 110; // 111..120: kind 1..10 (VR_ADMELEE_*; not the flail, 11: its head on its chain is only
                                 // a player's hand's, vr_box3d_flail.cpp: a grunt would swing a bare handle)
 
@@ -687,6 +688,12 @@ float(float code) VR_AG_Decode =
     {
         vr_ag_dec_wid = WID_SWORD;
         vr_ag_dec_flags = QVR_WPNFLAG_USE_SECONDARY_AMMO; // (weapon_hknight_sword's: the player's own, every campaign)
+        return TRUE;
+    }
+    if(code == VR_AG_CODE_DAGGER)
+    {
+        vr_ag_dec_wid = WID_SWORD;
+        vr_ag_dec_flags = VR_ADMelee_Flags(VR_SWORDKIND_DAGGER); // (weapon_dagger's)
         return TRUE;
     }
     if(code > VR_AG_CODE_ADMELEE && code <= VR_AG_CODE_ADMELEE + VR_ADMELEE_JUDGE) // (the flail, 11: not a grunt's)
@@ -738,6 +745,7 @@ float() VR_AG_PickWeapon =
     VR_AG_PoolAdd(WID_FIST, cvar_hget(cvarh_vr_agrunt_w_fists));
     VR_AG_PoolAdd(WID_AXE, cvar_hget(cvarh_vr_agrunt_w_axe));
     VR_AG_PoolAdd(WID_SWORD, cvar_hget(cvarh_vr_agrunt_w_sword));
+    VR_AG_PoolAdd(VR_AG_CODE_DAGGER, cvar_hget(cvarh_vr_agrunt_w_dagger));
     VR_AG_PoolAdd(WID_CROWBAR, cvar_hget(cvarh_vr_agrunt_w_crowbar));
     VR_AG_PoolAdd(WID_CHAINSAW, cvar_hget(cvarh_vr_agrunt_w_chainsaw));
     VR_AG_PoolAdd(WID_SHOTGUN, cvar_hget(cvarh_vr_agrunt_w_shotgun));

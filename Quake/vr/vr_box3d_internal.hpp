@@ -798,6 +798,18 @@ struct World
         // not at a point out at the hilt, and the wound goes round the hand with the wrist as on a real blade.
         glm::vec3 bladeReach{0.f};
         glm::quat bladeTurn{1.f, 0.f, 0.f, 0.f};
+        // ... taken by its handle (ragdollTug what 17; vr_embed_move_handle): the spring holds the limb at the handle's
+        // point (rigid on the limb, the blade's length out of it) on the hand, and turns it with the hand by the blade's
+        // lever (`bladeLever`, m: its most torque is its most force at it), so the handle stays in the real hand and the
+        // body goes round with the wrist. `bladeGap`: the handle from the hand as it took hold (units), eased away over
+        // vr_embed_move_match from `bladeGapAt`: gripped off the handle, the handle comes to the hand.
+        // The handle's point on the limb follows the handle as drawn (what 17 each frame, eased from `bladeHandleAt`):
+        // the blade rides the model's triangle, which bends from the limb's body with the ragdoll's joints.
+        bool bladeHandle{false};
+        double bladeHandleAt{0.0};
+        float bladeLever{0.f};
+        glm::vec3 bladeGap{0.f};
+        double bladeGapAt{0.0};
         // The toolgun's physgun's hold (player 0, no hand: vr_box3d_ragparts.cpp, "The physgun's hold"): where its
         // anchor is driven to (units).
         glm::vec3 target{0.f};

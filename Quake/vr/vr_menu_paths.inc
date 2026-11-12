@@ -151,7 +151,7 @@ void qvr::menu::dump_f()
         for(const Item& item : items(p))
         {
             const char* kind = item.kind == Item::Header ? "HEAD" : item.kind == Item::Slider ? "SLID" :
-                item.kind == Item::Cycle ? "CYCL" : item.kind == Item::Action ? "ACT" : "INFO";
+                item.kind == Item::Cycle ? "CYCL" : item.kind == Item::Action ? "ACT" : item.kind == Item::Key ? "KEY" : "INFO";
             za::String choices;
             for(const Choice& c : item.choices)
             {

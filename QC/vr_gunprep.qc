@@ -51,7 +51,7 @@ float(string c) VR_GunPrep_ClassWid =
     if(c == "weapon_upgrade_lg")      { return WID_LIGHTNING; }
     if(c == "weapon_laser_gun")       { return WID_LASER_CANNON; }
     if(c == "weapon_crowbar")         { return WID_CROWBAR; }
-    if(c == "weapon_knight_sword" || c == "weapon_hknight_sword") { return WID_SWORD; }
+    if(c == "weapon_knight_sword" || c == "weapon_hknight_sword" || c == "weapon_dagger") { return WID_SWORD; }
     if(c == "weapon_chainsaw")        { return WID_CHAINSAW; }
     if(c == "weapon_gruntgun")        { return WID_GRUNTGUN; }
     if(c == "weapon_enfrifle")        { return WID_ENFRIFLE; }

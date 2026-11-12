@@ -1490,7 +1490,7 @@ void pollKeys()
         return inGame && k > 0 && k < MAX_KEYS && keydown[k] != 0;
     };
     const bool grab = down(vr_flat_key_grab);
-    const bool v = inGame && keydown['v'] != 0;
+    const bool v = down(vr_flat_key_punch);
     bool fire[2];
     fire[HAND_OFF] = client::attacking(HAND_OFF);
     fire[HAND_MAIN] = client::attacking(HAND_MAIN);
@@ -1753,7 +1753,8 @@ void pollKeysFlat()
 {
     const bool inGame = key_dest == key_game;
     const bool ctrl = inGame && keydown[K_CTRL] != 0;
-    const bool flash = inGame && keydown['f'] != 0;
+    const int flashKey = vr_flat_key_flashlight.string[0] ? Key_StringToKeynum(vr_flat_key_flashlight.string) : -1;
+    const bool flash = inGame && flashKey > 0 && flashKey < MAX_KEYS && keydown[flashKey] != 0;
     // H (vr_flat_key_drop; G until 2026-11-10, his words: "Rebind drop to 'H' and free the 'G' key up": G is the quick
     // grenade now, vr_flatgrenade.cpp).
     const int dropKey = vr_flat_key_drop.string[0] ? Key_StringToKeynum(vr_flat_key_drop.string) : -1;
@@ -1776,7 +1777,7 @@ void pollKeysFlat()
         Cbuf_InsertText("vr_flashlight_toggle\n");
         if(vr_flatplay_debug.value)
         {
-            Con_Printf("flatplay: F: the flashlight\n");
+            Con_Printf("flatplay: %s: the flashlight\n", vr_flat_key_flashlight.string);
         }
     }
     if(drop && !keyState.keyDrop)

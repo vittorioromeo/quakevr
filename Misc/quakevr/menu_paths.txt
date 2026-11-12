@@ -543,6 +543,7 @@ vr_flashlight_auto_gun|1|Flashlight|Clip on Gun When Let Go|Advanced VR Options 
 vr_flashlight_clip_time|1|Flashlight|Clip-On Transition|Advanced VR Options > Flashlight > Clip-On Transition
 vr_flashlight_tilt|1|Flashlight|Lean Out|Advanced VR Options > Flashlight > Lean Out
 vr_flashlight_forward|1|Flashlight|Forward|Advanced VR Options > Flashlight > Forward
+vr_flashlight_armor_forward|1|Flashlight|Forward With Armour|Advanced VR Options > Flashlight > Forward With Armour
 vr_flashlight_up|1|Flashlight|Up|Advanced VR Options > Flashlight > Up
 vr_flashlight_out|1|Flashlight|Out|Advanced VR Options > Flashlight > Out
 |1|Flashlight|Reset This Page|Advanced VR Options > Flashlight > Reset This Page
@@ -718,6 +719,7 @@ vr_takes_replay|1|Recording|Replay Buffer in a Session|Advanced VR Options > Bod
 vr_takes_gadget|1|Recording|Wrist Gadget Buttons|Advanced VR Options > Body and Display > Recording (Window View) > Wrist Gadget Buttons
 vr_takes_chord|1|Recording|Mark Chord|Advanced VR Options > Body and Display > Recording (Window View) > Mark Chord
 vr_takes_light|1|Recording|Recording Light and Prompt|Advanced VR Options > Body and Display > Recording (Window View) > Recording Light and Prompt
+vr_takes_light_flat|1|Recording|Recording Light and Prompt (Flat Screen)|Advanced VR Options > Body and Display > Recording (Window View) > Recording Light and Prompt (Flat Screen)
 vr_takes_light_size|1|Recording|Light Size|Advanced VR Options > Body and Display > Recording (Window View) > Light Size
 vr_takes_light_right|1|Recording|Light Position: Right|Advanced VR Options > Body and Display > Recording (Window View) > Light Position: Right
 vr_takes_light_up|1|Recording|Light Position: Up|Advanced VR Options > Body and Display > Recording (Window View) > Light Position: Up
@@ -953,6 +955,7 @@ vr_dmg_rocket|1|Weapon Damage|Rocket|Advanced VR Options > Combat > Weapon Damag
 vr_dmg_laser|1|Weapon Damage|Laser Cannon|Advanced VR Options > Combat > Weapon Damage > Laser Cannon
 vr_dmg_lava_nail|1|Weapon Damage|Lava Nails|Advanced VR Options > Combat > Weapon Damage > Lava Nails
 vr_crowbar_damage|1|Weapon Damage|Crowbar|Advanced VR Options > Combat > Weapon Damage > Crowbar
+vr_dagger_damage|1|Weapon Damage|Dagger|Advanced VR Options > Combat > Weapon Damage > Dagger
 vr_sword_damage_mult|1|Weapon Damage|Knight's Sword|Advanced VR Options > Combat > Weapon Damage > Knight's Sword
 vr_gruntgun_damage|1|Weapon Damage|Grunt's Burst Rifle|Advanced VR Options > Combat > Weapon Damage > Grunt's Burst Rifle
 |1|Weapon Damage|Reset This Page|Advanced VR Options > Combat > Weapon Damage > Reset This Page
@@ -1019,6 +1022,7 @@ vr_agrunt_ik|1|Armed Grunts|Hands on the Grips|Advanced VR Options > Combat > Ar
 vr_agrunt_w_fists|1|Armed Grunts|Fists|Advanced VR Options > Combat > Armed Grunts > Fists
 vr_agrunt_w_axe|1|Armed Grunts|Axe|Advanced VR Options > Combat > Armed Grunts > Axe
 vr_agrunt_w_sword|1|Armed Grunts|Knight's Sword|Advanced VR Options > Combat > Armed Grunts > Knight's Sword
+vr_agrunt_w_dagger|1|Armed Grunts|Dagger|Advanced VR Options > Combat > Armed Grunts > Dagger
 vr_agrunt_w_crowbar|1|Armed Grunts|Crowbar|Advanced VR Options > Combat > Armed Grunts > Crowbar
 vr_agrunt_w_chainsaw|1|Armed Grunts|Ogre's Chainsaw|Advanced VR Options > Combat > Armed Grunts > Ogre's Chainsaw
 vr_agrunt_w_shotgun|1|Armed Grunts|Shotgun|Advanced VR Options > Combat > Armed Grunts > Shotgun
@@ -1917,8 +1921,40 @@ vr_flashlight_head_zone_radius|2|Flashlight - On a Gun or Head|Head Zone Radius|
 |2|Flashlight - On a Gun or Head|Reset This Page|Advanced VR Options > Flashlight > On a Gun or Head > Reset This Page
 @page|2|Weapon Offsets||Advanced VR Options > Weapons > Weapon Offsets (Held Weapon)
 |2|Weapon Offsets|Edit the Other Hand's Weapon|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > Edit the Other Hand's Weapon
+|2|Weapon Offsets|Edit Blade Shape|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > Edit Blade Shape
+|2|Weapon Offsets|Print Changes to Console|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > Print Changes to Console
+|2|Weapon Offsets|Reset This Weapon|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > Reset This Weapon
 @page|2|Weapon Weights||Advanced VR Options > Weapons > Weapon Weights (Held Weapon)
 |2|Weapon Weights|Edit the Other Hand's Weapon|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Edit the Other Hand's Weapon
+vr_wofs_w_mass_17|2|Weapon Weights|Mass|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Mass
+vr_wofs_w_com_17|2|Weapon Weights|Balance|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Balance
+vr_wofs_w_len_17|2|Weapon Weights|Length|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Length
+vr_wofs_w_stiff_17|2|Weapon Weights|Stiffness|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Stiffness
+vr_wofs_w_damp_17|2|Weapon Weights|Damping|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Damping
+vr_wofs_w_strength_17|2|Weapon Weights|Arm Strength|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Arm Strength
+vr_wofs_w_sag_17|2|Weapon Weights|Sag|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Sag
+vr_wofs_w_swing_17|2|Weapon Weights|Swing|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Swing
+vr_wofs_w_roll_17|2|Weapon Weights|Roll Weight|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Roll Weight
+vr_wofs_w_2h_17|2|Weapon Weights|Two-Handed Help|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Two-Handed Help
+vr_wofs_w_snap_17|2|Weapon Weights|Snap Back Beyond|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Snap Back Beyond
+vr_wofs_w_meleedmg_17|2|Weapon Weights|Melee Damage|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Melee Damage
+vr_wofs_w_throwdmg_17|2|Weapon Weights|Throw Damage|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Throw Damage
+vr_wofs_w_throwmin_17|2|Weapon Weights|Throw Speed Needed|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Throw Speed Needed
+vr_wofs_w_throwcurve_17|2|Weapon Weights|Throw Damage Curve|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Throw Damage Curve
+vr_wofs_w_meleemin_17|2|Weapon Weights|Melee Speed Needed|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Melee Speed Needed
+vr_wofs_w_meleecurve_17|2|Weapon Weights|Melee Damage Curve|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Melee Damage Curve
+vr_wofs_w_spinalign_17|2|Weapon Weights|Spin in the Air|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Spin in the Air
+vr_wofs_w_heft_17|2|Weapon Weights|Heft|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Heft
+vr_wofs_w_droop_17|2|Weapon Weights|Droop|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Droop
+vr_wofs_w_hrecoil_17|2|Weapon Weights|One-Handed Kick|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > One-Handed Kick
+vr_heavy_damping_min|2|Weapon Weights|Settle (Least Damping)|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Settle (Least Damping)
+vr_weight_drop|2|Weapon Weights|Heavy Weapons Wrenched Out|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Heavy Weapons Wrenched Out
+vr_weight_drop_from|2|Weapon Weights|Heavier Than|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Heavier Than
+vr_weight_drop_speed|2|Weapon Weights|Fastest Turn|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Fastest Turn
+vr_weight_drop_curve|2|Weapon Weights|Weight Curve|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Weight Curve
+vr_weight_drop_velocity|2|Weapon Weights|Falls At|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Falls At
+|2|Weapon Weights|Print Changes to Console|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Print Changes to Console
+|2|Weapon Weights|Reset This Weapon|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Reset This Weapon
 @page|1|Hand/Gun Calibration||Advanced VR Options > Weapons > Hand/Gun Calibration
 vr_show_controller|1|Hand/Gun Calibration|Show Controller|Advanced VR Options > Weapons > Hand/Gun Calibration > Show Controller
 vr_handcal_x|1|Hand/Gun Calibration|Main Hand X (forward)|Advanced VR Options > Weapons > Hand/Gun Calibration > Main Hand X (forward)
@@ -2057,6 +2093,7 @@ vr_reload_pouch_catch|1|Reloading|Falling Magazines Go In|Advanced VR Options > 
 vr_reload_pouch_catch_reach|1|Reloading|Falling In Reach|Advanced VR Options > Weapons > Reloading > Falling In Reach
 vr_ammo_pouch_show|1|Reloading|Show|Advanced VR Options > Weapons > Reloading > Show
 vr_ammo_pouch_x|1|Reloading|X|Advanced VR Options > Weapons > Reloading > X
+vr_ammo_pouch_armor_x|1|Reloading|X With Armour|Advanced VR Options > Weapons > Reloading > X With Armour
 vr_ammo_pouch_y|1|Reloading|Y|Advanced VR Options > Weapons > Reloading > Y
 vr_ammo_pouch_z|1|Reloading|Z|Advanced VR Options > Weapons > Reloading > Z
 vr_ammo_pouch_thresh|1|Reloading|Reach|Advanced VR Options > Weapons > Reloading > Reach
@@ -4574,6 +4611,9 @@ vr_embed_move_sword_force_deep|2|Tunables|Moving: Sword's Force, Deep|Advanced V
 vr_embed_move_give|2|Tunables|Moving: Stance Gives Way|Advanced VR Options > Debug > Tunables > Moving: Stance Gives Way
 vr_embed_move_hertz|2|Tunables|Moving: Stiffness|Advanced VR Options > Debug > Tunables > Moving: Stiffness
 vr_embed_move_at_wound|2|Tunables|Moving: Held At|Advanced VR Options > Debug > Tunables > Moving: Held At
+vr_embed_move_handle|2|Tunables|Moving: Held by the Handle|Advanced VR Options > Debug > Tunables > Moving: Held by the Handle
+vr_embed_move_handle_hertz|2|Tunables|Moving: Handle's Stiffness|Advanced VR Options > Debug > Tunables > Moving: Handle's Stiffness
+vr_embed_move_match|2|Tunables|Moving: Handle Comes to the Hand|Advanced VR Options > Debug > Tunables > Moving: Handle Comes to the Hand
 vr_embed_move_turn|2|Tunables|Moving: Turns With the Wrist|Advanced VR Options > Debug > Tunables > Moving: Turns With the Wrist
 vr_embed_drag_slack|2|Tunables|Dragging: Slack|Advanced VR Options > Debug > Tunables > Dragging: Slack
 vr_embed_tether_speed|2|Tunables|Tether: Your Speed|Advanced VR Options > Debug > Tunables > Tether: Your Speed
@@ -5472,7 +5512,6 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Flat Gate|Advanced VR Options > Debug > Tests > Flat Gate
 |2|Debug - Tests|Flat Move: Speed|Advanced VR Options > Debug > Tests > Flat Move: Speed
 |2|Debug - Tests|Blood at Point Blank|Advanced VR Options > Debug > Tests > Blood at Point Blank
-|2|Debug - Tests|Particle Pool: Full|Advanced VR Options > Debug > Tests > Particle Pool: Full
 |2|Debug - Tests|Blood Crouched Over a Corpse|Advanced VR Options > Debug > Tests > Blood Crouched Over a Corpse
 |2|Debug - Tests|Blood Near the Eye: Pictures|Advanced VR Options > Debug > Tests > Blood Near the Eye: Pictures
 |2|Debug - Tests|Blood Fountain of a Limb Popped Close|Advanced VR Options > Debug > Tests > Blood Fountain of a Limb Popped Close
@@ -5712,6 +5751,7 @@ vr_test_throw_up_body|2|Debug - Tests|Throw Up From Your Body|Advanced VR Option
 |2|Debug - Tests|Skewered Gibs Through Stick Turns Check|Advanced VR Options > Debug > Tests > Skewered Gibs Through Stick Turns Check
 |2|Debug - Tests|Blades in Crates and Barrels Check|Advanced VR Options > Debug > Tests > Blades in Crates and Barrels Check
 |2|Debug - Tests|Embedded Blades: Skewering Check|Advanced VR Options > Debug > Tests > Embedded Blades: Skewering Check
+|2|Debug - Tests|Embedded Blades: the Hand on the Handle Check|Advanced VR Options > Debug > Tests > Embedded Blades: the Hand on the Handle Check
 |2|Debug - Tests|Embedded Blades: the Edges Check|Advanced VR Options > Debug > Tests > Embedded Blades: the Edges Check
 |2|Debug - Tests|Sword in a Wall and a Corpse|Advanced VR Options > Debug > Tests > Sword in a Wall and a Corpse
 vr_test_axe|2|Debug - Tests|Axe Throw|Advanced VR Options > Debug > Tests > Axe Throw
@@ -8260,6 +8300,26 @@ vr_stealth_debug_meters_range|2|Stealth AI Tests|Meters Within|Advanced VR Optio
 vr_stealth_debug|2|Stealth AI Tests|Log|Advanced VR Options > Combat > Stealth AI > Tests > Log
 vr_stealth_light_force|2|Stealth AI Tests|Force the Light on You|Advanced VR Options > Combat > Stealth AI > Tests > Force the Light on You
 |2|Stealth AI Tests|Reset This Page|Advanced VR Options > Combat > Stealth AI > Tests > Reset This Page
+@page|1|Flat Keys||Advanced VR Options > Movement > Locomotion > Flat Keys
+|1|Flat Keys|Lean Left|Advanced VR Options > Movement > Locomotion > Flat Keys > Lean Left
+|1|Flat Keys|Lean Right|Advanced VR Options > Movement > Locomotion > Flat Keys > Lean Right
+|1|Flat Keys|Lie Down|Advanced VR Options > Movement > Locomotion > Flat Keys > Lie Down
+|1|Flat Keys|Swap Hands|Advanced VR Options > Movement > Locomotion > Flat Keys > Swap Hands
+|1|Flat Keys|Force Grab|Advanced VR Options > Movement > Locomotion > Flat Keys > Force Grab
+|1|Flat Keys|Shove|Advanced VR Options > Movement > Locomotion > Flat Keys > Shove
+|1|Flat Keys|Punch|Advanced VR Options > Movement > Locomotion > Flat Keys > Punch
+|1|Flat Keys|Reload|Advanced VR Options > Movement > Locomotion > Flat Keys > Reload
+|1|Flat Keys|Drop|Advanced VR Options > Movement > Locomotion > Flat Keys > Drop
+|1|Flat Keys|Quick Grenade|Advanced VR Options > Movement > Locomotion > Flat Keys > Quick Grenade
+|1|Flat Keys|Bullet Time|Advanced VR Options > Movement > Locomotion > Flat Keys > Bullet Time
+|1|Flat Keys|Flashlight|Advanced VR Options > Movement > Locomotion > Flat Keys > Flashlight
+|1|Flat Keys|Holster Menu|Advanced VR Options > Movement > Locomotion > Flat Keys > Holster Menu
+|1|Flat Keys|Fly Camera|Advanced VR Options > Movement > Locomotion > Flat Keys > Fly Camera
+|1|Flat Keys|Toolgun|Advanced VR Options > Movement > Locomotion > Flat Keys > Toolgun
+|1|Flat Keys|Toolgun Panel|Advanced VR Options > Movement > Locomotion > Flat Keys > Toolgun Panel
+|1|Flat Keys|Toolgun Adjust|Advanced VR Options > Movement > Locomotion > Flat Keys > Toolgun Adjust
+|1|Flat Keys|Reset Flat Keys|Advanced VR Options > Movement > Locomotion > Flat Keys > Reset Flat Keys
+|1|Flat Keys|Reset This Page|Advanced VR Options > Movement > Locomotion > Flat Keys > Reset This Page
 @page|1|Visor HUD Look||Advanced VR Options > Movement > Locomotion > Visor HUD Look
 vr_flat_visor|1|Visor HUD Look|Visor HUD|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor HUD
 vr_flat_visor_scale|1|Visor HUD Look|Visor Panel Size|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Panel Size
@@ -8375,6 +8435,16 @@ vr_smallgibs_brains_mult_eel|2|Small Gibs - Per Enemy|Eel (Rogue)|Advanced VR Op
 vr_smallgibs_brains_mult_zombie|2|Small Gibs - Per Enemy|Zombie (Beheaded)|Advanced VR Options > Gore > Small Gibs > Per Enemy > Zombie (Beheaded)
 vr_smallgibs_brains_mult_mummy|2|Small Gibs - Per Enemy|Mummy (Rogue, Beheaded)|Advanced VR Options > Gore > Small Gibs > Per Enemy > Mummy (Rogue, Beheaded)
 |2|Small Gibs - Per Enemy|Reset This Page|Advanced VR Options > Gore > Small Gibs > Per Enemy > Reset This Page
+@page|2|Weapon Offsets - Hand and Grip||Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > The Hand
+|2|Weapon Offsets - Hand and Grip|Edit the Other Hand's Weapon|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > The Hand > Edit the Other Hand's Weapon
+vr_wofs_x_17|2|Weapon Offsets - Hand and Grip|Offset X (forward)|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > The Hand > Offset X (forward)
+vr_wofs_y_17|2|Weapon Offsets - Hand and Grip|Offset Y (left)|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > The Hand > Offset Y (left)
+vr_wofs_z_17|2|Weapon Offsets - Hand and Grip|Offset Z (up)|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > The Hand > Offset Z (up)
+vr_wofs_pitch_17|2|Weapon Offsets - Hand and Grip|Pitch|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > The Hand > Pitch
+vr_wofs_yaw_17|2|Weapon Offsets - Hand and Grip|Yaw|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > The Hand > Yaw
+vr_wofs_roll_17|2|Weapon Offsets - Hand and Grip|Roll|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > The Hand > Roll
+vr_wofs_scale_17|2|Weapon Offsets - Hand and Grip|Scale|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > The Hand > Scale
+vr_wofs_hide_hand_17|2|Weapon Offsets - Hand and Grip|Hide Hand|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > The Hand > Hide Hand
 @page|1|Holster Zones||Advanced VR Options > Weapons > Immersion > Holster Zones
 vr_holster_zones|1|Holster Zones|Zones|Advanced VR Options > Weapons > Immersion > Holster Zones > Zones
 vr_holster_zones_show|1|Holster Zones|Show Zones|Advanced VR Options > Weapons > Immersion > Holster Zones > Show Zones
@@ -9029,6 +9099,7 @@ vr_explosion_debris_light_radius|1|Explosion Debris|Glow Light Radius|Advanced V
 |2|Spawn Pickup Weapons|Axe|Advanced VR Options > Debug > Cheats and Recording > Spawn Pickup Weapons > Axe
 |2|Spawn Pickup Weapons|Knight's Sword|Advanced VR Options > Debug > Cheats and Recording > Spawn Pickup Weapons > Knight's Sword
 |2|Spawn Pickup Weapons|Death Knight's Sword|Advanced VR Options > Debug > Cheats and Recording > Spawn Pickup Weapons > Death Knight's Sword
+|2|Spawn Pickup Weapons|Dagger|Advanced VR Options > Debug > Cheats and Recording > Spawn Pickup Weapons > Dagger
 |2|Spawn Pickup Weapons|Ogre's Chainsaw|Advanced VR Options > Debug > Cheats and Recording > Spawn Pickup Weapons > Ogre's Chainsaw
 |2|Spawn Pickup Weapons|Grunt Burst Rifle|Advanced VR Options > Debug > Cheats and Recording > Spawn Pickup Weapons > Grunt Burst Rifle
 |2|Spawn Pickup Weapons|Enforcer's Rifle|Advanced VR Options > Debug > Cheats and Recording > Spawn Pickup Weapons > Enforcer's Rifle

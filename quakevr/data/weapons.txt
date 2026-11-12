@@ -4739,3 +4739,81 @@ weapon 50
     torch_clip "0"
     w_heft "0.85" // death sergeant's flail
 }
+
+// slot 51: progs/v_dagger.mdl (vr_wofs_*_52)
+weapon 51
+{
+    // The dagger (QC VR_SWORDKIND_DAGGER: the knight's sword, WID_SWORD, of its kind; Misc/quakevr/make_dagger.py, then
+    // its .blend): the knight's sword's model made short, laid where the sword is (the same scale_origin, the same grip
+    // and hand anchor), so the sword's settings (slot 18) hold it the same way. Its tip (muzzle_av) and the blade's root
+    // (wpnbtn_av, wpntxt_av) are the dagger's; one-handed (2h_mode 2: no helping hand, no hotspots: its grip is one
+    // hand's room and its blade too short for a half-sword grip); its blade from the guard (bl_from: the guard's top a
+    // third of the way from the hand's middle to the tip) and its pommel's end behind the hand (bl_near), from
+    // make_dagger.py's printout. Embedded by its point as the sword is (embed 1): the depth is a share of the blade's
+    // length, so a third as deep. A light blade: 1.2 kg, 34 cm, balanced just ahead of the hand.
+    embed "1"
+    2h_fxd_hp "-1.5"
+    2h_fxd_hr "0.0"
+    2h_fxd_hy "0.0"
+    2h_mode "2"
+    2h_pitch "70.017"
+    2h_roll "0.0"
+    2h_x "0.0"
+    2h_y "0.0"
+    2h_yaw "0.0"
+    2h_z "0.0"
+    ch_mode_z "1"
+    hand_av "-0.9793 1.4925 -2.6023"
+    hand_x "3.432"
+    hand_y "-0.51"
+    hand_z "3.453"
+    hide_hand "0.0"
+    id "progs/v_dagger.mdl"
+    muzzle_av "13.3470 0.0082 32.8094"
+    muzzle_x "0"
+    muzzle_y "0"
+    muzzle_z "0"
+    pitch "15.5"
+    roll "0"
+    scale "0.34"
+    wpnbtn_av "7.7205 0.0082 10.2118"
+    wpnbtn_pitch "0.0"
+    wpnbtn_roll "0.0"
+    wpnbtn_x "0.0"
+    wpnbtn_y "0.0"
+    wpnbtn_yaw "0.0"
+    wpnbtn_z "0.0"
+    wpnbtnmode "0"
+    wpntxt_av "7.7205 0.0082 10.2118"
+    wpntxt_pitch "0.0"
+    wpntxt_roll "0.0"
+    wpntxt_scale "1.0"
+    wpntxt_x "0.0"
+    wpntxt_y "0.0"
+    wpntxt_yaw "0.0"
+    wpntxt_z "0.0"
+    wpntxtmode "0.0"
+    x "1.6"
+    y "2.253"
+    yaw "0.75"
+    z "8.628"
+    hs1_type "0"
+    hs2_type "0"
+    hol_hip_x "0.5"
+    hol_hip_y "5"
+    hol_hip_z "1.5"
+    hol_hip_roll "-50"
+    hol_upper_x "-1.5"
+    hol_upper_y "6"
+    hol_upper_z "-3.5"
+    hol_upper_pitch "15"
+    hol_upper_yaw "25"
+    hol_upper_roll "-70"
+    w_mass "1.2"
+    w_com "6"
+    w_len "34"
+    torch_clip "0"
+    w_heft "0" // dagger
+    bl_from "0.331"
+    bl_near "0.321"
+}

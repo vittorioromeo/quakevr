@@ -188,5 +188,9 @@ QVR_PACK("Monsters", "Armed Enforcers", "Armed Enforcer: Rocket Launcher", "mons
 QVR_PACK("Monsters", "Armed Enforcers", "Armed Enforcer: Thunderbolt", "monster_vr_enforcer", "progs/vrenforcer.mdl", 24.f, "weapon", 11.f, 0, 0, nullptr, 0)
 QVR_PACK("Monsters", "Armed Enforcers", "Armed Enforcer: Grunt's Rifle", "monster_vr_enforcer", "progs/vrenforcer.mdl", 24.f, "weapon", 15.f, 0, 0, nullptr, 0)
 QVR_PACK("Monsters", "Armed Enforcers", "Armed Enforcer: Laser Rifle", "monster_vr_enforcer", "progs/vrenforcer.mdl", 24.f, "weapon", 16.f, 0, 0, nullptr, 0)
+// The dagger (QC VR_SWORDKIND_DAGGER: the knight's sword, 13, of its kind, weapon flags 3072; weapon_dagger) and an armed
+// grunt holding one (its "weapon" key 105: QC VR_AG_CODE_DAGGER), here at the end so the entries' numbers stay.
+    {"Weapons", "Dagger", "weapon_dagger", "progs/v_dagger.mdl", 8.f, nullptr, 0.f, 0, false},
+QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Dagger", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 105.f, 0, 0, nullptr, 0)
 
 #undef QVR_PACK

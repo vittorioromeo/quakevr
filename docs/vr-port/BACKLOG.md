@@ -28,11 +28,21 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
   `test_flaky.txt` still names some: take them off after more runs unseeded).
 - **Embedded blades** (`vr_embed` on since 2026-11-08): recheck `vr_embed_test` 7, 13 and 21 (failing 2026-11-06);
   real heavy monsters, saves, level change and multiplayer unproven (tests 14-20 written).
+- **Embedded blades, the handle hold** (2026-11-12, ROUND25.md "embedgrip"): his VR check of the handle staying in the
+  hand; a stab's own gap along the blade now moves the body to the hand (keep it as slack if that reads wrong); the
+  off hand's pose on a handle isn't probed; `vr_embed_test` 7 had 2 more failures in one run with the hold on.
 - **`vrtutorial_playtest.py` room 8**: the shells' throw is fixed (ROUND25.md "testfix"); still open: the mock's main
   hand never grips the bench's shotgun (stops ~25 units short), so nothing loads; the `weapons` gate and later fail.
 - **Tooling:** Tracy GPU zones lost after toggling GPU detail mid-run; some hidden-mock eye/window captures come back
   black; 15 test commands still registered in `vr_main.cpp`; `vr_physsound.cpp` keeps its own copy of the box test
   `R_SurfaceHoldsPoint` replaced for the light.
+- **Baseline 2026-11-12, still failing alone** (ROUND25.md "basefix1112": first-bad merges by bisect, alone, seed 1):
+  agrunt 12 (AD fumigator, Shadow Axe, Widowmaker, Plasma Gun grunts never armed: since promote1111's prop slots 65-69),
+  16 (drawn shotgun / nail pistol vertices 0.06 / 0.10 out of their disarm hulls, the check allows 0.05: since the nail
+  pistol's model edits), 35 (Fist parry: 0 of 9; since armoursplit), 39 (tug hand 7 cm off the gun; since retire1110's
+  weapon offsets), 211 (case 3 "not taken in time"; since regfix's armour look), stealth props_round (knight within 77
+  units; since housing_nailpistol: likely a seeded run's butterfly), vrtrailer (no beheading: fails alone at 330f70409
+  too). Older: agrunt 3, 91, 92; 213 needs AD's start (the baseline runs it in vrtesthall: a runner fix).
 
 ## 2. The 1.1 release (only on his word; his list is RELEASE_TODO.md)
 
@@ -44,8 +54,6 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
 
 ## 3. Flat-screen (FLATPLAY.md)
 
-- **Flat keys bindable from the menu** (2026-11-11): rebind rows for the keys flat play reads itself (`vr_flat_key_*`:
-  leans, swap, grab, reload, prone, bullet time, drop, quick grenade, holster menu...), as Quake's own bindings have.
 - **Procedural reloads, on by default** (2026-11-05): e.g. the shotgun rolls toward the off hand, which shuttles between
   pouch and port until full or interrupted; recorded motions where they fit.
 - **Recorded motions for flat melee and reloads** (2026-11-05): phase 1 recorder shipped (ROUND24.md, "Animation
