@@ -70,6 +70,7 @@ Flat-screen or VR: stand on one of the arena's corner towers with Monsters Find 
 Flat-screen or VR: stand on the arena's dais with Monsters Find Their Way on: the knights come round to another flight because the crate pile blocks the east one, and they walk round the barrel rather than bump into it; throw the crates off the dais and, a second after they come to rest, walkers take the east flight again; Show Navmesh outlines each blocking prop in purple over a hole in the mesh. {test:nav_props}
 Flat-screen or VR: a knight on a ledge above you walks off its edge and drops down to reach you instead of pacing the edge; the drop links show orange in Show Navmesh. {test:nav_drop}
 Flat-screen or VR, experimental, off by default: with vr_nav_lifts 1 and vr_nav_plat_monsters 1, a knight at the bottom of e1m1's lift walks onto it, rides it up and steps off at the top; lift links show magenta in Show Navmesh. {test:nav_lift}
+Shove an enforcer or an ogre backwards off a ledge (Vrtesthall's platform): it should grab the lip with both hands and pull itself up onto the top; a grunt should now get its chest up over the lip instead of hanging there.
 
 [6. Both modes: weapons, ammo screens and housings]
 Flat-screen or VR: hold the grenade launcher in the left hand (flat-screen: 3 swaps the hands) and look at its ammo screen: the glass sits centred in the bronze bezel exactly as in the right hand, not shifted to the right into the frame. {test:gl_housing}
