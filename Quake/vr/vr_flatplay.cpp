@@ -1183,8 +1183,10 @@ void twoHandReport_f()
     auto& p = fs.twoHProbe;
     const int h = loneWeaponHand();
     Con_Printf("flat2h: drawn hands, most a frame since the last report (%d frames): main %.2f units %.1f deg, off %.2f units "
-               "%.1f deg; stance share main %.2f off %.2f, asked %d %d; the free hand %s\n",
-        p.frames, p.step[HAND_MAIN], p.turn[HAND_MAIN], p.step[HAND_OFF], p.turn[HAND_OFF], melee2HShare(HAND_MAIN),
+               "%.1f deg; the main hand now %.2f %.2f %.2f off the head (x y z); stance share main %.2f off %.2f, asked %d %d; "
+               "the free hand %s\n",
+        p.frames, p.step[HAND_MAIN], p.turn[HAND_MAIN], p.step[HAND_OFF], p.turn[HAND_OFF], p.rel[HAND_MAIN].x, p.rel[HAND_MAIN].y,
+        p.rel[HAND_MAIN].z, melee2HShare(HAND_MAIN),
         melee2HShare(HAND_OFF), fs.twoHWant[HAND_MAIN] ? 1 : 0, fs.twoHWant[HAND_OFF] ? 1 : 0,
         h >= 0 && twohand::helping(1 - h) ? "holds the grip" : "does not hold the grip");
     p.step[0] = p.step[1] = p.turn[0] = p.turn[1] = 0.f;
