@@ -452,6 +452,50 @@ covered by the probe. Release-TracyFull: see the report.
 - Still failing alone, first-bad merge by a multi-test bisect over next's first-parent history (330f70409..9a694ee33):
   BACKLOG.md section 1. vrtrailer fails alone at 330f70409 too (it passed in the 11-07 lanes only).
 
+## propblade: a blade in a crate held by a joint at its handle; the other hand on a skewered gib's surface (branch agent/propblade, 2026-11-12)
+
+His notes: 2026-11-05 (BACKLOG 7, "Blades embedded in props"): "pulling either the blade or the prop moves both (a Box3D joint,
+the pair not colliding); unify with blades in monsters and ragdolls"; 2026-11-12 19:52: "while a gib is skewered on a sword and I
+grab it with the other hand, the grabbing position can be far away from the actual visual model ... the grab should only be
+possible when the visual model actually connects with the hand, and the hand should snap on the surface of the gib".
+
+**Crates and barrels.** Blades already stayed in them (vr_embed_props, 2026-11-08) and the hand pulled the crate by a capped
+spring force at the wound each frame (`embedproppull`). Now, with `vr_embed_move_handle` 1 (the ragdolls' switch, "Moving: Held
+by the Handle"), `VR_Embed_PropSpring` holds it as a ragdoll is held by a blade (embedgrip's `ragdolltug` 17): the new builtin
+`embedprophold` (vr_box3d_ragparts.cpp, "A blade held in a prop"; `World::PropBlade`) keeps a kinematic body at the hand and a
+motor joint from it to the crate's body at the handle's point, stiff (`vr_embed_move_handle_hertz`), its force
+`vr_embed_prop_force` at most level and `vr_embed_prop_lift` weights up (blended by how far up the handle is asked: dragged and
+tipped, not hoisted), its torque that force at the blade's length (too little to turn a 40 kg crate on the floor with the wrist:
+0.6 degrees of 20, measured). Shared with the ragdolls: the
+gap's ease (`handleGapLeft`, `vr_embed_move_match`), `handleHertz`, the slide's share of the hand's way along the blade
+(`.vr_hold_slide0`), the leeway off while so held. Unlike a ragdoll, the gap along the blade as the hold begins stays (the
+slack's, `.vr_hold_gap0`: closing it took the whole capped pull in test 30 and dragged the crate onto the hand after a stab);
+across the blade it closes. The hold ends when the QC stops calling (0.25 s), on `embedprophold` with a force under 0 (the
+hand lets go, takes hold afresh), or with its prop's body. Nothing collides: a stuck blade has no body, it rides the crate
+(vr_axestick.cpp), so the crate moved by anything else takes the blade along as before. `vr_embed_move_handle` 0: the old pull.
+
+**The gib.** Measured first (`vr_embed_test 34`, the other hand's grip tried from 16 units off, 1 unit nearer each time): the grip
+itself was already tight, taken only with the fist at the gib's drawn triangles (`carryreach`: 11 tries without, then at 4.2 units
+from its middle). What was far was the hand as drawn: both `VR_Skewer_Grip` (`.vr_skewer_gripd`) and the engine's
+`skewerDrawnHand` then put the hand on a ball round the gib's middle of its box's mean half size plus 2 units: 7.2 units out for a
+gib1 touched at 4.2 (the engine's probe: 9.3 cm off the hand's place), more for a limb, whose box is long. Now the hold is the
+carried props' own fit of the fist to the drawn model (`carryfit`, held::surfaceFit: as `VR_Carry_FitToHand`, the hand going to
+the gib here), and the engine draws the hand at that hold (fields `vr_skewer_gripd`, `vr_skewer_c`): 1.8 units from where the
+hand was, 2.4 from the gib's middle. No new setting: the reach is the carried props' (Grab Distance Bias, Two-Handed Grab Reach).
+
+Test `vr_embed_test 34` (propblade, vr_embed_prop_test.qc, 12 of 12; Debug > Tests): the gib (no hold 16 to 6 units off; held at
+its drawn model; the hold on its surface and where the hand is; the drawn hand snaps 5.7 cm and stays, 0.00 cm off); the crate
+(held still the handle 0.4 units from the real hand across the blade; the hand 20 units aside in 1 s: the crate comes 20.1
+units, the handle 1.6 to 1.8 units off at most; the wrist turned 20 degrees: the crate turns 0.6, the handle stays; let go and
+pushed, the wound stays on the crate). With the old pull the crate came 18.9 units, the handle 1.0 off: the joint is no closer
+in a level drag. What it adds: it is the joint he asked for, one hold for crates and ragdolls, and the grip's gap across the
+blade closes.
+Regressions: 30 (crates) 12 of 12, 33 (the ragdoll's handle) 15 of 15, 21 (skewering) 43 of 44: "a slow swing to the wall: it
+stays on", which names the mock hand's lag itself. eval.sh not run: no melee strike code changed.
+
+Open: his VR check of the crate on the joint; a blade held while the other hand carries its crate is as before (the crate goes,
+the hand lets go at arm's reach) and has no test; barrels share the code, tested by test 30's swing only; a re-grip off the
+handle (the gap across the blade closing) has no test for crates.
 ## grenregrab: a lit grenade caught out of the air restarts its fuse (branch agent/grenregrab, 2026-11-12)
 
 His words: a lit grenade force-grabbed out of the air has a sound discontinuity; reset the fuse and the sound; "Restart full fuse, and also add a small sound/visual feedback".
@@ -463,3 +507,14 @@ His words: a lit grenade force-grabbed out of the air has a sound discontinuity;
 ## navcheck (agent/navtele regression run)
 
 Existing navmesh tests on agent/navtele (no-LTO, low-impact): vr_nav_cliptest/toptest e1m1 pass; vr_arena_test 36 16/0; nav_lift, nav_lift_down, nav_tele_oneway, nav_tele_gate, nav_crowd (11/11 came, 0 stalls) pass; nav_tele fails (known open); vr_arena_test 41 seed 7: 12-13 passed, 2-3 failed, capped 2-3 of 60 (NAVMESH.md recorded 1; the "down" trials; origin/next not checked). Harness notes: a scene's cmd lines are queued after a -Script's remaining text, so scripts must type those commands themselves; QC test verdicts need "developer 1"; nav_lift and nav_tele_gate failed once with a wait100 start, then passed on rerun.
+## throwgib: a blade thrown blade first kills whole, deep in the body (branch agent/throwgib, 2026-11-12)
+
+His words: a running sword throw that lands point first fully gibs a grunt; keep the damage, embed it deeply; a bladed throw that hits with the blade never fully gibs unless Quad.
+
+- **Rule (shared, combat.qc `VR_Gib_Overkill`):** a thrown weapon's blow counted blade first (`vr_throw_bladein`, set by `forcegrabbable_touch` for the length of its blow) keeps only `vr_gib_overkill_blade` (default 0; 1 = before) of its overkill: health ends at -1, the monster dies whole (corpse or ragdoll), its full damage dealt. Quad returns before it (all of it counts: gibs as before). AD monsters get it through the same function.
+- **Blade first:** the engine's blade check said it went in (`VR_AxeStick_Stuck` sets `vr_throw_bladestuck` around the blow it deals: a sword's point, an axe's edge), or, for a blow from its box with no stick (vr_embed 0, or the box meeting the body first), `VR_Throw_PointFirst` (vr_axestick.qc): a pointed blade (weapons.txt `embed` 1) going within `vr_embed_sword_angle` (35 deg) of its handle-to-tip line. An edge's facing is left to the engine. Handle-first, flat and non-blade throws are unchanged.
+- **Deep:** a point stuck by a throw that killed (`.vr_throw_kill`, set in the touch) is slid on to `vr_embed_throw_kill_depth` (default 80%) of its blade (`.vr_stick_slide`, never shallower than its speed put it; a throw at 8+ m/s gets 60%, `vr_embed_sword_depth_max`; a held stab goes to 90% at most). Sword 12.6 -> 16.8 units of 21.0; dagger 4.1 -> 5.5 of 6.9.
+- **Tunables (Debug > Tunables):** `vr_gib_overkill_blade` 0 ("Thrown Blade Overkill to Gib"), `vr_embed_throw_kill_depth` 80 ("Thrown Kill: Depth").
+- **Test:** `vr_embed_test 41` (QC/vr_throwgib_test.qc; `map vrtesthall;wait30;god;notarget;vr_embed_test 41`): 20 m/s throws at a 30-health grunt: sword and dagger point first die whole, blade in the body, 80% deep; under Quad gibbed; handle first not counted; vr_embed 0 point first (its touch called at the chest) dies whole. 19 passed, 0 failed. Tests 40 (12/0) and 21 (43/1, the known slow-swing burst) unchanged.
+- **Seen, not fixed:** in the headless throws a handle-first sword (vr_embed 1) and a point-first one with vr_embed 0 bounce off the grunt's body (Box3D) and reach its touch at 4.5 m/s, under the hurt speed: no damage. Not checked in a headset.
+- Scene: `throw_nogib`.

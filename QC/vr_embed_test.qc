@@ -4404,6 +4404,8 @@ void() VR_E8_Step;
 void() VR_E9_Begin; // (vr_embed_1108b_test.qc: test 29)
 void() VR_E9_Step;
 void() VR_E9_Next;
+void() VR_EQ_Begin; // (vr_embed_prop_test.qc: test 34)
+void() VR_EQ_Step;
 void() VR_EP_Begin; // (vr_embed_1108b_test.qc: test 30)
 void() VR_EP_Step;
 void() VR_EP_Next;
@@ -4429,6 +4431,12 @@ void() VR_Embed_TestFrame =
         {
             cvar_set("vr_embed", "1");
             VR_EP_Begin();
+            return;
+        }
+        if(ask == 34)
+        {
+            cvar_set("vr_embed", "1");
+            VR_EQ_Begin();
             return;
         }
         if(ask == 13 || ask == 14 || ask == 15 || ask == 16 || ask == 17 || ask == 18 || ask == 19 || ask == 20)
@@ -4463,6 +4471,10 @@ void() VR_Embed_TestFrame =
             VR_ET_To(0);
         }
         cvar_set("vr_embed", "1"); // (off by default for 1.1, on in his config: with it off blades don't stick and these all fail)
+        if(ask == 41)
+        {
+            VR_TG_Begin(); // (thrown blades that kill whole: vr_throwgib_test.qc)
+        }
         if(ask == 40)
         {
             VR_DG_Begin(); // (the dagger: vr_dagger_test.qc)
@@ -4684,6 +4696,10 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
     {
         VR_ET_Kinds();
     }
+    else if(vr_et_on == 41)
+    {
+        VR_TG_Frame(); // (thrown blades that kill whole: vr_throwgib_test.qc)
+    }
     else if(vr_et_on == 40)
     {
         VR_DG_Frame(); // (the dagger: vr_dagger_test.qc)
@@ -4744,6 +4760,15 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
             VR_E9_Next();
         }
         VR_E9_Step();
+    }
+    else if(vr_et_on == 34)
+    {
+        if(time - vr_et_t0 > VR_ET_GIVEUP)
+        {
+            VR_Test_Check(FALSE, sprintf("timed out: case %g state %g", vr_et_case, vr_et_s));
+            VR_EP_Next();
+        }
+        VR_EQ_Step();
     }
     else if(vr_et_on == 30)
     {

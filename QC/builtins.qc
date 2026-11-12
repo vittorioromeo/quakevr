@@ -241,6 +241,11 @@ float(entity w, entity host, vector at, vector vel, float hand) embedstick = #0;
 // in a crate pulls its point `at` towards `target` (a spring of `hertz` on its mass, level `force` N at most, up `lift` times its
 // weight at most; vr_embedhold.qc VR_Embed_PropSpring). The pull, N; -1 not a solid Box3D prop.
 float(entity prop, vector at, vector target, vector targetVel, float force, float hertz, float lift) embedproppull = #0;
+// float embedprophold(entity prop, entity player, float hand, vector handle, vector wound, vector shift, float force, float lift): that
+// blade held by its handle (Moving: Held by the Handle): a joint from the hand to the prop at the handle (now at `handle`, the blade's
+// origin; `wound`: where it went in), holding the handle at the hand plus `shift`, `force` N at most level, `lift` times its weight up.
+// Each frame it is held. The pull, N (0 as it begins); -1 not a solid Box3D prop. `force` under 0: the hand's hold is over.
+float(entity prop, entity player, float hand, vector handle, vector wound, vector shift, float force, float lift) embedprophold = #0;
 // The armed humanoids' lookups in one call each (PERF_1102.md, "Follow-up"), their results in these globals as
 // traceline's in trace_*. agposekey: pose key `code` (VR_AGK_Add; weapondrawnpose(world, code, 11..18, 25, 26) at once):
 // '1 0 0' and its parts in vr_agk_k_* (the right target's place and turn, the left's, the elbows' poles, the torso's turn,

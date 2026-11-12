@@ -1,0 +1,11 @@
+# skewer_grip: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The other hand on a gib skewered on a blade (his note 2026-11-12 19:52; vr_embed_test 34).
+title Gibs on the blade: take one with the other hand (a sword, grunts close by)
+hint Gib a grunt, stab a gib, a head or a limb so it stays on the sword, then reach for it with your free hand: the grip takes it only when your hand is at the gib itself, and the hand is drawn on the gib's surface, not floating off it. Slide it along the blade, tug it off across the blade. Reset to try again.
+cvar vr_embed 1
+map vrtesthall
+god
+notarget
+give "Knight's Sword" main
+spawn "Grunt" 80 0
+spawn "Grunt" 110 50
+spawn "Grunt" 110 -50

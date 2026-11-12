@@ -1368,6 +1368,10 @@ za::Vector<Item> pageDebugTests()
         command("Skewered Gibs Through Stick Turns Check", "vr_embed_test 29")
             .help("A gib on the sword in the hand, then a smooth turn, snap turns, a move and both with the sticks: the drawn gib stays "
                   "on the drawn blade (vr_embed_probe_skew). Prints embed1108b: N passed, M failed."),
+        command("Blades in Crates by the Handle, Gibs by the Other Hand Check", "vr_embed_test 34")
+            .help("Destructive: in the open with god and notarget (vrtesthall): a gib on the sword taken by the other hand only at its "
+                  "drawn model, the hand drawn on its surface; a sword stabbed into a crate and held by its handle: the handle in "
+                  "the hand, the crate dragged, the crate pushed takes the blade. Prints propblade: N passed, M failed."),
         command("Blades in Crates and Barrels Check", "vr_embed_test 30")
             .help("Destructive: in the open with god and notarget (vrtesthall): a sword stabbed into a crate, held, dragged, lifted, let "
                   "go of, pulled out, the crate broken; an axe into a barrel; Crates: Blades Stick off. Prints embedprops: N passed, M "

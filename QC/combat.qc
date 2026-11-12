@@ -1722,6 +1722,12 @@ float(entity inflictor, entity attacker, float isVRMelee) VR_GibKind =
 // swung, still in the hand) vr_gib_overkill_melee, a thrown, flung or fallen prop's vr_gib_overkill_prop; a slap's none
 // (vr_melee_slap: it kills, never gibs); all of it under Quad and for everything else. Its limb or head still pops
 // (vr_decap.qc, vr_limbs.qc), and it still dies: never over -1. Called with the damage just taken.
+// A blade thrown blade first (vr_throw_bladein: its point or edge in, his note 2026-11-12) counts vr_gib_overkill_blade
+// of it (0: it dies whole, the blade left deep in the body, VR_AxeStick_Stuck); its full damage still dealt.
+float vr_throw_bladein; // set by the thrown weapon's touch for the length of its blow (vr_wpnholster.qc forcegrabbable_touch)
+float vr_throw_bladestuck; // the engine found its blade going in (VR_AxeStick_Stuck's blow, for its length)
+float vr_throw_bladein_count; // (how many blows so far counted blade first: the test's, vr_throwgib_test.qc)
+.float vr_throw_kill;   // on a thrown weapon: when its blow killed what it struck (VR_AxeStick_Stuck: deep in it)
 void(entity targ, entity inflictor, entity attacker, float isVRMelee) VR_Gib_Overkill =
 {
     if(!(targ.flags & FL_MONSTER) || targ.health >= -1)
@@ -1736,6 +1742,13 @@ void(entity targ, entity inflictor, entity attacker, float isVRMelee) VR_Gib_Ove
     else if(attacker.super_damage_finished > time)
     {
         return;
+    }
+    else if(vr_throw_bladein && inflictor.classname == "thrown_weapon")
+    {
+        share = cvar_hget(cvarh_vr_gib_overkill_blade);
+        vr_throw_bladein_count = vr_throw_bladein_count + 1;
+        dprint(sprintf("throw gib: %s struck blade first: %.0f health, %.2f of its overkill counts (vr_gib_overkill_blade)\n",
+            targ.classname, targ.health, share));
     }
     else if(VR_GibKind(inflictor, attacker, isVRMelee) == QVR_GIBKIND_MELEE || (inflictor.carry_player != world && inflictor.carry_player == attacker))
     {
