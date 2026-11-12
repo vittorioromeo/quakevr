@@ -395,6 +395,7 @@ QVR_TUNABLE(vr_gib_throw_damage, "4") // and of a gib or head
 QVR_TUNABLE(vr_gib_health, "12") // the damage that destroys a gib (a head takes half as much again)
 QVR_TUNABLE(vr_gib_overkill_melee, "0.5") // the share of a hand's blow's overkill (damage past its health) that counts towards gibbing a monster; Quad's all of it (QC combat.qc VR_Gib_Overkill; 1 before his note 2026-11-02)
 QVR_TUNABLE(vr_gib_overkill_prop, "0.1") // and of a thrown, flung or fallen prop's (a limb or head it hit still pops; 1 before his note 2026-11-02)
+QVR_TUNABLE(vr_gib_overkill_blade, "0") // and of a blade thrown blade first (point or edge in: it kills whole, the blade left in the body; 1 before his note 2026-11-12)
 QVR_TUNABLE(vr_gib_splat_speed, "250") // units/s a thrown gib or head must hit a wall or a monster at to burst
 QVR_TUNABLE(vr_gib_splat_throw, "7") // m/s of the throwing hand from which a thrown gib or head bursts on a wall instead of sticking, however heavy; 0 off
 QVR_TUNABLE(vr_gib_burst_speed, "5") // m/s: a hand's or weapon's hit on a gib, or one held and smashed into something, this fast (relative) bursts it; from half as fast it wears it (and bounces off the hand)
@@ -2286,6 +2287,7 @@ QVR_TUNABLE(vr_embed_stab_tip, "100") // % of the blade from its tip that may be
 QVR_TUNABLE(vr_embed_sword_depth_min, "30") // % of the blade in at the least speed
 QVR_TUNABLE(vr_embed_sword_depth_max, "60") // % of the blade in at vr_embed_sword_depth_speed
 QVR_TUNABLE(vr_embed_sword_depth_speed, "8") // m/s
+QVR_TUNABLE(vr_embed_throw_kill_depth, "80") // % of a thrown point's blade in when its throw kills (never less than it went in; QC vr_axestick.qc VR_AxeStick_Stuck)
 QVR_TUNABLE(vr_embed_enter_time, "0.12") // s a stab takes to go on to its depth (by its speed) once it has struck
 QVR_TUNABLE(vr_embed_skewer_most, "3") // gibs a stab may skewer on a blade at once (0: none, a stab bursts them as any blow; QC/vr_skewer.qc)
 QVR_TUNABLE(vr_embed_skewer_depth, "8") // units from the tip to the middle of the first gib on it

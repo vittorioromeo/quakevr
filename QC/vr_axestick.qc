@@ -108,8 +108,29 @@ float(entity m, float xBone) VR_AxeStick_LooseIn =
     return (ragdolllimbs(m, 1) & VR_AgArmor_Bit(xBone)) == 0;
 };
 
+// Whether the thrown weapon `w`, its box meeting `xHost` before the engine saw a blade go in (or never: vr_embed 0), comes
+// point first: a pointed blade (weapons.txt embed 1) going within vr_embed_sword_angle of its line, from its handle to its
+// tip, towards it (the engine's own test, stickByPoint). An edge's facing is the engine's alone (vr_throw_bladestuck).
+float(entity w, entity xHost) VR_Throw_PointFirst =
+{
+    if(w.classname != "thrown_weapon" || weaponvalue(w.model, "embed") != AXESTICK_POINT)
+    {
+        return FALSE;
+    }
+    vector rel = w.velocity - xHost.velocity;
+    vector line = weaponmuzzle(w) - w.origin;
+    if(vlen(rel) < 1 || vlen(line) < 1)
+    {
+        return FALSE;
+    }
+    return (normalize(rel) * normalize(line)) >= cos(cvar_hget(cvarh_vr_embed_sword_angle) * 0.01745329252);
+};
+
 // The engine: `self` has just stuck in `other` (what: xKind), its edge going into it at xSpeed units/s; self.velocity
 // is still the throw's.
+// A throw that killed (its blow here, or its box's just before: .vr_throw_kill) leaves a point deep in the body:
+// vr_embed_throw_kill_depth of the blade (slid on along its line, never less deep than its speed put it; his note
+// 2026-11-12: "deeply embedded").
 void(float xKind, float xSpeed) VR_AxeStick_Stuck =
 {
     // (As it was before its blow: one that gibs it changes it, and the blade mustn't stay floating where the body was.)
@@ -131,7 +152,17 @@ void(float xKind, float xSpeed) VR_AxeStick_Stuck =
     if(other != world && other.takedamage && self.throwhit == QVR_THROWHIT_NEVER_HIT &&
        !GetThrownWeaponDisappearOnHit(self))
     {
+        vr_throw_bladestuck = TRUE; // (blade first: it kills whole unless Quad, combat.qc VR_Gib_Overkill)
         forcegrabbable_touch();
+        vr_throw_bladestuck = FALSE;
+    }
+    if((xKind == AXESTICK_MODEL || xKind == AXESTICK_MONSTERBOX) && self.vr_stick_embed == AXESTICK_POINT && !vr_embed_stabbing &&
+       self.vr_throw_kill > 0 && time - self.vr_throw_kill < 0.5)
+    {
+        float deep = max(1, self.vr_stick_bladelen) * max(0, min(100, cvar_hget(cvarh_vr_embed_throw_kill_depth))) * 0.01;
+        self.vr_stick_slide = max(self.vr_stick_slide, deep - self.vr_stick_depth);
+        dprint(sprintf("axestick: %s killed %s: %.1f units in (%.1f by its speed, the blade %.1f)\n", self.netname, other.classname,
+            self.vr_stick_depth + self.vr_stick_slide, self.vr_stick_depth, self.vr_stick_bladelen));
     }
     if(decapped != world)
     {
