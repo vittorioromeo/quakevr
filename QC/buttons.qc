@@ -906,6 +906,12 @@ origin and settles on the floor (func_weapon_grabbable with weapon 13, weaponfla
 turn it (none: any way).
 */
 void() weapon_hknight_sword = { VR_WeaponClass_Spawn(WID_SWORD, QVR_WPNFLAG_USE_SECONDARY_AMMO); };
+/*QUAKED weapon_dagger (0 .5 .8) (-8 -8 -8) (8 8 8) AS_PLACED BY_HANDLE
+A dagger lying ready to be picked up (Quake VR): a short one-handed blade, the knight's sword's kind (it swings, stabs,
+sticks in and is thrown as a sword does). It falls from its origin and settles on the floor (func_weapon_grabbable with
+weapon 13, weaponflags 3072). AS_PLACED: it lies as "angles" turn it (none: any way).
+*/
+void() weapon_dagger = { VR_WeaponClass_Spawn(WID_SWORD, VR_ADMelee_Flags(VR_SWORDKIND_DAGGER)); };
 /*QUAKED weapon_chainsaw (0 .5 .8) (-8 -8 -8) (8 8 8) AS_PLACED BY_HANDLE
 An ogre's chainsaw lying ready to be picked up (Quake VR): a melee weapon with a full tank of fuel. It falls from its
 origin and settles on the floor (func_weapon_grabbable with weapon 14). AS_PLACED: it lies as "angles" turn it (none:

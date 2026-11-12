@@ -598,7 +598,8 @@ void MakeThrown(entity newmis,
 
     SetThrownWeaponDisappearOnHit(newmis, xDisappearOnHit);
     SetThrownWeaponDealDamage(newmis, xDealDamage);
-    SetThrownWeaponBaseDamage(newmis, xBaseDamage);
+    // (A sword's kind its own: the dagger's throw vr_dagger_damage of the sword's.)
+    SetThrownWeaponBaseDamage(newmis, xBaseDamage * (xWeapon == WID_SWORD ? VR_SwordKind_DamageMult(xWeaponFlags) : 1));
     SetThrownWeaponMetalNoiseOnTouch(newmis, TRUE);
 
     newmis.owner = thrower;
