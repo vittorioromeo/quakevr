@@ -1579,6 +1579,7 @@ void(float request, entity p) AD_GunTest =
         // The gun `request - 73` (in WID_ADROCKET's order) in your main hand, full (with vr_weapon_grip_mode 1, or the
         // grip held, else it drops at once): a look at it held.
         float gw = WID_ADROCKET + request - 73;
+        vr_grip_sticky_test = TRUE; // (not the player's vr_weapon_grip_mode cvar: this map only)
         entity was = self;
         self = p;
         VR_ADGun_Ensure(gw);
@@ -1594,6 +1595,7 @@ void(float request, entity p) AD_GunTest =
         // Carried through a level change: the rocket soldier's launcher in the main hand (with vr_weapon_grip_mode 1)
         // and the plasma soldier's rifle in the left shoulder holster; then `changelevel` to a map without those
         // soldiers (or vr_adgun_drops 0) and `vr_ad_test 88`.
+        vr_grip_sticky_test = TRUE;
         entity was2 = self;
         self = p;
         VR_ADGun_Ensure(WID_ADROCKET);

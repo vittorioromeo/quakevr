@@ -98,10 +98,10 @@
                   "box (whether the rifle's corner held: the burst rifle's weapon settings hold them) and time to make; "
                   "their add-ons' mesh: open edges (see-through), doubled edges, triangles wound inward, inner walls "
                   "(vr_adgun_variants 1 lists each open or doubled edge)."),
-        command("Hold the Flamethrower", "vr_weapon_grip_mode 1; vr_ad_test 79")
+        command("Hold the Flamethrower", "vr_ad_test 79")
             .help("The pyro's flamethrower in your main hand: its fuel tank on your back, the hose to the gun (VR Settings > "
                   "Combat > Enemy Weapons > Arcane Dimensions' Guns > Fuel Tank and Hose)."),
-        command("Hold the Poison Sprayer", "vr_weapon_grip_mode 1; vr_ad_test 80")
+        command("Hold the Poison Sprayer", "vr_ad_test 80")
             .help("The fumigator's poison sprayer in your main hand, its green tank and hose."),
         command("Flamethrowers on the Nearest Monster", "vr_ad_test 91")
             .help("Destructive: the flamethrower, then the poison sprayer, fired from your main hand at the monster nearest "
