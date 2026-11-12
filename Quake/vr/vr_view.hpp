@@ -110,6 +110,12 @@ void bareShade(const entity_t* e, float lightdir[4], float ambient[6][4]);
 // A point of its barrels (v_shot2.mdl's space) as their own part is drawn open this frame (setupSsgParts); false: not
 // drawn open (vr_gunfx.cpp's check of its muzzle wisps).
 [[nodiscard]] bool ssgBarrelsDrawn(int hand, const glm::vec3& p, glm::vec3& out);
+// Something clipped on the super shotgun in `hand` (the flashlight: his words 2026-11-12, it seemed to go through the
+// opened barrels), placed on the gun as drawn closed, `on` its world point that decides which part it is on: if the gun
+// is drawn broken open and `on` is on the barrels (in front of the hinge), the hinge's world point and the barrels' turn
+// in the world (the same as setupSsgParts draws them by: ssgWorldTurn), to carry it down with them about the hinge
+// (pos' = hinge + turn (pos - hinge), its rotation turned by `turn`). False: shut, not a super shotgun, or on the frame.
+[[nodiscard]] bool ssgBarrelsCarry(int hand, const glm::vec3& on, glm::vec3& hinge, glm::mat3& turn);
 // The heavy revolver in `hand` (QC vr_revolver.qc): how far (degrees, 0..95) its crane is drawn swung out now (0: home,
 // or not a revolver), and a point of its model (its Body's frame) on the crane turned with it (vr_shells.cpp: its spent
 // shells out of the chambers). Its load point (the cylinder's back face's middle) turns with it (modelLoadPort's
@@ -184,6 +190,7 @@ struct WeaponMount
     glm::vec3 muzzle{0.f};
     bool mirrored{false};
     int slot{-1}; // its per-weapon settings' (weapons::slotForModel)
+    int hand{-1}; // the hand it is in (ssgBarrelsCarry: the super shotgun broken open)
 };
 [[nodiscard]] bool weaponMount(int hand, WeaponMount& out);
 

@@ -2,6 +2,8 @@
 # ssg_checks.py -- reload_test.sh section 7's checks that read files (numpy, Pillow):
 #   ssg_checks.py ring                 the super shotgun's rear sight (its notch sight since 2026-11; a ring before) is on its barrels part, not its frame
 #                                      (make_ssg_open.py: it swings open with them): "ring barrels N frame M"
+#   ssg_checks.py heads                the open barrels' frames (frame = skin = chambers loaded): per frame, each bore's
+#                                      bottom in from the breech face, loaded flush (0), empty open (ssgtorch_test.sh)
 #   ssg_checks.py sights <png> ...     the sights' colour in screenshots: per shot, the pixels of the sights as recoloured
 #                                      (the player's hue, yellow by default: within 12 degrees of 60) and as painted
 #                                      (orange-red, not recoloured): "sights N/M ..."
@@ -112,7 +114,34 @@ def pouch_shells():
     return mid[:, 0].max() - mid[:, 0].min(), d.mean()
 
 
+def shell_heads():
+    """The open barrels' frames (make_ssg_open.py loaded_frames; frame = skin = chambers loaded): per frame, how far
+    (model units) each bore's bottom (the left's, the right's) is in from the breech face (its back plane, the barrels'
+    least x round the chambers' height): the loaded ones' shell heads flush (0), the empty ones' bores open."""
+    import numpy as np
+    import mdlpolish as mp
+    m = mp.Model(os.path.join(HERE, "..", "..", "..", "quakevr", "progs", "vr_ssg_barrels_on_v_shot2.mdl"))
+    P0 = m.positions(0)
+    # The bores' rims (make_ssg_open.py's CHAMBERS, CHAMBER_R 0.6; the barrels' vertices past the cut, x 12.5): the
+    # breech face is their mouths' x, a bore's bottom the vertices on its rim deepest in (the tube's end, the bottom).
+    rims = [(np.abs(np.hypot(P0[:, 1] - cy, P0[:, 2] - 7.0) - 0.6) < 0.12) & (P0[:, 0] > 12.0) for cy in (1.25, -1.25)]
+    face = min(P0[r, 0].min() for r in rims)
+    bottoms = []
+    for rim in rims:
+        ring = rim & (P0[:, 0] < face + 0.6)
+        bottoms.append(ring & (np.abs(P0[:, 0] - P0[ring, 0].max()) < 1e-3))
+    out = []
+    for k in range(m.num_poses()):
+        P = m.positions(k)
+        # (Each bore's nearest bottom vertex to the face: a loaded one's head moved out, an empty one's still in.)
+        out.append("frame %d left %.3f right %.3f" % ((k,) + tuple(P[b, 0].min() - face for b in bottoms)))
+    return out
+
+
 def main():
+    if sys.argv[1] == "heads":
+        print("heads " + ", ".join(shell_heads()))
+        return
     if sys.argv[1] == "pouchshells":
         print("pouchshells across %.2f asym %.3f" % pouch_shells())
         return
