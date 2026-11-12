@@ -158,6 +158,10 @@ za::FastNonCryptoRng rng{0x407B1ADEu}; // a fixed seed: the same embers every ru
     {
         return 0.2f; // the blade past the guard
     }
+    if(modelmeta::is(model, Id::VDagger))
+    {
+        return 0.43f; // the dagger's blade past its guard (a third of the sword's: the guard nearer the tip)
+    }
     if(modelmeta::is(model, Id::VCrowbar))
     {
         return 0.05f; // the bar past the hand (its tape is under the fist)

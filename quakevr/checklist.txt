@@ -73,6 +73,10 @@ Flat-screen or VR: shove a grunt standing at the very edge of a step or platform
 Flat-screen or VR: fire the grenade launcher and let an ogre lob at you: each grenade fizzes and ticks quicker and quicker until it blows, like a hand grenade with its pin pulled, and all three take the same 2.5 s from the shot or the pin to the blast (Thrown Grenades Tick in Batting and Catching turns the launched ones' ticking off). {test:grenade_countdown}
 Clip the flashlight on the super shotgun and break it open: the torch and its beam drop with the barrels instead of the barrels swinging through it. {test:ssg_open_torch}
 Flat-screen or VR: load shells into the open super shotgun: their brass heads sit flush with the barrels' breech face, not sunk in the bores; an empty chamber still shows its open bore. {test:ssg_open_torch}
+Pick up the new dagger (it lies in your main hand here, the knight's sword in the other to compare): it should look like the sword's clean steel, a third of its blade, a smaller guard and grip, and sit in your hand as the sword does. {test:dagger}
+Swing and stab the grunt with the dagger: a stab should stick in a third as deep as the sword's and hold the body as a sword stab does; a throw should stick point first; it hurts about 0.6 of the sword (Combat > Weapon Damage > Melee > Dagger). {test:dagger}
+Let the armed grunt with the dagger fight you, and disarm it: it should hold and swing the dagger one-handed as grunts hold swords, and pick it up again. {test:dagger}
+Flat-screen or VR: daggers lie beside the two swords in the firing range and in the toolgun's Weapons list; holster one and throw one as you would the sword. {test:dagger}
 
 [7. Survival Arena (Play > Survival Arena)]
 The arena is nice: play it, feels good? Note improvements. {test:arena_run}

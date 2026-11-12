@@ -955,6 +955,7 @@ vr_dmg_rocket|1|Weapon Damage|Rocket|Advanced VR Options > Combat > Weapon Damag
 vr_dmg_laser|1|Weapon Damage|Laser Cannon|Advanced VR Options > Combat > Weapon Damage > Laser Cannon
 vr_dmg_lava_nail|1|Weapon Damage|Lava Nails|Advanced VR Options > Combat > Weapon Damage > Lava Nails
 vr_crowbar_damage|1|Weapon Damage|Crowbar|Advanced VR Options > Combat > Weapon Damage > Crowbar
+vr_dagger_damage|1|Weapon Damage|Dagger|Advanced VR Options > Combat > Weapon Damage > Dagger
 vr_sword_damage_mult|1|Weapon Damage|Knight's Sword|Advanced VR Options > Combat > Weapon Damage > Knight's Sword
 vr_gruntgun_damage|1|Weapon Damage|Grunt's Burst Rifle|Advanced VR Options > Combat > Weapon Damage > Grunt's Burst Rifle
 |1|Weapon Damage|Reset This Page|Advanced VR Options > Combat > Weapon Damage > Reset This Page
@@ -1021,6 +1022,7 @@ vr_agrunt_ik|1|Armed Grunts|Hands on the Grips|Advanced VR Options > Combat > Ar
 vr_agrunt_w_fists|1|Armed Grunts|Fists|Advanced VR Options > Combat > Armed Grunts > Fists
 vr_agrunt_w_axe|1|Armed Grunts|Axe|Advanced VR Options > Combat > Armed Grunts > Axe
 vr_agrunt_w_sword|1|Armed Grunts|Knight's Sword|Advanced VR Options > Combat > Armed Grunts > Knight's Sword
+vr_agrunt_w_dagger|1|Armed Grunts|Dagger|Advanced VR Options > Combat > Armed Grunts > Dagger
 vr_agrunt_w_crowbar|1|Armed Grunts|Crowbar|Advanced VR Options > Combat > Armed Grunts > Crowbar
 vr_agrunt_w_chainsaw|1|Armed Grunts|Ogre's Chainsaw|Advanced VR Options > Combat > Armed Grunts > Ogre's Chainsaw
 vr_agrunt_w_shotgun|1|Armed Grunts|Shotgun|Advanced VR Options > Combat > Armed Grunts > Shotgun
@@ -9097,6 +9099,7 @@ vr_explosion_debris_light_radius|1|Explosion Debris|Glow Light Radius|Advanced V
 |2|Spawn Pickup Weapons|Axe|Advanced VR Options > Debug > Cheats and Recording > Spawn Pickup Weapons > Axe
 |2|Spawn Pickup Weapons|Knight's Sword|Advanced VR Options > Debug > Cheats and Recording > Spawn Pickup Weapons > Knight's Sword
 |2|Spawn Pickup Weapons|Death Knight's Sword|Advanced VR Options > Debug > Cheats and Recording > Spawn Pickup Weapons > Death Knight's Sword
+|2|Spawn Pickup Weapons|Dagger|Advanced VR Options > Debug > Cheats and Recording > Spawn Pickup Weapons > Dagger
 |2|Spawn Pickup Weapons|Ogre's Chainsaw|Advanced VR Options > Debug > Cheats and Recording > Spawn Pickup Weapons > Ogre's Chainsaw
 |2|Spawn Pickup Weapons|Grunt Burst Rifle|Advanced VR Options > Debug > Cheats and Recording > Spawn Pickup Weapons > Grunt Burst Rifle
 |2|Spawn Pickup Weapons|Enforcer's Rifle|Advanced VR Options > Debug > Cheats and Recording > Spawn Pickup Weapons > Enforcer's Rifle
