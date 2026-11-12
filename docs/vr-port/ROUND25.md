@@ -278,3 +278,49 @@ wins), and the fuse's countdown sound on launched grenades too.
 - Menu "Hold the Flamethrower/Poison Sprayer" ran `vr_weapon_grip_mode 1; vr_ad_test 79/80` and never restored it. Now they run `vr_ad_test 79/80` only: the QC global `vr_grip_sticky_test` (vr_fields.qc; set by vr_ad_test 73-80, 87, 184; ends with the level) makes the three grip checks (vr_wpnholster.qc weapon let-go, vr_embedhold.qc, vr_grapple.qc) behave as mode 1. The archived cvar is untouched.
 - Audit: the other tests that set the cvar (adgun 70/71/73 fx, 81-84, admelee, ammocolor, agrunt 35) already save and restore it. No other menu command sets it.
 - Check: build 0 warnings; `vr_ad_test 79` on e1m1 printed nothing (AD not mounted in agent bases); the cvar reads 0 before and after (trivially: nothing sets it now). Not exercised with AD.
+
+## The dagger (branch agent/dagger, 2026-11-12)
+
+His request: a bladed melee weapon, a dagger, looking like the knight's sword (its steel, no blood), smaller and leaner,
+a blade about a third of the sword's, behaving as a sword (skewering, embedding), obtained "like the sword".
+
+- **What it is**: a kind of the knight's sword (`WID_SWORD`, weapon flags kind 12: `VR_SWORDKIND_DAGGER` in
+  `vr_ad_guns_defs.qc`, past AD's kinds 1-11, which stay `VR_ADMELEE_LAST`), as the hell knight's and AD's swords are.
+  So every sword path is the sword's own code, by data: the swing, the stab and its hold, the skewer, embedding (held,
+  thrown), the throw, the holsters, the two hands' hand-off, the armed humanoids' sword pose class, flat play. Its own:
+  the model (`VR_ADMelee_Model`), the name "Dagger", the damage (`VR_SwordKind_DamageMult`), the weapon settings slot.
+  No new weapon id: a WID would have needed every `WID_SWORD` test across QC and the engine (60+ places) doubled.
+- **Model**: `Misc/quakevr/make_dagger.py` (then its source .blend, `src_models/blend/v_dagger/`, by `blend_build.py`;
+  an untouched export writes the shipped files byte for byte): the knight's sword's four pieces scaled in the blade's
+  frame: the blade 1/3 as long, 0.7 as wide, 0.85 as thick; the guard 0.6 across, 0.8 thick, 0.85 along; the grip
+  0.57 of its length (one hand's room; its cross-section where the hand anchor is kept); the pommel 0.75, moved up to
+  the grip's end. The sword's skin with its blood taken out (its clean patch, `v_ksword.mdl_0.clean`, applied: 1823
+  texels), its normals carried through the scaling, its normal map baked (`bake_normals.py`). Packed from the sword's
+  bounds' corner, so the sword's grip settings hold it the same way. 42.5 model units long (the sword's 100.2), blade
+  23.2 from the guard (the sword's 69.5).
+- **Weapon settings**: `weapons.txt` slot 51 (`vr_wofs_*_52`; numSlots and weaponSlotCount 52, `weapons_data.py`
+  NUM_SLOTS 52): the sword's slot 18 with the dagger's tip (`muzzle_av`), blade root (`wpnbtn_av`, `wpntxt_av`),
+  one-handed (`2h_mode 2`, no hotspots: no second hand on a one-hand grip, no half-sword grip on a short blade), the
+  blade from 0.331 of the hand-to-tip line (`bl_from`: past its guard), the pommel 0.321 behind (`bl_near`), 1.2 kg,
+  34 cm, balance 6 cm (`w_mass`, `w_len`, `w_com`). Its hand anchor is the sword's (0.08 model units off the new
+  surface, 0.25 mm: kept).
+- **Numbers**: `vr_dagger_damage` 0.6 (Combat > Weapon Damage > Melee): its swing, stab, throw and an armed grunt's
+  blow are 0.6 of the knight's sword's (the sword 20 x 1.1 = 22 before speed and weight, so 13.2). Measured: a 6 m/s
+  swing at a grunt 9, a 6 m/s stab 12 (the sword's 15), a throw 241 (the throw's damage by its speed). Depth: embedding
+  is a share of the blade's length (thrown: `vr_embed_sword_depth_*`; held: `vr_embed_hold_sword_most`), so it sinks
+  about a third as deep: its stuck blade 6.9 units against the sword's 21.0; thrown into the wall 1.7 units deep.
+  Engine model lists (`vr_modelmetadata.inc` VDagger): melee phasing, no sights, the env map's steel, the hot blade's
+  and leg sweep's blade share 0.43 (the blade past the guard).
+- **Where it is**: `weapon_dagger` (FGD), `vr_gunprep` (its class); the toolgun's Weapons > "Dagger" and Monsters >
+  "Armed Grunt: Dagger" (appended: numbers kept); Debug > Tests > "Dagger" (`vr_physics_spawn weapon_dagger reach`);
+  the armed grunts' pool (`vr_agrunt_w_dagger` 1, Combat > Armed Grunts > The Pool; weapon code 105,
+  `VR_AG_CODE_DAGGER`); vrfiringrange beside the two swords (216 -868, `make_prop_area.py`, appended last).
+  Knights still drop their own swords (a dagger isn't theirs).
+- **Tests**: `vr_embed_test 33` (`QC/vr_dagger_test.qc`, by the embedded blades' machinery): a swing hurts a grunt, a
+  stab sticks by its point and hurts, its blade a third of the sword's, thrown into the wall and into a grunt it
+  sticks: `embeddagger: 12 passed, 0 failed` (7 of 8 runs; one run's dagger stab didn't stick: `vr_hit_stagger 0` set
+  since, as test 11 does; not seen again in 5 runs). With `-flatscreenmode`: held, the mouse button's swing hurts a
+  grunt 34 units ahead (at 44 the short blade doesn't reach): `embeddagger: 3 passed, 0 failed`. Armed grunts: test 61
+  (`vr_armedgrunt_bugs_test.qc`) has the dagger as its sixth weapon (picked up lying, after its disarm, thrown by you,
+  after a knockdown; grunt and enforcer): `pickups: 48 passed, 0 failed`. Scenario `dagger` (SCNRUN OK). eval.sh: no
+  take changed.

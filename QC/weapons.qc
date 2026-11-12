@@ -205,7 +205,7 @@ float() VRMeleeDmgQuadMult =
 float() VR_AG_WeaponBlowDmg =
 {
     float w = self.weapon;
-    return cvar_hget(w == WID_FIST ? cvarh_vr_agrunt_melee_dmg_fist :
+    return (w == WID_SWORD ? VR_SwordKind_DamageMult(self.weaponflags) : 1) * cvar_hget(w == WID_FIST ? cvarh_vr_agrunt_melee_dmg_fist :
                      (w == WID_AXE || w == WID_CROWBAR || w == WID_SUPERAXE) ? cvarh_vr_agrunt_melee_dmg_axe :
                      w == WID_SWORD ? cvarh_vr_agrunt_melee_dmg_sword :
                      w == WID_MJOLNIR ? cvarh_vr_agrunt_melee_dmg_hammer :
@@ -241,7 +241,10 @@ float(float xHand, float xSpeed, float xThing) VR_Corpse_BlowDamage =
     float wid = VRGetEntWeapon(self, xHand);
     float base = cvar_hget(cvarh_vr_dmg_gun_bash); // (a gun, anything else held swung)
     if(xThing == VR_MTHING_FIST) { base = cvar_hget(cvarh_vr_dmg_fist); }
-    else if(xThing == VR_MTHING_SWORD) { base = 20 * cvar_hget(cvarh_vr_sword_damage_mult); }
+    else if(xThing == VR_MTHING_SWORD)
+    {
+        base = 20 * cvar_hget(cvarh_vr_sword_damage_mult) * VR_SwordKind_DamageMult(VRGetEntWeaponFlags(self, xHand));
+    }
     else if(xThing == VR_MTHING_CROWBAR) { base = cvar_hget(cvarh_vr_crowbar_damage); }
     else if(xThing == VR_MTHING_CLUB) { base = cvar_hget(cvarh_vr_walltorch_damage); }
     else if(wid == WID_AXE) { base = cvar_hget(cvarh_vr_dmg_axe) * AD_AxeScale(xHand); }
@@ -1576,6 +1579,10 @@ void(float xHand) W_SwordMelee =
     {
         float both = VRGet2HAiming(self) && VRIsHandEmpty(self, VRGetOtherHand(xHand));
         xdmg = xdmg * cvar_hget(cvarh_vr_admelee_heavy_damage) * (both ? 1 : cvar_hget(cvarh_vr_admelee_heavy_1h));
+    }
+    else if(kind == VR_SWORDKIND_DAGGER)
+    {
+        xdmg = xdmg * VR_SwordKind_DamageMult(VRGetWeaponFlags(xHand)); // (Quake VR's dagger: vr_dagger_damage)
     }
     else if(kind)
     {

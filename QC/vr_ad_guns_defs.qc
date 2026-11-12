@@ -92,7 +92,7 @@ float(float wid) VR_ADGun_ClipSize =
 // handle in the hand strikes nothing; its spiked head, on a chain, is a body of its own in the physics (the engine's
 // vr_box3d_flail.cpp) and strikes by its own speed and mass (VR_Flail_Hit, vr_ad_melee.qc).
 float QVR_WPNFLAG_SWORD_KIND_UNIT = 256;
-float QVR_WPNFLAG_SWORD_KIND = 3840; // (bits 8-11: 256 .. 3840; bit 11 since the four monster swords, swords4)
+float QVR_WPNFLAG_SWORD_KIND = 3840; // (bits 8-11: 256 .. 3840; bit 11 since the four monster swords, swords4; 12 the dagger)
 float VR_ADMELEE_FURY = 1;     // the death fury's sword (it drops two: progs/w_dfurysword1.mdl)
 float VR_ADMELEE_DKNIGHT = 2;  // the death knight's (progs/w_dknightsword.mdl)
 float VR_ADMELEE_ZKNIGHT = 3;  // the zombie knight's (progs/w_zombiesword.mdl)
@@ -105,6 +105,17 @@ float VR_ADMELEE_JUSTICE = 9;  // AD's justice knight's flat sword (progs/w_just
 float VR_ADMELEE_JUDGE = 10;   // AD's judicator's (boss) glowing sword (progs/w_judgesword.mdl): too big for a holster
 float VR_ADMELEE_FLAIL = 11;   // the death sergeant's flail (progs/w_blueflail.mdl: its head on a chain, vr_box3d_flail.cpp)
 float VR_ADMELEE_LAST = 11;
+// Quake VR's dagger (progs/v_dagger.mdl, Misc/quakevr/make_dagger.py: the knight's sword with a third of its blade, a
+// smaller guard and grip, no blood): a kind of the knight's sword past AD's (not AD's: any campaign, its own model; its
+// slot's data, weapons.txt slot 51, makes it short; vr_dagger_damage its blows). weapon_dagger.
+float VR_SWORDKIND_DAGGER = 12;
+
+// A sword's blow's damage over the knight's sword's by its kind (the dagger's vr_dagger_damage; 1 for the others: their
+// own multipliers are W_SwordMelee's).
+float(float xFlags) VR_SwordKind_DamageMult =
+{
+    return VR_ADMelee_Kind(xFlags) == VR_SWORDKIND_DAGGER ? cvar_hget(cvarh_vr_dagger_damage) : 1;
+};
 float vr_flail_damage; // the flail's head's blow being dealt (VR_Flail_Hit: W_SwordMelee deals it)
 
 // A sword's kind (0: Quake VR's own), from its weapon flags.
@@ -152,6 +163,10 @@ float(float xKind) VR_ADMelee_Holsterable =
 // that data.
 string(float xKind) VR_ADMelee_Model =
 {
+    if(xKind == VR_SWORDKIND_DAGGER)
+    {
+        return "progs/v_dagger.mdl"; // (Quake VR's own: every campaign)
+    }
     if(xKind == VR_ADMELEE_PHANTOM)
     {
         return VR_Has("progs/sword.mdl") ? "progs/sword.mdl#melee" : "progs/v_ksword.mdl";
@@ -174,6 +189,7 @@ string(float xKind) VR_ADMelee_Model =
 
 string(float xKind) VR_ADMelee_Name =
 {
+    if(xKind == VR_SWORDKIND_DAGGER) { return "Dagger"; }
     if(xKind == VR_ADMELEE_FURY)     { return "Death Fury's Sword"; }
     if(xKind == VR_ADMELEE_DKNIGHT)  { return "Death Knight's Sword"; }
     if(xKind == VR_ADMELEE_ZKNIGHT)  { return "Zombie Knight's Sword"; }

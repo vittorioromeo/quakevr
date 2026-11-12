@@ -1444,6 +1444,9 @@ QVR_SLIDER(vr_dmg_lava_nail, "Lava Nails", 1.f, 60.f, 1.f, "%.0f a nail", ext(),
 QVR_SLIDER(vr_crowbar_damage, "Crowbar", 1.f, 100.f, 1.f, "%.0f", ext(),
     "A blow (20, the axe's: 25 before), before its speed and weight; its hook hits 20% harder, its chisel "
     "end 40% softer. Crowbars lie in the firing range's prop area.")
+QVR_SLIDER(vr_dagger_damage, "Dagger", 0.1f, 2.f, 0.05f, "%.2fx sword", ext(),
+    "The dagger's blows (a swing, a stab, a throw; an armed grunt's), times the knight's sword's. Its stabs sink a "
+    "third as deep (a third of the blade). Daggers lie beside the swords in the firing range.")
 QVR_SLIDER(vr_sword_damage_mult, "Knight's Sword", 0.5f, 3.f, 0.05f, "%.2fx 20", ext(),
     "Knights and hell knights always drop their sword: a swing's damage, times 20 (1.5: 30), before its "
     "speed and weight; the hell knight's sword 25% more.")

@@ -37,6 +37,8 @@ za::Vector<Item> pageSpawnWeapons()
         command("Axe", "vr_physics_spawn weapon_axe reach"),
         command("Knight's Sword", "vr_physics_spawn weapon_knight_sword reach"),
         command("Death Knight's Sword", "vr_physics_spawn weapon_hknight_sword reach"),
+        command("Dagger", "vr_physics_spawn weapon_dagger reach")
+            .help("Quake VR's dagger lying ready to be picked up: the knight's sword's kind, a third of its blade (weapon_dagger)."),
         command("Ogre's Chainsaw", "vr_physics_spawn weapon_chainsaw reach"),
         command("Grunt Burst Rifle", "vr_physics_spawn weapon_gruntgun reach")
             .help("The grunt's 3-round burst rifle lying ready to be picked up, its magazine full (weapon_gruntgun)."),

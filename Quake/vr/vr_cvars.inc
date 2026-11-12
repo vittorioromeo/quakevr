@@ -2470,6 +2470,7 @@ QVR_CVAR(vr_swim_stroke_pitch, "-10", CVAR_ARCHIVE)     // degrees each stroke's
 QVR_CVAR(vr_air_supply, "2.5", CVAR_ARCHIVE)        // the breath under water before drowning, times Quake's 12 seconds (1 to 4; biosuit and wetsuit as ever)
 QVR_CVAR(vr_swim_debug, "0", CVAR_NONE)               // print each stroke: peak speed, power gate, reverse damping and the push it gave
 QVR_CVAR(vr_sword_damage_mult, "1.1", CVAR_ARCHIVE)   // a knight's sword: its swing's damage over the axe's
+QVR_CVAR(vr_dagger_damage, "0.6", CVAR_ARCHIVE)       // the dagger: its blows' damage times the knight's sword's (its stabs', its throws'; an armed grunt's)
 QVR_CVAR(vr_crowbar_damage, "20", CVAR_ARCHIVE)       // the crowbar (QC vr_crowbar.qc): a blow's base damage (the axe's; a knight's sword's 30; 25 before round 21's Weapon Damage), its hook's x1.2
 // Weapon Damage (VR Settings > Combat > Weapon Damage; QC VR_WpnDmg): each weapon's base damage, id's (or the mission
 // packs') as shipped. A gun's or a projectile's applies to players' (and bots') shots only: monsters and traps firing the
@@ -2703,6 +2704,7 @@ QVR_CVAR(vr_agrunt_debug, "0", CVAR_NONE)                    // 1: prints its we
 QVR_CVAR(vr_agrunt_w_fists, "1", CVAR_ARCHIVE)         // the pool's weights (0: never): unarmed, its fists
 QVR_CVAR(vr_agrunt_w_axe, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_agrunt_w_sword, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_agrunt_w_dagger, "1", CVAR_ARCHIVE)        // ... the dagger (QC VR_AG_CODE_DAGGER)
 QVR_CVAR(vr_agrunt_w_crowbar, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_agrunt_w_chainsaw, "0.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_agrunt_w_shotgun, "3", CVAR_ARCHIVE)

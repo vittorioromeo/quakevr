@@ -1,0 +1,10 @@
+title The dagger: in your hand beside the knight's sword; a grunt to stab, an armed grunt with a dagger
+map vrtesthall
+start 0 -288 25 90
+god
+give "Dagger" main
+give "Knight's Sword" off
+spawn "Grunt" 110 20
+spawn "Armed Grunt: Dagger" 300 -60
+spawn "Dagger" 50 -40
+hint The dagger is in your main hand, the knight's sword in the other to compare: a third of the blade, a smaller guard and grip, clean steel. Swing at the grunt, stab it (the blade sticks in, a third as deep), throw it; the armed grunt fights with one. Another dagger lies at your feet.
