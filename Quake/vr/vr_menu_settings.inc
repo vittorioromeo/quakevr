@@ -266,8 +266,8 @@ void resetBodyEquipment()
 {
     resetHolsters();
     for(cvar_t* var : {&vr_body_tweak_shoulders_back, &vr_body_tweak_shoulders_out, &vr_body_tweak_shoulders_up,
-            &vr_body_torso_back, &vr_body_belt_up, &vr_flashlight_forward, &vr_flashlight_out, &vr_flashlight_up,
-            &vr_ammo_pouch_x, &vr_ammo_pouch_y, &vr_ammo_pouch_z, &vr_body_leg_fit, &vr_body_gear_fit})
+            &vr_body_torso_back, &vr_body_belt_up, &vr_flashlight_forward, &vr_flashlight_armor_forward, &vr_flashlight_out, &vr_flashlight_up,
+            &vr_ammo_pouch_x, &vr_ammo_pouch_armor_x, &vr_ammo_pouch_y, &vr_ammo_pouch_z, &vr_body_leg_fit, &vr_body_gear_fit})
     {
         Cvar_SetQuick(var, var->default_string);
     }

@@ -14,6 +14,7 @@
 #include "vr_protocol.hpp"
 #include "vr_seated.hpp"
 #include "vr_units.hpp"
+#include "vr_view.hpp"
 
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Atan2.hpp"
@@ -651,6 +652,12 @@ glm::vec3 ammoPouchPosition(const hands::State& s, HolsterPlate* plate)
         return follow(avatar::Part::Pelvis, pos) + crouched;
     }
     pos = ammoPouchOnTheBody(standing, pos);
+    if(view::playerArmourShown())
+    {
+        glm::vec3 fwd, right, up;
+        hands::angleVectors({0.f, standing.bodyYaw, 0.f}, fwd, right, up);
+        pos += fwd * vr_ammo_pouch_armor_x.value; // (off the plates: the pouch stands forward of them)
+    }
     glm::vec3 now = follow(avatar::Part::Pelvis, pos);
     if(plate)
     {
