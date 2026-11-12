@@ -730,6 +730,31 @@ glm::vec3 aiMap(int gate, const glm::vec3& value, bool direction)
     return direction ? inverse.turn * value : carried(inverse, value);
 }
 
+bool teleporterOpen(const edict_s* trigger)
+{
+    return trigger && detail::triggerActive(trigger);
+}
+
+bool teleporterWalked(int trigger)
+{
+    if(!walkOn() || vr_portals_monsters.value <= 0.f)
+    {
+        return false;
+    }
+    if(!current())
+    {
+        build();
+    }
+    for(const Side& sd : sides)
+    {
+        if(sd.trigger == trigger && sd.paired)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 // The stealth AI's gates (QC vr_stealth.qc), numbered as aiImage's: 1..count the sides' own faces, count+1..2 count
 // their exits.
 int aiGateCount()

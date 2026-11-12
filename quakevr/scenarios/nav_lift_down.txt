@@ -1,0 +1,16 @@
+# nav_lift_down: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". A knight at the top of e1m1's
+# big lift (the plat by the start) while the lift rests at the bottom: it waits at the shaft, calls the lift up (QC
+# VR_NAV_CallLift: nothing else brings a resting plat up), boards it, rides down and steps off to you below. The reach
+# test's verdict line (nav_lift_down: 1 passed) as it comes within 160 of you after the ride, 60 s at most.
+title Navmesh: a knight calls the lift up and rides it down to you
+map e1m1
+start -544 2540 58 90
+god
+spawn "Knight" 0 -150
+cvar vr_nav 1
+cvar vr_nav_debug 2
+cvar vr_nav_lifts 1
+cvar vr_nav_plat_monsters 1
+cmd setpos -466 2662 -96
+cmd vr_nav_reachtest nav_lift_down 160 60 ride monster_knight
+hint The knight up top waits by the shaft, the lift comes up for it, and it rides down to you (lift links magenta, its path yellow).

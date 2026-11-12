@@ -81,6 +81,16 @@ void() plat_center_touch =
         self.nextthink = self.ltime + 1;    // delay going down
 };
 
+// QVR: the engine (vr_nav.cpp) calls a lift resting at its bottom up for a monster waiting at its top to ride it down
+// (self: the lift; vr_nav_plat_monsters as for plat_center_touch). It comes down by itself as it does for a player.
+void() VR_NAV_CallLift =
+{
+    if(!cvar_hget(cvarh_vr_nav) || !cvar_hget(cvarh_vr_nav_plat_monsters))
+        return;
+    if(self.state == STATE_BOTTOM)
+        plat_go_up();
+};
+
 void() plat_outside_touch =
 {
     if(other.classname != "player")

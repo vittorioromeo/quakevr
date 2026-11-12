@@ -440,3 +440,43 @@ now also waits for the player before its first spawn: it had a program error whe
   wait for him before their first spawn.
 - **The armed grunt at the south-east stair's foot** (255 -324): logged steering south with a clear step yet not
   moving, in the earlier (fixed) run; not seen again in the runs below.
+
+## 16. Teleporters; lifts finished (2026-11-12)
+
+- **Teleporter links** (`vr_nav_teleports` 1, `vr_nav_tele_cost` 0.05 per unit of the link's length, `vr_nav_tele_time`
+  4 s; Debug > Tunables): gathered at the load (`gatherGates`): each `trigger_teleport*` with a destination (the first
+  entity named its target, as `teleport_touch` finds it), not players-only (spawnflag 1). Per class (`teleEnds`): the
+  entry is the mesh nearest the trigger's middle at its bottom, where the box standing reaches into the trigger; the
+  end is the mesh under the destination's point (Quake puts the monster's origin there: feet 24 under). A paired gate
+  that monsters walk through (`portals::teleporterWalked`: vr_portals_monsters, the gate's exit a real aperture) must
+  also fit the box: its bottom at most a step over the floor (a sill), its height and width the box's (vrteleporters'
+  crate hatch and the sill-32 gate get no links). One way: a way back is another trigger's own link. Same link list,
+  same cost model and same give-up (`vr_nav_link_retry`) as drops and rides; `navVersion` 6 (the gates are in the
+  cache key).
+- **Far links in Detour** (vendored, marked `QVR`): Detour joins an off-mesh link's end only to its start tile and its 8
+  neighbours. `dtNavMesh::connectFarOffMeshLinks` joins a one-way link whose end is further to the tile its end lies in,
+  whichever of the two tiles is added first (`addTile`; tiles with such links carry `DT_TILE_QVR_FAR`), and `removeTile`
+  unjoins them (`landsFarAt`), so the props' tile rebuilds keep them right. No link back from the landing polygon (one
+  way only), so removing the start's tile leaves nothing behind. A* stays as Detour's (its distance heuristic is not
+  admissible across a teleporter: a path through one can be a little longer than the best; it is found all the same).
+- **Shut teleporters:** every `vr_nav_movers` tick a teleporter link is closed (`flagBlocked`) while its trigger is shut
+  (`portals::teleporterOpen`: a targetname without IGNORE_TARGETNAME, waiting to be fired, as Quake's `teleport_touch`
+  and the gates' own walking use), open again once it is.
+- **Following one:** the link begins as the walker comes within a box's width of its start (the trigger takes it as its
+  box touches it, often before the corner); it walks on through the trigger's middle (64 past it: a paired gate is
+  walked through); done when it is near the far end or moved more than 96 since the last steer (teleported); not
+  through in `vr_nav_tele_time`: given up. `vr_nav_links <class>` lists each teleporter, open or shut, and why it has no
+  link (no mesh at the trigger, the box can't reach or fit it, no mesh at the destination); debug view: cyan posts at
+  both ends and a thin line between.
+- **Lifts: waiting at the top.** A lift resting at its bottom is called up for a walker waiting at its top (QC
+  `VR_NAV_CallLift`, `plat_go_up` as for a player standing on it below; vr_nav_plat_monsters); it boards, rides down
+  as the plat goes down by itself, steps off. Trains: rides between the corners a train waits at were already in (10);
+  every id train with stops has a targetname (e2m4, e2m5, e2m6, e3m4: `scratch/nt_trains.py`), so they ride only once
+  triggered, and no scene covers one yet.
+- **Tests:** `vr_nav_reachtest` takes `tele` (a teleporter gone through) and `notele` (passes when its seconds are up
+  with no teleporter link begun), and its time-out is checked every server frame (a walker standing and shooting
+  doesn't steer, so the verdict never came). Scenes (each ends on its verdict line): `nav_tele` (e1m1's one-way
+  teleporter: a grunt beside it, you past its destination), `nav_tele_oneway` (a dog at that destination, you by its
+  entry: no teleporter link begun in 20 s), `nav_tele_gate` (vrteleporters: a dog through a paired gate),
+  `nav_lift` (the knight below rides up; you stand clear of the shaft: you used to stand on its edge and fell in),
+  `nav_lift_down` (a knight up top calls the lift, rides down to you).
