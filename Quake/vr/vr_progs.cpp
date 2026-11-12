@@ -262,7 +262,7 @@ bool globalVec(const char* name, glm::vec3& out)
     for(int i = 0; i < vm.progs->numglobaldefs; i++)
     {
         const ddef_t& def = vm.globaldefs[i];
-        if((def.type & ~DEF_SAVEGLOBAL) == ev_vector && !strcmp(PR_GetString(def.s_name), name))
+        if((def.type & ~DEF_SAVEGLOBAL) == ev_vector && def.s_name >= 0 && def.s_name < vm.stringssize && !strcmp(vm.strings + def.s_name, name))
         {
             const float* v = &vm.globals[def.ofs];
             out = {v[0], v[1], v[2]};
