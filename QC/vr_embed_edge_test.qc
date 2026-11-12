@@ -13,6 +13,17 @@ float vr_ee_mode;      // the save's scene (14, 16, 17)
 float vr_ee_real;      // a slide's way, what a case compares
 vector vr_ee_offhome;  // where the off hand is left between cases
 entity vr_ee_m2;       // a second body
+float vr_ee_blades0;   // test 13: thrown blades in the map as its case began (the map's own, earlier cases' left ones: not this case's)
+
+float() VR_EE_Blades =
+{
+    float n = 0;
+    for(entity e = find(world, classname, "thrown_weapon"); e; e = find(e, classname, "thrown_weapon"))
+    {
+        n = n + 1;
+    }
+    return n;
+};
 
 void() VR_EE_Verdict =
 {
@@ -44,6 +55,7 @@ void() VR_EE_NextCase =
     }
     VR_EH_ClearGibs();
     VR_ET_NextCase();
+    vr_ee_blades0 = vr_et_on == 13 ? VR_EE_Blades() : 0;
 };
 
 // A case's stab, to state 10: the blade in vr_et_w. FALSE until then, or no blade (the case over).
@@ -89,12 +101,9 @@ void(string xWhat) VR_EE_InHand =
     entity p = self;
     float h = cVR_MainHand;
     VR_Test_Check(VR_EH_Blade() == world && VRGetEntWeapon(p, h) == WID_SWORD && !VR_Hand_HeldOff(p, h), sprintf("%s: in the hand (holds %g, kind %g)", xWhat, VRGetEntWeapon(p, h), VR_Hand_Kind(p, h)));
-    float stuck = 0;
-    for(entity e = find(world, classname, "thrown_weapon"); e; e = find(e, classname, "thrown_weapon"))
-    {
-        stuck = stuck + 1;
-    }
-    VR_Test_Check(stuck == 0, sprintf("%s: no blade left behind (%g)", xWhat, stuck));
+    // (Test 13: more than as its case began. Its blade, back in the hand, is none of them.)
+    float stuck = VR_EE_Blades() - vr_ee_blades0;
+    VR_Test_Check(stuck <= 0, sprintf("%s: no blade left behind (%g, %g before)", xWhat, stuck, vr_ee_blades0));
 };
 
 void() VR_EE_Rest;
@@ -136,16 +145,20 @@ void() VR_EE_Step =
         return;
     }
     // ---- 1: the body through a teleporter during a hold; 2: its holder through one
+    // (Case 1's stab under the stagger's 5 m/s: a staggering body is down, not SOLID_SLIDEBOX, and no teleporter takes it.)
     if(c == 1 || c == 2)
     {
         if(vr_et_s < 10)
         {
-            VR_EE_Stab(6, t);
+            VR_EE_Stab(c == 1 ? 4 : 6, t);
         }
         else if(vr_et_s == 10 && vr_et_w.vr_stick_goal == 0)
         {
             makevectors('0 1 0' * p.angles_y);
-            VR_EE_Teleport(c == 1 ? m : p, c == 1 ? v_forward * 300 : v_forward * -300);
+            entity who = c == 1 ? m : p;
+            vector was = who.origin;
+            VR_EE_Teleport(who, c == 1 ? v_forward * 300 : v_forward * -300);
+            VR_Test_Check(vlen(who.origin - was) > 250, sprintf("case %g: it went through the teleporter (%.0f units; solid %g, health %g)", c, vlen(who.origin - was), who.solid, who.health));
             VR_ET_To(11);
         }
         else if(vr_et_s == 11 && (w == world || t > 2))
@@ -728,6 +741,7 @@ void(float ask) VR_EE_Ask =
     vr_ee_target = world;
     vr_eh_down = 0;
     vr_et_case = 0;
+    vr_ee_blades0 = 0;
     VR_ET_To(0);
     if(ask == 13)
     {
@@ -736,6 +750,7 @@ void(float ask) VR_EE_Ask =
         cvar_set("vr_kdtrig", "0");
         localcmd("vr_mock_hand_to_absolute 1\n");
         vr_et_on = 13;
+        vr_ee_blades0 = VR_EE_Blades();
     }
     else if(ask == 14 || ask == 16 || ask == 17)
     {

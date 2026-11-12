@@ -797,7 +797,14 @@ float() VR_Embed_HoldThink =
     // (Standing, where it stands: the wound on its drawn model comes a tenth of a second after a monster's step.)
     // (A crate: where the wound itself went, as it turns and tips.)
     float inProp = VR_Embed_InProp(e);
-    vector wound = (h.health > 0 && !h.vr_knockdown && !inProp) ? h.origin - e.vr_hold_lasthost : e.vr_stick_at - e.vr_hold_lastwound;
+    // The wound gone further in a frame than anything moves: the body went through a teleporter. The blade comes back to the hand
+    // (else it would stay held from wherever it went: test 13 case 1).
+    if(VR_Blade_Jumped(e.vr_hold_lastwound, e.vr_stick_at))
+    {
+        VR_Embed_Free(e, sprintf("the wound jumped %.0f units in a frame (a teleporter)", vlen(e.vr_stick_at - e.vr_hold_lastwound)));
+        return TRUE;
+    }
+    vector wound =(h.health > 0 && !h.vr_knockdown && !inProp) ? h.origin - e.vr_hold_lasthost : e.vr_stick_at - e.vr_hold_lastwound;
     e.vr_hold_lastorg = p.origin;
     e.vr_hold_lastwound = e.vr_stick_at;
     e.vr_hold_lasthost = h.origin;
