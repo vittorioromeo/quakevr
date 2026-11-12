@@ -2648,13 +2648,13 @@ QVR_CVAR(vr_nav_async, "1", CVAR_ARCHIVE)                     // a monster size 
 QVR_CVAR(vr_arena_shards, "2", CVAR_ARCHIVE)                // armour shards (+5 each) a wave clear drops on top: 1 to this many at random (0: none)
 QVR_CVAR(vr_arena_countdown, "5", CVAR_ARCHIVE)               // s of countdown in the middle of the view before each wave ("Wave 7 in 5..."; 0: none)
 QVR_CVAR(vr_arena_max_alive, "8", CVAR_ARCHIVE)               // the ceiling on a wave's alive pool (foes up at once), by the difficulty
-QVR_CVAR(vr_arena_wave_size, "1.75", CVAR_ARCHIVE)            // a wave's crowd groups times this (1: the ladder's own counts)
+QVR_CVAR(vr_arena_wave_size, "1.8", CVAR_ARCHIVE)            // a wave's crowd groups times this (1: the ladder's own counts)
 QVR_CVAR(vr_arena_alive_max, "6", CVAR_ARCHIVE)               // a wave's alive pool at wave 1: foes up at once; the rest come in as these fall
 QVR_CVAR(vr_arena_alive_grow, "4", CVAR_ARCHIVE)              // the pool takes one more foe every this many waves (0: never), up to vr_arena_max_alive
 QVR_CVAR(vr_arena_burst, "3", CVAR_ARCHIVE)                   // a wave opens with this many foes at once, then they trickle in
 QVR_CVAR(vr_arena_spawn_gap, "1.5", CVAR_ARCHIVE)             // s from a foe's fall (a free slot) to the next one, up to twice this at random, by the difficulty
 QVR_CVAR(vr_arena_boss_every, "5", CVAR_ARCHIVE)              // a boss wave every this many waves (0: none)
-QVR_CVAR(vr_arena_boss_health, "1.25", CVAR_ARCHIVE)          // a boss's health times this
+QVR_CVAR(vr_arena_boss_health, "1.2", CVAR_ARCHIVE)          // a boss's health times this
 QVR_CVAR(vr_arena_medkits_after, "2", CVAR_ARCHIVE)           // medkits a wave clear drops (0: none)
 QVR_CVAR(vr_arena_armor_every, "4", CVAR_ARCHIVE)             // an armour after every this many waves (0: none; the heavier one from wave 12)
 QVR_CVAR(vr_arena_score_kill, "100", CVAR_ARCHIVE)            // the score of a kill, times the ladder tier it held (a boss: four of those; armoured: a quarter more per armour type)
@@ -3159,7 +3159,7 @@ QVR_CVAR(vr_wornpack_test, "0", CVAR_NONE)            // the QC test of worn bac
 QVR_CVAR(vr_agarmor_skill0, "0", CVAR_ARCHIVE)        // armour: the chance an armed grunt spawns armoured on Easy
 QVR_CVAR(vr_agarmor_skill0_type, "1", CVAR_ARCHIVE)   // armour on Easy: its best type (1 green, 2 yellow, 3 red: rolled up to it)
 QVR_CVAR(vr_agarmor_skill0_pieces, "2", CVAR_ARCHIVE) // armour on Easy: how many pieces (1 the cuirass, 2 and the helmet, more: the rest picked at random; 10 all)
-QVR_CVAR(vr_agarmor_skill1, "0.15", CVAR_ARCHIVE)     // armour: the chance on Normal
+QVR_CVAR(vr_agarmor_skill1, "0.2", CVAR_ARCHIVE)     // armour: the chance on Normal
 QVR_CVAR(vr_agarmor_skill1_type, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_agarmor_skill1_pieces, "4", CVAR_ARCHIVE)
 QVR_CVAR(vr_agarmor_skill2, "0.35", CVAR_ARCHIVE)     // armour: the chance on Hard
