@@ -357,11 +357,21 @@ void measure(const Placed& p, const za::Vector<glm::vec3>& points, float& outsid
     }
     const entity_t& e = cl_entities[num];
     const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(e.model));
+    if(!hdr->indexes || !hdr->meshdesc)
+    {
+        return false;
+    }
     float m[16];
     render::entityMatrix(e, false, ENTSCALE_DEFAULT, glm::vec3{0.f}, m);
-    for(int v = 0; v < hdr->numverts; v++)
+    // (its triangles' corners only: a model may carry vertices no triangle uses, never drawn, e.g. 53 of
+    // v_nailpistol.mdl's 1270 and 98 of v_shot.mdl's, up to 0.1 outside the drawn ones' hull; corners shared by several
+    // triangles counted once each time, which changes neither the most outside nor the box)
+    const auto* base = reinterpret_cast<const byte*>(hdr);
+    const auto* mesh = reinterpret_cast<const aliasmesh_t*>(base + hdr->meshdesc);
+    const auto* indexes = reinterpret_cast<const unsigned short*>(base + hdr->indexes);
+    for(int i = 0; i < hdr->numindexes; i++)
     {
-        const glm::vec3 b = anchor::posedVertex(e, v, 0.f);
+        const glm::vec3 b = anchor::posedVertex(e, mesh[indexes[i]].vertindex, 0.f);
         out.pushBack({m[0] * b.x + m[4] * b.y + m[8] * b.z + m[12], m[1] * b.x + m[5] * b.y + m[9] * b.z + m[13],
             m[2] * b.x + m[6] * b.y + m[10] * b.z + m[14]});
     }
