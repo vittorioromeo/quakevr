@@ -179,6 +179,24 @@ flatstance_test.sh no longer measures the drawn hand against cup grips (grapple,
 
 vr_takes_light_flat (default 0, archived; menu Recording > "Recording Light and Prompt (Flat Screen)"): the flat-play corner light and prompt are off by default, because OBS records the window. vr_takes_light stays the master switch. The headset light is unchanged: VR_TakesIndicator returns null while VR_IsActive, and drawInEye draws into the eyes only, so the spectator camera never has it. vr_takes_test checks the corner is absent by default and present with the cvar at 1.
 
+## Punches at shootable doors, and the hand's stop at walls (realfix doorpunch)
+
+secret_hits "door-punch" (the fist at e1m1's shootable secret door, `*14`, swished but never struck it) had two causes:
+- **The hand's stop was skewed by a unit** (vr_handpose.cpp, `stopAtWall`): it swept a +-1 box, which SV_Move meets
+  brushes with as hull 0 at the box's mins corner (SV_HullForEntity's offset for a box under 3 units). The hand
+  stopped a unit short of any surface it came at going -x, -y or -z (the door, approached going -y: the fist's point
+  1.37 off) and a unit into one going +x, +y or +z. The fist's reach past the stopped hand (VR_Melee_Sweep: its
+  thickness, 0.87) never met the near ones: punches at walls and brushes facing +x/+y/+z never landed. Now a point
+  from the torso: the hand stops on the surface every way.
+- **A shootable brush was decided as a monster's box** (VR_Melee_Sweep): it stops the hand as a wall does, so the
+  frame the fist meets it the hand has slowed (2.3 m/s, needing 3.2) and the blow was refused. A brush that takes
+  damage (`VR_Blow_StrikesAsWall`: SOLID_BSP; a shootable door or button) is now struck as a wall is (where a part
+  went into it, at the speed it came in at, held for vr_melee_wall_hold) and dealt as a thing struck (T_Damage, its
+  sparks). Monsters, props and triggers with health (SOLID_BBOX: the hand passes them) are as before.
+
+Checks: secret_hits 5/6 -> 6/6 (door-punch: the secret door moved, 1 spark effect, no blood); eval.sh's full set
+identical to before the change (112 result lines, 0 differ; 162/171 both); slopes 8/8; flatinput 19/0 (wallpunch
+0.47 units in, wallswing 0.50).
 ## Ragdoll climb: the enforcer's grab, the pull's chest, the ogre's swing (branch agent/realfix_climb, 2026-11-12)
 
 `Misc/quakevr/ragdoll/climb_test.sh`: 18 of 24 before (the enforcer failed pull, drop and hit; the grunt, ogre and hell

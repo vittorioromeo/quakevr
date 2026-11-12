@@ -21,8 +21,6 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
   ROUND25.md, "Ragdoll climb: the enforcer's grab, the pull's chest, the ogre's swing".
   (agrunt 60, agarmor_5, limb_wear, stealth settled 2026-11-12; autopump, cellcord, animsmooth, xr_runtime and
   secret_hits too: ROUND25.md, "Always-failing monster tests" and "Always-failing tests, part b".)
-- **secret_hits "door-punch"**: the fist swung through e1m1's shootable secret door (`*14`) swishes but never hits it (no
-  melee event; the quad's trigger is struck): failing since at least 2026-10-30 (ROUND25.md, "Always-failing tests, part b").
 - Stale, passing 3 of 3 (2026-11-12, seeded where the runner seeds): agrunt 47/63/66/67/71/72/76/86/209, ragdoll_grab,
   ragdoll_guard, rv_1, judo, nail_1, teleporters_chase, parry_pose, weapon_catch, dead_gear (removed from this list;
   `test_flaky.txt` still names some: take them off after more runs unseeded).

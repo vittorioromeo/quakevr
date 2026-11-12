@@ -82,18 +82,22 @@ struct StrikePass
 StrikePass strikePasses[HAND_COUNT];
 constexpr float strikePassEase = 0.15f; // s from let in to held out whole again
 
-// Sweeps a small box from `from` to `to`. When it hits, `pos` stops along the axes the hit plane
-// faces where the box stopped (the other axes are kept).
+// Sweeps the hand's point from `from` to `to`. When it hits, `pos` stops along the axes the hit plane
+// faces where the point stopped, on the surface (the other axes are kept).
 // Monsters (anything that bleeds, not a brush) don't stop it: their boxes are much bigger than they
 // look, and a sword stopped at one jerked the hand back, which the server's melee took for a new
 // stroke (no hit), so blows with a weapon's far end didn't register (ROUND15.md (removed 2026-10-06; git history)).
+// A point, not the small box (+-1) it was: a box under 3 units meets brushes with hull 0 at its mins corner
+// (SV_HullForEntity's offset), so the hand stopped a unit short of a surface it came at going -x, -y or -z and a unit
+// in going +x, +y or +z; a punch at a wall or a shootable door facing +x/+y never reached it (the fist's reach past the
+// stopped hand, VR_Melee_Sweep, is under a unit: ROUND25.md, "realfix doorpunch").
 void stopAtWall(glm::vec3& pos, const glm::vec3 from, const glm::vec3 to, bool xWallsOnly = false)
 {
-    const glm::vec3 box{1.f};
-    auto tr = worldtrace::move(from, -box, box, to, (xWallsOnly ? MOVE_NOMONSTERS : MOVE_NORMAL) | MOVE_PORTALS);
+    const glm::vec3 point{0.f};
+    auto tr = worldtrace::move(from, point, point, to, (xWallsOnly ? MOVE_NOMONSTERS : MOVE_NORMAL) | MOVE_PORTALS);
     if(tr && tr->fraction < 1.f && tr->ent && tr->ent->v.takedamage != 0.f && static_cast<int>(tr->ent->v.solid) != SOLID_BSP)
     {
-        tr = worldtrace::move(from, -box, box, to, MOVE_NOMONSTERS | MOVE_PORTALS);
+        tr = worldtrace::move(from, point, point, to, MOVE_NOMONSTERS | MOVE_PORTALS);
     }
     if(!tr || tr->fraction >= 1.f)
     {
