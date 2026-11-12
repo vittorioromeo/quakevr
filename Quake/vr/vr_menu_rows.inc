@@ -3664,8 +3664,6 @@ QVR_SLIDER_BYNAME(vr_particle_near_fade, "Particle Fade Near Eyes", 0.f, 100.f, 
     "Smoke, blood and sparks fade out as they come this close to your eyes, gone at Particles Hidden Nearer: no screen-filling blot in your face (0: no fade).")
 QVR_SLIDER_BYNAME(vr_particle_near_cull, "Particles Hidden Nearer", 0.f, 50.f, 1.f, "%.0f cm", ext(),
     "Particles nearer your eyes than this are not drawn at all (0: all drawn).")
-QVR_TOGGLE_BYNAME(vr_particle_evict, "New Particles Replace Oldest",
-    "When the particle pool is full (32768 at once), a new effect's particles take the place of the oldest instead of not appearing.")
 QVR_SLIDER_BYNAME(vr_particle_max_screen, "Largest Particle", 0.f, 1.f, 0.05f, "%.2f", noExt,
     "A particle is never drawn larger than this part of the view's height across: a bigger one is shrunk round its centre (cheaper on the GPU, no single puff filling the view). 0: no limit.")
 QVR_SLIDER_BYNAME(vr_particle_retro_min_blocks, "Retro Particle Detail", 0.f, 16.f, 1.f, "%.0f blocks", noExt,

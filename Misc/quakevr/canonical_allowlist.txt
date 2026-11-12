@@ -223,7 +223,7 @@ qc-busy-hand QC/vr_embed_test.qc 1  # the embedded blades' test reads that a let
 gl-program-no-twin Quake/vr/vr_glutil.hpp 1  # gfx::linkProgram's declaration
 gl-program-no-twin Quake/vr/vr_glutil.cpp 1  # gfx::linkProgram: the one link of Quake VR's own programs
 gl-program-no-twin Quake/vr/vr_gfx.hpp 1  # gfx::glProgram's declaration
-gl-program-no-twin Quake/vr/vr_gfx_gl.cpp 15  # glProgram's definition and its link; VR particles (7 variants, 4 composites), triangles, tube, bent mesh: scene effects not ported yet (STEREO.md stage 4); precompilePrograms makes it at start-up too
+gl-program-no-twin Quake/vr/vr_gfx_gl.cpp 16  # glProgram's definition and its link; VR particles (7 variants, 4 composites, the half composite's TAA reactive marks), triangles, tube, bent mesh: scene effects not ported yet (STEREO.md stage 4); precompilePrograms makes it at start-up too
 gl-program-no-twin Quake/vr/vr_bttrails.cpp 2  # bullet time's distortion trails: a screen-space pass over each eye's image (stage 5); precompilePrograms makes it at start-up too
 gl-program-no-twin Quake/vr/vr_haze.cpp 2  # heat haze: reads each eye's scene copy (stage 5); precompilePrograms makes it at start-up too
 gl-program-no-twin Quake/vr/vr_water.cpp 1  # the scene's distances for the liquids: per eye's scene copy (stage 2's liquids, not ported)

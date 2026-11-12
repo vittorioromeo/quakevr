@@ -1077,7 +1077,7 @@ void electricTrail(const glm::vec3& from, const glm::vec3& to)
 int fireSource(const glm::vec3& at, float sourceScale)
 {
     if(!vr_particles.value || !r_particles.value || !ensureAtlas()) { return 0; }
-    const Since since;
+    const za::SizeT before = pool.size();
     const auto range = [](float a, float b, float low, float high) {
         a = za::clamp(a, low, high); b = za::clamp(b, low, high);
         return vrand::range(rng, za::min(a, b), za::max(a, b));
@@ -1102,7 +1102,7 @@ int fireSource(const glm::vec3& at, float sourceScale)
         p.spin = vrand::range(rng, -0.3f, 0.3f);
         p.acc = glm::vec3{0.f, 0.f, units::metresToUnits() * 0.3f};
     }, false);
-    return static_cast<int>(since.made());
+    return static_cast<int>(pool.size() - before);
 }
 
 void gust(const glm::vec3& at, float radius, const glm::vec3& vel, float dt)
@@ -1366,7 +1366,7 @@ void shellTrail(const glm::vec3& from, const glm::vec3& to, float strength)
 
 bool gunParticle(const GunParticle& g)
 {
-    if(!vr_particles.value || g.life <= 0.f || !ensureAtlas() || !room())
+    if(!vr_particles.value || g.life <= 0.f || !ensureAtlas() || pool.size() >= maxParticles)
     {
         return false;
     }

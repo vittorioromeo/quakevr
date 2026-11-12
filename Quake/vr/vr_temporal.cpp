@@ -786,6 +786,7 @@ void endEye()
 {
     state.eyeActive = false;
     state.writes = false;
+    state.reactive = false;
     bindZeroBlock(); // the spectator camera, the window: no motion vectors
 }
 
@@ -959,6 +960,7 @@ extern "C" void VR_TemporalReactive(int on)
     {
         return;
     }
+    state.reactive = on != 0;
     if(on)
     {
         glEnable(GL_STENCIL_TEST);
@@ -973,6 +975,14 @@ extern "C" void VR_TemporalReactive(int on)
         glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
         glDisable(GL_STENCIL_TEST);
     }
+}
+
+// Whether the draws now mark their pixels reactive (between VR_TemporalReactive(1) and (0) in a view the TAA resolves).
+// The particles' passes drawn into a target of their own (half size, reverse order: vr_gfx_gl.cpp) mark what they
+// blended into the scene afterwards: their composites write no stencil.
+extern "C" int VR_TemporalReactiveOn(void)
+{
+    return state.eyeActive && state.reactive ? 1 : 0;
 }
 
 // R_RenderView, after the scene: the eye's temporal pass (TAA, or a debug view) into its scene colour.

@@ -201,8 +201,7 @@ void command_f()
     row("prop slots", props::slotsUsed(), props::numSlots, "full: a new prop keeps its defaults (printed)");
     row("weapon slots", weapons::slotsUsed(), weapons::numSlots, "a weapon without one uses the defaults");
     row("decals", decals::liveCount(), static_cast<int>(vr_decal_max.value), "vr_decal_max; the oldest go first");
-    rowPeak("particles", particles::liveCount(), particles::peakCount(), particles::capacity(),
-        "vr_particle_evict: the oldest make room (else the rest not spawned); vr_particle_stats");
+    row("particles", particles::liveCount(), particles::capacity(), "the rest not spawned");
 
     Con_Printf("\x02" "Overflows this session (were silent)\n");
     for(const Hit& h : hits)
