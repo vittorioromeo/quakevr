@@ -245,3 +245,26 @@ ghost; the arms are the model's (no IK on a ghost). Debug > Toolgun: "Armed Huma
   within reach; a weapon taken up turns from how it lay the short way. Their A/B switches (`vr_agrunt_swing_one_hand`,
   `vr_agrunt_punch_ease`, `vr_agrunt_saw_reach`, `vr_agrunt_lift_turn`, with `vr_agrunt_run_key_stance`) retired
   2026-11-07, as the vr_agarms_* ones in wave C1.
+
+## Open items moved from BACKLOG.md (2026-11-12)
+
+BACKLOG.md keeps a one-line pointer to each; remove an item here when it ships.
+
+### The enforcer's backpack made a real one (author, 2026-11-02)
+
+His words: "For the enforcer, please make it a lift zone only for now. Add a backlog item to make it a real backpack."
+Today (ROUND23.md, "Lift only") an armed enforcer, whatever it holds, has only a lift zone on the pack baked into
+vrenforcer.mdl (`agarmor::bakedPackLo`, `.vr_wp_baked`): it can't come off, nothing counts on it, its loot is its own. To make it real: split the pack's vertices out of the model
+(behind `Wearer::backCut` -10.5, mostly on the chest bone) so they hide when it comes off (a mesh split or a skin), a
+matching detached prop (backpack.mdl is smaller and looks different), and the back underneath, probably unpainted, painted.
+Then the usual three parts as the grunt's: the anchor, the ragdoll box, the loot through `VR_WP_DeathLoot`; drop
+`.vr_wp_baked`. (His note 2026-11-03 02:25:39: a melee-only enforcer stays liftable while the model shows the pack.)
+
+### Worn backpacks for AD's armed humanoids (author, 2026-11-02)
+
+The rule (ROUND23.md, "Lift only"): armed humanoids that carry a ranged weapon wear a real backpack; melee-only or unarmed
+ones none. Grunts, knights and death knights follow it. AD's own humanoids (AD's variants are never armed:
+`VR_AGR_ADVariant`) need arming first (rows, rigs, shells), then the anchor (`agarmor::packRest`), the ragdoll box
+(`createRagdollPack`: the rig's `chest` bone) and the loot. Cost: PERF_1102.md measured the worn packs (`limbpiece` 0.97 ms
+a frame in E1M1's fight with 29 wearers, cut by about that much with one look a wearer (`box3d::wornPackAll`) and one link a
+pack a frame): each wearer costs a little.

@@ -260,8 +260,8 @@ For developers:
 - [Installer/README.md](Installer/README.md): the installer (C#, WPF): its build, command lines and tests.
 - [docs/vr-port/RELEASING.md](docs/vr-port/RELEASING.md): making a release.
 - [docs/vr-port/](docs/vr-port/): the port's design notes. [PLAYTEST.md](docs/vr-port/PLAYTEST.md) is the playtest
-  guide, [TESTING.md](docs/vr-port/TESTING.md) the testing tools, [ROUND21.md](docs/vr-port/ROUND21.md) the log of
-  the current feedback round (its older sections in `archive/`, the earlier rounds in git history), and there are
+  guide, [TESTING.md](docs/vr-port/TESTING.md) the testing tools, [ROUND25.md](docs/vr-port/ROUND25.md) the log of
+  the current feedback round (the earlier rounds in ROUND21.md to ROUND24.md), and there are
   deep dives into graphics, lighting, throwing, hitboxes and body IK.
 
 ## Building from source

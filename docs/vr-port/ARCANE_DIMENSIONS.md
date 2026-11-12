@@ -1400,3 +1400,36 @@ AD draws and runs it, with no design chosen here:
 - **AD's particle emitters** (`ad_PARTICLE_STYLE_*`: flames, smoke, electric, portals, weather, books, keys, sigils,
   altars, artifacts' auras): AD's sprite particles, not Quake VR's particle presets.
 - **Beams and lightning** of AD's monsters (the lightning-casting ones, the eidolon): AD's temp entities.
+
+## Open items moved from BACKLOG.md (2026-11-12)
+
+BACKLOG.md keeps a one-line pointer to each; remove an item here when it ships.
+
+### AD enemies' own weapons for the player (author, 2026-10-15)
+
+- **AD enemies with unique weapons:** review AD's monsters that carry their own weapons (beyond the soldiers' guns
+  already usable, and separate from "AD soldiers' guns: refine their VR models") and make each usable by the player.
+- **AD Deflector's gun (after 1.1; the author, 2026-10-23):** left out of `VR_ADGun_ForClass` by scope (the guns were
+  built for the soldier family; ROUND22.md "Infected drops, Freddie gibbed, Deflector"). It has no single gun to copy:
+  the yellow skin fires a flame wall plus 1-3 drunk rockets, the blue (PLASMA spawnflag) 3 plasma bolts plus rockets;
+  AD gibs it as an inert `w_enforcergun.mdl`. To do: pick the attack(s) and one gun or one per skin, then a new WID and
+  a ninth burst-rifle variant (`vr_adgunart.cpp`), weapon offsets, a `VR_ADGun_Fire` branch and `ForClass` entry, its
+  gun hidden in its death frames and its rig re-measured without it, the gib cleared on a drop, a toolgun row and a
+  test.
+
+### AD soldiers' guns: refine their VR models (author, 2026-10-15)
+
+His note: "We will eventually refine these models." The eight guns AD's armed soldiers drop are single use and their
+own (ROUND22.md, "AD soldiers' guns: their own again, our shots inside"); their models are cut from AD's monster models
+by the engine (`<monster>.mdl#gun<n>`, `vr_adgun_models`), low-poly and textured as the monster. Per gun:
+- **Rocket soldier's launcher** (`mon_soldier.mdl#gun4`): fires our rocket. Model: a proper launcher shape, a muzzle
+  that reads where the rocket leaves.
+- **Grenade soldier's launcher** (`mon_soldier.mdl#gun6`): fires our grenade (no longer AD's oversized one). Model: a
+  drum or tube that reads as a grenade launcher, distinct from ours.
+- **Plasma soldier's rifle** (`mon_soldier.mdl#gun8`), **eliminator's** (`mon_enforcer.mdl#gun6`) and **centurion's**
+  (`mon_centurion.mdl#gun0`) plasma guns: AD's plasma bolt with our hit. Models: three distinct energy guns; maybe a
+  glowing cell or coil (a fullbright skin) and a charge readout of their single-use rounds.
+- **Defender's shotgun** (`mon_enforcer.mdl#gun3`): our pellets. Model: a wide-barrelled riot gun.
+- **Pyro's flamethrower** (`mon_pyro.mdl#gun0`) and **fumigator's poison sprayer** (`mon_fumigator.mdl#gun0`): AD's
+  flames and puffs. Models: a fuel tank or canister that shows the fuel left.
+For all: grip and muzzle offsets checked in the headset, a pickup outline, the spent look (VR_EnemyGun_Spent) kept.

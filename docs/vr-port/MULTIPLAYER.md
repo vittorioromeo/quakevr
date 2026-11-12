@@ -375,3 +375,22 @@ Results:
   - `quit` crashed: exception 0xc0000409, `std::terminate` from the `workers` atexit destructor.
 - **Everything else in this document comes from reading the code** (marked [code] or [inf]). Not run: grabbing,
   melee, climbing, the grapple or Box3D with two players. The mock has no second-player input script.
+
+## Open items moved from BACKLOG.md (2026-11-12)
+
+BACKLOG.md keeps a one-line pointer to each; remove an item here when it ships.
+
+### The multiplayer update (after 1.1; author, 2026-10-18)
+
+Reference: https://github.com/ObeseCatLord/Quakespasm-VR (vkQuake-based VR port, GPL-2.0-or-later: code can be
+borrowed with its copyright headers kept and credit; per-file notices; its `Quake/ice` is QSS-M-derived with its own notices).
+- Co-op rules: a "streamlined" mode (ammo respawn, shared keys, no friendly fire, teleport to a teammate) with the classic
+  rules selectable (theirs: `coop_inventory_policy.h`, `sv_main.c`, `sv_coop_classic`). Check docs/vr-port/MULTIPLAYER.md first.
+- Router-friendly joining: ICE/WebRTC NAT traversal and room links (theirs: `Quake/ice/*`, `docs/ice-transport.md`;
+  needs GnuTLS/OpenSSL).
+- Voice chat: Opus with voice activity detection, jitter buffer, voices placed in 3D (theirs: `voice.c`,
+  `voice_jitter.c`, `voice_vad.c`, `voice_protocol.h`).
+- Synchronisation of our VR systems for other players: physics props and ragdolls (box3d state or authoritative server
+  sim + client smoothing), active ragdolls/flinch, held objects and two-hand grips, body IK pose (head, hands, body
+  tracking), player body customisation (ranger head, gloves, appearance settings), holsters/magazines, gore and decals.
+- Their prediction work (shared `pmove.c`, CSQC prediction, `predictive-*` docs) as a reference for movement feel.

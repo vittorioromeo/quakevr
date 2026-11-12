@@ -322,3 +322,18 @@ Further scenes (`vr_stealth_test 100`-`108`, `vr_stealth_test2.qc`: their own gr
   is put under the floor, out of everyone's sight), `vr_stealth_lose_time 8`: it comes to his last spot, guesses on
   along his way, gives up 8 s after it last saw him, Alert; then with him 885 units off and `vr_stealth_lose_far 600`,
   after 2 s. Scene 13 of `vr_stealth_test 1` keeps the old rule's check (6 s, no trail: to where it saw him last).
+
+## Open items moved from BACKLOG.md (2026-11-12)
+
+BACKLOG.md keeps a one-line pointer to each; remove an item here when it ships.
+
+### Known limits (open since 2026-10-08)
+
+- The meter is one per monster, on the most suspicious player in its sight (not a meter per player: the dark player's
+  own suspicion isn't kept while the lit one holds it).
+- A client's light and lamp are his own client's word (sent in his VR move): a modified client could send "dark".
+- Alert monsters walk with Quake's movetogoal (no path finding): a point across a gap or up a ledge ends their walk when
+  stuck (3 s without headway), then they search where they are.
+- Quake's own relay stays: an idle monster that sees another turn Hostile (FoundTarget's `sight_entity`, a tenth of a
+  second) turns Hostile at its enemy too, whatever the light on him (as `vr_stealth_share_*`, but with Quake's sight
+  ranges).
