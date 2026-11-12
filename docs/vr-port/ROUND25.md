@@ -90,3 +90,15 @@ TESTING.md (1,725 lines) is now the guide (about 320 lines: the mock headset, Wr
 - Results: `vr_embed_test 13`: 56/8 -> 60/6 and 67/5 (the remaining failures vary run to run: grip 29-68 units off,
   cases 8/9, standing or staggering, the pull counts, the spring; not looked into). `vr_embed_test 21`: 41/2 -> 43/1,
   the one left being the slow swing's burst above.
+## posebake: his poses, grips and IK stretch against the shipped tables (agent/posebake)
+
+- His vr_agrunt_poses (358 keys), vr_agrunt_grips (3 rows) and vr_agrunt_ik_stretch (16 rows) of ironwail.cfg are already
+  the shipped tables: pose_defaults.py --write found 0 keys, 0 grips and 0 stretch rows to change. Dump check
+  (vr_agrunt_pose_dump all, headless, his three strings exec'd vs empty): 590 keys and every stretch line identical
+  (sorted md5 equal); his three grip rows equal the shipped globalDefaults rows. Nothing to bake.
+- configVersion 224: dropShippedEqual and dropDefaultEqual clear his redundant strings at the next load.
+- vr_progs.cpp globalVec read def names through PR_GetString with no VM current: vr_agrunt_pose_dump (non-"all") crashed
+  whenever a key was archived; now reads the server VM's strings directly.
+- flatstance: the free hand's punch check now expects the stance punch >= the plain one (32 vs 21); the twist adds to the
+  blow. 6 passed, 1 failed: "the drawn hand stands on the hotspot" still fails (guns 1 and 29, WID_GRAPPLE and
+  WID_NAILPISTOL, hotspot behind/below the hand, 4.93 units off).
