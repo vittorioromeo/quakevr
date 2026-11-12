@@ -1,0 +1,10 @@
+# grenade_countdown: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". One fuse for every grenade
+# (QC/vr_grenade.qc VR_Grenade_Fuse, vr_grenade_fuse) and the launched grenades' countdown (VR_Grenade_Light,
+# vr_grenade_countdown); the headless check is vr_grenfuse_test 1.
+title Grenade fuses: your launcher's, a hand grenade's and an ogre's, each fizzing and ticking down (god)
+hint Fire the grenade launcher: the grenade fizzes and ticks quicker and quicker until it blows 2.5 s later. Take a grenade from the back pouch and pull the pin: the same fuse and the same ticks. The ogre's grenades tick the same way.
+map vrtesthall
+god
+give "Grenade Launcher" main
+spawn "Ogre" 600 0
+cmd give r 30

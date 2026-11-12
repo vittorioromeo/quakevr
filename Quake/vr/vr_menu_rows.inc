@@ -1705,6 +1705,9 @@ QVR_CYCLE(vr_grenade_catch, "Catch Grenades",
 QVR_TOGGLE(vr_grenade_fuse_regrab, "Fuse Resets Every Catch",
     "Off: the fuse is set once, as you catch the monster's throw; dropped and caught again, it keeps running. On: "
     "every catch sets it again.")
+QVR_TOGGLE(vr_grenade_countdown, "Thrown Grenades Tick",
+    "A grenade from your launcher or an ogre fizzes and ticks quicker and quicker until it goes off, as a hand "
+    "grenade does once its pin is out. Off: only one you hold or have armed.")
 QVR_TOGGLE(vr_grenade_return_full, "Returned Grenades Hit Like Yours",
     "A grenade you throw or bat back (an ogre's or your own) goes off as your grenade launcher's: its damage and "
     "radius, credited to you, with your Quad. Off: an ogre's keeps its own, weaker blast.")

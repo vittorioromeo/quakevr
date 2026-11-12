@@ -163,6 +163,7 @@ void() VR_TestsFrame =
     VR_CrouchTest_Frame(); // VR: the crouched box's shots test (vr_crouch_test, vr_crouch_test.qc)
     VR_SelfShotTest_Frame(); // VR: shooting yourself (vr_selfshot_test, vr_selfshot_test.qc)
     VR_ProjInheritTest_Frame(); // VR: what projectiles keep of your motion (vr_projinherit_test, vr_projinherit_test.qc)
+    VR_GrenFuseTest_Frame(); // VR: one fuse for every grenade, the launched ones' countdown (vr_grenfuse_test, vr_grenfuse_test.qc)
     VR_FlatKeysTest_Frame(); // VR: the flatscreen keys seen by the game code (vr_flatkeys_test, vr_flatkeys_test.qc)
     VR_FlatItemsTest_Frame(); // VR: pickups in flat-screen play (vr_flatitems_test, vr_flatitems_test.qc)
     VR_FlatGateTest_Frame(); // VR: a flat-screen walk through a teleporter (vr_flatgate_test, vr_flatgate_test.qc)

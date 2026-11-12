@@ -62,6 +62,7 @@ Shove an enforcer or an ogre backwards off a ledge (Vrtesthall's platform): it s
 Flat-screen or VR: shove a grunt standing at the very edge of a step or platform (its feet over the lower floor) without knocking it down: it drops onto the floor and staggers back on it, instead of stepping in the air and collapsing.
 
 [6. Both modes: weapons, ammo screens and housings]
+Flat-screen or VR: fire the grenade launcher and let an ogre lob at you: each grenade fizzes and ticks quicker and quicker until it blows, like a hand grenade with its pin pulled, and all three take the same 2.5 s from the shot or the pin to the blast (Thrown Grenades Tick in Batting and Catching turns the launched ones' ticking off). {test:grenade_countdown}
 
 [7. Survival Arena (Play > Survival Arena)]
 The arena is nice: play it, feels good? Note improvements. {test:arena_run}

@@ -248,6 +248,31 @@ knight failed pull), 22 of 24 after. `vr_agrunt_test 210`: 8 passed, 0 failed.
 - tune_promote: vr_flat_melee_2h "1" -> "0" (the two-handed stance is off by default); --check exits 0.
   flatmelee2h_test.sh now sets `tune vr_flat_melee_2h 1` first: 16 passed, 0 failed.
 
+## One grenade fuse; launched grenades tick (branch agent/grenadefuse, 2026-11-12)
+
+His words: the fuse the same hand-triggered and fired by a grenade launcher or an ogre (the launcher's/ogre's time
+wins), and the fuse's countdown sound on launched grenades too.
+
+- **Found:** the launcher's grenade 2.5 s (weapons.qc `VR_FireGrenadeMissile`, a literal; also AD's grenade soldier's
+  dropped launcher), the ogre's and the multi-grenade ogre's 2.5 s (orig_mon_ogre.qc, literals), the hand grenade
+  `vr_handgrenade_fuse` 2.5 s (a tunable; the flat quick grenade arms through the same `VR_HandGrenade_Arm`). They
+  agreed by default; nothing tied them. Left native: rogue's multi-grenade launcher 1 s (rogue_mult_wpn.qc, not our
+  grenade), the MG3 demo dog's 2.5 +- 0.25 s, AD's own grenades (AD's `nextthink`), a caught grenade's
+  `vr_grenade_held_fuse`.
+- **One fuse:** `VR_Grenade_Fuse()` (vr_grenade.qc) reads the tunable **`vr_grenade_fuse`** (2.5 s, 1..5; renamed from
+  `vr_handgrenade_fuse`, row "Grenade Fuse" in Debug > Tunables > Combat > Batting and Catching). The launcher, both
+  ogres and the hand grenade's pin all use it. The hand grenade's fuse starts at its arming: the pin (trigger,
+  `vr_handgrenade_arm` 0) or its release (`vr_handgrenade_arm` 1); arming-to-blast equals shot-to-blast.
+- **One countdown:** `VR_Grenade_Light(g, xNewFuse)` is the fizz (`vr/grenade_fuse.wav`) and the ticks that quicken to
+  the blast (`VR_Grenade_Cue`), for the pin, a catch and now a launcher's or a monster's throw (`VR_Grenade_Setup`
+  when the grenade has a fuse). The ticks' pace is the fuse it was lit with (`.vr_gren_full`), no longer
+  `vr_grenade_held_fuse`. Sparks stay for a grenade a hand has set (`.vr_gren_set`), not one in flight from a
+  launcher. Toggle **`vr_grenade_countdown`** (1; "Thrown Grenades Tick", Combat > Batting and Catching). It needs the
+  grenade to be a live one (`vr_grenade_catch` 2, the default, for yours; 1 or more for the ogres'): Quake's own
+  grenades (`vr_grenade_catch` 0) have no per-frame tick and stay silent.
+- **Test:** `vr_grenfuse_test 1` (Debug > Tests > Grenade Fuses; e1m1): hand, launcher and ogre grenades each lit at
+  once with ticks timed to 2.50 s, each off 2.514 s after arming (one frame's detection), 10 ticks each; the launcher's
+  with the countdown off silent. 17 passed, 0 failed. `vr_flatitems_test 11` 11 passed. Scene `grenade_countdown`.
 ## gripleak: the AD "Hold the ..." tests no longer change vr_weapon_grip_mode
 
 - Menu "Hold the Flamethrower/Poison Sprayer" ran `vr_weapon_grip_mode 1; vr_ad_test 79/80` and never restored it. Now they run `vr_ad_test 79/80` only: the QC global `vr_grip_sticky_test` (vr_fields.qc; set by vr_ad_test 73-80, 87, 184; ends with the level) makes the three grip checks (vr_wpnholster.qc weapon let-go, vr_embedhold.qc, vr_grapple.qc) behave as mode 1. The archived cvar is untouched.

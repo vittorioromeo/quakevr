@@ -14,7 +14,7 @@
 // the pouch (vr_flat_grenade_fetch_time); as it gets there the hand takes the back pouch's grenade, the headset's own
 // (VR_HandGrenade_Take, vr_grenade.qc: its ammo, a rocket, leaves with it; the proximity launcher's or the multi-grenade
 // as the pouch gives them), carried in the hand unarmed. The hand's fire button (LMB the main hand, RMB the off hand while
-// a grenade is held: flatplay::routeFire) arms it (VR_HandGrenade_Arm: the pin, the fuse, vr_handgrenade_fuse; the
+// a grenade is held: flatplay::routeFire) arms it (VR_HandGrenade_Arm: the pin, the fuse, vr_grenade_fuse; the
 // headset's own countdown and cues); then, held, winds up the throw (vr_flat_grenade_arm_mode 1: the next press; 0: the
 // arming press itself), and let go, throws it along the crosshair vr_flat_grenade_throw_up (plus the arc's
 // vr_flat_grenade_throw_pitch) above it, as fast as the wind-up was long (vr_flat_grenade_speed_min .. _max over

@@ -3206,7 +3206,7 @@ entity(float xHand) VR_FireGrenadeMissile =
     missile.touch = GrenadeTouch;
 
     // set missile duration
-    missile.nextthink = time + 2.5;
+    missile.nextthink = time + VR_Grenade_Fuse(); // (every grenade's: the hand grenade's and the ogre's too)
     missile.think = GrenadeExplode;
 
     setmodel(missile, "progs/grenade.mdl");
@@ -3214,7 +3214,7 @@ entity(float xHand) VR_FireGrenadeMissile =
     setorigin(missile, VRGetMuzzlePos(xHand));
     VR_ShotLaunched(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
     VR_Stealth_GrazeMissile(missile); // QVR: its line passing near a monster alerts it (vr_stealth.qc)
-    VR_Grenade_Make(missile, GrenadeExplode, 2.5, TRUE); // QVR: catchable too with vr_grenade_catch 2
+    VR_Grenade_Make(missile, GrenadeExplode, missile.nextthink - time, TRUE); // QVR: catchable too with vr_grenade_catch 2
     return missile;
 };
 

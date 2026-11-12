@@ -1086,7 +1086,7 @@ QVR_TUNABLE(vr_grenade_shoot_pad, "2") // units a grenade's shot box reaches bey
 QVR_TUNABLE(vr_grenade_melee_speed, "20") // m/s a punch, a gun's swing, a pommel or a butt must go at to set a grenade off (slower: it bats it)
 QVR_TUNABLE(vr_grenade_melee_speed_weapon, "34") // m/s for a blade's or a head's blow (a sword, the axe, the crowbar, a club, a stopped chainsaw: swung faster); a running chainsaw always sets it off
 QVR_TUNABLE(vr_grenade_melee_damage, "10") // and the least damage the blow must deal (0: the speed alone)
-QVR_TUNABLE(vr_handgrenade_fuse, "2.5") // s from arming a hand grenade to its going off (the launcher's is 2.5)
+QVR_TUNABLE(vr_grenade_fuse, "2.5") // s from arming any grenade to its going off: the launcher's, the ogre's, a hand grenade's pin (id's 2.5)
 
 // Combat > Bullet Time
 QVR_TUNABLE(vr_bullettime_min, "0.25") // the least meter it starts with (0.01 .. 1)
