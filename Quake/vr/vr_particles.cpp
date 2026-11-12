@@ -748,6 +748,17 @@ bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count)
                                                            : za::min(0.1f * static_cast<float>(count), 0.3f));
     }
 
+    if(preset == Preset::Blood || preset == Preset::BloodTrail)
+    {
+        // Hit Blood (vr_blood_amount): fewer drops, or none (the gore preset Off): Quake's dots too.
+        const float mult = za::max(0.f, vr_blood_amount.value);
+        if(mult <= 0.f)
+        {
+            return true;
+        }
+        count = za::max(1, static_cast<int>(static_cast<float>(count) * mult + 0.5f));
+    }
+
     if(!vr_particles.value || !ensureAtlas())
     {
         return false;

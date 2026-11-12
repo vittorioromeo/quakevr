@@ -1991,6 +1991,15 @@ QVR_TOGGLE(vr_handprint_gear, "Bloody Grips",
     "(vr_handprint_gear).")
 QVR_SLIDER(vr_gore_spray, "Blood Sprays", 0.f, 3.f, 0.25f, "%.2fx", ext(),
     "How many splats a hit or a gibbing throws onto the walls, floor and ceiling round it (0 none).")
+QVR_CYCLE(vr_gore_preset, "Gore Preset",
+    "Sets the gore settings together. Full: as shipped. Minimal: the blood of a hit and its small splats; no blood "
+    "stains, streams, drips, pools, mist, bloody feet and hands, no small or brain chunks, no beheading or limbs off. "
+    "Off: no blood at all. Change any setting after to taste (Custom).",
+    {0.f, "Custom"}, {1.f, "Full"}, {2.f, "Minimal"}, {3.f, "Off"})
+QVR_SLIDER(vr_blood_amount, "Hit Blood", 0.f, 2.f, 0.1f, "%.1fx", ext(),
+    "How much blood a hit or a cut throws (0 none at all).")
+QVR_SLIDER(vr_gore_decal_dark, "Stain Darkness", 0.f, 2.f, 0.1f, "%.1fx", ext(),
+    "How much the blood stains darken as they spread and dry (1 as it was; 0 they keep their red; their size is Splat Size).")
 QVR_SLIDER(vr_gore_size, "Splat Size", 0.5f, 2.f, 0.1f, "%.1fx", ext(), "How big the gore's splats, pools and runs are.")
 QVR_SLIDER(vr_gore_pools, "Blood Pools", 0.f, 2.f, 0.1f, "%.1fx", ext(),
     "Pools of blood spreading under corpses and gibs: their size (0 none).")

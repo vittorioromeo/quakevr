@@ -157,7 +157,9 @@
 [[nodiscard]] za::Vector<Item> pageGore()
 {
     return {
+        row(opt::vr_gore_preset),
         row(opt::vr_gore),
+        row(opt::vr_blood_amount),
         row(opt::vr_gore_sound),
         row(opt::vr_gore_sound_choke),
         row(opt::vr_gore_sound_drips).developer(),
@@ -171,6 +173,7 @@
         header("Hits, Gibs and Corpses"),
         row(opt::vr_gore_spray),
         row(opt::vr_gore_size),
+        row(opt::vr_gore_decal_dark),
         row(opt::vr_gore_pools),
         row(opt::vr_gore_drips),
         row(opt::vr_gore_wound_drips),
