@@ -151,6 +151,9 @@ void(float xTest, entity m) VR_Limb_WearTestHit =
     {
         float oldWeapon = VRGetEntWeapon(self, cVR_MainHand);
         VRSetEntWeapon(self, cVR_MainHand, WID_AXE);
+        // (On the piece's skin, where the aim's trace met it and read it as the piece: `at`, the point on the bone
+        // inside, reads as the next joint since the plate-aware lookup (ROUND23), and wore that one instead.)
+        at = vr_wtest_at;
         VR_Hit_Begin(QVR_HITKIND_MELEE, cVR_MainHand, at, dir);
         T_Damage(m, self, self, 20);
         VRSetEntWeapon(self, cVR_MainHand, oldWeapon);
@@ -300,6 +303,7 @@ void(float xTest) VR_Limb_WearTest =
     }
     bprint(sprintf("limbtest: wear %g %s on %s joint %g: %g hits, cut %g popped %g", xTest, ok ? "PASS" : "FAIL",
         m.classname, piece, hits, vr_limb_cuts - cuts, vr_limb_pops - pops));
-    bprint(sprintf(", worn %.1f, hp %.1f -> %.1f, gib %g\n", worn, hpBefore, m.vr_corpse_hp, m.vr_gib));
+    bprint(sprintf(", worn %.1f, hp %.1f -> %.1f, gib %g, the hit's piece %g, plates %g\n", worn, hpBefore, m.vr_corpse_hp,
+        m.vr_gib, VR_Limb_WearPiece(m, vr_wtest_at), m.vr_ar_mask));
 };
 #endif

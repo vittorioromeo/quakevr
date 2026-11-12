@@ -16,6 +16,8 @@
 // ----------------------------------------------------------------------------
 
 float vr_agpt2_chance; // vr_agrunt_parry_chance before (the test's 1)
+float vr_agpt2_dual;   // vr_agrunt_dual_pickup before (the test's 0: a one-sword grunt reaching down for a second
+                       // lying near is 'no weapon in hand' while it takes it: step 5 failed so every run)
 float vr_agpt2_parry;
 entity vr_agpt2_ogre;
 
@@ -113,6 +115,7 @@ void() VR_AGPT2_End =
     entity p = vr_agt_player;
     cvar_set("vr_agrunt_parry_chance", ftos(vr_agpt2_chance));
     cvar_set("vr_agrunt_parry", ftos(vr_agpt2_parry));
+    cvar_set("vr_agrunt_dual_pickup", ftos(vr_agpt2_dual));
     if(vr_agpt2_ogre)
     {
         remove(vr_agpt2_ogre);
@@ -140,6 +143,8 @@ void() VR_AGPar_Test =
         vr_agpt2_parry = cvar_hget(cvarh_vr_agrunt_parry);
         cvar_set("vr_agrunt_parry_chance", "1");
         cvar_set("vr_agrunt_parry", "1");
+        vr_agpt2_dual = cvar_hget(cvarh_vr_agrunt_dual_pickup);
+        cvar_set("vr_agrunt_dual_pickup", "0");
         vr_agt_grunt = VR_AGT_Spawn(WID_SWORD, 70);
         vr_agt_step = 1;
         vr_agt_until = time + 0.5;
@@ -249,8 +254,9 @@ void() VR_AGPar_Test =
         VR_AGPT2_Hold(g);
         vr_agpt2_n0 = vr_agpar_n;
         float d5 = VR_AGPT2_WeaponBlow(g);
-        VR_AGPT2_Check(sprintf("behind: parried %g, %g damage (unparried %g), why '%s':", vr_agpar_n - vr_agpt2_n0, d5,
-            vr_agpt2_expect, vr_agpar_why),
+        VR_AGPT2_Check(sprintf("behind: parried %g, %g damage (unparried %g), why '%s' (armed %g, taking %g, tugged %g):",
+            vr_agpar_n - vr_agpt2_n0, d5, vr_agpt2_expect, vr_agpar_why, g.vr_ag_prop != world, g.vr_ag_took_at > 0,
+            g.vr_ag_tug_pl != world),
             vr_agpar_n == vr_agpt2_n0 && fabs(d5 - vr_agpt2_expect) < 0.01 && vr_agpar_why == "from behind");
         VR_AGT_Remove(g);
         // An ogre between you and a fresh one, facing it, its chainsaw's attack on it.

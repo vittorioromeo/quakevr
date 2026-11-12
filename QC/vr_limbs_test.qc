@@ -293,7 +293,11 @@ void(float xTest) VR_Limb_Test =
             bprint("limbtest: 29: no corpse with limbs near\n");
             return;
         }
+        // (the joint test 28's blow wore: the one its point reads as, VR_Limb_WearPiece, as the damage did; the test
+        // bone's point on its own bone reads as the next joint on the firing range's grunt, 7 -> 8, since ROUND23)
         b = VR_Limb_TestBone(m);
+        float wb = VR_Limb_WearPiece(m, limbplace(m, b, 3));
+        b = wb > 0 ? wb : b;
         bprint(sprintf("limbtest: 29 %s joint %g stored worn damage %.1f (joint 0 %.1f) %s\n", m.classname, b,
             m.vr_limb_corpse_dmg[b], m.vr_limb_corpse_dmg[0], m.vr_limb_corpse_dmg[b] > 0 ? "PASS" : "FAIL"));
         return;
@@ -308,6 +312,12 @@ void(float xTest) VR_Limb_Test =
         }
         b = VR_Limb_TestBone(m);
         vector at = limbplace(m, b, 3);
+        if(xTest == 28)
+        {
+            // (its blow wears the joint its point reads as: VR_Limb_WearPiece, as the damage's own lookup; 29 reads it)
+            float wp = VR_Limb_WearPiece(m, at);
+            b = wp > 0 ? wp : b;
+        }
         float hpBefore = m.vr_corpse_hp;
         float gibBefore = m.vr_gib;
         if(xTest == 27)
