@@ -39,6 +39,9 @@ MULTIPLAYER, PERF_DECISIONS, STEALTH). `.gitattributes` merges ROUND25.md as `un
 
 TESTING.md (1,725 lines) is now the guide (about 320 lines: the mock headset, Writing a test, Test numbers, Checklist scenarios, Debug build assertions, Batched test cases, and an index). The per-feature recipes moved word for word to archive/TESTING_RECIPES.md (82 `##` sections, grep-only); a feature's scattered paragraphs are merged into its section. Retired or vanished cvars named in recipes are marked inline "(retired cvar: <name>)" (9). Code and script comments that quote a moved section ("Climbing", "Swimming", "OpenXR runtime choice", "Body calibration", ...) still say TESTING.md: the index at its end names the archive section.
 
+## Test triage B (branch agent/testtriage_b, 2026-11-12)
+
+Each case run 3 times (agrunt cases seeded as the baseline seeds them, the rest as shipped). Results and one-line causes are in BACKLOG.md section 1; no code changed. Note: run_baseline.py finds no agrunt numbers any more (check_test_numbers.py moved to Tools/qvr_checks), so its agrunt group is empty; the kit script needs the new lister.
 ## Failing tests triaged: 210, embed 7/13/21, AD (branch agent/testtriage_a, 2026-11-12)
 
 - **`vr_agrunt_test 210`: the test's.** His defaults of 2026-11-08 (66f2ec025: Topple Within 32 -> 56, Backpedal Within
@@ -129,3 +132,6 @@ flatstance_test.sh no longer measures the drawn hand against cup grips (grapple,
   door swishes ("melee swish: blow") but no hit or melee event ever comes, while the quad's trigger_multiple is struck
   ("a wall"). Failing since at least 2026-10-30; needs a look at the fist's sweep against a MOVETYPE_PUSH door with
   health. BACKLOG.md section 1.
+## takeslight
+
+vr_takes_light_flat (default 0, archived; menu Recording > "Recording Light and Prompt (Flat Screen)"): the flat-play corner light and prompt are off by default, because OBS records the window. vr_takes_light stays the master switch. The headset light is unchanged: VR_TakesIndicator returns null while VR_IsActive, and drawInEye draws into the eyes only, so the spectator camera never has it. vr_takes_test checks the corner is absent by default and present with the cvar at 1.

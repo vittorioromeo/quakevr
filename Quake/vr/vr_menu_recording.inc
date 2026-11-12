@@ -68,8 +68,11 @@
                   "upper (Out) button of that hand. Those presses don't reach the game. Only while a take runs."),
         toggle("Recording Light and Prompt", "vr_takes_light")
             .help("vr_takes_light: a small red light while a take runs, and the rating prompt after it. In the headset only "
-                  "(never the mirror or spectator camera, so OBS doesn't record it); flat: a small top-right corner line "
-                  "(which OBS does record: turn it off for clean shots)."),
+                  "(never the mirror or spectator camera, so OBS doesn't record it); flat: a corner line, only with "
+                  "the Flat Screen setting below (off by default: OBS records it). The master switch."),
+        toggle("Recording Light and Prompt (Flat Screen)", "vr_takes_light_flat")
+            .help("vr_takes_light_flat: flat-screen play only: the recording light and rating prompt as a small top-right corner "
+                  "line. Off by default: OBS records the window, so it would show in the footage. Needs the setting above on."),
         slider("Light Size", "vr_takes_light_size", 0.5f, 3.f, 0.1f, "%.1fx"),
         slider("Light Position: Right", "vr_takes_light_right", -0.6f, 0.6f, 0.01f, "%.2f").help("vr_takes_light_right: headset only."),
         slider("Light Position: Up", "vr_takes_light_up", -0.5f, 0.5f, 0.01f, "%.2f").help("vr_takes_light_up: headset only."),
