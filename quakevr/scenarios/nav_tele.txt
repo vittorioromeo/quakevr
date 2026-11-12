@@ -11,6 +11,7 @@ spawn "Grunt" 0 96
 cvar vr_nav 1
 cvar vr_nav_debug 2
 cvar vr_nav_teleports 1
+cvar vr_ai_enhanced 0
 cmd setpos -32 2000 -29
 cmd vr_nav_reachtest nav_tele 160 60 tele monster_army
 hint You stand past the teleporter's destination; the grunt by the teleporter at the far end of the level walks into it and comes out near you (teleporter links: cyan posts, its path yellow). With Navmesh: Teleporter Links off (Debug > Tunables, then reload) it takes the long way or none.

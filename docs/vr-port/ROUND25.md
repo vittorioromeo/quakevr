@@ -284,3 +284,21 @@ wins), and the fuse's countdown sound on launched grenades too.
 - Promoted (weapons_data.py promote, 22 fields): slot 24 (super axe) blade shape bl_* (bl_from, bl_org, bl_spine, bl_width, bl_s1..s5 off/side, added) and muzzle (-0.071,0.21,-0.82 -> -0.3337,0.2381,4.688); slot 36 torch_fwd/out/up added. weapons.txt is sparse so no vr_wofs_version bump. Also tunables vr_nav_lifts 1 and vr_nav_plat_monsters 1 (tune_promote.py; --check 0). No test reads them.
 - New: vr_ammo_pouch_armor_x (units) and vr_flashlight_armor_forward (m), both default 0 (not measured: the screenshot's armour needs a headset view), applied only while view::playerArmourShown() (plates on, a piece worn, body drawn). Menu rows beside the pouch X and the belt torch Forward; Reset Body and Equipment resets them.
 - Check: Misc/quakevr/armorgear_test.sh (vr_armorgear_check): with plates the pouch moved 5.000 units and the torch 0.0400 m forward as set, without none: 2 passed, 0 failed. vr_menu_path_check: 0 missing.
+
+## navtele: monsters path through teleporters; lifts finished (branch agent/navtele, 2026-11-12)
+
+- Teleporter links (NAVMESH.md 16): `vr_nav_teleports` 1, `vr_nav_tele_cost` 0.05, `vr_nav_tele_time` 4 (Debug >
+  Tunables). One link list and cost model with drops and rides; one-way far off-mesh links joined across tiles by a
+  small marked patch in the vendored Detour (`connectFarOffMeshLinks`, `landsFarAt`, `DT_TILE_QVR_FAR`); shut triggers
+  (a targetname waiting to be fired) close their links each movers tick (`portals::teleporterOpen`, the gates' own
+  rule); paired gates monsters walk through (`portals::teleporterWalked`) must fit the box. `navVersion` 6.
+- Lifts: a walker waiting at a lift's top calls it up (QC `VR_NAV_CallLift`, not while another waits or boards below);
+  a monster standing on a raised plat no longer holds it up (only a player's touch delays its return), so it rides it
+  down; the polygons a lift link starts from are never blocked by the plat's column (the waiting place beside it).
+- Reach test: `tele` and `notele` kinds, its time-out and nearness checked every server frame (a walker shooting or
+  biting doesn't steer).
+- Scenes (headless, no-LTO low-impact): `nav_tele_gate` passes (the dog through vrteleporters' large paired gate in
+  0.7 s, beside you at 0.9 s); `nav_lift` passes (boards at 3.4 s, rides, steps off, by you at 5.0 s; you stay put now:
+  the old spot was on the shaft's edge); `nav_tele_oneway` passes (the dog takes two drop links the long way, no
+  teleporter link begun in 20 s). `nav_tele` fails: e1m1's grunt never chases you once you are through (no steer at
+  all, even with `vr_ai_enhanced 0`): open. `nav_lift_down`: see NAVMESH.md 16 for its last run.

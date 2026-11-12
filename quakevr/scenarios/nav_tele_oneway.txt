@@ -7,10 +7,11 @@ title Navmesh: a dog at a one-way teleporter's far end doesn't try to go back th
 map e1m1
 start -32 2000 -29 -90
 god
-spawn monster_dog 150 0
+spawn monster_dog 200 100
 cvar vr_nav 1
 cvar vr_nav_debug 2
 cvar vr_nav_teleports 1
+cvar vr_ai_enhanced 0
 cmd setpos 1312 1000 -380
 cmd vr_nav_reachtest nav_tele_oneway 0 20 notele monster_dog
 hint You stand by the teleporter at the far end of the level; the dog at its destination by the start can't come back through it (one way), so it runs the long way round instead of into a teleporter.

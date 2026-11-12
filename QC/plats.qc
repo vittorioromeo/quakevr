@@ -77,8 +77,9 @@ void() plat_center_touch =
     self = self.enemy;
     if(self.state == STATE_BOTTOM)
         plat_go_up();
-    else if(self.state == STATE_TOP)
-        self.nextthink = self.ltime + 1;    // delay going down
+    else if(self.state == STATE_TOP && other.classname == "player")
+        self.nextthink = self.ltime + 1;    // delay going down (QVR: a player's stand only: a monster on it rides it down,
+                                            // vr_nav's lift links from the top)
 };
 
 // QVR: the engine (vr_nav.cpp) calls a lift resting at its bottom up for a monster waiting at its top to ride it down

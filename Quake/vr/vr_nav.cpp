@@ -191,6 +191,7 @@ struct NavClass
     int polys = 0, tiles = 0, drops = 0, lifts = 0, teles = 0;
     za::SizeT bytes = 0;
     za::Vector<dtPolyRef> blocked; // polygons a door or lift stands on (flagBlocked)
+    za::Vector<dtPolyRef> boarding; // polygons lift links start from, never blocked (refreshMovers' scratch)
     // The job's results, taken at its join: the mesh and its query, the cache file's data (its tiles' count, checksum).
     dtNavMesh* jobMesh = nullptr;
     dtNavMeshQuery* jobQuery = nullptr;
@@ -1789,6 +1790,25 @@ void refreshMovers()
             (void)c.mesh->setPolyFlags(r, flagWalk);
         }
         c.blocked.clear();
+        // (The polygons a lift link starts from stay open: a plat up at its top is a column over the bottom floor, and
+        // the boarding place beside it is where a walker waits for it to come down.)
+        za::Vector<dtPolyRef>& boarding = c.boarding;
+        boarding.clear();
+        for(int t = 0; t < c.mesh->getMaxTiles(); ++t)
+        {
+            const dtMeshTile* tile = static_cast<const dtNavMesh*>(c.mesh)->getTile(t);
+            for(int k = 0; tile && tile->header && k < tile->header->offMeshConCount; ++k)
+            {
+                const dtPoly& cp = tile->polys[tile->offMeshCons[k].poly];
+                for(unsigned l = cp.firstLink; cp.getArea() == areaLift && l != DT_NULL_LINK; l = tile->links[l].next)
+                {
+                    if(tile->links[l].edge == 0)
+                    {
+                        boarding.pushBack(tile->links[l].ref);
+                    }
+                }
+            }
+        }
         dtQueryFilter all;
         for(const int num : state.movers)
         {
@@ -1822,7 +1842,12 @@ void refreshMovers()
                     zhi = za::max(zhi, y);
                 }
                 // In the way: over the floor's step and under a monster's head.
-                if(lo.z < zhi + c.height - 1.f && hi.z > zlo + vr_nav_climb.value)
+                bool board = false;
+                for(const dtPolyRef b : boarding)
+                {
+                    board = board || b == refs[i];
+                }
+                if(!board && lo.z < zhi + c.height - 1.f && hi.z > zlo + vr_nav_climb.value)
                 {
                     (void)c.mesh->setPolyFlags(refs[i], flagWalk | flagBlocked);
                     c.blocked.pushBack(refs[i]);
@@ -3585,7 +3610,13 @@ float beginLink(edict_t* ent, Agent& a, const NavClass& c, const glm::vec3& pos,
     }
     // At a lift's top with the lift resting at its bottom: called up (QC VR_NAV_CallLift), as nothing else brings it
     // (Quake's plats rise only for one standing on them below).
-    if(ride.both && a.board == ride.b && moverAt(m, a.leave))
+    // Not while another walker waits at its bottom or is boarding there: it goes up with that one soon enough.
+    bool below = false;
+    for(const Agent& o : state.agents)
+    {
+        below = below || (&o != &a && o.ride == a.ride && (o.link || o.waitLink) && o.board == a.leave);
+    }
+    if(ride.both && a.board == ride.b && moverAt(m, a.leave) && !below)
     {
         const func_t call = progs::findFunction("VR_NAV_CallLift");
         if(call)
@@ -3999,6 +4030,16 @@ void serverFrame()
     if(vr_nav.value != 0.f && sv.active && state.ready)
     {
         tickWorld();
+        // (The reach test each frame too: a walker biting or shooting him doesn't steer.)
+        if(reachTest.armed && !reachTest.only.empty())
+        {
+            progs::forEachEdict(1, [](edict_t* e) {
+                if(reachTest.armed && e->v.health > 0.f && e->v.classname && !strcmp(PR_GetString(e->v.classname), reachTest.only.cStr()))
+                {
+                    reachCheck(e);
+                }
+            });
+        }
         reachCheck(nullptr);
     }
 }
