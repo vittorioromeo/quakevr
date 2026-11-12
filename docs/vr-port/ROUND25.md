@@ -386,3 +386,11 @@ covered by the probe. Release-TracyFull: see the report.
   (run.ps1 puts the lane's ironwail.cfg back from the baseline before every run, over the config the test staged).
 - Still failing alone, first-bad merge by a multi-test bisect over next's first-parent history (330f70409..9a694ee33):
   BACKLOG.md section 1. vrtrailer fails alone at 330f70409 too (it passed in the 11-07 lanes only).
+
+## grenregrab: a lit grenade caught out of the air restarts its fuse (branch agent/grenregrab, 2026-11-12)
+
+His words: a lit grenade force-grabbed out of the air has a sound discontinuity; reset the fuse and the sound; "Restart full fuse, and also add a small sound/visual feedback".
+
+- **Rule:** a grenade that is lit and was loose since (`.vr_gren_free`, set in `VR_Grenade_Think` while lit and not held) and is caught (force grab or plain catch: one path, `VR_Grenade_Caught`) goes through `VR_Grenade_Relight`: fuse = time + `VR_Grenade_Fuse()` in full, then `VR_Grenade_Light(g, TRUE)` (pace restarts; the fizz replays on CHAN_BODY, replacing the old one; no second timer: the one `.vr_gren_fuse` the think reads). A grenade armed in the hand and not yet thrown is not restarted by being picked up again (not free yet). The old `vr_grenade_fuse_regrab`/`vr_grenade_held_fuse` rules now only govern unlit grenades.
+- **Cue:** `vr/grenade_pin.wav` at 150% pitch, volume 0.5, on CHAN_ITEM, and one 12-spark flare (`VR_Grenade_Sparks`, shared with the countdown trickle).
+- **Test:** `vr_grenfuse_test 1` case 4 (launcher grenade, its tick sees a hand 1.5 s in): blast 2.514 s after the grab, cue once, 10 ticks (one stream). 24 passed, 0 failed (lines need `developer 1`). Not heard/seen in a headset.

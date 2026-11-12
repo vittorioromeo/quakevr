@@ -53,7 +53,8 @@
 .void() vr_gren_touch;   // its own touch (OgreGrenadeTouch, GrenadeTouch, MultiGrenadeTouch)
 .float vr_gren_held;     // in a hand at the last tick
 .float vr_gren_set;      // its held fuse was set (once a throw: vr_grenade_fuse_regrab)
-.float vr_gren_lit;      // lit (VR_Grenade_Light): it fizzes and ticks until it goes off (sparks too once a hand set its fuse)
+.float vr_gren_free;     // lit and loose (not in a hand) since: a catch restarts its fuse (VR_Grenade_Relight)
+.float vr_gren_lit;     // lit (VR_Grenade_Light): it fizzes and ticks until it goes off (sparks too once a hand set its fuse)
 .float vr_gren_full;     // the fuse it had when lit (or a hand set it): its ticks quicken over it (VR_Grenade_Cue)
 .float vr_gren_ticknext; // the next tick
 .float vr_gren_sparknext; // the next sparks
@@ -88,6 +89,7 @@ float VR_GREN_FLYING = 150;     // u/s: faster, a grenade is in flight (caught w
 // needs a fuse burning), so VR_Grenade_CatchCheck skips its findradius, a walk of every entity, twice a frame (0.05-0.1 ms
 // a frame in Arcane Dimensions' big maps).
 float vr_gren_fuse_last;
+float vr_gren_rearms; // fuse restarts played so far (VR_Grenade_Relight; vr_grenfuse_test counts them)
 float vr_gren_ticks; // countdown ticks played so far, any grenade's (VR_Grenade_Cue; vr_grenfuse_test counts them)
 float VR_GREN_CATCH_AGE = 0.2;  // s after its throw a grenade can be caught (not as it leaves your hand or launcher)
 float VR_GREN_PALM = 1.5;       // units from the hand's point to the palm, the way the palm faces
@@ -374,6 +376,28 @@ void(entity g, float xNewFuse) VR_Grenade_Light =
     }
 };
 
+// The fuse's sparks off `g`: `xCount` of them, thrown up at `xSpeed` (the countdown's trickle, and the restart's flare).
+void(entity g, float xCount, float xSpeed) VR_Grenade_Sparks =
+{
+    particle2(g.origin + '0 0 2', '0 0 1' * xSpeed, QVR_PARTICLE_PRESET_SPARKS, xCount);
+};
+
+// A lit grenade caught out of the air: its fuse starts over, in full (VR_Grenade_Fuse), so it can be thrown again and its
+// countdown heard from the top. The same countdown (VR_Grenade_Light: no second timer; the fizz restarts on its own
+// channel, so the old one is cut), and a small cue: a re-arm click and one flare of the fuse's sparks.
+void(entity g) VR_Grenade_Relight =
+{
+    g.vr_gren_fuse = time + VR_Grenade_Fuse();
+    vr_gren_fuse_last = max(vr_gren_fuse_last, g.vr_gren_fuse);
+    g.vr_gren_set = TRUE;
+    g.vr_gren_free = FALSE;
+    g.vr_gren_lit = FALSE; // (VR_Grenade_Light plays the fizz again on CHAN_BODY: the old one is replaced)
+    VR_Grenade_Light(g, TRUE);
+    vr_gren_rearms++;
+    sound_pitch(g, CHAN_ITEM, "vr/grenade_pin.wav", 0.5, ATTN_NORM, 150);
+    VR_Grenade_Sparks(g, 12, 90);
+};
+
 // Makes the grenade `g` (its model, origin and velocity set) a live grenade you can catch: `xBoom` its explosion,
 // `xFuse` seconds to it (0: none yet, a hand grenade's pin). With a fuse it is lit at once (vr_grenade_countdown).
 void(entity g, void() xBoom, float xFuse) VR_Grenade_Setup =
@@ -498,6 +522,7 @@ void(entity g) VR_Grenade_Spent =
 {
     g.vr_gren_fuse = 0;
     g.vr_gren_lit = FALSE;
+    g.vr_gren_free = FALSE;
     g.vr_rigid = 0;
     g.vr_spin = '0 0 0';
     g.flags = g.flags - (g.flags & FL_FORCEGRABBABLE);
@@ -554,6 +579,12 @@ void() VR_Grenade_Caught =
     {
         dprint(sprintf("grenade: an unarmed hand grenade in hand %g\n", hand));
         return; // (no fuse to set: its pin, VR_HandGrenade_Arm)
+    }
+    if(self.vr_gren_lit && self.vr_gren_free)
+    {
+        dprint(sprintf("grenade: caught lit in hand %g, the fuse %.2f s -> restarted\n", hand, self.vr_gren_fuse - time));
+        VR_Grenade_Relight(self);
+        return;
     }
     float left = self.vr_gren_fuse - time;
     float newFuse = !self.vr_gren_set || cvar_hget(cvarh_vr_grenade_fuse_regrab);
@@ -852,7 +883,7 @@ void(float xHeld) VR_Grenade_Cue =
     if(self.vr_gren_set && time >= self.vr_gren_sparknext) // (sparks once a hand set its fuse: not a launcher's in flight)
     {
         self.vr_gren_sparknext = time + 0.06;
-        particle2(self.origin + '0 0 2', '0 0 60', QVR_PARTICLE_PRESET_SPARKS, 2);
+        VR_Grenade_Sparks(self, 2, 60);
     }
     if(time < self.vr_gren_ticknext)
     {
@@ -906,6 +937,10 @@ void() VR_Grenade_Think =
     }
     if(self.vr_gren_lit)
     {
+        if(!held)
+        {
+            self.vr_gren_free = TRUE;
+        }
         VR_Grenade_Cue(held);
     }
 
