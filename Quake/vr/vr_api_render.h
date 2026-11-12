@@ -135,7 +135,6 @@ void VR_TemporalAliasMotion (const struct entity_s *e, int totalverts, int stand
 void VR_TemporalBrushPrev (const struct entity_s *e, const float world[12], float prev[12]); // its previous matrix
 void VR_TemporalMotionWrites (int on); // the following draws write the motion target (the eye's scene bound)
 void VR_TemporalReactive (int on); // the following draws mark their pixels reactive (stencil bit 4)
-int VR_TemporalReactiveOn (void); // whether they do now (the particles' own targets mark what they blend in)
 void VR_TemporalResolve (unsigned fbo, unsigned color, unsigned depth); // R_RenderView: after the scene
 void VR_FlatRenderView (void); // SCR_UpdateScreen: the window's V_RenderView, with flat-screen play's TAA (vr_flat_taa) around it
 int VR_FlatTaaActive (void); // GL_NeedsSceneEffects: 1 while the window's view is drawn under it (the scene in its own target)
