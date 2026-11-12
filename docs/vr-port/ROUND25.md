@@ -279,6 +279,64 @@ wins), and the fuse's countdown sound on launched grenades too.
 - Audit: the other tests that set the cvar (adgun 70/71/73 fx, 81-84, admelee, ammocolor, agrunt 35) already save and restore it. No other menu command sets it.
 - Check: build 0 warnings; `vr_ad_test 79` on e1m1 printed nothing (AD not mounted in agent bases); the cvar reads 0 before and after (trivially: nothing sets it now). Not exercised with AD.
 
+## embedgrip: the hand on an embedded blade's handle stays in the real hand (branch agent/embedgrip, 2026-11-12)
+
+His notes 2026-11-12: the hand on an embedded sword's handle sits wrong (crates and ragdolls); in a ragdoll a small lift of the hand
+takes sword and drawn hand up "four or five times more"; the drawn hand stays "very far from my real life hand" whatever Blade Hold
+Strength is.
+
+Causes found (headless trace, `vr_embed_test 33`, before the fix):
+- **The pose.** `embedHandleHand` (vr_view_hands.cpp) put the hand on the handle by taking the weapon's angle offsets off the blade's
+  Euler angles. `weaponTurn` composes them in the hand's frame since 2026-11-06, so the two only agree for a blade lying level and
+  unrolled with no yaw or roll offset: any other blade's hand sat turned on the handle. Now one helper, `handTurnOfWeapon`
+  (vr_view_weapon.cpp: `weaponTurn` undone), used by `embedHandleHand` and the posing session's `holdFloating`.
+- **The offset and the runaway lift.** The hand's spring held the ragdoll at the wound, its target `hand + reach`, `reach` the way
+  from the hand to the wound as the spring began, turned by the wrist's turn since (`vr_embed_move_turn` 1). The blade as drawn
+  keeps the body's own turn (plus 3 degrees of leeway), and the hand is drawn on its handle. So (1) the gap between the real hand
+  and the handle as the spring began stayed for good; (2) a wrist turn moved the wound by the turn times the blade's reach and the
+  whole sword, hand on it, went with it, not round the hand: 10 degrees of wrist over a 20 unit lift left the wound at 50% and the
+  handle 5 to 12 units off; (3) the body turning on the wound (dying, hanging) swung the handle off the hand: 12 to 14 units held
+  still or lifted level, the handle rising 115 to 145% of the hand's rise. The literal "4 to 5 times" was not reproduced: the mock's
+  wrist turned the other way; the mechanism gives 10 units a 10 degrees either way, on top of a lift of a few units.
+
+The fix (`vr_embed_move_handle` 1, Debug > Tunables > "Moving: Held by the Handle"; 0: as before):
+- `ragdolltug` what 17 (vr_box3d_ragparts.cpp; QC `VR_Embed_Spring`, `.vr_hold_byhandle`): the hold's joint is moved from the wound
+  to the handle's point on the limb, the anchor to the hand itself. Stiff (`vr_embed_move_handle_hertz` 120, "Moving: Handle's
+  Stiffness": at the handle the limb's own effective mass is some 0.6 kg, so Moving: Stiffness's 24 Hz left the handle 14 units off),
+  limited by the hold's force as before and by a torque of that force at the blade's length (a limb grab's 4 cm let the body hang
+  from the hilt). The body turns with the wrist by that torque; `vr_embed_move_turn` and `vr_embed_move_at_wound` only matter with
+  the handle hold off.
+- The handle's point follows the handle as drawn each frame (eased 12 /s): the blade rides the model's triangle, which bends from
+  the limb's physics body (10 units, a dead grunt).
+- The gap as the spring begins (`bladeGap`) eases to nothing over `vr_embed_move_match` 0.2 s ("Moving: Handle Comes to the Hand"):
+  the body comes to the hand, along the blade and across it; the QC's slack for that gap is dropped (`VR_Embed_Spring`). The blade's
+  slide is taken out of the hand's way along it (`.vr_hold_slide0`). The leeway is off while held so (`.vr_hold_rot0` kept at the
+  hand's turn): the body itself turns.
+- Crates: the pose fix only. Their pull (`VR_Embed_PropSpring`) is as it was: capped, heavy, the gap its own.
+
+Numbers (`vr_embed_test 33`, embedgrip, 15 of 15; cases 46 level, 47 the wrist turning 10 degrees; units, 1 unit 2.6 cm):
+
+| | before | after |
+|---|---|---|
+| handle from the real hand, held still (dead grunt) | 11.6 to 12.4 | 0.3 to 1.3 |
+| ... lifted 20 units in 0.5 s, the most (across the blade) | 14.0 / 11.6 | 2.9 to 4.1 / 2.2 to 2.5 |
+| ... settled | 12.4 / 5.2 | 0.6 to 1.5 / 1.1 |
+| the wound's rise of the hand's | 99% / 50% | 69 to 78% / 85 to 87% |
+| hand on the handle against the hand holding the sword (body, crate) | not measured | 0.00 cm, 0.00 degrees |
+
+Level, 4 units of the lift are along the blade: the blade's own slide (its Stick), by design, hence 69 to 78%.
+
+Tests: `vr_embed_test 33` (new; Debug > Tests > "Embedded Blades: the Hand on the Handle Check"); 30 (crates) 12 of 12 with the new
+"in a crate: the hand on the handle is drawn as it held the sword"; 27: 35 of 35 after two changes to it: its moves begin 0.4 s after
+the stab (the mock hand stops 16 units past the handle, which now comes to it), and case 35 (a sword swung sideways in a staggering
+body) asks 60% not 75 (it measured 69 to 77: the body turns about itself as well as moving). 24: 22 of 22 (21 once: the eased step
+3.46 cm of 3). 7, 11, 13 fail with the handle hold off as well (7: the same 6; 11: 14 off, 7 on; 13: 4 and 4): the mock's blows, known
+(BACKLOG). With it on, 7 had 2 more in its one run ("a body lying down takes it too", "the body gone from it"), not rerun.
+
+Open: after a stab the body is pushed or pulled along the blade to bring the handle to the hand (the mock: 16 units); if that reads
+wrong in VR, keep the stab's own gap along the blade (a first version did: it then stayed 17 units off in the mock and the lift tore the
+blade out). The hand leads the handle along the blade by the Stick before the blade slides, as before. The off hand (mirrored) is not
+covered by the probe. Release-TracyFull: see the report.
 ## sshotgun: the open super shotgun: the flashlight rides its barrels; the loaded shells sit flush
 
 - **Flashlight on the barrels:** a torch clipped on the super shotgun (OnGun) is carried down with the barrels when the

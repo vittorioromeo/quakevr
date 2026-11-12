@@ -1,0 +1,12 @@
+# embed_handle: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The hand on an embedded blade's handle (his notes 2026-11-12; vr_embed_test 33).
+title Embedded blades: the handle stays in your real hand (a dead grunt, a crate)
+cvar vr_embed 1
+map vrtesthall
+god
+notarget
+give "Knight's Sword" main
+give "Axe" off
+spawn "Grunt" 120 -60
+spawn "Grunt" 120 60
+spawn "Wooden Crate" 90 0
+hint Stab a grunt hard and keep hold as it dies, or stab the one lying dead: the drawn hand sits on the handle as it held the sword, where your real hand is. Lift your hand a little, turn your wrist: the sword and the hand rise with your hand and no more, the body comes and goes round with the wrist. Let go, grip the handle again a little off it: the handle comes to your hand. Stab the crate, let go, grip the handle again: the hand lies on it as it holds the sword. Reset to try again.
