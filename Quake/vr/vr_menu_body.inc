@@ -543,6 +543,7 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         header("On the Belt"),
         row(opt::vr_flashlight_tilt),
         row(opt::vr_flashlight_forward),
+        row(opt::vr_flashlight_armor_forward),
         row(opt::vr_flashlight_up),
         row(opt::vr_flashlight_out),
     };
