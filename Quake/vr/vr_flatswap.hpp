@@ -30,8 +30,13 @@ void apply(hands::State& s);
 // (vr_flatsight.cpp, vr_twohand.cpp) and takes the other's after it.
 [[nodiscard]] bool gripBlocked();
 
-// Whether a swap of the hands' meeting kind is drawn (not a weapon in both hands): flatplay puts a hand that took a prop or
-// a weapon straight into its new pose, and the swap eases it there.
-[[nodiscard]] bool meeting();
+// Whether the swap eases the hands into their new poses: flatplay puts a hand that took a prop or a weapon straight into
+// its new pose (no rise out of the empty hand's rest), and the swap eases it there. All through a swap of the hands'
+// meeting kind; a weapon held in both hands from the swap on (its attach: before it, the free hand's own pose eases off
+// the grip under the release).
+[[nodiscard]] bool easesIntoPoses();
+
+// The watch through a swap (vr_flatswap_vis_report): each frame from the press, the hands and the weapon as last drawn.
+void probe();
 
 } // namespace qvr::flatswap

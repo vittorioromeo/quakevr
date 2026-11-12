@@ -10,6 +10,12 @@
 // `vr_flatswap_test 2`: what each hand holds (right / left): shotgun+brick, brick+shotgun, brick+brick, brick+empty,
 //   empty+brick, two shotguns, a brick in both hands: drawn the hands' meeting way (vr_flat_swap_seen 1; a brick in both:
 //   0, nothing to change), and each hand ends with what the other held, a brick in its new hand (within 16 units of it).
+// `vr_flatswap_test 3`: each melee weapon alone in the right hand (the axe, Mjolnir, the knight's sword, the crowbar, the
+//   super axe, the chainsaw; with AD's data AD's six: the fury's, death knight's, zombie knight's and death guard's
+//   swords, the hammer, the mace), the two-handed stance off then on (vr_flat_melee_2h): swapped to the left and back,
+//   the engine watching each swap frame by frame (vr_flatswap.cpp probe, vr_flat_swap_vis_faults): the weapon drawn and
+//   on the screen, both hands drawn, no hand dipping out of sight and back, nothing not a number. Until 2026-11-12 the
+//   hands sank under the view in the attach (the axe, Mjolnir, the chainsaw: 2 to 3 frames past dipDepth each swap).
 // `vr_flatswap_test 11..17`: a strip each (screenshots before the press and through the swap; the rocket launcher, the
 //   super shotgun, the nailgun, the axe, the shotgun with a brick in the left hand, the grenade launcher, AD's plasma rifle), then the verdict line.
 // Each ends on its "flatswap_test: N passed, M failed" line (Misc/quakevr/flatswap_test.sh).
@@ -215,6 +221,130 @@ void(entity p) VR_FSW_Weapons =
     }
 };
 
+// ---- 3: every melee weapon seen through the swap, both ways, the two-handed stance on and off.
+void(entity p, float xHand, float xFlags) VR_ADMelee_Hand; // (vr_ad_melee.qc)
+
+float VR_FSW_MELEE_CASES = 12; // (6 to 11: AD's, with AD's data only)
+float vr_fsw_stance; // the case's vr_flat_melee_2h
+
+// Test 3's weapon of case `c` (an AD kind's: WID_SWORD).
+float(float c) VR_FSW_MeleeWeapon =
+{
+    if(c == 0) return WID_AXE;
+    if(c == 1) return WID_MJOLNIR;
+    if(c == 2) return WID_SWORD;
+    if(c == 3) return WID_CROWBAR;
+    if(c == 4) return WID_SUPERAXE;
+    if(c == 5) return WID_CHAINSAW;
+    return WID_SWORD;
+};
+
+// Test 3's AD kind of case `c` (0: none).
+float(float c) VR_FSW_MeleeKind =
+{
+    if(c == 6) return VR_ADMELEE_FURY;
+    if(c == 7) return VR_ADMELEE_DKNIGHT;
+    if(c == 8) return VR_ADMELEE_ZKNIGHT;
+    if(c == 9) return VR_ADMELEE_DGUARD;
+    if(c == 10) return VR_ADMELEE_HAMMER;
+    if(c == 11) return VR_ADMELEE_MACE;
+    return 0;
+};
+
+// The key pressed, the engine's watch of the hands and the weapon started afresh (vr_flat_swap_vis_faults -1 until it
+// ends: watchTail frames after the swap).
+void() VR_FSW_PressWatched =
+{
+    cvar_set("vr_flat_swap_vis_faults", "-1");
+    VR_FSW_Press();
+};
+
+// The watch's verdict, once it has ended (FALSE while it runs).
+float(float w, string way) VR_FSW_Watched =
+{
+    float faults = cvar_hget(cvarh_vr_flat_swap_vis_faults);
+    if(faults < 0)
+    {
+        return FALSE;
+    }
+    VR_Test_Check(faults == 0, sprintf("weapon %g (%s), stance %g, %s: the weapon and both hands seen every frame (%g faulty frames)",
+        w, WeaponNameOf(w, 0), vr_fsw_stance, way, faults));
+    if(faults != 0)
+    {
+        localcmd("vr_flatswap_vis_report\n");
+    }
+    return TRUE;
+};
+
+void(entity p, float first) VR_FSW_Melee =
+{
+    vr_fsw_case = max(vr_fsw_case, first);
+    float w = VR_FSW_MeleeWeapon(vr_fsw_case);
+    float kind = VR_FSW_MeleeKind(vr_fsw_case);
+    if(vr_fsw_s == 0)
+    {
+        if(vr_fsw_case >= VR_FSW_MELEE_CASES || (kind && !cvar_hget(cvarh_vr_ad_mounted)))
+        {
+            if(kind)
+            {
+                bprint("flatswap_test: AD's data not mounted: AD's melee weapons not tried\n");
+            }
+            cvar_set("vr_flat_melee_2h", "1");
+            VR_FSW_End();
+            return;
+        }
+        cvar_set("vr_flat_melee_2h", ftos(vr_fsw_stance));
+        VR_FSW_Give(p, cVR_OffHand, WID_FIST);
+        if(kind)
+        {
+            VR_ADMelee_Ensure(kind);
+            VR_ADMelee_Hand(p, cVR_MainHand, VR_ADMelee_Flags(kind));
+        }
+        else
+        {
+            // (As the console gives it, impulse 150 + its id: collected too. The weapon eased in from the hip holster
+            // instead of the other hand, out of sight, is flatswap_test.sh's "holster" run.)
+            localcmd(sprintf("wait\nimpulse %g\n", 150 + w));
+        }
+        VR_FSW_To(1, 72); // (a second: drawn, the stance taken)
+        return;
+    }
+    if(vr_fsw_s == 1)
+    {
+        VR_FSW_PressWatched();
+        VR_FSW_To(2, 0);
+        return;
+    }
+    if(vr_fsw_s == 2)
+    {
+        if(!VR_FSW_Watched(w, "right to left"))
+        {
+            return;
+        }
+        VR_Test_Check(VRGetEntWeapon(p, cVR_OffHand) == w && VRGetEntWeapon(p, cVR_MainHand) == WID_FIST,
+            sprintf("weapon %g, stance %g: now in the left hand", w, vr_fsw_stance));
+        VR_FSW_PressWatched();
+        VR_FSW_To(3, 0);
+        return;
+    }
+    if(vr_fsw_s == 3)
+    {
+        if(!VR_FSW_Watched(w, "left to right"))
+        {
+            return;
+        }
+        VR_Test_Check(VRGetEntWeapon(p, cVR_MainHand) == w && VRGetEntWeapon(p, cVR_OffHand) == WID_FIST,
+            sprintf("weapon %g, stance %g: back in the right hand", w, vr_fsw_stance));
+        vr_fsw_stance = vr_fsw_stance ? 0 : 1; // (each weapon: the stance off, then on)
+        if(!vr_fsw_stance)
+        {
+            vr_fsw_case = vr_fsw_case + 1;
+        }
+        VR_FSW_To(0, 4);
+        return;
+    }
+};
+
 // ---- 2: carried things with weapons and each other.
 void(entity p) VR_FSW_Things =
 {
@@ -351,6 +481,7 @@ void() VR_FlatSwapTest_Frame =
         VR_Test_Begin("flatswap_test");
         vr_fsw_on = ask;
         vr_fsw_case = 0;
+        vr_fsw_stance = 0;
         VR_FSW_To(0, 0);
         if(!VR_FlatPlay(p))
         {
@@ -370,6 +501,8 @@ void() VR_FlatSwapTest_Frame =
     }
     if(ask == 1) { VR_FSW_Weapons(p); }
     if(ask == 2) { VR_FSW_Things(p); }
+    if(ask == 3) { VR_FSW_Melee(p, 0); }
+    if(ask == 4) { VR_FSW_Melee(p, 6); } // (AD's only)
     if(ask >= 11 && ask <= 17) { VR_FSW_Strip(p, ask); }
 };
 #endif

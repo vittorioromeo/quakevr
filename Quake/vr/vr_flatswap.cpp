@@ -41,10 +41,15 @@
 #include "vr_held.hpp"
 #include "vr_protocol.hpp"
 #include "vr_twohand.hpp"
+#include "vr_view.hpp"
 #include "vr_weapon_ids.h"
 
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Tan.hpp"
+
+#include <cstdio>
 #include "vr_zancle.hpp"
 
 namespace qvr::flatswap
@@ -56,6 +61,17 @@ namespace
 // A swap whose answer never comes (the game refused it: a hand took a thing meanwhile) is given up on after this long at
 // the meeting point, and the hands go back.
 constexpr double answerWait = 0.3;
+
+// The watch's frames after the swap (the two-handed melee stance's ease back in, vr_flat_melee_2h_time, inside them).
+constexpr int watchTail = 48;
+
+// A hand dips out of sight when its point goes this much further past the screen's edge (units at its depth) than at
+// both ends of the watch (the press, and once settled): the hand round its point (a hand resting on the edge, the super
+// axe's low grip, flickers across it by a unit).
+constexpr float dipDepth = 4.f;
+
+// The frames the watch keeps (a swap takes at most sendTime + backTime: 8 s of the tunables' clamps; more are not judged).
+constexpr int watchFrames = 600;
 
 // The swap as drawn (no function-local statics: a named file-scope struct, CODE_STYLE.md).
 struct Swap
@@ -89,6 +105,29 @@ struct Swap
 };
 
 Swap sw;
+
+// The swap's watch (vr_flatswap_vis_report; vr_flatswap_test 3): from each press of the key until watchTail frames after
+// the swap has played (vr_flat_swap_anim 0: that many after the press), every frame the hands and the weapon
+// as last drawn: each hand drawn (view::drawnHandPose) and in sight, the weapon drawn in a hand (view::weaponFrame) with a
+// part of it on the screen, and nothing not a number. The frames each was missing. A hand out of sight at the press (an
+// empty hand's relaxed rest hangs below the view) or once settled is no fault: its dips are, the frames it is dipDepth
+// further past the screen's edge than at both ends.
+struct Watch
+{
+    bool on{false};
+    int tail{0};          // frames left after the swap
+    int frames{0};
+    int handGone[2]{0, 0};  // not drawn
+    int handDip[2]{0, 0};   // frames of the hand dipping out of sight (counted at the end)
+    float worst[2]{0.f, 0.f}; // its most past its ends' edge (units; the report)
+    float past[2][watchFrames]{}; // each frame, how far past the screen's edge its point was (negative: inside)
+    int weaponGone{0};      // no hand's weapon drawn (the swap of a weapon)
+    int weaponOff{0};       // drawn, none of it on the screen
+    int bad{0};             // a pose not a number
+    int widWas[2]{WID_FIST, WID_FIST}; // what each hand held at the press (a weapon to look for)
+};
+
+Watch wt;
 
 [[nodiscard]] float inTime()
 {
@@ -242,16 +281,162 @@ void report_f()
         sw.seen ? 1 : 0, sw.share, sw.presses, sw.swaps, vr_flat_swap_anim.value);
 }
 
+// The watch's faults: frames with a hand or the weapon not drawn, the weapon off the screen, a hand's dip off it, a pose
+// not a number.
+[[nodiscard]] int watchFaults()
+{
+    return wt.handGone[HAND_OFF] + wt.handGone[HAND_MAIN] + wt.handDip[HAND_OFF] + wt.handDip[HAND_MAIN] + wt.weaponGone +
+           wt.weaponOff + wt.bad;
+}
+
+void visReport_f()
+{
+    Con_Printf("flatswapvis: %s, %d frames, %d faults: weapon gone %d, off screen %d; off hand gone %d, dips %d (most %.1f past "
+               "its ends); main hand gone %d, dips %d (most %.1f); not a number %d\n",
+        wt.on ? "watching" : "done", wt.frames, watchFaults(), wt.weaponGone, wt.weaponOff, wt.handGone[HAND_OFF],
+        wt.handDip[HAND_OFF], wt.worst[HAND_OFF], wt.handGone[HAND_MAIN], wt.handDip[HAND_MAIN], wt.worst[HAND_MAIN], wt.bad);
+}
+
+// The watch's end: each hand's dips, the frames it was dipDepth further past the screen's edge than at both ends.
+void judgeDips()
+{
+    const int n = za::min(wt.frames, watchFrames);
+    for(int h : {HAND_OFF, HAND_MAIN})
+    {
+        if(n < 1)
+        {
+            continue;
+        }
+        const float ends = za::max(wt.past[h][0], wt.past[h][n - 1]);
+        wt.worst[h] = 0.f;
+        for(int f = 0; f < n; f++)
+        {
+            const float more = wt.past[h][f] - ends;
+            wt.worst[h] = za::max(wt.worst[h], more);
+            wt.handDip[h] += more > dipDepth ? 1 : 0;
+        }
+    }
+}
+
+[[nodiscard]] bool finite(const glm::vec3& v)
+{
+    // (Not a number fails every comparison.)
+    return za::abs(v.x) < 1e7f && za::abs(v.y) < 1e7f && za::abs(v.z) < 1e7f;
+}
+
+// How far `p` is past the screen's edge as last drawn (units at its depth, across or up; negative inside the view's
+// field). Behind the near plane (at most 4 units, gl_rmain.c R_ViewMatrices): far past it.
+[[nodiscard]] float pastEdge(const glm::vec3& p)
+{
+    glm::vec3 f, r, u;
+    hands::angleVectors(geom::vec(r_refdef.viewangles), f, r, u);
+    const glm::vec3 d = p - geom::vec(r_refdef.vieworg);
+    const float depth = glm::dot(d, f);
+    if(!(depth > 4.f))
+    {
+        return 1000.f;
+    }
+    const float tx = za::tan(glm::radians(r_refdef.fov_x * 0.5f)), ty = za::tan(glm::radians(r_refdef.fov_y * 0.5f));
+    return za::max(za::abs(glm::dot(d, r)) - depth * tx, za::abs(glm::dot(d, u)) - depth * ty);
+}
+
+// `p` off the eye as last drawn: forward, right, up (the watch's lines).
+[[nodiscard]] glm::vec3 viewLocal(const glm::vec3& p)
+{
+    glm::vec3 f, r, u;
+    hands::angleVectors(geom::vec(r_refdef.viewangles), f, r, u);
+    const glm::vec3 d = p - geom::vec(r_refdef.vieworg);
+    return {glm::dot(d, f), glm::dot(d, r), glm::dot(d, u)};
+}
+
 } // namespace
 
 void init()
 {
     Cmd_AddCommand("vr_flatswap_report", report_f);
+    Cmd_AddCommand("vr_flatswap_vis_report", visReport_f); // the watch through the last swap (vr_flatswap_test 3)
+}
+
+void probe()
+{
+    if(!wt.on)
+    {
+        return;
+    }
+    if(!sw.running && --wt.tail < 0)
+    {
+        wt.on = false;
+        judgeDips();
+        Cvar_SetValueQuick(&vr_flat_swap_vis_faults, static_cast<float>(watchFaults())); // (the test's word: QC reads it)
+        if(vr_flat_swap_debug.value)
+        {
+            visReport_f();
+        }
+        return;
+    }
+    wt.frames++;
+    const hands::State& s = hands::current();
+    bool bad = !finite(s.pos[HAND_OFF]) || !finite(s.pos[HAND_MAIN]) || !finite(s.rot[HAND_OFF]) || !finite(s.rot[HAND_MAIN]);
+    bool weaponDrawn = false, weaponSeen = false;
+    const bool weapon = wt.widWas[HAND_OFF] != WID_FIST || wt.widWas[HAND_MAIN] != WID_FIST;
+    char line[512]{};
+    int len = 0;
+    for(int h : {HAND_OFF, HAND_MAIN})
+    {
+        glm::vec3 pos{0.f}, rot{0.f};
+        const bool drawn = view::drawnHandPose(h, pos, rot);
+        const float past = drawn ? za::min(pastEdge(pos), 1000.f) : 1000.f; // (not a number: far past)
+        bad = bad || (drawn && (!finite(pos) || !finite(rot)));
+        wt.handGone[h] += drawn ? 0 : 1;
+        if(wt.frames <= watchFrames)
+        {
+            wt.past[h][wt.frames - 1] = past;
+        }
+        view::WeaponFrame wf;
+        bool wSeen = false;
+        if(view::weaponFrame(s, h, wf) && wf.model)
+        {
+            weaponDrawn = true;
+            const glm::vec3 lo = geom::vec(wf.model->mins), hi = geom::vec(wf.model->maxs);
+            for(int i = 0; i < 27 && !wSeen; i++)
+            {
+                // (The box's corners, its edges' and faces' middles and its middle.)
+                const glm::vec3 k{static_cast<float>(i % 3) * 0.5f, static_cast<float>((i / 3) % 3) * 0.5f, static_cast<float>(i / 9) * 0.5f};
+                const glm::vec3 p{wf.modelToWorld * glm::vec4{lo + (hi - lo) * k, 1.f}};
+                bad = bad || !finite(p);
+                wSeen = pastEdge(p) <= 0.f;
+            }
+            weaponSeen = weaponSeen || wSeen;
+        }
+        if(vr_flat_swap_debug.value >= 2.f)
+        {
+            // (Where, off the eye along the view: forward, right, up; the weapon's model origin.)
+            const glm::vec3 org{wf.modelToWorld[3]};
+            const glm::vec3 hp = viewLocal(pos), wp = viewLocal(org), wa = viewLocal(org + glm::vec3{wf.modelToWorld[0]}) - wp;
+            len += snprintf(line + len, sizeof(line) - static_cast<size_t>(len),
+                " %s %s, %.1f past, at %.0f %.0f %.0f turn %.0f %.0f %.0f, weapon %s %.0f %.0f %.0f along %.1f %.1f %.1f;",
+                handName(h), drawn ? "drawn" : "NOT DRAWN", past, hp.x, hp.y, hp.z, rot.x, rot.y, rot.z,
+                wf.model ? (wSeen ? "seen" : "OFF SCREEN") : "-", wp.x, wp.y, wp.z, wa.x, wa.y, wa.z);
+        }
+    }
+    wt.weaponGone += weapon && !weaponDrawn ? 1 : 0;
+    wt.weaponOff += weapon && weaponDrawn && !weaponSeen ? 1 : 0;
+    wt.bad += bad ? 1 : 0;
+    if(vr_flat_swap_debug.value >= 2.f)
+    {
+        Con_Printf("flatswapvis: frame %d (share %.2f):%s%s\n", wt.frames, sw.share, line, bad ? " NOT A NUMBER" : "");
+    }
 }
 
 bool press()
 {
     sw.presses++;
+    wt = Watch{};
+    wt.on = true;
+    Cvar_SetValueQuick(&vr_flat_swap_vis_faults, -1.f); // (watching)
+    wt.tail = watchTail;
+    wt.widWas[HAND_OFF] = widIn(HAND_OFF);
+    wt.widWas[HAND_MAIN] = widIn(HAND_MAIN);
     if(vr_flat_swap_anim.value == 0.f)
     {
         return false;
@@ -566,9 +751,12 @@ bool busy()
     return sw.running;
 }
 
-bool meeting()
+bool easesIntoPoses()
 {
-    return sw.running && !sw.twoHand;
+    // (The attach too: the hand that took the weapon came up out of the empty hand's rest under it, vr_flat_empty_take_time,
+    // and the attach eased it down there first: the weapon and both hands out of sight under the view for 6 to 9 frames
+    // after the swap, the axe and every melee weapon held alone, 2026-11-12; vr_flatswap_test 3.)
+    return sw.running && (!sw.twoHand || sw.seen);
 }
 
 bool gripBlocked()

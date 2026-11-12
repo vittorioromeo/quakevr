@@ -985,6 +985,7 @@ float cvarh_vr_flat_ssg_break_delay;
 float cvarh_vr_flat_ssg_eject_delay;
 float cvarh_vr_flat_swap_seen;
 float cvarh_vr_flat_swap_things;
+float cvarh_vr_flat_swap_vis_faults;
 float cvarh_vr_flat_unload_volume;
 float cvarh_vr_flatblood_test;
 float cvarh_vr_flatgate_test;
@@ -3014,6 +3015,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_flat_ssg_eject_delay = VR_CVar_Make("vr_flat_ssg_eject_delay");
     cvarh_vr_flat_swap_seen = VR_CVar_Make("vr_flat_swap_seen");
     cvarh_vr_flat_swap_things = VR_CVar_Make("vr_flat_swap_things");
+    cvarh_vr_flat_swap_vis_faults = VR_CVar_Make("vr_flat_swap_vis_faults");
     cvarh_vr_flat_unload_volume = VR_CVar_Make("vr_flat_unload_volume");
     cvarh_vr_flatblood_test = VR_CVar_Make("vr_flatblood_test");
     cvarh_vr_flatgate_test = VR_CVar_Make("vr_flatgate_test");
