@@ -1277,7 +1277,7 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
     d.grow = o.grow;
     d.growFrom = za::clamp(o.growFrom, 0.f, 1.f);
     d.fromStart = o.fromStart;
-    d.darken = za::clamp(o.darken, 0.f, 0.9f);
+    d.darken = za::clamp(o.darken * (big ? za::clamp(vr_gore_decal_dark.value, 0.f, 2.f) : 1.f), 0.f, 0.9f);
     d.normal = n;
     d.depth = big ? za::clamp(halfV * 0.35f, 4.f, 12.f) : 3.f;
     d.carve = carve.x > 0.f ? glm::vec4{carve.x, carve.y * halfV, carve.z, carve.w} : glm::vec4{0.f};

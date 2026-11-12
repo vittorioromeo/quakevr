@@ -2133,6 +2133,9 @@ QVR_CVAR(vr_gib_speed_melee, "0.15", CVAR_ARCHIVE)   // a melee blow (a swing, a
 QVR_CVAR(vr_gib_speed_light, "0.25", CVAR_ARCHIVE)   // a thrown thing, the shotguns, nails, a stuck axe's bleeding
 QVR_CVAR(vr_gib_speed_heavy, "1", CVAR_ARCHIVE)      // explosions, rockets, grenades, lightning, everything else (Quake's)
 QVR_CVAR(vr_gore_spray, "1", CVAR_ARCHIVE)             // how many splats a hit or a gibbing sprays onto the walls, floor and ceiling round it (0 none)
+QVR_CVAR(vr_gore_preset, "0", CVAR_NONE)               // the Gore preset shown (vr_gorepresets.cpp; not saved: the settings are): 1 Full (the defaults), 2 Minimal, 3 Off; 0 Custom (shown when the settings match none)
+QVR_CVAR(vr_blood_amount, "1", CVAR_ARCHIVE)           // how much blood a hit or a cut throws (the blood particles' count, times this; 0: none at all, Quake's dots too)
+QVR_CVAR(vr_gore_decal_dark, "1", CVAR_ARCHIVE)        // how much the gore's blood marks darken as they spread and dry, times their own (1: as it was; 0: they keep their red)
 QVR_CVAR(vr_gore_size, "1", CVAR_ARCHIVE)              // how big the gore's splats, pools and runs are
 QVR_CVAR(vr_gore_pools, "1", CVAR_ARCHIVE)             // pools of blood spreading under corpses and gibs: their size (0 none)
 QVR_CVAR(vr_gore_drips, "1", CVAR_ARCHIVE)             // blood dripping from splats on the ceiling and from hanging gibs: how long and how much (0 none)

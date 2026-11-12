@@ -203,6 +203,33 @@ about a screenful each. Pages marked (D) show only at Menu Detail: Developer.
 | **Gore - Limb Gore** | Limbs cut off or popped: chances, corpses, explosions, limbs lying about, their weight |
 | **Small Gibs** (D) | Small gibs per hit and weapon, brain chunks |
 
+**Gore settings (all on the Gore page, VR Settings > Gore, unless noted)**
+
+Gore Preset (`vr_gore_preset`, not saved: the settings are) sets the rows marked * together: **Full** (the defaults),
+**Minimal** (a hit's blood at 0.6x and the small hit splats; no stains, streams, drips, pools, mist, bloody feet and hands,
+no small or brain chunks, no beheading or limbs off) and **Off** (no blood at all). Change any of them by hand and the
+row reads **Custom**.
+
+| What | Setting (default) |
+|---|---|
+| Blood stains on the world (sprays, pools, runs, gib splats) * | `vr_gore` (2: 0 only the hit's small splats), `vr_gore_spray` (1), `vr_gore_pools` (1), `vr_gib_blood` (1), `vr_decals` (1), `vr_decal_max` (512), `vr_decal_life` (240 s) |
+| Their size and darkness | `vr_gore_size` (1x), `vr_gore_decal_dark` (1x: how much they darken as they dry; 0 keeps their red) |
+| Blood of a hit * | `vr_blood_amount` (1x, 0 none: Quake's dots too), `vr_gore_mist` * (1) and its look (`vr_gore_mist_*`) |
+| Streams, spurts, back-splatter * | `vr_gore_streams` (1), `vr_gore_streams_spurts`, `_splash`, `_pool`, `_width`, `vr_gore_backsplatter` * (1) |
+| Drips | `vr_gore_drips` * (1), `vr_gore_wound_drips` * (1), `vr_player_gore_drips` |
+| Gibs sticking, thrown gibs | `vr_gore_stick_thrown` * (1), `vr_head_flies` (0), `vr_gib_speed_*` |
+| Wounds painted on models | `vr_wounds` (1: kept by Minimal, off in Off), `vr_wounds_burns`, `vr_wounds_wet`, `vr_gore_dents` (1: kept) |
+| Small gibs (meat) | `vr_smallgibs` * (1), `vr_smallgibs_player` * (1), `vr_smallgibs_max` (64), `vr_smallgibs_*` counts and Per Enemy page |
+| Brain chunks | `vr_smallgibs_brains` * (1: its own toggle, Small Gibs > Brain Chunks), `vr_smallgibs_brains_*` |
+| Gibbing's limbs | `vr_gib_limbs` * (1: 0 Quake's gibs only) |
+| Beheading, limbs off, teeth | `vr_decap` * (1), `vr_limbs` * (1), `vr_teeth` * (1), their chances on their pages |
+| Bloody feet and hands | `vr_footprints` *, `vr_handprints` *, `vr_gore_hands` * (all 1) |
+| Blood on you and your gear | `vr_gore_spatter` *, `vr_gore_spatter_gibs` *, `vr_gore_gear` *, `vr_gore_gear_nearby` *, `vr_gore_gear_drops` *, `vr_gore_spread` * (all 1) |
+| Your own gore, your wounds | `vr_player_gore` * (1), `vr_body_blood` * (1.25), `vr_body_blood_marks` *, `vr_body_blood_floor` * |
+| Blood in water | `vr_water_blood` * (1) |
+| Corpses | `vr_corpse_dying` (1), the pools under corpses are `vr_gore_pools` |
+| Sound | `vr_gore_sound` (1), `_choke`, `_drips` |
+
 **Body and Flashlight**
 
 | Page | What's on it |
