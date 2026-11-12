@@ -223,7 +223,8 @@ if want 4; then
 LOG="$OUT/headset.log"; : > "$LOG"
 export FAKEXR_LOG="$(cygpath -w "$LOG")" FAKEXR_HEADSET=fakexr_steam FAKEXR_EYE=600x640 FAKEXR_UNFOCUS=150-250
 unset FAKEXR_FAIL_INSTANCE FAKEXR_D3D11
-S="vr_xr_test 1;vr_xr_runtime 0;vr_xr_runtime_fallback 0;vr_xr_test_runtimes \"$ST\";vr_xr_test_active \"$ST\";vr_xr_test_processes vrserver.exe;vr_xr_eye_scale 0.8;vr_backend openxr;map start;wait400;toggleconsole;quit"
+# (vr_xr_log_timing 1: the timing line is off by default since configVersion 202, 9ac8f0dbf.)
+S="vr_xr_test 1;vr_xr_log_timing 1;vr_xr_runtime 0;vr_xr_runtime_fallback 0;vr_xr_test_runtimes \"$ST\";vr_xr_test_active \"$ST\";vr_xr_test_processes vrserver.exe;vr_xr_eye_scale 0.8;vr_backend openxr;map start;wait400;toggleconsole;quit"
 bash "$KIT/run.sh" "$NAME" -Script "$S" -Full -Filter "OpenXR|VR:" > "$OUT/headset_game.log"
 unset FAKEXR_HEADSET FAKEXR_EYE FAKEXR_UNFOCUS
 cp -f "$XRLOG" "$OUT/headset_openxr.txt"
@@ -482,3 +483,4 @@ check "$OUT/end_instanceloss.log" "instance loss: flat, said why" "VR: openxr se
 check "$OUT/end_instanceloss_openxr.txt" "instance loss: the states" "instance loss pending" "VR: the session's last states: .*FOCUSED > INSTANCE_LOSS_PENDING$"
 fi
 echo "xr_runtime_test: $fails failed"
+exit $((fails > 0))

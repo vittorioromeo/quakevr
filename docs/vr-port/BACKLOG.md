@@ -20,9 +20,10 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
   old one knocked out, the new one not seated by the same touch").
 - **Always failing** (3 of 3, 2026-11-12): agrunt_60 (seeded; "agparry behind: no weapon in hand"), agarmor_5 (a killing
   cut under the plate: the plate did not break), limb_wear (15/3), ragdoll_climb (22/6, enforcer never grabs),
-  ragdoll_stagger (52/5), autopump, cellcord, animsmooth ("Ease 0 idle loop has no gun pulse"), xr_runtime (no timing
-  line a second, no "last again"), secret_hits ("quad-shot did not activate its secret door"), stealth (gate_seen_*).
-  Not chased: no task.
+  ragdoll_stagger (52/5), stealth (gate_seen_*). Not chased: no task. (autopump, cellcord, animsmooth, xr_runtime and
+  secret_hits settled: ROUND25.md, "Always-failing tests, part b".)
+- **secret_hits "door-punch"**: the fist swung through e1m1's shootable secret door (`*14`) swishes but never hits it (no
+  melee event; the quad's trigger is struck): failing since at least 2026-10-30 (ROUND25.md, "Always-failing tests, part b").
 - Stale, passing 3 of 3 (2026-11-12, seeded where the runner seeds): agrunt 47/63/66/67/71/72/76/86/209, ragdoll_grab,
   ragdoll_guard, rv_1, judo, nail_1, teleporters_chase, parry_pose, weapon_catch, dead_gear (removed from this list;
   `test_flaky.txt` still names some: take them off after more runs unseeded).
