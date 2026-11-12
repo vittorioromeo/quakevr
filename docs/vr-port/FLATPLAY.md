@@ -1036,6 +1036,16 @@ the melee weapons' grips stand on or behind the trigger hand, so their free hand
 (`vr_flat_support_*`) without vr_twohand's hold, and the swap took the hands' meeting way. Now (`vr_flat_swap_2h_all 1`)
 every weapon held alone with the other hand empty takes the release, pass and attach.
 
+The long guns as the rocket launcher (his words 2026-11-12: "The rocket launcher is the only one where it looks good"):
+the rocket launcher's free hand holds a real grip, which the swap blocks until the weapon has changed hands
+(`flatswap::gripBlocked`), so it lets go at the grip's pace (flatsight's `gripEase`, about 0.11 s) as the release takes it
+to the empty hand's guard, and the new free hand takes the grip at the same pace during the attach. The other long guns'
+free hand (the shotguns, the nailguns, the thunderbolt, AD's guns) is drawn on the gun's hotspot by flatsight's look,
+which is drawn only: it stayed on the gun through the release (the hand never seen to let go), snapped off as the
+weapon changed hands, and came to the new free hand at the slow look pace (about 0.4 s) after the attach was over. With
+`vr_flat_swap_look 1` the look lets go and comes back at `gripEase` while the swap runs (`lookSwap` in vr_flatsight.cpp),
+so every long gun releases, passes and attaches as the rocket launcher does. 0: as before.
+
 Carried things (his words 2026-11-11: "The swap hands key should also seamlessly work when a prop is being held, or any
 combination of props/weapons"; `vr_flat_swap_things 1`): `VR_FlatSwapHands` moves what each hand carries (a prop, a gib,
 a torch, a carried hand grenade, a ragdoll's limb) to the other hand with the weapons: a carried thing refitted to its
