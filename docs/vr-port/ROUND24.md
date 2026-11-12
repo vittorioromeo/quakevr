@@ -9464,3 +9464,24 @@ it to the other hand checked it again and dropped it. With AD mounted the check 
   AD): before, "FAIL weapon 22: now in the left hand (left 0, right 0)"; after 22 passed, 0 failed (`2`: 26/26).
   Headless: give 22, flat toolgun on and off ("back to weapon 22"), two swaps (22 to the left and back). Scene
   `flat_swap_adgun` (the rifle in the right hand through the test aid; runall: HELD, main now 22).
+
+## Flat-screen two-handed melee stance (branch `agent/melee2h`, 2026-11-12)
+
+His note: melee weapons that support two hands should always be held in both while the other hand is empty, with a
+tunable pose, smooth transitions, the force grab and shove working from it, and 2H-only parry offsets.
+
+- New tunables (Debug > Tunables > Flatscreen > Two-Handed Melee Stance): `vr_flat_melee_2h` 1, `_time` 0.25,
+  `_fwd` 2, `_up` 0, `_out` -3, `_pitch` -10, `_yaw` -10, `_roll` -15, and `vr_flat_melee_2h_parry_fwd/_up/_out/_pitch/_yaw/_roll`
+  (all 0). The defaults came from screenshots of the axe and the sword (first person, side, front): the weapon a little in
+  and leaning across, the axe head seen three-quarters, both hands on the handle. One global set: no per-weapon rows.
+- How (FLATPLAY.md, "Two-handed melee stance"): flatplay poses the stance over the hold (shared with the parry's
+  `turnedHand`/`blendAngles`, one `offsetHand` for the stance and its guard offsets); flatsight carries the free hand onto
+  the grip with the same `pinToGrip`/`gripT` a gun's fore-end uses; vr_twohand takes it whatever the hands' line while the
+  stance holds. Nothing flat-only was copied: the let-go is the guns' (`gripWanted`, `flatLetsGo`). The old
+  "taken at a swing's end" path (`heldOffPose`) still covers `vr_flat_melee_2h 0`.
+- Measured (`flatmelee2h_test.sh`, 16/16): all five weapons in the stance with no swing; into it (the off hand's axe taken
+  away) most a frame main 0.30 u 1.2 deg, free hand 1.91 u (the first 3 frames' 5-6 u are the weapon's removal, the same
+  without the stance); out (a rock pulled into the off hand) main 0.30 u; `_parry_up 6` raises the two-handed guard 6.2 u,
+  the one-handed one 0.2 u. `flatfg2h_test` 11/11, `flatparry` 43/43, `flatswing` 5/5, `flatmelee` 12/12.
+- Images: `scratch/melee2h_axe.png`, `scratch/melee2h_sword.png` (top row one-handed, bottom row the stance: rest,
+  mid-swing, guard, side).

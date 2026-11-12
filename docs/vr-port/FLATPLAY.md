@@ -1093,3 +1093,31 @@ carries the free hand to, taken only at a swing's end; held, the pose is now pin
 grab, the shove, G, 3 and a punch take it off the grip over the gun's own ease (`gripEase`, then `vr_flat_fg_detach_time` for
 E). 0: the old way (the hand hanging while held, off at once). Test: `Misc/quakevr/flatfg2h_test.sh <agent> [letgo]`
 (`vr_flatitems_test 9`; the drawn off hand's most a frame, `vr_flat_fg_report`'s "drawn off hand" line); scene `flat_fg_melee2h`.
+## Two-handed melee stance
+
+His notes 2026-11-12: a melee weapon that can be held in two hands, held in one with the other hand free, took the
+two-handed grip only now and then (after a swing or a few: the axe's grip stands up its handle, beside the hand, where
+neither the pose's line test nor vr_twohand's dot finds it), and looked odd when it did. Since then (`vr_flat_melee_2h`,
+default 1) a melee weapon swung by a handle (`flatplay::swungMelee`: the axe, Mjolnir, the swords, the crowbar, the super
+axe, AD's blades; not the chainsaw, whose front handle `vr_flat_melee_two_hand` takes) is always held in both hands while
+the other hand holds nothing (no weapon, prop, item or carried thing):
+
+- **The stance** (`vr_flatplay.cpp` `twoHandPose`): over the one-handed hold, the weapon's hand moved `vr_flat_melee_2h_fwd`
+  / `_up` / `_out` (units, in the frame the hands are placed in; out mirrored for the off hand) and turned `_pitch` /
+  `_yaw` / `_roll` (degrees, `turnedHand`'s), by its share, eased in and out over `vr_flat_melee_2h_time` (0.25 s, linear
+  then smoothstep, as the guard's). The swing, the guard and the wall code all go from it.
+- **The free hand** is put on the weapon's two-handed grip (the one `vr_flat_melee_grip` chooses) by `vr_flatsight.cpp`'s
+  `pinToGrip`, the same carry a gun's fore-end gets (`carryToGrip` true while the stance's share is above 0, whatever the
+  grip's line), and taken by `vr_twohand.cpp` on arrival: both `applyHotspots` and `applySword` accept any line between the
+  hands while the stance holds (`flatplay::melee2HShare`), as a cup does. One global set of numbers: the axe, the swords,
+  the crowbar, Mjolnir and the super axe all looked right with it, so there are no per-weapon rows.
+- **Let-go**: E's force grab, the shove, the quick grenade, a punch and the swap take the free hand off the grip and give it
+  back after by the existing sequencing (`gripWanted`, `flatLetsGo`); the weapon stays in the stance meanwhile. A prop,
+  item or weapon that ends up in the free hand ends the stance (eased out).
+- **Two-handed guard** (`vr_flat_melee_2h_parry_*`): offsets and turns over the parry's guard, by the guard's share times the
+  stance's (one-handed guards are unchanged).
+
+`vr_flat_melee_2h_report` prints the drawn hands' largest move and turn a frame since the last report, the main hand's
+place off the head and the stance's share; `vr_flatplay_status` prints a "two-handed stance" line. Tests:
+`Misc/quakevr/flatmelee2h_test.sh` (16 checks), `flatfg2h_test.sh`, `flatparry_test.sh`. Scene: `flat_melee2h`.
+Rows: Debug > Tunables > Flatscreen > Two-Handed Melee Stance.

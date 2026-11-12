@@ -1,0 +1,10 @@
+# flat_melee2h: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode): a melee weapon with a two-handed grip is held in both hands while the other hand is empty (vr_flat_melee_2h_*; docs/vr-port/FLATPLAY.md, "Two-handed melee stance").
+title Flat-screen two-handed melee stance: an axe in the right hand, rocks to pull
+hint Play with -flatscreenmode. With the axe and the left hand empty, the left hand goes onto the handle by itself, no swing needed, and the axe is held in both hands. Swing, parry (right mouse), shove and pull a rock with E: the left hand lets go and takes the handle again; with the rock held (or a weapon in the left hand) the axe goes back to the one-handed hold smoothly. Try the swords, the crowbar, Mjolnir and the super axe too.
+map vrtesthall
+god
+notarget
+give "Axe" main
+spawn "Rock" 120 30
+spawn "Rock" 160 0
+spawn "Rock" 140 -40
