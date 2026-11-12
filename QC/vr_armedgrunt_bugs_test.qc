@@ -1,7 +1,7 @@
 #ifdef QVR_TESTS
 // vr_armedgrunt_bugs_test.qc -- armed humanoids' tests of round 22's fixes (ROUND22.md, "Armed humanoids: the picked-up
 // sword, drops up close, friendly fire, test 2"). `vr_agrunt_test N` in vrtesthall (Debug > Tests > Armed Grunts):
-// - 61: each melee weapon picked up from the floor by a grunt and an enforcer, lying (another's drop), after its own
+// - 61: each melee weapon (the dagger too: its code, VR_AG_CODE_DAGGER) picked up from the floor by a grunt and an enforcer, lying (another's drop), after its own
 //   disarm, thrown by you, and after a knockdown: `agtest: pickup <kind> <weapon> <source>: model <m> (index <i>,
 //   spawned <j>), effects <e>, alpha <a>, <d> from it: PASS|FAIL` (PASS: the held prop has the spawn path's model and
 //   index, the held flag, no alpha, in its hand). `scratch1` N: case N alone, left standing (an eyeshot).
@@ -28,7 +28,8 @@ float(float i) VR_AGBT_MeleeWid =
     if(i == 1) { return WID_SWORD; }
     if(i == 2) { return WID_CROWBAR; }
     if(i == 3) { return WID_CHAINSAW; }
-    return WID_MJOLNIR;
+    if(i == 4) { return WID_MJOLNIR; }
+    return VR_AG_CODE_DAGGER; // (the knight's sword of the dagger's kind: VR_AG_Decode)
 };
 
 string(float s) VR_AGBT_Source =
@@ -38,14 +39,15 @@ string(float s) VR_AGBT_Source =
 
 // Test 61's case `c`: its kind (vr_agbt_kind), weapon (vr_agbt_wid), source (vr_agbt_srcn: VR_AGBT_Source).
 float VR_AGBT_SOURCES = 4;
+float VR_AGBT_MELEE = 6; // the weapons (VR_AGBT_MeleeWid)
 float vr_agbt_kind;
 float vr_agbt_wid;
 float vr_agbt_srcn;
 float vr_agbt_kd_at;    // the knockdown case: the grunt floored then
 void(float c) VR_AGBT_Decode =
 {
-    vr_agbt_kind = floor(c / (5 * VR_AGBT_SOURCES));
-    vr_agbt_wid = VR_AGBT_MeleeWid(floor(c / VR_AGBT_SOURCES) - 5 * vr_agbt_kind);
+    vr_agbt_kind = floor(c / (VR_AGBT_MELEE * VR_AGBT_SOURCES));
+    vr_agbt_wid = VR_AGBT_MeleeWid(floor(c / VR_AGBT_SOURCES) - VR_AGBT_MELEE * vr_agbt_kind);
     vr_agbt_srcn = c - VR_AGBT_SOURCES * floor(c / VR_AGBT_SOURCES);
 };
 
@@ -91,8 +93,10 @@ void(float c) VR_AGBT_PickupBegin =
         }
         else
         {
-            vr_agbt_src = CreateThrownWeapon(p, wid, 0, WeaponInst_New(VR_AG_ClipSize(wid)), p.origin + fw * 60 + '0 0 20',
-                p.angles, fw * 160 + '0 0 120', '0 0 0', FALSE, FALSE, WeaponIdToThrowDamage(wid));
+            VR_AG_Decode(wid); // (a code: the dagger's)
+            vr_agbt_src = CreateThrownWeapon(p, vr_ag_dec_wid, vr_ag_dec_flags, WeaponInst_New(VR_AG_ClipSize(vr_ag_dec_wid)),
+                p.origin + fw * 60 + '0 0 20', p.angles, fw * 160 + '0 0 120', '0 0 0', FALSE, FALSE,
+                WeaponIdToThrowDamage(vr_ag_dec_wid));
         }
     }
     vr_agt_grunt = g;
@@ -105,7 +109,7 @@ void() VR_AGBT_Pickup =
     entity p = vr_agt_player;
     if(vr_agt_step == 0)
     {
-        vr_agbt_count = 10 * VR_AGBT_SOURCES;
+        vr_agbt_count = 2 * VR_AGBT_MELEE * VR_AGBT_SOURCES;
         vr_agbt_keep = cvar_hget(cvarh_scratch1);
         vr_agbt_case = vr_agbt_keep > 0 ? vr_agbt_keep - 1 : 0;
         vr_agbt_val2 = cvar_hget(cvarh_vr_agrunt_test_kind);
@@ -151,7 +155,9 @@ void() VR_AGBT_Pickup =
         string want = fresh.vr_ag_prop.model;
         VR_AGT_Remove(fresh);
         float d = pr ? vlen(pr.origin - g.origin) : -1;
-        string what = sprintf("pickup %s %s %s: %g pickups, model %s", kind ? "enforcer" : "grunt", WeaponNameOf(wid, 0),
+        VR_AG_Decode(wid);
+        string what = sprintf("pickup %s %s %s: %g pickups, model %s", kind ? "enforcer" : "grunt",
+            WeaponNameOf(vr_ag_dec_wid, vr_ag_dec_flags),
             VR_AGBT_Source(vr_agbt_srcn), g.vr_ag_pickups - vr_agbt_val,
             pr ? pr.model : "none"); // (sprintf: 8 values at most)
         VR_AGT_Check(sprintf("%s (index %g, spawned %g), effects %g, alpha %g, %.0f from it:", what, pr.modelindex,

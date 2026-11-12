@@ -582,6 +582,16 @@ func_weapon_grabbable's weapons (the same as one with weapon 17). It gives no am
 ]
 
 @PointClass color(0 128 204) size(-8 -8 -8, 8 8 8) =
+	weapon_dagger : "A dagger lying ready to be picked up (Quake VR): a short one-handed blade, the knight's sword's kind (it swings, stabs, sticks in and is thrown as a sword does). It falls from its origin and settles on the floor (func_weapon_grabbable with weapon 13, weaponflags 3072). AS_PLACED: it lies as 'angles' turn it (none: any way)."
+[
+	spawnflags(flags) =
+	[
+		1 : "AS PLACED" : 0
+		2 : "BY HANDLE" : 0
+	]
+]
+
+@PointClass color(0 128 204) size(-8 -8 -8, 8 8 8) =
 	weapon_enfrifle : "An enforcer's laser rifle lying ready to be picked up (Quake VR): its cell full (it takes no ammunition of yours). It falls from its origin and settles on the floor (func_weapon_grabbable with weapon 16). AS_PLACED: it lies as 'angles' turn it (none: any way)."
 [
 	spawnflags(flags) =

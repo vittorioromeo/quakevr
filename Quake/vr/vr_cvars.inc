@@ -2474,6 +2474,7 @@ QVR_CVAR(vr_swim_stroke_pitch, "-10", CVAR_ARCHIVE)     // degrees each stroke's
 QVR_CVAR(vr_air_supply, "2.5", CVAR_ARCHIVE)        // the breath under water before drowning, times Quake's 12 seconds (1 to 4; biosuit and wetsuit as ever)
 QVR_CVAR(vr_swim_debug, "0", CVAR_NONE)               // print each stroke: peak speed, power gate, reverse damping and the push it gave
 QVR_CVAR(vr_sword_damage_mult, "1.1", CVAR_ARCHIVE)   // a knight's sword: its swing's damage over the axe's
+QVR_CVAR(vr_dagger_damage, "0.6", CVAR_ARCHIVE)       // the dagger: its blows' damage times the knight's sword's (its stabs', its throws'; an armed grunt's)
 QVR_CVAR(vr_crowbar_damage, "20", CVAR_ARCHIVE)       // the crowbar (QC vr_crowbar.qc): a blow's base damage (the axe's; a knight's sword's 30; 25 before round 21's Weapon Damage), its hook's x1.2
 // Weapon Damage (VR Settings > Combat > Weapon Damage; QC VR_WpnDmg): each weapon's base damage, id's (or the mission
 // packs') as shipped. A gun's or a projectile's applies to players' (and bots') shots only: monsters and traps firing the
@@ -2707,6 +2708,7 @@ QVR_CVAR(vr_agrunt_debug, "0", CVAR_NONE)                    // 1: prints its we
 QVR_CVAR(vr_agrunt_w_fists, "1", CVAR_ARCHIVE)         // the pool's weights (0: never): unarmed, its fists
 QVR_CVAR(vr_agrunt_w_axe, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_agrunt_w_sword, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_agrunt_w_dagger, "1", CVAR_ARCHIVE)        // ... the dagger (QC VR_AG_CODE_DAGGER)
 QVR_CVAR(vr_agrunt_w_crowbar, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_agrunt_w_chainsaw, "0.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_agrunt_w_shotgun, "3", CVAR_ARCHIVE)
@@ -4141,6 +4143,8 @@ QVR_CVAR(vr_flat_toolgun_panel_size, "0.75", CVAR_ARCHIVE) // flatscreen play: t
 QVR_CVAR(vr_flat_toolgun_panel_x, "0.5", CVAR_ARCHIVE)  // flatscreen play: the toolgun panel's middle across the window (0 left .. 1 right; kept on the window)
 QVR_CVAR(vr_flat_toolgun_panel_y, "0.5", CVAR_ARCHIVE)  // flatscreen play: the toolgun panel's middle down the window (0 top .. 1 bottom; kept on the window)
 QVR_CVAR(vr_flat_holsters, "1", CVAR_ARCHIVE)           // flatscreen play carries what a headset does: six holsters and two hands, the weapon keys doing nothing (3 swaps the hands), the wheel's button holding the holster menu (vr_flatholster.cpp, QC vr_flatholster.qc); 0: the number keys and the wheel cycle through every weapon collected, as before 2026-11-10
+QVR_CVAR(vr_flat_key_flashlight, "f", CVAR_ARCHIVE)     // the key that switches the flashlight (vr_flashlight_toggle; vr_flatplay.cpp pollKeysFlat), by its bind name; "" none (menu: Locomotion > Desktop Screen Play > Flat Keys)
+QVR_CVAR(vr_flat_key_punch, "v", CVAR_ARCHIVE)          // the key that punches with the right hand (vr_flatplay.cpp pollKeys: a fist thrown out; the fire buttons punch too), by its bind name; "" none
 QVR_CVAR(vr_flat_key_holster_menu, "mouse3", CVAR_ARCHIVE) // flatscreen play: the holster menu's key (a bind name; "" none; how it opens and picks: vr_flat_holster_menu_mode)
 QVR_CVAR(vr_flat_holster_menu_mode, "0", CVAR_ARCHIVE) // flatscreen play: 0 hold the key, hover a button and let go: that button (let go over nothing: just closed; a left click while held clicks too, and then letting go only closes); 1 a press opens it, left clicks as many as wanted, the next press (or Esc) closes it (his words 2026-11-10)
 QVR_CVAR(vr_flat_holster_menu_timescale, "0.3", CVAR_ARCHIVE) // flatscreen play: time's speed while the holster menu is open (bullet time's slow motion; 1 not slowed)

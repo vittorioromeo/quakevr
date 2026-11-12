@@ -26,7 +26,7 @@ extern cvar_t vr_backend;
 
 // The weapon table's slots (vr_weapons.hpp numSlots; vr_weaponvalues.hpp's table). Here, not there:
 // gen_vr_cvars_qc reads it from this file.
-inline constexpr int weaponSlotCount = 51;
+inline constexpr int weaponSlotCount = 52;
 
 // Recording mode (vr_recording_clean, the player's; vr_recording_clean_map, the map's: the trailer scene): no tips, no
 // messages on the wrist gadget and no head-locked text, in the headset too.

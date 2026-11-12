@@ -279,6 +279,52 @@ wins), and the fuse's countdown sound on launched grenades too.
 - Audit: the other tests that set the cvar (adgun 70/71/73 fx, 81-84, admelee, ammocolor, agrunt 35) already save and restore it. No other menu command sets it.
 - Check: build 0 warnings; `vr_ad_test 79` on e1m1 printed nothing (AD not mounted in agent bases); the cvar reads 0 before and after (trivially: nothing sets it now). Not exercised with AD.
 
+## The dagger (branch agent/dagger, 2026-11-12)
+
+His request: a bladed melee weapon, a dagger, looking like the knight's sword (its steel, no blood), smaller and leaner,
+a blade about a third of the sword's, behaving as a sword (skewering, embedding), obtained "like the sword".
+
+- **What it is**: a kind of the knight's sword (`WID_SWORD`, weapon flags kind 12: `VR_SWORDKIND_DAGGER` in
+  `vr_ad_guns_defs.qc`, past AD's kinds 1-11, which stay `VR_ADMELEE_LAST`), as the hell knight's and AD's swords are.
+  So every sword path is the sword's own code, by data: the swing, the stab and its hold, the skewer, embedding (held,
+  thrown), the throw, the holsters, the two hands' hand-off, the armed humanoids' sword pose class, flat play. Its own:
+  the model (`VR_ADMelee_Model`), the name "Dagger", the damage (`VR_SwordKind_DamageMult`), the weapon settings slot.
+  No new weapon id: a WID would have needed every `WID_SWORD` test across QC and the engine (60+ places) doubled.
+- **Model**: `Misc/quakevr/make_dagger.py` (then its source .blend, `src_models/blend/v_dagger/`, by `blend_build.py`;
+  an untouched export writes the shipped files byte for byte): the knight's sword's four pieces scaled in the blade's
+  frame: the blade 1/3 as long, 0.7 as wide, 0.85 as thick; the guard 0.6 across, 0.8 thick, 0.85 along; the grip
+  0.57 of its length (one hand's room; its cross-section where the hand anchor is kept); the pommel 0.75, moved up to
+  the grip's end. The sword's skin with its blood taken out (its clean patch, `v_ksword.mdl_0.clean`, applied: 1823
+  texels), its normals carried through the scaling, its normal map baked (`bake_normals.py`). Packed from the sword's
+  bounds' corner, so the sword's grip settings hold it the same way. 42.5 model units long (the sword's 100.2), blade
+  23.2 from the guard (the sword's 69.5).
+- **Weapon settings**: `weapons.txt` slot 51 (`vr_wofs_*_52`; numSlots and weaponSlotCount 52, `weapons_data.py`
+  NUM_SLOTS 52): the sword's slot 18 with the dagger's tip (`muzzle_av`), blade root (`wpnbtn_av`, `wpntxt_av`),
+  one-handed (`2h_mode 2`, no hotspots: no second hand on a one-hand grip, no half-sword grip on a short blade), the
+  blade from 0.331 of the hand-to-tip line (`bl_from`: past its guard), the pommel 0.321 behind (`bl_near`), 1.2 kg,
+  34 cm, balance 6 cm (`w_mass`, `w_len`, `w_com`). Its hand anchor is the sword's (0.08 model units off the new
+  surface, 0.25 mm: kept).
+- **Numbers**: `vr_dagger_damage` 0.6 (Combat > Weapon Damage > Melee): its swing, stab, throw and an armed grunt's
+  blow are 0.6 of the knight's sword's (the sword 20 x 1.1 = 22 before speed and weight, so 13.2). Measured: a 6 m/s
+  swing at a grunt 9, a 6 m/s stab 12 (the sword's 15), a throw 241 (the throw's damage by its speed). Depth: embedding
+  is a share of the blade's length (thrown: `vr_embed_sword_depth_*`; held: `vr_embed_hold_sword_most`), so it sinks
+  about a third as deep: its stuck blade 6.9 units against the sword's 21.0; thrown into the wall 1.7 units deep.
+  Engine model lists (`vr_modelmetadata.inc` VDagger): melee phasing, no sights, the env map's steel, the hot blade's
+  and leg sweep's blade share 0.43 (the blade past the guard).
+- **Where it is**: `weapon_dagger` (FGD), `vr_gunprep` (its class); the toolgun's Weapons > "Dagger" and Monsters >
+  "Armed Grunt: Dagger" (appended: numbers kept); Debug > Tests > "Dagger" (`vr_physics_spawn weapon_dagger reach`);
+  the armed grunts' pool (`vr_agrunt_w_dagger` 1, Combat > Armed Grunts > The Pool; weapon code 105,
+  `VR_AG_CODE_DAGGER`); vrfiringrange beside the two swords (216 -868, `make_prop_area.py`, appended last).
+  Knights still drop their own swords (a dagger isn't theirs).
+- **Tests**: `vr_embed_test 40` (`QC/vr_dagger_test.qc`, by the embedded blades' machinery): a swing hurts a grunt, a
+  stab sticks by its point and hurts, its blade a third of the sword's, thrown into the wall and into a grunt it
+  sticks: `embeddagger: 12 passed, 0 failed` in 13 of 16 runs. Open: in the other 3 the dagger's held stab (case 1) didn't
+  stick (depth 0; its swing, throws and the sword's stab passed), never with `vr_debug_embed 1` on (9 runs): not found
+  yet (`vr_hit_stagger 0` is set for it, as test 11 does, and didn't help). With `-flatscreenmode`: held, the mouse button's swing hurts a
+  grunt 34 units ahead (at 44 the short blade doesn't reach): `embeddagger: 3 passed, 0 failed`. Armed grunts: test 61
+  (`vr_armedgrunt_bugs_test.qc`) has the dagger as its sixth weapon (picked up lying, after its disarm, thrown by you,
+  after a knockdown; grunt and enforcer): `pickups: 48 passed, 0 failed`. Scenario `dagger` (SCNRUN OK). eval.sh: no
+  take changed.
 ## embedgrip: the hand on an embedded blade's handle stays in the real hand (branch agent/embedgrip, 2026-11-12)
 
 His notes 2026-11-12: the hand on an embedded sword's handle sits wrong (crates and ragdolls); in a ragdoll a small lift of the hand
@@ -364,6 +410,12 @@ covered by the probe. Release-TracyFull: see the report.
 - New: vr_ammo_pouch_armor_x (units) and vr_flashlight_armor_forward (m), both default 0 (not measured: the screenshot's armour needs a headset view), applied only while view::playerArmourShown() (plates on, a piece worn, body drawn). Menu rows beside the pouch X and the belt torch Forward; Reset Body and Equipment resets them.
 - Check: Misc/quakevr/armorgear_test.sh (vr_armorgear_check): with plates the pouch moved 5.000 units and the torch 0.0400 m forward as set, without none: 2 passed, 0 failed. vr_menu_path_check: 0 missing.
 
+## flatkeys: flat-play keys bindable from the menu
+
+- New page Locomotion > Desktop Screen Play > Flat Keys: one row per key flat play reads itself (17: lean left/right, lie down, swap hands, force grab, shove, punch, reload, drop, quick grenade, bullet time, flashlight, holster menu, fly camera, toolgun, its panel, its adjust), a "Reset Flat Keys" row. Enter, A or a click waits for a key ("Press a key...", Escape keeps it), Backspace/Delete/Y clears; the row writes its `vr_flat_key_*` cvar (the key's bind name; stays the default's spelling when it is the default, so the config is sparse).
+- Shared with Quake's Keys menu: its waiting state (menu.c `M_VRKeyCapture`, `M_WaitingForKeyBinding`, the mouse buttons count as keys, IN_Activate); a new menu row kind `Item::Key` (QVR_KEY in vr_menu_rows.inc). One list of flat keys (`flatplay::keyCvars()`, vr_flatmove.cpp) serves VR_FlatKeyOwned and the page's conflict marks ("! also grab", "! Quake: +jump").
+- F (flashlight) and V (punch) were hardcoded: now `vr_flat_key_flashlight` ("f") and `vr_flat_key_punch` ("v"). The shove key joined VR_FlatKeyOwned's list (its bind did not run before only by luck of being unbound).
+- Test: Misc/quakevr/flatkeybind_test.sh (8 checks: rebind, Escape, the new key drops / the old one does not, clear, reset, flashlight key); flatinput_test.sh 19/19; vr_menu_path_check 0 missing; menu_paths.txt regenerated.
 ## basefix1112: the 2026-11-12 baseline's new failures triaged (branch agent/basefix1112)
 
 - Fixed (real): the drips (vr_drips.cpp) forgot their wet things only when `cl.worldmodel` changed; the same map
@@ -425,3 +477,10 @@ stays on", which names the mock hand's lag itself. eval.sh not run: no melee str
 Open: his VR check of the crate on the joint; a blade held while the other hand carries its crate is as before (the crate goes,
 the hand lets go at arm's reach) and has no test; barrels share the code, tested by test 30's swing only; a re-grip off the
 handle (the gap across the blade closing) has no test for crates.
+## grenregrab: a lit grenade caught out of the air restarts its fuse (branch agent/grenregrab, 2026-11-12)
+
+His words: a lit grenade force-grabbed out of the air has a sound discontinuity; reset the fuse and the sound; "Restart full fuse, and also add a small sound/visual feedback".
+
+- **Rule:** a grenade that is lit and was loose since (`.vr_gren_free`, set in `VR_Grenade_Think` while lit and not held) and is caught (force grab or plain catch: one path, `VR_Grenade_Caught`) goes through `VR_Grenade_Relight`: fuse = time + `VR_Grenade_Fuse()` in full, then `VR_Grenade_Light(g, TRUE)` (pace restarts; the fizz replays on CHAN_BODY, replacing the old one; no second timer: the one `.vr_gren_fuse` the think reads). A grenade armed in the hand and not yet thrown is not restarted by being picked up again (not free yet). The old `vr_grenade_fuse_regrab`/`vr_grenade_held_fuse` rules now only govern unlit grenades.
+- **Cue:** `vr/grenade_pin.wav` at 150% pitch, volume 0.5, on CHAN_ITEM, and one 12-spark flare (`VR_Grenade_Sparks`, shared with the countdown trickle).
+- **Test:** `vr_grenfuse_test 1` case 4 (launcher grenade, its tick sees a hand 1.5 s in): blast 2.514 s after the grab, cue once, 10 ticks (one stream). 24 passed, 0 failed (lines need `developer 1`). Not heard/seen in a headset.
