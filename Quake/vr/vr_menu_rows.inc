@@ -7150,3 +7150,23 @@ QVR_TOGGLE_BYNAME(vr_bullettime_trails_nails, "Behind Nails", nullptr)
 QVR_TOGGLE_BYNAME(vr_bullettime_trails_explosives, "Behind Rockets and Grenades", nullptr)
 QVR_TOGGLE_BYNAME(vr_bullettime_trails_enemy, "Behind Monsters' Shots",
     "Enforcers' lasers, scrags' spit, knights' flames, vores' balls, zombies' flesh and grunts' bullets.")
+
+// vr_menu_pages.inc: pageFlatKeys (Locomotion > Desktop Screen Play > Flat Keys). The keys flat play reads itself, each a
+// bind name in its cvar; enter or a click waits for a key, Backspace clears, "Reset Flat Keys" restores them all.
+QVR_KEY(vr_flat_key_lean_left, "Lean Left", "The key that leans left.")
+QVR_KEY(vr_flat_key_lean_right, "Lean Right", "The key that leans right.")
+QVR_KEY(vr_flat_key_prone, "Lie Down", "The key that lies you down and gets you up again (a toggle).")
+QVR_KEY(vr_flat_key_swap, "Swap Hands", "The key that swaps what the two hands hold.")
+QVR_KEY(vr_flat_key_grab, "Force Grab", "The key that force-grabs what the view is pointed at.")
+QVR_KEY(vr_flat_key_shove, "Shove", "The key that shoves: an open hand pushed out in front of you.")
+QVR_KEY(vr_flat_key_punch, "Punch", "The key that punches with the right hand (the fire buttons punch too).")
+QVR_KEY(vr_flat_key_reload, "Reload", "The key that reloads every gun that has room in its clip.")
+QVR_KEY(vr_flat_key_drop, "Drop", "The key that lets go of what a hand holds (the off hand first).")
+QVR_KEY(vr_flat_key_grenade, "Quick Grenade", "The key that takes a grenade from the back pouch into a free hand.")
+QVR_KEY(vr_flat_key_bullettime, "Bullet Time", "The key that starts and stops bullet time.")
+QVR_KEY(vr_flat_key_flashlight, "Flashlight", "The key that switches the flashlight.")
+QVR_KEY(vr_flat_key_holster_menu, "Holster Menu", "The key that opens the holster menu (how it opens and picks: Holster Menu Mode, on Desktop Screen Play).")
+QVR_KEY(vr_flat_key_flycam, "Fly Camera", "The key that turns the fly camera on and off.")
+QVR_KEY(vr_flat_key_toolgun, "Toolgun", "The key that puts the toolgun in the right hand, and gives back what that hand held.")
+QVR_KEY(vr_flat_key_toolgun_menu, "Toolgun Panel", "With the toolgun in hand: the key that opens and closes its panel on the screen.")
+QVR_KEY(vr_flat_key_toolgun_adjust, "Toolgun Adjust", "With the toolgun in hand: held, the mouse is the tool's instead of the view's.")

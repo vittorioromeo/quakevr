@@ -2582,15 +2582,27 @@ extern "C" int VR_LeanHitBoxes(edict_t* touch, float (*boxes)[6])
     return 2;
 }
 
+namespace
+{
+// Every key flat play reads itself, in the menu's order (Locomotion > Desktop Screen Play > Flat Keys): the cvars a key's
+// bind name is kept in. Key_Event leaves these keys' binds off (VR_FlatKeyOwned); the Flat Keys page rebinds them.
+cvar_t* const flatKeyList[] = {&vr_flat_key_lean_left, &vr_flat_key_lean_right, &vr_flat_key_prone, &vr_flat_key_swap, &vr_flat_key_grab, &vr_flat_key_shove, &vr_flat_key_punch,
+    &vr_flat_key_reload, &vr_flat_key_drop, &vr_flat_key_grenade, &vr_flat_key_bullettime, &vr_flat_key_flashlight, &vr_flat_key_holster_menu, &vr_flat_key_flycam,
+    &vr_flat_key_toolgun, &vr_flat_key_toolgun_menu, &vr_flat_key_toolgun_adjust};
+} // namespace
+
+std::span<cvar_t* const> qvr::flatplay::keyCvars()
+{
+    return flatKeyList;
+}
+
 extern "C" int VR_FlatKeyOwned(int key)
 {
     if(!flatplay::active() || key <= 0 || key >= MAX_KEYS)
     {
         return 0;
     }
-    for(const cvar_t* c : {&vr_flat_key_lean_left, &vr_flat_key_lean_right, &vr_flat_key_swap, &vr_flat_key_grab, &vr_flat_key_reload,
-            &vr_flat_key_prone, &vr_flat_key_bullettime, &vr_flat_key_flycam, &vr_flat_key_toolgun, &vr_flat_key_toolgun_menu, &vr_flat_key_toolgun_adjust,
-            &vr_flat_key_drop, &vr_flat_key_grenade, &vr_flat_key_holster_menu})
+    for(const cvar_t* c : flatplay::keyCvars())
     {
         if(c->string[0] && Key_StringToKeynum(c->string) == key)
         {
@@ -2602,7 +2614,7 @@ extern "C" int VR_FlatKeyOwned(int key)
     {
         return 1;
     }
-    return key == 'f' || key == 'v' ? 1 : 0;
+    return 0;
 }
 
 extern "C" void VR_FlatMoveScale(float* forwardmove, float* sidemove)

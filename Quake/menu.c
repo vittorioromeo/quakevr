@@ -6093,6 +6093,7 @@ static struct
 } keysmenu;
 
 static qboolean	bind_grab;
+static qboolean	vr_key_capture;	// QVR: a VR page's key row waits for a key (Flat Keys; VR_Menu_Key takes it as Quake's Keys menu does)
 
 static void M_Keys_AddCustomEntry (const char *cmd, const char *desc)
 {
@@ -8700,11 +8701,13 @@ void M_DrawPanel (void)
 
 void M_Keydown (int key, qboolean repeat)
 {
-	if (!bind_grab && !ui_mouse.value && M_IsMouseKey (key))
+	if (vr_key_capture && m_state != m_vr)
+		vr_key_capture = false;
+	if (!bind_grab && !vr_key_capture && !ui_mouse.value && M_IsMouseKey (key))
 		return;
 
 	m_lastkey = key;
-	if (!bind_grab)
+	if (!bind_grab && !vr_key_capture)
 	{
 		switch (key)
 		{
@@ -8735,7 +8738,7 @@ void M_Keydown (int key, qboolean repeat)
 		}
 	}
 
-	if (!bind_grab && m_state != m_confirm && m_state != m_quit && VR_MenuKey (key, repeat)) // QVR: the corner's buttons (Back to game, Advanced VR, Levels); not under a dialog (Quit's: Escape back to the menu under it)
+	if (!bind_grab && !vr_key_capture && m_state != m_confirm && m_state != m_quit && VR_MenuKey (key, repeat)) // QVR: the corner's buttons (Back to game, Advanced VR, Levels); not under a dialog (Quit's: Escape back to the menu under it)
 		return;
 
 	switch (M_GetBaseState (m_state))
@@ -8849,7 +8852,7 @@ void M_Mousemove (int screenx, int screeny)
 
 	int px = glx, py = gly, pw = glwidth, ph = glheight, fx, fy, fw, fh; // QVR
 
-	if (bind_grab || !ui_mouse.value)
+	if (bind_grab || vr_key_capture || !ui_mouse.value)
 		return;
 	if (VR_MenuFlatMouse (screenx, screeny)) // QVR: a corner of the flat screen's VR menu panel dragged
 		return;
@@ -9094,7 +9097,20 @@ textmode_t M_TextEntry (void)
 
 qboolean M_WaitingForKeyBinding (void)
 {
-	return key_dest == key_menu && m_state == m_keys && bind_grab;
+	return key_dest == key_menu && ((m_state == m_keys && bind_grab) || (m_state == m_vr && vr_key_capture));
+}
+
+// QVR: a VR page's key row starts or ends waiting for a key (the Keys menu's "press a key": the mouse's buttons count,
+// the menu's own keys are the pressed key's, Escape ends it).
+void M_VRKeyCapture (qboolean on)
+{
+	if (on == vr_key_capture)
+		return;
+	vr_key_capture = on;
+	if (on)
+		IN_Activate (); // as the Keys menu: to allow mouse key binding
+	else
+		IN_DeactivateForMenu ();
 }
 
 qboolean M_WantsConsole (float *alpha)
