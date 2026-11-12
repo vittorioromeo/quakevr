@@ -222,6 +222,7 @@ constexpr float grabHertz = 8.f;        // the hold's spring (linear; its turn h
 constexpr float grabLever = 0.04f;      // m: its most torque, the most force at this lever
 constexpr float grabStuck = 40.f;       // units: a limb this far from its hand
 constexpr double grabStuckTime = 0.5;   // s: this long is let go of (behind a wall, a door shut on it)
+constexpr float handleFollow = 12.f;    // 1/s: a blade's handle hold's point on the limb takes the drawn handle's place (what 17)
 
 // A blade's spring's rate (Hz; ragdollTug what 12): Moving: Stiffness, its N per m times Blade Hold Strength (the Hz by
 // its square root). (At a limb grab's 8 it held a grunt's chest 15-40 cm off a hand moving it, its pull a tenth to half of
@@ -241,6 +242,18 @@ constexpr double grabStuckTime = 0.5;   // s: this long is let go of (behind a w
     }
     const glm::quat since = glm::normalize(turn * glm::inverse(g.bladeTurn));
     return glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, since, za::clamp(vr_embed_move_turn.value, 0.f, 1.f)) * g.bladeReach;
+}
+
+// What is left of a handle hold's gap now (bladeGap, eased away: smoothstep over vr_embed_move_match s).
+[[nodiscard]] glm::vec3 bladeGapNow(const World::RagdollGrab& g)
+{
+    if(!g.bladeHandle || g.bladeGap == glm::vec3{0.f})
+    {
+        return glm::vec3{0.f};
+    }
+    const float over = za::max(vr_embed_move_match.value, 0.f);
+    const float t = over > 0.f ? za::clamp(static_cast<float>(qcvm->time - g.bladeGapAt) / over, 0.f, 1.f) : 1.f;
+    return g.bladeGap * (1.f - t * t * (3.f - 2.f * t));
 }
 
 [[nodiscard]] int grabIndex(int player, int hand)
@@ -953,6 +966,57 @@ float tugRagdoll(edict_t* ent, edict_t* player, int hand, int what, const glm::v
         }
         return ours ? 1.f : 0.f;
     }
+    if(what == 17)
+    {
+        // That hold taken by the blade's handle (vr_embed_move_handle; QC VR_Embed_Spring, right after what 12): `grip`,
+        // where the handle is (the blade's origin: where the hand is drawn on it). Held at the wound, the wound went
+        // round the hand with the wrist (vr_embed_move_turn) while the blade kept the body's own turn: the sword, and the
+        // hand drawn on it, were carried off the real hand by the wrist's turn times the blade's length (10 degrees: 10
+        // units; "four or five times" a small lift), and by the body's own turning on the wound (12 units, dead). Held by
+        // the handle, the blade rigid in the limb: the handle is where the hand is, whatever the body does; the body is
+        // turned with the hand by a torque of the hold's force at the blade's length (at a limb grab's 4 cm it hung and
+        // swung from the hilt: the 70% of 2026-11-08). 1 if it is.
+        if(!ours || !g->blade || !r || g->part < 0 || g->part >= r->count || B3_IS_NULL(g->joint) || !b3Joint_IsValid(g->joint) ||
+           B3_IS_NULL(g->anchor) || !b3Body_IsValid(g->anchor))
+        {
+            return 0.f;
+        }
+        glm::vec3 at;
+        glm::quat turn;
+        handPose(player, hand, at, turn);
+        const b3BodyId part = r->body[static_cast<za::SizeT>(g->part)];
+        const b3Transform frameB = b3Joint_GetLocalFrameB(g->joint);
+        if(g->bladeHandle)
+        {
+            // Each frame after: the handle as drawn now. The blade rides the model's triangle, which bends from this limb's body
+            // with the ragdoll's joints (a dead grunt's chest on its spine: the drawn handle 10 units from the rigid one): the
+            // hold's point on the limb goes to where the handle is drawn, eased (the drawn blade's turn lags its limb).
+            const float dt = za::clamp(static_cast<float>(qcvm->time - g->bladeHandleAt), 0.f, 0.1f);
+            g->bladeHandleAt = qcvm->time;
+            const b3Vec3 want = b3Body_GetLocalPoint(part, world->toM(grip));
+            const float k = 1.f - za::exp(-dt * handleFollow);
+            b3Joint_SetLocalFrameB(g->joint, b3Transform{b3Lerp(frameB.p, want, k), frameB.q});
+            return 1.f;
+        }
+        const glm::vec3 wound = world->toU(b3Body_GetWorldPoint(part, frameB.p));
+        g->bladeHandle = true;
+        g->bladeHandleAt = qcvm->time;
+        g->bladeLever = glm::distance(grip, wound) / world->m2u;
+        g->bladeReach = glm::vec3{0.f};
+        g->bladeGap = grip - at - g->bladeShift; // (less what the QC keeps of it: what 14, set before this)
+        g->bladeGapAt = qcvm->time;
+        b3Joint_SetLocalFrameA(g->joint, b3Transform{b3Vec3_zero, b3Quat_identity});
+        b3Joint_SetLocalFrameB(g->joint, b3Transform{b3Body_GetLocalPoint(part, world->toM(grip)), frameB.q});
+        b3Body_SetTransform(g->anchor, world->toM(at + g->bladeShift + g->bladeGap), toB3(turn));
+        b3Body_SetLinearVelocity(g->anchor, b3Vec3_zero);
+        b3MotorJoint_SetMaxSpringTorque(g->joint, za::max(g->force, 0.f) * za::max(grabLever, g->bladeLever));
+        if(vr_debug_ragdoll.value || vr_knockdown_debug.value)
+        {
+            Con_Printf("embed: %d: hand %d holds it by the blade's handle, %.1f units from the wound, %.1f from the hand\n", num, hand,
+                glm::distance(grip, wound), glm::length(g->bladeGap));
+        }
+        return 1.f;
+    }
     if(what == 16)
     {
         // (The tests: how far the held limb's point is from where that spring pulls it, units; -1 none.)
@@ -1290,7 +1354,7 @@ void syncRagdollGrabs(float dt)
         glm::vec3 at;
         glm::quat turn;
         handPose(player, g.hand, at, turn);
-        at += g.bladeShift + bladeReachNow(g, turn);
+        at += g.bladeShift + bladeReachNow(g, turn) + bladeGapNow(g);
         const b3BodyId part = r->body[static_cast<za::SizeT>(g.part)];
         if(B3_IS_NULL(g.anchor) || !b3Body_IsValid(g.anchor) || B3_IS_NULL(g.joint) || !b3Joint_IsValid(g.joint))
         {
@@ -1299,7 +1363,7 @@ void syncRagdollGrabs(float dt)
         }
         const float force = g.force >= 0.f ? g.force : za::max(vr_ragdoll_grab_force.value, 0.f);
         b3MotorJoint_SetMaxSpringForce(g.joint, force);
-        b3MotorJoint_SetMaxSpringTorque(g.joint, force * grabLever);
+        b3MotorJoint_SetMaxSpringTorque(g.joint, force * za::max(grabLever, g.bladeLever));
         const glm::vec3 from = world->toU(b3Body_GetPosition(g.anchor));
         if(glm::distance(from, at) > 0.5f * world->m2u)
         {
@@ -1323,6 +1387,17 @@ void syncRagdollGrabs(float dt)
             // (A blade's: how far is the QC's. Its spring's stiffness as tuned now. Staggering, its stance gives way to what the
             // hold passes on to its pelvis.)
             b3MotorJoint_SetLinearHertz(g.joint, bladeHertz());
+            if(g.bladeHandle)
+            {
+                // (By its handle: a stiff hold, its place and its turn, limited by its force and that force at the blade's length.
+                // A spring's rate goes by the mass it holds: at the handle, out on the blade's lever, the limb's own counts for
+                // little (some 0.6 kg of a 10 kg chest) while the whole body hangs on it: at Moving: Stiffness's 24 Hz the
+                // handle sat 14 units from a still hand, and at a limb grab's turn rate the limb alone turned, the body stayed
+                // lying: a lift raised the handle, not the wound.)
+                const float stiff = za::max(vr_embed_move_handle_hertz.value, 0.5f);
+                b3MotorJoint_SetLinearHertz(g.joint, stiff);
+                b3MotorJoint_SetAngularHertz(g.joint, stiff);
+            }
             if(RagdollBodies* moved = ragdollOf(g.num); moved && moved->active.on && moved->active.stagger.on)
             {
                 moved->active.stagger.ledGive = za::max(vr_embed_move_give.value * za::max(vr_embed_hold_strength.value, 0.f), 0.01f);

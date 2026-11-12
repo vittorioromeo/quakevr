@@ -2361,6 +2361,9 @@ QVR_TUNABLE(vr_embed_move_sword_force_deep, "1500") // ... in as far as it goes
 QVR_TUNABLE(vr_embed_move_give, "0.4") // 1/s: how readily a staggering body's stance gives way (its mass over this: N for each m/s it is moved at)
 QVR_TUNABLE(vr_embed_move_hertz, "24") // Hz: the stiffness of the hand's spring on the body (a limb grab's 8)
 QVR_TUNABLE(vr_embed_move_at_wound, "1") // 1: the spring holds the body at the wound (follows closely); 0: at a point out at the hand, as before 2026-11-08 (it hung and swung from there: some 70% of a lift)
+QVR_TUNABLE(vr_embed_move_handle, "1") // 1: the hand's spring holds a blade in a ragdoll by its handle, rigid in the limb: the handle stays in the real hand, the body turns with the wrist by the blade's lever; 0: as before 2026-11-12 (Moving: Held At)
+QVR_TUNABLE(vr_embed_move_handle_hertz, "120") // Hz: held by the handle, how stiffly the handle keeps to the hand and the body to the hand's turn, before the hold's force (Blade Hold Strength's; its most torque: that force at the blade's length)
+QVR_TUNABLE(vr_embed_move_match, "0.2") // s: a blade in a ragdoll held with the hand off its handle: how long the handle takes to come to the hand (0: at once)
 QVR_TUNABLE(vr_embed_move_turn, "1") // share of the hand's turn since it took hold that the wound's place (from the hand) turns with: 1 the blade's whole length swings with the wrist, a body on it lifted overhead with the sword pointing up goes up with it; 0 as before 2026-11-10 (kept level: it stayed out in front)
 QVR_TUNABLE(vr_embed_drag_slack, "4") // cm further from the wound than the hand held it before walking away drags a standing body
 QVR_TUNABLE(vr_embed_tether_speed, "0.35") // times your walking speed while a blade ties you to a body

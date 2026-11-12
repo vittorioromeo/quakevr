@@ -605,6 +605,16 @@ void recordDrawnWeapon(const hands::State& s, int hand)
     return basisAngles(anglesBasis(rot) * anglesBasis(glm::vec3{-o.x, o.y, o.z}));
 }
 
+// weaponTurn undone: the holding hand's angles for a weapon turned `wt` (as the hands' angles: its entity's, the pitch negated). The
+// one way a hand is put on a weapon's handle from the weapon's pose: a floating pose's (holdFloating), a blade left in a body or a
+// crate (embedHandleHand: it took the offsets off the blade's Euler angles, which only agrees with weaponTurn for a blade lying
+// level and unrolled with no yaw or roll offset: the hand on an embedded handle sat turned on it; his note 2026-11-12).
+[[nodiscard]] glm::vec3 handTurnOfWeapon(const glm::vec3& wt, int slot, bool mirrored)
+{
+    const glm::vec3 o = weaponAngleOffsets(slot, mirrored);
+    return basisAngles(anglesBasis(wt) * glm::transpose(anglesBasis(glm::vec3{-o.x, o.y, o.z})));
+}
+
 namespace
 {
 [[nodiscard]] glm::vec3 heldWeaponTurn(const glm::vec3& rot, int holder, int slot, bool mirrored)

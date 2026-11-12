@@ -28,6 +28,9 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
   `test_flaky.txt` still names some: take them off after more runs unseeded).
 - **Embedded blades** (`vr_embed` on since 2026-11-08): recheck `vr_embed_test` 7, 13 and 21 (failing 2026-11-06);
   real heavy monsters, saves, level change and multiplayer unproven (tests 14-20 written).
+- **Embedded blades, the handle hold** (2026-11-12, ROUND25.md "embedgrip"): his VR check of the handle staying in the
+  hand; a stab's own gap along the blade now moves the body to the hand (keep it as slack if that reads wrong); the
+  off hand's pose on a handle isn't probed; `vr_embed_test` 7 had 2 more failures in one run with the hold on.
 - **`vrtutorial_playtest.py` room 8**: the shells' throw is fixed (ROUND25.md "testfix"); still open: the mock's main
   hand never grips the bench's shotgun (stops ~25 units short), so nothing loads; the `weapons` gate and later fail.
 - **Tooling:** Tracy GPU zones lost after toggling GPU detail mid-run; some hidden-mock eye/window captures come back
