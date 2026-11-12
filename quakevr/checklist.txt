@@ -77,6 +77,7 @@ Pick up the new dagger (it lies in your main hand here, the knight's sword in th
 Swing and stab the grunt with the dagger: a stab should stick in a third as deep as the sword's and hold the body as a sword stab does; a throw should stick point first; it hurts about 0.6 of the sword (Combat > Weapon Damage > Melee > Dagger). {test:dagger}
 Let the armed grunt with the dagger fight you, and disarm it: it should hold and swing the dagger one-handed as grunts hold swords, and pick it up again. {test:dagger}
 Flat-screen or VR: daggers lie beside the two swords in the firing range and in the toolgun's Weapons list; holster one and throw one as you would the sword. {test:dagger}
+Flat-screen or VR: fire the grenade launcher, then force-grab the lit grenade out of the air: its fuse starts over at the full 2.5 s with a small re-arm click and a flare of sparks, the fizz and ticks start again from the top (one stream, no leftover from before), and you can throw it again and hear it properly. {test:grenade_countdown}
 
 [7. Survival Arena (Play > Survival Arena)]
 The arena is nice: play it, feels good? Note improvements. {test:arena_run}

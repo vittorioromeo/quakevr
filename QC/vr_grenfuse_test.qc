@@ -8,7 +8,8 @@
 //   lit as it is armed or thrown (the fizz; its ticks timed to its fuse) but the last, each goes off VR_Grenade_Fuse
 //   after its arming (one frame's detection late), and the three blow up within a frame of each other with the same
 //   ticks (one apart at most). vr_grenade_catch 2 and vr_grenade_countdown 1 for the test (put back after); the player
-//   takes no damage meanwhile.
+//   takes no damage meanwhile. Then a launcher's grenade a hand takes out of the air 1.5 s in: its fuse starts over (off
+//   VR_Grenade_Fuse after the grab), the restart cue plays once, and its ticks stay one stream (VR_Grenade_Relight).
 
 float vr_gft_on;     // the running test's number
 float vr_gft_s;      // its state: 0 set up, 1 a grenade's turn starts, 2 its fuse runs, 3 after its blast
@@ -26,7 +27,11 @@ entity vr_gft_target;  // and what it lobs at
 float vr_gft_dt0, vr_gft_dt1, vr_gft_dt2;       // each case's blast after its arming
 float vr_gft_tk0, vr_gft_tk1, vr_gft_tk2;       // and its ticks
 
-float VR_GFT_GIVEUP = 8;     // seconds a state may last
+float vr_gft_grab;   // case 4: its grab was made
+float vr_gft_rearm0; // vr_gren_rearms then
+
+float VR_GFT_GRABAT = 1.5;   // case 4: seconds after the throw the hand takes it
+float VR_GFT_GIVEUP = 8;    // seconds a state may last
 float VR_GFT_FRAME = 0.0139; // one fixed frame (1/72 s) and a little
 float VR_GFT_AFTER = 36;     // frames after a blast before the next grenade (its explosion done)
 float VR_GFT_TICKS = 5;      // ticks a countdown plays at least (2.5 s: about a dozen)
@@ -68,6 +73,7 @@ string(float c) VR_GFT_Name =
     if(c == 0) { return "hand grenade"; }
     if(c == 1) { return "launcher grenade"; }
     if(c == 2) { return "ogre grenade"; }
+    if(c == 4) { return "launcher grenade grabbed mid-air"; }
     return "launcher grenade, countdown off";
 };
 
@@ -93,7 +99,7 @@ entity(entity p) VR_GFT_Launch =
         VR_HandGrenade_Arm(g, cVR_MainHand, "the test's pin");
         return g;
     }
-    if(vr_gft_case == 1 || vr_gft_case == 3)
+    if(vr_gft_case == 1 || vr_gft_case == 3 || vr_gft_case == 4)
     {
         return VR_FireGrenadeMissile(cVR_MainHand);
     }
@@ -147,6 +153,7 @@ void(entity p) VR_GFT_Run =
         cvar_set("vr_grenade_countdown", vr_gft_case == 3 ? "0" : "1");
         vr_gft_ticks0 = vr_gren_ticks;
         vr_gft_arm = time;
+        vr_gft_grab = FALSE;
         vr_gft_g = VR_GFT_Launch(p);
         if(vr_gft_g == world)
         {
@@ -170,12 +177,34 @@ void(entity p) VR_GFT_Run =
     }
     if(vr_gft_s == 2)
     {
+        if(vr_gft_case == 4 && !vr_gft_grab && time - vr_gft_arm >= VR_GFT_GRABAT && !VR_GFT_Gone(vr_gft_g))
+        {
+            // A hand takes it out of the air (a force grab's catch: VR_Grenade_Caught at its next tick).
+            vr_gft_grab = TRUE;
+            vr_gft_arm = time; // (the fuse is timed from the grab now)
+            vr_gft_ticks0 = vr_gren_ticks;
+            vr_gft_rearm0 = vr_gren_rearms;
+            vr_gft_g.carry_player = p; // (the grenade's tick sees the hand: no grip in the mock, so no real carry)
+            return;
+        }
+        if(vr_gft_case == 4 && vr_gft_grab && vr_gft_g.carry_player != world && time - vr_gft_arm > 3 * VR_GFT_FRAME)
+        {
+            vr_gft_g.carry_player = world; // (the catch seen: it flies on, as if thrown again)
+        }
         if(!VR_GFT_Gone(vr_gft_g))
         {
             return;
         }
         float dt = time - vr_gft_arm;
         float ticks = vr_gren_ticks - vr_gft_ticks0;
+        if(vr_gft_case == 4)
+        {
+            VR_Test_Check(vr_gft_grab, sprintf("%s: grabbed at %.1f s", n, VR_GFT_GRABAT));
+            VR_Test_Check(vr_gren_rearms - vr_gft_rearm0 == 1, sprintf("%s: the restart cue played once (%g)", n,
+                vr_gren_rearms - vr_gft_rearm0));
+            VR_Test_Check(ticks <= vr_gft_tk1 + 1, sprintf("%s: one tick stream, not two (%g ticks vs %g in a plain fuse)", n,
+                ticks, vr_gft_tk1));
+        }
         VR_Test_Check(dt >= fuse - 0.001 && dt <= fuse + 2 * VR_GFT_FRAME, sprintf("%s: went off %.3f s after it was %s (the fuse %.2f s)",
             n, dt, vr_gft_case == 0 ? "armed" : "thrown", fuse));
         if(vr_gft_case == 3)
@@ -193,7 +222,7 @@ void(entity p) VR_GFT_Run =
         return;
     }
     // (3) its blast done: the next grenade, or the comparison.
-    if(vr_gft_case < 3)
+    if(vr_gft_case < 4)
     {
         vr_gft_case++;
         VR_GFT_To(1, 0);
