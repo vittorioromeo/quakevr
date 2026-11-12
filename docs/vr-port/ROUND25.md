@@ -300,3 +300,8 @@ wins), and the fuse's countdown sound on launched grenades too.
   heads`: frame 0 0.454/0.454, frame 1 0.000/0.454, frame 2 0.000/0.000 (old model: 0.454 every loaded skin). 4
   passed. `vr_flashlight_probe` prints a `ssg open` line for the super shotgun; `vr_reload_debug 2`'s `ssg: hand` line
   adds the barrels' frame and skin. Scene `ssg_open_torch`.
+## armorgear: his weapon tweaks promoted; pouch and torso torch stand forward of the armour
+
+- Promoted (weapons_data.py promote, 22 fields): slot 24 (super axe) blade shape bl_* (bl_from, bl_org, bl_spine, bl_width, bl_s1..s5 off/side, added) and muzzle (-0.071,0.21,-0.82 -> -0.3337,0.2381,4.688); slot 36 torch_fwd/out/up added. weapons.txt is sparse so no vr_wofs_version bump. Also tunables vr_nav_lifts 1 and vr_nav_plat_monsters 1 (tune_promote.py; --check 0). No test reads them.
+- New: vr_ammo_pouch_armor_x (units) and vr_flashlight_armor_forward (m), both default 0 (not measured: the screenshot's armour needs a headset view), applied only while view::playerArmourShown() (plates on, a piece worn, body drawn). Menu rows beside the pouch X and the belt torch Forward; Reset Body and Equipment resets them.
+- Check: Misc/quakevr/armorgear_test.sh (vr_armorgear_check): with plates the pouch moved 5.000 units and the torch 0.0400 m forward as set, without none: 2 passed, 0 failed. vr_menu_path_check: 0 missing.

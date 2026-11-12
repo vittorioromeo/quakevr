@@ -343,6 +343,8 @@ QVR_SLIDER(vr_flashlight_clip_time, "Clip-On Transition", 0.f, 0.5f, 0.01f, "%.2
 QVR_SLIDER(vr_flashlight_tilt, "Lean Out", -90.f, 90.f, 1.f, "%.0f deg", ext(),
     "How far the stored torch, hanging on your belt lens down, leans its lens out from your body.")
 QVR_SLIDER(vr_flashlight_forward, "Forward", -0.3f, 0.3f, 0.005f, "%.3f m", ext(), nullptr)
+QVR_SLIDER(vr_flashlight_armor_forward, "Forward With Armour", -0.3f, 0.3f, 0.005f, "%.3f m", ext(),
+    "Added to Forward while the armour's plates show on your body, so the torch stands clear of them. 0: no change.")
 QVR_SLIDER(vr_flashlight_up, "Up", -0.4f, 0.4f, 0.01f, "%.2f m", ext(), nullptr)
 QVR_SLIDER(vr_flashlight_out, "Out", -0.3f, 0.3f, 0.01f, "%.2f m", ext(), "Away from your middle, towards its side.")
 
@@ -3277,6 +3279,8 @@ QVR_SLIDER_BYNAME(vr_reload_pouch_catch_reach, "Falling In Reach", 0.f, 20.f, 1.
 QVR_TOGGLE_BYNAME(vr_ammo_pouch_show, "Show", "Draw the pouch (off: it still works where it is).")
 QVR_SLIDER_BYNAME(vr_ammo_pouch_x, "X", -10.f, 10.f, 0.25f, "%.2f", ext(),
     "Forward (negative: back, round the hips). With the body drawn, 0 is on the belly.")
+QVR_SLIDER_BYNAME(vr_ammo_pouch_armor_x, "X With Armour", -10.f, 10.f, 0.25f, "%.2f", ext(),
+    "Added to X while the armour's plates show on your body, so the pouch stands clear of them. 0: no change.")
 QVR_SLIDER_BYNAME(vr_ammo_pouch_y, "Y", -10.f, 10.f, 0.25f, "%.2f", ext(), "To the right (negative: left).")
 QVR_SLIDER_BYNAME(vr_ammo_pouch_z, "Z", -10.f, 10.f, 0.25f, "%.2f", ext(), "Up, from the hip holsters' height.")
 QVR_SLIDER_BYNAME(vr_ammo_pouch_thresh, "Reach", 0.5f, 20.f, 0.25f, "%.2f", ext(0.f, 40.f),

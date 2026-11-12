@@ -443,6 +443,9 @@ enum class PlatePass : int
 [[nodiscard]] int plateBonePoses(const entity_t* e, const float** matrices, PlatePass pass);
 // A new level or a load's armour coming (agarmor::parseEvent): the next word on the plates taken as it comes, no morph.
 void platesResync();
+// Whether the armour's plates show on your body this frame (vr_player_plates on, a piece worn, the body drawn): what the
+// ammo pouch and the belt torch ask to move forward off them (vr_ammo_pouch_armor_x, vr_flashlight_armor_forward).
+[[nodiscard]] bool playerArmourShown();
 // vr_player_plates_info: what's drawn this frame.
 void platesInfo_f();
 // vr_player_plates_model_check [end]: the plates drawn as the drawn body's own armour model (`ppmodel: ok|FAIL ...`); `end`
