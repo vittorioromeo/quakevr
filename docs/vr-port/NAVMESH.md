@@ -480,3 +480,15 @@ now also waits for the player before its first spawn: it had a program error whe
   entry: no teleporter link begun in 20 s), `nav_tele_gate` (vrteleporters: a dog through a paired gate),
   `nav_lift` (the knight below rides up; you stand clear of the shaft: you used to stand on its edge and fell in),
   `nav_lift_down` (a knight up top calls the lift, rides down to you).
+- **Also for lifts:** the polygons a lift link starts from are never blocked by the plat (a plat up at its top is a
+  column over the bottom floor whose blocking reached the boarding place: a walker's path down broke each time it
+  called the lift, and it walked off and back); no lift call while another walker waits or boards below; a monster on
+  a raised plat no longer holds it up (QC `plat_center_touch`: only a player's touch delays its return), so it rides it
+  down (Quake's own plats never carried anyone down).
+- **Results** (headless, no-LTO low-impact runs): `nav_tele_gate` passes (through in 0.7 s, by you at 0.9 s);
+  `nav_lift` passes (boards at 3.4 s, by you at 5.0 s; the player now stays put); `nav_tele_oneway` passes (two drop
+  links the long way, no teleporter begun in 20 s). Open: `nav_tele` fails: the grunt by e1m1's teleporter never
+  steers once you are through (no path asked for: Quake's chase or the AI holds it; `vr_ai_enhanced 0` too).
+  `nav_lift_down` fails: its knight stands 40 from the shaft at the top for 60 s without starting the link (no wait,
+  no call). Seen meanwhile on the same map: one of e1m1's own grunts at the top waited, called the lift up, boarded
+  it (before the plat fix it then gave up as the plat stayed up under it).

@@ -426,7 +426,9 @@ covered by the probe. Release-TracyFull: see the report.
   0.7 s, beside you at 0.9 s); `nav_lift` passes (boards at 3.4 s, rides, steps off, by you at 5.0 s; you stay put now:
   the old spot was on the shaft's edge); `nav_tele_oneway` passes (the dog takes two drop links the long way, no
   teleporter link begun in 20 s). `nav_tele` fails: e1m1's grunt never chases you once you are through (no steer at
-  all, even with `vr_ai_enhanced 0`): open. `nav_lift_down`: see NAVMESH.md 16 for its last run.
+  all, even with `vr_ai_enhanced 0`): open. `nav_lift_down` fails: its knight stands at the top by the shaft without
+  starting the link (open; e1m1's own grunt was seen waiting, calling the lift and boarding). The existing navmesh
+  tests (nav_drop, arena 36/41, crowd) were not re-run (budget).
 ## flatkeys: flat-play keys bindable from the menu
 
 - New page Locomotion > Desktop Screen Play > Flat Keys: one row per key flat play reads itself (17: lean left/right, lie down, swap hands, force grab, shove, punch, reload, drop, quick grenade, bullet time, flashlight, holster menu, fly camera, toolgun, its panel, its adjust), a "Reset Flat Keys" row. Enter, A or a click waits for a key ("Press a key...", Escape keeps it), Backspace/Delete/Y clears; the row writes its `vr_flat_key_*` cvar (the key's bind name; stays the default's spelling when it is the default, so the config is sparse).
