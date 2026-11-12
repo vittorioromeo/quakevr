@@ -93,6 +93,12 @@ glm::vec3 aiMap(int gate, const glm::vec3& value, bool direction);
 // it (vr_portals_monsters). aiGateFace: the side whose own face it is (an exit: its pair's), 0 none. aiGateVec: its
 // face's middle (0), its normal (1, towards its room), p on its plane held to its aperture (2), p carried through (3).
 int aiGateCount();
+// Whether a trigger_teleport takes what touches it now (Quake's teleport_touch: one with a targetname is shut till it is
+// fired, unless it ignores its targetname). The navmesh's teleporter links (vr_nav.cpp) close while it is shut.
+bool teleporterOpen(const edict_s* trigger);
+// Whether a monster walks through that trigger's gate (a paired gate, vr_portals_monsters) rather than being teleported
+// on touching it: it must then fit the gate's aperture and step over its sill (the navmesh's teleporter links).
+bool teleporterWalked(int trigger);
 int aiGateFlags(int gate);
 int aiGateFace(int gate);
 glm::vec3 aiGateVec(int gate, int what, const glm::vec3& p);

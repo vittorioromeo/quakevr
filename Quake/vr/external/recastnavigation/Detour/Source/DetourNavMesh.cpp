@@ -521,6 +521,66 @@ void dtNavMesh::connectExtOffMeshLinks(dtMeshTile* tile, dtMeshTile* target, int
 
 }
 
+// QVR: far off-mesh links. Detour joins a link's end only to its start tile and that tile's 8 neighbours; a teleporter's
+// link ends anywhere. A far link (its end's tile more than one tile from its start's) is joined to the tile its end is
+// in, whichever of the two is added first (addTile), and unjoined when that tile goes (removeTile). One way only: no
+// link back from the landing polygon, so removing the start's tile leaves nothing behind in the landing tile.
+static bool qvrFarCon(const dtMeshTile* target, const dtOffMeshConnection* con, int ex, int ey)
+{
+	return (con->flags & DT_OFFMESH_CON_BIDIR) == 0 && (dtAbs(ex - target->header->x) > 1 || dtAbs(ey - target->header->y) > 1);
+}
+
+bool dtNavMesh::landsFarAt(const dtMeshTile* target, int x, int y) const
+{
+	if (!target || !target->header) return false;
+	for (int i = 0; i < target->header->offMeshConCount; ++i)
+	{
+		const dtOffMeshConnection* con = &target->offMeshCons[i];
+		int ex, ey;
+		calcTileLoc(&con->pos[3], &ex, &ey);
+		if (ex == x && ey == y && qvrFarCon(target, con, ex, ey))
+			return true;
+	}
+	return false;
+}
+
+void dtNavMesh::connectFarOffMeshLinks(dtMeshTile* tile, dtMeshTile* target)
+{
+	if (!tile || !target || tile == target || !tile->header || !target->header) return;
+	for (int i = 0; i < target->header->offMeshConCount; ++i)
+	{
+		dtOffMeshConnection* targetCon = &target->offMeshCons[i];
+		int ex, ey;
+		calcTileLoc(&targetCon->pos[3], &ex, &ey);
+		if (ex != tile->header->x || ey != tile->header->y || !qvrFarCon(target, targetCon, ex, ey))
+			continue;
+		dtPoly* targetPoly = &target->polys[targetCon->poly];
+		if (targetPoly->firstLink == DT_NULL_LINK)
+			continue;
+		const float halfExtents[3] = { targetCon->rad, target->header->walkableClimb, targetCon->rad };
+		const float* p = &targetCon->pos[3];
+		float nearestPt[3];
+		dtPolyRef ref = findNearestPolyInTile(tile, p, halfExtents, nearestPt);
+		if (!ref)
+			continue;
+		if (dtSqr(nearestPt[0]-p[0])+dtSqr(nearestPt[2]-p[2]) > dtSqr(targetCon->rad))
+			continue;
+		float* v = &target->verts[targetPoly->verts[1]*3];
+		dtVcopy(v, nearestPt);
+		unsigned int idx = allocLink(target);
+		if (idx != DT_NULL_LINK)
+		{
+			dtLink* link = &target->links[idx];
+			link->ref = ref;
+			link->edge = (unsigned char)1;
+			link->side = 0xff;
+			link->bmin = link->bmax = 0;
+			link->next = targetPoly->firstLink;
+			targetPoly->firstLink = idx;
+		}
+	}
+}
+
 void dtNavMesh::connectIntLinks(dtMeshTile* tile)
 {
 	if (!tile) return;
@@ -1047,7 +1107,28 @@ dtStatus dtNavMesh::addTile(unsigned char* data, int dataSize, int flags,
 			connectExtOffMeshLinks(neis[j], tile, dtOppositeTile(i));
 		}
 	}
-	
+
+	// QVR: far off-mesh links into this tile, and this tile's far links into the others (connectFarOffMeshLinks).
+	bool hasFar = false;
+	for (int i = 0; i < header->offMeshConCount && !hasFar; ++i)
+	{
+		int ex, ey;
+		calcTileLoc(&tile->offMeshCons[i].pos[3], &ex, &ey);
+		hasFar = qvrFarCon(tile, &tile->offMeshCons[i], ex, ey);
+	}
+	if (hasFar)
+		tile->flags |= DT_TILE_QVR_FAR;
+	for (int i = 0; i < m_maxTiles; ++i)
+	{
+		dtMeshTile* other = &m_tiles[i];
+		if (other == tile || !other->header)
+			continue;
+		if (other->flags & DT_TILE_QVR_FAR)
+			connectFarOffMeshLinks(tile, other);
+		if (hasFar)
+			connectFarOffMeshLinks(other, tile);
+	}
+
 	if (result)
 		*result = getTileRef(tile);
 	
@@ -1287,7 +1368,15 @@ dtStatus dtNavMesh::removeTile(dtTileRef ref, unsigned char** data, int* dataSiz
 		for (int j = 0; j < nneis; ++j)
 			unconnectLinks(neis[j], tile);
 	}
-		
+
+	// QVR: far off-mesh links landing in this tile (connectFarOffMeshLinks).
+	for (int i = 0; i < m_maxTiles; ++i)
+	{
+		dtMeshTile* other = &m_tiles[i];
+		if (other != tile && other->header && (other->flags & DT_TILE_QVR_FAR) && landsFarAt(other, tile->header->x, tile->header->y))
+			unconnectLinks(other, tile);
+	}
+
 	// Reset tile.
 	if (tile->flags & DT_TILE_FREE_DATA)
 	{

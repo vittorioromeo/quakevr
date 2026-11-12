@@ -99,7 +99,9 @@ static const int DT_MAX_AREAS = 64;
 enum dtTileFlags
 {
 	/// The navigation mesh owns the tile memory and is responsible for freeing it.
-	DT_TILE_FREE_DATA = 0x01
+	DT_TILE_FREE_DATA = 0x01,
+	/// QVR: set by addTile: the tile has far off-mesh links (dtNavMesh::connectFarOffMeshLinks).
+	DT_TILE_QVR_FAR = 0x40000000
 };
 
 /// Vertex flags returned by dtNavMeshQuery::findStraightPath.
@@ -638,7 +640,12 @@ private:
 	void connectExtLinks(dtMeshTile* tile, dtMeshTile* target, int side);
 	/// Builds external polygon links for a tile.
 	void connectExtOffMeshLinks(dtMeshTile* tile, dtMeshTile* target, int side);
-	
+
+	/// QVR: far off-mesh links (a teleporter's: its end beyond the start tile's neighbours, one way only). Builds those
+	/// of `target` that land in `tile`; whether `target` has one landing at tile location (x, y).
+	void connectFarOffMeshLinks(dtMeshTile* tile, dtMeshTile* target);
+	bool landsFarAt(const dtMeshTile* target, int x, int y) const;
+
 	/// Removes external links at specified side.
 	void unconnectLinks(dtMeshTile* tile, dtMeshTile* target);
 	

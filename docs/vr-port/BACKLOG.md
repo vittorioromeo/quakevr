@@ -66,8 +66,12 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
 
 ## 4. Monsters' movement: the navmesh (NAVMESH.md)
 
-- **Lifts finished** (NAVMESH.md 10): on by default after a scene where the player stays put with a reach verdict, and
-  the waiting-at-the-top case; trains where they stop.
+- **Teleporters** (NAVMESH.md 16): walkers path through teleporters (one-way far links, shut ones closed, paired gates
+  walked through when the box fits). Left: a scene on a map whose teleporter is gated by a button; AD's own
+  `trigger_teleport` states (STARTOFF, estate) beyond the targetname rule.
+- **Lifts** (NAVMESH.md 10, 16): on by default; the reach scene (`nav_lift`) and the waiting-at-the-top case
+  (`nav_lift_down`: the lift is called up). Left: a scene for a train (every id train with stops is triggered first:
+  e2m6's elevator, e3m4's).
 - **Flyers and swimmers**: a 3D grid of open space for scrags and fish (NAVMESH.md 7).
 - **Flanking and cover**: goal slots round the player, extra cost on polygons other monsters' paths use, cover use
   (NAVMESH.md 7, 11).

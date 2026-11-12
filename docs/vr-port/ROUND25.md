@@ -410,6 +410,25 @@ covered by the probe. Release-TracyFull: see the report.
 - New: vr_ammo_pouch_armor_x (units) and vr_flashlight_armor_forward (m), both default 0 (not measured: the screenshot's armour needs a headset view), applied only while view::playerArmourShown() (plates on, a piece worn, body drawn). Menu rows beside the pouch X and the belt torch Forward; Reset Body and Equipment resets them.
 - Check: Misc/quakevr/armorgear_test.sh (vr_armorgear_check): with plates the pouch moved 5.000 units and the torch 0.0400 m forward as set, without none: 2 passed, 0 failed. vr_menu_path_check: 0 missing.
 
+## navtele: monsters path through teleporters; lifts finished (branch agent/navtele, 2026-11-12)
+
+- Teleporter links (NAVMESH.md 16): `vr_nav_teleports` 1, `vr_nav_tele_cost` 0.05, `vr_nav_tele_time` 4 (Debug >
+  Tunables). One link list and cost model with drops and rides; one-way far off-mesh links joined across tiles by a
+  small marked patch in the vendored Detour (`connectFarOffMeshLinks`, `landsFarAt`, `DT_TILE_QVR_FAR`); shut triggers
+  (a targetname waiting to be fired) close their links each movers tick (`portals::teleporterOpen`, the gates' own
+  rule); paired gates monsters walk through (`portals::teleporterWalked`) must fit the box. `navVersion` 6.
+- Lifts: a walker waiting at a lift's top calls it up (QC `VR_NAV_CallLift`, not while another waits or boards below);
+  a monster standing on a raised plat no longer holds it up (only a player's touch delays its return), so it rides it
+  down; the polygons a lift link starts from are never blocked by the plat's column (the waiting place beside it).
+- Reach test: `tele` and `notele` kinds, its time-out and nearness checked every server frame (a walker shooting or
+  biting doesn't steer).
+- Scenes (headless, no-LTO low-impact): `nav_tele_gate` passes (the dog through vrteleporters' large paired gate in
+  0.7 s, beside you at 0.9 s); `nav_lift` passes (boards at 3.4 s, rides, steps off, by you at 5.0 s; you stay put now:
+  the old spot was on the shaft's edge); `nav_tele_oneway` passes (the dog takes two drop links the long way, no
+  teleporter link begun in 20 s). `nav_tele` fails: e1m1's grunt never chases you once you are through (no steer at
+  all, even with `vr_ai_enhanced 0`): open. `nav_lift_down` fails: its knight stands at the top by the shaft without
+  starting the link (open; e1m1's own grunt was seen waiting, calling the lift and boarding). The existing navmesh
+  tests (nav_drop, arena 36/41, crowd) were not re-run (budget).
 ## flatkeys: flat-play keys bindable from the menu
 
 - New page Locomotion > Desktop Screen Play > Flat Keys: one row per key flat play reads itself (17: lean left/right, lie down, swap hands, force grab, shove, punch, reload, drop, quick grenade, bullet time, flashlight, holster menu, fly camera, toolgun, its panel, its adjust), a "Reset Flat Keys" row. Enter, A or a click waits for a key ("Press a key...", Escape keeps it), Backspace/Delete/Y clears; the row writes its `vr_flat_key_*` cvar (the key's bind name; stays the default's spelling when it is the default, so the config is sparse).
@@ -485,6 +504,9 @@ His words: a lit grenade force-grabbed out of the air has a sound discontinuity;
 - **Cue:** `vr/grenade_pin.wav` at 150% pitch, volume 0.5, on CHAN_ITEM, and one 12-spark flare (`VR_Grenade_Sparks`, shared with the countdown trickle).
 - **Test:** `vr_grenfuse_test 1` case 4 (launcher grenade, its tick sees a hand 1.5 s in): blast 2.514 s after the grab, cue once, 10 ticks (one stream). 24 passed, 0 failed (lines need `developer 1`). Not heard/seen in a headset.
 
+## navcheck (agent/navtele regression run)
+
+Existing navmesh tests on agent/navtele (no-LTO, low-impact): vr_nav_cliptest/toptest e1m1 pass; vr_arena_test 36 16/0; nav_lift, nav_lift_down, nav_tele_oneway, nav_tele_gate, nav_crowd (11/11 came, 0 stalls) pass; nav_tele fails (known open); vr_arena_test 41 seed 7: 12-13 passed, 2-3 failed, capped 2-3 of 60 (NAVMESH.md recorded 1; the "down" trials; origin/next not checked). Harness notes: a scene's cmd lines are queued after a -Script's remaining text, so scripts must type those commands themselves; QC test verdicts need "developer 1"; nav_lift and nav_tele_gate failed once with a wait100 start, then passed on rerun.
 ## throwgib: a blade thrown blade first kills whole, deep in the body (branch agent/throwgib, 2026-11-12)
 
 His words: a running sword throw that lands point first fully gibs a grunt; keep the damage, embed it deeply; a bladed throw that hits with the blade never fully gibs unless Quad.

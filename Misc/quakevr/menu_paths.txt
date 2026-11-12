@@ -4686,6 +4686,9 @@ vr_nav_drop_time|2|Tunables|Navmesh: Drop Give-Up Time|Advanced VR Options > Deb
 vr_nav_lifts|2|Tunables|Navmesh: Lift Links|Advanced VR Options > Debug > Tunables > Navmesh: Lift Links
 vr_nav_lift_cost|2|Tunables|Navmesh: Lift Cost|Advanced VR Options > Debug > Tunables > Navmesh: Lift Cost
 vr_nav_lift_wait|2|Tunables|Navmesh: Lift Give-Up Time|Advanced VR Options > Debug > Tunables > Navmesh: Lift Give-Up Time
+vr_nav_teleports|2|Tunables|Navmesh: Teleporter Links|Advanced VR Options > Debug > Tunables > Navmesh: Teleporter Links
+vr_nav_tele_cost|2|Tunables|Navmesh: Teleporter Cost|Advanced VR Options > Debug > Tunables > Navmesh: Teleporter Cost
+vr_nav_tele_time|2|Tunables|Navmesh: Teleporter Give-Up Time|Advanced VR Options > Debug > Tunables > Navmesh: Teleporter Give-Up Time
 vr_nav_link_retry|2|Tunables|Navmesh: Link Retry Time|Advanced VR Options > Debug > Tunables > Navmesh: Link Retry Time
 vr_nav_plat_monsters|2|Tunables|Monsters Call Lifts|Advanced VR Options > Debug > Tunables > Monsters Call Lifts
 vr_nav_separation|2|Tunables|Navmesh: Crowd Separation|Advanced VR Options > Debug > Tunables > Navmesh: Crowd Separation

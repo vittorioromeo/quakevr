@@ -1,0 +1,17 @@
+# nav_tele_oneway: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". e1m1's one-way teleporter
+# from its far side: a dog at its destination chases you, standing by the teleporter's entry at the far end of the
+# level. There is no teleporter back, so it never goes for one (no link back: vr_nav_teleports links are one way): it
+# takes the long way or waits. The reach test's verdict line (nav_tele_oneway: 1 passed) after 20 s with no teleporter
+# link begun, a fail as soon as one is.
+title Navmesh: a dog at a one-way teleporter's far end doesn't try to go back through it
+map e1m1
+start -32 2000 -29 -90
+god
+spawn monster_dog 200 100
+cvar vr_nav 1
+cvar vr_nav_debug 2
+cvar vr_nav_teleports 1
+cvar vr_ai_enhanced 0
+cmd setpos 1312 1000 -380
+cmd vr_nav_reachtest nav_tele_oneway 0 20 notele monster_dog
+hint You stand by the teleporter at the far end of the level; the dog at its destination by the start can't come back through it (one way), so it runs the long way round instead of into a teleporter.

@@ -1,13 +1,16 @@
 # nav_lift: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". A knight at the bottom of e1m1's big
 # lift (the plat by the start) walks onto it, it rises (the knight calls it: vr_nav_plat_monsters) and it steps off to
-# you at the top; links drawn (vr_nav_debug 2: lift links magenta). You stand at the top.
+# you at the top; links drawn (vr_nav_debug 2: lift links magenta). You stand at the top, clear of the shaft. The reach
+# test's verdict line (nav_lift: 1 passed) as it comes within 160 of you after the ride, 60 s at most.
 title Navmesh: a knight rides the lift up to you
 map e1m1
-start -544 2590 58 0
+start -466 2662 -96 90
 god
-spawn "Knight" 78 72 -150
+spawn "Knight" 60 0
 cvar vr_nav 1
 cvar vr_nav_debug 2
 cvar vr_nav_lifts 1
 cvar vr_nav_plat_monsters 1
-hint The knight below walks onto the lift, rides it up and comes for you (lift links magenta, its path yellow); shoot down at it if it doesn't notice you. With Navmesh: Lift Links off (Debug > Tunables, then reload) it stays below.
+cmd setpos -544 2540 58
+cmd vr_nav_reachtest nav_lift 160 60 ride monster_knight
+hint The knight below walks onto the lift, rides it up and comes for you (lift links magenta, its path yellow). With Navmesh: Lift Links off (Debug > Tunables, then reload) it stays below.

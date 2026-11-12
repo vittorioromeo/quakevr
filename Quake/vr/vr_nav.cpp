@@ -10,6 +10,7 @@
 #include "vr_hull.hpp"
 #include "vr_jobs.hpp"
 #include "vr_lines.hpp"
+#include "vr_portals.hpp"
 #include "vr_progs.hpp"
 #include "vr_testkit.hpp"
 #include "vr_trace.hpp"
@@ -43,14 +44,16 @@ namespace
 {
 
 // Bumped whenever the build could make another mesh from the same input (the steps, their constants, the areas).
-// 2: drop and lift links. 4: the narrow band (vr_nav_narrow; 3 its first try, drop links from the band).
-constexpr unsigned navVersion = 4;
+// 2: drop and lift links. 4: the narrow band (vr_nav_narrow; 3 its first try, drop links from the band). 5: teleporter
+// links (5 their first try).
+constexpr unsigned navVersion = 6;
 constexpr char navMagic[5] = "QVNM";
 
 // Detour's areas and flags. areaNarrow: the narrow band's dry floor (closer to walls and ledges than the clearance).
-constexpr unsigned char areaGround = 1, areaWater = 2, areaSlime = 3, areaLava = 4, areaDrop = 5, areaLift = 6, areaNarrow = 7;
+constexpr unsigned char areaGround = 1, areaWater = 2, areaSlime = 3, areaLava = 4, areaDrop = 5, areaLift = 6, areaNarrow = 7,
+                        areaTele = 8;
 constexpr unsigned char rcNarrowArea = 62; // (Recast's area of the band's spans, till the polygons get theirs)
-constexpr unsigned short flagWalk = 1, flagBlocked = 2, flagDrop = 4, flagLift = 8;
+constexpr unsigned short flagWalk = 1, flagBlocked = 2, flagDrop = 4, flagLift = 8, flagTele = 16;
 
 constexpr int maxPath = 256;    // polygons in a monster's path
 constexpr int maxCorners = 6;   // a path's straight corners looked at a step
@@ -82,6 +85,16 @@ struct Ride
     bool both;
 };
 
+// A teleporter a monster may use (a trigger_teleport, not players-only, with a destination): its trigger's edict and box
+// (Quake's space), where a monster arrives (the destination's point: Quake's teleport puts its origin there); `walked`:
+// a paired gate a monster walks through (portals::teleporterWalked: it must fit the aperture), else touching it teleports.
+struct Gate
+{
+    int trigger;
+    glm::vec3 lo, hi, dest;
+    bool walked;
+};
+
 // The map's walls and floors as triangles (Recast's space), the walkable ones (Quake's floor rule) marked.
 struct Geometry
 {
@@ -96,6 +109,7 @@ struct Geometry
     za::Vector<hull::NavBrush> solids;
     za::Vector<glm::vec4> boxes;
     za::Vector<Ride> rides; // the lifts' and trains' rides (gatherRides)
+    za::Vector<Gate> gates; // the teleporters (gatherGates)
     za::U64 hash = 0;
     int brushes = 0, clipBrushes = 0, entityBrushes = 0;
     double ms = 0.0;
@@ -117,8 +131,9 @@ struct TileSrc
     rcPolyMeshDetail* dmesh;
 };
 
-// An off-mesh link (Recast's space): a drop off a ledge (areaDrop) or a ride on a lift or train (areaLift, its ride's
-// index plus one as the id).
+// An off-mesh link (Recast's space): a drop off a ledge (areaDrop), a ride on a lift or train (areaLift, its ride's
+// index plus one as the id) or a teleporter (areaTele, its gate's index plus one; a far link: DetourNavMesh.cpp's
+// connectFarOffMeshLinks joins it to any tile).
 struct Link
 {
     float pos[6];
@@ -135,6 +150,7 @@ struct Settings
     int tile;
     float drops, dropMax, dropMaxBig, lifts; // (the links': vr_nav_drop, its heights, vr_nav_lifts)
     float narrow; // (vr_nav_narrow: the narrow band's clearance, times the half width; 0 none)
+    float teles;  // (vr_nav_teleports)
 };
 
 // A prop's footprint cut out of the navmesh (props as obstacles): a convex outline (Quake's x, y) and its height's span.
@@ -172,9 +188,10 @@ struct NavClass
     double ms = 0.0;          // the build's (or the file's read)
     double joinMs = 0.0;      // its join on the main thread (the mesh made, the file written): a hitch if long
     bool fromDisk = false, failed = false;
-    int polys = 0, tiles = 0, drops = 0, lifts = 0;
+    int polys = 0, tiles = 0, drops = 0, lifts = 0, teles = 0;
     za::SizeT bytes = 0;
     za::Vector<dtPolyRef> blocked; // polygons a door or lift stands on (flagBlocked)
+    za::Vector<dtPolyRef> boarding; // polygons lift links start from, never blocked (refreshMovers' scratch)
     // The job's results, taken at its join: the mesh and its query, the cache file's data (its tiles' count, checksum).
     dtNavMesh* jobMesh = nullptr;
     dtNavMeshQuery* jobQuery = nullptr;
@@ -218,6 +235,7 @@ struct Agent
     glm::vec3 linkFrom{0.f}, linkTo{0.f}, board{0.f}, leave{0.f};
     double linkSince = 0.0, phaseSince = 0.0;
     bool airborne = false;
+    glm::vec3 teleAim{0.f}, teleLast{0.f}; // a teleporter: where it walks (through the trigger's middle), where it last stood
     dtPolyRef waitLink = 0;   // the lift link it waits at, since when
     double waitSince = 0.0;
     double noLinksUntil = 0.0; // a link given up: plans without links till then
@@ -286,6 +304,7 @@ struct State
     bool ready = false;       // a map's geometry gathered
     int steers = 0, paths = 0, fallbacks = 0;
     int drops = 0, rides = 0, linkFails = 0; // links taken to their end, given up
+    int teles = 0, telesBegun = 0;           // teleporters gone through, teleporter links begun
     za::Vector<Crowd> crowd;  // the live walkers, as of crowdAt
     double crowdAt = -1.0;
     za::Vector<PropTrack> props; // by edict number (refreshProps)
@@ -428,6 +447,30 @@ void gatherRides(const za::Vector<int>& movers, Geometry& g)
     }
 }
 
+// The teleporters a monster may use (main thread, at the load): each trigger_teleport (and its variants) that is not
+// players-only, with its destination (Quake's teleport_touch: the first entity named its target). One with a targetname
+// is gated by its state at run time (refreshGates), not here: its links are closed while it is shut.
+void gatherGates(Geometry& g)
+{
+    g.gates.clear();
+    progs::forEachEdict(1, [&](edict_t* e) {
+        const char* cls = e->v.classname ? PR_GetString(e->v.classname) : "";
+        if(strncmp(cls, "trigger_teleport", 16) != 0 || static_cast<int>(e->v.solid) != SOLID_TRIGGER || !e->v.target ||
+            (static_cast<int>(e->v.spawnflags) & 1)) // (PLAYER_ONLY)
+        {
+            return;
+        }
+        const char* target = PR_GetString(e->v.target);
+        const edict_t* dest = target[0] ? findByTargetname(target) : nullptr;
+        if(!dest)
+        {
+            return;
+        }
+        g.gates.pushBack(Gate{NUM_FOR_EDICT(e), geom::vec(e->v.absmin), geom::vec(e->v.absmax), geom::vec(dest->v.origin),
+            portals::teleporterWalked(NUM_FOR_EDICT(e))});
+    });
+}
+
 // Each brush's faces as triangles (on the pool: brushes::forEachPolygon per brush, chunks merged in order).
 void triangulate(const BrushSet& set, Geometry& g)
 {
@@ -523,7 +566,7 @@ Settings settingsNow()
     return Settings{za::max(vr_nav_cell.value, 0.5f), za::max(vr_nav_cell_height.value, 0.25f), za::max(vr_nav_climb.value, 0.f),
         vr_nav_slope.value, za::max(vr_nav_clearance.value, 0.f), za::max(static_cast<int>(vr_nav_tile.value), 8),
         vr_nav_drop.value != 0.f ? 1.f : 0.f, za::max(vr_nav_drop_max.value, 0.f), za::max(vr_nav_drop_max_big.value, 0.f),
-        vr_nav_lifts.value != 0.f ? 1.f : 0.f, za::max(vr_nav_narrow.value, 0.f)};
+        vr_nav_lifts.value != 0.f ? 1.f : 0.f, za::max(vr_nav_narrow.value, 0.f), vr_nav_teleports.value != 0.f ? 1.f : 0.f};
 }
 
 unsigned char areaAt(const glm::vec3& q)
@@ -852,7 +895,7 @@ unsigned checksum(const char* p, za::SizeT n);
 // A mesh's counts: its tiles, polygons, bytes and links (drops, lifts).
 void countMesh(const dtNavMesh& mesh, NavClass& c)
 {
-    c.polys = c.tiles = c.drops = c.lifts = 0;
+    c.polys = c.tiles = c.drops = c.lifts = c.teles = 0;
     c.bytes = 0;
     for(int i = 0; i < mesh.getMaxTiles(); ++i)
     {
@@ -870,6 +913,7 @@ void countMesh(const dtNavMesh& mesh, NavClass& c)
             c.polys += con ? 0 : 1;
             c.drops += con && poly.getArea() == areaDrop ? 1 : 0;
             c.lifts += con && poly.getArea() == areaLift ? 1 : 0;
+            c.teles += con && poly.getArea() == areaTele ? 1 : 0;
         }
     }
 }
@@ -1154,6 +1198,72 @@ void findRides(const Geometry& g, const Settings& s, const NavClass& c, const Br
     }
 }
 
+// Teleporter links: from the mesh inside each gate's trigger (or where the mesh comes nearest it, the box then reaching
+// into it) to the mesh under its destination, one way (a way back is another trigger's own link). Far links: their end
+// is joined in whatever tile it lies (DetourNavMesh.cpp, connectFarOffMeshLinks), so a teleporter across the map is one
+// step of a path as a drop or a ride is.
+// A gate's link ends for a class (Recast's space): 0 found; 1 no mesh at the trigger, 2 the box can't reach into it or
+// doesn't fit it, 3 no mesh at the destination (vr_nav_links prints why).
+int teleEnds(const Settings& s, const NavClass& c, const dtNavMeshQuery& query, const Gate& gate, float* in, float* out)
+{
+    dtQueryFilter all;
+    const float r = c.radius;
+    const glm::vec3 half = (gate.hi - gate.lo) * 0.5f;
+    const glm::vec3 inRc = toRc(glm::vec3{(gate.lo.x + gate.hi.x) * 0.5f, (gate.lo.y + gate.hi.y) * 0.5f, gate.lo.z});
+    const float inExt[3] = {half.x + r * s.clearance + 16.f, za::max(half.z, s.climb) + 16.f, half.y + r * s.clearance + 16.f};
+    dtPolyRef inRef = 0;
+    if(dtStatusFailed(query.findNearestPoly(&inRc.x, inExt, &all, &inRef, in)) || !inRef)
+    {
+        return 1;
+    }
+    // The box standing there must reach into the trigger (Quake's teleport: touching it is enough). A paired gate, walked
+    // through, must fit it too: its bottom no more than a step over the floor there (a sill it can step onto), its top a
+    // box's height over that, its wide side the box's width (a crate hatch, a gate over a jump: not for monsters; a
+    // gate's trigger is its aperture).
+    const glm::vec3 iq = fromRc(in);
+    const float slack = r + 8.f;
+    if(iq.x < gate.lo.x - slack || iq.x > gate.hi.x + slack || iq.y < gate.lo.y - slack || iq.y > gate.hi.y + slack ||
+        iq.z + c.height <= gate.lo.z || iq.z >= gate.hi.z ||
+        (gate.walked && (gate.lo.z > iq.z + s.climb || gate.hi.z - za::max(gate.lo.z, iq.z) < c.height ||
+                            za::max(gate.hi.x - gate.lo.x, gate.hi.y - gate.lo.y) < r * 2.f)))
+    {
+        return 2;
+    }
+    // Where Quake's teleport puts the monster's origin; its feet a standing monster's 24 under (Quake's -24 mins).
+    const glm::vec3 outRc = toRc(gate.dest - glm::vec3{0.f, 0.f, 24.f});
+    const float outExt[3] = {r + 32.f, 64.f, r + 32.f};
+    dtPolyRef outRef = 0;
+    if(dtStatusFailed(query.findNearestPoly(&outRc.x, outExt, &all, &outRef, out)) || !outRef)
+    {
+        return 3;
+    }
+    return 0;
+}
+
+void findTeles(const Geometry& g, const Settings& s, const NavClass& c, const BrushGrid& bg, const dtNavMesh& mesh,
+    const dtNavMeshQuery& query, za::Vector<za::Vector<Link>>& links)
+{
+    const dtNavMeshParams* p = mesh.getParams();
+    for(za::SizeT gi = 0; gi < g.gates.size(); ++gi)
+    {
+        const Gate& gate = g.gates[gi];
+        float in[3], out[3];
+        if(teleEnds(s, c, query, gate, in, out) != 0)
+        {
+            continue;
+        }
+        Link l{};
+        dtVcopy(l.pos, in);
+        dtVcopy(l.pos + 3, out);
+        l.rad = s.cs * 2.f;
+        l.dir = 0;
+        l.area = areaTele;
+        l.flags = flagWalk | flagTele;
+        l.id = static_cast<unsigned>(gi) + 1;
+        addLink(links, tileIndexOf(*p, bg.tilesX, bg.tilesY, l.pos), l, 1.f);
+    }
+}
+
 // The class's Recast settings (each tile's bounds are set by buildTile) and its narrow band's radius (voxels).
 rcConfig classConfig(const Settings& s, const NavClass& c, const Grid& grid, int& narrowRadius)
 {
@@ -1298,6 +1408,10 @@ void buildClass(const Geometry& g, const Settings& s, NavClass& c)
         {
             findRides(g, s, c, bg, *mesh, *query, links);
         }
+        if(s.teles != 0.f)
+        {
+            findTeles(g, s, c, bg, *mesh, *query, links);
+        }
         for(za::SizeT i = 0; i < srcs.size(); ++i)
         {
             Tile t{};
@@ -1363,8 +1477,13 @@ za::String buildName()
 za::U64 keyOf(const Geometry& g, const Settings& s, const NavClass& c)
 {
     const float v[] = {s.cs, s.ch, s.climb, s.slope, static_cast<float>(s.tile), c.radius, c.height, s.clearance, s.drops, s.dropMax,
-        s.dropMaxBig, s.lifts, s.narrow};
+        s.dropMaxBig, s.lifts, s.narrow, s.teles};
     za::U64 h = diskcache::fnv(g.hash, v, sizeof(v));
+    for(const Gate& t : g.gates)
+    {
+        const float w[] = {t.lo.x, t.lo.y, t.lo.z, t.hi.x, t.hi.y, t.hi.z, t.dest.x, t.dest.y, t.dest.z, t.walked ? 1.f : 0.f};
+        h = diskcache::fnv(h, w, sizeof(w));
+    }
     for(const Ride& r : g.rides)
     {
         const float w[] = {r.a.x, r.a.y, r.a.z, r.b.x, r.b.y, r.b.z, r.mins.x, r.mins.y, r.mins.z, r.maxs.x, r.maxs.y, r.maxs.z,
@@ -1498,8 +1617,9 @@ void finishClass(NavClass& c)
 
 void printClass(const NavClass& c)
 {
-    Con_DPrintf("nav: class r%.0f h%.0f: %d tiles, %d polygons, %d drop and %d lift links, %.1f KB, %s %.1f ms\n", c.radius,
-        c.height, c.tiles, c.polys, c.drops, c.lifts, static_cast<double>(c.bytes) / 1024.0, c.fromDisk ? "read" : "built", c.ms);
+    Con_DPrintf("nav: class r%.0f h%.0f: %d tiles, %d polygons, %d drop, %d lift and %d teleporter links, %.1f KB, %s %.1f ms\n",
+        c.radius, c.height, c.tiles, c.polys, c.drops, c.lifts, c.teles, static_cast<double>(c.bytes) / 1024.0,
+        c.fromDisk ? "read" : "built", c.ms);
 }
 
 // A class's mesh from the disk cache, or built: on the pool (async) or now.
@@ -1670,6 +1790,25 @@ void refreshMovers()
             (void)c.mesh->setPolyFlags(r, flagWalk);
         }
         c.blocked.clear();
+        // (The polygons a lift link starts from stay open: a plat up at its top is a column over the bottom floor, and
+        // the boarding place beside it is where a walker waits for it to come down.)
+        za::Vector<dtPolyRef>& boarding = c.boarding;
+        boarding.clear();
+        for(int t = 0; t < c.mesh->getMaxTiles(); ++t)
+        {
+            const dtMeshTile* tile = static_cast<const dtNavMesh*>(c.mesh)->getTile(t);
+            for(int k = 0; tile && tile->header && k < tile->header->offMeshConCount; ++k)
+            {
+                const dtPoly& cp = tile->polys[tile->offMeshCons[k].poly];
+                for(unsigned l = cp.firstLink; cp.getArea() == areaLift && l != DT_NULL_LINK; l = tile->links[l].next)
+                {
+                    if(tile->links[l].edge == 0)
+                    {
+                        boarding.pushBack(tile->links[l].ref);
+                    }
+                }
+            }
+        }
         dtQueryFilter all;
         for(const int num : state.movers)
         {
@@ -1703,11 +1842,36 @@ void refreshMovers()
                     zhi = za::max(zhi, y);
                 }
                 // In the way: over the floor's step and under a monster's head.
-                if(lo.z < zhi + c.height - 1.f && hi.z > zlo + vr_nav_climb.value)
+                bool board = false;
+                for(const dtPolyRef b : boarding)
+                {
+                    board = board || b == refs[i];
+                }
+                if(!board && lo.z < zhi + c.height - 1.f && hi.z > zlo + vr_nav_climb.value)
                 {
                     (void)c.mesh->setPolyFlags(refs[i], flagWalk | flagBlocked);
                     c.blocked.pushBack(refs[i]);
                 }
+            }
+        }
+        // Teleporter links closed (flagBlocked) while their trigger is shut: one waiting to be fired (a targetname),
+        // as Quake's teleport_touch has it (portals::teleporterOpen).
+        const dtNavMesh& cm = *c.mesh;
+        for(int t = 0; t < cm.getMaxTiles(); ++t)
+        {
+            const dtMeshTile* tile = cm.getTile(t);
+            for(int k = 0; tile && tile->header && k < tile->header->offMeshConCount; ++k)
+            {
+                const dtOffMeshConnection& con = tile->offMeshCons[k];
+                if(tile->polys[con.poly].getArea() != areaTele)
+                {
+                    continue;
+                }
+                const za::SizeT gi = static_cast<za::SizeT>(con.userId) - 1;
+                const edict_t* trig = gi < state.geo.gates.size() ? progs::edictAt(state.geo.gates[gi].trigger) : nullptr;
+                const bool open = trig && portals::teleporterOpen(trig);
+                (void)c.mesh->setPolyFlags(cm.getPolyRefBase(tile) | static_cast<dtPolyRef>(con.poly),
+                    open ? flagWalk | flagTele : flagWalk | flagTele | flagBlocked);
             }
         }
     }
@@ -2216,8 +2380,9 @@ void setCosts()
     filter.setAreaCost(areaLava, za::max(vr_nav_lava_cost.value, 1.f));
     filter.setAreaCost(areaDrop, za::max(vr_nav_drop_cost.value, 0.1f));
     filter.setAreaCost(areaLift, za::max(vr_nav_lift_cost.value, 0.1f));
+    filter.setAreaCost(areaTele, za::max(vr_nav_tele_cost.value, 0.001f));
     filterNoLinks = filter;
-    filterNoLinks.setExcludeFlags(flagBlocked | flagDrop | flagLift);
+    filterNoLinks.setExcludeFlags(flagBlocked | flagDrop | flagLift | flagTele);
 }
 
 glm::vec3 feet(const edict_t* e)
@@ -2258,10 +2423,10 @@ void info_f()
                 }
             }
         }
-        Con_Printf("nav: class %d: radius %.0f height %.0f: %s, %d tiles, %d polygons (%d narrow), %d drop and %d lift links, %.1f KB, %s "
-                   "in %.1f ms (joined in %.1f ms), %d blocked\n",
+        Con_Printf("nav: class %d: radius %.0f height %.0f: %s, %d tiles, %d polygons (%d narrow), %d drop, %d lift and %d teleporter "
+                   "links, %.1f KB, %s in %.1f ms (joined in %.1f ms), %d blocked\n",
             static_cast<int>(i), c.radius, c.height, c.pending ? "building" : c.failed ? "FAILED" : "ready", c.tiles, c.polys, narrow,
-            c.drops, c.lifts, static_cast<double>(c.bytes) / 1024.0, c.fromDisk ? "read" : "built", c.ms, c.joinMs,
+            c.drops, c.lifts, c.teles, static_cast<double>(c.bytes) / 1024.0, c.fromDisk ? "read" : "built", c.ms, c.joinMs,
             static_cast<int>(c.blocked.size()));
     }
     // The walkers now on the map by class (a class's first one named), and any without a class (none expected).
@@ -2531,7 +2696,8 @@ void toptest_f()
 // vr_nav_links [class]: a class's links (its drops and rides), where they start and end.
 void links_f()
 {
-    NavClass* c = state.ready ? readyClass(Cmd_Argc() > 1 ? atoi(Cmd_Argv(1)) : 0) : nullptr;
+    const progs::ServerVm vm; // (the triggers' targetnames)
+    NavClass* c =state.ready ? readyClass(Cmd_Argc() > 1 ? atoi(Cmd_Argv(1)) : 0) : nullptr;
     if(c && c->pending)
     {
         joinClass(*c);
@@ -2548,6 +2714,19 @@ void links_f()
             static_cast<int>(i) + 1, r.mover, r.both ? "both ways" : "one way", r.a.x, r.a.y, r.a.z, r.b.x, r.b.y, r.b.z, r.mins.x,
             r.mins.y, r.mins.z, r.maxs.x, r.maxs.y, r.maxs.z);
     }
+    for(za::SizeT i = 0; i < state.geo.gates.size(); ++i)
+    {
+        const Gate& t = state.geo.gates[i];
+        const edict_t* trig = progs::edictAt(t.trigger);
+        float in[3], out[3];
+        static constexpr const char* whys[] = {"linked", "no mesh at the trigger", "the box can't reach into it or doesn't fit it",
+            "no mesh at the destination"};
+        const int why = teleEnds(settingsNow(), *c, *c->query, t, in, out);
+        const glm::vec3 iq = why == 0 || why == 2 ? fromRc(in) : glm::vec3{0.f};
+        Con_Printf("nav teleporter %d: edict %d, %s, trigger %.0f %.0f %.0f .. %.0f %.0f %.0f to %.0f %.0f %.0f: %s (entry %.0f %.0f %.0f)\n",
+            static_cast<int>(i) + 1, t.trigger, trig && portals::teleporterOpen(trig) ? "open" : "shut", t.lo.x, t.lo.y, t.lo.z, t.hi.x,
+            t.hi.y, t.hi.z, t.dest.x, t.dest.y, t.dest.z, whys[why], iq.x, iq.y, iq.z);
+    }
     const dtNavMesh* mesh = c->mesh;
     for(int t = 0; t < mesh->getMaxTiles(); ++t)
     {
@@ -2557,14 +2736,18 @@ void links_f()
             const dtOffMeshConnection& con = tile->offMeshCons[k];
             const glm::vec3 a = fromRc(&con.pos[0]), b = fromRc(&con.pos[3]);
             Con_Printf("nav link: %s %.0f %.0f %.0f -> %.0f %.0f %.0f\n",
-                tile->polys[con.poly].getArea() == areaDrop ? "drop" : va("ride %u", con.userId), a.x, a.y, a.z, b.x, b.y, b.z);
+                tile->polys[con.poly].getArea() == areaDrop   ? "drop"
+                : tile->polys[con.poly].getArea() == areaTele ? va("teleporter %u", con.userId)
+                                                              : va("ride %u", con.userId),
+                a.x, a.y, a.z, b.x, b.y, b.z);
         }
     }
 }
 
-// vr_nav_reachtest <name> <distance> <seconds> [drop|ride]: a test's end: passes when a walker comes within the distance
-// of the player (and, with drop or ride, after a link of that kind was taken to its end), fails after the seconds (game
-// time). Prints its verdict line.
+// vr_nav_reachtest <name> <distance> <seconds> [drop|ride|tele|notele]: a test's end: passes when a walker comes within
+// the distance of the player (and, with drop, ride or tele, after a link of that kind was taken to its end), fails after
+// the seconds (game time). notele: passes when the seconds are up and no walker began a teleporter link, fails as one
+// does. Prints its verdict line.
 struct ReachTest
 {
     za::String name;
@@ -2580,17 +2763,18 @@ void reachtest_f()
 {
     if(Cmd_Argc() < 4 || !sv.active)
     {
-        Con_Printf("vr_nav_reachtest <name> <distance> <seconds> [drop|ride|any] [classname]\n");
+        Con_Printf("vr_nav_reachtest <name> <distance> <seconds> [drop|ride|tele|notele|any] [classname]\n");
         return;
     }
     reachTest.name = Cmd_Argv(1);
     reachTest.distance = static_cast<float>(atof(Cmd_Argv(2)));
     reachTest.since = sv.qcvm.time;
     reachTest.until = sv.qcvm.time + atof(Cmd_Argv(3));
-    reachTest.need = Cmd_Argc() > 4 ? (!strcmp(Cmd_Argv(4), "drop") ? 1 : !strcmp(Cmd_Argv(4), "ride") ? 2 : 0) : 0;
+    const char* kind = Cmd_Argc() > 4 ? Cmd_Argv(4) : "";
+    reachTest.need = !strcmp(kind, "drop") ? 1 : !strcmp(kind, "ride") ? 2 : !strcmp(kind, "tele") ? 3 : !strcmp(kind, "notele") ? 4 : 0;
     reachTest.only = Cmd_Argc() > 5 ? Cmd_Argv(5) : "";
     reachTest.armed = true;
-    state.drops = state.rides = state.linkFails = 0;
+    state.drops = state.rides = state.linkFails = state.teles = state.telesBegun = 0;
     // The named monsters woken onto the player (FoundTarget), seen or not: the scene's foe may start out of his sight.
     const progs::ServerVm vm;
     edict_t* p = progs::playerEdict();
@@ -2612,7 +2796,7 @@ void reachtest_f()
     pr_global_struct->self = oldSelf;
 }
 
-// (Each steer: the armed reach test's check.)
+// (Each steer, the walker's; each server frame, none: its time-out, as a walker standing and shooting doesn't steer.)
 void reachCheck(const edict_t* ent)
 {
     if(!reachTest.armed)
@@ -2621,21 +2805,35 @@ void reachCheck(const edict_t* ent)
     }
     const edict_t* p = progs::playerEdict();
     const bool timedOut = sv.qcvm.time > reachTest.until;
-    const bool linkDone = reachTest.need == 0 || (reachTest.need == 1 ? state.drops > 0 : state.rides > 0);
     const char* only = reachTest.only.cStr();
-    const bool counts = !only[0] || (ent->v.classname && !strcmp(only, PR_GetString(ent->v.classname)));
-    const bool near = counts && p && glm::length(geom::vec(p->v.origin) - geom::vec(ent->v.origin)) < reachTest.distance;
-    if(!(near && linkDone) && !timedOut)
+    const bool counts = ent && (!only[0] || (ent->v.classname && !strcmp(only, PR_GetString(ent->v.classname))));
+    const glm::vec3 at = ent ? geom::vec(ent->v.origin) : glm::vec3{0.f};
+    const char* outcome = nullptr;
+    bool pass = false;
+    if(reachTest.need == 4) // notele: no teleporter link begun till the time is up
+    {
+        pass = state.telesBegun == 0;
+        outcome = !pass ? "went for a teleporter" : timedOut ? "kept off the teleporters" : nullptr;
+    }
+    else
+    {
+        const bool linkDone = reachTest.need == 0 || (reachTest.need == 1   ? state.drops > 0
+                                                         : reachTest.need == 2 ? state.rides > 0
+                                                                               : state.teles > 0);
+        const bool near = counts && p && glm::length(geom::vec(p->v.origin) - at) < reachTest.distance;
+        pass = near && linkDone;
+        outcome = pass ? "reached" : timedOut ? "timed out" : nullptr;
+    }
+    if(!outcome)
     {
         return;
     }
     reachTest.armed = false;
-    Con_Printf("%s: %s after %.1f s; %d drops and %d rides taken, %d links given up (it at %.0f %.0f %.0f, the player at %.0f %.0f "
-               "%.0f)\n",
-        reachTest.name.cStr(), near && linkDone ? "reached" : "timed out", sv.qcvm.time - reachTest.since, state.drops, state.rides,
-        state.linkFails, ent->v.origin[0], ent->v.origin[1], ent->v.origin[2], p ? p->v.origin[0] : 0.f, p ? p->v.origin[1] : 0.f,
-        p ? p->v.origin[2] : 0.f);
-    testkit::verdict(reachTest.name.cStr(), near && linkDone ? 1 : 0, near && linkDone ? 0 : 1);
+    Con_Printf("%s: %s after %.1f s; %d drops, %d rides and %d teleporters taken (%d begun), %d links given up (it at %.0f %.0f %.0f, "
+               "the player at %.0f %.0f %.0f)\n",
+        reachTest.name.cStr(), outcome, sv.qcvm.time - reachTest.since, state.drops, state.rides, state.teles, state.telesBegun,
+        state.linkFails, at.x, at.y, at.z, p ? p->v.origin[0] : 0.f, p ? p->v.origin[1] : 0.f, p ? p->v.origin[2] : 0.f);
+    testkit::verdict(reachTest.name.cStr(), pass ? 1 : 0, pass ? 0 : 1);
 }
 
 void rebuild_f()
@@ -2674,6 +2872,7 @@ void afterLoad()
     BrushSet set;
     gatherSolids(set, state.movers, g);
     gatherRides(state.movers, g);
+    gatherGates(g);
     triangulate(set, g);
     g.planes = static_cast<za::Vector<glm::vec4>&&>(set.planes);
     g.solids = static_cast<za::Vector<hull::NavBrush>&&>(set.brushes);
@@ -3239,6 +3438,24 @@ float giveUp(Agent& a, double now)
 float followLink(edict_t* ent, Agent& a, const NavClass& c, const glm::vec3& pos, double now)
 {
     const bool onGround = (static_cast<int>(ent->v.flags) & FL_ONGROUND) != 0;
+    if(a.linkArea == areaTele)
+    {
+        // Through: at the far end, or moved further than a step since the last steer (Quake's teleport, or a paired gate
+        // walked through: vr_portals_monsters).
+        if(glm::length(pos - a.linkTo) < c.radius + 64.f || glm::length(pos - a.teleLast) > 96.f)
+        {
+            note("through the teleporter", pos);
+            ++state.teles;
+            return endLink(a);
+        }
+        a.teleLast = pos;
+        if(now - a.linkSince > static_cast<double>(za::max(vr_nav_tele_time.value, 0.1f)))
+        {
+            note("teleporter given up", pos);
+            return giveUp(a, now);
+        }
+        return yawTo(pos, a.teleAim);
+    }
     if(a.linkArea == areaDrop)
     {
         if(!onGround)
@@ -3340,6 +3557,31 @@ float beginLink(edict_t* ent, Agent& a, const NavClass& c, const glm::vec3& pos,
         note("drop begins", pos);
         return followLink(ent, a, c, pos, now);
     }
+    if(a.linkArea == areaTele)
+    {
+        const za::SizeT gi = static_cast<za::SizeT>(con->userId) - 1;
+        if(gi >= state.geo.gates.size())
+        {
+            return giveUp(a, now);
+        }
+        // Into the trigger: on through its middle (its box touching it teleports it; a paired gate is walked through).
+        const Gate& gate = state.geo.gates[gi];
+        const glm::vec3 mid{(gate.lo.x + gate.hi.x) * 0.5f, (gate.lo.y + gate.hi.y) * 0.5f, pos.z};
+        glm::vec2 dir{mid.x - pos.x, mid.y - pos.y};
+        if(glm::length(dir) < 16.f)
+        {
+            const float yaw = glm::radians(ent->v.angles[1]);
+            dir = {glm::cos(yaw), glm::sin(yaw)};
+        }
+        dir = glm::normalize(dir);
+        a.teleAim = mid + glm::vec3{dir.x, dir.y, 0.f} * 64.f;
+        a.teleLast = pos;
+        a.link = ref;
+        a.linkSince = now;
+        ++state.telesBegun;
+        note("into the teleporter", pos);
+        return followLink(ent, a, c, pos, now);
+    }
     a.ride = static_cast<int>(con->userId) - 1;
     const edict_t* m = rideMover(a.ride);
     if(!m)
@@ -3365,6 +3607,31 @@ float beginLink(edict_t* ent, Agent& a, const NavClass& c, const glm::vec3& pos,
         a.waitLink = ref;
         a.waitSince = now;
         note("waiting for the lift", pos);
+    }
+    // At a lift's top with the lift resting at its bottom: called up (QC VR_NAV_CallLift), as nothing else brings it
+    // (Quake's plats rise only for one standing on them below).
+    // Not while another walker waits at its bottom or is boarding there: it goes up with that one soon enough.
+    bool below = false;
+    for(const Agent& o : state.agents)
+    {
+        below = below || (&o != &a && o.ride == a.ride && (o.link || o.waitLink) && o.board == a.leave);
+    }
+    if(ride.both && a.board == ride.b && moverAt(m, a.leave) && !below)
+    {
+        const func_t call = progs::findFunction("VR_NAV_CallLift");
+        if(call)
+        {
+            const int oldSelf = pr_global_struct->self, oldOther = pr_global_struct->other;
+            pr_global_struct->self = EDICT_TO_PROG(const_cast<edict_t*>(m));
+            pr_global_struct->other = EDICT_TO_PROG(ent);
+            PR_ExecuteProgram(call);
+            pr_global_struct->self = oldSelf;
+            pr_global_struct->other = oldOther;
+            if(a.waitSince == now)
+            {
+                note("lift called up", pos);
+            }
+        }
     }
     if(now - a.waitSince > static_cast<double>(za::max(vr_nav_lift_wait.value, 0.1f)))
     {
@@ -3697,6 +3964,20 @@ float steer(edict_t* ent, edict_t* goal)
         }
     }
     a.next = next;
+    // A teleporter's link begins a box's width before its start: the trigger takes the walker as its box touches it,
+    // often before it reaches the corner (the trigger is wider than the mesh's way into it).
+    if(next >= 0 && next + 1 < nc && (flags[next] & DT_STRAIGHTPATH_OFFMESH_CONNECTION) &&
+        flatDist(pos, fromRc(&a.corners[next * 3])) < c->radius * 2.f + 32.f)
+    {
+        const dtMeshTile* tile = nullptr;
+        const dtPoly* poly = nullptr;
+        if(dtStatusSucceed(c->mesh->getTileAndPolyByRef(refs[next], &tile, &poly)) && poly->getArea() == areaTele)
+        {
+            a.cls = cls;
+            a.why = whyLink;
+            return beginLink(ent, a, *c, pos, now, refs[next], next);
+        }
+    }
     // At a link's start (a corner reached that begins one): the drop or ride begins (or the wait for the lift).
     for(int i = 0; i < (next < 0 ? nc : next); ++i)
     {
@@ -3749,6 +4030,17 @@ void serverFrame()
     if(vr_nav.value != 0.f && sv.active && state.ready)
     {
         tickWorld();
+        // (The reach test each frame too: a walker biting or shooting him doesn't steer.)
+        if(reachTest.armed && !reachTest.only.empty())
+        {
+            progs::forEachEdict(1, [](edict_t* e) {
+                if(reachTest.armed && e->v.health > 0.f && e->v.classname && !strcmp(PR_GetString(e->v.classname), reachTest.only.cStr()))
+                {
+                    reachCheck(e);
+                }
+            });
+        }
+        reachCheck(nullptr);
     }
 }
 
@@ -3868,6 +4160,15 @@ void debugDraw(const glm::vec3& view)
                 const glm::vec3 over{b.x, b.y, a.z};
                 lines::sceneLine(a, over, 2.f, orange, orange);
                 lines::sceneLine(over, b, 2.f, orange, orange);
+            }
+            else if(tile->polys[con.poly].getArea() == areaTele)
+            {
+                // A teleporter's: a cyan post at its entry and at its destination, a thin line between (across the map).
+                const glm::vec4 cyan{0.1f, 0.9f, 0.95f, 1.f};
+                const glm::vec3 up{0.f, 0.f, 48.f};
+                lines::sceneLine(a, a + up, 3.f, cyan, cyan);
+                lines::sceneLine(b, b + up, 3.f, cyan, cyan);
+                lines::sceneLine(a + up, b + up, 1.f, cyan, cyan);
             }
             else
             {
