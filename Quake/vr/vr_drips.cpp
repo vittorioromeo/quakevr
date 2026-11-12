@@ -9,6 +9,7 @@
 #include "vr_engine.hpp"
 #include "vr_gore.hpp"
 #include "vr_goresound.hpp"
+#include "vr_main.hpp"
 #include "vr_particles.hpp"
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
@@ -114,6 +115,7 @@ double lastTime = -1.0;
 double nextScan = 0.0;
 int lastFrame = -1;
 const qmodel_t* lastWorld = nullptr;
+int lastWorldGen = -1; // (worldGeneration: the same map loaded again keeps cl.worldmodel, not cl_entities)
 za::SizeT cursor = 0; // the round robin's start (wets, then bleeders)
 glm::vec3 eyes{0.f};
 
@@ -1273,10 +1275,13 @@ void frame(const glm::vec3& head)
     }
     lastFrame = host_framecount;
     eyes = head;
-    if(cl.worldmodel != lastWorld)
+    // A new map, the same one loaded again too (a restart, a save of this level): every wet thing's entity pointer is
+    // stale (cl_entities allocated again), so all are forgotten (a drop off one read freed memory: a crash).
+    if(cl.worldmodel != lastWorld || worldGeneration() != lastWorldGen)
     {
         clear();
         lastWorld = cl.worldmodel;
+        lastWorldGen = worldGeneration();
     }
     if(test.phase > 0)
     {
