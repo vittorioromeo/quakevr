@@ -186,6 +186,8 @@ Tick **Grow the Box** to let the export make the box bigger. It is in two places
   honours it; `blend_export.py --grow` does the same from a command line;
 - an imported model: File > Export > Quake VR Model's dialog (it starts ticked if the model's object has it ticked).
 
+Similarly, under it in the panel: **Allow Moved Anchors** (export even if the surface under an anchor moved and its empty did not; `--allow-moved`) and **Allow Moved Sights** (the sight line turned; `--allow-sights`). Both are kept in the .blend like Grow the Box, so Ctrl+S and `blend_export.py` honour them.
+
 What growing does:
 
 - The grid gets coarser along the axes that need it, just enough for the vertices outside. Every vertex goes onto

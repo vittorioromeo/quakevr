@@ -240,6 +240,8 @@ def draw_panel(layout):
     ob = source_model()
     if ob is not None:
         col.prop(ob, "qvr_grow_box")  # (kept in the .blend: the background export reads it, as blend_export.py --grow)
+        col.prop(ob, "qvr_allow_moved")  # (same: source.export reads it, as --allow-moved)
+        col.prop(ob, "qvr_allow_sights")  # (same, as --allow-sights)
     busy = state["proc"] is not None
     res = state["result"]
     if busy:
@@ -260,6 +262,16 @@ def register():
                     "moves too, and the export writes the weapon's offsets that keep it in place into weapons.txt "
                     "(and shows them: your config keeps its own, so type them in the game's console too). Kept in "
                     "the .blend; later exports start from the grown box (the model file they replace)")
+    bpy.types.Object.qvr_allow_moved = bpy.props.BoolProperty(
+        name="Allow Moved Anchors", default=False, options=set(),
+        description="Export even if the surface under an anchor moved (its empty not moved with it). Otherwise the "
+                    "export refuses and names the anchor: move its empty onto the new surface, or tick this. Kept in "
+                    "the .blend (as blend_export.py --allow-moved)")
+    bpy.types.Object.qvr_allow_sights = bpy.props.BoolProperty(
+        name="Allow Moved Sights", default=False, options=set(),
+        description="Export even if the sight line turned (the gun no longer shoots where its sights look): line them "
+                    "up again in the game afterwards (vr_weaponstudio_align main apply). Kept in the .blend (as "
+                    "blend_export.py --allow-sights)")
     if on_save not in bpy.app.handlers.save_post:
         bpy.app.handlers.save_post.append(on_save)
 
@@ -268,4 +280,6 @@ def unregister():
     if on_save in bpy.app.handlers.save_post:
         bpy.app.handlers.save_post.remove(on_save)
     del bpy.types.Object.qvr_grow_box
+    del bpy.types.Object.qvr_allow_moved
+    del bpy.types.Object.qvr_allow_sights
     bpy.utils.unregister_class(QVR_OT_save_export_report)
