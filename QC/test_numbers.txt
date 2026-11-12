@@ -40,7 +40,7 @@ vr_embed_test    1        vr_embed_test.qc                 embedded blades: thro
 vr_embed_test    2        vr_embed_test.qc                 the pictures' scene: a sword in the wall, one in a corpse
 vr_embed_test    3        vr_embed_test.qc                 the save's scene: the same plus one in a live grunt
 vr_embed_test    4        vr_embed_test.qc                 after the load: each still stuck where it was
-vr_embed_test    33       vr_dagger_test.qc                the dagger: a swing, a stab (less deep than the sword's), thrown at a wall and a grunt
+vr_embed_test    40       vr_dagger_test.qc                the dagger: a swing, a stab (less deep than the sword's), thrown at a wall and a grunt
 vr_embed_test    6        vr_embed_test.qc                 every other blade at the wall: AD's, the Super Axe, what never sticks
 vr_embed_test    5        vr_embed_test.qc                 the pictures' scene: you before the sword in the corpse
 vr_embed_test    7        vr_embed_test.qc                 held stabs and swung axes: decision, hold, slide, free, let go, regrab, plates, ends

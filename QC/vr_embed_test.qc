@@ -4463,7 +4463,7 @@ void() VR_Embed_TestFrame =
             VR_ET_To(0);
         }
         cvar_set("vr_embed", "1"); // (off by default for 1.1, on in his config: with it off blades don't stick and these all fail)
-        if(ask == 33)
+        if(ask == 40)
         {
             VR_DG_Begin(); // (the dagger: vr_dagger_test.qc)
         }
@@ -4684,7 +4684,7 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
     {
         VR_ET_Kinds();
     }
-    else if(vr_et_on == 33)
+    else if(vr_et_on == 40)
     {
         VR_DG_Frame(); // (the dagger: vr_dagger_test.qc)
     }

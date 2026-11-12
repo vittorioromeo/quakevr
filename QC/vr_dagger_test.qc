@@ -1,7 +1,7 @@
 #ifdef QVR_TESTS
 // vr_dagger_test.qc -- the dagger (VR_SWORDKIND_DAGGER: the knight's sword of its kind; ROUND25.md, "The dagger"), by the
 // embedded blades' test machinery (vr_embed_test.qc: VR_EH_Blow, the mock hand's real blows; VR_ET_ThrowSword).
-// `vr_embed_test 33` (map vrtesthall, god, notarget, on your feet in the open), the dagger in the main hand:
+// `vr_embed_test 40` (map vrtesthall, god, notarget, on your feet in the open), the dagger in the main hand:
 //   0 a swing across a grunt: it hurts it, the dagger still in the hand;
 //   1 a stab: stuck by its point in the body, the body hurt; how deep;
 //   2 the same stab with the knight's sword: the dagger's blade (how deep a held stab can go: vr_embed_hold_sword_most of
@@ -24,7 +24,7 @@ void() VR_DG_Begin =
     cvar_set("vr_hit_stagger", "0"); // (as test 11: a blow's own chance of a stagger moves the body off the stab)
     vr_eh_home = VR_Player().origin;
     localcmd("vr_mock_hand_to_absolute 1\n");
-    vr_et_on = 33;
+    vr_et_on = 40;
     vr_et_case = VR_FlatPlay(VR_Player()) ? 5 : 0; // (flat-screen play: its swing alone)
     VR_ET_To(0);
 };

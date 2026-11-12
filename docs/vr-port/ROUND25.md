@@ -316,10 +316,11 @@ a blade about a third of the sword's, behaving as a sword (skewering, embedding)
   the armed grunts' pool (`vr_agrunt_w_dagger` 1, Combat > Armed Grunts > The Pool; weapon code 105,
   `VR_AG_CODE_DAGGER`); vrfiringrange beside the two swords (216 -868, `make_prop_area.py`, appended last).
   Knights still drop their own swords (a dagger isn't theirs).
-- **Tests**: `vr_embed_test 33` (`QC/vr_dagger_test.qc`, by the embedded blades' machinery): a swing hurts a grunt, a
+- **Tests**: `vr_embed_test 40` (`QC/vr_dagger_test.qc`, by the embedded blades' machinery): a swing hurts a grunt, a
   stab sticks by its point and hurts, its blade a third of the sword's, thrown into the wall and into a grunt it
-  sticks: `embeddagger: 12 passed, 0 failed` (7 of 8 runs; one run's dagger stab didn't stick: `vr_hit_stagger 0` set
-  since, as test 11 does; not seen again in 5 runs). With `-flatscreenmode`: held, the mouse button's swing hurts a
+  sticks: `embeddagger: 12 passed, 0 failed` in 13 of 16 runs. Open: in the other 3 the dagger's held stab (case 1) didn't
+  stick (depth 0; its swing, throws and the sword's stab passed), never with `vr_debug_embed 1` on (9 runs): not found
+  yet (`vr_hit_stagger 0` is set for it, as test 11 does, and didn't help). With `-flatscreenmode`: held, the mouse button's swing hurts a
   grunt 34 units ahead (at 44 the short blade doesn't reach): `embeddagger: 3 passed, 0 failed`. Armed grunts: test 61
   (`vr_armedgrunt_bugs_test.qc`) has the dagger as its sixth weapon (picked up lying, after its disarm, thrown by you,
   after a knockdown; grunt and enforcer): `pickups: 48 passed, 0 failed`. Scenario `dagger` (SCNRUN OK). eval.sh: no
