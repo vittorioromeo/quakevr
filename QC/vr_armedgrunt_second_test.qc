@@ -3,9 +3,8 @@
 // units to its side:
 //   0 idle (you unseen), 120 away: goes for it and takes it;  1 idle, 300 away (past vr_agrunt_second_range): leaves it;
 //   2 hunting you (in sight), 110 away (past vr_agrunt_second_combat_range): leaves it, keeps shooting;
-//   3 hunting you, 52 away (very near): takes it, the trip's downtime in seconds printed (vr_agrunt_second_combat_time
-//     tuned to VR_AGSN_COMBAT_TIME for the test: his 1 s is under the reach down alone, VR_AG_SECOND_TAKE, so with it a
-//     grunt that sees you never sets out, and the case passed only when it happened not to see you at its look);
+//   3 hunting you, 52 away (very near): takes it, the trip's downtime in seconds printed (the combat time limits the
+//     walk only, not the reach down, VR_AG_SECOND_TAKE: so his 1 s default lets a grunt that sees you fetch it);
 //   4 idle, 140 away, the weapon taken away once it is on its way: gives up, no pick-up, nothing held in the left hand.
 // `agtest: test 211 over: <p> passed, <f> failed`.
 #ifdef QVR_TESTS
@@ -17,8 +16,6 @@ float vr_agsn_t0;          // when it set out (first frame going for it)
 float vr_agsn_t1;          // when the pick-up was done
 float vr_agsn_gave;        // case 4: it had set out, the weapon was taken away
 float vr_agsn_keep_pickup;
-float vr_agsn_keep_ctime;
-float VR_AGSN_COMBAT_TIME = 2; // s: a trip a 52-unit walk and the reach down fit in (0.35 + 1.3)
 
 float(float c) VR_AGSN_Dist = { return c == 0 ? 120 : c == 1 ? 300 : c == 2 ? 110 : c == 3 ? 52 : 140; };
 float(float c) VR_AGSN_Combat = { return c == 2 || c == 3; };
@@ -33,7 +30,6 @@ void() VR_AGSN_Frame =
         if(c >= 5)
         {
             cvar_set("vr_agrunt_dual_pickup", ftos(vr_agsn_keep_pickup));
-            localcmd(sprintf("tune vr_agrunt_second_combat_time %g\n", vr_agsn_keep_ctime)); // (a tunable: set by `tune`)
             p.flags = p.flags - (p.flags & (FL_GODMODE | FL_NOTARGET));
             VR_Test_VerdictPart("test 211 over:");
             vr_agsn_case = 0;
@@ -44,8 +40,6 @@ void() VR_AGSN_Frame =
         {
             vr_agsn_keep_pickup = cvar_hget(cvarh_vr_agrunt_dual_pickup);
             cvar_set("vr_agrunt_dual_pickup", "1");
-            vr_agsn_keep_ctime = cvar_hget(cvarh_vr_agrunt_second_combat_time);
-            localcmd(sprintf("tune vr_agrunt_second_combat_time %g\n", VR_AGSN_COMBAT_TIME));
         }
         VR_AGT_ClearWeapons();
         if(VR_AGSN_Combat(c)) { p.flags = p.flags - (p.flags & FL_NOTARGET); }
@@ -125,7 +119,7 @@ void() VR_AGSN_Frame =
             float trip = vr_agsn_t1 - vr_agsn_t0;
             VR_AGT_Check(sprintf("second %g: %s, %.0f away: took it up, the trip (downtime, not firing) %.2f s, left hand %s",
                 c, c == 0 ? "idle" : "in a fight", VR_AGSN_Dist(c), trip, g.vr_ag_prop2.netname),
-                g.vr_ag_pickups == 1 && (c == 0 || trip < cvar_hget(cvarh_vr_agrunt_second_combat_time) + 0.5));
+                g.vr_ag_pickups == 1 && (c == 0 || trip < cvar_hget(cvarh_vr_agrunt_second_combat_time) + VR_AG_SECOND_TAKE + 0.5));
             VR_AGT_Remove(g);
             vr_agsn_case = c + 1;
             vr_agt_step = 0;
