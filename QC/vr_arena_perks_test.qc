@@ -599,6 +599,7 @@ void() VR_APK4_Begin =
     VR_ARK_CloseOffer();
     ar_mgr.ark_taken = 0;
     cvar_set("vr_arena_max_alive", "2");   // (small waves: the drive to the first boss wave has to fit in a test)
+    cvar_set("vr_arena_wave_size", "1");   // (the ladder's own counts: 1.8 since 2026-11-12, its waves too long for 90 s)
     cvar_set("vr_arena_wave_rest", "1");
     cvar_set("vr_arena_countdown", "0"); // (no countdown: the perk tests time their own waves)
     ark_t_until = time + 90;

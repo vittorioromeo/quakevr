@@ -363,3 +363,20 @@ covered by the probe. Release-TracyFull: see the report.
 - Promoted (weapons_data.py promote, 22 fields): slot 24 (super axe) blade shape bl_* (bl_from, bl_org, bl_spine, bl_width, bl_s1..s5 off/side, added) and muzzle (-0.071,0.21,-0.82 -> -0.3337,0.2381,4.688); slot 36 torch_fwd/out/up added. weapons.txt is sparse so no vr_wofs_version bump. Also tunables vr_nav_lifts 1 and vr_nav_plat_monsters 1 (tune_promote.py; --check 0). No test reads them.
 - New: vr_ammo_pouch_armor_x (units) and vr_flashlight_armor_forward (m), both default 0 (not measured: the screenshot's armour needs a headset view), applied only while view::playerArmourShown() (plates on, a piece worn, body drawn). Menu rows beside the pouch X and the belt torch Forward; Reset Body and Equipment resets them.
 - Check: Misc/quakevr/armorgear_test.sh (vr_armorgear_check): with plates the pouch moved 5.000 units and the torch 0.0400 m forward as set, without none: 2 passed, 0 failed. vr_menu_path_check: 0 missing.
+
+## basefix1112: the 2026-11-12 baseline's new failures triaged (branch agent/basefix1112)
+
+- Fixed (real): the drips (vr_drips.cpp) forgot their wet things only when `cl.worldmodel` changed; the same map
+  loaded again (a restart, a save of this level, a test batch's next case) kept them, their entity pointers into the old
+  `cl_entities`: a drop off one read freed memory (crash in modelcollide::trianglesOf from drips::dropPoint). Now also
+  on every `worldGeneration()` change. ragdoll_liquid_active: no crash; vr_drips_test 11/0.
+- Fixed (real): VR_ARENA_PickGun worked the gun pool's 34 rows out twice for every humanoid of a wave (up to ~4M QC
+  statements a plan since the 34-row ladder, 2026-11-10): arena tests 5 and 10 (many plans in one frame) hit "runaway
+  loop error" and hung to their timeout. The weights are now worked out once a plan (`ar_gw`, valid only inside
+  VR_ARENA_Plan; the same sums, the same random draws). arena 5 491/0, 10 160/0, 12 166/0.
+- Test: arena_perks 4 drives to the first boss wave in 90 s; at the promoted `vr_arena_wave_size` 1.8 it timed out. It
+  sets the size to 1 (15/0).
+- Passing alone (load): changelevel_signon, reload_eject, arena 6, ragdoll_guard; settings_page fails only in lanes
+  (run.ps1 puts the lane's ironwail.cfg back from the baseline before every run, over the config the test staged).
+- Still failing alone, first-bad merge by a multi-test bisect over next's first-parent history (330f70409..9a694ee33):
+  BACKLOG.md section 1. vrtrailer fails alone at 330f70409 too (it passed in the 11-07 lanes only).

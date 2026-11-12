@@ -805,16 +805,33 @@ float(float i, float xWave) VR_ARENA_GunWeight =
     return VR_ARENA_GunShare(i) * ramp * fade;
 }
 
+// The wave's pool's weights, worked out once a plan (VR_ARENA_Plan): each of a wave's humanoids worked all 34 rows out
+// afresh, twice, each row a dozen table walks (up to 4 million statements a plan: a hitch, and the arena tests' many
+// plans in one frame a runaway loop error). Outside a plan, worked out at every pick as before.
+float ar_gw[34];        // (AR_GUN_N)
+float ar_gw_sum;
+float ar_gw_wave;       // the wave they are of (-1: none; VR_ARENA_Plan sets it so first)
+float ar_gw_planning;   // inside VR_ARENA_Plan (nothing changes the weights there)
+
 // A wave's humanoid's gun, drawn from the wave's pool by the rows' weights.
 float(float xWave) VR_ARENA_PickGun =
 {
     float i;
-    float sum = 0;
-    for(i = 0; i < AR_GUN_N; i++) { sum = sum + VR_ARENA_GunWeight(i, xWave); }
+    if(!ar_gw_planning || ar_gw_wave != xWave)
+    {
+        ar_gw_sum = 0;
+        for(i = 0; i < AR_GUN_N; i++)
+        {
+            ar_gw[i] = VR_ARENA_GunWeight(i, xWave);
+            ar_gw_sum = ar_gw_sum + ar_gw[i];
+        }
+        ar_gw_wave = ar_gw_planning ? xWave : -1;
+    }
+    float sum = ar_gw_sum;
     float r = VR_ARENA_Rand() * sum;
     for(i = 0; i < AR_GUN_N; i++)
     {
-        float w = VR_ARENA_GunWeight(i, xWave);
+        float w = ar_gw[i];
         if(w > 0 && r < w) { return VR_ARENA_GunDeal(i); }
         r = r - w;
     }
@@ -1215,9 +1232,12 @@ void(float xWave) VR_ARENA_Plan =
         VR_ARENA_DirPlan(xWave); // (the budget director's: vr_arena_director.qc)
         return;
     }
+    ar_gw_wave = -1; // (the pool's weights worked out afresh for this plan: VR_ARENA_PickGun)
+    ar_gw_planning = TRUE;
     VR_ARENA_PlanFoes(xWave);
     VR_ARENA_PlanTrickle(xWave);
     VR_ARENA_PlanArmour(xWave);
+    ar_gw_planning = FALSE;
 }
 
 // ---------------------------------------------------------------------------

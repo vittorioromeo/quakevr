@@ -36,6 +36,13 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
 - **Tooling:** Tracy GPU zones lost after toggling GPU detail mid-run; some hidden-mock eye/window captures come back
   black; 15 test commands still registered in `vr_main.cpp`; `vr_physsound.cpp` keeps its own copy of the box test
   `R_SurfaceHoldsPoint` replaced for the light.
+- **Baseline 2026-11-12, still failing alone** (ROUND25.md "basefix1112": first-bad merges by bisect, alone, seed 1):
+  agrunt 12 (AD fumigator, Shadow Axe, Widowmaker, Plasma Gun grunts never armed: since promote1111's prop slots 65-69),
+  16 (drawn shotgun / nail pistol vertices 0.06 / 0.10 out of their disarm hulls, the check allows 0.05: since the nail
+  pistol's model edits), 35 (Fist parry: 0 of 9; since armoursplit), 39 (tug hand 7 cm off the gun; since retire1110's
+  weapon offsets), 211 (case 3 "not taken in time"; since regfix's armour look), stealth props_round (knight within 77
+  units; since housing_nailpistol: likely a seeded run's butterfly), vrtrailer (no beheading: fails alone at 330f70409
+  too). Older: agrunt 3, 91, 92; 213 needs AD's start (the baseline runs it in vrtesthall: a runner fix).
 
 ## 2. The 1.1 release (only on his word; his list is RELEASE_TODO.md)
 
