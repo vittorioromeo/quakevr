@@ -2679,7 +2679,7 @@ float(entity g) VR_AG_Taking =
 // Pick Up a Second (vr_agrunt_dual_pickup; not a dual wielder's recovery of a lost weapon, which is as it was): whether
 // the trip to `w` is worth its downtime. Out of a fight vr_agrunt_second_range / _time; with a target in sight the
 // shorter vr_agrunt_second_combat_range / _time, and only a weapon the target can see from where it lies (the trip keeps
-// it shooting). The trip's time: the walk at VR_AG_SECOND_SPEED and the reach down (VR_AG_SECOND_TAKE).
+// it shooting). The time limits the walk (at VR_AG_SECOND_SPEED) only; the reach down (VR_AG_SECOND_TAKE) does not count.
 float VR_AG_SECOND_SPEED = 150; // u/s a walk to it is estimated at
 float VR_AG_SECOND_TAKE = 1.3;  // s reaching down and standing up
 float(entity g, entity w) VR_AG_SecondOk =
@@ -2710,7 +2710,7 @@ float(entity g, entity w) VR_AG_SecondOk =
     }
     float d = vlen(w.origin - g.origin);
     float spent = g.vr_ag_seek == w ? time - g.vr_ag_seek_since : 0; // (already on its way: that counts)
-    return d <= range && spent + d / VR_AG_SECOND_SPEED + VR_AG_SECOND_TAKE <= tmax;
+    return d <= range && spent + d / VR_AG_SECOND_SPEED <= tmax; // (the walk only: the reach down does not count)
 };
 
 // A weapon lying about it would go for: usable, not spent, not in a hand or flying, within vr_agrunt_rearm_range and in

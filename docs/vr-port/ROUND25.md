@@ -598,3 +598,7 @@ His words: a running sword throw that lands point first fully gibs a grunt; keep
   particles against Full's 525 and Off's 0, no stain from the gore events, at most the 2 small splats, no stream, Full
   back to the defaults); `vr_smallgibs_test 7` on a grunt (vrtesthall): a burst makes 16 brain chunks at Full, 0 with
   `vr_smallgibs_brains 0`, and 0 small gibs at all with `vr_gore_preset 2`. `vr_menu_path_check`: 0 missing.
+
+## secondwalk
+
+- `VR_AG_SecondOk` compares the walk time only (distance / VR_AG_SECOND_SPEED) against `vr_agrunt_second_combat_time` / `_time`; the 1.3 s reach down no longer counts, so a grunt that sees you fetches a near second weapon at his 1 s. agrunt 211 no longer tunes the combat time.
