@@ -9,6 +9,8 @@
 [New: not yet sorted]
 Stab a standing monster with the sword (not hard enough to stagger it), keep holding it, and let it walk into a teleporter: the sword comes back to your hand, not held from across the map.
 Skewer a gib on the sword and throw it hard flat at a wall (side on, so the blade's flat meets it): the gib bursts on the wall; thrown gently it stays on.
+Flat-screen: record a take (vr_take) with the default settings: no REC corner line or rating prompt shows in the window. Turn on Recording > "Recording Light and Prompt (Flat Screen)" and the corner line appears.
+Hold the laser cannon with Immersive reloading and fire until no cells are left: its coiled cord should stay and hang loose from the weapon's bottom (it used to vanish); pick up cells and its plug should fly back into the pouch's first cell.
 
 [1. Flat-screen: weapons and hands]
 Flat-screen: with that gun's ammo full up in storage, the holster menu's UNLOAD under that hand is greyed and does nothing; with room for only some rounds it stays lit and moves just those, leaving the rest in the gun. {test:flat_unload_full}

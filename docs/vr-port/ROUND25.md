@@ -39,6 +39,9 @@ MULTIPLAYER, PERF_DECISIONS, STEALTH). `.gitattributes` merges ROUND25.md as `un
 
 TESTING.md (1,725 lines) is now the guide (about 320 lines: the mock headset, Writing a test, Test numbers, Checklist scenarios, Debug build assertions, Batched test cases, and an index). The per-feature recipes moved word for word to archive/TESTING_RECIPES.md (82 `##` sections, grep-only); a feature's scattered paragraphs are merged into its section. Retired or vanished cvars named in recipes are marked inline "(retired cvar: <name>)" (9). Code and script comments that quote a moved section ("Climbing", "Swimming", "OpenXR runtime choice", "Body calibration", ...) still say TESTING.md: the index at its end names the archive section.
 
+## Test triage B (branch agent/testtriage_b, 2026-11-12)
+
+Each case run 3 times (agrunt cases seeded as the baseline seeds them, the rest as shipped). Results and one-line causes are in BACKLOG.md section 1; no code changed. Note: run_baseline.py finds no agrunt numbers any more (check_test_numbers.py moved to Tools/qvr_checks), so its agrunt group is empty; the kit script needs the new lister.
 ## Failing tests triaged: 210, embed 7/13/21, AD (branch agent/testtriage_a, 2026-11-12)
 
 - **`vr_agrunt_test 210`: the test's.** His defaults of 2026-11-08 (66f2ec025: Topple Within 32 -> 56, Backpedal Within
@@ -137,3 +140,28 @@ flatstance_test.sh no longer measures the drawn hand against cup grips (grapple,
 - **ragdoll_climb: real, pre-existing, not looked into further.** The enforcer is knocked off the lip but never grabs
   it (falls 184 units; the same with `vr_agrunt_repl 0`); the grunt grabs with one hand and is "too weak to rise", the
   ogre loses its hold, the hell knight sticks at the lip. ROUND24 saw the grunt's and the enforcer's the same.
+## Always-failing tests, part b: autopump, cellcord, animsmooth, xr_runtime, secret_hits (branch agent/faildiag_b, 2026-11-12)
+
+- **autopump (test's)**: 9543170a6 (2026-10-27) put "kind K skin S xN" before the time in the `shells eject` line; the
+  test read field 6 (the kind, 0) as the eject's time. It reads the value after `t` now: 7/7 -> 14/0.
+- **cellcord (real, fixed)**: since e7590d3bc (2026-10-22, the pouch's items drawn as models) `view::ammoPouchCell` is
+  false without cells, and `cellcord::setupView` took that as "no pouch": with no cells the cord vanished instead of
+  hanging loose, and came back already plugged (no flight to the cell). The pouch's presence is now
+  `view::ammoPouchCentre`, the loose cord's anchor the pouch's middle. The test's "the pouch shows 3 cells" is "1-6" (up
+  to six since e7590d3bc). 7/3 -> 10/0.
+- **animsmooth (test's)**: live grunts are drawn on their authored rig since 6a47b1061 (2026-10-27,
+  `progs/soldier.mdl#rig2`, IQM-type poses), and `vr_anim_smooth_trace` reads only .mdl poses, so the grunt's trace
+  never ended ("peak none"). The trace is now an ogre's (no authored rig; spawned 220 units ahead, three frames after
+  the grunt: two impulse 241s in one frame make one monster), its single-vertex limit 0.5 (the ogre's idle: 0.22; the
+  old gun pulse 1.27). 7/2 -> 9/0.
+- **xr_runtime (test's)**: the timing line is off by default since configVersion 202 (9ac8f0dbf, "logging off"); part 4
+  sets `vr_xr_log_timing 1`. The script also exits 1 on a failure now. 2 failed -> 0 failed.
+- **secret_hits (test's, one real case left)**: the doors were picked by entity number (40, 39), shifted by 4 since the
+  worn backpack and others come first; they are found by brush model now (`*15` the quad's, `*14` the secret door).
+  quad-shot, quad-punch, door-shot pass. **door-punch** fails (not fixed): the fist swung through the shootable secret
+  door swishes ("melee swish: blow") but no hit or melee event ever comes, while the quad's trigger_multiple is struck
+  ("a wall"). Failing since at least 2026-10-30; needs a look at the fist's sweep against a MOVETYPE_PUSH door with
+  health. BACKLOG.md section 1.
+## takeslight
+
+vr_takes_light_flat (default 0, archived; menu Recording > "Recording Light and Prompt (Flat Screen)"): the flat-play corner light and prompt are off by default, because OBS records the window. vr_takes_light stays the master switch. The headset light is unchanged: VR_TakesIndicator returns null while VR_IsActive, and drawInEye draws into the eyes only, so the spectator camera never has it. vr_takes_test checks the corner is absent by default and present with the cvar at 1.

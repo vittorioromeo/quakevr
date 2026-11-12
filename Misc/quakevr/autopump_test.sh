@@ -25,7 +25,7 @@ stroke() {
         /autopump hand [01] start/ { s = $6; sr = $8; sub(/\):?/, "", sr); shot = $NF }
         /autopump hand [01] back/ { b = $6; br = $8; sub(/;/, "", br); bd = $10; sub(/\),?/, "", bd) }
         /autopump hand [01] home/ { h = $6; hr = $8; sub(/;/, "", hr); hd = $10; sub(/\)/, "", hd) }
-        /shells eject/ { e = $6 }
+        /shells eject/ { for (i = 1; i < NF; i++) if ($i == "t") e = $(i + 1) } # (the time after "t": 9543170a6 put kind, skin, count before it)
         END { printf "%s %s %s %s %s %s %s %s %s %s\n", s, sr, b, br, bd, h, hr, hd, e, shot }'
 }
 

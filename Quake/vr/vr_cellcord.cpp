@@ -158,7 +158,7 @@ struct HandCord
     double flyFrom{0.0};      // vr_gametime it set off
     glm::vec3 flyOffset{0.f}; // where it set off from, off the cell's contact (world)
     glm::vec3 gunEnd{0.f};    // the weapon's end this frame (world)
-    glm::vec3 contact{0.f};   // the cell's contact this frame (world; loose: the first cell's, the body's point)
+    glm::vec3 contact{0.f};   // the cell's contact this frame (world; loose: the pouch's middle, the body's point)
     glm::vec3 modelEnd{0.f};  // the weapon's end in its model
     const qmodel_t* model{nullptr};
     // The draw's (built once a frame, uploaded once, drawn in both eyes).
@@ -259,8 +259,10 @@ void setupView(const hands::State& s)
 {
     QVR_PROFILE("cell cords");
     const bool alive = cl.stats[STAT_HEALTH] > 0 && !cl.intermission && s.valid;
-    glm::vec3 anyContact, anyUp;
-    const bool pouch = view::ammoPouchCell(0, anyContact, anyUp);
+    // (The pouch drawn, cells in it or not: without cells the cord hangs loose from the weapon. ammoPouchCell is false
+    // then, since the pouch draws its cells as items, e7590d3bc.)
+    glm::vec3 pouchCentre;
+    const bool pouch = view::ammoPouchCentre(pouchCentre);
     Weapon want[2]{Weapon::None, Weapon::None};
     const view::ViewEntity* ve[2]{nullptr, nullptr};
     for(int h = 0; h < 2; h++)
@@ -295,8 +297,10 @@ void setupView(const hands::State& s)
 
         // Its cell: the first, or with two cords and two or more cells the off hand's the last.
         const int cell = shown <= 0 ? -1 : (both && h == HAND_OFF ? shown - 1 : 0);
-        glm::vec3 up;
-        if(!view::ammoPouchCell(za::max(cell, 0), c.contact, up))
+        // (loose: the pouch's middle, where a new cord starts and whose movement carries it along)
+        glm::vec3 up{0.f, 0.f, 1.f};
+        c.contact = pouchCentre;
+        if(cell >= 0 && !view::ammoPouchCell(cell, c.contact, up))
         {
             hide(c);
             continue;
