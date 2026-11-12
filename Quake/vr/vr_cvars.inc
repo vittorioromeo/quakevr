@@ -1212,6 +1212,7 @@ QVR_CVAR(vr_embed_probe_wstep, "0", CVAR_NONE)         // cm the most the drawn 
 QVR_CVAR(vr_embed_probe_eased, "0", CVAR_NONE)         // frames a weapon was drawn easing off a blade
 QVR_CVAR(vr_embed_probe_hoff, "-1", CVAR_NONE)         // vr_embed_test 33: cm the most a hand on a blade's handle was drawn from its place on that weapon held in it
 QVR_CVAR(vr_embed_probe_hturn, "-1", CVAR_NONE)        // and degrees the most it was turned from it
+QVR_CVAR(vr_embed_probe_gibsnap, "-1", CVAR_NONE)      // vr_embed_test 34: cm the last hand that took hold of a skewered gib was moved to be drawn on its surface, as it did
 QVR_CVAR(vr_embed_probe_skew, "-1", CVAR_NONE)         // vr_embed_test 29 (set -1 to start): cm the most a gib on a blade in the hand was drawn off its place on the drawn blade
 QVR_CVAR(vr_embed_probe_skewn, "0", CVAR_NONE)         // and the frames it was measured in
 QVR_CVAR(vr_embed_probe_skewj, "0", CVAR_NONE)         // and cm the most its place in the server's hand moved from one frame to the next (a jitter: 0 riding the blade)

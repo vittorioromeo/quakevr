@@ -286,6 +286,14 @@ void climbPull(int num, const glm::vec3& at, const glm::vec3& dir, float kg);
 // A pull of `force` (N, world) on the solid prop `num` at `at` (units), through this frame's step, as climbPull's (a blade
 // held in a crate: QC embedproppull).
 void propPull(int num, const glm::vec3& at, const glm::vec3& force);
+// A blade left in the solid prop `num`, held by `hand` of `player` by its handle (QC embedprophold; vr_box3d_ragparts.cpp, "A
+// blade held in a prop"): `handle` and `wound`, where they are now (units); `shift`, from the hand to where it holds the
+// handle; `force` N at most level, `lift` N up. Called each frame it is held. The hold's pull now (N; 0 as it begins); -1 not a
+// solid prop.
+float propBladeHold(int num, edict_t* player, int hand, const glm::vec3& handle, const glm::vec3& wound, const glm::vec3& shift, float force,
+    float lift);
+// That hold over (the hand let go, took hold afresh).
+void propBladeRelease(int player, int hand);
 // Whether the line from `from` to `to` (units) meets a solid prop's shape (one climbShape takes), other than `skip`.
 [[nodiscard]] bool climbRay(const glm::vec3& from, const glm::vec3& to, int skip = 0);
 // As castProps, against the solid props only (the ones climbShape takes) and none skipped; or `inside`: `from` is in one

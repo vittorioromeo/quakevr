@@ -543,6 +543,7 @@ vr_flashlight_auto_gun|1|Flashlight|Clip on Gun When Let Go|Advanced VR Options 
 vr_flashlight_clip_time|1|Flashlight|Clip-On Transition|Advanced VR Options > Flashlight > Clip-On Transition
 vr_flashlight_tilt|1|Flashlight|Lean Out|Advanced VR Options > Flashlight > Lean Out
 vr_flashlight_forward|1|Flashlight|Forward|Advanced VR Options > Flashlight > Forward
+vr_flashlight_armor_forward|1|Flashlight|Forward With Armour|Advanced VR Options > Flashlight > Forward With Armour
 vr_flashlight_up|1|Flashlight|Up|Advanced VR Options > Flashlight > Up
 vr_flashlight_out|1|Flashlight|Out|Advanced VR Options > Flashlight > Out
 |1|Flashlight|Reset This Page|Advanced VR Options > Flashlight > Reset This Page
@@ -2058,6 +2059,7 @@ vr_reload_pouch_catch|1|Reloading|Falling Magazines Go In|Advanced VR Options > 
 vr_reload_pouch_catch_reach|1|Reloading|Falling In Reach|Advanced VR Options > Weapons > Reloading > Falling In Reach
 vr_ammo_pouch_show|1|Reloading|Show|Advanced VR Options > Weapons > Reloading > Show
 vr_ammo_pouch_x|1|Reloading|X|Advanced VR Options > Weapons > Reloading > X
+vr_ammo_pouch_armor_x|1|Reloading|X With Armour|Advanced VR Options > Weapons > Reloading > X With Armour
 vr_ammo_pouch_y|1|Reloading|Y|Advanced VR Options > Weapons > Reloading > Y
 vr_ammo_pouch_z|1|Reloading|Z|Advanced VR Options > Weapons > Reloading > Z
 vr_ammo_pouch_thresh|1|Reloading|Reach|Advanced VR Options > Weapons > Reloading > Reach
@@ -5713,6 +5715,7 @@ vr_test_throw_up_body|2|Debug - Tests|Throw Up From Your Body|Advanced VR Option
 |2|Debug - Tests|Moving the Body Check|Advanced VR Options > Debug > Tests > Moving the Body Check
 |2|Debug - Tests|Blade Hold Strength Check|Advanced VR Options > Debug > Tests > Blade Hold Strength Check
 |2|Debug - Tests|Skewered Gibs Through Stick Turns Check|Advanced VR Options > Debug > Tests > Skewered Gibs Through Stick Turns Check
+|2|Debug - Tests|Blades in Crates by the Handle, Gibs by the Other Hand Check|Advanced VR Options > Debug > Tests > Blades in Crates by the Handle, Gibs by the Other Hand Check
 |2|Debug - Tests|Blades in Crates and Barrels Check|Advanced VR Options > Debug > Tests > Blades in Crates and Barrels Check
 |2|Debug - Tests|Embedded Blades: Skewering Check|Advanced VR Options > Debug > Tests > Embedded Blades: Skewering Check
 |2|Debug - Tests|Embedded Blades: the Hand on the Handle Check|Advanced VR Options > Debug > Tests > Embedded Blades: the Hand on the Handle Check
