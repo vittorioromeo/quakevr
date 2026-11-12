@@ -104,7 +104,7 @@ rows), the settings themselves, Quake's own menus (single: only VR pages open in
 1. **Grab and place the panel** (0.5-1): grip on the panel's frame moves and turns it; its pose kept while open
    (optionally saved). Useful alone, and the basis of placing several.
 2. **Instance refactor, one instance** (2-3): the state above into `MenuInstance`; no visible change; proven by
-   `menu_vr dump` + `menu_coverage.py`, the menu tests in TESTING.md and the boards' `vr_menu_path_check`.
+   `menu_vr dump` + `menu_coverage.py`, the menu tests in [archive/TESTING_RECIPES.md](archive/TESTING_RECIPES.md), "Menus: centring, scroll memory, shortcuts, flat menu", and the boards' `vr_menu_path_check`.
 3. **Second panel** (2-3): a canvas per instance (menus only; the HUD stays on the main canvas), drawn by calling
    `VR_Menu_Draw` once per instance into its target; each quad placed side by side when opened ("Open in New Panel"
    on a link row or a corner button; a close box per panel); the laser tests every quad, the nearest hit owns the

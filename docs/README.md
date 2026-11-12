@@ -29,7 +29,7 @@ happens; the durable parts belong in a guide or topic note.
 | [vr-port/ARCHITECTURE.md](vr-port/ARCHITECTURE.md) | The map for anyone adding code: subsystems and their files, the QC <-> C++ bridge, a frame's flow, the canonical helpers, where new code goes, the build's checks, tests and benches |
 | [vr-port/CODE_STYLE.md](vr-port/CODE_STYLE.md) | Conventions of the VR module: state, Zancle instead of the standard library, scratch buffers and caches |
 | [vr-port/PLAYTEST.md](vr-port/PLAYTEST.md) | The playtest guide: build and install, controls, voice notes, what to try now, troubleshooting |
-| [vr-port/TESTING.md](vr-port/TESTING.md) | The testing tools: the mock headset, scripted motions, test scripts and checks, fixtures |
+| [vr-port/TESTING.md](vr-port/TESTING.md) | The testing guide: the mock headset, writing a test, test numbers, checklist scenarios, batched suites (the per-feature recipes are in the archive) |
 | [vr-port/BENCHMARKS.md](vr-port/BENCHMARKS.md) | The benchmark scenario suite (running it, what a run records, the scenarios) and the in-game profiling tools |
 | [vr-port/MOTIONS.md](vr-port/MOTIONS.md) | The motion recorder: melee takes, playing them back, the melee evaluation |
 | [vr-port/IRONWAIL_DIFF.md](vr-port/IRONWAIL_DIFF.md) | What the port changes in Ironwail's own files, and how to merge a new Ironwail |
@@ -103,6 +103,8 @@ archive below; ROUND21.md's index lists each title and its file.
   MG3.md, what was left open in BACKLOG.md.
 - [MENU_REVIEW.md](vr-port/archive/MENU_REVIEW.md): the menu and settings review and proposal (2026-10-03); the menus
   were rebuilt on 2026-10-07.
+- [TESTING_RECIPES.md](vr-port/archive/TESTING_RECIPES.md): the per-feature "how to retest feature X" recipes moved out of
+  TESTING.md on 2026-11-12 (grep-only; TESTING.md ends with an index of its sections).
 
 ## Removed documents (in git history)
 

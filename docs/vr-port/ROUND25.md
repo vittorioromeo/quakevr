@@ -34,3 +34,7 @@ BACKLOG.md rewritten from 369 to about 135 lines: done items out (design review 
 data, the embedded blades' "turn on"), open bugs first, one or two lines an item; the long entries moved into their
 topic docs' "Open items moved from BACKLOG.md" sections (ARMED_MONSTERS, ARCANE_DIMENSIONS, FLINCH_RETROSPECTIVE,
 MULTIPLAYER, PERF_DECISIONS, STEALTH). `.gitattributes` merges ROUND25.md as `union`; README.md points here.
+
+## TESTING.md split into the guide and an archive of recipes (branch agent/testsplit, 2026-11-12)
+
+TESTING.md (1,725 lines) is now the guide (about 320 lines: the mock headset, Writing a test, Test numbers, Checklist scenarios, Debug build assertions, Batched test cases, and an index). The per-feature recipes moved word for word to archive/TESTING_RECIPES.md (82 `##` sections, grep-only); a feature's scattered paragraphs are merged into its section. Retired or vanished cvars named in recipes are marked inline "(retired cvar: <name>)" (9). Code and script comments that quote a moved section ("Climbing", "Swimming", "OpenXR runtime choice", "Body calibration", ...) still say TESTING.md: the index at its end names the archive section.

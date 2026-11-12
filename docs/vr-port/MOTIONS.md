@@ -602,7 +602,7 @@ dummy's middle, straight ahead), `--rate <Hz>` (90), `--world-scale` (1.25), `--
 `vr_handcal_*`... go into a `settings` line, which playback sets), `--mock` (also a `vr_mock_play` script of each, for
 tests a take can't carry: the flashlight in a hand), `--name` (the file's name). The melee fixes' presets (`chop_*`,
 `punch_down_gib`, `chop_down_gib`, `punch_straight_off`, `palm_shove_2h_torch`, `palm_shove_torch_only`) and how to
-play them: TESTING.md, "Melee fixes".
+play them: [archive/TESTING_RECIPES.md](archive/TESTING_RECIPES.md), "Melee fixes".
 
 As a module (`import motion_synth`): a `Take(label, main_weapon=..., target=(ahead, left))`, then segments:
 `hold(seconds)`, `glide({hand: (pos, quat)}, seconds)`, `move(seconds, fn)` (fn(s) -> {hand: (pos, quat)}, s eased
