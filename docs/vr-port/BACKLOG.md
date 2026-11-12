@@ -13,14 +13,14 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
   against 21 without). Should the twist reach the blow? His call. Also his call: flatstance "the drawn hand stands on
   the hotspot" (`vr_test_give_wid` 1 and 29 have their 2H hotspot behind and below the hand). ROUND24.md, the triage.
 - **visor_test "AD's two custom keys"**: needs AD in the test's base, or the check skipped without it.
-- **Random run to run** (the 2026-11-11 triage, ROUND24.md "Failing tests ... triaged"): flatpose 21/1 (the crosshair
-  meets something else), `vr_systems_test 15`, flatswing's knight trials (a knight not where it spawned). Older flaky
+- **Random run to run** (the 2026-11-11 triage, ROUND24.md "Failing tests ... triaged"): `vr_systems_test 15`
+  (flatpose and flatswing's knight trials fixed 2026-11-12, ROUND25.md "testfix"). Older flaky
   list: agrunt 47/60/63/66/67/71/72/76/86, ragdoll_ragtest/grab/guard, rv_1, judo, stealth, agarmor_5, nail_1, 209,
   teleporters_chase. Known pre-existing failures: reload 112/3, parry_pose, weapon_catch, dead_gear, autopump, cellcord,
   limb_wear, ragdoll_climb, ragdoll_stagger, animsmooth, xr_runtime, secret_hits, mtest 3. Don't chase without a task.
 - **Embedded blades** (`vr_embed` on since 2026-11-08): recheck `vr_embed_test` 7, 13 and 21 (failing 2026-11-06);
   real heavy monsters, saves, level change and multiplayer unproven (tests 14-20 written).
-- **`vrtutorial_playtest.py` room 8**: the mock's hand often throws the shells instead of loading them; later gates fail.
+- **`vrtutorial_playtest.py` room 8**: the shells' throw is fixed (ROUND25.md "testfix"); still open: the main hand never grips the bench's shotgun (stops ~25 units short), so nothing loads; later gates fail.
 - **Tooling:** Tracy GPU zones lost after toggling GPU detail mid-run; some hidden-mock eye/window captures come back
   black; 15 test commands still registered in `vr_main.cpp`; `vr_physsound.cpp` keeps its own copy of the box test
   `R_SurfaceHoldsPoint` replaced for the light.
