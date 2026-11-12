@@ -67,6 +67,7 @@ vr_embed_test    32       vr_embed_test.qc                 flat screen: a head o
 vr_embed_test    31       vr_embed_test.qc                a limb on the blade burst by the other hand's blow: its blood where it is, past the particles hidden near the eyes
 vr_embed_test    28       vr_embed_1108_test.qc            his 11-08 notes: a stab that kills stays in the falling body, running on into a stab brakes you, a force grab through its own host; 2026-11-10: an axe into a ragdoll stays in, blades left in the dummy and a grunt bloodied (embed_blood_test.sh)
 vr_embed_test    29       vr_embed_1108b_test.qc           a gib skewered on the sword stays on the drawn blade through stick turns (smooth, snap) and moves
+vr_embed_test    33       vr_embed_test.qc                 the hand on an embedded blade's handle (his 2026-11-12): drawn as it held the sword; a body lifted 20 units, level and the wrist turning: the handle stays on the real hand, rises no more than it; gripped again off the handle, it comes to the hand
 vr_embed_test    30       vr_embed_1108b_test.qc           blades in wooden crates and barrels: stab and swing stay in, drag not lift, let go, ride, pull out, broken, off
 vr_ad_test       1        vr_ad_bridge_test.qc             (see vr_ad_bridge_test.qc)
 vr_ad_test       2*       vr_ad_bridge_test.qc             (the cinematic report (AD_Test's fall-through))

@@ -2270,6 +2270,12 @@ struct EmbedProbe
     float grip{-1.f};  // cm: coming off a blade into the hand, the drawn hand from where it holds the drawn weapon (the most)
     float wstep{0.f};  // cm: and the most the drawn weapon's offset from its controller changed in a frame (the blade's before)
     int eased{0};      // frames a weapon was drawn easing off a blade
+    // The drawn hand from the weapon it holds, in the weapon's own frame (embedGripProbe): held in the hand, as last drawn...
+    glm::vec3 heldPos[2]{};
+    glm::mat3 heldTurn[2]{glm::mat3{1.f}, glm::mat3{1.f}};
+    int heldSlot[2]{-1, -1};
+    float handleOff{-1.f};  // ... and on a blade's handle: cm the most the hand is from that place on it
+    float handleTurn{-1.f}; // ... and degrees the most it is turned from it
 };
 EmbedProbe embedProbe;
 
@@ -2281,7 +2287,15 @@ void embedProbeWrite()
     }
     if(!strcmp(vr_embed_probe.string, "reset"))
     {
+        // (The hand's place on the weapon held is kept: taken before the blade went in.)
+        const EmbedProbe was = embedProbe;
         embedProbe = EmbedProbe{};
+        for(int h = 0; h < 2; h++)
+        {
+            embedProbe.heldPos[h] = was.heldPos[h];
+            embedProbe.heldTurn[h] = was.heldTurn[h];
+            embedProbe.heldSlot[h] = was.heldSlot[h];
+        }
     }
     Cvar_Set("vr_embed_probe", "on");
     Cvar_SetValueQuick(&vr_embed_probe_step, embedProbe.step);
@@ -2293,6 +2307,8 @@ void embedProbeWrite()
     Cvar_SetValueQuick(&vr_embed_probe_grip, embedProbe.grip);
     Cvar_SetValueQuick(&vr_embed_probe_wstep, embedProbe.wstep);
     Cvar_SetValueQuick(&vr_embed_probe_eased, static_cast<float>(embedProbe.eased));
+    Cvar_SetValueQuick(&vr_embed_probe_hoff, embedProbe.handleOff);
+    Cvar_SetValueQuick(&vr_embed_probe_hturn, embedProbe.handleTurn);
 }
 
 [[nodiscard]] bool embedPinUsable(const EmbedPin& pin)
@@ -2303,9 +2319,8 @@ void embedProbeWrite()
 // Where a hand holding a weapon of the blade `e` by its handle would be (its controller's pose), as setupWeapon draws one.
 void embedHandleHand(const entity_t& e, bool mirrored, glm::vec3& onPos, glm::vec3& onRot)
 {
-    const glm::vec3 o = weaponAngleOffsets(weapons::slotForModel(e.model), mirrored);
     onPos = glm::vec3{e.origin[0], e.origin[1], e.origin[2]};
-    onRot = glm::vec3{o.x - e.angles[0], e.angles[1] - o.y, e.angles[2] - o.z};
+    onRot = handTurnOfWeapon(glm::vec3{-e.angles[0], e.angles[1], e.angles[2]}, weapons::slotForModel(e.model), mirrored);
 }
 
 // The grip hotspot of the blade `e` nearest `at` (its two-handed place: every bladed weapon has one), -1 none.
@@ -2581,6 +2596,40 @@ void skewerDrawnHand(const hands::State& s, int hand, glm::vec3& pos, glm::vec3&
 {
     const EmbedPin& pin = embedPins[hand];
     return pin.weight > 0.f && pin.byHandle && embedPinUsable(pin) ? weapons::slotForModel(cl_entities[pin.ent].model) : -1;
+}
+
+// vr_embed_probe: the hand of `hand` as drawn (`pos`, `handRot`) from the weapon it holds, in the weapon's own frame. `armed`: the
+// weapon in it, kept. Else on a blade's handle (wholly on it): how far that is from the hand's place on the same weapon held (cm,
+// degrees; the most): the hand on an embedded handle is the hand that holds that blade (his note 2026-11-12).
+void embedGripProbe(int hand, bool armed, int slot, const glm::vec3& pos, const glm::vec3& handRot)
+{
+    if(!vr_embed_probe.string[0])
+    {
+        return;
+    }
+    const EmbedPin& pin = embedPins[hand];
+    if(!armed && (!pin.on || !pin.byHandle || pin.weight < 1.f))
+    {
+        return;
+    }
+    const entity_t& e = armed ? entities.weapon[hand].ent : cl_entities[pin.ent];
+    const glm::mat3 turn = glm::transpose(entityTurn(e));
+    const glm::vec3 relPos = turn * (pos - glm::vec3{e.origin[0], e.origin[1], e.origin[2]});
+    const glm::mat3 relTurn = turn * anglesBasis(handRot);
+    if(armed)
+    {
+        embedProbe.heldPos[hand] = relPos;
+        embedProbe.heldTurn[hand] = relTurn;
+        embedProbe.heldSlot[hand] = slot;
+        return;
+    }
+    if(embedProbe.heldSlot[hand] != slot)
+    {
+        return;
+    }
+    const glm::quat q = glm::normalize(glm::quat_cast(relTurn * glm::transpose(embedProbe.heldTurn[hand])));
+    embedProbe.handleOff = za::max(embedProbe.handleOff, glm::distance(relPos, embedProbe.heldPos[hand]) / units::metresToUnits() * 100.f);
+    embedProbe.handleTurn = za::max(embedProbe.handleTurn, glm::degrees(2.f * std::acos(za::min(1.f, za::fabs(q.w)))));
 }
 } // namespace
 
@@ -3039,6 +3088,7 @@ void setupHand(const hands::State& s, int hand)
         moveDrawnHand(hand, mirrored, attachedTurn(s.rot[hand], slot, mirrored, glm::vec3{0.f}, hand),
             weapons::vec(slot, Key::HandOnlyX, Key::HandOnlyY, Key::HandOnlyZ),
             weapons::vec(slot, Key::HandOnlyPitch, Key::HandOnlyYaw, Key::HandOnlyRoll), mirrored, pos, handRot);
+        embedGripProbe(hand, true, slot, pos, handRot);
     }
     else if(const int embedSlot = embedHandleSlot(hand); embedSlot >= 0 && embedSlot != fist)
     {
@@ -3048,6 +3098,7 @@ void setupHand(const hands::State& s, int hand)
         moveDrawnHand(hand, mirrored, attachedTurn(controllerRot, embedSlot, mirrored, glm::vec3{0.f}, hand),
             weapons::vec(embedSlot, Key::HandOnlyX, Key::HandOnlyY, Key::HandOnlyZ),
             weapons::vec(embedSlot, Key::HandOnlyPitch, Key::HandOnlyYaw, Key::HandOnlyRoll), mirrored, pos, handRot);
+        embedGripProbe(hand, false, embedSlot, pos, handRot);
     }
     // Just off a blade in a body: eased from where it was on it, the weapon in it with it (setupWeapon), one turn about the
     // controller and one move for both (his note 2026-11-06: the axe stays in the drawn hand all the way).
@@ -3319,12 +3370,11 @@ void holdFloating(hands::State& s, const posing::Session& ps)
     const int wh = ps.weaponHand;
     const bool mirrored = wh == HAND_OFF;
     const glm::vec3 wt = basisAngles(ps.turn);
-    const glm::vec3 o = weaponAngleOffsets(ps.slot, mirrored);
     view::ViewEntity ve;
     place(ve, ps.model, glm::vec3{0.f}, {-wt.x, wt.y, wt.z}, 0, mirrored);
     s.pos[wh] = ps.modelOrigin - glm::vec3{hotspotFrame(ve.ent, mirrored)[3]};
     // (weaponTurn undone: its angle offsets are composed in the hand's frame.)
-    s.rot[wh] = s.visualRot[wh] = basisAngles(anglesBasis(wt) * glm::transpose(anglesBasis(glm::vec3{-o.x, o.y, o.z})));
+    s.rot[wh] = s.visualRot[wh] = handTurnOfWeapon(wt, ps.slot, mirrored);
     wholeTurn[wh] = glm::mat3{1.f};
 }
 } // namespace view_detail

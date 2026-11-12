@@ -4609,6 +4609,9 @@ vr_embed_move_sword_force_deep|2|Tunables|Moving: Sword's Force, Deep|Advanced V
 vr_embed_move_give|2|Tunables|Moving: Stance Gives Way|Advanced VR Options > Debug > Tunables > Moving: Stance Gives Way
 vr_embed_move_hertz|2|Tunables|Moving: Stiffness|Advanced VR Options > Debug > Tunables > Moving: Stiffness
 vr_embed_move_at_wound|2|Tunables|Moving: Held At|Advanced VR Options > Debug > Tunables > Moving: Held At
+vr_embed_move_handle|2|Tunables|Moving: Held by the Handle|Advanced VR Options > Debug > Tunables > Moving: Held by the Handle
+vr_embed_move_handle_hertz|2|Tunables|Moving: Handle's Stiffness|Advanced VR Options > Debug > Tunables > Moving: Handle's Stiffness
+vr_embed_move_match|2|Tunables|Moving: Handle Comes to the Hand|Advanced VR Options > Debug > Tunables > Moving: Handle Comes to the Hand
 vr_embed_move_turn|2|Tunables|Moving: Turns With the Wrist|Advanced VR Options > Debug > Tunables > Moving: Turns With the Wrist
 vr_embed_drag_slack|2|Tunables|Dragging: Slack|Advanced VR Options > Debug > Tunables > Dragging: Slack
 vr_embed_tether_speed|2|Tunables|Tether: Your Speed|Advanced VR Options > Debug > Tunables > Tether: Your Speed
@@ -5746,6 +5749,7 @@ vr_test_throw_up_body|2|Debug - Tests|Throw Up From Your Body|Advanced VR Option
 |2|Debug - Tests|Skewered Gibs Through Stick Turns Check|Advanced VR Options > Debug > Tests > Skewered Gibs Through Stick Turns Check
 |2|Debug - Tests|Blades in Crates and Barrels Check|Advanced VR Options > Debug > Tests > Blades in Crates and Barrels Check
 |2|Debug - Tests|Embedded Blades: Skewering Check|Advanced VR Options > Debug > Tests > Embedded Blades: Skewering Check
+|2|Debug - Tests|Embedded Blades: the Hand on the Handle Check|Advanced VR Options > Debug > Tests > Embedded Blades: the Hand on the Handle Check
 |2|Debug - Tests|Embedded Blades: the Edges Check|Advanced VR Options > Debug > Tests > Embedded Blades: the Edges Check
 |2|Debug - Tests|Sword in a Wall and a Corpse|Advanced VR Options > Debug > Tests > Sword in a Wall and a Corpse
 vr_test_axe|2|Debug - Tests|Axe Throw|Advanced VR Options > Debug > Tests > Axe Throw
