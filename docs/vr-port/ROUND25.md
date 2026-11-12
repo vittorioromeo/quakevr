@@ -63,3 +63,9 @@ TESTING.md (1,725 lines) is now the guide (about 320 lines: the mock headset, Wr
   `vr_flatswap_test 4` (also needs a spot on an AD map: it only mounts AD's data there) nor the visor's custom keys can
   run here. visor_test.sh now passes `--no-ad` to visor_check.py without one (the keys' count skipped, the rest checked):
   37/0.
+
+## promote1112: his arena and armour values as defaults
+
+- vr_arena_boss_health 1.25 -> 1.2, vr_arena_wave_size 1.75 -> 1.8, vr_agarmor_skill1 0.15 -> 0.2 (vr_cvars.inc).
+- His 24 vr_wofs_* lines: weapons_data.py promote reports 0 changed: already the defaults (8d327a70b and earlier promotions; the config rounds to 6 digits). No settingsVersion bump.
+- Check: a headless run prints each of the three as "(default)" with the new value. Arena tests pin their own values explicitly, not re-run.
