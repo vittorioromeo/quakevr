@@ -141,6 +141,42 @@
     };
 }
 
+// Every flat key back to its default (the Flat Keys page's Reset).
+void resetFlatKeys()
+{
+    for(cvar_t* c : qvr::flatplay::keyCvars())
+    {
+        Cvar_SetQuick(c, c->default_string);
+    }
+}
+
+// Locomotion > Desktop Screen Play > Flat Keys: the keys flat play reads itself (vr_flat_key_*; vr_flatplay.hpp keyCvars).
+[[nodiscard]] za::Vector<Item> pageFlatKeys()
+{
+    return {
+        info([]() -> const char* { return "Enter or a click, then the key; Escape keeps it; Backspace clears"; }),
+        row(opt::vr_flat_key_lean_left),
+        row(opt::vr_flat_key_lean_right),
+        row(opt::vr_flat_key_prone),
+        row(opt::vr_flat_key_swap),
+        row(opt::vr_flat_key_grab),
+        row(opt::vr_flat_key_shove),
+        row(opt::vr_flat_key_punch),
+        row(opt::vr_flat_key_reload),
+        row(opt::vr_flat_key_drop),
+        row(opt::vr_flat_key_grenade),
+        row(opt::vr_flat_key_bullettime),
+        row(opt::vr_flat_key_flashlight),
+        row(opt::vr_flat_key_holster_menu),
+        row(opt::vr_flat_key_flycam),
+        row(opt::vr_flat_key_toolgun),
+        row(opt::vr_flat_key_toolgun_menu),
+        row(opt::vr_flat_key_toolgun_adjust),
+        action("Reset Flat Keys", resetFlatKeys)
+            .help("Every key on this page back to its default. A key shown with a mark is also another flat key's, or has a Quake binding: the flat key wins while flat play runs."),
+    };
+}
+
 // Locomotion > Desktop Screen Play > Visor HUD Look: the flat-screen visor HUD's settings (vr_visor.cpp).
 [[nodiscard]] za::Vector<Item> pageVisorSettings()
 {
@@ -229,6 +265,8 @@
         row(opt::vr_crouch_speed_scale),
         row(opt::vr_slope_walk),
         header("Desktop Screen Play"),
+        open("Flat Keys", pageIndex(pageFlatKeys))
+            .help("The keys flat play reads itself (leans, swap, grab, shove, punch, reload, drop, grenade, bullet time, flashlight, holster menu...): rebind each here, press a key."),
         row(opt::vr_flat_aim_mode),
         row(opt::vr_flat_aim_sens),
         row(opt::vr_flat_aim_sens_match),

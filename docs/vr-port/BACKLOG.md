@@ -44,8 +44,6 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
 
 ## 3. Flat-screen (FLATPLAY.md)
 
-- **Flat keys bindable from the menu** (2026-11-11): rebind rows for the keys flat play reads itself (`vr_flat_key_*`:
-  leans, swap, grab, reload, prone, bullet time, drop, quick grenade, holster menu...), as Quake's own bindings have.
 - **Procedural reloads, on by default** (2026-11-05): e.g. the shotgun rolls toward the off hand, which shuttles between
   pouch and port until full or interrupted; recorded motions where they fit.
 - **Recorded motions for flat melee and reloads** (2026-11-05): phase 1 recorder shipped (ROUND24.md, "Animation

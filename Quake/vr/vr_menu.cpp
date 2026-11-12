@@ -30,6 +30,10 @@
 #include "vr_api.h"
 
 extern "C" cvar_t scr_fov; // gl_screen.c (Aim Sensitivity's help)
+extern "C" int Key_StringToKeynum(const char* str);   // keys.c: a key's number from its bind name
+extern "C" const char* Key_KeynumToString(int keynum); // keys.c: and its name
+extern "C" char* keybindings[MAX_KEYS];                // keys.c: what each key is bound to (the Flat Keys rows' conflicts)
+extern "C" void M_VRKeyCapture(qboolean on);           // menu.c: a key row waits for a key
 
 namespace menu_detail
 {
@@ -161,6 +165,13 @@ void restartVr()
     Item i{Item::Cycle, label, cvar};
     i.choices = ZA_MOVE(choices);
     return i;
+}
+
+// A key row (the Flat Keys page): `cvar` holds a key's bind name; enter or a click waits for a key (the Keys menu's "press a
+// key"), Backspace or Delete clears it.
+[[nodiscard]] Item keyRow(const char* label, cvar_t& cvar)
+{
+    return Item{Item::Key, label, &cvar};
 }
 
 [[nodiscard]] Item cycle(const char* label, cvar_t& cvar, za::Vector<Choice> choices)
@@ -3130,6 +3141,57 @@ float stepSlider(const Item& item, int dir, bool repeat)
     return v;
 }
 
+// The Flat Keys page's rows (vr_flatplay.hpp keyCvars: the keys flat play reads itself). A key row waits for a key while
+// keyCapture is its cvar (the Keys menu's "press a key": M_VRKeyCapture holds the engine's side of it).
+cvar_t* keyCapture{nullptr};
+
+// A row's key where another row has it (a flat key) or a Quake binding does: its name, written to out; false: free.
+[[nodiscard]] bool keyConflict(const cvar_t& var, char* out, size_t size)
+{
+    const int key = var.string[0] ? Key_StringToKeynum(var.string) : -1;
+    if(key <= 0 || key >= MAX_KEYS)
+    {
+        return false;
+    }
+    constexpr size_t prefix = sizeof("vr_flat_key_") - 1;
+    for(const cvar_t* c : flatplay::keyCvars())
+    {
+        if(c != &var && c->string[0] && Key_StringToKeynum(c->string) == key)
+        {
+            q_snprintf(out, size, "also %s", c->name + prefix);
+            return true;
+        }
+    }
+    if(keybindings[key] && keybindings[key][0])
+    {
+        q_snprintf(out, size, "Quake: %s", keybindings[key]);
+        return true;
+    }
+    return false;
+}
+
+// A key row set to `key` ("" none), the name as the default spells it where it is the default's key (a sparse config).
+void setKeyRow(cvar_t* var, const char* name)
+{
+    Cvar_SetQuick(var, var->default_string && !q_strcasecmp(var->default_string, name) ? var->default_string : name);
+}
+
+void drawKeyRow(const Item& item, int y, bool selected)
+{
+    if(selected && keyCapture == item.cvar)
+    {
+        M_PrintWhite(midPos, y, (realtime * 4.f - za::floor(realtime * 4.f)) < 0.5f ? "Press a key..." : "Press a key   ");
+        return;
+    }
+    const char* name = item.cvar->string[0] ? item.cvar->string : "---";
+    M_Print(midPos, y, name);
+    char other[48];
+    if(keyConflict(*item.cvar, other, sizeof(other)))
+    {
+        M_PrintWhite(midPos + 8 * (static_cast<int>(strlen(name)) + 2), y, va("! %s", other));
+    }
+}
+
 // (`item` lives in the page's list, which an action -- or a cvar's callback -- may build again: what is needed of it is
 // read before.)
 void change(const Item& item, int dir, bool repeat = false)
@@ -3156,6 +3218,14 @@ void change(const Item& item, int dir, bool repeat = false)
             Cvar_SetValueQuick(item.cvar, item.choices[(currentChoice(item) + dir + n) % n].value);
             break;
         }
+        case Item::Key:
+            if(dir > 0)
+            {
+                keyCapture = item.cvar; // (the next key is the row's: VR_Menu_Key)
+                M_VRKeyCapture(true);
+                qvr::menuui::uiSound(qvr::menuui::UiSound::Select);
+            }
+            return;
         case Item::Action:
             if(dir > 0 && item.buttonPress)
             {
@@ -3857,6 +3927,7 @@ void drawItem(const Item& item, int y, bool selected)
             }
             break;
         case Item::Action: M_Print(midPos - 4, y, "..."); break;
+        case Item::Key: drawKeyRow(item, y, selected); break;
         default: break;
     }
     if(dimmed)
@@ -3913,6 +3984,8 @@ constexpr Extent noExt{0, 0.f, 0.f};
     case opt::name: return cycle(label, name, {__VA_ARGS__}).help(text);
 #define QVR_CYCLE_BYNAME(name, label, text, ...) \
     case opt::name: return cycle(label, #name, {__VA_ARGS__}).help(text);
+#define QVR_KEY(name, label, text) \
+    case opt::name: return keyRow(label, name).help(text);
 #include "vr_menu_rows.inc"
 #undef QVR_TOGGLE
 #undef QVR_TOGGLE_BYNAME
@@ -3920,6 +3993,7 @@ constexpr Extent noExt{0, 0.f, 0.f};
 #undef QVR_SLIDER_BYNAME
 #undef QVR_CYCLE
 #undef QVR_CYCLE_BYNAME
+#undef QVR_KEY
     case opt::Count: break;
     }
     return header("?");
@@ -4744,6 +4818,19 @@ extern "C" void VR_Menu_Key(int key, int repeat)
         mapsKey(key);
         return;
     }
+    if(keyCapture)
+    {
+        // A key row waits for a key (as the Keys menu's rows do): Escape (or the console key) leaves the row as it was.
+        cvar_t* const var = keyCapture;
+        keyCapture = nullptr;
+        M_VRKeyCapture(false);
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust);
+        if(key != K_ESCAPE && key != '`' && key > 0 && key < MAX_KEYS)
+        {
+            setKeyRow(var, Key_KeynumToString(key));
+        }
+        return;
+    }
     const auto& list = items(ui().page);
     const int cursor = ui().cursors[ui().page];
 
@@ -4798,6 +4885,16 @@ extern "C" void VR_Menu_Key(int key, int repeat)
             }
             qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
             moveCursor(list, 1);
+            break;
+
+        case K_BACKSPACE:
+        case K_DEL:
+        case K_YBUTTON:
+            if(list[cursor].kind == Item::Key && !lockedItem(list[cursor]))
+            {
+                Cvar_SetQuick(list[cursor].cvar, "");
+                qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust);
+            }
             break;
 
         case K_LEFTARROW:
