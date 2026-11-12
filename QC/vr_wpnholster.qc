@@ -219,7 +219,14 @@ void() forcegrabbable_touch =
             }
             float pop = VR_Dismember_ThrownArm(other, self, thrower, adjDmg); // VR: a heavy blunt thing at the head pops it if it kills (vr_decap.qc)
             float wasAlive = other.health > 0 && !other.vr_corpse && !other.vr_corpse_dying;
+            // Blade first (its point or edge in): it kills whole unless Quad (combat.qc VR_Gib_Overkill).
+            vr_throw_bladein = (vr_throw_bladestuck || VR_Throw_PointFirst(self, other));
             VR_Decap_Damage(other, self, thrower, adjDmg, pop);
+            vr_throw_bladein = FALSE;
+            if(wasAlive && (other.health <= 0 || other.vr_corpse || other.vr_corpse_dying))
+            {
+                self.vr_throw_kill = time;
+            }
             // VR: an incandescent blade thrown sets what it struck on fire (vr_hotblade.qc).
             VR_HotBlade_ThrownStruck(self, other, thrower, wasAlive, self.origin, normalize(self.velocity));
             self.vr_fling_hit = time; // (not hit again as a flung prop as it bounces off: VR_FLING_REHIT)

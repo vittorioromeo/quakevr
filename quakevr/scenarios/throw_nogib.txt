@@ -1,0 +1,12 @@
+# throw_nogib: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". A running throw blade first kills whole.
+title Thrown blades don't gib: a sword and a dagger to throw running at a row of grunts
+cvar vr_embed 1
+map vrtesthall
+god
+notarget
+give "Knight's Sword" main
+give "Dagger" off
+spawn "Grunt" 400 -80
+spawn "Grunt" 400 0
+spawn "Grunt" 400 80
+hint Run at the grunts and throw the sword and the dagger point first, hard: each dies whole with the blade deep in its body (about 80% of the blade in), no gibs. A handle-first or flat throw is as before; with Quad a point-first throw still gibs.

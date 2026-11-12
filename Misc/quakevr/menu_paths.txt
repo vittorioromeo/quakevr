@@ -2864,6 +2864,7 @@ vr_gib_throw_damage|2|Tunables|Thrown Gib Damage|Advanced VR Options > Debug > T
 vr_gib_health|2|Tunables|Gib Health|Advanced VR Options > Debug > Tunables > Gib Health
 vr_gib_overkill_melee|2|Tunables|Blow Overkill to Gib|Advanced VR Options > Debug > Tunables > Blow Overkill to Gib
 vr_gib_overkill_prop|2|Tunables|Prop Overkill to Gib|Advanced VR Options > Debug > Tunables > Prop Overkill to Gib
+vr_gib_overkill_blade|2|Tunables|Thrown Blade Overkill to Gib|Advanced VR Options > Debug > Tunables > Thrown Blade Overkill to Gib
 vr_gib_splat_speed|2|Tunables|Gib Splat Speed|Advanced VR Options > Debug > Tunables > Gib Splat Speed
 vr_gib_splat_throw|2|Tunables|Hard Throw Bursts|Advanced VR Options > Debug > Tunables > Hard Throw Bursts
 vr_gib_burst_speed|2|Tunables|Gib Burst Speed|Advanced VR Options > Debug > Tunables > Gib Burst Speed
@@ -4539,6 +4540,7 @@ vr_embed_stab_tip|2|Tunables|Stab: Point Length|Advanced VR Options > Debug > Tu
 vr_embed_sword_depth_min|2|Tunables|Depth at Least Speed|Advanced VR Options > Debug > Tunables > Depth at Least Speed
 vr_embed_sword_depth_max|2|Tunables|Depth at Full Speed|Advanced VR Options > Debug > Tunables > Depth at Full Speed
 vr_embed_sword_depth_speed|2|Tunables|Full Depth Speed|Advanced VR Options > Debug > Tunables > Full Depth Speed
+vr_embed_throw_kill_depth|2|Tunables|Thrown Kill: Depth|Advanced VR Options > Debug > Tunables > Thrown Kill: Depth
 vr_embed_enter_time|2|Tunables|Stab: Time Going In|Advanced VR Options > Debug > Tunables > Stab: Time Going In
 vr_embed_skewer_most|2|Tunables|Skewered Gibs: Most on a Blade|Advanced VR Options > Debug > Tunables > Skewered Gibs: Most on a Blade
 vr_embed_skewer_depth|2|Tunables|Skewered Gibs: From the Tip|Advanced VR Options > Debug > Tunables > Skewered Gibs: From the Tip
