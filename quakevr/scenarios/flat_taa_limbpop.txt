@@ -1,0 +1,9 @@
+# flat_taa_limbpop: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". A popped limb's blood stream under flat-screen TAA (Misc/quakevr/taaparticles_test.sh measures the blood with TAA on against off). ROUND24.md, "A limb's fountain hidden by the TAA".
+title Limb popped close with TAA: the blood stream at once
+hint Play with -flatscreenmode; Flat TAA is on here. Kill a grunt, crouch (Left Ctrl) right next to its body and shoot an arm or leg off with the shotgun, then keep the mouse still: the stump's blood stream pours from the first moment, with no wait and no need to turn the view.
+map vrtesthall
+god
+give "Shotgun" main
+cvar vr_flat_taa 1
+spawn "Grunt" 80 0
+spawn "Grunt" 110 50
