@@ -239,3 +239,11 @@ knight failed pull), 22 of 24 after. `vr_agrunt_test 210`: 8 passed, 0 failed.
 - **Numbers:** grunt steady, 8 shoves: 2 recovered -> 7 (the 8th's balance 0.52); backpedal's grunt steady row FAIL ->
   PASS; lip 8/8 alone. Left (BACKLOG.md): the beaten grunt falls at 0.43 s after 2 steps (F, not "gave way"), and in a
   combined batched run lip gave 5/8 and monster 2's 8th steady shove fell.
+
+## retire1112: his ticked lines retired, vr_flat_melee_2h promoted
+
+- 14 ticked lines (no voice notes) retired from quakevr/checklist.txt; 8 Test scenarios retired with them: flat_fling,
+  flat_grenade_grab, flat_swap_adgun, flat_swap_melee, flat_swap_props, flat_taa_limbpop, flat_unload_full, gl_housing.
+  flat_melee2h kept (an unretired line still uses it).
+- tune_promote: vr_flat_melee_2h "1" -> "0" (the two-handed stance is off by default); --check exits 0.
+  flatmelee2h_test.sh now sets `tune vr_flat_melee_2h 1` first: 16 passed, 0 failed.
