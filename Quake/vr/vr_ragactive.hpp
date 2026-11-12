@@ -294,6 +294,7 @@ struct Climb
     glm::quat rot0{1.f, 0.f, 0.f, 0.f}, tilt{1.f, 0.f, 0.f, 0.f};
     float turnBlend{0.f};
     float top{0.f};         // m: the top's height (the lip's)
+    float torso{0.f};       // m: its pelvis to its chest as it began to pull (Pull's chest goal kept that far over its way)
     bool released{false};   // Over: its hands let go (its pelvis over the top), going in since since2
     double since2{0.0};
     float prog{0.f}, prog2{0.f}; // the way of this phase (Over: up over the lip, then in) done, 0..1

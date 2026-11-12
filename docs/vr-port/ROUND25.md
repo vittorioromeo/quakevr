@@ -110,6 +110,19 @@ Each case run 3 times (agrunt cases seeded as the baseline seeds them, the rest 
 
 flatstance_test.sh no longer measures the drawn hand against cup grips (grapple, nail pistol): the status prints cup 0/1 (grip2HCup) on the stance spot line and the check skips cup reads. 7/0.
 
+## testfix
+
+- flatswing knight trials: the knight is checked 8 frames after its spawn (was 20: it drifted 3-50 units from its spot
+  later; `sv_freezenonclients` stops the blow too, so no freeze) and the run has `sv_random_seed 1`; 3 runs 5/0.
+- flatpose: `sv_random_seed 1` in the first and the e1m1 runs, the knights at 24 checked 8 frames after the spawn, and
+  the control's gate is `> 3` units off (was 8; it read 7.5 on a good run). Before the last two edits: 22/0 in 4 of 6
+  runs, 21/1 twice (the control, a pellet spread missing the knight at 300 or 24).
+- `vrtutorial_playtest.py` room 8: the shells were thrown because the held shell caught on the bench edge on the way
+  to the holster (`take_to_holster(lift=30)`), and a release followed by a same-frame hand reset throws (`w(4)` between).
+  Shells now collect and the pouch gives pairs, but the main hand never holds the bench's shotgun ("the other hand holds
+  no gun with a loading port"): its hand stops ~25 units short and the gun comes by the 9 s force grab. OPEN.
+- Kit `run_baseline.py`: `agrunt_numbers` calls `build/qvr_checks/qvr_checks.exe test_numbers --list` (the old Python
+  as the fallback for a tree without it); 214 agrunt numbers.
 ## Always-failing monster tests diagnosed (branch agent/faildiag_a, 2026-11-12)
 
 - **`vr_agrunt_test 60`: the test's.** Step 5's one-sword grunt reaches down for a sword lying near
@@ -165,3 +178,44 @@ flatstance_test.sh no longer measures the drawn hand against cup grips (grapple,
 ## takeslight
 
 vr_takes_light_flat (default 0, archived; menu Recording > "Recording Light and Prompt (Flat Screen)"): the flat-play corner light and prompt are off by default, because OBS records the window. vr_takes_light stays the master switch. The headset light is unchanged: VR_TakesIndicator returns null while VR_IsActive, and drawInEye draws into the eyes only, so the spectator camera never has it. vr_takes_test checks the corner is absent by default and present with the cvar at 1.
+
+## Punches at shootable doors, and the hand's stop at walls (realfix doorpunch)
+
+secret_hits "door-punch" (the fist at e1m1's shootable secret door, `*14`, swished but never struck it) had two causes:
+- **The hand's stop was skewed by a unit** (vr_handpose.cpp, `stopAtWall`): it swept a +-1 box, which SV_Move meets
+  brushes with as hull 0 at the box's mins corner (SV_HullForEntity's offset for a box under 3 units). The hand
+  stopped a unit short of any surface it came at going -x, -y or -z (the door, approached going -y: the fist's point
+  1.37 off) and a unit into one going +x, +y or +z. The fist's reach past the stopped hand (VR_Melee_Sweep: its
+  thickness, 0.87) never met the near ones: punches at walls and brushes facing +x/+y/+z never landed. Now a point
+  from the torso: the hand stops on the surface every way.
+- **A shootable brush was decided as a monster's box** (VR_Melee_Sweep): it stops the hand as a wall does, so the
+  frame the fist meets it the hand has slowed (2.3 m/s, needing 3.2) and the blow was refused. A brush that takes
+  damage (`VR_Blow_StrikesAsWall`: SOLID_BSP; a shootable door or button) is now struck as a wall is (where a part
+  went into it, at the speed it came in at, held for vr_melee_wall_hold) and dealt as a thing struck (T_Damage, its
+  sparks). Monsters, props and triggers with health (SOLID_BBOX: the hand passes them) are as before.
+
+Checks: secret_hits 5/6 -> 6/6 (door-punch: the secret door moved, 1 spark effect, no blood); eval.sh's full set
+identical to before the change (112 result lines, 0 differ; 162/171 both); slopes 8/8; flatinput 19/0 (wallpunch
+0.47 units in, wallswing 0.50).
+## Ragdoll climb: the enforcer's grab, the pull's chest, the ogre's swing (branch agent/realfix_climb, 2026-11-12)
+
+`Misc/quakevr/ragdoll/climb_test.sh`: 18 of 24 before (the enforcer failed pull, drop and hit; the grunt, ogre and hell
+knight failed pull), 22 of 24 after. `vr_agrunt_test 210`: 8 passed, 0 failed.
+
+- **The enforcer never grabbed** (`findLedge`, vr_ragactive.cpp): the ledges looked at were those in a box round its
+  pelvis and chest centre (1.2 arms out). An enforcer's chest centre sits about 10 units behind its shoulders (its power
+  pack); toppling off upright 12 units from the wall, the lip left that box while still within its shoulders' reach
+  (1.15 arms): no probe, a 184-unit fall. The box now takes in both shoulders too.
+- **The grunt "too weak to rise"** (Pull, vr_ragactive_hold.cpp): its chest's goal (0.3 arm over the lip) and its
+  pelvis's way (0.35 arm under it) were 0.65 arm apart; a grunt's pelvis hangs 16 units (about an arm) under its chest,
+  so with its chest at its goal its pelvis stayed 5 units short and timed out. The chest's goal is now at least 0.95 x
+  its torso (pelvis to chest, measured as it begins to pull: `Climb::torso`) over the pelvis's way.
+- **The ogre "lost its hold"** (Hang): "not hanging" (its pelvis within a quarter arm under the lip: its legs still on
+  the top) also caught an ogre swung 27-30 units out over the drop on one hand, which let go. Now only with its pelvis
+  within half an arm of the lip; it pulls itself up.
+- Left (BACKLOG.md section 1): the grunt now goes over the lip, but its pelvis sinks back onto the corner as it goes in
+  ("slid back off the lip"; it stands up on the top anyway). Raising the way in (0.6 arm) or holding the lip until its
+  pelvis is in made no difference: something drags its pelvis down and out (not the hang kicks:
+  `vr_ragdoll_active_hang_kick 0` the same). The hell knight hangs on one hand (the other's reach times out 1 s after the
+  grab, after the pull began, so the Hang phase's one-hand re-reach never runs); its chest stays under the lip: "stuck
+  at the lip".

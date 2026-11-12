@@ -315,6 +315,16 @@ float(entity e) VR_Blow_Strikable =
            e.owner != self && e.carry_player != self && !VR_Throw_SparedBlows(e, self);
 };
 
+// Whether `e`, struck (VR_Blow_Strikable), is struck as a wall is (VR_Melee_Sweep): a brush that takes damage (a
+// shootable door or button). It stops the hand as a wall does (vr_handpose.cpp, stopAtWall: only things that bleed let
+// the hand through), so the frame the fist meets it the hand has slowed; decided as a monster's box (by that frame's
+// speed) the punch never landed (secret_hits "door-punch"). As a wall: where a part went into it, at the speed it came
+// in at, for vr_melee_wall_hold (VR_Melee_WallEntered, VR_Melee_WallHeld, VR_Melee_WallDecide); dealt as a thing struck.
+float(entity e) VR_Blow_StrikesAsWall =
+{
+    return e.solid == SOLID_BSP;
+};
+
 float(float xHand, entity b, entity e) VR_Skewer_SweepPasses; // (vr_skewer.qc)
 
 // ----------------------------------------------------------------------------
@@ -1071,7 +1081,7 @@ float(entity b, float xI, vector xP0, vector xP1, float xR) VR_Melee_WallHeld =
             return FALSE;
         }
     }
-    if(trace_plane_normal * b.mh_wall_n < VR_MELEE_WALL_SAME || VR_Blow_Strikable(trace_ent))
+    if(trace_plane_normal * b.mh_wall_n < VR_MELEE_WALL_SAME || (VR_Blow_Strikable(trace_ent) && !VR_Blow_StrikesAsWall(trace_ent)))
     {
         return FALSE;
     }
@@ -1491,7 +1501,7 @@ float(float xHand, entity b) VR_Melee_Sweep =
             }
             held = TRUE;
         }
-        if(!held && VR_Blow_Strikable(trace_ent))
+        if(!held && VR_Blow_Strikable(trace_ent) && !VR_Blow_StrikesAsWall(trace_ent))
         {
             if(trace_ent == b.mh_hit_ent)
             {

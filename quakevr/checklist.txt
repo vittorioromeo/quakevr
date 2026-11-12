@@ -58,6 +58,7 @@ Chop and slash with the Super Axe's blade: the blows land as the head (and stay 
 Stab the training dummy with the sword and chop the axe into a grunt so they stay in, then pull them out: the blade is bloody where it went in, and stays bloody in your hand.
 In VR, force grab a brick or a gib: the beam starts from your palm, and the thing stops tumbling as it arrives and sits in the hand upright as it lay.
 Neck snap standing and on a lifted body: it goes limp, still held. Leg grabs: pull one down by the shins, drag it by the legs, lift it by the legs. Hold one with both hands: no crash. {test:grunts_to_throw}
+Punch e1m1's shootable secret door by the Quad (and any wall you punch going south or west): the fist lands, sparks fly and the door opens, as a shot does. Your hand rests right on walls on every side now, not a unit short on some and a unit in on others.
 
 [5. Both modes: monsters, bodies, gore, props and navmesh]
 Flat-screen or VR: kick or drop the crate (not a hand throw) hard into the lit wall torch: it falls off its wall as a thrown crate knocks it; nudged slowly against it, the torch stays. {test:systems_torch_knock}
@@ -70,6 +71,7 @@ Flat-screen or VR: stand on one of the arena's corner towers with Monsters Find 
 Flat-screen or VR: stand on the arena's dais with Monsters Find Their Way on: the knights come round to another flight because the crate pile blocks the east one, and they walk round the barrel rather than bump into it; throw the crates off the dais and, a second after they come to rest, walkers take the east flight again; Show Navmesh outlines each blocking prop in purple over a hole in the mesh. {test:nav_props}
 Flat-screen or VR: a knight on a ledge above you walks off its edge and drops down to reach you instead of pacing the edge; the drop links show orange in Show Navmesh. {test:nav_drop}
 Flat-screen or VR, experimental, off by default: with vr_nav_lifts 1 and vr_nav_plat_monsters 1, a knight at the bottom of e1m1's lift walks onto it, rides it up and steps off at the top; lift links show magenta in Show Navmesh. {test:nav_lift}
+Shove an enforcer or an ogre backwards off a ledge (Vrtesthall's platform): it should grab the lip with both hands and pull itself up onto the top; a grunt should now get its chest up over the lip instead of hanging there.
 
 [6. Both modes: weapons, ammo screens and housings]
 Flat-screen or VR: hold the grenade launcher in the left hand (flat-screen: 3 swaps the hands) and look at its ammo screen: the glass sits centred in the bronze bezel exactly as in the right hand, not shifted to the right into the frame. {test:gl_housing}
