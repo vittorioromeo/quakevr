@@ -3004,6 +3004,15 @@ void(entity p, vector xAt, float xSpeed) VR_ETS_Contact =
     VR_Skewer_SwingHit(cVR_MainHand, b);
 };
 
+// The last part: vr_embed off, a fresh sword and a gib on its line (state 8).
+void(entity p) VR_ETS_ToEmbedOff =
+{
+    cvar_set("vr_embed", "0");
+    VR_EH_Give(WID_SWORD, 0);
+    vr_ets_g[3] = VR_ETS_Gib(p, VR_ETS_OnLine(0));
+    VR_ET_To(8);
+};
+
 void() VR_ETS_Step =
 {
     entity p = self;
@@ -3308,6 +3317,12 @@ void() VR_ETS_Step =
         vr_ets_then = 83;
         VR_ET_To(30);
     }
+    else if(vr_et_s == 83 && !vr_ets_r.vr_gib)
+    {
+        // (Burst on its way to the wall: a failed check, not a timeout; the fast swing has nothing to burst then.)
+        VR_Test_Check(FALSE, sprintf("a slow swing to the wall: it stays on (it burst %.1f units on; the mock hand's lag reads it fast)", vr_ets_n * 0.2));
+        VR_ETS_ToEmbedOff(p);
+    }
     else if(vr_et_s == 83 && time > vr_et_t0 + 0.5) // (the hand settled under its new weight)
     {
         vr_ets_n = vr_ets_n + 1;
@@ -3330,11 +3345,7 @@ void() VR_ETS_Step =
         if(!vr_ets_r.vr_gib)
         {
             VR_Test_Check(TRUE, sprintf("a real swing into the wall (%.1f m/s): it bursts", vr_ets_peak));
-            // vr_embed off: as ever.
-            cvar_set("vr_embed", "0");
-            VR_EH_Give(WID_SWORD, 0);
-            vr_ets_g[3] = VR_ETS_Gib(p, VR_ETS_OnLine(0));
-            VR_ET_To(8);
+            VR_ETS_ToEmbedOff(p); // (vr_embed off: as ever)
         }
     }
     // Thrown hard side on at a wall: the gib meets it and bursts.
@@ -3366,6 +3377,14 @@ void() VR_ETS_Step =
         {
             traceline(vr_ets_r.vr_skewer_c, vr_ets_r.vr_skewer_c + normalize(vr_ets_way) * 200, TRUE, p);
             VR_Test_Check(FALSE, sprintf("thrown hard at a wall by the gib: it never burst (fastest %.1f m/s, dropped %g, on the blade %g, stuck %g, %.0f units on it to a wall)", vr_ets_peak, vr_ets_r.vr_skewer_gentle, vr_ets_r.vr_skewer_w == vr_et_w, vr_et_w.vr_stick_kind, 200 * trace_fraction));
+            // (The sword back in the hand, its gib gone: the cases after start as they would after a burst, not with it lying about.)
+            VR_EH_ClearGibs();
+            if(vr_et_w.classname == "thrown_weapon")
+            {
+                vr_et_w.vr_grab_by_handle = TRUE;
+                wpnthrow_handtouch_impl(cVR_MainHand, vr_et_w, p, VRGetEntWeaponPtr(p, cVR_MainHand), VRGetEntWeaponFlagsPtr(p, cVR_MainHand));
+                self = p;
+            }
             vr_ets_then = 60;
             VR_ET_To(30);
         }

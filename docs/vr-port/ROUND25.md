@@ -70,6 +70,26 @@ TESTING.md (1,725 lines) is now the guide (about 320 lines: the mock headset, Wr
 - His 24 vr_wofs_* lines: weapons_data.py promote reports 0 changed: already the defaults (8d327a70b and earlier promotions; the config rounds to 6 digits). No settingsVersion bump.
 - Check: a headless run prints each of the three as "(default)" with the new value. Arena tests pin their own values explicitly, not re-run.
 
+## Embedded blades: a held body through a teleporter, a thrown blade's gib at a wall (branch agent/embedfix, 2026-11-12)
+
+- **Teleporter**: `VR_Embed_HoldThink` frees the blade into the hand (`VR_Embed_Free`) when the wound point moves more than
+  64 units in a frame. The check is shared with the skewer's: `VR_BLADE_JUMP` / `VR_Blade_Jumped` (vr_axestick.qc;
+  `VR_SKEWER_JUMP` is gone). The triage's "held from 300 units away" was the test's: its stab (6 m/s) staggered the body,
+  a staggering body isn't SOLID_SLIDEBOX, and `teleport_touch` never moved it. Case 1 now stabs at 4 m/s (under the 5 m/s
+  stagger) and checks that the body went through (`case N: it went through the teleporter`). With that, the wound jumps
+  142 units and the blade comes back to the hand. "Too far from the hand" would likely have freed it too. Over a whole
+  run the jump check fires only there.
+- **Thrown at a wall**: `VR_Skewer_ThrownBounce` (vr_skewer.qc, from `VR_Skewer_Impact` for a blade in flight). When the
+  gib's move along its last way loses more than half in a frame, the blade isn't stuck, and its handle, middle or tip has
+  something solid ahead within the burst reach plus that move, the gib bursts. A blade that sticks tip first still leaves
+  its gib alone.
+- **Test 13**: "no blade left behind" counts the thrown blades over those in the map as the case began
+  (`vr_ee_blades0`). **Test 21**: the throw's give-up takes the blade back to the hand and clears its gib. State 83 (a slow
+  swing to the wall) failed by timeout because the gib burst on the way (5.1 m/s read off the lagging mock hand,
+  ROUND23's note). It is now a failed check, and the test goes on to the vr_embed-off part.
+- Results: `vr_embed_test 13`: 56/8 -> 60/6 and 67/5 (the remaining failures vary run to run: grip 29-68 units off,
+  cases 8/9, standing or staggering, the pull counts, the spring; not looked into). `vr_embed_test 21`: 41/2 -> 43/1,
+  the one left being the slow swing's burst above.
 ## posebake: his poses, grips and IK stretch against the shipped tables (agent/posebake)
 
 - His vr_agrunt_poses (358 keys), vr_agrunt_grips (3 rows) and vr_agrunt_ik_stretch (16 rows) of ironwail.cfg are already

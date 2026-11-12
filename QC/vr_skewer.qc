@@ -60,7 +60,6 @@ vector vr_skewer_o;   // VR_Skewer_Basis: the frame's origin
 vector vr_skewer_tip; // VR_Skewer_Line: the blade's tip
 vector vr_skewer_way; // and the way along it to the tip
 float VR_SKEWER_YANK_FROM = 5; // cm from the line, or half the stretch that tears it off, before a fast move away is a yank (not a hand closing on it as it arrives, nor pushed off the blade)
-float VR_SKEWER_JUMP = 64; // units in a frame: no move at all, a teleport (VR_Skewer_Impact)
 float VR_SKEWER_SNAP = 30; // m/s in the hand: no swing's speed, a hand a wall held off and let go of: the speed before it counts (VR_Skewer_Impact)
 float VR_SKEWER_THRUST = 0.7; // cosine of a move along the blade's line (VR_Skewer_Thrust, VR_Skewer_Impact)
 
@@ -527,6 +526,35 @@ float(entity g) VR_Skewer_Grip =
     return FALSE;
 };
 
+vector(entity e) weaponmuzzle; // (vr_armedgrunt.qc)
+
+// The thrown blade `w` that `g` is on bounced off something this frame (TRUE): its way along the last frame's move `xLastV` lost more than
+// half of it (`xV`), it didn't stick, and its handle, middle or tip has something solid ahead of it, the way it was going, within `xReach`
+// and that move. A blade meets a wall by its edge or flat while the gib on it is still short of it (test 21: 20 units off a wall a sword
+// thrown flat met): what the blade hit at that speed, the gib on it hits too (its place alone would never reach it).
+float(entity g, entity w, vector xLastV, vector xV, float xReach) VR_Skewer_ThrownBounce =
+{
+    float lastLen = vlen(xLastV);
+    if(lastLen < 0.01 || VR_AxeStick_IsStuck(w) || xV * (xLastV * (1 / lastLen)) > 0.5 * lastLen)
+    {
+        return FALSE;
+    }
+    vector way = xLastV * (1 / lastLen);
+    vector tip = weaponmuzzle(w);
+    float far = xReach + lastLen;
+    for(float i = 0; i < 3; i = i + 1)
+    {
+        vector at = w.origin + (tip - w.origin) * (i * 0.5);
+        traceline(at, at + way * far, MOVE_HITMODEL_MELEE, w);
+        if(trace_fraction < 1 && trace_ent != g.vr_skewer_p && trace_ent != g && (trace_ent.carry_player != g.vr_skewer_p || trace_ent == world))
+        {
+            dprint(sprintf("skewer: the thrown %s a gib is on bounced off %s\n", w.netname, trace_ent == world ? "the level" : trace_ent.classname));
+            return TRUE;
+        }
+    }
+    return FALSE;
+};
+
 // Going fast enough, or just stopped from it, with something right ahead of it: it meets it and bursts (TRUE). On a thrown blade fast
 // by vr_embed_skewer_throw_burst; in the hand by vr_embed_skewer_swing_burst, the hand's own move (not the player's walk) and not along the
 // blade's line (a thrust's tip meets things first). Measured on its own place, so a gib further along than what the blade hit has
@@ -539,7 +567,7 @@ float(entity g) VR_Skewer_Impact =
     vector v = g.vr_skewer_c - g.vr_skewer_lastc;
     vector lastv = g.vr_skewer_lastv;
     float lastsp = g.vr_skewer_lastsp;
-    float first = ((!g.vr_skewer_lastt) || (dt <= 0) || (vlen(v) > VR_SKEWER_JUMP));
+    float first = ((!g.vr_skewer_lastt) || (dt <= 0) || VR_Blade_Jumped(g.vr_skewer_lastc, g.vr_skewer_c));
     vector from = g.vr_skewer_lastc;
     g.vr_skewer_lastt = time;
     g.vr_skewer_lastc = g.vr_skewer_c;
@@ -607,6 +635,10 @@ float(entity g) VR_Skewer_Impact =
         vector ahead2 = normalize(lastv) * reach;
         traceline(g.vr_skewer_c, g.vr_skewer_c + ahead2, MOVE_HITMODEL_MELEE, ignore);
         hit = ((trace_fraction < 1) && (trace_ent != p) && (trace_ent.carry_player != p || trace_ent == world));
+    }
+    if((!hit) && w != world)
+    {
+        hit = VR_Skewer_ThrownBounce(g, w, lastv, v, reach);
     }
     if(!hit)
     {

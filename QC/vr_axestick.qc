@@ -24,6 +24,14 @@ float AXESTICK_BLEED_TICK = 0.5; // seconds between two bleedings
 float AXESTICK_POINT = 1;       // .vr_stick_embed: by its point (weapons.txt embed)
 float AXESTICK_EDGE = 2;        // by its edge
 
+// A blade's or a wound's place moving further than this in one frame is no move at all: a teleporter (a skewer's gib, VR_Skewer_Impact;
+// the wound a hand holds a blade in, VR_Embed_HoldThink).
+float VR_BLADE_JUMP = 64; // units in a frame
+float(vector xWas, vector xNow) VR_Blade_Jumped =
+{
+    return vlen(xNow - xWas) > VR_BLADE_JUMP;
+};
+
 .entity vr_stick_by;      // who threw it: the bleeding's attacker
 .float  vr_stick_model;   // what it is in's model when it stuck (another, or none: gibbed, gone)
 .float  vr_stick_next;    // the next bleeding
