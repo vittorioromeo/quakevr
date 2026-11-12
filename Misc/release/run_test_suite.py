@@ -58,6 +58,7 @@ SUITE = [
     ("reload_magcollide", "reload/magcollide_test.sh", [], 1200, False),
     ("reload_pouchgren", "reload/pouchgren_test.sh", [], 1200, False),
     ("reload_worldparts", "reload/worldparts_test.sh", [], 1200, False),
+    ("reload_ssgtorch", "reload/ssgtorch_test.sh", [], 1200, False),
     ("reload", "reload/reload_test.sh", [], 3600, False),
     ("mapgun_pickup", "loadedmapguns/pickup_test.ps1", [], 1800, False),
     ("mapgun_transfer", "loadedmapguns/transfer_test.ps1", [], 1200, False),

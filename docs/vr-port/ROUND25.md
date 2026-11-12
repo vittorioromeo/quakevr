@@ -279,6 +279,27 @@ wins), and the fuse's countdown sound on launched grenades too.
 - Audit: the other tests that set the cvar (adgun 70/71/73 fx, 81-84, admelee, ammocolor, agrunt 35) already save and restore it. No other menu command sets it.
 - Check: build 0 warnings; `vr_ad_test 79` on e1m1 printed nothing (AD not mounted in agent bases); the cvar reads 0 before and after (trivially: nothing sets it now). Not exercised with AD.
 
+## sshotgun: the open super shotgun: the flashlight rides its barrels; the loaded shells sit flush
+
+- **Flashlight on the barrels:** a torch clipped on the super shotgun (OnGun) is carried down with the barrels when the
+  gun is drawn broken open: `vr_flashlight.cpp gunPose` asks `view::ssgBarrelsCarry(hand, lens, hinge, turn)`
+  (vr_view.cpp), which reuses the barrels' own transform (`ssgTurnWorld` decides by the lens: in front of the hinge,
+  on the barrels; `ssgWorldTurn` is the world turn about `ssgHinge`), and turns the torch's pose about the hinge. Its
+  model, lens disc, beam and light all read `st.pose`, so all follow; the clip zone (gunZone) too. `WeaponMount`
+  carries its `hand`. Before, the torch stayed where the shut barrels had it and the opened barrels swung through it.
+- **Shells flush:** the open barrels' loaded chambers were painted brass at the bottom of 0.454-unit bores
+  (make_ssg_open.py: `BORE_STEPS` 2 x-steps). The barrels model now has three frames, all the rest pose: frame k as
+  skin k (0 both empty, 1 the left loaded, 2 both); a loaded bore's bottom is moved out to the breech face
+  (`HEAD_INSET` 0 steps: flush), an empty bore stays open. `setSsgPart` draws the barrels' frame = their skin (it was
+  always 0; the old file's 9 frames were the gun's firing poses, unused by the parts). The .blend export runs this
+  code (source.py "derived"), so a re-export keeps it. The normal map was not re-baked (skin unchanged; the moved
+  bottoms are flat -x faces).
+- **Test:** `Misc/quakevr/reload/ssgtorch_test.sh <agent>` (in run_test_suite.py as reload_ssgtorch): the torch clipped
+  on the left-hand super shotgun, flicked open, the pouch's pair loaded open: lens to breech 0.2721 m and to a barrel
+  point 0.0897 m both shut and open (45 deg), beam pitch 0 -> -45; the barrels drawn frame 2 skin 2; `ssg_checks.py
+  heads`: frame 0 0.454/0.454, frame 1 0.000/0.454, frame 2 0.000/0.000 (old model: 0.454 every loaded skin). 4
+  passed. `vr_flashlight_probe` prints a `ssg open` line for the super shotgun; `vr_reload_debug 2`'s `ssg: hand` line
+  adds the barrels' frame and skin. Scene `ssg_open_torch`.
 ## armorgear: his weapon tweaks promoted; pouch and torso torch stand forward of the armour
 
 - Promoted (weapons_data.py promote, 22 fields): slot 24 (super axe) blade shape bl_* (bl_from, bl_org, bl_spine, bl_width, bl_s1..s5 off/side, added) and muzzle (-0.071,0.21,-0.82 -> -0.3337,0.2381,4.688); slot 36 torch_fwd/out/up added. weapons.txt is sparse so no vr_wofs_version bump. Also tunables vr_nav_lifts 1 and vr_nav_plat_monsters 1 (tune_promote.py; --check 0). No test reads them.
