@@ -135,6 +135,9 @@ float cVR_Forcegrab_AfterFoe = 0.5; // s: that moment (a judo throw's follow-thr
 // ----------------------------------------------------------------------------
 
 .float throwhit;
+// Set by the "Hold the ..." test commands (vr_ad_test 73-80, 87, 184): grips behave as vr_weapon_grip_mode 1 for this map
+// without touching the player's (archived) cvar. A QC global: it ends with the level.
+float vr_grip_sticky_test;
 .float stickyarmed;   // vr_weapon_grip_mode 1: hands (bit 1 off, 2 main) whose grip was let go since the weapon came
 .float stickypending; // ... hands whose grip was let go again: throw or holster when possible
 .float stickyweaponoff, stickyweaponmain; // the weapon each hand had last frame

@@ -273,3 +273,8 @@ wins), and the fuse's countdown sound on launched grenades too.
 - **Test:** `vr_grenfuse_test 1` (Debug > Tests > Grenade Fuses; e1m1): hand, launcher and ogre grenades each lit at
   once with ticks timed to 2.50 s, each off 2.514 s after arming (one frame's detection), 10 ticks each; the launcher's
   with the countdown off silent. 17 passed, 0 failed. `vr_flatitems_test 11` 11 passed. Scene `grenade_countdown`.
+## gripleak: the AD "Hold the ..." tests no longer change vr_weapon_grip_mode
+
+- Menu "Hold the Flamethrower/Poison Sprayer" ran `vr_weapon_grip_mode 1; vr_ad_test 79/80` and never restored it. Now they run `vr_ad_test 79/80` only: the QC global `vr_grip_sticky_test` (vr_fields.qc; set by vr_ad_test 73-80, 87, 184; ends with the level) makes the three grip checks (vr_wpnholster.qc weapon let-go, vr_embedhold.qc, vr_grapple.qc) behave as mode 1. The archived cvar is untouched.
+- Audit: the other tests that set the cvar (adgun 70/71/73 fx, 81-84, admelee, ammocolor, agrunt 35) already save and restore it. No other menu command sets it.
+- Check: build 0 warnings; `vr_ad_test 79` on e1m1 printed nothing (AD not mounted in agent bases); the cvar reads 0 before and after (trivially: nothing sets it now). Not exercised with AD.
