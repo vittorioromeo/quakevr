@@ -602,3 +602,7 @@ His words: a running sword throw that lands point first fully gibs a grunt; keep
 ## secondwalk
 
 - `VR_AG_SecondOk` compares the walk time only (distance / VR_AG_SECOND_SPEED) against `vr_agrunt_second_combat_time` / `_time`; the 1.3 s reach down no longer counts, so a grunt that sees you fetches a near second weapon at his 1 s. agrunt 211 no longer tunes the combat time.
+
+## allowmoved
+
+- The Blender panel gets **Allow Moved Anchors** (`qvr_allow_moved`) and **Allow Moved Sights** (`qvr_allow_sights`) next to Grow the Box, kept in the .blend and read by `source.export` (so Ctrl+S, Export on Save and `blend_export.py` share one path); the refusal texts now say to tick them. Checked with `blender -b v_nail.blend` and the property on/off: the "surface under it moved" refusals disappear when ticked.

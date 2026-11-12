@@ -615,6 +615,8 @@ def export(context, root, out_dir=None, allow_moved=False, allow_sights=False, r
     path = os.path.join(tmp, name)
     msgs = []
     grow = bool(grow or ob.get("qvr_grow_box", False))
+    allow_moved = bool(allow_moved or ob.get("qvr_allow_moved", False))  # (the panel's Allow Moved Anchors, kept in the .blend)
+    allow_sights = bool(allow_sights or ob.get("qvr_allow_sights", False))
     box = mb.replaced_box(os.path.join(out_dir, name), old)
     if box is not None:
         report("  grid: %s's (grown by an export before): origin %s, scale %s" % (
@@ -698,7 +700,7 @@ def export(context, root, out_dir=None, allow_moved=False, allow_sights=False, r
                          "%.3f)" % (what, text, dist, grid_tol))
             continue
         errors.append("anchor %s \"%s\": the surface under it moved %.3f units in some frame (%s). Move the anchor's "
-                      "empty onto the new surface, or export with --allow-moved" % (what, text, dist,
+                      "empty onto the new surface, or tick Allow Moved Anchors in the panel (--allow-moved)" % (what, text, dist,
                                                                                      "MOVED in the report"))
     if allow_moved:
         errors = [e for e in errors if "surface under it moved" not in e]
@@ -731,7 +733,7 @@ def export(context, root, out_dir=None, allow_moved=False, allow_sights=False, r
             if turn > SIGHT_MAX_DEG and not allow_sights:
                 errors.append("sights: the sight line turned %.2f degrees (at most %.2f): the gun no longer shoots where "
                               "its sights look. Put the sights back, or line them up again in the game "
-                              "(vr_weaponstudio_align main apply) after exporting with --allow-sights" % (turn, SIGHT_MAX_DEG))
+                              "(vr_weaponstudio_align main apply) after exporting with Allow Moved Sights ticked in the panel (--allow-sights)" % (turn, SIGHT_MAX_DEG))
             elif shift > 0.05:
                 warns.append("sights: the sight line moved %.3f units: check vr_weaponstudio_align in the game" % shift)
 
