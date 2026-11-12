@@ -210,7 +210,7 @@ void(entity e, entity xPlayer, float xHand) VR_Embed_TakeHand =
     VR_Embed_SetG0(e, xPlayer, xHand);
     // (Grip mode 1, or a weapon given and never gripped: it opens by a press and a release, as the weapon's let-go.)
     float st = VR_EMBED_ST_RELEASE;
-    if(!VR_HandGrabUtil_IsHandGrabbing(xPlayer, xHand) || cvar_hget(cvarh_vr_weapon_grip_mode) == 1)
+    if(!VR_HandGrabUtil_IsHandGrabbing(xPlayer, xHand) || cvar_hget(cvarh_vr_weapon_grip_mode) == 1 || vr_grip_sticky_test)
     {
         st = 0;
     }

@@ -2792,7 +2792,7 @@ float(entity h, float xHand) VR_Grapple_Trigger =
     if(h.gh_release_at)
     {
         float o = 1 - xHand;
-        if((cvar_hget(cvarh_vr_weapon_grip_mode) != 1 && !VRIsEntHandGrabbingBit(self, xHand)) ||
+        if((cvar_hget(cvarh_vr_weapon_grip_mode) != 1 && !vr_grip_sticky_test && !VRIsEntHandGrabbingBit(self, xHand)) ||
            (VRIsEntHandGrabbingBit(self, o) && VR_Hand_Free(self, o, VR_HANDFREE_GUNGRIP | VR_HANDFREE_LOCKED))) // (the hand-off's)
         {
             if(VR_Grapple_Debug())

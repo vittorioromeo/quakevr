@@ -247,3 +247,9 @@ knight failed pull), 22 of 24 after. `vr_agrunt_test 210`: 8 passed, 0 failed.
   flat_melee2h kept (an unretired line still uses it).
 - tune_promote: vr_flat_melee_2h "1" -> "0" (the two-handed stance is off by default); --check exits 0.
   flatmelee2h_test.sh now sets `tune vr_flat_melee_2h 1` first: 16 passed, 0 failed.
+
+## gripleak: the AD "Hold the ..." tests no longer change vr_weapon_grip_mode
+
+- Menu "Hold the Flamethrower/Poison Sprayer" ran `vr_weapon_grip_mode 1; vr_ad_test 79/80` and never restored it. Now they run `vr_ad_test 79/80` only: the QC global `vr_grip_sticky_test` (vr_fields.qc; set by vr_ad_test 73-80, 87, 184; ends with the level) makes the three grip checks (vr_wpnholster.qc weapon let-go, vr_embedhold.qc, vr_grapple.qc) behave as mode 1. The archived cvar is untouched.
+- Audit: the other tests that set the cvar (adgun 70/71/73 fx, 81-84, admelee, ammocolor, agrunt 35) already save and restore it. No other menu command sets it.
+- Check: build 0 warnings; `vr_ad_test 79` on e1m1 printed nothing (AD not mounted in agent bases); the cvar reads 0 before and after (trivially: nothing sets it now). Not exercised with AD.

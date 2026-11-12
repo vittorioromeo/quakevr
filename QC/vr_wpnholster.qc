@@ -1216,7 +1216,7 @@ float(entity ent, float xHand) VRWeaponGivenHeld =
         }
         return FALSE;
     }
-    return cvar_hget(cvarh_vr_weapon_grip_mode) != 1;
+    return cvar_hget(cvarh_vr_weapon_grip_mode) != 1 && !vr_grip_sticky_test;
 }
 
 // (Engine, vr_scenario: a give placed the weapon in `xHand` of `p`.)
