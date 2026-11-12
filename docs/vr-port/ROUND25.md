@@ -602,3 +602,7 @@ His words: a running sword throw that lands point first fully gibs a grunt; keep
 ## secondwalk
 
 - `VR_AG_SecondOk` compares the walk time only (distance / VR_AG_SECOND_SPEED) against `vr_agrunt_second_combat_time` / `_time`; the 1.3 s reach down no longer counts, so a grunt that sees you fetches a near second weapon at his 1 s. agrunt 211 no longer tunes the combat time.
+
+## blendwhy
+
+- Blender add-on: the timer-driven `popup_menu` (never showed) is gone; the panel lists the refusal (or grown-box) lines under "Last:" and a "Why?" button opens a dialog with all of them, the log path and a Copy tick. `py_compile` ok; no background Blender test covers the panel.
