@@ -673,6 +673,8 @@ za::Vector<Item> pageDebugTests()
                   "its share of the strafe (Weapons > Aiming > Projectiles Keep Your Motion); then the main hand swung, "
                   "a grenade keeps its share of the swing, a rocket none. With the mock headset (in a headset: hold the "
                   "hand still, then swing it)."),
+        command("Grenade Fuses", "developer 1; vr_grenfuse_test 1")
+            .help("vr_grenfuse_test 1: a hand grenade armed ahead of you, your launcher's grenade and an ogre's (thrown away from you) go off one after another: each the same time after its arming (Grenade Fuse), each fizzing and ticking down to it; then a launcher's with Thrown Grenades Tick off, silent. You take no damage meanwhile."),
         command("Projectiles: Flat Turn", "developer 1; cl_yawspeed 1440; +right; vr_projinherit_test 2")
             .help("vr_projinherit_test 2, in flat-screen play: the view turns fast, the hands swinging round with it (made "
                   "up by the game, not a controller's): the hand reports no velocity and a grenade keeps none of it."),

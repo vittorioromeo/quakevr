@@ -181,23 +181,23 @@ void() OgreFireGrenade =
     if(!VR_OtherFlags() && (self.spawnflags & OGRE_BOSS))
     {
         missile.touch = MultiGrenadeTouch;
-        missile.nextthink = time + 2.5;
+        missile.nextthink = time + VR_Grenade_Fuse(); // QVR: every grenade's fuse (id's 2.5 s: vr_grenade_fuse)
         missile.think = MultiGrenadeExplode;
         setmodel(missile, "progs/mervup.mdl");
         setsize(missile, '0 0 0', '0 0 0');
         setorigin(missile, self.origin);
         missile.classname = "MultiGrenade";
-        VR_Grenade_Make(missile, MultiGrenadeExplode, 2.5, FALSE); // QVR: a physics object you can catch (vr_grenade_catch)
+        VR_Grenade_Make(missile, MultiGrenadeExplode, missile.nextthink - time, FALSE); // QVR: a physics object you can catch (vr_grenade_catch)
     }
     else
     {
         missile.touch = OgreGrenadeTouch;
-        missile.nextthink = time + 2.5;
+        missile.nextthink = time + VR_Grenade_Fuse(); // QVR: every grenade's fuse (id's 2.5 s: vr_grenade_fuse)
         missile.think = OgreGrenadeExplode;
         setmodel(missile, "progs/grenade.mdl");
         setsize(missile, '0 0 0', '0 0 0');
         setorigin(missile, self.origin);
-        VR_Grenade_Make(missile, OgreGrenadeExplode, 2.5, FALSE); // QVR: a physics object you can catch (vr_grenade_catch)
+        VR_Grenade_Make(missile, OgreGrenadeExplode, missile.nextthink - time, FALSE); // QVR: a physics object you can catch (vr_grenade_catch)
     }
 };
 

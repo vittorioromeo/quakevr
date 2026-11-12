@@ -1161,6 +1161,7 @@ void ikStretchReset()
         header("Grenades"),
         row(opt::vr_grenade_catch),
         row(opt::vr_grenade_fuse_regrab),
+        row(opt::vr_grenade_countdown),
         row(opt::vr_grenade_return_full),
         row(opt::vr_grenade_shoot),
         row(opt::vr_grenade_shoot_melee),

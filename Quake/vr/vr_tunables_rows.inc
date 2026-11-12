@@ -1089,7 +1089,7 @@ QVR_TUNABLE_SLIDER(vr_grenade_shoot_pad, "Grenade Shot Size", 0.0f, 8.0f, 0.5f, 
 QVR_TUNABLE_SLIDER(vr_grenade_melee_speed, "Blow Speed to Set Off", 5.0f, 40.0f, 0.5f, "%.1f m/s", 0.0f, 80.0f, "How fast a punch, a gun's swing, a pommel or a gun's butt must go to set a grenade off rather than bat it (the arm's speed, as the melee events print it). Your strongest punches go about 20-25.")
 QVR_TUNABLE_SLIDER(vr_grenade_melee_speed_weapon, "Weapon Blow Speed to Set Off", 5.0f, 60.0f, 0.5f, "%.1f m/s", 0.0f, 100.0f, "The same for a sword's, the axe's, the crowbar's, a club's or a stopped chainsaw's blade or head: they are swung faster (an ordinary sword slash goes about 28). A running chainsaw always sets it off.")
 QVR_TUNABLE_SLIDER(vr_grenade_melee_damage, "Blow Damage to Set Off", 0.0f, 60.0f, 1.0f, "%.0f", 0.0f, 200.0f, "And the least damage the blow must deal (a full-speed punch deals about 25; tired blows less). 0: the speed alone.")
-QVR_TUNABLE_SLIDER(vr_handgrenade_fuse, "Hand Grenade Fuse", 1.0f, 5.0f, 0.1f, "%.1f s", 1.0f, 5.0f, "From the pin (or the throw) to the blast. The launcher's grenades take 2.5 s. Hold it too long and it goes off in your hand.")
+QVR_TUNABLE_SLIDER(vr_grenade_fuse, "Grenade Fuse", 1.0f, 5.0f, 0.1f, "%.1f s", 1.0f, 5.0f, "Every grenade's fuse: your grenade launcher's and an ogre's from the shot, a hand grenade's from the pin (or the throw) to the blast. Quake's is 2.5 s. Hold a hand grenade too long and it goes off in your hand.")
 
 QVR_TUNABLE_GROUP("Combat > Bullet Time")
 QVR_TUNABLE_SLIDER(vr_bullettime_min, "Least Meter to Start", 0.05f, 1.0f, 0.05f, "%.2f", 0.05f, 1.0f, "How full the meter must be to start (it then runs until empty or stopped).")

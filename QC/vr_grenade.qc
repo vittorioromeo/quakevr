@@ -10,7 +10,8 @@
 // by the hands is to be caught (VR_Grenade_OnBody).
 // - Caught (a hand takes it: gripped, or a force grab's catch), its fuse is set to vr_grenade_held_fuse (never
 //   shortened), once a throw (vr_grenade_fuse_regrab 1: every catch), and it is lit: it fizzes, sparks, and ticks
-//   faster and faster in the hand (felt too) until it goes off.
+//   faster and faster in the hand (felt too) until it goes off. A launcher's or a monster's is lit as it is thrown
+//   (vr_grenade_countdown: the fizz and the ticks, timed to its fuse; no sparks until a hand has it): VR_Grenade_Light.
 // - Thrown (let go of), it is the player's: it spares the player, goes off on a monster, and what it blows up is
 //   the player's doing (T_RadiusDamage's attacker). Going off in the hand, it hurts the player as any explosion
 //   there would: the thrower's (the ogre's) explosion, in full.
@@ -27,7 +28,7 @@
 //   rockets (one leaves the ammo with it). It is the launcher's grenade (GrenadeExplode, GrenadeTouch: 120 over 160,
 //   the player's, with the Quad) made live here (VR_Grenade_Setup), unarmed (.vr_hgren, no fuse) until its pin is
 //   pulled (the trigger, vr_handgrenade_arm 0) or it is let go of (vr_handgrenade_arm 1): then its fuse
-//   (vr_handgrenade_fuse) runs, lit as a caught grenade is. Let go of unarmed at the pouch, it goes back in (the rocket
+//   (vr_grenade_fuse: every grenade's, VR_Grenade_Fuse) runs, lit as a caught grenade is. Let go of unarmed at the pouch, it goes back in (the rocket
 //   back); elsewhere (arming on the trigger) it drops as a dud, which can be taken again, armed or put back. Thrown,
 //   it is any grenade you throw: caught, going off on a monster or its fuse, in your hand if held too long.
 //   With the hand's upper face button (B/Y) held as it grips (ROUND21.md, "Multi-grenades from the pouch"), the pouch
@@ -52,7 +53,8 @@
 .void() vr_gren_touch;   // its own touch (OgreGrenadeTouch, GrenadeTouch, MultiGrenadeTouch)
 .float vr_gren_held;     // in a hand at the last tick
 .float vr_gren_set;      // its held fuse was set (once a throw: vr_grenade_fuse_regrab)
-.float vr_gren_lit;      // caught: it fizzes, sparks and ticks until it goes off
+.float vr_gren_lit;      // lit (VR_Grenade_Light): it fizzes and ticks until it goes off (sparks too once a hand set its fuse)
+.float vr_gren_full;     // the fuse it had when lit (or a hand set it): its ticks quicken over it (VR_Grenade_Cue)
 .float vr_gren_ticknext; // the next tick
 .float vr_gren_sparknext; // the next sparks
 .vector vr_gren_lastvel; // its velocity at the last tick,
@@ -86,14 +88,25 @@ float VR_GREN_FLYING = 150;     // u/s: faster, a grenade is in flight (caught w
 // needs a fuse burning), so VR_Grenade_CatchCheck skips its findradius, a walk of every entity, twice a frame (0.05-0.1 ms
 // a frame in Arcane Dimensions' big maps).
 float vr_gren_fuse_last;
+float vr_gren_ticks; // countdown ticks played so far, any grenade's (VR_Grenade_Cue; vr_grenfuse_test counts them)
 float VR_GREN_CATCH_AGE = 0.2;  // s after its throw a grenade can be caught (not as it leaves your hand or launcher)
 float VR_GREN_PALM = 1.5;       // units from the hand's point to the palm, the way the palm faces
 float VR_GREN_PALM_FACING = 0.2; // an open palm stops a grenade coming at it this square (cosine) or more: not edge-on
 
 float VR_GREN_BOUNCE = 90;     // u/s: a jump in its velocity (gravity's taken off) this big is a bounce
-float VR_GREN_TICK_SLOW = 0.5; // s between ticks with vr_grenade_held_fuse (or more) left,
+float VR_GREN_TICK_SLOW = 0.5; // s between ticks with its whole fuse (.vr_gren_full) left,
 float VR_GREN_TICK_FAST = 0.08; // down to this as it goes off
 float VR_GREN_BODY_MARGIN = 3; // units round a VR player's body capsule a grenade goes off on it (VR_Grenade_OnBody)
+
+// Every grenade's fuse, from its arming to its blast (ROUND25.md, "One grenade fuse; launched grenades tick"): the
+// grenade launcher's (weapons.qc VR_FireGrenadeMissile: our grenade, also AD's grenade soldier's), the ogre's and the
+// multi-grenade ogre's (orig_mon_ogre.qc), and a hand grenade's from its pin (or its release: vr_handgrenade_arm 1).
+// vr_grenade_fuse, id Quake's 2.5 s. The expansions' own grenades keep theirs (rogue's multi-grenade launcher 1 s, the
+// demo dog's, AD's), and a caught grenade's is vr_grenade_held_fuse (never shortened).
+float() VR_Grenade_Fuse =
+{
+    return min(5, max(1, cvar_hget(cvarh_vr_grenade_fuse)));
+};
 
 float VR_LOB_SPEED = 632.46;   // u/s: Quake's lob (600 ahead, 200 up) on level ground: an ogre's, a zombie's
 float VR_LOB_HARDER = 1.2;    // times that an out-of-reach lob may be thrown (a ledge high above: still "close to" Quake's)
@@ -342,8 +355,27 @@ float(float xPlayers) VR_Grenade_On =
     return mode >= 1;
 };
 
+// Lights the live grenade `g` (its fuse set): its countdown from now, the fizz, then ticks quicker and quicker to the
+// blast (VR_Grenade_Cue, every frame). The one countdown of every grenade: a hand grenade's pin (VR_HandGrenade_Arm), a
+// catch (VR_Grenade_Caught), a launcher's or a monster's throw (VR_Grenade_Setup, vr_grenade_countdown). `xNewFuse`: its
+// fuse was just set, the ticks' pace starts over from it; else (caught again, the fuse kept) they keep quickening.
+void(entity g, float xNewFuse) VR_Grenade_Light =
+{
+    if(xNewFuse || g.vr_gren_full <= 0)
+    {
+        g.vr_gren_full = max(0.1, g.vr_gren_fuse - time);
+    }
+    g.vr_gren_ticknext = time + 0.15;
+    g.vr_gren_sparknext = time + 0.06;
+    if(!g.vr_gren_lit)
+    {
+        g.vr_gren_lit = TRUE;
+        sound(g, CHAN_BODY, "vr/grenade_fuse.wav", 1, ATTN_NORM);
+    }
+};
+
 // Makes the grenade `g` (its model, origin and velocity set) a live grenade you can catch: `xBoom` its explosion,
-// `xFuse` seconds to it.
+// `xFuse` seconds to it (0: none yet, a hand grenade's pin). With a fuse it is lit at once (vr_grenade_countdown).
 void(entity g, void() xBoom, float xFuse) VR_Grenade_Setup =
 {
     g.vr_grenade = TRUE;
@@ -351,6 +383,10 @@ void(entity g, void() xBoom, float xFuse) VR_Grenade_Setup =
     g.vr_gren_boom0 = xBoom;
     g.vr_gren_fuse = time + xFuse;
     vr_gren_fuse_last = max(vr_gren_fuse_last, g.vr_gren_fuse);
+    if(xFuse > 0 && cvar_hget(cvarh_vr_grenade_countdown))
+    {
+        VR_Grenade_Light(g, TRUE); // (a launcher's or a monster's: its countdown as a hand grenade's)
+    }
     g.vr_gren_made = time;
     g.vr_gren_thrower = g.owner;
 
@@ -520,7 +556,8 @@ void() VR_Grenade_Caught =
         return; // (no fuse to set: its pin, VR_HandGrenade_Arm)
     }
     float left = self.vr_gren_fuse - time;
-    if(!self.vr_gren_set || cvar_hget(cvarh_vr_grenade_fuse_regrab))
+    float newFuse = !self.vr_gren_set || cvar_hget(cvarh_vr_grenade_fuse_regrab);
+    if(newFuse)
     {
         float fuse = min(5, max(1, cvar_hget(cvarh_vr_grenade_held_fuse)));
         self.vr_gren_fuse = max(self.vr_gren_fuse, time + fuse);
@@ -532,12 +569,7 @@ void() VR_Grenade_Caught =
     {
         dprint(sprintf("grenade: caught again in hand %g, the fuse left at %.2f s\n", hand, left));
     }
-    if(!self.vr_gren_lit)
-    {
-        self.vr_gren_lit = TRUE;
-        sound(self, CHAN_BODY, "vr/grenade_fuse.wav", 1, ATTN_NORM);
-    }
-    self.vr_gren_ticknext = time + 0.15;
+    VR_Grenade_Light(self, newFuse);
 };
 
 // Whether `e` is a monster's grenade in flight (a catchable one, or Quake's ogre and multi-grenades): what an unarmed
@@ -817,7 +849,7 @@ void(entity xBox, float xHand) VR_Grenade_Released =
 // The lit grenade's cues: sparks, and ticks faster as it goes off (felt in the hand that holds it).
 void(float xHeld) VR_Grenade_Cue =
 {
-    if(time >= self.vr_gren_sparknext)
+    if(self.vr_gren_set && time >= self.vr_gren_sparknext) // (sparks once a hand set its fuse: not a launcher's in flight)
     {
         self.vr_gren_sparknext = time + 0.06;
         particle2(self.origin + '0 0 2', '0 0 60', QVR_PARTICLE_PRESET_SPARKS, 2);
@@ -827,7 +859,8 @@ void(float xHeld) VR_Grenade_Cue =
         return;
     }
     float left = self.vr_gren_fuse - time;
-    float full = min(5, max(1, cvar_hget(cvarh_vr_grenade_held_fuse)));
+    float full = max(0.1, self.vr_gren_full); // (its fuse when lit: the ticks quicken over it, whatever its length)
+    vr_gren_ticks++;
     float gap = VR_GREN_TICK_FAST + (VR_GREN_TICK_SLOW - VR_GREN_TICK_FAST) * min(1, max(0, left / full));
     self.vr_gren_ticknext = time + gap;
     sound(self, CHAN_AUTO, "vr/grenade_tick.wav", 0.8, ATTN_NORM);
@@ -1016,7 +1049,7 @@ void(entity g) VR_HandGrenade_GoLive =
 // grenade has no fuse: its lens lit, it is a mine once let go of (VR_HandGrenade_Mine).
 void(entity g, float xHand, string xHow) VR_HandGrenade_Arm =
 {
-    float fuse = min(5, max(1, cvar_hget(cvarh_vr_handgrenade_fuse)));
+    float fuse = VR_Grenade_Fuse(); // (the launcher's and the ogre's: from the pin, or the release, to the blast)
     g.vr_hgren_armed = TRUE;
     VR_HandGrenade_GoLive(g); // the live grenade's look: its lit band, and its smoke trail
     if(cvar_hget(cvarh_vr_handgrenade_arm) != 1)
@@ -1037,10 +1070,7 @@ void(entity g, float xHand, string xHow) VR_HandGrenade_Arm =
     g.vr_gren_fuse = time + fuse;
     vr_gren_fuse_last = max(vr_gren_fuse_last, g.vr_gren_fuse);
     g.vr_gren_set = TRUE; // (the pin set it: a catch doesn't, unless Fuse Resets Every Catch)
-    g.vr_gren_lit = TRUE;
-    g.vr_gren_ticknext = time + 0.15;
-    g.vr_gren_sparknext = time + 0.06;
-    sound(g, CHAN_BODY, "vr/grenade_fuse.wav", 1, ATTN_NORM);
+    VR_Grenade_Light(g, TRUE);
     dprint(sprintf("grenade: hand grenade armed (%s): goes off in %.2f s\n", xHow, fuse));
 };
 

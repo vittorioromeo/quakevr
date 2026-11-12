@@ -31,6 +31,7 @@ dispatch vr_flatitems_test QC/vr_flatitems_test.qc VR_FlatItemsTest_Frame ask
 dispatch vr_flatgate_test QC/vr_flatgate_test.qc VR_FlatGateTest_Frame ask
 dispatch vr_selfshot_test QC/vr_selfshot_test.qc VR_SelfShotTest_Frame ask
 dispatch vr_projinherit_test QC/vr_projinherit_test.qc VR_ProjInheritTest_Frame ask
+dispatch vr_grenfuse_test QC/vr_grenfuse_test.qc VR_GrenFuseTest_Frame ask
 dispatch vr_flatmove_test QC/vr_flatmove_test.qc VR_FlatMoveTest_Frame ask
 dispatch vr_flatblood_test QC/vr_flatblood_test.qc VR_FlatBloodTest_Frame ask
 dispatch vr_flatswap_test QC/vr_flatswap_test.qc VR_FlatSwapTest_Frame ask
@@ -716,6 +717,7 @@ vr_selfshot_test 1        vr_selfshot_test.qc              shooting yourself: sh
 vr_selfshot_test 2        vr_selfshot_test.qc              shooting yourself: ordinary firing from a grid of hand poses, both hands: no self-hit
 
 vr_projinherit_test 1     vr_projinherit_test.qc           projectiles keep your motion: strafing, nails and rockets on the aim, grenades their share; a hand swing in grenades only
+vr_grenfuse_test 1        vr_grenfuse_test.qc              one fuse for every grenade: hand, launcher and ogre grenades go off together after arming, each lit with its countdown (none with vr_grenade_countdown 0)
 vr_projinherit_test 2     vr_projinherit_test.qc           projectiles keep your motion: flat-screen, a fast turn's synthesized hand swing adds nothing
 
 vr_flatmove_test 1        vr_flatmove_test.qc              flat-screen: his top level speed once settled (standing, crouched)

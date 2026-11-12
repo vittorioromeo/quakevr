@@ -893,6 +893,7 @@ vr_deflect_swing|1|Batting and Catching|Batting Needs a Swing|Advanced VR Option
 vr_bash_deflect_window|1|Batting and Catching|Bash Batting Timing|Advanced VR Options > Combat > Batting and Catching > Bash Batting Timing
 vr_grenade_catch|1|Batting and Catching|Catch Grenades|Advanced VR Options > Combat > Batting and Catching > Catch Grenades
 vr_grenade_fuse_regrab|1|Batting and Catching|Fuse Resets Every Catch|Advanced VR Options > Combat > Batting and Catching > Fuse Resets Every Catch
+vr_grenade_countdown|1|Batting and Catching|Thrown Grenades Tick|Advanced VR Options > Combat > Batting and Catching > Thrown Grenades Tick
 vr_grenade_return_full|1|Batting and Catching|Returned Grenades Hit Like Yours|Advanced VR Options > Combat > Batting and Catching > Returned Grenades Hit Like Yours
 vr_grenade_shoot|1|Batting and Catching|Shoot Grenades|Advanced VR Options > Combat > Batting and Catching > Shoot Grenades
 vr_grenade_shoot_melee|1|Batting and Catching|Blows Set Grenades Off|Advanced VR Options > Combat > Batting and Catching > Blows Set Grenades Off
@@ -3437,7 +3438,7 @@ vr_grenade_shoot_pad|2|Tunables|Grenade Shot Size|Advanced VR Options > Debug > 
 vr_grenade_melee_speed|2|Tunables|Blow Speed to Set Off|Advanced VR Options > Debug > Tunables > Blow Speed to Set Off
 vr_grenade_melee_speed_weapon|2|Tunables|Weapon Blow Speed to Set Off|Advanced VR Options > Debug > Tunables > Weapon Blow Speed to Set Off
 vr_grenade_melee_damage|2|Tunables|Blow Damage to Set Off|Advanced VR Options > Debug > Tunables > Blow Damage to Set Off
-vr_handgrenade_fuse|2|Tunables|Hand Grenade Fuse|Advanced VR Options > Debug > Tunables > Hand Grenade Fuse
+vr_grenade_fuse|2|Tunables|Grenade Fuse|Advanced VR Options > Debug > Tunables > Grenade Fuse
 vr_bullettime_min|2|Tunables|Least Meter to Start|Advanced VR Options > Debug > Tunables > Least Meter to Start
 vr_bullettime_fx_desat|2|Tunables|Colour Drained|Advanced VR Options > Debug > Tunables > Colour Drained
 vr_bullettime_fx_vignette|2|Tunables|Darkened Edges|Advanced VR Options > Debug > Tunables > Darkened Edges
@@ -5458,6 +5459,7 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Shoot Yourself: Aimed|Advanced VR Options > Debug > Tests > Shoot Yourself: Aimed
 |2|Debug - Tests|Shoot Yourself: Ordinary Firing|Advanced VR Options > Debug > Tests > Shoot Yourself: Ordinary Firing
 |2|Debug - Tests|Projectiles Keep Your Motion|Advanced VR Options > Debug > Tests > Projectiles Keep Your Motion
+|2|Debug - Tests|Grenade Fuses|Advanced VR Options > Debug > Tests > Grenade Fuses
 |2|Debug - Tests|Projectiles: Flat Turn|Advanced VR Options > Debug > Tests > Projectiles: Flat Turn
 |2|Debug - Tests|Crouch Shots|Advanced VR Options > Debug > Tests > Crouch Shots
 |2|Debug - Tests|Crouch Status|Advanced VR Options > Debug > Tests > Crouch Status

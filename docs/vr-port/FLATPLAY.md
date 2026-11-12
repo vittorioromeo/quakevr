@@ -978,7 +978,7 @@ go throws it.
   `VR_FlatGrenade_Choose` picks the hand, the trip to the pouch takes `vr_flat_grenade_fetch_time`, then the headset's
   own pouch grenade is taken (`VR_HandGrenade_Take`: a rocket leaves the reserve; the proximity launcher's round if the
   other hand holds it), carried in the hand. The fire button arms it with the headset's arming (`VR_HandGrenade_Arm`: the
-  pin, `vr_handgrenade_fuse`, the cues); `vr_flat_grenade_arm_mode` 1 (default): the next press, held, winds up; 0: the
+  pin, `vr_grenade_fuse`, the cues); `vr_flat_grenade_arm_mode` 1 (default): the next press, held, winds up; 0: the
   arming press itself winds up. Let go, it leaves just ahead of the eyes along the crosshair, `vr_flat_grenade_throw_up`
   above it, at `vr_flat_grenade_speed_min` .. `_max` by the wind-up's share of `vr_flat_grenade_wind_full`, with his own
   motion; the carry's own throw (`VR_Carry_Throw`) and release (`VR_Grenade_Released`). G again with it unarmed puts it
