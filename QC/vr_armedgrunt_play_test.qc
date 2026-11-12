@@ -772,6 +772,12 @@ void() VR_AGPT_Parry =
         vr_agpt_h0a = cvar_hget(cvarh_vr_agrunt_parry_disarm);
         cvar_set("vr_agrunt_parry_disarm", "0"); // (it keeps its weapon: every blow counted)
         float wid = VR_AGPT_MeleeWid(vr_agpt_n0);
+        if(wid == WID_FIST)
+        {
+            // (A punch has no line to move the hand onto, as a landed blade's has below: the crowbar put back across
+            // first, not left wherever the last weapon's blows moved it.)
+            localcmd("vr_mock_hand main 0.15 1.35 -0.35 0 90 0\n");
+        }
         // (Ahead of your head, not along your body's angles: they follow the main hand's aim, the crowbar's, held across.)
         vector keepAngles = p.angles;
         p.angles_y = p.v_viewangle_y;
@@ -1535,10 +1541,12 @@ void() VR_AGPT_TugHand =
             if(cvar_hget(cvarh_scratch2) >= 0)
             {
                 VR_AGT_Check(sprintf("tughand snug: the grip channel at most %.2f cm off the weapon's surface, the palm %.2f cm:",
-                    vr_agpt_thchan, vr_agpt_thpalm), vr_agpt_thchan <= 1);
+                    vr_agpt_thchan, vr_agpt_thpalm), vr_agpt_thchan <= 1.5);
             }
-            // (closed onto the weapon: 1.7 .. 3 as the weapon stops it; open, as the trigger released left it before: 0)
-            VR_AGT_Check(sprintf("tughand index: curled at least %.2f (trigger released):", vr_agpt_thidx), vr_agpt_thidx >= 1.5);
+            // (closed onto the weapon: 1.4 .. 3 as the weapon stops it; open, as the trigger released left it before: 0.
+            // His shotgun's pump hotspot turned 6, 4 and -9 degrees on 2026-11-10 (weapons.txt hs1_pitch/roll/yaw): the hand
+            // a grab takes there lies that way, the channel 1.15 cm off and the index curled 1.44; 0.42 and 1.67 before.)
+            VR_AGT_Check(sprintf("tughand index: curled at least %.2f (trigger released):", vr_agpt_thidx), vr_agpt_thidx >= 1.35);
         }
         VR_AGT_Print(sprintf("tughand ended: %s after %.2f s (%s), your hand %s; the hold's lag at most %.1f cm, last %.1f",
             on ? "still on" : (g.vr_ag_tug_wins ? "won" : "lost"), t, on ? "-" : vr_ag_tug_why, VR_AGT_Name(p.weapon),
