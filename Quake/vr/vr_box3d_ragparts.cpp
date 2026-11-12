@@ -244,16 +244,28 @@ constexpr float handleFollow = 12.f;    // 1/s: a blade's handle hold's point on
     return glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, since, za::clamp(vr_embed_move_turn.value, 0.f, 1.f)) * g.bladeReach;
 }
 
-// What is left of a handle hold's gap now (bladeGap, eased away: smoothstep over vr_embed_move_match s).
+// The share left now of a handle hold's gap taken at `since` (eased away: smoothstep over vr_embed_move_match s).
+[[nodiscard]] float handleGapLeft(double since)
+{
+    const float over = za::max(vr_embed_move_match.value, 0.f);
+    const float t = over > 0.f ? za::clamp(static_cast<float>(qcvm->time - since) / over, 0.f, 1.f) : 1.f;
+    return 1.f - t * t * (3.f - 2.f * t);
+}
+
+// What is left of a ragdoll's handle hold's gap now (bladeGap).
 [[nodiscard]] glm::vec3 bladeGapNow(const World::RagdollGrab& g)
 {
     if(!g.bladeHandle || g.bladeGap == glm::vec3{0.f})
     {
         return glm::vec3{0.f};
     }
-    const float over = za::max(vr_embed_move_match.value, 0.f);
-    const float t = over > 0.f ? za::clamp(static_cast<float>(qcvm->time - g.bladeGapAt) / over, 0.f, 1.f) : 1.f;
-    return g.bladeGap * (1.f - t * t * (3.f - 2.f * t));
+    return g.bladeGap * handleGapLeft(g.bladeGapAt);
+}
+
+// A handle hold's stiffness (Hz, its place and its turn): Moving: Handle's Stiffness.
+[[nodiscard]] float handleHertz()
+{
+    return za::max(vr_embed_move_handle_hertz.value, 0.5f);
 }
 
 [[nodiscard]] int grabIndex(int player, int hand)
@@ -1321,6 +1333,175 @@ bool tugHolds(int player, int hand, int num)
     return g.tug && g.num == num;
 }
 
+// ---- A blade held in a prop (his note 2026-11-05: "pulling either the blade or the prop moves both, a Box3D joint"; QC
+// vr_embedhold.qc VR_Embed_PropSpring, embedprophold). A hand on the handle of a blade left in a crate or a barrel holds the
+// prop as it holds a ragdoll by a blade (tugRagdoll what 17): a kinematic body at the hand, a motor joint from it to the prop
+// at the handle's point, stiff (handleHertz), its force `force` at most level and `lift` up (dragged and tipped, not
+// hoisted on one blade), its torque that force at the blade's length. The handle stays in the hand unless the prop is too
+// heavy or held back; the prop moved by anything else takes the blade along (it rides the prop: vr_axestick.cpp).
+namespace
+{
+[[nodiscard]] int propBladeIndex(int player, int hand)
+{
+    for(int i = 0; i < static_cast<int>(world->propBlades.size()); i++)
+    {
+        const World::PropBlade& h = world->propBlades[static_cast<za::SizeT>(i)];
+        if(h.player == player && h.hand == hand)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
+void endPropBlade(int index)
+{
+    World::PropBlade& h = world->propBlades[static_cast<za::SizeT>(index)];
+    if(B3_IS_NON_NULL(h.joint) && b3Joint_IsValid(h.joint))
+    {
+        b3DestroyJoint(h.joint, true);
+    }
+    if(B3_IS_NON_NULL(h.anchor) && b3Body_IsValid(h.anchor))
+    {
+        b3DestroyBody(h.anchor);
+    }
+    world->propBlades.erase(world->propBlades.begin() + index);
+}
+
+// Whether the hold `h` still has its prop's body on its joint.
+[[nodiscard]] bool propBladeValid(const World::PropBlade& h)
+{
+    return solidProp(h.num) && B3_IS_NON_NULL(h.joint) && b3Joint_IsValid(h.joint) && B3_IS_NON_NULL(h.anchor) && b3Body_IsValid(h.anchor) &&
+           B3_ID_EQUALS(b3Joint_GetBodyB(h.joint), world->slots[h.num].body);
+}
+} // namespace
+
+void releasePropBlade(int player, int hand)
+{
+    if(const int index = world ? propBladeIndex(player, hand) : -1; index >= 0)
+    {
+        endPropBlade(index);
+    }
+}
+
+float holdPropBlade(int num, edict_t* player, int hand, const glm::vec3& handle, const glm::vec3& wound, const glm::vec3& shift, float force,
+    float lift)
+{
+    const int pnum = NUM_FOR_EDICT(player);
+    if(!world || !solidProp(num) || pnum < 1 || pnum > svs.maxclients)
+    {
+        return -1.f;
+    }
+    int index = propBladeIndex(pnum, hand);
+    if(index >= 0 && (world->propBlades[static_cast<za::SizeT>(index)].num != num || !propBladeValid(world->propBlades[static_cast<za::SizeT>(index)])))
+    {
+        endPropBlade(index);
+        index = -1;
+    }
+    const b3BodyId body = world->slots[num].body;
+    glm::vec3 at;
+    glm::quat turn;
+    handPose(player, hand, at, turn);
+    const float lever = glm::distance(handle, wound) / world->m2u;
+    if(index < 0)
+    {
+        World::PropBlade h;
+        h.player = pnum;
+        h.hand = hand;
+        h.num = num;
+        h.force = za::max(force, 0.f);
+        h.lift = za::max(lift, 0.f);
+        h.lever = lever;
+        h.shift = shift;
+        h.gap = handle - at - shift;
+        h.gapAt = qcvm->time;
+        h.called = qcvm->time;
+        b3BodyDef def = b3DefaultBodyDef();
+        def.type = b3_kinematicBody;
+        def.position = world->toM(handle);
+        def.rotation = toB3(turn);
+        def.userData = userOf(pnum);
+        h.anchor = b3CreateBody(world->id, &def);
+        b3MotorJointDef jd = b3DefaultMotorJointDef();
+        jd.base.bodyIdA = h.anchor;
+        jd.base.bodyIdB = body;
+        jd.base.localFrameA = b3Transform{b3Vec3_zero, b3Quat_identity};
+        jd.base.localFrameB = b3Transform{b3Body_GetLocalPoint(body, world->toM(handle)),
+            toB3(glm::normalize(glm::inverse(fromB3(b3Body_GetRotation(body))) * turn))};
+        jd.base.collideConnected = false;
+        jd.linearVelocity = b3Vec3_zero;
+        jd.angularVelocity = b3Vec3_zero;
+        jd.maxVelocityForce = 0.f;
+        jd.maxVelocityTorque = 0.f;
+        jd.linearHertz = handleHertz();
+        jd.linearDampingRatio = 1.f;
+        jd.maxSpringForce = h.force;
+        jd.angularHertz = handleHertz();
+        jd.angularDampingRatio = 1.f;
+        jd.maxSpringTorque = h.force * za::max(grabLever, lever);
+        h.joint = b3CreateMotorJoint(world->id, &jd);
+        b3Body_SetAwake(body, true);
+        world->propBlades.pushBack(h);
+        if(vr_debug_ragdoll.value || vr_debug_axestick.value)
+        {
+            Con_Printf("embed: prop %d: hand %d holds it by the blade's handle, %.1f units from the wound, %.1f from the hand, %.0f N at most (%.0f up)\n",
+                num, hand, glm::distance(handle, wound), glm::length(handle - at), h.force, h.lift);
+        }
+        return 0.f;
+    }
+    World::PropBlade& h = world->propBlades[static_cast<za::SizeT>(index)];
+    h.force = za::max(force, 0.f);
+    h.lift = za::max(lift, 0.f);
+    h.lever = lever;
+    h.shift = shift;
+    h.called = qcvm->time;
+    // (The handle as it is on the prop now: the blade rides it rigidly, and slides along its own line in it.)
+    b3Joint_SetLocalFrameB(h.joint, b3Transform{b3Body_GetLocalPoint(body, world->toM(handle)), b3Joint_GetLocalFrameB(h.joint).q});
+    return glm::length(glmv(b3Joint_GetConstraintForce(h.joint)));
+}
+
+// Before the step, after the ragdolls' holds: each prop's hold's body to its hand; those the QC no longer makes ended.
+void syncPropBlades(float dt)
+{
+    constexpr double uncalled = 0.25; // s without the QC's call: its hand let go, the blade came out, the prop broke
+    for(int i = static_cast<int>(world->propBlades.size()) - 1; i >= 0; i--)
+    {
+        World::PropBlade& h = world->propBlades[static_cast<za::SizeT>(i)];
+        edict_t* player = h.player < qcvm->num_edicts ? EDICT_NUM(h.player) : nullptr;
+        if(!player || player->free || player->v.health <= 0.f || !svs.clients[h.player - 1].active || !propBladeValid(h) ||
+           qcvm->time - h.called > uncalled || qcvm->time < h.called)
+        {
+            endPropBlade(i);
+            continue;
+        }
+        glm::vec3 at;
+        glm::quat turn;
+        handPose(player, h.hand, at, turn);
+        at += h.shift + h.gap * handleGapLeft(h.gapAt);
+        const b3BodyId body = world->slots[h.num].body;
+        // (Up, no more than its lift: by how far up the handle is asked from where it is.)
+        const glm::vec3 held = world->toU(b3Body_GetWorldPoint(body, b3Joint_GetLocalFrameB(h.joint).p));
+        const glm::vec3 way = at - held;
+        const float far = glm::length(way);
+        const float up = far > 0.05f ? za::clamp(way.z / far, 0.f, 1.f) : 0.f;
+        const float most = glm::mix(h.force, za::min(h.force, h.lift), up);
+        b3MotorJoint_SetMaxSpringForce(h.joint, most);
+        b3MotorJoint_SetMaxSpringTorque(h.joint, most * za::max(grabLever, h.lever));
+        b3MotorJoint_SetLinearHertz(h.joint, handleHertz());
+        b3MotorJoint_SetAngularHertz(h.joint, handleHertz());
+        if(glm::distance(world->toU(b3Body_GetPosition(h.anchor)), at) > 0.5f * world->m2u)
+        {
+            b3Body_SetTransform(h.anchor, world->toM(at), toB3(turn)); // (a jump: a teleport)
+            b3Body_SetLinearVelocity(h.anchor, b3Vec3_zero);
+        }
+        else
+        {
+            b3Body_SetTargetTransform(h.anchor, b3WorldTransform{world->toM(at), toB3(turn)}, dt, true);
+        }
+        b3Body_SetAwake(body, true);
+    }
+}
+
 // Before the step: each hold's body to its hand (a hold whose limb stays far from the hand is let go of: QC sees it
 // gone, ragdollheld); those of what is gone ended.
 void syncRagdollGrabs(float dt)
@@ -1394,9 +1575,8 @@ void syncRagdollGrabs(float dt)
                 // little (some 0.6 kg of a 10 kg chest) while the whole body hangs on it: at Moving: Stiffness's 24 Hz the
                 // handle sat 14 units from a still hand, and at a limb grab's turn rate the limb alone turned, the body stayed
                 // lying: a lift raised the handle, not the wound.)
-                const float stiff = za::max(vr_embed_move_handle_hertz.value, 0.5f);
-                b3MotorJoint_SetLinearHertz(g.joint, stiff);
-                b3MotorJoint_SetAngularHertz(g.joint, stiff);
+                b3MotorJoint_SetLinearHertz(g.joint, handleHertz());
+                b3MotorJoint_SetAngularHertz(g.joint, handleHertz());
             }
             if(RagdollBodies* moved = ragdollOf(g.num); moved && moved->active.on && moved->active.stagger.on)
             {
@@ -1440,6 +1620,7 @@ void syncRagdollGrabs(float dt)
         }
         b3Body_SetAwake(part, true);
     }
+    syncPropBlades(dt);
 }
 
 // The distance (units) from hand `hand` of `player` to the point of the limb it holds; -1 if none.
@@ -1572,6 +1753,17 @@ RagdollGrabResult ragdollGrab(edict_t* corpse, edict_t* player, int hand)
 float ragdollTug(edict_t* ent, edict_t* player, int hand, int what, const glm::vec3& grip, float strength, float force)
 {
     return world && ent && player ? tugRagdoll(ent, player, hand, what, grip, strength, force) : (what == 1 ? -1.f : 0.f);
+}
+
+float propBladeHold(int num, edict_t* player, int hand, const glm::vec3& handle, const glm::vec3& wound, const glm::vec3& shift, float force,
+    float lift)
+{
+    return world && player ? holdPropBlade(num, player, hand, handle, wound, shift, force, lift) : -1.f;
+}
+
+void propBladeRelease(int player, int hand)
+{
+    releasePropBlade(player, hand);
 }
 
 bool ragdollHoldSoft(edict_t* ent, edict_t* player, int hand, float reach, float force, float hertz, float stuck, bool head,

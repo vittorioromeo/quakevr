@@ -2557,19 +2557,24 @@ void skewerDrawnHand(const hands::State& s, int hand, glm::vec3& pos, glm::vec3&
         pin.ent = num;
         pin.local = turn * (s.pos[hand] - glm::vec3{e.origin[0], e.origin[1], e.origin[2]});
         pin.localTurn = turn * anglesBasis(s.rot[hand]);
-        // On its surface, not inside it (his note 2026-11-08 17:11: a hand closed in the gib was drawn deep in it): out from the
-        // model's middle to its size, as QC's VR_Skewer_Grip has it (its VR_Skewer_Radius plus the palm).
-        constexpr float skewerPalm = 2.f; // units (QC VR_SKEWER_PALM)
-        const glm::vec3 lo{e.model->mins[0], e.model->mins[1], e.model->mins[2]};
-        const glm::vec3 hi{e.model->maxs[0], e.model->maxs[1], e.model->maxs[2]};
-        const glm::vec3 mid = (lo + hi) * 0.5f;
-        const glm::vec3 size = hi - lo;
-        const float reach = za::fmax(2.f, (size.x + size.y + size.z) / 6.f) + skewerPalm;
-        const glm::vec3 out = pin.local - mid;
-        const float len = glm::length(out);
-        if(len < reach)
+        // On its drawn surface, where the QC's hold has the hand (VR_Skewer_Grip's .vr_skewer_gripd from its middle: the carried
+        // props' fit of the fist to the model, held::surfaceFit): the hand snaps onto the gib as it takes hold (his note 2026-11-12
+        // 19:52). It was put on a ball of the model's box's size round its middle, 9 cm off a gib1, more off a limb.
+        // (vr_embed_probe_gibsnap: cm it snapped.)
+        const progs::FieldOffsets& f = progs::fields();
+        if(f.vr_skewer_gripd >= 0 && f.vr_skewer_c >= 0 && sv.active)
         {
-            pin.local = mid + (len > 1e-3f ? out / len : glm::vec3{0.f, 0.f, 1.f}) * reach;
+            const progs::ServerVm vm;
+            edict_t* const ed = EDICT_NUM(num);
+            entity_t server{};
+            VectorCopy(ed->v.angles, server.angles);
+            const glm::vec3 at = progs::fieldVec(ed, f.vr_skewer_c) + progs::fieldVec(ed, f.vr_skewer_gripd);
+            const glm::vec3 local = glm::transpose(entityTurn(server)) * (at - glm::vec3{ed->v.origin[0], ed->v.origin[1], ed->v.origin[2]});
+            if(vr_embed_probe.string[0])
+            {
+                Cvar_SetValueQuick(&vr_embed_probe_gibsnap, glm::distance(local, pin.local) / units::metresToUnits() * 100.f);
+            }
+            pin.local = local;
         }
     }
     pin.weight = usable ? za::fmin(1.f, pin.weight + dt / embedPinIn) : 0.f;

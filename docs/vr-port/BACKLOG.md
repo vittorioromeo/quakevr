@@ -91,8 +91,9 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
 ## 7. Combat and feel
 
 - **Crossed-sword parry** (2026-10-18): two blades crossed in front of the body count as a parry. After the AD melee work.
-- **Blades embedded in props** (2026-11-05): crates and barrels too; pulling either moves both (a Box3D joint, the pair
-  not colliding); unify with blades in monsters and ragdolls where it fits.
+- **Blades embedded in props** (2026-11-05): done 2026-11-12 (ROUND25.md "propblade": a joint at the handle, shared with
+  the ragdolls' handle hold). Left: his VR check; a test of a re-grip off the handle; the crate carried by the other hand
+  while its blade is held (the hand lets go at arm's reach, as before).
 - **From Quake Combat+ v5.7** (2026-10-16; ideas only, nothing of theirs reusable): hit-confirm audio layering;
   wounded monsters bleeding a trail, big ones split and crawling.
 - **Flies on corpses and gibs** (2026-10-02): flies and their particles on every body after a few seconds; Armagon's
