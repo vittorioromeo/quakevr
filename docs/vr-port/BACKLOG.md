@@ -6,8 +6,8 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
 
 ## 1. Open bugs and failing tests
 
-- **`vr_agrunt_test 210`** (shoves off ledges, vrclimb; ROUND24.md "Shoves off ledges"): still failing.
-- **`vr_flatswap_test 4`** (AD's six blades through the hand swap, needs `-game ad`): open, to be made to pass with AD
+- **`vr_agrunt_test 210`** (shoves off ledges, vrclimb; ROUND24.md "Shoves off ledges"): still failing: 5 checks fail on the base code, 48 of 54 trials pass (seen 2026-11-11).
+- **`vr_flatswap_test 4`** (AD's six blades through the hand swap, needs `-game ad`): never run; it checks nothing in vrtesthall, so it needs a spot on an AD map, then to pass with AD
   mounted (ROUND24.md, "The hand swap: melee weapons stay in sight").
 - **Stance and the free hand's punch** (flatstance): the stance's torso twist raises the free hand's punch (32 damage
   against 21 without). Should the twist reach the blow? His call. Also his call: flatstance "the drawn hand stands on
