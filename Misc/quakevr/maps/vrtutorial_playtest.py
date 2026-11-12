@@ -125,7 +125,7 @@ def pull(hand, dz, steps=15):
         c("vr_mock_hand_to %s by 0 0 %g" % (hand, -dz / steps), "wait")
 
 
-def take_to_holster(hand, cls, holster=3, hover=20, onto=0, tries=1):
+def take_to_holster(hand, cls, holster=3, hover=20, onto=0, tries=1, lift=0):
     """The hand to the nearest `cls`, gripped, brought to a holster and let go there (collected). Leaning in. With
     `tries` > 1, again a little off each time (a thin thing lying any which way), the grip pressed once the hand is
     there: a try that took it has collected it at the holster, and the next finds none (nothing done)."""
@@ -152,10 +152,15 @@ def take_to_holster(hand, cls, holster=3, hover=20, onto=0, tries=1):
         w(12)
         c(STAND)
         w(10)
+        if lift:    # (room 8: the shells lie on the bench, and the held one caught on its edge on the way to the holster: thrown)
+            for _ in range(2):
+                c("vr_mock_hand_to %s by 0 0 %g" % (hand, lift / 2))
+                w(4)
         for _ in range(2):
             c("vr_mock_hand_to %s holster %d" % (hand, holster))
             w(10)
         let_go(hand)
+        w(4)    # (the release is read a frame on: the hand reset the same frame moves 7 units in one, a 500 u/s throw)
         c("vr_mock_hand %s" % hand)
         w(30)
 
@@ -466,6 +471,7 @@ def load_shells(n):
             w(6)
         w(6)
         let_go("off")
+        w(4)    # (as take_to_holster: a hand reset the frame of the release throws what it held)
         c("vr_mock_hand off")
         w(8)
 
@@ -476,12 +482,15 @@ R8_TARGETS = [(4880, -64, 48), (5040, -224, 64), (5200, -96, 40), (5360, -320, 7
 
 def g9_weapons():
     mark("weapons", "start")
+    c("vr_reload_mode 3")            # (hand loading, the mode this gate teaches: not whatever the base's config holds)
     walk(4880, 337, 3, 300)          # at the bench (against it)
     c("vr_mock_turn_to 90")
     w(100)
     grab_item("main", "weapon_shotgun")
+    # (OPEN, ROUND25.md "testfix": the main hand's grip misses the gun on the bench: the hand stops 25 units short and
+    # the gun only comes by the 9 s force grab, so the shells below are taken for a hand with no gun)
     walk(4980, 337, 3, 150)          # by the shells
-    take_to_holster("off", "item_shells", 2)
+    take_to_holster("off", "item_shells", 2, lift=30)
     load_shells(8)
     walk(5216, 180, 8, 300)          # at the counter
     c("vr_mock_turn_to 270")

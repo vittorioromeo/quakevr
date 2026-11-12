@@ -106,3 +106,17 @@ TESTING.md (1,725 lines) is now the guide (about 320 lines: the mock headset, Wr
 ## cupskip
 
 flatstance_test.sh no longer measures the drawn hand against cup grips (grapple, nail pistol): the status prints cup 0/1 (grip2HCup) on the stance spot line and the check skips cup reads. 7/0.
+
+## testfix
+
+- flatswing knight trials: the knight is checked 8 frames after its spawn (was 20: it drifted 3-50 units from its spot
+  later; `sv_freezenonclients` stops the blow too, so no freeze) and the run has `sv_random_seed 1`; 3 runs 5/0.
+- flatpose: `sv_random_seed 1` in the first and the e1m1 runs, the knights at 24 checked 8 frames after the spawn, and
+  the control's gate is `> 3` units off (was 8; it read 7.5 on a good run). Before the last two edits: 22/0 in 4 of 6
+  runs, 21/1 twice (the control, a pellet spread missing the knight at 300 or 24).
+- `vrtutorial_playtest.py` room 8: the shells were thrown because the held shell caught on the bench edge on the way
+  to the holster (`take_to_holster(lift=30)`), and a release followed by a same-frame hand reset throws (`w(4)` between).
+  Shells now collect and the pouch gives pairs, but the main hand never holds the bench's shotgun ("the other hand holds
+  no gun with a loading port"): its hand stops ~25 units short and the gun comes by the 9 s force grab. OPEN.
+- Kit `run_baseline.py`: `agrunt_numbers` calls `build/qvr_checks/qvr_checks.exe test_numbers --list` (the old Python
+  as the fallback for a tree without it); 214 agrunt numbers.

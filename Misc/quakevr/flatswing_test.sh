@@ -38,9 +38,9 @@ check $([ "$(ones pathoff)" -lt 10 ] && echo 1 || echo 0) "pathoff: the control,
 # each swing; vr_test_hurt 1 reads it after (1 damage of its own; nothing when the swing gibbed it), vr_test_kill 1 then
 # takes it away. (On e1m1 a knight the swing left alive stayed for the next, which then struck both or read the old one.)
 # (Each swing 64 units further east, x -320 to 320: away from the last one's corpse and gibs.)
-sc="map vrtesthall; god; notarget; developer 1; wait5; vr_test_spawn 5"
+sc="sv_random_seed 1; map vrtesthall; god; notarget; developer 1; wait5; vr_test_spawn 5"
 X=-320
-trial() { sc="$sc; setpos $X 300 25 0 90 0; wait5; vr_test_spawn_dist $1; impulse 152; wait10; impulse 241; wait20; echo flatswing: swing $2 at $1; vr_flat_punch main; wait60; vr_test_hurt 1; wait5; vr_test_kill 1; wait10"; X=$((X + 64)); }
+trial() { sc="$sc; setpos $X 300 25 0 90 0; wait5; vr_test_spawn_dist $1; impulse 152; wait10; impulse 241; wait8; echo flatswing: swing $2 at $1; vr_flat_punch main; wait60; vr_test_hurt 1; wait5; vr_test_kill 1; wait10"; X=$((X + 64)); }
 sc="$sc; tune vr_flat_swing_raise_fwd -12; tune vr_flat_swing_strike 0.075"
 for d in 20 22 24 24 24 26 26 28; do trial $d raised; done
 sc="$sc; tune_reset vr_flat_swing_raise_fwd; tune_reset vr_flat_swing_strike"
