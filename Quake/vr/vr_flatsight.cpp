@@ -131,7 +131,8 @@ struct Sight
     bool stancePistol{false};   // a pistol's stance, not a long gun's (vr_flat_stance_pistol); kept for the way back
     int stanceHand{-1};         // the hand holding the gun it is for, the same
     bool lookWanted{false};     // the free hand is going to the hotspot
-    bool lookFast{false};       // ... or was taken off it by a punch or E: off as fast as a grip's
+    bool lookFast{false};       // ... or was taken off it by a punch or E (or the hands' swap): off as fast as a grip's
+    bool lookSwap{false};       // the hands' swap is under way: on and off at a grip's pace (vr_flat_swap_look)
     bool lookFar{false};        // ... its arm can't reach it, in this pose
     float lookT{0.f};           // how far it has gone
     float lookTarget{1.f};      // how far it goes, its arm's need allowing (hands on the body)
@@ -1725,7 +1726,15 @@ void stanceAndLook(const hands::State& s, const glm::vec3& aim, const glm::vec3&
     }
     // E: a force grab takes the free hand off the gun to turn its palm out (vr_flatfgrab.cpp), and back on after.
     const bool reaching = (st.helping >= 0 && flatfgrab::busy(st.helping)) || (st.helping == HAND_OFF && glm::length(reach) > 0.f);
-    st.lookFast = longGun && (reaching || flatplay::punching(st.helping) || flatplay::shoving(st.helping));
+    // The hands' swap (vr_flatswap.cpp; his words 2026-11-12: "The rocket launcher is the only one where it looks good. Please
+    // look at what the rocket launcher does, and use the same logic for other similar 2H weapons"): the rocket launcher's free
+    // hand is on a real grip, which the swap blocks until the weapon has changed hands (flatswap::gripBlocked), so it lets go
+    // at gripEase as the release takes it to the empty hand's guard, and the new free hand takes the grip at gripEase during
+    // the attach. The look is drawn only: it stayed on the gun through the release (the hand never seen to let go) and came
+    // to the new free hand at lookEase, after the attach was over. Now it goes as the grip does (vr_flat_swap_look 1).
+    st.lookSwap = vr_flat_swap_look.value != 0.f && flatswap::busy();
+    const bool swapLetsGo = st.lookSwap && flatswap::gripBlocked();
+    st.lookFast = longGun && (reaching || flatplay::punching(st.helping) || flatplay::shoving(st.helping) || swapLetsGo);
     st.lookWanted = st.stanceWanted && !carry && !st.lookFar && !st.lookFast;
     if(st.lookWanted)
     {
@@ -1777,7 +1786,7 @@ void frame()
         st.holding = st.helping = st.lastHolding = st.lastHelping = -1;
         st.pinned = st.atGrip = st.armed = false;
         st.lookT = st.stanceT = 0.f;
-        st.lookWanted = st.lookFar = st.lookFast = st.stanceWanted = st.stanceGun = st.drawnKnown = false;
+        st.lookWanted = st.lookFar = st.lookFast = st.lookSwap = st.stanceWanted = st.stanceGun = st.drawnKnown = false;
         st.lookHand = st.stanceHand = -1;
         st.spot[0] = st.spot[1] = -1;
         st.edgeFrame = -1;
@@ -1812,7 +1821,7 @@ void frame()
     st.gripT = st.heldOffPose ? 1.f : za::clamp(st.gripT + (st.gripWanted ? 1.f : -1.f) * ease(gripEase, dt), 0.f, 1.f);
     {
         const float to = st.lookWanted ? st.lookTarget : 0.f;
-        const float step = ease(st.lookFast ? gripEase : lookEase, dt);
+        const float step = ease(st.lookFast || st.lookSwap ? gripEase : lookEase, dt);
         st.lookT = za::clamp(st.lookT + za::clamp(to - st.lookT, -step, step), 0.f, 1.f);
     }
     st.stanceT = za::clamp(st.stanceT + (st.stanceWanted ? 1.f : -1.f) * ease(stanceEase, dt), 0.f, 1.f);

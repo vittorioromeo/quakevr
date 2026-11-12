@@ -4188,6 +4188,7 @@ vr_flat_swap_down|2|Tunables|Swap: Meet Lower|Advanced VR Options > Debug > Tuna
 vr_flat_swap_2h_release_time|2|Tunables|Swap 2H: Release Time|Advanced VR Options > Debug > Tunables > Swap 2H: Release Time
 vr_flat_swap_2h_pass_time|2|Tunables|Swap 2H: Pass Time|Advanced VR Options > Debug > Tunables > Swap 2H: Pass Time
 vr_flat_swap_2h_attach_time|2|Tunables|Swap 2H: Attach Time|Advanced VR Options > Debug > Tunables > Swap 2H: Attach Time
+vr_flat_swap_look|2|Tunables|Swap 2H: Long Guns As Rocket L.|Advanced VR Options > Debug > Tunables > Swap 2H: Long Guns As Rocket L.
 vr_flat_swap_2h_all|2|Tunables|Swap 2H: Every Two-Hand Hold|Advanced VR Options > Debug > Tunables > Swap 2H: Every Two-Hand Hold
 vr_flat_swap_things|2|Tunables|Swap: Carried Things Too|Advanced VR Options > Debug > Tunables > Swap: Carried Things Too
 vr_flat_grenade_fetch_time|2|Tunables|Grenade: Pouch Time|Advanced VR Options > Debug > Tunables > Grenade: Pouch Time

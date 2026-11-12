@@ -1947,6 +1947,7 @@ QVR_TUNABLE(vr_flat_swap_down, "2") // units below the middle of the two hands t
 QVR_TUNABLE(vr_flat_swap_2h_release_time, "0.1") // a weapon held in both hands: seconds the free hand takes off the grip to the empty hand's guard
 QVR_TUNABLE(vr_flat_swap_2h_pass_time, "0.1") // then the seconds the weapon takes across to it (the swap happens as it gets there)
 QVR_TUNABLE(vr_flat_swap_2h_attach_time, "0.1") // then the seconds the hands take to their places: the weapon to its hold, the other hand onto its grip
+QVR_TUNABLE(vr_flat_swap_look, "1") // 1: a long gun's free hand drawn on its hotspot (the shotguns, the nailguns, AD's guns: no real grip ahead of the trigger hand) lets go and takes it again at the pace the rocket launcher's real grip does (flatsight's gripEase) through the hand swap; 0: it stayed on through the release and came back at the slow look pace after (before 2026-11-12)
 QVR_TUNABLE(vr_flat_swap_2h_all, "1") // 1: every weapon held alone with the other hand empty (on its grip or beside it) takes the release, pass and attach; 0: only a gun whose two-hand grip the free hand holds (before 2026-11-11: the rocket launcher's kind)
 QVR_TUNABLE(vr_flat_swap_things, "1") // 1: what a hand carries (a prop, a gib, a torch, a ragdoll's limb) changes hands with the rest; 0: a carried thing swaps nothing, as before
 

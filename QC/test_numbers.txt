@@ -726,7 +726,7 @@ vr_flatmove_test 8        vr_flatmove_test.qc              flat-screen test aid:
 vr_flatmove_test 9        vr_flatmove_test.qc              flat-screen test aid: the spots near him where the water jump lifts him out, with their yaw
 vr_flatswap_test 1        vr_flatswap_test.qc              flat-screen swap key: every weapon held alone (shotguns, nailguns, launchers, thunderbolt, axe, chainsaw, crowbar, AD plasma rifle) swaps the two-handed way, ends in the other hand
 vr_flatswap_test 2        vr_flatswap_test.qc              flat-screen swap key with carried things: gun+brick, brick+gun, two bricks, brick+empty, empty+brick, two guns, a brick in both: each hand ends with the other's
-vr_flatswap_test 11-15    vr_flatswap_test.qc              test aid: a strip of the swap (rocket launcher, super shotgun, nailgun, axe, shotgun with a brick in the left hand)
+vr_flatswap_test 11-17    vr_flatswap_test.qc              test aid: a strip of the swap (rocket launcher, super shotgun, nailgun, axe, shotgun with a brick in the left hand, grenade launcher, AD plasma rifle)
 vr_flatblood_test 1       vr_flatblood_test.qc             blood at point blank: a grunt and a corpse shot with the shotgun, super shotgun, nailgun at 60/30/12/4 units, its particles made and drawn
 vr_flatblood_test 2       vr_flatblood_test.qc             blood at point blank, his repro: crouched over a corpse, the shotgun down at it from 20/12/6/3 units (after the 60-unit corpse shot)
 vr_flatblood_test 3       vr_flatblood_test.qc             test aid: as 2, with a picture of each crouched shot's blood 4 frames after it
