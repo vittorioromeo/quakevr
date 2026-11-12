@@ -18,6 +18,7 @@ With drips on, get something wet, then reload the same map (a restart or a save 
 Flat-screen or VR: in vrteleporters' flush galleries, a dog in the gallery behind the gates follows you through the large gate, walking through it as you do; it never tries the crate hatch. {test:nav_tele_gate}
 Flat-screen or VR: a dog at e1m1's one-way teleporter's destination never runs into a teleporter to reach you by its entry (there is no way back through): it takes the long way round. {test:nav_tele_oneway}
 Flat-screen or VR: on e1m1's big lift by the start, a knight below walks onto the lift, rides it up and comes for you at the top. {test:nav_lift}
+Flat-screen or VR: in the test hall, stand by the NEW GAME / VR HUB buttons at the back wall and let an unarmed or melee grunt chase you: it should come straight at you and fight, not pace back and forth at the edge of the start mat.
 
 [1. Flat-screen: weapons and hands]
 Flat-screen: hold the axe (then a sword, the crowbar, Mjolnir, the super axe) with the left hand empty: it goes onto the handle by itself without swinging and the weapon sits in a two-handed stance; take a weapon or a prop in the left hand and it eases back to the one-handed hold, with no jumps either way. Tune it in Debug > Tunables > Flatscreen > Two-Handed Melee Stance. {test:flat_melee2h}

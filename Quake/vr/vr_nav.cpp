@@ -3990,8 +3990,13 @@ float steer(edict_t* ent, edict_t* goal)
     }
     a.waitLink = 0;
     // None left, or the goal straight ahead on the mesh: Quake's own chase (its melee range, its dodges). A slot straight
-    // ahead is still walked to.
-    if(next < 0 || ((flags[next] & DT_STRAIGHTPATH_END) && a.slot < 0))
+    // ahead is still walked to. Also when the path's end is only the mesh's nearest point to an aim off it (him beside a
+    // button or door, whose polygons are blocked whole; a slot over such a floor) and the walker already stands as near
+    // the aim as that end or nearer (off the mesh's eroded edge): steering back onto the mesh would only turn it away
+    // from him, back and forth at the edge (vr_agrunt_test 12 by vrtesthall's buttons, 2026-11-12).
+    const float endGap = flatDist(fromRc(a.endRc), aim);
+    const bool pastEnd = endGap > c->radius + 16.f && flatDist(pos, aim) <= endGap + reached;
+    if(next < 0 || pastEnd || ((flags[next] & DT_STRAIGHTPATH_END) && a.slot < 0))
     {
         a.why = whyEnd;
         ++state.fallbacks;

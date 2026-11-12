@@ -518,3 +518,31 @@ His words: a running sword throw that lands point first fully gibs a grunt; keep
 - **Test:** `vr_embed_test 41` (QC/vr_throwgib_test.qc; `map vrtesthall;wait30;god;notarget;vr_embed_test 41`): 20 m/s throws at a 30-health grunt: sword and dagger point first die whole, blade in the body, 80% deep; under Quad gibbed; handle first not counted; vr_embed 0 point first (its touch called at the chest) dies whole. 19 passed, 0 failed. Tests 40 (12/0) and 21 (43/1, the known slow-swing burst) unchanged.
 - **Seen, not fixed:** in the headless throws a handle-first sword (vr_embed 1) and a point-first one with vr_embed 0 bounce off the grunt's body (Box3D) and reach its touch at 4.5 m/s, under the hurt speed: no damage. Not checked in a headset.
 - Scene: `throw_nogib`.
+
+## agfails: the armed-grunt failures of the 2026-11-12 baseline (branch agent/agfails)
+
+- **agrunt 12 (17/4): a navmesh bug, not the props.** The baseline runs it without AD's data (no `ad` folder): every AD
+  "weapon" is fists, and 4 of them never reached you. The fist fights before them push you back off vrtesthall's start mat
+  (a 1-unit `qvr_trim` brush, y -336..-240) to y -444, in front of the NEW GAME / VR HUB buttons. A button blocks every
+  navmesh polygon its box (plus the walker's radius) overlaps, whole (vr_nav.cpp, the movers' tick): nothing of the mesh
+  within 64 units of you. A melee walker's ring slot (80 from you) then found only the mat's polygon, eroded to y -304;
+  the grunt walked off its edge toward you, `navsteer` turned it back onto the mesh (corner 0 the start's nearest point),
+  and it paced between y -287 and -320, 126..157 units off, never inside `vr_nav_slot_engage` (120). Fix
+  (`qvr::nav::steer`): when the path's end is only the mesh's nearest point to an aim off it (more than the radius + 16
+  from it) and the walker already stands as near the aim as that end (or nearer), Quake's chase takes over (`whyEnd`),
+  as it does once all corners are reached. Shared by every walker. agrunt 12 21/0; arena 36 16/0, arena 41 (seed 1)
+  14/1 (a dog "down" trial: the known capped kind), nav_crowd 12 of 12 came, 0 stalls, nav_lift passes; nav_tele fails
+  as before (known open). The first-bad promote1111 merely moved where the fights pushed you.
+- **agrunt 35 (5/1, fist parry 0 of 9): the test.** A punch has no weapon line, so the step that moves the mock hand onto
+  a landed blade's way never ran for it; the fist case parried only with whatever pose the earlier weapons' moves left
+  the crowbar in (changed by armoursplit's draws). The fist case now puts the crowbar back across first (the comment's
+  `vr_mock_hand main 0.15 1.35 -0.35 0 90 0`): 6/0.
+- **agrunt 39 (3/2): retuned.** His shotgun pump hotspot of 2026-11-10 (weapons.txt `hs1_pitch/roll/yaw` 6.2/3.9/-9.0,
+  `hs1_x` 10.43) turns the hand a grab anywhere on the weapon takes: the grip channel 1.15 cm off the surface (limit 1),
+  the index curled 1.44 (limit 1.5). With the old hotspot (`vr_wofs_hs1_*_02` at their old values) 0.42 and 1.67: the
+  cause is his tuning, the hold itself unchanged (drawn hand 0.00 cm off its grab, the palm 7.2 cm, 7.6 before). Limits
+  now 1.5 cm and 1.35: 5/0.
+- **Not done (budget):** agrunt 211 case 3: the hunting grunt never sets out for the nail gun 52 away (at the end
+  `VR_AG_SecondOk` 0, `VR_AG_WantsSecond` 1, `VR_AG_Reachable` 1, not shunned; it hunted 150 units off first); next look:
+  which of SecondOk's conditions (the weapon-to-you sight line, the combat time) says no. agrunt 16 (disarm hulls vs the
+  WIP nail pistol) and `vr_embed_test 40` case 1 not looked at.
