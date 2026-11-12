@@ -178,3 +178,26 @@ flatstance_test.sh no longer measures the drawn hand against cup grips (grapple,
 ## takeslight
 
 vr_takes_light_flat (default 0, archived; menu Recording > "Recording Light and Prompt (Flat Screen)"): the flat-play corner light and prompt are off by default, because OBS records the window. vr_takes_light stays the master switch. The headset light is unchanged: VR_TakesIndicator returns null while VR_IsActive, and drawInEye draws into the eyes only, so the spectator camera never has it. vr_takes_test checks the corner is absent by default and present with the cvar at 1.
+
+## Ragdoll climb: the enforcer's grab, the pull's chest, the ogre's swing (branch agent/realfix_climb, 2026-11-12)
+
+`Misc/quakevr/ragdoll/climb_test.sh`: 18 of 24 before (the enforcer failed pull, drop and hit; the grunt, ogre and hell
+knight failed pull), 22 of 24 after. `vr_agrunt_test 210`: 8 passed, 0 failed.
+
+- **The enforcer never grabbed** (`findLedge`, vr_ragactive.cpp): the ledges looked at were those in a box round its
+  pelvis and chest centre (1.2 arms out). An enforcer's chest centre sits about 10 units behind its shoulders (its power
+  pack); toppling off upright 12 units from the wall, the lip left that box while still within its shoulders' reach
+  (1.15 arms): no probe, a 184-unit fall. The box now takes in both shoulders too.
+- **The grunt "too weak to rise"** (Pull, vr_ragactive_hold.cpp): its chest's goal (0.3 arm over the lip) and its
+  pelvis's way (0.35 arm under it) were 0.65 arm apart; a grunt's pelvis hangs 16 units (about an arm) under its chest,
+  so with its chest at its goal its pelvis stayed 5 units short and timed out. The chest's goal is now at least 0.95 x
+  its torso (pelvis to chest, measured as it begins to pull: `Climb::torso`) over the pelvis's way.
+- **The ogre "lost its hold"** (Hang): "not hanging" (its pelvis within a quarter arm under the lip: its legs still on
+  the top) also caught an ogre swung 27-30 units out over the drop on one hand, which let go. Now only with its pelvis
+  within half an arm of the lip; it pulls itself up.
+- Left (BACKLOG.md section 1): the grunt now goes over the lip, but its pelvis sinks back onto the corner as it goes in
+  ("slid back off the lip"; it stands up on the top anyway). Raising the way in (0.6 arm) or holding the lip until its
+  pelvis is in made no difference: something drags its pelvis down and out (not the hang kicks:
+  `vr_ragdoll_active_hang_kick 0` the same). The hell knight hangs on one hand (the other's reach times out 1 s after the
+  grab, after the pull began, so the Hang phase's one-hand re-reach never runs); its chest stays under the lip: "stuck
+  at the lip".

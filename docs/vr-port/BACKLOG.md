@@ -15,8 +15,10 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
   old one knocked out, the new one not seated by the same touch").
 - **ragdoll_stagger: the third grunt shoved in a game falls** (ROUND25.md "Always-failing monster tests"): steady
   (balance 1.00) grunts after the first two fall at 0.36-0.39 s, 2 steps, pelvis 53 %; armed or plain, not time-bound.
-- **ragdoll_climb**: the enforcer never grabs a lip (falls 184 units, armed or plain); grunt "too weak to rise" (one
-  hand), ogre "lost its hold", hell knight "stuck at the lip" on the pull-up. Pre-existing since the phase-0 baseline.
+- **ragdoll_climb** (22 of 24 since agent/realfix_climb, 2026-11-12; the enforcer and the ogre fixed): pull grunt
+  "slid back off the lip" (its pelvis sinks onto the lip's corner going in, stands up on the top anyway), pull hell
+  knight "stuck at the lip" (one hand: the other's reach times out after the pull began; its chest stays under the lip).
+  ROUND25.md, "Ragdoll climb: the enforcer's grab, the pull's chest, the ogre's swing".
   (agrunt 60, agarmor_5, limb_wear, stealth settled 2026-11-12; autopump, cellcord, animsmooth, xr_runtime and
   secret_hits too: ROUND25.md, "Always-failing monster tests" and "Always-failing tests, part b".)
 - **secret_hits "door-punch"**: the fist swung through e1m1's shootable secret door (`*14`) swishes but never hits it (no
