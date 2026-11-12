@@ -20,6 +20,7 @@
 #include "vr_flataimsens.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_flatsight.hpp"
+#include "vr_gorepresets.hpp"
 #include "vr_cvars.hpp"
 #include "vr_monstervalues.hpp"
 #include "vr_tunables.hpp"
@@ -1984,6 +1985,7 @@ void loadPositions()
 [[nodiscard]] bool changedSetting(const cvar_t& var)
 {
     if(&var == &vr_menu_level || &var == &vr_comfort_preset || &var == &vr_handedness || &var == &vr_graphics_preset ||
+        &var == &vr_gore_preset ||
         !var.default_string)
     {
         return false;
@@ -4694,6 +4696,7 @@ void savePositions()
 extern "C" void VR_Menu_Draw()
 {
     syncPresets(); // (Comfort, Handedness: the choice the settings match now)
+    gorepresets::sync(); // (Gore: likewise)
     if(ui().page == pageIndex(pageSearch))
     {
         drawSearch();

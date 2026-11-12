@@ -546,3 +546,26 @@ His words: a running sword throw that lands point first fully gibs a grunt; keep
   `VR_AG_SecondOk` 0, `VR_AG_WantsSecond` 1, `VR_AG_Reachable` 1, not shunned; it hunted 150 units off first); next look:
   which of SecondOk's conditions (the weapon-to-you sight line, the combat time) says no. agrunt 16 (disarm hulls vs the
   WIP nail pistol) and `vr_embed_test 40` case 1 not looked at.
+
+## Gore preset (agent/gorepreset)
+
+- **Gore Preset** (VR Settings > Gore, first row; `vr_gore_preset`, not saved): Full (every row at its default), Minimal,
+  Off, and Custom shown when the settings match none (`gorepresets::sync`, as the menu is drawn; the table is
+  `vr_gorepresets.cpp`, `vr_gore_preset_status` lists what differs). The audit of every gore setting is in
+  `docs/SETTINGS.md` ("Gore settings").
+- **Minimal** keeps the blood of a hit (`vr_blood_amount` 0.6), the small hit splats `vr_gore 0` still places (a spot on
+  the floor below, a splash on a near wall), the wounds painted on models and the dents. It sets 0: `vr_gore` (no sprays,
+  pools, runs, gib splats), `vr_gore_spray/pools/drips/wound_drips/stick_thrown/backsplatter/mist`, `vr_gib_blood`,
+  `vr_water_blood`, `vr_gore_streams` (spurts, splashes and pools hang on it), `vr_footprints`, `vr_handprints`,
+  `vr_gore_hands/spatter/spatter_gibs/gear/gear_nearby/gear_drops/spread`, `vr_player_gore`, `vr_body_blood(_marks,
+  _floor)`, `vr_smallgibs`, `vr_smallgibs_player`, `vr_smallgibs_brains`, `vr_gib_limbs` (a gibbing is Quake's few
+  chunks), `vr_decap`, `vr_limbs`, `vr_teeth`. **Off** is that with `vr_blood_amount` 0 (no blood particles at all,
+  Quake's dots included) and `vr_wounds` 0.
+- New knobs: `vr_blood_amount` (Hit Blood, 1x: the blood particles' count; in `particles::spawn`, so Quake's own dots
+  obey 0 too) and `vr_gore_decal_dark` (Stain Darkness, 1x: the gore's blood marks' own darkening as they dry, 0 keeps
+  their red; the marks' size was already Splat Size, `vr_gore_size`). Brain chunks already had their own toggle
+  (`vr_smallgibs_brains`); there are no separate organ chunks in the game.
+- Checks: `vr_gore_preset_test` (12/0, after `map start`: rows set, Custom after a hand change, Minimal's hit 313 blood
+  particles against Full's 525 and Off's 0, no stain from the gore events, at most the 2 small splats, no stream, Full
+  back to the defaults); `vr_smallgibs_test 7` on a grunt (vrtesthall): a burst makes 16 brain chunks at Full, 0 with
+  `vr_smallgibs_brains 0`, and 0 small gibs at all with `vr_gore_preset 2`. `vr_menu_path_check`: 0 missing.
