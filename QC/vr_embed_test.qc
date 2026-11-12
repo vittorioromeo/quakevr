@@ -935,6 +935,9 @@ vector(entity m) VR_EH_Target =
     return b >= 0 ? limbplace(m, b, 3) : VR_ET_Chest(m);
 };
 
+float VR_EH_NUDGES = 12; // the aim's nudges towards laying the blade's line along the blow
+float VR_EH_TURNS = 6;   // ... then its turns, if still off
+
 // A case's blow (the state machine's first states, 0 to 3): a grunt ahead, weapon `xWid` in the gripping main hand, a hand's
 // move `xSpeed` m/s at its chest: a stab (its line off the way it goes by `xOff` degrees) or, xSwing, across it, the head at the
 // chest, the handle towards you. TRUE: done, whatever came of it (the blade: VR_EH_Blade).
@@ -967,10 +970,28 @@ float(float xWid, float xSpeed, float xOff, float xSwing, float t) VR_EH_Blow =
         vr_et_v2 = 0;
         VR_ET_To(2);
     }
-    else if(vr_et_s == 2 && t > 0.15 && vr_et_v2 < 12 && normalize(VR_Blow(cVR_MainHand).mh_far - VR_Blow(cVR_MainHand).mh_grip) * vr_eh_want < 0.9985)
+    else if(vr_et_s == 2 && t > 0.15 &&
+            vr_et_v2 < VR_EH_NUDGES + VR_EH_TURNS &&
+            normalize(VR_Blow(cVR_MainHand).mh_far - VR_Blow(cVR_MainHand).mh_grip) * vr_eh_want < 0.9985)
     {
         // Its line isn't its muzzle's aim (a sword is held up from it): turned by what's missing, until it lies so.
-        vr_eh_aim = normalize(vr_eh_aim + vr_eh_want - normalize(VR_Blow(cVR_MainHand).mh_far - VR_Blow(cVR_MainHand).mh_grip));
+        vector have = normalize(VR_Blow(cVR_MainHand).mh_far - VR_Blow(cVR_MainHand).mh_grip);
+        vector axis = VR_Cross(have, vr_eh_want);
+        float sn = vlen(axis);
+        if(vr_et_v2 < VR_EH_NUDGES || sn < 0.0001)
+        {
+            vr_eh_aim = normalize(vr_eh_aim + vr_eh_want - have);
+        }
+        else
+        {
+            // (Still off after the nudges: the aim turned as the line must turn. A blade held square to the aim with the
+            // hand unrolled, the dagger's, needs the aim near straight down, and the nudges creep there: 29 degrees short
+            // after 12, its stab went in at that slant, a glancing blow that stuck 1 unit deep or missed, 5.6 cm off,
+            // some 1 run in 6. The nudges first, as ever: the cases they lay right keep their hand's roll. For every blow:
+            // limited to the dagger's stab, test 40's case 4 throw missed its grunt every run, its later cases leaning on
+            // the hand as the earlier ones left it.)
+            vr_eh_aim = normalize(VR_AxeStick_Turn(vr_eh_aim, axis * (1 / sn), atan2(sn, have * vr_eh_want) * (180 / 3.14159265)));
+        }
         localcmd(sprintf("vr_mock_hand_aim main %v\n", VRGetHandPos(cVR_MainHand) + vr_eh_aim * 8000));
         vr_et_v2 = vr_et_v2 + 1;
         vr_et_t0 = time;
