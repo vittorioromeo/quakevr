@@ -5,6 +5,11 @@
 #   rates   fresh monsters shoved one-handed and two-handed (vr_knockdown_test 21, 22): how many recovered and fell,
 #           each one's balance (R recovered, F fell); PASS: no error
 #   steady  the same, one hand, with Knockdowns' Chance 0.01 (PASS: all recover) and 100 (PASS: all fall)
+#   lip     a grunt held on the lip of the range's step by its box's edge, its feet over the floor 15 units below
+#           (the player at LIP), shoved steady (Chance 0.01) N times: PASS: each set down onto that floor, all recover
+#           (ROUND25.md, "ragdoll_stagger")
+#   (Each trial from the same spot, SPOT: the player is put back there, facing down the range; the shoves push him
+#   back ~15 units each, and from 330 on his grunts stood on the step's lip, from 345 on its top, backpedalling off it.)
 #   backpedal  one-hand shoves (3 each): the old standing slide (vr_ragdoll_active_stagger 0), then staggers with Chance
 #           0.01 (steady) and 100 (beaten): steps and units moved; PASS: steady ones recover after 3 or more steps, having
 #           gone at least half the old slide (the ogre: a third), beaten ones give way after 3 or more steps
@@ -29,6 +34,8 @@ TREE=C:/OHWorkspace/qvr-agents/$AGENT
 CASES=${*:-rates steady backpedal getup taken lost judo cost}
 MONS=${MONS:-0 8 5 6 1 2}
 N=${N:-8}
+SPOT=${SPOT:-316 -556 56 0 180 0} # (the range's start, facing down it: its grunts on the level floor)
+LIP=${LIP:-330 -556 56 0 180 0}   # (its grunts on the step's lip by their boxes' edges, feet 15 units over the floor)
 # (vr_knockdown_surprise 0: the shoves here are of fresh, unaware monsters, which since staggerfix always go down; the
 # surprise knockdown has its own cases, vr_kdtrig_test 8-11.)
 PRE="sv_random_seed ${SEED:-7};map vrfiringrange;wait30;god;notarget;developer 1;vr_knockdown_debug 1;vr_knockdown_surprise 0${EXTRA:+;$EXTRA}"
@@ -42,7 +49,7 @@ verdict() { # verdict <ok 0/1> <what>
 shoves() { # shoves <monster> <mode> <extra> <want: any|R|F>
     local S="$PRE;$3"
     for i in $(seq 1 $N); do
-        S="$S;vr_test_spawn $1;vr_test_spawn_dist 60;impulse 241;wait40;vr_knockdown_test $2;wait200;vr_knockdown_test 20"
+        S="$S;setpos ${5:-$SPOT};vr_test_spawn $1;vr_test_spawn_dist 60;impulse 241;wait40;vr_knockdown_test $2;wait200;vr_knockdown_test 20"
     done
     run "$S;toggleconsole;quit" "stagger, balance|fell at|recovered at|rror|CRASH" \
         | grep -o "balance [0-9.]*\|fell at\|recovered at\|rror.*\|CRASH.*" | sed 's/balance //; s/fell at/F/; s/recovered at/R/' \
@@ -65,12 +72,22 @@ for c in $CASES; do
     case $c in
     rates) for m in $MONS; do shoves $m 21 "" any; shoves $m 22 "" any; done ;;
     steady) for m in $MONS; do shoves $m 21 "vr_knockdown_chance 0.01" R; shoves $m 21 "vr_knockdown_chance 100" F; done ;;
+    lip)
+        S="$PRE;vr_knockdown_chance 0.01"
+        for i in $(seq 1 $N); do
+            S="$S;setpos $LIP;vr_test_spawn 0;vr_test_spawn_dist 60;impulse 241;wait40;vr_knockdown_test 21;wait200;vr_knockdown_test 20"
+        done
+        run "$S;toggleconsole;quit" "set down|fell at|recovered at|rror|CRASH" | grep -o "set down [0-9.]*\|fell at\|recovered at\|rror\|CRASH" > "$OUT"
+        d=$(grep -c "set down" "$OUT"); r=$(grep -c "recovered at" "$OUT")
+        echo "grunt on the lip: $(grep -o "set down [0-9.]*" "$OUT" | head -1) units; set down $d, recovered $r of $N"
+        verdict $([ "$d" = "$N" ] && [ "$r" = "$N" ] && ! grep -q "rror\|CRASH" "$OUT" && echo 1 || echo 0) \
+            "grunt on the step's lip: all $N set down onto the floor and recovered" ;;
     backpedal)
         for m in $MONS; do
             for k in "vr_ragdoll_active_stagger 0;vr_knockdown_chance 0.001" "vr_knockdown_chance 0.01" "vr_knockdown_chance 100"; do
                 S="$PRE;$k"
                 for i in 1 2 3; do
-                    S="$S;vr_test_spawn $m;vr_test_spawn_dist 60;impulse 241;wait40;vr_knockdown_test 21;wait300;vr_knockdown_test 20"
+                    S="$S;setpos $SPOT;vr_test_spawn $m;vr_test_spawn_dist 60;impulse 241;wait40;vr_knockdown_test 21;wait300;vr_knockdown_test 20"
                 done
                 # (The console's lines wrap: joined, then each report cut out.)
                 run "$S;toggleconsole;quit" "stagger:|shove slide|rror|CRASH" | tr -d '\n' \

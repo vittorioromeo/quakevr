@@ -219,3 +219,23 @@ knight failed pull), 22 of 24 after. `vr_agrunt_test 210`: 8 passed, 0 failed.
   `vr_ragdoll_active_hang_kick 0` the same). The hell knight hangs on one hand (the other's reach times out 1 s after the
   grab, after the pull began, so the Hang phase's one-hand re-reach never runs); its chest stays under the lip: "stuck
   at the lip".
+
+## realfix_stagger: a monster on a lip by its box's edge (branch agent/realfix_stagger, 2026-11-12)
+
+- **Cause (ragdoll_stagger, real):** not leftovers of removed ragdolls but where the grunts stood. Each shove pushes
+  the player back about 15 units (316, 328, 330, then 345 on vrfiringrange), and vr_test_spawn puts the grunt 60
+  units ahead at his height: from the third shove on, the grunt stood at x 270 held by its box's edge on the lip of the
+  range's 15-unit step (its top at x 284), its model's feet in the air over the floor below. Its stagger pinned its
+  pelvis at that height and planted its feet on air: it came down, sagged under `staggerSag` and fell (pelvis 53 %).
+  The same at any count with the player put at x 330 each time (all fall) or 316 (all recover).
+- **Fix (vr_ragactive.cpp `staggerSetDown`, vr_box3d_knockdown.cpp `staggerGround`):** as a stagger begins (a shove's
+  or a ledge backpedal's), where it stood is a man-sized box (hull 1) let down from a stair over its origin (its own box
+  is its ragdoll's by then, wider: hull 2 found the lip 16 units out; its origin has sunk 2.3 units). Both feet over a
+  floor more than 4 and up to 18 units (a stair) below that: every part set down by that much before its stance is
+  read. One foot over the lip's top: as before. Bigger monsters' lips (hull 2) are missed, as before. Debug: with
+  `vr_knockdown_debug 1` "stagger: set down N units ..."; `vr_debug_ragdoll 2` also both floors.
+- **The test:** stagger_test.sh puts the player back at SPOT (316 -556, facing down the range) before each trial, and
+  has a `lip` case (LIP 330 -556: 8 steady grunts set down 15.0 units, all recover).
+- **Numbers:** grunt steady, 8 shoves: 2 recovered -> 7 (the 8th's balance 0.52); backpedal's grunt steady row FAIL ->
+  PASS; lip 8/8 alone. Left (BACKLOG.md): the beaten grunt falls at 0.43 s after 2 steps (F, not "gave way"), and in a
+  combined batched run lip gave 5/8 and monster 2's 8th steady shove fell.

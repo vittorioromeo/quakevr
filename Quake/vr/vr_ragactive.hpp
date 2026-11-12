@@ -742,6 +742,11 @@ struct StaggerInfo
     bool sure{false};
     float time{-1.f};      // s: its carry slows to none over this (a ledge's: from its first speed); else by its travel
     bool ledge{false};     // a backpedal over a ledge (ragdollBackpedal): its steps as many as its way takes
+    // Where its box stood as its ragdoll was made (m: its box's floor; -1e30 unknown) and the floor's height below a point
+    // (activeFloorBelow): a monster held on a lip by its box's edge, both feet over a floor up to a stair lower, is set
+    // down onto it first (staggerSetDown).
+    float boxFloor{-1e30f};
+    float (*floorBelow)(const glm::vec3& at, float depth){nullptr};
 };
 void beginStagger(State& s, const Parts& p, const StaggerInfo& info, double now);
 

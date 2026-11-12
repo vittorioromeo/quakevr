@@ -782,6 +782,35 @@ bool ragdollGuard(edict_t* ent, const glm::vec3& at, float hold)
     return true;
 }
 
+namespace
+{
+// What `ent` stood on and the world's floor below, for its stagger: a monster held on a lip by its box's edge is set
+// down onto the floor its feet are over (ragactive's staggerSetDown). Where it stood: a man-sized box (Quake's hull 1:
+// the grunt's, the enforcer's, the knight's) let down from a stair over its origin. (Not its own box: knocked down, it
+// is its ragdoll's, wider (hull 2's floors, 16 units out) and lower; its origin has sunk with its ragdoll, the grunt's
+// 2.3 units. A bigger monster's lip under its box's edge is missed: no worse than before.)
+void staggerGround(ragactive::StaggerInfo& si, edict_t* ent)
+{
+    constexpr float stair = 18.f; // (Quake's STEPSIZE)
+    vec3_t lo{-16.f, -16.f, -24.f}, hi{16.f, 16.f, 32.f};
+    vec3_t from{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2] + stair};
+    vec3_t to{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2] - stair};
+    const trace_t down = SV_Move(from, lo, hi, to, MOVE_NOMONSTERS, ent);
+    if(vr_debug_ragdoll.value >= 2.f)
+    {
+        Con_Printf("stagger: %s at %.1f %.1f %.1f: a man's box let down stops at %.1f (%.2f, %s)%s\n",
+            PR_GetString(ent->v.classname), ent->v.origin[0], ent->v.origin[1], ent->v.origin[2], down.endpos[2],
+            down.fraction, down.ent ? PR_GetString(down.ent->v.classname) : "-", down.startsolid ? ", started in something" : "");
+    }
+    if(down.startsolid || down.allsolid || down.fraction >= 1.f)
+    {
+        return; // (no room over it, or nothing under it: left as it is)
+    }
+    si.boxFloor = (down.endpos[2] + lo[2]) / world->m2u;
+    si.floorBelow = activeFloorBelow;
+}
+} // namespace
+
 bool ragdollStagger(edict_t* ent, const glm::vec3& dir, float push, float balance, float reach, float recoverAt, bool sure,
     float farther)
 {
@@ -805,6 +834,7 @@ bool ragdollStagger(edict_t* ent, const glm::vec3& dir, float push, float balanc
     // Its stance: its standing frame (the classes' first: stand1), its weight over its feet (its pain's frames may be a
     // fall: the grunt's painb); its body made in the frame it was in (its pain's first: the flinch) goes back to it.
     si.first = si.last = 0;
+    staggerGround(si, ent);
     ragactive::beginStagger(r.active, activeParts(r), si, qcvm->time);
     r.staggerStuck = -1.0;
     if(vr_debug_ragdoll.value || vr_knockdown_debug.value)
@@ -947,6 +977,7 @@ bool ragdollBackpedal(edict_t* ent, const glm::vec3& dir, float push, float bala
     si.push = push;
     si.balance = balance;
     si.first = si.last = 0;
+    staggerGround(si, ent);
     ragactive::beginStagger(r.active, activeParts(r), si, qcvm->time);
     r.staggerStuck = -1.0;
     if(vr_debug_ragdoll.value || vr_knockdown_debug.value)

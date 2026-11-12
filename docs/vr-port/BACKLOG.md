@@ -13,8 +13,10 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
   and read earlier, ROUND25.md "testfix": flatpose's last version unrun): `vr_systems_test 15` (1 of 3 fails: the
   blast's body never knocks the torch off; the body's flight varies: UNKNOWN), ragdoll_ragtest (1 of 3: "catch: NOT begun in 3.0 s"), reload (1 of 3: "a hit: the
   old one knocked out, the new one not seated by the same touch").
-- **ragdoll_stagger: the third grunt shoved in a game falls** (ROUND25.md "Always-failing monster tests"): steady
-  (balance 1.00) grunts after the first two fall at 0.36-0.39 s, 2 steps, pelvis 53 %; armed or plain, not time-bound.
+- **ragdoll_stagger: what is left** (the lip fixed, ROUND25.md "realfix_stagger"): the grunt's beaten backpedal falls
+  at 0.43 s after 2 steps instead of giving way after 3 (F, not G; on level ground, every trial); in one combined
+  batched run (lip rates steady backpedal) the 8th steady grunt (balance 0.52) and monster 2's 8th fell, and the lip
+  case got 5/8, while lip alone gets 8/8 (batched or not): something between a batch's runs.
 - **ragdoll_climb** (22 of 24 since agent/realfix_climb, 2026-11-12; the enforcer and the ogre fixed): pull grunt
   "slid back off the lip" (its pelvis sinks onto the lip's corner going in, stands up on the top anyway), pull hell
   knight "stuck at the lip" (one hand: the other's reach times out after the pull began; its chest stays under the lip).
