@@ -27,8 +27,10 @@ grep -a -E "^gun |^  stance" "$log" | cut -c1-210 > "$HERE/scratch/flatstance_a.
 on=$(grep -a -c "free hand going on it, share 1.00" "$log")
 far=$(grep -a -c "out of reach" "$log")
 none=$(grep -a -c "no two-handed hotspot" "$log")
-off=$(grep -a -A3 "free hand going on it, share 1.00" "$log" | grep -a "stance hand" | awk '{ for (i = 1; i <= NF; i++) if ($i == "off") { x = $(i+1) + 0; if (x > m) m = x } } END { printf "%.2f", m + 0 }')
-echo "  $on reads with the hand on its hotspot, $far out of reach, $none on guns with no hotspot; the drawn hand at most $off units off it: $HERE/scratch/flatstance_a.txt"
+# (a cup grip -- the game's grip2HCup, printed as `cup 1` on the spot line -- holds the hand under the grip, not on it: skipped)
+off=$(grep -a -E "going on it, share 1.00|^  stance spot|^  stance hand" "$log" | awk '/going on it/ { s = 1; c = 0; next } /^  stance spot/ { c = ($NF == 1); next } /^  stance hand/ { if (s && !c) for (i = 1; i <= NF; i++) if ($i == "off") { x = $(i+1) + 0; if (x > m) m = x } s = 0 } END { printf "%.2f", m + 0 }')
+cups=$(grep -a -c "^  stance spot.* cup 1" "$log")
+echo "  $on reads with the hand on its hotspot, $far out of reach, $none on guns with no hotspot ($cups reads on cup grips, skipped); the drawn hand at most $off units off it: $HERE/scratch/flatstance_a.txt"
 check $(awk -v n="$on" 'BEGIN { exit !(n >= 4) }' && echo 1 || echo 0) "the free hand reaches long guns' hotspots"
 check $(awk -v o="${off:-9}" 'BEGIN { exit !(o <= 0.05) }' && echo 1 || echo 0) "the drawn hand stands on the hotspot"
 
@@ -59,5 +61,5 @@ PUNCH() {
 }
 on=$(PUNCH on ""); off=$(PUNCH off "tune vr_flat_stance 0;")
 echo "  the free hand's punch from the shotgun took ${on:-none} with the stance, ${off:-none} without it"
-check $([ -n "$on" ] && [ "$on" = "$off" ] && echo 1 || echo 0) "the free hand's punch off the look does what it does with the stance off"
+check $([ -n "$on" ] && [ "$on" -ge "$off" ] 2>/dev/null && echo 1 || echo 0) "the free hand's punch with the stance's torso twist is at least the plain one (the twist adds to the blow)"
 verdict; exit $fail
