@@ -106,3 +106,26 @@ TESTING.md (1,725 lines) is now the guide (about 320 lines: the mock headset, Wr
 ## cupskip
 
 flatstance_test.sh no longer measures the drawn hand against cup grips (grapple, nail pistol): the status prints cup 0/1 (grip2HCup) on the stance spot line and the check skips cup reads. 7/0.
+
+## Always-failing tests, part b: autopump, cellcord, animsmooth, xr_runtime, secret_hits (branch agent/faildiag_b, 2026-11-12)
+
+- **autopump (test's)**: 9543170a6 (2026-10-27) put "kind K skin S xN" before the time in the `shells eject` line; the
+  test read field 6 (the kind, 0) as the eject's time. It reads the value after `t` now: 7/7 -> 14/0.
+- **cellcord (real, fixed)**: since e7590d3bc (2026-10-22, the pouch's items drawn as models) `view::ammoPouchCell` is
+  false without cells, and `cellcord::setupView` took that as "no pouch": with no cells the cord vanished instead of
+  hanging loose, and came back already plugged (no flight to the cell). The pouch's presence is now
+  `view::ammoPouchCentre`, the loose cord's anchor the pouch's middle. The test's "the pouch shows 3 cells" is "1-6" (up
+  to six since e7590d3bc). 7/3 -> 10/0.
+- **animsmooth (test's)**: live grunts are drawn on their authored rig since 6a47b1061 (2026-10-27,
+  `progs/soldier.mdl#rig2`, IQM-type poses), and `vr_anim_smooth_trace` reads only .mdl poses, so the grunt's trace
+  never ended ("peak none"). The trace is now an ogre's (no authored rig; spawned 220 units ahead, three frames after
+  the grunt: two impulse 241s in one frame make one monster), its single-vertex limit 0.5 (the ogre's idle: 0.22; the
+  old gun pulse 1.27). 7/2 -> 9/0.
+- **xr_runtime (test's)**: the timing line is off by default since configVersion 202 (9ac8f0dbf, "logging off"); part 4
+  sets `vr_xr_log_timing 1`. The script also exits 1 on a failure now. 2 failed -> 0 failed.
+- **secret_hits (test's, one real case left)**: the doors were picked by entity number (40, 39), shifted by 4 since the
+  worn backpack and others come first; they are found by brush model now (`*15` the quad's, `*14` the secret door).
+  quad-shot, quad-punch, door-shot pass. **door-punch** fails (not fixed): the fist swung through the shootable secret
+  door swishes ("melee swish: blow") but no hit or melee event ever comes, while the quad's trigger_multiple is struck
+  ("a wall"). Failing since at least 2026-10-30; needs a look at the fist's sweep against a MOVETYPE_PUSH door with
+  health. BACKLOG.md section 1.

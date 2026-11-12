@@ -19,7 +19,7 @@ step() { echo "$log" | sed -n "/^STEP$1/,/^STEP/p"; }
 near() { awk -v a="$1" 'BEGIN { print (a != "" && a + 0 <= 0.05) ? 1 : 0 }'; }
 val() { echo "$1" | grep "^cellcord $2: [a-z]* [a-z]* cell=" | sed -E "s/.* $3=([-0-9.]+).*/\\1/"; }
 s=$(step 1)
-check $(echo "$s" | grep -q "the pouch shows 3 cells" && echo 1 || echo 0) "held: the pouch shows cells ($(echo "$s" | grep -o 'shows [0-9]* cells'))"
+check $(echo "$s" | grep -q "the pouch shows [1-6] cells" && echo 1 || echo 0) "held: the pouch shows cells ($(echo "$s" | grep -o 'shows [0-9]* cells'))"
 check $(echo "$s" | grep -q "^cellcord main: lasercannon plugged cell=0" && [ "$(near "$(val "$s" main gunend)")" = 1 ] && [ "$(near "$(val "$s" main plug)")" = 1 ] && echo 1 || echo 0) "held: plugged into cell 0, ends on the weapon ($(val "$s" main gunend)) and the contact ($(val "$s" main plug))"
 check $(echo "$s" | grep -q "^cellcord off: none" && echo 1 || echo 0) "held: one cord (the off hand none)"
 s=$(step 2)

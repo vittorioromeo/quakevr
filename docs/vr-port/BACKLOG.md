@@ -16,8 +16,10 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
 - **Random run to run** (the 2026-11-11 triage, ROUND24.md "Failing tests ... triaged"): flatpose 21/1 (the crosshair
   meets something else), `vr_systems_test 15`, flatswing's knight trials (a knight not where it spawned). Older flaky
   list: agrunt 47/60/63/66/67/71/72/76/86, ragdoll_ragtest/grab/guard, rv_1, judo, stealth, agarmor_5, nail_1, 209,
-  teleporters_chase. Known pre-existing failures: reload 112/3, parry_pose, weapon_catch, dead_gear, autopump, cellcord,
-  limb_wear, ragdoll_climb, ragdoll_stagger, animsmooth, xr_runtime, secret_hits, mtest 3. Don't chase without a task.
+  teleporters_chase. Known pre-existing failures: reload 112/3, parry_pose, weapon_catch, dead_gear,
+  limb_wear, ragdoll_climb, ragdoll_stagger, mtest 3. Don't chase without a task.
+- **secret_hits "door-punch"**: the fist swung through e1m1's shootable secret door (`*14`) swishes but never hits it (no
+  melee event; the quad's trigger is struck): failing since at least 2026-10-30 (ROUND25.md, "Always-failing tests, part b").
 - **Embedded blades** (`vr_embed` on since 2026-11-08): recheck `vr_embed_test` 7, 13 and 21 (failing 2026-11-06);
   real heavy monsters, saves, level change and multiplayer unproven (tests 14-20 written).
 - **`vrtutorial_playtest.py` room 8**: the mock's hand often throws the shells instead of loading them; later gates fail.
