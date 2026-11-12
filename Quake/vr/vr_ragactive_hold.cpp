@@ -437,7 +437,10 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
                 endClimb(s, p, c, true, "on the top already"); // (it caught itself toppling over the lip)
                 return;
             }
-            if(k.pulls && holding > 0 && k.pullFrom > 0.0 && c.now >= k.pullFrom && pelvis.z > k.top - 0.25f * L)
+            // (Its pelvis near the lip too, not swung far out over the drop: an ogre swinging out 30 units on one hand,
+            // its pelvis 4 units under the lip, let go as "not hanging", 2026-11-12.)
+            if(k.pulls && holding > 0 && k.pullFrom > 0.0 && c.now >= k.pullFrom && pelvis.z > k.top - 0.25f * L &&
+                pelvisIn > -0.5f * L)
             {
                 k.pulls = false;
                 for(EnvHand& h : e.hand)
@@ -461,6 +464,7 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
                 s.turn = glm::angleAxis(za::atan2(wall.y, wall.x), up);
                 k.pinned = true;
                 k.pinAt = pelvis;
+                k.torso = glm::distance(chestAt, pelvis);
                 k.rot0 = bodyRot(p, 0);
                 k.tilt = glm::quat{1.f, 0.f, 0.f, 0.f};
                 k.turnBlend = 0.f;
@@ -482,7 +486,11 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
             k.prog = za::min(1.f, k.prog + c.dt / pullTime * (lag < climbLag * L ? 1.f : 0.25f));
             const float u = smooth01(k.prog);
             k.pinAt = glm::mix(k.from, under, u);
-            climbChest(s, p, c, chest, glm::mix(chestAt, k.lip + up * (0.3f * L) + k.out * (0.25f * L), u)); // (off the wall)
+            // (Off the wall; and high enough for its pelvis to reach its way under it: its torso's length over `under`.
+            // At 0.3 of an arm alone a grunt's chest (16 units over its pelvis) reached its goal with its pelvis 5 units
+            // short of its way, held there until "too weak to rise", 2026-11-12.)
+            const float chestUp = za::max(0.3f * L, 0.95f * k.torso - 0.35f * L);
+            climbChest(s, p, c, chest, glm::mix(chestAt, k.lip + up * chestUp + k.out * (0.25f * L), u));
             k.turnBlend = u;
             hangStruggle(s, p, c, L, 0.5f); // (its feet scrabbling as it pulls)
             if(k.prog >= 1.f && (glm::distance(pelvis, under) < climbLag * L || pelvis.z > under.z - 0.2f * L))

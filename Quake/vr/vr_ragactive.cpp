@@ -1969,8 +1969,21 @@ int findLedge(State& s, const Parts& p, const Context& c, const glm::vec3& pelvi
     Env& e = s.env;
     const ledges::Map& map = *c.ledges;
     const float u = p.m2u;
-    const glm::vec3 lo = (glm::min(pelvis, chestAt) - glm::vec3{1.2f * L}) * u;
-    const glm::vec3 hi = (glm::max(pelvis, chestAt) + glm::vec3{1.2f * L}) * u;
+    // (Its shoulders' reach in the box too, not its chest's middle alone: an enforcer's chest centre sits 10 units behind
+    // its shoulders (its power pack), so falling upright 12 units off the wall its lip was out of the box while still in
+    // its shoulders' reach: it never grabbed, 2026-11-12.)
+    glm::vec3 lo = glm::min(pelvis, chestAt), hi = glm::max(pelvis, chestAt);
+    for(int arm = 0; arm < 2; arm++)
+    {
+        if(limbWhole(s, p, arm))
+        {
+            const glm::vec3 sh = shoulderOf(s, p, arm);
+            lo = glm::min(lo, sh);
+            hi = glm::max(hi, sh);
+        }
+    }
+    lo = (lo - glm::vec3{1.2f * L}) * u;
+    hi = (hi + glm::vec3{1.2f * L}) * u;
     envNearby.clear();
     map.nearby(lo, hi, envNearby);
     int bestArm = -1, bestEdge = -1;
