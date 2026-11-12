@@ -58,6 +58,7 @@ Chop and slash with the Super Axe's blade: the blows land as the head (and stay 
 Stab the training dummy with the sword and chop the axe into a grunt so they stay in, then pull them out: the blade is bloody where it went in, and stays bloody in your hand.
 In VR, force grab a brick or a gib: the beam starts from your palm, and the thing stops tumbling as it arrives and sits in the hand upright as it lay.
 Neck snap standing and on a lifted body: it goes limp, still held. Leg grabs: pull one down by the shins, drag it by the legs, lift it by the legs. Hold one with both hands: no crash. {test:grunts_to_throw}
+Punch e1m1's shootable secret door by the Quad (and any wall you punch going south or west): the fist lands, sparks fly and the door opens, as a shot does. Your hand rests right on walls on every side now, not a unit short on some and a unit in on others.
 
 [5. Both modes: monsters, bodies, gore, props and navmesh]
 Flat-screen or VR: kick or drop the crate (not a hand throw) hard into the lit wall torch: it falls off its wall as a thrown crate knocks it; nudged slowly against it, the torch stays. {test:systems_torch_knock}
