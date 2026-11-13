@@ -398,8 +398,8 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
     // Its way's points (its pelvis's: its body's origin), off the lip: under it (its chest over the top), over it, in on
     // the top; its pelvis pitched forwards (rad) over the lip and in.
     const glm::vec3 under = k.lip + k.out * (0.5f * L) - up * (0.35f * L);
-    // (In: as high as over, its pelvis carried in level over the corner, its legs trailing. At 0.3 of an arm a grunt's pelvis
-    // came down onto the corner going in and stayed there, "slid back off the lip", 2026-11-12.)
+    // (In: as high as over until its pelvis is in past the lip (Over), carried in level over the corner, its legs trailing.
+    // At 0.3 of an arm a grunt's pelvis came down onto the corner going in and stayed there, 2026-11-12.)
     const glm::vec3 over = k.lip + k.out * (0.35f * L) + up * (0.6f * L);
     const glm::vec3 in = k.lip + wall * (1.f * L) + up * (0.6f * L);
     const glm::vec3 axis = glm::normalize(glm::cross(up, wall));
@@ -551,13 +551,16 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
                 k.prog2 = za::min(1.f, k.prog2 + c.dt / overIn * pace);
             }
             const float u1 = smooth01(k.prog), u2 = smooth01(k.prog2);
-            k.pinAt = !k.released ? glm::mix(k.from, over, u1) : glm::mix(over, in, u2);
+            // (Its pelvis in past the lip: 0 out over the drop or at the corner, 1 half an arm in. Until then its way stays
+            // high and it isn't pitched on: pitched on over the corner with its way 0.3 of an arm up, a grunt's pelvis was
+            // set under the top against the lip and stayed there, "slid back off the lip", 2026-11-12. Once in, lower and
+            // pitched on, lying down on the top as before.)
+            const float inside = smooth01(pelvisIn / (0.5f * L));
+            k.pinAt = !k.released ? glm::mix(k.from, over, u1) : glm::mix(over, in - up * (0.3f * L * inside), u2);
             // (Its chest led in over the top ahead of its pelvis, not left at the lip's corner as its pelvis rises past it:
             // folded there, it tipped back off.)
             climbChest(s, p, c, chest, k.lip + up * (0.45f * L) + wall * ((!k.released ? 0.3f * u1 : 0.3f + 0.7f * u2) * L));
-            // (Pitched forwards going up over the lip only, not more going in: pitched on over the corner, its pelvis was set
-            // under the top, against the lip.)
-            k.tilt = glm::angleAxis(0.6f * u1, axis);
+            k.tilt = glm::angleAxis(0.6f * u1 + 0.9f * u2 * inside, axis);
             // (Let go once its pelvis is over the top and its chest over the lip, not tipped back off it.)
             if(!k.released && k.prog >= 1.f && pelvis.z > k.top + 0.1f * L && -glm::dot(chestAt - k.lip, k.out) > -0.1f * L &&
                 chestAt.z > k.top - 0.1f * L)
