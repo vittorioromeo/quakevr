@@ -4695,6 +4695,8 @@ vr_nav_test_kinds|2|Tunables|Navmesh: Tower Test Kinds|Advanced VR Options > Deb
 vr_nav_slide|2|Tunables|Navmesh: Slide Along Walls|Advanced VR Options > Debug > Tunables > Navmesh: Slide Along Walls
 vr_nav_stuck_log|2|Tunables|Navmesh: Log Stuck Walkers|Advanced VR Options > Debug > Tunables > Navmesh: Log Stuck Walkers
 vr_nav_prop_batch|2|Tunables|Navmesh: Prop Rebuild Interval|Advanced VR Options > Debug > Tunables > Navmesh: Prop Rebuild Interval
+vr_nav_job_frames|2|Tunables|Navmesh: Prop Rebuild Landing Frame|Advanced VR Options > Debug > Tunables > Navmesh: Prop Rebuild Landing Frame
+vr_nav_build_frames|2|Tunables|Navmesh: New Size Landing Frame|Advanced VR Options > Debug > Tunables > Navmesh: New Size Landing Frame
 vr_revgrip|2|Tunables|Reverse Grip|Advanced VR Options > Debug > Tunables > Reverse Grip
 vr_revgrip_flip_time|2|Tunables|Flip Time|Advanced VR Options > Debug > Tunables > Flip Time
 vr_revgrip_volume|2|Tunables|Flip Sound Volume|Advanced VR Options > Debug > Tunables > Flip Sound Volume

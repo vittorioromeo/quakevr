@@ -217,7 +217,7 @@ where it stands. AD's zombies have the zombies' senses. Tests: `Misc/quakevr/adb
   `vr_stealth_lose_far` (1500 units; 0 never sooner): Alert, it searches where his trail ended (the spot it was going
   to; where it stands once it went on at him), then goes back. Off (`vr_stealth_chase_trail 0`): Quake's chase until
   it gives up, then to where it saw him last. Seen again at any time: the trail is forgotten, the hunt goes on.
-  **By the navmesh, not him** (`vr_nav_trail` 1, Debug > Tunables "Navmesh: Follow Your Trail"; NAVMESH.md 20): the
+  **By the navmesh, not him** (`vr_nav_trail` 1, Debug > Tunables "Navmesh: Follow Your Trail"; NAVMESH.md 21): the
   trail's spots are walked by the navmesh, and its last step is no longer "straight at him" (the navmesh found him
   wherever he went): it searches about where the trail ended (spots up to `vr_nav_trail_search` 160 off it, cut short
   by walls, half of them on along his way) till the give-up, which keeps its times. Woken onto him unseen (a shared

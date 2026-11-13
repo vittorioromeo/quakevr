@@ -34,6 +34,9 @@ void afterLoad();
 // Each server frame (VR_PhysicsFrameEnd, the server's VM current): the movers' and the props' tick (props as obstacles:
 // their rests looked at, their tiles' rebuilds started and joined), whether or not anything chases.
 void serverFrame();
+// Each server frame (VR_PhysicsFrameEnd, first, whether or not rigid bodies run): counted, the clock the pool jobs'
+// results land by (vr_nav_job_frames, vr_nav_build_frames: on a fixed frame after their start, whatever the CPU's load).
+void countFrame();
 
 // Builtin navobstacles(what): props as obstacles (vr_nav_props), looked at now: 0 what is left to do (props coming to
 // rest that may block, tiles waiting for their rebuild, rebuilds on the pool: 0 when the mesh is current), 1 props

@@ -159,7 +159,7 @@ float vr_nav_trail_steps; // the navmesh steps taken along a trail's markers (vr
 // The navmesh's step to its enemy, or along his trail: through a teleporter (the stealth AI's marker where he came out,
 // vr_stealth.qc VR_Stealth_Trail: its path through the teleporter's link), and under vr_nav_trail to the trail's other
 // markers (where it saw him last, where he was heading, the spots it searches at the trail's end: VR_Stealth_TrailNav),
-// never to where he is now while it can't see him (NAVMESH.md 20).
+// never to where he is now while it can't see him (NAVMESH.md 21).
 float(float dist) VR_NAV_Step =
 {
     entity g = self.goalentity;

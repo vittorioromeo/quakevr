@@ -1012,11 +1012,41 @@ daunting".
   about the trail's end till the unchanged give-up; it never paths to where you are now (the old last step, "on at him",
   took the navmesh to your live spot). Woken onto you unseen, its first spot is where you were then (was stale or the
   map origin). One goal at a teleporter: your image seen through a one-way teleporter you went into puts the trail
-  through it, and a glimpse of it no longer flips the hunter back to you. NAVMESH.md 20, STEALTH.md.
+  through it, and a glimpse of it no longer flips the hunter back to you. NAVMESH.md 21, STEALTH.md.
 - New check `vr_stealth_test 125` (`stealth_tests.sh trailnav`): on 38 navmesh steps to your spot (within 2), never
   within 160 of you (324; 480 on, unseen), gave up at 15.01 s; with the tunable 0 it reached you (within 51-58, goal
   you ~200 frames). Scene `nav_trail`.
 - Before / after (origin/next / this, headless no-LTO): nav_tele_metric 17, 17 / 18, 18 of 20 (the two left: grunts
   standing 0.50 s to shoot through the opening, no goal flips); nav_tele_metric_gates 37, 39 / 38, 39 of 40;
   nav_tele_dm5 20 / 18 of 24 (noisy, 2-3 run to run); nav_tele pass / pass; stealth_tests.sh all 59 / 62 PASS, 0 FAIL;
-  nav_lift pass 13 s / pass, 9.6-43 s (the map's own hunters now take the lift to your spot; NAVMESH.md 20).
+  nav_lift pass 13 s / pass, 9.6-43 s (the map's own hunters now take the lift to your spot; NAVMESH.md 21).
+## navdet: the navmesh's pool jobs land on a fixed server frame (branch agent/navdet, 2026-11-13)
+
+- **Change** (NAVMESH.md 20): a props' tile batch (`obsJob`) goes into the mesh exactly `vr_nav_job_frames` (3) server
+  frames after its start, a size class's mesh (built on the pool, or read from the disk cache) is taken exactly
+  `vr_nav_build_frames` (18) after; never sooner, waited for if late (`nav: job: ... waited N ms`, developer 1;
+  `vr_nav_info` sums them); 0 = when done, as before. Frames counted by `nav::countFrame` in `VR_PhysicsFrameEnd`.
+- **Scene:** `nav_tele_metric` seeds its map's load (`cvar sv_random_seed 1`): its `vr_bench_seed 1` came after the
+  spawns, so the map's own monsters' first thinks followed the clock, which was most of its run-to-run spread.
+- **Repeatability** (no-LTO, fast mode, full runs; fingerprint = md5 of the outcome lines, no wall-clock ms; "load" =
+  two lanes at once, each the other's load):
+
+  | test | setting | runs | fingerprints | result | waits (count per run, worst) |
+  | --- | --- | --- | --- | --- | --- |
+  | nav_tele_metric, unseeded map load | deadlines | 4 | 4 different | 16-17 of 20 | 2-4, 74 ms |
+  | nav_tele_metric, seeded | deadlines, alone | 4 | all 881ac464 | 18 of 20 | 3, 63 ms |
+  | nav_tele_metric, seeded | deadlines, load | 4 | all 881ac464 | 18 of 20 | 2-5, 95 ms |
+  | nav_tele_metric, seeded | both 0, load | 4 | all 881ac464 | 18 of 20 | 0 |
+  | test 43 (nav_props) | deadlines, alone | 3 | all 7ebbc601 | 13 passed | 4, 11 ms |
+  | test 43 | deadlines, load | 3 | 7ebbc601 x1, ffb629df x2 (*) | 13 passed | 3-5, 5 ms |
+  | test 43 | both 0, load | 3 | 3 different | 13 passed | 0 |
+  | test 43, disk-read hold | deadlines, load, cache on / off | 2 + 2 | all ffb629df | 13 passed | 2-3, 6 ms |
+  | nav_tele_metric, disk-read hold | deadlines, load, cache on / off | 2 + 2 | all 881ac464 | 18 of 20 | 3-5, 48 ms |
+
+  (*) a lane's first run, a fresh game folder: its classes built, not read from the cache, so taken later; the one
+  difference was the first knight's end, 0.007 units. Fixed: a class read from the disk is held to its frame as a
+  build is (the last two rows). nav_tele_metric didn't go apart with the deadlines off in 4 loaded runs (its jobs end
+  well before the trials need them); test 43, which rebuilds props' tiles all along, did every time.
+- **Waits** are a fast-mode effect (a frame is a few ms there): a props' batch 1-50 ms, a build ~90 ms (the ogre's,
+  94 ms built). At 72-90 Hz 3 frames are 33-42 ms and 18 are 200-250 ms; not measured in real time.
+- nav_tele: 1 passed (reached after 2.4 s, 1 teleporter); nav_lift: 1 passed (5.4 s, 1 ride). Every wait seen: 2-5 a run, worst 95 ms (a build under load), batches 1-50 ms.

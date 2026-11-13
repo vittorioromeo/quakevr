@@ -1384,6 +1384,10 @@ extern "C" int VR_PushSkips(edict_t* ent)
 extern "C" void VR_PhysicsFrameEnd(void)
 {
     registerCommands();
+    if(host_frametime > 0.0)
+    {
+        nav::countFrame(); // (the navmesh's pool jobs land on a fixed server frame: counted here, rigid bodies or not)
+    }
     if(!wanted())
     {
         destroyWorld();
