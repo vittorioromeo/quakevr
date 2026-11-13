@@ -519,7 +519,7 @@ now also waits for the player before its first spawn: it had a program error whe
   destination, yellow on from there. Drawn while the walker follows a link too (it used to vanish a second after the
   link began).
 - **The metric** (`vr_nav_teletest <name> <classnames> <gates|all> [angles 5] [distance 192] [seconds 8] [notes 0]
-  [spread 140]`): one walker a class, put at each angle in front of each gate's entry (nearer when off the mesh, out of
+  [spread 140] [past 0]`): one walker a class, put at each angle in front of each gate's entry (nearer when off the mesh, out of
   sight of the entry or in a trigger), woken onto you past the destinations, timed till through (its link's end, or a
   jump of over 64 in a frame); stuck: the time it stood (under 8 units a quarter second) within its box's width plus 64
   of the trigger. Others held (not solid, not thinking) after a second (their delayed starts). A trial passes through in
@@ -531,6 +531,12 @@ now also waits for the player before its first spawn: it had a program error whe
   trouble from 192 out); `nav_tele_metric_gates` 33 / 37 of 40 passed, 5 / 0 timed out, stuck time 9.1 / 2.0 s in
   all (after: three trials at 0.50-0.53 s, all through), 0 back-offs needed. The before's failures were all grunts
   standing at a gate's edge facing you through it (and one dog off the other way).
+- **Its true range (2026-11-13, e1m1tele):** that 20/20 was luck. Without `past` (the scene then), the walker woken
+  onto you unseen hunts the stealth AI's trail marker where it "lost" you by Quake's own random chase (no navmesh: not
+  its enemy, no trail gate) and bumps into the teleporter or not: 11-16 of 20 per run, the same on the navtele2 ship as
+  now (low-impact runs, pinned to 8 CPUs, shift the async jobs and gave the 20). The scene now uses `past` (you put past
+  the destination, the stealth AI told: his trail through the teleporter, its link) and `vr_bench_seed 1`: 17-19 of 20,
+  every trial through, the grunt the only one standing 0.5 s or more lining up at the link.
 
 ## 18. The stealth trail through a teleporter (2026-11-13)
 

@@ -978,3 +978,29 @@ daunting".
   (its teleporter is unpaired: no marker past a gate); nav_crowd ran out its 900 s run timeout (known, not verified).
 - **Item 3** (e1m1, `vr_portals_monsters_all 1`): 5/20, unchanged: not the same cause (that gate is unpaired; the
   walkers wait at the trigger for the engine to carry them). Still a navmesh task.
+
+## e1m1tele: e1m1's nav_tele_metric was never 20/20 (branch agent/e1m1tele, 2026-11-13)
+
+- **Not a real drop.** `nav_tele_metric` 4 runs each, built at each commit (full runs, not low-impact):
+
+  | commit | runs (passed of 20) |
+  | --- | --- |
+  | navtele2 ship 122140a73 | 12, 14, 12, 11 |
+  | before seamtele 80c1bf97f | 14, 16, 14, 16 |
+  | seamtele 9b7b61368 | 12, 8, 9, 15 |
+  | next cdaff7abb | 14, 11, 11, 11 |
+
+  The navtele2 ship itself gives 11-14 today: its 20/20 was one low-impact run (pinned to 8 CPUs, idle priority, which
+  moves the navmesh's async jobs in game frames).
+- **Why it was noisy:** without `past`, the trial walker is woken onto him unseen, so the stealth AI makes it hunt a
+  trail marker where it "lost" him; `VR_NAV_Step` steers only to the enemy, his trail through a teleporter or a marker
+  past a gate, so it walks to that marker by Quake's own chase (`why 0` in the step notes) and finds the teleporter by
+  luck: failures stand or wander at ~1170 1040 -432 before the opening. In play he would have gone through the
+  teleporter, which gives the trail gate and the link.
+- **Change:** the scene uses teletest's `past` (as nav_tele_dm5: put past the destination, the stealth AI told) and
+  `vr_bench_seed 1`: 17, 17, 17, 19 of 20 (17, 17, 17, 17, 18 before the seed, one grunt timed out), every seeded trial through; the failures are
+  all the grunt standing 0.5-1.75 s lining up at the link (it flips between its trail marker, "trail 1", and "trail 3:
+  on at him", and stands in phase 0 meanwhile). True range written in the scene and NAVMESH.md 16. Not fixed: the
+  grunt's stand (a navmesh task: the trail's goal swapping mid-link); `nav_tele_metric_gates` doesn't use `past` either.
+- Scene-only change: nav_tele, nav_tele_dm5, nav_tele_metric_gates and teleporters_test.sh chase not re-run (no code
+  touched).
