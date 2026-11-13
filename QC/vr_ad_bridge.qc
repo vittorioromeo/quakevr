@@ -888,6 +888,21 @@ float(void() start) AD_MonsterPrepare =
     return TRUE;
 };
 
+// Randomized Enemies swapped `e` for another kind before it spawned (vr_run_enemyrandom.qc): AD's keys that only meant
+// something to the kind it was (its box, its skins) dropped.
+void(entity e) AD_ForgetKindKeys =
+{
+    e.ad_bboxtype = 0;
+    e.ad_exactskin = 0;
+    e.ad_randomskin = 0;
+};
+
+// Enemy Count's copy `e` of a map's monster (vr_run_enemycount.qc): AD's deathtarget dropped (the map's own fires it).
+void(entity e) AD_ForgetDeathTarget =
+{
+    e.ad_deathtarget = "";
+};
+
 // Killed, in an AD map: one of our monsters' AD keys (deathtarget fires as it dies).
 void(entity targ, entity attacker) AD_MonsterKilled =
 {

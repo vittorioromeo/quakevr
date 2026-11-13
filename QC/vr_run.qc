@@ -42,6 +42,44 @@ float(float wid) VR_Run_RefusesFire =
 
 void() VR_Run_MonsterSpawned = {};
 
+// The engine's ED_LoadFromFile, a map's monster_ about to spawn while Enemy Count or Randomized Enemies is on (self: its
+// keys parsed, its spawn function not yet run): Randomized Enemies' swap first (its classname), then how many copies of
+// it Enemy Count asks for (0..2). Once the whole map has spawned, each copy is placed by VR_Run_MonsterCopy (self: the
+// copy, the same keys parsed again; other: its monster; k 1..) before its spawn function runs (FALSE: no room, no copy).
+// Not in the tutorial.
+float() VR_Run_MonsterSpawning =
+{
+    if(VR_GameUtil_InTutorialMap()) return 0;
+    self.vr_run_mapclass = self.classname;
+    VR_RunEnemyRandom_Swap();
+    self.vr_run_kind = self.classname;
+    self.vr_run_kindflags = self.spawnflags;
+    return VR_RunEnemyCount_Copies();
+};
+
+float(float k) VR_Run_MonsterCopy =
+{
+    entity orig = other;
+    if(orig.vr_run_kind == "") return FALSE; // (gone: its edict another's now)
+    self.vr_run_mapclass = self.classname;
+    if(self.classname != orig.vr_run_kind)
+    {
+        VR_RunEnemyRandom_Become(orig.vr_run_kind, orig.vr_run_kindflags); // (its monster's swap, on the same keys)
+    }
+    self.vr_run_kind = self.classname;
+    return VR_RunEnemyCount_Place(k);
+};
+
+// The engine's `vr_run_enemies_check <enemycount> <enemyrandom>` (vr_runsetup.cpp; the enemy mutators' test): the
+// running map's monsters as those choices spawn them. 1: as expected (each miss printed).
+float(float count, float random) VR_Run_EnemiesCheck =
+{
+    float ok = VR_RunEnemyRandom_Check(random);
+    return VR_RunEnemyCount_Check(count) && ok;
+};
+
+float() VR_Run_EnemiesChains = { return VR_RunEnemyCount_Chains(); };
+
 void() VR_Run_ItemSpawned = {};
 
 // The hub's teleporter to the start map (changelevel_touch): the Run Setup screen first (`vr_runsetup hub`); its Start

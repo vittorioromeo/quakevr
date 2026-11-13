@@ -3942,6 +3942,8 @@ QVR_CVAR(vr_runpick_smartai, "0", CVAR_ARCHIVE)       // Run Setup: Smarter AI (
 QVR_CVAR(vr_runpick_startweapon, "0", CVAR_ARCHIVE)   // Run Setup: Starting Weapon: 0 shotgun, 1 heavy revolver, 2 axe only, 3 unarmed (fists)
 QVR_CVAR(vr_runpick_meleeonly, "0", CVAR_ARCHIVE)     // Run Setup: Melee Only
 QVR_CVAR(vr_runpick_glasscannon, "0", CVAR_ARCHIVE)   // Run Setup: Glass Cannon
+QVR_CVAR(vr_runpick_enemycount, "0", CVAR_ARCHIVE)    // Run Setup: Enemy Count: 0 1x (the map's), 1 2x, 2 3x
+QVR_CVAR(vr_runpick_enemyrandom, "0", CVAR_ARCHIVE)   // Run Setup: Randomized Enemies: 0 off, 1 balanced, 2 everything goes
 QVR_CVAR(vr_run_bn, "0", CVAR_NONE)                   // the run's Bloody Nightmare choice (its start sets vr_mg3_bn_start; the game's serverflags carry it)
 QVR_CVAR(vr_run_style, "0", CVAR_NONE)                // the run's Style (as vr_runpick_style): applied at its start and on loading its saves
 QVR_CVAR(vr_run_gore, "0", CVAR_NONE)                 // the run's Gore preset (as vr_runpick_gore)
@@ -3950,6 +3952,8 @@ QVR_CVAR(vr_run_smartai, "0", CVAR_NONE)              // the run's Smarter AI (a
 QVR_CVAR(vr_run_startweapon, "0", CVAR_NONE)          // the run's Starting Weapon (as vr_runpick_startweapon; QC vr_run_startweapon.qc, at a new game's parms)
 QVR_CVAR(vr_run_meleeonly, "0", CVAR_NONE)            // the run's Melee Only: guns are not picked up and do not fire, the axe at the start (QC vr_run_meleeonly.qc)
 QVR_CVAR(vr_run_glasscannon, "0", CVAR_NONE)          // the run's Glass Cannon: the player and the monsters take double damage (QC vr_run_glasscannon.qc)
+QVR_CVAR(vr_run_enemycount, "0", CVAR_NONE)           // the run's Enemy Count: copies of each map monster beside it as the map loads (QC vr_run_enemycount.qc)
+QVR_CVAR(vr_run_enemyrandom, "0", CVAR_NONE)          // the run's Randomized Enemies: map monsters swapped as the map loads (QC vr_run_enemyrandom.qc)
 QVR_CVAR(vr_run_hubgo, "0", CVAR_NONE)                // the hub's teleporter: set by the Run Setup screen's Start, the teleporter then lets the player through (QC clears it)
 QVR_CVAR(vr_maps_slipseer, "1", CVAR_ARCHIVE)         // Slipseer (slipseer.com) listed in the Map Library beside Quaddicted (vr_slipseer.cpp): its listing pages read politely at start-up (cached on disk), a map's own page when it is picked. 0: Slipseer left out, nothing fetched from it
 QVR_CVAR(vr_maps_slipseer_delay, "5", CVAR_ARCHIVE)   // seconds at least between two Slipseer page requests (each wait is this to twice it, at random; never under 1): a person's pace

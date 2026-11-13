@@ -53,6 +53,8 @@ Everything is one registry, `registry[]` in `Quake/vr/vr_runsetup.cpp`; each lin
 | `VR_Run_RefusesFire(wid)` | `W_AttackImpl`'s start | weapons that only click (Melee Only) |
 | `VR_Run_MonsterSpawned()` | `walk/fly/swimmonster_start` (self: the monster, its class spawn run) | phase 2: enemy count, randomized enemies |
 | `VR_Run_ItemSpawned()` | `StartItem` (self: the item) | phase 2: randomized pickups (respect `VR_RunMeleeOnly_Refuses`) |
+| `VR_Run_MonsterSpawning()` | the engine's `ED_LoadFromFile`, before a map's `monster_*` spawns, while Enemy Count or Randomized Enemies is on (self: its keys parsed, its spawn function not run) | Randomized Enemies' swap (its classname: the new kind spawns from the map's own keys), then Enemy Count's number of copies (0..2) |
+| `VR_Run_MonsterCopy(k)` | `ED_LoadFromFile`, once the whole map has spawned (self: copy k, its monster's keys parsed again; other: its monster) | Enemy Count's placement beside its monster; FALSE: no room, no copy |
 
 A mutator that keeps state of its own in QC (Ironman's lives, say) keeps it in a saved global or field; the run's
 choices themselves are the engine's line.
@@ -70,6 +72,27 @@ choices themselves are the engine's line.
 | `startweapon` | Shotgun, Heavy Revolver, Axe, Unarmed | a new game's loadout (`vr_run_startweapon.qc`); held at Axe by Melee Only |
 | `meleeonly` | Off, On | guns left on the floor, a gun in the hand only clicks (`vr_run_meleeonly.qc`) |
 | `glasscannon` | Off, On | the player and monsters take double damage (`vr_run_glasscannon.qc`) |
+| `enemycount` | 1x, 2x, 3x | one or two copies of each map monster beside it as the map loads (`vr_run_enemycount.qc`; below) |
+| `enemyrandom` | Off, Balanced, Everything Goes | map monsters swapped as the map loads (`vr_run_enemyrandom.qc`; below) |
+
+### Enemy Count and Randomized Enemies
+
+- **Order:** the swap first, then the copies, of the swapped kind (a copy is its monster's map keys parsed again).
+- **Kinds** (`VR_RUN_ER_KINDS`): Quake's, AD's (only while AD's data is mounted, and outside AD's maps with
+  `vr_ad_everywhere`), the packs' common ones (copied, never swapped); each with how it moves, its width (Quake's two
+  hulls) and its threat tier. Bosses and scripted monsters are not listed: never swapped or copied; nor a crucified
+  zombie or AD's ceiling spider; in AD's maps a monster with AD's class bits (2, 4: a lying zombie...) is not swapped.
+- **Balanced:** the same tier and movement; **Everything Goes:** any tier, a walker's spot may hold a flyer. Never a
+  larger kind than the spot's (doors and lifts spawn after it: a hull test then would miss them). The map's health and
+  skin keys and the class bits are dropped; a zombie's ambush (2) becomes everyone's (1). Armed Humanoids: a grunt,
+  enforcer, knight or death knight swapped in is armed as the run says (its spawn function decides).
+- **Copies:** placed after the whole map spawned: a ring around the monster, reached in a straight line, clear of the
+  world, entities and other monsters (their kinds' boxes, solid or not yet), in no trigger volume the monster is not in
+  (closet teleporters), on a floor within 24 units of its monster's (walkers), in the same water (swimmers). They keep
+  the targetname (wake, appear, are killtargeted together), never fire anything (no target, killtarget, AD deathtarget):
+  the map's death-counting triggers count the map's own, as made. They count in `total_monsters`.
+- **Saved games and changelevel:** the entities are saved as they are; a new map gets its own. The roll: the map's name,
+  the spawn point and its content seed (`vr_map_content_seed`): deterministic per seed.
 
 ## Console and tests
 
@@ -82,3 +105,8 @@ choices themselves are the engine's line.
 - `vr_run_check <startweapon> <glasscannon> <meleeonly> <gore>` / `vr_run_check verdict` ("runmutators: N passed"):
   the end-to-end check in a running game (QC `VR_Run_TestCheck`); the round notes' script starts run A, saves, starts
   run B, loads A, changes level.
+- `vr_run_enemies_check <enemycount> <enemyrandom>` / `vr_run_enemies_check verdict` ("runenemies: N passed"): the
+  running map as those choices spawned it (QC `VR_Run_EnemiesCheck`: copies beside their kind, not stuck, firing nothing,
+  most monsters copied; swaps of allowed kinds; nothing dead at the start; `total_monsters` in id's maps) and its trigger
+  chains (`VR_Run_EnemiesChains`: targets and killtargets resolved, trigger_counter uses) equal to the same map's first
+  check with both off. ROUND25.md "mutenemies" has the scripts.
