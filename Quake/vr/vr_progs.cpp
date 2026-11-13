@@ -580,6 +580,13 @@ void resetServerWorld()
 
 } // namespace
 
+extern "C" void VR_OnShutdownServer()
+{
+    // Host_ShutdownServer: a game or campaign switch (COM_SwitchGameInternal) frees the models next (Mod_ResetAll)
+    // without Host_ClearMemory, so the navmesh's pool builds, which read the world model, are joined here too.
+    qvr::nav::finishLoads();
+}
+
 extern "C" void VR_OnClearMemory()
 {
     // Host_ClearMemory (SV_SpawnServer: every map and loaded game; CL_ClearState without a local server): the edicts,
