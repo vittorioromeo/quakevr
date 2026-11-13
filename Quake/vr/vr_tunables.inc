@@ -2285,8 +2285,8 @@ QVR_TUNABLE(vr_embed_stab_speed, "2.5") // m/s the hand must drive a held sword 
 QVR_TUNABLE(vr_embed_stab_angle, "90") // degrees at most between the way its tip goes and the blade's line
 QVR_TUNABLE(vr_embed_stab_tip, "100") // % of the blade from its tip that may be what strikes first
 QVR_TUNABLE(vr_embed_sword_depth_min, "30") // % of the blade in at the least speed
-QVR_TUNABLE(vr_embed_sword_depth_max, "60") // % of the blade in at vr_embed_sword_depth_speed
-QVR_TUNABLE(vr_embed_sword_depth_speed, "8") // m/s
+QVR_TUNABLE(vr_embed_sword_depth_max, "80") // % of the blade in at vr_embed_sword_depth_speed
+QVR_TUNABLE(vr_embed_sword_depth_speed, "7") // m/s
 QVR_TUNABLE(vr_embed_throw_kill_depth, "80") // % of a thrown point's blade in when its throw kills (never less than it went in; QC vr_axestick.qc VR_AxeStick_Stuck)
 QVR_TUNABLE(vr_embed_enter_time, "0.12") // s a stab takes to go on to its depth (by its speed) once it has struck
 QVR_TUNABLE(vr_embed_skewer_most, "3") // gibs a stab may skewer on a blade at once (0: none, a stab bursts them as any blow; QC/vr_skewer.qc)
@@ -2326,7 +2326,7 @@ QVR_TUNABLE(vr_embed_hold_sword_stick, "2") // cm the hand moves along the axis 
 QVR_TUNABLE(vr_embed_hold_sword_stick_deep, "8") // ... in as far as it goes
 QVR_TUNABLE(vr_embed_hold_sword_rate, "100") // cm/s a sword slides at most, barely in
 QVR_TUNABLE(vr_embed_hold_sword_rate_deep, "35") // ... in as far as it goes
-QVR_TUNABLE(vr_embed_hold_sword_most, "90") // % of the blade it goes in at most
+QVR_TUNABLE(vr_embed_hold_sword_most, "100") // % of the blade it goes in at most
 QVR_TUNABLE(vr_embed_hold_corpse, "0.5") // times the stick in a dead body (the rate divided by it)
 QVR_TUNABLE(vr_embed_hold_corpse_tug_sword, "0.8") // m/s a pull out of a dead body must average (over vr_embed_hold_axe_tug_time) for a sword to come out 1:1 with the arm; slower, the body comes along (his 2026-11-05, "like the axe"; 0: always 1:1)
 QVR_TUNABLE(vr_embed_hold_corpse_tug_axe, "0.8") // ... an axe (its tug distance still to go)
