@@ -216,7 +216,7 @@ float(entity e) VR_Forcegrab_IsEligible =
 
     // Never force grabbed (Held Object Offsets: Force Grab 0; the explosive boxes), nor a spent enemy gun.
     // ... nor, in a Melee Only run, a gun or ammunition (vr_run_meleeonly.qc).
-    if(!propvalue(e, "forcegrab") || VR_EnemyGun_DepletedSkipped(e) || VR_RunMeleeOnly_RefusesEnt(e))
+    if(!propvalue(e, "forcegrab") || VR_EnemyGun_DepletedSkipped(e) || VR_Run_RefusesEnt(e))
     {
         return FALSE;
     }

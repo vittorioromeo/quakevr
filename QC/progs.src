@@ -118,7 +118,7 @@ vr_mg3_items.qc
 weapons.qc
 // The run's mutators (vr_run.qc: the hooks; a file each; docs/vr-port/MUTATORS.md).
 vr_run.qc
-vr_run_startweapon.qc
+vr_run_startgun.qc
 vr_run_meleeonly.qc
 vr_run_glasscannon.qc
 vr_run_pickups.qc

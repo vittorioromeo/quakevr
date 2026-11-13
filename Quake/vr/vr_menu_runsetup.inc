@@ -117,7 +117,7 @@ void runSetupRow(za::Vector<Item>& items, int i)
         return;
     }
     za::Vector<Choice> choices;
-    for(int o = 0; o < m.optionCount; o++)
+    for(int o = 0; o < m.optionCount(); o++)
     {
         choices.pushBack(Choice{static_cast<float>(o), m.options[o]});
     }
@@ -144,7 +144,7 @@ za::Vector<Item> pageRunSetup()
         }
         const auto shown = [s](int i) {
             const runsetup::Mutator& m = runsetup::at(i);
-            return static_cast<int>(m.section) == s && !(m.shown && !m.shown()) &&
+            return static_cast<int>(m.section) == s && m.isShown() &&
                    !(runSetup.skillHalls && i == runsetup::find("skill"));
         };
         if(mutators && grouped)

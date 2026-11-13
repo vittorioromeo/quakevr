@@ -1197,6 +1197,35 @@ frame, the reverse grip's server checks reading the local client's view (a liste
 
 Play on an installed package asks Easy / Normal / Hard / Nightmare first (page "Play: Difficulty", flat and VR alike; last choice in vr_maps_skill, saved, preselected; Back cancels; Nightmare row notes a Bloody Nightmare game, which Play never resets). A start map whose entities hold a trigger_setskill (id's start, packs' skill halls: mapinstall::needsSkillPick) skips it. maps_play stays direct. Tests: maps_skill_test (15), slipseer_test (80, play sets skill).
 
+## telesight: a monster that sees you through a teleporter runs in place (branch agent/telesight, 2026-11-13)
+
+- **Report** (flat, vrteleporters): an unarmed grunt and he on opposite sides of a paired gate; while it saw him through
+  the gate it played its run in place; out of sight it pathed through.
+- **Not reproduced headless.** New teletest mode `past` 2 (you 48 out of the exit or the nearest spot clear of its
+  trigger, no trail through it) and a `sight N` count per trial (quarter-seconds it saw you through a gate,
+  `.vr_ai_gate`); scenes `nav_tele_sight` (fist grunt, dog, knight, fiend) and `nav_tele_sight2` (ogre, hell knight,
+  axe grunt), gates 3 and 7 (1: the crate hatch, no link; 5: no placement), each walker seeing you through the gate
+  2-29 samples: before 8/8 and 4/6 (the ogre at gate 3: the known lining-up/back-off trouble, sight 29; at 7 stood
+  0.75 s), after the same lines. The test can't stand you nearer than ~110 from the exit face (its trigger), even with
+  the slot ring widened to 160 in the scenes.
+- **Causes found by reading the code** (each fixed):
+  1. `VR_AI_PortalEligible` took every armed humanoid as ranged (the grunt's `th_missile` is set whatever it holds): a
+     fist or blade grunt saw you through every gate (unpaired too) by the ranged rules, its melee check measured to your
+     image (a swing at air across the gate), and between "shots" stood facing you when the navmesh step failed. Now by
+     what it carries (`VR_WP_CarriesRanged`, `VR_NAV_Melee`'s rule): melee ones take the melee path below.
+  2. `VR_Stealth_ChaseGate` (melee monsters seeing you through a paired gate) walked Quake's movetogoal at a spot 48 past
+     the face from wherever it stood: now the navmesh path to you first (`VR_NAV_Step`: through the gate's link, lined
+     up with its opening); the old walk when there is none.
+  3. The navmesh's approach slot (vr_nav.cpp `approach`): a melee walker's slot sits on a ring round you at its straight
+     bearing, which through a gate points back at the exit's face: with you within the ring's radius (80) of the face,
+     the slot lay behind it, in the wall, and the path's end rounded to the walker's own side (or to no mesh: no path):
+     it walked up to the gate and stood facing you, its run in place. Now the slot must be a straight walk on the mesh
+     from you (a Detour raycast), else you are the aim. NAVMESH.md's slot paragraph says so.
+- Dog, knight, fiend: (2); fist / blade / axe armed grunts and enforcers: (1), (2), (3); ogre, hell knight, zombie:
+  ranged, unchanged (they shoot through, and walk through between shots); a zombie throws so often it barely moves.
+- An armed humanoid with a ranged attack of its own (a death knight's fireballs: `VR_AM_HasSpell`, its row's spell)
+  stays ranged whatever it holds; only those whose sole ranged attack is a carried weapon go by `VR_WP_CarriesRanged`.
+- Left: a disarmed grunt seeking a weapon (`VR_AG_Seeking`) is not looked at.
 ## flat1113: gore dents in the presets, no lean headbutt, flat flashlight off, concussed knockdowns, ticks retired
 
 - Gore presets: `vr_gore_dents` is in the preset table (0 at Minimal and Off, Full the default 1); `vr_gore_preset_test`
@@ -1529,3 +1558,57 @@ Verified: build 0 warnings; `vr_menu_path_check` vrcalibration 6 found, vrstart 
 `menu_shortcuts_test.py` 14/14 (twice; one run had "Map Library" page check fail once, not reproduced); `menu_vr rows`
 "rowAt agrees" with two sections folded. Before/after shots (before = the same build with every Menu Look part set
 back): `qvr-kit/scratch/menuvis_shots/`.
+## mutreview: the run setup and mutators reviewed and simplified (agent/mutreview, 2026-11-13)
+
+- **Registry (vr_runsetup.cpp/.hpp):** lines are designated initializers with defaults (a mutator names only what it
+  needs); options inline (`.options = {"Off", "On"}`, up to 4; `optionCount()`), the named option arrays and the
+  `QVR_OPTIONS` macro gone. New `.tags`: each value's word in the run's summary, so `summary()` is one loop over the
+  table (two exceptions kept: Bloody Nightmare in the difficulty's place, the gun and melee weapon as one part); the
+  summary text is unchanged. `isShown()`, `clampValue`, `qcCheck` (the three test commands' QC calls) replace
+  repeated code. Adding a mutator: two cvars + one registry line on the engine side (MUTATORS.md says exactly how).
+- **Save line:** the run line was ~205 of its 256 characters, and the save's context buffer (`vrcontext`, progs.h)
+  512 with the campaign, package and titles before it: a few more mutators (or long titles now) would have cut the line,
+  losing the last choices and the seed. Now 1024 / 1536, saveLine says so on the console if it ever overflows, and
+  `vr_runsetup_test` checks the line fits with every choice at its longest (73 checks, was 72). Format unchanged
+  (unknown keys ignored, missing ones at `oldSave`: old and new saves read as before).
+- **Hooks, not ifs:** the game's code called Melee Only's `VR_RunMeleeOnly_RefusesEnt` directly in 10 places (items,
+  AD's items, carry, horde, force grab, holster) and the engine bound it by name; all now call the run hook
+  `VR_Run_RefusesEnt` (vr_run.qc), the engine's loot beams too (`RunRefusesEnt`, `runRefuses`; still gated on
+  `vr_run_meleeonly`: no VM call per entity a frame otherwise). The empty `VR_Run_MonsterSpawned` hook and its three
+  per-monster calls (monsters.qc) removed (the enemy mutators work at ED_LoadFromFile). vr_run.qc's hook list now
+  points at MUTATORS.md's table (it was a second copy, already stale).
+- **Tables that must stay, checked or self-counting:** Randomized Pickups' weapon rows take their ammo from the weapon
+  table (`VR_RPK_Weapon`: `WeaponIdToAmmoId`); `VR_RPK_Unclassified` (in `vr_runpickups_test 1`, 32 checks, was 31)
+  fails when a weapon of `VR_WEAPONS` with a map pickup is neither a row nor named in `VR_RPK_WeaponLeftOut`;
+  `RPK_ROWS`/`RPK_AMMO_ROWS` are defines sizing the arrays (the 14s and 42s gone). `VR_RUN_ER_KINDS_N` is the
+  table's size (fteqcc `sizeof`, cast to float), no longer a hand count of 54. Melee Only's gun test already derives
+  from the weapon table.
+- **Remnants:** `vr_run_startweapon.qc` renamed `vr_run_startgun.qc` (it holds the gun and melee choices); the
+  `maps_skill_test` alias of the old skill picker's test removed; stale comments (Melee Only "held at the axe") fixed.
+  The old saves' `startweapon=N` reader stays (saves from this round have it).
+- **Tests (before / after, outcome lines compared):** see the agent's report; scripts in its worktree's
+  `scratch/mr_tests.sh` (not committed).
+- **Needs his call (not done):** (1) the nail pistol is not in Randomized Pickups' table (left out by name now; tier 0
+  beside the shotgun and revolver?); (2) monsters: a "never swapped" list (bosses, scripted) so a check can catch a
+  new monster missing from `VR_RUN_ER_KINDS`; (3) a tier column in the weapon and monster data themselves instead of
+  the mutators' own tables.
+## Save crash: Z_Realloc (agent/savecrash, 2026-11-13)
+
+- **Crash:** saving on vrragtriggers (flat, build 107504fc): `strlen` of a non-canonical pointer in `SaveData_Fill`'s
+  known-strings loop. The minidump's registers: slot 501 of 1244 (1280 allocated) held `0x001d4a11_12a71bd0`: the
+  pointer's top half was `ZONEID` (0x1d4a11).
+- **Root cause (zone.c `Z_Realloc`, inherited from QuakeSpasm):** it freed the old block, then took the new one. Freed,
+  the old block merged with a free block before it; when the first fit started there (the zone's rover), the new block
+  began before the old data, and `Z_TagMalloc`'s trailer (ZONEID, at the new block's end) and the free fragment's header
+  after it were written inside the old data before it was copied. `qcvm->knownstrings` grows by `Z_Realloc` (256 slots
+  at a time, while a map loads), so a string's pointer came out with ZONEID in its top half (the next ones would hold a
+  header's size, tag and links). Layout-dependent: today's mutators and map loads only changed where blocks fell.
+- **Fix:** `Z_Realloc` takes the new block first, copies, then frees the old one; with no room for both (a nearly full
+  zone), the data is kept aside on the heap while the old block is freed and the new one taken. `SaveData_Fill` skips a
+  known string whose pointer can't be one (below 64 KB or above 48 bits): saved as none, a `Con_DPrintf` line, and an
+  `SDL_assert` in Debug builds (the bug isn't hidden there).
+- **Tests:** `zone_realloc_check` (console; "zone_realloc_check: N passed, M failed"): three free neighbours by three
+  grow sizes, the rover set on the neighbour, the data and the zeroed tail checked. Before the fix 4 of 9 cases had 8-9
+  words changed (trailer + fragment header); after, 9/0. Script `zone_realloc_check;toggleconsole;quit`, `-QuitOn
+  "zone_realloc_check: [0-9]+ passed"`. Save/load loop with Enemy Count, Randomized Enemies, Randomized Pickups and
+  Glass Cannon on (e1m1 save, vrragtriggers saves and a load, e1m1 load, changelevel e1m2, save): `vr_run_check` 9/0.

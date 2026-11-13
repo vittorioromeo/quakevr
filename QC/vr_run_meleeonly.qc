@@ -13,7 +13,10 @@
 // (wpnthrow_handtouch_ent_hand, VR_Carry_Handtouch, VR_PickupObj_Handtouch), no walk-over or holster take (weapon_touch,
 // ammo_touch, BackpackTouch...), no grab sparkles. A hand still disarms an armed grunt (its gun falls at your hand). One
 // held anyway (a cheat, an old save) does not fire, only clicks (W_AttackImpl: VR_Run_RefusesFire). The run starts with
-// the axe (Starting Weapon held at it: vr_run_startweapon.qc).
+// no gun (the Starting gun held at Nothing; the melee weapon as chosen: vr_run_startgun.qc). The game asks through the
+// hooks (vr_run.qc: VR_Run_RefusesPickup, VR_Run_RefusesFire, VR_Run_RefusesEnt).
+// What a gun is comes from the weapon table (vr_weaponutil.qc: a weapon that uses ammunition, an enemy's gun): a new
+// weapon is classified with no list to keep here.
 
 // (The enemies' single-use guns -- the grunt's burst rifle, the enforcer's laser rifle, AD's soldiers' -- and the flare
 // gun use no reserve ammunition, their clip alone: guns all the same.)

@@ -210,10 +210,11 @@ za::Vector<unsigned char> instReferenced; // per edict, this frame's sweep: some
     return za::clamp(size, 0, 255);
 }
 
-// Whether Melee Only refuses `ent` (QC VR_RunMeleeOnly_RefusesEnt: a gun, ammunition, a backpack with rounds): no loot beam.
-[[nodiscard]] bool meleeOnlyRefuses(edict_t* ent)
+// Whether the run refuses `ent` (QC VR_Run_RefusesEnt; Melee Only: a gun, ammunition, a backpack with rounds): no loot
+// beam. Asked only while a mutator that refuses things is on (Melee Only, the only one): no VM call per entity otherwise.
+[[nodiscard]] bool runRefuses(edict_t* ent)
 {
-    const func_t fn = bindings().MeleeOnlyRefuses;
+    const func_t fn = bindings().RunRefusesEnt;
     if(!fn || !sv.active || vr_run_meleeonly.value == 0.f)
     {
         return false;
@@ -1056,7 +1057,7 @@ namespace
 [[nodiscard]] int lootByte(edict_t* ent)
 {
     const FieldOffsets& f = fields();
-    const bool carried = (f.carry_player >= 0 && fieldInt(ent, f.carry_player) != 0) || meleeOnlyRefuses(ent); // (no beam)
+    const bool carried = (f.carry_player >= 0 && fieldInt(ent, f.carry_player) != 0) || runRefuses(ent); // (no beam)
     const float wid = fieldFloatOr(ent, f.vr_ammo_wid, 0.f);
     if(!carried && wid == 0.f)
     {
@@ -1168,7 +1169,7 @@ extern "C" void VR_WriteEntityUpdate(sizebuf_t* msg, edict_t* ent, int bits)
         // beam, vr_lootbeams.cpp; 0 in older demos).
         const int hot = CLAMP(0, static_cast<int>(fieldFloatOr(ent, f.vr_hot_glow, 0.f) * 127.f + 0.5f), 127);
         const uint32_t spent =
-            (fieldFloatOr(ent, f.vr_depleted, 0.f) != 0.f || meleeOnlyRefuses(ent)) ? 0x80000000u : 0u; // (Melee Only: no beam)
+            (fieldFloatOr(ent, f.vr_depleted, 0.f) != 0.f || runRefuses(ent)) ? 0x80000000u : 0u; // (Melee Only: no beam)
         MSG_WriteLong(msg, static_cast<int>((static_cast<uint32_t>(weaponUid(inst)) & 0xFFFFFFu) |
                                             (static_cast<uint32_t>(hot) << 24) | spent));
         // Its clip: the rounds in it, shown on its ammo screen as a held gun's (vr_view.cpp setupWorldWeapons).

@@ -437,7 +437,7 @@ extern "C" void VR_RunSetupLevel(const char* map)
     openRunSetup(runsetup::Launch::Level, za::String{}, map, -1, mapinstall::mapHasSkillSelect(map));
 }
 
-// vr_runsetup_screen_test (and maps_skill_test, its old name): each way in opens the screen for its start (a start hall
+// vr_runsetup_screen_test: each way in opens the screen for its start (a start hall
 // with skill selection: no Difficulty row), its rows the registry's, a held row shown as a line, Back cancels (nothing
 // started, the picks kept), Start with nothing to start makes the picks the run's.
 void qvr::menu::runSetupScreenTest_f()
