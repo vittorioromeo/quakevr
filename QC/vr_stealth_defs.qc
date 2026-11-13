@@ -43,8 +43,13 @@
 .float stl_trail;       // out of sight: the step of his trail it follows (VR_Stealth_Trail: 1 his last spot, 2 ahead, 3 at him)
 .float stl_trail_time;  // and when it began
 .entity stl_trail_gate; // step 1 through a teleporter he went into (VR_Stealth_TrailGate): its trigger; world none
-.vector stl_trail_end;  // step 3 under vr_nav_trail: where its trail ended (it searches about there, VR_Stealth_TrailSearch)
-.float stl_trail_look;  // ... and when it picks its next spot there
+.vector stl_trail_end;  // step 3 under vr_nav_trail: where its trail ended (it searches about there, VR_Stealth_TrailSearch);
+                        // an Alert one scouting (vr_stealth_scout_time): where it began to
+.float stl_trail_look;  // ... and when it picks its next spot there (scouting: when it stops looking about, or walking)
+.vector stl_trail_way;  // the way its search leans (his way past the spot: vr_nav_trail_carry's, else his last seen speed)
+.float stl_alert_kind;  // what alerted it last (STL_N_* a noise, STL_A_* the others)
+.float stl_scout_walk;  // scouting: walking to its next spot (1), or looking about (0)
+.float stl_scouted;     // scouting: the spots it walked to (the tests')
 .float stl_lost_seen;   // whether it saw him at stl_lost_time (0: woken onto him unseen, it knew where he was)
 .float stl_tele_time;   // a player: when he last went through a teleporter (VR_Stealth_Teleported)
 .entity stl_tele_gate;  // and its trigger

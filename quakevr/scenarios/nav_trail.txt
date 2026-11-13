@@ -8,4 +8,4 @@ map e1m1
 spawn "Grunt" 300 0
 cvar vr_nav_debug 2
 cvar vr_stealth_marks 1
-hint A grunt ahead sees you: step out of its sight and keep going round a corner. It walks (its plan drawn in yellow) to where it saw you last, searches about there and gives up with a "?"; it never comes straight for you.
+hint A grunt ahead sees you: step out of its sight and keep going round a corner. It walks (its plan drawn in yellow) to where it saw you last, carries on a few seconds the way you were running (round the corner, along the corridor you took: Navmesh: Trail Carry-On Time), searches about where it got to and gives up with a "?"; it never comes straight for you.

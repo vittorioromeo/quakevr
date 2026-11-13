@@ -138,6 +138,17 @@ Phases (`stl_phase`):
 A new disturbance while Alert restarts at TURN with the new point (a stronger one only, within 1 s). The meter keeps
 working throughout; full: Hostile.
 
+**By the navmesh, scouting** (2026-11-13): under `vr_nav_alert` 1 (Debug > Tunables "Navmesh: Investigate") the WALK,
+the scouting and the RETURN steer by the navmesh (`VR_Stealth_TrailNav` takes an Alert one's marker too: `VR_NAV_Step`;
+Quake's walk where there is no path), and a path walker walks back to where it left its path before it takes it up
+again (Quake's walk to its next path_corner from where a navmesh walk took it could stick on the first wall). A noise
+(the alert's kind a STL_N_*: a knock, a shot, a blast, a blow, his steps, a monster's alarm; not a glimpse, a body, a
+lost hunt, which search standing as before) is scouted for `vr_stealth_scout_time` (8 s; 0: the stand-and-look
+search): a look about where the walk ended, then by turns a walk to a spot about it (the trail's end search's spots,
+`VR_Stealth_SpotAbout`: up to `vr_nav_trail_search` off, cut short by walls, on the world's floor, not into lava or
+slime) and a look about there (1-1.6 s); then RETURN to its post. Grunts walk ~18 u/s: a knock 445 units off took 55 s
+there and back (test 127).
+
 ## Hostile and Alert propagation (monster to monster)
 
 When a monster goes **Hostile** by its own senses or damage: every other idle/alert monster within
@@ -223,6 +234,18 @@ where it stands. AD's zombies have the zombies' senses. Tests: `Misc/quakevr/adb
   by walls, half of them on along his way) till the give-up, which keeps its times. Woken onto him unseen (a shared
   alert, a noise), its trail's first spot is where he was then (it was the last spot it had ever seen him at, or the
   map's origin). 0: as before.
+  **Past the corner** (`vr_nav_trail_carry` 3 s, Debug > Tunables "Navmesh: Trail Carry-On Time"): its step 2 is his
+  last seen speed for that long past his last spot, walked as he would (`VR_Stealth_Carry`): a wall met slides the way
+  along it, head-on the side with more room (his lean breaking a tie), three walls at most, never off a ledge: the
+  corridor or door he went toward, not the wall in front of it. The step lasts that long at most (or till there), then
+  it searches about where it got to, its search leaning his way along the last wall. A gap in its sightings (0.5-1.5 s:
+  it was firing, whose frames don't look) gives his way over the gap rather than none (a grunt that shot at him as he
+  ran never guessed his way). 0: the old straight guess (`vr_stealth_chase_predict`, cut short by the wall).
+  **Heard clues** (`vr_stealth_hunt_clue` 256 units, Debug > Tunables): a hunter on his trail hears noises as an idle
+  one does (range, walls, its hearing); one made that near him (his own steps, shots and blows, a knock, a blast; not
+  its own shots) puts its trail's spot there: step 1 to the noise, its give-up clock restarted, his way unknown. It
+  learns the noise's spot, never his. 0: hunters don't listen. (Not through paired gates: the gate path's hearing still
+  skips hunters.)
 - **His trail through a teleporter** (`vr_stealth_chase_tele` 5 s; 0 off): a player going through a teleporter
   (Quake's or a walked gate) is noted on him (`VR_Stealth_Teleported`: when, its trigger, where he came out). A hunter
   that lost him follows it when he went in at most that long after its last sighting (or it was woken onto him unseen
@@ -343,6 +366,17 @@ Further scenes (`vr_stealth_test 100`-`108`, `vr_stealth_test2.qc`: their own gr
   with a navmesh path there for it), `vr_stealth_lose_time 15`: it walks the navmesh to his spot (within 64, navmesh
   steps counted), never comes within 160 of him nor makes him its goal unseen, gives up at 15 s. Run again with
   `tune vr_nav_trail 0` set ahead: an info line (the old last step reached him: within 51, his goal 195 frames).
+- 126 the trail carries on past the corner (`stealth_tests.sh corner`, `vr_nav_trail_carry`): a corner found near his
+  spot (else near e1m1's teleporter or lift: `VR_STT4_CornerFind`, the map's own monsters taken away), a grunt Hostile at
+  him sees him stand, he runs 300 u/s to the corridor's end and is put under the floor 32 units round the corner: its
+  step 2 spot at least 128 units round it, it at least 96 round, it searches (step 3), its goal never him, gives up at
+  15 s. Again with `tune vr_nav_trail_carry 0`: an info line (the old straight guess: no step 2 at all).
+- 127 noises investigated (`stealth_tests.sh noises`): the same corner; a knock and a gunshot made out of the grunt's
+  sight round it (1.3 times the reach it takes to hear it there): it walks there (within 64; navmesh steps counted),
+  scouts at least one spot, walks back to its spot (within 48), Idle; a second grunt where the noise can't be heard
+  (the farthest such place within 1.6 times the reach) stays Idle. Then the grunt Hostile at him loses him at the
+  corner; a shot round it near him (`tune vr_stealth_hunt_clue 4000` set ahead: he is under the floor): its trail goes to
+  the shot (its last spot there exactly), it walks there, its goal never him.
 
 ## Open items moved from BACKLOG.md (2026-11-12)
 

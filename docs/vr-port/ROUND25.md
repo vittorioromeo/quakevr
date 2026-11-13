@@ -1050,3 +1050,32 @@ daunting".
 - **Waits** are a fast-mode effect (a frame is a few ms there): a props' batch 1-50 ms, a build ~90 ms (the ogre's,
   94 ms built). At 72-90 Hz 3 frames are 33-42 ms and 18 are 200-250 ms; not measured in real time.
 - nav_tele: 1 passed (reached after 2.4 s, 1 teleporter); nav_lift: 1 passed (5.4 s, 1 ride). Every wait seen: 2-5 a run, worst 95 ms (a build under load), batches 1-50 ms.
+## hunt2: noises investigated, hunters hear clues, the trail carries on past the corner (branch agent/hunt2, 2026-11-13)
+
+- **Noises investigated** (STEALTH.md "Alert: investigate"): the existing noise path (`VR_Stealth_Noise`, hearing range,
+  walls, PVS) already alerted idle monsters to walk there, search standing, then go back. Now, `vr_nav_alert` 1
+  (Debug > Tunables "Navmesh: Investigate"): the walk there, the scouting and the walk back steer by the navmesh
+  (`VR_Stealth_TrailNav` accepts an Alert one's marker; Quake's walk where no path); a path walker walks back to where
+  it left its path first. `vr_stealth_scout_time` 8 s ("Stealth: Scout a Noise For"; 0 the old stand-and-look): an
+  alert by a noise (STL_N_*) scouts: looks about, then by turns walks to a spot about it (`VR_Stealth_SpotAbout`, the
+  end-of-trail search's spots refactored out of `VR_Stealth_TrailSpot`; now also never into lava/slime) and looks about.
+  Sightings, bodies and a lost hunt still search standing.
+- **Hunters hear clues** (`vr_stealth_hunt_clue` 256 u; 0 off): a hunter on his trail (vr_nav_trail) hears a noise as
+  an idle one would; one made that near him (not its own shots) restarts its trail at the noise's spot (step 1, give-up
+  clock restarted, his way unknown): never his live position. Not through paired gates.
+- **Trail carries on past the corner** (`vr_nav_trail_carry` 3 s, "Navmesh: Trail Carry-On Time"; 0 the old straight
+  guess): step 2 projects his last seen speed for that long, sliding along walls it meets (head-on: the side with more
+  room, his lean breaking ties; 3 walls; not off a ledge; `VR_Stealth_Carry`), lasts that long at most, then the
+  search about where it got to, leaning along his way. A 0.5-1.5 s gap in sightings (a grunt's attack frames don't
+  look) now gives his way over the gap instead of none (else a grunt that fired as he ran never guessed his way). The
+  far quarter give-up is unchanged (his call).
+- **Tests** (`stealth_tests.sh corner|noises`, in `all`): `vr_stealth_test 126` finds a corner (from his spot, else near
+  e1m1's teleporter/lift; the map's monsters taken away): carry on: step 2 spot 716 round the corner, it went 424 round,
+  searched, gave up at 15.01 s, goal never him; `tune vr_nav_trail_carry 0`: no step 2, 116 round (search wander).
+  `vr_stealth_test 127`: knock / shot round the corner (445 off): came within 62 / 56, scouted 2 / 1 spots, back within
+  25 / 23 of its spot, Idle, 431 / 404 navmesh steps (56.7 / 54.0 s: grunts walk ~18 u/s); the far grunt (1459 off)
+  stayed Idle both times; clue: its trail moved exactly to the shot, came within 60 in 3.2 s, goal never him.
+- **Before / after** (origin/next 35feef651 / this, headless no-LTO, fast mode): stealth_tests.sh all 61 / 66 PASS, 1 /
+  1 FAIL (props_round: the knight within 80 in 6.0 s, its 6 s limit; fails on origin/next too, not this branch's);
+  nav_tele_metric 16, 16 / 18, 18 of 20; nav_lift pass 21.5 s / pass 22.2 s; scene nav_trail SCNRUN OK / OK.
+- Scenes: new `stealth_noise` (a grunt ahead, a crate by you); `nav_trail`'s hint mentions the carry-on.
