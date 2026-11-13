@@ -26,6 +26,7 @@ Flat-screen or VR: on the installed filter, uninstall the Slipseer map you insta
 Flat-screen or VR: in the Map Library, pick a few Quaddicted maps (ne_ruins, for example; with the index already cached from an earlier session): each one's screenshot shows in the details pane after a moment and changes with the pick; a map with none shows no error text.
 Flat-screen or VR: in the Map Library, watch the status line under the buttons while you pick a map and while the list loads: it says what is being fetched (the map's page, its screenshot, a list page, bytes, or a wait for the site's pace), and a failure shows in one line.
 Flat-screen or VR: Open the map library (Slipseer or Quaddicted) with the menu tint on and pick a map: its screenshot shows its true colours, not the menu hue.
+Flat-screen or VR: in the Map Library, press Play (or Enter) on an installed map: a small Play: Difficulty page offers Easy, Normal, Hard and Nightmare with your last choice selected; one press starts the map on that difficulty, Back returns to the library. A pack whose start map has its own skill halls (such as Quake's start) loads straight away with no picker.
 
 [3. Flat-screen: presets and gore settings]
 Flat-screen or VR: VR Settings' first row is Classic Quake: press it and the line under it names what it set (Graphics Off, Gore Minimal, Gameplay Classic); in e1m1 the grunts carry Quake's shotguns, teleporters are Quake's, there are no crates and no reloading. Back to My Settings brings back your own graphics, gore and gameplay settings.
