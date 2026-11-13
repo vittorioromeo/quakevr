@@ -1788,7 +1788,6 @@ void retroAllUncheckCategories()
         row(opt::vr_portals),
         row(opt::vr_portals_walk),
         row(opt::vr_portals_monsters),
-        row(opt::vr_portals_monsters_all).advanced(),
         row(opt::vr_portals_monster_giveup).advanced(),
         row(opt::vr_portals_ai),
         row(opt::vr_teleporter_pair_exits),

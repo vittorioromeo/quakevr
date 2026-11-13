@@ -2434,7 +2434,6 @@ vr_teleporters|1|Graphics - Teleporters|Quake VR Teleporters|Advanced VR Options
 vr_portals|1|Graphics - Teleporters|Teleporter Views|Advanced VR Options > Graphics > Teleporters > Teleporter Views
 vr_portals_walk|1|Graphics - Teleporters|Seamless Teleporters|Advanced VR Options > Graphics > Teleporters > Seamless Teleporters
 vr_portals_monsters|1|Graphics - Teleporters|Monsters Walk Through|Advanced VR Options > Graphics > Teleporters > Monsters Walk Through
-vr_portals_monsters_all|1|Graphics - Teleporters|Monsters: Every Teleporter|Advanced VR Options > Graphics > Teleporters > Monsters: Every Teleporter
 vr_portals_monster_giveup|1|Graphics - Teleporters|Monsters: Stuck Fallback|Advanced VR Options > Graphics > Teleporters > Monsters: Stuck Fallback
 vr_portals_ai|1|Graphics - Teleporters|Enemies See and Shoot Through|Advanced VR Options > Graphics > Teleporters > Enemies See and Shoot Through
 vr_teleporter_pair_exits|1|Graphics - Teleporters|Exits On Paired Teleporters|Advanced VR Options > Graphics > Teleporters > Exits On Paired Teleporters
