@@ -6,9 +6,12 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
 
 ## 1. Open bugs and failing tests
 
-- **`vr_flatswap_test 4`** (AD's six blades through the hand swap, needs `-game ad`): never run; it checks nothing in vrtesthall, so it needs a spot on an AD map, then to pass with AD
-  mounted (ROUND24.md, "The hand swap: melee weapons stay in sight").
-- **visor_test "AD's two custom keys"**: needs AD in the test's base, or the check skipped without it.
+- **AD-only tests** (ran 2026-11-13 with `-game ad`, ROUND25.md "adtests"): `vr_flatswap_test 4` 48/0 on `map start`
+  (one earlier run of two failed with faulty-frame counts on the blades' stance cases while it timed out under the
+  default 240 s: a one-off, not reproduced; watch it), visor_test 37/0 with AD's two custom keys counted, `vr_agrunt_test
+  213` fixed (the test gave no weapon) and 1/0, `vr_ad_test` 73-80, 184 print their gun (no verdicts), 87/88 PASS,
+  `vr_ad_mtest 3` a diagnostic (no verdict: the death knight and zombie knight gib at the kill, the crossbow knight leaves
+  a corpse). The baseline runner has `flatswap_4_ad` and 213 under AD; the others are described in the round notes.
 - **Random run to run** (re-run 3 times each on 2026-11-12, ROUND25.md "Test triage B"; flatpose and flatswing seeded
   and read earlier, ROUND25.md "testfix": flatpose's last version unrun): `vr_systems_test 15` (1 of 3 fails: the
   blast's body never knocks the torch off; the body's flight varies: UNKNOWN), ragdoll_ragtest (1 of 3: "catch: NOT begun in 3.0 s"), reload (1 of 3: "a hit: the
@@ -40,7 +43,7 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
   agrunt 16's hunt check (the drawn grip 2.7-2.8 units off the drawn hand hull, limit 2.5; its vertex checks fixed,
   ROUND25.md "agfails2"), stealth props_round (knight within 77
   units; since housing_nailpistol: likely a seeded run's butterfly), vrtrailer (no beheading: fails alone at 330f70409
-  too). Older: agrunt 3, 91, 92; 213 needs AD's start (the baseline runs it in vrtesthall: a runner fix).
+  too). Older: agrunt 3, 91, 92; 213 fixed 2026-11-13 (adtests).
 
 ## 2. The 1.1 release (only on his word; his list is RELEASE_TODO.md)
 

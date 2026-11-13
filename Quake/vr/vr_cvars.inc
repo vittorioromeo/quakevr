@@ -2573,7 +2573,7 @@ QVR_CVAR(vr_agrunt_repl_uncommon, "0.25", CVAR_ARCHIVE)   // 0..1: ... a nailgun
 QVR_CVAR(vr_agrunt_repl_rare, "0.15", CVAR_ARCHIVE)       // 0..1: ... a launcher, the thunderbolt, a melee weapon, a mission pack's gun (owned; from vr_agrunt_repl_rare_map on)
 QVR_CVAR(vr_agrunt_repl_rare_map, "4", CVAR_ARCHIVE)   // rare weapons only from this map of an episode on (e1m4, hip1m4, ...; 0: any map)
 QVR_CVAR(vr_agrunt_repl_dual, "0.15", CVAR_ARCHIVE)       // 0..1: the chance of a second weapon that pairs (two guns, two blades)
-QVR_CVAR(vr_agrunt_repl_gunaxe, "0.15", CVAR_ARCHIVE)     // 0..1: the chance of a gun and an axe (the gun, the axe up close)
+QVR_CVAR(vr_agrunt_repl_gunaxe, "0.15", CVAR_ARCHIVE)     // 0..1: the chance of a gun and a melee weapon (axe or dagger, by vr_agrunt_w_axe/_dagger; the gun, the blade up close)
 QVR_CVAR(vr_agrunt_repl_id, "1", CVAR_ARCHIVE)         // 1: in Quake's own campaigns (id1, Dimension of the Past, the Machine Games' ones) and their custom maps
 QVR_CVAR(vr_agrunt_repl_mp, "1", CVAR_ARCHIVE)         // 1: in the mission packs (Scourge of Armagon, Dissolution of Eternity)
 QVR_CVAR(vr_agrunt_repl_ad, "1", CVAR_ARCHIVE)         // 1: in Arcane Dimensions' maps too: its plain grunts, enforcers, knights and death knights replaced (AD's own variants never: QC VR_AGR_ADVariant); 0 until 2026-11-01
