@@ -4,6 +4,7 @@
 # checks it headless).
 title Stealth: a grunt walks to a noise round a corner, scouts about it, walks back
 map e1m1
+start 480 -352 88 90
 god
 spawn "Grunt" 360 0
 spawn "Wooden Crate" 60 30

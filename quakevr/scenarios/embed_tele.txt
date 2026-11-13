@@ -1,0 +1,7 @@
+title A grunt beyond vrteleporters' gate comes through to you; the knight's sword in your hand
+map vrteleporters
+start -1100 1408 24 -90
+god
+give "Knight's Sword" main
+spawn "Grunt" 958 -180
+cvar vr_stealth_light_force 128

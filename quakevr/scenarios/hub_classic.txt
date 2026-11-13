@@ -1,0 +1,3 @@
+title The hub's settings pavilion: the Classic Quake board ahead
+map vrstart
+start -40 -14 152 0
