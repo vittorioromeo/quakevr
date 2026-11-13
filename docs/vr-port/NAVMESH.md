@@ -451,9 +451,9 @@ now also waits for the player before its first spawn: it had a program error whe
   entity named its target, as `teleport_touch` finds it), not players-only (spawnflag 1). Per class (`teleEnds`): the
   entry is the mesh nearest the trigger's middle at its bottom, where the box standing reaches into the trigger; the
   end is the mesh under the destination's point (Quake puts the monster's origin there: feet 24 under). A paired gate
-  that monsters walk through (`portals::teleporterWalked`: vr_portals_monsters, the gate's exit a real aperture) must
+  that monsters walk through (`portals::teleporterWalked`: vr_portals_monsters, which walks every gate) must
   also fit the box: its bottom at most a step over the floor (a sill), its height and width the box's (vrteleporters'
-  crate hatch and the sill-32 gate get no links). An unpaired gate walked through (`vr_portals_monsters_all` 1) that
+  crate hatch and the sill-32 gate get no links). An unpaired gate (out at a destination marker; walked too since ROUND25.md "portalsall") that
   the box doesn't fit keeps its touch link: the engine hands a monster to Quake's teleport at the touch where the
   opening is over a sill it can't step onto or too low for it (`monsterCanStepIn`: e1m1's opening is 23 units over the
   floor; walkers used to press against it and stall, ROUND25.md "onewaytele"). One way: a way back is another trigger's own link. Same link list,

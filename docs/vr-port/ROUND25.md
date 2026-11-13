@@ -1677,3 +1677,38 @@ back): `qvr-kit/scratch/menuvis_shots/`.
 - `kdstir_test.sh`: 5 passed (the old 3 plus: down 5 s of 8, first move 0.10 s after it lay, 8 moves, 24 deg at most,
   85% achieved; 6 knockdowns of 2.5 s against `vr_knockdown_stir 0`: due the same, no later afoot, 4-5 moves each).
   `stagger_test getup`: 12 PASS. Scene `kd_stir`: now at the shipped down times (8 s before).
+
+## portalsall: monsters walk through every teleporter; vr_portals_monsters_all removed (branch agent/portalsall, 2026-11-13)
+
+- His call: the experimental "Monsters: Every Teleporter" is always on, the cvar gone. With `vr_portals_monsters` 1
+  monsters cross every gate seamlessly as a player does, paired or out at a destination marker (id's maps), wherever
+  they can step in and fit (`monsterCanStepIn`, onewaytele's rule); Quake's teleport at the touch otherwise (e1m1's
+  opening on its 23-unit bar), and the stuck fallback (`vr_portals_monster_giveup`) as before.
+- **Removed:** `vr_portals_monsters_all` (vr_cvars.inc; retiredCvars, so an old config's line stays quiet), its menu row
+  (Graphics > Teleporters, advanced), `monsterGate` in vr_portals_gates.cpp (now always true: its five call sites and
+  the `monster` local of VR_PortalBodyMove dropped; `teleporterWalked` is any side of the trigger). Kept as they are:
+  the navmesh's `gate.walked && gate.paired` fit check (a paired gate the box can't fit gets no link, an unpaired one a
+  touch link), `teleporterPaired`, and the stealth gates' paired-only flags (`aiGateFlags` 2 / 4: an exit only exists
+  for a paired gate). Paired gates: no code path changed. "Monsters Walk Through"'s help text says it all now.
+- **Scenes:** `nav_tele_oneway_all` folded into `nav_tele_metric` (identical but for the cvar line; its comment notes
+  it). Checklist: the "Monsters: Every Teleporter" line (test nav_tele_oneway_all) to be replaced.
+- **Checks** (seeded, headless no-LTO): nav_tele_metric 18/20 (= the old setting-on result and the old default's);
+  nav_tele_metric_gates 37/40; nav_tele_dm5 18/24; nav_tele, nav_tele_oneway pass; teleporters_test.sh chase: 5 PASS,
+  dog at framed_sill32 FAIL (known, open since 2fa0e7e58); stealth gates 0 failed; vr_portals_walktest dm5 184 carried,
+  1 jumped (player only: no player code changed); vr_menu_path_check 0 missing; menu_paths.txt regenerated (1 row out).
+## norealloc: Z_Realloc removed (agent/norealloc, 2026-11-13)
+
+- **His call:** the upstream QuakeSpasm fix (its 450e1a5) and no Z_Realloc at all. `qcvm->knownstrings`
+  (`PR_AllocStringSlot`) and the `qcvm->knownzone` bitmap (new `PR_MarkZonedString`, shared by `ED_RezoneString` and
+  `PF_strzone`) grow with `realloc()`: the new slots/bytes zeroed, `Sys_Error` on failure, the size set after it
+  succeeds. Freed with `free()` everywhere: `PR_UnzoneAll` (knownzone), `PR_ClearProgs` and `PR_LoadProgs`
+  (knownstrings); nothing else frees or copies them (a save copies the pointers into its own buffer).
+- **Gone:** `Z_Realloc` (zone.c/zone.h) and `zone_realloc_check`. The Tracy memory test (vr_tracy.cpp) takes a second
+  `Z_Malloc` instead. `SaveData_Fill`'s implausible-pointer guard stays.
+- **Test:** `pr_knownstrings_check` (console; "pr_knownstrings_check: N passed, M failed"): a scratch VM's table grown
+  41 times (10247 strings), every slot checked after each growth (old strings kept, new slots NULL, `PR_GetString`),
+  the bitmap (every 5th id zoned, the tail zero), then a third of the slots freed and reused through the free list (no
+  growth, the rest kept): 44/0. `-QuitOn "pr_knownstrings_check: [0-9]+ passed"`.
+- **Verified:** Release and Release-TracyFull 0 warnings. id1 loop with Enemy Count, Randomized Enemies, Randomized
+  Pickups and Glass Cannon (e1m1/e1m2/e1m3 saves, loads across them, changelevels): `vr_run_check` 18/0. AD loop
+  (ad_crucial, the hub, ad_swampy: 6 saves, 5 loads, map changes): no error. `load_models_test.sh` 4/0 (352/0).

@@ -10,7 +10,10 @@
 # own monsters' first thinks) and again once the walkers are spawned (vr_bench_seed 1), and the navmesh's pool jobs land
 # on a fixed server frame (vr_nav_job_frames, vr_nav_build_frames; NAVMESH.md 20): every run is the same (ROUND25.md
 # "navdet"). The grunt is the one that fails (it stands 0.5-1.75 s lining up at the link, flipping between its trail
-# marker and you).
+# marker and you). Monsters walk through every teleporter (ROUND25.md "portalsall"), but this opening sits on a bar 23
+# units over the floor, over a step: no walker can go in, so the engine leaves each to Quake's teleport at the touch
+# (none stands pressed against the bar: "onewaytele"; this scene with the old vr_portals_monsters_all 1 was
+# nav_tele_oneway_all).
 title Navmesh: monsters walk into e1m1's teleporter from five angles, one after another
 map e1m1
 start -28 2009 -184 -90

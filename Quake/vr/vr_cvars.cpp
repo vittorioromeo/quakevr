@@ -1408,6 +1408,8 @@ constexpr const char* retiredCvars[] = {
     "vr_crouch_hull",                 // the crouched hull smaller (0: the standing hull)
     "vr_ragdoll_self_collide",        // a ragdoll's limbs collide with each other (0: they pass)
     "vr_bullettime_tap_twohanded",    // (cascade) taps while two-handed: the gadget lock, always on, stops them anyway
+    // 2026-11-13: monsters walk through every teleporter they can step into and fit (ROUND25.md, "portalsall").
+    "vr_portals_monsters_all",        // 1: unpaired (id map) teleporters walked too (0: paired ones only)
 };
 
 // Settings renamed: the old name still reads and sets the new one (Cvar_FindVar asks here when a name is not found):

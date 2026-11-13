@@ -344,6 +344,7 @@ void PR_ReloadPics (qboolean purge);					//for gamedir or video changes
 const char *PR_GetString (int num);
 int PR_SetEngineString (const char *s);
 void PR_ClearEngineString (int num);
+void PR_MarkZonedString (size_t id); // QVR: flags known string id as Z_Malloc'd (knownzone grows with realloc)
 int PR_AllocString (int bufferlength, char **ptr);
 
 void PR_Profile_f (void);

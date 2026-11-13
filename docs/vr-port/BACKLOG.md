@@ -47,6 +47,11 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
   too). Older: agrunt 3, 91, 92; 213 fixed 2026-11-13 (adtests).
 - **Baseline 2026-11-13** (ROUND25.md "basefix1113"): agrunt 12/47 and teleporters_chase fixed (the tests); arena 11
   failed under load only (25/0 alone, 2 of 2); ragdoll_ragtest's catch as above (31/0 alone, 2 of 2).
+- **r2m1 (Rogue): a counted monster that is no monster edict is inherited, not ours** (r2m1 branch, 2026-11-13): stock
+  QuakeSpasm (-rogue, skill 1, map r2m1, save) and Quake VR give the same save: total_monsters 93, 92 FL_MONSTER edicts,
+  95 monster_* edicts (the extra ones: a monster_morph spawner and a knight-class entity that counts itself without
+  FL_MONSTER). The 95/94 on another skill is the same one-off. vr_run_enemies_check failing r2m1 on it needs an
+  exemption, not a spawn-code fix.
 
 ## 2. The 1.1 release (only on his word; his list is RELEASE_TODO.md)
 

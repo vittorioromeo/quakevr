@@ -1249,7 +1249,7 @@ int teleEnds(const Settings& s, const NavClass& c, const dtNavMeshQuery& query, 
     // The box standing there must reach into the trigger (Quake's teleport: touching it is enough). A gate walked
     // through must fit it too: its bottom no more than a step over the floor there (a sill it can step onto), its top a
     // box's height over that, its wide side the box's width (a crate hatch, a gate over a jump: not for monsters; a
-    // gate's trigger is its aperture). An unpaired one (vr_portals_monsters_all) that doesn't is a touch link still:
+    // gate's trigger is its aperture). An unpaired one that doesn't is a touch link still:
     // the engine leaves the monster to Quake's teleport there (portals' monsterCanStepIn; e1m1's opening is 23 units
     // over the floor, ROUND25.md "onewaytele").
     const glm::vec3 iq = fromRc(in);
