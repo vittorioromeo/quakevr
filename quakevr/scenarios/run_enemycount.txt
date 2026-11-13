@@ -1,5 +1,0 @@
-# run_enemycount: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
-title Run mutator Enemy Count 3x on e1m1: two more of each monster beside it
-map e1m1
-cvar vr_run_enemycount 2
-hint Enemy Count 3x: each of the map's monsters stands with two more of its kind beside it (on the floor, never in a wall, a door or a teleporter). They wake together; the map's own still open its doors and bridges when killed; the kill count counts them all.

@@ -1,7 +1,0 @@
-# run_rangedknights: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
-title Run mutator Ranged Knights on e1m2
-map e1m2
-cvar vr_agknight 1
-cvar vr_agdknight 1
-cvar vr_run_rangedknights 1
-hint Ranged Knights: most of e1m2's knights still hold their swords (some two), a few hold a chainsaw or a gun (with Arcane Dimensions installed, crossbows too, some with the sword in the other hand); a gun knight aims and fires it, a crossbow-and-sword knight takes to the sword up close, and knights take up guns lying about. Knock a gun out of one's hand and step back: he goes for it.
