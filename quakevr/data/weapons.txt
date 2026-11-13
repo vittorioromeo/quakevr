@@ -329,6 +329,15 @@ defaults
     reload_hold_curl_middle "0.75"
     reload_hold_curl_ring "0.8"
     reload_hold_curl_pinky "0.85"
+    rev "0"
+    rev_pitch "0"
+    rev_roll "0"
+    rev_thumb_bias "0"
+    rev_thumb_top "1"
+    rev_x "0"
+    rev_y "0"
+    rev_yaw "0"
+    rev_z "0"
 }
 
 // slot 0: progs/v_axe.mdl (vr_wofs_*_01)
@@ -1925,6 +1934,8 @@ weapon 18
     w_len "80"
     torch_clip "0"
     w_heft "0" // knight's sword
+    // The reverse grip, blade down (ROUND25.md "revgrip"): taken blade down, or flipped by its eject button.
+    rev "1"
 }
 
 // slot 19: progs/v_hksword.mdl (vr_wofs_*_20)
@@ -2001,6 +2012,8 @@ weapon 19
     w_len "100"
     torch_clip "0"
     w_heft "0.35" // hell knight's sword (big)
+    // The reverse grip, blade down (ROUND25.md "revgrip"): taken blade down, or flipped by its eject button.
+    rev "1"
 }
 
 // slot 20: progs/v_chainsaw.mdl (vr_wofs_*_21)
@@ -3928,6 +3941,8 @@ weapon 40
     bl_s4_side "-0.0035"
     bl_s5_off "0.1416"
     bl_s5_side "-0.0032"
+    // The reverse grip, blade down (ROUND25.md "revgrip"): taken blade down, or flipped by its eject button.
+    rev "1"
 }
 
 // slot 41: progs/w_dknightsword.mdl#melee (vr_wofs_*_42)
@@ -4006,6 +4021,8 @@ weapon 41
     w_len "80"
     torch_clip "0"
     w_heft "0.35" // death knight's sword
+    // The reverse grip, blade down (ROUND25.md "revgrip"): taken blade down, or flipped by its eject button.
+    rev "1"
 }
 
 // slot 42: progs/w_zombiesword.mdl#melee (vr_wofs_*_43)
@@ -4084,6 +4101,8 @@ weapon 42
     w_len "80"
     torch_clip "0"
     w_heft "0" // zombie knight's sword
+    // The reverse grip, blade down (ROUND25.md "revgrip"): taken blade down, or flipped by its eject button.
+    rev "1"
 }
 
 // slot 43: progs/w_dguardsword.mdl#melee (vr_wofs_*_44)
@@ -4162,6 +4181,8 @@ weapon 43
     w_len "80"
     torch_clip "0"
     w_heft "0.35" // death guard's sword: the death knight's (approved 2026-10-25; was 0.3 until vr_wofs_version 66)
+    // The reverse grip, blade down (ROUND25.md "revgrip"): taken blade down, or flipped by its eject button.
+    rev "1"
 }
 
 // slot 44: progs/w_ogreham.mdl#melee (vr_wofs_*_45)
@@ -4419,6 +4440,8 @@ weapon 46
     // 46: the Phantom Swordsman's sword (Rogue)
     torch_clip "0"
     w_heft "0.9" // Phantom Swordsman's sword (Rogue)
+    // The reverse grip, blade down (ROUND25.md "revgrip"): taken blade down, or flipped by its eject button.
+    rev "1"
 }
 
 // slot 47: progs/w_dprincesword.mdl#melee (vr_wofs_*_48)
@@ -4498,6 +4521,8 @@ weapon 47
     // 47: the Dark Prince's sword
     torch_clip "0"
     w_heft "0.35" // Dark Prince's sword
+    // The reverse grip, blade down (ROUND25.md "revgrip"): taken blade down, or flipped by its eject button.
+    rev "1"
 }
 
 // slot 48: progs/w_justicesword.mdl#melee (vr_wofs_*_49)
@@ -4577,6 +4602,8 @@ weapon 48
     // 48: the justice knight's sword
     torch_clip "0"
     w_heft "0.5" // justice knight's sword
+    // The reverse grip, blade down (ROUND25.md "revgrip"): taken blade down, or flipped by its eject button.
+    rev "1"
 }
 
 // slot 49: progs/w_judgesword.mdl#melee (vr_wofs_*_50)
@@ -4657,6 +4684,8 @@ weapon 49
     // 49: the judicator's sword
     torch_clip "0"
     w_heft "0.6" // judicator's sword
+    // The reverse grip, blade down (ROUND25.md "revgrip"): taken blade down, or flipped by its eject button.
+    rev "1"
 }
 
 // slot 50: progs/w_blueflail.mdl#melee (vr_wofs_*_51)
@@ -4816,4 +4845,6 @@ weapon 51
     w_heft "0" // dagger
     bl_from "0.331"
     bl_near "0.321"
+    // The reverse grip, blade down (ROUND25.md "revgrip"): taken blade down, or flipped by its eject button.
+    rev "1"
 }

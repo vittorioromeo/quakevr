@@ -1669,6 +1669,7 @@ float cvarh_vr_reload_ssg_open_hit;
 float cvarh_vr_reload_ssg_pry;
 float cvarh_vr_reload_test;
 float cvarh_vr_reload_volume;
+float cvarh_vr_revgrip_volume;
 float cvarh_vr_revolver_close_button;
 float cvarh_vr_revolver_close_flick_angle;
 float cvarh_vr_revolver_close_flick_speed;
@@ -3710,6 +3711,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_reload_ssg_pry = VR_CVar_Make("vr_reload_ssg_pry");
     cvarh_vr_reload_test = VR_CVar_Make("vr_reload_test");
     cvarh_vr_reload_volume = VR_CVar_Make("vr_reload_volume");
+    cvarh_vr_revgrip_volume = VR_CVar_Make("vr_revgrip_volume");
     cvarh_vr_revolver_close_button = VR_CVar_Make("vr_revolver_close_button");
     cvarh_vr_revolver_close_flick_angle = VR_CVar_Make("vr_revolver_close_flick_angle");
     cvarh_vr_revolver_close_flick_speed = VR_CVar_Make("vr_revolver_close_flick_speed");

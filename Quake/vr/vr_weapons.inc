@@ -520,6 +520,20 @@ QVR_WEAPON_KEY(EmbedButtZ, "em_butt_z")
 QVR_WEAPON_KEY(WpnTextFont, "wpntxt_font")
 QVR_WEAPON_KEY(WpnTextShiftX, "wpntxt_tx")
 QVR_WEAPON_KEY(WpnTextShiftY, "wpntxt_ty")
+// The reverse ("blade down") grip (ROUND25.md, "revgrip"; vr_view_weapon.cpp reverseTurn): whether the weapon may be held
+// so (1: the swords and the dagger in weapons.txt; the QC asks by weapondrawnpose 43 as a hand takes it), and, held so, the
+// weapon moved (units: x forward, y left, z up in the hand's frame, the off hand mirrored) and turned (degrees) on top of
+// the half turn, the thumb laid along the top of the fist (over the pommel: 1) and its curl's tweak (a share, as
+// fgr_bias_thumb). Weapon Offsets > Hand: Reverse Grip. New keys: no migration.
+QVR_WEAPON_KEY(RevGrip, "rev")
+QVR_WEAPON_KEY(RevX, "rev_x")
+QVR_WEAPON_KEY(RevY, "rev_y")
+QVR_WEAPON_KEY(RevZ, "rev_z")
+QVR_WEAPON_KEY(RevPitch, "rev_pitch")
+QVR_WEAPON_KEY(RevYaw, "rev_yaw")
+QVR_WEAPON_KEY(RevRoll, "rev_roll")
+QVR_WEAPON_KEY(RevThumbTop, "rev_thumb_top")
+QVR_WEAPON_KEY(RevThumbBias, "rev_thumb_bias")
 #endif
 
 

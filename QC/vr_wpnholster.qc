@@ -336,6 +336,8 @@ void(float xHand, entity ent, entity entPlayer,
     {
         flags = flags | QVR_WPNFLAG_FOREGRIP_CARRIED;
     }
+    // A sword or dagger: upright, or reversed (blade down) by its blade's way in the hand; a force grab's, upright (vr_revgrip.qc).
+    flags = VR_RevGrip_OnTake(ent, entPlayer, xHand, flags, forcegrabCatching);
     *xOutEntWeapon = ent.weapon;
     *xOutEntWeaponFlags = flags;
     VRSetEntWeaponInst(entPlayer, xHand, ent.weaponinst ? ent.weaponinst : WeaponInst_New(0)); // (its magazine, its id)
@@ -1851,6 +1853,8 @@ void() W_Frame =
     VR_Reload_PlayerFrame(); // what the ammo pouch gives and shows (vr_reload.qc)
     VR_Reload_HandFrame(cVR_MainHand); // a round taken from the ammo pouch on the belt (vr_reload.qc)
     VR_Reload_HandFrame(cVR_OffHand);
+    VR_RevGrip_HandFrame(cVR_MainHand); // a sword's or dagger's eject button flips its grip, blade down (vr_revgrip.qc)
+    VR_RevGrip_HandFrame(cVR_OffHand);
     VR_FlatReload_HandFrame(cVR_MainHand); // flat-screen play's reload: R, the empty clip, the trip to the hip (vr_flatreload.qc)
     VR_FlatReload_HandFrame(cVR_OffHand);
     VR_FlatGrenade_Frame(); // flat-screen play's quick grenade: G, the pouch, the arming, the wind-up and the throw (vr_flatgrenade.qc)

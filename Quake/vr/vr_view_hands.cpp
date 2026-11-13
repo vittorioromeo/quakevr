@@ -121,6 +121,16 @@ void weaponFingers(Held& held, int slot)
 
 namespace
 {
+// Held reversed, blade down (`flip` of the way: gripFlip): the thumb over the pommel, laid along the top of the fist (its Reverse
+// Grip's Thumb; its curl's tweak: fingerBias), past half the flip.
+void reverseGripFingers(Held& held, int slot, float flip)
+{
+    if(flip >= 0.5f && weapons::value(slot, Key::RevThumbTop) >= 0.5f)
+    {
+        held.thumbTop = true;
+    }
+}
+
 constexpr int rigFinger[handrig::FingerCount] = {FingerThumb, FingerIndex, FingerMiddle, FingerRing, FingerPinky};
 } // namespace
 
@@ -1727,7 +1737,7 @@ namespace
 // Round 21, third pass: where a weapon is in the rig of the hand holding it (`hand`: its own), or of the hand holding it
 // by the hotspot `spot` (the other), as the settings put them, worked out with the holding hand at the origin,
 // unturned (Held::canonical). The same steps as the drawn hands', at that pose.
-[[nodiscard]] glm::mat4 canonicalOwnGrip(int hand, int slot, qmodel_t* model, bool offset = true);
+[[nodiscard]] glm::mat4 canonicalOwnGrip(int hand, int slot, qmodel_t* model, bool offset = true, float flip = 0.f);
 [[nodiscard]] glm::mat4 canonicalHotspotGrip(int hand, int otherSlot, qmodel_t* model, const weapons::Hotspot& spot,
     bool offset = true);
 } // namespace
@@ -1757,13 +1767,13 @@ namespace
 
 namespace
 {
-glm::mat4 canonicalOwnGrip(int hand, int slot, qmodel_t* model, bool offset)
+glm::mat4 canonicalOwnGrip(int hand, int slot, qmodel_t* model, bool offset, float flip)
 {
     const bool mirrored = hand == HAND_OFF;
     const glm::vec3 zero{0.f};
     view::ViewEntity weapon;
-    const glm::vec3 wt = weaponTurn(zero, slot, mirrored);
-    place(weapon, model, zero, {-wt.x, wt.y, wt.z}, 0, mirrored);
+    const glm::vec3 wt = weaponTurn(zero, slot, mirrored, flip); // (the reverse grip's turn and move: the weapon's, the hand stays)
+    place(weapon, model, reverseShift(slot, mirrored, flip, zero), {-wt.x, wt.y, wt.z}, 0, mirrored);
     glm::vec3 pos{0.f};
     glm::vec3 handRot = attachedTurn(zero, slot, mirrored, weaponAngleOffsets(weapons::fistSlot(), mirrored));
     if(offset)
@@ -2228,6 +2238,7 @@ struct EmbedPin
 {
     int ent{0};          // the blade's edict (0: none)
     bool byHandle{false};
+    bool reversed{false}; // held by its handle in the reverse grip (blade down: the server's QVR_WPNFLAG_REVGRIP on it)
     int spot{-1};        // not by its handle: the weapon's grip hotspot it is drawn on (its two-handed place), -1 none
     float weight{0.f};
     double last{-1.0};
@@ -2316,11 +2327,14 @@ void embedProbeWrite()
     return pin.ent > 0 && pin.ent < cl.num_entities && cl_entities[pin.ent].model;
 }
 
-// Where a hand holding a weapon of the blade `e` by its handle would be (its controller's pose), as setupWeapon draws one.
-void embedHandleHand(const entity_t& e, bool mirrored, glm::vec3& onPos, glm::vec3& onRot)
+// Where a hand holding a weapon of the blade `e` by its handle would be (its controller's pose), as setupWeapon draws one;
+// `reversed`: in the reverse grip (reverseTurn, reverseShift undone).
+void embedHandleHand(const entity_t& e, bool mirrored, bool reversed, glm::vec3& onPos, glm::vec3& onRot)
 {
-    onPos = glm::vec3{e.origin[0], e.origin[1], e.origin[2]};
-    onRot = handTurnOfWeapon(glm::vec3{-e.angles[0], e.angles[1], e.angles[2]}, weapons::slotForModel(e.model), mirrored);
+    const int slot = weapons::slotForModel(e.model);
+    const float flip = reversed && reverseGripAllowed(slot) ? 1.f : 0.f;
+    onRot = handTurnOfWeapon(glm::vec3{-e.angles[0], e.angles[1], e.angles[2]}, slot, mirrored, flip);
+    onPos = glm::vec3{e.origin[0], e.origin[1], e.origin[2]} - reverseShift(slot, mirrored, flip, onRot);
 }
 
 // The grip hotspot of the blade `e` nearest `at` (its two-handed place: every bladed weapon has one), -1 none.
@@ -2360,7 +2374,7 @@ void embedDrawnHand(const hands::State& s, int hand, bool mirrored, glm::vec3& p
     glm::vec3 onPos, onRot;
     if(pin.byHandle)
     {
-        embedHandleHand(e, mirrored, onPos, onRot);
+        embedHandleHand(e, mirrored, pin.reversed, onPos, onRot);
     }
     else if(glm::vec3 spotPos, spotRot; pin.spot >= 0 &&
             groundSpotPose(e, weapons::slotForModel(e.model), weapons::hotspot(weapons::slotForModel(e.model), pin.spot), hand, s.pos[hand],
@@ -2368,7 +2382,7 @@ void embedDrawnHand(const hands::State& s, int hand, bool mirrored, glm::vec3& p
     {
         // (groundSpotPose: in the frame of the other hand holding it by its handle, at the origin, unturned.)
         glm::vec3 holderPos, holderRot;
-        embedHandleHand(e, hand != HAND_OFF, holderPos, holderRot);
+        embedHandleHand(e, hand != HAND_OFF, false, holderPos, holderRot);
         const glm::mat3 holder = anglesBasis(holderRot);
         onPos = holderPos + holder * spotPos;
         onRot = basisAngles(holder * anglesBasis(spotRot));
@@ -2414,10 +2428,11 @@ void embedPinStep(const hands::State& s, int hand)
     pin.last = vr_gametime;
     pin.weaponPreSet = false;
     const int stat = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_EMBEDMAIN : protocol::STAT_QVR_EMBEDOFF];
-    if(stat > 0 && (stat / 2 != pin.ent || pin.weight <= 0.f))
+    pin.reversed = stat > 0 && embedStatReversed(stat);
+    if(stat > 0 && (embedStatEnt(stat) != pin.ent || pin.weight <= 0.f))
     {
-        pin.ent = stat / 2;
-        pin.byHandle = (stat & 1) != 0;
+        pin.ent = embedStatEnt(stat);
+        pin.byHandle = embedStatHandle(stat);
         pin.spot = -1;
         pin.release = 0.f;
         if(embedPinUsable(pin))
@@ -2964,15 +2979,17 @@ void steadyOther(const HandPose& hp, glm::vec3& pos, glm::vec3& handRot, bool& h
     {
         held = {&weapon.ent, mirrored, 0, true, true};
         weaponFingers(held, slot);
+        const float flip = weaponCarried[hand] ? 0.f : gripFlip(hand);
+        reverseGripFingers(held, slot, flip);
         if(!weaponCarried[hand] && handrig::usable(viewModel(handrig::modelName())))
         {
             held.canonical = true;
-            held.canonicalInRig = canonicalOwnGrip(hand, slot, weapon.ent.model);
+            held.canonicalInRig = canonicalOwnGrip(hand, slot, weapon.ent.model, true, flip);
             held.offset = weapons::vec(slot, Key::HandOnlyX, Key::HandOnlyY, Key::HandOnlyZ) != glm::vec3{0.f} ||
                           weapons::vec(slot, Key::HandOnlyPitch, Key::HandOnlyYaw, Key::HandOnlyRoll) != glm::vec3{0.f};
             if(held.offset)
             {
-                held.fitInRig = canonicalOwnGrip(hand, slot, weapon.ent.model, false);
+                held.fitInRig = canonicalOwnGrip(hand, slot, weapon.ent.model, false, flip);
             }
         }
     }
@@ -2984,15 +3001,17 @@ void steadyOther(const HandPose& hp, glm::vec3& pos, glm::vec3& handRot, bool& h
         if(const int embedSlot = embedHandleSlot(hand); embedSlot >= 0 && embedSlot != fist)
         {
             weaponFingers(held, embedSlot);
+            const float flip = pin.reversed && reverseGripAllowed(embedSlot) ? 1.f : 0.f;
+            reverseGripFingers(held, embedSlot, flip);
             if(handrig::usable(viewModel(handrig::modelName())))
             {
                 held.canonical = true;
-                held.canonicalInRig = canonicalOwnGrip(hand, embedSlot, cl_entities[pin.ent].model);
+                held.canonicalInRig = canonicalOwnGrip(hand, embedSlot, cl_entities[pin.ent].model, true, flip);
                 held.offset = weapons::vec(embedSlot, Key::HandOnlyX, Key::HandOnlyY, Key::HandOnlyZ) != glm::vec3{0.f} ||
                               weapons::vec(embedSlot, Key::HandOnlyPitch, Key::HandOnlyYaw, Key::HandOnlyRoll) != glm::vec3{0.f};
                 if(held.offset)
                 {
-                    held.fitInRig = canonicalOwnGrip(hand, embedSlot, cl_entities[pin.ent].model, false);
+                    held.fitInRig = canonicalOwnGrip(hand, embedSlot, cl_entities[pin.ent].model, false, flip);
                 }
             }
         }

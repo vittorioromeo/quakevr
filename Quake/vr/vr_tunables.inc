@@ -2459,3 +2459,6 @@ QVR_TUNABLE(vr_nav_test_kinds, "0") // test: vr_arena_test 41 runs only these ki
 QVR_TUNABLE(vr_nav_slide, "1") // 1: a walker on the navmesh whose step toward its path's next corner meets a wall (traced a step up: not a stair's riser) steps along the wall instead (Quake's walkmove doesn't slide); 0: straight at the corner
 QVR_TUNABLE(vr_nav_stuck_log, "0") // debug: a walker chasing on the navmesh that stood still this long (seconds) is logged once (navstuck|...: its steer, the step's way, its corners); 0 off
 QVR_TUNABLE(vr_nav_prop_batch, "0.5") // ... a class's tiles changed by props are rebuilt together at most this often (seconds)
+QVR_TUNABLE(vr_revgrip, "1") // 1: a sword or dagger (Weapon Offsets' Reverse Grip on) is taken blade down when its blade points to the little finger's side, and its eject button flips the grip (ROUND25.md "revgrip"; QC VR_RevGrip_*); 0: always the normal grip
+QVR_TUNABLE(vr_revgrip_flip_time, "0.18") // ... s: the eject button's flip of the grip turns the blade half round over this long (vr_view_weapon.cpp gripFlip; 0: at once)
+QVR_TUNABLE(vr_revgrip_volume, "0.7") // ... the flip's sound's volume (0..1: the hand closing on a handle, vr/phys/grab_metal*.wav; 0 silent)
