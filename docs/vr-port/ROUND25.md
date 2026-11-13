@@ -819,3 +819,6 @@ only (BACKLOG); `vr_agrunt_test 210`: 8 passed, 0 failed.
 ## qdshots: Quaddicted screenshots in the map library
 
 - A picked Quaddicted map shows its screenshot in the details pane, as Slipseer maps do: `https://www.quaddicted.com/files/quaddicted-images/by-sha256/<sha[0..1]>/<sha>/<id>.jpg` (the old /reviews/screenshots/ path 404s; measured 2026-11), built in `vr_mapindex.cpp` (`quaddictedShotUrl`, entry `shot`). `slipseer::wantShot` fetches it through the same cache, pace (page-like, seconds), back-off and decode; robots.txt is now per site (Quaddicted: /stuff/, /temp/ only). A missing shot shows nothing. `slipseer_test` 47 passed; one real fetch ok (150621 bytes).
+
+### flipbtn (2026-11-13)
+Flat holster menu: the dagger (a WID_SWORD of kind 12) was named "sword" (notectx::weaponName took the id only): now by kind (AD melee names too). New per-hand FLIP GRIP button under UNLOAD (impulses 84, 85 -> QC VR_RevGrip_Flip, shared with the eject button; lit by view::heldGripFlippable, the eject flip's predicate without its flat-play gate). flatholster_test 37 passed.

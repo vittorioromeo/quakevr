@@ -318,6 +318,9 @@ bool weaponLocalGeometry(qmodel_t* model, glm::vec3& muzzle, glm::vec3& butt, gl
 [[nodiscard]] int reverseGripChoice(const entity_t& e, int hand, float& cosine);
 // Whether the weapon the local player's `hand` holds may be held reversed (its eject button flips the grip: QC weapondrawnpose 46).
 [[nodiscard]] bool heldMayReverse(int hand);
+// The same in flat play too: the predicate of the eject button's flip (heldMayReverse is its VR half) and of the flat
+// holster menu's FLIP GRIP button (weapondrawnpose 46's z).
+[[nodiscard]] bool heldGripFlippable(int hand);
 // The weapon in `hand` as drawn last, in the hand's frame (forward, left, up): its axes (forward, up) and its share of the
 // reverse grip now (gripFlip). False: none drawn (tests: QC weapondrawnpose 44, 45).
 [[nodiscard]] bool heldWeaponAxes(int hand, glm::vec3& forward, glm::vec3& up, float& flip);
