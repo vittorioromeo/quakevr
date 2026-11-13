@@ -299,6 +299,7 @@ inline mem::Cache<MagShapeCache> magShapeCache{"magazine shapes", mem::GameDirCh
 [[nodiscard]] bool magazinesShown();
 [[nodiscard]] glm::vec3 magShapeCentre(const MagMount& mount); // its box's middle (the round's origin as it comes out)
 constexpr int weaponFlagNoMag = 16; // QC's QVR_WPNFLAG_NOMAG (vr_defs.qc)
+constexpr int weaponFlagRevGrip = 8192; // QC's QVR_WPNFLAG_REVGRIP (vr_defs.qc): held reversed, blade down
 
 // A magazine drawn sliding along its well's line in the gun in a hand (ROUND24.md, "Magazines sliding home and out"): only the
 // drawing, stepped by game time and worked out from the gun as drawn each frame (setMagazine), so it is right however the
@@ -628,8 +629,36 @@ inline Morph morphs[2];
 inline view::DrawnWeapon drawnWeapons[2];
 [[nodiscard]] glm::mat3 anglesBasis(const glm::vec3& a);
 [[nodiscard]] glm::vec3 basisAngles(const glm::mat3& b);
-[[nodiscard]] glm::vec3 weaponTurn(const glm::vec3& rot, int slot, bool mirrored);
-[[nodiscard]] glm::vec3 handTurnOfWeapon(const glm::vec3& wt, int slot, bool mirrored);
+// `flip`: the share of the reverse grip's half turn (0 the normal grip, 1 reversed: gripFlip; reverseTurn).
+[[nodiscard]] glm::vec3 weaponTurn(const glm::vec3& rot, int slot, bool mirrored, float flip = 0.f);
+[[nodiscard]] glm::vec3 handTurnOfWeapon(const glm::vec3& wt, int slot, bool mirrored, float flip = 0.f);
+// The reverse ("blade down") grip (ROUND25.md, "revgrip"): the weapon turned half round in the hand, about the palm's
+// normal square to its handle (its handle where it was, its blade to the little finger's side), plus its Reverse Grip
+// offsets (Key::RevPitch.., in the hand's frame), `flip` of the way (eased); its move in the hand's frame (Key::RevX..,
+// turned by the hand's angles `rot`). The identity and nothing at 0.
+[[nodiscard]] glm::mat3 reverseTurn(int slot, bool mirrored, float flip);
+// The half turn's pivot and handle line of slot `slot`'s weapon, from its model `model` (kept per slot; again when the weapon settings
+// change): called by whatever has the model at hand (the held weapon, a blade in a body, one to be taken).
+void reverseLearn(const qmodel_t* model, int slot);
+[[nodiscard]] glm::vec3 reverseShift(int slot, bool mirrored, float flip, const glm::vec3& rot);
+// Whether weapon slot `slot` may be held reversed (Key::RevGrip, with vr_revgrip on).
+[[nodiscard]] bool reverseGripAllowed(int slot);
+// Hand `hand`'s weapon's share of the reverse grip as drawn this frame (0..1): the server's QVR_WPNFLAG_REVGRIP, turned to over
+// vr_revgrip_flip_time as it changes on the same weapon (the eject button), at once for a weapon new in the hand.
+[[nodiscard]] float gripFlip(int hand);
+// A blade in a body held by its handle (STAT_QVR_EMBED*: the edict * 4 + reversed * 2 + by its handle; vr_axestick.cpp calcStats).
+[[nodiscard]] inline int embedStatEnt(int stat)
+{
+    return stat / 4;
+}
+[[nodiscard]] inline bool embedStatHandle(int stat)
+{
+    return (stat & 1) != 0;
+}
+[[nodiscard]] inline bool embedStatReversed(int stat)
+{
+    return (stat & 2) != 0;
+}
 
 // A hand's turn carried by a weapon (round 21, second pass). The weapon's Pitch/Yaw/Roll are added to the hand's
 // angles, which is no rigid turn: a hand turned by angle offsets of its own would slide round the weapon as the wrist

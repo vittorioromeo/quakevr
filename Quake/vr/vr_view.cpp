@@ -110,7 +110,12 @@ namespace
     }
     constexpr Key keys[FingerCount] = {Key::FingerThumbBias, Key::FingerThumbBias, Key::FingerIndexBias, Key::FingerMiddleBias,
         Key::FingerRingBias, Key::FingerPinkyBias};
-    return CLAMP(-1.f, weapons::value(slot, keys[finger]), 1.f);
+    float bias = weapons::value(slot, keys[finger]);
+    if(finger == FingerThumb && !posed)
+    {
+        bias += weapons::value(slot, Key::RevThumbBias) * gripFlip(hand); // (held reversed: the thumb over the pommel)
+    }
+    return CLAMP(-1.f, bias, 1.f);
 }
 
 void updateFingerFrames()
@@ -783,6 +788,45 @@ bool view::carriedWeaponInHand(int hand, glm::vec3& handle, glm::vec3& tip)
     }
     handle = carriedInHand[hand][0];
     tip = carriedInHand[hand][1];
+    return true;
+}
+
+int view::reverseGripChoice(const entity_t& e, int hand, float& cosine)
+{
+    cosine = 1.f;
+    const int slot = e.model && e.model->type == mod_alias ? weapons::slotForModel(e.model) : -1;
+    if(hand < 0 || hand > 1 || !reverseGripAllowed(slot) || flatplay::active())
+    {
+        return -1;
+    }
+    // Its blade's way (the handle at its origin, to its tip) and where the normal grip at the hand's turn now would put it.
+    const glm::vec3 origin{e.origin[0], e.origin[1], e.origin[2]};
+    const glm::vec3 tip = view::anchorPosition(e, false, 1.f, weapons::anchor(slot, Key::MuzzleAnchor),
+        weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
+    const glm::mat3 lying = anglesBasis(glm::vec3{-e.angles[0], e.angles[1], e.angles[2]});
+    const glm::mat3 upright = anglesBasis(weaponTurn(hands::current().visualRot[hand], slot, hand == HAND_OFF));
+    const glm::vec3 blade = tip - origin;
+    const glm::vec3 thumb = upright * (glm::transpose(lying) * blade);
+    const float len = glm::length(blade) * glm::length(thumb);
+    cosine = len > 1e-4f ? glm::dot(blade, thumb) / len : 1.f;
+    return cosine < 0.f ? 1 : 0;
+}
+
+bool view::heldMayReverse(int hand)
+{
+    return hand >= 0 && hand <= 1 && !flatplay::active() && reverseGripAllowed(weapons::heldSlot(hand));
+}
+
+bool view::heldWeaponAxes(int hand, glm::vec3& forward, glm::vec3& up, float& flip)
+{
+    if(hand < 0 || hand > 1 || !drawnWeapons[hand].model)
+    {
+        return false;
+    }
+    const glm::mat4& m = drawnWeapons[hand].inHand;
+    forward = glm::normalize(glm::vec3{m[0]});
+    up = glm::normalize(glm::vec3{m[2]});
+    flip = gripFlip(hand);
     return true;
 }
 

@@ -66,6 +66,9 @@ Stab a wooden crate and keep hold of the sword: move your hand aside and the cra
 Leave a blade in a crate or a barrel and push or pull the crate with your other hand or your body: the blade goes with it, where it went in. Grip the handle again a little to the side of it: the handle comes to your hand across the blade. {test:embed_crates}
 With a gib, a head or a limb skewered on your sword, reach for it with your free hand: the grip takes it only with your hand at the gib itself, and the hand is drawn on the gib's surface (it used to float 9 cm or more off it, on a ball the size of its box). {test:skewer_grip}
 Run at a grunt and throw the knight's sword or the dagger hard, point first: it dies whole (no gibs), falling with the blade deep in its body (about 80% of the blade in); with Quad it still gibs, and handle-first or flat throws are as before. {test:throw_nogib}
+Hold the dagger or a sword and press B (or Y on the off hand): it turns half round in your hand over a fifth of a second with a click, blade down, the thumb over the pommel; press again to flip it back. {test:revgrip}
+Toss the dagger, let it turn over in the air and catch it blade down: you hold it reversed; caught blade up, upright. A force grab always takes it upright, and a reversed blade holstered and drawn again stays reversed. {test:revgrip}
+Held blade down, stab the grunt from above: the blade sticks in, and your hand on its handle in the body looks the same as holding it. {test:revgrip}
 
 [5. Both modes: monsters, bodies, gore, props and navmesh]
 Flat-screen or VR: kick or drop the crate (not a hand throw) hard into the lit wall torch: it falls off its wall as a thrown crate knocks it; nudged slowly against it, the torch stays. {test:systems_torch_knock}

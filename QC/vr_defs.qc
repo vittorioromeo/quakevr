@@ -31,6 +31,10 @@ float QVR_WPNFLAG_SSG_SPENT = 192; // (both bits: 64 and 128)
 // AD support: a flamethrower or poison sprayer whose tank burst (vr_ad_enemyguns.qc VR_FuelTank_Burst): spent, never a
 // tank again (none lying about, none on the back, no hose: the engine's vr_adtank.cpp). Travels with the gun as its flags do.
 float QVR_WPNFLAG_TANK_BURST = VRUTIL_POWER_OF_TWO(12);
+// The reverse grip, blade down (vr_revgrip.qc; a sword or dagger, the engine's Weapon Offsets' Reverse Grip): chosen as a hand
+// takes it, flipped by its eject button; travels with it as its flags do (holsters keep it; a new hand chooses again). The
+// engine turns it half round in the hand (vr_view_weapon.cpp reverseTurn; its weaponFlagRevGrip).
+float QVR_WPNFLAG_REVGRIP = VRUTIL_POWER_OF_TWO(13);
 
 //
 //

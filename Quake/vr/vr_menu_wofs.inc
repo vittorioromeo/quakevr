@@ -510,6 +510,32 @@ za::Vector<Item> pageWofsHand()
             s("Hand Yaw (left)", Key::HandOnlyYaw, -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f),
             s("Hand Roll", Key::HandOnlyRoll, -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f)
         );
+        // The reverse grip, blade down (ROUND25.md "revgrip"; vr_view_weapon.cpp reverseTurn).
+        list.pushBackMultiple(
+            header("Reverse Grip (Blade Down)"),
+            cycle("Reverse Grip", weapons::cvar(slot, Key::RevGrip), {{0.f, "No"}, {1.f, "Yes"}})
+                .help("Yes: taken with its blade pointing to your little finger's side, it is held blade down (turned half "
+                      "round in the hand), and its eject button (B/Y) flips the grip. A force grab always takes it upright. "
+                      "Tune the reversed hold below while holding it so (Debug > Tunables > Weapons > Reverse Grip: on, "
+                      "the flip's time and sound).")
+        );
+        {
+            const char* revHelp = "Held reversed: moves the weapon in the hand on top of the half turn (units; in the controller's "
+                                  "aim frame: X forward, Y left, Z up; the off hand mirrored).";
+            list.pushBackMultiple(
+                s("Reversed X (forward)", Key::RevX, -10.f, 10.f, 0.1f, "%+.1f").extend().help(revHelp),
+                s("Reversed Y (left)", Key::RevY, -10.f, 10.f, 0.1f, "%+.1f").extend().help(revHelp),
+                s("Reversed Z (up)", Key::RevZ, -10.f, 10.f, 0.1f, "%+.1f").extend().help(revHelp),
+                s("Reversed Pitch (up)", Key::RevPitch, -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f)
+                    .help("Held reversed: turns the weapon in the hand on top of the half turn (degrees)."),
+                s("Reversed Yaw (left)", Key::RevYaw, -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f),
+                s("Reversed Roll", Key::RevRoll, -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f),
+                cycle("Reversed Thumb", weapons::cvar(slot, Key::RevThumbTop), {{0.f, "Wrapped"}, {1.f, "Over the Pommel"}})
+                    .help("Held reversed: the thumb wraps the handle, or lies along the top of the fist over the pommel."),
+                s("Reversed Thumb Curl", Key::RevThumbBias, -1.f, 1.f, 0.02f, "%+.2f")
+                    .help("Held reversed: closes (+) or opens (-) the thumb on top of the Fingers page's Thumb.")
+            );
+        }
     }
     return list;
 }

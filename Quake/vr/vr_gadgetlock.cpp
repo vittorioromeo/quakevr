@@ -50,8 +50,8 @@ const char* bothHold()
     {
         return "the same prop";
     }
-    const int bladeMain = cl.stats[STAT_QVR_EMBEDMAIN] / 2; // (the blade's entity * 2 + its handle flag)
-    if(bladeMain > 0 && bladeMain == cl.stats[STAT_QVR_EMBEDOFF] / 2)
+    const int bladeMain = cl.stats[STAT_QVR_EMBEDMAIN] / 4; // (the blade's entity * 4 + reversed * 2 + its handle flag: vr_axestick.cpp calcStats)
+    if(bladeMain > 0 && bladeMain == cl.stats[STAT_QVR_EMBEDOFF] / 4)
     {
         return "the same embedded blade";
     }

@@ -1,0 +1,9 @@
+title The reverse grip: a dagger and a sword to take blade down, toss and flip, and a grunt to stab from above
+map vrtesthall
+start 0 -288 25 90
+god
+give "Dagger" main
+give "Knight's Sword" off
+spawn "Grunt" 110 20
+spawn "Dagger" 50 -40
+hint Press B (or Y) with the dagger or sword: it flips in your hand, blade down, with a click; again, back up. Toss one, let it turn over in the air and catch it blade down: you hold it reversed. Stab the grunt from above, blade down. A force grab always takes a blade upright; holstered and drawn, it keeps its grip.

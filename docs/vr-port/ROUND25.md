@@ -610,6 +610,52 @@ His words: a running sword throw that lands point first fully gibs a grunt; keep
 
 - Blender add-on: the timer-driven `popup_menu` (never showed) is gone; the panel lists the refusal (or grown-box) lines under "Last:" and a "Why?" button opens a dialog with all of them, the log path and a Copy tick. `py_compile` ok; no background Blender test covers the panel.
 
+## revgrip: the reverse ("blade down") grip for swords and daggers (branch agent/revgrip, 2026-11-13)
+
+His request: daggers and swords held "upside down" easily, with a nice hand pose ("grabbing them with the pointy bit downwards
+would enable different natural moves"). His notes: a force grab always upright; a toss, a flip in the air and a re-grab may flip
+the grip; holsters keep it; the eject button flips it with a fast smooth turn and a sound.
+
+- **One turn, in the grip helper.** `reverseTurn` (vr_view_weapon.cpp) sits between the hand and the weapon's angle offsets inside
+  `weaponTurn` and its inverse `handTurnOfWeapon` (a `flip` argument, 0 by default: every other caller unchanged). It is a half
+  turn about the palm's normal (the hand's left) made square to the handle, about the handle's middle: the handle's line from its
+  butt to its guard (`view::weaponLocalGeometry`'s butt and muzzle; the guard at Blade From's share of the hand-to-tip line, a
+  sword's -1 taken as 0.15), learnt per slot from the model (`reverseLearn`, again when the weapon settings change). So the handle
+  lies in the fist where it did, its butt where the guard was (at the top of the fist, under the thumb), its guard under the little
+  finger, the edges swapped (edge in). `reverseShift` is the weapon's origin's move that turning about the handle's middle needs,
+  plus the per-weapon tweak. Everything that goes by the weapon as drawn follows: the muzzle the server's blade line is drawn from
+  (stabs, swings, embedding: `stickHeld`), its Box3D body (`recordDrawnWeapon`), an embedded blade's handle hold (`embedHandleHand`
+  with the stuck blade's reversed bit), the fitted fingers (`canonicalOwnGrip` with the flip). No hotspots while reversed (the
+  two-handed aim is the normal grip's): no second hand on a reversed blade.
+- **The hand.** The same fist: the hand stays where the controller is (attachedTurn is untouched; only the weapon turns). Its
+  thumb lies along the top of the fist over the pommel (the grasp's `thumbTop`, past half the flip) and its curl takes a tweak.
+- **Which weapons:** weapons.txt `rev 1` on the swords and the dagger (slots 18, 19, 40-43, 46-49, 51; not the AD hammer, mace,
+  flail or the axes). Weapon Offsets > Hand > "Reverse Grip (Blade Down)": Reverse Grip (No/Yes, `vr_wofs_rev_NN`), Reversed X/Y/Z,
+  Pitch/Yaw/Roll (`rev_x`.. `rev_roll`, 0), Reversed Thumb (Wrapped / Over the Pommel, `rev_thumb_top` 1), Reversed Thumb Curl
+  (`rev_thumb_bias` 0). Tunables (Debug > Tunables > Weapons > Reverse Grip): `vr_revgrip` 1, `vr_revgrip_flip_time` 0.18 s,
+  `vr_revgrip_volume` 0.7.
+- **The server** (QC/vr_revgrip.qc): `QVR_WPNFLAG_REVGRIP` (8192) on the weapon's flags, which travel with it (holsters keep it).
+  `wpnthrow_handtouch_impl` chooses as a hand takes a weapon (`VR_RevGrip_OnTake`): a force grab's catch upright; a blade come out
+  of a body into the hand that held it keeps its grip (`revgripKeep`, VR_Embed_Free); else the engine's `weapondrawnpose(w, hand,
+  43)`: the blade's way against where the normal grip at the hand's turn now would put it (to the thumb's side upright, to the
+  little finger's reversed). A fresh grip on a stuck blade's handle chooses the same way (`VR_RevGrip_Embed`). The eject button
+  (B/Y, its press, `VR_RevGrip_HandFrame`) flips a held sword's or dagger's flag, plays the hand closing on a handle
+  (vr/phys/grab_metal1..3 at `vr_revgrip_volume`) and a short pulse; the engine turns it over `vr_revgrip_flip_time` (`gripFlip`:
+  a weapon new in the hand is drawn as the server says at once). None in flat-screen play.
+- **The embed stat** (STAT_QVR_EMBED*) is now the blade's edict * 4 + reversed * 2 + by its handle (`view::embedStat*`;
+  vr_gadgetlock.cpp's two reads updated).
+- **Tests:** `vr_embed_test 42` (QC/vr_revgrip_test.qc; Debug > Tests > "Reverse Grip (Blade Down) Check"), the mock hand:
+  `revgrip: 24 passed, 0 failed`: the dagger caught falling blade down (a mid-air catch) is held reversed, its hand-to-handle turn
+  the upright grip's turned 180.0 degrees, its blade line the other way (cos -1.00); caught blade up, upright (0.0 degrees); a force
+  grab's catch of one lying blade down, upright; the eject button flips it upright to reversed and back, drawn part way on 12 of
+  15 frames (0.18 s at 72/s), never back, one flip each; reversed, holstered at the right hip and drawn, still reversed, drawn so
+  from its first frames; the knight's sword reversed, stabbed down (the blow's way z -0.77) at 6 m/s into a grunt: stuck by its
+  point, 7.0 units deep, the stuck blade keeps its grip, the hand on its handle drawn as it held it (0.00 cm, 0.00 degrees).
+  `vr_embed_test 43`: the pictures' scene (upright, then reversed; the tip 9.3 units from the hand upright, 11.8 reversed: the
+  turn about the handle's middle).
+  Regressions: 40 (12/0), 33 (15/0), 30 (12/0), 34 (14/0), 41 (19/0); eval.sh: no take's verdict changed (the archived fails
+  FAIL -> FAIL); scenario `revgrip` SCNRUN OK. To tune in VR: the reversed hold's place (Weapon Offsets > Hand > Reversed X/Y/Z,
+  Pitch/Yaw/Roll) and the thumb; the headless pictures are too coarse to judge the fist on the handle.
 ## navtele2: teleporter walk-in lined up, ranged monsters through gates, the plan drawn through (branch agent/navtele2, 2026-11-13)
 
 - NAVMESH.md 17. `vr_nav_tele_approach` 1 (line up in front of a thin trigger's opening, then straight in),

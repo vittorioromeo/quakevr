@@ -311,6 +311,17 @@ bool weaponLocalGeometry(qmodel_t* model, glm::vec3& muzzle, glm::vec3& butt, gl
 // (MakeThrown negates it back); `mirrored`: as the off hand holds it) and its tip (the muzzle's anchor: the melee's line, QC's throw from where it is). False if it carries none.
 [[nodiscard]] bool carriedWeaponPose(int hand, glm::vec3& pos, glm::vec3& rot, bool& mirrored, glm::vec3& tip);
 
+// The reverse grip (ROUND25.md, "revgrip"; QC weapondrawnpose 43): how the local player's `hand` takes the loose weapon drawn as
+// `e` (its model, origin, angles) now: -1 it is no weapon that may be held reversed (Weapon Offsets' Reverse Grip, vr_revgrip;
+// none in flat-screen play), 0 upright (its blade to the thumb's side), 1 reversed (to the little finger's); `cosine`: of the
+// blade's way and the thumb's side's (the normal grip's blade, at the hand's turn now).
+[[nodiscard]] int reverseGripChoice(const entity_t& e, int hand, float& cosine);
+// Whether the weapon the local player's `hand` holds may be held reversed (its eject button flips the grip: QC weapondrawnpose 46).
+[[nodiscard]] bool heldMayReverse(int hand);
+// The weapon in `hand` as drawn last, in the hand's frame (forward, left, up): its axes (forward, up) and its share of the
+// reverse grip now (gripFlip). False: none drawn (tests: QC weapondrawnpose 44, 45).
+[[nodiscard]] bool heldWeaponAxes(int hand, glm::vec3& forward, glm::vec3& up, float& flip);
+
 // The same weapon's handle and tip in the frame of the hand that carries it as it was drawn (its position and `rot`:
 // forward, right, up), for the server to place on the hand of the move it runs (QC's melee: VR_Melee_FreeLine). False if
 // it carries none.

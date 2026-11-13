@@ -302,7 +302,9 @@ void(entity e, string xWhy) VR_Embed_Free =
     }
     e.vr_grab_by_handle = TRUE;
     entity was = self;
+    revgripKeep = TRUE; // (the grip it was held by: upright or reversed, vr_revgrip.qc)
     wpnthrow_handtouch_impl(hand, e, p, VRGetEntWeaponPtr(p, hand), VRGetEntWeaponFlagsPtr(p, hand)); // (it leaves self the player)
+    revgripKeep = FALSE;
     self = p;
     entity b = VR_Blow(hand);
     VRSetMeleeHitSoundPlayed(hand, TRUE);
@@ -334,6 +336,7 @@ float(entity e, entity xPlayer, float xHand) VR_Embed_Grip =
     {
         return FALSE;
     }
+    VR_RevGrip_Embed(e, xPlayer, xHand); // (its handle taken upright or reversed, by its blade's way: vr_revgrip.qc)
     VR_Embed_TakeHand(e, xPlayer, xHand);
     return VR_Hand_Kind(xPlayer, xHand) == VR_HOLD_EMBED;
 };

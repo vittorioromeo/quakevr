@@ -294,6 +294,42 @@ void PF_weapondrawnpose()
         progs::returnVec({k, gap, gap0});
         return;
     }
+    if(what == 43)
+    {
+        // weapondrawnpose(w, hand, 43): the reverse grip (ROUND25.md "revgrip"; QC VR_RevGrip_Choose): how this listen server's own
+        // `hand` (QC's) takes the loose weapon `w` now: '<1 reversed, 0 upright> <1 it may be held reversed, else 0> <the cosine
+        // of its blade's way and the thumb's side's>' (view::reverseGripChoice).
+        const int index = static_cast<int>(player->v.modelindex);
+        entity_t ent{};
+        ent.model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+        VectorCopy(player->v.origin, ent.origin);
+        VectorCopy(player->v.angles, ent.angles);
+        float cosine = 1.f;
+        const int choice = sv.active && cls.state == ca_connected ? view::reverseGripChoice(ent, hand, cosine) : -1;
+        progs::returnVec({choice > 0 ? 1.f : 0.f, choice >= 0 ? 1.f : 0.f, cosine});
+        return;
+    }
+    if(what == 44 || what == 45)
+    {
+        // weapondrawnpose(player, hand, 44 / 45): this listen server's own `hand`'s weapon as drawn last, in the hand's frame
+        // (tests: QC vr_revgrip_test.qc): 44 its forward axis, 45 its up axis; '0 0 0' none. (view::heldWeaponAxes)
+        glm::vec3 forward{0.f}, up{0.f};
+        float flip = 0.f;
+        const bool drawn = sv.active && cls.state == ca_connected && view::heldWeaponAxes(hand, forward, up, flip);
+        progs::returnVec(!drawn ? glm::vec3{0.f} : what == 44 ? forward : up);
+        return;
+    }
+    if(what == 46)
+    {
+        // weapondrawnpose(player, hand, 46): '<its share of the reverse grip as drawn (0..1: tests)> <1: the weapon held may be
+        // held reversed (QC VR_RevGrip_HandFrame: its eject button flips it)> 0'.
+        glm::vec3 forward{0.f}, up{0.f};
+        float flip = 0.f;
+        const bool local = sv.active && cls.state == ca_connected;
+        (void)(local && view::heldWeaponAxes(hand, forward, up, flip));
+        progs::returnVec({flip, local && view::heldMayReverse(hand) ? 1.f : 0.f, 0.f});
+        return;
+    }
     if(what == 40)
     {
         // weapondrawnpose(player, hand, 40): this listen server's own `hand` (QC's) as drawn against the models

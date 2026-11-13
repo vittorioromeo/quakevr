@@ -1383,6 +1383,11 @@ za::Vector<Item> pageDebugTests()
             .help("Destructive: in the open with god and notarget (vrtesthall): a sword stabbed into a grunt and held as it dies, lifted "
                   "20 units, level and with the wrist turning: the handle stays in the real hand, the body comes; the hand on the handle "
                   "is drawn as it held the sword. Prints embedgrip: N passed, M failed."),
+        command("Reverse Grip (Blade Down) Check", "vr_embed_test 42")
+            .help("Destructive: in the open with god and notarget (vrtesthall): a dagger caught blade down is held reversed, caught "
+                  "blade up upright; a force grab's catch upright; the eject button flips the grip (turned over frames); holstered and "
+                  "drawn it keeps it; a reversed sword's downward stab sticks and the hand on its handle is drawn as it held it. Prints "
+                  "revgrip: N passed, M failed."),
         command("Embedded Blades: the Edges Check", "vr_embed_test 13")
             .help("Destructive: vr_embed off during a hold, a body and its holder through a teleporter, armed enemies, a body going, "
                   "real two-handed stabs, stabs on a knocked down body and an active ragdoll, the other hand on the body, bullet time. "

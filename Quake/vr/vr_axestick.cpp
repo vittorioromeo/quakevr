@@ -1800,7 +1800,9 @@ void calcStats(edict_t* player, int* statsi)
             const edict_t* w = PROG_TO_EDICT(fieldInt(player, ofs));
             if(w != qcvm->edicts && !w->free)
             {
-                stat = NUM_FOR_EDICT(const_cast<edict_t*>(w)) * 2 + ((handle & (1 << h)) ? 1 : 0);
+                // (The edict * 4, held by its handle 1, reversed 2: QC's QVR_WPNFLAG_REVGRIP on it, blade down; view::embedStat*.)
+                const int flags = static_cast<int>(fieldFloatOr(const_cast<edict_t*>(w), f.weaponflags, 0.f));
+                stat = NUM_FOR_EDICT(const_cast<edict_t*>(w)) * 4 + ((flags & 8192) ? 2 : 0) + ((handle & (1 << h)) ? 1 : 0);
             }
         }
         statsi[h ? STAT_QVR_EMBEDMAIN : STAT_QVR_EMBEDOFF] = stat;
