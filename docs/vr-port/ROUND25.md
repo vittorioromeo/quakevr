@@ -1765,3 +1765,4 @@ is a brand-new run; continuing keeps the run's own choices (from the save) and s
   skill 2 back; its files removed, no Continue). `vr_runsetup_test` 73/0, `vr_runsetup_screen_test` 16/0,
   menu_shortcuts_test 14/0, `vr_menu_path_check maps/vrcalibration.map` 0 missing; menu_paths.txt regenerated (the two
   Debug rows). Not tested headless: the Map Library's button with a real installed package (the tests have none).
+- **cltick1113:** retired 6 ticked checklist lines (dagger label, gore minimal, flashlight, lean, kd stir, dog gate; none had voice notes) and 3 unused scenes (flatlean, gore_presets, nav_tele_gate).
