@@ -6572,6 +6572,15 @@ QVR_SLIDER(vr_flat_speed_fov_top, "Speed FOV Full Speed", 250.f, 1000.f, 10.f, "
 QVR_SLIDER(vr_flat_slide_fov_bonus, "Speed FOV Slide Extra", 0.f, 0.5f, 0.01f, "+%.2f", noExt,
     "Playing on the desktop screen: added to the speed FOV's multiplier while you slide, on top of what the slide's "
     "speed gives (0: the speed alone; vr_flat_slide_fov_bonus).")
+QVR_SLIDER(vr_flat_mantle_fov_bonus, "Speed FOV Mantle Extra", 0.f, 0.5f, 0.01f, "+%.2f", noExt,
+    "Playing on the desktop screen: added to the speed FOV's multiplier while you mantle onto a ledge, a subtler kick "
+    "than the slide's (0: none; vr_flat_mantle_fov_bonus).")
+QVR_SLIDER(vr_flat_mantle_fov_ease, "Speed FOV Mantle Ease In", 0.f, 1.f, 0.05f, "%.2f s", noExt,
+    "Playing on the desktop screen: how quickly the view widens as a mantle starts, a time constant in seconds (0: at "
+    "once; vr_flat_mantle_fov_ease).")
+QVR_SLIDER(vr_flat_mantle_fov_ease_out, "Speed FOV Mantle Ease Out", 0.f, 2.f, 0.05f, "%.2f s", noExt,
+    "Playing on the desktop screen: how slowly the view narrows back after a mantle, a time constant in seconds (0: at "
+    "once; vr_flat_mantle_fov_ease_out).")
 QVR_SLIDER(vr_flat_speed_fov_ease, "Speed FOV Ease In", 0.f, 1.f, 0.05f, "%.2f s", noExt,
     "Playing on the desktop screen: how quickly the view widens as you speed up, a time constant in seconds (0: at "
     "once; vr_flat_speed_fov_ease).")
