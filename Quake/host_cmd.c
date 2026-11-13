@@ -29,6 +29,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <time.h>
 #ifndef WITHOUT_CURL
 #include <curl/curl.h>
+#ifdef _WIN32
+#include <ws2tcpip.h> // (inet_pton, sockaddr_in6: Download_LocalHost)
+#else
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#endif
 #endif
 #define MAX_URL	2048
 
@@ -574,6 +580,68 @@ static const char *const knownmods[][2] =
 
 // download_t and Download are declared in quakedef.h: the VR map index (Quake/vr/vr_mapindex.cpp) downloads with them.
 
+// QVR: the local addresses the map library never connects to (Download_LocalHost).
+static qboolean Download_LocalIPv4 (const unsigned char *a)
+{
+	return a[0] == 0 || a[0] == 127 || a[0] == 10 || (a[0] == 172 && (a[1] & 0xf0) == 16) ||
+		(a[0] == 192 && a[1] == 168) || (a[0] == 169 && a[1] == 254);
+}
+
+static qboolean Download_LocalIPv6 (const unsigned char *a)
+{
+	static const unsigned char mapped[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff};
+	int i, zero = 1;
+	for (i = 0; i < 15; i++)
+		zero &= a[i] == 0;
+	if (zero && (a[15] == 0 || a[15] == 1)) // :: and ::1
+		return true;
+	if (!memcmp (a, mapped, sizeof (mapped)))
+		return Download_LocalIPv4 (a + 12);
+	return (a[0] & 0xfe) == 0xfc || (a[0] == 0xfe && (a[1] & 0xc0) == 0x80); // fc00::/7, fe80::/10
+}
+
+qboolean Download_LocalHost (const char *host)
+{
+	size_t n = strlen (host);
+	if (n && host[n - 1] == '.') // ("localhost." is localhost)
+		n--;
+	if ((n == 9 && !q_strncasecmp (host, "localhost", 9)) || (n > 10 && !q_strncasecmp (host + n - 10, ".localhost", 10)))
+		return true;
+#ifndef WITHOUT_CURL
+	{
+		unsigned char a[16];
+		if (inet_pton (AF_INET, host, a) == 1)
+			return Download_LocalIPv4 (a);
+		if (inet_pton (AF_INET6, host, a) == 1)
+			return Download_LocalIPv6 (a);
+	}
+#endif
+	return false;
+}
+
+#ifndef WITHOUT_CURL
+// QVR: CURLOPT_OPENSOCKETFUNCTION when refuse_local is set: each address the name resolved to, checked before it is
+// connected to (a redirect's too).
+static curl_socket_t Download_OpenSocket (void *clientp, curlsocktype purpose, struct curl_sockaddr *address)
+{
+	download_t *download = (download_t *) clientp;
+	if (purpose == CURLSOCKTYPE_IPCXN)
+	{
+		qboolean local = false;
+		if (address->family == AF_INET)
+			local = Download_LocalIPv4 ((const unsigned char *) &((const struct sockaddr_in *) &address->addr)->sin_addr);
+		else if (address->family == AF_INET6)
+			local = Download_LocalIPv6 ((const unsigned char *) &((const struct sockaddr_in6 *) &address->addr)->sin6_addr);
+		if (local)
+		{
+			download->refused_local = true;
+			return CURL_SOCKET_BAD;
+		}
+	}
+	return socket (address->family, address->socktype, address->protocol);
+}
+#endif
+
 qboolean Download (const char *url, download_t *download)
 {
 #ifdef WITHOUT_CURL
@@ -628,6 +696,12 @@ qboolean Download (const char *url, download_t *download)
 	// QVR: a cancelled transfer whose host name is still being looked up (no network: the lookup can take many
 	// seconds) lets the resolver's thread go instead of waiting for it, so quitting never waits on it either.
 	curl_easy_setopt (curl, CURLOPT_QUICK_EXIT, 1L);
+	download->refused_local = false;
+	if (download->refuse_local) // QVR: no local address (Download_OpenSocket)
+	{
+		curl_easy_setopt (curl, CURLOPT_OPENSOCKETFUNCTION, Download_OpenSocket);
+		curl_easy_setopt (curl, CURLOPT_OPENSOCKETDATA, download);
+	}
 	//curl_easy_setopt (curl, CURLOPT_VERBOSE, 1L);
 
 	mc = curl_multi_add_handle (multi_handle, curl);
@@ -678,6 +752,8 @@ qboolean Download (const char *url, download_t *download)
 done:
 	if (mc != CURLM_OK && !download->error)
 		download->error = curl_multi_strerror (mc);
+	if (download->refused_local && download->response != 200) // QVR
+		download->error = "refused: the host is a local address";
 
 	if (header)
 		curl_slist_free_all (header);

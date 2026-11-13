@@ -56,7 +56,8 @@ def main():
     port = server.server_address[1]
     threading.Thread(target=server.serve_forever, daemon=True).start()
     fixtures = f"{tree}/Misc/quakevr/slipseer_fixtures"
-    script = f'maps_slipseer_test "{fixtures}" http://127.0.0.1:{port}/qvrslip.zip'
+    # (vr_maps_allow_local 1: the zip comes from this script's local server, refused otherwise)
+    script = f'vr_maps_allow_local 1;maps_slipseer_test "{fixtures}" http://127.0.0.1:{port}/qvrslip.zip'
     try:
         run = subprocess.run([BASH, f"{KIT}/run.sh", name, "-Timeout", "300", "-Filter", r"slipseer_test",
                               "-QuitOn", r"slipseer_test: [0-9]+ passed", "-Script", script],
