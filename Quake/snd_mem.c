@@ -347,7 +347,9 @@ wavinfo_t GetWavinfo (const char *name, byte *wav, int wavlength)
 
 // find "RIFF" chunk
 	FindChunk("RIFF");
-	if (!(data_p && !strncmp((char *)data_p + 8, "WAVE", 4)))
+	// QVR: each chunk read only as far as its length (a short chunk at the file's end was read past it: after vkQuake
+	// d235ab8c, the LIST chunk's; the others the same)
+	if (!(data_p && iff_chunk_len >= 4 && !strncmp((char *)data_p + 8, "WAVE", 4)))
 	{
 		Con_Printf("%s missing RIFF/WAVE chunks\n", name);
 		return info;
@@ -363,6 +365,11 @@ wavinfo_t GetWavinfo (const char *name, byte *wav, int wavlength)
 	if (!data_p)
 	{
 		Con_Printf("%s is missing fmt chunk\n", name);
+		return info;
+	}
+	if (iff_chunk_len < 16) // QVR: (its fields: 16 bytes)
+	{
+		Con_Warning("%s has a bad fmt chunk\n", name);
 		return info;
 	}
 	data_p += 8;
@@ -383,6 +390,11 @@ wavinfo_t GetWavinfo (const char *name, byte *wav, int wavlength)
 
 // get cue chunk
 	FindChunk("cue ");
+	if (data_p && iff_chunk_len < 28) // QVR: (the first cue point's sample offset ends 28 bytes in)
+	{
+		Con_Warning("%s has a bad cue chunk\n", name);
+		data_p = NULL;
+	}
 	if (data_p)
 	{
 		data_p += 32;
@@ -393,7 +405,9 @@ wavinfo_t GetWavinfo (const char *name, byte *wav, int wavlength)
 		FindNextChunk ("LIST");
 		if (data_p)
 		{
-			if (!strncmp((char *)data_p + 28, "mark", 4))
+			if (iff_chunk_len < 24) // QVR: (its "mark" ends 24 bytes in)
+				Con_Warning("%s has a bad LIST chunk\n", name);
+			else if (!strncmp((char *)data_p + 28, "mark", 4))
 			{	// this is not a proper parse, but it works with cooledit...
 				data_p += 24;
 				i = GetLittleLong();	// samples in loop
@@ -419,7 +433,10 @@ wavinfo_t GetWavinfo (const char *name, byte *wav, int wavlength)
 	if (info.samples)
 	{
 		if (samples < info.samples)
-			Sys_Error ("%s has a bad loop length", name);
+		{	// QVR: was Sys_Error: a broken mod sound is not worth the game (played to its data's end)
+			Con_Warning ("%s has a bad loop length\n", name);
+			info.samples = samples;
+		}
 	}
 	else
 		info.samples = samples;
