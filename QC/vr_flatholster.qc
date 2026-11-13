@@ -14,6 +14,7 @@
 //   78, 79           the left hand's, the right hand's weapon (or the prop it carries) dropped (VR_Forcegrab_FlatDropHand)
 //   81               DROP BOTH: both hands drop what they hold, the off hand's first (H's order, VR_Forcegrab_FlatDrop)
 //   82, 83           UNLOAD: the left hand's, the right hand's gun's live rounds back into the reserve (VR_FlatHolster_Unload)
+//   84, 85           FLIP GRIP: the left hand's, the right hand's sword or dagger turned over (VR_RevGrip_Flip: the eject button's flip)
 //   48               the hands swapped (VR_FlatSwapHands: the same as 3)
 // (80 is vr_flatholster_test's, below.)
 // Holster i is the engine's STAT_QVR_HOLSTERWEAPON0 + i: holsterweapon i (VR_FlatHolster_Hotspot).
@@ -163,17 +164,22 @@ void(float xHand) VR_FlatHolster_Unload =
     dprint(sprintf("flat holsters: UNLOAD hand %g: %g of %g rounds of weapon %g back into the reserve\n", xHand, n, clip, wid));
 };
 
-// ImpulseCommands, first: the menu's impulses (60 .. 79, 81 .. 83) whenever he plays on the screen, and while the holsters are
+// ImpulseCommands, first: the menu's impulses (60 .. 79, 81 .. 85) whenever he plays on the screen, and while the holsters are
 // on, the weapon keys swallowed (1 .. 8, the cycle's 10, 12, 15, 16, Quake's 225, 226): no weapon comes from what was
 // collected. TRUE when the impulse was taken (cleared).
 float() VR_FlatHolster_Impulses =
 {
     float imp = self.impulse;
-    if(((imp >= 60 && imp <= 79) || (imp >= 81 && imp <= 83)) && VR_FlatPlay(self))
+    if(((imp >= 60 && imp <= 79) || (imp >= 81 && imp <= 85)) && VR_FlatPlay(self))
     {
         self.impulse = 0;
         if(self.health <= 0)
         {
+            return TRUE;
+        }
+        if(imp == 84 || imp == 85)
+        {
+            VR_RevGrip_Flip(imp == 84 ? cVR_OffHand : cVR_MainHand); // FLIP GRIP: as the eject button's flip (vr_revgrip.qc)
             return TRUE;
         }
         if(imp == 82 || imp == 83)

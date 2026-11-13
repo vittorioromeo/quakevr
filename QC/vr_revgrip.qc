@@ -52,6 +52,8 @@ void(entity e, entity p, float xHand) VR_RevGrip_Embed =
     e.weaponflags = VR_RevGrip_OnTake(e, p, xHand, e.weaponflags, FALSE);
 };
 
+void(float xHand) VR_RevGrip_Flip;
+
 // Every player frame, for `xHand` of self: its eject button (B/Y) pressed with a sword or dagger in it, held by its handle,
 // flips the grip.
 void(float xHand) VR_RevGrip_HandFrame =
@@ -64,13 +66,24 @@ void(float xHand) VR_RevGrip_HandFrame =
     {
         self.vr_revgrip_sec = self.vr_revgrip_sec | bit;
     }
-    if(!sec || secWas || self.health <= 0 || !self.ishuman || VRGetEntWeapon(self, xHand) != WID_SWORD)
+    if(!sec || secWas || VR_FlatPlay(self))
+    {
+        return;
+    }
+    VR_RevGrip_Flip(xHand);
+};
+
+// The flip itself (the eject button's, and the flat holster menu's FLIP GRIP: impulses 84, 85): the grip of the sword or
+// dagger in `xHand` of self turned over, with its sound and pulse. Nothing when the hand holds none that may be flipped.
+void(float xHand) VR_RevGrip_Flip =
+{
+    if(self.health <= 0 || !self.ishuman || VRGetEntWeapon(self, xHand) != WID_SWORD)
     {
         return;
     }
     float flags = VRGetEntWeaponFlags(self, xHand);
     vector may = weapondrawnpose(self, xHand, 46);
-    if((flags & QVR_WPNFLAG_FOREGRIP_CARRIED) || !may_y || VR_FlatPlay(self))
+    if((flags & QVR_WPNFLAG_FOREGRIP_CARRIED) || !may_z)
     {
         return;
     }

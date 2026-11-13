@@ -14,6 +14,7 @@
 #include "vr_testkit.hpp"
 #include "vr_timescale.hpp"
 #include "vr_toolgun.hpp"
+#include "vr_view.hpp"
 #include "vr_weapon_ids.h"
 
 #include "Zancle/Base/Exchange.hpp"
@@ -26,6 +27,7 @@
 #include "vr_zancle.hpp"
 
 #include <stdio.h>
+#include <string.h>
 
 extern "C" qboolean keydown[MAX_KEYS];             // keys.c
 extern "C" int Key_StringToKeynum(const char* str); // keys.c
@@ -72,6 +74,8 @@ constexpr glm::vec4 dropBothRect{317.f, 162.f, 100.f, 14.f};
 // UNLOAD under each hand, below DROP BOTH (his words 2026-11-10: "add a per-hand 'unload button' that empties a gun's
 // magazine (if applicable) and returns the ammunition to the ammo storage").
 constexpr float unloadY = 180.f;
+// FLIP GRIP under each UNLOAD (his words 2026-11-13: a per-hand "flip grip" button, for a sword or dagger).
+constexpr float flipY = 198.f;
 
 enum class Act : int
 {
@@ -81,7 +85,8 @@ enum class Act : int
     HandDrop,     // hand `index` (0 the left, 1 the right) drops (78, 79)
     DropBoth,     // both hands drop, the off hand first (81)
     Swap,         // the hands swap (48: 3's)
-    Unload        // hand `index`'s gun's live rounds back into the reserve (82, 83)
+    Unload,       // hand `index`'s gun's live rounds back into the reserve (82, 83)
+    FlipGrip      // hand `index`'s sword or dagger turned over, as the eject button does (84, 85)
 };
 struct Button
 {
@@ -90,7 +95,7 @@ struct Button
     glm::vec4 rect;
     char name[16];
 };
-constexpr int buttonCount = holsterCount * 3 + 6;
+constexpr int buttonCount = holsterCount * 3 + 8;
 
 struct State
 {
@@ -121,6 +126,9 @@ struct Contents
     int handModel[2]{}; // model indices
     int carry[2]{};     // the entity each carries (a box, a prop), 0 none
     int clip[2]{};      // the live rounds in each hand's gun's clip (the flat HUD's clip: VR_FlatHudClip), 0 none or no clip
+    int flags[2]{};         // each hand's weapon's flags (a sword's kind: the dagger)
+    int holsterFlags[holsterCount]{};
+    bool flippable[2]{};    // that hand holds a weapon whose grip can be flipped (view::heldGripFlippable: the eject flip's)
     bool unloadFull[2]{}; // that gun's ammo full up in the reserve: no round would go back (UNLOAD greyed)
 };
 
@@ -138,6 +146,17 @@ struct Contents
     c.handModel[1] = cl.stats[STAT_WEAPON];
     c.carry[0] = cl.stats[protocol::STAT_QVR_CARRYOFF];
     c.carry[1] = cl.stats[protocol::STAT_QVR_CARRYMAIN];
+    c.flags[0] = cl.stats[protocol::STAT_QVR_WEAPONFLAGS2];
+    c.flags[1] = cl.stats[protocol::STAT_QVR_WEAPONFLAGS];
+    for(int i = 0; i < holsterCount; i++)
+    {
+        c.holsterFlags[i] = view::holsterFlags(i);
+    }
+    for(int h = 0; h < 2; h++)
+    {
+        constexpr int foregripCarried = 2; // QC QVR_WPNFLAG_FOREGRIP_CARRIED
+        c.flippable[h] = c.hand[h] != WID_FIST && view::heldGripFlippable(h) && (c.flags[h] & foregripCarried) == 0;
+    }
     for(int h = 0; h < 2; h++)
     {
         int clip = 0, size = 0;
@@ -191,6 +210,8 @@ void layOut()
     add(Act::Swap, 0, swapRect, "swap");
     add(Act::Unload, 0, {handRect[0].x, unloadY, handRect[0].z, 14.f}, "left unload");
     add(Act::Unload, 1, {handRect[1].x, unloadY, handRect[1].z, 14.f}, "right unload");
+    add(Act::FlipGrip, 0, {handRect[0].x, flipY, handRect[0].z, 14.f}, "left flip");
+    add(Act::FlipGrip, 1, {handRect[1].x, flipY, handRect[1].z, 14.f}, "right flip");
 }
 
 [[nodiscard]] bool inside(const glm::vec4& r, const glm::vec2& p)
@@ -211,6 +232,7 @@ void layOut()
     case Act::DropBoth: return handHas(0) || handHas(1);
     case Act::Swap: return (c.hand[0] != WID_FIST || c.hand[1] != WID_FIST) && !c.carry[0] && !c.carry[1];
     case Act::Unload: return c.clip[b.index] > 0 && !c.unloadFull[b.index];
+    case Act::FlipGrip: return c.flippable[b.index];
     }
     return false;
 }
@@ -226,6 +248,7 @@ void layOut()
     case Act::DropBoth: return 81;
     case Act::Swap: return 48;
     case Act::Unload: return b.index == 0 ? 82 : 83;
+    case Act::FlipGrip: return b.index == 0 ? 84 : 85;
     }
     return 0;
 }
@@ -442,7 +465,7 @@ void draw()
         gadget::HolsterMenuSlot& s = slots[i];
         s.rect = {p.x, p.y, slotW, slotH};
         s.title = p.title;
-        s.name = c.holster[i] != WID_FIST ? notectx::weaponName(c.holster[i]) : "";
+        s.name = c.holster[i] != WID_FIST ? notectx::weaponName(c.holster[i], c.holsterFlags[i]) : "";
         s.model = c.holster[i] != WID_FIST ? modelName(c.holsterModel[i]) : "";
         s.hovered = inside(s.rect, st.cursor);
     }
@@ -454,7 +477,7 @@ void draw()
         s.title = h == 0 ? "LEFT HAND" : "RIGHT HAND";
         if(c.hand[h] != WID_FIST)
         {
-            s.name = notectx::weaponName(c.hand[h]);
+            s.name = notectx::weaponName(c.hand[h], c.flags[h]);
             s.model = modelName(c.handModel[h]);
         }
         else if(c.carry[h] > 0 && c.carry[h] < cl.num_entities)
@@ -481,6 +504,7 @@ void draw()
         case Act::DropBoth: g.icon = gadget::MenuIcon::Drop; g.label = "DROP BOTH"; break;
         case Act::Swap: g.icon = gadget::MenuIcon::Swap; break;
         case Act::Unload: g.icon = gadget::MenuIcon::None; g.label = "UNLOAD"; break;
+        case Act::FlipGrip: g.icon = gadget::MenuIcon::None; g.label = "FLIP GRIP"; break;
         }
     }
     gadget::HolsterMenuView v;
@@ -838,10 +862,58 @@ void testStep()
         }
         break;
     case 13:
-        if(wait(c.hand[0] == WID_FIST && c.hand[1] == WID_FIST, "DROP BOTH: both hands empty"))
+        // FLIP GRIP (his words 2026-11-13; impulses 84, 85): greyed with nothing held, lit with a sword (impulse 163: the main
+        // hand's), a click turns the grip over (QVR_WPNFLAG_REVGRIP, as the eject button's), greyed again with a gun.
+        if(test.sub == 0)
         {
-            result(true, "DROP BOTH: both hands empty");
-            Cbuf_AddText("impulse 154\n");
+            if(wait(c.hand[0] == WID_FIST && c.hand[1] == WID_FIST, "DROP BOTH: both hands empty"))
+            {
+                result(true, "DROP BOTH: both hands empty");
+                result(!c.flippable[0] && !c.flippable[1], "FLIP GRIP greyed with empty hands");
+                result(!strcmp(notectx::weaponName(WID_SWORD, 3072), "dagger") && !strcmp(notectx::weaponName(WID_SWORD, 0), "sword"),
+                    "the menu names a dagger (a sword of kind 12) 'dagger', a plain sword 'sword'");
+                Cbuf_AddText("impulse 163\n");
+                test.sub = 1;
+                test.frames = 0;
+            }
+        }
+        else if(test.sub == 1)
+        {
+            if(wait(c.hand[1] == WID_SWORD && c.flippable[1], "a sword in the right hand: its FLIP GRIP lit"))
+            {
+                result(!c.flippable[0], "the left hand's FLIP GRIP still greyed");
+                result((c.flags[1] & 8192) == 0, "the sword starts with the normal grip");
+                press("right flip");
+                test.sub = 2;
+                test.frames = 0;
+            }
+        }
+        else if(test.sub == 2)
+        {
+            if(wait((c.flags[1] & 8192) != 0, "FLIP GRIP: the sword's grip reversed"))
+            {
+                result(true, "FLIP GRIP: the sword's grip reversed");
+                press("right flip");
+                test.sub = 3;
+                test.frames = 0;
+            }
+        }
+        else if(test.sub == 3)
+        {
+            if(wait((c.flags[1] & 8192) == 0, "FLIP GRIP again: the grip back to normal"))
+            {
+                result(true, "FLIP GRIP again: the grip back to normal");
+                Cbuf_AddText("impulse 154\n");
+                test.sub = 4;
+                test.frames = 0;
+            }
+        }
+        else if(wait(c.hand[1] == WID_SHOTGUN, "the shotgun in the right hand"))
+        {
+            const int was = st.clicks;
+            result(!c.flippable[1], "FLIP GRIP greyed with a gun");
+            press("right flip");
+            result(st.clicks == was, "FLIP GRIP greyed (does nothing) with a gun");
             next();
         }
         break;
