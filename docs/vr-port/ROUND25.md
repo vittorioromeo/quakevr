@@ -674,6 +674,22 @@ the grip; holsters keep it; the eject button flips it with a fast smooth turn an
 
 - The dagger skewers shallower and takes one gib. Two new weapon keys (weapons.txt, vr_weapons.inc): skewer_depth (the share of vr_embed_skewer_depth the first gib sits from the tip; default 1, dagger 0.5) and skewer_most (most gibs on this blade, 0 = the tunable; dagger 1); one code path (VR_Skewer_Place0, VR_Skewer_Most in vr_skewer.qc). The blade lines are 28 (sword) and 9.3 (dagger) units from the hand: the dagger's head was at 8 (capped 7.9, almost at the hilt), now 4.0 from the tip and 5.3 from the hilt end; sword unchanged (8.0 and 20.0). Test `vr_embed_test 40` cases 6 and 7 (24 of 24).
 
+## stealthtele: a hunter follows the player's trail through a teleporter (branch agent/stealthtele, 2026-11-13)
+
+- `vr_stealth_chase_tele` (5 s, 0 off; Advanced VR Options > Combat > Stealth AI > Follows Through Teleporters): the
+  player's teleports are noted (QC `VR_Stealth_Teleported`, from teleport_touch and VR_Portal_Crossed); a hunter that
+  lost him within that window follows: its trail marker is where he came out and `VR_NAV_Step` steers to that marker
+  only (through the teleporter's link); with no path, straight into the trigger. A hunter already on his trail switches
+  when he goes in. Only teleporters that take monsters and are open (`VR_TeleportTakes`: teleport_touch's own rules,
+  now shared). The far give-up waits meanwhile. STEALTH.md "His trail through a teleporter", NAVMESH.md 18.
+- `nav_tele` rebuilt: you walk into the teleporter (vr_mock_walk_to, vr_portals_walk 0; the old scene setpos'd you past
+  its destination: no teleport, nothing to follow); a dog behind you. Passes in 2.9 s, but also with the feature off
+  (the dog sees him go in and its navmesh chase takes the link). e1m1's own dogs, woken unseen, switch to the trail
+  through it (debug log). A scene where only the trail carries the hunter through is still to do.
+- Regression (low-impact runs): nav_tele_gate 0.9 s, nav_tele_oneway, nav_lift 5.9 s pass; nav_tele_metric 16/20
+  (navtele2 had 20/20; base not re-measured; 11/20 with a tried fix to Hostile's stale `stl_lost_at`, taken out);
+  nav_tele_metric_gates 39/40; stealth suite kinds and gates 0 failed; nav_crowd ran out the 400 s run timeout (not
+  verified).
 ## adtests
 
 The AD-only tests, run once `-game ad` was in the agent bases (kit `run.sh -Games "-game ad -game quakevr" -ExtraArgs

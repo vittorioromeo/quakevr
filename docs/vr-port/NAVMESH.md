@@ -531,3 +531,17 @@ now also waits for the player before its first spawn: it had a program error whe
   trouble from 192 out); `nav_tele_metric_gates` 33 / 37 of 40 passed, 5 / 0 timed out, stuck time 9.1 / 2.0 s in
   all (after: three trials at 0.50-0.53 s, all through), 0 back-offs needed. The before's failures were all grunts
   standing at a gate's edge facing you through it (and one dog off the other way).
+
+## 18. The stealth trail through a teleporter (2026-11-13)
+
+- A hunter that lost the player follows his trail through a teleporter he went into (STEALTH.md, "His trail through a
+  teleporter", `vr_stealth_chase_tele` 5 s): its trail marker is where he came out, and `VR_NAV_Step` steers to that
+  marker (only that one: steering to every trail marker made `nav_lift` 10x slower, 17), so the path goes through the
+  teleporter's link and its lining up; with no path, straight into the trigger. One-way and shut teleporters: the
+  trail only takes a teleporter that takes monsters and is open now (`VR_TeleportTakes`, teleport_touch's own rules),
+  and the link is one way as before. The far give-up waits while it follows him through.
+- `nav_tele` rebuilt: you walk into the teleporter (`vr_mock_walk_to`, `vr_portals_walk 0`) instead of being put past
+  its destination (no teleport, so no trail: the old failure can't be fixed by a trail); a dog behind you. Passes in
+  2.9 s (e1m1's own dogs, woken unseen, switch to his trail through it as he goes in). It passes with
+  `vr_stealth_chase_tele 0` too: the dog sees him go in and its navmesh chase takes the link. A hunter woken unseen far
+  off often takes the walking way to where he came out (the mesh's shorter path) and gives up first.

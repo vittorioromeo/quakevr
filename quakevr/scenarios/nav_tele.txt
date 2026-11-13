@@ -1,17 +1,21 @@
 # nav_tele: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". e1m1's teleporter (the secret by the
-# exit, one way to the start's side): a grunt beside it chases you, standing past its destination; it walks into the
-# teleporter along a navmesh teleporter link (vr_nav_teleports) and comes out by you. Links drawn (vr_nav_debug 2:
-# teleporter links cyan posts). The reach test's verdict line (nav_tele: 1 passed) as it comes within 160 of you after
-# going through, 60 s at most.
-title Navmesh: a grunt follows you through a teleporter
+# exit, one way to the start's side): a dog behind you and e1m1's own dogs are woken onto you, and you walk into the
+# teleporter (the mock's autopilot, vr_mock_walk_to; Quake's teleport, vr_portals_walk 0: the autopilot can't walk the
+# seamless one, whose crossing wants the head through). The dog that sees you go in runs in after you (its navmesh
+# chase, the teleporter link); a dog that lost you follows your trail through it (the stealth AI, vr_stealth_chase_tele:
+# where you came out, by the teleporter's navmesh link, then on at you). Links drawn (vr_nav_debug 2: teleporter links
+# cyan posts). The reach test's verdict line (nav_tele: 1 passed) as a dog comes within 160 of you after a teleporter
+# link was taken, 60 s at most. (It used to put you past the destination by setpos, never through the teleporter: no
+# trail to follow.)
+title Navmesh: a dog follows you through a teleporter
 map e1m1
 start 1312 1000 -380 90
 god
-spawn "Grunt" 0 96
+spawn monster_dog -64 96
 cvar vr_nav 1
 cvar vr_nav_debug 2
 cvar vr_nav_teleports 1
-cvar vr_ai_enhanced 0
-cmd setpos -32 2000 -29
-cmd vr_nav_reachtest nav_tele 160 60 tele monster_army
-hint You stand past the teleporter's destination; the grunt by the teleporter at the far end of the level walks into it and comes out near you (teleporter links: cyan posts, its path yellow). With Navmesh: Teleporter Links off (Debug > Tunables, then reload) it takes the long way or none.
+cvar vr_portals_walk 0
+cmd vr_nav_reachtest nav_tele 160 60 tele monster_dog
+cmd vr_mock_walk_to 1312 1092 8
+hint You walk into the teleporter by the exit; the dog behind you follows you through it and comes out near you (teleporter links: cyan posts, its path yellow). A dog that lost you follows your trail through it too (VR Settings > Stealth AI > Follows Through Teleporters).

@@ -26,6 +26,7 @@
         row(opt::vr_stealth_lose_far),
         row(opt::vr_stealth_chase_trail),
         row(opt::vr_stealth_chase_predict),
+        row(opt::vr_stealth_chase_tele),
         header("Getting Round"),
         row(opt::vr_nav),
         row(opt::vr_nav_async),
