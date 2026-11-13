@@ -225,8 +225,7 @@ where it stands. AD's zombies have the zombies' senses. Tests: `Misc/quakevr/adb
   by the navmesh (`VR_NAV_Step` steers to that marker only, through the teleporter's link; with no path, straight into
   the trigger), and the step ends there (on at him) or after the way to the trigger plus `vr_nav_tele_time`. A hunter
   already on his trail switches to it when he goes in later. The quarter-time give-up for him being far
-  (`vr_stealth_lose_far`) waits while it follows him through. Also: a monster woken onto him unseen now starts its
-  trail from where he was (it used to start from a stale spot).
+  (`vr_stealth_lose_far`) waits while it follows him through.
 
 ## Teleporters (`vr_stealth_gates 1`; seamless teleporters, PORTAL_AI.md)
 

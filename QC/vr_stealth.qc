@@ -626,12 +626,7 @@ void() VR_Stealth_Hostile =
     self.stl_meter = 0;
     self.stl_settle = 0;
     self.stl_lost_time = time;
-    // (where he is: it knows, seen or not (woken onto him: a noise, another's shout); a sighting this frame keeps it
-    // up to date, VR_Stealth_LoseNow. Its trail used to start from a stale spot when it never saw him.)
-    self.stl_lost_at = self.stl_lost_org = self.enemy.origin;
-    self.stl_lost_via = 0;
-    self.stl_lost_vel = '0 0 0';
-    self.stl_lost_seen = 0;
+    self.stl_lost_seen = 0; // (woken onto him: unseen until a sighting, VR_Stealth_LoseNow)
     if(!VR_Stealth_Applies(self) || self.enemy.classname != "player")
     {
         return;

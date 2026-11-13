@@ -1327,6 +1327,7 @@ vr_stealth_lose_time|1|Stealth AI|Gives Up After|Advanced VR Options > Combat > 
 vr_stealth_lose_far|1|Stealth AI|Sooner Beyond|Advanced VR Options > Combat > Stealth AI > Sooner Beyond
 vr_stealth_chase_trail|1|Stealth AI|Follows Your Trail|Advanced VR Options > Combat > Stealth AI > Follows Your Trail
 vr_stealth_chase_predict|1|Stealth AI|Guesses Ahead|Advanced VR Options > Combat > Stealth AI > Guesses Ahead
+vr_stealth_chase_tele|1|Stealth AI|Follows Through Teleporters|Advanced VR Options > Combat > Stealth AI > Follows Through Teleporters
 vr_nav|1|Stealth AI|Monsters Find Their Way|Advanced VR Options > Combat > Stealth AI > Monsters Find Their Way
 vr_nav_async|1|Stealth AI|Monster Paths for New Sizes in Play|Advanced VR Options > Combat > Stealth AI > Monster Paths for New Sizes in Play
 vr_ai_props|1|Stealth AI|Round Props|Advanced VR Options > Combat > Stealth AI > Round Props

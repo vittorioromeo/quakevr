@@ -66,10 +66,11 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
 
 - **Teleporters** (NAVMESH.md 16): walkers path through teleporters (one-way far links, shut ones closed, paired gates
   walked through when the box fits; NAVMESH.md 17: lining up in front of a wall teleporter, ranged monsters walking
-  through a gate between shots, the plan drawn through, the `vr_nav_teletest` metric). Left: a scene on a map whose
-  teleporter is gated by a button; AD's own `trigger_teleport` states (STARTOFF, estate) beyond the targetname rule;
-  `nav_tele` (a foe out of sight is hunted by the stealth AI's trail, not the mesh: give its trail a way through a
-  teleporter he was seen going into); the debug view didn't show in a headless screenshot (not even the mesh).
+  through a gate between shots, the plan drawn through, the `vr_nav_teletest` metric; NAVMESH.md 18: the stealth
+  trail goes through a teleporter he went into, `vr_stealth_chase_tele`). Left: a scene on a map whose teleporter is
+  gated by a button; AD's own `trigger_teleport` states (STARTOFF, estate) beyond the targetname rule; a scene where
+  the trail is what carries the hunter through (`nav_tele`'s dog sees him go in: it passes with the trail off too);
+  the debug view didn't show in a headless screenshot (not even the mesh).
 - **Lifts** (NAVMESH.md 10, 16): on by default; the reach scene (`nav_lift`) and the waiting-at-the-top case
   (`nav_lift_down`: the lift is called up). Left: a scene for a train (every id train with stops is triggered first:
   e2m6's elevator, e3m4's).
