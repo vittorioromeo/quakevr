@@ -12,7 +12,8 @@
 //   the balance stays measured at range 0), then 40 of each killed, 8 at a time (their drops: a gun from each, the same
 //   backpacks and ammo; extra weapons from the vanilla ones only: "Never drop extra weapons", his call 2026-11-03).
 // - 72 (vrtesthall): a gun and an axe: the gun at range, the axe up close, the gun again backed off; a spent shotgun
-//   with no reserve: the axe; a gun lying near: taken up.
+//   with no reserve: the axe; a gun lying near: taken up; then a gun and a dagger (the axe's weight 0): the dagger up close,
+//   its stab landing, the gun again backed off. (Test 70 has the axe/dagger split by their weights and 16 real spawns.)
 // - 73 (any map): the census: the map's monsters, the armed ones and their loadouts, all killed (`agrtest: map ...`).
 
 float vr_agrt_step;
@@ -34,9 +35,11 @@ string(float i) VR_AGRT_CvarName =
     if(i == 6) { return "vr_agrunt_repl_gunaxe"; }
     if(i == 7) { return "vr_agrunt_repl_seed"; }
     if(i == 8) { return "vr_agrunt_repl_id"; }
+    if(i == 9) { return "vr_agrunt_w_axe"; }
+    if(i == 10) { return "vr_agrunt_w_dagger"; }
     return "";
 };
-float VR_AGRT_NCVARS = 9;
+float VR_AGRT_NCVARS = 11;
 
 void() VR_AGRT_Save =
 {
@@ -80,6 +83,7 @@ float vr_agrt_t2;
 float vr_agrt_t3;
 float vr_agrt_dual;
 float vr_agrt_gunaxe;
+float vr_agrt_gundagger; // ... of them with the dagger (VR_AGR_SideBlade)
 float vr_agrt_ssg;
 float vr_agrt_hash; // the loadouts' sum (determinism)
 
@@ -93,6 +97,7 @@ void(float kind, float n, float base) VR_AGRT_Roll =
     vr_agrt_t3 = 0;
     vr_agrt_dual = 0;
     vr_agrt_gunaxe = 0;
+    vr_agrt_gundagger = 0;
     vr_agrt_ssg = 0;
     vr_agrt_hash = 0;
     float i;
@@ -109,6 +114,7 @@ void(float kind, float n, float base) VR_AGRT_Roll =
         if(vr_agr_tier == 3) { vr_agrt_t3 = vr_agrt_t3 + 1; }
         if(vr_agr_code2 > 0 && !vr_agr_gunaxe) { vr_agrt_dual = vr_agrt_dual + 1; }
         if(vr_agr_gunaxe) { vr_agrt_gunaxe = vr_agrt_gunaxe + 1; }
+        if(vr_agr_gunaxe && vr_agr_code2 == VR_AG_CODE_DAGGER) { vr_agrt_gundagger = vr_agrt_gundagger + 1; }
         if(vr_agr_code == WID_SUPER_SHOTGUN || vr_agr_code2 == WID_SUPER_SHOTGUN) { vr_agrt_ssg = vr_agrt_ssg + 1; }
         vr_agrt_hash = VR_AGR_Mod(vr_agrt_hash * 7 + vr_agr_code * 3 + vr_agr_code2 + vr_agr_gunaxe, 30011);
     }
@@ -282,10 +288,51 @@ void() VR_AGRT_Stats =
     VR_AGRT_Set(0, 0, 0, 0, 0.4);
     VR_AGRT_Roll(1, n, 0);
     VR_AGRT_Share("gun and axe 0.4, enforcer", vr_agrt_gunaxe, 0.33, 0.47);
-
+    // Its blade: the axe or the dagger by their pool weights (VR_AGR_SideBlade).
+    VR_AGRT_Set(0, 0, 0, 0, 1);
+    cvar_set("vr_agrunt_w_axe", "1");
+    cvar_set("vr_agrunt_w_dagger", "1");
+    VR_AGRT_Roll(0, n, 0);
+    VR_AGRT_Share("gun and a melee weapon 1, grunt", vr_agrt_gunaxe, 1, 1);
+    VR_AGRT_Share("gun and a melee weapon, axe 1 dagger 1: daggers", vr_agrt_gundagger, 0.43, 0.57);
+    cvar_set("vr_agrunt_w_axe", "3");
+    VR_AGRT_Roll(1, n, 0);
+    VR_AGRT_Share("gun and a melee weapon, axe 3 dagger 1, enforcer: daggers", vr_agrt_gundagger, 0.19, 0.31);
     return;
     }
     if(st == 12)
+    {
+    float wk;
+    float nax = 0;
+    float ndg = 0;
+    float bad = 0;
+    VR_AGRT_Set(0, 0, 0, 0, 1);
+    cvar_set("vr_agrunt_w_axe", "1");
+    cvar_set("vr_agrunt_w_dagger", "0");
+    VR_AGRT_Roll(0, 200, 0);
+    VR_AGRT_Share("gun and a melee weapon, dagger 0: daggers", vr_agrt_gundagger, 0, 0);
+    cvar_set("vr_agrunt_w_axe", "0");
+    cvar_set("vr_agrunt_w_dagger", "1");
+    VR_AGRT_Roll(1, 200, 0);
+    VR_AGRT_Share("gun and a melee weapon, axe 0: daggers", vr_agrt_gundagger, 1, 1);
+    // Real spawns, gun and a melee weapon 1, axe 1 dagger 1: each its gun in its right hand, its blade in its left.
+    cvar_set("vr_agrunt_w_axe", "1");
+    for(wk = 0; wk < 16; wk++)
+    {
+        entity wg = VR_AGRT_Make(wk & 1, VR_AGRT_Ahead(200 + floor(wk / 4) * 60, (wk & 3) * 60 - 90), TRUE);
+        entity wb = wg.vr_ag_prop2;
+        float dg = wb && wb.weapon == WID_SWORD && VR_ADMelee_Kind(wb.weaponflags) == VR_SWORDKIND_DAGGER;
+        float ax = wb && wb.weapon == WID_AXE;
+        nax = nax + ax;
+        ndg = ndg + dg;
+        bad = bad + (!wg.vr_ag_gunaxe || !wg.vr_ag_prop || wg.vr_ag_prop.vr_ag_left || !wb || !wb.vr_ag_left || !(ax || dg));
+        VR_AGRT_Remove(wg);
+    }
+    VR_AGT_Check(sprintf("spawns: 16 with a gun and a melee weapon: %g axes, %g daggers, %g not a gun right and a blade left",
+        nax, ndg, bad), nax >= 3 && ndg >= 3 && bad == 0);
+    return;
+    }
+    if(st == 13)
     {
     VR_AGRT_Set(0.3, 0.3, 0, 0.2, 0.2);
     VR_AGRT_Roll(0, 300, 5);
@@ -299,7 +346,7 @@ void() VR_AGRT_Stats =
 
     return;
     }
-    if(st == 13)
+    if(st == 14)
     {
     // Real spawns: 12 grunts and enforcers as a map's (a player in: rolled at once), twice at the same spots.
     VR_AGRT_Set(0.4, 0.3, 0, 0.2, 0.2);
@@ -583,7 +630,7 @@ void() VR_AGRT_GunAxe =
     entity pl = vr_agt_player;
     entity g = vr_agrt_g;
     float timedOut = vr_agrt_step > 0 && time > vr_agrt_until;
-    if(g && g.health > 0 && g.enemy != pl && vr_agrt_step > 0 && vr_agrt_step != 8)
+    if(g && g.health > 0 && g.enemy != pl && vr_agrt_step > 0)
     {
         VR_AGT_Hunt(g);
     }
@@ -592,6 +639,7 @@ void() VR_AGRT_GunAxe =
         VR_AGRT_Save();
         vr_agrt_home = pl.origin;
         VR_AGRT_Set(0, 0, 0, 0, 1);
+        cvar_set("vr_agrunt_w_dagger", "0"); // (the axe here: the dagger's case after it, steps 6..8)
         vr_agrt_g = VR_AGRT_Make(0, VR_AGRT_Ahead(320, 0), TRUE);
         g = vr_agrt_g;
         VR_AGT_Check(sprintf("gun and axe: spawned with %s and %s", g.vr_ag_prop.netname, g.vr_ag_prop2.netname),
@@ -674,6 +722,61 @@ void() VR_AGRT_GunAxe =
             float gunR = g.vr_ag_prop2 && gunP.weapon == WID_SHOTGUN && !gunP.vr_ag_left; // (the gun in its right hand)
             VR_AGRT_StepCheck(sprintf("gun and axe: a gun lying near, taken up (%g pickups, %s and %s)", g.vr_ag_pickups,
                 g.vr_ag_prop.netname, g.vr_ag_prop2 ? g.vr_ag_prop2.netname : "nothing"), gunR && !timedOut);
+            VR_AGRT_Remove(g);
+            setorigin(pl, vr_agrt_home);
+            // A gun and a dagger (the axe's weight 0): the same path, the dagger in its left hand.
+            cvar_set("vr_agrunt_w_axe", "0");
+            cvar_set("vr_agrunt_w_dagger", "1");
+            VR_AGRT_Set(0, 0, 0, 0, 1);
+            vr_agrt_g = VR_AGRT_Make(0, VR_AGRT_Ahead(320, 0), TRUE);
+            g = vr_agrt_g;
+            entity b = g.vr_ag_prop2;
+            VR_AGT_Check(sprintf("gun and dagger: spawned with %s and %s", g.vr_ag_prop.netname, b.netname),
+                g.vr_ag_gunaxe && g.vr_ag_prop.vr_ag_native && b.weapon == WID_SWORD &&
+                VR_ADMelee_Kind(b.weaponflags) == VR_SWORDKIND_DAGGER && b.vr_ag_left && !g.vr_ag_prop.vr_ag_left);
+            vr_agrt_shots0 = g.vr_ag_total_shots;
+        }
+        return;
+    }
+    if(vr_agrt_step == 6) // at range: the gun fired
+    {
+        if(g.vr_ag_total_shots > vr_agrt_shots0 || timedOut)
+        {
+            VR_AGRT_StepCheck(sprintf("gun and dagger: at range, the gun fires (%g shots, the dagger %s)",
+                g.vr_ag_total_shots, VR_AGRT_OnAxe() ? "in use" : "carried"), !VR_AGRT_OnAxe() && !timedOut);
+            setorigin(g, VR_AGRT_Ahead(56, 0)); // (up close)
+            vr_agrt_shots0 = g.vr_ag_strikes;
+            vr_agrt_dmg0 = -1; // (the damage dealt you when the dagger comes out)
+        }
+        return;
+    }
+    if(vr_agrt_step == 7) // up close: the dagger drawn, swung, and it hits
+    {
+        if(VR_AGRT_OnAxe() && vr_agrt_dmg0 < 0)
+        {
+            vr_agrt_dmg0 = vr_ag_player_dmg;
+        }
+        float stabbed = VR_AGRT_OnAxe() && vr_agrt_dmg0 >= 0 && g.vr_ag_strikes > vr_agrt_shots0 &&
+                        vr_ag_player_dmg > vr_agrt_dmg0;
+        if(stabbed || timedOut)
+        {
+            entity d = g.vr_ag_prop;
+            float dagger = d.weapon == WID_SWORD && VR_ADMelee_Kind(d.weaponflags) == VR_SWORDKIND_DAGGER;
+            VR_AGRT_StepCheck(sprintf("gun and dagger: up close, the dagger drawn and it hits (%s in hand, %g blows, %g damage, %g switches)",
+                d.netname, g.vr_ag_strikes - vr_agrt_shots0, vr_ag_player_dmg - max(0, vr_agrt_dmg0), g.vr_agr_switches),
+                dagger && !timedOut);
+            setorigin(g, VR_AGRT_Ahead(330, 0)); // (backed off)
+            vr_agrt_shots0 = g.vr_ag_total_shots;
+        }
+        return;
+    }
+    if(vr_agrt_step == 8) // backed off: the gun again, the dagger carried in its left hand
+    {
+        if((!VR_AGRT_OnAxe() && g.vr_ag_total_shots > vr_agrt_shots0) || timedOut)
+        {
+            VR_AGRT_StepCheck(sprintf("gun and dagger: backed off, the gun again (%g shots, %g switches, the dagger %s)",
+                g.vr_ag_total_shots, g.vr_agr_switches, g.vr_ag_prop2.vr_ag_left ? "in its left hand" : "elsewhere"),
+                g.vr_ag_prop2.vr_ag_left && !timedOut);
             VR_AGRT_Remove(g);
             setorigin(pl, vr_agrt_home);
             VR_AGRT_Restore();

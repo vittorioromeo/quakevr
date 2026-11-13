@@ -677,3 +677,15 @@ the grip; holsters keep it; the eject button flips it with a fast smooth turn an
 ## promote1113: embed depth tweaks promoted
 
 His vr_embed_sword_depth_max 80 (was 60), vr_embed_sword_depth_speed 7 (was 8) and vr_embed_hold_sword_most 100 (was 90) are the defaults (tune_promote.py; --check exits 0). vr_embed_test 30, 33, 34, 40, 41, 42 pass unchanged (12, 15, 14, 24, 19, 24 passed, 0 failed). No checklist line.
+
+## gundagger: a gun and a melee weapon (axe or dagger)
+
+`vr_agrunt_repl_gunaxe` (0.15, name kept for configs; menu "Gun and Melee Weapon", was "Gun and Axe") now gives a gun
+and a melee weapon: the left hand's blade is the axe or the dagger by their pool weights `vr_agrunt_w_axe` /
+`vr_agrunt_w_dagger` (VR_AGR_SideBlade in vr_armedrepl.qc; one at 0: never; both at 0: the axe, as before). The blade is
+its own seeded roll drawn last, so every other loadout rolls as before. Everything downstream was already by class
+(VR_AG_CLASS_MELEE, VR_AG_OneHanded): the dagger is carried, drawn up close, swapped back, dropped and disarmed on the
+axe's path; the dagger is precached with the replacements. Tests: `vr_agrunt_test 70` 28/0 (axe 1 dagger 1: 249/500
+daggers; axe 3: 127/500; either weight 0: none/all; 16 real spawns: 8 axes, 8 daggers, all gun right, blade left);
+`vr_agrunt_test 72` 11/0 (the gun and axe steps as before, the axe forced; then a gun and a dagger: the gun at range, the
+dagger drawn up close and its stab landing, the gun again backed off). New scene `agrunt_repl_gundagger` (axe weight 0).
