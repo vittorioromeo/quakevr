@@ -212,7 +212,11 @@ float(entity xFor) VR_Knockdown_MakeRoom =
                 dprint(sprintf("knockdown: ragdolls at %g: a knocked-down %s is killed, its body goes\n", most, alive.classname));
             }
             alive.health = -1;
-            Killed(alive, world);
+            // (An AD monster dies by AD's Killed: it has no th_die, Quake VR's Killed called a NULL function. bench_crowd_ad)
+            if(!VR_AD_NeckSnapKilled(alive, world))
+            {
+                Killed(alive, world);
+            }
             if(alive.modelindex) // (not gone already: its death code may remove it)
             {
                 VR_Knockdown_RemoveBody(alive);

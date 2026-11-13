@@ -254,6 +254,7 @@ vr_pickup_test   10-11    vr_pickup_test.qc                a weapon_gruntgun lyi
 vr_pickup_test   12       vr_pickup_test.qc                every holdable weapon in each hand and holster through a save and a load (vr_load_models_test.qc)
 vr_pickup_test   13       vr_pickup_test.qc                vrtutorial's keycard: its GRABBED tip let out as a hand takes it, gone as it is kept (VR_KeyTipTest_Start)
 vr_pickup_test   14       vr_pickup_test.qc                Melee Only: a dropped burst rifle, a map shotgun, a crate's flare gun, shells refused (force grab, grip, catch, walk); axe and dagger taken; off: taken (VR_MeleeOnlyTest_Run, vr_meleeonly_test.qc)
+vr_pickup_test   15       vr_pickup_test.qc                Melee Only and FrikBot bots: the run's dagger at the start, no gun chosen though held, guns/ammo no goals and not snatched, the dagger swung at a grunt; off: guns again (VR_MeleeOnlyBotTest_Run, vr_meleeonly_bot_test.qc; maxplayers 2, deathmatch 0)
 
 vr_reload_test   1        vr_reload_test.qc                (VRIsHandEmpty)
 vr_reload_test   2        vr_reload_test.qc                (VR_Reload_IsRound)

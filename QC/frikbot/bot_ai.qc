@@ -670,6 +670,12 @@ float(entity thing) priority_for_thing =
     isThrownWeapon = 0;
     // This is the most executed function in the bot. Careful what you do here.
 
+    // QVR: a gun or ammunition the run refuses (Melee Only) is no goal: never sought, never snatched (VR_Run_RefusesEnt).
+    if(VR_Run_RefusesEnt(thing))
+    {
+        return 0;
+    }
+
     if(
         ((thing.flags & FL_ITEM) || thing.classname == "thrown_weapon") &&
         (thing.model != string_null) &&
