@@ -573,3 +573,33 @@ now also waits for the player before its first spawn: it had a program error whe
     carries the marker as before (`VR_Stealth_Crossed`). Markers not past a gate keep Quake's chase (lifts: 17).
 - `vr_nav_teletest`'s notes (`navtt-step`) now also print the walker's goal (`enemy`, `stl_marker` and where) and come
   for a walker not yet steering by the navmesh (why 0).
+
+## 20. The pool jobs land on a fixed server frame (determinism, 2026-11-13)
+
+The two kinds of `jobs::async` job whose result changes the AI were joined "when done" (`ready()`), so the server frame
+their result went in on depended on the CPU's load: a size class's mesh built in play (`startClass(.., async)`,
+`vr_nav_async`: the walker chases as Quake does until it is taken) and a class's props' tile batch (`obsJob`, 14). Two
+runs of the same seeded scene then played differently (more so in low-impact or parallel runs). Now each job gets a
+deadline in server frames when it starts and its result goes in on exactly that frame: never sooner, even if done; if
+it is not done by then the main thread waits for it (`job.wait()`, logged with developer 1: `nav: job: class rR hH: its
+build / its props' batch not done by its frame: waited N ms`).
+
+- **The clock:** `nav::countFrame()`, first thing in `VR_PhysicsFrameEnd` (each server frame that ran physics, rigid
+  bodies or not), counts frames (`jobClock`); a job started on frame F lands on the first nav call (a steer, a tick,
+  `navobstacles`, the debug view) at frame F + N. Server frames, not wall time: the same at any host fps where Quake's
+  server frame is fixed, and in the tests' fast mode.
+- **Tunables** (Debug > Tunables): `vr_nav_job_frames` (3) for the props' batches, "Navmesh: Prop Rebuild Landing
+  Frame"; `vr_nav_build_frames` (18, 0.25 s at 72 Hz) for builds in play, "Navmesh: New Size Landing Frame": a build
+  takes ~100 ms (no-LTO), more than 3 frames, so 3 would hitch the main thread on every new size; the walker chases as
+  Quake does meanwhile, as before. 0: the old way (when done). The `jobs::parallelFor`s (the map's load, the tiles of a
+  batch) block where they run and need none.
+- **Read or built alike:** a class read from the disk cache (no job: made at once) is taken on its frame too (the load's
+  classes as well), so whether the file was there doesn't change the game (it did: `vr_arena_test 43`'s first run in a
+  fresh game folder ended its knight 0.007 units away). `vr_nav_async` 0 (built at once) keeps no deadline.
+- `vr_nav_info` prints the frame count and the waits (count, total, worst).
+- **Repeatability** (no-LTO; `nav_tele_metric`, which now seeds its map's load too, `cvar sv_random_seed 1`: its
+  `vr_bench_seed 1` came after the spawns, so the map's own monsters' first thinks still followed the clock; and
+  `vr_arena_test 43` with `vr_bench_seed 1` before its map): see ROUND25.md "navdet" for the table. Every run of each
+  is the same (outcome lines identical), alone or two at once; with both tunables 0 they are not.
+- In the tests' fast mode a frame is a few ms of wall time, so the deadlines often wait (a batch 1-50 ms, a build in
+  play ~90 ms); at 72-90 Hz in play 3 frames are 33-42 ms and 18 are 200-250 ms, longer than the jobs seen here.

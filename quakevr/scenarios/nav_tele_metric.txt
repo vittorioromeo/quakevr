@@ -6,9 +6,11 @@
 # in time, stuck under 0.5 s); a summary line before it. You are put past the destination for each trial and the stealth
 # AI told you went through (teletest's `past`, as nav_tele_dm5): without it the walker, woken onto you unseen, hunted a
 # trail marker by Quake's own random chase, not the navmesh, and found the teleporter by luck (11-16 of 20 from run to
-# run, 20 in one; ROUND25.md "e1m1tele"). QuakeC's random() is seeded (vr_bench_seed 1; the navmesh's jobs still vary
-# a little). True range: 17-19 of 20, all through; the grunt the one that fails (it stands 0.5-1.75 s lining up at the
-# link, flipping between its trail marker and you).
+# run, 20 in one; ROUND25.md "e1m1tele"). QuakeC's random() is seeded at the map's load (sv_random_seed 1: the map's
+# own monsters' first thinks) and again once the walkers are spawned (vr_bench_seed 1), and the navmesh's pool jobs land
+# on a fixed server frame (vr_nav_job_frames, vr_nav_build_frames; NAVMESH.md 20): every run is the same (ROUND25.md
+# "navdet"). The grunt is the one that fails (it stands 0.5-1.75 s lining up at the link, flipping between its trail
+# marker and you).
 title Navmesh: monsters walk into e1m1's teleporter from five angles, one after another
 map e1m1
 start -32 2000 -29 -90
@@ -21,6 +23,7 @@ spawn monster_demon1 220 -64
 cvar vr_nav 1
 cvar vr_nav_debug 2
 cvar vr_nav_teleports 1
+cvar sv_random_seed 1
 cmd vr_bench_seed 1
 cmd vr_nav_teletest nav_tele_metric monster_army,monster_dog,monster_ogre,monster_knight,monster_demon1 all 5 192 8 0 140 1
 hint Each monster in turn appears in front of the teleporter at the far end of the level and walks into it, lining up in front of its opening first, then straight in; it comes out by the start and stands still till the next one goes.

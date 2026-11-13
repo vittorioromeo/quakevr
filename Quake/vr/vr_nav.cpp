@@ -1726,10 +1726,12 @@ void printClass(const NavClass& c)
         c.fromDisk ? "read" : "built", c.ms);
 }
 
-// A class's mesh from the disk cache, or built: on the pool (async) or now.
+// A class's mesh from the disk cache, or built: on the pool (async) or now. Async, it is taken on its frame (c.due) read
+// or built alike, so the game is the same with or without the file.
 void startClass(za::SizeT index, bool async)
 {
     NavClass& c = state.classes[index];
+    c.due = async ? dueIn(vr_nav_build_frames.value) : 0;
     const Settings s = settingsNow();
     c.settings = s;
     const Grid grid = gridFor(state.geo, s);
@@ -1766,7 +1768,6 @@ void startClass(za::SizeT index, bool async)
     c.pending = true;
     if(async)
     {
-        c.due = dueIn(vr_nav_build_frames.value);
         c.job = jobs::async(run);
         return;
     }
@@ -1860,7 +1861,8 @@ NavClass* readyClass(int index)
     {
         joinClass(c);
     }
-    return !c.pending && c.query ? &c : nullptr; // (while its job runs, the job's)
+    // (While its job runs, the job's; one read from the disk cache waits for its frame as a build would.)
+    return !c.pending && c.query && jobClock.frame >= c.due ? &c : nullptr;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -2410,7 +2412,7 @@ void pollObstacles(double now)
     for(za::SizeT i = 0; i < state.classes.size(); ++i)
     {
         NavClass& c = state.classes[i];
-        if(c.pending || !c.mesh || c.failed)
+        if(c.pending || !c.mesh || c.failed || jobClock.frame < c.due) // (a class read from the disk: from its frame too)
         {
             continue;
         }
