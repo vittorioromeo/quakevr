@@ -69,7 +69,9 @@ struct Page
 [[nodiscard]] za::Vector<Item> pageSearch();
 [[nodiscard]] za::Vector<Item> pageConsole();
 [[nodiscard]] za::Vector<Item> pageMaps();
-[[nodiscard]] za::Vector<Item> pageMapsSkill();
+[[nodiscard]] za::Vector<Item> pageRunSetup();
+[[nodiscard]] bool runSetupStale(); // (vr_menu_runsetup.inc: a row held or let go since it was built)
+void openRunSetupCampaign(int index); // Official Campaigns' row: the Run Setup screen, then the campaign
 // (Settings with their home on another page link to it: one home per setting.)
 [[nodiscard]] za::Vector<Item> pageMain();
 [[nodiscard]] za::Vector<Item> pageVrsHud();
@@ -468,7 +470,7 @@ inline constexpr Page pages[] = {
     {"Animation Recorder", pageAnimRecorder, pageDebug, LevelDeveloper}, // (vr_menu_debug.inc; vr_animrec.cpp, ANIMATIONS.md)
     {"Visor HUD Look", pageVisorSettings, pageLocomotionSettings}, // (vr_menu_pages.inc; vr_visor.cpp)
     {"Flat Keys", pageFlatKeys, pageLocomotionSettings}, // (vr_menu_pages.inc; vr_flatplay.hpp keyCvars)
-    {"Play: Difficulty", pageMapsSkill, pageMaps, LevelStandard}, // (the Map Library's Play picker; vr_menu_maps.inc)
+    {"Run Setup", pageRunSetup, pageMaps, LevelStandard}, // (a run's difficulty, presets, mutators: vr_menu_runsetup.inc)
 #ifndef QVR_RELEASE
     {"Tunables", pageTunables, pageDebug, LevelDeveloper}, // a development build's (vr_menu_tunables.inc; vr_tunables.cpp)
     // Its submenus, a page a depth (titled with the submenu shown: tunablesTitle).

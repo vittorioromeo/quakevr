@@ -31,6 +31,7 @@
 #include "vr_flashlight.hpp"
 #include "vr_props.hpp"
 #include "vr_rigstudio.hpp"
+#include "vr_runsetup.hpp"
 #include "vr_weaponstudio.hpp"
 #include "vr_scenario.hpp"
 #include "vr_tips.hpp"
@@ -845,6 +846,7 @@ extern "C" int VR_ServerMusicTrack(int mapTrack)
 extern "C" void VR_OnBeginLoadGame()
 {
     loadingSaveGame = true;
+    qvr::runsetup::onLoadGame(); // the saved run's choices (its difficulty, presets, mutators: vr_runsetup.cpp)
     VR_EdictIndex_Reset();
 }
 
@@ -873,6 +875,7 @@ extern "C" int VR_ReadSaveInfo(const char* text, const char* relname)
     sscanf(line, "// qvr_save %d progs %x build %127[^\r\n]", &format, &crc, build);
     qvr::brushes::readSaveLines(text); // (made again after the load: restoreAfterLoad)
     qvr::permdecals::readSaveLines(text); // (the permanent decals: baked again once its map has loaded)
+    qvr::runsetup::readSaveLines(text);   // (the run's choices: set when the load goes ahead, VR_OnBeginLoadGame)
     if(format > VR_SAVE_FORMAT)
     {
         Con_Printf("ERROR: %s was saved by a newer build (%s, save format %d; this one, %s, reads up to %d): not loaded\n",

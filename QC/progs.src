@@ -116,6 +116,11 @@ vr_tutorial.qc
 vr_mg3_triggers.qc
 vr_mg3_items.qc
 weapons.qc
+// The run's mutators (vr_run.qc: the hooks; a file each; docs/vr-port/MUTATORS.md).
+vr_run.qc
+vr_run_startweapon.qc
+vr_run_meleeonly.qc
+vr_run_glasscannon.qc
 vr_wpnholster.qc
 // Flat-screen play's reload (R, the empty clip): after vr_wpnholster.qc's VRTryReloadWeapon.
 vr_flatreload.qc
