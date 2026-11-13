@@ -50,7 +50,7 @@ ClientState& crossingState(edict_t* ent)
         sv.worldmodel;
 }
 
-// A living monster (not a player) walking (vr_portals_monsters): it goes through gates as a player does (monsterGate),
+// A living monster (not a player) walking (vr_portals_monsters): it goes through gates as a player does (every gate),
 // else by Quake's teleport.
 [[nodiscard]] bool monsterWalks(edict_t* ent)
 {
@@ -212,16 +212,10 @@ ClientState& crossingState(edict_t* ent)
     return bodyFitsGateAt(ent, sd, origin) || (clearOfWorld(ent, origin) && clearOfWorld(ent, carried(sd, origin)));
 }
 
-// A gate a monster walks through (vr_portals_monsters_all: every one, as a player; else a paired one only).
-[[nodiscard]] bool monsterGate(const Side& sd)
-{
-    return sd.paired || vr_portals_monsters_all.value > 0.f;
-}
-
 // Whether a monster's box can walk into an upright gate's opening: its bottom at most a step (Quake's STEPSIZE) over the
-// floor just in front of it, and the opening as tall as the box from there. e1m1's teleporter (unpaired, so walked only
-// with vr_portals_monsters_all) has its opening on a bar 23 units over the floor: a walker pressed against the bar,
-// never got in, and stood there (ROUND25.md "onewaytele"). A gate in the floor or the ceiling, or one standing free
+// floor just in front of it, and the opening as tall as the box from there. e1m1's teleporter (unpaired) has its opening
+// on a bar 23 units over the floor: a walker pressed against the bar, never got in, and stood there (ROUND25.md
+// "onewaytele"). Monsters walk through every gate (paired or not, as a player); this decides which they step into. A gate in the floor or the ceiling, or one standing free
 // where the box would pass it a step up (`atPlane`: its origin carried onto the plane; dm5's sheets): yes (as before).
 [[nodiscard]] bool monsterCanStepIn(edict_t* ent, const Side& sd, const glm::vec3& atPlane)
 {
@@ -460,7 +454,7 @@ void crossMonster(edict_t* ent, const Side& sd, edict_t* trig, ClientState& cs, 
 
 // SV_Move: while straddling a gate, each half of the body collides in its own room. The normal, intact world trace
 // remains the fallback outside a fully fitting aperture, and the gate's rim limits lateral motion during entry.
-// A monster's too (vr_portals_monsters), at the gates it walks through (monsterGate).
+// A monster's too (vr_portals_monsters), at every gate.
 extern "C" int VR_PortalBodyMove(edict_t* ent, const float* start, const float* mins, const float* maxs,
                                  const float* end, int type, trace_t* trace)
 {
@@ -471,7 +465,6 @@ extern "C" int VR_PortalBodyMove(edict_t* ent, const float* start, const float* 
     {
         return 0;
     }
-    const bool monster = NUM_FOR_EDICT(ent) > svs.maxclients;
     if(!current()) { build(); }
     const glm::vec3 a = vec(start), b = vec(end);
     const glm::vec3 torso = a + glm::vec3{0.f, 0.f, 0.5f * (mins[2] + maxs[2])};
@@ -503,7 +496,7 @@ extern "C" int VR_PortalBodyMove(edict_t* ent, const float* start, const float* 
     {
         if(gate == &exitGate) { break; }
         const float d = glm::dot(sd.normal, torso) - sd.dist;
-        if(d < -kCross || za::fabs(d) >= nearest || (monster && !monsterGate(sd)) || !triggerActive(EDICT_NUM(sd.trigger)) ||
+        if(d < -kCross || za::fabs(d) >= nearest || !triggerActive(EDICT_NUM(sd.trigger)) ||
            !bodyFitsGateAt(ent, sd, a))
         {
             continue;
@@ -996,7 +989,7 @@ bool teleporterWalked(int trigger)
     }
     for(const Side& sd : sides)
     {
-        if(sd.trigger == trigger && detail::monsterGate(sd)) // (vr_portals_monsters_all: an unpaired gate is walked too)
+        if(sd.trigger == trigger) // (every gate, paired or not)
         {
             return true;
         }
@@ -1383,7 +1376,7 @@ float portalHandles(edict_t* trig, edict_t* who, int num)
         return engineCarries(NUM_FOR_EDICT(trig)) ? 1.f : 0.f;
     }
     // A monster (vr_portals_monsters): the engine carries it as its torso goes through the opening (VR_PortalMonsterCross),
-    // as a player is, at every gate (vr_portals_monsters_all; else a paired one's, out of the other gate's face). Its box
+    // as a player is, at every gate (paired, or out at a destination marker). Its box
     // goes into the opening as it stands, a step up (a sill) or already straddling, or the gate stands free (nothing
     // frames the opening: crossFits): always the engine's. Else (its box wider than the opening, or off to the side of
     // it) the engine's too while it makes headway into the gate, unless the opening is over a sill it can't step onto or
@@ -1396,7 +1389,7 @@ float portalHandles(edict_t* trig, edict_t* who, int num)
     float nearest = 1e9f;
     for(const Side& sd : sides)
     {
-        if(sd.trigger != t || !monsterGate(sd)) { continue; }
+        if(sd.trigger != t) { continue; }
         const float d = glm::dot(sd.normal, torsoOf(who)) - sd.dist;
         float low = 1e9f, high = -1e9f;
         for(int c = 0; c < 8; c++)
@@ -1456,7 +1449,7 @@ void giveUp(edict_t* ent, ClientState& cs)
     float nearest = 1e9f;
     for(const Side& sd : sides)
     {
-        if(sd.trigger == cs.touchTrigger && monsterGate(sd))
+        if(sd.trigger == cs.touchTrigger)
         {
             nearest = za::min(nearest, za::fabs(glm::dot(sd.normal, torso) - sd.dist));
         }
@@ -1485,7 +1478,7 @@ void giveUp(edict_t* ent, ClientState& cs)
 }
 } // namespace qvr::portals::detail
 
-// SV_Physics_Step, after its think (its walk, a leap): a monster (vr_portals_monsters) carried through a gate (monsterGate)
+// SV_Physics_Step, after its think (its walk, a leap): a monster (vr_portals_monsters) carried through a gate (any)
 // as its torso's middle plane goes in through the plane over the aperture, its box fitting it or the gate free (as a player is:
 // VR_PortalClientCross), kept where it is and how it moves and faces relative to the gate. Stepping back out through
 // the exit before its trailing half cleared it carries it back.
@@ -1530,7 +1523,7 @@ extern "C" void VR_PortalMonsterCross(edict_t* ent)
     for(const Side& sd : sides)
     {
         const edict_t* trig = EDICT_NUM(sd.trigger);
-        if(!monsterGate(sd) || !triggerActive(trig) || !overlaps(ent, trig))
+        if(!triggerActive(trig) || !overlaps(ent, trig))
         {
             continue;
         }
