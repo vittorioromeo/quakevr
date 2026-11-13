@@ -195,6 +195,7 @@ float vr_mrt_wait; // (213: how long it waits for the lost soul)
 float vr_mrt_p0;     // (213: the parry count already judged)
 float vr_mrt_bites;  // (213: its bites parried)
 float vr_mrt_others; // (213: other parries: its charge's ramming touch)
+float vr_mrt_grip0;   // (213: the player's vr_weapon_grip_mode, restored at the end)
 float vr_mrt_guard;  // (213: the script's vr_parry_test_guard, restored at the end)
 void() VR_MRT_ParryFrame =
 {
@@ -204,6 +205,15 @@ void() VR_MRT_ParryFrame =
         if(!vr_mrt_wait)
         {
             vr_mrt_wait = time + 3;
+            // (the crowbar the guard is made of: an AD start gives none in the hand, and a parry needs a weapon)
+            entity wasGive = self;
+            self = p;
+            VRGiveEntWeapon(p, cVR_MainHand, WID_CROWBAR, 0, WeaponIdToBaseClipSize(WID_CROWBAR));
+            W_SetCurrentAmmoFor(cVR_MainHand);
+            self = wasGive;
+            // (held by the hand pose alone, as a stuck grip: the grip mode's sticky; put back at the verdict)
+            vr_mrt_grip0 = cvar_hget(cvarh_vr_weapon_grip_mode);
+            cvar_set("vr_weapon_grip_mode", "1");
             // AD's lost soul (the dispenser's 207) at its charge range: 200 to 400 away it rams you, nearer it strafes
             // round you and bites only within 60 (ad_LostCheckAttack), so it bites when a charge has brought it in.
             // Spawned nearer, it circles a still player for long seconds before it is far enough to charge.
@@ -317,6 +327,7 @@ void() VR_MRT_ParryFrame =
             "%g, enemy %s%s)", mon.classname, vr_mrt_bites, vr_mrt_others, vlen(mon.origin - vr_agt_player.origin),
             mon.health, en.classname, via), vr_mrt_bites > 0);
         cvar_set("vr_parry_test_guard", ftos(vr_mrt_guard));
+        cvar_set("vr_weapon_grip_mode", ftos(vr_mrt_grip0));
         cvar_set("vr_agrunt_test", "0");
     }
 };
