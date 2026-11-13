@@ -246,12 +246,21 @@ float(entity m) VR_Stealth_MarkerVia =
 
 // vr_nav_trail: m hunts him out of sight along his trail (VR_Stealth_Trail): its marker (a spot it knows: where it saw or
 // heard him last, where he was heading, a spot it searches at the trail's end) is walked by the navmesh (vr_ai_props.qc
-// VR_NAV_Step); TRUE then.
+// VR_NAV_Step); TRUE then. Under vr_nav_alert an Alert one's marker too: what it heard or saw, the spots it scouts
+// about it, its post on the way back.
 float(entity m) VR_Stealth_TrailNav =
 {
     entity k = m.stl_marker;
-    return cvar_hget(cvarh_vr_nav_trail) && m.stl_trail > 0 && m.enemy != world && k != world && k.owner == m &&
-           k.classname == "stl_marker" && VR_Stealth_On();
+    if(k == world || k.owner != m || k.classname != "stl_marker" || !VR_Stealth_On())
+    {
+        return FALSE;
+    }
+    if(m.stl_state == STL_ALERT && m.enemy == world)
+    {
+        return cvar_hget(cvarh_vr_nav_alert) &&
+               (m.stl_phase == STL_WALK || m.stl_phase == STL_RETURN || m.stl_phase == STL_SEARCH);
+    }
+    return cvar_hget(cvarh_vr_nav_trail) && m.stl_trail > 0 && m.enemy != world;
 };
 
 // visible() (self): under the stealth rules every monster sees a player through paired gates (ranged ones through
@@ -381,6 +390,12 @@ void(entity m, float xPhase) VR_Stealth_Phase =
     {
         m.stl_look_base = m.angles_y;
         m.stl_look_time = time + 0.8;
+        // (scouting, VR_Stealth_Scouts: about where it got to, a look about here first)
+        m.stl_trail_end = m.origin;
+        m.stl_trail_way = '0 0 0';
+        m.stl_trail_look = time + 1.2;
+        m.stl_scout_walk = 0;
+        m.stl_scouted = 0;
     }
     else if(xPhase == STL_WALK || xPhase == STL_RETURN)
     {
@@ -441,8 +456,11 @@ void(entity m) VR_Stealth_GoBack =
 {
     vector to = m.stl_post - m.origin;
     to_z = 0;
-    // (its post beyond a teleporter it went through: back through it first, VR_Stealth_WayTo; even to its path)
-    if((m.stl_post_via <= 0 && (m.stl_post_walk || vlen(to) < 32)) || (m.spawnflags & 1) || !VR_Stealth_Walks(m))
+    // (its post beyond a teleporter it went through: back through it first, VR_Stealth_WayTo; even to its path. Under
+    // vr_nav_alert a path walker walks back by the navmesh to where it left its path first: Quake's walk to its next
+    // path_corner from where a navmesh walk took it can stick on the first wall.)
+    float path = m.stl_post_walk && (!cvar_hget(cvarh_vr_nav_alert) || vlen(to) < 64);
+    if((m.stl_post_via <= 0 && (path || vlen(to) < 32)) || (m.spawnflags & 1) || !VR_Stealth_Walks(m))
     {
         VR_Stealth_Finish(m);
         return;
@@ -616,6 +634,7 @@ void(entity m, vector at, float xVia, float xKind, float xPower, float xShare) V
     m.stl_via = xVia;
     m.stl_alert_time = time;
     m.stl_alert_power = xPower;
+    m.stl_alert_kind = xKind;
     if(first || m.stl_phase == STL_SEARCH || m.stl_phase == STL_RETURN)
     {
         VR_Stealth_Phase(m, STL_TURN);
@@ -1006,6 +1025,84 @@ void() VR_Stealth_Turn =
     self.yaw_speed = ys;
 };
 
+vector(entity m, vector e, vector v, float r) VR_Stealth_SpotAbout;
+
+// Lava or slime just ahead of m's feet on its way `to` (a pool level with the floor, which Quake's step check lets a
+// monster walk into).
+float(entity m, vector to, float dist) VR_Stealth_Molten =
+{
+    to_z = 0;
+    if(vlen(to) < 1)
+    {
+        return FALSE;
+    }
+    vector ahead = m.origin + normalize(to) * (m.maxs_x + 8 + dist);
+    ahead_z = m.absmin_z + 16;
+    traceline(ahead, ahead - '0 0 80', TRUE, m);
+    float c = pointcontents(trace_endpos + '0 0 1');
+    return c == CONTENT_LAVA || c == CONTENT_SLIME;
+};
+
+// An Alert one scouts about what it heard (vr_stealth_scout_time): a noise (a sighting, a body, a lost hunt it searches
+// standing, as before), and a kind that walks.
+float(entity m) VR_Stealth_Scouts =
+{
+    return cvar_hget(cvarh_vr_stealth_scout_time) > 0 && m.stl_alert_kind > 0 && m.stl_alert_kind < STL_A_GLIMPSE &&
+           cvar_hget(cvarh_vr_stealth_investigate) && !(m.spawnflags & 1) && VR_Stealth_Walks(m);
+};
+
+// Scouting: on to its next spot about where it began (the trail's end search's spots, VR_Stealth_SpotAbout).
+void(entity m) VR_Stealth_ScoutNext =
+{
+    vector at = VR_Stealth_SpotAbout(m, m.stl_trail_end, m.stl_trail_way, cvar_hget(cvarh_vr_nav_trail_search));
+    m.goalentity = VR_Stealth_MarkerAt(m, at);
+    m.stl_scout_walk = 1;
+    m.stl_scouted = m.stl_scouted + 1;
+    m.stl_trail_look = time + 2 + vlen(at - m.origin) / 15; // (the time it allows itself: a grunt walks ~18 units a second)
+    m.stl_walk_from = m.origin;
+    m.stl_walk_check = time + 1;
+    m.stl_stuck = 0;
+    m.ideal_yaw = vectoyaw(at - m.origin);
+    VR_Stealth_Anim(m, TRUE);
+    if(cvar_hget(cvarh_vr_stealth_debug))
+    {
+        VR_Stealth_Log(m, sprintf("scouting: spot %g at %v", m.stl_scouted, at));
+    }
+};
+
+// Scouting: at its spot (or out of time, or stuck): a look about there.
+void(entity m) VR_Stealth_ScoutLook =
+{
+    m.stl_scout_walk = 0;
+    m.stl_trail_look = time + 1 + random() * 0.6;
+    m.stl_look_base = m.angles_y;
+    m.stl_look_time = time;
+    VR_Stealth_Anim(m, FALSE);
+};
+
+// In ai_walk (self), scouting: the walk to its spot.
+float(float dist) VR_Stealth_ScoutWalk =
+{
+    entity k = self.stl_marker;
+    vector d = k.origin - self.origin;
+    float there = vlen('1 0 0' * d_x + '0 1 0' * d_y) < 48 && fabs(d_z) < 72;
+    if(time >= self.stl_walk_check)
+    {
+        self.stl_stuck = vlen(self.origin - self.stl_walk_from) < 8 ? self.stl_stuck + 1 : 0;
+        self.stl_walk_from = self.origin;
+        self.stl_walk_check = time + 1;
+    }
+    if(there || self.stl_stuck >= 2 || time >= self.stl_trail_look || k.classname != "stl_marker" ||
+       time - self.stl_phase_time > cvar_hget(cvarh_vr_stealth_scout_time) || VR_Stealth_Molten(self, d, dist))
+    {
+        VR_Stealth_ScoutLook(self);
+        return TRUE;
+    }
+    self.goalentity = k;
+    VR_AI_MoveToGoal(dist);
+    return TRUE;
+};
+
 // In ai_stand after FindTarget: TRUE when the Alert state took the think (turning to look, searching).
 float() VR_Stealth_StandNow =
 {
@@ -1060,13 +1157,26 @@ float() VR_Stealth_StandNow =
     }
     if(self.stl_phase == STL_SEARCH)
     {
+        // (a noise: it scouts about it, a walk to a spot and a look about there by turns, VR_Stealth_Scouts)
+        float scout = VR_Stealth_Scouts(self);
+        float howLong = scout ? cvar_hget(cvarh_vr_stealth_scout_time) : cvar_hget(cvarh_vr_stealth_search_time);
+        if(scout && !self.stl_scout_walk && time >= self.stl_trail_look && time - self.stl_phase_time < howLong - 1)
+        {
+            VR_Stealth_ScoutNext(self);
+            return TRUE;
+        }
+        if(scout && self.stl_scout_walk)
+        {
+            VR_Stealth_Anim(self, TRUE); // (walking to its spot, in a stand frame: walk on)
+            return TRUE;
+        }
         if(time >= self.stl_look_time)
         {
             self.stl_look_time = time + 1 + random() * 0.6;
             self.ideal_yaw = anglemod(self.stl_look_base + (random() - 0.5) * 120);
         }
         VR_Stealth_Turn();
-        if(time - self.stl_phase_time > cvar_hget(cvarh_vr_stealth_search_time))
+        if(time - self.stl_phase_time > howLong)
         {
             VR_Stealth_GoBack(self);
         }
@@ -1100,6 +1210,10 @@ float(float dist) VR_Stealth_WalkNow =
         VR_Stealth_Reset(self);
         return TRUE;
     }
+    if(self.stl_phase == STL_SEARCH && self.stl_scout_walk && VR_Stealth_Scouts(self))
+    {
+        return VR_Stealth_ScoutWalk(dist);
+    }
     if(self.stl_phase != STL_WALK && self.stl_phase != STL_RETURN)
     {
         VR_Stealth_Anim(self, FALSE);
@@ -1110,7 +1224,7 @@ float(float dist) VR_Stealth_WalkNow =
     vector goal = VR_Stealth_WayTo(self.stl_phase == STL_WALK ? self.stl_point : self.stl_post, via);
     vector to = goal - self.origin;
     to_z = 0;
-    if(self.stl_phase == STL_RETURN && !via && self.stl_post_walk)
+    if(self.stl_phase == STL_RETURN && !via && self.stl_post_walk && (!cvar_hget(cvarh_vr_nav_alert) || vlen(to) < 64))
     {
         VR_Stealth_Finish(self); // (back through the gate to its path's room: on along its path)
         return TRUE;
@@ -1136,15 +1250,7 @@ float(float dist) VR_Stealth_WalkNow =
     }
     // (not into lava or slime: a pool level with the floor that Quake's step check lets it walk into; it ends the walk
     // there, as stuck)
-    float molten = FALSE;
-    if(vlen(to) >= 1)
-    {
-        vector ahead = self.origin + normalize(to) * (self.maxs_x + 8 + dist);
-        ahead_z = self.absmin_z + 16;
-        traceline(ahead, ahead - '0 0 80', TRUE, self);
-        float c = pointcontents(trace_endpos + '0 0 1');
-        molten = (c == CONTENT_LAVA || c == CONTENT_SLIME);
-    }
+    float molten = VR_Stealth_Molten(self, to, dist);
     if((via <= 0 && vlen(to) < (self.stl_phase == STL_WALK ? 64 : 24)) || self.stl_stuck >= 3 || time > self.stl_look_time ||
        molten)
     {
@@ -1199,17 +1305,15 @@ void(entity m) VR_Stealth_TrailOff =
     m.stl_trail_gate = world;
 };
 
-// A spot to search next about where m's trail ended (vr_nav_trail's step 3): up to vr_nav_trail_search off it, cut short
-// by walls, half the time on along his way. It knows only where the trail ended, not where he is.
-vector(entity m) VR_Stealth_TrailSpot =
+// A spot to search next about `e` (where m's trail ended, vr_nav_trail's step 3; where an Alert one began to scout): up to
+// `r` off it, cut short by walls, half the time on along the way `v` (his, '0 0 0' none). It knows only that spot, not
+// where he is. Not into lava or slime.
+vector(entity m, vector e, vector v, float r) VR_Stealth_SpotAbout =
 {
-    vector e = m.stl_trail_end;
-    float r = cvar_hget(cvarh_vr_nav_trail_search);
     if(r <= 0)
     {
         return e;
     }
-    vector v = m.stl_lost_vel;
     v_z = 0;
     // (on the world's own floor, not a lift's or a door's: searchers stepping onto a raised lift sent it down under
     // another monster riding it up; a few tries, else the trail's end)
@@ -1226,10 +1330,19 @@ vector(entity m) VR_Stealth_TrailSpot =
         traceline(at, at - '0 0 96', FALSE, m);
         if(trace_fraction < 1 && trace_ent == world)
         {
-            return at;
+            float c = pointcontents(trace_endpos + '0 0 1');
+            if(c != CONTENT_LAVA && c != CONTENT_SLIME)
+            {
+                return at;
+            }
         }
     }
     return e;
+};
+
+vector(entity m) VR_Stealth_TrailSpot =
+{
+    return VR_Stealth_SpotAbout(m, m.stl_trail_end, m.stl_trail_way, cvar_hget(cvarh_vr_nav_trail_search));
 };
 
 // vr_nav_trail's step 3: to its next spot about the trail's end once there (or after a while on the way).
@@ -1276,20 +1389,85 @@ void(entity m, float xStep, vector at) VR_Stealth_TrailTo =
         }
         return;
     }
+    if(xStep == 1)
+    {
+        m.stl_trail_way = m.stl_lost_vel;
+    }
     m.goalentity = VR_Stealth_MarkerAt(m, at);
     if(cvar_hget(cvarh_vr_stealth_debug))
     {
-        VR_Stealth_Log(m, sprintf("trail %g: to %v (his way %v)", xStep, at, m.stl_lost_vel));
+        VR_Stealth_Log(m, sprintf("trail %g: to %v (his way %v)", xStep, at, m.stl_trail_way));
     }
 };
 
+vector stl_ahead_way; // VR_Stealth_Carry's way at its spot (the way it went on: along the last wall it slid by)
+
+// vr_nav_trail_carry: on from `p` along `v` (his last seen speed) for `left` units as he would walk it: a wall met slides
+// the way along it (head-on, the side with more room: the corridor or door he went toward), three walls at most; the
+// last spot with a floor under it (not off a ledge). stl_ahead_way: the way at the end.
+vector(entity m, vector p, vector v, float left) VR_Stealth_Carry =
+{
+    float speed = vlen(v);
+    vector dir = normalize(v);
+    vector at = p;
+    for(float k = 0; k < 3 && left > 16; k++)
+    {
+        traceline(at, at + dir * left, TRUE, m);
+        vector hit = trace_endpos;
+        float frac = trace_fraction;
+        vector n = trace_plane_normal;
+        n_z = 0;
+        left = left - vlen(hit - at);
+        vector next = hit;
+        if(frac < 1)
+        {
+            next = vlen(n) > 0.1 ? hit + normalize(n) * 24 : hit - dir * 24;
+        }
+        traceline(next, next - '0 0 96', TRUE, m);
+        if(trace_fraction >= 1)
+        {
+            break; // (off a ledge: it stays at the last spot with a floor)
+        }
+        at = next;
+        if(frac >= 1 || vlen(n) <= 0.1)
+        {
+            break;
+        }
+        n = normalize(n);
+        vector slide = dir - n * (dir * n);
+        if(vlen(slide) < 0.35)
+        {
+            // (head-on: along the wall the side with more room, his lean as the tie-break)
+            vector side = '1 0 0' * (0 - n_y) + '0 1 0' * n_x;
+            traceline(at, at + side * left, TRUE, m);
+            float a = trace_fraction;
+            traceline(at, at - side * left, TRUE, m);
+            if(trace_fraction > a || (trace_fraction == a && slide * side < 0))
+            {
+                side = '0 0 0' - side;
+            }
+            slide = side;
+        }
+        dir = normalize(slide);
+    }
+    stl_ahead_way = dir * speed;
+    return at;
+};
+
 // Where he was heading from where it last saw him, cut short by walls; that spot itself when he stood still or it saw
-// him through a gate (one hop: the gate is the way).
+// him through a gate (one hop: the gate is the way). Under vr_nav_trail with vr_nav_trail_carry: his speed for that long
+// past it, along the walls (VR_Stealth_Carry).
 vector(entity m) VR_Stealth_TrailAhead =
 {
     float ahead = cvar_hget(cvarh_vr_stealth_chase_predict);
     vector v = m.stl_lost_vel;
     v_z = 0;
+    stl_ahead_way = v;
+    float carry = cvar_hget(cvarh_vr_nav_trail) ? cvar_hget(cvarh_vr_nav_trail_carry) : 0;
+    if(carry > 0 && vlen(v) >= 60 && !m.stl_lost_via)
+    {
+        return VR_Stealth_Carry(m, m.stl_lost_at, v, min(vlen(v) * carry, 1500));
+    }
     if(ahead <= 0 || vlen(v) < 60 || m.stl_lost_via)
     {
         return m.stl_lost_at;
@@ -1405,9 +1583,19 @@ void(entity m) VR_Stealth_Trail =
     {
         way = vlen(VR_Stealth_GateMid(m.stl_trail_gate) - m.stl_walk_from) / 60 + cvar_hget(cvarh_vr_nav_tele_time);
     }
+    // (vr_nav_trail_carry: its carry on along his way lasts that long, then it searches about where it got to)
+    float carry = cvar_hget(cvarh_vr_nav_trail) ? cvar_hget(cvarh_vr_nav_trail_carry) : 0;
+    if(m.stl_trail == 2 && carry > 0)
+    {
+        way = min(way, carry);
+    }
     if(!there && time - m.stl_trail_time < 1 + way)
     {
         return;
+    }
+    if(m.stl_trail == 2 && carry > 0 && !there && m.stl_marker.classname == "stl_marker")
+    {
+        VR_Stealth_MarkerAt(m, m.origin);
     }
     if(m.stl_trail_gate != world)
     {
@@ -1424,6 +1612,7 @@ void(entity m) VR_Stealth_Trail =
         vector ahead = VR_Stealth_TrailAhead(m);
         if(vlen(ahead - m.stl_lost_at) > 32)
         {
+            m.stl_trail_way = stl_ahead_way;
             VR_Stealth_TrailTo(m, 2, ahead);
             return;
         }
@@ -1458,6 +1647,12 @@ float(float xVis) VR_Stealth_LoseNow =
         if(self.stl_lost_time && dt > 0.01 && dt < 0.5)
         {
             self.stl_lost_vel = self.stl_lost_vel * 0.6 + (self.enemy.origin - self.stl_lost_org) * (0.4 / dt);
+        }
+        else if(self.stl_lost_time && dt >= 0.5 && dt < 1.5 && self.stl_lost_seen && cvar_hget(cvarh_vr_nav_trail_carry) > 0)
+        {
+            // (vr_nav_trail_carry: a gap in its sightings, as while it fired (its attack's frames don't look): his way over
+            // the gap, not none, else a grunt that shot at him as he ran never guessed where he went)
+            self.stl_lost_vel = (self.enemy.origin - self.stl_lost_org) * (1 / dt);
         }
         else
         {
@@ -1708,6 +1903,33 @@ void(vector org, float range, entity src, float kind, float own) VR_Stealth_Nois
     }
 };
 
+// vr_stealth_hunt_clue: m hunts him out of sight (on his trail, vr_nav_trail) and a noise at `org` (not its own) is that
+// near him: it may hear it as a clue.
+float(entity m, vector org, entity src) VR_Stealth_ClueNear =
+{
+    float near = cvar_hget(cvarh_vr_stealth_hunt_clue);
+    return near > 0 && m.stl_trail > 0 && src != m && m.enemy.classname == "player" && cvar_hget(cvarh_vr_nav_trail) &&
+           vlen(org - m.enemy.origin) <= near;
+};
+
+// A hunter heard a clue at `at`: its trail starts again from there (step 1, VR_Stealth_Trail: to the noise, then the
+// search about it), the give-up's clock too. It knows the noise's spot, never where he is.
+void(entity m, vector at) VR_Stealth_HeardClue =
+{
+    m.stl_lost_at = at;
+    m.stl_lost_org = at;
+    m.stl_lost_via = 0;
+    m.stl_lost_vel = '0 0 0';
+    m.stl_lost_time = time;
+    m.stl_lost_seen = 0;
+    m.stl_trail = 0; // (its marker kept as its goal: the trail's step 1 moves it, next think)
+    m.stl_trail_gate = world;
+    if(cvar_hget(cvarh_vr_stealth_debug))
+    {
+        VR_Stealth_Log(m, sprintf("heard a clue at %v", at));
+    }
+};
+
 void() VR_Stealth_NoiseThinkNow =
 {
     entity ev = self;
@@ -1718,7 +1940,8 @@ void() VR_Stealth_NoiseThinkNow =
     float own = (src.classname == "player") && (kind == STL_N_STEP || kind == STL_N_MELEE || kind == STL_N_GUN);
     for(entity e = VR_Stealth_Gather(org, range * 1.6); e; e = e.stl_next)
     {
-        if(e.enemy != world || !VR_Stealth_Applies(e) || VR_Stealth_Ambusher(e))
+        float hunt = e.enemy != world;
+        if((hunt && !VR_Stealth_ClueNear(e, org, src)) || !VR_Stealth_Applies(e) || VR_Stealth_Ambusher(e))
         {
             continue;
         }
@@ -1739,6 +1962,11 @@ void() VR_Stealth_NoiseThinkNow =
         if(cvar_hget(cvarh_vr_stealth_debug) >= 2)
         {
             bprint(sprintf("stealth: %.2f %s hears noise %g (range %g) at %g units (reach %.0f)\n", time, e.classname, kind, range, d, reach));
+        }
+        if(hunt)
+        {
+            VR_Stealth_HeardClue(e, org);
+            continue;
         }
         float spotted = FALSE;
         if(own)
