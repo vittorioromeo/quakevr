@@ -92,6 +92,7 @@ za::String lastStatus;
 // what went wrong. `progress` is the latest one, for the Map Library page while the index has not arrived.
 za::Vector<za::String> pendingLog;
 za::String progress;
+za::String busyText; // the request going out now, for the library's status line (busyLine; "" : none yet)
 
 // Slipseer's entries (vr_slipseer.cpp; their own arena), and how much of indexSet is Quaddicted's: Slipseer's follow
 // it, rebased (appendSlipseer). Main thread.
@@ -298,12 +299,6 @@ void parseEntry(Index& idx, const jsonentry_t* e, za::Vector<za::String>& zipNam
         }
     }
 
-    const za::String shot = quaddictedShotUrl(za::StringView{sha}, zipName);
-    if(shot.size())
-    {
-        out.shot = addField(idx, shot.cStr(), shot.size());
-    }
-
     if(const jsonentry_t* install = JSON_Find(e, "install", JSON_OBJECT))
     {
         if(const char* extract = JSON_FindString(install, "extract"))
@@ -323,6 +318,14 @@ void parseEntry(Index& idx, const jsonentry_t* e, za::Vector<za::String>& zipNam
         {
             addPart(idx, out.urls, url->string);
         }
+    }
+
+    // Its screenshot: from the filename tag, else its download URLs' zip name (as a cached index has it: loadCache).
+    const za::String shot = quaddictedShotUrl(za::StringView{sha},
+        zipName.size() ? zipName : zipNameFromUrls(za::StringView{idx.field(out.urls), idx.length(out.urls)}));
+    if(shot.size())
+    {
+        out.shot = addField(idx, shot.cStr(), shot.size());
     }
 
     // `files` is an object; its children are its keys, each with its value as a child (json.c's JSON_Find). Its count
@@ -381,6 +384,10 @@ za::String xmlAttribute(const char* tag, const char* end, const char* name)
 int addRatings(Index& idx, const za::Vector<za::String>& zipNames, za::Vector<char>& body)
 {
     const char* error = nullptr;
+    {
+        za::LockGuard lock{handoff};
+        busyText = za::String{"Quaddicted's index: the ratings..."};
+    }
     note("map index: fetching the ratings: %s", ratingsUrl);
     const za::U32 t0 = SDL_GetTicks();
     if(!fetchPage(za::String{ratingsUrl}, body, error))
@@ -529,6 +536,8 @@ int splitFields(const char* line, za::SizeT len, za::String (&fields)[17])
     return n;
 }
 
+bool parseCache(Index& idx, const za::String& text, const za::String& url, bool anyAge);
+
 // A cached index, if the file is there, of this version and this source URL, and no older than cacheSeconds.
 bool loadCache(Index& idx, const za::String& url, bool anyAge)
 {
@@ -538,6 +547,12 @@ bool loadCache(Index& idx, const za::String& url, bool anyAge)
         note("map index: no cached copy at %s", cachePath().cStr());
         return false;
     }
+    return parseCache(idx, text, url, anyAge);
+}
+
+// The cache file's text (loadCache; parseCacheText, for the tests).
+bool parseCache(Index& idx, const za::String& text, const za::String& url, bool anyAge)
+{
     za::I64 fetchedAt = 0;
     int line = 0;
     za::String header[3];
@@ -600,6 +615,13 @@ bool loadCache(Index& idx, const za::String& url, bool anyAge)
         e.extract = loadField(idx, fields[10]);
         e.hasProgs = fields[11].size() && fields[11].cStr()[0] == '1';
         e.urls = loadField(idx, fields[12]);
+        // (the screenshot is not a cache field: made again from the sha256 and the URLs' zip name, as parseEntry does
+        // without a filename tag; a cache written before it existed gets it too)
+        const za::String shot = quaddictedShotUrl(za::StringView{fields[0]}, zipNameFromUrls(za::StringView{fields[12]}));
+        if(shot.size())
+        {
+            e.shot = loadField(idx, shot);
+        }
         e.description = loadField(idx, fields[13]);
         e.files = static_cast<int>(strtol(fields[14].cStr(), nullptr, 10));
         e.rating = static_cast<za::U8>(za::min(za::max(static_cast<int>(strtol(fields[15].cStr(), nullptr, 10)), 0), 5));
@@ -665,6 +687,13 @@ bool fetchIndex(Index& idx, const za::String& url, za::String& status)
             url + "?q=*:*&rows=" + za::toString(pageRows) + "&start=" + za::toString(start);
         const za::U32 t0 = SDL_GetTicks();
         const char* error = nullptr;
+        {
+            char busy[96];
+            q_snprintf(busy, sizeof(busy), "Quaddicted's index: page %d (%d maps so far)...", idx.pages + 1,
+                static_cast<int>(idx.entries.size()));
+            za::LockGuard lock{handoff};
+            busyText = za::String{busy};
+        }
         note("map index: fetching page %d (%d packages so far): %s", idx.pages + 1, static_cast<int>(idx.entries.size()),
             pageUrl.cStr());
         if(!fetchPage(pageUrl, body, error))
@@ -1264,6 +1293,46 @@ bool validSha(za::StringView sha)
     return true;
 }
 
+bool parseCacheText(Index& idx, const za::String& text, const za::String& url)
+{
+    return parseCache(idx, text, url, true);
+}
+
+za::String zipNameFromUrls(za::StringView urls)
+{
+    za::String first;
+    const char* p = urls.data();
+    const char* end = p + urls.size();
+    while(p < end)
+    {
+        const char* e = p;
+        while(e < end && *e != partSep)
+        {
+            e++;
+        }
+        const char* slash = e;
+        while(slash > p && slash[-1] != '/')
+        {
+            slash--;
+        }
+        const za::SizeT n = static_cast<za::SizeT>(e - slash);
+        if(n > 4 && !q_strncasecmp(e - 4, ".zip", 4))
+        {
+            const za::String name{slash, n};
+            if(e - p > 26 && !q_strncasecmp(p, "https://www.quaddicted.com", 26))
+            {
+                return name; // (Quaddicted's own: its name is the package's)
+            }
+            if(first.empty())
+            {
+                first = name;
+            }
+        }
+        p = e + 1;
+    }
+    return first;
+}
+
 za::String quaddictedShotUrl(za::StringView sha, const za::String& zipName)
 {
     // (measured 2026-11: the map's page on the site shows <root>/files/quaddicted-images/by-sha256/<sha[0..1]>/<sha>/<id>.jpg,
@@ -1293,6 +1362,16 @@ za::String quaddictedShotUrl(za::StringView sha, const za::String& zipName)
 za::U32 generation()
 {
     return indexGeneration;
+}
+
+za::String busyLine()
+{
+    if(!running.loadSeqCst())
+    {
+        return za::String{};
+    }
+    za::LockGuard lock{handoff};
+    return busyText;
 }
 
 za::String state()

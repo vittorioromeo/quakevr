@@ -27,6 +27,9 @@ namespace qvr::notectx
 
 // The QC's weapon id `wid` named ("shotgun", "nail pistol"; "?" none such): the holster menu shows them too (vr_flatholster.cpp).
 [[nodiscard]] const char* weaponName(int wid);
+// The same for a weapon with its flags `flags`: a WID_SWORD is the dagger or an AD monster's melee weapon by its kind (QC
+// VR_ADMelee_Name's names), else weaponName(wid).
+[[nodiscard]] const char* weaponName(int wid, int flags);
 
 void frame(); // once a host frame (voicenotes::frame): the frame time ring
 

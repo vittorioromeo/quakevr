@@ -327,7 +327,8 @@ void PF_weapondrawnpose()
         float flip = 0.f;
         const bool local = sv.active && cls.state == ca_connected;
         (void)(local && view::heldWeaponAxes(hand, forward, up, flip));
-        progs::returnVec({flip, local && view::heldMayReverse(hand) ? 1.f : 0.f, 0.f});
+        // (z: 1 in flat play too, the flat holster menu's FLIP GRIP button's: view::heldGripFlippable)
+        progs::returnVec({flip, local && view::heldMayReverse(hand) ? 1.f : 0.f, local && view::heldGripFlippable(hand) ? 1.f : 0.f});
         return;
     }
     if(what == 40)

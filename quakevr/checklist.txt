@@ -30,6 +30,12 @@ Flat-screen or VR: on the installed filter, uninstall the Slipseer map you insta
 Let a hunting monster lose sight of you, then step into a teleporter: it follows your trail into the teleporter and comes out after you instead of giving you up (Advanced VR Options > Combat > Stealth AI > Follows Through Teleporters, 5 s). {test:nav_tele}
 Push a grunt and a hell knight gently off a high ledge so they grab its lip: the grunt should pull itself up and climb in onto the top without its hips sinking back onto the edge, and the hell knight should get its second hand onto the lip as it pulls itself up instead of hanging on one hand.
 Map library: pick a Quaddicted map (e.g. ne_ruins): its screenshot should appear in the details pane after a moment (one picture per pick, no error text when a map has none); pick another and it changes.
+Flat middle-mouse menu: the dagger is now labeled "dagger" (was "sword"); the other weapons' names are unchanged (AD melee kinds named too)
+Flat middle-mouse menu: a FLIP GRIP button under each hand's UNLOAD, lit only with a sword or dagger in that hand; a click turns the grip over with the same smooth turn and sound as the eject button
+Flat-screen or VR: in the Map Library, pick a Slipseer map, then another a moment later: each one's description and screenshot appear within a second or two, without waiting for Slipseer's list of maps to finish loading.
+Flat-screen or VR: in the Map Library, pick a few Quaddicted maps (with the index already cached from an earlier session): their screenshots show in the details pane.
+Flat-screen or VR: in the Map Library, watch the status line under the buttons while you pick a map and while the list loads: it says what is being fetched (the map's page, its screenshot, a list page, bytes, or a wait for the site's pace), and a failure shows in one line.
+Flat-screen or VR: in the Map Library, pick Herzblut or Kadath on Slipseer (hosted elsewhere): their description, screenshot and Install now appear; Install either downloads the zip or says to get it from the map's page.
 
 [1. Flat-screen: weapons and hands]
 Flat-screen: hold the axe (then a sword, the crowbar, Mjolnir, the super axe) with the left hand empty: it goes onto the handle by itself without swinging and the weapon sits in a two-handed stance; take a weapon or a prop in the left hand and it eases back to the one-handed hold, with no jumps either way. Tune it in Debug > Tunables > Flatscreen > Two-Handed Melee Stance. {test:flat_melee2h}
