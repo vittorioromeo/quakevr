@@ -462,7 +462,7 @@ vector    org;
         return;
 
     // QVR: the engine walks players through teleporters (vr_portals.cpp, vr_portals_walk; VR_Portal_Crossed below), and
-    // monsters through paired ones that their box goes into (vr_portals_monsters)
+    // monsters too (vr_portals_monsters; one stuck at the frame is left to this, vr_portals_monster_giveup)
     if(portal_handles(self, other))
         return;
 

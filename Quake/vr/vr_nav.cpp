@@ -4230,6 +4230,7 @@ struct TeleTest
     double startAt = 0.0; // (the scene's monsters started first: their delayed start functions, then held)
     bool held = false;
     int trials = 0, through = 0, passed = 0, timedOut = 0, stuckTrials = 0, skipped = 0, untracked = 0;
+    int walkedAt = 0, teleportedAt = 0, walked = 0, teleported = 0; // walked through the gate / Quake's teleport (portals)
     glm::vec3 lastPos{0.f};
     double timeSum = 0.0, timeWorst = 0.0, stuckSum = 0.0;
 };
@@ -4421,6 +4422,7 @@ bool teleTrialStart()
     t.telesAt = state.teles;
     t.begunAt = state.telesBegun;
     t.backoffsAt = state.teleBackoffs;
+    portals::monsterCrossings(t.walkedAt, t.teleportedAt);
     return true;
 }
 
@@ -4457,9 +4459,10 @@ void teleTestTick()
             t.armed = false;
             teleTestNotes = false;
             Con_Printf("teletest %s: %d trials (%d skipped): %d through (%d without its link; mean %.2f s, worst %.2f s), "
-                       "%d timed out; %d stuck (stood 0.5 s or more by a trigger; %.1f s in all), %d back-offs\n",
+                       "%d timed out; %d stuck (stood 0.5 s or more by a trigger; %.1f s in all), %d back-offs; "
+                       "%d walked through the gate, %d by Quake's teleport\n",
                 t.name.cStr(), t.trials, t.skipped, t.through, t.untracked, t.through ? t.timeSum / t.through : 0.0, t.timeWorst,
-                t.timedOut, t.stuckTrials, t.stuckSum, state.teleBackoffs - t.backoffsStart);
+                t.timedOut, t.stuckTrials, t.stuckSum, state.teleBackoffs - t.backoffsStart, t.walked, t.teleported);
             testkit::verdict(t.name.cStr(), t.passed, t.trials - t.passed);
             return;
         }
@@ -4512,9 +4515,14 @@ void teleTestTick()
     t.stuckTrials += t.stuck >= 0.5f ? 1 : 0;
     t.stuckSum += static_cast<double>(t.stuck);
     t.passed += through && t.stuck < 0.5f ? 1 : 0;
-    Con_Printf("navtt|%s|gate %d|angle %.0f|dist %.0f|%s %.2f s|stuck %.2f s|back-offs %d|at %.0f %.0f %.0f\n",
+    int walkedNow = 0, teleportedNow = 0;
+    portals::monsterCrossings(walkedNow, teleportedNow);
+    const char* how = teleportedNow != t.teleportedAt ? "teleport" : walkedNow != t.walkedAt ? "walked" : "-";
+    t.walked += walkedNow != t.walkedAt && teleportedNow == t.teleportedAt ? 1 : 0;
+    t.teleported += teleportedNow != t.teleportedAt ? 1 : 0;
+    Con_Printf("navtt|%s|gate %d|angle %.0f|dist %.0f|%s %.2f s|%s|stuck %.2f s|back-offs %d|at %.0f %.0f %.0f\n",
         PR_GetString(e->v.classname), static_cast<int>(&gate - state.geo.gates.data()) + 1, t.angle, t.dist,
-        through ? "through" : "NOT through", took, t.stuck, state.teleBackoffs - t.backoffsAt, pos.x, pos.y, pos.z);
+        through ? "through" : "NOT through", took, how, t.stuck, state.teleBackoffs - t.backoffsAt, pos.x, pos.y, pos.z);
     holdMonster(e);
     t.active = 0;
 }

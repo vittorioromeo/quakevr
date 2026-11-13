@@ -822,6 +822,51 @@ only (BACKLOG); `vr_agrunt_test 210`: 8 passed, 0 failed.
 
 ### rottscene (nav_tele_gate dog)
 Not reproduced headless (nav_tele_gate passes in 0.9 s, flat and VR, cold or warm navmesh cache, real-time too). One harness difference found: vr_nav_reachtest woke the named monster with FoundTarget the same frame a scenario placed it, replacing its walkmonster_start_go think (no droptofloor, FL_MONSTER, takedamage); now the wake waits (up to 2 s) until the monster has finished its start-up. Scene unchanged; vr_nav_teletest dog at gate 3 angle 70 sometimes ends NOT through (wanders to y=-679): a separate nav issue, unfixed.
+## Seamless teleporters: dm5, monsters
+
+His flat test (11-13): on dm5 he sometimes walked through the teleporter sheet to its other side, and monsters went
+through teleporters sometimes seamlessly, sometimes by Quake's teleport (flash, sound, jump).
+
+- **dm5's gates** (`vr_portals_info`, which now says paired/unpaired): two free-standing sheets 4 units thick, a 48-wide
+  opening, both paired (each comes out of the other's face). Trigger 30's opening starts at z 212 while the plinth's
+  floor is 208.
+- **Cause, the player:** the crossing wanted the collision box's 8 corners inside the opening (`bodyFitsGateAt`, made
+  for frames: the shoulders on a frame). At trigger 30 the feet are 4 units under the opening's bottom, so walking
+  straight in never fitted and he walked through the sheet (nothing frames it, nothing stops him). It worked only at
+  some angles (another floor under the box). **Fix** (`crossFits`, vr_portals_gates.cpp): the body may also go through
+  where the gate stands free, i.e. its box is clear of the world (no split body) both where it is and carried to the
+  exit. A gate in a wall still needs the fit: there the box behind the plane is in the wall. Used by the player's
+  crossing and stepping back, and by the monster's.
+- **Cause, monsters:** `teleport_touch` asked the engine (`portal_handles`) at the **first touch**. It said yes only if
+  the box already fitted the opening (or a step up, or it was straddling). A trigger reaches 16 units in front of the
+  sheet, so a box that has only just touched it is not lined up yet, and a dog (64 wide) never fits a 48-wide opening.
+  So Quake's teleport took most of them, and a grunt lined up within 8 units of the middle walked through. **Fix:** the engine
+  keeps a monster at its gates when its box fits, it is straddling, or the gate stands free (`crossFits` at the
+  plane). Otherwise it keeps it too while the monster gets nearer the plane: one that gets no nearer for
+  `vr_portals_monster_giveup` (1 s; 0 never) while touching the trigger is handed to Quake's teleport after all
+  (`giveUp`, run each frame from VR_PortalMonsterCross: the trigger's touch with `portal_handles` 0). So none is stuck
+  at a frame, and one walking past beside an opening is no longer teleported on touching the trigger. A long step (a
+  dog's run, up to 64 units a think) that carries the torso more than 24 units past the plane is still taken, where
+  its step went through the plane over the opening.
+- **Unpaired gates (id's maps)** are left to Quake's teleport by default: `vr_portals_monsters_all` 0 (Graphics >
+  Teleporters, advanced, "experimental"). With it on, e1m1's metric fell from 17-20/20 to 5/20: the walkers stall at
+  the teleporter (the navmesh's teleporter steering for an unpaired gate expects the touch to teleport). Making that
+  work is a navmesh task.
+- **Tests:** `vr_portals_walktest <name> [lanes 5] [angles 5] [speeds 4]` (Debug > Tests > Teleporters, "Walk Into
+  Every Teleporter"): the player walked into every upright gate face, 5 lines across the opening, -50..50 degrees,
+  120..450 u/s, from 64 out. Scene `portals_walk_dm5`. dm5 before: 148 carried, **36 walked through**; after: 184
+  carried, 0 walked through (16 trials "stopped by the frame", the box wider than the room its line left, uncounted
+  in both). The teletest (`vr_nav_teletest`) now says per trial whether the monster walked or was teleported (`navtt|`
+  line, summary): scene `nav_tele_dm5` (grunt, dog, ogre, knight, fiend, 10 angles each gate): before 6 walked, **9 by
+  Quake's teleport**; after 11 walked, 0 teleported. Its NOT-through trials (9 before, 10 after) are monsters that
+  never reach a trigger: they stand under the 40-unit plinth on the gates' open side, outside the trigger (a
+  navmesh matter; the dog used to be teleported from under it, touching the trigger's bottom). nav_tele 1/0,
+  nav_tele_metric 17/3 (the grunt by the gate's side, known: 16/20 earlier this round); teleporters_test.sh chase all
+  PASS. nav_tele_metric_gates (vrteleporters, paired gates), the base and this on the same base: 37/3 with **15 of
+  40 trials by Quake's teleport** (ending at the marker's height), now 36/4 with 0. The 4 not through, 3 of them
+  grunts standing by a gate's side shooting, were among the teleported ones before: they went in from beside the opening.
+- **To try:** dm5 flat or VR, walk the teleporters straight and at angles, then let dogs and grunts chase you
+  through; vrteleporters' player gate with an ogre (it tries, then Quake's teleport after a second).
 ## libfix: map library: picks at once, Quaddicted shots from a cached index, a fetch status line
 
 - **Where the time went** (measured with `maps_slipseer_time`, live): every Slipseer request waited
