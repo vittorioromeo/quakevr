@@ -595,6 +595,7 @@ extern "C" void VR_OnClearMemory()
     // The map load's builds still on the pool (a load that failed half-way) finished first: they read the old world.
     qvr::hull::finishLoads();
     qvr::box3d::finishLoads();
+    qvr::nav::finishLoads(); // (the navmeshes' tile builds read the old world's model)
     qvr::hull::keepForReload(); // (before the caches below let go of them: kept for the same map's next load)
     // The registered scratch buffers given back (a one-off peak not kept for the next map), and the caches of the old
     // world's data (vr_mem.hpp).
