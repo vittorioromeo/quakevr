@@ -609,3 +609,18 @@ His words: a running sword throw that lands point first fully gibs a grunt; keep
 ## blendwhy
 
 - Blender add-on: the timer-driven `popup_menu` (never showed) is gone; the panel lists the refusal (or grown-box) lines under "Last:" and a "Why?" button opens a dialog with all of them, the log path and a Copy tick. `py_compile` ok; no background Blender test covers the panel.
+
+## navtele2: teleporter walk-in lined up, ranged monsters through gates, the plan drawn through (branch agent/navtele2, 2026-11-13)
+
+- NAVMESH.md 17. `vr_nav_tele_approach` 1 (line up in front of a thin trigger's opening, then straight in),
+  `vr_nav_tele_stuck` 0.5 s (back off and line up again; never needed in the metric), `vr_nav_gate_chase` 1 (QC `ai_run`:
+  a ranged monster seeing you through a paired gate takes its navmesh step between shots instead of standing at the
+  gate's edge facing you: the sticking he saw), all in Debug > Tunables. `vr_nav_debug 2` draws each walker's whole plan
+  (32 corners) with a teleporter's dashed cyan jump, also while it follows the link.
+- Metric `vr_nav_teletest` (scenes `nav_tele_metric` on e1m1, `nav_tele_metric_gates` on vrteleporters), before (all
+  three off) / after: e1m1 20/20 both (mean 0.83 / 0.87 s); gates 33 / 37 of 40 passed, 5 / 0 timed out, stuck time
+  9.1 / 2.0 s.
+- Existing scenes: nav_tele_gate (0.9 s), nav_tele_oneway, nav_lift (5.8 s), nav_crowd pass; nav_tele still fails
+  (diagnosed: the stealth trail is its goal, NAVMESH.md 17; steering to the trail marker was tried and taken out:
+  nav_lift took 53.9 s with it). vr_arena_test 36 ran out the 600 s run timeout (low-impact run; verdict not matched):
+  not verified. The `vr_nav_debug 2` headless screenshot showed no debug lines at all (not even the mesh): not verified.

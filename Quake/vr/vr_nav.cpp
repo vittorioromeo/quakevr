@@ -236,6 +236,16 @@ struct Agent
     double linkSince = 0.0, phaseSince = 0.0;
     bool airborne = false;
     glm::vec3 teleAim{0.f}, teleLast{0.f}; // a teleporter: where it walks (through the trigger's middle), where it last stood
+    // A teleporter's opening (gateFace, at the link's start) and the walk into it (vr_nav_tele_approach, vr_nav_tele_stuck):
+    // where it last stood still since when, backing off till when, its last steer's time.
+    glm::vec3 teleMid{0.f}, teleN{0.f}, teleT{0.f};
+    float teleHalfD = 0.f, teleHalfW = 0.f;
+    bool teleFaced = false;
+    glm::vec3 teleStillAt{0.f};
+    double teleStillSince = 0.0, teleBackUntil = 0.0, teleSteerAt = 0.0;
+    // vr_nav_debug 2: the whole plan's corners (more than the steer's maxCorners: through a teleporter and on), w the
+    // link that corner begins: 0 none, -1 a drop or a ride, a teleporter its gate's index plus one.
+    za::Vector<glm::vec4> drawPts;
     dtPolyRef waitLink = 0;   // the lift link it waits at, since when
     double waitSince = 0.0;
     double noLinksUntil = 0.0; // a link given up: plans without links till then
@@ -305,6 +315,7 @@ struct State
     int steers = 0, paths = 0, fallbacks = 0;
     int drops = 0, rides = 0, linkFails = 0; // links taken to their end, given up
     int teles = 0, telesBegun = 0;           // teleporters gone through, teleporter links begun
+    int teleBackoffs = 0;                    // backed off a teleporter's opening (vr_nav_tele_stuck)
     za::Vector<Crowd> crowd;  // the live walkers, as of crowdAt
     double crowdAt = -1.0;
     za::Vector<PropTrack> props; // by edict number (refreshProps)
@@ -1238,6 +1249,47 @@ int teleEnds(const Settings& s, const NavClass& c, const dtNavMeshQuery& query, 
         return 3;
     }
     return 0;
+}
+
+// A teleporter's opening as a walker coming from `from` meets it (Quake's space, flat): its trigger's middle (at from's
+// height); faced: a thin trigger (one side under 0.6 of the other: set in a wall or a frame), n its normal into the
+// trigger from from's side, t along its face, its half depth along n and half width along t; else (a pad, a cube) n
+// straight at the middle from from.
+struct GateFace
+{
+    glm::vec3 mid{0.f}, n{0.f}, t{0.f};
+    float halfD = 0.f, halfW = 0.f;
+    bool faced = false;
+};
+
+GateFace gateFace(const Gate& g, const glm::vec3& from)
+{
+    GateFace f;
+    f.mid = {(g.lo.x + g.hi.x) * 0.5f, (g.lo.y + g.hi.y) * 0.5f, from.z};
+    const float ex = (g.hi.x - g.lo.x) * 0.5f, ey = (g.hi.y - g.lo.y) * 0.5f;
+    f.faced = za::min(ex, ey) < za::max(ex, ey) * 0.6f;
+    if(f.faced && ey < ex)
+    {
+        f.n = {0.f, from.y < f.mid.y ? 1.f : -1.f, 0.f};
+        f.t = {1.f, 0.f, 0.f};
+        f.halfD = ey;
+        f.halfW = ex;
+        return f;
+    }
+    if(f.faced)
+    {
+        f.n = {from.x < f.mid.x ? 1.f : -1.f, 0.f, 0.f};
+        f.t = {0.f, 1.f, 0.f};
+        f.halfD = ex;
+        f.halfW = ey;
+        return f;
+    }
+    glm::vec2 d{f.mid.x - from.x, f.mid.y - from.y};
+    d = glm::length(d) > 0.01f ? glm::normalize(d) : glm::vec2{1.f, 0.f};
+    f.n = {d.x, d.y, 0.f};
+    f.t = {-d.y, d.x, 0.f};
+    f.halfD = f.halfW = za::min(ex, ey);
+    return f;
 }
 
 void findTeles(const Geometry& g, const Settings& s, const NavClass& c, const BrushGrid& bg, const dtNavMesh& mesh,
@@ -2758,6 +2810,7 @@ struct ReachTest
     bool armed = false;
 };
 ReachTest reachTest;
+bool teleTestNotes = false; // vr_nav_teletest under way: its walker's link steps printed as the reach test's are
 
 void reachtest_f()
 {
@@ -2846,6 +2899,7 @@ void rebuild_f()
 // ---------------------------------------------------------------------------------------------------------------------
 
 void crowdtest_f(); // (below, by the steering)
+void teletest_f();  // (below, by the steering)
 
 void init()
 {
@@ -2855,6 +2909,7 @@ void init()
     Cmd_AddCommand("vr_nav_links", links_f);
     Cmd_AddCommand("vr_nav_reachtest", reachtest_f);
     Cmd_AddCommand("vr_nav_crowdtest", crowdtest_f);
+    Cmd_AddCommand("vr_nav_teletest", teletest_f);
     Cmd_AddCommand("vr_nav_rebuild", rebuild_f);
 }
 
@@ -3408,7 +3463,7 @@ void crowdCheck()
 // (While a reach test runs: the links' events, logged.)
 void note(const char* what, const glm::vec3& pos)
 {
-    if(reachTest.armed)
+    if(reachTest.armed || teleTestNotes)
     {
         Con_Printf("nav: %.2f s: %s at %.0f %.0f %.0f\n", sv.qcvm.time - reachTest.since, what, pos.x, pos.y, pos.z);
     }
@@ -3430,6 +3485,56 @@ float giveUp(Agent& a, double now)
     ++state.linkFails;
     a.noLinksUntil = now + static_cast<double>(za::max(vr_nav_link_retry.value, 0.f));
     return endLink(a);
+}
+
+// Where a walker going into a teleporter heads this step. Stood still vr_nav_tele_stuck (a box caught on the frame, a
+// step refused): backs off out in front of the opening for a moment. A thin trigger (vr_nav_tele_approach): first to a
+// point in front of the opening's middle (as far over as the box still fits it: its half width less the box's), then
+// straight in along its normal and on through (a paired gate is walked through). Else straight through the trigger's
+// middle from where it began (a pad), as before.
+glm::vec3 teleTarget(Agent& a, const NavClass& c, const glm::vec3& pos, double now)
+{
+    const float stuck = vr_nav_tele_stuck.value;
+    // (A gap since the last steer, shooting or biting: standing then isn't being stuck.)
+    if(stuck <= 0.f || flatDist(pos, a.teleStillAt) > 4.f || now - a.teleSteerAt > 0.25)
+    {
+        a.teleStillAt = pos;
+        a.teleStillSince = now;
+    }
+    else if(now - a.teleStillSince > static_cast<double>(stuck))
+    {
+        a.teleBackUntil = now + 0.4;
+        a.teleStillSince = now;
+        a.phase = 0;
+        ++state.teleBackoffs;
+        note("backing off the teleporter", pos);
+    }
+    a.teleSteerAt = now;
+    const glm::vec2 rel{pos.x - a.teleMid.x, pos.y - a.teleMid.y};
+    const glm::vec2 n{a.teleN.x, a.teleN.y}, t{a.teleT.x, a.teleT.y};
+    const float side = glm::dot(rel, t), front = -glm::dot(rel, n);
+    const float tol = za::max(a.teleHalfW - c.radius - 2.f, 0.f);
+    const float over = glm::clamp(side, -tol, tol);
+    const glm::vec3 mid{a.teleMid.x, a.teleMid.y, pos.z};
+    if(now < a.teleBackUntil)
+    {
+        return mid + a.teleT * over - a.teleN * (a.teleHalfD + c.radius + 48.f);
+    }
+    if(!a.teleFaced)
+    {
+        return a.teleAim;
+    }
+    // Lined up (within the play the opening leaves the box), or already in the trigger's depth: straight in.
+    if(za::abs(side) <= tol + 1.f || (front <= a.teleHalfD && za::abs(side) <= a.teleHalfW + c.radius))
+    {
+        a.phase = 1;
+    }
+    else if(a.phase == 1 && za::abs(side) > tol + 12.f)
+    {
+        a.phase = 0;
+    }
+    return a.phase == 1 ? mid + a.teleT * over + a.teleN * (a.teleHalfD + 64.f)
+                        : mid + a.teleT * over - a.teleN * (a.teleHalfD + c.radius + 8.f);
 }
 
 // A link under way: a drop (walk off the ledge, fall, land) or a ride (onto the mover's middle while it is at this
@@ -3454,7 +3559,7 @@ float followLink(edict_t* ent, Agent& a, const NavClass& c, const glm::vec3& pos
             note("teleporter given up", pos);
             return giveUp(a, now);
         }
-        return yawTo(pos, a.teleAim);
+        return yawTo(pos, teleTarget(a, c, pos, now));
     }
     if(a.linkArea == areaDrop)
     {
@@ -3576,6 +3681,16 @@ float beginLink(edict_t* ent, Agent& a, const NavClass& c, const glm::vec3& pos,
         dir = glm::normalize(dir);
         a.teleAim = mid + glm::vec3{dir.x, dir.y, 0.f} * 64.f;
         a.teleLast = pos;
+        const GateFace f = gateFace(gate, pos);
+        a.teleMid = f.mid;
+        a.teleN = f.n;
+        a.teleT = f.t;
+        a.teleHalfD = f.halfD;
+        a.teleHalfW = f.halfW;
+        a.teleFaced = f.faced && vr_nav_tele_approach.value != 0.f;
+        a.teleStillAt = pos;
+        a.teleStillSince = a.teleSteerAt = now;
+        a.teleBackUntil = 0.0;
         a.link = ref;
         a.linkSince = now;
         ++state.telesBegun;
@@ -3836,6 +3951,36 @@ float steerToward(const NavClass& c, const Agent& a, const glm::vec3& pos, int n
     return yawTo(pos, pos + glm::vec3{want.x, want.y, 0.f});
 }
 
+// vr_nav_debug 2: the walker's whole plan from where it stands (up to drawCorners corners: on through a teleporter, a
+// drop or a ride to the far side), each link's start marked with its kind (a teleporter its gate).
+constexpr int drawCorners = 32;
+
+void planToDraw(const NavClass& c, Agent& a, const float* startPt, int from)
+{
+    float pts[drawCorners * 3];
+    unsigned char flags[drawCorners];
+    dtPolyRef refs[drawCorners];
+    int n = 0;
+    (void)c.query->findStraightPath(startPt, a.endRc, a.path.data() + from, static_cast<int>(a.path.size()) - from, pts,
+        flags, refs, &n, drawCorners);
+    a.drawPts.clear();
+    for(int i = 0; i < n; ++i)
+    {
+        float w = 0.f;
+        const dtOffMeshConnection* con = nullptr;
+        const dtMeshTile* tile = nullptr;
+        const dtPoly* poly = nullptr;
+        if((flags[i] & DT_STRAIGHTPATH_OFFMESH_CONNECTION) && refs[i] &&
+            dtStatusSucceed(c.mesh->getTileAndPolyByRef(refs[i], &tile, &poly)))
+        {
+            con = c.mesh->getOffMeshConnectionByRef(refs[i]);
+            w = poly->getArea() == areaTele && con ? static_cast<float>(con->userId) : -1.f;
+        }
+        const glm::vec3 q = fromRc(&pts[i * 3]);
+        a.drawPts.emplaceBack(q.x, q.y, q.z, w);
+    }
+}
+
 float steer(edict_t* ent, edict_t* goal)
 {
     if(vr_nav.value == 0.f || !sv.active || !state.ready || !ent || !goal || !walker(ent))
@@ -3870,6 +4015,7 @@ float steer(edict_t* ent, edict_t* goal)
         if(a.cls == cls)
         {
             a.why = whyLink;
+            a.drawUntil = now + 1.0; // (its plan still drawn while it follows the link)
             return followLink(ent, a, *c, pos, now);
         }
         a.link = 0;
@@ -3951,6 +4097,14 @@ float steer(edict_t* ent, edict_t* goal)
         a.corners, flags, refs, &nc, maxCorners);
     a.cornerCount = nc;
     a.drawUntil = now + 1.0;
+    if(vr_nav_debug.value >= 2.f)
+    {
+        planToDraw(*c, a, startPt, from);
+    }
+    else
+    {
+        a.drawPts.clear();
+    }
     // The first corner not yet reached (the first is where it stands).
     const float reached = za::max(vr_nav_corner_reached.value, 1.f);
     int next = -1;
@@ -4030,6 +4184,319 @@ float reach(edict_t* ent, edict_t* goal)
     return wholePath(ent, feet(goal), gap) ? 1.f : 0.f;
 }
 
+// vr_nav_teletest <name> <classnames> <gates|all> [angles] [distance] [seconds]: the teleporter walk-in metric. For each
+// classname listed (comma-separated: the scene's walker of each, the last spawned), each gate listed (vr_nav_links'
+// numbers, comma-separated, or all) and each of `angles` approaches (spread over 140 degrees in front of a thin
+// trigger, round a pad), the walker is put `distance` (192) from the link's entry (nearer if that is off the mesh or
+// out of sight of it), woken onto the player (standing past the destinations: the scene's start) and timed till it is
+// through a teleporter, `seconds` (8) at most. Every other monster is held (not solid, not thinking) meanwhile. Stuck:
+// the time it stood (moved under 8 units in a quarter second) by the trigger (within its box's width plus 64); a trial
+// passes when it went through in time, stuck under 0.5 s. A `navtt|...` line a trial, a summary, the verdict line.
+// [spread]: the approaches' spread in degrees (140; 170: along the wall nearly). [notes] 1: its link's steps (`nav: ...`) and a `navtt-step|...` line every quarter second (where, why, link, phase).
+struct TeleTest
+{
+    za::String name;
+    bool armed = false;
+    za::Vector<int> walkers, gates;
+    int angles = 5;
+    float distance = 192.f, seconds = 8.f, spread = 140.f;
+    int trial = -1, active = 0;
+    double since = 0.0, waitSince = -1.0, sampleTime = 0.0;
+    glm::vec3 sampleAt{0.f};
+    float stuck = 0.f, angle = 0.f, dist = 0.f;
+    int telesAt = 0, begunAt = 0, backoffsAt = 0, backoffsStart = 0;
+    double startAt = 0.0; // (the scene's monsters started first: their delayed start functions, then held)
+    bool held = false;
+    int trials = 0, through = 0, passed = 0, timedOut = 0, stuckTrials = 0, skipped = 0, untracked = 0;
+    glm::vec3 lastPos{0.f};
+    double timeSum = 0.0, timeWorst = 0.0, stuckSum = 0.0;
+};
+TeleTest teleTest;
+
+void holdMonster(edict_t* e)
+{
+    e->v.nextthink = sv.qcvm.time + 1e6f;
+    e->v.solid = SOLID_NOT;
+    VectorCopy(vec3_origin, e->v.velocity);
+    SV_LinkEdict(e, false);
+}
+
+void teletest_f()
+{
+    if(Cmd_Argc() < 4 || !sv.active || !state.ready)
+    {
+        Con_Printf("vr_nav_teletest <name> <classname[,classname...]> <gate[,gate...]|all> [angles 5] [distance 192] [seconds 8] [notes 0] [spread 140]\n");
+        return;
+    }
+    const progs::ServerVm vm;
+    teleTest = TeleTest{};
+    teleTest.name = Cmd_Argv(1);
+    teleTest.angles = Cmd_Argc() > 4 ? za::max(atoi(Cmd_Argv(4)), 1) : 5;
+    teleTest.distance = Cmd_Argc() > 5 ? static_cast<float>(atof(Cmd_Argv(5))) : 192.f;
+    teleTest.seconds = Cmd_Argc() > 6 ? static_cast<float>(atof(Cmd_Argv(6))) : 8.f;
+    // (Comma-separated: a classname's walker, the last spawned of it; a gate's index.)
+    char list[256];
+    q_strlcpy(list, Cmd_Argv(2), sizeof(list));
+    for(char* s = list; s && *s;)
+    {
+        char* comma = strchr(s, ',');
+        if(comma)
+        {
+            *comma = 0;
+        }
+        int last = 0;
+        progs::forEachEdict(1, [&](edict_t* e) {
+            if(e->v.health > 0.f && e->v.classname && !strcmp(PR_GetString(e->v.classname), s) &&
+                (static_cast<int>(e->v.flags) & FL_MONSTER))
+            {
+                last = NUM_FOR_EDICT(e);
+            }
+        });
+        if(last)
+        {
+            teleTest.walkers.pushBack(last);
+        }
+        else
+        {
+            Con_Printf("vr_nav_teletest: no %s\n", s);
+        }
+        s = comma ? comma + 1 : nullptr;
+    }
+    if(!strcmp(Cmd_Argv(3), "all"))
+    {
+        for(za::SizeT i = 0; i < state.geo.gates.size(); ++i)
+        {
+            teleTest.gates.pushBack(static_cast<int>(i));
+        }
+    }
+    else
+    {
+        q_strlcpy(list, Cmd_Argv(3), sizeof(list));
+        for(char* s = list; s && *s;)
+        {
+            const int g = atoi(s) - 1;
+            if(g >= 0 && static_cast<za::SizeT>(g) < state.geo.gates.size())
+            {
+                teleTest.gates.pushBack(g);
+            }
+            char* comma = strchr(s, ',');
+            s = comma ? comma + 1 : nullptr;
+        }
+    }
+    teleTest.startAt = sv.qcvm.time + 1.0;
+    teleTest.armed = true;
+    teleTest.backoffsStart = state.teleBackoffs;
+    teleTestNotes = Cmd_Argc() > 7 && atoi(Cmd_Argv(7)) != 0;
+    teleTest.spread = Cmd_Argc() > 8 ? static_cast<float>(atof(Cmd_Argv(8))) : 140.f;
+    Con_Printf("vr_nav_teletest %s: %d walkers, %d gates, %d angles\n", teleTest.name.cStr(),
+        static_cast<int>(teleTest.walkers.size()), static_cast<int>(teleTest.gates.size()), teleTest.angles);
+}
+
+// The next trial's walker placed and woken (false: none to place this trial, or its class still building).
+bool teleTrialStart()
+{
+    TeleTest& t = teleTest;
+    const int perWalker = static_cast<int>(t.gates.size()) * t.angles;
+    edict_t* e = EDICT_NUM(t.walkers[static_cast<za::SizeT>(t.trial / perWalker)]);
+    const Gate& gate = state.geo.gates[static_cast<za::SizeT>(t.gates[static_cast<za::SizeT>((t.trial / t.angles) % static_cast<int>(t.gates.size()))])];
+    const int k = t.trial % t.angles;
+    const char* cls = PR_GetString(e->v.classname);
+    NavClass* c = readyClass(classFor(e, true));
+    if(!c)
+    {
+        if(t.waitSince < 0.0)
+        {
+            t.waitSince = sv.qcvm.time;
+        }
+        if(sv.qcvm.time - t.waitSince < 30.0)
+        {
+            return false; // (its class's mesh still building)
+        }
+    }
+    t.waitSince = -1.0;
+    float in[3], out[3];
+    const int why = c ? teleEnds(settingsNow(), *c, *c->query, gate, in, out) : 9;
+    if(why != 0 || e->v.health <= 0.f)
+    {
+        Con_Printf("navtt|%s|gate %d|skipped (%s %d)\n", cls, static_cast<int>(&gate - state.geo.gates.data()) + 1,
+            why == 9 ? "no mesh" : why != 0 ? "no link for it: vr_nav_links reason" : "dead", why);
+        ++t.skipped;
+        return false;
+    }
+    const glm::vec3 entry = fromRc(in);
+    const GateFace f = gateFace(gate, entry);
+    t.angle = f.faced ? (t.angles > 1 ? -0.5f * t.spread + t.spread * static_cast<float>(k) / static_cast<float>(t.angles - 1) : 0.f)
+                      : 360.f * static_cast<float>(k) / static_cast<float>(t.angles);
+    const float ar = glm::radians(t.angle);
+    const glm::vec2 back{-f.n.x, -f.n.y};
+    const glm::vec2 dir{back.x * glm::cos(ar) - back.y * glm::sin(ar), back.x * glm::sin(ar) + back.y * glm::cos(ar)};
+    const float extent[3] = {24.f, 64.f, 24.f};
+    dtQueryFilter all;
+    bool placed = false;
+    glm::vec3 org{0.f};
+    for(int tries = 0; tries < 4 && !placed; ++tries)
+    {
+        t.dist = t.distance * (1.f - 0.2f * static_cast<float>(tries));
+        const glm::vec3 want = entry + glm::vec3{dir.x, dir.y, 0.f} * t.dist;
+        const glm::vec3 wantRc = toRc(want);
+        dtPolyRef ref = 0;
+        float near[3];
+        if(dtStatusFailed(c->query->findNearestPoly(&wantRc.x, extent, &all, &ref, near)) || !ref)
+        {
+            continue;
+        }
+        const glm::vec3 q = fromRc(near);
+        org = q + glm::vec3{0.f, 0.f, 1.f - e->v.mins[2]};
+        vec3_t o, eye, to;
+        VectorCopy(&org.x, o);
+        const trace_t fit = SV_Move(o, e->v.mins, e->v.maxs, o, MOVE_NOMONSTERS, e);
+        const glm::vec3 from = q + glm::vec3{0.f, 0.f, 24.f}, at = entry + glm::vec3{0.f, 0.f, 24.f};
+        VectorCopy(&from.x, eye);
+        VectorCopy(&at.x, to);
+        const trace_t sight = SV_Move(eye, vec3_origin, vec3_origin, to, MOVE_NOMONSTERS, e);
+        placed = flatDist(q, want) < 24.f && !fit.startsolid && !fit.allsolid && sight.fraction >= 1.f;
+        for(const Gate& other : state.geo.gates) // (not in a teleporter's trigger: it would go at once)
+        {
+            const glm::vec3 lo = org + geom::vec(e->v.mins) - 8.f, hi = org + geom::vec(e->v.maxs) + 8.f;
+            placed = placed && !(lo.x < other.hi.x && hi.x > other.lo.x && lo.y < other.hi.y && hi.y > other.lo.y &&
+                                   lo.z < other.hi.z && hi.z > other.lo.z);
+        }
+    }
+    if(!placed)
+    {
+        Con_Printf("navtt|%s|gate %d|angle %.0f|skipped (no floor in sight of the entry)\n", cls,
+            static_cast<int>(&gate - state.geo.gates.data()) + 1, t.angle);
+        ++t.skipped;
+        return false;
+    }
+    const int num = NUM_FOR_EDICT(e);
+    if(static_cast<za::SizeT>(num) < state.agents.size())
+    {
+        state.agents[static_cast<za::SizeT>(num)] = Agent{};
+    }
+    VectorCopy(&org.x, e->v.origin);
+    VectorCopy(vec3_origin, e->v.velocity);
+    e->v.angles[1] = yawTo(org, entry);
+    e->v.solid = SOLID_SLIDEBOX;
+    SV_LinkEdict(e, true);
+    edict_t* p = progs::playerEdict();
+    const func_t found = progs::findFunction("FoundTarget");
+    if(p && found)
+    {
+        const progs::ServerVm vm;
+        const int oldSelf = pr_global_struct->self;
+        e->v.enemy = EDICT_TO_PROG(p);
+        pr_global_struct->self = EDICT_TO_PROG(e);
+        pr_global_struct->time = sv.qcvm.time;
+        PR_ExecuteProgram(found);
+        pr_global_struct->self = oldSelf;
+    }
+    e->v.nextthink = za::min(e->v.nextthink, static_cast<float>(sv.qcvm.time) + 0.1f);
+    t.active = num;
+    t.since = t.sampleTime = sv.qcvm.time;
+    t.sampleAt = t.lastPos = feet(e);
+    t.stuck = 0.f;
+    t.telesAt = state.teles;
+    t.begunAt = state.telesBegun;
+    t.backoffsAt = state.teleBackoffs;
+    return true;
+}
+
+void teleTestTick()
+{
+    TeleTest& t = teleTest;
+    if(!t.armed)
+    {
+        return;
+    }
+    const int total = static_cast<int>(t.walkers.size() * t.gates.size()) * t.angles;
+    if(sv.qcvm.time < t.startAt)
+    {
+        return;
+    }
+    if(!t.held)
+    {
+        t.held = true;
+        progs::forEachEdict(1, [](edict_t* e) {
+            if((static_cast<int>(e->v.flags) & FL_MONSTER) && e->v.health > 0.f)
+            {
+                holdMonster(e);
+            }
+        });
+    }
+    if(!t.active)
+    {
+        if(t.waitSince < 0.0)
+        {
+            ++t.trial;
+        }
+        if(t.trial >= total)
+        {
+            t.armed = false;
+            teleTestNotes = false;
+            Con_Printf("teletest %s: %d trials (%d skipped): %d through (%d without its link; mean %.2f s, worst %.2f s), "
+                       "%d timed out; %d stuck (stood 0.5 s or more by a trigger; %.1f s in all), %d back-offs\n",
+                t.name.cStr(), t.trials, t.skipped, t.through, t.untracked, t.through ? t.timeSum / t.through : 0.0, t.timeWorst,
+                t.timedOut, t.stuckTrials, t.stuckSum, state.teleBackoffs - t.backoffsStart);
+            testkit::verdict(t.name.cStr(), t.passed, t.trials - t.passed);
+            return;
+        }
+        (void)teleTrialStart();
+        return;
+    }
+    edict_t* e = EDICT_NUM(t.active);
+    const NavClass* c = readyClass(classFor(e, false));
+    const glm::vec3 pos = feet(e);
+    const Gate& gate = state.geo.gates[static_cast<za::SizeT>(t.gates[static_cast<za::SizeT>((t.trial / t.angles) % static_cast<int>(t.gates.size()))])];
+    const double now = sv.qcvm.time;
+    if(now - t.sampleTime >= 0.25)
+    {
+        const float r = c ? c->radius : 16.f;
+        const float gx = za::max(za::max(gate.lo.x - pos.x, pos.x - gate.hi.x), 0.f);
+        const float gy = za::max(za::max(gate.lo.y - pos.y, pos.y - gate.hi.y), 0.f);
+        if(flatDist(pos, t.sampleAt) < 8.f && glm::length(glm::vec2{gx, gy}) < r * 2.f + 64.f)
+        {
+            t.stuck += static_cast<float>(now - t.sampleTime);
+        }
+        t.sampleAt = pos;
+        t.sampleTime = now;
+        if(teleTestNotes && static_cast<za::SizeT>(t.active) < state.agents.size())
+        {
+            const Agent& a = state.agents[static_cast<za::SizeT>(t.active)];
+            Con_Printf("navtt-step|%.2f|%.0f %.0f %.0f|why %d|link %d|phase %d|yaw %.0f|next %d of %d|think %.2f\n",
+                now - t.since, pos.x, pos.y, pos.z, a.why, a.link ? static_cast<int>(a.linkArea) : 0, a.phase, a.lastYaw,
+                a.next, a.cornerCount, e->v.nextthink - static_cast<float>(now));
+        }
+    }
+    // Through: its link followed to the end, or teleported all the same (a jump of more than 64 in a frame: the trigger
+    // took it before it began the link, or after it gave it up).
+    const bool jumped = flatDist(pos, t.lastPos) > 64.f;
+    t.lastPos = pos;
+    const bool through = state.teles > t.telesAt || jumped;
+    if(!through && now - t.since < static_cast<double>(t.seconds) && e->v.health > 0.f)
+    {
+        return;
+    }
+    if(jumped && state.telesBegun == t.begunAt)
+    {
+        ++t.untracked;
+    }
+    const double took = now - t.since;
+    ++t.trials;
+    t.through += through ? 1 : 0;
+    t.timedOut += through ? 0 : 1;
+    t.timeSum += through ? took : 0.0;
+    t.timeWorst = through ? za::max(t.timeWorst, took) : t.timeWorst;
+    t.stuckTrials += t.stuck >= 0.5f ? 1 : 0;
+    t.stuckSum += static_cast<double>(t.stuck);
+    t.passed += through && t.stuck < 0.5f ? 1 : 0;
+    Con_Printf("navtt|%s|gate %d|angle %.0f|dist %.0f|%s %.2f s|stuck %.2f s|back-offs %d|at %.0f %.0f %.0f\n",
+        PR_GetString(e->v.classname), static_cast<int>(&gate - state.geo.gates.data()) + 1, t.angle, t.dist,
+        through ? "through" : "NOT through", took, t.stuck, state.teleBackoffs - t.backoffsAt, pos.x, pos.y, pos.z);
+    holdMonster(e);
+    t.active = 0;
+}
+
 void serverFrame()
 {
     if(vr_nav.value != 0.f && sv.active && state.ready)
@@ -4046,6 +4513,7 @@ void serverFrame()
             });
         }
         reachCheck(nullptr);
+        teleTestTick();
     }
 }
 
@@ -4186,7 +4654,7 @@ void debugDraw(const glm::vec3& view)
     {
         return;
     }
-    const glm::vec4 yellow{1.f, 0.9f, 0.1f, 1.f}, white{1.f, 1.f, 1.f, 1.f};
+    const glm::vec4 yellow{1.f, 0.9f, 0.1f, 1.f}, white{1.f, 1.f, 1.f, 1.f}, cyan{0.1f, 0.9f, 0.95f, 1.f};
     for(const Agent& a : state.agents)
     {
         if(a.drawUntil < sv.qcvm.time || a.cornerCount < 2)
@@ -4194,9 +4662,36 @@ void debugDraw(const glm::vec3& view)
             continue;
         }
         const glm::vec3 up{0.f, 0.f, 6.f};
-        for(int i = 0; i + 1 < a.cornerCount; ++i)
+        // Its whole plan (planToDraw): yellow on the mesh and along drops and rides; a teleporter's yellow to the
+        // trigger's middle (where it walks in), then a dashed cyan jump to the destination, yellow on from there.
+        for(za::SizeT i = 0; i + 1 < a.drawPts.size(); ++i)
         {
-            lines::sceneLine(fromRc(&a.corners[i * 3]) + up, fromRc(&a.corners[(i + 1) * 3]) + up, 2.f, yellow, yellow);
+            const glm::vec3 p = glm::vec3{a.drawPts[i]} + up, q = glm::vec3{a.drawPts[i + 1]} + up;
+            const int gi = static_cast<int>(a.drawPts[i].w) - 1;
+            if(gi < 0 || static_cast<za::SizeT>(gi) >= state.geo.gates.size())
+            {
+                lines::sceneLine(p, q, 2.f, yellow, yellow);
+                continue;
+            }
+            const Gate& g = state.geo.gates[static_cast<za::SizeT>(gi)];
+            const glm::vec3 mid{(g.lo.x + g.hi.x) * 0.5f, (g.lo.y + g.hi.y) * 0.5f, p.z};
+            lines::sceneLine(p, mid, 2.f, yellow, yellow);
+            const glm::vec3 jump = q - mid;
+            const float len = glm::length(jump);
+            const int dashes = za::clamp(static_cast<int>(len / 24.f), 1, 256);
+            for(int k = 0; k < dashes; ++k)
+            {
+                const float t0 = static_cast<float>(k) / static_cast<float>(dashes);
+                const float t1 = (static_cast<float>(k) + 0.55f) / static_cast<float>(dashes);
+                lines::sceneLine(mid + jump * t0, mid + jump * t1, 2.f, cyan, cyan);
+            }
+        }
+        if(a.drawPts.empty())
+        {
+            for(int i = 0; i + 1 < a.cornerCount; ++i)
+            {
+                lines::sceneLine(fromRc(&a.corners[i * 3]) + up, fromRc(&a.corners[(i + 1) * 3]) + up, 2.f, yellow, yellow);
+            }
         }
         if(a.next >= 0)
         {
