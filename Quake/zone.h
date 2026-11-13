@@ -41,8 +41,9 @@ Hunk allocations are guaranteed to be 16 byte aligned.
 
 
 Z_??? Zone memory functions used for small, dynamic allocations like text
-strings from command input.  There is only about 48K for it, allocated at
-the very bottom of the hunk.
+strings from command input.  QVR: thin wrappers over the heap (calloc and
+free with a small checked header: zone.c, ROUND25.md "nozone"); no longer a
+fixed block at the bottom of the hunk.
 
 Cache_??? Cache memory is for objects that can be dynamically loaded and
 can usefully stay persistant between levels.  The size of the cache
@@ -63,8 +64,6 @@ client and server low hunk allocations
 
 startup hunk allocations
 
-Zone block
-
 ----- Bottom of Memory -----
 
 
@@ -77,7 +76,7 @@ void Memory_InitCvars (void); // QVR: vr_zone_threadcheck (after Cvar_Init)
 #ifdef __cplusplus
 extern "C" {
 #endif
-void Z_Free (void *ptr);
+void Z_Free (void *ptr);			// QVR: Z_Free (NULL) does nothing
 void *Z_Malloc (int size);			// returns 0 filled memory
 char *Z_Strdup (const char *s);
 #ifdef __cplusplus

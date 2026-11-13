@@ -787,19 +787,20 @@ void endRun()
     }
 }
 
-const char* summary(bool picks)
+// The summary of these values (one a row, the registry's order; -1: not known, left out).
+const char* summaryOf(const int* values)
 {
     state.summary[0] = 0;
-    auto value = [picks](int i) { return picks ? pickValue(i) : activeValue(i); };
+    auto value = [values](int i) { return values[i] < 0 ? -1 : clampValue(registry[i], values[i]); };
     // Each shown row's tag in the registry's order; two exceptions: Bloody Nightmare stands in the difficulty's place,
     // and the starting gun and melee weapon are one part ("Revolver and dagger start").
     const int bn = find("bn");
-    const bool bloody = registry[bn].isShown() && value(bn) != 0;
+    const bool bloody = registry[bn].isShown() && value(bn) > 0;
     const int startGun = find("startgun");
     for(int i = 0; i < registryCount; i++)
     {
         const Mutator& m = registry[i];
-        if(!m.isShown() || (bloody && m.active == &skill))
+        if(!m.isShown() || (bloody && m.active == &skill) || value(i) < 0)
         {
             continue;
         }
@@ -808,7 +809,7 @@ const char* summary(bool picks)
             constexpr const char* guns[] = {"Shotgun", "Nail pistol", "Revolver", "No gun"};
             constexpr const char* melees[] = {"axe", "dagger", "no melee"};
             const int sg = value(i);
-            const int sm = value(find("startmelee"));
+            const int sm = q_max(value(find("startmelee")), 0);
             if(sg != 0 || sm != 0)
             {
                 appendPart(va("%s and %s start", guns[sg], melees[sm]));
@@ -822,6 +823,16 @@ const char* summary(bool picks)
         }
     }
     return state.summary;
+}
+
+const char* summary(bool picks)
+{
+    int values[registryCount];
+    for(int i = 0; i < registryCount; i++)
+    {
+        values[i] = picks ? pickValue(i) : activeValue(i);
+    }
+    return summaryOf(values);
 }
 
 const char* saveLine()
@@ -841,22 +852,21 @@ const char* saveLine()
     return state.line;
 }
 
-void readSaveLines(const char* text)
+// A save's `// qvr_run` line read into `values` and `have` (one a row), its seed into `seed` and `haveSeed`; false when
+// the save has none (all left unset).
+bool parseRunLine(const char* text, int* values, bool* have, int& seed, bool& haveSeed)
 {
-    state.reading = true;
-    state.haveLine = false;
     for(int i = 0; i < registryCount; i++)
     {
-        state.pendingHave[i] = false;
+        have[i] = false;
     }
-    state.pendingSeed = 0;
-    state.pendingHaveSeed = false;
+    seed = 0;
+    haveSeed = false;
     const char* p = text ? strstr(text, "\n// qvr_run ") : nullptr;
     if(!p)
     {
-        return;
+        return false;
     }
-    state.haveLine = true;
     p += 12;
     while(*p && *p != '\n' && *p != '\r')
     {
@@ -870,8 +880,8 @@ void readSaveLines(const char* text)
         p += used;
         if(!strcmp(key, "seed"))
         {
-            state.pendingSeed = value;
-            state.pendingHaveSeed = true;
+            seed = value;
+            haveSeed = true;
             continue;
         }
         if(!strcmp(key, "startweapon")) // (a save from before the gun and the melee weapon were two choices)
@@ -882,19 +892,46 @@ void readSaveLines(const char* text)
             const int v = value < 0 || value > 3 ? 0 : value;
             const int gi = find("startgun");
             const int mi = find("startmelee");
-            state.pending[gi] = oldGun[v];
-            state.pendingHave[gi] = true;
-            state.pending[mi] = oldMelee[v];
-            state.pendingHave[mi] = true;
+            values[gi] = oldGun[v];
+            have[gi] = true;
+            values[mi] = oldMelee[v];
+            have[mi] = true;
             continue;
         }
         const int i = find(key);
         if(i >= 0)
         {
-            state.pending[i] = value;
-            state.pendingHave[i] = true;
+            values[i] = value;
+            have[i] = true;
         }
     }
+    return true;
+}
+
+void readSaveLines(const char* text)
+{
+    state.reading = true;
+    state.haveLine = parseRunLine(text, state.pending, state.pendingHave, state.pendingSeed, state.pendingHaveSeed);
+}
+
+const char* saveSummary(const char* text, int saveSkill)
+{
+    int values[registryCount];
+    bool have[registryCount];
+    int seed = 0;
+    bool haveSeed = false;
+    parseRunLine(text, values, have, seed, haveSeed);
+    // A row the line doesn't have: what its load would set (onLoadGame: the old-save value; the difficulty the save's
+    // own skill), else not known (left out: My Settings, As Style, as they were).
+    for(int i = 0; i < registryCount; i++)
+    {
+        const Mutator& m = registry[i];
+        if(!have[i])
+        {
+            values[i] = m.active == &skill ? saveSkill : m.oldSave >= 0 ? m.oldSave : -1;
+        }
+    }
+    return summaryOf(values);
 }
 
 void onLoadGame()

@@ -514,15 +514,54 @@ void selectCampaignRow(int index)
         startArcaneDimensions);
 }
 
+// A campaign row's Continue (under it, when the campaign has an autosave; vr_continue.cpp, "Continue on the launch
+// rows"): "Continue (12 min ago)", its run ("Hard / Classic") on the line under it (part of it: a narrow row cuts a
+// long line), its newest autosave loaded directly with its run's choices.
+void runSetupCloseMenu(); // (vr_menu_runsetup.inc)
+const char* campaignContinueLabel(int index)
+{
+    const char* label = VR_LaunchContinueLabel(index, "", 1);
+    return label ? label : "Continue";
+}
+const char* campaignContinueRun(int index)
+{
+    const char* run = VR_LaunchContinueLabel(index, "", 2);
+    return run && run[0] ? va("  %s", run) : "  (no run choices saved)";
+}
+const char* campaignContinueHelp(int index)
+{
+    const char* help = VR_LaunchContinueHelp(index, "");
+    return help ? help : "";
+}
+void continueCampaignRow(int index)
+{
+    if(VR_LaunchContinueLoad(index, ""))
+    {
+        runSetupCloseMenu();
+    }
+}
+
 [[nodiscard]] za::Vector<Item> pageCampaigns()
 {
     za::Vector<Item> items{header("Official Campaigns")};
+    VR_LaunchContinueRefresh(); // (the page is built again each time it is shown)
     for(int i = 0; i < VR_CampaignCount(); ++i) // (Arcane Dimensions too: its row dim until it is ready)
     {
         Item choice = row(VR_CampaignLabel, VR_CampaignHelp, selectCampaignRow, i, -1);
         choice.dimArg = [](int index) -> bool
         { return index == qvr::ad::campaignIndex ? !VR_CampaignInstalled(index) : VR_CampaignUnavailable(index) != 0; };
         items.pushBack(choice);
+        // (Arcane Dimensions plays in its own game folder: its saves are not this one's)
+        if(i != qvr::ad::campaignIndex && VR_LaunchContinueSave(i, ""))
+        {
+            Item resume = row(campaignContinueLabel, campaignContinueHelp, continueCampaignRow, i, -1);
+            resume.dimArg = [](int index) -> bool { return VR_CampaignUnavailable(index) != 0; };
+            items.pushBack(resume);
+            Item run = row(campaignContinueRun, campaignContinueHelp, nullptr, i, -1);
+            run.dimArg = resume.dimArg;
+            run.partOf = 1;
+            items.pushBack(run);
+        }
     }
     // Dawn of the Machine's hidden difficulty: offered once found in a game (the hell knight's head, or the hub's
     // Bloody Nightmare button: QC sets vr_mg3_bn_discovered).
