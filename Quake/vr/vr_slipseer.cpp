@@ -49,6 +49,7 @@ extern "C"
 }
 
 extern "C" unsigned char* Image_DecodeMemory(const unsigned char* bytes, int length, int* width, int* height); // image.c
+extern "C" int Image_InfoMemory(const unsigned char* bytes, int length, int* width, int* height);            // image.c
 
 #include <ctype.h>
 #include <stdarg.h>
@@ -785,7 +786,15 @@ void appendDecoded(za::String& out, const char* s, za::SizeT n)
             out += '&';
             continue;
         }
-        if(code < 0x80)
+        if(code < 0x20 || code == 0x7F)
+        {
+            out += ' '; // (a control code: never into the text drawn)
+        }
+        else if((code >= 0xD800 && code <= 0xDFFF) || code > 0xFFFF)
+        {
+            out += '?'; // (a surrogate is no character; past 3 bytes of UTF-8, an emoji: none in the font)
+        }
+        else if(code < 0x80)
         {
             out += static_cast<char>(code);
         }
@@ -819,8 +828,9 @@ void appendDecoded(za::String& out, const char* s, za::SizeT n)
             }
             if(!q_strncasecmp(p, "<script", 7) || !q_strncasecmp(p, "<style", 6))
             {
-                const char* end = strstr(close, !q_strncasecmp(p, "<script", 7) ? "</script>" : "</style>");
-                p = end && end < e ? end + 8 : e;
+                const char* closer = !q_strncasecmp(p, "<script", 7) ? "</script>" : "</style>";
+                const char* end = strstr(close, closer);
+                p = end && end < e ? end + strlen(closer) : e;
                 continue;
             }
             raw += ' ';
@@ -1559,6 +1569,18 @@ void listingPass(bool network)
 }
 
 // A map's screenshot, decoded for the main thread. Its size in bytes (-1: none).
+// A downloaded picture's size read from its header before it is decoded: a small file can claim a huge picture
+// (gigabytes decoded); anything past 8192 a side or 32 Mpixels is refused.
+[[nodiscard]] bool pictureSizeOk(const char* bytes, za::SizeT size, int& w, int& h)
+{
+    w = h = 0;
+    if(!Image_InfoMemory(reinterpret_cast<const unsigned char*>(bytes), static_cast<int>(size), &w, &h))
+    {
+        return false;
+    }
+    return w > 0 && h > 0 && w <= 8192 && h <= 8192 && static_cast<za::I64>(w) * h <= za::I64{32} * 1024 * 1024;
+}
+
 int readPicture(const za::String& key, const za::String& url, const char* referer, bool network, bool* fresh = nullptr)
 {
     if(url.empty())
@@ -1578,6 +1600,11 @@ int readPicture(const za::String& key, const za::String& url, const char* refere
         return -1;
     }
     int w = 0, h = 0;
+    if(!pictureSizeOk(body.data(), body.size(), w, h))
+    {
+        note("slipseer: screenshot %s: %dx%d, not shown", url.cStr(), w, h);
+        return -1;
+    }
     unsigned char* rgba = Image_DecodeMemory(reinterpret_cast<const unsigned char*>(body.data()),
         static_cast<int>(body.size()), &w, &h);
     if(!rgba)
@@ -1712,12 +1739,20 @@ void run() noexcept
         {
             continue;
         }
-        bool pass = false, passNet = false, asked = false;
+        bool pass = false, passNet = false, asked = false, asset = false;
         za::String get;
         {
             za::LockGuard lock{handoff};
+            if(getUrl.empty() && !passWanted && wantedPage.empty() && wantedShotKey.empty())
+            {
+                // Nothing left: stop here, under the lock, so a request handed over after this sees running false
+                // and starts a new worker (ensureThread); one handed over before it is served by this one.
+                running.storeSeqCst(false);
+                return;
+            }
             get = ZA_MOVE(getUrl);
             getUrl = za::String{};
+            asset = getAsset;
             pass = passWanted;
             passNet = passNetwork;
             asked = passAsked;
@@ -1730,7 +1765,6 @@ void run() noexcept
             za::Vector<char> body;
             za::String error;
             bool fresh = false;
-            const bool asset = getAsset;
             const bool ok =
                 fetch(get, asset ? Kind::Asset : Kind::Page, asset ? assetSeconds : detailSeconds, nullptr, true, body, error, &fresh);
             note("slipseer: %s: %s (%d bytes, %s) -> %s", get.cStr(), ok ? "ok" : error.cStr(),
@@ -1743,7 +1777,7 @@ void run() noexcept
             listingPass(passNet);
             continue;
         }
-        return;
+        // (a pick handed over since servePendingPick looked: served next time round; else the check above stops)
     }
 }
 
@@ -1758,6 +1792,10 @@ void ensureThread()
         worker.join();
     }
     SDL_AtomicSet(&cancel, 0);
+    // (the agent picked and the back-off read here, before the worker starts: the main thread's downloads and status
+    // then only read them, never set them as the worker does)
+    (void)agent();
+    readBackoff();
     running.storeSeqCst(true);
     worker = za::Thread(run);
 }
@@ -2201,6 +2239,26 @@ void test_f()
         expect(d->tagline == "short vanilla style base map", "Drain: tag line", d->tagline);
         expect(v->needs == "Arcane Dimensions", "Violacea: needs Arcane Dimensions", v->needs);
         expect(c->needs == "Copper", "Caliber: needs Copper", c->needs);
+    }
+
+    // A picture's size checked from its header (a PNG's signature and IHDR: width, height, 8-bit RGBA).
+    {
+        char png[] = {'\x89', 'P', 'N', 'G', '\r', '\n', '\x1a', '\n', 0, 0, 0, 13, 'I', 'H', 'D', 'R', 0, 0, 0, 0, 0, 0,
+            0, 0, 8, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'I', 'D', 'A', 'T'}; // (an IDAT next: stb reads on for a tRNS)
+        const auto sized = [&png](za::U32 w, za::U32 h) {
+            for(int b = 0; b < 4; b++)
+            {
+                png[16 + b] = static_cast<char>((w >> (24 - 8 * b)) & 0xFF);
+                png[20 + b] = static_cast<char>((h >> (24 - 8 * b)) & 0xFF);
+            }
+            int pw = 0, ph = 0;
+            return pictureSizeOk(png, sizeof(png), pw, ph) && pw == static_cast<int>(w) && ph == static_cast<int>(h);
+        };
+        expect(sized(640, 360), "picture: a 640x360 PNG header is read and kept");
+        expect(!sized(6000, 6000), "picture: a 6000x6000 PNG header (36 Mpixels) is refused before decoding");
+        expect(!sized(9000, 100), "picture: a 9000-wide PNG header is refused before decoding");
+        int nw = 0, nh = 0;
+        expect(!pictureSizeOk("not a picture", 13, nw, nh), "picture: a web page is no picture");
     }
 
     // The map pages.
