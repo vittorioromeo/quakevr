@@ -4,10 +4,13 @@
 # (straight on to 70 degrees either side) and chase you; each is timed till it is through (8 s at most) and how long it
 # stood still by the gate. Gates a class doesn't fit (no link for it) are skipped. The others are held meanwhile.
 # Verdict line: nav_tele_metric_gates: N passed, M failed (through in time, stuck under 0.5 s); a summary line before.
+# notarget: none wakes and fights the others while the navmesh builds (they killed each other, 2026-11-13); the test
+# wakes each onto you.
 title Navmesh: monsters walk into vrteleporters' gates from five angles, one after another
 map vrteleporters
 start 0 1150 24 -90
 god
+notarget
 spawn monster_army 0 80
 spawn monster_dog 0 -80
 spawn monster_knight 0 160
