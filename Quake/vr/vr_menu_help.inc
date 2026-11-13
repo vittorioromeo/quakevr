@@ -231,9 +231,11 @@ za::Vector<Item> pageConsole()
     return {info(searchRowText)};
 }
 
-// The Map Library page's rows: as Search's (vr_menu_maps.inc draws and drives it).
+// The Map Library page's rows: as Search's (vr_menu_maps.inc draws and drives it). Built again each time it is shown:
+// the packages' autosaves read again then (its Continue button).
 za::Vector<Item> pageMaps()
 {
+    VR_LaunchContinueRefresh();
     return {info(searchRowText)};
 }
 

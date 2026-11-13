@@ -5312,6 +5312,8 @@ vr_maps_slipseer|2|Debug - Tools|Slipseer Maps|Advanced VR Options > Debug > Too
 vr_maps_slipseer_delay|2|Debug - Tools|Slipseer Page Spacing|Advanced VR Options > Debug > Tools > Slipseer Page Spacing
 vr_maps_allow_local|2|Debug - Tools|Allow Local Map Hosts|Advanced VR Options > Debug > Tools > Allow Local Map Hosts
 |2|Debug - Tools|Pick the First Map|Advanced VR Options > Debug > Tools > Pick the First Map
+|2|Debug - Tools|Continue Rows Test|Advanced VR Options > Debug > Tools > Continue Rows Test
+|2|Debug - Tools|List Continue Rows|Advanced VR Options > Debug > Tools > List Continue Rows
 |2|Debug - Tools|Run Setup Screen Test|Advanced VR Options > Debug > Tools > Run Setup Screen Test
 |2|Debug - Tools|Run Setup Test|Advanced VR Options > Debug > Tools > Run Setup Test
 |2|Debug - Tools|Open the Map Browser|Advanced VR Options > Debug > Tools > Open the Map Browser
