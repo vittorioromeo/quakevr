@@ -859,7 +859,10 @@ through teleporters sometimes seamlessly, sometimes by Quake's teleport (flash, 
   Quake's teleport**; after 11 walked, 0 teleported. Its NOT-through trials (9 before, 10 after) are monsters that
   never reach a trigger: they stand under the 40-unit plinth on the gates' open side, outside the trigger (a
   navmesh matter; the dog used to be teleported from under it, touching the trigger's bottom). nav_tele 1/0,
-  nav_tele_metric 17/3 (the grunt by the gate's side, known: 16/20 earlier this round).
+  nav_tele_metric 17/3 (the grunt by the gate's side, known: 16/20 earlier this round); teleporters_test.sh chase all
+  PASS. nav_tele_metric_gates (vrteleporters, paired gates), the base and this on the same base: 37/3 with **15 of
+  40 trials by Quake's teleport** (ending at the marker's height), now 36/4 with 0. The 4 not through, 3 of them
+  grunts standing by a gate's side shooting, were among the teleported ones before: they went in from beside the opening.
 - **To try:** dm5 flat or VR, walk the teleporters straight and at angles, then let dogs and grunts chase you
   through; vrteleporters' player gate with an ogre (it tries, then Quake's teleport after a second).
 ## libfix: map library: picks at once, Quaddicted shots from a cached index, a fetch status line
