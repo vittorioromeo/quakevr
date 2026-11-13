@@ -15,7 +15,9 @@
 // - VR_Run_RefusesFire: W_AttackImpl's start (a weapon that does not fire);
 // - VR_Run_MonsterSpawned: walk/fly/swimmonster_start (self: a map's monster, its class's spawn function run; phase 2's
 //   enemy count and randomized enemies);
-// - VR_Run_ItemSpawned: StartItem (self: a map's item; phase 2's randomized pickups).
+// - VR_Run_ItemSpawned: StartItem (self: a map's item; phase 2's randomized pickups);
+// - VR_Run_MapSpawned: the engine, a new map's entities all spawned (randomized pickups' swaps);
+// - VR_Run_Respawn: respawn, a dead single player (Ironman's restart).
 // Saved games: the engine's `// qvr_run` line holds every choice; a mutator with QC state of its own keeps it in a
 // saved field or global (they are saved) and reads its cvar again after a load.
 
@@ -42,6 +44,23 @@ float(float wid) VR_Run_RefusesFire =
 
 void() VR_Run_MonsterSpawned = {};
 
+void() VR_Run_ItemSpawned =
+{
+    VR_RunPickups_ItemSpawned();
+};
+
+// The engine's VR_OnSpawnServerSpawned: every entity of a newly loaded map spawned (not a saved game's), precaches still
+// open. `held`: the weapons (IT_ bits) the player enters with, 0 in a new game. Randomized Pickups swaps the map's items.
+void(float held) VR_Run_MapSpawned =
+{
+    VR_RunPickups_MapSpawned(held);
+};
+
+// respawn (client.qc), a dead single player's: TRUE when a mutator took it over (Ironman: the level restarted).
+float() VR_Run_Respawn =
+{
+    return VR_RunIronman_Respawn();
+};
 // The engine's ED_LoadFromFile, a map's monster_ about to spawn while Enemy Count or Randomized Enemies is on (self: its
 // keys parsed, its spawn function not yet run): Randomized Enemies' swap first (its classname), then how many copies of
 // it Enemy Count asks for (0..2). Once the whole map has spawned, each copy is placed by VR_Run_MonsterCopy (self: the
@@ -80,7 +99,6 @@ float(float count, float random) VR_Run_EnemiesCheck =
 
 float() VR_Run_EnemiesChains = { return VR_RunEnemyCount_Chains(); };
 
-void() VR_Run_ItemSpawned = {};
 
 // The hub's teleporter to the start map (changelevel_touch): the Run Setup screen first (`vr_runsetup hub`); its Start
 // sets vr_run_hubgo and the teleporter lets the player through. TRUE: not this time (asked, or still standing in it

@@ -763,6 +763,10 @@ QuickSaveSeen quickSaveSeen;
         {
             return "Not playing a local game";
         }
+        if(VR_RunIronman())
+        {
+            return "Ironman: no saving";
+        }
         if(sv.nomonsters)
         {
             return "Cannot save with nomonsters";

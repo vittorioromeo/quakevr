@@ -2558,6 +2558,9 @@ static void Host_Savegame_f (void)
 		return;
 	}
 
+	if (VR_RunIronmanRefusesSave ()) // QVR: the run's Ironman: no saving (the quick and auto saves come here too)
+		return;
+
 	if (cl.intermission)
 	{
 		Con_Printf ("Can't save in intermission.\n");

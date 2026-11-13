@@ -52,7 +52,9 @@ Everything is one registry, `registry[]` in `Quake/vr/vr_runsetup.cpp`; each lin
 | `VR_Run_RefusesPickup(wid)` | `weapon_touch` | weapons not taken (Melee Only) |
 | `VR_Run_RefusesFire(wid)` | `W_AttackImpl`'s start | weapons that only click (Melee Only) |
 | `VR_Run_MonsterSpawned()` | `walk/fly/swimmonster_start` (self: the monster, its class spawn run) | phase 2: enemy count, randomized enemies |
-| `VR_Run_ItemSpawned()` | `StartItem` (self: the item) | phase 2: randomized pickups (respect `VR_RunMeleeOnly_Refuses`) |
+| `VR_Run_ItemSpawned()` | `StartItem` (self: the item) | Randomized Pickups: the map's items of its table marked |
+| `VR_Run_MapSpawned(held)` | the engine (`VR_OnSpawnServerSpawned`): a new map's entities all spawned, precaches open; not a saved game's load. `held`: the IT_ bits he enters with (0: a new game) | Randomized Pickups: the marked items swapped |
+| `VR_Run_Respawn()` | `respawn` (a dead single player), after the tutorial's checkpoints; TRUE: taken over | Ironman: `restart fresh` |
 | `VR_Run_MonsterSpawning()` | the engine's `ED_LoadFromFile`, before a map's `monster_*` spawns, while Enemy Count or Randomized Enemies is on (self: its keys parsed, its spawn function not run) | Randomized Enemies' swap (its classname: the new kind spawns from the map's own keys), then Enemy Count's number of copies (0..2) |
 | `VR_Run_MonsterCopy(k)` | `ED_LoadFromFile`, once the whole map has spawned (self: copy k, its monster's keys parsed again; other: its monster) | Enemy Count's placement beside its monster; FALSE: no room, no copy |
 
@@ -72,8 +74,43 @@ choices themselves are the engine's line.
 | `startweapon` | Shotgun, Heavy Revolver, Axe, Unarmed | a new game's loadout (`vr_run_startweapon.qc`); held at Axe by Melee Only |
 | `meleeonly` | Off, On | guns left on the floor, a gun in the hand only clicks (`vr_run_meleeonly.qc`) |
 | `glasscannon` | Off, On | the player and monsters take double damage (`vr_run_glasscannon.qc`) |
+| `pickups` | Off, Balanced, Everything Goes | the map's pickups swapped as it loads (`vr_run_pickups.qc`, below) |
+| `ironman` | Off, On | no saving; a death restarts the level with what you entered it with (`vr_run_ironman.qc`, below) |
 | `enemycount` | 1x, 2x, 3x | one or two copies of each map monster beside it as the map loads (`vr_run_enemycount.qc`; below) |
 | `enemyrandom` | Off, Balanced, Everything Goes | map monsters swapped as the map loads (`vr_run_enemyrandom.qc`; below) |
+
+### Randomized Pickups
+
+- **What is swapped:** only the kinds of `vr_run_pickups.qc`'s table (ammo, health, armour, weapons, powerups; Rogue's and
+  Hipnotic's when their data is there: a kind whose spawn function refuses is not tried again on that map, the item
+  stays). Never an item the map names or counts: a targetname, target or killtarget, HONEY's secret items, items a
+  trigger brings (trigger-spawned, Dawn of the Machine's SPAWNED, AD's STARTOFF). Keys, runes, sigils, the MG3 upgrades
+  are not in the table. Not on Quake VR's own maps (vr*), not in deathmatch.
+- **How:** StartItem marks; once the map has spawned (the engine calls `VR_Run_MapSpawned`), each marked item is rolled
+  and the kind that comes up is spawned in its place by its own spawn function (a map's item in every way), the old one
+  removed. A saved game's load keeps the save's items.
+- **Balanced:** ammo for ammo of a weapon kind he enters with (his level-start parm1; the shells always) or one placed
+  within 1536 units, the box's size kept; health 15 <-> 25 (the megahealth alone); armour a step away (green <-> yellow
+  <-> red); a weapon of its tier (shotgun, revolver / super shotgun, nailgun, AD's Widowmaker / super nailgun, grenade
+  and proximity launchers / rocket launcher, thunderbolt, laser cannon, Mjolnir, AD's Plasma Gun); a powerup of its tier
+  (quad, pentagram, ring, empathy shields, power shield / suits, belt). AD's upgrades only with AD mounted and its rules
+  on. **Everything Goes:** a kind first, then any of it. **Melee Only:** nothing becomes a gun that was not one.
+- **The rolls:** a hash of the item's place and the run's seed (`vr_run_seed`, set at the run's start; sv_random_seed's
+  when a test fixes it): a map gets the same pickups all through a run (an Ironman restart too). Not in the save line:
+  a run loaded in a new session rolls its next maps anew. `vr_run_seed 0`: the server's random numbers.
+
+### Ironman
+
+- Every save is refused (host_cmd.c's save: save, quicksave and the autosaves all go through it), said on the console and
+  the screen; no autosave is tried (host.c); the Single Player menu's Save is greyed and refused, the VR toolbar's
+  Quick Save greyed ("Ironman: no saving"); no death menu (no saves to load: a press respawns). Loading is still allowed
+  (a save of another run brings that run back).
+- A death: `restart fresh` (never Ironwail's autoload of the last save), the level from its start.
+- **"The start" (decided):** the start of the level he is on, as he entered it (by a changelevel, a new game), not the
+  campaign's or the episode's first map; a hub (id's start, a pack's hall) is a level like any other.
+- **The loadout (decided):** the engine's level-start parms (parm1..16 in its client record, parm17..72 beside them:
+  `vr_progs.cpp`), set as he enters a level and written in every save: the restart gives them back, as Quake's own
+  single-player restart did. Not a QC saved global: the restart loads the progs again, so a global would not outlive it.
 
 ### Enemy Count and Randomized Enemies
 
@@ -95,6 +132,15 @@ choices themselves are the engine's line.
   the spawn point and its content seed (`vr_map_content_seed`): deterministic per seed.
 
 ## Console and tests
+
+- `vr_runpickups_test 1` ("runpickups: N passed", `vr_run_test.qc`): Balanced on e1m1 with seed 777 (rules, the map's
+  named items kept), the same layout on a reload, a save and its load (the run's choice and the items back), e1m2 by
+  changelevel, Everything Goes with Melee Only and Glass Cannon (kinds crossed, no new guns, the map's links and monster
+  count unchanged, `VR_Run_TestCheck`), a new run without it. `vr_runpickups_test 2`: the map loaded now (any game's:
+  AD's with `-game ad`), then again with it off: the rules, its unresolved targets, trigger_counter links and monsters.
+- `vr_ironman_test 1` ("ironman: N passed"): save and the menu's Save refused (`vr_ironman_refused` counts them), e1m1's
+  rocket launcher carried into e1m2, a death there restarts e1m2 with it (and not the grenade launcher given in e1m2),
+  no death menu, the run's other choices kept; a new run without it saves.
 
 - `vr_run` prints the run (and the screen's picks); `vr_run <id> <value>` sets one (applied); `vr_run start`;
   `vr_runsetup [hub|newgame]` opens the screen.

@@ -1,0 +1,5 @@
+title Run mutators: Randomized Pickups (Everything Goes) on e1m1
+map e1m1
+cvar vr_run_pickups 2
+cvar vr_run_seed 0
+hint Everything Goes: the level's ammo, health, armour, weapons and powerups are swapped for any others; doors, buttons and secrets work as ever.

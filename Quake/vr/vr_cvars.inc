@@ -3942,6 +3942,8 @@ QVR_CVAR(vr_runpick_smartai, "0", CVAR_ARCHIVE)       // Run Setup: Smarter AI (
 QVR_CVAR(vr_runpick_startweapon, "0", CVAR_ARCHIVE)   // Run Setup: Starting Weapon: 0 shotgun, 1 heavy revolver, 2 axe only, 3 unarmed (fists)
 QVR_CVAR(vr_runpick_meleeonly, "0", CVAR_ARCHIVE)     // Run Setup: Melee Only
 QVR_CVAR(vr_runpick_glasscannon, "0", CVAR_ARCHIVE)   // Run Setup: Glass Cannon
+QVR_CVAR(vr_runpick_pickups, "0", CVAR_ARCHIVE)       // Run Setup: Randomized Pickups: 0 off, 1 balanced (same kind, similar value), 2 everything goes
+QVR_CVAR(vr_runpick_ironman, "0", CVAR_ARCHIVE)       // Run Setup: Ironman (no saving; a death restarts the level)
 QVR_CVAR(vr_runpick_enemycount, "0", CVAR_ARCHIVE)    // Run Setup: Enemy Count: 0 1x (the map's), 1 2x, 2 3x
 QVR_CVAR(vr_runpick_enemyrandom, "0", CVAR_ARCHIVE)   // Run Setup: Randomized Enemies: 0 off, 1 balanced, 2 everything goes
 QVR_CVAR(vr_run_bn, "0", CVAR_NONE)                   // the run's Bloody Nightmare choice (its start sets vr_mg3_bn_start; the game's serverflags carry it)
@@ -3952,6 +3954,17 @@ QVR_CVAR(vr_run_smartai, "0", CVAR_NONE)              // the run's Smarter AI (a
 QVR_CVAR(vr_run_startweapon, "0", CVAR_NONE)          // the run's Starting Weapon (as vr_runpick_startweapon; QC vr_run_startweapon.qc, at a new game's parms)
 QVR_CVAR(vr_run_meleeonly, "0", CVAR_NONE)            // the run's Melee Only: guns are not picked up and do not fire, the axe at the start (QC vr_run_meleeonly.qc)
 QVR_CVAR(vr_run_glasscannon, "0", CVAR_NONE)          // the run's Glass Cannon: the player and the monsters take double damage (QC vr_run_glasscannon.qc)
+QVR_CVAR(vr_run_pickups, "0", CVAR_NONE)             // the run's Randomized Pickups (as vr_runpick_pickups): the map's pickups swapped as it loads (QC vr_run_pickups.qc)
+QVR_CVAR(vr_run_ironman, "0", CVAR_NONE)              // the run's Ironman: save, quicksave and autosave refused; a death restarts the level with what you entered it with (QC vr_run_ironman.qc)
+QVR_CVAR(vr_run_seed, "0", CVAR_NONE)                 // the run's seed, set at its start (Randomized Pickups: the same map gets the same pickups through the run, an Ironman restart too); 0: the server's random numbers
+QVR_CVAR(vr_ironman_refused, "0", CVAR_NONE)          // test aid: the saves Ironman refused since the game started (vr_ironman_test)
+QVR_CVAR(vr_runpickups_test, "0", CVAR_NONE)          // 1: Randomized Pickups' test (QC vr_run_test.qc: e1m1, e1m2, save and load, a new run; verdict "runpickups: N passed, M failed"); 2: the map loaded now only (another game's maps: AD's)
+QVR_CVAR(vr_ironman_test, "0", CVAR_NONE)             // 1: Ironman's test (QC vr_run_test.qc: saves refused, a death on e1m2 restarts it with what e1m1 left you; verdict "ironman: N passed, M failed")
+QVR_CVAR(vr_run_test_step, "0", CVAR_NONE)            // test aid: the run mutators' tests' step across map loads (vr_run_test.qc)
+QVR_CVAR(vr_run_test_tally, "0", CVAR_NONE)           // test aid: their tally across map loads (passed * 1000 + failed)
+QVR_CVAR(vr_run_test_a, "0", CVAR_NONE)               // test aid: a number kept across map loads (a layout's hash)
+QVR_CVAR(vr_run_test_b, "0", CVAR_NONE)               // test aid: another (unresolved targets)
+QVR_CVAR(vr_run_test_c, "0", CVAR_NONE)               // test aid: another (the map's monsters)
 QVR_CVAR(vr_run_enemycount, "0", CVAR_NONE)           // the run's Enemy Count: copies of each map monster beside it as the map loads (QC vr_run_enemycount.qc)
 QVR_CVAR(vr_run_enemyrandom, "0", CVAR_NONE)          // the run's Randomized Enemies: map monsters swapped as the map loads (QC vr_run_enemyrandom.qc)
 QVR_CVAR(vr_run_hubgo, "0", CVAR_NONE)                // the hub's teleporter: set by the Run Setup screen's Start, the teleporter then lets the player through (QC clears it)
