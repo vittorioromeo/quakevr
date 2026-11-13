@@ -62,6 +62,7 @@ namespace
 {
 
 constexpr const char* siteRoot = "https://www.slipseer.com";
+constexpr const char* quaddictedRoot = "https://www.quaddicted.com"; // (only its screenshots are fetched from it)
 constexpr za::I64 firstPageSeconds = 2 * 24 * 60 * 60; // the listing's first page revalidated after two days
 constexpr za::I64 listingSeconds = 10 * 24 * 60 * 60; // its other pages after ten
 constexpr za::I64 detailSeconds = 30 * 24 * 60 * 60;  // a map's page after thirty
@@ -105,8 +106,13 @@ za::U32 lastRequestAt = 0;     // SDL ticks of the last one (0: none yet)
 za::I64 backoffUntil = 0;      // unix seconds: no request before then
 za::I64 backoffSeconds = 0;    // the last back-off's length (the next is twice it)
 bool backoffRead = false;      // backoff.txt read
-za::Vector<za::String> disallowed; // robots.txt's Disallow prefixes for every agent
-bool robotsKnown = false;
+// robots.txt's Disallow prefixes for every agent, per site: 0 Slipseer, 1 Quaddicted (its screenshots).
+struct Robots
+{
+    za::Vector<za::String> disallowed;
+    bool known = false;
+};
+Robots robotsOf[2];
 SDL_atomic_t cancel{};          // the thread's stop (quitting)
 
 void seedRng()
@@ -344,6 +350,12 @@ bool waitTurn(double gapMs)
            !q_strncasecmp(url.cStr(), "https://slipseer.com", 20);
 }
 
+// Quaddicted's: one screenshot of a picked map (vr_mapindex's shot URL), under the same rules as Slipseer's.
+[[nodiscard]] bool quaddictedSite(const za::String& url)
+{
+    return !q_strncasecmp(url.cStr(), quaddictedRoot, strlen(quaddictedRoot));
+}
+
 enum class Kind
 {
     Page,   // a page a person opens (seconds apart)
@@ -354,24 +366,11 @@ enum class Kind
 bool fetch(const za::String& url, Kind kind, za::I64 ttl, const char* referer, bool network, za::Vector<char>& body,
     za::String& error, bool* fresh = nullptr);
 
-// robots.txt read (fetched at most once a week): the Disallow lines of its `User-agent: *` group.
-void readRobots(bool network)
+// The Disallow lines of `text`'s `User-agent: *` groups.
+void parseRobots(const char* text, za::Vector<za::String>& out)
 {
-    if(robotsKnown)
-    {
-        return;
-    }
-    za::Vector<char> body;
-    za::String error;
-    if(!fetch(za::String{siteRoot} + "/robots.txt", Kind::Robots, robotsSeconds, nullptr, network, body, error))
-    {
-        robotsKnown = network; // (none: nothing disallowed; not known yet when only the cache was read)
-        return;
-    }
-    robotsKnown = true;
-    body.pushBack('\0');
     bool forAll = false, inRules = false;
-    files::forLines(za::StringView{body.data()}, [&](za::StringView l) {
+    files::forLines(za::StringView{text}, [&](za::StringView l) {
         za::String line{l};
         if(const char* hash = strchr(line.cStr(), '#'))
         {
@@ -407,20 +406,41 @@ void readRobots(bool network)
             inRules = true;
             if(forAll && !q_strcasecmp(key.cStr(), "disallow") && v.size())
             {
-                disallowed.pushBack(v);
+                out.pushBack(v);
             }
         }
     });
 }
 
-[[nodiscard]] bool robotsAllow(const za::String& url)
+// robots.txt of site `host` (0 Slipseer, 1 Quaddicted) read (fetched at most once a week).
+void readRobots(bool network, int host)
+{
+    Robots& r = robotsOf[host];
+    if(r.known)
+    {
+        return;
+    }
+    za::Vector<char> body;
+    za::String error;
+    if(!fetch(za::String{host ? quaddictedRoot : siteRoot} + "/robots.txt", Kind::Robots, robotsSeconds, nullptr, network,
+           body, error))
+    {
+        r.known = network; // (none: nothing disallowed; not known yet when only the cache was read)
+        return;
+    }
+    r.known = true;
+    body.pushBack('\0');
+    parseRobots(body.data(), r.disallowed);
+}
+
+[[nodiscard]] bool robotsAllow(const za::String& url, int host)
 {
     za::String path;
     if(!pathOf(url, path))
     {
         return false;
     }
-    for(const za::String& prefix : disallowed)
+    for(const za::String& prefix : robotsOf[host].disallowed)
     {
         if(!strncmp(path.cStr(), prefix.cStr(), prefix.size()))
         {
@@ -456,7 +476,8 @@ bool fetch(const za::String& url, Kind kind, za::I64 ttl, const char* referer, b
     {
         return fromCache("the cached copy could not be read");
     }
-    if(!network || !vr_maps_slipseer.value)
+    const bool quad = quaddictedSite(url);
+    if(!network || (!vr_maps_slipseer.value && !quad))
     {
         return fromCache("not in the cache (the network is off for it: a test run, or vr_maps_fetch 0)");
     }
@@ -472,18 +493,18 @@ bool fetch(const za::String& url, Kind kind, za::I64 ttl, const char* referer, b
     }
     if(kind != Kind::Robots)
     {
-        readRobots(network);
-        if(sameSite(url) && !robotsAllow(url))
+        readRobots(network, quad ? 1 : 0);
+        if((quad || sameSite(url)) && !robotsAllow(url, quad ? 1 : 0))
         {
             return fromCache("robots.txt disallows it");
         }
     }
 
     // A person's pace: a page some seconds after the last (vr_maps_slipseer_delay, up to twice it at random); what a
-    // page shows, a moment after it.
+    // page shows, a moment after it (a Quaddicted screenshot has no page before it: it is paced as a page).
     const double delay = za::max(static_cast<double>(vr_maps_slipseer_delay.value), 1.0) * 1000.0;
     seedRng();
-    const double gap = kind == Kind::Asset ? static_cast<double>(vrand::xorshiftRange(rngState, 300.f, 1200.f))
+    const double gap = kind == Kind::Asset && !quad ? static_cast<double>(vrand::xorshiftRange(rngState, 300.f, 1200.f))
                                            : delay * static_cast<double>(vrand::xorshiftRange(rngState, 1.f, 2.f));
     if(!waitTurn(gap))
     {
@@ -1180,6 +1201,9 @@ bool passWanted = false;   // the listing pass
 bool passNetwork = false;  // it may use the network
 za::String wantedPage;     // a map's page wanted (the picked one)
 bool wantedNetwork = false;
+za::String wantedShotKey;  // a screenshot wanted on its own (Quaddicted's: no page to read): its key, as shown, and URL
+za::String wantedShotUrl;
+bool wantedShotNetwork = false;
 za::String getUrl;         // maps_slipseer_get's URL (development: one page fetched and kept)
 bool getAsset = false;     // ... a picture (its cache name: .img)
 
@@ -1404,27 +1428,16 @@ void listingPass(bool network)
 }
 
 // A map's screenshot, decoded for the main thread.
-void readScreenshot(const za::String& page, bool network)
+void readPicture(const za::String& key, const za::String& url, const char* referer, bool network)
 {
-    const auto d = details.find(page);
-    za::String url = d != details.end() ? d->second.screenshot : za::String{};
-    if(url.empty())
-    {
-        for(const Item& it : items)
-        {
-            if(it.page == page)
-            {
-                url = it.thumb;
-            }
-        }
-    }
     if(url.empty())
     {
         return;
     }
+    const za::String& page = key;
     za::Vector<char> body;
     za::String error;
-    if(!fetch(url, Kind::Asset, assetSeconds, page.cStr(), network, body, error) || body.empty() ||
+    if(!fetch(url, Kind::Asset, assetSeconds, referer, network, body, error) || body.empty() ||
         body.size() > static_cast<za::SizeT>(maxScreenshotBytes))
     {
         return;
@@ -1447,6 +1460,24 @@ void readScreenshot(const za::String& page, bool network)
     pendingPicture.height = h;
 }
 
+// A Slipseer map's screenshot: from its page's details, else its listing's icon.
+void readScreenshot(const za::String& page, bool network)
+{
+    const auto d = details.find(page);
+    za::String url = d != details.end() ? d->second.screenshot : za::String{};
+    if(url.empty())
+    {
+        for(const Item& it : items)
+        {
+            if(it.page == page)
+            {
+                url = it.thumb;
+            }
+        }
+    }
+    readPicture(page, url, page.cStr(), network);
+}
+
 void run() noexcept
 {
     struct Done
@@ -1459,8 +1490,8 @@ void run() noexcept
         {
             return;
         }
-        bool pass = false, passNet = false, pageNet = false;
-        za::String page, get;
+        bool pass = false, passNet = false, pageNet = false, shotNet = false;
+        za::String page, get, shotKey, shotUrl;
         {
             za::LockGuard lock{handoff};
             get = ZA_MOVE(getUrl);
@@ -1468,6 +1499,11 @@ void run() noexcept
             page = ZA_MOVE(wantedPage);
             wantedPage = za::String{};
             pageNet = wantedNetwork;
+            shotKey = ZA_MOVE(wantedShotKey);
+            shotUrl = ZA_MOVE(wantedShotUrl);
+            wantedShotKey = za::String{};
+            wantedShotUrl = za::String{};
+            shotNet = wantedShotNetwork;
             pass = passWanted;
             passNet = passNetwork;
             passWanted = false;
@@ -1495,6 +1531,11 @@ void run() noexcept
                 publishPart();
             }
             readScreenshot(page, pageNet);
+            continue;
+        }
+        if(shotKey.size())
+        {
+            readPicture(shotKey, shotUrl, nullptr, shotNet);
             continue;
         }
         if(pass)
@@ -1638,6 +1679,21 @@ void want(const za::String& page)
     ensureThread();
 }
 
+void wantShot(const za::String& key, const za::String& url)
+{
+    if(key.empty() || url.empty())
+    {
+        return;
+    }
+    {
+        za::LockGuard lock{handoff};
+        wantedShotKey = key; // (only the latest, as want())
+        wantedShotUrl = url;
+        wantedShotNetwork = networkOk(false);
+    }
+    ensureThread();
+}
+
 bool detailed(const za::String& page)
 {
     return detailedPages.find(page) != detailedPages.end();
@@ -1646,7 +1702,7 @@ bool detailed(const za::String& page)
 bool fetching(const za::String& page)
 {
     za::LockGuard lock{handoff};
-    return workingOn == page || wantedPage == page;
+    return workingOn == page || wantedPage == page || wantedShotKey == page;
 }
 
 za::String state()
@@ -1828,6 +1884,30 @@ void test_f()
     expect(strstr(vd.screenshot.cStr(), "attachments/v4-png.8539") != nullptr, "Violacea: screenshot (og:image)",
         vd.screenshot);
     expect(vd.needs == "Arcane Dimensions", "Violacea: needs Arcane Dimensions (breadcrumbs)", vd.needs);
+
+    // Quaddicted's screenshots: the URL from the id, and its robots.txt (as measured on the site).
+    const char* qsha = "582bfaa3049c18416a276ee40597c22e91a3362be12d585b9491d1c1d90257de";
+    expect(mapindex::quaddictedShotUrl(za::StringView{qsha}, za::String{"ne_ruins.zip"}) ==
+               "https://www.quaddicted.com/files/quaddicted-images/by-sha256/58/582bfaa3049c18416a276ee40597c22e91a3362be12d585b9491d1c1d90257de/ne_ruins.jpg",
+        "Quaddicted shot: URL from sha and zip name");
+    expect(mapindex::quaddictedShotUrl(za::StringView{qsha}, za::String{"a/../b.zip"}).empty() &&
+               mapindex::quaddictedShotUrl(za::StringView{qsha}, za::String{"x.txt"}).empty() &&
+               mapindex::quaddictedShotUrl(za::StringView{"12"}, za::String{"x.zip"}).empty(),
+        "Quaddicted shot: unsafe id, no zip, bad sha: none");
+    expect(quaddictedSite(za::String{"https://www.quaddicted.com/files/x.jpg"}) && !sameSite(za::String{"https://www.quaddicted.com/x"}),
+        "Quaddicted shot: its own site");
+    za::Vector<za::String> dis;
+    parseRobots("User-agent: sogou\nDisallow: /\n\nUser-agent: *\nDisallow: /stuff/\n\nUser-agent: *\nDisallow: /temp/\n"
+                "Disallow: /reviews/random_map.php\n",
+        dis);
+    expect(dis.size() == 3 && dis[0] == "/stuff/", "Quaddicted robots.txt: the * groups' Disallow lines",
+        za::toString(static_cast<int>(dis.size())));
+    za::Vector<za::String> saved = robotsOf[1].disallowed;
+    robotsOf[1].disallowed = dis;
+    expect(robotsAllow(za::String{"https://www.quaddicted.com/files/quaddicted-images/by-sha256/58/x/y.jpg"}, 1) &&
+               !robotsAllow(za::String{"https://www.quaddicted.com/stuff/a.jpg"}, 1),
+        "Quaddicted robots.txt: a screenshot allowed, /stuff/ not");
+    robotsOf[1].disallowed = saved;
 
     // Identity and requirements.
     expect(mapindex::validSha(za::StringView{idFor(za::String{"https://www.slipseer.com/index.php?resources/drain.672/"})}),

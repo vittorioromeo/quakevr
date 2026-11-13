@@ -423,6 +423,11 @@ void mapsPick(int r)
     {
         slipseer::want(za::String{mapindex::index().field(mapPage.results[r]->page)});
     }
+    // A Quaddicted map's screenshot: one fixed URL from its id (no page to read), the picked one only.
+    else if(valid && mapindex::index().length(mapPage.results[r]->shot))
+    {
+        slipseer::wantShot(mapPage.pickedSha, za::String{mapindex::index().field(mapPage.results[r]->shot)});
+    }
 }
 
 // A Slipseer map whose page has not been read yet (no download link): Install waits for it.
@@ -1127,10 +1132,12 @@ void drawMapsDetail(const MapsLayout& m, const menupaint::Painter& p)
         y += static_cast<float>(lines) * 8.f + 4.f;
     }
 
-    // A Slipseer map: its screenshot (once its page and picture are read), else what is being read.
-    if(e.source == mapindex::Source::Slipseer)
+    // A map's screenshot (a Slipseer one: once its page and picture are read, else what is being read; a Quaddicted
+    // one: when its picture is read, else nothing).
+    if(e.source == mapindex::Source::Slipseer || idx.length(e.shot))
     {
-        const za::String page{idx.field(e.page)};
+        const bool slip = e.source == mapindex::Source::Slipseer;
+        const za::String page = slip ? za::String{idx.field(e.page)} : za::String{idx.field(e.sha256)};
         int w = 0, h = 0;
         if(slipseer::screenshotSize(page, w, h) && w > 0 && h > 0)
         {
@@ -1152,7 +1159,7 @@ void drawMapsDetail(const MapsLayout& m, const menupaint::Painter& p)
                 y += slot + 4.f;
             }
         }
-        else if(mapsAwaitingPage(e) || slipseer::fetching(page))
+        else if(slip && (mapsAwaitingPage(e) || slipseer::fetching(page)))
         {
             drawMapsWrapped(slipseer::fetching(page) ? "Reading its page on Slipseer..." : "Its page is read when its turn comes.",
                 x, y, 6.f, width, 1);

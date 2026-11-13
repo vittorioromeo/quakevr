@@ -74,6 +74,9 @@ void registerCommands();
 
 // The picked map's page wanted (its details, then its screenshot): fetched when its turn comes, unless cached.
 void want(const za::String& page);
+// A screenshot wanted by its URL alone (a Quaddicted map's: vr_mapindex's `shot`; no page is read): `key` (the map's id) is
+// what screenshotSize/drawScreenshot are asked for. Same cache, pace, robots.txt and back-off; only the latest is kept.
+void wantShot(const za::String& key, const za::String& url);
 // Whether its details are known (its download link among them), and whether they are being fetched.
 [[nodiscard]] bool detailed(const za::String& page);
 [[nodiscard]] bool fetching(const za::String& page);

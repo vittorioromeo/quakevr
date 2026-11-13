@@ -815,3 +815,7 @@ only (BACKLOG); `vr_agrunt_test 210`: 8 passed, 0 failed.
 - Left (BACKLOG.md): the hell knight's chest stays under the lip for about 2 s going over (both hands on) and it gets
   in late; at seed 8 in the batched run it "slid back off the lip" (it stands up on the top; alone it gets in). The
   ogre's seed 8 "lost its hold".
+
+## qdshots: Quaddicted screenshots in the map library
+
+- A picked Quaddicted map shows its screenshot in the details pane, as Slipseer maps do: `https://www.quaddicted.com/files/quaddicted-images/by-sha256/<sha[0..1]>/<sha>/<id>.jpg` (the old /reviews/screenshots/ path 404s; measured 2026-11), built in `vr_mapindex.cpp` (`quaddictedShotUrl`, entry `shot`). `slipseer::wantShot` fetches it through the same cache, pace (page-like, seconds), back-off and decode; robots.txt is now per site (Quaddicted: /stuff/, /temp/ only). A missing shot shows nothing. `slipseer_test` 47 passed; one real fetch ok (150621 bytes).
