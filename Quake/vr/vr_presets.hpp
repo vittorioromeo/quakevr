@@ -64,6 +64,9 @@ public:
 
     [[nodiscard]] bool hasMine();
 
+    // My Settings kept now if none are yet (before a single row is changed outside a level: the run setup's).
+    void keepMine();
+
     // The rows that differ from the level (printed, indented, when `print`).
     [[nodiscard]] int differing(int level, bool print) const;
 

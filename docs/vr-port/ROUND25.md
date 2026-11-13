@@ -1224,3 +1224,37 @@ Play on an installed package asks Easy / Normal / Hard / Nightmare first (page "
   two [fail] lines kept). Their scenes nothing else uses moved out: agrunt_fetch, nav_startmat, nav_tele_crate,
   nav_tele_ogre, nav_trail, portals_walk_dm5, stealth_noise; the nav_* scenes NAVMESH.md, the QC or another scene name
   are kept, and gore_presets (a new line uses it).
+## runsetup: the Run Setup screen, presets and mutators (phase 1; branch agent/runsetup, 2026-11-13)
+
+- **Run Setup** (a VR page, flat and VR alike; replaces libskill's "Play: Difficulty"): opened by Single Player > New
+  Game (menu.c `M_SinglePlayer_NewGame` -> `VR_RunSetupNewGame`, Start -> `M_NewGameStart`), the Map Library's Play,
+  Official Campaigns' rows (Arcane Dimensions keeps its own confirmation; Dawn of the Machine: Bloody Nightmare opens it
+  with its Bloody Nightmare row on) and the hub's teleporter to `start` (QC `VR_Run_HubAsks`: `vr_runsetup hub`; Start
+  sets `vr_run_hubgo` and the teleporter lets you through; Back leaves you in it, asked again once you step out). A
+  summary line ("Hard / Unleashed / Pistol start"), the sections Difficulty / Presets / Mutators, Start (the cursor
+  starts there). `vr_runsetup_ask 0`: no screen, the last choices used.
+- **Skill halls (decided):** a start map with skill halls (New Game, campaigns, the hub, such a library package) has no
+  Difficulty row (a line says the halls choose); the presets and mutators are still asked. Bloody Nightmare (once found)
+  holds Difficulty at Nightmare.
+- **Framework** (`vr_runsetup.cpp`, registry of 9: skill, bn, style, gore, armed, smartai, startweapon, meleeonly,
+  glasscannon): `vr_runpick_<id>` archived (the screen), `vr_run_<id>` the run's (QC reads it); rules (`forced`,
+  `heldBy`), `apply` at Start and Load; `// qvr_run` line in every save (`VR_SaveContext`), read in `VR_ReadSaveInfo`,
+  set in `VR_OnBeginLoadGame` (normal, quick and autosaves alike; another run's save brings its presets back; an old save:
+  mutators default, presets left, a console line). `docs/vr-port/MUTATORS.md`: how to add one, the hooks.
+- **Your settings (decided):** the presets through their My Settings mechanism (first apply keeps them; "My Settings" is a
+  Style and Gore choice, Gore's default); Armed Humanoids / Smarter AI are "As Style" / Off / On over the Style, My
+  Settings kept first (`presetcore::Kind::keepMine`, new). Style's default is Unleashed (the brief); it is applied only
+  when the settings do not match it already.
+- **New mutators:** Starting Weapon (Shotgun / Heavy Revolver: the mod's revolver, loaded, right hip / Axe / Unarmed:
+  fists), Melee Only (gun pickups left, a gun in the hand only clicks, Mjolnir and the chainsaw kept, the axe at the
+  start: holds Starting Weapon at Axe), Glass Cannon (players and monsters take x2). QC: `vr_run.qc` (hooks, incl. phase
+  2's `VR_Run_MonsterSpawned` / `VR_Run_ItemSpawned`) and a file each. The hub (`playHub`) ends a run (mutators off).
+- **VR Settings' top rows** Classic Quake / Back to My Settings removed (the Style is on the Run Setup screen; the flat
+  Options > VR Settings is the same page). Gameplay Presets and the pavilion's Classic Quake board kept (the board is
+  the only one-press Classic Quake left: graphics, gore and gameplay together, so not a duplicate). menu_paths.txt
+  regenerated.
+- **Tests:** `vr_runsetup_test` 36/0; `vr_runsetup_screen_test` 13/0 (maps_skill_test its old name); end-to-end
+  `vr_run_check` 18/0 (run A revolver + glass cannon + Gore Minimal on e1m1, saved; run B melee only on e1m2; A's save
+  loaded: A's choices and Gore Minimal back; changelevel keeps them; unarmed and shotgun new games); vr_gameplay_preset_test
+  23/0, vr_gore_preset_test 12/0, slipseer_test 80/0, menu path checks 0 missing. Scenarios run_mutators, run_pistolstart.
+- **Not tested headless:** the hub teleporter's touch itself (the screen's `vr_runsetup hub` is).

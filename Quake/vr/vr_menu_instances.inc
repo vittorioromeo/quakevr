@@ -409,40 +409,132 @@ void qvr::menu::mapsPagePick_f()
         mapPage.picked >= 0 ? "" : " (none: out of the list)");
 }
 
-// maps_skill_test: the Map Library's Play difficulty picker: a pack's start hall with skill selection skips it (id's
-// start), another map asks; the picker opens with the last choice selected, Back cancels (nothing saved), each choice
-// is saved and, with an installed package, sets `skill` and loads (slipseer_test's install covers that half).
-void qvr::menu::mapsSkillTest_f()
+// vr_runsetup [hub|newgame|library <map>]: the screen for that start (the hub's teleporter's; tests).
+void qvr::menu::runSetup_f()
+{
+    const char* what = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
+    if(!q_strcasecmp(what, "hub"))
+    {
+        openRunSetup(runsetup::Launch::Hub, za::String{}, nullptr, -1, true);
+    }
+    else if(!q_strcasecmp(what, "newgame"))
+    {
+        openRunSetup(runsetup::Launch::NewGame, za::String{}, nullptr, -1, true);
+    }
+    else
+    {
+        openRunSetup(runsetup::Launch::None, za::String{}, nullptr, -1, false);
+    }
+}
+
+extern "C" void VR_RunSetupNewGame()
+{
+    openRunSetup(runsetup::Launch::NewGame, za::String{}, nullptr, -1, true);
+}
+
+// vr_runsetup_screen_test (and maps_skill_test, its old name): each way in opens the screen for its start (a start hall
+// with skill selection: no Difficulty row), its rows the registry's, a held row shown as a line, Back cancels (nothing
+// started, the picks kept), Start with nothing to start makes the picks the run's.
+void qvr::menu::runSetupScreenTest_f()
 {
     testkit::Tally t;
-    auto check = [&](bool ok, const char* what) {
-        if(t.check(ok, "maps_skill_test", what))
+    constexpr const char* name = "runsetup_screen";
+    auto check = [&](bool ok, const char* what) { t.check(ok, name, what); };
+    const int page = pageIndex(pageRunSetup);
+    auto hasLabel = [](const za::Vector<Item>& items, const char* label) {
+        for(const Item& it : items)
         {
-            Con_Printf("maps_skill_test: PASS %s\n", what);
+            if(it.kind != Item::Header && it.label && !strcmp(it.label, label)) // (a row, not a section's header)
+            {
+                return true;
+            }
         }
+        return false;
     };
-    check(mapinstall::mapHasSkillSelect("start"), "start.bsp has skill halls: no picker");
-    check(!mapinstall::mapHasSkillSelect("e1m1"), "e1m1 has none: the picker asks");
-    check(!mapinstall::mapHasSkillSelect("nosuchmap"), "a missing map: no skill halls");
-    const float before = vr_maps_skill.value;
-    for(int last = 0; last < 4; last++)
+    auto shownFor = [&](runsetup::Launch launch) { return ui().page == page && runSetup.launch == launch; };
+    check(mapinstall::mapHasSkillSelect("start"), "start.bsp has skill halls");
+    check(!mapinstall::mapHasSkillSelect("e1m1"), "e1m1 has none");
+    const float ask = vr_runsetup_ask.value;
+    const float meleeOnly = vr_runpick_meleeonly.value;
+    Cvar_Set("vr_runsetup_ask", "1");
+
+    // The Map Library's Play: a map without skill halls asks the difficulty.
+    openRunSetup(runsetup::Launch::Library, za::String{"0000"}, "e1m1", -1, mapinstall::mapHasSkillSelect("e1m1"));
+    za::Vector<Item> items = pageRunSetup();
+    check(shownFor(runsetup::Launch::Library), "Map Library's Play opens it");
+    const char* const rows[] = {"Difficulty", "Style", "Gore", "Armed Humanoids", "Smarter AI", "Starting Weapon",
+        "Melee Only", "Glass Cannon", "Start"};
+    bool allRows = true;
+    for(const char* r : rows)
     {
-        Cvar_SetValue("vr_maps_skill", static_cast<float>(last));
-        mapsAskSkill(za::String{"0000"}, "e1m1");
-        const int page = pageIndex(pageMapsSkill);
-        check(ui().page == page && ui().cursors[page] == 1 + last, va("picker open, last choice %d selected", last));
+        if(!hasLabel(items, r))
+        {
+            Con_Printf("runsetup_screen: no \"%s\" row\n", r);
+            allRows = false;
+        }
+    }
+    check(allRows, "its rows: Difficulty, the presets, the mutators, Start");
+    check(ui().cursors[page] == static_cast<int>(items.size()) - 1, "the cursor on Start");
+    goBack();
+    check(ui().page != page && runSetup.launch == runsetup::Launch::Library, "Back leaves it, nothing started");
+
+    // A start map with skill halls: no Difficulty row, the mutators still asked.
+    openRunSetup(runsetup::Launch::Library, za::String{"0000"}, "start", -1, mapinstall::mapHasSkillSelect("start"));
+    items = pageRunSetup();
+    check(!hasLabel(items, "Difficulty") && hasLabel(items, "Starting Weapon"), "skill halls: no Difficulty, mutators asked");
+    goBack();
+
+    // New Game (menu.c's), Official Campaigns' row, the hub's teleporter.
+    VR_RunSetupNewGame();
+    check(shownFor(runsetup::Launch::NewGame) && runSetup.skillHalls, "New Game opens it (start's halls)");
+    goBack();
+    if(VR_CampaignUnavailable(0) == 0)
+    {
+        openRunSetupCampaign(0);
+        check(shownFor(runsetup::Launch::Campaign) && runSetup.campaign == 0, "Official Campaigns' row opens it");
         goBack();
-        check(ui().page != page && static_cast<int>(vr_maps_skill.value + 0.5f) == last, "Back cancels, nothing saved");
     }
-    Cvar_SetValue("vr_maps_skill", 1.f);
-    for(int pick = 0; pick < 4; pick++)
+    Cbuf_InsertText("vr_runsetup hub\n");
+    Cbuf_Execute();
+    check(shownFor(runsetup::Launch::Hub), "the hub's teleporter (vr_runsetup hub) opens it");
+
+    // A held row: Melee Only holds Starting Weapon (a line, the page rebuilt).
+    Cvar_Set("vr_runpick_meleeonly", "1");
+    check(runSetupStale(), "Melee Only: the page is rebuilt");
+    items = pageRunSetup();
+    check(!hasLabel(items, "Starting Weapon") && !runSetupStale(), "Starting Weapon held: shown as a line");
+    Cvar_SetValueQuick(&vr_runpick_meleeonly, meleeOnly);
+    goBack();
+
+    // Start with nothing to start: the picks are the run's (the presets as My Settings, kept in the test files: the
+    // settings are not changed).
+    gameplaypresets::kind().useTestFile(true);
+    gorepresets::kind().useTestFile(true);
+    gameplaypresets::kind().keepMine();
+    gorepresets::kind().keepMine();
+    const char* const presetPicks[] = {"vr_runpick_style", "vr_runpick_gore", "vr_runpick_armed", "vr_runpick_smartai"};
+    float presetValues[4];
+    for(int i = 0; i < 4; i++)
     {
-        mapsAskSkill(za::String{"0000"}, "e1m1");
-        mapsSkillChosen(pick); // (no such package installed: Play refuses, the choice is still kept)
-        check(static_cast<int>(vr_maps_skill.value + 0.5f) == pick, va("choice %d saved", pick));
+        presetValues[i] = Cvar_VariableValue(presetPicks[i]);
+        Cvar_Set(presetPicks[i], "0");
     }
-    Cvar_SetValue("vr_maps_skill", before);
-    t.verdict("maps_skill_test");
+    runSetup.launch = runsetup::Launch::None;
+    runSetupStart();
+    bool same = true;
+    for(int i = 0; i < runsetup::count(); i++)
+    {
+        same = same && runsetup::activeValue(i) == runsetup::pickValue(i);
+    }
+    check(same && key_dest == key_game, "Start: the picks made the run's, the menu closed");
+    for(int i = 0; i < 4; i++)
+    {
+        Cvar_SetValue(presetPicks[i], presetValues[i]);
+    }
+    gameplaypresets::kind().useTestFile(false);
+    gorepresets::kind().useTestFile(false);
+    Cvar_SetValueQuick(&vr_runsetup_ask, ask);
+    t.verdict(name);
 }
 
 // maps_page_stats (Debug > Tools).

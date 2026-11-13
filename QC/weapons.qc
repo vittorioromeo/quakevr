@@ -3899,6 +3899,13 @@ An attack impulse can be triggered now
 void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
      float* xOutWeapon, float* xOutAttackFinished) W_AttackImpl =
 {
+    // The run's mutators: Melee Only's guns only click (vr_run.qc).
+    if(VR_Run_RefusesFire(xWeapon))
+    {
+        sound(self, CHAN_WEAPON, "gunclick.wav", 0.6, ATTN_NORM);
+        *xOutAttackFinished = time + 0.5;
+        return;
+    }
     // Mjolnir without its cells is still a hammer: no click, as the trigger closes the hand round its handle (the
     // author holds it as a real hammer; NOTES.md vrfiringrange_2026-09-29_21-55-59). The motion's blows strike with
     // it; without tracked hands it swings as the hammer (below, fewer than 30 cells).

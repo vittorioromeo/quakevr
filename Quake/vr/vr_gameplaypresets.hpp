@@ -20,6 +20,11 @@
 
 #pragma once
 
+namespace qvr::presetcore
+{
+class Kind;
+}
+
 namespace qvr::gameplaypresets
 {
 
@@ -30,6 +35,9 @@ inline constexpr int levelCount = 3;
 inline constexpr int levelMine = 3; // vr_gameplay_preset's My Settings
 
 void init();
+
+// The machinery's state for the gameplay table (the run setup, tests).
+[[nodiscard]] presetcore::Kind& kind();
 
 [[nodiscard]] const char* levelName(int level);
 

@@ -337,6 +337,7 @@ void() SetNewParms =
     parm73 = 0; // (no magnetic holster bindings)
     parm74 = 0; // (bullet time's meter full)
     parm75 = 0; // (no armour plates)
+    VR_Run_NewParms(); // the run's mutators: Starting Weapon, Melee Only's axe (vr_run.qc)
 };
 
 void() DecodeLevelParms =
@@ -790,6 +791,7 @@ void() changelevel_touch =
     if(other.classname != "player")
         return;
     if(!AD_ChangelevelTouch()) return; // AD support: AD's exits off until triggered, its on-exit rules (vr_ad_bridge.qc)
+    if(VR_Run_HubAsks(self)) return; // the hub's teleporter: the Run Setup screen first (vr_run.qc)
 
     float noexit;
     noexit = cvar_hget(cvarh_noexit);
