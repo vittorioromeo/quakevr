@@ -152,6 +152,7 @@ void openConsole();
 void openMaps();
 void mapsPage_f(); // maps_page [text]: the Map Library page, with the text typed in
 void mapsPageStats_f();
+void mapsSkillTest_f(); // maps_skill_test: the Play difficulty picker (Debug > Tools)
 void mapsPagePick_f(); // maps_page_pick <row> [source]: a row of the Map Library picked (test aid) // maps_page_stats: what the page's list costs, and its layout (Debug > Tools)
 
 // The sticks' selection back on the page shown from the corner's buttons: onto its first setting

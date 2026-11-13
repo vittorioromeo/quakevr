@@ -1363,6 +1363,8 @@ za::Vector<Item> pageDebugTools()
         row(opt::vr_maps_allow_local),
         command("Pick the First Map", "maps_page; maps_page_pick 0")
             .help("maps_page_pick <row> [source]: the Map Library open with that row picked (its detail; a Slipseer map's page read). Source: 0 both, 1 Quaddicted, 2 Slipseer."),
+        command("Play Difficulty Picker Test", "maps_skill_test")
+            .help("maps_skill_test: the Map Library's Play difficulty picker -- a start hall with skill selection skips it, the last choice is selected, Back cancels, each choice is saved. Prints a verdict."),
         command("Open the Map Browser", "maps_page")
             .help("maps_page [text]: the Map Library page (the corner's Maps button, Single Player > Map Library), with the text typed in. maps_install <sha> gets a package, maps_play <sha> starts it."),
         header("Test Effects"),

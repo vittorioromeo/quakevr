@@ -1192,3 +1192,7 @@ frame, the reverse grip's server checks reading the local client's view (a liste
 - checklist.txt 126 -> 79 lines in Flat-screen / VR sections by subject: 45 ticked lines retired, 3 duplicates dropped,
   62 lines with a Test (8 new scenes, 6 broken ones fixed; vr_scenario lands an `up` spawn whose point is in a wall on
   the ledge above it). Details: CHECKLIST_REORG.md.
+
+## libskill: difficulty picker on the Map Library's Play
+
+Play on an installed package asks Easy / Normal / Hard / Nightmare first (page "Play: Difficulty", flat and VR alike; last choice in vr_maps_skill, saved, preselected; Back cancels; Nightmare row notes a Bloody Nightmare game, which Play never resets). A start map whose entities hold a trigger_setskill (id's start, packs' skill halls: mapinstall::needsSkillPick) skips it. maps_play stays direct. Tests: maps_skill_test (15), slipseer_test (80, play sets skill).
