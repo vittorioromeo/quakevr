@@ -708,7 +708,7 @@ int VR_SndShot (int entnum, int entchannel, sfx_t *sfx, const float *origin, flo
 void VR_SndStopAll (void);							// S_StopAllSounds, the channels cleared: every voice let go (none left on a cleared channel)
 int VR_SndHoldsSfx (const sfx_t *sfx);				// S_ForgetGameSounds: nonzero: the game-time render still plays it (kept)
 void VR_SndRebase (int delta);						// S_RebaseSoundTime: paintedtime moved back by delta (its wrap): the voices' carried render with it
-int VR_SndKeepStatics (void);					// S_Update: nonzero: the static sounds of one sample not combined (each has its place)
+int VR_SndKeepStatics (void);						// S_Update: nonzero: the static sounds of one sample not combined (each has its place)
 int VR_SndMixEnd (int paintedtime, int endtime);	// S_Update_: the mix-ahead's end, rounded down to whole frames of the voices
 void VR_SndPaint (portable_samplepair_t *buffer, int start, int end);	// S_PaintChannels, each chunk: the voices' mix added
 int VR_SndOwns (const channel_t *ch);				// S_PaintChannels: nonzero for a channel a voice renders (Quake skips it)
