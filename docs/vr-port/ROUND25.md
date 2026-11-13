@@ -1302,3 +1302,29 @@ Play on an installed package asks Easy / Normal / Hard / Nightmare first (page "
   monsters' start thinks, 0.1-0.6 s, and the client's sign-on).
 - **Not done:** monsters spawned later by the map's spawners (Hipnotic's func_spawn, AD's minions, trigger-spawned
   templates are copied as map entities, but runtime spawns are not) and pack monsters as swap targets.
+## navcrash: the navmesh's pool builds read no server state, joined before the world goes (agent/navcrash, 2026-11-13)
+
+- **Cause:** a class's tile build (and a props' tile batch) on the pool set each polygon's area with
+  `worldtrace::contents` = `SV_PointContents`, which reads `sv.worldmodel`. Nothing joined the builds before the world
+  went: `nav::afterLoad`'s `resetAll` joined them only once the next map had loaded. A map change while a build ran (no
+  walker had asked for its class yet, so nothing had joined it) read a null `sv.worldmodel` (SV_SpawnServer's clear:
+  access violation at 0x188, world.c:795, the brief's stack) or a freed model (a campaign switch:
+  `COM_SwitchGameInternal`'s `Mod_ResetAll` frees the models with no `Host_ClearMemory` first).
+- **Fix:** the build's one engine read goes through the world model captured on the main thread at the gather
+  (`Geometry::world`; `worldtrace::contentsOf(world, p)`: SV_PointContents' rule on a given model, no globals). The
+  builds and batches are joined and freed (`nav::finishLoads`) in `VR_OnClearMemory` (before the hunk goes) and in a new
+  `VR_OnShutdownServer` at the top of `Host_ShutdownServer` (before a game switch frees the models). Audit of the pool
+  side (buildClass, buildTile, fillSolids, findDrops/Rides/Teles, runObstacleBatch): areaAt was the only engine call;
+  the cvars are read into `Settings` on the main thread; the disk cache's read, compare and write are main-thread.
+- **Repro** (`scratch/nc_repro.py`: `vr_campaign_native ad;map ad_crucial;waitN;vr_campaign_native id1;map
+  vrtesthall;waitN` looped): before, it crashed within the first 15 loops; with only the capture and the
+  Host_ClearMemory join it crashed at the campaign switch (freed model); with both, 140 loops (40 at wait3, 60 at wait1,
+  40 at wait12) and no crash.
+- Possibly the same pattern, not checked or changed here: `hull::finishLoads` / `box3d::finishLoads` (hull's trees
+  compiled in play read the old world) are joined only in VR_OnClearMemory, not before a campaign switch's Mod_ResetAll.
+- **Second crash, found by scenario_check once the first was gone:** `vr_nav_teletest` (also reachtest, crowdtest) stayed
+  armed across a map change (runall leaves nav_tele_metric after 3 s): `teleTrialStart` indexed the new map's gates
+  with the old map's gate numbers (access violation in `teleEnds`, main thread, on vrarena). `finishLoads` now ends an
+  armed test with `nav: <name>: abandoned at the map change`.
+- **Tests** (low-impact runs): nav_tele_metric (seeded) 18/2 and vr_arena_test 43 13/0, their outcome lines identical
+  before and after (md5 f8081035, 19d8a9d4); nav_tele 1/0, nav_lift 1/0.

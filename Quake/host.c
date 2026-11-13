@@ -811,6 +811,7 @@ void Host_ShutdownServer(qboolean crash)
 	if (!sv.active)
 		return;
 
+	VR_OnShutdownServer (); // QVR: the pool's jobs that read the world joined (a game switch frees the models next)
 	sv.active = false;
 
 // stop all client sounds immediately
