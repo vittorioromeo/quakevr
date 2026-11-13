@@ -1713,6 +1713,46 @@ back): `qvr-kit/scratch/menuvis_shots/`.
   Pickups and Glass Cannon (e1m1/e1m2/e1m3 saves, loads across them, changelevels): `vr_run_check` 18/0. AD loop
   (ad_crucial, the hub, ad_swampy: 6 saves, 5 loads, map changes): no error. `load_models_test.sh` 4/0 (352/0).
 
+## nozone: the zone is the heap (agent/nozone, 2026-11-13)
+
+- **His call:** replace the zone allocator with the system one (after "Save crash: Z_Realloc" and "norealloc").
+- **vkQuake (research only, nothing copied):** its 85d526c "Replace all custom memory allocation with regular
+  alloc/free" (2022-06-19) dropped the zone, the hunk and the cache together for `Quake/mem.c`: `Mem_Alloc` (always
+  zeroed: calloc), `Mem_AllocNonZero`, `Mem_Realloc`, `Mem_Free`, plus `TEMP_ALLOC` macros (stack below 512 KB, else
+  heap). The backend is mimalloc on Windows/Linux/macOS (CRT malloc elsewhere or under helgrind, SDL's optional); Debug
+  builds turn on mimalloc's debug checks and guarded pages (`MI_DEBUG 3`, `MI_GUARDED`). No headers, tags, guards or
+  stats of its own; no notes or numbers on performance in the commits (one-line messages; later ones: "Don't zero
+  memory before reading files", "Paranoid instrumentation", "Replace PARANOID by regular Debug conditionals").
+- **Now (zone.c):** `Z_Malloc` / `Z_Free` / `Z_Strdup` are thin wrappers over `VR_HeapCalloc` / `VR_HeapFree` (calloc
+  and free, so vr_alloc_sites counts them; the bench's `heap_allocs` rose by them: ~0.8 a frame idle, Cmd_TokenizeString's
+  arguments). Each block has a 16-byte header: its size (vr_limits' bytes, Tracy's ledger) and ZONEID, checked on free
+  in every build ("without ZONEID", "freed a freed pointer"). Debug builds add a tail word after the caller's bytes,
+  checked on free ("a block's tail was overwritten"). Tracy builds also link the live blocks (32-byte header) so
+  `Memory_TracySnapshot` / `Memory_TracyValidate` still walk the zone. `Z_Free (NULL)` does nothing (was a Sys_Error).
+  `vr_zone_threadcheck` still covers Z_Malloc/Z_Free (the counts and Tracy's map aren't locked).
+- **Gone:** `mainzone`, the first-fit/rover code, `Z_TagMalloc` (only tag 1 was ever used), `Z_CheckHeap` (PARANOID),
+  `Z_Print` (no caller), `DYNAMIC_SIZE` and `-zone` (the 32 MiB block at the bottom of the hunk: the hunk keeps it).
+  `vr_limits`: "zone, KiB" in use / peak with no maximum, and "zone blocks" (e1m1 at start: 408 KiB, 8,323 blocks).
+- **Audit (every Z_ user, ~70 call sites):** nothing outside zone.c read `memblock_t`, a size from a header, tags or
+  `Z_CheckHeap` (doomgeneric has its own zone, untouched). Every `Z_Malloc`/`Z_Strdup` pointer is freed with `Z_Free`
+  (cvar strings and defaults, aliases, command arguments, search paths and packs, keybindings, the clipboard (pl_win/
+  pl_linux/pl_osx -> keys.c), sound codec streams, MD5 loading, QC's strzone strings, tunable overrides); nothing frees
+  zone memory with `free()` or heap memory with `Z_Free` (cmd.c's buffers, `Cvar_RegisterVariable`'s copy, the
+  knownstrings table and knownzone bitmap are VR_Heap*/realloc+free pairs). `PR_SetEngineString`'s "inside
+  qcvm->strings" test can't match a heap pointer (as before: the zone was below the progs on the hunk).
+  `SaveData_Fill`'s implausible-pointer guard stays. Tracy: pool 0 ("Zone") kept, same events.
+- **Verified:** Release, Release-Tracy, Release-TracyFull and Debug 0 warnings. `vr_tracy_test_memory` under a
+  tracy-capture: every `Tracy pool Zone/Hunk/Cache` line PASS (Zone 8,335 live blocks, 551,540 bytes). Debug run
+  (tail guards on): e1m1 save, load, changelevel e1m2, `pr_knownstrings_check` 44/0, no guard error. id1 mutator
+  save/load loop `vr_run_check` 18/0 and `pr_knownstrings_check` 44/0; AD loop (ad_crucial, start, ad_swampy: 7 saves,
+  6 loads, map changes) no error, 44/0; `load_models_test.sh` 4/0 (352/0); `scenario_check.sh` 144 files 0 errors,
+  144 run 0 failed; `vr_menu_path_check` 0 missing. Scripts: `scratch/nz_tests.sh`.
+- **Bench** (`bench.sh --fast --reps 3`, exclusive, ThinLTO; medians of 3, ms; kit labels nz_before, nz_after,
+  nz_after2): combat_48 frame p50 3.684 -> 3.469 (-5.8%), CPU 3.747 -> 3.486; ai_crowd_64 3.165 -> 3.090 (-2.4%), CPU
+  3.143 -> 2.994; idle_e1m1 1.509 -> 1.485 (-1.6%); play_ad_tfuma_fight 7.169 -> 6.990 (-2.5%), CPU 6.967 -> 6.645.
+  Nothing slower past 3%; the gains are within the run-to-run spread (the GPU times moved as much): read "no change".
+  The first after-run of combat_48 and ai_crowd_64 overlapped his game starting (two runs not launched, one slow) and
+  was run again (nz_after2).
 ## clipneg: no shot from a clip that can't pay (branch agent/clipneg, 2026-11-13)
 
 His flat report: "ERROR: weapon clip less than zero" firing the shotgun, a spent flare gun in the left hand.

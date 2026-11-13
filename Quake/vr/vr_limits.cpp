@@ -137,11 +137,16 @@ void command_f()
 
     Con_Printf("\x02" "Memory\n");
     {
+        size_t zoneUsed = 0;
+        size_t zonePeak = 0;
+        size_t zoneBlocks = 0;
+        Z_Usage(&zoneUsed, &zonePeak, &zoneBlocks);
+        rowPeak("zone, KiB", static_cast<int>(zoneUsed / 1024), static_cast<int>(zonePeak / 1024), 0,
+            "the heap: no maximum (was 32 MiB, -zone)");
+        row("zone blocks", static_cast<int>(zoneBlocks), 0, "Z_Malloc'd blocks in use (cvar values, aliases, arguments)");
         int used = 0;
         int peak = 0;
         int size = 0;
-        Z_Usage(&used, &peak, &size);
-        rowPeak("zone, KiB", used / 1024, peak / 1024, size / 1024, "-zone <KiB>; full: Sys_Error (was 4 MiB)");
         int segments = 0;
         int maxSegments = 0;
         Hunk_Usage(&used, &peak, &size, &segments, &maxSegments);
