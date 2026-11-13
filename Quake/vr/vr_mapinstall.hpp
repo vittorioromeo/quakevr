@@ -112,6 +112,14 @@ void poll();
 // Whether a job for this package is running now.
 [[nodiscard]] bool busy(const za::String& sha);
 
+// `url`'s host is a local address (Download_LocalHost: localhost, loopback, private / LAN, link-local), the literal
+// host only (a name's resolved address is checked by Download's refuse_local).
+[[nodiscard]] bool localAddress(const char* url);
+// The map library does not fetch `url` (a screenshot, a download): its host is local and vr_maps_allow_local is 0.
+[[nodiscard]] bool refusedUrl(const char* url);
+// What a download_t's refuse_local is set to (vr_maps_allow_local 0: refused).
+[[nodiscard]] bool refuseLocal();
+
 // Begin the job (false: another one is running, or no package; `why` says which). `install` false: only the zip.
 bool begin(const mapindex::Entry* entry, bool install, za::String* why = nullptr);
 // The running job stopped (maps_cancel, the page's Cancel): the download within a second, the unpacking before its next

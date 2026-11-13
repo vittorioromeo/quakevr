@@ -12,7 +12,7 @@ god
 spawn monster_army 150 0
 spawn monster_dog 150 64
 spawn monster_ogre 150 -64
-spawn monster_knight 220 64
+spawn monster_knight 100 64
 spawn monster_demon1 220 -64
 cvar vr_nav 1
 cvar vr_nav_debug 2

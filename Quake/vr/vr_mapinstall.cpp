@@ -174,6 +174,7 @@ struct Request
     bool wasInstalled{false}; // the registry names it already (otherwise its folder holds nothing of ours yet)
     za::U64 maxZipBytes{0};   // vr_maps_max_download_mb in bytes (0: no limit)
     za::U64 fakeFreeBytes{0}; // vr_maps_debug_free_mb in bytes (0: the disk's own free space)
+    bool refuseLocal{true};   // no mirror on a local address (vr_maps_allow_local 0)
     // A Slipseer map's (vr_slipseer.cpp): no sha256 to check its zip against (its id is its page's hash), so the zip
     // is checked to be one; and the session's browser headers, its page as the Referer (as the site's own button).
     bool verifySha{true};
@@ -681,6 +682,12 @@ bool downloadZip(const za::String& part, za::String& why)
             why = cancelText();
             return false;
         }
+        if(request.refuseLocal && localAddress(url.cStr()))
+        {
+            tried += za::String{tried.size() ? "; " : ""} + "mirror " + za::toString(mirror) +
+                     ": refused (a local address: " + url + ")";
+            continue;
+        }
         SDL_AtomicSet(&liveMirror, mirror);
         SDL_AtomicSet(&liveBytes, 0);
         Stream st;
@@ -703,6 +710,7 @@ bool downloadZip(const za::String& part, za::String& why)
         dl.write_fn = writeChunk;
         dl.write_data = &st;
         dl.abort = &cancelJob;
+        dl.refuse_local = request.refuseLocal;
         const bool ok = Download(url.cStr(), &dl);
         const bool closed = fclose(st.file) == 0;
         if(SDL_AtomicGet(&cancelJob))
@@ -1730,6 +1738,37 @@ bool busy(const za::String& sha)
     return jobRunning.loadSeqCst() && request.sha == sha;
 }
 
+bool localAddress(const char* url)
+{
+    const char* p = strstr(url, "://");
+    p = p ? p + 3 : url;
+    const za::SizeT authority = strcspn(p, "/?#");
+    const za::String auth{p, authority};
+    const char* at = strrchr(auth.cStr(), '@'); // (user info dropped)
+    const char* h = at ? at + 1 : auth.cStr();
+    za::String host;
+    if(*h == '[') // an IPv6 address: [::1]:8080
+    {
+        const char* close = strchr(h, ']');
+        host = za::String{h + 1, static_cast<za::SizeT>(close ? close - h - 1 : strlen(h + 1))};
+    }
+    else
+    {
+        host = za::String{h, strcspn(h, ":")};
+    }
+    return host.size() && Download_LocalHost(host.cStr());
+}
+
+bool refuseLocal()
+{
+    return !vr_maps_allow_local.value;
+}
+
+bool refusedUrl(const char* url)
+{
+    return refuseLocal() && localAddress(url);
+}
+
 bool begin(const mapindex::Entry* entry, bool install, za::String* why)
 {
     ensureStarted();
@@ -1777,6 +1816,21 @@ bool begin(const mapindex::Entry* entry, bool install, za::String* why)
             return refuse("its page has not been read yet (it is being fetched: Install is offered once it is)");
         }
         slipseer::downloadHeaders(mapindex::index().field(entry->page), request.headers);
+    }
+    request.refuseLocal = refuseLocal();
+    if(request.refuseLocal)
+    {
+        za::Vector<za::String> urls;
+        splitUrls(request.urls, urls);
+        bool anyPublic = urls.empty(); // (no URL at all: downloadZip says so)
+        for(const za::String& u : urls)
+        {
+            anyPublic = anyPublic || !localAddress(u.cStr());
+        }
+        if(!anyPublic)
+        {
+            return refuse("its download is on a local address (refused: vr_maps_allow_local 0)");
+        }
     }
     request.root = addonDir(request.sha);
     request.zipBytes = entry->bytes;

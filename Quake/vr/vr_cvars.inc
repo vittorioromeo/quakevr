@@ -3931,7 +3931,8 @@ QVR_CVAR(vr_maps_max_download_mb, "0", CVAR_ARCHIVE)  // a package's zip refused
 QVR_CVAR(vr_maps_debug_free_mb, "0", CVAR_NONE)       // test aid: the free disk space the map installer is told it has, in MB (0: the real one). A low disk simulated
 QVR_CVAR(vr_maps_slipseer, "1", CVAR_ARCHIVE)         // Slipseer (slipseer.com) listed in the Map Library beside Quaddicted (vr_slipseer.cpp): its listing pages read politely at start-up (cached on disk), a map's own page when it is picked. 0: Slipseer left out, nothing fetched from it
 QVR_CVAR(vr_maps_slipseer_delay, "5", CVAR_ARCHIVE)   // seconds at least between two Slipseer page requests (each wait is this to twice it, at random; never under 1): a person's pace
-QVR_CVAR(vr_maps_cache_mb, "512", CVAR_ARCHIVE)       // the map download cache (cache/maps/<sha256>.zip): at most this many MB kept, the oldest zips removed first when a download would pass it (and at start-up, and when it is lowered). 0: nothing kept once a package is installed
+QVR_CVAR(vr_maps_cache_mb, "512", CVAR_ARCHIVE)       // the map download cache (cache/maps/<sha256>.zip): at most this many MB kept, the oldest zips removed first when a download would pass it (and at start-up, and when it is lowered). 0: nothing kept once a package is installed. The Slipseer page and screenshot cache (cache/slipseer/) is held under the same size at start-up, the least recently fetched first (0: not trimmed)
+QVR_CVAR(vr_maps_allow_local, "0", CVAR_NONE)        // test aid: the Map Library may fetch screenshots and downloads from local addresses (localhost, 127/8, a LAN's 10/8, 172.16/12, 192.168/16, 169.254/16, ::1, fc00::/7, fe80::/10). 0: refused (the tests' local servers set it to 1)
 
 // Mission-pack installation state, derived from the owned data (vr_gamedir.cpp).
 QVR_CVAR(vr_hipnotic_status, "0", CVAR_ROM)

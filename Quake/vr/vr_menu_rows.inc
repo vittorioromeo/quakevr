@@ -6637,7 +6637,9 @@ QVR_SLIDER(vr_maps_slipseer_delay, "Slipseer Page Spacing", 1.f, 30.f, 1.f, "%.0
 QVR_TOGGLE(vr_maps_allow_progs, "Include Packages with progs.dat",
     "vr_maps_allow_progs: packages that ship their own progs.dat replace the game's code, so they are left out of the list by default. They are in the index either way (maps_info shows them, maps_stats counts them).")
 QVR_SLIDER(vr_maps_cache_mb, "Download Cache Size", 0.f, 4096.f, 64.f, "%.0f MB", ext(0.f, 65536.f),
-    "vr_maps_cache_mb: the downloaded packages' zips (cache/maps/) kept up to this size; past it the oldest are removed (before a download, at start-up, and when this is lowered). 0: none kept once a package is installed. Installed maps are not affected.")
+    "vr_maps_cache_mb: the downloaded packages' zips (cache/maps/) kept up to this size; past it the oldest are removed (before a download, at start-up, and when this is lowered). 0: none kept once a package is installed. Installed maps are not affected. The Slipseer page and screenshot cache (cache/slipseer/) is held under the same size at start-up, the least recently fetched first (0: not trimmed).")
+QVR_TOGGLE(vr_maps_allow_local, "Allow Local Map Hosts",
+    "vr_maps_allow_local: test aid. On: the Map Library may fetch screenshots and downloads from local addresses (localhost, loopback, a LAN's private addresses), as the tests' local servers need. Off (the default): such URLs are refused, and so is a public name that resolves to one.")
 QVR_SLIDER(vr_maps_max_download_mb, "Largest Download", 0.f, 4096.f, 64.f, "%.0f MB", ext(0.f, 65536.f),
     "vr_maps_max_download_mb: a package whose zip is over this size is refused (the index's size, and the bytes as they arrive). 0: no limit (the default). The free disk space is checked either way, before the download and before the unpacking.")
 QVR_SLIDER(vr_maps_debug_free_mb, "Pretend Free Disk Space", 0.f, 4096.f, 64.f, "%.0f MB", ext(0.f, 65536.f),

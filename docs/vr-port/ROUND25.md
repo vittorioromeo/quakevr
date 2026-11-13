@@ -1134,7 +1134,7 @@ frame, the reverse grip's server checks reading the local client's view (a liste
   (aperture z -408..-328) sits on a frame bar whose top is the opening's bottom (-409), 23 units over the floor before
   it (-432; traced with `vr_brush_trace`): over a step (18), so no walker's box can ever go in. The engine kept the
   monster at the gate (`portal_handles` 1 while it made headway), the walker pressed against the bar, and the navmesh's
-  stuck back-off (`vr_nav_tele_stuck` 0.5 s) pulled it out of the trigger before the 1 s give-up
+  stuck back-off (0.5 s, `teleStuckSeconds`, was `vr_nav_tele_stuck`) pulled it out of the trigger before the 1 s give-up
   (`vr_portals_monster_giveup`), which restarted the give-up: over and over till the 8 s time-out (knights, fiends);
   grunts got through now and then by Quake's teleport when a shot paused the back-off. Step notes: `why 4`, phase 1,
   "backing off the teleporter" every 1.3 s at y 1075; 43 back-offs, 0 walked, 7 by Quake's teleport.
@@ -1161,3 +1161,31 @@ frame, the reverse grip's server checks reading the local client's view (a liste
   code: lift the box onto the bar when lined up, then walk in; Quake's walk refuses a box half over a ledge): not done.
   Also left: a framed opening narrower than the box still holds the monster, and the navmesh back-off restarts the 1 s
   give-up there the same way (not seen in these scenes).
+## revpicks: the author's picks from the rev25misc / rev25nav reviews (branch agent/revpicks, 2026-11-13)
+
+- **Back-off per host** (vr_slipseer.cpp): a 429 / 403 / 5xx backs off that host only (`hostKey`: lower case, no
+  "www."); an off-site screenshot host never holds up Slipseer or Quaddicted. backoff.txt is a line per host (the old
+  one-line file is read as Slipseer's); an answer (200 or 304) ends the host's back-off. `maps_slipseer` lists each.
+- **cache/slipseer trimmed** under `vr_maps_cache_mb` (the existing cap of the zip cache, 512) by the worker before its
+  first request each session: whole entries (page or picture and its .meta), least recently fetched first; never
+  backoff.txt, anything not named as ours, or an entry fetched in the last 10 min. 0 leaves the page cache untrimmed
+  (it is what keeps the requests few).
+- **Local addresses refused** (his "block local addresses only"): screenshot (fetch) and download (mapinstall `begin`,
+  each mirror) URLs whose literal host is localhost, 0/8, 127/8, 10/8, 172.16/12, 192.168/16, 169.254/16, ::, ::1,
+  fc00::/7, fe80::/10 or IPv4-mapped; and `Download`'s new `refuse_local` checks every resolved address as curl
+  connects (CURLOPT_OPENSOCKETFUNCTION, redirects too). http and https, any public host, stay allowed. Test aid
+  `vr_maps_allow_local` (0; Debug > Tools) for the tests' local servers (slipseer_test.py, maplibrary_large_test.py set
+  it). A local proxy in http_proxy would be refused too (not handled).
+- **Removed:** `vr_nav_gate_chase` (always on; teleporters_test.sh's `nochase` run gone) and `vr_nav_tele_stuck` (now
+  `teleStuckSeconds` 0.5). `portals::teleporterWalked` asks `monsterGate` (vr_portals_monsters_all walks unpaired
+  gates with the fit check). Stealth `VR_Stealth_TrailGate` drops a stored teleporter that is no longer a solid
+  trigger_teleport. MULTIPLAYER.md's listen-server table notes the reverse grip's `weapondrawnpose` 43 / 46.
+- Checks: build 0 warnings; slipseer_test 55 -> 74 passed, 0 failed (back-off, trim, local-address checks);
+  nav_tele_metric 18/20 and nav_tele_metric_gates 37/40 (the same as rev25nav's seeded runs); teleporters chase as
+  before (dog at framed_sill32 FAIL, open since origin/next 2fa0e7e58; grunt PASS); stealth gates 11 PASS, 0 failed.
+
+## Checklist reorganisation (clreorg, 2026-11-13)
+
+- checklist.txt 126 -> 79 lines in Flat-screen / VR sections by subject: 45 ticked lines retired, 3 duplicates dropped,
+  62 lines with a Test (8 new scenes, 6 broken ones fixed; vr_scenario lands an `up` spawn whose point is in a wall on
+  the ledge above it). Details: CHECKLIST_REORG.md.

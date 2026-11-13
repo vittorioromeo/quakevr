@@ -1499,6 +1499,13 @@ entity(entity m) VR_Stealth_TrailGate =
     {
         return world;
     }
+    // (the stored edict still a live teleporter: one killtargeted since is freed, and its edict may be reused by
+    // anything within the window)
+    if(p.stl_tele_gate.classname != "trigger_teleport" || p.stl_tele_gate.solid != SOLID_TRIGGER)
+    {
+        p.stl_tele_gate = world;
+        return world;
+    }
     // (vr_nav_trail: seen last as his image through a teleporter it can't walk through (a one-way one, VR_Stealth_Via),
     // the one he went into at most that long before: his trail goes through it too. Its marker was the spot in front of
     // the opening, where a grunt stood till its chase stumbled in.)

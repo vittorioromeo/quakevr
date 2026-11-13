@@ -141,6 +141,7 @@ def main():
 
     big, wide, bomb = zips["big"][0][:12], zips["wide"][0][:12], zips["bomb"][0][:12]
     script = ";".join([
+        "vr_maps_allow_local 1",  # (the zips come from this script's local server: refused otherwise)
         "map e1m1", "wait72",
         "vr_maps_debug_free_mb 100", f"maps_install {big}", "wait72",
         "vr_maps_debug_free_mb 0", "vr_maps_max_download_mb 100", f"maps_install {big}", "wait72",
