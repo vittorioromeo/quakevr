@@ -1530,12 +1530,52 @@ Used for both fresh maps and savegame loads.  A fresh map would also need
 to call ED_CallSpawnFunctions () to let the objects initialize themselves.
 ================
 */
+// The spawn function for a classname: Quake VR's, or AD's version (its QuakeC's ad_<classname>) in a map played by
+// Arcane Dimensions' rules where AD owns it (vr_ad.cpp VR_AD_OwnsClassname; ARCANE_DIMENSIONS.md 5.4), or outside them
+// for AD's artifacts, pickups, ladders and monsters (VR_AD_SpawnsOutside); NULL: none.
+static dfunction_t *ED_SpawnFunction (const char *classname)
+{
+	dfunction_t *func = ED_FindFunction (classname);
+	if (VR_AD_RulesOn ())
+	{
+		dfunction_t *adfunc = ED_FindFunction (va ("ad_%s", classname));
+		if (adfunc && VR_AD_OwnsClassname (classname, func != NULL))
+			func = adfunc;
+	}
+	else if (!func && VR_AD_SpawnsOutside (classname))
+		func = ED_FindFunction (va ("ad_%s", classname));
+	return func;
+}
+
+// QVR: an Enemy Count copy waiting for the map to spawn: its monster's keys in the map's text, its monster, which copy
+typedef struct
+{
+	const char	*keys;
+	int		orig;
+	int		k;
+	dfunction_t	*func;
+} edcopy_t;
+
+static void ED_CallSpawn (edict_t *ent, dfunction_t *func)
+{
+	SV_ReserveSignonSpace (512);
+
+	pr_global_struct->self = EDICT_TO_PROG(ent);
+	PR_ExecuteProgram (func - qcvm->functions);
+	VR_OnEntitySpawned (ent); // QVR
+}
+
 void ED_LoadFromFile (const char *data)
 {
 	const char	*classname;
+	const char	*entkeys;
 	dfunction_t	*func;
 	edict_t		*ent = NULL;
 	int		inhibit = 0;
+	int		copies, k;
+	string_t	mapclass;
+	edcopy_t	*pending = NULL; // QVR: Enemy Count's copies to spawn after the map
+	int		npending = 0, maxpending = 0;
 
 	pr_global_struct->time = qcvm->time;
 
@@ -1553,6 +1593,7 @@ void ED_LoadFromFile (const char *data)
 			ent = EDICT_NUM(0);
 		else
 			ent = ED_Alloc ();
+		entkeys = data; // QVR: its keys, parsed again for the run's copies of a monster (below)
 		data = ED_ParseEdict (data, ent);
 
 		if (!ent->v.classname)
@@ -1628,21 +1669,25 @@ void ED_LoadFromFile (const char *data)
 		}
 
 
+		// QVR: the run's enemy mutators (QC vr_run_enemyrandom.qc, vr_run_enemycount.qc; MUTATORS.md): a map's monster
+		// swapped for another kind before it spawns (Randomized Enemies), the number of copies of it to spawn after it
+		// (Enemy Count). A kind with no spawn function here: the map's own.
+		mapclass = ent->v.classname;
+		copies = VR_Run_MonsterSpawning (ent);
+		classname = PR_GetString (ent->v.classname);
+
 //
 // immediately call spawn function
 //
 	// look for the spawn function
-		func = ED_FindFunction (classname);
-		// AD support: in a map played by Arcane Dimensions' rules, AD's version of the classname (its QuakeC's
-		// ad_<classname>) where AD owns it (vr_ad.cpp VR_AD_OwnsClassname; ARCANE_DIMENSIONS.md 5.4)
-		if (VR_AD_RulesOn ())
+		func = ED_SpawnFunction (classname);
+		if (!func && ent->v.classname != mapclass)
 		{
-			dfunction_t *adfunc = ED_FindFunction (va ("ad_%s", classname));
-			if (adfunc && VR_AD_OwnsClassname (classname, func != NULL))
-				func = adfunc;
+			ent->v.classname = mapclass;
+			VR_EdictIndex_Touch (ent);
+			classname = PR_GetString (mapclass);
+			func = ED_SpawnFunction (classname);
 		}
-		else if (!func && VR_AD_SpawnsOutside (classname)) // AD support: AD's artifacts, pickups, ladders in any map (vr_ad.cpp)
-			func = ED_FindFunction (va ("ad_%s", classname));
 
 		if (!func)
 		{
@@ -1652,12 +1697,44 @@ void ED_LoadFromFile (const char *data)
 			continue;
 		}
 
-		SV_ReserveSignonSpace (512);
+		ED_CallSpawn (ent, func);
 
-		pr_global_struct->self = EDICT_TO_PROG(ent);
-		PR_ExecuteProgram (func - qcvm->functions);
-		VR_OnEntitySpawned (ent); // QVR
+		// QVR: Enemy Count's copies, spawned once the whole map has (below: their room is found among all of it)
+		for (k = 1; k <= copies; k++)
+		{
+			if (npending == maxpending)
+			{
+				maxpending = maxpending ? maxpending * 2 : 64;
+				pending = (edcopy_t *) realloc (pending, maxpending * sizeof (*pending));
+				if (!pending)
+					Sys_Error ("ED_LoadFromFile: out of memory for the copies");
+			}
+			pending[npending].keys = entkeys;
+			pending[npending].orig = NUM_FOR_EDICT (ent);
+			pending[npending].k = k;
+			pending[npending].func = func;
+			npending++;
+		}
 	}
+
+	// QVR: Enemy Count's copies: each its monster's own keys parsed again, placed beside it by QC with the whole map
+	// spawned (none: no room, or its monster gone)
+	for (k = 0; k < npending; k++)
+	{
+		edict_t *orig = EDICT_NUM (pending[k].orig);
+		edict_t *copy;
+		if (orig->free)
+			continue;
+		copy = ED_Alloc ();
+		ED_ParseEdict (pending[k].keys, copy);
+		if (!VR_Run_MonsterCopy (copy, orig, pending[k].k))
+		{
+			ED_Free (copy);
+			continue;
+		}
+		ED_CallSpawn (copy, pending[k].func);
+	}
+	free (pending);
 
 	Con_DPrintf ("%i entities inhibited\n", inhibit);
 }

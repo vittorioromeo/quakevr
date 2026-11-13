@@ -811,6 +811,7 @@ void Host_ShutdownServer(qboolean crash)
 	if (!sv.active)
 		return;
 
+	VR_OnShutdownServer (); // QVR: the pool's jobs that read the world joined (a game switch frees the models next)
 	sv.active = false;
 
 // stop all client sounds immediately
@@ -1219,6 +1220,8 @@ static void Host_CheckAutosave (void)
 	if (!sv_autosave.value || sv_autosave_interval.value <= 0.f || svs.maxclients != 1 || sv_player->v.health <= 0.f || cl.intermission)
 		return;
 	if (!VR_AutosaveAllowed (sv.name)) // QVR: none on Quake VR's own maps (the hub, the tutorial...: vr_continue.cpp)
+		return;
+	if (VR_RunIronman ()) // QVR: none in an Ironman run (its saves are refused: vr_runsetup.cpp)
 		return;
 	// QVR: none in Setup's preparation (-prepare, vr_prepare.cpp): it loads the newer campaigns' start maps, and their
 	// level-start autosaves made Continue offer a game the player never played.

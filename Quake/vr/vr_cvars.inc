@@ -3929,7 +3929,45 @@ QVR_CVAR(vr_maps_index_url, "https://www.quaddicted.com/api/v1/", CVAR_ARCHIVE) 
 QVR_CVAR(vr_maps_allow_progs, "0", CVAR_ARCHIVE)       // packages that carry their own progs.dat: 0 left out of the list (they replace the game's code), 1 included. They are in the index either way (maps_info shows them; maps_stats counts them)
 QVR_CVAR(vr_maps_max_download_mb, "0", CVAR_ARCHIVE)  // a package's zip refused over this many MB (the index's size, and the bytes as they arrive); 0: no limit (the free disk space is checked either way)
 QVR_CVAR(vr_maps_debug_free_mb, "0", CVAR_NONE)       // test aid: the free disk space the map installer is told it has, in MB (0: the real one). A low disk simulated
-QVR_CVAR(vr_maps_skill, "1", CVAR_ARCHIVE)              // the Map Library's Play difficulty picker: the last choice (0 Easy .. 3 Nightmare), selected next time. A pack's own start map with a skill selection skips the picker
+QVR_CVAR(vr_maps_skill, "1", CVAR_ARCHIVE)              // the Run Setup screen's Difficulty (the Map Library's Play, New Game, the hub): the last choice (0 Easy .. 3 Nightmare), selected next time. A start map with skill halls skips it
+// The run setup (vr_runsetup.cpp; docs/vr-port/MUTATORS.md): vr_runpick_<id> is the Run Setup screen's choice (saved,
+// selected next time), vr_run_<id> the run's own (not saved in the config: in each saved game, restored on its load;
+// the QC reads it). `vr_run` prints them all, `vr_run <id> <value>` sets one.
+QVR_CVAR(vr_runsetup_ask, "1", CVAR_ARCHIVE)          // 1: New Game, the Map Library's Play, Official Campaigns and the hub's teleporter show the Run Setup screen first; 0: the run starts at once with the last choices
+QVR_CVAR(vr_runpick_bn, "0", CVAR_ARCHIVE)            // Run Setup: Bloody Nightmare (Dawn of the Machine's hidden difficulty; shown once found)
+QVR_CVAR(vr_runpick_style, "3", CVAR_ARCHIVE)         // Run Setup: Style, the Gameplay preset at the run's start: 0 My Settings, 1 Classic, 2 Light, 3 Unleashed
+QVR_CVAR(vr_runpick_gore, "0", CVAR_ARCHIVE)          // Run Setup: the Gore preset at the run's start: 0 My Settings, 1 Full, 2 Minimal, 3 Off
+QVR_CVAR(vr_runpick_armed, "0", CVAR_ARCHIVE)         // Run Setup: Armed Humanoids: 0 as the Style sets them, 1 off, 2 on
+QVR_CVAR(vr_runpick_smartai, "0", CVAR_ARCHIVE)       // Run Setup: Smarter AI (vr_ai_enhanced): 0 as the Style sets it, 1 off, 2 on
+QVR_CVAR(vr_runpick_startweapon, "0", CVAR_ARCHIVE)   // Run Setup: Starting Weapon: 0 shotgun, 1 heavy revolver, 2 axe only, 3 unarmed (fists)
+QVR_CVAR(vr_runpick_meleeonly, "0", CVAR_ARCHIVE)     // Run Setup: Melee Only
+QVR_CVAR(vr_runpick_glasscannon, "0", CVAR_ARCHIVE)   // Run Setup: Glass Cannon
+QVR_CVAR(vr_runpick_pickups, "0", CVAR_ARCHIVE)       // Run Setup: Randomized Pickups: 0 off, 1 balanced (same kind, similar value), 2 everything goes
+QVR_CVAR(vr_runpick_ironman, "0", CVAR_ARCHIVE)       // Run Setup: Ironman (no saving; a death restarts the level)
+QVR_CVAR(vr_runpick_enemycount, "0", CVAR_ARCHIVE)    // Run Setup: Enemy Count: 0 1x (the map's), 1 2x, 2 3x
+QVR_CVAR(vr_runpick_enemyrandom, "0", CVAR_ARCHIVE)   // Run Setup: Randomized Enemies: 0 off, 1 balanced, 2 everything goes
+QVR_CVAR(vr_run_bn, "0", CVAR_NONE)                   // the run's Bloody Nightmare choice (its start sets vr_mg3_bn_start; the game's serverflags carry it)
+QVR_CVAR(vr_run_style, "0", CVAR_NONE)                // the run's Style (as vr_runpick_style): applied at its start and on loading its saves
+QVR_CVAR(vr_run_gore, "0", CVAR_NONE)                 // the run's Gore preset (as vr_runpick_gore)
+QVR_CVAR(vr_run_armed, "0", CVAR_NONE)                // the run's Armed Humanoids (as vr_runpick_armed)
+QVR_CVAR(vr_run_smartai, "0", CVAR_NONE)              // the run's Smarter AI (as vr_runpick_smartai)
+QVR_CVAR(vr_run_startweapon, "0", CVAR_NONE)          // the run's Starting Weapon (as vr_runpick_startweapon; QC vr_run_startweapon.qc, at a new game's parms)
+QVR_CVAR(vr_run_meleeonly, "0", CVAR_NONE)            // the run's Melee Only: guns are not picked up and do not fire, the axe at the start (QC vr_run_meleeonly.qc)
+QVR_CVAR(vr_run_glasscannon, "0", CVAR_NONE)          // the run's Glass Cannon: the player and the monsters take double damage (QC vr_run_glasscannon.qc)
+QVR_CVAR(vr_run_pickups, "0", CVAR_NONE)             // the run's Randomized Pickups (as vr_runpick_pickups): the map's pickups swapped as it loads (QC vr_run_pickups.qc)
+QVR_CVAR(vr_run_ironman, "0", CVAR_NONE)              // the run's Ironman: save, quicksave and autosave refused; a death restarts the level with what you entered it with (QC vr_run_ironman.qc)
+QVR_CVAR(vr_run_seed, "0", CVAR_NONE)                 // the run's seed, set at its start (Randomized Pickups: the same map gets the same pickups through the run, an Ironman restart too); 0: the server's random numbers
+QVR_CVAR(vr_ironman_refused, "0", CVAR_NONE)          // test aid: the saves Ironman refused since the game started (vr_ironman_test)
+QVR_CVAR(vr_runpickups_test, "0", CVAR_NONE)          // 1: Randomized Pickups' test (QC vr_run_test.qc: e1m1, e1m2, save and load, a new run; verdict "runpickups: N passed, M failed"); 2: the map loaded now only (another game's maps: AD's)
+QVR_CVAR(vr_ironman_test, "0", CVAR_NONE)             // 1: Ironman's test (QC vr_run_test.qc: saves refused, a death on e1m2 restarts it with what e1m1 left you; verdict "ironman: N passed, M failed")
+QVR_CVAR(vr_run_test_step, "0", CVAR_NONE)            // test aid: the run mutators' tests' step across map loads (vr_run_test.qc)
+QVR_CVAR(vr_run_test_tally, "0", CVAR_NONE)           // test aid: their tally across map loads (passed * 1000 + failed)
+QVR_CVAR(vr_run_test_a, "0", CVAR_NONE)               // test aid: a number kept across map loads (a layout's hash)
+QVR_CVAR(vr_run_test_b, "0", CVAR_NONE)               // test aid: another (unresolved targets)
+QVR_CVAR(vr_run_test_c, "0", CVAR_NONE)               // test aid: another (the map's monsters)
+QVR_CVAR(vr_run_enemycount, "0", CVAR_NONE)           // the run's Enemy Count: copies of each map monster beside it as the map loads (QC vr_run_enemycount.qc)
+QVR_CVAR(vr_run_enemyrandom, "0", CVAR_NONE)          // the run's Randomized Enemies: map monsters swapped as the map loads (QC vr_run_enemyrandom.qc)
+QVR_CVAR(vr_run_hubgo, "0", CVAR_NONE)                // the hub's teleporter: set by the Run Setup screen's Start, the teleporter then lets the player through (QC clears it)
 QVR_CVAR(vr_maps_slipseer, "1", CVAR_ARCHIVE)         // Slipseer (slipseer.com) listed in the Map Library beside Quaddicted (vr_slipseer.cpp): its listing pages read politely at start-up (cached on disk), a map's own page when it is picked. 0: Slipseer left out, nothing fetched from it
 QVR_CVAR(vr_maps_slipseer_delay, "5", CVAR_ARCHIVE)   // seconds at least between two Slipseer page requests (each wait is this to twice it, at random; never under 1): a person's pace
 QVR_CVAR(vr_maps_cache_mb, "512", CVAR_ARCHIVE)       // the map download cache (cache/maps/<sha256>.zip): at most this many MB kept, the oldest zips removed first when a download would pass it (and at start-up, and when it is lowered). 0: nothing kept once a package is installed. The Slipseer page and screenshot cache (cache/slipseer/) is held under the same size at start-up, the least recently fetched first (0: not trimmed)

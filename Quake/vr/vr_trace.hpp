@@ -57,6 +57,19 @@ namespace qvr::worldtrace
     return SV_PointContents(v);
 }
 
+// `contents`' rule on the given world model, reading no server global (sv.worldmodel changes at a map load): any
+// thread, while that model lives (the navmesh's tile builds on the pool, joined before the hunk goes: VR_OnClearMemory).
+[[nodiscard]] inline int contentsOf(qmodel_t* world, const glm::vec3& p)
+{
+    vec3_t v{p.x, p.y, p.z};
+    int c = SV_HullPointContents(&world->hulls[0], 0, v);
+    if(c <= CONTENTS_CURRENT_0 && c >= CONTENTS_CURRENT_DOWN)
+    {
+        c = CONTENTS_WATER;
+    }
+    return VR_LiquidContents(world, v, c);
+}
+
 [[nodiscard]] inline int clientContents(const glm::vec3& p)
 {
     if(!cl.worldmodel)

@@ -8,8 +8,8 @@
 #           where they were when it is released, and the crouched box follows the key: held crouched, let
 #           go standing again, since his eyes stand under the tallest crouched box's top whatever he does. Without the
 #           flag the same key does nothing: the game code answers "flat play off".
-#   torch   F switches the flashlight (the engine's vr_flashlight_toggle): worn on the head and lit at the start, put out
-#           by F (the packed state read back: bit 0 clear), lit again by F.
+#   torch   F switches the flashlight (the engine's vr_flashlight_toggle): worn on the head and out at the start (2026-11-13;
+#           lit before), lit by F (the packed state read back: bit 0 set), put out again by F.
 #   drop    G (impulse 47, weapons.qc, VR_Forcegrab_FlatDrop): the axe in the main hand leaves the hand the way the game
 #           drops a weapon ("flat drop:", then the hand weaponless). Without the flag the impulse is refused the same way.
 #   collect a box grabbed with E (impulse 46) is collected as soon as it is grabbed — vr_carry_autocollect 0 and the box
@@ -60,17 +60,16 @@ cro=$(grep -a "^flatkeys: crouched" "$S/crouchflat.log" | sed 's/^flatkeys: crou
 c0=$(echo "$cro" | sed -n 1p); c1=$(echo "$cro" | sed -n 2p); c2=$(echo "$cro" | sed -n 3p)
 check $([ "$cro" = "$(printf '0\n1\n0')" ] && echo 1 || echo 0) \
     "crouch: the crouched box follows the key: $c0 standing, $c1 held, $c2 let go -- up again, at his full speed"
-check $(grep -qa "torch lit 1" "$S/crouchflat.log" && echo 1 || echo 0) "crouch: the run itself is flatscreen (the torch worn and lit at the start)"
+check $(grep -qa "torch lit 0 worn 4" "$S/crouchflat.log" && echo 1 || echo 0) "crouch: the run itself is flatscreen (the torch worn on the head and out at the start)"
 run crouchvr vr "$P; +flatcrouch; wait40; vr_flatkeys_test 1" "^flatkeys:"
 check $(grep -qa "flat play off" "$S/crouchvr.log" && ! grep -qa "^flatkeys: crouched" "$S/crouchvr.log" && echo 1 || echo 0) \
     "crouch in the headset: the key does nothing (the game code: flat play off)"
 
-# 2. the flashlight: F out, F back on.
-run torchflat flat "$P; vr_flashlight_toggle; wait20; vr_flatkeys_test 1; wait10; vr_flashlight_toggle; wait20; vr_flatkeys_test 1" "^flatkeys: carry"
-lit=$(grep -ao "torch lit [01]" "$S/torchflat.log" | sed 's/torch lit //')
-first=$(echo "$lit" | head -1); last=$(echo "$lit" | tail -1); cnt=$(echo "$lit" | grep -c .)
-check $([ "$cnt" = 2 ] && [ "$first" = 0 ] && [ "$last" = 1 ] && echo 1 || echo 0) \
-    "torch: F puts it out (packed state bit 0 clear) and F lights it again ($first then $last)"
+# 2. the flashlight: out at the start, F on, F back out.
+run torchflat flat "$P; wait20; vr_flatkeys_test 1; wait10; vr_flashlight_toggle; wait20; vr_flatkeys_test 1; wait10; vr_flashlight_toggle; wait20; vr_flatkeys_test 1" "^flatkeys: carry"
+lit=$(grep -ao "torch lit [01]" "$S/torchflat.log" | sed 's/torch lit //' | tr -d '\n')
+check $([ "$lit" = 010 ] && echo 1 || echo 0) \
+    "torch: out at the start, F lights it (packed state bit 0 set), F puts it out again (lit: $lit)"
 run torchvr vr "$P; vr_flashlight_toggle; wait20; vr_flashlight_status; wait10; toggleconsole; quit" "flashlight"
 check $(grep -qa "flashlight" "$S/torchvr.log" && echo 1 || echo 0) "torch: the same command in the headset (the head's own torch, untouched by the flatscreen's gate)"
 

@@ -18,6 +18,10 @@ void init();
 // VR_OnSpawnServerAfterLoad: the map's geometry gathered, the size classes of the monsters it spawned built on the pool.
 void afterLoad();
 
+// VR_OnClearMemory, before the hunk goes (every map load, a failed one too): the builds and props' batches still on the
+// pool joined (they read the old world's model) and the navmeshes forgotten.
+void finishLoads();
+
 // Builtin navsteer(monster, goal): the yaw (degrees, 0..360) toward the next corner of the monster's path to the goal's
 // feet, or -1 when the chase should stay Quake's (vr_nav 0, no navmesh for its size yet, off the mesh, no path, or the
 // goal in a straight line on the mesh).

@@ -592,7 +592,7 @@ BeamTrace beamTraces[beamRings][beamSides];
 
 [[nodiscard]] bool enabled()
 {
-    // -flatscreenmode too: the lamp is the flatscreen player's, worn on the head and always lit (headMode).
+    // -flatscreenmode too: the lamp is the flatscreen player's, worn on the head (headMode), out at the start, F switches it.
     return vr_flashlight.value != 0.f && (vrActive() || flatplay::active());
 }
 
@@ -3047,7 +3047,9 @@ bool tookGrip(int hand)
 void reset()
 {
     Con_DPrintf("flashlight: reset (a fresh start)\n");
-    st.on = headMode(); // (Always on Head: on at a fresh start)
+    // (Always on Head: on at a fresh start. Flatscreen play: off, F lights it; his note 2026-11-13: lit at the start was
+    // only a test aid from before F was bound.)
+    st.on = headMode() && !flatplay::active();
     st.mode = Mode::Mounted;
     st.holder = -1;
     st.gunHand = -1;
@@ -3095,8 +3097,8 @@ void restoreState()
     st.gunSlot = int((packed >> 11) & 255) - 1;
     // Flatscreen play (-flatscreenmode) excepted: F switches the torch there (vr_flatplay.cpp reads the key and sends the
     // engine's own vr_flashlight_toggle), and the state saved each frame carries his choice over a level change: a torch
-    // put out with F stays out. A new game has nothing saved yet: lit as always, and his first switch is F.
-    if(headMode() && st.mode != Mode::OnHead && (!flatplay::active() || packed == 0u))
+    // put out with F stays out. A new game has nothing saved yet: out, and F lights it (2026-11-13; lit before).
+    if(headMode() && st.mode != Mode::OnHead && !flatplay::active())
     {
         st.on = true; // Always on Head, a save made in another mode (or a new game's empty state): worn at once, on
     }

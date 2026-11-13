@@ -150,6 +150,7 @@
 #include "vr_rigdata.hpp"
 #include "vr_rigseq.hpp"
 #include "vr_rigstudio.hpp"
+#include "vr_runsetup.hpp"
 #include "vr_arenadirector.hpp"
 #include "vr_waveeditor.hpp"
 #include "vr_weaponstudio.hpp" // (its own window: vr_weaponstudio.cpp, its keys' page layout: vr_weaponstudio_ui.cpp)
@@ -2204,7 +2205,9 @@ extern "C" void VR_Init()
     Cmd_AddCommand("maps_page_stats", menu::mapsPageStats_f); // (the map browser page: vr_menu_maps.inc)
     Cmd_AddCommand("maps_page", menu::mapsPage_f);
     Cmd_AddCommand("maps_page_pick", menu::mapsPagePick_f);
-    Cmd_AddCommand("maps_skill_test", menu::mapsSkillTest_f);
+    Cmd_AddCommand("vr_runsetup", menu::runSetup_f);
+    Cmd_AddCommand("vr_runsetup_screen_test", menu::runSetupScreenTest_f);
+    Cmd_AddCommand("maps_skill_test", menu::runSetupScreenTest_f); // (its old name: the Play difficulty picker's)
     Cmd_AddCommand("vr_tips_reset", tips::reset_f);
     Cmd_AddCommand("vr_tips_test", tips::test_f);
     Cmd_AddCommand("vr_mock_laser", menuui::mockLaser_f);
@@ -2342,6 +2345,7 @@ extern "C" void VR_Init()
     gfxpresets::init(); // vr_graphics_preset, My Settings (vr_gfxpresets.cpp)
     gorepresets::init(); // vr_gore_preset, vr_gore_preset_status, vr_gore_preset_test (vr_gorepresets.cpp)
     gameplaypresets::init(); // vr_gameplay_preset, vr_classic_quake, vr_gameplay_preset_test (vr_gameplaypresets.cpp)
+    runsetup::init(); // vr_run, vr_runsetup_test (vr_runsetup.cpp; the Run Setup screen: vr_menu_runsetup.inc)
     flatlook::init(); // vr_flatlook_info (vr_flatlook.cpp)
     visor::init();    // vr_flat_visor_report, vr_flat_visor_fx (vr_visor.cpp)
     stereosingle::init(); // vr_stereo_single_info

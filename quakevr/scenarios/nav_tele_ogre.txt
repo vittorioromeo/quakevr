@@ -1,7 +1,0 @@
-title Navmesh: an ogre and a shambler beyond vrteleporters' gates
-map vrteleporters
-start 0 1150 24 -90
-god
-spawn "Ogre" 700 60
-spawn "Shambler" 700 -100
-cvar vr_nav_debug 2

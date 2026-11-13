@@ -15,6 +15,7 @@
 #include "vr_menuui.hpp"
 #include "vr_testkit.hpp"
 #include "vr_random.hpp"
+#include "vr_runsetup.hpp"
 #include "vr_menu_internal.hpp"
 #include "vr_armourdata.hpp"
 #include "vr_flataimsens.hpp"
@@ -22,6 +23,7 @@
 #include "vr_flatsight.hpp"
 #include "vr_gorepresets.hpp"
 #include "vr_gameplaypresets.hpp"
+#include "vr_presets.hpp"
 #include "vr_cvars.hpp"
 #include "vr_monstervalues.hpp"
 #include "vr_tunables.hpp"
@@ -478,21 +480,22 @@ char reviewListHeader[64];
 
 // The old Single Player and Bot Control menus' extras.
 void playCalibration() { Cbuf_AddText("vr_setup\n"); }
-void playHub() { Cbuf_AddText("vr_campaign_hub\n"); }
+// The hub is no run: the last run's mutators end there (its teleporter asks the next run's: the Run Setup screen).
+void playHub() { qvr::runsetup::endRun(); Cbuf_AddText("vr_campaign_hub\n"); }
 // The tutorial (vrtutorial: Misc/quakevr/maps/vrtutorial_gen.py) on Easy.
 void playTutorial() { Cbuf_AddText("skill 0; map vrtutorial\n"); }
 void playFiringRange() { Cbuf_AddText("map vrfiringrange\n"); }
 // Official Campaigns > Dawn of the Machine: Bloody Nightmare: skill 3 and vr_mg3_bn_start (the start map's first frame
 // makes it a Bloody Nightmare game, QC vr_mg3_defs.qc MG3_Frame), then the campaign as its own row starts it. While
 // the campaign cannot start, only its reason is printed and nothing is set.
+// Now through the Run Setup screen, its Bloody Nightmare row on (its rule: skill 3 and vr_mg3_bn_start at the start).
 void playMg3BloodyNightmare()
 {
     if(VR_CampaignUnavailable(5) == 0)
     {
-        Cvar_Set("skill", "3");
-        Cvar_Set("vr_mg3_bn_start", "1");
+        Cvar_Set("vr_runpick_bn", "1");
     }
-    VR_SelectCampaign(5);
+    openRunSetupCampaign(5);
 }
 void addBotTeam0() { Cbuf_AddText("impulse 100\n"); }
 void addBotTeam1() { Cbuf_AddText("impulse 101\n"); }
@@ -506,7 +509,7 @@ int campaignsBloodyShown = -1;
 void startArcaneDimensions() { Con_Printf("VR: Arcane Dimensions confirmed in the menu.\n"); Cbuf_InsertText("vr_campaign_native ad\n"); }
 void selectCampaignRow(int index)
 {
-    if(index != qvr::ad::campaignIndex) { VR_SelectCampaign(index); return; }
+    if(index != qvr::ad::campaignIndex) { openRunSetupCampaign(index); return; } // (the Run Setup screen first)
     M_Confirm("Arcane Dimensions mode is still\nexperimental and might have bugs.", "Continue", "Back", 0.f,
         startArcaneDimensions);
 }
@@ -2125,6 +2128,10 @@ void addMenuDetail(za::Vector<Item>& list, int page)
         campaignsBloodyShown != (vr_mg3_bn_discovered.value != 0.f ? 1 : 0))
     {
         done[page] = false; // Dawn of the Machine's Bloody Nightmare found (or reset): its row shown or not
+    }
+    if(page == pageIndex(pageRunSetup) && runSetupStale())
+    {
+        done[page] = false; // Run Setup: a row held by another's choice (or let go), or shown, or what starts changed
     }
     if(page == pageIndex(pageBodyArms) && armsPageCalibrated >= 0 && armsPageCalibrated != (bodycal::calibrated() ? 1 : 0))
     {

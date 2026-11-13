@@ -31,6 +31,7 @@
 #include "vr_flashlight.hpp"
 #include "vr_props.hpp"
 #include "vr_rigstudio.hpp"
+#include "vr_runsetup.hpp"
 #include "vr_weaponstudio.hpp"
 #include "vr_scenario.hpp"
 #include "vr_tips.hpp"
@@ -580,6 +581,13 @@ void resetServerWorld()
 
 } // namespace
 
+extern "C" void VR_OnShutdownServer()
+{
+    // Host_ShutdownServer: a game or campaign switch (COM_SwitchGameInternal) frees the models next (Mod_ResetAll)
+    // without Host_ClearMemory, so the navmesh's pool builds, which read the world model, are joined here too.
+    qvr::nav::finishLoads();
+}
+
 extern "C" void VR_OnClearMemory()
 {
     // Host_ClearMemory (SV_SpawnServer: every map and loaded game; CL_ClearState without a local server): the edicts,
@@ -595,6 +603,7 @@ extern "C" void VR_OnClearMemory()
     // The map load's builds still on the pool (a load that failed half-way) finished first: they read the old world.
     qvr::hull::finishLoads();
     qvr::box3d::finishLoads();
+    qvr::nav::finishLoads(); // (the navmeshes' tile builds read the old world's model)
     qvr::hull::keepForReload(); // (before the caches below let go of them: kept for the same map's next load)
     // The registered scratch buffers given back (a one-off peak not kept for the next map), and the caches of the old
     // world's data (vr_mem.hpp).
@@ -693,6 +702,18 @@ void probesEnd(const za::Vector<int>& probes)
 
 extern "C" void VR_OnSpawnServerSpawned()
 {
+    // The run's mutators' map hook (QC VR_Run_MapSpawned: Randomized Pickups): every entity of the map spawned, precaches
+    // still open. Not a saved game's load (its entities come from the save). Its parameter: the weapons the player enters
+    // with (his level-start parm1: a changelevel, a restart), 0 in a new game (not connected yet).
+    if(!loadingSaveGame)
+    {
+        if(dfunction_t* fn = VR_ED_FindFunction("VR_Run_MapSpawned"))
+        {
+            const float held = svs.clients && svs.clients[0].active ? svs.clients[0].spawn_parms[0] : 0.f;
+            (void)callQc(static_cast<func_t>(fn - qcvm->functions), held);
+        }
+    }
+
     // The kinds that can appear later, made now (removed below): the map's monsters waiting for a trigger, then (after
     // the map's monsters' limbs, unless vr_limbs_prebuild 2) the dispensers', dummies' and debug spawner's kinds.
     za::Vector<int> probes;
@@ -845,6 +866,7 @@ extern "C" int VR_ServerMusicTrack(int mapTrack)
 extern "C" void VR_OnBeginLoadGame()
 {
     loadingSaveGame = true;
+    qvr::runsetup::onLoadGame(); // the saved run's choices (its difficulty, presets, mutators: vr_runsetup.cpp)
     VR_EdictIndex_Reset();
 }
 
@@ -873,6 +895,7 @@ extern "C" int VR_ReadSaveInfo(const char* text, const char* relname)
     sscanf(line, "// qvr_save %d progs %x build %127[^\r\n]", &format, &crc, build);
     qvr::brushes::readSaveLines(text); // (made again after the load: restoreAfterLoad)
     qvr::permdecals::readSaveLines(text); // (the permanent decals: baked again once its map has loaded)
+    qvr::runsetup::readSaveLines(text);   // (the run's choices: set when the load goes ahead, VR_OnBeginLoadGame)
     if(format > VR_SAVE_FORMAT)
     {
         Con_Printf("ERROR: %s was saved by a newer build (%s, save format %d; this one, %s, reads up to %d): not loaded\n",

@@ -11,17 +11,8 @@
 za::Vector<Item> pageMain()
 {
     return {
-        // (Player feedback, ROUND25.md "Gameplay preset": "a preset to make the mod as vanilla Quake as possible... going
-        // through so many options can be daunting": one press, and one to go back.)
-        action("Classic Quake", gameplaypresets::classicApply)
-            .help("As close to Quake as the mod allows, in one press: Graphics Off (Quake)'s look, Gore Minimal and "
-                  "Gameplay Classic (Quake's monsters, combat and teleporters). Your hands, holsters, comfort and controls "
-                  "stay as they are. Back to My Settings sets all three back."),
-        info(gameplaypresets::classicLine),
-        action("Back to My Settings", gameplaypresets::classicBack)
-            .help("Your own graphics, gore and gameplay settings back, as they were before you first picked a preset of "
-                  "each (or as you last saved them as My Settings)."),
-
+        // (Classic Quake's rows were here until 2026-11-13: the Style is the Run Setup screen's now, asked at each run's
+        // start; VR Settings > Gameplay > Gameplay Presets and the pavilion's Classic Quake board stay.)
         header("Calibration"),
         open("Height and Hand Calibration", pageIndex(pageVrsHeightHands))
             .help("Your height (Set Height Now measures it), the world's scale, the floor's height, and the drawn hands "
