@@ -609,3 +609,7 @@ His words: a running sword throw that lands point first fully gibs a grunt; keep
 ## blendwhy
 
 - Blender add-on: the timer-driven `popup_menu` (never showed) is gone; the panel lists the refusal (or grown-box) lines under "Last:" and a "Why?" button opens a dialog with all of them, the log path and a Copy tick. `py_compile` ok; no background Blender test covers the panel.
+
+## daggerskewer
+
+- The dagger skewers shallower and takes one gib. Two new weapon keys (weapons.txt, vr_weapons.inc): skewer_depth (the share of vr_embed_skewer_depth the first gib sits from the tip; default 1, dagger 0.5) and skewer_most (most gibs on this blade, 0 = the tunable; dagger 1); one code path (VR_Skewer_Place0, VR_Skewer_Most in vr_skewer.qc). The blade lines are 28 (sword) and 9.3 (dagger) units from the hand: the dagger's head was at 8 (capped 7.9, almost at the hilt), now 4.0 from the tip and 5.3 from the hilt end; sword unchanged (8.0 and 20.0). Test `vr_embed_test 40` cases 6 and 7 (24 of 24).

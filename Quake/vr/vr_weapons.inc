@@ -488,6 +488,10 @@ QVR_WEAPON_KEY(ReloadHoldCurlPinky, "reload_hold_curl_pinky")
 // scale_origin): each one's ends (A, B) and the way it faces (O: out of the edge, square to it, in the blade's plane), the
 // head's middle on the handle's axis and the handle's far end (Butt). New keys: no migration.
 QVR_WEAPON_KEY(Embed, "embed")
+// Skewered gibs (QC/vr_skewer.qc): skewer_most, the most gibs on this blade (0: vr_embed_skewer_most's; the dagger 1);
+// skewer_depth, the share of vr_embed_skewer_depth this blade puts the first gib from its tip (1 by default).
+QVR_WEAPON_KEY(SkewerMost, "skewer_most")
+QVR_WEAPON_KEY(SkewerDepth, "skewer_depth")
 QVR_WEAPON_KEY(EmbedE1AX, "em_e1a_x")
 QVR_WEAPON_KEY(EmbedE1AY, "em_e1a_y")
 QVR_WEAPON_KEY(EmbedE1AZ, "em_e1a_z")

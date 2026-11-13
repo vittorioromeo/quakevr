@@ -7,7 +7,9 @@
 //   2 the same stab with the knight's sword: the dagger's blade (how deep a held stab can go: vr_embed_hold_sword_most of
 //     it) is about a third of the sword's;
 //   3 thrown point first at the wall: it sticks, its tip where its depth says;
-//   4 thrown at a live grunt's chest: it sticks in it and hurts it.
+//   4 thrown at a live grunt's chest: it sticks in it and hurts it;
+//   6, 7 skewered gibs (skewer_depth, skewer_most): a head, a limb, a second gib on the dagger (shallower, one at most) and on
+//     the knight's sword (as ever: 8 units from the tip, up to vr_embed_skewer_most).
 // With -flatscreenmode (flat-screen play) case 5 alone: the dagger held in the main hand, the mouse button's swing
 // (vr_flat_punch main) at a grunt ahead hurts it, the dagger still in the hand.
 // Each blow's damage is printed (the dagger's vr_dagger_damage of the sword's). Ends `embeddagger: N passed, M failed`.
@@ -46,7 +48,7 @@ void() VR_DG_Frame =
         vr_et_m.nextthink = time + 0.5; // (the body stands where it is, its blow's anger put off: as test 7's)
         vr_et_m.velocity = '0 0 0';
     }
-    vr_eh_flags = vr_et_case == 2 ? 0 : VR_DG_Flags(); // (VR_EH_Blow's give; VR_EH_NextCase clears it)
+    vr_eh_flags = (vr_et_case == 2 || vr_et_case == 7) ? 0 : VR_DG_Flags(); // (VR_EH_Blow's give; VR_EH_NextCase clears it)
 
     // ---- 0: a swing across a grunt
     if(vr_et_case == 0)
@@ -161,6 +163,99 @@ void() VR_DG_Frame =
             VR_Test_Check(VRGetEntWeapon(p, h) == WID_SWORD, sprintf("the dagger still in the hand (holds %g)", VRGetEntWeapon(p, h)));
             VR_ET_NextCase();
         }
+        return;
+    }
+    // ---- 6, 7: skewered gibs (his 2026-11-13: too deep on the dagger, one at most): a head, then a limb, then a second gib, on the
+    // dagger (6) and, as it is, on the knight's sword (7). Where each sits: from the tip, and from the hand end of the blade's line.
+    if((vr_et_case == 6 || vr_et_case == 7) && !VR_FlatPlay(p))
+    {
+        float dag = vr_et_case == 6;
+        float want = cvar_hget(cvarh_vr_embed_skewer_depth) * (dag ? 0.5 : 1);
+        if(vr_et_s == 0)
+        {
+            setorigin(p, vr_eh_home);
+            p.velocity = '0 0 0';
+            cvar_set("vr_embed", "1");
+            cvar_set("vr_embed_skewer_most", "3");
+            localcmd("+grabmain\n");
+            VR_ET_To(10);
+        }
+        else if(vr_et_s == 10 && VR_HandGrabUtil_IsHandGrabbing(p, h))
+        {
+            VR_EH_Give(WID_SWORD, dag ? VR_DG_Flags() : 0);
+            VR_Blow(h).mh_far = '0 0 0';
+            VR_ET_To(1);
+        }
+        else if(vr_et_s == 1 && VR_Blow(h).mh_far != '0 0 0')
+        {
+            makevectors(p.v_angle);
+            vr_ets_g[0] = VR_ETS_Head(p, VR_ETS_OnLine(0));
+            vr_ets_g[1] = VR_ETS_Gib(p, VR_ETS_OnLine(0));
+            vr_ets_g[1].vr_prop_mass = 12.4; // (a soldier's leg)
+            vr_ets_g[2] = VR_ETS_Gib(p, VR_ETS_OnLine(0));
+            VR_ET_To(2);
+        }
+        else if(vr_et_s == 2 && vr_ets_g[0].takedamage && vr_ets_g[1].takedamage && vr_ets_g[2].takedamage)
+        {
+            // The head
+            entity g = vr_ets_g[0];
+            VR_ETS_PutOn(g, 0);
+            VR_ETS_Blow(p, g, VR_MKIND_STAB, 6);
+            float len = VR_Skewer_Line(g);
+            float back = VR_Skewer_Back(g, len);
+            VR_Test_Check(g.vr_skewer_p == p, sprintf("%s: a head skewered", dag ? "dagger" : "sword"));
+            VR_Test_Check(fabs(back - want) < 0.5, sprintf("%s: the head's middle %.1f from the tip (wanted %.1f); %.1f from the hilt end of the blade's line (%.1f long)",
+                dag ? "dagger" : "sword", back, want, len - back, len));
+            VR_Test_Check(len - back > len * 0.5, sprintf("well short of the hilt: %.0f%% of the line from it", 100 * (len - back) / len));
+            // A second gib (a limb) while one is on
+            g = vr_ets_g[1];
+            VR_ETS_PutOn(g, 0);
+            VR_ETS_Blow(p, g, VR_MKIND_STAB, 6);
+            if(dag)
+            {
+                VR_Test_Check(g.vr_skewer_p == world, "a second gib is not taken (blade full: one at most)");
+            }
+            else
+            {
+                VR_Test_Check(g.vr_skewer_p == p, "a second gib is taken, as before");
+            }
+            VR_ET_To(3);
+        }
+        else if(vr_et_s == 3)
+        {
+            // The limb alone on the blade (the head taken off it)
+            if(vr_ets_g[0].vr_skewer_p == p)
+            {
+                remove(vr_ets_g[0]);
+            }
+            entity g = vr_ets_g[2];
+            if(dag && vr_ets_g[1].vr_skewer_p == p)
+            {
+                remove(vr_ets_g[1]);
+            }
+            if(!dag)
+            {
+                g = vr_ets_g[1]; // (the sword: the limb that is on it)
+            }
+            if(g.vr_skewer_p != p)
+            {
+                VR_ETS_PutOn(g, 0);
+                g.vr_prop_mass = 12.4;
+                VR_ETS_Blow(p, g, VR_MKIND_STAB, 6);
+            }
+            float len2 = VR_Skewer_Line(g);
+            float back2 = VR_Skewer_Back(g, len2);
+            VR_Test_Check(g.vr_skewer_p == p, sprintf("%s: a limb skewered", dag ? "dagger" : "sword"));
+            float shift = dag ? 0 : cvar_hget(cvarh_vr_embed_skewer_gap) * g.vr_skewer_slot;
+            VR_Test_Check(fabs(back2 - (want + shift)) < 0.5, sprintf("%s: the limb's middle %.1f from the tip (wanted %.1f); %.1f from the hilt end (%.1f long)",
+                dag ? "dagger" : "sword", back2, want + shift, len2 - back2, len2));
+            VR_EH_NextCase();
+        }
+        return;
+    }
+    if(vr_et_case == 5 && !VR_FlatPlay(p))
+    {
+        VR_ET_NextCase();
         return;
     }
     VR_Test_Verdict();

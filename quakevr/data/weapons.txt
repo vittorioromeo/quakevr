@@ -200,6 +200,8 @@ defaults
     hol_shoulder_yaw "0"
     hol_shoulder_roll "0"
     w_mass "0"
+    skewer_most "0"
+    skewer_depth "1"
     w_com "0"
     w_len "0"
     w_stiff "1"
@@ -4752,6 +4754,8 @@ weapon 51
     // make_dagger.py's printout. Embedded by its point as the sword is (embed 1): the depth is a share of the blade's
     // length, so a third as deep. A light blade: 1.2 kg, 34 cm, balanced just ahead of the hand.
     embed "1"
+    skewer_most "1" // one gib at a time on the short blade (his note 2026-11-13)
+    skewer_depth "0.5" // and shallower: half the sword's 8 units from the tip
     2h_fxd_hp "-1.5"
     2h_fxd_hr "0.0"
     2h_fxd_hy "0.0"
