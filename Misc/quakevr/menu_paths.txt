@@ -1,5 +1,7 @@
 # menu_paths.txt -- every page and row of the VR menus (vr_menu_dump_paths; Misc/quakevr/menu_paths.py):
 # <cvar, @page or empty>|<menu detail level>|<page title>|<row label>|<path>
+|0|VR Settings|Classic Quake|VR Settings > Classic Quake
+|0|VR Settings|Back to My Settings|VR Settings > Back to My Settings
 |0|VR Settings|Reset All to Defaults|VR Settings > Reset All to Defaults
 @page|1|Advanced VR Options||Advanced VR Options
 |1|Advanced VR Options|Run VR Calibration Again|Advanced VR Options > Run VR Calibration Again
@@ -104,6 +106,12 @@ vr_gore|0|VR Settings - Gameplay|Gore|VR Settings > Gameplay > Gore
 vr_fresh_map_seeds|0|VR Settings - Gameplay|New Each Time|VR Settings > Gameplay > New Each Time
 vr_arena|0|VR Settings - Gameplay|Arena In Any Map|VR Settings > Gameplay > Arena In Any Map
 |0|VR Settings - Gameplay|Reset This Page|VR Settings > Gameplay > Reset This Page
+@page|0|Gameplay Presets||VR Settings > Gameplay Presets
+|0|Gameplay Presets|Classic|VR Settings > Gameplay Presets > Classic
+|0|Gameplay Presets|Light|VR Settings > Gameplay Presets > Light
+|0|Gameplay Presets|Unleashed (as shipped)|VR Settings > Gameplay Presets > Unleashed (as shipped)
+|0|Gameplay Presets|My Settings|VR Settings > Gameplay Presets > My Settings
+|0|Gameplay Presets|Save as My Settings|VR Settings > Gameplay Presets > Save as My Settings
 @page|0|VR Settings - Item Collection||VR Settings > Item Collection
 vr_menu_pickup_mode|0|VR Settings - Item Collection|Item Pickup Mode|VR Settings > Item Collection > Item Pickup Mode
 vr_carry_autocollect|0|VR Settings - Item Collection|Backpacks Too|VR Settings > Item Collection > Backpacks Too
@@ -5614,6 +5622,9 @@ vr_test_weaponinst_slot|2|Debug - Tests|Holster|Advanced VR Options > Debug > Te
 |2|Debug - Tests|Hand Off to the Off Hand|Advanced VR Options > Debug > Tests > Hand Off to the Off Hand
 |2|Debug - Tests|Take It Back|Advanced VR Options > Debug > Tests > Take It Back
 |2|Debug - Tests|Switch Hands|Advanced VR Options > Debug > Tests > Switch Hands
+|2|Debug - Tests|Gameplay Preset and Classic Quake|Advanced VR Options > Debug > Tests > Gameplay Preset and Classic Quake
+|2|Debug - Tests|Gore Preset|Advanced VR Options > Debug > Tests > Gore Preset
+|2|Debug - Tests|Presets' State|Advanced VR Options > Debug > Tests > Presets' State
 |2|Debug - Tests|Shotgun in the Off Hand|Advanced VR Options > Debug > Tests > Shotgun in the Off Hand
 |2|Debug - Tests|Nailgun in the Off Hand|Advanced VR Options > Debug > Tests > Nailgun in the Off Hand
 |2|Debug - Tests|Rocket Launcher in the Off Hand|Advanced VR Options > Debug > Tests > Rocket Launcher in the Off Hand

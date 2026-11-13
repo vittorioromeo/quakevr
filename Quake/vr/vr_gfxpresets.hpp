@@ -11,11 +11,22 @@
 // Console: vr_graphics_preset 0..4 applies a preset (5: My Settings) and goes back to -1 (it is a button, not a state);
 // vr_graphics_preset_save is Save as My Settings; vr_graphics_preset_status prints the state and, when Custom, the rows
 // that differ from the nearest preset.
+//
+// The machinery (applying, matching, My Settings, the menu's lines) is vr_presets.cpp's, shared with the Gore and
+// Gameplay presets (vr_gorepresets.cpp, vr_gameplaypresets.cpp).
 
 #pragma once
 
+namespace qvr::presetcore
+{
+class Kind;
+}
+
 namespace qvr::gfxpresets
 {
+
+// The machinery's state for the graphics table (Classic Quake, tests).
+[[nodiscard]] presetcore::Kind& kind();
 
 inline constexpr int levelCount = 5; // Off, Low, Medium, High, Ultra
 inline constexpr int levelHigh = 3;  // the shipped defaults

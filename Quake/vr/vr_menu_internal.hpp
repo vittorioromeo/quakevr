@@ -27,6 +27,7 @@
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
 #include "vr_gadget.hpp"
+#include "vr_gameplaypresets.hpp"
 #include "vr_gfxpresets.hpp"
 #include "vr_mapindex.hpp"
 #include "vr_mapinstall.hpp"

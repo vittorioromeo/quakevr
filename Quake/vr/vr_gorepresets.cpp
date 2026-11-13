@@ -7,25 +7,17 @@
 #include "vr_engine.hpp"
 #include "vr_gore.hpp"
 #include "vr_particles.hpp"
+#include "vr_presets.hpp"
 #include "vr_testkit.hpp"
 
 #include "Zancle/Math/Clamp.hpp"
-
-#include <stdlib.h>
-#include <string.h>
 
 namespace qvr::gorepresets
 {
 namespace
 {
 
-// A row: a setting and its value at Minimal and Off (Full: the setting's default).
-struct Row
-{
-    const char* name;
-    const char* minimal;
-    const char* off;
-};
+using presetcore::D;
 
 // What Minimal keeps: the blood of a hit (Hit Blood 0.6x), its small splats on the model (wounds, dents) and the
 // bullet and blast marks. What it drops: every blood stain on the world (vr_gore 0: no sprays, pools, runs, drips, gib
@@ -33,95 +25,63 @@ struct Row
 // chunks (a gibbing is Quake's few chunks: vr_smallgibs 0, vr_gib_limbs 0), beheading, limbs cut off or popped, teeth.
 // Off is that with no hit blood either and no blood painted on models (ROUND25.md, "Gore preset").
 // clang-format off
-constexpr Row rows[] = {
-    //                              Minimal  Off
+constexpr presetcore::Row rows[] = {
+    //                                  Full Minimal  Off
     // Stains and sprays on the world
-    {"vr_gore",                     "0",     "0"},
-    {"vr_gore_spray",               "0",     "0"},
-    {"vr_gore_pools",               "0",     "0"},
-    {"vr_gore_drips",               "0",     "0"},
-    {"vr_gore_wound_drips",         "0",     "0"},
-    {"vr_gore_stick_thrown",        "0",     "0"},
-    {"vr_gore_backsplatter",        "0",     "0"},
-    {"vr_gore_mist",                "0",     "0"},
-    {"vr_gib_blood",                "0",     "0"},
-    {"vr_water_blood",              "0",     "0"},
+    {&vr_gore, {D, "0", "0"}},
+    {&vr_gore_spray, {D, "0", "0"}},
+    {&vr_gore_pools, {D, "0", "0"}},
+    {&vr_gore_drips, {D, "0", "0"}},
+    {&vr_gore_wound_drips, {D, "0", "0"}},
+    {&vr_gore_stick_thrown, {D, "0", "0"}},
+    {&vr_gore_backsplatter, {D, "0", "0"}},
+    {&vr_gore_mist, {D, "0", "0"}},
+    {&vr_gib_blood, {D, "0", "0"}},
+    {&vr_water_blood, {D, "0", "0"}},
     // Streams and spurts
-    {"vr_gore_streams",             "0",     "0"},
+    {&vr_gore_streams, {D, "0", "0"}},
     // Feet, hands and gear
-    {"vr_footprints",               "0",     "0"},
-    {"vr_handprints",               "0",     "0"},
-    {"vr_gore_hands",               "0",     "0"},
-    {"vr_gore_spatter",             "0",     "0"},
-    {"vr_gore_spatter_gibs",        "0",     "0"},
-    {"vr_gore_gear",                "0",     "0"},
-    {"vr_gore_gear_nearby",         "0",     "0"},
-    {"vr_gore_gear_drops",          "0",     "0"},
-    {"vr_gore_spread",              "0",     "0"},
+    {&vr_footprints, {D, "0", "0"}},
+    {&vr_handprints, {D, "0", "0"}},
+    {&vr_gore_hands, {D, "0", "0"}},
+    {&vr_gore_spatter, {D, "0", "0"}},
+    {&vr_gore_spatter_gibs, {D, "0", "0"}},
+    {&vr_gore_gear, {D, "0", "0"}},
+    {&vr_gore_gear_nearby, {D, "0", "0"}},
+    {&vr_gore_gear_drops, {D, "0", "0"}},
+    {&vr_gore_spread, {D, "0", "0"}},
     // Your own wounds
-    {"vr_player_gore",              "0",     "0"},
-    {"vr_body_blood",               "0",     "0"},
-    {"vr_body_blood_marks",         "0",     "0"},
-    {"vr_body_blood_floor",         "0",     "0"},
+    {&vr_player_gore, {D, "0", "0"}},
+    {&vr_body_blood, {D, "0", "0"}},
+    {&vr_body_blood_marks, {D, "0", "0"}},
+    {&vr_body_blood_floor, {D, "0", "0"}},
     // Chunks, heads and limbs
-    {"vr_smallgibs",                "0",     "0"},
-    {"vr_smallgibs_player",         "0",     "0"},
-    {"vr_smallgibs_brains",         "0",     "0"},
-    {"vr_gib_limbs",                "0",     "0"},
-    {"vr_decap",                    "0",     "0"},
-    {"vr_limbs",                    "0",     "0"},
-    {"vr_teeth",                    "0",     "0"},
+    {&vr_smallgibs, {D, "0", "0"}},
+    {&vr_smallgibs_player, {D, "0", "0"}},
+    {&vr_smallgibs_brains, {D, "0", "0"}},
+    {&vr_gib_limbs, {D, "0", "0"}},
+    {&vr_decap, {D, "0", "0"}},
+    {&vr_limbs, {D, "0", "0"}},
+    {&vr_teeth, {D, "0", "0"}},
     // The blood of a hit, and painted on the models
-    {"vr_blood_amount",                "0.6",   "0"},
-    {"vr_wounds",                   nullptr, "0"},
+    {&vr_blood_amount, {D, "0.6", "0"}},
+    {&vr_wounds, {D, D, "0"}},
 };
 // clang-format on
 
 constexpr int rowCount = static_cast<int>(sizeof(rows) / sizeof(rows[0]));
 
-// A row's value at a choice (1 Full, 2 Minimal, 3 Off); nullptr in the table: the default.
-[[nodiscard]] const char* target(const cvar_t& var, const Row& row, int choice)
-{
-    const char* v = choice == choiceMinimal ? row.minimal : choice == choiceOff ? row.off : nullptr;
-    return v ? v : var.default_string ? var.default_string : "0";
-}
+// The levels: a choice less one (choiceFull 1 is level 0).
+constexpr const char* levelNames[] = {"Full", "Minimal", "Off"};
 
-[[nodiscard]] bool same(const char* a, const char* b)
-{
-    char* endA = nullptr;
-    char* endB = nullptr;
-    const double x = strtod(a, &endA);
-    const double y = strtod(b, &endB);
-    if(endA != a && *endA == '\0' && endB != b && *endB == '\0')
-    {
-        return static_cast<float>(x) == static_cast<float>(y);
-    }
-    return strcmp(a, b) == 0;
-}
+constexpr presetcore::Table table{"gore", "VR Settings > Gameplay > Gore", rows, rowCount, levelNames, 3};
+presetcore::Kind presetKind{table};
 
 bool busy = false; // the preset's own changes: not a choice made
 
 [[nodiscard]] int differing(int choice, bool print)
 {
-    int n = 0;
-    for(const Row& row : rows)
-    {
-        const cvar_t* var = Cvar_FindVar(row.name);
-        if(!var)
-        {
-            continue;
-        }
-        const char* want = target(*var, row, choice);
-        if(!same(var->string, want))
-        {
-            n++;
-            if(print)
-            {
-                Con_Printf("    %s %s (wants %s)\n", row.name, var->string, want);
-            }
-        }
-    }
-    return n;
+    return presetKind.differing(choice - choiceFull, print);
 }
 
 void onChoice(cvar_t* var)
@@ -139,24 +99,7 @@ void onChoice(cvar_t* var)
 
 void statusCmd()
 {
-    const int now = matching();
-    Con_Printf("gore preset: %s (rows %d)\n", now == choiceFull ? "Full" : now == choiceMinimal ? "Minimal" : now == choiceOff ? "Off" : "Custom", rowCount);
-    if(now != choiceCustom)
-    {
-        return;
-    }
-    int nearest = choiceFull;
-    int best = 1 << 30;
-    for(int c = choiceFull; c <= choiceOff; c++)
-    {
-        if(const int d = differing(c, false); d < best)
-        {
-            best = d;
-            nearest = c;
-        }
-    }
-    Con_Printf("  nearest %s, %d differ:\n", nearest == choiceFull ? "Full" : nearest == choiceMinimal ? "Minimal" : "Off", best);
-    (void)differing(nearest, true);
+    presetKind.printStatus();
 }
 
 // vr_gore_preset_test: the preset sets its rows and shows Custom after a change by hand; Minimal's hit still bleeds a little
@@ -174,6 +117,7 @@ void testCmd()
     const entity_t& pl = cl_entities[cl.viewentity];
     const glm::vec3 dir{1.f, 0.f, 0.f};
     const glm::vec3 org{pl.origin[0] + 48.f, pl.origin[1], pl.origin[2]};
+    presetKind.useTestFile(true); // (the player's own My Settings untouched)
 
     // Minimal: every row at its value, and the choice shown.
     Cvar_SetValue("vr_gore_preset", static_cast<float>(choiceMinimal));
@@ -222,36 +166,44 @@ void testCmd()
     Con_Printf("gorepreset: blood particles: Full %.0f, Minimal %.0f, Off %.0f\n", fullBlood, minimalBlood, vr_blood_tally.value - offBefore);
 
     Cvar_SetValue("vr_gore_preset", static_cast<float>(choiceFull)); // (as shipped again)
+    presetKind.useTestFile(false);
     t.verdict(name);
 }
 
 } // namespace
 
+presetcore::Kind& kind()
+{
+    return presetKind;
+}
+
 void apply(int choice)
 {
     choice = za::clamp(choice, choiceFull, choiceOff);
     busy = true;
-    for(const Row& row : rows)
-    {
-        if(cvar_t* var = Cvar_FindVar(row.name))
-        {
-            Cvar_SetQuick(var, target(*var, row, choice));
-        }
-    }
+    presetKind.apply(choice - choiceFull);
     Cvar_SetValueQuick(&vr_gore_preset, static_cast<float>(choice));
     busy = false;
 }
 
 int matching()
 {
-    for(int c = choiceFull; c <= choiceOff; c++)
-    {
-        if(differing(c, false) == 0)
-        {
-            return c;
-        }
-    }
-    return choiceCustom;
+    const int level = presetKind.matchingLevel();
+    return level < 0 ? choiceCustom : level + choiceFull;
+}
+
+bool restoreMine()
+{
+    busy = true;
+    const bool kept = presetKind.restoreMine();
+    busy = false;
+    sync();
+    return kept;
+}
+
+const char* stateName()
+{
+    return presetKind.stateName();
 }
 
 void sync()
