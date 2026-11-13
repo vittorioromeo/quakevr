@@ -327,6 +327,11 @@ vector(entity e, vector handangles, vector offset) carryfrontpouch = #0;
 // Weapon Offsets and Weapon Weights (vr_weapons.inc) of the weapon drawn with `model` (WeaponIdToModel), by the key its
 // cvars have: "w_mass" (kg), "w_meleedmg", "w_throwdmg" (its damage multipliers)... (0: no such weapon or key).
 float(string model, string key) weaponvalue = #0;
+// The name of the progs' function `i` ("" past the last; 0 is none): VR_MonsterKinds_Unclassified walks them.
+string(float i) functionname = #0;
+// Runs the function `name` (a spawn function, void()) on self as a map's entity of that class spawns; FALSE: no such
+// function (Randomized Pickups' swaps: a row's spawn function by its classname).
+float(string name) callspawn = #0;
 // Weight and damage (vr_weight_damage_*): a melee blow's or a throw's damage multiplier for a thing of `mass` kg (1 for
 // no mass). Heavy leniency (vr_weight_lenient*): the factor on its strikes' and throws' speed thresholds (1: not heavy).
 float(float mass) weightdamage = #0;

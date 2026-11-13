@@ -569,6 +569,28 @@ void PF_worldtext_hgettext()
     G_INT(OFS_RETURN) = PR_SetEngineString(worldtext::serverTextList()[static_cast<za::SizeT>(worldTextHandle())].text.cStr());
 }
 
+// string functionname(float i): the name of the progs' function i ("" past the last): the run mutators' check that every
+// monster spawn function is classified (QC vr_monster_kinds.qc VR_MonsterKinds_Unclassified).
+void PF_functionname()
+{
+    const int i = static_cast<int>(G_FLOAT(OFS_PARM0));
+    G_INT(OFS_RETURN) = (i > 0 && i < qcvm->progs->numfunctions) ? qcvm->functions[i].s_name : 0;
+}
+
+// float callspawn(string name): runs the QC function `name` (a spawn function: void()) on self, as a map's entity of
+// that class is spawned; FALSE: no such function (Randomized Pickups' swaps: QC vr_run_pickups.qc VR_RPK_Make).
+void PF_callspawn()
+{
+    dfunction_t* const fn = VR_ED_FindFunction(G_STRING(OFS_PARM0));
+    if(!fn || fn->numparms != 0)
+    {
+        G_FLOAT(OFS_RETURN) = 0.f;
+        return;
+    }
+    PR_ExecuteProgram(static_cast<func_t>(fn - qcvm->functions));
+    G_FLOAT(OFS_RETURN) = 1.f; // (after the call: its own return was in OFS_RETURN)
+}
+
 // float panelboard_read(string text, float x, float y, float w, float h, float what): gadget::panelBoardRead (the tests').
 void PF_panelboard_read()
 {
@@ -871,6 +893,8 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"propvalue", PF_propvalue},
     {"propgrip", PF_propgrip},
     {"weaponvalue", PF_weaponvalue},
+    {"functionname", PF_functionname},
+    {"callspawn", PF_callspawn},
     {"weightdamage", PF_weightdamage},
     {"weightleniency", PF_weightleniency},
     {"throwvelocity", PF_throwvelocity},

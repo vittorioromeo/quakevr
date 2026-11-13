@@ -465,6 +465,8 @@ void enemiesCheckCmd()
     enemiesTally.check(cvars, name, va("%s: the run's cvars (%s)", what, summary(false)));
     const bool qc = sv.active && qcCheck("VR_Run_EnemiesCheck", static_cast<float>(c), static_cast<float>(r));
     enemiesTally.check(qc, name, va("%s: the map's monsters", what));
+    enemiesTally.check(sv.active && qcCheck("VR_MonsterKinds_AllClassified"), name,
+        va("%s: every monster spawn function a kind or never swapped (vr_monster_kinds.qc)", what));
     if(sv.active)
     {
         enemiesChains(c, r, what);
