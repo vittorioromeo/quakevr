@@ -1736,3 +1736,23 @@ His flat report: "ERROR: weapon clip less than zero" firing the shotgun, a spent
   2 rounds (`< 2`, was `== 1`). Shared by VR and flat (the same attack path).
 - **Verified:** `vr_flatswap_test 5` 46/0 (`-flatscreenmode`, map vrtesthall); flatswap 1 22/0; flatholster 38/0;
   `flatreload_test.sh` 54/0; the VR reload self-test (`vr_reload_test 9`) 77/0. Scene `flat_clip_unpaid`.
+## small1113: bots under Melee Only; bench_crowd_ad's program error; a checklist line moved (agent/small1113, 2026-11-13)
+
+- **Bots and Melee Only:** FrikBot asks the run's hooks. `bot_pick_weapon` takes a gun only if `bot_has_usable` (held
+  and not `VR_Run_RefusesFire`); its fallback is `bot_melee_weapon`: the melee holster's weapon (the run's Starting
+  melee weapon: the axe or the dagger, the dagger's kind flags with it), else the axe (bare fists: a bot cannot punch).
+  `weapon_range` knows the sword, crowbar and super axe (melee reach). `priority_for_thing` returns 0 for anything
+  `VR_Run_RefusesEnt` refuses: guns and ammunition are no goals, and a thrown gun is not snatched (the bot's snatch
+  called `wpnthrow_handtouch_impl` directly, past the hand touch's refusal).
+- **bench_crowd_ad's "Program error":** `NULL function` in `Killed`, from `VR_Knockdown_MakeRoom` (at vr_ragdoll_max the
+  oldest knocked-down monster is killed to make room): an AD monster has no `th_die` (AD's `ad_Killed` kills it). Now
+  `VR_AD_NeckSnapKilled` first and Quake VR's `Killed` only for the others, as the foe grab's neck snap does. Reached
+  from a gib's touch (VR_Prop_Flung -> VR_HitStagger_Throw -> VR_Knockdown_Stagger) and from the engine's
+  makeRagdollRoom. Rare: 2 of 30 runs of the scene.
+- **Tests:** `vr_pickup_test 15` (vr_meleeonly_bot_test.qc; `maxplayers 2;deathmatch 0;map e1m1`): 13/0 (the dagger at
+  the start and drawn, no gun chosen though held, a shotgun pickup, shells and a thrown rifle no goals and not snatched,
+  a thrown axe snatched, the dagger swung at a grunt in reach; off: the rocket launcher, the pickup a goal again).
+  `vr_scenario runall quit` with bench_crowd_ad x30 (AD mounted): before 2 of 30 failed, after 0 of 30 (and 0 of 10).
+- **Checklist:** the Gameplay preset "?" rows line was already gone; the stirring line moved to Flat-screen: monsters
+  and AI; the flashlight and lean lines are ticked (left for the next sort).
+- **cltick1113:** retired 6 ticked checklist lines (dagger label, gore minimal, flashlight, lean, kd stir, dog gate; none had voice notes) and 3 unused scenes (flatlean, gore_presets, nav_tele_gate).

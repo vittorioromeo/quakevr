@@ -377,6 +377,7 @@ frikbot/bot_misc.qc
 frikbot/bot_phys.qc
 frikbot/bot_move.qc
 frikbot/bot_ed.qc
+vr_meleeonly_bot_test.qc // bots under Melee Only (vr_pickup_test 15; after FrikBot)
 
 waypoints/map_dm1.qc
 waypoints/map_dm2.qc
