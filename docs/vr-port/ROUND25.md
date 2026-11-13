@@ -1732,3 +1732,4 @@ back): `qvr-kit/scratch/menuvis_shots/`.
   `vr_scenario runall quit` with bench_crowd_ad x30 (AD mounted): before 2 of 30 failed, after 0 of 30 (and 0 of 10).
 - **Checklist:** the Gameplay preset "?" rows line was already gone; the stirring line moved to Flat-screen: monsters
   and AI; the flashlight and lean lines are ticked (left for the next sort).
+- **cltick1113:** retired 6 ticked checklist lines (dagger label, gore minimal, flashlight, lean, kd stir, dog gate; none had voice notes) and 3 unused scenes (flatlean, gore_presets, nav_tele_gate).
