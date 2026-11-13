@@ -464,6 +464,154 @@ void(entity p, float ask) VR_FSW_Strip =
     }
 };
 
+// ---- 5: a shot never paid for by a clip it hasn't got (his flat report 2026-11-13: "ERROR: weapon clip less than zero"
+// firing the shotgun, the spent flare gun in the left hand). Each case: the empty shotgun in the right hand, the spent
+// flare gun in the left, 20 shells in reserve; a sequence of the flat keys (as the game's impulses: the swap 48, the
+// menu's drops 78, H 47, a holster's trades 60 + 3 i, R 55; case 8 the real swap key, drawn); then each hand holding the
+// shotgun pulls its trigger: its clip down by one if it had a round, else a dry click (vr_clip_short, weapons.qc,
+// unchanged), and each hand's ammo kind its weapon's (.currentammo, which W_CheckNoAmmo read).
+// Cases 10 and 11 set up the two ways a shot got past W_CheckNoAmmo before 2026-11-13 (both "ERROR: weapon clip less
+// than zero" then): 10, the right hand's .currentammo mirror left at AID_NONE (the fist's, the spent flare gun's) as a path
+// that forgot W_SetCurrentAmmoFor would leave it; 11, a clip of half a round (0.5 passed `> 0`).
+float VR_FSW_CLIP_CASES = 12;
+float vr_fsw_hs; // case 4, 5: the empty holster used
+
+string(float c) VR_FSW_ClipCaseName =
+{
+    if(c == 0) return "swap";
+    if(c == 1) return "swap twice";
+    if(c == 2) return "drop the left gun (menu)";
+    if(c == 3) return "drop (H)";
+    if(c == 4) return "left gun holstered and drawn";
+    if(c == 5) return "right gun holstered and drawn";
+    if(c == 6) return "reload, then swap";
+    if(c == 7) return "reload, swap mid-reload";
+    if(c == 8) return "swap (the key, drawn)";
+    if(c == 9) return "swap, reload in the left, swap back";
+    if(c == 10) return "the right hand's ammo kind left at none";
+    return "half a round in the clip";
+};
+
+float(entity p) VR_FSW_ReloadBusy =
+{
+    return VR_FlatReload_Busy(p, cVR_MainHand) || VR_FlatReload_Busy(p, cVR_OffHand);
+};
+
+// The case's step `k` (1, 2 or 3): FALSE when it has none.
+float(entity p, float c, float k) VR_FSW_ClipStep =
+{
+    if(c == 0 || c == 1) { if(k == 1 || (c == 1 && k == 2)) { p.impulse = 48; return TRUE; } return FALSE; }
+    if(c == 2) { if(k == 1) { p.impulse = 78; return TRUE; } return FALSE; }
+    if(c == 3) { if(k == 1) { p.impulse = 47; return TRUE; } return FALSE; }
+    if(c == 4 || c == 5)
+    {
+        if(k == 1)
+        {
+            entity oself = self;
+            self = p;
+            vr_fsw_hs = -1;
+            for(float i = 0; i < 6 && vr_fsw_hs < 0; i++)
+            {
+                if(getHolsterWeapon(VR_FlatHolster_Hotspot(i)) == WID_FIST) { vr_fsw_hs = i; }
+            }
+            self = oself;
+        }
+        if(k <= 2 && vr_fsw_hs >= 0) { p.impulse = 60 + 3 * vr_fsw_hs + (c == 4 ? 0 : 2); return TRUE; }
+        return FALSE;
+    }
+    if(c == 6) { if(k == 1) { p.impulse = 55; return TRUE; } if(k == 2) { p.impulse = 48; return TRUE; } return FALSE; }
+    if(c == 7) { if(k == 1) { p.impulse = 55; return TRUE; } if(k == 2) { p.impulse = 48; return TRUE; } return FALSE; }
+    if(c == 8) { if(k == 1) { VR_FSW_Press(); return TRUE; } return FALSE; }
+    if(c == 10) { if(k == 1) { p.currentammo = AID_NONE; return TRUE; } return FALSE; }
+    if(c == 11) { if(k == 1) { WeaponInst_SetClip(p.weaponinst, 0.5); return TRUE; } return FALSE; }
+    if(k == 1 || k == 3) { p.impulse = 48; return TRUE; }
+    if(k == 2) { p.impulse = 55; return TRUE; }
+    return FALSE;
+};
+
+void(entity p) VR_FSW_Clip =
+{
+    float c = vr_fsw_case;
+    if(vr_fsw_s == 0)
+    {
+        if(c >= VR_FSW_CLIP_CASES)
+        {
+            VR_FSW_End();
+            return;
+        }
+        entity oself = self;
+        self = p;
+        VRGiveEntWeapon(p, cVR_MainHand, WID_SHOTGUN, 0, 0);
+        W_SetCurrentAmmoFor(cVR_MainHand);
+        VRGiveEntWeapon(p, cVR_OffHand, WID_FLAREGUN, 0, 0);
+        W_SetCurrentAmmoFor(cVR_OffHand);
+        self = oself;
+        p.ammo_shells = 20;
+        VR_FSW_To(1, 20);
+        return;
+    }
+    // Steps 1 to 3, each when the last has settled (no reload trip under way, but case 7's swap mid-trip).
+    if(vr_fsw_s >= 1 && vr_fsw_s <= 3)
+    {
+        if(VR_FSW_ReloadBusy(p) && !(c == 7 && vr_fsw_s == 2))
+        {
+            return; // (the trip's end; FAIL "timed out" past VR_FSW_GIVEUP)
+        }
+        float k = vr_fsw_s;
+        float acted = VR_FSW_ClipStep(p, c, k);
+        float settle = 4;
+        if(c == 8) { settle = 60; } // (the drawn swap: 0.3 s and its answer)
+        if(c == 7 && k == 1) { settle = 8; } // (the trip under way)
+        if(acted) { VR_FSW_To(vr_fsw_s + 1, settle); }
+        else      { VR_FSW_To(4, 0); }
+        return;
+    }
+    if(vr_fsw_s == 4)
+    {
+        if(VR_FSW_ReloadBusy(p))
+        {
+            return;
+        }
+        entity os = self;
+        self = p;
+        float fired = 0;
+        for(float j = 0; j < 2; j++)
+        {
+            float h = j == 0 ? cVR_MainHand : cVR_OffHand;
+            float w = VRGetEntWeapon(p, h);
+            float want = WeaponIdToAmmoId(w, VRGetEntWeaponFlags(p, h));
+            float mirror = h == cVR_MainHand ? p.currentammo : p.currentammo2;
+            if(c != 10)
+            {
+                VR_Test_Check(mirror == want, sprintf("case %g (%s), %s hand: weapon %g's ammo kind %g (mirrored %g)", c,
+                    VR_FSW_ClipCaseName(c), h == cVR_MainHand ? "right" : "left", w, want, mirror));
+            }
+            if(w != WID_SHOTGUN)
+            {
+                continue;
+            }
+            fired++;
+            float c0 = VRGetEntWeaponClip(p, h);
+            float short0 = vr_clip_short;
+            p.attack_finished = 0;
+            p.offhand_attack_finished = 0;
+            if(h == cVR_MainHand) { W_Attack(); } else { W_OffHandAttack(); }
+            float c1 = VRGetEntWeaponClip(p, h);
+            float c1want = c0 >= 1 ? c0 - 1 : c0; // (a round fired, or a dry click, the clip as it was)
+            VR_Test_Check(c1 == c1want && vr_clip_short == short0, sprintf("case %g (%s): the %s hand's shotgun fired with clip %g: now %g, %g shots unpaid",
+                c, VR_FSW_ClipCaseName(c), h == cVR_MainHand ? "right" : "left", c0, c1, vr_clip_short - short0));
+        }
+        self = os;
+        VR_Test_Check(fired > 0, sprintf("case %g (%s): a hand holds the shotgun (right %g, left %g)", c,
+            VR_FSW_ClipCaseName(c), VRGetEntWeapon(p, cVR_MainHand), VRGetEntWeapon(p, cVR_OffHand)));
+        VR_FSW_Give(p, cVR_MainHand, WID_FIST);
+        VR_FSW_Give(p, cVR_OffHand, WID_FIST);
+        vr_fsw_case = c + 1;
+        VR_FSW_To(0, 30); // (the shot's animation out)
+        return;
+    }
+};
+
 void() VR_FlatSwapTest_Frame =
 {
     float ask = cvar_hget(cvarh_vr_flatswap_test);
@@ -503,6 +651,7 @@ void() VR_FlatSwapTest_Frame =
     if(ask == 2) { VR_FSW_Things(p); }
     if(ask == 3) { VR_FSW_Melee(p, 0); }
     if(ask == 4) { VR_FSW_Melee(p, 6); } // (AD's only)
+    if(ask == 5) { VR_FSW_Clip(p); }
     if(ask >= 11 && ask <= 17) { VR_FSW_Strip(p, ask); }
 };
 #endif
