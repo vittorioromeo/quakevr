@@ -155,6 +155,41 @@ void() VR_AGT_ClearWeapons =
     }
 };
 
+// Every gib, head and severed limb about goes, as vr_scene_clean's gibs (vr_cheats.qc; one in a hand kept): between
+// cases, the last one's gibbed body's limbs flew into the next one's gun and knocked it out (test 47's flare gun and
+// AD plasma gun, 2026-11-13: 0 shots, punches).
+void() VR_AGT_ClearGibs =
+{
+    entity e = nextent(world);
+    while(e)
+    {
+        entity n = nextent(e);
+        if((VR_Scene_Kind(e) & VR_SCENE_GIBS) && e.carry_player == world)
+        {
+            VR_Scene_Remove(e);
+        }
+        e = n;
+    }
+};
+
+// Tests 1 and 12: the player back at his first case's place before each case (a launcher's blasts pushed him into the
+// hall's south-east corner, where 240 units ahead went down a ledge into the pit below: test 12's eight AD guns after
+// its grenade launcher, 0 shots, 2026-11-13; the start mat's case: ROUND25.md, "agfails").
+vector vr_agt_start;
+float vr_agt_start_set;
+void() VR_AGT_HoldStart =
+{
+    entity p = vr_agt_player;
+    if(!vr_agt_start_set)
+    {
+        vr_agt_start = p.origin;
+        vr_agt_start_set = TRUE;
+        return;
+    }
+    setorigin(p, vr_agt_start);
+    p.velocity = '0 0 0';
+};
+
 // Every grenade, rocket and mine still about goes (between test 1's tries: the last try's grenade, its fuse still
 // running at the try's end, killed the next try's grunt where it spawned).
 void() VR_AGT_ClearShots =
@@ -211,6 +246,8 @@ void() VR_AGTest_Weapons =
         }
         VR_AGT_ClearWeapons();
         VR_AGT_ClearShots();
+        VR_AGT_ClearGibs();
+        VR_AGT_HoldStart();
         float wid = VR_AGT_Wid(vr_agt_index);
         float c = VR_AGT_Class(wid);
         float dist = (c == VR_AG_CLASS_MELEE || c == VR_AG_CLASS_FISTS) ? 70 : c == VR_AG_CLASS_EXPLOSIVE ? 360 : 240;
@@ -1542,6 +1579,7 @@ void() VR_AGTest_Frame =
         vr_agt_player = VR_Player();
         vr_agt_step = 0;
         vr_agt_index = 0;
+        vr_agt_start_set = FALSE;
         VR_Test_BeginFlags("agtest", VR_TEST_LOUD);
         VR_AGRT_Begin();
         VR_AGAM_Begin();
