@@ -111,6 +111,9 @@ struct Geometry
     za::Vector<glm::vec4> boxes;
     za::Vector<Ride> rides; // the lifts' and trains' rides (gatherRides)
     za::Vector<Gate> gates; // the teleporters (gatherGates)
+    // The world model at the gather (sv.worldmodel then): the pool's tile builds read its contents (areaAt) through it,
+    // never through the server's globals, which a map load changes; it lives until VR_OnClearMemory joins them.
+    qmodel_t* world = nullptr;
     za::U64 hash = 0;
     int brushes = 0, clipBrushes = 0, entityBrushes = 0;
     double ms = 0.0;
@@ -595,9 +598,10 @@ Settings settingsNow()
         vr_nav_lifts.value != 0.f ? 1.f : 0.f, za::max(vr_nav_narrow.value, 0.f), vr_nav_teleports.value != 0.f ? 1.f : 0.f};
 }
 
-unsigned char areaAt(const glm::vec3& q)
+// (Any thread: the pool's tile builds. The gathered world's contents, never SV_PointContents' sv.worldmodel.)
+unsigned char areaAt(const Geometry& g, const glm::vec3& q)
 {
-    const int c = worldtrace::contents(q);
+    const int c = g.world ? worldtrace::contentsOf(g.world, q) : CONTENTS_EMPTY;
     return c == CONTENTS_LAVA ? areaLava : c == CONTENTS_SLIME ? areaSlime : c == CONTENTS_WATER ? areaWater : areaGround;
 }
 
@@ -797,7 +801,7 @@ bool buildTile(const Geometry& g, const za::Vector<int>& bin, const za::Vector<i
             const float inv = 1.f / static_cast<float>(za::max(nv, 1));
             const float m[3]{mid[0] * inv, mid[1] * inv + 8.f, mid[2] * inv};
             const unsigned char rcArea = pmesh->areas[i];
-            const unsigned char under = rcArea == RC_WALKABLE_AREA || rcArea == rcNarrowArea ? areaAt(fromRc(m)) : 0;
+            const unsigned char under = rcArea == RC_WALKABLE_AREA || rcArea == rcNarrowArea ? areaAt(g, fromRc(m)) : 0;
             pmesh->areas[i] = rcArea == rcNarrowArea && under == areaGround ? areaNarrow : under;
             pmesh->flags[i] = flagWalk;
         }
@@ -3000,6 +3004,15 @@ void init()
     Cmd_AddCommand("vr_nav_rebuild", rebuild_f);
 }
 
+void disarmTests(); // (below, with the tests)
+
+void finishLoads()
+{
+    resetAll(); // (every class's build and props' batch joined, their results freed)
+    state.geo = Geometry{};
+    disarmTests();
+}
+
 void afterLoad()
 {
     resetAll();
@@ -3011,6 +3024,7 @@ void afterLoad()
     const auto t0 = za::Clock::nowNanoseconds();
     Geometry& g = state.geo;
     g = Geometry{};
+    g.world = sv.worldmodel;
     BrushSet set;
     gatherSolids(set, state.movers, g);
     gatherRides(state.movers, g);
@@ -4553,6 +4567,26 @@ bool teleTrialStart()
     t.backoffsAt = state.teleBackoffs;
     portals::monsterCrossings(t.walkedAt, t.teleportedAt);
     return true;
+}
+
+// The world going (finishLoads): a test still running ends unreported (its walkers' edict numbers, gate indices and
+// the server's time are the old map's; a scene's runall moves on before nav_tele_metric's trials end).
+void disarmTests()
+{
+    const auto drop = [](bool& armed, const za::String& name) {
+        if(armed)
+        {
+            Con_Printf("nav: %s: abandoned at the map change\n", name.cStr());
+            armed = false;
+        }
+    };
+    drop(reachTest.armed, reachTest.name);
+    drop(teleTest.armed, teleTest.name);
+    if(crowdTest.armed)
+    {
+        Con_Printf("nav: crowdtest: abandoned at the map change\n");
+        crowdTest.armed = false;
+    }
 }
 
 void teleTestTick()
