@@ -501,10 +501,10 @@ now also waits for the player before its first spawn: it had a program error whe
   plus the box's radius plus 8 out; as far over as the box still fits: the trigger's half width less the box's), then,
   lined up (or already in the trigger's depth), straight in along the normal and 64 on. A pad (squarish trigger): straight
   through its middle as before.
-- **Stuck recovery** (`vr_nav_tele_stuck` 0.5 s): a walker on a teleporter link that stood (moved under 4) that long
+- **Stuck recovery** (0.5 s, a constant since revpicks: `teleStuckSeconds`): a walker on a teleporter link that stood (moved under 4) that long
   between steers backs out in front of the opening (48 past the line-up point) for 0.4 s and lines up again
   (`state.teleBackoffs`). A gap between steers (shooting, biting) restarts the clock.
-- **The gate chase** (`vr_nav_gate_chase` 1, QC `ai_run`): a monster with a ranged attack that sees you through a paired
+- **The gate chase** (always on since revpicks, QC `ai_run`): a monster with a ranged attack that sees you through a paired
   gate (`vr_ai_gate`) and can't attack this frame used to stand facing you at the gate ("no portal-aware navigation"):
   the grunts' sticking at vrteleporters' gate edges. Now it takes its navmesh step (`VR_NAV_Step`: through the gate's
   teleporter link, or the long way), and holds its room only with no path.

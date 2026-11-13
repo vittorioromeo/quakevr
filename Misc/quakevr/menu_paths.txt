@@ -4671,14 +4671,12 @@ vr_nav_lift_wait|2|Tunables|Navmesh: Lift Give-Up Time|Advanced VR Options > Deb
 vr_nav_teleports|2|Tunables|Navmesh: Teleporter Links|Advanced VR Options > Debug > Tunables > Navmesh: Teleporter Links
 vr_nav_tele_cost|2|Tunables|Navmesh: Teleporter Cost|Advanced VR Options > Debug > Tunables > Navmesh: Teleporter Cost
 vr_nav_tele_time|2|Tunables|Navmesh: Teleporter Give-Up Time|Advanced VR Options > Debug > Tunables > Navmesh: Teleporter Give-Up Time
-vr_nav_gate_chase|2|Tunables|Navmesh: Gate Chase Between Shots|Advanced VR Options > Debug > Tunables > Navmesh: Gate Chase Between Shots
 vr_nav_trail|2|Tunables|Navmesh: Follow Your Trail|Advanced VR Options > Debug > Tunables > Navmesh: Follow Your Trail
 vr_nav_trail_search|2|Tunables|Navmesh: Trail-End Search Radius|Advanced VR Options > Debug > Tunables > Navmesh: Trail-End Search Radius
 vr_nav_trail_carry|2|Tunables|Navmesh: Trail Carry-On Time|Advanced VR Options > Debug > Tunables > Navmesh: Trail Carry-On Time
 vr_nav_alert|2|Tunables|Navmesh: Investigate|Advanced VR Options > Debug > Tunables > Navmesh: Investigate
 vr_stealth_scout_time|2|Tunables|Stealth: Scout a Noise For|Advanced VR Options > Debug > Tunables > Stealth: Scout a Noise For
 vr_stealth_hunt_clue|2|Tunables|Stealth: Hunters Hear Clues Within|Advanced VR Options > Debug > Tunables > Stealth: Hunters Hear Clues Within
-vr_nav_tele_stuck|2|Tunables|Navmesh: Teleporter Stuck Back-Off|Advanced VR Options > Debug > Tunables > Navmesh: Teleporter Stuck Back-Off
 vr_nav_link_retry|2|Tunables|Navmesh: Link Retry Time|Advanced VR Options > Debug > Tunables > Navmesh: Link Retry Time
 vr_nav_plat_monsters|2|Tunables|Monsters Call Lifts|Advanced VR Options > Debug > Tunables > Monsters Call Lifts
 vr_nav_separation|2|Tunables|Navmesh: Crowd Separation|Advanced VR Options > Debug > Tunables > Navmesh: Crowd Separation
@@ -5278,6 +5276,7 @@ vr_maps_debug_free_mb|2|Debug - Tools|Pretend Free Disk Space|Advanced VR Option
 |2|Debug - Tools|Slipseer Status|Advanced VR Options > Debug > Tools > Slipseer Status
 vr_maps_slipseer|2|Debug - Tools|Slipseer Maps|Advanced VR Options > Debug > Tools > Slipseer Maps
 vr_maps_slipseer_delay|2|Debug - Tools|Slipseer Page Spacing|Advanced VR Options > Debug > Tools > Slipseer Page Spacing
+vr_maps_allow_local|2|Debug - Tools|Allow Local Map Hosts|Advanced VR Options > Debug > Tools > Allow Local Map Hosts
 |2|Debug - Tools|Pick the First Map|Advanced VR Options > Debug > Tools > Pick the First Map
 |2|Debug - Tools|Open the Map Browser|Advanced VR Options > Debug > Tools > Open the Map Browser
 |2|Debug - Tools|Font Sample Message|Advanced VR Options > Debug > Tools > Font Sample Message

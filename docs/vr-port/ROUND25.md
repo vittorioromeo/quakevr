@@ -1127,3 +1127,26 @@ row instead of counting them all.
 Left for the author: screenshot and download URLs taken from any host and scheme (an allow-list), the Slipseer
 back-off shared by every host, cache/slipseer never pruned, robots.txt wildcards, the presets' rows matched every menu
 frame, the reverse grip's server checks reading the local client's view (a listen server's own player only).
+
+## revpicks: the author's picks from the rev25misc / rev25nav reviews (branch agent/revpicks, 2026-11-13)
+
+- **Back-off per host** (vr_slipseer.cpp): a 429 / 403 / 5xx backs off that host only (`hostKey`: lower case, no
+  "www."); an off-site screenshot host never holds up Slipseer or Quaddicted. backoff.txt is a line per host (the old
+  one-line file is read as Slipseer's); an answer (200 or 304) ends the host's back-off. `maps_slipseer` lists each.
+- **cache/slipseer trimmed** under `vr_maps_cache_mb` (the existing cap of the zip cache, 512) by the worker before its
+  first request each session: whole entries (page or picture and its .meta), least recently fetched first; never
+  backoff.txt, anything not named as ours, or an entry fetched in the last 10 min. 0 leaves the page cache untrimmed
+  (it is what keeps the requests few).
+- **Local addresses refused** (his "block local addresses only"): screenshot (fetch) and download (mapinstall `begin`,
+  each mirror) URLs whose literal host is localhost, 0/8, 127/8, 10/8, 172.16/12, 192.168/16, 169.254/16, ::, ::1,
+  fc00::/7, fe80::/10 or IPv4-mapped; and `Download`'s new `refuse_local` checks every resolved address as curl
+  connects (CURLOPT_OPENSOCKETFUNCTION, redirects too). http and https, any public host, stay allowed. Test aid
+  `vr_maps_allow_local` (0; Debug > Tools) for the tests' local servers (slipseer_test.py, maplibrary_large_test.py set
+  it). A local proxy in http_proxy would be refused too (not handled).
+- **Removed:** `vr_nav_gate_chase` (always on; teleporters_test.sh's `nochase` run gone) and `vr_nav_tele_stuck` (now
+  `teleStuckSeconds` 0.5). `portals::teleporterWalked` asks `monsterGate` (vr_portals_monsters_all walks unpaired
+  gates with the fit check). Stealth `VR_Stealth_TrailGate` drops a stored teleporter that is no longer a solid
+  trigger_teleport. MULTIPLAYER.md's listen-server table notes the reverse grip's `weapondrawnpose` 43 / 46.
+- Checks: build 0 warnings; slipseer_test 55 -> 74 passed, 0 failed (back-off, trim, local-address checks);
+  nav_tele_metric 18/20 and nav_tele_metric_gates 37/40 (the same as rev25nav's seeded runs); teleporters chase as
+  before (dog at framed_sill32 FAIL, open since origin/next 2fa0e7e58; grunt PASS); stealth gates 11 PASS, 0 failed.

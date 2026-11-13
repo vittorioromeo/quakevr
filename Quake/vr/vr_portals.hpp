@@ -96,7 +96,8 @@ int aiGateCount();
 // Whether a trigger_teleport takes what touches it now (Quake's teleport_touch: one with a targetname is shut till it is
 // fired, unless it ignores its targetname). The navmesh's teleporter links (vr_nav.cpp) close while it is shut.
 bool teleporterOpen(const edict_s* trigger);
-// Whether a monster walks through that trigger's gate (a paired gate, vr_portals_monsters) rather than being teleported
+// Whether a monster walks through that trigger's gate (a paired gate, or any with vr_portals_monsters_all;
+// vr_portals_monsters) rather than being teleported
 // on touching it: it must then fit the gate's aperture and step over its sill (the navmesh's teleporter links).
 bool teleporterWalked(int trigger);
 // Monsters walked through a gate (carried) and monsters left to Quake's teleport, since the game started (the navmesh's

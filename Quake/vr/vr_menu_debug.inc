@@ -1360,6 +1360,7 @@ za::Vector<Item> pageDebugTools()
             .help("maps_slipseer: what the Slipseer source is doing (its listing pass, the page being read), how many requests it made this session, its cache, and whether it is backing off (a 429 or a 5xx from the site). vr_maps_slipseer 0 leaves Slipseer out."),
         row(opt::vr_maps_slipseer),
         row(opt::vr_maps_slipseer_delay),
+        row(opt::vr_maps_allow_local),
         command("Pick the First Map", "maps_page; maps_page_pick 0")
             .help("maps_page_pick <row> [source]: the Map Library open with that row picked (its detail; a Slipseer map's page read). Source: 0 both, 1 Quaddicted, 2 Slipseer."),
         command("Open the Map Browser", "maps_page")

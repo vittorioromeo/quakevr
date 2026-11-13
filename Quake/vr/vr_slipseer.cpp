@@ -28,6 +28,7 @@
 #include "SDL.h"
 #endif
 
+#include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/SizeT.hpp"
@@ -156,9 +157,18 @@ void failed(const za::String& what)
     lastError = what;
     lastErrorAt = za::max(SDL_GetTicks(), za::U32{1});
 }
-za::I64 backoffUntil = 0;      // unix seconds: no request before then
-za::I64 backoffSeconds = 0;    // the last back-off's length (the next is twice it)
-bool backoffRead = false;      // backoff.txt read
+// The back-off, per host (hostKey's): a 429 / 403 / 5xx from one host stops requests to that host only, so an off-site
+// screenshot host's errors never hold up Slipseer or Quaddicted. Kept in backoff.txt, a line each: "<host> <until>
+// <seconds>". Set by the worker, read by the status command: under backoffLock.
+struct Backoff
+{
+    za::String host;
+    za::I64 until{0};   // unix seconds: no request to it before then
+    za::I64 seconds{0}; // the last back-off's length (the next is twice it)
+};
+za::AtomicMutex backoffLock;
+za::Vector<Backoff> backoffs;
+bool backoffRead = false; // backoff.txt read
 // robots.txt's Disallow prefixes for every agent, per site: 0 Slipseer, 1 Quaddicted (its screenshots).
 struct Robots
 {
@@ -285,8 +295,72 @@ void writeMeta(const za::String& path, const Meta& m)
     (void)files::writeText((path + ".meta").cStr(), text);
 }
 
+// The back-off's key for a URL: its host, lower case, without a leading "www." (www.slipseer.com and slipseer.com are
+// one site).
+[[nodiscard]] za::String hostKey(const za::String& url)
+{
+    const char* p = strstr(url.cStr(), "://");
+    p = p ? p + 3 : url.cStr();
+    char host[256];
+    za::SizeT n = 0;
+    for(; p[n] && p[n] != '/' && p[n] != ':' && p[n] != '?' && p[n] != '#' && n + 1 < sizeof(host); n++)
+    {
+        host[n] = static_cast<char>(tolower(static_cast<unsigned char>(p[n])));
+    }
+    host[n] = '\0';
+    return za::String{strncmp(host, "www.", 4) ? host : host + 4};
+}
+
+// backoff.txt's lines into `out`. The old file (one line "<until> <seconds>", from before the back-off was per host)
+// was Slipseer's.
+void parseBackoffs(const za::String& text, za::Vector<Backoff>& out)
+{
+    files::forLines(text, [&](za::StringView l) {
+        const za::String line{l};
+        char host[256];
+        long long until = 0, seconds = 0;
+        if(sscanf(line.cStr(), "%255s %lld %lld", host, &until, &seconds) == 3)
+        {
+            out.pushBack(Backoff{za::String{host}, static_cast<za::I64>(until), static_cast<za::I64>(seconds)});
+        }
+        else if(sscanf(line.cStr(), "%lld %lld", &until, &seconds) == 2)
+        {
+            out.pushBack(Backoff{za::String{"slipseer.com"}, static_cast<za::I64>(until), static_cast<za::I64>(seconds)});
+        }
+    });
+}
+
+// (under backoffLock)
+[[nodiscard]] Backoff* findBackoff(const za::String& host)
+{
+    for(Backoff& b : backoffs)
+    {
+        if(b.host == host)
+        {
+            return &b;
+        }
+    }
+    return nullptr;
+}
+
+// (under backoffLock)
+void writeBackoffs()
+{
+    za::String text;
+    for(const Backoff& b : backoffs)
+    {
+        char line[320];
+        q_snprintf(line, sizeof(line), "%s %lld %lld\n", b.host.cStr(), static_cast<long long>(b.until),
+            static_cast<long long>(b.seconds));
+        text += line;
+    }
+    files::createDirectories(cacheDir().cStr());
+    (void)files::writeText((cacheDir() + "/backoff.txt").cStr(), text);
+}
+
 void readBackoff()
 {
+    za::LockGuard lock{backoffLock};
     if(backoffRead)
     {
         return;
@@ -295,21 +369,154 @@ void readBackoff()
     za::String text;
     if(files::readText((cacheDir() + "/backoff.txt").cStr(), text))
     {
-        sscanf(text.cStr(), "%lld %lld", reinterpret_cast<long long*>(&backoffUntil),
-            reinterpret_cast<long long*>(&backoffSeconds));
+        parseBackoffs(text, backoffs);
     }
 }
 
-void startBackoff(za::I64 retryAfter)
+// Seconds before `host` may be asked again (0: now).
+[[nodiscard]] za::I64 backoffLeft(const za::String& host)
 {
-    backoffSeconds = retryAfter > 0 ? retryAfter
-                                    : (backoffSeconds > 0 ? za::min(backoffSeconds * 2, longestBackoff) : firstBackoff);
-    backoffUntil = now() + backoffSeconds;
-    files::createDirectories(cacheDir().cStr());
-    char text[64];
-    q_snprintf(text, sizeof(text), "%lld %lld\n", static_cast<long long>(backoffUntil),
-        static_cast<long long>(backoffSeconds));
-    (void)files::writeText((cacheDir() + "/backoff.txt").cStr(), za::StringView{text});
+    za::LockGuard lock{backoffLock};
+    const Backoff* b = findBackoff(host);
+    return b ? za::max(b->until - now(), za::I64{0}) : 0;
+}
+
+// `host` answered 429 / 403 / 5xx: no request to it for Retry-After, else twice the last back-off (the first
+// firstBackoff). Returns the back-off's length.
+za::I64 startBackoff(const za::String& host, za::I64 retryAfter)
+{
+    za::LockGuard lock{backoffLock};
+    Backoff* b = findBackoff(host);
+    if(!b)
+    {
+        backoffs.pushBack(Backoff{host, 0, 0});
+        b = &backoffs.back();
+    }
+    b->seconds = retryAfter > 0 ? retryAfter : (b->seconds > 0 ? za::min(b->seconds * 2, longestBackoff) : firstBackoff);
+    b->until = now() + b->seconds;
+    const za::I64 seconds = b->seconds;
+    writeBackoffs();
+    return seconds;
+}
+
+// `host` answered: its back-off forgotten (the next starts at firstBackoff again).
+void endBackoff(const za::String& host)
+{
+    za::LockGuard lock{backoffLock};
+    for(za::SizeT i = 0; i < backoffs.size(); i++)
+    {
+        if(backoffs[i].host == host)
+        {
+            backoffs.erase(backoffs.begin() + i);
+            writeBackoffs();
+            return;
+        }
+    }
+}
+
+// ---------------------------------------------------------------- the cache's size
+
+// The cache held under vr_maps_cache_mb (the map library's one size cap) once a session, by the worker before its first
+// request (nothing else reads the cache: no file in use). Whole entries go (a page or picture and its .meta: the 16 hex
+// of its URL's hash), the least recently fetched first (their .meta's time; none: first); never backoff.txt or anything
+// not named as ours, nor an entry fetched within trimGuardSeconds (another game on the same folder may be using it).
+constexpr za::I64 trimGuardSeconds = 10 * 60;
+bool cacheTrimmed = false; // (the worker's: one worker at a time)
+
+struct CacheTrimmed
+{
+    int removed{0};
+    za::U64 before{0}; // the folder's bytes
+    za::U64 after{0};
+};
+
+CacheTrimmed trimCacheDir(const za::String& dir, za::U64 capBytes, za::I64 at)
+{
+    struct Entry
+    {
+        za::String stem;
+        za::I64 fetchedAt{0};
+        za::U64 bytes{0};
+    };
+    za::Vector<Entry> entries;
+    ankerl::unordered_dense::map<za::String, za::SizeT> byStem;
+    za::Vector<za::String> metas; // the .meta paths without ".meta" (readMeta's argument)
+    CacheTrimmed t;
+    files::forEachEntry(dir.cStr(), [&](const char* name, bool isDirectory) {
+        if(isDirectory)
+        {
+            return;
+        }
+        const za::String path = dir + "/" + name;
+        const za::U64 bytes = files::fileSize(path.cStr());
+        t.before += bytes;
+        if(strspn(name, "0123456789abcdef") != 16 || name[16] != '.')
+        {
+            return; // (backoff.txt, anything not ours: kept)
+        }
+        const za::String stem{name, 16};
+        auto it = byStem.find(stem);
+        if(it == byStem.end())
+        {
+            it = byStem.emplace(stem, entries.size()).first;
+            entries.pushBack(Entry{stem, 0, 0});
+        }
+        entries[it->second].bytes += bytes;
+        const za::SizeT n = strlen(name);
+        if(n > 5 && !strcmp(name + n - 5, ".meta"))
+        {
+            metas.pushBack(za::String{path.cStr(), path.size() - 5});
+        }
+    });
+    for(const za::String& m : metas)
+    {
+        Meta meta;
+        if(readMeta(m, meta))
+        {
+            const za::StringView name = files::fileName(za::StringView{m.cStr(), m.size()});
+            Entry& e = entries[byStem[za::String{name.data(), 16}]];
+            e.fetchedAt = za::max(e.fetchedAt, meta.fetchedAt);
+        }
+    }
+    za::quickSort(entries.begin(), entries.end(), [](const Entry& a, const Entry& b) {
+        return a.fetchedAt != b.fetchedAt ? a.fetchedAt < b.fetchedAt : strcmp(a.stem.cStr(), b.stem.cStr()) < 0;
+    });
+    za::U64 total = t.before;
+    for(const Entry& e : entries)
+    {
+        if(total <= capBytes)
+        {
+            break;
+        }
+        if(at - e.fetchedAt < trimGuardSeconds)
+        {
+            continue;
+        }
+        for(const char* ext : {".html", ".html.meta", ".img", ".img.meta"})
+        {
+            (void)files::remove((dir + "/" + e.stem + ext).cStr());
+        }
+        total -= e.bytes;
+        t.removed++;
+    }
+    t.after = total;
+    return t;
+}
+
+// (the worker's, before its first request; nothing removed: none)
+CacheTrimmed trimCacheOnce()
+{
+    if(cacheTrimmed)
+    {
+        return CacheTrimmed{};
+    }
+    cacheTrimmed = true;
+    const double mb = static_cast<double>(vr_maps_cache_mb.value);
+    if(mb <= 0.0 || !files::isDirectory(cacheDir().cStr()))
+    {
+        return CacheTrimmed{}; // (0: the page cache is not trimmed: it is what keeps the requests few)
+    }
+    return trimCacheDir(cacheDir(), static_cast<za::U64>(mb * 1024.0 * 1024.0), now());
 }
 
 // The response's headers (the last response's, after a redirect).
@@ -575,14 +782,21 @@ bool fetch(const za::String& url, Kind kind, za::I64 ttl, const char* referer, b
     {
         return fromCache("not in the cache (the network is off for it: a test run, or vr_maps_fetch 0)");
     }
+    const za::String hostName = hostKey(url);
     readBackoff();
-    if(now() < backoffUntil)
+    if(backoffLeft(hostName) > 0)
     {
-        return fromCache("Slipseer asked us to wait (backing off); not in the cache meanwhile");
+        const za::String why = hostName + " asked us to wait (backing off); not in the cache meanwhile";
+        return fromCache(why.cStr());
     }
     if(!sameSite(url) && kind != Kind::Asset)
     {
         error = za::String{"not a Slipseer page: "} + url;
+        return false;
+    }
+    if(mapinstall::refusedUrl(url.cStr())) // (a page's screenshot on loopback / a LAN: never fetched)
+    {
+        error = za::String{"a local address, not fetched: "} + url;
         return false;
     }
     if(kind != Kind::Robots)
@@ -655,10 +869,15 @@ bool fetch(const za::String& url, Kind kind, za::I64 ttl, const char* referer, b
     dl.abort = &cancel;
     dl.header_fn = headerLine;
     dl.header_data = &got;
+    dl.refuse_local = mapinstall::refuseLocal(); // (the name's resolved address, and a redirect's)
     const bool ok = Download(url.cStr(), &dl);
     lastRequestAt[host] = za::max(SDL_GetTicks(), za::U32{1});
     requests.fetchAddSeqCst(1);
 
+    if((dl.response == 304 && cached) || (ok && body.size()))
+    {
+        endBackoff(hostName);
+    }
     if(dl.response == 304 && cached)
     {
         meta.fetchedAt = now();
@@ -667,7 +886,6 @@ bool fetch(const za::String& url, Kind kind, za::I64 ttl, const char* referer, b
     }
     if(ok && body.size())
     {
-        backoffSeconds = 0;
         files::createDirectories(cacheDir().cStr());
         (void)files::writeBytes(path.cStr(), body.data(), body.size());
         Meta m;
@@ -685,8 +903,9 @@ bool fetch(const za::String& url, Kind kind, za::I64 ttl, const char* referer, b
     const za::String what = dl.error ? za::String{dl.error} : za::String{"HTTP "} + za::toString(dl.response);
     if(dl.response == 429 || dl.response == 403 || dl.response >= 500)
     {
-        startBackoff(got.retryAfter);
-        error = what + ": waiting " + za::toString(static_cast<int>(backoffSeconds / 60)) + " min before the next request";
+        const za::I64 seconds = startBackoff(hostName, got.retryAfter);
+        error = what + ": waiting " + za::toString(static_cast<int>(seconds / 60)) + " min before the next request to " +
+                hostName;
     }
     else
     {
@@ -1729,6 +1948,12 @@ void run() noexcept
     {
         ~Done() { running.storeSeqCst(false); }
     } done;
+    if(const CacheTrimmed t = trimCacheOnce(); t.removed) // (before any request: no cache file is in use yet)
+    {
+        note("slipseer: cache trimmed to vr_maps_cache_mb %g: %d old page(s) / picture(s) removed, %.1f MB -> %.1f MB",
+            static_cast<double>(vr_maps_cache_mb.value), t.removed, static_cast<double>(t.before) / (1024.0 * 1024.0),
+            static_cast<double>(t.after) / (1024.0 * 1024.0));
+    }
     for(;;)
     {
         if(SDL_AtomicGet(&cancel))
@@ -2072,9 +2297,15 @@ void slipseer_f()
     Con_Printf("%s\n", state().cStr());
     Con_Printf("slipseer: %d live requests this session; agent %d; cache %s", requestsMade(), agentIndex,
         cacheDir().cStr());
-    if(backoffUntil > now())
     {
-        Con_Printf("; backing off for %lld s more", static_cast<long long>(backoffUntil - now()));
+        za::LockGuard lock{backoffLock};
+        for(const Backoff& b : backoffs)
+        {
+            if(b.until > now())
+            {
+                Con_Printf("; backing off %s for %lld s more", b.host.cStr(), static_cast<long long>(b.until - now()));
+            }
+        }
     }
     Con_Printf("\n");
 }
@@ -2194,6 +2425,159 @@ void verdict()
     selfTest.stage = 2;
 }
 
+// The back-off is per host: an off-site screenshot host's 429 backs off that host only. The live state and backoff.txt
+// are put back afterwards.
+void testBackoffs()
+{
+    expect(hostKey("https://www.slipseer.com/index.php?x") == "slipseer.com", "back-off: www.slipseer.com's key",
+        hostKey("https://www.slipseer.com/index.php?x"));
+    expect(hostKey("https://SlipSeer.com:443/") == "slipseer.com", "back-off: slipseer.com with a port, any case");
+    expect(hostKey("https://i.imgur.com/a.png") == "i.imgur.com", "back-off: an off-site host keeps its own key");
+
+    za::Vector<Backoff> parsed;
+    parseBackoffs(za::String{"1700000000 900\n"}, parsed);
+    expect(parsed.size() == 1 && parsed[0].host == "slipseer.com" && parsed[0].seconds == 900,
+        "back-off: the old one-line backoff.txt is Slipseer's");
+    parsed.clear();
+    parseBackoffs(za::String{"i.imgur.com 10 20\nquaddicted.com 30 40\n"}, parsed);
+    expect(parsed.size() == 2 && parsed[1].host == "quaddicted.com" && parsed[1].until == 30,
+        "back-off: backoff.txt's lines, a host each");
+
+    readBackoff();
+    const za::String file = cacheDir() + "/backoff.txt";
+    za::String savedText;
+    const bool hadFile = files::readText(file.cStr(), savedText);
+    za::Vector<Backoff> saved;
+    {
+        za::LockGuard lock{backoffLock};
+        saved = backoffs;
+    }
+    const za::I64 slipBefore = backoffLeft("slipseer.com"), quadBefore = backoffLeft("quaddicted.com");
+    const za::String shots{"shots.qvrtest.invalid"};
+    const za::I64 first = startBackoff(shots, -1);
+    expect(first == firstBackoff && backoffLeft(shots) > 0, "back-off: a 429 from a screenshot host backs it off");
+    expect(backoffLeft("slipseer.com") <= slipBefore + 1 && backoffLeft("quaddicted.com") <= quadBefore + 1,
+        "back-off: ... and not Slipseer or Quaddicted");
+    expect(startBackoff(shots, -1) == 2 * firstBackoff, "back-off: a second 429 doubles it");
+    expect(startBackoff(shots, 120) == 120, "back-off: Retry-After is taken");
+    za::String text;
+    za::Vector<Backoff> reread;
+    if(files::readText(file.cStr(), text))
+    {
+        parseBackoffs(text, reread);
+    }
+    bool written = false;
+    for(const Backoff& b : reread)
+    {
+        written = written || (b.host == shots && b.seconds == 120);
+    }
+    expect(written, "back-off: kept in backoff.txt by host");
+    endBackoff(shots);
+    expect(backoffLeft(shots) == 0, "back-off: an answer from the host ends it");
+
+    {
+        za::LockGuard lock{backoffLock};
+        backoffs = saved;
+    }
+    if(hadFile)
+    {
+        (void)files::writeText(file.cStr(), savedText);
+    }
+    else
+    {
+        (void)files::remove(file.cStr());
+    }
+}
+
+// The cache trimmed under a cap: the least recently fetched entries first (an orphan without its .meta first of all),
+// a page or picture with its .meta; never backoff.txt nor an entry fetched in the last trimGuardSeconds.
+void testCacheTrim()
+{
+    const za::String dir = files::baseCacheDir() + "/slipseer_trimtest";
+    (void)files::removeAll(dir.cStr());
+    files::createDirectories(dir.cStr());
+    const za::I64 at = now();
+    za::Vector<char> kb;
+    kb.resize(1000, 'x');
+    const auto put = [&](const char* name, za::I64 fetchedAt) {
+        const za::String path = dir + "/" + name;
+        (void)files::writeBytes(path.cStr(), kb.data(), kb.size());
+        if(fetchedAt)
+        {
+            Meta m;
+            m.url = za::String{"https://example.invalid/"} + name;
+            m.fetchedAt = fetchedAt;
+            writeMeta(path, m);
+        }
+    };
+    put("00000000000000a1.html", at - 3000);
+    put("00000000000000b2.img", at - 2000);
+    put("00000000000000c3.html", at - 10); // (just fetched: in use)
+    put("00000000000000d4.img", 0);        // (no .meta)
+    put("backoff.txt", 0);
+    const auto there = [&](const char* name) { return files::isFile((dir + "/" + name).cStr()); };
+
+    const CacheTrimmed t = trimCacheDir(dir, 3300, at);
+    expect(t.removed == 2 && !there("00000000000000d4.img") && !there("00000000000000a1.html") &&
+               !there("00000000000000a1.html.meta"),
+        "cache trim: the orphan and the oldest entry removed, with its .meta",
+        za::toString(t.removed) + " removed, " + za::toString(static_cast<za::I64>(t.after)) + " bytes left");
+    expect(there("00000000000000b2.img") && there("00000000000000b2.img.meta") && there("00000000000000c3.html") &&
+               there("backoff.txt") && t.after <= 3300,
+        "cache trim: ... the rest kept, under the cap");
+    const CacheTrimmed all = trimCacheDir(dir, 0, at);
+    expect(all.removed == 1 && !there("00000000000000b2.img") && there("00000000000000c3.html") &&
+               there("00000000000000c3.html.meta") && there("backoff.txt"),
+        "cache trim: a cap of nothing still keeps the entry in use and backoff.txt");
+    (void)files::removeAll(dir.cStr());
+}
+
+// Local addresses (loopback, private / LAN, link-local, localhost) refused as screenshot and download hosts; public
+// ones, http or https, allowed.
+void testLocalAddresses()
+{
+    const char* local[] = {"http://127.0.0.1:8000/a.zip", "http://localhost/x.png", "https://LOCALHOST./x",
+        "http://shots.localhost/a.jpg", "http://10.1.2.3/", "http://172.16.0.1/", "http://172.31.255.255/",
+        "http://192.168.1.10/a.zip", "http://169.254.169.254/latest/", "http://0.0.0.0/", "http://[::1]:80/",
+        "http://[fc00::1]/", "http://[fd12:3456::1]/", "http://[fe80::1]/", "http://[::ffff:127.0.0.1]/",
+        "http://user@127.0.0.1/"};
+    const char* open[] = {"https://www.slipseer.com/x", "http://www.quaddicted.com/a.jpg", "http://172.32.0.1/",
+        "http://172.15.0.1/", "https://8.8.8.8/", "http://[2001:db8::1]/", "http://localhost.example.com/",
+        "http://192.169.0.1/", "http://127.0.0.1.example.com/", "http://127.0.0.1@example.com/"};
+    za::String wrong;
+    for(const char* u : local)
+    {
+        if(!mapinstall::localAddress(u))
+        {
+            wrong += za::String{wrong.size() ? ", " : ""} + u;
+        }
+    }
+    expect(wrong.empty(), "local address: loopback, private, link-local and localhost hosts", wrong);
+    wrong = za::String{};
+    for(const char* u : open)
+    {
+        if(mapinstall::localAddress(u))
+        {
+            wrong += za::String{wrong.size() ? ", " : ""} + u;
+        }
+    }
+    expect(wrong.empty(), "local address: public hosts (http and https) allowed", wrong);
+
+    const za::String before{vr_maps_allow_local.string};
+    Cvar_SetQuick(&vr_maps_allow_local, "0");
+    expect(mapinstall::refusedUrl("http://192.168.0.5/shot.png") && !mapinstall::refusedUrl("https://www.slipseer.com/"),
+        "local address: refused while vr_maps_allow_local is 0");
+    const int requestsBefore = requests.loadSeqCst();
+    za::Vector<char> body;
+    za::String error;
+    const bool got = fetch(za::String{"http://127.0.0.1:9/qvr_local.png"}, Kind::Asset, assetSeconds, nullptr, true, body, error);
+    expect(!got && strstr(error.cStr(), "local address") && requests.loadSeqCst() == requestsBefore,
+        "local address: a page's screenshot there is not fetched (no request made)", error);
+    Cvar_SetQuick(&vr_maps_allow_local, "1");
+    expect(!mapinstall::refusedUrl("http://192.168.0.5/shot.png"), "local address: allowed with vr_maps_allow_local 1");
+    Cvar_SetQuick(&vr_maps_allow_local, before.cStr());
+}
+
 void test_f()
 {
     if(Cmd_Argc() < 2)
@@ -2263,6 +2647,10 @@ void test_f()
         int nw = 0, nh = 0;
         expect(!pictureSizeOk("not a picture", 13, nw, nh), "picture: a web page is no picture");
     }
+
+    testBackoffs();
+    testCacheTrim();
+    testLocalAddresses();
 
     // The map pages.
     Details dd, vd;
