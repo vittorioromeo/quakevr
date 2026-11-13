@@ -611,6 +611,11 @@ qboolean Download (const char *url, download_t *download)
 	curl_easy_setopt (curl, CURLOPT_HTTPHEADER, header);
 	curl_easy_setopt (curl, CURLOPT_WRITEFUNCTION, download->write_fn);
 	curl_easy_setopt (curl, CURLOPT_WRITEDATA, download->write_data);
+	if (download->header_fn) // QVR: the response's headers (vr/vr_slipseer.cpp's cache validators)
+	{
+		curl_easy_setopt (curl, CURLOPT_HEADERFUNCTION, download->header_fn);
+		curl_easy_setopt (curl, CURLOPT_HEADERDATA, download->header_data);
+	}
 	curl_easy_setopt (curl, CURLOPT_USE_SSL, CURLUSESSL_ALL);
 	curl_easy_setopt (curl, CURLOPT_ACCEPT_ENCODING, "");
 	curl_easy_setopt (curl, CURLOPT_FOLLOWLOCATION, 1L);

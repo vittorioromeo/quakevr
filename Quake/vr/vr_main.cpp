@@ -78,6 +78,7 @@
 #include "vr_loading.hpp"
 #include "vr_limits.hpp"
 #include "vr_mapindex.hpp"
+#include "vr_slipseer.hpp"
 #include "vr_update.hpp"
 #include "vr_obs.hpp"
 #include "vr_takes.hpp"
@@ -2347,6 +2348,7 @@ extern "C" void VR_Init()
     doom::init(); // vr_doom and its commands (qvr_doom.dll loaded when first opened)
     audio::init(); // spatial audio's commands (vr_snd_info, vr_snd_test...); Steam Audio is loaded on first use
     mapindex::registerCommands(); // maps_list, maps_info, maps_stats, maps_fetch
+    slipseer::registerCommands(); // maps_slipseer, maps_slipseer_get, maps_slipseer_test (vr_slipseer.cpp)
     update::registerCommands(); // vr_update_status, vr_update_check_now, vr_update_compare (vr_update.cpp)
     obs::registerCommands(); // vr_obs_status, vr_obs_toggle, vr_obs_connect (vr_obs.cpp)
     takes::registerCommands(); // vr_take, vr_clip, the ratings and marks (vr_takes.cpp)
@@ -2377,6 +2379,7 @@ extern "C" void VR_BeforeVideoInit()
 extern "C" void VR_StopDownloads()
 {
     mapindex::finish();
+    slipseer::finish(); // Slipseer's pages (vr_slipseer.cpp)
     update::finish(); // the update check (vr_update.cpp)
     obs::finish(); // OBS's connection (vr_obs.cpp): its thread's winsock before the engine's goes
     mapinstall::finish();
@@ -2393,6 +2396,7 @@ extern "C" void VR_Shutdown()
     hull::finishLoads(); // (a map load's builds, if a quit came in the middle of one)
     box3d::finishLoads();
     mapindex::finish(); // the map index fetch, cancelled and joined (vr_mapindex.cpp)
+    slipseer::finish(); // Slipseer's listing or page fetch, the same (vr_slipseer.cpp)
     update::finish(); // the update check, the same (vr_update.cpp)
     obs::finish(); // OBS's connection, the same (vr_obs.cpp)
     mapinstall::finish(); // a map download or unpacking, cancelled and joined (vr_mapinstall.cpp)
@@ -2907,9 +2911,11 @@ extern "C" void VR_HostFrameEnd()
     {
         mapIndexStarted = true;
         qvr::mapindex::start();
+        qvr::slipseer::start(); // Slipseer's listing (vr_slipseer.cpp): cached, read politely
         qvr::update::start(); // the update notice's check (vr_update.cpp): at most once an hour, never in test runs
     }
     qvr::mapindex::poll(); // the map index the fetch thread finished, taken here (vr_mapindex.cpp)
+    qvr::slipseer::poll(); // Slipseer's entries into the index, its screenshot made a picture (vr_slipseer.cpp)
     qvr::update::poll(); // the update check's answer (vr_update.cpp)
     qvr::obs::poll(); // OBS's recording state, and the menus' state to its thread (vr_obs.cpp)
     qvr::takes::frame(); // the takes: OBS's answers and events, pending moves (vr_takes.cpp)
