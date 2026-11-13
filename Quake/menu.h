@@ -96,6 +96,8 @@ void M_Menu_Quit_f (void);
 
 void M_Print (int cx, int cy, const char *str);
 void M_PrintWhite (int cx, int cy, const char *str);
+void M_PrintEx (int cx, int cy, int dim, const char *str); // QVR: letters `dim` pixels (Menu Look's sizes)
+void M_PrintWhiteEx (int cx, int cy, int dim, const char *str);
 
 void M_Draw (void);
 void M_DrawCharacter (int cx, int line, int num);

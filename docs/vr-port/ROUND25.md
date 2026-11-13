@@ -1518,6 +1518,46 @@ Play on an installed package asks Easy / Normal / Hard / Nightmare first (page "
 
 - The server marks a thing VR_RunMeleeOnly_RefusesEnt refuses (guns, ammo, backpacks with rounds) as no-beam in the entity update (vr_server.cpp meleeOnlyRefuses: the carried bit for non-weapon things, the spent bit for weapon props), so the client beam code is unchanged. Melee weapons and other items keep theirs. Side effect: a refused gun ignores vr_enemy_weapon_depleted_loot.
 
+## Menu look: hierarchy, folding sections, highlights (agent/menuvis, 2026-11-13)
+
+His note: everything looked flat and the same, easy to get lost. Every part is a setting on the new page **Advanced VR >
+HUD and Menus > Menu Look** (also linked from Menu); the same code draws the flat panel and the headset's.
+
+- **Main menu groups** (`vr_menu_main_gap` 1.6): the groups' gap up to 16 px over Quake's 10 (menu.c `M_Main_Layout`;
+  less where the canvas is short).
+- **Section headers** (`vr_menu_header_scale` 1.25): letters 10 px, bottom-aligned on the header's row, reaching up into
+  the gap above it (`rowGap` adds the extra), so rows' geometry stays per row.
+- **Footers** (`vr_menu_minor_scale` 0.75, `vr_menu_minor_alpha` 0.65): every page's This Page and Menu Detail sections
+  are `Item::Minor` (addMenuDetail): smaller letters, shorter rows, fainter.
+- **Row heights**: `rowHeight(list, i)` (vr_menu.cpp) replaces the fixed 8 in rowsFrom, rowTop, scrollShowing, rowAt,
+  rowAtRaw and `menu_vr rows`; an `Item::Look` (Normal, Minor, Big, Button) sets a row's size.
+- **Folding sections** (`vr_menu_fold` 1, `vr_menu_fold_time` 0.15 s, state `vr_menu_folded` "page title|header;..."):
+  a header shows an arrow (Painter triangle, `menuui::paintFoldArrow`) that turns from right (folded) to down (open);
+  Enter, a click or the laser's trigger on the header toggles, left folds, right unfolds; headers are cursor stops while
+  folding is on (not where a page first opens: its first setting). Folded rows stay in the page's list (menu paths,
+  Search, `menu_vr <page> <row>` find them) with `Item::folded` set (applyFolds): no height, skipped by the cursor's
+  steps; a folded row selected anyway unfolds its section at the next draw. The rows' openness animates per row
+  (`Folds::open`, stepFolds) and they fade out before half folded. Off on the Checklist (its own folds). Test aids:
+  `menu_vr fold <0|1> [header prefix]` (prints MFOLD lines and the folded count), `menu_vr title <page title>`.
+- **Highlight fits the row** (`vr_menu_hl_fit` 1): the VR pages' bar from the label (its * mark) to the value's end
+  (`menuui::rowHighlight`); headers get one round their arrow and text. Ironwail's own option lists keep the full-width bar.
+- **Big menus' highlight** (`vr_menu_big_hl` 2, `vr_menu_big_hl_scale` 1.08): a soft glowing bar behind the selected row
+  (`VR_MenuDrawBigHighlight`) on the main menu, Single Player, Multiplayer and Skill; with 2 the main menu's selected
+  row also grows, eased over 0.1 s (`m_main_grow`).
+- **Shortcut groups** (`vr_menu_toolbar_groups` 5 px): Back | Quicksave, Quickload | Main Menu, Search, Console | VR
+  Settings, Advanced VR | Levels, Map Library | Relighting, New Panel | Toolgun, Save Default, Checklist (half the gap on
+  the flat icon row; the column's fit shrinks it with the buttons).
+- **Run Setup** (vr_menu_runsetup.inc): no Difficulty line at all with skill halls (`vr_runsetup_halls_line` 0; 1 the
+  old line); Difficulty an `Item::Big` row (`vr_runsetup_big` 1.5: 12 px letters, its choice in white); the mutators in
+  Rules (starting gun, starting melee, Melee Only, Glass Cannon, Ironman), Enemies (Armed Humanoids, Ranged Knights,
+  Wild Weaponry, Armored Foes, Smarter AI, Enemy Count, Randomized Enemies) and World (Randomized Pickups), a mutator in
+  no group under the last (`vr_runsetup_groups` 1; 0 one Mutators section); Start an `Item::Button` (a large lit button
+  across the middle, a gap above it, never folded with the section above it).
+
+Verified: build 0 warnings; `vr_menu_path_check` vrcalibration 6 found, vrstart 5 found, 0 missing;
+`menu_shortcuts_test.py` 14/14 (twice; one run had "Map Library" page check fail once, not reproduced); `menu_vr rows`
+"rowAt agrees" with two sections folded. Before/after shots (before = the same build with every Menu Look part set
+back): `qvr-kit/scratch/menuvis_shots/`.
 ## mutreview: the run setup and mutators reviewed and simplified (agent/mutreview, 2026-11-13)
 
 - **Registry (vr_runsetup.cpp/.hpp):** lines are designated initializers with defaults (a mutator names only what it

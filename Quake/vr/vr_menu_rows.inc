@@ -2288,6 +2288,34 @@ QVR_SLIDER_BYNAME(vr_menu_fine_step, "Fine Step", 0.01f, 0.5f, 0.01f, "%.2fx", n
     "A slider's step while you hold a grip (Shift on a flat screen), over its own: 0.1, a tenth, for placing things precisely.")
 QVR_SLIDER_BYNAME(vr_menu_section_gap, "Section Gap", 0.f, 2.f, 0.25f, "%.2f rows", noExt,
     "Space above each section's header on the settings pages (and under the page's title), so the sections stand apart. 0: none.")
+// vr_menu_pages.inc: pageMenuLook
+QVR_SLIDER_BYNAME(vr_menu_main_gap, "Main Menu Group Gap", 0.f, 3.f, 0.1f, "%.1fx", noExt,
+    "The main menu's space between its groups of rows (VR, playing, settings), over Quake's. Less where the menu has no room.")
+QVR_SLIDER_BYNAME(vr_menu_header_scale, "Section Header Size", 1.f, 2.f, 0.05f, "%.2fx", noExt,
+    "The settings pages' section headers' letters, over a row's: bigger headers make the sections easier to tell apart.")
+QVR_SLIDER_BYNAME(vr_menu_minor_scale, "Page Footer Size", 0.5f, 1.f, 0.05f, "%.2fx", noExt,
+    "The This Page (Reset This Page) and Menu Detail sections under every page: their letters and rows, over the others'.")
+QVR_SLIDER_BYNAME(vr_menu_minor_alpha, "Page Footer Opacity", 0.2f, 1.f, 0.05f, "%.2f", noExt,
+    "How faint the This Page and Menu Detail sections are (1: as the rest).")
+QVR_TOGGLE_BYNAME(vr_menu_fold, "Folding Sections",
+    "The settings pages' sections fold: a press on a section's header (its arrow) hides its rows, another shows them again. Each page keeps its folds. Off: every section open, headers not selectable.")
+QVR_SLIDER_BYNAME(vr_menu_fold_time, "Fold Animation Time", 0.f, 0.5f, 0.01f, "%.2f s", noExt,
+    "How long a section takes to fold or unfold (its rows slide and fade). 0: at once.")
+QVR_TOGGLE_BYNAME(vr_menu_hl_fit, "Highlight Fits the Row",
+    "The selected row's bar as wide as its label and value. Off: across the whole menu.")
+QVR_CYCLE_BYNAME(vr_menu_big_hl, "Big Menu Highlight",
+    "The main menu's (and Single Player's, Multiplayer's, Skill's) selected row: Quake's spinning icon only; a soft bar behind it too; and the main menu's row grown a little.",
+    {0.f, "Icon Only"}, {1.f, "Soft Bar"}, {2.f, "Bar and Grow"})
+QVR_SLIDER_BYNAME(vr_menu_big_hl_scale, "Big Menu Grow", 1.f, 1.25f, 0.01f, "%.2fx", noExt,
+    "With Big Menu Highlight: Bar and Grow: the selected main menu row's size.")
+QVR_SLIDER_BYNAME(vr_menu_toolbar_groups, "Shortcut Group Gap", 0.f, 12.f, 1.f, "%.0f px", noExt,
+    "The corner's shortcut buttons in groups (game, saves, menus, settings, levels, tools): this much space between groups. 0: evenly spaced.")
+QVR_TOGGLE_BYNAME(vr_runsetup_groups, "Run Setup: Mutator Groups",
+    "Run Setup's mutators in three sections: Rules, Enemies and World. Off: one Mutators section.")
+QVR_SLIDER_BYNAME(vr_runsetup_big, "Run Setup: Difficulty and Start Size", 1.f, 2.f, 0.05f, "%.2fx", noExt,
+    "Run Setup's Difficulty row and Start button: their letters over a row's.")
+QVR_TOGGLE_BYNAME(vr_runsetup_halls_line, "Run Setup: Skill Halls Line",
+    "With a start map that has its own skill halls (id's start, a pack's hall): a line saying so where Difficulty goes. Off: nothing (the halls choose).")
 QVR_TOGGLE_BYNAME(vr_menu_vr_style, "VR Menu Style",
     "The menus fill the panel with their rows spaced out, with modern sliders and switches, and a laser from your hand points at them: trigger to click and drag.")
 QVR_TOGGLE_BYNAME(vr_menu_recolor, "Blood Red Menus",

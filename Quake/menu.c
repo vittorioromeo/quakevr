@@ -510,6 +510,13 @@ void M_DrawQuakeCursor (int cx, int cy)
 	M_DrawTransPic (cx, cy, pic);
 }
 
+// QVR: Menu Look: a big-letter menu's selected row's soft bar behind it (vr_menu_big_hl): rows of picture `pic` from x, y,
+// 20 apart, the spinning cursor 18 left of them.
+static void M_DrawBigRowBar (int x, int y, const char *pic, int cursor)
+{
+	VR_MenuDrawBigHighlight ((float)(x - 22), (float)(x + Draw_CachePic (pic)->width + 6), y + cursor * 20 + 10.f, 11.f);
+}
+
 void M_DrawQuakeBar (int x, int y, int cols)
 {
 	M_DrawCharacter (x, y, '\35');
@@ -1595,10 +1602,10 @@ void M_Main_Layout (int *step, int *gap)
 		bottom = q_min (bottom, 200.f); // to Quake's 200, not the screen's: the notice box and corner buttons fill below it
 	}
 	avail = (int)(bottom - 2 - (q_min (top, 0.f) + 4) - 28 - 20);
-	*step = CLAMP (15, (avail - groups * 6) / (rows - 1), 20);
+	*step = CLAMP (15, (avail - groups * (int)(6 * VR_MenuMainGap ())) / (rows - 1), 20); // QVR: Menu Look's gap
 	if ((rows - 1) * *step > avail) // more rows than fit 15 apart (a flat screen's 200 rows): closer, to 13, their letters
 		*step = q_max (13, avail / (rows - 1)); // smaller (M_Main_Draw), no gaps
-	*gap = CLAMP (0, (avail - (rows - 1) * *step) / groups, 10);
+	*gap = CLAMP (0, (avail - (rows - 1) * *step) / groups, (int)(10 * VR_MenuMainGap () + 0.5f)); // QVR: vr_menu_main_gap
 
 	// the title's top to the last row's bottom, its middle at the panel's, never lower than Quake's place nor above the
 	// panel's top
@@ -1651,6 +1658,24 @@ static void M_Main_DrawContinue (int row)
 	M_PrintWhite (x, row + 1, title);
 	M_Print (x, row + 11, detail);
 	m_main_row_right[MAIN_CONTINUE] = (float) (x + 8 * q_max ((int) strlen (title), (int) strlen (detail)));
+}
+
+// QVR: Menu Look: each main menu row's growth while selected (0 to 1: vr_menu_big_hl 2), eased over a tenth of a second,
+// and when it last stepped.
+static float m_main_grow[MAIN_ITEMS];
+static double m_main_grow_time;
+
+static void M_Main_StepGrow (void)
+{
+	int i;
+	float step = (float) CLAMP (0.0, (realtime - m_main_grow_time) / 0.1, 1.0);
+
+	m_main_grow_time = realtime;
+	for (i = 0; i < MAIN_ITEMS; i++)
+	{
+		float target = i == m_main_cursor ? 1.f : 0.f;
+		m_main_grow[i] = m_main_grow[i] < target ? q_min (m_main_grow[i] + step, target) : q_max (m_main_grow[i] - step, target);
+	}
 }
 
 // QVR: how far right of Quake's columns (left: negative) the rows, their cursor and a flat screen's banner are drawn,
@@ -1711,11 +1736,23 @@ void M_Main_Draw (void)
 		m_main_row_right[i] = -1e9f;
 		m_main_row_bottom[i] = M_Main_Shown (i) ? (float)(M_Main_RowY (i, step, gap) + 20) : -1e9f;
 	}
+	M_Main_StepGrow ();
+	if (M_Main_Shown (m_main_cursor)) // QVR: Menu Look: a soft bar behind the selected row (vr_menu_big_hl)
+	{
+		int row = M_Main_RowY (m_main_cursor, step, gap);
+		float w = text ? 1.f + VR_BigFont_WidthScaled (scale * VR_MenuBigGrow (), m_main_labels[m_main_cursor])
+					   : (float) q_max (Draw_CachePic ("gfx/mainmenu.lmp")->width, 16 * (int) strlen (m_main_labels[m_main_cursor]) + 2);
+		VR_MenuDrawBigHighlight ((float)(x - 22), x + w + 6.f, row + 10.f * scale, 11.f * scale);
+	}
 	if (text)
 	{
-		for (i = 0; i < MAIN_ITEMS; i++) // QVR: the rows as text
+		for (i = 0; i < MAIN_ITEMS; i++) // QVR: the rows as text (the selected one grown: vr_menu_big_hl 2)
 			if (M_Main_Shown (i))
-				m_main_row_right[i] = x + 1.f + VR_BigFont_DrawScaled (x + 1, M_Main_RowY (i, step, gap), scale, m_main_labels[i]);
+			{
+				float s = scale * (1.f + (VR_MenuBigGrow () - 1.f) * m_main_grow[i]);
+				int row = M_Main_RowY (i, step, gap) - (int) floor (10.f * (s - scale) + 0.5f);
+				m_main_row_right[i] = x + 1.f + VR_BigFont_DrawScaled (x + 1, row, s, m_main_labels[i]);
+			}
 	}
 	else
 	{ // QVR: the picture's rows (its Help row left out), the others in the mods' row's letters
@@ -1992,6 +2029,7 @@ void M_SinglePlayer_Draw (void)
 	M_DrawPlaque (16, 4); // QVR: the Quake VR banner
 	p = Draw_CachePic ("gfx/ttl_sgl.lmp");
 	M_DrawPic ( (320-p->width)/2, 4, p);
+	M_DrawBigRowBar (72, 32, m_singleplayer_cursor >= 3 ? "gfx/sp_maps.lmp" : "gfx/sp_menu.lmp", m_singleplayer_cursor); // QVR
 	M_DrawRowsPic (72, 32, "gfx/sp_menu.lmp");
 	if (sv.active && VR_RunIronman ()) // QVR: the run's Ironman: Save (the third row) greyed
 		Draw_Fill (70, 32 + 2 * 20 - 1, Draw_CachePic ("gfx/sp_menu.lmp")->width + 4, 20, 0, 0.7f);
@@ -3152,6 +3190,8 @@ void M_Skill_Draw (void)
 
 	if (m_skill_usegfx)
 	{
+		if (m_skill_cursor < 4) // QVR: Menu Look
+			M_DrawBigRowBar (x, y, "gfx/skillmenu.lmp", m_skill_cursor);
 		M_DrawRowsPic (x, y, "gfx/skillmenu.lmp");
 		if (m_skill_cursor < 4)
 			M_DrawQuakeCursor (x - 18, y + m_skill_cursor * 20);
@@ -3286,6 +3326,7 @@ void M_MultiPlayer_Draw (void)
 	M_DrawPlaque (16, 4); // QVR: the Quake VR banner
 	p = Draw_CachePic ("gfx/p_multi.lmp");
 	M_DrawPic ( (320-p->width)/2, 4, p);
+	M_DrawBigRowBar (72, 32, "gfx/mp_menu.lmp", m_multiplayer_cursor); // QVR: Menu Look
 	M_DrawRowsPic (72, 32, "gfx/mp_menu.lmp");
 
 	M_DrawQuakeCursor (54, 32 + m_multiplayer_cursor * 20);
