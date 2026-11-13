@@ -545,3 +545,25 @@ now also waits for the player before its first spawn: it had a program error whe
   2.9 s (e1m1's own dogs, woken unseen, switch to his trail through it as he goes in). It passes with
   `vr_stealth_chase_tele 0` too: the dog sees him go in and its navmesh chase takes the link. A hunter woken unseen far
   off often takes the walking way to where he came out (the mesh's shorter path) and gives up first.
+
+## 19. Hunting through a gate; the metric's player past each destination (2026-11-13)
+
+- **dm5's "monsters under the plinth"** were not the plinth: the gates' sill (208, 16 over the floor 192, the frame's
+  bottom bar floating 8 over it) is on the mesh, the link's entry is on it (`vr_nav_links`: entry 890 376 209-212), and
+  walkers step onto it from either side. Two other causes:
+  - **The metric:** `nav_tele_dm5` kept you at the scene's start, beside gate 1 on the side gate 2 leads to, so gate 1's
+    walkers (all put on that same side: the other is a wall 70 off) just ran at you round the frame.
+    `vr_nav_teletest ... [past]` 1 now puts you past each trial's own destination (out of it as Quake's teleport faces
+    you: the destination's `mangle`, 160 on, nearer if off the mesh) and tells the stealth AI you went through that
+    teleporter (`VR_Stealth_Teleported`, as `teleport_touch` does), so a walker woken onto you unseen follows your
+    trail through it instead of hunting where you were last seen. The dm5 scene uses it.
+  - **The hunt behind a gate** (`vr_nav_gate_marker` 1, Debug > Tunables): a monster that saw you through a paired gate
+    and lost you hunts your image there: the stealth marker 48 past the gate's face (`VR_Stealth_WayTo`), which used
+    to be walked to by Quake's own chase (`VR_NAV_Step` steers only to the enemy and to a trail through a teleporter).
+    At a free-standing gate that went round the frame to the marker's spot behind the sheet (dm5's dog circling gate
+    2; the vrteleporters dog at gate 3 wandering off). Now (`VR_Stealth_MarkerVia`: the face a Hostile's lost spot, an
+    Alert walk's point or a return's post lies beyond) the navmesh steers to the marker carried through the gate
+    (`portal_ai_gate(via, 3, ...)`), i.e. through the gate's teleporter link, lined up with its opening; the crossing
+    carries the marker as before (`VR_Stealth_Crossed`). Markers not past a gate keep Quake's chase (lifts: 17).
+- `vr_nav_teletest`'s notes (`navtt-step`) now also print the walker's goal (`enemy`, `stl_marker` and where) and come
+  for a walker not yet steering by the navmesh (why 0).

@@ -218,6 +218,32 @@ vector(vector point, float xVia) VR_Stealth_WayTo =
     return xVia > 0 ? mid - n * 48 : mid + n * 48;
 };
 
+// The gate face m's marker lies beyond (VR_Stealth_WayTo's spot 48 past a face it walks through: his image seen through
+// the gate, or a point or post on its far side), 0 none. The navmesh steers it there through the face's teleporter link
+// (vr_ai_props.qc VR_NAV_Step): Quake's own chase at a spot behind a free-standing gate went round the frame to its back.
+float(entity m) VR_Stealth_MarkerVia =
+{
+    entity k = m.stl_marker;
+    if(k == world || k.owner != m || k.classname != "stl_marker" || !VR_Stealth_On())
+    {
+        return 0;
+    }
+    float via = m.stl_lost_via;
+    if(m.stl_state == STL_ALERT && m.stl_phase == STL_WALK)
+    {
+        via = m.stl_via;
+    }
+    else if(m.stl_state == STL_ALERT && m.stl_phase == STL_RETURN)
+    {
+        via = m.stl_post_via;
+    }
+    if(via <= 0 || vlen(k.origin - VR_Stealth_WayTo(k.origin, via)) > 1)
+    {
+        return 0;
+    }
+    return via;
+};
+
 // visible() (self): under the stealth rules every monster sees a player through paired gates (ranged ones through
 // every gate, vr_portal_ai.qc).
 float() VR_Stealth_GateSight =

@@ -1420,6 +1420,7 @@ float cvarh_vr_nailpistol_volume;
 float cvarh_vr_nav;
 float cvarh_vr_nav_drop_push;
 float cvarh_vr_nav_gate_chase;
+float cvarh_vr_nav_gate_marker;
 float cvarh_vr_nav_level;
 float cvarh_vr_nav_melee_level;
 float cvarh_vr_nav_plat_monsters;
@@ -3466,6 +3467,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_nav = VR_CVar_Make("vr_nav");
     cvarh_vr_nav_drop_push = VR_CVar_Make("vr_nav_drop_push");
     cvarh_vr_nav_gate_chase = VR_CVar_Make("vr_nav_gate_chase");
+    cvarh_vr_nav_gate_marker = VR_CVar_Make("vr_nav_gate_marker");
     cvarh_vr_nav_level = VR_CVar_Make("vr_nav_level");
     cvarh_vr_nav_melee_level = VR_CVar_Make("vr_nav_melee_level");
     cvarh_vr_nav_plat_monsters = VR_CVar_Make("vr_nav_plat_monsters");

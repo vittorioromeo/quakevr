@@ -4673,6 +4673,7 @@ vr_nav_tele_cost|2|Tunables|Navmesh: Teleporter Cost|Advanced VR Options > Debug
 vr_nav_tele_time|2|Tunables|Navmesh: Teleporter Give-Up Time|Advanced VR Options > Debug > Tunables > Navmesh: Teleporter Give-Up Time
 vr_nav_tele_approach|2|Tunables|Navmesh: Teleporter Line-Up|Advanced VR Options > Debug > Tunables > Navmesh: Teleporter Line-Up
 vr_nav_gate_chase|2|Tunables|Navmesh: Gate Chase Between Shots|Advanced VR Options > Debug > Tunables > Navmesh: Gate Chase Between Shots
+vr_nav_gate_marker|2|Tunables|Navmesh: Hunt Through Gates|Advanced VR Options > Debug > Tunables > Navmesh: Hunt Through Gates
 vr_nav_tele_stuck|2|Tunables|Navmesh: Teleporter Stuck Back-Off|Advanced VR Options > Debug > Tunables > Navmesh: Teleporter Stuck Back-Off
 vr_nav_link_retry|2|Tunables|Navmesh: Link Retry Time|Advanced VR Options > Debug > Tunables > Navmesh: Link Retry Time
 vr_nav_plat_monsters|2|Tunables|Monsters Call Lifts|Advanced VR Options > Debug > Tunables > Monsters Call Lifts
