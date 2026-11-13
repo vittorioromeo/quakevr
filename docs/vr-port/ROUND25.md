@@ -1755,4 +1755,37 @@ His flat report: "ERROR: weapon clip less than zero" firing the shotgun, a spent
   `vr_scenario runall quit` with bench_crowd_ad x30 (AD mounted): before 2 of 30 failed, after 0 of 30 (and 0 of 10).
 - **Checklist:** the Gameplay preset "?" rows line was already gone; the stirring line moved to Flat-screen: monsters
   and AI; the flashlight and lean lines are ticked (left for the next sort).
+
+## continue: Continue on Select Campaign's and the Map Library's rows (branch agent/continue, 2026-11-13)
+
+His design: Continue belongs where the game is chosen, not on the difficulty / Run Setup screen. Every Run Setup Start
+is a brand-new run; continuing keeps the run's own choices (from the save) and skips Run Setup.
+- **Select Campaign** (Official Campaigns, flat and VR alike: one VR page): a campaign with a loadable autosave gets a
+  row under its own, "Continue (12 min ago)", with its run on the line under it ("Hard / Classic / Glass cannon": part
+  of the row, selected with it; one line cut the run's tail at the page's width). Its help: the campaign, the map, the
+  player's health and armour, the time into the level, the whole run. Pressed: that autosave loaded at once (the menu
+  closed); the load sets the run from the save's `// qvr_run` line (runsetup::onLoadGame). Dimmed while the campaign
+  can't be played. Arcane Dimensions has none (its own game folder's saves).
+- **Map Library:** an installed package with an autosave gets a Continue button across the detail's column, above
+  Uninstall / Reinstall: "Continue (12 min ago): Hard / Classic". The sticks reach it (down from the keyboard; up from
+  Uninstall; right to the list), the laser and mouse press it.
+- **Which save:** each game's newest loadable autosave in `autosave/` (its rotating slots too): a campaign's (its
+  campaign, no package) or a package's (its sha256), by the save's own context lines, not its file name
+  (vr_continue.cpp `refreshLaunchSaves`, read when the page is built: each showing; a file not changed since not read
+  again). Quake's campaign also counts a custom map played in it without a package (Play Custom Map / Levels).
+- **The run's summary without loading:** `runsetup::saveSummary(text, skill)` parses the save's `// qvr_run` line (the
+  parser shared with the load's `readSaveLines`) and builds the same summary as the Run Setup screen (`summaryOf`); a
+  save without the line: its own skill, the choices it doesn't say left out.
+- **Removed:** the old skill menu's "Resume last game" row (menu.c; only Quake 64's New Game still opens that menu, a
+  fresh start now) and `VR_AutosaveNameForLaunch` (its only user).
+- **Debug > Tools:** Continue Rows Test (`vr_continue_rows_test`), List Continue Rows (`vr_continue_rows`: each game's
+  Continue text and save).
+- **Tests:** `vr_continue_rows_test` 16/0 (`developer 1;vr_continue_rows_test`, -QuitOn "continue_rows: [0-9]+
+  passed"; self-driven phases: no Continue without an autosave; a Hard / Classic / Glass cannon run on e1m1 saved to
+  autosave/: Quake's Continue row right under Quake's, "Continue (just now)" over "Hard / Classic / Glass cannon"; a
+  fixture copy as a map package's autosave (its sha taken as installed: no network) gives the package's Continue the
+  same text; with other run choices set, the row pressed on the opened page loads it: the menu closed, e1m1, the run and
+  skill 2 back; its files removed, no Continue). `vr_runsetup_test` 73/0, `vr_runsetup_screen_test` 16/0,
+  menu_shortcuts_test 14/0, `vr_menu_path_check maps/vrcalibration.map` 0 missing; menu_paths.txt regenerated (the two
+  Debug rows). Not tested headless: the Map Library's button with a real installed package (the tests have none).
 - **cltick1113:** retired 6 ticked checklist lines (dagger label, gore minimal, flashlight, lean, kd stir, dog gate; none had voice notes) and 3 unused scenes (flatlean, gore_presets, nav_tele_gate).

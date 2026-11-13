@@ -25,6 +25,13 @@
 // Continue (the main menu's first row, the hub's Continue button, vr_continue): the newest save of all, by its file's
 // time, that is loadable here (its `// qvr_save` line, its campaign keys: VR_SaveCampaign; its map package installed)
 // and of a campaign's map (not a vr* map's).
+//
+// Continue on the launch rows (the author's design, 2026-11-13: Continue belongs where the game is chosen, not on the
+// Run Setup screen): Select Campaign's campaign rows and the Map Library's installed packages each offer their game's
+// newest loadable autosave (a campaign's: its campaign, no package; a package's: its sha256), "Continue: Hard /
+// Classic" with the save's age, "Continue (12 min ago): Hard / Classic" (its `// qvr_run` line: runsetup::saveSummary). It loads that save directly: the run's
+// own choices come back with it (a load), no Run Setup screen. Every Run Setup Start is a new run. (The old skill
+// menu's Resume row is gone: menu.c.)
 
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -73,6 +80,7 @@ struct ContinueSave
     int health{0};
     int armor{0};
     float played{0.f};          // seconds into the level
+    char run[160]{};            // its run's summary ("Hard / Classic"; runsetup::saveSummary), "" when it says none
 };
 ContinueSave continueSave;
 
@@ -325,6 +333,10 @@ void migrateFolderAutosaves()
     }
 }
 
+// vr_continue_rows_test's map package (its fixture's sha256: taken as installed; "" none): the Map Library's Continue
+// tested without a package installed (the tests have no network).
+char testPackage[72]{};
+
 // Whether a save would load here, and what it is: its map, its title, its campaign, its map package.
 bool inspect(const Candidate& c, ContinueSave& out, bool verbose)
 {
@@ -341,7 +353,8 @@ bool inspect(const Candidate& c, ContinueSave& out, bool verbose)
     if(!ctx.map[0] || !VR_AutosaveAllowed(ctx.map)) { return false; }
     out.campaign = VR_SaveCampaign(text.data());
     if(out.campaign < 0) { return false; }
-    if(ctx.package[0] && !qvr::mapinstall::installed(za::String{ctx.package}))
+    if(ctx.package[0] && !qvr::mapinstall::installed(za::String{ctx.package}) &&
+        (!testPackage[0] || q_strcasecmp(ctx.package, testPackage)))
     {
         bool warned = false;
         for(int i = 0; i < warnedCount; ++i)
@@ -366,6 +379,8 @@ bool inspect(const Candidate& c, ContinueSave& out, bool verbose)
     char player[64];
     out.hasPlayer = contextLine(text.data(), "qvr_player", player, sizeof(player)) &&
                     sscanf(player, "%d %d %f", &out.health, &out.armor, &out.played) == 3;
+    saveLine(text.data(), 18, line, sizeof(line)); // (the skill: after the version, the comment and 16 spawn parms)
+    q_strlcpy(out.run, qvr::runsetup::saveSummary(text.data(), Q_atoi(line)), sizeof(out.run));
     q_strlcpy(out.relname, c.relname, sizeof(out.relname));
     q_strlcpy(out.path, c.path, sizeof(out.path));
     out.when = c.when;
@@ -552,19 +567,25 @@ void refreshAutosaves()
     }
 }
 
+// How long ago a save was made: "just now", "12 min ago", "3 h ago", "4 days ago".
+void describeAge(time_t made, char* out, size_t size)
+{
+    time_t now;
+    time(&now);
+    const double ago = difftime(now, made);
+    if(ago < 60.) { q_strlcpy(out, "just now", size); }
+    else if(ago < 3600.) { q_snprintf(out, size, "%d min ago", static_cast<int>(ago / 60.)); }
+    else if(ago < 48. * 3600.) { q_snprintf(out, size, "%d h ago", static_cast<int>(ago / 3600.)); }
+    else { q_snprintf(out, size, "%d days ago", static_cast<int>(ago / 86400.)); }
+}
+
 // An autosave's two lines: "e1m3: The Necropolis" and "Health 65 Armor 50, 3:12 in, 5 min ago".
 void describeAutosave(const ContinueSave& s, char* line1, size_t size1, char* line2, size_t size2)
 {
     if(s.context[0] && !ofThisGame(s)) { q_snprintf(line1, size1, "%s: %s (%s)", s.map, s.title, s.context); }
     else { q_snprintf(line1, size1, "%s: %s", s.map, s.title); }
-    time_t now;
-    time(&now);
-    const double ago = difftime(now, s.when);
     char when[32];
-    if(ago < 60.) { q_strlcpy(when, "just now", sizeof(when)); }
-    else if(ago < 3600.) { q_snprintf(when, sizeof(when), "%d min ago", static_cast<int>(ago / 60.)); }
-    else if(ago < 48. * 3600.) { q_snprintf(when, sizeof(when), "%d h ago", static_cast<int>(ago / 3600.)); }
-    else { q_snprintf(when, sizeof(when), "%d days ago", static_cast<int>(ago / 86400.)); }
+    describeAge(s.when, when, sizeof(when));
     if(!s.hasPlayer)
     {
         q_strlcpy(line2, when, size2);
@@ -616,7 +637,176 @@ void autosaveLoad()
     VR_AutosaveLoad(n - 1);
 }
 
+// Continue on the launch rows: each game's newest loadable autosave (a campaign's or a map package's), read again when
+// the page is built (VR_LaunchContinueRefresh; a file not changed since not read again: inspectAutosave), with the
+// row's text and help (kept with it: drawn every frame, the age read then).
+struct LaunchSave
+{
+    ContinueSave save;
+    char label[192]{}; // "Continue (12 min ago): Hard / Classic"
+    char title[48]{};  // "Continue (12 min ago)" (Select Campaign's row; its run on the line under it)
+    char help[320]{};
+};
+constexpr int maxLaunchSaves = 64;
+LaunchSave launchSaves[maxLaunchSaves];
+int launchSaveCount = 0;
+
+// The game a save is of: its map package's sha256, else its campaign.
+bool sameGame(const ContinueSave& s, int campaign, const char* sha)
+{
+    if(sha && sha[0]) { return !q_strcasecmp(s.packageSha, sha); }
+    return !s.packageSha[0] && s.campaign == campaign;
+}
+
+void refreshLaunchSaves()
+{
+    launchSaveCount = 0;
+    candidateCount = 0;
+    addCandidates("autosave");
+    for(int i = 0; i < candidateCount; ++i)
+    {
+        const Candidate& c = candidates[i];
+        if(!strcmp(c.relname, "autosave/relight")) { continue; } // (vr_relight.cpp's batch save)
+        ContinueSave found;
+        if(!inspectAutosave(c, found)) { continue; }
+        int at = 0;
+        while(at < launchSaveCount && !sameGame(launchSaves[at].save, found.campaign, found.packageSha)) { ++at; }
+        if(at == launchSaveCount)
+        {
+            if(launchSaveCount >= maxLaunchSaves) { continue; }
+            launchSaves[launchSaveCount++].save = found;
+        }
+        else if(found.when > launchSaves[at].save.when) { launchSaves[at].save = found; }
+    }
+}
+
+LaunchSave* launchSave(int campaign, const char* sha)
+{
+    for(int i = 0; i < launchSaveCount; ++i)
+    {
+        if(sameGame(launchSaves[i].save, campaign, sha)) { return &launchSaves[i]; }
+    }
+    return nullptr;
+}
+
+// The Continue row's text: "Continue (12 min ago): Hard / Classic" (the age first: a long run's tail is what a narrow
+// row cuts; the help has it whole), "Continue (12 min ago)" for a save without run choices.
+void describeLaunch(LaunchSave& l)
+{
+    char when[32];
+    describeAge(l.save.when, when, sizeof(when));
+    q_snprintf(l.title, sizeof(l.title), "Continue (%s)", when);
+    if(l.save.run[0]) { q_snprintf(l.label, sizeof(l.label), "%s: %s", l.title, l.save.run); }
+    else { q_strlcpy(l.label, l.title, sizeof(l.label)); }
+    char line1[96], line2[96];
+    describeAutosave(l.save, line1, sizeof(line1), line2, sizeof(line2));
+    q_snprintf(l.help, sizeof(l.help),
+        "Loads %s's newest autosave: %s, %s. Its run: %s, kept (no Run Setup: that starts a new run).",
+        l.save.context[0] ? l.save.context : "this game", line1, line2, l.save.run[0] ? l.save.run : "as it was");
+}
+
+// Loads a save next (before any command queued): a multiplayer server's settings put back first, as the game's start
+// does (a save loads as a single-player game). The load makes the save's campaign the active one and mounts its map
+// package (Host_Loadgame_f), and sets the run from its `// qvr_run` line (runsetup::onLoadGame).
+void loadNext(const char* relname)
+{
+    Cbuf_InsertText(va("load \"%s\"\n", relname));
+    if(svs.maxclients != 1 || coop.value != 0.f || deathmatch.value != 0.f)
+    { Cbuf_InsertText("disconnect\nmaxplayers 1\ndeathmatch 0\ncoop 0\n"); }
+}
+
+// vr_continue_rows [campaign | sha]: each game's Continue (Select Campaign's rows, the Map Library's), read again
+// (Debug > Tests > Saves).
+void continueRows()
+{
+    refreshLaunchSaves();
+    for(int i = 0; i < launchSaveCount; ++i)
+    {
+        LaunchSave& l = launchSaves[i];
+        describeLaunch(l);
+        Con_Printf("continue row: %s %s: %s | %s\n", l.save.packageSha[0] ? "package" : "campaign",
+            l.save.packageSha[0] ? l.save.packageSha : va("%d", l.save.campaign), l.label, l.save.relname);
+    }
+    Con_Printf("vr_continue_rows: %d games with an autosave\n", launchSaveCount);
+}
+
 } // namespace
+
+extern "C" void VR_LaunchContinueRefresh(void)
+{
+    refreshLaunchSaves();
+}
+
+extern "C" const char* VR_LaunchContinueLabel(int campaign, const char* sha, int part)
+{
+    LaunchSave* l = launchSave(campaign, sha);
+    if(!l) { return nullptr; }
+    describeLaunch(*l);
+    return part == 1 ? l->title : part == 2 ? l->save.run : l->label;
+}
+
+extern "C" const char* VR_LaunchContinueHelp(int campaign, const char* sha)
+{
+    LaunchSave* l = launchSave(campaign, sha);
+    if(!l) { return nullptr; }
+    describeLaunch(*l);
+    return l->help;
+}
+
+extern "C" const char* VR_LaunchContinueSave(int campaign, const char* sha)
+{
+    const LaunchSave* l = launchSave(campaign, sha);
+    return l ? l->save.relname : nullptr;
+}
+
+extern "C" int VR_LaunchContinueTestFixture(const char* save, const char* copy, const char* sha)
+{
+    char from[MAX_OSPATH], to[MAX_OSPATH];
+    q_snprintf(to, sizeof(to), "%s/%s.sav", com_gamedir, copy);
+    if(!save)
+    {
+        testPackage[0] = 0;
+        q_snprintf(from, sizeof(from), "%s/%s.sav", com_gamedir, copy);
+        return qvr::files::exists(from) ? (qvr::files::remove(from) ? 1 : 0) : 1;
+    }
+    q_snprintf(from, sizeof(from), "%s/%s.sav", com_gamedir, save);
+    za::String text;
+    if(!qvr::files::readText(from, text, qvr::files::Mode::Binary)) { return 0; }
+    // (its package lines the fixture's, the rest as saved: line by line, each line's end kept)
+    za::String out;
+    int replaced = 0;
+    for(const char* line = text.cStr(); *line;)
+    {
+        const char* end = strchr(line, '\n');
+        const za::SizeT len = end ? static_cast<za::SizeT>(end - line + 1) : static_cast<za::SizeT>(strlen(line));
+        const za::SizeT bare = static_cast<za::SizeT>(strcspn(line, "\r\n"));
+        const za::StringView view{line, bare};
+        if(view == "// qvr_package")
+        {
+            out += za::String{"// qvr_package "} + sha + "\n";
+            ++replaced;
+        }
+        else if(view == "// qvr_package_title")
+        {
+            out += "// qvr_package_title Continue Test Pack\n";
+            ++replaced;
+        }
+        else { out += za::String{za::StringView{line, len}}; }
+        line += len;
+    }
+    if(replaced != 2) { return 0; }
+    q_strlcpy(testPackage, sha, sizeof(testPackage));
+    return qvr::files::writeBytes(to, out.cStr(), out.size()) ? 1 : 0;
+}
+
+extern "C" int VR_LaunchContinueLoad(int campaign, const char* sha)
+{
+    const LaunchSave* l = launchSave(campaign, sha);
+    if(!l) { return 0; }
+    Con_Printf("Continue (%s): %s\n", l->save.context, l->save.relname);
+    loadNext(l->save.relname);
+    return 1;
+}
 
 extern "C" void VR_AutosaveRotate(const char* path)
 {
@@ -718,12 +908,6 @@ extern "C" void VR_AutosaveName(const char* map, char* out, size_t size)
     autosaveName(map, VR_ActiveCampaign(), qvr::mapinstall::active().cStr(), out, size);
 }
 
-extern "C" void VR_AutosaveNameForLaunch(const char* map, char* out, size_t size)
-{
-    // (the campaign the `map` command would run it in: its own campaign check, VR_CanLoadCampaignMap's)
-    autosaveName(map, VR_CampaignForMap(map), qvr::mapinstall::packageFor(map).cStr(), out, size);
-}
-
 extern "C" int VR_AutosaveAllowed(const char* map)
 {
     return q_strncasecmp(map, "vr", 2) != 0;
@@ -822,12 +1006,7 @@ extern "C" void VR_ContinueStart()
 {
     if(!continueSave.found) { return; }
     Con_Printf("Continue: %s\n", continueSave.relname);
-    // Next, before any command queued (inserted: the load, then before it a multiplayer server's settings put back, as
-    // the game's start does: a save loads as a single-player game). The load makes the save's campaign the active one
-    // and mounts its map package (Host_Loadgame_f).
-    Cbuf_InsertText(va("load \"%s\"\n", continueSave.relname));
-    if(svs.maxclients != 1 || coop.value != 0.f || deathmatch.value != 0.f)
-    { Cbuf_InsertText("disconnect\nmaxplayers 1\ndeathmatch 0\ncoop 0\n"); }
+    loadNext(continueSave.relname);
 }
 
 extern "C" void VR_RegisterContinue()
@@ -837,5 +1016,6 @@ extern "C" void VR_RegisterContinue()
     Cmd_AddCommand("vr_save_info", saveInfo);
     Cmd_AddCommand("vr_autosave_list", autosaveList);
     Cmd_AddCommand("vr_autosave_load", autosaveLoad);
+    Cmd_AddCommand("vr_continue_rows", continueRows);
     migrateFolderAutosaves();
 }
