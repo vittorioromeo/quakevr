@@ -231,17 +231,26 @@ ClientState& crossingState(edict_t* ent)
     {
         return true;
     }
+    // The floor `out` units in front of the opening's bottom middle (64 under it at most); none: startsolid.
+    const glm::vec2 mid = glm::vec2{sd.mins.x + sd.maxs.x, sd.mins.y + sd.maxs.y} * 0.5f;
+    const auto floorAt = [&](float out, float& z) {
+        const glm::vec2 at = mid + glm::normalize(n) * out;
+        vec3_t start{at.x, at.y, sd.mins.z + 1.f}, end{at.x, at.y, sd.mins.z - 64.f}, none{0.f, 0.f, 0.f};
+        const trace_t tr = SV_Move(start, none, none, end, MOVE_NOMONSTERS, ent);
+        z = tr.endpos[2];
+        return !tr.startsolid;
+    };
+    // Two steps at most: onto what is just in front of the plane (a sill, a frame's bar), from where its box stands
+    // in front of that (or where its feet are, if higher). e1m1: the bar's top is the opening's bottom, 23 over the floor.
     const float reach = za::max(za::max(-ent->v.mins[0], ent->v.maxs[0]), za::max(-ent->v.mins[1], ent->v.maxs[1])) + 4.f;
-    const glm::vec2 at = glm::vec2{sd.mins.x + sd.maxs.x, sd.mins.y + sd.maxs.y} * 0.5f + glm::normalize(n) * reach;
-    vec3_t start{at.x, at.y, sd.mins.z + 1.f}, end{at.x, at.y, sd.mins.z - 64.f}, none{0.f, 0.f, 0.f};
-    const trace_t tr = SV_Move(start, none, none, end, MOVE_NOMONSTERS, ent);
-    if(tr.startsolid)
+    float sill = 0.f, before = 0.f;
+    if(!floorAt(1.f, sill) || !floorAt(reach, before))
     {
         return true; // (no floor to tell from: as before)
     }
-    // (Or where its feet are, if higher: a narrow plinth before the gate, dm5's, which the probe may miss.)
-    const float floor = za::max(tr.endpos[2], ent->v.origin[2] + ent->v.mins[2]);
-    return sd.mins.z - floor <= stepSize + 0.5f && sd.maxs.z - za::max(sd.mins.z, floor) >= ent->v.maxs[2] - ent->v.mins[2];
+    before = za::max(before, ent->v.origin[2] + ent->v.mins[2]);
+    const float top = za::max(sd.mins.z, sill);
+    return top - sill <= stepSize + 0.5f && sill - before <= stepSize + 0.5f && sd.maxs.z - top >= ent->v.maxs[2] - ent->v.mins[2];
 }
 
 // A two-sided sheet: whether `p` is in front of the other face of `sd`'s gate (its side turned the other way).
