@@ -1,14 +1,13 @@
 # kd_stir: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Knocked-down grunts stirring as they lie
-# (vr_knockdown_stir): every shove knocks down and each stays down a while, so the stirring is easy to watch.
-title Knocked down and stirring: three grunts to shove over, each down for 8 seconds
+# (vr_knockdown_stir and its tunables): every shove knocks down, each down for the shipped time (1.75-3.5 s), the stirring
+# from as it lands until it gets up.
+title Knocked down and stirring: three grunts to shove over, each down for the usual time
 map vrtesthall
 start 0 -288 25 90
 god
 notarget
 cvar vr_knockdown_chance 100
-cvar vr_knockdown_time_min 8
-cvar vr_knockdown_time_max 8
 spawn "Grunt" 64 40
 spawn "Grunt" 64 -40
 spawn "Grunt" 128 0
-hint Shove each grunt over (both hands for a sure one) and watch it lie: now and then its head turns slowly, a hand twitches, an arm or a leg draws in a little. Kill one lying down: it never moves again.
+hint Shove each grunt over (both hands for a sure one) and watch it lie: from as it lands until it gets up its head turns, its hands twitch, an arm or a leg draws in, slowly, a couple at a time; it gets up no later than before. Kill one lying down: it never moves again. Debug > Tunables > Knockdowns: Stirring Turn, Move Time, Pause, Joints, Head/Arms/Legs, Force.
