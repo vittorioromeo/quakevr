@@ -130,6 +130,12 @@ void paintSwitch(float x, float y, bool on);
 void paintSlider(int x, int y, float range, const char* desc);
 void paintButton(float x0, float x1, float yc, float half, bool lit);
 
+// Menu Look (ROUND25.md, "Menu look"): the selected row's bar x0..x1 round yc, `half` (true pixels) each way (false:
+// none drawn: the classic style, or the corner's buttons have the selection); a section's fold arrow at xc, yc,
+// `size` from its middle to its tip, pointing right folded (open 0) and turning down as it opens (open 1).
+bool rowHighlight(float x0, float x1, float yc, float half);
+void paintFoldArrow(float xc, float yc, float size, float open);
+
 // Whether a menu in the headset shows the spectator camera's preview (vr_spectator_preview, while the camera is on;
 // placed by the last 2D pass): vr_stereo.cpp then makes it from the camera's image.
 [[nodiscard]] bool spectatorPreviewWanted();

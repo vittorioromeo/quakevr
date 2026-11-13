@@ -1885,9 +1885,9 @@ void navSyncTop()
 
 [[nodiscard]] RowAnchor anchorOf(const za::Vector<Item>& list, int cursor, int scroll)
 {
-    if(cursor < 0 || cursor >= static_cast<int>(list.size()) || !selectable(list[cursor]))
+    if(cursor < 0 || cursor >= static_cast<int>(list.size()) || !(selectable(list[cursor]) || list[cursor].kind == Item::Header))
     {
-        return {};
+        return {}; // (a header: the cursor is on it while sections fold)
     }
     return {true, rowSection(list, cursor), rowLabel(list[cursor]), cursor, cursor - scroll};
 }
@@ -1900,7 +1900,7 @@ void navSyncTop()
     int bestCost = 0;
     for(int i = 0; i < static_cast<int>(list.size()); i++)
     {
-        if(!selectable(list[i]) || a.label != rowLabel(list[i]))
+        if(!(selectable(list[i]) || list[i].kind == Item::Header) || a.label != rowLabel(list[i]))
         {
             continue;
         }
@@ -2052,6 +2052,7 @@ void dropEmptyHeaders(za::Vector<Item>& list)
 }
 
 void resetThisPage();
+[[nodiscard]] int letterSize(const Item& item); // (Menu Look's sizes: below)
 
 // Under every page: Reset This Page (a page with settings), and Menu Detail, the level the pages are shown at.
 void addMenuDetail(za::Vector<Item>& list, int page)
@@ -2065,13 +2066,135 @@ void addMenuDetail(za::Vector<Item>& list, int page)
     }
     if(settings && !slotPage(PageRef::at(page)) && page != pageIndex(pageChanged))
     {
-        list.pushBack(header("This Page"));
+        // (Both footers smaller and fainter than the page's own sections: Item::Minor, vr_menu_minor_scale and _alpha.)
+        list.pushBack(header("This Page").minor());
         list.pushBack(action(ui().resetArmedPage == page ? "Press Again to Reset" : "Reset This Page", resetThisPage)
                 .help("Every setting on this page (as Menu Detail shows it) back to its default. Press it twice: the second "
-                      "time within 3 seconds."));
+                      "time within 3 seconds.").minor());
     }
-    list.pushBack(header("Menu Detail"));
-    list.pushBack(row(opt::vr_menu_level));
+    list.pushBack(header("Menu Detail").minor());
+    list.pushBack(row(opt::vr_menu_level).minor());
+}
+
+// Folding sections (vr_menu_fold; ROUND25.md, "Menu look"): a header pressed (Enter, a click, the laser's trigger;
+// left folds, right unfolds) hides its section's rows, which slide and fade (vr_menu_fold_time); the folds are kept in
+// vr_menu_folded ("page title|header" separated by ';'). The rows stay in the page's list (menu paths, Search and
+// menu_vr find them): folded, they have no height and the cursor's steps pass them; a row selected anyway (a path,
+// Search, menu_vr <page> <row>) unfolds its section (unfoldAtCursor). Not on the Checklist (its own folds).
+struct Folds
+{
+    za::String parsed;            // vr_menu_folded as last read
+    float on{-1.f};               // vr_menu_fold as last read
+    int version{1};               // bumped on a change: each page's rows marked again
+    int applied[pageCount]{};     // the version each page's rows were marked for
+    int appliedBuild[pageCount]{}; // and its build
+    za::Vector<float> open[pageCount]; // each row's openness as drawn (0 folded, 1 open; a header's: its arrow's)
+    int openBuild[pageCount]{};   // the build `open` is for
+    double stepped[pageCount]{};  // realtime of its last step
+};
+Folds folds;
+
+[[nodiscard]] bool foldsOn(int page)
+{
+    return vr_menu_fold.value != 0.f && page != pageIndex(pageChecklist);
+}
+
+[[nodiscard]] za::String foldKey(int page, const char* header)
+{
+    za::String key{pages[page].title};
+    key += "|";
+    key += header ? header : "";
+    return key;
+}
+
+// Whether vr_menu_folded names `key` (one of its ';'-separated entries).
+[[nodiscard]] bool foldListed(za::StringView list, const za::String& key)
+{
+    for(size_t start = 0; start <= list.size();)
+    {
+        size_t end = list.find(';', start);
+        end = end == za::StringView::nPos ? list.size() : end;
+        if(end - start == key.size() && !strncmp(list.data() + start, key.cStr(), key.size()))
+        {
+            return true;
+        }
+        start = end + 1;
+    }
+    return false;
+}
+
+// Section `header` of `page` folded or not (vr_menu_folded written; the rows marked again at the next items()).
+void setFolded(int page, const char* header, bool fold)
+{
+    const za::String key = foldKey(page, header);
+    const za::StringView list{vr_menu_folded.string};
+    za::String next;
+    for(size_t start = 0; start <= list.size();)
+    {
+        size_t end = list.find(';', start);
+        end = end == za::StringView::nPos ? list.size() : end;
+        const za::StringView entry = list.substrByPosLen(start, end - start);
+        if(!entry.empty() && !(entry.size() == key.size() && !strncmp(entry.data(), key.cStr(), key.size())))
+        {
+            next += next.empty() ? "" : ";";
+            next += entry;
+        }
+        start = end + 1;
+    }
+    if(fold)
+    {
+        next += next.empty() ? "" : ";";
+        next += key;
+    }
+    Cvar_Set("vr_menu_folded", next.cStr());
+}
+
+// The page's rows marked (Item::folded) as vr_menu_folded has them: a header, whether its section is folded (its
+// arrow); a row, whether it is in a folded section.
+void applyFolds(int page, za::Vector<Item>& list)
+{
+    if(folds.parsed != vr_menu_folded.string || folds.on != vr_menu_fold.value)
+    {
+        folds.parsed = vr_menu_folded.string;
+        folds.on = vr_menu_fold.value;
+        folds.version++;
+    }
+    if(folds.applied[page] == folds.version && folds.appliedBuild[page] == builds[page])
+    {
+        return;
+    }
+    folds.applied[page] = folds.version;
+    folds.appliedBuild[page] = builds[page];
+    const bool on = foldsOn(page);
+    bool folded = false;
+    for(Item& item : list)
+    {
+        if(item.kind == Item::Header)
+        {
+            folded = on && foldListed(za::StringView{vr_menu_folded.string}, foldKey(page, item.label));
+        }
+        item.folded = folded && item.look != Item::Button; // (a button stands apart from the section above it)
+    }
+}
+
+// Where the cursor can rest as it steps (up, down, the mouse over a row): a setting outside a folded section, or a
+// section's header while sections fold.
+[[nodiscard]] bool navigable(const Item& item)
+{
+    return item.kind == Item::Header ? foldsOn(ui().page) : selectable(item) && !item.folded;
+}
+
+// The header above row `i` (-1: none).
+[[nodiscard]] int headerOf(const za::Vector<Item>& list, int i)
+{
+    for(; i >= 0; i--)
+    {
+        if(list[i].kind == Item::Header)
+        {
+            return i;
+        }
+    }
+    return -1;
 }
 
 [[nodiscard]] const za::Vector<Item>& items(int page)
@@ -2267,11 +2390,20 @@ void addMenuDetail(za::Vector<Item>& list, int page)
             ui().scrolls[page] = q_max(row - anchor.line, 0);
         }
         cursor = CLAMP(0, cursor, q_max(n - 1, 0));
-        for(int i = cursor; n > 0 && !selectable(built[page][cursor]) && i >= 0; i--)
+        // (A section's header is a place too while sections fold, but not where a page first opens: its first setting.)
+        const auto rests = [&](const Item& item) {
+            return item.kind == Item::Header ? foldsOn(page) && anchor.valid : selectable(item);
+        };
+        for(int i = cursor; n > 0 && !rests(built[page][cursor]) && i >= 0; i--)
         {
-            cursor = selectable(built[page][i]) ? i : cursor;
+            cursor = rests(built[page][i]) ? i : cursor;
+        }
+        for(int i = cursor; n > 0 && !rests(built[page][cursor]) && i < n; i++)
+        {
+            cursor = rests(built[page][i]) ? i : cursor;
         }
     }
+    applyFolds(page, built[page]);
     // Once the page is shown again (the menu reopened on it, its cursor restored): the cursor on Apply or Undo.
     if(page == pageIndex(pageWofsSights) && weaponOffsetsSightFocus && key_dest == key_menu && m_state == m_vr &&
         page == qvr::menu::currentPage())
@@ -2440,9 +2572,10 @@ void consoleEdges(float& left, float& right);
         for(const Item& item : menuPages.built[ui().page])
         {
             const int len = item.label ? static_cast<int>(strlen(item.label)) : 0;
-            const int x = item.kind == Item::Header ? (320 - 8 * len) / 2
-                          : item.kind == Item::Info ? 0
-                                                    : midPos - 28 - 8 * len;
+            const int dim = item.kind == Item::Header || item.look != Item::Normal ? letterSize(item) : 8;
+            const int x = item.kind == Item::Header ? (320 - dim * len) / 2 - dim - 10 // (its fold arrow and bar left of it)
+                          : item.kind == Item::Info || item.look == Item::Button ? 0
+                                                    : midPos - 28 - dim * len;
             // (a setting's room for its "changed" mark left of its label: drawItem)
             const bool marked = item.cvar && item.kind != Item::Action && item.kind != Item::Header && item.kind != Item::Info;
             left = q_min(left, marked ? x - 10 : x);
@@ -2460,9 +2593,99 @@ void consoleEdges(float& left, float& right);
     return static_cast<int>(za::round(CLAMP(0.f, vr_menu_section_gap.value, 2.f) * 8.f));
 }
 
+// Menu Look's sizes (ROUND25.md, "Menu look"): a row's letters over Quake's 8 pixels. A section's header bigger
+// (vr_menu_header_scale), the footer's sections smaller (Item::Minor: vr_menu_minor_scale), Run Setup's Difficulty
+// and Start bigger (Item::Big, Item::Button: vr_runsetup_big).
+[[nodiscard]] float lookScale(const Item& item)
+{
+    switch(item.look)
+    {
+        case Item::Minor: return CLAMP(0.5f, vr_menu_minor_scale.value, 1.f);
+        case Item::Big:
+        case Item::Button: return CLAMP(1.f, vr_runsetup_big.value, 2.f);
+        default: return item.kind == Item::Header ? CLAMP(1.f, vr_menu_header_scale.value, 2.f) : 1.f;
+    }
+}
+
+// Its letters' size, pixels.
+[[nodiscard]] int letterSize(const Item& item)
+{
+    return static_cast<int>(za::round(8.f * lookScale(item)));
+}
+
+// A row's height unfolded: 8, its letters' for a footer's or a big row, a button's with room round its label. A header
+// stays 8 high: its bigger letters reach up into the gap above it (rowGap).
+[[nodiscard]] int fullHeight(const Item& item)
+{
+    if(item.look == Item::Button)
+    {
+        return letterSize(item) + 8;
+    }
+    if(item.kind == Item::Header)
+    {
+        return item.look == Item::Minor ? letterSize(item) : 8;
+    }
+    return item.look == Item::Normal ? 8 : letterSize(item);
+}
+
+// How far open row `i` is as drawn (0 folded .. 1; animated: stepFolds). A header's: its arrow's turn (its own height
+// never changes).
+[[nodiscard]] float rowOpen(const za::Vector<Item>& list, int i)
+{
+    const int page = ui().page;
+    if(&list == &menuPages.built[page] && folds.openBuild[page] == builds[page] &&
+        folds.open[page].size() == list.size())
+    {
+        return folds.open[page][static_cast<size_t>(i)];
+    }
+    return list[i].folded ? 0.f : 1.f;
+}
+
+[[nodiscard]] int rowHeight(const za::Vector<Item>& list, int i)
+{
+    const float open = list[i].kind == Item::Header ? 1.f : rowOpen(list, i);
+    return open >= 1.f ? fullHeight(list[i]) : static_cast<int>(za::round(static_cast<float>(fullHeight(list[i])) * open));
+}
+
+// The space above row `i`: a section's header's (vr_menu_section_gap, and its bigger letters' room; a footer's
+// smaller), a button's (Run Setup's Start: a gap of its own, apart from the section above it).
 [[nodiscard]] int rowGap(const za::Vector<Item>& list, int i)
 {
-    return list[i].kind == Item::Header ? sectionGap() : 0;
+    const Item& item = list[i];
+    if(item.kind == Item::Header)
+    {
+        return item.look == Item::Minor ? static_cast<int>(za::round(static_cast<float>(sectionGap()) * lookScale(item)))
+                                        : sectionGap() + letterSize(item) - 8;
+    }
+    return item.look == Item::Button && rowOpen(list, i) > 0.f ? sectionGap() + 6 : 0;
+}
+
+// The fold animation: each row of the page shown moved towards open or folded (vr_menu_fold_time), at most once a
+// frame; a page built anew starts as it is.
+void stepFolds(int page, const za::Vector<Item>& list)
+{
+    za::Vector<float>& open = folds.open[page];
+    const double now = realtime;
+    const bool fresh = folds.openBuild[page] != builds[page] || open.size() != list.size();
+    const float dt = static_cast<float>(now - folds.stepped[page]);
+    folds.stepped[page] = now;
+    folds.openBuild[page] = builds[page];
+    if(fresh)
+    {
+        open.clear();
+    }
+    const float time = CLAMP(0.f, vr_menu_fold_time.value, 0.5f);
+    const float step = fresh || time <= 0.f ? 1.f : CLAMP(0.f, dt / time, 1.f);
+    for(size_t i = 0; i < list.size(); i++)
+    {
+        const float target = list[i].folded ? 0.f : 1.f;
+        if(fresh)
+        {
+            open.pushBack(target);
+            continue;
+        }
+        open[i] = open[i] < target ? za::fmin(open[i] + step, target) : za::fmax(open[i] - step, target);
+    }
 }
 
 // The list's height (pixels from listTop): down to the help's box, or the menu's bottom.
@@ -2481,7 +2704,7 @@ void consoleEdges(float& left, float& right);
     int rows = 0;
     for(int i = q_max(first, 0); i < n; i++)
     {
-        y += rowGap(list, i) + 8;
+        y += rowGap(list, i) + rowHeight(list, i);
         if(y > space)
         {
             break;
@@ -2497,7 +2720,7 @@ void consoleEdges(float& left, float& right);
     int y = 0;
     for(int k = first; k < i; k++)
     {
-        y += rowGap(list, k) + 8;
+        y += rowGap(list, k) + rowHeight(list, k);
     }
     return y + rowGap(list, i);
 }
@@ -2506,12 +2729,12 @@ void consoleEdges(float& left, float& right);
 [[nodiscard]] int scrollShowing(const za::Vector<Item>& list, int last)
 {
     const int space = listSpace(list);
-    int y = rowGap(list, last) + 8;
+    int y = rowGap(list, last) + rowHeight(list, last);
     int first = last;
-    while(first > 0 && y + rowGap(list, first - 1) + 8 <= space)
+    while(first > 0 && y + rowGap(list, first - 1) + rowHeight(list, first - 1) <= space)
     {
         first--;
-        y += rowGap(list, first) + 8;
+        y += rowGap(list, first) + rowHeight(list, first);
     }
     return first;
 }
@@ -2534,16 +2757,30 @@ void consoleEdges(float& left, float& right);
     return q_max(listSpace(list) / 8, 1);
 }
 
+// The first and last places the cursor steps to (a header among them while sections fold).
 [[nodiscard]] int firstSelectable(const za::Vector<Item>& list)
 {
     for(int i = 0; i < static_cast<int>(list.size()); i++)
     {
-        if(selectable(list[i]))
+        if(navigable(list[i]))
         {
             return i;
         }
     }
     return 0;
+}
+
+// The first setting outside a folded section (where a page opens), else the first place.
+[[nodiscard]] int firstSetting(const za::Vector<Item>& list)
+{
+    for(int i = 0; i < static_cast<int>(list.size()); i++)
+    {
+        if(selectable(list[i]) && !list[i].folded)
+        {
+            return i;
+        }
+    }
+    return firstSelectable(list);
 }
 
 void moveCursor(const za::Vector<Item>& list, int dir)
@@ -2554,7 +2791,7 @@ void moveCursor(const za::Vector<Item>& list, int dir)
     do
     {
         i = (i + dir + n) % n;
-    } while(!selectable(list[i]) && i != cursor);
+    } while(!navigable(list[i]) && i != cursor);
     cursor = i;
 }
 
@@ -2562,7 +2799,7 @@ void moveCursor(const za::Vector<Item>& list, int dir)
 {
     for(int i = static_cast<int>(list.size()) - 1; i >= 0; i--)
     {
-        if(selectable(list[i]))
+        if(navigable(list[i]))
         {
             return i;
         }
@@ -2655,9 +2892,9 @@ void showPage(int target)
     // (by Search, a menu path or Changed Settings, which build every page).
     menuPages.done[ui().page] = false;
     const auto& list = items(ui().page);
-    if(!selectable(list[ui().cursors[ui().page]]))
+    if(const Item& at = list[ui().cursors[ui().page]]; !selectable(at) && !navigable(at))
     {
-        ui().cursors[ui().page] = firstSelectable(list);
+        ui().cursors[ui().page] = firstSetting(list); // (a setting in a folded section stays: unfoldAtCursor)
     }
     noteLeft(ui().page, list);
     ui().visits[ui().page] = ++ui().visitCount;
@@ -3298,11 +3535,12 @@ void change(const Item& item, int dir, bool repeat = false)
     for(int k = first; k < last && yrel >= y; k++)
     {
         y += static_cast<float>(rowGap(list, k));
-        if(yrel >= y && yrel < y + 8.f)
+        const float h = static_cast<float>(rowHeight(list, k));
+        if(yrel >= y && yrel < y + h)
         {
             return k;
         }
-        y += 8.f;
+        y += h;
     }
     return -1;
 }
@@ -3325,12 +3563,13 @@ void change(const Item& item, int dir, bool repeat = false)
     for(int k = first; k < last && yrel >= y; k++)
     {
         y += static_cast<float>(rowGap(list, k));
-        if(yrel >= y && yrel < y + 8.f)
+        const float h = static_cast<float>(rowHeight(list, k));
+        if(yrel >= y && yrel < y + h)
         {
             i = k;
             break;
         }
-        y += 8.f;
+        y += h;
     }
     if(i < 0)
     {
@@ -3369,7 +3608,7 @@ void keepCursorVisible()
     if(dir != 0)
     {
         cursor = dir > 0 ? scroll : scroll + rows - 1;
-        while(!selectable(list[cursor]) && cursor + dir >= scroll && cursor + dir < scroll + rows)
+        while(!navigable(list[cursor]) && cursor + dir >= scroll && cursor + dir < scroll + rows)
         {
             cursor += dir;
         }
@@ -3427,7 +3666,12 @@ void printRows()
     {
         const int top = l.listTop + rowTop(list, first, i);
         Con_Printf("MROW|%d|%d|%s\n", i, top, list[i].label ? list[i].label : "");
-        const int hit = rowAt(static_cast<float>(top) + 4.f);
+        const int h = rowHeight(list, i);
+        if(h <= 0)
+        {
+            continue; // (folded: no height, nothing to find)
+        }
+        const int hit = rowAt(static_cast<float>(top) + static_cast<float>(h) * 0.5f);
         const int expected = i - list[i].partOf >= first ? i - list[i].partOf : -1;
         bad += hit != expected;
         if(rowGap(list, i) > 1 && rowAt(static_cast<float>(top - rowGap(list, i)) + 0.5f) != -1)
@@ -3436,7 +3680,7 @@ void printRows()
         }
     }
     Con_Printf("MROWS|%d shown from %d of %d|scroll most %d|gap %d px|bottom %d of %d|rowAt %s\n", shown, first,
-        static_cast<int>(list.size()), maxScroll(list), sectionGap(), shown > 0 ? l.listTop + rowTop(list, first, first + shown - 1) + 8 : l.listTop,
+        static_cast<int>(list.size()), maxScroll(list), sectionGap(), shown > 0 ? l.listTop + rowTop(list, first, first + shown - 1) + rowHeight(list, first + shown - 1) : l.listTop,
         l.listTop + listSpace(list), bad ? "MISMATCH" : "agrees");
 }
 
@@ -3777,11 +4021,93 @@ bool dropDownMousemove(float cx, float cy)
     return true;
 }
 
-void drawItem(const Item& item, int y, bool selected)
+// The row being drawn's fade (drawItem): its own tints (dimmed, ticked) multiplied by it.
+float rowFade = 1.f;
+
+void pushRowColor(float r, float g, float b, float a)
+{
+    GL_PushCanvasColor(r, g, b, a * rowFade);
+}
+
+// The selected row's bar (the VR menu style), x0..x1 round letters `dim` tall from y: false where there is none (the
+// classic style: Quake's arrow instead; the corner's buttons have the selection).
+[[nodiscard]] bool drawRowBar(float x0, float x1, int y, int dim)
+{
+    return menuui::rowHighlight(x0, x1, static_cast<float>(y) + static_cast<float>(dim) * 0.5f, static_cast<float>(dim) * 0.5f + 1.5f);
+}
+
+// The arrow cursor's blinking character (M_DrawArrowCursor's, without its bar).
+void drawArrowChar(int x, int y)
+{
+    M_DrawCharacter(x, y, 12 + (static_cast<int>(realtime * 4) & 1));
+}
+
+void drawItemLooked(const Item& item, int y, float open, bool selected);
+
+// Row `item` at y, `open` its fold (0..1: a folding section's rows fade; a header's arrow turns), drawn as its look
+// has it (Item::Look): a footer's fainter (vr_menu_minor_alpha).
+void drawItem(const Item& item, int y, float open, bool selected)
+{
+    float fade = item.look == Item::Minor ? CLAMP(0.2f, vr_menu_minor_alpha.value, 1.f) : 1.f;
+    if(item.kind != Item::Header && open < 1.f)
+    {
+        fade *= CLAMP(0.f, (open - 0.35f) / 0.65f, 1.f); // (gone before its row is half folded: no overlap to see)
+    }
+    if(fade <= 0.f)
+    {
+        return;
+    }
+    rowFade = fade;
+    if(fade < 1.f)
+    {
+        GL_PushCanvasColor(1.f, 1.f, 1.f, fade);
+    }
+    drawItemLooked(item, y, open, selected);
+    if(fade < 1.f)
+    {
+        GL_PopCanvasColor();
+    }
+    rowFade = 1.f;
+}
+
+void drawItemLooked(const Item& item, int y, float open, bool selected)
 {
     if(item.kind == Item::Header)
     {
-        M_PrintWhite((320 - 8 * static_cast<int>(strlen(item.label))) / 2, y, item.label);
+        // Its letters (vr_menu_header_scale) from its row's bottom up into the gap above it; the fold's arrow left of
+        // them, turned down while open.
+        const int dim = letterSize(item);
+        const int len = static_cast<int>(strlen(item.label));
+        const int x = (320 - dim * len) / 2;
+        const int ty = y + fullHeight(item) - dim;
+        const bool fold = foldsOn(ui().page);
+        const float arrowX = static_cast<float>(x) - static_cast<float>(dim) * 0.5f - 5.f;
+        if(selected && !(vr_menu_hl_fit.value != 0.f && drawRowBar(fold ? arrowX - static_cast<float>(dim) * 0.5f - 4.f : x - 4.f, static_cast<float>(x + dim * len + 4), ty, dim)))
+        {
+            M_DrawArrowCursor(static_cast<int>(arrowX) - 16, ty + (dim - 8) / 2);
+        }
+        if(fold)
+        {
+            menuui::paintFoldArrow(arrowX, static_cast<float>(ty) + static_cast<float>(dim) * 0.5f, static_cast<float>(dim) * 0.32f, open);
+        }
+        M_PrintWhiteEx(x, ty, dim, item.label);
+        return;
+    }
+    if(item.look == Item::Button)
+    {
+        // A button of its own across the middle (Run Setup's Start), lit while selected.
+        const int dim = letterSize(item);
+        const int len = static_cast<int>(strlen(item.label));
+        const float w = za::fmax(static_cast<float>(dim * (len + 6)), 120.f);
+        const float x0 = 160.f - w * 0.5f;
+        const float half = static_cast<float>(fullHeight(item)) * 0.5f;
+        const float yc = static_cast<float>(y) + half;
+        menuui::paintButton(x0, x0 + w, yc, half, selected);
+        if(selected && !menuui::active())
+        {
+            M_DrawArrowCursor(static_cast<int>(x0) - 12, static_cast<int>(yc) - 4); // (the classic style's arrow)
+        }
+        M_PrintWhiteEx(160 - dim * len / 2, static_cast<int>(yc) - dim / 2, dim, item.label);
         return;
     }
     if(item.kind == Item::Info && item.progress)
@@ -3815,15 +4141,15 @@ void drawItem(const Item& item, int y, bool selected)
     const auto pushTint = [](int tint, float alpha) {
         if(tint == 1)
         {
-            GL_PushCanvasColor(0.45f, 1.f, 0.45f, alpha);
+            pushRowColor(0.45f, 1.f, 0.45f, alpha);
         }
         else if(tint == 2)
         {
-            GL_PushCanvasColor(1.f, 0.4f, 0.35f, alpha);
+            pushRowColor(1.f, 0.4f, 0.35f, alpha);
         }
         else
         {
-            GL_PushCanvasColor(1.f, 1.f, 1.f, alpha);
+            pushRowColor(1.f, 1.f, 1.f, alpha);
         }
     };
     if(item.wide && item.buttons > 0 && item.buttonLabel)
@@ -3886,19 +4212,26 @@ void drawItem(const Item& item, int y, bool selected)
         return;
     }
 
-    const int labelX = midPos - 28 - 8 * static_cast<int>(strlen(item.label));
+    // Its letters' size (a footer's smaller, Run Setup's Difficulty bigger: Item::Look), centred in its row as it is
+    // unfolded; the selected row's bar from its label to its value's end (vr_menu_hl_fit).
+    const int dim = item.look == Item::Normal ? 8 : letterSize(item);
+    const int labelX = midPos - 28 - dim * static_cast<int>(strlen(item.label));
+    const bool marked = item.cvar && item.kind != Item::Action && changedSetting(*item.cvar);
+    const int y8 = y + (fullHeight(item) - 8) / 2; // (the widgets' own size: sliders, switches, key rows)
+    y += (fullHeight(item) - dim) / 2;
+    int right = midPos;
     const bool locked = lockedItem(item); // the remote server's rule (or unavailable()): dimmed, its value shown
     const bool dimmed = locked || otherModeItem(item); // (the other mode's setting: dimmed alike, still changed here)
     if(dimmed)
     {
-        GL_PushCanvasColor(1.f, 1.f, 1.f, 0.5f);
+        pushRowColor(1.f, 1.f, 1.f, 0.5f);
     }
-    M_Print(labelX, y, item.label);
-    if(item.cvar && item.kind != Item::Action && changedSetting(*item.cvar))
+    M_PrintEx(labelX, y, dim, item.label);
+    if(marked)
     {
         // Changed from its default (Changed Settings lists them): left of the label however long (a long label's
         // reaches left of x 0; pageRowsLeft keeps the corner's buttons clear of the mark too).
-        M_PrintWhite(labelX - 10, y, "*");
+        M_PrintWhite(labelX - 10, y + (dim - 8) / 2, "*");
     }
 
     char buf[64];
@@ -3920,24 +4253,41 @@ void drawItem(const Item& item, int y, bool selected)
             const int past = item.negativeLabel && value < 0.f ? 0 : pastEnd(item, value);
             char tinted[64];
             const char* text = past ? COM_TintString(buf, tinted, sizeof(tinted)) : buf;
-            if(!menuui::drawSlider(midPos, y, range, past, text))
+            if(!menuui::drawSlider(midPos, y8, range, past, text))
             {
-                M_DrawSlider(midPos, y, CLAMP(0.f, range, 1.f), text);
+                M_DrawSlider(midPos, y8, CLAMP(0.f, range, 1.f), text);
             }
+            right = midPos + 96 + 8 * static_cast<int>(strlen(buf));
             break;
         }
         case Item::Cycle:
             if(isToggle(item))
             {
-                M_DrawCheckbox(midPos, y, item.unavailable ? 0.f : valueOf(item)); // a switch in the VR menu style
+                M_DrawCheckbox(midPos, y8, item.unavailable ? 0.f : valueOf(item)); // a switch in the VR menu style
+                right = midPos + 20;
             }
             else
             {
-                M_Print(midPos, y, item.choices[currentChoice(item)].label);
+                const char* choice = item.choices[currentChoice(item)].label;
+                if(item.look == Item::Big)
+                {
+                    M_PrintWhiteEx(midPos, y, dim, choice); // (Run Setup's Difficulty: its choice stands out)
+                }
+                else
+                {
+                    M_PrintEx(midPos, y, dim, choice);
+                }
+                right = midPos + dim * static_cast<int>(strlen(choice));
             }
             break;
-        case Item::Action: M_Print(midPos - 4, y, "..."); break;
-        case Item::Key: drawKeyRow(item, y, selected); break;
+        case Item::Action:
+            M_PrintEx(midPos - 4, y, dim, "...");
+            right = midPos - 4 + 3 * dim;
+            break;
+        case Item::Key:
+            drawKeyRow(item, y8, selected);
+            right = midPos + 80;
+            break;
         default: break;
     }
     if(dimmed)
@@ -3947,7 +4297,14 @@ void drawItem(const Item& item, int y, bool selected)
 
     if(selected)
     {
-        M_DrawArrowCursor(midPos - 20, y);
+        if(vr_menu_hl_fit.value != 0.f && drawRowBar(static_cast<float>(labelX - (marked ? 14 : 6)), static_cast<float>(right + 6), y, dim))
+        {
+            drawArrowChar(midPos - 20, y + (dim - 8) / 2);
+        }
+        else
+        {
+            M_DrawArrowCursor(midPos - 20, y + (dim - 8) / 2);
+        }
     }
 }
 
@@ -4427,6 +4784,62 @@ void qvr::menu::command_f()
         printRows();
         return;
     }
+    // menu_vr fold <0|1> [section] (tests, screenshots; Menu Look): the VR page shown's section whose header starts
+    // with [section] (unquoted words; none: every section) unfolded or folded, then MFOLD|page|header|folded|hidden rows.
+    if(Cmd_Argc() > 2 && !q_strcasecmp(Cmd_Argv(1), "fold"))
+    {
+        if(m_state != m_vr)
+        {
+            Con_Printf("menu_vr fold: not on a VR page\n");
+            return;
+        }
+        const bool fold = Q_atoi(Cmd_Argv(2)) != 0;
+        char name[128] = "";
+        for(int a = 3; a < Cmd_Argc(); a++)
+        {
+            q_strlcat(name, a > 3 ? " " : "", sizeof(name));
+            q_strlcat(name, Cmd_Argv(a), sizeof(name));
+        }
+        const int page = ui().page;
+        for(const Item& item : items(page))
+        {
+            if(item.kind == Item::Header && item.label && !q_strncasecmp(item.label, name, strlen(name)))
+            {
+                setFolded(page, item.label, fold);
+            }
+        }
+        const auto& list = items(page);
+        int hidden = 0;
+        for(const Item& item : list)
+        {
+            hidden += item.kind != Item::Header && item.folded;
+        }
+        for(const Item& item : list)
+        {
+            if(item.kind == Item::Header)
+            {
+                Con_Printf("MFOLD|%s|%s|%d\n", pages[page].title, item.label ? item.label : "", item.folded ? 1 : 0);
+            }
+        }
+        Con_Printf("menu_vr fold: %d rows folded on %s (folding %s)\n", hidden, pages[page].title, foldsOn(page) ? "on" : "off");
+        return;
+    }
+    // menu_vr title <page title> (unquoted words): that page opened, as menu_vr <its number>.
+    if(Cmd_Argc() > 2 && !q_strcasecmp(Cmd_Argv(1), "title"))
+    {
+        const char* title = Cmd_Args() + strlen(Cmd_Argv(1)) + 1;
+        for(int p = PageMain; p < pageCount; p++)
+        {
+            if(!q_strcasecmp(pages[p].title, title))
+            {
+                VR_Menu_Open();
+                openInTree(p);
+                return;
+            }
+        }
+        Con_Printf("menu_vr title: no page \"%s\"\n", title);
+        return;
+    }
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "modes"))
     {
         printModes(Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) : -1);
@@ -4725,6 +5138,17 @@ extern "C" void VR_Menu_Draw()
     int& cursor = ui().cursors[ui().page];
     int& scroll = ui().scrolls[ui().page];
 
+    // A setting selected in a folded section (a menu path, Search, menu_vr <page> <row>): its section unfolds.
+    if(cursor < static_cast<int>(list.size()) && list[cursor].folded && list[cursor].kind != Item::Header)
+    {
+        if(const int h = headerOf(list, cursor); h >= 0)
+        {
+            setFolded(ui().page, list[h].label, false);
+            (void)items(ui().page); // (the rows marked again)
+        }
+    }
+    stepFolds(ui().page, list);
+
     if(!keydown[K_MOUSE1])
     {
         ui().sliderGrab = ui().scrollGrab = false;
@@ -4782,7 +5206,11 @@ extern "C" void VR_Menu_Draw()
     const bool rowSelected = !menuui::toolbarFocused();
     for(int i = scroll; i < n && i < scroll + rows; i++)
     {
-        drawItem(list[i], l.listTop + rowTop(list, scroll, i), rowSelected && i - list[i].partOf == cursor);
+        if(list[i].kind != Item::Header && rowHeight(list, i) <= 0)
+        {
+            continue; // (folded)
+        }
+        drawItem(list[i], l.listTop + rowTop(list, scroll, i), rowOpen(list, i), rowSelected && i - list[i].partOf == cursor);
     }
 
     if(int y, height; scrollbar(list, y, height))
@@ -4858,6 +5286,25 @@ extern "C" void VR_Menu_Key(int key, int repeat)
     if(dropDownKey(key))
     {
         return;
+    }
+
+    // A section's header while sections fold: Enter, a click or the trigger folds or unfolds it; left folds, right
+    // unfolds.
+    if(cursor < static_cast<int>(list.size()) && list[cursor].kind == Item::Header && foldsOn(ui().page))
+    {
+        int barY, barHeight;
+        const bool onBar = m_mousex >= ui().scrollbarX - 8 && scrollbar(list, barY, barHeight);
+        const bool click = key == K_MOUSE1 && !onBar && rowAt(m_mousey) == cursor;
+        if(click || key == K_LEFTARROW || key == K_RIGHTARROW || key == K_ENTER || key == K_KP_ENTER || key == K_ABUTTON)
+        {
+            const bool fold = key == K_LEFTARROW ? true : key == K_RIGHTARROW ? false : !list[cursor].folded;
+            if(fold != list[cursor].folded)
+            {
+                setFolded(ui().page, list[cursor].label, fold);
+                qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust);
+            }
+            return;
+        }
     }
 
     switch(key)
@@ -5076,7 +5523,7 @@ extern "C" void VR_Menu_Mousemove(float cx, float cy)
     }
 
     const int i = rowAt(cy);
-    if(i < 0 || !selectable(list[i]) || i == cursor)
+    if(i < 0 || !navigable(list[i]) || i == cursor)
     {
         return;
     }

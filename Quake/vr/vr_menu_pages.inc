@@ -26,6 +26,7 @@
         row(opt::vr_menu_main_mods),
         row(opt::vr_menu_fine_step),
         row(opt::vr_menu_section_gap),
+        open("Menu Look", pageIndex(pageMenuLook)).help("Headers, folding sections, footers, highlights and gaps."),
         row(opt::vr_menu_vr_style),
         open("Laser Hue: Colours", pageIndex(pageColours)).help("Every hue is on HUD and Menus > Colours."),
         row(opt::vr_menu_recolor),
@@ -49,6 +50,32 @@
     items.pushBack(command("Show a Sample Message", "vr_fontstyle_sample")
             .help("A centre message and a console line in white and gold, to see the font over the game as you tweak it."));
     return items;
+}
+
+// Menu Look (ROUND25.md, "Menu look"): the menus' visual hierarchy, every part a setting.
+[[nodiscard]] za::Vector<Item> pageMenuLook()
+{
+    return {
+        header("Settings Pages"),
+        row(opt::vr_menu_section_gap),
+        row(opt::vr_menu_header_scale),
+        row(opt::vr_menu_fold),
+        row(opt::vr_menu_fold_time),
+        command("Unfold Every Section", "vr_menu_folded \"\"").help("Every page's folded sections open again."),
+        row(opt::vr_menu_minor_scale),
+        row(opt::vr_menu_minor_alpha),
+        row(opt::vr_menu_hl_fit),
+        header("Main Menu"),
+        row(opt::vr_menu_main_gap),
+        row(opt::vr_menu_big_hl),
+        row(opt::vr_menu_big_hl_scale),
+        header("Run Setup"),
+        row(opt::vr_runsetup_groups),
+        row(opt::vr_runsetup_big),
+        row(opt::vr_runsetup_halls_line),
+        header("Shortcut Buttons"),
+        row(opt::vr_menu_toolbar_groups),
+    };
 }
 
 // A kind of text's font (vr_fontstyle.cpp): the same rows for each, on Menu > Fonts and Screens' font pages.

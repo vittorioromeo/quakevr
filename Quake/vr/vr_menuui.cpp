@@ -674,6 +674,29 @@ SaveDefaultsButton saveDefaultsButton;
     return tool > ToolNewPanel && toolHidden(ToolNewPanel) ? tool - 1 : tool;
 }
 
+// Menu Look: the buttons in groups, vr_menu_toolbar_groups pixels between them: the game (Back to game), saves, menus
+// (Main Menu, Search, Console), settings, levels (Levels, Map Library), tools (Relighting, New Panel), the developer's.
+[[nodiscard]] bool toolGroupStart(int tool)
+{
+    return tool == ToolQuicksave || tool == ToolMainMenu || tool == ToolSettings || tool == ToolLevels ||
+           tool == ToolRelighting || tool == ToolToolgun;
+}
+
+[[nodiscard]] int toolGroupsBefore(int tool)
+{
+    int groups = 0;
+    for(int t = 1; t <= tool; t++)
+    {
+        groups += toolGroupStart(t) ? 1 : 0;
+    }
+    return groups;
+}
+
+[[nodiscard]] float toolGroupGap()
+{
+    return CLAMP(0.f, vr_menu_toolbar_groups.value, 12.f);
+}
+
 // The last button shown.
 [[nodiscard]] int lastTool()
 {
@@ -825,6 +848,7 @@ struct ToolbarLayout
     float bottom{0.f};         // the canvas's bottom edge (menu y)
     float k{1.f};
     float columnHalf{half}, buttonGap{gap}; // smaller only when the column would reach the bottom corner's rows
+    float groupGap{0.f};       // between groups of buttons (toolGroupGap; the column's, as smaller)
     float x0{0.f}, x1{0.f};    // the column's edges (the row: its first button's)
     float edge{0.f};           // where the column's right edge goes: columnRight, or left of a wider menu
     float limit{0.f};          // the nearest the column may come to the menu (menu::contentLeft, less columnGap)
@@ -836,11 +860,14 @@ struct ToolbarLayout
     [[nodiscard]] float yc(int tool) const
     {
         return row ? top + (rowCorner + rowHalf) / k :
-                     top + (corner + columnHalf + toolSlot(tool) * (2.f * columnHalf + buttonGap)) / k;
+                     top + (corner + columnHalf + toolSlot(tool) * (2.f * columnHalf + buttonGap) + toolGroupsBefore(tool) * groupGap) / k;
     }
 
     // A button's left and right edges.
-    [[nodiscard]] float bx0(int tool) const { return row ? x0 + toolSlot(tool) * (iconButton + rowGap) : x0; }
+    [[nodiscard]] float bx0(int tool) const
+    {
+        return row ? x0 + toolSlot(tool) * (iconButton + rowGap) + toolGroupsBefore(tool) * groupGap : x0;
+    }
     [[nodiscard]] float bx1(int tool) const { return row ? bx0(tool) + iconButton : x1; }
 
     // The zoom buttons at the list's end (zoomOut "-", zoomIn "+"): small squares, side by side in a slot of their own
@@ -915,6 +942,7 @@ struct ToolbarLayout
     }
     l.labels = l.x1 <= l.limit;
     l.row = !qvr::menuui::active(); // (a flat screen's own menus)
+    l.groupGap = l.row ? toolGroupGap() * 0.5f : toolGroupGap();
     if(!l.row)
     {
         // Keep every shortcut above Recording/OBS even with Menu Height and Row Spacing at their smallest.
@@ -923,10 +951,12 @@ struct ToolbarLayout
         const float reserve = ToolbarLayout::corner + ToolbarLayout::labelReserve + 2.f * ToolbarLayout::half +
                               bottomRow * (2.f * ToolbarLayout::half + ToolbarLayout::gap) + ToolbarLayout::gap;
         const float room = (l.bottom - l.top) * l.k - ToolbarLayout::corner - reserve;
-        const float height = (toolsShown() + 1) * (2.f * ToolbarLayout::half + ToolbarLayout::gap) - ToolbarLayout::gap; // (+1: the zoom buttons)
+        const float height = (toolsShown() + 1) * (2.f * ToolbarLayout::half + ToolbarLayout::gap) - ToolbarLayout::gap + // (+1: the zoom buttons)
+                             static_cast<float>(toolGroupsBefore(lastTool())) * l.groupGap;
         const float fit = za::fmin(1.f, za::fmax(0.1f, room / height));
         l.columnHalf *= fit;
         l.buttonGap *= fit;
+        l.groupGap *= fit;
     }
     if(!l.labels || l.row)
     {
@@ -2948,6 +2978,87 @@ void qvr::menuui::paintButton(float x0, float x1, float yc, float half, bool lit
     const Painter p;
     p.rounded(x0, x1, yc, half, 3.f, lit ? colors::highlightEdge : colors::boxBorder);
     p.rounded(x0 + 1.f, x1 - 1.f, yc, half - 1.f, 2.f, lit ? colors::buttonHover : colors::track);
+}
+
+bool qvr::menuui::rowHighlight(float x0, float x1, float yc, float half)
+{
+    if(menuui::toolbarFocused() || !styled())
+    {
+        return false;
+    }
+    drawnHighlight[menu::currentInstance()] = {m_state, static_cast<int>(yc - 3.5f)};
+    const Painter p;
+    p.rounded(x0, x1, yc, half, 2.f, colors::highlight);
+    p.rect(x0, x0 + 1.5f, yc, half - 1.f, colors::highlightEdge);
+    return true;
+}
+
+void qvr::menuui::paintFoldArrow(float xc, float yc, float size, float open)
+{
+    // An equilateral triangle, its tip at `angle` (0 right, 90 degrees down), filled a canvas unit high at a time.
+    const Painter p;
+    const float angle = CLAMP(0.f, open, 1.f) * 1.5707963f;
+    float vx[3], vy[3];
+    for(int v = 0; v < 3; v++)
+    {
+        const float a = angle + static_cast<float>(v) * 2.0943951f;
+        vx[v] = size * cosf(a);
+        vy[v] = size * sinf(a);
+    }
+    const float top = za::fmin(vy[0], za::fmin(vy[1], vy[2]));
+    const float bottom = za::fmax(vy[0], za::fmax(vy[1], vy[2]));
+    for(float t = top; t < bottom; t += p.step)
+    {
+        const float t1 = za::fmin(t + p.step, bottom);
+        const float ym = (t + t1) * 0.5f;
+        float lo = 1e9f, hi = -1e9f;
+        for(int e = 0; e < 3; e++)
+        {
+            const int f = (e + 1) % 3;
+            if((vy[e] <= ym) == (vy[f] <= ym))
+            {
+                continue; // (the line misses this edge)
+            }
+            const float x = vx[e] + (ym - vy[e]) * (vx[f] - vx[e]) / (vy[f] - vy[e]);
+            lo = za::fmin(lo, x);
+            hi = za::fmax(hi, x);
+        }
+        if(lo < hi)
+        {
+            p.band(xc + lo, xc + hi, yc, t, t1, colors::fill);
+        }
+    }
+}
+
+// Menu Look: the big-letter menus' selected row (main menu, Single Player, Multiplayer, Skill: vr_menu_big_hl 1 and 2):
+// a soft bar behind it, x0..x1 round yc (menu y), `half` true pixels each way, fading out at its edges (a glow).
+extern "C" void VR_MenuDrawBigHighlight(float x0, float x1, float yc, float half)
+{
+    if(vr_menu_big_hl.value < 1.f || menuui::toolbarFocused() || !styled())
+    {
+        return;
+    }
+    const Painter p;
+    constexpr glm::vec4 glow{1.f, 0.62f, 0.25f, 0.07f};
+    for(int ring = 3; ring >= 1; ring--)
+    {
+        const float grow = 2.f * static_cast<float>(ring);
+        p.rounded(x0 - grow, x1 + grow, yc, half + grow, 4.f + grow, glow);
+    }
+    p.rounded(x0, x1, yc, half, 4.f, colors::highlight);
+    p.rect(x0, x0 + 2.f, yc, half - 2.f, colors::highlightEdge);
+}
+
+// Menu Look: the main menu's selected row's size (vr_menu_big_hl 2: vr_menu_big_hl_scale; 1 otherwise), and the gap
+// between its groups over Quake's (vr_menu_main_gap).
+extern "C" float VR_MenuBigGrow(void)
+{
+    return vr_menu_big_hl.value >= 2.f ? CLAMP(1.f, vr_menu_big_hl_scale.value, 1.25f) : 1.f;
+}
+
+extern "C" float VR_MenuMainGap(void)
+{
+    return CLAMP(0.f, vr_menu_main_gap.value, 3.f);
 }
 
 void qvr::menuui::drawListHighlight(float x0, float x1, int y)
