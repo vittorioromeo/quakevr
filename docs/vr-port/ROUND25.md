@@ -1513,3 +1513,28 @@ Play on an installed package asks Easy / Normal / Hard / Nightmare first (page "
   (glass cannon run; Melee Only + dagger on e1m1, changelevel, save/load; Melee Only + axe). flatholster_test 38/0 (a
   dagger in the left shoulder, stat slot 0: "dagger"). Scenarios run_meleeonly_grab, flat_mantle_fov, flat_holster_dagger.
 - **Not done:** a refused gun still shows its loot beam (the engine's, vr_lootbeams.cpp); bots ignore the rule.
+
+## meleebeams: no loot beams on what Melee Only refuses (agent/meleebeams, 2026-11-13)
+
+- The server marks a thing VR_RunMeleeOnly_RefusesEnt refuses (guns, ammo, backpacks with rounds) as no-beam in the entity update (vr_server.cpp meleeOnlyRefuses: the carried bit for non-weapon things, the spent bit for weapon props), so the client beam code is unchanged. Melee weapons and other items keep theirs. Side effect: a refused gun ignores vr_enemy_weapon_depleted_loot.
+
+## Save crash: Z_Realloc (agent/savecrash, 2026-11-13)
+
+- **Crash:** saving on vrragtriggers (flat, build 107504fc): `strlen` of a non-canonical pointer in `SaveData_Fill`'s
+  known-strings loop. The minidump's registers: slot 501 of 1244 (1280 allocated) held `0x001d4a11_12a71bd0`: the
+  pointer's top half was `ZONEID` (0x1d4a11).
+- **Root cause (zone.c `Z_Realloc`, inherited from QuakeSpasm):** it freed the old block, then took the new one. Freed,
+  the old block merged with a free block before it; when the first fit started there (the zone's rover), the new block
+  began before the old data, and `Z_TagMalloc`'s trailer (ZONEID, at the new block's end) and the free fragment's header
+  after it were written inside the old data before it was copied. `qcvm->knownstrings` grows by `Z_Realloc` (256 slots
+  at a time, while a map loads), so a string's pointer came out with ZONEID in its top half (the next ones would hold a
+  header's size, tag and links). Layout-dependent: today's mutators and map loads only changed where blocks fell.
+- **Fix:** `Z_Realloc` takes the new block first, copies, then frees the old one; with no room for both (a nearly full
+  zone), the data is kept aside on the heap while the old block is freed and the new one taken. `SaveData_Fill` skips a
+  known string whose pointer can't be one (below 64 KB or above 48 bits): saved as none, a `Con_DPrintf` line, and an
+  `SDL_assert` in Debug builds (the bug isn't hidden there).
+- **Tests:** `zone_realloc_check` (console; "zone_realloc_check: N passed, M failed"): three free neighbours by three
+  grow sizes, the rover set on the neighbour, the data and the zeroed tail checked. Before the fix 4 of 9 cases had 8-9
+  words changed (trailer + fragment header); after, 9/0. Script `zone_realloc_check;toggleconsole;quit`, `-QuitOn
+  "zone_realloc_check: [0-9]+ passed"`. Save/load loop with Enemy Count, Randomized Enemies, Randomized Pickups and
+  Glass Cannon on (e1m1 save, vrragtriggers saves and a load, e1m1 load, changelevel e1m2, save): `vr_run_check` 9/0.
