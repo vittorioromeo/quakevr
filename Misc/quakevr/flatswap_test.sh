@@ -35,10 +35,11 @@ bash $KIT/run.sh $AGENT -ExtraArgs -flatscreenmode -Script "$H" -QuitOn "^flatsw
     -Filter "^(flatswapvis|Host_Error)" > "$S/holster.log" 2>&1
 grep -a "flatswapvis: done" "$S/holster.log" | cut -c1-120 | sed "s/^/holster: /"
 grep -aq "flatswapvis: done, [0-9]* frames, 0 faults" "$S/holster.log" || fails=$((fails + 1))
-# (AD's six melee weapons, vr_flatswap_test 4: 48 checks with AD's data mounted; it is mounted only on an AD map
-# (vr_ad_mounted), so in vrtesthall it says "AD's data not mounted" and checks nothing: to do, a spot in an AD map.)
+# (AD's six melee weapons, vr_flatswap_test 4: 48 checks with AD's data mounted (vr_ad_mounted): on AD's start map (the
+# spot: `map start`, the player's spawn; in vrtesthall it says "AD's data not mounted" and checks nothing). Slow: its 12
+# cases take about 4 minutes at the default fast pace, hence the long timeout.)
 bash $KIT/run.sh $AGENT -Games "-game ad -game quakevr" -ExtraArgs "-flatscreenmode -nomapindex -noaddons" \
-    -Script "$BASE; vr_flatswap_test 4" -QuitOn "$V" -Timeout 240 -Filter "$FILTER" > "$S/melee_ad.log" 2>&1
+    -Script "map start; god; notarget; developer 1; wait5; vr_flatswap_test 4" -QuitOn "$V" -Timeout 600 -Filter "$FILTER" > "$S/melee_ad.log" 2>&1
 grep -a "FAIL\|Assertion\|Host_Error" "$S/melee_ad.log" | cut -c1-200
 grep -a "$V" "$S/melee_ad.log" | tail -1 | sed "s/^/melee_ad: /"
 grep -aq "flatswap_test: [0-9]* passed, 0 failed" "$S/melee_ad.log" || fails=$((fails + 1))

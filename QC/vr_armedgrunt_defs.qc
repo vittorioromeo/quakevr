@@ -195,7 +195,7 @@ float(entity g, entity p) VR_AG_WeaponStruck;
 // Armed humanoid replacements (vr_armedrepl.qc; vr_agrunt_repl): a map's grunts and enforcers as armed ones.
 .float vr_agr;             // 1: a map's grunt or enforcer (or a spawner's) made its armed version (VR_AGR_Replace)
 .float vr_ag_native;       // a held weapon's prop (or its laser): the monster's own gun, fired as the monster fires it
-.float vr_ag_gunaxe;       // it holds a gun and an axe (vr_agrunt_repl_gunaxe): the gun, the axe up close
+.float vr_ag_gunaxe;       // it holds a gun and an axe or a dagger (vr_agrunt_repl_gunaxe): the gun, the blade up close
 float vr_am_spawning;      // VR_AM_Spawn is running its monster's own spawn function (no replacement then)
 float vr_map_content_seed; // the map's content seed (engine: srvrandom::mapSeed; 0 none: the map's name alone), set at its load, saved with the game: the replacements' and the armour's rolls
 float vr_agr_hold;         // > 0: spawns now are never replaced (the training dummies: vr_dummy_types.qc; the tools: VR_Test_Spawn, the engine's progs::ToolSpawn)

@@ -674,6 +674,23 @@ the grip; holsters keep it; the eject button flips it with a fast smooth turn an
 
 - The dagger skewers shallower and takes one gib. Two new weapon keys (weapons.txt, vr_weapons.inc): skewer_depth (the share of vr_embed_skewer_depth the first gib sits from the tip; default 1, dagger 0.5) and skewer_most (most gibs on this blade, 0 = the tunable; dagger 1); one code path (VR_Skewer_Place0, VR_Skewer_Most in vr_skewer.qc). The blade lines are 28 (sword) and 9.3 (dagger) units from the hand: the dagger's head was at 8 (capped 7.9, almost at the hilt), now 4.0 from the tip and 5.3 from the hilt end; sword unchanged (8.0 and 20.0). Test `vr_embed_test 40` cases 6 and 7 (24 of 24).
 
+## adtests
+
+The AD-only tests, run once `-game ad` was in the agent bases (kit `run.sh -Games "-game ad -game quakevr" -ExtraArgs
+"-nomapindex -noaddons"`; a headless run of `map start` loads AD's data from an agent base, `vr_ad_mounted` set).
+
+| test | result | verdict | action |
+|---|---|---|---|
+| `vr_flatswap_test 4` (map start, flat) | 48 passed, 0 failed (second run; the first failed 3 stance cases with 111-288 faulty frames and ran out its 240 s timeout) | passes; the first run's failure was not reproduced (cause unknown: possibly the low-impact mode's frame pacing) | spot = AD's `start` (the spawn); `flatswap_test.sh` runs it there, timeout 600 s (the 12 cases take ~4 min); runner case `flatswap_4_ad` |
+| visor_test (AD's two custom keys) | 37 passed, 0 failed, the "test state 6" row counted | passes, not skipped | none (the script already adds `--no-ad` only when the base has no ad) |
+| `vr_agrunt_test 213` (lost soul bite parried) | was 0/1 on every map; now 1/0 on `start` | test fault: the test gave no weapon and left `vr_weapon_grip_mode` at its default, so the mock hand's crowbar pose held nothing (gripleak made the grip real: "parry: none") | the test gives the crowbar, sets grip mode 1 and puts it back; runner: 213 runs under AD on `start` |
+| `vr_ad_test` 73-80, 184 | each prints "adgun: <gun> in your main hand" (grip mode 1, `start`); 77 and 78 both name the Centurion's Plasma Gun | smoke only: the tests have no verdict line | none; the held guns are covered by `flattwohand_test.sh` |
+| `vr_ad_test` 87 then `changelevel e1m1`, 88 | "adgun carry: e1m1: hand 20, holster 22 ... PASS" | pass (the cvar set by 87 and put back by 88) | none |
+| `vr_ad_mtest` 3 (monster killed whole) | diagnostic prints, no verdict; death knight and zombie knight: "corpse 0 gibbed 1" (health -56/-60), crossbow knight: corpse 1 | by design of overkill, not a fault | none |
+
+Baseline runner (kit `scratch/refactor/run_baseline.py`): `console_case` mounts AD (`-Games "-game ad -game quakevr"`,
+`-nomapindex -noaddons`) whenever the script names `vr_campaign_native ad`; case `flatswap_4_ad` (CONSOLE) and the agrunt
+213 script use it. Not added (no verdict line): 73-80/184 and `vr_ad_mtest` (they need a verdict of their own first).
 ## promote1113: embed depth tweaks promoted
 
 His vr_embed_sword_depth_max 80 (was 60), vr_embed_sword_depth_speed 7 (was 8) and vr_embed_hold_sword_most 100 (was 90) are the defaults (tune_promote.py; --check exits 0). vr_embed_test 30, 33, 34, 40, 41, 42 pass unchanged (12, 15, 14, 24, 19, 24 passed, 0 failed). No checklist line.
@@ -725,3 +742,14 @@ His vr_embed_sword_depth_max 80 (was 60), vr_embed_sword_depth_speed 7 (was 8) a
   screenshots (the model does not keep its zip name); a real Slipseer download is untested (no map was downloaded
   during development; whether the site's Download serves the zip directly, offers a choice of files or asks to sign
   in is for the first try in game: a web page instead of a zip is refused with a message).
+## gundagger: a gun and a melee weapon (axe or dagger)
+
+`vr_agrunt_repl_gunaxe` (0.15, name kept for configs; menu "Gun and Melee Weapon", was "Gun and Axe") now gives a gun
+and a melee weapon: the left hand's blade is the axe or the dagger by their pool weights `vr_agrunt_w_axe` /
+`vr_agrunt_w_dagger` (VR_AGR_SideBlade in vr_armedrepl.qc; one at 0: never; both at 0: the axe, as before). The blade is
+its own seeded roll drawn last, so every other loadout rolls as before. Everything downstream was already by class
+(VR_AG_CLASS_MELEE, VR_AG_OneHanded): the dagger is carried, drawn up close, swapped back, dropped and disarmed on the
+axe's path; the dagger is precached with the replacements. Tests: `vr_agrunt_test 70` 28/0 (axe 1 dagger 1: 249/500
+daggers; axe 3: 127/500; either weight 0: none/all; 16 real spawns: 8 axes, 8 daggers, all gun right, blade left);
+`vr_agrunt_test 72` 11/0 (the gun and axe steps as before, the axe forced; then a gun and a dagger: the gun at range, the
+dagger drawn up close and its stab landing, the gun again backed off). New scene `agrunt_repl_gundagger` (axe weight 0).

@@ -21,7 +21,8 @@
 //   guns in AD maps: owned as above, and only from the vr_agrunt_repl_rare_map'th map of an episode on (its name's
 //   "<n>m<index>": e1m4, hip2m3, r1m5; a map with no index never);
 // - vr_agrunt_repl_dual: a second weapon that pairs (VR_AG_Pairs: from the same rolls);
-// - vr_agrunt_repl_gunaxe: a gun in its right hand and an axe in its left (VR_AGR_GunAxe: the gun, the axe up close).
+// - vr_agrunt_repl_gunaxe: a gun in its right hand and a melee weapon in its left, the axe or the dagger by their pool
+//   weights (VR_AGR_SideBlade; VR_AGR_GunAxe: the gun, the blade up close).
 // The rolls are seeded by the map's name, the monster's spawn point and kind (vr_agrunt_repl_seed shuffles them all),
 // and the map's content seed (vr_map_content_seed: vr_fresh_map_seeds, a new one at each new start of a map; 0 with it
 // off: the same map gives the same loadouts every time, a restart too). A loaded game keeps its own. Eligibility needs a player: a map's own
@@ -295,6 +296,19 @@ float(float r) VR_AGR_TierAt =
     return r < vr_agr_cr ? 3 : r < vr_agr_cr + vr_agr_cu ? 2 : r < vr_agr_cr + vr_agr_cu + vr_agr_cc ? 1 : 0;
 };
 
+// A gun and a melee weapon's blade (vr_agrunt_repl_gunaxe) at the roll `r`: the axe or the dagger by their pool weights
+// (vr_agrunt_w_axe, vr_agrunt_w_dagger; one at 0: never; both: the axe, as before the dagger came).
+float(float r) VR_AGR_SideBlade =
+{
+    float wa = max(0, cvar_hget(cvarh_vr_agrunt_w_axe));
+    float wd = max(0, cvar_hget(cvarh_vr_agrunt_w_dagger));
+    if(wd <= 0)
+    {
+        return WID_AXE;
+    }
+    return r * (wa + wd) < wa ? WID_AXE : VR_AG_CODE_DAGGER;
+};
+
 // A replacement of the row `kind` with the seed `seed`: its loadout (vr_agr_code, _code2, _gunaxe, _tier).
 void(float kind, vector seed) VR_AGR_Pick =
 {
@@ -352,7 +366,7 @@ void(float kind, vector seed) VR_AGR_Pick =
     }
     else if(rg < VR_AGR_Unit(cvar_hget(cvarh_vr_agrunt_repl_gunaxe) * m) && VR_AG_DualGun(w1, f1))
     {
-        vr_agr_code2 = WID_AXE;
+        vr_agr_code2 = VR_AGR_SideBlade(VR_AGR_Rand()); // (its own roll, the last: every other loadout as before)
         vr_agr_gunaxe = 1;
     }
 };
@@ -594,6 +608,8 @@ void() VR_AGR_Precache =
             }
         }
     }
+    VR_AGR_PrecacheCode(WID_AXE);           // (a gun and a melee weapon's blades: VR_AGR_SideBlade)
+    VR_AGR_PrecacheCode(VR_AG_CODE_DAGGER);
 };
 
 // ----------------------------------------------------------------------------

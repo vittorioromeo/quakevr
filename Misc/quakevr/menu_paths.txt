@@ -1067,7 +1067,7 @@ vr_agrunt_repl_uncommon|1|Armed Humanoid Replacements|Uncommon: Nailguns, Super 
 vr_agrunt_repl_rare|1|Armed Humanoid Replacements|Rare: Launchers, Thunderbolt, Melee|Advanced VR Options > Combat > Armed Humanoid Replacements > Rare: Launchers, Thunderbolt, Melee
 vr_agrunt_repl_rare_map|1|Armed Humanoid Replacements|Rare From Map|Advanced VR Options > Combat > Armed Humanoid Replacements > Rare From Map
 vr_agrunt_repl_dual|1|Armed Humanoid Replacements|Dual Wielding|Advanced VR Options > Combat > Armed Humanoid Replacements > Dual Wielding
-vr_agrunt_repl_gunaxe|1|Armed Humanoid Replacements|Gun and Axe|Advanced VR Options > Combat > Armed Humanoid Replacements > Gun and Axe
+vr_agrunt_repl_gunaxe|1|Armed Humanoid Replacements|Gun and Melee Weapon|Advanced VR Options > Combat > Armed Humanoid Replacements > Gun and Melee Weapon
 vr_agrunt_repl_seed|1|Armed Humanoid Replacements|Shuffle|Advanced VR Options > Combat > Armed Humanoid Replacements > Shuffle
 vr_agrunt_repl_id|1|Armed Humanoid Replacements|Quake's Campaigns|Advanced VR Options > Combat > Armed Humanoid Replacements > Quake's Campaigns
 vr_agrunt_repl_mp|1|Armed Humanoid Replacements|Mission Packs|Advanced VR Options > Combat > Armed Humanoid Replacements > Mission Packs
@@ -5997,7 +5997,7 @@ vr_ar_play_scale|2|Animation Recorder|Scale|Advanced VR Options > Debug > Animat
 |2|Debug - Automation & Self-Tests|Armed Humanoids: Glitch Finder|Advanced VR Options > Debug > Automation & Self-Tests > Armed Humanoids: Glitch Finder
 |2|Debug - Automation & Self-Tests|Armed Replacements: Rolls|Advanced VR Options > Debug > Automation & Self-Tests > Armed Replacements: Rolls
 |2|Debug - Automation & Self-Tests|Armed Replacements: Balance|Advanced VR Options > Debug > Automation & Self-Tests > Armed Replacements: Balance
-|2|Debug - Automation & Self-Tests|Armed Replacements: Gun and Axe|Advanced VR Options > Debug > Automation & Self-Tests > Armed Replacements: Gun and Axe
+|2|Debug - Automation & Self-Tests|Armed Replacements: Gun and Melee Weapon|Advanced VR Options > Debug > Automation & Self-Tests > Armed Replacements: Gun and Melee Weapon
 |2|Debug - Automation & Self-Tests|Armed Replacements: Map Census|Advanced VR Options > Debug > Automation & Self-Tests > Armed Replacements: Map Census
 |2|Debug - Automation & Self-Tests|Armed Humanoids: Glitch Report|Advanced VR Options > Debug > Automation & Self-Tests > Armed Humanoids: Glitch Report
 |2|Debug - Automation & Self-Tests|Armed Grunts: Arms' Numbers|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Arms' Numbers
