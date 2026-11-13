@@ -819,3 +819,48 @@ only (BACKLOG); `vr_agrunt_test 210`: 8 passed, 0 failed.
 ## qdshots: Quaddicted screenshots in the map library
 
 - A picked Quaddicted map shows its screenshot in the details pane, as Slipseer maps do: `https://www.quaddicted.com/files/quaddicted-images/by-sha256/<sha[0..1]>/<sha>/<id>.jpg` (the old /reviews/screenshots/ path 404s; measured 2026-11), built in `vr_mapindex.cpp` (`quaddictedShotUrl`, entry `shot`). `slipseer::wantShot` fetches it through the same cache, pace (page-like, seconds), back-off and decode; robots.txt is now per site (Quaddicted: /stuff/, /temp/ only). A missing shot shows nothing. `slipseer_test` 47 passed; one real fetch ok (150621 bytes).
+
+## libfix: map library: picks at once, Quaddicted shots from a cached index, a fetch status line
+
+- **Where the time went** (measured with `maps_slipseer_time`, live): every Slipseer request waited
+  `vr_maps_slipseer_delay` (5) to 10 s after the last, the player's pick included, and a pick waited behind the whole
+  listing pass (at the first start, ~19 listing pages at 5-10 s each: minutes); a Quaddicted screenshot was paced as a
+  page too (5-10 s, plus the same again for its robots.txt). Network time itself is small: a page 0.3-0.4 s, a
+  screenshot 0.1-1.3 s (6 KB-1.2 MB).
+- **Pacing now** (`vr_slipseer.cpp`, `Pace`): what the player just asked for (his pick: its page and screenshot, or a
+  Quaddicted screenshot) goes at once, like a click, still one request at a time; automatic requests he asked for
+  (maps_fetch's pass, maps_slipseer_get) are 1-3 s apart, the start-up listing pass `vr_maps_slipseer_delay` to twice
+  it, a page's picture 0.3-1.2 s after it; never under robots.txt's `Crawl-delay` (parsed now, `*` group, capped at
+  60 s). The gap is per site (Slipseer, Quaddicted). An automatic request's wait gives way to a pick made meanwhile
+  (`waitTurn` serves it first), so a pick never waits for the pass. Cache, browser UA, Referer, back-off unchanged. A
+  404/410 picture is remembered (`missing` in its .meta) and not asked again for a week. No prefetch: a pick now costs
+  0.3-1.0 s, so the neighbours' pages are not worth the extra requests.
+- **Before / after** (same session order: 3 Slipseer maps, then Quaddicted shots; ms from the pick to the page / to
+  the screenshot):
+
+  | pick | before | after |
+  |---|---|---|
+  | 1st Slipseer map | 403 / 1702 (Caliber) | 333 / 475 (Herzblut), during a live listing pass |
+  | 2nd | 7983 / 9580 (Decrepit) | 316 / 411 (Kadath) |
+  | 3rd | 5411 / 6434 (Hammer Down) | 344 / 997 (Pivot) |
+  | Quaddicted shot | 9422 (colony5, 404) | 435 (tremor, 1.2 MB); colony5 404 in 149 |
+  | all | 32.3 s for 4 | 5.9 s for 6 |
+
+- **Quaddicted shots of a cached index:** the index cache (`maps_index.txt`) keeps no filename tag, so every entry read
+  from it (every start within a day of a fetch) had no `shot`. Now the zip name comes from the download URLs
+  (`mapindex::zipNameFromUrls`: Quaddicted's own URL first, else the first .zip) both in `parseEntry` (no tag) and in
+  the cache load; no cache format change. Some shots are simply not on the site (colony5's `<id>.jpg` 404s); those
+  show nothing, as before.
+- **Hosted elsewhere:** Slipseer maps whose Download is a "redirect" button (Herzblut, Kadath, Hammer Down: 3 of the
+  6 tried) read as no map page at all (no description, screenshot or Install); the redirect link is now the download
+  link (the zip check at install refuses a web page with a message).
+- **Status line** (`vr_menu_maps.inc`, one code path for flat and VR): the running install (bytes, mirror, unpacking),
+  else `slipseer::activity()` ("Slipseer: reading Pivot's page: 45% (40 KB of 90 KB)", "Slipseer's list of maps:
+  page 4 (60 maps so far): in 3 s (the site's pace)", "Quaddicted: Tremor's screenshot: 1 MB"), else its last failure
+  for 10 s ("Fetch failed: HTTP 404"), else `mapindex::busyLine()` ("Quaddicted's index: page 3 (400 maps so far)..."),
+  else the idle install line.
+- **Tests:** `slipseer_test` 51 passed (new: the zip name from URLs, a cached index line gets its shot, robots.txt
+  Crawl-delay, the redirect button). `vr_menu_path_check maps/vrcalibration.map`: 0 missing. Development made 21 live
+  requests (the timings above, 3 Quaddicted lookups of colony5, two listing pages).
+- **Not done:** the library screenshot (budget); prefetch (not needed, above); why colony5's shot 404s (its page on the
+  new site was not found either: the shot naming may differ for some packages).
