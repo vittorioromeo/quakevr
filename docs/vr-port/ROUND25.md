@@ -1231,3 +1231,40 @@ Play on an installed package asks Easy / Normal / Hard / Nightmare first (page "
   loaded: A's choices and Gore Minimal back; changelevel keeps them; unarmed and shotgun new games); vr_gameplay_preset_test
   23/0, vr_gore_preset_test 12/0, slipseer_test 80/0, menu path checks 0 missing. Scenarios run_mutators, run_pistolstart.
 - **Not tested headless:** the hub teleporter's touch itself (the screen's `vr_runsetup hub` is).
+
+## mutenemies: Enemy Count and Randomized Enemies (run mutators phase 2; branch agent/mutenemies, 2026-11-13)
+
+- **Enemy Count** (`vr_runpick_enemycount` / `vr_run_enemycount`: 1x default, 2x, 3x) and **Randomized Enemies**
+  (`vr_runpick_enemyrandom` / `vr_run_enemyrandom`: Off default, Balanced, Everything Goes): two registry rows,
+  `QC/vr_run_enemycount.qc`, `QC/vr_run_enemyrandom.qc`. Details and rules: MUTATORS.md, "Enemy Count and Randomized
+  Enemies".
+- **Engine (decided):** both act as the map loads, in `ED_LoadFromFile` (`pr_edict.c`; its spawn-function lookup now
+  `ED_SpawnFunction`, `ED_CallSpawn`): QC `VR_Run_MonsterSpawning` (self: the parsed keys) swaps the classname before the
+  spawn function runs (the new kind spawns from the map's own keys: targetname, target, spawnflags) and answers the
+  number of copies; after the whole map has spawned, each copy is the map's keys parsed again, placed by
+  `VR_Run_MonsterCopy` (other: its monster) and spawned with the same spawn function. No QC re-spawning of a live entity,
+  no double counts: a copy is a monster the mapper could have placed. Not in deathmatch or the tutorial; untouched
+  while both are off. The `VR_Run_MonsterSpawned` hook (walk/fly/swimmonster_start) stays unused.
+- **Map logic (decided):** copies keep the targetname, drop target/killtarget/AD deathtarget: only the map's own fire
+  their death targets (trigger_counters, guarded doors complete as made); copies count in the kill stats. Swaps keep
+  every key but the mapper's health and skin, AD's box and skin keys and the class bits (2; 4 in AD maps).
+- **Fit (decided):** a swap is never larger (Quake's two hull widths) than the spot's monster: a large kind in a small
+  one's spot was crushed or telefragged by doors and lifts spawned after it (e1m3's swapped shalraths). Copies are placed
+  after the whole map: a ring around the monster, straight-line reachable, clear of world, entities and other monsters'
+  boxes (AD's and deferred ones are not solid yet: AD telefragged a grunt copy standing in one), in no trigger volume
+  its monster is not in (e4m3's closet teleporters sent copies out at once), on a floor within 24 units (walkers); the
+  box 64 tall for the narrow kinds (the engine traces AD's tall ones at their own height).
+- **Tests:** `vr_run_enemies_check <count> <random>` / `verdict` ("runenemies"). id run (default games): e1m1, e1m2,
+  e1m3, e4m3 baselines; run (2x, Balanced, Glass Cannon, Melee Only) on e1m1, saved, changelevel e1m2, loaded; run (3x,
+  Everything Goes, Heavy Revolver) on e1m3 and e4m3; a new run with both off on e1m1: runenemies 26/0, `vr_run_check`
+  15/0 alongside, `vr_runsetup_test` 42/0. AD mounted (`-game ad`): ad_azad and ad_akalakha baselines, 2x Balanced and
+  3x Everything Goes on both, e1m1/e1m3/e2m2/e2m3/e3m1/e4m3 at 3x Everything Goes (AD's kinds outside AD maps: 18 of 23
+  on e1m1): all pass. Trigger chains equal their baselines everywhere (e.g. e1m1 44 links / 3 counter uses).
+  Scenarios run_enemycount, run_enemyrandom.
+- Scripts (run.sh -Script, -QuitOn "runmutators: [0-9]+ passed"): `developer 1;vr_runsetup_test;map e1m1;wait90;
+  vr_run_enemies_check 0 0;...;vr_runpick_enemycount 1;vr_runpick_enemyrandom 1;vr_runpick_glasscannon 1;
+  vr_runpick_meleeonly 1;vr_run start;map e1m1;wait90;vr_run_enemies_check 1 1;vr_run_check 2 1 1 0;save me_a;
+  changelevel e1m2;wait90;...;load me_a;wait90;...;vr_run_enemies_check verdict;vr_run_check verdict` (wait90: the
+  monsters' start thinks, 0.1-0.6 s, and the client's sign-on).
+- **Not done:** monsters spawned later by the map's spawners (Hipnotic's func_spawn, AD's minions, trigger-spawned
+  templates are copied as map entities, but runtime spawns are not) and pack monsters as swap targets.
