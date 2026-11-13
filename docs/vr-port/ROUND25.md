@@ -1223,8 +1223,9 @@ Play on an installed package asks Easy / Normal / Hard / Nightmare first (page "
      from you (a Detour raycast), else you are the aim. NAVMESH.md's slot paragraph says so.
 - Dog, knight, fiend: (2); fist / blade / axe armed grunts and enforcers: (1), (2), (3); ogre, hell knight, zombie:
   ranged, unchanged (they shoot through, and walk through between shots); a zombie throws so often it barely moves.
-- Left: a disarmed grunt seeking a weapon (`VR_AG_Seeking`) is not looked at; an armed death knight with a sword and a
-  spell no longer casts through gates (melee by its weapons).
+- An armed humanoid with a ranged attack of its own (a death knight's fireballs: `VR_AM_HasSpell`, its row's spell)
+  stays ranged whatever it holds; only those whose sole ranged attack is a carried weapon go by `VR_WP_CarriesRanged`.
+- Left: a disarmed grunt seeking a weapon (`VR_AG_Seeking`) is not looked at.
 ## flat1113: gore dents in the presets, no lean headbutt, flat flashlight off, concussed knockdowns, ticks retired
 
 - Gore presets: `vr_gore_dents` is in the preset table (0 at Minimal and Off, Full the default 1); `vr_gore_preset_test`

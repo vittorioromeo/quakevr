@@ -256,6 +256,7 @@ void(entity h) VR_AgArmor_DebrisGrabbed;                  // VR_Carry_Start: a p
 float(entity e) VR_WP_Packless;                                          // VR_AG_SoldierDrop: left without a pack by the rule: no backpack
 void(entity e) VR_WP_Refit;                                              // VR_AGR_Resolve: its loadout changed unseen
 float(entity e) VR_WP_CarriesRanged;
+float(entity m) VR_AM_HasSpell;                                          // VR_AI_PortalEligible: its row's own spell (vr_armedmon.qc)
 void(entity e) VR_WP_Spawn;                                              // VR_AM_Spawn: an armed grunt's pack put on
 void(entity targ, entity inflictor, entity attacker, float take) VR_WP_Hit; // T_Damage: a hit on the pack may tear it off
 void(entity m, float xSpeed, vector xInto) VR_AG_FallTouch;                // VR_RagImpact_Hit: its body met the level (VR_AG_FallImpact)

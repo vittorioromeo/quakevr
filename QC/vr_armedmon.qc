@@ -283,6 +283,13 @@ void(float k) VR_AM_Row =
     vr_am_range_threat = 1.5;
 };
 
+// An armed one with a ranged attack of its own beside its weapons (its row's spell: the death knight's fireballs).
+float(entity m) VR_AM_HasSpell =
+{
+    VR_AM_Row(m.vr_ag_kind);
+    return vr_am_spell != SUB_Null;
+};
+
 // The right hand's middle and the hidden gun's points of `g` as drawn now (modelvertex; trace_fraction 0: not now).
 vector(entity g) VR_AM_Hand =
 {
