@@ -1993,6 +1993,8 @@ void M_SinglePlayer_Draw (void)
 	p = Draw_CachePic ("gfx/ttl_sgl.lmp");
 	M_DrawPic ( (320-p->width)/2, 4, p);
 	M_DrawRowsPic (72, 32, "gfx/sp_menu.lmp");
+	if (sv.active && VR_RunIronman ()) // QVR: the run's Ironman: Save (the third row) greyed
+		Draw_Fill (70, 32 + 2 * 20 - 1, Draw_CachePic ("gfx/sp_menu.lmp")->width + 4, 20, 0, 0.7f);
 	if (m_singleplayer_showlevels)
 		M_DrawRowsPic (72, 92, "gfx/sp_maps.lmp");
 
@@ -2153,6 +2155,8 @@ void M_Menu_Save_f (void)
 	if (cl.intermission)
 		return;
 	if (svs.maxclients != 1)
+		return;
+	if (VR_RunIronmanRefusesSave ()) // QVR: the run's Ironman: no saving (said on the console and the screen)
 		return;
 	m_entersound = true;
 	m_state = m_save;
@@ -2591,7 +2595,8 @@ void M_CheckDeathMenu (void)
 	}
 	// The menu holds the respawn: a press only opens it (QC's PlayerDeathThink: vr_death_menu_asked), and only its
 	// choices respawn (author's note 2026-10-22). Off, or a load under way: a press respawns as in Quake.
-	if (!Cvar_VariableValue ("vr_death_menu") || sv.autoloading)
+	// (Ironman: none either: no saves to load, and a press restarts the level: QC's respawn, vr_run_ironman.qc.)
+	if (!Cvar_VariableValue ("vr_death_menu") || sv.autoloading || VR_RunIronman ())
 	{
 		PR_SetServerGlobalFloat ("vr_death_menu_hold", 0.f);
 		return;
