@@ -123,6 +123,8 @@ vr_run_meleeonly.qc
 vr_run_glasscannon.qc
 vr_run_pickups.qc
 vr_run_ironman.qc
+vr_run_enemyrandom.qc
+vr_run_enemycount.qc
 vr_wpnholster.qc
 // Flat-screen play's reload (R, the empty clip): after vr_wpnholster.qc's VRTryReloadWeapon.
 vr_flatreload.qc

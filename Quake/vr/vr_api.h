@@ -285,6 +285,8 @@ void VR_AliasPosesLoaded (const char *name, void *aliashdr, const stvert_t *stve
 void VR_OnProgsLoaded (void);			// end of PR_LoadProgs, with the loaded qcvm current
 void VR_OnSpawnServerBeforeLoad (void);	// SV_SpawnServer, before ED_LoadFromFile
 void VR_OnEntitySpawned (edict_t *ent);	// ED_LoadFromFile, after an entity's spawn function ran
+int VR_Run_MonsterSpawning (edict_t *ent);	// ED_LoadFromFile, before a map's entity spawns: Randomized Enemies' swap, Enemy Count's copies of it (vr_runsetup.cpp)
+int VR_Run_MonsterCopy (edict_t *copy, edict_t *orig, int k);	// ... after the map: its copy k (its keys parsed again) placed beside it, 0: no room (vr_runsetup.cpp)
 void VR_Footsteps_Frame (void);		// SV_Physics, after the edicts: the enemies' footsteps (vr_footsteps.cpp)
 void VR_MonsterHealth_Frame (void);	// SV_Physics, after the edicts: Monster Health's cut on monsters seen first (vr_mgroups.cpp)
 int VR_AD_PelletsPass (const struct edict_s *mover, const struct edict_s *target); // AD support: projectile pellets pass one another
@@ -297,6 +299,7 @@ void VR_AD_TintBlend (float *r, float *g, float *b, float *a, float percent);	//
 float VR_AD_SkyFog (float mapOwn);	// AD support: Fog_SetupFrame, the sky fog AD set (STAT_QVR_ADSKYFOG), else mapOwn
 void VR_OnSpawnServerSpawned (void);		// SV_SpawnServer, after ED_LoadFromFile (before the settling frames)
 void VR_OnClearMemory (void);			// Host_ClearMemory, before the hunk (edicts, cl_entities, models) is freed: every pointer into it forgotten
+void VR_OnShutdownServer (void);		// Host_ShutdownServer (a game switch's Mod_ResetAll follows, no Host_ClearMemory): the pool's reads of the world joined
 void VR_MonsterFell (edict_t *ent, float speed);	// SV_Physics_Step, a walking monster landed at `speed` (QC VR_Monster_Fall)
 void VR_OnEdictFree (edict_t *ed);	// ED_Free (any VM's)
 void VR_OnEdictAlloc (edict_t *ed);	// ED_Alloc (any VM's), the edict cleared: when the server's was made (.vr_born; vr_cheats.cpp)

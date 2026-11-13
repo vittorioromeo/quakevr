@@ -31,6 +31,8 @@ constexpr const char* goreOptions[] = {"My Settings", "Full", "Minimal", "Off"};
 constexpr const char* followOffOn[] = {"As Style", "Off", "On"};
 constexpr const char* startWeaponOptions[] = {"Shotgun", "Heavy Revolver", "Axe", "Unarmed"};
 constexpr const char* pickupsOptions[] = {"Off", "Balanced", "Everything Goes"};
+constexpr const char* enemyCountOptions[] = {"1x", "2x", "3x"};
+constexpr const char* enemyRandomOptions[] = {"Off", "Balanced", "Everything Goes"};
 
 constexpr int startWeaponAxe = 2;
 
@@ -181,6 +183,13 @@ const Mutator registry[] = {
     {"ironman", "Ironman", Section::Mutators, QVR_OPTIONS(offOn), 0, 0,
         "No saving: save, quicksave and autosave are off. A death sends you back to the start of the level, with what you "
         "entered it with.", &vr_runpick_ironman, &vr_run_ironman, nullptr, nullptr, nullptr, nullptr},
+    {"enemycount", "Enemy Count", Section::Mutators, QVR_OPTIONS(enemyCountOptions), 0, 0,
+        "Each monster of a map comes with one or two more of its kind beside it. The map's own still open its doors.",
+        &vr_runpick_enemycount, &vr_run_enemycount, nullptr, nullptr, nullptr, nullptr},
+    {"enemyrandom", "Randomized Enemies", Section::Mutators, QVR_OPTIONS(enemyRandomOptions), 0, 0,
+        "Monsters swapped as a map loads. Balanced: one as tough that moves as it does and fits its spot (Arcane "
+        "Dimensions' too when mounted). Everything Goes: any that fits.",
+        &vr_runpick_enemyrandom, &vr_run_enemyrandom, nullptr, nullptr, nullptr, nullptr},
 };
 // clang-format on
 
@@ -299,6 +308,116 @@ void checkCmd()
     if(cvars && qc)
     {
         Con_Printf("runmutators: PASS %s\n", what);
+    }
+}
+
+// QC function `name` (the server's VM, current) run with self `ent`, other `oth` (the world when null) and one float
+// parameter: its float return (0 when the progs have no such function). The caller's self and other are kept.
+float qcOnEdict(const char* name, edict_t* ent, edict_t* oth, float a)
+{
+    dfunction_t* fn = VR_ED_FindFunction(name);
+    if(!fn)
+    {
+        return 0.f;
+    }
+    const int oldSelf = pr_global_struct->self;
+    const int oldOther = pr_global_struct->other;
+    pr_global_struct->time = qcvm->time;
+    pr_global_struct->self = EDICT_TO_PROG(ent);
+    pr_global_struct->other = oth ? EDICT_TO_PROG(oth) : 0; // (0: the world)
+    G_FLOAT(OFS_PARM0) = a;
+    PR_ExecuteProgram(static_cast<func_t>(fn - qcvm->functions));
+    const float r = G_FLOAT(OFS_RETURN);
+    pr_global_struct->self = oldSelf;
+    pr_global_struct->other = oldOther;
+    return r;
+}
+
+// vr_run_enemies_check <enemycount> <enemyrandom>: the running map as that run spawned it (the run's cvars; QC
+// VR_Run_EnemiesCheck: copies beside their originals and of their kind, swaps of the kinds the choice allows, the
+// map's death-counting triggers still able to complete, the kill count); vr_run_enemies_check verdict: "runenemies: N
+// passed, M failed" (the enemy mutators' test: a run's start, changelevel, save and load, a new run).
+// A map's trigger chains (QC VR_Run_EnemiesChains) as its first check with both off found them: later checks of the
+// same map with the mutators on must find the same.
+struct EnemiesCheck
+{
+    testkit::Tally tally;
+    struct Base
+    {
+        char map[64];
+        float chains;
+    };
+    Base bases[16]{};
+    int baseCount{0};
+};
+EnemiesCheck enemiesCheck;
+
+void enemiesChains(int c, int r, const char* what)
+{
+    float chains = 0.f;
+    {
+        const progs::ServerVm vm;
+        dfunction_t* fn = VR_ED_FindFunction("VR_Run_EnemiesChains");
+        if(!fn)
+        {
+            return;
+        }
+        chains = progs::qcFloat(static_cast<func_t>(fn - qcvm->functions));
+    }
+    EnemiesCheck& s = enemiesCheck;
+    for(int i = 0; i < s.baseCount; i++)
+    {
+        if(!strcmp(s.bases[i].map, sv.name))
+        {
+            s.tally.check(chains == s.bases[i].chains, "runenemies",
+                va("%s: the map's trigger chains as without the mutators (%.0f, %.0f)", what, chains, s.bases[i].chains));
+            return;
+        }
+    }
+    if(c == 0 && r == 0 && s.baseCount < 16)
+    {
+        q_strlcpy(s.bases[s.baseCount].map, sv.name, sizeof(s.bases[0].map));
+        s.bases[s.baseCount++].chains = chains;
+    }
+}
+
+void enemiesCheckCmd()
+{
+    constexpr const char* name = "runenemies";
+    testkit::Tally& enemiesTally = enemiesCheck.tally;
+    if(Cmd_Argc() == 2 && !strcmp(Cmd_Argv(1), "verdict"))
+    {
+        enemiesTally.verdict(name);
+        enemiesCheck = EnemiesCheck{};
+        return;
+    }
+    if(Cmd_Argc() < 3)
+    {
+        Con_Printf("vr_run_enemies_check <enemycount> <enemyrandom> | verdict\n");
+        return;
+    }
+    const int c = atoi(Cmd_Argv(1));
+    const int r = atoi(Cmd_Argv(2));
+    char what[96];
+    q_snprintf(what, sizeof(what), "%s: enemies %d %d", sv.name, c, r); // (not va's: the QC check's prints reuse those)
+    const bool cvars = activeValue(find("enemycount")) == c && activeValue(find("enemyrandom")) == r;
+    enemiesTally.check(cvars, name, va("%s: the run's cvars (%s)", what, summary(false)));
+    bool qc = false;
+    if(sv.active)
+    {
+        const progs::ServerVm vm;
+        dfunction_t* fn = VR_ED_FindFunction("VR_Run_EnemiesCheck");
+        qc = fn && progs::qcFloat(static_cast<func_t>(fn - qcvm->functions), static_cast<float>(c), static_cast<float>(r)) !=
+                       0.f;
+    }
+    enemiesTally.check(qc, name, va("%s: the map's monsters", what));
+    if(sv.active)
+    {
+        enemiesChains(c, r, what);
+    }
+    if(cvars && qc)
+    {
+        Con_Printf("runenemies: PASS %s\n", what);
     }
 }
 
@@ -548,6 +667,14 @@ const char* summary(bool picks)
     {
         appendPart("Ironman");
     }
+    if(const int count = value(find("enemycount")))
+    {
+        appendPart(count == 2 ? "3x enemies" : "2x enemies");
+    }
+    if(const int random = value(find("enemyrandom")))
+    {
+        appendPart(random == 2 ? "Any enemies" : "Random enemies");
+    }
     return state.summary;
 }
 
@@ -650,6 +777,7 @@ void init()
     Cmd_AddCommand("vr_run", runCmd);
     Cmd_AddCommand("vr_runsetup_test", testCmd);
     Cmd_AddCommand("vr_run_check", checkCmd);
+    Cmd_AddCommand("vr_run_enemies_check", enemiesCheckCmd);
 }
 
 } // namespace qvr::runsetup
@@ -671,4 +799,25 @@ extern "C" int VR_RunIronmanRefusesSave()
     SCR_CenterPrint("Ironman: no saving");
     Cvar_SetValueQuick(&qvr::vr_ironman_refused, qvr::vr_ironman_refused.value + 1.f);
     return 1;
+}
+
+// ED_LoadFromFile (pr_edict.c), a map's entity about to spawn: QC VR_Run_MonsterSpawning (self: it, its keys parsed)
+// swaps a monster's classname (Randomized Enemies) and answers how many copies of it to spawn (Enemy Count, 0..2).
+// Nothing asked while both are off, in deathmatch, or for anything but a monster_.
+extern "C" int VR_Run_MonsterSpawning(edict_t* ent)
+{
+    if((qvr::vr_run_enemycount.value == 0.f && qvr::vr_run_enemyrandom.value == 0.f) || deathmatch.value != 0.f ||
+        strncmp(PR_GetString(ent->v.classname), "monster_", 8) != 0)
+    {
+        return 0;
+    }
+    const int n = static_cast<int>(qvr::runsetup::qcOnEdict("VR_Run_MonsterSpawning", ent, nullptr, 0.f));
+    return n < 0 ? 0 : n > 2 ? 2 : n;
+}
+
+// ... once the whole map has spawned, its copy k (1..), its keys parsed again: QC VR_Run_MonsterCopy (self the copy,
+// other its monster) places it beside its monster; 0: no room (not spawned).
+extern "C" int VR_Run_MonsterCopy(edict_t* copy, edict_t* orig, int k)
+{
+    return qvr::runsetup::qcOnEdict("VR_Run_MonsterCopy", copy, orig, static_cast<float>(k)) != 0.f ? 1 : 0;
 }

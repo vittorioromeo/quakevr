@@ -1287,6 +1287,76 @@ Play on an installed package asks Easy / Normal / Hard / Nightmare first (page "
   `vr_runpickups_test 2` on e3m1 (everything goes 46/46) and AD's ad_crucial (balanced 90/142, 3 kept, links 26001 and
   206 monsters unchanged) 6/0 each; `vr_ironman_test 1` 12/0 (save and menu Save refused, e1m1's RL carried, a death on
   e1m2 restarts it with the RL and 50 rockets and not the GL, same pickups, no death menu, vr_run_check's game checks).
-  Scenes `run_pickups`, `run_ironman`.
+  After merging the enemy mutators: e1m3 with Enemy Count 2x, Randomized Enemies (everything goes), Melee Only and
+  Everything Goes pickups 6/0 (links and monsters the same with pickups off). Scenes `run_pickups`, `run_ironman`.
 - **Not verified:** the greyed Save row's look (Draw_Fill over sp_menu.lmp's third row), the toolbar button's look.
 
+## mutenemies: Enemy Count and Randomized Enemies (run mutators phase 2; branch agent/mutenemies, 2026-11-13)
+
+- **Enemy Count** (`vr_runpick_enemycount` / `vr_run_enemycount`: 1x default, 2x, 3x) and **Randomized Enemies**
+  (`vr_runpick_enemyrandom` / `vr_run_enemyrandom`: Off default, Balanced, Everything Goes): two registry rows,
+  `QC/vr_run_enemycount.qc`, `QC/vr_run_enemyrandom.qc`. Details and rules: MUTATORS.md, "Enemy Count and Randomized
+  Enemies".
+- **Engine (decided):** both act as the map loads, in `ED_LoadFromFile` (`pr_edict.c`; its spawn-function lookup now
+  `ED_SpawnFunction`, `ED_CallSpawn`): QC `VR_Run_MonsterSpawning` (self: the parsed keys) swaps the classname before the
+  spawn function runs (the new kind spawns from the map's own keys: targetname, target, spawnflags) and answers the
+  number of copies; after the whole map has spawned, each copy is the map's keys parsed again, placed by
+  `VR_Run_MonsterCopy` (other: its monster) and spawned with the same spawn function. No QC re-spawning of a live entity,
+  no double counts: a copy is a monster the mapper could have placed. Not in deathmatch or the tutorial; untouched
+  while both are off. The `VR_Run_MonsterSpawned` hook (walk/fly/swimmonster_start) stays unused.
+- **Map logic (decided):** copies keep the targetname, drop target/killtarget/AD deathtarget: only the map's own fire
+  their death targets (trigger_counters, guarded doors complete as made); copies count in the kill stats. Swaps keep
+  every key but the mapper's health and skin, AD's box and skin keys and the class bits (2; 4 in AD maps).
+- **Fit (decided):** a swap is never larger (Quake's two hull widths) than the spot's monster: a large kind in a small
+  one's spot was crushed or telefragged by doors and lifts spawned after it (e1m3's swapped shalraths). Copies are placed
+  after the whole map: a ring around the monster, straight-line reachable, clear of world, entities and other monsters'
+  boxes (AD's and deferred ones are not solid yet: AD telefragged a grunt copy standing in one), in no trigger volume
+  its monster is not in (e4m3's closet teleporters sent copies out at once), on a floor within 24 units (walkers); the
+  box 64 tall for the narrow kinds (the engine traces AD's tall ones at their own height).
+- **Tests:** `vr_run_enemies_check <count> <random>` / `verdict` ("runenemies"). id run (default games): e1m1, e1m2,
+  e1m3, e4m3 baselines; run (2x, Balanced, Glass Cannon, Melee Only) on e1m1, saved, changelevel e1m2, loaded; run (3x,
+  Everything Goes, Heavy Revolver) on e1m3 and e4m3; a new run with both off on e1m1: runenemies 26/0, `vr_run_check`
+  15/0 alongside, `vr_runsetup_test` 42/0. AD mounted (`-game ad`): ad_azad, ad_akalakha, e1m1 baselines, 2x Balanced
+  and 3x Everything Goes on both AD maps, e1m1/e1m3/e2m2/e3m1/e4m3 at 3x Everything Goes (AD's kinds outside AD maps: 18
+  of 23 on e1m1): runenemies 29/0. Trigger chains equal their baselines everywhere (e.g. e1m1 44 links / 3 counter
+  uses). Scenarios run_enemycount, run_enemyrandom.
+- **Copies in solid:** the check counts monsters whose own box (a unit up) is in solid at the check: copies may be no
+  more, as a share, than the map's own (plus two). Monsters on the move sit in a wall's edge now and then (AD's more:
+  their boxes are not Quake's hulls), so an absolute zero was flaky (one AD hunter ogre copy in one of three runs).
+- **Open:** a swap compares widths, not heights: a tall narrow kind (64) in a short one's spot (56) under a low ceiling
+  is in the ceiling by its own box (it moves with Quake's 56-tall hull, so it is not frozen): with the mutators on, 5-13
+  of a map's own monsters are in solid by that test (ad_azad 9 at 2x Balanced, e4m3 13 at 3x Everything Goes), 0 off.
+  A height column in `VR_RUN_ER_KINDS` (AD's TINY / SHORT / TALL) would close it.
+- Scripts (run.sh -Script, -QuitOn "runmutators: [0-9]+ passed"): `developer 1;vr_runsetup_test;map e1m1;wait90;
+  vr_run_enemies_check 0 0;...;vr_runpick_enemycount 1;vr_runpick_enemyrandom 1;vr_runpick_glasscannon 1;
+  vr_runpick_meleeonly 1;vr_run start;map e1m1;wait90;vr_run_enemies_check 1 1;vr_run_check 2 1 1 0;save me_a;
+  changelevel e1m2;wait90;...;load me_a;wait90;...;vr_run_enemies_check verdict;vr_run_check verdict` (wait90: the
+  monsters' start thinks, 0.1-0.6 s, and the client's sign-on).
+- **Not done:** monsters spawned later by the map's spawners (Hipnotic's func_spawn, AD's minions, trigger-spawned
+  templates are copied as map entities, but runtime spawns are not) and pack monsters as swap targets.
+## navcrash: the navmesh's pool builds read no server state, joined before the world goes (agent/navcrash, 2026-11-13)
+
+- **Cause:** a class's tile build (and a props' tile batch) on the pool set each polygon's area with
+  `worldtrace::contents` = `SV_PointContents`, which reads `sv.worldmodel`. Nothing joined the builds before the world
+  went: `nav::afterLoad`'s `resetAll` joined them only once the next map had loaded. A map change while a build ran (no
+  walker had asked for its class yet, so nothing had joined it) read a null `sv.worldmodel` (SV_SpawnServer's clear:
+  access violation at 0x188, world.c:795, the brief's stack) or a freed model (a campaign switch:
+  `COM_SwitchGameInternal`'s `Mod_ResetAll` frees the models with no `Host_ClearMemory` first).
+- **Fix:** the build's one engine read goes through the world model captured on the main thread at the gather
+  (`Geometry::world`; `worldtrace::contentsOf(world, p)`: SV_PointContents' rule on a given model, no globals). The
+  builds and batches are joined and freed (`nav::finishLoads`) in `VR_OnClearMemory` (before the hunk goes) and in a new
+  `VR_OnShutdownServer` at the top of `Host_ShutdownServer` (before a game switch frees the models). Audit of the pool
+  side (buildClass, buildTile, fillSolids, findDrops/Rides/Teles, runObstacleBatch): areaAt was the only engine call;
+  the cvars are read into `Settings` on the main thread; the disk cache's read, compare and write are main-thread.
+- **Repro** (`scratch/nc_repro.py`: `vr_campaign_native ad;map ad_crucial;waitN;vr_campaign_native id1;map
+  vrtesthall;waitN` looped): before, it crashed within the first 15 loops; with only the capture and the
+  Host_ClearMemory join it crashed at the campaign switch (freed model); with both, 140 loops (40 at wait3, 60 at wait1,
+  40 at wait12) and no crash.
+- Possibly the same pattern, not checked or changed here: `hull::finishLoads` / `box3d::finishLoads` (hull's trees
+  compiled in play read the old world) are joined only in VR_OnClearMemory, not before a campaign switch's Mod_ResetAll.
+- **Second crash, found by scenario_check once the first was gone:** `vr_nav_teletest` (also reachtest, crowdtest) stayed
+  armed across a map change (runall leaves nav_tele_metric after 3 s): `teleTrialStart` indexed the new map's gates
+  with the old map's gate numbers (access violation in `teleEnds`, main thread, on vrarena). `finishLoads` now ends an
+  armed test with `nav: <name>: abandoned at the map change`.
+- **Tests** (low-impact runs): nav_tele_metric (seeded) 18/2 and vr_arena_test 43 13/0, their outcome lines identical
+  before and after (md5 f8081035, 19d8a9d4); nav_tele 1/0, nav_lift 1/0.

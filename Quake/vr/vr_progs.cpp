@@ -581,6 +581,13 @@ void resetServerWorld()
 
 } // namespace
 
+extern "C" void VR_OnShutdownServer()
+{
+    // Host_ShutdownServer: a game or campaign switch (COM_SwitchGameInternal) frees the models next (Mod_ResetAll)
+    // without Host_ClearMemory, so the navmesh's pool builds, which read the world model, are joined here too.
+    qvr::nav::finishLoads();
+}
+
 extern "C" void VR_OnClearMemory()
 {
     // Host_ClearMemory (SV_SpawnServer: every map and loaded game; CL_ClearState without a local server): the edicts,
@@ -596,6 +603,7 @@ extern "C" void VR_OnClearMemory()
     // The map load's builds still on the pool (a load that failed half-way) finished first: they read the old world.
     qvr::hull::finishLoads();
     qvr::box3d::finishLoads();
+    qvr::nav::finishLoads(); // (the navmeshes' tile builds read the old world's model)
     qvr::hull::keepForReload(); // (before the caches below let go of them: kept for the same map's next load)
     // The registered scratch buffers given back (a one-off peak not kept for the next map), and the caches of the old
     // world's data (vr_mem.hpp).

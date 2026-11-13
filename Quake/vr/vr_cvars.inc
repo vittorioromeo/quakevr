@@ -3944,6 +3944,8 @@ QVR_CVAR(vr_runpick_meleeonly, "0", CVAR_ARCHIVE)     // Run Setup: Melee Only
 QVR_CVAR(vr_runpick_glasscannon, "0", CVAR_ARCHIVE)   // Run Setup: Glass Cannon
 QVR_CVAR(vr_runpick_pickups, "0", CVAR_ARCHIVE)       // Run Setup: Randomized Pickups: 0 off, 1 balanced (same kind, similar value), 2 everything goes
 QVR_CVAR(vr_runpick_ironman, "0", CVAR_ARCHIVE)       // Run Setup: Ironman (no saving; a death restarts the level)
+QVR_CVAR(vr_runpick_enemycount, "0", CVAR_ARCHIVE)    // Run Setup: Enemy Count: 0 1x (the map's), 1 2x, 2 3x
+QVR_CVAR(vr_runpick_enemyrandom, "0", CVAR_ARCHIVE)   // Run Setup: Randomized Enemies: 0 off, 1 balanced, 2 everything goes
 QVR_CVAR(vr_run_bn, "0", CVAR_NONE)                   // the run's Bloody Nightmare choice (its start sets vr_mg3_bn_start; the game's serverflags carry it)
 QVR_CVAR(vr_run_style, "0", CVAR_NONE)                // the run's Style (as vr_runpick_style): applied at its start and on loading its saves
 QVR_CVAR(vr_run_gore, "0", CVAR_NONE)                 // the run's Gore preset (as vr_runpick_gore)
@@ -3963,7 +3965,9 @@ QVR_CVAR(vr_run_test_tally, "0", CVAR_NONE)           // test aid: their tally a
 QVR_CVAR(vr_run_test_a, "0", CVAR_NONE)               // test aid: a number kept across map loads (a layout's hash)
 QVR_CVAR(vr_run_test_b, "0", CVAR_NONE)               // test aid: another (unresolved targets)
 QVR_CVAR(vr_run_test_c, "0", CVAR_NONE)               // test aid: another (the map's monsters)
-QVR_CVAR(vr_run_hubgo, "0", CVAR_NONE)               // the hub's teleporter: set by the Run Setup screen's Start, the teleporter then lets the player through (QC clears it)
+QVR_CVAR(vr_run_enemycount, "0", CVAR_NONE)           // the run's Enemy Count: copies of each map monster beside it as the map loads (QC vr_run_enemycount.qc)
+QVR_CVAR(vr_run_enemyrandom, "0", CVAR_NONE)          // the run's Randomized Enemies: map monsters swapped as the map loads (QC vr_run_enemyrandom.qc)
+QVR_CVAR(vr_run_hubgo, "0", CVAR_NONE)                // the hub's teleporter: set by the Run Setup screen's Start, the teleporter then lets the player through (QC clears it)
 QVR_CVAR(vr_maps_slipseer, "1", CVAR_ARCHIVE)         // Slipseer (slipseer.com) listed in the Map Library beside Quaddicted (vr_slipseer.cpp): its listing pages read politely at start-up (cached on disk), a map's own page when it is picked. 0: Slipseer left out, nothing fetched from it
 QVR_CVAR(vr_maps_slipseer_delay, "5", CVAR_ARCHIVE)   // seconds at least between two Slipseer page requests (each wait is this to twice it, at random; never under 1): a person's pace
 QVR_CVAR(vr_maps_cache_mb, "512", CVAR_ARCHIVE)       // the map download cache (cache/maps/<sha256>.zip): at most this many MB kept, the oldest zips removed first when a download would pass it (and at start-up, and when it is lowered). 0: nothing kept once a package is installed. The Slipseer page and screenshot cache (cache/slipseer/) is held under the same size at start-up, the least recently fetched first (0: not trimmed)
