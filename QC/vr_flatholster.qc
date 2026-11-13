@@ -16,6 +16,8 @@
 //   82, 83           UNLOAD: the left hand's, the right hand's gun's live rounds back into the reserve (VR_FlatHolster_Unload)
 //   84, 85           FLIP GRIP: the left hand's, the right hand's sword or dagger turned over (VR_RevGrip_Flip: the eject button's flip)
 //   48               the hands swapped (VR_FlatSwapHands: the same as 3)
+//   24 + k           a drag from holster a to holster b: they trade what they hold (k the pair a < b: VR_FlatHolster_Pair)
+// A drag from a hand to a holster (or back) sends that holster's L or R impulse, from hand to hand 48's swap.
 // (80 is vr_flatholster_test's, below.)
 // Holster i is the engine's STAT_QVR_HOLSTERWEAPON0 + i: holsterweapon i (VR_FlatHolster_Hotspot).
 
@@ -125,6 +127,64 @@ void(float hs) VR_FlatHolster_Drop =
     dprint(sprintf("flat holsters: holster %g: weapon %g dropped\n", hs, wid));
 };
 
+// Holster `hs` set to weapon `wid` (its flags and record), or emptied (WID_FIST).
+void(float hs, float wid, float wfl, entity inst) VR_FlatHolster_Set =
+{
+    setHolsterWeapon(hs, wid);
+    setHolsterWeaponModel(hs, wid == WID_FIST ? WeaponIdToModel(WID_FIST, 0 /* weaponflags */) : AD_WeaponModel(wid, wfl, inst));
+    setHolsterWeaponFlags(hs, wid == WID_FIST ? 0 : wfl);
+    VRSetEntHolsterWeaponInst(self, hs, wid == WID_FIST ? world : inst);
+};
+
+// Holsters `a` and `b` (the engine's order: VR_FlatHolster_Hotspot) trade what they hold: the menu's drag from one to
+// the other (his words 2026-11-13: "holster to holster (swap)"). Each weapon moves with its flags and record (its
+// magazine, its grip); one of them empty: a move. Any weapon in a holster fits any holster (WeaponIdToHolsterable is
+// the weapon's, not the holster's).
+void(float a, float b) VR_FlatHolster_SwapHolsters =
+{
+    float hsA = VR_FlatHolster_Hotspot(a);
+    float hsB = VR_FlatHolster_Hotspot(b);
+    float widA = getHolsterWeapon(hsA);
+    float widB = getHolsterWeapon(hsB);
+    if(a == b || (widA == WID_FIST && widB == WID_FIST))
+    {
+        dprint(sprintf("flat holsters: holsters %g, %g: nothing to move\n", a, b));
+        return;
+    }
+    float flA = getHolsterWeaponFlags(hsA);
+    float flB = getHolsterWeaponFlags(hsB);
+    entity instA = VRGetEntHolsterWeaponInst(self, hsA);
+    entity instB = VRGetEntHolsterWeaponInst(self, hsB);
+    VR_FlatHolster_Set(hsA, widB, flB, instB);
+    VR_FlatHolster_Set(hsB, widA, flA, instA);
+    VR_SoundVaried(self, CHAN_ITEM, "weapons/holster1.wav", 1, ATTN_NORM);
+    vr_flatholster_swaps++;
+    dprint(sprintf("flat holsters: holster %g <-> holster %g: now %g and %g\n", a, b, getHolsterWeapon(hsA), getHolsterWeapon(hsB)));
+};
+
+// The holster pair of impulse 24 + k (the engine's vr_flatholster.cpp holsterPairImpulse): k counts the pairs a < b
+// in order (0 1, 0 2, .. 0 5, 1 2, .., 4 5). Sets vr_flatholster_pa, vr_flatholster_pb; FALSE when out of range.
+float vr_flatholster_pa;
+float vr_flatholster_pb;
+float(float k) VR_FlatHolster_Pair =
+{
+    float n = 0;
+    for(float a = 0; a < 5; a++)
+    {
+        for(float b = a + 1; b < 6; b++)
+        {
+            if(n == k)
+            {
+                vr_flatholster_pa = a;
+                vr_flatholster_pb = b;
+                return TRUE;
+            }
+            n++;
+        }
+    }
+    return FALSE;
+};
+
 // UNLOAD (his words 2026-11-10: "add a per-hand 'unload button' that empties a gun's magazine (if applicable) and returns
 // the ammunition to the ammo storage"): the live rounds in the hand's gun (its magazine, the super shotgun's barrels, the
 // revolver's cylinder: its clip, VR_FlatReload_Unloadable) back into his reserve as a pickup would, up to its cap; what
@@ -164,17 +224,25 @@ void(float xHand) VR_FlatHolster_Unload =
     dprint(sprintf("flat holsters: UNLOAD hand %g: %g of %g rounds of weapon %g back into the reserve\n", xHand, n, clip, wid));
 };
 
-// ImpulseCommands, first: the menu's impulses (60 .. 79, 81 .. 85) whenever he plays on the screen, and while the holsters are
+// ImpulseCommands, first: the menu's impulses (24 .. 38, 60 .. 79, 81 .. 85) whenever he plays on the screen, and while the holsters are
 // on, the weapon keys swallowed (1 .. 8, the cycle's 10, 12, 15, 16, Quake's 225, 226): no weapon comes from what was
 // collected. TRUE when the impulse was taken (cleared).
 float() VR_FlatHolster_Impulses =
 {
     float imp = self.impulse;
-    if(((imp >= 60 && imp <= 79) || (imp >= 81 && imp <= 85)) && VR_FlatPlay(self))
+    if(((imp >= 60 && imp <= 79) || (imp >= 81 && imp <= 85) || (imp >= 24 && imp <= 38)) && VR_FlatPlay(self))
     {
         self.impulse = 0;
         if(self.health <= 0)
         {
+            return TRUE;
+        }
+        if(imp <= 38)
+        {
+            if(VR_FlatHolster_Pair(imp - 24))
+            {
+                VR_FlatHolster_SwapHolsters(vr_flatholster_pa, vr_flatholster_pb);
+            }
             return TRUE;
         }
         if(imp == 84 || imp == 85)

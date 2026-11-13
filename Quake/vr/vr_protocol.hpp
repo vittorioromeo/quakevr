@@ -202,7 +202,8 @@ enum Stat : int
     // pouch, 2 held, 3 armed, 4 wound up, 5 thrown: the follow-through; 0 none) + 8 when it is the main hand's.
     STAT_QVR_FLATGREN,
     // Flat-screen play's holster menu (QC vr_flatreload.qc .vr_flatrl_full; vr_flatholster.cpp): the hands whose UNLOAD is
-    // greyed, their gun's rounds having no room in the reserve (that ammo full up), bit 0 the off hand, 1 the main.
+    // greyed, their gun's rounds having no room in the reserve (that ammo full up), bit 0 the off hand, 1 the main; bits 2
+    // and 3: that hand's weapon too big for a holster (QC WeaponIdToHolsterable: the menu's drag greys the holsters).
     STAT_QVR_FLATUNLOADFULL,
     STAT_QVR_END
 
