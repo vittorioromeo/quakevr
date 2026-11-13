@@ -82,6 +82,9 @@ void wantShot(const za::String& key, const za::String& url);
 [[nodiscard]] bool fetching(const za::String& page);
 // What the module is doing, in one line.
 [[nodiscard]] za::String state();
+// What is being fetched now and how far ("Slipseer: reading Drain's page: 45% (40 KB of 90 KB)", "...: in 4 s (the
+// site's pace)"), else the last failure for 10 s ("Fetch failed: HTTP 404"), else "". The Map Library's status line.
+[[nodiscard]] za::String activity();
 
 // The screenshot of `page`, when it is decoded (false: not yet, or none): its size in pixels, and drawn into a box
 // (x, y, w, h in the canvas' units; the caller keeps its aspect).

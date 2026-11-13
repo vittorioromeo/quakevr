@@ -1443,9 +1443,23 @@ void drawMapsPage()
         }
     }
 
-    // What the downloads are doing, always: the running job (what, how far, the mirror, the seconds), or idle with how
-    // the last one ended (mapinstall::statusLine; maps_status prints the same).
-    const za::String jobLine = mapinstall::statusLine();
+    // What is being fetched, always, on one line (flat and VR alike): the running install (what, how far in bytes, the
+    // mirror, the seconds; unpacking), else what Slipseer / Quaddicted is fetching for the library (the picked map's
+    // page or screenshot, a listing page, bytes, the wait for the site's pace) or its last failure, else Quaddicted's
+    // index being fetched, else idle with how the last install ended (maps_status prints that).
+    za::String jobLine;
+    if(!mapsBusy())
+    {
+        jobLine = slipseer::activity();
+        if(jobLine.empty())
+        {
+            jobLine = mapindex::busyLine();
+        }
+    }
+    if(jobLine.empty())
+    {
+        jobLine = mapinstall::statusLine();
+    }
     searchText(m.s.left, m.bar.yc + (m.bar.half + 6.f) / m.s.k, 6.f, m.s.right - m.s.left, jobLine.cStr(), false);
 
     mapPage.drawFrames++;
