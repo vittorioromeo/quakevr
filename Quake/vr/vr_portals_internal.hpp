@@ -126,6 +126,13 @@ struct ClientState
     int leavingSide = -1; // until the trailing half has cleared the destination plane
     glm::vec3 lastTorso{0.f}; // a monster's torso at its last look (VR_PortalMonsterCross: which way it went)
     bool torsoKnown = false;
+    // A monster touching a trigger whose opening its box doesn't fit (VR_PortalHandles): which, since when it made no
+    // headway into the gate, how near its plane it got (vr_portals_monster_giveup); givingUp while Quake's teleport
+    // is run for it.
+    int touchTrigger = -1;
+    double touchSince = -1e9;
+    float touchBest = 1e9f;
+    bool givingUp = false;
 };
 
 

@@ -99,6 +99,9 @@ bool teleporterOpen(const edict_s* trigger);
 // Whether a monster walks through that trigger's gate (a paired gate, vr_portals_monsters) rather than being teleported
 // on touching it: it must then fit the gate's aperture and step over its sill (the navmesh's teleporter links).
 bool teleporterWalked(int trigger);
+// Monsters walked through a gate (carried) and monsters left to Quake's teleport, since the game started (the navmesh's
+// teleporter walk-in metric, vr_nav_teletest, tells them apart).
+void monsterCrossings(int& walked, int& teleported);
 int aiGateFlags(int gate);
 int aiGateFace(int gate);
 glm::vec3 aiGateVec(int gate, int what, const glm::vec3& p);

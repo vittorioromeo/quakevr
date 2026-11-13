@@ -1521,6 +1521,11 @@ za::Vector<Item> pageDebugTests()
                   "included), the teleporter side nearest your torso and how far in front of its plane it is (under 0: "
                   "behind it), and how many times you were got out of the wall behind a teleporter."),
         row(opt::vr_portals_unstick),
+        command("Walk Into Every Teleporter (Test)", "vr_portals_walktest walktest")
+            .help("vr_portals_walktest: walks you into every upright face of every teleporter in this map, 5 lines across "
+                  "its opening, 5 headings and 4 speeds, from 64 units out: each time you should be carried through "
+                  "seamlessly (a pwt| line a try, then 'walktest: N passed, M failed'). On dm5: Teleporters: you walk "
+                  "through dm5's teleporters (Checklist Test)."),
         header("Cheats"),
         command("God Mode", "god").help("god: takes no damage (again: takes damage)."),
         command("Quad Damage", "impulse 255").help("Quad Damage for 30 seconds."),
