@@ -1361,6 +1361,42 @@ Play on an installed package asks Easy / Normal / Hard / Nightmare first (page "
 - **Tests** (low-impact runs): nav_tele_metric (seeded) 18/2 and vr_arena_test 43 13/0, their outcome lines identical
   before and after (md5 f8081035, 19d8a9d4); nav_tele 1/0, nav_lift 1/0.
 
+## mutknights: Ranged Knights, Wild Weaponry, Armored Foes (run mutators; branch agent/mutknights, 2026-11-13)
+
+- **Three Run Setup rows** (`rangedknights`, `wildweapons`, `armoredfoes`: Off / On; `vr_runpick_<id>`, `vr_run_<id>`),
+  held at Off as a line "... (Armed Humanoids off)" unless Armed Humanoids is On, or As Style with Unleashed (My
+  Settings: yours) (`armedOnlyForced`). Details and numbers: MUTATORS.md, "Ranged Knights, Wild Weaponry, Armored Foes".
+- **Investigation (the brief's size check):** nothing to author. Knights and death knights are already armed-humanoid
+  rows with every weapon class (ROUND23.md "Armed knights: shipped poses and every weapon class"): his posed arms on the
+  grunt's shipped pose keys fitted to his body, the layer's aim, fire, reload and melee, the death knight's cast beside
+  a gun (`vr_agdknight_cast_cooldown`). Verified: `vr_agrunt_test 1` with `vr_agrunt_test_kind 2` and `3` (every weapon
+  fired or swung at you: 17/0 each) and `vr_agrunt_test 12` kind 2 with AD (21/0: the crossbow 2 shots, 31.5 damage).
+- **Ranged Knights:** `VR_AKN_Pick` (vr_armedrepl.qc; `VR_AGR_Pick` sends the knight kinds to it, so `VR_AGR_Resolve`'s
+  pending roll and the seeds are the grunts'); `VR_AKN_Replace` rolls a knight with no "weapon" key. Pool weights
+  `vr_rangedknights_w_sword` 6, `_dual` 0.2, `_w_crossbow` 2.5 (AD's rules), `_xbow_sword` 0.35 (the gun-and-blade
+  loadout), `_w_chainsaw` 0.6, `_w_gun` 0.3; menu rows under Armed Humanoid Replacements. The rows' `vr_am_takes_ranged`
+  is on with it (knights take up guns).
+- **Wild Weaponry:** `VR_AGR_Eligible` (ownership) and `VR_AGR_RareOk` (the rare tier's map) lifted; Ranged Knights'
+  other guns use the same two.
+- **Armored Foes:** `VR_AgArmor_Roll`'s chance c -> 1 - (1 - c)(1 - `vr_armoredfoes_chance` 0.75); types and pieces the
+  skill's; the arena's waves keep theirs.
+- **Decisions:** a knight's sword, crossbow and chainsaw need no player to own them (his own kind of weapons; else the
+  chainsaw would never come in id's campaign); the other guns follow the replacements' rules. Armored Foes raises the
+  chance this way (not a flat 75%) so the skill's order stays (Nightmare still the most).
+- **Tests:** `vr_runsetup_test` 72/0 after merging next (the held rows four ways, a run started with Armed Humanoids Off starts them Off,
+  the save line and a load). `vr_run_armed_check` (new; "runarmed"): skill 1, e1m2 all off; e1m2 all on with Randomized
+  Enemies Balanced and Enemy Count 2x, saved, changelevel e1m3, a new run on e1m1 all off, the save loaded, a run with
+  Armed Humanoids Off: 12/0 (knights' pool 874/79/47 of 1000 sword/chainsaw/gun, two swords 20%; grunts 0 unowned off,
+  306 of 800 unowned and 119 rare-early with Wild; armour 20% -> 80%, e1m2 6/6 armoured); runenemies 2/0 alongside.
+  Sword weight 0 on e1m2 (skill 2): every one of 5 knights a gun or chainsaw, all take guns, after save/changelevel/load
+  8/0. AD (`-Games "-game ad -game quakevr"`) e1m2: 5/5 crossbow knights (35% with a sword), 12/17 armoured, 4/0.
+  Scenes `run_rangedknights`, `run_wildweapons`, `run_armoredfoes`.
+- Scripts (run.sh -Script, -QuitOn "runarmed: [0-9]+ passed"): `developer 1;skill 1;vr_runsetup_test;vr_runpick_armed 2;
+  vr_run start;map e1m2;wait90;vr_run_armed_check 0 0 0;vr_runpick_rangedknights 1;vr_runpick_wildweapons 1;
+  vr_runpick_armoredfoes 1;vr_runpick_enemyrandom 1;vr_runpick_enemycount 1;vr_run start;map e1m2;wait90;
+  vr_run_armed_check 1 1 1;save mk_a;changelevel e1m3;wait90;...;load mk_a;wait90;vr_run_armed_check 1 1 1;...;
+  vr_run_armed_check verdict`.
+- **Not verified:** the held rows' look on the screen; a ranged knight's look in VR holding the crossbow and sword.
 ## crash2: hull and box3d builds joined before a game switch; two scenes off the walls; enemy swaps' head room (agent/crash2, 2026-11-13)
 
 - **The pool's world readers:** hull's load builds (`build(world)`) and its in-play trees, and box3d's world mesh

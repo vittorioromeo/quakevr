@@ -1074,6 +1074,13 @@ vr_agrunt_repl_rare|1|Armed Humanoid Replacements|Rare: Launchers, Thunderbolt, 
 vr_agrunt_repl_rare_map|1|Armed Humanoid Replacements|Rare From Map|Advanced VR Options > Combat > Armed Humanoid Replacements > Rare From Map
 vr_agrunt_repl_dual|1|Armed Humanoid Replacements|Dual Wielding|Advanced VR Options > Combat > Armed Humanoid Replacements > Dual Wielding
 vr_agrunt_repl_gunaxe|1|Armed Humanoid Replacements|Gun and Melee Weapon|Advanced VR Options > Combat > Armed Humanoid Replacements > Gun and Melee Weapon
+vr_rangedknights_w_sword|1|Armed Humanoid Replacements|Own Sword|Advanced VR Options > Combat > Armed Humanoid Replacements > Own Sword
+vr_rangedknights_dual|1|Armed Humanoid Replacements|Two Swords|Advanced VR Options > Combat > Armed Humanoid Replacements > Two Swords
+vr_rangedknights_w_crossbow|1|Armed Humanoid Replacements|Crossbow|Advanced VR Options > Combat > Armed Humanoid Replacements > Crossbow
+vr_rangedknights_xbow_sword|1|Armed Humanoid Replacements|Crossbow and Sword|Advanced VR Options > Combat > Armed Humanoid Replacements > Crossbow and Sword
+vr_rangedknights_w_chainsaw|1|Armed Humanoid Replacements|Chainsaw|Advanced VR Options > Combat > Armed Humanoid Replacements > Chainsaw
+vr_rangedknights_w_gun|1|Armed Humanoid Replacements|Other Guns|Advanced VR Options > Combat > Armed Humanoid Replacements > Other Guns
+vr_armoredfoes_chance|1|Armed Humanoid Replacements|Extra Armour Chance|Advanced VR Options > Combat > Armed Humanoid Replacements > Extra Armour Chance
 vr_agrunt_repl_seed|1|Armed Humanoid Replacements|Shuffle|Advanced VR Options > Combat > Armed Humanoid Replacements > Shuffle
 vr_agrunt_repl_id|1|Armed Humanoid Replacements|Quake's Campaigns|Advanced VR Options > Combat > Armed Humanoid Replacements > Quake's Campaigns
 vr_agrunt_repl_mp|1|Armed Humanoid Replacements|Mission Packs|Advanced VR Options > Combat > Armed Humanoid Replacements > Mission Packs
@@ -3701,6 +3708,8 @@ vr_knockdown_ledge_drop|2|Tunables|Ledge Height|Advanced VR Options > Debug > Tu
 vr_knockdown_ledge_reach|2|Tunables|Ledge Reach|Advanced VR Options > Debug > Tunables > Ledge Reach
 vr_knockdown_ledge_margin|2|Tunables|Ledge Margin|Advanced VR Options > Debug > Tunables > Ledge Margin
 vr_knockdown_wiggle_pause|2|Tunables|Struggling Pause|Advanced VR Options > Debug > Tunables > Struggling Pause
+vr_knockdown_stir|2|Tunables|Concussed Stirring|Advanced VR Options > Debug > Tunables > Concussed Stirring
+vr_knockdown_stir_rate|2|Tunables|Stirring Rate|Advanced VR Options > Debug > Tunables > Stirring Rate
 vr_quad_melee_damage|2|Tunables|Quad: Extra Melee Damage|Advanced VR Options > Debug > Tunables > Quad: Extra Melee Damage
 vr_quad_melee_range|2|Tunables|Quad: Extra Melee Reach|Advanced VR Options > Debug > Tunables > Quad: Extra Melee Reach
 vr_headbutt_damage|2|Tunables|Headbutt Damage|Advanced VR Options > Debug > Tunables > Headbutt Damage

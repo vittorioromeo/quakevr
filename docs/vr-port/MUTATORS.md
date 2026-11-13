@@ -79,6 +79,9 @@ choices themselves are the engine's line.
 | `ironman` | Off, On | no saving; a death restarts the level with what you entered it with (`vr_run_ironman.qc`, below) |
 | `enemycount` | 1x, 2x, 3x | one or two copies of each map monster beside it as the map loads (`vr_run_enemycount.qc`; below) |
 | `enemyrandom` | Off, Balanced, Anything Goes | map monsters swapped as the map loads (`vr_run_enemyrandom.qc`; below) |
+| `rangedknights` | Off, On | knights and death knights spawn with and take up guns (`vr_armedrepl.qc` `VR_AKN_Pick`; below); held Off while Armed Humanoids is off |
+| `wildweapons` | Off, On | armed humanoids' rolled weapons ignore what you own and the rare tier's map (`VR_AGR_Eligible`, `VR_AGR_RareOk`); held Off likewise |
+| `armoredfoes` | Off, On | armed humanoids armoured far more often (`vr_agarmor.qc` `VR_AgArmor_Roll`); held Off likewise |
 
 ### Randomized Pickups
 
@@ -132,6 +135,28 @@ choices themselves are the engine's line.
 - **Saved games and changelevel:** the entities are saved as they are; a new map gets its own. The roll: the map's name,
   the spawn point and its content seed (`vr_map_content_seed`): deterministic per seed.
 
+### Ranged Knights, Wild Weaponry, Armored Foes (the armed humanoids' mutators)
+
+- **Held Off without Armed Humanoids** (`armedOnlyForced`, `heldBy` "Armed Humanoids off"): the screen's Armed
+  Humanoids On, or As Style with Unleashed (or My Settings with any of `vr_agrunt_repl`, `vr_agknight`, `vr_agdknight`
+  on) frees them. Their gameplay lives in the armed humanoids' own code (no `vr_run_<id>.qc`): the replacements' rolls.
+- **Ranged Knights** (`vr_run_rangedknights`): a map's knight or death knight with no "weapon" key is rolled from his own
+  pool (`VR_AKN_Pick`, through `VR_AGR_Pick`, `VR_AGR_SeedOf`, the pending roll once a player is in: the grunts' path).
+  Weights (Combat > Armed Grunts > Armed Humanoid Replacements, "Run Mutators: Ranged Knights"):
+  `vr_rangedknights_w_sword` 6 (`_dual` 0.2: two swords), `_w_crossbow` 2.5 (AD's rules on; `_xbow_sword` 0.35: the
+  crossbow and his sword, the gun-and-blade loadout), `_w_chainsaw` 0.6, `_w_gun` 0.3 (any other gun of the
+  replacements' tiers, uniform). Decided: the sword, crossbow and chainsaw are a knight's own (no ownership rule); the
+  other guns follow the replacements' (owned, rare from its map). Without AD: 87% sword, 8% chainsaw, 4% gun. The
+  knights take up guns lying about (the rows' `vr_am_takes_ranged`). Aim, fire, reloads, melee: the armed layer's, as
+  with `vr_agknight_ranged_pickup` (his posed arms on the grunt's keys; ROUND23.md "Armed knights: shipped poses and
+  every weapon class"). Precached at worldspawn while on.
+- **Wild Weaponry** (`vr_run_wildweapons`): `VR_AGR_Eligible` skips the ownership rule and `VR_AGR_RareOk` the rare
+  tier's map (`vr_agrunt_repl_rare_map`), for the grunts' and enforcers' variety and Ranged Knights' other guns; the
+  chances are the variety's own (`vr_agrunt_repl_common` ...). AD's guns still need AD's rules.
+- **Armored Foes** (`vr_run_armoredfoes`): the skill's armour chance c becomes 1 - (1 - c)(1 - `vr_armoredfoes_chance`)
+  (0.75: Easy 75%, Normal 80%, Hard 84%, Nightmare 90%); the type and pieces stay the skill's. Every armed kind,
+  knights included; the Survival Arena's waves keep their own roll.
+
 ## Console and tests
 
 - `vr_runpickups_test 1` ("runpickups: N passed", `vr_run_test.qc`): Balanced on e1m1 with seed 777 (rules, the map's
@@ -157,3 +182,8 @@ choices themselves are the engine's line.
   most monsters copied; swaps of allowed kinds; nothing dead at the start; `total_monsters` in id's maps) and its trigger
   chains (`VR_Run_EnemiesChains`: targets and killtargets resolved, trigger_counter uses) equal to the same map's first
   check with both off. ROUND25.md "mutenemies" has the scripts.
+- `vr_run_armed_check <rangedknights> <wildweapons> <armoredfoes>` / `verdict` ("runarmed: N passed"; QC
+  `VR_Run_ArmedCheck1..4`, `vr_run_armed_test.qc`): the knights' pool over 1000 seeds in its weights' shares, the
+  grunts' rolls over 800 (nothing unowned or rare-early without Wild Weaponry, some with it), 2000 armour rolls at the
+  expected chance, the map's own (every roll resolved, knights' swords / guns and pickups as the run says, most
+  armoured with Armored Foes). `vr_runsetup_test` checks the held rows. ROUND25.md "mutknights" has the scripts.

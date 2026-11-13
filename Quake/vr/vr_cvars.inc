@@ -3970,6 +3970,19 @@ QVR_CVAR(vr_run_test_c, "0", CVAR_NONE)               // test aid: another (the 
 QVR_CVAR(vr_run_enemycount, "0", CVAR_NONE)           // the run's Enemy Count: copies of each map monster beside it as the map loads (QC vr_run_enemycount.qc)
 QVR_CVAR(vr_run_enemyrandom, "0", CVAR_NONE)          // the run's Randomized Enemies: map monsters swapped as the map loads (QC vr_run_enemyrandom.qc)
 QVR_CVAR(vr_run_hubgo, "0", CVAR_NONE)                // the hub's teleporter: set by the Run Setup screen's Start, the teleporter then lets the player through (QC clears it)
+QVR_CVAR(vr_runpick_rangedknights, "0", CVAR_ARCHIVE) // Run Setup: Ranged Knights (held Off while Armed Humanoids is off)
+QVR_CVAR(vr_runpick_wildweapons, "0", CVAR_ARCHIVE)   // Run Setup: Wild Weaponry (held Off while Armed Humanoids is off)
+QVR_CVAR(vr_runpick_armoredfoes, "0", CVAR_ARCHIVE)   // Run Setup: Armored Foes (held Off while Armed Humanoids is off)
+QVR_CVAR(vr_run_rangedknights, "0", CVAR_NONE)        // the run's Ranged Knights: armed knights and death knights spawn with and take up ranged weapons (QC vr_armedrepl.qc VR_AKN_Pick)
+QVR_CVAR(vr_run_wildweapons, "0", CVAR_NONE)          // the run's Wild Weaponry: armed humanoids' rolled weapons ignore what the player owns and the rare weapons' map (QC VR_AGR_Eligible)
+QVR_CVAR(vr_run_armoredfoes, "0", CVAR_NONE)          // the run's Armored Foes: armed humanoids spawn armoured far more often (QC vr_agarmor.qc VR_AgArmor_Roll, vr_armoredfoes_chance)
+QVR_CVAR(vr_rangedknights_w_sword, "6", CVAR_ARCHIVE)    // Ranged Knights' pool weights (0: never): his own sword
+QVR_CVAR(vr_rangedknights_dual, "0.2", CVAR_ARCHIVE)     // 0..1: ... the chance a sword knight holds a second sword
+QVR_CVAR(vr_rangedknights_w_crossbow, "2.5", CVAR_ARCHIVE) // ... AD's crossbow (only with Arcane Dimensions' rules on: AD mounted)
+QVR_CVAR(vr_rangedknights_xbow_sword, "0.35", CVAR_ARCHIVE) // 0..1: ... the chance a crossbow knight keeps his sword in the other hand
+QVR_CVAR(vr_rangedknights_w_chainsaw, "0.6", CVAR_ARCHIVE) // ... the chainsaw (once a player owns it, unless Wild Weaponry)
+QVR_CVAR(vr_rangedknights_w_gun, "0.3", CVAR_ARCHIVE)    // ... any other gun of the replacements' tiers (each once a player owns it, unless Wild Weaponry)
+QVR_CVAR(vr_armoredfoes_chance, "0.75", CVAR_ARCHIVE)    // Armored Foes: the chance an armed humanoid the skill's roll left bare is armoured after all (the skill's type and pieces)
 QVR_CVAR(vr_maps_slipseer, "1", CVAR_ARCHIVE)         // Slipseer (slipseer.com) listed in the Map Library beside Quaddicted (vr_slipseer.cpp): its listing pages read politely at start-up (cached on disk), a map's own page when it is picked. 0: Slipseer left out, nothing fetched from it
 QVR_CVAR(vr_maps_slipseer_delay, "5", CVAR_ARCHIVE)   // seconds at least between two Slipseer page requests (each wait is this to twice it, at random; never under 1): a person's pace
 QVR_CVAR(vr_maps_cache_mb, "512", CVAR_ARCHIVE)       // the map download cache (cache/maps/<sha256>.zip): at most this many MB kept, the oldest zips removed first when a download would pass it (and at start-up, and when it is lowered). 0: nothing kept once a package is installed. The Slipseer page and screenshot cache (cache/slipseer/) is held under the same size at start-up, the least recently fetched first (0: not trimmed)
