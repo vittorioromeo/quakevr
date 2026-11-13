@@ -1863,6 +1863,35 @@ His flat notes 5, 6, 9 (2026-11-13).
 - **Tests:** `vr_gameplay_preset_test` 25/0 (extended: a per-gun override set before Classic is cleared, `reloadModeBest()` 0, no burst or armed knights); new `vr_gameplay_classic_check` (QC `VR_Classic_Check`) after `vr_classic_quake 1; map e1m1`: no gun reload mode, no burst rifle, 18 grunts, 0 armed humanoids: `classiccheck: 2 passed, 0 failed`.
 - **Checklist:** 36 ticked lines (no voice notes) retired, the FAIL line and the rest kept, 3 run-setup lines shortened; 16 unused scenes moved to scratch/old_*; checklist_tests_check 50/0.
 
+## vkfixes: small fixes after vkQuake (agent/vkfixes, 2026-11-14)
+
+- **Freed edicts in physics** (after vkQuake 5dfca693, 43d02d34, f99e66cc, 96dae868, c664a5b3): `SV_PushEntity` no
+  longer runs `SV_Impact` (nor `VR_MissileHitDebug`) when its `SV_LinkEdict (true)`'s trigger touches freed the mover
+  or the entity it hit; toss physics, `SV_WalkMove`'s step down, `PF_droptofloor` and `SV_movestep` never set a NULL or
+  freed `groundentity`; `SV_Physics_Step` returns after a freefall whose impact or relink freed it; the edicts loop's
+  `force_retouch` relink skips one it freed; `SV_TouchLinks` stops firing triggers on an entity an earlier trigger
+  removed (and skips freed triggers); `SV_Impact` never runs a freed e2's touch. **Kept as id's:** a freed e1 (a
+  missile removing itself in its touch) still reaches e2's touch as `other` (vkQuake skips it: a gameplay change).
+- **Sound list cleared at a game switch** (after vkQuake 5e58858c, which frees the oldest half of a full list and
+  moves the rest, breaking held pointers): `S_PrecacheSound` now pins its sound (the engine's and the VR code's, which
+  keep the pointer); the maps' precache lists (`cl_parse.c`, `vr_client.cpp`), `play`/`playvol` and `S_LocalSound` use
+  `S_PrecacheGameSound` (not pinned). `S_ForgetGameSounds` (COM_SwitchGameInternal, after the cache flush) empties the
+  unpinned slots no channel or game-time render (`VR_SndHoldsSfx`) plays and nulls `cl.sound_precache` pointing at
+  them; no slot ever moves, a new name takes the first empty one. `vr_walltorch.cpp`'s crackle pointer compare pins its
+  sound. `vr_limits`' "sounds known" counts the live ones.
+- **WAV chunks read within their length** (after vkQuake d235ab8c): the LIST "mark" (24 bytes), the cue point (28),
+  fmt (16) and RIFF's WAVE (4) checked against the chunk's length, else a warning; a loop longer than the data is a
+  warning (was `Sys_Error`), played to the data's end.
+- **The sample counter's wrap** (after vkQuake 03fa1ce8, which kept looping statics restarted): at `paintedtime`
+  > 2^30 (~6h45m) `S_StopAllSounds` stopped every sound, the static ones for good. Now `S_RebaseSoundTime` moves
+  paintedtime, every channel's end, the raw samples' end and spatial audio's carried render (`VR_SndRebase`) back by
+  whole DMA buffers (and whole raw rings when the buffer is smaller): nothing stops or skips. GetSoundtime's statics
+  are file-scope now; the wrap is told by `S_Update` (the mix may run on the pool).
+- **Tests:** `vr_snd_wav_check` 5/0 (each malformed WAV against a PAGE_NOACCESS page; with the LIST check disabled it
+  FAILs "read past the file"); `vr_snd_wrap_test` 1/2 on e1m1 with sound (`-Sound`, `SDL_AUDIODRIVER=dummy`): 14
+  statics, counter jumped to 2^30, wrapped to 5434, 14 playing on, 5/0 (Debug > Other > Sound Counter Wrap runs step
+  1 by hand); `Misc/quakevr/sound_switch_test.py <agent> 30` (id1 <-> AD `vr_campaign_native`, 60 loads, the SDL
+  dummy audio driver): "sounds known" 415 in id1 and 552 in AD every cycle (before, the list only grew to the union).
 ## runfix: the run setup's flat-session bugs (agent/runfix, 2026-11-14)
 
 - **Difficulty missing after a campaign's launch (1):** not a stale build. On a map without skill halls the page is a

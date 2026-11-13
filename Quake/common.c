@@ -3038,6 +3038,7 @@ static void COM_SwitchGameInternal (const char *paths, qboolean vrCampaign)
 	//clear out and reload appropriate data
 	VR_OnModelsResetting (); // QVR: the pool's jobs that read the old world's model joined before it goes
 	Cache_FlushExcept (VR_ModelCacheKept); // QVR: Cache_Flush but the kept models'
+	S_ForgetGameSounds (); // QVR: the old game's sounds' slots freed (the list never fills over many mods)
 	Mod_ResetAll();
 	// QVR: nothing points at the reset models: the client's state as at start-up (CL_ForgetModels), the server's world
 	// (shut down above) gone too. Frames before the next map (the Loading... notice's) see no world, not a cleared one.

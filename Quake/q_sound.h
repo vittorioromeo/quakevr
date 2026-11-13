@@ -124,6 +124,11 @@ void S_UnblockSound (void);
 int S_SoundBlocked (void); // QVR
 
 sfx_t *S_PrecacheSound (const char *sample);
+sfx_t *S_PrecacheGameSound (const char *sample); /* QVR: a map's sound, nobody keeps the pointer: forgotten at a game switch */
+int S_ForgetGameSounds (void); /* QVR: a game switch: S_PrecacheGameSound's sounds no channel plays forgotten (their slots reused) */
+void S_RebaseSoundTime (int delta); /* QVR: the sample counter, every channel's end and the raw samples' moved back by delta */
+void S_SoundTimeJump (int buffers); /* QVR: vr_snd_wrap_test: the counter forward by whole DMA buffers */
+int S_SoundTimeWraps (void); /* QVR: the sample counter's wraps so far */
 void S_TouchSound (const char *sample);
 void S_ClearPrecache (void);
 void S_BeginPrecaching (void);
