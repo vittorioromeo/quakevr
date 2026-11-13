@@ -32,15 +32,11 @@ constexpr int startGunNothing = 3; // (the Starting gun's "Nothing")
 // What the choices do beyond their cvar
 // ----------------------------------------------------------------------------
 
-bool bnShown()
-{
-    return vr_mg3_bn_discovered.value != 0.f;
-}
-
-// Bloody Nightmare holds the difficulty at Nightmare.
+// Bloody Nightmare holds the difficulty at Nightmare. (Always a choice, found in Dawn of the Machine or not: his call,
+// 2026-11-13.)
 int skillForced()
 {
-    return bnShown() && vr_runpick_bn.value != 0.f ? 3 : -1;
+    return vr_runpick_bn.value != 0.f ? 3 : -1;
 }
 
 void applySkill(int value, Phase phase)
@@ -170,7 +166,7 @@ const Mutator registry[] = {
     {.id = "bn", .label = "Bloody Nightmare", .section = Section::Difficulty,
         .options = {"Off", "On"}, .tags = {"", "Bloody Nightmare"}, // (in the difficulty's place: summary())
         .help = "Dawn of the Machine's hidden difficulty: Nightmare, harder monsters, each level begun with the axe and shotgun only.",
-        .pick = &vr_runpick_bn, .active = &vr_run_bn, .apply = applyBloody, .shown = bnShown},
+        .pick = &vr_runpick_bn, .active = &vr_run_bn, .apply = applyBloody},
     {.id = "style", .label = "Style", .section = Section::Presets,
         .options = {"My Settings", "Classic", "Light", "Unleashed"}, .tags = {"My Settings", "Classic", "Light", "Unleashed"},
         .def = 3, .oldSave = -1,
@@ -250,6 +246,9 @@ struct State
     bool reading{false}; // readSaveLines ran for the save being loaded
     char line[1024]{}; // (about 12 characters a choice: room for many more; saveLine checks it fits)
     char summary[256]{};
+    bool runSet{false};                // the run's values set since the last map began (start, endRun, vr_run, a load)
+    int spawns{0};                     // maps begun (beforeMapLoad), a new game's or a save's
+    int spawnedWith[registryCount]{}; // the run's values the last one spawned with (vr_runlaunch_test)
 };
 State state;
 
@@ -318,6 +317,7 @@ void runCmd()
         }
         setActive(i, atoi(Cmd_Argv(2)));
         applyActive(i, Phase::Start);
+        state.runSet = true; // (the next `map` keeps it: newGame)
     }
     for(int i = 0; i < registryCount; i++)
     {
@@ -764,15 +764,66 @@ void start()
     // one every run even with the same choices. In the saved games (`seed=`): a loaded run's next maps roll as its did.
     Cvar_SetValueQuick(&vr_run_seed, static_cast<float>(newSeed()));
     Cvar_Set("vr_run_hubgo", "0");
+    state.runSet = true;
     Con_Printf("Run setup: %s\n", summary(false));
 }
 
-void ensureSeed()
+void newGame()
 {
-    if(vr_run_seed.value <= 0.f)
+    // Begun by the Run Setup's Start (or the hub's end of a run, `vr_run <id> <value>`): as set.
+    if(state.runSet)
+    {
+        return;
+    }
+    // (A mutator's vr_run_<id> set by hand since the last map began, a scenario's `cvar vr_run_meleeonly 1`, a test's:
+    // runSet too, by its callback (init).)
+    // Else (the Firing Range and Tutorial buttons, the debug menu's maps, `map` typed): never the last run's mutators
+    // (his flat report 2026-11-13: they were); the screen's, as its Start would set them. Not the rows that write
+    // settings (the difficulty, the presets, Armed Humanoids, Smarter AI): those only by the screen's Start.
+    int values[registryCount];
+    for(int i = 0; i < registryCount; i++)
+    {
+        values[i] = pickValue(i);
+    }
+    for(int i = 0; i < registryCount; i++)
+    {
+        if(!registry[i].apply)
+        {
+            setActive(i, values[i]);
+        }
+    }
+    Cvar_SetValueQuick(&vr_run_seed, static_cast<float>(newSeed()));
+    Con_Printf("Run setup: a new game without the Run Setup's Start: its mutators: %s\n", summary(false));
+}
+
+void beforeMapLoad(bool loadingSave)
+{
+    if(!loadingSave && vr_run_seed.value <= 0.f)
     {
         Cvar_SetValueQuick(&vr_run_seed, static_cast<float>(newSeed()));
     }
+    state.runSet = false;
+    state.spawns++;
+    for(int i = 0; i < registryCount; i++)
+    {
+        state.spawnedWith[i] = activeValue(i);
+    }
+    Con_DPrintf("Run setup: %s spawns with: %s\n", sv.name, summary(false));
+}
+
+bool qcTest(const char* name, float a, float b, float c)
+{
+    return qcCheck(name, a, b, c);
+}
+
+int mapSpawns()
+{
+    return state.spawns;
+}
+
+int spawnedWith(int i)
+{
+    return i >= 0 && i < registryCount ? state.spawnedWith[i] : -1;
 }
 
 void endRun()
@@ -785,6 +836,7 @@ void endRun()
             setActive(i, m.def);
         }
     }
+    state.runSet = true; // (the hub's map: no run, not the screen's mutators)
 }
 
 const char* summary(bool picks)
@@ -956,9 +1008,24 @@ void init()
     Cmd_AddCommand("vr_run_check", checkCmd);
     Cmd_AddCommand("vr_run_enemies_check", enemiesCheckCmd);
     Cmd_AddCommand("vr_run_armed_check", armedCheckCmd);
+    // A mutator's vr_run_<id> changed (the Start, a load, `vr_run`, a scenario's or a test's own): the next `map`
+    // keeps the run as it is (newGame).
+    for(int i = 0; i < registryCount; i++)
+    {
+        if(!registry[i].apply)
+        {
+            Cvar_SetCallback(registry[i].active, [](cvar_t*) { state.runSet = true; });
+        }
+    }
 }
 
 } // namespace qvr::runsetup
+
+// Host_Map_f: a new game (runsetup::newGame: the run's choices, never the last run's).
+extern "C" void VR_RunNewGame()
+{
+    qvr::runsetup::newGame();
+}
 
 // Ironman (vr_run_ironman): saving refused (host_cmd.c's save: every save, quick and auto too), the autosaves not tried
 // (host.c), the menus' Save greyed (menu.c, vr_menuui.cpp); a death restarts the level (QC vr_run_ironman.qc).

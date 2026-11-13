@@ -481,7 +481,8 @@ void qvr::menu::runSetupScreenTest_f()
     check(items.size() > 0 && items[0].kind != Item::Header && !hasLabel(items, "Run Setup"),
         "no title, no recap: the page starts with the difficulty picker");
     check(allRows, "its rows: Difficulty, the presets, the mutators, Start");
-    check(ui().cursors[page] == static_cast<int>(items.size()) - 1, "the cursor on Start");
+    check(ui().cursors[page] == static_cast<int>(items.size()) - 1 || ui().cursors[page] == 0,
+        "the cursor on Start (or on Difficulty, the page longer than its view)");
     goBack();
     check(ui().page != page && runSetup.launch == runsetup::Launch::Library, "Back leaves it, nothing started");
 
@@ -501,14 +502,35 @@ void qvr::menu::runSetupScreenTest_f()
         check(shownFor(runsetup::Launch::Campaign) && runSetup.campaign == 0, "Official Campaigns' row opens it");
         goBack();
     }
+    // The Levels list after a start hall's launch (New Game's, the campaign's): the page as shown (the menu's built
+    // rows, not a fresh build) has its Difficulty row at once (his flat report 2026-11-13: only after a fold).
+    auto shown = [&]() -> const za::Vector<Item>& { return menu_detail::items(page); };
+    const float bnFound = vr_mg3_bn_discovered.value;
+    Cvar_Set("vr_mg3_bn_discovered", "0");
     VR_RunSetupLevel("e1m1"); // (the flat Levels list's Enter: not the old difficulty menu)
     check(shownFor(runsetup::Launch::Level) && !runSetup.skillHalls && !strcmp(runSetup.map.cStr(), "e1m1") &&
               m_state != m_skill,
         "the Levels list opens it for that map (Difficulty asked)");
+    check(hasLabel(shown(), "Difficulty"), "after a start hall's launch: the shown page has Difficulty");
+    check(hasLabel(shown(), "Bloody Nightmare"), "Bloody Nightmare a row, never found");
+    // Opened at its top: the Difficulty row in view (the draw scrolls only to keep the cursor in view), the cursor on
+    // Start when that is in view too, else on Difficulty.
+    const int at = ui().cursors[page];
+    const bool onStart = at >= 0 && at < static_cast<int>(shown().size()) && shown()[at].label &&
+                         !strcmp(shown()[at].label, "Start");
+    check(ui().scrolls[page] == 0 && at < rowsFrom(shown(), 0) && (onStart || !strcmp(shown()[at].label, "Difficulty")),
+        "opened at its top, Difficulty and the cursor in view (on Start when it fits)");
+    Con_Printf("runsetup_screen: %d rows, %d in view from the top, the cursor on %s\n", static_cast<int>(shown().size()),
+        rowsFrom(shown(), 0), shown()[at].label ? shown()[at].label : "?");
     goBack();
     VR_RunSetupLevel("start");
     check(shownFor(runsetup::Launch::Level) && runSetup.skillHalls, "the Levels list's start hall: no Difficulty row");
+    check(!hasLabel(shown(), "Difficulty"), "... and the shown page has none");
     goBack();
+    VR_RunSetupLevel("e1m1");
+    check(hasLabel(shown(), "Difficulty"), "a map after the start hall: the shown page has Difficulty again");
+    goBack();
+    Cvar_SetValueQuick(&vr_mg3_bn_discovered, bnFound);
     Cbuf_InsertText("vr_runsetup hub\n");
     Cbuf_Execute();
     check(shownFor(runsetup::Launch::Hub), "the hub's teleporter (vr_runsetup hub) opens it");
@@ -551,6 +573,264 @@ void qvr::menu::runSetupScreenTest_f()
     gorepresets::kind().useTestFile(false);
     Cvar_SetValueQuick(&vr_runsetup_ask, ask);
     t.verdict(name);
+}
+
+// vr_runlaunch_test: every way a run starts (the Levels list, the Map Library's Play, New Game, Official Campaigns, the
+// hub's teleporter), each with other choices than the run before it, the screen's Start pressed: the map spawns with
+// the new run's choices (never the last run's: his flat report 2026-11-13) and plays as they say (QC
+// VR_Run_LaunchCheck: the loadout, Glass Cannon's blows on a monster and the training dummy by a gun's path and a
+// hand's, Melee Only on the map's own guns and ammunition, the enemies' copies and swaps and the pickups' swaps on
+// e1m1); a saved run loaded brings its choices, and the next start the screen's again. Driven a frame at a time
+// (runLaunchTestFrame: each step waits for its map's player and the monsters' start thinks). Verdict "runlaunch: N
+// passed, M failed". The presets as My Settings (test files) and every pick set back.
+struct RunLaunchPicks
+{
+    int gun, melee, meleeOnly, glass, count, random, pickups;
+};
+// A: Melee Only (the gun held at Nothing), a dagger, 3x enemies. B: the revolver, Glass Cannon, 1x, Anything Goes
+// enemies and pickups. G: Melee Only and Glass Cannon (the firing range's dummy).
+constexpr RunLaunchPicks runLaunchPicks[] = {{0, 1, 1, 0, 2, 0, 0}, {2, 0, 0, 1, 0, 2, 2}, {0, 0, 1, 1, 0, 0, 0}};
+
+enum class RunLaunchWay
+{
+    Level,
+    Library,
+    NewGame,
+    Campaign,
+    Map, // (a map by the console: the hub's, before its teleporter)
+    Hub,
+    Load,
+    FiringRange, // the VR menu's Firing Range button (no Run Setup screen: the screen's mutators all the same)
+    ConsoleRun,  // `vr_run glasscannon 0` then `map`: a run's choice set by hand is kept
+};
+
+struct RunLaunchStep
+{
+    RunLaunchWay way;
+    const char* map;  // the map it starts
+    int picks;        // runLaunchPicks' row, -1: none (a load: the saved run's)
+    bool check;       // checked (not the hub's own map)
+    bool loadout;     // a new game: the run's starting weapons
+    bool save;        // saved after its check (the run the Load step brings back)
+    const char* what;
+};
+constexpr RunLaunchStep runLaunchSteps[] = {
+    {RunLaunchWay::Level, "e1m1", 0, true, true, false, "the Levels list"},
+    {RunLaunchWay::Level, "e1m1", 1, true, true, true, "the Levels list again, other choices"},
+    {RunLaunchWay::Library, "e1m1", 0, true, true, false, "the Map Library's Play"},
+    {RunLaunchWay::NewGame, "start", 1, true, true, false, "New Game"},
+    {RunLaunchWay::Campaign, "start", 0, true, true, false, "Official Campaigns' row"},
+    {RunLaunchWay::Map, "vrstart", -1, false, false, false, "the hub"},
+    {RunLaunchWay::Hub, "start", 1, true, false, false, "the hub's teleporter"},
+    {RunLaunchWay::Level, "vrfiringrange", 2, true, false, false, "the Levels list: the firing range"},
+    {RunLaunchWay::Load, "e1m1", -1, true, false, false, "the saved run loaded"},
+    {RunLaunchWay::Level, "e1m1", 0, true, true, false, "the Levels list after a load"},
+    {RunLaunchWay::FiringRange, "vrfiringrange", 2, true, false, false, "the Firing Range button (no screen)"},
+    {RunLaunchWay::ConsoleRun, "vrfiringrange", -1, true, false, false, "`vr_run glasscannon 0` then `map`"},
+};
+constexpr int runLaunchStepCount = static_cast<int>(sizeof(runLaunchSteps) / sizeof(runLaunchSteps[0]));
+constexpr int runLaunchGiveUp = 72 * 60; // frames a step may wait for its map (60 s of game time)
+constexpr int runLaunchSettle = 48;      // frames after the player is in: the monsters' start thinks (0.1-0.6 s)
+constexpr const char* runLaunchPresets[] = {"vr_runpick_style", "vr_runpick_gore", "vr_runpick_armed", "vr_runpick_smartai"};
+
+struct RunLaunchTest
+{
+    int step{-1}; // -1: not running
+    bool launched{false};
+    int spawns{0};  // runsetup::mapSpawns() at the launch
+    int frames{0};  // waited for the map
+    int settled{0}; // frames since its player came in
+    int savedRun[64]{}; // the run saved (the Load step's)
+    int expect[64]{};   // the run set by hand (the ConsoleRun step's)
+    float picks[64]{}; // every pick as before the test
+    float ask{1.f};
+    testkit::Tally tally;
+};
+RunLaunchTest runLaunch;
+
+void runLaunchSetPicks(const RunLaunchPicks& p)
+{
+    Cvar_SetValueQuick(&vr_runpick_startgun, static_cast<float>(p.gun));
+    Cvar_SetValueQuick(&vr_runpick_startmelee, static_cast<float>(p.melee));
+    Cvar_SetValueQuick(&vr_runpick_meleeonly, static_cast<float>(p.meleeOnly));
+    Cvar_SetValueQuick(&vr_runpick_glasscannon, static_cast<float>(p.glass));
+    Cvar_SetValueQuick(&vr_runpick_enemycount, static_cast<float>(p.count));
+    Cvar_SetValueQuick(&vr_runpick_enemyrandom, static_cast<float>(p.random));
+    Cvar_SetValueQuick(&vr_runpick_pickups, static_cast<float>(p.pickups));
+}
+
+void runLaunchEnd()
+{
+    RunLaunchTest& t = runLaunch;
+    for(int i = 0; i < runsetup::count() && i < 64; i++)
+    {
+        Cvar_SetValueQuick(runsetup::at(i).pick, t.picks[i]);
+    }
+    gameplaypresets::kind().useTestFile(false);
+    gorepresets::kind().useTestFile(false);
+    Cvar_SetValueQuick(&vr_runsetup_ask, t.ask);
+    t.step = -1;
+    t.tally.verdict("runlaunch");
+}
+
+// The step's way in, as a press of its Start (the screen opened, then its Start).
+void runLaunchGo(const RunLaunchStep& s)
+{
+    if(s.picks >= 0)
+    {
+        runLaunchSetPicks(runLaunchPicks[s.picks]);
+    }
+    switch(s.way)
+    {
+        case RunLaunchWay::Level: VR_RunSetupLevel(s.map); break;
+        case RunLaunchWay::Library:
+            openRunSetup(runsetup::Launch::Library, za::String{"0000"}, s.map, -1, mapinstall::mapHasSkillSelect(s.map));
+            break;
+        case RunLaunchWay::NewGame: VR_RunSetupNewGame(); break;
+        case RunLaunchWay::Campaign: openRunSetupCampaign(0); break;
+        case RunLaunchWay::Hub: openRunSetup(runsetup::Launch::Hub, za::String{}, nullptr, -1, true); break;
+        case RunLaunchWay::Map: Cbuf_AddText(va("map %s\n", s.map)); return;
+        case RunLaunchWay::Load: Cbuf_AddText("load rf_launch_b\n"); return;
+        case RunLaunchWay::FiringRange: playFiringRange(); return;
+        case RunLaunchWay::ConsoleRun:
+            Cmd_ExecuteString("vr_run glasscannon 0", src_command);
+            for(int i = 0; i < runsetup::count() && i < 64; i++)
+            {
+                runLaunch.expect[i] = runsetup::activeValue(i); // (the run as set by hand, the picks not)
+            }
+            Cbuf_AddText(va("map %s\n", s.map));
+            return;
+    }
+    runSetupStart();
+    if(s.way == RunLaunchWay::Hub)
+    {
+        Cbuf_AddText("changelevel start\n"); // (the teleporter, vr_run_hubgo set: it lets him through)
+    }
+}
+
+void runLaunchCheck(const RunLaunchStep& s)
+{
+    RunLaunchTest& t = runLaunch;
+    char what[128];
+    q_snprintf(what, sizeof(what), "%s (%s)", s.what, sv.name);
+    bool spawned = true;
+    bool now = true;
+    for(int i = 0; i < runsetup::count() && i < 64; i++)
+    {
+        const int want = s.way == RunLaunchWay::Load         ? t.savedRun[i]
+                         : s.way == RunLaunchWay::ConsoleRun ? t.expect[i]
+                                                             : runsetup::pickValue(i);
+        if(runsetup::spawnedWith(i) != want || runsetup::activeValue(i) != want)
+        {
+            Con_Printf("runlaunch: %s: %s spawned with %d, %d now; the run's: %d\n", what, runsetup::at(i).id,
+                runsetup::spawnedWith(i), runsetup::activeValue(i), want);
+        }
+        spawned = spawned && runsetup::spawnedWith(i) == want;
+        now = now && runsetup::activeValue(i) == want;
+    }
+    t.tally.check(spawned, "runlaunch", va("%s: the map spawned with the run's choices", what));
+    t.tally.check(now, "runlaunch", va("%s: the run's choices", what));
+    auto active = [](const char* id) { return static_cast<float>(runsetup::activeValue(runsetup::find(id))); };
+    const float w = active("startgun") * 10.f + active("startmelee");
+    const float gm = active("glasscannon") + 2.f * active("meleeonly") + (s.loadout ? 4.f : 0.f);
+    const float en = active("enemycount") + 3.f * active("enemyrandom") + 9.f * active("pickups");
+    t.tally.check(runsetup::qcTest("VR_Run_LaunchCheck", w, gm, en), "runlaunch",
+        va("%s: the game as they say (VR_Run_LaunchCheck)", what));
+    if(s.save)
+    {
+        for(int i = 0; i < runsetup::count() && i < 64; i++)
+        {
+            t.savedRun[i] = runsetup::activeValue(i);
+        }
+        Cbuf_AddText("save rf_launch_b\n");
+    }
+    Con_Printf("runlaunch: checked %s: %s\n", what, runsetup::summary(false));
+}
+
+void qvr::menu::runLaunchTestFrame()
+{
+    RunLaunchTest& t = runLaunch;
+    if(t.step < 0)
+    {
+        return;
+    }
+    if(t.step >= runLaunchStepCount)
+    {
+        runLaunchEnd();
+        return;
+    }
+    const RunLaunchStep& s = runLaunchSteps[t.step];
+    if(!t.launched)
+    {
+        if(s.way == RunLaunchWay::Campaign && VR_CampaignUnavailable(0) != 0)
+        {
+            Con_Printf("runlaunch: %s skipped (id's campaign unavailable)\n", s.what);
+            t.step++;
+            return;
+        }
+        if(s.way == RunLaunchWay::Library && !mapindex::find(za::String{"0000"}))
+        {
+            // (No map index in a test run: the package's play is refused after the Start. The Start's own part, the
+            // run's choices, is the screen's for every way in: checked here.)
+            runLaunchGo(s);
+            bool now = true;
+            for(int i = 0; i < runsetup::count(); i++)
+            {
+                now = now && runsetup::activeValue(i) == runsetup::pickValue(i);
+            }
+            t.tally.check(now, "runlaunch", va("%s: its Start made the choices the run's (no package to play)", s.what));
+            Con_Printf("runlaunch: checked %s: the run's choices only (no map index here)\n", s.what);
+            t.step++;
+            return;
+        }
+        t.launched = true;
+        t.spawns = runsetup::mapSpawns();
+        t.frames = 0;
+        t.settled = 0;
+        runLaunchGo(s);
+        return;
+    }
+    if(++t.frames > runLaunchGiveUp)
+    {
+        t.tally.check(false, "runlaunch", va("%s: timed out (sv %s, spawns %d)", s.what, sv.name, runsetup::mapSpawns() - t.spawns));
+        runLaunchEnd();
+        return;
+    }
+    if(runsetup::mapSpawns() == t.spawns || !sv.active || strcmp(sv.name, s.map) != 0 || cls.signon != SIGNONS ||
+        cl.stats[STAT_HEALTH] <= 0 || ++t.settled < runLaunchSettle)
+    {
+        return;
+    }
+    if(s.check)
+    {
+        runLaunchCheck(s);
+    }
+    t.step++;
+    t.launched = false;
+}
+
+void qvr::menu::runLaunchTest_f()
+{
+    RunLaunchTest& t = runLaunch;
+    t = RunLaunchTest{};
+    for(int i = 0; i < runsetup::count() && i < 64; i++)
+    {
+        t.picks[i] = runsetup::at(i).pick->value;
+    }
+    t.ask = vr_runsetup_ask.value;
+    Cvar_Set("vr_runsetup_ask", "1");
+    // The presets as My Settings, kept in the test files: his settings are not changed.
+    gameplaypresets::kind().useTestFile(true);
+    gorepresets::kind().useTestFile(true);
+    gameplaypresets::kind().keepMine();
+    gorepresets::kind().keepMine();
+    for(const char* p : runLaunchPresets)
+    {
+        Cvar_Set(p, "0");
+    }
+    Cvar_Set("vr_runpick_ironman", "0");
+    Cvar_Set("vr_runpick_bn", "0");
+    t.step = 0;
 }
 
 // maps_page_stats (Debug > Tools).

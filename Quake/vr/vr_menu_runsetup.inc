@@ -214,7 +214,22 @@ void openRunSetup(runsetup::Launch launch, const za::String& sha, const char* ma
     }
     const int page = pageIndex(pageRunSetup);
     openFromAnywhere(page);
-    ui().cursors[page] = static_cast<int>(pageRunSetup().size()) - 1;
+    // Built anew for this launch (its Difficulty row or the halls' line, its held rows), never the last launch's rows:
+    // runSetupStale alone missed it (a page built for the size above it counted as this launch's).
+    menuPages.done[page] = false;
+    const za::Vector<Item>& built = items(page);
+    // At its top (his flat report 2026-11-13: the cursor on Start scrolled the Difficulty row out of view on a map
+    // without skill halls, the page a row longer than the view): the cursor on Start while it is in view from there,
+    // else on the first choice.
+    int start = 0;
+    int first = -1;
+    for(int i = 0; i < static_cast<int>(built.size()); i++)
+    {
+        start = built[i].look == Item::Button && built[i].label && !strcmp(built[i].label, "Start") ? i : start;
+        first = first < 0 && selectable(built[i]) ? i : first;
+    }
+    ui().scrolls[page] = 0;
+    ui().cursors[page] = start < rowsFrom(built, 0) || first < 0 ? start : first;
 }
 
 void openRunSetupCampaign(int index)

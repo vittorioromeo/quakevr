@@ -5,7 +5,7 @@
 // Mutator: Glass Cannon (vr_run_glasscannon; docs/vr-port/MUTATORS.md)
 // ----------------------------------------------------------------------------
 //
-// The player and the monsters take double damage (T_Damage's start: VR_Run_Damage): every hit, blast, fall and burn.
+// The player and the monsters take double damage (T_DamageImpl's start, so a hand's blow too: VR_Run_Damage): every hit, blast, fall and burn.
 // Props, doors and other breakables take their usual.
 
 float(entity targ, float damage) VR_RunGlassCannon_Damage =

@@ -2207,6 +2207,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("maps_page_pick", menu::mapsPagePick_f);
     Cmd_AddCommand("vr_runsetup", menu::runSetup_f);
     Cmd_AddCommand("vr_runsetup_screen_test", menu::runSetupScreenTest_f);
+    Cmd_AddCommand("vr_runlaunch_test", menu::runLaunchTest_f);
     Cmd_AddCommand("vr_tips_reset", tips::reset_f);
     Cmd_AddCommand("vr_tips_test", tips::test_f);
     Cmd_AddCommand("vr_mock_laser", menuui::mockLaser_f);
@@ -2926,6 +2927,7 @@ extern "C" void VR_HostFrameEnd()
     qvr::update::poll(); // the update check's answer (vr_update.cpp)
     qvr::obs::poll(); // OBS's recording state, and the menus' state to its thread (vr_obs.cpp)
     qvr::takes::frame(); // the takes: OBS's answers and events, pending moves (vr_takes.cpp)
+    qvr::menu::runLaunchTestFrame(); // vr_runlaunch_test's steps (vr_menu_instances.inc)
     qvr::renderdoc::poll(); // the delayed RenderDoc capture (vr_renderdoc.cpp)
     qvr::modelwatch::frame(); // vr_model_watch: a loaded model whose file changed read again (vr_modelwatch.cpp)
     qvr::blender::frame(); // vr_blender_link: the Blender add-on's Show in Game (vr_blender.cpp)

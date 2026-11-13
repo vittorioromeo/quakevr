@@ -336,6 +336,7 @@ const char *VR_SaveBrushLines (void);	// SaveData_Fill: the runtime brushes as t
 const char *VR_SaveDecalLines (void);	// SaveData_Fill: the permanent decals as the save's "// qvrdecals" and "// qvrd" lines (vr_permdecals.cpp; "" none)
 void VR_SaveFlashlightState (void); // before a save snapshot or changelevel parms are captured
 void VR_OnFreshStart (void);			// Host_Map_f, Host_Loadgame_f: a game started afresh or loaded, not a changelevel (the flashlight off)
+void VR_RunNewGame (void);			// Host_Map_f: a new game; begun without the Run Setup's Start, the screen's mutators made the run's
 void VR_StoreSpawnParms (int client);	// after parm1..16 are copied from globals into a client_t
 void VR_RestoreSpawnParms (int client);	// after parm1..16 are copied from a client_t into globals
 int VR_ServerRandom (void);			// the server's own rand() (vr_srvrandom.cpp): 0..0x7fff, apart from the client's effects' C library rand()
