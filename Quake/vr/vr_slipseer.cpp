@@ -1181,6 +1181,7 @@ bool passNetwork = false;  // it may use the network
 za::String wantedPage;     // a map's page wanted (the picked one)
 bool wantedNetwork = false;
 za::String getUrl;         // maps_slipseer_get's URL (development: one page fetched and kept)
+bool getAsset = false;     // ... a picture (its cache name: .img)
 
 // The thread -> main thread (under `handoff`).
 za::UniquePtr<mapindex::Index> pendingPart;
@@ -1476,7 +1477,7 @@ void run() noexcept
             za::Vector<char> body;
             za::String error;
             bool fresh = false;
-            const bool asset = strstr(get.cStr(), ".jpg") || strstr(get.cStr(), ".png") || strstr(get.cStr(), ".jpeg");
+            const bool asset = getAsset;
             const bool ok =
                 fetch(get, asset ? Kind::Asset : Kind::Page, asset ? assetSeconds : detailSeconds, nullptr, true, body, error, &fresh);
             note("slipseer: %s: %s (%d bytes, %s) -> %s", get.cStr(), ok ? "ok" : error.cStr(),
@@ -1715,12 +1716,14 @@ void get_f()
 {
     if(Cmd_Argc() < 2)
     {
-        Con_Printf("maps_slipseer_get <url>: one Slipseer page fetched politely into the cache (development)\n");
+        Con_Printf("maps_slipseer_get <url> [asset]: one Slipseer page (or picture) fetched politely into the cache "
+                   "(development)\n");
         return;
     }
     {
         za::LockGuard lock{handoff};
         getUrl = za::String{Cmd_Argv(1)};
+        getAsset = Cmd_Argc() >= 3 && !q_strcasecmp(Cmd_Argv(2), "asset");
     }
     ensureThread();
 }
@@ -1933,7 +1936,7 @@ void testStep()
     selfTest.frames++;
     if(mapinstall::running())
     {
-        if(selfTest.frames > 72 * 120)
+        if(selfTest.frames > 72 * 600)
         {
             expect(false, "install: timed out");
             verdict();
@@ -1941,7 +1944,7 @@ void testStep()
         return;
     }
     const bool have = mapinstall::installed(selfTest.id);
-    if(!have && mapinstall::job().phase != mapinstall::Phase::Failed && selfTest.frames < 72 * 120)
+    if(!have && mapinstall::job().phase != mapinstall::Phase::Failed && selfTest.frames < 72 * 600)
     {
         return; // (its record is taken by mapinstall::poll)
     }

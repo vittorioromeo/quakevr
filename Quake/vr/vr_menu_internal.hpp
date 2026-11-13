@@ -30,6 +30,7 @@
 #include "vr_gfxpresets.hpp"
 #include "vr_mapindex.hpp"
 #include "vr_mapinstall.hpp"
+#include "vr_slipseer.hpp"
 #include "vr_main.hpp"
 #include "vr_mem.hpp"
 #include "vr_menu.hpp"

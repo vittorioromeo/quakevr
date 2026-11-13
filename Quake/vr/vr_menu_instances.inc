@@ -381,6 +381,34 @@ void qvr::menu::mapsPage_f()
     openMapsPage();
 }
 
+// maps_page_pick <row> [source]: that row of the list picked (its detail shown; a Slipseer map's page read), the
+// Source filter set first when given (0 both, 1 Quaddicted, 2 Slipseer). A test aid (screenshots, the debug menu).
+void qvr::menu::mapsPagePick_f()
+{
+    if(Cmd_Argc() >= 3)
+    {
+        mapPage.source = CLAMP(0, Q_atoi(Cmd_Argv(2)), mapsSourceCount - 1);
+    }
+    mapsShown();
+    int r = Cmd_Argc() >= 2 ? Q_atoi(Cmd_Argv(1)) : 0;
+    if(Cmd_Argc() >= 2 && !isdigit(static_cast<unsigned char>(Cmd_Argv(1)[0])))
+    {
+        // A title instead of a row: the first whose title holds it (any case).
+        r = -1;
+        for(int i = 0; i < static_cast<int>(mapPage.results.size()) && r < 0; i++)
+        {
+            if(q_strcasestr(mapindex::index().field(mapPage.results[i]->title), Cmd_Argv(1)))
+            {
+                r = i;
+            }
+        }
+    }
+    mapsPick(r);
+    mapsScrollTo(r);
+    Con_Printf("maps_page_pick: row %d of %d%s\n", r, static_cast<int>(mapPage.results.size()),
+        mapPage.picked >= 0 ? "" : " (none: out of the list)");
+}
+
 // maps_page_stats (Debug > Tools).
 void qvr::menu::mapsPageStats_f()
 {
