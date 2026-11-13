@@ -44,6 +44,8 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
   ROUND25.md "agfails2"), stealth props_round (knight within 77
   units; since housing_nailpistol: likely a seeded run's butterfly), vrtrailer (no beheading: fails alone at 330f70409
   too). Older: agrunt 3, 91, 92; 213 fixed 2026-11-13 (adtests).
+- **Baseline 2026-11-13** (ROUND25.md "basefix1113"): agrunt 12/47 and teleporters_chase fixed (the tests); arena 11
+  failed under load only (25/0 alone, 2 of 2); ragdoll_ragtest's catch as above (31/0 alone, 2 of 2).
 
 ## 2. The 1.1 release (only on his word; his list is RELEASE_TODO.md)
 
