@@ -1150,3 +1150,9 @@ frame, the reverse grip's server checks reading the local client's view (a liste
 - Checks: build 0 warnings; slipseer_test 55 -> 74 passed, 0 failed (back-off, trim, local-address checks);
   nav_tele_metric 18/20 and nav_tele_metric_gates 37/40 (the same as rev25nav's seeded runs); teleporters chase as
   before (dog at framed_sill32 FAIL, open since origin/next 2fa0e7e58; grunt PASS); stealth gates 11 PASS, 0 failed.
+
+## Checklist reorganisation (clreorg, 2026-11-13)
+
+- checklist.txt 126 -> 79 lines in Flat-screen / VR sections by subject: 45 ticked lines retired, 3 duplicates dropped,
+  62 lines with a Test (8 new scenes, 6 broken ones fixed; vr_scenario lands an `up` spawn whose point is in a wall on
+  the ledge above it). Details: CHECKLIST_REORG.md.

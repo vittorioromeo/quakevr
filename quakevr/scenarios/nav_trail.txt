@@ -5,6 +5,7 @@
 # (stealth_tests.sh trailnav).
 title Navmesh: a grunt that lost you follows your trail, not you
 map e1m1
+start 480 -352 88 90
 spawn "Grunt" 300 0
 cvar vr_nav_debug 2
 cvar vr_stealth_marks 1

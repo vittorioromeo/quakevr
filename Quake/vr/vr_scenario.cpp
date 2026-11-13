@@ -638,9 +638,24 @@ void place()
         const trace_t tr = SV_Move(from, zero, zero, down, MOVE_NOMONSTERS, p);
         if(tr.startsolid || tr.allsolid)
         {
-            note(va("line %d: \"%s\" placed in a wall (fwd %.0f, left %.0f)", sp.line, sp.what.cStr(), sp.fwd, sp.left));
+            // In a wall at your height, but with an `up`: a spot on a ledge above you (a ledge's face is solid there):
+            // it lands on what is under its raised point instead.
+            vec3_t high{at.x, at.y, feet.z + sp.up + 32.f};
+            const trace_t hi = SV_Move(high, zero, zero, down, MOVE_NOMONSTERS, p);
+            if(sp.up > 0.f && !hi.startsolid && !hi.allsolid && hi.fraction < 1.f)
+            {
+                at.z = hi.endpos[2];
+            }
+            else
+            {
+                note(va("line %d: \"%s\" placed in a wall (fwd %.0f, left %.0f)", sp.line, sp.what.cStr(), sp.fwd, sp.left));
+                at.z = feet.z + sp.up;
+            }
         }
-        at.z = (tr.fraction < 1.f ? tr.endpos[2] : feet.z) + sp.up;
+        else
+        {
+            at.z = (tr.fraction < 1.f ? tr.endpos[2] : feet.z) + sp.up;
+        }
         const float faceYaw = sp.hasYaw ? yaw + sp.yaw : glm::degrees(glm::atan(feet.y - at.y, feet.x - at.x));
         edict_t* e = nullptr;
         if(sp.armed)

@@ -1,0 +1,8 @@
+title Ammo pouch and belt torch with armour on: X With Armour 3, Forward With Armour 0.03, yellow armour
+map vrtesthall
+start 0 -288 25 90
+god
+notarget
+cvar vr_ammo_pouch_armor_x 3
+cvar vr_flashlight_armor_forward 0.03
+cmd give a 150

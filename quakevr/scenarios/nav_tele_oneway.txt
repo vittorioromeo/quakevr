@@ -5,9 +5,9 @@
 # link begun, a fail as soon as one is.
 title Navmesh: a dog at a one-way teleporter's far end doesn't try to go back through it
 map e1m1
-start -32 2000 -29 -90
+start -28 2009 -184 -90
 god
-spawn monster_dog 200 100
+spawn monster_dog 120 100
 cvar vr_nav 1
 cvar vr_nav_debug 2
 cvar vr_nav_teleports 1

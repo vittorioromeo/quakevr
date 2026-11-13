@@ -1,0 +1,6 @@
+title An armed shotgun grunt with a nailgun lying a few steps from it
+map vrtesthall
+start 0 -288 25 90
+god
+spawn "Armed Grunt: Shotgun" 420 0
+spawn "Nailgun" 340 70
