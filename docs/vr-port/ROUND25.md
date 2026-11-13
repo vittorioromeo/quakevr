@@ -1402,3 +1402,22 @@ Play on an installed package asks Easy / Normal / Hard / Nightmare first (page "
   back, and the save's load after a third run: the run's seed, content seed and pickups); `vr_ironman_test 1` 12/0
   (it failed 11/1 on its own before ensureSeed: run alone, its game had no run seed and the restart rolled anew);
   `vr_runsetup_test` 49/0.
+## runsetup2: the Run Setup page feedback (agent/runsetup2, 2026-11-13)
+- **Old difficulty menu:** the only live way to it was the flat Levels list (`menu_maps`, Enter or `menu_maps <map>`:
+  `M_Maps_Key`, `M_Menu_Maps_f`, menu.c): now `VR_RunSetupLevel(map)` opens the Run Setup screen (`Launch::Level`, the
+  map's own skill halls: no Difficulty row), its Start `M_LevelStart(map, skill)` does what the skill menu's fresh start
+  did. Already routed: New Game, Official Campaigns, the Map Library's Play, the hub. Left as it was: Quake 64's New
+  Game (`M_Menu_Skill_f` with its own picture menu; nothing else calls it). The old menu's "Resume autosave" row has no
+  counterpart on the screen (the Load menu has the autosaves).
+- **Page:** no "Run Setup" header row, no recap line, no Difficulty header: it starts with the picker (a start hall: its
+  one line), the Presets header's gap, then Mutators. The framework's own page title (under the plaque) stays.
+- **Starting gun / Starting melee weapon** replace Starting Weapon (`vr_runpick_startgun`/`_startmelee`, `vr_run_*`):
+  Shotgun (default) / Nail Pistol (50 nails, the magazine full) / Heavy Revolver / Nothing, and Axe (default) / Dagger /
+  Nothing. Both Nothing: bare fists (the existing unarmed start: punching and grabbing as ever). Melee Only holds the gun
+  at Nothing (shown as a line); the melee weapon stays free, so Melee Only + melee Nothing is a fists run. Old saves:
+  `startweapon=N` maps to gun/melee (read in `readSaveLines`). `vr_run_check` takes `<startgun> <startmelee> ...`.
+- **Anything Goes:** Randomized Enemies' (and Pickups') third choice renamed from Everything Goes.
+- **Tests:** vr_runsetup_test 48/0 (adds the old-save mapping and Melee Only holding the gun), vr_runsetup_screen_test
+  16/0 (Levels list opens the screen, the rows, no title), vr_run_check 33/0: all nine gun/melee combos on a new game,
+  Melee Only with dagger and with Nothing, a save, changelevel and load of the last; `vr_menu_path_check
+  maps/vrcalibration.map` 0 missing. Scenario run_pistolstart uses `vr_run_startgun 2`.

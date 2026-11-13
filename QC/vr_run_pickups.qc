@@ -5,7 +5,7 @@
 // Mutator: Randomized Pickups (vr_run_pickups; docs/vr-port/MUTATORS.md)
 // ----------------------------------------------------------------------------
 //
-// The map's pickups swapped as it loads: 1 Balanced, 2 Everything Goes. Only the kinds of the table below (ammo, health,
+// The map's pickups swapped as it loads: 1 Balanced, 2 Anything Goes. Only the kinds of the table below (ammo, health,
 // armour, weapons, powerups) and never one the map names or counts: an item with a targetname, target or killtarget
 // (a trigger's, a door's), a secret item (HONEY's), one a trigger brings (trigger-spawned, Dawn of the Machine's
 // SPAWNED, AD's STARTOFF: those never reach the hook). Keys, runes, sigils and every other kind are not in the table.
@@ -17,7 +17,7 @@
 // Balanced: ammo for ammo of a weapon kind you hold (the parms you enter with), one placed within RPK_NEAR units, or
 // the shotgun's shells, the box's size kept; health for health of its tier (15 and 25; the megahealth alone); armour
 // for armour a step away (green, yellow, red); a weapon for one of its tier; a powerup for one of its tier. AD's
-// upgrades (the Widowmaker, the Plasma Gun) only with AD mounted and its rules on. Everything Goes: a kind
+// upgrades (the Widowmaker, the Plasma Gun) only with AD mounted and its rules on. Anything Goes: a kind
 // (ammo, health, armour, weapon, powerup), then any of it. Melee Only (VR_RunMeleeOnly_Refuses): nothing becomes a
 // gun that was not one.
 // The rolls: a hash of the item's place and the run's seed (vr_run_seed, set at the run's start): the same map gets the
@@ -242,7 +242,7 @@ void(entity e, float r0, float mode, float mask, float salt) VR_RPK_Candidates =
     float tier = vr_rpk_tier;
     if(mode >= 2)
     {
-        cat = 1 + floor(VR_RPK_Roll(e, salt + 7) * 5); // (Everything Goes: a kind first, then any of it)
+        cat = 1 + floor(VR_RPK_Roll(e, salt + 7) * 5); // (Anything Goes: a kind first, then any of it)
         if(cat > RPK_POWER) cat = RPK_POWER;
     }
     for(float r = 0; r < RPK_ROWS; r++)
@@ -393,5 +393,5 @@ void(float held) VR_RunPickups_MapSpawned =
         e = next;
     }
     dprint(sprintf("Randomized pickups (%s): %g of %g items swapped, %g kept for the map (seed %g)\n",
-        mode >= 2 ? "everything goes" : "balanced", vr_rpk_swapped, vr_rpk_seen, vr_rpk_kept, vr_rpk_seed));
+        mode >= 2 ? "anything goes" : "balanced", vr_rpk_swapped, vr_rpk_seen, vr_rpk_kept, vr_rpk_seed));
 };

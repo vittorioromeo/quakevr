@@ -3939,19 +3939,21 @@ QVR_CVAR(vr_runpick_style, "3", CVAR_ARCHIVE)         // Run Setup: Style, the G
 QVR_CVAR(vr_runpick_gore, "0", CVAR_ARCHIVE)          // Run Setup: the Gore preset at the run's start: 0 My Settings, 1 Full, 2 Minimal, 3 Off
 QVR_CVAR(vr_runpick_armed, "0", CVAR_ARCHIVE)         // Run Setup: Armed Humanoids: 0 as the Style sets them, 1 off, 2 on
 QVR_CVAR(vr_runpick_smartai, "0", CVAR_ARCHIVE)       // Run Setup: Smarter AI (vr_ai_enhanced): 0 as the Style sets it, 1 off, 2 on
-QVR_CVAR(vr_runpick_startweapon, "0", CVAR_ARCHIVE)   // Run Setup: Starting Weapon: 0 shotgun, 1 heavy revolver, 2 axe only, 3 unarmed (fists)
+QVR_CVAR(vr_runpick_startgun, "0", CVAR_ARCHIVE)      // Run Setup: Starting gun: 0 shotgun, 1 nail pistol, 2 heavy revolver, 3 nothing
+QVR_CVAR(vr_runpick_startmelee, "0", CVAR_ARCHIVE)    // Run Setup: Starting melee weapon: 0 axe, 1 dagger, 2 nothing
 QVR_CVAR(vr_runpick_meleeonly, "0", CVAR_ARCHIVE)     // Run Setup: Melee Only
 QVR_CVAR(vr_runpick_glasscannon, "0", CVAR_ARCHIVE)   // Run Setup: Glass Cannon
-QVR_CVAR(vr_runpick_pickups, "0", CVAR_ARCHIVE)       // Run Setup: Randomized Pickups: 0 off, 1 balanced (same kind, similar value), 2 everything goes
+QVR_CVAR(vr_runpick_pickups, "0", CVAR_ARCHIVE)       // Run Setup: Randomized Pickups: 0 off, 1 balanced (same kind, similar value), 2 anything goes
 QVR_CVAR(vr_runpick_ironman, "0", CVAR_ARCHIVE)       // Run Setup: Ironman (no saving; a death restarts the level)
 QVR_CVAR(vr_runpick_enemycount, "0", CVAR_ARCHIVE)    // Run Setup: Enemy Count: 0 1x (the map's), 1 2x, 2 3x
-QVR_CVAR(vr_runpick_enemyrandom, "0", CVAR_ARCHIVE)   // Run Setup: Randomized Enemies: 0 off, 1 balanced, 2 everything goes
+QVR_CVAR(vr_runpick_enemyrandom, "0", CVAR_ARCHIVE)   // Run Setup: Randomized Enemies: 0 off, 1 balanced, 2 anything goes
 QVR_CVAR(vr_run_bn, "0", CVAR_NONE)                   // the run's Bloody Nightmare choice (its start sets vr_mg3_bn_start; the game's serverflags carry it)
 QVR_CVAR(vr_run_style, "0", CVAR_NONE)                // the run's Style (as vr_runpick_style): applied at its start and on loading its saves
 QVR_CVAR(vr_run_gore, "0", CVAR_NONE)                 // the run's Gore preset (as vr_runpick_gore)
 QVR_CVAR(vr_run_armed, "0", CVAR_NONE)                // the run's Armed Humanoids (as vr_runpick_armed)
 QVR_CVAR(vr_run_smartai, "0", CVAR_NONE)              // the run's Smarter AI (as vr_runpick_smartai)
-QVR_CVAR(vr_run_startweapon, "0", CVAR_NONE)          // the run's Starting Weapon (as vr_runpick_startweapon; QC vr_run_startweapon.qc, at a new game's parms)
+QVR_CVAR(vr_run_startgun, "0", CVAR_NONE)             // the run's Starting gun (as vr_runpick_startgun; QC vr_run_startweapon.qc, at a new game's parms)
+QVR_CVAR(vr_run_startmelee, "0", CVAR_NONE)           // the run's Starting melee weapon (as vr_runpick_startmelee; the same file)
 QVR_CVAR(vr_run_meleeonly, "0", CVAR_NONE)            // the run's Melee Only: guns are not picked up and do not fire, the axe at the start (QC vr_run_meleeonly.qc)
 QVR_CVAR(vr_run_glasscannon, "0", CVAR_NONE)          // the run's Glass Cannon: the player and the monsters take double damage (QC vr_run_glasscannon.qc)
 QVR_CVAR(vr_run_pickups, "0", CVAR_NONE)             // the run's Randomized Pickups (as vr_runpick_pickups): the map's pickups swapped as it loads (QC vr_run_pickups.qc)

@@ -3,4 +3,4 @@ title Run mutator Randomized Enemies (Balanced) and Enemy Count 2x on e1m1
 map e1m1
 cvar vr_run_enemyrandom 1
 cvar vr_run_enemycount 1
-hint Randomized Enemies, Balanced: e1m1's grunts and dogs are other light walkers (knights, enforcers, zombies; Arcane Dimensions' light ones too when it is installed), each with one more of its kind beside it (Enemy Count 2x). Everything Goes (vr_run_enemyrandom 2) puts any walker or flyer no larger than the spot's. Grunts, enforcers and knights are armed as Armed Humanoids says.
+hint Randomized Enemies, Balanced: e1m1's grunts and dogs are other light walkers (knights, enforcers, zombies; Arcane Dimensions' light ones too when it is installed), each with one more of its kind beside it (Enemy Count 2x). Anything Goes (vr_run_enemyrandom 2) puts any walker or flyer no larger than the spot's. Grunts, enforcers and knights are armed as Armed Humanoids says.

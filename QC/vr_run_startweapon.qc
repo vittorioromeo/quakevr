@@ -2,48 +2,82 @@
 //
 //
 // ----------------------------------------------------------------------------
-// Mutator: Starting Weapon (vr_run_startweapon; docs/vr-port/MUTATORS.md)
+// Mutators: Starting gun and Starting melee weapon (vr_run_startgun, vr_run_startmelee; docs/vr-port/MUTATORS.md)
 // ----------------------------------------------------------------------------
 //
-// What a new game starts with (SetNewParms's loadout, changed at its end: VR_Run_NewParms): 0 the shotgun and axe
-// (Quake's), 1 the heavy revolver and axe (the mod's pistol: vr_revolver.qc, in the right hip holster, loaded from the
-// 25 shells as the shotgun is), 2 the axe alone, 3 bare fists. Melee Only (vr_run_meleeonly) holds it at the axe.
+// What a new game starts with (SetNewParms's loadout, changed at its end: VR_Run_NewParms). The gun (the hip holster):
+// 0 the shotgun (Quake's), 1 the nail pistol (the mod's, with 50 nails and its magazine full), 2 the heavy revolver
+// (loaded from the 25 shells as the shotgun is), 3 nothing. The melee weapon (the other holster): 0 the axe, 1 the
+// dagger (the mod's), 2 nothing. Nothing and nothing: bare fists (punching and grabbing as ever). Melee Only
+// (vr_run_meleeonly) holds the gun at nothing (the melee weapon stays the player's choice).
 
-float RUN_SW_SHOTGUN  = 0;
-float RUN_SW_REVOLVER = 1;
-float RUN_SW_AXE      = 2;
-float RUN_SW_UNARMED  = 3;
+float RUN_SG_SHOTGUN    = 0;
+float RUN_SG_NAILPISTOL = 1;
+float RUN_SG_REVOLVER   = 2;
+float RUN_SG_NOTHING    = 3;
 
-float() VR_RunStartWeapon_Choice =
+float RUN_SM_AXE     = 0;
+float RUN_SM_DAGGER  = 1;
+float RUN_SM_NOTHING = 2;
+
+float() VR_RunStartGun_Choice =
 {
-    if(cvar_hget(cvarh_vr_run_meleeonly)) return RUN_SW_AXE;
-    return cvar_hget(cvarh_vr_run_startweapon);
+    if(cvar_hget(cvarh_vr_run_meleeonly)) return RUN_SG_NOTHING;
+    return cvar_hget(cvarh_vr_run_startgun);
+};
+
+float() VR_RunStartMelee_Choice =
+{
+    return cvar_hget(cvarh_vr_run_startmelee);
 };
 
 void() VR_RunStartWeapon_NewParms =
 {
-    float w = VR_RunStartWeapon_Choice();
-    if(w == RUN_SW_SHOTGUN) return;
-    parm4 = parm4 + parm36; // (the shotgun's loaded shells back with the rest)
-    parm36 = 0;
-    if(w == RUN_SW_REVOLVER)
+    float g = VR_RunStartGun_Choice();
+    float m = VR_RunStartMelee_Choice();
+    if(g == RUN_SG_SHOTGUN && m == RUN_SM_AXE) return;
+    if(g != RUN_SG_SHOTGUN)
     {
-        parm1 = IT_AXE;
-        parm17 = parm17 | HIP_IT_REVOLVER;
+        parm4 = parm4 + parm36; // (the shotgun's loaded shells back with the rest)
+        parm36 = 0;
+    }
+    float items = 0;
+    if(g == RUN_SG_SHOTGUN) items = items | IT_SHOTGUN;
+    if(m == RUN_SM_AXE) items = items | IT_AXE;
+    parm1 = items;
+    if(g == RUN_SG_NAILPISTOL)
+    {
+        parm14 = WID_NAILPISTOL;
+        parm17 = parm17 | HIP_IT_NAILPISTOL;
+        parm5 = max(parm5, 50);
+        parm36 = VR_NailPistol_MagSize();
+    }
+    else if(g == RUN_SG_REVOLVER)
+    {
         parm14 = WID_REVOLVER;
+        parm17 = parm17 | HIP_IT_REVOLVER;
         if(VR_Reload_ManualFor(parm14) && !VR_FlatReload_NewGameCycles())
         {
             parm36 = min(WeaponIdToBaseClipSize(parm14), parm4);
             parm4 = parm4 - parm36;
         }
-        return;
     }
-    parm14 = WID_FIST;
-    if(w == RUN_SW_AXE)
+    else if(g == RUN_SG_NOTHING)
     {
-        parm1 = IT_AXE;
-        return;
+        parm14 = WID_FIST;
     }
-    parm1 = 0; // (unarmed: the fists)
-    parm13 = WID_FIST;
+    if(m == RUN_SM_AXE)
+    {
+        parm13 = WID_AXE;
+    }
+    else if(m == RUN_SM_DAGGER)
+    {
+        parm13 = WID_SWORD;
+        parm27 = VR_ADMelee_Flags(VR_SWORDKIND_DAGGER);
+        parm17 = parm17 | HIP_IT_SWORD;
+    }
+    else
+    {
+        parm13 = WID_FIST; // (nothing: bare fists)
+    }
 };
