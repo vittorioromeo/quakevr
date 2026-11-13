@@ -673,3 +673,7 @@ the grip; holsters keep it; the eject button flips it with a fast smooth turn an
 ## daggerskewer
 
 - The dagger skewers shallower and takes one gib. Two new weapon keys (weapons.txt, vr_weapons.inc): skewer_depth (the share of vr_embed_skewer_depth the first gib sits from the tip; default 1, dagger 0.5) and skewer_most (most gibs on this blade, 0 = the tunable; dagger 1); one code path (VR_Skewer_Place0, VR_Skewer_Most in vr_skewer.qc). The blade lines are 28 (sword) and 9.3 (dagger) units from the hand: the dagger's head was at 8 (capped 7.9, almost at the hilt), now 4.0 from the tip and 5.3 from the hilt end; sword unchanged (8.0 and 20.0). Test `vr_embed_test 40` cases 6 and 7 (24 of 24).
+
+## promote1113: embed depth tweaks promoted
+
+His vr_embed_sword_depth_max 80 (was 60), vr_embed_sword_depth_speed 7 (was 8) and vr_embed_hold_sword_most 100 (was 90) are the defaults (tune_promote.py; --check exits 0). vr_embed_test 30, 33, 34, 40, 41, 42 pass unchanged (12, 15, 14, 24, 19, 24 passed, 0 failed). No checklist line.
