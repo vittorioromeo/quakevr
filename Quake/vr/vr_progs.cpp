@@ -579,13 +579,29 @@ void resetServerWorld()
     resetBuiltinState();
 }
 
+// The pool's jobs that read the world model (its pointer captured at their post), finished: the hull's brushes and
+// trees (the load's and those compiled in play), box3d's world mesh, the navmeshes' tile builds.
+void joinWorldReaders()
+{
+    qvr::hull::finishLoads();
+    qvr::box3d::finishLoads();
+    qvr::nav::finishLoads();
+}
+
 } // namespace
 
 extern "C" void VR_OnShutdownServer()
 {
     // Host_ShutdownServer: a game or campaign switch (COM_SwitchGameInternal) frees the models next (Mod_ResetAll)
-    // without Host_ClearMemory, so the navmesh's pool builds, which read the world model, are joined here too.
-    qvr::nav::finishLoads();
+    // without Host_ClearMemory, so the pool's builds that read the world model are joined here too.
+    joinWorldReaders();
+}
+
+extern "C" void VR_OnModelsResetting()
+{
+    // COM_SwitchGameInternal, before Mod_ResetAll: Host_ShutdownServer skips VR_OnShutdownServer when the server was
+    // not active (a map load that failed half-way), its builds maybe still on the pool.
+    joinWorldReaders();
 }
 
 extern "C" void VR_OnClearMemory()
@@ -601,9 +617,7 @@ extern "C" void VR_OnClearMemory()
         VR_OnClientClearState();
     }
     // The map load's builds still on the pool (a load that failed half-way) finished first: they read the old world.
-    qvr::hull::finishLoads();
-    qvr::box3d::finishLoads();
-    qvr::nav::finishLoads(); // (the navmeshes' tile builds read the old world's model)
+    joinWorldReaders();
     qvr::hull::keepForReload(); // (before the caches below let go of them: kept for the same map's next load)
     // The registered scratch buffers given back (a one-off peak not kept for the next map), and the caches of the old
     // world's data (vr_mem.hpp).
