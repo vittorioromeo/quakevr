@@ -75,13 +75,17 @@ struct Mutator
 // The run starts: every vr_run_<id> from its pick (forced ones held), each apply(Start).
 void start();
 
+// VR_OnSpawnServerBeforeLoad, a map started (not a saved game): a game begun without the Run Setup's Start (a map from
+// the console, `vr_run <id> <value>`) gets its run seed now, so its restarts and changelevels keep one layout too.
+void ensureSeed();
+
 // The hub (a VR map, not a run): the mutators back to their defaults (the presets stay as they are).
 void endRun();
 
 // "Hard / Unleashed / Pistol start": the picks (the screen) or the run's.
 [[nodiscard]] const char* summary(bool picks);
 
-// SaveData_Fill (VR_SaveContext): "// qvr_run id=v id=v ...\n".
+// SaveData_Fill (VR_SaveContext): "// qvr_run id=v id=v ... seed=v\n" (seed: vr_run_seed, set back on the load).
 [[nodiscard]] const char* saveLine();
 
 // VR_ReadSaveInfo: the loading save's line kept; onLoadGame (VR_OnBeginLoadGame) sets the run from it, or the old-save

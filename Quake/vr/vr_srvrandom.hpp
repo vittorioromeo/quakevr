@@ -16,7 +16,10 @@ void registerCommands();          // sv_random_info, vr_map_seed_info
 // 0: none (the map's name alone, as before). Chosen at each new map load (a new game, a changelevel, a restart); a
 // loaded game has its own (QC's vr_map_content_seed, a saved global), restored with its globals. Off in a test session
 // (vr_backend mock) and a test's seeded load (seedNextMap), unless vr_map_seed asks: their content stays the same.
+// In a run (vr_run_seed, vr_runsetup.cpp) it is the run's seed's, mixed: every map of the run (a changelevel, a
+// revisit, a restart) the same layout for that seed; a new run draws a new seed. Without a run, a fresh one per load.
 void chooseMapSeed(bool fromSave);   // VR_OnSpawnServerBeforeLoad: this map's, before anything spawns
+[[nodiscard]] za::U32 freshSeed(za::U32 range); // 1..range from the clock (splitmix64): a new run's seed, a map's
 void restoreMapSeed(za::U32 seed);   // VR_OnLoadGame: the saved game's
 [[nodiscard]] za::U32 mapSeed();     // 0..0xFFFFFF (QC's floats hold it exactly)
 // This map's server stream seeded from the clock (sv_random_seed 0, no test's seed): its AI, gibs and ragdolls differ

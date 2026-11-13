@@ -1360,6 +1360,48 @@ Play on an installed package asks Easy / Normal / Hard / Nightmare first (page "
   armed test with `nav: <name>: abandoned at the map change`.
 - **Tests** (low-impact runs): nav_tele_metric (seeded) 18/2 and vr_arena_test 43 13/0, their outcome lines identical
   before and after (md5 f8081035, 19d8a9d4); nav_tele 1/0, nav_lift 1/0.
+
+## crash2: hull and box3d builds joined before a game switch; two scenes off the walls; enemy swaps' head room (agent/crash2, 2026-11-13)
+
+- **The pool's world readers:** hull's load builds (`build(world)`) and its in-play trees, and box3d's world mesh
+  (`worldMesh(map)`), read the world model through a pointer captured at their post (their other inputs, cvars and
+  edict lists, are main-thread captures already). They were joined only in VR_OnClearMemory; now one
+  `joinWorldReaders()` (hull, box3d, nav `finishLoads`) runs in VR_OnClearMemory, VR_OnShutdownServer and a new
+  `VR_OnModelsResetting` in COM_SwitchGameInternal before Cache_FlushExcept / Mod_ResetAll (Host_ShutdownServer skips
+  its hook when the server never went active: a load that failed half-way). Repro `scratch/c2_repro.py`
+  (`vr_campaign_native ad;map ad_crucial;waitN;vr_campaign_native id1;map vrtesthall;waitN`): 60 loops at wait3 and
+  50 at wait1, no crash.
+- **Scenes:** nav_arena's Ogre stood inside the NE tower (450, 450): now at (-600, 250). nav_tele_oneway_all's start
+  (z -29) put four of its five walkers in walls: it now uses nav_tele_metric's start and spots. Both old (the scenes
+  were written so). runall on them: 0 problems; nav_tele_oneway_all 18/2 as before.
+- **Enemy swaps' height:** `VR_RUN_ER_KINDS` has a `top` column (box top over the origin: Quake VR's kinds their spawn
+  setsize, AD's ad_monster_bbox). A taller kind is allowed only where five vertical lines (middle and box corners) from
+  the spot's origin up to its top meet no world (`VR_RunEnemyRandom_Headroom`; lines, since box traces are the hulls').
+  **Finding:** the 1-10 "map's own in solid" were not the swaps. The check now names each one: they are unswapped
+  monsters the map placed so (e4m3's 10 zombies, ad_azad's 7-8 ceiling spiders, ad_akalakha's fishing ogre), counted
+  only because the mutators looked at them; swapped ones in solid: 0-1 per map (a lost soul or gargoyle for a wizard:
+  32 wide for 24, the same width class). With the mutators on, before -> after: e1m3 1->1, e4m3 10->10, ad_azad 8->9
+  and 8->8, ad_akalakha 3->3, e1m1 0->0; copies in solid 0 everywhere. The copies-in-solid check now allows 1 + the
+  *swapped* ones' share (was 2 + every own one's) and prints own / swapped / copies.
+- **Tests:** the loop above; nav_tele_metric (seeded) 18/2 and vr_arena_test 43 13/0, outcome md5 f8081035 / 19d8a9d4
+  as navcrash's; `scratch/c2_enemies.py` id and AD: every QC check PASS (its repeated `vr_runpick_enemycount 3` FAILs
+  only the run-cvars line: 3x is value 2).
+- **The run's one seed** (his ask: "the randomization uses the same seed that crates/barrels use, and the seed is
+  changed every new run even if the chosen mutators are the same"): `vr_run_seed` is drawn from the clock at every run
+  start (`runsetup::start`, every Run Setup Start: New Game, library, campaign, hub; it was `rand()`, the same first
+  value each launch), or sv_random_seed's in tests; a game begun without a run's start gets one at its first map
+  (`runsetup::ensureSeed`, VR_OnSpawnServerBeforeLoad). The maps' content seed (crates and barrels, rocks, armed
+  replacements and armour, Randomized Enemies via `vr_map_content_seed`) is now the run seed mixed
+  (`srvrandom::chooseMapSeed`: "the run's"), not a fresh clock value per map load: a changelevel, a revisit and a
+  restart keep a run's layout; a new run changes it. Randomized Pickups reads `vr_run_seed`. Enemy Count's placement
+  has no randomness. The save's `// qvr_run` line ends ` seed=N`; its load sets it back; a save without it draws a new
+  one. Unchanged: vr_fresh_map_seeds 0 (the map's name alone), vr_map_seed > 0, a test session's 0 (vr_map_seed -1
+  turns the run's on there), vr_bench_seed's seeded loads.
+- **Tests:** `vr_runpickups_test 1` 31/0 (new: another run's seed then the first run's save and a changelevel: the
+  first run's e1m2 pickups; two new runs with the same choices: other seed, content seed and pickups; changelevel and
+  back, and the save's load after a third run: the run's seed, content seed and pickups); `vr_ironman_test 1` 12/0
+  (it failed 11/1 on its own before ensureSeed: run alone, its game had no run seed and the restart rolled anew);
+  `vr_runsetup_test` 49/0.
 ## runsetup2: the Run Setup page feedback (agent/runsetup2, 2026-11-13)
 - **Old difficulty menu:** the only live way to it was the flat Levels list (`menu_maps`, Enter or `menu_maps <map>`:
   `M_Maps_Key`, `M_Menu_Maps_f`, menu.c): now `VR_RunSetupLevel(map)` opens the Run Setup screen (`Launch::Level`, the
