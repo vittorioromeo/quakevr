@@ -4077,8 +4077,8 @@ void status_f()
     Con_Printf("  the game code: reloading %s (R; auto %s), body interactions on, 1, 2 and the wheel cycle (empty hand "
                "included) the weapons collected into the left and right hand, an ammo or health box grabbed with E taken at once.\n",
         vr_flat_reload.value != 0.f ? "at the hip holsters" : "off", vr_flat_autoreload.value != 0.f ? "on" : "off");
-    Con_Printf("  the flashlight: worn on the head, lit until F puts it out, and it stays out (a level change, a saved "
-               "game).\n");
+    Con_Printf("  the flashlight: worn on the head, out at the start; F lights it and puts it out, and it stays as F left "
+               "it (a level change, a saved game).\n");
     flatsight::statusLine(); // the ironsight, and where the free hand is (vr_flatsight.cpp)
     modelFovStatus();
 }

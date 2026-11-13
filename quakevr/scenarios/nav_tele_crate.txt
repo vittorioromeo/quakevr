@@ -1,7 +1,0 @@
-title Stealth: an idle grunt beyond vrteleporters' gate, the crate between it and the gate
-map vrteleporters
-# you in room U at -1100 1408 facing south; the grunt at -1280 450 (vr_stealth_test 110's spot), the map's crate at -1300 640
-start -1100 1408 24 -90
-god
-spawn "Grunt" 958 -180
-cvar vr_stealth_light_force 128
