@@ -1,7 +1,5 @@
 # menu_paths.txt -- every page and row of the VR menus (vr_menu_dump_paths; Misc/quakevr/menu_paths.py):
 # <cvar, @page or empty>|<menu detail level>|<page title>|<row label>|<path>
-|0|VR Settings|Classic Quake|VR Settings > Classic Quake
-|0|VR Settings|Back to My Settings|VR Settings > Back to My Settings
 |0|VR Settings|Reset All to Defaults|VR Settings > Reset All to Defaults
 @page|1|Advanced VR Options||Advanced VR Options
 |1|Advanced VR Options|Run VR Calibration Again|Advanced VR Options > Run VR Calibration Again
@@ -5278,6 +5276,8 @@ vr_maps_slipseer|2|Debug - Tools|Slipseer Maps|Advanced VR Options > Debug > Too
 vr_maps_slipseer_delay|2|Debug - Tools|Slipseer Page Spacing|Advanced VR Options > Debug > Tools > Slipseer Page Spacing
 vr_maps_allow_local|2|Debug - Tools|Allow Local Map Hosts|Advanced VR Options > Debug > Tools > Allow Local Map Hosts
 |2|Debug - Tools|Pick the First Map|Advanced VR Options > Debug > Tools > Pick the First Map
+|2|Debug - Tools|Run Setup Screen Test|Advanced VR Options > Debug > Tools > Run Setup Screen Test
+|2|Debug - Tools|Run Setup Test|Advanced VR Options > Debug > Tools > Run Setup Test
 |2|Debug - Tools|Open the Map Browser|Advanced VR Options > Debug > Tools > Open the Map Browser
 |2|Debug - Tools|Font Sample Message|Advanced VR Options > Debug > Tools > Font Sample Message
 |2|Debug - Tools|Font Style Live Test|Advanced VR Options > Debug > Tools > Font Style Live Test

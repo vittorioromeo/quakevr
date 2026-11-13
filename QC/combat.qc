@@ -3255,6 +3255,7 @@ float vr_dmg_dealonly;
 
 float(entity targ, entity inflictor, entity attacker, float damage) T_Damage =
 {
+    damage = VR_Run_Damage(targ, attacker, damage); // the run's mutators: Glass Cannon (vr_run.qc)
     if(vr_dmg_dealonly)
     {
         vr_dmg_dealonly = FALSE;

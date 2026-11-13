@@ -31,6 +31,7 @@
 #include "vr_files.hpp"
 #include "vr_mapindex.hpp"
 #include "vr_mapinstall.hpp"
+#include "vr_runsetup.hpp"
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -744,6 +745,7 @@ extern "C" void VR_SaveContext(char* out, size_t size)
         VR_ActiveCampaign(), sha.size() ? " " : "", sha.cStr(), packageTitle[0] ? " " : "", packageTitle, mapTitle,
         player ? static_cast<int>(player->v.health) : 0, player ? static_cast<int>(player->v.armorvalue) : 0,
         static_cast<double>(sv.qcvm.time));
+    q_strlcat(out, qvr::runsetup::saveLine(), size); // the run's choices (// qvr_run: vr_runsetup.cpp, read on its load)
 }
 
 extern "C" int VR_SavePackage(const char* text, const char* savepath, char* sha, size_t size)

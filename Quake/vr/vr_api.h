@@ -580,6 +580,8 @@ int VR_MenuMouseOnButtons (float x, float y);			// M_Mousemove: the spot (menu x
 void VR_StartTutorial (void);							// the main menu's VR Tutorial, confirmed: as the Play page's Tutorial (its map's command queued)
 void VR_StartHub (void);								// the main menu's VR Hub, confirmed: as the Play page's VR Hub (vr_campaign_hub: vrstart)
 void VR_OpenMapLibrary (void);							// Single Player > Map Library: the map browser page (vr_menu_maps.inc)
+void VR_RunSetupNewGame (void);							// Single Player > New Game: the Run Setup screen, its Start then M_NewGameStart (vr_menu_runsetup.inc)
+void M_NewGameStart (void);								// menu.c: the new game itself (map start), the Run Setup screen's Start
 void VR_Menu_Draw (void);								// M_Draw, m_vr
 // Several menu panels (vr_menu.cpp; MULTI_MENU.md): M_Draw draws the first panel's menu (the 2D layer's canvas) whichever
 // is focused, the others drawn into their own canvases (vr_panel.cpp, M_DrawPanel). Select: the instance to restore

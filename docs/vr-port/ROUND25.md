@@ -1213,3 +1213,68 @@ frame, the reverse grip's server checks reading the local client's view (a liste
   40 at wait12) and no crash.
 - Possibly the same pattern, not checked or changed here: `hull::finishLoads` / `box3d::finishLoads` (hull's trees
   compiled in play read the old world) are joined only in VR_OnClearMemory, not before a campaign switch's Mod_ResetAll.
+## libskill: difficulty picker on the Map Library's Play
+
+Play on an installed package asks Easy / Normal / Hard / Nightmare first (page "Play: Difficulty", flat and VR alike; last choice in vr_maps_skill, saved, preselected; Back cancels; Nightmare row notes a Bloody Nightmare game, which Play never resets). A start map whose entities hold a trigger_setskill (id's start, packs' skill halls: mapinstall::needsSkillPick) skips it. maps_play stays direct. Tests: maps_skill_test (15), slipseer_test (80, play sets skill).
+
+## flat1113: gore dents in the presets, no lean headbutt, flat flashlight off, concussed knockdowns, ticks retired
+
+- Gore presets: `vr_gore_dents` is in the preset table (0 at Minimal and Off, Full the default 1); `vr_gore_preset_test`
+  checks it (15 passed).
+- Flat lean "melee hit": it was the headbutt. A crouched lean looking down drops the head at 2.7 m/s along the look,
+  read as a lunge (client.qc PlayerVRMeleeHeadbutt): no monster ahead, so the trace hit the floor: `fisthit` and
+  `PainSound` (a wall hurts). The hands were never the cause (game-moved hands are already gated, VR_HandMotionTracked).
+  Flatscreen play now never headbutts (the head is the game's to move: lean, crouch, slide, prone). A headbutt now logs a
+  `melee event: headbutt ...` line. `Misc/quakevr/flatleanhit_test.sh`: 16 leans crouched and standing, looking ahead
+  and down, no melee event (it gave four `headbutt a wall` before).
+- Flat flashlight: out at a fresh start and on a new game's empty state (`flashlight::reset`, `restoreState`); F
+  (`vr_flashlight_toggle`) lights it; a level change keeps what F left. flatkeys_test.sh's torch case reads lit 0, 1, 0.
+- Concussed stirring (`vr_knockdown_stir` 1, `vr_knockdown_stir_rate` 1; tunables, Debug > Tunables > Knockdowns):
+  `vr_box3d_ragdoll.cpp` stirFrame/stirPick. Lying down alive (the drive off or limp, or its fall landed 0.3 s ago, or
+  0.7 s into the fall with its pelvis under 0.3 m/s: the shipped 1.75-3.5 s down time left almost no limp window before),
+  one move at a time: a slow head turn about its own length (18-32 deg, 2.2-3.4 s), a hand's double twitch (12-22 deg,
+  0.5-0.9 s), an arm or a leg drawn in (12-25 deg, 1.6-3 s), then a pause of 1.2-3.8 s (over the rate); turns times the
+  strength. Each a PD torque on one joint from where it lay (the struggle's 3 Hz drive) with the joint friction fed
+  forward, else a limb on the floor never moves (measured: 3 of 21 deg without, the head 21 of 30 deg with). Not while
+  shoved along, rising, held, swimming; never a corpse. The existing struggle (`vr_knockdown_wiggle`) is unchanged.
+  `vr_knockdown_test 9` prints `stircheck:` (moves, stirring, living ones down, the moving joint off its rest);
+  `vr_knockdown_debug 1` prints each move and how far it turned. `Misc/quakevr/ragdoll/kdstir_test.sh`: 4 passed.
+  Scenario `kd_stir`.
+- Checklist: the 33 lines ticked in his checklist_ticks.txt without a voice note retired (none ticked had a note; the
+  two [fail] lines kept). Their scenes nothing else uses moved out: agrunt_fetch, nav_startmat, nav_tele_crate,
+  nav_tele_ogre, nav_trail, portals_walk_dm5, stealth_noise; the nav_* scenes NAVMESH.md, the QC or another scene name
+  are kept, and gore_presets (a new line uses it).
+## runsetup: the Run Setup screen, presets and mutators (phase 1; branch agent/runsetup, 2026-11-13)
+
+- **Run Setup** (a VR page, flat and VR alike; replaces libskill's "Play: Difficulty"): opened by Single Player > New
+  Game (menu.c `M_SinglePlayer_NewGame` -> `VR_RunSetupNewGame`, Start -> `M_NewGameStart`), the Map Library's Play,
+  Official Campaigns' rows (Arcane Dimensions keeps its own confirmation; Dawn of the Machine: Bloody Nightmare opens it
+  with its Bloody Nightmare row on) and the hub's teleporter to `start` (QC `VR_Run_HubAsks`: `vr_runsetup hub`; Start
+  sets `vr_run_hubgo` and the teleporter lets you through; Back leaves you in it, asked again once you step out). A
+  summary line ("Hard / Unleashed / Pistol start"), the sections Difficulty / Presets / Mutators, Start (the cursor
+  starts there). `vr_runsetup_ask 0`: no screen, the last choices used.
+- **Skill halls (decided):** a start map with skill halls (New Game, campaigns, the hub, such a library package) has no
+  Difficulty row (a line says the halls choose); the presets and mutators are still asked. Bloody Nightmare (once found)
+  holds Difficulty at Nightmare.
+- **Framework** (`vr_runsetup.cpp`, registry of 9: skill, bn, style, gore, armed, smartai, startweapon, meleeonly,
+  glasscannon): `vr_runpick_<id>` archived (the screen), `vr_run_<id>` the run's (QC reads it); rules (`forced`,
+  `heldBy`), `apply` at Start and Load; `// qvr_run` line in every save (`VR_SaveContext`), read in `VR_ReadSaveInfo`,
+  set in `VR_OnBeginLoadGame` (normal, quick and autosaves alike; another run's save brings its presets back; an old save:
+  mutators default, presets left, a console line). `docs/vr-port/MUTATORS.md`: how to add one, the hooks.
+- **Your settings (decided):** the presets through their My Settings mechanism (first apply keeps them; "My Settings" is a
+  Style and Gore choice, Gore's default); Armed Humanoids / Smarter AI are "As Style" / Off / On over the Style, My
+  Settings kept first (`presetcore::Kind::keepMine`, new). Style's default is Unleashed (the brief); it is applied only
+  when the settings do not match it already.
+- **New mutators:** Starting Weapon (Shotgun / Heavy Revolver: the mod's revolver, loaded, right hip / Axe / Unarmed:
+  fists), Melee Only (gun pickups left, a gun in the hand only clicks, Mjolnir and the chainsaw kept, the axe at the
+  start: holds Starting Weapon at Axe), Glass Cannon (players and monsters take x2). QC: `vr_run.qc` (hooks, incl. phase
+  2's `VR_Run_MonsterSpawned` / `VR_Run_ItemSpawned`) and a file each. The hub (`playHub`) ends a run (mutators off).
+- **VR Settings' top rows** Classic Quake / Back to My Settings removed (the Style is on the Run Setup screen; the flat
+  Options > VR Settings is the same page). Gameplay Presets and the pavilion's Classic Quake board kept (the board is
+  the only one-press Classic Quake left: graphics, gore and gameplay together, so not a duplicate). menu_paths.txt
+  regenerated.
+- **Tests:** `vr_runsetup_test` 36/0; `vr_runsetup_screen_test` 13/0 (maps_skill_test its old name); end-to-end
+  `vr_run_check` 18/0 (run A revolver + glass cannon + Gore Minimal on e1m1, saved; run B melee only on e1m2; A's save
+  loaded: A's choices and Gore Minimal back; changelevel keeps them; unarmed and shotgun new games); vr_gameplay_preset_test
+  23/0, vr_gore_preset_test 12/0, slipseer_test 80/0, menu path checks 0 missing. Scenarios run_mutators, run_pistolstart.
+- **Not tested headless:** the hub teleporter's touch itself (the screen's `vr_runsetup hub` is).

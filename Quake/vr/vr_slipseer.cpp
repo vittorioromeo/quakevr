@@ -2859,7 +2859,18 @@ void testStep()
     za::String why;
     const za::String start = mapinstall::startMap(selfTest.id, &why);
     expect(start == "qvrslip", "install: its map found (Play starts it)", start.size() ? start : why);
-    expect(mapinstall::uninstall(selfTest.id) && !mapinstall::installed(selfTest.id), "uninstall: removed");
+    // Play's difficulty: the map asks (no skill halls in a bare BSP), each choice sets `skill` as Play starts. (The
+    // queued `map` finds the package uninstalled below: nothing loads.)
+    expect(mapinstall::needsSkillPick(selfTest.id), "play: a map with no skill halls asks the difficulty");
+    for(int s = 0; s < 4; s++)
+    {
+        Cvar_SetValue("skill", static_cast<float>((s + 2) & 3));
+        expect(mapinstall::play(selfTest.id, nullptr, s) && static_cast<int>(skill.value + 0.5f) == s,
+            va("play: choice %d sets skill", s), za::toString(skill.value));
+    }
+    Cvar_SetValue("skill", 3.f);
+    expect(mapinstall::play(selfTest.id) && static_cast<int>(skill.value + 0.5f) == 3, "play: no choice leaves skill alone");
+    expect(mapinstall::uninstall(selfTest.id) &&!mapinstall::installed(selfTest.id), "uninstall: removed");
     expect(requestsMade() == 0, "no live request (the zip came from the local server)", za::toString(requestsMade()));
     verdict();
 }

@@ -8,52 +8,33 @@
 
 [New: not yet sorted]
 Flat-screen or VR: with Graphics > Teleporters > Monsters: Every Teleporter on, on e1m1 let grunts, dogs and fiends chase you into the teleporter at the far end: each goes through at once (Quake's teleport: its opening sits on a bar too high to step onto), none stands pressed against the bar. {test:nav_tele_oneway_all}
+Flat-screen or VR: Single Player > New Game opens the Run Setup screen (no Difficulty row: the start map's halls choose it): Style, Gore, Armed Humanoids, Smarter AI, Starting Weapon, Melee Only, Glass Cannon; the cursor starts on Start, the summary line on top reads like "Normal / Unleashed / Shotgun start", and next time your last choices are selected.
+Flat-screen or VR: Map Library: Play on an installed map without skill halls shows the Run Setup screen with its Difficulty row; a pack with its own start hall shows it without; Back cancels, Start plays it.
+Flat-screen or VR: Official Campaigns: a campaign's row (and Dawn of the Machine: Bloody Nightmare, its Bloody Nightmare row on) asks the Run Setup screen first; Arcane Dimensions keeps its own confirmation.
+In the VR hub, walking into the campaign teleporter opens the Run Setup screen; Start sends you through, Back leaves you standing there (step out and in again to be asked again).
+Flat-screen or VR: Melee Only on the Run Setup screen turns Starting Weapon into a line "Axe (Melee Only)"; in the game guns are left on the floor and a gun in the hand only clicks; the axe and other blades work. {test:run_mutators}
+Flat-screen or VR: Glass Cannon: grunts die to half the hits, and their hits on you hurt twice as much. {test:run_mutators}
+Flat-screen or VR: Starting Weapon Heavy Revolver: a new game starts with the loaded revolver in the right hip holster and the axe, no shotgun; Axe: the axe alone; Unarmed: fists only. {test:run_pistolstart}
+Flat-screen or VR: Save in a run with some mutators (say Glass Cannon and a pistol start, Gore Minimal), start another run with other choices, then load the first save: the console says the saved game's run, the mutators and the Gore preset are the save's again, and the next level keeps them.
+Flat-screen or VR: VR Settings no longer has the Classic Quake / Back to My Settings rows at its top (the Style is on the Run Setup screen); VR Settings > Gameplay > Gameplay Presets and the pavilion's Classic Quake board are unchanged.
 
 [1. Flat-screen: weapons and hands]
 Flat-screen: hold the axe (then a sword, the crowbar, Mjolnir, the super axe) with the left hand empty: it goes onto the handle by itself without swinging and the weapon sits in a two-handed stance; take a weapon or a prop in the left hand and it eases back to the one-handed hold, with no jumps either way. Tune it in Debug > Tunables > Flatscreen > Two-Handed Melee Stance. {test:flat_melee2h}
 Flat-screen: in the middle-mouse menu the dagger is labeled "dagger" (was "sword"); the other weapons' names are unchanged (AD melee kinds named too). {test:dagger}
-Flat-screen: in the middle-mouse menu, a FLIP GRIP button under each hand's UNLOAD, lit only with a sword or dagger in that hand; a click turns the grip over with the same smooth turn and sound as the eject button. {test:dagger}
 
 [2. Flat-screen: setup, menus and the Map Library]
 Installer: install into a fresh folder; the "Set up the game" page shows the settings tree; pick Snap 45, Left-handed and Medium: set in the game. Change Turning in the game, run Update, change only Turn Speed: Turning stays as you set it.
-VR Settings > Gameplay: the big gameplay switches (replacements, drops, melee, knockdowns, holding enemies, bullet time, gore, arena) on one page: check each row's wording.
-Flat-screen or VR: open the Map Library a few minutes after the game starts (the first time Slipseer's listing is read slowly, a page every few seconds): Slipseer's maps are listed beside Quaddicted's and the list header counts each; with the bar's Source button on all sources every row shows a Quaddicted or Slipseer tag, and on Slipseer or Quaddicted only that source's maps are listed.
-Flat-screen or VR: pick a Slipseer map: within several seconds its detail shows the credit (by its author, from Slipseer), what it needs (Arcane Dimensions, Copper... or only Quake), its description and its screenshot, and the action button changes from "Reading its page..." to Install; say whether the screenshot is a good size and readable.
-Flat-screen or VR: in the Map Library, pick a Slipseer map, then another a moment later: each one's description and screenshot appear within a second or two, without waiting for Slipseer's list of maps to finish loading.
-Flat-screen or VR: in the Map Library, pick Herzblut or Kadath on Slipseer (hosted elsewhere): their description, screenshot and Install now appear; Install either downloads the zip or says to get it from the map's page.
-Flat-screen or VR: install a small vanilla Slipseer map (Drain, for example) and press Play; if the install stops with "it is not a zip" (the site gave a web page), say which map: the site's download may need a choice of file or a sign-in.
-Flat-screen or VR: on the installed filter, uninstall the Slipseer map you installed (press twice): it leaves the installed list, and the Map Library still lists it on Slipseer.
-Flat-screen or VR: in the Map Library, pick a few Quaddicted maps (ne_ruins, for example; with the index already cached from an earlier session): each one's screenshot shows in the details pane after a moment and changes with the pick; a map with none shows no error text.
-Flat-screen or VR: in the Map Library, watch the status line under the buttons while you pick a map and while the list loads: it says what is being fetched (the map's page, its screenshot, a list page, bytes, or a wait for the site's pace), and a failure shows in one line.
-Flat-screen or VR: Open the map library (Slipseer or Quaddicted) with the menu tint on and pick a map: its screenshot shows its true colours, not the menu hue.
 
 [3. Flat-screen: presets and gore settings]
-Flat-screen or VR: VR Settings' first row is Classic Quake: press it and the line under it names what it set (Graphics Off, Gore Minimal, Gameplay Classic); in e1m1 the grunts carry Quake's shotguns, teleporters are Quake's, there are no crates and no reloading. Back to My Settings brings back your own graphics, gore and gameplay settings.
-Flat-screen or VR: VR Settings > Gameplay Presets: Classic, Light and Unleashed; the top line says which one the settings match (Custom after you change a row on the Gameplay page), and My Settings brings yours back.
-Decide the Gameplay preset's rows marked "?" in docs/vr-port/GAMEPLAY_PRESET.md (Classic and Light values per cvar); the table is the shipped list once you agree.
-Flat-screen or VR: open Advanced VR Options > Gore and pick Gore Preset Minimal, then shoot and cut a grunt and gib one: you should see a little blood on the hit and the wound, but no stains on the walls and floor, no blood streams, drips or pools, no meat or brain chunks, no beheading or limbs flying off. Pick Full to get everything back, and change any one gore row by hand to see the preset read Custom. {test:gore_presets}
-Flat-screen or VR: Gore Preset Off should show no blood at all from hits; the Hit Blood slider (Gore page) scales the blood of a hit between none and double, and Stain Darkness makes the stains that remain keep their red (0) or go darker (2). {test:gore_presets}
+Flat-screen or VR: pick Gore Preset Minimal, then Off, and shoot and club a grunt: no dents are pressed into its body (Full still dents it). {test:gore_presets}
+Flat-screen: start a new game: the head flashlight is off; F lights it and F puts it out again.
+Flat-screen: crouch, look down and lean left and right with Q and E many times, near a wall and in the open: no punch thud and no pain cry. {test:flatlean}
+Flat-screen or VR: shove grunts over and watch them lie: now and then a head turns slowly, a hand twitches, an arm or a leg draws in a little, so they read as stunned rather than dead; one killed lying down never moves again. Strength and rate: Debug > Tunables, Concussed Stirring and Stirring Rate. {test:kd_stir}
 
 [4. Flat-screen: monsters and AI]
-Flat-screen or VR: in the test hall, stand by the NEW GAME / VR HUB buttons at the back wall and let an unarmed or melee grunt chase you: it should come straight at you and fight, not pace back and forth at the edge of the start mat. {test:nav_startmat}
-Flat-screen or VR: armed grunts in a fight fetch a nearby second weapon (a shotgun grunt with a nail gun lying a few steps away, you in sight): it walks to it and takes it up. {test:agrunt_fetch}
-Flat-screen or VR: run round a corner out of a hunting grunt's sight: it comes to where it saw you last, keeps going a few seconds the way you ran (round the corner, along the corridor, not into the wall), searches about there and gives up; it never heads for where you are now. {test:nav_trail}
-Flat-screen or VR: a grunt hunting you out of sight hears a shot or a crate's knock near you: it goes to that spot (not to you) and searches there. {test:nav_trail}
-Flat-screen or VR: out of a grunt's sight round a corner, drop or throw a crate or fire a shot: it walks to the noise by the navmesh, looks about walking to a spot or two, then walks back to where it stood and is idle again; one too far to hear it stays put. {test:stealth_noise}
 
 [5. Flat-screen: navigation and teleporters]
-Flat-screen or VR: on e1m1's big lift by the start, a knight below walks onto the lift, rides it up and comes for you at the top (monsters ride lifts by default now: Monsters Call Lifts and Navmesh: Lift Links on). {test:nav_lift}
 Flat-screen or VR: in vrteleporters' flush galleries, a dog in the gallery behind the gates follows you through the large gate, walking through it as you do; it never tries the crate hatch. {test:nav_tele_gate}
-Flat-screen or VR: let an idle grunt glimpse you or hear a knock through a seamless teleporter with a crate between it and the gate: it walks round the crate and through the gate to look, instead of stopping beside the crate and giving up. {test:nav_tele_crate}
-Flat-screen or VR: on vrteleporters, lose a dog or grunt that saw you through gate 3 or gate 7: it comes through the gate after you instead of wandering off along the gallery. {test:nav_tele_metric_gates}
-Flat-screen or VR: on vrteleporters, let an ogre or a shambler chase you at the player-sized gate: if it can't fit it tries for about a second, then Quake's teleport takes it (Graphics > Teleporters > Monsters: Stuck Fallback); it is never stuck at the frame. {test:nav_tele_ogre}
-Flat-screen or VR: a dog at e1m1's one-way teleporter's destination never runs into a teleporter to reach you by its entry (there is no way back through): it takes the long way round. {test:nav_tele_oneway}
-Flat-screen or VR: on e1m1, let a grunt chase you into the teleporter at the far end and watch it follow: it walks straight in after you, without standing at the opening flipping between you and your trail. {test:nav_tele_metric}
-Flat-screen or VR: let a hunting monster lose sight of you, then step into a teleporter: it follows your trail into the teleporter and comes out after you instead of giving you up (Advanced VR Options > Combat > Stealth AI > Follows Through Teleporters, 5 s). {test:nav_tele}
-Flat-screen or VR: on dm5, walk through either teleporter many times, straight and at angles, slow and running: you always come out of the other teleporter seamlessly, never walk through the sheet to its other side. {test:portals_walk_dm5}
-Flat-screen or VR: on dm5, let dogs, grunts and fiends chase you through the teleporters: they walk out of the other teleporter's face as you do, never with Quake's flash, sound and jump. {test:nav_tele_dm5}
-Flat-screen or VR: on dm5, let a dog or a grunt see you through a teleporter, then step out of its sight: it walks to the gate and through its opening after you, never circling the gate's frame to the spot behind the sheet. {test:nav_tele_dm5}
-Flat-screen: Show Navmesh (Debug) draws the mesh, the monsters' paths and the drop and lift links on a flat screen as in VR. {test:nav_drop}
 
 [6. VR: body and gear]
 With armour on, set Advanced VR Options > Weapons > Reloading > X With Armour and Flashlight > Forward With Armour to a small value (about 3 units, 0.03 m; the scene sets those): the pouch and the belt torch should stand clear of the plates, and go back to normal when the armour is gone. {test:armour_gear}

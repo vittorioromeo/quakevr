@@ -337,6 +337,7 @@ void() SetNewParms =
     parm73 = 0; // (no magnetic holster bindings)
     parm74 = 0; // (bullet time's meter full)
     parm75 = 0; // (no armour plates)
+    VR_Run_NewParms(); // the run's mutators: Starting Weapon, Melee Only's axe (vr_run.qc)
 };
 
 void() DecodeLevelParms =
@@ -790,6 +791,7 @@ void() changelevel_touch =
     if(other.classname != "player")
         return;
     if(!AD_ChangelevelTouch()) return; // AD support: AD's exits off until triggered, its on-exit rules (vr_ad_bridge.qc)
+    if(VR_Run_HubAsks(self)) return; // the hub's teleporter: the Run Setup screen first (vr_run.qc)
 
     float noexit;
     noexit = cvar_hget(cvarh_noexit);
@@ -3006,6 +3008,7 @@ void(float xThreshold) VR_Headbutt_Hit =
 
     self.in_headbutt = FALSE;
     self.headbutt_start_time = time + 0.4;
+    VR_Melee_Event(sprintf("headbutt %s, %.2f m/s", victim.takedamage ? victim.classname : "a wall", vlen(self.headbutt_max_vec)));
     VR_SoundVaried(self, CHAN_OTHER, "fisthit.wav", 1.0, ATTN_NORM);
     VR_Blunt_HitLayer(self, CHAN_AUTO, victim);
     VRGunHaptic(cVR_OffHand, 0.15, 100, 1.0);
@@ -3028,7 +3031,9 @@ void(float xThreshold) VR_Headbutt_Hit =
 
 void() PlayerVRMeleeHeadbutt =
 {
-    if(!cvar_hget(cvarh_vr_headbutt) || !self.ishuman || self.health <= 0)
+    // Flatscreen play: the head is the game's to move (the lean, the crouch, the slide, lying down), never a lunge of his
+    // (his note 2026-11-13: a crouched lean looking down "headbutted" the floor, the fist's thud and his own pain cry).
+    if(!cvar_hget(cvarh_vr_headbutt) || !self.ishuman || self.health <= 0 || VR_FlatPlay(self))
     {
         self.in_headbutt = FALSE;
         return;

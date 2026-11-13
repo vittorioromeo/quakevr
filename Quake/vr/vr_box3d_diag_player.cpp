@@ -465,6 +465,29 @@ void knockdownTest_f()
         Con_Printf("wigglecheck: strength=%.2f parts=%d angular=%.4f rad/s\n", vr_knockdown_wiggle.value,
             bodies, bodies ? angular / bodies : 0.f);
         Con_Printf("strugglecheck: strength=%.2f deflection=%.3f degrees\n", vr_knockdown_wiggle.value, deflection);
+        // Its concussed stirring (vr_knockdown_stir): the moves so far and the most turn asked, over the living ones down.
+        int stirs = 0, stirring = 0, down = 0;
+        float stirMost = 0.f, stirNow = 0.f;
+        for(const RagdollBodies& r : world->ragdolls)
+        {
+            if(r.num <= 0) { continue; }
+            down += knockedDown(EDICT_NUM(r.num)) && EDICT_NUM(r.num)->v.health > 0.f ? 1 : 0;
+            stirs += r.stir.count;
+            stirMost = za::max(stirMost, r.stir.most);
+            const int sb = r.stir.bone;
+            if(sb > 0 && sb < r.count && knockedDown(EDICT_NUM(r.num)) && EDICT_NUM(r.num)->v.health > 0.f)
+            {
+                ++stirring;
+                // The moving joint's turn off its rest now (degrees): what the drive got of the turn it asks.
+                const int parent = r.rig->bones[sb].parent;
+                const glm::quat relative = glm::inverse(fromB3(b3Body_GetTransform(r.body[static_cast<za::SizeT>(parent)]).q)) *
+                    fromB3(b3Body_GetTransform(r.body[static_cast<za::SizeT>(sb)]).q);
+                const glm::quat delta = glm::normalize(relative * glm::inverse(r.stir.rest));
+                stirNow = za::max(stirNow, glm::degrees(2.f * glm::acos(za::clamp(za::fabs(delta.w), 0.f, 1.f))));
+            }
+        }
+        Con_Printf("stircheck: strength=%.2f moves=%d most=%.1f degrees stirring=%d down=%d off rest %.1f degrees\n",
+            vr_knockdown_stir.value, stirs, stirMost, stirring, down, stirNow);
         Con_Printf("strugglemotion: %d parts moved %.2f units on average (most %.2f) over %.2f s\n", compared,
             compared ? moved / static_cast<float>(compared) : 0.f, movedMost,
             wiggleCheck.time >= 0.0 ? qcvm->time - wiggleCheck.time : 0.0);

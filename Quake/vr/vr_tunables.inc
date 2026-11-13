@@ -1361,6 +1361,8 @@ QVR_TUNABLE(vr_knockdown_ledge_drop, "16") // how high (units) a drop must be to
 QVR_TUNABLE(vr_knockdown_ledge_reach, "0.5") // how far ahead a ledge is looked for: times the shove's reckoned travel (the hop and the slide; 1: as far as it goes)
 QVR_TUNABLE(vr_knockdown_ledge_margin, "24") // units past that travel (times vr_knockdown_ledge_reach) where a ledge still counts
 QVR_TUNABLE(vr_knockdown_wiggle_pause, "0.5") // pause between bursts, seconds; 0 continuous (the default since config 89; 1 before)
+QVR_TUNABLE(vr_knockdown_stir, "1") // concussed stirring of a living knockdown lying limp (2026-11-13): now and then a slow head turn, a hand's twitch, an arm or a leg drawn in (vr_box3d_ragdoll.cpp stirPick), each turn times this (0..3; 0 off)
+QVR_TUNABLE(vr_knockdown_stir_rate, "1") // how often it stirs: times as often (0.1..4; 1: a move every 1.2..3.8 s after the last)
 
 // Combat > Melee
 QVR_TUNABLE(vr_quad_melee_damage, "1.1")

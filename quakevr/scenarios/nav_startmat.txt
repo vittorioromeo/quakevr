@@ -1,6 +1,0 @@
-title Navmesh: an unarmed and an axe grunt chase you at the test hall's back wall
-map vrtesthall
-start 0 -400 25 90
-god
-spawnarmed monster_vr_grunt -1 0 420 60
-spawn "Armed Grunt: Axe" 420 -60

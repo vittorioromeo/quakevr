@@ -141,7 +141,13 @@ bool uninstall(const za::String& sha);
 // The package's start map (startMap), or `map` when given, started now: the page's Play action, and maps_play. Never
 // part of installing. Cbuf_InsertText, so that it runs next rather than after the commands already queued (a script's
 // `screenshot;quit` would come first). False: it could not start (playProblem says why; the console too).
-bool play(const za::String& sha, const char* map = nullptr);
+bool play(const za::String& sha, const char* map = nullptr, int skill = -1);
+// `skill` 0..3 (not -1): the `skill` cvar set to it once Play can start (a failed Play leaves it). The Map Library's
+// difficulty picker passes it. Whether Play asks first: false when the map to start (`map`, else the package's start
+// map) holds a trigger_setskill, i.e. it is a pack's own start hall with its skill selection; true otherwise.
+[[nodiscard]] bool needsSkillPick(const za::String& sha, const char* map = nullptr);
+// A map (an installed package's own file first, else any search path) whose entities hold a trigger_setskill.
+[[nodiscard]] bool mapHasSkillSelect(const char* map, const za::String& sha = za::String{});
 // What Play starts for an installed package: the index's startmap ("start" first when it lists several) when the
 // package holds it, else its own maps' "start", else its first map by name. "" : it holds no map (`why` says so).
 // `mapCount`: the maps (BSPs) its files hold.

@@ -475,7 +475,12 @@ void mapsInstallAt(int r)
     S_LocalSound("misc/menu3.wav");
 }
 
-// Play: its own action, for a package whose files are in the game dir already.
+// The Run Setup screen (a page of its own, flat and VR alike): difficulty, presets, mutators; New Game, Official
+// Campaigns and the hub's teleporter open it too.
+#include "vr_menu_runsetup.inc"
+
+// Play: its own action, for a package whose files are in the game dir already. The Run Setup screen first (no
+// Difficulty there when the map to start has its own skill selection: a pack's start hall).
 void mapsPlayAt(int r)
 {
     if(r < 0 || r >= static_cast<int>(mapPage.results.size()))
@@ -483,7 +488,13 @@ void mapsPlayAt(int r)
         return;
     }
     const mapindex::Entry* e = mapPage.results[r];
-    if(mapinstall::play(za::String{mapindex::index().field(e->sha256)}))
+    const za::String sha{mapindex::index().field(e->sha256)};
+    if(mapinstall::installed(sha))
+    {
+        openRunSetup(runsetup::Launch::Library, sha, nullptr, -1, !mapinstall::needsSkillPick(sha));
+        return;
+    }
+    if(mapinstall::play(sha))
     {
         S_LocalSound("misc/menu3.wav");
     }
