@@ -60,6 +60,7 @@ Flat-screen: crouch, look down and lean left and right with Q and E many times, 
 
 [4. Flat-screen: monsters and AI]
 Flat-screen or VR: shove grunts over and watch them lie: now and then a head turns slowly, a hand twitches, an arm or a leg draws in a little, so they read as stunned rather than dead; one killed lying down never moves again. Strength and rate: Debug > Tunables, Concussed Stirring and Stirring Rate. {test:kd_stir}
+Flat-screen or VR: with Melee Only and the dagger chosen in Run Setup, type "maxplayers 2" in the console, start the map and add a bot (impulse 100): it holds the dagger, walks past guns and ammo without taking them, and fights with the dagger.
 
 [5. Flat-screen: navigation and teleporters]
 Flat-screen or VR: in vrteleporters' flush galleries, a dog in the gallery behind the gates follows you through the large gate, walking through it as you do; it never tries the crate hatch. {test:nav_tele_gate}
