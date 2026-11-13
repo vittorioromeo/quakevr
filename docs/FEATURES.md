@@ -388,7 +388,9 @@ Most of these have switches on the *Graphics* pages, and the *Preset* there sets
   longer installed is skipped. The hub's campaign stones keep the campaign you last played selected.
   `vr_autosave_level_start 0`: no level-start saves; `sv_autosave 0`: no autosaves at all.
 - **Map Library** (the main menu, or the corner's *Map Library*): browse [Quaddicted](https://www.quaddicted.com/)'s
-  archive of custom maps, then download, install and play one in the game; *Uninstall* and *Reinstall* manage what you
+  archive and [Slipseer](https://www.slipseer.com/)'s custom maps (a Source filter, each map tagged with where it is
+  from and credited to its author; Slipseer's maps with their screenshot), then download, install and play one in the
+  game; *Uninstall* and *Reinstall* manage what you
   installed, and the download cache is capped (Debug > Tools > *Download Cache Size*). See
   [INSTALL.md](INSTALL.md#custom-maps-and-mods).
 - **Custom maps** without their own `progs.dat` play with Quake VR's gameplay. Mappers can place tips for new players

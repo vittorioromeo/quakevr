@@ -211,8 +211,8 @@ them all, and each page's *Reset This Page* puts its settings back. [docs/SETTIN
 - **Quake and both mission packs** in one game, from a VR hub with a tutorial and a firing range. The re-release's
   **Dimension of the Past**, **Dimension of the Machine** (with its Horde mode) and **Dawn of the Machine** play
   natively in single player, when you own them.
-- **Map Library:** browse [Quaddicted](https://www.quaddicted.com/)'s custom maps and download, install, uninstall and
-  play them in the game. **Other mods** run in a compatibility mode.
+- **Map Library:** browse [Quaddicted](https://www.quaddicted.com/)'s and [Slipseer](https://www.slipseer.com/)'s
+  custom maps and download, install, uninstall and play them in the game. **Other mods** run in a compatibility mode.
 - **Multiplayer and bots** (FrikBot), with a fixed 72 Hz server tick: **work in progress**, expect rough edges and
   missing features in co-op and deathmatch.
 - **Flat-screen play** (`vr_enabled 0`, or the *flat screen* shortcut).
@@ -316,7 +316,8 @@ Quake VR: UNLEASHED is a project created by **Vittorio Romeo**. It builds on:
   ([docs/vr-port/TEXTURES.md](docs/vr-port/TEXTURES.md): contents, credits, licence).
 - Box3D (Erin Catto) for the physics, Steam Audio (Valve) for the spatial sound, Zancle (Vittorio Romeo), FrikBot
   (Ryan "FrikaC" Smith), the OpenXR SDK (Khronos), SDL2, GLM, FTEQCC, and ericw-tools. The Map Library's maps come
-  from [Quaddicted](https://www.quaddicted.com/).
+  from [Quaddicted](https://www.quaddicted.com/) and [Slipseer](https://www.slipseer.com/) (with Slipseer's permission),
+  each credited to its author.
 
 The full list, with the research and techniques used, is in [docs/vr-port/CREDITS.md](docs/vr-port/CREDITS.md).
 
