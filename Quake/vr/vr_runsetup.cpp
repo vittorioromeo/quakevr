@@ -202,6 +202,7 @@ struct State
 {
     int pending[registryCount]{};
     bool pendingHave[registryCount]{};
+    int pendingSeed{0}; // the run's seed (vr_run_seed: `seed=`), 0 when the line has none (saved before it was)
     bool haveLine{false};
     bool reading{false}; // readSaveLines ran for the save being loaded
     char line[256]{};
@@ -600,7 +601,7 @@ void start()
         applyActive(i, Phase::Start);
     }
     // The run's seed (Randomized Pickups: a map's layout the same all through the run): sv_random_seed's when a test
-    // fixes it, else a new one. Not in the saved games: a loaded run's next maps roll anew.
+    // fixes it, else a new one. In the saved games (`seed=`): a loaded run's next maps roll as that run's did.
     const int fixed = static_cast<int>(Cvar_VariableValue("sv_random_seed"));
     Cvar_SetValueQuick(&vr_run_seed, static_cast<float>(fixed != 0 ? (fixed & 0xFFFF) + 1 : 1 + rand() % 0xFFFF));
     Cvar_Set("vr_run_hubgo", "0");
@@ -685,6 +686,7 @@ const char* saveLine()
     {
         q_strlcat(state.line, va(" %s=%d", registry[i].id, activeValue(i)), sizeof(state.line));
     }
+    q_strlcat(state.line, va(" seed=%d", static_cast<int>(vr_run_seed.value)), sizeof(state.line));
     q_strlcat(state.line, "\n", sizeof(state.line));
     return state.line;
 }
@@ -697,6 +699,7 @@ void readSaveLines(const char* text)
     {
         state.pendingHave[i] = false;
     }
+    state.pendingSeed = 0;
     const char* p = text ? strstr(text, "\n// qvr_run ") : nullptr;
     if(!p)
     {
@@ -714,6 +717,11 @@ void readSaveLines(const char* text)
             break;
         }
         p += used;
+        if(!strcmp(key, "seed"))
+        {
+            state.pendingSeed = value;
+            continue;
+        }
         const int i = find(key);
         if(i >= 0)
         {
@@ -734,6 +742,12 @@ void onLoadGame()
     {
         Con_Printf("Run setup: this saved game has no run choices (saved before they were): the mutators at their "
                    "defaults, the presets as they are\n");
+    }
+    if(state.pendingSeed != 0)
+    {
+        // The saved run's seed (Randomized Pickups: its next maps' layouts as that run's, not the run played before the
+        // load); a save from before the seed was saved keeps the current one.
+        Cvar_SetValueQuick(&vr_run_seed, static_cast<float>(state.pendingSeed));
     }
     for(int i = 0; i < registryCount; i++)
     {

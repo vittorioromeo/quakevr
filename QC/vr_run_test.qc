@@ -5,7 +5,8 @@
 // `vr_runpickups_test 1`: Balanced on e1m1 (seed 777): items swapped, each for one of its kind and tier (ammo for an
 //   allowed kind, its size kept), nothing the map names; e1m1 again: the same layout, the same unresolved targets and
 //   trigger_counter links; saved, Randomized Pickups set off, the save loaded: the run's choice and the layout back;
-//   changelevel to e1m2: swapped there; Everything Goes with Melee Only and Glass Cannon on e1m1: kinds crossed, no gun
+//   changelevel to e1m2: swapped there; another run's seed on e1m2: other pickups; the first run's save loaded: its
+//   seed back, and a changelevel to e1m2 gives the first run's pickups there; Everything Goes with Melee Only and Glass Cannon on e1m1: kinds crossed, no gun
 //   where there was none, the map's links and monster count as before, vr_run_check's game checks; a new run without it:
 //   nothing swapped. Verdict "runpickups: N passed, M failed".
 // `vr_runpickups_test 2`: the map loaded now (with Randomized Pickups on: another game's, AD's), then again with it off:
@@ -186,6 +187,34 @@ void() VR_RT_Pickups =
     {
         VR_Test_Check(mapname == "e1m2" && cvar_hget(cvarh_vr_run_pickups) == 1, "changelevel to e1m2: still Balanced");
         VR_RT_CheckLayout(TRUE, "e1m2 balanced");
+        // Another run (its own seed) on e1m2, then the first run's save loaded and a changelevel: the saved run's seed
+        // back (the save's `// qvr_run` line), so e1m2's pickups are the first run's again.
+        cvar_set("vr_run_test_a", ftos(vr_rt_hash));
+        localcmd("vr_run_seed 4242\nmap e1m2\n");
+        VR_RT_To(10, TRUE);
+    }
+    else if(step == 10)
+    {
+        VR_RT_Layout(TRUE);
+        VR_Test_Check(vr_rt_hash != cvar_hget(cvarh_vr_run_test_a) && vr_rt_swapped > 0,
+            sprintf("another run's seed: other pickups on e1m2 (hash %g, the first run's %g)", vr_rt_hash,
+                cvar_hget(cvarh_vr_run_test_a)));
+        localcmd("load mp_rpk_test\n");
+        VR_RT_To(11, TRUE);
+    }
+    else if(step == 11)
+    {
+        VR_Test_Check(cvar_hget(cvarh_vr_run_seed) == 777,
+            sprintf("the first run's save loaded: its seed back (%g, the other run's 4242)", cvar_hget(cvarh_vr_run_seed)));
+        localcmd("changelevel e1m2\n");
+        VR_RT_To(12, TRUE);
+    }
+    else if(step == 12)
+    {
+        VR_RT_Layout(TRUE);
+        VR_Test_Check(mapname == "e1m2" && vr_rt_hash == cvar_hget(cvarh_vr_run_test_a),
+            sprintf("changelevel to e1m2 after the load: the saved run's pickups (hash %g, was %g)", vr_rt_hash,
+                cvar_hget(cvarh_vr_run_test_a)));
         localcmd("vr_run pickups 2\nvr_run meleeonly 1\nvr_run glasscannon 1\nvr_run startweapon 0\nmap e1m1\n");
         VR_RT_To(7, TRUE);
     }

@@ -80,7 +80,7 @@ void endRun();
 // "Hard / Unleashed / Pistol start": the picks (the screen) or the run's.
 [[nodiscard]] const char* summary(bool picks);
 
-// SaveData_Fill (VR_SaveContext): "// qvr_run id=v id=v ...\n".
+// SaveData_Fill (VR_SaveContext): "// qvr_run id=v id=v ... seed=v\n" (seed: vr_run_seed, set back on the load).
 [[nodiscard]] const char* saveLine();
 
 // VR_ReadSaveInfo: the loading save's line kept; onLoadGame (VR_OnBeginLoadGame) sets the run from it, or the old-save
