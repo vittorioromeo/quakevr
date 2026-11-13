@@ -114,7 +114,8 @@ hint Swing at them: ...                             # optional; default the chec
   vr_toolgun_packs.inc, vr_ad_spawns.inc): "Grunt", "Wooden Crate", "Explosive Box", "Armed Grunt: Shotgun",
   "Armed Enforcer: Axe", "AD Death Sergeant", "AD Death Sergeant's Flail"... Offsets are units from your feet in the
   direction you face (`left` positive to your left); each lands on the floor under its point (`up` above it, so a crate
-  can stand on another: `spawn "Wooden Crate" 90 30 34`); monsters face you unless a yaw (relative) is given.
+  can stand on another: `spawn "Wooden Crate" 90 30 34`; a point in a wall at your height with an `up` lands on what is
+  under its raised point instead, such as a ledge above you); monsters face you unless a yaw (relative) is given.
 - Spots: `map <name>` then `vr_scenario where` prints a `start` line for where you stand, the free distance ahead, left,
   behind and right, and the nearest liquid with its surface and extent. vrtesthall: start 0 -288 25 facing 90, 640
   free ahead, 616 left; its pool x 224..528, y -416..-112 (surface -9, 119 deep: monsters placed in it sink; no
