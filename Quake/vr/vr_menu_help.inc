@@ -89,6 +89,11 @@
 // hint (null: none).
 const char* itemHelp(const Item& item)
 {
+    if(item.kind == Item::Header)
+    {
+        return item.folded ? "Folded: press to show this section's rows again (or right)."
+                           : "Press to fold this section: only its header shown (or left). Each page keeps its folds.";
+    }
     const char* help = item.cvar == &vr_render_scale ? renderScaleHelp() : item.helpArg ? item.helpArg(item.arg) : item.helpText;
     if(item.cvar == &vr_flat_aim_sens || item.cvar == &vr_flat_aim_sens_match)
     {

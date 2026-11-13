@@ -471,6 +471,7 @@ inline constexpr Page pages[] = {
     {"Visor HUD Look", pageVisorSettings, pageLocomotionSettings}, // (vr_menu_pages.inc; vr_visor.cpp)
     {"Flat Keys", pageFlatKeys, pageLocomotionSettings}, // (vr_menu_pages.inc; vr_flatplay.hpp keyCvars)
     {"Run Setup", pageRunSetup, pageMaps, LevelStandard}, // (a run's difficulty, presets, mutators: vr_menu_runsetup.inc)
+    {"Menu Look", pageMenuLook, pageHudHub}, // (vr_menu_pages.inc: the menus' sizes, gaps, highlights and folds)
 #ifndef QVR_RELEASE
     {"Tunables", pageTunables, pageDebug, LevelDeveloper}, // a development build's (vr_menu_tunables.inc; vr_tunables.cpp)
     // Its submenus, a page a depth (titled with the submenu shown: tunablesTitle).

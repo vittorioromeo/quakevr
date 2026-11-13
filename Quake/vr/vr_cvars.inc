@@ -885,6 +885,21 @@ QVR_CVAR(vr_menu_fine_step, "0.1", CVAR_ARCHIVE)      // a slider's step while t
 QVR_CVAR(vr_menu_grab, "2", CVAR_ARCHIVE)             // moving the menu panel with a grip (vr_menuui.cpp PanelGrab): 0 never; 1 with the laser on its frame (lit there); 2 also on its face once the hand moves vr_menu_grab_deadzone with the grip held (not after a stick push or with the trigger held: the fine modifier then)
 QVR_CVAR(vr_menu_panel_remember, "1", CVAR_ARCHIVE)   // the menu panels after the first (New Panel; MULTI_MENU.md): 1 each opens again where it was last this session (its place from the first panel's); 0 always beside the first
 QVR_CVAR(vr_menu_section_gap, "0.75", CVAR_ARCHIVE)   // the VR pages' space above each section's header (and under the page's title), in rows (0 to 2: 0 none)
+// Menu Look (vr_menu_pages.inc pageMenuLook; ROUND25.md, "Menu look"): the menus' visual hierarchy, each part tweakable.
+QVR_CVAR(vr_menu_main_gap, "1.6", CVAR_ARCHIVE)        // the main menu's gap between its groups, over Quake's 10 pixels (0 to 3: 0 none; less where the canvas is short)
+QVR_CVAR(vr_menu_header_scale, "1.25", CVAR_ARCHIVE)   // the VR pages' section headers' letters over a row's (1 to 2)
+QVR_CVAR(vr_menu_minor_scale, "0.75", CVAR_ARCHIVE)    // the This Page and Menu Detail sections' letters and rows over the others' (0.5 to 1: 1 as the rest)
+QVR_CVAR(vr_menu_minor_alpha, "0.65", CVAR_ARCHIVE)    // and how opaque they are (0.2 to 1)
+QVR_CVAR(vr_menu_fold, "1", CVAR_ARCHIVE)              // the VR pages' sections fold: a press on a header (its arrow) hides its rows, again shows them (0: never folded, headers not selectable)
+QVR_CVAR(vr_menu_fold_time, "0.15", CVAR_ARCHIVE)      // a fold's slide and fade, seconds (0 to 0.5: 0 at once)
+QVR_CVAR(vr_menu_folded, "", CVAR_ARCHIVE)             // the folded sections, "page title|section header" separated by ';' (written as they fold; a row reached by path, search or menu_vr unfolds its section)
+QVR_CVAR(vr_menu_hl_fit, "1", CVAR_ARCHIVE)            // the VR pages' selected-row bar as wide as the row's label and value (0: across the menu, as before)
+QVR_CVAR(vr_menu_big_hl, "2", CVAR_ARCHIVE)            // the big-letter menus' (main menu, Single Player, Multiplayer, Skill) selected row: 0 Quake's spinning icon only, 1 a soft bar behind it too, 2 and the main menu's row grown (vr_menu_big_hl_scale)
+QVR_CVAR(vr_menu_big_hl_scale, "1.08", CVAR_ARCHIVE)   // that row's size while selected (1 to 1.25)
+QVR_CVAR(vr_menu_toolbar_groups, "5", CVAR_ARCHIVE)    // the corner's buttons in groups (game, saves, menus, settings, levels, tools, developer): this many pixels between groups (0 to 12: 0 evenly spaced)
+QVR_CVAR(vr_runsetup_groups, "1", CVAR_ARCHIVE)        // Run Setup's mutators in three sections (Rules, Enemies, World); 0: one Mutators section
+QVR_CVAR(vr_runsetup_big, "1.5", CVAR_ARCHIVE)         // Run Setup's Difficulty row and Start button letters over a row's (1 to 2)
+QVR_CVAR(vr_runsetup_halls_line, "0", CVAR_ARCHIVE)    // Run Setup with a start map that has its own skill halls: 1 a line saying so where Difficulty goes; 0 nothing (the halls choose)
 QVR_CVAR(vr_menu_flat_shortcuts, "1", CVAR_ARCHIVE)    // the VR menus' corner buttons (Back to game, Search, Console, VR Settings, Advanced VR, Levels, Map Library, Relighting) on a flat screen too, for the desktop mouse (vr_menuui.cpp)
 QVR_CVAR(vr_menu_flat_vr_style, "1", CVAR_ARCHIVE)     // on by default (his decision 2026-11-08); with VR off: the headset's menu layout on the window (vr_menuui.cpp, FlatPanel): a panel of the window's shape, the corner's column beside the menu, the desktop mouse as the laser; a corner dragged moves it, the wheel while dragging resizes it
 QVR_CVAR(vr_menu_flat_scale, "0.954", CVAR_ARCHIVE)      // that panel's size, a share of the window's (0.4 to 1): the zoom buttons (- and +) step it by 1.1

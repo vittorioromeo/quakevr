@@ -77,45 +77,124 @@ void runSetupStart()
     }
 }
 
+// The mutators in groups (vr_runsetup_groups; ROUND25.md, "Menu look"), each its own section in this order; a mutator
+// in none goes under the last.
+struct RunSetupGroup
+{
+    const char* title;
+    const char* ids[8];
+};
+constexpr RunSetupGroup runSetupGroups[] = {
+    {"Rules", {"startgun", "startmelee", "meleeonly", "glasscannon", "ironman"}},
+    {"Enemies", {"armed", "rangedknights", "wildweapons", "armoredfoes", "smartai", "enemycount", "enemyrandom"}},
+    {"World", {"pickups"}},
+};
+constexpr int runSetupGroupCount = static_cast<int>(sizeof(runSetupGroups) / sizeof(runSetupGroups[0]));
+
+// Mutator `id`'s group (the last for one in none).
+int runSetupGroupOf(const char* id)
+{
+    for(int g = 0; g < runSetupGroupCount; g++)
+    {
+        for(const char* listed : runSetupGroups[g].ids)
+        {
+            if(listed && !strcmp(listed, id))
+            {
+                return g;
+            }
+        }
+    }
+    return runSetupGroupCount - 1;
+}
+
+// Registry row i: a cycle (Difficulty big: Item::Big), or a line while another's rule holds it.
+void runSetupRow(za::Vector<Item>& items, int i)
+{
+    const runsetup::Mutator& m = runsetup::at(i);
+    if(runsetup::forcedValue(i) >= 0)
+    {
+        items.pushBack(infoLine(runSetupHeldLine, i));
+        return;
+    }
+    za::Vector<Choice> choices;
+    for(int o = 0; o < m.optionCount(); o++)
+    {
+        choices.pushBack(Choice{static_cast<float>(o), m.options[o]});
+    }
+    Item row = cycle(m.label, *m.pick, ZA_MOVE(choices)).help(m.help);
+    items.pushBack(i == runsetup::find("skill") ? row.big() : row);
+}
+
 za::Vector<Item> pageRunSetup()
 {
     runSetup.builtKey = runsetup::pageKey();
     runSetup.builtHalls = runSetup.skillHalls ? 1 : 0;
+    const bool grouped = vr_runsetup_groups.value != 0.f;
     za::Vector<Item> items;
     for(int s = 0; s < 3; s++)
     {
-        if(runSetupSections[s])
+        const bool mutators = s == static_cast<int>(runsetup::Section::Mutators);
+        if(runSetupSections[s] && !(mutators && grouped))
         {
             items.pushBack(header(runSetupSections[s]));
         }
-        if(s == static_cast<int>(runsetup::Section::Difficulty) && runSetup.skillHalls)
+        if(s == static_cast<int>(runsetup::Section::Difficulty) && runSetup.skillHalls && vr_runsetup_halls_line.value != 0.f)
         {
             items.pushBack(info(runSetupHallsLine));
         }
+        const auto shown = [s](int i) {
+            const runsetup::Mutator& m = runsetup::at(i);
+            return static_cast<int>(m.section) == s && m.isShown() &&
+                   !(runSetup.skillHalls && i == runsetup::find("skill"));
+        };
+        if(mutators && grouped)
+        {
+            for(int g = 0; g < runSetupGroupCount; g++)
+            {
+                const size_t before = items.size();
+                items.pushBack(header(runSetupGroups[g].title));
+                for(const char* id : runSetupGroups[g].ids)
+                {
+                    if(const int i = id ? runsetup::find(id) : -1; i >= 0 && shown(i))
+                    {
+                        runSetupRow(items, i);
+                    }
+                }
+                for(int i = 0; g == runSetupGroupCount - 1 && i < runsetup::count(); i++)
+                {
+                    if(shown(i) && runSetupGroupOf(runsetup::at(i).id) == g)
+                    {
+                        bool listed = false;
+                        for(const char* id : runSetupGroups[g].ids)
+                        {
+                            listed = listed || (id && !strcmp(id, runsetup::at(i).id));
+                        }
+                        if(!listed)
+                        {
+                            runSetupRow(items, i); // (a mutator in no group: the last's)
+                        }
+                    }
+                }
+                if(items.size() == before + 1)
+                {
+                    items.popBack(); // (a group with nothing shown: no header)
+                }
+            }
+            continue;
+        }
         for(int i = 0; i < runsetup::count(); i++)
         {
-            const runsetup::Mutator& m = runsetup::at(i);
-            if(static_cast<int>(m.section) != s || !m.isShown() ||
-                (runSetup.skillHalls && i == runsetup::find("skill")))
+            if(shown(i))
             {
-                continue;
+                runSetupRow(items, i);
             }
-            if(runsetup::forcedValue(i) >= 0)
-            {
-                items.pushBack(infoLine(runSetupHeldLine, i));
-                continue;
-            }
-            za::Vector<Choice> choices;
-            for(int o = 0; o < m.optionCount(); o++)
-            {
-                choices.pushBack(Choice{static_cast<float>(o), m.options[o]});
-            }
-            items.pushBack(cycle(m.label, *m.pick, ZA_MOVE(choices)).help(m.help));
         }
     }
+    // Start: a big button of its own below the mutators (Item::Button: a gap above it, not in their section).
     items.pushBack(action("Start", runSetupStart)
                        .help("Starts the run with these choices (kept for next time; each saved game keeps its run's "
-                             "and sets them back when loaded). Back: not started."));
+                             "and sets them back when loaded). Back: not started.")
+                       .button());
     return items;
 }
 

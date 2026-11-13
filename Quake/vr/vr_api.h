@@ -605,6 +605,9 @@ void VR_MenuPanelInFront (void);						// the death menu opening: the menu panel 
 int VR_MenuDrawCheckbox (int x, int y, int on);			// M_DrawCheckbox: a switch
 int VR_MenuDrawTextBox (int x, int y, int width, int lines); // M_DrawTextBox: a panel
 int VR_MenuDrawHighlight (int cx, int cy);				// M_DrawArrowCursor: the selected row's highlight; nonzero: no cursor (the corner's buttons have the selection)
+void VR_MenuDrawBigHighlight (float x0, float x1, float yc, float half); // Menu Look: a big-letter menu's selected row's soft bar (vr_menu_big_hl)
+float VR_MenuBigGrow (void);								// Menu Look: the main menu's selected row's size (vr_menu_big_hl_scale)
+float VR_MenuMainGap (void);								// Menu Look: the main menu's groups' gap over Quake's (vr_menu_main_gap)
 int VR_MenuDrawButton (int x0, int x1, int y, int selected);	// M_Confirm's buttons (x0..x1 across, the label's row y): the VR menu style's; nonzero if drawn
 // The corner's buttons (vr_menuui.cpp): "Back to game" closing the menu from any page, which reopens
 // there; "Advanced VR" and "Levels" jumping to those from any page.

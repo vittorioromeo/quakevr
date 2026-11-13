@@ -1106,5 +1106,7 @@ za::Vector<Item> pageHudHub()
         open("Status Bar", pageIndex(pageHudConfiguration)),
         open("Crosshair", pageIndex(pageCrosshairSettings)),
         open("Menu", pageIndex(pageMenuSettings)),
+        open("Menu Look", pageIndex(pageMenuLook))
+            .help("The menus' look: section headers' size, folding sections, the page footers, highlights, the main menu's and Run Setup's spacing, the shortcut buttons' groups."),
     };
 }

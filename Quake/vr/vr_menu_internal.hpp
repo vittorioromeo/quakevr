@@ -208,6 +208,32 @@ struct Item
     // A setting that can't be used here (unavailable()): dimmed, shown off, not changed; its help says why.
     bool unavailable{false};
 
+    // How it is drawn (Menu Look; ROUND25.md, "Menu look"): Minor (minor(): every page's This Page and Menu Detail
+    // sections, smaller and fainter: vr_menu_minor_*), Big (big(): Run Setup's Difficulty, letters vr_runsetup_big
+    // times a row's), Button (button(): Run Setup's Start, a large button of its own, centred, below a gap).
+    enum Look : unsigned char
+    {
+        Normal,
+        Minor,
+        Big,
+        Button
+    };
+    Look look{Normal};
+
+    // In a folded section (vr_menu_fold; set on the built page by applyFolds, vr_menu.cpp): no height, not reached by
+    // the cursor's steps; selected anyway (a path, Search, menu_vr), its section unfolds.
+    bool folded{false};
+
+    [[nodiscard]] Item looking(Look l) const
+    {
+        Item i = *this;
+        i.look = l;
+        return i;
+    }
+    [[nodiscard]] Item minor() const { return looking(Minor); }
+    [[nodiscard]] Item big() const { return looking(Big); }
+    [[nodiscard]] Item button() const { return looking(Button); }
+
     // A setting only one mode uses (vrOnly(), flatOnly(); most by their cvar: rowMode, vr_menu.cpp): dimmed while the
     // game runs in the other mode, its help saying so, still changed from here (a headset's settings set up from the
     // desktop). 0: both.
@@ -725,6 +751,7 @@ za::Vector<Item> pageLightningWater();
 za::Vector<Item> pageMain();
 [[nodiscard]] za::Vector<Item> pageMeleeSettings();
 [[nodiscard]] za::Vector<Item> pageMenuSettings();
+[[nodiscard]] za::Vector<Item> pageMenuLook();
 za::Vector<Item> pageMovement();
 [[nodiscard]] za::Vector<Item> pageParticleSettings();
 [[nodiscard]] za::Vector<Item> pagePlayerCalibration();
