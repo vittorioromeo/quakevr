@@ -913,3 +913,34 @@ through teleporters sometimes seamlessly, sometimes by Quake's teleport (flash, 
   new site was not found either: the shot naming may differ for some packages).
 ### flipbtn (2026-11-13)
 Flat holster menu: the dagger (a WID_SWORD of kind 12) was named "sword" (notectx::weaponName took the id only): now by kind (AD melee names too). New per-hand FLIP GRIP button under UNLOAD (impulses 84, 85 -> QC VR_RevGrip_Flip, shared with the eject button; lit by view::heldGripFlippable, the eject flip's predicate without its flat-play gate). flatholster_test 37 passed.
+
+## Gameplay preset (Classic / Light / Unleashed) and Classic Quake (branch agent/gpreset, 2026-11-13)
+
+Player feedback: "a preset to make the mod as vanilla Quake as possible... going through so many options can be
+daunting".
+- **One machinery for every preset kind** (`vr_presets.hpp/.cpp`, `presetcore::Table` + `presetcore::Kind`): the
+  graphics preset's code generalised (apply, matching level, Custom, My Settings kept on the first apply in
+  `<gamedir>/<what>_my_settings.cfg`, Save as My Settings, the status print, the menu's state and note lines).
+  `vr_gfxpresets.cpp` and `vr_gorepresets.cpp` are now their tables plus thin wrappers (same console commands and
+  behaviour; graphics' file name unchanged). The Gore preset gained My Settings (`gore_my_settings.cfg`), needed by
+  Classic Quake's Back.
+- **Gameplay preset** (`vr_gameplaypresets.cpp`, 55 rows): Classic, Light, Unleashed (each row's default). VR
+  Settings > Gameplay Presets (also linked from VR Settings > Gameplay, whose first line shows the state); console
+  `vr_gameplay_preset 0|1|2|3` (a button, back to -1), `vr_gameplay_preset_save`, `vr_gameplay_preset_status`. The
+  rows, what each does, the three values and the taste calls: `docs/vr-port/GAMEPLAY_PRESET.md` (**his to decide**:
+  29 rows marked "?"). Never comfort, calibration, body, controls, sound, graphics or gore; VR interaction (hands,
+  grabbing, holsters, climbing) the same at every level; tunables are compiled in for release, so cvars only.
+- **Classic Quake:** VR Settings' first rows (the desktop's Options > VR Settings is the same page): Classic Quake
+  (Graphics Off (Quake), Gore Minimal, Gameplay Classic), the line under it naming what it set and what each was,
+  and Back to My Settings (the three kinds' My Settings). `vr_classic_quake` (not saved: 1 applies, 0 goes back; shows
+  1 while all three match, synced on the menu's draw and the pavilion's screen). vrstart's pavilion has a new board
+  inside its east railing, north of the stairs down: a CLASSIC QUAKE button (`vr_setup_option classic`: On / Off:
+  your settings) under a short banner naming `{menu:Gameplay Presets}` (`vrstart_gen.py` CLASSIC_BOARD; recompiled,
+  final preset).
+- **Tests:** `vr_gameplay_preset_test` (Debug > Tests > Presets; no map needed): 23 passed, 0 failed (each level
+  sets every row, Unleashed = every default, Custom on a hand change, My Settings kept on the first apply and set
+  back exactly, Save as My Settings, the console button, Classic Quake sets the three, its line names them, Back sets
+  the three My Settings back; the table has no other preset's row or comfort/body/controls/sound prefix). It uses
+  `*_my_settings_test.cfg` (`Kind::useTestFile`), so the player's My Settings are untouched; `vr_gore_preset_test`
+  does too now (12 passed after `map start`).
+- **Open:** the "?" rows; a level applied mid-map shows fully from the next map (most QC rows are read at spawn).

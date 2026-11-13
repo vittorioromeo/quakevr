@@ -113,6 +113,7 @@ TERRACE = dict(x=-1150, y=-150, r=232, z=112)
 GATE = dict(x=-1150, y=46)                                                  # the teleporter (faces south)
 BRIDGE = dict(x0=-868, x1=-436, y=-150, z=112, arch=14, w=96)
 PAVILION = dict(x0=-300, x1=84, y0=-232, y1=40, z=128)
+CLASSIC_BOARD = dict(y0=-48, y1=20)  # Classic Quake's board in the pavilion (its east side, north of STAIR2's opening)
 STAIR2 = dict(cx=84, cy=-96, dx=1, dy=0, zb=56, zt=128, run=16, w=80)
 RANGE = dict(x0=300, x1=1500, y0=-250, y1=170, z=56, line=470)
 TOWER = dict(x=1160, y=-770, z=56, half=88, deck=260)
@@ -1024,6 +1025,11 @@ def build_pavilion(mw):
     for (ya, yb) in ((y1 - 26, y1 - 18), (y0 + 18, y0 + 26)):
         out.append(box(x0 + 30, ya, z, x1 - 30, yb, z + 120, wood("board", (1, 0, 0))))
         out.append(box(x0 + 26, ya - 1, z + 120, x1 - 26, yb + 1, z + 126, wood("beam", (1, 0, 0))))
+    # Classic Quake's board (ROUND25.md, "Gameplay preset"): inside the east railing, north of the stairs down, its
+    # face west, with its cap
+    cq = CLASSIC_BOARD
+    out.append(box(x1 - 18, cq["y0"], z, x1 - 10, cq["y1"], z + 112, wood("board", (0, 1, 0))))
+    out.append(box(x1 - 19, cq["y0"] - 1, z + 112, x1 - 9, cq["y1"] + 1, z + 118, wood("beam", (0, 1, 0))))
     # railings along the open sides (west and east: the ways in and out stay open)
     for xx in (x0 + 2, x1 - 2):
         for (ya, yb) in ((y0 + 12, ym - 52), (ym + 52, y1 - 12)):
@@ -1594,6 +1600,12 @@ def build_entities(mw):
         off = 30 if len(entries) < 5 else 0
         for (label, key), cx in zip(entries, cxs):
             button(mw, label, "vr_setup_option " + key, cx + off, y0 + 26, zz + 14, 270, depth=8)
+    # Classic Quake (vr_setup_option classic: Graphics Off, Gore Minimal, Gameplay Classic; again: your own settings)
+    cqy = 0.5 * (CLASSIC_BOARD["y0"] + CLASSIC_BOARD["y1"])
+    button(mw, "CLASSIC" + N + "QUAKE", "vr_setup_option classic", x1 - 18, cqy, z + 44, 0, depth=8)
+    banner(mw, N.join(["CLASSIC QUAKE", "Quake's look, little gore,", "its monsters and its rules.",
+                       "Again: your own settings.", "{menu:Gameplay Presets}"]),
+           x1 - 19, cqy, z + 92, 180, "0.2")
     banner(mw, N.join(["MOVING AND TURNING", "More: {menu:Locomotion}"]), -108, y1 - 27, z + 138, 270, "0.3")
     banner(mw, N.join(["BODY AND HANDS", "More: {menu:Body and Display}"]), -108, y0 + 27, z + 138, 90, "0.3")
     # (over the way in, between the torches on either side of it: it stood in front of one of them)
