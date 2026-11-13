@@ -190,7 +190,9 @@ void SV_Impact (edict_t *e1, edict_t *e2)
 		PR_ExecuteProgram (e1->v.touch);
 	}
 
-	if (e2->v.touch && e2->v.solid != SOLID_NOT)
+	// QVR: never a freed e2's touch (e1's touch can remove it; after vkQuake c664a5b3). A freed e1 still reaches e2's touch as
+	// `other`, as in id's engine: a missile removing itself in its touch is the usual case and QC expects e2's to run.
+	if (!e2->free && e2->v.touch && e2->v.solid != SOLID_NOT)
 	{
 		pr_global_struct->self = EDICT_TO_PROG(e2);
 		pr_global_struct->other = EDICT_TO_PROG(e1);
@@ -477,7 +479,9 @@ trace_t SV_PushEntity (edict_t *ent, vec3_t push)
 	VectorCopy (trace.endpos, ent->v.origin);
 	SV_LinkEdict (ent, true);
 
-	if (trace.ent)
+	// QVR: SV_LinkEdict (true) runs the triggers' touches, which can free ent or trace.ent: no impact then (after vkQuake
+	// 5dfca693, 96dae868)
+	if (trace.ent && !ent->free && !trace.ent->free)
 	{
 		VR_MissileHitDebug (ent, trace.ent, &trace); // QVR: vr_debug_missiles
 		SV_Impact (ent, trace.ent);
@@ -1005,7 +1009,8 @@ void SV_WalkMove (edict_t *ent)
 		if (ent->v.solid == SOLID_BSP)
 		{
 			ent->v.flags =	(int)ent->v.flags | FL_ONGROUND;
-			ent->v.groundentity = EDICT_TO_PROG(downtrace.ent);
+			if (downtrace.ent && !downtrace.ent->free) // QVR: SV_PushEntity's touches can free it (after vkQuake 96dae868)
+				ent->v.groundentity = EDICT_TO_PROG(downtrace.ent);
 		}
 		VR_GroundPlaneMet (ent, downtrace.plane.normal); // QVR: vr_slope_walk
 	}
@@ -1265,7 +1270,8 @@ void SV_Physics_Toss (edict_t *ent)
 		if (ent->v.velocity[2] < 60 || ent->v.movetype != MOVETYPE_BOUNCE)
 		{
 			ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
-			ent->v.groundentity = EDICT_TO_PROG(trace.ent);
+			if (trace.ent && !trace.ent->free) // QVR: SV_PushEntity's touches can free it (after vkQuake 96dae868)
+				ent->v.groundentity = EDICT_TO_PROG(trace.ent);
 			VectorCopy (vec3_origin, ent->v.velocity);
 			VectorCopy (vec3_origin, ent->v.avelocity);
 		}
@@ -1312,7 +1318,11 @@ void SV_Physics_Step (edict_t *ent)
 		SV_CheckVelocity (ent);
 		fall = -ent->v.velocity[2];
 		SV_FlyMove (ent, host_frametime, NULL);
+		if (ent->free)
+			return; // QVR: removed by an impact (after vkQuake 43d02d34)
 		SV_LinkEdict (ent, true);
+		if (ent->free)
+			return; // QVR: removed by a trigger's touch
 
 		if ( (int)ent->v.flags & FL_ONGROUND )	// just hit ground
 		{
@@ -1392,6 +1402,8 @@ void SV_Physics (void)
 		if (pr_global_struct->force_retouch)
 		{
 			SV_PHYS_ZONE ("SV edict retouch", SV_LinkEdict (ent, true));	// force retouch even for stationary
+			if (ent->free)
+				continue; // QVR: a trigger's touch removed it (after vkQuake f99e66cc)
 		}
 
 		if (i > svs.maxclients && VR_MonsterFrozen (ent))
