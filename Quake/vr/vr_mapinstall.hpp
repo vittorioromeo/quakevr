@@ -145,7 +145,8 @@ void packageMaps(const za::String& sha, za::Vector<za::String>& out);
 [[nodiscard]] za::String packageFolder(const za::String& sha);
 // Why the last Play of this package did not start it ("" : it did, or none was tried).
 [[nodiscard]] const za::String& playProblem(const za::String& sha);
-// The mod a package was made for that Quake VR does not run (its own progs: "Arcane Dimensions", "Quoth", "Copper",
+// The mod a package was made for (its own progs: "Arcane Dimensions", which Quake VR plays natively when installed;
+// "Quoth", "Copper",
 // else the folder the index unpacks it into, e.g. "drake"); "" : the stock game's (id1, the mission packs).
 [[nodiscard]] za::String madeFor(const mapindex::Entry& e);
 

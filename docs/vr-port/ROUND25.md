@@ -753,3 +753,7 @@ axe's path; the dagger is precached with the replacements. Tests: `vr_agrunt_tes
 daggers; axe 3: 127/500; either weight 0: none/all; 16 real spawns: 8 axes, 8 daggers, all gun right, blade left);
 `vr_agrunt_test 72` 11/0 (the gun and axe steps as before, the axe forced; then a gun and a dagger: the gun at range, the
 dagger drawn up close and its stab landing, the gun again backed off). New scene `agrunt_repl_gundagger` (axe weight 0).
+
+## Map Library: AD note (adnote)
+
+A package made for Arcane Dimensions no longer says Quake VR does not run it: its page says it is played natively when AD 1.80p1 is installed, else that AD is needed (`vr_menu_maps.inc`); INSTALL.md says the same. Play was never blocked.
