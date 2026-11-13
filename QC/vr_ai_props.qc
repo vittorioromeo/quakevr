@@ -161,13 +161,28 @@ float(float dist) VR_NAV_Step =
 {
     entity g = self.goalentity;
     float toGate = g != world && g == self.stl_marker && self.stl_trail_gate != world;
-    if(!cvar_hget(cvarh_vr_nav) || dist <= 0 || g == world || (g != self.enemy && !toGate) || !(self.flags & FL_MONSTER) ||
+    float via = 0;
+    if(g != world && g == self.stl_marker && cvar_hget(cvarh_vr_nav_gate_marker)) { via = VR_Stealth_MarkerVia(self); }
+    if(!cvar_hget(cvarh_vr_nav) || dist <= 0 || g == world || (g != self.enemy && !toGate && !via) || !(self.flags & FL_MONSTER) ||
        (self.flags & (FL_FLY | FL_SWIM)))
     {
         return FALSE;
     }
     self.vr_nav_melee = VR_NAV_Melee();
-    float yaw = navsteer(self, g);
+    float yaw;
+    if(via)
+    {
+        // (a marker just past a gate's face: the path to it carried through the gate, i.e. through the gate's
+        // teleporter link, lined up with its opening; the marker itself is carried as the monster crosses)
+        vector keep = g.origin;
+        setorigin(g, portal_ai_gate(via, 3, keep));
+        yaw = navsteer(self, g);
+        setorigin(g, keep);
+    }
+    else
+    {
+        yaw = navsteer(self, g);
+    }
     if(yaw < 0) { return FALSE; }
     float act = navlink(self);
     self.ideal_yaw = yaw;

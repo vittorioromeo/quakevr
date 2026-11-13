@@ -382,3 +382,5 @@ QVR_FIELD(vr_nav_melee) // set by the QC before each navsteer (vr_ai_props.qc VR
 // A ragdoll's smash (vr_ragimpact.qc VR_RagSmash): until when it does not sound again; a living one's knock while it
 // does is the smash's (vr_physsound.cpp frameEnd: one sound, not two).
 QVR_FIELD(vr_rsmash_next)
+// The navmesh teleporter metric (vr_nav.cpp placePastGate): a teleport destination's facing (Quake's info_teleport_destination).
+QVR_FIELD(mangle)

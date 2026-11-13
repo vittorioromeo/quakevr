@@ -4215,10 +4215,13 @@ float reach(edict_t* ent, edict_t* goal)
 // the time it stood (moved under 8 units in a quarter second) by the trigger (within its box's width plus 64); a trial
 // passes when it went through in time, stuck under 0.5 s. A `navtt|...` line a trial, a summary, the verdict line.
 // [spread]: the approaches' spread in degrees (140; 170: along the wall nearly). [notes] 1: its link's steps (`nav: ...`) and a `navtt-step|...` line every quarter second (where, why, link, phase).
+// [past] 1: the player is put past each trial's own destination (out of it the way Quake's teleport faces you, 64-160
+// on, on the mesh) instead of staying at the scene's start: a map with gates both ways (dm5) had him by one gate's own
+// entry, so its walkers just ran at him.
 struct TeleTest
 {
     za::String name;
-    bool armed = false;
+    bool armed = false, past = false;
     za::Vector<int> walkers, gates;
     int angles = 5;
     float distance = 192.f, seconds = 8.f, spread = 140.f;
@@ -4248,7 +4251,7 @@ void teletest_f()
 {
     if(Cmd_Argc() < 4 || !sv.active || !state.ready)
     {
-        Con_Printf("vr_nav_teletest <name> <classname[,classname...]> <gate[,gate...]|all> [angles 5] [distance 192] [seconds 8] [notes 0] [spread 140]\n");
+        Con_Printf("vr_nav_teletest <name> <classname[,classname...]> <gate[,gate...]|all> [angles 5] [distance 192] [seconds 8] [notes 0] [spread 140] [past 0]\n");
         return;
     }
     const progs::ServerVm vm;
@@ -4311,8 +4314,63 @@ void teletest_f()
     teleTest.backoffsStart = state.teleBackoffs;
     teleTestNotes = Cmd_Argc() > 7 && atoi(Cmd_Argv(7)) != 0;
     teleTest.spread = Cmd_Argc() > 8 ? static_cast<float>(atof(Cmd_Argv(8))) : 140.f;
+    teleTest.past = Cmd_Argc() > 9 && atoi(Cmd_Argv(9)) != 0;
     Con_Printf("vr_nav_teletest %s: %d walkers, %d gates, %d angles\n", teleTest.name.cStr(),
         static_cast<int>(teleTest.walkers.size()), static_cast<int>(teleTest.gates.size()), teleTest.angles);
+}
+
+// [past]: the player put past the gate's destination: out of the link's end (`outRc`) the way Quake's teleport faces him
+// (the destination's mangle), 160 on, nearer if that is off the mesh, in a wall or in a trigger; left where he is if none.
+void placePastGate(edict_t* p, const NavClass& c, const Gate& gate, const float* outRc)
+{
+    edict_t* trigger = EDICT_NUM(gate.trigger);
+    edict_t* dest = trigger->v.target ? findByTargetname(PR_GetString(trigger->v.target)) : nullptr;
+    const int mangle = progs::fields().mangle;
+    const float yaw = glm::radians(dest ? (mangle >= 0 ? progs::fieldFloat(dest, mangle + 1) : dest->v.angles[1]) : 0.f);
+    const glm::vec3 end = fromRc(outRc), fwd{glm::cos(yaw), glm::sin(yaw), 0.f};
+    const float extent[3] = {24.f, 64.f, 24.f};
+    dtQueryFilter all;
+    for(float d = 160.f; d >= 64.f; d -= 32.f)
+    {
+        const glm::vec3 wantRc = toRc(end + fwd * d);
+        dtPolyRef ref = 0;
+        float near[3];
+        if(dtStatusFailed(c.query->findNearestPoly(&wantRc.x, extent, &all, &ref, near)) || !ref)
+        {
+            continue;
+        }
+        const glm::vec3 q = fromRc(near);
+        vec3_t o;
+        const glm::vec3 org = q + glm::vec3{0.f, 0.f, 1.f - p->v.mins[2]};
+        VectorCopy(&org.x, o);
+        const trace_t fit = SV_Move(o, p->v.mins, p->v.maxs, o, MOVE_NOMONSTERS, p);
+        bool ok = flatDist(q, end + fwd * d) < 24.f && !fit.startsolid && !fit.allsolid;
+        for(const Gate& other : state.geo.gates)
+        {
+            const glm::vec3 lo = org + geom::vec(p->v.mins) - 8.f, hi = org + geom::vec(p->v.maxs) + 8.f;
+            ok = ok && !(lo.x < other.hi.x && hi.x > other.lo.x && lo.y < other.hi.y && hi.y > other.lo.y && lo.z < other.hi.z &&
+                           hi.z > other.lo.z);
+        }
+        if(ok)
+        {
+            VectorCopy(o, p->v.origin);
+            VectorCopy(vec3_origin, p->v.velocity);
+            SV_LinkEdict(p, false);
+            // (As teleport_touch tells the stealth AI: his trail goes through this teleporter, so the walker woken onto
+            // him unseen follows it, vr_stealth_chase_tele, rather than hunting where he was last seen.)
+            if(const func_t fn = progs::findFunction("VR_Stealth_Teleported"))
+            {
+                const progs::ServerVm vm;
+                const int oldSelf = pr_global_struct->self;
+                pr_global_struct->time = sv.qcvm.time;
+                G_INT(OFS_PARM0) = EDICT_TO_PROG(p);
+                G_INT(OFS_PARM1) = EDICT_TO_PROG(trigger);
+                PR_ExecuteProgram(fn);
+                pr_global_struct->self = oldSelf;
+            }
+            return;
+        }
+    }
 }
 
 // The next trial's walker placed and woken (false: none to place this trial, or its class still building).
@@ -4403,6 +4461,10 @@ bool teleTrialStart()
     e->v.solid = SOLID_SLIDEBOX;
     SV_LinkEdict(e, true);
     edict_t* p = progs::playerEdict();
+    if(p && t.past)
+    {
+        placePastGate(p, *c, gate, out);
+    }
     const func_t found = progs::findFunction("FoundTarget");
     if(p && found)
     {
@@ -4485,12 +4547,18 @@ void teleTestTick()
         }
         t.sampleAt = pos;
         t.sampleTime = now;
-        if(teleTestNotes && static_cast<za::SizeT>(t.active) < state.agents.size())
+        if(teleTestNotes)
         {
-            const Agent& a = state.agents[static_cast<za::SizeT>(t.active)];
-            Con_Printf("navtt-step|%.2f|%.0f %.0f %.0f|why %d|link %d|phase %d|yaw %.0f|next %d of %d|think %.2f\n",
+            // (why 0 / no agent: not steering by the navmesh: Quake's own chase, or a goal other than its enemy, such as
+            // the stealth AI's trail marker.)
+            const Agent none{};
+            const Agent& a = static_cast<za::SizeT>(t.active) < state.agents.size() ? state.agents[static_cast<za::SizeT>(t.active)] : none;
+            const edict_t* goal = PROG_TO_EDICT(e->v.goalentity);
+            Con_Printf("navtt-step|%.2f|%.0f %.0f %.0f|why %d|link %d|phase %d|yaw %.0f|next %d of %d|think %.2f|goal %s %.0f %.0f %.0f\n",
                 now - t.since, pos.x, pos.y, pos.z, a.why, a.link ? static_cast<int>(a.linkArea) : 0, a.phase, a.lastYaw,
-                a.next, a.cornerCount, e->v.nextthink - static_cast<float>(now));
+                a.next, a.cornerCount, e->v.nextthink - static_cast<float>(now),
+                e->v.goalentity == e->v.enemy ? "enemy" : goal->v.classname ? PR_GetString(goal->v.classname) : "-",
+                goal->v.origin[0], goal->v.origin[1], goal->v.origin[2]);
         }
     }
     // Through: its link followed to the end, or teleported all the same (a jump of more than 64 in a frame: the trigger

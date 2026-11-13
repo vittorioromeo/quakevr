@@ -4665,6 +4665,7 @@ vr_nav_tele_cost|2|Tunables|Navmesh: Teleporter Cost|Advanced VR Options > Debug
 vr_nav_tele_time|2|Tunables|Navmesh: Teleporter Give-Up Time|Advanced VR Options > Debug > Tunables > Navmesh: Teleporter Give-Up Time
 vr_nav_tele_approach|2|Tunables|Navmesh: Teleporter Line-Up|Advanced VR Options > Debug > Tunables > Navmesh: Teleporter Line-Up
 vr_nav_gate_chase|2|Tunables|Navmesh: Gate Chase Between Shots|Advanced VR Options > Debug > Tunables > Navmesh: Gate Chase Between Shots
+vr_nav_gate_marker|2|Tunables|Navmesh: Hunt Through Gates|Advanced VR Options > Debug > Tunables > Navmesh: Hunt Through Gates
 vr_nav_tele_stuck|2|Tunables|Navmesh: Teleporter Stuck Back-Off|Advanced VR Options > Debug > Tunables > Navmesh: Teleporter Stuck Back-Off
 vr_nav_link_retry|2|Tunables|Navmesh: Link Retry Time|Advanced VR Options > Debug > Tunables > Navmesh: Link Retry Time
 vr_nav_plat_monsters|2|Tunables|Monsters Call Lifts|Advanced VR Options > Debug > Tunables > Monsters Call Lifts
@@ -5811,6 +5812,7 @@ vr_portals_debug_split|2|Debug - Tests|Print Gate Cuts|Advanced VR Options > Deb
 |2|Debug - Tests|Into the Loop, Lightning Gun|Advanced VR Options > Debug > Tests > Into the Loop, Lightning Gun
 |2|Debug - Tests|Stuck in a Teleporter's Wall?|Advanced VR Options > Debug > Tests > Stuck in a Teleporter's Wall?
 vr_portals_unstick|2|Debug - Tests|Get Out of a Teleporter's Wall|Advanced VR Options > Debug > Tests > Get Out of a Teleporter's Wall
+|2|Debug - Tests|Walk Into Every Teleporter (Test)|Advanced VR Options > Debug > Tests > Walk Into Every Teleporter (Test)
 |2|Debug - Tests|God Mode|Advanced VR Options > Debug > Tests > God Mode
 |2|Debug - Tests|Quad Damage|Advanced VR Options > Debug > Tests > Quad Damage
 |2|Debug - Tests|All Weapons|Advanced VR Options > Debug > Tests > All Weapons
