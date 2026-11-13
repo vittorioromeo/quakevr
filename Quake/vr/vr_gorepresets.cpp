@@ -19,10 +19,11 @@ namespace
 
 using presetcore::D;
 
-// What Minimal keeps: the blood of a hit (Hit Blood 0.6x), its small splats on the model (wounds, dents) and the
-// bullet and blast marks. What it drops: every blood stain on the world (vr_gore 0: no sprays, pools, runs, drips, gib
-// splats), blood streams and spurts, drips, mist, bloody feet and hands, blood on your gear, the small gibs and brain
-// chunks (a gibbing is Quake's few chunks: vr_smallgibs 0, vr_gib_limbs 0), beheading, limbs cut off or popped, teeth.
+// What Minimal keeps: the blood of a hit (Hit Blood 0.6x), its small splats on the model (wounds) and the bullet and
+// blast marks. What it drops: every blood stain on the world (vr_gore 0: no sprays, pools, runs, drips, gib splats),
+// blood streams and spurts, drips, mist, bloody feet and hands, blood on your gear, the small gibs and brain chunks (a
+// gibbing is Quake's few chunks: vr_smallgibs 0, vr_gib_limbs 0), beheading, limbs cut off or popped, teeth, and the
+// dents hits press into the models (vr_gore_dents 0).
 // Off is that with no hit blood either and no blood painted on models (ROUND25.md, "Gore preset").
 // clang-format off
 constexpr presetcore::Row rows[] = {
@@ -63,6 +64,8 @@ constexpr presetcore::Row rows[] = {
     {&vr_decap, {D, "0", "0"}},
     {&vr_limbs, {D, "0", "0"}},
     {&vr_teeth, {D, "0", "0"}},
+    // Dents pressed into the models
+    {&vr_gore_dents, {D, "0", "0"}},
     // The blood of a hit, and painted on the models
     {&vr_blood_amount, {D, "0.6", "0"}},
     {&vr_wounds, {D, D, "0"}},
@@ -148,6 +151,7 @@ void testCmd()
     t.check(vr_gore_streams.value == 0.f && bloodstream::ownStreams() == 0, name, "Minimal: no blood stream");
     t.check(vr_smallgibs.value == 0.f && vr_smallgibs_brains.value == 0.f && vr_decap.value == 0.f && vr_limbs.value == 0.f, name,
         "Minimal: no small gibs, brain chunks, beheading or limbs");
+    t.check(vr_gore_dents.value == 0.f, name, "Minimal: no model dents");
 
     // Full: back to the defaults, and a hit bleeds in full.
     Cvar_SetValue("vr_gore_preset", static_cast<float>(choiceFull));
@@ -156,6 +160,7 @@ void testCmd()
     (void)particles::spawn(org, dir, particles::Preset::Blood, 20);
     const float fullBlood = vr_blood_tally.value - fullBefore;
     t.check(fullBlood > minimalBlood, name, "Full bleeds more than Minimal");
+    t.check(vr_gore_dents.value != 0.f, name, "Full: model dents on");
 
     // Off: no blood at all.
     Cvar_SetValue("vr_gore_preset", static_cast<float>(choiceOff));
@@ -163,6 +168,7 @@ void testCmd()
     const float offBefore = vr_blood_tally.value;
     (void)particles::spawn(org, dir, particles::Preset::Blood, 20);
     t.check(vr_blood_tally.value == offBefore, name, "Off: no blood at all");
+    t.check(vr_gore_dents.value == 0.f, name, "Off: no model dents");
     Con_Printf("gorepreset: blood particles: Full %.0f, Minimal %.0f, Off %.0f\n", fullBlood, minimalBlood, vr_blood_tally.value - offBefore);
 
     Cvar_SetValue("vr_gore_preset", static_cast<float>(choiceFull)); // (as shipped again)

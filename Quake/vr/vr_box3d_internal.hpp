@@ -298,6 +298,23 @@ struct RagdollBodies
     glm::vec3 packHalf{0.f};
     za::Array<glm::quat, ragdoll::maxBones> struggleRest{};
     bool struggleReady{false};
+    // Concussed stirring (vr_knockdown_stir; vr_box3d_ragdoll.cpp stirFrame): lying down alive, now and then one small slow
+    // move (a head turn, a hand's twitch, an arm or a leg drawn in), each a turn of one joint from where it lay and back.
+    struct Stir
+    {
+        int bone{-1};                 // the bone moving (-1: none, a pause)
+        int kind{0};                  // 0 a head turn, 1 a hand's twitch, 2 an arm, 3 a leg
+        double from{0.0}, next{-1.0}; // its start; the next one's (-1: not set yet)
+        float length{1.f};            // s
+        float angle{0.f};             // rad at its most
+        glm::vec3 axis{0.f, 1.f, 0.f}; // its bone's own space
+        glm::quat rest{1.f, 0.f, 0.f, 0.f}; // its joint's turn (in its parent) as the move began
+        uint32_t seed{0};
+        int count{0};                 // moves so far (vr_knockdown_test 9)
+        float most{0.f};              // the turn asked so far, deg (vr_knockdown_test 9)
+        float reached{0.f};           // this move's joint turned from where it lay at most, deg (vr_knockdown_debug)
+    };
+    Stir stir;
     int shockJerk{-1}; // shocked (shockRagdoll): the jerk it last bucked or not at
     // Its pelvis after the last step (carryRagdolls: the step it goes in through a teleporter carries it whole).
     glm::vec3 lastPelvis{0.f};
