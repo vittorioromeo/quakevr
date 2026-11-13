@@ -426,9 +426,19 @@ typedef struct download_s
 	   (the Slipseer fetch's ETag, Last-Modified and Retry-After: vr/vr_slipseer.cpp). */
 	size_t			(*header_fn) (char *buffer, size_t size, size_t nitems, void *userdata);
 	void			*header_data;
+
+	/* QVR: when set, no connection to a local address (Download_LocalHost's: loopback, private / LAN, link-local),
+	   each address the name resolved to checked as it is connected to (a redirect's too); `refused_local` then says
+	   one was refused (the VR map library: vr/vr_slipseer.cpp, vr/vr_mapinstall.cpp). */
+	qboolean		refuse_local;
+	qboolean		refused_local;
 } download_t;
 
 qboolean			Download (const char *url, download_t *download);
+/* QVR: `host` (a host name or an IPv4 / IPv6 address, without brackets) is a local address: "localhost" (or a name under
+   it), 0/8, 127/8, 10/8, 172.16/12, 192.168/16, 169.254/16, ::, ::1, fc00::/7, fe80::/10, or an IPv4-mapped IPv6 one of
+   those. A name is not resolved here (Download's refuse_local checks what it resolves to). */
+qboolean			Download_LocalHost (const char *host);
 /* A thread that is still inside Download at shutdown (cancelled, but held by a blocking lookup): libcurl's global state
    is kept for it (one more curl_global_init: NET_Shutdown's curl_global_cleanup then frees nothing). */
 void				Download_KeepGlobalState (void);

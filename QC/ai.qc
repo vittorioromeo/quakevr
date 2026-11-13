@@ -1301,7 +1301,7 @@ void(float dist) ai_run =
     {
         // QVR: between shots, the navmesh's path to him: through the gate (a teleporter link, vr_nav_teleports) or the
         // long way round (it stood facing him at the gate's edge for good; NAVMESH.md 17). No path: it holds its room.
-        if(cvar_hget(cvarh_vr_nav_gate_chase) && VR_NAV_Step(dist))
+        if(VR_NAV_Step(dist))
             return;
         self.ideal_yaw = enemy_yaw;
         ChangeYaw();

@@ -256,6 +256,7 @@ The server reads the local client's state:
 | vr_climb.cpp:945-962 | `bodycal::`, `units::bodyScale` (host body) |
 | vr_hitmodel.cpp:373, 377 | the host's `r_lerpmodels`, `r_lerpmove` |
 | vr_motion.cpp:1501-1557 | recorder: `svs.clients[0]` plus `hands::current()` (dev tool) |
+| QC vr_revgrip.qc:36, 85 (`weapondrawnpose` 43, 46) | the reverse grip's server checks (round 25, `vr_revgrip`): the hand's grip (43) and whether it may turn reversed (46) are read from the local client's view, so they are right for the listen server's own player only. Host-only for now; fix when the multiplayer work starts (send the grip's state with the hand, as the grip pair above) |
 | QC (see Settings) | host personal cvars |
 
 The client reads the local server:
