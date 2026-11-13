@@ -292,8 +292,12 @@ folder for a zip install).
 
 - **The Map Library** (the main menu's *Download Maps*, or the menu corner's *Map Library* button) lists
   [Quaddicted](https://www.quaddicted.com/)'s archive of custom maps (its index is fetched when the game starts and
-  cached in `cache\maps_index.txt`). Type to search; the bar under the list sorts (rating, newest, oldest, size,
-  title) and filters them (type, size, rating, installed only). Pick one to read its description, then **Install**:
+  cached in `cache\maps_index.txt`) and [Slipseer](https://www.slipseer.com/)'s maps (its listing is read at a
+  person's pace, a page every few seconds, and kept in `cache\slipseer\`; a map's own page is read when you pick it,
+  its download only when you install it; `vr_maps_slipseer 0` leaves Slipseer out). Type to search; the bar under the
+  list sorts (rating, newest, oldest, size, title) and filters them (type, size, rating, installed only, and source:
+  all, Quaddicted or Slipseer; with all, each map is tagged with its source). Pick one to read its author and source,
+  what it needs (Arcane Dimensions, Copper...), its description and (Slipseer) its screenshot, then **Install**:
   it is downloaded and unpacked in the background, into its own folder `qvr_addons\<id>\`, and
   **Play** starts it. An installed package also has **Uninstall** and **Reinstall** (press twice to confirm).
   Packages that bring their own `progs.dat` are left out, since QVR:U runs its own gameplay

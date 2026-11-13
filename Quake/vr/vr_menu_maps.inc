@@ -8,6 +8,11 @@
 // (mapinstall::uninstall, as maps_uninstall), Reinstall does that and installs it again. Included by vr_menu.cpp, after vr_menu_search.inc, whose text box, keyboard,
 // key hit test and text drawing this page uses, and whose layout(), drawHelp and pages' bookkeeping it shares.
 //
+// Two sources share the list (mapindex::Source): Quaddicted's index and Slipseer's pages (vr_slipseer.cpp). The bar's
+// Source button shows both (each row then tagged with its source) or one; the detail credits the source and the
+// author, says what the map needs, and shows a Slipseer map's screenshot. A Slipseer map's own page is read when it is
+// picked (its description, screenshot and download link): Install waits for it ("Reading its page...").
+//
 // The list is built once per change: the results are cached here and mapindex::search is run again only when the
 // text, a filter, the sort, vr_maps_allow_progs or the index itself changed (never per frame). maps_page_stats
 // prints what it cost (Debug > Tools).
@@ -28,6 +33,7 @@ enum MapsButton
     MapButtonSize,
     MapButtonRating,
     MapButtonInstalled,
+    MapButtonSource,
     MapButtonAction,
     MapButtonUninstall, // under the detail, for an installed package (not on the bar)
     MapButtonReinstall,
@@ -72,6 +78,10 @@ enum MapsShown
 };
 constexpr const char* mapsShownLabels[MapsShowCount] = {"all maps", "installed", "to install"};
 
+// What the Source button cycles: both sources (each row tagged), or one (mapindex::Source's value + 1).
+constexpr int mapsSourceCount = mapindex::sourceCount + 1;
+constexpr const char* mapsSourceLabels[mapsSourceCount] = {"all sources", "Quaddicted", "Slipseer"};
+
 // A filter choice read from the index (a type or a map_size a package carries, and how many do).
 struct MapsFacet
 {
@@ -86,14 +96,16 @@ struct MapsPage
     int sort{1}; // newest
     int rating{0}; // mapsRatings
     int shown{MapsShowAll}; // MapsShown
+    int source{0};          // mapsSourceLabels: 0 both, else mapindex::Source + 1
     za::Vector<MapsFacet> typeFacets, sizeFacets;
     int typeIdx{0}, sizeIdx{0}; // 0: any; n > 0: facets[n - 1]
     za::I64 facetsAt{-1};       // mapindex::generation() the facets were read from
+    int fromSource[mapindex::sourceCount]{}; // each source's packages (read with the facets)
 
     za::Vector<const mapindex::Entry*> results;
     za::String sigQuery;
     za::String sigType, sigSize;
-    int sigSort{-1}, sigTypeIdx{-1}, sigSizeIdx{-1}, sigRating{-1}, sigShown{-1};
+    int sigSort{-1}, sigTypeIdx{-1}, sigSizeIdx{-1}, sigRating{-1}, sigShown{-1}, sigSource{-1};
     int sigProgs{-1};
     za::I64 sigFetched{-1}; // mapindex::generation() (not fetchedAt: a cache read again repeats it, its Entries new)
     int sigInstalled{-1};
@@ -135,6 +147,7 @@ struct MapsText
     char author[128];
     char detail[mapsDetailChars];
     char label[64];
+    char credit[160];
 };
 MapsText mapsText;
 
@@ -185,8 +198,13 @@ void buildMapsFacets()
         }
         facets.pushBack({ZA_MOVE(value), 1});
     };
+    for(int& n : mapPage.fromSource)
+    {
+        n = 0;
+    }
     for(const mapindex::Entry& e : idx.entries)
     {
+        mapPage.fromSource[static_cast<int>(e.source)]++;
         mapindex::forParts(idx.field(e.types), [&](const za::String& part) { add(mapPage.typeFacets, part); });
         mapindex::forParts(idx.field(e.sizes), [&](const za::String& part) { add(mapPage.sizeFacets, part); });
     }
@@ -217,6 +235,7 @@ void mapsRunSearch()
     q.sort = mapsSorts[mapPage.sort].sort;
     q.newestFirst = mapsSorts[mapPage.sort].newestFirst;
     q.minRating = mapsRatings[mapPage.rating].min;
+    q.source = mapPage.source - 1;
     q.limit = 0; // every match: the page scrolls, and its header says how many there are
     mapindex::search(q, mapPage.results);
     if(mapPage.shown != MapsShowAll)
@@ -254,6 +273,7 @@ void mapsRunSearch()
     mapPage.sigSizeIdx = mapPage.sizeIdx;
     mapPage.sigRating = mapPage.rating;
     mapPage.sigShown = mapPage.shown;
+    mapPage.sigSource = mapPage.source;
     mapPage.sigProgs = q.allowProgs ? 1 : 0;
     mapPage.sigFetched = mapindex::generation();
     mapPage.sigInstalled = static_cast<int>(mapinstall::installedList().size());
@@ -285,7 +305,7 @@ void mapsShown()
     const int installed = static_cast<int>(mapinstall::installedList().size());
     const int progs = vr_maps_allow_progs.value != 0.f ? 1 : 0;
     if(mapPage.sigQuery != mapPage.query || mapPage.sigSort != mapPage.sort || mapPage.sigTypeIdx != mapPage.typeIdx ||
-        mapPage.sigSizeIdx != mapPage.sizeIdx || mapPage.sigRating != mapPage.rating || mapPage.sigShown != mapPage.shown || mapPage.sigProgs != progs || mapPage.sigFetched != generation ||
+        mapPage.sigSizeIdx != mapPage.sizeIdx || mapPage.sigRating != mapPage.rating || mapPage.sigShown != mapPage.shown || mapPage.sigSource != mapPage.source || mapPage.sigProgs != progs || mapPage.sigFetched != generation ||
         mapPage.sigInstalled != installed)
     {
         mapsRunSearch();
@@ -397,6 +417,18 @@ void mapsPick(int r)
     const bool valid = r >= 0 && r < static_cast<int>(mapPage.results.size());
     mapPage.picked = valid ? r : -1;
     mapPage.pickedSha = valid ? za::String{mapindex::index().field(mapPage.results[r]->sha256)} : za::String{};
+    // A Slipseer map's page (its description, screenshot and download link) read now: the one picked only, when its
+    // turn comes (vr_slipseer.cpp keeps the site's pace).
+    if(valid && mapPage.results[r]->source == mapindex::Source::Slipseer)
+    {
+        slipseer::want(za::String{mapindex::index().field(mapPage.results[r]->page)});
+    }
+}
+
+// A Slipseer map whose page has not been read yet (no download link): Install waits for it.
+[[nodiscard]] bool mapsAwaitingPage(const mapindex::Entry& e)
+{
+    return e.source == mapindex::Source::Slipseer && !e.urls.len;
 }
 
 void mapsScrollTo(int r)
@@ -520,6 +552,11 @@ void mapsPrimaryAt(int r)
     {
         mapsPlayAt(r);
     }
+    else if(mapsAwaitingPage(*mapPage.results[r]))
+    {
+        slipseer::want(za::String{mapindex::index().field(mapPage.results[r]->page)});
+        S_LocalSound("misc/menu1.wav");
+    }
     else
     {
         mapsInstallAt(r);
@@ -544,6 +581,9 @@ void mapsButtonAt(int button)
             break;
         case MapButtonInstalled:
             mapPage.shown = (mapPage.shown + 1) % MapsShowCount;
+            break;
+        case MapButtonSource:
+            mapPage.source = (mapPage.source + 1) % mapsSourceCount;
             break;
         case MapButtonAction:
             if(mapsBusy())
@@ -997,8 +1037,10 @@ void drawMapsDetail(const MapsLayout& m, const menupaint::Painter& p)
                                ? "Type with the keys (or a keyboard). The filters along the bottom choose what kind of "
                                  "package is listed and the order. Packages that bring their own progs.dat are left out "
                                  "(vr_maps_allow_progs, Debug > Tools)."
-                               : "Point at a package, or select one with the sticks, to read it here. Enter installs it, "
-                                 "or plays it when it is installed already. Back leaves the page.";
+                               : "Pick a map (point and click, or the sticks) to read it here: its author, where it is "
+                                 "from, what it needs, its description. Enter installs it, or plays it once installed; "
+                                 "Uninstall and Reinstall come under an installed one. The bottom bar sorts the list and "
+                                 "filters it (type, size, rating, installed, source). Back leaves the page.";
         drawMapsWrapped(help, x, y, 6.f, width, 8);
         return;
     }
@@ -1012,12 +1054,14 @@ void drawMapsDetail(const MapsLayout& m, const menupaint::Painter& p)
     searchText(x, y, titleSize, width, mapsText.title, true);
     y += titleSize + 4.f;
 
+    // The credit: the author, and where the map is listed (Slipseer asks for the credit; Quaddicted's archive too).
     mapsQuake(e.author, mapsText.author, sizeof(mapsText.author));
-    q_snprintf(mapsText.meta, sizeof(mapsText.meta), "%s", mapsText.author[0] ? mapsText.author : "unknown author");
-    drawMapsWrapped(mapsText.meta, x, y, 6.f, width, 1);
-    y += 10.f;
+    q_snprintf(mapsText.credit, sizeof(mapsText.credit), "by %s - from %s", mapsText.author[0] ? mapsText.author : "unknown author",
+        e.source == mapindex::Source::Slipseer ? "Slipseer (slipseer.com)" : "Quaddicted (quaddicted.com)");
+    drawMapsWrapped(mapsText.credit, x, y, 6.f, width, 2);
+    y += strlen(mapsText.credit) * 6.f > width ? 18.f : 10.f;
 
-    const za::String sizeLabel = mapinstall::formatBytes(e.bytes);
+    const za::String sizeLabel = e.bytes ? mapinstall::formatBytes(e.bytes) : za::String{"size not given"};
     char rated[48] = "";
     if(e.userRating)
     {
@@ -1027,10 +1071,15 @@ void drawMapsDetail(const MapsLayout& m, const menupaint::Painter& p)
     {
         q_snprintf(rated, sizeof(rated), "  rated %d/5", static_cast<int>(e.rating));
     }
-    q_snprintf(mapsText.meta, sizeof(mapsText.meta), "%s  %s  %s  %d files  %s%s%s",
-        idx.field(e.date) ? idx.field(e.date) : "undated",
-        idx.field(e.types) ? idx.field(e.types) : "type?",
-        idx.field(e.sizes) ? idx.field(e.sizes) : "size?", e.files, sizeLabel.cStr(), rated, have ? "  INSTALLED" : "");
+    char filesLabel[24] = "";
+    if(e.files)
+    {
+        q_snprintf(filesLabel, sizeof(filesLabel), "%d files  ", e.files);
+    }
+    q_snprintf(mapsText.meta, sizeof(mapsText.meta), "%s  %s%s%s%s  %s%s%s%s",
+        *idx.field(e.date) ? idx.field(e.date) : "undated",
+        idx.field(e.types), *idx.field(e.sizes) ? "  " : "", idx.field(e.sizes), "", filesLabel, sizeLabel.cStr(), rated,
+        have ? "  INSTALLED" : "");
     drawMapsWrapped(mapsText.meta, x, y, 6.f, width, 2);
     y += 14.f;
 
@@ -1054,6 +1103,10 @@ void drawMapsDetail(const MapsLayout& m, const menupaint::Painter& p)
                                          : za::String{"Play starts "} + start + ".";
         }
         const za::String mod = mapinstall::madeFor(e);
+        if(mod.empty() && e.source == mapindex::Source::Slipseer)
+        {
+            mapPage.notes += za::String{mapPage.notes.empty() ? "" : " "} + "Needs only Quake.";
+        }
         if(mod.size())
         {
             mapPage.notes += za::String{mapPage.notes.empty() ? "" : " "} + "Made for " + mod +
@@ -1068,6 +1121,39 @@ void drawMapsDetail(const MapsLayout& m, const menupaint::Painter& p)
         y += static_cast<float>(lines) * 8.f + 4.f;
     }
 
+    // A Slipseer map: its screenshot (once its page and picture are read), else what is being read.
+    if(e.source == mapindex::Source::Slipseer)
+    {
+        const za::String page{idx.field(e.page)};
+        int w = 0, h = 0;
+        if(slipseer::screenshotSize(page, w, h) && w > 0 && h > 0)
+        {
+            // (the page's y is stretched by m.s.k, and a picture's height is kept as a glyph's is: Draw_SubPic draws a
+            // height h as h on screen, centred on its layout span's middle, which takes h / k of the page's y)
+            const float room = za::fmax(bottom - y - 20.f, 0.f);
+            float sw = width;
+            float sh = sw * static_cast<float>(h) / static_cast<float>(w); // (as seen)
+            if(sh / m.s.k > room * 0.6f)
+            {
+                sh = room * 0.6f * m.s.k;
+                sw = sh * static_cast<float>(w) / static_cast<float>(h);
+            }
+            if(sh >= 8.f)
+            {
+                const float slot = sh / m.s.k;
+                p.rounded(x - 1.f, x + sw + 1.f, y + slot * 0.5f, sh * 0.5f + 1.f, 1.f, colors::boxBorder);
+                slipseer::drawScreenshot(x, y + slot * 0.5f - sh * 0.5f, sw, sh);
+                y += slot + 4.f;
+            }
+        }
+        else if(mapsAwaitingPage(e) || slipseer::fetching(page))
+        {
+            drawMapsWrapped(slipseer::fetching(page) ? "Reading its page on Slipseer..." : "Its page is read when its turn comes.",
+                x, y, 6.f, width, 1);
+            y += 10.f;
+        }
+    }
+
     mapsQuake(e.description, mapsText.detail, sizeof(mapsText.detail));
     if(mapsText.detail[0])
     {
@@ -1080,7 +1166,6 @@ void drawMapsDetail(const MapsLayout& m, const menupaint::Painter& p)
             have ? "Installed: press Enter, or Play below, to start it." : "Press Enter, or Install below, to get it.");
         drawMapsWrapped(mapsText.meta, x, y, 6.f, width, 2);
     }
-    (void)p;
 }
 
 void drawMapsPage()
@@ -1095,6 +1180,7 @@ void drawMapsPage()
     qpic_t* title = Draw_CachePic("gfx/p_option.lmp");
     M_DrawPic((320 - title->width) / 2, l.top + 4, title);
     M_PrintWhite((320 - 8 * 11) / 2, l.top + 28, "Map Library");
+
 
     // The text box: what is typed, a cursor after it.
     p.rounded(m.s.left, m.s.split - 6.f, m.s.boxY, m.s.half, 3.f, colors::boxBorder);
@@ -1161,8 +1247,10 @@ void drawMapsPage()
         }
         else
         {
-            q_snprintf(more, sizeof(more), "%d-%d of %d packages", mapPage.resultScroll + 1,
-                q_min(mapPage.resultScroll + mapPage.visibleResults, n), n);
+            q_snprintf(more, sizeof(more), "%d-%d of %d  (%d Quaddicted, %d Slipseer)", mapPage.resultScroll + 1,
+                q_min(mapPage.resultScroll + mapPage.visibleResults, n), n,
+                mapPage.fromSource[static_cast<int>(mapindex::Source::Quaddicted)],
+                mapPage.fromSource[static_cast<int>(mapindex::Source::Slipseer)]);
         }
         searchText(x0, m.s.resultsTop - 7.f, 5.f, width, more, false);
     }
@@ -1204,16 +1292,45 @@ void drawMapsPage()
         {
             p.rect(x0 - 2.f, x0 + 1.5f, y + 7.5f, 6.f * m.s.k, colors::marker); // installed
         }
+        // Both sources listed: each row's source as a tag at its right (Q: Quaddicted, S: Slipseer), its title short of it.
+        float tagRoom = 0.f;
+        if(mapPage.source == 0)
+        {
+            const bool slip = e.source == mapindex::Source::Slipseer;
+            const char* tag = slip ? "Slipseer" : "Quaddicted";
+            const float tw = 5.f * static_cast<float>(strlen(tag)) + 6.f;
+            const float tx1 = m.s.right - 1.f;
+            p.rounded(tx1 - tw, tx1, y + 3.5f, 4.f, 2.f, slip ? colors::marker : colors::boxBorder);
+            p.rounded(tx1 - tw + 0.75f, tx1 - 0.75f, y + 3.5f, 3.25f, 1.5f, colors::boxFill);
+            searchText(tx1 - tw + 3.f, y + 1.f, 5.f, tw, tag, slip);
+            tagRoom = tw + 3.f;
+        }
         mapsQuake(e.title, mapsText.title, sizeof(mapsText.title));
-        const float nameSize = za::fmax(5.f, za::fmin(8.f, (width - 8.f) / q_max(static_cast<float>(strlen(mapsText.title)), 1.f)));
-        searchText(x0 + 4.f, y + (8.f - nameSize), nameSize, width - 8.f, mapsText.title, true);
+        const float titleWidth = width - 8.f - tagRoom;
+        const float nameSize = za::fmax(5.f, za::fmin(8.f, titleWidth / q_max(static_cast<float>(strlen(mapsText.title)), 1.f)));
+        searchText(x0 + 4.f, y + (8.f - nameSize), nameSize, titleWidth, mapsText.title, true);
 
-        const za::String sizeLabel = mapinstall::formatBytes(e.bytes);
         mapsQuake(e.author, mapsText.author, sizeof(mapsText.author));
-        q_snprintf(mapsText.meta, sizeof(mapsText.meta), "%s %s %s %s %d files  %s%s",
-            idx.field(e.date), idx.field(e.types) ? idx.field(e.types) : "?",
-            idx.field(e.sizes) ? idx.field(e.sizes) : "?", sizeLabel.cStr(), e.files, mapsText.author,
-            working ? "  ..." : (have ? "  installed" : ""));
+        if(e.source == mapindex::Source::Slipseer)
+        {
+            // (Slipseer gives no size or file count in its listing: what it needs instead)
+            const char* needs = *idx.field(e.needs) ? idx.field(e.needs) : "Quake";
+            char stars[16] = "";
+            if(e.userRating)
+            {
+                q_snprintf(stars, sizeof(stars), " %.1f*", static_cast<double>(e.userRating) / 100.0);
+            }
+            q_snprintf(mapsText.meta, sizeof(mapsText.meta), "%s %s%s needs %s  %s%s", idx.field(e.date),
+                idx.field(e.modes), stars, needs, mapsText.author, working ? "  ..." : (have ? "  installed" : ""));
+        }
+        else
+        {
+            const za::String sizeLabel = mapinstall::formatBytes(e.bytes);
+            q_snprintf(mapsText.meta, sizeof(mapsText.meta), "%s %s %s %s %d files  %s%s",
+                idx.field(e.date), idx.field(e.types) ? idx.field(e.types) : "?",
+                idx.field(e.sizes) ? idx.field(e.sizes) : "?", sizeLabel.cStr(), e.files, mapsText.author,
+                working ? "  ..." : (have ? "  installed" : ""));
+        }
         const int fit = static_cast<int>(width / 5.f);
         const int metaLen = static_cast<int>(strlen(mapsText.meta));
         searchText(x0 + 4.f, y + 9.f, 5.f, width - 4.f, metaLen > fit ? mapsText.meta + metaLen - fit : mapsText.meta,
@@ -1243,6 +1360,10 @@ void drawMapsPage()
         else if(b == MapButtonInstalled)
         {
             q_snprintf(mapsText.label, sizeof(mapsText.label), "%s", mapsShownLabels[mapPage.shown]);
+        }
+        else if(b == MapButtonSource)
+        {
+            q_snprintf(mapsText.label, sizeof(mapsText.label), "%s", mapsSourceLabels[mapPage.source]);
         }
         else
         {
@@ -1277,10 +1398,15 @@ void drawMapsPage()
     else
     {
         const bool hot = mapPage.hoverButton == MapButtonAction || mapPage.focusButton == MapButtonAction;
-        if(r >= 0)
+        if(r >= 0 && !have && mapsAwaitingPage(*mapPage.results[r]))
         {
-            const za::String sizeLabel = mapinstall::formatBytes(mapPage.results[r]->bytes);
-            q_snprintf(mapsText.label, sizeof(mapsText.label), have ? "Play" : "Install %s", sizeLabel.cStr());
+            drawMapsButton(p, m, MapButtonAction, "Reading its page...", hot, false);
+        }
+        else if(r >= 0)
+        {
+            const za::U64 bytes = mapPage.results[r]->bytes;
+            const za::String sizeLabel = bytes ? mapinstall::formatBytes(bytes) : za::String{};
+            q_snprintf(mapsText.label, sizeof(mapsText.label), have ? "Play" : bytes ? "Install %s" : "Install", sizeLabel.cStr());
             drawMapsButton(p, m, MapButtonAction, mapsText.label, hot, true);
         }
         else

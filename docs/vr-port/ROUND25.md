@@ -695,6 +695,53 @@ Baseline runner (kit `scratch/refactor/run_baseline.py`): `console_case` mounts 
 
 His vr_embed_sword_depth_max 80 (was 60), vr_embed_sword_depth_speed 7 (was 8) and vr_embed_hold_sword_most 100 (was 90) are the defaults (tune_promote.py; --check exits 0). vr_embed_test 30, 33, 34, 40, 41, 42 pass unchanged (12, 15, 14, 24, 19, 24 passed, 0 failed). No checklist line.
 
+## slipseer: Slipseer in the Map Library, a Source filter, a clearer library (branch agent/slipseer, 2026-11-13)
+
+- **One model, two sources.** `mapindex::Entry` has `source` (Quaddicted / Slipseer), `page`, `shot` and `needs`;
+  `mapindex::setSlipseer` appends Slipseer's entries (their own arena, rebased) after Quaddicted's and keeps them when
+  Quaddicted's index is fetched again; `Query::source` filters (-1 every source). A Slipseer map's id is the sha256 of
+  "slipseer:<page URL>" (`slipseer::idFor`), so its folder, cache name and installed record work as a package's. Its
+  zip has no sha256 to check: mapinstall checks it is a zip (`PK\3\4`; a web page instead says "get it from the map's
+  page") and sends the session's browser headers with its page as the Referer. What it needs (the site's category:
+  Vanilla, Copper, Arcane Dimensions, Alkaline, Quoth, Other, Multiplayer) becomes `extract` and `themes`
+  (`slipseer::requirementFields`), so `mapinstall::madeFor` and the layout treat it as Quaddicted's.
+- **The fetch (vr_slipseer.cpp)** is one thread, one request at a time: a page `vr_maps_slipseer_delay` (5) to twice
+  that many seconds after the last (jittered), a page's picture 0.3-1.2 s after it; a User-Agent picked at random per
+  session from six desktop browsers, with that browser's Accept / Accept-Language / Upgrade-Insecure-Requests and a
+  Referer; robots.txt honoured (it disallows nothing today); every page and picture cached in
+  `<base>/cache/slipseer/<hash>.html|.img` + `.meta` (URL, time, ETag, Last-Modified), revalidated with If-None-Match /
+  If-Modified-Since: the listing's first page after 2 days, its others after 10, a map page after 30, robots.txt after
+  7, a picture never. A 429, 403 or 5xx stops the pass and backs off 15 min (Retry-After when given), doubling to a
+  day, kept in `backoff.txt` across restarts; any other error stops the pass (an older cached copy is used). No retry
+  loop, no login, no proxies. `download_t` gained `header_fn`/`header_data` (host_cmd.c) for the validators.
+- **What is read.** The site is XenForo's Resource Manager. The listing is `index.php?resources/categories/maps.1/`
+  (363 maps, 20 a page, its "next" links followed): per map its page, title, data-author, first upload date,
+  category, icon, tag line and stars. A map's page (only when picked: `slipseer::want`, the latest pick only) gives
+  the JSON-LD block (headline, description, dateCreated, author, thumbnailUrl, aggregateRating), the description as
+  shown (`.resourceBody-main .bbWrapper`), the first `img.bbImage` or the og:image attachment as its screenshot, the
+  Download button's link and the breadcrumbs' category. Pages read once are parsed from the cache at start-up.
+- **Test runs never touch the network** (QVR_TEST_BACKGROUND, or vr_maps_fetch 0: the cache only).
+  `maps_slipseer_get <url> [asset]` fetches one page politely (development). Development made 7 live requests in all
+  (robots.txt, the home page, the resources index, the Maps listing's first page, Drain's and Violacea's pages,
+  Violacea's screenshot); no map was downloaded from the site.
+- **The page (vr_menu_maps.inc).** A Source button on the bar (all sources / Quaddicted / Slipseer); with all, each
+  row has a Quaddicted or Slipseer tag at its right. The detail credits "by <author> - from Slipseer (slipseer.com)"
+  (or Quaddicted), says what it needs ("Needs only Quake." for a vanilla Slipseer map), shows a Slipseer map's
+  screenshot (decoded on the thread, `Draw_ReplacePicRGBA`; its slot is height / `m.s.k` of the page's y since
+  Draw_SubPic keeps a picture's height as a glyph's), and "Reading its page on Slipseer..." while it waits; Install
+  reads "Reading its page..." until the download link is known; a Slipseer row's second line is date, mode, stars,
+  needs and author (its listing gives no size). The list header counts each source. Help text rewritten.
+- **Debug > Tools:** Slipseer Status (`maps_slipseer`), Slipseer Maps (`vr_maps_slipseer`, 1), Slipseer Page Spacing
+  (`vr_maps_slipseer_delay`, 5 s), Pick the First Map (`maps_page_pick <row|title> [source]`).
+- **Tests:** `python Misc/quakevr/slipseer_test.py <agent>` (42 checks, one run, offline): the parser on trimmed
+  saved pages (`Misc/quakevr/slipseer_fixtures/`, made by `make_fixtures.py` from the game's own cache), the source
+  filter and tag, the AD requirement, and a Slipseer test map (a root-level BSP 29) installed from a local HTTP server
+  through `mapinstall::begin`, its start map found, uninstalled, with no live request. `vr_menu_path_check
+  maps/vrcalibration.map`: 0 missing.
+- **Not done:** "update available" (the site's version is not compared with the installed one); Quaddicted's own
+  screenshots (the model does not keep its zip name); a real Slipseer download is untested (no map was downloaded
+  during development; whether the site's Download serves the zip directly, offers a choice of files or asks to sign
+  in is for the first try in game: a web page instead of a zip is refused with a message).
 ## gundagger: a gun and a melee weapon (axe or dagger)
 
 `vr_agrunt_repl_gunaxe` (0.15, name kept for configs; menu "Gun and Melee Weapon", was "Gun and Axe") now gives a gun

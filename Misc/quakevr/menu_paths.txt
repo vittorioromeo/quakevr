@@ -4681,6 +4681,9 @@ vr_nav_test_kinds|2|Tunables|Navmesh: Tower Test Kinds|Advanced VR Options > Deb
 vr_nav_slide|2|Tunables|Navmesh: Slide Along Walls|Advanced VR Options > Debug > Tunables > Navmesh: Slide Along Walls
 vr_nav_stuck_log|2|Tunables|Navmesh: Log Stuck Walkers|Advanced VR Options > Debug > Tunables > Navmesh: Log Stuck Walkers
 vr_nav_prop_batch|2|Tunables|Navmesh: Prop Rebuild Interval|Advanced VR Options > Debug > Tunables > Navmesh: Prop Rebuild Interval
+vr_revgrip|2|Tunables|Reverse Grip|Advanced VR Options > Debug > Tunables > Reverse Grip
+vr_revgrip_flip_time|2|Tunables|Flip Time|Advanced VR Options > Debug > Tunables > Flip Time
+vr_revgrip_volume|2|Tunables|Flip Sound Volume|Advanced VR Options > Debug > Tunables > Flip Sound Volume
 |2|Tunables|Reset This Page|Advanced VR Options > Debug > Tunables > Reset This Page
 @page|2|Debug - Cheats and Recording||Advanced VR Options > Debug > Cheats and Recording
 |2|Debug - Cheats and Recording|God Mode|Advanced VR Options > Debug > Cheats and Recording > God Mode
@@ -5254,6 +5257,10 @@ vr_maps_debug_free_mb|2|Debug - Tools|Pretend Free Disk Space|Advanced VR Option
 |2|Debug - Tools|Download Cache Usage|Advanced VR Options > Debug > Tools > Download Cache Usage
 |2|Debug - Tools|Map Browser Costs|Advanced VR Options > Debug > Tools > Map Browser Costs
 |2|Debug - Tools|Clear Search's Recent List|Advanced VR Options > Debug > Tools > Clear Search's Recent List
+|2|Debug - Tools|Slipseer Status|Advanced VR Options > Debug > Tools > Slipseer Status
+vr_maps_slipseer|2|Debug - Tools|Slipseer Maps|Advanced VR Options > Debug > Tools > Slipseer Maps
+vr_maps_slipseer_delay|2|Debug - Tools|Slipseer Page Spacing|Advanced VR Options > Debug > Tools > Slipseer Page Spacing
+|2|Debug - Tools|Pick the First Map|Advanced VR Options > Debug > Tools > Pick the First Map
 |2|Debug - Tools|Open the Map Browser|Advanced VR Options > Debug > Tools > Open the Map Browser
 |2|Debug - Tools|Font Sample Message|Advanced VR Options > Debug > Tools > Font Sample Message
 |2|Debug - Tools|Font Style Live Test|Advanced VR Options > Debug > Tools > Font Style Live Test
@@ -5732,6 +5739,7 @@ vr_test_throw_up_body|2|Debug - Tests|Throw Up From Your Body|Advanced VR Option
 |2|Debug - Tests|Blades in Crates and Barrels Check|Advanced VR Options > Debug > Tests > Blades in Crates and Barrels Check
 |2|Debug - Tests|Embedded Blades: Skewering Check|Advanced VR Options > Debug > Tests > Embedded Blades: Skewering Check
 |2|Debug - Tests|Embedded Blades: the Hand on the Handle Check|Advanced VR Options > Debug > Tests > Embedded Blades: the Hand on the Handle Check
+|2|Debug - Tests|Reverse Grip (Blade Down) Check|Advanced VR Options > Debug > Tests > Reverse Grip (Blade Down) Check
 |2|Debug - Tests|Embedded Blades: the Edges Check|Advanced VR Options > Debug > Tests > Embedded Blades: the Edges Check
 |2|Debug - Tests|Sword in a Wall and a Corpse|Advanced VR Options > Debug > Tests > Sword in a Wall and a Corpse
 vr_test_axe|2|Debug - Tests|Axe Throw|Advanced VR Options > Debug > Tests > Axe Throw

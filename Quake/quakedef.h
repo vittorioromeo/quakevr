@@ -421,6 +421,11 @@ typedef struct download_s
 	SDL_atomic_t	*abort;
 	int				response;
 	const char		*error;
+
+	/* QVR: when given, each response header line ("ETag: ...\r\n"), as libcurl's CURLOPT_HEADERFUNCTION has it
+	   (the Slipseer fetch's ETag, Last-Modified and Retry-After: vr/vr_slipseer.cpp). */
+	size_t			(*header_fn) (char *buffer, size_t size, size_t nitems, void *userdata);
+	void			*header_data;
 } download_t;
 
 qboolean			Download (const char *url, download_t *download);

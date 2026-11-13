@@ -29,10 +29,22 @@ struct Text
 constexpr char fieldSep = '\t';  // a cache line's fields
 constexpr char partSep = '\x1f'; // a multi-valued field's values, in the arena and in the cache alike
 
+// Where a package is listed: Quaddicted's index, or Slipseer's pages (vr_slipseer.cpp). One model for both.
+enum class Source : za::U8
+{
+    Quaddicted,
+    Slipseer,
+};
+constexpr int sourceCount = 2;
+[[nodiscard]] constexpr const char* sourceName(Source s)
+{
+    return s == Source::Slipseer ? "Slipseer" : "Quaddicted";
+}
+
 // One package. The strings point into the index's arena; they live as long as the index does.
 struct Entry
 {
-    Text sha256;
+    Text sha256; // (a Slipseer map's: the sha256 of its page's URL, slipseer::idFor; its zip is not checked against it)
     Text title;
     Text author;   // every author tag
     Text date;     // release_date
@@ -44,6 +56,10 @@ struct Entry
     Text sizes;    // tiny, small, medium, large, huge
     Text themes;
     Text description; // the package's own text (the browser's detail view)
+    Text page;        // its page on the source's site (Slipseer: the map's page; "" for Quaddicted's)
+    Text shot;        // its screenshot's URL ("" : none known)
+    Text needs;    // what it needs, as the source says it ("Arcane Dimensions"; "" : the stock game, or not said)
+    Source source{Source::Quaddicted};
     za::U64 bytes{0};
     int files{0}; // how many files its zip holds (the count only: the browser says "12 files")
     bool hasProgs{false}; // its files carry a progs.dat at any path (vr_maps_allow_progs)
@@ -101,8 +117,15 @@ struct Query
     Sort sort{Sort::Date};
     bool newestFirst{true};            // Date and Bytes only
     int minRating{0};                  // Entry::score at least this (x100); 0: any, the unrated included
+    int source{-1};                    // a Source's value: only its packages; -1: every source
     int limit{0};                      // 0: every match
 };
+
+// The Slipseer entries (vr_slipseer.cpp's, in their own arena), appended to Quaddicted's: the index then holds both,
+// and generation() moves on. Main thread. They stay when Quaddicted's index is fetched again.
+void setSlipseer(Index&& part);
+// How many entries each source has in the index now.
+[[nodiscard]] int countFrom(Source s);
 
 // Start-up: the fetch thread (nothing here waits for it). -nomapindex, or vr_maps_fetch 0, keeps it off; `asked`
 // (maps_fetch) starts it whatever they say: they are about the start-up fetch.

@@ -1356,6 +1356,12 @@ za::Vector<Item> pageDebugTools()
             .help("maps_page_stats: the Map Library page - how many times its list was built and what it cost, what a frame of the page costs, and its layout, and where its first row, Uninstall and Reinstall are drawn. The list is built when the text, a filter or the index changes, never per frame."),
         command("Clear Search's Recent List", "menu_vr recent clear")
             .help("menu_vr recent [clear]: the Search page's results opened recently (quakevr/search_recent.txt), printed with where each is drawn, or cleared."),
+        command("Slipseer Status", "maps_slipseer")
+            .help("maps_slipseer: what the Slipseer source is doing (its listing pass, the page being read), how many requests it made this session, its cache, and whether it is backing off (a 429 or a 5xx from the site). vr_maps_slipseer 0 leaves Slipseer out."),
+        row(opt::vr_maps_slipseer),
+        row(opt::vr_maps_slipseer_delay),
+        command("Pick the First Map", "maps_page; maps_page_pick 0")
+            .help("maps_page_pick <row> [source]: the Map Library open with that row picked (its detail; a Slipseer map's page read). Source: 0 both, 1 Quaddicted, 2 Slipseer."),
         command("Open the Map Browser", "maps_page")
             .help("maps_page [text]: the Map Library page (the corner's Maps button, Single Player > Map Library), with the text typed in. maps_install <sha> gets a package, maps_play <sha> starts it."),
         header("Test Effects"),
