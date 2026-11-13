@@ -361,12 +361,26 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
     const float pelvisIn = -glm::dot(pelvis - k.lip, k.out);
     if(c.trace)
     {
-        // (vr_ragdoll_active_trace: its phase; its chest's and pelvis's height over the top and how far in from the lip,
-        // units; the hands holding; the pelvis from its pin's anchor, units.)
-        Con_Printf("ragclimb %d %.3f ph %d chest %.1f %.1f pelvis %.1f %.1f h %d pin %.1f\n", c.num,
-            static_cast<float>(c.now - c.born), static_cast<int>(k.phase), (chestAt.z - k.top) * p.m2u,
+        // (vr_ragdoll_active_trace: its phase; its chest's, pelvis's, knees' and feet's height over the top and how far in
+        // from the lip, units; the hands holding; the pelvis from its pin's anchor, units.)
+        const auto at = [&](const glm::vec3& v) { return glm::vec2{(v.z - k.top) * p.m2u, -glm::dot(v - k.lip, k.out) * p.m2u}; };
+        const auto knee = [&](int leg) {
+            const int lo = s.chain[static_cast<za::SizeT>(leg)][1];
+            return lo >= 0 ? at(worldPoint(p, lo, p.rig->bones[lo].pivot)) : glm::vec2{0.f};
+        };
+        const glm::vec2 kl = knee(2), kr = knee(3), fl = at(limbEnd(s, p, 2)), fr = at(limbEnd(s, p, 3));
+        // (Its pin's pull, body weights: up, in.)
+        glm::vec3 pull{0.f};
+        if(B3_IS_NON_NULL(s.pin.joint) && b3Joint_IsValid(s.pin.joint))
+        {
+            pull = glmv(b3Joint_GetConstraintForce(s.pin.joint)) / za::max(s.totalMass * c.gravity, 1e-3f);
+        }
+        Con_Printf("ragclimb %d %.3f ph %d chest %.1f %.1f pelvis %.1f %.1f h %d pin %.1f knees %.0f %.0f %.0f %.0f feet %.0f %.0f "
+                   "%.0f %.0f pull %.2f %.2f org %.1f\n",
+            c.num, static_cast<float>(c.now - c.born), static_cast<int>(k.phase), (chestAt.z - k.top) * p.m2u,
             -glm::dot(chestAt - k.lip, k.out) * p.m2u, (pelvis.z - k.top) * p.m2u, pelvisIn * p.m2u, holding,
-            k.pinned ? glm::distance(pelvis, k.pinAt) * p.m2u : -1.f);
+            k.pinned ? glm::distance(pelvis, k.pinAt) * p.m2u : -1.f, kl.x, kl.y, kr.x, kr.y, fl.x, fl.y, fr.x, fr.y,
+            pull.z, -glm::dot(pull, k.out), B3_IS_NON_NULL(s.pin.anchor) ? glm::distance(glmv(b3Body_GetPosition(p.body[0])), glmv(b3Body_GetPosition(s.pin.anchor))) * p.m2u : -1.f);
     }
     const glm::vec3 wall = -k.out;
     const auto phaseTo = [&](ClimbPhase ph) {
@@ -384,10 +398,47 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
     // Its way's points (its pelvis's: its body's origin), off the lip: under it (its chest over the top), over it, in on
     // the top; its pelvis pitched forwards (rad) over the lip and in.
     const glm::vec3 under = k.lip + k.out * (0.5f * L) - up * (0.35f * L);
+    // (In: as high as over until its pelvis is in past the lip (Over), carried in level over the corner, its legs trailing.
+    // At 0.3 of an arm a grunt's pelvis came down onto the corner going in and stayed there, 2026-11-12.)
     const glm::vec3 over = k.lip + k.out * (0.35f * L) + up * (0.6f * L);
-    const glm::vec3 in = k.lip + wall * (1.f * L) + up * (0.3f * L);
+    const glm::vec3 in = k.lip + wall * (1.f * L) + up * (0.6f * L);
     const glm::vec3 axis = glm::normalize(glm::cross(up, wall));
     const float lag = k.pinned ? glm::distance(pelvis, k.pinAt) : 0.f; // (its pelvis behind its way)
+    // Holding by one hand (pulling or not yet: hanging, pulling itself up, going over until it lets go), the other
+    // reaching up for the lip beside it again each half second (climbRetries times). True when it reaches. (Hanging only,
+    // a hell knight's other reach timed out 1 s after its grab, its pull begun: up on one hand, "stuck at the lip",
+    // 2026-11-12; pulling, its shoulders come up level with the lip, within reach.)
+    const auto reReach = [&]() {
+        if(!k.pulls || holding != 1 || reaching != 0 || c.now < k.reachAgain || k.retries >= climbRetries)
+        {
+            return false;
+        }
+        k.reachAgain = c.now + 0.5;
+        k.retries++;
+        const int held = B3_IS_NON_NULL(e.hand[0].joint) ? 0 : 1, free = 1 - held;
+        EnvHand& h = e.hand[static_cast<za::SizeT>(free)];
+        if(!limbWhole(s, p, free) || h.mode != Grip::None)
+        {
+            return false;
+        }
+        const glm::vec3 along = glm::normalize(glm::cross(up, k.out));
+        const glm::vec3 shoulder = shoulderOf(s, p, free);
+        h.mode = Grip::Ledge;
+        h.goal = k.lip + along * za::clamp(glm::dot(shoulder - k.lip, along), -0.5f * L, 0.5f * L);
+        h.normal = up;
+        h.on = e.hand[static_cast<za::SizeT>(held)].on;
+        h.since = c.now;
+        h.touched = -1.0;
+        h.want = 1.f;
+        h.strength = 1.f;
+        h.holdUntil = c.now + 30.0;
+        if(vr_debug_ragdoll.value || vr_knockdown_debug.value)
+        {
+            Con_Printf("climb: %d reaches up for the lip again (its %s hand, %s)\n", c.num, armName(free),
+                k.phase == ClimbPhase::Hang ? "hanging" : "pulling itself up");
+        }
+        return true;
+    };
     switch(k.phase)
     {
         case ClimbPhase::Hang:
@@ -405,30 +456,11 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
                 const float off = za::atan2(glm::cross(a, wall).z, glm::dot(a, wall));
                 turnWhole(p, c, glm::normalize(glm::angleAxis(off, up) * bodyRot(p, 0)), 2.f, 1.5f, 0.6f);
             }
-            // Hanging by one hand: the other reaches up for the lip beside it (again each half second), its pull waiting
-            // for it a little (a one-handed hang swings off its middle, the pull failing).
-            if(k.pulls && holding == 1 && reaching == 0 && c.now >= k.reachAgain && k.retries < 2)
+            // Hanging by one hand: the other reaches up for the lip beside it, its pull waiting for it a little (a
+            // one-handed hang swings off its middle, the pull failing).
+            if(reReach())
             {
-                const int held = B3_IS_NON_NULL(e.hand[0].joint) ? 0 : 1, free = 1 - held;
-                EnvHand& h = e.hand[static_cast<za::SizeT>(free)];
-                if(limbWhole(s, p, free) && h.mode == Grip::None)
-                {
-                    const glm::vec3 along = glm::normalize(glm::cross(up, k.out));
-                    const glm::vec3 shoulder = shoulderOf(s, p, free);
-                    const glm::vec3 at = k.lip + along * za::clamp(glm::dot(shoulder - k.lip, along), -0.5f * L, 0.5f * L);
-                    h.mode = Grip::Ledge;
-                    h.goal = at;
-                    h.normal = up;
-                    h.on = e.hand[static_cast<za::SizeT>(held)].on;
-                    h.since = c.now;
-                    h.touched = -1.0;
-                    h.want = 1.f;
-                    h.strength = 1.f;
-                    h.holdUntil = c.now + 30.0;
-                    k.pullFrom = za::max(k.pullFrom, c.now + 0.4);
-                }
-                k.reachAgain = c.now + 0.5;
-                k.retries++;
+                k.pullFrom = za::max(k.pullFrom, c.now + 0.4);
             }
             // (Not hanging (its legs still on the top, its back over the lip): it doesn't pull, it drops after its hang.)
             if(k.pulls && holding > 0 && k.pullFrom > 0.0 && c.now >= k.pullFrom && pelvis.z > k.top - 0.25f * L &&
@@ -493,6 +525,7 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
             climbChest(s, p, c, chest, glm::mix(chestAt, k.lip + up * chestUp + k.out * (0.25f * L), u));
             k.turnBlend = u;
             hangStruggle(s, p, c, L, 0.5f); // (its feet scrabbling as it pulls)
+            (void)reReach();
             if(k.prog >= 1.f && (glm::distance(pelvis, under) < climbLag * L || pelvis.z > under.z - 0.2f * L))
             {
                 phaseTo(ClimbPhase::Over);
@@ -511,17 +544,23 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
             if(!k.released)
             {
                 k.prog = za::min(1.f, k.prog + c.dt / overUp * pace);
+                (void)reReach();
             }
             else
             {
                 k.prog2 = za::min(1.f, k.prog2 + c.dt / overIn * pace);
             }
             const float u1 = smooth01(k.prog), u2 = smooth01(k.prog2);
-            k.pinAt = !k.released ? glm::mix(k.from, over, u1) : glm::mix(over, in, u2);
+            // (Its pelvis in past the lip: 0 out over the drop or at the corner, 1 half an arm in. Until then its way stays
+            // high and it isn't pitched on: pitched on over the corner with its way 0.3 of an arm up, a grunt's pelvis was
+            // set under the top against the lip and stayed there, "slid back off the lip", 2026-11-12. Once in, lower and
+            // pitched on, lying down on the top as before.)
+            const float inside = smooth01(pelvisIn / (0.5f * L));
+            k.pinAt = !k.released ? glm::mix(k.from, over, u1) : glm::mix(over, in - up * (0.3f * L * inside), u2);
             // (Its chest led in over the top ahead of its pelvis, not left at the lip's corner as its pelvis rises past it:
             // folded there, it tipped back off.)
             climbChest(s, p, c, chest, k.lip + up * (0.45f * L) + wall * ((!k.released ? 0.3f * u1 : 0.3f + 0.7f * u2) * L));
-            k.tilt = glm::angleAxis(0.6f * u1 + 0.9f * u2, axis);
+            k.tilt = glm::angleAxis(0.6f * u1 + 0.9f * u2 * inside, axis);
             // (Let go once its pelvis is over the top and its chest over the lip, not tipped back off it.)
             if(!k.released && k.prog >= 1.f && pelvis.z > k.top + 0.1f * L && -glm::dot(chestAt - k.lip, k.out) > -0.1f * L &&
                 chestAt.z > k.top - 0.1f * L)
@@ -529,7 +568,16 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
                 k.released = true;
                 k.since2 = c.now;
                 const float t = static_cast<float>(c.now - s.begun);
-                s.support = Fade{climbLift, climbLift, t, t}; // (held up until it is in: endClimb lets it down)
+                // (Held up until it is in: endClimb lets it down. Going in, its legs hang over the drop off its pelvis: a
+                // stronger, stiffer pin and a little more than its weight held up carry its pelvis in over the corner; with
+                // the pull's (climbPin, climbLift) a grunt's came down onto the corner and stayed there, 2026-11-12.)
+                s.support = Fade{climbInLift, climbInLift, t, t};
+                s.pin.force = climbInPin;
+                s.pin.hertz = climbInHertz;
+                if(B3_IS_NON_NULL(s.pin.joint) && b3Joint_IsValid(s.pin.joint))
+                {
+                    b3MotorJoint_SetLinearHertz(s.pin.joint, climbInHertz);
+                }
                 for(int arm = 0; arm < 2; arm++)
                 {
                     letGo(s, arm, &c, "going in onto the top");

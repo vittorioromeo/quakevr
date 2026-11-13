@@ -54,6 +54,7 @@ struct SwimParts
 
 constexpr float slipTime = 0.25f;   // s: a hold at its most this long slips off
 
+constexpr int climbRetries = 4;     // its free hand reaches up for the lip again at most this often (hanging or pulling)
 constexpr float hangBefore = 0.45f; // s: it hangs this (and up to as much again) before it pulls
 constexpr float pullTime = 0.9f;    // s: its pelvis carried up under the lip over this,
 constexpr float overUp = 0.5f;      // then up over the lip over this,
@@ -61,7 +62,10 @@ constexpr float overIn = 0.6f;      // and in onto the top over this
 constexpr float climbPin = 3.f;     // body weights: its pelvis's pin at most
 constexpr float climbHertz = 8.f;   // its spring (on its pelvis alone: its muscles hold its weight, climbLift)
 constexpr float climbLift = 0.9f;   // its weight held up by its muscles as it pulls and goes over (a share, on every part)
-constexpr float climbArms = 0.3f;   // its arms' strength as it pulls and goes over (holding: 0.9)
+constexpr float climbInPin = 8.f;   // body weights: its pelvis's pin going in onto the top (its hands let go)
+constexpr float climbInHertz = 15.f; // its spring then
+constexpr float climbInLift = 1.2f; // its weight held up by its muscles then (a share: its legs hanging over the drop)
+constexpr float climbArms = 0.3f;  // its arms' strength as it pulls and goes over (holding: 0.9)
 constexpr float climbChestPull = 0.8f; // body weights: its chest led along at most (climbChest)
 constexpr float climbLag = 0.3f;    // (of its arm's length) its pelvis this far behind its way: the way slows to a quarter
 constexpr float climbSlack = 1.5f;  // s: a step of it (up under the lip, over it, in) this much later than its time: it gives up
