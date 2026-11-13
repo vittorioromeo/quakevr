@@ -1713,6 +1713,29 @@ back): `qvr-kit/scratch/menuvis_shots/`.
   Pickups and Glass Cannon (e1m1/e1m2/e1m3 saves, loads across them, changelevels): `vr_run_check` 18/0. AD loop
   (ad_crucial, the hub, ad_swampy: 6 saves, 5 loads, map changes): no error. `load_models_test.sh` 4/0 (352/0).
 
+## clipneg: no shot from a clip that can't pay (branch agent/clipneg, 2026-11-13)
+
+His flat report: "ERROR: weapon clip less than zero" firing the shotgun, a spent flare gun in the left hand.
+
+- **How a shot got through.** `W_CheckNoAmmo` (weapons.qc) let a shot fire when the hand's weapon looked ammoless or had
+  `> 0` rounds; the shot then spent its cost (`delAmmoOrClipAndUpdateCounter`), and a clip below the cost went negative
+  (clamped, the bprint). Two holes: (1) "ammoless" read the hand's `.currentammo`/`.currentammo2`, a cache that
+  `W_SetCurrentAmmoFor` writes; a hand whose cache was left at `AID_NONE` (the fist's, the flare gun's) by any path that
+  changed its weapon without that call fired the shotgun put in it from an empty clip; (2) a fractional clip (0.5)
+  passed `> 0`.
+- **Not reproduced through his keys.** `vr_flatswap_test 5` drives each sequence the brief named through the game's own
+  impulses (swap 48, swap twice, the menu's drop 78, H 47, either gun holstered and drawn by the menu's trades, R then
+  swap, swap mid-reload, the drawn swap key, swap/reload in the left/swap back) with the empty shotgun right and the
+  spent flare gun left: all pay correctly on `next`, each hand's cache matching its weapon. Cases 10 (the cache left at
+  none) and 11 (half a round) set up the two holes directly: they FAIL on the old checks (1 unpaid shot each), PASS now.
+- **Fix (one source of truth).** `VRGetCurrentAmmo` (vr_util.qc) now derives the ammo kind from the hand's weapon id and
+  flags (`WeaponIdToAmmoId`); `.currentammo*` stays only as the engine's mirror. `W_CheckNoAmmo` needs a whole round
+  (`>= 1`). `delAmmoOrClipAndUpdateCounter` returns whether the shot was paid; short, it empties what is there (never
+  below 0), counts `vr_clip_short` and says it with `developer 1` ("ERROR: shot refused: hand, weapon, clip, cost";
+  no more broadcast). `W_FireShotgun` pays first and dry-clicks an unpaid shot; the super shotgun fires one barrel below
+  2 rounds (`< 2`, was `== 1`). Shared by VR and flat (the same attack path).
+- **Verified:** `vr_flatswap_test 5` 46/0 (`-flatscreenmode`, map vrtesthall); flatswap 1 22/0; flatholster 38/0;
+  `flatreload_test.sh` 54/0; the VR reload self-test (`vr_reload_test 9`) 77/0. Scene `flat_clip_unpaid`.
 ## small1113: bots under Melee Only; bench_crowd_ad's program error; a checklist line moved (agent/small1113, 2026-11-13)
 
 - **Bots and Melee Only:** FrikBot asks the run's hooks. `bot_pick_weapon` takes a gun only if `bot_has_usable` (held

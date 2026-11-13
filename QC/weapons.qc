@@ -142,22 +142,38 @@ void(float xHand, float xAid, float xValue) delAmmoAndUpdateCounter =
     // updateAmmoCounter(xHand, xAid);
 }
 
-void(float xHand, float xAid, float xValue) delAmmoOrClipAndUpdateCounter =
+// A shot's rounds `xValue` (ammo `xAid`) paid from `xHand`'s clip (reloading on) or the reserve: FALSE when they aren't
+// all there, what there is emptied, never below zero (a caller that checks it refuses the shot: W_FireShotgun). W_CheckNoAmmo
+// lets no such shot through; one that gets here anyway is a bug: counted, and said with developer 1 (it went negative and
+// printed "ERROR: weapon clip less than zero" to everyone until 2026-11-13).
+float vr_clip_short; // (the tests: shots asked of a clip or a reserve that couldn't pay, vr_flatswap_test 5)
+float(float xHand, float xAid, float xValue) delAmmoOrClipAndUpdateCounter =
 {
-    if(VRIsWeaponReloadingEnabledFor(self, xHand))
+    float clipped = VRIsWeaponReloadingEnabledFor(self, xHand);
+    float have = clipped ? VRGetWeaponClip(xHand) : VR_AmmoUtil_GetAmmoCountByAmmoId(self, xAid);
+    if(have < xValue)
     {
-        VRSetWeaponClip(xHand, VRGetWeaponClip(xHand) - xValue);
-
-        if(VRGetWeaponClip(xHand) < 0)
+        vr_clip_short++;
+        dprint(sprintf("ERROR: shot refused: hand %g, weapon %g, %s %g, it costs %g\n", xHand, VRGetWeapon(xHand),
+            clipped ? "clip" : "reserve", have, xValue));
+        xValue = max(0, have);
+        if(xValue <= 0)
         {
-            bprint("ERROR: weapon clip less than zero\n");
-            VRSetWeaponClip(xHand, 0);
+            return FALSE;
         }
+        if(clipped) { VRSetWeaponClip(xHand, 0); }
+        else        { delAmmoAndUpdateCounter(xHand, xAid, xValue); }
+        return FALSE;
+    }
+    if(clipped)
+    {
+        VRSetWeaponClip(xHand, have - xValue);
     }
     else
     {
         delAmmoAndUpdateCounter(xHand, xAid, xValue);
     }
+    return TRUE;
 }
 
 // A weapon's base damage (VR Settings > Combat > Weapon Damage; vr_dmg_*): the setting's for a shot or a projectile
@@ -2476,11 +2492,16 @@ void(float xHand) W_FireShotgun =
 {
     vector dir;
 
+    // Its shell paid first: none there, no shot (a dry click; delAmmoOrClipAndUpdateCounter's dev line says why).
+    if(!delAmmoOrClipAndUpdateCounter(xHand, AID_SHELLS, 1))
+    {
+        sound(self, VRGetHandChannel(xHand), "gunclick.wav", 1, ATTN_NORM);
+        return;
+    }
+
     sound(self, VRGetGunChannel(xHand), "weapons/guncock.wav", 1, ATTN_NORM);
 
     self.punchangle_x = -2;
-
-    delAmmoOrClipAndUpdateCounter(xHand, AID_SHELLS, 1);
 
     dir = VRGetWeaponFireRotFwd(xHand);
 
@@ -2520,9 +2541,14 @@ void(float xHand) W_FireSuperShotgun =
 {
     vector dir;
 
-    if(getCurrentAmmoOrClip(xHand) == 1)
+    if(getCurrentAmmoOrClip(xHand) < 2)
     {
-        W_FireShotgun(xHand);
+        W_FireShotgun(xHand); // (one barrel: one shell, or none and a dry click)
+        return;
+    }
+
+    if(!delAmmoOrClipAndUpdateCounter(xHand, AID_SHELLS, 2))
+    {
         return;
     }
 
@@ -2530,7 +2556,6 @@ void(float xHand) W_FireSuperShotgun =
 
     self.punchangle_x = -4;
 
-    delAmmoOrClipAndUpdateCounter(xHand, AID_SHELLS, 2);
     dir = VRGetWeaponFireRotFwd(xHand);
     vr_pellet_damage = cvar_hget(cvarh_vr_dmg_super_shotgun); // (Weapon Damage)
     vr_decap_weapon = QVR_DECAP_SSG; // (head pops)
@@ -3723,7 +3748,8 @@ float(float xHand) W_CheckNoAmmo =
         return TRUE;
     }
 
-    if(getCurrentAmmoOrClip(xHand) > 0)
+    // A whole round at least: a shot never takes a fraction (a clip of 0.5 passed `> 0` and went to -0.5).
+    if(getCurrentAmmoOrClip(xHand) >= 1)
     {
         return TRUE;
     }
