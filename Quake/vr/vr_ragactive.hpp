@@ -635,6 +635,7 @@ struct State
     float base{1.f};
     za::Array<Fade, channelCount> fade{};
     za::Array<float, ragdoll::maxBones> partScale{};
+    uint32_t yield{0u}; // bones the concussed stirring moves (vr_box3d_ragdoll.cpp stirFrame): limp to the drive meanwhile
     za::Array<Reach, limbCount> reach{};
     Dismember dismember;
     Pin pin;

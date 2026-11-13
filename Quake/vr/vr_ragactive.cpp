@@ -3661,7 +3661,8 @@ void driveJoints(DriveWork& w, State& s, const Parts& p, const Context& c)
                 k = za::max(k, r.strength * za::min(1.f, r.weight * 2.f));
             }
         }
-        k = za::clamp(k * global * s.partScale[i], 0.f, 3.f);
+        // (A landed fall's joint the concussed stirring moves is its: measured, the fading drive held it to a tenth.)
+        k = (s.yield & (1u << b)) != 0u ? 0.f : za::clamp(k * global * s.partScale[i], 0.f, 3.f);
         const float was = s.strength[i];
         s.strength[i] = k;
         const b3JointId j = s.joint[i];

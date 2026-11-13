@@ -1552,9 +1552,11 @@ void driveShove(RagdollBodies& r, float dt)
         b3Body_SetAwake(body, true);
     }
 }
-// ---- Concussed stirring (vr_knockdown_stir; his note 2026-11-13: shoved down they lie almost static, read as dead) ----
-// Lying down alive (where the struggle runs), now and then one small slow move: a slow head turn, a hand's twitch, an arm
-// or a leg drawn in a little, each a turn of one joint about its rest and back, then a pause (vr_knockdown_stir_rate).
+// ---- Concussed stirring (vr_knockdown_stir; his notes 2026-11-13: shoved down they lie almost static, read as dead; then
+// "can't see any difference": one small slow move came at most before the get-up) ----
+// Lying down alive, from as its fall lands: slow moves on a few joints at once (vr_knockdown_stir_joints), each a turn of one
+// joint about where it lay and back (a head turn, a hand's twitch, an arm or a leg drawn in), then a pause; its parts picked
+// by weight (vr_knockdown_stir_head, _arms, _legs). Purely visual: the knockdown's timer, get-up and AI are the QC's.
 namespace
 {
 // [0, 1) from `s` (xorshift: each ragdoll its own sequence).
@@ -1583,98 +1585,214 @@ namespace
     return glm::length(across) > 1e-4f ? glm::normalize(across) : glm::vec3{0.f, 1.f, 0.f};
 }
 
-// The move now: the one going on until its end, then a pause, then the next (its kind, its bone, its turn).
-void stirPick(RagdollBodies& r, double now, float strength)
+// Bone `b`'s stirring kind (0 a head turn, 1 a hand's twitch, 2 an arm, 3 a leg; -1 none: no joint to turn, its chest).
+[[nodiscard]] int stirKind(const RagdollBodies& r, int b)
+{
+    const ragdoll::Bone& bone = r.rig->bones[b];
+    if(partCut(r, b) || bone.parent < 0 || partCut(r, bone.parent) ||
+        (bone.joint != ragdoll::Joint::Ball && bone.joint != ragdoll::Joint::Hinge)) { return -1; }
+    if(bone.role == modelmeta::BoneRole::Head) { return 0; }
+    const ragactive::Channel channel = ragactive::channelOf(bone);
+    const bool leaf = boneLeaf(*r.rig, r.count, b);
+    if(channel == ragactive::Channel::Arms) { return leaf ? 1 : 2; }
+    if(channel == ragactive::Channel::Legs && (bone.joint == ragdoll::Joint::Hinge || !leaf)) { return 3; }
+    return -1;
+}
+
+// A move's turn achieved along the one it asks (deg): its joint now against where it lay, about the move's axis.
+[[nodiscard]] float stirAchieved(const RagdollBodies& r, const RagdollBodies::StirMove& m)
+{
+    const ragdoll::Bone& bone = r.rig->bones[m.bone];
+    const glm::quat qp = fromB3(b3Body_GetTransform(r.body[static_cast<za::SizeT>(bone.parent)]).q);
+    const glm::quat qb = fromB3(b3Body_GetTransform(r.body[static_cast<za::SizeT>(m.bone)]).q);
+    glm::quat d = glm::normalize(glm::inverse(m.rest) * glm::inverse(qp) * qb); // (its own space, as the turn is)
+    if(d.w < 0.f) { d = -d; }
+    const float along = glm::degrees(2.f * za::atan2(glm::dot(glm::vec3{d.x, d.y, d.z}, m.axis), d.w));
+    return m.angle < 0.f ? -along : along;
+}
+
+// How far (rad, up to `want`) bone `bone`'s joint, at `rel` (its turn in its parent; identity its bind pose), may turn about
+// `axis` (its own space) `way`: within 90% of its limits (a hinge's range; a ball's cone about its bone and its twist), or,
+// lying past that already, no further out. In 2 degree steps.
+[[nodiscard]] float stirRoom(const ragdoll::Bone& bone, const glm::quat& rel, const glm::vec3& axis, float way, float want)
+{
+    const glm::vec3 along = glm::length(bone.end - bone.pivot) > 1e-4f ? glm::normalize(bone.end - bone.pivot) : glm::vec3{0.f, 0.f, 1.f};
+    // Its limits' measures at `q`: how far past each it is (rad; <= 0 within).
+    const auto over = [&](const glm::quat& q, float& a, float& c)
+    {
+        if(bone.joint == ragdoll::Joint::Hinge)
+        {
+            const float bent = 2.f * za::atan2(glm::dot(glm::vec3{q.x, q.y, q.z}, bone.hinge), q.w);
+            const float lo = za::min(bone.lower, bone.upper), hi = za::max(bone.lower, bone.upper);
+            a = za::max(bent - hi * 0.9f, lo * 0.9f - bent);
+            c = -1.f;
+            return;
+        }
+        const glm::vec3 dir = q * along;
+        a = bone.cone > 0.f ? za::acos(za::clamp(glm::dot(dir, along), -1.f, 1.f)) - bone.cone * 0.9f : -1.f;
+        const float twist = 2.f * za::atan2(glm::dot(glm::vec3{q.x, q.y, q.z}, along), q.w);
+        c = bone.twist > 0.f ? za::abs(twist) - bone.twist * 0.9f : -1.f;
+    };
+    float a0 = 0.f, c0 = 0.f;
+    over(rel, a0, c0);
+    constexpr float step = 0.034906585f; // 2 deg
+    float got = 0.f;
+    for(float t = step; t <= want + 1e-4f; t += step)
+    {
+        glm::quat q = glm::normalize(rel * glm::angleAxis(way * t, axis));
+        if(q.w < 0.f) { q = -q; }
+        float a = 0.f, c = 0.f;
+        over(q, a, c);
+        if((a > 0.f && a > a0 - 1e-4f) || (c > 0.f && c > c0 - 1e-4f)) { break; }
+        got = t;
+    }
+    return got;
+}
+
+// Move `i` now: the one going on until its end, then a pause, then the next (its bone by its part's weight, its turn).
+void stirPick(RagdollBodies& r, int i, double now, float strength)
 {
     RagdollBodies::Stir& s = r.stir;
+    RagdollBodies::StirMove& m = s.move[static_cast<za::SizeT>(i)];
     const float rate = za::clamp(vr_knockdown_stir_rate.value, 0.1f, 12.f);
-    if(s.seed == 0u)
+    const float pause = za::clamp(vr_knockdown_stir_pause.value, 0.f, 5.f);
+    if(m.next < 0.0) { m.next = now + (0.05 + 0.25 * static_cast<double>(i) + 0.15 * stirRandom(s.seed)) / rate; }
+    if(m.bone >= 0)
     {
-        s.seed = (static_cast<uint32_t>(r.num) * 2654435761u) ^ static_cast<uint32_t>(r.born * 977.0) ^ 0x9E3779B9u;
-        s.seed = s.seed ? s.seed : 1u;
-    }
-    if(s.next < 0.0) { s.next = now + (0.1 + 0.6 * stirRandom(s.seed)) / rate; } // (the first a moment after it lies still)
-    if(s.bone >= 0)
-    {
-        if(now < s.from + s.length) { return; }
+        if(now < m.from + m.length) { return; }
+        const float asked = za::abs(glm::degrees(m.angle));
+        s.done++;
+        s.reachedSum += asked > 0.f ? m.reached / asked : 1.f;
         if(vr_knockdown_debug.value != 0.f)
         {
-            Con_Printf("knockdown: %d stirred: %s turned %.1f of %.0f deg\n", r.num, r.rig->bones[s.bone].name, s.reached,
-                za::abs(glm::degrees(s.angle)));
+            Con_Printf("knockdown: %d stirred: %s turned %.1f of %.0f deg (%.2f s after it lay)\n", r.num,
+                r.rig->bones[m.bone].name, m.reached, asked, now - r.born - s.lying);
         }
-        s.bone = -1;
-        s.next = now + (1.2 + 2.6 * stirRandom(s.seed)) / rate;
+        m.bone = -1;
+        m.next = now + pause * (0.5f + stirRandom(s.seed)) / rate;
     }
-    if(now < s.next) { return; }
-    const float roll = stirRandom(s.seed);
-    const int kind = roll < 0.35f ? 0 : roll < 0.65f ? 1 : roll < 0.8f ? 2 : 3;
+    if(now < m.next) { return; }
+    // Its part by weight (the head, the arms with their hands, the legs), a joint of it not moving already.
+    const float weight[] = {za::max(0.f, vr_knockdown_stir_head.value), za::max(0.f, vr_knockdown_stir_arms.value),
+                            za::max(0.f, vr_knockdown_stir_arms.value), za::max(0.f, vr_knockdown_stir_legs.value)};
     za::Array<int, ragdoll::maxBones> pick{};
+    za::Array<int, ragdoll::maxBones> pickKind{};
+    za::Array<float, ragdoll::maxBones> pickWeight{};
     int n = 0;
+    float total = 0.f;
     for(int b = 1; b < r.count; ++b)
     {
-        const ragdoll::Bone& bone = r.rig->bones[b];
-        if(partCut(r, b) || bone.parent < 0 || partCut(r, bone.parent) ||
-            (bone.joint != ragdoll::Joint::Ball && bone.joint != ragdoll::Joint::Hinge)) { continue; }
-        const ragactive::Channel channel = ragactive::channelOf(bone);
-        const bool leaf = boneLeaf(*r.rig, r.count, b);
-        const bool fits = kind == 0 ? bone.role == modelmeta::BoneRole::Head
-                        : kind == 1 ? channel == ragactive::Channel::Arms && leaf
-                        : kind == 2 ? channel == ragactive::Channel::Arms && !leaf
-                                    : channel == ragactive::Channel::Legs && (bone.joint == ragdoll::Joint::Hinge || !leaf);
-        if(fits) { pick[static_cast<za::SizeT>(n++)] = b; }
+        const int kind = stirKind(r, b);
+        if(kind < 0 || weight[kind] <= 0.f) { continue; }
+        bool taken = false;
+        for(const RagdollBodies::StirMove& other : s.move) { taken = taken || other.bone == b; }
+        if(taken) { continue; }
+        // (Each part weighs the same whatever its joints: two arms of two joints each against one head.)
+        int same = 0;
+        for(int c = 1; c < r.count; ++c) { same += stirKind(r, c) == kind ? 1 : 0; }
+        const float w = weight[kind] / static_cast<float>(za::max(same, 1)) * (kind == 1 || kind == 2 ? 0.5f : 1.f);
+        pick[static_cast<za::SizeT>(n)] = b;
+        pickKind[static_cast<za::SizeT>(n)] = kind;
+        pickWeight[static_cast<za::SizeT>(n++)] = w;
+        total += w;
     }
-    if(n == 0)
+    if(n == 0 || total <= 0.f)
     {
-        s.next = now + 0.3; // (none of that kind on this body: another soon)
+        m.next = now + 0.3; // (nothing to move on this body: look again soon)
         return;
     }
-    const int b = pick[static_cast<za::SizeT>(za::min(n - 1, static_cast<int>(stirRandom(s.seed) * static_cast<float>(n))))];
+    float roll = stirRandom(s.seed) * total;
+    int j = 0;
+    while(j < n - 1 && roll >= pickWeight[static_cast<za::SizeT>(j)]) { roll -= pickWeight[static_cast<za::SizeT>(j++)]; }
+    const int b = pick[static_cast<za::SizeT>(j)];
+    const int kind = pickKind[static_cast<za::SizeT>(j)];
     const ragdoll::Bone& bone = r.rig->bones[b];
-    const float sign = stirRandom(s.seed) < 0.5f ? -1.f : 1.f;
-    const float u = stirRandom(s.seed);
-    // Degrees at its most and seconds: a slow head turn (about its own length: a turn, not a nod), a quick twitch (twice
-    // over), an arm or a leg drawn in slowly.
-    constexpr float degLo[] = {18.f, 12.f, 12.f, 15.f}, degHi[] = {32.f, 22.f, 22.f, 25.f};
-    constexpr float secLo[] = {2.2f, 0.5f, 1.6f, 1.8f}, secHi[] = {3.4f, 0.9f, 2.6f, 3.0f};
-    const glm::vec3 along = bone.end - bone.pivot;
-    s.axis = kind == 0 && glm::length(along) > 1e-4f ? glm::normalize(along) : acrossAxis(bone, b);
-    s.angle = sign * glm::radians(degLo[kind] + (degHi[kind] - degLo[kind]) * u) * strength;
-    s.length = secLo[kind] + (secHi[kind] - secLo[kind]) * stirRandom(s.seed);
-    s.rest = glm::inverse(fromB3(b3Body_GetTransform(r.body[static_cast<za::SizeT>(bone.parent)]).q)) *
-             fromB3(b3Body_GetTransform(r.body[static_cast<za::SizeT>(b)]).q);
-    s.bone = b;
-    s.kind = kind;
-    s.from = now;
-    s.reached = 0.f;
+    const glm::quat qp = fromB3(b3Body_GetTransform(r.body[static_cast<za::SizeT>(bone.parent)]).q);
+    const glm::quat qb = fromB3(b3Body_GetTransform(r.body[static_cast<za::SizeT>(b)]).q);
+    const glm::vec3 along = glm::length(bone.end - bone.pivot) > 1e-4f ? glm::normalize(bone.end - bone.pivot) : glm::vec3{0.f, 0.f, 1.f};
+    glm::quat rel = glm::normalize(glm::inverse(qp) * qb);
+    if(rel.w < 0.f) { rel = -rel; }
+    // Its turn at its most (vr_knockdown_stir_deg, 0.6..1 of it): a head turn about its own length (a turn, not a nod), a
+    // hand's quick twitch (twice over, a little less), an arm or a leg drawn in (a leg less: heavy, a kick otherwise).
+    constexpr float share[] = {1.f, 0.8f, 1.f, 0.7f};
+    const float degrees = za::clamp(vr_knockdown_stir_deg.value, 0.f, 90.f);
+    const float time = za::clamp(vr_knockdown_stir_time.value, 0.1f, 5.f);
+    const float want = glm::radians(za::min(degrees * share[kind] * (0.6f + 0.4f * stirRandom(s.seed)) * strength, 150.f));
+    // Its way, within its joint's limits (measured: a head's twist is 20 deg either way, a hand's cone 30: asked blindly,
+    // half the turn went into a stop): of a few axes either way, the one with the most room for the turn (at most 90% of
+    // the limits), a limb's lifting off the floor rather than pressing into it (measured: those got nothing) when it has
+    // room enough. A head turns about its own length (a nod across it if its twist has no room left).
+    const glm::vec3 other = glm::cross(along, acrossAxis(bone, b));
+    const glm::vec3 inward = glm::cross(along, glm::inverse(rel) * along); // (towards its bind pose's direction)
+    const glm::vec3 axes[] = {along, acrossAxis(bone, b), glm::length(other) > 1e-4f ? glm::normalize(other) : along,
+                              glm::length(inward) > 1e-3f ? glm::normalize(inward) : along};
+    float best = -1.f;
+    m.axis = acrossAxis(bone, b);
+    float sign = 1.f, room = 0.f;
+    for(int c = 0; c < 4; ++c)
+    {
+        if((c == 0) != (kind == 0) && !(kind == 0 && best < glm::radians(12.f))) { continue; } // (a head: its twist first)
+        if(bone.joint == ragdoll::Joint::Hinge && c != 1) { continue; } // (a hinge: only about its axis)
+        for(const float way : {1.f, -1.f})
+        {
+            const float got = stirRoom(bone, rel, axes[c], way, want);
+            const float lift = way * glm::cross(qb * axes[c], qb * along).z;
+            const float score = got + (kind != 0 && lift > 0.2f && got >= want * 0.6f ? want * 0.3f : 0.f) +
+                                stirRandom(s.seed) * glm::radians(2.f); // (a tie either way)
+            if(score > best)
+            {
+                best = score;
+                m.axis = axes[c];
+                sign = way;
+                room = got;
+            }
+        }
+    }
+    if(room < glm::radians(6.f))
+    {
+        m.next = now + 0.1; // (at its stops every way: another joint soon)
+        return;
+    }
+    m.angle = sign * room;
+    m.length = time * (0.7f + 0.6f * stirRandom(s.seed)) * (kind == 1 ? 1.2f : 1.f);
+    m.rest = glm::inverse(qp) * qb;
+    m.bone = b;
+    m.kind = kind;
+    m.from = now;
+    m.reached = 0.f;
     s.count++;
+    if(s.first < 0.0) { s.first = now - r.born - s.lying; }
     if(vr_knockdown_debug.value != 0.f)
     {
-        Con_Printf("knockdown: %d stirs: %s %s, %.0f deg over %.1f s\n", r.num,
+        glm::quat bind = glm::normalize(m.rest);
+        if(bind.w < 0.f) { bind = -bind; }
+        Con_Printf("knockdown: %d stirs: %s %s, %.0f deg over %.2f s (%.2f s after it lay; %s cone %.0f twist %.0f range "
+                   "%.0f..%.0f, off its bind pose %.0f deg, framed %d)\n", r.num,
             kind == 0 ? "a head turn" : kind == 1 ? "a hand's twitch" : kind == 2 ? "an arm" : "a leg", bone.name,
-            glm::degrees(s.angle), s.length);
+            glm::degrees(m.angle), m.length, now - r.born - s.lying, bone.joint == ragdoll::Joint::Hinge ? "hinge" : "ball",
+            glm::degrees(bone.cone), glm::degrees(bone.twist), glm::degrees(bone.lower), glm::degrees(bone.upper),
+            glm::degrees(2.f * za::acos(za::clamp(bind.w, 0.f, 1.f))), bone.framed ? 1 : 0);
     }
 }
 
-// Bone `b`'s stirring turn now (its own space; none but the moving bone's).
-[[nodiscard]] glm::quat stirTurn(RagdollBodies& r, int b, double now)
+// Move `m`'s turn now (its bone's own space): out and back, eased (a twitch: twice, quick).
+[[nodiscard]] glm::quat stirTurn(RagdollBodies::Stir& s, const RagdollBodies::StirMove& m, double now)
 {
-    RagdollBodies::Stir& s = r.stir;
-    if(b != s.bone) { return glm::quat{1.f, 0.f, 0.f, 0.f}; }
-    const float u = za::clamp(static_cast<float>((now - s.from) / static_cast<double>(s.length)), 0.f, 1.f);
+    const float u = za::clamp(static_cast<float>((now - m.from) / static_cast<double>(m.length)), 0.f, 1.f);
     const float bump = za::sin(u * 3.1415927f);
-    const float share = s.kind == 1 ? za::abs(za::sin(u * 6.2831853f)) : bump * bump; // (a twitch: twice, quick)
-    s.most = za::max(s.most, za::abs(glm::degrees(s.angle * share)));
-    return glm::angleAxis(s.angle * share, s.axis);
+    const float share = m.kind == 1 ? za::abs(za::sin(u * 6.2831853f)) : bump * bump;
+    s.most = za::max(s.most, za::abs(glm::degrees(m.angle * share)));
+    return glm::angleAxis(m.angle * share, m.axis);
 }
 
-constexpr float stirAfterLanding = 0.3f; // s after its fall lands (the flinch over) it may stir,
-constexpr float stirAfterFall = 0.7f;    // or this long after its fall began, its pelvis slower than
-constexpr float stirStill = 0.3f;        // this (m/s)
+constexpr float stirAfterLanding = 0.15f; // s after its fall lands (the flinch's start) it may stir,
+constexpr float stirAfterFall = 0.7f;     // or this long after its fall began, its pelvis slower than
+constexpr float stirStill = 0.3f;         // this (m/s)
 
-// Each frame: lying down alive (limp, or its fall landed and its drive fading; not shoved along, rising, held, swimming),
-// the move now driven: its joint turned towards where it lay times the move's turn, by a torque (a spring near
-// critically damped, with the joint's friction fed forward: a limb lying on the floor moves at all), the parent taking the
-// opposite. Not for a corpse, nor one getting up: the move ends at once.
+// Each frame: lying down alive (limp, or its fall landed; not shoved along, rising, held, swimming), its moves driven: each
+// joint turned towards where it lay times its move's turn, by a torque (a stiff spring near critically damped, the joint's
+// friction fed forward and enough of its weight's lever to lift it off the floor, vr_knockdown_stir_force), the parent
+// taking the opposite. Not for a corpse, nor one getting up: its moves end at once.
 void stirFrame(edict_t* ent, RagdollBodies& r)
 {
     RagdollBodies::Stir& s = r.stir;
@@ -1686,44 +1804,102 @@ void stirFrame(edict_t* ent, RagdollBodies& r)
                          glm::length(glmv(b3Body_GetLinearVelocity(r.body[0]))) < stirStill;
     const bool lying = !a.on || a.mode == ragactive::Mode::Limp || settled ||
         (a.mode == ragactive::Mode::Falling && a.fall.landed >= 0.f && now > a.begun + a.fall.landed + stirAfterLanding);
-    if(strength <= 0.f || !knockedDown(ent) || ent->v.health <= 0.f || r.shove.on || !lying || now < r.born + 0.6)
+    const int joints = za::clamp(static_cast<int>(vr_knockdown_stir_joints.value), 1, RagdollBodies::stirMoves);
+    if(strength <= 0.f || !knockedDown(ent) || ent->v.health <= 0.f || r.shove.on || !lying ||
+        now < r.born + (a.on ? 0.0 : 0.5)) // (limp from its birth, no fall told: a moment for it to land)
     {
-        s.bone = -1;
-        s.next = -1.0; // (again a moment after it lies still)
+        for(RagdollBodies::StirMove& m : s.move)
+        {
+            m.bone = -1;
+            m.next = -1.0; // (again from when it lies)
+        }
+        s.lying = -1.0;
+        r.active.yield = 0u;
         return;
     }
-    stirPick(r, now, strength);
-    const int b = s.bone;
-    if(b < 0) { return; }
-    const ragdoll::Bone& bone = r.rig->bones[b];
-    if(partCut(r, b) || partCut(r, bone.parent))
+    uint32_t yield = 0u;
+    if(s.seed == 0u)
     {
-        s.bone = -1;
-        return;
+        s.seed = (static_cast<uint32_t>(r.num) * 2654435761u) ^ static_cast<uint32_t>(r.born * 977.0) ^ 0x9E3779B9u;
+        s.seed = s.seed ? s.seed : 1u;
     }
-    const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
-    const b3BodyId parent = r.body[static_cast<za::SizeT>(bone.parent)];
-    const glm::quat qp = fromB3(b3Body_GetTransform(parent).q), qb = fromB3(b3Body_GetTransform(body).q);
-    const glm::quat target = qp * s.rest * stirTurn(r, b, now);
-    const glm::quat off = glm::normalize(glm::inverse(qp) * qb * glm::inverse(s.rest));
-    s.reached = za::max(s.reached, glm::degrees(2.f * glm::acos(za::clamp(za::fabs(off.w), 0.f, 1.f))));
-    glm::quat delta = glm::normalize(target * glm::inverse(qb));
-    if(delta.w < 0.f) { delta = -delta; }
-    const glm::vec3 error{delta.x * 2.f, delta.y * 2.f, delta.z * 2.f};
-    const float miss = glm::length(error);
+    if(s.lying < 0.0) { s.lying = now - r.born; }
     const float k = r.scale / world->m2u; // rest units -> metres
-    const float m = b3Body_GetMass(body), length = za::max(glm::length(bone.end - bone.pivot) * k, 0.05f);
-    const float inertia = m * length * length / 3.f; // (a rod about its end)
-    constexpr float omega = 6.2831853f * 3.f;        // 3 Hz, damped near critically (the struggle's)
     const float friction = tune(ent, Tune::JointFriction);
-    const glm::vec3 speed = glmv(b3Body_GetAngularVelocity(body)) - glmv(b3Body_GetAngularVelocity(parent));
-    glm::vec3 torque = inertia * (error * (omega * omega) - speed * (1.6f * omega));
-    if(miss > 1e-4f) { torque += error / miss * (friction * za::min(1.f, miss / glm::radians(4.f))); }
-    const float limit = friction * 1.5f + m * 9.8f * length * 1.5f * za::max(strength, 1.f);
-    const float magnitude = glm::length(torque);
-    if(magnitude > limit) { torque *= limit / magnitude; }
-    b3Body_ApplyTorque(body, b3v(torque), true);
-    b3Body_ApplyTorque(parent, b3v(-torque), true);
+    const float force = za::clamp(vr_knockdown_stir_force.value, 0.f, 10.f);
+    for(int i = 0; i < RagdollBodies::stirMoves; ++i)
+    {
+        RagdollBodies::StirMove& m = s.move[static_cast<za::SizeT>(i)];
+        if(i >= joints)
+        {
+            m.bone = -1;
+            continue;
+        }
+        stirPick(r, i, now, strength);
+        const int b = m.bone;
+        if(b < 0) { continue; }
+        const ragdoll::Bone& bone = r.rig->bones[b];
+        if(partCut(r, b) || partCut(r, bone.parent))
+        {
+            m.bone = -1;
+            continue;
+        }
+        yield |= 1u << b;
+        const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
+        const b3BodyId parent = r.body[static_cast<za::SizeT>(bone.parent)];
+        const glm::quat qp = fromB3(b3Body_GetTransform(parent).q), qb = fromB3(b3Body_GetTransform(body).q);
+        const glm::quat target = qp * m.rest * stirTurn(s, m, now);
+        m.reached = za::max(m.reached, stirAchieved(r, m));
+        s.reachedMost = za::max(s.reachedMost, m.reached);
+        glm::quat delta = glm::normalize(target * glm::inverse(qb));
+        if(delta.w < 0.f) { delta = -delta; }
+        const glm::vec3 error{delta.x * 2.f, delta.y * 2.f, delta.z * 2.f};
+        const float miss = glm::length(error);
+        // What it moves: its body and all that hangs off it (an upper arm's forearm and hand, a thigh's shin and foot), their
+        // mass and its lever from the joint (its own middle half its length out; measured: its own mass alone, a limb on the
+        // floor got a third of its turn, gravity and the floor's drag outweighing the spring).
+        const float length = za::max(glm::length(bone.end - bone.pivot) * k, 0.05f);
+        const glm::vec3 centre = glmv(b3Body_GetWorldCenter(body));
+        float mass = b3Body_GetMass(body);
+        glm::vec3 moment = centre * mass;
+        for(int c = b + 1; c < r.count; ++c)
+        {
+            int up = r.rig->bones[c].parent;
+            while(up > b) { up = r.rig->bones[up].parent; }
+            if(up != b || partCut(r, c)) { continue; }
+            const float mc = b3Body_GetMass(r.body[static_cast<za::SizeT>(c)]);
+            mass += mc;
+            moment += glmv(b3Body_GetWorldCenter(r.body[static_cast<za::SizeT>(c)])) * mc;
+        }
+        const float lever = length * 0.5f + glm::length(moment / za::max(mass, 1e-4f) - centre);
+        const float inertia = mass * lever * lever + b3Body_GetMass(body) * length * length / 12.f;
+        // A spring of 5 Hz times the force's root (measured: at the old 3 Hz a limb got half its turn, gravity and the
+        // floor's drag against it; 3x the stiffness got most of it), damped near critically, at most what one 60 Hz frame
+        // takes stably (the torque is held through the frame).
+        constexpr float omega = 6.2831853f * 5.f;
+        const float stiff = 3.f * za::max(force, 0.1f);
+        const float kp = inertia * omega * omega * stiff, kd = inertia * za::min(1.6f * omega * za::sqrt(stiff), 0.9f * 60.f);
+        const glm::vec3 speed = glmv(b3Body_GetAngularVelocity(body)) - glmv(b3Body_GetAngularVelocity(parent));
+        glm::vec3 torque = error * kp - speed * kd;
+        if(miss > 1e-4f) { torque += error / miss * (friction * za::min(1.f, miss / glm::radians(4.f))); }
+        // At most its friction and that weight's lever a few times over: it lifts off the floor, it does not fling.
+        const float limit = friction * 1.5f + mass * 9.8f * lever * 4.f * force * za::max(strength, 1.f);
+        const float magnitude = glm::length(torque);
+        if(magnitude > limit) { torque *= limit / magnitude; }
+        b3Body_ApplyTorque(body, b3v(torque), true);
+        b3Body_ApplyTorque(parent, b3v(-torque), true);
+    }
+    r.active.yield = yield; // (its landed fall's fading drive leaves these joints to it)
+}
+
+// Bone `b` moved by the stirring now (the struggle leaves it to it).
+[[nodiscard]] bool stirring(const RagdollBodies& r, int b)
+{
+    for(const RagdollBodies::StirMove& m : r.stir.move)
+    {
+        if(m.bone == b) { return true; }
+    }
+    return false;
 }
 } // namespace
 
@@ -1737,7 +1913,7 @@ void feedRagdoll(edict_t* ent, Slot& s)
     // lever a few times over); the parent takes the opposite (the body jerks with the kicks). A pose far off its rest (a
     // throw, a hand) is its new rest.
     // (Not while its own drive moves it: a stagger, a fall, a get-up; vr_ragactive.hpp. It struggles once it lies limp.)
-    // Its concussed stirring (vr_knockdown_stir: stirFrame), from soon after it lands.
+    // Its concussed stirring (vr_knockdown_stir: stirFrame), from as its fall lands.
     stirFrame(ent, r);
     if(knockedDown(ent) && ent->v.health > 0.f && vr_knockdown_wiggle.value > 0.f && qcvm->time > r.born + 0.6 &&
        !r.shove.on && !r.active.on)
@@ -1758,7 +1934,12 @@ void feedRagdoll(edict_t* ent, Slot& s)
             const b3BodyId parent = r.body[static_cast<za::SizeT>(bone.parent)];
             const glm::quat qp = fromB3(b3Body_GetTransform(parent).q), qb = fromB3(b3Body_GetTransform(body).q);
             const glm::quat relative = glm::inverse(qp) * qb;
-            if(!r.struggleReady) { r.struggleRest[static_cast<za::SizeT>(b)] = relative; }
+            if(!r.struggleReady || stirring(r, b))
+            {
+                // (A joint the stirring moves is its own: the struggle takes it up again from where it ends.)
+                r.struggleRest[static_cast<za::SizeT>(b)] = relative;
+                if(r.struggleReady) { continue; }
+            }
             // Its swing (rest space): a hinge about its axis, a ball across its bone; how far by its kind.
             const glm::vec3 along = bone.end - bone.pivot;
             const glm::vec3 axis = acrossAxis(bone, b);

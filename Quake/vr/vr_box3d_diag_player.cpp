@@ -465,29 +465,32 @@ void knockdownTest_f()
         Con_Printf("wigglecheck: strength=%.2f parts=%d angular=%.4f rad/s\n", vr_knockdown_wiggle.value,
             bodies, bodies ? angular / bodies : 0.f);
         Con_Printf("strugglecheck: strength=%.2f deflection=%.3f degrees\n", vr_knockdown_wiggle.value, deflection);
-        // Its concussed stirring (vr_knockdown_stir): the moves so far and the most turn asked, over the living ones down.
-        int stirs = 0, stirring = 0, down = 0;
-        float stirMost = 0.f, stirNow = 0.f;
+        // Its concussed stirring (vr_knockdown_stir): the moves so far, the most turn asked and achieved, the finished
+        // moves' share achieved (along the asked turn), how soon after it began to lie the first came; over the living
+        // ones down, the joints moving now.
+        int stirs = 0, stirring = 0, down = 0, done = 0;
+        float stirMost = 0.f, reachedMost = 0.f, reachedSum = 0.f;
+        double first = -1.0;
         for(const RagdollBodies& r : world->ragdolls)
         {
             if(r.num <= 0) { continue; }
-            down += knockedDown(EDICT_NUM(r.num)) && EDICT_NUM(r.num)->v.health > 0.f ? 1 : 0;
+            const bool alive = knockedDown(EDICT_NUM(r.num)) && EDICT_NUM(r.num)->v.health > 0.f;
+            down += alive ? 1 : 0;
             stirs += r.stir.count;
+            done += r.stir.done;
+            reachedSum += r.stir.reachedSum;
             stirMost = za::max(stirMost, r.stir.most);
-            const int sb = r.stir.bone;
-            if(sb > 0 && sb < r.count && knockedDown(EDICT_NUM(r.num)) && EDICT_NUM(r.num)->v.health > 0.f)
+            reachedMost = za::max(reachedMost, r.stir.reachedMost);
+            first = za::max(first, r.stir.first);
+            for(const RagdollBodies::StirMove& m : r.stir.move)
             {
-                ++stirring;
-                // The moving joint's turn off its rest now (degrees): what the drive got of the turn it asks.
-                const int parent = r.rig->bones[sb].parent;
-                const glm::quat relative = glm::inverse(fromB3(b3Body_GetTransform(r.body[static_cast<za::SizeT>(parent)]).q)) *
-                    fromB3(b3Body_GetTransform(r.body[static_cast<za::SizeT>(sb)]).q);
-                const glm::quat delta = glm::normalize(relative * glm::inverse(r.stir.rest));
-                stirNow = za::max(stirNow, glm::degrees(2.f * glm::acos(za::clamp(za::fabs(delta.w), 0.f, 1.f))));
+                stirring += alive && m.bone > 0 && m.bone < r.count ? 1 : 0;
             }
         }
-        Con_Printf("stircheck: strength=%.2f moves=%d most=%.1f degrees stirring=%d down=%d off rest %.1f degrees\n",
-            vr_knockdown_stir.value, stirs, stirMost, stirring, down, stirNow);
+        Con_Printf("stircheck: strength=%.2f moves=%d done=%d most=%.1f reached=%.1f achieved=%.2f first=%.2f stirring=%d "
+                   "down=%d\n",
+            vr_knockdown_stir.value, stirs, done, stirMost, reachedMost, done ? reachedSum / static_cast<float>(done) : 0.f,
+            first, stirring, down);
         Con_Printf("strugglemotion: %d parts moved %.2f units on average (most %.2f) over %.2f s\n", compared,
             compared ? moved / static_cast<float>(compared) : 0.f, movedMost,
             wiggleCheck.time >= 0.0 ? qcvm->time - wiggleCheck.time : 0.0);

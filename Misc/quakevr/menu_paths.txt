@@ -3730,6 +3730,14 @@ vr_knockdown_ledge_margin|2|Tunables|Ledge Margin|Advanced VR Options > Debug > 
 vr_knockdown_wiggle_pause|2|Tunables|Struggling Pause|Advanced VR Options > Debug > Tunables > Struggling Pause
 vr_knockdown_stir|2|Tunables|Concussed Stirring|Advanced VR Options > Debug > Tunables > Concussed Stirring
 vr_knockdown_stir_rate|2|Tunables|Stirring Rate|Advanced VR Options > Debug > Tunables > Stirring Rate
+vr_knockdown_stir_deg|2|Tunables|Stirring Turn|Advanced VR Options > Debug > Tunables > Stirring Turn
+vr_knockdown_stir_time|2|Tunables|Stirring Move Time|Advanced VR Options > Debug > Tunables > Stirring Move Time
+vr_knockdown_stir_pause|2|Tunables|Stirring Pause|Advanced VR Options > Debug > Tunables > Stirring Pause
+vr_knockdown_stir_joints|2|Tunables|Stirring Joints|Advanced VR Options > Debug > Tunables > Stirring Joints
+vr_knockdown_stir_head|2|Tunables|Stirring: Head|Advanced VR Options > Debug > Tunables > Stirring: Head
+vr_knockdown_stir_arms|2|Tunables|Stirring: Arms|Advanced VR Options > Debug > Tunables > Stirring: Arms
+vr_knockdown_stir_legs|2|Tunables|Stirring: Legs|Advanced VR Options > Debug > Tunables > Stirring: Legs
+vr_knockdown_stir_force|2|Tunables|Stirring Force|Advanced VR Options > Debug > Tunables > Stirring Force
 vr_quad_melee_damage|2|Tunables|Quad: Extra Melee Damage|Advanced VR Options > Debug > Tunables > Quad: Extra Melee Damage
 vr_quad_melee_range|2|Tunables|Quad: Extra Melee Reach|Advanced VR Options > Debug > Tunables > Quad: Extra Melee Reach
 vr_headbutt_damage|2|Tunables|Headbutt Damage|Advanced VR Options > Debug > Tunables > Headbutt Damage
