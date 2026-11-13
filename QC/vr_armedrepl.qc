@@ -223,7 +223,14 @@ float(float t, float code) VR_AGR_Eligible =
     {
         return AD_Rules();
     }
-    return VR_AGR_Owned(vr_ag_dec_wid);
+    return cvar_hget(cvarh_vr_run_wildweapons) || VR_AGR_Owned(vr_ag_dec_wid); // (Wild Weaponry: owned or not)
+};
+
+// The rare tier may come up on this map (from vr_agrunt_repl_rare_map on; Wild Weaponry: any map).
+float() VR_AGR_RareOk =
+{
+    float from = cvar_hget(cvarh_vr_agrunt_repl_rare_map);
+    return cvar_hget(cvarh_vr_run_wildweapons) || from <= 0 || VR_AGR_MapIndex() >= max(1, from);
 };
 
 float(float t) VR_AGR_TierCount =
@@ -309,9 +316,130 @@ float(float r) VR_AGR_SideBlade =
     return r * (wa + wd) < wa ? WID_AXE : VR_AG_CODE_DAGGER;
 };
 
-// A replacement of the row `kind` with the seed `seed`: its loadout (vr_agr_code, _code2, _gunaxe, _tier).
+// ----------------------------------------------------------------------------
+// Ranged Knights (the run's mutator, vr_run_rangedknights; docs/vr-port/MUTATORS.md): an armed knight's or death
+// knight's loadout from its own pool, by weights (vr_rangedknights_*): his sword (now and then two), AD's crossbow while
+// AD's rules are on (now and then with his sword in the other hand: the gun-and-blade loadout, VR_AGR_GunAxe), the
+// chainsaw, any other gun of the replacements' tiers. The sword, the crossbow and the chainsaw are a knight's own (no
+// player needs to own them); the other guns are the replacements' rule (VR_AGR_Eligible: owned, the rare tier from its
+// map on; Wild Weaponry lifts both). The same seeded rolls as the grunts' (VR_AGR_SeedOf; rolled once a player is in).
+// ----------------------------------------------------------------------------
+
+float vr_akn_ngun; // VR_AKN_Pick's other guns now (VR_AKN_GunOk)
+
+// The tier `t`'s code `code` is one of a ranged knight's other guns now.
+float(float t, float code) VR_AKN_GunOk =
+{
+    if(code == WID_ADCROSSBOW || code == WID_CHAINSAW || (t == 3 && !VR_AGR_RareOk()) || !VR_AGR_Eligible(t, code))
+    {
+        return FALSE;
+    }
+    float c = VR_AG_Class(vr_ag_dec_wid);
+    return c != VR_AG_CLASS_MELEE && c != VR_AG_CLASS_FISTS;
+};
+
+// The `k`th (0..) other gun now; -1 past the last.
+float(float k) VR_AKN_GunAt =
+{
+    float t;
+    float i;
+    for(t = 1; t <= 3; t++)
+    {
+        for(i = 0; VR_AGR_TierCode(t, i) >= 0; i++)
+        {
+            if(VR_AKN_GunOk(t, VR_AGR_TierCode(t, i)))
+            {
+                if(k < 1)
+                {
+                    return VR_AGR_TierCode(t, i);
+                }
+                k = k - 1;
+            }
+        }
+    }
+    return -1;
+};
+
+float() VR_AKN_GunCount =
+{
+    float n = 0;
+    float t;
+    float i;
+    for(t = 1; t <= 3; t++)
+    {
+        for(i = 0; VR_AGR_TierCode(t, i) >= 0; i++)
+        {
+            if(VR_AKN_GunOk(t, VR_AGR_TierCode(t, i)))
+            {
+                n = n + 1;
+            }
+        }
+    }
+    return n;
+};
+
+// A ranged knight's loadout (`kind` VR_AM_KNIGHT or VR_AM_DKNIGHT) with the seed `seed`: vr_agr_code, _code2, _gunaxe;
+// vr_agr_tier 0 the sword (or two), 1 the crossbow, 2 the chainsaw, 3 another gun.
+void(float kind, vector seed) VR_AKN_Pick =
+{
+    VR_AGR_SeedSet(seed);
+    vr_agr_code = WID_SWORD;
+    vr_agr_code2 = 0;
+    vr_agr_gunaxe = 0;
+    vr_agr_tier = 0;
+    vr_akn_ngun = VR_AKN_GunCount();
+    float ws = max(0, cvar_hget(cvarh_vr_rangedknights_w_sword));
+    float wx = (VR_AG_Decode(WID_ADCROSSBOW) && AD_Rules()) ? max(0, cvar_hget(cvarh_vr_rangedknights_w_crossbow)) : 0;
+    float wc = VR_AG_Decode(WID_CHAINSAW) ? max(0, cvar_hget(cvarh_vr_rangedknights_w_chainsaw)) : 0;
+    float wg = vr_akn_ngun > 0 ? max(0, cvar_hget(cvarh_vr_rangedknights_w_gun)) : 0;
+    float r = VR_AGR_Rand() * (ws + wx + wc + wg);
+    float r2 = VR_AGR_Rand();
+    float rk = VR_AGR_Rand();
+    if(ws + wx + wc + wg <= 0 || r < ws)
+    {
+        if(r2 < VR_AGR_Unit(cvar_hget(cvarh_vr_rangedknights_dual)))
+        {
+            vr_agr_code2 = WID_SWORD; // (two swords: VR_AG_Pairs' one-handed blades)
+        }
+        return;
+    }
+    if(r < ws + wx)
+    {
+        vr_agr_code = WID_ADCROSSBOW;
+        vr_agr_tier = 1;
+        if(r2 < VR_AGR_Unit(cvar_hget(cvarh_vr_rangedknights_xbow_sword)))
+        {
+            vr_agr_code2 = WID_SWORD; // (the crossbow and his sword: VR_AGR_GunAxe's gun and blade)
+            vr_agr_gunaxe = 1;
+        }
+        return;
+    }
+    if(r < ws + wx + wc)
+    {
+        vr_agr_code = WID_CHAINSAW;
+        vr_agr_tier = 2;
+        return;
+    }
+    vr_agr_code = VR_AKN_GunAt(min(vr_akn_ngun - 1, floor(rk * vr_akn_ngun)));
+    vr_agr_tier = 3;
+    if(vr_agr_code < 0)
+    {
+        vr_agr_code = WID_SWORD;
+        vr_agr_tier = 0;
+    }
+};
+
+float(float kind) VR_AKN_IsKnight = { return kind == VR_AM_KNIGHT || kind == VR_AM_DKNIGHT; };
+
+// A replacement of the row `kind` with the seed `seed`: its loadout (vr_agr_code, _code2, _gunaxe, _tier). A knight's:
+// Ranged Knights' pool (VR_AKN_Pick).
 void(float kind, vector seed) VR_AGR_Pick =
 {
+    if(VR_AKN_IsKnight(kind))
+    {
+        VR_AKN_Pick(kind, seed);
+        return;
+    }
     VR_AGR_SeedSet(seed);
     float native = VR_AGR_NativeOf(kind);
     vr_agr_code = native;
@@ -322,7 +450,7 @@ void(float kind, vector seed) VR_AGR_Pick =
     vr_agr_n1 = VR_AGR_TierCount(1);
     vr_agr_n2 = VR_AGR_TierCount(2);
     vr_agr_n3 = VR_AGR_TierCount(3);
-    float rareOk = (VR_AGR_MapIndex() >= max(1, cvar_hget(cvarh_vr_agrunt_repl_rare_map))) || (cvar_hget(cvarh_vr_agrunt_repl_rare_map) <= 0);
+    float rareOk = VR_AGR_RareOk();
     vr_agr_cr = (rareOk && (vr_agr_n3 > 0)) ? VR_AGR_Unit(cvar_hget(cvarh_vr_agrunt_repl_rare) * m) : 0;
     vr_agr_cu = (vr_agr_n2 > 0) ? VR_AGR_Unit(cvar_hget(cvarh_vr_agrunt_repl_uncommon) * m) : 0;
     vr_agr_cc = (vr_agr_n1 > 0) ? VR_AGR_Unit(cvar_hget(cvarh_vr_agrunt_repl_common) * m) : 0;
@@ -456,6 +584,22 @@ float() VR_AKN_Replace =
     if(!self.weapon)
     {
         self.weapon = WID_SWORD;
+        if(cvar_hget(cvarh_vr_run_rangedknights)) // (Ranged Knights: his pool's roll, as a grunt replacement's)
+        {
+            self.vr_agr_seed = VR_AGR_SeedOf(self, kind);
+            if(VR_Player())
+            {
+                VR_AKN_Pick(kind, self.vr_agr_seed);
+                self.weapon = vr_agr_code;
+                self.weapon2 = vr_agr_code2;
+                self.vr_ag_gunaxe = vr_agr_gunaxe;
+            }
+            else
+            {
+                self.vr_agr_pending = 1; // (the map's own: before any player, his sword meanwhile: VR_AGR_Frame)
+                vr_agr_npending = vr_agr_npending + 1;
+            }
+        }
     }
     VR_AM_Spawn(kind);
     return TRUE;
@@ -481,9 +625,9 @@ void(entity g) VR_AGR_Resolve =
 {
     g.vr_agr_pending = 0;
     VR_AGR_Pick(g.vr_ag_kind, g.vr_agr_seed);
-    if(vr_agr_code == VR_AGR_NativeOf(g.vr_ag_kind) && vr_agr_code2 == 0)
+    if(vr_agr_code == (VR_AKN_IsKnight(g.vr_ag_kind) ? WID_SWORD : VR_AGR_NativeOf(g.vr_ag_kind)) && vr_agr_code2 == 0)
     {
-        return; // (its own gun, as it spawned)
+        return; // (its own gun, a knight's sword, as it spawned)
     }
     entity oldself = self;
     self = g;
@@ -575,6 +719,31 @@ void() VR_AGR_PrecacheArmour =
 // precached at the level's load (none late: a spawner's later ones too).
 void() VR_AGR_Precache =
 {
+    float t;
+    float i;
+    if(cvar_hget(cvarh_vr_run_rangedknights) && (cvar_hget(cvarh_vr_agknight) || cvar_hget(cvarh_vr_agdknight)))
+    {
+        // Ranged Knights' pool (VR_AKN_Pick): the sword, the crossbow, the chainsaw, the tiers' guns.
+        VR_AGR_PrecacheCode(WID_SWORD);
+        VR_AGR_PrecacheCode(WID_CHAINSAW);
+        if(AD_Rules())
+        {
+            VR_AGR_PrecacheCode(WID_ADCROSSBOW);
+        }
+        for(t = 1; t <= 3; t++)
+        {
+            for(i = 0; VR_AGR_TierCode(t, i) >= 0; i++)
+            {
+                if(!VR_IsADGun(VR_AGR_TierCode(t, i)) || AD_Rules())
+                {
+                    VR_AGR_PrecacheCode(VR_AGR_TierCode(t, i));
+                }
+            }
+        }
+        precache_sound("weapons/lock4.wav");
+        precache_sound("weapons/pkup.wav");
+        VR_AG_PlayPrecache();
+    }
     if(!cvar_hget(cvarh_vr_agrunt_repl))
     {
         return;
@@ -595,8 +764,6 @@ void() VR_AGR_Precache =
     {
         return;
     }
-    float t;
-    float i;
     for(t = 1; t <= 3; t++)
     {
         for(i = 0; VR_AGR_TierCode(t, i) >= 0; i++)

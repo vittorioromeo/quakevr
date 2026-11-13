@@ -634,6 +634,7 @@ vr_armedgrunt_ai_test.qc
 vr_agtune_test.qc // the armed humanoids' tuning (vr_agtune_test)
 vr_armedgrunt_ammo_test.qc
 vr_armedrepl_test.qc
+vr_run_armed_test.qc // the armed-humanoid run mutators' check (vr_run_armed_check: Ranged Knights, Wild Weaponry, Armored Foes)
 vr_arena_test.qc // Survival Arena's tests (vr_arena_test)
 vr_arena_perks_test.qc // Survival Arena's perk tests (vr_arena_perks_test)
 vr_rigseq_test.qc

@@ -2582,7 +2582,7 @@ QVR_CVAR(vr_agrunt_repl_id, "1", CVAR_ARCHIVE)         // 1: in Quake's own camp
 QVR_CVAR(vr_agrunt_repl_mp, "1", CVAR_ARCHIVE)         // 1: in the mission packs (Scourge of Armagon, Dissolution of Eternity)
 QVR_CVAR(vr_agrunt_repl_ad, "1", CVAR_ARCHIVE)         // 1: in Arcane Dimensions' maps too: its plain grunts, enforcers, knights and death knights replaced (AD's own variants never: QC VR_AGR_ADVariant); 0 until 2026-11-01
 QVR_CVAR(vr_agrunt_repl_seed, "0", CVAR_ARCHIVE)       // shuffles every map's loadouts (the same seed: the same loadouts)
-QVR_CVAR(vr_fresh_map_seeds, "1", CVAR_ARCHIVE)        // 1: each new start of a map (new game, level change, restart; not a loaded save) rolls its crates and barrels, rocks, armed replacements and their armour anew; 0: the same every time (the map's name). Off in a test session (vr_backend mock). vr_map_seed_info
+QVR_CVAR(vr_fresh_map_seeds, "1", CVAR_ARCHIVE)        // 1: crates and barrels, rocks, armed replacements and their armour rolled from the run's seed (vr_run_seed: a new run, a new layout; a level change, a restart, a loaded save keep the run's), or anew at each map start outside a run; 0: the same every time (the map's name). Off in a test session (vr_backend mock). vr_map_seed_info
 QVR_CVAR(vr_map_seed, "0", CVAR_NONE)                  // tests, repro: > 0 every map load's content seed (vr_map_seed_info prints the one in play); -1 a fresh one even in a test session; 0 vr_fresh_map_seeds'
 QVR_CVAR(vr_agrunt_dual_chance, "0.1", CVAR_ARCHIVE)  // 0..1: one from the pool with a weapon that pairs (a one-handed blade or club, a gun not too big) gets a second in its left hand
 QVR_CVAR(vr_agrunt_dual_penalty, "1", CVAR_ARCHIVE)    // dual-wielded guns' penalties times this (1: yours: no two-hand spread reduction, heavy recoil kicks)
@@ -3958,7 +3958,7 @@ QVR_CVAR(vr_run_meleeonly, "0", CVAR_NONE)            // the run's Melee Only: g
 QVR_CVAR(vr_run_glasscannon, "0", CVAR_NONE)          // the run's Glass Cannon: the player and the monsters take double damage (QC vr_run_glasscannon.qc)
 QVR_CVAR(vr_run_pickups, "0", CVAR_NONE)             // the run's Randomized Pickups (as vr_runpick_pickups): the map's pickups swapped as it loads (QC vr_run_pickups.qc)
 QVR_CVAR(vr_run_ironman, "0", CVAR_NONE)              // the run's Ironman: save, quicksave and autosave refused; a death restarts the level with what you entered it with (QC vr_run_ironman.qc)
-QVR_CVAR(vr_run_seed, "0", CVAR_NONE)                 // the run's seed, set at its start (Randomized Pickups: the same map gets the same pickups through the run, an Ironman restart too); 0: the server's random numbers
+QVR_CVAR(vr_run_seed, "0", CVAR_NONE)                 // the run's seed, a new one at each run's start (sv_random_seed's in tests), kept in its saves: Randomized Pickups, and the maps' content seed (crates and barrels, enemy swaps): the same map the same through the run, an Ironman restart too; 0: the server's random numbers
 QVR_CVAR(vr_ironman_refused, "0", CVAR_NONE)          // test aid: the saves Ironman refused since the game started (vr_ironman_test)
 QVR_CVAR(vr_runpickups_test, "0", CVAR_NONE)          // 1: Randomized Pickups' test (QC vr_run_test.qc: e1m1, e1m2, save and load, a new run; verdict "runpickups: N passed, M failed"); 2: the map loaded now only (another game's maps: AD's)
 QVR_CVAR(vr_ironman_test, "0", CVAR_NONE)             // 1: Ironman's test (QC vr_run_test.qc: saves refused, a death on e1m2 restarts it with what e1m1 left you; verdict "ironman: N passed, M failed")
@@ -3970,6 +3970,19 @@ QVR_CVAR(vr_run_test_c, "0", CVAR_NONE)               // test aid: another (the 
 QVR_CVAR(vr_run_enemycount, "0", CVAR_NONE)           // the run's Enemy Count: copies of each map monster beside it as the map loads (QC vr_run_enemycount.qc)
 QVR_CVAR(vr_run_enemyrandom, "0", CVAR_NONE)          // the run's Randomized Enemies: map monsters swapped as the map loads (QC vr_run_enemyrandom.qc)
 QVR_CVAR(vr_run_hubgo, "0", CVAR_NONE)                // the hub's teleporter: set by the Run Setup screen's Start, the teleporter then lets the player through (QC clears it)
+QVR_CVAR(vr_runpick_rangedknights, "0", CVAR_ARCHIVE) // Run Setup: Ranged Knights (held Off while Armed Humanoids is off)
+QVR_CVAR(vr_runpick_wildweapons, "0", CVAR_ARCHIVE)   // Run Setup: Wild Weaponry (held Off while Armed Humanoids is off)
+QVR_CVAR(vr_runpick_armoredfoes, "0", CVAR_ARCHIVE)   // Run Setup: Armored Foes (held Off while Armed Humanoids is off)
+QVR_CVAR(vr_run_rangedknights, "0", CVAR_NONE)        // the run's Ranged Knights: armed knights and death knights spawn with and take up ranged weapons (QC vr_armedrepl.qc VR_AKN_Pick)
+QVR_CVAR(vr_run_wildweapons, "0", CVAR_NONE)          // the run's Wild Weaponry: armed humanoids' rolled weapons ignore what the player owns and the rare weapons' map (QC VR_AGR_Eligible)
+QVR_CVAR(vr_run_armoredfoes, "0", CVAR_NONE)          // the run's Armored Foes: armed humanoids spawn armoured far more often (QC vr_agarmor.qc VR_AgArmor_Roll, vr_armoredfoes_chance)
+QVR_CVAR(vr_rangedknights_w_sword, "6", CVAR_ARCHIVE)    // Ranged Knights' pool weights (0: never): his own sword
+QVR_CVAR(vr_rangedknights_dual, "0.2", CVAR_ARCHIVE)     // 0..1: ... the chance a sword knight holds a second sword
+QVR_CVAR(vr_rangedknights_w_crossbow, "2.5", CVAR_ARCHIVE) // ... AD's crossbow (only with Arcane Dimensions' rules on: AD mounted)
+QVR_CVAR(vr_rangedknights_xbow_sword, "0.35", CVAR_ARCHIVE) // 0..1: ... the chance a crossbow knight keeps his sword in the other hand
+QVR_CVAR(vr_rangedknights_w_chainsaw, "0.6", CVAR_ARCHIVE) // ... the chainsaw (once a player owns it, unless Wild Weaponry)
+QVR_CVAR(vr_rangedknights_w_gun, "0.3", CVAR_ARCHIVE)    // ... any other gun of the replacements' tiers (each once a player owns it, unless Wild Weaponry)
+QVR_CVAR(vr_armoredfoes_chance, "0.75", CVAR_ARCHIVE)    // Armored Foes: the chance an armed humanoid the skill's roll left bare is armoured after all (the skill's type and pieces)
 QVR_CVAR(vr_maps_slipseer, "1", CVAR_ARCHIVE)         // Slipseer (slipseer.com) listed in the Map Library beside Quaddicted (vr_slipseer.cpp): its listing pages read politely at start-up (cached on disk), a map's own page when it is picked. 0: Slipseer left out, nothing fetched from it
 QVR_CVAR(vr_maps_slipseer_delay, "5", CVAR_ARCHIVE)   // seconds at least between two Slipseer page requests (each wait is this to twice it, at random; never under 1): a person's pace
 QVR_CVAR(vr_maps_cache_mb, "512", CVAR_ARCHIVE)       // the map download cache (cache/maps/<sha256>.zip): at most this many MB kept, the oldest zips removed first when a download would pass it (and at start-up, and when it is lowered). 0: nothing kept once a package is installed. The Slipseer page and screenshot cache (cache/slipseer/) is held under the same size at start-up, the least recently fetched first (0: not trimmed)

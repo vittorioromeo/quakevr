@@ -3036,6 +3036,7 @@ static void COM_SwitchGameInternal (const char *paths, qboolean vrCampaign)
 	VR_ModelsKeepDecide (); // QVR: ... decided now, in the new folders (vr_modelkeep.cpp)
 
 	//clear out and reload appropriate data
+	VR_OnModelsResetting (); // QVR: the pool's jobs that read the old world's model joined before it goes
 	Cache_FlushExcept (VR_ModelCacheKept); // QVR: Cache_Flush but the kept models'
 	Mod_ResetAll();
 	// QVR: nothing points at the reset models: the client's state as at start-up (CL_ForgetModels), the server's world

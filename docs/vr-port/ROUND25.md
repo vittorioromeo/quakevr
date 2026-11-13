@@ -1360,6 +1360,84 @@ Play on an installed package asks Easy / Normal / Hard / Nightmare first (page "
   armed test with `nav: <name>: abandoned at the map change`.
 - **Tests** (low-impact runs): nav_tele_metric (seeded) 18/2 and vr_arena_test 43 13/0, their outcome lines identical
   before and after (md5 f8081035, 19d8a9d4); nav_tele 1/0, nav_lift 1/0.
+
+## mutknights: Ranged Knights, Wild Weaponry, Armored Foes (run mutators; branch agent/mutknights, 2026-11-13)
+
+- **Three Run Setup rows** (`rangedknights`, `wildweapons`, `armoredfoes`: Off / On; `vr_runpick_<id>`, `vr_run_<id>`),
+  held at Off as a line "... (Armed Humanoids off)" unless Armed Humanoids is On, or As Style with Unleashed (My
+  Settings: yours) (`armedOnlyForced`). Details and numbers: MUTATORS.md, "Ranged Knights, Wild Weaponry, Armored Foes".
+- **Investigation (the brief's size check):** nothing to author. Knights and death knights are already armed-humanoid
+  rows with every weapon class (ROUND23.md "Armed knights: shipped poses and every weapon class"): his posed arms on the
+  grunt's shipped pose keys fitted to his body, the layer's aim, fire, reload and melee, the death knight's cast beside
+  a gun (`vr_agdknight_cast_cooldown`). Verified: `vr_agrunt_test 1` with `vr_agrunt_test_kind 2` and `3` (every weapon
+  fired or swung at you: 17/0 each) and `vr_agrunt_test 12` kind 2 with AD (21/0: the crossbow 2 shots, 31.5 damage).
+- **Ranged Knights:** `VR_AKN_Pick` (vr_armedrepl.qc; `VR_AGR_Pick` sends the knight kinds to it, so `VR_AGR_Resolve`'s
+  pending roll and the seeds are the grunts'); `VR_AKN_Replace` rolls a knight with no "weapon" key. Pool weights
+  `vr_rangedknights_w_sword` 6, `_dual` 0.2, `_w_crossbow` 2.5 (AD's rules), `_xbow_sword` 0.35 (the gun-and-blade
+  loadout), `_w_chainsaw` 0.6, `_w_gun` 0.3; menu rows under Armed Humanoid Replacements. The rows' `vr_am_takes_ranged`
+  is on with it (knights take up guns).
+- **Wild Weaponry:** `VR_AGR_Eligible` (ownership) and `VR_AGR_RareOk` (the rare tier's map) lifted; Ranged Knights'
+  other guns use the same two.
+- **Armored Foes:** `VR_AgArmor_Roll`'s chance c -> 1 - (1 - c)(1 - `vr_armoredfoes_chance` 0.75); types and pieces the
+  skill's; the arena's waves keep theirs.
+- **Decisions:** a knight's sword, crossbow and chainsaw need no player to own them (his own kind of weapons; else the
+  chainsaw would never come in id's campaign); the other guns follow the replacements' rules. Armored Foes raises the
+  chance this way (not a flat 75%) so the skill's order stays (Nightmare still the most).
+- **Tests:** `vr_runsetup_test` 72/0 after merging next (the held rows four ways, a run started with Armed Humanoids Off starts them Off,
+  the save line and a load). `vr_run_armed_check` (new; "runarmed"): skill 1, e1m2 all off; e1m2 all on with Randomized
+  Enemies Balanced and Enemy Count 2x, saved, changelevel e1m3, a new run on e1m1 all off, the save loaded, a run with
+  Armed Humanoids Off: 12/0 (knights' pool 874/79/47 of 1000 sword/chainsaw/gun, two swords 20%; grunts 0 unowned off,
+  306 of 800 unowned and 119 rare-early with Wild; armour 20% -> 80%, e1m2 6/6 armoured); runenemies 2/0 alongside.
+  Sword weight 0 on e1m2 (skill 2): every one of 5 knights a gun or chainsaw, all take guns, after save/changelevel/load
+  8/0. AD (`-Games "-game ad -game quakevr"`) e1m2: 5/5 crossbow knights (35% with a sword), 12/17 armoured, 4/0.
+  Scenes `run_rangedknights`, `run_wildweapons`, `run_armoredfoes`.
+- Scripts (run.sh -Script, -QuitOn "runarmed: [0-9]+ passed"): `developer 1;skill 1;vr_runsetup_test;vr_runpick_armed 2;
+  vr_run start;map e1m2;wait90;vr_run_armed_check 0 0 0;vr_runpick_rangedknights 1;vr_runpick_wildweapons 1;
+  vr_runpick_armoredfoes 1;vr_runpick_enemyrandom 1;vr_runpick_enemycount 1;vr_run start;map e1m2;wait90;
+  vr_run_armed_check 1 1 1;save mk_a;changelevel e1m3;wait90;...;load mk_a;wait90;vr_run_armed_check 1 1 1;...;
+  vr_run_armed_check verdict`.
+- **Not verified:** the held rows' look on the screen; a ranged knight's look in VR holding the crossbow and sword.
+## crash2: hull and box3d builds joined before a game switch; two scenes off the walls; enemy swaps' head room (agent/crash2, 2026-11-13)
+
+- **The pool's world readers:** hull's load builds (`build(world)`) and its in-play trees, and box3d's world mesh
+  (`worldMesh(map)`), read the world model through a pointer captured at their post (their other inputs, cvars and
+  edict lists, are main-thread captures already). They were joined only in VR_OnClearMemory; now one
+  `joinWorldReaders()` (hull, box3d, nav `finishLoads`) runs in VR_OnClearMemory, VR_OnShutdownServer and a new
+  `VR_OnModelsResetting` in COM_SwitchGameInternal before Cache_FlushExcept / Mod_ResetAll (Host_ShutdownServer skips
+  its hook when the server never went active: a load that failed half-way). Repro `scratch/c2_repro.py`
+  (`vr_campaign_native ad;map ad_crucial;waitN;vr_campaign_native id1;map vrtesthall;waitN`): 60 loops at wait3 and
+  50 at wait1, no crash.
+- **Scenes:** nav_arena's Ogre stood inside the NE tower (450, 450): now at (-600, 250). nav_tele_oneway_all's start
+  (z -29) put four of its five walkers in walls: it now uses nav_tele_metric's start and spots. Both old (the scenes
+  were written so). runall on them: 0 problems; nav_tele_oneway_all 18/2 as before.
+- **Enemy swaps' height:** `VR_RUN_ER_KINDS` has a `top` column (box top over the origin: Quake VR's kinds their spawn
+  setsize, AD's ad_monster_bbox). A taller kind is allowed only where five vertical lines (middle and box corners) from
+  the spot's origin up to its top meet no world (`VR_RunEnemyRandom_Headroom`; lines, since box traces are the hulls').
+  **Finding:** the 1-10 "map's own in solid" were not the swaps. The check now names each one: they are unswapped
+  monsters the map placed so (e4m3's 10 zombies, ad_azad's 7-8 ceiling spiders, ad_akalakha's fishing ogre), counted
+  only because the mutators looked at them; swapped ones in solid: 0-1 per map (a lost soul or gargoyle for a wizard:
+  32 wide for 24, the same width class). With the mutators on, before -> after: e1m3 1->1, e4m3 10->10, ad_azad 8->9
+  and 8->8, ad_akalakha 3->3, e1m1 0->0; copies in solid 0 everywhere. The copies-in-solid check now allows 1 + the
+  *swapped* ones' share (was 2 + every own one's) and prints own / swapped / copies.
+- **Tests:** the loop above; nav_tele_metric (seeded) 18/2 and vr_arena_test 43 13/0, outcome md5 f8081035 / 19d8a9d4
+  as navcrash's; `scratch/c2_enemies.py` id and AD: every QC check PASS (its repeated `vr_runpick_enemycount 3` FAILs
+  only the run-cvars line: 3x is value 2).
+- **The run's one seed** (his ask: "the randomization uses the same seed that crates/barrels use, and the seed is
+  changed every new run even if the chosen mutators are the same"): `vr_run_seed` is drawn from the clock at every run
+  start (`runsetup::start`, every Run Setup Start: New Game, library, campaign, hub; it was `rand()`, the same first
+  value each launch), or sv_random_seed's in tests; a game begun without a run's start gets one at its first map
+  (`runsetup::ensureSeed`, VR_OnSpawnServerBeforeLoad). The maps' content seed (crates and barrels, rocks, armed
+  replacements and armour, Randomized Enemies via `vr_map_content_seed`) is now the run seed mixed
+  (`srvrandom::chooseMapSeed`: "the run's"), not a fresh clock value per map load: a changelevel, a revisit and a
+  restart keep a run's layout; a new run changes it. Randomized Pickups reads `vr_run_seed`. Enemy Count's placement
+  has no randomness. The save's `// qvr_run` line ends ` seed=N`; its load sets it back; a save without it draws a new
+  one. Unchanged: vr_fresh_map_seeds 0 (the map's name alone), vr_map_seed > 0, a test session's 0 (vr_map_seed -1
+  turns the run's on there), vr_bench_seed's seeded loads.
+- **Tests:** `vr_runpickups_test 1` 31/0 (new: another run's seed then the first run's save and a changelevel: the
+  first run's e1m2 pickups; two new runs with the same choices: other seed, content seed and pickups; changelevel and
+  back, and the save's load after a third run: the run's seed, content seed and pickups); `vr_ironman_test 1` 12/0
+  (it failed 11/1 on its own before ensureSeed: run alone, its game had no run seed and the restart rolled anew);
+  `vr_runsetup_test` 49/0.
 ## runsetup2: the Run Setup page feedback (agent/runsetup2, 2026-11-13)
 - **Old difficulty menu:** the only live way to it was the flat Levels list (`menu_maps`, Enter or `menu_maps <map>`:
   `M_Maps_Key`, `M_Menu_Maps_f`, menu.c): now `VR_RunSetupLevel(map)` opens the Run Setup screen (`Launch::Level`, the

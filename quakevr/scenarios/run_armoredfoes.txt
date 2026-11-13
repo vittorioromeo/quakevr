@@ -1,0 +1,6 @@
+# run_armoredfoes: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Run mutator Armored Foes on e1m1
+map e1m1
+cvar vr_agrunt_repl 1
+cvar vr_run_armoredfoes 1
+hint Armored Foes: most of e1m1's armed grunts wear armour plates (about 4 in 5 on Normal, against 1 in 5 without it), the difficulty's types and pieces: green and a few pieces on Normal, up to red and full sets on Nightmare.

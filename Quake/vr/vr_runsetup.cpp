@@ -8,6 +8,7 @@
 #include "vr_gorepresets.hpp"
 #include "vr_presets.hpp"
 #include "vr_progs.hpp"
+#include "vr_srvrandom.hpp"
 #include "vr_testkit.hpp"
 
 #include <cstdio>
@@ -145,6 +146,29 @@ int startGunForced()
     return vr_runpick_meleeonly.value != 0.f ? startGunNothing : -1;
 }
 
+// Armed Humanoids on as the screen's picks stand: On, or As Style with a Style that has them (Unleashed: the settings'
+// defaults; My Settings: yours as they are now; Classic and Light: off).
+bool armedPicked()
+{
+    const int armed = cvarInt(vr_runpick_armed);
+    if(armed != 0)
+    {
+        return armed == 2;
+    }
+    const int style = cvarInt(vr_runpick_style);
+    if(style == 0)
+    {
+        return vr_agrunt_repl.value != 0.f || vr_agknight.value != 0.f || vr_agdknight.value != 0.f;
+    }
+    return style == 3;
+}
+
+// Ranged Knights, Wild Weaponry, Armored Foes: held Off while Armed Humanoids is off (they change armed humanoids only).
+int armedOnlyForced()
+{
+    return armedPicked() ? -1 : 0;
+}
+
 // ----------------------------------------------------------------------------
 // The registry: one line a choice, in the screen's order (the presets before the rows they set over).
 // ----------------------------------------------------------------------------
@@ -194,6 +218,18 @@ const Mutator registry[] = {
         "Monsters swapped as a map loads. Balanced: one as tough that moves as it does and fits its spot (Arcane "
         "Dimensions' too when mounted). Anything Goes: any that fits.",
         &vr_runpick_enemyrandom, &vr_run_enemyrandom, nullptr, nullptr, nullptr, nullptr},
+    {"rangedknights", "Ranged Knights", Section::Mutators, QVR_OPTIONS(offOn), 0, 0,
+        "Knights and death knights may hold guns and take them up: mostly their swords (two now and then), crossbows "
+        "with Arcane Dimensions, rarely a chainsaw, more rarely another gun. Needs Armed Humanoids.",
+        &vr_runpick_rangedknights, &vr_run_rangedknights, nullptr, armedOnlyForced, nullptr, "Armed Humanoids off"},
+    {"wildweapons", "Wild Weaponry", Section::Mutators, QVR_OPTIONS(offOn), 0, 0,
+        "Armed humanoids may hold any weapon from the first map on, whether you have found it or not (the first grunt "
+        "may hold a rocket launcher). Needs Armed Humanoids.",
+        &vr_runpick_wildweapons, &vr_run_wildweapons, nullptr, armedOnlyForced, nullptr, "Armed Humanoids off"},
+    {"armoredfoes", "Armored Foes", Section::Mutators, QVR_OPTIONS(offOn), 0, 0,
+        "Armed humanoids spawn in armour far more often (the difficulty's armour types and pieces). Needs Armed "
+        "Humanoids.",
+        &vr_runpick_armoredfoes, &vr_run_armoredfoes, nullptr, armedOnlyForced, nullptr, "Armed Humanoids off"},
 };
 // clang-format on
 
@@ -206,12 +242,22 @@ struct State
 {
     int pending[registryCount]{};
     bool pendingHave[registryCount]{};
+    int pendingSeed{0};      // the run's seed (vr_run_seed: `seed=`)
+    bool pendingHaveSeed{false}; // ... the line has one (a save from before it was: a new one drawn)
     bool haveLine{false};
     bool reading{false}; // readSaveLines ran for the save being loaded
     char line[256]{};
     char summary[256]{};
 };
 State state;
+
+// A new run seed (1..0xFFFF, exact in QC's floats): sv_random_seed's when a test fixes it, else the clock's (not
+// rand()'s: the C library's sequence starts the same each launch).
+[[nodiscard]] int newSeed()
+{
+    const int fixed = static_cast<int>(Cvar_VariableValue("sv_random_seed"));
+    return fixed != 0 ? (fixed & 0xFFFF) + 1 : static_cast<int>(srvrandom::freshSeed(0xFFFFu));
+}
 
 void setActive(int i, int value)
 {
@@ -428,6 +474,48 @@ void enemiesCheckCmd()
     }
 }
 
+// vr_run_armed_check <rangedknights> <wildweapons> <armoredfoes>: the running game as that run arms its humanoids (the
+// run's cvars; QC VR_Run_ArmedCheck: the rolls' shares over many spawns as the choices say, the map's own knights and
+// armed humanoids as rolled); vr_run_armed_check verdict: "runarmed: N passed, M failed".
+testkit::Tally armedTally;
+
+void armedCheckCmd()
+{
+    constexpr const char* name = "runarmed";
+    if(Cmd_Argc() == 2 && !strcmp(Cmd_Argv(1), "verdict"))
+    {
+        armedTally.verdict(name);
+        armedTally = testkit::Tally{};
+        return;
+    }
+    if(Cmd_Argc() < 4)
+    {
+        Con_Printf("vr_run_armed_check <rangedknights> <wildweapons> <armoredfoes> | verdict\n");
+        return;
+    }
+    const int rk = atoi(Cmd_Argv(1));
+    const int ww = atoi(Cmd_Argv(2));
+    const int af = atoi(Cmd_Argv(3));
+    char what[96];
+    q_snprintf(what, sizeof(what), "%s: armed %d %d %d", sv.name, rk, ww, af); // (not va's: the QC check's prints reuse those)
+    const bool cvars = activeValue(find("rangedknights")) == rk && activeValue(find("wildweapons")) == ww &&
+                       activeValue(find("armoredfoes")) == af;
+    armedTally.check(cvars, name, va("%s: the run's cvars (%s)", what, summary(false)));
+    bool qc = sv.active;
+    for(int part = 1; part <= 4 && sv.active; part++) // (one call a part: thousands of rolls in one are a runaway loop)
+    {
+        const progs::ServerVm vm;
+        dfunction_t* fn = VR_ED_FindFunction(va("VR_Run_ArmedCheck%d", part));
+        qc = fn && progs::qcFloat(static_cast<func_t>(fn - qcvm->functions), static_cast<float>(rk), static_cast<float>(ww),
+                                 static_cast<float>(af)) != 0.f && qc;
+    }
+    armedTally.check(qc, name, va("%s: the rolls and the map's armed humanoids", what));
+    if(cvars && qc)
+    {
+        Con_Printf("runarmed: PASS %s\n", what);
+    }
+}
+
 void testCmd()
 {
     testkit::Tally t;
@@ -461,7 +549,12 @@ void testCmd()
     Cvar_Set("vr_runpick_glasscannon", "1");
     Cvar_Set("vr_runpick_pickups", "2");
     Cvar_Set("vr_runpick_ironman", "1");
+    Cvar_Set("vr_runpick_rangedknights", "1");
+    Cvar_Set("vr_runpick_wildweapons", "1");
+    Cvar_Set("vr_runpick_armoredfoes", "1");
     start();
+    t.check(vr_run_rangedknights.value == 1.f && vr_run_wildweapons.value == 1.f && vr_run_armoredfoes.value == 1.f, name,
+        "start: Ranged Knights, Wild Weaponry, Armored Foes (Armed Humanoids on)");
     t.check(vr_run_pickups.value == 2.f && vr_run_ironman.value == 1.f && ironman() && vr_run_seed.value >= 1.f, name,
         "start: Randomized Pickups (anything goes), Ironman, the run's seed");
     t.check(gameplaypresets::kind().matchingLevel() == -1 && vr_agrunt_repl.value == 1.f && vr_ai_enhanced.value == 0.f &&
@@ -473,8 +566,38 @@ void testCmd()
     char saved[256];
     q_strlcpy(saved, saveLine(), sizeof(saved));
     t.check(strstr(saved, "style=1") && strstr(saved, "gore=2") && strstr(saved, "startgun=2") && strstr(saved, "startmelee=1") &&
-                strstr(saved, "glasscannon=1") && strstr(saved, "pickups=2") && strstr(saved, "ironman=1"),
+                strstr(saved, "glasscannon=1") && strstr(saved, "pickups=2") && strstr(saved, "ironman=1") &&
+                strstr(saved, "rangedknights=1") && strstr(saved, "wildweapons=1") && strstr(saved, "armoredfoes=1"),
         name, "the save line holds the run");
+
+    // Armed Humanoids off holds the three armed-only rows Off (Off, or As Style with Classic or Light); on frees them.
+    {
+        const int ids[] = {find("rangedknights"), find("wildweapons"), find("armoredfoes")};
+        const auto held = [&](bool want) {
+            bool ok = true;
+            for(const int i : ids)
+            {
+                ok = ok && (want ? forcedValue(i) == 0 && pickValue(i) == 0 : forcedValue(i) == -1 && pickValue(i) == 1);
+            }
+            return ok;
+        };
+        t.check(held(false), name, "armed-only rows free while Armed Humanoids is On");
+        Cvar_Set("vr_runpick_armed", "1");
+        t.check(held(true), name, "Armed Humanoids Off: Ranged Knights, Wild Weaponry, Armored Foes held Off");
+        Cvar_Set("vr_runpick_armed", "0");
+        t.check(held(true), name, "As Style with Classic: held Off");
+        Cvar_Set("vr_runpick_style", "3");
+        t.check(held(false), name, "As Style with Unleashed: free");
+        Cvar_Set("vr_runpick_style", "2");
+        t.check(held(true), name, "As Style with Light: held Off");
+        Cvar_Set("vr_runpick_armed", "1");
+        start();
+        t.check(vr_run_rangedknights.value == 0.f && vr_run_wildweapons.value == 0.f && vr_run_armoredfoes.value == 0.f,
+            name, "a run with Armed Humanoids Off starts them Off (the picks kept)");
+        t.check(vr_runpick_rangedknights.value == 1.f, name, "the held pick itself is kept for next time");
+        Cvar_Set("vr_runpick_style", "1");
+        Cvar_Set("vr_runpick_armed", "2");
+    }
     Con_Printf("runsetup: %s", saved);
 
     // Melee Only holds the Starting gun at nothing (the melee weapon is still the pick).
@@ -495,9 +618,12 @@ void testCmd()
     Cvar_Set("vr_runpick_glasscannon", "0");
     Cvar_Set("vr_runpick_pickups", "0");
     Cvar_Set("vr_runpick_ironman", "0");
+    Cvar_Set("vr_runpick_rangedknights", "0");
+    Cvar_Set("vr_runpick_wildweapons", "0");
+    Cvar_Set("vr_runpick_armoredfoes", "0");
     start();
     t.check(gameplaypresets::kind().matchingLevel() == gameplaypresets::levelUnleashed && vr_run_glasscannon.value == 0.f &&
-                vr_run_pickups.value == 0.f && !ironman(),
+                vr_run_pickups.value == 0.f && !ironman() && vr_run_rangedknights.value == 0.f && vr_run_armoredfoes.value == 0.f,
         name, "run B: Unleashed, no glass cannon, pickups as the map's, saving allowed");
 
     // The first run's save loaded: its choices and the presets' values back.
@@ -506,7 +632,8 @@ void testCmd()
     readSaveLines(text);
     onLoadGame();
     t.check(vr_run_style.value == 1.f && vr_run_startgun.value == 2.f && vr_run_startmelee.value == 1.f &&
-                vr_run_glasscannon.value == 1.f && vr_run_pickups.value == 2.f && vr_run_ironman.value == 1.f,
+                vr_run_glasscannon.value == 1.f && vr_run_pickups.value == 2.f && vr_run_ironman.value == 1.f &&
+                vr_run_rangedknights.value == 1.f && vr_run_wildweapons.value == 1.f && vr_run_armoredfoes.value == 1.f,
         name, "load A: the run's choices back");
     t.check(vr_agrunt_repl.value == 1.f && vr_nav.value == 0.f && gorepresets::matching() == gorepresets::choiceMinimal,
         name, "load A: the presets' values back (Classic + armed, Gore Minimal)");
@@ -622,12 +749,19 @@ void start()
     {
         applyActive(i, Phase::Start);
     }
-    // The run's seed (Randomized Pickups: a map's layout the same all through the run): sv_random_seed's when a test
-    // fixes it, else a new one. Not in the saved games: a loaded run's next maps roll anew.
-    const int fixed = static_cast<int>(Cvar_VariableValue("sv_random_seed"));
-    Cvar_SetValueQuick(&vr_run_seed, static_cast<float>(fixed != 0 ? (fixed & 0xFFFF) + 1 : 1 + rand() % 0xFFFF));
+    // The run's seed (Randomized Pickups, and the maps' content: a map's layout the same all through the run), a new
+    // one every run even with the same choices. In the saved games (`seed=`): a loaded run's next maps roll as its did.
+    Cvar_SetValueQuick(&vr_run_seed, static_cast<float>(newSeed()));
     Cvar_Set("vr_run_hubgo", "0");
     Con_Printf("Run setup: %s\n", summary(false));
+}
+
+void ensureSeed()
+{
+    if(vr_run_seed.value <= 0.f)
+    {
+        Cvar_SetValueQuick(&vr_run_seed, static_cast<float>(newSeed()));
+    }
 }
 
 void endRun()
@@ -706,6 +840,18 @@ const char* summary(bool picks)
     {
         appendPart(random == 2 ? "Any enemies" : "Random enemies");
     }
+    if(value(find("rangedknights")))
+    {
+        appendPart("Ranged knights");
+    }
+    if(value(find("wildweapons")))
+    {
+        appendPart("Wild weaponry");
+    }
+    if(value(find("armoredfoes")))
+    {
+        appendPart("Armored foes");
+    }
     return state.summary;
 }
 
@@ -716,6 +862,7 @@ const char* saveLine()
     {
         q_strlcat(state.line, va(" %s=%d", registry[i].id, activeValue(i)), sizeof(state.line));
     }
+    q_strlcat(state.line, va(" seed=%d", static_cast<int>(vr_run_seed.value)), sizeof(state.line));
     q_strlcat(state.line, "\n", sizeof(state.line));
     return state.line;
 }
@@ -728,6 +875,8 @@ void readSaveLines(const char* text)
     {
         state.pendingHave[i] = false;
     }
+    state.pendingSeed = 0;
+    state.pendingHaveSeed = false;
     const char* p = text ? strstr(text, "\n// qvr_run ") : nullptr;
     if(!p)
     {
@@ -745,6 +894,12 @@ void readSaveLines(const char* text)
             break;
         }
         p += used;
+        if(!strcmp(key, "seed"))
+        {
+            state.pendingSeed = value;
+            state.pendingHaveSeed = true;
+            continue;
+        }
         if(!strcmp(key, "startweapon")) // (a save from before the gun and the melee weapon were two choices)
         {
             // 0 shotgun, 1 revolver, 2 axe alone, 3 unarmed -> gun, melee
@@ -780,6 +935,9 @@ void onLoadGame()
         Con_Printf("Run setup: this saved game has no run choices (saved before they were): the mutators at their "
                    "defaults, the presets as they are\n");
     }
+    // The saved run's seed: its next maps' pickups, crates and barrels, enemy swaps as that run's, not the run played
+    // before the load. A save from before the seed was saved: a new one (sv_random_seed's when a test fixes it).
+    Cvar_SetValueQuick(&vr_run_seed, static_cast<float>(state.pendingHaveSeed ? state.pendingSeed : newSeed()));
     for(int i = 0; i < registryCount; i++)
     {
         const Mutator& m = registry[i];
@@ -823,6 +981,7 @@ void init()
     Cmd_AddCommand("vr_runsetup_test", testCmd);
     Cmd_AddCommand("vr_run_check", checkCmd);
     Cmd_AddCommand("vr_run_enemies_check", enemiesCheckCmd);
+    Cmd_AddCommand("vr_run_armed_check", armedCheckCmd);
 }
 
 } // namespace qvr::runsetup
