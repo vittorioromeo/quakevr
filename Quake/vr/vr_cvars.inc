@@ -2047,6 +2047,8 @@ QVR_CVAR(vr_water_splash_ring_size, "1", CVAR_ARCHIVE) // ... how big the rings 
 QVR_CVAR(vr_water_sounds, "1", CVAR_ARCHIVE)          // volume of the water sounds: splashes, shots into water, wading, swimming strokes, hands slapping (0 off)
 // Real-time shadows and per-pixel dynamic lights (vr_lighting.cpp, docs/vr-port/LIGHTING.md).
 QVR_CVAR(vr_graphics_preset, "-1", CVAR_NONE)          // set 0 off .. 4 ultra to apply a preset to the settings below
+QVR_CVAR(vr_gameplay_preset, "-1", CVAR_NONE)          // set 0 Classic, 1 Light, 2 Unleashed (the defaults), 3 My Settings to apply the Gameplay preset (vr_gameplaypresets.cpp; docs/vr-port/GAMEPLAY_PRESET.md); back to -1 after
+QVR_CVAR(vr_classic_quake, "0", CVAR_NONE)             // 1: Classic Quake (Graphics Off, Gore Minimal, Gameplay Classic); 0: the three presets' My Settings back; shows 1 while the settings match it (vr_gameplaypresets.cpp)
 QVR_CVAR(vr_shadow_dlights, "8", CVAR_ARCHIVE)         // dynamic lights (explosions, rockets) casting shadows, the most important first (0 off)
 QVR_CVAR(vr_shadow_dlight_size, "1024", CVAR_ARCHIVE)   // their largest face size, texels (smaller farther away)
 QVR_CVAR(vr_shadow_muzzleflash, "1", CVAR_ARCHIVE)     // your own muzzle flashes cast shadows too (brief, and costly)
