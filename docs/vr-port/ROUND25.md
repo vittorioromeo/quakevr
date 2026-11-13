@@ -1004,3 +1004,34 @@ daunting".
   grunt's stand (a navmesh task: the trail's goal swapping mid-link); `nav_tele_metric_gates` doesn't use `past` either.
 - Scene-only change: nav_tele, nav_tele_dm5, nav_tele_metric_gates and teleporters_test.sh chase not re-run (no code
   touched).
+
+## navdet: the navmesh's pool jobs land on a fixed server frame (branch agent/navdet, 2026-11-13)
+
+- **Change** (NAVMESH.md 20): a props' tile batch (`obsJob`) goes into the mesh exactly `vr_nav_job_frames` (3) server
+  frames after its start, a size class's mesh (built on the pool, or read from the disk cache) is taken exactly
+  `vr_nav_build_frames` (18) after; never sooner, waited for if late (`nav: job: ... waited N ms`, developer 1;
+  `vr_nav_info` sums them); 0 = when done, as before. Frames counted by `nav::countFrame` in `VR_PhysicsFrameEnd`.
+- **Scene:** `nav_tele_metric` seeds its map's load (`cvar sv_random_seed 1`): its `vr_bench_seed 1` came after the
+  spawns, so the map's own monsters' first thinks followed the clock, which was most of its run-to-run spread.
+- **Repeatability** (no-LTO, fast mode, full runs; fingerprint = md5 of the outcome lines, no wall-clock ms; "load" =
+  two lanes at once, each the other's load):
+
+  | test | setting | runs | fingerprints | result | waits (count per run, worst) |
+  | --- | --- | --- | --- | --- | --- |
+  | nav_tele_metric, unseeded map load | deadlines | 4 | 4 different | 16-17 of 20 | 2-4, 74 ms |
+  | nav_tele_metric, seeded | deadlines, alone | 4 | all 881ac464 | 18 of 20 | 3, 63 ms |
+  | nav_tele_metric, seeded | deadlines, load | 4 | all 881ac464 | 18 of 20 | 2-5, 95 ms |
+  | nav_tele_metric, seeded | both 0, load | 4 | all 881ac464 | 18 of 20 | 0 |
+  | test 43 (nav_props) | deadlines, alone | 3 | all 7ebbc601 | 13 passed | 4, 11 ms |
+  | test 43 | deadlines, load | 3 | 7ebbc601 x1, ffb629df x2 (*) | 13 passed | 3-5, 5 ms |
+  | test 43 | both 0, load | 3 | 3 different | 13 passed | 0 |
+  | test 43, disk-read hold | deadlines, load, cache on / off | 2 + 2 | all ffb629df | 13 passed | 2-3, 6 ms |
+  | nav_tele_metric, disk-read hold | deadlines, load, cache on / off | 2 + 2 | all 881ac464 | 18 of 20 | 3-5, 48 ms |
+
+  (*) a lane's first run, a fresh game folder: its classes built, not read from the cache, so taken later; the one
+  difference was the first knight's end, 0.007 units. Fixed: a class read from the disk is held to its frame as a
+  build is (the last two rows). nav_tele_metric didn't go apart with the deadlines off in 4 loaded runs (its jobs end
+  well before the trials need them); test 43, which rebuilds props' tiles all along, did every time.
+- **Waits** are a fast-mode effect (a frame is a few ms there): a props' batch 1-50 ms, a build ~90 ms (the ogre's,
+  94 ms built). At 72-90 Hz 3 frames are 33-42 ms and 18 are 200-250 ms; not measured in real time.
+- nav_tele: 1 passed (reached after 2.4 s, 1 teleporter); nav_lift: 1 passed (5.4 s, 1 ride). Every wait seen: 2-5 a run, worst 95 ms (a build under load), batches 1-50 ms.

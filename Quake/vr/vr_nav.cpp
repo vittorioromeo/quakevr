@@ -182,6 +182,7 @@ struct NavClass
     dtNavMeshQuery* query = nullptr;
     jobs::Future<void> job;   // its build on the pool (pending)
     bool pending = false;
+    za::U64 due = 0;          // the server frame its build is taken on (jobClock; 0: when done)
     za::Vector<Tile> built;   // the job's tiles, added on the main thread at its join
     dtNavMeshParams params{};
     za::U64 key = 0;
@@ -213,6 +214,7 @@ struct NavClass
     bool obsPending = false;
     za::Vector<ObstacleTile> obsTiles;
     double obsAt = 0.0, obsJobMs = 0.0;
+    za::U64 obsDue = 0;       // the server frame the batch goes in on (jobClock; 0: when done)
 };
 
 // A monster's path (by edict number).
@@ -323,6 +325,18 @@ struct State
 };
 
 State state;
+
+// The pool jobs' landing frames (vr_nav_job_frames, vr_nav_build_frames): a job's result goes in on a fixed server frame
+// after its start, never sooner, waited for when not done by then, so the paths are the same whatever the CPU's load.
+// The server frames counted (countFrame) and the deadlines that had to wait.
+struct JobClock
+{
+    za::U64 frame = 0;
+    int waits = 0;
+    double waitMs = 0.0, worstWaitMs = 0.0;
+};
+JobClock jobClock;
+
 dtQueryFilter filter;
 dtQueryFilter filterNoLinks; // (a monster that gave a link up, for a while)
 jobs::Site brushSite{"nav brushes"};
@@ -1593,6 +1607,44 @@ bool deserialise(const za::Vector<char>& in, unsigned count, NavClass& c)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
+// The pool jobs' deadlines (jobClock).
+
+// The server frame a job started now lands on, `frames` after this one (0: none, when done).
+za::U64 dueIn(float frames)
+{
+    return frames >= 1.f ? jobClock.frame + static_cast<za::U64>(frames) : 0;
+}
+
+// Whether a pending job's result goes in now: on its deadline frame (waited for if not done yet, logged), never sooner;
+// no deadline: when done. A job not on the pool (built at once) goes in at once.
+bool landsNow(jobs::Future<void>& job, za::U64 due, const char* what, const NavClass& c)
+{
+    if(!job.valid())
+    {
+        return true;
+    }
+    if(due == 0)
+    {
+        return job.ready();
+    }
+    if(jobClock.frame < due)
+    {
+        return false;
+    }
+    if(!job.ready())
+    {
+        const auto t0 = za::Clock::nowNanoseconds();
+        job.wait();
+        const double ms = msSince(t0);
+        ++jobClock.waits;
+        jobClock.waitMs += ms;
+        jobClock.worstWaitMs = za::max(jobClock.worstWaitMs, ms);
+        Con_DPrintf("nav: job: class r%.0f h%.0f: %s not done by its frame: waited %.2f ms\n", c.radius, c.height, what, ms);
+    }
+    return true;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
 // Classes.
 
 void releaseClass(NavClass& c)
@@ -1674,10 +1726,12 @@ void printClass(const NavClass& c)
         c.fromDisk ? "read" : "built", c.ms);
 }
 
-// A class's mesh from the disk cache, or built: on the pool (async) or now.
+// A class's mesh from the disk cache, or built: on the pool (async) or now. Async, it is taken on its frame (c.due) read
+// or built alike, so the game is the same with or without the file.
 void startClass(za::SizeT index, bool async)
 {
     NavClass& c = state.classes[index];
+    c.due = async ? dueIn(vr_nav_build_frames.value) : 0;
     const Settings s = settingsNow();
     c.settings = s;
     const Grid grid = gridFor(state.geo, s);
@@ -1795,7 +1849,7 @@ bool walker(const edict_t* e)
     return (flags & FL_MONSTER) && !(flags & (FL_FLY | FL_SWIM)) && static_cast<int>(e->v.solid) == SOLID_SLIDEBOX;
 }
 
-// A class ready to answer (its build joined when done).
+// A class ready to answer (its build joined on its frame: landsNow).
 NavClass* readyClass(int index)
 {
     if(index < 0 || static_cast<za::SizeT>(index) >= state.classes.size())
@@ -1803,11 +1857,12 @@ NavClass* readyClass(int index)
         return nullptr;
     }
     NavClass& c = state.classes[static_cast<za::SizeT>(index)];
-    if(c.pending && (c.job.ready() || !c.job.valid()))
+    if(c.pending && landsNow(c.job, c.due, "its build", c))
     {
         joinClass(c);
     }
-    return !c.pending && c.query ? &c : nullptr; // (while its job runs, the job's)
+    // (While its job runs, the job's; one read from the disk cache waits for its frame as a build would.)
+    return !c.pending && c.query && jobClock.frame >= c.due ? &c : nullptr;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -2345,17 +2400,19 @@ void startObstacleBatch(NavClass& c, int ci, double now)
     }
     c.obsAt = now + static_cast<double>(za::max(vr_nav_prop_batch.value, 0.f));
     c.obsPending = true;
+    c.obsDue = dueIn(vr_nav_job_frames.value);
     const auto i = static_cast<za::SizeT>(ci);
     c.obsJob = jobs::async([i]() { runObstacleBatch(state.classes[i]); });
 }
 
-// Each class's batch joined when done, the next started when due (main thread; each steer, the debug view, navobstacles).
+// Each class's batch joined on its frame (landsNow), the next started when due (main thread; each steer, the debug view,
+// navobstacles).
 void pollObstacles(double now)
 {
     for(za::SizeT i = 0; i < state.classes.size(); ++i)
     {
         NavClass& c = state.classes[i];
-        if(c.pending || !c.mesh || c.failed)
+        if(c.pending || !c.mesh || c.failed || jobClock.frame < c.due) // (a class read from the disk: from its frame too)
         {
             continue;
         }
@@ -2380,7 +2437,7 @@ void pollObstacles(double now)
         }
         if(c.obsPending)
         {
-            if(!c.obsJob.ready())
+            if(!landsNow(c.obsJob, c.obsDue, "its props' batch", c))
             {
                 continue;
             }
@@ -2518,6 +2575,10 @@ void info_f()
                "(worst batch %.1f), main thread %.2f ms (worst %.2f); %d pending\n",
         marked, st.marks, st.unmarks, st.batches, st.tiles, st.restored, st.jobMs, st.worstJobMs, st.applyMs, st.worstApplyMs,
         obstaclesPending());
+    Con_Printf("nav: jobs: server frame %llu; %d deadlines waited for (%.2f ms in all, worst %.2f): landing frames %.0f "
+               "(props' batches), %.0f (builds in play)\n",
+        static_cast<unsigned long long>(jobClock.frame), jobClock.waits, jobClock.waitMs, jobClock.worstWaitMs,
+        static_cast<double>(vr_nav_job_frames.value), static_cast<double>(vr_nav_build_frames.value));
 }
 
 // Builtin navobstacles (vr_nav.hpp).
@@ -4593,6 +4654,11 @@ void teleTestTick()
         through ? "through" : "NOT through", took, how, t.stuck, state.teleBackoffs - t.backoffsAt, pos.x, pos.y, pos.z);
     holdMonster(e);
     t.active = 0;
+}
+
+void countFrame()
+{
+    ++jobClock.frame;
 }
 
 void serverFrame()
