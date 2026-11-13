@@ -993,6 +993,13 @@ extern "C" int VR_Run_MonsterSpawning(edict_t* ent)
     return n < 0 ? 0 : n > 2 ? 2 : n;
 }
 
+// ... a swapped-in kind whose spawn function left nothing (removed itself, no model): QC VR_Run_KindRefused refuses it
+// on the map and puts the monster count back; ED_LoadFromFile spawns the monster's keys again.
+extern "C" void VR_Run_MonsterRefused(edict_t* ent)
+{
+    qvr::runsetup::qcOnEdict("VR_Run_KindRefused", ent, nullptr, 0.f);
+}
+
 // ... once the whole map has spawned, its copy k (1..), its keys parsed again: QC VR_Run_MonsterCopy (self the copy,
 // other its monster) places it beside its monster; 0: no room (not spawned).
 extern "C" int VR_Run_MonsterCopy(edict_t* copy, edict_t* orig, int k)

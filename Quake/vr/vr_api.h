@@ -286,6 +286,7 @@ void VR_OnProgsLoaded (void);			// end of PR_LoadProgs, with the loaded qcvm cur
 void VR_OnSpawnServerBeforeLoad (void);	// SV_SpawnServer, before ED_LoadFromFile
 void VR_OnEntitySpawned (edict_t *ent);	// ED_LoadFromFile, after an entity's spawn function ran
 int VR_Run_MonsterSpawning (edict_t *ent);	// ED_LoadFromFile, before a map's entity spawns: Randomized Enemies' swap, Enemy Count's copies of it (vr_runsetup.cpp)
+void VR_Run_MonsterRefused (edict_t *ent);	// ... a swapped-in kind's spawn left nothing: refused on the map (vr_runsetup.cpp)
 int VR_Run_MonsterCopy (edict_t *copy, edict_t *orig, int k);	// ... after the map: its copy k (its keys parsed again) placed beside it, 0: no room (vr_runsetup.cpp)
 void VR_Footsteps_Frame (void);		// SV_Physics, after the edicts: the enemies' footsteps (vr_footsteps.cpp)
 void VR_MonsterHealth_Frame (void);	// SV_Physics, after the edicts: Monster Health's cut on monsters seen first (vr_mgroups.cpp)

@@ -90,8 +90,17 @@ float(entity e, float xTop, float to) VR_RunEnemyRandom_Headroom =
 };
 
 // Kind `to` may stand where `e` (a monster of row `from`, not yet spawned) stands, as the choice `mode` allows.
+// Kinds refused on this map (their spawn function left nothing: the engine's ED_LoadFromFile, VR_Run_KindRefused), the
+// map they were refused on, the row of the last swap and the monster count before its spawn function ran.
+nosave float vr_run_er_bad[VR_MONSTER_KINDS_MAX];
+nosave string vr_run_er_badmap;
+float vr_run_er_lastrow;
+float vr_run_er_tm;
+
+// Kind `to` may stand where `e` (a monster of row `from`, not yet spawned) stands, as the choice `mode` allows.
 float(entity e, float from, float to, float mode) VR_RunEnemyRandom_Allowed =
 {
+    if(to != from && vr_run_er_bad[to]) return FALSE;
     float src = VR_MONSTER_KINDS[to].src;
     float fmove = VR_MONSTER_KINDS[from].move;
     float tmove = VR_MONSTER_KINDS[to].move;
@@ -122,6 +131,13 @@ float(entity e, float from, float to, float mode) VR_RunEnemyRandom_Allowed =
 void() VR_RunEnemyRandom_Swap =
 {
     float mode = cvar_hget(cvarh_vr_run_enemyrandom);
+    vr_run_er_lastrow = -1;
+    vr_run_er_tm = total_monsters;
+    if(vr_run_er_badmap != mapname)
+    {
+        for(float b = 0; b < VR_MONSTER_KINDS_MAX; b++) vr_run_er_bad[b] = FALSE;
+        vr_run_er_badmap = mapname;
+    }
     if(mode <= 0) return;
     float from = VR_MonsterKind_Row(self.classname);
     if(from < 0 || VR_MONSTER_KINDS[from].src == RUN_ER_PACK || VR_RunEnemyRandom_Crucified(self)) return;
@@ -146,6 +162,7 @@ void() VR_RunEnemyRandom_Swap =
         {
             flags = flags | (VR_MONSTER_KINDS[i].cls == "monster_zombie" ? 2 : 1);
         }
+        vr_run_er_lastrow = i;
         VR_RunEnemyRandom_Become(VR_MONSTER_KINDS[i].cls, flags);
         return;
     }
@@ -209,4 +226,16 @@ float(float mode) VR_RunEnemyRandom_Check =
     dprint(sprintf("vr_run_enemies_check: %g monsters looked at, %g swapped (%g for AD's kinds, %g for the expansions'; %g kinds listed; outcome %g)\n",
                    looked, swapped, adin, expin, VR_MONSTER_KINDS_N, hash));
     return ok;
+};
+
+// The engine (ED_LoadFromFile): the kind just swapped in was removed by its own spawn function (its data short of
+// its probe's). Refused on this map; the monster count as before it (it may have counted itself); the engine
+// spawns the monster's keys again.
+void() VR_Run_KindRefused =
+{
+    if(vr_run_er_lastrow < 0) return;
+    vr_run_er_bad[vr_run_er_lastrow] = TRUE;
+    total_monsters = vr_run_er_tm;
+    dprint(sprintf("Randomized enemies: %s refused on this map (its spawn function removed it), its spot spawned again\n",
+                   VR_MONSTER_KINDS[vr_run_er_lastrow].cls));
 };

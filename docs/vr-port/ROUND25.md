@@ -1640,3 +1640,9 @@ back): `qvr-kit/scratch/menuvis_shots/`.
   open, likely a Rogue kind whose spawn function needs more than its probe model). runenemies 18/18 id, 6/6 AD;
   runpickups 1: 32/32, 2: 6/6 (e2m3), 6/6 (ad_azad Anything Goes); runsetup 73/73; weapons_data.py check ok.
 - **Not run:** vr_run_armed_check and vr_run_check (no code of theirs changed).
+- **Follow-up (r2m1):** its 95 counted / 94 there is the map's own: the same with both enemy mutators off (3 seeds, and
+  Balanced and Anything Goes alike), so not a swap; vr_run_enemies_check still fails r2m1 on it (open: which of the
+  map's entities counts itself without staying). A safety net added anyway: a swapped-in kind that its spawn function
+  removes is refused on the map (QC `VR_Run_KindRefused`: the monster count put back) and the keys spawn again
+  (ED_LoadFromFile: up to 3 re-swaps, then the map's own kind). A missing model is no sign (AD's kinds set theirs
+  later). id outcomes unchanged; r1m1 passes in both modes, 3 seeds.

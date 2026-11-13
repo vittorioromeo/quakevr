@@ -146,6 +146,7 @@ vr_monster_kind VR_MONSTER_KINDS[] =
     { "monster_xmas_snowman", 0, 0, 0, 1, 0, "" }
 };
 #define VR_MONSTER_KINDS_N ((float)(sizeof(VR_MONSTER_KINDS) / sizeof(VR_MONSTER_KINDS[0]))) // (a new row counts itself)
+#define VR_MONSTER_KINDS_MAX 160 // (a per-row array's size: past the table's)
 
 // A classname's kind row (tier 1 to 3), or -1 (not a kind: never swapped or copied, or not listed).
 float(string xCls) VR_MonsterKind_Row =
