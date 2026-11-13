@@ -121,9 +121,6 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
 - **Art:** stretched UVs on the grappling hook's claws and a few faces of the rocket launcher, plasma gun, lava super
   nailgun and multi rocket launcher (ROUND21.md; ask whether they still show); body skins' wrist texel density (needs
   his repaint at a higher resolution).
-- **Slipseer in the map library** (2026-11-11, permission granted): scrape slipseer.com's map pages (title, author,
-  date, description, screenshots, download, required base game or mod). Polite: rate-limited, cached, a randomized
-  human-looking User-Agent, no personal data and no mention of LLMs/AI/bots. Credit Slipseer and each map's author.
 
 ## 9. Refactors, right after 1.1
 

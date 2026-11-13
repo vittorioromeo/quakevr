@@ -292,8 +292,12 @@ folder for a zip install).
 
 - **The Map Library** (the main menu's *Download Maps*, or the menu corner's *Map Library* button) lists
   [Quaddicted](https://www.quaddicted.com/)'s archive of custom maps (its index is fetched when the game starts and
-  cached in `cache\maps_index.txt`). Type to search; the bar under the list sorts (rating, newest, oldest, size,
-  title) and filters them (type, size, rating, installed only). Pick one to read its description, then **Install**:
+  cached in `cache\maps_index.txt`) and [Slipseer](https://www.slipseer.com/)'s maps (its listing is read at a
+  person's pace, a page every few seconds, and kept in `cache\slipseer\`; a map's own page is read when you pick it,
+  its download only when you install it; `vr_maps_slipseer 0` leaves Slipseer out). Type to search; the bar under the
+  list sorts (rating, newest, oldest, size, title) and filters them (type, size, rating, installed only, and source:
+  all, Quaddicted or Slipseer; with all, each map is tagged with its source). Pick one to read its author and source,
+  what it needs (Arcane Dimensions, Copper...), its description and (Slipseer) its screenshot, then **Install**:
   it is downloaded and unpacked in the background, into its own folder `qvr_addons\<id>\`, and
   **Play** starts it. An installed package also has **Uninstall** and **Reinstall** (press twice to confirm).
   Packages that bring their own `progs.dat` are left out, since QVR:U runs its own gameplay
@@ -303,7 +307,10 @@ folder for a zip install).
 - **A map without its own `progs.dat`:** put its `.bsp` in `quakevr\maps`, then load it with
   `map <name>` in the console or from the main menu's *Play Custom Map*. For a map pack in its own folder, start the
   game with `-game <folder>`: QVR:U's gameplay stays, and the folder's maps, textures and sounds are added on top.
-- **A mod with its own `progs.dat`** (Arcane Dimensions, Copper, Quoth, ...): `-game <mod>` runs it in a
+- **Arcane Dimensions** is played natively (its monsters, items and effects with QVR:U's gameplay) while its 1.80
+  (patch 1) folder `ad` is installed in the Quake folder; Map Library maps made for it play the same way, and say so
+  on their page, or say that it is needed when it is not installed.
+- **A mod with its own `progs.dat`** (Copper, Quoth, ...): `-game <mod>` runs it in a
   **compatibility mode**. You get the headset, tracked hands and body, the wrist gadget, movement, room-scale,
   teleport and QVR:U's particles. The mod's weapons fire from the gun in your main hand, and your hand aims them.
   QVR:U's own gameplay (off-hand weapons, holsters, throwing, force grab, melee, hand pickups) isn't available,

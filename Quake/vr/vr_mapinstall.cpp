@@ -19,6 +19,7 @@
 #include "vr_files.hpp"
 #include "vr_mem.hpp"
 #include "vr_sha256.hpp"
+#include "vr_slipseer.hpp"
 #include "vr_zancle.hpp"
 
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
@@ -173,6 +174,10 @@ struct Request
     bool wasInstalled{false}; // the registry names it already (otherwise its folder holds nothing of ours yet)
     za::U64 maxZipBytes{0};   // vr_maps_max_download_mb in bytes (0: no limit)
     za::U64 fakeFreeBytes{0}; // vr_maps_debug_free_mb in bytes (0: the disk's own free space)
+    // A Slipseer map's (vr_slipseer.cpp): no sha256 to check its zip against (its id is its page's hash), so the zip
+    // is checked to be one; and the session's browser headers, its page as the Referer (as the site's own button).
+    bool verifySha{true};
+    za::Vector<za::String> headers;
 };
 Request request;
 
@@ -687,7 +692,14 @@ bool downloadZip(const za::String& part, za::String& why)
         }
         st.cap = request.maxZipBytes;
         st.overrun = request.zipBytes ? request.zipBytes * 2 + 16ull * 1024 * 1024 : 0;
+        za::Vector<const char*> headerLines;
+        for(const za::String& h : request.headers)
+        {
+            headerLines.pushBack(h.cStr());
+        }
         download_t dl{};
+        dl.headers = headerLines.empty() ? nullptr : headerLines.data();
+        dl.num_headers = static_cast<int>(headerLines.size());
         dl.write_fn = writeChunk;
         dl.write_data = &st;
         dl.abort = &cancelJob;
@@ -728,6 +740,23 @@ bool downloadZip(const za::String& part, za::String& why)
         else if(st.bytes == 0)
         {
             failed = "it came back empty";
+        }
+        else if(!request.verifySha)
+        {
+            // No sha256 to check (a Slipseer map): the file must be a zip. A web page instead is the site's own (a
+            // choice of files, a sign-in, an outside link): the player is sent there.
+            unsigned char magic[4] = {};
+            if(FILE* f = Sys_fopen(part.cStr(), "rb"))
+            {
+                const size_t n = fread(magic, 1, sizeof(magic), f);
+                fclose(f);
+                if(n == sizeof(magic) && magic[0] == 'P' && magic[1] == 'K' && magic[2] == 3 && magic[3] == 4)
+                {
+                    return true;
+                }
+            }
+            failed = "it is not a zip (the site gave a web page: a choice of files, a sign-in or an outside link): "
+                     "get it from the map's page";
         }
         else
         {
@@ -1738,6 +1767,17 @@ bool begin(const mapindex::Entry* entry, bool install, za::String* why)
     request.title = za::String{mapindex::index().field(entry->title)};
     request.urls = za::String{mapindex::index().field(entry->urls)};
     request.extract = za::String{mapindex::index().field(entry->extract)};
+    request.verifySha = entry->source != mapindex::Source::Slipseer;
+    request.headers.clear();
+    if(entry->source == mapindex::Source::Slipseer)
+    {
+        if(!entry->urls.len)
+        {
+            slipseer::want(za::String{mapindex::index().field(entry->page)});
+            return refuse("its page has not been read yet (it is being fetched: Install is offered once it is)");
+        }
+        slipseer::downloadHeaders(mapindex::index().field(entry->page), request.headers);
+    }
     request.root = addonDir(request.sha);
     request.zipBytes = entry->bytes;
     request.install = install;

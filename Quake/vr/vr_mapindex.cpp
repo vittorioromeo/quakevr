@@ -17,6 +17,7 @@
 // game running with the index it had (or an older cached copy).
 
 #include "vr_mapindex.hpp"
+#include "vr_slipseer.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "vr_engine.hpp"
@@ -91,6 +92,43 @@ za::String lastStatus;
 // what went wrong. `progress` is the latest one, for the Map Library page while the index has not arrived.
 za::Vector<za::String> pendingLog;
 za::String progress;
+
+// Slipseer's entries (vr_slipseer.cpp; their own arena), and how much of indexSet is Quaddicted's: Slipseer's follow
+// it, rebased (appendSlipseer). Main thread.
+Index slipseerPart;
+za::SizeT ownEntries = 0;
+za::SizeT ownText = 0;
+
+template <typename F>
+void forEachText(Entry& e, F&& f)
+{
+    for(Text* t : {&e.sha256, &e.title, &e.author, &e.date, &e.startmap, &e.extract, &e.urls, &e.types, &e.modes,
+            &e.sizes, &e.themes, &e.description, &e.page, &e.shot, &e.needs})
+    {
+        f(*t);
+    }
+}
+
+// indexSet cut back to Quaddicted's entries, then Slipseer's appended (their texts moved past Quaddicted's arena).
+void appendSlipseer()
+{
+    Index& idx = indexSet;
+    idx.entries.resize(ownEntries);
+    idx.text.resize(ownText);
+    const za::U32 base = static_cast<za::U32>(ownText);
+    idx.text.reserveMore(slipseerPart.text.size());
+    for(const char c : slipseerPart.text)
+    {
+        idx.text.pushBack(c);
+    }
+    for(const Entry& from : slipseerPart.entries)
+    {
+        Entry e = from;
+        e.source = Source::Slipseer;
+        forEachText(e, [&](Text& t) { t.off += base; });
+        idx.entries.pushBack(e);
+    }
+}
 
 void note(const char* fmt, ...)
 {
@@ -1097,6 +1135,7 @@ void fetch_f()
     }
     lastStatus = za::String{};
     start(true); // (asked for: not gated by -nomapindex or vr_maps_fetch 0, which keep the start-up fetch off)
+    slipseer::start(true); // (its listing pages revalidated when they are old: never fetched again while fresh)
     Con_Printf("maps_fetch: fetching %s (maps_stats shows what happened)\n", indexUrl().cStr());
 }
 
@@ -1186,6 +1225,9 @@ void poll()
     if(taken)
     {
         static_cast<Index&>(indexSet) = ZA_MOVE(*taken); // (the registered set holds the live index: vr_memstats)
+        ownEntries = indexSet.entries.size();
+        ownText = indexSet.text.size();
+        appendSlipseer();
         indexGeneration++;
     }
     lastStatus = status;
@@ -1260,6 +1302,10 @@ void search(const Query& q, za::Vector<const Entry*>& out)
         {
             continue;
         }
+        if(q.source >= 0 && static_cast<int>(e.source) != q.source)
+        {
+            continue;
+        }
         if(!hasValue(indexSet, e.types, q.type.cStr()) || !hasValue(indexSet, e.modes, q.gameMode.cStr()) ||
            !hasValue(indexSet, e.sizes, q.mapSize.cStr()))
         {
@@ -1290,6 +1336,23 @@ void search(const Query& q, za::Vector<const Entry*>& out)
     {
         out.pushBack(all[i]);
     }
+}
+
+void setSlipseer(Index&& part)
+{
+    slipseerPart = ZA_MOVE(part);
+    appendSlipseer();
+    indexGeneration++;
+}
+
+int countFrom(Source s)
+{
+    int n = 0;
+    for(const Entry& e : indexSet.entries)
+    {
+        n += e.source == s ? 1 : 0;
+    }
+    return n;
 }
 
 const Entry* find(const za::String& shaPrefix)

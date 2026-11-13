@@ -6626,6 +6626,10 @@ QVR_CYCLE(vr_obs_process_check, "OBS: Process Check",
     {0.f, "Off (Always Connect)"}, {1.f, "On"}, {2.f, "Act as if Running"})
 QVR_SLIDER(vr_ghost_hands_test_offset, "Ghost Hands Test Offset", 0.f, 30.f, 1.f, "%.0f cm", noExt,
     "vr_ghost_hands_test_offset: moves each ghost hand this far sideways, to see it apart from the drawn hand without a heavy weapon or a wall.")
+QVR_TOGGLE(vr_maps_slipseer, "Slipseer Maps",
+    "vr_maps_slipseer: Slipseer (slipseer.com) listed in the Map Library beside Quaddicted. Its listing is read at start-up at a person's pace and kept in a cache (cache/slipseer/); a map's own page only when you pick it, its download only when you install it. Off: Slipseer is left out and nothing is fetched from it.")
+QVR_SLIDER(vr_maps_slipseer_delay, "Slipseer Page Spacing", 1.f, 30.f, 1.f, "%.0f s", ext(1.f, 600.f),
+    "vr_maps_slipseer_delay: at least this long between two Slipseer page requests (each wait is this to twice it, at random), so the site is read at a person's pace.")
 QVR_TOGGLE(vr_maps_allow_progs, "Include Packages with progs.dat",
     "vr_maps_allow_progs: packages that ship their own progs.dat replace the game's code, so they are left out of the list by default. They are in the index either way (maps_info shows them, maps_stats counts them).")
 QVR_SLIDER(vr_maps_cache_mb, "Download Cache Size", 0.f, 4096.f, 64.f, "%.0f MB", ext(0.f, 65536.f),

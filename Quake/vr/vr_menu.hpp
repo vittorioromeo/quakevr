@@ -151,7 +151,8 @@ void openConsole();
 // Map Library (the corner's Maps button, and Single Player > Map Library): the map browser page (vr_menu_maps.inc).
 void openMaps();
 void mapsPage_f(); // maps_page [text]: the Map Library page, with the text typed in
-void mapsPageStats_f(); // maps_page_stats: what the page's list costs, and its layout (Debug > Tools)
+void mapsPageStats_f();
+void mapsPagePick_f(); // maps_page_pick <row> [source]: a row of the Map Library picked (test aid) // maps_page_stats: what the page's list costs, and its layout (Debug > Tools)
 
 // The sticks' selection back on the page shown from the corner's buttons: onto its first setting
 // (dir 1, going down) or its last (dir -1, going up).
