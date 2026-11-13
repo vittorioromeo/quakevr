@@ -1646,3 +1646,34 @@ back): `qvr-kit/scratch/menuvis_shots/`.
   removes is refused on the map (QC `VR_Run_KindRefused`: the monster count put back) and the keys spawn again
   (ED_LoadFromFile: up to 3 re-swaps, then the map's own kind). A missing model is no sign (AD's kinds set theirs
   later). id outcomes unchanged; r1m1 passes in both modes, 3 seeds.
+
+## stir2: knockdown stirring you can see (branch agent/stir2, 2026-11-13)
+
+- His report: no visible difference at any `vr_knockdown_stir` / `_rate`. Why (measured with `vr_knockdown_debug 1`
+  on vrfiringrange, the shipped 1.75-3.5 s down): stirring began only 0.3 s after the fall landed (or 0.7 s into it),
+  the first move 0.1-0.7 s / rate later and lasting 0.5-3.4 s: one move a knockdown, often cut short by the get-up. And
+  the moves that did run got a third of their turn or less: the asked turn went past the joint's limits (a head's twist
+  is 20 deg either way, a hand's cone 30, asked 18-32 blindly either way), into the floor, against the landed fall's
+  still-fading drive, and the drive's spring counted only the bone's own mass (an upper arm's forearm and hand ignored).
+- Now (`vr_box3d_ragdoll.cpp` stirPick/stirFrame/stirRoom): from 0.15 s after its fall lands (or limp from its birth,
+  0.5 s), up to 4 joints each with its own moves and pauses (`vr_knockdown_stir_joints` 2); each move out and back,
+  eased (`_time` 0.65 s, each 70-130%; a hand's twitch twice over), then a pause (`_pause` 0.3 s, 50-150%, over
+  `_rate`); its turn `_deg` 40 x 0.6-1 (a hand 0.8, a leg 0.7) x `vr_knockdown_stir`, cut to 90% of the room its joint
+  has that way (`stirRoom`: a hinge's range, a ball's cone and twist, 2-degree steps); of a few axes either way the one
+  with the most room, a limb's lifting off the floor preferred; a head turns about its length (a nod if its twist has no
+  room). Parts by weight: `_head` 1, `_arms` 1 (arms and hands), `_legs` 0.6. The drive: a 5 Hz spring x sqrt(3 x
+  `_force` 1) on the bone and all that hangs off it (mass and lever), damping capped for a 60 Hz frame, the joint's
+  friction fed forward, at most 4x that weight's lever. While stirring a joint the landed fall's drive leaves it limp
+  (`ragactive::State::yield`) and the struggle (`vr_knockdown_wiggle`) skips it. Purely visual: the knockdown's timer,
+  get-up and AI are the QC's, untouched.
+- Diagnostics: `vr_knockdown_test 9`'s `stircheck:` now gives moves, done, most asked, reached, achieved (the finished
+  moves' turn achieved along the asked one over it), first (s after it began to lie), stirring, down;
+  `vr_knockdown_debug 1` prints each move (kind, bone, turn, length, joint type and limits, off its bind pose) and its
+  achieved turn.
+- Measured (vrfiringrange, 8 knockdowns of 2.5 s): 4-5 moves a knockdown, 78% of the asked turn on average (head 99%,
+  hands 81%, arms 61%: an arm under its body), 18 deg mean, up to 39; before: 1 move, 35%. Get-up due identical with
+  stirring and without, on its feet no later (the rise is the physics': -0.18 s on average over 6). Images:
+  kit `scratch/stir2_shots/` (6 frames 0.3 s apart, a grunt lying).
+- `kdstir_test.sh`: 5 passed (the old 3 plus: down 5 s of 8, first move 0.10 s after it lay, 8 moves, 24 deg at most,
+  85% achieved; 6 knockdowns of 2.5 s against `vr_knockdown_stir 0`: due the same, no later afoot, 4-5 moves each).
+  `stagger_test getup`: 12 PASS. Scene `kd_stir`: now at the shipped down times (8 s before).
