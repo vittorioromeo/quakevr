@@ -77,6 +77,7 @@ struct Bindings
     // A carried prop's touch: QC forcegrabbable_touch and those that only call it (a rock's or a brick's, a crate's
     // piece's, a thrown weapon's: vr_physics.cpp's touch spares the calls that can do nothing).
     func_t propTouches[4]{};
+    func_t MeleeOnlyRefuses{0}; // QC VR_RunMeleeOnly_RefusesEnt: a thing Melee Only refuses shows no loot beam (vr_server.cpp)
     func_t ClipSizeOf{0}; // a weapon's own magazine size, by id and record (QC VR_ClipSizeOf: vr_server.cpp, the ammo screens' warnings)
     func_t AxeStick_Plate{0}; // a thrown blade about to stick in a body: whether an unbroken plate stops it there (QC vr_axestick.qc)
     func_t AxeStick_Stuck{0}; // a thrown axe's blade stuck in something (QC vr_axestick.qc; vr_axestick.cpp)
