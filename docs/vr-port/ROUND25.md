@@ -791,3 +791,27 @@ Each rerun alone twice, seeded as the runner does (`runs/20261113-034530` vs `20
   47 already holds him every frame). agrunt 1 17/0.
 - `teleporters_test.sh`: `EXTRA` (env) commands run first in each chase run, to toggle a feature off; STEALTH.md's
   line on ranged monsters at a gate names `vr_nav_gate_chase`.
+
+## Ragdoll climb leftovers: the grunt's move-in, the hell knight's second hand (branch agent/climbleft, 2026-11-13)
+
+`climb_test.sh` at seed 7: 22 of 24 before, 24 of 24 after; pull at seed 9: 5 of 6 before (the grunt), 6 of 6 after;
+pull at seed 8: 4 of 6 (the ogre "lost its hold", before too; the hell knight below). stagger_test: its two known FAILs
+only (BACKLOG); `vr_agrunt_test 210`: 8 passed, 0 failed.
+
+- **The grunt "slid back off the lip"** (Over, vr_ragactive_hold.cpp): as its hands let go its pelvis was up over the
+  top but still out over the drop, its legs hanging. The way in went down to 0.3 of an arm and pitched it on 0.9 rad,
+  and the pin (through its origin: pitched, its origin's target came out low) set its pelvis under the top against the
+  lip's corner, where it stayed (even pulled in at 3.6 body weights while the pitch went on). Now, until its pelvis is
+  in past the lip (half an arm), the way in stays as high as over (0.6 arm) and isn't pitched on; then it comes down
+  and lies down as before. Going in: the pin `climbInPin` 8 body weights at `climbInHertz` 15, its weight held up at
+  `climbInLift` 1.2 (vr_ragactive_internal.hpp). Without the lift it got in "slowly"; leg reaches off, a higher way
+  alone or the stronger pin alone made no difference.
+- **The hell knight on one hand:** the one-hand re-reach (its free hand up for the lip beside it, each half second, now
+  `climbRetries` 4) also runs while it pulls itself up and goes over (until it lets go), not only hanging: its second
+  hand holds at about 1.5 s. Holding the pull until both hands held (tried first) only left it hanging longer: hanging
+  low, its free hand can't get up to the lip, and a late grab out over the drop was pulled away at once.
+- `vr_ragdoll_active_trace`'s `ragclimb` line now has the knees' and feet's height and how far in, the pin's pull (body
+  weights up, in) and its origin's distance from its anchor.
+- Left (BACKLOG.md): the hell knight's chest stays under the lip for about 2 s going over (both hands on) and it gets
+  in late; at seed 8 in the batched run it "slid back off the lip" (it stands up on the top; alone it gets in). The
+  ogre's seed 8 "lost its hold".

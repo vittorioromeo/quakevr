@@ -20,10 +20,11 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
   at 0.43 s after 2 steps instead of giving way after 3 (F, not G; on level ground, every trial); in one combined
   batched run (lip rates steady backpedal) the 8th steady grunt (balance 0.52) and monster 2's 8th fell, and the lip
   case got 5/8, while lip alone gets 8/8 (batched or not): something between a batch's runs.
-- **ragdoll_climb** (22 of 24 since agent/realfix_climb, 2026-11-12; the enforcer and the ogre fixed): pull grunt
-  "slid back off the lip" (its pelvis sinks onto the lip's corner going in, stands up on the top anyway), pull hell
-  knight "stuck at the lip" (one hand: the other's reach times out after the pull began; its chest stays under the lip).
-  ROUND25.md, "Ragdoll climb: the enforcer's grab, the pull's chest, the ogre's swing".
+- **ragdoll_climb** (24 of 24 at seed 7 since agent/climbleft, 2026-11-13; the grunt's move-in and the hell knight's
+  second hand fixed): pull at seed 8 is 4 of 6: the ogre "lost its hold" at 1.25 s (before too), the hell knight
+  "slid back off the lip" in the batched run (stands on the top; alone at seed 8 it gets in). The hell knight's chest
+  stays under the lip for about 2 s going over (both hands holding) and it gets in late. ROUND25.md, "Ragdoll climb
+  leftovers: the grunt's move-in, the hell knight's second hand".
   (agrunt 60, agarmor_5, limb_wear, stealth settled 2026-11-12; autopump, cellcord, animsmooth, xr_runtime and
   secret_hits too: ROUND25.md, "Always-failing monster tests" and "Always-failing tests, part b".)
 - Stale, passing 3 of 3 (2026-11-12, seeded where the runner seeds): agrunt 47/63/66/67/71/72/76/86/209, ragdoll_grab,
