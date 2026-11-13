@@ -2283,6 +2283,9 @@ float(entity t) VR_WallTorch_OnWall; // (vr_walltorch.qc: it is on its wall, not
 // Deals the damage, with the gibs it may throw at the speed for what dealt it (vr_gib_speed).
 float(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) T_DamageImpl =
 {
+    // The run's mutators: Glass Cannon (vr_run.qc). Here, where every blow is dealt: T_Damage's (guns, blasts, falls)
+    // and T_Damage_VRMelee's (a hand's blow, which never went through T_Damage: the training dummy showed it undoubled).
+    damage = VR_Run_Damage(targ, attacker, damage);
     if(targ.classname == "func_axe_button" && !MG3_AxeButton_Struck(targ, inflictor, attacker, isVRMelee))
     {
         return FALSE; // only a melee blow opens it (vr_mg3_weapons.qc)
@@ -3255,7 +3258,6 @@ float vr_dmg_dealonly;
 
 float(entity targ, entity inflictor, entity attacker, float damage) T_Damage =
 {
-    damage = VR_Run_Damage(targ, attacker, damage); // the run's mutators: Glass Cannon (vr_run.qc)
     if(vr_dmg_dealonly)
     {
         vr_dmg_dealonly = FALSE;

@@ -8,6 +8,17 @@
 #include "Zancle/String/String.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "vr_testkit.hpp"
+
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h> // (vr_snd_wav_check: a WAV laid against an unreadable page)
+#endif
 
 namespace qvr::audio
 {
@@ -400,5 +411,288 @@ void bench_f()
     bench::start(static_cast<int>(seconds * 1000.0));
     Con_Printf("vr_snd_bench %s: %.1f s\n", b.label.cStr(), seconds);
 }
+
+// ----------------------------------------------------------------------------
+// The sound code's fixes after vkQuake, checked (ROUND25.md, "vkQuake fixes")
+
+namespace
+{
+
+// A WAV made byte by byte (little-endian), 8-bit mono 11025 Hz.
+struct WavBytes
+{
+    unsigned char b[512]{};
+    int n{0};
+
+    void id(const char* s)
+    {
+        for(int i = 0; i < 4; i++)
+        {
+            b[n++] = static_cast<unsigned char>(s[i]);
+        }
+    }
+    void le32(int v)
+    {
+        for(int i = 0; i < 4; i++)
+        {
+            b[n++] = static_cast<unsigned char>((v >> (8 * i)) & 0xff);
+        }
+    }
+    void le16(int v)
+    {
+        b[n++] = static_cast<unsigned char>(v & 0xff);
+        b[n++] = static_cast<unsigned char>((v >> 8) & 0xff);
+    }
+    void riff()
+    {
+        id("RIFF");
+        le32(0); // (finish)
+        id("WAVE");
+    }
+    void fmt()
+    {
+        id("fmt ");
+        le32(16);
+        le16(1);     // PCM
+        le16(1);     // mono
+        le32(11025); // rate
+        le32(11025); // bytes a second
+        le16(1);     // block align
+        le16(8);     // bits
+    }
+    void data(int samples)
+    {
+        id("data");
+        le32(samples);
+        for(int i = 0; i < samples; i++)
+        {
+            b[n++] = 128;
+        }
+        if(samples & 1)
+        {
+            b[n++] = 0;
+        }
+    }
+    void cue(int loopStart)
+    {
+        id("cue ");
+        le32(28);
+        le32(1); // points
+        le32(1); // id
+        le32(0); // position
+        id("data");
+        le32(0); // chunk start
+        le32(0); // block start
+        le32(loopStart);
+    }
+    // Cool Edit's loop length: a LIST adtl holding a ltxt "mark".
+    void listMark(int loopLength)
+    {
+        id("LIST");
+        le32(24);
+        id("adtl");
+        id("ltxt");
+        le32(12);
+        le32(1);
+        le32(loopLength);
+        id("mark");
+    }
+    // A chunk of `payload` bytes (its header's length that too), the file ending with it.
+    void shortChunk(const char* name, int payload)
+    {
+        id(name);
+        le32(payload);
+        for(int i = 0; i < payload; i++)
+        {
+            b[n++] = name[i % 4];
+        }
+    }
+    void finish()
+    {
+        const int size = n - 8;
+        for(int i = 0; i < 4; i++)
+        {
+            b[4 + i] = static_cast<unsigned char>((size >> (8 * i)) & 0xff);
+        }
+    }
+};
+
+// GetWavinfo on `wav` laid so it ends where an unreadable page starts: 0 parsed, 1 a read past the file faulted.
+int wavinfoGuarded(unsigned char* pageEnd, const WavBytes& wav, wavinfo_t* info)
+{
+    unsigned char* at = pageEnd - wav.n;
+    memcpy(at, wav.b, static_cast<size_t>(wav.n));
+#ifdef _WIN32
+    __try
+    {
+        *info = GetWavinfo("vr_snd_wav_check", at, wav.n);
+    }
+    __except(GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
+    {
+        return 1;
+    }
+#else
+    *info = GetWavinfo("vr_snd_wav_check", at, wav.n);
+#endif
+    return 0;
+}
+
+// vr_snd_wrap_test's state between its steps: the static sounds before the jump.
+struct WrapTest
+{
+    int statics{0};
+    za::Array<const sfx_t*, MAX_CHANNELS> sfx{};
+    int wraps{0};
+};
+WrapTest wrapTest;
+
+} // namespace
+
+// vr_snd_wav_check: snd_mem.c GetWavinfo on WAVs whose last chunk is too short for what is read of it (fmt, cue, LIST:
+// vkQuake d235ab8c's crash), a good Cool Edit loop and a loop longer than the data (was Sys_Error), each against an
+// unreadable page: a read past the file faults, caught. Ends on "vr_snd_wav_check: N passed, M failed".
+void wavCheck_f()
+{
+#ifdef _WIN32
+    SYSTEM_INFO si;
+    GetSystemInfo(&si);
+    const SIZE_T page = si.dwPageSize;
+    unsigned char* mem = static_cast<unsigned char*>(VirtualAlloc(nullptr, page * 2, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE));
+    DWORD old = 0;
+    if(!mem || !VirtualProtect(mem + page, page, PAGE_NOACCESS, &old))
+    {
+        Con_Printf("vr_snd_wav_check: FAIL no guard page\n");
+        testkit::verdict("vr_snd_wav_check", 0, 1);
+        return;
+    }
+    unsigned char* pageEnd = mem + page;
+#else
+    za::Array<unsigned char, 1024> mem{};
+    unsigned char* pageEnd = mem.data() + 1024;
+#endif
+    testkit::Tally tally;
+    const auto check = [&](const char* what, const WavBytes& wav, int samples, int loopStart, int width) {
+        wavinfo_t info{};
+        const int faulted = wavinfoGuarded(pageEnd, wav, &info);
+        const bool ok = !faulted && info.samples == samples && info.loopstart == loopStart && info.width == width;
+        tally.check(ok);
+        Con_Printf("vr_snd_wav_check: %s %s (%s; samples %d, loop %d, width %d)\n", ok ? "PASS" : "FAIL", what,
+            faulted ? "read past the file" : "in bounds", info.samples, info.loopstart, info.width);
+    };
+
+    WavBytes good;
+    good.riff();
+    good.fmt();
+    good.data(100);
+    good.cue(10);
+    good.listMark(50);
+    good.finish();
+    check("Cool Edit loop", good, 60, 10, 1);
+
+    WavBytes shortList;
+    shortList.riff();
+    shortList.fmt();
+    shortList.data(100);
+    shortList.cue(10);
+    shortList.shortChunk("LIST", 4);
+    shortList.finish();
+    check("short LIST chunk last", shortList, 100, 10, 1);
+
+    WavBytes shortCue;
+    shortCue.riff();
+    shortCue.fmt();
+    shortCue.data(100);
+    shortCue.shortChunk("cue ", 4);
+    shortCue.finish();
+    check("short cue chunk last", shortCue, 100, -1, 1);
+
+    WavBytes shortFmt;
+    shortFmt.riff();
+    shortFmt.data(100);
+    shortFmt.shortChunk("fmt ", 4);
+    shortFmt.finish();
+    check("short fmt chunk last (not loaded)", shortFmt, 0, 0, 0);
+
+    WavBytes longLoop;
+    longLoop.riff();
+    longLoop.fmt();
+    longLoop.data(100);
+    longLoop.cue(10);
+    longLoop.listMark(500);
+    longLoop.finish();
+    check("loop past the data (played to its end)", longLoop, 100, 10, 1);
+
+#ifdef _WIN32
+    VirtualFree(mem, 0, MEM_RELEASE);
+#endif
+    tally.verdict("vr_snd_wav_check");
+}
+
+// vr_snd_wrap_test [1|2]: the sample counter's wrap (snd_dma.c GetSoundtime, after ~6h45m: every sound was stopped, the
+// static ones for good; vkQuake 03fa1ce8). 1 (on a map with static sounds): the counter jumped a buffer short of the
+// wrap, the statics noted; the script waits for "sample counter wrapped" (vr_waitprint); 2: the same statics still play,
+// the counter back near 0, the mix not stalled. Ends on "vr_snd_wrap_test: N passed, M failed".
+void wrapTest_f()
+{
+    const int step = Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : 1;
+    if(!shm || !shm->buffer)
+    {
+        Con_Printf("vr_snd_wrap_test: FAIL no sound (run with sound)\n");
+        testkit::verdict("vr_snd_wrap_test", 0, 1);
+        return;
+    }
+    S_MixJoin();
+    const int fullSamples = shm->samples / shm->channels;
+    const int firstStatic = MAX_DYNAMIC_CHANNELS + NUM_AMBIENTS;
+    if(step == 1)
+    {
+        wrapTest = WrapTest{};
+        for(int i = firstStatic; i < total_channels; i++)
+        {
+            wrapTest.sfx[i] = snd_channels[i].sfx;
+            wrapTest.statics += snd_channels[i].sfx ? 1 : 0;
+        }
+        wrapTest.wraps = S_SoundTimeWraps();
+        const int buffers = (0x40000000 - paintedtime) / fullSamples + 1;
+        S_SoundTimeJump(buffers);
+        Con_Printf("vr_snd_wrap_test: %d static sounds; the counter jumped %d buffers to %d\n", wrapTest.statics, buffers,
+            paintedtime);
+        return;
+    }
+    testkit::Tally tally;
+    const auto check = [&](bool ok, const char* what) {
+        tally.check(ok);
+        Con_Printf("vr_snd_wrap_test: %s %s\n", ok ? "PASS" : "FAIL", what);
+    };
+    int still = 0;
+    int bad = 0;
+    for(int i = firstStatic; i < total_channels; i++)
+    {
+        const channel_t& ch = snd_channels[i];
+        if(!wrapTest.sfx[i])
+        {
+            continue;
+        }
+        // (still its sound, its end moved with the counter: one out of earshot is not painted, its end not renewed, behind
+        // the counter until it is heard again and loops)
+        if(ch.sfx == wrapTest.sfx[i] && ch.end - paintedtime < 0x10000000 && paintedtime - ch.end < 0x10000000)
+        {
+            still++;
+        }
+        else
+        {
+            bad++;
+        }
+    }
+    Con_Printf("vr_snd_wrap_test: statics %d before, %d playing on (%d not); counter %d, soundtime %d, wraps %d\n",
+        wrapTest.statics, still, bad, paintedtime, soundtime, S_SoundTimeWraps() - wrapTest.wraps);
+    check(wrapTest.statics > 0, "the map has static sounds");
+    check(S_SoundTimeWraps() > wrapTest.wraps, "the counter wrapped");
+    check(paintedtime > 0 && paintedtime < 0x10000000, "the counter is back near 0");
+    check(paintedtime >= soundtime && paintedtime - soundtime <= fullSamples, "the mix goes on (painted ahead of the device)");
+    check(still == wrapTest.statics && bad == 0, "every static sound plays on");
+    tally.verdict("vr_snd_wrap_test");
+}
+
 } // namespace detail
 } // namespace qvr::audio

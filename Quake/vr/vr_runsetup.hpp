@@ -90,9 +90,19 @@ struct Mutator
 // The run starts: every vr_run_<id> from its pick (forced ones held), each apply(Start).
 void start();
 
-// VR_OnSpawnServerBeforeLoad, a map started (not a saved game): a game begun without the Run Setup's Start (a map from
-// the console, `vr_run <id> <value>`) gets its run seed now, so its restarts and changelevels keep one layout too.
-void ensureSeed();
+// Host_Map_f (VR_RunNewGame): a new game. Begun by the screen's Start, the hub's end of a run or `vr_run <id> <value>`,
+// or with a run's cvar set by hand since the last map: as set; else (the Firing Range button, `map` typed) the screen's
+// mutators made the run's (never the last run's), the rows that write settings left to the screen's Start.
+void newGame();
+
+// VR_OnSpawnServerBeforeLoad, before a map's entities spawn: a map started (not a saved game) in a game begun without
+// the Run Setup's Start (a map from the console, `vr_run <id> <value>`) gets its run seed now, so its restarts and
+// changelevels keep one layout too; the run's values it spawns with are kept (spawnedWith: vr_runlaunch_test).
+void beforeMapLoad(bool loadingSave);
+[[nodiscard]] int mapSpawns();       // maps begun so far
+[[nodiscard]] int spawnedWith(int i); // registry row i's value the last map spawned with
+// The server's QC check `name` with up to three floats: true when it answers non-zero (false: no such function).
+[[nodiscard]] bool qcTest(const char* name, float a, float b, float c);
 
 // The hub (a VR map, not a run): the mutators back to their defaults (the presets stay as they are).
 void endRun();

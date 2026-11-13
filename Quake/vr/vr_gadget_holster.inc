@@ -96,8 +96,23 @@ void holsterSlot(const HolsterMenuSlot& s, const Palette& pal)
 {
     const glm::vec4& r = s.rect;
     const bool empty = !s.name[0];
-    fill(r.x, r.y, r.z, r.w, s.hovered ? pal.line * 0.22f : pal.dim * 0.12f);
-    holsterOutline(r, s.hovered ? pal.value : pal.line);
+    using Drop = HolsterMenuSlot::Drop;
+    // A drag: the places it may go lit (brighter under the cursor), those it may not greyed, its own faded.
+    const bool valid = s.drop == Drop::Valid, invalid = s.drop == Drop::Invalid, source = s.drop == Drop::Source;
+    const glm::vec3 face = valid ? pal.line * (s.hovered ? 0.5f : 0.3f)
+                           : invalid ? pal.dim * 0.05f
+                           : s.hovered && !source ? pal.line * 0.22f
+                                                  : pal.dim * 0.12f;
+    const glm::vec3 edge = valid ? glm::min(pal.value * (s.hovered ? 1.4f : 1.15f), glm::vec3{1.f})
+                           : invalid || source ? pal.dim * 0.5f
+                           : s.hovered ? pal.value
+                                       : pal.line;
+    fill(r.x, r.y, r.z, r.w, face);
+    holsterOutline(r, edge);
+    if(valid)
+    {
+        holsterOutline({r.x - 1.f, r.y - 1.f, r.z + 2.f, r.w + 2.f}, edge * 0.6f); // (a second ring: a drop target)
+    }
     // The corners' ticks (the gadget's frames).
     fill(r.x + 1.f, r.y + 1.f, 3.f, 1.f, pal.value);
     fill(r.x + 1.f, r.y + 1.f, 1.f, 3.f, pal.value);
@@ -112,8 +127,9 @@ void holsterSlot(const HolsterMenuSlot& s, const Palette& pal)
             // On a lit plate, brightened: Quake's dark guns on the dark face read as nothing (Shade::Screen's inkAlpha
             // leaves the dark clear).
             const float px = r.x + (r.z - picSize) * 0.5f, py = r.y + 11.f;
-            fill(px, py + picSize * 0.2f, picSize, picSize * 0.6f, pal.label * 0.45f);
-            gfx::draw2D::color(glm::vec4{1.8f, 1.8f, 1.8f, 1.f});
+            const float k = source || invalid ? 0.35f : 1.f; // (dragged away, or greyed)
+            fill(px, py + picSize * 0.2f, picSize, picSize * 0.6f, pal.label * 0.45f * k);
+            gfx::draw2D::color(glm::vec4{1.8f * k, 1.8f * k, 1.8f * k, 1.f});
             gfx::draw2D::picture(*pic, px, py, picSize, picSize);
             gfx::draw2D::color(glm::vec4{1.f});
         }
@@ -121,7 +137,31 @@ void holsterSlot(const HolsterMenuSlot& s, const Palette& pal)
     // The name as large as fits (6 pixels a character at most).
     const char* name = empty ? "- EMPTY -" : s.name;
     const float size = za::min(6.f, (r.z - 4.f) / static_cast<float>(za::max<size_t>(strlen(name), 1)));
-    holsterTextMid(r.x + r.z * 0.5f, r.y + r.w - 3.f - size, size, name, empty ? pal.dim : pal.value, pal);
+    holsterTextMid(r.x + r.z * 0.5f, r.y + r.w - 3.f - size, size, name, empty || invalid || source ? pal.dim : pal.value, pal);
+}
+
+// The weapon being dragged: its thumbnail on a lit plate under the cursor (`at` its middle), its name below.
+void holsterDragged(const HolsterMenuView& v, const Palette& pal)
+{
+    if(!v.dragModel[0] && !v.dragName[0])
+    {
+        return;
+    }
+    constexpr float picSize = 34.f;
+    const float px = za::clamp(v.dragAt.x - picSize * 0.5f, 0.f, v.size.x - picSize);
+    const float py = za::clamp(v.dragAt.y - picSize * 0.5f, 0.f, v.size.y - picSize - 8.f);
+    fill(px, py + picSize * 0.2f, picSize, picSize * 0.6f, pal.label * 0.55f);
+    holsterOutline({px - 1.f, py + picSize * 0.2f - 1.f, picSize + 2.f, picSize * 0.6f + 2.f}, pal.value);
+    if(v.dragModel[0])
+    {
+        if(const gfx::Picture* pic = toolgun::icons::get(v.dragModel, 0, true))
+        {
+            gfx::draw2D::color(glm::vec4{2.f, 2.f, 2.f, 1.f});
+            gfx::draw2D::picture(*pic, px, py, picSize, picSize);
+            gfx::draw2D::color(glm::vec4{1.f});
+        }
+    }
+    holsterTextMid(px + picSize * 0.5f, py + picSize * 0.8f + 2.f, 6.f, v.dragName, pal.value, pal);
 }
 
 void holsterButton(const HolsterMenuButton& b, const Palette& pal)
@@ -169,6 +209,7 @@ VisorImage holsterMenuRender(const HolsterMenuView& v)
         holsterButton(v.buttons[i], pal);
     }
     holsterTextMid(v.size.x * 0.5f, v.size.y - 9.f, 6.f, v.footer, pal.dim * 1.6f, pal);
+    holsterDragged(v, pal); // (over everything)
     gfx::end2D();
     out.texture = t.texture;
     out.size = v.size;

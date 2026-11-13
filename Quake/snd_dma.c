@@ -70,8 +70,22 @@ portable_samplepair_t	s_rawsamples[MAX_RAW_SAMPLES];
 // QVR: 4096 (was 1024; full: Sys_Error): the sounds known are never freed, and the progs alone name ~400
 #define	MAX_SFX		4096
 static sfx_t	*known_sfx = NULL;	// hunk allocated [MAX_SFX]
-static int	num_sfx;
-int S_KnownSfxCount (void) { return num_sfx; } // QVR (vr_limits)
+static int	num_sfx;	// QVR: the slots used so far (a forgotten sound's, its name empty, is the next new one's)
+// QVR: a sound some code may hold the pointer of (S_PrecacheSound's: the engine's, the VR code's): never forgotten. The
+// rest (the maps' precache lists, play, svc_localsound: S_PrecacheGameSound) are forgotten at a game switch
+// (S_ForgetGameSounds), so a long session of many mods never fills the list.
+static qboolean	sfx_pinned[MAX_SFX];
+// QVR: the sample counter's wraps (GetSoundtime), and how many S_Update has told of
+static int	snd_wraps;
+static int	snd_wraps_told;
+int S_SoundTimeWraps (void) { return snd_wraps; }
+int S_KnownSfxCount (void) // QVR (vr_limits): the sounds known now
+{
+	int i, count = 0;
+	for (i = 0; i < num_sfx; i++)
+		count += known_sfx[i].name[0] != 0;
+	return count;
+}
 // QVR: vr_snd_bench: the sounds in the cache now, the bytes of their samples as Quake mixes them and of their band-limited
 // copies (vr_snd_fullband)
 void S_SfxMemory (int *loaded, int *heldBytes, int *fullBytes)
@@ -101,7 +115,7 @@ void S_FlushSfxNamed (qboolean (*match) (const char *name))
 	S_MixJoin ();
 	for (i = 0; i < num_sfx; i++)
 	{
-		if (known_sfx[i].cache.data && match (known_sfx[i].name))
+		if (known_sfx[i].cache.data && known_sfx[i].name[0] && match (known_sfx[i].name))
 			Cache_Free (&known_sfx[i].cache, false);
 	}
 }
@@ -360,9 +374,10 @@ S_FindName
 
 ==================
 */
-static sfx_t *S_FindName (const char *name)
+static sfx_t *S_FindName (const char *name, qboolean pin)
 {
 	int		i;
+	int		freeslot = -1; // QVR: the first forgotten sound's slot
 	sfx_t	*sfx;
 
 	if (!name)
@@ -374,21 +389,86 @@ static sfx_t *S_FindName (const char *name)
 // see if already loaded
 	for (i = 0; i < num_sfx; i++)
 	{
+		if (!known_sfx[i].name[0])
+		{
+			if (freeslot < 0)
+				freeslot = i;
+			continue;
+		}
 		if (!strcmp(known_sfx[i].name, name))
 		{
+			sfx_pinned[i] |= pin;
 			return &known_sfx[i];
 		}
 	}
 
-	if (num_sfx == MAX_SFX)
+	if (freeslot >= 0)
+		i = freeslot;
+	else if (num_sfx == MAX_SFX)
 		Sys_Error ("S_FindName: out of sfx_t");
+	else
+		num_sfx++;
 
 	sfx = &known_sfx[i];
 	q_strlcpy (sfx->name, name, sizeof(sfx->name));
-
-	num_sfx++;
+	sfx_pinned[i] = pin;
 
 	return sfx;
+}
+
+// QVR: whether a channel plays it
+static qboolean S_SfxOnChannel (const sfx_t *sfx)
+{
+	int i;
+	for (i = 0; i < MAX_CHANNELS; i++)
+	{
+		if (snd_channels[i].sfx == sfx)
+			return true;
+	}
+	return false;
+}
+
+/*
+==================
+S_ForgetGameSounds
+
+QVR: a game switch (COM_SwitchGameInternal, the client disconnected, the cache flushed): the sounds no code holds
+(S_PrecacheGameSound's: the old game's maps', play's) forgotten, their slots free for the next game's. After vkQuake
+5e58858c, which frees the oldest half of a full list and moves the rest down; here no slot moves, so the pointers the
+engine and the VR code hold (S_PrecacheSound's, pinned) stay valid. Returns how many were forgotten.
+==================
+*/
+int S_ForgetGameSounds (void)
+{
+	int		i, j;
+	int		forgotten = 0;
+	sfx_t	*sfx;
+
+	if (!known_sfx)
+		return 0;
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
+
+	for (i = 0; i < num_sfx; i++)
+	{
+		sfx = &known_sfx[i];
+		if (!sfx->name[0] || sfx_pinned[i])
+			continue;
+		if (S_SfxOnChannel (sfx) || VR_SndHoldsSfx (sfx))
+			continue; // (still sounding: kept)
+		for (j = 0; j < MAX_SOUNDS; j++)
+		{
+			if (cl.sound_precache[j] == sfx)
+				cl.sound_precache[j] = NULL;
+		}
+		if (sfx->cache.data)
+			Cache_Free (&sfx->cache, false);
+		memset (sfx, 0, sizeof (*sfx));
+		forgotten++;
+	}
+	while (num_sfx > 0 && !known_sfx[num_sfx - 1].name[0])
+		num_sfx--;
+
+	return forgotten;
 }
 
 
@@ -406,7 +486,7 @@ void S_TouchSound (const char *name)
 	if (!sound_started)
 		return;
 
-	sfx = S_FindName (name);
+	sfx = S_FindName (name, false);
 	Cache_Check (&sfx->cache);
 }
 
@@ -416,7 +496,7 @@ S_PrecacheSound
 
 ==================
 */
-sfx_t *S_PrecacheSound (const char *name)
+static sfx_t *S_PrecacheSoundPinned (const char *name, qboolean pin)
 {
 	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	sfx_t	*sfx;
@@ -424,13 +504,25 @@ sfx_t *S_PrecacheSound (const char *name)
 	if (!sound_started || nosound.value)
 		return NULL;
 
-	sfx = S_FindName (name);
+	sfx = S_FindName (name, pin);
 
 // cache it in
 	if (precache.value)
 		S_LoadSound (sfx);
 
 	return sfx;
+}
+
+// QVR: the pointer may be kept for good (the engine's, the VR code's sounds): never forgotten
+sfx_t *S_PrecacheSound (const char *name)
+{
+	return S_PrecacheSoundPinned (name, true);
+}
+
+// QVR: a game's sound (the map's precache list, cl.sound_precache), forgotten at a game switch (S_ForgetGameSounds)
+sfx_t *S_PrecacheGameSound (const char *name)
+{
+	return S_PrecacheSoundPinned (name, false);
 }
 
 
@@ -999,6 +1091,12 @@ void S_Update (vec3_t origin, vec3_t forward, vec3_t right, vec3_t up)
 	if (!sound_started || (snd_blocked > 0))
 		return;
 
+	if (snd_wraps_told != snd_wraps) // QVR: (GetSoundtime may run on the pool: told here, on the main thread)
+	{
+		snd_wraps_told = snd_wraps;
+		Con_Printf ("Sound: the sample counter wrapped (%d now)\n", paintedtime);
+	}
+
 	VectorCopy(origin, listener_origin);
 	VectorCopy(forward, listener_forward);
 	VectorCopy(right, listener_right);
@@ -1101,12 +1199,50 @@ void S_Update (vec3_t origin, vec3_t forward, vec3_t right, vec3_t up)
 	S_Update_();
 }
 
+/*
+==================
+S_RebaseSoundTime
+
+QVR: the sample counter (paintedtime) moved back by delta samples (forward if negative), with everything that counts
+on it: the channels' ends, the raw samples' (the music's), spatial audio's carried render. The caller moves soundtime's
+buffers as far (GetSoundtime's wrap; the wrap test's jump).
+==================
+*/
+void S_RebaseSoundTime (int delta)
+{
+	int i;
+
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
+	for (i = 0; i < MAX_CHANNELS; i++)
+	{
+		if (snd_channels[i].sfx)
+			snd_channels[i].end -= delta;
+	}
+	// (none buffered: at the new counter, not a stale end the move put ahead of it)
+	s_rawend = s_rawend >= paintedtime ? s_rawend - delta : paintedtime - delta;
+	paintedtime -= delta;
+	VR_SndRebase (delta);
+}
+
+// QVR: GetSoundtime's (were its own statics): the DMA buffer's passes counted, its last position
+static int	snd_buffers;
+static int	snd_oldsamplepos;
+
+// QVR: the wrap test (vr_snd_wrap_test): the counter jumped forward by whole buffers, as if the game had run that long
+void S_SoundTimeJump (int buffers)
+{
+	if (!shm || !sound_started)
+		return;
+	S_RebaseSoundTime (-buffers * (shm->samples / shm->channels));
+	snd_buffers += buffers;
+	soundtime += buffers * (shm->samples / shm->channels);
+}
+
 static void GetSoundtime (void)
 {
 	int		samplepos;
-	static	int		buffers;
-	static	int		oldsamplepos;
 	int		fullsamples;
+	int		keep;
 
 	fullsamples = shm->samples / shm->channels;
 
@@ -1114,20 +1250,27 @@ static void GetSoundtime (void)
 // calls to S_Update.  Oh well.
 	samplepos = SNDDMA_GetDMAPos();
 
-	if (samplepos < oldsamplepos)
+	if (samplepos < snd_oldsamplepos)
 	{
-		buffers++;	// buffer wrapped
+		snd_buffers++;	// buffer wrapped
 
 		if (paintedtime > 0x40000000)
 		{	// time to chop things off to avoid 32 bit limits
-			buffers = 0;
-			paintedtime = fullsamples;
-			S_StopAllSounds (true);
+			// QVR: was S_StopAllSounds after paintedtime = fullsamples: every sound stopped, the static ones (torches,
+			// lava) for good after ~6h45m of play (vkQuake 03fa1ce8 kept the looping statics, restarted). Here all
+			// counts move back by whole DMA buffers (soundtime, the output's place in the buffer unchanged) and, when
+			// the buffer is smaller, whole raw sample rings (the music's samples where they are): nothing stops or skips.
+			keep = 0;
+			if (fullsamples < MAX_RAW_SAMPLES && MAX_RAW_SAMPLES % fullsamples == 0)
+				keep = snd_buffers % (MAX_RAW_SAMPLES / fullsamples);
+			S_RebaseSoundTime ((snd_buffers - keep) * fullsamples);
+			snd_buffers = keep;
+			snd_wraps++; // (told by S_Update: this may be the pool's mix)
 		}
 	}
-	oldsamplepos = samplepos;
+	snd_oldsamplepos = samplepos;
 
-	soundtime = buffers*fullsamples + samplepos/shm->channels;
+	soundtime = snd_buffers*fullsamples + samplepos/shm->channels;
 }
 
 void S_ExtraUpdate (void)
@@ -1300,7 +1443,7 @@ static void S_Play (void)
 		{
 			q_strlcat(name, ".wav", sizeof(name));
 		}
-		sfx = S_PrecacheSound(name);
+		sfx = S_PrecacheGameSound(name); // QVR: (not kept)
 		S_StartSound(hash++, 0, sfx, listener_origin, 1.0, 1.0);
 		i++;
 	}
@@ -1322,7 +1465,7 @@ static void S_PlayVol (void)
 		{
 			q_strlcat(name, ".wav", sizeof(name));
 		}
-		sfx = S_PrecacheSound(name);
+		sfx = S_PrecacheGameSound(name); // QVR: (not kept)
 		vol = atof(Cmd_Argv(i + 1));
 		S_StartSound(hash++, 0, sfx, listener_origin, vol, 1.0);
 		i += 2;
@@ -1365,7 +1508,7 @@ void S_LocalSound (const char *name)
 	if (!sound_started)
 		return;
 
-	sfx = S_PrecacheSound (name);
+	sfx = S_PrecacheGameSound (name); // QVR: (not kept)
 	if (!sfx)
 	{
 		Con_Printf ("S_LocalSound: can't cache %s\n", name);

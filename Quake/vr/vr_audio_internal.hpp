@@ -272,5 +272,7 @@ void burst_f();
 void benchFinish();
 void benchFrame();
 void bench_f();
+void wavCheck_f();
+void wrapTest_f();
 
 } // namespace qvr::audio::detail

@@ -2846,6 +2846,52 @@ void moveCursor(const za::Vector<Item>& list, int dir)
     return 0;
 }
 
+// The mouse wheel on a page with a scroll bar (his note 2026-11-13: "the wheel scrolls the bar ... instead of moving item
+// by item"): the page scrolled by vr_menu_wheel_scroll's part of its rows shown (folded rows not counted), the cursor
+// kept on the page (onto its first place scrolling down, its last scrolling up, where it went off). False when the page
+// fits or the setting is 0 (the wheel moves the cursor a row, as before).
+bool wheelScroll(const za::Vector<Item>& list, int dir)
+{
+    const int most = maxScroll(list);
+    const int step = menuui::wheelRows(visibleRows(list));
+    if(most <= 0 || step <= 0)
+    {
+        return false;
+    }
+    int& scroll = ui().scrolls[ui().page];
+    int& cursor = ui().cursors[ui().page];
+    const int n = static_cast<int>(list.size());
+    int s = scroll;
+    for(int moved = 0; moved < step;)
+    {
+        const int t = s + dir;
+        if(t < 0 || t > most)
+        {
+            break;
+        }
+        s = t;
+        if(list[s].kind == Item::Header || rowHeight(list, s) > 0)
+        {
+            moved++;
+        }
+    }
+    scroll = s;
+    const int end = q_min(n, s + rowsFrom(list, s));
+    if(cursor < s || cursor >= end)
+    {
+        for(int k = 0; k < end - s; k++)
+        {
+            const int i = dir > 0 ? s + k : end - 1 - k;
+            if(navigable(list[i]))
+            {
+                cursor = i;
+                break;
+            }
+        }
+    }
+    return true;
+}
+
 // The page's position to keep (vr_menu_positions): none while it is at its top (as it opens anyway).
 void noteLeft(int p, const za::Vector<Item>& list)
 {
@@ -3689,6 +3735,68 @@ void printModes(const int only)
         vrActive() ? 1 : 0, flatplay::active() ? 1 : 0);
 }
 
+// menu_vr wheeltest (Misc/quakevr/menu_wheel_test.sh): the mouse wheel on the VR page shown, which must scroll: a notch
+// down scrolls the page by vr_menu_wheel_scroll's part of its rows (the cursor kept on it), notches to its end stop at
+// the furthest scroll, a notch up scrolls back; with the setting at 0 a notch moves the cursor a row, the page as it
+// was. Puts the page and the setting back. Ends "menu_wheel_test: N passed, M failed".
+void wheelTest()
+{
+    testkit::Tally tally;
+    const auto check = [&tally](bool ok, const char* what) {
+        if(tally.check(ok, "menu_wheel_test", what))
+        {
+            Con_Printf("menu_wheel_test: PASS %s\n", what);
+        }
+    };
+    if(m_state != m_vr)
+    {
+        check(false, "on a VR page");
+        tally.verdict("menu_wheel_test");
+        return;
+    }
+    const auto& list = items(ui().page);
+    int& scroll = ui().scrolls[ui().page];
+    int& cursor = ui().cursors[ui().page];
+    const int scrollWas = scroll, cursorWas = cursor;
+    const float settingWas = vr_menu_wheel_scroll.value;
+    const int most = maxScroll(list);
+    char line[160];
+    q_snprintf(line, sizeof(line), "the page scrolls (%s: %d rows, furthest scroll %d)", pages[ui().page].title,
+        static_cast<int>(list.size()), most);
+    check(most > 0, line);
+    const auto onPage = [&]() { return cursor >= scroll && cursor < scroll + rowsFrom(list, scroll) && navigable(list[cursor]); };
+    if(most > 0)
+    {
+        scroll = 0;
+        cursor = firstSetting(list);
+        const int step = menuui::wheelRows(visibleRows(list));
+        VR_Menu_Key(K_MWHEELDOWN, 0);
+        q_snprintf(line, sizeof(line), "a notch down: scroll 0 -> %d (%d rows a notch, %.2f of %d shown), the cursor on the page (%d)",
+            scroll, step, vr_menu_wheel_scroll.value, rowsFrom(list, 0), cursor);
+        check(scroll >= q_min(step, most) && scroll <= most && step > 1 && onPage(), line);
+        for(int i = 0; i < 200 && scroll < most; i++)
+        {
+            VR_Menu_Key(K_MWHEELDOWN, 0);
+        }
+        VR_Menu_Key(K_MWHEELDOWN, 0); // (one more at the end)
+        q_snprintf(line, sizeof(line), "notches down stop at the furthest scroll (%d of %d), the cursor on the page", scroll, most);
+        check(scroll == most && onPage(), line);
+        const int bottom = scroll;
+        VR_Menu_Key(K_MWHEELUP, 0);
+        q_snprintf(line, sizeof(line), "a notch up: scroll %d -> %d, the cursor on the page", bottom, scroll);
+        check(scroll < bottom && onPage(), line);
+        Cvar_SetValueQuick(&vr_menu_wheel_scroll, 0.f);
+        const int s0 = scroll, c0 = cursor;
+        VR_Menu_Key(K_MWHEELDOWN, 0);
+        q_snprintf(line, sizeof(line), "vr_menu_wheel_scroll 0: a notch moves the cursor (%d -> %d), the scroll kept (%d)", c0, cursor, scroll);
+        check(scroll == s0 && cursor != c0, line);
+        Cvar_SetValueQuick(&vr_menu_wheel_scroll, settingWas);
+    }
+    scroll = scrollWas;
+    cursor = cursorWas;
+    tally.verdict("menu_wheel_test");
+}
+
 void printRows()
 {
     if(m_state != m_vr)
@@ -3994,7 +4102,7 @@ bool dropDownKey(int key)
         case K_MWHEELUP:
         case K_MWHEELDOWN:
         {
-            d.scroll = CLAMP(0, d.scroll + (key == K_MWHEELDOWN ? 1 : -1), q_max(d.count - d.rows, 0));
+            d.scroll = CLAMP(0, d.scroll + (key == K_MWHEELDOWN ? 1 : -1) * q_max(1, menuui::wheelRows(d.rows)), q_max(d.count - d.rows, 0));
             const int i = dropDownChoiceAt(m_mousex, m_mousey);
             if(i >= 0)
             {
@@ -4823,6 +4931,11 @@ void qvr::menu::command_f()
         printRows();
         return;
     }
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "wheeltest"))
+    {
+        wheelTest();
+        return;
+    }
     // menu_vr fold <0|1> [section] (tests, screenshots; Menu Look): the VR page shown's section whose header starts
     // with [section] (unquoted words; none: every section) unfolded or folded, then MFOLD|page|header|folded|hidden rows.
     if(Cmd_Argc() > 2 && !q_strcasecmp(Cmd_Argv(1), "fold"))
@@ -5357,8 +5470,17 @@ extern "C" void VR_Menu_Key(int key, int repeat)
 
         // Up from the first setting, or down from the last: the corner's buttons (where shown), before
         // round to the other end; a held stick stops at the end first, a new push goes on.
-        case K_UPARROW:
         case K_MWHEELUP:
+        case K_MWHEELDOWN:
+            if(wheelScroll(list, key == K_MWHEELDOWN ? 1 : -1))
+            {
+                break;
+            }
+            qvr::menuui::uiSound(qvr::menuui::UiSound::Move); // (the page fits, or vr_menu_wheel_scroll 0: a row)
+            moveCursor(list, key == K_MWHEELDOWN ? 1 : -1);
+            break;
+
+        case K_UPARROW:
             if(key == K_UPARROW && menuui::toolbarShown() && cursor == firstSelectable(list))
             {
                 if(!repeat)
@@ -5372,7 +5494,6 @@ extern "C" void VR_Menu_Key(int key, int repeat)
             break;
 
         case K_DOWNARROW:
-        case K_MWHEELDOWN:
             if(key == K_DOWNARROW && menuui::toolbarShown() && cursor == lastSelectable(list))
             {
                 if(!repeat)

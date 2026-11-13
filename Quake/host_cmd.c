@@ -2110,6 +2110,7 @@ static void Host_Map_f (void)
 	VR_TimeMark ("map: campaign (game folders)"); // QVR
 
 	VR_OnFreshStart (); // QVR
+	VR_RunNewGame (); // QVR: a new game: the run's choices (vr_runsetup.cpp: the Run Setup's, never the last run's)
 	cls.demonum = -1;		// stop demo loop in case this fails
 
 	CL_Disconnect ();

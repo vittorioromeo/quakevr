@@ -1259,7 +1259,8 @@ static void PF_droptofloor (void)
 		VectorCopy (trace.endpos, ent->v.origin);
 		SV_LinkEdict (ent, false);
 		ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
-		ent->v.groundentity = EDICT_TO_PROG(trace.ent);
+		if (trace.ent && !trace.ent->free) // QVR: never a NULL or freed ground (after vkQuake 96dae868)
+			ent->v.groundentity = EDICT_TO_PROG(trace.ent);
 		G_FLOAT(OFS_RETURN) = 1;
 	}
 }

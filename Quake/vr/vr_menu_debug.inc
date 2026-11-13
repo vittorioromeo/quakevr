@@ -1109,6 +1109,10 @@ za::Vector<Item> pageDebugReports()
         header("Other"),
         command("Limits", "vr_limits")
             .help("vr_limits: every hardcoded limit's usage against its maximum (cvars, memory, models, edicts, lights...)."),
+        command("Sound Counter Wrap", "vr_snd_wrap_test 1")
+            .help("vr_snd_wrap_test 1: the sound's sample counter jumps to a buffer short of its wrap (after ~6h45m of play; it "
+                  "used to stop every sound, the torches for good): the torches and lava should sound on through it. "
+                  "vr_snd_wrap_test 2 after \"sample counter wrapped\": the static sounds checked."),
         command("Network: Entities Sent", "vr_net_stats")
             .help("vr_net_stats [reset]: the entities in use, and for each client the entities in sight and sent in its last "
                   "datagram, their bytes and its room (1400 to a remote client), the peak, the mean, the frames that were full."),
@@ -1379,6 +1383,8 @@ za::Vector<Item> pageDebugTools()
             .help("vr_continue_rows: each game's Continue (the campaigns' and the map packages' newest autosave), with its row's text."),
         command("Run Setup Screen Test", "vr_runsetup_screen_test")
             .help("vr_runsetup_screen_test: the Run Setup screen -- the Map Library's Play, New Game, Official Campaigns and the hub open it, a start hall with skill selection has no Difficulty row, a held row is a line, Back cancels, Start makes the choices the run's. Prints a verdict."),
+        command("Run Launch Test", "vr_runlaunch_test")
+            .help("vr_runlaunch_test: every way a run starts (the Levels list, the Map Library's Play, New Game, Official Campaigns, the hub's teleporter, a saved run loaded, the Firing Range button, a map from the console), each with other choices than the last: the map spawns with the new run's choices and plays as they say (Glass Cannon on a monster and the firing range's dummy by a gun's and a hand's blow, Melee Only on the map's guns and ammunition, the enemies and pickups on e1m1). Loads maps; prints a verdict."),
         command("Run Setup Test", "vr_runsetup_test")
             .help("vr_runsetup_test: the run's choices -- the registry, a run's start (presets, mutators), Melee Only's rule, the save line written and loaded back (a run's choices and the presets' values), an old save's defaults. The presets' My Settings in test files; settings set back. Prints a verdict."),
         command("Open the Map Browser", "maps_page")

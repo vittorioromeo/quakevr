@@ -159,6 +159,9 @@ void backToGame(int hand);
 [[nodiscard]] float toolbarLeft();  // and their left edge (menu x; far left when they are not shown)
 [[nodiscard]] float toolbarTop();   // and the first one's top edge (menu y; far up when they are not shown)
 [[nodiscard]] bool toolbarFocused();
+// The mouse wheel on a list with a scroll bar: the rows a notch scrolls it (vr_menu_wheel_scroll's part of the `visible`
+// rows, at least 1); 0 with that setting at 0 (the wheel moves the selection a row, as before).
+[[nodiscard]] int wheelRows(int visible);
 [[nodiscard]] bool toolbarRow(); // on a flat screen: a row of icons along the canvas's top
 // In the headset: whether the column (its buttons, the banner under them, the spectator switch) stands clear left of
 // what the menu draws, so that the menu's rows start at its top rather than below the buttons; and the nearest the

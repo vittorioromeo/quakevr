@@ -542,7 +542,9 @@ void SV_TouchLinks (edict_t *ent)
 		touch = list[i];
 	// re-validate in case of PR_ExecuteProgram having side effects that make
 	// edicts later in the list no longer touch
-		if (touch == ent)
+		if (ent->free)
+			break; // QVR: an earlier trigger's touch removed it: no more triggers fire on it (after vkQuake c664a5b3)
+		if (touch == ent || touch->free)
 			continue;
 		if (!touch->v.touch || touch->v.solid != SOLID_TRIGGER)
 			continue;
