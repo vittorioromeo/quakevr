@@ -17,7 +17,7 @@ Everything is one registry, `registry[]` in `Quake/vr/vr_runsetup.cpp`; each lin
 | `label`, `options`, `def`, `help`, `section` | the screen's row (a cycle), its default, its help line, its header |
 | `oldSave` | a saved game without the run line loads with this (-1: left as it is; the presets) |
 | `apply(value, phase)` | what it sets beyond its cvar, at a run's start (`Phase::Start`) and on a save's load (`Phase::Load`); `nullptr` when the QC just reads `vr_run_<id>` |
-| `forced()`, `heldBy` | a rule: the value another choice holds this one at (-1: free). The screen shows it as a line "Starting Weapon: Axe (Melee Only)", and `start()` uses it |
+| `forced()`, `heldBy` | a rule: the value another choice holds this one at (-1: free). The screen shows it as a line "Starting gun: Nothing (Melee Only)", and `start()` uses it |
 | `shown()` | hidden while false (Bloody Nightmare until found) |
 
 - **Start** (`runsetup::start()`, also `vr_run start`): every `vr_run_<id>` from its pick (forced ones held), then each
@@ -71,13 +71,14 @@ choices themselves are the engine's line.
 | `gore` | My Settings (default), Full, Minimal, Off | the Gore preset |
 | `armed` | As Style, Off, On | `vr_agrunt_repl`, `vr_agknight`, `vr_agdknight` |
 | `smartai` | As Style, Off, On | `vr_ai_enhanced` |
-| `startweapon` | Shotgun, Heavy Revolver, Axe, Unarmed | a new game's loadout (`vr_run_startweapon.qc`); held at Axe by Melee Only |
+| `startgun` | Shotgun, Nail Pistol, Heavy Revolver, Nothing | a new game's gun in the hip holster (`vr_run_startweapon.qc`); held at Nothing by Melee Only |
+| `startmelee` | Axe, Dagger, Nothing | a new game's melee weapon (the same file); Nothing and Nothing: bare fists. An old save's `startweapon=N` reads as gun and melee (revolver: Revolver and Axe; axe alone: Nothing and Axe; unarmed: Nothing and Nothing) |
 | `meleeonly` | Off, On | guns left on the floor, a gun in the hand only clicks (`vr_run_meleeonly.qc`) |
 | `glasscannon` | Off, On | the player and monsters take double damage (`vr_run_glasscannon.qc`) |
-| `pickups` | Off, Balanced, Everything Goes | the map's pickups swapped as it loads (`vr_run_pickups.qc`, below) |
+| `pickups` | Off, Balanced, Anything Goes | the map's pickups swapped as it loads (`vr_run_pickups.qc`, below) |
 | `ironman` | Off, On | no saving; a death restarts the level with what you entered it with (`vr_run_ironman.qc`, below) |
 | `enemycount` | 1x, 2x, 3x | one or two copies of each map monster beside it as the map loads (`vr_run_enemycount.qc`; below) |
-| `enemyrandom` | Off, Balanced, Everything Goes | map monsters swapped as the map loads (`vr_run_enemyrandom.qc`; below) |
+| `enemyrandom` | Off, Balanced, Anything Goes | map monsters swapped as the map loads (`vr_run_enemyrandom.qc`; below) |
 
 ### Randomized Pickups
 
@@ -94,7 +95,7 @@ choices themselves are the engine's line.
   <-> red); a weapon of its tier (shotgun, revolver / super shotgun, nailgun, AD's Widowmaker / super nailgun, grenade
   and proximity launchers / rocket launcher, thunderbolt, laser cannon, Mjolnir, AD's Plasma Gun); a powerup of its tier
   (quad, pentagram, ring, empathy shields, power shield / suits, belt). AD's upgrades only with AD mounted and its rules
-  on. **Everything Goes:** a kind first, then any of it. **Melee Only:** nothing becomes a gun that was not one.
+  on. **Anything Goes:** a kind first, then any of it. **Melee Only:** nothing becomes a gun that was not one.
 - **The rolls:** a hash of the item's place and the run's seed (`vr_run_seed`, set at the run's start; sv_random_seed's
   when a test fixes it): a map gets the same pickups all through a run (an Ironman restart too). Not in the save line:
   a run loaded in a new session rolls its next maps anew. `vr_run_seed 0`: the server's random numbers.
@@ -119,7 +120,7 @@ choices themselves are the engine's line.
   `vr_ad_everywhere`), the packs' common ones (copied, never swapped); each with how it moves, its width (Quake's two
   hulls) and its threat tier. Bosses and scripted monsters are not listed: never swapped or copied; nor a crucified
   zombie or AD's ceiling spider; in AD's maps a monster with AD's class bits (2, 4: a lying zombie...) is not swapped.
-- **Balanced:** the same tier and movement; **Everything Goes:** any tier, a walker's spot may hold a flyer. Never a
+- **Balanced:** the same tier and movement; **Anything Goes:** any tier, a walker's spot may hold a flyer. Never a
   larger kind than the spot's (doors and lifts spawn after it: a hull test then would miss them). The map's health and
   skin keys and the class bits are dropped; a zombie's ambush (2) becomes everyone's (1). Armed Humanoids: a grunt,
   enforcer, knight or death knight swapped in is armed as the run says (its spawn function decides).
@@ -135,7 +136,7 @@ choices themselves are the engine's line.
 
 - `vr_runpickups_test 1` ("runpickups: N passed", `vr_run_test.qc`): Balanced on e1m1 with seed 777 (rules, the map's
   named items kept), the same layout on a reload, a save and its load (the run's choice and the items back), e1m2 by
-  changelevel, Everything Goes with Melee Only and Glass Cannon (kinds crossed, no new guns, the map's links and monster
+  changelevel, Anything Goes with Melee Only and Glass Cannon (kinds crossed, no new guns, the map's links and monster
   count unchanged, `VR_Run_TestCheck`), a new run without it. `vr_runpickups_test 2`: the map loaded now (any game's:
   AD's with `-game ad`), then again with it off: the rules, its unresolved targets, trigger_counter links and monsters.
 - `vr_ironman_test 1` ("ironman: N passed"): save and the menu's Save refused (`vr_ironman_refused` counts them), e1m1's
@@ -148,7 +149,7 @@ choices themselves are the engine's line.
   the presets' values), an old save, the hub. Presets' My Settings in the test files; settings set back.
 - `vr_runsetup_screen_test` (13; `maps_skill_test` is its old name): each way in opens the screen, skill halls hide
   Difficulty, a held row is a line, Back, Start.
-- `vr_run_check <startweapon> <glasscannon> <meleeonly> <gore>` / `vr_run_check verdict` ("runmutators: N passed"):
+- `vr_run_check <startgun> <startmelee> <glasscannon> <meleeonly> <gore>` / `vr_run_check verdict` ("runmutators: N passed"):
   the end-to-end check in a running game (QC `VR_Run_TestCheck`); the round notes' script starts run A, saves, starts
   run B, loads A, changes level.
 - `vr_run_enemies_check <enemycount> <enemyrandom>` / `vr_run_enemies_check verdict` ("runenemies: N passed"): the

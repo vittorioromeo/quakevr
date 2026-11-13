@@ -8,7 +8,7 @@
 // A map's monsters swapped for others as the map loads (the engine's ED_LoadFromFile asks VR_Run_MonsterSpawning before
 // a monster's spawn function runs: self is its keys, parsed; the swap is its classname, so the new kind spawns from the
 // map's own keys: its targetname, target, spawnflags, angle). 1 Balanced: a kind of the same threat tier that moves as
-// it does (walks, flies, swims); 2 Everything Goes: any tier, a walker's spot may hold a flyer. Either way the new kind
+// it does (walks, flies, swims); 2 Anything Goes: any tier, a walker's spot may hold a flyer. Either way the new kind
 // fits the spot (never larger than what stood there: Quake's two hulls), never a boss; Arcane Dimensions' kinds only while AD's data
 // is mounted (and spawning outside AD's maps: vr_ad_everywhere). The kind it was is kept (vr_run_mapclass). Enemy Count's
 // copies (vr_run_enemycount.qc) come after, of the swapped kind. Armed humanoids: a grunt, enforcer, knight or death

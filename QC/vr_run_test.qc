@@ -5,7 +5,7 @@
 // `vr_runpickups_test 1`: Balanced on e1m1 (seed 777): items swapped, each for one of its kind and tier (ammo for an
 //   allowed kind, its size kept), nothing the map names; e1m1 again: the same layout, the same unresolved targets and
 //   trigger_counter links; saved, Randomized Pickups set off, the save loaded: the run's choice and the layout back;
-//   changelevel to e1m2: swapped there; Everything Goes with Melee Only and Glass Cannon on e1m1: kinds crossed, no gun
+//   changelevel to e1m2: swapped there; Anything Goes with Melee Only and Glass Cannon on e1m1: kinds crossed, no gun
 //   where there was none, the map's links and monster count as before, vr_run_check's game checks; a new run without it:
 //   nothing swapped. Verdict "runpickups: N passed, M failed".
 // `vr_runpickups_test 2`: the map loaded now (with Randomized Pickups on: another game's, AD's), then again with it off:
@@ -186,17 +186,17 @@ void() VR_RT_Pickups =
     {
         VR_Test_Check(mapname == "e1m2" && cvar_hget(cvarh_vr_run_pickups) == 1, "changelevel to e1m2: still Balanced");
         VR_RT_CheckLayout(TRUE, "e1m2 balanced");
-        localcmd("vr_run pickups 2\nvr_run meleeonly 1\nvr_run glasscannon 1\nvr_run startweapon 0\nmap e1m1\n");
+        localcmd("vr_run pickups 2\nvr_run meleeonly 1\nvr_run glasscannon 1\nvr_run startgun 0\nvr_run startmelee 0\nmap e1m1\n");
         VR_RT_To(7, TRUE);
     }
     else if(step == 7)
     {
-        VR_RT_CheckLayout(FALSE, "e1m1 everything goes, melee only");
-        VR_Test_Check(vr_rt_crossed > 0, sprintf("everything goes: %g items of another kind", vr_rt_crossed));
+        VR_RT_CheckLayout(FALSE, "e1m1 anything goes, melee only");
+        VR_Test_Check(vr_rt_crossed > 0, sprintf("anything goes: %g items of another kind", vr_rt_crossed));
         VR_Test_Check(!vr_rt_guns, sprintf("melee only: no gun where there was none (%g)", vr_rt_guns));
         VR_Test_Check(VR_RT_Links() == cvar_hget(cvarh_vr_run_test_b) && total_monsters == cvar_hget(cvarh_vr_run_test_c),
             sprintf("the map's links (%g) and monsters (%g) as before", VR_RT_Links(), total_monsters));
-        VR_Test_Check(VR_Run_TestCheck(RUN_SW_AXE, 1, 1), "with Glass Cannon and Melee Only (the axe start): vr_run_check's game checks");
+        VR_Test_Check(VR_Run_TestCheck(RUN_SG_NOTHING * 10 + RUN_SM_AXE, 1, 1), "with Glass Cannon and Melee Only (the axe start): vr_run_check's game checks");
         localcmd("vr_runpick_pickups 0\nvr_runpick_meleeonly 0\nvr_runpick_glasscannon 0\nvr_run start\nmap e1m1\n");
         VR_RT_To(8, TRUE);
     }
@@ -213,7 +213,7 @@ void() VR_RT_Pickups =
     {
         float mode = cvar_hget(cvarh_vr_run_pickups);
         VR_Test_Check(mode > 0, sprintf("%s: Randomized Pickups on (%g)", mapname, mode));
-        VR_RT_CheckLayout(mode == 1, sprintf("%s %s", mapname, mode == 1 ? "balanced" : "everything goes"));
+        VR_RT_CheckLayout(mode == 1, sprintf("%s %s", mapname, mode == 1 ? "balanced" : "anything goes"));
         cvar_set("vr_run_test_a", ftos(mode));
         cvar_set("vr_run_test_b", ftos(VR_RT_Links()));
         cvar_set("vr_run_test_c", ftos(total_monsters));
@@ -241,7 +241,7 @@ void() VR_RT_Ironman =
     if(step == 20)
     {
         cvar_set("vr_run_test_a", ftos(refused));
-        localcmd("vr_run ironman 1\nvr_run pickups 1\nvr_run glasscannon 1\nvr_run startweapon 0\nvr_run meleeonly 0\n"
+        localcmd("vr_run ironman 1\nvr_run pickups 1\nvr_run glasscannon 1\nvr_run startgun 0\nvr_run startmelee 0\nvr_run meleeonly 0\n"
                  "map e1m1\n");
         VR_RT_To(21, TRUE);
     }

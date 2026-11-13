@@ -1,6 +1,6 @@
-title Run mutators: Starting Weapon heavy revolver (a new game's loadout)
+title Run mutators: Starting gun heavy revolver (a new game's loadout)
 map vrtesthall
 start 0 -288 25 90
-cvar vr_run_startweapon 1
+cvar vr_run_startgun 2
 spawn "Grunt" 240 0
 hint A new game with the heavy revolver: it is in your right hip holster, loaded; the axe at the left; no shotgun.
