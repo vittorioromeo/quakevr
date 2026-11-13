@@ -1155,7 +1155,10 @@ frame, the reverse grip's server checks reading the local client's view (a liste
   | nav_tele, nav_tele_oneway | pass | pass / pass |
   | teleporters_test.sh chase | framed_sill32 dog FAIL (known), rest PASS | the same |
 
-  New scene `nav_tele_oneway_all` (nav_tele_metric with the setting on): 18 of 20. Player crossings untouched.
+  After merging origin/next with revpicks (its `teleporterWalked` fit check): origin/next itself gives e1m1 with the
+  setting on **0 trials** (all 25 skipped: the fit check drops the unpaired gate's link, reason 2); this branch 18 / 18
+  of 20 (same lines both ways), nav_tele_dm5 17 / 17 of 24 (the same lines as origin/next's 17), nav_tele_metric_gates
+  37 of 40. New scene `nav_tele_oneway_all` (nav_tele_metric with the setting on): 18 of 20. Player crossings untouched.
 - **So** the setting on now equals the setting off on e1m1 and dm5 (he may make it the default). It is not seamless at
   e1m1: no walker can step into that opening. Making it so would need a monster "hop" onto a sill up to ~24 (portal
   code: lift the box onto the bar when lined up, then walk in; Quake's walk refuses a box half over a ledge): not done.
