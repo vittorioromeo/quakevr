@@ -289,6 +289,11 @@ void testCmd()
 
 } // namespace
 
+presetcore::Kind& kind()
+{
+    return presetKind;
+}
+
 const char* levelName(int level)
 {
     return presetKind.levelName(level);

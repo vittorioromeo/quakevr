@@ -2009,8 +2009,15 @@ static void M_SinglePlayer_NewGame (void)
 		M_Menu_Skill_f ();
 		return;
 	}
+	VR_RunSetupNewGame (); // QVR: the Run Setup screen first (difficulty, presets, mutators); its Start: M_NewGameStart
+}
+
+// QVR: the new game itself (the Run Setup screen's Start, vr/vr_menu_runsetup.inc).
+void M_NewGameStart (void)
+{
 	IN_Activate();
 	key_dest = key_game;
+	m_state = m_none;
 	if (sv.active)
 		Cbuf_AddText ("disconnect\n");
 	Cbuf_AddText ("maxplayers 1\n");

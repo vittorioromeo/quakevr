@@ -161,6 +161,16 @@ void Kind::apply(int level)
     }
 }
 
+void Kind::keepMine()
+{
+    loadMine();
+    if(!minePresent)
+    {
+        captureMine();
+        Con_DPrintf("%s preset: your settings kept as My Settings (%s)\n", t.what, minePath().cStr());
+    }
+}
+
 bool Kind::restoreMine()
 {
     loadMine();

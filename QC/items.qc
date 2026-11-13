@@ -325,6 +325,7 @@ void() StartItem =
 {
     if(MG_MonsterInhibited()) return;
     if(AD_ItemStartOff()) return; // AD support: an AD map's STARTOFF item waits for its trigger (vr_ad_bridge.qc)
+    VR_Run_ItemSpawned(); // the run's mutators' item hook (vr_run.qc)
     self.nextthink = time + 0.2;    // items start after other solids
     self.think = PlaceItem;
 };
@@ -1082,6 +1083,7 @@ void() weapon_touch =
     {
         objerror("weapon_touch: unknown classname");
     }
+    if(VR_Run_RefusesPickup(weaponId)) return; // the run's mutators: Melee Only leaves guns (vr_run.qc)
 
     if(leave && VR_WeaponUtil_EntHasWeapon(other, weaponId))
     {
