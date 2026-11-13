@@ -694,6 +694,18 @@ void probesEnd(const za::Vector<int>& probes)
 
 extern "C" void VR_OnSpawnServerSpawned()
 {
+    // The run's mutators' map hook (QC VR_Run_MapSpawned: Randomized Pickups): every entity of the map spawned, precaches
+    // still open. Not a saved game's load (its entities come from the save). Its parameter: the weapons the player enters
+    // with (his level-start parm1: a changelevel, a restart), 0 in a new game (not connected yet).
+    if(!loadingSaveGame)
+    {
+        if(dfunction_t* fn = VR_ED_FindFunction("VR_Run_MapSpawned"))
+        {
+            const float held = svs.clients && svs.clients[0].active ? svs.clients[0].spawn_parms[0] : 0.f;
+            (void)callQc(static_cast<func_t>(fn - qcvm->functions), held);
+        }
+    }
+
     // The kinds that can appear later, made now (removed below): the map's monsters waiting for a trigger, then (after
     // the map's monsters' limbs, unless vr_limbs_prebuild 2) the dispensers', dummies' and debug spawner's kinds.
     za::Vector<int> probes;

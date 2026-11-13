@@ -1258,3 +1258,35 @@ Play on an installed package asks Easy / Normal / Hard / Nightmare first (page "
   loaded: A's choices and Gore Minimal back; changelevel keeps them; unarmed and shotgun new games); vr_gameplay_preset_test
   23/0, vr_gore_preset_test 12/0, slipseer_test 80/0, menu path checks 0 missing. Scenarios run_mutators, run_pistolstart.
 - **Not tested headless:** the hub teleporter's touch itself (the screen's `vr_runsetup hub` is).
+
+## mutpickups: Randomized Pickups and Ironman (run mutators, phase 2; branch agent/mutpickups, 2026-11-13)
+
+- **Randomized Pickups** (`pickups`: Off / Balanced / Everything Goes; `vr_runpick_pickups`, `vr_run_pickups`;
+  `QC/vr_run_pickups.qc`): StartItem marks the map's items of a 41-row table; the engine calls the new QC hook
+  `VR_Run_MapSpawned(held)` once a new map's entities have spawned (`VR_OnSpawnServerSpawned`, precaches open; not a
+  saved game's load), and each marked item is rolled and replaced by the rolled kind's own spawn function (a box for a
+  centred item moved half a box; one that would not fit where the old stood, or whose spawn function refuses: its game's
+  data missing, not made). Balanced: ammo for ammo of a held (level-start parm1) or nearby (1536 u) weapon's kind or
+  shells, size kept; health 15 <-> 25; armour a step; weapons and powerups by tier; AD's Widowmaker / Plasma Gun only in
+  AD. Everything Goes: a kind, then any. Melee Only: no new guns. Never touched: targetname / target / killtarget,
+  HONEY secret and trigger-spawned, MG3 SPAWNED, AD STARTOFF; keys, runes, sigils, MG3 upgrades are not in the table.
+- **The run's seed** (`vr_run_seed`, set by `runsetup::start()`; sv_random_seed's when fixed): the rolls hash the item's
+  place with it, so a map gets the same pickups all through a run, an Ironman restart included. Not in the save line
+  (decision: a run loaded in a new session rolls its next maps anew).
+- **Ironman** (`ironman`; `vr_runpick_ironman`, `vr_run_ironman`; `QC/vr_run_ironman.qc`): `Host_Savegame_f` asks
+  `VR_RunIronmanRefusesSave` (save, quicksave, autosaves; console + centre print; `vr_ironman_refused` counts), no
+  autosave tried (host.c), Single Player > Save greyed and refused (menu.c), the VR toolbar's Quick Save greyed, no death
+  menu. A death: QC `VR_Run_Respawn` -> `restart fresh` (never the autoload).
+- **Decisions:** "start" = the start of the current level as he entered it (not the campaign's or episode's first map;
+  a hub is a level like any other). The start loadout = the engine's level-start parms (client spawn_parms + parm17..72,
+  in every save), which the restart restores; no QC saved global, since the restart reloads the progs (a global
+  cannot outlive it). Loading saves stays allowed (a save of another run brings that run back).
+- **Tests:** `vr_runsetup_test` 43/0 (the two rows: start, save line, load, old save, hub); `vr_runsetup_screen_test`
+  13/0; `vr_runpickups_test 1` 21/0 (e1m1 balanced 16/25 swapped, reload same hash, save/load, e1m2 21/42, everything
+  goes + Melee Only + Glass Cannon 24/25 with links and 23 monsters unchanged, a new run without it);
+  `vr_runpickups_test 2` on e3m1 (everything goes 46/46) and AD's ad_crucial (balanced 90/142, 3 kept, links 26001 and
+  206 monsters unchanged) 6/0 each; `vr_ironman_test 1` 12/0 (save and menu Save refused, e1m1's RL carried, a death on
+  e1m2 restarts it with the RL and 50 rockets and not the GL, same pickups, no death menu, vr_run_check's game checks).
+  Scenes `run_pickups`, `run_ironman`.
+- **Not verified:** the greyed Save row's look (Draw_Fill over sp_menu.lmp's third row), the toolbar button's look.
+

@@ -581,6 +581,8 @@ void VR_StartHub (void);								// the main menu's VR Hub, confirmed: as the Pla
 void VR_OpenMapLibrary (void);							// Single Player > Map Library: the map browser page (vr_menu_maps.inc)
 void VR_RunSetupNewGame (void);							// Single Player > New Game: the Run Setup screen, its Start then M_NewGameStart (vr_menu_runsetup.inc)
 void M_NewGameStart (void);								// menu.c: the new game itself (map start), the Run Setup screen's Start
+int VR_RunIronman (void);								// the run's Ironman is on (vr_runsetup.cpp): no saving, the menus' Save greyed, no autosaves
+int VR_RunIronmanRefusesSave (void);					// Host_Savegame_f: 1 when Ironman refuses it (said on the console and the screen)
 void VR_Menu_Draw (void);								// M_Draw, m_vr
 // Several menu panels (vr_menu.cpp; MULTI_MENU.md): M_Draw draws the first panel's menu (the 2D layer's canvas) whichever
 // is focused, the others drawn into their own canvases (vr_panel.cpp, M_DrawPanel). Select: the instance to restore
