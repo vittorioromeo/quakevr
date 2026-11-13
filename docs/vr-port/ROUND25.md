@@ -1079,3 +1079,21 @@ daunting".
   1 FAIL (props_round: the knight within 80 in 6.0 s, its 6 s limit; fails on origin/next too, not this branch's);
   nav_tele_metric 16, 16 / 18, 18 of 20; nav_lift pass 21.5 s / pass 22.2 s; scene nav_trail SCNRUN OK / OK.
 - Scenes: new `stealth_noise` (a grunt ahead, a crate by you); `nav_trail`'s hint mentions the carry-on.
+## rev25nav: review of the navmesh, teleporter and stealth-hunt work of round 25 (branch agent/rev25nav, 2026-11-13)
+
+- **Removed tunables** (A/B switches whose experiment was decided, their "off" used by no test or scene):
+  `vr_nav_tele_approach` (the line-up at a thin trigger: always on) and `vr_nav_gate_marker` (the hunt behind a gate
+  by the navmesh: always on); rows, menu_paths, QC handle and NAVMESH.md 17/19 updated.
+- **Scenes seeded:** `nav_tele_metric_gates` and `nav_tele_dm5` now seed the map's load and the walkers
+  (`sv_random_seed 1`, `vr_bench_seed 1`, as navdet did for `nav_tele_metric`): two runs each now give the same trial
+  lines (80 / 100 lines, 0 differing; were 29 / 21 differing run to run). Seeded results: nav_tele_metric 18/20,
+  nav_tele_metric_gates 37/40, nav_tele_dm5 18/24.
+- **Checked:** nav_tele_metric before / after the removals: the same 25 trial lines. Stealth `gates` 11 PASS;
+  teleporters_test.sh chase: the dog at `framed_sill32` FAILs (never reaches the north room, all 3 tries), the same on
+  origin/next 2fa0e7e58 (not this branch's; open), the rest PASS.
+- **Reviewed, not changed** (written up for the author): `portals::teleporterWalked` asks `sd.paired`, not
+  `monsterGate` (vr_portals_monsters_all), so under that experimental setting the navmesh plans an unpaired gate as a
+  touch-teleport (no fit check); the stealth trail keeps the teleporter as an entity (`stl_tele_gate`), which a
+  killtargeted trigger's reused edict could stand in for within the 5 s window (low); the lift-call check walks every
+  agent slot each steer while a walker waits at a lift (cheap). Detour's far links (add/remove, unconnectLinks without a
+  side filter), the job clock, the reach/tele/walk tests and the portal give-up were read through: no fault found.
