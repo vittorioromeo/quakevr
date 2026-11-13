@@ -149,6 +149,11 @@ void(float sk, vector at) VR_AgArmor_Roll =
     vr_ar_roll_mask = 0;
     sk = max(0, min(3, floor(sk)));
     float chance = VR_AgArmor_SkillValue(sk, 0);
+    if(cvar_hget(cvarh_vr_run_armoredfoes)) // (Armored Foes: one the skill left bare armoured after all, at this chance)
+    {
+        float boost = min(1, max(0, cvar_hget(cvarh_vr_armoredfoes_chance)));
+        chance = 1 - (1 - min(1, max(0, chance))) * (1 - boost);
+    }
     if(chance <= 0 || VR_AgArmor_Rand(0, at) >= chance)
     {
         return;
