@@ -235,7 +235,10 @@ Arena stairs (`vr_arena_test 36`: one foe at a time from 8 floor places up to th
 - **Approach slots** (`vr_nav_slots`, `vr_nav_slot_radius` 80, `vr_nav_slot_engage` 120): a walker with no missile
   attack (`th_missile` 0) farther than the engage distance paths to a slot on a ring round its foe, its own (none other
   chasing him holds it this half second), the free one nearest its bearing, kept while free; nearer it is Quake's chase.
-  A slot straight ahead on the mesh is still walked to (round 1 handed that case to Quake's chase).
+  A slot straight ahead on the mesh is still walked to (round 1 handed that case to Quake's chase). The slot must be on
+  his side: a straight walk on the mesh from him to it (a Detour raycast), else he is the aim. Seen through a teleporter,
+  the bearing points back at the gate, and a slot behind the exit's face rounded to the walker's own side (or to no
+  mesh): it walked up to the gate and stood facing him through it (ROUND25.md "telesight", scene `nav_tele_sight`).
 - **vr_nav 0** is untouched (navsteer returns -1 before any of this). Backpedal, sidestep, strafe, the armed humanoids'
   moves don't use movetogoal: unchanged.
 - **Measured** (`vr_nav_crowdtest <s>`: every walker woken onto the player; a stall is a half second moved under 8
