@@ -1079,6 +1079,9 @@ daunting".
   1 FAIL (props_round: the knight within 80 in 6.0 s, its 6 s limit; fails on origin/next too, not this branch's);
   nav_tele_metric 16, 16 / 18, 18 of 20; nav_lift pass 21.5 s / pass 22.2 s; scene nav_trail SCNRUN OK / OK.
 - Scenes: new `stealth_noise` (a grunt ahead, a crate by you); `nav_trail`'s hint mentions the carry-on.
+
+### shottint
+- Map library screenshots no longer get the menu hue tint: slipseer::drawScreenshot turns Draw_SetMenuRecolor off around its draw (flat and VR share the path).
 ## rev25nav: review of the navmesh, teleporter and stealth-hunt work of round 25 (branch agent/rev25nav, 2026-11-13)
 
 - **Removed tunables** (A/B switches whose experiment was decided, their "off" used by no test or scene):
