@@ -1099,7 +1099,9 @@ Fixed (small, local):
 - **Flat keys** (vr_flatplay.cpp): one `flatKeyHeld` for the three copies of the key-by-bind-name check.
 
 Checks: build 0 warnings; slipseer_test 51 -> 55 passed, 0 failed (new: the picture header checks); flatkeys_test
-FLATKEYS_RESULT.
+37/0; flatkeybind_test 8/0; vr_gameplay_preset_test 23/0; vr_gore_preset_test 12/0. Also: the presets' matching
+(`presetcore::Kind::matchingLevel`, every menu frame for three kinds, ~166 rows) leaves a level at its first differing
+row instead of counting them all.
 
 Left for the author: screenshot and download URLs taken from any host and scheme (an allow-list), the Slipseer
 back-off shared by every host, cache/slipseer never pruned, robots.txt wildcards, the presets' rows matched every menu
