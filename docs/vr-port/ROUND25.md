@@ -773,3 +773,21 @@ dagger drawn up close and its stab landing, the gun again backed off). New scene
 ## Map Library: AD note (adnote)
 
 A package made for Arcane Dimensions no longer says Quake VR does not run it: its page says it is played natively when AD 1.80p1 is installed, else that AD is needed (`vr_menu_maps.inc`); INSTALL.md says the same. Play was never blocked.
+
+## basefix1113: the 2026-11-13 baseline's new failures (branch agent/basefix1113)
+
+Each rerun alone twice, seeded as the runner does (`runs/20261113-034530` vs `20261112-175748`):
+
+| test | baseline | alone | cause | now |
+|---|---|---|---|---|
+| agrunt 12 | 13/8 | 13/8, 13/8 | the test: AD's data now in the agent bases (mounted outside AD too, `vr_ad_mounted`), so its 21 cases run for real in the runner for the first time (before: fists). The rocket and grenade launchers' blasts push you into the hall's south-east corner (461,-504); 240 units ahead is past a ledge, so the next eight guns' grunts land in the pit (z -104): 0 shots | 21/0 twice |
+| agrunt 47 | 108/2 | 108/2, 108/2 | the test: the last case's gibbed grunt's limbs fly into the next one's gun (`disarmed (a vr_limb thrown at its weapon, 107 kg m/s)`): the flare gun and the AD plasma gun knocked out, the reach given up, punches (0 shots) | 110/0 twice |
+| teleporters_chase | 6/0 -> 5/1 | 5/1 (deterministic) | by design: navtele2's `vr_nav_gate_chase` 1 walks the grunt through the gate between shots; with `vr_stealth_chase_tele 0` still fails, with `vr_nav_gate_chase 0` passes | the grunt expected through; a `nochase` run keeps the old stay-and-shoot check: both PASS |
+| arena 11 | 24/1 | 25/0, 25/0 | flaky under load | - |
+| ragdoll_ragtest | 30/1 | 31/0, 31/0 | the known flaky catch (BACKLOG 1) | - |
+
+- `vr_armedgrunt_test.qc`: `VR_AGT_ClearGibs` (vr_scene_clean's gibs, one in a hand kept) before each case of tests
+  1/12 and 47; `VR_AGT_HoldStart` puts the player back at the first case's place before each case of tests 1/12 (test
+  47 already holds him every frame). agrunt 1 17/0.
+- `teleporters_test.sh`: `EXTRA` (env) commands run first in each chase run, to toggle a feature off; STEALTH.md's
+  line on ranged monsters at a gate names `vr_nav_gate_chase`.

@@ -235,7 +235,8 @@ Paired gates (a gate that comes out of another gate's face, `vr_teleporter_pair_
 - **The point is his image** (where he shows in the gate, beyond its face in the monster's room's terms), with the gate
   it is seen through (`stl_via`): an Alert monster walks into the gate's middle and through (`vr_portals_monsters`;
   a gate it can't walk through: up to its face, then it searches there). A melee monster gone Hostile at a player it
-  sees only through a gate runs through to him (ranged ones stay and shoot through, PORTAL_AI.md).
+  sees only through a gate runs through to him (ranged ones shoot through, PORTAL_AI.md, and with `vr_nav_gate_chase`
+  1, the default, take their navmesh step through the gate between shots: NAVMESH.md 17).
 - **Crossing** (the engine's VR_Portal_Crossed, which now gets the gate's yaw, the face gone into and the face back):
   its point, post (and its yaw), last sighting and walk marker go through with it: the point it walked through for is
   in its room now; the others are beyond the face back (going back to its post it walks back through). No back and

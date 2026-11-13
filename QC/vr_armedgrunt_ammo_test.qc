@@ -226,6 +226,7 @@ void() VR_AGAM_Frame =
         }
         VR_AGT_ClearWeapons();
         VR_AGAM_ClearBackpacks();
+        VR_AGT_ClearGibs(); // (the last case's gibbed body's limbs knocked the next one's gun out of its hand)
         float c = VR_AGT_Class(code);
         float dist = (c == VR_AG_CLASS_MELEE || c == VR_AG_CLASS_FISTS) ? 70 : c == VR_AG_CLASS_EXPLOSIVE ? 360 : 240;
         g = VR_AGT_Spawn(code, dist);
