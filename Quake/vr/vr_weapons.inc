@@ -538,6 +538,9 @@ QVR_WEAPON_KEY(RevYaw, "rev_yaw")
 QVR_WEAPON_KEY(RevRoll, "rev_roll")
 QVR_WEAPON_KEY(RevThumbTop, "rev_thumb_top")
 QVR_WEAPON_KEY(RevThumbBias, "rev_thumb_bias")
+// Randomized Pickups (QC vr_run_pickups.qc): the weapon tier its map pickup is swapped within (0 the shotgun's .. 3 the
+// rocket launcher's); -1 never swapped (melee, tools, the enemies' guns); -2 (the default) not classified: the test fails.
+QVR_WEAPON_KEY(PickupTier, "pickup_tier")
 #endif
 
 

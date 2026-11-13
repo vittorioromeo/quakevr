@@ -1041,18 +1041,18 @@ float(entity xPlayer, entity xInst, float xBit) AD_WeaponUpgraded =
 
 // AD's three weapon upgrades, a row each (its row's bit, 1 2 4, is its VR model's in ad_vrmodels_made): the weapon it
 // upgrades, AD's item bit for it, its VR model (the engine's, vr_adweapons.cpp, by this name: AD_VRModelName below), its
-// pickup's model, classname (weapon_touch reads the weapon from it) and name.
+// pickup's model, classname (weapon_touch reads the weapon from it), name and its map pickup's classname.
 typedef struct
 {
     float wid, upgrade;
-    string vrmodel, pickup, classname, name;
+    string vrmodel, pickup, classname, name, mapclass;
 } ad_upgrade_row;
 
 ad_upgrade_row AD_UPGRADES[] =
 {
-    { WID_AXE, ad_IT_UPGRADE_AXE, "progs/v_shadaxe3.mdl#vr", ad_MODEL_GWEAP_UPAXE, "weapon_axe", "Shadow Axe" },
-    { WID_SUPER_SHOTGUN, ad_IT_UPGRADE_SSG, "progs/v_shot3.mdl#vr", ad_MODEL_GWEAP_UPSSG, "weapon_supershotgun", "Widowmaker" },
-    { WID_LIGHTNING, ad_IT_UPGRADE_LG, "progs/v_plasma.mdl#vr", ad_MODEL_GWEAP_UPLG, "weapon_lightning", "Plasma Gun" }
+    { WID_AXE, ad_IT_UPGRADE_AXE, "progs/v_shadaxe3.mdl#vr", ad_MODEL_GWEAP_UPAXE, "weapon_axe", "Shadow Axe", "weapon_upgrade_axe" },
+    { WID_SUPER_SHOTGUN, ad_IT_UPGRADE_SSG, "progs/v_shot3.mdl#vr", ad_MODEL_GWEAP_UPSSG, "weapon_supershotgun", "Widowmaker", "weapon_upgrade_ssg" },
+    { WID_LIGHTNING, ad_IT_UPGRADE_LG, "progs/v_plasma.mdl#vr", ad_MODEL_GWEAP_UPLG, "weapon_lightning", "Plasma Gun", "weapon_upgrade_lg" }
 };
 #define AD_UPGRADES_N 3
 
@@ -1065,6 +1065,11 @@ float(float xWid) AD_UpgradeRow =
     }
     return -1;
 };
+
+// Row i's weapon, map pickup and VR model (Randomized Pickups: vr_run_pickups.qc VR_RPK_Build).
+float(float i) AD_UpgradeWid = { return AD_UPGRADES[i].wid; };
+string(float i) AD_UpgradeMapClass = { return AD_UPGRADES[i].mapclass; };
+string(float i) AD_UpgradeVRModel = { return AD_UPGRADES[i].vrmodel; };
 
 // The upgrade a weapon of kind `xWid` can have (0: none).
 float(float xWid) AD_UpgradeFor =

@@ -156,7 +156,7 @@ void() VR_RT_Pickups =
     {
         VR_Test_Check(mapname == "e1m1" && cvar_hget(cvarh_vr_run_pickups) == 1, "e1m1, Balanced");
         VR_RT_CheckLayout(TRUE, "e1m1 balanced");
-        VR_Test_Check(!VR_RPK_Unclassified(), "every weapon with a map pickup classified (a row, or left out by name)");
+        VR_Test_Check(!VR_RPK_Unclassified(), "every weapon with a map pickup classified (its weapons.txt pickup_tier)");
         cvar_set("vr_run_test_a", ftos(vr_rt_hash));
         cvar_set("vr_run_test_b", ftos(VR_RT_Links()));
         cvar_set("vr_run_test_c", ftos(total_monsters));
