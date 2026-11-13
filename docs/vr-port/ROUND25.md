@@ -1284,10 +1284,17 @@ Play on an installed package asks Easy / Normal / Hard / Nightmare first (page "
 - **Tests:** `vr_run_enemies_check <count> <random>` / `verdict` ("runenemies"). id run (default games): e1m1, e1m2,
   e1m3, e4m3 baselines; run (2x, Balanced, Glass Cannon, Melee Only) on e1m1, saved, changelevel e1m2, loaded; run (3x,
   Everything Goes, Heavy Revolver) on e1m3 and e4m3; a new run with both off on e1m1: runenemies 26/0, `vr_run_check`
-  15/0 alongside, `vr_runsetup_test` 42/0. AD mounted (`-game ad`): ad_azad and ad_akalakha baselines, 2x Balanced and
-  3x Everything Goes on both, e1m1/e1m3/e2m2/e2m3/e3m1/e4m3 at 3x Everything Goes (AD's kinds outside AD maps: 18 of 23
-  on e1m1): all pass. Trigger chains equal their baselines everywhere (e.g. e1m1 44 links / 3 counter uses).
-  Scenarios run_enemycount, run_enemyrandom.
+  15/0 alongside, `vr_runsetup_test` 42/0. AD mounted (`-game ad`): ad_azad, ad_akalakha, e1m1 baselines, 2x Balanced
+  and 3x Everything Goes on both AD maps, e1m1/e1m3/e2m2/e3m1/e4m3 at 3x Everything Goes (AD's kinds outside AD maps: 18
+  of 23 on e1m1): runenemies 29/0. Trigger chains equal their baselines everywhere (e.g. e1m1 44 links / 3 counter
+  uses). Scenarios run_enemycount, run_enemyrandom.
+- **Copies in solid:** the check counts monsters whose own box (a unit up) is in solid at the check: copies may be no
+  more, as a share, than the map's own (plus two). Monsters on the move sit in a wall's edge now and then (AD's more:
+  their boxes are not Quake's hulls), so an absolute zero was flaky (one AD hunter ogre copy in one of three runs).
+- **Open:** a swap compares widths, not heights: a tall narrow kind (64) in a short one's spot (56) under a low ceiling
+  is in the ceiling by its own box (it moves with Quake's 56-tall hull, so it is not frozen): with the mutators on, 5-13
+  of a map's own monsters are in solid by that test (ad_azad 9 at 2x Balanced, e4m3 13 at 3x Everything Goes), 0 off.
+  A height column in `VR_RUN_ER_KINDS` (AD's TINY / SHORT / TALL) would close it.
 - Scripts (run.sh -Script, -QuitOn "runmutators: [0-9]+ passed"): `developer 1;vr_runsetup_test;map e1m1;wait90;
   vr_run_enemies_check 0 0;...;vr_runpick_enemycount 1;vr_runpick_enemyrandom 1;vr_runpick_glasscannon 1;
   vr_runpick_meleeonly 1;vr_run start;map e1m1;wait90;vr_run_enemies_check 1 1;vr_run_check 2 1 1 0;save me_a;
