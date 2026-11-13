@@ -6,6 +6,7 @@
 #include "vr_gfxpresets.hpp"
 #include "vr_gorepresets.hpp"
 #include "vr_presets.hpp"
+#include "vr_progs.hpp"
 #include "vr_testkit.hpp"
 
 #include "Zancle/Container/Vector.hpp"
@@ -77,6 +78,19 @@ constexpr presetcore::Row rows[] = {
     {&vr_grenade_shoot,                 {"0",     D,     D}}, // shots set grenades off
     {&vr_bullettime_enabled,            {"0",     "0",   D}},
     {&vr_reload_mode,                   {"0",     D,     D}}, // 0: the guns fire from the reserve
+    // A gun's own reloading mode (-1: follows vr_reload_mode): Classic leaves none to override the "no reloading".
+    {&vr_reload_mode_shot,              {"-1",    D,     D}},
+    {&vr_reload_mode_sshot,             {"-1",    D,     D}},
+    {&vr_reload_mode_nail,              {"-1",    D,     D}},
+    {&vr_reload_mode_snail,             {"-1",    D,     D}},
+    {&vr_reload_mode_gl,                {"-1",    D,     D}},
+    {&vr_reload_mode_prox,              {"-1",    D,     D}},
+    {&vr_reload_mode_rl,                {"-1",    D,     D}},
+    {&vr_reload_mode_light,             {"-1",    D,     D}},
+    {&vr_reload_mode_widow,             {"-1",    D,     D}},
+    {&vr_reload_mode_adplasma,          {"-1",    D,     D}},
+    {&vr_reload_mode_npistol,           {"-1",    D,     D}},
+    {&vr_reload_mode_revolver,          {"-1",    D,     D}},
     {&vr_weapon_recoil,                 {"0",     D,     D}},
     // The world
     {&vr_portals_walk,                  {"0",     D,     D}}, // seamless teleporters (0: Quake's teleport)
@@ -203,6 +217,7 @@ void testCmd()
     // A setting of your own, then the first apply keeps it as My Settings.
     Cvar_SetQuick(&vr_knockdown, "0");
     Cvar_SetQuick(&vr_crates, "0");
+    Cvar_SetQuick(&vr_reload_mode_rl, "3"); // a gun's own override must not keep reloading alive at Classic
     t.check(!presetKind.hasMine(), name, "no My Settings before the first apply");
     presetKind.apply(levelClassic);
     t.check(presetKind.hasMine(), name, "the first apply keeps My Settings");
@@ -210,6 +225,9 @@ void testCmd()
         "Classic sets every row");
     t.check(vr_agrunt_repl.value == 0.f && vr_portals_walk.value == 0.f && vr_reload_mode.value == 0.f, name,
         "Classic: no armed grunts, Quake's teleporters, no reloading");
+    t.check(reloadModeBest() == 0, name, "Classic: no gun reloads, even with a per-gun override set before");
+    t.check(vr_grunt_burst.value == 0.f && vr_agknight.value == 0.f && vr_agdknight.value == 0.f, name,
+        "Classic: plain grunts (no burst rifle), plain knights");
     presetKind.apply(levelLight);
     t.check(presetKind.differing(levelLight, true) == 0 && presetKind.matchingLevel() == levelLight, name, "Light sets every row");
     t.check(vr_knockdown.value == 0.f && vr_portals_walk.value != 0.f && vr_reload_mode.value != 0.f && vr_crates.value != 0.f,
@@ -376,6 +394,24 @@ void syncClassic()
     }
 }
 
+// vr_gameplay_classic_check: the running game under Classic (QC VR_Classic_Check: no gun reloads, no burst rifle, e1m1-like
+// maps' grunts all plain); prints "classiccheck: N passed, M failed".
+void classicCheckCmd()
+{
+    testkit::Tally t;
+    constexpr const char* name = "classiccheck";
+    t.check(presetKind.matchingLevel() == levelClassic, name, "the Gameplay preset is Classic");
+    bool qc = false;
+    if(sv.active)
+    {
+        const progs::ServerVm vm;
+        dfunction_t* fn = VR_ED_FindFunction("VR_Classic_Check");
+        qc = fn && progs::qcFloat(static_cast<func_t>(fn - qcvm->functions)) != 0.f;
+    }
+    t.check(qc, name, "the game: no reloading, no armed humanoids, plain grunts");
+    t.verdict(name);
+}
+
 void init()
 {
     Cvar_SetCallback(&vr_gameplay_preset, onPresetCvar);
@@ -383,6 +419,7 @@ void init()
     Cmd_AddCommand("vr_gameplay_preset_save", saveCmd);
     Cmd_AddCommand("vr_gameplay_preset_status", statusCmd);
     Cmd_AddCommand("vr_gameplay_preset_test", testCmd);
+    Cmd_AddCommand("vr_gameplay_classic_check", classicCheckCmd);
 }
 
 } // namespace qvr::gameplaypresets

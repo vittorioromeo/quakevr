@@ -2208,6 +2208,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_runsetup", menu::runSetup_f);
     Cmd_AddCommand("vr_runsetup_screen_test", menu::runSetupScreenTest_f);
     Cmd_AddCommand("vr_runlaunch_test", menu::runLaunchTest_f);
+    Cmd_AddCommand("vr_continue_rows_test", menu::continueRowsTest_f);
     Cmd_AddCommand("vr_tips_reset", tips::reset_f);
     Cmd_AddCommand("vr_tips_test", tips::test_f);
     Cmd_AddCommand("vr_mock_laser", menuui::mockLaser_f);

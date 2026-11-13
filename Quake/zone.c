@@ -24,28 +24,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "vr/vr_tracy.h"
 
-// QVR: 32 MiB (was 4): the zone holds every cvar's value and default (Quake VR has tens of thousands: the per-weapon and
-// per-prop settings) and every command's arguments; a full zone is a Sys_Error ("Z_Malloc: failed"). Usage: vr_limits.
-#define	DYNAMIC_SIZE	(32 * 1024 * 1024) // ericw -- was 512KB (64-bit) / 384KB (32-bit)
-
-#define	ZONEID	0x1d4a11
-#define MINFRAGMENT	64
-
-typedef struct memblock_s
-{
-	int	size;		// including the header and possibly tiny fragments
-	int	tag;		// a tag of 0 is a free block
-	int	id;		// should be ZONEID
-	int	pad;		// pad to 64 bit boundary
-	struct	memblock_s	*next, *prev;
-} memblock_t;
-
-typedef struct
-{
-	int		size;		// total bytes malloced, including header
-	memblock_t	blocklist;	// start / end cap for linked list
-	memblock_t	*rover;
-} memzone_t;
+#define	ZONEID		0x1d4a11
+#define	ZONEFREED	0x1d4a10	// QVR: a freed block's id (Z_Free's double-free check)
 
 void Cache_FreeLow (int new_low_hunk);
 
@@ -76,29 +56,51 @@ void Memory_InitCvars (void)
 
 						ZONE MEMORY ALLOCATION
 
-There is never any space between memblocks, and there will never be two
-contiguous free memblocks.
+QVR: the zone is the engine's heap now (ROUND25.md, "nozone"): Z_Malloc, Z_Free and Z_Strdup are thin wrappers over
+VR_HeapCalloc / VR_HeapFree (calloc and free, counted by vr_alloc_sites). The old zone was a first-fit allocator in a
+fixed block at the bottom of the hunk (32 MiB, -zone): it walked its free list from a rover, a full zone was a
+Sys_Error, and its Z_Realloc once corrupted a save (ROUND25.md, "Save crash: Z_Realloc").
 
-The rover can be left pointing at a non-empty block
-
-The zone calls are pretty much only used for small strings and structures,
-all big things are allocated on the hunk.
+Every block keeps a small header: its size (the bytes in use for vr_limits and Tracy) and ZONEID, checked on Z_Free (a
+pointer from elsewhere, a double free). Debug builds add a tail word after the caller's bytes, checked on Z_Free (an
+overrun). Tracy builds link the live blocks (Memory_TracySnapshot, Memory_TracyValidate walk them).
+Z_Free (NULL) does nothing. Like the hunk and the cache, it is for the main thread (vr_zone_threadcheck): the counts
+and Tracy's ledger are not locked.
 ==============================================================================
 */
 
-static memzone_t	*mainzone;
-static int		zone_used, zone_peak; // QVR: bytes in use (headers included) and the most ever (vr_limits)
+typedef struct zblock_s
+{
+#ifdef QVR_TRACY
+	struct zblock_s	*prev, *next;	// the live blocks (Tracy's snapshot and validation)
+#endif
+	size_t	size;	// the whole block: this header, the caller's bytes (and the Debug tail)
+	int		id;		// ZONEID while allocated, ZONEFREED once freed
+	int		pad;	// (16-byte multiple: the caller's bytes keep calloc's alignment)
+} zblock_t;
+
+#ifndef NDEBUG
+#define ZONE_TAIL	sizeof (int)	// Debug: ZONEID after the caller's bytes
+#else
+#define ZONE_TAIL	0
+#endif
+
+static size_t	zone_used, zone_peak; // QVR: bytes in use (headers included) and the most ever (vr_limits)
+static size_t	zone_count; // blocks in use
+#ifdef QVR_TRACY
+static zblock_t	zone_live = {&zone_live, &zone_live, 0, 0, 0}; // the live blocks' list head
+#endif
 
 /*
 ========================
 Z_Usage -- QVR
 ========================
 */
-void Z_Usage (int *used, int *peak, int *size)
+void Z_Usage (size_t *used, size_t *peak, size_t *count)
 {
 	*used = zone_used;
 	*peak = zone_peak;
-	*size = mainzone ? mainzone->size : 0;
+	*count = zone_count;
 }
 
 
@@ -109,130 +111,36 @@ Z_Free
 */
 void Z_Free (void *ptr)
 {
+	zblock_t	*block;
+
 	Zone_CheckThread ();
-	memblock_t	*block, *other;
-
 	if (!ptr)
-		Sys_Error ("Z_Free: NULL pointer");
+		return;
 
-	block = (memblock_t *) ( (byte *)ptr - sizeof(memblock_t));
+	block = (zblock_t *) ptr - 1;
+	if (block->id == ZONEFREED)
+		Sys_Error ("Z_Free: freed a freed pointer");
 	if (block->id != ZONEID)
 		Sys_Error ("Z_Free: freed a pointer without ZONEID");
-	if (block->tag == 0)
-		Sys_Error ("Z_Free: freed a freed pointer");
-
-	VR_TracyFree(ptr);
-	block->tag = 0;		// mark as free
-	zone_used -= block->size; // QVR: (vr_limits)
-
-	other = block->prev;
-	if (!other->tag)
-	{	// merge with previous free block
-		other->size += block->size;
-		other->next = block->next;
-		other->next->prev = other;
-		if (block == mainzone->rover)
-			mainzone->rover = other;
-		block = other;
-	}
-
-	other = block->next;
-	if (!other->tag)
-	{	// merge the next free block onto the end
-		block->size += other->size;
-		block->next = other->next;
-		block->next->prev = block;
-		if (other == mainzone->rover)
-			mainzone->rover = block;
-	}
-}
-
-
-static void *Z_TagMalloc (int size, int tag)
-{
-	int		extra;
-	memblock_t	*start, *rover, *newblock, *base;
-
-	if (!tag)
-		Sys_Error ("Z_TagMalloc: tried to use a 0 tag");
-
-//
-// scan through the block list looking for the first free block
-// of sufficient size
-//
-	size += sizeof(memblock_t);	// account for size of block header
-	size += 4;					// space for memory trash tester
-	size = (size + 7) & ~7;		// align to 8-byte boundary
-
-	base = rover = mainzone->rover;
-	start = base->prev;
-
-	do
+#ifndef NDEBUG
 	{
-		if (rover == start)	// scaned all the way around the list
-			return NULL;
-		if (rover->tag)
-			base = rover = rover->next;
-		else
-			rover = rover->next;
-	} while (base->tag || base->size < size);
-
-//
-// found a block big enough
-//
-	extra = base->size - size;
-	if (extra >  MINFRAGMENT)
-	{	// there will be a free fragment after the allocated block
-		newblock = (memblock_t *) ((byte *)base + size );
-		newblock->size = extra;
-		newblock->tag = 0;			// free block
-		newblock->prev = base;
-		newblock->id = ZONEID;
-		newblock->next = base->next;
-		newblock->next->prev = newblock;
-		base->next = newblock;
-		base->size = size;
+		int tail;
+		memcpy (&tail, (byte *) block + block->size - ZONE_TAIL, sizeof (tail));
+		if (tail != ZONEID)
+			Sys_Error ("Z_Free: a block's tail was overwritten (an overrun of %i bytes)", (int) (block->size - sizeof (zblock_t) - ZONE_TAIL));
 	}
+#endif
 
-	base->tag = tag;				// no longer a free block
-	zone_used += base->size; // QVR: (vr_limits)
-	if (zone_used > zone_peak)
-		zone_peak = zone_used;
-
-	mainzone->rover = base->next;	// next allocation will start looking here
-
-	base->id = ZONEID;
-
-// marker for memory trash testing
-	*(int *)((byte *)base + base->size - 4) = ZONEID;
-
-	VR_TracyAlloc(base + 1, base->size, 0, 0);
-	return (void *) ((byte *)base + sizeof(memblock_t));
+	VR_TracyFree (ptr);
+#ifdef QVR_TRACY
+	block->prev->next = block->next;
+	block->next->prev = block->prev;
+#endif
+	zone_used -= block->size;
+	zone_count--;
+	block->id = ZONEFREED;
+	VR_HeapFree (block);
 }
-
-#ifdef PARANOID // QVR: only Z_Malloc calls it, when PARANOID
-/*
-========================
-Z_CheckHeap
-========================
-*/
-static void Z_CheckHeap (void)
-{
-	memblock_t	*block;
-
-	for (block = mainzone->blocklist.next ; ; block = block->next)
-	{
-		if (block->next == &mainzone->blocklist)
-			break;			// all blocks have been hit
-		if ( (byte *)block + block->size != (byte *)block->next)
-			Sys_Error ("Z_CheckHeap: block size does not touch the next block");
-		if ( block->next->prev != block)
-			Sys_Error ("Z_CheckHeap: next block doesn't have proper back link");
-		if (!block->tag && !block->next->tag)
-			Sys_Error ("Z_CheckHeap: two consecutive free blocks");
-	}
-}
-#endif // QVR
 
 
 /*
@@ -242,19 +150,39 @@ Z_Malloc
 */
 void *Z_Malloc (int size)
 {
+	zblock_t	*block;
+	size_t		total;
+
 	Zone_CheckThread ();
-	void	*buf;
+	if (size < 0)
+		Sys_Error ("Z_Malloc: bad size %i", size);
 
-#ifdef PARANOID
-	Z_CheckHeap ();	// DEBUG (QVR: PARANOID only, as Hunk_Check: it walked every block at every allocation, and the zone
-					// holds tens of thousands of blocks, the cvars' values)
+	total = sizeof (zblock_t) + (size_t) size + ZONE_TAIL;
+	block = (zblock_t *) VR_HeapCalloc (1, total);
+	if (!block)
+		Sys_Error ("Z_Malloc: failed on allocation of %i bytes", size);
+	block->size = total;
+	block->id = ZONEID;
+#ifndef NDEBUG
+	{
+		const int tail = ZONEID;
+		memcpy ((byte *) block + total - ZONE_TAIL, &tail, sizeof (tail));
+	}
 #endif
-	buf = Z_TagMalloc (size, 1);
-	if (!buf)
-		Sys_Error ("Z_Malloc: failed on allocation of %i bytes",size);
-	Q_memset (buf, 0, size);
+#ifdef QVR_TRACY
+	block->next = zone_live.next;
+	block->prev = &zone_live;
+	block->next->prev = block;
+	zone_live.next = block;
+#endif
 
-	return buf;
+	zone_used += total;
+	zone_count++;
+	if (zone_used > zone_peak)
+		zone_peak = zone_used;
+
+	VR_TracyAlloc (block + 1, total, 0, 0);
+	return block + 1;
 }
 
 char *Z_Strdup (const char *s)
@@ -263,34 +191,6 @@ char *Z_Strdup (const char *s)
 	char *ptr = (char *) Z_Malloc (sz);
 	memcpy (ptr, s, sz);
 	return ptr;
-}
-
-
-/*
-========================
-Z_Print
-========================
-*/
-void Z_Print (memzone_t *zone)
-{
-	memblock_t	*block;
-
-	Con_Printf ("zone size: %i  location: %p\n",mainzone->size,mainzone);
-
-	for (block = zone->blocklist.next ; ; block = block->next)
-	{
-		Con_Printf ("block:%p    size:%7i    tag:%3i\n",
-			block, block->size, block->tag);
-
-		if (block->next == &zone->blocklist)
-			break;			// all blocks have been hit
-		if ( (byte *)block + block->size != (byte *)block->next)
-			Con_Printf ("ERROR: block size does not touch the next block\n");
-		if ( block->next->prev != block)
-			Con_Printf ("ERROR: next block doesn't have proper back link\n");
-		if (!block->tag && !block->next->tag)
-			Con_Printf ("ERROR: two consecutive free blocks\n");
-	}
 }
 
 
@@ -1119,27 +1019,6 @@ void *Cache_Alloc (cache_user_t *c, int size, const char *name)
 //============================================================================
 
 
-static void Memory_InitZone (memzone_t *zone, int size)
-{
-	memblock_t	*block;
-
-// set the entire zone to one free block
-
-	zone->size = size; // QVR: was never set (Z_Print and vr_limits showed a size of 0)
-
-	zone->blocklist.next = zone->blocklist.prev = block =
-		(memblock_t *)( (byte *)zone + sizeof(memzone_t) );
-	zone->blocklist.tag = 1;	// in use block
-	zone->blocklist.id = 0;
-	zone->blocklist.size = 0;
-	zone->rover = block;
-
-	block->prev = block->next = &zone->blocklist;
-	block->tag = 0;			// free block
-	block->id = ZONEID;
-	block->size = size - sizeof(memzone_t);
-}
-
 /*
 ========================
 Memory_Init
@@ -1148,8 +1027,6 @@ Memory_Init
 void Memory_Init (void *buf, int size)
 {
 	zone_main_thread = SDL_ThreadID ();
-	int p;
-	int zonesize = DYNAMIC_SIZE;
 
 	hunk_segments[0] = (hunkseg_t *) buf;
 	hunk_segments[0]->base = 0;
@@ -1158,16 +1035,7 @@ void Memory_Init (void *buf, int size)
 	hunk_low_used = 0;
 
 	Cache_Init ();
-	p = COM_CheckParm ("-zone");
-	if (p)
-	{
-		if (p < com_argc-1)
-			zonesize = Q_atoi (com_argv[p+1]) * 1024;
-		else
-			Sys_Error ("Memory_Init: you must specify a size in KB after -zone");
-	}
-	mainzone = (memzone_t *) Hunk_AllocName (zonesize, "zone" );
-	Memory_InitZone (mainzone, zonesize);
+	// QVR: no zone block on the hunk any more, and no -zone (the zone is the heap: ROUND25.md, "nozone")
 
 	Cmd_AddCommand ("hunk_print", Hunk_Print_f); //johnfitz
 }
@@ -1177,12 +1045,11 @@ void Memory_Init (void *buf, int size)
 // Called only when starting a memory session, before allocator mutation. Physical block sizes include headers.
 void Memory_TracySnapshot(void)
 {
-    memblock_t *b;
+    zblock_t *b;
     cache_system_t *c;
     int i, ofs;
-    if(mainzone)
-        for(b = mainzone->blocklist.next; b != &mainzone->blocklist; b = b->next)
-            if(b->tag) VR_TracyAlloc(b + 1, b->size, 0, 0);
+    for(b = zone_live.next; b != &zone_live; b = b->next)
+        VR_TracyAlloc(b + 1, b->size, 0, 0);
     for(i = 0; i < hunk_numsegments; ++i)
         for(ofs = 0; ofs < hunk_segments[i]->used;)
         {
@@ -1194,7 +1061,7 @@ void Memory_TracySnapshot(void)
     if(cache_head.next)
         for(c = cache_head.next; c != &cache_head; c = c->next)
             if(c->user) VR_TracyAlloc(c + 1, c->size, 2, 0);
-    VR_TracyPlot("Zone physical bytes", zone_used);
+    VR_TracyPlot("Zone physical bytes", (double) zone_used);
     VR_TracyPlot("Hunk physical bytes", hunk_low_used);
 }
 #endif
@@ -1205,7 +1072,7 @@ void Memory_TracyPlots(void)
     cache_system_t *c;
     double bytes = 0;
     for(c = cache_head.next; c && c != &cache_head; c = c->next) bytes += c->size;
-    VR_TracyPlot("Zone physical bytes", zone_used);
+    VR_TracyPlot("Zone physical bytes", (double) zone_used);
     VR_TracyPlot("Hunk physical bytes", hunk_low_used);
     VR_TracyPlot("Cache physical bytes", bytes);
 }
@@ -1215,13 +1082,12 @@ void Memory_TracyPlots(void)
 // Independent live allocator traversal reconciles the event ledger, including reset/move/realloc boundaries.
 void Memory_TracyValidate(void)
 {
-    memblock_t *b;
+    zblock_t *b;
     cache_system_t *c;
     unsigned long long count[3] = {0}, bytes[3] = {0};
     int i, ofs;
-    if(mainzone)
-        for(b = mainzone->blocklist.next; b != &mainzone->blocklist; b = b->next)
-            if(b->tag) { ++count[0]; bytes[0] += b->size; }
+    for(b = zone_live.next; b != &zone_live; b = b->next)
+        { ++count[0]; bytes[0] += b->size; }
     for(i = 0; i < hunk_numsegments; ++i)
         for(ofs = 0; ofs < hunk_segments[i]->used;)
         {

@@ -1,6 +1,0 @@
-# run_wildweapons: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
-title Run mutator Wild Weaponry on e1m1
-map e1m1
-cvar vr_agrunt_repl 1
-cvar vr_run_wildweapons 1
-hint Wild Weaponry: e1m1's armed grunts may hold weapons you have not found yet (super shotguns, nailguns, now and then a grenade or rocket launcher or the thunderbolt) from the very first map. Without it the first maps give them only the shotgun and the nail pistol beside their own rifles.

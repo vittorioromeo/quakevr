@@ -1,9 +1,0 @@
-title Run mutators: Melee Only and Glass Cannon on, a shotgun in the hand, two grunts
-map vrtesthall
-start 0 -288 25 90
-cvar vr_run_meleeonly 1
-cvar vr_run_glasscannon 1
-give "Shotgun" main
-spawn "Grunt" 200 50
-spawn "Grunt" 240 -50
-hint Melee Only: the shotgun only clicks; take the axe from your hip. Glass Cannon: a grunt dies to half the blows, and you take double.

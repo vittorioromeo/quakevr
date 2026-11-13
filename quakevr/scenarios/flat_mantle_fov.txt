@@ -1,3 +1,0 @@
-title Flat-screen: the mantle's FOV kick
-map vrmantle
-hint Jump at a block looking up, the jump held: the view widens a little as you mantle and eases back (Speed FOV Mantle Extra).

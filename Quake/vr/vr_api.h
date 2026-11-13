@@ -609,6 +609,7 @@ int VR_MenuDrawTextBox (int x, int y, int width, int lines); // M_DrawTextBox: a
 int VR_MenuDrawHighlight (int cx, int cy);				// M_DrawArrowCursor: the selected row's highlight; nonzero: no cursor (the corner's buttons have the selection)
 void VR_MenuDrawBigHighlight (float x0, float x1, float yc, float half); // Menu Look: a big-letter menu's selected row's soft bar (vr_menu_big_hl)
 float VR_MenuBigGrow (void);								// Menu Look: the main menu's selected row's size (vr_menu_big_hl_scale)
+int VR_MenuWheelRows (int visible);						// the rows a wheel notch scrolls a list with a scroll bar (vr_menu_wheel_scroll; 0: off)
 float VR_MenuMainGap (void);								// Menu Look: the main menu's groups' gap over Quake's (vr_menu_main_gap)
 int VR_MenuDrawButton (int x0, int x1, int y, int selected);	// M_Confirm's buttons (x0..x1 across, the label's row y): the VR menu style's; nonzero if drawn
 // The corner's buttons (vr_menuui.cpp): "Back to game" closing the menu from any page, which reopens
@@ -775,7 +776,17 @@ int VR_CampaignForMap(const char *map);			// the campaign a map's name says it i
 // One save folder: autosave/<map> (Quake's), autosave/<campaign folder>~<map> (the others'), autosave/<package>~<map>
 // (a Map Library package's: its sha256's first 16).
 void VR_AutosaveName(const char *map, char *out, size_t size); // the running game's: the active campaign, the mounted map package
-void VR_AutosaveNameForLaunch(const char *map, char *out, size_t size); // a map about to be started (the skill menu's Resume)
+// Continue on the launch rows (vr_continue.cpp): Select Campaign's campaign rows and the Map Library's packages each
+// offer their game's newest loadable autosave (sha "" or NULL: the campaign's, no package; else that package's).
+void VR_LaunchContinueRefresh(void);                                  // the autosaves read again (the page built)
+// part 0: "Continue (12 min ago): Hard / Classic", 1: "Continue (12 min ago)", 2: "Hard / Classic" (its run); NULL: none
+const char *VR_LaunchContinueLabel(int campaign, const char *sha, int part);
+const char *VR_LaunchContinueHelp(int campaign, const char *sha);    // its help line; NULL: none
+const char *VR_LaunchContinueSave(int campaign, const char *sha);    // the save's name ("autosave/e1m3"); NULL: none
+int VR_LaunchContinueLoad(int campaign, const char *sha);            // loaded next (1), or none (0)
+// vr_continue_rows_test's fixture: `save` copied to `copy` as a map package `sha`'s autosave (that package taken as
+// installed); save NULL: `copy` removed and the package forgotten. 1: done.
+int VR_LaunchContinueTestFixture(const char *save, const char *copy, const char *sha);
 void VR_SaveContext(char *out, size_t size);	// SaveData_Fill: the save's context lines (// qvr_campaign, qvr_package, ...)
 int VR_SavePackage(const char *text, const char *savepath, char *sha, size_t size); // the save's map package ("": none); 0: it doesn't say
 int VR_SavePackageReady(const char *text, const char *savepath); // 0 (said, on screen too) when its map package is not installed

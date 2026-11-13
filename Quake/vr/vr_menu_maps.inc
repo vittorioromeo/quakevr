@@ -5,6 +5,8 @@
 // its progress shown on the bar) or, when its files are there already, Play. Installing never starts a map: Play is
 // its own action (vr_mapinstall.cpp). An installed package also gets Uninstall and Reinstall under its detail, each
 // pressed twice (the second within mapsConfirmSeconds) to act: Uninstall removes its files and its record
+// (above them, when the package has an autosave: Continue, its newest loaded directly with its run's choices, no Run
+// Setup: vr_continue.cpp, "Continue on the launch rows")
 // (mapinstall::uninstall, as maps_uninstall), Reinstall does that and installs it again. Included by vr_menu.cpp, after vr_menu_search.inc, whose text box, keyboard,
 // key hit test and text drawing this page uses, and whose layout(), drawHelp and pages' bookkeeping it shares.
 //
@@ -37,6 +39,7 @@ enum MapsButton
     MapButtonAction,
     MapButtonUninstall, // under the detail, for an installed package (not on the bar)
     MapButtonReinstall,
+    MapButtonContinue,  // above them, for an installed package with an autosave
     MapButtonCount
 };
 
@@ -330,6 +333,7 @@ struct MapsLayout
     float detailTop; // the picked package, under the keys
     float listBottom; // both columns stop above the bar
     float manageYc;   // Uninstall and Reinstall's middle: the detail's foot, for an installed package
+    float continueYc; // Continue's middle: above them, for one with an autosave
 };
 
 [[nodiscard]] MapsLayout mapsLayout()
@@ -373,19 +377,24 @@ struct MapsLayout
     m.bar.x0[MapButtonReinstall] = mid + 2.f;
     m.bar.x1[MapButtonReinstall] = m.s.split - 6.f;
     m.manageYc = m.listBottom - m.bar.half / m.s.k;
+    // Continue across the left column, a row above them.
+    m.bar.x0[MapButtonContinue] = m.s.left;
+    m.bar.x1[MapButtonContinue] = m.s.split - 6.f;
+    m.continueYc = m.manageYc - (2.f * m.bar.half + 4.f) / m.s.k;
     return m;
 }
 
 [[nodiscard]] bool mapsManageShown();
+[[nodiscard]] bool mapsContinueShown();
 
 [[nodiscard]] bool mapsButtonHit(const MapsLayout& m, int button, float x, float y)
 {
     const bool manage = button == MapButtonUninstall || button == MapButtonReinstall;
-    if(manage && !mapsManageShown())
+    if((manage && !mapsManageShown()) || (button == MapButtonContinue && !mapsContinueShown()))
     {
         return false;
     }
-    const float yc = manage ? m.manageYc : m.bar.yc;
+    const float yc = button == MapButtonContinue ? m.continueYc : manage ? m.manageYc : m.bar.yc;
     const float h = (m.bar.half + 2.f) / m.s.k;
     return x >= m.bar.x0[button] - 1.f && x <= m.bar.x1[button] + 1.f && y >= yc - h && y <= yc + h;
 }
@@ -511,6 +520,33 @@ bool mapsManageShown()
     return r >= 0 && !mapsBusy() && mapinstall::installed(za::String{mapindex::index().field(mapPage.results[r]->sha256)});
 }
 
+// The selected package's sha256 when Uninstall and Reinstall are offered ("": not).
+[[nodiscard]] za::String mapsManagedSha()
+{
+    return mapsManageShown() ? za::String{mapindex::index().field(mapPage.results[mapsSelected()]->sha256)} : za::String{};
+}
+
+// Continue is offered for the package selected when it has an autosave (the launch saves read when the page is built:
+// pageMaps, VR_LaunchContinueRefresh).
+bool mapsContinueShown()
+{
+    const za::String sha = mapsManagedSha();
+    return sha.size() && VR_LaunchContinueSave(0, sha.cStr());
+}
+
+// Continue pressed: its newest autosave loaded (the menu closed), its run's choices with it.
+void mapsContinue()
+{
+    const za::String sha = mapsManagedSha();
+    if(sha.size() && VR_LaunchContinueLoad(0, sha.cStr()))
+    {
+        S_LocalSound("misc/menu3.wav");
+        runSetupCloseMenu();
+        return;
+    }
+    S_LocalSound("misc/menu1.wav");
+}
+
 // Uninstall or Reinstall pressed: the first press arms it (its label asks to confirm), a second for the same package
 // within mapsConfirmSeconds acts. Reinstall: uninstalled, then installed again from the index (its zip from the cache
 // when there).
@@ -612,6 +648,7 @@ void mapsButtonAt(int button)
             return; // (its own sound)
         case MapButtonUninstall:
         case MapButtonReinstall: mapsManageAt(button); return;
+        case MapButtonContinue: mapsContinue(); return;
         default: return;
     }
     S_LocalSound("misc/menu1.wav");
@@ -665,13 +702,36 @@ void mapsMoveImpl(int dx, int dy)
     const int keys = static_cast<int>(m.s.keys.size());
     const int results = static_cast<int>(mapPage.results.size());
 
+    if(mapPage.focusButton == MapButtonContinue)
+    {
+        // Above Uninstall and Reinstall: down to them (or the bar), up to the keyboard's bottom row, right to the list.
+        if(dy > 0)
+        {
+            mapPage.focusButton = mapsManageShown() ? MapButtonUninstall : 0;
+        }
+        else if(dy < 0)
+        {
+            mapPage.focusButton = -1;
+            mapPage.focusKey = keys - 3; // (Space)
+        }
+        else if(dx > 0 && results > 0)
+        {
+            mapPage.focusButton = -1;
+            mapPage.focusResult = mapPage.resultScroll;
+        }
+        return;
+    }
     if(mapPage.focusButton == MapButtonUninstall || mapPage.focusButton == MapButtonReinstall)
     {
-        // Under the detail: left and right between the two (right of Reinstall: the list), down to the bar, up to the
-        // keyboard's bottom row.
+        // Under the detail: left and right between the two (right of Reinstall: the list), down to the bar, up to
+        // Continue when shown, else the keyboard's bottom row.
         if(dy > 0)
         {
             mapPage.focusButton = 0;
+        }
+        else if(dy < 0 && mapsContinueShown())
+        {
+            mapPage.focusButton = MapButtonContinue;
         }
         else if(dy < 0)
         {
@@ -785,7 +845,8 @@ void mapsMoveImpl(int dx, int dy)
             }
         }
         mapPage.focusKey = -1;
-        mapPage.focusButton = mapsManageShown() ? MapButtonUninstall : 0; // (the detail's buttons first, when shown)
+        // (the detail's buttons first, when shown: Continue, then Uninstall and Reinstall)
+        mapPage.focusButton = mapsContinueShown() ? MapButtonContinue : mapsManageShown() ? MapButtonUninstall : 0;
         return;
     }
     // Up: the row above, or the corner's buttons from the top row.
@@ -835,7 +896,7 @@ void mapsKey(int key)
         case K_RIGHTARROW: mapsMove(1, 0); S_LocalSound("misc/menu1.wav"); return;
         case K_MWHEELUP:
         case K_MWHEELDOWN:
-            mapPage.resultScroll += key == K_MWHEELUP ? -1 : 1;
+            mapPage.resultScroll += (key == K_MWHEELUP ? -1 : 1) * q_max(1, menuui::wheelRows(mapPage.visibleResults));
             mapsScrollTo(-1);
             return;
         case K_ENTER:
@@ -1044,7 +1105,9 @@ void drawMapsDetail(const MapsLayout& m, const menupaint::Painter& p)
     namespace colors = menupaint::colors;
     const float x = m.s.left;
     const float width = m.s.split - 6.f - m.s.left;
-    const float bottom = mapsManageShown() ? m.manageYc - (m.bar.half + 3.f) / m.s.k : m.listBottom;
+    const float bottom = mapsContinueShown() ? m.continueYc - (m.bar.half + 3.f) / m.s.k
+                         : mapsManageShown()   ? m.manageYc - (m.bar.half + 3.f) / m.s.k
+                                               : m.listBottom;
     float y = m.detailTop;
     const int r = mapsSelected();
     if(r < 0)
@@ -1452,6 +1515,16 @@ void drawMapsPage()
                                                         : (armed ? "Reinstall?" : "Reinstall");
             drawMapsButton(p, under, b, label, hot || armed, true);
         }
+    }
+    // Above them, for a package with an autosave: Continue ("Continue (12 min ago): Hard / Classic").
+    if(mapsContinueShown())
+    {
+        MapsLayout above = m;
+        above.bar.yc = m.continueYc;
+        const bool hot = mapPage.hoverButton == MapButtonContinue || mapPage.focusButton == MapButtonContinue;
+        const za::String sha = mapsManagedSha();
+        const char* label = VR_LaunchContinueLabel(0, sha.cStr(), 0);
+        drawMapsButton(p, above, MapButtonContinue, label ? label : "Continue", hot, true);
     }
 
     // What is being fetched, always, on one line (flat and VR alike): the running install (what, how far in bytes, the

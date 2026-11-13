@@ -110,6 +110,11 @@ void endRun();
 // "Hard / Unleashed / Pistol start": the picks (the screen) or the run's.
 [[nodiscard]] const char* summary(bool picks);
 
+// A saved game's run summary, from its `// qvr_run` line (`text`: the save's head), without loading it or changing the
+// run: Select Campaign's and the Map Library's Continue (vr_continue.cpp). `saveSkill`: the save's own skill (a save
+// without the line); a choice it doesn't say is left out.
+[[nodiscard]] const char* saveSummary(const char* text, int saveSkill);
+
 // SaveData_Fill (VR_SaveContext): "// qvr_run id=v id=v ... seed=v\n" (seed: vr_run_seed, set back on the load).
 [[nodiscard]] const char* saveLine();
 

@@ -959,7 +959,7 @@ qboolean M_List_Key (menulist_t *list, int key)
 	case K_MWHEELUP:
 		if (!overflow)
 			return false;
-		list->scroll -= 3;
+		list->scroll -= VR_MenuWheelRows (list->viewsize) > 0 ? VR_MenuWheelRows (list->viewsize) : 3; // QVR: vr_menu_wheel_scroll
 		if (list->scroll < 0)
 			list->scroll = 0;
 		M_List_UpdateMouseSelection (list);
@@ -968,7 +968,7 @@ qboolean M_List_Key (menulist_t *list, int key)
 	case K_MWHEELDOWN:
 		if (!overflow)
 			return false;
-		list->scroll += 3;
+		list->scroll += VR_MenuWheelRows (list->viewsize) > 0 ? VR_MenuWheelRows (list->viewsize) : 3; // QVR: vr_menu_wheel_scroll
 		if (list->scroll > list->numitems - list->viewsize)
 			list->scroll = list->numitems - list->viewsize;
 		if (list->scroll < 0)
@@ -3116,8 +3116,6 @@ void M_Maps_Mousemove (float cx, float cy)
 int				m_skill_cursor;
 qboolean		m_skill_usegfx;
 qboolean		m_skill_usecustomtitle;
-qboolean		m_skill_canresume;
-time_t			m_skill_lastplayed;
 int				m_skill_numoptions;
 char			m_skill_mapname[MAX_QPATH];
 char			m_skill_maptitle[1024];
@@ -3132,24 +3130,10 @@ void M_SetSkillMenuMap (const char *name)
 		q_strlcpy (m_skill_maptitle, name, sizeof (m_skill_maptitle));
 }
 
+// QVR: only Quake 64's New Game still opens it (a fresh start: Continue is Select Campaign's and the Map Library's, on
+// the game's own row: vr_continue.cpp, "Continue on the launch rows"; the Resume row is gone).
 void M_Menu_Skill_f (void)
 {
-	char autosave[MAX_OSPATH];
-	char autosavename[MAX_QPATH]; // QVR
-
-	m_skill_canresume = false;
-	m_skill_lastplayed = 0;
-	VR_AutosaveNameForLaunch (m_skill_mapname, autosavename, sizeof (autosavename)); // QVR: autosave/<folder>~<map> for the other campaigns, <package>~<map> for a map package's
-	q_snprintf (autosave, sizeof (autosave), "%s/%s.sav", com_gamedir, autosavename);
-	if (Sys_FileExists (autosave))
-	{
-		time_t now, lastplayed;
-		m_skill_canresume = true;
-		time (&now);
-		if (Sys_GetFileTime (autosave, &lastplayed) && lastplayed <= now)
-			m_skill_lastplayed = lastplayed;
-	}
-
 	IN_DeactivateForMenu();
 	key_dest = key_menu;
 	m_skill_prevmenu = m_state;
@@ -3157,18 +3141,9 @@ void M_Menu_Skill_f (void)
 	m_entersound = true;
 	M_Ticker_Init (&m_skill_ticker);
 
-	if (m_skill_canresume)
-	{
-		// Select "Resume" option initially if available
-		m_skill_cursor = 4;
-	}
-	else
-	{
-		// Select current skill level initially if there's no autosave
-		m_skill_cursor = (int)skill.value;
-		m_skill_cursor = CLAMP (0, m_skill_cursor, 3);
-	}
-	m_skill_numoptions = 4 + m_skill_canresume;
+	m_skill_cursor = (int)skill.value;
+	m_skill_cursor = CLAMP (0, m_skill_cursor, 3);
+	m_skill_numoptions = 4;
 }
 
 void M_Skill_Draw (void)
@@ -3177,7 +3152,7 @@ void M_Skill_Draw (void)
 	qpic_t	*p;
 
 	M_DrawPlaque (16, 4); // QVR: the Quake VR banner
-	p = Draw_CachePic (m_skill_usecustomtitle && !m_skill_canresume ? "gfx/p_skill.lmp" : "gfx/ttl_sgl.lmp");
+	p = Draw_CachePic (m_skill_usecustomtitle ? "gfx/p_skill.lmp" : "gfx/ttl_sgl.lmp");
 	M_DrawPic ( (320-p->width)/2, 4, p);
 
 	x = 72;
@@ -3212,23 +3187,6 @@ void M_Skill_Draw (void)
 		if (m_skill_cursor < 4)
 			M_DrawArrowCursor (x - 16, y + m_skill_cursor*16 + 4);
 		y += 4 * 16;
-	}
-
-	if (m_skill_canresume)
-	{
-		y += 8;
-		M_Print (x, y, "Resume last game");
-		if (m_skill_lastplayed)
-		{
-			char	duration[32];
-			time_t	now;
-
-			time (&now);
-			COM_DescribeDuration (duration, sizeof (duration), difftime (m_skill_lastplayed, now));
-			M_Print (x, y + 8, va ("from %s ago", duration));
-		}
-		if (m_skill_cursor == 4)
-			M_DrawArrowCursor (x - 16, y);
 	}
 }
 
@@ -3267,23 +3225,13 @@ void M_Skill_Key (int key)
 		key_dest = key_game;
 		if (sv.active)
 			Cbuf_AddText ("disconnect\n");
-		if (m_skill_cursor == 4)
-		{
-			// Resume autosave
-			char autosavename[MAX_QPATH]; // QVR: autosave/<folder>~<map> for the other campaigns
-			VR_AutosaveNameForLaunch (m_skill_mapname, autosavename, sizeof (autosavename));
-			Cbuf_AddText (va ("load \"%s\"\n", autosavename));
-		}
-		else
-		{
-			// Fresh start
-			Cbuf_AddText (va ("skill %d\n", m_skill_cursor));
-			Cbuf_AddText ("maxplayers 1\n");
-			Cbuf_AddText ("deathmatch 0\n"); //johnfitz
-			Cbuf_AddText ("coop 0\n"); //johnfitz
-			Cbuf_AddText ("campaign 0\n");
-			Cbuf_AddText (va ("map \"%s\"\n", m_skill_mapname));
-		}
+		// Fresh start
+		Cbuf_AddText (va ("skill %d\n", m_skill_cursor));
+		Cbuf_AddText ("maxplayers 1\n");
+		Cbuf_AddText ("deathmatch 0\n"); //johnfitz
+		Cbuf_AddText ("coop 0\n"); //johnfitz
+		Cbuf_AddText ("campaign 0\n");
+		Cbuf_AddText (va ("map \"%s\"\n", m_skill_mapname));
 		break;
 	}
 }
@@ -3294,10 +3242,7 @@ void M_Skill_Mousemove (float cx, float cy)
 	int itemheight = m_skill_usegfx ? 20 : 16;
 	int prev = m_skill_cursor;
 
-	if (m_skill_numoptions > 4 && cy > ybase + 4 * itemheight + 8/2)
-		m_skill_cursor = 4;
-	else
-		M_UpdateCursor (cy, ybase, itemheight, 4, &m_skill_cursor);
+	M_UpdateCursor (cy, ybase, itemheight, 4, &m_skill_cursor);
 
 	if (m_skill_cursor != prev)
 		M_MouseSound ("misc/menu1.wav");
