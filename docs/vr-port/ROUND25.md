@@ -1196,3 +1196,31 @@ frame, the reverse grip's server checks reading the local client's view (a liste
 ## libskill: difficulty picker on the Map Library's Play
 
 Play on an installed package asks Easy / Normal / Hard / Nightmare first (page "Play: Difficulty", flat and VR alike; last choice in vr_maps_skill, saved, preselected; Back cancels; Nightmare row notes a Bloody Nightmare game, which Play never resets). A start map whose entities hold a trigger_setskill (id's start, packs' skill halls: mapinstall::needsSkillPick) skips it. maps_play stays direct. Tests: maps_skill_test (15), slipseer_test (80, play sets skill).
+
+## flat1113: gore dents in the presets, no lean headbutt, flat flashlight off, concussed knockdowns, ticks retired
+
+- Gore presets: `vr_gore_dents` is in the preset table (0 at Minimal and Off, Full the default 1); `vr_gore_preset_test`
+  checks it (15 passed).
+- Flat lean "melee hit": it was the headbutt. A crouched lean looking down drops the head at 2.7 m/s along the look,
+  read as a lunge (client.qc PlayerVRMeleeHeadbutt): no monster ahead, so the trace hit the floor: `fisthit` and
+  `PainSound` (a wall hurts). The hands were never the cause (game-moved hands are already gated, VR_HandMotionTracked).
+  Flatscreen play now never headbutts (the head is the game's to move: lean, crouch, slide, prone). A headbutt now logs a
+  `melee event: headbutt ...` line. `Misc/quakevr/flatleanhit_test.sh`: 16 leans crouched and standing, looking ahead
+  and down, no melee event (it gave four `headbutt a wall` before).
+- Flat flashlight: out at a fresh start and on a new game's empty state (`flashlight::reset`, `restoreState`); F
+  (`vr_flashlight_toggle`) lights it; a level change keeps what F left. flatkeys_test.sh's torch case reads lit 0, 1, 0.
+- Concussed stirring (`vr_knockdown_stir` 1, `vr_knockdown_stir_rate` 1; tunables, Debug > Tunables > Knockdowns):
+  `vr_box3d_ragdoll.cpp` stirFrame/stirPick. Lying down alive (the drive off or limp, or its fall landed 0.3 s ago, or
+  0.7 s into the fall with its pelvis under 0.3 m/s: the shipped 1.75-3.5 s down time left almost no limp window before),
+  one move at a time: a slow head turn about its own length (18-32 deg, 2.2-3.4 s), a hand's double twitch (12-22 deg,
+  0.5-0.9 s), an arm or a leg drawn in (12-25 deg, 1.6-3 s), then a pause of 1.2-3.8 s (over the rate); turns times the
+  strength. Each a PD torque on one joint from where it lay (the struggle's 3 Hz drive) with the joint friction fed
+  forward, else a limb on the floor never moves (measured: 3 of 21 deg without, the head 21 of 30 deg with). Not while
+  shoved along, rising, held, swimming; never a corpse. The existing struggle (`vr_knockdown_wiggle`) is unchanged.
+  `vr_knockdown_test 9` prints `stircheck:` (moves, stirring, living ones down, the moving joint off its rest);
+  `vr_knockdown_debug 1` prints each move and how far it turned. `Misc/quakevr/ragdoll/kdstir_test.sh`: 4 passed.
+  Scenario `kd_stir`.
+- Checklist: the 33 lines ticked in his checklist_ticks.txt without a voice note retired (none ticked had a note; the
+  two [fail] lines kept). Their scenes nothing else uses moved out: agrunt_fetch, nav_startmat, nav_tele_crate,
+  nav_tele_ogre, nav_trail, portals_walk_dm5, stealth_noise; the nav_* scenes NAVMESH.md, the QC or another scene name
+  are kept, and gore_presets (a new line uses it).
