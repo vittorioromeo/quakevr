@@ -238,7 +238,7 @@ struct Agent
     double linkSince = 0.0, phaseSince = 0.0;
     bool airborne = false;
     glm::vec3 teleAim{0.f}, teleLast{0.f}; // a teleporter: where it walks (through the trigger's middle), where it last stood
-    // A teleporter's opening (gateFace, at the link's start) and the walk into it (teleTarget, vr_nav_tele_stuck):
+    // A teleporter's opening (gateFace, at the link's start) and the walk into it (teleTarget, teleStuckSeconds):
     // where it last stood still since when, backing off till when, its last steer's time.
     glm::vec3 teleMid{0.f}, teleN{0.f}, teleT{0.f};
     float teleHalfD = 0.f, teleHalfW = 0.f;
@@ -317,7 +317,7 @@ struct State
     int steers = 0, paths = 0, fallbacks = 0;
     int drops = 0, rides = 0, linkFails = 0; // links taken to their end, given up
     int teles = 0, telesBegun = 0;           // teleporters gone through, teleporter links begun
-    int teleBackoffs = 0;                    // backed off a teleporter's opening (vr_nav_tele_stuck)
+    int teleBackoffs = 0;                    // backed off a teleporter's opening (teleStuckSeconds)
     za::Vector<Crowd> crowd;  // the live walkers, as of crowdAt
     double crowdAt = -1.0;
     za::Vector<PropTrack> props; // by edict number (refreshProps)
@@ -3570,21 +3570,23 @@ float giveUp(Agent& a, double now)
     return endLink(a);
 }
 
-// Where a walker going into a teleporter heads this step. Stood still vr_nav_tele_stuck (a box caught on the frame, a
+// A walker going into a teleporter that stood still this long (seconds) backs off and lines up again (teleTarget).
+constexpr double teleStuckSeconds = 0.5;
+
+// Where a walker going into a teleporter heads this step. Stood still teleStuckSeconds (a box caught on the frame, a
 // step refused): backs off out in front of the opening for a moment. A thin trigger (gateFace's faced): first to a
 // point in front of the opening's middle (as far over as the box still fits it: its half width less the box's), then
 // straight in along its normal and on through (a paired gate is walked through). Else straight through the trigger's
 // middle from where it began (a pad), as before.
 glm::vec3 teleTarget(Agent& a, const NavClass& c, const glm::vec3& pos, double now)
 {
-    const float stuck = vr_nav_tele_stuck.value;
     // (A gap since the last steer, shooting or biting: standing then isn't being stuck.)
-    if(stuck <= 0.f || flatDist(pos, a.teleStillAt) > 4.f || now - a.teleSteerAt > 0.25)
+    if(flatDist(pos, a.teleStillAt) > 4.f || now - a.teleSteerAt > 0.25)
     {
         a.teleStillAt = pos;
         a.teleStillSince = now;
     }
-    else if(now - a.teleStillSince > static_cast<double>(stuck))
+    else if(now - a.teleStillSince > teleStuckSeconds)
     {
         a.teleBackUntil = now + 0.4;
         a.teleStillSince = now;

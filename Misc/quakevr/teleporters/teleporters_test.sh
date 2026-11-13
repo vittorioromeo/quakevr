@@ -11,8 +11,7 @@
 #          before he moves (the stealth AI's own tests: vr_stealth_test)
 #          Expected: the dogs and fiends through (the sill-32 dog bumps the sill, slides along the wall and takes the
 #          sill-16 gate: 165-270 frames, now and then not within the 480: up to TRIES=3 runs each, sv_random_seed SEED=1,
-#          2, 3: the same verdicts every time); the grunt through too (vr_nav_gate_chase 1: its navmesh step between
-#          shots, NAVMESH.md 17), and with vr_nav_gate_chase 0 never: it stands and shoots through the gate (PORTAL_AI.md).
+#          2, 3: the same verdicts every time); the grunt through too (its navmesh step between shots, NAVMESH.md 17).
 #          PASS/FAIL a line; exits 1 on a chase FAIL
 #   views  a screenshot of both eyes from 64 units in front of a gate of each kind (scratch/teleporter_views.png)
 AGENT=${1:?agent}; WHAT=${2:-all}; ONLY=$3  # ONLY: a chase's name (framed_large) to run only it
@@ -69,14 +68,12 @@ if [ "$WHAT" = chase ] || [ "$WHAT" = all ]; then
     # numbers seeded (sv_random_seed: SEED, 1, for the first try, SEED+1 for the second...), so a verdict is the same every
     # time (until 2026-10-09 the draws came from the C library's rand() the client's effects share, with frames by the
     # wall clock: 3 of 18 single runs did not get through). The grunt (one run): since navtele2 (2026-11-13,
-    # vr_nav_gate_chase 1, NAVMESH.md 17: a ranged monster takes its navmesh step through the gate between shots) PASS
-    # when it reaches the north room as the dogs do; with vr_nav_gate_chase 0 ("nochase") PASS when it stays in its room
-    # and shoots through the gate (a snapshot in its shooting frames, 81-89, after he moved: PORTAL_AI.md's old rule).
-    for t in "7 dog -256 flush_player" "7 dog 1180 framed_sill16" "7 dog 1360 framed_sill32" "9 demon 0 flush_large" "9 demon 1580 framed_large" "0 soldier -256 flush_player" "0 soldier -256 flush_player nochase"; do
+    # NAVMESH.md 17: a ranged monster takes its navmesh step through the gate between shots; always on since
+    # revpicks, the switch and its "nochase" run removed) PASS when it reaches the north room as the dogs do.
+    for t in "7 dog -256 flush_player" "7 dog 1180 framed_sill16" "7 dog 1360 framed_sill32" "9 demon 0 flush_large" "9 demon 1580 framed_large" "0 soldier -256 flush_player"; do
         [ -n "$ONLY" ] && [[ "$t" != *"$ONLY"* ]] && continue
         set -- $t
-        NOCHASE=; [ "$5" = nochase ] && NOCHASE="vr_nav_gate_chase 0;"
-        S="${EXTRA}${NOCHASE}developer 1;vr_fixed_frames 1;vr_agrunt_repl 0;sv_random_seed __SEED__;map vrteleporters;wait60;god;vr_stealth_meter 0;setpos $3 600 24 0 270 0;wait5;noclip 0;wait5;vr_test_spawn $1;vr_test_spawn_dist 200;impulse 241;wait40;echo MOVE;setpos $3 1150 24 0 270 0;wait5;noclip 0"
+        S="${EXTRA}developer 1;vr_fixed_frames 1;vr_agrunt_repl 0;sv_random_seed __SEED__;map vrteleporters;wait60;god;vr_stealth_meter 0;setpos $3 600 24 0 270 0;wait5;noclip 0;wait5;vr_test_spawn $1;vr_test_spawn_dist 200;impulse 241;wait40;echo MOVE;setpos $3 1150 24 0 270 0;wait5;noclip 0"
         for i in $(seq 1 32); do S="$S;wait15;echo SNAP $i;entities"; done
         tries=${TRIES:-3}; [ $2 = soldier ] && tries=1
         for try in $(seq 1 $tries); do
@@ -87,12 +84,9 @@ if [ "$WHAT" = chase ] || [ "$WHAT" = all ]; then
                  last=a[2]} END{if (!done) {sub(/\).*/, "", last); printf "chase %s: never reached the north room; last at (%s), %d snapshots shooting", what, last, shots}}' "$LOG")
             echo "$line" | grep -q "in the north room" && break
         done
-        if [ $2 = soldier ] && [ -n "$NOCHASE" ]; then
-            echo "$line" | grep -qE "never reached.* [1-9][0-9]* snapshots shooting" && v=PASS || v=FAIL
-            echo "$v $line (vr_nav_gate_chase 0; expected: it stays and shoots through the gate)"
-        elif [ $2 = soldier ]; then
+        if [ $2 = soldier ]; then
             echo "$line" | grep -q "in the north room" && v=PASS || v=FAIL
-            echo "$v $line (vr_nav_gate_chase 1; expected: through the gate between shots)"
+            echo "$v $line (expected: through the gate between shots)"
         else
             echo "$line" | grep -q "in the north room" && v=PASS || v=FAIL
             echo "$v $line (try $try of $tries, seed $((${SEED:-1} + try - 1)))"

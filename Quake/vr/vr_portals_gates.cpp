@@ -961,7 +961,7 @@ bool teleporterWalked(int trigger)
     }
     for(const Side& sd : sides)
     {
-        if(sd.trigger == trigger && sd.paired)
+        if(sd.trigger == trigger && detail::monsterGate(sd)) // (vr_portals_monsters_all: an unpaired gate is walked too)
         {
             return true;
         }
