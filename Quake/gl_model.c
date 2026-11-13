@@ -96,11 +96,45 @@ static void R_ENHANCEDMODELS_f (cvar_t *cvar)
 
 /*
 ===============
+QVR: mod_surfhash: a checksum of the world model's faces as loaded (each one's extents, texture mins, bounds, flags):
+the same with the job pool's load (vr_jobs_parallel 1) and without (0), the faces' part of Mod_LoadFaces.
+===============
+*/
+static void Mod_SurfHash_f (void)
+{
+	qmodel_t	*m = cl.worldmodel;
+	unsigned	h = 2166136261u;
+	int			i;
+	size_t		k;
+
+	if (!m)
+	{
+		Con_Printf ("mod_surfhash: no map\n");
+		return;
+	}
+	for (i = 0; i < m->numsurfaces; i++)
+	{
+		const msurface_t *s = &m->surfaces[i];
+		const unsigned char *parts[4] = {(const unsigned char *)s->extents, (const unsigned char *)s->texturemins,
+			(const unsigned char *)s->mins, (const unsigned char *)s->maxs};
+		const size_t sizes[4] = {sizeof (s->extents), sizeof (s->texturemins), sizeof (s->mins), sizeof (s->maxs)};
+		int p;
+		for (p = 0; p < 4; p++)
+			for (k = 0; k < sizes[p]; k++)
+				h = (h ^ parts[p][k]) * 16777619u;
+		h = (h ^ (unsigned)s->flags) * 16777619u;
+	}
+	Con_Printf ("mod_surfhash: %s, %d faces: %08x\n", m->name, m->numsurfaces, h);
+}
+
+/*
+===============
 Mod_Init
 ===============
 */
 void Mod_Init (void)
 {
+	Cmd_AddCommand ("mod_surfhash", Mod_SurfHash_f); // QVR
 	Cvar_RegisterVariable (&external_vis);
 	Cvar_RegisterVariable (&external_ents);
 	Cvar_RegisterVariable (&r_enhancedmodels);
@@ -1460,9 +1494,7 @@ static void CalcSurfaceExtents (msurface_t *s)
 
 		s->texturemins[i] = bmin;
 		s->extents[i] = bmax - bmin;
-
-		if ( !(tex->flags & TEX_SPECIAL) && s->extents[i] > 2000) //johnfitz -- was 512 in glquake, 256 in winquake
-			Sys_Error ("Bad surface extents");
+		// QVR: checked by Mod_LoadFaces after the job pool's chunks ("Bad surface extents")
 	}
 }
 
@@ -1494,6 +1526,19 @@ void Mod_CalcSurfaceBounds (msurface_t *s)
 		s->maxs[0] = q_max (s->maxs[0], v->position[0]);
 		s->maxs[1] = q_max (s->maxs[1], v->position[1]);
 		s->maxs[2] = q_max (s->maxs[2], v->position[2]);
+	}
+}
+
+// QVR: Mod_LoadFaces's chunk of faces on the job pool
+static void Mod_FaceExtentsChunk (int begin, int end, void *ctx)
+{
+	msurface_t *surfs = (msurface_t *)ctx;
+	int i;
+
+	for (i = begin; i < end; i++)
+	{
+		CalcSurfaceExtents (&surfs[i]);
+		Mod_CalcSurfaceBounds (&surfs[i]);
 	}
 }
 
@@ -1575,9 +1620,8 @@ static void Mod_LoadFaces (lump_t *l, qboolean bsp2)
 
 		out->texinfo = loadmodel->texinfo + texinfon;
 
-		CalcSurfaceExtents (out);
-
-		Mod_CalcSurfaceBounds (out); //johnfitz -- for per-surface frustum culling
+		// QVR: CalcSurfaceExtents and Mod_CalcSurfaceBounds (johnfitz -- for per-surface frustum culling) after the
+		// loop, on the job pool
 
 	// lighting info
 		if (loadmodel->bspversion == BSPVERSION_QUAKE64)
@@ -1632,6 +1676,14 @@ static void Mod_LoadFaces (lump_t *l, qboolean bsp2)
 		}
 		//johnfitz
 	}
+
+	// QVR: each face's extents and bounds on the job pool (after vkQuake 64ce1738): each reads the edges and vertexes
+	// loaded before and writes only its own face; then the extents checked here, on the main thread
+	VR_TIMED ("map faces' extents", VR_ParallelFor (VR_PF_SURFACES, count, 2048, Mod_FaceExtentsChunk, loadmodel->surfaces));
+	for (surfnum = 0, out = loadmodel->surfaces; surfnum < count; surfnum++, out++)
+		for (i = 0; i < 2; i++)
+			if (!(out->texinfo->flags & TEX_SPECIAL) && out->extents[i] > 2000) //johnfitz -- was 512 in glquake, 256 in winquake
+				Sys_Error ("Bad surface extents");
 }
 
 

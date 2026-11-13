@@ -698,6 +698,7 @@ void SV_LinkEdict (edict_t *ent, qboolean touch_triggers)
 	}
 
 	VR_FindRadius_Linked (ent); // QVR: in the grid as it is now (or SOLID_NOT: not in it, and findradius skips it)
+	SV_PushGridLinked (ent); // QVR: in the pushers' candidate grid too (this tick's, if built: sv_phys.c)
 
 // link to PVS leafs
 	ent->num_leafs = 0;
@@ -837,11 +838,178 @@ LINE TESTING IN HULLS
 
 /*
 ==================
+QVR: FTE's hull trace (after vkQuake world.c's Q1BSP_RecursiveHullTrace, default on since vkQuake 13b4b73a)
+
+Quake's trace below splits a move at a point DIST_EPSILON short of each plane it crosses, so the halves overlap or
+leave a gap, and asks the far child's contents at that point with a separate walk down the tree; an impact then backs
+off in tenths of the move while the point is still in solid ("backup past 0"). FTE's recurses at the plane itself,
+tests the far side with the same recursion (one precision for both), and puts the impact DIST_EPSILON off the hit
+plane from the move's own start and end: no gaps between the halves (thin brushes, sharp corners: fewer moves that
+slip through or stick), no second walk. Thread-safe like Quake's (vr_ledges.cpp traces on the job pool): its state is
+the caller's. sv_fte_hulltrace 0: Quake's (to compare).
+==================
+*/
+cvar_t sv_fte_hulltrace = {"sv_fte_hulltrace", "0", CVAR_NONE}; // QVR: 1 = FTE's hull trace, 0 = Quake's (default 0 until melee/grab/stagger tests + benches are run)
+
+enum { rht_solid, rht_empty, rht_impact };
+
+typedef struct
+{
+	vec3_t			start, end;
+	mclipnode_t		*clipnodes;
+	mplane_t		*planes;
+} rhtctx_t;
+
+static int SV_FteHullTrace (const rhtctx_t *ctx, int num, float p1f, float p2f, const vec3_t p1, const vec3_t p2, trace_t *trace)
+{
+	mclipnode_t	*node;
+	mplane_t	*plane;
+	float		t1, t2, midf;
+	vec3_t		mid;
+	int			side, rht, i;
+
+reenter:
+	if (num < 0)
+	{	// a leaf
+		if (num == CONTENTS_SOLID)
+		{
+			if (trace->allsolid)
+				trace->startsolid = true;
+			return rht_solid;
+		}
+		trace->allsolid = false;
+		if (num == CONTENTS_EMPTY)
+			trace->inopen = true;
+		else
+			trace->inwater = true;
+		return rht_empty;
+	}
+
+	node = ctx->clipnodes + num;
+	plane = ctx->planes + node->planenum;
+	if (plane->type < 3)
+	{
+		t1 = p1[plane->type] - plane->dist;
+		t2 = p2[plane->type] - plane->dist;
+	}
+	else
+	{
+		t1 = DoublePrecisionDotProduct (plane->normal, p1) - plane->dist;
+		t2 = DoublePrecisionDotProduct (plane->normal, p2) - plane->dist;
+	}
+
+	// wholly on one side: on down that side
+	if (t1 >= 0 && t2 >= 0)
+	{
+		num = node->children[0];
+		goto reenter;
+	}
+	if (t1 < 0 && t2 < 0)
+	{
+		num = node->children[1];
+		goto reenter;
+	}
+
+	// the crossing, from the whole move's ends (the same precision at every depth)
+	if (plane->type < 3)
+	{
+		t1 = ctx->start[plane->type] - plane->dist;
+		t2 = ctx->end[plane->type] - plane->dist;
+	}
+	else
+	{
+		t1 = DotProduct (plane->normal, ctx->start) - plane->dist;
+		t2 = DotProduct (plane->normal, ctx->end) - plane->dist;
+	}
+	side = t1 < 0;
+	midf = t1 / (t1 - t2);
+	if (midf < p1f)
+		midf = p1f;
+	if (midf > p2f)
+		midf = p2f;
+	for (i = 0; i < 3; i++)
+		mid[i] = ctx->start[i] + (ctx->end[i] - ctx->start[i]) * midf;
+
+	rht = SV_FteHullTrace (ctx, node->children[side], p1f, midf, p1, mid, trace);
+	if (rht != rht_empty && !trace->allsolid)
+		return rht;
+	rht = SV_FteHullTrace (ctx, node->children[side ^ 1], midf, p2f, mid, p2, trace);
+	if (rht != rht_solid)
+		return rht;
+
+	// the far side is solid: the impact, on the plane facing the start
+	if (side)
+	{
+		trace->plane.dist = -plane->dist;
+		VectorSubtract (vec3_origin, plane->normal, trace->plane.normal);
+	}
+	else
+	{
+		trace->plane.dist = plane->dist;
+		VectorCopy (plane->normal, trace->plane.normal);
+	}
+	t1 = DoublePrecisionDotProduct (trace->plane.normal, ctx->start) - trace->plane.dist;
+	t2 = DoublePrecisionDotProduct (trace->plane.normal, ctx->end) - trace->plane.dist;
+	midf = (t1 - DIST_EPSILON) / (t1 - t2);
+	if (midf < 0.f)
+		midf = 0.f;
+	if (midf > 1.f)
+		midf = 1.f;
+	trace->fraction = midf;
+	for (i = 0; i < 3; i++)
+		trace->endpos[i] = ctx->start[i] + (ctx->end[i] - ctx->start[i]) * midf;
+	return rht_impact;
+}
+
+static qboolean SV_QuakeHullCheck (hull_t *hull, int num, float p1f, float p2f, vec3_t p1, vec3_t p2, trace_t *trace);
+
+// a whole move (fractions 0 to 1) by FTE's trace
+static qboolean SV_FteHullCheck (hull_t *hull, int num, vec3_t p1, vec3_t p2, trace_t *trace)
+{
+	rhtctx_t ctx;
+	if (p1[0] == p2[0] && p1[1] == p2[1] && p1[2] == p2[2])
+	{	// a point crosses no plane
+		int c = SV_HullPointContents (hull, num, p1);
+		if (c == CONTENTS_SOLID)
+			trace->startsolid = true;
+		else
+		{
+			trace->allsolid = false;
+			if (c == CONTENTS_EMPTY)
+				trace->inopen = true;
+			else
+				trace->inwater = true;
+		}
+		return true;
+	}
+	VectorCopy (p1, ctx.start);
+	VectorCopy (p2, ctx.end);
+	ctx.clipnodes = hull->clipnodes;
+	ctx.planes = hull->planes;
+	return SV_FteHullTrace (&ctx, num, 0.f, 1.f, p1, p2, trace) != rht_impact;
+}
+
+/*
+==================
 SV_RecursiveHullCheck
 
+QVR: FTE's trace (above) for a whole move with sv_fte_hulltrace 1, else Quake's
 ==================
 */
 qboolean SV_RecursiveHullCheck (hull_t *hull, int num, float p1f, float p2f, vec3_t p1, vec3_t p2, trace_t *trace)
+{
+	if (sv_fte_hulltrace.value && p1f == 0.f && p2f == 1.f)
+		return SV_FteHullCheck (hull, num, p1, p2, trace);
+	return SV_QuakeHullCheck (hull, num, p1f, p2f, p1, p2, trace);
+}
+
+/*
+==================
+SV_QuakeHullCheck (QVR: was SV_RecursiveHullCheck)
+
+==================
+*/
+static qboolean SV_QuakeHullCheck (hull_t *hull, int num, float p1f, float p2f, vec3_t p1, vec3_t p2, trace_t *trace)
 {
 	mclipnode_t	*node; //johnfitz -- was dclipnode_t
 	mplane_t	*plane;
@@ -890,14 +1058,14 @@ qboolean SV_RecursiveHullCheck (hull_t *hull, int num, float p1f, float p2f, vec
 
 #if 1
 	if (t1 >= 0 && t2 >= 0)
-		return SV_RecursiveHullCheck (hull, node->children[0], p1f, p2f, p1, p2, trace);
+		return SV_QuakeHullCheck (hull, node->children[0], p1f, p2f, p1, p2, trace);
 	if (t1 < 0 && t2 < 0)
-		return SV_RecursiveHullCheck (hull, node->children[1], p1f, p2f, p1, p2, trace);
+		return SV_QuakeHullCheck (hull, node->children[1], p1f, p2f, p1, p2, trace);
 #else
 	if ( (t1 >= DIST_EPSILON && t2 >= DIST_EPSILON) || (t2 > t1 && t1 >= 0) )
-		return SV_RecursiveHullCheck (hull, node->children[0], p1f, p2f, p1, p2, trace);
+		return SV_QuakeHullCheck (hull, node->children[0], p1f, p2f, p1, p2, trace);
 	if ( (t1 <= -DIST_EPSILON && t2 <= -DIST_EPSILON) || (t2 < t1 && t1 <= 0) )
-		return SV_RecursiveHullCheck (hull, node->children[1], p1f, p2f, p1, p2, trace);
+		return SV_QuakeHullCheck (hull, node->children[1], p1f, p2f, p1, p2, trace);
 #endif
 
 // put the crosspoint DIST_EPSILON pixels on the near side
@@ -917,7 +1085,7 @@ qboolean SV_RecursiveHullCheck (hull_t *hull, int num, float p1f, float p2f, vec
 	side = (t1 < 0);
 
 // move up to the node
-	if (!SV_RecursiveHullCheck (hull, node->children[side], p1f, midf, p1, mid, trace) )
+	if (!SV_QuakeHullCheck (hull, node->children[side], p1f, midf, p1, mid, trace) )
 		return false;
 
 #ifdef PARANOID
@@ -932,7 +1100,7 @@ qboolean SV_RecursiveHullCheck (hull_t *hull, int num, float p1f, float p2f, vec
 	if (SV_HullPointContents (hull, node->children[side^1], mid)
 	!= CONTENTS_SOLID)
 // go past the node
-		return SV_RecursiveHullCheck (hull, node->children[side^1], midf, p2f, mid, p2, trace);
+		return SV_QuakeHullCheck (hull, node->children[side^1], midf, p2f, mid, p2, trace);
 
 	if (trace->allsolid)
 		return false;		// never got out of the solid area
@@ -972,6 +1140,103 @@ qboolean SV_RecursiveHullCheck (hull_t *hull, int num, float p1f, float p2f, vec
 	VectorCopy (mid, trace->endpos);
 
 	return false;
+}
+
+/*
+==================
+QVR: sv_hulltrace_compare [traces] [seed]: the same seeded random moves through the map's point and player hulls
+(starts out of solid, up to 512 units long) traced by Quake's and by FTE's: how many differ (a hit against a miss,
+the end more than 1/8 unit apart, all-solid), how many of each end inside solid (a move that would stick), and each
+one's time. Debug > Profiling and Memory, "Compare Hull Traces".
+==================
+*/
+static float SV_HullCompareRand (unsigned *s)
+{
+	*s = *s * 1664525u + 1013904223u;
+	return (float)((*s >> 8) & 0xffffff) / (float)0x1000000;
+}
+
+static void SV_HullTraceCompare_f (void)
+{
+	int			n = Cmd_Argc () >= 2 ? Q_atoi (Cmd_Argv (1)) : 100000;
+	unsigned	seed = Cmd_Argc () >= 3 ? (unsigned)Q_atoi (Cmd_Argv (2)) : 7u;
+	int			h, k, i;
+	qmodel_t	*w = sv.active ? sv.worldmodel : NULL;
+
+	if (!w || n <= 0)
+	{
+		Con_Printf ("sv_hulltrace_compare: no map\n");
+		return;
+	}
+	for (h = 0; h < 2; h++)
+	{
+		hull_t	*hull = &w->hulls[h];
+		int		made = 0, hitdiff = 0, enddiff = 0, soliddiff = 0, stuck[2] = {0, 0};
+		double	time[2] = {0, 0};
+		vec3_t	*from = (vec3_t *)malloc ((size_t)n * sizeof (vec3_t)), *to = (vec3_t *)malloc ((size_t)n * sizeof (vec3_t));
+		trace_t	*res = (trace_t *)malloc ((size_t)n * 2 * sizeof (trace_t));
+		unsigned s = seed;
+		int		tries = 0;
+
+		if (!from || !to || !res)
+			Sys_Error ("sv_hulltrace_compare: out of memory");
+		while (made < n && tries++ < n * 50)
+		{
+			vec3_t p;
+			for (i = 0; i < 3; i++)
+				p[i] = w->mins[i] + (w->maxs[i] - w->mins[i]) * SV_HullCompareRand (&s);
+			if (SV_HullPointContents (hull, hull->firstclipnode, p) == CONTENTS_SOLID)
+				continue;
+			VectorCopy (p, from[made]);
+			for (i = 0; i < 3; i++)
+				to[made][i] = p[i] + (SV_HullCompareRand (&s) * 2.f - 1.f) * 512.f;
+			made++;
+		}
+		for (k = 0; k < 2; k++)
+		{
+			double t0 = Sys_DoubleTime ();
+			for (i = 0; i < made; i++)
+			{
+				trace_t *t = &res[i * 2 + k];
+				memset (t, 0, sizeof (*t));
+				t->fraction = 1;
+				t->allsolid = true;
+				VectorCopy (to[i], t->endpos);
+				if (k == 0)
+					SV_QuakeHullCheck (hull, hull->firstclipnode, 0, 1, from[i], to[i], t);
+				else
+					SV_FteHullCheck (hull, hull->firstclipnode, from[i], to[i], t);
+			}
+			time[k] = Sys_DoubleTime () - t0;
+		}
+		for (i = 0; i < made; i++)
+		{
+			trace_t *a = &res[i * 2], *b = &res[i * 2 + 1];
+			vec3_t d;
+			if ((a->fraction < 1) != (b->fraction < 1))
+				hitdiff++;
+			VectorSubtract (a->endpos, b->endpos, d);
+			if (DotProduct (d, d) > 0.125f * 0.125f)
+				enddiff++;
+			if (a->allsolid != b->allsolid || a->startsolid != b->startsolid)
+				soliddiff++;
+			for (k = 0; k < 2; k++)
+				if (!res[i * 2 + k].allsolid && SV_HullPointContents (hull, hull->firstclipnode, res[i * 2 + k].endpos) == CONTENTS_SOLID)
+					stuck[k]++;
+		}
+		Con_Printf ("hulltrace: hull %d, %d traces: %d hit/miss differ, %d ends > 1/8 apart, %d solid flags differ; "
+			"ends in solid: quake %d, fte %d; time: quake %.1f ms, fte %.1f ms\n",
+			h, made, hitdiff, enddiff, soliddiff, stuck[0], stuck[1], time[0] * 1000.0, time[1] * 1000.0);
+		free (from);
+		free (to);
+		free (res);
+	}
+}
+
+void SV_HullTraceInit (void)
+{
+	Cvar_RegisterVariable (&sv_fte_hulltrace);
+	Cmd_AddCommand ("sv_hulltrace_compare", SV_HullTraceCompare_f);
 }
 
 

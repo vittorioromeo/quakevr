@@ -156,6 +156,9 @@ void SV_Init (void)
 	extern	cvar_t	sv_altnoclip; //johnfitz
 	extern	cvar_t	sv_gameplayfix_random;
 	extern	cvar_t	sv_gameplayfix_elevators;
+	extern	cvar_t	sv_fastpushmove; // QVR
+	extern	void	SV_HullTraceInit (void); // QVR (world.c)
+	extern	void	SV_PushGridStats_f (void); // QVR
 	extern	cvar_t	sv_autoload;
 	extern	cvar_t	sv_autosave;
 	extern	cvar_t	sv_autosave_interval;
@@ -179,6 +182,9 @@ void SV_Init (void)
 	Cvar_RegisterVariable (&sv_gameplayfix_random);
 	Cvar_RegisterVariable (&sv_random_seed); // QVR
 	Cvar_RegisterVariable (&sv_gameplayfix_elevators);
+	Cvar_RegisterVariable (&sv_fastpushmove); // QVR: the pushers' candidate grid (sv_phys.c)
+	Cmd_AddCommand ("sv_pushgrid_stats", SV_PushGridStats_f); // QVR
+	SV_HullTraceInit (); // QVR: sv_fte_hulltrace, sv_hulltrace_compare (world.c)
 	Cvar_RegisterVariable (&sv_netsort);
 	Cvar_RegisterVariable (&sv_autoload);
 	Cvar_RegisterVariable (&sv_autosave);
