@@ -145,6 +145,8 @@ float(float xCount) VR_RunEnemyCount_Check =
     float copies = 0;
     float alive = 0;
     float stuckOwn = 0;    // (the map's own monsters in solid by the same test)
+    float stuckSwapped = 0; // (... of those, the swapped ones: the unswapped stand where the map put them, a crucified
+                            // zombie, AD's ceiling spiders)
     float stuckCopies = 0;
     entity e = nextent(world);
     entity o;
@@ -173,6 +175,12 @@ float(float xCount) VR_RunEnemyCount_Check =
             tracebox(e.origin + '0 0 1', e.mins, e.maxs, e.origin + '0 0 1', TRUE, e);
             stuck = trace_startsolid;
             if(stuck) { if(e.vr_run_copy) stuckCopies = stuckCopies + 1; else stuckOwn = stuckOwn + 1; }
+            if(stuck && !e.vr_run_copy && e.vr_run_mapclass != e.vr_run_kind) { stuckSwapped = stuckSwapped + 1; }
+            if(stuck && !e.vr_run_copy)
+            {
+                dprint(sprintf("vr_run_enemies_check: %s (the map's %s) at %v in solid, its box %v %v\n", e.classname,
+                               e.vr_run_mapclass, e.origin, e.mins, e.maxs));
+            }
         }
         if(e.vr_run_copy)
         {
@@ -193,12 +201,14 @@ float(float xCount) VR_RunEnemyCount_Check =
         }
         e = nextent(e);
     }
-    // Copies in solid: no more than the map's own are, as a share (monsters on the move sit in a wall's edge now and then:
-    // the map's own do, swapped or not), and two more.
-    if(stuckCopies > 2 + stuckOwn * copies / max(1, copyable))
+    // Copies in solid: no more than the map's swapped ones are, as a share, and one more (a monster on the move sits in a
+    // wall's edge now and then: one AD hunter ogre copy in one of three runs). The map's unswapped ones in solid stand where
+    // it put them (e4m3's zombies, ad_azad's ceiling spiders: 10 and 8 of the 1-10 counted before; ROUND25.md "crash2"):
+    // no share for the copies. 0 copies in solid in every run since.
+    if(stuckCopies > 1 + stuckSwapped * copies / max(1, copyable))
     {
         ok = FALSE;
-        dprint(sprintf("vr_run_enemies_check: %g copies in solid (the map's own: %g)\n", stuckCopies, stuckOwn));
+        dprint(sprintf("vr_run_enemies_check: %g copies in solid (the map's swapped ones: %g)\n", stuckCopies, stuckSwapped));
     }
     float want = copyable * min(2, xCount);
     if(xCount <= 0 ? copies != 0 : (copies > want || copies < want * 0.6))
@@ -211,8 +221,8 @@ float(float xCount) VR_RunEnemyCount_Check =
         ok = FALSE;
         dprint(sprintf("vr_run_enemies_check: total_monsters %g, %g monsters there\n", total_monsters, alive));
     }
-    dprint(sprintf("vr_run_enemies_check: %g copies of %g monsters (%g there, total_monsters %g; %g of the map's own in solid)\n",
-                   copies, copyable, alive, total_monsters, stuckOwn));
+    dprint(sprintf("vr_run_enemies_check: %g copies of %g monsters (%g there, total_monsters %g; in solid: %g of the map's own, %g swapped, %g copies)\n",
+                   copies, copyable, alive, total_monsters, stuckOwn, stuckSwapped, stuckCopies));
     return ok;
 };
 
