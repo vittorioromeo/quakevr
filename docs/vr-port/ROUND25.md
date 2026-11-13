@@ -1830,6 +1830,33 @@ is a brand-new run; continuing keeps the run's own choices (from the save) and s
   Debug rows). Not tested headless: the Map Library's button with a real installed package (the tests have none).
 - **cltick1113:** retired 6 ticked checklist lines (dagger label, gore minimal, flashlight, lean, kd stir, dog gate; none had voice notes) and 3 unused scenes (flatlean, gore_presets, nav_tele_gate).
 
+## menudrag: menu wheel scrolls the page, fainter big-menu bar, holster menu drag and drop (branch agent/menudrag, 2026-11-13)
+
+His flat notes 5, 6, 9 (2026-11-13).
+- **Wheel scrolls the bar** (`vr_menu_wheel_scroll` 0.25; Menu Look > Settings Pages, "Mouse Wheel Scroll"): on a VR
+  settings page that scrolls, a wheel notch scrolls the page by that part of the rows shown (folded rows not counted;
+  `wheelScroll`, vr_menu.cpp) and the cursor stays on the page (its first place scrolling down, its last scrolling up,
+  only where it went off); 0 or a page that fits: a notch moves the cursor a row as before. The same step
+  (`menuui::wheelRows`, `VR_MenuWheelRows`) on Search's and the Map Library's results, the drop-down lists and
+  Ironwail's own option lists (`M_List`, 3 rows before; 3 with the setting at 0). Not smooth (rows are whole steps). VR
+  sticks unchanged (no wheel there). Test aid: `menu_vr wheeltest` (the page shown).
+- **Big-menu bar** (`vr_menu_big_hl_alpha` 0.14; Menu Look > Main Menu, "Big Menu Bar Opacity", 0.02-0.5): the soft
+  bar's opacity at its middle, bar and glow rings together; 0.14 is the settings pages' selected row's
+  (`colors::highlight`); the first look was about 0.31.
+- **Holster menu drag and drop** (vr_flatholster.cpp, vr_gadget_holster.inc): the left button held on a hand's or a
+  holster's weapon picks it up (a carried prop is not; an empty slot nothing); its thumbnail and name follow the cursor,
+  its slot fades, the slots it may go to are lit (a second ring, brighter under the cursor), the rest greyed. Let go:
+  hand <-> holster sends that holster's L/R impulse (`VR_FlatHolster_Swap`: QC's refusals, records, grip flags kept),
+  hand <-> hand SWAP's `flatplay::swapHands`, holster <-> holster the new impulses 24..38 (`24 + pair index`, QC
+  `VR_FlatHolster_Pair` / `VR_FlatHolster_SwapHolsters`: weapon, flags, record and model traded, or moved into an empty
+  one). On nothing or its own slot, or the menu closed mid-drag: cancelled. Greyed by the buttons' rules: a carrying
+  hand; a weapon too big for a holster (STAT_QVR_FLATUNLOADFULL bits 2, 3 from QC `WeaponIdToHolsterable`, set in
+  `VR_FlatReload_HandFrame`). In mode 0 a drag counts as a click (letting go of the wheel then only closes).
+- **Tests:** flatholster_test 54/0 (was 38; +16 drag checks: hand->holster, holster->hand, hand<->hand,
+  holster<->holster, holster->empty holster, drop on nothing / own slot cancels, empty holster picks nothing up,
+  too-big and carrying greyed; a mid-drag screenshot); `Misc/quakevr/menu_wheel_test.sh` 5/0 (Locomotion, 129 rows);
+  menu_shortcuts_test 14/0; `vr_menu_path_check` vrcalibration 6 found, 0 missing; menu_paths.txt regenerated. Scene
+  `flat_holster_drag`.
 ## classic2: Classic = no reloading, plain grunts; checklist retire (agent/classic2, 2026-11-13)
 
 - **Rows:** Classic already had `vr_reload_mode` 0, `vr_agrunt_repl`/`vr_agknight`/`vr_agdknight` 0 and `vr_grunt_burst` 0; the gap was a gun's own `vr_reload_mode_<gun>` override (12 cvars, -1 follows the global) keeping a gun reloading. 12 rows added (Classic -1, Light/Unleashed default); GAMEPLAY_PRESET.md updated. Classic Quake and Run Setup Style=Classic apply the whole table (vr_runsetup_test 73/0).
@@ -1865,3 +1892,35 @@ is a brand-new run; continuing keeps the run's own choices (from the save) and s
   statics, counter jumped to 2^30, wrapped to 5434, 14 playing on, 5/0 (Debug > Other > Sound Counter Wrap runs step
   1 by hand); `Misc/quakevr/sound_switch_test.py <agent> 30` (id1 <-> AD `vr_campaign_native`, 60 loads, the SDL
   dummy audio driver): "sounds known" 415 in id1 and 552 in AD every cycle (before, the list only grew to the union).
+## runfix: the run setup's flat-session bugs (agent/runfix, 2026-11-14)
+
+- **Difficulty missing after a campaign's launch (1):** not a stale build. On a map without skill halls the page is a
+  row longer than the view (26 rows, 21 in view headless) and opened with the cursor on Start, so the draw scrolled
+  the top row, Difficulty, out of sight; a campaign's page (halls: no Difficulty row) fit. A fold shortened the list.
+  Now `openRunSetup` builds the page for its launch (`menuPages.done` cleared, never the size of a fresh build marking
+  the old one current), opens it at scroll 0, the cursor on Start while it is in view from the top, else on the first
+  choice (Difficulty).
+- **Bloody Nightmare (2):** always a row (`shown`/`bnShown` gone; Difficulty held at Nightmare by its pick alone).
+  **Decision:** a row of its own beside Difficulty, not a fifth Difficulty option (a registry row is one cvar; the
+  save line keeps `bn=`).
+- **Glass Cannon on the dummy (3):** the hook (`VR_Run_Damage`) was in `T_Damage`; a hand's blow goes
+  `T_Damage_VRMelee` -> `T_DamageImpl` and never doubled. Moved to `T_DamageImpl`'s start (every blow, AD's too).
+- **Stale mutators (3, 4, 8):** every Run Setup way in (Levels, Map Library, New Game, campaigns, hub) already set
+  the run in `runsetup::start()` before its map (vr_runlaunch_test: each map spawned with the new values). The stale
+  path was a new game begun without the screen's Start (`map`: the VR menu's Firing Range and Tutorial buttons, the
+  debug maps, the console): it kept the last run's mutators, or the hub's cleared ones. Now Host_Map_f calls
+  `VR_RunNewGame` (`runsetup::newGame`): unless the run was set since the last map began (the Start, `endRun`,
+  `vr_run`, a load, or any mutator's `vr_run_<id>` changed: a cvar callback, so scenarios' and tests' `cvar vr_run_x`
+  stand), the screen's mutators (rows without `apply`) become the run's with a new seed; the difficulty and the
+  presets stay the Start's (they write settings). Changelevel, `restart` and loads unchanged.
+- **Test `vr_runlaunch_test`** (Debug > Tests; frame-driven, `runLaunchTestFrame` from VR_HostFrameEnd): Levels e1m1
+  (A: Melee Only, dagger, 3x), Levels e1m1 (B: revolver, Glass Cannon, Anything Goes enemies and pickups; saved), Map
+  Library Start (no index in tests: the run's values only), New Game, Official Campaigns, the hub's teleporter, Levels
+  vrfiringrange (Glass Cannon + Melee Only), the B save loaded, Levels after the load, the Firing Range button, `vr_run
+  glasscannon 0` + `map`. Each: the values the map spawned with (`runsetup::spawnedWith`) and now, QC
+  `VR_Run_LaunchCheck` (loadout, a gun's and a hand's blow on a monster and the dummy against the same blow without
+  the run, Melee Only on the map's guns and ammo, e1m1's enemy and pickup swaps). 31/0. Script `vr_runlaunch_test`,
+  `-QuitOn "runlaunch: [0-9]+ passed"`.
+- **Other tests:** vr_runsetup_test 73/0, vr_runsetup_screen_test 21/0 (adds: the shown page has Difficulty after a
+  start hall's launch and none for a hall, Bloody Nightmare never found a row, opened at its top), vr_run_check 15/0
+  (adds `map` after a load: the screen's mutators), vr_continue_rows_test 16/0. Scenario run_glass_dummy.

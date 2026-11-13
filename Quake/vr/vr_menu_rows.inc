@@ -2308,6 +2308,10 @@ QVR_CYCLE_BYNAME(vr_menu_big_hl, "Big Menu Highlight",
     {0.f, "Icon Only"}, {1.f, "Soft Bar"}, {2.f, "Bar and Grow"})
 QVR_SLIDER_BYNAME(vr_menu_big_hl_scale, "Big Menu Grow", 1.f, 1.25f, 0.01f, "%.2fx", noExt,
     "With Big Menu Highlight: Bar and Grow: the selected main menu row's size.")
+QVR_SLIDER_BYNAME(vr_menu_wheel_scroll, "Mouse Wheel Scroll", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "On a menu with a scroll bar, a notch of the mouse wheel scrolls the page by this part of the rows shown (the selection stays on the page). 0: the wheel moves the selection a row at a time.")
+QVR_SLIDER_BYNAME(vr_menu_big_hl_alpha, "Big Menu Bar Opacity", 0.02f, 0.5f, 0.02f, "%.2f", noExt,
+    "How opaque the soft bar behind the big menus' selected row is. 0.14: as the settings pages' selected row.")
 QVR_SLIDER_BYNAME(vr_menu_toolbar_groups, "Shortcut Group Gap", 0.f, 12.f, 1.f, "%.0f px", noExt,
     "The corner's shortcut buttons in groups (game, saves, menus, settings, levels, tools): this much space between groups. 0: evenly spaced.")
 QVR_TOGGLE_BYNAME(vr_runsetup_groups, "Run Setup: Mutator Groups",

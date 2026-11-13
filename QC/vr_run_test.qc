@@ -445,4 +445,109 @@ void() VR_RunTest_Frame =
     if(step >= 20 && step < 50) VR_RT_Ironman();
     else VR_RT_Pickups();
 };
+
+// A blow of `dmg` dealt to `e` by `how` (0: T_Damage, a gun's path; 1: T_Damage_VRMelee, a hand's), from the player:
+// what its health (the training dummy's: what it reports, vr_dummy_hp) lost; `run` FALSE: with Glass Cannon off for
+// it (what the blow does without the run: the damage multipliers, a monster's own resistances). Its health set back.
+float(entity e, entity p, float dmg, float how, float run) VR_RLT_Blow =
+{
+    float dummy = VR_IsDummy(e);
+    float h0 = dummy ? e.vr_dummy_hp : e.health;
+    float savedHealth = e.health;
+    float glass = cvar_hget(cvarh_vr_run_glasscannon);
+    if(!run) cvar_set("vr_run_glasscannon", "0");
+    entity oldself = self;
+    self = p; // (as the player's own blow: AD's T_Damage writes to self)
+    if(how) T_Damage_VRMelee(e, p, p, dmg);
+    else T_Damage(e, p, p, dmg);
+    self = oldself;
+    cvar_set("vr_run_glasscannon", ftos(glass));
+    float lost = h0 - (dummy ? e.vr_dummy_hp : e.health);
+    if(dummy) e.vr_dummy_hp = h0;
+    else e.health = savedHealth;
+    return lost;
+};
+
+// The engine's vr_runlaunch_test (vr_menu_instances.inc): the map a run's way in just started, as the screen's picks
+// say. `w` gun * 10 + melee; `gm` glass cannon + 2 * melee only + 4 * (the loadout is the run's: a new game);
+// `en` enemy count + 3 * randomized enemies + 9 * randomized pickups. Glass Cannon on a monster and on the training
+// dummy by a gun's path and a hand's; Melee Only on the map's own guns and ammunition; the enemies' and the pickups'
+// swaps and copies on e1m1. 1: as expected (each miss printed).
+float(float w, float gm, float en) VR_Run_LaunchCheck =
+{
+    entity p = VR_Player();
+    if(!p) { bprint("runlaunch: no player\n"); return FALSE; }
+    float g = gm & 1;
+    float m = (gm & 2) ? 1 : 0;
+    float count = en - floor(en / 3) * 3;
+    float random = floor(en / 3) - floor(en / 9) * 3;
+    float pickups = floor(en / 9);
+    float ok = TRUE;
+    if(gm & 4)
+    {
+        ok = VR_Run_TestCheck(w, g, m);
+    }
+    float want = g ? 2 : 1;
+    float blows = 0;
+    entity e = nextent(world);
+    float monster = FALSE;
+    float refused = 0;
+    float looked = 0;
+    while(e)
+    {
+        float strike = (e.flags & FL_MONSTER) && (e.health > 20) && (!e.armorvalue) && e.takedamage;
+        float a0 = 0;
+        float b0 = 0;
+        if(strike && (VR_IsDummy(e) || (!monster)))
+        {
+            // (A kind whose blows vary, a resistance rolled each hit (the pyro's), or that a blow leaves whole (AD's
+            // zombies): not this one, another.)
+            a0 = VR_RLT_Blow(e, p, 3, 0, FALSE);
+            b0 = VR_RLT_Blow(e, p, 3, 1, FALSE);
+            strike = ((a0 > 0) && (b0 > 0) && (VR_RLT_Blow(e, p, 3, 0, FALSE) == a0) && (VR_RLT_Blow(e, p, 3, 1, FALSE) == b0));
+        }
+        if(strike && (VR_IsDummy(e) || (!monster)))
+        {
+            float a = VR_RLT_Blow(e, p, 3, 0, TRUE);
+            float b = VR_RLT_Blow(e, p, 3, 1, TRUE);
+            blows = blows + 1;
+            if((a0 <= 0) || (b0 <= 0) || (a != a0 * want) || (b != b0 * want))
+            {
+                ok = FALSE;
+                bprint(sprintf("runlaunch: %s lost %g (gun) and %g (hand) of a 3 blow, %g and %g without the run, glass cannon %g\n",
+                               e.classname, a, b, a0, b0, g));
+            }
+            else
+            {
+                dprint(sprintf("runlaunch: %s lost %g (gun) and %g (hand) of a 3 blow, %g and %g without the run\n",
+                               e.classname, a, b, a0, b0));
+            }
+            if(!VR_IsDummy(e)) monster = TRUE;
+        }
+        float gun = ((e.classname == "thrown_weapon") || (e.handtouch == weapon_touch)) && VR_RunMeleeOnly_IsGun(e.weapon);
+        if(gun || (e.handtouch == ammo_touch) || (e.touch == ammo_touch))
+        {
+            looked = looked + 1;
+            if(VR_Run_RefusesEnt(e)) refused = refused + 1;
+        }
+        e = nextent(e);
+    }
+    if(refused != (m ? looked : 0))
+    {
+        ok = FALSE;
+        bprint(sprintf("runlaunch: %g of %g guns and ammunition refused, melee only %g\n", refused, looked, m));
+    }
+    if(mapname == "e1m1")
+    {
+        if(!VR_Run_EnemiesCheck(count, random)) ok = FALSE;
+        if((vr_rpk_swapped > 0) != (pickups > 0))
+        {
+            ok = FALSE;
+            bprint(sprintf("runlaunch: %g pickups swapped, randomized pickups %g\n", vr_rpk_swapped, pickups));
+        }
+    }
+    dprint(sprintf("runlaunch: %s: %g struck, %g of %g guns and ammunition refused, %g pickups swapped\n", mapname, blows,
+                   refused, looked, vr_rpk_swapped));
+    return ok;
+};
 #endif

@@ -896,6 +896,8 @@ QVR_CVAR(vr_menu_folded, "", CVAR_ARCHIVE)             // the folded sections, "
 QVR_CVAR(vr_menu_hl_fit, "1", CVAR_ARCHIVE)            // the VR pages' selected-row bar as wide as the row's label and value (0: across the menu, as before)
 QVR_CVAR(vr_menu_big_hl, "2", CVAR_ARCHIVE)            // the big-letter menus' (main menu, Single Player, Multiplayer, Skill) selected row: 0 Quake's spinning icon only, 1 a soft bar behind it too, 2 and the main menu's row grown (vr_menu_big_hl_scale)
 QVR_CVAR(vr_menu_big_hl_scale, "1.08", CVAR_ARCHIVE)   // that row's size while selected (1 to 1.25)
+QVR_CVAR(vr_menu_wheel_scroll, "0.25", CVAR_ARCHIVE)  // the mouse wheel on a menu with a scroll bar: a notch scrolls this part of the rows shown (0 to 1; 0: it moves the selection a row, as before)
+QVR_CVAR(vr_menu_big_hl_alpha, "0.14", CVAR_ARCHIVE)  // that soft bar's opacity at its middle (0.02 to 0.5; 0.14 the small rows' bar's, about 0.31 before 2026-11-13)
 QVR_CVAR(vr_menu_toolbar_groups, "5", CVAR_ARCHIVE)    // the corner's buttons in groups (game, saves, menus, settings, levels, tools, developer): this many pixels between groups (0 to 12: 0 evenly spaced)
 QVR_CVAR(vr_runsetup_groups, "1", CVAR_ARCHIVE)        // Run Setup's mutators in three sections (Rules, Enemies, World); 0: one Mutators section
 QVR_CVAR(vr_runsetup_big, "1.5", CVAR_ARCHIVE)         // Run Setup's Difficulty row and Start button letters over a row's (1 to 2)

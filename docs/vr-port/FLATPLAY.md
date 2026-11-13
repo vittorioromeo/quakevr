@@ -211,7 +211,12 @@ left button clicks on it instead of firing (`flatplay::routeFire` routes nothing
 hover what I want and release the mouse wheel"); letting go over no button, or after a left click in that hold, only
 closes it (the old hold + left click still works, one or more clicks, with no second click on release); 1 (Toggle) a
 press opens it, the left button clicks as often as wanted, the next press closes it. Esc closes it in either mode (in
-mode 0 until the button is pressed again). The menu is the wrist gadget's screen as the visor's panels are
+mode 0 until the button is pressed again). **Drag and drop** (his words 2026-11-13): the left button held on a weapon
+(a hand's or a holster's) picks it up, its thumbnail follows the cursor, the slots it may go to lit and the rest greyed;
+let go on one: hand to holster or back (that holster's L or R impulse), hand to hand (SWAP's), holster to holster (impulse
+24 + the pair: QC `VR_FlatHolster_SwapHolsters`, a trade or a move into an empty one); on nothing or its own slot it is
+cancelled. The rules are the buttons' (a carrying hand, a weapon too big for a holster: STAT_QVR_FLATUNLOADFULL bits 2
+and 3, QC `WeaponIdToHolsterable`). The menu is the wrist gadget's screen as the visor's panels are
 (`gadget::renderHolsterMenu`, `vr_gadget_holster.inc`: its palette, font, frames, CRT look `vr_flat_holster_menu_crt`, the
 mount's glow): the holsters on a rough figure on the left (shoulders high, the chest's in the middle, the hips low, his
 left on the left), each with its weapon's thumbnail (`toolgun::icons`, the model from its side), its name and [L] [DROP]

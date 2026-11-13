@@ -336,6 +336,7 @@ const char *VR_SaveBrushLines (void);	// SaveData_Fill: the runtime brushes as t
 const char *VR_SaveDecalLines (void);	// SaveData_Fill: the permanent decals as the save's "// qvrdecals" and "// qvrd" lines (vr_permdecals.cpp; "" none)
 void VR_SaveFlashlightState (void); // before a save snapshot or changelevel parms are captured
 void VR_OnFreshStart (void);			// Host_Map_f, Host_Loadgame_f: a game started afresh or loaded, not a changelevel (the flashlight off)
+void VR_RunNewGame (void);			// Host_Map_f: a new game; begun without the Run Setup's Start, the screen's mutators made the run's
 void VR_StoreSpawnParms (int client);	// after parm1..16 are copied from globals into a client_t
 void VR_RestoreSpawnParms (int client);	// after parm1..16 are copied from a client_t into globals
 int VR_ServerRandom (void);			// the server's own rand() (vr_srvrandom.cpp): 0..0x7fff, apart from the client's effects' C library rand()
@@ -608,6 +609,7 @@ int VR_MenuDrawTextBox (int x, int y, int width, int lines); // M_DrawTextBox: a
 int VR_MenuDrawHighlight (int cx, int cy);				// M_DrawArrowCursor: the selected row's highlight; nonzero: no cursor (the corner's buttons have the selection)
 void VR_MenuDrawBigHighlight (float x0, float x1, float yc, float half); // Menu Look: a big-letter menu's selected row's soft bar (vr_menu_big_hl)
 float VR_MenuBigGrow (void);								// Menu Look: the main menu's selected row's size (vr_menu_big_hl_scale)
+int VR_MenuWheelRows (int visible);						// the rows a wheel notch scrolls a list with a scroll bar (vr_menu_wheel_scroll; 0: off)
 float VR_MenuMainGap (void);								// Menu Look: the main menu's groups' gap over Quake's (vr_menu_main_gap)
 int VR_MenuDrawButton (int x0, int x1, int y, int selected);	// M_Confirm's buttons (x0..x1 across, the label's row y): the VR menu style's; nonzero if drawn
 // The corner's buttons (vr_menuui.cpp): "Back to game" closing the menu from any page, which reopens
