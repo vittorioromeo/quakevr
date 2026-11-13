@@ -2,7 +2,7 @@
 
 A **run** is a game from its start to the next start: Single Player > New Game, the Map Library's Play, an Official
 Campaign's row, the hub's teleporter to the start map. Each of those opens the **Run Setup** screen first (a VR page,
-`vr_menu_runsetup.inc`, opened from the flat menus too): Difficulty (and Bloody Nightmare once found), the presets
+`vr_menu_runsetup.inc`, opened from the flat menus too): Difficulty and Bloody Nightmare (always offered), the presets
 (Style = the Gameplay preset, Gore), the mutators, and Start. `vr_runsetup_ask 0` skips the screen (the last choices
 are used). A start map with skill halls (id's start, a pack's hall, every campaign, New Game, the hub) has no
 Difficulty row: its halls choose; the presets and mutators are still asked.
@@ -21,10 +21,15 @@ designated initializers (a line names only the fields it needs; the others defau
 | `oldSave` | a saved game without the run line loads with this (default 0; -1: left as it is: the presets) |
 | `apply(value, phase)` | what it sets beyond its cvar, at a run's start (`Phase::Start`) and on a save's load (`Phase::Load`); `nullptr` when the QC just reads `vr_run_<id>` |
 | `forced()`, `heldBy` | a rule: the value another choice holds this one at (-1: free). The screen shows it as a line "Starting gun: Nothing (Melee Only)", and `start()` uses it |
-| `shown()` | hidden while false (Bloody Nightmare until found) |
+| `shown()` | hidden while false (none uses it now) |
 
 - **Start** (`runsetup::start()`, also `vr_run start`): every `vr_run_<id>` from its pick (forced ones held), then each
   `apply(Start)` in registry order (the presets before the rows they set over).
+- **A new game without the screen's Start** (`map`: the VR menu's Firing Range and Tutorial buttons, the debug menu's
+  maps, the console; `runsetup::newGame()`, from Host_Map_f): the screen's mutators (the rows without an `apply`)
+  made the run's with a new seed, never the last run's; the difficulty, presets, Armed Humanoids and Smarter AI only by
+  the Start (they write settings). Kept as set when the Start, the hub's end of a run or `vr_run <id> <value>` set the
+  run since the last map, or a `vr_run_<id>` was set by hand (a scenario's).
 - **Changelevel:** the cvars stay. **Saved games** (normal, quick, auto: all go through `SaveData_Fill`): the line
   `// qvr_run skill=2 bn=0 style=3 ...` (`saveLine()`, written with the save's context). **Loading** reads it before the
   old game ends (`readSaveLines`, from `VR_ReadSaveInfo`) and sets the run when the load goes ahead (`onLoadGame`, from
@@ -79,7 +84,7 @@ designated initializers (a line names only the fields it needs; the others defau
 | hook | called from | for |
 | --- | --- | --- |
 | `VR_Run_NewParms()` | `SetNewParms`'s end | a new game's loadout (Starting Weapon) |
-| `VR_Run_Damage(targ, attacker, damage)` | `T_Damage`'s start | damage scaling (Glass Cannon) |
+| `VR_Run_Damage(targ, attacker, damage)` | `T_DamageImpl`'s start (every blow: T_Damage's and a hand's, T_Damage_VRMelee's) | damage scaling (Glass Cannon) |
 | `VR_Run_RefusesPickup(wid)` | `weapon_touch` | weapons not taken (Melee Only) |
 | `VR_Run_RefusesEnt(e)` | force grab eligibility and sparkles, `wpnthrow_handtouch_ent_hand`, `VR_Carry_Handtouch`, `VR_PickupObj_Handtouch`, `ammo_touch`, `BackpackTouch`, AD's and the horde's ammo; the engine's loot beams (`vr_server.cpp`, asked only while Melee Only is on) | a gun or ammunition lying about neither grabbed nor taken (Melee Only) |
 | `VR_Run_RefusesFire(wid)` | `W_AttackImpl`'s start | weapons that only click (Melee Only) |
@@ -208,8 +213,14 @@ choices themselves are the engine's line.
   `vr_runsetup [hub|newgame]` opens the screen.
 - `vr_runsetup_test` (73): the registry, a run's start, the held rows, the save line round trip (a run's choices and
   the presets' values; the line fits its buffer with every choice at its longest), an old save, the hub. Presets' My Settings in the test files; settings set back.
-- `vr_runsetup_screen_test` (13): each way in opens the screen, skill halls hide
-  Difficulty, a held row is a line, Back, Start.
+- `vr_runsetup_screen_test` (21): each way in opens the screen, skill halls hide
+  Difficulty, a held row is a line, the page opens at its top (Difficulty in view), Back, Start.
+- `vr_runlaunch_test` ("runlaunch: N passed"; menu side `vr_menu_instances.inc`, QC `VR_Run_LaunchCheck`): every way
+  in (Levels, the Map Library's Start, New Game, Official Campaigns, the hub's teleporter, a load, the Firing Range
+  button, `vr_run` then `map`), each with other choices than the run before: the map spawned with the run's values
+  (`runsetup::spawnedWith`), Glass Cannon on a monster and the dummy by a gun's and a hand's blow, Melee Only on the
+  map's guns and ammunition, the enemy and pickup swaps on e1m1. Script `vr_runlaunch_test`, `-QuitOn "runlaunch:
+  [0-9]+ passed"`.
 - `vr_run_check <startgun> <startmelee> <glasscannon> <meleeonly> <gore>` / `vr_run_check verdict` ("runmutators: N passed"):
   the end-to-end check in a running game (QC `VR_Run_TestCheck`); the round notes' script starts run A, saves, starts
   run B, loads A, changes level.

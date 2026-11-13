@@ -1862,3 +1862,36 @@ His flat notes 5, 6, 9 (2026-11-13).
 - **Rows:** Classic already had `vr_reload_mode` 0, `vr_agrunt_repl`/`vr_agknight`/`vr_agdknight` 0 and `vr_grunt_burst` 0; the gap was a gun's own `vr_reload_mode_<gun>` override (12 cvars, -1 follows the global) keeping a gun reloading. 12 rows added (Classic -1, Light/Unleashed default); GAMEPLAY_PRESET.md updated. Classic Quake and Run Setup Style=Classic apply the whole table (vr_runsetup_test 73/0).
 - **Tests:** `vr_gameplay_preset_test` 25/0 (extended: a per-gun override set before Classic is cleared, `reloadModeBest()` 0, no burst or armed knights); new `vr_gameplay_classic_check` (QC `VR_Classic_Check`) after `vr_classic_quake 1; map e1m1`: no gun reload mode, no burst rifle, 18 grunts, 0 armed humanoids: `classiccheck: 2 passed, 0 failed`.
 - **Checklist:** 36 ticked lines (no voice notes) retired, the FAIL line and the rest kept, 3 run-setup lines shortened; 16 unused scenes moved to scratch/old_*; checklist_tests_check 50/0.
+
+## runfix: the run setup's flat-session bugs (agent/runfix, 2026-11-14)
+
+- **Difficulty missing after a campaign's launch (1):** not a stale build. On a map without skill halls the page is a
+  row longer than the view (26 rows, 21 in view headless) and opened with the cursor on Start, so the draw scrolled
+  the top row, Difficulty, out of sight; a campaign's page (halls: no Difficulty row) fit. A fold shortened the list.
+  Now `openRunSetup` builds the page for its launch (`menuPages.done` cleared, never the size of a fresh build marking
+  the old one current), opens it at scroll 0, the cursor on Start while it is in view from the top, else on the first
+  choice (Difficulty).
+- **Bloody Nightmare (2):** always a row (`shown`/`bnShown` gone; Difficulty held at Nightmare by its pick alone).
+  **Decision:** a row of its own beside Difficulty, not a fifth Difficulty option (a registry row is one cvar; the
+  save line keeps `bn=`).
+- **Glass Cannon on the dummy (3):** the hook (`VR_Run_Damage`) was in `T_Damage`; a hand's blow goes
+  `T_Damage_VRMelee` -> `T_DamageImpl` and never doubled. Moved to `T_DamageImpl`'s start (every blow, AD's too).
+- **Stale mutators (3, 4, 8):** every Run Setup way in (Levels, Map Library, New Game, campaigns, hub) already set
+  the run in `runsetup::start()` before its map (vr_runlaunch_test: each map spawned with the new values). The stale
+  path was a new game begun without the screen's Start (`map`: the VR menu's Firing Range and Tutorial buttons, the
+  debug maps, the console): it kept the last run's mutators, or the hub's cleared ones. Now Host_Map_f calls
+  `VR_RunNewGame` (`runsetup::newGame`): unless the run was set since the last map began (the Start, `endRun`,
+  `vr_run`, a load, or any mutator's `vr_run_<id>` changed: a cvar callback, so scenarios' and tests' `cvar vr_run_x`
+  stand), the screen's mutators (rows without `apply`) become the run's with a new seed; the difficulty and the
+  presets stay the Start's (they write settings). Changelevel, `restart` and loads unchanged.
+- **Test `vr_runlaunch_test`** (Debug > Tests; frame-driven, `runLaunchTestFrame` from VR_HostFrameEnd): Levels e1m1
+  (A: Melee Only, dagger, 3x), Levels e1m1 (B: revolver, Glass Cannon, Anything Goes enemies and pickups; saved), Map
+  Library Start (no index in tests: the run's values only), New Game, Official Campaigns, the hub's teleporter, Levels
+  vrfiringrange (Glass Cannon + Melee Only), the B save loaded, Levels after the load, the Firing Range button, `vr_run
+  glasscannon 0` + `map`. Each: the values the map spawned with (`runsetup::spawnedWith`) and now, QC
+  `VR_Run_LaunchCheck` (loadout, a gun's and a hand's blow on a monster and the dummy against the same blow without
+  the run, Melee Only on the map's guns and ammo, e1m1's enemy and pickup swaps). 31/0. Script `vr_runlaunch_test`,
+  `-QuitOn "runlaunch: [0-9]+ passed"`.
+- **Other tests:** vr_runsetup_test 73/0, vr_runsetup_screen_test 21/0 (adds: the shown page has Difficulty after a
+  start hall's launch and none for a hall, Bloody Nightmare never found a row, opened at its top), vr_run_check 15/0
+  (adds `map` after a load: the screen's mutators), vr_continue_rows_test 16/0. Scenario run_glass_dummy.

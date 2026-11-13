@@ -1,0 +1,5 @@
+title Glass Cannon and Melee Only in the firing range: the dummy shows doubled damage, guns stay on their tables
+map vrfiringrange
+cvar vr_run_glasscannon 1
+cvar vr_run_meleeonly 1
+hint Punch and swing at the training dummy, then shoot it if you can: each number is twice what it shows without Glass Cannon. The guns and ammunition on the tables can't be grabbed, force grabbed or walked over.
