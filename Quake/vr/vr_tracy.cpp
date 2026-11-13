@@ -318,9 +318,11 @@ void memoryTest()
     Cvar_SetValueQuick(&memoryDetail, 1);
     void* ptr = Z_Malloc(37);
     Memory_TracyValidate();
-    ptr = Z_Realloc(ptr, 131);
+    void* ptr2 = Z_Malloc(131); // (Z_Realloc is gone: ROUND25.md "norealloc")
     Memory_TracyValidate();
     Z_Free(ptr);
+    Memory_TracyValidate();
+    Z_Free(ptr2);
     Memory_TracyValidate();
     boxCheckpoint();
     const int mark = Hunk_LowMark();
