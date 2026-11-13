@@ -1099,6 +1099,10 @@ za::Vector<Item> pageDebugReports()
         header("Other"),
         command("Limits", "vr_limits")
             .help("vr_limits: every hardcoded limit's usage against its maximum (cvars, memory, models, edicts, lights...)."),
+        command("Sound Counter Wrap", "vr_snd_wrap_test 1")
+            .help("vr_snd_wrap_test 1: the sound's sample counter jumps to a buffer short of its wrap (after ~6h45m of play; it "
+                  "used to stop every sound, the torches for good): the torches and lava should sound on through it. "
+                  "vr_snd_wrap_test 2 after \"sample counter wrapped\": the static sounds checked."),
         command("Network: Entities Sent", "vr_net_stats")
             .help("vr_net_stats [reset]: the entities in use, and for each client the entities in sight and sent in its last "
                   "datagram, their bytes and its room (1400 to a remote client), the peak, the mean, the frames that were full."),

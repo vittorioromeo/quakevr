@@ -1738,6 +1738,8 @@ void init()
     Cmd_AddCommand("vr_snd_play_dir", playDir_f);
     Cmd_AddCommand("vr_snd_dump", dump_f);
     Cmd_AddCommand("vr_snd_bench", bench_f);
+    Cmd_AddCommand("vr_snd_wav_check", wavCheck_f);
+    Cmd_AddCommand("vr_snd_wrap_test", wrapTest_f);
     makeInterpTable();
 }
 
@@ -2102,6 +2104,34 @@ extern "C" void VR_SndStopAll(void)
     if(live && live->ok)
     {
         releaseAll();
+    }
+}
+
+// S_ForgetGameSounds: whether the game-time render still plays the sound (a shadow channel goes on past its live
+// channel's end): kept then, its pointer valid.
+extern "C" int VR_SndHoldsSfx(const sfx_t* sfx)
+{
+    if(!live)
+    {
+        return 0;
+    }
+    for(const ShadowChannel& s : live->shadow.channels)
+    {
+        if(!s.done && s.sfx == sfx)
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// S_RebaseSoundTime: the sample counter moved back by delta (its 2^30 wrap): the carried-over render's start with it,
+// so the mix goes on seamlessly.
+extern "C" void VR_SndRebase(int delta)
+{
+    if(live)
+    {
+        live->carryStart -= delta;
     }
 }
 

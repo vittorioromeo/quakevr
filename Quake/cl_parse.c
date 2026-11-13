@@ -438,7 +438,7 @@ static void CL_ParseServerInfoRun (void)
 	VR_TimeMark ("client: models precached"); // QVR
 	for (i = 1; i < numsounds; i++)
 	{
-		cl.sound_precache[i] = S_PrecacheSound (sound_precache[i]);
+		cl.sound_precache[i] = S_PrecacheGameSound (sound_precache[i]); // QVR: (forgotten at a game switch)
 		CL_KeepaliveMessage ();
 	}
 	S_EndPrecaching ();

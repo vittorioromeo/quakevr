@@ -161,7 +161,7 @@ void command_f()
 
     Con_Printf("\x02" "Resources (for the whole session: never freed between maps)\n");
     row("models known", Mod_KnownCount(), Mod_KnownMax(), "full: Sys_Error (freed only by a game change)");
-    row("sounds known", S_KnownSfxCount(), S_KnownSfxMax(), "full: Sys_Error (never freed)");
+    row("sounds known", S_KnownSfxCount(), S_KnownSfxMax(), "full: Sys_Error (the game's freed by a game change)");
     row("textures", TexMgr_Count(), TexMgr_Max(), "full: Sys_Error");
     row("menu pictures", menu_numcachepics, Draw_CachedPicsMax(), "full: Sys_Error");
 
