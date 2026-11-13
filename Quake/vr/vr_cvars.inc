@@ -2582,7 +2582,7 @@ QVR_CVAR(vr_agrunt_repl_id, "1", CVAR_ARCHIVE)         // 1: in Quake's own camp
 QVR_CVAR(vr_agrunt_repl_mp, "1", CVAR_ARCHIVE)         // 1: in the mission packs (Scourge of Armagon, Dissolution of Eternity)
 QVR_CVAR(vr_agrunt_repl_ad, "1", CVAR_ARCHIVE)         // 1: in Arcane Dimensions' maps too: its plain grunts, enforcers, knights and death knights replaced (AD's own variants never: QC VR_AGR_ADVariant); 0 until 2026-11-01
 QVR_CVAR(vr_agrunt_repl_seed, "0", CVAR_ARCHIVE)       // shuffles every map's loadouts (the same seed: the same loadouts)
-QVR_CVAR(vr_fresh_map_seeds, "1", CVAR_ARCHIVE)        // 1: each new start of a map (new game, level change, restart; not a loaded save) rolls its crates and barrels, rocks, armed replacements and their armour anew; 0: the same every time (the map's name). Off in a test session (vr_backend mock). vr_map_seed_info
+QVR_CVAR(vr_fresh_map_seeds, "1", CVAR_ARCHIVE)        // 1: crates and barrels, rocks, armed replacements and their armour rolled from the run's seed (vr_run_seed: a new run, a new layout; a level change, a restart, a loaded save keep the run's), or anew at each map start outside a run; 0: the same every time (the map's name). Off in a test session (vr_backend mock). vr_map_seed_info
 QVR_CVAR(vr_map_seed, "0", CVAR_NONE)                  // tests, repro: > 0 every map load's content seed (vr_map_seed_info prints the one in play); -1 a fresh one even in a test session; 0 vr_fresh_map_seeds'
 QVR_CVAR(vr_agrunt_dual_chance, "0.1", CVAR_ARCHIVE)  // 0..1: one from the pool with a weapon that pairs (a one-handed blade or club, a gun not too big) gets a second in its left hand
 QVR_CVAR(vr_agrunt_dual_penalty, "1", CVAR_ARCHIVE)    // dual-wielded guns' penalties times this (1: yours: no two-hand spread reduction, heavy recoil kicks)
@@ -3939,24 +3939,26 @@ QVR_CVAR(vr_runpick_style, "3", CVAR_ARCHIVE)         // Run Setup: Style, the G
 QVR_CVAR(vr_runpick_gore, "0", CVAR_ARCHIVE)          // Run Setup: the Gore preset at the run's start: 0 My Settings, 1 Full, 2 Minimal, 3 Off
 QVR_CVAR(vr_runpick_armed, "0", CVAR_ARCHIVE)         // Run Setup: Armed Humanoids: 0 as the Style sets them, 1 off, 2 on
 QVR_CVAR(vr_runpick_smartai, "0", CVAR_ARCHIVE)       // Run Setup: Smarter AI (vr_ai_enhanced): 0 as the Style sets it, 1 off, 2 on
-QVR_CVAR(vr_runpick_startweapon, "0", CVAR_ARCHIVE)   // Run Setup: Starting Weapon: 0 shotgun, 1 heavy revolver, 2 axe only, 3 unarmed (fists)
+QVR_CVAR(vr_runpick_startgun, "0", CVAR_ARCHIVE)      // Run Setup: Starting gun: 0 shotgun, 1 nail pistol, 2 heavy revolver, 3 nothing
+QVR_CVAR(vr_runpick_startmelee, "0", CVAR_ARCHIVE)    // Run Setup: Starting melee weapon: 0 axe, 1 dagger, 2 nothing
 QVR_CVAR(vr_runpick_meleeonly, "0", CVAR_ARCHIVE)     // Run Setup: Melee Only
 QVR_CVAR(vr_runpick_glasscannon, "0", CVAR_ARCHIVE)   // Run Setup: Glass Cannon
-QVR_CVAR(vr_runpick_pickups, "0", CVAR_ARCHIVE)       // Run Setup: Randomized Pickups: 0 off, 1 balanced (same kind, similar value), 2 everything goes
+QVR_CVAR(vr_runpick_pickups, "0", CVAR_ARCHIVE)       // Run Setup: Randomized Pickups: 0 off, 1 balanced (same kind, similar value), 2 anything goes
 QVR_CVAR(vr_runpick_ironman, "0", CVAR_ARCHIVE)       // Run Setup: Ironman (no saving; a death restarts the level)
 QVR_CVAR(vr_runpick_enemycount, "0", CVAR_ARCHIVE)    // Run Setup: Enemy Count: 0 1x (the map's), 1 2x, 2 3x
-QVR_CVAR(vr_runpick_enemyrandom, "0", CVAR_ARCHIVE)   // Run Setup: Randomized Enemies: 0 off, 1 balanced, 2 everything goes
+QVR_CVAR(vr_runpick_enemyrandom, "0", CVAR_ARCHIVE)   // Run Setup: Randomized Enemies: 0 off, 1 balanced, 2 anything goes
 QVR_CVAR(vr_run_bn, "0", CVAR_NONE)                   // the run's Bloody Nightmare choice (its start sets vr_mg3_bn_start; the game's serverflags carry it)
 QVR_CVAR(vr_run_style, "0", CVAR_NONE)                // the run's Style (as vr_runpick_style): applied at its start and on loading its saves
 QVR_CVAR(vr_run_gore, "0", CVAR_NONE)                 // the run's Gore preset (as vr_runpick_gore)
 QVR_CVAR(vr_run_armed, "0", CVAR_NONE)                // the run's Armed Humanoids (as vr_runpick_armed)
 QVR_CVAR(vr_run_smartai, "0", CVAR_NONE)              // the run's Smarter AI (as vr_runpick_smartai)
-QVR_CVAR(vr_run_startweapon, "0", CVAR_NONE)          // the run's Starting Weapon (as vr_runpick_startweapon; QC vr_run_startweapon.qc, at a new game's parms)
+QVR_CVAR(vr_run_startgun, "0", CVAR_NONE)             // the run's Starting gun (as vr_runpick_startgun; QC vr_run_startweapon.qc, at a new game's parms)
+QVR_CVAR(vr_run_startmelee, "0", CVAR_NONE)           // the run's Starting melee weapon (as vr_runpick_startmelee; the same file)
 QVR_CVAR(vr_run_meleeonly, "0", CVAR_NONE)            // the run's Melee Only: guns are not picked up and do not fire, the axe at the start (QC vr_run_meleeonly.qc)
 QVR_CVAR(vr_run_glasscannon, "0", CVAR_NONE)          // the run's Glass Cannon: the player and the monsters take double damage (QC vr_run_glasscannon.qc)
 QVR_CVAR(vr_run_pickups, "0", CVAR_NONE)             // the run's Randomized Pickups (as vr_runpick_pickups): the map's pickups swapped as it loads (QC vr_run_pickups.qc)
 QVR_CVAR(vr_run_ironman, "0", CVAR_NONE)              // the run's Ironman: save, quicksave and autosave refused; a death restarts the level with what you entered it with (QC vr_run_ironman.qc)
-QVR_CVAR(vr_run_seed, "0", CVAR_NONE)                 // the run's seed, set at its start (Randomized Pickups: the same map gets the same pickups through the run, an Ironman restart too); 0: the server's random numbers
+QVR_CVAR(vr_run_seed, "0", CVAR_NONE)                 // the run's seed, a new one at each run's start (sv_random_seed's in tests), kept in its saves: Randomized Pickups, and the maps' content seed (crates and barrels, enemy swaps): the same map the same through the run, an Ironman restart too; 0: the server's random numbers
 QVR_CVAR(vr_ironman_refused, "0", CVAR_NONE)          // test aid: the saves Ironman refused since the game started (vr_ironman_test)
 QVR_CVAR(vr_runpickups_test, "0", CVAR_NONE)          // 1: Randomized Pickups' test (QC vr_run_test.qc: e1m1, e1m2, save and load, a new run; verdict "runpickups: N passed, M failed"); 2: the map loaded now only (another game's maps: AD's)
 QVR_CVAR(vr_ironman_test, "0", CVAR_NONE)             // 1: Ironman's test (QC vr_run_test.qc: saves refused, a death on e1m2 restarts it with what e1m1 left you; verdict "ironman: N passed, M failed")

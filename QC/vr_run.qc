@@ -120,21 +120,52 @@ float(entity trig) VR_Run_HubAsks =
     return TRUE;
 };
 
-// The engine's `vr_run_check <startweapon> <glasscannon> <meleeonly> <gore>` (vr_runsetup.cpp; the mutators' test):
-// the player's loadout as Starting Weapon `w` gives it, a hit's damage as Glass Cannon `g` makes it, guns refused as
+// The engine's `vr_run_check <startgun> <startmelee> <glasscannon> <meleeonly> <gore>` (vr_runsetup.cpp; the mutators' test):
+// the player's loadout as the Starting gun and melee weapon (`w` = gun * 10 + melee) give it, a hit's damage as Glass Cannon `g` makes it, guns refused as
 // Melee Only `m` says. 1: as expected (each miss printed).
 float(float w, float g, float m) VR_Run_TestCheck =
 {
     entity p = VR_Player();
     if(!p) { dprint("vr_run_check: no player\n"); return FALSE; }
     float ok = TRUE;
-    float load;
-    if(w == RUN_SW_SHOTGUN) load = ((p.items & IT_SHOTGUN) && (p.holsterweapon3 == WID_SHOTGUN));
-    else if(w == RUN_SW_REVOLVER)
-        load = ((p.holsterweapon3 == WID_REVOLVER) && (p.hipnotic_items & HIP_IT_REVOLVER) && !(p.items & IT_SHOTGUN));
-    else if(w == RUN_SW_AXE) load = ((p.items & IT_AXE) && !(p.items & IT_SHOTGUN) && (p.holsterweapon3 == WID_FIST));
-    else load = (!(p.items & (IT_AXE | IT_SHOTGUN)) && (p.holsterweapon2 == WID_FIST) && (p.holsterweapon3 == WID_FIST));
-    if(!load) { ok = FALSE; bprint(sprintf("vr_run_check: loadout not start weapon %g (items %g, holsters %g %g)\n", w, p.items, p.holsterweapon2, p.holsterweapon3)); }
+        float sg = floor(w / 10);
+    float sm = w - sg * 10;
+    float load = TRUE;
+    float noShotgun = !(p.items & IT_SHOTGUN);
+    float noAxe = !(p.items & IT_AXE);
+    float gunHolster = p.holsterweapon3;
+    float meleeHolster = p.holsterweapon2;
+    if(sg == RUN_SG_SHOTGUN)
+    {
+        load = ((!noShotgun) && (gunHolster == WID_SHOTGUN));
+    }
+    else if(sg == RUN_SG_NAILPISTOL)
+    {
+        load = (noShotgun && (gunHolster == WID_NAILPISTOL) && ((p.hipnotic_items & HIP_IT_NAILPISTOL) != 0));
+        if(p.holsterweaponinst3.wi_clip != VR_NailPistol_MagSize()) load = FALSE;
+        if(p.ammo_nails < 50) load = FALSE;
+    }
+    else if(sg == RUN_SG_REVOLVER)
+    {
+        load = (noShotgun && (gunHolster == WID_REVOLVER) && ((p.hipnotic_items & HIP_IT_REVOLVER) != 0));
+    }
+    else
+    {
+        load = (noShotgun && (gunHolster == WID_FIST));
+    }
+    if(sm == RUN_SM_AXE)
+    {
+        if(noAxe || meleeHolster != WID_AXE) load = FALSE;
+    }
+    else if(sm == RUN_SM_DAGGER)
+    {
+        if(!noAxe || meleeHolster != WID_SWORD || VR_ADMelee_Kind(p.holsterweaponflags2) != VR_SWORDKIND_DAGGER) load = FALSE;
+    }
+    else
+    {
+        if(!noAxe || meleeHolster != WID_FIST) load = FALSE;
+    }
+    if(!load) { ok = FALSE; bprint(sprintf("vr_run_check: loadout not start gun/melee %g (items %g, holsters %g %g)\n", w, p.items, p.holsterweapon2, p.holsterweapon3)); }
     if((VR_Run_Damage(p, world, 10) != (g ? 20 : 10)) || (VR_Run_Damage(world, p, 10) != 10))
     { ok = FALSE; bprint(sprintf("vr_run_check: a 10 hit does %g, glass cannon %g\n", VR_Run_Damage(p, world, 10), g)); }
     if((VR_Run_RefusesFire(WID_SHOTGUN) != m) || (VR_Run_RefusesPickup(WID_REVOLVER) != m) || VR_Run_RefusesFire(WID_AXE))

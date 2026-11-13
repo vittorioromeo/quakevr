@@ -8,7 +8,7 @@
 // A map's monsters swapped for others as the map loads (the engine's ED_LoadFromFile asks VR_Run_MonsterSpawning before
 // a monster's spawn function runs: self is its keys, parsed; the swap is its classname, so the new kind spawns from the
 // map's own keys: its targetname, target, spawnflags, angle). 1 Balanced: a kind of the same threat tier that moves as
-// it does (walks, flies, swims); 2 Everything Goes: any tier, a walker's spot may hold a flyer. Either way the new kind
+// it does (walks, flies, swims); 2 Anything Goes: any tier, a walker's spot may hold a flyer. Either way the new kind
 // fits the spot (never larger than what stood there: Quake's two hulls), never a boss; Arcane Dimensions' kinds only while AD's data
 // is mounted (and spawning outside AD's maps: vr_ad_everywhere). The kind it was is kept (vr_run_mapclass). Enemy Count's
 // copies (vr_run_enemycount.qc) come after, of the swapped kind. Armed humanoids: a grunt, enforcer, knight or death
@@ -30,69 +30,71 @@ float RUN_ER_PACK = 2; // a mission pack's, Honey's, Dawn of the Machine's: copi
 .float vr_run_kindflags; // the spawnflags a monster looked at spawned with (its copies' too)
 
 // The kinds: classname, how it moves, its hull (1 Quake's 32-wide, 2 the 64-wide: a large one), its threat tier (1
-// light, 2 medium, 3 heavy), whose it is. Bosses and scripted monsters are not listed: never swapped, never copied.
+// light, 2 medium, 3 heavy), whose it is, its box's top over its origin (its feet 24 under it; Quake VR's kinds their
+// spawn functions' setsize, AD's ad_monster_bbox; 0: a pack's, never swapped). Bosses and scripted monsters are not
+// listed: never swapped, never copied.
 typedef struct
 {
     string cls;
-    float move, size, tier, src;
+    float move, size, tier, src, top;
 } vr_run_er_kind;
 
 vr_run_er_kind VR_RUN_ER_KINDS[] =
 {
-    { "monster_army", 1, 1, 1, 0 },
-    { "monster_dog", 1, 2, 1, 0 },
-    { "monster_zombie", 1, 1, 1, 0 },
-    { "monster_knight", 1, 1, 1, 0 },
-    { "monster_enforcer", 1, 1, 1, 0 },
-    { "monster_wizard", 2, 1, 1, 0 },
-    { "monster_fish", 3, 1, 1, 0 },
-    { "monster_tarbaby", 1, 1, 2, 0 },
-    { "monster_hell_knight", 1, 1, 2, 0 },
-    { "monster_ogre", 1, 2, 2, 0 },
-    { "monster_demon1", 1, 2, 2, 0 },
-    { "monster_shalrath", 1, 2, 3, 0 },
-    { "monster_shambler", 1, 2, 3, 0 },
-    { "monster_zombiek", 1, 1, 1, 1 },
-    { "monster_dcrossbow", 1, 1, 1, 1 },
-    { "monster_dguard", 1, 1, 1, 1 },
-    { "monster_spider", 1, 1, 1, 1 },
-    { "monster_voreling", 1, 1, 1, 1 },
-    { "monster_swampling", 1, 1, 1, 1 },
-    { "monster_scorpion", 1, 1, 1, 1 },
-    { "monster_steelclaw", 1, 1, 1, 1 },
-    { "monster_army_grenade", 1, 1, 1, 1 },
-    { "monster_defender", 1, 1, 1, 1 },
-    { "monster_lostsoul", 2, 1, 1, 1 },
-    { "monster_jim", 2, 1, 1, 1 },
-    { "monster_army_rocket", 1, 1, 2, 1 },
-    { "monster_army_plasma", 1, 1, 2, 1 },
-    { "monster_eliminator", 1, 1, 2, 1 },
-    { "monster_skullwiz", 1, 1, 2, 1 },
-    { "monster_pyro", 1, 1, 2, 1 },
-    { "monster_dknight", 1, 1, 2, 1 },
-    { "monster_deflector", 1, 1, 2, 1 },
-    { "monster_hogre", 1, 2, 2, 1 },
-    { "monster_hogremac", 1, 2, 2, 1 },
-    { "monster_gargoyle", 2, 1, 2, 1 },
-    { "monster_gaunt", 2, 1, 2, 1 },
-    { "monster_centurion", 2, 1, 2, 1 },
-    { "monster_hogreham", 1, 2, 3, 1 },
-    { "monster_dfury", 1, 1, 3, 1 },
-    { "monster_dsergeant", 1, 1, 3, 1 },
-    { "monster_dprince", 1, 1, 3, 1 },
-    { "monster_minotaur", 1, 2, 3, 1 },
-    { "monster_drole", 1, 2, 3, 1 },
-    { "monster_wraith", 2, 2, 3, 1 },
-    { "monster_gremlin", 1, 1, 1, 2 },
-    { "monster_scourge", 1, 2, 2, 2 },
-    { "monster_sknight", 1, 1, 1, 2 },
-    { "monster_ogre_marksman", 1, 2, 2, 2 },
-    { "monster_mummy", 1, 1, 2, 2 },
-    { "monster_wrath", 2, 2, 2, 2 },
-    { "monster_eel", 3, 1, 1, 2 },
-    { "monster_demodog", 1, 2, 1, 2 },
-    { "monster_ranged_knight", 1, 1, 2, 2 },
-    { "monster_ogre_rocket", 1, 2, 2, 2 }
+    { "monster_army", 1, 1, 1, 0, 27 },
+    { "monster_dog", 1, 2, 1, 0, 16 },
+    { "monster_zombie", 1, 1, 1, 0, 24 },
+    { "monster_knight", 1, 1, 1, 0, 26 },
+    { "monster_enforcer", 1, 1, 1, 0, 28 },
+    { "monster_wizard", 2, 1, 1, 0, 42 },
+    { "monster_fish", 3, 1, 1, 0, 24 },
+    { "monster_tarbaby", 1, 1, 2, 0, 24 },
+    { "monster_hell_knight", 1, 1, 2, 0, 36 },
+    { "monster_ogre", 1, 2, 2, 0, 40 },
+    { "monster_demon1", 1, 2, 2, 0, 24 },
+    { "monster_shalrath", 1, 2, 3, 0, 64 },
+    { "monster_shambler", 1, 2, 3, 0, 64 },
+    { "monster_zombiek", 1, 1, 1, 1, 32 },
+    { "monster_dcrossbow", 1, 1, 1, 1, 32 },
+    { "monster_dguard", 1, 1, 1, 1, 32 },
+    { "monster_spider", 1, 1, 1, 1, 16 },
+    { "monster_voreling", 1, 1, 1, 1, 16 },
+    { "monster_swampling", 1, 1, 1, 1, 16 },
+    { "monster_scorpion", 1, 1, 1, 1, 16 },
+    { "monster_steelclaw", 1, 1, 1, 1, 16 },
+    { "monster_army_grenade", 1, 1, 1, 1, 32 },
+    { "monster_defender", 1, 1, 1, 1, 40 },
+    { "monster_lostsoul", 2, 1, 1, 1, 16 },
+    { "monster_jim", 2, 1, 1, 1, 32 },
+    { "monster_army_rocket", 1, 1, 2, 1, 32 },
+    { "monster_army_plasma", 1, 1, 2, 1, 32 },
+    { "monster_eliminator", 1, 1, 2, 1, 40 },
+    { "monster_skullwiz", 1, 1, 2, 1, 40 },
+    { "monster_pyro", 1, 1, 2, 1, 40 },
+    { "monster_dknight", 1, 1, 2, 1, 40 },
+    { "monster_deflector", 1, 1, 2, 1, 40 },
+    { "monster_hogre", 1, 2, 2, 1, 40 },
+    { "monster_hogremac", 1, 2, 2, 1, 40 },
+    { "monster_gargoyle", 2, 1, 2, 1, 40 },
+    { "monster_gaunt", 2, 1, 2, 1, 40 },
+    { "monster_centurion", 2, 1, 2, 1, 40 },
+    { "monster_hogreham", 1, 2, 3, 1, 40 },
+    { "monster_dfury", 1, 1, 3, 1, 40 },
+    { "monster_dsergeant", 1, 1, 3, 1, 40 },
+    { "monster_dprince", 1, 1, 3, 1, 40 },
+    { "monster_minotaur", 1, 2, 3, 1, 64 },
+    { "monster_drole", 1, 2, 3, 1, 64 },
+    { "monster_wraith", 2, 2, 3, 1, 40 },
+    { "monster_gremlin", 1, 1, 1, 2, 0 },
+    { "monster_scourge", 1, 2, 2, 2, 0 },
+    { "monster_sknight", 1, 1, 1, 2, 0 },
+    { "monster_ogre_marksman", 1, 2, 2, 2, 0 },
+    { "monster_mummy", 1, 1, 2, 2, 0 },
+    { "monster_wrath", 2, 2, 2, 2, 0 },
+    { "monster_eel", 3, 1, 1, 2, 0 },
+    { "monster_demodog", 1, 2, 1, 2, 0 },
+    { "monster_ranged_knight", 1, 1, 2, 2, 0 },
+    { "monster_ogre_rocket", 1, 2, 2, 2, 0 }
 };
 #define VR_RUN_ER_KINDS_N 54
 
@@ -143,6 +145,33 @@ float() VR_RunEnemyRandom_Roll =
     return vr_run_er_state / 30269;
 };
 
+// Room for row `to`'s head over `e`'s spot (it stood there with its top `xTop` over its origin): the world clear straight
+// up from the origin to `to`'s top, at the middle and at its box's four corners (a corner in a wall beside it is not
+// looked at: only what is over it). Lines, not a box: the engine's box traces of a size are its hulls'.
+float(entity e, float xTop, float to) VR_RunEnemyRandom_Headroom =
+{
+    float top = VR_RUN_ER_KINDS[to].top;
+    if(top <= xTop) return TRUE;
+    float r = 15;
+    if(VR_RUN_ER_KINDS[to].size == 2) { r = 31; }
+    for(float k = 0; k < 5; k++)
+    {
+        vector at = e.origin;
+        if(k == 1 || k == 2) { at_x = at_x + r; }
+        if(k == 3 || k == 4) { at_x = at_x - r; }
+        if(k == 1 || k == 3) { at_y = at_y + r; }
+        if(k == 2 || k == 4) { at_y = at_y - r; }
+        traceline(at, at + '0 0 1' * top, TRUE, e);
+        if(trace_startsolid || trace_allsolid)
+        {
+            if(k == 0) return FALSE; // (its origin in solid: no room known)
+            continue;
+        }
+        if(trace_fraction < 1) return FALSE;
+    }
+    return TRUE;
+};
+
 // Kind `to` may stand where `e` (a monster of row `from`, not yet spawned) stands, as the choice `mode` allows.
 float(entity e, float from, float to, float mode) VR_RunEnemyRandom_Allowed =
 {
@@ -162,7 +191,10 @@ float(entity e, float from, float to, float mode) VR_RunEnemyRandom_Allowed =
     if(VR_RUN_ER_KINDS[to].cls == "monster_zombie" && (e.spawnflags & 1)) return FALSE; // (1: a zombie's crucifixion)
     // Never larger than what stood there: the map's doors, lifts and walls spawn around its spot after it, so a hull
     // test now would miss them (a large kind in a small one's spot was crushed or telefragged as the map started).
-    return VR_RUN_ER_KINDS[to].size <= VR_RUN_ER_KINDS[from].size;
+    if(VR_RUN_ER_KINDS[to].size > VR_RUN_ER_KINDS[from].size) return FALSE;
+    // ... and no taller, unless the world leaves it the room over the spot (a tall kind in a short one's spot under a
+    // low ceiling stood with its head in it: 5-13 of a map's monsters, ROUND25.md "mutenemies").
+    return VR_RunEnemyRandom_Headroom(e, VR_RUN_ER_KINDS[from].top, to);
 };
 
 // The swap (self: a map's monster, its keys parsed, before its spawn function): its classname may change. The keys
