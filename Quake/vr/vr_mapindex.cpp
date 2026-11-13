@@ -298,6 +298,12 @@ void parseEntry(Index& idx, const jsonentry_t* e, za::Vector<za::String>& zipNam
         }
     }
 
+    const za::String shot = quaddictedShotUrl(za::StringView{sha}, zipName);
+    if(shot.size())
+    {
+        out.shot = addField(idx, shot.cStr(), shot.size());
+    }
+
     if(const jsonentry_t* install = JSON_Find(e, "install", JSON_OBJECT))
     {
         if(const char* extract = JSON_FindString(install, "extract"))
@@ -1256,6 +1262,32 @@ bool validSha(za::StringView sha)
         }
     }
     return true;
+}
+
+za::String quaddictedShotUrl(za::StringView sha, const za::String& zipName)
+{
+    // (measured 2026-11: the map's page on the site shows <root>/files/quaddicted-images/by-sha256/<sha[0..1]>/<sha>/<id>.jpg,
+    // <id> being the zip's name without ".zip"; the id goes into a URL, so only its safe characters pass)
+    const za::SizeT n = zipName.size();
+    if(!validSha(sha) || n < 5 || q_strcasecmp(zipName.cStr() + n - 4, ".zip"))
+    {
+        return za::String{};
+    }
+    za::String id{zipName.cStr(), n - 4};
+    for(const char c : id)
+    {
+        if(!isalnum(static_cast<unsigned char>(c)) && c != '_' && c != '-' && c != '.')
+        {
+            return za::String{};
+        }
+    }
+    za::String low;
+    for(const char c : sha)
+    {
+        low.pushBack(static_cast<char>(tolower(static_cast<unsigned char>(c))));
+    }
+    return za::String{"https://www.quaddicted.com/files/quaddicted-images/by-sha256/"} + za::String{low.cStr(), 2} + "/" +
+           low + "/" + id + ".jpg";
 }
 
 za::U32 generation()
