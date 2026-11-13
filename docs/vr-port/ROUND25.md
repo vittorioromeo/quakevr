@@ -1079,3 +1079,28 @@ daunting".
   1 FAIL (props_round: the knight within 80 in 6.0 s, its 6 s limit; fails on origin/next too, not this branch's);
   nav_tele_metric 16, 16 / 18, 18 of 20; nav_lift pass 21.5 s / pass 22.2 s; scene nav_trail SCNRUN OK / OK.
 - Scenes: new `stealth_noise` (a grunt ahead, a crate by you); `nav_trail`'s hint mentions the carry-on.
+
+## rev25misc: round 25's blades, grenades, presets, keys and map library reviewed (branch agent/rev25misc, 2026-11-13)
+
+Cvar audit of this area's round-25 additions: nothing removed. No dead A/B switch: `vr_gib_overkill_blade` is a share
+(a slider), `vr_embed_move_handle` (1) still restores the pre-2026-11-12 hold and the checklist's embed lines point at
+it as the way back, `vr_revgrip` is the feature's off switch, `vr_embed_probe_*` and `vr_grenfuse_test` are the tests'.
+
+Fixed (small, local):
+- **Slipseer worker, lost wake-up** (vr_slipseer.cpp `run`): it decided to stop outside the hand-over lock and cleared
+  `running` only as it left; a pick or listing pass handed over in between saw it running and waited for the next
+  pick. Now it stops under `handoff`, having seen nothing left. `maps_slipseer_get`'s `getAsset` is read under it too.
+- **The User-Agent pick and the back-off file** are set in `ensureThread`, before the worker starts (they were set
+  lazily by whichever thread came first: an install's `downloadHeaders` on the main thread raced the worker).
+- **A screenshot's size from its header first** (`pictureSizeOk`; `Image_InfoMemory` in image.c): over 8192 a side or
+  32 Mpixels it is not decoded (stb's own cap is 1 GB decoded).
+- **Page text:** a `</script>` was skipped a byte short (a stray `>`); numeric entities: control codes become spaces,
+  surrogates and anything past U+FFFF a `?` (they were invalid UTF-8).
+- **Flat keys** (vr_flatplay.cpp): one `flatKeyHeld` for the three copies of the key-by-bind-name check.
+
+Checks: build 0 warnings; slipseer_test 51 -> 55 passed, 0 failed (new: the picture header checks); flatkeys_test
+FLATKEYS_RESULT.
+
+Left for the author: screenshot and download URLs taken from any host and scheme (an allow-list), the Slipseer
+back-off shared by every host, cache/slipseer never pruned, robots.txt wildcards, the presets' rows matched every menu
+frame, the reverse grip's server checks reading the local client's view (a listen server's own player only).

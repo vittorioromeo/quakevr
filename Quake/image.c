@@ -136,6 +136,18 @@ unsigned char *Image_DecodeMemory (const unsigned char *bytes, int length, int *
 	return stbi_load_from_memory (bytes, length, width, height, NULL, 4);
 }
 
+/*
+============
+Image_InfoMemory -- QVR: an image file's size read from its header without decoding it (0 if it can't): the map
+library's downloaded screenshots are looked at before they are decoded (vr_slipseer.cpp)
+============
+*/
+int Image_InfoMemory (const unsigned char *bytes, int length, int *width, int *height)
+{
+	int comp;
+	return stbi_info_from_memory (bytes, length, width, height, &comp);
+}
+
 byte *Image_LoadImage (const char *name, int *width, int *height, enum srcformat *fmt)
 {
 	VR_TRACY_SCOPE("Image decode");
