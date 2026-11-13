@@ -4671,9 +4671,7 @@ vr_nav_lift_wait|2|Tunables|Navmesh: Lift Give-Up Time|Advanced VR Options > Deb
 vr_nav_teleports|2|Tunables|Navmesh: Teleporter Links|Advanced VR Options > Debug > Tunables > Navmesh: Teleporter Links
 vr_nav_tele_cost|2|Tunables|Navmesh: Teleporter Cost|Advanced VR Options > Debug > Tunables > Navmesh: Teleporter Cost
 vr_nav_tele_time|2|Tunables|Navmesh: Teleporter Give-Up Time|Advanced VR Options > Debug > Tunables > Navmesh: Teleporter Give-Up Time
-vr_nav_tele_approach|2|Tunables|Navmesh: Teleporter Line-Up|Advanced VR Options > Debug > Tunables > Navmesh: Teleporter Line-Up
 vr_nav_gate_chase|2|Tunables|Navmesh: Gate Chase Between Shots|Advanced VR Options > Debug > Tunables > Navmesh: Gate Chase Between Shots
-vr_nav_gate_marker|2|Tunables|Navmesh: Hunt Through Gates|Advanced VR Options > Debug > Tunables > Navmesh: Hunt Through Gates
 vr_nav_trail|2|Tunables|Navmesh: Follow Your Trail|Advanced VR Options > Debug > Tunables > Navmesh: Follow Your Trail
 vr_nav_trail_search|2|Tunables|Navmesh: Trail-End Search Radius|Advanced VR Options > Debug > Tunables > Navmesh: Trail-End Search Radius
 vr_nav_trail_carry|2|Tunables|Navmesh: Trail Carry-On Time|Advanced VR Options > Debug > Tunables > Navmesh: Trail Carry-On Time

@@ -238,7 +238,7 @@ struct Agent
     double linkSince = 0.0, phaseSince = 0.0;
     bool airborne = false;
     glm::vec3 teleAim{0.f}, teleLast{0.f}; // a teleporter: where it walks (through the trigger's middle), where it last stood
-    // A teleporter's opening (gateFace, at the link's start) and the walk into it (vr_nav_tele_approach, vr_nav_tele_stuck):
+    // A teleporter's opening (gateFace, at the link's start) and the walk into it (teleTarget, vr_nav_tele_stuck):
     // where it last stood still since when, backing off till when, its last steer's time.
     glm::vec3 teleMid{0.f}, teleN{0.f}, teleT{0.f};
     float teleHalfD = 0.f, teleHalfW = 0.f;
@@ -3571,7 +3571,7 @@ float giveUp(Agent& a, double now)
 }
 
 // Where a walker going into a teleporter heads this step. Stood still vr_nav_tele_stuck (a box caught on the frame, a
-// step refused): backs off out in front of the opening for a moment. A thin trigger (vr_nav_tele_approach): first to a
+// step refused): backs off out in front of the opening for a moment. A thin trigger (gateFace's faced): first to a
 // point in front of the opening's middle (as far over as the box still fits it: its half width less the box's), then
 // straight in along its normal and on through (a paired gate is walked through). Else straight through the trigger's
 // middle from where it began (a pad), as before.
@@ -3770,7 +3770,7 @@ float beginLink(edict_t* ent, Agent& a, const NavClass& c, const glm::vec3& pos,
         a.teleT = f.t;
         a.teleHalfD = f.halfD;
         a.teleHalfW = f.halfW;
-        a.teleFaced = f.faced && vr_nav_tele_approach.value != 0.f;
+        a.teleFaced = f.faced;
         a.teleStillAt = pos;
         a.teleStillSince = a.teleSteerAt = now;
         a.teleBackUntil = 0.0;
