@@ -492,3 +492,42 @@ now also waits for the player before its first spawn: it had a program error whe
   `nav_lift_down` fails: its knight stands 40 from the shaft at the top for 60 s without starting the link (no wait,
   no call). Seen meanwhile on the same map: one of e1m1's own grunts at the top waited, called the lift up, boarded
   it (before the plat fix it then gave up as the plat stayed up under it).
+
+## 17. Teleporters: lining up, the gate chase, the plan drawn through (2026-11-13)
+
+- **Lining up** (`vr_nav_tele_approach` 1, Debug > Tunables): a teleporter's opening (`gateFace`): a thin trigger (one
+  side under 0.6 of the other: set in a wall or a frame) has a normal into it from the walker's side and a face; a
+  walker following its link (`teleTarget`) first heads for a point in front of the opening's middle (its half depth
+  plus the box's radius plus 8 out; as far over as the box still fits: the trigger's half width less the box's), then,
+  lined up (or already in the trigger's depth), straight in along the normal and 64 on. A pad (squarish trigger): straight
+  through its middle as before. Off: straight at the middle from wherever it began the link (as before).
+- **Stuck recovery** (`vr_nav_tele_stuck` 0.5 s): a walker on a teleporter link that stood (moved under 4) that long
+  between steers backs out in front of the opening (48 past the line-up point) for 0.4 s and lines up again
+  (`state.teleBackoffs`). A gap between steers (shooting, biting) restarts the clock.
+- **The gate chase** (`vr_nav_gate_chase` 1, QC `ai_run`): a monster with a ranged attack that sees you through a paired
+  gate (`vr_ai_gate`) and can't attack this frame used to stand facing you at the gate ("no portal-aware navigation"):
+  the grunts' sticking at vrteleporters' gate edges. Now it takes its navmesh step (`VR_NAV_Step`: through the gate's
+  teleporter link, or the long way), and holds its room only with no path.
+- **`nav_tele` (still open), diagnosed:** the grunt never sees you (you are moved past the destination before it is
+  woken), so the stealth AI hunts you by its trail (vr_stealth.qc `VR_Stealth_Trail`): its goal is the trail marker
+  (`stl_marker`), not you, and `VR_NAV_Step` only steers to the enemy; with you over 1500 away it gives you up after a
+  quarter of `vr_stealth_lose_time` (3.5 s: Alert, searching). Letting `VR_NAV_Step` steer to the marker too was tried:
+  `nav_tele` still failed (given up before it got there) and `nav_lift` took 53.9 s (3 links given up) instead of 5, so
+  it was taken out. The fix belongs to the stealth AI (a foe seen going into a teleporter: its trail through it).
+- **`vr_nav_debug 2`** draws each walker's whole plan (`planToDraw`: up to 32 corners, not the steer's 6): yellow on the
+  mesh and along drops and rides; a teleporter's yellow to the trigger's middle, then a dashed cyan jump to its
+  destination, yellow on from there. Drawn while the walker follows a link too (it used to vanish a second after the
+  link began).
+- **The metric** (`vr_nav_teletest <name> <classnames> <gates|all> [angles 5] [distance 192] [seconds 8] [notes 0]
+  [spread 140]`): one walker a class, put at each angle in front of each gate's entry (nearer when off the mesh, out of
+  sight of the entry or in a trigger), woken onto you past the destinations, timed till through (its link's end, or a
+  jump of over 64 in a frame); stuck: the time it stood (under 8 units a quarter second) within its box's width plus 64
+  of the trigger. Others held (not solid, not thinking) after a second (their delayed starts). A trial passes through in
+  time, stuck under 0.5 s. Scenes: `nav_tele_metric` (e1m1: grunt, dog, ogre, knight, fiend; the ogre has no link
+  there: the destination's mesh is too tight for its box) and `nav_tele_metric_gates` (vrteleporters' FA-to-FB gates
+  1, 3, 5, 7: grunt, dog, knight, fiend; gate 1 fits none, gate 5's front is mostly out of sight).
+- **Results** (headless no-LTO, low-impact): before (approach, stuck and gate chase all 0) / after (defaults):
+  `nav_tele_metric` 20/20 both (mean 0.83 / 0.87 s, worst 1.69 / 1.60 s, nothing stuck: e1m1's alcove was never the
+  trouble from 192 out); `nav_tele_metric_gates` 33 / 37 of 40 passed, 5 / 0 timed out, stuck time 9.1 / 2.0 s in
+  all (after: three trials at 0.50-0.53 s, all through), 0 back-offs needed. The before's failures were all grunts
+  standing at a gate's edge facing you through it (and one dog off the other way).

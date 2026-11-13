@@ -107,6 +107,7 @@ void() VR_Stealth_PlayerFrame;
 void() VR_Stealth_Frame;
 float(float xVis) VR_Stealth_Lose;
 void(float dist) VR_AI_MoveToGoal;
+float(float dist) VR_NAV_Step; // (vr_ai_props.qc; ai_run's ranged foe at a gate)
 float() VR_NAV_MeleeOff; // (vr_ai_props.qc: no melee at a foe on another level with a navmesh path there) // (vr_ai_props.qc: movetogoal, round the props in the way)
 float(entity client) VR_Stealth_See;
 float() VR_Stealth_Stand;

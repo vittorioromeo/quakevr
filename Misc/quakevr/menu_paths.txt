@@ -341,7 +341,9 @@ vr_explosion_rumble|1|World|Explosion Rumble|Advanced VR Options > World > Explo
 vr_heartbeat|1|World|Low Health Heartbeat|Advanced VR Options > World > Low Health Heartbeat
 |1|World|Reset This Page|Advanced VR Options > World > Reset This Page
 @page|1|Gore||Advanced VR Options > Gore
+vr_gore_preset|1|Gore|Gore Preset|Advanced VR Options > Gore > Gore Preset
 vr_gore|1|Gore|Gore|Advanced VR Options > Gore > Gore
+vr_blood_amount|1|Gore|Hit Blood|Advanced VR Options > Gore > Hit Blood
 vr_gore_sound|1|Gore|Gore Volume|Advanced VR Options > Gore > Gore Volume
 vr_gore_sound_choke|1|Gore|Gore Sounds: Chokes|Advanced VR Options > Gore > Gore Sounds: Chokes
 vr_gore_sound_drips|2|Gore|Gore Sounds: Drips Heard|Advanced VR Options > Gore > Gore Sounds: Drips Heard
@@ -353,6 +355,7 @@ vr_handprint_props|1|Gore|Handprints on Props|Advanced VR Options > Gore > Handp
 vr_handprint_gear|1|Gore|Bloody Grips|Advanced VR Options > Gore > Bloody Grips
 vr_gore_spray|1|Gore|Blood Sprays|Advanced VR Options > Gore > Blood Sprays
 vr_gore_size|1|Gore|Splat Size|Advanced VR Options > Gore > Splat Size
+vr_gore_decal_dark|1|Gore|Stain Darkness|Advanced VR Options > Gore > Stain Darkness
 vr_gore_pools|1|Gore|Blood Pools|Advanced VR Options > Gore > Blood Pools
 vr_gore_drips|1|Gore|Dripping|Advanced VR Options > Gore > Dripping
 vr_gore_wound_drips|1|Gore|Wounded Enemies Drip|Advanced VR Options > Gore > Wounded Enemies Drip
@@ -1921,40 +1924,8 @@ vr_flashlight_head_zone_radius|2|Flashlight - On a Gun or Head|Head Zone Radius|
 |2|Flashlight - On a Gun or Head|Reset This Page|Advanced VR Options > Flashlight > On a Gun or Head > Reset This Page
 @page|2|Weapon Offsets||Advanced VR Options > Weapons > Weapon Offsets (Held Weapon)
 |2|Weapon Offsets|Edit the Other Hand's Weapon|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > Edit the Other Hand's Weapon
-|2|Weapon Offsets|Edit Blade Shape|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > Edit Blade Shape
-|2|Weapon Offsets|Print Changes to Console|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > Print Changes to Console
-|2|Weapon Offsets|Reset This Weapon|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > Reset This Weapon
 @page|2|Weapon Weights||Advanced VR Options > Weapons > Weapon Weights (Held Weapon)
 |2|Weapon Weights|Edit the Other Hand's Weapon|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Edit the Other Hand's Weapon
-vr_wofs_w_mass_17|2|Weapon Weights|Mass|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Mass
-vr_wofs_w_com_17|2|Weapon Weights|Balance|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Balance
-vr_wofs_w_len_17|2|Weapon Weights|Length|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Length
-vr_wofs_w_stiff_17|2|Weapon Weights|Stiffness|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Stiffness
-vr_wofs_w_damp_17|2|Weapon Weights|Damping|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Damping
-vr_wofs_w_strength_17|2|Weapon Weights|Arm Strength|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Arm Strength
-vr_wofs_w_sag_17|2|Weapon Weights|Sag|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Sag
-vr_wofs_w_swing_17|2|Weapon Weights|Swing|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Swing
-vr_wofs_w_roll_17|2|Weapon Weights|Roll Weight|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Roll Weight
-vr_wofs_w_2h_17|2|Weapon Weights|Two-Handed Help|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Two-Handed Help
-vr_wofs_w_snap_17|2|Weapon Weights|Snap Back Beyond|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Snap Back Beyond
-vr_wofs_w_meleedmg_17|2|Weapon Weights|Melee Damage|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Melee Damage
-vr_wofs_w_throwdmg_17|2|Weapon Weights|Throw Damage|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Throw Damage
-vr_wofs_w_throwmin_17|2|Weapon Weights|Throw Speed Needed|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Throw Speed Needed
-vr_wofs_w_throwcurve_17|2|Weapon Weights|Throw Damage Curve|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Throw Damage Curve
-vr_wofs_w_meleemin_17|2|Weapon Weights|Melee Speed Needed|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Melee Speed Needed
-vr_wofs_w_meleecurve_17|2|Weapon Weights|Melee Damage Curve|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Melee Damage Curve
-vr_wofs_w_spinalign_17|2|Weapon Weights|Spin in the Air|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Spin in the Air
-vr_wofs_w_heft_17|2|Weapon Weights|Heft|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Heft
-vr_wofs_w_droop_17|2|Weapon Weights|Droop|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Droop
-vr_wofs_w_hrecoil_17|2|Weapon Weights|One-Handed Kick|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > One-Handed Kick
-vr_heavy_damping_min|2|Weapon Weights|Settle (Least Damping)|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Settle (Least Damping)
-vr_weight_drop|2|Weapon Weights|Heavy Weapons Wrenched Out|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Heavy Weapons Wrenched Out
-vr_weight_drop_from|2|Weapon Weights|Heavier Than|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Heavier Than
-vr_weight_drop_speed|2|Weapon Weights|Fastest Turn|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Fastest Turn
-vr_weight_drop_curve|2|Weapon Weights|Weight Curve|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Weight Curve
-vr_weight_drop_velocity|2|Weapon Weights|Falls At|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Falls At
-|2|Weapon Weights|Print Changes to Console|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Print Changes to Console
-|2|Weapon Weights|Reset This Weapon|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Reset This Weapon
 @page|1|Hand/Gun Calibration||Advanced VR Options > Weapons > Hand/Gun Calibration
 vr_show_controller|1|Hand/Gun Calibration|Show Controller|Advanced VR Options > Weapons > Hand/Gun Calibration > Show Controller
 vr_handcal_x|1|Hand/Gun Calibration|Main Hand X (forward)|Advanced VR Options > Weapons > Hand/Gun Calibration > Main Hand X (forward)
@@ -4689,6 +4660,9 @@ vr_nav_lift_wait|2|Tunables|Navmesh: Lift Give-Up Time|Advanced VR Options > Deb
 vr_nav_teleports|2|Tunables|Navmesh: Teleporter Links|Advanced VR Options > Debug > Tunables > Navmesh: Teleporter Links
 vr_nav_tele_cost|2|Tunables|Navmesh: Teleporter Cost|Advanced VR Options > Debug > Tunables > Navmesh: Teleporter Cost
 vr_nav_tele_time|2|Tunables|Navmesh: Teleporter Give-Up Time|Advanced VR Options > Debug > Tunables > Navmesh: Teleporter Give-Up Time
+vr_nav_tele_approach|2|Tunables|Navmesh: Teleporter Line-Up|Advanced VR Options > Debug > Tunables > Navmesh: Teleporter Line-Up
+vr_nav_gate_chase|2|Tunables|Navmesh: Gate Chase Between Shots|Advanced VR Options > Debug > Tunables > Navmesh: Gate Chase Between Shots
+vr_nav_tele_stuck|2|Tunables|Navmesh: Teleporter Stuck Back-Off|Advanced VR Options > Debug > Tunables > Navmesh: Teleporter Stuck Back-Off
 vr_nav_link_retry|2|Tunables|Navmesh: Link Retry Time|Advanced VR Options > Debug > Tunables > Navmesh: Link Retry Time
 vr_nav_plat_monsters|2|Tunables|Monsters Call Lifts|Advanced VR Options > Debug > Tunables > Monsters Call Lifts
 vr_nav_separation|2|Tunables|Navmesh: Crowd Separation|Advanced VR Options > Debug > Tunables > Navmesh: Crowd Separation
@@ -8441,16 +8415,6 @@ vr_smallgibs_brains_mult_eel|2|Small Gibs - Per Enemy|Eel (Rogue)|Advanced VR Op
 vr_smallgibs_brains_mult_zombie|2|Small Gibs - Per Enemy|Zombie (Beheaded)|Advanced VR Options > Gore > Small Gibs > Per Enemy > Zombie (Beheaded)
 vr_smallgibs_brains_mult_mummy|2|Small Gibs - Per Enemy|Mummy (Rogue, Beheaded)|Advanced VR Options > Gore > Small Gibs > Per Enemy > Mummy (Rogue, Beheaded)
 |2|Small Gibs - Per Enemy|Reset This Page|Advanced VR Options > Gore > Small Gibs > Per Enemy > Reset This Page
-@page|2|Weapon Offsets - Hand and Grip||Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > The Hand
-|2|Weapon Offsets - Hand and Grip|Edit the Other Hand's Weapon|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > The Hand > Edit the Other Hand's Weapon
-vr_wofs_x_17|2|Weapon Offsets - Hand and Grip|Offset X (forward)|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > The Hand > Offset X (forward)
-vr_wofs_y_17|2|Weapon Offsets - Hand and Grip|Offset Y (left)|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > The Hand > Offset Y (left)
-vr_wofs_z_17|2|Weapon Offsets - Hand and Grip|Offset Z (up)|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > The Hand > Offset Z (up)
-vr_wofs_pitch_17|2|Weapon Offsets - Hand and Grip|Pitch|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > The Hand > Pitch
-vr_wofs_yaw_17|2|Weapon Offsets - Hand and Grip|Yaw|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > The Hand > Yaw
-vr_wofs_roll_17|2|Weapon Offsets - Hand and Grip|Roll|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > The Hand > Roll
-vr_wofs_scale_17|2|Weapon Offsets - Hand and Grip|Scale|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > The Hand > Scale
-vr_wofs_hide_hand_17|2|Weapon Offsets - Hand and Grip|Hide Hand|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > The Hand > Hide Hand
 @page|1|Holster Zones||Advanced VR Options > Weapons > Immersion > Holster Zones
 vr_holster_zones|1|Holster Zones|Zones|Advanced VR Options > Weapons > Immersion > Holster Zones > Zones
 vr_holster_zones_show|1|Holster Zones|Show Zones|Advanced VR Options > Weapons > Immersion > Holster Zones > Show Zones

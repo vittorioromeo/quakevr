@@ -1,0 +1,20 @@
+# nav_tele_metric: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The teleporter walk-in metric
+# (vr_nav_teletest, NAVMESH.md 16) on e1m1's one-way teleporter: a grunt, a dog, an ogre, a knight and a fiend in turn
+# are put 192 units from the teleporter's entry at five angles in front of it (straight on to 70 degrees either side)
+# and chase you past its destination; each is timed till it is through (8 s at most) and how long it stood still by the
+# trigger. The others are held meanwhile. Verdict line: nav_tele_metric: N passed, M failed (a trial passes when through
+# in time, stuck under 0.5 s); a summary line before it.
+title Navmesh: monsters walk into e1m1's teleporter from five angles, one after another
+map e1m1
+start -32 2000 -29 -90
+god
+spawn monster_army 150 0
+spawn monster_dog 150 64
+spawn monster_ogre 150 -64
+spawn monster_knight 220 64
+spawn monster_demon1 220 -64
+cvar vr_nav 1
+cvar vr_nav_debug 2
+cvar vr_nav_teleports 1
+cmd vr_nav_teletest nav_tele_metric monster_army,monster_dog,monster_ogre,monster_knight,monster_demon1 all 5 192 8
+hint Each monster in turn appears in front of the teleporter at the far end of the level and walks into it, lining up in front of its opening first, then straight in; it comes out by the start and stands still till the next one goes.

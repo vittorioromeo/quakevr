@@ -22,6 +22,7 @@ Flat-screen or VR: in the test hall, stand by the NEW GAME / VR HUB buttons at t
 Flat-screen or VR: open VR Settings > Gore and pick Gore Preset Minimal, then shoot and cut a grunt and gib one: you should see a little blood on the hit and the wound, but no stains on the walls and floor, no blood streams, drips or pools, no meat or brain chunks, no beheading or limbs flying off. Pick Full to get everything back, and change any one gore row by hand to see the preset read Custom.
 Flat-screen or VR: Gore Preset Off should show no blood at all from hits; the Hit Blood slider (Gore page) scales the blood of a hit between none and double, and Stain Darkness makes the stains that remain keep their red (0) or go darker (2).
 Armed grunts in a fight fetch a nearby second weapon (a shotgun grunt with a nail gun lying a few steps away, you in sight): it walks to it and takes it up.
+The dagger: stab a severed head and a limb onto it: each sits a little way back from the tip, well short of the hilt (shallower than on the sword), and a second gib will not go on while one is on it; the sword takes up to three as before. {test:dagger}
 
 [1. Flat-screen: weapons and hands]
 Flat-screen: hold the axe (then a sword, the crowbar, Mjolnir, the super axe) with the left hand empty: it goes onto the handle by itself without swinging and the weapon sits in a two-handed stance; take a weapon or a prop in the left hand and it eases back to the one-handed hold, with no jumps either way. Tune it in Debug > Tunables > Flatscreen > Two-Handed Melee Stance. {test:flat_melee2h}
@@ -79,6 +80,9 @@ Flat-screen or VR: a knight on a ledge above you walks off its edge and drops do
 Flat-screen or VR, experimental, off by default: with vr_nav_lifts 1 and vr_nav_plat_monsters 1, a knight at the bottom of e1m1's lift walks onto it, rides it up and steps off at the top; lift links show magenta in Show Navmesh. {test:nav_lift}
 Shove an enforcer or an ogre backwards off a ledge (Vrtesthall's platform): it should grab the lip with both hands and pull itself up onto the top; a grunt should now get its chest up over the lip instead of hanging there.
 Flat-screen or VR: shove a grunt standing at the very edge of a step or platform (its feet over the lower floor) without knocking it down: it drops onto the floor and staggers back on it, instead of stepping in the air and collapsing.
+Monsters chasing you through a teleporter set in a wall line up in front of its opening, then walk straight in; none should hang on the frame or edges. {test:nav_tele_metric}
+Grunts that see you through one of vrteleporters' paired gates walk through the gate after you between shots instead of standing at its edge facing you. {test:nav_tele_metric_gates}
+With vr_nav_debug 2 (Debug), a monster's path through a teleporter shows: yellow to the trigger's middle, a dashed cyan jump to the destination, yellow on to you; it stays drawn while the monster walks in. {test:nav_tele_gate}
 
 [6. Both modes: weapons, ammo screens and housings]
 Flat-screen or VR: fire the grenade launcher and let an ogre lob at you: each grenade fizzes and ticks quicker and quicker until it blows, like a hand grenade with its pin pulled, and all three take the same 2.5 s from the shot or the pin to the blast (Thrown Grenades Tick in Batting and Catching turns the launched ones' ticking off). {test:grenade_countdown}

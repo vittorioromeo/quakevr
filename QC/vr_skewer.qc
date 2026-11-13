@@ -98,6 +98,14 @@ float(entity p, float xHand) VR_Skewer_HasBlade =
            weaponvalue(WeaponIdToModel(VRGetEntWeapon(p, xHand), flags), "embed") == AXESTICK_POINT;
 };
 
+// The most gibs the blade in `xHand` of `p` takes at once: its weapon's skewer_most (the dagger's 1), else vr_embed_skewer_most.
+float(entity p, float xHand) VR_Skewer_Most =
+{
+    float most = cvar_hget(cvarh_vr_embed_skewer_most);
+    float own = VRIsHandWeaponless(p, xHand) ? 0 : weaponvalue(WeaponIdToModel(VRGetEntWeapon(p, xHand), VRGetEntWeaponFlags(p, xHand)), "skewer_most");
+    return own > 0 ? min(most, own) : most;
+};
+
 // Whether `xHand` of `p` holds a blade a part it cuts off goes onto (vr_embed_cuton: 1 an edge's, the axes; 2 a point's too, the swords).
 float(entity p, float xHand) VR_Skewer_CutBlade =
 {
@@ -138,7 +146,10 @@ float VR_SKEWER_HILT = 0.85; // the share of the blade's line from the tip that 
 // How far from the tip its place along the blade is, not slid.
 float(entity g) VR_Skewer_Place0 =
 {
-    return cvar_hget(cvarh_vr_embed_skewer_depth) + g.vr_skewer_slot * cvar_hget(cvarh_vr_embed_skewer_gap);
+    // The depth is the weapon's share (skewer_depth: the sword 1, the dagger's short blade half) of the tunable.
+    string m = g.vr_skewer_w != world ? g.vr_skewer_w.model : WeaponIdToModel(VRGetEntWeapon(g.vr_skewer_p, g.vr_skewer_hand), VRGetEntWeaponFlags(g.vr_skewer_p, g.vr_skewer_hand));
+    float share = weaponvalue(m, "skewer_depth");
+    return cvar_hget(cvarh_vr_embed_skewer_depth) * (share > 0 ? share : 1) + g.vr_skewer_slot * cvar_hget(cvarh_vr_embed_skewer_gap);
 };
 
 // How far from the tip its middle sits on a blade whose line is `xLen` long (under 0: past it, coming off).
@@ -754,7 +765,7 @@ void() VR_Skewer_Think =
 // A free place along the blade in `xHand` of `p`: -1 none.
 float(entity p, float xHand) VR_Skewer_FreeSlot =
 {
-    float most = cvar_hget(cvarh_vr_embed_skewer_most);
+    float most = VR_Skewer_Most(p, xHand);
     float taken = 0;
     for(entity e = nextent(world); e; e = nextent(e))
     {
@@ -956,7 +967,7 @@ float(entity g, entity c, entity by, float xHow, vector xCut) VR_Skewer_CutOn =
             n = n + 1;
         }
     }
-    if(n >= cvar_hget(cvarh_vr_embed_skewer_most))
+    if(n >= VR_Skewer_Most(by, hand))
     {
         dprint(sprintf("skewer: %s cut off, not onto the blade: it has %g already\n", g.classname, n));
         return FALSE;
