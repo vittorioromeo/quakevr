@@ -430,6 +430,7 @@ extern "C" void VR_OnProgsLoaded()
         b.AxeStick_Stuck = findFunction("VR_AxeStick_Stuck");
         b.AxeStick_Plate = findFunction("VR_AxeStick_Plate");
         b.ClipSizeOf = findFunction("VR_ClipSizeOf");
+        b.MeleeOnlyRefuses = findFunction("VR_RunMeleeOnly_RefusesEnt");
         b.KdTrig_BodyHit = findFunction("VR_KdTrig_BodyHit");
         b.RagImpact_Hit = findFunction("VR_RagImpact_Hit");
         b.Flail_Hit = findFunction("VR_Flail_Hit");

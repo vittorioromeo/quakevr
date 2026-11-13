@@ -210,6 +210,20 @@ za::Vector<unsigned char> instReferenced; // per edict, this frame's sweep: some
     return za::clamp(size, 0, 255);
 }
 
+// Whether Melee Only refuses `ent` (QC VR_RunMeleeOnly_RefusesEnt: a gun, ammunition, a backpack with rounds): no loot beam.
+[[nodiscard]] bool meleeOnlyRefuses(edict_t* ent)
+{
+    const func_t fn = bindings().MeleeOnlyRefuses;
+    if(!fn || !sv.active || vr_run_meleeonly.value == 0.f)
+    {
+        return false;
+    }
+    progs::ServerVm vm;
+    G_INT(OFS_PARM0) = EDICT_TO_PROG(ent);
+    PR_ExecuteProgram(fn);
+    return G_FLOAT(OFS_RETURN) != 0.f;
+}
+
 void sweepWeaponInsts()
 {
     const FieldOffsets& f = fields();
@@ -1042,7 +1056,7 @@ namespace
 [[nodiscard]] int lootByte(edict_t* ent)
 {
     const FieldOffsets& f = fields();
-    const bool carried = f.carry_player >= 0 && fieldInt(ent, f.carry_player) != 0;
+    const bool carried = (f.carry_player >= 0 && fieldInt(ent, f.carry_player) != 0) || meleeOnlyRefuses(ent); // (no beam)
     const float wid = fieldFloatOr(ent, f.vr_ammo_wid, 0.f);
     if(!carried && wid == 0.f)
     {
@@ -1153,7 +1167,8 @@ extern "C" void VR_WriteEntityUpdate(sizebuf_t* msg, edict_t* ent, int bits)
         // vr_hotblade.cpp draws it; 0 in older demos), bit 31 a spent single-use enemy gun (QC .vr_depleted: its loot
         // beam, vr_lootbeams.cpp; 0 in older demos).
         const int hot = CLAMP(0, static_cast<int>(fieldFloatOr(ent, f.vr_hot_glow, 0.f) * 127.f + 0.5f), 127);
-        const uint32_t spent = fieldFloatOr(ent, f.vr_depleted, 0.f) != 0.f ? 0x80000000u : 0u;
+        const uint32_t spent =
+            (fieldFloatOr(ent, f.vr_depleted, 0.f) != 0.f || meleeOnlyRefuses(ent)) ? 0x80000000u : 0u; // (Melee Only: no beam)
         MSG_WriteLong(msg, static_cast<int>((static_cast<uint32_t>(weaponUid(inst)) & 0xFFFFFFu) |
                                             (static_cast<uint32_t>(hot) << 24) | spent));
         // Its clip: the rounds in it, shown on its ammo screen as a held gun's (vr_view.cpp setupWorldWeapons).
