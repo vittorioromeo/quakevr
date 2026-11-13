@@ -1204,10 +1204,12 @@ bool wantedNetwork = false;
 za::String wantedShotKey;  // a screenshot wanted on its own (Quaddicted's: no page to read): its key, as shown, and URL
 za::String wantedShotUrl;
 bool wantedShotNetwork = false;
+za::U32 wantedAt = 0;      // SDL ticks of the latest pick (servePick's timings)
 za::String getUrl;         // maps_slipseer_get's URL (development: one page fetched and kept)
 bool getAsset = false;     // ... a picture (its cache name: .img)
 
 // The thread -> main thread (under `handoff`).
+za::Atomic<int> served{0}; // picks served (maps_slipseer_time issues the next when this moves)
 za::UniquePtr<mapindex::Index> pendingPart;
 za::Vector<za::String> pendingLog;
 za::String progress;
@@ -1313,7 +1315,7 @@ void publishPart()
 }
 
 // A map page's details (cache or network), into `details`. False: none.
-bool readDetails(const za::String& page, bool network, const char* referer)
+bool readDetails(const za::String& page, bool network, const char* referer, bool* fresh = nullptr)
 {
     za::Vector<char> body;
     za::String error;
@@ -1321,7 +1323,7 @@ bool readDetails(const za::String& page, bool network, const char* referer)
         za::LockGuard lock{handoff};
         workingOn = page;
     }
-    const bool got = fetch(page, Kind::Page, detailSeconds, referer, network, body, error);
+    const bool got = fetch(page, Kind::Page, detailSeconds, referer, network, body, error, fresh);
     {
         za::LockGuard lock{handoff};
         workingOn = za::String{};
@@ -1427,27 +1429,31 @@ void listingPass(bool network)
     progress = za::String{status};
 }
 
-// A map's screenshot, decoded for the main thread.
-void readPicture(const za::String& key, const za::String& url, const char* referer, bool network)
+// A map's screenshot, decoded for the main thread. Its size in bytes (-1: none).
+int readPicture(const za::String& key, const za::String& url, const char* referer, bool network, bool* fresh = nullptr)
 {
     if(url.empty())
     {
-        return;
+        return -1;
     }
     const za::String& page = key;
     za::Vector<char> body;
     za::String error;
-    if(!fetch(url, Kind::Asset, assetSeconds, referer, network, body, error) || body.empty() ||
+    if(!fetch(url, Kind::Asset, assetSeconds, referer, network, body, error, fresh) || body.empty() ||
         body.size() > static_cast<za::SizeT>(maxScreenshotBytes))
     {
-        return;
+        if(network && error.size())
+        {
+            note("slipseer: screenshot %s: %s", url.cStr(), error.cStr());
+        }
+        return -1;
     }
     int w = 0, h = 0;
     unsigned char* rgba = Image_DecodeMemory(reinterpret_cast<const unsigned char*>(body.data()),
         static_cast<int>(body.size()), &w, &h);
     if(!rgba)
     {
-        return;
+        return -1;
     }
     za::LockGuard lock{handoff};
     if(pendingPicture.rgba)
@@ -1458,10 +1464,11 @@ void readPicture(const za::String& key, const za::String& url, const char* refer
     pendingPicture.rgba = rgba;
     pendingPicture.width = w;
     pendingPicture.height = h;
+    return static_cast<int>(body.size());
 }
 
-// A Slipseer map's screenshot: from its page's details, else its listing's icon.
-void readScreenshot(const za::String& page, bool network)
+// A Slipseer map's screenshot: from its page's details, else its listing's icon. Its size in bytes (-1: none).
+int readScreenshot(const za::String& page, bool network, bool* fresh = nullptr)
 {
     const auto d = details.find(page);
     za::String url = d != details.end() ? d->second.screenshot : za::String{};
@@ -1475,7 +1482,47 @@ void readScreenshot(const za::String& page, bool network)
             }
         }
     }
-    readPicture(page, url, page.cStr(), network);
+    return readPicture(page, url, page.cStr(), network, fresh);
+}
+
+// The player's pick: a Slipseer map's page and screenshot, or a Quaddicted map's screenshot alone; how long each took
+// since the pick (`at`, SDL ticks) goes to the console ("slipseer: picked ...": maps_slipseer_time reads it).
+void servePick(const za::String& page, bool pageNet, const za::String& shotKey, const za::String& shotUrl, bool shotNet,
+    za::U32 at)
+{
+    char line[400];
+    if(page.size())
+    {
+        if(!itemsRead)
+        {
+            listingPass(false); // (the items from the cache, to build the entry)
+        }
+        bool pageFresh = false, shotFresh = false;
+        const bool got = readDetails(page, pageNet, listingUrl().cStr(), &pageFresh);
+        if(got)
+        {
+            publishPart();
+        }
+        const za::U32 pageMs = SDL_GetTicks() - at;
+        const int bytes = readScreenshot(page, pageNet, &shotFresh);
+        char took[64]; // (not va(): its buffers are the main thread's too)
+        q_snprintf(took, sizeof(took), bytes < 0 ? "none" : "%d KB, %s", bytes / 1024, shotFresh ? "fetched" : "cached");
+        q_snprintf(line, sizeof(line), "slipseer: picked %s: page %u ms (%s), screenshot %u ms (%s)", page.cStr(), pageMs,
+            got ? (pageFresh ? "fetched" : "cached") : "none", SDL_GetTicks() - at, took);
+    }
+    else
+    {
+        bool shotFresh = false;
+        const int bytes = readPicture(shotKey, shotUrl, nullptr, shotNet, &shotFresh);
+        char took[64];
+        q_snprintf(took, sizeof(took), bytes < 0 ? "none" : "%d KB, %s", bytes / 1024, shotFresh ? "fetched" : "cached");
+        q_snprintf(line, sizeof(line), "slipseer: picked %s: screenshot %u ms (%s)", shotUrl.cStr(), SDL_GetTicks() - at, took);
+    }
+    {
+        za::LockGuard lock{handoff};
+        pendingLog.pushBack(za::String{line});
+    }
+    served.fetchAddSeqCst(1);
 }
 
 void run() noexcept
@@ -1492,8 +1539,10 @@ void run() noexcept
         }
         bool pass = false, passNet = false, pageNet = false, shotNet = false;
         za::String page, get, shotKey, shotUrl;
+        za::U32 at = 0;
         {
             za::LockGuard lock{handoff};
+            at = wantedAt;
             get = ZA_MOVE(getUrl);
             getUrl = za::String{};
             page = ZA_MOVE(wantedPage);
@@ -1520,22 +1569,9 @@ void run() noexcept
                 static_cast<int>(body.size()), fresh ? "fetched" : "cached", cachePath(get, asset).cStr());
             continue;
         }
-        if(page.size()) // (the player waits for it: before the rest of a pass)
+        if(page.size() || shotKey.size()) // (the player waits for it: before the rest of a pass)
         {
-            if(!itemsRead)
-            {
-                listingPass(false); // (the items from the cache, to build the entry)
-            }
-            if(readDetails(page, pageNet, listingUrl().cStr()))
-            {
-                publishPart();
-            }
-            readScreenshot(page, pageNet);
-            continue;
-        }
-        if(shotKey.size())
-        {
-            readPicture(shotKey, shotUrl, nullptr, shotNet);
+            servePick(page, pageNet, shotKey, shotUrl, shotNet, at);
             continue;
         }
         if(pass)
@@ -1572,6 +1608,7 @@ void ensureThread()
 namespace
 {
 void testStep(); // (maps_slipseer_test's install, each frame: below)
+void timeStep(); // (maps_slipseer_time's next pick, each frame: below)
 } // namespace
 
 // ---------------------------------------------------------------- the API
@@ -1646,6 +1683,7 @@ void poll()
         mapindex::setSlipseer(ZA_MOVE(*part));
     }
     testStep();
+    timeStep();
     if(picture.rgba)
     {
         // The texels kept while the picture is drawn (a video restart reads them again).
@@ -1675,6 +1713,7 @@ void want(const za::String& page)
         za::LockGuard lock{handoff};
         wantedPage = page; // (only the latest: a map picked and left before its turn is never fetched)
         wantedNetwork = networkOk(false);
+        wantedAt = SDL_GetTicks();
     }
     ensureThread();
 }
@@ -1690,6 +1729,7 @@ void wantShot(const za::String& key, const za::String& url)
         wantedShotKey = key; // (only the latest, as want())
         wantedShotUrl = url;
         wantedShotNetwork = networkOk(false);
+        wantedAt = SDL_GetTicks();
     }
     ensureThread();
 }
@@ -1780,6 +1820,66 @@ void get_f()
         za::LockGuard lock{handoff};
         getUrl = za::String{Cmd_Argv(1)};
         getAsset = Cmd_Argc() >= 3 && !q_strcasecmp(Cmd_Argv(2), "asset");
+    }
+    ensureThread();
+}
+
+// maps_slipseer_time: picks made one after another as the player makes them, with the network (asked: a development
+// command), each timed by servePick; the next goes when the last is served. Main thread.
+struct TimeRun
+{
+    za::Vector<za::String> picks; // a Slipseer page's URL, or "shot:<url>" (a Quaddicted screenshot)
+    int next{0};
+    int target{-1}; // `served` once the issued pick is done (-1: none issued)
+    za::U32 started{0};
+};
+TimeRun timeRun;
+
+void time_f()
+{
+    if(Cmd_Argc() < 2)
+    {
+        Con_Printf("maps_slipseer_time <page URL | shot:<picture URL>>...: each picked in turn, live, and timed "
+                   "(development: real requests, at the site's pace)\n");
+        return;
+    }
+    timeRun = TimeRun{};
+    for(int i = 1; i < Cmd_Argc(); i++)
+    {
+        timeRun.picks.pushBack(za::String{Cmd_Argv(i)});
+    }
+    timeRun.started = SDL_GetTicks();
+}
+
+void timeStep()
+{
+    if(timeRun.picks.empty() || (timeRun.target >= 0 && served.loadSeqCst() < timeRun.target))
+    {
+        return;
+    }
+    if(timeRun.next >= static_cast<int>(timeRun.picks.size()))
+    {
+        Con_Printf("slipseer_time: done, %d picks in %u ms\n", static_cast<int>(timeRun.picks.size()),
+            SDL_GetTicks() - timeRun.started);
+        timeRun = TimeRun{};
+        return;
+    }
+    const za::String& pick = timeRun.picks[static_cast<za::SizeT>(timeRun.next++)];
+    timeRun.target = served.loadSeqCst() + 1;
+    {
+        za::LockGuard lock{handoff};
+        if(!strncmp(pick.cStr(), "shot:", 5))
+        {
+            wantedShotUrl = za::String{pick.cStr() + 5};
+            wantedShotKey = wantedShotUrl;
+            wantedShotNetwork = true;
+        }
+        else
+        {
+            wantedPage = pick;
+            wantedNetwork = true;
+        }
+        wantedAt = SDL_GetTicks();
     }
     ensureThread();
 }
@@ -2044,6 +2144,7 @@ void registerCommands()
     Cmd_AddCommand("maps_slipseer_test", test_f);
     Cmd_AddCommand("maps_slipseer", slipseer_f);
     Cmd_AddCommand("maps_slipseer_get", get_f);
+    Cmd_AddCommand("maps_slipseer_time", time_f);
 }
 
 } // namespace qvr::slipseer
