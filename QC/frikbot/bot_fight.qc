@@ -230,7 +230,8 @@ vector(float wid) weapon_range =
 {
     if(wid == WID_AXE)              { return '48 0 64'; }
     if(wid == WID_MJOLNIR)          { return '48 0 64'; }
-    if(wid == WID_SHOTGUN)          { return '128 8 3000'; }
+    if(wid == WID_SWORD || wid == WID_CROWBAR || wid == WID_SUPERAXE) { return '48 0 64'; } // QVR: its melee weapon
+    if(wid == WID_SHOTGUN)        { return '128 8 3000'; }
     if(wid == WID_SUPER_SHOTGUN)    { return '128 0 3000'; }
     if(wid == WID_NAILGUN)          { return '180 0 3000'; }
     if(wid == WID_SUPER_NAILGUN)    { return '180 0 3000'; }
@@ -256,12 +257,27 @@ Pick a weapon based on range / ammo
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 */
 
+// QVR: a gun the bot holds and the run lets it fire (Melee Only refuses every gun: VR_Run_RefusesFire, vr_run.qc).
+float(float wid) bot_has_usable =
+{
+    return VR_WeaponUtil_EntHasWeapon(self, wid) && !VR_Run_RefusesFire(wid);
+};
+
+// QVR: the bot's melee weapon, the one it swings when no gun suits: its melee holster's (the run's Starting melee
+// weapon, vr_run_startgun.qc: the axe or the dagger), else the axe (bare fists: a bot cannot punch, so the axe as ever).
+float() bot_melee_weapon =
+{
+    float m = self.holsterweapon2;
+    if(m == WID_SWORD || m == WID_CROWBAR || m == WID_SUPERAXE) { return m; }
+    return WID_AXE;
+};
+
 float(float brange) bot_pick_weapon =
 {
     float wid;
     vector v;
 
-    if( (VR_WeaponUtil_EntHasWeapon(self, WID_ROCKET_LAUNCHER)) &&
+    if( (bot_has_usable(WID_ROCKET_LAUNCHER)) &&
         (VR_AmmoUtil_GetAmmoCountByAmmoId(self, AID_ROCKETS) >= 1))
     {
         wid = WID_ROCKET_LAUNCHER;
@@ -274,7 +290,7 @@ float(float brange) bot_pick_weapon =
     }
 
     if(self.waterlevel <= 1 &&
-       (VR_WeaponUtil_EntHasWeapon(self, WID_LIGHTNING)) &&
+       (bot_has_usable(WID_LIGHTNING)) &&
        (VR_AmmoUtil_GetAmmoCountByAmmoId(self, AID_CELLS) >= 1))
     {
         wid = WID_LIGHTNING;
@@ -286,7 +302,7 @@ float(float brange) bot_pick_weapon =
         }
     }
 
-    if((VR_WeaponUtil_EntHasWeapon(self, WID_SUPER_NAILGUN)) &&
+    if((bot_has_usable(WID_SUPER_NAILGUN)) &&
        (VR_AmmoUtil_GetAmmoCountByAmmoId(self, AID_NAILS) >= 2))
     {
         wid = WID_SUPER_NAILGUN;
@@ -298,7 +314,7 @@ float(float brange) bot_pick_weapon =
         }
     }
 
-    if((VR_WeaponUtil_EntHasWeapon(self, WID_GRENADE_LAUNCHER)) &&
+    if((bot_has_usable(WID_GRENADE_LAUNCHER)) &&
        (VR_AmmoUtil_GetAmmoCountByAmmoId(self, AID_ROCKETS) >= 1))
     {
         wid = WID_GRENADE_LAUNCHER;
@@ -310,7 +326,7 @@ float(float brange) bot_pick_weapon =
         }
     }
 
-    if((VR_WeaponUtil_EntHasWeapon(self, WID_SUPER_SHOTGUN)) &&
+    if((bot_has_usable(WID_SUPER_SHOTGUN)) &&
        (VR_AmmoUtil_GetAmmoCountByAmmoId(self, AID_SHELLS) >= 2))
     {
         wid = WID_SUPER_SHOTGUN;
@@ -322,7 +338,7 @@ float(float brange) bot_pick_weapon =
         }
     }
 
-    if((VR_WeaponUtil_EntHasWeapon(self, WID_NAILGUN)) &&
+    if((bot_has_usable(WID_NAILGUN)) &&
        (VR_AmmoUtil_GetAmmoCountByAmmoId(self, AID_NAILS) >= 1))
     {
         wid = WID_NAILGUN;
@@ -334,7 +350,7 @@ float(float brange) bot_pick_weapon =
         }
     }
 
-    if((VR_WeaponUtil_EntHasWeapon(self, WID_SHOTGUN)) &&
+    if((bot_has_usable(WID_SHOTGUN)) &&
        (VR_AmmoUtil_GetAmmoCountByAmmoId(self, AID_SHELLS) >= 1))
     {
         wid = WID_SHOTGUN;
@@ -346,13 +362,21 @@ float(float brange) bot_pick_weapon =
         }
     }
 
-    wid = WID_AXE;
-    return wid;
+    return bot_melee_weapon();
 };
 
 void(float brange) bot_weapon_switch =
 {
-    self.weapon = bot_pick_weapon(brange);
+    float wid = bot_pick_weapon(brange);
+    if(wid != self.weapon && wid == self.holsterweapon2)
+    {
+        self.weaponflags = self.holsterweaponflags2; // (the dagger's kind: VR_ADMelee_Flags)
+    }
+    else if(wid != self.weapon && self.weapon == self.holsterweapon2 && self.weapon == WID_SWORD)
+    {
+        self.weaponflags = 0; // (the dagger's kind not carried onto a gun)
+    }
+    self.weapon = wid;
     W_SetCurrentAmmo();
 };
 
