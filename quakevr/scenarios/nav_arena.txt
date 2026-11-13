@@ -6,7 +6,7 @@ start 0 0 137 0
 god
 spawn "Grunt" 600 200
 spawn "Knight" 600 -250
-spawn "Ogre" 450 450
+spawn "Ogre" -600 250
 spawn "Rottweiler" 500 -500
 cvar vr_nav 1
 cvar vr_nav_debug 2

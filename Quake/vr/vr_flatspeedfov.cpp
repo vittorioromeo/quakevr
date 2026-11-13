@@ -15,6 +15,7 @@
 #include "vr_flatspeedfov.hpp"
 
 #include "vr_api.h"
+#include "vr_climb.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatmove.hpp"
@@ -52,6 +53,7 @@ struct State
     double lastTime{-1e9};
     float widenedIn{-1.f};  // widen's last call: the field of view given and returned (VR_FlatLookFov)
     float widenedOut{-1.f};
+    bool mantleOut{false};  // narrowing from a mantle's widening (vr_flat_mantle_fov_ease_out)
 };
 
 State st;
@@ -344,15 +346,25 @@ void frame(bool on)
     const float dt = st.lastTime > -1e8 ? za::clamp(static_cast<float>(now - st.lastTime), 0.f, 0.1f) : 0.f;
     st.lastTime = now;
     st.speed = za::sqrt(cl.velocity[0] * cl.velocity[0] + cl.velocity[1] * cl.velocity[1]);
-    // A slide's own extra on top of its speed's (vr_flat_slide_fov_bonus, 0 by default): the ease takes it in and out.
-    const float bonus = flatmove::sliding() ? za::clamp(vr_flat_slide_fov_bonus.value, 0.f, maxMultiplier - 1.f) : 0.f;
+    // A slide's own extra on top of its speed's (vr_flat_slide_fov_bonus): the ease takes it in and out. A mantle's the
+    // same way, smaller (vr_flat_mantle_fov_bonus; the server's mantle phase, climb::mantling), with its own eases.
+    const bool mantle = climb::mantling();
+    const float bonus = (flatmove::sliding() ? za::clamp(vr_flat_slide_fov_bonus.value, 0.f, maxMultiplier - 1.f) : 0.f) +
+                        (mantle ? za::clamp(vr_flat_mantle_fov_bonus.value, 0.f, maxMultiplier - 1.f) : 0.f);
     st.target = vr_flat_speed_fov.value != 0.f && !cl.intermission ? za::min(maxMultiplier, targetFor(st.speed) + bonus) : 1.f;
     const float was = st.mult;
-    const float tau = st.target > st.mult ? vr_flat_speed_fov_ease.value : vr_flat_speed_fov_ease_out.value;
+    const bool widening = st.target > st.mult;
+    if(mantle || widening)
+    {
+        st.mantleOut = mantle; // (narrowing after a mantle: its ease out, till it settles or something else widens it)
+    }
+    const float tau = widening ? (mantle ? vr_flat_mantle_fov_ease.value : vr_flat_speed_fov_ease.value)
+                               : (st.mantleOut ? vr_flat_mantle_fov_ease_out.value : vr_flat_speed_fov_ease_out.value);
     st.mult = tau <= 0.f ? st.target : geom::approachExp(st.mult, st.target, dt, tau);
     if(za::abs(st.mult - st.target) < 1e-4f)
     {
         st.mult = st.target; // settled: exactly 1 again, so the view is exactly its own
+        st.mantleOut = st.mantleOut && mantle;
     }
     if(st.mult != was)
     {

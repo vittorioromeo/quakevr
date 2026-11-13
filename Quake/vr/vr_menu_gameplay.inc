@@ -524,6 +524,27 @@ void armedGripsDragMode()
             "The chance of a gun in the right hand and a melee weapon (axe or dagger, by Armed Grunts' Axe and "
             "Dagger weights) in the left: it fires the gun, takes to the blade when you get close or its gun runs "
             "dry, back to the gun when you back off (vr_agrunt_repl_gunaxe)."),
+        header("Run Mutators: Ranged Knights"),
+        slider("Own Sword", vr_rangedknights_w_sword, 0.f, 10.f, 0.25f, "%.2f")
+            .help("Ranged Knights (Run Setup): how often a knight or death knight holds his own sword, against the "
+                  "others' weights (vr_rangedknights_w_sword). 0: never."),
+        chance("Two Swords", vr_rangedknights_dual,
+            "Ranged Knights: the chance a sword knight holds a second sword (vr_rangedknights_dual)."),
+        slider("Crossbow", vr_rangedknights_w_crossbow, 0.f, 10.f, 0.25f, "%.2f")
+            .help("Ranged Knights: the weight of Arcane Dimensions' crossbow (with AD's rules on; "
+                  "vr_rangedknights_w_crossbow)."),
+        chance("Crossbow and Sword", vr_rangedknights_xbow_sword,
+            "Ranged Knights: the chance a crossbow knight keeps his sword in the other hand: the crossbow at range, the "
+            "sword up close (vr_rangedknights_xbow_sword)."),
+        slider("Chainsaw", vr_rangedknights_w_chainsaw, 0.f, 10.f, 0.25f, "%.2f")
+            .help("Ranged Knights: the weight of the chainsaw (vr_rangedknights_w_chainsaw)."),
+        slider("Other Guns", vr_rangedknights_w_gun, 0.f, 10.f, 0.25f, "%.2f")
+            .help("Ranged Knights: the weight of any other gun of the variety tiers, each once you own it and the rare "
+                  "ones later in an episode, unless Wild Weaponry (vr_rangedknights_w_gun)."),
+        header("Run Mutators: Armored Foes"),
+        chance("Extra Armour Chance", vr_armoredfoes_chance,
+            "Armored Foes (Run Setup): the chance an armed humanoid the difficulty's armour roll left bare is armoured "
+            "after all, with the difficulty's armour types and pieces (vr_armoredfoes_chance)."),
         header("Difficulty"),
         row(opt::vr_agrunt_repl_seed),
         header("Where"),

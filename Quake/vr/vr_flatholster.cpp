@@ -10,6 +10,7 @@
 #include "vr_gadget.hpp"
 #include "vr_gfx.hpp"
 #include "vr_notectx.hpp"
+#include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 #include "vr_testkit.hpp"
 #include "vr_timescale.hpp"
@@ -150,7 +151,9 @@ struct Contents
     c.flags[1] = cl.stats[protocol::STAT_QVR_WEAPONFLAGS];
     for(int i = 0; i < holsterCount; i++)
     {
-        c.holsterFlags[i] = view::holsterFlags(i);
+        // (The stat slot's own, as c.holster's: view::holsterFlags takes a drawn holster's index, another order
+        // (vr_view.cpp bodyHolster), and named a holstered dagger by another slot's flags: "sword".)
+        c.holsterFlags[i] = cl.stats[protocol::STAT_QVR_HOLSTERWEAPONFLAGS0 + i];
     }
     for(int h = 0; h < 2; h++)
     {
@@ -171,6 +174,12 @@ struct Contents
     c.unloadFull[0] = (full & 1) != 0;
     c.unloadFull[1] = (full & 2) != 0;
     return c;
+}
+
+// Holster slot `i`'s label: its weapon by its kind (a sword's: the dagger), empty for none.
+[[nodiscard]] const char* holsterSlotName(const Contents& c, int i)
+{
+    return c.holster[i] != WID_FIST ? notectx::weaponName(c.holster[i], c.holsterFlags[i]) : "";
 }
 
 [[nodiscard]] const char* modelName(int index)
@@ -465,7 +474,7 @@ void draw()
         gadget::HolsterMenuSlot& s = slots[i];
         s.rect = {p.x, p.y, slotW, slotH};
         s.title = p.title;
-        s.name = c.holster[i] != WID_FIST ? notectx::weaponName(c.holster[i], c.holsterFlags[i]) : "";
+        s.name = holsterSlotName(c, i);
         s.model = c.holster[i] != WID_FIST ? modelName(c.holsterModel[i]) : "";
         s.hovered = inside(s.rect, st.cursor);
     }
@@ -611,6 +620,8 @@ struct Test
     int shells{0};     // the shells before the right hand's UNLOAD
     int clip{0};       // ... and the shotgun's clip
     int sub{0};        // a step's own stages (the greyed UNLOAD's)
+    int daggerSlot{-1};       // the holster a dagger was put in (its stat slot), and what it held before
+    float slotWas[2]{};       // (its weapon id and flags)
 };
 Test test;
 constexpr int giveUp = 400;
@@ -908,12 +919,51 @@ void testStep()
                 test.frames = 0;
             }
         }
-        else if(wait(c.hand[1] == WID_SHOTGUN, "the shotgun in the right hand"))
+        else if(test.sub == 4)
         {
-            const int was = st.clicks;
-            result(!c.flippable[1], "FLIP GRIP greyed with a gun");
-            press("right flip");
-            result(st.clicks == was, "FLIP GRIP greyed (does nothing) with a gun");
+            if(wait(c.hand[1] == WID_SHOTGUN, "the shotgun in the right hand"))
+            {
+                const int was = st.clicks;
+                result(!c.flippable[1], "FLIP GRIP greyed with a gun");
+                press("right flip");
+                result(st.clicks == was, "FLIP GRIP greyed (does nothing) with a gun");
+                // A dagger in a holster (his note 2026-11-13: still "sword" there): the left shoulder's, stat slot 0,
+                // whose drawn holster index is another (the hips' first): its slot's label must read its own flags.
+                const progs::ServerVm vm;
+                if(edict_t* pl = progs::localPlayer())
+                {
+                    const auto& f = progs::fields();
+                    test.daggerSlot = 0;
+                    test.slotWas[0] = progs::fieldFloatOr(pl, f.holsterweapon0, 0.f);
+                    test.slotWas[1] = progs::fieldFloatOr(pl, f.holsterweaponflags0, 0.f);
+                    progs::setFieldFloat(pl, f.holsterweapon0, static_cast<float>(WID_SWORD));
+                    progs::setFieldFloat(pl, f.holsterweaponflags0, 3072.f); // (kind 12: the dagger)
+                }
+                test.sub = 5;
+                test.frames = 0;
+            }
+        }
+        else if(test.sub == 5)
+        {
+            if(wait(c.holster[0] == WID_SWORD && c.holsterFlags[0] == 3072, "a dagger in the left shoulder holster"))
+            {
+                char line[160];
+                q_snprintf(line, sizeof(line), "a holstered dagger's slot reads '%s' (the hands' 'sword' fix, now the holsters')",
+                    holsterSlotName(c, 0));
+                result(!strcmp(holsterSlotName(c, 0), "dagger"), line);
+                const progs::ServerVm vm;
+                if(edict_t* pl = progs::localPlayer())
+                {
+                    const auto& f = progs::fields();
+                    progs::setFieldFloat(pl, f.holsterweapon0, test.slotWas[0]);
+                    progs::setFieldFloat(pl, f.holsterweaponflags0, test.slotWas[1]);
+                }
+                test.sub = 6;
+                test.frames = 0;
+            }
+        }
+        else if(wait(c.holster[0] == static_cast<int>(test.slotWas[0]), "the left shoulder holster as it was"))
+        {
             next();
         }
         break;

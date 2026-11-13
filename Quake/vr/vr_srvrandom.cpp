@@ -90,17 +90,34 @@ void chooseMapSeed(bool fromSave)
         currentMapSeed = 0u;
         mapSeedWhy = vr_fresh_map_seeds.value == 0.f ? "none: vr_fresh_map_seeds 0" : "none: a test session (vr_backend mock)";
     }
-    else
+    else if(vr_run_seed.value > 0.f)
     {
-        // The clock's, through splitmix64, to 24 bits (never 0). Apart from the server stream's own seed.
-        za::U64 z = static_cast<za::U64>(za::Clock::nowNanoseconds()) ^ 0x6D617073656564ull;
+        // The run's seed, mixed to 24 bits (never 0): the crates' and barrels' layout, the armed replacements', the
+        // enemy swaps' (QC's vr_map_content_seed) follow the run's one seed, like Randomized Pickups (vr_run_seed).
+        za::U64 z = static_cast<za::U64>(vr_run_seed.value) * 0x9E3779B97F4A7C15ull;
         z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ull;
         z = (z ^ (z >> 27)) * 0x94D049BB133111EBull;
         z ^= z >> 31;
         currentMapSeed = static_cast<za::U32>(z % 0xFFFFFFull) + 1u;
+        mapSeedWhy = "the run's (vr_run_seed)";
+    }
+    else
+    {
+        // The clock's, to 24 bits (never 0). Apart from the server stream's own seed.
+        currentMapSeed = freshSeed(0xFFFFFFu);
         mapSeedWhy = "fresh";
     }
     Con_DPrintf("map seed %u (%s)\n", static_cast<unsigned>(currentMapSeed), mapSeedWhy);
+}
+
+za::U32 freshSeed(za::U32 range)
+{
+    // The clock's, through splitmix64.
+    za::U64 z = static_cast<za::U64>(za::Clock::nowNanoseconds()) ^ 0x6D617073656564ull;
+    z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ull;
+    z = (z ^ (z >> 27)) * 0x94D049BB133111EBull;
+    z ^= z >> 31;
+    return static_cast<za::U32>(z % range) + 1u;
 }
 
 void restoreMapSeed(za::U32 seed)

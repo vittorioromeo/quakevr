@@ -210,6 +210,7 @@ vr_flatmove_test.qc
 vr_flatblood_test.qc // blood at point blank (vr_flatblood_test)
 vr_flatswap_test.qc // the flat-screen swap key (vr_flatswap_test)
 vr_run_test.qc // the run mutators Randomized Pickups and Ironman (vr_runpickups_test, vr_ironman_test)
+vr_meleeonly_test.qc // Melee Only's refusals (vr_pickup_test 14)
 vr_melee_sweep_test.qc
 vr_blade_test.qc
 world.qc
@@ -633,6 +634,7 @@ vr_armedgrunt_ai_test.qc
 vr_agtune_test.qc // the armed humanoids' tuning (vr_agtune_test)
 vr_armedgrunt_ammo_test.qc
 vr_armedrepl_test.qc
+vr_run_armed_test.qc // the armed-humanoid run mutators' check (vr_run_armed_check: Ranged Knights, Wild Weaponry, Armored Foes)
 vr_arena_test.qc // Survival Arena's tests (vr_arena_test)
 vr_arena_perks_test.qc // Survival Arena's perk tests (vr_arena_perks_test)
 vr_rigseq_test.qc

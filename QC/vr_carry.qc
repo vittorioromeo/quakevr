@@ -2270,6 +2270,12 @@ void() VR_Carry_Handtouch =
     {
         return;
     }
+    // Melee Only: ammunition, a backpack with rounds, never held (vr_run_meleeonly.qc): knocked.
+    if(VR_RunMeleeOnly_RefusesEnt(self))
+    {
+        VR_Carry_Nudge(other, hand, self);
+        return;
+    }
     // A force grab's catch (VR_Forcegrab_Catch) has checked the grip already: its window
     // (vr_forcegrab_catch_early) is longer than a touch's.
     if((forcegrabCatching || VR_Carry_GripPressed(other, hand) || VR_Carry_FloatGraceGrip(other, hand, self)) &&

@@ -432,6 +432,11 @@ extern "C" void VR_RunSetupNewGame()
     openRunSetup(runsetup::Launch::NewGame, za::String{}, nullptr, -1, true);
 }
 
+extern "C" void VR_RunSetupLevel(const char* map)
+{
+    openRunSetup(runsetup::Launch::Level, za::String{}, map, -1, mapinstall::mapHasSkillSelect(map));
+}
+
 // vr_runsetup_screen_test (and maps_skill_test, its old name): each way in opens the screen for its start (a start hall
 // with skill selection: no Difficulty row), its rows the registry's, a held row shown as a line, Back cancels (nothing
 // started, the picks kept), Start with nothing to start makes the picks the run's.
@@ -462,8 +467,8 @@ void qvr::menu::runSetupScreenTest_f()
     openRunSetup(runsetup::Launch::Library, za::String{"0000"}, "e1m1", -1, mapinstall::mapHasSkillSelect("e1m1"));
     za::Vector<Item> items = pageRunSetup();
     check(shownFor(runsetup::Launch::Library), "Map Library's Play opens it");
-    const char* const rows[] = {"Difficulty", "Style", "Gore", "Armed Humanoids", "Smarter AI", "Starting Weapon",
-        "Melee Only", "Glass Cannon", "Start"};
+    const char* const rows[] = {"Difficulty", "Style", "Gore", "Armed Humanoids", "Smarter AI", "Starting gun",
+        "Starting melee weapon", "Melee Only", "Glass Cannon", "Start"};
     bool allRows = true;
     for(const char* r : rows)
     {
@@ -473,6 +478,8 @@ void qvr::menu::runSetupScreenTest_f()
             allRows = false;
         }
     }
+    check(items.size() > 0 && items[0].kind != Item::Header && !hasLabel(items, "Run Setup"),
+        "no title, no recap: the page starts with the difficulty picker");
     check(allRows, "its rows: Difficulty, the presets, the mutators, Start");
     check(ui().cursors[page] == static_cast<int>(items.size()) - 1, "the cursor on Start");
     goBack();
@@ -481,7 +488,7 @@ void qvr::menu::runSetupScreenTest_f()
     // A start map with skill halls: no Difficulty row, the mutators still asked.
     openRunSetup(runsetup::Launch::Library, za::String{"0000"}, "start", -1, mapinstall::mapHasSkillSelect("start"));
     items = pageRunSetup();
-    check(!hasLabel(items, "Difficulty") && hasLabel(items, "Starting Weapon"), "skill halls: no Difficulty, mutators asked");
+    check(!hasLabel(items, "Difficulty") && hasLabel(items, "Starting gun"), "skill halls: no Difficulty, mutators asked");
     goBack();
 
     // New Game (menu.c's), Official Campaigns' row, the hub's teleporter.
@@ -494,15 +501,24 @@ void qvr::menu::runSetupScreenTest_f()
         check(shownFor(runsetup::Launch::Campaign) && runSetup.campaign == 0, "Official Campaigns' row opens it");
         goBack();
     }
+    VR_RunSetupLevel("e1m1"); // (the flat Levels list's Enter: not the old difficulty menu)
+    check(shownFor(runsetup::Launch::Level) && !runSetup.skillHalls && !strcmp(runSetup.map.cStr(), "e1m1") &&
+              m_state != m_skill,
+        "the Levels list opens it for that map (Difficulty asked)");
+    goBack();
+    VR_RunSetupLevel("start");
+    check(shownFor(runsetup::Launch::Level) && runSetup.skillHalls, "the Levels list's start hall: no Difficulty row");
+    goBack();
     Cbuf_InsertText("vr_runsetup hub\n");
     Cbuf_Execute();
     check(shownFor(runsetup::Launch::Hub), "the hub's teleporter (vr_runsetup hub) opens it");
 
-    // A held row: Melee Only holds Starting Weapon (a line, the page rebuilt).
+    // A held row: Melee Only holds the Starting gun (a line, the page rebuilt); the melee weapon stays a row.
     Cvar_Set("vr_runpick_meleeonly", "1");
     check(runSetupStale(), "Melee Only: the page is rebuilt");
     items = pageRunSetup();
-    check(!hasLabel(items, "Starting Weapon") && !runSetupStale(), "Starting Weapon held: shown as a line");
+    check(!hasLabel(items, "Starting gun") && hasLabel(items, "Starting melee weapon") && !runSetupStale(),
+        "Starting gun held: shown as a line, the melee weapon a row");
     Cvar_SetValueQuick(&vr_runpick_meleeonly, meleeOnly);
     goBack();
 

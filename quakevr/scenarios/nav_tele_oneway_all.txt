@@ -5,13 +5,13 @@
 # and stall: 1 of 20). Verdict line: nav_tele_oneway_all: N passed, M failed (18 of 20, as nav_tele_metric).
 title Monsters: Every Teleporter on: monsters chase you into e1m1's one-way teleporter without stalling
 map e1m1
-start -32 2000 -29 -90
+start -28 2009 -184 -90
 god
-spawn monster_army 150 0
-spawn monster_dog 150 64
-spawn monster_ogre 150 -64
-spawn monster_knight 220 64
-spawn monster_demon1 220 -64
+spawn monster_army 100 0
+spawn monster_dog 100 64
+spawn monster_ogre 100 -64
+spawn monster_knight 140 120
+spawn monster_demon1 140 -120
 cvar vr_nav 1
 cvar vr_nav_debug 2
 cvar vr_nav_teleports 1
