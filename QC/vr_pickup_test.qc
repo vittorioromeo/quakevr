@@ -885,6 +885,10 @@ void() VR_PickupTest_Frame =
     {
         VR_MeleeOnlyTest_Run(); // (Melee Only's refusals: vr_meleeonly_test.qc)
     }
+    else if(ask == 15)
+    {
+        VR_MeleeOnlyBotTest_Run(); // (bots under Melee Only: vr_meleeonly_bot_test.qc)
+    }
     self = oself;
 };
 #endif

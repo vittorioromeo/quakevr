@@ -1753,3 +1753,79 @@ back): `qvr-kit/scratch/menuvis_shots/`.
   Nothing slower past 3%; the gains are within the run-to-run spread (the GPU times moved as much): read "no change".
   The first after-run of combat_48 and ai_crowd_64 overlapped his game starting (two runs not launched, one slow) and
   was run again (nz_after2).
+## clipneg: no shot from a clip that can't pay (branch agent/clipneg, 2026-11-13)
+
+His flat report: "ERROR: weapon clip less than zero" firing the shotgun, a spent flare gun in the left hand.
+
+- **How a shot got through.** `W_CheckNoAmmo` (weapons.qc) let a shot fire when the hand's weapon looked ammoless or had
+  `> 0` rounds; the shot then spent its cost (`delAmmoOrClipAndUpdateCounter`), and a clip below the cost went negative
+  (clamped, the bprint). Two holes: (1) "ammoless" read the hand's `.currentammo`/`.currentammo2`, a cache that
+  `W_SetCurrentAmmoFor` writes; a hand whose cache was left at `AID_NONE` (the fist's, the flare gun's) by any path that
+  changed its weapon without that call fired the shotgun put in it from an empty clip; (2) a fractional clip (0.5)
+  passed `> 0`.
+- **Not reproduced through his keys.** `vr_flatswap_test 5` drives each sequence the brief named through the game's own
+  impulses (swap 48, swap twice, the menu's drop 78, H 47, either gun holstered and drawn by the menu's trades, R then
+  swap, swap mid-reload, the drawn swap key, swap/reload in the left/swap back) with the empty shotgun right and the
+  spent flare gun left: all pay correctly on `next`, each hand's cache matching its weapon. Cases 10 (the cache left at
+  none) and 11 (half a round) set up the two holes directly: they FAIL on the old checks (1 unpaid shot each), PASS now.
+- **Fix (one source of truth).** `VRGetCurrentAmmo` (vr_util.qc) now derives the ammo kind from the hand's weapon id and
+  flags (`WeaponIdToAmmoId`); `.currentammo*` stays only as the engine's mirror. `W_CheckNoAmmo` needs a whole round
+  (`>= 1`). `delAmmoOrClipAndUpdateCounter` returns whether the shot was paid; short, it empties what is there (never
+  below 0), counts `vr_clip_short` and says it with `developer 1` ("ERROR: shot refused: hand, weapon, clip, cost";
+  no more broadcast). `W_FireShotgun` pays first and dry-clicks an unpaid shot; the super shotgun fires one barrel below
+  2 rounds (`< 2`, was `== 1`). Shared by VR and flat (the same attack path).
+- **Verified:** `vr_flatswap_test 5` 46/0 (`-flatscreenmode`, map vrtesthall); flatswap 1 22/0; flatholster 38/0;
+  `flatreload_test.sh` 54/0; the VR reload self-test (`vr_reload_test 9`) 77/0. Scene `flat_clip_unpaid`.
+## small1113: bots under Melee Only; bench_crowd_ad's program error; a checklist line moved (agent/small1113, 2026-11-13)
+
+- **Bots and Melee Only:** FrikBot asks the run's hooks. `bot_pick_weapon` takes a gun only if `bot_has_usable` (held
+  and not `VR_Run_RefusesFire`); its fallback is `bot_melee_weapon`: the melee holster's weapon (the run's Starting
+  melee weapon: the axe or the dagger, the dagger's kind flags with it), else the axe (bare fists: a bot cannot punch).
+  `weapon_range` knows the sword, crowbar and super axe (melee reach). `priority_for_thing` returns 0 for anything
+  `VR_Run_RefusesEnt` refuses: guns and ammunition are no goals, and a thrown gun is not snatched (the bot's snatch
+  called `wpnthrow_handtouch_impl` directly, past the hand touch's refusal).
+- **bench_crowd_ad's "Program error":** `NULL function` in `Killed`, from `VR_Knockdown_MakeRoom` (at vr_ragdoll_max the
+  oldest knocked-down monster is killed to make room): an AD monster has no `th_die` (AD's `ad_Killed` kills it). Now
+  `VR_AD_NeckSnapKilled` first and Quake VR's `Killed` only for the others, as the foe grab's neck snap does. Reached
+  from a gib's touch (VR_Prop_Flung -> VR_HitStagger_Throw -> VR_Knockdown_Stagger) and from the engine's
+  makeRagdollRoom. Rare: 2 of 30 runs of the scene.
+- **Tests:** `vr_pickup_test 15` (vr_meleeonly_bot_test.qc; `maxplayers 2;deathmatch 0;map e1m1`): 13/0 (the dagger at
+  the start and drawn, no gun chosen though held, a shotgun pickup, shells and a thrown rifle no goals and not snatched,
+  a thrown axe snatched, the dagger swung at a grunt in reach; off: the rocket launcher, the pickup a goal again).
+  `vr_scenario runall quit` with bench_crowd_ad x30 (AD mounted): before 2 of 30 failed, after 0 of 30 (and 0 of 10).
+- **Checklist:** the Gameplay preset "?" rows line was already gone; the stirring line moved to Flat-screen: monsters
+  and AI; the flashlight and lean lines are ticked (left for the next sort).
+
+## continue: Continue on Select Campaign's and the Map Library's rows (branch agent/continue, 2026-11-13)
+
+His design: Continue belongs where the game is chosen, not on the difficulty / Run Setup screen. Every Run Setup Start
+is a brand-new run; continuing keeps the run's own choices (from the save) and skips Run Setup.
+- **Select Campaign** (Official Campaigns, flat and VR alike: one VR page): a campaign with a loadable autosave gets a
+  row under its own, "Continue (12 min ago)", with its run on the line under it ("Hard / Classic / Glass cannon": part
+  of the row, selected with it; one line cut the run's tail at the page's width). Its help: the campaign, the map, the
+  player's health and armour, the time into the level, the whole run. Pressed: that autosave loaded at once (the menu
+  closed); the load sets the run from the save's `// qvr_run` line (runsetup::onLoadGame). Dimmed while the campaign
+  can't be played. Arcane Dimensions has none (its own game folder's saves).
+- **Map Library:** an installed package with an autosave gets a Continue button across the detail's column, above
+  Uninstall / Reinstall: "Continue (12 min ago): Hard / Classic". The sticks reach it (down from the keyboard; up from
+  Uninstall; right to the list), the laser and mouse press it.
+- **Which save:** each game's newest loadable autosave in `autosave/` (its rotating slots too): a campaign's (its
+  campaign, no package) or a package's (its sha256), by the save's own context lines, not its file name
+  (vr_continue.cpp `refreshLaunchSaves`, read when the page is built: each showing; a file not changed since not read
+  again). Quake's campaign also counts a custom map played in it without a package (Play Custom Map / Levels).
+- **The run's summary without loading:** `runsetup::saveSummary(text, skill)` parses the save's `// qvr_run` line (the
+  parser shared with the load's `readSaveLines`) and builds the same summary as the Run Setup screen (`summaryOf`); a
+  save without the line: its own skill, the choices it doesn't say left out.
+- **Removed:** the old skill menu's "Resume last game" row (menu.c; only Quake 64's New Game still opens that menu, a
+  fresh start now) and `VR_AutosaveNameForLaunch` (its only user).
+- **Debug > Tools:** Continue Rows Test (`vr_continue_rows_test`), List Continue Rows (`vr_continue_rows`: each game's
+  Continue text and save).
+- **Tests:** `vr_continue_rows_test` 16/0 (`developer 1;vr_continue_rows_test`, -QuitOn "continue_rows: [0-9]+
+  passed"; self-driven phases: no Continue without an autosave; a Hard / Classic / Glass cannon run on e1m1 saved to
+  autosave/: Quake's Continue row right under Quake's, "Continue (just now)" over "Hard / Classic / Glass cannon"; a
+  fixture copy as a map package's autosave (its sha taken as installed: no network) gives the package's Continue the
+  same text; with other run choices set, the row pressed on the opened page loads it: the menu closed, e1m1, the run and
+  skill 2 back; its files removed, no Continue). `vr_runsetup_test` 73/0, `vr_runsetup_screen_test` 16/0,
+  menu_shortcuts_test 14/0, `vr_menu_path_check maps/vrcalibration.map` 0 missing; menu_paths.txt regenerated (the two
+  Debug rows). Not tested headless: the Map Library's button with a real installed package (the tests have none).
+- **cltick1113:** retired 6 ticked checklist lines (dagger label, gore minimal, flashlight, lean, kd stir, dog gate; none had voice notes) and 3 unused scenes (flatlean, gore_presets, nav_tele_gate).

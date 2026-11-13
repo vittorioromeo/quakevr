@@ -170,10 +170,6 @@ VR_IMPL_MAKE_FLOAT_GETTER(VRGetFireButtonPressed,
                           self.button3,
                           self.button0);
 
-VR_IMPL_MAKE_FLOAT_GETTER(VRGetCurrentAmmo,
-                          self.currentammo2,
-                          self.currentammo);
-
 VR_IMPL_MAKE_FLOAT_GETTER(VRGetAttackFinished,
                           self.offhand_attack_finished,
                           self.attack_finished);
@@ -272,6 +268,17 @@ float() VRMetersToUnits; // (vr_wpnholster.qc)
 vector(entity e, float xHand) VRGetEntHandVelU =
 {
     return VRGetEntHandVel(e, xHand) * VRMetersToUnits();
+};
+
+// The ammo kind of the weapon in `xHand` of self, read from the weapon itself (its id and flags): the one source of truth.
+// .currentammo and .currentammo2 (W_SetCurrentAmmoFor) only mirror it for the engine. W_CheckNoAmmo read the mirror until
+// 2026-11-13: a hand whose mirror was left at the fist's or the spent flare gun's kind (AID_NONE: no ammo needed) by a
+// path that forgot W_SetCurrentAmmoFor would let the shotgun put in it fire from an empty clip ("ERROR: weapon clip less
+// than zero", his flat report; vr_flatswap_test 5).
+float(float wid, float xWeaponFlags) WeaponIdToAmmoId; // (vr_weaponutil.qc)
+float(float xHand) VRGetCurrentAmmo =
+{
+    return WeaponIdToAmmoId(VR_IMPL_SELECT(xHand, self.weapon2, self.weapon), VR_IMPL_SELECT(xHand, self.weaponflags2, self.weaponflags));
 };
 
 float(float xHand) VRIsAmmolessWeapon =

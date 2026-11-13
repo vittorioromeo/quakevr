@@ -1363,6 +1363,10 @@ za::Vector<Item> pageDebugTools()
         row(opt::vr_maps_allow_local),
         command("Pick the First Map", "maps_page; maps_page_pick 0")
             .help("maps_page_pick <row> [source]: the Map Library open with that row picked (its detail; a Slipseer map's page read). Source: 0 both, 1 Quaddicted, 2 Slipseer."),
+        command("Continue Rows Test", "vr_continue_rows_test")
+            .help("vr_continue_rows_test: Continue on Select Campaign's and the Map Library's rows -- none without an autosave; a Hard / Classic / Glass cannon run saved: Quake's row gets \"Continue (just now): <run>\" (a map package's fixture save too), pressing it loads the save with its run's choices; its files removed afterwards. Plays e1m1. Prints a verdict."),
+        command("List Continue Rows", "vr_continue_rows")
+            .help("vr_continue_rows: each game's Continue (the campaigns' and the map packages' newest autosave), with its row's text."),
         command("Run Setup Screen Test", "vr_runsetup_screen_test")
             .help("vr_runsetup_screen_test: the Run Setup screen -- the Map Library's Play, New Game, Official Campaigns and the hub open it, a start hall with skill selection has no Difficulty row, a held row is a line, Back cancels, Start makes the choices the run's. Prints a verdict."),
         command("Run Setup Test", "vr_runsetup_test")

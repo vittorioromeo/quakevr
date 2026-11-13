@@ -553,6 +553,161 @@ void qvr::menu::runSetupScreenTest_f()
     t.verdict(name);
 }
 
+// vr_continue_rows_test: Continue on the launch rows (vr_continue.cpp). Without an autosave Quake's row has no Continue;
+// a run (Hard, Classic, Glass Cannon) played and saved into autosave/: Official Campaigns gets "Continue (just now):
+// <the run's summary>" under Quake's row, and a map package's autosave (the fixture: that save as a package's) gives
+// the Map Library's Continue the same; the row pressed with other run choices loads that save, the menu closed, the
+// run's choices back; the fixtures removed, no Continue again. Phases (it queues each next one itself): start, save
+// (waits for the player to be in), check, loaded. Ends with its verdict line.
+namespace
+{
+constexpr const char* continueTestSave = "autosave/co_continue_test";
+constexpr const char* continueTestCopy = "autosave/co_continue_pkg";
+constexpr const char* continueTestSha = "c0471e57c0471e57c0471e57c0471e57c0471e57c0471e57c0471e57c0471e57";
+constexpr int continueTestWaitFrames = 600;
+struct ContinueTest
+{
+    testkit::Tally tally;
+    int waited{0};
+    float autosave{0.f}; // sv_autosave before it
+    char summary[160]{};
+    char label[192]{};
+};
+ContinueTest continueTest;
+
+// Quake's Continue row on Official Campaigns as built now (nullptr: none).
+const Item* continueTestRow(const za::Vector<Item>& items)
+{
+    for(const Item& it : items)
+    {
+        if(it.kind == Item::Action && it.infoArg == campaignContinueLabel && it.arg == 0)
+        {
+            return &it;
+        }
+    }
+    return nullptr;
+}
+} // namespace
+
+void qvr::menu::continueRowsTest_f()
+{
+    constexpr const char* name = "continue_rows";
+    ContinueTest& t = continueTest;
+    auto check = [&](bool ok, const char* what) { t.tally.check(ok, name, what); };
+    const char* phase = Cmd_Argc() > 1 ? Cmd_Argv(1) : "start";
+    if(!strcmp(phase, "start"))
+    {
+        t = ContinueTest{};
+        t.autosave = Cvar_VariableValue("sv_autosave");
+        Cvar_SetValue("sv_autosave", 0.f); // (no autosave of its own: the test's save is the only one it makes)
+        Host_WaitForSaveThread();
+        VR_LaunchContinueTestFixture(nullptr, continueTestSave, "");
+        VR_LaunchContinueTestFixture(nullptr, continueTestCopy, "");
+        const za::Vector<Item> before = pageCampaigns();
+        const char* other = VR_LaunchContinueSave(0, "");
+        if(other)
+        {
+            Con_Printf("continue_rows: the absence check skipped: another Quake autosave is there (%s)\n", other);
+        }
+        else
+        {
+            check(!continueTestRow(before), "no autosave: Quake's row has no Continue");
+        }
+        check(!VR_LaunchContinueSave(0, continueTestSha), "no autosave: the package has no Continue");
+        Cbuf_AddText("vr_run skill 2\nvr_run style 1\nvr_run glasscannon 1\nmap e1m1\nvr_continue_rows_test save\n");
+        return;
+    }
+    if(!strcmp(phase, "save"))
+    {
+        const edict_t* player = progs::localPlayer();
+        const bool in = cls.signon == SIGNONS && player && player->v.health > 0;
+        if(!in)
+        {
+            if(++t.waited > continueTestWaitFrames)
+            {
+                check(false, "timed out: the player never came in");
+                Cvar_SetValue("sv_autosave", t.autosave);
+                t.tally.verdict(name);
+                return;
+            }
+            Cbuf_AddText("wait\nvr_continue_rows_test save\n");
+            return;
+        }
+        q_strlcpy(t.summary, runsetup::summary(false), sizeof(t.summary));
+        q_snprintf(t.label, sizeof(t.label), "Continue (just now): %s", t.summary); // (the Map Library's button)
+        Cbuf_AddText(va("save %s\nvr_continue_rows_test check\n", continueTestSave));
+        return;
+    }
+    if(!strcmp(phase, "check"))
+    {
+        Host_WaitForSaveThread();
+        check(VR_LaunchContinueTestFixture(continueTestSave, continueTestCopy, continueTestSha) == 1,
+            "the package's fixture written");
+        const za::Vector<Item> items = pageCampaigns();
+        const Item* row = continueTestRow(items);
+        char label[192];
+        q_snprintf(label, sizeof(label), "%s /%s", row ? row->infoArg(row->arg) : "",
+            row && row + 1 < items.data() + items.size() && (row + 1)->partOf == 1 ? (row + 1)->infoArg((row + 1)->arg) : "");
+        char expected[192];
+        q_snprintf(expected, sizeof(expected), "Continue (just now) /  %s", t.summary);
+        if(row && strcmp(label, expected))
+        {
+            Con_Printf("continue_rows: the row reads \"%s\", expected \"%s\"\n", label, expected);
+        }
+        check(row && !strcmp(label, expected), "Quake's row has its Continue (its age), the run's summary under it");
+        check(row && row != &items[0] && (row - 1)->infoArg == VR_CampaignLabel && (row - 1)->arg == 0,
+            "its Continue right under Quake's row");
+        const char* save = VR_LaunchContinueSave(0, "");
+        check(save && !strcmp(save, continueTestSave), "it is the save just made");
+        const char* pkg = VR_LaunchContinueLabel(0, continueTestSha, 0);
+        check(pkg && !strcmp(pkg, t.label), "the Map Library's package has its Continue, the same summary");
+        const char* pkgSave = VR_LaunchContinueSave(0, continueTestSha);
+        check(pkgSave && !strcmp(pkgSave, continueTestCopy), "the package's Continue is its own autosave");
+        Con_Printf("continue_rows: %s | package: %s\n", label, pkg ? pkg : "none");
+        if(!row)
+        {
+            Cvar_SetValue("sv_autosave", t.autosave);
+            t.tally.verdict(name);
+            return;
+        }
+        // Other choices now: the load must bring the run's back.
+        Cbuf_AddText("vr_run skill 0\nvr_run style 3\nvr_run glasscannon 0\nvr_continue_rows_test press\n");
+        return;
+    }
+    if(!strcmp(phase, "press"))
+    {
+        check(strcmp(runsetup::summary(false), t.summary) != 0, "other run choices before the press");
+        // The row pressed as the menu does (Official Campaigns open).
+        VR_OpenCampaignSelector();
+        const za::Vector<Item> items = pageCampaigns();
+        const Item* row = continueTestRow(items);
+        check(row != nullptr && m_state == m_vr, "the page open, its Continue there");
+        if(row)
+        {
+            row->actionArg(row->arg);
+        }
+        Cbuf_AddText("vr_continue_rows_test loaded\n");
+        return;
+    }
+    if(!strcmp(phase, "loaded"))
+    {
+        check(key_dest == key_game && m_state == m_none, "the menu closed");
+        check(sv.active && !strcmp(sv.name, "e1m1"), "the save loaded (e1m1)");
+        check(!strcmp(runsetup::summary(false), t.summary), "the run's choices back from the save");
+        check(static_cast<int>(skill.value) == 2, "skill 2 (Hard) back");
+        Con_Printf("continue_rows: the run after the load: %s\n", runsetup::summary(false));
+        VR_LaunchContinueTestFixture(nullptr, continueTestSave, "");
+        VR_LaunchContinueTestFixture(nullptr, continueTestCopy, "");
+        const za::Vector<Item> after = pageCampaigns();
+        check(!continueTestRow(after) || VR_LaunchContinueSave(0, ""), "its autosave removed: no Continue from it");
+        check(!VR_LaunchContinueSave(0, continueTestSha), "the package's removed: no Continue");
+        Cvar_SetValue("sv_autosave", t.autosave);
+        t.tally.verdict(name);
+        return;
+    }
+    Con_Printf("usage: vr_continue_rows_test [start]\n");
+}
+
 // maps_page_stats (Debug > Tools).
 void qvr::menu::mapsPageStats_f()
 {

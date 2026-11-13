@@ -254,6 +254,7 @@ vr_pickup_test   10-11    vr_pickup_test.qc                a weapon_gruntgun lyi
 vr_pickup_test   12       vr_pickup_test.qc                every holdable weapon in each hand and holster through a save and a load (vr_load_models_test.qc)
 vr_pickup_test   13       vr_pickup_test.qc                vrtutorial's keycard: its GRABBED tip let out as a hand takes it, gone as it is kept (VR_KeyTipTest_Start)
 vr_pickup_test   14       vr_pickup_test.qc                Melee Only: a dropped burst rifle, a map shotgun, a crate's flare gun, shells refused (force grab, grip, catch, walk); axe and dagger taken; off: taken (VR_MeleeOnlyTest_Run, vr_meleeonly_test.qc)
+vr_pickup_test   15       vr_pickup_test.qc                Melee Only and FrikBot bots: the run's dagger at the start, no gun chosen though held, guns/ammo no goals and not snatched, the dagger swung at a grunt; off: guns again (VR_MeleeOnlyBotTest_Run, vr_meleeonly_bot_test.qc; maxplayers 2, deathmatch 0)
 
 vr_reload_test   1        vr_reload_test.qc                (VRIsHandEmpty)
 vr_reload_test   2        vr_reload_test.qc                (VR_Reload_IsRound)
@@ -737,6 +738,7 @@ vr_flatswap_test 1        vr_flatswap_test.qc              flat-screen swap key:
 vr_flatswap_test 2        vr_flatswap_test.qc              flat-screen swap key with carried things: gun+brick, brick+gun, two bricks, brick+empty, empty+brick, two guns, a brick in both: each hand ends with the other's
 vr_flatswap_test 3        vr_flatswap_test.qc              flat-screen swap key with each melee weapon held alone (axe, Mjolnir, sword, crowbar, super axe, chainsaw; AD's six with AD's data), the two-handed stance on and off, both ways: the weapon and both hands seen every frame, nothing not a number (the engine's watch, vr_flat_swap_vis_faults)
 vr_flatswap_test 4        vr_flatswap_test.qc              as 3 with AD's six melee weapons only (run with AD's data: -game ad; without it "AD's data not mounted" and no checks)
+vr_flatswap_test 5        vr_flatswap_test.qc              a shot never fired from a clip that can't pay: the empty shotgun right, the spent flare gun left; swap, swap twice, the menu's drop, H, either gun holstered and drawn, reload then swap, swap mid-reload, the drawn swap key, a reload in the left; the ammo kind's mirror left at none, half a round in the clip: each hand's shotgun clicks or fires one round, never unpaid; each hand's mirrored ammo kind its weapon's
 vr_flatswap_test 11-17    vr_flatswap_test.qc              test aid: a strip of the swap (rocket launcher, super shotgun, nailgun, axe, shotgun with a brick in the left hand, grenade launcher, AD plasma rifle)
 vr_flatblood_test 1       vr_flatblood_test.qc             blood at point blank: a grunt and a corpse shot with the shotgun, super shotgun, nailgun at 60/30/12/4 units, its particles made and drawn
 vr_flatblood_test 2       vr_flatblood_test.qc             blood at point blank, his repro: crouched over a corpse, the shotgun down at it from 20/12/6/3 units (after the 60-unit corpse shot)

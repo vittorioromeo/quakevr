@@ -774,7 +774,17 @@ int VR_CampaignForMap(const char *map);			// the campaign a map's name says it i
 // One save folder: autosave/<map> (Quake's), autosave/<campaign folder>~<map> (the others'), autosave/<package>~<map>
 // (a Map Library package's: its sha256's first 16).
 void VR_AutosaveName(const char *map, char *out, size_t size); // the running game's: the active campaign, the mounted map package
-void VR_AutosaveNameForLaunch(const char *map, char *out, size_t size); // a map about to be started (the skill menu's Resume)
+// Continue on the launch rows (vr_continue.cpp): Select Campaign's campaign rows and the Map Library's packages each
+// offer their game's newest loadable autosave (sha "" or NULL: the campaign's, no package; else that package's).
+void VR_LaunchContinueRefresh(void);                                  // the autosaves read again (the page built)
+// part 0: "Continue (12 min ago): Hard / Classic", 1: "Continue (12 min ago)", 2: "Hard / Classic" (its run); NULL: none
+const char *VR_LaunchContinueLabel(int campaign, const char *sha, int part);
+const char *VR_LaunchContinueHelp(int campaign, const char *sha);    // its help line; NULL: none
+const char *VR_LaunchContinueSave(int campaign, const char *sha);    // the save's name ("autosave/e1m3"); NULL: none
+int VR_LaunchContinueLoad(int campaign, const char *sha);            // loaded next (1), or none (0)
+// vr_continue_rows_test's fixture: `save` copied to `copy` as a map package `sha`'s autosave (that package taken as
+// installed); save NULL: `copy` removed and the package forgotten. 1: done.
+int VR_LaunchContinueTestFixture(const char *save, const char *copy, const char *sha);
 void VR_SaveContext(char *out, size_t size);	// SaveData_Fill: the save's context lines (// qvr_campaign, qvr_package, ...)
 int VR_SavePackage(const char *text, const char *savepath, char *sha, size_t size); // the save's map package ("": none); 0: it doesn't say
 int VR_SavePackageReady(const char *text, const char *savepath); // 0 (said, on screen too) when its map package is not installed
