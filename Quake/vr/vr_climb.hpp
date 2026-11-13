@@ -33,6 +33,9 @@ bool grunt(edict_t* ent, float choice, float volume);
 // (a weapon's second grip, a hotspot).
 [[nodiscard]] bool holding(int hand);
 
+// Client: whether the player mantles now (the server's mantle phase, STAT_QVR_CLIMB's bit 30): flat play's mantle FOV.
+[[nodiscard]] bool mantling();
+
 // Client: where `hand` holds now (the server's hold on the lip, STAT_QVR_CLIMB*, without the drawn hand's offsets) and
 // the way out from its face (horizontal). False: it holds nothing. (vr_avatar.cpp: the feet's holds while climbing.)
 bool heldAt(int hand, glm::vec3& at, glm::vec3& out);

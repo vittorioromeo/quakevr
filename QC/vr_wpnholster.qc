@@ -113,7 +113,8 @@ float(entity e) VR_EnemyGun_DepletedSkipped; // (vr_wpnforcegrab.qc)
 void() forcegrabbable_think_impl =
 {
     // A spent enemy gun (the force grab skips it) has no grab sparkles either: nothing says it could be force grabbed.
-    propthink(VR_EnemyGun_DepletedSkipped(self) ? 0 : vr_weapondrop_particles_on);
+    // Nor a gun or ammunition in a Melee Only run (vr_run_meleeonly.qc).
+    propthink((VR_EnemyGun_DepletedSkipped(self) || VR_RunMeleeOnly_RefusesEnt(self)) ? 0 : vr_weapondrop_particles_on);
 }
 
 void() forcegrabbable_think =
@@ -385,6 +386,10 @@ float(entity ent, float xHand) wpnthrow_handtouch_ent_hand =
 {
     entity entPlayer = ent.handtouch_ent;
 
+    if(VR_RunMeleeOnly_RefusesEnt(ent))
+    {
+        return FALSE; // Melee Only: a gun is never taken in hand (a grab, a catch, a grunt's yank: it falls), vr_run_meleeonly.qc
+    }
     if(!VR_Hand_Free(entPlayer, xHand, VR_HANDFREE_LOCKED)) // (a busy hand catches no weapon)
     {
         return FALSE;

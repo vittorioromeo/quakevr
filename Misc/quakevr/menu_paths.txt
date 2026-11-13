@@ -1455,6 +1455,9 @@ vr_flat_speed_fov_max|1|Locomotion|Speed FOV Most|Advanced VR Options > Movement
 vr_flat_speed_fov_from|1|Locomotion|Speed FOV From Speed|Advanced VR Options > Movement > Locomotion > Speed FOV From Speed
 vr_flat_speed_fov_top|1|Locomotion|Speed FOV Full Speed|Advanced VR Options > Movement > Locomotion > Speed FOV Full Speed
 vr_flat_slide_fov_bonus|1|Locomotion|Speed FOV Slide Extra|Advanced VR Options > Movement > Locomotion > Speed FOV Slide Extra
+vr_flat_mantle_fov_bonus|1|Locomotion|Speed FOV Mantle Extra|Advanced VR Options > Movement > Locomotion > Speed FOV Mantle Extra
+vr_flat_mantle_fov_ease|1|Locomotion|Speed FOV Mantle Ease In|Advanced VR Options > Movement > Locomotion > Speed FOV Mantle Ease In
+vr_flat_mantle_fov_ease_out|1|Locomotion|Speed FOV Mantle Ease Out|Advanced VR Options > Movement > Locomotion > Speed FOV Mantle Ease Out
 vr_flat_speed_fov_ease|1|Locomotion|Speed FOV Ease In|Advanced VR Options > Movement > Locomotion > Speed FOV Ease In
 vr_flat_speed_fov_ease_out|1|Locomotion|Speed FOV Ease Out|Advanced VR Options > Movement > Locomotion > Speed FOV Ease Out
 vr_flat_lean|1|Locomotion|Lean (Q / E)|Advanced VR Options > Movement > Locomotion > Lean (Q / E)

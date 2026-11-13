@@ -12,6 +12,7 @@
 #include "vr_engine.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_flatsight.hpp"
+#include "vr_flatspeedfov.hpp"
 #include "vr_flycam.hpp"
 #include "vr_geom.hpp"
 #include "vr_hands.hpp"
@@ -275,6 +276,8 @@ struct MantleTest
     int only{-1};      // vr_flatmantle_test <case>: that case alone
     int onLedge{0};    // the hands drawn on the ledge while it mantled (STAT_QVR_CLIMB's bits: 1 the off hand, 2 the main)
     int empty{-1};     // and the hands empty as it started (climb::handFree), the same bits
+    float fovPeak{1.f}; // the speed FOV's widest while it mantled (vr_flat_mantle_fov_bonus)
+    bool fovBack{false}; // a mantle's widening to see eased back before the next jump
 };
 
 // vr_flatslide_rough_test (maps/vrtesthall.bsp): slides up its stairs and its ramp, then curves with A alone and D alone,
@@ -1976,9 +1979,22 @@ void mantleTestFrame()
     case 2: // settled on the floor, the look held: the jump
         // (40 frames: past the climb's 0.4 s without a new hold after the last mantle, as a player's next jump would be)
         t.frames = ground ? t.frames + 1 : 0;
+        if(t.frames >= 40 && t.fovBack)
+        {
+            if(flatspeedfov::multiplier() != 1.f)
+            {
+                break; // (the last mantle's FOV kick still easing back: it must reach the view's own)
+            }
+            char line[160];
+            q_snprintf(line, sizeof(line), "the mantle FOV kick eased back to x1 (%.2f s after landing)",
+                static_cast<float>(now - t.phaseAt));
+            testCheck(t.tally, tag, true, line);
+            t.fovBack = false;
+        }
         if(t.frames >= 40)
         {
             t.mantlesBefore = mantles;
+            t.fovPeak = 1.f;
             t.airborne = false;
             t.onLedge = 0;
             t.empty = -1;
@@ -1999,6 +2015,7 @@ void mantleTestFrame()
                 t.empty = (climb::handFree(pl, 0, false) ? 1 : 0) | (climb::handFree(pl, 1, false) ? 2 : 0);
             }
             t.onLedge |= cl.stats[protocol::STAT_QVR_CLIMB] & 3;
+            t.fovPeak = za::max(t.fovPeak, flatspeedfov::multiplier());
         }
         t.frames = t.airborne && ground && !mantling ? t.frames + 1 : 0;
         if(t.frames >= 5)
@@ -2018,6 +2035,20 @@ void mantleTestFrame()
                 q_snprintf(line, sizeof(line), "lip %.0f: hands on the ledge off %d main %d (empty: off %d main %d)", k.lip,
                     t.onLedge & 1, (t.onLedge >> 1) & 1, za::max(t.empty, 0) & 1, (za::max(t.empty, 0) >> 1) & 1);
                 testCheck(t.tally, tag, t.empty >= 0 && t.onLedge == want, line);
+                // The FOV kick (the speed FOV on): wider while it mantled, at least half the extra (its ease in).
+                const float extra = za::clamp(vr_flat_mantle_fov_bonus.value, 0.f, 0.5f);
+                if(vr_flat_speed_fov.value != 0.f && extra > 0.f)
+                {
+                    q_snprintf(line, sizeof(line), "lip %.0f: the mantle FOV kick peaked at x%.3f (extra %.2f)", k.lip, t.fovPeak,
+                        extra);
+                    testCheck(t.tally, tag, t.fovPeak >= 1.f + 0.5f * extra, line);
+                    t.fovBack = true;
+                }
+            }
+            else if(t.fovPeak != 1.f)
+            {
+                q_snprintf(line, sizeof(line), "lip %.0f: no mantle, the FOV stayed x1 (peak x%.3f)", k.lip, t.fovPeak);
+                testCheck(t.tally, tag, false, line);
             }
             Cbuf_InsertText("-jump\n");
             t.index++;

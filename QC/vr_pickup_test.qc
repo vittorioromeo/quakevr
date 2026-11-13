@@ -881,6 +881,10 @@ void() VR_PickupTest_Frame =
     {
         VR_KeyTipTest_Start(); // (the tutorial's keycard tip; VR_KeyTipTest_Frame runs it on)
     }
+    else if(ask == 14)
+    {
+        VR_MeleeOnlyTest_Run(); // (Melee Only's refusals: vr_meleeonly_test.qc)
+    }
     self = oself;
 };
 #endif

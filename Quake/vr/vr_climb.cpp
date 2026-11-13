@@ -3444,6 +3444,7 @@ constexpr float pinInMax = 0.2f;    // at most, for a hold further than
 constexpr float pinInSpeed = 2.f;   // m/s allows (a lenient grab's far hold: no pop)
 constexpr float pinOutTime = 0.12f; // and to go back to the tracked hand after letting go
 constexpr float yawSteps = 256.f;   // the holds' ways out in the stats: a byte of yaw each
+constexpr int mantleStatBit = 1 << 30; // STAT_QVR_CLIMB: mantling now (bits 0-29 the holds')
 
 // The time the drawn hand takes to ease `dist` units.
 [[nodiscard]] float easeTime(float dist)
@@ -3577,7 +3578,16 @@ void qvr::climb::calcStats(edict_t* ent, int* statsi)
             statsi[first + i] = static_cast<int>(za::lround(hold[i] * statScale));
         }
     }
+    if(c && c->phase == Phase::Mantling)
+    {
+        bits |= mantleStatBit; // (the client's mantling(): flat play's mantle FOV, vr_flatspeedfov.cpp)
+    }
     statsi[STAT_QVR_CLIMB] = bits;
+}
+
+bool qvr::climb::mantling()
+{
+    return (cl.stats[protocol::STAT_QVR_CLIMB] & mantleStatBit) != 0;
 }
 
 float qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& handTurn, glm::vec3& pos, glm::vec3& rot,
