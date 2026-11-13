@@ -10,6 +10,9 @@
 //   122 the hunt: a grunt Hostile at him sees him dart sideways, then loses him (he is put out of sight under the floor):
 //       it follows his trail (to where it saw him last, then ahead along his way), gives up after vr_stealth_lose_time
 //       (8 s here) and searches (Alert); then with him far (vr_stealth_lose_far 600) it gives up after a quarter of it;
+//   125 his trail by the navmesh, not him (vr_nav_trail): a grunt Hostile at him sees him stand, then he is put out of
+//       sight 288-768 units on (a place with a navmesh path there): it walks the navmesh to where it saw him, searches
+//       about there, never comes within 160 of him, gives up at 15 s; with vr_nav_trail 0 the same, for comparison;
 //   124 props in the way (vrteleporters, room T): a row of five large crates between a knight Hostile at him and him
 //       (the knight 500 units off): with vr_ai_props 1 it gets round them to him (within 80 units) within 6 s; with 0 the
 //       time it took (or not, in 15 s) for comparison;
@@ -24,6 +27,11 @@ float stt4_near;      // how near it came to where it saw him last
 float stt4_hid;       // when he was put out of sight
 vector stt4_ahead;    // where its trail's second step went
 vector stt4_side;     // the way he darts
+entity stt4_probe;    // 125: a box his size, for navreach
+vector stt4_p2;       // 125: where he goes on to, out of sight
+float stt4_min2;      // 125: the nearest it came to him there
+float stt4_omni;      // 125: the frames its goal was him while it hunted him unseen
+float stt4_steps0;    // 125: vr_nav_trail_steps as he went
 
 // Him out of sight of everything: under the floor (the first solid point from 256 units down, at least `xMin` from where
 // he stood), noclip; '0 0 0' if none.
@@ -94,6 +102,11 @@ void() VR_STT4_End =
     cvar_set("vr_stealth_lose_far", "1500");
     cvar_set("vr_stealth_chase_trail", "1");
     cvar_set("vr_stealth_chase_predict", "1.5");
+    if(stt4_probe)
+    {
+        remove(stt4_probe);
+        stt4_probe = world;
+    }
     if(stt2_p.movetype == MOVETYPE_NOCLIP)
     {
         VR_STT4_Unhide(stt2_p);
@@ -106,6 +119,178 @@ void() VR_STT4_End =
 float(entity m) VR_STT4_Saw =
 {
     return m.stl_meter >= cvar_hget(cvarh_vr_stealth_glimpse) || m.stl_state == STL_ALERT || m.enemy != world;
+};
+
+// 125: whether `c` (his origin there) is out of sight of the grunt and of where he stood (and of the spots about it a
+// search may stand at: 160 units off it each way, cut short by walls).
+float(vector c, vector p1, entity m) VR_STT4_Hidden =
+{
+    vector head = c + '0 0 22';
+    traceline(m.origin + m.view_ofs, head, TRUE, m);
+    if(trace_fraction >= 1) { return FALSE; }
+    for(float a = -45; a < 360; a = a + 45)
+    {
+        vector eye = p1;
+        if(a >= 0)
+        {
+            makevectors('0 1 0' * a);
+            traceline(p1, p1 + v_forward * 160, TRUE, world);
+            eye = trace_endpos - v_forward * min(16, vlen(trace_endpos - p1));
+        }
+        traceline(eye, head, TRUE, world);
+        if(trace_fraction >= 1) { return FALSE; }
+        traceline(eye, c, TRUE, world);
+        if(trace_fraction >= 1) { return FALSE; }
+    }
+    return TRUE;
+};
+
+// 125: a place for him out of sight of where it saw him (VR_STT4_Hidden), with a navmesh path there for the grunt, the
+// nearest of 288-768 units off; '0 0 0' none.
+vector(entity m, vector p1) VR_STT4_Beyond =
+{
+    if(!stt4_probe)
+    {
+        stt4_probe = spawn();
+        stt4_probe.classname = "stt4_probe";
+    }
+    setsize(stt4_probe, VEC_HULL_MIN, VEC_HULL_MAX);
+    for(float r = 288; r <= 768; r = r + 48)
+    {
+        for(float a = 0; a < 360; a = a + 22.5)
+        {
+            makevectors('0 1 0' * a);
+            vector c = p1 + v_forward * r;
+            if(pointcontents(c) == CONTENT_SOLID) { continue; }
+            traceline(c, c - '0 0 256', TRUE, world);
+            if(trace_fraction >= 1 || trace_startsolid) { continue; }
+            c = trace_endpos + '0 0 25';
+            tracebox(c, VEC_HULL_MIN, VEC_HULL_MAX, c, FALSE, world);
+            if(trace_startsolid || trace_allsolid || !VR_STT4_Hidden(c, p1, m)) { continue; }
+            setorigin(stt4_probe, c);
+            if(navreach(m, stt4_probe) > 0) { return c; }
+        }
+    }
+    return '0 0 0';
+};
+
+// 125: a grunt Hostile at him sees him stand, then he is put out of sight on along the navmesh (VR_STT4_Beyond): with
+// vr_nav_trail 1 it walks the navmesh to where it saw him (within 64), searches about there, never heads for him (never
+// within 160 of him, its goal never him while unseen) and gives up at vr_stealth_lose_time (15 s). With vr_nav_trail 0
+// (set ahead: `tune vr_nav_trail 0`; stealth_tests.sh trailnav runs both) an info line for comparison (the old trail's
+// last step went on at him by the navmesh).
+void(entity p, entity m, float t) VR_STT4_TrailNav =
+{
+    float on = cvar_hget(cvarh_vr_nav_trail);
+    if(stt2_stage == 0)
+    {
+        stt2_dir = VR_STT4_ClearAxis(p.origin, 320);
+        if(stt2_dir == '0 0 0')
+        {
+            VR_STT2_Report("trailnav", FALSE, "no room");
+            VR_STT4_End();
+            return;
+        }
+        cvar_set("vr_stealth_share_near", "0");
+        cvar_set("vr_stealth_share_view", "0");
+        cvar_set("vr_stealth_light_force", "128");
+        cvar_set("vr_stealth_lose_time", "15");
+        cvar_set("vr_stealth_lose_far", "0");
+        cvar_set("vr_stealth_chase_trail", "1");
+        cvar_set("vr_stealth_chase_predict", "1.5");
+        stt2_m1 = VR_STT2_Spawn(p.origin + stt2_dir * 300 + '0 0 8', vectoyaw(-stt2_dir), 0);
+        stt4_p2 = '0 0 0';
+        VR_STT2_Stage(1);
+        return;
+    }
+    // 1: the navmesh ready, a place out of sight found; spotted, he stands a second, then he is out there
+    if(stt2_stage == 1)
+    {
+        if(stt4_p2 == '0 0 0')
+        {
+            if(navreach(m, p) < 0)
+            {
+                if(t > 20)
+                {
+                    VR_STT2_Report("trailnav", FALSE, "no navmesh");
+                    VR_STT4_End();
+                }
+                return;
+            }
+            stt4_p2 = VR_STT4_Beyond(m, p.origin);
+            if(stt4_p2 == '0 0 0')
+            {
+                VR_STT2_Report("trailnav", FALSE, "no place out of sight with a path there");
+                VR_STT4_End();
+                return;
+            }
+            VR_STT2_Stage(stt2_stage);
+            return;
+        }
+        if(t < 0.1)
+        {
+            VR_STT2_Calm(m, m.angles_y);
+            VR_Stealth_Spot(m, p);
+            return;
+        }
+        if(t < 1.2)
+        {
+            return;
+        }
+        if(m.enemy != p)
+        {
+            VR_STT2_Report("trailnav", FALSE, sprintf("not hunting him (enemy %s)", m.enemy.classname));
+            VR_STT4_End();
+            return;
+        }
+        stt2_at = p.origin;
+        p.velocity = '0 0 0';
+        setorigin(p, stt4_p2);
+        stt4_hid = time;
+        stt4_trail = 0;
+        stt4_near = 99999;
+        stt4_min2 = 99999;
+        stt4_omni = 0;
+        stt4_steps0 = vr_nav_trail_steps;
+        VR_STT2_Stage(2);
+        return;
+    }
+    // 2: hunting him out of sight till it gives up (15 s)
+    p.velocity = '0 0 0';
+    if(m.enemy == p)
+    {
+        stt4_trail = max(stt4_trail, m.stl_trail);
+        vector d1 = m.origin - stt2_at;
+        stt4_near = min(stt4_near, vlen('1 0 0' * d1_x + '0 1 0' * d1_y));
+        stt4_min2 = min(stt4_min2, vlen(m.origin - p.origin));
+        if(m.goalentity == p && m.stl_trail > 0)
+        {
+            stt4_omni = stt4_omni + 1;
+        }
+        if(t < 20 && stt4_min2 > 64)
+        {
+            return;
+        }
+    }
+    float gave = time - m.stl_lost_time;
+    float steps = vr_nav_trail_steps - stt4_steps0;
+    if(on)
+    {
+        VR_STT2_Report("trailnav_spot", stt4_near < 64 && steps > 0,
+            sprintf("came within %.0f of where it saw him last, %g navmesh steps along his trail", stt4_near, steps));
+        VR_STT2_Report("trailnav_not_him", stt4_min2 > 160 && !stt4_omni,
+            sprintf("within %.0f of him (%.0f on, unseen); goal him %g frames; step %g",
+                stt4_min2, vlen(stt4_p2 - stt2_at), stt4_omni, stt4_trail));
+        VR_STT2_Report("trailnav_gives_up", m.enemy == world && gave > 14.6 && gave < 15.6 && m.stl_state == STL_ALERT,
+            sprintf("gave up %.2f s after it last saw him (15), state %g", gave, m.stl_state));
+    }
+    else
+    {
+        bprint(sprintf("stealthtest: trailnav_off info: within %.0f of him (%s, %.0f on), %.0f of the spot; goal him %g frames\n",
+            stt4_min2, stt4_min2 <= 64 ? "reached" : "not reached", vlen(stt4_p2 - stt2_at), stt4_near, stt4_omni));
+    }
+    bprint(sprintf("stealthtest: trailnav done, %g failed\n", stt2_fails));
+    VR_STT4_End();
 };
 
 void() VR_STT4_Frame =
@@ -303,6 +488,13 @@ void() VR_STT4_Frame =
             return;
         }
         VR_STT4_End();
+        return;
+    }
+
+    // 125: his trail by the navmesh, not him.
+    if(stt2_step == 125)
+    {
+        VR_STT4_TrailNav(p, m, t);
         return;
     }
 

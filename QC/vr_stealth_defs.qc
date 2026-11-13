@@ -43,6 +43,8 @@
 .float stl_trail;       // out of sight: the step of his trail it follows (VR_Stealth_Trail: 1 his last spot, 2 ahead, 3 at him)
 .float stl_trail_time;  // and when it began
 .entity stl_trail_gate; // step 1 through a teleporter he went into (VR_Stealth_TrailGate): its trigger; world none
+.vector stl_trail_end;  // step 3 under vr_nav_trail: where its trail ended (it searches about there, VR_Stealth_TrailSearch)
+.float stl_trail_look;  // ... and when it picks its next spot there
 .float stl_lost_seen;   // whether it saw him at stl_lost_time (0: woken onto him unseen, it knew where he was)
 .float stl_tele_time;   // a player: when he last went through a teleporter (VR_Stealth_Teleported)
 .entity stl_tele_gate;  // and its trigger
@@ -115,6 +117,7 @@ void() VR_Stealth_Frame;
 float(float xVis) VR_Stealth_Lose;
 void(float dist) VR_AI_MoveToGoal;
 float(float dist) VR_NAV_Step; // (vr_ai_props.qc; ai_run's ranged foe at a gate)
+float(entity m) VR_Stealth_TrailNav; // (vr_stealth.qc; VR_NAV_Step: its trail's marker walked by the navmesh)
 float() VR_NAV_MeleeOff; // (vr_ai_props.qc: no melee at a foe on another level with a navmesh path there) // (vr_ai_props.qc: movetogoal, round the props in the way)
 float(entity client) VR_Stealth_See;
 float() VR_Stealth_Stand;

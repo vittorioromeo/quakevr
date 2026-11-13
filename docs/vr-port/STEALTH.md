@@ -217,6 +217,12 @@ where it stands. AD's zombies have the zombies' senses. Tests: `Misc/quakevr/adb
   `vr_stealth_lose_far` (1500 units; 0 never sooner): Alert, it searches where his trail ended (the spot it was going
   to; where it stands once it went on at him), then goes back. Off (`vr_stealth_chase_trail 0`): Quake's chase until
   it gives up, then to where it saw him last. Seen again at any time: the trail is forgotten, the hunt goes on.
+  **By the navmesh, not him** (`vr_nav_trail` 1, Debug > Tunables "Navmesh: Follow Your Trail"; NAVMESH.md 20): the
+  trail's spots are walked by the navmesh, and its last step is no longer "straight at him" (the navmesh found him
+  wherever he went): it searches about where the trail ended (spots up to `vr_nav_trail_search` 160 off it, cut short
+  by walls, half of them on along his way) till the give-up, which keeps its times. Woken onto him unseen (a shared
+  alert, a noise), its trail's first spot is where he was then (it was the last spot it had ever seen him at, or the
+  map's origin). 0: as before.
 - **His trail through a teleporter** (`vr_stealth_chase_tele` 5 s; 0 off): a player going through a teleporter
   (Quake's or a walked gate) is noted on him (`VR_Stealth_Teleported`: when, its trigger, where he came out). A hunter
   that lost him follows it when he went in at most that long after its last sighting (or it was woken onto him unseen
@@ -332,6 +338,11 @@ Further scenes (`vr_stealth_test 100`-`108`, `vr_stealth_test2.qc`: their own gr
   is put under the floor, out of everyone's sight), `vr_stealth_lose_time 8`: it comes to his last spot, guesses on
   along his way, gives up 8 s after it last saw him, Alert; then with him 885 units off and `vr_stealth_lose_far 600`,
   after 2 s. Scene 13 of `vr_stealth_test 1` keeps the old rule's check (6 s, no trail: to where it saw him last).
+- 125 his trail by the navmesh (`stealth_tests.sh trailnav`, `vr_nav_trail`): a grunt Hostile at him sees him stand,
+  then he is put out of sight 288-768 units on (the nearest place hidden from it, from his spot and from 160 about it,
+  with a navmesh path there for it), `vr_stealth_lose_time 15`: it walks the navmesh to his spot (within 64, navmesh
+  steps counted), never comes within 160 of him nor makes him its goal unseen, gives up at 15 s. Run again with
+  `tune vr_nav_trail 0` set ahead: an info line (the old last step reached him: within 51, his goal 195 frames).
 
 ## Open items moved from BACKLOG.md (2026-11-12)
 

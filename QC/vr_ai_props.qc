@@ -154,21 +154,26 @@ float() VR_NAV_MeleeOff =
     return navreach(self, self.enemy) > 0;
 };
 
-// The navmesh's step to its enemy, or along his trail through a teleporter (the stealth AI's marker where he came out,
-// vr_stealth.qc VR_Stealth_Trail: its path through the teleporter's link). Not to other trail markers: steering to every
-// one made a lift's rider give the ride up (NAVMESH.md 17).
+float vr_nav_trail_steps; // the navmesh steps taken along a trail's markers (vr_stealth_test 125 counts them)
+
+// The navmesh's step to its enemy, or along his trail: through a teleporter (the stealth AI's marker where he came out,
+// vr_stealth.qc VR_Stealth_Trail: its path through the teleporter's link), and under vr_nav_trail to the trail's other
+// markers (where it saw him last, where he was heading, the spots it searches at the trail's end: VR_Stealth_TrailNav),
+// never to where he is now while it can't see him (NAVMESH.md 20).
 float(float dist) VR_NAV_Step =
 {
     entity g = self.goalentity;
     float toGate = g != world && g == self.stl_marker && self.stl_trail_gate != world;
     float via = 0;
     if(g != world && g == self.stl_marker && cvar_hget(cvarh_vr_nav_gate_marker)) { via = VR_Stealth_MarkerVia(self); }
-    if(!cvar_hget(cvarh_vr_nav) || dist <= 0 || g == world || (g != self.enemy && !toGate && !via) || !(self.flags & FL_MONSTER) ||
-       (self.flags & (FL_FLY | FL_SWIM)))
+    float trail = g != world && g == self.stl_marker && !toGate && !via && VR_Stealth_TrailNav(self);
+    if(!cvar_hget(cvarh_vr_nav) || dist <= 0 || g == world || (g != self.enemy && !toGate && !via && !trail) ||
+       !(self.flags & FL_MONSTER) || (self.flags & (FL_FLY | FL_SWIM)))
     {
         return FALSE;
     }
-    self.vr_nav_melee = VR_NAV_Melee();
+    // (no slot on a ring round a trail marker: straight to the spot, VR_Stealth_Trail's "there" is 48 from it)
+    self.vr_nav_melee = trail ? FALSE : VR_NAV_Melee();
     float yaw;
     if(via)
     {
@@ -184,6 +189,7 @@ float(float dist) VR_NAV_Step =
         yaw = navsteer(self, g);
     }
     if(yaw < 0) { return FALSE; }
+    if(trail) { vr_nav_trail_steps = vr_nav_trail_steps + 1; }
     float act = navlink(self);
     self.ideal_yaw = yaw;
     ChangeYaw();

@@ -573,3 +573,25 @@ now also waits for the player before its first spawn: it had a program error whe
     carries the marker as before (`VR_Stealth_Crossed`). Markers not past a gate keep Quake's chase (lifts: 17).
 - `vr_nav_teletest`'s notes (`navtt-step`) now also print the walker's goal (`enemy`, `stl_marker` and where) and come
   for a walker not yet steering by the navmesh (why 0).
+
+## 20. His trail by the navmesh, not him (2026-11-13)
+
+- **His rule:** a monster that lost you follows your trail a bit, but doesn't magically know where you are. Before,
+  `VR_NAV_Step` steered only to the enemy (and the teleporter/gate markers of 18-19): the trail's own spots were walked
+  by Quake's chase, and its last step ("on at him", goal the enemy) took the navmesh's path to his live position
+  wherever he went: the omniscient part.
+- **`vr_nav_trail` 1** (Debug > Tunables, "Navmesh: Follow Your Trail"): `VR_NAV_Step` steers to a hunter's trail
+  marker (`VR_Stealth_TrailNav`: Hostile, on a trail, its own marker; no slot ring round it). The last step searches
+  about where the trail ended instead (`VR_Stealth_TrailSearch`: spots up to `vr_nav_trail_search` 160 off it, cut
+  short by walls, half on along his way, on the world's floor: not a lift or a door), till the give-up, which keeps its
+  times (`vr_stealth_lose_time`, the far quarter). A Hostile woken onto him unseen gets his spot then as its trail's
+  first spot (it kept a stale one or the map's origin: e1m1's woken grunts went "trail 1: to 0 0 0"). 0: as before.
+- **One goal at a teleporter:** seen last as his image through a teleporter it can't walk through (e1m1's one-way one)
+  that he went into: his trail goes through it (`VR_Stealth_TrailGate`, the image's way within 128 of the trigger);
+  his image glimpsed while it follows that trail no longer turns it back to him (`VR_Stealth_LoseNow`: the trail kept,
+  the give-up clock restarted; a melee one walks on, `VR_Stealth_ChaseGate`). The grunt that stood 0.5-1.75 s at the
+  link flipping between its marker (in front of the opening, Quake's chase) and him now has one goal, the link.
+- **Lifts (17's worry):** nav_lift's knight shares e1m1's lift with the map's own hunters, who now walk the navmesh to
+  his last spot by the lift; its time is noisy either way (A/B: trail 1: 22, 22, 10, 27 s; trail 0: 5, 5, 6, 23 s;
+  origin/next 13 s), all pass. Searchers kept off the lift (a raised plat stepped on went down under a rider).
+- **Test:** `vr_stealth_test 125` (`stealth_tests.sh trailnav`, STEALTH.md "Tests").
