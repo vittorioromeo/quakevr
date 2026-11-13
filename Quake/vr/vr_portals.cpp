@@ -1303,8 +1303,8 @@ void infoBody()
                    "%.0f %.0f)\n",
             sd.mins.x, sd.mins.y, sd.mins.z, sd.maxs.x, sd.maxs.y, sd.maxs.z, sd.area, trig->v.absmin[0],
             trig->v.absmin[1], trig->v.absmin[2], trig->v.absmax[0], trig->v.absmax[1], trig->v.absmax[2]);
-        Con_Printf("      from (%.0f %.0f %.0f) to (%.0f %.0f %.0f) yaw %.1f\n", sd.from.x, sd.from.y, sd.from.z,
-            sd.to.x, sd.to.y, sd.to.z, sd.yaw);
+        Con_Printf("      from (%.0f %.0f %.0f) to (%.0f %.0f %.0f) yaw %.1f, %s\n", sd.from.x, sd.from.y, sd.from.z,
+            sd.to.x, sd.to.y, sd.to.z, sd.yaw, sd.paired ? "paired (out of another gate's face)" : "unpaired");
     }
     if(svs.maxclients < 1 || !svs.clients[0].edict)
     {
@@ -1496,6 +1496,7 @@ void lightViews_f()
 
 void reachTest_f();
 void stuck_f();
+void walkTest_f();
 void rebuild_f() { if(sv.active) { build(); } }
 void registerCommands()
 {
@@ -1508,6 +1509,7 @@ void registerCommands()
     Cmd_AddCommand("vr_portals_pulltest", pullTest_f);
     Cmd_AddCommand("vr_portals_reachtest", reachTest_f);
     Cmd_AddCommand("vr_portals_stuck", stuck_f);
+    Cmd_AddCommand("vr_portals_walktest", walkTest_f);
 }
 
 } // namespace qvr::portals

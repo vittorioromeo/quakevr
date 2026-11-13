@@ -23,6 +23,8 @@ namespace detail
 ClientState clients[MAX_SCOREBOARD];
 
 int unstuckCount = 0; // times a player was got out of the wall behind a gate (vr_portals_stuck prints it)
+int playerCarries = 0; // players carried through a gate (vr_portals_walktest counts its trials' crossings)
+int monsterCarries = 0, monsterTeleports = 0; // monsters walked through a gate / left to Quake's teleport (vr_nav_teletest)
 
 za::Vector<ClientState> monsters; // by edict number
 
@@ -48,8 +50,8 @@ ClientState& crossingState(edict_t* ent)
         sv.worldmodel;
 }
 
-// A living monster (not a player) walking (vr_portals_monsters): it goes through paired gates as a player does, else by
-// Quake's teleport.
+// A living monster (not a player) walking (vr_portals_monsters): it goes through gates as a player does (monsterGate),
+// else by Quake's teleport.
 [[nodiscard]] bool monsterWalks(edict_t* ent)
 {
     return vr_portals_monsters.value > 0.f && !ent->free && NUM_FOR_EDICT(ent) > svs.maxclients &&
@@ -194,6 +196,28 @@ ClientState& crossingState(edict_t* ent)
     return bodyFitsGateAt(ent, sd, vec(ent->v.origin));
 }
 
+// The box at `p` clear of the world, without the split body (SV_Move's gate halves left out).
+[[nodiscard]] bool clearOfWorld(edict_t* ent, const glm::vec3& p)
+{
+    vec3_t o{p.x, p.y, p.z};
+    return !SV_MovePortalHalf(o, ent->v.mins, ent->v.maxs, o, MOVE_NOMONSTERS, ent, nullptr).startsolid;
+}
+
+// Whether the body at `origin` may go through `sd`: its box fits the opening (a gate in a wall: the split body carries
+// it past the plane), or the gate stands free where it passes, the box clear of the world both where it is and carried
+// to the exit (dm5's sheets: 4 units thick, a 48-wide opening, its bottom 4 units over the plinth; the box needn't fit an
+// opening nothing frames: it went past the sheet uncarried, ROUND25.md "Seamless teleporters: dm5, monsters").
+[[nodiscard]] bool crossFits(edict_t* ent, const Side& sd, const glm::vec3& origin)
+{
+    return bodyFitsGateAt(ent, sd, origin) || (clearOfWorld(ent, origin) && clearOfWorld(ent, carried(sd, origin)));
+}
+
+// A gate a monster walks through (vr_portals_monsters_all: every one, as a player; else a paired one only).
+[[nodiscard]] bool monsterGate(const Side& sd)
+{
+    return sd.paired || vr_portals_monsters_all.value > 0.f;
+}
+
 // A two-sided sheet: whether `p` is in front of the other face of `sd`'s gate (its side turned the other way).
 [[nodiscard]] bool inFrontOfOpposite(const Side& sd, const glm::vec3& p)
 {
@@ -273,6 +297,7 @@ void crossPlayer(edict_t* ent, const Side& sd, edict_t* trig, ClientState& cs, i
     SV_LinkEdict(ent, true);
     cs.crossed = qcvm->time;
     cs.leavingSide = returnSide >= 0 ? -1 : static_cast<int>(&sd - sides.data());
+    ++playerCarries;
     Con_DPrintf("VR portal: carried edict %d through side %d: %.0f %.0f %.0f -> %.0f %.0f %.0f\n", NUM_FOR_EDICT(ent),
         returnSide >= 0 ? returnSide : cs.leavingSide, from.x, from.y, from.z, to.x, to.y, to.z);
 
@@ -390,6 +415,7 @@ void crossMonster(edict_t* ent, const Side& sd, edict_t* trig, ClientState& cs, 
     cs.crossed = qcvm->time;
     cs.leavingSide = returnSide >= 0 ? -1 : static_cast<int>(&sd - sides.data());
     cs.lastTorso = torsoOf(ent);
+    ++monsterCarries;
     Con_DPrintf("VR portal: carried monster %d through side %d: %.1f %.1f %.1f -> %.1f %.1f %.1f\n", NUM_FOR_EDICT(ent),
         returnSide >= 0 ? returnSide : cs.leavingSide, from.x, from.y, from.z, to.x, to.y, to.z);
     portalCrossed(ent, sd, trig, from, returnSide);
@@ -399,7 +425,7 @@ void crossMonster(edict_t* ent, const Side& sd, edict_t* trig, ClientState& cs, 
 
 // SV_Move: while straddling a gate, each half of the body collides in its own room. The normal, intact world trace
 // remains the fallback outside a fully fitting aperture, and the gate's rim limits lateral motion during entry.
-// A monster's too (vr_portals_monsters), at paired gates only (else Quake's teleport takes it, at the trigger).
+// A monster's too (vr_portals_monsters), at the gates it walks through (monsterGate).
 extern "C" int VR_PortalBodyMove(edict_t* ent, const float* start, const float* mins, const float* maxs,
                                  const float* end, int type, trace_t* trace)
 {
@@ -442,7 +468,7 @@ extern "C" int VR_PortalBodyMove(edict_t* ent, const float* start, const float* 
     {
         if(gate == &exitGate) { break; }
         const float d = glm::dot(sd.normal, torso) - sd.dist;
-        if(d < -kCross || za::fabs(d) >= nearest || (monster && !sd.paired) || !triggerActive(EDICT_NUM(sd.trigger)) ||
+        if(d < -kCross || za::fabs(d) >= nearest || (monster && !monsterGate(sd)) || !triggerActive(EDICT_NUM(sd.trigger)) ||
            !bodyFitsGateAt(ent, sd, a))
         {
             continue;
@@ -603,7 +629,7 @@ extern "C" void VR_PortalClientCross(edict_t* ent)
     {
         const int index = cs.leavingSide;
         const Side exitGate = reverseSide(sides[index]);
-        if(glm::dot(exitGate.normal, torsoOf(ent)) < exitGate.dist && bodyFitsGate(ent, exitGate))
+        if(glm::dot(exitGate.normal, torsoOf(ent)) < exitGate.dist && crossFits(ent, exitGate, vec(ent->v.origin)))
         {
             crossPlayer(ent, exitGate, EDICT_NUM(exitGate.trigger), cs, index);
             return;
@@ -630,7 +656,7 @@ extern "C" void VR_PortalClientCross(edict_t* ent)
         // A thick two-sided sheet has another face behind this one. Being behind that opposite face is not entry:
         // the body must move into this face, rather than away from it or merely jump in front of the sheet.
         if(d > 0.f || za::fabs(d) >= bestD || glm::dot(sd.normal, vec(ent->v.velocity)) >= 0.f ||
-           !onGate(sd, torso - sd.normal * d, kAperture) || !bodyFitsGate(ent, sd))
+           !onGate(sd, torso - sd.normal * d, kAperture) || !crossFits(ent, sd, vec(ent->v.origin)))
         {
             continue;
         }
@@ -676,7 +702,195 @@ void stuck_f()
     Con_Printf("portal stuck: %d at %.1f %.1f %.1f, side %d torso %.1f, unstuck %d\n", tr.startsolid ? 1 : 0, o[0], o[1],
         o[2], nearest, nearest >= 0 ? nearestD : 0.f, unstuckCount);
 }
+
+void monsterCrossings(int& walked, int& teleported)
+{
+    walked = monsterCarries;
+    teleported = monsterTeleports;
+}
+
+// vr_portals_walktest <name> [lanes 5] [angles 5] [speeds 4] (Debug > Teleporters): the player walked into every wall
+// side (an upright face) of every gate in the map, `lanes` lines across its opening (the torso's line meeting the plane
+// over the opening, 0.85 of its half-width out at the edges), `angles` headings (-50..50 degrees off straight in) and
+// `speeds` speeds (120..450 units a second), from 64 units out (a start in a wall or with no floor skipped). Each trial
+// ends as he is carried through (passed), his torso 40 units past the plane uncarried (walked through: failed) or 3 s
+// gone (blocked: failed if his line left his box room in the opening, else the frame stopped it: not counted). A
+// `pwt|...` line a trial, a summary, the verdict line (ROUND25.md, "Seamless teleporters: dm5, monsters").
+struct WalkTest
+{
+    za::String name;
+    bool armed = false, active = false;
+    int lanes = 5, angles = 5, speeds = 4;
+    za::Vector<int> gateSides;
+    int trial = -1, carriesAt = 0, side = -1;
+    double since = 0.0;
+    glm::vec3 dir{0.f}, lastOrigin{0.f};
+    float speed = 0.f, angle = 0.f, lane = 0.f;
+    bool roomy = true; // the trial's line leaves the box room in the opening (else the frame may stop it: not failed)
+    int passed = 0, walkedThrough = 0, blocked = 0, framed = 0, jumped = 0, skipped = 0;
+};
+WalkTest walkTest;
+
+void walkTest_f()
+{
+    if(Cmd_Argc() < 2 || !sv.active || !enabled())
+    {
+        Con_Printf("vr_portals_walktest <name> [lanes 5] [angles 5] [speeds 4]\n");
+        return;
+    }
+    const progs::ServerVm serverVm;
+    if(!current()) { build(); }
+    walkTest = WalkTest{};
+    walkTest.name = Cmd_Argv(1);
+    walkTest.lanes = Cmd_Argc() > 2 ? za::max(atoi(Cmd_Argv(2)), 1) : 5;
+    walkTest.angles = Cmd_Argc() > 3 ? za::max(atoi(Cmd_Argv(3)), 1) : 5;
+    walkTest.speeds = Cmd_Argc() > 4 ? za::max(atoi(Cmd_Argv(4)), 1) : 4;
+    for(int i = 0; i < static_cast<int>(sides.size()); i++)
+    {
+        if(za::fabs(sides[static_cast<za::SizeT>(i)].normal.z) < 0.3f)
+        {
+            walkTest.gateSides.pushBack(i);
+        }
+    }
+    walkTest.armed = true;
+    Con_Printf("vr_portals_walktest %s: %d sides, %d trials each\n", walkTest.name.cStr(),
+        static_cast<int>(walkTest.gateSides.size()), walkTest.lanes * walkTest.angles * walkTest.speeds);
+}
+
+namespace detail
+{
+[[nodiscard]] float spreadOf(int i, int count, float lo, float hi)
+{
+    return count > 1 ? lo + (hi - lo) * static_cast<float>(i) / static_cast<float>(count - 1) : 0.5f * (lo + hi);
+}
+
+void walkTestStart(edict_t* ent)
+{
+    WalkTest& t = walkTest;
+    const int perSide = t.lanes * t.angles * t.speeds;
+    t.side = t.gateSides[static_cast<za::SizeT>(t.trial / perSide)];
+    const Side& sd = sides[static_cast<za::SizeT>(t.side)];
+    const int k = t.trial % perSide;
+    t.lane = spreadOf(k / (t.angles * t.speeds), t.lanes, -0.85f, 0.85f);
+    t.angle = t.angles > 1 ? spreadOf((k / t.speeds) % t.angles, t.angles, -50.f, 50.f) : 0.f;
+    t.speed = spreadOf(k % t.speeds, t.speeds, 120.f, 450.f);
+    const glm::vec3 n = glm::normalize(glm::vec3{sd.normal.x, sd.normal.y, 0.f});
+    const glm::vec3 across{-n.y, n.x, 0.f};
+    const float half = 0.5f * za::fabs(glm::dot(sd.maxs - sd.mins, across));
+    const glm::vec3 middle = 0.5f * (sd.mins + sd.maxs);
+    const glm::vec3 meet = middle + across * (t.lane * half);
+    vec3_t lo, hi;
+    if(!VR_HullMoveBox(ent, ent->v.mins, ent->v.maxs, lo, hi))
+    {
+        VectorCopy(ent->v.mins, lo);
+        VectorCopy(ent->v.maxs, hi);
+    }
+    t.roomy = za::fabs(t.lane) * half + 0.5f * (hi[0] - lo[0]) <= half + 0.5f;
+    const float a = glm::radians(t.angle);
+    t.dir = glm::vec3{-n.x * glm::cos(a) + n.y * glm::sin(a), -n.x * glm::sin(a) - n.y * glm::cos(a), 0.f};
+    // (The torso's line meets the plane at `meet`: the feet start 64 units back along it, dropped onto the floor.)
+    const glm::vec3 torsoUp{0.f, 0.f, 0.5f * (ent->v.mins[2] + ent->v.maxs[2])};
+    const glm::vec3 above = meet - t.dir * (64.f / za::max(glm::dot(-t.dir, n), 0.2f)) - torsoUp;
+    vec3_t start{above.x, above.y, above.z}, end{above.x, above.y, above.z - 256.f};
+    const trace_t down = SV_Move(start, ent->v.mins, ent->v.maxs, end, MOVE_NOMONSTERS, ent);
+    if(down.startsolid || down.allsolid || down.fraction >= 1.f)
+    {
+        Con_Printf("pwt|side %d|lane %.2f|angle %.0f|speed %.0f|skipped (%s at %.0f %.0f %.0f)\n", t.side, t.lane, t.angle,
+            t.speed, down.fraction >= 1.f ? "no floor" : "in a wall", above.x, above.y, above.z);
+        ++t.skipped;
+        return;
+    }
+    ClientState& cs = crossingState(ent);
+    cs.leavingSide = -1;
+    cs.crossed = -1e9;
+    VectorCopy(down.endpos, ent->v.origin);
+    VectorCopy(down.endpos, ent->v.oldorigin);
+    setVec(ent->v.velocity, t.dir * t.speed);
+    SV_LinkEdict(ent, false); // (no touches: the next move's)
+    t.active = true;
+    t.since = qcvm->time;
+    t.carriesAt = playerCarries;
+    t.lastOrigin = vec(ent->v.origin);
+}
+
+void walkTestEnd(const char* outcome, int& count)
+{
+    WalkTest& t = walkTest;
+    ++count;
+    t.active = false;
+    Con_Printf("pwt|side %d|lane %.2f|angle %.0f|speed %.0f|%s %.2f s\n", t.side, t.lane, t.angle, t.speed, outcome,
+        qcvm->time - t.since);
+}
+} // namespace detail
+
+// SV_Physics_Client, before the crossing and the move: the walk test's player walked at its trial's speed and heading.
+void walkTestTick(edict_t* ent)
+{
+    WalkTest& t = walkTest;
+    if(!t.armed || NUM_FOR_EDICT(ent) != 1)
+    {
+        return;
+    }
+    const int total = static_cast<int>(t.gateSides.size()) * t.lanes * t.angles * t.speeds;
+    if(!t.active)
+    {
+        if(++t.trial >= total)
+        {
+            t.armed = false;
+            VectorCopy(vec3_origin, ent->v.velocity);
+            Con_Printf("walktest %s: %d trials (%d skipped): %d carried, %d walked through, %d blocked, %d jumped; %d stopped "
+                       "by the frame (not counted: the box wider than the room its line left)\n",
+                t.name.cStr(), total, t.skipped, t.passed, t.walkedThrough, t.blocked, t.jumped, t.framed);
+            testkit::verdict(t.name.cStr(), t.passed, t.walkedThrough + t.blocked + t.jumped);
+            return;
+        }
+        walkTestStart(ent);
+        return;
+    }
+    const Side& sd = sides[static_cast<za::SizeT>(t.side)];
+    const glm::vec3 origin = vec(ent->v.origin);
+    const bool jump = glm::length(origin - t.lastOrigin) > 64.f;
+    t.lastOrigin = origin;
+    if(playerCarries != t.carriesAt)
+    {
+        walkTestEnd("carried", t.passed);
+    }
+    else if(jump)
+    {
+        walkTestEnd("JUMPED (teleported, not carried)", t.jumped);
+    }
+    else if(glm::dot(sd.normal, torsoOf(ent)) - sd.dist < -40.f)
+    {
+        walkTestEnd("WALKED THROUGH", t.walkedThrough);
+    }
+    else if(qcvm->time - t.since > 3.0)
+    {
+        if(t.roomy)
+        {
+            walkTestEnd("BLOCKED", t.blocked);
+        }
+        else
+        {
+            walkTestEnd("stopped by the frame (box wider than the room left)", t.framed);
+        }
+    }
+    else
+    {
+        const glm::vec3 v = t.dir * t.speed;
+        ent->v.velocity[0] = v.x;
+        ent->v.velocity[1] = v.y;
+    }
+    if(!t.active)
+    {
+        VectorCopy(vec3_origin, ent->v.velocity);
+    }
+}
 } // namespace qvr::portals
+
+extern "C" void VR_PortalWalkTestTick(edict_t* ent)
+{
+    qvr::portals::walkTestTick(ent);
+}
 
 // CL_RelinkEntities: an entity's last two places far apart (over 100 units on an axis: Quake's teleport, no lerp). The
 // client draws a tick behind the server, lerping from the older place to the newer; snapping to the newer at a
@@ -1084,10 +1298,27 @@ extern "C" void VR_PortalToss(edict_t* ent)
 
 // QuakeC (portal_handles, teleport_touch): 1 if the engine carries this player through the trigger's teleporter
 // (vr_portals_walk), so that Quake's teleport leaves him be until the body enters the opening.
+namespace qvr::portals::detail
+{
+float portalHandles(edict_t* trig, edict_t* who, int num);
+}
+
 extern "C" float VR_PortalHandles(edict_t* trig, edict_t* who)
 {
     using namespace qvr::portals;
     const int num = NUM_FOR_EDICT(who) - 1;
+    const float handled = portalHandles(trig, who, num);
+    if(num >= svs.maxclients && handled == 0.f)
+    {
+        ++monsterTeleports; // (QuakeC teleports it now: alive and solid, its own checks before this)
+    }
+    return handled;
+}
+
+namespace qvr::portals::detail
+{
+float portalHandles(edict_t* trig, edict_t* who, int num)
+{
     if(!walkOn() || num < 0 || (num >= svs.maxclients && !monsterWalks(who)) || (num < svs.maxclients && num >= MAX_SCOREBOARD))
     {
         return 0.f;
@@ -1100,15 +1331,22 @@ extern "C" float VR_PortalHandles(edict_t* trig, edict_t* who)
     {
         return engineCarries(NUM_FOR_EDICT(trig)) ? 1.f : 0.f;
     }
-    // A monster (vr_portals_monsters): a paired gate's (it comes out of the other gate's face) that its box goes into as
-    // it stands, or a step up (a sill), or already straddling; else Quake's teleport takes it (a shambler at a player's
-    // gate, one beside the opening touching the trigger: never stuck at the frame).
+    // A monster (vr_portals_monsters): the engine carries it as its torso goes through the opening (VR_PortalMonsterCross),
+    // as a player is, at every gate (vr_portals_monsters_all; else a paired one's, out of the other gate's face). Its box
+    // goes into the opening as it stands, a step up (a sill) or already straddling, or the gate stands free (nothing
+    // frames the opening: crossFits): always the engine's. Else (its box wider than the opening, or off to the side of
+    // it) the engine's too while it makes headway into the gate; one making none for vr_portals_monster_giveup seconds
+    // (a shambler at a player's gate, caught on the frame) is left to Quake's teleport, so none is stuck there. (Deciding
+    // at the first touch, as this did, sent most to Quake's teleport: a box not fitting the opening yet as it touched a
+    // trigger reaching out in front of the gate, or a dog wider than dm5's 48-unit opening.)
     const int t = NUM_FOR_EDICT(trig);
     const glm::vec3 o = vec(who->v.origin);
+    float nearest = 1e9f;
     for(const Side& sd : sides)
     {
-        if(sd.trigger != t || !sd.paired) { continue; }
+        if(sd.trigger != t || !monsterGate(sd)) { continue; }
         const float d = glm::dot(sd.normal, torsoOf(who)) - sd.dist;
+        nearest = za::min(nearest, za::fabs(d));
         float low = 1e9f, high = -1e9f;
         for(int c = 0; c < 8; c++)
         {
@@ -1118,16 +1356,82 @@ extern "C" float VR_PortalHandles(edict_t* trig, edict_t* who)
             low = za::min(low, pd); high = za::max(high, pd);
         }
         const bool straddling = low < 0.f && high > 0.f && d > -kCross;
-        if(straddling || bodyFitsGateAt(who, sd, o) || bodyFitsGateAt(who, sd, o + glm::vec3{0.f, 0.f, 18.f}))
+        if(straddling || bodyFitsGateAt(who, sd, o) || bodyFitsGateAt(who, sd, o + glm::vec3{0.f, 0.f, 18.f}) ||
+           crossFits(who, sd, o - sd.normal * d))
         {
+            crossingState(who).touchTrigger = -1; // (never given up: it goes in, or stands free of any frame)
             return 1.f;
         }
     }
-    return 0.f;
+    if(nearest >= 1e9f)
+    {
+        return 0.f; // (no gate of this trigger it walks through)
+    }
+    // (Watched each frame from here on while it touches the trigger, moving or not: VR_PortalMonsterCross, giveUp.)
+    ClientState& cs = crossingState(who);
+    if(cs.givingUp)
+    {
+        return 0.f;
+    }
+    if(cs.touchTrigger != t)
+    {
+        cs.touchTrigger = t;
+        cs.touchBest = nearest;
+        cs.touchSince = qcvm->time;
+    }
+    return 1.f;
 }
 
-// SV_Physics_Step, after its think (its walk, a leap): a monster (vr_portals_monsters) carried through a paired gate as
-// its torso's middle plane goes in through the plane over the aperture, its box fitting it (as a player is:
+// VR_PortalMonsterCross, each frame: a monster touching a trigger whose opening its box doesn't fit (portalHandles) that
+// made no headway into the gate for vr_portals_monster_giveup seconds is given to Quake's teleport after all (the
+// trigger's own touch, QuakeC's teleport_touch, run now: standing still, the monster touches nothing by itself).
+void giveUp(edict_t* ent, ClientState& cs)
+{
+    if(cs.touchTrigger < 0)
+    {
+        return;
+    }
+    edict_t* trig = EDICT_NUM(cs.touchTrigger);
+    if(!triggerActive(trig) || !overlaps(ent, trig) || !trig->v.touch)
+    {
+        cs.touchTrigger = -1; // (it left the trigger, or the trigger shut)
+        return;
+    }
+    const glm::vec3 torso = torsoOf(ent);
+    float nearest = 1e9f;
+    for(const Side& sd : sides)
+    {
+        if(sd.trigger == cs.touchTrigger && monsterGate(sd))
+        {
+            nearest = za::min(nearest, za::fabs(glm::dot(sd.normal, torso) - sd.dist));
+        }
+    }
+    if(nearest < cs.touchBest - 1.f)
+    {
+        cs.touchBest = nearest;
+        cs.touchSince = qcvm->time;
+    }
+    const float limit = vr_portals_monster_giveup.value;
+    if(limit <= 0.f || qcvm->time - cs.touchSince < static_cast<double>(limit))
+    {
+        return;
+    }
+    cs.touchTrigger = -1;
+    cs.givingUp = true;
+    const int oldSelf = pr_global_struct->self;
+    const int oldOther = pr_global_struct->other;
+    pr_global_struct->self = EDICT_TO_PROG(trig);
+    pr_global_struct->other = EDICT_TO_PROG(ent);
+    pr_global_struct->time = qcvm->time;
+    PR_ExecuteProgram(trig->v.touch);
+    pr_global_struct->self = oldSelf;
+    pr_global_struct->other = oldOther;
+    cs.givingUp = false;
+}
+} // namespace qvr::portals::detail
+
+// SV_Physics_Step, after its think (its walk, a leap): a monster (vr_portals_monsters) carried through a gate (monsterGate)
+// as its torso's middle plane goes in through the plane over the aperture, its box fitting it or the gate free (as a player is:
 // VR_PortalClientCross), kept where it is and how it moves and faces relative to the gate. Stepping back out through
 // the exit before its trailing half cleared it carries it back.
 extern "C" void VR_PortalMonsterCross(edict_t* ent)
@@ -1156,7 +1460,7 @@ extern "C" void VR_PortalMonsterCross(edict_t* ent)
         const int index = cs.leavingSide;
         const Side exitGate = reverseSide(sides[index]);
         if(glm::dot(exitGate.normal, torso) < exitGate.dist && glm::dot(exitGate.normal, moved) < 0.f &&
-            bodyFitsGate(ent, exitGate))
+            crossFits(ent, exitGate, vec(ent->v.origin)))
         {
             crossMonster(ent, exitGate, EDICT_NUM(exitGate.trigger), cs, index);
             return;
@@ -1171,21 +1475,30 @@ extern "C" void VR_PortalMonsterCross(edict_t* ent)
     for(const Side& sd : sides)
     {
         const edict_t* trig = EDICT_NUM(sd.trigger);
-        if(!sd.paired || !triggerActive(trig) || !overlaps(ent, trig))
+        if(!monsterGate(sd) || !triggerActive(trig) || !overlaps(ent, trig))
         {
             continue;
         }
         const float d = glm::dot(sd.normal, torso) - sd.dist;
-        if(d > 0.f || za::fabs(d) >= bestD || glm::dot(sd.normal, moved) >= 0.f ||
-           !onGate(sd, torso - sd.normal * d, kAperture) || !bodyFitsGate(ent, sd))
+        // A long step (a dog's run: up to 64 units a think) can take the torso from in front of the plane to more than
+        // kCross past it: then where its step went through the plane is what must be over the opening.
+        const float dWas = glm::dot(sd.normal, was) - sd.dist;
+        const bool swept = dWas > 0.f && d <= 0.f;
+        const float score = swept ? za::min(za::fabs(d), kCross * 0.5f) : za::fabs(d);
+        const glm::vec3 at = swept ? glm::mix(was, torso, dWas / (dWas - d)) : torso - sd.normal * d;
+        if(d > 0.f || score >= bestD || glm::dot(sd.normal, moved) >= 0.f || !onGate(sd, at, kAperture) ||
+           !crossFits(ent, sd, vec(ent->v.origin)))
         {
             continue;
         }
         best = &sd;
-        bestD = za::fabs(d);
+        bestD = score;
     }
     if(best)
     {
         crossMonster(ent, *best, EDICT_NUM(best->trigger), cs);
+        cs.touchTrigger = -1;
+        return;
     }
+    giveUp(ent, cs);
 }

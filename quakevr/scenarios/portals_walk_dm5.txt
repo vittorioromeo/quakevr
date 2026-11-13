@@ -1,0 +1,12 @@
+# portals_walk_dm5: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The player walked into every
+# upright face of dm5's two teleporter sheets (4 units thick, a 48-wide opening, one's bottom 4 units over the plinth)
+# by vr_portals_walktest: 5 lines across the opening, 5 headings (-50..50 degrees), 4 speeds (120..450), from 64 units
+# out (a start with no floor in front skipped). Each trial: carried through seamlessly (passed), walked past the sheet
+# uncarried or blocked with room to spare (failed). Verdict line: portals_walk_dm5: N passed, M failed.
+title Teleporters: you walk through dm5's teleporters seamlessly every time
+map dm5
+start 796 314 216 0
+god
+notarget
+cmd vr_portals_walktest portals_walk_dm5
+hint You are walked into dm5's teleporters again and again, straight and at angles, slow and fast: each time you come out of the other teleporter seamlessly, never through the sheet to its other side.

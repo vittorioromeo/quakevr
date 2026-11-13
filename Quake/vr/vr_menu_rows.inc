@@ -3530,7 +3530,11 @@ QVR_SLIDER_BYNAME(vr_portals, "Teleporter Views", 0.f, 1.f, 0.1f, "%.1f", ext(),
 QVR_TOGGLE_BYNAME(vr_portals_walk, "Seamless Teleporters",
     "With Teleporter Views on, you walk through teleporters into the place you saw, keeping your speed and the way you face (no flash, no pause), and rockets, grenades, nails, thrown props and gunfire go through them. Off: Quake's teleport.")
 QVR_TOGGLE_BYNAME(vr_portals_monsters, "Monsters Walk Through",
-    "With Seamless Teleporters on, monsters walk through a teleporter that comes out of another teleporter's face as you do, coming out of that face. Off (and at other teleporters, or for a monster too big for the opening): Quake's teleport, which puts them at the destination marker, a step out.")
+    "With Seamless Teleporters on, monsters walk through a teleporter that comes out of another teleporter's face as you do: no flash, no sound, no jump. Off (and at other teleporters, unless Monsters: Every Teleporter): Quake's teleport, which puts them at the destination marker, a step out.")
+QVR_TOGGLE_BYNAME(vr_portals_monsters_all, "Monsters: Every Teleporter",
+    "Experimental. With Monsters Walk Through on, monsters walk through every teleporter you do, including those that come out at a destination marker (id's maps); monsters chasing you there may stall at the teleporter. Off: only through a teleporter that comes out of another teleporter's face; Quake's teleport at the others.")
+QVR_SLIDER_BYNAME(vr_portals_monster_giveup, "Monsters: Stuck Fallback", 0.f, 5.f, 0.25f, "%.2f s", noExt,
+    "A monster touching a teleporter that makes no headway into its opening this long (too big for it, caught on the frame) is taken by Quake's teleport after all, so it is never stuck there. 0: never.")
 QVR_TOGGLE_BYNAME(vr_portals_ai, "Enemies See and Shoot Through",
     "Ranged enemies spot players through an active aperture and aim through it. The teleporter and both rooms must be clear; closing it cancels delayed shots. One teleporter per sight line. Melee and navigation stay local.")
 QVR_TOGGLE_BYNAME(vr_teleporter_pair_exits, "Exits On Paired Teleporters",
