@@ -298,7 +298,7 @@ struct Climb
     bool released{false};   // Over: its hands let go (its pelvis over the top), going in since since2
     double since2{0.0};
     float prog{0.f}, prog2{0.f}; // the way of this phase (Over: up over the lip, then in) done, 0..1
-    double reachAgain{0.0}; // hanging by one hand: the other reaches for the lip again then (at most twice: retries)
+    double reachAgain{0.0}; // holding by one hand: the other reaches for the lip again then (climbRetries times: retries)
     int retries{0};
     // The tests: its chest over the top at most (m), why it ended; its feet's travel against its pelvis while it hung and
     // pulled (m: its struggle's kicks, vr_ragdoll_active_hang_kick).
