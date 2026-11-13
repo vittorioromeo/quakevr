@@ -1299,9 +1299,13 @@ void(float dist) ai_run =
 
     if(self.vr_ai_gate > 0 && enemy_vis)
     {
+        // QVR: between shots, the navmesh's path to him: through the gate (a teleporter link, vr_nav_teleports) or the
+        // long way round (it stood facing him at the gate's edge for good; NAVMESH.md 17). No path: it holds its room.
+        if(cvar_hget(cvarh_vr_nav_gate_chase) && VR_NAV_Step(dist))
+            return;
         self.ideal_yaw = enemy_yaw;
         ChangeYaw();
-        return; // stay in this room; there is no portal-aware navigation
+        return;
     }
 
     // VR: an armed humanoid with a gun keeps its weapon's fighting distance (vr_armedgrunt.qc, vr_agrunt_range).
