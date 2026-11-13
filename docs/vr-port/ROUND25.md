@@ -913,3 +913,37 @@ through teleporters sometimes seamlessly, sometimes by Quake's teleport (flash, 
   new site was not found either: the shot naming may differ for some packages).
 ### flipbtn (2026-11-13)
 Flat holster menu: the dagger (a WID_SWORD of kind 12) was named "sword" (notectx::weaponName took the id only): now by kind (AD melee names too). New per-hand FLIP GRIP button under UNLOAD (impulses 84, 85 -> QC VR_RevGrip_Flip, shared with the eject button; lit by view::heldGripFlippable, the eject flip's predicate without its flat-play gate). flatholster_test 37 passed.
+## navplinth: monsters at dm5's teleporters, hunting through a gate (branch agent/navplinth, 2026-11-13)
+
+- **dm5's "monsters under the plinth" were not the plinth** (NAVMESH.md 19): the gates' sill (z 208, 16 over the
+  floor; the frame's bottom bar floats 8 over the floor) is on the mesh, the teleporter link's entry is on it
+  (`vr_nav_links`: 890 376 209-212) and walkers step onto it from both sides. Causes found with the teletest's notes
+  (`navtt-step` now prints the goal):
+  1. **The scene:** you stood at the scene's start beside gate 1, on the side gate 2 leads to; gate 1's walkers (all put
+     on that side: the other is a wall) just ran at you round the frame (goal `enemy` by you, never the link).
+     `vr_nav_teletest ... [past]` 1 (new 9th argument; nav_tele_dm5 uses it) puts you past each trial's own
+     destination and tells the stealth AI you went through that teleporter (`VR_Stealth_Teleported`).
+  2. **The hunt behind a gate:** a walker that saw you through a paired gate and lost you hunts your image: the stealth
+     marker 48 past the gate's face, walked to by Quake's own chase (no navmesh: `VR_NAV_Step` steered to the enemy and
+     the teleporter trail only), which circled the free-standing frame to the spot behind the sheet. `vr_nav_gate_marker`
+     1 (Debug > Tunables, "Navmesh: Hunt Through Gates"): such a marker is steered to through the gate's teleporter link
+     (the marker carried through the gate, QC `VR_Stealth_MarkerVia`, `VR_NAV_Step`). Item 2 (vrteleporters' dog at gate
+     3 wandering to y=-679, the grunts at gate 7) is this same goal flip (`navtt-step`: goal `stl_marker` at the image).
+- **Not changed:** grunts that see you through a gate stand to shoot between their navmesh steps (gate chase): a
+  standing shot reads as 0.50-1.5 s "stuck" by the trigger, so several grunt trials fail the stuck rule though they go
+  through. The dog trials that end "through 0.49 s" with neither walked nor teleported are a leap of over 64 units in a
+  frame (the metric's jump rule), not a crossing.
+- **Results** (headless no-LTO low-impact runs; noisy: the same build varies 2-3 trials run to run):
+
+  | scene | before (origin/next) | past 1, gate marker 0 | after (past 1, gate marker 1) |
+  |---|---|---|---|
+  | nav_tele_dm5 (24 trials) | 12 passed, 12 through | 16 / 15 passed, 22 / 23 through | 19 / 18 passed, 23 / 23 through |
+  | nav_tele_metric_gates (40) | 37 / 37 passed (38 through) | = before | 38 / 35 passed (40 / 35 through), 2 / 1 failed |
+
+  The dm5 failures left are grunts standing to shoot by the gate (stuck 0.5-1.5 s, all through) and a fiend now and
+  then taking the long way. Regression: nav_tele 1/0, nav_lift pass (one fail in four runs, as often with the
+  marker off), portals_walk_dm5 184/0, teleporters_test.sh chase all PASS; nav_tele_metric 13/7 and 10/10, the same
+  with `vr_nav_gate_marker 0` (10/10, 13/7): e1m1's metric is down from 16-20/20 on origin/next itself, not by this
+  (its teleporter is unpaired: no marker past a gate); nav_crowd ran out its 900 s run timeout (known, not verified).
+- **Item 3** (e1m1, `vr_portals_monsters_all 1`): 5/20, unchanged: not the same cause (that gate is unpaired; the
+  walkers wait at the trigger for the engine to carry them). Still a navmesh task.

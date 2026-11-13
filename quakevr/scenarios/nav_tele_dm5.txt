@@ -3,7 +3,8 @@
 # bottom 4 units over the plinth): a grunt, a dog, an ogre, a knight and a fiend in turn are put 192 units from a
 # teleporter at ten angles and chase you; each trial says whether the monster walked through the gate seamlessly
 # ("walked") or was taken by Quake's teleport ("teleport"); the summary counts both. Verdict line: nav_tele_dm5: N
-# passed, M failed (a trial passes when through in time, stuck under 0.5 s).
+# passed, M failed (a trial passes when through in time, stuck under 0.5 s). You are put past each trial's own
+# destination ([past] 1, NAVMESH.md 19): from the start you stood beside gate 1, so its walkers just ran at you.
 title Teleporters: monsters walk through dm5's teleporters seamlessly, from ten angles
 map dm5
 start 796 314 216 180
