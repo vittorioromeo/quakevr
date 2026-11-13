@@ -2002,7 +2002,10 @@ void drawScreenshot(float x, float y, float w, float h)
     {
         return;
     }
+    // True colours: the menu hue tint (vr_menu_recolor) is for the menu's browns, not for a map's picture.
+    const qboolean recolor = Draw_SetMenuRecolor(false);
     Draw_SubPic(x, y, w, h, reinterpret_cast<qpic_t*>(shownPic.data()), 0.f, 0.f, 1.f, 1.f, nullptr, 1.f);
+    Draw_SetMenuRecolor(recolor);
 }
 
 void downloadHeaders(const char* referer, za::Vector<za::String>& out)
