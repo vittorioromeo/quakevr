@@ -1,0 +1,11 @@
+title Melee Only: guns and ammo lying ahead can't be taken; the axe and the dagger can
+map vrtesthall
+start 0 -288 25 90
+cvar vr_run_meleeonly 1
+spawn weapon_gruntgun 90 40
+spawn weapon_shotgun 90 0
+spawn item_shells 130 0
+spawn weapon_axe 130 40
+spawn weapon_dagger 130 -40
+spawn "Armed Grunt: Shotgun" 300 0
+hint Melee Only: force grab, grab and walk over the burst rifle, shotgun and shells: none comes. The axe and dagger do. Disarm the grunt: its gun falls, you can't hold it.

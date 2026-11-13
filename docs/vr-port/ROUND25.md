@@ -1379,3 +1379,30 @@ Play on an installed package asks Easy / Normal / Hard / Nightmare first (page "
   16/0 (Levels list opens the screen, the rows, no title), vr_run_check 33/0: all nine gun/melee combos on a new game,
   Melee Only with dagger and with Nothing, a save, changelevel and load of the last; `vr_menu_path_check
   maps/vrcalibration.map` 0 missing. Scenario run_pistolstart uses `vr_run_startgun 2`.
+## meleefov: Melee Only's guns untouchable, the flat mantle's FOV kick, a holstered dagger's name (agent/meleefov, 2026-11-13)
+
+- **Melee Only (his flat test: he force-grabbed a grunt's dropped burst rifle and held it):** one rule,
+  `VR_RunMeleeOnly_Refuses(wid)`, and its thing-lying-about form `VR_RunMeleeOnly_RefusesEnt(e)` (vr_run_meleeonly.qc): a
+  gun (a map's pickup, an object or not, AD's; a thrown or dropped weapon, a grunt's, a crate's flare gun, a
+  func_weapon_grabbable's) and ammunition (a box, AD's, the horde's, a backpack with rounds) are refused by the force
+  grab's aim (VR and flat: `VR_Forcegrab_IsEligible`; no grab sparkles either), a grip or a catch
+  (`wpnthrow_handtouch_ent_hand`, `VR_Carry_Handtouch`, `VR_PickupObj_Handtouch`: a hand only knocks it) and a walk over
+  it (`weapon_touch`, `ammo_touch`, `BackpackTouch`, `ad_ammo_touch`, `ad_BackpackTouch`, `MGH_horde_ammo_touch`).
+  The axe, swords, daggers, flails, Mjolnir and the chainsaw are taken as ever. A gun is now also an enemy's single-use
+  gun (burst rifle, laser rifle, AD's soldiers') and the flare gun (no reserve ammo: they were not guns to the old rule,
+  which is how the rifle got through). A grunt can still be disarmed (its gun falls at your hand). **Decision:** ammo
+  refused too (no gun can use it); a gun in the hand anyway (an old save, a cheat) still only clicks.
+- **Flat mantle FOV:** the speed FOV (vr_flatspeedfov.cpp) adds `vr_flat_mantle_fov_bonus` (0.06: 40% of the slide's
+  0.15) to its multiplier while mantling, eased in over `vr_flat_mantle_fov_ease` (0.15 s) and out over
+  `vr_flat_mantle_fov_ease_out` (0.25 s); the slide's code path, under the Speed FOV switch. The client knows the mantle
+  by the server's climb phase, STAT_QVR_CLIMB bit 30 (`climb::mantling()`; bits 0-29 the holds'). Rows in Locomotion
+  under Speed FOV Slide Extra; menu_paths.txt regenerated.
+- **Holstered dagger's name** (flat middle-mouse menu): the slots read their flags through `view::holsterFlags(i)`, which
+  takes a drawn holster's index (vr_view.cpp bodyHolster's order), not the stat slot the weapon id came from: another
+  holster's flags, so "sword". Now the stat slot's own (`holsterSlotName`).
+- **Tests:** `vr_pickup_test 14` (vr_meleeonly_test.qc) on e1m1: 31/0 (a dropped burst rifle, a map shotgun, a crate's flare
+  gun, shells: force grab, grip, catch and walk-over (vr_carry 0) refused; axe and dagger taken; off: all taken).
+  `vr_flatmantle_test` (flat, vrmantle) 19/0 with the kick (x1.052 peak each mantle, back to x1). vr_run_check 15/0
+  (glass cannon run; Melee Only + dagger on e1m1, changelevel, save/load; Melee Only + axe). flatholster_test 38/0 (a
+  dagger in the left shoulder, stat slot 0: "dagger"). Scenarios run_meleeonly_grab, flat_mantle_fov, flat_holster_dagger.
+- **Not done:** a refused gun still shows its loot beam (the engine's, vr_lootbeams.cpp); bots ignore the rule.

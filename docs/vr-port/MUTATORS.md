@@ -50,6 +50,7 @@ Everything is one registry, `registry[]` in `Quake/vr/vr_runsetup.cpp`; each lin
 | `VR_Run_NewParms()` | `SetNewParms`'s end | a new game's loadout (Starting Weapon) |
 | `VR_Run_Damage(targ, attacker, damage)` | `T_Damage`'s start | damage scaling (Glass Cannon) |
 | `VR_Run_RefusesPickup(wid)` | `weapon_touch` | weapons not taken (Melee Only) |
+| `VR_RunMeleeOnly_RefusesEnt(e)` | force grab eligibility and sparkles, `wpnthrow_handtouch_ent_hand`, `VR_Carry_Handtouch`, `VR_PickupObj_Handtouch`, `ammo_touch`, `BackpackTouch`, AD's and the horde's ammo | a gun or ammunition lying about neither grabbed nor taken (Melee Only) |
 | `VR_Run_RefusesFire(wid)` | `W_AttackImpl`'s start | weapons that only click (Melee Only) |
 | `VR_Run_MonsterSpawned()` | `walk/fly/swimmonster_start` (self: the monster, its class spawn run) | phase 2: enemy count, randomized enemies |
 | `VR_Run_ItemSpawned()` | `StartItem` (self: the item) | Randomized Pickups: the map's items of its table marked |
@@ -73,7 +74,7 @@ choices themselves are the engine's line.
 | `smartai` | As Style, Off, On | `vr_ai_enhanced` |
 | `startgun` | Shotgun, Nail Pistol, Heavy Revolver, Nothing | a new game's gun in the hip holster (`vr_run_startweapon.qc`); held at Nothing by Melee Only |
 | `startmelee` | Axe, Dagger, Nothing | a new game's melee weapon (the same file); Nothing and Nothing: bare fists. An old save's `startweapon=N` reads as gun and melee (revolver: Revolver and Axe; axe alone: Nothing and Axe; unarmed: Nothing and Nothing) |
-| `meleeonly` | Off, On | guns left on the floor, a gun in the hand only clicks (`vr_run_meleeonly.qc`) |
+| `meleeonly` | Off, On | guns and ammunition can't be force grabbed, grabbed, caught or walked over; a gun in the hand only clicks (`vr_run_meleeonly.qc`) |
 | `glasscannon` | Off, On | the player and monsters take double damage (`vr_run_glasscannon.qc`) |
 | `pickups` | Off, Balanced, Anything Goes | the map's pickups swapped as it loads (`vr_run_pickups.qc`, below) |
 | `ironman` | Off, On | no saving; a death restarts the level with what you entered it with (`vr_run_ironman.qc`, below) |
