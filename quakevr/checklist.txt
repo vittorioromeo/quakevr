@@ -57,9 +57,9 @@ Installer: install into a fresh folder; the "Set up the game" page shows the set
 Flat-screen or VR: pick Gore Preset Minimal, then Off, and shoot and club a grunt: no dents are pressed into its body (Full still dents it). {test:gore_presets}
 Flat-screen: start a new game: the head flashlight is off; F lights it and F puts it out again.
 Flat-screen: crouch, look down and lean left and right with Q and E many times, near a wall and in the open: no punch thud and no pain cry. {test:flatlean}
-Flat-screen or VR: shove grunts over and watch them lie: now and then a head turns slowly, a hand twitches, an arm or a leg draws in a little, so they read as stunned rather than dead; one killed lying down never moves again. Strength and rate: Debug > Tunables, Concussed Stirring and Stirring Rate. {test:kd_stir}
 
 [4. Flat-screen: monsters and AI]
+Flat-screen or VR: shove grunts over and watch them lie: now and then a head turns slowly, a hand twitches, an arm or a leg draws in a little, so they read as stunned rather than dead; one killed lying down never moves again. Strength and rate: Debug > Tunables, Concussed Stirring and Stirring Rate. {test:kd_stir}
 
 [5. Flat-screen: navigation and teleporters]
 Flat-screen or VR: in vrteleporters' flush galleries, a dog in the gallery behind the gates follows you through the large gate, walking through it as you do; it never tries the crate hatch. {test:nav_tele_gate}
