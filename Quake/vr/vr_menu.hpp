@@ -153,7 +153,7 @@ void openMaps();
 void mapsPage_f(); // maps_page [text]: the Map Library page, with the text typed in
 void mapsPageStats_f();
 void runSetup_f();           // vr_runsetup [hub|newgame]: the Run Setup screen (vr_menu_runsetup.inc)
-void runSetupScreenTest_f(); // vr_runsetup_screen_test (maps_skill_test): the Run Setup screen's ways in (Debug > Tests)
+void runSetupScreenTest_f(); // vr_runsetup_screen_test: the Run Setup screen's ways in (Debug > Tests)
 void mapsPagePick_f(); // maps_page_pick <row> [source]: a row of the Map Library picked (test aid) // maps_page_stats: what the page's list costs, and its layout (Debug > Tools)
 
 // The sticks' selection back on the page shown from the corner's buttons: onto its first setting

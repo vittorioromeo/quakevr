@@ -842,7 +842,7 @@ void() VR_PickupObj_Handtouch =
     }
 
     // Melee Only: a gun or ammunition is neither taken nor held; a hand only knocks it (vr_run_meleeonly.qc).
-    if(VR_RunMeleeOnly_RefusesEnt(self))
+    if(VR_Run_RefusesEnt(self))
     {
         if(other.classname == "player" && !VRIsTouchingHandFake(other))
         {
@@ -1343,7 +1343,7 @@ void() ammo_touch =
     {
         return;
     }
-    if(VR_RunMeleeOnly_RefusesEnt(self)) return; // Melee Only: no rounds for a gun you can't hold (vr_run_meleeonly.qc)
+    if(VR_Run_RefusesEnt(self)) return; // Melee Only: no rounds for a gun you can't hold (vr_run_meleeonly.qc)
 
     entity stemp;
 
@@ -2114,7 +2114,7 @@ void() BackpackTouch =
     // or a flash, and gone. Only what it holds more than none of counts (a negative amount, never made on purpose, took
     // rounds away from him and printed as "-3 nails").
     vr_backpack_last_empty = 0;
-    if(VR_RunMeleeOnly_RefusesEnt(self)) return; // Melee Only: its rounds left in it (vr_run_meleeonly.qc)
+    if(VR_Run_RefusesEnt(self)) return; // Melee Only: its rounds left in it (vr_run_meleeonly.qc)
     if(!Backpack_HasAmmo(self))
     {
         dprint(sprintf("backpack: an empty one taken silently (%s, worn pack state %g, a monster's drop %g, at %v)\n",

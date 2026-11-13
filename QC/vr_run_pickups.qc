@@ -36,9 +36,11 @@ entity vr_rpk_weapons; // the chain's head
 float vr_rpk_seen;     // the pass: items it rolled
 float vr_rpk_swapped;  // and swapped
 float vr_rpk_kept;     // items of the table kept for the map's sake (named, counted, triggered)
-nosave float vr_rpk_bad[42]; // 1: a row whose spawn function refused it on this map
-
-float RPK_ROWS = 41;
+// The table's rows: the ammo's first (RPK_AMMO_ROWS: seven kinds, small and big), then health, armour, weapons,
+// powerups (VR_RPK_Load; VR_RPK_Spawn the same rows' spawn functions).
+#define RPK_ROWS 41
+#define RPK_AMMO_ROWS 14
+nosave float vr_rpk_bad[RPK_ROWS + 1]; // 1: a row whose spawn function refused it on this map
 float RPK_NEAR = 1536;
 float RPK_AMMO = 1;
 float RPK_HEALTH = 2;
@@ -67,9 +69,16 @@ void(string c, float sf, float cat, float tier, float wid, float aid) VR_RPK_Set
     vr_rpk_ad = FALSE;
 };
 
+// A weapon's row: its ammo is the weapon table's (vr_weaponutil.qc); `ad`: only AD's maps have it.
+void(string c, float tier, float wid, float ad) VR_RPK_Weapon =
+{
+    VR_RPK_Set(c, 0, RPK_WEAPON, tier, wid, WeaponIdToAmmoId(wid, 0));
+    vr_rpk_ad = ad;
+};
+
 void(float r) VR_RPK_Load =
 {
-    if(r < 14)
+    if(r < RPK_AMMO_ROWS)
     {
         float t = r - 2 * floor(r / 2); // (even: the small box, odd: the big one)
         float k = floor(r / 2);
@@ -88,19 +97,19 @@ void(float r) VR_RPK_Load =
     else if(r == 17) VR_RPK_Set("item_armor1", 0, RPK_ARMOUR, 1, 0, 0);
     else if(r == 18) VR_RPK_Set("item_armor2", 0, RPK_ARMOUR, 2, 0, 0);
     else if(r == 19) VR_RPK_Set("item_armorInv", 0, RPK_ARMOUR, 3, 0, 0);
-    else if(r == 20) VR_RPK_Set("weapon_shotgun", 0, RPK_WEAPON, 0, WID_SHOTGUN, AID_SHELLS);
-    else if(r == 21) VR_RPK_Set("weapon_revolver", 0, RPK_WEAPON, 0, WID_REVOLVER, AID_SHELLS);
-    else if(r == 22) VR_RPK_Set("weapon_supershotgun", 0, RPK_WEAPON, 1, WID_SUPER_SHOTGUN, AID_SHELLS);
-    else if(r == 23) VR_RPK_Set("weapon_nailgun", 0, RPK_WEAPON, 1, WID_NAILGUN, AID_NAILS);
-    else if(r == 24) { VR_RPK_Set("weapon_upgrade_ssg", 0, RPK_WEAPON, 1, WID_SUPER_SHOTGUN, AID_SHELLS); vr_rpk_ad = TRUE; }
-    else if(r == 25) VR_RPK_Set("weapon_supernailgun", 0, RPK_WEAPON, 2, WID_SUPER_NAILGUN, AID_NAILS);
-    else if(r == 26) VR_RPK_Set("weapon_grenadelauncher", 0, RPK_WEAPON, 2, WID_GRENADE_LAUNCHER, AID_ROCKETS);
-    else if(r == 27) VR_RPK_Set("weapon_proximity_gun", 0, RPK_WEAPON, 2, WID_PROXIMITY_GUN, AID_ROCKETS);
-    else if(r == 28) VR_RPK_Set("weapon_rocketlauncher", 0, RPK_WEAPON, 3, WID_ROCKET_LAUNCHER, AID_ROCKETS);
-    else if(r == 29) VR_RPK_Set("weapon_lightning", 0, RPK_WEAPON, 3, WID_LIGHTNING, AID_CELLS);
-    else if(r == 30) VR_RPK_Set("weapon_laser_gun", 0, RPK_WEAPON, 3, WID_LASER_CANNON, AID_CELLS);
-    else if(r == 31) VR_RPK_Set("weapon_mjolnir", 0, RPK_WEAPON, 3, WID_MJOLNIR, AID_CELLS);
-    else if(r == 32) { VR_RPK_Set("weapon_upgrade_lg", 0, RPK_WEAPON, 3, WID_LIGHTNING, AID_CELLS); vr_rpk_ad = TRUE; }
+    else if(r == 20) VR_RPK_Weapon("weapon_shotgun", 0, WID_SHOTGUN, FALSE);
+    else if(r == 21) VR_RPK_Weapon("weapon_revolver", 0, WID_REVOLVER, FALSE);
+    else if(r == 22) VR_RPK_Weapon("weapon_supershotgun", 1, WID_SUPER_SHOTGUN, FALSE);
+    else if(r == 23) VR_RPK_Weapon("weapon_nailgun", 1, WID_NAILGUN, FALSE);
+    else if(r == 24) VR_RPK_Weapon("weapon_upgrade_ssg", 1, WID_SUPER_SHOTGUN, TRUE);
+    else if(r == 25) VR_RPK_Weapon("weapon_supernailgun", 2, WID_SUPER_NAILGUN, FALSE);
+    else if(r == 26) VR_RPK_Weapon("weapon_grenadelauncher", 2, WID_GRENADE_LAUNCHER, FALSE);
+    else if(r == 27) VR_RPK_Weapon("weapon_proximity_gun", 2, WID_PROXIMITY_GUN, FALSE);
+    else if(r == 28) VR_RPK_Weapon("weapon_rocketlauncher", 3, WID_ROCKET_LAUNCHER, FALSE);
+    else if(r == 29) VR_RPK_Weapon("weapon_lightning", 3, WID_LIGHTNING, FALSE);
+    else if(r == 30) VR_RPK_Weapon("weapon_laser_gun", 3, WID_LASER_CANNON, FALSE);
+    else if(r == 31) VR_RPK_Weapon("weapon_mjolnir", 3, WID_MJOLNIR, FALSE);
+    else if(r == 32) VR_RPK_Weapon("weapon_upgrade_lg", 3, WID_LIGHTNING, TRUE);
     else if(r == 33) VR_RPK_Set("item_artifact_super_damage", 0, RPK_POWER, 0, 0, 0);
     else if(r == 34) VR_RPK_Set("item_artifact_invulnerability", 0, RPK_POWER, 0, 0, 0);
     else if(r == 35) VR_RPK_Set("item_artifact_invisibility", 0, RPK_POWER, 0, 0, 0);
@@ -114,7 +123,7 @@ void(float r) VR_RPK_Load =
 // The row's spawn function, on self.
 void(float r) VR_RPK_Spawn =
 {
-    if(r < 14)
+    if(r < RPK_AMMO_ROWS)
     {
         float k = floor(r / 2);
         if(k == 0) item_shells();
@@ -170,6 +179,40 @@ float(entity e) VR_RPK_RowOf =
         }
     }
     return -1;
+};
+
+// The weapons of the weapon table (VR_WEAPONS, vr_weaponutil.qc) with a map pickup that the table leaves out: melee
+// weapons, the enemies' own guns, tools, the flare gun, the nail pistol. A new weapon with a pickup is either a row above
+// or named here: vr_runpickups_test fails otherwise (VR_RPK_Unclassified).
+float(string c) VR_RPK_WeaponLeftOut =
+{
+    return c == "weapon_grapple" || c == "weapon_axe" || c == "weapon_knight_sword" || c == "weapon_chainsaw" ||
+           c == "weapon_gruntgun" || c == "weapon_enfrifle" || c == "weapon_superaxe" || c == "weapon_toolgun" ||
+           c == "weapon_nailpistol" || c == "weapon_flaregun";
+};
+
+// The weapons with a map pickup neither in the table nor left out by name (each printed): their count.
+float() VR_RPK_Unclassified =
+{
+    float n = 0;
+    for(float wid = WID_FIST; wid <= WID_LAST; wid++)
+    {
+        string c = VR_WEAPONS[wid].classname;
+        if(c == "" || VR_RPK_WeaponLeftOut(c)) continue;
+        float found = FALSE;
+        for(float r = 0; r < RPK_ROWS && !found; r++)
+        {
+            VR_RPK_Load(r);
+            found = (vr_rpk_cls == c);
+        }
+        if(!found)
+        {
+            n++;
+            dprint(sprintf("Randomized pickups: %s (weapon %g) is not classified: a row of vr_run_pickups.qc's table, "
+                           "or VR_RPK_WeaponLeftOut\n", c, wid));
+        }
+    }
+    return n;
 };
 
 float(float aid) VR_RPK_AmmoBit =
@@ -230,7 +273,7 @@ float(float r, float r0) VR_RPK_Allowed =
     return TRUE;
 };
 
-float vr_rpk_cand[42];
+float vr_rpk_cand[RPK_ROWS + 1];
 float vr_rpk_ncand;
 
 // The rows that may replace item `e` (row r0) in `mode`, in vr_rpk_cand; `mask`: the ammo bits Balanced allows.
@@ -380,7 +423,7 @@ void(float held) VR_RunPickups_MapSpawned =
     // (The ammo's allowed kinds before any swap: a swap frees a weapon's entity, and the next one made may take it.)
     for(e = nextent(world); e; e = nextent(e))
     {
-        if(e.vr_rpk_row > 0 && e.vr_rpk_row <= 14) e.vr_rpk_mask = vr_rpk_heldmask | VR_RPK_NearMask(e);
+        if(e.vr_rpk_row > 0 && e.vr_rpk_row <= RPK_AMMO_ROWS) e.vr_rpk_mask = vr_rpk_heldmask | VR_RPK_NearMask(e);
     }
     e = nextent(world);
     while(e)

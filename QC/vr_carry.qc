@@ -2271,7 +2271,7 @@ void() VR_Carry_Handtouch =
         return;
     }
     // Melee Only: ammunition, a backpack with rounds, never held (vr_run_meleeonly.qc): knocked.
-    if(VR_RunMeleeOnly_RefusesEnt(self))
+    if(VR_Run_RefusesEnt(self))
     {
         VR_Carry_Nudge(other, hand, self);
         return;

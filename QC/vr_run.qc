@@ -8,16 +8,8 @@
 // A run's choices are the engine's (vr_runsetup.cpp's registry): each mutator's value is its cvar vr_run_<id>, set
 // when the run starts, kept across changelevel, written into each saved game and set back on its load. A mutator's
 // gameplay is a file of its own (vr_run_<id>.qc) answering the hooks below; a new one adds its call to the hooks it
-// needs. The hooks:
-// - VR_Run_NewParms: SetNewParms's end (a new game's loadout: parm1.., the holsters);
-// - VR_Run_Damage: T_Damage's start (the damage a hit does);
-// - VR_Run_RefusesPickup: weapon_touch (a weapon not taken);
-// - VR_Run_RefusesFire: W_AttackImpl's start (a weapon that does not fire);
-// - VR_Run_MonsterSpawned: walk/fly/swimmonster_start (self: a map's monster, its class's spawn function run; phase 2's
-//   enemy count and randomized enemies);
-// - VR_Run_ItemSpawned: StartItem (self: a map's item; phase 2's randomized pickups);
-// - VR_Run_MapSpawned: the engine, a new map's entities all spawned (randomized pickups' swaps);
-// - VR_Run_Respawn: respawn, a dead single player (Ironman's restart).
+// needs (one line each). The game's code calls these hooks, never a mutator's own functions: what each is called from
+// and for is MUTATORS.md's hook table (one place).
 // Saved games: the engine's `// qvr_run` line holds every choice; a mutator with QC state of its own keeps it in a
 // saved field or global (they are saved) and reads its cvar again after a load.
 
@@ -42,7 +34,12 @@ float(float wid) VR_Run_RefusesFire =
     return VR_RunMeleeOnly_Refuses(wid);
 };
 
-void() VR_Run_MonsterSpawned = {};
+// A thing lying about (a weapon, ammunition, a backpack...) the run refuses: not force grabbed, grabbed, caught or
+// walked over, no grab sparkles or loot beam (the engine's vr_server.cpp asks too).
+float(entity e) VR_Run_RefusesEnt =
+{
+    return VR_RunMeleeOnly_RefusesEnt(e);
+};
 
 void() VR_Run_ItemSpawned =
 {

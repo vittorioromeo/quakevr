@@ -96,7 +96,7 @@ vr_run_er_kind VR_RUN_ER_KINDS[] =
     { "monster_ranged_knight", 1, 1, 2, 2, 0 },
     { "monster_ogre_rocket", 1, 2, 2, 2, 0 }
 };
-#define VR_RUN_ER_KINDS_N 54
+#define VR_RUN_ER_KINDS_N ((float)(sizeof(VR_RUN_ER_KINDS) / sizeof(VR_RUN_ER_KINDS[0]))) // (a new row counts itself)
 
 // A classname's row, or -1.
 float(string xCls) VR_RunEnemyRandom_Row =
@@ -281,7 +281,7 @@ float(float mode) VR_RunEnemyRandom_Check =
         ok = FALSE;
         dprint(sprintf("vr_run_enemies_check: none of %g monsters swapped (mode %g)\n", looked, mode));
     }
-    dprint(sprintf("vr_run_enemies_check: %g monsters looked at, %g swapped (%g for AD's kinds)\n", looked, swapped,
-                   adin));
+    dprint(sprintf("vr_run_enemies_check: %g monsters looked at, %g swapped (%g for AD's kinds; %g kinds listed)\n", looked,
+                   swapped, adin, VR_RUN_ER_KINDS_N));
     return ok;
 };

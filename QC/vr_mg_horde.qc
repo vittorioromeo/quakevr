@@ -475,7 +475,7 @@ void() MGH_horde_ammo_touch =
 		return;
 	if (other.health <= 0)
 		return;
-	if (VR_RunMeleeOnly_RefusesEnt(self)) return; // QVR: Melee Only, no rounds (vr_run_meleeonly.qc)
+	if (VR_Run_RefusesEnt(self)) return; // QVR: Melee Only, no rounds (vr_run_meleeonly.qc)
 
 	// if player is at max ammo for ammo's type, return
 	if (((self.weapon == 1) && (other.ammo_shells >= VR_MaxAmmo(other, AID_SHELLS))) || // shotgun

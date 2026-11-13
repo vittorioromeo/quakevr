@@ -1518,6 +1518,40 @@ Play on an installed package asks Easy / Normal / Hard / Nightmare first (page "
 
 - The server marks a thing VR_RunMeleeOnly_RefusesEnt refuses (guns, ammo, backpacks with rounds) as no-beam in the entity update (vr_server.cpp meleeOnlyRefuses: the carried bit for non-weapon things, the spent bit for weapon props), so the client beam code is unchanged. Melee weapons and other items keep theirs. Side effect: a refused gun ignores vr_enemy_weapon_depleted_loot.
 
+## mutreview: the run setup and mutators reviewed and simplified (agent/mutreview, 2026-11-13)
+
+- **Registry (vr_runsetup.cpp/.hpp):** lines are designated initializers with defaults (a mutator names only what it
+  needs); options inline (`.options = {"Off", "On"}`, up to 4; `optionCount()`), the named option arrays and the
+  `QVR_OPTIONS` macro gone. New `.tags`: each value's word in the run's summary, so `summary()` is one loop over the
+  table (two exceptions kept: Bloody Nightmare in the difficulty's place, the gun and melee weapon as one part); the
+  summary text is unchanged. `isShown()`, `clampValue`, `qcCheck` (the three test commands' QC calls) replace
+  repeated code. Adding a mutator: two cvars + one registry line on the engine side (MUTATORS.md says exactly how).
+- **Save line:** the run line was ~205 of its 256 characters, and the save's context buffer (`vrcontext`, progs.h)
+  512 with the campaign, package and titles before it: a few more mutators (or long titles now) would have cut the line,
+  losing the last choices and the seed. Now 1024 / 1536, saveLine says so on the console if it ever overflows, and
+  `vr_runsetup_test` checks the line fits with every choice at its longest (73 checks, was 72). Format unchanged
+  (unknown keys ignored, missing ones at `oldSave`: old and new saves read as before).
+- **Hooks, not ifs:** the game's code called Melee Only's `VR_RunMeleeOnly_RefusesEnt` directly in 10 places (items,
+  AD's items, carry, horde, force grab, holster) and the engine bound it by name; all now call the run hook
+  `VR_Run_RefusesEnt` (vr_run.qc), the engine's loot beams too (`RunRefusesEnt`, `runRefuses`; still gated on
+  `vr_run_meleeonly`: no VM call per entity a frame otherwise). The empty `VR_Run_MonsterSpawned` hook and its three
+  per-monster calls (monsters.qc) removed (the enemy mutators work at ED_LoadFromFile). vr_run.qc's hook list now
+  points at MUTATORS.md's table (it was a second copy, already stale).
+- **Tables that must stay, checked or self-counting:** Randomized Pickups' weapon rows take their ammo from the weapon
+  table (`VR_RPK_Weapon`: `WeaponIdToAmmoId`); `VR_RPK_Unclassified` (in `vr_runpickups_test 1`, 32 checks, was 31)
+  fails when a weapon of `VR_WEAPONS` with a map pickup is neither a row nor named in `VR_RPK_WeaponLeftOut`;
+  `RPK_ROWS`/`RPK_AMMO_ROWS` are defines sizing the arrays (the 14s and 42s gone). `VR_RUN_ER_KINDS_N` is the
+  table's size (fteqcc `sizeof`, cast to float), no longer a hand count of 54. Melee Only's gun test already derives
+  from the weapon table.
+- **Remnants:** `vr_run_startweapon.qc` renamed `vr_run_startgun.qc` (it holds the gun and melee choices); the
+  `maps_skill_test` alias of the old skill picker's test removed; stale comments (Melee Only "held at the axe") fixed.
+  The old saves' `startweapon=N` reader stays (saves from this round have it).
+- **Tests (before / after, outcome lines compared):** see the agent's report; scripts in its worktree's
+  `scratch/mr_tests.sh` (not committed).
+- **Needs his call (not done):** (1) the nail pistol is not in Randomized Pickups' table (left out by name now; tier 0
+  beside the shotgun and revolver?); (2) monsters: a "never swapped" list (bosses, scripted) so a check can catch a
+  new monster missing from `VR_RUN_ER_KINDS`; (3) a tier column in the weapon and monster data themselves instead of
+  the mutators' own tables.
 ## Save crash: Z_Realloc (agent/savecrash, 2026-11-13)
 
 - **Crash:** saving on vrragtriggers (flat, build 107504fc): `strlen` of a non-canonical pointer in `SaveData_Fill`'s

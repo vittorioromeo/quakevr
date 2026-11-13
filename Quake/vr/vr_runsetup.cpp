@@ -21,22 +21,7 @@ namespace qvr::runsetup
 namespace
 {
 
-// ----------------------------------------------------------------------------
-// The choices' options
-// ----------------------------------------------------------------------------
-
-constexpr const char* skillOptions[] = {"Easy", "Normal", "Hard", "Nightmare"};
-constexpr const char* offOn[] = {"Off", "On"};
-constexpr const char* styleOptions[] = {"My Settings", "Classic", "Light", "Unleashed"};
-constexpr const char* goreOptions[] = {"My Settings", "Full", "Minimal", "Off"};
-constexpr const char* followOffOn[] = {"As Style", "Off", "On"};
-constexpr const char* startGunOptions[] = {"Shotgun", "Nail Pistol", "Heavy Revolver", "Nothing"};
-constexpr const char* startMeleeOptions[] = {"Axe", "Dagger", "Nothing"};
-constexpr const char* pickupsOptions[] = {"Off", "Balanced", "Anything Goes"};
-constexpr const char* enemyCountOptions[] = {"1x", "2x", "3x"};
-constexpr const char* enemyRandomOptions[] = {"Off", "Balanced", "Anything Goes"};
-
-constexpr int startGunNothing = 3;
+constexpr int startGunNothing = 3; // (the Starting gun's "Nothing")
 
 [[nodiscard]] int cvarInt(const cvar_t& c)
 {
@@ -173,67 +158,84 @@ int armedOnlyForced()
 // The registry: one line a choice, in the screen's order (the presets before the rows they set over).
 // ----------------------------------------------------------------------------
 
-#define QVR_OPTIONS(a) a, static_cast<int>(sizeof(a) / sizeof(a[0]))
-
+// Adding a mutator (docs/vr-port/MUTATORS.md, "Adding a mutator"): its two cvars in vr_cvars.inc and one line here; a
+// mutator the QC reads needs nothing else on the engine's side (the screen, the save line, the summary, `vr_run` and the
+// hub's end of a run all go through this table).
 // clang-format off
 const Mutator registry[] = {
-    {"skill", "Difficulty", Section::Difficulty, QVR_OPTIONS(skillOptions), 1, -1,
-        "Quake's skill: Easy, Normal, Hard, Nightmare.", &vr_maps_skill, &skill, applySkill, skillForced, nullptr, "Bloody Nightmare"},
-    {"bn", "Bloody Nightmare", Section::Difficulty, QVR_OPTIONS(offOn), 0, 0,
-        "Dawn of the Machine's hidden difficulty: Nightmare, harder monsters, each level begun with the axe and shotgun only.",
-        &vr_runpick_bn, &vr_run_bn, applyBloody, nullptr, bnShown, nullptr},
-    {"style", "Style", Section::Presets, QVR_OPTIONS(styleOptions), 3, -1,
-        "The Gameplay preset: Classic (Quake as it was), Light (Quake's rules, VR's comforts), Unleashed (the mod). "
-        "My Settings: yours, as kept at the first preset.", &vr_runpick_style, &vr_run_style, applyStyle, nullptr, nullptr, nullptr},
-    {"gore", "Gore", Section::Presets, QVR_OPTIONS(goreOptions), 0, -1,
-        "The Gore preset: Full, Minimal, Off; My Settings: yours.", &vr_runpick_gore, &vr_run_gore, applyGore, nullptr, nullptr, nullptr},
-    {"armed", "Armed Humanoids", Section::Mutators, QVR_OPTIONS(followOffOn), 0, -1,
-        "Grunts, enforcers, knights and death knights as armed humanoids holding real weapons. As Style: the Style's.",
-        &vr_runpick_armed, &vr_run_armed, applyArmed, nullptr, nullptr, nullptr},
-    {"smartai", "Smarter AI", Section::Mutators, QVR_OPTIONS(followOffOn), 0, -1,
-        "The stealth AI: monsters see and hear as people do, search, follow your trail. As Style: the Style's.",
-        &vr_runpick_smartai, &vr_run_smartai, applySmartAi, nullptr, nullptr, nullptr},
-    {"startgun", "Starting gun", Section::Mutators, QVR_OPTIONS(startGunOptions), 0, 0,
-        "The gun a new game starts with, in its hip holster: the shotgun, the nail pistol, the heavy revolver, or none.",
-        &vr_runpick_startgun, &vr_run_startgun, nullptr, startGunForced, nullptr, "Melee Only"},
-    {"startmelee", "Starting melee weapon", Section::Mutators, QVR_OPTIONS(startMeleeOptions), 0, 0,
-        "The melee weapon a new game starts with: the axe, the dagger, or none (bare fists: punch and grab).",
-        &vr_runpick_startmelee, &vr_run_startmelee, nullptr, nullptr, nullptr, nullptr},
-    {"meleeonly", "Melee Only", Section::Mutators, QVR_OPTIONS(offOn), 0, 0,
-        "Guns are not picked up and do not fire; no starting gun (the melee weapon as chosen). Blades, axes, the chainsaw, fists.",
-        &vr_runpick_meleeonly, &vr_run_meleeonly, nullptr, nullptr, nullptr, nullptr},
-    {"glasscannon", "Glass Cannon", Section::Mutators, QVR_OPTIONS(offOn), 0, 0,
-        "You and the monsters take double damage.", &vr_runpick_glasscannon, &vr_run_glasscannon, nullptr, nullptr, nullptr, nullptr},
-    {"pickups", "Randomized Pickups", Section::Mutators, QVR_OPTIONS(pickupsOptions), 0, 0,
-        "The level's pickups swapped as it loads. Balanced: ammo for ammo of a gun you hold or one nearby, health for health, "
-        "armour and weapons for ones close in value. Anything Goes: anything. Keys, runes and triggered items stay.",
-        &vr_runpick_pickups, &vr_run_pickups, nullptr, nullptr, nullptr, nullptr},
-    {"ironman", "Ironman", Section::Mutators, QVR_OPTIONS(offOn), 0, 0,
-        "No saving: save, quicksave and autosave are off. A death sends you back to the start of the level, with what you "
-        "entered it with.", &vr_runpick_ironman, &vr_run_ironman, nullptr, nullptr, nullptr, nullptr},
-    {"enemycount", "Enemy Count", Section::Mutators, QVR_OPTIONS(enemyCountOptions), 0, 0,
-        "Each monster of a map comes with one or two more of its kind beside it. The map's own still open its doors.",
-        &vr_runpick_enemycount, &vr_run_enemycount, nullptr, nullptr, nullptr, nullptr},
-    {"enemyrandom", "Randomized Enemies", Section::Mutators, QVR_OPTIONS(enemyRandomOptions), 0, 0,
-        "Monsters swapped as a map loads. Balanced: one as tough that moves as it does and fits its spot (Arcane "
-        "Dimensions' too when mounted). Anything Goes: any that fits.",
-        &vr_runpick_enemyrandom, &vr_run_enemyrandom, nullptr, nullptr, nullptr, nullptr},
-    {"rangedknights", "Ranged Knights", Section::Mutators, QVR_OPTIONS(offOn), 0, 0,
-        "Knights and death knights may hold guns and take them up: mostly their swords (two now and then), crossbows "
-        "with Arcane Dimensions, rarely a chainsaw, more rarely another gun. Needs Armed Humanoids.",
-        &vr_runpick_rangedknights, &vr_run_rangedknights, nullptr, armedOnlyForced, nullptr, "Armed Humanoids off"},
-    {"wildweapons", "Wild Weaponry", Section::Mutators, QVR_OPTIONS(offOn), 0, 0,
-        "Armed humanoids may hold any weapon from the first map on, whether you have found it or not (the first grunt "
-        "may hold a rocket launcher). Needs Armed Humanoids.",
-        &vr_runpick_wildweapons, &vr_run_wildweapons, nullptr, armedOnlyForced, nullptr, "Armed Humanoids off"},
-    {"armoredfoes", "Armored Foes", Section::Mutators, QVR_OPTIONS(offOn), 0, 0,
-        "Armed humanoids spawn in armour far more often (the difficulty's armour types and pieces). Needs Armed "
-        "Humanoids.",
-        &vr_runpick_armoredfoes, &vr_run_armoredfoes, nullptr, armedOnlyForced, nullptr, "Armed Humanoids off"},
+    {.id = "skill", .label = "Difficulty", .section = Section::Difficulty,
+        .options = {"Easy", "Normal", "Hard", "Nightmare"}, .tags = {"Easy", "Normal", "Hard", "Nightmare"},
+        .def = 1, .oldSave = -1, .help = "Quake's skill: Easy, Normal, Hard, Nightmare.", .pick = &vr_maps_skill,
+        .active = &skill, .apply = applySkill, .forced = skillForced, .heldBy = "Bloody Nightmare"},
+    {.id = "bn", .label = "Bloody Nightmare", .section = Section::Difficulty,
+        .options = {"Off", "On"}, .tags = {"", "Bloody Nightmare"}, // (in the difficulty's place: summary())
+        .help = "Dawn of the Machine's hidden difficulty: Nightmare, harder monsters, each level begun with the axe and shotgun only.",
+        .pick = &vr_runpick_bn, .active = &vr_run_bn, .apply = applyBloody, .shown = bnShown},
+    {.id = "style", .label = "Style", .section = Section::Presets,
+        .options = {"My Settings", "Classic", "Light", "Unleashed"}, .tags = {"My Settings", "Classic", "Light", "Unleashed"},
+        .def = 3, .oldSave = -1,
+        .help = "The Gameplay preset: Classic (Quake as it was), Light (Quake's rules, VR's comforts), Unleashed (the mod). "
+                "My Settings: yours, as kept at the first preset.",
+        .pick = &vr_runpick_style, .active = &vr_run_style, .apply = applyStyle},
+    {.id = "gore", .label = "Gore", .section = Section::Presets,
+        .options = {"My Settings", "Full", "Minimal", "Off"}, .tags = {"", "Gore Full", "Gore Minimal", "Gore Off"},
+        .oldSave = -1, .help = "The Gore preset: Full, Minimal, Off; My Settings: yours.",
+        .pick = &vr_runpick_gore, .active = &vr_run_gore, .apply = applyGore},
+    {.id = "armed", .label = "Armed Humanoids",
+        .options = {"As Style", "Off", "On"}, .tags = {"", "No armed humanoids", "Armed humanoids"}, .oldSave = -1,
+        .help = "Grunts, enforcers, knights and death knights as armed humanoids holding real weapons. As Style: the Style's.",
+        .pick = &vr_runpick_armed, .active = &vr_run_armed, .apply = applyArmed},
+    {.id = "smartai", .label = "Smarter AI",
+        .options = {"As Style", "Off", "On"}, .tags = {"", "Quake's AI", "Smarter AI"}, .oldSave = -1,
+        .help = "The stealth AI: monsters see and hear as people do, search, follow your trail. As Style: the Style's.",
+        .pick = &vr_runpick_smartai, .active = &vr_run_smartai, .apply = applySmartAi},
+    {.id = "startgun", .label = "Starting gun", // (its summary part with the melee weapon's: summary())
+        .options = {"Shotgun", "Nail Pistol", "Heavy Revolver", "Nothing"},
+        .help = "The gun a new game starts with, in its hip holster: the shotgun, the nail pistol, the heavy revolver, or none.",
+        .pick = &vr_runpick_startgun, .active = &vr_run_startgun, .forced = startGunForced, .heldBy = "Melee Only"},
+    {.id = "startmelee", .label = "Starting melee weapon",
+        .options = {"Axe", "Dagger", "Nothing"},
+        .help = "The melee weapon a new game starts with: the axe, the dagger, or none (bare fists: punch and grab).",
+        .pick = &vr_runpick_startmelee, .active = &vr_run_startmelee},
+    {.id = "meleeonly", .label = "Melee Only", .options = {"Off", "On"}, .tags = {"", "Melee only"},
+        .help = "Guns are not picked up and do not fire; no starting gun (the melee weapon as chosen). Blades, axes, the chainsaw, fists.",
+        .pick = &vr_runpick_meleeonly, .active = &vr_run_meleeonly},
+    {.id = "glasscannon", .label = "Glass Cannon", .options = {"Off", "On"}, .tags = {"", "Glass cannon"},
+        .help = "You and the monsters take double damage.", .pick = &vr_runpick_glasscannon, .active = &vr_run_glasscannon},
+    {.id = "pickups", .label = "Randomized Pickups",
+        .options = {"Off", "Balanced", "Anything Goes"}, .tags = {"", "Random pickups", "Wild pickups"},
+        .help = "The level's pickups swapped as it loads. Balanced: ammo for ammo of a gun you hold or one nearby, health for health, "
+                "armour and weapons for ones close in value. Anything Goes: anything. Keys, runes and triggered items stay.",
+        .pick = &vr_runpick_pickups, .active = &vr_run_pickups},
+    {.id = "ironman", .label = "Ironman", .options = {"Off", "On"}, .tags = {"", "Ironman"},
+        .help = "No saving: save, quicksave and autosave are off. A death sends you back to the start of the level, with what you "
+                "entered it with.",
+        .pick = &vr_runpick_ironman, .active = &vr_run_ironman},
+    {.id = "enemycount", .label = "Enemy Count", .options = {"1x", "2x", "3x"}, .tags = {"", "2x enemies", "3x enemies"},
+        .help = "Each monster of a map comes with one or two more of its kind beside it. The map's own still open its doors.",
+        .pick = &vr_runpick_enemycount, .active = &vr_run_enemycount},
+    {.id = "enemyrandom", .label = "Randomized Enemies",
+        .options = {"Off", "Balanced", "Anything Goes"}, .tags = {"", "Random enemies", "Any enemies"},
+        .help = "Monsters swapped as a map loads. Balanced: one as tough that moves as it does and fits its spot (Arcane "
+                "Dimensions' too when mounted). Anything Goes: any that fits.",
+        .pick = &vr_runpick_enemyrandom, .active = &vr_run_enemyrandom},
+    {.id = "rangedknights", .label = "Ranged Knights", .options = {"Off", "On"}, .tags = {"", "Ranged knights"},
+        .help = "Knights and death knights may hold guns and take them up: mostly their swords (two now and then), crossbows "
+                "with Arcane Dimensions, rarely a chainsaw, more rarely another gun. Needs Armed Humanoids.",
+        .pick = &vr_runpick_rangedknights, .active = &vr_run_rangedknights, .forced = armedOnlyForced,
+        .heldBy = "Armed Humanoids off"},
+    {.id = "wildweapons", .label = "Wild Weaponry", .options = {"Off", "On"}, .tags = {"", "Wild weaponry"},
+        .help = "Armed humanoids may hold any weapon from the first map on, whether you have found it or not (the first grunt "
+                "may hold a rocket launcher). Needs Armed Humanoids.",
+        .pick = &vr_runpick_wildweapons, .active = &vr_run_wildweapons, .forced = armedOnlyForced,
+        .heldBy = "Armed Humanoids off"},
+    {.id = "armoredfoes", .label = "Armored Foes", .options = {"Off", "On"}, .tags = {"", "Armored foes"},
+        .help = "Armed humanoids spawn in armour far more often (the difficulty's armour types and pieces). Needs Armed "
+                "Humanoids.",
+        .pick = &vr_runpick_armoredfoes, .active = &vr_run_armoredfoes, .forced = armedOnlyForced,
+        .heldBy = "Armed Humanoids off"},
 };
 // clang-format on
-
-#undef QVR_OPTIONS
 
 constexpr int registryCount = static_cast<int>(sizeof(registry) / sizeof(registry[0]));
 
@@ -246,7 +248,7 @@ struct State
     bool pendingHaveSeed{false}; // ... the line has one (a save from before it was: a new one drawn)
     bool haveLine{false};
     bool reading{false}; // readSaveLines ran for the save being loaded
-    char line[256]{};
+    char line[1024]{}; // (about 12 characters a choice: room for many more; saveLine checks it fits)
     char summary[256]{};
 };
 State state;
@@ -259,11 +261,24 @@ State state;
     return fixed != 0 ? (fixed & 0xFFFF) + 1 : static_cast<int>(srvrandom::freshSeed(0xFFFFu));
 }
 
+[[nodiscard]] int clampValue(const Mutator& m, int value)
+{
+    const int n = m.optionCount();
+    return value < 0 ? 0 : value >= n ? n - 1 : value;
+}
+
+// The QC check `name` (the server's VM) run with up to three float parameters: true when it answers non-zero (false
+// when the progs have no such function).
+[[nodiscard]] bool qcCheck(const char* name, float a = 0.f, float b = 0.f, float c = 0.f)
+{
+    const progs::ServerVm vm;
+    dfunction_t* fn = VR_ED_FindFunction(name);
+    return fn && progs::qcFloat(static_cast<func_t>(fn - qcvm->functions), a, b, c) != 0.f;
+}
+
 void setActive(int i, int value)
 {
-    const Mutator& m = registry[i];
-    value = value < 0 ? 0 : value >= m.optionCount ? m.optionCount - 1 : value;
-    Cvar_SetValueQuick(m.active, static_cast<float>(value));
+    Cvar_SetValueQuick(registry[i].active, static_cast<float>(clampValue(registry[i], value)));
 }
 
 void applyActive(int i, Phase phase)
@@ -349,14 +364,7 @@ void checkCmd()
                        activeValue(find("meleeonly")) == m && activeValue(find("gore")) == gore;
     checkTally.check(cvars, name, va("%s: the run's cvars (%s)", what, summary(false)));
     checkTally.check(gore == 0 || gorepresets::matching() == gore, name, va("%s: the Gore preset's values", what));
-    bool qc = false;
-    if(sv.active)
-    {
-        const progs::ServerVm vm;
-        dfunction_t* fn = VR_ED_FindFunction("VR_Run_TestCheck");
-        qc = fn && progs::qcFloat(static_cast<func_t>(fn - qcvm->functions), static_cast<float>(w), static_cast<float>(g),
-                                 static_cast<float>(m)) != 0.f;
-    }
+    const bool qc = sv.active && qcCheck("VR_Run_TestCheck", static_cast<float>(w), static_cast<float>(g), static_cast<float>(m));
     checkTally.check(qc, name, va("%s: the game (loadout, damage, guns)", what));
     if(cvars && qc)
     {
@@ -415,7 +423,7 @@ void enemiesChains(int c, int r, const char* what)
         {
             return;
         }
-        chains = progs::qcFloat(static_cast<func_t>(fn - qcvm->functions));
+        chains = progs::qcFloat(static_cast<func_t>(fn - qcvm->functions)); // (a count, not a check: qcCheck's no use)
     }
     EnemiesCheck& s = enemiesCheck;
     for(int i = 0; i < s.baseCount; i++)
@@ -455,14 +463,7 @@ void enemiesCheckCmd()
     q_snprintf(what, sizeof(what), "%s: enemies %d %d", sv.name, c, r); // (not va's: the QC check's prints reuse those)
     const bool cvars = activeValue(find("enemycount")) == c && activeValue(find("enemyrandom")) == r;
     enemiesTally.check(cvars, name, va("%s: the run's cvars (%s)", what, summary(false)));
-    bool qc = false;
-    if(sv.active)
-    {
-        const progs::ServerVm vm;
-        dfunction_t* fn = VR_ED_FindFunction("VR_Run_EnemiesCheck");
-        qc = fn && progs::qcFloat(static_cast<func_t>(fn - qcvm->functions), static_cast<float>(c), static_cast<float>(r)) !=
-                       0.f;
-    }
+    const bool qc = sv.active && qcCheck("VR_Run_EnemiesCheck", static_cast<float>(c), static_cast<float>(r));
     enemiesTally.check(qc, name, va("%s: the map's monsters", what));
     if(sv.active)
     {
@@ -504,10 +505,8 @@ void armedCheckCmd()
     bool qc = sv.active;
     for(int part = 1; part <= 4 && sv.active; part++) // (one call a part: thousands of rolls in one are a runaway loop)
     {
-        const progs::ServerVm vm;
-        dfunction_t* fn = VR_ED_FindFunction(va("VR_Run_ArmedCheck%d", part));
-        qc = fn && progs::qcFloat(static_cast<func_t>(fn - qcvm->functions), static_cast<float>(rk), static_cast<float>(ww),
-                                 static_cast<float>(af)) != 0.f && qc;
+        qc = qcCheck(va("VR_Run_ArmedCheck%d", part), static_cast<float>(rk), static_cast<float>(ww), static_cast<float>(af)) &&
+             qc;
     }
     armedTally.check(qc, name, va("%s: the rolls and the map's armed humanoids", what));
     if(cvars && qc)
@@ -535,7 +534,7 @@ void testCmd()
                 name, va("%s: its cvars named after it", m.id));
             t.check(atoi(m.pick->default_string) == m.def, name, va("%s: the pick's default is the registry's", m.id));
         }
-        t.check(m.def >= 0 && m.def < m.optionCount && m.help && m.help[0], name, va("%s: a default, a help", m.id));
+        t.check(m.def >= 0 && m.def < m.optionCount() && m.help && m.help[0], name, va("%s: a default, a help", m.id));
     }
 
     // A run: Classic, Minimal gore, armed on over it, the revolver, glass cannon.
@@ -563,8 +562,20 @@ void testCmd()
     t.check(gorepresets::matching() == gorepresets::choiceMinimal, name, "start: Gore Minimal");
     t.check(vr_run_startgun.value == 2.f && vr_run_startmelee.value == 1.f && vr_run_glasscannon.value == 1.f && vr_run_meleeonly.value == 0.f, name,
         "start: the mutators' cvars from the picks");
-    char saved[256];
+    char saved[1024];
     q_strlcpy(saved, saveLine(), sizeof(saved));
+    {
+        // Room for the line with every choice at its longest value and a 5-digit seed (a cut line would lose the last
+        // choices and the seed): the registry's ids, at most 2 digits a value.
+        size_t longest = strlen("// qvr_run seed=65535\n");
+        for(int i = 0; i < registryCount; i++)
+        {
+            longest += strlen(registry[i].id) + 4; // " id=vv"
+        }
+        t.check(longest < sizeof(state.line) && strstr(saved, " seed=") && saved[strlen(saved) - 1] == '\n', name,
+            va("the save line fits (%d of %d characters at the longest)", static_cast<int>(longest),
+                static_cast<int>(sizeof(state.line))));
+    }
     t.check(strstr(saved, "style=1") && strstr(saved, "gore=2") && strstr(saved, "startgun=2") && strstr(saved, "startmelee=1") &&
                 strstr(saved, "glasscannon=1") && strstr(saved, "pickups=2") && strstr(saved, "ironman=1") &&
                 strstr(saved, "rangedknights=1") && strstr(saved, "wildweapons=1") && strstr(saved, "armoredfoes=1"),
@@ -627,7 +638,7 @@ void testCmd()
         name, "run B: Unleashed, no glass cannon, pickups as the map's, saving allowed");
 
     // The first run's save loaded: its choices and the presets' values back.
-    char text[320];
+    char text[1100];
     q_snprintf(text, sizeof(text), "header\n%s// qvr_sound x\n", saved);
     readSaveLines(text);
     onLoadGame();
@@ -704,7 +715,7 @@ int find(const char* id)
 int forcedValue(int i)
 {
     const Mutator& m = at(i);
-    if(!m.forced || (m.shown && !m.shown()))
+    if(!m.forced || !m.isShown())
     {
         return -1;
     }
@@ -719,19 +730,17 @@ int pickValue(int i)
     {
         return f;
     }
-    if(m.shown && !m.shown())
+    if(!m.isShown())
     {
         return m.def;
     }
-    const int v = cvarInt(*m.pick);
-    return v < 0 ? 0 : v >= m.optionCount ? m.optionCount - 1 : v;
+    return clampValue(m, cvarInt(*m.pick));
 }
 
 int activeValue(int i)
 {
     const Mutator& m = at(i);
-    const int v = cvarInt(*m.active);
-    return v < 0 ? 0 : v >= m.optionCount ? m.optionCount - 1 : v;
+    return clampValue(m, cvarInt(*m.active));
 }
 
 void start()
@@ -780,77 +789,35 @@ const char* summary(bool picks)
 {
     state.summary[0] = 0;
     auto value = [picks](int i) { return picks ? pickValue(i) : activeValue(i); };
+    // Each shown row's tag in the registry's order; two exceptions: Bloody Nightmare stands in the difficulty's place,
+    // and the starting gun and melee weapon are one part ("Revolver and dagger start").
     const int bn = find("bn");
-    if(registry[bn].shown() && value(bn))
+    const bool bloody = registry[bn].isShown() && value(bn) != 0;
+    const int startGun = find("startgun");
+    for(int i = 0; i < registryCount; i++)
     {
-        appendPart("Bloody Nightmare");
-    }
-    else
-    {
-        appendPart(skillOptions[value(find("skill"))]);
-    }
-    appendPart(styleOptions[value(find("style"))]);
-    const int gore = value(find("gore"));
-    if(gore)
-    {
-        appendPart(va("Gore %s", goreOptions[gore]));
-    }
-    const int armed = value(find("armed"));
-    if(armed)
-    {
-        appendPart(armed == 2 ? "Armed humanoids" : "No armed humanoids");
-    }
-    const int ai = value(find("smartai"));
-    if(ai)
-    {
-        appendPart(ai == 2 ? "Smarter AI" : "Quake's AI");
-    }
-    {
-        constexpr const char* guns[] = {"Shotgun", "Nail pistol", "Revolver", "No gun"};
-        constexpr const char* melees[] = {"axe", "dagger", "no melee"};
-        const int sg = value(find("startgun"));
-        const int sm = value(find("startmelee"));
-        if(sg != 0 || sm != 0)
+        const Mutator& m = registry[i];
+        if(!m.isShown() || (bloody && m.active == &skill))
         {
-            appendPart(va("%s and %s start", guns[sg], melees[sm]));
+            continue;
         }
-    }
-    if(value(find("meleeonly")))
-    {
-        appendPart("Melee only");
-    }
-    if(value(find("glasscannon")))
-    {
-        appendPart("Glass cannon");
-    }
-    const int pickups = value(find("pickups"));
-    if(pickups)
-    {
-        appendPart(pickups == 2 ? "Wild pickups" : "Random pickups");
-    }
-    if(value(find("ironman")))
-    {
-        appendPart("Ironman");
-    }
-    if(const int count = value(find("enemycount")))
-    {
-        appendPart(count == 2 ? "3x enemies" : "2x enemies");
-    }
-    if(const int random = value(find("enemyrandom")))
-    {
-        appendPart(random == 2 ? "Any enemies" : "Random enemies");
-    }
-    if(value(find("rangedknights")))
-    {
-        appendPart("Ranged knights");
-    }
-    if(value(find("wildweapons")))
-    {
-        appendPart("Wild weaponry");
-    }
-    if(value(find("armoredfoes")))
-    {
-        appendPart("Armored foes");
+        if(i == startGun)
+        {
+            constexpr const char* guns[] = {"Shotgun", "Nail pistol", "Revolver", "No gun"};
+            constexpr const char* melees[] = {"axe", "dagger", "no melee"};
+            const int sg = value(i);
+            const int sm = value(find("startmelee"));
+            if(sg != 0 || sm != 0)
+            {
+                appendPart(va("%s and %s start", guns[sg], melees[sm]));
+            }
+            continue;
+        }
+        const char* tag = m.tags[value(i)];
+        if(tag && tag[0])
+        {
+            appendPart(tag);
+        }
     }
     return state.summary;
 }
@@ -863,7 +830,12 @@ const char* saveLine()
         q_strlcat(state.line, va(" %s=%d", registry[i].id, activeValue(i)), sizeof(state.line));
     }
     q_strlcat(state.line, va(" seed=%d", static_cast<int>(vr_run_seed.value)), sizeof(state.line));
-    q_strlcat(state.line, "\n", sizeof(state.line));
+    if(q_strlcat(state.line, "\n", sizeof(state.line)) >= sizeof(state.line))
+    {
+        // (never cut short: a cut line loses the last choices and the seed; vr_runsetup_test checks it fits)
+        Con_Printf("Run setup: the save line is longer than %d characters: State::line needs more room\n",
+            static_cast<int>(sizeof(state.line)));
+    }
     return state.line;
 }
 
@@ -970,7 +942,7 @@ int pageKey()
     for(int i = 0; i < registryCount; i++)
     {
         const Mutator& m = registry[i];
-        key = key * 3 + (forcedValue(i) >= 0 ? 1 : 0) + (m.shown && !m.shown() ? 2 : 0);
+        key = key * 3 + (forcedValue(i) >= 0 ? 1 : 0) + (!m.isShown() ? 2 : 0);
     }
     return key;
 }
