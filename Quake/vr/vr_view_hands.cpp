@@ -2332,6 +2332,7 @@ void embedProbeWrite()
 void embedHandleHand(const entity_t& e, bool mirrored, bool reversed, glm::vec3& onPos, glm::vec3& onRot)
 {
     const int slot = weapons::slotForModel(e.model);
+    reverseLearn(e.model, slot);
     const float flip = reversed && reverseGripAllowed(slot) ? 1.f : 0.f;
     onRot = handTurnOfWeapon(glm::vec3{-e.angles[0], e.angles[1], e.angles[2]}, slot, mirrored, flip);
     onPos = glm::vec3{e.origin[0], e.origin[1], e.origin[2]} - reverseShift(slot, mirrored, flip, onRot);

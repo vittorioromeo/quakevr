@@ -611,6 +611,57 @@ void recordDrawnWeapon(const hands::State& s, int hand)
 // handle hold through handTurnOfWeapon) follows it. The half turn is about the palm's normal (the hand's left) made square to
 // the handle (the weapon's forward as its angle offsets lay it): the handle stays on its line through the hand's point, the
 // blade goes from the thumb's side to the little finger's, its edges swap (edge in, as a reverse grip is held).
+namespace
+{
+// Per slot: its weapon's handle's line in its own frame (x forward, y left, z up, units off its origin: view::weaponLocalGeometry's
+// butt to its muzzle) and the point of it nearest the origin (the hand's point): the half turn's pivot, so that the handle stays in
+// the fist (turned about the hand's point itself, a handle off it by a little went to the other side of it). Learnt from the model
+// whenever a hand holds one or takes one (reverseLearn), again when the weapon settings change; until then the weapon's forward
+// through its origin.
+struct ReverseGeometry
+{
+    const qmodel_t* model{nullptr};
+    unsigned generation{0};
+    glm::vec3 axis{1.f, 0.f, 0.f};
+    glm::vec3 pivot{0.f};
+};
+ReverseGeometry reverseGeometry[weapons::numSlots];
+
+[[nodiscard]] const ReverseGeometry* reverseGeometryOf(int slot)
+{
+    return slot >= 0 && slot < weapons::numSlots && reverseGeometry[slot].model ? &reverseGeometry[slot] : nullptr;
+}
+} // namespace
+
+void reverseLearn(const qmodel_t* model, int slot)
+{
+    if(!model || slot < 0 || slot >= weapons::numSlots || !reverseGripAllowed(slot))
+    {
+        return;
+    }
+    ReverseGeometry& g = reverseGeometry[slot];
+    if(g.model == model && g.generation == weapons::settingsGeneration())
+    {
+        return;
+    }
+    g = ReverseGeometry{model, weapons::settingsGeneration()};
+    glm::vec3 muzzle, butt, second;
+    int type = 0;
+    if(view::weaponLocalGeometry(const_cast<qmodel_t*>(model), muzzle, butt, second, type) && glm::distance(muzzle, butt) > 1e-3f)
+    {
+        // The handle from its butt to its guard (the blade's start: Blade From's share of the way from the hand to the tip; a
+        // sword's own, -1: some 0.15), turned about its middle: it lies in the fist as it did, its butt where its guard was (at
+        // the top of the fist, under the thumb: over the pommel), its guard under the little finger.
+        g.axis = glm::normalize(muzzle - butt);
+        const glm::vec3 nearest = butt - g.axis * glm::dot(butt, g.axis);
+        const float from = weapons::value(slot, Key::BladeFrom);
+        const float guard = (from > 0.f ? from : 0.15f) * glm::dot(muzzle - nearest, g.axis);
+        g.pivot = nearest + g.axis * (0.5f * (glm::dot(butt - nearest, g.axis) + guard));
+    }
+    Con_DPrintf("revgrip: slot %d's handle line (%.2f %.2f %.2f), pivot (%.2f %.2f %.2f), its butt %.2f and tip %.2f along it\n", slot,
+        g.axis.x, g.axis.y, g.axis.z, g.pivot.x, g.pivot.y, g.pivot.z, glm::dot(butt - g.pivot, g.axis), glm::dot(muzzle - g.pivot, g.axis));
+}
+
 [[nodiscard]] glm::mat3 reverseTurn(int slot, bool mirrored, float flip)
 {
     if(flip <= 0.f || slot < 0)
@@ -620,7 +671,12 @@ void recordDrawnWeapon(const hands::State& s, int hand)
     const float k = za::min(flip, 1.f);
     const float eased = k * k * (3.f - 2.f * k);
     const glm::vec3 o = weaponAngleOffsets(slot, mirrored);
-    const glm::vec3 handle = glm::normalize(anglesBasis(glm::vec3{-o.x, o.y, o.z})[0]);
+    glm::vec3 along{1.f, 0.f, 0.f};
+    if(const ReverseGeometry* g = reverseGeometryOf(slot))
+    {
+        along = glm::vec3{g->axis.x, mirrored ? -g->axis.y : g->axis.y, g->axis.z};
+    }
+    const glm::vec3 handle = glm::normalize(anglesBasis(glm::vec3{-o.x, o.y, o.z}) * along);
     glm::vec3 axis = glm::vec3{0.f, 1.f, 0.f} - handle * handle.y;
     axis = glm::length(axis) > 1e-4f ? glm::normalize(axis) : glm::vec3{0.f, 0.f, 1.f};
     const glm::mat3 spin = glm::mat3_cast(glm::angleAxis(glm::radians(180.f * eased), axis));
@@ -644,6 +700,15 @@ void recordDrawnWeapon(const hands::State& s, int hand)
     if(mirrored)
     {
         p.y = -p.y;
+    }
+    // Turned about the handle's pivot, not the hand's point (the weapon's origin): the origin moves by (I - G) C, C the pivot in the
+    // hand's frame (the weapon's angle offsets lay it there).
+    if(const ReverseGeometry* g = reverseGeometryOf(slot))
+    {
+        const glm::vec3 o = weaponAngleOffsets(slot, mirrored);
+        const glm::vec3 pivot{g->pivot.x, mirrored ? -g->pivot.y : g->pivot.y, g->pivot.z};
+        const glm::vec3 c = anglesBasis(glm::vec3{-o.x, o.y, o.z}) * pivot;
+        p += c - reverseTurn(slot, mirrored, flip) * c;
     }
     return anglesBasis(rot) * p; // (the hand's forward, left, up)
 }
@@ -672,6 +737,7 @@ void gripFlipStep(int hand, const qmodel_t* model, int slot)
     g.last = vr_gametime;
     const int flags = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2];
     const float target = reverseGripAllowed(slot) && (flags & weaponFlagRevGrip) ? 1.f : 0.f;
+    reverseLearn(model, slot);
     if(model != g.model)
     {
         g.model = model;

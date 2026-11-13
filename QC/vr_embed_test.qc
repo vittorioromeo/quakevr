@@ -46,6 +46,7 @@ float vr_et_flags;   // the blade's weapon flags (AD's kinds)
 
 float VR_ET_SPEED = 14;   // m/s (a hard throw: gravity hardly bends it on the way)
 float VR_ET_GIVEUP = 10;  // seconds a state may last (a stuck test: FAIL "timed out")
+float vr_rg_scene;        // vr_embed_test 43: the reverse grip's pictures, not its checks (vr_revgrip_test.qc)
 
 void(float s) VR_ET_To =
 {
@@ -4500,6 +4501,16 @@ void() VR_Embed_TestFrame =
         {
             VR_DG_Begin(); // (the dagger: vr_dagger_test.qc)
         }
+        if(ask == 42)
+        {
+            vr_rg_scene = FALSE;
+            VR_RG_Begin(); // (the reverse grip: vr_revgrip_test.qc)
+        }
+        if(ask == 43)
+        {
+            vr_rg_scene = TRUE;
+            VR_RG_Begin(); // (the reverse grip's pictures: vr_revgrip_test.qc)
+        }
         if(ask == 1)
         {
             VR_Test_BeginFlags("embedtest", VR_TEST_LOUD);
@@ -4724,6 +4735,10 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
     else if(vr_et_on == 40)
     {
         VR_DG_Frame(); // (the dagger: vr_dagger_test.qc)
+    }
+    else if(vr_et_on == 42)
+    {
+        VR_RG_Frame(); // (the reverse grip: vr_revgrip_test.qc)
     }
     else if(vr_et_on == 7)
     {

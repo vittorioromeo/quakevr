@@ -637,6 +637,9 @@ inline view::DrawnWeapon drawnWeapons[2];
 // offsets (Key::RevPitch.., in the hand's frame), `flip` of the way (eased); its move in the hand's frame (Key::RevX..,
 // turned by the hand's angles `rot`). The identity and nothing at 0.
 [[nodiscard]] glm::mat3 reverseTurn(int slot, bool mirrored, float flip);
+// The half turn's pivot and handle line of slot `slot`'s weapon, from its model `model` (kept per slot; again when the weapon settings
+// change): called by whatever has the model at hand (the held weapon, a blade in a body, one to be taken).
+void reverseLearn(const qmodel_t* model, int slot);
 [[nodiscard]] glm::vec3 reverseShift(int slot, bool mirrored, float flip, const glm::vec3& rot);
 // Whether weapon slot `slot` may be held reversed (Key::RevGrip, with vr_revgrip on).
 [[nodiscard]] bool reverseGripAllowed(int slot);
