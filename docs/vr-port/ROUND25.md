@@ -1924,3 +1924,34 @@ His flat notes 5, 6, 9 (2026-11-13).
 - **Other tests:** vr_runsetup_test 73/0, vr_runsetup_screen_test 21/0 (adds: the shown page has Difficulty after a
   start hall's launch and none for a hall, Bloody Nightmare never found a row, opened at its top), vr_run_check 15/0
   (adds `map` after a load: the screen's mutators), vr_continue_rows_test 16/0. Scenario run_glass_dummy.
+
+## vkperf: vkQuake's pusher grid, FTE hull trace, faces on the job pool (agent/vkperf, 2026-11-14)
+
+- **Pusher grid** (`sv_fastpushmove`, default 1; after vkQuake af387967, d6bf6c4c, 32f74820; sv_phys.c): from the
+  second pusher moving in a tick, a spatial hash (256-unit cells, 4096 buckets, plain heap) of every edict's abs box
+  hands SV_PushMove the edicts near its sweep (old and new box, +8 units for riders) instead of all of them. Exact by
+  construction: clients always candidates (hanging at arm's length), big boxes and edicts allocated this tick
+  (ED_Alloc hook) always, every SV_LinkEdict re-inserts, and an edict past the one under test that is linked or
+  allocated mid-push re-gathers the rest; visited in edict order with the walk's own tests (riding, VR_ClimbHangsFrom,
+  Box3D's skip, corpses). 0 = Quake's walk; 2 = the grid from the first pusher and every push checked against the
+  walk (misses warned). `sv_pushgrid_stats [reset]`. Debug > Profiling and Memory: Pusher Search, Pusher Search Stats.
+  Checks: sv_fastpushmove 2 on ad_sepulcher (awake monsters, 40 s) 12 pushes, 0 missed; prop_climb_test lift and
+  liftlight PASS with 0 and 2, output identical; nav_lift passes with 0, 1 and 2 (its timing varies run to run with
+  either: 18.6 / 32.7 / 22.7 s, one fail each way: flaky, not seeded). Idle AD maps (ad_tfuma, ad_azad, e4m7) never
+  move two pushers in a tick: the grid is built only on maps with many movers; one door costs Quake's walk as before.
+- **Hull trace** (`sv_fte_hulltrace`, default 1; after vkQuake world.c Q1BSP_RecursiveHullTrace, on since 13b4b73a):
+  a whole move (fractions 0..1) traced by FTE's recursion; Quake's kept for 0 and for partial calls.
+  `sv_hulltrace_compare [n] [seed]`: e1m1/e4m7/dm5, 100000 seeded moves per hull: 0-2 hit/miss differ, 13-24 ends
+  more than 1/8 apart, 0 solid-flag differences, 0 ends in solid either way; FTE 28.6 vs 74.1 ms (e1m1 hull 0),
+  22.5 vs 42.3 (hull 1), 1.7-3x quicker everywhere. Seeded hull walks (vr_hull_walktest 60 7): e1m3 stuck 0 / 1 hop
+  failed both ways, e2m2 and e1m1 stuck 0; vr_portals_walktest dm5 184 carried, 0 walked through with 0 and 1. Some
+  hull-walk runs (e3m3, e4m1, one e1m1) ended without their summary line in either mode (harness, not the trace).
+  Debug > Profiling and Memory: Hull Trace, Compare Hull Traces.
+- **Faces on the job pool** (after vkQuake 64ce1738; gl_model.c): CalcSurfaceExtents and Mod_CalcSurfaceBounds after
+  Mod_LoadFaces's loop through `VR_ParallelFor` (a C bridge to jobs::parallelFor, sites in vr_jobs_sites), the
+  "Bad surface extents" check after the join. `mod_surfhash`: ad_tears 532b2765, e1m1 64c21f98 with vr_jobs_parallel
+  0 and 1. ad_tears: "map faces' extents" 4.5 -> 0.7 ms (vr_startup_times), of a 2.5 s load: alias models (581 ms:
+  skins 106, normal maps 248, draw lists 139) are the bigger part; their skins upload through GL on the main thread,
+  so vkQuake's parallel skin loading does not carry over; per-model draw lists are the next candidate (not done).
+- **Not done:** the A/B benchmark tables (bench.sh --fast --reps 3, exclusive): the author's game was running.
+  Settings for them (the agent worktree's scratch): vp_base.cfg (both 0), vp_grid.cfg (grid only), vp_all.cfg (both 1).
