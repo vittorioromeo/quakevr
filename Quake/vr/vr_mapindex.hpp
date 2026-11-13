@@ -145,6 +145,8 @@ void registerCommands();
 
 // What the fetch is doing (its latest step while it runs), or how the last one ended. Main thread.
 [[nodiscard]] za::String state();
+// While a fetch runs, the request going out ("Quaddicted's index: page 3 (400 maps so far)..."); else "". Main thread.
+[[nodiscard]] za::String busyLine();
 
 // `out` cleared, then every match in the query's order (the caller keeps `out`; the menu keeps it in its scratch).
 void search(const Query&, za::Vector<const Entry*>& out);
@@ -154,6 +156,11 @@ void search(const Query&, za::Vector<const Entry*>& out);
 [[nodiscard]] bool validSha(za::StringView sha);
 // A Quaddicted package's screenshot URL (from its sha256 and its `filename` tag, "<id>.zip"); "" when either is unusable.
 [[nodiscard]] za::String quaddictedShotUrl(za::StringView sha, const za::String& zipName);
+// The zip's name ("<id>.zip") from an entry's download URLs (partSep between them): Quaddicted's own URL's, else the
+// first one's that ends in ".zip"; "" : none. What a cached index (which keeps no filename tag) makes its shot from.
+[[nodiscard]] za::String zipNameFromUrls(za::StringView urls);
+// A cache file's text read into `idx` (any age; `url` the source its header must name). For the tests.
+[[nodiscard]] bool parseCacheText(Index& idx, const za::String& text, const za::String& url);
 
 // A package by its sha256, or by an unambiguous prefix of it. Null: none, or more than one.
 [[nodiscard]] const Entry* find(const za::String& shaPrefix);

@@ -102,7 +102,59 @@ constexpr int agentCount = static_cast<int>(sizeof(agents) / sizeof(agents[0]));
 int agentIndex = -1;           // agents[]: picked on the first request
 za::U32 rngState = 0;          // vrand::xorshift01's (seeded from the clock once)
 za::Atomic<int> requests{0};   // live requests made this session
-za::U32 lastRequestAt = 0;     // SDL ticks of the last one (0: none yet)
+za::U32 lastRequestAt[2] = {}; // SDL ticks of the last one, per site (0 Slipseer, 1 Quaddicted; 0: none yet)
+
+// How soon a request may go (the thread's own: set by what it is doing, PaceScope).
+enum class Pace
+{
+    Now,        // the player just asked for it (his pick: its page and screenshot): at once, like a click
+    Auto,       // following another automatic request he asked for (maps_fetch, maps_slipseer_get): 1-3 s apart
+    Background, // the start-up listing pass: vr_maps_slipseer_delay to twice it apart
+};
+Pace pace = Pace::Background;
+struct PaceScope
+{
+    Pace before;
+    explicit PaceScope(Pace p) : before{pace} { pace = p; }
+    ~PaceScope() { pace = before; }
+    PaceScope(const PaceScope&) = delete;
+    PaceScope& operator=(const PaceScope&) = delete;
+};
+
+// What the thread is fetching, for the library's status line (activity()): set by ActivityScope, the bytes by
+// writeBody / headerLine. Read on the main thread.
+za::AtomicMutex activityLock;
+za::String activityText;          // "" : idle
+za::Atomic<int> activityBytes{0}; // received so far
+za::Atomic<int> activityTotal{0}; // its Content-Length (0: not given)
+za::Atomic<int> activityWaitUntil{0}; // SDL ticks: waiting for its turn until then (0: not waiting)
+za::String lastError;             // the last request's failure, in one line ("" : none since)
+za::U32 lastErrorAt = 0;
+struct ActivityScope
+{
+    za::String before;
+    explicit ActivityScope(const za::String& what)
+    {
+        za::LockGuard lock{activityLock};
+        before = activityText;
+        activityText = what;
+        activityBytes.storeSeqCst(0);
+        activityTotal.storeSeqCst(0);
+    }
+    ~ActivityScope()
+    {
+        za::LockGuard lock{activityLock};
+        activityText = before;
+    }
+    ActivityScope(const ActivityScope&) = delete;
+    ActivityScope& operator=(const ActivityScope&) = delete;
+};
+void failed(const za::String& what)
+{
+    za::LockGuard lock{activityLock};
+    lastError = what;
+    lastErrorAt = za::max(SDL_GetTicks(), za::U32{1});
+}
 za::I64 backoffUntil = 0;      // unix seconds: no request before then
 za::I64 backoffSeconds = 0;    // the last back-off's length (the next is twice it)
 bool backoffRead = false;      // backoff.txt read
@@ -110,6 +162,7 @@ bool backoffRead = false;      // backoff.txt read
 struct Robots
 {
     za::Vector<za::String> disallowed;
+    double crawlDelay = 0.0; // its Crawl-delay (seconds) for every agent: the least gap between automatic requests
     bool known = false;
 };
 Robots robotsOf[2];
@@ -167,7 +220,9 @@ struct Meta
     za::String etag;
     za::String modified;
     za::I64 fetchedAt{0};
+    bool missing{false}; // the site answered 404 / 410 (a screenshot that is not there): not asked again for a week
 };
+constexpr za::I64 missingSeconds = 7 * 24 * 60 * 60;
 
 bool readMeta(const za::String& path, Meta& m)
 {
@@ -201,6 +256,10 @@ bool readMeta(const za::String& path, Meta& m)
         {
             m.fetchedAt = static_cast<za::I64>(strtoll(value.cStr(), nullptr, 10));
         }
+        else if(key == "missing")
+        {
+            m.missing = value == "1";
+        }
     });
     return m.fetchedAt > 0;
 }
@@ -217,6 +276,10 @@ void writeMeta(const za::String& path, const Meta& m)
     if(m.modified.size())
     {
         text += za::String{"modified\t"} + m.modified + "\n";
+    }
+    if(m.missing)
+    {
+        text += "missing\t1\n";
     }
     (void)files::writeText((path + ".meta").cStr(), text);
 }
@@ -294,6 +357,10 @@ size_t headerLine(char* buffer, size_t size, size_t nitems, void* userdata)
     {
         r.retryAfter = isdigit(static_cast<unsigned char>(*value)) ? static_cast<za::I64>(atoll(value)) : -1;
     }
+    else if(is("content-length"))
+    {
+        activityTotal.storeSeqCst(static_cast<int>(za::min(atoll(value), 1ll << 30)));
+    }
     return n;
 }
 
@@ -311,24 +378,36 @@ size_t writeBody(void* buffer, size_t size, size_t nmemb, void* stream)
     }
     body.reserveMore(n);
     body.unsafeEmplaceBackRange(static_cast<const char*>(buffer), n);
+    activityBytes.storeSeqCst(static_cast<int>(body.size()));
     return nmemb;
 }
 
-// Waits until `gapMs` has passed since the last request (false: the thread was told to stop meanwhile).
-bool waitTurn(double gapMs)
+bool servePendingPick(); // (the module, below: a pick the player made meanwhile, served at once)
+
+// Waits until `gapMs` has passed since site `host`'s last request (false: the thread was told to stop meanwhile).
+// An automatic request's wait gives way to a pick the player makes meanwhile: it goes first, at once, and the wait
+// then counts from it.
+bool waitTurn(double gapMs, int host)
 {
-    if(!lastRequestAt)
+    if(!lastRequestAt[host] || gapMs <= 0.0)
     {
         return true;
     }
-    while(static_cast<double>(SDL_GetTicks() - lastRequestAt) < gapMs)
+    while(static_cast<double>(SDL_GetTicks() - lastRequestAt[host]) < gapMs)
     {
         if(SDL_AtomicGet(&cancel))
         {
+            activityWaitUntil.storeSeqCst(0);
             return false;
         }
-        SDL_Delay(50);
+        activityWaitUntil.storeSeqCst(static_cast<int>(lastRequestAt[host] + static_cast<za::U32>(gapMs)));
+        if(pace != Pace::Now && servePendingPick())
+        {
+            continue;
+        }
+        SDL_Delay(20);
     }
+    activityWaitUntil.storeSeqCst(0);
     return true;
 }
 
@@ -366,8 +445,8 @@ enum class Kind
 bool fetch(const za::String& url, Kind kind, za::I64 ttl, const char* referer, bool network, za::Vector<char>& body,
     za::String& error, bool* fresh = nullptr);
 
-// The Disallow lines of `text`'s `User-agent: *` groups.
-void parseRobots(const char* text, za::Vector<za::String>& out)
+// The Disallow lines of `text`'s `User-agent: *` groups, and their Crawl-delay (seconds; 0: none).
+void parseRobots(const char* text, za::Vector<za::String>& out, double* crawlDelay = nullptr)
 {
     bool forAll = false, inRules = false;
     files::forLines(za::StringView{text}, [&](za::StringView l) {
@@ -409,6 +488,14 @@ void parseRobots(const char* text, za::Vector<za::String>& out)
                 out.pushBack(v);
             }
         }
+        else if(!q_strcasecmp(key.cStr(), "crawl-delay"))
+        {
+            inRules = true;
+            if(forAll && crawlDelay)
+            {
+                *crawlDelay = za::max(*crawlDelay, za::min(atof(v.cStr()), 60.0)); // (capped: a typo is not an hour)
+            }
+        }
     });
 }
 
@@ -430,7 +517,7 @@ void readRobots(bool network, int host)
     }
     r.known = true;
     body.pushBack('\0');
-    parseRobots(body.data(), r.disallowed);
+    parseRobots(body.data(), r.disallowed, &r.crawlDelay);
 }
 
 [[nodiscard]] bool robotsAllow(const za::String& url, int host)
@@ -459,7 +546,13 @@ bool fetch(const za::String& url, Kind kind, za::I64 ttl, const char* referer, b
     const bool asset = kind == Kind::Asset;
     const za::String path = cachePath(url, asset);
     Meta meta;
-    const bool cached = readMeta(path, meta) && meta.url == url && files::isFile(path.cStr());
+    const bool known = readMeta(path, meta) && meta.url == url;
+    if(known && meta.missing && now() - meta.fetchedAt < missingSeconds)
+    {
+        error = za::String{"not on the site (it answered 404 lately)"};
+        return false;
+    }
+    const bool cached = known && !meta.missing && files::isFile(path.cStr());
     const auto fromCache = [&](const char* why) {
         if(!cached || !files::readBytes(path.cStr(), body))
         {
@@ -500,13 +593,22 @@ bool fetch(const za::String& url, Kind kind, za::I64 ttl, const char* referer, b
         }
     }
 
-    // A person's pace: a page some seconds after the last (vr_maps_slipseer_delay, up to twice it at random); what a
-    // page shows, a moment after it (a Quaddicted screenshot has no page before it: it is paced as a page).
-    const double delay = za::max(static_cast<double>(vr_maps_slipseer_delay.value), 1.0) * 1000.0;
-    seedRng();
-    const double gap = kind == Kind::Asset && !quad ? static_cast<double>(vrand::xorshiftRange(rngState, 300.f, 1200.f))
-                                           : delay * static_cast<double>(vrand::xorshiftRange(rngState, 1.f, 2.f));
-    if(!waitTurn(gap))
+    // A person's pace. What the player just asked for goes at once, as his click would (still one request at a time).
+    // Between automatic requests: a page 1-3 s after the last when he asked for the run (maps_fetch), else
+    // vr_maps_slipseer_delay to twice it (the start-up pass); what a page shows, a moment after it; never under the
+    // site's robots.txt Crawl-delay.
+    const int host = quad ? 1 : 0;
+    double gap = 0.0;
+    if(pace != Pace::Now)
+    {
+        seedRng();
+        const double delay = za::max(static_cast<double>(vr_maps_slipseer_delay.value), 1.0) * 1000.0;
+        gap = kind == Kind::Asset ? static_cast<double>(vrand::xorshiftRange(rngState, 300.f, 1200.f))
+              : pace == Pace::Auto ? static_cast<double>(vrand::xorshiftRange(rngState, 1000.f, 3000.f))
+                                   : delay * static_cast<double>(vrand::xorshiftRange(rngState, 1.f, 2.f));
+        gap = za::max(gap, robotsOf[host].crawlDelay * 1000.0);
+    }
+    if(!waitTurn(gap, host))
     {
         error = "cancelled";
         return false;
@@ -553,7 +655,7 @@ bool fetch(const za::String& url, Kind kind, za::I64 ttl, const char* referer, b
     dl.header_fn = headerLine;
     dl.header_data = &got;
     const bool ok = Download(url.cStr(), &dl);
-    lastRequestAt = za::max(SDL_GetTicks(), za::U32{1});
+    lastRequestAt[host] = za::max(SDL_GetTicks(), za::U32{1});
     requests.fetchAddSeqCst(1);
 
     if(dl.response == 304 && cached)
@@ -588,6 +690,20 @@ bool fetch(const za::String& url, Kind kind, za::I64 ttl, const char* referer, b
     else
     {
         error = what;
+    }
+    if(asset && (dl.response == 404 || dl.response == 410) && !cached)
+    {
+        // (a screenshot the site does not have: remembered, so picking the map again asks no more for a week)
+        files::createDirectories(cacheDir().cStr());
+        Meta m;
+        m.url = url;
+        m.fetchedAt = now();
+        m.missing = true;
+        writeMeta(path, m);
+    }
+    if(!SDL_AtomicGet(&cancel))
+    {
+        failed(error);
     }
     za::String why = error;
     if(fromCache(why.cStr()))
@@ -1158,7 +1274,14 @@ bool parseDetails(const char* html, const char* pageUrl, Details& out)
             }
         }
     }
-    if(const char* dl = findTag(html, nullptr, "a", "button--icon--download"))
+    // (a map hosted elsewhere has a "redirect" button instead: the site's /download link sends the browser to its host;
+    // what comes back is checked to be a zip at install time)
+    const char* dl = findTag(html, nullptr, "a", "button--icon--download");
+    if(!dl)
+    {
+        dl = findTag(html, nullptr, "a", "button--icon--redirect");
+    }
+    if(dl)
     {
         out.download = absoluteUrl(pageUrl, attribute(dl, "href"));
         any = true;
@@ -1205,6 +1328,8 @@ za::String wantedShotKey;  // a screenshot wanted on its own (Quaddicted's: no p
 za::String wantedShotUrl;
 bool wantedShotNetwork = false;
 za::U32 wantedAt = 0;      // SDL ticks of the latest pick (servePick's timings)
+za::String wantedTitle;    // its title (the status line's)
+bool passAsked = false;    // the pass was asked for (maps_fetch): Pace::Auto, else Pace::Background
 za::String getUrl;         // maps_slipseer_get's URL (development: one page fetched and kept)
 bool getAsset = false;     // ... a picture (its cache name: .img)
 
@@ -1369,6 +1494,10 @@ void listingPass(bool network)
         }
         // The first page (where new and updated maps come) revalidated after firstPageSeconds, the rest after
         // listingSeconds.
+        char doing[96];
+        q_snprintf(doing, sizeof(doing), "Slipseer's list of maps: page %d (%d maps so far)", pages + 1,
+            static_cast<int>(found.size()));
+        const ActivityScope activity{za::String{doing}};
         const bool got = fetch(url, Kind::Page, pages == 0 ? firstPageSeconds : listingSeconds, referer.cStr(), network,
             body, error, &fresh);
         {
@@ -1488,9 +1617,11 @@ int readScreenshot(const za::String& page, bool network, bool* fresh = nullptr)
 // The player's pick: a Slipseer map's page and screenshot, or a Quaddicted map's screenshot alone; how long each took
 // since the pick (`at`, SDL ticks) goes to the console ("slipseer: picked ...": maps_slipseer_time reads it).
 void servePick(const za::String& page, bool pageNet, const za::String& shotKey, const za::String& shotUrl, bool shotNet,
-    za::U32 at)
+    za::U32 at, const za::String& title)
 {
+    const PaceScope now{Pace::Now};
     char line[400];
+    const char* name = title.size() ? title.cStr() : "the map";
     if(page.size())
     {
         if(!itemsRead)
@@ -1498,12 +1629,17 @@ void servePick(const za::String& page, bool pageNet, const za::String& shotKey, 
             listingPass(false); // (the items from the cache, to build the entry)
         }
         bool pageFresh = false, shotFresh = false;
-        const bool got = readDetails(page, pageNet, listingUrl().cStr(), &pageFresh);
+        bool got = false;
+        {
+            const ActivityScope activity{za::String{"Slipseer: reading "} + name + "'s page"};
+            got = readDetails(page, pageNet, listingUrl().cStr(), &pageFresh);
+        }
         if(got)
         {
             publishPart();
         }
         const za::U32 pageMs = SDL_GetTicks() - at;
+        const ActivityScope activity{za::String{"Slipseer: "} + name + "'s screenshot"};
         const int bytes = readScreenshot(page, pageNet, &shotFresh);
         char took[64]; // (not va(): its buffers are the main thread's too)
         q_snprintf(took, sizeof(took), bytes < 0 ? "none" : "%d KB, %s", bytes / 1024, shotFresh ? "fetched" : "cached");
@@ -1513,6 +1649,7 @@ void servePick(const za::String& page, bool pageNet, const za::String& shotKey, 
     else
     {
         bool shotFresh = false;
+        const ActivityScope activity{za::String{"Quaddicted: "} + name + "'s screenshot"};
         const int bytes = readPicture(shotKey, shotUrl, nullptr, shotNet, &shotFresh);
         char took[64];
         q_snprintf(took, sizeof(took), bytes < 0 ? "none" : "%d KB, %s", bytes / 1024, shotFresh ? "fetched" : "cached");
@@ -1523,6 +1660,40 @@ void servePick(const za::String& page, bool pageNet, const za::String& shotKey, 
         pendingLog.pushBack(za::String{line});
     }
     served.fetchAddSeqCst(1);
+}
+
+bool inPick = false; // (the thread's: servePendingPick runs one at a time, never inside itself)
+
+bool servePendingPick()
+{
+    if(inPick)
+    {
+        return false;
+    }
+    za::String page, shotKey, shotUrl, title;
+    bool pageNet = false, shotNet = false;
+    za::U32 at = 0;
+    {
+        za::LockGuard lock{handoff};
+        if(wantedPage.empty() && wantedShotKey.empty())
+        {
+            return false;
+        }
+        page = ZA_MOVE(wantedPage);
+        wantedPage = za::String{};
+        pageNet = wantedNetwork;
+        shotKey = ZA_MOVE(wantedShotKey);
+        shotUrl = ZA_MOVE(wantedShotUrl);
+        wantedShotKey = za::String{};
+        wantedShotUrl = za::String{};
+        shotNet = wantedShotNetwork;
+        at = wantedAt;
+        title = wantedTitle;
+    }
+    inPick = true;
+    servePick(page, pageNet, shotKey, shotUrl, shotNet, at, title);
+    inPick = false;
+    return true;
 }
 
 void run() noexcept
@@ -1537,28 +1708,25 @@ void run() noexcept
         {
             return;
         }
-        bool pass = false, passNet = false, pageNet = false, shotNet = false;
-        za::String page, get, shotKey, shotUrl;
-        za::U32 at = 0;
+        if(servePendingPick()) // (the player waits for it: before anything else)
+        {
+            continue;
+        }
+        bool pass = false, passNet = false, asked = false;
+        za::String get;
         {
             za::LockGuard lock{handoff};
-            at = wantedAt;
             get = ZA_MOVE(getUrl);
             getUrl = za::String{};
-            page = ZA_MOVE(wantedPage);
-            wantedPage = za::String{};
-            pageNet = wantedNetwork;
-            shotKey = ZA_MOVE(wantedShotKey);
-            shotUrl = ZA_MOVE(wantedShotUrl);
-            wantedShotKey = za::String{};
-            wantedShotUrl = za::String{};
-            shotNet = wantedShotNetwork;
             pass = passWanted;
             passNet = passNetwork;
+            asked = passAsked;
             passWanted = false;
         }
         if(get.size())
         {
+            const PaceScope paced{Pace::Auto};
+            const ActivityScope activity{za::String{"Slipseer: "} + get};
             za::Vector<char> body;
             za::String error;
             bool fresh = false;
@@ -1569,13 +1737,9 @@ void run() noexcept
                 static_cast<int>(body.size()), fresh ? "fetched" : "cached", cachePath(get, asset).cStr());
             continue;
         }
-        if(page.size() || shotKey.size()) // (the player waits for it: before the rest of a pass)
-        {
-            servePick(page, pageNet, shotKey, shotUrl, shotNet, at);
-            continue;
-        }
         if(pass)
         {
+            const PaceScope paced{asked ? Pace::Auto : Pace::Background};
             listingPass(passNet);
             continue;
         }
@@ -1623,6 +1787,7 @@ void start(bool asked)
         za::LockGuard lock{handoff};
         passWanted = true;
         passNetwork = networkOk(asked);
+        passAsked = asked;
     }
     ensureThread();
 }
@@ -1703,6 +1868,69 @@ void poll()
     }
 }
 
+namespace
+{
+// A pick's title for the status line: the index entry whose page (or sha256, `bySha`) is `key`. Main thread.
+[[nodiscard]] za::String titleOf(const za::String& key, bool bySha)
+{
+    const mapindex::Index& idx = mapindex::index();
+    for(const mapindex::Entry& e : idx.entries)
+    {
+        const mapindex::Text& t = bySha ? e.sha256 : e.page;
+        if(idx.length(t) == key.size() && !memcmp(idx.field(t), key.cStr(), key.size()))
+        {
+            return za::String{idx.field(e.title)};
+        }
+    }
+    return za::String{};
+}
+} // namespace
+
+za::String activity()
+{
+    za::String what, error;
+    za::U32 errorAt = 0;
+    {
+        za::LockGuard lock{activityLock};
+        what = activityText;
+        error = lastError;
+        errorAt = lastErrorAt;
+    }
+    char line[256];
+    if(what.size())
+    {
+        const int bytes = activityBytes.loadSeqCst(), total = activityTotal.loadSeqCst();
+        const int waitUntil = activityWaitUntil.loadSeqCst();
+        const int waitMs = waitUntil - static_cast<int>(SDL_GetTicks());
+        if(waitUntil && waitMs > 0)
+        {
+            q_snprintf(line, sizeof(line), "%s: in %d s (the site's pace)", what.cStr(), (waitMs + 999) / 1000);
+        }
+        else if(total > 0)
+        {
+            q_snprintf(line, sizeof(line), "%s: %d%% (%s of %s)", what.cStr(),
+                static_cast<int>(za::min(static_cast<long long>(bytes) * 100ll / total, 100ll)),
+                mapinstall::formatBytes(static_cast<za::U64>(bytes)).cStr(),
+                mapinstall::formatBytes(static_cast<za::U64>(total)).cStr());
+        }
+        else if(bytes > 0)
+        {
+            q_snprintf(line, sizeof(line), "%s: %s", what.cStr(), mapinstall::formatBytes(static_cast<za::U64>(bytes)).cStr());
+        }
+        else
+        {
+            q_snprintf(line, sizeof(line), "%s...", what.cStr());
+        }
+        return za::String{line};
+    }
+    if(error.size() && SDL_GetTicks() - errorAt < 10000)
+    {
+        q_snprintf(line, sizeof(line), "Fetch failed: %s", error.cStr());
+        return za::String{line};
+    }
+    return za::String{};
+}
+
 void want(const za::String& page)
 {
     if(page.empty() || !vr_maps_slipseer.value)
@@ -1714,6 +1942,7 @@ void want(const za::String& page)
         wantedPage = page; // (only the latest: a map picked and left before its turn is never fetched)
         wantedNetwork = networkOk(false);
         wantedAt = SDL_GetTicks();
+        wantedTitle = titleOf(page, false);
     }
     ensureThread();
 }
@@ -1730,6 +1959,7 @@ void wantShot(const za::String& key, const za::String& url)
         wantedShotUrl = url;
         wantedShotNetwork = networkOk(false);
         wantedAt = SDL_GetTicks();
+        wantedTitle = titleOf(key, true);
     }
     ensureThread();
 }
@@ -1839,8 +2069,8 @@ void time_f()
 {
     if(Cmd_Argc() < 2)
     {
-        Con_Printf("maps_slipseer_time <page URL | shot:<picture URL>>...: each picked in turn, live, and timed "
-                   "(development: real requests, at the site's pace)\n");
+        Con_Printf("maps_slipseer_time <page URL | shot:<picture URL> | pass>...: each picked in turn, live, and timed "
+                   "(development: real requests, at the site's pace; pass starts the listing pass alongside)\n");
         return;
     }
     timeRun = TimeRun{};
@@ -1865,6 +2095,12 @@ void timeStep()
         return;
     }
     const za::String& pick = timeRun.picks[static_cast<za::SizeT>(timeRun.next++)];
+    if(pick == "pass")
+    {
+        start(true); // (the listing pass, live, alongside the picks that follow: they must not wait for it)
+        timeRun.target = -1;
+        return;
+    }
     timeRun.target = served.loadSeqCst() + 1;
     {
         za::LockGuard lock{handoff};
@@ -1994,6 +2230,30 @@ void test_f()
                mapindex::quaddictedShotUrl(za::StringView{qsha}, za::String{"x.txt"}).empty() &&
                mapindex::quaddictedShotUrl(za::StringView{"12"}, za::String{"x.zip"}).empty(),
         "Quaddicted shot: unsafe id, no zip, bad sha: none");
+    // A cached index keeps no filename tag: the shot comes from the download URLs' zip name (Quaddicted's own first).
+    const za::String mirror = za::String{"https://x901.net/quaddictedfiles/mirror_name.zip"} + mapindex::partSep +
+                              "https://www.quaddicted.com/files/by-sha256/58/" + qsha + "/ne_ruins.zip";
+    expect(mapindex::zipNameFromUrls(za::StringView{mirror}) == "ne_ruins.zip" &&
+               mapindex::zipNameFromUrls(za::StringView{"https://x901.net/q/abc.zip"}) == "abc.zip" &&
+               mapindex::zipNameFromUrls(za::StringView{"https://example.com/page.html"}).empty(),
+        "Quaddicted shot: zip name from the URLs (Quaddicted's, else the first zip, else none)");
+    {
+        // One cached package line (17 fields, as cacheText writes them, before the shot existed): it shows its shot.
+        za::String line{qsha};
+        const char* fields[16] = {"The Altar of Storms", "necros", "2001-01-01", "map", "single", "", "", "1000", "start", "",
+            "0", mirror.cStr(), "", "1", "0", "0"};
+        for(const char* f : fields)
+        {
+            line += mapindex::fieldSep;
+            line += f;
+        }
+        const za::String text = za::String{"#quakevr-mapindex-3\n#test:\n#1\n"} + line + "\n";
+        mapindex::Index cached;
+        const bool read = mapindex::parseCacheText(cached, text, za::String{"test:"});
+        const za::String shot = read && cached.entries.size() == 1 ? za::String{cached.field(cached.entries[0].shot)} : za::String{};
+        expect(shot == mapindex::quaddictedShotUrl(za::StringView{qsha}, za::String{"ne_ruins.zip"}),
+            "Quaddicted shot: a cached index's package has its shot", shot);
+    }
     expect(quaddictedSite(za::String{"https://www.quaddicted.com/files/x.jpg"}) && !sameSite(za::String{"https://www.quaddicted.com/x"}),
         "Quaddicted shot: its own site");
     za::Vector<za::String> dis;
@@ -2002,6 +2262,24 @@ void test_f()
         dis);
     expect(dis.size() == 3 && dis[0] == "/stuff/", "Quaddicted robots.txt: the * groups' Disallow lines",
         za::toString(static_cast<int>(dis.size())));
+    {
+        // A map hosted elsewhere (Herzblut, Kadath: measured 2026-11-13): its Download is a "redirect" button.
+        Details hd;
+        const bool ok = parseDetails(
+            "<script type=\"application/ld+json\">{\"mainEntity\":{\"headline\":\"Herzblut\"}}</script>"
+            "<a href=\"/index.php?resources/herzblut.666/download\" class=\"button button--icon button--icon--redirect "
+            "button--cta\" target=\"_blank\">",
+            "https://www.slipseer.com/index.php?resources/herzblut.666/", hd);
+        expect(ok && hd.download == "https://www.slipseer.com/index.php?resources/herzblut.666/download",
+            "map page: an external host's redirect button is its download link", hd.download);
+    }
+    {
+        za::Vector<za::String> d2;
+        double crawl = 0.0;
+        parseRobots("User-agent: bingbot\nCrawl-delay: 30\n\nUser-agent: *\nCrawl-delay: 4\nDisallow: /x/\n", d2, &crawl);
+        expect(crawl == 4.0 && d2.size() == 1, "robots.txt: the * group's Crawl-delay (another agent's ignored)",
+            za::toString(static_cast<int>(crawl)));
+    }
     za::Vector<za::String> saved = robotsOf[1].disallowed;
     robotsOf[1].disallowed = dis;
     expect(robotsAllow(za::String{"https://www.quaddicted.com/files/quaddicted-images/by-sha256/58/x/y.jpg"}, 1) &&
