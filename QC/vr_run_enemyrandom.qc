@@ -10,7 +10,8 @@
 // map's own keys: its targetname, target, spawnflags, angle). 1 Balanced: a kind of the same threat tier that moves as
 // it does (walks, flies, swims); 2 Anything Goes: any tier, a walker's spot may hold a flyer. Either way the new kind
 // fits the spot (never larger than what stood there: Quake's two hulls), never a boss; Arcane Dimensions' kinds only while AD's data
-// is mounted (and spawning outside AD's maps: vr_ad_everywhere). The kind it was is kept (vr_run_mapclass). Enemy Count's
+// is mounted, the official expansions' (Scourge of Armagon, Dissolution of Eternity, Dimension of the Machine) while
+// theirs is (and spawning outside AD's maps: vr_ad_everywhere). The kind it was is kept (vr_run_mapclass). Enemy Count's
 // copies (vr_run_enemycount.qc) come after, of the swapped kind. Armed humanoids: a grunt, enforcer, knight or death
 // knight swapped in is armed as the run's Armed Humanoids say (its spawn function decides, as for the map's own).
 // The roll: the map's name, the spawn point and the map's content seed (VR_AGR_SeedOf, vr_map_content_seed): the same
@@ -94,8 +95,9 @@ float(entity e, float from, float to, float mode) VR_RunEnemyRandom_Allowed =
     float src = VR_MONSTER_KINDS[to].src;
     float fmove = VR_MONSTER_KINDS[from].move;
     float tmove = VR_MONSTER_KINDS[to].move;
-    if(src == RUN_ER_PACK) return FALSE;
+    if(VR_MONSTER_KINDS[to].tier <= 0 || src == RUN_ER_PACK) return FALSE;
     if(src == RUN_ER_AD && !VR_RunEnemyRandom_ADHere()) return FALSE;
+    if(src == RUN_ER_EXP && !VR_MonsterKind_DataHere(to)) return FALSE;
     if(mode == 1)
     {
         if(tmove != fmove || VR_MONSTER_KINDS[to].tier != VR_MONSTER_KINDS[from].tier) return FALSE;
@@ -166,6 +168,7 @@ float(float mode) VR_RunEnemyRandom_Check =
     float ok = TRUE;
     float swapped = 0;
     float adin = 0;
+    float expin = 0;
     float looked = 0;
     float hash = 0; // (the outcome: each map monster's kind and place, compared across changes of the kinds' data)
     entity e = nextent(world);
@@ -183,8 +186,10 @@ float(float mode) VR_RunEnemyRandom_Check =
                 float f = VR_MonsterKind_Row(e.vr_run_mapclass);
                 float t = VR_MonsterKind_Row(e.vr_run_kind);
                 if(t >= 0 && VR_MONSTER_KINDS[t].src == RUN_ER_AD) { adin = adin + 1; }
+                if(t >= 0 && VR_MONSTER_KINDS[t].src == RUN_ER_EXP) { expin = expin + 1; }
                 if(mode <= 0 || f < 0 || t < 0 || VR_MONSTER_KINDS[t].src == RUN_ER_PACK ||
                    (VR_MONSTER_KINDS[t].src == RUN_ER_AD && !VR_RunEnemyRandom_ADHere()) ||
+                   (VR_MONSTER_KINDS[t].src == RUN_ER_EXP && !VR_MonsterKind_DataHere(t)) ||
                    (mode == 1 && (VR_MONSTER_KINDS[t].move != VR_MONSTER_KINDS[f].move ||
                                   VR_MONSTER_KINDS[t].tier != VR_MONSTER_KINDS[f].tier)))
                 {
@@ -201,7 +206,7 @@ float(float mode) VR_RunEnemyRandom_Check =
         ok = FALSE;
         dprint(sprintf("vr_run_enemies_check: none of %g monsters swapped (mode %g)\n", looked, mode));
     }
-    dprint(sprintf("vr_run_enemies_check: %g monsters looked at, %g swapped (%g for AD's kinds; %g kinds listed; outcome %g)\n",
-                   looked, swapped, adin, VR_MONSTER_KINDS_N, hash));
+    dprint(sprintf("vr_run_enemies_check: %g monsters looked at, %g swapped (%g for AD's kinds, %g for the expansions'; %g kinds listed; outcome %g)\n",
+                   looked, swapped, adin, expin, VR_MONSTER_KINDS_N, hash));
     return ok;
 };

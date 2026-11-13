@@ -39,7 +39,7 @@ vr_monster_kind VR_MONSTER_KINDS[] =
 {
     // Quake's
     { "monster_army", 1, 1, 1, 0, 27, "" },
-    { "monster_dog", 1, 2, 1, 0, 16, "" },
+    { "monster_dog", 1, 1, 1, 0, 16, "" }, // (its box 24 wide: orig_mon_dog.qc; id's was 64)
     { "monster_zombie", 1, 1, 1, 0, 24, "" },
     { "monster_knight", 1, 1, 1, 0, 26, "" },
     { "monster_enforcer", 1, 1, 1, 0, 28, "" },
@@ -83,17 +83,22 @@ vr_monster_kind VR_MONSTER_KINDS[] =
     { "monster_minotaur", 1, 2, 3, 1, 64, "" },
     { "monster_drole", 1, 2, 3, 1, 64, "" },
     { "monster_wraith", 2, 2, 3, 1, 40, "" },
-    // the packs'
-    { "monster_gremlin", 1, 1, 1, 2, 0, "" },
-    { "monster_scourge", 1, 2, 2, 2, 0, "" },
+    // the official expansions' (swapped while their data is here: the probe, as their spawn functions test it):
+    // Scourge of Armagon's,
+    { "monster_gremlin", 1, 1, 1, 3, 18, "progs/grem.mdl" },
+    { "monster_scourge", 1, 2, 2, 3, 24, "progs/scor.mdl" },
+    // Honey's (an unofficial pack's: copied, never swapped),
     { "monster_sknight", 1, 1, 1, 2, 0, "" },
     { "monster_ogre_marksman", 1, 2, 2, 2, 0, "" },
-    { "monster_mummy", 1, 1, 2, 2, 0, "" },
-    { "monster_wrath", 2, 2, 2, 2, 0, "" },
-    { "monster_eel", 3, 1, 1, 2, 0, "" },
-    { "monster_demodog", 1, 2, 1, 2, 0, "" },
-    { "monster_ranged_knight", 1, 1, 2, 2, 0, "" },
-    { "monster_ogre_rocket", 1, 2, 2, 2, 0, "" },
+    // Dissolution of Eternity's,
+    { "monster_mummy", 1, 1, 2, 3, 40, "progs/mummy.mdl" },
+    { "monster_wrath", 2, 1, 2, 3, 40, "progs/wrath.mdl" },
+    { "monster_eel", 3, 1, 1, 3, 40, "progs/eel2.mdl" },
+    // Dimension of the Machine's (its owned data)
+    { "monster_demodog", 1, 1, 1, 3, 16, "owned/mg3/progs/dog_explosive.mdl" },
+    { "monster_ranged_knight", 1, 1, 2, 3, 36, "owned/mg3/progs/rknight.mdl" },
+    { "monster_ogre_rocket", 1, 2, 2, 3, 40, "owned/mg3/progs/ogre_rocket.mdl" },
+    { "monster_orb", 2, 2, 2, 3, 64, "owned/mg3/progs/teleporter_eye_blink.mdl" },
 
     // Never swapped or copied (tier 0). Bosses:
     { "monster_boss", 0, 0, 0, 0, 0, "" }, { "monster_oldone", 0, 0, 0, 0, 0, "" },
@@ -107,7 +112,7 @@ vr_monster_kind VR_MONSTER_KINDS[] =
     // Armagon's decoy and spike mine; Dissolution's invisible swordsman; Quake VR's own maps' (vr_*):
     { "monster_shub_eye", 0, 0, 0, 3, 0, "" }, { "monster_shub_seeker", 0, 0, 0, 3, 0, "" },
     { "monster_szombie", 0, 0, 0, 3, 0, "" }, { "monster_slime", 0, 0, 0, 3, 0, "" },
-    { "monster_ghost", 0, 0, 0, 3, 0, "" }, { "monster_orb", 0, 0, 0, 3, 0, "" },
+    { "monster_ghost", 0, 0, 0, 3, 0, "" },
     { "monster_army_infected", 0, 0, 0, 3, 0, "" }, { "monster_enforcer_infected", 0, 0, 0, 3, 0, "" },
     { "monster_hell_knight_infected", 0, 0, 0, 3, 0, "" }, { "monster_knight_infected", 0, 0, 0, 3, 0, "" },
     { "monster_decoy", 0, 0, 0, 3, 0, "" }, { "monster_spikemine", 0, 0, 0, 3, 0, "" },
@@ -153,7 +158,7 @@ float(string xCls) VR_MonsterKind_Row =
 };
 
 // Kind row `xRow`'s data is here: Quake's and AD's always (AD's own test is the mutator's: VR_RunEnemyRandom_ADHere);
-// an expansion's while its probe file is.
+// an expansion's while its probe file is (its spawn function tests more: one that still refuses leaves nothing).
 float(float xRow) VR_MonsterKind_DataHere =
 {
     return VR_Has(VR_MONSTER_KINDS[xRow].probe);
