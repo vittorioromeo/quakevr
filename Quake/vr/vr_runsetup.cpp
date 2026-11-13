@@ -7,6 +7,7 @@
 #include "vr_gameplaypresets.hpp"
 #include "vr_gorepresets.hpp"
 #include "vr_presets.hpp"
+#include "vr_progs.hpp"
 #include "vr_testkit.hpp"
 
 #include <cstdio>
@@ -250,6 +251,49 @@ void runCmd()
 // vr_runsetup_test: the registry (its cvars named after its ids, defaults as the screen's), a run's start (the picks,
 // a held row), the save line written and read back (a run's choices, the presets' values), an old save's defaults and
 // the hub's end of a run. Presets' My Settings in the test files; every setting it changed set back.
+// vr_run_check <startweapon> <glasscannon> <meleeonly> <gore>: the running game is that run (its vr_run_* cvars, the
+// Gore preset its value sets, QC VR_Run_TestCheck: the player's loadout, a hit's damage, guns refused); vr_run_check
+// verdict: "runmutators: N passed, M failed" (the mutators' end-to-end test: a run's start, changelevel, save and load).
+testkit::Tally checkTally;
+
+void checkCmd()
+{
+    constexpr const char* name = "runmutators";
+    if(Cmd_Argc() == 2 && !strcmp(Cmd_Argv(1), "verdict"))
+    {
+        checkTally.verdict(name);
+        checkTally = testkit::Tally{};
+        return;
+    }
+    if(Cmd_Argc() < 5)
+    {
+        Con_Printf("vr_run_check <startweapon> <glasscannon> <meleeonly> <gore> | verdict\n");
+        return;
+    }
+    const int w = atoi(Cmd_Argv(1));
+    const int g = atoi(Cmd_Argv(2));
+    const int m = atoi(Cmd_Argv(3));
+    const int gore = atoi(Cmd_Argv(4));
+    const char* what = va("%s: run %d %d %d %d", sv.name, w, g, m, gore);
+    const bool cvars = activeValue(find("startweapon")) == w && activeValue(find("glasscannon")) == g &&
+                       activeValue(find("meleeonly")) == m && activeValue(find("gore")) == gore;
+    checkTally.check(cvars, name, va("%s: the run's cvars (%s)", what, summary(false)));
+    checkTally.check(gore == 0 || gorepresets::matching() == gore, name, va("%s: the Gore preset's values", what));
+    bool qc = false;
+    if(sv.active)
+    {
+        const progs::ServerVm vm;
+        dfunction_t* fn = VR_ED_FindFunction("VR_Run_TestCheck");
+        qc = fn && progs::qcFloat(static_cast<func_t>(fn - qcvm->functions), static_cast<float>(w), static_cast<float>(g),
+                                 static_cast<float>(m)) != 0.f;
+    }
+    checkTally.check(qc, name, va("%s: the game (loadout, damage, guns)", what));
+    if(cvars && qc)
+    {
+        Con_Printf("runmutators: PASS %s\n", what);
+    }
+}
+
 void testCmd()
 {
     testkit::Tally t;
@@ -570,6 +614,7 @@ void init()
 {
     Cmd_AddCommand("vr_run", runCmd);
     Cmd_AddCommand("vr_runsetup_test", testCmd);
+    Cmd_AddCommand("vr_run_check", checkCmd);
 }
 
 } // namespace qvr::runsetup

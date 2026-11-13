@@ -13,7 +13,7 @@
 float(float wid) VR_RunMeleeOnly_IsGun =
 {
     if(wid == WID_MJOLNIR || wid == WID_CHAINSAW) return FALSE;
-    return WeaponIdToAmmoId(wid, 0) != AID_NONE;
+    return (WeaponIdToAmmoId(wid, 0) != AID_NONE);
 };
 
 float(float wid) VR_RunMeleeOnly_Refuses =
