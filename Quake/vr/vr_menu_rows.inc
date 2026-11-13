@@ -5021,6 +5021,9 @@ QVR_TOGGLE(vr_stealth_chase_trail, "Follows Your Trail",
     "were going, then heads for you. Off: straight at you, as Quake's monsters (they know where you are).")
 QVR_SLIDER(vr_stealth_chase_predict, "Guesses Ahead", 0.f, 5.f, 0.25f, "%.2f s", noExt,
     "How far along your way it guesses you went: this many seconds of your speed when it last saw you.")
+QVR_SLIDER(vr_stealth_chase_tele, "Follows Through Teleporters", 0.f, 20.f, 1.f, "%.0f s", noExt,
+    "You went into a teleporter within this many seconds of its last sight of you: your trail goes through it, "
+    "and it follows (one that lets monsters through and is open). 0: off.")
 QVR_TOGGLE(vr_ai_props, "Round Props",
     "A monster whose way is blocked by a crate, a barrel or another solid prop walks round it (to its side "
     "nearer where it is going). Off: Quake's way, which only steps at random and can stay stuck behind it.")

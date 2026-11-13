@@ -217,6 +217,16 @@ where it stands. AD's zombies have the zombies' senses. Tests: `Misc/quakevr/adb
   `vr_stealth_lose_far` (1500 units; 0 never sooner): Alert, it searches where his trail ended (the spot it was going
   to; where it stands once it went on at him), then goes back. Off (`vr_stealth_chase_trail 0`): Quake's chase until
   it gives up, then to where it saw him last. Seen again at any time: the trail is forgotten, the hunt goes on.
+- **His trail through a teleporter** (`vr_stealth_chase_tele` 5 s; 0 off): a player going through a teleporter
+  (Quake's or a walked gate) is noted on him (`VR_Stealth_Teleported`: when, its trigger, where he came out). A hunter
+  that lost him follows it when he went in at most that long after its last sighting (or it was woken onto him unseen
+  that long before or after: it heard him), the teleporter takes monsters (not players-only) and is open now
+  (`VR_TeleportTakes`, teleport_touch's own rules, shared): its trail's first step is then where he came out, steered
+  by the navmesh (`VR_NAV_Step` steers to that marker only, through the teleporter's link; with no path, straight into
+  the trigger), and the step ends there (on at him) or after the way to the trigger plus `vr_nav_tele_time`. A hunter
+  already on his trail switches to it when he goes in later. The quarter-time give-up for him being far
+  (`vr_stealth_lose_far`) waits while it follows him through. Also: a monster woken onto him unseen now starts its
+  trail from where he was (it used to start from a stale spot).
 
 ## Teleporters (`vr_stealth_gates 1`; seamless teleporters, PORTAL_AI.md)
 

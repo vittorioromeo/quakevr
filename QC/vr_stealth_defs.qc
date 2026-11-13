@@ -42,6 +42,11 @@
 .vector stl_lost_org;   // and where he was (stl_lost_at is his image when seen through a teleporter)
 .float stl_trail;       // out of sight: the step of his trail it follows (VR_Stealth_Trail: 1 his last spot, 2 ahead, 3 at him)
 .float stl_trail_time;  // and when it began
+.entity stl_trail_gate; // step 1 through a teleporter he went into (VR_Stealth_TrailGate): its trigger; world none
+.float stl_lost_seen;   // whether it saw him at stl_lost_time (0: woken onto him unseen, it knew where he was)
+.float stl_tele_time;   // a player: when he last went through a teleporter (VR_Stealth_Teleported)
+.entity stl_tele_gate;  // and its trigger
+.vector stl_tele_to;    // and where he came out
 .entity stl_next;       // a gathered list's next (VR_Stealth_Gather)
 .entity stl_suspect;    // the player its meter is on (coop: the most suspicious one in sight)
 .float stl_rate;        // and the meter's rate at that sighting
@@ -98,6 +103,8 @@ void(entity m, vector at, float xVia, float xKind, float xPower, float xShare) V
 float() VR_Stealth_GateSight;
 void(float dist) VR_Stealth_ChaseGate;
 void(entity m, vector xFrom, float xYaw, float xFace, float xBack) VR_Stealth_Crossed;
+void(entity p, entity t) VR_Stealth_Teleported;
+float(entity t, entity who) VR_TeleportTakes; // (triggers.qc: teleport_touch's own rules)
 #ifdef QVR_TESTS
 void() VR_Stealth_TestFrame;
 #endif

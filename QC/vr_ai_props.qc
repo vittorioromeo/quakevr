@@ -154,10 +154,14 @@ float() VR_NAV_MeleeOff =
     return navreach(self, self.enemy) > 0;
 };
 
+// The navmesh's step to its enemy, or along his trail through a teleporter (the stealth AI's marker where he came out,
+// vr_stealth.qc VR_Stealth_Trail: its path through the teleporter's link). Not to other trail markers: steering to every
+// one made a lift's rider give the ride up (NAVMESH.md 17).
 float(float dist) VR_NAV_Step =
 {
     entity g = self.goalentity;
-    if(!cvar_hget(cvarh_vr_nav) || dist <= 0 || g == world || g != self.enemy || !(self.flags & FL_MONSTER) ||
+    float toGate = g != world && g == self.stl_marker && self.stl_trail_gate != world;
+    if(!cvar_hget(cvarh_vr_nav) || dist <= 0 || g == world || (g != self.enemy && !toGate) || !(self.flags & FL_MONSTER) ||
        (self.flags & (FL_FLY | FL_SWIM)))
     {
         return FALSE;
@@ -194,6 +198,15 @@ float(float dist) VR_NAV_Step =
 void(float dist) VR_AI_MoveToGoal =
 {
     if(VR_NAV_Step(dist)) { return; }
+    if(self.stl_trail_gate != world && self.goalentity == self.stl_marker && self.stl_marker != world)
+    {
+        // (his trail through a teleporter with no navmesh path there: straight into its trigger, round the props)
+        vector keep = self.stl_marker.origin;
+        setorigin(self.stl_marker, VR_Stealth_GateMid(self.stl_trail_gate));
+        VR_AI_MoveRound(dist);
+        setorigin(self.stl_marker, keep);
+        return;
+    }
     entity nav = VR_ARENA_NavStep(dist);
     if(nav == world)
     {

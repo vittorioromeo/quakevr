@@ -432,24 +432,29 @@ entity    death;
     force_retouch = 2;        // make sure even still objects get hit
 };
 
+// QVR: whether teleporter `t` takes `who` now: not one waiting to be fired, nor a players-only one for anyone else
+// (teleport_touch's own rules; the stealth AI's trail through one, VR_Stealth_TrailGate).
+float(entity t, entity who) VR_TeleportTakes =
+{
+    if(t.targetname != NULLSTR)
+    {
+        float ignoreName = MG_WorldCampaign() ? (t.spawnflags & 4) : (t.spawnflags & IGNORE_TARGETNAME);
+        if(!ignoreName && t.nextthink < time)
+        {
+            return FALSE;        // not fired yet
+        }
+    }
+    return !(t.spawnflags & PLAYER_ONLY) || who.classname == "player";
+};
+
 void() teleport_touch =
 {
 entity    t;
 vector    org;
 
-    if(self.targetname != NULLSTR)
+    if(!VR_TeleportTakes(self, other))
     {
-        float ignoreName = MG_WorldCampaign() ? (self.spawnflags & 4) : (self.spawnflags & IGNORE_TARGETNAME);
-        if(!ignoreName && self.nextthink < time)
-        {
-            return;        // not fired yet
-        }
-    }
-
-    if(self.spawnflags & PLAYER_ONLY)
-    {
-        if(other.classname != "player")
-            return;
+        return;
     }
 
 // only teleport living creatures
@@ -496,6 +501,7 @@ vector    org;
     if(other.classname == "player")
     {
         VR_Carry_Teleported(other, teleportedFrom); // QVR: what the hands carry comes along (vr_carry.qc)
+        VR_Stealth_Teleported(other, self); // QVR: his trail goes through it (a hunter follows, vr_stealth.qc)
         other.fixangle = 1;        // turn this way immediately
         other.teleport_time = time + 0.7;
         if(other.flags & FL_ONGROUND)
@@ -516,6 +522,10 @@ void(vector xFrom, float xReturning, float xYaw, float xFace, float xBack) VR_Po
     activator = other;
     if(!xReturning) { SUB_UseTargets(); }
     VR_Carry_Teleported(who, xFrom);
+    if(who.classname == "player" && !xReturning)
+    {
+        VR_Stealth_Teleported(who, self);
+    }
     VR_Stealth_Crossed(who, xFrom, xYaw, xFace, xBack);
 };
 

@@ -4025,6 +4025,7 @@ QVR_CVAR(vr_stealth_lose_time, "14", CVAR_ARCHIVE)   // s without seeing you bef
 QVR_CVAR(vr_stealth_lose_far, "1500", CVAR_ARCHIVE)  // units: with you farther than this it gives up after a quarter of that (0: never sooner)
 QVR_CVAR(vr_stealth_chase_trail, "1", CVAR_ARCHIVE)  // out of sight it follows your trail: where it saw you last, then the way you were going (0: straight at you, Quake's)
 QVR_CVAR(vr_stealth_chase_predict, "1.5", CVAR_ARCHIVE) // s of your speed it guesses ahead along your way
+QVR_CVAR(vr_stealth_chase_tele, "5", CVAR_ARCHIVE)   // s: you went into a teleporter within this of its last sighting (or of its being woken onto you): your trail goes through it (0: off)
 QVR_CVAR(vr_ai_props, "1", CVAR_ARCHIVE)             // a monster blocked by a crate or a barrel walks round it (0: Quake's movetogoal: it steps in place)
 QVR_CVAR(vr_ai_prop_push, "1", CVAR_ARCHIVE)         // and pushes it as it meets it (by its weight: a light one moves, a heavy one hardly)
 QVR_CVAR(vr_stealth_gem, "1", CVAR_ARCHIVE)          // a gem on the wrist gadget: how visible (its glow) and how loud (its ring) you are

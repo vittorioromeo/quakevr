@@ -275,7 +275,7 @@ void(entity m, vector xFrom, float xYaw, float xFace, float xBack) VR_Stealth_Cr
         {
             setorigin(m.stl_marker, VR_Stealth_WayTo(m.stl_post, m.stl_post_via));
         }
-        else
+        else if(m.stl_trail_gate == world) // (through his teleporter: the marker is where he came out, a fixed spot)
         {
             setorigin(m.stl_marker, VR_Stealth_Carried(m.stl_marker.origin, xFrom, to, xYaw));
         }
@@ -626,6 +626,12 @@ void() VR_Stealth_Hostile =
     self.stl_meter = 0;
     self.stl_settle = 0;
     self.stl_lost_time = time;
+    // (where he is: it knows, seen or not (woken onto him: a noise, another's shout); a sighting this frame keeps it
+    // up to date, VR_Stealth_LoseNow. Its trail used to start from a stale spot when it never saw him.)
+    self.stl_lost_at = self.stl_lost_org = self.enemy.origin;
+    self.stl_lost_via = 0;
+    self.stl_lost_vel = '0 0 0';
+    self.stl_lost_seen = 0;
     if(!VR_Stealth_Applies(self) || self.enemy.classname != "player")
     {
         return;
@@ -1144,6 +1150,7 @@ void(entity m) VR_Stealth_TrailOff =
         m.goalentity = m.enemy;
     }
     m.stl_trail = 0;
+    m.stl_trail_gate = world;
 };
 
 void(entity m, float xStep, vector at) VR_Stealth_TrailTo =
@@ -1185,6 +1192,47 @@ vector(entity m) VR_Stealth_TrailAhead =
     return trace_endpos - normalize(v) * 16;
 };
 
+// A player went through teleporter `t` (teleport_touch, or walked through a paired gate: VR_Portal_Crossed): his trail
+// goes through it (VR_Stealth_TrailGate).
+void(entity p, entity t) VR_Stealth_Teleported =
+{
+    p.stl_tele_time = time;
+    p.stl_tele_gate = t;
+    p.stl_tele_to = p.origin;
+};
+
+// His trail through a teleporter (vr_stealth_chase_tele seconds): he went into one that long at most after it last saw
+// him (not seen through a gate: that gate is already its way), or it was woken onto him unseen that long at most before
+// or after he went in (it heard him, or the teleporter); one that takes monsters and is open now (teleport_touch's
+// rules, as the navmesh's teleporter links). Its trigger, else world.
+entity(entity m) VR_Stealth_TrailGate =
+{
+    float w = cvar_hget(cvarh_vr_stealth_chase_tele);
+    entity p = m.enemy;
+    if(w <= 0 || p.classname != "player" || p.stl_tele_gate == world || m.stl_lost_via)
+    {
+        return world;
+    }
+    float dt = p.stl_tele_time - m.stl_lost_time;
+    if(dt > w || dt < (m.stl_lost_seen ? -0.2 : 0 - w))
+    {
+        return world;
+    }
+    if(!VR_TeleportTakes(p.stl_tele_gate, m))
+    {
+        return world;
+    }
+    return p.stl_tele_gate;
+};
+
+// A teleporter's trigger: its middle, a box's height over its bottom (the walk into it without a navmesh path).
+vector(entity t) VR_Stealth_GateMid =
+{
+    vector c = (t.absmin + t.absmax) * 0.5;
+    c_z = min(c_z, t.absmin_z + 24);
+    return c;
+};
+
 void(entity m) VR_Stealth_Trail =
 {
     if(!cvar_hget(cvarh_vr_stealth_chase_trail))
@@ -1194,18 +1242,60 @@ void(entity m) VR_Stealth_Trail =
     }
     if(m.stl_trail == 0)
     {
+        // (through his teleporter: to where he came out, its navmesh path through the teleporter's link,
+        // VR_NAV_Step; then on at him from there)
+        m.stl_trail_gate = VR_Stealth_TrailGate(m);
+        if(m.stl_trail_gate != world)
+        {
+            VR_Stealth_TrailTo(m, 1, m.enemy.stl_tele_to);
+            if(cvar_hget(cvarh_vr_stealth_debug))
+            {
+                VR_Stealth_Log(m, sprintf("trail 1: through his teleporter at %v", VR_Stealth_GateMid(m.stl_trail_gate)));
+            }
+            return;
+        }
         VR_Stealth_TrailTo(m, 1, VR_Stealth_WayTo(m.stl_lost_at, m.stl_lost_via));
         return;
+    }
+    // (he went into one since this step began: his trail goes through it from here)
+    if(m.stl_trail_gate == world && m.enemy.stl_tele_time > m.stl_trail_time)
+    {
+        m.stl_trail_gate = VR_Stealth_TrailGate(m);
+        if(m.stl_trail_gate != world)
+        {
+            VR_Stealth_TrailTo(m, 1, m.enemy.stl_tele_to);
+            if(cvar_hget(cvarh_vr_stealth_debug))
+            {
+                VR_Stealth_Log(m, sprintf("trail 1: on through his teleporter at %v", VR_Stealth_GateMid(m.stl_trail_gate)));
+            }
+            return;
+        }
     }
     if(m.stl_trail >= 3)
     {
         return;
     }
-    // (there, or long enough on the way: a second, and one more for every 60 units of it: a zombie's shamble)
+    // (there, or long enough on the way: a second, and one more for every 60 units of it: a zombie's shamble; through
+    // a teleporter, the way to its trigger and the teleporter link's own time, vr_nav_tele_time)
     vector d = m.stl_marker.origin - m.origin;
     float there = vlen('1 0 0' * d_x + '0 1 0' * d_y) < 48 && fabs(d_z) < 72;
-    if(!there && time - m.stl_trail_time < 1 + vlen(m.stl_marker.origin - m.stl_walk_from) / 60)
+    float way = vlen(m.stl_marker.origin - m.stl_walk_from) / 60;
+    if(m.stl_trail_gate != world)
     {
+        way = vlen(VR_Stealth_GateMid(m.stl_trail_gate) - m.stl_walk_from) / 60 + cvar_hget(cvarh_vr_nav_tele_time);
+    }
+    if(!there && time - m.stl_trail_time < 1 + way)
+    {
+        return;
+    }
+    if(m.stl_trail_gate != world)
+    {
+        if(cvar_hget(cvarh_vr_stealth_debug))
+        {
+            VR_Stealth_Log(m, sprintf("trail 1 through his teleporter: %s", there ? "came out" : "not through in time"));
+        }
+        m.stl_trail_gate = world;
+        VR_Stealth_TrailTo(m, 3, VEC_ORIGIN);
         return;
     }
     if(m.stl_trail == 1)
@@ -1247,6 +1337,7 @@ float(float xVis) VR_Stealth_LoseNow =
         self.stl_lost_time = time;
         self.stl_lost_at = self.enemy.origin;
         self.stl_lost_via = 0;
+        self.stl_lost_seen = xVis;
         if(xVis && self.vr_ai_gate > 0 && cvar_hget(cvarh_vr_stealth_gates)) // (seen through a teleporter: his image there)
         {
             self.stl_lost_at = VR_AI_Origin(self.enemy);
@@ -1260,7 +1351,8 @@ float(float xVis) VR_Stealth_LoseNow =
     }
     float give = cvar_hget(cvarh_vr_stealth_lose_time);
     float far = cvar_hget(cvarh_vr_stealth_lose_far);
-    if(far > 0 && vlen(self.enemy.origin - self.origin) > far)
+    // (not while it follows him through a teleporter: the way there is short however far he is in a straight line)
+    if(far > 0 && self.stl_trail_gate == world && vlen(self.enemy.origin - self.origin) > far)
     {
         give = give * 0.25;
     }
@@ -1287,6 +1379,7 @@ float(float xVis) VR_Stealth_LoseNow =
         VR_Stealth_Log(self, sprintf("lost him (%.1f s unseen, trail %g)", time - self.stl_lost_time, self.stl_trail));
     }
     self.stl_trail = 0;
+    self.stl_trail_gate = world;
     self.enemy = self.oldenemy = self.goalentity = self.movetarget = world;
     VR_Stealth_SetPath(self, world); // (AD support: AD's own path field)
     VR_Stealth_AlertVia(self, at, via, STL_A_LOST, 3, FALSE);
