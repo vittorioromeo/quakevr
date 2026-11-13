@@ -3532,7 +3532,7 @@ QVR_TOGGLE_BYNAME(vr_portals_walk, "Seamless Teleporters",
 QVR_TOGGLE_BYNAME(vr_portals_monsters, "Monsters Walk Through",
     "With Seamless Teleporters on, monsters walk through a teleporter that comes out of another teleporter's face as you do: no flash, no sound, no jump. Off (and at other teleporters, unless Monsters: Every Teleporter): Quake's teleport, which puts them at the destination marker, a step out.")
 QVR_TOGGLE_BYNAME(vr_portals_monsters_all, "Monsters: Every Teleporter",
-    "Experimental. With Monsters Walk Through on, monsters walk through every teleporter you do, including those that come out at a destination marker (id's maps); monsters chasing you there may stall at the teleporter. Off: only through a teleporter that comes out of another teleporter's face; Quake's teleport at the others.")
+    "Experimental. With Monsters Walk Through on, monsters walk through every teleporter you do, including those that come out at a destination marker (id's maps); one whose opening is over a sill too high to step onto (e1m1's) or too low for the monster still teleports it Quake's way at the touch. Off: only through a teleporter that comes out of another teleporter's face; Quake's teleport at the others.")
 QVR_SLIDER_BYNAME(vr_portals_monster_giveup, "Monsters: Stuck Fallback", 0.f, 5.f, 0.25f, "%.2f s", noExt,
     "A monster touching a teleporter that makes no headway into its opening this long (too big for it, caught on the frame) is taken by Quake's teleport after all, so it is never stuck there. 0: never.")
 QVR_TOGGLE_BYNAME(vr_portals_ai, "Enemies See and Shoot Through",

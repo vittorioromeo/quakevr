@@ -218,6 +218,41 @@ ClientState& crossingState(edict_t* ent)
     return sd.paired || vr_portals_monsters_all.value > 0.f;
 }
 
+// Whether a monster's box can walk into an upright gate's opening: its bottom at most a step (Quake's STEPSIZE) over the
+// floor just in front of it, and the opening as tall as the box from there. e1m1's teleporter (unpaired, so walked only
+// with vr_portals_monsters_all) has its opening on a bar 23 units over the floor: a walker pressed against the bar,
+// never got in, and stood there (ROUND25.md "onewaytele"). A gate in the floor or the ceiling, or one standing free
+// where the box would pass it a step up (`atPlane`: its origin carried onto the plane; dm5's sheets): yes (as before).
+[[nodiscard]] bool monsterCanStepIn(edict_t* ent, const Side& sd, const glm::vec3& atPlane)
+{
+    constexpr float stepSize = 18.f; // (sv_move.c's STEPSIZE)
+    const glm::vec2 n{sd.normal.x, sd.normal.y};
+    if(glm::length(n) < 0.7f || crossFits(ent, sd, atPlane + glm::vec3{0.f, 0.f, stepSize}))
+    {
+        return true;
+    }
+    // The floor `out` units in front of the opening's bottom middle (64 under it at most); none: startsolid.
+    const glm::vec2 mid = glm::vec2{sd.mins.x + sd.maxs.x, sd.mins.y + sd.maxs.y} * 0.5f;
+    const auto floorAt = [&](float out, float& z) {
+        const glm::vec2 at = mid + glm::normalize(n) * out;
+        vec3_t start{at.x, at.y, sd.mins.z + 1.f}, end{at.x, at.y, sd.mins.z - 64.f}, none{0.f, 0.f, 0.f};
+        const trace_t tr = SV_Move(start, none, none, end, MOVE_NOMONSTERS, ent);
+        z = tr.endpos[2];
+        return !tr.startsolid;
+    };
+    // Two steps at most: onto what is just in front of the plane (a sill, a frame's bar), from where its box stands
+    // in front of that (or where its feet are, if higher). e1m1: the bar's top is the opening's bottom, 23 over the floor.
+    const float reach = za::max(za::max(-ent->v.mins[0], ent->v.maxs[0]), za::max(-ent->v.mins[1], ent->v.maxs[1])) + 4.f;
+    float sill = 0.f, before = 0.f;
+    if(!floorAt(1.f, sill) || !floorAt(reach, before))
+    {
+        return true; // (no floor to tell from: as before)
+    }
+    before = za::max(before, ent->v.origin[2] + ent->v.mins[2]);
+    const float top = za::max(sd.mins.z, sill);
+    return top - sill <= stepSize + 0.5f && sill - before <= stepSize + 0.5f && sd.maxs.z - top >= ent->v.maxs[2] - ent->v.mins[2];
+}
+
 // A two-sided sheet: whether `p` is in front of the other face of `sd`'s gate (its side turned the other way).
 [[nodiscard]] bool inFrontOfOpposite(const Side& sd, const glm::vec3& p)
 {
@@ -969,6 +1004,22 @@ bool teleporterWalked(int trigger)
     return false;
 }
 
+bool teleporterPaired(int trigger)
+{
+    if(!current())
+    {
+        build();
+    }
+    for(const Side& sd : sides)
+    {
+        if(sd.trigger == trigger && sd.paired)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 // The stealth AI's gates (QC vr_stealth.qc), numbered as aiImage's: 1..count the sides' own faces, count+1..2 count
 // their exits.
 int aiGateCount()
@@ -1335,7 +1386,8 @@ float portalHandles(edict_t* trig, edict_t* who, int num)
     // as a player is, at every gate (vr_portals_monsters_all; else a paired one's, out of the other gate's face). Its box
     // goes into the opening as it stands, a step up (a sill) or already straddling, or the gate stands free (nothing
     // frames the opening: crossFits): always the engine's. Else (its box wider than the opening, or off to the side of
-    // it) the engine's too while it makes headway into the gate; one making none for vr_portals_monster_giveup seconds
+    // it) the engine's too while it makes headway into the gate, unless the opening is over a sill it can't step onto or
+    // too low for it (monsterCanStepIn: Quake's teleport at once, as the navmesh plans it); one making none for vr_portals_monster_giveup seconds
     // (a shambler at a player's gate, caught on the frame) is left to Quake's teleport, so none is stuck there. (Deciding
     // at the first touch, as this did, sent most to Quake's teleport: a box not fitting the opening yet as it touched a
     // trigger reaching out in front of the gate, or a dog wider than dm5's 48-unit opening.)
@@ -1346,7 +1398,6 @@ float portalHandles(edict_t* trig, edict_t* who, int num)
     {
         if(sd.trigger != t || !monsterGate(sd)) { continue; }
         const float d = glm::dot(sd.normal, torsoOf(who)) - sd.dist;
-        nearest = za::min(nearest, za::fabs(d));
         float low = 1e9f, high = -1e9f;
         for(int c = 0; c < 8; c++)
         {
@@ -1362,10 +1413,14 @@ float portalHandles(edict_t* trig, edict_t* who, int num)
             crossingState(who).touchTrigger = -1; // (never given up: it goes in, or stands free of any frame)
             return 1.f;
         }
+        // An opening over a sill it can't step onto, or too low for it: Quake's teleport at the touch (it would only
+        // press against the sill till the give-up; meanwhile the navmesh's walker backed off, which restarted it).
+        if(!monsterCanStepIn(who, sd, o - sd.normal * d)) { continue; }
+        nearest = za::min(nearest, za::fabs(d));
     }
     if(nearest >= 1e9f)
     {
-        return 0.f; // (no gate of this trigger it walks through)
+        return 0.f; // (no gate of this trigger it walks through, or none it can walk into)
     }
     // (Watched each frame from here on while it touches the trigger, moving or not: VR_PortalMonsterCross, giveUp.)
     ClientState& cs = crossingState(who);

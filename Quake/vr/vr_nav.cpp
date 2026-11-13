@@ -87,12 +87,13 @@ struct Ride
 
 // A teleporter a monster may use (a trigger_teleport, not players-only, with a destination): its trigger's edict and box
 // (Quake's space), where a monster arrives (the destination's point: Quake's teleport puts its origin there); `walked`:
-// a paired gate a monster walks through (portals::teleporterWalked: it must fit the aperture), else touching it teleports.
+// a gate a monster walks through (portals::teleporterWalked: it must fit the aperture), else touching it teleports;
+// `paired`: it comes out of another gate's face (portals::teleporterPaired).
 struct Gate
 {
     int trigger;
     glm::vec3 lo, hi, dest;
-    bool walked;
+    bool walked, paired;
 };
 
 // The map's walls and floors as triangles (Recast's space), the walkable ones (Quake's floor rule) marked.
@@ -492,7 +493,7 @@ void gatherGates(Geometry& g)
             return;
         }
         g.gates.pushBack(Gate{NUM_FOR_EDICT(e), geom::vec(e->v.absmin), geom::vec(e->v.absmax), geom::vec(dest->v.origin),
-            portals::teleporterWalked(NUM_FOR_EDICT(e))});
+            portals::teleporterWalked(NUM_FOR_EDICT(e)), portals::teleporterPaired(NUM_FOR_EDICT(e))});
     });
 }
 
@@ -1241,15 +1242,17 @@ int teleEnds(const Settings& s, const NavClass& c, const dtNavMeshQuery& query, 
     {
         return 1;
     }
-    // The box standing there must reach into the trigger (Quake's teleport: touching it is enough). A paired gate, walked
-    // through, must fit it too: its bottom no more than a step over the floor there (a sill it can step onto), its top a
+    // The box standing there must reach into the trigger (Quake's teleport: touching it is enough). A gate walked
+    // through must fit it too: its bottom no more than a step over the floor there (a sill it can step onto), its top a
     // box's height over that, its wide side the box's width (a crate hatch, a gate over a jump: not for monsters; a
-    // gate's trigger is its aperture).
+    // gate's trigger is its aperture). An unpaired one (vr_portals_monsters_all) that doesn't is a touch link still:
+    // the engine leaves the monster to Quake's teleport there (portals' monsterCanStepIn; e1m1's opening is 23 units
+    // over the floor, ROUND25.md "onewaytele").
     const glm::vec3 iq = fromRc(in);
     const float slack = r + 8.f;
     if(iq.x < gate.lo.x - slack || iq.x > gate.hi.x + slack || iq.y < gate.lo.y - slack || iq.y > gate.hi.y + slack ||
         iq.z + c.height <= gate.lo.z || iq.z >= gate.hi.z ||
-        (gate.walked && (gate.lo.z > iq.z + s.climb || gate.hi.z - za::max(gate.lo.z, iq.z) < c.height ||
+        (gate.walked && gate.paired && (gate.lo.z > iq.z + s.climb || gate.hi.z - za::max(gate.lo.z, iq.z) < c.height ||
                             za::max(gate.hi.x - gate.lo.x, gate.hi.y - gate.lo.y) < r * 2.f)))
     {
         return 2;
@@ -1547,7 +1550,8 @@ za::U64 keyOf(const Geometry& g, const Settings& s, const NavClass& c)
     za::U64 h = diskcache::fnv(g.hash, v, sizeof(v));
     for(const Gate& t : g.gates)
     {
-        const float w[] = {t.lo.x, t.lo.y, t.lo.z, t.hi.x, t.hi.y, t.hi.z, t.dest.x, t.dest.y, t.dest.z, t.walked ? 1.f : 0.f};
+        const float w[] = {t.lo.x, t.lo.y, t.lo.z, t.hi.x, t.hi.y, t.hi.z, t.dest.x, t.dest.y, t.dest.z, t.walked ? 1.f : 0.f,
+            t.paired ? 1.f : 0.f};
         h = diskcache::fnv(h, w, sizeof(w));
     }
     for(const Ride& r : g.rides)

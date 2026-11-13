@@ -1128,6 +1128,42 @@ Left for the author: screenshot and download URLs taken from any host and scheme
 back-off shared by every host, cache/slipseer never pruned, robots.txt wildcards, the presets' rows matched every menu
 frame, the reverse grip's server checks reading the local client's view (a listen server's own player only).
 
+## onewaytele: monsters at one-way teleporters with Monsters: Every Teleporter on (branch agent/onewaytele, 2026-11-13)
+
+- **Cause of the stall** (e1m1, `vr_portals_monsters_all` 1, 1 of 20): not the navmesh's plan. e1m1's teleporter opening
+  (aperture z -408..-328) sits on a frame bar whose top is the opening's bottom (-409), 23 units over the floor before
+  it (-432; traced with `vr_brush_trace`): over a step (18), so no walker's box can ever go in. The engine kept the
+  monster at the gate (`portal_handles` 1 while it made headway), the walker pressed against the bar, and the navmesh's
+  stuck back-off (0.5 s, `teleStuckSeconds`, was `vr_nav_tele_stuck`) pulled it out of the trigger before the 1 s give-up
+  (`vr_portals_monster_giveup`), which restarted the give-up: over and over till the 8 s time-out (knights, fiends);
+  grunts got through now and then by Quake's teleport when a shot paused the back-off. Step notes: `why 4`, phase 1,
+  "backing off the teleporter" every 1.3 s at y 1075; 43 back-offs, 0 walked, 7 by Quake's teleport.
+- **Fix** (`vr_portals_gates.cpp`, `monsterCanStepIn`): a monster is held at a gate only if it can walk into the
+  opening: two steps at most (onto what is just in front of the plane, a sill or a bar, from where its box stands, or
+  its feet if higher), the opening as tall as the box from there; or the gate stands free a step up (`crossFits`,
+  dm5's sheets). Else Quake's teleport at the touch, as with the setting off. The navmesh (`teleEnds`): an unpaired gate
+  walked through that the class doesn't fit keeps its touch link (a paired one still gets none, as before);
+  `teleporterWalked` asks `monsterGate` (the same change revpicks makes), `teleporterPaired` new, `Gate::paired` in the
+  cache key. Comments of the cvar, menu row and NAVMESH.md 16 updated. No new tunable.
+- **Results** (seeded, headless no-LTO; trial-line fingerprints):
+
+  | scene | before (origin/next 0 / 1) | after (0 / 1) |
+  | --- | --- | --- |
+  | nav_tele_metric | 18 / **1** of 20 (1: 9 timed out, 43 back-offs) | 18 / **18** (same trial lines both ways, = before's 0) |
+  | nav_tele_dm5 | 18 / 18 of 24 (21 walked, 1 teleported) | 18 / 18, the same trial lines as before |
+  | nav_tele_metric_gates | 37 of 40 (rev25nav) | 37 / 37 |
+  | nav_tele, nav_tele_oneway | pass | pass / pass |
+  | teleporters_test.sh chase | framed_sill32 dog FAIL (known), rest PASS | the same |
+
+  After merging origin/next with revpicks (its `teleporterWalked` fit check): origin/next itself gives e1m1 with the
+  setting on **0 trials** (all 25 skipped: the fit check drops the unpaired gate's link, reason 2); this branch 18 / 18
+  of 20 (same lines both ways), nav_tele_dm5 17 / 17 of 24 (the same lines as origin/next's 17), nav_tele_metric_gates
+  37 of 40. New scene `nav_tele_oneway_all` (nav_tele_metric with the setting on): 18 of 20. Player crossings untouched.
+- **So** the setting on now equals the setting off on e1m1 and dm5 (he may make it the default). It is not seamless at
+  e1m1: no walker can step into that opening. Making it so would need a monster "hop" onto a sill up to ~24 (portal
+  code: lift the box onto the bar when lined up, then walk in; Quake's walk refuses a box half over a ledge): not done.
+  Also left: a framed opening narrower than the box still holds the monster, and the navmesh back-off restarts the 1 s
+  give-up there the same way (not seen in these scenes).
 ## revpicks: the author's picks from the rev25misc / rev25nav reviews (branch agent/revpicks, 2026-11-13)
 
 - **Back-off per host** (vr_slipseer.cpp): a 429 / 403 / 5xx backs off that host only (`hostKey`: lower case, no

@@ -1,0 +1,22 @@
+# nav_tele_oneway_all: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". nav_tele_metric (e1m1's
+# one-way teleporter, five walkers at five angles, seeded) with vr_portals_monsters_all 1 (Graphics > Teleporters,
+# "Monsters: Every Teleporter"). The opening sits on a bar 23 units over the floor, over a step: a walker can't go in,
+# so the engine leaves it to Quake's teleport at the touch (ROUND25.md "onewaytele"; it used to press against the bar
+# and stall: 1 of 20). Verdict line: nav_tele_oneway_all: N passed, M failed (18 of 20, as nav_tele_metric).
+title Monsters: Every Teleporter on: monsters chase you into e1m1's one-way teleporter without stalling
+map e1m1
+start -32 2000 -29 -90
+god
+spawn monster_army 150 0
+spawn monster_dog 150 64
+spawn monster_ogre 150 -64
+spawn monster_knight 220 64
+spawn monster_demon1 220 -64
+cvar vr_nav 1
+cvar vr_nav_debug 2
+cvar vr_nav_teleports 1
+cvar vr_portals_monsters_all 1
+cvar sv_random_seed 1
+cmd vr_bench_seed 1
+cmd vr_nav_teletest nav_tele_oneway_all monster_army,monster_dog,monster_ogre,monster_knight,monster_demon1 all 5 192 8 0 140 1
+hint With Monsters: Every Teleporter on, each monster in turn appears in front of the teleporter at the far end of the level and walks into it. Its opening sits on a bar too high to step onto, so Quake's teleport takes each at the touch: none stands pressed against the bar. It comes out by the start.
