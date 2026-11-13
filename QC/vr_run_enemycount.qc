@@ -144,6 +144,8 @@ float(float xCount) VR_RunEnemyCount_Check =
     float copyable = 0;
     float copies = 0;
     float alive = 0;
+    float stuckOwn = 0;    // (the map's own monsters in solid by the same test)
+    float stuckCopies = 0;
     entity e = nextent(world);
     entity o;
     while(e)
@@ -164,6 +166,14 @@ float(float xCount) VR_RunEnemyCount_Check =
         {
             copyable = copyable + 1;
         }
+        float stuck = FALSE;
+        if(e.vr_run_mapclass != "" && e.health > 0 && !e.MG_deferred && e.solid != SOLID_NOT)
+        {
+            // (its own box, a unit up: one standing on the floor or a slope is not in it)
+            tracebox(e.origin + '0 0 1', e.mins, e.maxs, e.origin + '0 0 1', TRUE, e);
+            stuck = trace_startsolid;
+            if(stuck) { if(e.vr_run_copy) stuckCopies = stuckCopies + 1; else stuckOwn = stuckOwn + 1; }
+        }
         if(e.vr_run_copy)
         {
             copies = copies + 1;
@@ -174,20 +184,21 @@ float(float xCount) VR_RunEnemyCount_Check =
                 near = (!o.vr_run_copy && o.vr_run_kind == e.vr_run_kind && vlen(o.origin - e.origin) < 400);
                 o = nextent(o);
             }
-            float stuck = FALSE;
-            if(!e.MG_deferred && e.solid != SOLID_NOT)
-            {
-                tracebox(e.origin, e.mins, e.maxs, e.origin, TRUE, e);
-                stuck = trace_startsolid;
-            }
             if(!near || stuck || e.target != "" || e.killtarget != "")
             {
-                ok = FALSE;
+                if(!near || e.target != "" || e.killtarget != "") { ok = FALSE; }
                 dprint(sprintf("vr_run_enemies_check: copy %s at %v: beside its kind %g, stuck %g, target \"%s\"\n",
                                e.vr_run_kind, e.origin, near, stuck, e.target));
             }
         }
         e = nextent(e);
+    }
+    // Copies in solid: no more than the map's own are, as a share (monsters on the move sit in a wall's edge now and then:
+    // the map's own do, swapped or not), and two more.
+    if(stuckCopies > 2 + stuckOwn * copies / max(1, copyable))
+    {
+        ok = FALSE;
+        dprint(sprintf("vr_run_enemies_check: %g copies in solid (the map's own: %g)\n", stuckCopies, stuckOwn));
     }
     float want = copyable * min(2, xCount);
     if(xCount <= 0 ? copies != 0 : (copies > want || copies < want * 0.6))
@@ -200,8 +211,8 @@ float(float xCount) VR_RunEnemyCount_Check =
         ok = FALSE;
         dprint(sprintf("vr_run_enemies_check: total_monsters %g, %g monsters there\n", total_monsters, alive));
     }
-    dprint(sprintf("vr_run_enemies_check: %g copies of %g monsters (%g there, total_monsters %g)\n", copies, copyable,
-                   alive, total_monsters));
+    dprint(sprintf("vr_run_enemies_check: %g copies of %g monsters (%g there, total_monsters %g; %g of the map's own in solid)\n",
+                   copies, copyable, alive, total_monsters, stuckOwn));
     return ok;
 };
 
