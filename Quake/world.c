@@ -696,6 +696,7 @@ void SV_LinkEdict (edict_t *ent, qboolean touch_triggers)
 	}
 
 	VR_FindRadius_Linked (ent); // QVR: in the grid as it is now (or SOLID_NOT: not in it, and findradius skips it)
+	SV_PushGridLinked (ent); // QVR: in the pushers' candidate grid too (this tick's, if built: sv_phys.c)
 
 // link to PVS leafs
 	ent->num_leafs = 0;

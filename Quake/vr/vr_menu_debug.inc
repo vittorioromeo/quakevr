@@ -588,6 +588,11 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_findradius_stats: QuakeC's findradius since the last time: calls a frame, how many went through "
                   "the area grid, its time a frame and a call, and with Check findradius on, the searches compared "
                   "with the walk and how many differed (0 expected)."),
+        row(opt::sv_fastpushmove),
+        command("Pusher Search Stats", "sv_pushgrid_stats reset")
+            .help("sv_pushgrid_stats: the pushers' grid since the last time: ticks it was built in, the pushes it "
+                  "served and their entities each, and with Pusher Search on Check, the pushes compared with the "
+                  "walk and the entities missed (0 expected)."),
         command("Force Grab Search Stats", "vr_forcegrab_grid_stats")
             .help("vr_forcegrab_grid_stats: the force grab's target search (each hand, every frame, through the area "
                   "grid): the searches and the entities each tested since the last time."),

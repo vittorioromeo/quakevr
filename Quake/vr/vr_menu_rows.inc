@@ -6030,6 +6030,12 @@ QVR_CYCLE(vr_findradius_grid, "findradius Search",
     "reach) finds what is near: Walk, every entity (Quake's); Big Maps, through the area grid on maps of "
     "100 entities or more, the default; Grid, always. The same entities, in the same order.",
     {0.f, "Walk"}, {1.f, "Big Maps"}, {2.f, "Grid"})
+QVR_CYCLE_BYNAME(sv_fastpushmove, "Pusher Search",
+    "sv_fastpushmove: how a moving door, plat or train finds what it pushes. Grid, the default: from the second "
+    "one moving in a tick, a grid of every entity's box hands each only those near its sweep (after vkQuake); "
+    "Walk, every entity for each (Quake's); Check, the grid from the first and every push's entities compared "
+    "with the walk (a miss warned of: Pusher Search Stats). The same entities moved, in the same order.",
+    {1.f, "Grid"}, {0.f, "Walk"}, {2.f, "Check"})
 QVR_CYCLE(vr_qcexec, "QuakeC Loop",
     "vr_qcexec: the QuakeC interpreter's loop. Fast (goto), the default: the same results, errors and "
     "instruction counts as the original, quicker (docs/vr-port/QC_VM.md). Original: the old loop, to "

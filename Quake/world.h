@@ -62,6 +62,8 @@ void SV_UnlinkEdict (edict_t *ent);
 // flags ent->v.modified
 
 void SV_LinkEdict (edict_t *ent, qboolean touch_triggers);
+void SV_PushGridLinked (edict_t *ent);		// QVR (sv_phys.c): SV_LinkEdict, its abs box set: in this tick's pusher grid
+void SV_PushGridAllocated (edict_t *ent);	// QVR (sv_phys.c): ED_Alloc: a pusher candidate for the rest of the tick
 // Needs to be called any time an entity changes origin, mins, maxs, or solid
 // flags ent->v.modified
 // sets ent->v.absmin and ent->v.absmax

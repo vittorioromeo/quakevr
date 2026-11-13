@@ -217,6 +217,7 @@ edict_t *ED_Alloc (void)
 		{
 			ED_ClearEdict (e);
 			VR_OnEdictAlloc (e); // QVR: when it was made (.vr_born)
+			SV_PushGridAllocated (e); // QVR: a pusher candidate for the rest of the tick (sv_phys.c)
 			return e;
 		}
 	}
@@ -229,6 +230,7 @@ edict_t *ED_Alloc (void)
 	e->baseline.scale = ENTSCALE_DEFAULT;
 	VR_EdictIndex_Touch (e); // QVR
 	VR_OnEdictAlloc (e); // QVR
+	SV_PushGridAllocated (e); // QVR
 
 	return e;
 }
