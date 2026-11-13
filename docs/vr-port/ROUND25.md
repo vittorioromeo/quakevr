@@ -1196,3 +1196,32 @@ frame, the reverse grip's server checks reading the local client's view (a liste
 ## libskill: difficulty picker on the Map Library's Play
 
 Play on an installed package asks Easy / Normal / Hard / Nightmare first (page "Play: Difficulty", flat and VR alike; last choice in vr_maps_skill, saved, preselected; Back cancels; Nightmare row notes a Bloody Nightmare game, which Play never resets). A start map whose entities hold a trigger_setskill (id's start, packs' skill halls: mapinstall::needsSkillPick) skips it. maps_play stays direct. Tests: maps_skill_test (15), slipseer_test (80, play sets skill).
+
+## telesight: a monster that sees you through a teleporter runs in place (branch agent/telesight, 2026-11-13)
+
+- **Report** (flat, vrteleporters): an unarmed grunt and he on opposite sides of a paired gate; while it saw him through
+  the gate it played its run in place; out of sight it pathed through.
+- **Not reproduced headless.** New teletest mode `past` 2 (you 48 out of the exit or the nearest spot clear of its
+  trigger, no trail through it) and a `sight N` count per trial (quarter-seconds it saw you through a gate,
+  `.vr_ai_gate`); scenes `nav_tele_sight` (fist grunt, dog, knight, fiend) and `nav_tele_sight2` (ogre, hell knight,
+  axe grunt), gates 3 and 7 (1: the crate hatch, no link; 5: no placement), each walker seeing you through the gate
+  2-29 samples: before 8/8 and 4/6 (the ogre at gate 3: the known lining-up/back-off trouble, sight 29; at 7 stood
+  0.75 s), after the same lines. The test can't stand you nearer than ~110 from the exit face (its trigger), even with
+  the slot ring widened to 160 in the scenes.
+- **Causes found by reading the code** (each fixed):
+  1. `VR_AI_PortalEligible` took every armed humanoid as ranged (the grunt's `th_missile` is set whatever it holds): a
+     fist or blade grunt saw you through every gate (unpaired too) by the ranged rules, its melee check measured to your
+     image (a swing at air across the gate), and between "shots" stood facing you when the navmesh step failed. Now by
+     what it carries (`VR_WP_CarriesRanged`, `VR_NAV_Melee`'s rule): melee ones take the melee path below.
+  2. `VR_Stealth_ChaseGate` (melee monsters seeing you through a paired gate) walked Quake's movetogoal at a spot 48 past
+     the face from wherever it stood: now the navmesh path to you first (`VR_NAV_Step`: through the gate's link, lined
+     up with its opening); the old walk when there is none.
+  3. The navmesh's approach slot (vr_nav.cpp `approach`): a melee walker's slot sits on a ring round you at its straight
+     bearing, which through a gate points back at the exit's face: with you within the ring's radius (80) of the face,
+     the slot lay behind it, in the wall, and the path's end rounded to the walker's own side (or to no mesh: no path):
+     it walked up to the gate and stood facing you, its run in place. Now the slot must be a straight walk on the mesh
+     from you (a Detour raycast), else you are the aim. NAVMESH.md's slot paragraph says so.
+- Dog, knight, fiend: (2); fist / blade / axe armed grunts and enforcers: (1), (2), (3); ogre, hell knight, zombie:
+  ranged, unchanged (they shoot through, and walk through between shots); a zombie throws so often it barely moves.
+- Left: a disarmed grunt seeking a weapon (`VR_AG_Seeking`) is not looked at; an armed death knight with a sword and a
+  spell no longer casts through gates (melee by its weapons).

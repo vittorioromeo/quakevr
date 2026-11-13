@@ -4,6 +4,10 @@
 
 float() VR_AI_PortalEligible =
 {
+    // An armed humanoid by what it carries (its th_missile is the grunt's, a gun or not): with fists or a melee weapon only
+    // it is a melee one (VR_NAV_Melee's rule): it sees him through paired gates only, under the stealth rules, and walks
+    // through to him (VR_Stealth_ChaseGate), never swinging at his image through the gate (ROUND25.md "telesight").
+    if(self.vr_ag) { return VR_WP_CarriesRanged(self); }
     if((!self.th_missile && self.classname != "monster_boss") ||
        (self.classname == "monster_gremlin" && (!self.stoleweapon || self.weapon == WID_AXE))) { return FALSE; }
     // Jump/charge attacks are physical melee, not ranged weapons.

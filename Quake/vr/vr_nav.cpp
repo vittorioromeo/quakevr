@@ -3867,7 +3867,8 @@ const za::Vector<Crowd>& crowdNow()
 // with no ranged weapon; else no th_missile) farther than vr_nav_slot_engage takes a slot on a
 // ring round him (vr_nav_slots, vr_nav_slot_radius): its own (none other chasing him holds it), the free one nearest
 // its bearing from him, kept while it stays free; others his feet.
-glm::vec3 approach(edict_t* ent, Agent& a, int num, int goalNum, const glm::vec3& pos, const glm::vec3& goalPos, double now)
+glm::vec3 approach(edict_t* ent, const NavClass& c, Agent& a, int num, int goalNum, const glm::vec3& pos,
+    const glm::vec3& goalPos, double now)
 {
     const int k = za::min(static_cast<int>(vr_nav_slots.value), 32);
     const int melee = progs::fields().vr_nav_melee, missile = progs::fields().th_missile;
@@ -3908,11 +3909,29 @@ glm::vec3 approach(edict_t* ent, Agent& a, int num, int goalNum, const glm::vec3
             }
         }
     }
+    const float angle = static_cast<float>(pick) * step;
+    const glm::vec3 at = goalPos + glm::vec3{glm::cos(angle), glm::sin(angle), 0.f} * vr_nav_slot_radius.value;
+    // The slot is on his side: a straight walk on the mesh from him to it, else his feet. The bearing is the walker's
+    // straight line to him, which through a teleporter points back at the gate: with him just past its exit, that slot
+    // lay behind the exit's face, in the wall, and the path's end rounded to the mesh on the walker's own side of the
+    // gate: a melee walker (a fist grunt, a dog) seeing him through the gate walked up to it and stood there facing him,
+    // its run in place, for good (ROUND25.md "telesight"). A slot in a wall he stands by does the same.
+    const glm::vec3 goalRc = toRc(goalPos), atRc = toRc(at);
+    const float ext[3] = {c.radius + 16.f, 32.f, c.radius + 16.f};
+    dtPolyRef ref = 0;
+    float from[3], t = 0.f, normal[3];
+    dtPolyRef visited[32];
+    int nv = 0;
+    if(dtStatusFailed(c.query->findNearestPoly(&goalRc.x, ext, &filterNoLinks, &ref, from)) || !ref ||
+        dtStatusFailed(c.query->raycast(ref, from, &atRc.x, &filterNoLinks, &t, normal, visited, &nv, 32)) || t < 1.f)
+    {
+        a.slot = -1;
+        return goalPos;
+    }
     a.slot = pick;
     a.slotGoal = goalNum;
     a.slotAt = now;
-    const float angle = static_cast<float>(pick) * step;
-    return goalPos + glm::vec3{glm::cos(angle), glm::sin(angle), 0.f} * vr_nav_slot_radius.value;
+    return at;
 }
 
 // The yaw toward the path's next corner, its turn rounded (vr_nav_smooth: near the corner, already toward the one
@@ -4112,7 +4131,7 @@ float steer(edict_t* ent, edict_t* goal)
     const dtQueryFilter& filt = now < a.noLinksUntil ? filterNoLinks : filter;
     const int goalNum = NUM_FOR_EDICT(goal);
     const int slotBefore = a.slot;
-    const glm::vec3 aim = approach(ent, a, num, goalNum, pos, goalPos, now);
+    const glm::vec3 aim = approach(ent, *c, a, num, goalNum, pos, goalPos, now);
     const glm::vec3 startRc = toRc(pos), goalRc = toRc(aim);
     const float startExt[3] = {c->radius + 16.f, 32.f, c->radius + 16.f};
     dtPolyRef startRef = 0;
@@ -4284,11 +4303,14 @@ float reach(edict_t* ent, edict_t* goal)
 // [spread]: the approaches' spread in degrees (140; 170: along the wall nearly). [notes] 1: its link's steps (`nav: ...`) and a `navtt-step|...` line every quarter second (where, why, link, phase).
 // [past] 1: the player is put past each trial's own destination (out of it the way Quake's teleport faces you, 64-160
 // on, on the mesh) instead of staying at the scene's start: a map with gates both ways (dm5) had him by one gate's own
-// entry, so its walkers just ran at him.
+// entry, so its walkers just ran at him. [past] 2: just past it (48 on), as if he walked there: the walker sees him
+// through the gate, no trail through it (nav_tele_sight). The trial line's `sight`: the quarter-second samples the walker
+// saw him through a gate (.vr_ai_gate).
 struct TeleTest
 {
     za::String name;
-    bool armed = false, past = false;
+    bool armed = false;
+    int past = 0; // 1 past the destination, 2 just past it in the walker's sight (placePastGate)
     za::Vector<int> walkers, gates;
     int angles = 5;
     float distance = 192.f, seconds = 8.f, spread = 140.f;
@@ -4301,6 +4323,7 @@ struct TeleTest
     bool held = false;
     int trials = 0, through = 0, passed = 0, timedOut = 0, stuckTrials = 0, skipped = 0, untracked = 0;
     int walkedAt = 0, teleportedAt = 0, walked = 0, teleported = 0; // walked through the gate / Quake's teleport (portals)
+    int seen = 0, seenTrials = 0; // quarter-second samples its walker saw him through a gate (.vr_ai_gate); trials with any
     glm::vec3 lastPos{0.f};
     double timeSum = 0.0, timeWorst = 0.0, stuckSum = 0.0;
 };
@@ -4381,14 +4404,17 @@ void teletest_f()
     teleTest.backoffsStart = state.teleBackoffs;
     teleTestNotes = Cmd_Argc() > 7 && atoi(Cmd_Argv(7)) != 0;
     teleTest.spread = Cmd_Argc() > 8 ? static_cast<float>(atof(Cmd_Argv(8))) : 140.f;
-    teleTest.past = Cmd_Argc() > 9 && atoi(Cmd_Argv(9)) != 0;
+    teleTest.past = Cmd_Argc() > 9 ? atoi(Cmd_Argv(9)) : 0;
     Con_Printf("vr_nav_teletest %s: %d walkers, %d gates, %d angles\n", teleTest.name.cStr(),
         static_cast<int>(teleTest.walkers.size()), static_cast<int>(teleTest.gates.size()), teleTest.angles);
 }
 
 // [past]: the player put past the gate's destination: out of the link's end (`outRc`) the way Quake's teleport faces him
 // (the destination's mangle), 160 on, nearer if that is off the mesh, in a wall or in a trigger; left where he is if none.
-void placePastGate(edict_t* p, const NavClass& c, const Gate& gate, const float* outRc)
+// `sight` (past 2): just past it instead (48 on, farther if that won't do: within a melee walker's slot ring of the
+// gate), and he didn't come through the teleporter (no trail through it for the stealth AI): the walker sees him through
+// the gate and chases him by sight (nav_tele_sight).
+void placePastGate(edict_t* p, const NavClass& c, const Gate& gate, const float* outRc, bool sight)
 {
     edict_t* trigger = EDICT_NUM(gate.trigger);
     edict_t* dest = trigger->v.target ? findByTargetname(PR_GetString(trigger->v.target)) : nullptr;
@@ -4397,8 +4423,9 @@ void placePastGate(edict_t* p, const NavClass& c, const Gate& gate, const float*
     const glm::vec3 end = fromRc(outRc), fwd{glm::cos(yaw), glm::sin(yaw), 0.f};
     const float extent[3] = {24.f, 64.f, 24.f};
     dtQueryFilter all;
-    for(float d = 160.f; d >= 64.f; d -= 32.f)
+    for(int k = 0; k < 4; ++k)
     {
+        const float d = sight ? 48.f + 32.f * static_cast<float>(k) : 160.f - 32.f * static_cast<float>(k);
         const glm::vec3 wantRc = toRc(end + fwd * d);
         dtPolyRef ref = 0;
         float near[3];
@@ -4425,7 +4452,8 @@ void placePastGate(edict_t* p, const NavClass& c, const Gate& gate, const float*
             SV_LinkEdict(p, false);
             // (As teleport_touch tells the stealth AI: his trail goes through this teleporter, so the walker woken onto
             // him unseen follows it, vr_stealth_chase_tele, rather than hunting where he was last seen.)
-            if(const func_t fn = progs::findFunction("VR_Stealth_Teleported"))
+            const func_t fn = sight ? 0 : progs::findFunction("VR_Stealth_Teleported");
+            if(fn)
             {
                 const progs::ServerVm vm;
                 const int oldSelf = pr_global_struct->self;
@@ -4530,7 +4558,7 @@ bool teleTrialStart()
     edict_t* p = progs::playerEdict();
     if(p && t.past)
     {
-        placePastGate(p, *c, gate, out);
+        placePastGate(p, *c, gate, out, t.past == 2);
     }
     const func_t found = progs::findFunction("FoundTarget");
     if(p && found)
@@ -4548,6 +4576,7 @@ bool teleTrialStart()
     t.since = t.sampleTime = sv.qcvm.time;
     t.sampleAt = t.lastPos = feet(e);
     t.stuck = 0.f;
+    t.seen = 0;
     t.telesAt = state.teles;
     t.begunAt = state.telesBegun;
     t.backoffsAt = state.teleBackoffs;
@@ -4589,9 +4618,10 @@ void teleTestTick()
             teleTestNotes = false;
             Con_Printf("teletest %s: %d trials (%d skipped): %d through (%d without its link; mean %.2f s, worst %.2f s), "
                        "%d timed out; %d stuck (stood 0.5 s or more by a trigger; %.1f s in all), %d back-offs; "
-                       "%d walked through the gate, %d by Quake's teleport\n",
+                       "%d walked through the gate, %d by Quake's teleport; %d saw him through a gate\n",
                 t.name.cStr(), t.trials, t.skipped, t.through, t.untracked, t.through ? t.timeSum / t.through : 0.0, t.timeWorst,
-                t.timedOut, t.stuckTrials, t.stuckSum, state.teleBackoffs - t.backoffsStart, t.walked, t.teleported);
+                t.timedOut, t.stuckTrials, t.stuckSum, state.teleBackoffs - t.backoffsStart, t.walked, t.teleported,
+                t.seenTrials);
             testkit::verdict(t.name.cStr(), t.passed, t.trials - t.passed);
             return;
         }
@@ -4614,6 +4644,7 @@ void teleTestTick()
         }
         t.sampleAt = pos;
         t.sampleTime = now;
+        t.seen += progs::fieldFloatOr(e, progs::fields().vr_ai_gate, 0.f) > 0.f ? 1 : 0;
         if(teleTestNotes)
         {
             // (why 0 / no agent: not steering by the navmesh: Quake's own chase, or a goal other than its enemy, such as
@@ -4650,14 +4681,17 @@ void teleTestTick()
     t.stuckTrials += t.stuck >= 0.5f ? 1 : 0;
     t.stuckSum += static_cast<double>(t.stuck);
     t.passed += through && t.stuck < 0.5f ? 1 : 0;
+    t.seenTrials += t.seen > 0 ? 1 : 0;
     int walkedNow = 0, teleportedNow = 0;
     portals::monsterCrossings(walkedNow, teleportedNow);
     const char* how = teleportedNow != t.teleportedAt ? "teleport" : walkedNow != t.walkedAt ? "walked" : "-";
     t.walked += walkedNow != t.walkedAt && teleportedNow == t.teleportedAt ? 1 : 0;
     t.teleported += teleportedNow != t.teleportedAt ? 1 : 0;
-    Con_Printf("navtt|%s|gate %d|angle %.0f|dist %.0f|%s %.2f s|%s|stuck %.2f s|back-offs %d|at %.0f %.0f %.0f\n",
+    // (sight: the quarter-second samples it saw him through a gate, vr_portal_ai.qc's .vr_ai_gate)
+    Con_Printf("navtt|%s|gate %d|angle %.0f|dist %.0f|%s %.2f s|%s|stuck %.2f s|back-offs %d|sight %d|at %.0f %.0f %.0f\n",
         PR_GetString(e->v.classname), static_cast<int>(&gate - state.geo.gates.data()) + 1, t.angle, t.dist,
-        through ? "through" : "NOT through", took, how, t.stuck, state.teleBackoffs - t.backoffsAt, pos.x, pos.y, pos.z);
+        through ? "through" : "NOT through", took, how, t.stuck, state.teleBackoffs - t.backoffsAt, t.seen, pos.x, pos.y,
+        pos.z);
     holdMonster(e);
     t.active = 0;
 }

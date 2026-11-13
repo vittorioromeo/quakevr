@@ -342,6 +342,13 @@ void(float dist) VR_Stealth_ChaseGate =
         VR_AI_MoveToGoal(dist); // (on along his trail through the teleporter he is seen through: VR_Stealth_LoseNow)
         return;
     }
+    // The navmesh's path to him first (vr_ai_props.qc VR_NAV_Step: through the gate's teleporter link, lined up with its
+    // opening; Quake's chase below went at the spot past the face from wherever it stood). None (a gate its box doesn't
+    // fit, no link for it): as before.
+    if(via > 0 && VR_NAV_Step(dist))
+    {
+        return;
+    }
     if(via <= 0)
     {
         self.ideal_yaw = vectoyaw(VR_AI_Origin(self.enemy) - self.origin);
