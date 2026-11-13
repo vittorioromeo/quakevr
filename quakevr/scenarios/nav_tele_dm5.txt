@@ -5,10 +5,12 @@
 # ("walked") or was taken by Quake's teleport ("teleport"); the summary counts both. Verdict line: nav_tele_dm5: N
 # passed, M failed (a trial passes when through in time, stuck under 0.5 s). You are put past each trial's own
 # destination ([past] 1, NAVMESH.md 19): from the start you stood beside gate 1, so its walkers just ran at you.
+# notarget: none wakes and fights the others while the navmesh builds (they killed each other, 2026-11-13).
 title Teleporters: monsters walk through dm5's teleporters seamlessly, from ten angles
 map dm5
 start 796 314 216 180
 god
+notarget
 spawn monster_army 150 0
 spawn monster_dog 150 64
 spawn monster_ogre 150 -64
