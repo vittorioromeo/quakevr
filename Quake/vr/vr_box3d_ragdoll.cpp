@@ -1587,7 +1587,7 @@ namespace
 void stirPick(RagdollBodies& r, double now, float strength)
 {
     RagdollBodies::Stir& s = r.stir;
-    const float rate = za::clamp(vr_knockdown_stir_rate.value, 0.1f, 4.f);
+    const float rate = za::clamp(vr_knockdown_stir_rate.value, 0.1f, 12.f);
     if(s.seed == 0u)
     {
         s.seed = (static_cast<uint32_t>(r.num) * 2654435761u) ^ static_cast<uint32_t>(r.born * 977.0) ^ 0x9E3779B9u;
@@ -1678,7 +1678,7 @@ constexpr float stirStill = 0.3f;        // this (m/s)
 void stirFrame(edict_t* ent, RagdollBodies& r)
 {
     RagdollBodies::Stir& s = r.stir;
-    const float strength = za::clamp(vr_knockdown_stir.value, 0.f, 3.f);
+    const float strength = za::clamp(vr_knockdown_stir.value, 0.f, 10.f);
     const double now = qcvm->time;
     const ragactive::State& a = r.active;
     // (A fall: landed a moment ago, or down and still -- its pelvis slow -- before its landing is told.)

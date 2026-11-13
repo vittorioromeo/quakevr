@@ -1363,8 +1363,8 @@ QVR_TUNABLE_SLIDER(vr_knockdown_ledge_drop, "Ledge Height", 24.0f, 256.0f, 8.0f,
 QVR_TUNABLE_SLIDER(vr_knockdown_ledge_reach, "Ledge Reach", 0.25f, 3.0f, 0.05f, "%.2fx", 0.0f, 10.0f, "How far ahead a ledge is looked for, times how far the shove would carry it (the hop and the slide). 1: as far as it goes; less: only ledges close by force the knockdown; more: further ones too.")
 QVR_TUNABLE_SLIDER(vr_knockdown_ledge_margin, "Ledge Margin", 0.0f, 128.0f, 4.0f, "%.0f units", 0.0f, 512.0f, "How far past that a ledge still counts, in units (16: about a monster's half width).")
 QVR_TUNABLE_SLIDER(vr_knockdown_wiggle_pause, "Struggling Pause", 0.0f, 5.0f, 0.25f, "%.2f s", 0.0f, 5.0f, "Pause between bursts of movement. 0: continuous.")
-QVR_TUNABLE_SLIDER(vr_knockdown_stir, "Concussed Stirring", 0.0f, 3.0f, 0.1f, "%.1fx", 0.0f, 3.0f, "A living enemy knocked down and lying limp stirs now and then: a slow head turn, a hand's twitch, an arm or a leg drawn in. How far each moves. 0: off.")
-QVR_TUNABLE_SLIDER(vr_knockdown_stir_rate, "Stirring Rate", 0.1f, 4.0f, 0.1f, "%.1fx", 0.1f, 4.0f, "How often it stirs, times as often (1: a move every 1 to 4 seconds).")
+QVR_TUNABLE_SLIDER(vr_knockdown_stir, "Concussed Stirring", 0.0f, 10.0f, 0.1f, "%.1fx", 0.0f, 10.0f, "A living enemy knocked down and lying limp stirs now and then: a slow head turn, a hand's twitch, an arm or a leg drawn in. How far each moves. 0: off.")
+QVR_TUNABLE_SLIDER(vr_knockdown_stir_rate, "Stirring Rate", 0.1f, 12.0f, 0.1f, "%.1fx", 0.1f, 12.0f, "How often it stirs, times as often (1: a move every 1 to 4 seconds).")
 
 QVR_TUNABLE_GROUP("Combat > Melee")
 QVR_TUNABLE_SLIDER(vr_quad_melee_damage, "Quad: Extra Melee Damage", 1.0f, 4.0f, 0.05f, "x%.2f", 1.0f, 16.0f, "With Quad Damage, melee does this much more on top of the x4 every weapon gets. 1: like any weapon (x4 in all); the old Quake VR had 2.75 (x11 in all).")
