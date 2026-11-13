@@ -69,6 +69,7 @@ struct Page
 [[nodiscard]] za::Vector<Item> pageSearch();
 [[nodiscard]] za::Vector<Item> pageConsole();
 [[nodiscard]] za::Vector<Item> pageMaps();
+[[nodiscard]] za::Vector<Item> pageMapsSkill();
 // (Settings with their home on another page link to it: one home per setting.)
 [[nodiscard]] za::Vector<Item> pageMain();
 [[nodiscard]] za::Vector<Item> pageVrsHud();
@@ -467,6 +468,7 @@ inline constexpr Page pages[] = {
     {"Animation Recorder", pageAnimRecorder, pageDebug, LevelDeveloper}, // (vr_menu_debug.inc; vr_animrec.cpp, ANIMATIONS.md)
     {"Visor HUD Look", pageVisorSettings, pageLocomotionSettings}, // (vr_menu_pages.inc; vr_visor.cpp)
     {"Flat Keys", pageFlatKeys, pageLocomotionSettings}, // (vr_menu_pages.inc; vr_flatplay.hpp keyCvars)
+    {"Play: Difficulty", pageMapsSkill, pageMaps, LevelStandard}, // (the Map Library's Play picker; vr_menu_maps.inc)
 #ifndef QVR_RELEASE
     {"Tunables", pageTunables, pageDebug, LevelDeveloper}, // a development build's (vr_menu_tunables.inc; vr_tunables.cpp)
     // Its submenus, a page a depth (titled with the submenu shown: tunablesTitle).

@@ -2140,7 +2140,49 @@ za::String madeFor(const mapindex::Entry& e)
     return folder;
 }
 
-bool play(const za::String& sha, const char* map)
+bool mapHasSkillSelect(const char* map, const za::String& sha)
+{
+    FILE* f = nullptr;
+    if(sha.size())
+    {
+        const za::String own = addonDir(sha) + "/maps/" + lowered(za::String{map}) + ".bsp";
+        if(files::isFile(own.cStr()))
+        {
+            f = Sys_fopen(own.cStr(), "rb");
+        }
+    }
+    if(!f && COM_FOpenFile(va("maps/%s.bsp", map), &f, nullptr) < 12)
+    {
+        f = nullptr; // (not found: COM_FOpenFile leaves no file open then)
+    }
+    if(!f)
+    {
+        return false;
+    }
+    // The header: the version (29, or BSP2's / 2PSB's magic), then the lumps' {offset, length}; the entities first.
+    const long base = ftell(f);
+    int head[3] = {0, 0, 0};
+    bool found = false;
+    if(fread(head, sizeof(int), 3, f) == 3 && head[1] > 0 && head[2] > 0 && head[2] < (16 << 20))
+    {
+        za::String text;
+        text.resize(static_cast<za::SizeT>(head[2]));
+        if(fseek(f, base + head[1], SEEK_SET) == 0 && fread(&text[0], 1, text.size(), f) == text.size())
+        {
+            found = strstr(text.cStr(), "\"trigger_setskill\"") != nullptr;
+        }
+    }
+    fclose(f);
+    return found;
+}
+
+bool needsSkillPick(const za::String& sha, const char* map)
+{
+    const za::String name = map && *map ? lowered(za::String{map}) : startMap(sha);
+    return name.empty() || !mapHasSkillSelect(name.cStr(), sha);
+}
+
+bool play(const za::String& sha, const char* map, int skill)
 {
     ensureStarted();
     const mapindex::Entry* e = mapindex::find(sha);
@@ -2186,6 +2228,10 @@ bool play(const za::String& sha, const char* map)
     playProblemSha = za::String{};
     playProblemText = za::String{};
     playPending = sha;
+    if(skill >= 0 && skill <= 3)
+    {
+        Cvar_SetValue("skill", static_cast<float>(skill));
+    }
     // Cbuf_InsertText, not AddText: this runs next. AddText would put it after the commands already queued (a test
     // script's `screenshot; quit` would be run first, and the map never started).
     Cbuf_InsertText((za::String{"map "} + name + "\n").cStr());

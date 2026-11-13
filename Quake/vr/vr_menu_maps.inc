@@ -475,7 +475,65 @@ void mapsInstallAt(int r)
     S_LocalSound("misc/menu3.wav");
 }
 
-// Play: its own action, for a package whose files are in the game dir already.
+// The difficulty picker (a page of its own, so flat and VR share it): what Play was pressed for, and the page's rows.
+// Back is the page's own (the library again). The last choice is kept (vr_maps_skill) and starts selected.
+struct MapsSkillPick
+{
+    za::String sha;
+    za::String map; // "" : the package's start map
+};
+MapsSkillPick skillPick;
+
+[[nodiscard]] const char* mapsSkillLabel(int skill)
+{
+    static constexpr const char* names[4] = {"Easy", "Normal", "Hard", "Nightmare"};
+    skill = CLAMP(0, skill, 3);
+    // Bloody Nightmare in progress (vr_mg3_bn_start set): Play keeps it; said on the Nightmare row.
+    return skill == 3 && vr_mg3_bn_start.value != 0.f ? "Nightmare (Bloody Nightmare stays on)" : names[skill];
+}
+
+[[nodiscard]] const char* mapsSkillHelp(int skill)
+{
+    static constexpr const char* help[4] = {
+        "Easy: fewer and weaker monsters. Starts the map now.", "Normal: Quake's usual difficulty. Starts the map now.",
+        "Hard: more monsters, hitting harder. Starts the map now.", "Nightmare: the hardest. Starts the map now."};
+    return help[CLAMP(0, skill, 3)];
+}
+
+void mapsSkillChosen(int skill)
+{
+    Cvar_SetValue("vr_maps_skill", static_cast<float>(skill));
+    if(mapinstall::play(skillPick.sha, skillPick.map.size() ? skillPick.map.cStr() : nullptr, skill))
+    {
+        S_LocalSound("misc/menu3.wav");
+        return;
+    }
+    S_LocalSound("misc/menu1.wav");
+    goBack(); // (the library shows why: the package's line)
+}
+
+za::Vector<Item> pageMapsSkill()
+{
+    za::Vector<Item> items{header("Play: Difficulty")};
+    for(int i = 0; i < 4; i++)
+    {
+        items.pushBack(row(mapsSkillLabel, mapsSkillHelp, mapsSkillChosen, i, -1));
+    }
+    return items;
+}
+
+// Play pressed: the picker (the last used selected), or the map at once when it has its own skill selection.
+void mapsAskSkill(const za::String& sha, const char* map)
+{
+    skillPick.sha = sha;
+    skillPick.map = map ? za::String{map} : za::String{};
+    const int page = pageIndex(pageMapsSkill);
+    openFromAnywhere(page);
+    ui().cursors[page] = 1 + CLAMP(0, static_cast<int>(vr_maps_skill.value + 0.5f), 3); // (item 0: the header)
+}
+
+// Play: its own action, for a package whose files are in the game dir already. Asks the difficulty first, unless the
+// map to start has its own skill selection (a pack's start hall).
 void mapsPlayAt(int r)
 {
     if(r < 0 || r >= static_cast<int>(mapPage.results.size()))
@@ -483,7 +541,13 @@ void mapsPlayAt(int r)
         return;
     }
     const mapindex::Entry* e = mapPage.results[r];
-    if(mapinstall::play(za::String{mapindex::index().field(e->sha256)}))
+    const za::String sha{mapindex::index().field(e->sha256)};
+    if(mapinstall::installed(sha) && mapinstall::needsSkillPick(sha))
+    {
+        mapsAskSkill(sha, nullptr);
+        return;
+    }
+    if(mapinstall::play(sha))
     {
         S_LocalSound("misc/menu3.wav");
     }

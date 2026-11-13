@@ -409,6 +409,42 @@ void qvr::menu::mapsPagePick_f()
         mapPage.picked >= 0 ? "" : " (none: out of the list)");
 }
 
+// maps_skill_test: the Map Library's Play difficulty picker: a pack's start hall with skill selection skips it (id's
+// start), another map asks; the picker opens with the last choice selected, Back cancels (nothing saved), each choice
+// is saved and, with an installed package, sets `skill` and loads (slipseer_test's install covers that half).
+void qvr::menu::mapsSkillTest_f()
+{
+    testkit::Tally t;
+    auto check = [&](bool ok, const char* what) {
+        if(t.check(ok, "maps_skill_test", what))
+        {
+            Con_Printf("maps_skill_test: PASS %s\n", what);
+        }
+    };
+    check(mapinstall::mapHasSkillSelect("start"), "start.bsp has skill halls: no picker");
+    check(!mapinstall::mapHasSkillSelect("e1m1"), "e1m1 has none: the picker asks");
+    check(!mapinstall::mapHasSkillSelect("nosuchmap"), "a missing map: no skill halls");
+    const float before = vr_maps_skill.value;
+    for(int last = 0; last < 4; last++)
+    {
+        Cvar_SetValue("vr_maps_skill", static_cast<float>(last));
+        mapsAskSkill(za::String{"0000"}, "e1m1");
+        const int page = pageIndex(pageMapsSkill);
+        check(ui().page == page && ui().cursors[page] == 1 + last, va("picker open, last choice %d selected", last));
+        goBack();
+        check(ui().page != page && static_cast<int>(vr_maps_skill.value + 0.5f) == last, "Back cancels, nothing saved");
+    }
+    Cvar_SetValue("vr_maps_skill", 1.f);
+    for(int pick = 0; pick < 4; pick++)
+    {
+        mapsAskSkill(za::String{"0000"}, "e1m1");
+        mapsSkillChosen(pick); // (no such package installed: Play refuses, the choice is still kept)
+        check(static_cast<int>(vr_maps_skill.value + 0.5f) == pick, va("choice %d saved", pick));
+    }
+    Cvar_SetValue("vr_maps_skill", before);
+    t.verdict("maps_skill_test");
+}
+
 // maps_page_stats (Debug > Tools).
 void qvr::menu::mapsPageStats_f()
 {
