@@ -11,6 +11,17 @@
 za::Vector<Item> pageMain()
 {
     return {
+        // (Player feedback, ROUND25.md "Gameplay preset": "a preset to make the mod as vanilla Quake as possible... going
+        // through so many options can be daunting": one press, and one to go back.)
+        action("Classic Quake", gameplaypresets::classicApply)
+            .help("As close to Quake as the mod allows, in one press: Graphics Off (Quake)'s look, Gore Minimal and "
+                  "Gameplay Classic (Quake's monsters, combat and teleporters). Your hands, holsters, comfort and controls "
+                  "stay as they are. Back to My Settings sets all three back."),
+        info(gameplaypresets::classicLine),
+        action("Back to My Settings", gameplaypresets::classicBack)
+            .help("Your own graphics, gore and gameplay settings back, as they were before you first picked a preset of "
+                  "each (or as you last saved them as My Settings)."),
+
         header("Calibration"),
         open("Height and Hand Calibration", pageIndex(pageVrsHeightHands))
             .help("Your height (Set Height Now measures it), the world's scale, the floor's height, and the drawn hands "
@@ -39,6 +50,10 @@ za::Vector<Item> pageMain()
         open("Gameplay", pageIndex(pageVrsGameplay))
             .help("The big gameplay choices on one page: armed humanoids, weapon drops, enemy shoves, knockdowns, "
                   "holding enemies, embedded blades, parry and bash, stamina, bullet time, gore, the Survival Arena."),
+        open("Gameplay Presets", pageIndex(pageGameplayPresets))
+            .help("Classic (as close to Quake as the mod allows), Light (Quake's rules with seamless teleporters, "
+                  "reloading, melee and physics props) or Unleashed (as shipped): every gameplay switch at once. My "
+                  "Settings sets your own back."),
         open("Item Collection", pageIndex(pageVrsItemCollection))
             .help("How you pick up ammo, health and backpacks (Item Pickup Mode): carry them by hand and put them away at "
                   "a holster, take them the moment you grip them, or walk into them as in Quake."),
@@ -207,6 +222,10 @@ int itemCollectionPageMode = -1; // the mode the page was built for (Backpacks T
 [[nodiscard]] za::Vector<Item> pageVrsGameplay()
 {
     return {
+        info(gameplaypresets::menuStateLine),
+        open("Gameplay Presets", pageIndex(pageGameplayPresets))
+            .help("Classic, Light and Unleashed (as shipped) set the gameplay switches at once; My Settings sets yours "
+                  "back. Also on VR Settings."),
         header("Enemies"),
         row(opt::vr_agrunt_repl),
         row(opt::vr_enemy_drops),
@@ -233,6 +252,36 @@ int itemCollectionPageMode = -1; // the mode the page was built for (Backpacks T
         row(opt::vr_arena)
             .help("The Survival Arena's waves of monsters in any map you play, from its own spots (an arena map runs "
                   "them anyway). More: Advanced VR Options > Combat > Survival Arena."),
+    };
+}
+
+// VR Settings > Gameplay Presets (vr_gameplaypresets.cpp; ROUND25.md, "Gameplay preset"; the rows and their taste calls:
+// docs/vr-port/GAMEPLAY_PRESET.md): as the Graphics Presets page.
+[[nodiscard]] za::Vector<Item> pageGameplayPresets()
+{
+    return {
+        info(gameplaypresets::menuStateLine),
+        info(gameplaypresets::menuNoteLine),
+        header("Presets"),
+        action("Classic", []() { gameplaypresets::menuApply(gameplaypresets::levelClassic); })
+            .help("As close to Quake's monsters, combat and movement as the mod allows: Quake's grunts, knights and AI, "
+                  "no knockdowns, staggers, shoves, stamina, parry or bullet time, no reloading, Quake's teleporters, no "
+                  "crates or physics props. Your hands, grabbing and holsters stay. Some show from the next map."),
+        action("Light", []() { gameplaypresets::menuApply(gameplaypresets::levelLight); })
+            .help("Quake's monsters and rules, with the vanilla-but-better things kept: seamless teleporters, reloading, "
+                  "melee, parry and bash, physics props and crates, ragdolls. No armed grunts, knockdowns, staggers, "
+                  "stamina, shoves, stealth AI or bullet time."),
+        action("Unleashed (as shipped)", []() { gameplaypresets::menuApply(gameplaypresets::levelUnleashed); })
+            .help("The game's defaults: every Quake VR gameplay feature on."),
+        header("Your Own"),
+        action("My Settings", gameplaypresets::menuRestoreMine)
+            .help("Your own gameplay settings back, exactly as they were before you first picked a preset (or as you "
+                  "last saved them). Switching between presets never changes them."),
+        action("Save as My Settings", gameplaypresets::menuSaveMine)
+            .help("Keep the gameplay settings as they are now as My Settings, in place of the ones kept. Press it twice."),
+        open("Every Gameplay Switch", pageIndex(pageVrsGameplay))
+            .help("The big ones on one page (more on Advanced VR Options > Combat): change any after picking a preset; "
+                  "the line above then says Custom."),
     };
 }
 

@@ -48,6 +48,7 @@
 #include "vr_gfxpresets.hpp"
 #include "vr_gore.hpp"
 #include "vr_gorepresets.hpp"
+#include "vr_gameplaypresets.hpp"
 #include "vr_bloodstream.hpp"
 #include "vr_goresound.hpp"
 #include "vr_bloodprints.hpp"
@@ -2339,6 +2340,7 @@ extern "C" void VR_Init()
     lighting::init();
     gfxpresets::init(); // vr_graphics_preset, My Settings (vr_gfxpresets.cpp)
     gorepresets::init(); // vr_gore_preset, vr_gore_preset_status, vr_gore_preset_test (vr_gorepresets.cpp)
+    gameplaypresets::init(); // vr_gameplay_preset, vr_classic_quake, vr_gameplay_preset_test (vr_gameplaypresets.cpp)
     flatlook::init(); // vr_flatlook_info (vr_flatlook.cpp)
     visor::init();    // vr_flat_visor_report, vr_flat_visor_fx (vr_visor.cpp)
     stereosingle::init(); // vr_stereo_single_info

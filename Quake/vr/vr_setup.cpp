@@ -6,6 +6,7 @@
 #include "vr_config.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_gameplaypresets.hpp"
 #include "vr_hands.hpp"
 #include "vr_holstersetup.hpp"
 #include "vr_input.hpp"
@@ -77,7 +78,19 @@ constexpr Option options[] = {
     {"reload", "Reloading", "vr_reload_mode", {{3.f, "Immersive"}, {2.f, "Hip Holsters"}, {1.f, "All Holsters"}, {0.f, "Off"}}, 4},
     {"twohand", "Two-Handed Aim", "vr_2h_mode", {{2.f, "Virtual Stock"}, {1.f, "Basic"}, {0.f, "Off"}}, 3},
     {"tips", "Tips", "vr_tips", {{1.f, "Floating Screens"}, {2.f, "Wrist Gadget"}, {0.f, "Off"}}, 3},
+    // Classic Quake (vr_gameplaypresets.cpp): Graphics Off, Gore Minimal, Gameplay Classic; pressed again, the three
+    // presets' My Settings back. vr_classic_quake shows whether the settings match it (syncOption, before each read).
+    {"classic", "Classic Quake", "vr_classic_quake", {{1.f, "On"}, {0.f, "Off: your settings"}}, 2},
 };
+
+// The option's cvar as the settings are now (Classic Quake's is a state of three presets, not a saved setting).
+void syncOption(const Option& o)
+{
+    if(!strcmp(o.key, "classic"))
+    {
+        gameplaypresets::syncClassic();
+    }
+}
 
 [[nodiscard]] const Option* findOption(const char* key)
 {
@@ -112,6 +125,7 @@ void option_f()
                    "saves the config (the calibration room's buttons)\n");
         for(const Option& o : options)
         {
+            syncOption(o);
             const cvar_t* var = Cvar_FindVar(o.cvar);
             const int at = var ? currentPreset(o, *var) : -1;
             Con_Printf("  %-10s %s (%s %s): %s\n", o.key, o.label, o.cvar, var ? var->string : "?",
@@ -126,6 +140,7 @@ void option_f()
         Con_Printf("vr_setup_option: no setting \"%s\" (vr_setup_option list)\n", Cmd_Argv(1));
         return;
     }
+    syncOption(*o);
     const int at = currentPreset(*o, *var);
     const int next = Cmd_Argc() > 2 ? CLAMP(0, Q_atoi(Cmd_Argv(2)), o->count - 1) : (at + 1) % o->count;
     Cvar_SetValueQuick(var, o->presets[next].value);
@@ -271,6 +286,7 @@ void drawOptionScreens()
         {
             continue;
         }
+        syncOption(*o);
         const int at = currentPreset(*o, *var);
         const char* text = at >= 0 ? o->presets[at].name : va("custom: %s", var->string);
         // Above the button at rest, just off the panel it is set in (it is pushed along movedir, into the panel): still

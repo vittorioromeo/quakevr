@@ -1049,6 +1049,14 @@ za::Vector<Item> pageDebugTests()
             .help("The main hand's weapon carried by the off hand, as letting go of a two-handed weapon does."),
         command("Take It Back", "vr_test_weaponinst 6; impulse 120").help("The main hand takes the carried weapon's handle."),
         command("Switch Hands", "vr_test_weaponinst 7; impulse 120").help("The main hand's weapon into the off hand (8: back)."),
+        header("Presets"),
+        command("Gameplay Preset and Classic Quake", "vr_gameplay_preset_test")
+            .help("Each level sets every row, Unleashed is the defaults, Custom, My Settings kept and set back, Classic "
+                  "Quake and Back to My Settings (the console says \"gameplaypreset: N passed, M failed\"). Your own My "
+                  "Settings and settings untouched."),
+        command("Gore Preset", "vr_gore_preset_test").help("The Gore preset's check (in a map)."),
+        command("Presets' State", "vr_graphics_preset_status; vr_gore_preset_status; vr_gameplay_preset_status")
+            .help("Which level each preset's settings match, and the rows that differ when Custom."),
         header("Reloading"),
         command("Shotgun in the Off Hand", "impulse 154; wait; vr_test_weaponinst 7; impulse 120; give s 40")
             .help("A loaded shotgun into the off hand and 40 shells: the main hand is free for the ammo pouch."),

@@ -7,11 +7,23 @@
 //
 // Console: vr_gore_preset_status prints the state and, when Custom, the rows that differ from the nearest choice;
 // vr_gore_preset_test is the headless check (prints "gorepreset: N passed, M failed").
+//
+// The machinery is vr_presets.cpp's (the Graphics and Gameplay presets' too): the first choice applied keeps the
+// settings as they were as My Settings (<gamedir>/gore_my_settings.cfg), which restoreMine sets back (Classic Quake's
+// Back to My Settings; ROUND25.md, "Gameplay preset").
 
 #pragma once
 
+namespace qvr::presetcore
+{
+class Kind;
+}
+
 namespace qvr::gorepresets
 {
+
+// The machinery's state for the gore table (Classic Quake, tests).
+[[nodiscard]] presetcore::Kind& kind();
 
 inline constexpr int choiceCustom = 0;
 inline constexpr int choiceFull = 1;
@@ -25,6 +37,12 @@ void apply(int choice);
 
 // The choice the settings match exactly (1..3), or 0 (Custom).
 [[nodiscard]] int matching();
+
+// My Settings set back (false: none kept), and vr_gore_preset synced.
+bool restoreMine();
+
+// "Full", "Minimal (My Settings)", "Custom"...
+[[nodiscard]] const char* stateName();
 
 // vr_gore_preset set to what the settings match now (the menu's draw).
 void sync();
