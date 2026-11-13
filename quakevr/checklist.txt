@@ -20,6 +20,7 @@ Flat-screen: hold the axe (then a sword, the crowbar, Mjolnir, the super axe) wi
 Installer: install into a fresh folder; the "Set up the game" page shows the settings tree; pick Snap 45, Left-handed and Medium: set in the game. Change Turning in the game, run Update, change only Turn Speed: Turning stays as you set it.
 
 [3. Flat-screen: presets and gore settings]
+Flat-screen or VR: Classic Quake (or Style Classic): no gun ever needs reloading, and e1m1's grunts are all plain shotgun grunts.
 
 [4. Flat-screen: monsters and AI]
 Flat-screen or VR: Melee Only with the dagger, "maxplayers 2" and a bot (impulse 100): it holds the dagger, skips guns and ammo, and fights with the dagger.
