@@ -236,7 +236,72 @@ void() VR_RT_Pickups =
             sprintf("a new run without it: nothing swapped (%g)", vr_rt_swapped));
         VR_Test_Check(VR_RT_Links() == cvar_hget(cvarh_vr_run_test_b) && total_monsters == cvar_hget(cvarh_vr_run_test_c),
             "the map's links and monsters as with it on");
-        VR_RT_End();
+        // The run's one seed: two new runs with the same choices differ (pickups, the map's content seed: crates and
+        // barrels, enemy swaps); a changelevel, a revisit and a saved game's load keep a run's. vr_map_seed -1: the
+        // content seed in a test session too (else 0 there); with sv_random_seed set every run would get its seed (the
+        // second run's check says so).
+        localcmd("vr_map_seed -1\nvr_runpick_pickups 1\nvr_run start\nmap e1m1\n");
+        VR_RT_To(13, TRUE);
+    }
+    else if(step == 13 || step == 14)
+    {
+        VR_RT_Layout(TRUE);
+        VR_Test_Check(vr_map_content_seed > 0 && cvar_hget(cvarh_vr_run_seed) > 0, sprintf("run %g: its seed %g, the map's "
+            "content seed %g", step - 12, cvar_hget(cvarh_vr_run_seed), vr_map_content_seed));
+        if(step == 14)
+        {
+            VR_Test_Check(cvar_hget(cvarh_vr_run_seed) != cvar_hget(cvarh_vr_run_test_b) &&
+                vr_map_content_seed != cvar_hget(cvarh_vr_run_test_c) && vr_rt_hash != cvar_hget(cvarh_vr_run_test_a),
+                sprintf("a second new run, the same choices: another seed (%g, was %g), content seed (%g, was %g), "
+                    "pickups (hash %g, was %g)", cvar_hget(cvarh_vr_run_seed), cvar_hget(cvarh_vr_run_test_b),
+                    vr_map_content_seed, cvar_hget(cvarh_vr_run_test_c), vr_rt_hash, cvar_hget(cvarh_vr_run_test_a)));
+        }
+        cvar_set("vr_run_test_a", ftos(vr_rt_hash));
+        cvar_set("vr_run_test_b", ftos(cvar_hget(cvarh_vr_run_seed)));
+        cvar_set("vr_run_test_c", ftos(vr_map_content_seed));
+        if(step == 13)
+        {
+            localcmd("vr_run start\nmap e1m1\n");
+            VR_RT_To(14, TRUE);
+        }
+        else
+        {
+            localcmd("save mp_rpk_seed\nchangelevel e1m2\n");
+            VR_RT_To(15, TRUE);
+        }
+    }
+    else if(step == 15)
+    {
+        VR_Test_Check(mapname == "e1m2" && cvar_hget(cvarh_vr_run_seed) == cvar_hget(cvarh_vr_run_test_b),
+            sprintf("changelevel to e1m2: the run's seed kept (%g)", cvar_hget(cvarh_vr_run_seed)));
+        localcmd("changelevel e1m1\n");
+        VR_RT_To(16, TRUE);
+    }
+    else if(step == 16 || step == 18)
+    {
+        VR_RT_Layout(TRUE);
+        string what = step == 16 ? "back on e1m1 in the run" : "the run's save loaded after another run";
+        VR_Test_Check(cvar_hget(cvarh_vr_run_seed) == cvar_hget(cvarh_vr_run_test_b) &&
+            vr_map_content_seed == cvar_hget(cvarh_vr_run_test_c) && vr_rt_hash == cvar_hget(cvarh_vr_run_test_a),
+            sprintf("%s: its seed (%g), content seed (%g), pickups (hash %g, was %g)", what, cvar_hget(cvarh_vr_run_seed),
+                vr_map_content_seed, vr_rt_hash, cvar_hget(cvarh_vr_run_test_a)));
+        if(step == 16)
+        {
+            localcmd("vr_run start\nmap e1m1\n");
+            VR_RT_To(17, TRUE);
+        }
+        else
+        {
+            localcmd("vr_map_seed 0\nvr_runpick_pickups 0\n");
+            VR_RT_End();
+        }
+    }
+    else if(step == 17)
+    {
+        VR_Test_Check(cvar_hget(cvarh_vr_run_seed) != cvar_hget(cvarh_vr_run_test_b),
+            sprintf("a third new run: another seed (%g)", cvar_hget(cvarh_vr_run_seed)));
+        localcmd("load mp_rpk_seed\n");
+        VR_RT_To(18, TRUE);
     }
     else if(step == 50)
     {

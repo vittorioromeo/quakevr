@@ -1386,3 +1386,19 @@ Play on an installed package asks Easy / Normal / Hard / Nightmare first (page "
 - **Tests:** the loop above; nav_tele_metric (seeded) 18/2 and vr_arena_test 43 13/0, outcome md5 f8081035 / 19d8a9d4
   as navcrash's; `scratch/c2_enemies.py` id and AD: every QC check PASS (its repeated `vr_runpick_enemycount 3` FAILs
   only the run-cvars line: 3x is value 2).
+- **The run's one seed** (his ask: "the randomization uses the same seed that crates/barrels use, and the seed is
+  changed every new run even if the chosen mutators are the same"): `vr_run_seed` is drawn from the clock at every run
+  start (`runsetup::start`, every Run Setup Start: New Game, library, campaign, hub; it was `rand()`, the same first
+  value each launch), or sv_random_seed's in tests; a game begun without a run's start gets one at its first map
+  (`runsetup::ensureSeed`, VR_OnSpawnServerBeforeLoad). The maps' content seed (crates and barrels, rocks, armed
+  replacements and armour, Randomized Enemies via `vr_map_content_seed`) is now the run seed mixed
+  (`srvrandom::chooseMapSeed`: "the run's"), not a fresh clock value per map load: a changelevel, a revisit and a
+  restart keep a run's layout; a new run changes it. Randomized Pickups reads `vr_run_seed`. Enemy Count's placement
+  has no randomness. The save's `// qvr_run` line ends ` seed=N`; its load sets it back; a save without it draws a new
+  one. Unchanged: vr_fresh_map_seeds 0 (the map's name alone), vr_map_seed > 0, a test session's 0 (vr_map_seed -1
+  turns the run's on there), vr_bench_seed's seeded loads.
+- **Tests:** `vr_runpickups_test 1` 31/0 (new: another run's seed then the first run's save and a changelevel: the
+  first run's e1m2 pickups; two new runs with the same choices: other seed, content seed and pickups; changelevel and
+  back, and the save's load after a third run: the run's seed, content seed and pickups); `vr_ironman_test 1` 12/0
+  (it failed 11/1 on its own before ensureSeed: run alone, its game had no run seed and the restart rolled anew);
+  `vr_runsetup_test` 49/0.

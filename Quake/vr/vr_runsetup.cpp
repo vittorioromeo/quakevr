@@ -8,6 +8,7 @@
 #include "vr_gorepresets.hpp"
 #include "vr_presets.hpp"
 #include "vr_progs.hpp"
+#include "vr_srvrandom.hpp"
 #include "vr_testkit.hpp"
 
 #include <cstdio>
@@ -202,13 +203,22 @@ struct State
 {
     int pending[registryCount]{};
     bool pendingHave[registryCount]{};
-    int pendingSeed{0}; // the run's seed (vr_run_seed: `seed=`), 0 when the line has none (saved before it was)
+    int pendingSeed{0};      // the run's seed (vr_run_seed: `seed=`)
+    bool pendingHaveSeed{false}; // ... the line has one (a save from before it was: a new one drawn)
     bool haveLine{false};
     bool reading{false}; // readSaveLines ran for the save being loaded
     char line[256]{};
     char summary[256]{};
 };
 State state;
+
+// A new run seed (1..0xFFFF, exact in QC's floats): sv_random_seed's when a test fixes it, else the clock's (not
+// rand()'s: the C library's sequence starts the same each launch).
+[[nodiscard]] int newSeed()
+{
+    const int fixed = static_cast<int>(Cvar_VariableValue("sv_random_seed"));
+    return fixed != 0 ? (fixed & 0xFFFF) + 1 : static_cast<int>(srvrandom::freshSeed(0xFFFFu));
+}
 
 void setActive(int i, int value)
 {
@@ -600,12 +610,19 @@ void start()
     {
         applyActive(i, Phase::Start);
     }
-    // The run's seed (Randomized Pickups: a map's layout the same all through the run): sv_random_seed's when a test
-    // fixes it, else a new one. In the saved games (`seed=`): a loaded run's next maps roll as that run's did.
-    const int fixed = static_cast<int>(Cvar_VariableValue("sv_random_seed"));
-    Cvar_SetValueQuick(&vr_run_seed, static_cast<float>(fixed != 0 ? (fixed & 0xFFFF) + 1 : 1 + rand() % 0xFFFF));
+    // The run's seed (Randomized Pickups, and the maps' content: a map's layout the same all through the run), a new
+    // one every run even with the same choices. In the saved games (`seed=`): a loaded run's next maps roll as its did.
+    Cvar_SetValueQuick(&vr_run_seed, static_cast<float>(newSeed()));
     Cvar_Set("vr_run_hubgo", "0");
     Con_Printf("Run setup: %s\n", summary(false));
+}
+
+void ensureSeed()
+{
+    if(vr_run_seed.value <= 0.f)
+    {
+        Cvar_SetValueQuick(&vr_run_seed, static_cast<float>(newSeed()));
+    }
 }
 
 void endRun()
@@ -700,6 +717,7 @@ void readSaveLines(const char* text)
         state.pendingHave[i] = false;
     }
     state.pendingSeed = 0;
+    state.pendingHaveSeed = false;
     const char* p = text ? strstr(text, "\n// qvr_run ") : nullptr;
     if(!p)
     {
@@ -720,6 +738,7 @@ void readSaveLines(const char* text)
         if(!strcmp(key, "seed"))
         {
             state.pendingSeed = value;
+            state.pendingHaveSeed = true;
             continue;
         }
         const int i = find(key);
@@ -743,12 +762,9 @@ void onLoadGame()
         Con_Printf("Run setup: this saved game has no run choices (saved before they were): the mutators at their "
                    "defaults, the presets as they are\n");
     }
-    if(state.pendingSeed != 0)
-    {
-        // The saved run's seed (Randomized Pickups: its next maps' layouts as that run's, not the run played before the
-        // load); a save from before the seed was saved keeps the current one.
-        Cvar_SetValueQuick(&vr_run_seed, static_cast<float>(state.pendingSeed));
-    }
+    // The saved run's seed: its next maps' pickups, crates and barrels, enemy swaps as that run's, not the run played
+    // before the load. A save from before the seed was saved: a new one (sv_random_seed's when a test fixes it).
+    Cvar_SetValueQuick(&vr_run_seed, static_cast<float>(state.pendingHaveSeed ? state.pendingSeed : newSeed()));
     for(int i = 0; i < registryCount; i++)
     {
         const Mutator& m = registry[i];

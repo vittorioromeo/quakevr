@@ -638,6 +638,10 @@ extern "C" void VR_OnSpawnServerBeforeLoad()
     // The training dummy's attacks (parry practice; QC vr_dummy.qc) are off at every map load, a saved game's too.
     Cvar_SetQuick(&qvr::vr_dummy_attacks, "0");
     // The map's content seed (vr_fresh_map_seeds), for QC's rolls as the map spawns and the planners at its first frame.
+    if(!loadingSaveGame)
+    {
+        qvr::runsetup::ensureSeed(); // (a game begun without a run's start: one seed from its first map on)
+    }
     qvr::srvrandom::chooseMapSeed(loadingSaveGame);
     if(sv_bindings.mapContentSeed)
     {
