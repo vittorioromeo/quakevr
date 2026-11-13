@@ -1756,3 +1756,9 @@ His flat report: "ERROR: weapon clip less than zero" firing the shotgun, a spent
 - **Checklist:** the Gameplay preset "?" rows line was already gone; the stirring line moved to Flat-screen: monsters
   and AI; the flashlight and lean lines are ticked (left for the next sort).
 - **cltick1113:** retired 6 ticked checklist lines (dagger label, gore minimal, flashlight, lean, kd stir, dog gate; none had voice notes) and 3 unused scenes (flatlean, gore_presets, nav_tele_gate).
+
+## classic2: Classic = no reloading, plain grunts; checklist retire (agent/classic2, 2026-11-13)
+
+- **Rows:** Classic already had `vr_reload_mode` 0, `vr_agrunt_repl`/`vr_agknight`/`vr_agdknight` 0 and `vr_grunt_burst` 0; the gap was a gun's own `vr_reload_mode_<gun>` override (12 cvars, -1 follows the global) keeping a gun reloading. 12 rows added (Classic -1, Light/Unleashed default); GAMEPLAY_PRESET.md updated. Classic Quake and Run Setup Style=Classic apply the whole table (vr_runsetup_test 73/0).
+- **Tests:** `vr_gameplay_preset_test` 25/0 (extended: a per-gun override set before Classic is cleared, `reloadModeBest()` 0, no burst or armed knights); new `vr_gameplay_classic_check` (QC `VR_Classic_Check`) after `vr_classic_quake 1; map e1m1`: no gun reload mode, no burst rifle, 18 grunts, 0 armed humanoids: `classiccheck: 2 passed, 0 failed`.
+- **Checklist:** 36 ticked lines (no voice notes) retired, the FAIL line and the rest kept, 3 run-setup lines shortened; 16 unused scenes moved to scratch/old_*; checklist_tests_check 50/0.
