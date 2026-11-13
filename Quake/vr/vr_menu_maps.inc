@@ -1109,8 +1109,14 @@ void drawMapsDetail(const MapsLayout& m, const menupaint::Painter& p)
         }
         if(mod.size())
         {
+            const bool ad = mod == "Arcane Dimensions";
             mapPage.notes += za::String{mapPage.notes.empty() ? "" : " "} + "Made for " + mod +
-                             ", whose own progs Quake VR does not run: its monsters, items and effects are missing.";
+                             (ad ? (VR_CampaignInstalled(qvr::ad::campaignIndex)
+                                           ? ", which Quake VR plays natively: its monsters, items and effects work."
+                                           : ". Quake VR plays it natively, but needs your Arcane Dimensions 1.80 "
+                                             "(patch 1) installed for its monsters, items and effects; without it they "
+                                             "are missing.")
+                                 : ", whose own progs Quake VR does not run: its monsters, items and effects are missing.");
         }
     }
     const za::String& problem = mapinstall::playProblem(sha);
