@@ -86,6 +86,7 @@ Flat-screen or VR: shove a grunt standing at the very edge of a step or platform
 Monsters chasing you through a teleporter set in a wall line up in front of its opening, then walk straight in; none should hang on the frame or edges. {test:nav_tele_metric}
 Grunts that see you through one of vrteleporters' paired gates walk through the gate after you between shots instead of standing at its edge facing you. {test:nav_tele_metric_gates}
 With vr_nav_debug 2 (Debug), a monster's path through a teleporter shows: yellow to the trigger's middle, a dashed cyan jump to the destination, yellow on to you; it stays drawn while the monster walks in. {test:nav_tele_gate}
+Flat-screen or VR: armed humanoids with a gun and a melee weapon (the Gun and Melee Weapon chance, formerly Gun and Axe) now carry an axe or a dagger in the left hand, by the Axe and Dagger pool weights: walk up to one and it draws its dagger and stabs, back off and it goes back to its gun. {test:agrunt_repl_gundagger}
 
 [6. Both modes: weapons, ammo screens and housings]
 Flat-screen or VR: fire the grenade launcher and let an ogre lob at you: each grenade fizzes and ticks quicker and quicker until it blows, like a hand grenade with its pin pulled, and all three take the same 2.5 s from the shot or the pin to the blast (Thrown Grenades Tick in Batting and Catching turns the launched ones' ticking off). {test:grenade_countdown}
