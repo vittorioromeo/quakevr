@@ -2808,9 +2808,44 @@ struct ReachTest
     int need = 0; // 1 a drop, 2 a ride
     za::String only; // a classname: only that monster counts (the map's own are about too)
     bool armed = false;
+    bool wakePending = false; // a named monster not yet through its start-up (walkmonster_start_go) still to wake
 };
 ReachTest reachTest;
 bool teleTestNotes = false; // vr_nav_teletest under way: its walker's link steps printed as the reach test's are
+
+// The named monsters woken onto the player (FoundTarget), seen or not: the scene's foe may start out of his sight. One
+// not yet through its start-up (no FL_MONSTER: a scenario places it the same frame) is left for a later frame: waking it
+// at once replaces its start-up think (no drop to the floor, no takedamage, no FL_MONSTER).
+void wakeNamed()
+{
+    const progs::ServerVm vm;
+    edict_t* p = progs::playerEdict();
+    const func_t found = progs::findFunction("FoundTarget");
+    if(!p || !found || !reachTest.wakePending)
+    {
+        reachTest.wakePending = false;
+        return;
+    }
+    bool waiting = false;
+    const int oldSelf = pr_global_struct->self;
+    progs::forEachEdict(1, [&](edict_t* e) {
+        if(e->v.health > 0.f && e->v.classname && !strcmp(PR_GetString(e->v.classname), reachTest.only.cStr()) &&
+            e->v.enemy != EDICT_TO_PROG(p))
+        {
+            if(!(static_cast<int>(e->v.flags) & FL_MONSTER) && sv.qcvm.time < reachTest.since + 2.0)
+            {
+                waiting = true;
+                return;
+            }
+            e->v.enemy = EDICT_TO_PROG(p);
+            pr_global_struct->self = EDICT_TO_PROG(e);
+            pr_global_struct->time = sv.qcvm.time;
+            PR_ExecuteProgram(found);
+        }
+    });
+    pr_global_struct->self = oldSelf;
+    reachTest.wakePending = waiting;
+}
 
 void reachtest_f()
 {
@@ -2828,25 +2863,8 @@ void reachtest_f()
     reachTest.only = Cmd_Argc() > 5 ? Cmd_Argv(5) : "";
     reachTest.armed = true;
     state.drops = state.rides = state.linkFails = state.teles = state.telesBegun = 0;
-    // The named monsters woken onto the player (FoundTarget), seen or not: the scene's foe may start out of his sight.
-    const progs::ServerVm vm;
-    edict_t* p = progs::playerEdict();
-    const func_t found = progs::findFunction("FoundTarget");
-    if(!p || !found || !Cmd_Argv(5)[0])
-    {
-        return;
-    }
-    const int oldSelf = pr_global_struct->self;
-    progs::forEachEdict(1, [&](edict_t* e) {
-        if(e->v.health > 0.f && e->v.classname && !strcmp(PR_GetString(e->v.classname), reachTest.only.cStr()))
-        {
-            e->v.enemy = EDICT_TO_PROG(p);
-            pr_global_struct->self = EDICT_TO_PROG(e);
-            pr_global_struct->time = sv.qcvm.time;
-            PR_ExecuteProgram(found);
-        }
-    });
-    pr_global_struct->self = oldSelf;
+    reachTest.wakePending = reachTest.only[0] != '\0';
+    wakeNamed(); // (those already started now, the rest as each finishes its start-up)
 }
 
 // (Each steer, the walker's; each server frame, none: its time-out, as a walker standing and shooting doesn't steer.)
@@ -2855,6 +2873,10 @@ void reachCheck(const edict_t* ent)
     if(!reachTest.armed)
     {
         return;
+    }
+    if(reachTest.wakePending && !ent)
+    {
+        wakeNamed();
     }
     const edict_t* p = progs::playerEdict();
     const bool timedOut = sv.qcvm.time > reachTest.until;

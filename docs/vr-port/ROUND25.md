@@ -820,6 +820,8 @@ only (BACKLOG); `vr_agrunt_test 210`: 8 passed, 0 failed.
 
 - A picked Quaddicted map shows its screenshot in the details pane, as Slipseer maps do: `https://www.quaddicted.com/files/quaddicted-images/by-sha256/<sha[0..1]>/<sha>/<id>.jpg` (the old /reviews/screenshots/ path 404s; measured 2026-11), built in `vr_mapindex.cpp` (`quaddictedShotUrl`, entry `shot`). `slipseer::wantShot` fetches it through the same cache, pace (page-like, seconds), back-off and decode; robots.txt is now per site (Quaddicted: /stuff/, /temp/ only). A missing shot shows nothing. `slipseer_test` 47 passed; one real fetch ok (150621 bytes).
 
+### rottscene (nav_tele_gate dog)
+Not reproduced headless (nav_tele_gate passes in 0.9 s, flat and VR, cold or warm navmesh cache, real-time too). One harness difference found: vr_nav_reachtest woke the named monster with FoundTarget the same frame a scenario placed it, replacing its walkmonster_start_go think (no droptofloor, FL_MONSTER, takedamage); now the wake waits (up to 2 s) until the monster has finished its start-up. Scene unchanged; vr_nav_teletest dog at gate 3 angle 70 sometimes ends NOT through (wanders to y=-679): a separate nav issue, unfixed.
 ## Seamless teleporters: dm5, monsters
 
 His flat test (11-13): on dm5 he sometimes walked through the teleporter sheet to its other side, and monsters went
