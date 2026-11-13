@@ -282,17 +282,89 @@ void *Z_Realloc(void *ptr, int size)
 	old_size -= (4 + (int)sizeof(memblock_t));	/* see Z_TagMalloc() */
 	old_ptr = ptr;
 
-	Z_Free (ptr);
+	// QVR: the new block taken while the old one still holds its data, then the data copied and the old block freed.
+	// Freeing it first merged it with a free block before it, the first fit could start there, and Z_TagMalloc's
+	// trailer (ZONEID) and the free fragment's header after the new block were written inside the old data before it
+	// was copied: a known string's pointer with ZONEID in its top half, SaveData_Fill's crash (ROUND25.md, "Save
+	// crash: Z_Realloc"; zone_realloc_check).
 	ptr = Z_TagMalloc (size, 1);
-	if (!ptr)
-		Sys_Error ("Z_Realloc: failed on allocation of %i bytes", size);
-
-	if (ptr != old_ptr)
-		memmove (ptr, old_ptr, q_min(old_size, size));
+	if (ptr)
+	{
+		memcpy (ptr, old_ptr, q_min(old_size, size));
+		Z_Free (old_ptr);
+	}
+	else
+	{	// no room beside the old block: only its own space (merged with its free neighbours) fits; its data kept aside
+		int keep_size = q_min(old_size, size);
+		void *keep = malloc (keep_size);
+		if (!keep)
+			Sys_Error ("Z_Realloc: failed to keep %i bytes", keep_size);
+		memcpy (keep, old_ptr, keep_size);
+		Z_Free (old_ptr);
+		ptr = Z_TagMalloc (size, 1);
+		if (!ptr)
+			Sys_Error ("Z_Realloc: failed on allocation of %i bytes", size);
+		memcpy (ptr, keep, keep_size);
+		free (keep);
+	}
 	if (old_size < size)
 		memset ((byte *)ptr + old_size, 0, size - old_size);
 
 	return ptr;
+}
+
+/*
+========================
+Z_ReallocCheck_f
+
+QVR: zone_realloc_check: Z_Realloc growing a block whose neighbour before it is free, the zone's search started there
+(the first fit: the old block's own space, merged with that neighbour), the data checked after the move. Prints
+"zone_realloc_check: N passed, M failed" (ROUND25.md, "Save crash: Z_Realloc").
+========================
+*/
+static const int zrc_before[] = {1024, 2600, 6000}; // the free neighbour's sizes
+static const int zrc_sizes[][2] = {{8192, 10240}, {4096, 6144}, {2048, 8192}}; // old size, new size
+
+static void Z_ReallocCheck_f (void)
+{
+	const int *before = zrc_before;
+	const int (*sizes)[2] = zrc_sizes;
+	int passed = 0, failed = 0;
+	size_t bi, si;
+
+	for (bi = 0; bi < countof (zrc_before); bi++)
+	{
+		for (si = 0; si < countof (zrc_sizes); si++)
+		{
+			const int oldsize = sizes[si][0], newsize = sizes[si][1];
+			byte *a = (byte *) Z_Malloc (before[bi]);
+			unsigned int *b = (unsigned int *) Z_Malloc (oldsize);
+			byte *guard = (byte *) Z_Malloc (16);
+			memblock_t *hb = (memblock_t *) ((byte *) b - sizeof (memblock_t));
+			int olddata = hb->size - (4 + (int) sizeof (memblock_t)); // (the block's room: its padding is copied too)
+			int i, bad = 0;
+
+			for (i = 0; i < oldsize / 4; i++)
+				b[i] = (unsigned int) i * 2654435761u;
+			Z_Free (a);
+			mainzone->rover = hb->prev; // (the free neighbour: the search starts there)
+			b = (unsigned int *) Z_Realloc (b, newsize);
+			for (i = 0; i < oldsize / 4; i++)
+				bad += b[i] != (unsigned int) i * 2654435761u;
+			for (i = olddata / 4; i < newsize / 4; i++)
+				bad += b[i] != 0;
+			if (bad)
+			{
+				Con_Printf ("zone_realloc_check: FAIL: neighbour %i, %i -> %i bytes: %i words changed\n", before[bi], oldsize, newsize, bad);
+				failed++;
+			}
+			else
+				passed++;
+			Z_Free (b);
+			Z_Free (guard);
+		}
+	}
+	Con_Printf ("zone_realloc_check: %i passed, %i failed\n", passed, failed);
 }
 
 char *Z_Strdup (const char *s)
@@ -1208,6 +1280,7 @@ void Memory_Init (void *buf, int size)
 	Memory_InitZone (mainzone, zonesize);
 
 	Cmd_AddCommand ("hunk_print", Hunk_Print_f); //johnfitz
+	Cmd_AddCommand ("zone_realloc_check", Z_ReallocCheck_f); // QVR
 }
 
 
