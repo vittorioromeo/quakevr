@@ -450,7 +450,10 @@ now also waits for the player before its first spawn: it had a program error whe
   end is the mesh under the destination's point (Quake puts the monster's origin there: feet 24 under). A paired gate
   that monsters walk through (`portals::teleporterWalked`: vr_portals_monsters, the gate's exit a real aperture) must
   also fit the box: its bottom at most a step over the floor (a sill), its height and width the box's (vrteleporters'
-  crate hatch and the sill-32 gate get no links). One way: a way back is another trigger's own link. Same link list,
+  crate hatch and the sill-32 gate get no links). An unpaired gate walked through (`vr_portals_monsters_all` 1) that
+  the box doesn't fit keeps its touch link: the engine hands a monster to Quake's teleport at the touch where the
+  opening is over a sill it can't step onto or too low for it (`monsterCanStepIn`: e1m1's opening is 23 units over the
+  floor; walkers used to press against it and stall, ROUND25.md "onewaytele"). One way: a way back is another trigger's own link. Same link list,
   same cost model and same give-up (`vr_nav_link_retry`) as drops and rides; `navVersion` 6 (the gates are in the
   cache key).
 - **Far links in Detour** (vendored, marked `QVR`): Detour joins an off-mesh link's end only to its start tile and its 8
