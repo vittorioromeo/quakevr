@@ -1699,6 +1699,35 @@ void ED_LoadFromFile (const char *data)
 
 		ED_CallSpawn (ent, func);
 
+		// QVR: a swapped-in kind whose spawn function removed it (its data short of what its probe said: AD's kinds set
+		// their model later, so a missing model is no sign) is refused on this map (QC VR_Run_KindRefused: the monster count as before it) and the
+		// monster's keys spawn again, swapped without that kind (or as the map's own): a counted monster never goes
+		for (k = 0; k < 4 && ent->v.classname != mapclass && ent->free; k++)
+		{
+			VR_Run_MonsterRefused (ent);
+			if (!ent->free)
+				ED_Free (ent);
+			ent = ED_Alloc ();
+			ED_ParseEdict (entkeys, ent);
+			copies = k < 3 ? VR_Run_MonsterSpawning (ent) : 0; // (the last try: the map's own kind)
+			if (k == 3)
+				ent->v.classname = mapclass;
+			func = ED_SpawnFunction (PR_GetString (ent->v.classname));
+			if (!func)
+			{
+				ent->v.classname = mapclass;
+				func = ED_SpawnFunction (PR_GetString (mapclass));
+			}
+			if (!func)
+			{
+				ED_Free (ent);
+				break;
+			}
+			ED_CallSpawn (ent, func);
+		}
+		if (ent->free)
+			continue;
+
 		// QVR: Enemy Count's copies, spawned once the whole map has (below: their room is found among all of it)
 		for (k = 1; k <= copies; k++)
 		{

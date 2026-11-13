@@ -17,14 +17,14 @@
 //   opened by its guards' deaths) count the map's own monsters only, as the map was made: they complete as before. It
 //   stands guard where it is (no path of its own: its path is its monster's target).
 // - It counts in the kill stats (total_monsters) as any monster: killing every one is 100%.
-// Known kinds only (VR_RUN_ER_KINDS: Quake's, AD's, the packs' common ones): no boss, no scripted monster, no crucified
+// Known kinds only (VR_MONSTER_KINDS: Quake's, AD's, the packs' common ones): no boss, no scripted monster, no crucified
 // zombie. A saved game keeps the copies (they are its entities); a changelevel's map gets its own.
 
 float() VR_RunEnemyCount_Copies =
 {
     float n = min(2, rint(cvar_hget(cvarh_vr_run_enemycount)));
     if(n <= 0) return 0;
-    if(VR_RunEnemyRandom_Row(self.classname) < 0 || VR_RunEnemyRandom_Crucified(self)) return 0;
+    if(VR_MonsterKind_Row(self.classname) < 0 || VR_RunEnemyRandom_Crucified(self)) return 0;
     return n;
 };
 
@@ -38,8 +38,8 @@ float(vector p, float half) VR_RunEnemyCount_Crowded =
     {
         if(e.vr_run_kind != "" && e != self)
         {
-            float row = VR_RunEnemyRandom_Row(e.vr_run_kind);
-            float reach = half + 4 + ((row >= 0 && VR_RUN_ER_KINDS[row].size == 1) ? 16 : 32);
+            float row = VR_MonsterKind_Row(e.vr_run_kind);
+            float reach = half + 4 + ((row >= 0 && VR_MONSTER_KINDS[row].size == 1) ? 16 : 32);
             if(fabs(e.origin_x - p_x) < reach && fabs(e.origin_y - p_y) < reach && fabs(e.origin_z - p_z) < 88)
             {
                 return TRUE;
@@ -77,7 +77,7 @@ float(vector o, vector p, float row) VR_RunEnemyCount_Fits =
 {
     vector mn = VR_RunEnemyRandom_Mins(row);
     vector mx = VR_RunEnemyRandom_Maxs(row);
-    float move = VR_RUN_ER_KINDS[row].move;
+    float move = VR_MONSTER_KINDS[row].move;
     vector up = '0 0 1';
     tracebox(o + up, mn, mx, p + up, TRUE, self);
     if(trace_fraction < 1 || trace_allsolid) return FALSE;
@@ -103,7 +103,7 @@ float(vector o, vector p, float row) VR_RunEnemyCount_Fits =
 // that; k turns the ring, so two copies take different sides) and its death's targets dropped. FALSE: no room.
 float(float k) VR_RunEnemyCount_Place =
 {
-    float row = VR_RunEnemyRandom_Row(self.classname);
+    float row = VR_MonsterKind_Row(self.classname);
     if(row < 0) return FALSE;
     vector o = self.origin;
     vector mx = VR_RunEnemyRandom_Maxs(row);
@@ -156,14 +156,14 @@ float(float xCount) VR_RunEnemyCount_Check =
         {
             alive = alive + 1; // (a monster still to come: one in a closet, a trigger-spawned one)
         }
-        else if(e.vr_run_mapclass != "" && VR_RunEnemyRandom_Row(e.vr_run_kind) >= 0 && e.health <= 0)
+        else if(e.vr_run_mapclass != "" && VR_MonsterKind_Row(e.vr_run_kind) >= 0 && e.health <= 0)
         {
             ok = FALSE; // (the checks run as the map starts, before any fight)
             dprint(sprintf("vr_run_enemies_check: %s (%s, copy %g) at %v dead at the start: health %g, its enemy %s at %v\n",
                            e.classname, e.vr_run_mapclass, e.vr_run_copy, e.origin, e.health, e.enemy.classname,
                            e.enemy.origin));
         }
-        if(e.vr_run_mapclass != "" && !e.vr_run_copy && VR_RunEnemyRandom_Row(e.vr_run_kind) >= 0 &&
+        if(e.vr_run_mapclass != "" && !e.vr_run_copy && VR_MonsterKind_Row(e.vr_run_kind) >= 0 &&
            !(e.vr_run_mapclass == "monster_zombie" && (e.spawnflags & 1)))
         {
             copyable = copyable + 1;

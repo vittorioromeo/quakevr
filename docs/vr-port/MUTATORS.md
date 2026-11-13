@@ -55,18 +55,24 @@ designated initializers (a line names only the fields it needs; the others defau
 
 - **A weapon** (a row of the weapon table, `VR_WEAPONS` in `vr_weaponutil.qc`): Melee Only classifies it from that
   row (a gun: a weapon that uses ammunition, or an enemy's gun; `VR_RunMeleeOnly_IsGun`), nothing to add. Randomized
-  Pickups: a weapon with a map pickup (its row's classname) is a row of `vr_run_pickups.qc`'s table (`VR_RPK_Load`,
-  `VR_RPK_Spawn`: its tier; its ammo is the weapon table's) or named in `VR_RPK_WeaponLeftOut`;
-  `vr_runpickups_test 1` fails ("every weapon with a map pickup classified") until it is one or the other. The armed
+  Pickups: a weapon with a map pickup (its row's classname) needs `pickup_tier` in its slot of
+  `quakevr/data/weapons.txt` (0 the shotgun's tier .. 3 the rocket launcher's; -1 never swapped: melee, tools, the
+  enemies' guns); its ammo is the weapon table's, its spawn function its classname's (`callspawn`). The default, -2, is
+  "not classified": `vr_runpickups_test 1` fails ("every weapon with a map pickup classified") until it has one. AD's
+  upgrades are `AD_UPGRADES` rows (`vr_ad_bridge.qc`: their map classname) with their own slots' tier. The armed
   humanoids' mutators follow the armed humanoids' own weapon tables.
-- **An item** (ammo, health, armour, powerup): Randomized Pickups swaps only the kinds of its table; a new kind stays
-  as the map placed it until it has a row (no check: items have no table to enumerate). Melee Only refuses an ammo box
+- **An item** (ammo, health, armour, powerup): Randomized Pickups swaps only the kinds of its item table
+  (`VR_RPK_ITEMS`, `vr_run_pickups.qc`: class, variant, kind, tier, ammo); a new kind stays as the map placed it until
+  it has a row (no check: items have no table to enumerate). Melee Only refuses an ammo box
   by its touch (`ammo_touch`, AD's `ad_ammo_touch`, `VR_Reload_IsAmmoBox`): a new ammo kind with its own touch
   function adds it in `VR_RunMeleeOnly_RefusesEnt`.
-- **A monster:** Randomized Enemies and Enemy Count use only the kinds of `VR_RUN_ER_KINDS` (`vr_run_enemyrandom.qc`:
-  how it moves, its hull, its tier, whose, its height); a monster not listed is never swapped or copied (bosses,
-  scripted ones). A new one that should take part gets a row (the count is the table's size; nothing else). Not checked:
-  there is no list of the monsters left out on purpose to tell a forgotten one from a boss.
+- **A monster:** a row of `VR_MONSTER_KINDS` (`QC/vr_monster_kinds.qc`, the one monster table): a kind (how it moves,
+  its hull, its threat tier 1-3, whose, its box's top, the file its data needs) that Randomized Enemies swaps and Enemy
+  Count copies, or a never row (tier 0: a boss, a scripted or placed-for-its-trick one, a minion, one not tiered yet).
+  `vr_run_enemies_check` fails ("every monster spawn function a kind or never swapped") on a spawn function named
+  `monster_*` (AD's `ad_monster_*`) in neither, by the progs' function names (`functionname`); a helper so named goes in
+  `VR_MonsterKinds_Helper`. An official expansion's kind (`RUN_ER_EXP`) is swapped either way while its probe file is
+  there; an unofficial pack's (`RUN_ER_PACK`, Honey's) is copied, never swapped.
 
 ### The QC hooks (`QC/vr_run.qc`)
 
@@ -121,8 +127,10 @@ choices themselves are the engine's line.
 - **Balanced:** ammo for ammo of a weapon kind he enters with (his level-start parm1; the shells always) or one placed
   within 1536 units, the box's size kept; health 15 <-> 25 (the megahealth alone); armour a step away (green <-> yellow
   <-> red); a weapon of its tier (shotgun, revolver / super shotgun, nailgun, AD's Widowmaker / super nailgun, grenade
-  and proximity launchers / rocket launcher, thunderbolt, laser cannon, Mjolnir, AD's Plasma Gun); a powerup of its tier
-  (quad, pentagram, ring, empathy shields, power shield / suits, belt). AD's upgrades only with AD mounted and its rules
+  and proximity launchers / rocket launcher, thunderbolt, laser cannon, Mjolnir, AD's Plasma Gun; the nail pistol is
+  tier 0 beside the shotgun and revolver; the tiers are weapons.txt's `pickup_tier`); a powerup of its tier (quad,
+  pentagram / ring, empathy shields, power shield / suits, belt: a ring never becomes a pentagram). Armour moves one
+  step at most (never green <-> red). AD's upgrades only with AD mounted and its rules
   on. **Anything Goes:** a kind first, then any of it. **Melee Only:** nothing becomes a gun that was not one.
 - **The rolls:** a hash of the item's place and the run's seed (`vr_run_seed`, set at the run's start; sv_random_seed's
   when a test fixes it): a map gets the same pickups all through a run (an Ironman restart too). Not in the save line:
@@ -144,9 +152,11 @@ choices themselves are the engine's line.
 ### Enemy Count and Randomized Enemies
 
 - **Order:** the swap first, then the copies, of the swapped kind (a copy is its monster's map keys parsed again).
-- **Kinds** (`VR_RUN_ER_KINDS`): Quake's, AD's (only while AD's data is mounted, and outside AD's maps with
-  `vr_ad_everywhere`), the packs' common ones (copied, never swapped); each with how it moves, its width (Quake's two
-  hulls) and its threat tier. Bosses and scripted monsters are not listed: never swapped or copied; nor a crucified
+- **Kinds** (`VR_MONSTER_KINDS`, `vr_monster_kinds.qc`): Quake's, AD's (only while AD's data is mounted, and outside
+  AD's maps with `vr_ad_everywhere`), the official expansions' (Scourge of Armagon's gremlin and scourge, Dissolution's
+  mummy, wrath and eel, Dimension of the Machine's demodog, ranged knight, rocket ogre and orb: while their data is
+  there, both ways), Honey's (copied, never swapped); each with how it moves, its width (Quake's two hulls) and its
+  threat tier. Bosses and scripted monsters are never rows: never swapped or copied; nor a crucified
   zombie or AD's ceiling spider; in AD's maps a monster with AD's class bits (2, 4: a lying zombie...) is not swapped.
 - **Balanced:** the same tier and movement; **Anything Goes:** any tier, a walker's spot may hold a flyer. Never a
   larger kind than the spot's (doors and lifts spawn after it: a hull test then would miss them). The map's health and
