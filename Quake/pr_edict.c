@@ -2760,6 +2760,28 @@ void SaveData_Clear (savedata_t *save)
 	memset (save, 0, sizeof (*save));
 }
 
+// QVR: a known string's pointer a save can read: valid (PR_IsValidString) and plausible (never the never-mapped first
+// 64 KB, never above user space's 48 bits). A pointer that isn't (a corrupted slot: Z_Realloc's trailer once wrote
+// ZONEID over one, ROUND25.md "Save crash: Z_Realloc") is saved as no string, told with Con_DPrintf (warn), and a
+// Debug build stops on its assertion.
+static const char *SaveData_KnownString (int i, qboolean warn)
+{
+	const char *str = qcvm->knownstrings[i];
+	uintptr_t u = (uintptr_t) str;
+	if (!PR_IsValidString (str))
+		return NULL;
+	if (u < 0x10000 || (uint64_t) u >> 48)
+	{
+		if (warn)
+		{
+			Con_DPrintf ("SaveData_Fill: known string %i has a bad pointer %p: saved as none\n", i, (const void *) str);
+			SDL_assert (!"SaveData_Fill: a known string's pointer is bad");
+		}
+		return NULL;
+	}
+	return str;
+}
+
 void SaveData_Fill (savedata_t *save)
 {
 	int i, ofs, size;
@@ -2792,8 +2814,8 @@ void SaveData_Fill (savedata_t *save)
 
 	for (i = 0; i < qcvm->numknownstrings; i++)
 	{
-		const char *str = qcvm->knownstrings[i];
-		if (PR_IsValidString (str))
+		const char *str = SaveData_KnownString (i, true);
+		if (str)
 			size += strlen (str) + 1;
 	}
 
@@ -2863,8 +2885,8 @@ void SaveData_Fill (savedata_t *save)
 	/* known strings (contents) */
 	for (i = 0; i < qcvm->numknownstrings; i++)
 	{
-		const char *str = qcvm->knownstrings[i];
-		if (PR_IsValidString (str))
+		const char *str = SaveData_KnownString (i, false);
+		if (str)
 		{
 			int len = strlen (str) + 1;
 			save->knownstrings[i] = (const char *) (save->buffer + ofs);
