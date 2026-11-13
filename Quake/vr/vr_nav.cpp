@@ -3004,10 +3004,13 @@ void init()
     Cmd_AddCommand("vr_nav_rebuild", rebuild_f);
 }
 
+void disarmTests(); // (below, with the tests)
+
 void finishLoads()
 {
     resetAll(); // (every class's build and props' batch joined, their results freed)
     state.geo = Geometry{};
+    disarmTests();
 }
 
 void afterLoad()
@@ -4564,6 +4567,26 @@ bool teleTrialStart()
     t.backoffsAt = state.teleBackoffs;
     portals::monsterCrossings(t.walkedAt, t.teleportedAt);
     return true;
+}
+
+// The world going (finishLoads): a test still running ends unreported (its walkers' edict numbers, gate indices and
+// the server's time are the old map's; a scene's runall moves on before nav_tele_metric's trials end).
+void disarmTests()
+{
+    const auto drop = [](bool& armed, const za::String& name) {
+        if(armed)
+        {
+            Con_Printf("nav: %s: abandoned at the map change\n", name.cStr());
+            armed = false;
+        }
+    };
+    drop(reachTest.armed, reachTest.name);
+    drop(teleTest.armed, teleTest.name);
+    if(crowdTest.armed)
+    {
+        Con_Printf("nav: crowdtest: abandoned at the map change\n");
+        crowdTest.armed = false;
+    }
 }
 
 void teleTestTick()
