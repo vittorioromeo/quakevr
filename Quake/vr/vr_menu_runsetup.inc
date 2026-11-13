@@ -95,7 +95,7 @@ za::Vector<Item> pageRunSetup()
         for(int i = 0; i < runsetup::count(); i++)
         {
             const runsetup::Mutator& m = runsetup::at(i);
-            if(static_cast<int>(m.section) != s || (m.shown && !m.shown()) ||
+            if(static_cast<int>(m.section) != s || !m.isShown() ||
                 (runSetup.skillHalls && i == runsetup::find("skill")))
             {
                 continue;
@@ -106,7 +106,7 @@ za::Vector<Item> pageRunSetup()
                 continue;
             }
             za::Vector<Choice> choices;
-            for(int o = 0; o < m.optionCount; o++)
+            for(int o = 0; o < m.optionCount(); o++)
             {
                 choices.pushBack(Choice{static_cast<float>(o), m.options[o]});
             }

@@ -147,7 +147,6 @@ void() walkmonster_start =
 {
     if(MG_MonsterPrepare(walkmonster_start_go)) return;
     if(AD_MonsterPrepare(walkmonster_start_go)) return; // AD support: AD's spawn flags and keys on our monsters
-    VR_Run_MonsterSpawned(); // the run's mutators' monster hook (vr_run.qc)
 // delay drop to floor to make sure all doors have been spawned
 // spread think times so they don't all happen at same time
     self.nextthink = self.nextthink + random()*0.5;
@@ -237,7 +236,6 @@ void() flymonster_start =
 {
     if(MG_MonsterPrepare(flymonster_start_go)) return;
     if(AD_MonsterPrepare(flymonster_start_go)) return; // AD support: AD's spawn flags and keys on our monsters
-    VR_Run_MonsterSpawned(); // the run's mutators' monster hook (vr_run.qc)
     self.enemy = activator;
 
 // spread think times so they don't all happen at same time
@@ -323,7 +321,6 @@ void() swimmonster_start =
 {
     if(MG_MonsterPrepare(swimmonster_start_go)) return;
     if(AD_MonsterPrepare(swimmonster_start_go)) return; // AD support: AD's spawn flags and keys on our monsters
-    VR_Run_MonsterSpawned(); // the run's mutators' monster hook (vr_run.qc)
     self.enemy = activator;
 
     // spread think times so they don't all happen at same time

@@ -9,13 +9,16 @@ Difficulty row: its halls choose; the presets and mutators are still asked.
 
 ## How a choice works
 
-Everything is one registry, `registry[]` in `Quake/vr/vr_runsetup.cpp`; each line is a `runsetup::Mutator`:
+Everything is one registry, `registry[]` in `Quake/vr/vr_runsetup.cpp`; each line is a `runsetup::Mutator`, written with
+designated initializers (a line names only the fields it needs; the others default as below):
 
 | field | what |
 | --- | --- |
 | `id` | `vr_runpick_<id>` (the screen's choice, archived, selected next time) and `vr_run_<id>` (the run's, not archived) |
-| `label`, `options`, `def`, `help`, `section` | the screen's row (a cycle), its default, its help line, its header |
-| `oldSave` | a saved game without the run line loads with this (-1: left as it is; the presets) |
+| `label`, `options`, `def`, `help`, `section` | the screen's row (a cycle, up to 4 options), its default (0), its help line, its header (Mutators) |
+| `pick`, `active` | `&vr_runpick_<id>`, `&vr_run_<id>` (`vr_runsetup_test` checks the names) |
+| `tags` | the run's summary ("Hard / Unleashed / Glass cannon": console, `vr_run`): each value's word, `""` for none |
+| `oldSave` | a saved game without the run line loads with this (default 0; -1: left as it is: the presets) |
 | `apply(value, phase)` | what it sets beyond its cvar, at a run's start (`Phase::Start`) and on a save's load (`Phase::Load`); `nullptr` when the QC just reads `vr_run_<id>` |
 | `forced()`, `heldBy` | a rule: the value another choice holds this one at (-1: free). The screen shows it as a line "Starting gun: Nothing (Melee Only)", and `start()` uses it |
 | `shown()` | hidden while false (Bloody Nightmare until found) |
@@ -36,12 +39,34 @@ Everything is one registry, `registry[]` in `Quake/vr/vr_runsetup.cpp`; each lin
 
 1. `Quake/vr/vr_cvars.inc`: `vr_runpick_<id>` (CVAR_ARCHIVE, its default) and `vr_run_<id>` (CVAR_NONE), beside the
    others.
-2. `vr_runsetup.cpp`: one `registry[]` line (options array above it; an `apply` only if it sets settings; a rule as a
-   `forced` function reading the other's `vr_runpick_`).
+2. `vr_runsetup.cpp`: one `registry[]` line, e.g.
+   `{.id = "glasscannon", .label = "Glass Cannon", .options = {"Off", "On"}, .tags = {"", "Glass cannon"}, .help = "...",
+   .pick = &vr_runpick_glasscannon, .active = &vr_run_glasscannon},`
+   (an `apply` only if it sets settings beyond its cvar; a rule as a `forced` function reading the other's
+   `vr_runpick_`, with `heldBy`). The screen, the save line, the summary, `vr_run`, a load and the hub's end of a run
+   all follow the table: nothing else on the engine's side.
 3. `QC/vr_run_<id>.qc` (listed in `progs.src` after `vr_run.qc`): its gameplay, reading `cvarh_vr_run_<id>`, called from
-   the hooks in `QC/vr_run.qc` (one line each). Run `build/qvr_checks/qvr_checks.exe cvars_qc` after adding a
-   `cvarh_` use.
+   the hooks in `QC/vr_run.qc` (one line each). The game's code calls the hooks only, never a mutator's functions: a
+   place no hook reaches gets a new hook (a row in the table below), not an `if` on the mutator. Run
+   `build/qvr_checks/qvr_checks.exe cvars_qc` after adding a `cvarh_` use.
 4. Tests: a line in `vr_run_check` (or its own), a checklist line and scenario.
+
+### What a new weapon, monster or item needs
+
+- **A weapon** (a row of the weapon table, `VR_WEAPONS` in `vr_weaponutil.qc`): Melee Only classifies it from that
+  row (a gun: a weapon that uses ammunition, or an enemy's gun; `VR_RunMeleeOnly_IsGun`), nothing to add. Randomized
+  Pickups: a weapon with a map pickup (its row's classname) is a row of `vr_run_pickups.qc`'s table (`VR_RPK_Load`,
+  `VR_RPK_Spawn`: its tier; its ammo is the weapon table's) or named in `VR_RPK_WeaponLeftOut`;
+  `vr_runpickups_test 1` fails ("every weapon with a map pickup classified") until it is one or the other. The armed
+  humanoids' mutators follow the armed humanoids' own weapon tables.
+- **An item** (ammo, health, armour, powerup): Randomized Pickups swaps only the kinds of its table; a new kind stays
+  as the map placed it until it has a row (no check: items have no table to enumerate). Melee Only refuses an ammo box
+  by its touch (`ammo_touch`, AD's `ad_ammo_touch`, `VR_Reload_IsAmmoBox`): a new ammo kind with its own touch
+  function adds it in `VR_RunMeleeOnly_RefusesEnt`.
+- **A monster:** Randomized Enemies and Enemy Count use only the kinds of `VR_RUN_ER_KINDS` (`vr_run_enemyrandom.qc`:
+  how it moves, its hull, its tier, whose, its height); a monster not listed is never swapped or copied (bosses,
+  scripted ones). A new one that should take part gets a row (the count is the table's size; nothing else). Not checked:
+  there is no list of the monsters left out on purpose to tell a forgotten one from a boss.
 
 ### The QC hooks (`QC/vr_run.qc`)
 
@@ -50,9 +75,8 @@ Everything is one registry, `registry[]` in `Quake/vr/vr_runsetup.cpp`; each lin
 | `VR_Run_NewParms()` | `SetNewParms`'s end | a new game's loadout (Starting Weapon) |
 | `VR_Run_Damage(targ, attacker, damage)` | `T_Damage`'s start | damage scaling (Glass Cannon) |
 | `VR_Run_RefusesPickup(wid)` | `weapon_touch` | weapons not taken (Melee Only) |
-| `VR_RunMeleeOnly_RefusesEnt(e)` | force grab eligibility and sparkles, `wpnthrow_handtouch_ent_hand`, `VR_Carry_Handtouch`, `VR_PickupObj_Handtouch`, `ammo_touch`, `BackpackTouch`, AD's and the horde's ammo | a gun or ammunition lying about neither grabbed nor taken (Melee Only) |
+| `VR_Run_RefusesEnt(e)` | force grab eligibility and sparkles, `wpnthrow_handtouch_ent_hand`, `VR_Carry_Handtouch`, `VR_PickupObj_Handtouch`, `ammo_touch`, `BackpackTouch`, AD's and the horde's ammo; the engine's loot beams (`vr_server.cpp`, asked only while Melee Only is on) | a gun or ammunition lying about neither grabbed nor taken (Melee Only) |
 | `VR_Run_RefusesFire(wid)` | `W_AttackImpl`'s start | weapons that only click (Melee Only) |
-| `VR_Run_MonsterSpawned()` | `walk/fly/swimmonster_start` (self: the monster, its class spawn run) | phase 2: enemy count, randomized enemies |
 | `VR_Run_ItemSpawned()` | `StartItem` (self: the item) | Randomized Pickups: the map's items of its table marked |
 | `VR_Run_MapSpawned(held)` | the engine (`VR_OnSpawnServerSpawned`): a new map's entities all spawned, precaches open; not a saved game's load. `held`: the IT_ bits he enters with (0: a new game) | Randomized Pickups: the marked items swapped |
 | `VR_Run_Respawn()` | `respawn` (a dead single player), after the tutorial's checkpoints; TRUE: taken over | Ironman: `restart fresh` |
@@ -72,8 +96,8 @@ choices themselves are the engine's line.
 | `gore` | My Settings (default), Full, Minimal, Off | the Gore preset |
 | `armed` | As Style, Off, On | `vr_agrunt_repl`, `vr_agknight`, `vr_agdknight` |
 | `smartai` | As Style, Off, On | `vr_ai_enhanced` |
-| `startgun` | Shotgun, Nail Pistol, Heavy Revolver, Nothing | a new game's gun in the hip holster (`vr_run_startweapon.qc`); held at Nothing by Melee Only |
-| `startmelee` | Axe, Dagger, Nothing | a new game's melee weapon (the same file); Nothing and Nothing: bare fists. An old save's `startweapon=N` reads as gun and melee (revolver: Revolver and Axe; axe alone: Nothing and Axe; unarmed: Nothing and Nothing) |
+| `startgun` | Shotgun, Nail Pistol, Heavy Revolver, Nothing | a new game's gun in the hip holster (`vr_run_startgun.qc`); held at Nothing by Melee Only |
+| `startmelee` | Axe, Dagger, Nothing | a new game's melee weapon (`vr_run_startgun.qc` too); Nothing and Nothing: bare fists. An old save's `startweapon=N` reads as gun and melee (revolver: Revolver and Axe; axe alone: Nothing and Axe; unarmed: Nothing and Nothing) |
 | `meleeonly` | Off, On | guns and ammunition can't be force grabbed, grabbed, caught or walked over; a gun in the hand only clicks (`vr_run_meleeonly.qc`) |
 | `glasscannon` | Off, On | the player and monsters take double damage (`vr_run_glasscannon.qc`) |
 | `pickups` | Off, Balanced, Anything Goes | the map's pickups swapped as it loads (`vr_run_pickups.qc`, below) |
@@ -163,7 +187,8 @@ choices themselves are the engine's line.
 - `vr_runpickups_test 1` ("runpickups: N passed", `vr_run_test.qc`): Balanced on e1m1 with seed 777 (rules, the map's
   named items kept), the same layout on a reload, a save and its load (the run's choice and the items back), e1m2 by
   changelevel, Anything Goes with Melee Only and Glass Cannon (kinds crossed, no new guns, the map's links and monster
-  count unchanged, `VR_Run_TestCheck`), a new run without it. `vr_runpickups_test 2`: the map loaded now (any game's:
+  count unchanged, `VR_Run_TestCheck`), a new run without it; every weapon of the weapon table with a map pickup
+  classified (`VR_RPK_Unclassified`). `vr_runpickups_test 2`: the map loaded now (any game's:
   AD's with `-game ad`), then again with it off: the rules, its unresolved targets, trigger_counter links and monsters.
 - `vr_ironman_test 1` ("ironman: N passed"): save and the menu's Save refused (`vr_ironman_refused` counts them), e1m1's
   rocket launcher carried into e1m2, a death there restarts e1m2 with it (and not the grenade launcher given in e1m2),
@@ -171,9 +196,9 @@ choices themselves are the engine's line.
 
 - `vr_run` prints the run (and the screen's picks); `vr_run <id> <value>` sets one (applied); `vr_run start`;
   `vr_runsetup [hub|newgame]` opens the screen.
-- `vr_runsetup_test` (36): the registry, a run's start, Melee Only's rule, the save line round trip (a run's choices and
-  the presets' values), an old save, the hub. Presets' My Settings in the test files; settings set back.
-- `vr_runsetup_screen_test` (13; `maps_skill_test` is its old name): each way in opens the screen, skill halls hide
+- `vr_runsetup_test` (73): the registry, a run's start, the held rows, the save line round trip (a run's choices and
+  the presets' values; the line fits its buffer with every choice at its longest), an old save, the hub. Presets' My Settings in the test files; settings set back.
+- `vr_runsetup_screen_test` (13): each way in opens the screen, skill halls hide
   Difficulty, a held row is a line, Back, Start.
 - `vr_run_check <startgun> <startmelee> <glasscannon> <meleeonly> <gore>` / `vr_run_check verdict` ("runmutators: N passed"):
   the end-to-end check in a running game (QC `VR_Run_TestCheck`); the round notes' script starts run A, saves, starts

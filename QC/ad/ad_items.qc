@@ -1847,7 +1847,7 @@ void() ad_ammo_touch =
 {
 	local float ad_best;
 
-	if (VR_RunMeleeOnly_RefusesEnt(self)) return; // QVR: Melee Only, no rounds (vr_run_meleeonly.qc)
+	if (VR_Run_RefusesEnt(self)) return; // QVR: Melee Only, no rounds (vr_run_meleeonly.qc)
 	// Check ammo limits first
 	if (ad_ammo_pickupcondition(other,self)) return;
 	
@@ -3554,7 +3554,7 @@ void() ad_BackpackTouch =
 	local string ad_s;
 	local float ad_pickupweapon, ad_acount;
 
-	if (VR_RunMeleeOnly_RefusesEnt(self)) return; // QVR: Melee Only, its rounds left in it (vr_run_meleeonly.qc)
+	if (VR_Run_RefusesEnt(self)) return; // QVR: Melee Only, its rounds left in it (vr_run_meleeonly.qc)
 	ad_acount = 0;
 	sprint (other, "You get ");
 

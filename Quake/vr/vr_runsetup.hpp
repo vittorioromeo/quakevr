@@ -9,7 +9,7 @@
 //   saved game (the `// qvr_run` line: saveLine()) and set back from it when one is loaded (readSaveLines(),
 //   onLoadGame()); a changelevel keeps it (a cvar). The QC reads it (vr_run.qc's hooks, a file per mutator);
 // - apply(value, phase): what a choice sets beyond its cvar (the presets, the armed and AI switches, Bloody Nightmare);
-// - forced(): a rule another choice imposes (Melee Only holds Starting Weapon at the axe; Bloody Nightmare holds the
+// - forced(): a rule another choice imposes (Melee Only holds the Starting gun at nothing; Bloody Nightmare holds the
 //   difficulty at Nightmare), the screen showing it held.
 // Presets never overwrite the player's settings without keeping them: the Gameplay and Gore presets' first apply keeps
 // My Settings (vr_presets.cpp), and "My Settings" is a Style and Gore choice of its own.
@@ -45,22 +45,37 @@ enum class Phase
     Load,  // a saved game of a run is loaded
 };
 
+constexpr int maxOptions = 4;
+
+// A registry line (designated initializers: a line names only what it needs; the rest is the defaults below).
 struct Mutator
 {
-    const char* id;      // vr_runpick_<id>, vr_run_<id>, the save line's key
-    const char* label;   // the screen's row
-    Section section;
-    const char* const* options;
-    int optionCount;
-    int def;             // vr_runpick_<id>'s default (vr_cvars.inc says the same)
-    int oldSave;         // a saved game without the run line: this value (-1: left as it is now)
-    const char* help;
-    cvar_s* pick;
-    cvar_s* active;
-    void (*apply)(int value, Phase phase); // nullptr: only the cvar (the QC reads it)
-    int (*forced)();                       // the value another choice holds this one at, or -1; nullptr: never
-    bool (*shown)();                       // nullptr: always shown
-    const char* heldBy;                    // the choice whose rule holds it (the screen: "held by ..."), or nullptr
+    const char* id{nullptr};                 // vr_runpick_<id>, vr_run_<id>, the save line's key
+    const char* label{nullptr};              // the screen's row
+    Section section{Section::Mutators};
+    const char* options[maxOptions]{};       // the screen's cycle (value = index)
+    const char* tags[maxOptions]{};          // the run's summary ("Hard / Unleashed / Glass cannon"): each value's part,
+                                             // nullptr or "": none
+    int def{0};                              // vr_runpick_<id>'s default (vr_cvars.inc says the same)
+    int oldSave{0};                          // a saved game without the run line: this value (-1: left as it is now)
+    const char* help{nullptr};
+    cvar_s* pick{nullptr};                   // vr_runpick_<id>
+    cvar_s* active{nullptr};                 // vr_run_<id>
+    void (*apply)(int value, Phase phase){}; // nullptr: only the cvar (the QC reads it)
+    int (*forced)(){};                       // the value another choice holds this one at, or -1; nullptr: never
+    bool (*shown)(){};                       // nullptr: always shown
+    const char* heldBy{nullptr};             // the choice whose rule holds it (the screen: "held by ..."), or nullptr
+
+    [[nodiscard]] int optionCount() const
+    {
+        int n = 0;
+        while(n < maxOptions && options[n])
+        {
+            n++;
+        }
+        return n;
+    }
+    [[nodiscard]] bool isShown() const { return !shown || shown(); }
 };
 
 [[nodiscard]] int count();
