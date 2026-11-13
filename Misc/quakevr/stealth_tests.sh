@@ -1,5 +1,5 @@
 #!/bin/bash
-# stealth_tests.sh <agent> [gun|blast|kinds|infight|saveload|liquid|gates|seethrough|hunt|dogs|props|horde|all] -- the stealth AI's further scenes
+# stealth_tests.sh <agent> [gun|blast|kinds|infight|saveload|liquid|gates|seethrough|hunt|trailnav|dogs|props|horde|all] -- the stealth AI's further scenes
 # (QC vr_stealth_test2.qc; docs/vr-port/STEALTH.md, "Tests"), headless on e1m1 (kinds: id1's, hipnotic's and rogue's
 # monsters: the kit's games mount both). Prints the `stealthtest:` lines; exits 1 on a FAIL. Coop: Misc/quakevr/multiplayer/stealth_mp_test.sh.
 #   gun      each weapon's real shot (the trigger pulled): heard at 0.8 of its reach, not at 1.2, not behind a wall
@@ -17,6 +17,9 @@
 #            alpha 0.5 or its textures fences ('{'): both; vr_stealth_seethrough 0: neither
 #   hunt     a Hostile grunt loses you as you dart off: it follows your trail (your last spot, then ahead along your
 #            way), gives up at vr_stealth_lose_time (8 s here); with you far (vr_stealth_lose_far), after a quarter
+#   trailnav a Hostile grunt sees you stand, then you are put out of sight farther on (a place with a navmesh path there):
+#            with vr_nav_trail 1 it walks the navmesh to where it saw you, searches there, never comes for you, gives up
+#            at 15 s; vr_nav_trail 0 (its trail's last step on at you by the navmesh) for comparison
 #   dogs     a dog chasing you as you run in circles, its drawn moves logged (vr_debug_drawn_moves): with
 #            vr_monster_lerp_continue 1 no jump between frames; 0 (Quake's drawing) for comparison
 #   props    a row of crates between a Hostile dog and you (vrteleporters, room T): it gets round them (vr_ai_props 1);
@@ -70,6 +73,12 @@ fi
 if [ "$WHICH" = hunt ] || [ "$WHICH" = all ]; then
     run hunt "$PRE;vr_stealth_test 122;wait3000;toggleconsole;quit" -QuitOn "stealthtest: hunt done"
     grep -q "hunt done" "$W/scratch/stealth_hunt.log" || { echo "stealthtest: hunt FAIL (never finished)"; fail=1; }
+fi
+if [ "$WHICH" = trailnav ] || [ "$WHICH" = all ]; then
+    run trailnav "$PRE;vr_stealth_test 125;wait9000;toggleconsole;quit" -QuitOn "stealthtest: trailnav done"
+    grep -q "trailnav done" "$W/scratch/stealth_trailnav.log" || { echo "stealthtest: trailnav FAIL (never finished)"; fail=1; }
+    # (the comparison: a tunable, set ahead by the console; put back before the quit, -noconfigwrite runs anyway)
+    run trailnav_off "tune vr_nav_trail 0;$PRE;vr_stealth_test 125;wait9000;tune vr_nav_trail 1;toggleconsole;quit" -QuitOn "stealthtest: trailnav done"
 fi
 if [ "$WHICH" = dogs ] || [ "$WHICH" = all ]; then
     for on in 0 1; do

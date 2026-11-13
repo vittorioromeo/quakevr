@@ -1005,6 +1005,21 @@ daunting".
 - Scene-only change: nav_tele, nav_tele_dm5, nav_tele_metric_gates and teleporters_test.sh chase not re-run (no code
   touched).
 
+## navtrail: monsters follow your trail by the navmesh, not you (branch agent/navtrail, 2026-11-13)
+
+- `vr_nav_trail` 1 (Debug > Tunables "Navmesh: Follow Your Trail") and `vr_nav_trail_search` 160: a hunter that lost
+  you walks the navmesh to its trail's spots (last seen, where you were heading, through your teleporter), then searches
+  about the trail's end till the unchanged give-up; it never paths to where you are now (the old last step, "on at him",
+  took the navmesh to your live spot). Woken onto you unseen, its first spot is where you were then (was stale or the
+  map origin). One goal at a teleporter: your image seen through a one-way teleporter you went into puts the trail
+  through it, and a glimpse of it no longer flips the hunter back to you. NAVMESH.md 21, STEALTH.md.
+- New check `vr_stealth_test 125` (`stealth_tests.sh trailnav`): on 38 navmesh steps to your spot (within 2), never
+  within 160 of you (324; 480 on, unseen), gave up at 15.01 s; with the tunable 0 it reached you (within 51-58, goal
+  you ~200 frames). Scene `nav_trail`.
+- Before / after (origin/next / this, headless no-LTO): nav_tele_metric 17, 17 / 18, 18 of 20 (the two left: grunts
+  standing 0.50 s to shoot through the opening, no goal flips); nav_tele_metric_gates 37, 39 / 38, 39 of 40;
+  nav_tele_dm5 20 / 18 of 24 (noisy, 2-3 run to run); nav_tele pass / pass; stealth_tests.sh all 59 / 62 PASS, 0 FAIL;
+  nav_lift pass 13 s / pass, 9.6-43 s (the map's own hunters now take the lift to your spot; NAVMESH.md 21).
 ## navdet: the navmesh's pool jobs land on a fixed server frame (branch agent/navdet, 2026-11-13)
 
 - **Change** (NAVMESH.md 20): a props' tile batch (`obsJob`) goes into the mesh exactly `vr_nav_job_frames` (3) server

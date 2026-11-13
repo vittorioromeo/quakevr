@@ -1427,6 +1427,8 @@ float cvarh_vr_nav_plat_monsters;
 float cvarh_vr_nav_sidestep;
 float cvarh_vr_nav_tele_time;
 float cvarh_vr_nav_test_kinds;
+float cvarh_vr_nav_trail;
+float cvarh_vr_nav_trail_search;
 float cvarh_vr_np_seen_holster;
 float cvarh_vr_np_seen_prop;
 float cvarh_vr_np_seen_screen;
@@ -3474,6 +3476,8 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_nav_sidestep = VR_CVar_Make("vr_nav_sidestep");
     cvarh_vr_nav_tele_time = VR_CVar_Make("vr_nav_tele_time");
     cvarh_vr_nav_test_kinds = VR_CVar_Make("vr_nav_test_kinds");
+    cvarh_vr_nav_trail = VR_CVar_Make("vr_nav_trail");
+    cvarh_vr_nav_trail_search = VR_CVar_Make("vr_nav_trail_search");
     cvarh_vr_np_seen_holster = VR_CVar_Make("vr_np_seen_holster");
     cvarh_vr_np_seen_prop = VR_CVar_Make("vr_np_seen_prop");
     cvarh_vr_np_seen_screen = VR_CVar_Make("vr_np_seen_screen");

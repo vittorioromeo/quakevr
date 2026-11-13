@@ -1,0 +1,11 @@
+# nav_trail: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". A monster that lost you follows your
+# trail by the navmesh (vr_nav_trail, NAVMESH.md 21): a grunt 300 units ahead of e1m1's start sees you; you slip out of
+# its sight and go on. It walks the navmesh to where it saw you last (its plan drawn: vr_nav_debug 2), searches about
+# there and gives up (Alert); it never heads for where you are now. The headless check is vr_stealth_test 125
+# (stealth_tests.sh trailnav).
+title Navmesh: a grunt that lost you follows your trail, not you
+map e1m1
+spawn "Grunt" 300 0
+cvar vr_nav_debug 2
+cvar vr_stealth_marks 1
+hint A grunt ahead sees you: step out of its sight and keep going round a corner. It walks (its plan drawn in yellow) to where it saw you last, searches about there and gives up with a "?"; it never comes straight for you.
