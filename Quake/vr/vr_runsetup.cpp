@@ -31,6 +31,7 @@ constexpr const char* goreOptions[] = {"My Settings", "Full", "Minimal", "Off"};
 constexpr const char* followOffOn[] = {"As Style", "Off", "On"};
 constexpr const char* startGunOptions[] = {"Shotgun", "Nail Pistol", "Heavy Revolver", "Nothing"};
 constexpr const char* startMeleeOptions[] = {"Axe", "Dagger", "Nothing"};
+constexpr const char* pickupsOptions[] = {"Off", "Balanced", "Anything Goes"};
 constexpr const char* enemyCountOptions[] = {"1x", "2x", "3x"};
 constexpr const char* enemyRandomOptions[] = {"Off", "Balanced", "Anything Goes"};
 
@@ -179,6 +180,13 @@ const Mutator registry[] = {
         &vr_runpick_meleeonly, &vr_run_meleeonly, nullptr, nullptr, nullptr, nullptr},
     {"glasscannon", "Glass Cannon", Section::Mutators, QVR_OPTIONS(offOn), 0, 0,
         "You and the monsters take double damage.", &vr_runpick_glasscannon, &vr_run_glasscannon, nullptr, nullptr, nullptr, nullptr},
+    {"pickups", "Randomized Pickups", Section::Mutators, QVR_OPTIONS(pickupsOptions), 0, 0,
+        "The level's pickups swapped as it loads. Balanced: ammo for ammo of a gun you hold or one nearby, health for health, "
+        "armour and weapons for ones close in value. Anything Goes: anything. Keys, runes and triggered items stay.",
+        &vr_runpick_pickups, &vr_run_pickups, nullptr, nullptr, nullptr, nullptr},
+    {"ironman", "Ironman", Section::Mutators, QVR_OPTIONS(offOn), 0, 0,
+        "No saving: save, quicksave and autosave are off. A death sends you back to the start of the level, with what you "
+        "entered it with.", &vr_runpick_ironman, &vr_run_ironman, nullptr, nullptr, nullptr, nullptr},
     {"enemycount", "Enemy Count", Section::Mutators, QVR_OPTIONS(enemyCountOptions), 0, 0,
         "Each monster of a map comes with one or two more of its kind beside it. The map's own still open its doors.",
         &vr_runpick_enemycount, &vr_run_enemycount, nullptr, nullptr, nullptr, nullptr},
@@ -201,7 +209,7 @@ struct State
     bool haveLine{false};
     bool reading{false}; // readSaveLines ran for the save being loaded
     char line[256]{};
-    char summary[160]{};
+    char summary[256]{};
 };
 State state;
 
@@ -451,7 +459,11 @@ void testCmd()
     Cvar_Set("vr_runpick_startmelee", "1");
     Cvar_Set("vr_runpick_meleeonly", "0");
     Cvar_Set("vr_runpick_glasscannon", "1");
+    Cvar_Set("vr_runpick_pickups", "2");
+    Cvar_Set("vr_runpick_ironman", "1");
     start();
+    t.check(vr_run_pickups.value == 2.f && vr_run_ironman.value == 1.f && ironman() && vr_run_seed.value >= 1.f, name,
+        "start: Randomized Pickups (anything goes), Ironman, the run's seed");
     t.check(gameplaypresets::kind().matchingLevel() == -1 && vr_agrunt_repl.value == 1.f && vr_ai_enhanced.value == 0.f &&
                 vr_nav.value == 0.f,
         name, "start: Classic with armed humanoids on over it");
@@ -461,7 +473,7 @@ void testCmd()
     char saved[256];
     q_strlcpy(saved, saveLine(), sizeof(saved));
     t.check(strstr(saved, "style=1") && strstr(saved, "gore=2") && strstr(saved, "startgun=2") && strstr(saved, "startmelee=1") &&
-                strstr(saved, "glasscannon=1"),
+                strstr(saved, "glasscannon=1") && strstr(saved, "pickups=2") && strstr(saved, "ironman=1"),
         name, "the save line holds the run");
     Con_Printf("runsetup: %s", saved);
 
@@ -481,24 +493,29 @@ void testCmd()
     Cvar_Set("vr_runpick_startgun", "0");
     Cvar_Set("vr_runpick_startmelee", "0");
     Cvar_Set("vr_runpick_glasscannon", "0");
+    Cvar_Set("vr_runpick_pickups", "0");
+    Cvar_Set("vr_runpick_ironman", "0");
     start();
-    t.check(gameplaypresets::kind().matchingLevel() == gameplaypresets::levelUnleashed && vr_run_glasscannon.value == 0.f,
-        name, "run B: Unleashed, no glass cannon");
+    t.check(gameplaypresets::kind().matchingLevel() == gameplaypresets::levelUnleashed && vr_run_glasscannon.value == 0.f &&
+                vr_run_pickups.value == 0.f && !ironman(),
+        name, "run B: Unleashed, no glass cannon, pickups as the map's, saving allowed");
 
     // The first run's save loaded: its choices and the presets' values back.
     char text[320];
     q_snprintf(text, sizeof(text), "header\n%s// qvr_sound x\n", saved);
     readSaveLines(text);
     onLoadGame();
-    t.check(vr_run_style.value == 1.f && vr_run_startgun.value == 2.f && vr_run_startmelee.value == 1.f && vr_run_glasscannon.value == 1.f, name,
-        "load A: the run's choices back");
+    t.check(vr_run_style.value == 1.f && vr_run_startgun.value == 2.f && vr_run_startmelee.value == 1.f &&
+                vr_run_glasscannon.value == 1.f && vr_run_pickups.value == 2.f && vr_run_ironman.value == 1.f,
+        name, "load A: the run's choices back");
     t.check(vr_agrunt_repl.value == 1.f && vr_nav.value == 0.f && gorepresets::matching() == gorepresets::choiceMinimal,
         name, "load A: the presets' values back (Classic + armed, Gore Minimal)");
 
     // An old save (no line): the mutators' defaults, the presets as they are.
     readSaveLines("header\n// qvr_save 3 progs 0 build x\n");
     onLoadGame();
-    t.check(vr_run_startgun.value == 0.f && vr_run_startmelee.value == 0.f && vr_run_glasscannon.value == 0.f && vr_run_style.value == 0.f &&
+    t.check(vr_run_startgun.value == 0.f && vr_run_startmelee.value == 0.f && vr_run_glasscannon.value == 0.f &&
+                vr_run_style.value == 0.f && vr_run_pickups.value == 0.f && vr_run_ironman.value == 0.f &&
                 gorepresets::matching() == gorepresets::choiceMinimal,
         name, "an old save: mutators at their defaults, presets left as they are");
 
@@ -516,8 +533,9 @@ void testCmd()
 
     // The hub ends a run: the mutators back to their defaults.
     Cvar_Set("vr_run_meleeonly", "1");
+    Cvar_Set("vr_run_ironman", "1");
     endRun();
-    t.check(vr_run_meleeonly.value == 0.f, name, "the hub ends the run: mutators off");
+    t.check(vr_run_meleeonly.value == 0.f && vr_run_ironman.value == 0.f, name, "the hub ends the run: mutators off");
 
     // Everything set back.
     for(int i = 0; i < registryCount; i++)
@@ -604,6 +622,10 @@ void start()
     {
         applyActive(i, Phase::Start);
     }
+    // The run's seed (Randomized Pickups: a map's layout the same all through the run): sv_random_seed's when a test
+    // fixes it, else a new one. Not in the saved games: a loaded run's next maps roll anew.
+    const int fixed = static_cast<int>(Cvar_VariableValue("sv_random_seed"));
+    Cvar_SetValueQuick(&vr_run_seed, static_cast<float>(fixed != 0 ? (fixed & 0xFFFF) + 1 : 1 + rand() % 0xFFFF));
     Cvar_Set("vr_run_hubgo", "0");
     Con_Printf("Run setup: %s\n", summary(false));
 }
@@ -666,6 +688,15 @@ const char* summary(bool picks)
     if(value(find("glasscannon")))
     {
         appendPart("Glass cannon");
+    }
+    const int pickups = value(find("pickups"));
+    if(pickups)
+    {
+        appendPart(pickups == 2 ? "Wild pickups" : "Random pickups");
+    }
+    if(value(find("ironman")))
+    {
+        appendPart("Ironman");
     }
     if(const int count = value(find("enemycount")))
     {
@@ -770,6 +801,11 @@ void onLoadGame()
     Con_Printf("Run setup: the saved game's run: %s\n", summary(false));
 }
 
+int ironman()
+{
+    return vr_run_ironman.value != 0.f;
+}
+
 int pageKey()
 {
     int key = 0;
@@ -790,6 +826,25 @@ void init()
 }
 
 } // namespace qvr::runsetup
+
+// Ironman (vr_run_ironman): saving refused (host_cmd.c's save: every save, quick and auto too), the autosaves not tried
+// (host.c), the menus' Save greyed (menu.c, vr_menuui.cpp); a death restarts the level (QC vr_run_ironman.qc).
+extern "C" int VR_RunIronman()
+{
+    return qvr::runsetup::ironman();
+}
+
+extern "C" int VR_RunIronmanRefusesSave()
+{
+    if(!qvr::runsetup::ironman())
+    {
+        return 0;
+    }
+    Con_Printf("Ironman: no saving (a death sends you back to the start of the level)\n");
+    SCR_CenterPrint("Ironman: no saving");
+    Cvar_SetValueQuick(&qvr::vr_ironman_refused, qvr::vr_ironman_refused.value + 1.f);
+    return 1;
+}
 
 // ED_LoadFromFile (pr_edict.c), a map's entity about to spawn: QC VR_Run_MonsterSpawning (self: it, its keys parsed)
 // swaps a monster's classname (Randomized Enemies) and answers how many copies of it to spawn (Enemy Count, 0..2).

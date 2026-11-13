@@ -89,6 +89,9 @@ void endRun();
 void readSaveLines(const char* text);
 void onLoadGame();
 
+// Ironman is on in this run (vr_run_ironman): no saving (C: VR_RunIronman, VR_RunIronmanRefusesSave).
+[[nodiscard]] int ironman();
+
 // A key that changes when a row is held or let go, or shown or hidden (the screen rebuilt then).
 [[nodiscard]] int pageKey();
 

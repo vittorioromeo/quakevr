@@ -885,6 +885,11 @@ void() respawn =
     {
         return;
     }
+    // VR: the run's Ironman: the level from its start, with what he entered it with (vr_run_ironman.qc)
+    if(VR_Run_Respawn())
+    {
+        return;
+    }
 
     if(coop)
     {
