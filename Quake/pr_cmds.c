@@ -2548,12 +2548,7 @@ static void PF_strzone(void)
 	buf = Z_Malloc(len);
 	G_INT(OFS_RETURN) = PR_SetEngineString(buf);
 	id = -1-G_INT(OFS_RETURN);
-	if (id >= qcvm->knownzonesize)
-	{
-		qcvm->knownzonesize = (id+32)&~7;
-		qcvm->knownzone = Z_Realloc(qcvm->knownzone, (qcvm->knownzonesize+7)>>3);
-	}
-	qcvm->knownzone[id>>3] |= 1u<<(id&7);
+	PR_MarkZonedString(id);
 
 	for (i = 0; i < qcvm->argc; i++)
 	{
