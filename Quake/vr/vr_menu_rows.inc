@@ -6036,6 +6036,12 @@ QVR_CYCLE_BYNAME(sv_fastpushmove, "Pusher Search",
     "Walk, every entity for each (Quake's); Check, the grid from the first and every push's entities compared "
     "with the walk (a miss warned of: Pusher Search Stats). The same entities moved, in the same order.",
     {1.f, "Grid"}, {0.f, "Walk"}, {2.f, "Check"})
+QVR_CYCLE_BYNAME(sv_fte_hulltrace, "Hull Trace",
+    "sv_fte_hulltrace: how a move is traced through the map's collision hulls. FTE, the default: split at the "
+    "planes themselves, the far side tested by the same recursion, the impact set from the move's own ends "
+    "(after vkQuake and FTE: fewer moves slipping through thin brushes or ending inside them); Quake: the "
+    "original, to compare.",
+    {1.f, "FTE"}, {0.f, "Quake"})
 QVR_CYCLE(vr_qcexec, "QuakeC Loop",
     "vr_qcexec: the QuakeC interpreter's loop. Fast (goto), the default: the same results, errors and "
     "instruction counts as the original, quicker (docs/vr-port/QC_VM.md). Original: the old loop, to "
