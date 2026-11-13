@@ -1,0 +1,11 @@
+# agrunt_repl_gundagger: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Armed humanoid replacements: a gun and a dagger (god)
+map vrtesthall
+god
+cvar vr_agrunt_repl 1
+cvar vr_agrunt_repl_gunaxe 1
+cvar vr_agrunt_w_axe 0
+cvar vr_agrunt_w_dagger 1
+spawn "Grunt" 320 -60
+spawn "Enforcer" 320 60
+hint A grunt and an enforcer replaced by armed ones with a gun and a melee weapon, the axe weight at 0 here: each holds its own gun in its right hand and a dagger in its left. They fire the gun at range, draw the dagger and stab you when you walk up to them, and go back to the gun when you back off.

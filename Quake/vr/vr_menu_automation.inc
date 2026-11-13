@@ -439,7 +439,7 @@ za::Vector<Item> pageDebugAutomation()
                   "vanilla enforcer, a replaced one, each alone against you for 150 s (shots, damage a shot, damage a "
                   "second), then 40 of each killed (guns, backpacks and their ammo; extra weapons from the vanilla "
                   "ones only)."),
-        command("Armed Replacements: Gun and Axe", "vr_agrunt_test 72")
+        command("Armed Replacements: Gun and Melee Weapon", "vr_agrunt_test 72")
             .help("vr_agrunt_test 72 (vrtesthall): a grunt with its rifle and an axe fires at range, takes the axe up "
                   "close, the gun again when you back off; a spent shotgun thrown away for the axe; a gun lying near "
                   "taken up."),

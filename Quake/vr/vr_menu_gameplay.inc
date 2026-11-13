@@ -520,9 +520,10 @@ void armedGripsDragMode()
         chance("Dual Wielding", vr_agrunt_repl_dual,
             "The chance of a second weapon that pairs with the first: two guns not too big, two one-handed blades "
             "(vr_agrunt_repl_dual)."),
-        chance("Gun and Axe", vr_agrunt_repl_gunaxe,
-            "The chance of a gun in the right hand and an axe in the left: it fires the gun, takes to the axe when "
-            "you get close or its gun runs dry, back to the gun when you back off (vr_agrunt_repl_gunaxe)."),
+        chance("Gun and Melee Weapon", vr_agrunt_repl_gunaxe,
+            "The chance of a gun in the right hand and a melee weapon (axe or dagger, by Armed Grunts' Axe and "
+            "Dagger weights) in the left: it fires the gun, takes to the blade when you get close or its gun runs "
+            "dry, back to the gun when you back off (vr_agrunt_repl_gunaxe)."),
         header("Difficulty"),
         row(opt::vr_agrunt_repl_seed),
         header("Where"),
