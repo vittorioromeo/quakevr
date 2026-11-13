@@ -115,8 +115,19 @@ struct State
     int clicks{0};
     za::Array<Button, buttonCount> buttons{};
     bool laidOut{false};
+    int dragFrom{-1}; // the slot a weapon is being dragged from (its holster 0 .. 5, a hand: handSlot), -1 none
+    int drops{0};     // drags let go on a place the weapon may go (the tests)
+    bool fakeLmb{false}; // vr_flatholster_test's left button held (a drag's)
 };
 State st;
+
+// The slots a weapon is dragged between (his words 2026-11-13: "drag and drop as well as the existing buttons"): the
+// holsters 0 .. 5 (their stat order), then the left hand's and the right hand's.
+constexpr int slotCount = holsterCount + 2;
+[[nodiscard]] constexpr int handSlot(int h)
+{
+    return holsterCount + h;
+}
 
 // What the menu shows (the server's stats) this frame.
 struct Contents
@@ -131,6 +142,7 @@ struct Contents
     int holsterFlags[holsterCount]{};
     bool flippable[2]{};    // that hand holds a weapon whose grip can be flipped (view::heldGripFlippable: the eject flip's)
     bool unloadFull[2]{}; // that gun's ammo full up in the reserve: no round would go back (UNLOAD greyed)
+    bool tooBig[2]{};     // that hand's weapon too big for a holster (QC WeaponIdToHolsterable: a drag greys the holsters)
 };
 
 [[nodiscard]] Contents contents()
@@ -173,6 +185,8 @@ struct Contents
     const int full = cl.stats[protocol::STAT_QVR_FLATUNLOADFULL];
     c.unloadFull[0] = (full & 1) != 0;
     c.unloadFull[1] = (full & 2) != 0;
+    c.tooBig[0] = (full & 4) != 0; // (the same stat's bits 2 and 3)
+    c.tooBig[1] = (full & 8) != 0;
     return c;
 }
 
@@ -275,6 +289,13 @@ void layOut()
     return nullptr;
 }
 
+void sendImpulse(int impulse)
+{
+    char cmd[32];
+    q_snprintf(cmd, sizeof(cmd), "impulse %d\n", impulse);
+    Cbuf_InsertText(cmd);
+}
+
 // A click where the cursor is: the button's impulse (QC vr_flatholster.qc), as the console's `impulse N` would send it.
 void click()
 {
@@ -294,12 +315,146 @@ void click()
     }
     else
     {
-        char cmd[32];
-        q_snprintf(cmd, sizeof(cmd), "impulse %d\n", impulseOf(*b));
-        Cbuf_InsertText(cmd);
+        sendImpulse(impulseOf(*b));
     }
     st.clicks++;
     Con_DPrintf("flat holsters: %s (impulse %d)\n", b->name, impulseOf(*b));
+}
+
+// Drag and drop between the slots (his words 2026-11-13): hand to holster and back, hand to hand (a swap), holster to
+// holster (a swap). Each drop is a button's own action (the same impulses, so the same rules: QC's holster refusal, Melee
+// Only's, a carried prop's), and a holster to holster drop QC's VR_FlatHolster_SwapHolsters (impulse 24 + the pair).
+[[nodiscard]] glm::vec4 slotRect(int s)
+{
+    return s >= holsterCount ? handRect[s - holsterCount] : glm::vec4{places[s].x, places[s].y, slotW, slotH};
+}
+
+[[nodiscard]] int slotAt(const glm::vec2& p)
+{
+    for(int s = 0; s < slotCount; s++)
+    {
+        if(inside(slotRect(s), p))
+        {
+            return s;
+        }
+    }
+    return -1;
+}
+
+// Slot `s` holds a weapon that can be picked up and dragged (a hand's carried box or prop is not: DROP it).
+[[nodiscard]] bool draggable(int s, const Contents& c)
+{
+    if(s < 0 || s >= slotCount)
+    {
+        return false;
+    }
+    if(s >= holsterCount)
+    {
+        const int h = s - holsterCount;
+        return c.hand[h] != WID_FIST && !c.carry[h];
+    }
+    return c.holster[s] != WID_FIST;
+}
+
+// Whether the weapon in slot `from` may be let go on slot `to` (else that slot greyed and the drop cancelled): the
+// buttons' own rules (enabled()) and a weapon too big for a holster kept out of them (QC WeaponIdToHolsterable).
+[[nodiscard]] bool dropValid(int from, int to, const Contents& c)
+{
+    if(!draggable(from, c) || to < 0 || to >= slotCount || to == from)
+    {
+        return false;
+    }
+    const bool fromHand = from >= holsterCount, toHand = to >= holsterCount;
+    if(fromHand && toHand)
+    {
+        return !c.carry[0] && !c.carry[1]; // (SWAP's)
+    }
+    if(fromHand)
+    {
+        return !c.tooBig[from - holsterCount]; // (the holster's L or R: a trade)
+    }
+    if(toHand)
+    {
+        return !c.carry[to - holsterCount];
+    }
+    return true; // (holster to holster: a trade, any weapon fits any holster)
+}
+
+// The impulse of holsters a and b trading (QC VR_FlatHolster_Pair): 24 + the pair's place among a < b.
+[[nodiscard]] int holsterPairImpulse(int a, int b)
+{
+    if(a > b)
+    {
+        std::swap(a, b);
+    }
+    int k = 0;
+    for(int i = 0; i < holsterCount - 1; i++)
+    {
+        for(int j = i + 1; j < holsterCount; j++)
+        {
+            if(i == a && j == b)
+            {
+                return 24 + k;
+            }
+            k++;
+        }
+    }
+    return 0;
+}
+
+// The dragged weapon let go where the cursor is: dropped on a place it may go, else the drag cancelled.
+void endDrag()
+{
+    const int from = st.dragFrom;
+    st.dragFrom = -1;
+    if(from < 0)
+    {
+        return;
+    }
+    const Contents c = contents();
+    const int to = slotAt(st.cursor);
+    if(!dropValid(from, to, c))
+    {
+        Con_DPrintf("flat holsters: drag from slot %d let go on %d: cancelled\n", from, to);
+        return;
+    }
+    const bool fromHand = from >= holsterCount, toHand = to >= holsterCount;
+    int impulse = 0;
+    if(fromHand && toHand)
+    {
+        flatplay::swapHands("the holster menu's drag"); // (SWAP's: the hands meet first)
+    }
+    else if(fromHand || toHand)
+    {
+        const int hs = fromHand ? to : from, h = (fromHand ? from : to) - holsterCount;
+        impulse = (h == 0 ? 60 : 62) + 3 * hs; // (the holster's L or R)
+    }
+    else
+    {
+        impulse = holsterPairImpulse(from, to);
+    }
+    if(impulse)
+    {
+        sendImpulse(impulse);
+    }
+    st.drops++;
+    Con_DPrintf("flat holsters: drag from slot %d to %d (impulse %d)\n", from, to, impulse);
+}
+
+// The left button pressed on the menu: a button clicked, or a weapon picked up to drag.
+void pressAt()
+{
+    if(buttonAt(st.cursor))
+    {
+        click();
+        return;
+    }
+    const int s = slotAt(st.cursor);
+    if(draggable(s, contents()))
+    {
+        st.dragFrom = s;
+        Con_DPrintf("flat holsters: drag from slot %d\n", s);
+    }
 }
 
 [[nodiscard]] bool keyHeld()
@@ -370,12 +525,22 @@ void frame(bool on)
         st.fade = 0.f;
     }
 
-    // The left button: a click on the menu (flatplay::routeFire fires nothing while it is open).
-    const bool lmb = (in_attack.state & 1) != 0;
-    if(st.open && lmb && !st.lmb)
+    // The left button: a click on the menu (flatplay::routeFire fires nothing while it is open), or a weapon picked up
+    // and dragged while held, let go on another slot (a drop) or anywhere else (cancelled); the menu closed mid-drag
+    // cancels it too.
+    const bool lmb = (in_attack.state & 1) != 0 || st.fakeLmb;
+    if(!st.open)
     {
-        click();
+        st.dragFrom = -1;
+    }
+    else if(lmb && !st.lmb)
+    {
+        pressAt();
         st.lmbClicked = true;
+    }
+    else if(!lmb && st.dragFrom >= 0)
+    {
+        endDrag();
     }
     st.lmb = lmb;
     testStep();
@@ -525,8 +690,20 @@ void draw()
     v.lines = lines.data();
     v.lineCount = nl;
     v.header = "HOLSTERS";
-    v.footer = toggleMode() ? "Click   wheel / Esc: close   L/R: trade with that hand   DROP: to the ground"
-                            : "Point, let go of the wheel   L/R: trade with that hand   DROP: to the ground";
+    v.footer = toggleMode() ? "Click   Drag: move or swap   L/R: trade with that hand   DROP: to the ground"
+                            : "Point, let go of the wheel   Drag: move or swap   DROP: to the ground";
+    if(st.dragFrom >= 0 && st.dragFrom < slotCount)
+    {
+        // A drag: its weapon under the cursor, the places it may go lit, the rest greyed.
+        using Drop = gadget::HolsterMenuSlot::Drop;
+        for(int s = 0; s < slotCount; s++)
+        {
+            slots[s].drop = s == st.dragFrom ? Drop::Source : dropValid(st.dragFrom, s, c) ? Drop::Valid : Drop::Invalid;
+        }
+        v.dragModel = slots[st.dragFrom].model;
+        v.dragName = slots[st.dragFrom].name;
+        v.dragAt = st.cursor;
+    }
     const gadget::VisorImage img = gadget::renderHolsterMenu(v);
     if(!img.shown)
     {
@@ -622,6 +799,10 @@ struct Test
     int sub{0};        // a step's own stages (the greyed UNLOAD's)
     int daggerSlot{-1};       // the holster a dagger was put in (its stat slot), and what it held before
     float slotWas[2]{};       // (its weapon id and flags)
+    int dphase{0};            // a drag's stage (dragged())
+    int dragSeen{-1};         // the slot the drag picked up (st.dragFrom after the press)
+    bool hoverValid{false};   // the slot under the cursor before letting go lit (a place the weapon may go)
+    int dropsWas{0};          // st.drops before a drag
 };
 Test test;
 constexpr int giveUp = 400;
@@ -652,6 +833,54 @@ void pointAt(const glm::vec2& p)
 {
     const float k = za::max(st.scale, 0.1f) / za::max(vr_flat_holster_menu_cursor_speed.value, 0.01f);
     (void)mouse(static_cast<int>(za::round((p.x - st.cursor.x) * k)), static_cast<int>(za::round((p.y - st.cursor.y) * k)));
+}
+
+[[nodiscard]] glm::vec2 slotMid(int s)
+{
+    const glm::vec4 r = slotRect(s);
+    return {r.x + r.z * 0.5f, r.y + r.w * 0.5f};
+}
+
+// One drag with the mouse, a stage a frame: the cursor onto slot `from`, the left button down (frame() picks the weapon
+// up), the cursor to `to`, the slot there read (lit or greyed; a screenshot with `shot`), the button let go (frame()
+// drops it or cancels). True once let go.
+[[nodiscard]] bool dragged(int from, const glm::vec2& to, bool shot = false)
+{
+    // (With `shot`: held a few counted frames more, the screenshot taken in their middle: the drawn image lags the
+    // cursor by a frame or two.)
+    constexpr int shotHold = 8;
+    if(shot && test.dphase >= 3 && test.dphase < 3 + shotHold)
+    {
+        if(test.dphase == 3 + shotHold / 2)
+        {
+            Cbuf_AddText("screenshot\n"); // (the weapon under the cursor, the places it may go lit)
+        }
+        test.dphase++;
+        return false;
+    }
+    const int phase = shot && test.dphase >= 3 ? test.dphase - shotHold : test.dphase;
+    test.dphase++;
+    switch(phase)
+    {
+    case 0:
+        test.dropsWas = st.drops;
+        pointAt(slotMid(from));
+        st.fakeLmb = true;
+        return false;
+    case 1:
+        test.dragSeen = st.dragFrom;
+        pointAt(to);
+        return false;
+    case 2:
+        test.hoverValid = st.dragFrom >= 0 && dropValid(st.dragFrom, slotAt(st.cursor), contents());
+        return false;
+    case 3:
+        st.fakeLmb = false;
+        return false;
+    default:
+        test.dphase = 0;
+        return true;
+    }
 }
 
 void next()
@@ -967,8 +1196,179 @@ void testStep()
             next();
         }
         break;
-    // vr_flat_holster_menu_mode 0 (the test's): letting go of the key clicks the button under the cursor.
+    // Drag and drop (his words 2026-11-13), the left button held from one slot to another: the right hand's shotgun to the
+    // right shoulder and back, the hands swapped, both guns into holsters, holster to holster (a swap, then a move into an
+    // empty one), a drop on nothing, on its own slot and a drag from an empty holster doing nothing, the places a weapon
+    // too big for a holster (or a carrying hand) may not go greyed; at the end the shotgun in the right hand again.
     case 14:
+    {
+        const auto sub = [](int n) {
+            test.sub = n;
+            test.frames = 0;
+        };
+        const glm::vec2 nothing{300.f, 226.f}; // (under the hands' buttons: no slot, no button)
+        switch(test.sub)
+        {
+        case 0:
+            if(test.frames == 1)
+            {
+                Cbuf_AddText("impulse 176\n"); // (the nailgun in the left hand)
+            }
+            if(wait(c.hand[0] == WID_NAILGUN && c.hand[1] == WID_SHOTGUN && c.holster[1] == WID_FIST, "drag: the nailgun left, the shotgun right"))
+            {
+                sub(1);
+            }
+            break;
+        case 1:
+            if(dragged(handSlot(1), slotMid(1), true))
+            {
+                result(test.dragSeen == handSlot(1) && test.hoverValid, "drag: the right hand's shotgun picked up, the right shoulder lit under it");
+                sub(2);
+            }
+            break;
+        case 2:
+            if(wait(c.holster[1] == WID_SHOTGUN && c.hand[1] == WID_FIST, "drag: the right hand's shotgun into the right shoulder"))
+            {
+                result(st.drops == test.dropsWas + 1, "drag: the right hand's shotgun into the right shoulder (hand -> holster)");
+                sub(3);
+            }
+            break;
+        case 3:
+            if(dragged(1, slotMid(handSlot(1))))
+            {
+                sub(4);
+            }
+            break;
+        case 4:
+            if(wait(c.hand[1] == WID_SHOTGUN && c.holster[1] == WID_FIST, "drag: the shoulder's shotgun back into the right hand"))
+            {
+                result(true, "drag: the shoulder's shotgun back into the right hand (holster -> hand)");
+                sub(5);
+            }
+            break;
+        case 5:
+            if(dragged(handSlot(0), slotMid(handSlot(1))))
+            {
+                result(test.hoverValid, "drag: the other hand lit under the left hand's nailgun");
+                sub(6);
+            }
+            break;
+        case 6:
+            if(wait(c.hand[0] == WID_SHOTGUN && c.hand[1] == WID_NAILGUN, "drag: the hands swapped"))
+            {
+                result(true, "drag: left hand onto the right hand swaps them (hand <-> hand)");
+                sub(7);
+            }
+            break;
+        case 7:
+            if(dragged(handSlot(0), slotMid(2)))
+            {
+                sub(8);
+            }
+            break;
+        case 8:
+            if(wait(c.holster[2] == WID_SHOTGUN && c.hand[0] == WID_FIST, "drag: the left hand's shotgun into the left hip"))
+            {
+                sub(9);
+            }
+            break;
+        case 9:
+            if(dragged(handSlot(1), slotMid(3)))
+            {
+                sub(10);
+            }
+            break;
+        case 10:
+            if(wait(c.holster[3] == WID_NAILGUN && c.hand[1] == WID_FIST, "drag: the right hand's nailgun into the right hip"))
+            {
+                result(true, "drag: both hands' guns into the hips");
+                sub(11);
+            }
+            break;
+        case 11:
+            if(dragged(2, slotMid(3)))
+            {
+                result(test.hoverValid, "drag: a full holster lit under another holster's gun");
+                sub(12);
+            }
+            break;
+        case 12:
+            if(wait(c.holster[2] == WID_NAILGUN && c.holster[3] == WID_SHOTGUN, "drag: the hips' guns swapped"))
+            {
+                result(true, "drag: the left hip's shotgun onto the right hip's nailgun swaps them (holster <-> holster)");
+                sub(13);
+            }
+            break;
+        case 13:
+            if(dragged(3, slotMid(5)))
+            {
+                sub(14);
+            }
+            break;
+        case 14:
+            if(wait(c.holster[5] == WID_SHOTGUN && c.holster[3] == WID_FIST, "drag: the shotgun moved into the empty right chest"))
+            {
+                result(true, "drag: the right hip's shotgun moved into the empty right chest (holster -> empty holster)");
+                sub(15);
+            }
+            break;
+        case 15:
+            if(dragged(5, nothing))
+            {
+                result(test.dragSeen == 5 && !test.hoverValid && st.dragFrom < 0 && st.drops == test.dropsWas &&
+                           c.holster[5] == WID_SHOTGUN,
+                    "drag: let go on nothing cancels (the shotgun stays in the right chest)");
+                sub(16);
+            }
+            break;
+        case 16:
+            if(dragged(5, slotMid(5)))
+            {
+                result(!test.hoverValid && st.drops == test.dropsWas && c.holster[5] == WID_SHOTGUN, "drag: let go on its own slot cancels");
+                sub(17);
+            }
+            break;
+        case 17:
+            if(dragged(3, slotMid(1)))
+            {
+                result(test.dragSeen < 0 && st.drops == test.dropsWas, "drag: an empty holster picks nothing up");
+                // The rules a drag reads (the buttons'): a weapon too big for a holster (QC WeaponIdToHolsterable's
+                // stat bit) greys every holster and leaves the other hand lit; a hand carrying a prop greys itself.
+                result(!c.tooBig[0] && !c.tooBig[1], "drag: the guns' too-big-for-a-holster bits clear");
+                Contents big = c;
+                big.hand[1] = WID_SWORD;
+                big.tooBig[1] = true;
+                bool anyHolster = false;
+                for(int i = 0; i < holsterCount; i++)
+                {
+                    anyHolster = anyHolster || dropValid(handSlot(1), i, big);
+                }
+                result(!anyHolster && dropValid(handSlot(1), handSlot(0), big), "drag: a weapon too big for a holster: every holster greyed, the other hand lit");
+                Contents carrying = c;
+                carrying.carry[1] = 1;
+                result(!dropValid(5, handSlot(1), carrying) && dropValid(5, handSlot(0), carrying) && !draggable(handSlot(1), carrying),
+                    "drag: a hand carrying a prop greyed (and not picked up)");
+                sub(18);
+            }
+            break;
+        case 18:
+            if(dragged(5, slotMid(handSlot(1))))
+            {
+                sub(19);
+            }
+            break;
+        default:
+            if(wait(c.hand[1] == WID_SHOTGUN && c.holster[5] == WID_FIST, "drag: the chest's shotgun into the empty right hand"))
+            {
+                result(true, "drag: the chest's shotgun into the empty right hand");
+                next();
+            }
+            break;
+        }
+        break;
+    }
+    // vr_flat_holster_menu_mode 0 (the test's): letting go of the key clicks the button under the cursor.
+    case 15:
         if(wait(c.hand[1] == WID_SHOTGUN, "the shotgun in the right hand again"))
         {
             pointAt({240.f, 124.f}); // (the right chest's slot: no button)
@@ -977,7 +1377,7 @@ void testStep()
             next();
         }
         break;
-    case 15:
+    case 16:
         if(wait(!st.open, "let go over no button: closed"))
         {
             result(st.clicks == test.clicks && c.hand[1] == WID_SHOTGUN && c.holster[1] == WID_FIST, "let go over no button: just closed");
@@ -985,7 +1385,7 @@ void testStep()
             next();
         }
         break;
-    case 16:
+    case 17:
         if(wait(st.open, "held again: open"))
         {
             int dx = 0, dy = 0;
@@ -997,7 +1397,7 @@ void testStep()
             next();
         }
         break;
-    case 17:
+    case 18:
         if(wait(c.holster[1] == WID_SHOTGUN && c.hand[1] == WID_FIST, "let go over h1 R: the right hand's shotgun into the right shoulder"))
         {
             result(!st.open, "let go over h1 R: the right hand's shotgun into the right shoulder, the menu closed");
@@ -1007,7 +1407,7 @@ void testStep()
         }
         break;
     // vr_flat_holster_menu_mode 1: a press opens it, as many clicks as wanted, the next press closes it.
-    case 18:
+    case 19:
         st.cmdHeld = false;
         if(test.frames >= 5 && wait(st.open, "toggle: a press opens it"))
         {
@@ -1016,7 +1416,7 @@ void testStep()
             next();
         }
         break;
-    case 19:
+    case 20:
         if(wait(c.hand[1] == WID_SHOTGUN && c.holster[1] == WID_FIST, "toggle: click 1 (h1 R)"))
         {
             result(st.open, "toggle: click 1 (h1 R: the shotgun drawn), still open");
@@ -1024,7 +1424,7 @@ void testStep()
             next();
         }
         break;
-    case 20:
+    case 21:
         if(wait(c.hand[0] == WID_SHOTGUN && c.hand[1] == WID_FIST, "toggle: click 2 (SWAP)"))
         {
             result(st.open, "toggle: click 2 (SWAP), still open");
@@ -1032,7 +1432,7 @@ void testStep()
             next();
         }
         break;
-    case 21:
+    case 22:
         if(wait(c.hand[0] == WID_FIST, "toggle: click 3 (the left hand's DROP)"))
         {
             result(st.open, "toggle: click 3 (the left hand's DROP), still open");
@@ -1040,7 +1440,7 @@ void testStep()
             next();
         }
         break;
-    case 22:
+    case 23:
         st.cmdHeld = false; // (let go a few frames before the press that opens it again)
         if(test.frames >= 3 && wait(!st.open, "toggle: the next press closes it"))
         {
@@ -1049,7 +1449,7 @@ void testStep()
             next();
         }
         break;
-    case 23:
+    case 24:
         st.cmdHeld = false;
         if(wait(st.open, "toggle: opened again"))
         {
@@ -1057,7 +1457,7 @@ void testStep()
             next();
         }
         break;
-    case 24:
+    case 25:
         // (Counted frames: it must stay shut, not open again on the next frame.)
         if(test.frames >= 10)
         {
@@ -1066,7 +1466,7 @@ void testStep()
             next();
         }
         break;
-    case 25:
+    case 26:
         if(wait(!shown() && timescale::current() >= 1.f, "the menu closed, time back at 1"))
         {
             result(true, "the menu closed, time back at 1");

@@ -35,7 +35,8 @@
 .float vr_flatrl_unl0;   // the off hand's gun (its weapon id) emptied by the holster menu's UNLOAD: not auto reloaded
 .float vr_flatrl_unl1;   // the main hand's (VR_FlatReload_HandFrame; 0 none)
 .float vr_flatrl_full;   // the hands whose UNLOAD is greyed, its rounds having no room in the reserve (1 off, 2 main:
-                         // STAT_QVR_FLATUNLOADFULL; VR_FlatReload_HandFrame)
+                         // STAT_QVR_FLATUNLOADFULL; VR_FlatReload_HandFrame); + 4 off, 8 main: that hand's weapon too
+                         // big for a holster (the holster menu's drag)
 .float vr_flatrl_due0;   // the off hand's gun fired empty: when it breaks open or drops its magazine (0 nothing due),
 .float vr_flatrl_due1;   // the main hand's
 .entity vr_flatrl_duei0; // and the gun's record it is for
@@ -539,6 +540,17 @@ void(float xHand) VR_FlatReload_HandFrame =
     else
     {
         self.vr_flatrl_full = self.vr_flatrl_full - (self.vr_flatrl_full & fbit);
+    }
+    // The holster menu's drag (vr_flatholster.cpp): the holsters greyed under a hand's weapon too big for a holster
+    // (WeaponIdToHolsterable: AD's hammer, mace, ...): bits 2 and 3.
+    float bbit = fbit * 4;
+    if(!VRIsHandWeaponless(self, xHand) && !WeaponIdToHolsterable(VRGetEntWeapon(self, xHand), VRGetEntWeaponFlags(self, xHand)))
+    {
+        self.vr_flatrl_full = self.vr_flatrl_full | bbit;
+    }
+    else
+    {
+        self.vr_flatrl_full = self.vr_flatrl_full - (self.vr_flatrl_full & bbit);
     }
     if(VR_FlatPlay(self))
     {

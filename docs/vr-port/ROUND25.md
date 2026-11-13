@@ -1756,3 +1756,31 @@ His flat report: "ERROR: weapon clip less than zero" firing the shotgun, a spent
 - **Checklist:** the Gameplay preset "?" rows line was already gone; the stirring line moved to Flat-screen: monsters
   and AI; the flashlight and lean lines are ticked (left for the next sort).
 - **cltick1113:** retired 6 ticked checklist lines (dagger label, gore minimal, flashlight, lean, kd stir, dog gate; none had voice notes) and 3 unused scenes (flatlean, gore_presets, nav_tele_gate).
+
+## menudrag: menu wheel scrolls the page, fainter big-menu bar, holster menu drag and drop (branch agent/menudrag, 2026-11-13)
+
+His flat notes 5, 6, 9 (2026-11-13).
+- **Wheel scrolls the bar** (`vr_menu_wheel_scroll` 0.25; Menu Look > Settings Pages, "Mouse Wheel Scroll"): on a VR
+  settings page that scrolls, a wheel notch scrolls the page by that part of the rows shown (folded rows not counted;
+  `wheelScroll`, vr_menu.cpp) and the cursor stays on the page (its first place scrolling down, its last scrolling up,
+  only where it went off); 0 or a page that fits: a notch moves the cursor a row as before. The same step
+  (`menuui::wheelRows`, `VR_MenuWheelRows`) on Search's and the Map Library's results, the drop-down lists and
+  Ironwail's own option lists (`M_List`, 3 rows before; 3 with the setting at 0). Not smooth (rows are whole steps). VR
+  sticks unchanged (no wheel there). Test aid: `menu_vr wheeltest` (the page shown).
+- **Big-menu bar** (`vr_menu_big_hl_alpha` 0.14; Menu Look > Main Menu, "Big Menu Bar Opacity", 0.02-0.5): the soft
+  bar's opacity at its middle, bar and glow rings together; 0.14 is the settings pages' selected row's
+  (`colors::highlight`); the first look was about 0.31.
+- **Holster menu drag and drop** (vr_flatholster.cpp, vr_gadget_holster.inc): the left button held on a hand's or a
+  holster's weapon picks it up (a carried prop is not; an empty slot nothing); its thumbnail and name follow the cursor,
+  its slot fades, the slots it may go to are lit (a second ring, brighter under the cursor), the rest greyed. Let go:
+  hand <-> holster sends that holster's L/R impulse (`VR_FlatHolster_Swap`: QC's refusals, records, grip flags kept),
+  hand <-> hand SWAP's `flatplay::swapHands`, holster <-> holster the new impulses 24..38 (`24 + pair index`, QC
+  `VR_FlatHolster_Pair` / `VR_FlatHolster_SwapHolsters`: weapon, flags, record and model traded, or moved into an empty
+  one). On nothing or its own slot, or the menu closed mid-drag: cancelled. Greyed by the buttons' rules: a carrying
+  hand; a weapon too big for a holster (STAT_QVR_FLATUNLOADFULL bits 2, 3 from QC `WeaponIdToHolsterable`, set in
+  `VR_FlatReload_HandFrame`). In mode 0 a drag counts as a click (letting go of the wheel then only closes).
+- **Tests:** flatholster_test 54/0 (was 38; +16 drag checks: hand->holster, holster->hand, hand<->hand,
+  holster<->holster, holster->empty holster, drop on nothing / own slot cancels, empty holster picks nothing up,
+  too-big and carrying greyed; a mid-drag screenshot); `Misc/quakevr/menu_wheel_test.sh` 5/0 (Locomotion, 129 rows);
+  menu_shortcuts_test 14/0; `vr_menu_path_check` vrcalibration 6 found, 0 missing; menu_paths.txt regenerated. Scene
+  `flat_holster_drag`.

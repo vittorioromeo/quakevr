@@ -147,6 +147,16 @@ struct HolsterMenuSlot
     const char* name{""};  // the weapon's name ("" empty)
     const char* model{""}; // its model's file (its thumbnail; "" none)
     bool hovered{false};
+    // While a weapon is dragged (vr_flatholster.cpp): the slot it came from (its thumbnail faded), a place it may go
+    // (lit), or one it may not (greyed).
+    enum class Drop : unsigned char
+    {
+        None,
+        Source,
+        Valid,
+        Invalid
+    };
+    Drop drop{Drop::None};
 };
 struct HolsterMenuButton
 {
@@ -167,6 +177,9 @@ struct HolsterMenuView
     int lineCount{0};
     const char* header{""};
     const char* footer{""};
+    const char* dragModel{""}; // the weapon being dragged (its thumbnail at dragAt, under the cursor; "" none)
+    const char* dragName{""};
+    glm::vec2 dragAt{0.f};
 };
 [[nodiscard]] VisorImage renderHolsterMenu(const HolsterMenuView& view);
 

@@ -2282,9 +2282,11 @@ vr_menu_fold_time|1|Menu Look|Fold Animation Time|Advanced VR Options > HUD and 
 vr_menu_minor_scale|1|Menu Look|Page Footer Size|Advanced VR Options > HUD and Menus > Menu Look > Page Footer Size
 vr_menu_minor_alpha|1|Menu Look|Page Footer Opacity|Advanced VR Options > HUD and Menus > Menu Look > Page Footer Opacity
 vr_menu_hl_fit|1|Menu Look|Highlight Fits the Row|Advanced VR Options > HUD and Menus > Menu Look > Highlight Fits the Row
+vr_menu_wheel_scroll|1|Menu Look|Mouse Wheel Scroll|Advanced VR Options > HUD and Menus > Menu Look > Mouse Wheel Scroll
 vr_menu_main_gap|1|Menu Look|Main Menu Group Gap|Advanced VR Options > HUD and Menus > Menu Look > Main Menu Group Gap
 vr_menu_big_hl|1|Menu Look|Big Menu Highlight|Advanced VR Options > HUD and Menus > Menu Look > Big Menu Highlight
 vr_menu_big_hl_scale|1|Menu Look|Big Menu Grow|Advanced VR Options > HUD and Menus > Menu Look > Big Menu Grow
+vr_menu_big_hl_alpha|1|Menu Look|Big Menu Bar Opacity|Advanced VR Options > HUD and Menus > Menu Look > Big Menu Bar Opacity
 vr_runsetup_groups|1|Menu Look|Run Setup: Mutator Groups|Advanced VR Options > HUD and Menus > Menu Look > Run Setup: Mutator Groups
 vr_runsetup_big|1|Menu Look|Run Setup: Difficulty and Start Size|Advanced VR Options > HUD and Menus > Menu Look > Run Setup: Difficulty and Start Size
 vr_runsetup_halls_line|1|Menu Look|Run Setup: Skill Halls Line|Advanced VR Options > HUD and Menus > Menu Look > Run Setup: Skill Halls Line

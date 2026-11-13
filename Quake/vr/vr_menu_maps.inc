@@ -835,7 +835,7 @@ void mapsKey(int key)
         case K_RIGHTARROW: mapsMove(1, 0); S_LocalSound("misc/menu1.wav"); return;
         case K_MWHEELUP:
         case K_MWHEELDOWN:
-            mapPage.resultScroll += key == K_MWHEELUP ? -1 : 1;
+            mapPage.resultScroll += (key == K_MWHEELUP ? -1 : 1) * q_max(1, menuui::wheelRows(mapPage.visibleResults));
             mapsScrollTo(-1);
             return;
         case K_ENTER:
