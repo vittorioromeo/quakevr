@@ -2013,6 +2013,23 @@ static void M_SinglePlayer_NewGame (void)
 }
 
 // QVR: the new game itself (the Run Setup screen's Start, vr/vr_menu_runsetup.inc).
+// QVR: a map from the Levels list, started after the Run Setup screen (as M_Skill_Key's fresh start did).
+void M_LevelStart (const char *map, int skill)
+{
+	IN_Activate();
+	key_dest = key_game;
+	m_state = m_none;
+	if (sv.active)
+		Cbuf_AddText ("disconnect\n");
+	if (skill >= 0)
+		Cbuf_AddText (va ("skill %d\n", skill));
+	Cbuf_AddText ("maxplayers 1\n");
+	Cbuf_AddText ("deathmatch 0\n");
+	Cbuf_AddText ("coop 0\n");
+	Cbuf_AddText ("campaign 0\n");
+	Cbuf_AddText (va ("map \"%s\"\n", map));
+}
+
 void M_NewGameStart (void)
 {
 	IN_Activate();
@@ -2834,8 +2851,7 @@ void M_Menu_Maps_f (void)
 		}
 
 		mapsmenu.list.cursor = i;
-		M_SetSkillMenuMap (mapname);
-		M_Menu_Skill_f ();
+		VR_RunSetupLevel (mapname); // QVR: the Run Setup screen, not the old difficulty menu
 	}
 }
 
@@ -3011,8 +3027,7 @@ void M_Maps_Key (int key)
 		if (mapsmenu.list.cursor >= 0 && mapsmenu.list.cursor < mapsmenu.list.numitems &&
 			mapsmenu.items[mapsmenu.list.cursor].name[0])
 		{
-			M_SetSkillMenuMap (mapsmenu.items[mapsmenu.list.cursor].name);
-			M_Menu_Skill_f ();
+			VR_RunSetupLevel (mapsmenu.items[mapsmenu.list.cursor].name); // QVR: the Run Setup screen, not the old difficulty menu
 		}
 		else
 			M_ThrottledSound ("misc/menu3.wav");

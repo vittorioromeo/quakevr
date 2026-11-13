@@ -28,6 +28,7 @@ enum class Launch
     Library,  // the Map Library's Play (a package, a map)
     NewGame,  // the flat main menu's New Game (map start)
     Campaign, // Official Campaigns' row
+    Level,    // the flat Levels list (menu_maps, a map by name): `map <name>`
     Hub,      // the hub's teleporter to the start map
 };
 

@@ -19,19 +19,15 @@ struct RunSetupState
 };
 RunSetupState runSetup;
 
-constexpr const char* runSetupSections[] = {"Difficulty", "Presets", "Mutators"};
-
-const char* runSetupSummary()
-{
-    return va("%s", runsetup::summary(true));
-}
+// (the Difficulty section has no header: the page starts with it, the next sections' headers give the gap)
+constexpr const char* runSetupSections[] = {nullptr, "Presets", "Mutators"};
 
 const char* runSetupHallsLine()
 {
     return "Difficulty: the start map's skill halls";
 }
 
-// A row held by another's rule: "Starting Weapon: Axe (Melee Only)".
+// A row held by another's rule: "Starting gun: Nothing (Melee Only)".
 const char* runSetupHeldLine(int i)
 {
     const runsetup::Mutator& m = runsetup::at(i);
@@ -70,6 +66,9 @@ void runSetupStart()
             return;
         case runsetup::Launch::NewGame: M_NewGameStart(); return;
         case runsetup::Launch::Campaign: VR_SelectCampaign(runSetup.campaign); return;
+        case runsetup::Launch::Level:
+            M_LevelStart(runSetup.map.cStr(), runSetup.skillHalls ? -1 : runsetup::activeValue(runsetup::find("skill")));
+            return;
         case runsetup::Launch::Hub:
             Cvar_Set("vr_run_hubgo", "1"); // (the teleporter lets the player through: QC vr_run.qc)
             runSetupCloseMenu();
@@ -82,10 +81,13 @@ za::Vector<Item> pageRunSetup()
 {
     runSetup.builtKey = runsetup::pageKey();
     runSetup.builtHalls = runSetup.skillHalls ? 1 : 0;
-    za::Vector<Item> items{header("Run Setup"), info(runSetupSummary)};
+    za::Vector<Item> items;
     for(int s = 0; s < 3; s++)
     {
-        items.pushBack(header(runSetupSections[s]));
+        if(runSetupSections[s])
+        {
+            items.pushBack(header(runSetupSections[s]));
+        }
         if(s == static_cast<int>(runsetup::Section::Difficulty) && runSetup.skillHalls)
         {
             items.pushBack(info(runSetupHallsLine));

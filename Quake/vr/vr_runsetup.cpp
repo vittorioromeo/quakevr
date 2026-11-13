@@ -29,11 +29,12 @@ constexpr const char* offOn[] = {"Off", "On"};
 constexpr const char* styleOptions[] = {"My Settings", "Classic", "Light", "Unleashed"};
 constexpr const char* goreOptions[] = {"My Settings", "Full", "Minimal", "Off"};
 constexpr const char* followOffOn[] = {"As Style", "Off", "On"};
-constexpr const char* startWeaponOptions[] = {"Shotgun", "Heavy Revolver", "Axe", "Unarmed"};
+constexpr const char* startGunOptions[] = {"Shotgun", "Nail Pistol", "Heavy Revolver", "Nothing"};
+constexpr const char* startMeleeOptions[] = {"Axe", "Dagger", "Nothing"};
 constexpr const char* enemyCountOptions[] = {"1x", "2x", "3x"};
-constexpr const char* enemyRandomOptions[] = {"Off", "Balanced", "Everything Goes"};
+constexpr const char* enemyRandomOptions[] = {"Off", "Balanced", "Anything Goes"};
 
-constexpr int startWeaponAxe = 2;
+constexpr int startGunNothing = 3;
 
 [[nodiscard]] int cvarInt(const cvar_t& c)
 {
@@ -137,10 +138,10 @@ void applySmartAi(int value, Phase)
     setGameplayRows(vars, 1, value);
 }
 
-// Melee Only holds Starting Weapon at the axe.
-int startWeaponForced()
+// Melee Only holds the Starting gun at nothing.
+int startGunForced()
 {
-    return vr_runpick_meleeonly.value != 0.f ? startWeaponAxe : -1;
+    return vr_runpick_meleeonly.value != 0.f ? startGunNothing : -1;
 }
 
 // ----------------------------------------------------------------------------
@@ -167,11 +168,14 @@ const Mutator registry[] = {
     {"smartai", "Smarter AI", Section::Mutators, QVR_OPTIONS(followOffOn), 0, -1,
         "The stealth AI: monsters see and hear as people do, search, follow your trail. As Style: the Style's.",
         &vr_runpick_smartai, &vr_run_smartai, applySmartAi, nullptr, nullptr, nullptr},
-    {"startweapon", "Starting Weapon", Section::Mutators, QVR_OPTIONS(startWeaponOptions), 0, 0,
-        "What a new game starts with: the shotgun (and axe), the heavy revolver (and axe), the axe alone, or bare fists.",
-        &vr_runpick_startweapon, &vr_run_startweapon, nullptr, startWeaponForced, nullptr, "Melee Only"},
+    {"startgun", "Starting gun", Section::Mutators, QVR_OPTIONS(startGunOptions), 0, 0,
+        "The gun a new game starts with, in its hip holster: the shotgun, the nail pistol, the heavy revolver, or none.",
+        &vr_runpick_startgun, &vr_run_startgun, nullptr, startGunForced, nullptr, "Melee Only"},
+    {"startmelee", "Starting melee weapon", Section::Mutators, QVR_OPTIONS(startMeleeOptions), 0, 0,
+        "The melee weapon a new game starts with: the axe, the dagger, or none (bare fists: punch and grab).",
+        &vr_runpick_startmelee, &vr_run_startmelee, nullptr, nullptr, nullptr, nullptr},
     {"meleeonly", "Melee Only", Section::Mutators, QVR_OPTIONS(offOn), 0, 0,
-        "Guns are not picked up and do not fire; you start with the axe. Blades, axes, the chainsaw, fists.",
+        "Guns are not picked up and do not fire; no starting gun (the melee weapon as chosen). Blades, axes, the chainsaw, fists.",
         &vr_runpick_meleeonly, &vr_run_meleeonly, nullptr, nullptr, nullptr, nullptr},
     {"glasscannon", "Glass Cannon", Section::Mutators, QVR_OPTIONS(offOn), 0, 0,
         "You and the monsters take double damage.", &vr_runpick_glasscannon, &vr_run_glasscannon, nullptr, nullptr, nullptr, nullptr},
@@ -180,7 +184,7 @@ const Mutator registry[] = {
         &vr_runpick_enemycount, &vr_run_enemycount, nullptr, nullptr, nullptr, nullptr},
     {"enemyrandom", "Randomized Enemies", Section::Mutators, QVR_OPTIONS(enemyRandomOptions), 0, 0,
         "Monsters swapped as a map loads. Balanced: one as tough that moves as it does and fits its spot (Arcane "
-        "Dimensions' too when mounted). Everything Goes: any that fits.",
+        "Dimensions' too when mounted). Anything Goes: any that fits.",
         &vr_runpick_enemyrandom, &vr_run_enemyrandom, nullptr, nullptr, nullptr, nullptr},
 };
 // clang-format on
@@ -260,7 +264,7 @@ void runCmd()
 // vr_runsetup_test: the registry (its cvars named after its ids, defaults as the screen's), a run's start (the picks,
 // a held row), the save line written and read back (a run's choices, the presets' values), an old save's defaults and
 // the hub's end of a run. Presets' My Settings in the test files; every setting it changed set back.
-// vr_run_check <startweapon> <glasscannon> <meleeonly> <gore>: the running game is that run (its vr_run_* cvars, the
+// vr_run_check <startgun> <startmelee> <glasscannon> <meleeonly> <gore>: the running game is that run (its vr_run_* cvars, the
 // Gore preset its value sets, QC VR_Run_TestCheck: the player's loadout, a hit's damage, guns refused); vr_run_check
 // verdict: "runmutators: N passed, M failed" (the mutators' end-to-end test: a run's start, changelevel, save and load).
 testkit::Tally checkTally;
@@ -274,17 +278,20 @@ void checkCmd()
         checkTally = testkit::Tally{};
         return;
     }
-    if(Cmd_Argc() < 5)
+    if(Cmd_Argc() < 6)
     {
-        Con_Printf("vr_run_check <startweapon> <glasscannon> <meleeonly> <gore> | verdict\n");
+        Con_Printf("vr_run_check <startgun> <startmelee> <glasscannon> <meleeonly> <gore> | verdict\n");
         return;
     }
-    const int w = atoi(Cmd_Argv(1));
-    const int g = atoi(Cmd_Argv(2));
-    const int m = atoi(Cmd_Argv(3));
-    const int gore = atoi(Cmd_Argv(4));
-    const char* what = va("%s: run %d %d %d %d", sv.name, w, g, m, gore);
-    const bool cvars = activeValue(find("startweapon")) == w && activeValue(find("glasscannon")) == g &&
+    const int sg = atoi(Cmd_Argv(1));
+    const int sm = atoi(Cmd_Argv(2));
+    const int g = atoi(Cmd_Argv(3));
+    const int m = atoi(Cmd_Argv(4));
+    const int gore = atoi(Cmd_Argv(5));
+    const int w = sg * 10 + sm; // (the QC's one number: gun, melee)
+    const char* what = va("%s: run %d %d %d %d %d", sv.name, sg, sm, g, m, gore);
+    const bool cvars = activeValue(find("startgun")) == sg && activeValue(find("startmelee")) == sm &&
+                       activeValue(find("glasscannon")) == g &&
                        activeValue(find("meleeonly")) == m && activeValue(find("gore")) == gore;
     checkTally.check(cvars, name, va("%s: the run's cvars (%s)", what, summary(false)));
     checkTally.check(gore == 0 || gorepresets::matching() == gore, name, va("%s: the Gore preset's values", what));
@@ -440,7 +447,8 @@ void testCmd()
     Cvar_Set("vr_runpick_gore", "2");
     Cvar_Set("vr_runpick_armed", "2");
     Cvar_Set("vr_runpick_smartai", "0");
-    Cvar_Set("vr_runpick_startweapon", "1");
+    Cvar_Set("vr_runpick_startgun", "2");
+    Cvar_Set("vr_runpick_startmelee", "1");
     Cvar_Set("vr_runpick_meleeonly", "0");
     Cvar_Set("vr_runpick_glasscannon", "1");
     start();
@@ -448,28 +456,30 @@ void testCmd()
                 vr_nav.value == 0.f,
         name, "start: Classic with armed humanoids on over it");
     t.check(gorepresets::matching() == gorepresets::choiceMinimal, name, "start: Gore Minimal");
-    t.check(vr_run_startweapon.value == 1.f && vr_run_glasscannon.value == 1.f && vr_run_meleeonly.value == 0.f, name,
+    t.check(vr_run_startgun.value == 2.f && vr_run_startmelee.value == 1.f && vr_run_glasscannon.value == 1.f && vr_run_meleeonly.value == 0.f, name,
         "start: the mutators' cvars from the picks");
     char saved[256];
     q_strlcpy(saved, saveLine(), sizeof(saved));
-    t.check(strstr(saved, "style=1") && strstr(saved, "gore=2") && strstr(saved, "startweapon=1") &&
+    t.check(strstr(saved, "style=1") && strstr(saved, "gore=2") && strstr(saved, "startgun=2") && strstr(saved, "startmelee=1") &&
                 strstr(saved, "glasscannon=1"),
         name, "the save line holds the run");
     Con_Printf("runsetup: %s", saved);
 
-    // Melee Only holds Starting Weapon at the axe.
+    // Melee Only holds the Starting gun at nothing (the melee weapon is still the pick).
     Cvar_Set("vr_runpick_meleeonly", "1");
-    t.check(forcedValue(find("startweapon")) == startWeaponAxe && pickValue(find("startweapon")) == startWeaponAxe, name,
-        "Melee Only holds Starting Weapon at the axe");
+    t.check(forcedValue(find("startgun")) == startGunNothing && pickValue(find("startgun")) == startGunNothing &&
+                forcedValue(find("startmelee")) == -1 && pickValue(find("startmelee")) == 1,
+        name, "Melee Only holds the Starting gun at nothing, the melee weapon free");
     const int key = pageKey();
     Cvar_Set("vr_runpick_meleeonly", "0");
-    t.check(pageKey() != key && forcedValue(find("startweapon")) == -1, name, "let go: the screen's key changes");
+    t.check(pageKey() != key && forcedValue(find("startgun")) == -1, name, "let go: the screen's key changes");
 
     // Another run: Unleashed, gore as mine, no mutators.
     Cvar_Set("vr_runpick_style", "3");
     Cvar_Set("vr_runpick_gore", "1");
     Cvar_Set("vr_runpick_armed", "0");
-    Cvar_Set("vr_runpick_startweapon", "0");
+    Cvar_Set("vr_runpick_startgun", "0");
+    Cvar_Set("vr_runpick_startmelee", "0");
     Cvar_Set("vr_runpick_glasscannon", "0");
     start();
     t.check(gameplaypresets::kind().matchingLevel() == gameplaypresets::levelUnleashed && vr_run_glasscannon.value == 0.f,
@@ -480,7 +490,7 @@ void testCmd()
     q_snprintf(text, sizeof(text), "header\n%s// qvr_sound x\n", saved);
     readSaveLines(text);
     onLoadGame();
-    t.check(vr_run_style.value == 1.f && vr_run_startweapon.value == 1.f && vr_run_glasscannon.value == 1.f, name,
+    t.check(vr_run_style.value == 1.f && vr_run_startgun.value == 2.f && vr_run_startmelee.value == 1.f && vr_run_glasscannon.value == 1.f, name,
         "load A: the run's choices back");
     t.check(vr_agrunt_repl.value == 1.f && vr_nav.value == 0.f && gorepresets::matching() == gorepresets::choiceMinimal,
         name, "load A: the presets' values back (Classic + armed, Gore Minimal)");
@@ -488,9 +498,21 @@ void testCmd()
     // An old save (no line): the mutators' defaults, the presets as they are.
     readSaveLines("header\n// qvr_save 3 progs 0 build x\n");
     onLoadGame();
-    t.check(vr_run_startweapon.value == 0.f && vr_run_glasscannon.value == 0.f && vr_run_style.value == 0.f &&
+    t.check(vr_run_startgun.value == 0.f && vr_run_startmelee.value == 0.f && vr_run_glasscannon.value == 0.f && vr_run_style.value == 0.f &&
                 gorepresets::matching() == gorepresets::choiceMinimal,
         name, "an old save: mutators at their defaults, presets left as they are");
+
+    // A save from before the gun and the melee weapon were two choices: startweapon 1 (revolver), 2 (axe alone), 3
+    // (unarmed) become gun, melee.
+    constexpr int oldWant[][2] = {{2, 0}, {3, 0}, {3, 2}};
+    for(int v = 1; v <= 3; v++)
+    {
+        readSaveLines(va("header\n// qvr_run style=0 startweapon=%d\n", v));
+        onLoadGame();
+        t.check(vr_run_startgun.value == static_cast<float>(oldWant[v - 1][0]) &&
+                    vr_run_startmelee.value == static_cast<float>(oldWant[v - 1][1]),
+            name, va("an old save's startweapon=%d becomes gun %d, melee %d", v, oldWant[v - 1][0], oldWant[v - 1][1]));
+    }
 
     // The hub ends a run: the mutators back to their defaults.
     Cvar_Set("vr_run_meleeonly", "1");
@@ -627,8 +649,16 @@ const char* summary(bool picks)
     {
         appendPart(ai == 2 ? "Smarter AI" : "Quake's AI");
     }
-    constexpr const char* starts[] = {"Shotgun start", "Pistol start", "Axe start", "Unarmed start"};
-    appendPart(starts[value(find("startweapon"))]);
+    {
+        constexpr const char* guns[] = {"Shotgun", "Nail pistol", "Revolver", "No gun"};
+        constexpr const char* melees[] = {"axe", "dagger", "no melee"};
+        const int sg = value(find("startgun"));
+        const int sm = value(find("startmelee"));
+        if(sg != 0 || sm != 0)
+        {
+            appendPart(va("%s and %s start", guns[sg], melees[sm]));
+        }
+    }
     if(value(find("meleeonly")))
     {
         appendPart("Melee only");
@@ -684,6 +714,20 @@ void readSaveLines(const char* text)
             break;
         }
         p += used;
+        if(!strcmp(key, "startweapon")) // (a save from before the gun and the melee weapon were two choices)
+        {
+            // 0 shotgun, 1 revolver, 2 axe alone, 3 unarmed -> gun, melee
+            constexpr int oldGun[] = {0, 2, 3, 3};
+            constexpr int oldMelee[] = {0, 0, 0, 2};
+            const int v = value < 0 || value > 3 ? 0 : value;
+            const int gi = find("startgun");
+            const int mi = find("startmelee");
+            state.pending[gi] = oldGun[v];
+            state.pendingHave[gi] = true;
+            state.pending[mi] = oldMelee[v];
+            state.pendingHave[mi] = true;
+            continue;
+        }
         const int i = find(key);
         if(i >= 0)
         {
