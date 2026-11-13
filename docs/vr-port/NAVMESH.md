@@ -495,12 +495,12 @@ now also waits for the player before its first spawn: it had a program error whe
 
 ## 17. Teleporters: lining up, the gate chase, the plan drawn through (2026-11-13)
 
-- **Lining up** (`vr_nav_tele_approach` 1, Debug > Tunables): a teleporter's opening (`gateFace`): a thin trigger (one
+- **Lining up** (always on; its A/B tunable `vr_nav_tele_approach` was removed in review25): a teleporter's opening (`gateFace`): a thin trigger (one
   side under 0.6 of the other: set in a wall or a frame) has a normal into it from the walker's side and a face; a
   walker following its link (`teleTarget`) first heads for a point in front of the opening's middle (its half depth
   plus the box's radius plus 8 out; as far over as the box still fits: the trigger's half width less the box's), then,
   lined up (or already in the trigger's depth), straight in along the normal and 64 on. A pad (squarish trigger): straight
-  through its middle as before. Off: straight at the middle from wherever it began the link (as before).
+  through its middle as before.
 - **Stuck recovery** (`vr_nav_tele_stuck` 0.5 s): a walker on a teleporter link that stood (moved under 4) that long
   between steers backs out in front of the opening (48 past the line-up point) for 0.4 s and lines up again
   (`state.teleBackoffs`). A gap between steers (shooting, biting) restarts the clock.
@@ -563,7 +563,7 @@ now also waits for the player before its first spawn: it had a program error whe
     you: the destination's `mangle`, 160 on, nearer if off the mesh) and tells the stealth AI you went through that
     teleporter (`VR_Stealth_Teleported`, as `teleport_touch` does), so a walker woken onto you unseen follows your
     trail through it instead of hunting where you were last seen. The dm5 scene uses it.
-  - **The hunt behind a gate** (`vr_nav_gate_marker` 1, Debug > Tunables): a monster that saw you through a paired gate
+  - **The hunt behind a gate** (always on; its A/B tunable `vr_nav_gate_marker` was removed in review25): a monster that saw you through a paired gate
     and lost you hunts your image there: the stealth marker 48 past the gate's face (`VR_Stealth_WayTo`), which used
     to be walked to by Quake's own chase (`VR_NAV_Step` steers only to the enemy and to a trail through a teleporter).
     At a free-standing gate that went round the frame to the marker's spot behind the sheet (dm5's dog circling gate

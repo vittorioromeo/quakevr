@@ -165,7 +165,7 @@ float(float dist) VR_NAV_Step =
     entity g = self.goalentity;
     float toGate = g != world && g == self.stl_marker && self.stl_trail_gate != world;
     float via = 0;
-    if(g != world && g == self.stl_marker && cvar_hget(cvarh_vr_nav_gate_marker)) { via = VR_Stealth_MarkerVia(self); }
+    if(g != world && g == self.stl_marker) { via = VR_Stealth_MarkerVia(self); }
     float trail = g != world && g == self.stl_marker && !toGate && !via && VR_Stealth_TrailNav(self);
     if(!cvar_hget(cvarh_vr_nav) || dist <= 0 || g == world || (g != self.enemy && !toGate && !via && !trail) ||
        !(self.flags & FL_MONSTER) || (self.flags & (FL_FLY | FL_SWIM)))

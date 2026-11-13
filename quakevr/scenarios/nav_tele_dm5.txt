@@ -17,5 +17,7 @@ spawn monster_demon1 220 -64
 cvar vr_nav 1
 cvar vr_nav_debug 2
 cvar vr_nav_teleports 1
+cvar sv_random_seed 1
+cmd vr_bench_seed 1
 cmd vr_nav_teletest nav_tele_dm5 monster_army,monster_dog,monster_ogre,monster_knight,monster_demon1 all 10 192 8 0 140 1
 hint Each monster in turn appears in front of a teleporter and walks into it after you: it should walk out of the other teleporter's face as you do (no flash, no sound, no jump), never vanish into Quake's teleport.
