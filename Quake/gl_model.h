@@ -353,7 +353,7 @@ typedef struct {
 	} poseverttype;	//spike
 	struct gltexture_s	*gltextures[MAX_SKINS][4]; //johnfitz
 	struct gltexture_s	*fbtextures[MAX_SKINS][4]; //johnfitz
-	int					texels[MAX_SKINS];	// only for player skins
+	intptr_t			texels[MAX_SKINS];	// only for player skins (QVR: intptr_t: an offset to another heap block, ROUND25.md "nohunk")
 	maliasframedesc_t	frames[1];	// variable sized
 } aliashdr_t;
 

@@ -54,7 +54,6 @@ int		host_framecount;
 int		host_hunklevel;
 static int	host_hunklevel_base; // QVR: host_hunklevel at start-up (host_hunklevel: also over the item boxes kept, Host_KeepMapModels)
 
-int		minimum_memory;
 
 client_t	*host_client;			// current client
 
@@ -1862,17 +1861,8 @@ Host_Init
 */
 void Host_Init (void)
 {
-	if (standard_quake)
-		minimum_memory = MINIMUM_MEMORY;
-	else	minimum_memory = MINIMUM_MEMORY_LEVELPAK;
-
-	if (COM_CheckParm ("-minmemory"))
-		host_parms->memsize = minimum_memory;
-
-	if (host_parms->memsize < minimum_memory)
-		Sys_Error ("Only %4.1f megs of memory available, can't execute game", host_parms->memsize / (float)0x100000);
-
-	Memory_Init (host_parms->membase, host_parms->memsize);
+	// QVR: no big block for the hunk any more (-heapsize, -minmemory: ignored): the hunk is the heap (ROUND25.md, "nohunk")
+	Memory_Init ();
 	AsyncQueue_Init (&async_queue, 1024);
 	Cbuf_Init ();
 	Cmd_Init ();
@@ -1903,7 +1893,6 @@ void Host_Init (void)
 
 	Con_Printf ("Quake VR %s\n", VR_BuildInfo ()); // QVR: "1.1.0-dev build 4321 (abc1234) 2026-10-17 14:05"
 	Con_Printf ("Exe: " __TIME__ " " __DATE__ " (%s %d-bit)\n", SDL_GetPlatform (), (int)sizeof(void*)*8);
-	Con_Printf ("%4.1f megabyte heap\n", host_parms->memsize/ (1024*1024.0));
 
 	if (cls.state != ca_dedicated)
 	{

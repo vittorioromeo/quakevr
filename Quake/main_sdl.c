@@ -118,7 +118,7 @@ static double Sys_Throttle (double oldtime)
 	return Sys_WaitUntil (oldtime + Host_GetFrameInterval ());
 }
 
-#define DEFAULT_MEMORY (384 * 1024 * 1024) // ericw -- was 72MB (64-bit) / 64MB (32-bit)
+// QVR: DEFAULT_MEMORY (the 384 MiB hunk) is gone: the hunk is the heap (ROUND25.md, "nohunk")
 
 static quakeparms_t	parms;
 
@@ -130,7 +130,6 @@ static quakeparms_t	parms;
 
 int main(int argc, char *argv[])
 {
-	int		t;
 	double		time, oldtime, newtime;
 
 	host_parms = &parms;
@@ -155,18 +154,9 @@ int main(int argc, char *argv[])
 	Sys_Printf("Initializing Ironwail v%s\n", IRONWAIL_VER_STRING);
 	Sys_Printf("Quake VR %s\n", VR_BuildInfo ()); // QVR
 
-	parms.memsize = DEFAULT_MEMORY;
-	if (COM_CheckParm("-heapsize"))
-	{
-		t = COM_CheckParm("-heapsize") + 1;
-		if (t < com_argc)
-			parms.memsize = Q_atoi(com_argv[t]) * 1024;
-	}
-
-	parms.membase = VR_HeapMalloc (parms.memsize);
-
-	if (!parms.membase)
-		Sys_Error ("Not enough memory free; check disk space\n");
+	// QVR: no -heapsize block: the hunk and the cache are the heap (ROUND25.md, "nohunk")
+	if (COM_CheckParm ("-heapsize") || COM_CheckParm ("-minmemory"))
+		Sys_Printf ("-heapsize and -minmemory are ignored: the hunk is the heap\n");
 
 	Sys_Printf("Host_Init\n");
 	VR_TimeMark ("SDL, heap"); // QVR

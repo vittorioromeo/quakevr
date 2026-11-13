@@ -24,16 +24,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define __ZZONE_H
 
 /*
- memory allocation
+ memory allocation (QVR: all of it is the heap now, mimalloc's: zone.c, ROUND25.md "nozone", "nohunk")
 
 
-H_??? The hunk manages the memory given to Quake.
-Memory can be allocated from the low end in a stack fashion. 
-
-The only way memory is released is by resetting the hunk cursor.
-
-The hunk starts as a single continguous segment, but new ones can be added
-if an allocation request cannot be serviced.
+H_??? The hunk: allocations in a stack fashion, each a heap block of its own.
+Hunk_LowMark is the bytes on the stack; the only way memory is released is
+Hunk_FreeToLowMark, which frees every block allocated since that mark. The
+blocks are not contiguous: a loader that built a model on the hunk hands its
+blocks to the cache (Hunk_MoveToCache) instead of copying the range.
 
 Hunk allocations should be given a name, so the Hunk_Print () function
 can display usage.
@@ -46,31 +44,12 @@ free with a small checked header: zone.c, ROUND25.md "nozone"); no longer a
 fixed block at the bottom of the hunk.
 
 Cache_??? Cache memory is for objects that can be dynamically loaded and
-can usefully stay persistant between levels.  The size of the cache
-fluctuates from level to level.
-Cache memory is always allocated from the top hunk segment.
-
-
-
------- Top of Memory -------
-
-cachable memory
-
-<--- low hunk used
-
-client and server low hunk allocations
-
-<-- low hunk reset point held by host
-
-startup hunk allocations
-
------ Bottom of Memory -----
-
-
+can usefully stay persistant between levels.  QVR: owned heap blocks, freed
+by Cache_Free and Cache_Flush (a game change); never moved or purged.
 
 */
 
-void Memory_Init (void *buf, int size);
+void Memory_Init (void);
 void Memory_InitCvars (void); // QVR: vr_zone_threadcheck (after Cvar_Init)
 
 #ifdef __cplusplus
@@ -95,6 +74,7 @@ void Hunk_KeepLoaded (void); // QVR: a model just loaded on the hunk: no free go
 void Hunk_ClearKeep (void); // QVR: Host_ClearMemory's
 
 void Hunk_Check (void);
+void Hunk_Usage (int *used, int *peak, int *blocks); // QVR: the hunk's bytes (headers included), most ever, blocks (vr_limits)
 
 typedef struct cache_user_s
 {
@@ -112,8 +92,11 @@ void Cache_Free (cache_user_t *c, qboolean freetextures); //johnfitz -- added se
 void Cache_FlushExcept (qboolean (*keep) (cache_user_t *c)); // QVR: Cache_Flush but what keep accepts
 
 void *Cache_Alloc (cache_user_t *c, int size, const char *name);
-// Returns NULL if all purgable data was tossed and there still
-// wasn't enough room.
+// QVR: returns zeroed memory (a failed allocation is a Sys_Error)
+void *Hunk_MoveToCache (int start, cache_user_t *c, void *data, const char *name);
+// QVR: every hunk block since the mark `start` goes to the cache entry, `data` (one of them) its data: what
+// "Cache_Alloc (c, Hunk_LowMark () - start); memcpy (c->data, data, ...); Hunk_FreeToLowMark (start)" did, without the copy
+void Cache_Usage (size_t *used, size_t *peak, int *entries); // QVR: vr_limits
 
 void Cache_Report (void);
 
