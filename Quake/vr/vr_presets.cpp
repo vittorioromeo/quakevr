@@ -210,9 +210,15 @@ int Kind::differing(int level, bool print) const
 
 int Kind::matchingLevel() const
 {
+    // (every menu frame, for each kind: a level is left at its first row that differs, not counted through)
     for(int level = 0; level < t.levelCount; level++)
     {
-        if(differing(level, false) == 0)
+        bool all = true;
+        for(int i = 0; i < t.rowCount && all; i++)
+        {
+            all = same(t.rows[i].var->string, target(t.rows[i], level));
+        }
+        if(all)
         {
             return level;
         }

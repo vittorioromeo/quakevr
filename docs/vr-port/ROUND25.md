@@ -1082,3 +1082,48 @@ daunting".
 
 ### shottint
 - Map library screenshots no longer get the menu hue tint: slipseer::drawScreenshot turns Draw_SetMenuRecolor off around its draw (flat and VR share the path).
+## rev25nav: review of the navmesh, teleporter and stealth-hunt work of round 25 (branch agent/rev25nav, 2026-11-13)
+
+- **Removed tunables** (A/B switches whose experiment was decided, their "off" used by no test or scene):
+  `vr_nav_tele_approach` (the line-up at a thin trigger: always on) and `vr_nav_gate_marker` (the hunt behind a gate
+  by the navmesh: always on); rows, menu_paths, QC handle and NAVMESH.md 17/19 updated.
+- **Scenes seeded:** `nav_tele_metric_gates` and `nav_tele_dm5` now seed the map's load and the walkers
+  (`sv_random_seed 1`, `vr_bench_seed 1`, as navdet did for `nav_tele_metric`): two runs each now give the same trial
+  lines (80 / 100 lines, 0 differing; were 29 / 21 differing run to run). Seeded results: nav_tele_metric 18/20,
+  nav_tele_metric_gates 37/40, nav_tele_dm5 18/24.
+- **Checked:** nav_tele_metric before / after the removals: the same 25 trial lines. Stealth `gates` 11 PASS;
+  teleporters_test.sh chase: the dog at `framed_sill32` FAILs (never reaches the north room, all 3 tries), the same on
+  origin/next 2fa0e7e58 (not this branch's; open), the rest PASS.
+- **Reviewed, not changed** (written up for the author): `portals::teleporterWalked` asks `sd.paired`, not
+  `monsterGate` (vr_portals_monsters_all), so under that experimental setting the navmesh plans an unpaired gate as a
+  touch-teleport (no fit check); the stealth trail keeps the teleporter as an entity (`stl_tele_gate`), which a
+  killtargeted trigger's reused edict could stand in for within the 5 s window (low); the lift-call check walks every
+  agent slot each steer while a walker waits at a lift (cheap). Detour's far links (add/remove, unconnectLinks without a
+  side filter), the job clock, the reach/tele/walk tests and the portal give-up were read through: no fault found.
+
+## rev25misc: round 25's blades, grenades, presets, keys and map library reviewed (branch agent/rev25misc, 2026-11-13)
+
+Cvar audit of this area's round-25 additions: nothing removed. No dead A/B switch: `vr_gib_overkill_blade` is a share
+(a slider), `vr_embed_move_handle` (1) still restores the pre-2026-11-12 hold and the checklist's embed lines point at
+it as the way back, `vr_revgrip` is the feature's off switch, `vr_embed_probe_*` and `vr_grenfuse_test` are the tests'.
+
+Fixed (small, local):
+- **Slipseer worker, lost wake-up** (vr_slipseer.cpp `run`): it decided to stop outside the hand-over lock and cleared
+  `running` only as it left; a pick or listing pass handed over in between saw it running and waited for the next
+  pick. Now it stops under `handoff`, having seen nothing left. `maps_slipseer_get`'s `getAsset` is read under it too.
+- **The User-Agent pick and the back-off file** are set in `ensureThread`, before the worker starts (they were set
+  lazily by whichever thread came first: an install's `downloadHeaders` on the main thread raced the worker).
+- **A screenshot's size from its header first** (`pictureSizeOk`; `Image_InfoMemory` in image.c): over 8192 a side or
+  32 Mpixels it is not decoded (stb's own cap is 1 GB decoded).
+- **Page text:** a `</script>` was skipped a byte short (a stray `>`); numeric entities: control codes become spaces,
+  surrogates and anything past U+FFFF a `?` (they were invalid UTF-8).
+- **Flat keys** (vr_flatplay.cpp): one `flatKeyHeld` for the three copies of the key-by-bind-name check.
+
+Checks: build 0 warnings; slipseer_test 51 -> 55 passed, 0 failed (new: the picture header checks); flatkeys_test
+37/0; flatkeybind_test 8/0; vr_gameplay_preset_test 23/0; vr_gore_preset_test 12/0. Also: the presets' matching
+(`presetcore::Kind::matchingLevel`, every menu frame for three kinds, ~166 rows) leaves a level at its first differing
+row instead of counting them all.
+
+Left for the author: screenshot and download URLs taken from any host and scheme (an allow-list), the Slipseer
+back-off shared by every host, cache/slipseer never pruned, robots.txt wildcards, the presets' rows matched every menu
+frame, the reverse grip's server checks reading the local client's view (a listen server's own player only).

@@ -1477,6 +1477,16 @@ void shoveFrame()
     return vr_flat_prop_v.value != 0.f && !propInFist(HAND_MAIN) && propInFist(HAND_OFF) ? HAND_OFF : HAND_MAIN;
 }
 
+namespace
+{
+// A flat key (vr_flat_key_*: a key's bind name; "" none) held down now.
+[[nodiscard]] bool flatKeyHeld(const cvar_t& c)
+{
+    const int k = c.string[0] ? Key_StringToKeynum(c.string) : -1;
+    return k > 0 && k < MAX_KEYS && keydown[k] != 0;
+}
+} // namespace
+
 // The keys, read from the keyboard state (Ctrl's bind is the one exception, named at the top of the file), and E and V
 // only while the game has the keyboard (the console takes it). The hands' fire buttons come from the same source the
 // game's fire uses (vr_client.cpp's attacking: its +attack / +offhandattack state, which is what the mouse buttons drive),
@@ -1485,10 +1495,7 @@ void pollKeys()
 {
     const bool inGame = key_dest == key_game;
     // The force grab's key (vr_flat_key_grab, mouse 4: the side button the shove leaves; R reloads, vr_flatreload.cpp).
-    const auto down = [inGame](const cvar_t& c) {
-        const int k = c.string[0] ? Key_StringToKeynum(c.string) : -1;
-        return inGame && k > 0 && k < MAX_KEYS && keydown[k] != 0;
-    };
+    const auto down = [inGame](const cvar_t& c) { return inGame && flatKeyHeld(c); };
     const bool grab = down(vr_flat_key_grab);
     const bool v = down(vr_flat_key_punch);
     bool fire[2];
@@ -1637,10 +1644,7 @@ FlatToolgunKeys flatTg;
 void toolgunKeys()
 {
     const bool inGame = key_dest == key_game;
-    const auto down = [inGame](const cvar_t& c) {
-        const int k = c.string[0] ? Key_StringToKeynum(c.string) : -1;
-        return inGame && k > 0 && k < MAX_KEYS && keydown[k] != 0;
-    };
+    const auto down = [inGame](const cvar_t& c) { return inGame && flatKeyHeld(c); };
     const bool key = down(vr_flat_key_toolgun);
     if(key && !flatTg.key)
     {
@@ -1753,8 +1757,7 @@ void pollKeysFlat()
 {
     const bool inGame = key_dest == key_game;
     const bool ctrl = inGame && keydown[K_CTRL] != 0;
-    const int flashKey = vr_flat_key_flashlight.string[0] ? Key_StringToKeynum(vr_flat_key_flashlight.string) : -1;
-    const bool flash = inGame && flashKey > 0 && flashKey < MAX_KEYS && keydown[flashKey] != 0;
+    const bool flash = inGame && flatKeyHeld(vr_flat_key_flashlight);
     // H (vr_flat_key_drop; G until 2026-11-10, his words: "Rebind drop to 'H' and free the 'G' key up": G is the quick
     // grenade now, vr_flatgrenade.cpp).
     const int dropKey = vr_flat_key_drop.string[0] ? Key_StringToKeynum(vr_flat_key_drop.string) : -1;

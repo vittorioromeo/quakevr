@@ -15,5 +15,7 @@ spawn monster_demon1 0 -180
 cvar vr_nav 1
 cvar vr_nav_debug 2
 cvar vr_nav_teleports 1
+cvar sv_random_seed 1
+cmd vr_bench_seed 1
 cmd vr_nav_teletest nav_tele_metric_gates monster_army,monster_dog,monster_knight,monster_demon1 1,3,5,7 5 192 8
 hint Each monster in turn appears in the gallery beyond the gates and walks through a gate to you, lining up in front of it first, then straight in; it stands still by you till the next one goes.
