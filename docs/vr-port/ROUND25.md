@@ -864,3 +864,5 @@ only (BACKLOG); `vr_agrunt_test 210`: 8 passed, 0 failed.
   requests (the timings above, 3 Quaddicted lookups of colony5, two listing pages).
 - **Not done:** the library screenshot (budget); prefetch (not needed, above); why colony5's shot 404s (its page on the
   new site was not found either: the shot naming may differ for some packages).
+### flipbtn (2026-11-13)
+Flat holster menu: the dagger (a WID_SWORD of kind 12) was named "sword" (notectx::weaponName took the id only): now by kind (AD melee names too). New per-hand FLIP GRIP button under UNLOAD (impulses 84, 85 -> QC VR_RevGrip_Flip, shared with the eject button; lit by view::heldGripFlippable, the eject flip's predicate without its flat-play gate). flatholster_test 37 passed.

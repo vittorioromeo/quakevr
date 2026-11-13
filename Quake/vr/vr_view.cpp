@@ -812,9 +812,14 @@ int view::reverseGripChoice(const entity_t& e, int hand, float& cosine)
     return cosine < 0.f ? 1 : 0;
 }
 
+bool view::heldGripFlippable(int hand)
+{
+    return hand >= 0 && hand <= 1 && reverseGripAllowed(weapons::heldSlot(hand));
+}
+
 bool view::heldMayReverse(int hand)
 {
-    return hand >= 0 && hand <= 1 && !flatplay::active() && reverseGripAllowed(weapons::heldSlot(hand));
+    return !flatplay::active() && heldGripFlippable(hand);
 }
 
 bool view::heldWeaponAxes(int hand, glm::vec3& forward, glm::vec3& up, float& flip)
