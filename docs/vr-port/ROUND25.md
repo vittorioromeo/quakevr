@@ -1572,3 +1572,31 @@ Play on an installed package asks Easy / Normal / Hard / Nightmare first (page "
   words changed (trailer + fragment header); after, 9/0. Script `zone_realloc_check;toggleconsole;quit`, `-QuitOn
   "zone_realloc_check: [0-9]+ passed"`. Save/load loop with Enemy Count, Randomized Enemies, Randomized Pickups and
   Glass Cannon on (e1m1 save, vrragtriggers saves and a load, e1m1 load, changelevel e1m2, save): `vr_run_check` 9/0.
+
+## muttiers: the mutators' tiers in the weapon and monster data, never-swapped monsters, expansions (agent/muttiers, 2026-11-13)
+
+- **Weapons:** `pickup_tier` is a key of `quakevr/data/weapons.txt` (vr_weapons.inc; QC `weaponvalue`): 0..3 the
+  weapon tier, -1 never swapped, -2 (the default) not classified. Randomized Pickups builds its weapon rows from the
+  weapon table and that key (`VR_RPK_Build`: by tier, then weapon id; AD's upgrades from `AD_UPGRADES`, now with their
+  map classname), its items from `VR_RPK_ITEMS`; a row spawns by classname (new builtin `callspawn`). The left-out list
+  is gone (their slots say -1). The nail pistol is tier 0 (with the shotgun and revolver).
+- **Balanced (his answers):** powerups split: the quad and the pentagram tier 0, the ring, empathy shields and power
+  shield tier 2, the suits and the belt tier 1. Armour already moved one step at most (`fabs(tier - tier0) > 1` refused:
+  green <-> red never); unchanged. Zombies and the fiend keep their tiers.
+- **Monsters:** one table, `QC/vr_monster_kinds.qc` (`VR_MONSTER_KINDS`: kind rows and never rows), read by Randomized
+  Enemies and Enemy Count (their own table gone). `vr_run_enemies_check` adds "every monster spawn function a kind or
+  never swapped": the progs' functions named `monster_*` / `ad_monster_*` (new builtin `functionname`), helpers aside.
+- **The dog:** its row said the 64-wide hull from id's dog (setsize 64 wide); Quake VR's dog is 24 wide
+  (`orig_mon_dog.qc` setsize '-12 -12 -24' '12 12 16', hull -1: its own box), so its row is now 1 (it no longer
+  takes a 64-wide kind's spot or makes room for one). The demodog likewise.
+- **The official expansions** (Hipnotic, Rogue, MG3): their kinds tiered with their setsize tops and swapped both ways
+  while their data is there (a probe file: the model their spawn functions test); the wrath's row was 2, its box is
+  Quake's 32-wide hull: 1. The orb is a kind (flyer, 64 wide, tier 2); the bosses, Shub's eyes and seekers, the shub
+  zombie, the infected, the slime, the ghost, the decoy, the spike mine and the invisible swordsman are never rows.
+- **Tests:** the table move alone: every outcome hash equal (id e1m1, e2m2, e4m3 Balanced; e1m3, e3m4 Anything Goes;
+  e2m2 with Enemy Count; ad_azad both; `vr_run_enemies_check` now prints an outcome hash, sv_random_seed fixed). After
+  the expansions and the dog: id maps 3-11 swaps into the expansions' kinds per map, ad_azad 9-12; hip1m1, hip1m2,
+  r1m1 pass; r2m1 Anything Goes: 94 of 95 counted monsters there (one swapped-in kind gone after counting itself:
+  open, likely a Rogue kind whose spawn function needs more than its probe model). runenemies 18/18 id, 6/6 AD;
+  runpickups 1: 32/32, 2: 6/6 (e2m3), 6/6 (ad_azad Anything Goes); runsetup 73/73; weapons_data.py check ok.
+- **Not run:** vr_run_armed_check and vr_run_check (no code of theirs changed).
