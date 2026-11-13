@@ -22,6 +22,7 @@ Flat-screen or VR: in the test hall, stand by the NEW GAME / VR HUB buttons at t
 Flat-screen or VR: open VR Settings > Gore and pick Gore Preset Minimal, then shoot and cut a grunt and gib one: you should see a little blood on the hit and the wound, but no stains on the walls and floor, no blood streams, drips or pools, no meat or brain chunks, no beheading or limbs flying off. Pick Full to get everything back, and change any one gore row by hand to see the preset read Custom.
 Flat-screen or VR: Gore Preset Off should show no blood at all from hits; the Hit Blood slider (Gore page) scales the blood of a hit between none and double, and Stain Darkness makes the stains that remain keep their red (0) or go darker (2).
 Armed grunts in a fight fetch a nearby second weapon (a shotgun grunt with a nail gun lying a few steps away, you in sight): it walks to it and takes it up.
+The dagger: stab a severed head and a limb onto it: each sits a little way back from the tip, well short of the hilt (shallower than on the sword), and a second gib will not go on while one is on it; the sword takes up to three as before. {test:dagger}
 
 [1. Flat-screen: weapons and hands]
 Flat-screen: hold the axe (then a sword, the crowbar, Mjolnir, the super axe) with the left hand empty: it goes onto the handle by itself without swinging and the weapon sits in a two-handed stance; take a weapon or a prop in the left hand and it eases back to the one-handed hold, with no jumps either way. Tune it in Debug > Tunables > Flatscreen > Two-Handed Melee Stance. {test:flat_melee2h}
