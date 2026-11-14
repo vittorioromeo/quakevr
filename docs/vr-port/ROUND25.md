@@ -2255,3 +2255,18 @@ the window's zones, worst frames and GPU passes; map loads by stage. Everything 
 - Cherry-picked 27537ab7c: every move read since the server's last frame counts (buttons and VR bits ORed, so a press and release between two ticks is not lost); per-slot move state reset on connect and drop (sv_user.c, host.c, sv_main.c, vr_server.cpp).
 - net_dgrm.c only from dd49030c2: a second client from the same IP on another port no longer closes the first one's connection (only the exact address and port counts as a duplicate); the harness and engine-aid parts of that commit stay on agent/mp.
 - Checks: dev and ReleaseLTO 1.1.0 builds, scenario_check, load_models_test, flatkeys/flatholster/flatswap, throw_trigger_test, vr_run_check 9/0.
+
+## Quest C2b: the rest of the desktop-only GL calls under -glescompat (branch agent/quest, 2026-11-14)
+
+- **What:** every `glGetTexImage` goes through `gfx::readTexImage` (`VR_GLGetTexImage`); under `-glescompat` it reads
+  the ES way (a framebuffer and `glReadPixels`; depth drawn as bits into R32UI first). `glMultiDrawElementsIndirect`
+  becomes a `glDrawElementsIndirect` loop there (`VR_GLESInstallForms`); texture views, the LOD bias parameter, the
+  statistics debug commands and the sRGB switch read are off under it. `-glesclipcontrol` (`QVR_GLES_CLIP_CONTROL=1`)
+  keeps `EXT_clip_control` under `-glescompat`. Debug > Startup: OpenGL ES Report, ES Texture Read-Back Test
+  (`vr_gles_readback_test`). PC defaults and behaviour unchanged. Details: QUEST_PLAN.md section 5c.
+- **Found:** without clip control (plain `-glescompat`) the shadows, reflections and portals are off, so the GLES
+  bench column of QUEST_PLAN.md section 6 ran without them (corrected there).
+- **Tests:** `vr_gles_readback_test` PC 4243/0, ES + clip control 4243/0 (4199 textures, 42 envmap levels, 2 atlases,
+  bit for bit), plain ES 4199/0; ES + clip control: scenario_check 129/0, load_models_test 4/0; PC: scenario_check
+  129/0, load_models_test 4/0, vr_simd_test 58880/0; dev and ThinLTO builds 0 warnings.
+- **Next:** C2c (QUEST_PLAN.md's last line).

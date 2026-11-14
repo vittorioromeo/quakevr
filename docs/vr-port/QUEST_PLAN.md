@@ -170,7 +170,7 @@ is the same build with a lower preset (half the GPU) [I].
 | Phase | Scope | Needs installs? |
 |---|---|---|
 | C1 (done) | Research, audit, decision, this plan; `vr_simd.hpp` + `vr_simd_test`; `-glescompat` + `vr_gles_report`; `quest_budget.cfg` and the budget runs | No |
-| **C2** (C2a done; C2b next) | **PC portability layer**: the 14 ungated rows behind `VR_GLESCompat()` (one `#version`/precision prefix for all programs, `glGetTexImage`/`glGetBufferSubData`/`glClearTexImage`/`glTextureView` replacements, LOD bias in shaders, depth clamp, clip distance, noperspective, timer-query wrapper); the GLSL made ES-valid (checked by compiling every program as `#version 320 es` with the PC driver where it accepts ES profiles, else with glslang if he approves it); `-glescompat` runs every test suite clean; `-fp-contract`-free scalar check; a "no child process" mode for the relight and motion children; an `Android`-guarded skeleton for crash/files/paths that compiles on the PC (`QVR_FAKE_ANDROID`) | No |
+| **C2** (C2a, C2b done; C2c next) | **PC portability layer**: the 14 ungated rows behind `VR_GLESCompat()` (one `#version`/precision prefix for all programs, `glGetTexImage`/`glGetBufferSubData`/`glClearTexImage`/`glTextureView` replacements, LOD bias in shaders, depth clamp, clip distance, noperspective, timer-query wrapper); the GLSL made ES-valid (checked by compiling every program as `#version 320 es` with the PC driver where it accepts ES profiles, else with glslang if he approves it); `-glescompat` runs every test suite clean; `-fp-contract`-free scalar check; a "no child process" mode for the relight and motion children; an `Android`-guarded skeleton for crash/files/paths that compiles on the PC (`QVR_FAKE_ANDROID`) | No |
 | C3 | Android build: CMake toolchain for `arm64-v8a`, Gradle project (`Android/`), SDL2's Android activity, `-ffp-contract=off`, assets path and permissions, logcat console, the APK; first boot in the Android emulator (flatscreen, ES 3.x) for files, sound and menus | **Yes** (list below) |
 | C4 | OpenXR on Android: `XR_KHR_opengl_es_enable` binding, Android loader init, swapchains as GLES texture arrays, multiview into them, refresh rate, `XR_EXT_performance_settings`, `XR_FB_foveation`, Touch controller bindings (already OpenXR actions), visibility mask; first headset boot; a GL extension dump of the Quest's driver resolves the [?] rows | **Yes** + a Quest in developer mode |
 | C5 | Renderer on device: driver bugs, the post chain merged into fewer passes for the Quest preset, program binary cache, MSAA on tile, invalidations at pass ends; Adreno profiling (`ovrgpuprofiler`, RenderDoc) | Yes (device tools) |
@@ -223,6 +223,42 @@ is the same build with a lower preset (half the GPU) [I].
   read the light clusters as an image; ES 3.1's minimum is 0: a `usampler3D` + `texelFetch` form if it is 0);
   `EXT_clip_cull_distance` and `NV_shader_noperspective_interpolation` on Adreno (the shaders compile with them here).
 
+## 5c. C2b: the rest of the desktop-only calls (done, no installs)
+
+- **glGetTexImage's ES form** (`gfx::readTexImage`, vr_glutil.cpp; `VR_GLGetTexImage` for C): every caller
+  (imagedump, imagehash, the envmap's average and dump, the PBR bakes, the shadow atlas checks) reads through it.
+  Under `-glescompat` each layer (or cube face) is attached to a framebuffer and read with `glReadPixels` in the form
+  ES guarantees (RGBA bytes from normalized textures, RGBA floats from float ones), then converted to what was asked
+  (RGB, the pack alignment); a depth texture is drawn first, as bits (`floatBitsToUint`), into an R32UI texture and
+  read in 256-row strips as `RGBA_INTEGER` (ES reads no depth). Integer and compressed textures cannot be read the ES
+  way (zeros; 16 such textures at vrstart). **`vr_gles_readback_test`** (Debug > Startup) reads everything both ways
+  and compares bytes: PC 4243 passed, 0 failed (4199 textures, 42 envmap face levels, 2 shadow atlases, bit for
+  bit); `-glescompat -glesclipcontrol` the same 4243/0; plain `-glescompat` 4199/0 (no envmap or atlases: below).
+- **The other rows:** `glMultiDrawElementsIndirect` replaced under `-glescompat` by a `glDrawElementsIndirect` loop
+  (`VR_GLESInstallForms`; its callers, bindless and the layered casters, are off there anyway); no texture views
+  (the envmap regenerates the whole cube's mipmaps; single-pass stereo off: two passes, C4 draws multiview into the
+  swapchain's layers); no `GL_TEXTURE_LOD_BIAS` (`gl_lodbias`, `vr_menu_sharpen`'s panel bias: none on ES; C5 can
+  put the panel's in its shader); `vr_model_fragments`/`vr_world_fragments` refuse (no pipeline statistics or sample
+  counts on ES); `GL_FRAMEBUFFER_SRGB` not read (nothing turns it on); `GL_BGRA`: none left (lightmaps are RGBA).
+  `vr_gles_report`: 5 pending, 0 shader errors.
+- **Found: clip control gates whole features.** Without `EXT_clip_control` (off under `-glescompat`) the shadows
+  ("shadows need GL_ARB_clip_control"), the weapon and water reflections (envmap) and the portals are off. So the
+  section 6 "+ GLES compat" column ran without shadows, reflections or portal views. **`-glesclipcontrol`**
+  (`QVR_GLES_CLIP_CONTROL=1`) keeps clip control under `-glescompat`, as an ES driver with `EXT_clip_control`.
+  Whether the Quest's driver has it decides C2c's biggest item: a standard-depth (-1..1) path for the shadow atlas,
+  envmap and portals if not.
+- **Pending, the Quest's extensions [?] (C4's dump decides; fallbacks in C2c only for the missing ones):**
+  `EXT_depth_clamp` (else a held item nearer than the near plane is cut, as with `vr_nearclip_held 0`),
+  `EXT_clip_cull_distance` (else a varying and a discard, which costs early-Z on a tiler), `NV_shader_noperspective_
+  interpolation` (else the light-tile coordinate multiplied by w in the vertex shader and divided in the fragment
+  shader: exact), `EXT_clip_control`; timer queries: `EXT_disjoint_timer_query` has the same calls (C3 loads the
+  EXT names and reads `GL_GPU_DISJOINT_EXT`).
+- **Verified:** `QVR_GLES_COMPAT=1 QVR_GLES_CLIP_CONTROL=1`: scenario_check 129 run, 0 failed; load_models_test 4/0.
+  PC: scenario_check 129/0, load_models_test 4/0, vr_simd_test 58880/0; dev and ThinLTO builds 0 warnings.
+- **Not done in C2b (moved to C2c):** the ES runs of the render tests beyond the read-backs (the envmap, PBR bake,
+  shadow and TAA tests under `-glescompat`), the no-child-process mode for the relight and motion children, the
+  `QVR_FAKE_ANDROID` skeleton.
+
 ## 6. Perf budget (PC, as a relative picture)
 
 Runs: `bench.sh quest --scenarios core --reps 1 --hz 72 --eye 1760`, ThinLTO, exclusive; PC defaults, then
@@ -257,7 +293,9 @@ Results, 2026-11-14 (one repeat each, so a few percent is noise; ms averages; `k
   (a bind and a draw per texture batch instead of one multi-draw), and clip control off (standard depth). Each
   to be split in C2 (one gate at a time, `QVR_GLES_COMPAT` subsets) and its Quest form chosen there: the layered
   casters' ES replacement is multiview-style layered rendering or fewer shadowed lights in the Quest preset.
-  The CPU cost of the bound path is within the run's noise here.
+  The CPU cost of the bound path is within the run's noise here. **Correction (C2b, section 5c):** that column ran
+  with clip control off, which turns the shadows, reflections and portals off; its extra GPU time is the rest (bound
+  path, standard depth, ES precisions), with fewer effects drawn. Re-run with `QVR_GLES_CLIP_CONTROL=1` in C2c.
 
 ## 7. Installs for his approval (none done)
 
@@ -280,9 +318,9 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C2b — the rest of the PC portability layer, no installs: the 9 rows `vr_gles_report` still lists
-(glGetTexImage as FBO + glReadPixels, glTextureView, LOD bias in the shaders, depth clamp, the clip-distance and
-noperspective fallbacks, a timer-query wrapper with the statistics queries off, sRGB write control, RGBA uploads,
-the bindless-only multi-draw), the ES runs of the render tests (envmaps, PBR bakes, shadows, TAA), a no-child-process
-mode for the relight and motion children, and a `QVR_FAKE_ANDROID` skeleton (crash, files, paths) that compiles on
-the PC.
+Next phase: C2c — the end of the PC portability layer, no installs: the ES runs of the render tests (envmap, PBR
+bakes, shadows, TAA under `-glescompat -glesclipcontrol`) and the section 6 GLES column re-run with clip control; a
+no-child-process mode for the relight and motion children; a `QVR_FAKE_ANDROID` skeleton (crash, files, paths) that
+compiles on the PC; optionally the noperspective fallback (exact, cheap) behind a `-glesnoext` switch that models a
+driver without the optional extensions. The standard-depth shadow/envmap/portal path and the clip-distance fallback
+wait for C4's extension dump (only if the Quest lacks `EXT_clip_control` / `EXT_clip_cull_distance`).
