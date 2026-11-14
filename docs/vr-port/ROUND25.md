@@ -2302,6 +2302,15 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
   presses land differently at 90 Hz input over 72 Hz ticks). Nothing to fix; for CPU p99s in --fast, read cpu_busy with
   the GPU unsaturated (a smaller --eye) or a paced run. Scripts: scratch/uf_crowd.sh, uf_hitch2.py.
 
+## menutweak: icon picker proportions, Start placement, merged "Advanced" footer
+
+- **Icon pickers** (vr_menu_icons.inc): each picture is fitted inside its square (aspect kept, centred: a wide gun thumbnail
+  is letterboxed); `vr_menu_icon_size` default 32 -> 24 (knob kept, 16-48); a two-line name's pitch 9 -> 7 pixels
+  (`iconNameLine`), so the row is shorter.
+- **Run Setup**: Start now comes right after Difficulty (its gap above kept), then Presets, Rules, Mutators.
+- **Footer**: "This Page" and "Menu Detail" are one minor section, "Advanced" (Reset This Page, Menu Detail); Campaign's own
+  extra rows share it. Menu paths do not name sections, so menu_paths.txt is unchanged; Page Footer Size/Opacity keep
+  their names. Shots: scratch/menutweak_shots (qvr-kit).
 ## decalhitch
 
 Cherry-picked bd2277d6c (translucent brush models' retro decal program made in the load's last frame, not in play: a 2.5-3.1 s freeze on 19 AD maps); dev and ReleaseLTO builds, scenario_check, load_models_test pass; ad_tears with developer 1 prints no "made in play" line.
