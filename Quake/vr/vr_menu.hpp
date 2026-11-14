@@ -157,6 +157,8 @@ void runSetupScreenTest_f(); // vr_runsetup_screen_test: the Run Setup screen's 
 void runLaunchTest_f();      // vr_runlaunch_test: every way a run starts, the map spawned with its choices (Debug > Tests)
 void runLaunchTestFrame();   // ... its steps, a frame at a time (VR_HostFrameEnd)
 void continueRowsTest_f();   // vr_continue_rows_test: Continue on Select Campaign's and the Map Library's rows
+void flashTest_f();          // vr_menu_flash_test: a Search result's row flashed and centred
+void stopTest_f();           // vr_menu_stop_test: a menu opened while walking stops the player
 void mapsPagePick_f(); // maps_page_pick <row> [source]: a row of the Map Library picked (test aid) // maps_page_stats: what the page's list costs, and its layout (Debug > Tools)
 
 // The sticks' selection back on the page shown from the corner's buttons: onto its first setting

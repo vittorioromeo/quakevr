@@ -1377,6 +1377,10 @@ za::Vector<Item> pageDebugTools()
         row(opt::vr_maps_allow_local),
         command("Pick the First Map", "maps_page; maps_page_pick 0")
             .help("maps_page_pick <row> [source]: the Map Library open with that row picked (its detail; a Slipseer map's page read). Source: 0 both, 1 Quaddicted, 2 Slipseer."),
+        command("Search Flash Test", "vr_menu_flash_test")
+            .help("vr_menu_flash_test: a Search result opened (Campaign Gap on Menu Look) lands on its row, which flashes and sits in the list's middle; the flash over after its time; none with Search Result Flash 0. Prints a verdict."),
+        command("Menu Stops Walking Test", "vr_menu_stop_test")
+            .help("vr_menu_stop_test: on e1m1, +forward walks; the VR Settings opened over the running game (live preview): no movement button held, the move 0, he comes to rest; closed, nothing resumes. Plays e1m1. Prints a verdict."),
         command("Continue Rows Test", "vr_continue_rows_test")
             .help("vr_continue_rows_test: Continue on Select Campaign's and the Map Library's rows -- none without an autosave; a Hard / Classic / Glass cannon run saved: Quake's row gets \"Continue (just now): <run>\" (a map package's fixture save too), pressing it loads the save with its run's choices; its files removed afterwards. Plays e1m1. Prints a verdict."),
         command("List Continue Rows", "vr_continue_rows")

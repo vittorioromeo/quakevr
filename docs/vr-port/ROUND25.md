@@ -1956,6 +1956,44 @@ His flat notes 5, 6, 9 (2026-11-13).
 - **Not done:** the A/B benchmark tables (bench.sh --fast --reps 3, exclusive): the author's game was running.
   Settings for them (the agent worktree's scratch): vp_base.cfg (both 0), vp_grid.cfg (grid only), vp_all.cfg (both 1).
 
+## campvis: Select Campaign's hierarchy, Search's landing flash, the menu stops the walk (agent/campvis, 2026-11-14)
+
+His notes: Select Campaign was a wall of same-red, same-size lines; a Search result's row is hard to spot on long
+pages; with live preview the player kept walking once the menu opened.
+- **Select Campaign** (`pageCampaigns`, vr_menu.cpp; flat and VR alike: one page). Each campaign a group of new list
+  looks (`Item::Lead`, `Sub`, `Note`, drawn by `drawGroupRow`; `Item::tagArg` a row's small dim text):
+  - the title (`VR_CampaignTitle`) big and white (`vr_menu_group_scale` 1.25: 10 px letters), pressed: a new run;
+    its status as a small dim tag at the right only when it is not just ready (`VR_CampaignTag`: missing, incomplete,
+    old version, in progress, experimental, language data, single-player; `vr_menu_group_tags` 0 none, 1 exceptions,
+    2 always: "ready" too); the help line carries the whole status;
+  - Continue under it, indented (`vr_menu_group_indent` 16 px), the fold arrow's folded triangle as a play mark, its
+    age small and dim after it (`VR_LaunchContinueLabel` part 3: "2 h ago");
+  - the run on a small dim line under that (part of the Continue row: selected with it, then as bright as it), cut at
+    a " / " part (else a word) with "..." (`fitAtWord`); the Continue row's help has the whole run;
+  - a gap above each group (`vr_menu_group_gap` 6 px; it closes as its section folds); Dawn of the Machine's Bloody
+    Nightmare now a Sub row in its group ("new game" tag); Arcane Dimensions under its own Experimental header (its
+    "experimental" tag); Campaign Data Status and Return to VR Hub in a small This Page footer (`Item::Minor`).
+  - Selection: the VR style's bar fitted round the row's text (`vr_menu_hl_fit`), the classic style's blinking arrow
+    left of it. Knobs on Menu Look's new Select Campaign section.
+- **Search lands with a flash** (`openEntry`, vr_menu_search.inc; drawn by `drawFlash`): the result's row gets a warm
+  pulsing glow behind it (`menuui::paintFlash`, the big menus' bar's shape, stronger than the selection's), whole for
+  half its time then fading (`vr_menu_flash_time` 1.5 s, 0 off; `vr_menu_flash_strength` 0.6), and the page scrolls to
+  put it in the list's middle (`scrollCentring`, again each frame while its section unfolds). State on the menu
+  instance (`flashPage`, `flashRow`, `flashStart`, `flashCentre`). Knobs on Menu Look > Settings Pages.
+- **A menu stops the walk** (flat and VR): the first move with a menu over the game lets every movement button go
+  (`CL_ReleaseMoveButtons`, cl_input.c: forward, back, strafes, turning, up/down, jump, run; keys and console
+  +commands alike: nothing resumes on close until pressed again), and while it is open the move is 0 (keys, sticks,
+  mouse, gamepad: `VR_AdjustMove`). The real cause of the slide: under live preview the server ran the world but not
+  the player's think (sv_user.c `SV_RunClients`: single player thinks only at key_game), so no friction: he slid on at
+  his walking speed until a wall (measured: 340 u/s for 194 frames). He now thinks while `VR_MenuRunsGame()`: at rest
+  in 50 frames.
+- **Tests:** `vr_continue_rows_test` 19/0 (Quake's title Lead, Continue Sub with its age, the run a Note; no tag while
+  ready; the cut at a part); `vr_menu_flash_test` 7/0 (-QuitOn "menu_flash: [0-9]+ passed": "Arm Drip Rate" on Gore
+  lands centred, row 59 at 108 of 220, flashes, over after 1.5 s, none at 0); `vr_menu_stop_test` 9/0 (-QuitOn
+  "menu_stop: [0-9]+ passed": +forward on e1m1 at 320, the VR Settings over it with live preview: no button held and
+  the server's move 0 within 3 frames, at rest within a second, still at rest after the close); menu_shortcuts_test
+  14/0; `vr_menu_path_check` vrcalibration 6 found, vrstart 5 found, 0 missing; menu_paths.txt regenerated. All three
+  tests on Debug > Tools. Shots: `qvr-kit/scratch/campvis_shots/` (campaigns_before_after.png, search_flash.png).
 ## rlvents: the rocket launcher's three vents are real recesses (agent/rlvents, 2026-11-14)
 
 - **What:** the three vents painted at the back of the front shroud (the chevron on the top fin's rear end, an arch on

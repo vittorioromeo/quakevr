@@ -634,6 +634,12 @@ void openEntry(int entry)
             {
                 ui().cursors[target] = i;
                 ui().scrolls[target] = q_max(i - 3, 0);
+                // (flashed and centred as the page is drawn: drawFlash, vr_menu_flash_time)
+                ui().flashPage = target;
+                ui().flashRow = i;
+                ui().flashStart = realtime;
+                ui().flashCentre = true;
+                Con_DPrintf("menu search: flash %s row %d\n", pages[target].title, i);
                 break;
             }
         }
