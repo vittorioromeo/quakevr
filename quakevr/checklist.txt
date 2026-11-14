@@ -6,26 +6,29 @@
 # A line ending in {test:<id>} has a Test button: it loads quakevr/scenarios/<id>.txt's scene (docs/vr-port/TESTING.md, "Checklist scenarios"); give new lines one whenever a scene fits. Flat-screen lines' scenes work under -flatscreenmode too (the game's mode is picked at start-up, not by the scene).
 # Lines are only for something new or changed you can see or feel: one line per flow, never "works as before". History of the sorts: git log of this file and docs/vr-port/CHECKLIST_REORG.md (latest: 2026-11-14 release audit, 94 lines down to 68, 71 with three from a later ship: the [New] section sorted, near-duplicates merged, every line cut to what to do and what to see, 3 new scenes; 2026-11-15: 17 ticked lines retired, the [New] section sorted). Misc/quakevr/checklist_tests_check.py checks every tag's scene file and the format (no "(agent/", "Test:", scratch or qvr-agents paths, .sh names; sections in order).
 
+[New: not yet sorted]
+Flat-screen or VR: start a coop game on e1m1 from the menu, add a bot, shoot the first grunt's gun out of its hand, then shoot or strike its body: it should die like any grunt. If it still won't die, note the teamplay setting, the weapon you hit it with, and whether it bled.
+
 [1. Flat-screen: weapons and hands]
 Flat-screen: hold the axe (then a sword, the crowbar, Mjolnir, the super axe) with the left hand empty: the left hand goes onto the handle by itself and the weapon sits two-handed; take something in the left hand: back to one hand, no jumps either way (Debug > Tunables > Flatscreen > Two-Handed Melee Stance). {test:flat_melee2h}
 Flat-screen: in the holster menu (middle mouse), drag a weapon with the left button between hands and holsters: valid slots light up, the rest grey; hand to hand or holster to holster swaps; letting go on nothing cancels. {test:flat_holster_drag}
 Flat-screen or VR: shotgun in the right hand, a spent flare gun in the left: swap hands, drop, holster, draw, reload and swap mid-reload in any order, pulling both triggers after each: an empty shotgun only clicks, a loaded one fires one shell, never "ERROR: weapon clip less than zero". {test:flat_clip_unpaid}
 Flat-screen: aim with the right mouse button with the shotgun: it comes up on its sights and the crosshair fades; with the nailgun or the rocket launcher the view zooms the same way but the gun stays where it is and the crosshair stays. Weapon Offsets > Sights > Flat-Screen Aim switches the held gun between Ironsight and Zoom, and Locomotion > Right Click Aim sets every gun at once. {test:flat_aim_zoom}
 Flat-screen: aiming down the shotgun's sights, open Weapon Offsets > Sights > Flat-Screen Aim and move Ironsight Forward, Right, Up and Pitch: the sighted gun moves on the screen as you change them, and your shots still land on the crosshair. {test:flat_aim_zoom}
-Flat-screen or VR: set the Gameplay preset to Classic and play: no gun needs reloading, in the headset or on the desktop screen (no clip on the HUD, R does nothing); Light or Unleashed brings flat-screen reloading back.
 Flat-screen or VR: Debug > Tests > Saves > Autosave Now in a campaign map: Select Campaign's Continue row (and Load Autosave) shows that save, just made; in co-op it says none is made.
 
 [2. Flat-screen: Run Setup, presets and mutators]
-Flat-screen or VR: Classic Quake (or Style Classic): no gun ever needs reloading, and e1m1's grunts are all plain shotgun grunts.
 Flat-screen or VR: Melee Only with the dagger, "maxplayers 2" and a bot (impulse 100): the bot holds the dagger, skips guns and ammo, and fights with the dagger.
+Flat-screen or VR: Classic Quake: every gun kicks when it fires (recoil on, as in the other presets). {test:classic_drops}
+Flat-screen or VR: Classic Quake: a killed grunt, enforcer, knight or ogre drops its backpack but no weapon to take (its gun falls as scenery you can't grab and fades after 4 seconds). {test:classic_drops}
+Flat-screen or VR: With Burst Rifles off (Classic, Light), a grunt's burst rifle you pick up still fires 3-round bursts, not shotgun pellets. {test:classic_drops}
 
 [3. Flat-screen: menus, campaigns and the Map Library]
-Flat-screen or VR: play a campaign until it autosaves, quit to the menu and open Select Campaign: a "Continue (N min ago)" row under that campaign, its run on the line below, loads straight into the save with no Run Setup; campaigns without an autosave have none.
-Flat-screen or VR: Map Library, an installed package you have autosaved in: a "Continue (N min ago): <run>" button above Uninstall / Reinstall loads its newest autosave; a package never played has none, and Play still opens Run Setup.
 Installer: install into a fresh folder and pick Snap 45, Left-handed and Medium on "Set up the game": the game has them. Change Turning in the game, run Update, change only Turn Speed: Turning stays yours.
-Flat-screen or VR: Run Setup's icon pictures keep their real shape (a round skull, square arches, long flat guns), the cards sit further apart and a two-line name is tighter; Menu Look > Run Setup: Icon Picker Gap and Icon Picker Name Lines tune them. {test:run_setup_newgame}
-Flat-screen or VR: finish a level: COMPLETED, the level's name and the Time, Secrets and Kills panel are in the menus' red, as are LOADING and PAUSE; with Blood Red Menus off they keep Quake's colours.
-Flat-screen or VR: Select Campaign: Arcane Dimensions sits with the other campaigns (no Experimental header) with a small "experimental" before its title; pick it and answer Continue: Run Setup opens, and its Start begins Arcane Dimensions.
+Flat-screen or VR: Run Setup's icon pictures keep their real shape (a round skull, long flat guns), the cards sit further apart and a two-line name is tighter; Menu Look > Run Setup: Icon Picker Gap and Icon Picker Name Lines tune them. {test:run_setup_newgame}
+Flat-screen or VR: Single Player > New Game (or a campaign, or the hub's teleporter): Run Setup's first row is the big Start button with the cursor on it, and there is no Difficulty (the start map's skill halls choose). {test:run_setup_newgame}
+Flat-screen or VR: Levels > E1M1 (or the Map Library's Play on a single map): Run Setup shows Start first, then Difficulty with four cards (Easy to Nightmare, no Bloody Nightmare) spaced like the gun pictures, then Style and Gore.
+Flat-screen or VR: Select Campaign has no Bloody Nightmare row under Dawn of the Machine; Bloody Nightmare still starts in game from its hub's relay, and a Bloody Nightmare save's Continue still says so.
 
 [4. VR: body and gear]
 With armour on, set Reloading > X With Armour and Flashlight > Forward With Armour to about 3 units (the scene does): the pouch and the belt torch stand clear of the plates, and go back when the armour is gone. {test:armour_gear}
@@ -60,6 +63,9 @@ Flat-screen or VR: fire the grenade launcher and force-grab the lit grenade out 
 Flat-screen or VR: look down the rocket launcher from your hand: the three vents at the back of the front shroud are real holes, black inside with walls and a back; the floor pickup shows them too. {test:rl_vents}
 VR: a very quick trigger or grip press and release still fires or grabs.
 VR: let go of a gun and grab it again quickly: the re-grab always takes it.
+Let a gun go onto your other, open palm so it rests there, then close that hand: with your fist on its handle it is taken by the handle and fires; with the handle off your palm it is held where it lies, as a prop (it doesn't jump to the handle), and a hand closing a few centimetres off a gun takes nothing. {test:palmgrab}
+Holding the shotgun, open Weapon Offsets > Two-Handed and Hotspots, move hotspot 1's X: its row gets a *, and Reset This Page at the bottom (press it twice) puts it back to the shipped value while hotspot 2 and the other pages keep their values.
+Open Changed Settings (VR Settings): every weapon and prop you've tuned is listed under its own header (Weapon: progs/v_shot.mdl (_02)...), each row labelled by its page or hotspot ("Hotspot 1: Hotspot X"), and changing a row there changes that weapon.
 
 [7. VR: physics, bodies and gore]
 On e1m1 with three times the enemies, turn quickly toward armed grunts you could not see: their guns, arms and backpacks are already in place, no pop.

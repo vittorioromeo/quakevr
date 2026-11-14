@@ -36,7 +36,8 @@ each kept on its first apply). Console: `vr_classic_quake 1` / `0` (it shows 1 w
 | `vr_agknight` | knights spawn as armed humanoids with swords | 0 | 0 | 1 |  |
 | `vr_agdknight` | death knights spawn as armed humanoids with swords (still casting) | 0 | 0 | 1 |  |
 | `vr_grunt_burst` | grunts fire 3-round bursts (0: id's 4-pellet shotgun) | 0 | 0 | 1 | ? |
-| `vr_enemy_drops` | monsters drop their weapons (0 when eligible, 1 always, 2 never) | 2 | 2 | 0 | ? |
+| `vr_enemy_drops` | monsters' random extra weapon drops, id's stock loot (0 when eligible, 1 always, 2 never) | 2 | 2 | 0 | ? |
+| `vr_enemy_held_drops` | a dying monster's own weapon (grunt's burst rifle, enforcer's rifle, knight's sword, ogre's chainsaw, armed humanoids', AD's) falls to be taken; 0: it falls as scenery nobody takes and fades (`vr_enemy_held_drops_linger`, 4 s). His call 2026-11-15: "disable all enemy weapon drops" in Classic; backpacks stay | 0 | 1 | 1 |  |
 | `vr_ammobox_drops` | ammo boxes drop weapons (0 when eligible, 1 always, 2 never) | 2 | 2 | 0 | ? |
 | `vr_adgun_drops` | AD soldiers drop their guns | 0 | 0 | 1 | ? |
 | `vr_admelee_drops` | AD melee monsters drop their weapons | 0 | 0 | 1 | ? |
@@ -80,7 +81,7 @@ each kept on its first apply). Console: `vr_classic_quake 1` / `0` (it shows 1 w
 | `vr_reload_mode` | reloading (3 immersive); 0: guns fire from the reserve | 0 | 3 | 3 |  |
 | `vr_reload_mode_<gun>` (12: shot, sshot, nail, snail, gl, prox, rl, light, widow, adplasma, npistol, revolver) | a gun's own reloading mode; -1 follows `vr_reload_mode`, so at Classic no override of yours keeps a gun reloading in VR | -1 | default | default |  |
 | `vr_flat_reload` | flat-screen play's reloading (at the hips, its own path: the modes above don't reach it); 0: guns fire from the reserve | 0 | 1 | 1 |  |
-| `vr_weapon_recoil` | programmatic recoil kicks the gun in your hand | 0 | 1 | 1 | ? |
+| `vr_weapon_recoil` | programmatic recoil kicks the gun in your hand (the models' baked kick is always taken out, so 0 is no kick at all) | default | 1 | 1 |  |
 | `vr_portals_walk` | seamless teleporters (walk and shoot through); 0: Quake's teleport | 0 | 1 | 1 |  |
 | `vr_teleporter_pair_exits` | two-way gates come out of the paired gate's face; 0: at the marker | 0 | 1 | 1 | ? |
 | `vr_crates` | crates placed about the maps (next map) | 0 | 1 | 1 |  |
@@ -115,7 +116,7 @@ Why each "?":
 - `vr_climb_stamina`: Light: climbing stays (hands); its stamina off with the rest?
 - `vr_foegrab`: Classic: holding enemies is VR grabbing (which stays everywhere) but also a combat move; off?
 - `vr_grenade_shoot`: Light: shooting a grenade off is a physics bonus; kept?
-- `vr_weapon_recoil`: Classic: Quake has no gun kick in the hand; recoil is VR feel, maybe kept everywhere.
+- `vr_weapon_recoil`: decided (2026-11-15): on in Classic too ("weapons don't seem to be subject to recoil").
 - `vr_teleporter_pair_exits`: Classic: only matters with seamless teleporters; Quake's marker exit for clarity.
 - `vr_debris_rocks`: Light: physics props stay, so rocks and bricks too; or only crates and boxes?
 - `vr_debris_bricks`: as rocks.

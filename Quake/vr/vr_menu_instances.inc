@@ -483,8 +483,8 @@ namespace
 
 // vr_runsetup_screen_test's icon pickers (vr_menu_icons.inc): Difficulty, the Starting gun and melee weapon and Enemy
 // Count are icon rows, each choice picked by a click on its picture (the mouse's hit test) and stepped through by the
-// keys; a click on the label picks nothing; a start hall's Difficulty (Skill Halls / Bloody Nightmare) keeps the last
-// difficulty; vr_menu_icons 0 draws them as plain rows. Every pick set back.
+// keys; a click on the label picks nothing; Difficulty's four cards spaced as the weapon pickers'; a start hall has no
+// Difficulty; vr_menu_icons 0 draws them as plain rows. Every pick set back.
 void runSetupIconTest(testkit::Tally& t)
 {
     constexpr const char* name = "runsetup_screen";
@@ -546,16 +546,29 @@ void runSetupIconTest(testkit::Tally& t)
         stepped += var->value == items(page)[runSetupRowIndex(label)].choices[static_cast<size_t>(n - 1)].value ? 1 : 0;
         check(stepped == n + 1, va("%s: right and left step through its choices (%d of %d)", label, stepped, n + 1));
     }
-    // Difficulty's Bloody Nightmare picture: vr_maps_skill 4, the bn row on.
-    check(runSetupClickIcon("Difficulty", 4) && vr_maps_skill.value == 4.f && runsetup::pickValue(runsetup::find("bn")) == 1,
-        "Difficulty's Bloody Nightmare picture clicked: Bloody Nightmare picked");
+    // Difficulty's four cards spaced as the weapon pickers' (runsetup3: the same card width and vr_menu_icon_gap), at the
+    // default gap and at the knob's top.
+    const float gapWas = vr_menu_icon_gap.value;
+    for(const char* g : {"16", "24", "4"})
+    {
+        Cvar_Set("vr_menu_icon_gap", g);
+        const int d = runSetupRowIndex("Difficulty");
+        const int sg = runSetupRowIndex("Starting gun");
+        const int sm = runSetupRowIndex("Starting melee weapon");
+        const bool rows = d >= 0 && sg >= 0 && sm >= 0;
+        const IconRowLayout ld = rows ? iconRowLayout(items(page)[d]) : IconRowLayout{};
+        const IconRowLayout lg = rows ? iconRowLayout(items(page)[sg]) : IconRowLayout{};
+        const IconRowLayout lm = rows ? iconRowLayout(items(page)[sm]) : IconRowLayout{};
+        check(rows && ld.n == 4 && ld.cell == lg.cell && ld.cell == lm.cell && ld.gap == lg.gap && ld.gap == lm.gap,
+            va("gap %s: Difficulty's 4 cards %.1f apart (gap %.1f), the guns' %.1f (%.1f), the melee's %.1f (%.1f)", g,
+                ld.cell, ld.gap, lg.cell, lg.gap, lm.cell, lm.gap));
+    }
+    Cvar_SetValueQuick(&vr_menu_icon_gap, gapWas);
     goBack();
-    // A start hall's Difficulty: Skill Halls (the last difficulty kept) or Bloody Nightmare.
-    Cvar_Set("vr_maps_skill", "2");
+    // A start hall: no Difficulty at all.
     VR_RunSetupLevel("start");
-    const bool bloody = runSetupClickIcon("Difficulty", 1) && vr_maps_skill.value == 4.f;
-    check(bloody && runSetupClickIcon("Difficulty", 0) && vr_maps_skill.value == 2.f,
-        "a start hall's Difficulty: Bloody Nightmare, then Skill Halls (Hard kept) by clicks");
+    check(runSetupRowIndex("Difficulty") < 0 && runSetupRowIndex("Starting gun") >= 0,
+        "a start hall: no Difficulty row, the mutators' pickers there");
     goBack();
     // vr_menu_icons 0: plain rows.
     Cvar_Set("vr_menu_icons", "0");
@@ -593,6 +606,30 @@ void qvr::menu::runSetupScreenTest_f()
         return false;
     };
     auto shownFor = [&](runsetup::Launch launch) { return ui().page == page && runSetup.launch == launch; };
+    // The label of the page's `nth` selectable row (0 the first), or "".
+    auto nthSelectable = [](const za::Vector<Item>& list, int nth) -> const char* {
+        for(const Item& it : list)
+        {
+            if(selectable(it) && nth-- == 0)
+            {
+                return it.label ? it.label : "";
+            }
+        }
+        return "";
+    };
+    // Start first on every way in (runsetup3: his call 2026-11-15), the cursor on it; with skill halls no Difficulty,
+    // without them Difficulty second.
+    auto startFirst = [&](const za::Vector<Item>& list, bool halls, const char* way) {
+        const bool first = !strcmp(nthSelectable(list, 0), "Start") && ui().cursors[page] == 0 && ui().scrolls[page] == 0;
+        bool difficulty = false;
+        for(const Item& it : list)
+        {
+            difficulty = difficulty || (it.kind == Item::Cycle && it.label && !strcmp(it.label, "Difficulty"));
+        }
+        const bool second = halls ? !difficulty : !strcmp(nthSelectable(list, 1), "Difficulty");
+        check(first && second, va("%s: Start the first row, the cursor on it; %s (second: \"%s\")", way,
+                                   halls ? "no Difficulty (skill halls)" : "Difficulty second", nthSelectable(list, 1)));
+    };
     check(mapinstall::mapHasSkillSelect("start"), "start.bsp has skill halls");
     check(!mapinstall::mapHasSkillSelect("e1m1"), "e1m1 has none");
     const float ask = vr_runsetup_ask.value;
@@ -615,17 +652,18 @@ void qvr::menu::runSetupScreenTest_f()
         }
     }
     check(items.size() > 0 && items[0].kind != Item::Header && !hasLabel(items, "Run Setup"),
-        "no title, no recap: the page starts with the difficulty picker");
-    check(allRows, "its rows: Difficulty, the presets, the mutators, Start");
-    const int cur = ui().cursors[page];
-    check(cur == 0 || (cur > 0 && cur < static_cast<int>(items.size()) && items[static_cast<size_t>(cur)].label &&
-                          !strcmp(items[static_cast<size_t>(cur)].label, "Start")),
-        "the cursor on Start (or on Difficulty, the page longer than its view)");
-    check(items.size() > 1 && items[1].label && !strcmp(items[1].label, "Start"), "Start right after the difficulty picker");
+        "no title, no recap: the page starts with its first row");
+    check(allRows, "its rows: Start, Difficulty, the presets, the mutators");
+    startFirst(items, false, "the Map Library's Play (e1m1)");
+    {
+        // Then the presets: Style and Gore the next choices after Difficulty.
+        check(!strcmp(nthSelectable(items, 2), "Style") && !strcmp(nthSelectable(items, 3), "Gore"),
+            va("then the presets (\"%s\", \"%s\")", nthSelectable(items, 2), nthSelectable(items, 3)));
+    }
     goBack();
     check(ui().page != page && runSetup.launch == runsetup::Launch::Library, "Back leaves it, nothing started");
 
-    // A start map with skill halls: its Difficulty only Skill Halls or Bloody Nightmare, the mutators still asked.
+    // A start map with skill halls: no Difficulty, the presets and mutators still asked.
     // (difficulty: the Difficulty row's choices, 0 none.)
     auto difficulty = [](const za::Vector<Item>& list) {
         for(const Item& it : list)
@@ -639,18 +677,22 @@ void qvr::menu::runSetupScreenTest_f()
     };
     openRunSetup(runsetup::Launch::Library, za::String{"0000"}, "start", -1, mapinstall::mapHasSkillSelect("start"));
     items = pageRunSetup();
-    check(difficulty(items) == 2 && hasLabel(items, "Starting gun"),
-        "skill halls: Difficulty only Skill Halls / Bloody Nightmare, mutators asked");
+    check(difficulty(items) == 0 && hasLabel(items, "Starting gun") && hasLabel(items, "Style"),
+        "skill halls: no Difficulty, the presets and mutators asked");
+    startFirst(items, true, "the Map Library's Play (start)");
     goBack();
 
     // New Game (menu.c's), Official Campaigns' row, the hub's teleporter.
+    auto shown = [&]() -> const za::Vector<Item>& { return menu_detail::items(page); };
     VR_RunSetupNewGame();
     check(shownFor(runsetup::Launch::NewGame) && runSetup.skillHalls, "New Game opens it (start's halls)");
+    startFirst(shown(), true, "New Game");
     goBack();
     if(VR_CampaignUnavailable(0) == 0)
     {
         openRunSetupCampaign(0);
         check(shownFor(runsetup::Launch::Campaign) && runSetup.campaign == 0, "Official Campaigns' row opens it");
+        startFirst(shown(), true, "Official Campaigns' row");
         goBack();
     }
     // Arcane Dimensions: its experimental notice's Continue opens the screen too (his flat notes 2026-11-15: it started
@@ -663,42 +705,34 @@ void qvr::menu::runSetupScreenTest_f()
             "Arcane Dimensions' Continue opens it (installed) or nothing (not)");
         if(ui().page == page)
         {
+            startFirst(shown(), true, "Arcane Dimensions' Continue");
             goBack();
         }
     }
     // The Levels list after a start hall's launch (New Game's, the campaign's): the page as shown (the menu's built
     // rows, not a fresh build) has its Difficulty row at once (his flat report 2026-11-13: only after a fold).
-    auto shown = [&]() -> const za::Vector<Item>& { return menu_detail::items(page); };
-    const float bnFound = vr_mg3_bn_discovered.value;
-    Cvar_Set("vr_mg3_bn_discovered", "0");
     VR_RunSetupLevel("e1m1"); // (the flat Levels list's Enter: not the old difficulty menu)
     check(shownFor(runsetup::Launch::Level) && !runSetup.skillHalls && !strcmp(runSetup.map.cStr(), "e1m1") &&
               m_state != m_skill,
         "the Levels list opens it for that map (Difficulty asked)");
-    check(difficulty(shown()) == 5, "after a start hall's launch: the shown page has Difficulty's five choices");
-    check(!hasLabel(shown(), "Bloody Nightmare"), "Bloody Nightmare no row of its own (Difficulty's fifth), never found");
-    // Opened at its top: the Difficulty row in view (the draw scrolls only to keep the cursor in view), the cursor on
-    // Start when that is in view too, else on Difficulty.
-    const int at = ui().cursors[page];
-    const bool onStart = at >= 0 && at < static_cast<int>(shown().size()) && shown()[at].label &&
-                         !strcmp(shown()[at].label, "Start");
-    check(ui().scrolls[page] == 0 && at < rowsFrom(shown(), 0) && (onStart || !strcmp(shown()[at].label, "Difficulty")),
-        "opened at its top, Difficulty and the cursor in view (on Start when it fits)");
-    Con_Printf("runsetup_screen: %d rows, %d in view from the top, the cursor on %s\n", static_cast<int>(shown().size()),
-        rowsFrom(shown(), 0), shown()[at].label ? shown()[at].label : "?");
+    check(difficulty(shown()) == 4, "after a start hall's launch: the shown page has Difficulty's four choices");
+    check(!hasLabel(shown(), "Bloody Nightmare"), "no Bloody Nightmare anywhere on the page");
+    startFirst(shown(), false, "the Levels list (e1m1)");
+    Con_Printf("runsetup_screen: %d rows, %d in view from the top\n", static_cast<int>(shown().size()), rowsFrom(shown(), 0));
     goBack();
     VR_RunSetupLevel("start");
     check(shownFor(runsetup::Launch::Level) && runSetup.skillHalls, "the Levels list's start hall: its halls choose");
-    check(difficulty(shown()) == 2, "... and the shown page's Difficulty is Skill Halls / Bloody Nightmare");
+    check(difficulty(shown()) == 0, "... and the shown page has no Difficulty");
+    startFirst(shown(), true, "the Levels list (start)");
     goBack();
     VR_RunSetupLevel("e1m1");
-    check(difficulty(shown()) == 5, "a map after the start hall: the shown page has the five again");
+    check(difficulty(shown()) == 4, "a map after the start hall: the shown page has the four again");
     goBack();
     runSetupIconTest(t);
-    Cvar_SetValueQuick(&vr_mg3_bn_discovered, bnFound);
     Cbuf_InsertText("vr_runsetup hub\n");
     Cbuf_Execute();
     check(shownFor(runsetup::Launch::Hub), "the hub's teleporter (vr_runsetup hub) opens it");
+    startFirst(shown(), true, "the hub's teleporter");
 
     // A held row: Melee Only holds the Starting gun (a line, the page rebuilt); the melee weapon stays a row.
     Cvar_Set("vr_runpick_meleeonly", "1");
@@ -994,10 +1028,6 @@ void qvr::menu::runLaunchTest_f()
         Cvar_Set(p, "0");
     }
     Cvar_Set("vr_runpick_ironman", "0");
-    if(vr_maps_skill.value >= static_cast<float>(runsetup::skillBloody))
-    {
-        Cvar_Set("vr_maps_skill", "3"); // (no Bloody Nightmare: Difficulty's fifth choice)
-    }
     t.step = 0;
 }
 

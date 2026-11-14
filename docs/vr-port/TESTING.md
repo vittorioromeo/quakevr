@@ -304,7 +304,7 @@ Each line is a `##` section of [archive/TESTING_RECIPES.md](archive/TESTING_RECI
 - Profiler, Bullet Time and the spectator camera: vr_profile_*, spectator fx, paired renders
 - Crash reports: vr_crash.cpp, vr_crash_test
 - The Loading... crash and sound-off blind spots: loading_switch_test.sh, vr_zone_threadcheck
-- Menus: centring, scroll memory, shortcuts, flat menu: menu_vr pos / dump / ids / expect, flat mouse, quicksave
+- Menus: centring, scroll memory, shortcuts, flat menu: menu_vr pos / dump / ids / expect, flat mouse, quicksave, menu_pagereset_test.sh (Reset This Page and Changed Settings on the weapon and prop pages)
 - Weapons through a save and a load: load_models_test.sh
 - Playtest checklist: checklist.txt format, ticks, vr_checklist, folding
 - Teleporter and melee regression fixtures (2026-10-04): start-room and melee fixtures

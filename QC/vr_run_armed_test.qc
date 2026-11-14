@@ -298,4 +298,90 @@ float(float a, float b, float c) VR_Classic_Check =
     VR_Test_Check(grunts > 0, "the map's grunts are the original monster_army");
     return vr_test_fail == 0;
 };
+
+// vr_classic_drop_check (the engine's, vr_gameplaypresets.cpp): what a grunt leaves as it dies, and the burst rifle in
+// your hand (his report 2026-11-15). The plain grunt nearest the player is gibbed (its whole death at once: army_die's
+// gun, SoldierDrop's backpack): its backpack falls; its burst rifle falls to be taken at vr_enemy_held_drops 1, as
+// scenery nobody can take at 0 (Classic). Then a burst rifle in the main hand with vr_grunt_burst 0 (the grunts' own
+// fire: id's shotgun): a pull begins a 3-round burst from a clip of rounds, not a shotgun's shell. Synchronous: one call;
+// its lines dprint's (developer 1: at once, a script may quit in the same frame); returns fails * 1000 + passes, the
+// engine prints the verdict line "classicdrop: N passed, M failed".
+float(float a, float b, float c) VR_Classic_DropCheck =
+{
+    VR_Test_Begin("classicdrop");
+    entity pl = VR_Player();
+    float held = cvar_hget(cvarh_vr_enemy_held_drops);
+    entity g = world;
+    entity e = find(world, classname, "monster_army");
+    while(e)
+    {
+        if(pl != world && e.health > 0 && !e.vr_ag && (g == world || vlen(e.origin - pl.origin) < vlen(g.origin - pl.origin)))
+        {
+            g = e;
+        }
+        e = find(e, classname, "monster_army");
+    }
+    VR_Test_Check(pl != world && g != world, "a live plain grunt in the map");
+    if(pl == world || g == world)
+    {
+        return vr_test_fail * 1000 + vr_test_pass;
+    }
+    float scenery = vr_held_scenery_n;
+    vector at = g.origin;
+    T_Damage(g, pl, pl, 5000); // (gibbed: its gun and its backpack at once)
+    float takeable = 0;
+    float lying = 0;
+    float packs = 0;
+    for(e = nextent(world); e; e = nextent(e))
+    {
+        if(vlen(e.origin - at) > 160)
+        {
+            continue;
+        }
+        if(e.classname == "thrown_weapon" && e.weapon == WID_GRUNTGUN)
+        {
+            if(e.vr_drop_fade > 0 && e.handtouch == SUB_Null && !(e.flags & FL_FORCEGRABBABLE)) { lying = lying + 1; }
+            else if(e.vr_drop_fade == 0) { takeable = takeable + 1; }
+        }
+        if(e.model == "progs/backpack.mdl")
+        {
+            packs = packs + 1;
+        }
+    }
+    dprint(sprintf("classicdrop: vr_enemy_held_drops %g: grunt gibbed at %v: %g takeable gun(s), %g scenery, %g backpack(s)\n",
+        held, at, takeable, lying, packs));
+    VR_Test_Check(g.health <= 0, "the grunt died");
+    VR_Test_Check(packs >= 1, "its backpack fell (Quake's ammo)");
+    if(held)
+    {
+        VR_Test_Check(takeable == 1 && lying == 0 && vr_held_scenery_n == scenery, "its burst rifle fell, to be taken");
+    }
+    else
+    {
+        VR_Test_Check(takeable == 0, "no weapon to take (Classic: enemies drop no weapons)");
+        VR_Test_Check(lying == 1 && vr_held_scenery_n == scenery + 1, "its gun fell as scenery (its death frames have none)");
+    }
+
+    // The burst rifle in your hand fires bursts whatever the grunts' own fire.
+    float burst = cvar_hget(cvarh_vr_grunt_burst);
+    cvar_set("vr_grunt_burst", "0");
+    entity oldSelf = self;
+    self = pl;
+    VRGiveEntWeapon(self, cVR_MainHand, WID_GRUNTGUN, 0, WeaponIdToBaseClipSize(WID_GRUNTGUN));
+    W_SetCurrentAmmoFor(cVR_MainHand);
+    float clip = VRGetEntWeaponClip(pl, cVR_MainHand);
+    self.attack_finished = 0;
+    VR_EnemyGun_Attack(cVR_MainHand, WID_GRUNTGUN, 0, &self.attack_finished);
+    float left = VR_GetBurstLeft(cVR_MainHand);
+    float after = VRGetEntWeaponClip(pl, cVR_MainHand);
+    VR_SetBurst(cVR_MainHand, 0, 0);
+    self = oldSelf;
+    cvar_set("vr_grunt_burst", ftos(burst));
+    VR_Test_Check(clip >= VR_BURST_ROUNDS && clip == VR_GruntGun_ClipSize() && clip == rint(clip / VR_BURST_ROUNDS) * VR_BURST_ROUNDS,
+        sprintf("vr_grunt_burst 0: a burst rifle's clip is rounds, a multiple of 3 (%g)", clip));
+    VR_Test_Check(left == VR_BURST_ROUNDS - 1 && after == clip - 1,
+        sprintf("vr_grunt_burst 0: a pull begins a burst (%g more to come, %g of %g left), not a shotgun's shot", left, after, clip));
+    VR_Test_Check(VR_EnemyGun_Name(WID_GRUNTGUN) == "grunt's burst rifle", "it is named the burst rifle");
+    return vr_test_fail * 1000 + vr_test_pass;
+};
 #endif

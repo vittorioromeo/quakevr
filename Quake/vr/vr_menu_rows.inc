@@ -1389,10 +1389,15 @@ QVR_TOGGLE(vr_enemy_weapon_depleted_loot, "Spent Guns Stand Out",
     "Off: an empty burst rifle, laser rifle or Arcane Dimensions soldier's gun, or an ogre's chainsaw out "
     "of fuel, lying about (nothing ever refills them) has no loot pillar and the force grab skips it; a hand still picks it up. On: as any "
     "weapon (vr_enemy_weapon_depleted_loot).")
+QVR_TOGGLE(vr_enemy_held_drops, "Dead Enemies' Weapons",
+    "On: a dying monster's own weapon (a grunt's burst rifle, an enforcer's laser rifle, a knight's sword, an "
+    "ogre's chainsaw, an armed humanoid's) falls for you to take. Off (the Classic preset): it falls as scenery "
+    "nobody can take and fades away (vr_enemy_held_drops).")
+QVR_SLIDER(vr_enemy_held_drops_linger, "Scenery Weapons Fade After", 0.f, 30.f, 0.5f, "%.1f s", ext(0.f, 300.f),
+    "Dead Enemies' Weapons off: how long such a weapon lies before it fades away (vr_enemy_held_drops_linger).")
 QVR_TOGGLE(vr_grunt_burst, "Burst Rifles",
-    "On: grunts fire 3-round bursts of single bullets, tighter than a shotgun's pellets, and the gun a "
-    "grunt drops fires the same bursts. Off: id's shotgun, the grunts' and the dropped guns' (six "
-    "pellets as yours, a shell a shot: a third of Rounds).")
+    "On: grunts fire 3-round bursts of single bullets, tighter than a shotgun's pellets. Off: id's shotgun "
+    "(4 pellets). The burst rifle a grunt drops always fires bursts in your hands (it is a burst rifle).")
 QVR_SLIDER(vr_enemygun_spent_smoke, "Spent Smoke", 0.f, 15.f, 0.5f, "%.1f s", ext(0.f, 60.f),
     "A burst rifle or a laser rifle whose last round you fire smokes this long, in the hand or dropped: it "
     "is done, drop it (0: never).")
@@ -2338,11 +2343,9 @@ QVR_SLIDER_BYNAME(vr_menu_icon_size, "Icon Picker Size", 16.f, 48.f, 2.f, "%.0f 
 QVR_SLIDER_BYNAME(vr_menu_icon_dim, "Icon Picker Unpicked Dim", 0.f, 0.9f, 0.05f, "%.2f", noExt,
     "How much an icon picker's choices that are not picked are greyed and faded. 0: as bright as the picked one.")
 QVR_SLIDER_BYNAME(vr_menu_icon_gap, "Icon Picker Gap", 0.f, 24.f, 1.f, "%.0f px", noExt,
-    "The gap between an icon picker's cards, menu pixels. The cards keep their width while the row has room (4: the old spacing).")
+    "The gap between an icon picker's cards, menu pixels: every picker's cards spaced alike, at most 16 (four cards across the row; 4: the old spacing).")
 QVR_SLIDER_BYNAME(vr_menu_icon_name_pitch, "Icon Picker Name Lines", 4.f, 10.f, 0.5f, "%.1f px", noExt,
     "The line pitch of an icon picker's two-line names, menu pixels (the letters 8 high; 7: the old spacing).")
-QVR_TOGGLE_BYNAME(vr_runsetup_halls_line, "Run Setup: Skill Halls Line",
-    "With a start map that has its own skill halls (id's start, a pack's hall): a line saying so where Difficulty goes. Off: nothing (the halls choose).")
 QVR_TOGGLE_BYNAME(vr_menu_vr_style, "VR Menu Style",
     "The menus fill the panel with their rows spaced out, with modern sliders and switches, and a laser from your hand points at them: trigger to click and drag.")
 QVR_TOGGLE_BYNAME(vr_menu_recolor, "Blood Red Menus",

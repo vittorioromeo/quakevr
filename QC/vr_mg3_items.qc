@@ -142,7 +142,7 @@ void() item_artifact_lavasuit = {
 
 // ----------------------------------------------------------------------------
 // The hell knight's head (map4): taking it turns Bloody Nightmare on (skill 3 and its serverflags) and discovers it,
-// for this game and for good (vr_mg3_bn_discovered: the Official Campaigns menu's Bloody Nightmare row). In a
+// for this game and for good (vr_mg3_bn_discovered; no menu row reads it since runsetup3). In a
 // Bloody Nightmare game it is a megahealth, or, in the new game Bloody Nightmare starts, a bunny once.
 void() MG3_hellknight_head_touch = {
     if(other.classname != "player" || other.health <= 0 || self.model == string_null) return;
