@@ -2801,6 +2801,8 @@ def own_move_frames(s, b, label, go, stop):
     b.cmd("vr_mp_predict_probe %s; %s" % (label, go))
     _, moved = b.wait(r"mp_predict_moved: .*%s" % label, 20, since, "B's own move (%s)" % label)
     f = fields(moved)
+    # (moving as his watch sees him first: stopped at once, a few units off, he was never "moving" and no stop came)
+    b.wait(r"mp_move: .*self=1", 20, since, "B moving (%s)" % label)
     b.cmd(stop)
     b.wait(r"mp_stop: .*self=1", 20, since, "B at rest again (%s)" % label)
     return int(f["moves"]), int(f["ms"])
@@ -2862,6 +2864,9 @@ def predict_moves(s, srv, b, eb):
             "maxspeed %s" % pr.get("maxspeed"))
     predict_corr_check(s, "walking crouched", pr)
     b.cmd("vr_mock_hand head")
+    # (standing up at once is a head's leap: a room-scale jump, his own; landed here, not on the lift as it starts up --
+    # a fall onto a moving lift is a correction: his replay meets it where it is, not where it will be)
+    predict_until(s, b, "states", int(predict_report(b).get("states", 0)) + 72, "B stood up")
     b.cmd("notarget; god")
     since = b.mark()
     put_at(srv, b, eb, LIFT_SPOT, 90)
