@@ -2947,6 +2947,7 @@ float(entity p, vector to) VR_Parry_FlatGuard =
     return h;
 };
 
+float vr_parry_pvp; // T_Damage_VRMelee: the blow VR_Parry judges is a player's on another player (multiplayer)
 float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
 {
     vr_parried = 0;
@@ -2957,8 +2958,11 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         dprint(sprintf("parry interrupt: %s remaining melee hit cancelled\n", attacker.classname));
         return 0;
     }
-    if(inflictor != attacker || !(attacker.flags & FL_MONSTER) || damage <= 0 || !cvar_hget(cvarh_vr_parry) ||
-       targ.classname != "player" || !VRHandsTracked(targ) || !VR_Parry_MeleeMonster(attacker))
+    // Multiplayer: another player's blow of his hands (T_Damage_VRMelee's vr_parry_pvp) is parried by the guard and the
+    // crossed arms as a monster's punch is (single player has no other players).
+    float pvp = vr_parry_pvp && (attacker.flags & FL_CLIENT) && attacker != targ;
+    if(inflictor != attacker || (!pvp && (!(attacker.flags & FL_MONSTER) || !VR_Parry_MeleeMonster(attacker))) ||
+       damage <= 0 || !cvar_hget(cvarh_vr_parry) || targ.classname != "player" || !VRHandsTracked(targ))
     {
         return damage;
     }
@@ -2982,7 +2986,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
     // own blow its frames give one for) is parried only by a weapon held across its way, where they meet. Other blows
     // (a bite, a leap, a punch: no way to be across) by the guard. An armed humanoid's swing stopped already: nothing lands;
     // a monster's attack parried already: its other blows as the parry's cooldown has them.
-    float drp = vr_drp_release || vr_drp_forced || VR_DRP_Applies(attacker);
+    float drp = !pvp && (vr_drp_release || vr_drp_forced || VR_DRP_Applies(attacker)); // (a player's: the guard's)
     float baked = drp && !attacker.vr_ag;
     vr_drp_cut = 0;
     // Flat-screen play's guard: what comes from the front is parried, whatever its way (VR_Parry_FlatGuard); a blow with a
@@ -3365,6 +3369,18 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
     if(attacker.vr_ag && (attacker.flags & FL_MONSTER) && (targ.flags & FL_CLIENT))
     {
         damage = VR_Parry(targ, inflictor, attacker, damage);
+        if(damage <= 0)
+        {
+            return FALSE;
+        }
+    }
+    // Multiplayer: a player's blow on another player, parried by the other's guard as a monster's punch (VR_Parry: the
+    // other's own hands judged; the blow cut, both pushed apart). Single player has no other players.
+    else if((attacker.flags & FL_CLIENT) && (targ.flags & FL_CLIENT) && targ != attacker && (coop || deathmatch))
+    {
+        vr_parry_pvp = TRUE;
+        damage = VR_Parry(targ, inflictor, attacker, damage);
+        vr_parry_pvp = FALSE;
         if(damage <= 0)
         {
             return FALSE;

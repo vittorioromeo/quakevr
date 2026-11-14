@@ -1758,6 +1758,138 @@ def forcegrab(s):
     srv.cmd("developer 0")
 
 
+FACE_GAP = 40.0  # mp_melee: units between the two players, face to face (their boxes 8 apart: a punch's reach)
+# The mock's punch (melee_phase_test.sh's grunt_fast: a closed fist, 0.85 m forward in 0.15 s, 5.7 m/s), held out, then
+# drawn back; the bash (the weapon held across, as the guard: a parry's stance), pushed 0.45 m forward in 0.1 s.
+PUNCH_PLAY = ("0.000 main 0.00 1.15 -0.20 0 0 0", "0.300 main 0.00 1.15 -0.20 0 0 0", "0.450 main 0.00 1.15 -1.05 0 0 0",
+              "1.000 main 0.00 1.15 -1.05 0 0 0", "1.600 main 0.00 1.15 -0.20 0 0 0", "2.000 main 0.00 1.15 -0.20 0 0 0")
+GUARD = "vr_mock_hand main 0.15 1.35 -0.35 0 90 0"  # a crowbar held across in front (parry_pose_test.sh's guard)
+BASH_PLAY = ("0.000 main 0.15 1.35 -0.35 0 90 0", "0.600 main 0.15 1.35 -0.35 0 90 0", "0.700 main 0.15 1.35 -0.80 0 90 0",
+             "1.200 main 0.15 1.35 -0.80 0 90 0", "1.700 main 0.15 1.35 -0.35 0 90 0", "2.000 main 0.15 1.35 -0.35 0 90 0")
+MELEE_SPOT = OPEN_SPOT  # e1m1: the attacker here facing north, the other FACE_GAP north of him facing south
+
+
+def health_of(srv, ent):
+    """Player `ent`'s health on the server."""
+    inv, _ = inventories(srv)
+    return inv.get(ent - 1, {}).get("health", 0)
+
+
+def face_off(s, srv, att, dfd, ea, ed):
+    """`att` at MELEE_SPOT facing north, `dfd` FACE_GAP north of him facing him -> (att's origin, dfd's origin)."""
+    put_at(srv, dfd, ed, COOP_SPOTS[0])  # (out of the way first: the two may be trading places)
+    oa = put_at(srv, att, ea, MELEE_SPOT, 90)
+    od = put_at(srv, dfd, ed, (MELEE_SPOT[0], MELEE_SPOT[1] + FACE_GAP, MELEE_SPOT[2]), 270)
+    return oa, od
+
+
+def play(s, inst, name, lines):
+    """`lines` written to the run's folder as a mock play, played on `inst` -> the play's path."""
+    path = os.path.join(s.out, "%s_%s.txt" % (name, inst.name))
+    with open(path, "w", encoding="ascii") as f:
+        f.write("\n".join(lines) + "\n")
+    inst.cmd("vr_mock_play %s" % path)
+    return path
+
+
+def damage_line(srv, ent, since, timeout, what):
+    """The server's `damage: player <n> by a melee blow` for player `ent` after `since` -> its damage (None: none)."""
+    got = wait_quietly(srv, r"damage: player [-\d.]+ by a melee blow .*health", timeout, since, what)
+    return float(re.search(r"damage: player ([-\d.]+)", got[1]).group(1)) if got else None
+
+
+def punch(s, srv, att, dfd, ea, ed, label):
+    """`att`'s closed fist punched at `dfd` (face to face, FACE_GAP apart): the server deals it to `dfd` -> its damage."""
+    face_off(s, srv, att, dfd, ea, ed)
+    att.cmd("vr_mock_hand main 0.00 1.15 -0.20 0 0 0; vr_mock_button main grip 1")
+    weapon_until(s, srv, ea, 0)
+    before = health_of(srv, ed)
+    since = srv.mark()
+    play(s, att, "punch", PUNCH_PLAY)
+    dmg = damage_line(srv, ed, since, 15, "%s's punch landing" % att.name)
+    after = health_of(srv, ed)
+    s.check("%s: %s's punch lands on %s (the server's blow, judged by %s's own hand; his health down)" % (
+        label, att.name, dfd.name, att.name), dmg is not None and dmg > 0 and after < before,
+        "damage %s; %s's health %d -> %d" % (dmg, dfd.name, before, after))
+    att.cmd("vr_mock_play; vr_mock_button main grip 0")
+    return dmg
+
+
+def guard_up(s, srv, inst, ent):
+    """`inst` holds a crowbar across in front (his guard, parry_pose_test.sh's), given by the test (impulse 167); kept
+    if he holds it already (his grip still pressed: no new press to wait for)."""
+    if weapon_until(s, srv, ent, 17, 1)[-1] == 17:
+        inst.cmd(GUARD)
+        return
+    grip_then_give(srv, inst, "%s; vr_mock_button main grip 1" % GUARD, "main", 167)
+    weapon_until(s, srv, ent, 17)
+
+
+def pushed(srv, ent, start, way, need, tries=40):
+    """Player `ent`'s farthest from `start` along y times `way` (+1 north) by report, until `need` units -> (that far,
+    where) (a definite end: `tries` reports)."""
+    best, where = 0.0, None
+    for _ in range(tries):
+        at = org_of(status(srv), "mp_client", "slot", ent - 1)
+        if at and (at[1] - start[1]) * way > best:
+            best, where = (at[1] - start[1]) * way, at
+        if best >= need:
+            break
+    return best, where
+
+
+def parry(s, srv, att, dfd, ea, ed, label, open_dmg):
+    """`dfd` (his crowbar across in front) parries `att`'s punch: the server's parry by `dfd`'s own guard, the blow's
+    damage cut, `att` pushed back."""
+    oa, _ = face_off(s, srv, att, dfd, ea, ed)
+    guard_up(s, srv, dfd, ed)
+    att.cmd("vr_mock_hand main 0.00 1.15 -0.20 0 0 0; vr_mock_button main grip 1")
+    since = srv.mark()
+    play(s, att, "punch", PUNCH_PLAY)
+    got = wait_quietly(srv, r"parry: player with hand", 15, since, "%s's parry" % dfd.name)
+    dmg = damage_line(srv, ed, since, 3, "the parried blow's damage")
+    back, at = pushed(srv, ea, oa, -1, 16)
+    s.check("%s: %s's guard parries %s's punch (the server's parry by his own crowbar)" % (label, dfd.name, att.name),
+            got is not None, got[1].strip() if got else "no 'parry: player' on the server")
+    s.check("%s: the parried blow is cut (%s, against %s unparried)" % (label, dmg, open_dmg),
+            dmg is None or (open_dmg is not None and dmg < open_dmg), "damage after the parry: %s" % dmg)
+    s.check("%s: %s is pushed back by the parry" % (label, att.name), back > 4,
+            "%s's origin %s -> %s (%.1f back)" % (att.name, oa, at, back))
+    att.cmd("vr_mock_play; vr_mock_button main grip 0")
+
+
+def bash(s, srv, att, dfd, ea, ed, label):
+    """`att` (his crowbar across, held) pushes it forward into `dfd`: the server's shove of a player, `dfd` moved."""
+    _, od = face_off(s, srv, att, dfd, ea, ed)
+    guard_up(s, srv, att, ea)
+    since = srv.mark()
+    play(s, att, "bash", BASH_PLAY)
+    got = wait_quietly(srv, r"bash hit: player", 15, since, "%s's bash" % att.name)
+    moved, at = pushed(srv, ed, od, 1, 16)
+    s.check("%s: %s's bash shoves %s (the server's shove of a player)" % (label, att.name, dfd.name), got is not None,
+            got[1].strip() if got else "no 'bash hit: player' on the server")
+    s.check("%s: %s is moved by the shove" % (label, dfd.name), moved > 8,
+            "%s's origin %s -> %s (%.1f away)" % (dfd.name, od, at, moved))
+    att.cmd("vr_mock_play")
+
+
+def melee(s):
+    """Melee between players, each way: A's punch hurts B (judged by A's hands on the server); B's guard parries A's
+    punch (cut, A pushed back); B's bash shoves A; then the other way round."""
+    srv, a, b, ea, eb = join(s)
+    a.cmd("name A")
+    b.cmd("name B")
+    srv.cmd("developer 1; vr_debug_shots 1; vr_melee_dmg_multiplier 0.25")
+    for att, dfd, e1, e2 in ((a, b, ea, eb), (b, a, eb, ea)):
+        label = "%s on %s" % (att.name, dfd.name)
+        dmg = punch(s, srv, att, dfd, e1, e2, label)
+        parry(s, srv, att, dfd, e1, e2, label, dmg)
+        bash(s, srv, dfd, att, e2, e1, "%s on %s" % (dfd.name, att.name))
+        for inst in (a, b):  # (the crowbar let go of: both empty-handed again)
+            inst.cmd("vr_mock_button main grip 0")
+    srv.cmd("developer 0; vr_debug_shots 0")
+
+
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
     s = Session(args.exe, args.base, args.out, test, port=args.port)
     failure = None
@@ -1792,6 +1924,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             download(s)
         elif test == "mp_pickup":
             pickup(s)
+        elif test == "mp_melee":
+            melee(s)
         elif test == "mp_forcegrab":
             forcegrab(s)
         else:
@@ -1806,7 +1940,7 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -1830,7 +1964,7 @@ def main():
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab"):
+                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee"):
         ok = run(args, "mp_" + args.test)
     else:
         ok = run(args, "mp_coop")
@@ -1851,6 +1985,7 @@ def main():
         ok = run(args, "mp_download") and ok
         ok = run(args, "mp_pickup") and ok
         ok = run(args, "mp_forcegrab") and ok
+        ok = run(args, "mp_melee") and ok
         print("mp_suite: %s" % ("passed" if ok else "FAILED"))
     sys.exit(0 if ok else 1)
 
