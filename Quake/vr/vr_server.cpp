@@ -61,6 +61,7 @@ struct ClientBits
     int previousFrame{0};
     int received{0};
     int moves{0}; // moves read since the server's last frame (VR_MoveMerges): after the first, their bits are ORed
+    int merged{0}; // moves merged since he connected (server::mergedMoves)
 };
 
 za::Vector<ClientBits> clientBits;
@@ -887,7 +888,10 @@ extern "C" int VR_MoveMerges(client_t* client)
     {
         clientBits.resize(clientNum + 1);
     }
-    return clientBits[clientNum].moves++ > 0 ? 1 : 0;
+    ClientBits& bits = clientBits[clientNum];
+    const bool merges = bits.moves++ > 0;
+    bits.merged += merges ? 1 : 0;
+    return merges ? 1 : 0;
 }
 
 extern "C" void VR_ClientReset(client_t* client)
@@ -1622,6 +1626,11 @@ const VrMove* clientMove(edict_t* player)
 {
     const ClientMove* m = clientMoveOf(player);
     return m ? &m->move : nullptr;
+}
+
+int mergedMoves(int clientNum)
+{
+    return clientNum >= 0 && clientNum < static_cast<int>(clientBits.size()) ? clientBits[clientNum].merged : 0;
 }
 
 void rebaseHands(edict_t* player)

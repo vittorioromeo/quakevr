@@ -1902,14 +1902,118 @@ def shove(s, srv, att, dfd, ea, ed, label):
     att.cmd("vr_mock_play")
 
 
-def melee(s):
+WID_SWORD = 13
+SWORD_GIVE = 150 + WID_SWORD  # the test give of a sword
+# A sword swung level from the right to the left across the front (its blade turned 150 degrees in 0.2 s, the hand
+# going across with it: about 13 m/s at the tip), held there, then brought back slowly.
+SWING_PLAY = ("0.000 main 0.65 1.25 -0.30 0 -90 0", "0.400 main 0.65 1.25 -0.30 0 -90 0",
+              "0.650 main -0.55 1.25 -0.45 0 75 0", "1.400 main -0.55 1.25 -0.45 0 75 0",
+              "3.400 main 0.65 1.25 -0.30 0 -90 0", "3.600 main 0.65 1.25 -0.30 0 -90 0")
+SWING_READY = "vr_mock_hand main 0.65 1.25 -0.30 0 -90 0"
+# The other's crowbar held upright in front, across a level swing's way (square to its blade and its way: the
+# directional parry's), its grip under the blade's height.
+UPRIGHT = "vr_mock_hand main -0.50 1.05 -0.45 90 0 0"
+JITTER_MS = 30.0  # B's link's jitter for the swing at it (sub-tick samples)
+JITTER_SLACK = 0.35  # the jittered swing's damage within this share of the clean one's
+
+
+def give_until(s, srv, inst, ent, pose, impulse, wid):
+    """`inst` holds `wid` in his main hand at `pose` (the test give `impulse` after his grip), kept if he has it."""
+    has = weapon_until(s, srv, ent, wid, 1)[-1]
+    if has == wid:
+        inst.cmd(pose)
+        return
+    if has != 0:  # (another weapon in that hand: let go of first, for a new press of the grip)
+        inst.cmd("vr_mock_button main grip 0")
+        weapon_until(s, srv, ent, 0)
+    grip_then_give(srv, inst, "%s; vr_mock_button main grip 1" % pose, "main", impulse)
+    weapon_until(s, srv, ent, wid)
+
+
+def swing(s, srv, att, dfd, ea, ed, label, guard, open_dmg=None):
+    """`att`'s sword swung level across `dfd` (face to face): `guard` None (his hands empty), "level" (his crowbar held
+    across: the guard's pose, along the blade's way) or "upright" (across its way: the directional parry's) -> (the
+    damage dealt or None, the server's dirparry line or None, its guard parry line or None)."""
+    face_off(s, srv, att, dfd, ea, ed)
+    for inst in (att, dfd):
+        inst.cmd("give h 100")
+    if guard is None:
+        dfd.cmd("vr_mock_button main grip 0; vr_mock_hand main 0.20 1.00 -0.10 0 0 0")
+        weapon_until(s, srv, ed, 0)
+    else:
+        give_until(s, srv, dfd, ed, GUARD if guard == "level" else UPRIGHT, 167, 17)
+    give_until(s, srv, att, ea, SWING_READY, SWORD_GIVE, WID_SWORD)
+    since = srv.mark()
+    if os.environ.get("MP_SWING_TRACE"):
+        srv.cmd("developer 3")
+    play(s, att, "swing", SWING_PLAY)
+    dmg = damage_line(srv, ed, since, 4 if guard == "upright" else 15, "%s's swing landing" % att.name)
+    drp = wait_quietly(srv, r"dirparry: player's blow (parried|lands)[^\n]*", 1 if dmg is not None else 4, since,
+                       "the server's directional parry of %s's swing" % att.name)
+    grd = wait_quietly(srv, r"parry: player with hand", 0.5, since, "a guard parry")
+    att.cmd("vr_mock_play")
+    drp = drp[1].strip() if drp else None
+    s.note("%s, %s: damage %s; %s" % (label, guard or "empty-handed", dmg, drp or "no dirparry line"))
+    return dmg, drp, (grd[1].strip() if grd else None)
+
+
+def merged_moves(srv, ent):
+    """Player `ent`'s moves merged on the server so far (vr_mp_status `merged=`: a move in a frame with one of his
+    already), -1: none."""
+    for l in status(srv):
+        m = re.match(r"mp_client: slot=(\d+) .*merged=(\d+)", l)
+        if m and int(m.group(1)) == ent - 1:
+            return int(m.group(2))
+    return -1
+
+
+def blade(s, srv, a, b, ea, eb):
+    """A blade's swing between players, each way: it lands on the other empty-handed; his crowbar held level across in
+    front (the guard's pose) does not parry it (along its way: the directional parry reads the swing's line, not the
+    guard); held upright across its way, it does (no damage, sparks); then B swings at A again with 30 ms of jitter on
+    his link (moves bunched and merged on the server): the same hit."""
+    clean = {}
+    for att, dfd, e1, e2 in ((a, b, ea, eb), (b, a, eb, ea)):
+        label = "%s's sword on %s" % (att.name, dfd.name)
+        dmg, _, _ = swing(s, srv, att, dfd, e1, e2, label, None)
+        clean[att.name] = dmg
+        s.check("%s: the swing lands on him empty-handed" % label, dmg is not None and dmg > 0, "damage %s" % dmg)
+        dmg, drp, grd = swing(s, srv, att, dfd, e1, e2, label, "level")
+        s.check("%s: his crowbar held level along its way does not parry it (the line's, not the guard's)" % label,
+                grd is None and drp is not None and "lands" in drp and dmg is not None and dmg > 0,
+                "guard: %s; dirparry: %s; damage %s" % (grd, drp, dmg))
+        dmg, drp, grd = swing(s, srv, att, dfd, e1, e2, label, "upright")
+        s.check("%s: his crowbar held upright across its way parries it (no damage)" % label,
+                drp is not None and "parried" in drp and dmg is None, "dirparry: %s; damage %s" % (drp, dmg))
+    proxy = getattr(b, "proxy", None)
+    if proxy:
+        proxy.jitter = JITTER_MS / 1000.0
+    m0 = merged_moves(srv, eb)
+    dmg, drp, _ = swing(s, srv, b, a, eb, ea, "B's sword on A at %d ms jitter" % JITTER_MS, None)
+    m1 = merged_moves(srv, eb)
+    if proxy:
+        proxy.jitter = 0.0
+    ref = clean.get("B")
+    s.metric("swing_jitter_dmg", dmg if dmg is not None else -1)
+    s.metric("swing_jitter_merged", m1 - m0)
+    s.check("B's moves came bunched at %d ms jitter (merged on the server during the swing)" % JITTER_MS, m1 > m0,
+            "%d of his moves merged (%d -> %d)" % (m1 - m0, m0, m1))
+    s.check("B's swing at %d ms jitter lands as without (damage within %d%%)" % (JITTER_MS, JITTER_SLACK * 100),
+            dmg is not None and ref is not None and abs(dmg - ref) <= JITTER_SLACK * ref,
+            "damage %s, without jitter %s" % (dmg, ref))
+
+
+def melee(s, only_blade=False):
     """Melee between players, each way: A's punch hurts B (judged by A's hands on the server); B's guard parries A's
-    punch (cut, A pushed back); B's bash shoves A; A's open palm shoves B; then the other way round."""
+    punch (cut, A pushed back); B's bash shoves A; A's open palm shoves B; then the other way round; then a sword's
+    swing each way (blade: landing, not parried by the guard, parried across its way; at 30 ms jitter)."""
     srv, a, b, ea, eb = join(s)
     a.cmd("name A")
     b.cmd("name B")
     srv.cmd("developer 1; vr_debug_shots 1; vr_melee_dmg_multiplier 0.25")
     for att, dfd, e1, e2 in ((a, b, ea, eb), (b, a, eb, ea)):
+        if only_blade:
+            break
         label = "%s on %s" % (att.name, dfd.name)
         dmg = punch(s, srv, att, dfd, e1, e2, label)
         parry(s, srv, att, dfd, e1, e2, label, dmg)
@@ -1917,6 +2021,7 @@ def melee(s):
         for inst in (a, b):  # (the crowbar let go of: both empty-handed again)
             inst.cmd("vr_mock_button main grip 0")
         shove(s, srv, att, dfd, e1, e2, label)
+    blade(s, srv, a, b, ea, eb)
     srv.cmd("developer 0; vr_debug_shots 0")
 
 
@@ -2141,6 +2246,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             moves(s)
         elif test == "mp_melee":
             melee(s)
+        elif test == "mp_blade":
+            melee(s, only_blade=True)
         elif test == "mp_climb":
             climb(s)
         elif test == "mp_forcegrab":
@@ -2157,7 +2264,7 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "moves", "climb", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -2181,7 +2288,7 @@ def main():
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "moves", "climb"):
+                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb"):
         ok = run(args, "mp_" + args.test)
     else:
         ok = run(args, "mp_coop")

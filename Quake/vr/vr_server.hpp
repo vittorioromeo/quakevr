@@ -20,6 +20,10 @@ void init(); // registers commands
 // VR physics work from these, not from QC fields.
 [[nodiscard]] const VrMove* clientMove(struct edict_s* player);
 
+// How many of client `clientNum`'s moves came in a server frame that had one of his already (merged: their VR bits ORed,
+// the hands' last pose kept) since he connected: vr_mp_status `merged=` (MP_PLAN.md, B5d: melee at jitter).
+[[nodiscard]] int mergedMoves(int clientNum);
+
 // The client places `player`'s hands (and muzzles) from where it last saw the player, which
 // lags the server by a frame or more: moves the hand fields (and the stored move) along by
 // however far the player has moved since, so that they sit where the hands are relative to the
