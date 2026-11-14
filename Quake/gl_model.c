@@ -3534,8 +3534,11 @@ qboolean loadMd5Replacement(qmodel_t* mod, char	*path)
 			double t0 = Sys_DoubleTime (); // QVR: load timing (vr_startup_times)
 			qboolean result = VR_ModelReplacementOk (mod->name, md5buffer); // QVR: the jointed hand's file checked first
 			char* extended = result ? VR_ModelReplacementExtend (mod->name, md5buffer) : NULL; // QVR: the gloves' shells added
+			char* withhead = result ? VR_RangerHeadExtend (mod->name, extended ? extended : md5buffer) : NULL; // QVR: the detailed head's mesh added
 			double t1 = Sys_DoubleTime ();
-			result = result && Mod_LoadMD5MeshModel (mod, extended ? extended : md5buffer);
+			result = result && Mod_LoadMD5MeshModel (mod, withhead ? withhead : extended ? extended : md5buffer);
+			if (withhead)
+				VR_HeapFree (withhead);
 			if (extended)
 				VR_HeapFree (extended);
 			VR_TimeAdd ("    md5: the VR check", t1 - t0);
@@ -4562,6 +4565,9 @@ static void Mod_LoadMD5Skins (qmodel_t *mod, aliashdr_t *surf, const char *shade
 	qmodel_t *skinowner = VR_MD5SharedSkins (shader) ? NULL : mod;
 	int skinpersist = skinowner ? 0 : TEXPREF_PERSIST;
 
+	if (VR_RangerHeadSkins (surf, shader)) // QVR: the detailed head's mesh: his own skin, from his model (vr_rangerhead.cpp)
+		return;
+
 	VR_MD5SkinsReset (); // QVR: (VR_MD5SkinNormalMap) the islands made anew for this surface
 
 	//MD5 violation: the skin is a single material. adding prefixes/postfixes here is the wrong thing to do.
@@ -4830,7 +4836,7 @@ static qboolean Mod_LoadMD5MeshModel (qmodel_t *mod, const char *buffer)
 		if (!MD5_BakeInfluences(fname, outposes, poutvert, vinfo, weight, surf->numverts, numweights))
 			goto error;
 		// QVR: the body's head made of the Quake ranger's (vr_body_ranger_head; vr_rangerhead.cpp)
-		if (m == 0 && VR_RangerHeadMesh (mod, fname, meshshader, outbones, (int) numjoints, (void **) &poutvert, &surf->numverts, &poutindexes, &surf->numindexes)) // (not the gloves' cuff shell after it: VR_ModelReplacementExtend)
+		if (VR_RangerHeadMesh (mod, fname, (int) m, meshshader, outbones, (int) numjoints, (void **) &poutvert, &surf->numverts, &poutindexes, &surf->numindexes)) // (the body's first, the detailed head's own; not the gloves' cuff shell: VR_ModelReplacementExtend)
 		{
 			surf->numverts_vbo = surf->numverts;
 			surf->numtris = surf->numindexes / 3;
