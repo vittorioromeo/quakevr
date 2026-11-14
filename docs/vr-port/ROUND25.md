@@ -2453,3 +2453,16 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
   lambda in vr_climb.cpp, `__rdtsc` in vr_findradius.cpp, a format call without arguments. **PC bug (6b8e74432)**:
   `VR_CrtHeapLoadHold` was missing without mimalloc (a Linux `-DQVR_MIMALLOC=OFF` build failed to link).
 - **Not done**: the first boot (no emulator; the headset's is C4b). Next: C4a, OpenXR on Android compiled and packaged.
+
+## questN: Quest C4a, OpenXR on Android compiled and packaged (agent/quest, 2026-11-14)
+
+- **What** (QUEST_PLAN.md 6h): Khronos' Android loader (1.1.53 AAR, `QVR_OPENXR_ANDROID_DIR`) linked and packaged;
+  `xrInitializeLoaderKHR` with SDL's JavaVM and activity, `XR_KHR_android_create_instance`, `XR_KHR_opengl_es_enable`
+  (SDL's EGL display/config/context, vr_xr_linuxgl.cpp EGL-only on Android), ES swapchain images; the Quest's runtime
+  extensions (`vr_backend_openxr_quest.cpp`: refresh rate, CPU/GPU levels, fixed foveation; cvars `vr_xr_refresh_rate`,
+  `vr_xr_cpu_level`, `vr_xr_gpu_level`, `vr_xr_foveation`, all 0 = the runtime's own), requested on Android alone;
+  the manifest's VR category, IMMERSIVE_HMD, head tracking, focus awareness, the loader's permissions and queries
+  (`QVR_ANDROID_FLAT=1`: the flat-panel APK without them). Multiview not used (the renderer's per-eye copy: C5).
+- **Checked without a device**: `Android/check_apk.sh`: VR APK 18/0, flat APK 18/0 (the VR APK as flat: 17/1). The
+  arm64 build 0 warnings; the PC unchanged (the extensions never requested there; its swapchain create info as before).
+- **Next**: C4b, the headset's first boot (his Quest in developer mode).

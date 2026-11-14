@@ -174,6 +174,7 @@ is the same build with a lower preset (half the GPU) [I].
 | C2e (done, section 6d) | The CPU side of the Quest budget measured (a fight's split, QuakeC per function), draws per scope in `vr_profile_dump`, the bound path's draws located; the `noperspective` fallback (`-glesnoext`) | No |
 | C2f (done, section 6e) | The world's textures in texture arrays for the bound path (`vr_world_texarrays`): a draw a set of textures alike instead of a draw a texture | No |
 | C3 (done but the boot, section 6g; installs approved and done, section 7) | Android build: CMake toolchain for `arm64-v8a`, Gradle project (`Android/`), SDL2's Android activity, `-ffp-contract=off`, assets path and permissions, logcat console, the APK; first boot in the Android emulator (flatscreen, ES 3.x) for files, sound and menus (no emulator installed: the first boot is C4's, on the headset) | **Yes** (list below) |
+| C4a (done, section 6h) | OpenXR on Android compiled and packaged without the headset: the loader AAR, its Android init, the ES binding and swapchains, the Quest's extensions behind availability checks, the manifest's VR lines, `Android/check_apk.sh` | No (section 7's) |
 | C4 | OpenXR on Android: `XR_KHR_opengl_es_enable` binding, Android loader init, swapchains as GLES texture arrays, multiview into them, refresh rate, `XR_EXT_performance_settings`, `XR_FB_foveation`, Touch controller bindings (already OpenXR actions), visibility mask; first headset boot; a GL extension dump of the Quest's driver resolves the [?] rows | **Yes** + a Quest in developer mode |
 | C5 | Renderer on device: driver bugs, the post chain merged into fewer passes for the Quest preset, program binary cache, MSAA on tile, invalidations at pass ends; Adreno profiling (`ovrgpuprofiler`, RenderDoc) | Yes (device tools) |
 | C6 | Perf and defaults: a Quest graphics preset (Quest 3 and Quest 2 levels) from measurements, dynamic resolution and foveation level tied to frame time, CPU/GPU levels, thread affinity (big cores), memory caps (shadow atlas, textures); latency: late latch of poses, `xrWaitFrame` pacing | Device |
@@ -674,6 +675,56 @@ without (AD's start map, behind the loading screen).
 - **Not done**: the first boot (no Android emulator installed; on the Quest the APK runs as a flat panel: C4's first
   step before OpenXR); codecs (music: WAV only), the Android runtime checks of the `[?]` rows.
 
+## 6h. C4a: OpenXR on Android, compiled and packaged (done without the headset; no installs)
+
+- **The loader**: Khronos' 1.1.53 AAR, unpacked (`F:\QuakeVRDev\openxr\aar`): `Android/android.cmake` links its
+  `jni/arm64-v8a/libopenxr_loader.so` when `QVR_OPENXR_ANDROID_DIR` names the folder (else the mock backend alone, as
+  in C3), defines `QVR_HAVE_OPENXR` and copies the loader beside `libquakevr.so`; `package_apk.sh` puts it in the APK;
+  the Gradle module the same (`qvrOpenXrDir`; not run). Headers: the engine's own `Windows/OpenXR/include` (1.1.63, the
+  PC's; the loader's 1.1.53 speaks the same API, the instance asks for 1.0).
+- **The loader's Android init and instance** (`vr_backend_openxr.cpp`, `__ANDROID__`): `xrInitializeLoaderKHR` with
+  `XrLoaderInitInfoAndroidKHR` (SDL's JavaVM, `SDL_AndroidGetJNIEnv`, and its activity, `SDL_AndroidGetActivity`,
+  held as a global reference), once a process, before any other OpenXR call; the instance with
+  `XR_KHR_android_create_instance` (`XrInstanceCreateInfoAndroidKHR`, chained after the debug messenger when that is
+  on, and kept on the retry without it) and `XR_KHR_opengl_es_enable` instead of `XR_KHR_opengl_enable`;
+  `xrGetOpenGLESGraphicsRequirementsKHR` (logged against the context's `GL_VERSION`).
+- **The binding**: `XrGraphicsBindingOpenGLESAndroidKHR` from SDL's EGL display, config and context, found as on Linux
+  (`vr_xr_linuxgl.cpp`: EGL alone on Android, its GLX parts compiled out; the same `contextReady` checks). Swapchains:
+  `XrSwapchainImageOpenGLESKHR` (`SwapchainImageGl`, the PC's `XrSwapchainImageOpenGLKHR`: the same fields), the same
+  format choice (`GL_SRGB8_ALPHA8` first: an ES 3 format). **Multiview: not used** (the renderer draws each eye into
+  its own target and copies it into that eye's swapchain; a two-layer swapchain drawn in one pass,
+  `GL_OVR_multiview2`, is a renderer change: C5); the session's log lists the driver's `GL_OVR_multiview2`,
+  `GL_OVR_multiview_multisampled_render_to_texture`, `GL_EXT_multisampled_render_to_texture`,
+  `GL_QCOM_texture_foveated`, `GL_EXT_sRGB_write_control` for C4b.
+- **The Quest's runtime extensions** (`vr_backend_openxr_quest.cpp`, `QuestExtensions`; requested on Android alone,
+  each when offered: the PC's runtimes never get them): `XR_FB_display_refresh_rate` (`vr_xr_refresh_rate`, the nearest
+  rate offered), `XR_EXT_performance_settings` (`vr_xr_cpu_level`, `vr_xr_gpu_level`: 1 power savings .. 4 boost),
+  `XR_FB_foveation` + `XR_FB_foveation_configuration` + `XR_FB_swapchain_update_state` (`vr_xr_foveation` 1-3: the
+  eye swapchains made foveation-capable, `SCALED_BIN`, a fixed profile applied, again for new eye swapchains). All
+  four cvars default **0, the runtime's own** (C6 sets the Quest preset's from measurements); applied while the session
+  runs, again when changed (a compare a frame). All in Khronos' headers: Meta's SDK (`F:\QuakeVRDev\Meta-OpenXR-SDK`)
+  adds only preview extensions (`meta_openxr_preview/`), none needed here.
+- **The manifest**: the VR category (`com.oculus.intent.category.VR`), OpenXR's
+  `org.khronos.openxr.intent.category.IMMERSIVE_HMD`, `android.hardware.vr.headtracking` (required), focus awareness,
+  the loader's permissions (`org.khronos.openxr.permission.OPENXR`, `_SYSTEM`) and `<queries>` (the runtime broker,
+  the runtime's and API layers' services: the AAR's own manifest, which no Gradle merge brings in here),
+  `resizeableActivity` false. Those VR lines are marked `vr-only`: `QVR_ANDROID_FLAT=1 Android/package_apk.sh` leaves
+  them out, the flat-panel APK for C4b's first step.
+- **The check without a device**: `Android/check_apk.sh [apk] [vr|flat]`: the package, arm64, GLES 3.2, the activity,
+  the three libraries in the APK, the loader's permission and queries, the 4 VR lines (none in the flat APK),
+  `libquakevr.so` needing `libopenxr_loader.so` and importing `xrGetInstanceProcAddr`, `xrCreateInstance`,
+  `xrCreateSession`, `xrCreateSwapchain` and SDL's JNI calls. **VR APK 18 passed, 0 failed; flat APK 18/0** (the VR
+  APK checked as flat: 17/1, the check tells them apart).
+- **Results**: the arm64 build with OpenXR: 0 warnings, 0 errors (`-Wl,--no-undefined`: every OpenXR, EGL and JNI
+  symbol resolved); `QuakeVR.apk` 20.7 MB (`libopenxr_loader.so` 1.6 MB added), `apksigner verify` OK; the flat APK
+  without Steam Audio 11.6 MB. The PC unchanged (the Quest extensions never requested there, its swapchain create info and image structs as
+  before): scenario_check 129/0, load_models_test 4/0, vr_simd_test 58880/0, the Release build 0 warnings (the
+  renderer untouched: no `-glescompat` rerun).
+- **Left for C4b (the headset)**: the runtime plan on Android (`vr_xr_runtime.cpp`: no manifests there, so Auto's
+  "no runtime installed" attempt, the loader's own choice: the broker; its label reads "none"), the session's states
+  with SDL's activity (pause/resume, focus), the swapchain formats and the extension dump, whether `SCALED_BIN`
+  foveation suits the eyes' copy, the `imageRect` origin (6f).
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
@@ -717,12 +768,10 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C4a — OpenXR on Android without the headset (no new installs: the loader AAR and Meta's headers are in
-`F:\QuakeVRDev`): `QVR_HAVE_OPENXR` in the Android build with the AAR's `libopenxr_loader.so` packaged, the loader's
-Android init (`xrInitializeLoaderKHR`, `XR_KHR_android_create_instance`), the `XR_KHR_opengl_es_enable` binding from
-SDL's EGL display/config/context, GLES swapchain formats, the manifest's VR category and Quest features; compiled and
-packaged, the PC unchanged. Then C4b, the headset's first boot (NEEDS his Quest in developer mode, adb): the flat panel
-first (this APK as is: files, logcat, the crash report), then OpenXR, the extension dump that resolves the `[?]` rows,
-the `imageRect` origin (6f). Without the headset, C2h (no installs): the world textures' memory under the ES profile
-(section 6e's open item). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU
-cost (section 6d), `bd2277d6c` and `6b8e74432` (PC fixes, sections 6f, 6g) to `next`.
+Next phase: C4b — the headset's first boot (NEEDS his Quest 3/3S in developer mode and a USB-C cable, adb; no new
+installs): the flat-panel APK first (`QVR_ANDROID_FLAT=1 Android/package_apk.sh`: files, logcat, the crash report,
+sound, menus), then the VR APK (section 6h): the loader's init and the runtime, the ES session, the swapchains, the
+extension and GL extension dumps that resolve the `[?]` rows, the Quest extensions' cvars, the `imageRect` origin (6f).
+Without the headset, C2h (no installs): the world textures' memory under the ES profile (section 6e's open item).
+Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d),
+`bd2277d6c` and `6b8e74432` (PC fixes, sections 6f, 6g) to `next`.
