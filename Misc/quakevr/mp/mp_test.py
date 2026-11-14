@@ -40,7 +40,8 @@ Tests:
              his own back. A preference and a sound on a rule page stay his.
     cosmetics  B's skin tone, gloves and nails on his hands and body as A draws them are B's own; A's copy of B's body
              at B's height; B's holstered shotgun where B drew it (and the server's holsterpos for him), his pauldrons,
-             his seated body, his nailgun's magazine in the server's hull of it (B6b).
+             his seated body, his nailgun's magazine in the server's hull of it (B6b); B's armour's plates (yellow,
+             their pieces) on A's copy of his body, fewer as his armour wears; A's view of B (B6c).
     flatbody  a flat-screen B's body as A draws it is at his flat body height (B6b).
     suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, version, avatar, avatarcal, body, prefs, grab,
              teleport, held, ground, campaign, campaign_listen, flow, download, pickup, forcegrab, melee, moves, climb,
@@ -453,8 +454,12 @@ RULES = {
     "vr_mgrp_ogre_kdscale": ("0.25", "2", "0.25"),
     "vr_grapple_drop_grace": ("0.3", "0.05", "0.3"),
     "vr_knockdown": (None, "0", "1"),
+    # (B6c: Locomotion's balance settings, rules by name; its comfort and controls stay each player's)
+    "vr_crouch_speed_scale": ("0.5", "0.9", "0.5"),
+    "vr_slope_walk": ("0", "1", "0"),
+    "vr_crouch_speed": (None, "0", "1"),
 }
-NOT_RULES = {"vr_gunangle": "55", "vr_bash_sound": "0.2"}
+NOT_RULES = {"vr_gunangle": "55", "vr_bash_sound": "0.2", "vr_movement_mode": "0", "vr_move_curve": "1.5"}
 
 
 def rules_report(inst, names):
@@ -599,6 +604,74 @@ def cosmetics(s):
                                                     1.9) < 0.002, "A's copy of B's body at B's height")
     s.check("B's height: A's copy of his body is posed at it", True, "after %d reports" % n)
     cosmetics_b6b(s, srv, a, b, ea, eb)
+    cosmetics_b6c(s, srv, a, b, ea, eb)
+
+
+def plates_of(lines, prefix):
+    """"mp_plates:" / "mp_plates_own:" lines -> {ent: fields (type, pieces, skin, slots, shown) with "model", "body"}."""
+    out = {}
+    for l in lines:
+        if l.startswith(prefix + ":"):
+            f = avatar_fields(l.split(":", 1)[1])
+            for k in ("model", "body"):
+                m = re.search(r"\b%s=(\S+)" % k, l)
+                f[k] = m.group(1) if m else ""
+            out[int(f["ent"][0])] = f
+    return out
+
+
+def cosmetics_b6c(s, srv, a, b, ea, eb):
+    """MP_PLAN B6c: B's armour's plates on A's copy of his body: B given yellow armour (150: every piece), A draws the
+    plates' model made over B's body model, in yellow, the pieces B's own body shows, posed on B's bones (its slots
+    shown); no pauldron under a plate, as on B's own; B's armour worn down: A's copy sheds the pieces B's own does. A
+    looks at B: one image of B's holstered shotgun, pauldrons and plates as A draws them."""
+    srv.cmd("vr_player_plates 1")
+    a.cmd("vr_player_plates 1")
+    b.cmd("vr_player_plates 1; vr_body_pauldrons 1; vr_body_pauldron_style 2")
+    la, lb = reports(s, [a, b])
+    head_a = (by_ent(lb, "mp_avatar").get(ea) or {}).get("head")
+    head_b = (by_ent(la, "mp_avatar").get(eb) or {}).get("head")
+    if head_a is not None and head_b is not None:
+        face(s, a, b, head_a, head_b)
+        s.note("screenshot (A sees B: holstered shotgun, steel pauldrons): %s" % a.screenshot("sees_B_cosmetics"))
+    b.cmd("give a 150")
+
+    def plated(want):
+        def done(lines):
+            la, lb = lines
+            own, copy = plates_of(lb, "mp_plates_own").get(eb), plates_of(la, "mp_plates").get(eb)
+            return own is not None and copy is not None and own["type"] == [2.0] and own["pieces"][0] > 0 and \
+                copy["pieces"] == own["pieces"] and copy["type"] == own["type"] and want(own["pieces"][0])
+        return done
+
+    (la, lb), n = reports_until(s, [a, b], plated(lambda p: True), "A draws B's yellow plates, his pieces")
+    own, copy = plates_of(lb, "mp_plates_own")[eb], plates_of(la, "mp_plates")[eb]
+    body_at_a = (body_of(la, "mp_body").get(eb) or {}).get("model", "")
+    s.note("B's own: %r; A's copy: %r" % (own, copy))
+    full = int(own["pieces"][0])
+    s.check("A draws B's plates: yellow, the pieces B's own body shows", True, "type %d, pieces %d, after %d reports" % (
+        copy["type"][0], full, n))
+    s.check("A's copy's plates are the plates' model of B's body model there, in yellow (skin 1)",
+            copy["model"] == body_at_a + "#armor" and copy["skin"] == [1.0], "plates %s skin %r on body %s" % (
+                copy["model"], copy["skin"], body_at_a))
+    s.check("A's copy's plates are posed on B's bones (their slots shown)", copy["shown"][0] > 0 and
+            copy["shown"][0] <= copy["slots"][0], "%d of %d slots" % (copy["shown"][0], copy["slots"][0]))
+    caps_own, caps_a = pauldrons_of(lb, "mp_pauldron_own"), pauldrons_of(la, "mp_pauldron")
+    sides_own = sorted(side for (e, side) in caps_own if e == eb)
+    sides_a = sorted(side for (e, side) in caps_a if e == eb)
+    s.check("no pauldron under a plate: A's copy shows B's caps where B's own body does", sides_own == sides_a,
+            "B's own caps on sides %r, A's copy's %r (pieces %d)" % (sides_own, sides_a, full))
+    s.check("A wears none: no plates of his own", (plates_of(la, "mp_plates_own").get(ea) or {}).get("pieces", [0]) ==
+            [0.0], repr(plates_of(la, "mp_plates_own").get(ea)))
+    if head_a is not None and head_b is not None:
+        s.note("screenshot (A sees B plated): %s" % a.screenshot("sees_B_plates"))
+
+    b.cmd("give a 101")
+    (la, lb), n = reports_until(s, [a, b], plated(lambda p: bin(int(p)).count("1") < bin(full).count("1")),
+                                "A's copy sheds the pieces B's own does")
+    own, copy = plates_of(lb, "mp_plates_own")[eb], plates_of(la, "mp_plates")[eb]
+    s.check("B's armour worn down: A's copy shows the fewer pieces B's own does", True, "pieces %d (from %d), after %d "
+            "reports" % (own["pieces"][0], full, n))
 
 
 HOLSTER_UNITS = 1.0  # B's holstered weapon at A, and the server's holsterpos for B, within this of where B drew it
