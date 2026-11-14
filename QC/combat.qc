@@ -2948,6 +2948,7 @@ float(entity p, vector to) VR_Parry_FlatGuard =
 };
 
 float vr_parry_pvp; // T_Damage_VRMelee: the blow VR_Parry judges is a player's on another player (multiplayer)
+float vr_melee_blowhand; // 1 + the hand whose blow PlayerVRMeleeImpl (client.qc) is dealing; 0: none (a chainsaw's chain...)
 float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
 {
     vr_parried = 0;
@@ -2959,8 +2960,15 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         return 0;
     }
     // Multiplayer: another player's blow of his hands (T_Damage_VRMelee's vr_parry_pvp) is parried by the guard and the
-    // crossed arms as a monster's punch is (single player has no other players).
+    // crossed arms as a monster's punch is (single player has no other players); his melee weapon's swing (a blade, an
+    // axe, a crowbar: VR_DRP_PvpApplies) by the directional parry, from his swing's line (vr_dirparry.qc, vr_drp_pvp).
     float pvp = vr_parry_pvp && (attacker.flags & FL_CLIENT) && attacker != targ;
+    vr_drp_pvp = 0;
+    float pvpLine = FALSE;
+    if(pvp && inflictor == attacker)
+    {
+        pvpLine = VR_DRP_PvpApplies(attacker, vr_melee_blowhand);
+    }
     if(inflictor != attacker || (!pvp && (!(attacker.flags & FL_MONSTER) || !VR_Parry_MeleeMonster(attacker))) ||
        damage <= 0 || !cvar_hget(cvarh_vr_parry) || targ.classname != "player" || !VRHandsTracked(targ))
     {
@@ -2986,8 +2994,8 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
     // own blow its frames give one for) is parried only by a weapon held across its way, where they meet. Other blows
     // (a bite, a leap, a punch: no way to be across) by the guard. An armed humanoid's swing stopped already: nothing lands;
     // a monster's attack parried already: its other blows as the parry's cooldown has them.
-    float drp = !pvp && (vr_drp_release || vr_drp_forced || VR_DRP_Applies(attacker)); // (a player's: the guard's)
-    float baked = drp && !attacker.vr_ag;
+    float drp = pvpLine || (!pvp && (vr_drp_release || vr_drp_forced || VR_DRP_Applies(attacker))); // (a player's fist: the guard's)
+    float baked = drp && !attacker.vr_ag && !pvpLine;
     vr_drp_cut = 0;
     // Flat-screen play's guard: what comes from the front is parried, whatever its way (VR_Parry_FlatGuard); a blow with a
     // line is then met as a directional parry met it (its damage through, its swing stopped), without its sparks' meeting.
@@ -3356,7 +3364,6 @@ void(entity xPlayer, string xWhy) VR_QuadSound =
 
 float(entity targ, entity attacker) VR_Melee_RagdollPush; // (vr_melee.qc)
 float(entity targ, float xDamage, float xHand) VR_Prop_BlowDamage; // (vr_carry.qc)
-float vr_melee_blowhand; // 1 + the hand whose blow PlayerVRMeleeImpl (client.qc) is dealing; 0: none (a chainsaw's chain...)
 float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRMelee =
 {
     // A prop that breaks (a crate, an explosive box, AD's breakables...) struck by a hand's blow: the impact rule's damage
