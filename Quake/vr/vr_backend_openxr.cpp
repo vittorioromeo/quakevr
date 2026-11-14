@@ -700,7 +700,11 @@ void OpenXrBackend::logGlInterop()
     {
         text += va("%s%s %s", text.empty() ? "" : ", ", name, extensions && strstr(extensions, name) ? "yes" : "NO");
     }
-    xrruntime::logLine(va("OpenXR: GL ES: %s; %s\n", reinterpret_cast<const char*>(glGetString(GL_RENDERER)), text.cStr()));
+    GLint images[2] = {}; // (5b's open item: the world and model fragment shaders' image units)
+    glGetIntegerv(GL_MAX_FRAGMENT_IMAGE_UNIFORMS, &images[0]);
+    glGetIntegerv(GL_MAX_COMBINED_IMAGE_UNIFORMS, &images[1]);
+    xrruntime::logLine(va("OpenXR: GL ES: %s; %s; fragment/combined image uniforms %d/%d\n",
+        reinterpret_cast<const char*>(glGetString(GL_RENDERER)), text.cStr(), images[0], images[1]));
 }
 #else
 void OpenXrBackend::logGlInterop()

@@ -32,6 +32,8 @@ out="${2:-$native/apk}"
 [ -f "$native/libquakevr.so" ] || { echo "no $native/libquakevr.so: run Android/build_native.sh first" >&2; exit 1; }
 
 mkdir -p "$out"
+native="$(cd "$native" && pwd)"
+out="$(cd "$out" && pwd)" # absolute: the jar step below runs in the stage folder
 stage="$out/stage"
 classes="$out/classes"
 mkdir -p "$stage/lib/arm64-v8a" "$classes"
@@ -77,7 +79,10 @@ sed -n -e "$vrOnly" "$here/app/src/main/AndroidManifest.xml" |
 (cd "$stage" && "$jar" -u -M -f "$(win "$out/unaligned.apk")" classes.dex lib)
 "$bt/zipalign$exe" -f -p 4 "$(win "$out/unaligned.apk")" "$(win "$out/aligned.apk")"
 
-keystore="${QVR_ANDROID_KEYSTORE:-$out/debug.keystore}"
+# One debug key for every APK of a build folder (the flat and the VR APK replace each other on the device with
+# `adb install -r`: a different key would need an uninstall, which deletes the app's files folder, the game data).
+keystore="${QVR_ANDROID_KEYSTORE:-$native/debug.keystore}"
+[ -f "$keystore" ] || [ ! -f "$native/apk/debug.keystore" ] || cp "$native/apk/debug.keystore" "$keystore"
 if [ ! -f "$keystore" ]; then
 	"$keytool" -genkeypair -keystore "$(win "$keystore")" -storepass android -alias androiddebugkey -keypass android \
 		-keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US" >/dev/null

@@ -300,8 +300,9 @@ SOFTWARE.*/\
 "}\n"\
 "\n"\
 "#define DITHER_NOISE(uv) tri(bayer01(ivec2(uv)))\n"\
-"#define SCREEN_SPACE_NOISE() DITHER_NOISE(floor(gl_FragCoord.xy)+0.5)\n"\
-"#define SUPPRESS_BANDING() bayer(ivec2(gl_FragCoord.xy))\n"\
+"// QVR: functions, not macros without parameters: the Quest's Adreno compiler refuses those (QUEST_PLAN.md, C4b)\n"\
+"float SCREEN_SPACE_NOISE() { return DITHER_NOISE(floor(gl_FragCoord.xy)+0.5); }\n"\
+"float SUPPRESS_BANDING() { return bayer(ivec2(gl_FragCoord.xy)); }\n"\
 
 ////////////////////////////////////////////////////////////////
 

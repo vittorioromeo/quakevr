@@ -80,7 +80,7 @@ Already ES-ready or behind a switch [V]:
 - **Optional with fallbacks** (`gl_vidsdl.c:1193-1229`, `VR_GLSafeOff`): persistent mapped buffers (ES:
   `EXT_buffer_storage` [I: Adreno has it]), bindless textures (with `gl_DrawID`, `GL_ARB_shader_draw_parameters`,
   `gl_shaders.h:504,557`; no ES form; the bound path `r_world.c:449` draws with a `DrawElementsIndirect` loop, ES 3.1),
-  multi-bind (loops of binds), clip control (reversed Z: `EXT_clip_control` [?] on Adreno), layered shadow casters
+  multi-bind (loops of binds), clip control (reversed Z: `EXT_clip_control` on Adreno: **yes**, C4b), layered shadow casters
   (`gl_ViewportIndex` in a VS: no ES form; the non-layered path exists).
 - **Multiview:** `vr_stereo_single.cpp:122-146` (`GL_OVR_multiview2`, `glFramebufferTextureMultiviewOVR`) and the
   `QVR_MULTIVIEW` twins of 59 programs (`gl_shaders.c:183`): the Quest's natural path. It uses `glTextureView`
@@ -92,15 +92,15 @@ Not gated yet (the 14 rows `vr_gles_report` prints) [V counts]:
 | Desktop-only use | Where (first line, count) | ES form |
 |---|---|---|
 | `#version 430` literals | 52 lines in 17 files: `gl_shaders.c:171` (engine prefix), `vr_gfx_gl.cpp:53` (12), `vr_bloom.cpp:56` (5), `vr_temporal.cpp:72` (4), `vr_upscale.cpp:49` (4), `vr_glutil.cpp:63`, `vr_visor.cpp:418`... | one prefix function: `#version 320 es`, `precision highp float; precision highp int;` and sampler precisions |
-| `MultiDrawElementsIndirect` | `r_world.c:445` (bindless only), `vr_lighting.cpp:703` | `EXT_multi_draw_indirect` [?], else the loop |
+| `MultiDrawElementsIndirect` | `r_world.c:445` (bindless only), `vr_lighting.cpp:703` | `EXT_multi_draw_indirect`: not listed, its `...EXT` entry point is there (C4b); the loop |
 | `glGetTexImage` | `gl_texmgr.c:541`, `vr_envmap.cpp:245`, `vr_pbr.cpp:352`, `vr_lighting.cpp:1732` | FBO + `glReadPixels` |
 | `glGetBufferSubData` | `vr_gfx_gl.cpp:1515`, `vr_temporal.cpp:503`, `vr_water.cpp:1019` | `glMapBufferRange(READ)` |
 | `glClearTexImage` | `vr_temporal.cpp:504` | clear through an FBO |
 | `glTextureView` | `vr_envmap.cpp:53`, `vr_stereo_single.cpp:146` | render to array layers directly |
 | `GL_TEXTURE_LOD_BIAS` | `gl_texmgr.c:169`, `vr_gfx_gl.cpp:44` | bias argument in the shader |
-| `GL_DEPTH_CLAMP` | `r_alias.c:53` (view model) | `EXT_depth_clamp` [?] or the view model's depth range |
-| `gl_ClipDistance` | `gl_shaders.h:659`, `r_world.c:694`, `r_alias.c:776`, `vr_lighting.cpp:102` | `EXT_clip_cull_distance` [?] or discard |
-| `noperspective` | `gl_shaders.h:641`, `vr_glsl_alias.h:378` | `NV_shader_noperspective_interpolation` [?] or multiply by w |
+| `GL_DEPTH_CLAMP` | `r_alias.c:53` (view model) | `EXT_depth_clamp`: **yes** (C4b) |
+| `gl_ClipDistance` | `gl_shaders.h:659`, `r_world.c:694`, `r_alias.c:776`, `vr_lighting.cpp:102` | `EXT_clip_cull_distance`: **yes** (C4b) |
+| `noperspective` | `gl_shaders.h:641`, `vr_glsl_alias.h:378` | `NV_shader_noperspective_interpolation`: **yes** (C4b) |
 | `textureQueryLevels` | `vr_gfx_gl.cpp:191` | a uniform |
 | timer queries (64-bit, `GL_TIMESTAMP`) | `vr_profile.cpp:342`, `vr_tracy.cpp:178`, `vr_lighting.cpp:1807`, `gl_rmain.c:1269` | `EXT_disjoint_timer_query` [I: Adreno has it] |
 | `glDrawBuffer`, `glClearDepth`, `glDepthRange`, `glPolygonMode` | `vr_gfx_gl.cpp:1648`, `vr_glutil.cpp:273`, `vr_lighting.cpp:1547`, `gl_rmain.c:569`, `gl_rmain.c:2155` | `glDrawBuffers`, `...f` forms, wireframe debug off |
@@ -222,7 +222,7 @@ is the same build with a lower preset (half the GPU) [I].
   wireframe debug views draw filled), `GL_TEXTURE_CUBE_MAP_SEAMLESS` not enabled on ES (always on there).
 - **Verified:** with `QVR_GLES_COMPAT=1`: scenario_check 129 run, 0 failed, 0 shader errors; load_models_test 4/0;
   e1m1 draws the same as the PC mode. PC mode: scenario_check 129/0, load_models_test 4/0, vr_simd_test 58880/0.
-- **Open, for the device (C4) [?]:** `GL_MAX_FRAGMENT_IMAGE_UNIFORMS` on Adreno (the world and model fragment shaders
+- **Resolved (C4b): 8 fragment, 23 combined image uniforms on the Quest 3's Adreno 740.** Was open: `GL_MAX_FRAGMENT_IMAGE_UNIFORMS` on Adreno (the world and model fragment shaders
   read the light clusters as an image; ES 3.1's minimum is 0: a `usampler3D` + `texelFetch` form if it is 0);
   `EXT_clip_cull_distance` and `NV_shader_noperspective_interpolation` on Adreno (the shaders compile with them here).
 
@@ -250,7 +250,7 @@ is the same build with a lower preset (half the GPU) [I].
   (`QVR_GLES_CLIP_CONTROL=1`) keeps clip control under `-glescompat`, as an ES driver with `EXT_clip_control`.
   Whether the Quest's driver has it decides C2c's biggest item: a standard-depth (-1..1) path for the shadow atlas,
   envmap and portals if not.
-- **Pending, the Quest's extensions [?] (C4's dump decides; fallbacks in C2c only for the missing ones):**
+- **Resolved by C4b's dump (section 6i)** (was pending: the Quest's extensions; fallbacks in C2c only for the missing ones):**
   `EXT_depth_clamp` (else a held item nearer than the near plane is cut, as with `vr_nearclip_held 0`),
   `EXT_clip_cull_distance` (else a varying and a discard, which costs early-Z on a tiler), `NV_shader_noperspective_
   interpolation` (else the light-tile coordinate multiplied by w in the vertex shader and divided in the fragment
@@ -725,6 +725,64 @@ without (AD's start map, behind the loading screen).
   with SDL's activity (pause/resume, focus), the swapchain formats and the extension dump, whether `SCALED_BIN`
   foveation suits the eyes' copy, the `imageRect` origin (6f).
 
+## 6i. C4b: the headset's first boot (done over adb, the headset unworn; no installs)
+
+The device: Quest 3 (`eureka`), Android 14 / SDK 34, Horizon OS runtime "Oculus 210.117.0", Adreno 740, GL_VERSION
+"OpenGL ES 3.2 V@0837.0.9". Everything over adb (`Android/README.md`, "Install and run"); the headset lay unworn,
+so it slept after ~15 s and the app paused (SDL blocks in its pause): each run woke it every 5 s
+(`input keyevent KEYCODE_WAKEUP`), no setting changed. **Nothing was looked at in the headset yet** (screencap shows
+the sleeping compositor).
+
+- **Game data**: his `PAK0.PAK`/`PAK1.PAK` as `id1/pak0.pak`/`pak1.pak` (51 MB; the case matters on Android) and the
+  quakevr folder (git's files less `xr_layers`, `doom`, `sound_tests`, `.map`s, plus `progs.dat`: 4054 files,
+  382 MB), into `/sdcard/Android/data/com.vittorioromeo.quakevr/files`. Found: adb's `push` of a folder fails part-way
+  there (`secure_mkdirs`): a tar stream (`adb exec-in tar -x`); what adb pushes is the shell's and the game couldn't
+  write (`quakevr/crash`: the first fatal error): chmod'ed; what the game makes is 0660 (FUSE), unreadable to adb.
+- **Fixed on the way (Android only unless said)**: the base folder taken from the cwd ("/": `Sys_Init` overwrote
+  `VR_AndroidStart`'s); `-game quakevr` not given (the PC's launch line: the activity adds it); the GL version check
+  ("OpenGL ES 3.2 ..." parsed, ES 3.2 required); desktop entry points missing in ES taken by their `EXT`/`OES` names
+  (`glMultiDrawElementsIndirectEXT`, `glViewportIndexedfOES`, `glMapBufferOES`, the `EXT` timer queries; none left
+  missing); Adreno's GLSL: no `textureQueryLod` (the screens' shader: the level from the derivatives under `GL_ES`),
+  **macros without parameters a syntax error** (`SCREEN_SPACE_NOISE()`, `SUPPRESS_BANDING()`: now functions, PC
+  too, the same code), no program without a fragment shader (the sky stencil, the world's depth pass, the shadow
+  depth program: an empty one under the ES GLSL form); `-glesverbose` reads Adreno's error lines; the OpenXR log
+  (`qvr_openxr.txt`) into logcat too; the runtime chooser's label ("Auto: the system's runtime - Android: the
+  loader's runtime broker (a Quest: Meta's)", was "none - no runtime installed"); `package_apk.sh` with a relative
+  output folder, and one debug key for both APKs (an uninstall would delete the game data).
+- **The flat APK**: boots to the console, the menu, e1m1 (logcat), sound (AAudio, 44.1 kHz), the crash report
+  (`quakevr/crash`, logcat). It starts OpenXR too (the loader is in it; vr_enabled).
+- **The VR APK**: the loader's init, `XR_KHR_opengl_es_enable`, the ES session, the swapchains, the session's states
+  through sleep and wake (READY, FOCUSED, VISIBLE, STOPPING, READY again: SDL's pause/resume) all work; e1m1 runs.
+  - The runtime: **75 extensions** (all in the log: `adb logcat -s QuakeVR`); enabled: `XR_KHR_opengl_es_enable
+    XR_KHR_android_create_instance XR_EXT_performance_settings XR_EXT_debug_utils XR_FB_display_refresh_rate
+    XR_FB_swapchain_update_state XR_FB_foveation XR_FB_foveation_configuration XR_META_touch_controller_plus
+    XR_KHR_visibility_mask`. Offered and of use later: `XR_FB_space_warp`, `XR_META_recommended_layer_resolution`,
+    `XR_FB_composition_layer_settings` (sharpening), `XR_KHR_composition_layer_depth`, `XR_EXT_local_floor`,
+    `XR_EXT_hand_tracking`, `XR_META_performance_metrics`, `XR_EXT_user_presence`.
+  - System "Meta Quest 3": 1680x1760 recommended per eye (rendered at `vr_render_scale` 0.9), 32 layers; refresh
+    rates 72 80 90 96 100 120 144 180 200 207 Hz; swapchain formats led by `GL_SRGB8_ALPHA8` (taken).
+  - **The four cvars work**: `vr_xr_refresh_rate 90` (VrApi `FPS=x/90`), `vr_xr_foveation 2` (`Fov=2`); the
+    performance levels are accepted but VrApi showed CPU/GPU 4/4 throughout (the runtime raises them when frames
+    are missed: not conclusive while the app is this slow).
+  - **GL ES (123 extensions) resolves the `[?]` rows**: `EXT_clip_control` yes, `EXT_clip_cull_distance` yes,
+    `EXT_depth_clamp` yes, `NV_shader_noperspective_interpolation` yes, `EXT_disjoint_timer_query` yes,
+    `OVR_multiview2` + `OVR_multiview_multisampled_render_to_texture` yes, `QCOM_texture_foveated` yes,
+    `EXT_multisampled_render_to_texture` yes, `EXT_buffer_storage` yes, `OES_texture_view` yes, `EXT_clear_texture`
+    yes, `EXT_texture_compression_s3tc`/`bptc`/`rgtc` yes (the PC's BC textures load as they are), ASTC yes,
+    `OES_get_program_binary` yes, `EXT_fragment_shading_rate` yes, `EXT_color_buffer_float` yes;
+    `EXT_multi_draw_indirect` not listed (its entry point is); no bindless, no multi-bind; image uniforms 8 fragment /
+    23 combined.
+- **Frame timing, `vr_quest_preset 0`, e1m1's start, 72 Hz** (VrApi, 92 one-second samples over two runs):
+  **24 FPS** of 72; the app's GPU time 13.0 ms (GPU 38% busy), CPU+GPU 34.6 ms, the CPU 22-26% busy: neither
+  saturated, so the frame waits on something (a sync: a query read, a fence, a `glReadPixels`, or `xrWaitFrame`
+  paced wrong). Shader compiles: ~55 s before the first frame (synchronous programs on Adreno; the first launch).
+- **Open**: what the frame waits on (simpleperf from the NDK, no install; the engine's `vr_profile`); the first
+  launch's compile time (the driver's blob cache on the second launch; `OES_get_program_binary`); "Save error." on
+  e1m1's autosave (Android only? the save thread's string table); shadows off ("need GL_ARB_clip_control": the ES
+  path to `EXT_clip_control`, `-glesclipcontrol`, is ready from C2b); the view model's depth clamp and clip
+  distances with their extensions; the image in the headset, the `imageRect` origin (6f), the controllers, sound in
+  the headset: need it worn.
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
@@ -754,7 +812,7 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 | Tool | Version | Size | URL | For |
 |---|---|---|---|---|
 | Android SDK command-line tools (or Android Studio, ~1.2 GB, bundles them and a JDK) | latest | ~150 MB | https://developer.android.com/studio#command-line-tools-only | sdkmanager |
-| Android SDK Platform + Build-Tools + Platform-Tools (adb) | API 34 (the Quest's Android 14 base [?]; min SDK 29), Build-Tools 34.x | ~250 MB | via sdkmanager; https://developer.android.com/tools/releases/platform-tools | APK build, adb |
+| Android SDK Platform + Build-Tools + Platform-Tools (adb) | API 34 (the Quest 3's Android 14, SDK 34: C4b; min SDK 29), Build-Tools 34.x | ~250 MB | via sdkmanager; https://developer.android.com/tools/releases/platform-tools | APK build, adb |
 | Android NDK | r27 LTS or newer; a clang that builds Zancle (our PC build uses clang 22; check `-std=c++23` features against the NDK's clang) | ~700 MB zip, ~2.5 GB installed | https://developer.android.com/ndk/downloads | C/C++ for arm64-v8a |
 | JDK 17 (Microsoft Build of OpenJDK, or Android Studio's) | 17 LTS | ~180 MB | https://learn.microsoft.com/java/openjdk/download | Gradle |
 | Gradle (wrapper) + Android Gradle Plugin | 8.x | ~150 MB | https://gradle.org/releases/ | APK packaging |
@@ -768,10 +826,12 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C4b — the headset's first boot (NEEDS his Quest 3/3S in developer mode and a USB-C cable, adb; no new
-installs): the flat-panel APK first (`QVR_ANDROID_FLAT=1 Android/package_apk.sh`: files, logcat, the crash report,
-sound, menus), then the VR APK (section 6h): the loader's init and the runtime, the ES session, the swapchains, the
-extension and GL extension dumps that resolve the `[?]` rows, the Quest extensions' cvars, the `imageRect` origin (6f).
-Without the headset, C2h (no installs): the world textures' memory under the ES profile (section 6e's open item).
-Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d),
-`bd2277d6c` and `6b8e74432` (PC fixes, sections 6f, 6g) to `next`.
+Next phase: C4c — the headset worn, and the frame (NEEDS him wearing the Quest 3 over USB for the visual part; no
+installs: simpleperf is the NDK's): first what he sees (e1m1's image in both eyes, the `imageRect` origin of 6f, the
+menus' panel, the Touch controllers, sound), then why a frame takes 35 ms with the CPU and GPU both under 40% busy
+(simpleperf, `vr_profile`; the syncs: query reads, fences, readbacks, `xrWaitFrame`), the first launch's ~55 s of
+shader compiles (the second launch's, the driver cache; `OES_get_program_binary`), e1m1's "Save error.", and the ES
+paths to the extensions the Quest has (`EXT_clip_control` for the shadows, depth clamp, clip distances) on by
+default there. Then C5 (multiview into the swapchain). Without the headset, C2h (no installs): the world textures'
+memory under the ES profile (section 6e's open item). Waiting on his call: the Android Gradle Plugin download
+(section 7), the armed humanoids' CPU cost (section 6d).

@@ -2543,3 +2543,19 @@ Cherry-picked bd2277d6c (translucent brush models' retro decal program made in t
 ## crtheapfix
 
 Cherry-picked 6b8e74432: VR_CrtHeapLoadHold now defined without mimalloc (QVR_MIMALLOC=OFF Linux link). Checked: dev build, ReleaseLTO, WSL no-mimalloc link, load_models 352/0.
+
+## questN: Quest C4b, the headset's first boot (agent/quest, 2026-11-14)
+
+- **What** (QUEST_PLAN.md 6i): both APKs on his Quest 3 over adb (unworn: woken every 5 s), his paks and the quakevr
+  folder (4054 files, 382 MB; Android/README.md's recipe: a tar stream, chmod). The flat APK reaches e1m1 with sound; the
+  VR APK's OpenXR session runs (ES binding, swapchains, states through sleep/wake), the four vr_xr_* cvars apply
+  (refresh 90, foveation 2 seen in VrApi), the runtime label now reads "the system's runtime".
+- **Fixed**: the Android base folder (Sys_Init used the cwd), -game quakevr from the activity, the ES version check, ES
+  entry points by their EXT/OES names, Adreno's GLSL (no textureQueryLod; macros without parameters refused:
+  SCREEN_SPACE_NOISE/SUPPRESS_BANDING are functions now, PC too, same code; an empty fragment shader for the depth-only
+  programs under the ES form), -glesverbose reads Adreno's errors, qvr_openxr.txt mirrored to logcat, package_apk.sh's
+  relative output folder and one debug key for both APKs. Merge fix: R_PrewarmTranslucentDecalPrograms was defined twice.
+- **Measured**: GL ES resolves every [?] row (clip control, clip/cull distance, depth clamp, noperspective, timer queries,
+  multiview: all yes); e1m1 at vr_quest_preset 0, 72 Hz: 24 FPS, app GPU 13.0 ms, CPU+GPU 34.6 ms, both under 40% busy
+  (a sync to find); ~55 s of shader compiles before the first frame.
+- **Next**: C4c, the headset worn (the image, controllers, sound) and the 35 ms frame.

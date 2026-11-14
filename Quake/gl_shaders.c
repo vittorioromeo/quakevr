@@ -352,6 +352,10 @@ static GLuint GL_CreateProgramFromSources (int count, const GLchar **sources, co
 	for (i = 0; i < count; i++)
 		if (sources[i])
 			shaders[realcount++] = GL_CreateShader (types[i], sources[i], macros, name);
+	// QVR: OpenGL ES links no graphics program without a fragment shader (the depth-only ones: the sky stencil, the
+	// world's depth pre-pass): an empty one there (the Quest's Adreno refuses the link; QUEST_PLAN.md, C4b)
+	if (realcount == 1 && count == 2 && types[0] == GL_VERTEX_SHADER && VR_GLESForm (VR_GLES_FORM_GLSL))
+		shaders[realcount++] = GL_CreateShader (GL_FRAGMENT_SHADER, "void main() {}\n", macros, name);
 
 	{ // QVR: a graphics program's sources kept for its multiview twin (GL_MultiviewProgram)
 		GLuint program = GL_CreateProgramFromShaders (shaders, realcount, name);

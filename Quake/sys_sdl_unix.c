@@ -815,6 +815,11 @@ void Sys_Init (void)
 		Sys_Printf("Terminal input not available.\n");
 
 	memset (cwd, 0, sizeof(cwd));
+#ifdef __ANDROID__ // QVR: the base folder main_sdl.c took from VR_AndroidStart (the external files folder), not the cwd ("/")
+	if (host_parms->basedir && strcmp (host_parms->basedir, "."))
+		q_strlcpy (cwd, host_parms->basedir, sizeof (cwd));
+	else
+#endif
 	Sys_GetBasedir(host_parms->argv[0], cwd, sizeof(cwd));
 	host_parms->basedir = cwd;
 	host_parms->exedir = Sys_GetExeDir ();

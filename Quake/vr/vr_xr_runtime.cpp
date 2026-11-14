@@ -704,6 +704,9 @@ void logText(const char* text, bool always = false)
         fclose(f);
     }
     runlogs::append("qvr_openxr.txt", text); // (the run's copy, kept with its logs: vr_runlogs.cpp)
+#ifdef __ANDROID__
+    VR_AndroidLog(text); // (logcat as well: adb reads no file the app makes in its folder, FUSE makes them 0660)
+#endif
 }
 
 // +vr_xr_runtime on the command line (the shortcut's or the debugger's arguments): its value, or null.
@@ -763,7 +766,12 @@ void logText(const char* text, bool always = false)
         plan.fallback = vr_xr_runtime_fallback.value != 0.f;
         if(plan.attempts.empty())
         {
+#ifdef __ANDROID__ // (no manifests to read: the loader asks the system's runtime broker; C4b)
+            plan.attempts.pushBack(Attempt{za::String{}, za::String{"the system's runtime"},
+                za::String{"Android: the loader's runtime broker (a Quest: Meta's)"}});
+#else
             systemDefault("no runtime installed");
+#endif
         }
         q_snprintf(line, sizeof(line), "Auto: %s - %s%s", plan.attempts[0].label.cStr(), plan.attempts[0].reason.cStr(),
             fromCommandLine() ? " (from the command line)" : "");

@@ -532,7 +532,7 @@ extern "C" void VR_GLShaderSource(unsigned int shader, int count, const char* co
         for(const char* l = log; *l; l += strcspn(l, "\n") + (l[strcspn(l, "\n")] ? 1 : 0))
         {
             int line = 0;
-            if(sscanf(l, "0(%d)", &line) != 1 || line < 1)
+            if((sscanf(l, "0(%d)", &line) != 1 && sscanf(l, "ERROR: 0:%d:", &line) != 1) || line < 1) // (NVIDIA's, Adreno's)
             {
                 continue;
             }

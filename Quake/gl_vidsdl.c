@@ -1104,6 +1104,10 @@ static void APIENTRY GL_DebugCallback (GLenum source, GLenum type, GLuint id, GL
 GL_InitFunctions
 ===============
 */
+#ifdef __ANDROID__
+static const char *const gl_es_suffixes[] = {"EXT", "OES", "KHR"}; // QVR: GL_InitFunctions' ES names of core functions
+#endif
+
 qboolean GL_InitFunctions (const glfunc_t *funcs, qboolean required)
 {
 	qboolean ret = true;
@@ -1112,6 +1116,20 @@ qboolean GL_InitFunctions (const glfunc_t *funcs, qboolean required)
 	{
 		if ((*funcs->ptr = SDL_GL_GetProcAddress (funcs->name)) == NULL)
 		{
+#ifdef __ANDROID__
+			// QVR: OpenGL ES: the extension's name of a desktop core function (glMultiDrawElementsIndirectEXT, ...), else
+			// none: the ES profile never calls those (VR_GLESInstallForms puts its ES forms in after this), so only listed
+			char esname[128];
+			size_t s;
+			for (s = 0; s < countof (gl_es_suffixes) && !*funcs->ptr; s++)
+			{
+				q_snprintf (esname, sizeof (esname), "%s%s", funcs->name, gl_es_suffixes[s]);
+				*funcs->ptr = SDL_GL_GetProcAddress (esname);
+			}
+			Con_SafePrintf ("OpenGL ES: %s %s\n", funcs->name, *funcs->ptr ? va ("as %s", esname) : "not in the driver (the ES profile's form or unused)");
+			funcs++;
+			continue;
+#endif
 			if (required)
 			{
 				Sys_Error ("OpenGL function %s not found\n", funcs->name);
@@ -1422,6 +1440,16 @@ static void GL_Init (void)
 		VR_LogsSystemLine (va ("GPU: %s\n", gpu)); // QVR: the run's system.txt (vr/vr_runlogs.cpp)
 	}
 
+#ifdef __ANDROID__ // QVR: an OpenGL ES context ("OpenGL ES 3.2 V@..."): ES 3.2 under the ES profile (VR_GLESCompat)
+	if (gl_version == NULL || sscanf(gl_version, "OpenGL ES %d.%d", &gl_version_major, &gl_version_minor) < 2)
+	{
+		gl_version_major = 0;
+		gl_version_minor = 0;
+	}
+	gl_version_number = MAKE_GL_VERSION(gl_version_major, gl_version_minor);
+	if (gl_version_number < MAKE_GL_VERSION(3, 2))
+		Sys_Error("OpenGL ES 3.2 required, found %d.%d\n", gl_version_major, gl_version_minor);
+#else
 	if (gl_version == NULL || sscanf(gl_version, "%d.%d", &gl_version_major, &gl_version_minor) < 2)
 	{
 		gl_version_major = 0;
@@ -1430,6 +1458,7 @@ static void GL_Init (void)
 	gl_version_number = MAKE_GL_VERSION(gl_version_major, gl_version_minor);
 	if (gl_version_number < MIN_GL_VERSION)
 		Sys_Error("OpenGL " MIN_GL_VERSION_STR " required, found %d.%d\n", gl_version_major, gl_version_minor);
+#endif
 
 	VR_GLStep ("GL functions and extensions (GL_CheckExtensions)"); // QVR
 	GL_CheckExtensions ();

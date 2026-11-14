@@ -39,11 +39,25 @@ The QuakeC (`quakevr/progs.dat`) and the game's data are the PC's (build them on
 
 ## Install and run (C4: needs the headset in developer mode)
 
-    adb install -r build-android/apk/QuakeVR.apk
-    adb push <your Quake>/id1 /sdcard/Android/data/com.vittorioromeo.quakevr/files/id1
-    adb push quakevr /sdcard/Android/data/com.vittorioromeo.quakevr/files/quakevr
-    adb shell am start -n com.vittorioromeo.quakevr/.QuakeVRActivity --es args "+map e1m1"
-    adb logcat -s QuakeVR SDL                   # the console; a crash's report too
+    adb install -r build-android/apk/QuakeVR.apk         # install first: the app's folder is then the app's
+    # (Git Bash: MSYS_NO_PATHCONV=1, or it turns /sdcard/... into a Windows path)
+    D=/sdcard/Android/data/com.vittorioromeo.quakevr/files
+    adb shell mkdir -p $D/id1
+    adb push <your Quake>/id1/PAK0.PAK $D/id1/pak0.pak   # lower case: Android's file names are case-sensitive
+    adb push <your Quake>/id1/PAK1.PAK $D/id1/pak1.pak
+    tar -cf - quakevr | adb exec-in "tar -xf - -C $D"    # one stream (adb push of the folder fails part-way)
+    adb shell "find $D/id1 $D/quakevr -type d -exec chmod 0777 {} + ; find $D/id1 $D/quakevr -type f -exec chmod 0666 {} +"
+    adb shell am start -n com.vittorioromeo.quakevr/.QuakeVRActivity --es args "'+map e1m1'"
+    adb logcat -s QuakeVR SDL VrApi             # the console, qvr_openxr.txt's lines, a crash's report; VrApi: FPS
+
+What adb's shell pushes is the shell's: the folders need the chmod above, or the game can't write its crash reports,
+configs and saves there. What the game makes there is 0660 (the system's FUSE layer, whatever the umask), unreadable
+to adb: the console and the OpenXR log go to logcat for that. The quakevr folder: git's files without `xr_layers`
+(the PC's API layers), `doom`, `sound_tests`, the `.map` sources, plus the built `progs.dat` (C4b: 4054 files, 382 MB).
+The activity adds `-game quakevr` unless the arguments have a `-game`. The flat and the VR APK share one debug key
+(`build-android/debug.keystore`): `adb install -r` replaces one with the other and keeps the app's folder (an
+uninstall deletes it). Unworn, the Quest sleeps after about 15 s and the app pauses (SDL blocks): `adb shell input
+keyevent KEYCODE_WAKEUP` wakes it for another 15 s; anything longer needs the headset worn.
 
 A crash writes `quakevr/crash/<date>_<time>.txt` in that folder and logcat (vr_crash.cpp; the addresses resolve with
 `llvm-addr2line -f -C -e build-android/libquakevr.so 0x<offset>`, the unstripped library of the same build).
