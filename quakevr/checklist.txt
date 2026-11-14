@@ -12,6 +12,7 @@ Flat-screen or VR: Change a graphics setting in VR Settings (say Bloom), then pr
 Flat-screen or VR: start this scene, wade the shotgun into the pool and climb out, then quicksave and quickload: your off hand stays empty (no toolgun or axe from a holster), the grunts fire with normal poses (no bent limbs, no death knight fireballs), and what was dripping still drips. {test:waterdrips}
 wetglint: the wet shine on things, hands and weapons survives quicksave/quickload (follows the drips' wetness). TEST on the waterdrips item: quicksave while wet, quickload: still shiny and dripping.
 Flat-screen or VR: run a checklist TEST scene (e.g. the Classic drops one), then open Levels > E1M1, set Style to Unleashed in Run Setup and press Start once: the grunts hold real guns and the guns reload; again with Style Classic: plain grunts, no reloading, on the first start.
+Classic style with Enemy Count 3x on E1M1: every extra monster stands clear of the walls, none half inside one or stuck where it spawned. {test:run_enemycount_classic}
 
 [1. Flat-screen: weapons and hands]
 Flat-screen: hold the axe (then a sword, the crowbar, Mjolnir, the super axe) with the left hand empty: the left hand goes onto the handle by itself and the weapon sits two-handed; take something in the left hand: back to one hand, no jumps either way (Debug > Tunables > Flatscreen > Two-Handed Melee Stance). {test:flat_melee2h}
