@@ -51,7 +51,7 @@ int VR_NoLiquidEffects(struct qmodel_s* model, const float* point);
 // Quake VR's network version, sent after NetQuake's in the connect request ("QVR", then this long; net_dgrm.c): a
 // server whose protocol is the VR one rejects a client without it or with another, with the reason (MP_PLAN.md, B2).
 // Raise it with any change to what client and server send each other.
-#define QVR_NET_VERSION				13
+#define QVR_NET_VERSION				15
 #define SOLID_NOT_BUT_TOUCHABLE		5		// Quake VR: not solid, but can be (hand) touched
 
 // Host lifetime and pacing (host.c, main_sdl.c, gl_screen.c).
@@ -669,6 +669,8 @@ void VR_ConfigMergeOthers (const char *path);			// Host_WriteConfigurationToFile
 void VR_FlatKeysForConfigWrite (void);					// Host_WriteConfigurationToFile, before Key_WriteBindings: flatscreen play's Ctrl bind (+flatcrouch, the crouch key that does not fire: vr_flat_crouch_fire) given back, so the config keeps the plain game's CTRL (vr_flatplay.cpp)
 void VR_ConfigWritten (const char *path);				// and after writing it
 int VR_ConfigSaves (const struct cvar_s *var);			// Cvar_WriteVariables, an archived cvar: nonzero if the config gets its line (a vr_ one only if changed from its default)
+void VR_ServerRulesConfigWrite (int begin);		// around Cvar_WriteVariables: a remote server's rules written as the player's own (vr_serverrules.cpp)
+void VR_ServerRulesLeft (void);				// CL_Disconnect: a remote server's rules no longer govern: the player's own back (vr_serverrules.cpp)
 void VR_ScenarioConfigWrite (int begin);			// around Cvar_WriteVariables: a test scene's settings written as they were before it (vr_scenario.cpp)
 const struct cvar_s *VR_TunableFind (const char *name);	// Cvar_VariableValue/String, a name not found: a tuning constant's stand-in (vr_tunables.inc), or NULL
 int VR_TunableSetVar (struct cvar_s *var, const char *value);	// Cvar_SetQuick, a cvar never registered: nonzero if it is a tuning constant's stand-in, now set (a Tunables page row; vr_tunables.cpp)

@@ -1119,8 +1119,9 @@ za::Vector<Item> pageDebugReports()
             .help("vr_net_stats [reset]: the entities in use, and for each client the entities in sight and sent in its last "
                   "datagram, their bytes and its room (1400 to a remote client), the peak, the mean, the frames that were full."),
         command("Server Rules", "vr_serverrules")
-            .help("vr_serverrules: the settings the server judges by for every player (melee timing): their values, and on "
-                  "a remote server's client the server's against yours."),
+            .help("vr_serverrules: the settings the server judges by for every player (every balance page's, the gameplay "
+                  "preset's, the melee timing): how many, those off their defaults, and on a remote server's client the "
+                  "server's against yours."),
         command("Network: Players Seen", "vr_mp_status")
             .help("vr_mp_status: the players this client sees (entity, name, where, whether the last message carried them) "
                   "and, hosting, the server's clients. The multiplayer harness (Misc/quakevr/mp) reads the same lines."),

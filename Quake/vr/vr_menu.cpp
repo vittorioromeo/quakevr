@@ -3338,7 +3338,8 @@ void goBack()
 // A server rule while connected to a remote server: shown, dimmed, not changed from here.
 [[nodiscard]] bool lockedItem(const Item& item)
 {
-    return item.unavailable || ((item.kind == Item::Slider || item.kind == Item::Cycle) && serverrules::locked(item.cvar)); // AD support: unavailable spawn actions are locked too
+    return item.unavailable || ((item.kind == Item::Slider || item.kind == Item::Cycle) && serverrules::locked(item.cvar)) || // AD support: unavailable spawn actions are locked too
+           (item.setsRules && serverrules::lockedBecause()); // (a gameplay preset's button)
 }
 
 // The settings one mode only uses (the graphics audit, 2026-11-09: they do nothing in the other), by their cvar's name

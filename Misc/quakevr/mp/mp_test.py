@@ -507,7 +507,7 @@ def rules(s):
                 hs.get("count"), h.get("count")))
 
     since = b.mark()
-    b.cmd("vr_menu_press Gameplay Presets > Classic")
+    b.cmd("vr_menu_press Gameplay Presets > Classic;echo mp_pressed")  # (";": the line's end is not in the label)
     _, l = b.wait(r"vr_menu_press: Gameplay Presets > Classic", 10, since, "B pressing Classic")
     s.check("B's Gameplay Presets buttons locked (a preset sets rules)", "locked" in l, l.strip())
 

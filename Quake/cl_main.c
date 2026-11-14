@@ -196,6 +196,7 @@ void CL_Disconnect (void)
 	cl.intermission = 0;
 	cl.sendprespawn = false;
 	CL_ClearSignons ();
+	VR_ServerRulesLeft (); // QVR: a remote server's rules no longer govern: the player's own back
 
 	V_ResetEffects ();
 }

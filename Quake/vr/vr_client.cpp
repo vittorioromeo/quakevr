@@ -981,7 +981,6 @@ extern "C" void VR_OnClientClearState()
     decals::clear();
     worldtext::clientReset();
     tips::clientReset();
-    serverrules::clientReset();
     throwing::reset();
     thrownValid[0] = thrownValid[1] = false;
     twohand::reset();

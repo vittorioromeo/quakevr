@@ -257,19 +257,24 @@ int itemCollectionPageMode = -1; // the mode the page was built for (Backpacks T
         action("Classic", []() { gameplaypresets::menuApply(gameplaypresets::levelClassic); })
             .help("As close to Quake's monsters, combat and movement as the mod allows: Quake's grunts, knights and AI, "
                   "no knockdowns, staggers, shoves, stamina, parry or bullet time, no reloading, Quake's teleporters, no "
-                  "crates or physics props. Your hands, grabbing and holsters stay. Some show from the next map."),
+                  "crates or physics props. Your hands, grabbing and holsters stay. Some show from the next map.")
+            .settingRules(),
         action("Light", []() { gameplaypresets::menuApply(gameplaypresets::levelLight); })
             .help("Quake's monsters and rules, with the vanilla-but-better things kept: seamless teleporters, reloading, "
                   "melee, parry and bash, physics props and crates, ragdolls. No armed grunts, knockdowns, staggers, "
-                  "stamina, shoves, stealth AI or bullet time."),
+                  "stamina, shoves, stealth AI or bullet time.")
+            .settingRules(),
         action("Unleashed (as shipped)", []() { gameplaypresets::menuApply(gameplaypresets::levelUnleashed); })
-            .help("The game's defaults: every Quake VR gameplay feature on."),
+            .help("The game's defaults: every Quake VR gameplay feature on.")
+            .settingRules(),
         header("Your Own"),
         action("My Settings", gameplaypresets::menuRestoreMine)
             .help("Your own gameplay settings back, exactly as they were before you first picked a preset (or as you "
-                  "last saved them). Switching between presets never changes them."),
+                  "last saved them). Switching between presets never changes them.")
+            .settingRules(),
         action("Save as My Settings", gameplaypresets::menuSaveMine)
-            .help("Keep the gameplay settings as they are now as My Settings, in place of the ones kept. Press it twice."),
+            .help("Keep the gameplay settings as they are now as My Settings, in place of the ones kept. Press it twice.")
+            .settingRules(),
         open("Every Gameplay Switch", pageIndex(pageVrsGameplay))
             .help("The big ones on one page (more on Advanced VR Options > Combat): change any after picking a preset; "
                   "the line above then says Custom."),

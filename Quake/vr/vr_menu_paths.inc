@@ -414,7 +414,7 @@ void qvr::menu::press_f()
             {
                 command = item.command;
                 action = item.page < 0 && !item.actionArg ? item.action : nullptr;
-                locked = item.unavailable;
+                locked = item.unavailable || (item.setsRules && serverrules::lockedBecause());
                 found = true;
                 break;
             }
