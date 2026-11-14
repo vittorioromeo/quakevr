@@ -17,6 +17,7 @@
 #include "vr_engine.hpp"
 #include "vr_geom.hpp"
 #include "vr_mpavatar.hpp"
+#include "vr_netmove.hpp"
 #include "vr_progs.hpp"
 #include "vr_clientprefs.hpp"
 #include "vr_server.hpp"
@@ -54,6 +55,16 @@ struct Watched
 constexpr int watchedMost = MAX_SCOREBOARD + 1;
 Watched watched[watchedMost];
 bool joined = false; // signed on to a map (the last frame)
+
+// vr_mp_trace <ent> <frames>: each frame, another player's copy as this client drew it (his entity and both hands: B7's
+// mp_loss, their steps frame by frame), for that many frames, then "mp_trace: done".
+struct Trace
+{
+    int ent{0};
+    int left{0};
+    int lastFrame{-1};
+};
+Trace trace;
 
 constexpr double restTime = 0.25;  // s still before a move counts as one from rest
 constexpr float stillEps = 0.25f;  // units a frame that still counts as still
@@ -193,6 +204,40 @@ void mark_f()
     Con_Printf("mp_mark: t=%lld %s org=%.1f %.1f %.1f\n", wallMs(), label, org.x, org.y, org.z);
 }
 
+void trace_f()
+{
+    if(Cmd_Argc() < 3)
+    {
+        Con_Printf("vr_mp_trace <player entity> <frames>: each frame, his copy as drawn here (entity, hands)\n");
+        return;
+    }
+    trace.ent = Q_atoi(Cmd_Argv(1));
+    trace.left = q_max(Q_atoi(Cmd_Argv(2)), 0);
+    trace.lastFrame = -1;
+}
+
+void traceFrame()
+{
+    if(trace.left <= 0)
+    {
+        return;
+    }
+    glm::vec3 body, hands[2];
+    int frame = -1;
+    if(!qvr::mpavatar::drawnPlaces(trace.ent, body, hands, frame) || frame == trace.lastFrame)
+    {
+        return; // (not drawn this frame: counted when it is)
+    }
+    trace.lastFrame = frame;
+    Con_Printf("mp_trace: t=%lld ent=%d f=%d ct=%.4f org=%.2f %.2f %.2f h0=%.2f %.2f %.2f h1=%.2f %.2f %.2f\n", wallMs(),
+        trace.ent, frame, cl.time, body.x, body.y, body.z, hands[0].x, hands[0].y, hands[0].z, hands[1].x, hands[1].y,
+        hands[1].z);
+    if(--trace.left == 0)
+    {
+        Con_Printf("mp_trace: done\n");
+    }
+}
+
 void status_f()
 {
     // (intermission, health: this client's view, cl.intermission and its health stat: the coop exit and death, B4b)
@@ -216,6 +261,10 @@ void status_f()
             const entvars_t* v = c.edict ? &c.edict->v : nullptr;
             // (moves: how the server has him move, as his avatar tells the others: mpavatar::movesByte, B5b; merged: his
             // moves that came in a frame with one of his already, server::mergedMoves, B5d)
+            // (run, lost, recovered, undecodable, bytes: a remote client's QVR_CLC_MOVES as the server read them, B7)
+            const qvr::netmove::ServerCounts nm = qvr::netmove::serverCounts(i);
+            Con_Printf("mp_netmoves: slot=%d run=%d lost=%d recovered=%d undecodable=%d bytes=%lld\n", i, nm.run, nm.lost,
+                nm.recovered, nm.undecodable, nm.bytes);
             Con_Printf("mp_client: slot=%d name=\"%s\" spawned=%d org=%.1f %.1f %.1f inv=%d,%d,%d,%d,%d,%d,%d,%d moves=%d "
                        "merged=%d\n",
                 i, c.name, c.spawned ? 1 : 0, o[0], o[1], o[2], v ? static_cast<int>(v->health) : 0,
@@ -365,6 +414,8 @@ extern "C" void VR_MpTestInit(void)
     }
     Cmd_AddCommand("vr_mp_mark", mark_f);
     Cmd_AddCommand("vr_mp_status", status_f);
+    Cmd_AddCommand("vr_mp_trace", trace_f);
+    qvr::netmove::init(); // vr_netmove_selftest
     Cmd_AddCommand("vr_goto_exit", gotoExit_f);
     Cmd_AddCommand("vr_hurt", hurt_f);
     qvr::mpavatar::init(); // vr_mp_avatars
@@ -380,5 +431,6 @@ extern "C" void VR_MpTestFrame(void)
     if(!isDedicated)
     {
         watchFrame();
+        traceFrame();
     }
 }

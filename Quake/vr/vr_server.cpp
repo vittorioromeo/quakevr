@@ -45,6 +45,7 @@
 #include "Zancle/Vocabulary/Optional.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "vr_api.h"
+#include "vr_netmove.hpp"
 
 
 using namespace qvr;
@@ -909,26 +910,19 @@ extern "C" void VR_ClientReset(client_t* client)
     {
         avatarsSent[clientNum] = {};
     }
+    netmove::serverReset(clientNum); // (his moves' sequence and bases: a new connection's start again)
     mpavatar::serverReset(clientNum); // (his avatar calibration gone; the clients told)
     clientprefs::serverReset(clientNum); // (and his preferences: the server's until the next player's come)
 }
 
-extern "C" void VR_ReadMoveExtras(client_t* client)
+namespace
 {
-    if(!vrProtocol())
-    {
-        return;
-    }
 
-    const za::Optional<VrMove> read = readVrMove();
+// A move's VR block run on client `client` (clc_move's, read by VR_ReadMoveExtras; or a remote client's from
+// QVR_CLC_MOVES: vr_netmove.cpp).
+void applyVrMove(client_t* client, const VrMove& move)
+{
     const int clientNum = static_cast<int>(client - svs.clients);
-    if(!read)
-    {
-        Con_DPrintf("VR: client %d sent a move that is not finite: dropped\n", clientNum);
-        return;
-    }
-    const VrMove& move = *read;
-
     edict_t* ent = client->edict;
     if(clientNum >= static_cast<int>(clientMoves.size()))
     {
@@ -1041,6 +1035,45 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     setFieldFloat(ent, f.handsynth, move.handSynth); // (vr_handsource.cpp; QC VR_HandMotionTracked)
     setFieldFloat(ent, f.mainhand_hotspot, move.hotspots[1]);
     setFieldFloat(ent, f.button3, (move.buttons & QVR_BUTTON_OFFHANDATTACK) ? 1.f : 0.f);
+}
+
+// QVR_CLC_MOVES: each move not run yet, its NetQuake part then its VR block (as a clc_move is).
+void applyNetMove(client_t* client, const netmove::WireMove& m, bool /*newest*/)
+{
+    VR_ApplyClientMove(client, m.time, &m.viewAngles[0], m.forward, m.side, m.up, m.buttons, m.impulse);
+    applyVrMove(client, m.vr);
+}
+
+} // namespace
+
+extern "C" void VR_ReadMoveExtras(client_t* client)
+{
+    if(!vrProtocol())
+    {
+        return;
+    }
+
+    const za::Optional<VrMove> read = readVrMove();
+    if(!read)
+    {
+        Con_DPrintf("VR: client %d sent a move that is not finite: dropped\n", static_cast<int>(client - svs.clients));
+        return;
+    }
+    applyVrMove(client, *read);
+}
+
+extern "C" int VR_ReadQvrMoves(client_t* client)
+{
+    if(!vrProtocol() || !client->edict)
+    {
+        return 0;
+    }
+    return netmove::serverRead(client, applyNetMove) ? 1 : 0;
+}
+
+extern "C" void VR_WriteMoveAck(sizebuf_t* msg, client_t* client)
+{
+    netmove::serverWriteAck(msg, static_cast<int>(client - svs.clients));
 }
 
 // The status bar's ammo count (STAT_AMMO). With the Quake VR progs .currentammo is the main hand's ammo *type* (AID_*:

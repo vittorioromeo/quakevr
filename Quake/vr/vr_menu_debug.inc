@@ -1144,6 +1144,10 @@ za::Vector<Item> pageDebugReports()
         toggle("Network: Draw Player Hands", vr_mp_avatar_draw)
             .help("vr_mp_avatar_draw: the other players' hands (their fingers too) and held weapons drawn where their own "
                   "games drew them; off: not drawn."),
+        toggle("Network: Smooth Player Hands", vr_mp_avatar_lerp)
+            .help("vr_mp_avatar_lerp: the other players' heads, hands, held and holstered weapons moved smoothly between "
+                  "the server's messages, in step with their bodies (a fast turn no longer leaves them a message behind); "
+                  "off: each message's places as they come."),
         toggle("Network: Draw Player Bodies", vr_mp_body)
             .help("vr_mp_body: the other players' bodies drawn under their heads and hands, posed by the same code as your "
                   "own from what their games send, at their height, arm length and build, with their bracers and pauldrons; "

@@ -37,6 +37,7 @@ struct Avatar
 {
     bool valid{false};
     double received{0.0}; // realtime it came
+    double msgTime{0.0};  // the server's time of its message (cl.mtime[0]; the one before: when it held, B7's lerp)
     bool flat{false};     // a flatscreen player
     int moves{0};         // that byte as the server sent it (avatarCrouched...)
     glm::vec3 head{0.f};  // from his entity's origin
@@ -74,6 +75,10 @@ void addEntities();
 // Another player's hand or body (an avatar's: 1 a hand, 2 the body; else 0): his look, from his calibration (B6: his
 // skin tone, gloves and nails as he set them; none received yet: 0, drawn bare).
 [[nodiscard]] int lookOf(const entity_t* e, view::SkinLook& look);
+
+// Player entity `ent`'s copy as drawn last (addEntities: his entity's drawn place and his hands' drawn places, B7's
+// interpolated ones), and the host frame it was set up in; false: not drawn yet. (vr_mp_trace: mp_loss.)
+[[nodiscard]] bool drawnPlaces(int ent, glm::vec3& body, glm::vec3 hands[2], int& frame);
 
 // A new connection: no avatars.
 void clear();

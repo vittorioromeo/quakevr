@@ -472,12 +472,11 @@ void SV_ReadClientMove (usercmd_t *move)
 {
 	int		i;
 	vec3_t	angle;
-	int		bits;
+	float	time;
+	int		forward, side, up, bits;
 
 // read ping time
-	host_client->ping_times[host_client->num_pings%NUM_PING_TIMES]
-		= qcvm->time - MSG_ReadFloat ();
-	host_client->num_pings++;
+	time = MSG_ReadFloat ();
 
 // read current angles
 	for (i=0 ; i<3 ; i++)
@@ -488,27 +487,42 @@ void SV_ReadClientMove (usercmd_t *move)
 			angle[i] = MSG_ReadAngle16 (sv.protocolflags);
 		//johnfitz
 
-	VectorCopy (angle, host_client->edict->v.v_angle);
-
 // read movement
-	move->forwardmove = MSG_ReadShort ();
-	move->sidemove = MSG_ReadShort ();
-	move->upmove = MSG_ReadShort ();
+	forward = MSG_ReadShort ();
+	side = MSG_ReadShort ();
+	up = MSG_ReadShort ();
 
 // read buttons
 	bits = MSG_ReadByte ();
+	i = MSG_ReadByte ();
+
+	(void) move; // (host_client->cmd: VR_ApplyClientMove's)
+	VR_ApplyClientMove (host_client, time, angle, forward, side, up, bits, i); // QVR: (a remote client's QVR_CLC_MOVES run each through it too)
+	VR_ReadMoveExtras (host_client); // QVR
+}
+
+// QVR: a move's NetQuake part run on client `client` (SV_ReadClientMove's, split from its reading: vr/vr_netmove.cpp's
+// moves run through it too)
+void VR_ApplyClientMove (client_t *client, float time, const float *angle, int forward, int side, int up, int bits, int impulse)
+{
+	client->ping_times[client->num_pings%NUM_PING_TIMES] = qcvm->time - time;
+	client->num_pings++;
+
+	VectorCopy (angle, client->edict->v.v_angle);
+
+	client->cmd.forwardmove = forward;
+	client->cmd.sidemove = side;
+	client->cmd.upmove = up;
+
 	// QVR: every move since the server's last frame counts (a press and release between two frames was lost: the last
 	// move won), the buttons ORed (MP_PLAN.md, B2)
-	if (VR_MoveMerges (host_client))
-		bits |= ((int)host_client->edict->v.button0 & 1) | (((int)host_client->edict->v.button2 & 1) << 1);
-	host_client->edict->v.button0 = bits & 1;
-	host_client->edict->v.button2 = (bits & 2)>>1;
+	if (VR_MoveMerges (client))
+		bits |= ((int)client->edict->v.button0 & 1) | (((int)client->edict->v.button2 & 1) << 1);
+	client->edict->v.button0 = bits & 1;
+	client->edict->v.button2 = (bits & 2)>>1;
 
-	i = MSG_ReadByte ();
-	if (i)
-		host_client->edict->v.impulse = i;
-
-	VR_ReadMoveExtras (host_client); // QVR
+	if (impulse)
+		client->edict->v.impulse = impulse;
 }
 
 /*
@@ -656,6 +670,14 @@ nextmsg:
 
 			case clc_move:
 				SV_ReadClientMove (&host_client->cmd);
+				break;
+
+			case QVR_CLC_MOVES: // QVR: a remote client's moves, quantized deltas with repeats (vr/vr_netmove.cpp)
+				if (!VR_ReadQvrMoves (host_client))
+				{
+					Sys_Printf ("SV_ReadClientMessage: a malformed QVR_CLC_MOVES\n");
+					return false;
+				}
 				break;
 			}
 		}

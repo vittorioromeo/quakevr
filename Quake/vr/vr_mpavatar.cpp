@@ -19,6 +19,7 @@
 
 #include "vr_cvars.hpp"
 #include "vr_handrig.hpp"
+#include "vr_hands.hpp"
 #include "vr_hull.hpp"
 #include "vr_move.hpp"
 #include "vr_progs.hpp"
@@ -35,6 +36,9 @@ namespace
 {
 
 Avatar avatars[MAX_SCOREBOARD + 1]; // by player entity (0 unused)
+// The one before each (its msgTime: the last message it held at): drawn between the two in step with his entity's lerp
+// (vr_mp_avatar_lerp, blendedOf; MP_PLAN.md, B7).
+Avatar previousAvatars[MAX_SCOREBOARD + 1];
 
 void printCalibrations(); // (vr_mp_avatars: the calibrations, below)
 
@@ -45,6 +49,7 @@ struct Drawn
     view::ViewEntity weapon[2];
     float skin[2][handrig::data::numJoints * 12]{};
     int frame{-1}; // host_framecount it was last set up
+    glm::vec3 placedAt{0.f}; // his entity's drawn place then (the trace's: vr_mp_trace)
     // His body (vr_mp_body), as last posed (the report's: the skeleton, the wrists its arms reached for).
     view::ViewEntity body;
     bool bodyPosed{false};
@@ -351,6 +356,7 @@ void setup(int e, const Avatar& a)
     d.frame = host_framecount;
     glm::vec3 origin, angles;
     render::drawnPlace(cl_entities[e], origin, angles);
+    d.placedAt = origin;
     for(int side = 0; side < 2; side++)
     {
         const VrDrawnHand& h = a.hands[side];
@@ -889,10 +895,130 @@ void parse()
     }
     a.holsters = readDrawnHolsters(glm::vec3{0.f}, false); // (offsets from his entity's origin)
     a.armour = MSG_ReadByte();
+    a.msgTime = cl.mtime[0];
     if(ent > 0 && ent <= MAX_SCOREBOARD && ent != cl.viewentity)
     {
-        avatars[ent] = a;
+        // The one it replaces held until the message before this one (an unchanged avatar is not sent: its keyframe):
+        // drawn from it to this one as his entity is lerped from that message to this.
+        Avatar& was = avatars[ent];
+        previousAvatars[ent] = was;
+        previousAvatars[ent].msgTime = za::max(was.msgTime, cl.mtime[1]);
+        previousAvatars[ent].valid = was.valid && was.msgTime < a.msgTime;
+        was = a;
     }
+}
+
+namespace
+{
+
+[[nodiscard]] glm::vec3 slerpAngles(const glm::vec3& a, const glm::vec3& b, float t)
+{
+    if(a == b)
+    {
+        return b;
+    }
+    const glm::quat qa = glm::normalize(glm::quat_cast(hands::basisOf(a)));
+    glm::quat qb = glm::normalize(glm::quat_cast(hands::basisOf(b)));
+    qb = glm::dot(qa, qb) < 0.f ? -qb : qb;
+    const glm::mat3 m = glm::mat3_cast(glm::normalize(glm::slerp(qa, qb, t)));
+    return hands::anglesFromVectors(m[0], m[2]);
+}
+
+[[nodiscard]] float lerpAngle(float a, float b, float t)
+{
+    float d = b - a;
+    d -= 360.f * za::round(d / 360.f);
+    return a + d * t;
+}
+
+void blendHand(VrDrawnHand& h, const VrDrawnHand& p, float t)
+{
+    if(p.flags != h.flags || p.weaponModel != h.weaponModel)
+    {
+        return; // (a hand or weapon come or gone: as it came)
+    }
+    h.handOrigin = glm::mix(p.handOrigin, h.handOrigin, t);
+    h.handAngles = slerpAngles(p.handAngles, h.handAngles, t);
+    for(int f = 0; f < VrDrawnHand::fingers; f++)
+    {
+        for(int j = 0; j < VrDrawnHand::joints; j++)
+        {
+            h.curl[f][j] = p.curl[f][j] + (h.curl[f][j] - p.curl[f][j]) * t;
+        }
+    }
+    h.thumb = glm::normalize(glm::slerp(p.thumb, glm::dot(p.thumb, h.thumb) < 0.f ? -h.thumb : h.thumb, t));
+    h.weaponOrigin = glm::mix(p.weaponOrigin, h.weaponOrigin, t);
+    h.weaponAngles = slerpAngles(p.weaponAngles, h.weaponAngles, t);
+}
+
+// Avatar `e` as drawn now: between the one before and the last, at his entity's lerp (CL_LerpPoint's: the client's time
+// between the last two messages), places from his entity's origin lerped, turns slerped, curls lerped (vr_mp_avatar_lerp;
+// MP_PLAN.md, B7). Without one before (just come into sight), or off: the last as it came.
+[[nodiscard]] Avatar blendedOf(int e)
+{
+    const Avatar& a = avatars[e];
+    const Avatar& p = previousAvatars[e];
+    const double span = cl.mtime[0] - cl.mtime[1];
+    if(vr_mp_avatar_lerp.value == 0.f || !p.valid || a.msgTime != cl.mtime[0] || p.msgTime != cl.mtime[1] || span <= 0.0)
+    {
+        return a;
+    }
+    const float t = static_cast<float>(za::clamp((cl.time - cl.mtime[1]) / span, 0.0, 1.0));
+    if(t >= 1.f)
+    {
+        return a;
+    }
+    Avatar b = a;
+    b.head = glm::mix(p.head, a.head, t);
+    b.headAngles = slerpAngles(p.headAngles, a.headAngles, t);
+    if(p.body.valid && a.body.valid)
+    {
+        b.body.yaw = lerpAngle(p.body.yaw, a.body.yaw, t);
+        b.body.headHeight = glm::mix(p.body.headHeight, a.body.headHeight, t);
+        b.body.standingHeight = glm::mix(p.body.standingHeight, a.body.standingHeight, t);
+        b.body.leanHold = glm::mix(p.body.leanHold, a.body.leanHold, t);
+    }
+    for(int side = 0; side < 2; side++)
+    {
+        blendHand(b.hands[side], p.hands[side], t);
+        if((p.moves & (side ? avatarHoldMain : avatarHoldOff)) && (a.moves & (side ? avatarHoldMain : avatarHoldOff)))
+        {
+            b.holdAt[side] = glm::mix(p.holdAt[side], a.holdAt[side], t);
+        }
+    }
+    const VrDrawnHolsters& ph = p.holsters;
+    VrDrawnHolsters& bh = b.holsters;
+    if(ph.valid && bh.valid && ph.weapons == bh.weapons)
+    {
+        for(int i = 0; i < VrDrawnHolsters::count; i++)
+        {
+            if((bh.weapons & (1 << i)) && ph.model[i] == bh.model[i])
+            {
+                bh.origin[i] = glm::mix(ph.origin[i], bh.origin[i], t);
+                bh.angles[i] = slerpAngles(ph.angles[i], bh.angles[i], t);
+            }
+        }
+    }
+    return b;
+}
+
+} // namespace
+
+bool drawnPlaces(int ent, glm::vec3& body, glm::vec3 handsAt[2], int& frame)
+{
+    if(ent <= 0 || ent > MAX_SCOREBOARD || drawn.of[ent].frame < 0)
+    {
+        return false;
+    }
+    const Drawn& d = drawn.of[ent];
+    body = d.placedAt;
+    for(int side = 0; side < 2; side++)
+    {
+        const view::ViewEntity& ve = d.hand[side].visible ? d.hand[side] : d.weapon[side];
+        handsAt[side] = glm::vec3{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]};
+    }
+    frame = d.frame;
+    return true;
 }
 
 const Avatar* of(int ent)
@@ -920,7 +1046,7 @@ void addEntities()
         {
             continue;
         }
-        setup(e, a);
+        setup(e, blendedOf(e));
         Drawn& d = drawn.of[e];
         for(int side = 0; side < 2; side++)
         {
@@ -1085,6 +1211,10 @@ int gearByte(const edict_t* ent)
 void clear()
 {
     for(Avatar& a : avatars)
+    {
+        a = Avatar{};
+    }
+    for(Avatar& a : previousAvatars)
     {
         a = Avatar{};
     }

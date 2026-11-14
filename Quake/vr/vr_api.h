@@ -51,7 +51,9 @@ int VR_NoLiquidEffects(struct qmodel_s* model, const float* point);
 // Quake VR's network version, sent after NetQuake's in the connect request ("QVR", then this long; net_dgrm.c): a
 // server whose protocol is the VR one rejects a client without it or with another, with the reason (MP_PLAN.md, B2).
 // Raise it with any change to what client and server send each other.
-#define QVR_NET_VERSION				16
+#define QVR_NET_VERSION				17
+// A remote client's moves (vr/vr_netmove.hpp: quantized deltas with repeats; the loopback's stay clc_move; MP_PLAN.md, B7).
+#define QVR_CLC_MOVES				16
 #define SOLID_NOT_BUT_TOUCHABLE		5		// Quake VR: not solid, but can be (hand) touched
 
 // Host lifetime and pacing (host.c, main_sdl.c, gl_screen.c).
@@ -401,7 +403,10 @@ int VR_CorpseBox (struct edict_s *mover, struct edict_s *touch, const float *sta
 // Protocol (cl_input.c, cl_parse.c, cl_tent.c, cl_main.c, cl_demo.c, sv_user.c, sv_main.c, host.c,
 // host_cmd.c).
 int VR_MoveMainFire (int lmb);					// CL_SendMove's attack bit: +attack's state in, the main hand's trigger out (flatscreen play: flatplay::routeFire, the mouse's buttons by what the hands hold; otherwise as it came)
-void VR_WriteMoveExtras (struct sizebuf_s *buf);			// end of CL_SendMove
+void VR_WriteMoveExtras (struct sizebuf_s *buf, int forward, int side, int up, int buttons, int impulse); // end of CL_SendMove (a remote client's: the whole move rewritten as QVR_CLC_MOVES)
+int VR_ReadQvrMoves (struct client_s *client);			// SV_ReadClientMessage's QVR_CLC_MOVES: 0 a malformed one (vr_netmove.cpp)
+void VR_ApplyClientMove (struct client_s *client, float time, const float *angles, int forward, int side, int up, int buttons, int impulse); // sv_user.c: a move's NetQuake part run (SV_ReadClientMove's, read)
+void VR_WriteMoveAck (struct sizebuf_s *msg, struct client_s *client); // SV_SendClientDatagram: QVR_SVC_MOVEACK (vr_netmove.cpp)
 int VR_FlatHudOn (void);						// Sbar_Draw, the modern status bar at hudstyle 1: 1 while flatscreen play draws its own layout (vr_flat_hud; vr_flathud.cpp)
 int VR_VisorOn (void);							// Sbar_Draw, SCR_CalcRefdef: 1 while flatscreen play's visor is the HUD (vr_flat_visor; vr_visor.cpp): no status bar, no room kept for it
 int VR_FlatHudClip (int left, int *clip, int *clipSize);	// flatscreen play reloading (vr_flat_reload): 1 when the left (1) or right (0) hand's gun has a clip, which the status bars draw big with the reserve small beside it; its rounds and its size

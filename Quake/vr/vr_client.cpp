@@ -3,6 +3,7 @@
 
 #include "vr_agarmor.hpp"
 #include "vr_mpavatar.hpp"
+#include "vr_netmove.hpp"
 #include "vr_mpdownload.hpp"
 #include "vr_clientprefs.hpp"
 #include "vr_arenaxray.hpp"
@@ -977,6 +978,7 @@ extern "C" void VR_OnClientClearState()
     entityData.clear();
     lateBrushModels.clear();
     mpavatar::clear(); // (the other players' avatars: the new server's come)
+    netmove::clientClear(); // (no acknowledged move: the next sent whole, B7)
     clientprefs::clientClear(); // (ours go up to it again)
     particles::clear();
     decals::clear();
@@ -1032,11 +1034,30 @@ extern "C" int VR_MoveJump(int state)
     return flatplay::jumpBit(state);
 }
 
-extern "C" void VR_WriteMoveExtras(sizebuf_t* buf)
+extern "C" void VR_WriteMoveExtras(sizebuf_t* buf, int forward, int side, int up, int buttons, int impulse)
 {
     if(vrProtocol())
     {
-        writeVrMove(buf, buildMove());
+        if(netmove::clientUses())
+        {
+            // A remote client: the whole move (clc_move's part written before this, and the VR block) as QVR_CLC_MOVES
+            // instead, with the moves the server has not acknowledged (MP_PLAN.md, B7).
+            netmove::WireMove m;
+            m.time = static_cast<float>(cl.mtime[0]);
+            m.viewAngles = glm::vec3{cl.viewangles[0], cl.viewangles[1], cl.viewangles[2]};
+            m.forward = forward;
+            m.side = side;
+            m.up = up;
+            m.buttons = buttons;
+            m.impulse = impulse;
+            m.vr = buildMove();
+            buf->cursize = 0;
+            netmove::writeMoves(buf, m, !cls.demoplayback && cl.movemessages >= 2); // (CL_SendMove dumps the first two)
+        }
+        else
+        {
+            writeVrMove(buf, buildMove());
+        }
         mpavatar::sendCalibration(); // (multiplayer: this player's calibration, when it changed; reliable)
         clientprefs::send();         // (and his per-player preferences)
     }
@@ -1117,6 +1138,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_VIEWMESSAGE: worldtext::clientParseViewMessage(false); break;
         case QVR_SVC_ARENAMESSAGE: worldtext::clientParseViewMessage(true); break;
         case QVR_SVC_AVATAR: mpavatar::parse(); break; // another player's head and hands (vr_mpavatar.cpp)
+        case QVR_SVC_MOVEACK: netmove::parseAck(); break; // the newest of our moves the server read (vr_netmove.cpp)
         case QVR_SVC_PACKAGE: mpdownload::parsePackage(); break; // the server's map package (vr_mpdownload.cpp)
         case QVR_SVC_AVATARCAL: mpavatar::parseCalibration(); break; // a player's height, arms, gloves, body (vr_mpavatar.cpp)
         case QVR_SVC_TIP_MAKE:
