@@ -313,9 +313,12 @@ void signature(const byte* data, enum srcformat fmt, int w, int h, float* out, f
             float blur = 0.f;
             for(int dy = -2; dy <= 2; dy++)
             {
+                // (wrapped with a modulo: the optimised build of the `& (sigSize - 1)` form read past tmp's end for row
+                // 0's cells 1-3, so a non-zeroed buffer's garbage made every frame match: ROUND25.md, "hunkfollow")
+                const float* row = tmp + (y + dy + sigSize) % sigSize * sigSize;
                 for(int dx = -2; dx <= 2; dx++)
                 {
-                    blur += tmp[((y + dy) & (sigSize - 1)) * sigSize + ((x + dx) & (sigSize - 1))];
+                    blur += row[(x + dx + sigSize) % sigSize];
                 }
             }
             out[y * sigSize + x] = tmp[y * sigSize + x] - blur / 25.f;

@@ -383,6 +383,11 @@ void Hunk_Print (qboolean all)
 	Con_SafePrintf ("---------------------------------\n");
 	Con_SafePrintf ("%6i : %10i : USED (the heap: no maximum)\n", n, hunk_low_used);
 	Con_SafePrintf ("%6i : %10i : CACHE (%s)\n", cache_count, (int) q_min (cache_used, (size_t) 0x7fffffff), "cache_print: each");
+	{
+		int chunks, bytes, peak;
+		Temp_Usage (&chunks, &bytes, &peak);
+		Con_SafePrintf ("%6i : %10i : TEMP chunks (the temporary stack: %i at most)\n", chunks, bytes, peak);
+	}
 }
 
 /*
@@ -411,9 +416,9 @@ static void *Hunk_AllocInternal (int size, const char *name, qboolean clear)
 	if (size < 0)
 		Sys_Error ("Hunk_Alloc: bad size: %i", size);
 
-	// Always zeroed, NoFill too (`clear` unused): the old hunk's memory was mostly fresh zero pages, and something in the
-	// world's drawing reads a NoFill block before writing it: with a reused heap block's garbage, E1M1 drew 38% slower on
-	// the GPU (world+brush) and 0.3 ms slower on the CPU (ROUND25.md, "nohunk"). calloc skips the memset on fresh pages.
+	// Always zeroed, NoFill too (`clear` unused), as the old hunk's fresh pages mostly were. Non-zeroed blocks once made
+	// E1M1 draw 38% slower ("nohunk"): vr_extmaps' signature read past its buffer, fixed ("hunkfollow"); not zeroing them
+	// gained nothing measurable after that (map loads within noise), so they stay zeroed: calloc skips fresh pages.
 	(void) clear;
 	b = Mem_NewBlock (size, name, HUNK_SENTINEL, true, "Hunk_Alloc");
 	if (hunk_low_used > 0x7fffffff - b->size)
@@ -530,8 +535,9 @@ Hunk_KeepLoaded -- QVR
 
 A model whose data stays on the hunk (a sprite, a brush model) was just loaded: nothing frees under it until
 Hunk_ClearKeep. Quake loads them only with the map, with no temporary allocation open; Quake VR also loads them during
-play (a late precache: VR_LatePrecacheModel), maybe from QuakeC called while one is open (SV_TouchLinks, VR_TouchLinks,
-SV_PushMove keep their lists on the hunk), whose free would otherwise free the model's memory.
+play (a late precache: VR_LatePrecacheModel), maybe from QuakeC called while one is open, whose free would otherwise
+free the model's memory. (SV_TouchLinks, VR_TouchLinks and SV_PushMove, which ran QuakeC inside one, keep their lists on
+the temporary stack now: zone.h, Temp_Alloc.)
 ===================
 */
 void Hunk_KeepLoaded (void)
@@ -555,6 +561,108 @@ char *Hunk_Strdup (const char *s, const char *name)
 	char *ptr = (char *) Hunk_AllocNameNoFill (sz, name);
 	memcpy (ptr, s, sz);
 	return ptr;
+}
+
+/*
+===============================================================================
+
+TEMPORARY STACK (QVR: zone.h, Temp_Alloc)
+
+A frame's short-lived lists, once hunk temporaries (one heap block each since "nohunk": combat_48 went from 11 to 35
+heap calls a frame): grow-only chunks, kept. A mark is the bytes below the top, counted across the chunks in order (a
+chunk's base: the sizes of those before it); an allocation that doesn't fit the chunk in use goes to the next one (made,
+or remade larger: none above the top is in use).
+===============================================================================
+*/
+
+#define TEMP_CHUNKS			16
+#define TEMP_CHUNK_MIN		(256 * 1024)	// the first chunk: SV_PushMove's lists for 8,192 edicts are 160 KiB
+#define TEMP_CHUNK_MAX		(64 * 1024 * 1024)
+
+typedef struct
+{
+	byte	*data;
+	int		size;
+	int		base;	// the marks it starts at
+} tempchunk_t;
+
+static tempchunk_t	temp_chunks[TEMP_CHUNKS];
+static int			temp_count;		// chunks made
+static int			temp_cur;		// the chunk in use
+static int			temp_used;		// its bytes in use
+static int			temp_peak;		// the most marks ever (hunk_print)
+
+int Temp_Mark (void)
+{
+	return temp_count ? temp_chunks[temp_cur].base + temp_used : 0;
+}
+
+void *Temp_Alloc (size_t size)
+{
+	int		need, next, i;
+	byte	*p;
+
+	Zone_CheckThread ();
+	if (size > TEMP_CHUNK_MAX)
+		Sys_Error ("Temp_Alloc: %u bytes are too many", (unsigned) size);
+	need = q_max ((int) ((size + 15) & ~(size_t) 15), 16);
+	while (!temp_count || temp_used + need > temp_chunks[temp_cur].size)
+	{
+		next = temp_count ? temp_cur + 1 : 0;
+		if (next < temp_count && temp_chunks[next].size < need)
+		{
+			for (i = next; i < temp_count; i++) // too small: it and those after it go (above the top: unused)
+				VR_HeapFree (temp_chunks[i].data);
+			temp_count = next;
+		}
+		if (next == temp_count)
+		{
+			tempchunk_t *c;
+			if (temp_count == TEMP_CHUNKS)
+				Sys_Error ("Temp_Alloc: more than %i chunks", TEMP_CHUNKS);
+			c = &temp_chunks[temp_count];
+			c->size = q_max (need, q_min (TEMP_CHUNK_MIN << q_min (next, 8), TEMP_CHUNK_MAX));
+			c->base = next ? temp_chunks[next - 1].base + temp_chunks[next - 1].size : 0;
+			if (c->base > 0x7fffffff - c->size)
+				Sys_Error ("Temp_Alloc: more than 2 GiB");
+			c->data = (byte *) VR_HeapMalloc ((size_t) c->size);
+			if (!c->data)
+				Sys_Error ("Temp_Alloc: failed on %i bytes", c->size);
+			temp_count++;
+		}
+		temp_cur = next;
+		temp_used = 0;
+	}
+	p = temp_chunks[temp_cur].data + temp_used;
+	temp_used += need;
+	if (Temp_Mark () > temp_peak)
+		temp_peak = Temp_Mark ();
+	return p;
+}
+
+void Temp_FreeToMark (int mark)
+{
+	int i;
+
+	Zone_CheckThread ();
+	if (mark < 0 || mark > Temp_Mark ())
+		Sys_Error ("Temp_FreeToMark: bad mark %i (top %i)", mark, Temp_Mark ());
+	for (i = 0; i < temp_count && mark > temp_chunks[i].base + temp_chunks[i].size; i++)
+		;
+	if (i == temp_count) // (none made: mark 0)
+		return;
+	temp_cur = i;
+	temp_used = mark - temp_chunks[i].base;
+}
+
+void Temp_Usage (int *chunks, int *bytes, int *peak)
+{
+	int i;
+	*chunks = temp_count;
+	*bytes = 0;
+	for (i = 0; i < temp_count; i++)
+		*bytes += temp_chunks[i].size;
+	*peak = temp_peak;
 }
 
 /*

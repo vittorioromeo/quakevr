@@ -785,9 +785,9 @@ void SV_PushMove (edict_t *pusher, float movetime)
 	SV_LinkEdict (pusher, false);
 
 	//johnfitz -- dynamically allocate
-	mark = Hunk_LowMark ();
-	moved_edict = (edict_t **) Hunk_AllocNoFill (qcvm->num_edicts*sizeof(edict_t *));
-	moved_from = (vec3_t *) Hunk_AllocNoFill (qcvm->num_edicts*sizeof(vec3_t));
+	mark = Temp_Mark (); // QVR: the temporary stack, not the hunk (zone.h)
+	moved_edict = (edict_t **) Temp_Alloc (qcvm->num_edicts*sizeof(edict_t *));
+	moved_from = (vec3_t *) Temp_Alloc (qcvm->num_edicts*sizeof(vec3_t));
 	//johnfitz
 
 // see if any solid entities are inside the final position
@@ -970,7 +970,7 @@ void SV_PushMove (edict_t *pusher, float movetime)
 				VectorCopy (moved_from[i], moved_edict[i]->v.origin);
 				SV_LinkEdict (moved_edict[i], false);
 			}
-			Hunk_FreeToLowMark (mark); //johnfitz
+			Temp_FreeToMark (mark); //johnfitz
 			pushgrid.cursor = NULL; // QVR
 			return;
 		}
@@ -978,7 +978,7 @@ void SV_PushMove (edict_t *pusher, float movetime)
 	pushgrid.cursor = NULL; // QVR
 
 	VR_ClimbCarried (pusher, move); // QVR: the holds on it moved with it
-	Hunk_FreeToLowMark (mark); //johnfitz
+	Temp_FreeToMark (mark); //johnfitz
 
 }
 

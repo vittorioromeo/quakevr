@@ -531,8 +531,8 @@ void SV_TouchLinks (edict_t *ent)
 	if (VR_TouchLinks (ent)) // QVR: hands and touchable non-triggers
 		return;
 
-	mark = Hunk_LowMark ();
-	list = (edict_t **) Hunk_AllocNoFill (qcvm->num_edicts*sizeof(edict_t *));
+	mark = Temp_Mark (); // QVR: the temporary stack, not the hunk (zone.h)
+	list = (edict_t **) Temp_Alloc (qcvm->num_edicts*sizeof(edict_t *));
 
 	listcount = 0;
 	SV_AreaTriggerEdicts (ent, sv_areanodes, list, &listcount, qcvm->num_edicts);
@@ -569,8 +569,8 @@ void SV_TouchLinks (edict_t *ent)
 		pr_global_struct->other = old_other;
 	}
 
-// free hunk-allocated edicts array
-	Hunk_FreeToLowMark (mark);
+// free the edicts array
+	Temp_FreeToMark (mark);
 }
 
 
