@@ -76,7 +76,6 @@
         header("Run Setup"),
         row(opt::vr_runsetup_groups),
         row(opt::vr_runsetup_big),
-        row(opt::vr_runsetup_halls_line),
         row(opt::vr_menu_icons),
         row(opt::vr_menu_icon_size),
         row(opt::vr_menu_icon_dim),

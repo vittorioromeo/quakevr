@@ -489,24 +489,9 @@ void playHub() { qvr::runsetup::endRun(); Cbuf_AddText("vr_campaign_hub\n"); }
 // The tutorial (vrtutorial: Misc/quakevr/maps/vrtutorial_gen.py) on Easy.
 void playTutorial() { Cbuf_AddText("skill 0; map vrtutorial\n"); }
 void playFiringRange() { Cbuf_AddText("map vrfiringrange\n"); }
-// Official Campaigns > Dawn of the Machine: Bloody Nightmare: skill 3 and vr_mg3_bn_start (the start map's first frame
-// makes it a Bloody Nightmare game, QC vr_mg3_defs.qc MG3_Frame), then the campaign as its own row starts it. While
-// the campaign cannot start, only its reason is printed and nothing is set.
-// Now through the Run Setup screen, Difficulty's Bloody Nightmare chosen (skill 3 and vr_mg3_bn_start at the start).
-void playMg3BloodyNightmare()
-{
-    if(VR_CampaignUnavailable(5) == 0)
-    {
-        Cvar_SetValueQuick(&vr_maps_skill, static_cast<float>(qvr::runsetup::skillBloody));
-    }
-    openRunSetupCampaign(5);
-}
 void addBotTeam0() { Cbuf_AddText("impulse 100\n"); }
 void addBotTeam1() { Cbuf_AddText("impulse 101\n"); }
 void kickBot() { Cbuf_AddText("impulse 102\n"); }
-
-// Whether Official Campaigns was built with the Bloody Nightmare row (items(): rebuilt when that changes).
-int campaignsBloodyShown = -1;
 
 // Arcane Dimensions: experimental. Chosen in the menu it asks first (M_Confirm), then opens the Run Setup screen as the
 // other campaigns do; its Start launches as the developer launch does (vr_campaign_native ad: the same game folder,
@@ -559,15 +544,6 @@ const char* campaignContinueAge(int index)
     const char* age = VR_LaunchContinueLabel(index, "", 3);
     return age ? age : "";
 }
-const char* bloodyNightmareText(int) { return "Bloody Nightmare"; }
-const char* bloodyNightmareTag(int) { return "new game"; }
-const char* bloodyNightmareHelp(int)
-{
-    return "A new Dawn of the Machine game on Bloody Nightmare: skill 3, harder monsters, each level begun with the axe "
-           "and shotgun only. Killing Chthon on it starts its new game.";
-}
-void bloodyNightmareRow(int) { playMg3BloodyNightmare(); }
-
 // Select Campaign (ROUND25.md, "campvis"): each campaign a group: its title (Item::Lead: pressed, a new run), its
 // Continue under it (Item::Sub) with the run on a line under that (Item::Note); Arcane Dimensions with them, its
 // "experimental" tag at the right of its title (flat1115a); the page's other rows in a small footer.
@@ -575,9 +551,7 @@ void bloodyNightmareRow(int) { playMg3BloodyNightmare(); }
 {
     za::Vector<Item> items{header("Official Campaigns")};
     VR_LaunchContinueRefresh(); // (the page is built again each time it is shown)
-    // Dawn of the Machine's hidden difficulty: offered once found in a game (the hell knight's head, or the hub's
-    // Bloody Nightmare button: QC sets vr_mg3_bn_discovered); in Dawn of the Machine's group.
-    campaignsBloodyShown = vr_mg3_bn_discovered.value != 0.f ? 1 : 0;
+    // (No Bloody Nightmare row: his call 2026-11-15, runsetup3. Dawn of the Machine's own way in is its hub's relay.)
     for(int i = 0; i < VR_CampaignCount(); ++i) // (Arcane Dimensions too: its row dim until it is ready)
     {
         Item choice = row(VR_CampaignTitle, VR_CampaignHelp, selectCampaignRow, i, -1).lead();
@@ -596,13 +570,6 @@ void bloodyNightmareRow(int) { playMg3BloodyNightmare(); }
             run.dimArg = resume.dimArg;
             run.partOf = 1;
             items.pushBack(run);
-        }
-        if(i == 5 && campaignsBloodyShown)
-        {
-            Item bloody = row(bloodyNightmareText, bloodyNightmareHelp, bloodyNightmareRow, i, -1).sub();
-            bloody.tagArg = bloodyNightmareTag;
-            bloody.dimArg = [](int) -> bool { return VR_CampaignUnavailable(5) != 0; };
-            items.pushBack(bloody);
         }
     }
     items.pushBack(header("Advanced").minor());
@@ -2337,11 +2304,6 @@ void applyFolds(int page, za::Vector<Item>& list)
     if(page == pageIndex(pageGraphicsRelighting) && relightToolState >= 0 && relightToolState != relight::toolPageState())
     {
         done[page] = false; // light.exe found or not, a download started or ended: Download ericw-tools shown or not
-    }
-    if(page == pageIndex(pageCampaigns) && campaignsBloodyShown >= 0 &&
-        campaignsBloodyShown != (vr_mg3_bn_discovered.value != 0.f ? 1 : 0))
-    {
-        done[page] = false; // Dawn of the Machine's Bloody Nightmare found (or reset): its row shown or not
     }
     if(page == pageIndex(pageRunSetup) && runSetupStale())
     {

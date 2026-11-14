@@ -1,0 +1,6 @@
+title Flat-screen: drag weapons between hands and holsters in the holster menu
+map vrtesthall
+start 0 -288 25 90
+spawn weapon_dagger 60 0
+spawn weapon_nailgun 60 40
+hint Take both, open the holster menu (middle mouse) and drag with the left button: hand to holster and back, hand to hand, holster to holster; let go on nothing to cancel.
