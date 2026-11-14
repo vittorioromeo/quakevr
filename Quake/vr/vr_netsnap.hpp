@@ -35,6 +35,7 @@ namespace qvr::netsnap
 inline constexpr int ring = 32;           // snapshots each side keeps (an acknowledgement older than this: sent whole)
 inline constexpr int avatarKey = 1 << 16; // + a player's entity: his avatar's record
 inline constexpr int clientdataKey = 0;   // the player's own state (svc_clientdata)
+inline constexpr int predictKey = 2 << 16; // his walk's state (QVR_SVC_PREDICT, vr_predict.cpp): the last key there is
 
 // One snapshot: its records (sorted by key), each its bytes in `bytes`.
 struct Record

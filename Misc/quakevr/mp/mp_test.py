@@ -2458,6 +2458,11 @@ def copy_of(s, watcher, ent):
     return body_of(lines, "mp_body").get(ent, {})
 
 
+def near_xy(at, to, within):
+    """Whether point `at` ([x, y, z] or None) is within `within` units of `to` across."""
+    return bool(at) and bool(to) and math.hypot(at[0] - to[0], at[1] - to[1]) <= within
+
+
 def moves_until(s, srv, mover, watcher, em, label, verb, how, test, tries=40):
     """The server's moves for `em` and the watcher's copy of him by report until test(server moves, copy) -> both."""
     want = "%s: %s" % (verb, how)
@@ -2476,14 +2481,19 @@ def moves_until(s, srv, mover, watcher, em, label, verb, how, test, tries=40):
 def moves_each(s, srv, mover, watcher, em, ew, label):
     """`mover` (FACE_GAP from `watcher`, face to face) crouches, lies down, gets up and jumps: the server's boxes and
     ground follow his head and keys, and the watcher's copy of his body lies down, gets up, leaves the ground with him."""
-    face_off(s, srv, watcher, mover, ew, em)
+    _, od = face_off(s, srv, watcher, mover, ew, em)
     mover.cmd("vr_mock_hand head; vr_mock_hand main 0.2 1.0 -0.3 0 0 0; vr_mock_hand off -0.2 1.0 -0.3 0 0 0")
+    # (the copy read where face_off put him: a copy still at his last place was read as his standing one, B8b)
     _, stand = moves_until(s, srv, mover, watcher, em, label, "stands", "standing, on the ground",
                            lambda sv, cp: sv & MV_GROUND and not sv & (MV_CROUCHED | MV_LYING) and
-                           cp["moves"][0] == sv and cp["lying"][0] == 0.0)
+                           cp["moves"][0] == sv and cp["lying"][0] == 0.0 and near_xy(cp.get("headjoint"), od, 24))
     mover.cmd("vr_mock_hand head 0 %.2f 0" % CROUCH_HEAD)
+    # (until the copy's head is down too: the moves byte is the newest message's, the head the interpolation buffer's,
+    # a few frames behind it -- read at the byte alone, the copy stood still: B8b)
+    top = stand.get("headjoint", [0.0, 0.0, 0.0])[2]
     _, crouch = moves_until(s, srv, mover, watcher, em, label, "crouches", "crouched (his crouched box), not lying",
-                            lambda sv, cp: sv & MV_CROUCHED and not sv & MV_LYING and int(cp["moves"][0]) & MV_CROUCHED)
+                            lambda sv, cp: sv & MV_CROUCHED and not sv & MV_LYING and int(cp["moves"][0]) & MV_CROUCHED
+                            and cp.get("headjoint") and top - cp["headjoint"][2] > 8)
     if stand.get("headjoint") and crouch.get("headjoint"):
         drop = stand["headjoint"][2] - crouch["headjoint"][2]
         s.check("%s: %s's copy of %s crouches with him (its head %.1f units lower)" % (label, watcher.name, mover.name,

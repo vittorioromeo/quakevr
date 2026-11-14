@@ -279,9 +279,11 @@ bool decode(const Snapshot* base, int bodyLen, Snapshot& out)
     int prevKey = -1;
     while(msg_readcount < end)
     {
+        // (a key's step is at most the last key + 1, from none: the predict record alone in a delta was refused
+        // under a limit of 2 x avatarKey -- mp_loss's undecodable snapshots, B8b)
         za::U32 head;
         if(!netmove::readVarint(head) || (head >> 2) == 0 || (head & 3u) > static_cast<za::U32>(opDelta) ||
-            (head >> 2) > static_cast<za::U32>(avatarKey * 2))
+            (head >> 2) > static_cast<za::U32>(predictKey + 1))
         {
             return false;
         }
@@ -683,6 +685,8 @@ void parse()
     if(!ok)
     {
         c.counts.undecodable++;
+        Con_Printf("netsnap: snapshot %u undecodable (base %u back, newest read %u, base kept %u, len %u)\n", seq, dist, c.last,
+            base ? base->seq : 0u, len);
         if(seq > c.last)
         {
             out.seq = 0;
@@ -936,6 +940,17 @@ void selftest_f()
     check(changed, va("changed, gone, new and resized records: read back the same in %d bytes (whole: %d)", deltaBytes,
                        fullBytes));
     check(deltaBytes > 0 && deltaBytes < 50, va("two one-byte changes, one gone, two whole (32 B): %d bytes", deltaBytes));
+    {
+        // the predict record (the last key) the only one changed: its step from none is the largest (B8b's undecodable)
+        int lastBytes = 0;
+        za::U8 buf[16]{};
+        t.base.add(predictKey, buf, 16);
+        t.base.sortByKey();
+        t.cur = t.base;
+        t.cur.bytes[t.cur.records[t.cur.records.size() - 1].at + 5] ^= 0x10;
+        const bool lastOk = roundTrip(&t.base, t.cur, 4096, lastBytes) && sameSnapshot(t.sent, t.cur);
+        check(lastOk, va("the predict record alone changed: read back the same in %d bytes", lastBytes));
+    }
     const bool cutOk = roundTrip(nullptr, t.cur, 200, cutBytes);
     check(cutOk && cutBytes <= 200 && t.sent.records.size() < t.cur.records.size(),
         va("past a budget of 200 bytes: cut there (%d bytes, %d of %d records), the client's as the server keeps it", cutBytes,

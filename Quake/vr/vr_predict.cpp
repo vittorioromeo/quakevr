@@ -4,6 +4,7 @@
 #include "vr_api.h"
 #include "vr_cvars.hpp"
 #include "vr_hull.hpp"
+#include "vr_netsnap.hpp"
 #include "vr_protocol.hpp"
 
 #include "Zancle/Math/Clamp.hpp"
@@ -22,7 +23,7 @@ constexpr int maxQueued = 32;         // moves a server frame runs at most (a bu
 constexpr float moveMost = 0.1f;      // a move's time at most, seconds
 constexpr float creditMost = 0.25f;   // the server's time a client's moves may use up ahead of its frames, seconds
 constexpr float creditRate = 1.05f;   // ... earned at this much a second of the server's (a clock a little fast still fits)
-constexpr int stateKey = 0x20000;     // the snapshot record's key (vr_netsnap.cpp: after the entities and the avatars)
+constexpr int stateKey = netsnap::predictKey; // the snapshot record's key (after the entities and the avatars)
 constexpr int pastRing = 64;          // predictions kept by move number (netmove::ring)
 constexpr float snapAt = 64.f;        // a correction this long is a teleport: drawn at once, not eased
 constexpr float easeTime = 0.1f;      // a correction's offset decays by e in this long
