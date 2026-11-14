@@ -187,6 +187,8 @@ player unchanged.
 | **B3b** (the suite reliable, the take-back a check; the rest is B3c) | The rest of B3: the palm frame (vr_grip.cpp), weaponhotspot and the drawn pose (vr_builtins_held.inc), the weapon hull, the 2H carry and foe grab frames, the ragdoll grab fit and the crawl's hand bottom (the fists' other users), body calibration up (his measured arms and shoulders, for his copy's shoulders); client-side traces for teleport, crosshair, flashlight, hand collision; why B's dropped shotgun is not always taken back | `mp_teleport`, `mp_grab` grown (taken back every run), `mp_body` (shoulders within 0.2 with A calibrated) |
 | **B3c** (palm grab and body calibration up done; the rest is B3d) | The rest of B3b: the palm frame (vr_grip.cpp), weaponhotspot and the drawn pose (vr_builtins_held.inc), the weapon hull, the 2H carry and foe grab frames, the ragdoll grab fit and the crawl's hand bottom; body calibration up (his measured arms and shoulders); client-side traces for teleport, crosshair, flashlight, hand collision | `mp_teleport`, `mp_body` (shoulders within 0.2 with A calibrated), `mp_grab` grown (a 2H carry, a foe grab) |
 | **B3d** (client-side traces, teleport, palm frame up done; the rest is B3e) | The rest of B3c: the rig up (palm frame, weaponhotspot and the drawn pose, weapon hull, 2H carry and foe grab frames, the ragdoll grab fit, the crawl's hand bottom); client-side traces for teleport, crosshair, flashlight, hand collision | `mp_teleport`, `mp_grab` grown (palm frames; a 2H carry, a foe grab, the palm slack) |
+| **B3e** (the held weapon's drawn pose up done; the rest is B3f) | The rest of B3d: the drawn pose up per player (weaponhotspot, weaponanygrip, weapondrawnpose's carried weapon and axes, the drawn weapon hull, the 2H carry's reach offset); `mp_grab` grown | `mp_held` (B's hotspots on the server where his view draws them; his two-handed hold and hand-off judged by his own) |
+| **B3f** | The rest of B3e: the grip fit's hand rig per player (`vr_gripfit.cpp`), the ground weapon's grab hotspot and the reverse grip's choice per player (weapongrabspot, weapondrawnpose 43), the magnetic holsters' poll and places per player; `mp_grab` grown (a 2H carry, a foe grab, the palm slack) | `mp_grab` grown, `mp_held` grown (a reverse grip) |
 | **B4** | Coop campaign flow: coop saves and loads (per-player blocks, versioned), autosaves, level transitions with inventories, intermission, deaths and respawns, map download (package names through the map installer; chunked fallback) | `mp_campaign` (e1m1 to e1m3 with saves and a load, both players' inventories), `mp_download` (B lacks a map: installs it, joins) |
 | **B5** | Interactions between players: drop a weapon / the other picks it up; force grab of world weapons in multiplayer; melee, parries and shoves between players; climbing, crouch, prone, jump, punch synced and judged per player | one scenario per interaction, each from both sides |
 | **B6** | Server rules and cosmetics: every balance setting a rule (presets, armed humanoids, damage, mutators, stamina, grapple...), rule pages dimmed on a remote client; holster positions, height, seated/standing, gloves, body seen by others | `mp_rules`, `mp_cosmetics` (B's height and gloves seen by A) |
@@ -215,6 +217,9 @@ The engine's aids (`Quake/vr/vr_mptest.cpp`):
 - `-condebugfile <path>`: the `-condebug` log written there (several games share one basedir).
 - `vr_mp_watch 1` (Debug > Reports > Network: Watch Players): wall-clock stamped `mp_event joined/left`, `mp_seen`,
   `mp_move` (off from rest, farther than `vr_mp_watch_dist` 2), `mp_pos` (every 32 units), `mp_stop`.
+- `vr_mp_drawn` (Debug > Reports > Network: Held Weapons): each hand's held weapon as this client draws it
+  (`mp_drawn_own:` its hotspots in the world, the two-handed hold, a weapon carried off its handle) and, on a server,
+  as it places each other player's from what his client sent (`mp_drawn_sv:`).
 - `vr_mp_mark <label>`, `vr_mp_status` (Debug > Reports > Network: Players Seen): a timestamped step; the players
   seen and, on a server, its clients (`mp_server: map=... spawned=N`).
 - A dedicated server started with `QVR_TEST_HIDDEN` opens no console window (`sys_sdl_win.c`).
@@ -592,6 +597,49 @@ Open items (B3e):
 - The client trace has no monsters: on a remote client the crosshair reaches through a monster to the wall (B7's
   snapshots could carry the entities' solidity).
 
+### B3e results, part 1 (2026-11-14, dev no-LTO build, loopback; `mp_test.py suite`: all 11 scenarios pass)
+
+The suite re-run first, with B3d's `mp_teleport` fix: 10 of 10 pass.
+
+| Scenario | Result |
+|---|---|
+| `mp_held` (new) | 13/0: B, a client of the dedicated server, holds a given shotgun still in his main hand; the server places its 2 hotspots (QC `weaponhotspot`) within 0.03 units of where B's view draws them (allowed 0.5); B's off hand takes its grip hotspot: the server's `weaponanygrip` for it is B's own (2: anywhere, `vr_weapon_grab_anywhere`); B lets go with his main hand: the server hands the shotgun off to his off hand (QC VRTryHandOff, by that `weaponanygrip`) and has it carried off its handle (`weapondrawnpose` 2) as B's view draws it. Before: none of it for a remote player (hotspots '0 0 0', anygrip 0: no hand-off) |
+| the rest | `mp_coop` 11/0, `mp_coop_lag` 11/0, `mp_bandwidth` 7/0, `mp_version` 6/0, `mp_avatar` 17/0, `mp_avatarcal` 9/0, `mp_body` 12/0, `mp_prefs` 10/0, `mp_grab` 12/0, `mp_teleport` 9/0 |
+
+Single player on the branch: `vr_embed_test 42` (reverse grip) 24/0, `vr_embed_test 24` (2H hotspot) 22/0, scenario_check
+PASS (129 scenes, 0 failed), load_models_test 4/0, vr_run_check 12/0, the dev and the ThinLTO builds 0 warnings. Single
+player reads the view as before by construction (`heldpose::remote` is null with one client and for a listen host's own
+player).
+
+What changed:
+
+- **The held weapon's drawn pose up** (`vr_heldpose.cpp`): each hand's held weapon as the client's view draws it, in
+  the hand's frame (relative to the move's hand, the frame the fists use): its hotspots (type, place, bias, share), the
+  two-handed hold's kind (`twohand::helpKind`), a weapon carried off its handle (handle, tip, axes), its axes, reverse
+  grip share and flags (`heldWeaponAxes`, `heldMayReverse`, `heldGripFlippable`), the drawn weapon's slot, mirroring and
+  place in the hand (`DrawnWeapon::inHand`), and how far the hand is drawn held out of a prop the other hand holds
+  (`view::heldOutOf`). Up as `vr_heldpose <version> <hand> <62 values>` (reliable, whitelisted) when a value moves 0.05,
+  at most every `vr_net_avatarcal_interval` a hand. Hotspots are measured on the hand pose the weapon was drawn on (its
+  entity less its place in the hand), so they do not lag the hand. `QVR_NET_VERSION` 9.
+- **Its users, per player**: QC `weaponhotspot`/`weaponhotspotinfo` (placed on the hand of the move the server runs),
+  `weaponanygrip`, `weapondrawnpose` 0..5 (the carried weapon: thrown from where it is drawn, the melee's free line) and
+  44..46 (axes, reverse grip); Box3D's drawn weapon hull (`vr_box3d_hands.cpp`: his weapon's own mesh, the server's model
+  of the same name, not the muzzle capsule); the 2H carry's reach offset at the grab (`vr_carry2h.cpp`).
+- Debug aid: `vr_mp_drawn` (Debug > Reports > Network: Held Weapons).
+
+Open items (B3f):
+
+- The grip fit's hand rig (`vr_gripfit.cpp`: `local` only); the ground weapon's grab hotspot (`weapongrabspot`) and the
+  reverse grip's choice for a loose weapon (`weapondrawnpose` 43), both asked of one weapon lying about at the grab (the
+  client would send them with the grip, per entity); the magnetic holsters' poll and places (`magholsterpoll`,
+  `holsterpos`: the local player's only).
+- A carried weapon's hotspots on the server are 1.4 units off B's drawn ones (the main hand's: 0.03): the server places
+  them on QC's `.offhandpos`, which differs from the move's off hand while it carries. Within what the melee needs; check
+  whether QC moves the field, or use the move's hand (`server::clientMove`).
+- The magazine's box is not sent (a remote player's drawn weapon hull has the gun's body only).
+- `mp_grab` grown with a 2H carry, a foe grab and the palm slack (B's hand held still before the give).
+- The client trace has no monsters (B7).
+
 ## Decisions
 
 - The harness is Python with an in-engine inbox rather than stdin or RCON: it drives GUI clients and dedicated servers
@@ -607,4 +655,4 @@ Open items (B3e):
   from outside, they always have legs (his body mode 1 or 2 is his own first-person view); his body mode 0 draws his
   player model as before.
 
-Next phase: B3e — the rest of B3d: the drawn pose up per player (the drawn weapon's place in the hand: weaponhotspot and the vr_builtins_held.inc builtins gated on player 1, the drawn weapon hull, the 2H carry's reach offsets, the grip fit's hand rig); `mp_grab` grown (a 2H carry, a foe grab, the palm slack with B's hand held still before the give); melee sub-tick samples stay with B5.
+Next phase: B3f — the rest of B3e: the grip fit's hand rig per player (vr_gripfit.cpp), weapongrabspot and the reverse grip's choice (weapondrawnpose 43) per player (sent with the grip), the magnetic holsters' poll and places per player, the carried weapon's 1.4-unit offset on the server; `mp_grab` grown (a 2H carry, a foe grab, the palm slack with B's hand held still before the give); melee sub-tick samples stay with B5.

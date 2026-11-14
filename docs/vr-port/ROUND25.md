@@ -2369,3 +2369,17 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
   one asking for it (a headset faster than the 72 Hz tick sends two moves in some frames). Now kept (`vr_server.cpp`).
 - Next (MP_PLAN.md, B3e): the drawn weapon's pose per player (weaponhotspot and its builtins, the weapon hull, the 2H
   carry's reach), `mp_grab` grown.
+
+## mpN (B3e, part 1): the held weapon's drawn pose up per player (agent/mp, 2026-11-14; never shipped by the coordinator)
+
+- **Another player's held weapon as his own view draws it** (`vr_heldpose.cpp`, `vr_heldpose <ver> <hand> <62 values>`,
+  reliable on change; `QVR_NET_VERSION` 9): its hotspots, the two-handed hold, a weapon carried off its handle, its axes
+  and reverse grip, its place in the hand, the hand held out of a prop. The server's QC (`weaponhotspot`,
+  `weaponanygrip`, `weapondrawnpose` 0..5, 44..46), Box3D's weapon hull and the 2H carry's reach use it for players of
+  other machines; before, they had nothing (no hand-off, no help grip, a muzzle capsule for a hull). Single player and a
+  listen host's own player read the view as before.
+- `mp_held` 13/0 (hotspots within 0.03 units of B's drawn ones; the hand-off by B's own two-handed hold); the MP suite
+  11/11; single player: revgrip 24/0, embed 24 22/0, scenario_check, load_models_test, vr_run_check all pass.
+- `vr_mp_drawn` (Debug > Reports > Network: Held Weapons).
+- Next (MP_PLAN.md, B3f): the grip fit's hand rig, weapongrabspot and the reverse grip's choice, the magnetic holsters per
+  player; `mp_grab` grown.
