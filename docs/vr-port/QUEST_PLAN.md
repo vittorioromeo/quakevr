@@ -171,6 +171,7 @@ is the same build with a lower preset (half the GPU) [I].
 |---|---|---|
 | C1 (done) | Research, audit, decision, this plan; `vr_simd.hpp` + `vr_simd_test`; `-glescompat` + `vr_gles_report`; `quest_budget.cfg` and the budget runs | No |
 | C2 (done: C2a, C2b, C2c, C2d: the ES cost split and cut, the Quest preset's draft, sections 6b-6c) | **PC portability layer**: the 14 ungated rows behind `VR_GLESCompat()` (one `#version`/precision prefix for all programs, `glGetTexImage`/`glGetBufferSubData`/`glClearTexImage`/`glTextureView` replacements, LOD bias in shaders, depth clamp, clip distance, noperspective, timer-query wrapper); the GLSL made ES-valid (checked by compiling every program as `#version 320 es` with the PC driver where it accepts ES profiles, else with glslang if he approves it); `-glescompat` runs every test suite clean; `-fp-contract`-free scalar check; a "no child process" mode for the relight and motion children; an `Android`-guarded skeleton for crash/files/paths that compiles on the PC (`QVR_FAKE_ANDROID`) | No |
+| C2e (done, section 6d) | The CPU side of the Quest budget measured (a fight's split, QuakeC per function), draws per scope in `vr_profile_dump`, the bound path's draws located; the `noperspective` fallback (`-glesnoext`) | No |
 | **C3** (next; needs his approval of section 7's installs) | Android build: CMake toolchain for `arm64-v8a`, Gradle project (`Android/`), SDL2's Android activity, `-ffp-contract=off`, assets path and permissions, logcat console, the APK; first boot in the Android emulator (flatscreen, ES 3.x) for files, sound and menus | **Yes** (list below) |
 | C4 | OpenXR on Android: `XR_KHR_opengl_es_enable` binding, Android loader init, swapchains as GLES texture arrays, multiview into them, refresh rate, `XR_EXT_performance_settings`, `XR_FB_foveation`, Touch controller bindings (already OpenXR actions), visibility mask; first headset boot; a GL extension dump of the Quest's driver resolves the [?] rows | **Yes** + a Quest in developer mode |
 | C5 | Renderer on device: driver bugs, the post chain merged into fewer passes for the Quest preset, program binary cache, MSAA on tile, invalidations at pass ends; Adreno profiling (`ovrgpuprofiler`, RenderDoc) | Yes (device tools) |
@@ -463,6 +464,65 @@ straddles it), over.
 - A first draft (scales 1 / 0.85 / 0.75, `c2d_p_*`) measured 0.91 / 0.67 / 0.61 ms on idle e1m1; the scales were
   lowered to the ones above from it.
 
+## 6d. C2e: the CPU side, the bound path's draws, the noperspective fallback (done, no installs)
+
+**The `noperspective` fallback** (section 5d's open item): the ES header defines `QVR_NOPERSP_W` when the driver lacks
+`NV_shader_noperspective_interpolation`, and always under **`-glesnoext`** (`QVR_GLES_NOEXT=1`: an ES driver without
+the optional extensions that have a fallback; `vr_gles_report` says so). The four sites (the light tile coordinate
+in the world's and the models' shaders, the retro affine texture coordinate of `r_softemu_mdl_warp`) then go out
+times `gl_Position.w` (after its last write), perspective-interpolated, and come in times `gl_FragCoord.w`
+(`#define in_coord (in_coord_w * gl_FragCoord.w)`): the screen-linear value. PC unchanged (the macro is ES-only).
+`gles_render_test` (now 12 checks): the ES scene with `r_softemu_mdl_warp 1` drawn with and without the extension,
+**identical** (0 pixels moved, mean 0.000); the fallback without its `gl_FragCoord.w` fails it (0.0002 moved, mean
+0.81), so the check sees a wrong form. The clip-distance fallback and the standard-depth path stay open (C4's
+extension dump decides whether they are needed).
+
+**Draws per scope** (`vr_profile_dump`'s new `draws` column: each scope's draw calls a frame, its children's in).
+Idle e1m1 (`vr_profile` over 240 frames; PC defaults, then ES + clip control + `vr_quest_preset 0`):
+
+| scope | PC draws | ES + Quest preset draws |
+|---|---|---|
+| eye L / eye R | 89 / 33 | 151 / 150 |
+| world+brush (an eye) | 2 | **118** |
+| alias (eye L) | 13 | 13 |
+| map light shadows | 55 | 0 (the preset: no map light shadows) |
+| 2D | 28 | 28 |
+
+The ES profile's extra draws are **the world's bound path alone**: one `glDrawElementsIndirect` a texture batch (118
+an eye here) where bindless makes one multi-draw. The models' batches are the same on both paths (bindless never
+changed them). The ES-legal cut is the world's textures in arrays (section 6b: arrays by size and format, the
+batch's layer in its call record, a bind per array), the next no-install phase; not done here: it touches every
+world texture's upload (mips, external packs' sizes, normal and specular maps, the retro sampling's `textureSize`),
+a phase of its own with its tests. The layered casters' instanced form is not needed by the Quest preset as drafted
+(map light shadows off; one shadowed dynamic light).
+
+**The CPU side** (the question section 6c left: the bench's fights over the Quest's estimated CPU). combat_48's
+set-up (48 mixed monsters on vrfiringrange, god mode), 90 frames in, then 240 frames of `vr_profile` and
+`profile_qc` (`vr_qcprofile 1`), ES + clip control + `vr_quest_preset 0` (Quest 3 72 Hz), the dev build (the
+profilers' own overhead in: relative shares, not the ThinLTO's ms). Main thread 4.41 ms a frame:
+
+| part | ms | share | what |
+|---|---|---|---|
+| QuakeC | 1.80 | 41% | **the armed humanoids' weapon props: `VR_AG_PropThink` 1.18 incl. (24 posed a frame: `VR_AGP_Pose` 0.77, the parry 0.18, the blows 0.18)**; AI and navigation 0.1; the rest small |
+| alias models (both eyes' instance set-up) | 0.59 | 13% | eye L 0.46 (its max 5.2: a hitch frame), eye R 0.13 |
+| client relink: armed arms | 0.36 | 8% | `VR_RelinkArmedGrunts`: their weapons on the drawn hands |
+| view entities | 0.31 | 7% | |
+| Box3D | 0.18 | 4% | step 0.07, sync 0.08 |
+| the rest | 1.17 | 27% | shadows 0.11, particles 0.13, text3d and blob shadows 0.11, send 0.10, ... |
+
+Idle e1m1 (23 monsters asleep, 26 armed props): QuakeC 1.19 of the frame's 1.71 ms, `VR_AG_PropThink` 0.82 of it
+(each prop posed every server frame, asleep or not: the hands follow the interpolated stand frames). **The armed
+humanoids are the Quest's CPU budget**: 1.5 ms of 4.4 in the fight (QC props + the client's relink), more than all
+rendering's CPU. Nothing cut here: every candidate changes behaviour or needs his call (they are a key feature):
+- an identical cache of `VR_AM_Row` (423 calls a frame, 0.1 ms: a kind's table row refilled each call) needs every
+  cvar it reads to stay still within a frame (QC's `cvar_set` can change them): left;
+- a sleeping or unseen holder's props posed less often, or fewer armed replacements on the Quest (a Quest preset
+  row): behaviour changes, for him and C6 on the device;
+- `findradius` (71 a frame, 0.09 ms: a scan of every edict each) through the area grid, sorted back to edict order:
+  identical, 2%: not worth a change before the device says where the ARM cores' time goes.
+- The `upscale` pass (0.21 ms GPU at the preset's 0.9 scale, `vr_upscale 0`) is the compositor's job on the Quest
+  (the swapchain at the scaled size): C4.
+
 ## 7. Installs for his approval (none done)
 
 Sizes are approximate download sizes [I]; versions are the current stable ones at install time.
@@ -488,7 +548,7 @@ Next phase: C3 — the Android build (NEEDS INSTALLS: section 7's SDK, NDK, JDK,
 approval): CMake toolchain for arm64-v8a with `-ffp-contract=off`, the Gradle project and SDL2's activity, the first
 compile of vr_android.cpp's `__ANDROID__` forms (and the crash handler merged with vr_crash.cpp's POSIX one, section
 5d), logcat console, the first boot in the emulator (flat-screen, ES 3.x), `vr_quest_preset` applied on the first run
-there. If the installs are not approved yet, a no-install phase worth doing (C2e): the CPU side of the budget (section
-6c: the bench's fights are over the Quest's estimated CPU at 72 Hz and nothing Quest-specific has looked at it yet:
-where the main thread's time goes in a fight, what the job system can take, the caps a Quest-sized fight needs), the
-`noperspective` fallback behind `-glesnoext` (section 5d), and the world's textures in arrays (section 6b).
+there. If the installs are not approved yet, the no-install phase worth doing (C2f): the world's textures in arrays
+for the bound path (section 6d: 118 draws an eye to a draw per array, ES-legal, the PC's bindless path unchanged,
+`gles_render_test` equal), and the armed humanoids' CPU cost (section 6d: 1.5 ms of a fight's 4.4) measured per
+part with his choice of what may change (poses of unseen holders, a Quest cap on armed replacements).

@@ -2324,3 +2324,20 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
   (QUEST_PLAN.md 6c): quiet play fits the Quest 3 at 72 and 90 Hz; the bench's stress fights are over on GPU and CPU.
 - **Tests:** gles_render 8/0, scenario_check 129/0, load_models_test 4/0, vr_simd_test 58880/0, vr_gles_report 0
   shader errors; dev and ThinLTO builds 0 warnings.
+
+## Quest C2e: the CPU side, the bound path's draws, the noperspective fallback (branch agent/quest, 2026-11-14)
+
+- **noperspective fallback:** where the ES driver lacks `NV_shader_noperspective_interpolation` (and under
+  **`-glesnoext`** / `QVR_GLES_NOEXT=1`, to test it) the ES header defines `QVR_NOPERSP_W`: the light tile coordinate
+  (world and model shaders) and the retro affine texture coordinate (`r_softemu_mdl_warp`) go out times
+  `gl_Position.w` and come in times `gl_FragCoord.w`, the exact screen-linear value. PC shaders unchanged.
+  `gles_render_test` gained the comparison (12 checks): identical image with and without the extension.
+- **`vr_profile_dump` draws column:** each scope's draw calls a frame. Idle e1m1 under ES + the Quest preset: 118 of
+  an eye's 150 draws are the world's bound path (one indirect draw a texture batch; 2 with bindless). Texture arrays
+  for the world are the next no-install phase (QUEST_PLAN.md 6d), not done here.
+- **CPU split** (QUEST_PLAN.md 6d): a 48-monster fight under the Quest preset, 4.41 ms main thread: QuakeC 1.80, of it
+  the armed humanoids' weapon props 1.18 (`VR_AGP_Pose` 0.77); the client's armed-arms relink 0.36; all alias
+  instance set-up 0.59. Idle e1m1: the props 0.82 of QC's 1.19 ms (posed every frame, asleep or not). No cut made:
+  the candidates change behaviour of a key feature (his call: poses of unseen holders, a Quest cap on armed
+  replacements) or are worth ~2%.
+- **Tests:** gles_render 12/0 (the -glesnoext image identical; a deliberately broken fallback fails it), scenario_check 129/0, load_models_test 4/0, vr_simd_test 58880/0; dev and ThinLTO builds 0 warnings.
