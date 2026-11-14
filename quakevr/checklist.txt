@@ -6,6 +6,10 @@
 # A line ending in {test:<id>} has a Test button: it loads quakevr/scenarios/<id>.txt's scene (docs/vr-port/TESTING.md, "Checklist scenarios"); give new lines one whenever a scene fits. Flat-screen lines' scenes work under -flatscreenmode too (the game's mode is picked at start-up, not by the scene).
 # Lines are only for something new or changed you can see or feel: one line per flow, never "works as before". History of the sorts: git log of this file and docs/vr-port/CHECKLIST_REORG.md (latest: 2026-11-14 release audit, 94 lines down to 68, 71 with three from a later ship: the [New] section sorted, near-duplicates merged, every line cut to what to do and what to see, 3 new scenes). Misc/quakevr/checklist_tests_check.py checks every tag's scene file and the format (no "(agent/", "Test:", scratch or qvr-agents paths, .sh names; sections in order).
 
+[New: not yet sorted]
+On e1m1 with three times the enemies, turn quickly toward armed grunts and enforcers you could not see: their arms, guns and backpacks are already in place as they come into view, with no pop or one-frame jump.
+Kill a crowd at once with a rocket or a quad: the bodies go limp a few at a time over a few frames (no long freeze on the kill), each first playing its death frame, and they all end up as ragdolls.
+
 [1. Flat-screen: weapons and hands]
 Flat-screen: hold the axe (then a sword, the crowbar, Mjolnir, the super axe) with the left hand empty: the left hand goes onto the handle by itself and the weapon sits two-handed; take something in the left hand: back to one hand, no jumps either way (Debug > Tunables > Flatscreen > Two-Handed Melee Stance). {test:flat_melee2h}
 Flat-screen: in the holster menu (middle mouse), drag a weapon with the left button between hands and holsters: valid slots light up, the rest grey; hand to hand or holster to holster swaps; letting go on nothing cancels. {test:flat_holster_drag}

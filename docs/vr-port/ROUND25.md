@@ -2302,6 +2302,50 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
   presses land differently at 90 Hz input over 72 Hz ticks). Nothing to fix; for CPU p99s in --fast, read cpu_busy with
   the GPU unsaturated (a smaller --eye) or a paced run. Scripts: scratch/uf_crowd.sh, uf_hitch2.py.
 
+## perfpicks: his five performance calls (branch agent/perfpicks, 2026-11-14; partial: see "Left")
+
+- **Navmesh, big maps** (`1bc1a031a`, NAVMESH.md 20 "Big maps"): a class's first props' batch lands on
+  `vr_nav_job_frames_first` (45, at least `vr_nav_job_frames`); a class's build or disk read on `vr_nav_build_frames` +
+  the map's navmesh triangles / `vr_nav_build_frames_tris` (10,000; ad_tears 1.15 M -> 133 frames). Pure functions of
+  the map and the game's events; the main thread still waits for a job late on its frame. `vr_nav_info` prints them.
+  Decision: the scaled frame applies to every pool build (the load's classes too, which hitch the same way on a first
+  play), not only those started in play.
+- **Ragdolls** (`215487499`): `vr_ragdoll_per_frame` 4 new ragdolls a server frame (`syncEntities`), the rest in
+  `World::ragdollQueue`, oldest death first; a queued corpse has no body until its turn; knockdowns at once; 0 no limit.
+- **Armed humanoids' pose** (`220fc2240`). Profiled first (`profile_qc`, fast mode, nav_hunt_e1m1_3x, before: QuakeC
+  5.14 ms a frame with the profiler on; prop think 3.76 incl.; `VR_AGP_Pose` 0.52 self / 2.49 incl. for 77,
+  `VR_WP_Place` 0.34, `VR_AGP_TurnDir` 0.28 (532 calls), `VR_AM_Row` 0.10 (1,280 calls), `modelvertex` 0.11 (772)).
+  Changes: `vr_agrunt_pose_lod` 1 (a holder no player can see, past `vr_agrunt_pose_lod_near` 384 and outside
+  `vr_agrunt_pose_lod_cone` 80 degrees of each player's v_angle, doing nothing timed: no act, aim, guard, take, studio,
+  posed every other server frame, its weapons carried by its move between: QC `VR_AGP_Lod`/`VR_AGP_LodCarry`);
+  `vr_worn_backpack_lod_near` 1500 (a far unseen worn pack not placed that frame); builtin `unseenfar(e, near)` (C++,
+  the players' server state only: multiplayer-safe); `VR_AM_Row` returns at once for the row it holds (`nosave`
+  flag: a save keeps no vectors); `VR_AGP_TurnDir`'s cosines and sines kept per turn and its rotation in builtin
+  `turnrpy` (QC's float steps in order, no FMA: bit for bit). Pose tests `vr_agrunt_test` 83, 84, 99, 79: all pass
+  and their agtest lines are identical with the LOD on and off (fingerprints 835cdbe3, 721e80a4, 942267e5, 60ff0e05).
+- **Disk cache** (`1a95237d3`): `write` no longer prepares the folder on the main thread; the job calls `prepare`,
+  which now holds a per-product lock through the prune and `createDirectories` (no write before its folder exists or
+  during the prune).
+- **Before bench** (ThinLTO, `--fast --reps 3`, exclusive; `kit/benchresults/pp_before`): fight_ad_tears max frame
+  140 / 26 / 24 ms, nav_hunt_e1m1_3x CPU p50 6.29-6.44, p99 12.5-13.4, combat_48 p50 3.6-3.9, ragdolls_32_active max
+  28.5-29.4 ms.
+- **Left:** the after bench and `profile_qc` after; the release-config build; ragdoll and scenario_check runs;
+  load_models_test; menu_paths.txt regeneration for the five new Tunables rows; PERF_1_1.md "Applied"; the checklist
+  lines; the merge of origin/next.
+- **Finished (second worker).** Determinism (no-LTO, fast mode; `scratch/pp_det2.sh`; fingerprint = md5 of the outcome
+  lines without wall-clock ms): `nav_tele_metric` (the retired scene restored uncommitted for the run: the old
+  `pp_det.sh`'s logs were empty because the author retired that scene, the runs timed out on an unknown scene; test 43
+  had no `map vrarena` first), `vr_arena_test 43` (props) and `vr_arena_test 41` (the towers: every class built in play
+  on vrarena), 2 runs alone and 2 x 2 lanes at once: **all byte-identical** per test (`3c851856` 17/20, `8bb14908`
+  13/0, `b0a9e67d` 14/1), 0-4 deadline waits a run. Test 41's one fail (a dog not down the tower in 40 s) is the same
+  with `vr_nav_job_frames_first 0; vr_nav_build_frames_tris 0` (the old frames): not this branch's.
+- After bench and `profile_qc`: PERF_1_1.md "His calls" (fight_ad_tears max 140 -> 22-24 ms; nav_hunt_e1m1_3x CPU avg
+  6.38 -> 5.96, QuakeC 5.14 -> 4.01 ms a frame with the profiler on; 5 of the 9 combat_48 / ragdolls_32_active runs had a
+  slow GPU throughout, left out). ragdolls_32_active kills its 32 in the set-up, before its window: it does not time
+  `vr_ragdoll_per_frame`'s burst.
+- Checks: scenario_check 129 files 0 errors, 129 run 0 failed; load_models_test 4/0 (352/0); ragdoll_test flat blast
+  pile slowmo save and saveload_test PASS; vr_run_check 15/0, runenemies 17/0; menu_paths.txt +7 Tunables rows;
+  ReleaseLTO 1.1.0 build.
 ## menutweak: icon picker proportions, Start placement, merged "Advanced" footer
 
 - **Icon pickers** (vr_menu_icons.inc): each picture is fitted inside its square (aspect kept, centred: a wide gun thumbnail

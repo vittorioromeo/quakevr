@@ -391,6 +391,12 @@ float(entity e, vector at, vector vel, optional float mass, optional float bounc
 // limb keeps `vel`, units/s); 0 nothing held, 1 a limb held, 2 one pulled; how far the held or pulled limb's point is from
 // the hand (-1 none); the limb nearest p (-1: not a ragdoll); p into limb `bone`'s space (units) and back (toWorld).
 float(entity e) isragdoll = #0;
+// float unseenfar(entity e, float near): 1 when e is farther than `near` from every player's eyes and outside each one's
+// view (vr_agrunt_pose_lod_cone degrees off his v_angle); the armed humanoids' pose LOD (VR_AGP_Lod), the worn packs'.
+float(entity e, float near) unseenfar = #0;
+// vector turnrpy(vector d, vector c, vector s): d turned about x by the roll, y by the pitch, z by the yaw whose cosines
+// are c and sines s (x roll, y pitch, z yaw): VR_AGP_TurnDir's steps, each the float operation QC's would be.
+vector(vector d, vector c, vector s) turnrpy = #0;
 // (Its optional `tug`: ragdolltug's what + 1, below: the builtins' table is full.)
 float(entity e, entity player, float hand, optional float tug, optional vector grip, optional float strength,
       optional float force) ragdollgrab = #0;
