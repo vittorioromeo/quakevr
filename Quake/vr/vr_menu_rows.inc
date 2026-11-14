@@ -6001,6 +6001,10 @@ QVR_CYCLE(vr_profile_hitch, "Hitch Log",
     "While the profiler runs (the panel, a capture), frames that take this long go to the console and "
     "quakevr/profile/hitches_<date>_<time>.csv, with what took their time.",
     {0.f, "Off"}, {1.5f, "Over 1.5 Frames"}, {2.f, "Over 2 Frames"}, {3.f, "Over 3 Frames"})
+QVR_CYCLE(vr_profile_slow_ms, "Slow Frames Kept",
+    "vr_profile_slow_ms: the profiler leaves frames longer than this out of its averages (a map load, a hitch). Raise "
+    "it on a device whose every frame is that slow, to see where those frames go.",
+    {250.f, "Under 250 ms"}, {1000.f, "Under 1 s"}, {5000.f, "Under 5 s"})
 QVR_CYCLE(vr_renderdoc_delay, "Capture Delay",
     "vr_renderdoc_delay: seconds from the press to the capture, to close the menu or get into position.",
     {0.f, "None"}, {1.f, "1 s"}, {3.f, "3 s"})

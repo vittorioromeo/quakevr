@@ -1219,7 +1219,8 @@ static void GL_CheckExtensions (void)
 	gl_buffer_storage_able =
 		!COM_CheckParm ("-nobufferstorage") &&
 		!VR_GLSafeOff (VR_GLSAFE_BUFFER_STORAGE) && // QVR: safe mode, vendor workarounds (vr/vr_glsafe.cpp)
-		GL_FindExtension ("GL_ARB_buffer_storage") &&
+		(GL_FindExtension ("GL_ARB_buffer_storage") ||
+		 (VR_Android () && GL_FindExtension ("GL_EXT_buffer_storage"))) && // QVR: ES's (glBufferStorageEXT, by GL_InitFunctions' ES names): without it every GL_Upload was a glBufferSubData into a buffer in use, which Adreno copies whole (the Quest's 1-2 FPS, QUEST_PLAN.md 6l)
 		GL_InitFunctions (gl_arb_buffer_storage_functions, false)
 	;
 

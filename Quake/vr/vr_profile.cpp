@@ -154,8 +154,12 @@ bool active = false;
 namespace
 {
 
-// Frames longer than this (a map loading, a hitch) are counted apart, not in the averages.
-constexpr double hitchMs = 250.0;
+// Frames longer than this (a map loading, a hitch) are counted apart, not in the averages (250 ms; vr_profile_slow_ms
+// raises it for a device whose every frame is slower, the Quest's first boots).
+double hitchMs()
+{
+    return vr_profile_slow_ms.value > 0.f ? static_cast<double>(vr_profile_slow_ms.value) : 250.0;
+}
 // GPU frames in flight before a slot is read waiting.
 constexpr int gpuSlots = 6;
 
@@ -428,7 +432,7 @@ void endPhaseFrame(za::I64 now, za::I64 start, za::I64 end)
     phaseGpuOpen = 0;
     phaseStack.clear(); // a Host_Error jumped out of them, or a dialog's frame inside one
     const double period = start > 0 ? static_cast<double>(now - start) / 1e6 : 0.0;
-    const bool keep = start > 0 && period <= hitchMs;
+    const bool keep = start > 0 && period <= hitchMs();
     PhaseGpuSlot& s = phaseSlots[phaseSlot];
     if(keep)
     {
@@ -968,7 +972,7 @@ void report(za::I64 now, bool full)
         printTree();
         if(intervalHitches || intervalStalls)
         {
-            Con_Printf("%d hitches (frames over %.0f ms, left out), %d GPU read stalls\n", intervalHitches, hitchMs,
+            Con_Printf("%d hitches (frames over %.0f ms, left out), %d GPU read stalls\n", intervalHitches, hitchMs(),
                 intervalStalls);
         }
     }
@@ -1190,7 +1194,7 @@ extern "C" void VR_ProfileFrame()
         root.cpuTouched = true;
         cpuTouched.pushBack(0);
         const double period = static_cast<double>(now - frameStart) / 1e6;
-        const bool hitch = period > hitchMs;
+        const bool hitch = period > hitchMs();
         const double hitchAt = systems::hitchMs();
         const za::String hitchScopes =
             (hitchAt > 0.0 && static_cast<double>(hostNs) / 1e6 > hitchAt) || systems::frameLogOn() ? frameTopScopes() : "";
@@ -1229,7 +1233,7 @@ extern "C" void VR_ProfileFrame()
         gpuDepth = 0;
 
         systems::frameEnd(now, now - frameStart, hostNs,
-            systems::Counts{counts.traces, counts.hullchecks, counts.drawcalls, counts.aliasdrawn}, hitchMs,
+            systems::Counts{counts.traces, counts.hullchecks, counts.drawcalls, counts.aliasdrawn}, hitchMs(),
             mapName.cStr(), hitchScopes);
     }
 

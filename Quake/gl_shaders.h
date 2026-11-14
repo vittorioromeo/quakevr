@@ -934,6 +934,10 @@ QVR_WORLD_FS_CARVE // QVR: the carved decals (vr/vr_decals.cpp): their craters m
 "		result = texture(Tex, QVR_WUV(uv));\n"
 "#endif\n"
 "	}\n" // QVR
+"#ifdef QVR_PROBE_CUT1\n" // QVR: -glesdefine's probe (C4e): the world's fragment shader cut here
+"	out_fragcolor = result;\n"
+"	return;\n"
+"#endif\n"
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_ALPHATEST) "\n"
 "	// QVR: alpha to coverage (vr_alpha_coverage with MSAA: ShadowFlags 64; opaque draws): the alpha sharpened to\n"
 "	// about a pixel's width round the cutoff gives the samples covered (smooth edges); without it, Quake's test\n"
@@ -945,6 +949,10 @@ QVR_WORLD_FS_CARVE // QVR: the carved decals (vr/vr_decals.cpp): their craters m
 QVR_WORLD_FS_DETAIL // QVR: detail textures close by; a liquid's unlit texture
 QVR_WORLD_FS_WOUNDS // QVR: a held prop's blood (vr/vr_wounds.cpp)
 QVR_WORLD_FS_DECALS // QVR: the decals on the world (vr/vr_decals.cpp)
+"#ifdef QVR_PROBE_CUT2\n" // QVR: -glesdefine's probe (C4e): the world's fragment shader cut here
+"	out_fragcolor = result;\n"
+"	return;\n"
+"#endif\n"
 "\n"
 "	vec2 lmuv = in_lmuv;\n"
 "#if DITHER\n"
@@ -977,11 +985,27 @@ QVR_WORLD_FS_DECALS // QVR: the decals on the world (vr/vr_decals.cpp)
 "			);\n"
 "		}\n"
 "	}\n"
+"#ifdef QVR_PROBE_CUT3\n" // QVR: -glesdefine's probe (C4e): the world's fragment shader cut here
+"	out_fragcolor = vec4(result.rgb * total_light * 2.0, 1.0);\n"
+"	return;\n"
+"#endif\n"
 "\n"
 QVR_WORLD_FS_LIGHT // QVR: light contrast, normal maps in the baked light, specular
 "	vec3 dynamic_light = vec3(0.);\n" // QVR: out here, for retro lighting's levels after the lights
 "	vec3 rl_pos = RetroLightAt(in_pos, RetroLight[1].w); // QVR: retro lighting: where the dynamic lights are found (their blocks)\n"
 "	vec3 rl_spos = RetroShadowAt(in_pos, rl_pos), rl_mpos = RetroShadowAt(in_pos, in_pos); // ... their shadows; the map lights'\n"
+"#ifdef QVR_PROBE_CUT5\n" // QVR: -glesdefine's probe (C4e): the world's fragment shader cut before the lights' loop
+"	out_fragcolor = vec4(result.rgb * total_light * 2.0, 1.0);\n"
+"	return;\n"
+"#endif\n"
+"#ifdef QVR_PROBE_LCOUNT\n" // QVR: -glesdefine's probe (C4e): the lights in the pixel's cluster (red: 8 or more)
+"	{\n"
+"		ivec3 cc = ivec3(int(floor(in_coord.x)), int(floor(in_coord.y)), max(int(floor(log2(in_depth) * ZLogScale + ZLogBias)), 0));\n"
+"		uvec2 cd = NumLights > 0u ? QVR_LOAD_CLUSTER(cc).xy : uvec2(0u);\n"
+"		out_fragcolor = vec4(float(bitCount(cd.x) + bitCount(cd.y)) / 8.0, float(NumLights) / 64.0, 0.25, 1.0);\n"
+"		return;\n"
+"	}\n"
+"#endif\n"
 "	if (NumLights > 0u)\n"
 "	{\n"
 "		uint i, ofs;\n"
@@ -1007,6 +1031,9 @@ QVR_WORLD_FS_LIGHT // QVR: light contrast, normal maps in the baked light, specu
 "				{\n"
 "					int j = findLSB(mask);\n"
 "					mask ^= 1u << j;\n"
+"#ifdef QVR_PROBE_SIMPLELOOP\n" // QVR: -glesdefine's probe (C4e): a plain point light, its members read in place
+"					{ uint k = ofs + uint(j); float dd = length(Lights[k].origin - in_pos); dynamic_light += max(0., Lights[k].radius - dd) / 256. * Lights[k].color; continue; }\n"
+"#endif\n"
 "					Light l = Lights[ofs + uint(j)];\n"
 QVR_WORLD_FS_LIGHT_SHADOW // QVR: a light's shadow and spot cone
 "					// mimics R_AddDynamicLights, up to a point\n"
@@ -1033,6 +1060,10 @@ QVR_WORLD_FS_LIGHT_SHADOW // QVR: a light's shadow and spot cone
 "			}\n"
 "		}\n"
 "	}\n"
+"#ifdef QVR_PROBE_CUT4\n" // QVR: -glesdefine's probe (C4e): the world's fragment shader cut here
+"	out_fragcolor = vec4(result.rgb * total_light * 2.0, 1.0);\n"
+"	return;\n"
+"#endif\n"
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_ALPHATEST) "\n" // QVR: retro lighting's levels (vr_retrolight.h; no derivatives after the discard)
 "	if (RetroLight[2].w > 0.)\n"
 "		RetroLightWorld(total_light, dynamic_light, rl_lightmapped, false);\n"

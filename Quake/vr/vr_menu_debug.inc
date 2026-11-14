@@ -488,6 +488,7 @@ za::Vector<Item> pageDebugProfiling()
         row(opt::vr_profile_overlay),
         row(opt::vr_profile_csv),
         row(opt::vr_profile_hitch),
+        row(opt::vr_profile_slow_ms),
         command("Capture Frame (RenderDoc)", "vr_renderdoc_capture")
             .help("vr_renderdoc_capture: a RenderDoc capture of the next frame (both eyes: the desktop window's present ends "
                   "the frame), after the delay below; the console and a message show the file's path. Only when the game "

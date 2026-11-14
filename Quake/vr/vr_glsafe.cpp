@@ -595,17 +595,30 @@ void appendMemberCopies(za::String& out, const GlslStruct& st, const za::String&
             if(b[k] == '[')
             {
                 const size_t sizeEnd = k + strcspn(b + k, "]");
-                out += " for (int qvr_k = 0; qvr_k < ";
-                out += za::String{b + k + 1, static_cast<za::SizeT>(sizeEnd - k - 1)}; // (its size)
-                out += "; qvr_k++) ";
-                out += v;
-                out += ".";
-                out += name;
-                out += "[qvr_k] = ";
-                out += src;
-                out += ".";
-                out += name;
-                out += "[qvr_k];";
+                const za::String size{b + k + 1, static_cast<za::SizeT>(sizeEnd - k - 1)};
+                // A literal size: element by element, unrolled (C4e: a loop's index into the local struct's array made
+                // Adreno keep the whole struct in scratch memory, every pixel of the world's light loop paying for
+                // it: 270 ms a frame on the Quest 3); else a loop
+                const char* sz = size.cStr();
+                const int literal = sz[strspn(sz, "0123456789")] == '\0' ? atoi(sz) : 0;
+                for(int e = 0; e < (literal > 0 && literal <= 16 ? literal : 0); e++)
+                {
+                    out += va(" %s.%s[%d] = %s.%s[%d];", v.cStr(), name.cStr(), e, src.cStr(), name.cStr(), e);
+                }
+                if(literal <= 0 || literal > 16)
+                {
+                    out += " for (int qvr_k = 0; qvr_k < ";
+                    out += size;
+                    out += "; qvr_k++) ";
+                    out += v;
+                    out += ".";
+                    out += name;
+                    out += "[qvr_k] = ";
+                    out += src;
+                    out += ".";
+                    out += name;
+                    out += "[qvr_k];";
+                }
                 k = skipBlanks(b, sizeEnd + 1);
             }
             else

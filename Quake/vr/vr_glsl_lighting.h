@@ -176,6 +176,9 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 "// its shadow lets through (fading in or out: vr_lighting.cpp's selectDlights; 0 a full shadow).\n"\
 "float LightShadow(Light l, vec3 pos, vec3 n, float cone)\n"\
 "{\n"\
+"#ifdef QVR_PROBE_NOSHADOW\n" /* QVR: -glesdefine's probe (C4e): no shadow code */ \
+"	return cone;\n"\
+"#endif\n"\
 "	cone *= PortalLightPath(l, pos);\n"\
 "	if (l.shadow.z <= 0. || cone <= 0.)\n"\
 "		return cone;\n"\
@@ -250,6 +253,9 @@ QVR_SAMPLER_TWINS(QVR_BUMPED_NORMAL_FUNCS)\
 "// light gave and something moving now blocks, where the world itself does not (the baked light has that).\n"\
 "float MapLightShadow(Light l, vec3 pos, vec3 n, vec3 lit)\n"\
 "{\n"\
+"#ifdef QVR_PROBE_NOSHADOW\n" /* QVR: -glesdefine's probe (C4e): no shadow code */ \
+"	return 1.0;\n"\
+"#endif\n"\
 "	vec3 d = pos - l.origin;\n"\
 "	float dist = length(d);\n"\
 "	float given = (l.shadow2.z - dist * l.shadow2.w) * (0.5 + 0.5 * max(dot(n, -d / max(dist, 1e-3)), 0.0)) / 255.0;\n"\
