@@ -137,8 +137,6 @@ struct MenuIcon
         Normal,    // two
         Hard,      // three
         Nightmare, // a skull
-        Bloody,    // a red skull, dripping
-        Halls,     // three arches: a start map's skill halls choose
         Hand       // an open hand: nothing in it (bare fists)
     };
     const char* model{nullptr}; // a model's thumbnail, or nullptr (the emblem)

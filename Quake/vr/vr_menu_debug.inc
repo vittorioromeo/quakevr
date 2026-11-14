@@ -1388,7 +1388,7 @@ za::Vector<Item> pageDebugTools()
         command("List Continue Rows", "vr_continue_rows")
             .help("vr_continue_rows: each game's Continue (the campaigns' and the map packages' newest autosave), with its row's text."),
         command("Run Setup Screen Test", "vr_runsetup_screen_test")
-            .help("vr_runsetup_screen_test: the Run Setup screen -- the Map Library's Play, New Game, Official Campaigns and the hub open it, a start hall with skill selection has no Difficulty row, a held row is a line, Back cancels, Start makes the choices the run's. Prints a verdict."),
+            .help("vr_runsetup_screen_test: the Run Setup screen -- the Map Library's Play, New Game, Official Campaigns and the hub open it, Start the first row on every way in, a start hall with skill selection has no Difficulty (elsewhere it is second), Difficulty's cards spaced as the guns', a held row is a line, Back cancels, Start makes the choices the run's. Prints a verdict."),
         command("Run Launch Test", "vr_runlaunch_test")
             .help("vr_runlaunch_test: every way a run starts (the Levels list, the Map Library's Play, New Game, Official Campaigns, the hub's teleporter, a saved run loaded, the Firing Range button, a map from the console), each with other choices than the last: the map spawns with the new run's choices and plays as they say (Glass Cannon on a monster and the firing range's dummy by a gun's and a hand's blow, Melee Only on the map's guns and ammunition, the enemies and pickups on e1m1). Loads maps; prints a verdict."),
         command("Run Setup Test", "vr_runsetup_test")

@@ -1417,6 +1417,8 @@ constexpr const char* retiredCvars[] = {
     "vr_handgrenade_fuse",            // beta 4's hand grenade fuse (a full config holds it): one fuse now, the tunable vr_grenade_fuse
     "vr_nav_gate_chase",              // a tunable until 2026-11-13 (always on now; ROUND25.md "revpicks")
     "vr_nav_tele_stuck",              // a tunable until 2026-11-13 (a 0.5 s constant now)
+    // 2026-11-15 (ROUND25.md "runsetup3"): a start map with skill halls has no Difficulty on Run Setup at all.
+    "vr_runsetup_halls_line",         // 1: a "the start map's skill halls" line where Difficulty went
 };
 
 // Settings renamed: the old name still reads and sets the new one (Cvar_FindVar asks here when a name is not found):
