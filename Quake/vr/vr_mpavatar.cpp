@@ -2,9 +2,12 @@
 
 #include "vr_mpavatar.hpp"
 
+#include "vr_api.h"
+
 #include "vr_cvars.hpp"
 #include "vr_handrig.hpp"
 #include "vr_move.hpp"
+#include "vr_protocol.hpp"
 #include "vr_render.hpp"
 #include "vr_server.hpp"
 #include "vr_view.hpp"
@@ -16,6 +19,8 @@ namespace
 {
 
 Avatar avatars[MAX_SCOREBOARD + 1]; // by player entity (0 unused)
+
+void printCalibrations(); // (vr_mp_avatars: the calibrations, below)
 
 // What is drawn of each avatar (addEntities): its hands (the jointed hand, posed by the curls it came with) and weapons.
 struct Drawn
@@ -172,6 +177,7 @@ void avatars_f()
         Con_Printf("mp_avatar_sent: sent=%d skipped=%d bytes=%lld\n", sent, skipped, bytes);
         PR_SwitchQCVM(nullptr);
     }
+    printCalibrations();
     Con_Printf("mp_avatars: done\n");
 }
 
@@ -257,7 +263,244 @@ void setup(int e, const Avatar& a)
     return nullptr;
 }
 
+// The calibration's fields (vr_mpavatar.hpp, Calibration): each from its cvar, times `scale`, rounded, clamped to
+// [lo, hi] (on both sides: what a client sends and what the server keeps are the same numbers).
+struct CalField
+{
+    const char* name;
+    const cvar_t* var;
+    float scale;
+    int lo;
+    int hi;
+};
+const CalField calFields[numCalFields] = {
+    {"height", &vr_height_calibration, 1000.f, 500, 2500}, // mm (the eyes' standing height, calibrated)
+    {"seated", &vr_seated_height, 1000.f, 0, 2500},        // mm (0: not measured)
+    {"arm", &vr_body_arm_length, 1000.f, 250, 2000},       // thousandths of the proportions of his height
+    {"scale", &vr_world_scale, 1000.f, 250, 4000},         // thousandths: how big he is in the world
+    {"hand", &vr_handedness, 1.f, 0, 2},                   // 1 right-handed, 2 left-handed, 0 custom
+    {"gadget", &vr_gadget_arm, 1.f, 0, 1},                 // the wrist gadget's arm: 0 left, 1 right
+    {"gloves", &vr_gloves, 1.f, 0, 2},                     // 0 none, 1 fingerless, 2 full
+    {"hue", &vr_glove_hue, 1.f, 0, 360},                   // degrees
+    {"sat", &vr_glove_saturation, 255.f, 0, 255},
+    {"light", &vr_glove_lightness, 255.f, 0, 255},
+    {"nails", &vr_nails, 1.f, 0, 1},
+    {"tone", &vr_skin_tone, 100.f, -100, 100},
+    {"body", &vr_body_mode, 1.f, 0, 3},
+    {"build", &vr_body_build, 1.f, 0, 3},
+    {"bracers", &vr_body_bracers, 1.f, 0, 1},
+    {"pauldrons", &vr_body_pauldrons, 1.f, 0, 1},
+};
+constexpr int calCommandVersion = 1; // "vr_avatarcal <version> <the fields>": another version's is ignored
+
+struct CalState
+{
+    Calibration of[MAX_SCOREBOARD + 1]; // the client's: by player entity
+    bool has[MAX_SCOREBOARD + 1]{};
+    Calibration lastSent;               // the client's own, as last sent up
+    bool sent{false};
+    double nextSend{0.0};
+    Calibration slot[MAX_SCOREBOARD]; // the server's: by client slot
+    bool slotHas[MAX_SCOREBOARD]{};
+};
+CalState cal;
+
+[[nodiscard]] int calClamp(int field, int v)
+{
+    return za::clamp(v, calFields[field].lo, calFields[field].hi);
+}
+
+[[nodiscard]] Calibration ownCalibration()
+{
+    Calibration c;
+    for(int i = 0; i < numCalFields; i++)
+    {
+        c.v[i] = calClamp(i, static_cast<int>(std::lround(calFields[i].var->value * calFields[i].scale)));
+    }
+    return c;
+}
+
+void printCal(const char* what, int ent, const Calibration& c)
+{
+    Con_Printf("%s: ent=%d", what, ent);
+    for(int i = 0; i < numCalFields; i++)
+    {
+        Con_Printf(" %s=%d", calFields[i].name, c.v[i]);
+    }
+    Con_Printf("\n");
+}
+
+[[nodiscard]] bool serverSendsCal()
+{
+    return sv.active && svs.maxclients > 1 && (sv.protocolflags & PRFL_QUAKEVR) != 0; // (vr_api.h)
+}
+
+void writeCal(sizebuf_t* msg, int slot)
+{
+    if(msg->cursize + 4 + numCalFields * 2 > msg->maxsize)
+    {
+        return; // (a full reliable buffer: the next change or spawn sends it)
+    }
+    MSG_WriteByte(msg, protocol::svc_quakevr);
+    MSG_WriteByte(msg, protocol::QVR_SVC_AVATARCAL);
+    MSG_WriteByte(msg, slot);
+    MSG_WriteByte(msg, cal.slotHas[slot] ? 1 : 0);
+    if(cal.slotHas[slot])
+    {
+        for(const int v : cal.slot[slot].v)
+        {
+            MSG_WriteShort(msg, v);
+        }
+    }
+}
+
+// vr_mp_avatars' calibrations: the other players' as this client has them ("mp_avatar_cal:"), its own now
+// ("mp_avatar_cal_own:") and, hosting, the server's per client ("mp_avatar_cal_sv:").
+void printCalibrations()
+{
+    if(cls.state == ca_connected && cl.viewentity > 0)
+    {
+        for(int e = 1; e <= MAX_SCOREBOARD; e++)
+        {
+            if(cal.has[e])
+            {
+                printCal("mp_avatar_cal", e, cal.of[e]);
+            }
+        }
+        printCal("mp_avatar_cal_own", cl.viewentity, ownCalibration());
+    }
+    if(sv.active)
+    {
+        for(int slot = 0; slot < svs.maxclients && slot < MAX_SCOREBOARD; slot++)
+        {
+            if(cal.slotHas[slot])
+            {
+                printCal("mp_avatar_cal_sv", slot + 1, cal.slot[slot]);
+            }
+        }
+    }
+}
+
+// "vr_avatarcal <version> <field>...": a client's calibration (sendCalibration), kept for his slot and, changed, passed on
+// to every client.
+void avatarcal_f()
+{
+    if(cmd_source != src_client || !sv.active || !host_client)
+    {
+        return;
+    }
+    const int slot = static_cast<int>(host_client - svs.clients);
+    if(slot < 0 || slot >= MAX_SCOREBOARD || Cmd_Argc() != 2 + numCalFields || Q_atoi(Cmd_Argv(1)) != calCommandVersion)
+    {
+        return;
+    }
+    Calibration c;
+    for(int i = 0; i < numCalFields; i++)
+    {
+        c.v[i] = calClamp(i, Q_atoi(Cmd_Argv(2 + i)));
+    }
+    if(cal.slotHas[slot] && cal.slot[slot] == c)
+    {
+        return;
+    }
+    cal.slot[slot] = c;
+    cal.slotHas[slot] = true;
+    if(serverSendsCal())
+    {
+        writeCal(&sv.reliable_datagram, slot);
+    }
+}
+
 } // namespace
+
+bool Calibration::operator==(const Calibration& o) const
+{
+    for(int i = 0; i < numCalFields; i++)
+    {
+        if(v[i] != o.v[i])
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+const Calibration* calibrationOf(int ent)
+{
+    return ent > 0 && ent <= MAX_SCOREBOARD && cal.has[ent] ? &cal.of[ent] : nullptr;
+}
+
+void sendCalibration()
+{
+    if(cls.state != ca_connected || cls.signon != SIGNONS || cls.demoplayback || cl.maxclients <= 1)
+    {
+        return;
+    }
+    const Calibration c = ownCalibration();
+    if(cal.sent && (c == cal.lastSent || realtime < cal.nextSend))
+    {
+        return;
+    }
+    char text[256];
+    int n = q_snprintf(text, sizeof(text), "vr_avatarcal %d", calCommandVersion);
+    for(int i = 0; i < numCalFields && n > 0 && n < static_cast<int>(sizeof(text)); i++)
+    {
+        n += q_snprintf(text + n, sizeof(text) - static_cast<size_t>(n), " %d", c.v[i]);
+    }
+    MSG_WriteByte(&cls.message, clc_stringcmd);
+    MSG_WriteString(&cls.message, text);
+    cal.lastSent = c;
+    cal.sent = true;
+    cal.nextSend = realtime + static_cast<double>(za::max(vr_net_avatarcal_interval.value, 0.f));
+}
+
+void parseCalibration()
+{
+    const int slot = MSG_ReadByte();
+    const bool has = MSG_ReadByte() != 0;
+    Calibration c;
+    if(has)
+    {
+        for(int& v : c.v)
+        {
+            v = MSG_ReadShort();
+        }
+    }
+    const int ent = slot + 1;
+    if(ent > 0 && ent <= MAX_SCOREBOARD)
+    {
+        cal.of[ent] = c;
+        cal.has[ent] = has;
+    }
+}
+
+void serverReset(int slot)
+{
+    if(slot < 0 || slot >= MAX_SCOREBOARD || !cal.slotHas[slot])
+    {
+        return;
+    }
+    cal.slotHas[slot] = false;
+    if(serverSendsCal())
+    {
+        writeCal(&sv.reliable_datagram, slot); // (none now: the clients forget his)
+    }
+}
+
+void serverWriteAll(sizebuf_t* msg)
+{
+    if(!serverSendsCal())
+    {
+        return;
+    }
+    for(int slot = 0; slot < svs.maxclients && slot < MAX_SCOREBOARD; slot++)
+    {
+        if(cal.slotHas[slot])
+        {
+            writeCal(msg, slot);
+        }
+    }
+}
 
 void parse()
 {
@@ -345,11 +588,17 @@ void clear()
     {
         a = Avatar{};
     }
+    for(bool& h : cal.has)
+    {
+        h = false; // (the server sends them all at the spawn)
+    }
+    cal.sent = false; // (this client's own goes up again)
 }
 
 void init()
 {
     Cmd_AddCommand("vr_mp_avatars", avatars_f);
+    Cmd_AddCommand_ClientCommand("vr_avatarcal", avatarcal_f);
 }
 
 } // namespace qvr::mpavatar

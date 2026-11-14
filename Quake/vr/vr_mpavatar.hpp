@@ -41,6 +41,31 @@ void addEntities();
 // A new connection: no avatars.
 void clear();
 
+// The avatar calibration (MP_PLAN.md, B2c): what others need of a player's body and see of it, from his own settings --
+// height, seated height, arm length, world scale, handedness and the gadget's arm, gloves (kind, colour), nails, skin
+// tone, body (mode, build, bracers, pauldrons). Each as an integer (calFields in vr_mpavatar.cpp: metres in mm, shares
+// in thousandths...), so what is sent, kept and compared is exact. The client sends his up when it changes (a
+// "vr_avatarcal" client command, reliable, at most every vr_net_avatarcal_interval); the server keeps one per client
+// slot and passes it on to every client (QVR_SVC_AVATARCAL, reliable), and all of them to a joining client.
+// Multiplayer only.
+inline constexpr int numCalFields = 16;
+struct Calibration
+{
+    int v[numCalFields]{};
+    [[nodiscard]] bool operator==(const Calibration& o) const;
+};
+
+// Player entity `ent`'s calibration as this client has it, or nullptr: none (yet, or a client that sends none).
+[[nodiscard]] const Calibration* calibrationOf(int ent);
+// VR_WriteMoveExtras: this client's calibration up, when changed (multiplayer only).
+void sendCalibration();
+// vr_client.cpp's dispatch: QVR_SVC_AVATARCAL's body.
+void parseCalibration();
+// The server's side: a client slot reset (connect, drop): its calibration gone, and the clients told.
+void serverReset(int slot);
+// The server's side: every slot's calibration into a spawning client's message (VR_WriteClientSpawnState).
+void serverWriteAll(sizebuf_t* msg);
+
 // vr_mp_avatars (Debug > Reports > Network: Player Avatars; the harness's mp_avatar): the avatars this client has and
 // draws, its own hands as drawn and, hosting, the server's view of each player and the avatars sent.
 void init();

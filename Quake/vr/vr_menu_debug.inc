@@ -1134,6 +1134,9 @@ za::Vector<Item> pageDebugReports()
         slider("Network: Avatar Keyframe", vr_net_avatar_keyframe, 1.f, 72.f, 1.f, "%.0f frames")
             .help("vr_net_avatar_keyframe: hosting, a player's hands unchanged since they were last sent go again only every "
                   "this many frames (1: every frame). What a lost packet or a player just come into sight waits at most."),
+        slider("Network: Calibration Send Interval", vr_net_avatarcal_interval, 0.f, 2.f, 0.05f, "%.2f s")
+            .help("vr_net_avatarcal_interval: in multiplayer, your avatar calibration (height, arm length, handedness, "
+                  "gloves, body) goes to the server when it changes, at most this often (a slider dragged: its last value)."),
         toggle("Network: Cull Poses", vr_net_cullposes)
             .help("vr_net_cullposes: hosting, a remote player gets the armed humanoids' arm poses only of those he can see (on: "
                   "about 1.2 KB less in each of his datagrams on e1m1); off: every pose to every player, as before."),

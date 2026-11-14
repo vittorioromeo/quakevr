@@ -19,6 +19,7 @@
 #include "vr_explosiondebris.hpp"
 #include "vr_ledges.hpp"
 #include "vr_move.hpp"
+#include "vr_mpavatar.hpp"
 #include "vr_motion.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatplay.hpp"
@@ -900,6 +901,7 @@ extern "C" void VR_ClientReset(client_t* client)
     {
         avatarsSent[clientNum] = {};
     }
+    mpavatar::serverReset(clientNum); // (his avatar calibration gone; the clients told)
 }
 
 extern "C" void VR_ReadMoveExtras(client_t* client)
@@ -1365,6 +1367,7 @@ extern "C" void VR_WriteClientSpawnState(sizebuf_t* msg)
         serverrules::serverWriteAll(msg);
         agarmor::serverWriteAll(msg); // (the armed humanoids' armour: vr_agarmor.cpp)
         arenaxray::serverWriteAll(msg); // (the arena's last foes, seen through walls: vr_arenaxray.cpp)
+        mpavatar::serverWriteAll(msg); // (the players' avatar calibrations: vr_mpavatar.cpp; multiplayer)
     }
 }
 

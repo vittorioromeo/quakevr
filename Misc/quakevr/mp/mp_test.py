@@ -338,6 +338,67 @@ def avatar(s):
         s.note("screenshots: %s, %s" % (a.screenshot("own_hands"), b.screenshot("sees_A")))
 
 
+def cal_of(lines, prefix):
+    """"mp_avatar_cal[_own|_sv]:" lines -> {ent: {field: int}}."""
+    out = {}
+    for l in lines:
+        if l.startswith(prefix + ":"):
+            f = dict(m.groups() for m in re.finditer(r"(\w+)=(-?\d+)", l))
+            out[int(f.pop("ent"))] = {k: int(v) for k, v in f.items()}
+    return out
+
+
+def reports_until(s, insts, done, what, tries=20):
+    """vr_mp_avatars on `insts` until done(lines per instance) (a definite end: at most `tries` reports) -> (lines, n)."""
+    for n in range(1, tries + 1):
+        lines = reports(s, insts)
+        if done(lines):
+            return lines, n
+    s.check(what, False, "not after %d reports" % tries)
+    raise StepFailed(what)
+
+
+def avatarcal(s):
+    """The avatar calibration (QVR_SVC_AVATARCAL): each client's own (height, arm length, handedness, gloves, body...)
+    reaches the other and the server exactly; A changes his gloves: B gets the change; B leaves: A forgets his; B joins
+    again: he gets A's at his spawn, A gets his."""
+    srv, a, b, ea, eb = join(s)
+    # A's own differ from the defaults (B keeps his): what B must see is A's, not his own settings.
+    a.cmd("vr_height_calibration 1.82; vr_body_arm_length 1.1; vr_gloves 2; vr_glove_hue 120; vr_body_build 3; "
+          "vr_skin_tone -0.4; vr_gadget_arm 1")
+
+    def same(lines):
+        la, lb, ls = lines
+        own_a, own_b = cal_of(la, "mp_avatar_cal_own").get(ea), cal_of(lb, "mp_avatar_cal_own").get(eb)
+        return own_a is not None and own_a["height"] == 1820 and own_a["gloves"] == 2 and \
+            cal_of(lb, "mp_avatar_cal").get(ea) == own_a and cal_of(la, "mp_avatar_cal").get(eb) == own_b and \
+            cal_of(ls, "mp_avatar_cal_sv").get(ea) == own_a and cal_of(ls, "mp_avatar_cal_sv").get(eb) == own_b
+
+    (la, lb, ls), n = reports_until(s, [a, b, srv], same, "each has the other's calibration, as his own game has it")
+    for l in lb:
+        if l.startswith("mp_avatar_cal"):
+            s.note("B: " + l.strip())
+    s.check("B has A's calibration as A's game has it, and A has B's; the server both", True, "after %d reports" % n)
+
+    a.cmd("vr_gloves 1")
+    (lb,), n = reports_until(s, [b], lambda ls: (cal_of(ls[0], "mp_avatar_cal").get(ea) or {}).get("gloves") == 1,
+                             "A's gloves changed: B has the change")
+    s.check("A changes his gloves: B has the change", True, "after %d reports" % n)
+
+    b.cmd("disconnect")
+    (la,), n = reports_until(s, [a], lambda ls: eb not in cal_of(ls[0], "mp_avatar_cal"), "B left: A forgets his")
+    s.check("B leaves: A no longer has his calibration", True, "after %d reports" % n)
+
+    since = b.mark()
+    b.cmd(s.connect_cmd(b))
+    _, jb = b.wait(r"mp_event: .*joined map=e1m1", 120, since, "B joined again")
+    eb = int(fields(jb)["self"])
+    (la, lb), n = reports_until(s, [a, b], lambda ls: cal_of(ls[1], "mp_avatar_cal").get(ea) ==
+                                cal_of(ls[0], "mp_avatar_cal_own").get(ea) and eb in cal_of(ls[0], "mp_avatar_cal"),
+                                "B joined again: each has the other's calibration")
+    s.check("B joins again: he has A's calibration (sent at his spawn), A has his", True, "after %d reports" % n)
+
+
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
     s = Session(args.exe, args.base, args.out, test, port=args.port)
     failure = None
@@ -346,6 +407,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             bandwidth(s)
         elif test == "mp_version":
             version(s)
+        elif test == "mp_avatarcal":
+            avatarcal(s)
         elif test == "mp_avatar":
             avatar(s)
         else:
@@ -360,7 +423,7 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -383,7 +446,7 @@ def main():
                 sys.exit(2)
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
-    elif args.test in ("bandwidth", "version", "avatar"):
+    elif args.test in ("bandwidth", "version", "avatar", "avatarcal"):
         ok = run(args, "mp_" + args.test)
     else:
         ok = run(args, "mp_coop")
@@ -391,6 +454,7 @@ def main():
         ok = run(args, "mp_bandwidth") and ok
         ok = run(args, "mp_version") and ok
         ok = run(args, "mp_avatar") and ok
+        ok = run(args, "mp_avatarcal") and ok
         print("mp_suite: %s" % ("passed" if ok else "FAILED"))
     sys.exit(0 if ok else 1)
 

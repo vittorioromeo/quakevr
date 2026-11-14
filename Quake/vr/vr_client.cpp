@@ -1028,6 +1028,7 @@ extern "C" void VR_WriteMoveExtras(sizebuf_t* buf)
     if(vrProtocol())
     {
         writeVrMove(buf, buildMove());
+        mpavatar::sendCalibration(); // (multiplayer: this player's calibration, when it changed; reliable)
     }
 }
 
@@ -1099,6 +1100,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_VIEWMESSAGE: worldtext::clientParseViewMessage(false); break;
         case QVR_SVC_ARENAMESSAGE: worldtext::clientParseViewMessage(true); break;
         case QVR_SVC_AVATAR: mpavatar::parse(); break; // another player's head and hands (vr_mpavatar.cpp)
+        case QVR_SVC_AVATARCAL: mpavatar::parseCalibration(); break; // a player's height, arms, gloves, body (vr_mpavatar.cpp)
         case QVR_SVC_TIP_MAKE:
         case QVR_SVC_TIP_NAME:
         case QVR_SVC_TIP_TEXT:
