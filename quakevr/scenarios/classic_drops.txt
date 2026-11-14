@@ -1,0 +1,17 @@
+# classic_drops: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Classic's gameplay on e1m1 (the
+# rows that matter here: recoil on, no enemy weapon drops, plain grunts with id's shotgun) and three plain grunts ahead;
+# a shotgun in your hand for the recoil and a grunt's burst rifle in the other (it bursts whatever the grunts fire).
+title Classic: guns recoil, grunts drop backpacks and no weapons
+map e1m1
+god
+give "Shotgun" main
+give "Grunt Burst Rifle" off
+cvar vr_weapon_recoil 1
+cvar vr_enemy_held_drops 0
+cvar vr_enemy_drops 2
+cvar vr_agrunt_repl 0
+cvar vr_grunt_burst 0
+spawn "Grunt" 260 -60
+spawn "Grunt" 300 0
+spawn "Grunt" 260 60
+hint Fire the shotgun: it kicks in your hand. Kill the grunts: each drops a backpack, and its gun falls only as scenery you can't pick up, fading after a few seconds. The burst rifle in your other hand fires 3-round bursts.

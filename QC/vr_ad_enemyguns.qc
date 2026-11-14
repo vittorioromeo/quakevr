@@ -687,6 +687,7 @@ void(entity e, float xTakes) VR_ADGun_LimbCut =
         FALSE /* disappear on hit */,
         FALSE /* deal damage */,
         WeaponIdToThrowDamage(WID_SUPER_NAILGUN));
+    VR_EnemyHeld_Scenery(g); // (vr_enemy_held_drops 0)
     if(g != world)
     {
         vr_adgun_freddie_drops++;
@@ -720,6 +721,7 @@ void() VR_ADGun_FreddieGibbed =
         FALSE /* disappear on hit */,
         FALSE /* deal damage */,
         WeaponIdToThrowDamage(WID_SUPER_NAILGUN));
+    VR_EnemyHeld_Scenery(g); // (vr_enemy_held_drops 0)
     if(g != world)
     {
         vr_adgun_freddie_drops++;

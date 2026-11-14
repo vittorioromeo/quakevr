@@ -2562,6 +2562,38 @@ well-timed parries."
   written, Continue "just now"; co-op refused); `vr_gameplay_preset_test` 27/0; `vr_gameplay_classic_check` 2/0 in VR
   and in flat. Dev and Release-TracyFull builds 0 warnings. Scenario `flat_aim_zoom`.
 
+## classic3: Classic recoil, no enemy weapon drops, the burst rifle always bursts (agent/classic3, 2026-11-15)
+
+- **No recoil in Classic:** the Gameplay preset's Classic row set `vr_weapon_recoil` 0 (a "?" taste call: "Quake has no
+  gun kick"), but the models' own baked kick is always cancelled (`vr_kickcancel.cpp`), so a Classic gun had no kick
+  at all, VR and flat (flat draws the same `weaponfx` recoil). Classic now leaves it at the default (1), as Light and
+  Unleashed; GAMEPLAY_PRESET.md marks it decided.
+- **Grunts still dropped burst rifles:** Classic already had `vr_enemy_drops` 2 (never), but that is only id's random
+  extra drops (`TryEnemyDrop`); a dying grunt's own gun (`army_die` -> `VR_DropEnemyGun`), an enforcer's rifle, a
+  knight's sword, an ogre's chainsaw, an armed humanoid's held and stowed weapons and AD's soldiers' and melee monsters'
+  always fell. New `vr_enemy_held_drops` (1; Classic 0, Light/Unleashed 1) and `vr_enemy_held_drops_linger` (4 s):
+  at 0 such a weapon still falls (the death frames are drawn without it: `vr_monstermods.cpp`) but as scenery
+  (`VR_EnemyHeld_Scenery`, vr_enemyguns.qc: no hand touch, no force grab, no loot pillar, not taken by armed humanoids,
+  not counted by the drop cap), then fades as the cap's do. Every death-drop path calls it (the grunt/enforcer gun,
+  knight sword, ogre chainsaw, `VR_AG_Dying`'s held and stowed weapons, AD melee swords, Freddie's nailgun); a disarm's
+  drop (alive) and the Gremlin's stolen gun stay real. Backpacks unchanged. Rows: VR Settings > Combat > Enemy
+  Weapons, "Lying About" (and the Gameplay Presets page); menu_paths.txt regenerated.
+  **Decision:** scenery that fades rather than vanishing in the hand (the death frames have no weapon) or lying forever.
+- **The picked-up Burst Rifle fired like a shotgun:** not a wrong slot. `vr_grunt_burst` 0 (Classic and Light) turned
+  the grunts' fire back to id's shotgun and, by design, the dropped gun's too (six pellets, a clip of shells), though
+  its model is the burst rifle. Now `vr_grunt_burst` is the grunts' own fire only: the gun in your hands always bursts
+  (`VR_EnemyGun_Attack`), its clip is always rounds, it is always named the burst rifle; AD's pellet spread treats yours
+  as bullets (`AD_FirePellets`). An armed grunt holding one at `vr_grunt_burst` 0 still fires id's shotgun (no preset
+  has both). Happened outside Classic too (Light, or the toggle by hand).
+- **Tests:** `vr_gameplay_preset_test` 29/0 (Classic: recoil on, no enemy weapon drops); `vr_gameplay_classic_check`
+  4/0 (adds recoil on, `vr_enemy_held_drops` 0 and `vr_enemy_drops` 2); new `vr_classic_drop_check` (QC
+  `VR_Classic_DropCheck`, its lines with `developer 1`: the nearest plain grunt gibbed: backpack, gun takeable or
+  scenery by the cvar, then a burst rifle at `vr_grunt_burst` 0: clip 30 rounds, a pull begins a burst): Classic on
+  e1m1 8/0 in VR and in flat, default with `vr_agrunt_repl 0` 7/0. Run: `developer 1;vr_classic_quake 1;map e1m1;
+  wait10;vr_gameplay_classic_check;vr_classic_drop_check`, `-QuitOn "classicdrop: [0-9]+ passed"`. `vr_recoil_test` 126/1 after it in Classic, VR and flat; the same single FAIL (the
+  burst rifle's two-handed return time, 0.0750 vs 0.0750, a back-time tolerance) in the default preset: not this
+  change. Armed grunts unchanged: `vr_agrunt_test` 2 4/0, 28 2/0, 47 110/0. Scenario `classic_drops` (runall OK).
+  Dev and ReleaseLTO (1.1.0) builds 0 warnings.
 ## runsetup3: Bloody Nightmare out of the menus, Start first, Difficulty only without skill halls (agent/runsetup3, 2026-11-15)
 
 - **Bloody Nightmare gone from the menus (his call):** Run Setup's Difficulty is Easy..Nightmare again (every way in:
