@@ -2622,3 +2622,14 @@ Cherry-picked 6b8e74432: VR_CrtHeapLoadHold now defined without mimalloc (QVR_MI
 - `mp_rules` 14/0, `mp_cosmetics` 9/0 (new); the suite 22 of 23 (`mp_ground`'s flake, then 15/0 twice). Single player:
   scenario_check PASS (147), load_models 4/0, vr_run_check 12/0. Next: B6b (holsters, seated, flat body height,
   pauldrons and plates seen by others). Details: MP_PLAN.md, "B6 results, part 1".
+
+## mpN (B6b): holsters, seated, flat height, pauldrons and the magazine hull seen by others (agent/mp, 2026-11-14; never shipped by the coordinator)
+- Another player's holstered weapons are drawn where his client drew them (the move's `VrDrawnHolsters`, relayed in the
+  avatar); QC's `holsterpos` for a remote player is his own holster point (`server::holsterPoint`).
+- The avatar calibration (version 4) adds seated play, the flat body height and the pauldrons' style, size and place: a
+  seated player's copy skips the leg fit as his own does, a flat player's is at his flat body height; his pauldrons are
+  placed by `view::placePauldrons`, the code that places yours, coloured by the armour the server says he wears.
+- A remote player's Box3D weapon hull includes his gun's seated magazine (`vr_heldpose` flagMag). `QVR_NET_VERSION` 16.
+- `mp_cosmetics` 14/0 (grown), `mp_flatbody` 6/0 (new); the suite 23 of 24 (`mp_flow`'s autosave list once, then 16/0).
+  Single player: scenario_check PASS (147), load_models 4/0, vr_run_check 12/0. Next: B6c (the armour plates on other
+  players' bodies). Details: MP_PLAN.md, "B6b results".

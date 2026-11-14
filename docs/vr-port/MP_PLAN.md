@@ -194,7 +194,7 @@ player unchanged.
 | **B5b** (punches, guard parries, bashes; crouch, prone, jump and swim flags done; the rest is B5c) | The rest of B5: melee, parries and shoves between players (judged by each one's own hands and timing, gated to multiplayer where single player has none); climbing, crouch, prone, jump, swim and punch synced (the remote body lying, swimming, climbing, jumping as he does: the avatar's flags) and judged per player | `mp_melee` (A's swing hits B, B's parry stops A's, a shove moves him: each way), `mp_moves` (B crouches, lies prone, jumps, climbs: the server's hull and A's copy of him follow) |
 | **B5c** (climbing, swimming, the palm's shove done; the rest is B5d) | The rest of B5b: climbing between players (the server's holds per player; the remote body's climbing feet and hanging trunk from his holds); swimming checked in water (a pool map spot); a blade's directional parry between players (his swing's line, as an armed humanoid's); the open palm's shove; melee sub-tick samples (a swing split over merged moves, multiplayer only) | `mp_moves` grown (climbs a ledge, swims: A's copy follows), `mp_melee` grown (a sword's swing parried across its way, a palm shove, a swing at 30 ms jitter) |
 | **B5d** (done: B5 is done; sub-tick samples not needed, to B8) | The rest of B5c: a blade's directional parry between players (his swing's line from his hand lines, `handlineat`, as an armed humanoid's `VR_AG_WeaponLine`: VR_DRP_Eval's third kind); melee sub-tick samples (each merged move's pose to the tracker, multiplayer only) | `mp_melee` grown (a sword swung across B's crowbar: parried by the line, not the guard; a swing at 30 ms jitter: the same hit as without) |
-| **B6** (rules done, the look of hands and body done; the rest is B6b) | Server rules and cosmetics: every balance setting a rule (presets, armed humanoids, damage, mutators, stamina, grapple...), rule pages dimmed on a remote client; holster positions, height, seated/standing, gloves, body seen by others | `mp_rules`, `mp_cosmetics` (B's height and gloves seen by A) |
+| **B6** (rules, the look of hands and body, holsters, seated, flat height, pauldrons, magazine hull done; the plates are B6c) | Server rules and cosmetics: every balance setting a rule (presets, armed humanoids, damage, mutators, stamina, grapple...), rule pages dimmed on a remote client; holster positions, height, seated/standing, gloves, body seen by others | `mp_rules`, `mp_cosmetics` (B's height and gloves seen by A) |
 | **B7** | Snapshots: acknowledged per-client snapshots and deltas for entities, players and avatars; quantized delta moves with repeats; interpolation buffer with quaternion slerp | `mp_loss` (10% loss: positions still continuous), byte counts per scenario |
 | **B8** | Prediction and lag compensation: shared movement code, reconciliation, then climbing and grapple; rewind of hit models and hands for hitscan, melee, parry, shove | `mp_predict` (own move off at frame 0 under 150 ms lag; corrections under 1 unit on flat ground), `mp_lagcomp` (a hit on a moving target at 150 ms lands) |
 | **B9** | Compression and rate: entropy stage with trained tables, per-client rate, priority accumulator | byte budgets per scenario from section 2.3 |
@@ -1031,6 +1031,52 @@ Open (B6b):
 - Not seen in an image yet: A's view of B's gloves (the numbers are the shader's inputs).
 - A rule changed from the console while joined changes the server's copy only (his own comes back when he leaves).
 
+### B6b results (2026-11-14, dev no-LTO build, loopback; `mp_test.py suite`: 23 of 24 pass, `mp_flow` 15/1 (Load Autosave's list without the coop autosave once), then 16/0 alone)
+
+| Scenario | Result |
+|---|---|
+| `mp_cosmetics` (grown) | 14/0: as B6's, then B is given a shotgun in holster 2 (QC impulse 192): A draws it 0.06 units from where B drew it; the server's holsterpos for B is 0.08 from B's holster point; B's pauldrons (steel, size 1.3; A's own leather, 1) on A's copy of his body: skin 4 and scale 29 both sides as B's own, 0.04 units off; B seated (`vr_bodycal_seated 1`): A's copy `seated=1`, pelvis and head 0.00 from B's own after 12 reports (B's standing height relearnt); B's nailgun held: the server's Box3D hull of it is "12 convex pieces and its magazine". Failed first: no holster, pauldron or seated lines (none drawn or sent) |
+| `mp_flatbody` (new) | 6/0: B flat-screen, Height 1.8, `vr_flat_body_height 1.5`: A's copy of his body posed at 1.5 m after 1 report |
+| the others | Unchanged: pass (`mp_flow` as above; `mp_ground` 15/0, `mp_melee` 29/0, `mp_bandwidth` 7/0) |
+
+Single player on the branch: scenario_check PASS (147 scenes, 0 failed), load_models_test 4/0, vr_run_check 12/0
+(`scratch/b3_runcheck.sh`); the dev build 0 warnings, the Release-config (ThinLTO) build 0 warnings. Your own pauldrons
+are placed by the same code as before (setupPauldrons now fills a PauldronLook from the same settings), your own leg fit
+reads seated::active() as before (posedSeated with no subject); nothing new is sent or drawn with one client.
+
+What changed:
+
+- **Holstered weapons seen by others** (`VrDrawnHolsters`, vr_move.hpp): the move carries the holsters as this client
+  drew them last (`view::netHolsters`: each holster's point in body::Holster's order, and each weapon drawn in one: model,
+  frame, skin, place, turn, mirroring; 2 + 36 + 16 a weapon bytes, multiplayer only). The server relays the weapons (not
+  the points) in the avatar after the holds, then a gear byte (the armour he wears, `gearByte`); the avatar is up to 241
+  bytes. A client draws them on his entity as his hands' weapons are drawn: his holster places, their seated layout, his
+  Holstered poses, the flare gun's skins, all his own by construction.
+- **`holsterpos` for another player**: `server::holsterPoint`, his move's point carried with his entity since (QC's
+  magnetic holsters fly home to it; '0 0 0' and QC's estimate only until his first move).
+- **The avatar calibration, version 4 (37 fields)**: `sitting` (seated::active()), `flatheight` (vr_flat_body_height),
+  the pauldrons' `pstyle`, `psize`, `pfollow` and offsets (`pfwd`, `pout`, `pup`). A seated player's copy is posed as his
+  own seated body (no leg fit: `avatar::posedSeated`, the local read unchanged); a flat-screen player's at his flat body
+  height (the mock's 1.8 m Height left aside, as units::eyeHeight does for him).
+- **Pauldrons on others' bodies**: `view::placePauldrons(body, PauldronLook, player, caps, lames)`, the local body's
+  setupPauldrons made a caller of it (yours from your settings and armorWorn(), his from his calibration and his gear
+  byte, his shoulders by `avatar::otherShoulder`): one code path. `VR_AliasMirrored` knows his holsters and pauldrons.
+- **The magazine in his weapon hull**: `vr_heldpose` version 2 carries `flagMag` (his drawn weapon has its magazine
+  seated: view::DrawnWeapon::mag); Box3D's remote drawn weapon hull takes `view::magazineModelOf` of the gun, as the
+  local one does.
+- Reports (`vr_mp_avatars`): `mp_holster:`, `mp_holster_own:`, `mp_holster_point_own:`, `mp_holster_sv:`,
+  `mp_pauldron:`, `mp_pauldron_own:`; `seated=` on `mp_body:`. QC test impulse 190 + slot: a shotgun in that holster
+  (not deathmatch). `QVR_NET_VERSION` 16.
+
+Open (B6c):
+
+- The armour's plates on another player's body (`vr_player_plates`: QC's QVR_SVC_ARMOR goes to its own client only; his
+  plates, their pieces and colour, would come per player and be drawn on his copy with the plates' bone poses).
+  Meanwhile his pauldrons show where his plates would cover them (his gear byte has the armour, not the plates).
+- Locomotion's balance settings as rules by name (B6's open item).
+- His holsters ride his entity between his moves (as his hands do): a fast turn of his body draws them a move late.
+- Not seen in an image yet: the holstered weapons, pauldrons and seated body of another player (numbers only).
+
 ## Decisions
 
 - Server rules (B6) are found by page, not listed: every setting under a balance page is one unless it is a preference,
@@ -1067,4 +1113,9 @@ Open (B6b):
   from outside, they always have legs (his body mode 1 or 2 is his own first-person view); his body mode 0 draws his
   player model as before.
 
-Next phase: B6b — the rest of B6's cosmetics: holster positions seen by others (his holstered weapons drawn at his holsters; `holsterpos` for another player), seated/standing, a flat player's body height, pauldron style and armour plates on his body, the magazine's box in his weapon hull; tests first: `mp_cosmetics` grown (B's holstered shotgun at A where B's holster is; B seated: A's copy seated).
+- Another player's holstered weapons (B6b) come as his client drew them (place, turn, frame, skin), as his hands' weapons
+  do, rather than his holster settings sent and his holsters solved again on each client: his seated layout, Holstered
+  poses and holster offsets are his by construction, one code path, about 16 bytes a holstered weapon a move (B7's
+  deltas will make an idle player's nearly free).
+
+Next phase: B6c — the armour's plates on other players' bodies (QVR_SVC_ARMOR per player to every client that sees him, his plates drawn on his copy of the body by the local plates' code), then Locomotion's few balance settings as rules by name; tests first: `mp_cosmetics` grown (B with yellow armour and plates: A's copy draws his pieces and colour).
