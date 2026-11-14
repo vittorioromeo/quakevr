@@ -891,6 +891,34 @@ void syncEntities(float dt)
         return n >= qcvm->num_edicts || EDICT_NUM(n)->free || slotOf(n).kind != Kind::Corpse;
     });
     prebuildPropHulls(carried);
+    // New ragdolls this frame (vr_ragdoll_per_frame): the queue's oldest first, then this frame's deaths in edict order;
+    // the rest queued (no body meanwhile: their death frames play), the oldest the next frame's first. Knockdowns at once.
+    za::vectorEraseIf(world->ragdollQueue, [](int n) {
+        return n >= qcvm->num_edicts || EDICT_NUM(n)->free || slotOf(n).ragdoll >= 0 || roomRefused(n) ||
+               !wantsRagdoll(EDICT_NUM(n), n);
+    });
+    const int ragdollsMost = static_cast<int>(vr_ragdoll_per_frame.value);
+    const int queuedTurn = za::min(ragdollsMost, static_cast<int>(world->ragdollQueue.size()));
+    int newMade = 0;
+    const auto ragdollTurn = [&](edict_t* ent, int num) {
+        if(ragdollsMost < 1 || knockedDown(ent))
+        {
+            return true;
+        }
+        const auto q = world->ragdollQueue.begin();
+        const auto at = za::find(q, world->ragdollQueue.end(), num);
+        if(at != world->ragdollQueue.end())
+        {
+            return static_cast<int>(at - q) < queuedTurn;
+        }
+        if(newMade < ragdollsMost - queuedTurn)
+        {
+            ++newMade;
+            return true;
+        }
+        world->ragdollQueue.pushBack(num);
+        return false;
+    };
     world->syncingEntities = true;
     for(int num = 1; num < qcvm->num_edicts; num++)
     {
@@ -901,10 +929,17 @@ void syncEntities(float dt)
         {
             const bool resized = want == Kind::Prop && s.kind == Kind::Prop && s.size != props::drawnSize(modelOf(ent));
             destroyBody(s);
-            if(want == Kind::Corpse && wantsRagdoll(ent, num) && createRagdoll(ent, num, s))
+            if(want == Kind::Corpse && wantsRagdoll(ent, num))
             {
-                writeRagdoll(ent, s); // (drawn as one at once)
-                continue;
+                if(!ragdollTurn(ent, num))
+                {
+                    continue; // (queued: no body till its turn)
+                }
+                if(createRagdoll(ent, num, s))
+                {
+                    writeRagdoll(ent, s); // (drawn as one at once)
+                    continue;
+                }
             }
             if(want != Kind::None)
             {

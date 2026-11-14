@@ -32,43 +32,30 @@ constexpr int startGunNothing = 3; // (the Starting gun's "Nothing")
 // What the choices do beyond their cvar
 // ----------------------------------------------------------------------------
 
-// Bloody Nightmare: Difficulty's fifth choice (his call, 2026-11-14: not a toggle of its own; always a choice, found in
-// Dawn of the Machine or not). The "bn" row has no row of its own: its value is that choice's.
-int bloodyForced()
-{
-    return cvarInt(vr_maps_skill) >= skillBloody ? 1 : 0;
-}
-
 void applySkill(int value, Phase phase)
 {
     if(phase == Phase::Start)
     {
-        Cvar_SetValueQuick(&skill, static_cast<float>(value < 3 ? value : 3)); // (Bloody Nightmare: Nightmare's skill)
+        Cvar_SetValueQuick(&skill, static_cast<float>(value));
     }
 }
 
-// An old config's (or a script's) vr_runpick_bn 1: Difficulty's Bloody Nightmare, the old pick cleared.
+// Bloody Nightmare is out of the menus (his call, 2026-11-15: runsetup3): only the game's own way in (Dawn of the
+// Machine's hub relay, Chthon on skill 3: QC vr_mg3_*). An old config's Bloody Nightmare pick, Run Setup's old toggle
+// (vr_runpick_bn 1) or Difficulty's old fifth choice (vr_maps_skill 4), becomes Nightmare.
 void oldBloodyPick(cvar_t* var)
 {
     if(var->value != 0.f)
     {
-        Cvar_SetValueQuick(&vr_maps_skill, static_cast<float>(skillBloody));
         Cvar_SetQuick(var, "0");
+        Cvar_SetValueQuick(&vr_maps_skill, 3.f);
     }
 }
-
-// Its start: skill 3 and vr_mg3_bn_start (QC MG3_Frame: Dawn of the Machine's start map makes it a Bloody Nightmare
-// game; elsewhere it is cleared and nothing else happens). A loaded game's serverflags carry it: never a new start.
-void applyBloody(int value, Phase phase)
+void oldBloodySkill(cvar_t* var)
 {
-    if(phase == Phase::Start && value != 0)
+    if(var->value > 3.f)
     {
-        Cvar_SetValueQuick(&skill, 3.f);
-        Cvar_Set("vr_mg3_bn_start", "1");
-    }
-    else
-    {
-        Cvar_Set("vr_mg3_bn_start", "0");
+        Cvar_SetQuick(var, "3");
     }
 }
 
@@ -170,17 +157,17 @@ int armedOnlyForced()
 // clang-format off
 const Mutator registry[] = {
     {.id = "skill", .label = "Difficulty", .section = Section::Difficulty,
-        .options = {"Easy", "Normal", "Hard", "Nightmare", "Bloody Nightmare"},
-        .tags = {"Easy", "Normal", "Hard", "Nightmare", "Nightmare"}, // (Bloody Nightmare: the bn row's tag, summary())
+        .options = {"Easy", "Normal", "Hard", "Nightmare"},
+        .tags = {"Easy", "Normal", "Hard", "Nightmare"},
         .def = 1, .oldSave = -1,
-        .help = "Quake's skill: Easy, Normal, Hard, Nightmare. Bloody Nightmare: Nightmare and Dawn of the Machine's hidden "
-                "difficulty (harder monsters, each level begun with the axe and shotgun only).",
-        .pick = &vr_maps_skill, .active = &skill, .apply = applySkill, .activeMax = 3},
+        .help = "Quake's skill: Easy, Normal, Hard, Nightmare.",
+        .pick = &vr_maps_skill, .active = &skill, .apply = applySkill},
+    // A saved game's Bloody Nightmare (an older save's `bn=1`): its summary says so (summary()). No row and no pick:
+    // never started from the menus (the game's own way in: Dawn of the Machine's hub relay, Chthon on skill 3).
     {.id = "bn", .label = "Bloody Nightmare", .section = Section::Difficulty,
         .options = {"Off", "On"}, .tags = {"", "Bloody Nightmare"}, // (in the difficulty's place: summary())
         .help = "Dawn of the Machine's hidden difficulty: Nightmare, harder monsters, each level begun with the axe and shotgun only.",
-        .pick = &vr_runpick_bn, .active = &vr_run_bn, .apply = applyBloody, .forced = bloodyForced,
-        .heldBy = "Difficulty", .ownRow = false},
+        .pick = &vr_runpick_bn, .active = &vr_run_bn, .ownRow = false},
     {.id = "style", .label = "Style", .section = Section::Presets,
         .options = {"My Settings", "Classic", "Light", "Unleashed"}, .tags = {"My Settings", "Classic", "Light", "Unleashed"},
         .def = 3, .oldSave = -1,
@@ -292,8 +279,7 @@ State state;
 void setActive(int i, int value)
 {
     const Mutator& m = registry[i];
-    const int v = clampValue(m, value);
-    Cvar_SetValueQuick(m.active, static_cast<float>(m.activeMax >= 0 && v > m.activeMax ? m.activeMax : v));
+    Cvar_SetValueQuick(m.active, static_cast<float>(clampValue(m, value)));
 }
 
 void applyActive(int i, Phase phase)
@@ -687,33 +673,87 @@ void testCmd()
             name, va("an old save's startweapon=%d becomes gun %d, melee %d", v, oldWant[v - 1][0], oldWant[v - 1][1]));
     }
 
-    // Bloody Nightmare: Difficulty's fifth choice (no row of its own): skill 3 and its mechanism, its tag in the
-    // difficulty's place, the save line's skill=3 bn=1 (an older save's the same); an old config's vr_runpick_bn 1
-    // becomes that choice.
+    // Bloody Nightmare out of the menus (runsetup3): Difficulty's four choices, no row and no pick of its own; an old
+    // config's Bloody Nightmare (vr_maps_skill 4, vr_runpick_bn 1) becomes Nightmare; Nightmare started is only skill 3
+    // (vr_mg3_bn_start untouched); a save with bn=1 (the game's own way in) still loads it and says so in its summary.
     {
         const int skillPick = cvarInt(vr_maps_skill);
         const int bn = find("bn");
-        Cvar_SetValueQuick(&vr_maps_skill, static_cast<float>(skillBloody));
-        t.check(!registry[bn].ownRow && forcedValue(bn) == 1 && pickValue(bn) == 1 && pickValue(find("skill")) == skillBloody,
-            name, "Difficulty's Bloody Nightmare: the bn row (no row of its own) on");
+        const int sk = find("skill");
+        t.check(registry[sk].optionCount() == 4 && !registry[bn].ownRow && !registry[bn].forced && !registry[bn].apply,
+            name, "Difficulty: Easy..Nightmare only; the bn row no row, no rule, nothing applied");
+        Cvar_Set("vr_maps_skill", "4");
+        t.check(cvarInt(vr_maps_skill) == 3, name, "an old config's vr_maps_skill 4 (Bloody Nightmare): Nightmare");
+        Cvar_Set("vr_maps_skill", "1");
+        Cvar_Set("vr_runpick_bn", "1");
+        t.check(cvarInt(vr_maps_skill) == 3 && vr_runpick_bn.value == 0.f, name,
+            "an old config's vr_runpick_bn 1: Nightmare, the old pick cleared");
+        Cvar_Set("vr_mg3_bn_start", "0");
         start();
+        t.check(pickValue(bn) == 0 && skill.value == 3.f && vr_run_bn.value == 0.f && vr_mg3_bn_start.value == 0.f &&
+                    strstr(saveLine(), " bn=0 ") != nullptr,
+            name, "Nightmare started: skill 3, no Bloody Nightmare (vr_run_bn 0, vr_mg3_bn_start 0, bn=0)");
+        readSaveLines("x\n// qvr_run skill=3 bn=1 style=3\n");
+        onLoadGame();
         char sum[256];
         q_strlcpy(sum, summary(false), sizeof(sum));
-        const bool line = strstr(saveLine(), " skill=3 ") && strstr(saveLine(), " bn=1 ");
-        t.check(skill.value == 3.f && vr_run_bn.value == 1.f && vr_mg3_bn_start.value == 1.f && line &&
-                    !strncmp(sum, "Bloody Nightmare /", 18) && !strstr(sum + 18, "Nightmare"),
-            name, va("start: skill 3, vr_run_bn 1, vr_mg3_bn_start 1, save line skill=3 bn=1, summary \"%s\"", sum));
+        t.check(vr_run_bn.value == 1.f && !strncmp(sum, "Bloody Nightmare", 16) && !strstr(sum + 16, "Nightmare"), name,
+            va("a save with bn=1 loaded: vr_run_bn 1, summary \"%s\"", sum));
         t.check(strstr(saveSummary("x\n// qvr_run skill=3 bn=1 style=3\n", 3), "Bloody Nightmare") != nullptr, name,
             "a save's (an older one's) skill=3 bn=1: Bloody Nightmare in its summary");
         Cvar_Set("vr_maps_skill", "2");
         start();
-        t.check(pickValue(bn) == 0 && skill.value == 2.f && vr_run_bn.value == 0.f &&
-                    vr_mg3_bn_start.value == 0.f,
-            name, "Hard: no Bloody Nightmare");
-        Cvar_Set("vr_runpick_bn", "1");
-        t.check(cvarInt(vr_maps_skill) == skillBloody && vr_runpick_bn.value == 0.f, name,
-            "an old config's vr_runpick_bn 1: Difficulty's Bloody Nightmare, the old pick cleared");
+        t.check(skill.value == 2.f && vr_run_bn.value == 0.f, name, "the next start (Hard): Bloody Nightmare gone");
         Cvar_SetValueQuick(&vr_maps_skill, static_cast<float>(skillPick));
+    }
+
+    // Arena Mode (arenacamp): its five rows the picks', the rest fixed; the picks untouched; the next Start the picks'.
+    {
+        Cvar_Set("vr_runpick_style", "1");
+        Cvar_Set("vr_runpick_gore", "2");
+        Cvar_Set("vr_runpick_armed", "1");
+        Cvar_Set("vr_runpick_smartai", "1");
+        Cvar_Set("vr_runpick_rangedknights", "1");
+        Cvar_Set("vr_runpick_pickups", "2");
+        Cvar_Set("vr_runpick_enemycount", "2");
+        Cvar_Set("vr_runpick_meleeonly", "1");
+        Cvar_Set("vr_runpick_glasscannon", "1");
+        Cvar_Set("vr_runpick_ironman", "1");
+        Cvar_Set("vr_maps_skill", "2");
+        float before[registryCount];
+        for(int i = 0; i < registryCount; i++)
+        {
+            before[i] = registry[i].pick->value;
+        }
+        int shownRows = 0;
+        for(int i = 0; i < registryCount; i++)
+        {
+            shownRows += arenaShows(i) ? 1 : 0;
+        }
+        t.check(shownRows == 5 && arenaShows(find("skill")) && arenaShows(find("gore")) && arenaShows(find("ironman")) &&
+                    arenaShows(find("glasscannon")) && arenaShows(find("meleeonly")),
+            name, "Arena Mode: its screen's five choices");
+        startArena();
+        t.check(skill.value == 2.f && vr_run_gore.value == 2.f && vr_run_ironman.value == 1.f &&
+                    vr_run_glasscannon.value == 1.f && vr_run_meleeonly.value == 1.f,
+            name, "Arena Mode: Difficulty, Gore, Ironman, Glass Cannon, Melee Only as picked");
+        t.check(vr_run_style.value == 3.f && vr_run_armed.value == 2.f && vr_run_smartai.value == 2.f &&
+                    vr_run_rangedknights.value == 0.f && vr_run_pickups.value == 0.f && vr_run_enemycount.value == 0.f &&
+                    vr_run_startgun.value == static_cast<float>(startGunNothing) && vr_run_startmelee.value == 0.f,
+            name, va("Arena Mode: Unleashed, armed and smarter AI on, the rest off (%s)", summary(false)));
+        t.check(vr_agrunt_repl.value != 0.f && vr_ai_enhanced.value != 0.f, name, "Arena Mode: their settings on");
+        bool kept = true;
+        for(int i = 0; i < registryCount; i++)
+        {
+            kept = kept && registry[i].pick->value == before[i];
+        }
+        t.check(kept, name, "Arena Mode: the picks untouched");
+        start();
+        t.check(vr_run_style.value == 1.f && vr_run_armed.value == 1.f && vr_run_smartai.value == 1.f &&
+                    vr_run_pickups.value == 2.f && vr_run_enemycount.value == 2.f && vr_agrunt_repl.value == 0.f,
+            name, va("the next run's Start: the picks again (%s)", summary(false)));
+        Cvar_Set("vr_runpick_meleeonly", "0");
+        Cvar_Set("vr_runpick_ironman", "0");
     }
 
     // The hub ends a run: the mutators back to their defaults.
@@ -790,12 +830,54 @@ int activeValue(int i)
     return clampValue(m, cvarInt(*m.active));
 }
 
-void start()
+// Arena Mode's screen (ROUND25.md, "arenacamp"): the player's own picks for these; every other choice fixed by
+// arenaValue (his call 2026-11-15: "anything else would disrupt the arena mode balance/mechanics").
+constexpr const char* arenaRows[] = {"skill", "gore", "ironman", "glasscannon", "meleeonly"};
+
+bool arenaShows(int i)
+{
+    for(const char* id : arenaRows)
+    {
+        if(!q_strcasecmp(at(i).id, id))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+int arenaValue(int i)
+{
+    const Mutator& m = at(i);
+    if(arenaShows(i))
+    {
+        return pickValue(i);
+    }
+    if(!strcmp(m.id, "style"))
+    {
+        return 3; // Unleashed
+    }
+    if(!strcmp(m.id, "armed") || !strcmp(m.id, "smartai"))
+    {
+        return 2; // On
+    }
+    if(m.forced == startGunForced)
+    {
+        const int held = startGunForced(); // (Melee Only, the screen's: no starting gun)
+        return held >= 0 ? held : m.def;
+    }
+    return m.def; // (Ranged Knights off: the arena's waves bring gun knights in themselves; the rest off)
+}
+
+namespace
+{
+// The run starts with `value(i)` for each row (all read before any is set: a rule reads the picks).
+void startWith(int (*value)(int))
 {
     int values[registryCount];
     for(int i = 0; i < registryCount; i++)
     {
-        values[i] = pickValue(i); // (all read before any is set: a rule reads the picks)
+        values[i] = value(i);
     }
     for(int i = 0; i < registryCount; i++)
     {
@@ -811,6 +893,17 @@ void start()
     Cvar_Set("vr_run_hubgo", "0");
     state.runSet = true;
     Con_Printf("Run setup: %s\n", summary(false));
+}
+} // namespace
+
+void start()
+{
+    startWith(pickValue);
+}
+
+void startArena()
+{
+    startWith(arenaValue); // (the picks untouched: the next run's Start sets its own again)
 }
 
 void newGame()
@@ -1100,7 +1193,9 @@ void init()
         }
     }
     Cvar_SetCallback(&vr_runpick_bn, oldBloodyPick);
+    Cvar_SetCallback(&vr_maps_skill, oldBloodySkill);
     oldBloodyPick(&vr_runpick_bn); // (a config read before this)
+    oldBloodySkill(&vr_maps_skill);
 }
 
 } // namespace qvr::runsetup

@@ -1054,7 +1054,10 @@ za::Vector<Item> pageDebugTests()
             .help("Each level sets every row, Unleashed is the defaults, Custom, My Settings kept and set back, Classic "
                   "Quake and Back to My Settings (the console says \"gameplaypreset: N passed, M failed\"). Your own My "
                   "Settings and settings untouched."),
-        command("Gore Preset", "vr_gore_preset_test").help("The Gore preset's check (in a map)."),
+        command("Classic Quake On and Off", "vr_classic_roundtrip_test")
+            .help("In a map: Classic Quake pressed twice, as the hub's board does; then every setting and every texture "
+                  "read from a file (the gloves' relief too) as before (\"classicroundtrip: N passed, M failed\")."),
+        command("Gore Preset","vr_gore_preset_test").help("The Gore preset's check (in a map)."),
         command("Presets' State", "vr_graphics_preset_status; vr_gore_preset_status; vr_gameplay_preset_status")
             .help("Which level each preset's settings match, and the rows that differ when Custom."),
         header("Reloading"),
@@ -1160,6 +1163,11 @@ za::Vector<Item> pageDebugTests()
                   "their limbs loaded now. Setup's preparation does this on the start map of each installed campaign "
                   "with a folder of its own (Dimension of the Machine, Dawn of the Machine)."),
         header("Saves"),
+        command("Autosave Now", "vr_autosave_now")
+            .help("vr_autosave_now: the autosave the game makes as a level starts or at a quiet moment, made now: the "
+                  "same name and rotation (Continue and Load Autosave show it), whatever Autosave, the timing or the "
+                  "safety wait say. None in co-op or deathmatch, on Quake VR's own maps or in an Ironman run, as the "
+                  "game's."),
         command("What Continue Would Load", "vr_continue_info")
             .help("vr_continue_info: the save the main menu's Continue row and the hub's Continue button load (the newest "
                   "loadable save of a campaign's map, an autosave or your own) and the newer ones passed over, printed."),

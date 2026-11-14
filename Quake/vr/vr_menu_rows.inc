@@ -1389,10 +1389,15 @@ QVR_TOGGLE(vr_enemy_weapon_depleted_loot, "Spent Guns Stand Out",
     "Off: an empty burst rifle, laser rifle or Arcane Dimensions soldier's gun, or an ogre's chainsaw out "
     "of fuel, lying about (nothing ever refills them) has no loot pillar and the force grab skips it; a hand still picks it up. On: as any "
     "weapon (vr_enemy_weapon_depleted_loot).")
+QVR_TOGGLE(vr_enemy_held_drops, "Dead Enemies' Weapons",
+    "On: a dying monster's own weapon (a grunt's burst rifle, an enforcer's laser rifle, a knight's sword, an "
+    "ogre's chainsaw, an armed humanoid's) falls for you to take. Off (the Classic preset): it falls as scenery "
+    "nobody can take and fades away (vr_enemy_held_drops).")
+QVR_SLIDER(vr_enemy_held_drops_linger, "Scenery Weapons Fade After", 0.f, 30.f, 0.5f, "%.1f s", ext(0.f, 300.f),
+    "Dead Enemies' Weapons off: how long such a weapon lies before it fades away (vr_enemy_held_drops_linger).")
 QVR_TOGGLE(vr_grunt_burst, "Burst Rifles",
-    "On: grunts fire 3-round bursts of single bullets, tighter than a shotgun's pellets, and the gun a "
-    "grunt drops fires the same bursts. Off: id's shotgun, the grunts' and the dropped guns' (six "
-    "pellets as yours, a shell a shot: a third of Rounds).")
+    "On: grunts fire 3-round bursts of single bullets, tighter than a shotgun's pellets. Off: id's shotgun "
+    "(4 pellets). The burst rifle a grunt drops always fires bursts in your hands (it is a burst rifle).")
 QVR_SLIDER(vr_enemygun_spent_smoke, "Spent Smoke", 0.f, 15.f, 0.5f, "%.1f s", ext(0.f, 60.f),
     "A burst rifle or a laser rifle whose last round you fire smokes this long, in the hand or dropped: it "
     "is done, drop it (0: never).")
@@ -2294,9 +2299,9 @@ QVR_SLIDER_BYNAME(vr_menu_main_gap, "Main Menu Group Gap", 0.f, 3.f, 0.1f, "%.1f
 QVR_SLIDER_BYNAME(vr_menu_header_scale, "Section Header Size", 1.f, 2.f, 0.05f, "%.2fx", noExt,
     "The settings pages' section headers' letters, over a row's: bigger headers make the sections easier to tell apart.")
 QVR_SLIDER_BYNAME(vr_menu_minor_scale, "Page Footer Size", 0.5f, 1.f, 0.05f, "%.2fx", noExt,
-    "The This Page (Reset This Page) and Menu Detail sections under every page: their letters and rows, over the others'.")
+    "The Advanced section (Reset This Page, Menu Detail) under every page: their letters and rows, over the others'.")
 QVR_SLIDER_BYNAME(vr_menu_minor_alpha, "Page Footer Opacity", 0.2f, 1.f, 0.05f, "%.2f", noExt,
-    "How faint the This Page and Menu Detail sections are (1: as the rest).")
+    "How faint the Advanced section is (1: as the rest).")
 QVR_TOGGLE_BYNAME(vr_menu_fold, "Folding Sections",
     "The settings pages' sections fold: a press on a section's header (its arrow) hides its rows, another shows them again. Each page keeps its folds. Off: every section open, headers not selectable.")
 QVR_SLIDER_BYNAME(vr_menu_fold_time, "Fold Animation Time", 0.f, 0.5f, 0.01f, "%.2f s", noExt,
@@ -2337,8 +2342,10 @@ QVR_SLIDER_BYNAME(vr_menu_icon_size, "Icon Picker Size", 16.f, 48.f, 2.f, "%.0f 
     "An icon picker's pictures, menu pixels across (Run Setup's Difficulty a quarter bigger).")
 QVR_SLIDER_BYNAME(vr_menu_icon_dim, "Icon Picker Unpicked Dim", 0.f, 0.9f, 0.05f, "%.2f", noExt,
     "How much an icon picker's choices that are not picked are greyed and faded. 0: as bright as the picked one.")
-QVR_TOGGLE_BYNAME(vr_runsetup_halls_line, "Run Setup: Skill Halls Line",
-    "With a start map that has its own skill halls (id's start, a pack's hall): a line saying so where Difficulty goes. Off: nothing (the halls choose).")
+QVR_SLIDER_BYNAME(vr_menu_icon_gap, "Icon Picker Gap", 0.f, 24.f, 1.f, "%.0f px", noExt,
+    "The gap between an icon picker's cards, menu pixels: every picker's cards spaced alike, at most 16 (four cards across the row; 4: the old spacing).")
+QVR_SLIDER_BYNAME(vr_menu_icon_name_pitch, "Icon Picker Name Lines", 4.f, 10.f, 0.5f, "%.1f px", noExt,
+    "The line pitch of an icon picker's two-line names, menu pixels (the letters 8 high; 7: the old spacing).")
 QVR_TOGGLE_BYNAME(vr_menu_vr_style, "VR Menu Style",
     "The menus fill the panel with their rows spaced out, with modern sliders and switches, and a laser from your hand points at them: trigger to click and drag.")
 QVR_TOGGLE_BYNAME(vr_menu_recolor, "Blood Red Menus",
@@ -4675,6 +4682,9 @@ QVR_TOGGLE(vr_body_ranger_head, "Use the Ranger's Head",
     "The head your body has in the mirror, the third-person views and shadows (never in your own eyes): "
     "the Quake ranger's, taken from your game's player model, or off for the plain placeholder head. "
     "Takes effect at the next start; the rows below apply at once.")
+QVR_TOGGLE(vr_body_ranger_head_model, "Detailed Head",
+    "On: Quake VR's own, more detailed ranger head (the one the ranger corpses wear), with its own skin. "
+    "Off: the original Quake ranger's head. Takes effect at the next start.")
 QVR_SLIDER(vr_body_head_size, "Size", 0.5f, 2.f, 0.05f, "%.2fx", noExt,
     "How big the head is (1 the first version's size, a little small).")
 QVR_SLIDER(vr_body_head_sink, "Neck Sink", 0.f, 12.f, 0.5f, "%.1f cm", noExt,
@@ -6283,7 +6293,13 @@ QVR_CYCLE(vr_flat_aim_mode, "Right Click Ironsight",
     "the buttons are the hands' own, as when dual wielding: the left button the right hand's, the right button the left "
     "hand's (a gun fires, a melee weapon or a prop strikes).",
     {0.f, "Hold"}, {1.f, "Toggle"})
-QVR_SLIDER(vr_flat_aim_sens, "Aim Sensitivity", 0.1f, 2.f, 0.05f, "%.2fx", ext(0.05f, 5.f),
+QVR_CYCLE(vr_flat_aim_zoom, "Right Click Aim",
+    "Playing on the desktop screen: what aiming with the right mouse button does. Ironsight: the gun comes up to your eye "
+    "on its sights and the crosshair fades. Zoom: the same narrowing of the view, the gun stays where it is and the "
+    "crosshair stays. Per Weapon: each gun's own (Weapon Offsets > Sights, Flat-Screen Aim: zoom for the guns with no "
+    "sights to look down: the nailguns, the grenade, rocket and proximity launchers, the laser cannon) (vr_flat_aim_zoom).",
+    {-1.f, "Per Weapon"}, {0.f, "Ironsight"}, {1.f, "Zoom"})
+QVR_SLIDER(vr_flat_aim_sens,"Aim Sensitivity", 0.1f, 2.f, 0.05f, "%.2fx", ext(0.05f, 5.f),
     "Playing on the desktop screen: the mouse's, gyro's and stick's look speed while aiming down the sights, times this, "
     "on top of the slowing the narrower view brings (Aim Sensitivity Match). It comes in with the sights (vr_flat_aim_sens).")
 QVR_CYCLE(vr_flat_aim_sens_match, "Aim Sensitivity Match",

@@ -888,17 +888,17 @@ QVR_CVAR(vr_menu_section_gap, "0.75", CVAR_ARCHIVE)   // the VR pages' space abo
 // Menu Look (vr_menu_pages.inc pageMenuLook; ROUND25.md, "Menu look"): the menus' visual hierarchy, each part tweakable.
 QVR_CVAR(vr_menu_main_gap, "1.6", CVAR_ARCHIVE)        // the main menu's gap between its groups, over Quake's 10 pixels (0 to 3: 0 none; less where the canvas is short)
 QVR_CVAR(vr_menu_header_scale, "1.25", CVAR_ARCHIVE)   // the VR pages' section headers' letters over a row's (1 to 2)
-QVR_CVAR(vr_menu_minor_scale, "0.75", CVAR_ARCHIVE)    // the This Page and Menu Detail sections' letters and rows over the others' (0.5 to 1: 1 as the rest)
+QVR_CVAR(vr_menu_minor_scale, "0.75", CVAR_ARCHIVE)    // the Advanced footer section's letters and rows over the others' (0.5 to 1: 1 as the rest)
 QVR_CVAR(vr_menu_minor_alpha, "0.65", CVAR_ARCHIVE)    // and how opaque they are (0.2 to 1)
 QVR_CVAR(vr_menu_fold, "1", CVAR_ARCHIVE)              // the VR pages' sections fold: a press on a header (its arrow) hides its rows, again shows them (0: never folded, headers not selectable)
 QVR_CVAR(vr_menu_fold_time, "0.15", CVAR_ARCHIVE)      // a fold's slide and fade, seconds (0 to 0.5: 0 at once)
 QVR_CVAR(vr_menu_folded, "", CVAR_ARCHIVE)             // the folded sections, "page title|section header" separated by ';' (written as they fold; a row reached by path, search or menu_vr unfolds its section)
 QVR_CVAR(vr_menu_hl_fit, "1", CVAR_ARCHIVE)            // the VR pages' selected-row bar as wide as the row's label and value (0: across the menu, as before)
-QVR_CVAR(vr_menu_big_hl, "2", CVAR_ARCHIVE)            // the big-letter menus' (main menu, Single Player, Multiplayer, Skill) selected row: 0 Quake's spinning icon only, 1 a soft bar behind it too, 2 and the main menu's row grown (vr_menu_big_hl_scale)
+QVR_CVAR(vr_menu_big_hl, "1", CVAR_ARCHIVE)            // the big-letter menus' (main menu, Single Player, Multiplayer, Skill) selected row: 0 Quake's spinning icon only, 1 a soft bar behind it too, 2 and the main menu's row grown (vr_menu_big_hl_scale)
 QVR_CVAR(vr_menu_big_hl_scale, "1.08", CVAR_ARCHIVE)   // that row's size while selected (1 to 1.25)
 QVR_CVAR(vr_menu_wheel_scroll, "0.25", CVAR_ARCHIVE)  // the mouse wheel on a menu with a scroll bar: a notch scrolls this part of the rows shown (0 to 1; 0: it moves the selection a row, as before)
 QVR_CVAR(vr_menu_big_hl_alpha, "0.14", CVAR_ARCHIVE)  // that soft bar's opacity at its middle (0.02 to 0.5; 0.14 the small rows' bar's, about 0.31 before 2026-11-13)
-QVR_CVAR(vr_menu_toolbar_groups, "5", CVAR_ARCHIVE)    // the corner's buttons in groups (game, saves, menus, settings, levels, tools, developer): this many pixels between groups (0 to 12: 0 evenly spaced)
+QVR_CVAR(vr_menu_toolbar_groups, "6", CVAR_ARCHIVE)    // the corner's buttons in groups (game, saves, menus, settings, levels, tools, developer): this many pixels between groups (0 to 12: 0 evenly spaced)
 // Select Campaign's groups (Item::Lead, Sub, Note; ROUND25.md, "campvis"): each campaign its title, its Continue under it.
 QVR_CVAR(vr_menu_group_scale, "1.25", CVAR_ARCHIVE)    // a group's title row's letters over a row's (1 to 2: a campaign's title)
 QVR_CVAR(vr_menu_group_gap, "6", CVAR_ARCHIVE)         // the space above each group, pixels (0 to 16)
@@ -908,10 +908,11 @@ QVR_CVAR(vr_menu_flash_strength, "0.6", CVAR_ARCHIVE)  // and how strong the fla
 QVR_CVAR(vr_menu_group_tags, "1", CVAR_ARCHIVE)       // a campaign's status tag right of its title: 0 none, 1 only when not just ready (missing, experimental...), 2 always
 QVR_CVAR(vr_runsetup_groups, "1", CVAR_ARCHIVE)        // Run Setup's mutators in three sections (Rules, Enemies, World); 0: one Mutators section
 QVR_CVAR(vr_runsetup_big, "1.5", CVAR_ARCHIVE)         // Run Setup's Difficulty row and Start button letters over a row's (1 to 2)
-QVR_CVAR(vr_runsetup_halls_line, "0", CVAR_ARCHIVE)    // Run Setup with a start map that has its own skill halls: 1 a line saying so where Difficulty goes; 0 nothing (the halls choose)
 QVR_CVAR(vr_menu_icons, "1", CVAR_ARCHIVE)             // icon picker rows (Run Setup's Difficulty, Starting gun, Starting melee weapon, Enemy Count): each choice a picture with its name under it; 0 plain choice rows
-QVR_CVAR(vr_menu_icon_size, "32", CVAR_ARCHIVE)        // an icon picker's pictures, menu pixels across (16 to 48; Run Setup's Difficulty a quarter bigger)
+QVR_CVAR(vr_menu_icon_size, "24", CVAR_ARCHIVE)        // an icon picker's pictures, menu pixels across (16 to 48; Run Setup's Difficulty a quarter bigger)
 QVR_CVAR(vr_menu_icon_dim, "0.55", CVAR_ARCHIVE)       // an icon picker's choices not picked: greyed and faded by this much (0 as the picked one .. 0.9)
+QVR_CVAR(vr_menu_icon_gap, "16", CVAR_ARCHIVE)         // an icon picker's gap between its cards, menu pixels (0 to 24, at most 16 used: every picker's cards spaced alike, four across the row's 320; 16 puts them 80 apart, 4 the old 68)
+QVR_CVAR(vr_menu_icon_name_pitch, "6", CVAR_ARCHIVE)   // an icon picker's two-line names: their lines' pitch, menu pixels (4 to 10; the old 7)
 QVR_CVAR(vr_menu_flat_shortcuts, "1", CVAR_ARCHIVE)    // the VR menus' corner buttons (Back to game, Search, Console, VR Settings, Advanced VR, Levels, Map Library, Relighting) on a flat screen too, for the desktop mouse (vr_menuui.cpp)
 QVR_CVAR(vr_menu_flat_vr_style, "1", CVAR_ARCHIVE)     // on by default (his decision 2026-11-08); with VR off: the headset's menu layout on the window (vr_menuui.cpp, FlatPanel): a panel of the window's shape, the corner's column beside the menu, the desktop mouse as the laser; a corner dragged moves it, the wheel while dragging resizes it
 QVR_CVAR(vr_menu_flat_scale, "0.954", CVAR_ARCHIVE)      // that panel's size, a share of the window's (0.4 to 1): the zoom buttons (- and +) step it by 1.1
@@ -1480,6 +1481,7 @@ QVR_CVAR(vr_grenade_pouch_hold_roll, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_body_mode, "3", CVAR_ARCHIVE)           // 3 shipped (vr_defaults.cfg too): the full body, legs and all
 QVR_CVAR(vr_body_build, "1", CVAR_ARCHIVE)            // 0 lean, 1 athletic, 2 brawny, 3 feminine (progs/vrbody_lean, vrbody, vrbody_brawny, vrbody_fem)
 QVR_CVAR(vr_body_ranger_head, "1", CVAR_ARCHIVE)      // the body's head: 1 the Quake ranger's, from your progs/player.mdl (vr_rangerhead.cpp), 0 the placeholder; at the next start
+QVR_CVAR(vr_body_ranger_head_model, "1", CVAR_ARCHIVE) // which ranger head: 1 Quake VR's detailed one (its progs/player.mdl, the corpses'), 0 Quake's (id1's); 1 falls back to 0 when not found; at the next start
 // The ranger's head on the body, placed live (vr_rangerhead.cpp; Appearance > Ranger Head): cm on the model and degrees,
 // about the bottom of his head (pitch nods down, yaw turns left, roll tilts right), his size, and the neck sunk into him.
 QVR_CVAR(vr_body_head_forward, "0", CVAR_ARCHIVE)     // cm forward (-10 to 10)
@@ -2576,6 +2578,8 @@ QVR_CVAR(vr_dmg_lava_nail, "15", CVAR_ARCHIVE)       // Dissolution of Eternity'
 QVR_CVAR(vr_ad_widowmaker_motor, "0.4", CVAR_ARCHIVE)
 // The shot's volume (vr/widowmaker_shot.wav played at this, over 1 louder than the file: SND_LOUD, up to 4).
 QVR_CVAR(vr_ad_widowmaker_spin_at, "-1", CVAR_NONE) // debug: the barrels drawn turned this many degrees (pictures); -1: as they are
+QVR_CVAR(vr_enemy_held_drops, "1", CVAR_ARCHIVE)      // 1: a dying monster's own weapon (a grunt's burst rifle, an enforcer's laser rifle, a knight's sword, an ogre's chainsaw, an armed humanoid's, AD's soldiers' and melee monsters') falls to be taken; 0: it falls as scenery nobody can take and fades (vr_enemy_held_drops_linger; Classic: QC VR_EnemyHeld_Scenery)
+QVR_CVAR(vr_enemy_held_drops_linger, "4", CVAR_ARCHIVE) // vr_enemy_held_drops 0: seconds such a weapon lies before it fades away
 QVR_CVAR(vr_enemy_weapon_depleted_loot, "0", CVAR_ARCHIVE) // 0: a spent single-use enemy gun lying about (a grunt's burst rifle, an enforcer's laser rifle, AD's soldiers' guns: its clip empty, never refilled; an ogre's chainsaw out of fuel) has no loot beam and the force grab skips it (a hand still takes it); 1: as any weapon (before 2026-10-21)
 // A running chainsaw (NOTES.md vrfiringrange_2026-10-01_16-37-54; Combat > Enemy Weapons > Chainsaw Engine): its engine's
 // faint exhaust smoke, in a hand and lying running (vr_chainsaw.cpp, QC VR_Saw_PropThink); its shake in the hand (drawn
@@ -2587,7 +2591,7 @@ QVR_CVAR(vr_chainsaw_model_handle, "1", CVAR_ARCHIVE)    // the cord's handle in
 // The cord's hint (Vittorio, 2026-10-19: a player never found that the chainsaw starts by its cord): its handle, seated,
 // dangles 1-2 cm about its seat, swung by the hand's motion and swaying a little at rest (vr_chainsaw.cpp).
 QVR_CVAR(vr_gruntgun_damage, "6", CVAR_ARCHIVE)      // a grunt's dropped burst rifle (QC vr_enemyguns.qc): each round's damage (3 a trigger pull)
-QVR_CVAR(vr_grunt_burst, "1", CVAR_ARCHIVE)          // 1: grunts fire 3-round bursts of single bullets (QC orig_mon_soldier.qc army_fire); 0: id's shotgun (4 pellets), their dropped guns too
+QVR_CVAR(vr_grunt_burst, "1", CVAR_ARCHIVE)          // 1: grunts fire 3-round bursts of single bullets (QC orig_mon_soldier.qc army_fire); 0: id's shotgun (4 pellets); the burst rifle a grunt drops always bursts in your hands (QC VR_EnemyGun_Attack)
 // Armed grunts (QC vr_armedgrunt.qc, ROUND22.md "Armed grunts"): a grunt holding one of your weapons.
 QVR_CVAR(vr_agrunt_damage_scale, "0.5", CVAR_ARCHIVE)  // its weapon's damage to players times this (a rocket isn't a one-shot)
 QVR_CVAR(vr_agrunt_reserve, "2", CVAR_ARCHIVE)         // the clips it carries beyond the one in its gun (reloads: a short pause); at 2 each weapon's own count (QC VR_AG_SpareClips: the double-barrelled shotgun 8, the flare gun 4, the super nailgun 3), scaled by this / 2
@@ -3955,12 +3959,12 @@ QVR_CVAR(vr_maps_index_url, "https://www.quaddicted.com/api/v1/", CVAR_ARCHIVE) 
 QVR_CVAR(vr_maps_allow_progs, "0", CVAR_ARCHIVE)       // packages that carry their own progs.dat: 0 left out of the list (they replace the game's code), 1 included. They are in the index either way (maps_info shows them; maps_stats counts them)
 QVR_CVAR(vr_maps_max_download_mb, "0", CVAR_ARCHIVE)  // a package's zip refused over this many MB (the index's size, and the bytes as they arrive); 0: no limit (the free disk space is checked either way)
 QVR_CVAR(vr_maps_debug_free_mb, "0", CVAR_NONE)       // test aid: the free disk space the map installer is told it has, in MB (0: the real one). A low disk simulated
-QVR_CVAR(vr_maps_skill, "1", CVAR_ARCHIVE)              // the Run Setup screen's Difficulty (the Map Library's Play, New Game, the hub): the last choice (0 Easy .. 3 Nightmare, 4 Bloody Nightmare: Nightmare and Dawn of the Machine's hidden difficulty), selected next time. A start map with skill halls skips it
+QVR_CVAR(vr_maps_skill, "1", CVAR_ARCHIVE)              // the Run Setup screen's Difficulty (the Map Library's Play, New Game, the hub): the last choice (0 Easy .. 3 Nightmare; an old config's 4, Bloody Nightmare, becomes 3), selected next time. A start map with skill halls skips it
 // The run setup (vr_runsetup.cpp; docs/vr-port/MUTATORS.md): vr_runpick_<id> is the Run Setup screen's choice (saved,
 // selected next time), vr_run_<id> the run's own (not saved in the config: in each saved game, restored on its load;
 // the QC reads it). `vr_run` prints them all, `vr_run <id> <value>` sets one.
 QVR_CVAR(vr_runsetup_ask, "1", CVAR_ARCHIVE)          // 1: New Game, the Map Library's Play, Official Campaigns and the hub's teleporter show the Run Setup screen first; 0: the run starts at once with the last choices
-QVR_CVAR(vr_runpick_bn, "0", CVAR_NONE)               // old: Run Setup's Bloody Nightmare toggle; now Difficulty's fifth choice (vr_maps_skill 4): set to 1 (an old config) it sets that and goes back to 0
+QVR_CVAR(vr_runpick_bn, "0", CVAR_NONE)               // old: Run Setup's Bloody Nightmare toggle (out of the menus since runsetup3): set to 1 (an old config) it sets vr_maps_skill 3 (Nightmare) and goes back to 0
 QVR_CVAR(vr_runpick_style, "3", CVAR_ARCHIVE)         // Run Setup: Style, the Gameplay preset at the run's start: 0 My Settings, 1 Classic, 2 Light, 3 Unleashed
 QVR_CVAR(vr_runpick_gore, "0", CVAR_ARCHIVE)          // Run Setup: the Gore preset at the run's start: 0 My Settings, 1 Full, 2 Minimal, 3 Off
 QVR_CVAR(vr_runpick_armed, "0", CVAR_ARCHIVE)         // Run Setup: Armed Humanoids: 0 as the Style sets them, 1 off, 2 on
@@ -3973,7 +3977,7 @@ QVR_CVAR(vr_runpick_pickups, "0", CVAR_ARCHIVE)       // Run Setup: Randomized P
 QVR_CVAR(vr_runpick_ironman, "0", CVAR_ARCHIVE)       // Run Setup: Ironman (no saving; a death restarts the level)
 QVR_CVAR(vr_runpick_enemycount, "0", CVAR_ARCHIVE)    // Run Setup: Enemy Count: 0 1x (the map's), 1 2x, 2 3x
 QVR_CVAR(vr_runpick_enemyrandom, "0", CVAR_ARCHIVE)   // Run Setup: Randomized Enemies: 0 off, 1 balanced, 2 anything goes
-QVR_CVAR(vr_run_bn, "0", CVAR_NONE)                   // the run's Bloody Nightmare choice (its start sets vr_mg3_bn_start; the game's serverflags carry it)
+QVR_CVAR(vr_run_bn, "0", CVAR_NONE)                   // a loaded save's Bloody Nightmare (`bn=1`: its summary says so; 0 at every start: the game's serverflags carry it)
 QVR_CVAR(vr_run_style, "0", CVAR_NONE)                // the run's Style (as vr_runpick_style): applied at its start and on loading its saves
 QVR_CVAR(vr_run_gore, "0", CVAR_NONE)                 // the run's Gore preset (as vr_runpick_gore)
 QVR_CVAR(vr_run_armed, "0", CVAR_NONE)                // the run's Armed Humanoids (as vr_runpick_armed)
@@ -4084,8 +4088,8 @@ QVR_CVAR(vr_mg_route_stage, "0", CVAR_NONE) // MG1/MG3 route sweep driver: each 
 QVR_CVAR(vr_mg3_test, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Tests: 1 state report (developer campaign only; not archived)
 QVR_CVAR(vr_mg3_ghost_alpha, "0.4", CVAR_NONE) // Dawn of the Machine's ghosts: how opaque they are drawn (0.05..1; 1 solid; QC/vr_mg3_ghost.qc, Debug > Tests > Dawn of the Machine Tests)
 QVR_CVAR(vr_mg3_aggro_groups, "0", CVAR_NONE) // Dawn of the Machine: a waking monster wakes what its aggro_target names (upstream ships this off; Debug > Tests > Dawn of the Machine Tests)
-QVR_CVAR(vr_mg3_bn_discovered, "0", CVAR_ARCHIVE) // Dawn of the Machine: Bloody Nightmare found in a game (the hell knight's head): the Official Campaigns menu offers it
-QVR_CVAR(vr_mg3_bn_start, "0", CVAR_NONE) // Official Campaigns > Bloody Nightmare: the next Dawn of the Machine start map begins a Bloody Nightmare game (QC clears it)
+QVR_CVAR(vr_mg3_bn_discovered, "0", CVAR_ARCHIVE) // Dawn of the Machine: Bloody Nightmare found in a game (the hell knight's head; QC sets it; no menu row since runsetup3)
+QVR_CVAR(vr_mg3_bn_start, "0", CVAR_NONE) // console/test aid (no menu sets it since runsetup3): the next Dawn of the Machine start map begins a Bloody Nightmare game (QC clears it)
 // Debug > Cheats and Recording (vr_cheats.cpp, QC vr_cheats.qc; not saved, not in deathmatch):
 QVR_CVAR(vr_cheat_ammo, "0", CVAR_NONE) // infinite ammunition: your shells, nails, rockets and cells (the mission packs' too) kept full, and the magazines in your hands
 QVR_CVAR(vr_freeze_monsters, "0", CVAR_NONE) // the living monsters stand frozen where they are (their thinking and moving skipped; a blow still kills)
@@ -4183,6 +4187,7 @@ QVR_CVAR(vr_flat_pitch_up, "85", CVAR_ARCHIVE)          // flatscreen look: how 
 QVR_CVAR(vr_flat_pitch_down, "85", CVAR_ARCHIVE)        // the same, looking down (0..90; 90: all the way down, as the plain game's cl_maxpitch 90 allowed it)
 QVR_CVAR(vr_flat_crouch_fire, "0", CVAR_ARCHIVE)        // Left Ctrl and firing: 0 (the default) while flatscreen play runs CTRL is the crouch key only -- the mode takes the key off +attack (its own bind: Quake/default_cfg.h binds CTRL +attack) and gives it back when the mode ends and before the game writes its config out; 1: CTRL keeps its bind, so holding it crouches and fires
 QVR_CVAR(vr_flat_aim_mode, "0", CVAR_ARCHIVE)           // the right mouse button's ironsight (one weapon held, either hand, the other hand empty: vr_flatsight.cpp): 0 held while the button is held, 1 a press turns it on and the next off
+QVR_CVAR(vr_flat_aim_zoom, "-1", CVAR_ARCHIVE)          // the right mouse button's aim: -1 each gun's own (weapons.txt fsight_mode: the ironsight, or zoom for the guns with no sights to look down), 0 every gun's ironsight, 1 every gun zooms (the view narrows as in the ironsight, the gun stays in its pose and the crosshair stays)
 QVR_CVAR(vr_flat_route_seen, "-1", CVAR_NONE)           // test aid: vr_flat_route_probe's bits (the mouse's routing by what the hands hold; vr_flatitems_test 10)
 QVR_CVAR(vr_flat_aim_sens, "1", CVAR_ARCHIVE)           // the look's speed in the flatscreen ironsight (mouse, gyro, stick; vr_flataimsens.cpp): times this on top of the field of view's own slowing (vr_flat_aim_sens_match), blended in with the travel (0.05..5; 1: none)
 QVR_CVAR(vr_flat_aim_sens_match, "0", CVAR_ARCHIVE)     // the ironsight's monitor distance match (vr_flataimsens.cpp): a mouse move that puts a point this many half screen heights from the centre on the crosshair at hipfire does it sighted too (0..4; 0: the centre, the zoom's tangent ratio; 1.33 the 4:3 edge, Battlefield's uniform aiming; 1.78 the 16:9 edge)

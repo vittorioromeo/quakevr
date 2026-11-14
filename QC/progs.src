@@ -593,6 +593,7 @@ vr_arena_banners.qc // Survival Arena: the run's numbers on the map's boards (in
 vr_adtankworn.qc
 vr_armedmon_ui.qc
 vr_armedgrunt_test.qc
+vr_saveload_test.qc // a Test scene through a save and a load (vr_pickup_test 16; after the armed monsters' rows)
 vr_wornpack_test.qc
 vr_rag1108_test.qc // the 11-08 round's ragdoll fixes: removal, back tanks, the gib rule, shoves getting up (vr_rag1108_test)
 vr_ragsmash_test.qc // a ragdoll smashed into a wall: its sound and blood (vr_ragsmash_test)
@@ -600,6 +601,7 @@ vr_armedgrunt_glitch_test.qc
 vr_armedgrunt_play_test.qc
 vr_meleerules_test.qc // the shared melee rules' tests (vr_agrunt_test 212, 213)
 vr_armedgrunt_shot_test.qc
+vr_armedgrunt_coopdisarm_test.qc // test 215: a grunt disarmed by shots still dies (single player, coop with a bot)
 vr_armedgrunt_twohand_test.qc
 vr_armedgrunt_tugpunch_test.qc
 vr_armedgrunt_raggrab_test.qc

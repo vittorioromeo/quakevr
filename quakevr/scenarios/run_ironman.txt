@@ -1,0 +1,4 @@
+title Run mutators: Ironman on e1m1
+map e1m1
+cvar vr_run_ironman 1
+hint Ironman: saving is refused (Single Player > Save greyed, quicksave refused); die, and the level starts over with what you entered it with.

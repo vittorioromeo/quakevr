@@ -8,9 +8,8 @@
 // - vr_run_<id> (not in the config): the run's own, set from the pick when the run starts (start()), written into every
 //   saved game (the `// qvr_run` line: saveLine()) and set back from it when one is loaded (readSaveLines(),
 //   onLoadGame()); a changelevel keeps it (a cvar). The QC reads it (vr_run.qc's hooks, a file per mutator);
-// - apply(value, phase): what a choice sets beyond its cvar (the presets, the armed and AI switches, Bloody Nightmare);
-// - forced(): a rule another choice imposes (Melee Only holds the Starting gun at nothing; Difficulty's Bloody
-//   Nightmare choice sets the "bn" row, which has no row of its own), the screen showing it held.
+// - apply(value, phase): what a choice sets beyond its cvar (the difficulty, the presets, the armed and AI switches);
+// - forced(): a rule another choice imposes (Melee Only holds the Starting gun at nothing), the screen showing it held.
 // Presets never overwrite the player's settings without keeping them: the Gameplay and Gore presets' first apply keeps
 // My Settings (vr_presets.cpp), and "My Settings" is a Style and Gore choice of its own.
 
@@ -30,6 +29,7 @@ enum class Launch
     Campaign, // Official Campaigns' row
     Level,    // the flat Levels list (menu_maps, a map by name): `map <name>`
     Hub,      // the hub's teleporter to the start map
+    Arena,    // Select Campaign's Arena Mode: the Survival Arena (vrarena) with the arena's run (startArena)
 };
 
 enum class Section
@@ -46,10 +46,6 @@ enum class Phase
 };
 
 constexpr int maxOptions = 5;
-
-// Difficulty's fifth choice (vr_maps_skill 4): Bloody Nightmare, skill 3 and its mechanism (the "bn" row, which has no
-// row of its own: its value follows this choice; the save line keeps `skill=3 bn=1`).
-constexpr int skillBloody = 4;
 
 // A registry line (designated initializers: a line names only what it needs; the rest is the defaults below).
 struct Mutator
@@ -69,10 +65,7 @@ struct Mutator
     int (*forced)(){};                       // the value another choice holds this one at, or -1; nullptr: never
     bool (*shown)(){};                       // nullptr: always shown
     const char* heldBy{nullptr};             // the choice whose rule holds it (the screen: "held by ..."), or nullptr
-    bool ownRow{true};                       // false: no row of its own on the screen (its value another row's choice:
-                                             // Bloody Nightmare, Difficulty's fifth)
-    int activeMax{-1};                       // the run's cvar never set above this (-1: the last option): the choices past
-                                             // it are another row's (Difficulty's Bloody Nightmare: skill 3)
+    bool ownRow{true};                       // false: no row on the screen (a saved game's Bloody Nightmare: the summary's)
 
     [[nodiscard]] int optionCount() const
     {
@@ -97,6 +90,15 @@ struct Mutator
 
 // The run starts: every vr_run_<id> from its pick (forced ones held), each apply(Start).
 void start();
+
+// Arena Mode (Select Campaign's row under Arcane Dimensions; ROUND25.md, "arenacamp"): its Run Setup screen shows only
+// Difficulty, Gore, Ironman, Glass Cannon and Melee Only (arenaShows: the player's picks); every other choice is fixed
+// for the arena's balance (arenaValue: Unleashed, Armed Humanoids and Smarter AI on, Ranged Knights off -- the arena's
+// waves bring gun knights in themselves -- the rest at their defaults). startArena starts the run with those values,
+// the picks untouched (the next run's Start sets its own again).
+[[nodiscard]] bool arenaShows(int i);
+[[nodiscard]] int arenaValue(int i);
+void startArena();
 
 // Host_Map_f (VR_RunNewGame): a new game. Begun by the screen's Start, the hub's end of a run or `vr_run <id> <value>`,
 // or with a run's cvar set by hand since the last map: as set; else (the Firing Range button, `map` typed) the screen's

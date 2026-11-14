@@ -88,6 +88,7 @@ vr_bullettime_tap_blow_quiet|0|VR Settings - Weapons and Bullet Time|Quiet After
 @page|0|VR Settings - Gameplay||VR Settings > Gameplay
 vr_agrunt_repl|0|VR Settings - Gameplay|Replace All Humanoids|VR Settings > Gameplay > Replace All Humanoids
 vr_enemy_drops|0|VR Settings - Gameplay|Enemy Weapon Drops|VR Settings > Gameplay > Enemy Weapon Drops
+vr_enemy_held_drops|0|VR Settings - Gameplay|Dead Enemies' Weapons|VR Settings > Gameplay > Dead Enemies' Weapons
 vr_enemy_shove|0|VR Settings - Gameplay|Enemy Shoves|VR Settings > Gameplay > Enemy Shoves
 vr_enemy_melee_arc|0|VR Settings - Gameplay|Melee Arc|VR Settings > Gameplay > Melee Arc
 vr_knockdown|0|VR Settings - Gameplay|Knockdowns|VR Settings > Gameplay > Knockdowns
@@ -313,7 +314,6 @@ vr_tips_size|1|Tips|Panel Text Size|Advanced VR Options > Tips > Panel Text Size
 |1|Play|Tutorial|Advanced VR Options > Play > Tutorial
 |1|Play|Firing Range|Advanced VR Options > Play > Firing Range
 |1|Play|Melee Recording Room|Advanced VR Options > Play > Melee Recording Room
-|1|Play|Survival Arena|Advanced VR Options > Play > Survival Arena
 |1|Play|Add Bot (Team 0)|Advanced VR Options > Play > Add Bot (Team 0)
 |1|Play|Add Bot (Team 1)|Advanced VR Options > Play > Add Bot (Team 1)
 |1|Play|Kick Bot|Advanced VR Options > Play > Kick Bot
@@ -664,6 +664,7 @@ vr_blood_health_curve|0|Blood Feedback|Health Scaling Curve|VR Settings > Comfor
 |0|Blood Feedback|Reset This Page|VR Settings > Comfort, Teleport and Turning > Blood Feedback > Reset This Page
 @page|0|Ranger Head||VR Settings > Player Appearance > Ranger Head
 vr_body_ranger_head|0|Ranger Head|Use the Ranger's Head|VR Settings > Player Appearance > Ranger Head > Use the Ranger's Head
+vr_body_ranger_head_model|0|Ranger Head|Detailed Head|VR Settings > Player Appearance > Ranger Head > Detailed Head
 vr_body_head_size|0|Ranger Head|Size|VR Settings > Player Appearance > Ranger Head > Size
 vr_body_head_sink|0|Ranger Head|Neck Sink|VR Settings > Player Appearance > Ranger Head > Neck Sink
 vr_body_head_forward|0|Ranger Head|Forward|VR Settings > Player Appearance > Ranger Head > Forward
@@ -969,6 +970,8 @@ vr_sword_damage_mult|1|Weapon Damage|Knight's Sword|Advanced VR Options > Combat
 vr_gruntgun_damage|1|Weapon Damage|Grunt's Burst Rifle|Advanced VR Options > Combat > Weapon Damage > Grunt's Burst Rifle
 |1|Weapon Damage|Reset This Page|Advanced VR Options > Combat > Weapon Damage > Reset This Page
 @page|1|Enemy Weapons||Advanced VR Options > Combat > Enemy Weapons
+vr_enemy_held_drops|1|Enemy Weapons|Dead Enemies' Weapons|Advanced VR Options > Combat > Enemy Weapons > Dead Enemies' Weapons
+vr_enemy_held_drops_linger|1|Enemy Weapons|Scenery Weapons Fade After|Advanced VR Options > Combat > Enemy Weapons > Scenery Weapons Fade After
 vr_enemy_weapon_depleted_loot|1|Enemy Weapons|Spent Guns Stand Out|Advanced VR Options > Combat > Enemy Weapons > Spent Guns Stand Out
 vr_grunt_burst|1|Enemy Weapons|Burst Rifles|Advanced VR Options > Combat > Enemy Weapons > Burst Rifles
 vr_enemygun_spent_smoke|1|Enemy Weapons|Spent Smoke|Advanced VR Options > Combat > Enemy Weapons > Spent Smoke
@@ -1387,6 +1390,7 @@ vr_crouch_speed|1|Locomotion|Slower When Crouched|Advanced VR Options > Movement
 vr_crouch_speed_scale|1|Locomotion|Crouched Speed|Advanced VR Options > Movement > Locomotion > Crouched Speed
 vr_slope_walk|1|Locomotion|Walk Up Slopes Slowly|Advanced VR Options > Movement > Locomotion > Walk Up Slopes Slowly
 vr_flat_aim_mode|1|Locomotion|Right Click Ironsight|Advanced VR Options > Movement > Locomotion > Right Click Ironsight
+vr_flat_aim_zoom|1|Locomotion|Right Click Aim|Advanced VR Options > Movement > Locomotion > Right Click Aim
 vr_flat_aim_sens|1|Locomotion|Aim Sensitivity|Advanced VR Options > Movement > Locomotion > Aim Sensitivity
 vr_flat_aim_sens_match|1|Locomotion|Aim Sensitivity Match|Advanced VR Options > Movement > Locomotion > Aim Sensitivity Match
 vr_flat_wall_shot|1|Locomotion|Shots Follow Gun At Walls|Advanced VR Options > Movement > Locomotion > Shots Follow Gun At Walls
@@ -2291,10 +2295,11 @@ vr_menu_big_hl_scale|1|Menu Look|Big Menu Grow|Advanced VR Options > HUD and Men
 vr_menu_big_hl_alpha|1|Menu Look|Big Menu Bar Opacity|Advanced VR Options > HUD and Menus > Menu Look > Big Menu Bar Opacity
 vr_runsetup_groups|1|Menu Look|Run Setup: Mutator Groups|Advanced VR Options > HUD and Menus > Menu Look > Run Setup: Mutator Groups
 vr_runsetup_big|1|Menu Look|Run Setup: Difficulty and Start Size|Advanced VR Options > HUD and Menus > Menu Look > Run Setup: Difficulty and Start Size
-vr_runsetup_halls_line|1|Menu Look|Run Setup: Skill Halls Line|Advanced VR Options > HUD and Menus > Menu Look > Run Setup: Skill Halls Line
 vr_menu_icons|1|Menu Look|Icon Pickers|Advanced VR Options > HUD and Menus > Menu Look > Icon Pickers
 vr_menu_icon_size|1|Menu Look|Icon Picker Size|Advanced VR Options > HUD and Menus > Menu Look > Icon Picker Size
 vr_menu_icon_dim|1|Menu Look|Icon Picker Unpicked Dim|Advanced VR Options > HUD and Menus > Menu Look > Icon Picker Unpicked Dim
+vr_menu_icon_gap|1|Menu Look|Icon Picker Gap|Advanced VR Options > HUD and Menus > Menu Look > Icon Picker Gap
+vr_menu_icon_name_pitch|1|Menu Look|Icon Picker Name Lines|Advanced VR Options > HUD and Menus > Menu Look > Icon Picker Name Lines
 vr_menu_group_scale|1|Menu Look|Campaign Title Size|Advanced VR Options > HUD and Menus > Menu Look > Campaign Title Size
 vr_menu_group_gap|1|Menu Look|Campaign Gap|Advanced VR Options > HUD and Menus > Menu Look > Campaign Gap
 vr_menu_group_indent|1|Menu Look|Continue Indent|Advanced VR Options > HUD and Menus > Menu Look > Continue Indent
@@ -2934,6 +2939,11 @@ vr_ragdoll_hand_turn|2|Tunables|Hand Turns with Limb|Advanced VR Options > Debug
 vr_ragdoll_hand_rest|2|Tunables|Palm Rests on Limb|Advanced VR Options > Debug > Tunables > Palm Rests on Limb
 vr_ragdoll_throw|2|Tunables|Throw|Advanced VR Options > Debug > Tunables > Throw
 vr_ragdoll_blood|2|Tunables|Blood Trails|Advanced VR Options > Debug > Tunables > Blood Trails
+vr_agrunt_pose_lod|2|Tunables|Armed Pose LOD|Advanced VR Options > Debug > Tunables > Armed Pose LOD
+vr_agrunt_pose_lod_near|2|Tunables|Armed Pose LOD: Near|Advanced VR Options > Debug > Tunables > Armed Pose LOD: Near
+vr_agrunt_pose_lod_cone|2|Tunables|Armed Pose LOD: View Cone|Advanced VR Options > Debug > Tunables > Armed Pose LOD: View Cone
+vr_worn_backpack_lod_near|2|Tunables|Worn Pack LOD: Near|Advanced VR Options > Debug > Tunables > Worn Pack LOD: Near
+vr_ragdoll_per_frame|2|Tunables|New Ragdolls per Frame|Advanced VR Options > Debug > Tunables > New Ragdolls per Frame
 vr_ragdoll_sleep_skip|2|Tunables|Skip Sleeping|Advanced VR Options > Debug > Tunables > Skip Sleeping
 vr_hitmodel_skin_keep|2|Tunables|Keep Skinned Bodies|Advanced VR Options > Debug > Tunables > Keep Skinned Bodies
 vr_ragdoll_smooth|2|Tunables|Smooth Motion|Advanced VR Options > Debug > Tunables > Smooth Motion
@@ -3475,6 +3485,10 @@ vr_dirparry_window|2|Tunables|Parry Window|Advanced VR Options > Debug > Tunable
 vr_dirparry_through_armed|2|Tunables|Let Through: Armed Humanoids|Advanced VR Options > Debug > Tunables > Let Through: Armed Humanoids
 vr_dirparry_through_monster|2|Tunables|Let Through: Monsters|Advanced VR Options > Debug > Tunables > Let Through: Monsters
 vr_dirparry_timed_window|2|Tunables|Timing Window|Advanced VR Options > Debug > Tunables > Timing Window
+vr_dirparry_offtime|2|Tunables|Early/Late Stagger|Advanced VR Options > Debug > Tunables > Early/Late Stagger
+vr_dirparry_offtime_fade|2|Tunables|Early Fade|Advanced VR Options > Debug > Tunables > Early Fade
+vr_dirparry_late_grace|2|Tunables|Late Grace|Advanced VR Options > Debug > Tunables > Late Grace
+vr_dirparry_late_fade|2|Tunables|Late Fade|Advanced VR Options > Debug > Tunables > Late Fade
 vr_dirparry_stroke|2|Tunables|Stroke Window|Advanced VR Options > Debug > Tunables > Stroke Window
 vr_agrunt_repl_skill0|2|Tunables|Easy|Advanced VR Options > Debug > Tunables > Easy
 vr_agrunt_repl_skill1|2|Tunables|Normal|Advanced VR Options > Debug > Tunables > Normal
@@ -4741,7 +4755,9 @@ vr_nav_slide|2|Tunables|Navmesh: Slide Along Walls|Advanced VR Options > Debug >
 vr_nav_stuck_log|2|Tunables|Navmesh: Log Stuck Walkers|Advanced VR Options > Debug > Tunables > Navmesh: Log Stuck Walkers
 vr_nav_prop_batch|2|Tunables|Navmesh: Prop Rebuild Interval|Advanced VR Options > Debug > Tunables > Navmesh: Prop Rebuild Interval
 vr_nav_job_frames|2|Tunables|Navmesh: Prop Rebuild Landing Frame|Advanced VR Options > Debug > Tunables > Navmesh: Prop Rebuild Landing Frame
+vr_nav_job_frames_first|2|Tunables|Navmesh: First Prop Rebuild Landing Frame|Advanced VR Options > Debug > Tunables > Navmesh: First Prop Rebuild Landing Frame
 vr_nav_build_frames|2|Tunables|Navmesh: New Size Landing Frame|Advanced VR Options > Debug > Tunables > Navmesh: New Size Landing Frame
+vr_nav_build_frames_tris|2|Tunables|Navmesh: Landing Frame per Triangles|Advanced VR Options > Debug > Tunables > Navmesh: Landing Frame per Triangles
 vr_revgrip|2|Tunables|Reverse Grip|Advanced VR Options > Debug > Tunables > Reverse Grip
 vr_revgrip_flip_time|2|Tunables|Flip Time|Advanced VR Options > Debug > Tunables > Flip Time
 vr_revgrip_volume|2|Tunables|Flip Sound Volume|Advanced VR Options > Debug > Tunables > Flip Sound Volume
@@ -5685,6 +5701,7 @@ vr_test_weaponinst_slot|2|Debug - Tests|Holster|Advanced VR Options > Debug > Te
 |2|Debug - Tests|Take It Back|Advanced VR Options > Debug > Tests > Take It Back
 |2|Debug - Tests|Switch Hands|Advanced VR Options > Debug > Tests > Switch Hands
 |2|Debug - Tests|Gameplay Preset and Classic Quake|Advanced VR Options > Debug > Tests > Gameplay Preset and Classic Quake
+|2|Debug - Tests|Classic Quake On and Off|Advanced VR Options > Debug > Tests > Classic Quake On and Off
 |2|Debug - Tests|Gore Preset|Advanced VR Options > Debug > Tests > Gore Preset
 |2|Debug - Tests|Presets' State|Advanced VR Options > Debug > Tests > Presets' State
 |2|Debug - Tests|Shotgun in the Off Hand|Advanced VR Options > Debug > Tests > Shotgun in the Off Hand
@@ -5725,6 +5742,7 @@ vr_climb_prop_mass|2|Debug - Tests|Props Hold Like the Level From|Advanced VR Op
 |2|Debug - Tests|Floating Pickup Ahead|Advanced VR Options > Debug > Tests > Floating Pickup Ahead
 |2|Debug - Tests|Every Model and Limb Precached|Advanced VR Options > Debug > Tests > Every Model and Limb Precached
 |2|Debug - Tests|Every Model of This Campaign Precached|Advanced VR Options > Debug > Tests > Every Model of This Campaign Precached
+|2|Debug - Tests|Autosave Now|Advanced VR Options > Debug > Tests > Autosave Now
 |2|Debug - Tests|What Continue Would Load|Advanced VR Options > Debug > Tests > What Continue Would Load
 |2|Debug - Tests|List the Saves|Advanced VR Options > Debug > Tests > List the Saves
 |2|Debug - Tests|List the Autosaves|Advanced VR Options > Debug > Tests > List the Autosaves

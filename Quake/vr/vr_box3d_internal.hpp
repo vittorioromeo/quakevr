@@ -784,6 +784,8 @@ struct World
     // A full ragdoll pool (vr_ragdoll_max): the corpses waiting for QC to make room (VR_Knockdown_MakeRoom), run after
     // syncEntities' edict loop rather than inside it; and the ones it refused, left as corpses until they are gone.
     za::Vector<int> roomWanted, roomRefused;
+    // The corpses waiting for their ragdoll (vr_ragdoll_per_frame: the most made a frame), oldest death first.
+    za::Vector<int> ragdollQueue;
     bool syncingEntities{false};
     za::Vector<Recovery> recoveries;    // knocked-down monsters getting up (Knockdowns)
     // Hands holding a ragdoll's limb (vr_ragdoll_grab; "Ragdolls"): a kinematic body at the hand and a motor joint to
@@ -1390,7 +1392,6 @@ void traceGibContacts();
 [[nodiscard]] bool bornInside(int a, int b);
 void noteThrows();
 void syncHands(float dt);
-constexpr float restUp = 0.3f;         // a prop rests on a hand where their contact's normal (up into it) is this steep (restsOnHand)
 [[nodiscard]] World::HandBody* reachOf(b3BodyId body, int player);
 [[nodiscard]] bool reachSkips(const World::HandBody& hb, int player, int num);
 // Whether hand `hand` (QC's: 0 the off hand, 1 the main) of client `player` holds `num`'s ragdoll in a tug (ragdolltug).

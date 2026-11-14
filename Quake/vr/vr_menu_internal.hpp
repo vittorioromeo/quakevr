@@ -137,8 +137,6 @@ struct MenuIcon
         Normal,    // two
         Hard,      // three
         Nightmare, // a skull
-        Bloody,    // a red skull, dripping
-        Halls,     // three arches: a start map's skill halls choose
         Hand       // an open hand: nothing in it (bare fists)
     };
     const char* model{nullptr}; // a model's thumbnail, or nullptr (the emblem)
@@ -229,7 +227,7 @@ struct Item
     // A setting that can't be used here (unavailable()): dimmed, shown off, not changed; its help says why.
     bool unavailable{false};
 
-    // How it is drawn (Menu Look; ROUND25.md, "Menu look"): Minor (minor(): every page's This Page and Menu Detail
+    // How it is drawn (Menu Look; ROUND25.md, "Menu look"): Minor (minor(): every page's Advanced footer
     // sections, smaller and fainter: vr_menu_minor_*), Big (big(): Run Setup's Difficulty, letters vr_runsetup_big
     // times a row's), Button (button(): Run Setup's Start, a large button of its own, centred, below a gap).
     // A group of list rows (Select Campaign's campaigns; ROUND25.md, "campvis"): Lead (lead(): a group's first row,
@@ -250,6 +248,8 @@ struct Item
 
     // A group's row's small dim text (Look Lead, Sub): tagArg(arg); empty: none.
     const char* (*tagArg)(int){nullptr};
+    // A Lead row's small dim tag before its title (Arcane Dimensions' "experimental"): tagLeftArg(arg); empty: none.
+    const char* (*tagLeftArg)(int){nullptr};
 
     // In a folded section (vr_menu_fold; set on the built page by applyFolds, vr_menu.cpp): no height, not reached by
     // the cursor's steps; selected anyway (a path, Search, menu_vr), its section unfolds.
@@ -441,10 +441,12 @@ struct PageTexts
     za::String heldObjectOffsetsTitle, heldObjectWeightsTitle;
     za::Vector<za::String> checklistSections; // the Checklist's headers
     za::String checklistUndone;               // the item Undo Last Tick changed last (its help says)
+    za::Vector<za::String> changedSlotTexts;  // Changed Settings' weapon and prop headers and rows (listSlotChanges)
     auto members()
     {
         return qvr::mem::list(weaponOffsetsTitle, weaponOffsetsInheritTitle, weaponOffsetsInheritNames, weaponWeightsTitle,
-            weaponWeightsInheritTitle, heldObjectOffsetsTitle, heldObjectWeightsTitle, checklistSections, checklistUndone);
+            weaponWeightsInheritTitle, heldObjectOffsetsTitle, heldObjectWeightsTitle, checklistSections, checklistUndone,
+            changedSlotTexts);
     }
 };
 
@@ -850,6 +852,15 @@ extern int weaponOffsetsSlot;
 extern bool weaponOffsetsStale;
 void weightPageShown(PageRef build);
 [[nodiscard]] bool weightPageStale(PageRef build);
+// A weapon's or prop's own value (a vr_wofs_*_NN or vr_prop_*_NN stand-in: its default that slot's weapons.txt's or
+// props.txt's), and Changed Settings' rows for every slot's changed values (each slot's pages built for it, its rows
+// under a header per weapon or prop; `seen` the cvars listed already); after Reset This Page on a slot page, that page's
+// slot rebuilt (a hotspot's type...). ROUND25.md, "Reset This Page and changes on the weapon and prop pages".
+[[nodiscard]] bool slotValue(const cvar_t& var);
+[[nodiscard]] bool changedSetting(const cvar_t& var); // (vr_menu.cpp: a * by its label)
+void listSlotChanges(za::Vector<Item>& list, za::Vector<const cvar_t*>& seen);
+void slotPageReset(PageRef build);
+void pinSlotPages(int weaponSlot); // (menu_vr pageresettest: the weapon pages built for that slot; -1: the hands' again)
 [[nodiscard]] const char* weightReadout(int hand);
 // (the Retro Textures pages' template, below)
 [[nodiscard]] za::Vector<Item> retroCategoryItems(retro::Category c, void (*reset)());

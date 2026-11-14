@@ -1695,18 +1695,20 @@ void(float xHand) W_ChainsawMelee =
     particle2(org, trace_plane_normal * 60, QVR_PARTICLE_PRESET_SPARKS, 8);
 };
 
+entity(entity w) VR_EnemyHeld_Scenery; // (vr_enemyguns.qc: vr_enemy_held_drops 0, a dead monster's weapon as scenery)
+
 // A knight or hell knight always drops its sword when it dies (gibbed or not; a statue has none): a weapon lying
-// where its hand was.
+// where its hand was (scenery at vr_enemy_held_drops 0).
 void(float xHellKnight) VR_DropKnightSword =
 {
     makevectors(self.angles);
     vector at = self.origin + v_forward * 10 + v_right * 8 + '0 0 8';
     vector vel = v_forward * 60 + v_right * (crandom() * 40) + '0 0 120';
-    CreateThrownWeapon(self, WID_SWORD, xHellKnight ? QVR_WPNFLAG_USE_SECONDARY_AMMO : 0, WeaponInst_New(0),
-        at, self.angles, vel, randomVec(60),
+    VR_EnemyHeld_Scenery(CreateThrownWeapon(self, WID_SWORD, xHellKnight ? QVR_WPNFLAG_USE_SECONDARY_AMMO : 0,
+        WeaponInst_New(0), at, self.angles, vel, randomVec(60),
         FALSE /* disappear on hit */,
         FALSE /* deal damage */,
-        WeaponIdToThrowDamage(WID_SWORD));
+        WeaponIdToThrowDamage(WID_SWORD)));
 };
 
 void(float xHand) W_FistMelee =

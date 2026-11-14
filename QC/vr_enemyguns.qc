@@ -14,11 +14,12 @@
 //   shots); it goes with that gun from hand to hand, into a holster, onto the ground and back. Nothing refills it (its
 //   ammo id is AID_NONE: shell boxes and cells fill your own guns, never it; no reloading). Empty, it clicks, and is still
 //   a club (a gun's melee blow), or dropped.
-// - The grunt's gun is a burst rifle (vr_grunt_burst 1, the default): a trigger pull fires VR_BURST_ROUNDS single
-//   bullets, VR_BURST_INTERVAL apart (VR_EnemyGuns_Frame fires the rest, the trigger held or not), vr_gruntgun_damage a
-//   round, a round of its ammo each (a multiple of 3). As the grunts' own (orig_mon_soldier.qc army_fire:
-//   vr_grunt_burst_damage a round). vr_grunt_burst 0: id's shotgun again, the grunts' and the dropped guns' (six pellets
-//   as your shotgun, 4 a pellet, a shell a shot: a third of vr_gruntgun_ammo).
+// - The grunt's gun is a burst rifle: a trigger pull fires VR_BURST_ROUNDS single bullets, VR_BURST_INTERVAL apart
+//   (VR_EnemyGuns_Frame fires the rest, the trigger held or not), vr_gruntgun_damage a round, a round of its ammo each
+//   (a multiple of 3). As the grunts' own (orig_mon_soldier.qc army_fire: vr_grunt_burst_damage a round).
+//   vr_grunt_burst 0: the grunts fire id's shotgun again (an armed grunt holding one too: VR_FireGruntGun); the gun in
+//   your hands is still the burst rifle it looks like (until 2026-11-15 it fired six pellets then: his Classic report).
+// - vr_enemy_held_drops 0 (Classic): a dead monster's weapon falls as scenery nobody takes (VR_EnemyHeld_Scenery).
 // - The enforcer's rifle fires the enforcer's laser (progs/laser.mdl), faster (vr_enfrifle_speed; the enforcer's: 600),
 //   vr_enfrifle_damage a laser (the enforcer's: 15); as your nails, it strikes corpses, gibs, props and breakables
 //   (VR_RifleLaser_Touch).
@@ -63,7 +64,7 @@ string(float xWid) VR_EnemyGun_Name =
     }
     if(xWid == WID_GRUNTGUN)
     {
-        return cvar_hget(cvarh_vr_grunt_burst) ? "grunt's burst rifle" : "grunt's shotgun";
+        return "grunt's burst rifle"; // (always, in your hands: VR_EnemyGun_Attack)
     }
     return "enforcer's rifle";
 };
@@ -75,12 +76,11 @@ string() VR_BurstSound =
     return r < 0.34 ? "vr/burst1.wav" : r < 0.67 ? "vr/burst2.wav" : "vr/burst3.wav";
 };
 
-// A grunt's dropped gun's full clip: vr_gruntgun_ammo rounds, a multiple of 3 (a burst's); id's shotgun (vr_grunt_burst
-// 0) a third as many shells.
+// A grunt's dropped gun's full clip: vr_gruntgun_ammo rounds, a multiple of 3 (a burst's). Whatever vr_grunt_burst: the
+// gun is a burst rifle and fires bursts in your hands (VR_EnemyGun_Attack).
 float() VR_GruntGun_ClipSize =
 {
-    float rounds = max(VR_BURST_ROUNDS, rint(cvar_hget(cvarh_vr_gruntgun_ammo) / VR_BURST_ROUNDS) * VR_BURST_ROUNDS);
-    return cvar_hget(cvarh_vr_grunt_burst) ? rounds : rounds / VR_BURST_ROUNDS;
+    return max(VR_BURST_ROUNDS, rint(cvar_hget(cvarh_vr_gruntgun_ammo) / VR_BURST_ROUNDS) * VR_BURST_ROUNDS);
 };
 
 float(float xHand) VR_GetBurstLeft = { return xHand == cVR_OffHand ? self.vr_burst_left2 : self.vr_burst_left; };
@@ -130,7 +130,7 @@ float(entity e) VR_EnemyWeapons_Spared =
 
 void() VR_EnemyWeapons_FadeThink =
 {
-    self.alpha = max(0.01, 1 - (time - self.vr_drop_fade) / VR_DROPCAP_FADE);
+    self.alpha = min(1, max(0.01, 1 - (time - self.vr_drop_fade) / VR_DROPCAP_FADE)); // (a scenery one's: 1 before)
     if(time >= self.vr_drop_fade + VR_DROPCAP_FADE)
     {
         remove(self);
@@ -152,6 +152,33 @@ void(entity e) VR_EnemyWeapons_Fade =
     e.alpha = 1;
     e.think = VR_EnemyWeapons_FadeThink;
     e.nextthink = time + 0.02;
+};
+
+// vr_enemy_held_drops 0 (the Classic preset, his call 2026-11-15: "enemies drop no weapons"): a dying monster's own
+// weapon `w` (a grunt's burst rifle, an enforcer's rifle, a knight's sword, an ogre's chainsaw, an armed humanoid's, AD's
+// soldiers' and melee monsters') still falls, its death frames being drawn without it (vr_monstermods.cpp), but as
+// scenery: no hand takes it, no force grab, no loot pillar, no armed humanoid, not counted by the cap; it lies
+// vr_enemy_held_drops_linger seconds, then fades as the cap's do. Returns `w`. (The stock random drops are
+// vr_enemy_drops'; the backpacks stay.)
+float vr_held_scenery_n; // weapons made scenery so far (the tests; never reset by the game)
+entity(entity w) VR_EnemyHeld_Scenery =
+{
+    if(w == world || cvar_hget(cvarh_vr_enemy_held_drops))
+    {
+        return w;
+    }
+    VR_Saw_PropStop(w);
+    w.handtouch = SUB_Null;
+    w.touch = SUB_Null;
+    w.flags = w.flags - (w.flags & FL_FORCEGRABBABLE);
+    w.fg_state = 2; // (VR_Forcegrab_IsEligible: none)
+    w.vr_depleted = TRUE; // (no loot pillar)
+    w.vr_drop_fade = time + max(0, cvar_hget(cvarh_vr_enemy_held_drops_linger)); // (> 0: can't be taken, uncounted)
+    w.alpha = 1;
+    w.think = VR_EnemyWeapons_FadeThink;
+    w.nextthink = max(time + 0.02, w.vr_drop_fade);
+    vr_held_scenery_n = vr_held_scenery_n + 1;
+    return w;
 };
 
 // The fades' safety net (ROUND23.md, "Arena: a glitched shotgun"): a fade began takes the weapon's hand touch, touch and
@@ -256,7 +283,8 @@ void(entity xNew) VR_EnemyWeapons_MakeRoom =
     }
 };
 
-// A grunt or an enforcer dies: its gun falls where it held it (by its right side as it stands), full.
+// A grunt or an enforcer dies: its gun falls where it held it (by its right side as it stands), full (scenery at
+// vr_enemy_held_drops 0: VR_EnemyHeld_Scenery).
 void(float xWid) VR_DropEnemyGun =
 {
     makevectors(self.angles);
@@ -265,11 +293,11 @@ void(float xWid) VR_DropEnemyGun =
     traceline(from, at, TRUE, self);
     at = trace_endpos + (from - trace_endpos) * 0.2 * (trace_fraction < 1);
     vector vel = v_forward * 25 - v_right * 20 + v_right * (crandom() * 15) + '0 0 70';
-    CreateThrownWeapon(self, xWid, 0, WeaponInst_New(WeaponIdToBaseClipSize(xWid)) /* its ammo */,
+    VR_EnemyHeld_Scenery(CreateThrownWeapon(self, xWid, 0, WeaponInst_New(WeaponIdToBaseClipSize(xWid)) /* its ammo */,
         at, self.angles, vel, randomVec(60),
         FALSE /* disappear on hit */,
         FALSE /* deal damage */,
-        WeaponIdToThrowDamage(xWid));
+        WeaponIdToThrowDamage(xWid)));
 };
 
 // The grunt's burst rifle: a round, a single bullet from its muzzle along the aim.
@@ -285,7 +313,7 @@ void(float xHand) VR_FireBurstRound =
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
 };
 
-// id's shotgun (vr_grunt_burst 0): as W_FireShotgun, from its own shells.
+// id's shotgun (vr_grunt_burst 0): as W_FireShotgun, from its own shells. An armed grunt's only (yours bursts).
 void(float xHand) VR_FireGruntGun =
 {
     sound(self, VRGetGunChannel(xHand), "soldier/sattck1.wav", 1, ATTN_NORM);
@@ -567,7 +595,9 @@ void(float xHand, float xWeapon, float xAttackFinished, float* xOutAttackFinishe
 
     RuneApplyBlackNoise(self);
     SuperDamageSound();
-    if(xWeapon == WID_GRUNTGUN && cvar_hget(cvarh_vr_grunt_burst))
+    // The burst rifle bursts whatever vr_grunt_burst, which is the grunts' own fire only: its model is a burst rifle (his
+    // report 2026-11-15, Classic: "the held burst rifle shoots like a shotgun").
+    if(xWeapon == WID_GRUNTGUN)
     {
         // The burst's first round now, the rest from VR_EnemyGuns_Frame; the next pull a cycle after this one.
         VR_SetBurst(xHand, min(VR_BURST_ROUNDS, VRGetWeaponClip(xHand)) - 1, time + VR_BURST_INTERVAL);
@@ -581,16 +611,8 @@ void(float xHand, float xWeapon, float xAttackFinished, float* xOutAttackFinishe
     VR_Stealth_Shot(self, WID_GRUNTGUN); // QVR: heard (vr_stealth.qc)
     VRSetWeaponClip(xHand, VRGetWeaponClip(xHand) - 1);
     player_shot1(xHand);
-    if(xWeapon == WID_GRUNTGUN)
-    {
-        VR_FireGruntGun(xHand);
-        *xOutAttackFinished = time + RuneApplyHell(0.5, self);
-    }
-    else
-    {
-        VR_FireEnforcerRifle(xHand);
-        *xOutAttackFinished = time + RuneApplyHell(0.3, self);
-    }
+    VR_FireEnforcerRifle(xHand); // (the enforcer's: the burst rifle's took the branch above)
+    *xOutAttackFinished = time + RuneApplyHell(0.3, self);
     updateAmmoCounters();
     if(VRGetWeaponClip(xHand) < 1)
     {

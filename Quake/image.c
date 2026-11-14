@@ -161,7 +161,7 @@ byte *Image_LoadImage (const char *name, int *width, int *height, enum srcformat
 // QVR: VR_ImageCacheFind's allocation: the hunk, as a decoded image's
 static unsigned char *Image_HunkAlloc (int bytes, const char *what)
 {
-	return (unsigned char *) Hunk_AllocNameNoFill (bytes, what);
+	return (unsigned char *) Hunk_AllocName (bytes, what);
 }
 
 static byte *Image_LoadImageRun (const char *name, int *width, int *height, enum srcformat *fmt)
@@ -213,7 +213,7 @@ static byte *Image_LoadImageRun (const char *name, int *width, int *height, enum
 			if (data)
 			{
 				int numbytes = (*width) * (*height) * 4;
-				byte *hunkdata = (byte *) Hunk_AllocNameNoFill (numbytes, ext);
+				byte *hunkdata = (byte *) Hunk_AllocName (numbytes, ext);
 				memcpy (hunkdata, data, numbytes);
 				fseek (f, start, SEEK_SET); // QVR
 				if (!VR_ImageCachePut (loadfilename, f, length, data, *width, *height)) // QVR: kept for the next load
@@ -368,7 +368,7 @@ static byte *Image_LoadPCX (FILE *f, int *width, int *height)
 	w = pcx.xmax - pcx.xmin + 1;
 	h = pcx.ymax - pcx.ymin + 1;
 
-	data = (byte *) Hunk_AllocNoFill ((w*h+1)*4); //+1 to allow reading padding byte on last line
+	data = (byte *) Hunk_Alloc ((w*h+1)*4); //+1 to allow reading padding byte on last line
 
 	//load palette
 	fseek (f, start + com_filesize - 768, SEEK_SET);
@@ -457,7 +457,7 @@ static byte *Image_LoadLMP (FILE *f, int *width, int *height)
 	}
 
 	mark = Hunk_LowMark ();
-	data = (byte *) Hunk_AllocNoFill (pix);
+	data = (byte *) Hunk_Alloc (pix);
 	if (fread (data, 1, pix, f) != pix)
 	{
 		Hunk_FreeToLowMark (mark);

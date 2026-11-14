@@ -1,0 +1,29 @@
+# nav_tele_sight: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". A monster that sees you THROUGH
+# a paired (see-through) teleporter gate walks through it to you (his flat report: an unarmed grunt ran in place facing
+# his image while he stood in its sight through the gate; out of sight it pathed through). The teleporter walk-in metric
+# (vr_nav_teletest, NAVMESH.md 16) on vrteleporters' paired gates from gallery FA into FB with `past` 2 (you stand just
+# past each trial's destination, 48 out or the nearest spot clear of the gate's trigger, in its sight through the gate;
+# not come through it, so no trail; the melee walkers' slot ring widened to 160, so its slot toward the walker lies back
+# through the gate's face from where the test can stand you, as the 80 ring's did with him right at the face): a fist grunt,
+# a dog, a knight and a fiend in turn are put 192 units straight in front of each gate's entry and chase you; each is
+# timed till it is through (8 s at most) and how long it stood still by the gate; `sight` on each trial line: the
+# quarter-seconds it saw you through the gate (notarget: none wakes and fights the others while the navmesh builds; the
+# test wakes each onto you). An ogre, a hell knight and an axe grunt: nav_tele_sight2.
+# Verdict line: nav_tele_sight: N passed, M failed.
+title Navmesh: monsters that see you through a teleporter gate walk through it to you
+map vrteleporters
+start 0 1150 24 -90
+god
+notarget
+spawn "Armed Grunt: Fists" 0 80
+spawn monster_dog 0 -80
+spawn monster_knight 0 160
+spawn monster_demon1 0 -180
+cvar vr_nav 1
+cvar vr_nav_debug 2
+cvar vr_nav_teleports 1
+cvar vr_nav_slot_radius 160
+cvar sv_random_seed 1
+cmd vr_bench_seed 1
+cmd vr_nav_teletest nav_tele_sight monster_army,monster_dog,monster_knight,monster_demon1 1,3,5,7 1 192 8 1 140 2
+hint Each monster in turn appears in the gallery beyond a gate, straight in front of it, with you just past the gate's other side in its sight through the gate: it walks through the gate to you, never running in place facing you.

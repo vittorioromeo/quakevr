@@ -662,6 +662,22 @@ void R_PrewarmDecalPrograms (qboolean pdo)
 		GL_WorldDecalRetroProgram (0, R_WorldDither (), false);
 }
 
+/*
+=============
+R_PrewarmTranslucentDecalPrograms
+
+QVR: the translucent brush models' program with the decals' retro code (OIT: R_ChooseBModelProgram's), made in the
+load's last frame when the map has a translucent brush model (vr/vr_decals.cpp prepareTranslucent): made in play it
+froze the game 2.6-3.1 s (AD's maps; the opaque world's are R_PrewarmDecalPrograms'). Sorted blending's is the
+opaque world's plain one, made there.
+=============
+*/
+void R_PrewarmTranslucentDecalPrograms (void)
+{
+	if (R_GetEffectiveAlphaMode () == ALPHAMODE_OIT)
+		GL_WorldDecalRetroProgram (1, R_WorldDither (), false);
+}
+
 static GLuint R_ChooseBModelProgram (qboolean oit, qboolean alphatest, qboolean pdo)
 {
 	const int dither = R_WorldDither ();

@@ -155,6 +155,29 @@ Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
   any Vulkan decision (VULKAN_MIGRATION.md); QuakeRay (github.com/f1ames0ff/QuakeRay) unreviewed.
 - **Platforms:** Linux (WSL build in progress), Steam Frame (with kblood), standalone Quest (OpenXR on Android,
   GLES/Vulkan, mobile budget), bHaptics (2026-10-11).
+- **Emscripten/WebGL port** (2026-11-15): the game in a browser (flat first; WebXR later?). Builds on the Quest work's
+  GLES 3 profile (`-glescompat`, agent/quest) and the no-child-process mode; open: threads (SharedArrayBuffer), the
+  file system for paks, audio, download size.
+- **AI companion** (2026-11-15): a coop partner that plays campaigns/levels with the player, using the navmesh
+  pathfinding and answering the player's commands (follow, stay, attack that, fetch, go there), like the Skyrim dog
+  demo. Builds on multiplayer's coop (agent/mp), FrikBot, the navmesh and the stealth/hunt AI.
+- **HDR display output for flat play** (2026-11-15): the scene is already float (RGBA16F with `vr_tonemap`) and
+  tone-mapped to SDR (vr_tonemap.hpp, vr_flatlook.cpp); missing is an HDR10/scRGB window. Windows + OpenGL has no
+  standard HDR swapchain: present through a DXGI flip-model swapchain via WGL_NV_DX_interop2, or the Vulkan path
+  (VK_EXT_swapchain_colorspace). Needs: a peak-brightness/paper-white setting, HUD and menus at paper white, SDR
+  fallback, an HDR monitor to test. Gain is mostly highlights (fire, lava, muzzle flashes, bloom, sky); VR stays SDR. M.
+- **Renderer ideas from Hexenwail** (2026-11-15 research; github.com/hexenwail/hexenwail, a Hexen II engine on
+  Ironwail's renderer approach; clone in kit `scratch/hexenwail_cmp/hw`):
+  - Bicubic lightmap filtering (`r_lightmap_bicubic` in their world shader, plus their lightmap gutter fix #113):
+    smoother lightmap shadows up close in VR; a few texture fetches per world pixel. S-M.
+  - Pre-compressed DDS/KTX replacement textures (their img_dds.c: BC1-7, KTX 1.1), uploaded as is: less VRAM and
+    faster loads with HD packs. Desktop only (Quest needs ASTC/ETC2). M.
+  - Hi-Z occlusion culling (`gl_hiz_cull`, gl_worldcull.c: previous frame's depth pyramid in the cull compute
+    shader; 44-58% of surfaces culled on demo1): only if a capture shows world draws as the cost; one-frame holes on
+    head turns/doors and per-eye pyramids make it risky in VR. L.
+  - Their web/PWA build (web/, docs/WEBGL_RENDERER.md, docs/PWA.md): reference for the Emscripten/WebGL item.
+  - Small: MAX_ENT_LEAFS 32 -> 64 (entity popping on big maps); V_RenderView returning when not connected (their
+    headless map-change crash, f67ccf0); CI that compiles every shader with glslang.
 
 ## 11. Performance and parked
 

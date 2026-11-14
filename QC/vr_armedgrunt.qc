@@ -807,6 +807,8 @@ vector(vector v, vector k, float deg) VR_AG_Rotate =
 // pointing where it aims, kicked back by a shot, swung by a blow. Its view angles (VR_AxeStick_Angles') in .v_angle:
 // the shots' and a drop's.
 void(entity g, entity p) VR_AGP_Pose; // (vr_armedgrunt_pose.qc: the pose, its attacks, sent to the clients)
+float(entity g, float still) VR_AGP_Lod;      // (... its level of detail: TRUE skips it this frame)
+void(entity g, entity p) VR_AGP_LodCarry;
 void() VR_AGP_Attack;
 void(entity g) VR_AGP_Spawn;
 
@@ -976,7 +978,14 @@ void() VR_AG_PropThink =
         return;
     }
     VR_AGPar_Frame(g); // (a melee blow coming: its parry raised: vr_armedgrunt_parry.qc)
-    VR_AG_PlaceProp(g, self);
+    if(VR_AGP_Lod(g, still))
+    {
+        VR_AGP_LodCarry(g, self); // (unseen, far, idle: posed every other frame)
+    }
+    else
+    {
+        VR_AG_PlaceProp(g, self);
+    }
     if(g.vr_adgun_stream && time - g.vr_adgun_stream > 0.4)
     {
         VR_ADGun_MonsterStreamEnd(g, self.weapon, FALSE); // (no flame for a while: its attack cut short, a pain)
@@ -3293,8 +3302,8 @@ void(entity g, vector vel) VR_AG_DropMain =
     g.vr_ag_main_reserve = 0;
     entity inst = g.vr_ag_main_inst ? g.vr_ag_main_inst : WeaponInst_New(VR_AG_ClipSize(wid));
     g.vr_ag_main_inst = world;
-    CreateThrownWeapon(g, wid, g.vr_ag_main_wflags, inst, g.origin + '0 0 12', randomVec(180), vel, randomVec(90),
-        FALSE /* disappear on hit */, FALSE /* deal damage */, WeaponIdToThrowDamage(wid));
+    VR_EnemyHeld_Scenery(CreateThrownWeapon(g, wid, g.vr_ag_main_wflags, inst, g.origin + '0 0 12', randomVec(180), vel,
+        randomVec(90), FALSE /* disappear on hit */, FALSE /* deal damage */, WeaponIdToThrowDamage(wid))); // (as it dies)
     VR_AG_Log(sprintf("its stowed %s dropped", WeaponIdToWeaponName(wid)));
 };
 
@@ -3358,8 +3367,9 @@ float() VR_AG_Dying =
         VR_AG_Log(sprintf("killed by its own %s", self.vr_ag_prop ? self.vr_ag_prop.netname : "weapon"));
     }
     makevectors(self.angles);
-    VR_AG_DropHeld(self, v_forward * 25 - v_right * 20 + v_right * (crandom() * 15) + '0 0 70');
-    VR_AG_DropHeld(self, v_forward * 25 + v_right * 20 + v_right * (crandom() * 15) + '0 0 70'); // (its other, if two)
+    // (vr_enemy_held_drops 0, Classic: they fall as scenery nobody takes. A disarm's drop, alive, stays a weapon.)
+    VR_EnemyHeld_Scenery(VR_AG_DropHeld(self, v_forward * 25 - v_right * 20 + v_right * (crandom() * 15) + '0 0 70'));
+    VR_EnemyHeld_Scenery(VR_AG_DropHeld(self, v_forward * 25 + v_right * 20 + v_right * (crandom() * 15) + '0 0 70')); // (its other, if two)
     VR_AG_DropMain(self, v_forward * 15 + v_right * (crandom() * 25) + '0 0 60'); // (its own, stowed behind a flare gun)
     if(self.vr_ag_kind == VR_AM_KNIGHT || self.vr_ag_kind == VR_AM_DKNIGHT)
     {

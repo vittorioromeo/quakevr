@@ -788,7 +788,7 @@ static void Mod_LoadTextures (lump_t *l)
 		}
 
 		pixels = mt->width*mt->height; // only copy the first mip, the rest are auto-generated
-		tx = (texture_t *) Hunk_AllocNameNoFill (sizeof(texture_t) +pixels, loadname );
+		tx = (texture_t *) Hunk_AllocName (sizeof(texture_t) +pixels, loadname );
 		// only clear the texture struct, not the pixel buffer following it
 		memset (tx, 0, sizeof (*tx));
 		loadmodel->textures[i] = tx;
@@ -1126,7 +1126,7 @@ static void Mod_LoadLighting (lump_t *l)
 		// RGB lightmap samples are packed in 16bits.
 		// RRRRR GGGGG BBBBBB
 
-		loadmodel->lightdata = (byte *) Hunk_AllocNameNoFill ( (l->filelen / 2)*3, litfilename);
+		loadmodel->lightdata = (byte *) Hunk_AllocName ( (l->filelen / 2)*3, litfilename);
 		in = mod_base + l->fileofs;
 		out = loadmodel->lightdata;
 
@@ -1142,7 +1142,7 @@ static void Mod_LoadLighting (lump_t *l)
 		return;
 	}
 
-	loadmodel->lightdata = (byte *) Hunk_AllocNameNoFill ( l->filelen*3, litfilename);
+	loadmodel->lightdata = (byte *) Hunk_AllocName ( l->filelen*3, litfilename);
 	in = loadmodel->lightdata + l->filelen*2; // place the file at the end, so it will not be overwritten until the very last write
 	out = loadmodel->lightdata;
 	memcpy (in, mod_base + l->fileofs, l->filelen);
@@ -1170,7 +1170,7 @@ static void Mod_LoadVisibility (lump_t *l)
 		loadmodel->visdatasize = 0;
 		return;
 	}
-	loadmodel->visdata = (byte *) Hunk_AllocNameNoFill ( l->filelen, loadname);
+	loadmodel->visdata = (byte *) Hunk_AllocName ( l->filelen, loadname);
 	loadmodel->visdatasize = l->filelen;
 	memcpy (loadmodel->visdata, mod_base + l->fileofs, l->filelen);
 }
@@ -1281,7 +1281,7 @@ _load_embedded:
 	// Note: some BSPs don't contain a NUL terminator, e.g.
 	// https://www.quakeone.com/qrack/maps/Mcmdm04.bsp
 	// https://www.quakeone.com/qrack/maps/Jvoxdm3.bsp
-	loadmodel->entities = (char *) Hunk_AllocNameNoFill (l->filelen + 1, loadname);
+	loadmodel->entities = (char *) Hunk_AllocName (l->filelen + 1, loadname);
 	memcpy (loadmodel->entities, mod_base + l->fileofs, l->filelen);
 	loadmodel->entities[l->filelen] = '\0';
 }
@@ -1302,7 +1302,7 @@ static void Mod_LoadVertexes (lump_t *l)
 	if (l->filelen % sizeof(*in))
 		Sys_Error ("MOD_LoadBmodel: funny lump size in %s",loadmodel->name);
 	count = l->filelen / sizeof(*in);
-	out = (mvertex_t *) Hunk_AllocNameNoFill ( count*sizeof(*out), loadname);
+	out = (mvertex_t *) Hunk_AllocName ( count*sizeof(*out), loadname);
 
 	loadmodel->vertexes = out;
 	loadmodel->numvertexes = count;
@@ -1333,7 +1333,7 @@ static void Mod_LoadEdges (lump_t *l, int bsp2)
 			Sys_Error ("MOD_LoadBmodel: funny lump size in %s",loadmodel->name);
 
 		count = l->filelen / sizeof(*in);
-		out = (medge_t *) Hunk_AllocNameNoFill ( (count + 1) * sizeof(*out), loadname);
+		out = (medge_t *) Hunk_AllocName ( (count + 1) * sizeof(*out), loadname);
 
 		loadmodel->edges = out;
 		loadmodel->numedges = count;
@@ -1352,7 +1352,7 @@ static void Mod_LoadEdges (lump_t *l, int bsp2)
 			Sys_Error ("MOD_LoadBmodel: funny lump size in %s",loadmodel->name);
 
 		count = l->filelen / sizeof(*in);
-		out = (medge_t *) Hunk_AllocNameNoFill ( (count + 1) * sizeof(*out), loadname);
+		out = (medge_t *) Hunk_AllocName ( (count + 1) * sizeof(*out), loadname);
 
 		loadmodel->edges = out;
 		loadmodel->numedges = count;
@@ -1381,7 +1381,7 @@ static void Mod_LoadTexinfo (lump_t *l)
 	if (l->filelen % sizeof(*in))
 		Sys_Error ("MOD_LoadBmodel: funny lump size in %s",loadmodel->name);
 	count = l->filelen / sizeof(*in);
-	out = (mtexinfo_t *) Hunk_AllocNameNoFill ( count*sizeof(*out), loadname);
+	out = (mtexinfo_t *) Hunk_AllocName ( count*sizeof(*out), loadname);
 
 	loadmodel->texinfo = out;
 	loadmodel->numtexinfo = count;
@@ -2227,7 +2227,7 @@ static void Mod_LoadClipnodes (lump_t *l, qboolean bsp2)
 
 		count = l->filelen / sizeof(*ins);
 	}
-	out = (mclipnode_t *) Hunk_AllocNameNoFill ( count*sizeof(*out), loadname);
+	out = (mclipnode_t *) Hunk_AllocName ( count*sizeof(*out), loadname);
 
 	//johnfitz -- warn about exceeding old limits
 	if (count > 32767 && !bsp2)
@@ -2319,7 +2319,7 @@ static void Mod_MakeHull0 (void)
 
 	in = loadmodel->nodes;
 	count = loadmodel->numnodes;
-	out = (mclipnode_t *) Hunk_AllocNameNoFill ( count*sizeof(*out), loadname);
+	out = (mclipnode_t *) Hunk_AllocName ( count*sizeof(*out), loadname);
 
 	hull->clipnodes = out;
 	hull->firstclipnode = 0;
@@ -2357,7 +2357,7 @@ static void Mod_LoadMarksurfaces (lump_t *l, int bsp2)
 			Host_Error ("Mod_LoadMarksurfaces: funny lump size in %s",loadmodel->name);
 
 		count = l->filelen / sizeof(*in);
-		out = (int*)Hunk_AllocNameNoFill ( count*sizeof(*out), loadname);
+		out = (int*)Hunk_AllocName ( count*sizeof(*out), loadname);
 
 		loadmodel->marksurfaces = out;
 		loadmodel->nummarksurfaces = count;
@@ -2378,7 +2378,7 @@ static void Mod_LoadMarksurfaces (lump_t *l, int bsp2)
 			Host_Error ("Mod_LoadMarksurfaces: funny lump size in %s",loadmodel->name);
 
 		count = l->filelen / sizeof(*in);
-		out = (int*)Hunk_AllocNameNoFill ( count*sizeof(*out), loadname);
+		out = (int*)Hunk_AllocName ( count*sizeof(*out), loadname);
 
 		loadmodel->marksurfaces = out;
 		loadmodel->nummarksurfaces = count;
@@ -2412,7 +2412,7 @@ static void Mod_LoadSurfedges (lump_t *l)
 	if (l->filelen % sizeof(*in))
 		Sys_Error ("MOD_LoadBmodel: funny lump size in %s",loadmodel->name);
 	count = l->filelen / sizeof(*in);
-	out = (int *) Hunk_AllocNameNoFill ( count*sizeof(*out), loadname);
+	out = (int *) Hunk_AllocName ( count*sizeof(*out), loadname);
 
 	loadmodel->surfedges = out;
 	loadmodel->numsurfedges = count;
@@ -2439,7 +2439,7 @@ static void Mod_LoadPlanes (lump_t *l)
 	if (l->filelen % sizeof(*in))
 		Sys_Error ("MOD_LoadBmodel: funny lump size in %s",loadmodel->name);
 	count = l->filelen / sizeof(*in);
-	out = (mplane_t *) Hunk_AllocNameNoFill ( count*sizeof(*out), loadname);
+	out = (mplane_t *) Hunk_AllocName ( count*sizeof(*out), loadname);
 
 	loadmodel->planes = out;
 	loadmodel->numplanes = count;
@@ -2494,7 +2494,7 @@ static void Mod_LoadSubmodels (lump_t *l)
 	if (l->filelen % sizeof(*in))
 		Sys_Error ("MOD_LoadBmodel: funny lump size in %s",loadmodel->name);
 	count = l->filelen / sizeof(*in);
-	out = (dmodel_t *) Hunk_AllocNameNoFill ( count*sizeof(*out), loadname);
+	out = (dmodel_t *) Hunk_AllocName ( count*sizeof(*out), loadname);
 
 	loadmodel->submodels = out;
 	loadmodel->numsubmodels = count;
@@ -2651,7 +2651,7 @@ static byte *Mod_LoadVisibilityExternal(FILE* f)
 	if (filelen <= 0) return NULL;
 	Con_DPrintf("...%d bytes visibility data\n", filelen);
 	mark = Hunk_LowMark ();
-	visdata = (byte *) Hunk_AllocNameNoFill (filelen, "EXT_VIS");
+	visdata = (byte *) Hunk_AllocName (filelen, "EXT_VIS");
 	if (!fread(visdata, filelen, 1, f))
 	{
 		Hunk_FreeToLowMark (mark);
@@ -2676,7 +2676,7 @@ static void Mod_LoadLeafsExternal(FILE* f)
 	if (filelen <= 0) return;
 	Con_DPrintf("...%d bytes leaf data\n", filelen);
 	mark = Hunk_LowMark ();
-	in = Hunk_AllocNameNoFill (filelen, "EXT_LEAF");
+	in = Hunk_AllocName (filelen, "EXT_LEAF");
 	if (!fread(in, filelen, 1, f))
 	{
 		Hunk_FreeToLowMark (mark);
@@ -3534,8 +3534,11 @@ qboolean loadMd5Replacement(qmodel_t* mod, char	*path)
 			double t0 = Sys_DoubleTime (); // QVR: load timing (vr_startup_times)
 			qboolean result = VR_ModelReplacementOk (mod->name, md5buffer); // QVR: the jointed hand's file checked first
 			char* extended = result ? VR_ModelReplacementExtend (mod->name, md5buffer) : NULL; // QVR: the gloves' shells added
+			char* withhead = result ? VR_RangerHeadExtend (mod->name, extended ? extended : md5buffer) : NULL; // QVR: the detailed head's mesh added
 			double t1 = Sys_DoubleTime ();
-			result = result && Mod_LoadMD5MeshModel (mod, extended ? extended : md5buffer);
+			result = result && Mod_LoadMD5MeshModel (mod, withhead ? withhead : extended ? extended : md5buffer);
+			if (withhead)
+				VR_HeapFree (withhead);
 			if (extended)
 				VR_HeapFree (extended);
 			VR_TimeAdd ("    md5: the VR check", t1 - t0);
@@ -3743,8 +3746,8 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 				p += sizeof (daliasskintype_t) + sizeof (daliasskingroup_t) + n * (sizeof (daliasskininterval_t) + sz);
 			}
 		}
-		st = (int *) Hunk_AllocNoFill (pheader->numverts * 3 * sizeof (int));
-		tr = (int *) Hunk_AllocNoFill (pheader->numtris * 4 * sizeof (int));
+		st = (int *) Hunk_Alloc (pheader->numverts * 3 * sizeof (int));
+		tr = (int *) Hunk_Alloc (pheader->numtris * 4 * sizeof (int));
 		for (i = 0; i < pheader->numverts * 3; i++)
 			st[i] = LittleLong (((const int *) p)[i]);
 		p += pheader->numverts * sizeof (stvert_t);
@@ -4562,6 +4565,9 @@ static void Mod_LoadMD5Skins (qmodel_t *mod, aliashdr_t *surf, const char *shade
 	qmodel_t *skinowner = VR_MD5SharedSkins (shader) ? NULL : mod;
 	int skinpersist = skinowner ? 0 : TEXPREF_PERSIST;
 
+	if (VR_RangerHeadSkins (surf, shader)) // QVR: the detailed head's mesh: his own skin, from his model (vr_rangerhead.cpp)
+		return;
+
 	VR_MD5SkinsReset (); // QVR: (VR_MD5SkinNormalMap) the islands made anew for this surface
 
 	//MD5 violation: the skin is a single material. adding prefixes/postfixes here is the wrong thing to do.
@@ -4830,7 +4836,7 @@ static qboolean Mod_LoadMD5MeshModel (qmodel_t *mod, const char *buffer)
 		if (!MD5_BakeInfluences(fname, outposes, poutvert, vinfo, weight, surf->numverts, numweights))
 			goto error;
 		// QVR: the body's head made of the Quake ranger's (vr_body_ranger_head; vr_rangerhead.cpp)
-		if (m == 0 && VR_RangerHeadMesh (mod, fname, meshshader, outbones, (int) numjoints, (void **) &poutvert, &surf->numverts, &poutindexes, &surf->numindexes)) // (not the gloves' cuff shell after it: VR_ModelReplacementExtend)
+		if (VR_RangerHeadMesh (mod, fname, (int) m, meshshader, outbones, (int) numjoints, (void **) &poutvert, &surf->numverts, &poutindexes, &surf->numindexes)) // (the body's first, the detailed head's own; not the gloves' cuff shell: VR_ModelReplacementExtend)
 		{
 			surf->numverts_vbo = surf->numverts;
 			surf->numtris = surf->numindexes / 3;

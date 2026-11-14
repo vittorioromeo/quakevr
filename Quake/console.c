@@ -1118,7 +1118,7 @@ void Con_Init (void)
 		con_buffersize = CON_TEXTSIZE;
 	//johnfitz
 
-	con_text = (char *) Hunk_AllocNameNoFill (con_buffersize, "context");//johnfitz -- con_buffersize replaces CON_TEXTSIZE
+	con_text = (char *) Hunk_AllocName (con_buffersize, "context");//johnfitz -- con_buffersize replaces CON_TEXTSIZE
 	Q_memset (con_text, ' ', con_buffersize);//johnfitz -- con_buffersize replaces CON_TEXTSIZE
 	con_linewidth = -1;
 

@@ -2301,3 +2301,456 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
   (fewer bodies and particles) since a31689eab (every move since the last server tick counts: the bench's +attack
   presses land differently at 90 Hz input over 72 Hz ticks). Nothing to fix; for CPU p99s in --fast, read cpu_busy with
   the GPU unsaturated (a smaller --eye) or a paced run. Scripts: scratch/uf_crowd.sh, uf_hitch2.py.
+
+## perfpicks: his five performance calls (branch agent/perfpicks, 2026-11-14; partial: see "Left")
+
+- **Navmesh, big maps** (`1bc1a031a`, NAVMESH.md 20 "Big maps"): a class's first props' batch lands on
+  `vr_nav_job_frames_first` (45, at least `vr_nav_job_frames`); a class's build or disk read on `vr_nav_build_frames` +
+  the map's navmesh triangles / `vr_nav_build_frames_tris` (10,000; ad_tears 1.15 M -> 133 frames). Pure functions of
+  the map and the game's events; the main thread still waits for a job late on its frame. `vr_nav_info` prints them.
+  Decision: the scaled frame applies to every pool build (the load's classes too, which hitch the same way on a first
+  play), not only those started in play.
+- **Ragdolls** (`215487499`): `vr_ragdoll_per_frame` 4 new ragdolls a server frame (`syncEntities`), the rest in
+  `World::ragdollQueue`, oldest death first; a queued corpse has no body until its turn; knockdowns at once; 0 no limit.
+- **Armed humanoids' pose** (`220fc2240`). Profiled first (`profile_qc`, fast mode, nav_hunt_e1m1_3x, before: QuakeC
+  5.14 ms a frame with the profiler on; prop think 3.76 incl.; `VR_AGP_Pose` 0.52 self / 2.49 incl. for 77,
+  `VR_WP_Place` 0.34, `VR_AGP_TurnDir` 0.28 (532 calls), `VR_AM_Row` 0.10 (1,280 calls), `modelvertex` 0.11 (772)).
+  Changes: `vr_agrunt_pose_lod` 1 (a holder no player can see, past `vr_agrunt_pose_lod_near` 384 and outside
+  `vr_agrunt_pose_lod_cone` 80 degrees of each player's v_angle, doing nothing timed: no act, aim, guard, take, studio,
+  posed every other server frame, its weapons carried by its move between: QC `VR_AGP_Lod`/`VR_AGP_LodCarry`);
+  `vr_worn_backpack_lod_near` 1500 (a far unseen worn pack not placed that frame); builtin `unseenfar(e, near)` (C++,
+  the players' server state only: multiplayer-safe); `VR_AM_Row` returns at once for the row it holds (`nosave`
+  flag: a save keeps no vectors); `VR_AGP_TurnDir`'s cosines and sines kept per turn and its rotation in builtin
+  `turnrpy` (QC's float steps in order, no FMA: bit for bit). Pose tests `vr_agrunt_test` 83, 84, 99, 79: all pass
+  and their agtest lines are identical with the LOD on and off (fingerprints 835cdbe3, 721e80a4, 942267e5, 60ff0e05).
+- **Disk cache** (`1a95237d3`): `write` no longer prepares the folder on the main thread; the job calls `prepare`,
+  which now holds a per-product lock through the prune and `createDirectories` (no write before its folder exists or
+  during the prune).
+- **Before bench** (ThinLTO, `--fast --reps 3`, exclusive; `kit/benchresults/pp_before`): fight_ad_tears max frame
+  140 / 26 / 24 ms, nav_hunt_e1m1_3x CPU p50 6.29-6.44, p99 12.5-13.4, combat_48 p50 3.6-3.9, ragdolls_32_active max
+  28.5-29.4 ms.
+- **Left:** the after bench and `profile_qc` after; the release-config build; ragdoll and scenario_check runs;
+  load_models_test; menu_paths.txt regeneration for the five new Tunables rows; PERF_1_1.md "Applied"; the checklist
+  lines; the merge of origin/next.
+- **Finished (second worker).** Determinism (no-LTO, fast mode; `scratch/pp_det2.sh`; fingerprint = md5 of the outcome
+  lines without wall-clock ms): `nav_tele_metric` (the retired scene restored uncommitted for the run: the old
+  `pp_det.sh`'s logs were empty because the author retired that scene, the runs timed out on an unknown scene; test 43
+  had no `map vrarena` first), `vr_arena_test 43` (props) and `vr_arena_test 41` (the towers: every class built in play
+  on vrarena), 2 runs alone and 2 x 2 lanes at once: **all byte-identical** per test (`3c851856` 17/20, `8bb14908`
+  13/0, `b0a9e67d` 14/1), 0-4 deadline waits a run. Test 41's one fail (a dog not down the tower in 40 s) is the same
+  with `vr_nav_job_frames_first 0; vr_nav_build_frames_tris 0` (the old frames): not this branch's.
+- After bench and `profile_qc`: PERF_1_1.md "His calls" (fight_ad_tears max 140 -> 22-24 ms; nav_hunt_e1m1_3x CPU avg
+  6.38 -> 5.96, QuakeC 5.14 -> 4.01 ms a frame with the profiler on; 5 of the 9 combat_48 / ragdolls_32_active runs had a
+  slow GPU throughout, left out). ragdolls_32_active kills its 32 in the set-up, before its window: it does not time
+  `vr_ragdoll_per_frame`'s burst.
+- Checks: scenario_check 129 files 0 errors, 129 run 0 failed; load_models_test 4/0 (352/0); ragdoll_test flat blast
+  pile slowmo save and saveload_test PASS; vr_run_check 15/0, runenemies 17/0; menu_paths.txt +7 Tunables rows;
+  ReleaseLTO 1.1.0 build.
+## menutweak: icon picker proportions, Start placement, merged "Advanced" footer
+
+- **Icon pickers** (vr_menu_icons.inc): each picture is fitted inside its square (aspect kept, centred: a wide gun thumbnail
+  is letterboxed); `vr_menu_icon_size` default 32 -> 24 (knob kept, 16-48); a two-line name's pitch 9 -> 7 pixels
+  (`iconNameLine`), so the row is shorter.
+- **Run Setup**: Start now comes right after Difficulty (its gap above kept), then Presets, Rules, Mutators.
+- **Footer**: "This Page" and "Menu Detail" are one minor section, "Advanced" (Reset This Page, Menu Detail); Campaign's own
+  extra rows share it. Menu paths do not name sections, so menu_paths.txt is unchanged; Page Footer Size/Opacity keep
+  their names. Shots: scratch/menutweak_shots (qvr-kit).
+## decalhitch
+
+Cherry-picked bd2277d6c (translucent brush models' retro decal program made in the load's last frame, not in play: a 2.5-3.1 s freeze on 19 AD maps); dev and ReleaseLTO builds, scenario_check, load_models_test pass; ad_tears with developer 1 prints no "made in play" line.
+
+## relaudit: the 1.1 release-readiness audit and a lean checklist (branch agent/relaudit, 2026-11-14)
+
+- **docs/vr-port/RELEASE_1_1.md**: everything needed to release 1.1, ticked where done; what is left for him at the top.
+- **Upgrade from beta 4 / 1.0.1** (scratch `ra_oldcfg.py`, `ra_upgrade.sh`, `ra_cmp.py`: a tag's full config with its
+  vr_defaults.cfg, run and compared): beta 4 printed "Unknown command" for `vr_handgrenade_fuse` and kept 3 of 46 changed
+  defaults (`vr_decap_head_size`, `vr_decap_neck`, `vr_gore_mist_near`: changed after the 11-08 table). Fixed:
+  `fullConfigChanges` rows; `vr_handgrenade_fuse`, `vr_nav_gate_chase`, `vr_nav_tele_stuck` in retiredCvars. After: beta 4
+  0 unknown, 0/46 stale; 1.0.1 0 unknown, 0/37 stale; `config_fullupgrade_test.sh` 9/0 (two checks added);
+  `vr_runsetup_test` 78/0, `vr_continue_rows_test` 20/0; `-zone` / `-heapsize` / `-minmemory` quiet.
+- **Release build:** `make_release.ps1 -Local` stopped on live-tuning strings in the exe: the Debug page's two
+  `tune` / `tune_reset vr_flat_aim_point` rows are development-only now. Then the package (4,096 files, the allowlist),
+  installer self-tests 41/41 and the off-screen install pass; the smoke launch ran, but its name check saw a `-dirty`
+  tree (edits during the build): rerun on a clean tree. make_release picks VS 2022's MSBuild; `-MSBuild` VS 2026's
+  builds as the kit does (a VS 2022-built `qvr_checks.exe` exited 3 silently under build.sh until rebuilt).
+- **Docs:** FEATURES (Run Setup and mutators, flat-screen play, armed humanoids, enemy AI, arena, AD, Menu Look,
+  dagger, reverse grip, stirring), README, INSTALL, CREDITS (vkQuake, FTE), the release notes brought up to 11-14.
+- **Checklist:** 94 -> 68 items in 10 sections, 3 new scenes (CHECKLIST_REORG.md, "2026-11-14").
+## crtheapfix
+
+Cherry-picked 6b8e74432: VR_CrtHeapLoadHold now defined without mimalloc (QVR_MIMALLOC=OFF Linux link). Checked: dev build, ReleaseLTO, WSL no-mimalloc link, load_models 352/0.
+
+## Reset This Page and changes on the weapon and prop pages (branch agent/pagereset, 2026-11-15)
+
+His 11-15 note: he changed the shotgun's two-handed hotspot by accident and had no way back. Every page with settings
+now has the footer's Reset This Page (two presses within 3 seconds), the weapon and prop pages too (`slotPage`: the
+Weapon Offsets main page and its parts, Weapon Weights, Held Object Offsets and Weights), which had none.
+
+- **Reset This Page on a weapon or prop page** resets the rows shown, as on any page: the page's weapon's (or prop's)
+  values back to that slot's own default (its `vr_wofs_*_NN` / `vr_prop_*_NN` stand-in's default: weapons.txt's,
+  props.txt's), the slot the page edits (an inheriting weapon's page edits its parent's: those). On Two-Handed and
+  Hotspots only the hotspot shown (the others stay); on Holstered only the holster kind shown. The page's other settings
+  (Show Hotspots, Preview in Holster, the Weapon Weights page's global weight rows) go back too. Reset This Weapon,
+  Holstered Back to 0 and the rest stay as they were. The page is rebuilt after (`slotPageReset`: a hotspot's type).
+- **The menus' own state:** the Hotspot and Holster pickers (`vr_weapon_hotspot`, `vr_weapon_holster`) are no longer
+  "changed" settings: no `*`, not on Changed Settings, never reset.
+- **The `*`** by a changed row already compared with the stand-in's default (the slot's): unchanged.
+- **Changed Settings** lists every weapon's and prop's changed values, not just the held one's, each under a header
+  "Weapon: progs/v_shot.mdl (_02)" / "Prop: maps/b_explob.bsp (_01)", labelled by part ("Hand and Grip: Offset X
+  (forward)", "Muzzle and Sights: Muzzle X", "Weight: Mass"), a hotspot's "Hotspot 2: Hotspot X", a holster's "Hip:
+  Holstered X (off body)"; each row the page's own (its range, its help), changed or put back there.
+  `listSlotChanges` (vr_menu_wofs.inc) builds each changed slot's pages for it (`SlotListing`: the slot, each hotspot,
+  each holster kind; the pages' titles into their own strings, the pages' state put back after), skipping inheriting
+  slots (listed under the parent) and Inherit From (its choices are the page's texts). A changed value no page variant
+  shows (a manual curl while Fingers is Automatic) isn't listed; Reset This Weapon still resets it. The weapon pages'
+  other settings stay under their page's title.
+- **Test:** `Misc/quakevr/menu_pagereset_test.sh <agent>` (`menu_vr pageresettest`; the weapon pages pinned to the
+  shotgun's slot, `pinSlotPages`: no map): hotspot 1 X changed -> `*`, on Changed Settings under the shotgun ->
+  Reset This Page on Two-Handed restores the weapons.txt default; hotspot 2 X, Shot Pitch (another page), the
+  nailgun's hotspot and the picker kept; a prop's Mass listed under its name. 14/0.
+- **Audit** (pages with values): every VR menu page with a setting row gets Reset This Page from `addMenuDetail` (Debug,
+  Tunables, the Armour Studio menu page, the presets' pages...); none other was left out. Without one, by design: Search,
+  Console and Maps (drawn their own way), Changed Settings (the list itself), the presets' choices (as before). The
+  studios' own windows (Weapon Studio, Rig Studio, Armour Studio's window, Pose Studio, the blade editor) are not menu
+  pages: they keep their own resets (reset this slot, Reset This Pose, Reset Part/Kind, Reset Pose/Grips, Reset Blade)
+  and draw no `*`; the weapon values they change show on Changed Settings now.
+## flat1115a: icon pictures' aspect, card gap, red banners, Arcane Dimensions with the campaigns (agent/flat1115a, 2026-11-15)
+
+## coopdisarm
+
+His report (flat, 11-15, on next): a coop listen game on e1m1, a bot added, the first grunt disarmed by shooting its gun,
+then unkillable though it walked to him and punched. **Not reproduced**; a regression test added.
+
+- New `vr_agrunt_test 215` (QC/vr_armedgrunt_coopdisarm_test.qc): a shotgun grunt (or with `scratch3 1` the map's own
+  nearest armed grunt, e1m1's replacement, brought ahead) hunting the player; the player's shotgun blasts
+  (FireBulletsImpl, as his: VR_AGS_Shot's disarm by shots) at its gun until it is knocked out (its body's health held
+  at 1000 meanwhile, its own back after), `scratch4` seconds disarmed (fists, its seek for a weapon; default 1), then
+  blasts on its body until it dies. Ends on `agtest: test 215 over`.
+- Results: single player (vrtesthall), coop without a bot (e1m1's own Burst Rifle grunt 4 s disarmed; vrtesthall's 8 s), coop with
+  a FrikBot (vrtesthall and e1m1), coop with `teamplay 1`, `vr_flatplay 1`: every one shot out in 1-4 blasts and killed in
+  1-2 body blasts (health 30 -> 6 -> dead); with a bot near, the bot's shots killed it first (a normal corpse).
+  `vr_agrunt_test 2` (disarm, rearm, kill) 4/0, `203` (dual disarm) 81/0.
+- Read and ruled out: T_DamageDeal's early outs after a disarm (takedamage, FL_GODMODE, invincible_finished,
+  FL_SPECIFICDAMAGE/VR_DamageCredit, TeamHealthDam: the player's steam is his team, never a monster's 0), the
+  shot-blocking held-weapon test (VR_AGS_Held needs it in the grunt's hand), VR_AG_DisarmTry's stagger, the coop branches
+  in ai.qc and the armed grunt files (none touch damage), FrikBot (sets no monster's flags, health or takedamage).
+- Not covered: his real flat input. `-flatscreenmode` under the mock headset leaves `.vr_flatscreen` 0, so a `+attack`
+  tap fires from the mock hand, not the view; the test fires the same pellets the gun does. If it recurs: his teamplay
+  setting, the weapon used after the disarm, and whether its body bled would split damage-not-dealt from
+  damage-not-landing.
+- agent/mp: no change to the damage, disarm or armed-grunt paths (its QC diff is PvP parry, holsters, pickups, test
+  impulses), so neither the bug nor a fix is there.
+## palmgrab: closing a hand on a gun resting on or against it (branch agent/palmgrab, 2026-11-15)
+
+His design (2026-11-15; MP_PLAN B3c, agent/mp's 0a203126f, whose 12 cm `vr_weapon_palm_grab_slack` is NOT taken): a
+hand closing on a gun that rests on or leans against that hand's Box3D body (the open hand; a gun on the open palm sits
+3-5 cm over the fist that closes under it) takes it, with no reach beyond the fist's anywhere:
+- The fist reaches it (the same test as before: `held::grabTouch` with `vr_weapon_grab_slack`, the handle's
+  `vr_weapon_grab_handle_leniency` / `vr_weapon_catch_handle_leniency`): as before, by the handle within
+  `vr_weapon_grab_anywhere_min` (gun mode), a hotspot, or anywhere on it.
+- The fist doesn't reach it but it is on or against the hand (`box3d::restsOnHand(..., minUp -2)`: any contact with the
+  hand's body): taken where it lies against the hand, as a prop, anywhere on it (`twohand::anywhereSpot`: carried,
+  QVR_WPNFLAG_FOREGRIP_CARRIED), never moved onto its handle or a hotspot the fist doesn't reach.
+- Neither: nothing (a hand closing a few centimetres off a gun takes nothing, as before).
+
+Code: `vr_physics.cpp` onWeapon (the slack computation split out as `weaponGrabSlack`; `weaponAgainstHand`), the view's
+choice in `vr_view_hands.cpp` updateGroundSpots through `physics::weaponOnHandOnly` (one test, both sides).
+`box3d::restsOnHand` takes `minUp` (default `restOnHandUp`, 0.3, the old `restUp`). The local player only (another
+player's hand has no anywhere hold: it takes handles only, as before), and only with `vr_weapon_grab_anywhere` on.
+
+Test: `vr_pickup_test 17` (VR_PalmGrabTest_*; ends `palmgrab test:`, 5 checks): the shotgun let go of low over the
+floor lies there; the off hand, steered onto marks by its measured place (world units back to mock metres), (A) closes
+on its handle: gun mode; (C) closes 12 units over its barrel: nothing; (B) the same with the gun against the hand: a
+prop, carried. The contact in (B) is stood in for by `vr_test_handcontact <hand> <0|1>` (a test command: a weapon within
+half a metre of that hand counts as against it, in the same weaponAgainstHand the physics' contact goes through):
+headless, a gun let go of onto the mock's open palm doesn't stay there (it tips off or passes through the thin open-hand
+box; probed over heights 1.15-1.5 m, offsets 0-25 cm, the shotgun and the heavy revolver, with and without
+`vr_gunangle 0`), so the physical rest itself is his to check (scenario `palmgrab`). The mock's hand angles carry
+vr_gunangle (mock pitch 0 is about 69 degrees down): the test's poses pitch up 69. The view's check runs in the server's
+VM (`progs::ServerVm`: without it the view never saw the contact and (B) was taken by the handle). Unchanged:
+pickup_mag 3/3, crate_grip (carry2h_grip 10/0), flatholster 54/0, revgrip (vr_embed_test 42) 24/0; Release-TracyFull 0
+warnings.
+- **Icon pictures stretched (the real cause):** the VR menu canvas scales y more than x (`VR_MenuCanvas`: the row
+  spacing; about 2x on the flat panel). Glyphs keep their size (`Draw_KeepMenuGlyphSize`) but `Draw_TextureRect` did
+  not, so menutweak's fit (in menu pixels) still came out about twice as tall. `Draw_MenuStretch()` (gl_draw.c) gives
+  that factor; `drawIconPicture` fits the picture in screen proportions and brings its height back to menu pixels: the
+  skull is round, the arches square, the guns long and flat (letterboxed in the box's width).
+- **Name lines** `vr_menu_icon_name_pitch` 6 (was 7: 14% tighter). **Card gap** `vr_menu_icon_gap` 16 (was 4): the
+  plates keep their width and sit 80 apart instead of 68 (+18%) while the row's 320 pixels have room; a five-choice
+  row (Difficulty) gives the gap up first, down to the old 4. **Decision:** read as the cards' spacing, not 15-20% of
+  the 4-pixel gap (sub-pixel). Rows in Menu Look > Run Setup; menu_paths.txt regenerated.
+- **Banners in the menus' red:** `Sbar_IntermissionOverlay` (COMPLETED, inter.lmp, the level's name, the numbers),
+  `Sbar_FinaleOverlay`, `SCR_DrawLoading`, `SCR_DrawPause` draw with `Draw_SetMenuRecolor(true)`: vr_menu_recolor and
+  its hue, strength and saturation; off with it.
+- **Select Campaign:** no Experimental header; Arcane Dimensions a Lead row with the others, a small dim "experimental"
+  before its title (`Item::tagLeftArg`, drawn by `drawGroupRow`; its right tag dropped). Its notice's Continue now
+  opens Run Setup (`openRunSetupArcane`); Start runs the developer launch `vr_campaign_native ad` (`runSetupStart`), as
+  the row did before.
+- **Checklist:** 17 ticked lines retired (no voice notes since 11-12); scenes flat_holster_drag, flat_clip_unpaid,
+  run_glass_dummy set aside (nothing else uses them); run_setup_newgame and run_pickups kept (docs, code). The two
+  [New] lines sorted into 7. physics and bodies, shortened. The failed Classic Quake line stays.
+- **Tests:** vr_runsetup_screen_test 42/0 (adds: Arcane Dimensions' Continue opens the screen), vr_continue_rows_test
+  19/0, vr_menu_flash_test 7/0, menu_shortcuts_test 14/0, vr_menu_path_check vrcalibration 6 / vrstart 5 found, 0
+  missing, checklist_tests_check 51/0. Builds: dev and ReleaseLTO 0 warnings. Shots: qvr-kit/scratch/flat1115_shots/
+  (icons_before_after, campaigns_before_after, completed_before_after).
+
+## Directional parry timing: the right direction always parries (branch `agent/parrytime`)
+
+His rule (2026-11-15): "As long as the direction of the player's gun/sword/etc is correct for a directional parry, it should
+count as a valid parry. But if it's early or late, the stagger effect should be severely diminished, as we want to reward
+well-timed parries."
+
+- **Test 78's 28/19 was not the parry.** It fails only when run with no `map vrtesthall` first (the bisect's and the
+  queue's runs: `-Script "vr_agrunt_test 78"`), so the test ran in `vrstart`: the posed sword misses its axis (along it 0.66
+  instead of 1.00) and the grunt stands 58 units off instead of 37, so every parry case fails, held early or not (the
+  dog bite and case 9 included). On `next` with the map, drawn and undrawn: 47/0, as every baseline since 11-06 (11-06,
+  11-12, 11-13, 11-14). The bisect's "first bad commit" 87172b999 changes only BACKLOG.md: noise from that. No commit broke it.
+  The test now ends at once with one FAIL ("needs map vrtesthall first") anywhere else.
+- **How early "held early" is** (the weapon held across from before the attack; the reference blow's time from its
+  attack's start): an armed grunt's overhead 0.38 s, a knight's chop 0.50, an ogre's swing 0.40, smash 0.50 (its blade
+  0.85), a fiend's claw 0.40, a shambler's smash 0.90, a dog's bite 0.31. The windows: well timed = in place at most
+  `vr_dirparry_timed_window` 0.3 s before the contact; `vr_dirparry_stroke` 0.45 s = how long a monster's own blow is held
+  back for its blade to reach your weapon (not a timing window); an armed humanoid's `vr_dirparry_window` 0.1 s.
+- **What changed.** `VR_DRP_Timing` (vr_dirparry.qc), the one function for every directional parry (monsters' own blows,
+  armed humanoids' swings; PvP later the same): the right direction parries at any timing, nothing through (as before).
+  Its share (`VR_DRP_TimingShare`) is 1 when your weapon got in place within the timing window and, for a blow held back for
+  your weapon, by its own moment (when its blade reaches your weapon's place, read along its way at the blow) plus
+  `vr_dirparry_late_grace`; earlier or later it falls smoothly (smoothstep) to `vr_dirparry_offtime`. The share scales the
+  parry's stagger and flinch (`VR_Parry_Interrupt`, the armed humanoid's opening flinch), its push on the attacker, the
+  counter window and an armed humanoid's disarm chance (`VR_Parry_TimingShare`, combat.qc; 1 for the guard, crossed arms
+  and flat-screen guard). "Well timed" (x1.3 strength) is unchanged.
+- **Tunables** (Debug > Tunables > Combat > Directional Parry): `vr_dirparry_offtime` 0.2 (Early/Late Stagger),
+  `vr_dirparry_offtime_fade` 0.15 s (Early Fade), `vr_dirparry_late_grace` 0.02 s, `vr_dirparry_late_fade` 0.06 s.
+  So held 0.45 s or more before the contact: x0.2; 0.375 s: x0.6.
+- **Test 78** (48 cases): held early now asks for a share of at most 0.5 (measured 0.2; the armed grunt's 0.39, in place
+  0.40 s before), moved/turned in a share of 1, moved in staggering at least 1.5x held early (knight 1.10 s vs 0.16, armed
+  grunt 1.50 vs 0.58); a last case checks the share's curve (full, the fades' middles 0.60, the floor, never rising).
+  Case 12 no longer compares its swing's end (it ends with its parry's flinch, now as long as the share makes it).
+  48/0; 35 6/0, 18 24/0, 60 6/0.
+- **Not covered by a test:** a late parry end to end (an armed humanoid's held blow can be late by 0.1 s at most; a
+  monster's by up to 0.45 s): the scene `parrytime` (an ogre and a sword grunt) is for him; `developer 1` prints
+  `dirparry: timing: in place X s before, Y s late: xS`.
+## flat1115b: flat aim per weapon (ironsight placing, zoom), Classic in flat, Autosave Now (agent/flat1115b, 2026-11-15)
+
+- **Ironsight placing per gun (his item 5).** There were none: the flat ironsight is solved from each gun's sight line with
+  no number per weapon (the old `flat_ads_*` keys were retired 2026-11-05); only the globals (`vr_flat_ads_relief`,
+  `_screen_x/_y`, `vr_flat_aim_fov`) moved it. New weapons.txt keys `fsight_fwd`, `fsight_right`, `fsight_up` (units in the
+  view's frame, forward adds eye relief; clamped to 10) and `fsight_pitch` (degrees, muzzle up about the rear sight; 20),
+  applied in `flatsight::sighted` so the reach, stance and wall code all see the moved gun; shots still go to the
+  crosshair's point. Live: Weapon Offsets > Sights > Flat-Screen Aim (the held gun) or `vr_wofs_fsight_up_NN` on the
+  console; saved as config overrides, `weapons_data.py promote` makes them defaults. All 0 shipped.
+- **Zoom per gun (item 6).** `fsight_mode` 1: the right button narrows the view exactly as the ironsight does (same
+  `st.adsT` travel, FOV, look speed) but the gun stays in its pose and the crosshair stays. Shared code, one switch:
+  `sightPosed` / `posedT` in vr_flatsight.cpp gate everything that moves the gun or reads the sighted pose (the solve, the
+  wall's back way and tilt, the stance's armSight, keepRecoil, crosshairFade, the picture's screen shift, stance turn and
+  lean), and `flatsight::poseShare` replaces `adsShare` in flatplay's keepNear, rideShare and walk bob. `adsShare` (the
+  FOV and sensitivity travel) is unchanged. Zoom picks (weapons.txt, promoted with `weapons_data.py promote`): nailgun,
+  super nailgun, grenade launcher, rocket launcher, laser cannon, proximity gun, grapple (slots 3,4,5,6,9,10,17; the
+  alternates 11-14 inherit). Ironsight kept: shotguns, lightning/plasma, grunt gun, enforcer rifle, flare gun, revolver,
+  nail pistol, crossbow, AD guns. Global override `vr_flat_aim_zoom` (-1 per weapon, 0 all ironsight, 1 all zoom),
+  Locomotion > Right Click Aim. `vr_flat_sight_check` prints a `zoom` line for a zoom gun.
+- **Classic in flat (item 7).** Flat play reloads by its own `vr_flat_reload` (QC `VRIsWeaponReloadingEnabled`, the
+  server's STAT_QVR_RELOADMODE), which no preset row set. Row added: Classic 0, Light/Unleashed default 1
+  (GAMEPLAY_PRESET.md). `vr_gameplay_preset_test` checks it at Classic and Light; QC `VR_Classic_Check` now also checks
+  the player reloads nothing as played (flat or VR).
+- **Autosave Now (item 11).** `vr_autosave_now` (host.c, beside Host_CheckAutosave; Debug > Tests > Saves): the game's
+  autosave now, same name (`VR_AutosaveName`) and rotation, ignoring sv_autosave, score and safety wait; refused in a
+  multiplayer game (co-op/deathmatch make no autosaves, saves are SP only), on vr* maps, in Ironman, at intermission.
+- **Tests:** new `Misc/quakevr/flatzoom_test.sh` 10/0 (Up 2: both sights 2.000 off the ray; Pitch 5: 4.99 deg; zoom:
+  fov 59.3 from 90, gun shift 0, crosshair 1.00; nailgun zooms, shotgun sights); `flatsight_test.sh` 12/0 (runs with
+  `vr_flat_aim_zoom 0`: it measures every gun's sight line); new `Misc/quakevr/autosavenow_test.sh` 4/0 (autosave/e1m1
+  written, Continue "just now"; co-op refused); `vr_gameplay_preset_test` 27/0; `vr_gameplay_classic_check` 2/0 in VR
+  and in flat. Dev and Release-TracyFull builds 0 warnings. Scenario `flat_aim_zoom`.
+
+## The detailed ranger head on the body (worktree `takeslight`, branch `agent/rangerhead`, 2026-11-14)
+
+His ask (2026-11-15): Dawn of the Machine's ranger corpses (its `start` map) have a nicer, more detailed head: use it
+on our body. **What the corpse is**: `misc_corpse` with styles 17..22 (`vr_mg_corpses.qc`: `progs/player.mdl` frames
+49..102). No player model ships in MG3's pak, and in Quake VR `progs/player.mdl` is Quake VR's own
+(`quakevr/progs/player.mdl`: 733 vertices, 1062 triangles, a 256 x 256 skin, 144 unnamed frames; the quakevr folder is
+the highest on MG3's path). So the head he saw is ours, shipped already: nothing of the re-release is needed or read.
+(KEX itself draws the re-release's `id1/progs/player.md5mesh`: 945 vertices, 26 joints with Head/Neck, a 256 x 256
+`player_00_00.lmp`; reference only.) Its "rigs and ragdolls" are ours too: the player ragdoll rig (`player_bones.json`,
+11 bones from the same model; its head bone is cluster 5, these two islands); the corpses already ragdoll with it, and
+`limbmodel` can already cut its head as a limb (`progs/player.mdl#limb<head>`) for player gibs later.
+
+**Comparison** (offline flat renders, same light: `qvr-kit/scratch/rangerhead_shots/heads_compare.png`): Quake's head
+27 triangles, 8.5 x 7.5 units, a 296 x 194 skin; Quake VR's 131 triangles in two islands of their own (a hood with ear
+guards, 89; a sculpted face, 42), 8.1 x 9.5 units, its own 256 x 256 skin's islands (s 88..252, t 61..142): too spread
+over the skin to paint into the body's 512 x 57-texel head block as Quake's is.
+
+**Built** (`vr_rangerhead.cpp`): `vr_body_ranger_head_model` (new, archived, default 1; Appearance > Ranger Head >
+*Detailed Head*; latched at the next start like `vr_body_ranger_head`). 1: the first `progs/player.mdl` like Quake VR's
+(400..3000 vertices, frame 13 = stand1 40..70 units tall), its islands wholly above 0.2 of the height from the top
+(the next island down is 9.8 units lower), else Quake's head as before (0 too), else the placeholder.
+- The body's mesh: the placeholder's head triangles dropped and the neck's top ring narrowed as before; his head is
+  not added there but as a mesh of its own after the body's (and the bare bodies' cuff shell): `VR_RangerHeadExtend`
+  appends it to the body's md5 text (shader `vrrangerhead`, every vertex the `head` joint's), `VR_RangerHeadMesh` (now
+  told the mesh number) places it in the bind pose (1.05 x the placeholder's width, bottom 1.5 units below it) and
+  `VR_RangerHeadSkins` gives it his own skin (palette indices from his file, kept for the session, one persistent
+  texture for every body and skin number). So every draw of the body has it as it had the old one: the eye views
+  collapse it with the head joint, the mirror clone, third person, shadows, other players' bodies.
+- The Ranger Head page's sliders (size, sink, place, turn) place it live as they did Quake's (its vertices rewritten
+  in its own mesh, the neck ring in the body's).
+- `VR_AliasSurfaceNext` (bodies with the cuff shell) now draws meshes after the shells; `vr_wounds` accepts a body
+  with the head's mesh (its masks are the body's; the head reads them at its own texels: a known imperfection).
+- `vr_body_head_check <detailed|classic|off>` (verdict `rangerhead_check: N passed, M failed`); `-rangerhead_nodetail`
+  makes the detailed search fail (the fallback test).
+
+**Verified** (mock, `map start`): "the detailed head of .../quakevr/progs/player.mdl (131 triangles, 100 vertices)",
+both bodies loaded (vrbody, vrbody_bare) with his mesh and skin, `vr_body_head_check detailed` 3/0; with
+`-rangerhead_nodetail`: Quake's head painted on, `vr_body_head_check classic` 3/0. Shots front/side/back:
+`rangerhead_shots/detailed_ingame.png`, `classic_fallback.png`. Dev build 0 warnings.
+
+For him in VR: a mirror or the Ranger Head page's clone: its size and height over the neck (Size/Neck Sink apply to it),
+front, side, back; nothing of it in your own view when looking down or leaning.
+## classic3: Classic recoil, no enemy weapon drops, the burst rifle always bursts (agent/classic3, 2026-11-15)
+
+- **No recoil in Classic:** the Gameplay preset's Classic row set `vr_weapon_recoil` 0 (a "?" taste call: "Quake has no
+  gun kick"), but the models' own baked kick is always cancelled (`vr_kickcancel.cpp`), so a Classic gun had no kick
+  at all, VR and flat (flat draws the same `weaponfx` recoil). Classic now leaves it at the default (1), as Light and
+  Unleashed; GAMEPLAY_PRESET.md marks it decided.
+- **Grunts still dropped burst rifles:** Classic already had `vr_enemy_drops` 2 (never), but that is only id's random
+  extra drops (`TryEnemyDrop`); a dying grunt's own gun (`army_die` -> `VR_DropEnemyGun`), an enforcer's rifle, a
+  knight's sword, an ogre's chainsaw, an armed humanoid's held and stowed weapons and AD's soldiers' and melee monsters'
+  always fell. New `vr_enemy_held_drops` (1; Classic 0, Light/Unleashed 1) and `vr_enemy_held_drops_linger` (4 s):
+  at 0 such a weapon still falls (the death frames are drawn without it: `vr_monstermods.cpp`) but as scenery
+  (`VR_EnemyHeld_Scenery`, vr_enemyguns.qc: no hand touch, no force grab, no loot pillar, not taken by armed humanoids,
+  not counted by the drop cap), then fades as the cap's do. Every death-drop path calls it (the grunt/enforcer gun,
+  knight sword, ogre chainsaw, `VR_AG_Dying`'s held and stowed weapons, AD melee swords, Freddie's nailgun); a disarm's
+  drop (alive) and the Gremlin's stolen gun stay real. Backpacks unchanged. Rows: VR Settings > Combat > Enemy
+  Weapons, "Lying About" (and the Gameplay Presets page); menu_paths.txt regenerated.
+  **Decision:** scenery that fades rather than vanishing in the hand (the death frames have no weapon) or lying forever.
+- **The picked-up Burst Rifle fired like a shotgun:** not a wrong slot. `vr_grunt_burst` 0 (Classic and Light) turned
+  the grunts' fire back to id's shotgun and, by design, the dropped gun's too (six pellets, a clip of shells), though
+  its model is the burst rifle. Now `vr_grunt_burst` is the grunts' own fire only: the gun in your hands always bursts
+  (`VR_EnemyGun_Attack`), its clip is always rounds, it is always named the burst rifle; AD's pellet spread treats yours
+  as bullets (`AD_FirePellets`). An armed grunt holding one at `vr_grunt_burst` 0 still fires id's shotgun (no preset
+  has both). Happened outside Classic too (Light, or the toggle by hand).
+- **Tests:** `vr_gameplay_preset_test` 29/0 (Classic: recoil on, no enemy weapon drops); `vr_gameplay_classic_check`
+  4/0 (adds recoil on, `vr_enemy_held_drops` 0 and `vr_enemy_drops` 2); new `vr_classic_drop_check` (QC
+  `VR_Classic_DropCheck`, its lines with `developer 1`: the nearest plain grunt gibbed: backpack, gun takeable or
+  scenery by the cvar, then a burst rifle at `vr_grunt_burst` 0: clip 30 rounds, a pull begins a burst): Classic on
+  e1m1 8/0 in VR and in flat, default with `vr_agrunt_repl 0` 7/0. Run: `developer 1;vr_classic_quake 1;map e1m1;
+  wait10;vr_gameplay_classic_check;vr_classic_drop_check`, `-QuitOn "classicdrop: [0-9]+ passed"`. `vr_recoil_test` 126/1 after it in Classic, VR and flat; the same single FAIL (the
+  burst rifle's two-handed return time, 0.0750 vs 0.0750, a back-time tolerance) in the default preset: not this
+  change. Armed grunts unchanged: `vr_agrunt_test` 2 4/0, 28 2/0, 47 110/0. Scenario `classic_drops` (runall OK).
+  Dev and ReleaseLTO (1.1.0) builds 0 warnings.
+## runsetup3: Bloody Nightmare out of the menus, Start first, Difficulty only without skill halls (agent/runsetup3, 2026-11-15)
+
+- **Bloody Nightmare gone from the menus (his call):** Run Setup's Difficulty is Easy..Nightmare again (every way in:
+  the Levels list, the Map Library's Play, New Game, campaigns, the hub); Select Campaign's "Bloody Nightmare / new
+  game" row under Dawn of the Machine is gone (`playMg3BloodyNightmare`, `campaignsBloodyShown`, the row funcs and its
+  rebuild check removed); `bloodyForced`, `applyBloody`, `activeMax`, `skillBloody` and the Bloody and Halls emblems
+  removed. The `bn` registry row stays only for saves: no row, no rule, 0 at every start; a save with `bn=1` loads and
+  its summary says "Bloody Nightmare". Old configs: `vr_maps_skill 4` and `vr_runpick_bn 1` become Nightmare (callbacks
+  in vr_runsetup.cpp). The QC game is untouched (the hub's relay, Chthon on skill 3); `vr_mg3_bn_start` stays a
+  console/test aid, `vr_mg3_bn_discovered` is still set by the QC but read by no menu.
+- **Start first everywhere:** the big Start is the page's first row, the cursor on it. With skill halls (New Game,
+  campaigns, the hub, a package's or the Levels list's start hall) there is no Difficulty at all (no Skill Halls row);
+  `vr_runsetup_halls_line` retired (retiredCvars). Without halls: Start, Difficulty, then Style and Gore, then the rest.
+- **Card spacing:** every icon picker's cards are spaced alike: the cell is `min(card + vr_menu_icon_gap, 320 / 4)`
+  (`iconRowMostCards` 4) for any row of up to four, so Difficulty's four sit 80 apart like the guns' at the default
+  gap (the 5-card "gap given up first" exception dropped; a gap above 16 has no further effect).
+- **Tests:** `vr_runsetup_test` 80/0 (migration, Nightmare start without BN, a bn=1 save's summary),
+  `vr_runsetup_screen_test` 50/0 (Start first and the cursor on it on the Library e1m1 / start, New Game, a campaign,
+  Arcane Dimensions, the Levels list's e1m1 and start, the hub; halls: no Difficulty; no halls: Difficulty second, 4
+  cards, no Bloody Nightmare, Style and Gore next; Difficulty's cell and gap equal the gun's and melee's at gaps 4, 16,
+  24), `vr_runlaunch_test` 31/0, `vr_continue_rows_test` 19/0, `vr_menu_path_check` vrcalibration 6 / vrstart 5 found,
+  0 missing; checklist_tests_check 62/2 (the 2 are the set-aside flat_clip_unpaid / flat_holster_drag scenes, not
+  this branch). menu_paths.txt regenerated (the halls-line row gone). Scenario `run_setup_newgame` updated. There is no
+  `maps_skill_test` in the tree. Shots: qvr-kit/scratch/runsetup3_shots/ (r3_before.png, r3_after.png: left the Levels
+  list's e1m1, right New Game).
+
+## Save and load after a Test scene (agent/saveload1115)
+
+His report (flat, 2026-11-15): TEST on the waterdrips item, quicksave, quickload: a toolgun in his off hand, the grunts'
+firing poses bent (one cast the death knight's fireballs), nothing wet. Reproduced headless (flat and the VR mock). Not a
+precache-order problem: the precache list's hash and every model index were the same before and after
+(`vr_model_check`: 514 models, 0 wrong), and nothing in the armed rigs caches by model index.
+
+- **Poses and the fireballs: a QC row cache across the load.** `VR_AM_Row(kind)` (vr_armedmon.qc) fills the armed
+  monsters' row globals once per kind, `nosave vr_am_filled` + saved `vr_am_kind`. A load runs the map's spawn first
+  (SV_SpawnServer's two frames: vrtesthall's armed death knight filled the row), then the save's globals overwrite
+  `vr_am_kind` (the grunt's) and the row's floats, but not its vectors (hand vertices, anchors, shoulders) nor
+  `vr_am_spell` (a save keeps floats, strings, entities). The cache then answered "filled" for the grunt with the
+  knight's vectors and spell: guns 30+ units off the hand, fireballs. Any map with two armed kinds hit it on any load,
+  scene or not. Fix: `VR_AM_AfterLoad` (OnLoadGame) empties the cache.
+- **The off-hand toolgun: the grip's rising edge at the load.** A flatscreen player's hands always grip
+  (vr_client.cpp `gripping`). The server's previous-frame VR bits started at 0 for the reconnecting client, so its first
+  move was a new press; the off hand, posed by the left hip as the stance brings it to the gun, drew that holster's
+  weapon (W_Frame's `startedHandGrabbing`: here the axe, his the toolgun from `vr_debug_spawn_toolgun`). Only with a
+  gun in the main hand (an empty pair's pose is elsewhere). Fix: `VR_ClientLoadedBits` (SV_ConnectClient into a loaded
+  game) seeds the client's previous and received bits from the loaded player's saved `.vrbits0`: a grip held across
+  the load is no new press. A headset grip pressed after the load is still a press.
+- **Wetness: client-only state, never saved.** vr_drips.cpp's wet list was cleared by the load's new map. Now the save
+  writes `// qvrwet <what> <num> <hand> <wet> <waterline> <liquid>` lines (`VR_SaveWetLines`, SaveData_Fill, after the
+  decals), `VR_ReadSaveInfo` stages them, `VR_OnLoadGame` takes them, and each is given back as the load's map first
+  shows it (a model by entity number; your body, hands, held and holstered weapons by what they are; a holstered
+  weapon's entry now keeps its holster as its `hand`) for 3 s, drying on from there.
+
+**Test.** `Misc/quakevr/saveload_test.sh <agent> [flat|vr|both]` (vr_pickup_test 16, QC/vr_saveload_test.qc;
+self-driven across the load by saved globals): `vr_scenario waterdrips`, once placed `vr_drips_soak`, save
+`qvr_saveload`, load; checks the off hand empty, each armed grunt's gun within 18 of its hand and no spell on a grunt, and
+(the script) every thing wet out of the pool before is wet after.
+## zoneclean (zone.h cleanup)
+
+- `Hunk_AllocNoFill` / `Hunk_AllocNameNoFill` were identical to the filling versions (`Hunk_AllocInternal` ignored `clear`; same
+  zeroing and accounting): every call (15 files) now calls `Hunk_Alloc` / `Hunk_AllocName`; the two functions and the `clear`
+  parameter are gone.
+- Kept: `Hunk_KeepLoaded` / `Hunk_ClearKeep` still protect (`Hunk_FreeToLowMark` never frees under a model loaded mid-play), and
+  `Hunk_Check` (hunk_print, cl_parse, memguard sentinels) still checks every block: neither has lost its purpose, so no removal.
+- zone.h comment rewritten: Z_ single allocations, Hunk_ mark/free-to-mark lifetimes, Cache_ flushable handles, Temp_ per-frame scratch.
+- Checks: dev build 0 warnings; ReleaseLTO 1.1.0 build; `-memguard` load_models_test 352/0; scenario_check below.
+## arenacamp: Arena Mode in Select Campaign, with its own Run Setup (branch agent/arenacamp, 2026-11-15)
+
+- **Select Campaign:** an "Arena Mode" row right under Arcane Dimensions (vr_menu.cpp pageCampaigns, `selectArenaRow`),
+  the same Lead look and the "experimental" tag at its right; dim while Quake's campaign is unavailable. Pressed: an
+  experimental notice of its own (M_Confirm, as AD's), Continue opens the arena's Run Setup (`openRunSetupArena`).
+  Never a Continue row under it.
+- **Its Run Setup** (vr_menu_runsetup.inc, `Launch::Arena`, `runSetup.arena`): Start, Difficulty, Gore (Presets),
+  Ironman, Glass Cannon, Melee Only (Rules), nothing else. Start: `runsetup::startArena` (vr_runsetup.cpp) sets the
+  run from `arenaValue`: those five from the player's picks, Style Unleashed, Armed Humanoids and Smarter AI On, Ranged
+  Knights off (the arena brings its gun knights in itself from wave 12), every other mutator at its default; the
+  `vr_runpick_*` picks are not written, so the next run's Start is his own again (the presets' My Settings mechanism
+  restores the settings Unleashed and the armed/AI rows changed). Then `vr_campaign_hub vrarena` (now accepts vrarena:
+  Quake's campaign made active first, then the map). `start()` and `startArena()` share `startWith`.
+- **No autosave:** already true (VR_AutosaveAllowed refuses "vr*" maps: level start, quiet moments, vr_autosave_now;
+  Continue's inspect skips them); vr_autosave_now now says "none in Arena Mode" on vrarena.
+- **Test aid:** `vr_runsetup arena` opens the arena's screen directly.
+- **Tests:** `vr_runsetup_test` 86/0 (arena: its five rows, the fixed values, the picks untouched, the next Start the
+  picks'); `vr_runsetup_screen_test` 55/0 (the arena screen's rows exactly the six, Start first; the next way in the
+  whole page); `vr_runlaunch_test` 43/0 (an Arena Mode step: the map spawns with the arena's values, picks unchanged,
+  sv_autosave on and no autosave/vrarena.sav after 5 s and wave 2, vr_autosave_now refused; a save written as
+  autosave/vrarena gets no Continue anywhere, then removed; Arena Mode right under AD with its tag; then the Levels
+  list: his picks the run's again); `vr_continue_rows_test` 19/0; `vr_menu_path_check` vrcalibration 6 found, 0
+  missing; menu_paths.txt regenerated (unchanged: the campaign rows are not indexed). Shots:
+  qvr-kit/scratch/arenacamp_shots/arenacamp.png (Select Campaign; the notice; the arena's Run Setup).
+- **Not changed:** Play > Maps > Survival Arena still runs `map vrarena` with the current run (a debug-style way in).
+## classictoggle: Classic Quake on and off leaves the gloves' relief flat (agent/classictoggle, 2026-11-15)
+
+- **His report (flat, on next):** in the hub, the Classic Quake board pressed twice (on, off): the gloves' relief
+  "almost as a diffuse".
+- **Cause:** the gloves' relief (`progs/hand_rig_0N_00_glove_height`) is a height map made a normal map as it loads
+  (`vr_render.cpp` `gloveHeightToNormals`), but only in `gloveTexture`; the texture keeps the height file as its source.
+  It is loaded `TEXPREF_MIPMAP|ALPHA|UNCOMPRESSED`, so `TexMgr_AlphaTested` counts it, and Classic's `vr_alpha_coverage`
+  change (1 -> 0 -> 1) reloads every alpha-tested texture from its source (`TexMgr_ReloadAlphaTested`): the relief came
+  back as raw heights (grey: a normal pointing nowhere), so the leather lost its bumps. `vid_restart` did the same.
+- **Fix:** the conversion moved into the load itself: `VR_GloveReliefNormals` (vr_render.cpp), called from
+  `TexMgr_LoadImage32` (as `VR_CleanSkin` is), so the first load and every reload make the normals.
+- **Cvars:** a full `cvarlist` diff before on / after off in the hub showed no setting left changed (only
+  `vr_gore_preset`'s display sync). But Back restored each preset's *My Settings* (kept at the first preset ever
+  applied), not the state the press found: a row changed since (in the menu, say Bloom) came back as the old My
+  Settings. Classic's first press now keeps the three presets' rows as found (`ClassicState::before`, in memory) and
+  Back sets back exactly those; a row changed by hand while Classic was on keeps its new value; with none kept (a
+  restart since) Back is My Settings as before. The line reads "Your settings back: ...".
+- **Other things checked:** the round trip test hashes every texture read from a file or a lump (4,108 in the hub:
+  world textures and their normal maps, weapons' and armour's skins and normal maps, the hands', the gloves' paint):
+  only the gloves' relief differed before the fix, none after.
+- **Test:** new `vr_classic_roundtrip_test` (Debug > Tests, "Classic Quake On and Off"): waits for the map, keeps every
+  cvar and every file texture's texels hash, presses `vr_setup_option classic` twice (the hub board's command), two
+  frames after each, compares: `classicroundtrip: 5 passed, 0 failed` in vrstart (4,114 settings, 4,108 textures); with
+  the old code (the conversion back in `gloveTexture` only) 4/1, `progs/hand_rig_00_00_glove_height` differing. Run:
+  `map vrstart;vr_classic_roundtrip_test`, `-QuitOn "classicroundtrip: \d+ passed"`. `vr_gameplay_preset_test` 31/0
+  (2 new: Back is the press's state, a hand change kept), `vr_gore_preset_test` 15/0, `vr_gameplay_classic_check` 4/0.
+  menu_paths.txt regenerated (the new Debug row).

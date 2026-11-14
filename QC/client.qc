@@ -195,10 +195,12 @@ void() OnSpawnServerAfterLoad =
 }
 
 void() VR_Crackles_AfterLoad; // (vr_burning.qc)
+void() VR_AM_AfterLoad;       // (vr_armedmon.qc)
 
 void() OnLoadGame =
 {
     VR_CVars_InitAllHandles();
+    VR_AM_AfterLoad(); // the armed monsters' row cache: the map's spawn filled it for another kind than the save's
     SUB_DoLater(VR_Crackles_AfterLoad, 0.1); // the torches' and fires' crackles started again (sounds are not saved)
     VR_Tips_Reapply(); // (TRIGGERED tips used before the save: shown again)
     AD_LoadedGame(); // AD support: the loaded game's Evil skill choice, an older save's upgrades (vr_ad_player.qc)

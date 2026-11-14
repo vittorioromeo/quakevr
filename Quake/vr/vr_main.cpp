@@ -2014,6 +2014,8 @@ extern "C" void VR_SignonPrewarm()
     QVR_PROFILE("vr signon prewarm");
     ao::integrateFinished();
     VR_TimeMark("signon prewarm: occlusion bakes taken in");
+    decals::prepareTranslucent(); // (the baselines are in: the map's translucent brush models known)
+    VR_TimeMark("signon prewarm: translucent decal programs");
 }
 
 // vr_screenshot_frames <n> (Debug > Teleporters): a screenshot of each of the next n frames drawn, every one (a `wait`
@@ -2243,6 +2245,7 @@ extern "C" void VR_Init()
     closequarters::init();
     rangerhead::init();
     Cmd_AddCommand("vr_body_head_info", rangerhead::info_f);
+    Cmd_AddCommand("vr_body_head_check", rangerhead::check_f);
     posing::init();
     holstersetup::init();
     blade::init();
@@ -2288,6 +2291,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_forcegrab_grid_stats", progs::forcegrabGridStats_f);
     Cmd_AddCommand("vr_modelmetadata_test", modelmeta::test_f);
     Cmd_AddCommand("vr_prop_touch_stats", physics::propTouchStats_f);
+    Cmd_AddCommand("vr_test_handcontact", physics::testHandContact_f);
     Cmd_AddCommand("vr_agrunt_grab_bench", physics::grabBench_f);
     Cmd_AddCommand("vr_model_collide_bench", modelcollide::bench_f);
     Cmd_AddCommand("vr_gun_wall_depth", handpose::gunWallDepth_f);

@@ -2670,6 +2670,11 @@ void() VR_Dragon_ParryInterrupt;
 float vr_parry_strength;  // the parry VR_Parry just met a blow with: its strength
 float vr_parry_welltimed; // ... well timed
 float vr_parry_dir_timed; // VR_Parry: this directional parry was well timed (-1: not one; VR_Parry_Strength)
+// VR_Parry, while it runs: 1 - its timing's share of what it does to the attacker (a directional parry's VR_DRP_Timing; 0
+// else, and outside VR_Parry): its stagger and flinch (VR_Parry_Interrupt), its push, the counter window, the disarm chance.
+float vr_parry_timing_cut;
+float vr_parry_last_stagger; // VR_Parry_InterruptFor's last stagger (s; the tests: vr_agrunt_test 78)
+float() VR_Parry_TimingShare = { return 1 - min(1, max(0, vr_parry_timing_cut)); };
 float vr_parry_test_force; // (vr_kdtrig_test_parry while a test's blow is dealt: vr_kdtrig.qc) forced, not the pose's
 // VR_Parry_Ragdoll may not send it down stairs, a ledge, a slope (parry balance: a stagger of 2 or under). (Not an
 // initialised global: QC makes that a constant, its value shared with the literal's; assigned, every 1 changed.)
@@ -2768,6 +2773,7 @@ void(entity m, entity p, float xStagger) VR_Parry_InterruptFor =
     float stagger = xStagger;
     float ragdollOk = !vr_parry_noragdoll; // (parry balance's flinch: VR_Parry_Interrupt)
     m.vr_parry_stagger_until = time + stagger;
+    vr_parry_last_stagger = stagger;
     m.attack_finished = max(m.attack_finished, m.vr_parry_stagger_until);
     m.attack_state = AS_STRAIGHT;
     m.vr_melee_begun = 0;
@@ -2882,15 +2888,19 @@ void(entity m, entity p) VR_Parry_Interrupt =
         m.vr_parry_rep_n = (m.vr_parry_rep_time > 0 && time - m.vr_parry_rep_time < window) ? m.vr_parry_rep_n + 1 : 0;
         m.vr_parry_rep_time = time;
         float shorter = pow(min(1, max(0.05, cvar_hget(cvarh_vr_parry_repeat))), m.vr_parry_rep_n * max(1, poise));
-        stagger = min(3, max(0.1, stagger * shorter));
+        stagger = min(3, max(0.1, stagger * shorter * VR_Parry_TimingShare()));
         if(ragdollOk && stagger < flinch)
         {
             ragdollOk = FALSE; // (cut that short, a flinch)
         }
         dprint(sprintf("parry outcome: %s strength %.2f%s poise %g ratio %.2f: ", m.classname, vr_parry_strength,
             vr_parry_welltimed ? " (well timed)" : "", poise, ratio)); // (sprintf: 8 arguments at most)
-        dprint(sprintf("%s %.2f s%s (repeat %g, x%.2f)\n", how, stagger, ragdollOk ? "" : " (no ragdoll)", m.vr_parry_rep_n,
-            shorter));
+        dprint(sprintf("%s %.2f s%s (repeat %g, x%.2f, timing x%.2f)\n", how, stagger, ragdollOk ? "" : " (no ragdoll)",
+            m.vr_parry_rep_n, shorter, VR_Parry_TimingShare()));
+    }
+    else
+    {
+        stagger = max(0.1, stagger * VR_Parry_TimingShare());
     }
     vr_parry_noragdoll = !ragdollOk;
     VR_Parry_InterruptFor(m, p, stagger);
@@ -3051,6 +3061,8 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
     {
         vr_parry_dir_timed = (drp && !flatGuard && hand >= 0 && !armsCrossed) ? (baked ? attacker.vr_drp_timed : vr_drp_ag_timed) : -1;
         vr_parry_strength = VR_Parry_Strength(targ, hand, armsCrossed);
+        // (his rule, 2026-11-15: the right direction parries at any timing; early or late, its effect on it much less)
+        vr_parry_timing_cut = vr_parry_dir_timed >= 0 ? 1 - (baked ? attacker.vr_drp_timing : vr_drp_ag_timing) : 0;
     }
     // The parry's cooldown, per monster (vr_parry_cooldown; NOTES.md vrfiringrange_2026-10-01_16-44-46, _22-58-06,
     // _22-59-02: the ogre's chainsaw, a knight's swing, one attack several quick blows): a blow parried within that long
@@ -3103,7 +3115,8 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         self = oldSelfQ;
         float pushE = armsCrossed ? 260 : 320;
         float liftE = armsCrossed ? 90 : 120;
-        VR_Push(attacker, to, pushE * cvar_hget(cvarh_vr_parry_push_enemy), liftE * cvar_hget(cvarh_vr_parry_push_enemy));
+        float pushK = cvar_hget(cvarh_vr_parry_push_enemy) * VR_Parry_TimingShare();
+        VR_Push(attacker, to, pushE * pushK, liftE * pushK);
         if(!attacker.vr_eshove_striking) // (a shove pushes you its own way: VR_EnemyShove_Hit)
         {
             float pushP = armsCrossed ? 200 : 180;
@@ -3124,6 +3137,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
             }
             cut = 1 - cvar_hget(baked ? cvarh_vr_dirparry_through_monster : cvarh_vr_dirparry_through_armed);
         }
+        vr_parry_timing_cut = 0;
         return damage * (1 - min(1, max(0, cut)));
     }
     if(armsCrossed)
@@ -3186,8 +3200,9 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
 
         self = oldSelf;
 
-        // Both are pushed apart (vr_parry_push_enemy, vr_parry_push_player).
-        VR_Push(attacker, to, 320 * cvar_hget(cvarh_vr_parry_push_enemy), 120 * cvar_hget(cvarh_vr_parry_push_enemy));
+        // Both are pushed apart (vr_parry_push_enemy, vr_parry_push_player; it by the timing's share).
+        float pushT = cvar_hget(cvarh_vr_parry_push_enemy) * VR_Parry_TimingShare();
+        VR_Push(attacker, to, 320 * pushT, 120 * pushT);
         if(!attacker.vr_eshove_striking) // (a shove pushes you its own way: VR_EnemyShove_Hit)
         {
             VR_Push(targ, to * -1, 180 * cvar_hget(cvarh_vr_parry_push_player), 40 * cvar_hget(cvarh_vr_parry_push_player));
@@ -3241,10 +3256,11 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         {
             // (its swing stopped whatever the parry balance says: a flinch on its feet, the opening)
             vr_parry_noragdoll = TRUE;
-            VR_Parry_InterruptFor(attacker, targ, min(3, max(0.05, cvar_hget(cvarh_vr_dirparry_opening))));
+            VR_Parry_InterruptFor(attacker, targ, min(3, max(0.05, cvar_hget(cvarh_vr_dirparry_opening) * VR_Parry_TimingShare())));
             vr_parry_noragdoll = FALSE;
         }
     }
+    vr_parry_timing_cut = 0;
     v_forward = oldForward;
     v_right = oldRight;
     v_up = oldUp;

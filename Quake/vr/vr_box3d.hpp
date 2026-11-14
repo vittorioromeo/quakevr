@@ -227,8 +227,10 @@ bool contactPoint(int num, glm::vec3& point);
 
 // Whether the loose prop `num` rests on hand `hand` ([0] off, [1] main) of client `player`: touches its reach body (the
 // open hand, the fist, the held weapon) or its sphere where the contact holds it up (its normal points up into it). For
-// the drawn hands (vr_modelcollide.cpp): a thing lying on the palm doesn't push the hand away.
-[[nodiscard]] bool restsOnHand(int num, int player, int hand);
+// the drawn hands (vr_modelcollide.cpp): a thing lying on the palm doesn't push the hand away. `minUp`: how steeply up
+// into it the contact's normal must point (-2: any contact, a thing leaning against the hand: vr_physics.cpp onWeapon).
+inline constexpr float restOnHandUp = 0.3f; // (restsOnHand's lying on it: the contact's normal this steep)
+[[nodiscard]] bool restsOnHand(int num, int player, int hand, float minUp = restOnHandUp);
 // Units hand `hand` ([0] off, [1] main) of client `player` is held back from where it is tracked, pressed into a prop
 // with nowhere to go (vr_box3d_press_back): its bodies are there, and the view draws it there (0 without Box3D's world).
 [[nodiscard]] glm::vec3 pressOffset(int player, int hand);

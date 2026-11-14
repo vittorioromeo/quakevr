@@ -75,9 +75,26 @@ float vr_am_range_threat;   // ... its least and best times this while you hold 
 // it holds a melee weapon or none (VR_AG_CheckAttack: VR_AM_SpellTry); a gun's holder fires the gun, casting on a
 // cooldown (VR_AM_GunCasts).
 var void() vr_am_spell;     // its frames' first function (SUB_Null: none)
+// The row filled is kind vr_am_kind's (nothing else writes the row's globals, all constants: asked again for the same
+// kind, ~400-1,300 times a frame in a 3x crowd, it returns at once). Not saved, and emptied by a load (VR_AM_AfterLoad):
+// the load's map spawns its own monsters first (SV_SpawnServer's frames fill the row for their kinds), then the save's
+// globals overwrite vr_am_kind and the row's floats but not its vectors nor vr_am_spell (a save keeps floats, strings and
+// entities only). Kept filled, a grunt then took a death knight's hand vertices, anchors and fireballs (2026-11-15).
+nosave float vr_am_filled;
+
+// OnLoadGame: the row filled again at its next use (above).
+void() VR_AM_AfterLoad =
+{
+    vr_am_filled = 0;
+};
 
 void(float k) VR_AM_Row =
 {
+    if(vr_am_filled && k == vr_am_kind)
+    {
+        return;
+    }
+    vr_am_filled = 1;
     vr_am_kind = k;
     vr_am_spell = SUB_Null;
     if(k == VR_AM_DKNIGHT)

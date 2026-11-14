@@ -31,5 +31,8 @@ namespace qvr::rangerhead
 
 void init();   // the vr_body_head_* callbacks
 void info_f(); // vr_body_head_info: the option, the meshes placed, where his head and the neck's top are
+// Whether the model named so has the detailed head's mesh after its own (vr_wounds.cpp: its masks still the first's).
+[[nodiscard]] bool hasOwnMesh(const char* modelName);
+void check_f(); // vr_body_head_check <detailed | classic | off>: the bodies' head against the one expected (the tests)
 
 } // namespace qvr::rangerhead

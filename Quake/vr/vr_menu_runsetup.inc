@@ -3,9 +3,10 @@
 // Library's Play, Single Player > New Game (menu.c), Official Campaigns' rows and the hub's teleporter (QC
 // vr_run.qc: `vr_runsetup hub`). Its rows are the registry's (vr_runsetup.cpp): each a cycle on vr_runpick_<id>, a
 // line instead while another's rule holds it; Start makes them the run's (runsetup::start) and starts what opened it.
-// A start map with skill halls (id's start, a pack's hall: the campaigns, New Game, the hub, such a package): its halls
-// choose the difficulty, so its Difficulty row is only Skill Halls or Bloody Nightmare. The mutators and presets are
-// asked there too. Difficulty, the Starting gun and melee weapon and Enemy Count are icon pickers (vr_menu_icons.inc).
+// Start is always the page's first row (his call, 2026-11-15: runsetup3). A start map with skill halls (id's start, a
+// pack's hall: the campaigns, New Game, the hub, such a package): its halls choose the difficulty, so the page has no
+// Difficulty at all (Start, then the presets and mutators); elsewhere the Difficulty picker comes right after Start.
+// Difficulty, the Starting gun and melee weapon and Enemy Count are icon pickers (vr_menu_icons.inc).
 
 // What opened it, and what the page was built for (rebuilt when that or a held row changes: runSetupStale).
 struct RunSetupState
@@ -15,9 +16,10 @@ struct RunSetupState
     za::String map; // "": the package's start map
     int campaign{-1};
     bool skillHalls{false};
+    bool arena{false}; // Arena Mode's screen (its own rows: runsetup::arenaShows), kept after its Start
     int builtKey{-1};
     int builtHalls{-1};
-    int lastSkill{1}; // Difficulty's last choice before Bloody Nightmare (a start hall's "Skill Halls" choice keeps it)
+    int builtArena{-1};
 };
 RunSetupState runSetup;
 
@@ -25,8 +27,7 @@ RunSetupState runSetup;
 // the guns and melee weapons the toolgun's thumbnails of their models, Nothing a bare hand, Difficulty's emblems,
 // Enemy Count's grunts.
 constexpr MenuIcon runSetupSkillIcons[] = {{.emblem = MenuIcon::Easy}, {.emblem = MenuIcon::Normal},
-    {.emblem = MenuIcon::Hard}, {.emblem = MenuIcon::Nightmare}, {.emblem = MenuIcon::Bloody}};
-constexpr MenuIcon runSetupHallsIcons[] = {{.emblem = MenuIcon::Halls}, {.emblem = MenuIcon::Bloody}};
+    {.emblem = MenuIcon::Hard}, {.emblem = MenuIcon::Nightmare}};
 constexpr MenuIcon runSetupGunIcons[] = {{.model = "progs/v_shot.mdl", .side = true},
     {.model = "progs/v_nailpistol.mdl", .side = true}, {.model = "progs/v_revolver.mdl", .side = true},
     {.emblem = MenuIcon::Hand}};
@@ -41,7 +42,7 @@ struct RunSetupIconRow
     int count;
 };
 constexpr RunSetupIconRow runSetupIconRows[] = {
-    {"skill", runSetupSkillIcons, 5},
+    {"skill", runSetupSkillIcons, 4},
     {"startgun", runSetupGunIcons, 4},
     {"startmelee", runSetupMeleeIcons, 3},
     {"enemycount", runSetupCountIcons, 3},
@@ -61,13 +62,8 @@ const MenuIcon* runSetupIcons(int i)
     return nullptr;
 }
 
-// (the Difficulty section has no header: the page starts with it, the next sections' headers give the gap)
+// (the Difficulty section has no header: it follows Start, the next sections' headers give the gap)
 constexpr const char* runSetupSections[] = {nullptr, "Presets", "Mutators"};
-
-const char* runSetupHallsLine()
-{
-    return "Difficulty: the start map's skill halls";
-}
 
 // A row held by another's rule: "Starting gun: Nothing (Melee Only)".
 const char* runSetupHeldLine(int i)
@@ -78,7 +74,8 @@ const char* runSetupHeldLine(int i)
 
 bool runSetupStale()
 {
-    return runSetup.builtKey != runsetup::pageKey() || runSetup.builtHalls != (runSetup.skillHalls ? 1 : 0);
+    return runSetup.builtKey != runsetup::pageKey() || runSetup.builtHalls != (runSetup.skillHalls ? 1 : 0) ||
+           runSetup.builtArena != (runSetup.arena ? 1 : 0);
 }
 
 void runSetupCloseMenu()
@@ -91,11 +88,24 @@ void runSetupCloseMenu()
 // Start: the picks made the run's, then what opened the screen starts it.
 void runSetupStart()
 {
-    runsetup::start();
     const runsetup::Launch launch = runSetup.launch;
+    if(launch == runsetup::Launch::Arena)
+    {
+        runsetup::startArena(); // (the arena's fixed choices; the picks untouched)
+    }
+    else
+    {
+        runsetup::start();
+    }
     runSetup.launch = runsetup::Launch::None;
     switch(launch)
     {
+        case runsetup::Launch::Arena:
+            // Quake's campaign, then the arena (vr_campaign_hub: the game folders rebuilt first when another campaign
+            // is the active one; the map closes the menu).
+            Con_Printf("VR: Arena Mode started from the menu.\n");
+            Cbuf_InsertText("vr_campaign_hub vrarena\n");
+            return;
         case runsetup::Launch::Library:
             if(mapinstall::play(runSetup.sha, runSetup.map.size() ? runSetup.map.cStr() : nullptr,
                    runSetup.skillHalls ? -1 : runsetup::activeValue(runsetup::find("skill"))))
@@ -107,7 +117,16 @@ void runSetupStart()
             goBack(); // (the library shows why: the package's line)
             return;
         case runsetup::Launch::NewGame: M_NewGameStart(); return;
-        case runsetup::Launch::Campaign: VR_SelectCampaign(runSetup.campaign); return;
+        case runsetup::Launch::Campaign:
+            if(runSetup.campaign == qvr::ad::campaignIndex)
+            {
+                // Arcane Dimensions (experimental, confirmed before the screen): the developer launch, as the menu's
+                // row did before it went through this screen.
+                Cbuf_InsertText("vr_campaign_native ad\n");
+                return;
+            }
+            VR_SelectCampaign(runSetup.campaign);
+            return;
         case runsetup::Launch::Level:
             M_LevelStart(runSetup.map.cStr(), runSetup.skillHalls ? -1 : runsetup::activeValue(runsetup::find("skill")));
             return;
@@ -171,44 +190,50 @@ void runSetupRow(za::Vector<Item>& items, int i)
     items.pushBack(i == runsetup::find("skill") ? row.big() : row);
 }
 
-// A start map's skill halls choose the difficulty: its row only "Skill Halls" (Difficulty's last choice kept) or Bloody
-// Nightmare (always a choice: his call, 2026-11-14).
-void runSetupHallsRow(za::Vector<Item>& items)
-{
-    za::Vector<Choice> choices;
-    choices.pushBack(Choice{static_cast<float>(runSetup.lastSkill), "Skill Halls"});
-    choices.pushBack(Choice{static_cast<float>(runsetup::skillBloody), "Bloody Nightmare"});
-    items.pushBack(cycle("Difficulty", vr_maps_skill, ZA_MOVE(choices))
-                       .help("The start map's skill halls choose the difficulty. Bloody Nightmare: Nightmare and Dawn of "
-                             "the Machine's hidden difficulty (harder monsters, each level begun with the axe and shotgun only).")
-                       .big()
-                       .iconPicker(runSetupHallsIcons));
-}
-
 za::Vector<Item> pageRunSetup()
 {
     runSetup.builtKey = runsetup::pageKey();
     runSetup.builtHalls = runSetup.skillHalls ? 1 : 0;
-    if(const int s = static_cast<int>(vr_maps_skill.value + 0.5f); s >= 0 && s < runsetup::skillBloody)
-    {
-        runSetup.lastSkill = s;
-    }
+    runSetup.builtArena = runSetup.arena ? 1 : 0;
     const bool grouped = vr_runsetup_groups.value != 0.f;
     za::Vector<Item> items;
+    // Start: a big button of its own, always the page's first row (his call, 2026-11-15); the Difficulty picker (none
+    // with skill halls) right after it, the sections below after their own gap.
+    if(runSetup.arena)
+    {
+        // Arena Mode (ROUND25.md, "arenacamp"): Start, Difficulty, Gore, Ironman, Glass Cannon, Melee Only, nothing
+        // else (his call 2026-11-15: the rest would disrupt the arena's balance; runsetup::arenaValue fixes them).
+        items.pushBack(action("Start", runSetupStart)
+                           .help("Starts Arena Mode with these choices: Unleashed, armed humanoids and the smarter AI "
+                                 "always, the other mutators off; your Run Setup for other runs is left as it is. Back: "
+                                 "not started.")
+                           .button());
+        constexpr const char* order[] = {"skill", "gore", "ironman", "glasscannon", "meleeonly"};
+        constexpr const char* before[] = {nullptr, "Presets", "Rules", nullptr, nullptr};
+        for(int o = 0; o < 5; o++)
+        {
+            const int i = runsetup::find(order[o]);
+            if(before[o])
+            {
+                items.pushBack(header(before[o]));
+            }
+            if(i >= 0 && runsetup::arenaShows(i))
+            {
+                runSetupRow(items, i);
+            }
+        }
+        return items;
+    }
+    items.pushBack(action("Start", runSetupStart)
+                       .help("Starts the run with these choices (kept for next time; each saved game keeps its run's "
+                             "and sets them back when loaded). Back: not started.")
+                       .button());
     for(int s = 0; s < 3; s++)
     {
         const bool mutators = s == static_cast<int>(runsetup::Section::Mutators);
         if(runSetupSections[s] && !(mutators && grouped))
         {
             items.pushBack(header(runSetupSections[s]));
-        }
-        if(s == static_cast<int>(runsetup::Section::Difficulty) && runSetup.skillHalls && vr_runsetup_halls_line.value != 0.f)
-        {
-            items.pushBack(info(runSetupHallsLine));
-        }
-        if(s == static_cast<int>(runsetup::Section::Difficulty) && runSetup.skillHalls)
-        {
-            runSetupHallsRow(items);
         }
         const auto shown = [s](int i) {
             const runsetup::Mutator& m = runsetup::at(i);
@@ -258,11 +283,6 @@ za::Vector<Item> pageRunSetup()
             }
         }
     }
-    // Start: a big button of its own below the mutators (Item::Button: a gap above it, not in their section).
-    items.pushBack(action("Start", runSetupStart)
-                       .help("Starts the run with these choices (kept for next time; each saved game keeps its run's "
-                             "and sets them back when loaded). Back: not started.")
-                       .button());
     return items;
 }
 
@@ -275,6 +295,7 @@ void openRunSetup(runsetup::Launch launch, const za::String& sha, const char* ma
     runSetup.map = map ? za::String{map} : za::String{};
     runSetup.campaign = campaign;
     runSetup.skillHalls = skillHalls;
+    runSetup.arena = launch == runsetup::Launch::Arena;
     if(vr_runsetup_ask.value == 0.f)
     {
         runSetupStart();
@@ -282,22 +303,13 @@ void openRunSetup(runsetup::Launch launch, const za::String& sha, const char* ma
     }
     const int page = pageIndex(pageRunSetup);
     openFromAnywhere(page);
-    // Built anew for this launch (its Difficulty row or the halls' line, its held rows), never the last launch's rows:
+    // Built anew for this launch (its Difficulty row or none, its held rows), never the last launch's rows:
     // runSetupStale alone missed it (a page built for the size above it counted as this launch's).
     menuPages.done[page] = false;
-    const za::Vector<Item>& built = items(page);
-    // At its top (his flat report 2026-11-13: the cursor on Start scrolled the Difficulty row out of view on a map
-    // without skill halls, the page a row longer than the view): the cursor on Start while it is in view from there,
-    // else on the first choice.
-    int start = 0;
-    int first = -1;
-    for(int i = 0; i < static_cast<int>(built.size()); i++)
-    {
-        start = built[i].look == Item::Button && built[i].label && !strcmp(built[i].label, "Start") ? i : start;
-        first = first < 0 && selectable(built[i]) ? i : first;
-    }
+    (void)items(page);
+    // At its top, the cursor on Start (the first row: the last choices one press away).
     ui().scrolls[page] = 0;
-    ui().cursors[page] = start < rowsFrom(built, 0) || first < 0 ? start : first;
+    ui().cursors[page] = 0;
 }
 
 void openRunSetupCampaign(int index)
@@ -308,4 +320,29 @@ void openRunSetupCampaign(int index)
         return;
     }
     openRunSetup(runsetup::Launch::Campaign, za::String{}, nullptr, index, true);
+}
+
+// Arcane Dimensions, its experimental notice answered Continue (vr_menu.cpp selectCampaignRow): the Run Setup screen as
+// the other campaigns get, its Start the developer launch (runSetupStart). Not installed: only the reason printed.
+void openRunSetupArcane()
+{
+    const int index = qvr::ad::campaignIndex;
+    if(!VR_CampaignInstalled(index))
+    {
+        VR_SelectCampaign(index);
+        return;
+    }
+    openRunSetup(runsetup::Launch::Campaign, za::String{}, nullptr, index, true);
+}
+
+// Arena Mode, its experimental notice answered Continue (vr_menu.cpp selectArenaRow): the arena's own Run Setup screen
+// (pageRunSetup: its five rows), its Start the arena (runSetupStart). Quake's campaign unavailable: its reason printed.
+void openRunSetupArena()
+{
+    if(VR_CampaignUnavailable(0) != 0)
+    {
+        VR_SelectCampaign(0); // (only its reason printed)
+        return;
+    }
+    openRunSetup(runsetup::Launch::Arena, za::String{}, "vrarena", -1, false);
 }
