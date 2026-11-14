@@ -2372,3 +2372,23 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
   6 reps where it moved; no confirmed per-frame regression, worst frames and warm loads down; crowd_ad_40's p99 and
   +1-2 heap allocs a frame listed. Fixed: `load_reloads` crashed (Host_ClearMemory kept `cl_entities` after freeing
   it; a campaign switch's CL_ForgetModels wrote it: unmapped since nohunk). Now NULL there, as at start-up.
+
+## questN: Quest C2f, the world's textures in texture arrays for the bound path (agent/quest, 2026-11-14)
+
+- **`vr_world_texarrays`** (tunable: 0 off, 1 under the ES profile (default), 2 any bound path; the PC with bindless
+  never uses it) and `vr_world_texarrays_report`. vr/vr_worldarrays.cpp makes, at each map's load, sets of four
+  `GL_TEXTURE_2D_ARRAY`s (texture, fullbright, normal, specular) for the world's textures alike in size, levels and
+  format (`glCopyImageSubData` copies: mips, external packs, generated normal maps; shared defaults one layer); each
+  call is checked against the maps copied (a changed map: the bound path that frame, the arrays made again).
+- **Draws**: the world programs' array twins (`QVR_WORLD_ARRAYS`, gl_shaders.c `GL_WorldArraysProgram`; the retro,
+  parallax and bump helpers spliced for both sampler types by `QVR_SAMPLER_TWINS`); r_world.c groups a flush's calls
+  by set and draws each group's single-instance calls as one draw: their indices merged by a compute pass beside the
+  gather (same barrier), each vertex's call from a static vertex-to-command buffer (r_brush.c) and the flush's
+  command-to-call table. The liquids' programs keep a draw a texture.
+- **Numbers** (idle e1m1, ES + clip control + `vr_quest_preset 0`): world+brush 118 -> 25 draws an eye, eye 151 -> 58;
+  25 sets, 77 textures, 8.9 MB of copies. The eye identical with and without (also at PC defaults with normal maps and
+  PBR companions). This PC's GPU and CPU unchanged within
+  noise (8 core scenarios, ThinLTO; two repeats where it looked moved); a twin compiled in play (1.8 s frame) fixed by
+  compiling them at the arrays' making.
+- **Tests**: `gles_render_test` 18 checks (6 new: the arrays drawn, off draws none, identical to a draw a texture).
+- Details, open items: QUEST_PLAN.md section 6e.

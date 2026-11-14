@@ -172,6 +172,7 @@ is the same build with a lower preset (half the GPU) [I].
 | C1 (done) | Research, audit, decision, this plan; `vr_simd.hpp` + `vr_simd_test`; `-glescompat` + `vr_gles_report`; `quest_budget.cfg` and the budget runs | No |
 | C2 (done: C2a, C2b, C2c, C2d: the ES cost split and cut, the Quest preset's draft, sections 6b-6c) | **PC portability layer**: the 14 ungated rows behind `VR_GLESCompat()` (one `#version`/precision prefix for all programs, `glGetTexImage`/`glGetBufferSubData`/`glClearTexImage`/`glTextureView` replacements, LOD bias in shaders, depth clamp, clip distance, noperspective, timer-query wrapper); the GLSL made ES-valid (checked by compiling every program as `#version 320 es` with the PC driver where it accepts ES profiles, else with glslang if he approves it); `-glescompat` runs every test suite clean; `-fp-contract`-free scalar check; a "no child process" mode for the relight and motion children; an `Android`-guarded skeleton for crash/files/paths that compiles on the PC (`QVR_FAKE_ANDROID`) | No |
 | C2e (done, section 6d) | The CPU side of the Quest budget measured (a fight's split, QuakeC per function), draws per scope in `vr_profile_dump`, the bound path's draws located; the `noperspective` fallback (`-glesnoext`) | No |
+| C2f (done, section 6e) | The world's textures in texture arrays for the bound path (`vr_world_texarrays`): a draw a set of textures alike instead of a draw a texture | No |
 | **C3** (next; needs his approval of section 7's installs) | Android build: CMake toolchain for `arm64-v8a`, Gradle project (`Android/`), SDL2's Android activity, `-ffp-contract=off`, assets path and permissions, logcat console, the APK; first boot in the Android emulator (flatscreen, ES 3.x) for files, sound and menus | **Yes** (list below) |
 | C4 | OpenXR on Android: `XR_KHR_opengl_es_enable` binding, Android loader init, swapchains as GLES texture arrays, multiview into them, refresh rate, `XR_EXT_performance_settings`, `XR_FB_foveation`, Touch controller bindings (already OpenXR actions), visibility mask; first headset boot; a GL extension dump of the Quest's driver resolves the [?] rows | **Yes** + a Quest in developer mode |
 | C5 | Renderer on device: driver bugs, the post chain merged into fewer passes for the Quest preset, program binary cache, MSAA on tile, invalidations at pass ends; Adreno profiling (`ovrgpuprofiler`, RenderDoc) | Yes (device tools) |
@@ -523,6 +524,74 @@ rendering's CPU. Nothing cut here: every candidate changes behaviour or needs hi
 - The `upscale` pass (0.21 ms GPU at the preset's 0.9 scale, `vr_upscale 0`) is the compositor's job on the Quest
   (the swapchain at the scaled size): C4.
 
+## 6e. C2f: the world's textures in texture arrays for the bound path (done, no installs)
+
+**`vr_world_texarrays`** (a tunable, Debug > Tunables: 0 off, **1 under the ES profile** (`-glescompat`, Android: the
+default), 2 on any bound path; the PC with bindless textures never uses it) and `vr_world_texarrays_report` (the sets,
+their memory, the last frame's draws). vr/vr_worldarrays.cpp; r_world.c `R_MergeBModelCallsArrays`,
+`R_DrawBModelCallsArrays`; gl_shaders.c `GL_WorldArraysProgram`.
+- **The arrays**: at the map's load (the first batch after `GL_BuildBModelMarkBuffers`), every world texture but the sky
+  and the liquids, with its four maps as `R_AddBModelCall` picks them (shared code: `R_BModelCallTextures`), goes in a
+  set of four `GL_TEXTURE_2D_ARRAY`s (the texture, its fullbright, its normal map, its specular map; units 0, 1, 3, 11)
+  for the textures alike in size, mip levels and format: a texture a layer, the same layer in all four. A map shared
+  by the set's textures (the black of no fullbright, the flat normal, the white of no specular map: 64 texels or fewer,
+  or one map used by more than one texture) is a one-layer array: the shader's layer clamps to it, so its
+  `textureSize` is the bound path's. Copies by `glCopyImageSubData` (ES 3.2 core): every mip level, external packs'
+  sizes and compressed formats, the generated normal maps as made; TexMgr's unsized formats (`GL_RGB`, `GL_RGBA`) given
+  their sized storage. Filtering and wrapping copied from each array's first map (again when `TexMgr_SetFilterModes`
+  runs: `gl_texturemode`, anisotropy). An OpenGL error while making them: none (a console line), the bound path.
+- **Checked at every call**: the call's four maps (pointers and GL names) must be the ones copied, else it draws on the
+  bound path that frame and the arrays are made again at the next batch (a setting changed a map: normal maps on, an
+  external pack, `gl_fullbrights`; at most 16 times a map).
+- **The draws**: the world programs' array twins (the same sources with `QVR_WORLD_ARRAYS`: `sampler2DArray`s, the
+  call's layer a flat varying; the texture-reading helpers, retro, parallax and bumps, spliced for both sampler types:
+  `QVR_SAMPLER_TWINS` in vr_retro.h; the liquids' programs have none). A flush groups its calls by set (one group for
+  the depth pre-pass, which reads no texture); each group's single-instance calls become one draw: a compute pass
+  beside the gather (under its barrier: no compute pass of its own between draws, which on a tiler may end the render
+  pass) copies their gathered indices one after another, each vertex finds its call from its command (a static
+  vertex-to-command buffer from r_brush.c, the flush's command-to-call table: `DrawID` -1). Instanced calls, and a
+  command's second call in a flush, draw alone from the arrays (`DrawID` set). Order: by set, then as before within one.
+
+Results (idle e1m1; ES + clip control + `vr_quest_preset 0`; the dev build, `vr_profile` over 240 frames,
+`scratch/c2f_prof.sh`):
+
+| | arrays off (a draw a texture) | arrays on |
+|---|---|---|
+| world+brush draws an eye | 118 | **25** |
+| eye L / eye R draws | 151 / 150 | **58 / 57** |
+| world arrays | | 25 sets, 77 textures (2 left out: tiny or one image under two names, on the bound path), 8.9 MB |
+| the left eye's image | | **identical** (0 pixels moved) |
+
+GPU and CPU (`bench.sh quest`, the 8 core scenarios, `--hz 72 --eye 1760`, `quest_preset_quest3_72.cfg`, ES + clip
+control, ThinLTO, exclusive, one repeat: a few % is noise; `kit/benchresults/c2f_q3_off`, `c2f_q3_on`). ms averages:
+
+| scenario | GPU 3D off | on | CPU off | on |
+|---|---|---|---|---|
+| combat_48 | 1.80 | 1.87 | 3.92 | 5.81 (one 1.8 s frame: below) |
+| combined | 3.41 | 3.49 | 6.89 | 7.18 |
+| gore_slash_32 | 1.86 | 1.87 | 3.80 | 3.87 |
+| idle_e1m1 | 0.84 | 0.83 | 1.74 | 1.81 |
+| lights_32 | 1.65 | 1.60 | 1.40 | 1.40 |
+| props_500_active | 1.73 | 1.80 | 3.66 | 3.82 |
+| ragdolls_32_active | 1.83 | 1.84 | 3.71 | 3.67 |
+| teleporter_loop_r2 | 1.16 | 1.16 | 0.84 | 0.85 |
+
+- **This PC's GPU and CPU do not move** (-3 to +4%, the noise of one repeat): a desktop driver's draw call is cheap,
+  and the merge's copy of the indices (a few tens of thousands an eye) is too. What the arrays cut is the Quest's
+  draw calls (118 -> 25 an eye; ES drivers spend CPU per draw and per bind): C5 measures that on the device. A first
+  form with the merge's own barrier cost +0.04 ms GPU an eye (0.10 -> 0.14, the dev build); beside the gather's: 0.11.
+- **combat_48's 1.8 s frame** was an array twin compiled in play (the decals' retro program's, made when the first
+  retro decal lands): the twins of the programs the view's settings use are now compiled when the arrays are made at
+  the map's load (`R_PrewarmArrayTwins`). C2F_RECHECK
+
+- **Equality**: `gles_render_test` (now 18 checks) runs the ES scene (PC defaults: normal maps, PBR companions, retro
+  textures on) with the arrays and with `vr_world_texarrays 0`: identical (0 pixels moved, mean 0.000), every texture
+  the same; the ES scene against the PC's as before. Under the Quest preset (no normal maps) the same: identical.
+- **Open, for the device (C4/C5)**: the vertex shader reads five storage blocks (the Quest's
+  `GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS`: C4's limit dump); the arrays are copies (8.9 MB in e1m1 under the preset,
+  15 MB with normal maps): the 2D world textures could be freed on the Quest once nothing else reads them (brush models
+  of other files, the bound path's leftovers still do); the liquids still draw a texture at a time (few).
+
 ## 7. Installs for his approval (none done)
 
 Sizes are approximate download sizes [I]; versions are the current stable ones at install time.
@@ -548,7 +617,8 @@ Next phase: C3 — the Android build (NEEDS INSTALLS: section 7's SDK, NDK, JDK,
 approval): CMake toolchain for arm64-v8a with `-ffp-contract=off`, the Gradle project and SDL2's activity, the first
 compile of vr_android.cpp's `__ANDROID__` forms (and the crash handler merged with vr_crash.cpp's POSIX one, section
 5d), logcat console, the first boot in the emulator (flat-screen, ES 3.x), `vr_quest_preset` applied on the first run
-there. If the installs are not approved yet, the no-install phase worth doing (C2f): the world's textures in arrays
-for the bound path (section 6d: 118 draws an eye to a draw per array, ES-legal, the PC's bindless path unchanged,
-`gles_render_test` equal), and the armed humanoids' CPU cost (section 6d: 1.5 ms of a fight's 4.4) measured per
-part with his choice of what may change (poses of unseen holders, a Quest cap on armed replacements).
+there. If the installs are not approved yet, the no-install phase worth doing (C2g): the eyes' post chain merged into
+fewer full-screen passes under the Quest preset (section 6c's second GPU lever: the float scene's tone curve, bloom's
+composite and the grade read and written once on a tiler, not once each; the PC's chain unchanged, `gles_render_test`
+equal). Waiting on his call, not on installs: the armed humanoids' CPU cost (section 6d: 1.5 ms of a fight's 4.4;
+poses of unseen holders, a Quest cap on armed replacements).
