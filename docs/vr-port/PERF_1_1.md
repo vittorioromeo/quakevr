@@ -96,21 +96,58 @@ both already the subject of PERF_1102's list.
 |---|---|---|---|
 | 1 | `ab9692a4c` | The smoke-blow meter's capture device opened (and closed) on a pool worker (`jobs::async`; the worker joins COM's multithreaded apartment first, WASAPI's objects being COM's); taken in by `meterFrame` when open; the notes' own recording waits for a pending open or close first (SDL's device table is not guarded between threads); shutdown closes on the main thread. `vr_debug_gunfx 1` prints `gunfx mic meter open (rate N)` | `armed_mix32` with `vr_debug_gunfx 1`: "gunfx mic meter open (rate 16000)". Re-captured (same build kind and settings): CPU busy max **armed_mix32 22.0 -> 11.9 ms, mut_random3x_e1m2 27.2 -> 8.4 ms**, frames over 14 ms 1 -> 0 in both; the open now shows as a 13.7-13.9 ms `Job execute` on a worker. A 4.7-5.8 ms `muzzle wisps` frame remains once a session: the first `ensureAudio` (`SDL_InitSubSystem(SDL_INIT_AUDIO)`), left on the main thread (SDL's init belongs there) |
 
+### Second pass (2026-11-14, branch `agent/profile2`)
+
+| # | commit | what | check |
+|---|---|---|---|
+| 2 | `010e91e97` | `vr_envmap.cpp` `buildWorld`: every world texture's smallest mip read back into one pixel-pack buffer, mapped once (one GPU wait, not one per texture) | ad_azad (ThinLTO, paced, exclusive), the readbacks: **207-217 ms -> 14-33 ms** (113 textures; cold and warm). The per-vertex colours bit-identical (an FNV of them before and after: `4c3de42e71e36e5a` start map, `329f3e380159a96c` ad_azad, both loads). What remains of the stage is the GPU's backlog from the load (a `glFinish` in front of it took 9-356 ms): waited here or at the next sync |
+| 3 | `97aee6b6e` | Per-frame heap events: `avatar::posedMesh`'s per-surface vector kept (`mem::Scratch`, 7.6 a frame: the player's wounds binding); `monsterdata::findStandIn` looks up without a `za::String` (a transparent hash; the lunges' QC) | `vr_alloc_sites` over 300 bench frames (fast mode, his settings): **nav_hunt_e1m1_3x 31.6 -> 16.3**, combat_48 8.9 -> 8.0 main-thread heap events a frame. The rest: first-use cache fills (`grasp::shapeOf`, `barrelmask::geometryOf`, `disarmhull::make`: the 400-700-event peak frames), kept buffers growing, decals' own triangles, and the bench script's `wait` lines (`Cmd_TokenizeString`'s `Z_Strdup` per argument: 0.8-3 a frame) |
+| 4 | `be8370be4` | Alias model load: `VR_SkinEdgesModel`'s two passes on the job pool by bands of 16 rows (each band walks every triangle over its own rows; the edge texels then sorted into the serial walk's order) | Tracy (Release-Tracy, E1M1 cold): `alias skin edges` was 109 ms of the main thread's load (0.36 ms a model, 304 models). Identical: a temporary compare against the serial walk in the same run, 304 models on E1M1 and 591 on ad_azad, 0 differ. New Tracy zones in the skins' normal maps (posted / committed / waited for, mips) |
+
+**Alias model load, where the rest goes** (E1M1 cold, Release-Tracy, main thread self ms; `scratch/p2_selfsum.py`):
+`skin normal map committed (done)` 215 (1,682 normal maps: their upload, label and bindless residency, median 97 us),
+`Texture preparation` 183 (2,230 skins: palette conversion, mips down, upload, residency), `alias skins` 73,
+`VR_DerivedModelFile` 77 (a temporary zone: six limb models built, 46 ms; the rest ~0.3 ms each), `alias replacement md5` 48 (the .md5/.md3
+probes), `texture mips made` 36, `skin normal map posted` 37, `normal map source prepared` 43. The decode and the normal
+maps' making are already on the jobs; what is left on the main thread is GL (uploads, `glMakeTextureHandleResidentARB`)
+and per-skin CPU work of 30-100 us each: no single exact win left above ~40 ms.
+
+**ad_tears' first frames after its load (113-476 ms): the props' navmesh batches**, not the class builds. With every
+class read from the disk cache, `vr_nav_info` still shows 2-3 "deadlines waited for", worst 216-316 ms: each class's
+first props batch (24 crates and barrels blocking: 40-54 tiles rebuilt with them as obstacles) costs **2.8-5.0 s of CPU
+(tiles 70-200 ms each in ad_tears' dense rooms) and 270-437 ms on the whole pool**, all three classes' together, and
+`vr_nav_job_frames 3` makes the server take each on its 3rd frame, so the main thread waits out the rest. (The class
+builds land on frame 18 and are only waited for when their disk file is missing: the first play after a new exe.)
+Not changed: the landing frame is the determinism contract (item 1 below).
+
 ## Needs his call (each changes behaviour or is a bigger job)
 
-1. **Navmesh class builds in play on big maps** (`vr_nav_build_frames`, 18): on ad_tears a class's build takes 1.3-1.8 s,
-   so taking it on frame 18 blocks the main thread ~100 ms (once per class per map when its disk cache file is missing:
-   the first play of a map). Options: scale the landing frame with the map's size (e.g. the build's own measured time
-   rounded up, kept deterministic per map) or let classes built in play land "when done" (`vr_nav_build_frames 0`, loses
-   the same-game-with-or-without-cache guarantee). Trade: determinism of the first seconds against a 100 ms hitch.
-2. **The 3x enemies stress**: `nav_hunt_e1m1_3x` is the one scene over budget (p95 13.4 ms CPU, Tracy build). The cost
-   is the armed humanoids' per-frame pose QC times 76 plus 121 walkers. The levers, all quality trades: PERF_1102's list
-   (the arms' IK of unseen humanoids every other frame; the pose keys once a frame), and the worn backpacks' place
-   (`limbpiece` 30, 0.38 ms) only for packs in view or near.
-3. **Mass ragdoll creation**: 0.7 ms a ragdoll on the frame of death; a cap of ragdolls made per frame (the rest a frame
-   later) would flatten the 20-35 ms frames of a rocket into a crowd, at the price of bodies going limp a frame or two late.
-4. **The disk cache's first write of a session prunes on the main thread** (2 ms per product folder, once a session):
-   could move into the write job (care: it scans the folder the writes go into).
+1. **The navmesh's landing frames on big maps.** (a) Props' batches (`vr_nav_job_frames`, 3): on ad_tears the first
+   batch per class needs 270-437 ms of the whole pool, so the main thread waits **216-316 ms** (fast mode; 113-476 ms paced).
+   Proposal: a separate landing frame for a class's *first* props batch, `vr_nav_job_frames_first 45` (0.5 s at 90 Hz),
+   later batches staying at 3: still a fixed frame (the same game with or without the cache), the waits gone on a
+   16-thread machine, at the price of map-start crates blocking walkers' paths 0.5 s later (the monsters mostly asleep
+   then). (b) Class builds in play (`vr_nav_build_frames`, 18; 1.1-1.8 s each on ad_tears, only when the disk file is
+   missing: the first play of a map after a new build): proposal `vr_nav_build_frames` scaled by the map's walkable
+   triangle count (e.g. 18 + count / 10,000: ad_tears' 1.15 M -> 133 frames, 1.5 s; E1M1 stays near 18), deterministic
+   per map; gain the ~100 ms first-play hitch.
+2. **The 3x enemies stress** (`nav_hunt_e1m1_3x`, p95 13.4 ms CPU, Tracy build: the one scene over budget). Proposal:
+   the unseen armed humanoids' arms IK and pose keys every other frame (PERF_1102's lever, alternating halves by edict
+   number): measured cost of the pose QC is `VR_AGP_Pose` 0.36 + `ArmsGun`/`TurnPose`/`TurnDir`/`AGK_Keys` ~0.44 ms
+   a frame for 76 humanoids, about half of them unseen at any time, so **~0.4 ms a frame**; plus the worn backpacks'
+   place (`limbpiece`, 0.38 ms) only for packs within 1,500 units or in view: **~0.25 ms**. Price: unseen humanoids'
+   arms a frame stale (not visible), packs far away placed late when they come into view (one frame).
+3. **Mass ragdoll creation** (0.7 ms a ragdoll on its death frame: 32 in one frame = 23 ms, a rocket into a crowd 2-6
+   ms). Proposal: `vr_ragdoll_per_frame 4` (the rest made over the next frames, oldest death first): the 32-kill frame
+   becomes 8 frames of ~3 ms (**worst frame 33 -> ~14 ms** in `ragdolls_32_active`); bodies 5-8 of a frame go limp
+   1-7 frames (11-78 ms) late, playing their death frame meanwhile.
+4. **The disk cache's first write of a session prunes on the main thread** (`disk cache prune` 2.1 ms + `write prepare`
+   2.4 ms once a session, seen in `fight_ad_tears`). Proposal: the prune inside the first write's job, before its own
+   write, with the folder's lock the writes already take; **gain 2-4.5 ms once a session**. Price: none visible; care
+   that the prune never removes the file being written (it runs before, in the same job).
+5. (New) **`Cmd_TokenizeString` allocates every argument** (`Z_Strdup`, freed at the next command): 0.8-3 heap events a
+   frame in the benches (their `wait` lines), a few a frame in play (binds). Reusing per-slot buffers is safe for every
+   correct caller but changes what a stale `Cmd_Argv` pointer held across a nested command reads: left as it is.
 
 ## Map loads
 
@@ -132,11 +169,10 @@ hulls' build waited for 9.3 s** (`server: 2 frames`) and the **model light grid 
 on the jobs: all three are disk-cached afterwards (CACHES.md: `hulls`, `lightgrid`), so they are the first-ever load's.
 
 Top costs and what could go:
-1. **`env cube world` (vr_envmap.cpp `buildWorld`): 330-770 ms on every ad_azad load, warm ones too.** `averageColor` reads
-   each world texture's smallest mip back with `glGetTexImage` (a GPU sync per texture, while the load's uploads are in
-   flight). Exact fix, not done (out of budget): issue every texture's readback into one pixel-pack buffer first, map it
-   once (one sync, the same values), or keep the averages across loads by the texture's name, CRC, size and flags. The
-   largest warm-load cost found.
+1. **`env cube world` (vr_envmap.cpp `buildWorld`): 330-770 ms on every ad_azad load, warm ones too.** `averageColor` read
+   each world texture's smallest mip back with `glGetTexImage` (a GPU sync per texture, ~2 ms each). **Done** (second
+   pass, commit 2): one pixel-pack buffer, one map: the readbacks 207-217 -> 14-33 ms; the GPU backlog of the load
+   (9-356 ms, measured with a `glFinish` in front) is still waited for at the first sync.
 2. **Entities spawned** (QC spawn: 0.5-1.1 s; on e1m1 mostly the models it precaches: `alias models (.mdl) loaded`
    ~3.3 ms each with their normal maps). Warm loads keep them (192 ms).
 3. **The first frames after ad_tears' load: 113-476 ms** (navmesh classes and other work landing in play: the hitch
@@ -145,8 +181,9 @@ Top costs and what could go:
 
 ## What is left (for the coordinator)
 
-- **The env cube's texture averages in one readback** (map loads, item 1): the clearest exact load win left.
-
+- Second pass done: the env cube's averages in one readback, the allocation trace, the skin edges on the pool, the
+  ad_tears post-load hitch's cause (the props' navmesh batches: his call 1a). Tests: `load_models_test.sh`,
+  `scenario_check.sh` full and the release-config build after the merge (ROUND25.md "profile2").
 - The ThinLTO before/after bench of the full set (`bash kit/bench.sh <agent> --scenarios combat_48,ai_crowd_64,
   idle_e1m1,fight_ad_tears,fight_ad_sepulcher,combat_48_bullettime,combat_48_spectator,crowd_ad_40,armed_mix32,
   ragdolls_32_active,gore_blast_crowd_32,play_e1m1_fight,perf1114 --reps 3 --settings <his cfg>`): not run (the

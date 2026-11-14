@@ -592,7 +592,7 @@ layout(location = 15) uniform int Reverse;        // drawn in reverse order: the
 #ifdef PARTICLE_TRIM
 layout(location = 13) uniform vec4 TrimView; // actual target width, height, atlas width, height
 layout(location = 14) uniform vec2 Trim; // enable, world block size (0 plain)
-layout(location = 20) uniform vec4 Support[16]; // guarded base-level support in atlas UVs
+layout(location = 40) uniform vec4 Support[16]; // guarded base-level support in atlas UVs (40-55: 20 and 21 are the fragment shader's Taper and InkAlpha)
 #endif
 layout(location = 12) uniform float LargePixels;  // large: half across at least this many of them
 // Near the eye (vr_particle_near_fade, _near_cull): x fading from this far (units), y nothing nearer; z: none larger
@@ -1813,7 +1813,7 @@ void drawParticlesWith(GLuint program, const ParticleBatch& batch, bool pull, bo
         GL_Uniform4fFunc(13, static_cast<float>(width), static_cast<float>(height), particleAtlasSize.x, particleAtlasSize.y);
         const float block = retro > 0 ? retro::particleTrimBlock(retro) : 0.f;
         GL_Uniform2fFunc(14, block >= 0.f ? 1.f : 0.f, block);
-        GL_Uniform4fvFunc(20, 16, &particleSupport[0][0]);
+        GL_Uniform4fvFunc(40, 16, &particleSupport[0][0]); // (Support)
     }
     bool retroVariant = false; // (particleProgramFor's retro variants: PARTICLE_PLAIN's MinBlocks)
     for(const auto& row : particleProgram)

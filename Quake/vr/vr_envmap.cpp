@@ -212,13 +212,25 @@ void main()
     return u.r | (u.g << 8) | (u.b << 16) | (alpha << 24);
 }
 
-// A texture's average colour and alpha: its smallest mip level, read back (once per texture as a map loads; the
-// replacement textures' own colours).
-[[nodiscard]] glm::vec4 averageColor(const gltexture_t* t)
+// Textures' average colours and alphas (once per texture as a map loads; the replacement textures' own colours): each
+// one's smallest mip level read back. All of them in one go: every readback into one pixel-pack buffer, mapped once,
+// so the load waits for the GPU once, not once per texture (~2 ms each: 200+ ms on AD's maps, PERF_1_1.md).
+constexpr glm::vec4 noAverage{0.5f, 0.5f, 0.5f, 1.f};
+
+struct AverageRead
 {
+    const gltexture_t* tex;
+    int level, w, h;   // w 0: none (noAverage)
+    size_t offset;     // in the pixel-pack buffer (bytes)
+};
+
+// The level and size of t's readback (w 0: none).
+[[nodiscard]] AverageRead averageReadOf(const gltexture_t* t)
+{
+    AverageRead r{t, 0, 0, 0, 0};
     if(!t || !t->texnum || t->target != GL_TEXTURE_2D)
     {
-        return glm::vec4{0.5f, 0.5f, 0.5f, 1.f};
+        return r;
     }
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, t->texnum);
     int level = 0;
@@ -239,16 +251,71 @@ void main()
     glGetTexLevelParameteriv(GL_TEXTURE_2D, level, GL_TEXTURE_HEIGHT, &h);
     if(w <= 0 || h <= 0 || w * h > 256 * 256)
     {
-        return glm::vec4{0.5f, 0.5f, 0.5f, 1.f};
+        return r;
     }
-    za::Vector<float> px(static_cast<size_t>(w) * h * 4);
-    glGetTexImage(GL_TEXTURE_2D, level, GL_RGBA, GL_FLOAT, px.data());
-    glm::vec4 sum{0.f};
-    for(size_t i = 0; i < px.size(); i += 4)
+    r.level = level;
+    r.w = w;
+    r.h = h;
+    return r;
+}
+
+// The averages of `textures` (null ones: noAverage), by texture.
+void averageColors(za::Span<const gltexture_t* const> textures,
+    ankerl::unordered_dense::map<const gltexture_t*, glm::vec4>& out)
+{
+    za::Vector<AverageRead> reads;
+    size_t total = 0;
+    for(const gltexture_t* t : textures)
     {
-        sum += glm::vec4{px[i], px[i + 1], px[i + 2], px[i + 3]};
+        AverageRead r = averageReadOf(t);
+        if(r.w > 0)
+        {
+            r.offset = total;
+            total += static_cast<size_t>(r.w) * r.h * 4 * sizeof(float);
+        }
+        reads.pushBack(r);
     }
-    return sum / static_cast<float>(w * h);
+    const float* px = nullptr;
+    GLuint pack = 0;
+    if(total > 0)
+    {
+        pack = GL_CreateBuffer(GL_PIXEL_PACK_BUFFER, GL_STREAM_READ, "vr envmap averages", total, nullptr);
+        for(const AverageRead& r : reads)
+        {
+            if(r.w > 0)
+            {
+                GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, r.tex->texnum);
+                glGetTexImage(GL_TEXTURE_2D, r.level, GL_RGBA, GL_FLOAT, reinterpret_cast<void*>(r.offset));
+            }
+        }
+        px = static_cast<const float*>(GL_MapBufferRangeFunc(GL_PIXEL_PACK_BUFFER, 0, static_cast<GLsizeiptr>(total),
+            GL_MAP_READ_BIT)); // (the one wait)
+    }
+    for(const AverageRead& r : reads)
+    {
+        if(r.w <= 0 || !px)
+        {
+            out[r.tex] = noAverage;
+            continue;
+        }
+        const float* p = px + r.offset / sizeof(float);
+        const size_t n = static_cast<size_t>(r.w) * r.h * 4;
+        glm::vec4 sum{0.f};
+        for(size_t i = 0; i < n; i += 4)
+        {
+            sum += glm::vec4{p[i], p[i + 1], p[i + 2], p[i + 3]};
+        }
+        out[r.tex] = sum / static_cast<float>(r.w * r.h);
+    }
+    if(pack)
+    {
+        if(px)
+        {
+            GL_UnmapBufferFunc(GL_PIXEL_PACK_BUFFER);
+        }
+        GL_BindBuffer(GL_PIXEL_PACK_BUFFER, 0); // (the other readbacks are to client memory)
+        GL_DeleteBuffer(pack);
+    }
 }
 
 void resetWater();
@@ -295,16 +362,45 @@ void buildWorld()
     za::Vector<za::U32> perVertex(numVerts * 2, 0u);
     ankerl::unordered_dense::map<texture_t*, za::Vector<za::U32>> byTexture;
     za::Vector<texture_t*> textureOrder; // as first met (the same each build)
-    for(int i = 0; i < m->nummodelsurfaces; i++)
+    // The faces drawn, their texture (null: none)
+    const auto faceTexture = [&](const msurface_t* s) -> texture_t*
     {
-        const msurface_t* s = &m->surfaces[m->firstmodelsurface + i];
         if((s->flags & SURF_DRAWSKY) || s->numedges < 3 || s->vbo_firstvert < 0 ||
             static_cast<size_t>(s->vbo_firstvert + s->numedges) > numVerts)
         {
-            continue;
+            return nullptr;
         }
         texture_t* t = m->textures[s->texinfo->texnum];
-        if(!t || !t->gltexture)
+        return t && t->gltexture ? t : nullptr;
+    };
+
+    // Their textures' averages first, in one readback.
+    ankerl::unordered_dense::map<const gltexture_t*, glm::vec4> averages;
+    {
+        ankerl::unordered_dense::set<const gltexture_t*> seen;
+        za::Vector<const gltexture_t*> wanted;
+        for(int i = 0; i < m->nummodelsurfaces; i++)
+        {
+            if(const texture_t* t = faceTexture(&m->surfaces[m->firstmodelsurface + i]))
+            {
+                for(const gltexture_t* g : {t->gltexture, t->fullbright})
+                {
+                    if(g && seen.insert(g).second)
+                    {
+                        wanted.pushBack(g);
+                    }
+                }
+            }
+        }
+        averageColors(wanted, averages);
+    }
+    const auto averageColor = [&](const gltexture_t* g) { return averages.find(g)->second; };
+
+    for(int i = 0; i < m->nummodelsurfaces; i++)
+    {
+        const msurface_t* s = &m->surfaces[m->firstmodelsurface + i];
+        texture_t* t = faceTexture(s);
+        if(!t)
         {
             continue;
         }

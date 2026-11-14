@@ -3737,7 +3737,9 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 		p += pheader->numverts * sizeof (stvert_t);
 		for (i = 0; i < pheader->numtris * 4; i++)
 			tr[i] = LittleLong (((const int *) p)[i]);
+		{ VR_TRACY_SCOPE ("alias skin edges"); // QVR: Tracy builds only
 		VR_SkinEdgesModel (mod->name, (mod->flags & MF_HOLEY) != 0, pheader->skinwidth, pheader->skinheight, st, pheader->numverts, tr, pheader->numtris);
+		}
 		Hunk_FreeToLowMark (mark);
 	}
 	{
