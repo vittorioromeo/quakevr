@@ -2163,6 +2163,19 @@ both). **Verdict:** nothing breaks with 1, but it is slower in play: sv_fte_hull
 matched unanchored, `-QuitOn` on it (the run ends there, the log flushed every frame), and a last line
 `walk_test: N maps, M without a summary`.
 
+## Performance campaign for 1.1 (2026-11-14, branch `agent/profile`)
+
+Tracy captures (Release-Tracy, preset full, QC detail 2, his settings, 2048 eyes, 90 Hz paced, exclusive) of 15 scenes,
+the window's zones, worst frames and GPU passes; map loads by stage. Everything is in [PERF_1_1.md](PERF_1_1.md).
+
+- **New bench scenarios** (group `perf1114`): `mut_armed3x_e1m2`, `mut_random3x_e1m2` (the run setup's mutators at 3x
+  enemies, `vr_run_*` set by hand, `vr_run_seed 7`), `nav_hunt_e1m1_3x` (121 walkers hunting across E1M1, lift and
+  teleporter links on), `menu_maplib_e1m1`, `menu_preview_e1m1`.
+- **The "muzzle wisps" hitch (16-23 ms in every gun fight) was the microphone**: the smoke-blow meter
+  (`vr_smoke_blow`) opened its capture device on the main thread whenever smoke drifted near the mouth after 10 s
+  closed. Now opened and closed on a pool worker (`vr_voicenotes.cpp`); `vr_debug_gunfx 1` prints when it opens.
+- Listed for him (behaviour trades): navmesh classes built in play on huge maps block ~100 ms on their landing frame
+  (`vr_nav_build_frames`), the 3x crowd's per-humanoid pose QC, mass ragdoll creation in one frame.
 ## hunkfollow: nohunk's two follow-ups (agent/hunkfollow, 2026-11-14)
 
 - **The uninitialised read (nohunk's "Open"):** `vr_extmaps.cpp` `signature()` (the 64 x 64 detail signatures that
