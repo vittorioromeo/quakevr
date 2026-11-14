@@ -1027,9 +1027,11 @@ extern "C" int VR_SkinNormalsPost (gltexture_t *glt, const byte *data, int kind,
 	// held until the first frame: a map's first load posts 550 of them)
 	while (!pendingSkinNormals.empty () && pendingSkinNormals.front ().done.ready ())
 	{
+		QVR_TRACY_SCOPE (tracyCommit, "skin normal map committed (done)"); // (Tracy builds only)
 		TexMgr_SkinNormalsCommit (pendingSkinNormals.front ());
 		pendingSkinNormals.erase (pendingSkinNormals.begin ());
 	}
+	QVR_TRACY_SCOPE (tracyPost, "skin normal map posted");
 	auto job = za::makeUnique<SkinNormalJob> ();
 	SkinNormalJob &j = *job;
 	const MaskSource ms = TexMgr_CurrentMaskSource ();
@@ -1077,7 +1079,10 @@ extern "C" void VR_SkinNormalsSetBase (gltexture_t *glt, gltexture_t *base)
 
 static void TexMgr_SkinNormalsCommit (PendingSkinNormal &p)
 {
-	p.done.wait ();
+	{
+		QVR_TRACY_SCOPE (tracyWait, "skin normal map waited for"); // (Tracy builds only)
+		p.done.wait ();
+	}
 	SkinNormalJob &j = *p.job;
 	if (j.cache)
 		qvr::diskcache::noteRgbaRead (qvr::diskcache::Product::NormalMaps, j.read, j.data.size (), j.readSeconds, "(a skin)");

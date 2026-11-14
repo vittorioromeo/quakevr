@@ -1622,6 +1622,7 @@ static void TexMgr_Upload32 (gltexture_t *glt, unsigned *data, double t0)
 				coveragemip = (byte *) Hunk_AllocNoFill (q_max (1, glt->width * glt->height / 2) * 4);
 			}
 
+			VR_TRACY_SCOPE ("texture mips made and uploaded"); // QVR: Tracy builds only (self time: the CPU's mips)
 			for (miplevel=1; mipwidth > 1 || mipheight > 1; miplevel++)
 			{
 				if (mipheight > 1)
@@ -1919,10 +1920,13 @@ gltexture_t *TexMgr_LoadNormalMap (gltexture_t *base, const char *name, int widt
 	mark = Hunk_LowMark ();
 	texmgr_normalasync = true; // QVR: a skin's made on a job (TexMgr_LoadImage32)
 	texmgr_normalposted = false;
-	if (format == SRC_INDEXED)
-		TexMgr_LoadImage8 (glt, data);
-	else
-		TexMgr_LoadImage32 (glt, (unsigned *)data);
+	{
+		VR_TRACY_SCOPE ("normal map source prepared"); // QVR: Tracy builds only
+		if (format == SRC_INDEXED)
+			TexMgr_LoadImage8 (glt, data);
+		else
+			TexMgr_LoadImage32 (glt, (unsigned *)data);
+	}
 	texmgr_normalasync = false;
 	if (texmgr_normalposted) // QVR: uploaded, and base's normal map, at its join (TexMgr_CommitNormalMap)
 	{
