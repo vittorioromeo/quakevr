@@ -281,6 +281,9 @@ void VR_GLMapSpawned (const char *map);	// VR_NoteMapSpawn
 void VR_GLStartupShutdown (int error);	// Host_Shutdown: the start-up's log ended (a quit, an error)
 void VR_GLSafeInit (void);	// VR_Init: vr_glsafe_retry, vr_glsafe_status, vr_gles_report
 int VR_GLESCompat (void);	// nonzero: -glescompat, the renderer kept to what OpenGL ES 3.2 has (vr_glsafe.cpp; QUEST_PLAN.md)
+void VR_GLShaderSource (unsigned int shader, int count, const char *const *strings);	// glShaderSource for every program: -glescompat: as "#version 320 es" with precisions
+unsigned VR_GLESImageFormat (unsigned format);	// an image (load/store) texture's format: -glescompat: one ES 3.1 has (rg32ui as rgba32ui, r8ui as r32ui, r8 as rgba8)
+int VR_GLESShaderError (const char *message);	// -glescompat: a program's compile or link error printed and counted (vr_gles_report), 1; else 0
 void VR_SimdTestInit (void);	// VR_Init: vr_simd_test (vr_simd_test.cpp)
 unsigned VR_DescribeCallers (char *out, int outSize, int skip, int depth);	// vr_crash.cpp: the caller's stack as one line ("fn (file.c:12) < caller ..."); a hash of it (0: none; not Windows)
 const char *VR_ModelFile (const char *name);	// Mod_LoadModel, Mod_LoadLighting: the file to load a model from (relit maps)

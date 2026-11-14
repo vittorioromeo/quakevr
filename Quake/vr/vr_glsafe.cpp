@@ -21,6 +21,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_api.h"
+#include "vr_strings.hpp"
 
 #include <cstdarg>
 #include <cstdio>
@@ -62,6 +63,7 @@ struct State
     bool keepAuto = false; // the last start was in automatic safe mode and ended well
     unsigned vendorOff = 0; // the vendor workarounds' features (and -glescompat's)
     bool esCompat = false;  // -glescompat: the features OpenGL ES 3.2 lacks off (QUEST_PLAN.md, C2)
+    int esShaderErrors = 0; // -glescompat: programs that failed as ES 3.2 GLSL (VR_GLESShaderError)
     unsigned logged = 0;    // features whose "off" line was printed
     char why[256]{};        // why safe mode is on
     bool mapSpawned = false;
@@ -300,6 +302,164 @@ extern "C" int VR_GLESCompat(void)
     return glsafe.esCompat ? 1 : 0;
 }
 
+// -glescompat: every shader as OpenGL ES 3.2 GLSL, so the PC's driver (ARB_ES3_2_compatibility) checks each program
+// the way the Quest's will. The source's "#version 430" line becomes "#version 320 es", the ES extensions our gates
+// use are enabled where the driver has them (sources test GL_ES and the extension's macro), and precision statements
+// go before the first line of code (ES has no default float precision in fragment shaders, none for most sampler and
+// image types anywhere). Without -glescompat the strings are given unchanged.
+namespace
+{
+constexpr const char* esHeader = "#version 320 es\n"
+                                 "#ifdef GL_EXT_clip_cull_distance\n#extension GL_EXT_clip_cull_distance : enable\n#endif\n"
+                                 "#ifdef GL_NV_shader_noperspective_interpolation\n"
+                                 "#extension GL_NV_shader_noperspective_interpolation : enable\n#endif\n";
+
+constexpr const char* esPrecisions =
+    "precision highp float; precision highp int;\n"
+    "precision highp sampler2D; precision highp sampler3D; precision highp samplerCube; precision highp sampler2DArray;\n"
+    "precision highp sampler2DShadow; precision highp samplerCubeShadow; precision highp sampler2DArrayShadow;\n"
+    "precision highp samplerCubeArray; precision highp samplerCubeArrayShadow; precision highp samplerBuffer;\n"
+    "precision highp sampler2DMS; precision highp sampler2DMSArray;\n"
+    "precision highp isampler2D; precision highp isampler3D; precision highp isamplerCube; precision highp isampler2DArray;\n"
+    "precision highp isamplerBuffer; precision highp isampler2DMS;\n"
+    "precision highp usampler2D; precision highp usampler3D; precision highp usamplerCube; precision highp usampler2DArray;\n"
+    "precision highp usamplerBuffer; precision highp usampler2DMS;\n"
+    "precision highp image2D; precision highp image3D; precision highp imageCube; precision highp image2DArray;\n"
+    "precision highp imageBuffer; precision highp iimage2D; precision highp iimage2DArray; precision highp iimageBuffer;\n"
+    "precision highp uimage2D; precision highp uimage3D; precision highp uimage2DArray; precision highp uimageBuffer;\n";
+
+// The offset of the line after the one at i (a directive's "\" continuations followed).
+[[nodiscard]] size_t nextLine(const char* s, size_t i)
+{
+    while(s[i] && s[i] != '\n')
+    {
+        i += s[i] == '\\' && s[i + 1] == '\n' ? 2 : 1;
+    }
+    return s[i] ? i + 1 : i;
+}
+
+// Where the precision statements go: the first line of code past the leading directives, comments and blank lines
+// (after every leading #extension, as ES requires), or the outermost #if around that line (a false branch never
+// hides them).
+[[nodiscard]] size_t codeStart(const char* s)
+{
+    size_t i = 0;
+    size_t outerIf = 0;
+    int depth = 0;
+    while(s[i])
+    {
+        size_t j = i;
+        while(s[j] == ' ' || s[j] == '\t' || s[j] == '\r')
+        {
+            j++;
+        }
+        if(s[j] == '#')
+        {
+            j++;
+            while(s[j] == ' ' || s[j] == '\t')
+            {
+                j++;
+            }
+            if(strings::startsWith(s + j, "if"))
+            {
+                outerIf = depth == 0 ? i : outerIf;
+                depth++;
+            }
+            else if(strings::startsWith(s + j, "endif") && depth > 0)
+            {
+                depth--;
+            }
+        }
+        else if(s[j] && s[j] != '\n' && !(s[j] == '/' && s[j + 1] == '/'))
+        {
+            return depth > 0 ? outerIf : i;
+        }
+        i = nextLine(s, i);
+    }
+    return i;
+}
+} // namespace
+
+extern "C" void VR_GLShaderSource(unsigned int shader, int count, const char* const* strings)
+{
+    if(!glsafe.esCompat)
+    {
+        GL_ShaderSourceFunc(shader, count, strings, nullptr);
+        return;
+    }
+    za::String joined;
+    for(int k = 0; k < count; k++)
+    {
+        joined += strings[k];
+    }
+    const char* s = joined.cStr();
+    const size_t body = strings::startsWith(s, "#version") ? nextLine(s, 0) : 0;
+    const size_t code = body + codeStart(s + body);
+    za::String es{esHeader};
+    es += za::String{s + body, static_cast<za::SizeT>(code - body)};
+    es += esPrecisions;
+    es += s + code;
+    const char* text = es.cStr();
+    GL_ShaderSourceFunc(shader, 1, &text, nullptr);
+    if(COM_CheckParm("-glesverbose")) // (a check run: each error with its source line; the compile waited for)
+    {
+        GL_CompileShaderFunc(shader);
+        GLint ok = 0;
+        GL_GetShaderivFunc(shader, GL_COMPILE_STATUS, &ok);
+        if(ok)
+        {
+            return;
+        }
+        char log[4096];
+        log[0] = 0;
+        GL_GetShaderInfoLogFunc(shader, sizeof(log), nullptr, log);
+        for(const char* l = log; *l; l += strcspn(l, "\n") + (l[strcspn(l, "\n")] ? 1 : 0))
+        {
+            int line = 0;
+            if(sscanf(l, "0(%d)", &line) != 1 || line < 1)
+            {
+                continue;
+            }
+            size_t at = 0;
+            for(int k = 1; k < line && text[at]; k++)
+            {
+                at += strcspn(text + at, "\n") + (text[at + strcspn(text + at, "\n")] ? 1 : 0);
+            }
+            Con_Printf("GLES src: %.*s | %.*s\n", static_cast<int>(strcspn(l, "\n")), l,
+                static_cast<int>(strcspn(text + at, "\n")), text + at);
+        }
+    }
+}
+
+extern "C" unsigned VR_GLESImageFormat(unsigned format)
+{
+    if(!glsafe.esCompat)
+    {
+        return format;
+    }
+    switch(format)
+    {
+        case GL_RG32UI: return GL_RGBA32UI;
+        case GL_R8UI: return GL_R32UI;
+        case GL_R8: return GL_RGBA8;
+        default: return format;
+    }
+}
+
+extern "C" int VR_GLESShaderError(const char* message)
+{
+    if(!glsafe.esCompat)
+    {
+        return 0;
+    }
+    glsafe.esShaderErrors++;
+    if(message)
+    {
+        Con_Printf("GLES compat: shader error %d:\n%s\n", glsafe.esShaderErrors, message);
+    }
+    return 1;
+}
+
 extern "C" int VR_GLSafeOff(int feature)
 {
     const bool off = glsafe.safe || (glsafe.vendorOff & static_cast<unsigned>(feature));
@@ -446,7 +606,8 @@ void glesReport_f()
     {
         Con_Printf("  %s (%s): %s\n", p.what, p.where, p.es);
     }
-    Con_Printf("vr_gles_report: %d pending\n", static_cast<int>(sizeof(esPending) / sizeof(esPending[0])));
+    Con_Printf("vr_gles_report: %d pending, %d shader errors\n", static_cast<int>(sizeof(esPending) / sizeof(esPending[0])),
+        glsafe.esShaderErrors);
 }
 } // namespace
 

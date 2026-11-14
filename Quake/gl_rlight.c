@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "vr/vr_api_render.h"
+#include "vr/vr_api.h"
 
 extern cvar_t r_flatlightstyles; //johnfitz
 extern cvar_t r_lerplightstyles;
@@ -116,7 +117,7 @@ void GLLight_CreateResources (void)
 	glGenTextures (1, &gl_lightclustertexture);
 	GL_BindNative (GL_TEXTURE0, GL_TEXTURE_3D, gl_lightclustertexture);
 	GL_ObjectLabelFunc (GL_TEXTURE, gl_lightclustertexture, -1, "light clusters");
-	GL_TexImage3DFunc (GL_TEXTURE_3D, 0, GL_RG32UI, LIGHT_TILES_X, LIGHT_TILES_Y, LIGHT_TILES_Z, 0, GL_RG_INTEGER, GL_UNSIGNED_INT, NULL);
+	GL_TexImage3DFunc (GL_TEXTURE_3D, 0, VR_GLESImageFormat (GL_RG32UI), LIGHT_TILES_X, LIGHT_TILES_Y, LIGHT_TILES_Z, 0, VR_GLESCompat () ? GL_RGBA_INTEGER : GL_RG_INTEGER, GL_UNSIGNED_INT, NULL); // QVR: -glescompat: rgba32ui
 	glTexParameteri (GL_TEXTURE_3D, GL_TEXTURE_BASE_LEVEL, 0);
 	glTexParameteri (GL_TEXTURE_3D, GL_TEXTURE_MAX_LEVEL, 0);
 	glTexParameteri (GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -157,7 +158,7 @@ void R_PushDlights (void)
 	{
 		r_framedata.numlights = stereo_numlights;
 		R_UploadFrameData ();
-		GL_BindImageTextureFunc (0, VR_StereoSingleEyeClusters (gl_lightclustertexture), 0, GL_TRUE, 0, GL_READ_ONLY, GL_RG32UI);
+		GL_BindImageTextureFunc (0, VR_StereoSingleEyeClusters (gl_lightclustertexture), 0, GL_TRUE, 0, GL_READ_ONLY, VR_GLESImageFormat (GL_RG32UI));
 		return;
 	}
 
@@ -219,7 +220,7 @@ void R_PushDlights (void)
 	GL_UseProgram (glprogs.cluster_lights);
 	GL_Upload (GL_UNIFORM_BUFFER, &cluster_inputs, sizeof (cluster_inputs), &buf, &ofs);
 	GL_BindBufferRange (GL_UNIFORM_BUFFER, 1, buf, (GLintptr) ofs, sizeof (cluster_inputs));
-	GL_BindImageTextureFunc (0, gl_lightclustertexture, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RG32UI);
+	GL_BindImageTextureFunc (0, gl_lightclustertexture, 0, GL_TRUE, 0, GL_WRITE_ONLY, VR_GLESImageFormat (GL_RG32UI));
 	GL_DispatchComputeFunc ((LIGHT_TILES_X+7)/8, (LIGHT_TILES_Y+7)/8, LIGHT_TILES_Z);
 	if (VR_StereoSinglePhase () == 1) // QVR: single-pass stereo's pass: the right eye's clusters too, its own image (unit 1)
 	{
@@ -230,9 +231,9 @@ void R_PushDlights (void)
 			cluster_inputs.transposed_proj[i] = proj[((i & 3) << 2) | (i >> 2)];
 		GL_Upload (GL_UNIFORM_BUFFER, &cluster_inputs, sizeof (cluster_inputs), &buf, &ofs);
 		GL_BindBufferRange (GL_UNIFORM_BUFFER, 1, buf, (GLintptr) ofs, sizeof (cluster_inputs));
-		GL_BindImageTextureFunc (0, right, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RG32UI);
+		GL_BindImageTextureFunc (0, right, 0, GL_TRUE, 0, GL_WRITE_ONLY, VR_GLESImageFormat (GL_RG32UI));
 		GL_DispatchComputeFunc ((LIGHT_TILES_X+7)/8, (LIGHT_TILES_Y+7)/8, LIGHT_TILES_Z);
-		GL_BindImageTextureFunc (1, right, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RG32UI);
+		GL_BindImageTextureFunc (1, right, 0, GL_TRUE, 0, GL_READ_ONLY, VR_GLESImageFormat (GL_RG32UI));
 	}
 	if (++clusters_serial == 0) // QVR: (the eyes' views after the pass reuse these)
 		clusters_serial = 1;
@@ -243,7 +244,7 @@ void R_PushDlights (void)
 	}
 	GL_MemoryBarrierFunc (GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
-	GL_BindImageTextureFunc (0, gl_lightclustertexture, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RG32UI);
+	GL_BindImageTextureFunc (0, gl_lightclustertexture, 0, GL_TRUE, 0, GL_READ_ONLY, VR_GLESImageFormat (GL_RG32UI));
 
 	GL_EndGroup ();
 }

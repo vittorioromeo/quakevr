@@ -180,7 +180,9 @@ QVR_ZFIX_FUNCTION \
 "#endif\n"\
 "#if PDO\n"\
 "	#define QVR_PDO 1\n"\
+"	#ifndef GL_ES\n" /* (ES: no layout on gl_FragDepth; depth_any is its default) */ \
 "	layout(depth_any) out float gl_FragDepth;\n"\
+"	#endif\n"\
 "#else\n"\
 "	#define QVR_PDO 0\n"\
 "#endif\n"

@@ -184,6 +184,9 @@ constexpr const char* nisPrelude = R"(#version 430
 #define NIS_SCALER 1
 #define NIS_HDR_MODE 0
 #define NIS_GLSL 1
+#define NIS_HLSL 0
+#define NIS_HLSL_6_2 0
+#define NIS_CLAMP_OUTPUT 0
 #define NIS_BLOCK_WIDTH 32
 #define NIS_BLOCK_HEIGHT 24
 #define NIS_THREAD_GROUP_SIZE 128
@@ -229,7 +232,7 @@ void main()
     VR_GLStep("compile %s %s shader", name, type == GL_VERTEX_SHADER ? "vertex" : type == GL_FRAGMENT_SHADER ? "fragment" : "compute");
     const GLuint shader = GL_CreateShaderFunc(type);
     const char* text = source.cStr();
-    GL_ShaderSourceFunc(shader, 1, &text, nullptr);
+    VR_GLShaderSource(shader, 1, &text); // (-glescompat: as ES 3.2 GLSL)
     GL_CompileShaderFunc(shader);
     if(!gfx::compiled(shader, name))
     {
@@ -306,6 +309,11 @@ Program easuProgram, composeProgram, nisProgram;
     if(nisProgram.id || nisProgram.failed)
     {
         return nisProgram.id;
+    }
+    if(VR_GLESCompat()) // NIS's GLSL leans on desktop GLSL's implicit conversions throughout: not on ES (FSR instead)
+    {
+        nisProgram.failed = true;
+        return 0;
     }
     const za::String source = za::String{nisPrelude} + joined(nisHeader) + nisMain;
     nisProgram.id = buildProgram(nullptr, GL_COMPUTE_SHADER, source, "vr nis");

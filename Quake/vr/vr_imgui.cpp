@@ -109,7 +109,7 @@ bool ensure()
         ImGui::DestroyContext();
         return false;
     }
-    if(!ImGui_ImplOpenGL3_Init("#version 330"))
+    if(!ImGui_ImplOpenGL3_Init(VR_GLESCompat() ? "#version 300 es" : "#version 330")) // (-glescompat: its ES shaders)
     {
         Con_Printf("imgui: the OpenGL3 backend could not start\n");
         ImGui_ImplSDL2_Shutdown();

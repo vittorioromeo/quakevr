@@ -2621,7 +2621,7 @@ void GLPalette_CreateResources (void)
 	glGenTextures (1, &gl_palette_lut);
 	GL_BindNative (GL_TEXTURE0, GL_TEXTURE_3D, gl_palette_lut);
 	GL_ObjectLabelFunc (GL_TEXTURE, gl_palette_lut, -1, "palette lut");
-	GL_TexImage3DFunc (GL_TEXTURE_3D, 0, GL_R8UI, 128, 128, 128, 0, GL_RED_INTEGER, GL_UNSIGNED_BYTE, NULL);
+	GL_TexImage3DFunc (GL_TEXTURE_3D, 0, VR_GLESImageFormat (GL_R8UI), 128, 128, 128, 0, GL_RED_INTEGER, VR_GLESCompat () ? GL_UNSIGNED_INT : GL_UNSIGNED_BYTE, NULL); // QVR: -glescompat: r32ui
 	glTexParameteri (GL_TEXTURE_3D, GL_TEXTURE_BASE_LEVEL, 0);
 	glTexParameteri (GL_TEXTURE_3D, GL_TEXTURE_MAX_LEVEL, 0);
 	glTexParameteri (GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -2677,7 +2677,7 @@ void GLPalette_UpdateLookupTable (void)
 
 	GL_BeginGroup ("cs: palette lut"); // QVR: (vr_gl_markers)
 	GL_UseProgramFunc (glprogs.palette_init[metric]);
-	GL_BindImageTextureFunc (0, gl_palette_lut, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_R8UI);
+	GL_BindImageTextureFunc (0, gl_palette_lut, 0, GL_TRUE, 0, GL_WRITE_ONLY, VR_GLESImageFormat (GL_R8UI));
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 0, gl_palette_buffer[0], 0, 256 * sizeof (GLuint));
 	GL_BufferSubDataFunc (GL_SHADER_STORAGE_BUFFER, 0, 256 * sizeof (GLuint), d_8to24table);
 

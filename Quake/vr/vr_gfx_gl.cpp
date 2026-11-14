@@ -51,6 +51,9 @@ namespace
 {
 
 constexpr const char* vertexShader = R"(#version 430
+#ifndef RETRO
+#define RETRO 0
+#endif
 layout(location = 0) uniform mat4 MVP;
 )" QVR_FLATFOV_GFX_GLSL R"(
 layout(location = 0) in vec3 Pos;
@@ -571,7 +574,7 @@ bool programFailed[shadeCount][2][2]{};
 {
     VR_GLStep("compile %s %s shader", name, type == GL_VERTEX_SHADER ? "vertex" : type == GL_FRAGMENT_SHADER ? "fragment" : "compute");
     const GLuint shader = GL_CreateShaderFunc(type);
-    GL_ShaderSourceFunc(shader, 1, &source, nullptr);
+    VR_GLShaderSource(shader, 1, &source); // (-glescompat: as ES 3.2 GLSL)
     GL_CompileShaderFunc(shader);
     (void)gfx::compiled(shader, name); // (a failed one still given: its program's link fails)
     return shader;
@@ -1027,7 +1030,7 @@ bool ensureTubeProgram()
     {
         const double start = Sys_DoubleTime();
         const za::String fragment = "#version 430\n#define MODE " + za::toString(static_cast<int>(Shade::Color)) +
-                                     "\n#define BLENDED 0\n" + fragmentShader;
+                                     "\n#define BLENDED 0\n#define RETRO 0\n" + fragmentShader;
         tubeProgram = glProgram(tubeVertexShader, fragment.cStr(), "vr tube");
         tubeProgramFailed = !tubeProgram;
         gfx::ownDeferred(tubeProgram, &tubeProgramFailed);

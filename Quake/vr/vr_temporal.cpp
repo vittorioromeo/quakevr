@@ -34,6 +34,7 @@
 #include "vr_profile.hpp"
 #include "vr_stereo.hpp"
 #include "vr_api_render.h"
+#include "vr_api.h"
 
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>
@@ -270,7 +271,11 @@ void main()
 constexpr const char* maskCs = R"(#version 430
 layout(local_size_x = 16, local_size_y = 16) in;
 layout(binding = 0) uniform usampler2D Stencil;
+#ifdef GL_ES
+layout(binding = 3, rgba8) uniform writeonly highp image2D MaskOut; // (ES 3.1 has no r8 images: VR_GLESImageFormat)
+#else
 layout(binding = 3, r8) uniform writeonly image2D MaskOut;
+#endif
 void main()
 {
     ivec2 p = ivec2(gl_GlobalInvocationID.xy);
@@ -468,7 +473,7 @@ bool invert4(const float* m, float* out)
 [[nodiscard]] GLuint compile(GLenum type, const char* source, const char* name)
 {
     const GLuint shader = GL_CreateShaderFunc(type);
-    GL_ShaderSourceFunc(shader, 1, &source, nullptr);
+    VR_GLShaderSource(shader, 1, &source); // (-glescompat: as ES 3.2 GLSL)
     GL_CompileShaderFunc(shader);
     if(!gfx::compiled(shader, name))
     {
@@ -555,7 +560,7 @@ void ensureTextures(int width, int height)
         e.valid = false;
     }
     state.motionTex = makeTexture(GL_RGBA32F, width, height, GL_NEAREST, "taa motion");
-    state.maskTex = makeTexture(GL_R8, width, height, GL_NEAREST, "taa reactive mask");
+    state.maskTex = makeTexture(VR_GLESImageFormat(GL_R8), width, height, GL_NEAREST, "taa reactive mask");
     state.displayTex = makeTexture(GL_RGBA16F, width, height, GL_NEAREST, "taa debug view");
     for(EyeState& e : state.eyes)
     {
@@ -1019,7 +1024,7 @@ extern "C" void VR_TemporalResolve(unsigned fbo, unsigned color, unsigned depth)
         GL_UseProgram(state.maskProgram);
         GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, depth);
         glTexParameteri(GL_TEXTURE_2D, GL_DEPTH_STENCIL_TEXTURE_MODE, GL_STENCIL_INDEX);
-        GL_BindImageTextureFunc(3, state.maskTex, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R8);
+        GL_BindImageTextureFunc(3, state.maskTex, 0, GL_FALSE, 0, GL_WRITE_ONLY, VR_GLESImageFormat(GL_R8));
         GL_DispatchComputeFunc(groupsX, groupsY, 1);
         glTexParameteri(GL_TEXTURE_2D, GL_DEPTH_STENCIL_TEXTURE_MODE, GL_DEPTH_COMPONENT);
         GL_MemoryBarrierFunc(GL_TEXTURE_FETCH_BARRIER_BIT | GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);

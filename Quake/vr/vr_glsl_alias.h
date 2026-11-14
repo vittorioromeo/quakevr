@@ -330,7 +330,7 @@
 "// (gl_mesh.c); a muzzle flash's vertex keeps its gun vertex there (the flag in its normal's 4th byte): none.\n" \
 "float PoseAO(uint pose)\n" \
 "{\n" \
-"	uvec2 data = PackedPosNor[pose + gl_VertexID];\n" \
+"	uvec2 data = PackedPosNor[pose + uint(gl_VertexID)];\n" \
 "	return (data.y & 0x80000000u) != 0u ? 1.0 : float(data.x >> 24) * (1.0 / 255.0);\n" \
 "}\n" \
 "#elif POSEVERTTYPE == 1 // PV_IQM\n" \
@@ -443,7 +443,7 @@
 "	vec3 shadevector = orientation * lightdir;\n" \
 "	out_instance = ALIAS_INSTANCE_ID; // QVR: its instance (a layered shadow draw's: FaceDraws)\n" \
 "	out_morph = inst.Ambient[2].w; // QVR\n" \
-"	out_vao = inst.AO.y > 0. ? max(1.0 - inst.AO.y * (1.0 - mix(PoseAO(inst.Pose1), PoseAO(inst.Pose2), inst.Blend)), 0.0) : 1.0; // QVR\n" \
+"	out_vao = inst.AO.y > 0. ? max(1.0 - inst.AO.y * (1.0 - mix(PoseAO(uint(inst.Pose1)), PoseAO(uint(inst.Pose2)), inst.Blend)), 0.0) : 1.0; // QVR\n" \
 "	out_morphpos = vec4(lerpedPos, 0.0); // QVR: the pose's space (Morph scales it to the model's units)\n" \
 "#if POSEVERTTYPE == 1\n" \
 "	if (inst.Ambient[2].w != 0.0) // QVR: a skeletal model morphing (your armour's plates): its rest pose, so the noise rides it\n" \
@@ -730,7 +730,7 @@ SPECULAR_AA_FUNCTIONS
 "		{\n" \
 "			int j = findLSB(mask);\n" \
 "			mask ^= 1u << j;\n" \
-"			Light l = Lights[ofs + j];\n" \
+"			Light l = Lights[ofs + uint(j)];\n" \
 "			if (l.shadow.w != 0.)\n" \
 "				continue;\n" \
 "			vec3 tl = l.origin - pos;\n" \

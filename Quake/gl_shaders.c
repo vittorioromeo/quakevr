@@ -91,7 +91,10 @@ static void GL_InitError (const char *message, ...)
 	while (len && q_isspace (buf[len - 1]))
 		buf[--len] = '\0';
 
-	fmt = 
+	if (VR_GLESShaderError (buf)) // QVR: -glescompat: listed and counted, not fatal (every program checked in one run)
+		return;
+
+	fmt =
 		"Your system appears to meet the minimum requirements,\n"
 		"however an error was encountered during OpenGL initialization.\n"
 		"This could be caused by a driver or an engine bug.\n"
@@ -190,7 +193,7 @@ static GLuint GL_CreateShader (GLenum type, const char *source, const char *extr
 	VR_GLStep ("compile %s %s shader", name, typestr); // QVR: breadcrumbs (vr/vr_glsafe.cpp)
 	shader = GL_CreateShaderFunc (type);
 	GL_ObjectLabelFunc (GL_SHADER, shader, -1, name);
-	GL_ShaderSourceFunc (shader, numstrings, strings, NULL);
+	VR_GLShaderSource (shader, numstrings, strings); // QVR: -glescompat: as ES 3.2 GLSL (vr/vr_glsafe.cpp)
 	GL_CompileShaderFunc (shader);
 	if (gl_multiview_async) // QVR: a twin made in the background: not waited for (GL_MultiviewPending)
 		return shader;
@@ -206,6 +209,7 @@ static GLuint GL_CreateShader (GLenum type, const char *source, const char *extr
 		if (gl_multiview_compile) // QVR: a twin that fails leaves its pass per eye
 		{
 			Con_Printf ("multiview twin of %s: %s shader:\n%s\n", name, typestr, infolog);
+			VR_GLESShaderError (NULL); // (-glescompat: counted)
 			gl_multiview_compile = 2;
 			return shader;
 		}

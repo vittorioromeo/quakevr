@@ -41,6 +41,7 @@ za::Vector<DeferredOwner> deferredOwners;
         log[0] = 0;
         GL_GetShaderInfoLogFunc(shader, sizeof(log), nullptr, log);
         Con_Warning("VR: %s shader failed to compile:\n%s\n", name, log);
+        (void)VR_GLESShaderError(nullptr); // (-glescompat: counted)
     }
     return ok != 0;
 }
@@ -56,6 +57,7 @@ za::Vector<DeferredOwner> deferredOwners;
         log[0] = 0;
         GL_GetProgramInfoLogFunc(p, sizeof(log), nullptr, log);
         Con_Warning("VR: %s shader failed to link:\n%s\n", name, log);
+        (void)VR_GLESShaderError(nullptr); // (-glescompat: counted)
     }
     return ok != 0;
 }
@@ -84,7 +86,7 @@ void relinkToNothing(const DeferredProgram& d)
     }
     const auto attach = [&](GLenum type, const char* source) {
         const GLuint s = GL_CreateShaderFunc(type);
-        GL_ShaderSourceFunc(s, 1, &source, nullptr);
+        VR_GLShaderSource(s, 1, &source);
         GL_CompileShaderFunc(s);
         GL_AttachShaderFunc(d.program, s);
         GL_DeleteShaderFunc(s);
@@ -207,6 +209,7 @@ GLuint linkProgram(const GLuint vs, const GLuint fs, const char* name)
         log[0] = 0;
         GL_GetProgramInfoLogFunc(p, sizeof(log), nullptr, log);
         Con_Warning("VR: %s shader failed to link:\n%s\n", name, log);
+        (void)VR_GLESShaderError(nullptr); // (-glescompat: counted)
         GL_DeleteProgramFunc(p);
         return 0;
     }

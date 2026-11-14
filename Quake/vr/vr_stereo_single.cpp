@@ -19,6 +19,7 @@
 #include "vr_strings.hpp"
 #include "vr_testkit.hpp"
 #include "vr_api_render.h"
+#include "vr_api.h"
 
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>
@@ -645,7 +646,8 @@ extern "C" unsigned VR_StereoSingleClusterTexture()
         glGenTextures(1, &tex);
         GL_BindNative(GL_TEXTURE0, GL_TEXTURE_3D, tex);
         GL_ObjectLabelFunc(GL_TEXTURE, tex, -1, "light clusters (right eye)");
-        GL_TexImage3DFunc(GL_TEXTURE_3D, 0, GL_RG32UI, LIGHT_TILES_X, LIGHT_TILES_Y, LIGHT_TILES_Z, 0, GL_RG_INTEGER,
+        GL_TexImage3DFunc(GL_TEXTURE_3D, 0, VR_GLESImageFormat(GL_RG32UI), LIGHT_TILES_X, LIGHT_TILES_Y, LIGHT_TILES_Z, 0,
+            VR_GLESCompat() ? GL_RGBA_INTEGER : GL_RG_INTEGER,
             GL_UNSIGNED_INT, nullptr);
         glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_BASE_LEVEL, 0);
         glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAX_LEVEL, 0);
