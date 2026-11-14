@@ -29,7 +29,7 @@ is the newer (each claim below was re-checked on 2026-11-14 at `origin/next` 17d
 | Level changes | `changelevel e1m2` on the server takes both clients along; they see each other again | [run] |
 | Dedicated server quit | Exits 0 (MULTIPLAYER.md's crash on quit, `vr_imgprefetch` workers, is gone) | 6 runs [run] |
 | Flat with VR | A flatscreen client (`-flatscreenmode`) joins a VR host, walks (+forward), is seen; the server knows him per player (`.vr_flatscreen`, the flat crouch bit) | `vr_server.cpp:795-819` [code]; listen run [run] |
-| Server rules | The melee timing settings go to every client (`QVR_SVC_RULES`); a remote client's menu shows them dimmed | `vr_serverrules.cpp:17-27` [code] |
+| Server rules | Every balance setting (1853: the balance pages', the gameplay preset's, the melee timing; B6) goes to every client (`QVR_SVC_RULES`); a remote client plays by them while joined (his own kept, back when he leaves) and his menu shows them dimmed | `vr_serverrules.cpp:17-27` [code] |
 | Late precaches | Broadcast to every client (`QVR_SVC_PRECACHE_*`) | `vr_server.cpp:1253-1254` [code] |
 | Per-client server state | Climbing, Box3D hand bodies and standing, carry, melee, force grab, rope tags are kept per player | [old], spot-checked `vr_box3d_hands.cpp:421,643` [code] |
 | Server tick | A steady 72 Hz for listen and dedicated servers (`host_fixedtick 1`) | `host.c:67` [code] |
@@ -194,7 +194,7 @@ player unchanged.
 | **B5b** (punches, guard parries, bashes; crouch, prone, jump and swim flags done; the rest is B5c) | The rest of B5: melee, parries and shoves between players (judged by each one's own hands and timing, gated to multiplayer where single player has none); climbing, crouch, prone, jump, swim and punch synced (the remote body lying, swimming, climbing, jumping as he does: the avatar's flags) and judged per player | `mp_melee` (A's swing hits B, B's parry stops A's, a shove moves him: each way), `mp_moves` (B crouches, lies prone, jumps, climbs: the server's hull and A's copy of him follow) |
 | **B5c** (climbing, swimming, the palm's shove done; the rest is B5d) | The rest of B5b: climbing between players (the server's holds per player; the remote body's climbing feet and hanging trunk from his holds); swimming checked in water (a pool map spot); a blade's directional parry between players (his swing's line, as an armed humanoid's); the open palm's shove; melee sub-tick samples (a swing split over merged moves, multiplayer only) | `mp_moves` grown (climbs a ledge, swims: A's copy follows), `mp_melee` grown (a sword's swing parried across its way, a palm shove, a swing at 30 ms jitter) |
 | **B5d** (done: B5 is done; sub-tick samples not needed, to B8) | The rest of B5c: a blade's directional parry between players (his swing's line from his hand lines, `handlineat`, as an armed humanoid's `VR_AG_WeaponLine`: VR_DRP_Eval's third kind); melee sub-tick samples (each merged move's pose to the tracker, multiplayer only) | `mp_melee` grown (a sword swung across B's crowbar: parried by the line, not the guard; a swing at 30 ms jitter: the same hit as without) |
-| **B6** | Server rules and cosmetics: every balance setting a rule (presets, armed humanoids, damage, mutators, stamina, grapple...), rule pages dimmed on a remote client; holster positions, height, seated/standing, gloves, body seen by others | `mp_rules`, `mp_cosmetics` (B's height and gloves seen by A) |
+| **B6** (rules done, the look of hands and body done; the rest is B6b) | Server rules and cosmetics: every balance setting a rule (presets, armed humanoids, damage, mutators, stamina, grapple...), rule pages dimmed on a remote client; holster positions, height, seated/standing, gloves, body seen by others | `mp_rules`, `mp_cosmetics` (B's height and gloves seen by A) |
 | **B7** | Snapshots: acknowledged per-client snapshots and deltas for entities, players and avatars; quantized delta moves with repeats; interpolation buffer with quaternion slerp | `mp_loss` (10% loss: positions still continuous), byte counts per scenario |
 | **B8** | Prediction and lag compensation: shared movement code, reconciliation, then climbing and grapple; rewind of hit models and hands for hitscan, melee, parry, shove | `mp_predict` (own move off at frame 0 under 150 ms lag; corrections under 1 unit on flat ground), `mp_lagcomp` (a hit on a moving target at 150 ms lands) |
 | **B9** | Compression and rate: entropy stage with trained tables, per-client rate, priority accumulator | byte budgets per scenario from section 2.3 |
@@ -987,7 +987,57 @@ Open (B6 and later):
 - The parry line kept per frame only while `vr_parry` is on and his hands are tracked (VR_Parry_GuardFrame): a flat-screen
   attacker's swing (VR_HandMotionAction) has no hand lines, so it is read by the guard as before.
 
+### B6 results, part 1 (2026-11-14, dev no-LTO build, loopback; `mp_test.py suite`: 22 of 23 pass, `mp_ground` 12/3 (B's grip takes no weapon at the server: "None", its known flake), then 15/0 twice alone)
+
+| Scenario | Result |
+|---|---|
+| `mp_rules` (new) | 14/0: the server on `vr_parry_stamina 0`, `vr_melee_speed 4.5`, `vr_mgrp_ogre_kdscale 0.25` (Monster Groups), `vr_grapple_drop_grace 0.3`; B joins with his own (1, 2, 2, 0.05, and `vr_knockdown 0` where the server keeps its default): B's cvars hold the server's values (the default for `vr_knockdown`), his own kept, the five rows locked; `vr_gunangle` (a preference) and `vr_bash_sound` (a sound on a rule page) stay his, unlocked; the server and B know the same 1853 rules; B's Gameplay Presets > Classic is locked; `writeconfig` writes his own values; the server changes two: B follows within 2 reports; B leaves: his own values back, nothing locked. Failed first: no such rules (`vr_serverrules` had 9) |
+| `mp_cosmetics` (new) | 9/0: B on full gloves (hue 120, saturation 0.8, lightness 0.4), skin tone -0.4, painted nails (hue 300), height 1.9; A (none of them) draws B's hands with B's tone, glove and nail colours (the shader's inputs within 0.0024 of B's own: his calibration's 255ths), B's body with his tone and his glove's cuff over the bare forearm, his own hands bare; A's copy of B's body posed at 1.9 m. Failed first: B's hands and body drawn bare at A (no look for another player's entities) |
+| the other 21 | Unchanged: pass (`mp_ground` as above) |
+
+Single player on the branch: scenario_check PASS (147 scenes, 0 failed), load_models_test 4/0, vr_run_check 12/0 (`scratch/b3_runcheck.sh`); the dev build 0 warnings, the Release-config (ThinLTO) build 0 warnings. Single player gathers no rules and sends none (`svs.maxclients` 1), never shadows (not `remote()`); your own hands' and body's look is read from the same settings as before (`ownLook`).
+
+What changed:
+
+- **Every balance setting a server rule** (`vr_serverrules.cpp`): the settings under the balance pages (Advanced VR Options
+  > Combat, Carrying and Throwing, Arcane Dimensions, World; Movement > Climbing, Grappling Hook, Swimming, Player and
+  Monster Hitbox; VR Settings > Gameplay), gathered once from Search's index (`menu::forEachSettingPath`), the gameplay
+  preset's rows and the melee timing: 1853. Left out: the preferences (`clientprefs::indexOf`), unsaved settings (no
+  `CVAR_ARCHIVE`: tests, debug) and a player's own by name (`ownParts`: sounds, haptics, colours, shown, debug, weapon
+  offsets, the climbing hand's pose, the grip fit, his stick). Gathered only with a server of more than one player:
+  single player builds nothing and sends nothing.
+- **A remote server's client plays by them**: QVR_SVC_RULES now carries flags (1: every rule not sent is at its
+  default), names and values as strings, chunked to 1000 bytes; a join sends those off their defaults, then each change.
+  The client keeps his own values, sets the server's into his cvars (so his own game's reads are the server's), writes
+  his own to his config meanwhile (`VR_ServerRulesConfigWrite`, as the scenarios' swap) and gets them back in
+  `CL_Disconnect` (`VR_ServerRulesLeft`). The menu: rows locked as before (`locked`), their help giving his own value;
+  the Gameplay Presets' buttons locked (`Item::settingRules`; `vr_gameplay_preset` and My Settings refuse with why).
+  `vr_serverrules [cvar...]` prints `mp_rules:`/`mp_rule:` lines (Debug > Reports > Server Rules).
+- **Another player's look** (`view::lookOf`, `SkinLook`): your hands and body take your settings, another player's hands
+  and body his calibration (`mpavatar::lookOf`: tone, gloves and their colour, nails and, new in it, their colour and
+  gloss: 29 fields, `vr_avatarcal` version 3); the skin tone, glove, cuff and nail inputs of the shader come from it, one
+  code path. Their skin masks and glove layers are found for them too, outside the draw loops
+  (`render::precacheSkinMasks` from `VR_AddMpAvatars`). `vr_mp_avatars` prints `mp_look:` and `mp_look_own:`.
+- `QVR_NET_VERSION` 15.
+
+Open (B6b):
+
+- Holster positions seen by others: his holstered weapons drawn on his body at his holster places, and `holsterpos` for
+  another player (B3f's moved-on item); seated or standing (his body seated); a flat-screen player's body at
+  `vr_flat_body_height`; his pauldrons' style and size and the armour's plates on his body; the magazine's box in his
+  drawn weapon hull.
+- Locomotion's balance settings (speeds, `vr_crouch_speed_scale`, jumps) are not rules: the page mixes them with comfort
+  and controls, each player's own. Make the few balance ones rules by name when they matter.
+- Not seen in an image yet: A's view of B's gloves (the numbers are the shader's inputs).
+- A rule changed from the console while joined changes the server's copy only (his own comes back when he leaves).
+
 ## Decisions
+
+- Server rules (B6) are found by page, not listed: every setting under a balance page is one unless it is a preference,
+  unsaved, or named as a player's own (`ownParts`); a misfiled setting is one word there. A remote server's client plays by
+  them in his own cvars (kept and put back), rather than reading `shown()` at each site: every client-side read of a rule
+  is then the server's with no site converted.
+
 
 - Melee sub-tick samples (B5d) are not fed to the tracker: merged moves are routine (a 90 Hz client on a 72 Hz server) and a swing at 30 ms jitter lands with the same strength (the poses' own clock and the chord's turn correction already give its speed); the arc's middle a merged frame skips is a few cm. Each move's hand pose kept per frame goes with B8's rewind of hands for melee, where it is needed anyway.
 
@@ -1017,4 +1067,4 @@ Open (B6 and later):
   from outside, they always have legs (his body mode 1 or 2 is his own first-person view); his body mode 0 draws his
   player model as before.
 
-Next phase: B6 — server rules and cosmetics: every balance setting a server rule (presets, armed humanoids, damage, mutators, stamina, grapple...), rule pages dimmed on a remote client; holster positions, height, seated/standing, gloves, body seen by others; tests first: `mp_rules` (the server's rule wins on B, his page dimmed), `mp_cosmetics` (B's height and gloves seen by A).
+Next phase: B6b — the rest of B6's cosmetics: holster positions seen by others (his holstered weapons drawn at his holsters; `holsterpos` for another player), seated/standing, a flat player's body height, pauldron style and armour plates on his body, the magazine's box in his weapon hull; tests first: `mp_cosmetics` grown (B's holstered shotgun at A where B's holster is; B seated: A's copy seated).

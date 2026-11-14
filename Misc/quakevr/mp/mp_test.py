@@ -35,8 +35,14 @@ Tests:
              hand, B (put beside it) closes his hand on it; then B lets it fall and A takes it.
     forcegrab  force grab of a weapon of the level in coop: a super shotgun pickup ahead (vr_test_spawn 116); B's force
              grab (point, trigger, flick, grip) brings it to his hand and the pickup stays for the others; then A's.
+    rules    server rules (B6): B joins with his own balance settings and plays by the server's (his rows and the
+             Gameplay Presets' buttons locked, his config keeps his own); the server changes two: B follows; B leaves:
+             his own back. A preference and a sound on a rule page stay his.
+    cosmetics  B's skin tone, gloves and nails on his hands and body as A draws them are B's own; A's copy of B's body
+             at B's height.
     suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, version, avatar, avatarcal, body, prefs, grab,
-             teleport, held, ground, campaign, campaign_listen, flow, download, pickup, forcegrab.
+             teleport, held, ground, campaign, campaign_listen, flow, download, pickup, forcegrab, melee, moves, climb,
+             rules, cosmetics.
 
 The base folder is a Quake folder with id1 (and hipnotic, rogue, quakevr: -game as the kit's runs). Its
 id1/autoexec.cfg runs in every game: --reset-autoexec empties it first (the kit's test bases: a run's script).

@@ -243,6 +243,21 @@ a blow lands: `vr_melee_speed`, `vr_melee_wrist_speed`, `vr_melee_pommel_wait`, 
   5: the client shows 5 at the next server frame, and its own value stays 2.5.
 - Each further rule (damage multipliers, stamina, grapple...) is one line in `rules[]`. The menu dims it the same way.
 
+**Since MP_PLAN B6 (2026-11-14): every balance setting is a rule** (1853 of them): the settings under the balance pages
+(Advanced VR Options > Combat, Carrying and Throwing, Arcane Dimensions, World; Movement > Climbing, Grappling Hook,
+Swimming, Player and Monster Hitbox; VR Settings > Gameplay: `rulePages` in `vr_serverrules.cpp`, gathered from Search's
+index), the gameplay preset's switches and the melee timing above. Not rules: a player's preferences
+(`vr_clientprefs.cpp`), settings not saved in the config, and those whose names mark them a player's own (sounds,
+haptics, colours, shown/debug, his weapons' offsets, the climbing hand's pose, the grip fit, his stick: `ownParts`).
+
+- **A client of a remote server plays by them:** his cvars hold the server's values while he is joined (those the server
+  sends, the rest at their defaults), so whatever his own game reads of a rule is the server's. His own values are kept,
+  written to his config in their place (`VR_ServerRulesConfigWrite`) and put back when he leaves (`CL_Disconnect`). The
+  Gameplay Presets' buttons are locked too (a preset sets rules).
+- `QVR_SVC_RULES` carries the names and values as strings, chunked to 1000 bytes: at a join only the rules off their
+  defaults (a flag says the rest are the defaults), then each change.
+- A setting changed from the console while joined changes the server's copy only: his own comes back when he leaves.
+
 ## Listen-server shortcuts (complete list found)
 
 The server reads the local client's state:

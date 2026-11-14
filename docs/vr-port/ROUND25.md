@@ -2611,3 +2611,14 @@ Cherry-picked 6b8e74432: VR_CrtHeapLoadHold now defined without mimalloc (QVR_MI
   `vr_mp_status` gives `merged=`. Melee sub-tick samples not needed (MP_PLAN.md, Decisions). Single player: scenario_check
   PASS (132), load_models 4/0, vr_run_check 12/0; builds 0 warnings. `vr_agrunt_test 78` is 28/19 on the branch before
   this phase too (not looked into). Next: B6. Details: MP_PLAN.md, "B5d results".
+
+## mpN (B6, part 1): server rules and other players' look (agent/mp, 2026-11-14; never shipped by the coordinator)
+- Every balance setting is a server rule (1853: the balance pages' settings found through Search's index, the gameplay
+  preset's, the melee timing; not preferences, unsaved settings, or a player's own by name: sounds, haptics, colours...).
+  A remote server's client plays by them in his own cvars while joined (his own kept, written to his config, back on
+  disconnect); his rows and the Gameplay Presets' buttons are locked. Single player gathers and sends nothing.
+- Another player's hands and body are drawn with his own skin tone, gloves and painted nails (his calibration, nail
+  colour added): `view::lookOf`, one code path for yours and his. `QVR_NET_VERSION` 15.
+- `mp_rules` 14/0, `mp_cosmetics` 9/0 (new); the suite 22 of 23 (`mp_ground`'s flake, then 15/0 twice). Single player:
+  scenario_check PASS (147), load_models 4/0, vr_run_check 12/0. Next: B6b (holsters, seated, flat body height,
+  pauldrons and plates seen by others). Details: MP_PLAN.md, "B6 results, part 1".
