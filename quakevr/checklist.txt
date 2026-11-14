@@ -76,6 +76,7 @@ VR: let go of a gun and grab it again quickly: the re-grab always takes it.
 With drips on, get something wet, then reload the same map (a restart or a save of this level): no crash. {test:waterdrips}
 Push a grunt and a hell knight gently off a high ledge so they grab its lip: the grunt should pull itself up and climb in onto the top without its hips sinking back onto the edge, and the hell knight should get its second hand onto the lip as it pulls itself up instead of hanging on one hand. {test:rag_hang}
 VR or flat: particles (blood, smoke, sparks, muzzle wisps) look as before.
+Flat or VR: on ad_tears, shoot walls near a translucent window: no freeze the first time decals and the window are in view.
 
 [10. VR: the hub]
 In the hub's settings pavilion, the new Classic Quake board inside the east railing (north of the stairs down): press it (its screen says On and the hub takes Quake's look), press again (Off: your settings, everything back). {test:hub_classic}

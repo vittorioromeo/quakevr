@@ -644,6 +644,7 @@ void GL_CreateShaders (void);
 void GL_DeleteShaders (void);
 GLuint GL_WorldDecalRetroProgram (int oit, int dither, qboolean pdo); // QVR
 void R_PrewarmDecalPrograms (qboolean pdo); // QVR: those made in the map's load (vr/vr_decals.cpp prepare)
+void R_PrewarmTranslucentDecalPrograms (void); // QVR: the translucent brush models' (vr/vr_decals.cpp prepareTranslucent)
 void R_WorldFragments_f (void); // QVR: vr_world_fragments (r_world.c)
 void R_ModelFragments_f (void); // QVR: vr_model_fragments (gl_rmain.c)
 extern qboolean gl_multiview_draw; // QVR: the multiview pass draws: GL_UseProgram takes the twins (single-pass stereo)
