@@ -2661,3 +2661,29 @@ front, side, back; nothing of it in your own view when looking down or leaning.
   this branch). menu_paths.txt regenerated (the halls-line row gone). Scenario `run_setup_newgame` updated. There is no
   `maps_skill_test` in the tree. Shots: qvr-kit/scratch/runsetup3_shots/ (r3_before.png, r3_after.png: left the Levels
   list's e1m1, right New Game).
+
+## arenacamp: Arena Mode in Select Campaign, with its own Run Setup (branch agent/arenacamp, 2026-11-15)
+
+- **Select Campaign:** an "Arena Mode" row right under Arcane Dimensions (vr_menu.cpp pageCampaigns, `selectArenaRow`),
+  the same Lead look and the "experimental" tag at its right; dim while Quake's campaign is unavailable. Pressed: an
+  experimental notice of its own (M_Confirm, as AD's), Continue opens the arena's Run Setup (`openRunSetupArena`).
+  Never a Continue row under it.
+- **Its Run Setup** (vr_menu_runsetup.inc, `Launch::Arena`, `runSetup.arena`): Start, Difficulty, Gore (Presets),
+  Ironman, Glass Cannon, Melee Only (Rules), nothing else. Start: `runsetup::startArena` (vr_runsetup.cpp) sets the
+  run from `arenaValue`: those five from the player's picks, Style Unleashed, Armed Humanoids and Smarter AI On, Ranged
+  Knights off (the arena brings its gun knights in itself from wave 12), every other mutator at its default; the
+  `vr_runpick_*` picks are not written, so the next run's Start is his own again (the presets' My Settings mechanism
+  restores the settings Unleashed and the armed/AI rows changed). Then `vr_campaign_hub vrarena` (now accepts vrarena:
+  Quake's campaign made active first, then the map). `start()` and `startArena()` share `startWith`.
+- **No autosave:** already true (VR_AutosaveAllowed refuses "vr*" maps: level start, quiet moments, vr_autosave_now;
+  Continue's inspect skips them); vr_autosave_now now says "none in Arena Mode" on vrarena.
+- **Test aid:** `vr_runsetup arena` opens the arena's screen directly.
+- **Tests:** `vr_runsetup_test` 86/0 (arena: its five rows, the fixed values, the picks untouched, the next Start the
+  picks'); `vr_runsetup_screen_test` 55/0 (the arena screen's rows exactly the six, Start first; the next way in the
+  whole page); `vr_runlaunch_test` 43/0 (an Arena Mode step: the map spawns with the arena's values, picks unchanged,
+  sv_autosave on and no autosave/vrarena.sav after 5 s and wave 2, vr_autosave_now refused; a save written as
+  autosave/vrarena gets no Continue anywhere, then removed; Arena Mode right under AD with its tag; then the Levels
+  list: his picks the run's again); `vr_continue_rows_test` 19/0; `vr_menu_path_check` vrcalibration 6 found, 0
+  missing; menu_paths.txt regenerated (unchanged: the campaign rows are not indexed). Shots:
+  qvr-kit/scratch/arenacamp_shots/arenacamp.png (Select Campaign; the notice; the arena's Run Setup).
+- **Not changed:** Play > Maps > Survival Arena still runs `map vrarena` with the current run (a debug-style way in).
