@@ -20,7 +20,9 @@ Tests:
     body     B draws A's body (avatar::poseOther: the code that poses A's own): A's build's model, its wrists at A's drawn
              hands, its joints (head, pelvis, shoulders, wrists) within 1.5 units of A's own body and its scale A's; a
              screenshot pair (B facing A); A's Height raised: B's copy grows by as much (its scale and shoulders), as A's own.
-    suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, version, avatar, avatarcal, body.
+    prefs    per-player preferences (vr_clientprefs.cpp): A on the Sticky weapon grip, B on Hold (the server's own):
+             each given a shotgun with his grips let go, A keeps it and B's falls; then the other way round.
+    suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, version, avatar, avatarcal, body, prefs.
 
 The base folder is a Quake folder with id1 (and hipnotic, rogue, quakevr: -game as the kit's runs). Its
 id1/autoexec.cfg runs in every game: --reset-autoexec empties it first (the kit's test bases: a run's script).
@@ -513,6 +515,83 @@ def body(s):
 
 
 
+def prefs_report(s, srv):
+    """vr_mp_prefs on the server -> {ent: {"has": 0|1, "same": n, <pref>: value...}} (its "mp_prefs_sv:" lines)."""
+    since = srv.mark()
+    srv.cmd("vr_mp_prefs; echo mp_prefs_done")
+    n, _ = srv.wait(r"mp_prefs_done", 10, since, "the server's prefs")
+    out = {}
+    for l in srv.lines[since:n]:
+        if l.startswith("mp_prefs_sv:"):
+            f = dict(m.groups() for m in re.finditer(r"(\w+)=(-?[\d.e+-]+)", l))
+            out[int(f.pop("ent"))] = {k: float(v) for k, v in f.items()}
+    return out
+
+
+def weapons_held(s, srv, ea, eb, keeper, dropper, label, need=5, tries=30):
+    """The server's main-hand weapons of A and B (its avatars from their moves), reported until `keeper` has held the
+    shotgun (4) and `dropper` held none for `need` reports in a row (a definite end: at most `tries` reports)."""
+    run_ok, seen = 0, []
+    for _ in range(tries):
+        (lines,) = reports(s, [srv])
+        sv = by_ent(lines, "mp_avatar_sv")
+        k = int(sv[keeper]["wpn"][0]) if keeper in sv else -1
+        d = int(sv[dropper]["wpn"][0]) if dropper in sv else -1
+        seen.append((k, d))
+        run_ok = run_ok + 1 if (k == 4 and d == 0) else 0
+        if run_ok >= need:
+            break
+    name = {ea: "A", eb: "B"}
+    s.check("%s: %s keeps the given shotgun (his Sticky grip), %s lets it fall (his Hold), for %d reports" % (
+        label, name[keeper], name[dropper], need), run_ok >= need,
+        "the server's main-hand weapons (%s, %s) by report: %s" % (name[keeper], name[dropper], seen[-12:]))
+
+
+def prefs(s):
+    """Per-player preferences (vr_clientprefs.cpp): each client's go up and the server judges each player by his own.
+    A picks the Sticky weapon grip (vr_weapon_grip_mode 1), B keeps Hold (0), the dedicated server's own is Hold: both
+    are given a shotgun with their grips let go; A keeps it, B's falls. Then the other way round: A back to Hold drops
+    his, B on Sticky keeps a new one."""
+    srv, a, b, ea, eb = join(s)
+    a.cmd("vr_weapon_grip_mode 1")
+
+    def arrived(want_a):
+        for _ in range(20):
+            got = prepped = prefs_report(s, srv)
+            if got.get(ea, {}).get("has") == 1 and got.get(eb, {}).get("has") == 1 and \
+                    got[ea].get("vr_weapon_grip_mode", 0.0) == want_a and \
+                    got[eb].get("vr_weapon_grip_mode", 0.0) == 1.0 - want_a:
+                return prepped
+        return got
+
+    got = arrived(1.0)
+    s.check("the server has both players' preferences, A's Sticky grip his own, B's the defaults",
+            got.get(ea, {}).get("vr_weapon_grip_mode") == 1.0 and got.get(eb, {}).get("has") == 1 and
+            "vr_weapon_grip_mode" not in got.get(eb, {}), "server: %s" % got)
+    since = a.mark()
+    a.cmd("vr_mp_prefs; echo mp_prefs_done")
+    n, _ = a.wait(r"mp_prefs_done", 10, since, "A's prefs")
+    own = [l.strip() for l in a.lines[since:n] if l.startswith("mp_prefs_own:")]
+    s.note("A: %s" % own)
+    s.check("A's own report: sent, Sticky grip", bool(own) and "sent=1" in own[0] and "vr_weapon_grip_mode=1" in own[0],
+            "%s" % own)
+
+    give = "vr_mock_button main grip 0; vr_mock_button off grip 0; impulse 154"
+    a.cmd(give)
+    b.cmd(give)
+    weapons_held(s, srv, ea, eb, ea, eb, "A Sticky, B Hold")
+
+    # The other way round: A's change goes up (his shotgun falls: Hold, his grip let go), B's too (a new give kept).
+    a.cmd("vr_weapon_grip_mode 0")
+    b.cmd("vr_weapon_grip_mode 1")
+    got = arrived(0.0)
+    s.check("the server has both players' changed preferences (A Hold, B Sticky)",
+            "vr_weapon_grip_mode" not in got.get(ea, {"vr_weapon_grip_mode": 1}) and
+            got.get(eb, {}).get("vr_weapon_grip_mode") == 1.0, "server: %s" % got)
+    b.cmd(give)
+    weapons_held(s, srv, ea, eb, eb, ea, "A Hold, B Sticky")
+
+
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
     s = Session(args.exe, args.base, args.out, test, port=args.port)
     failure = None
@@ -527,6 +606,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             avatar(s)
         elif test == "mp_body":
             body(s)
+        elif test == "mp_prefs":
+            prefs(s)
         else:
             coop(s, args.listen, args.flat or "", lag, jitter, loss)
     except StepFailed as e:
@@ -539,7 +620,7 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -562,7 +643,7 @@ def main():
                 sys.exit(2)
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
-    elif args.test in ("bandwidth", "version", "avatar", "avatarcal", "body"):
+    elif args.test in ("bandwidth", "version", "avatar", "avatarcal", "body", "prefs"):
         ok = run(args, "mp_" + args.test)
     else:
         ok = run(args, "mp_coop")
@@ -572,6 +653,7 @@ def main():
         ok = run(args, "mp_avatar") and ok
         ok = run(args, "mp_avatarcal") and ok
         ok = run(args, "mp_body") and ok
+        ok = run(args, "mp_prefs") and ok
         print("mp_suite: %s" % ("passed" if ok else "FAILED"))
     sys.exit(0 if ok else 1)
 

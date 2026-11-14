@@ -686,6 +686,10 @@ float(entity p) playerstepsilent = #0; // QVR: the old footsteps' trigger: this 
 float(string s) cvar_hmake = #0;
 float(float h) cvar_hget = #0;
 void() cvar_hclear = #0;
+// QVR: setting h (a cvar_hmake handle) as player p chose it: a per-player preference (vr_clientprefs.cpp: grip, reload,
+// holster modes, gun angles...) in multiplayer is his own; else cvar_hget(h). (cvar_hget itself answers a preference
+// with self's, else other's, when either is a player.)
+float(entity p, float h) clientpref = #0;
 
 float() worldtext_hmake = #0;
 void(float h, string s) worldtext_hsettext = #0;

@@ -20,6 +20,7 @@
 #include "vr_ledges.hpp"
 #include "vr_move.hpp"
 #include "vr_mpavatar.hpp"
+#include "vr_clientprefs.hpp"
 #include "vr_motion.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatplay.hpp"
@@ -902,6 +903,7 @@ extern "C" void VR_ClientReset(client_t* client)
         avatarsSent[clientNum] = {};
     }
     mpavatar::serverReset(clientNum); // (his avatar calibration gone; the clients told)
+    clientprefs::serverReset(clientNum); // (and his preferences: the server's until the next player's come)
 }
 
 extern "C" void VR_ReadMoveExtras(client_t* client)

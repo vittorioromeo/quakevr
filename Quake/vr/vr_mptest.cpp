@@ -17,6 +17,7 @@
 #include "vr_engine.hpp"
 #include "vr_geom.hpp"
 #include "vr_mpavatar.hpp"
+#include "vr_clientprefs.hpp"
 
 #include <chrono>
 #include <stdio.h>
@@ -239,6 +240,7 @@ extern "C" void VR_MpTestInit(void)
     Cmd_AddCommand("vr_mp_mark", mark_f);
     Cmd_AddCommand("vr_mp_status", status_f);
     qvr::mpavatar::init(); // vr_mp_avatars
+    qvr::clientprefs::init(); // vr_mp_prefs, the "vr_prefs" client command
 }
 
 extern "C" void VR_MpTestFrame(void)

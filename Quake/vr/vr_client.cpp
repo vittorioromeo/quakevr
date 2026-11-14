@@ -3,6 +3,7 @@
 
 #include "vr_agarmor.hpp"
 #include "vr_mpavatar.hpp"
+#include "vr_clientprefs.hpp"
 #include "vr_arenaxray.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_client.hpp"
@@ -974,6 +975,7 @@ extern "C" void VR_OnClientClearState()
     entityData.clear();
     lateBrushModels.clear();
     mpavatar::clear(); // (the other players' avatars: the new server's come)
+    clientprefs::clientClear(); // (ours go up to it again)
     particles::clear();
     decals::clear();
     worldtext::clientReset();
@@ -1035,6 +1037,7 @@ extern "C" void VR_WriteMoveExtras(sizebuf_t* buf)
     {
         writeVrMove(buf, buildMove());
         mpavatar::sendCalibration(); // (multiplayer: this player's calibration, when it changed; reliable)
+        clientprefs::send();         // (and his per-player preferences)
     }
 }
 

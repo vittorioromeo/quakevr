@@ -19,6 +19,7 @@
 #include "vr_box3d.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_carry2h.hpp"
+#include "vr_clientprefs.hpp"
 #include "vr_crates.hpp"
 #include "vr_debris.hpp"
 #include "vr_blowline.hpp"
@@ -497,6 +498,7 @@ void PF_tracebox()
 // Cvar handles: QC resolves cvar names once per map, then reads them by index.
 
 za::Vector<const cvar_t*> cvarHandles; // (a tuning constant's: its stand-in, tunableFind)
+za::Vector<int> cvarPrefs;             // each handle's per-player preference (clientprefs::indexOf), or -1
 
 [[nodiscard]] const cvar_t* cvarFromHandle(float handle)
 {
@@ -526,18 +528,37 @@ void PF_cvar_hmake()
     }
 
     cvarHandles.pushBack(var);
+    cvarPrefs.pushBack(clientprefs::indexOf(var));
     G_FLOAT(OFS_RETURN) = static_cast<float>(cvarHandles.size() - 1);
 }
 
+// A per-player preference (vr_clientprefs.hpp) in multiplayer: the value of the player the QC runs for (`self`, else
+// `other`), the server's when neither is a player or his have not come.
 void PF_cvar_hget()
 {
+    const int i = static_cast<int>(G_FLOAT(OFS_PARM0));
     const cvar_t* var = cvarFromHandle(G_FLOAT(OFS_PARM0));
+    if(var && svs.maxclients > 1 && cvarPrefs[i] >= 0)
+    {
+        G_FLOAT(OFS_RETURN) = clientprefs::forQc(cvarPrefs[i], var);
+        return;
+    }
     G_FLOAT(OFS_RETURN) = var ? var->value : 0.f;
+}
+
+// clientpref(player, handle): cvar_hget's setting as `player` chose it (a per-player preference, multiplayer), else as
+// cvar_hget.
+void PF_clientpref()
+{
+    const int i = static_cast<int>(G_FLOAT(OFS_PARM1));
+    const cvar_t* var = cvarFromHandle(G_FLOAT(OFS_PARM1));
+    G_FLOAT(OFS_RETURN) = var ? clientprefs::value(cvarPrefs[i], var, G_EDICT(OFS_PARM0)) : 0.f;
 }
 
 void PF_cvar_hclear()
 {
     cvarHandles.clear();
+    cvarPrefs.clear();
 }
 
 // ----------------------------------------------------------------------------
@@ -957,6 +978,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"cvar_hmake", PF_cvar_hmake},
     {"cvar_hget", PF_cvar_hget},
     {"cvar_hclear", PF_cvar_hclear},
+    {"clientpref", PF_clientpref},
     {"worldtext_hmake", PF_worldtext_hmake},
     {"worldtext_hsettext", PF_worldtext_hsettext},
     {"worldtext_hgettext", PF_worldtext_hgettext},

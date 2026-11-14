@@ -631,6 +631,8 @@ nextmsg:
 					ret = 1; // QVR: Debug > Cheats and Recording's (vr_cheats.cpp: not in deathmatch)
 				else if (q_strncasecmp(s, "vr_avatarcal ", 13) == 0)
 					ret = 1; // QVR: the player's avatar calibration, kept and passed on (vr_mpavatar.cpp)
+				else if (q_strncasecmp(s, "vr_prefs ", 9) == 0)
+					ret = 1; // QVR: the player's per-player preferences, kept for his slot (vr_clientprefs.cpp)
 
 				if (ret == 1)
 					Cmd_ExecuteString (s, src_client);

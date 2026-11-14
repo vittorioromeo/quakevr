@@ -1257,7 +1257,7 @@ float(entity ent, float xHand, float xWeapon) VRWeaponLetGo =
         return FALSE;
     }
     float grabbing = VR_HandGrabUtil_IsHandGrabbing(ent, xHand);
-    if(cvar_hget(cvarh_vr_weapon_grip_mode) != 1)
+    if(clientpref(ent, cvarh_vr_weapon_grip_mode) != 1)
     {
         return !grabbing;
     }
@@ -1323,7 +1323,7 @@ float(entity ent, float xHand) VRWeaponLeavingHand =
         return FALSE;
     }
 
-    if(cvar_hget(cvarh_vr_weapon_grip_mode) == 1)
+    if(clientpref(ent, cvarh_vr_weapon_grip_mode) == 1)
     {
         float bit = xHand == cVR_MainHand ? 2 : 1;
         float lastWeapon = VR_HAND_FIELD(ent, xHand, stickyweaponmain, stickyweaponoff);

@@ -1128,6 +1128,9 @@ za::Vector<Item> pageDebugReports()
         command("Network: Player Avatars", "vr_mp_avatars")
             .help("vr_mp_avatars: the other players' heads, hands and weapons as this client has them (QVR_SVC_AVATAR) and, "
                   "hosting, as the server has them from their moves."),
+        command("Network: Player Preferences", "vr_mp_prefs")
+            .help("vr_mp_prefs: your per-player preferences (grip, reload and holster modes, gun angles...) that differ "
+                  "from the defaults and, hosting, each player's as the server judges him by (those unlike the server's own)."),
         toggle("Network: Draw Player Hands", vr_mp_avatar_draw)
             .help("vr_mp_avatar_draw: the other players' hands (their fingers too) and held weapons drawn where their own "
                   "games drew them; off: not drawn."),
