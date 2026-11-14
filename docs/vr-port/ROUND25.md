@@ -2162,3 +2162,42 @@ both). **Verdict:** nothing breaks with 1, but it is slower in play: sv_fte_hull
 `^hullwalk` never matched and every run waited out its `wait` (the e3m3/e4m1/e1m1 runs "without a summary"). Now
 matched unanchored, `-QuitOn` on it (the run ends there, the log flushed every frame), and a last line
 `walk_test: N maps, M without a summary`.
+
+## hunkfollow: nohunk's two follow-ups (agent/hunkfollow, 2026-11-14)
+
+- **The uninitialised read (nohunk's "Open"):** `vr_extmaps.cpp` `signature()` (the 64 x 64 detail signatures that
+  decide whether an animated texture's frames are one surface: `frameMatchRun`, VR_AnimSurfaces) read past the end of
+  its `tmp` buffer: the optimised code for the blur's `& (sigSize - 1)` wrap gave row 0's cells 1-3 a term or two from
+  after `tmp` (a 1000-filled guard region after it moved them by 40-80; the same formula written out by hand, and the
+  fixed code, don't). With zeroed memory after the block that was a small error; with a reused heap block's garbage
+  (about -1e19) the same huge value landed in both frames' signatures, every correlation came out 1.000 (moved 0.7998),
+  so every animated texture's frames shared one surface, and E1M1's world+brush drew 38% slower. Found by bisecting:
+  NoFill blocks filled with garbage (not zeroed) per call site, idle_e1m1's world+brush GPU time each (0.77 ms with
+  vr_extmaps' blocks garbage, 0.56 with any other site's); a 0xCD fill didn't reproduce it (what lay after the block
+  was what mattered). Fixed: the wrap is a modulo (`(y + dy + sigSize) % sigSize`, a row pointer). After it, garbage
+  NoFill blocks draw the same: world+brush 0.562 (zeroed) / 0.560 (garbage) / 0.559 (0xCD).
+- **Hunk blocks stay zeroed:** not zeroing NoFill blocks gained nothing measurable: load_e1m1 (3 reps, median) cold
+  1,832 vs 1,807 ms, warm 191 vs 189 / 161 vs 163 ms: noise. calloc costs nothing on fresh pages; zone.c says why.
+- **Temporary stack (zone.h, `Temp_Mark` / `Temp_Alloc` / `Temp_FreeToMark`):** the per-frame lists that were hunk
+  temporaries (one heap block each since nohunk) go on grow-only chunks kept between uses (256 KiB first, each next
+  twice as big up to 64 MiB, a chunk remade larger when a list doesn't fit; marks nest like the hunk's, across chunks).
+  Users: `SV_TouchLinks`, `SV_PushMove`, the three VR touch lists in vr_physics.cpp (`VR_TouchLinks` and the two
+  hand/weapon finds), `R_DrawSkeleton`. Host_Error / Host_EndGame (a touch's QuakeC erring mid-list) and
+  Host_ClearMemory empty it. `hunk_print` shows its chunks and peak; `vr_heap test` also runs `vr_temp test` (nested
+  marks over three chunks, a larger chunk, contents kept below a mark, no heap call warm: PASS). Late precaches from
+  those touches no longer happen inside a hunk temporary (Hunk_KeepLoaded stays for any other).
+- **Heap calls a frame** (vr_alloc_sites 300 frames, main thread, events incl. frees): combat_48 9.9 a frame (the
+  rest is `new`/`delete`, 0.16 malloc); the AD fight 8.1, all Box3D's own (b3ComputeMeshManifolds, hull creation)
+  which the old 6.2 also had.
+- **Bench** (`--fast --reps 3`, exclusive, ThinLTO; before: nohunk's nh_after3 run, origin/next with zeroed hunk
+  blocks; after: hf_after): frame p50 ms combat_48 3.823 -> 3.481 (-9%), ai_crowd_64 3.172 -> 3.115, idle_e1m1
+  1.462 -> 1.457, play_ad_tfuma_fight 7.229 -> 6.747 (-7%); combat_48 p99 8.75 -> 5.92, max 36.8 -> 10.1. Heap allocs a
+  frame (bench heap/fr): combat_48 35.0 -> 10.5 (pre-nohunk 10.8), ai_crowd_64 35.2 -> 9.2 (9.1), idle_e1m1 2.3 -> 0.8
+  (0.8), the AD fight 81.9 -> 6.2 (6.2).
+- **Verified** (merged with origin/next): Release 0 warnings; load_models_test 4/0; id1 mutator save/load loop 18/0 and
+  `pr_knownstrings_check` 44/0; AD loop (ad_crucial, start, ad_swampy: saves, loads, changelevels) no error, 44/0;
+  `scenario_check.sh` 129 files 0 errors, 129 run 0 failed; Debug (MI_DEBUG, tail guards, Hunk_Check): e1m1 save,
+  changelevel, load, the firing range with spawned monsters, `vr_heap test` and `vr_temp test` PASS, no error (the
+  temporary stack's peak there: 12,672 bytes in its one 256 KiB chunk); the release configuration (MSBuild ReleaseLTO,
+  QvrReleaseVersion=1.1.0) builds with no error or warning.
+- Scripts: scratch/hf_*.sh, hf_*.py (hf_bisect.sh: the per-site bisection; the fill switch was temporary, removed).
