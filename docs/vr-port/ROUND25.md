@@ -2406,7 +2406,8 @@ Cherry-picked 6b8e74432: VR_CrtHeapLoadHold now defined without mimalloc (QVR_MI
 - **Autosave Now (item 11).** `vr_autosave_now` (host.c, beside Host_CheckAutosave; Debug > Tests > Saves): the game's
   autosave now, same name (`VR_AutosaveName`) and rotation, ignoring sv_autosave, score and safety wait; refused in a
   multiplayer game (co-op/deathmatch make no autosaves, saves are SP only), on vr* maps, in Ironman, at intermission.
-- **Tests:** new `Misc/quakevr/flatzoom_test.sh` (FLATZOOM_RESULT); `flatsight_test.sh` runs with `vr_flat_aim_zoom 0`
-  (it measures every gun's sight line) (FLATSIGHT_RESULT); new `Misc/quakevr/autosavenow_test.sh` (AUTOSAVE_RESULT);
-  `vr_gameplay_preset_test` (PRESET_RESULT); `vr_gameplay_classic_check` VR (CLASSIC_VR) and flat (CLASSIC_FLAT).
-  Scenario `flat_aim_zoom`.
+- **Tests:** new `Misc/quakevr/flatzoom_test.sh` 10/0 (Up 2: both sights 2.000 off the ray; Pitch 5: 4.99 deg; zoom:
+  fov 59.3 from 90, gun shift 0, crosshair 1.00; nailgun zooms, shotgun sights); `flatsight_test.sh` 12/0 (runs with
+  `vr_flat_aim_zoom 0`: it measures every gun's sight line); new `Misc/quakevr/autosavenow_test.sh` 4/0 (autosave/e1m1
+  written, Continue "just now"; co-op refused); `vr_gameplay_preset_test` 27/0; `vr_gameplay_classic_check` 2/0 in VR
+  and in flat. Dev and Release-TracyFull builds 0 warnings. Scenario `flat_aim_zoom`.
