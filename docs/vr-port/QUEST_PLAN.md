@@ -170,7 +170,7 @@ is the same build with a lower preset (half the GPU) [I].
 | Phase | Scope | Needs installs? |
 |---|---|---|
 | C1 (done) | Research, audit, decision, this plan; `vr_simd.hpp` + `vr_simd_test`; `-glescompat` + `vr_gles_report`; `quest_budget.cfg` and the budget runs | No |
-| C2 (done: C2a, C2b, C2c) | **PC portability layer**: the 14 ungated rows behind `VR_GLESCompat()` (one `#version`/precision prefix for all programs, `glGetTexImage`/`glGetBufferSubData`/`glClearTexImage`/`glTextureView` replacements, LOD bias in shaders, depth clamp, clip distance, noperspective, timer-query wrapper); the GLSL made ES-valid (checked by compiling every program as `#version 320 es` with the PC driver where it accepts ES profiles, else with glslang if he approves it); `-glescompat` runs every test suite clean; `-fp-contract`-free scalar check; a "no child process" mode for the relight and motion children; an `Android`-guarded skeleton for crash/files/paths that compiles on the PC (`QVR_FAKE_ANDROID`) | No |
+| C2 (done: C2a, C2b, C2c, C2d: the ES cost split and cut, the Quest preset's draft, sections 6b-6c) | **PC portability layer**: the 14 ungated rows behind `VR_GLESCompat()` (one `#version`/precision prefix for all programs, `glGetTexImage`/`glGetBufferSubData`/`glClearTexImage`/`glTextureView` replacements, LOD bias in shaders, depth clamp, clip distance, noperspective, timer-query wrapper); the GLSL made ES-valid (checked by compiling every program as `#version 320 es` with the PC driver where it accepts ES profiles, else with glslang if he approves it); `-glescompat` runs every test suite clean; `-fp-contract`-free scalar check; a "no child process" mode for the relight and motion children; an `Android`-guarded skeleton for crash/files/paths that compiles on the PC (`QVR_FAKE_ANDROID`) | No |
 | **C3** (next; needs his approval of section 7's installs) | Android build: CMake toolchain for `arm64-v8a`, Gradle project (`Android/`), SDL2's Android activity, `-ffp-contract=off`, assets path and permissions, logcat console, the APK; first boot in the Android emulator (flatscreen, ES 3.x) for files, sound and menus | **Yes** (list below) |
 | C4 | OpenXR on Android: `XR_KHR_opengl_es_enable` binding, Android loader init, swapchains as GLES texture arrays, multiview into them, refresh rate, `XR_EXT_performance_settings`, `XR_FB_foveation`, Touch controller bindings (already OpenXR actions), visibility mask; first headset boot; a GL extension dump of the Quest's driver resolves the [?] rows | **Yes** + a Quest in developer mode |
 | C5 | Renderer on device: driver bugs, the post chain merged into fewer passes for the Quest preset, program binary cache, MSAA on tile, invalidations at pass ends; Adreno profiling (`ovrgpuprofiler`, RenderDoc) | Yes (device tools) |
@@ -360,6 +360,109 @@ Results, 2026-11-14 (one repeat each, so a few percent is noise; ms averages; `k
   precisions) is C5's first measurement on the device, where these PC numbers stop meaning much (a desktop GPU
   pays nothing for highp; an Adreno pays for draw calls differently).
 
+## 6b. C2d: the ES profile's cost split per switch, and cut (done, no installs)
+
+**`-gleskeep <list>`** (`QVR_GLES_KEEP`; under `-glescompat` only): the listed switches keep their PC form for the
+run (`bindless`, `multibind`, `layer`, `clip`, `glsl` = the ES GLSL and the widened image formats together, since the
+shaders pick the format by `GL_ES`; `foveation`, `views`), so one bench run per switch measures each ES form's cost.
+`bindless` needs `glsl` too (the bindless shaders do not compile as ES: 98 errors). Runs: `bench.sh quest`, 8 core
+scenarios, `--hz 72 --eye 1760`, `quest_budget.cfg`, ThinLTO, exclusive, one repeat (a few % is noise); all ES runs
+with clip control (`kit/benchresults/c2d_*`). GPU 3D ms averages:
+
+| scenario | PC Quest-like | ES | keep glsl | keep bindless+glsl | keep multibind | keep layer | keep foveation | **ES + batch fix** | ES + fix + foveation |
+|---|---|---|---|---|---|---|---|---|---|
+| combat_48 | 1.75 | 2.43 | 2.83 | 2.32 | 2.32 | 2.28 | 1.53 | 2.26 | 1.64 |
+| combined | 3.27 | 5.82 | 5.93 | 5.45 | 6.02 | 3.80 | 4.36 | 4.33 | 3.69 |
+| gore_slash_32 | 1.81 | 2.54 | 2.75 | 2.78 | 2.40 | 2.37 | 1.66 | 2.57 | 1.85 |
+| idle_e1m1 | 0.56 | 0.81 | 0.82 | 0.77 | 0.83 | 0.83 | 0.57 | 0.81 | 0.57 |
+| lights_32 | 0.93 | 1.88 | 1.65 | 1.76 | 1.80 | 1.65 | 0.95 | 1.65 | 0.93 |
+| props_500_active | 1.07 | 2.08 | 2.11 | 1.81 | 1.80 | 1.41 | 1.54 | 1.46 | 1.23 |
+| ragdolls_32_active | 1.42 | 2.18 | 2.45 | 2.25 | 2.20 | 2.15 | 1.52 | 2.51 | 1.45 |
+| teleporter_loop_r2 | 0.68 | 1.29 | 1.18 | 1.22 | 1.17 | 1.17 | 0.70 | 1.43 | 0.70 |
+
+- **NVIDIA's shading-rate foveation off was most of it** (keep foveation: back to the PC's numbers, -27 to -46%: the
+  world, water and translucent passes halve). Not an ES cost: the Quest has its own fixed foveated rendering
+  (`XR_FB_foveation` on the swapchain, `QCOM_texture_foveated` on our eye targets: C4/C5), and the budget below
+  counts it at the saving measured here.
+- **The layered shadow casters off was the other big one** (combined: the shadow pass 0.09 -> 2.0 ms, 3025 draws),
+  and it was not the layering: the face-at-a-time path drew each face's alias casters in list order, so the alias
+  renderer broke its instanced batch at every change of model (a pile of 135 casters: 1806 draws, 1.16 ms of GPU for
+  12 faces). **Fixed for every GPU** (PC fix, commit "Shadows: face-at-a-time alias casters drawn in batch order"):
+  each face's casters sorted by model and skin, as the layered path's: 1025 draws, 0.11 ms; the same depth
+  (`vr_shadow_layered_check`: 0 texels differ). The PC with `vr_shadow_layered 0` (GPUs without a viewport-layer
+  extension) had the same 1.8 ms. After it the ES shadow pass costs what the layered one does (0.10 vs 0.09 ms).
+- **ES GLSL, precisions and the widened formats (r32ui LUT, rgba32ui clusters, rgba8 TAA mask): nothing measurable**
+  here (a desktop GPU runs highp as fp32 anyway; the Adreno's mediump question is C5's). **Multi-bind: nothing.**
+  **Bindless off: -0.1 to -0.37 ms** where many textures draw (props, combined; draws 1672 -> 1505), within noise
+  elsewhere. **The multi-draw loop:** no caller under ES (bindless and the layered casters are off there).
+  **NIS -> FSR:** no upscale at scale 1 (and the Quest preset uses none). **Texture views:** single-pass stereo is off
+  by default and the envmap is off in the Quest preset.
+- **What is left of the ES profile** (ES + fix + foveation against the PC's Quest-like): 0 to +15% (combined +13%,
+  props +15%: the bound path's draws, 3.4x the PC's in an idle e1m1, 96 -> 330). Candidates, with their ES-legal
+  forms, for C5 on the device where draw calls cost the driver more CPU: the world's and the models' textures in
+  arrays by size (one bind for a batch of surfaces, `sampler2DArray` + a layer per draw: the bound path's one draw a
+  texture becomes a draw per array), and the layered casters as instanced faces (a face per instance, its tile chosen
+  by a clip-space offset and four `gl_ClipDistance` planes in the vertex shader: needs `EXT_clip_cull_distance`, and
+  ES's `glDrawElementsIndirect` has no base instance, so the face index from `gl_InstanceID` and a uniform).
+- **The CPU** did not move with any switch (within one repeat's noise).
+
+## 6c. C2d: the Quest preset's draft and the expected budget (C6 groundwork; no installs)
+
+**`vr_quest_preset <0|1|2|mine>`** (vr_gfxpresets.cpp, a second table on the presets' machinery; Debug > Startup:
+"Quest Preset: Quest 3 72 Hz"): the Low graphics preset, then 27 rows, at Quest 3 72 Hz, Quest 3 90 Hz, Quest 2 72 Hz;
+`mine` sets back what was there (`quest_my_settings.cfg`, then the graphics one). **Only under `-glescompat` or on
+Android**: on the PC it refuses and changes nothing (checked: the PC's values stay their defaults). Bench settings:
+`Misc/quakevr/bench/quest_preset_quest{3_72,3_90,2_72}.cfg` (dynamic resolution off there: the level's own scale).
+
+| rows | Quest 3 72 Hz | Quest 3 90 Hz | Quest 2 72 Hz |
+|---|---|---|---|
+| `vr_render_scale` (of the runtime's eye size) / `vr_dynres` 1, `vr_dynres_min` | 0.9 / 0.65 | 0.75 / 0.6 | 0.65 / 0.55 |
+| `vr_upscale` (0: bilinear, the compositor scales) / `vr_taa` | 0 / 0 | 0 / 0 | 0 / 0 |
+| `vid_fsaa` (on a tiler MSAA resolves on chip; C5 measures 4x) | 2 | 0 | 0 |
+| shadowed dynamic lights / map lights / atlas / distance | 1 / 0 / 2048 / 768 | 1 / 0 / 2048 / 640 | 0 / 0 / 2048 / 512 |
+| bloom (the tone curve and grade kept: the look) | default | off | off |
+| heat haze, water reflections, rim light (the envmap) | off | off | off |
+| torch, lava nail, explosion debris lights | 2, 2, 2 | 2, 2, 2 | 1, 1, 0 |
+| particles: `vr_particle_max_screen`, half-res | 0.08, on | 0.06, on | 0.05, on |
+| decals: `vr_decal_max`, bucket | 256, 48 | 192, 32 | 128, 32 |
+| bodies: ragdolls, small gibs, limbs, explosion debris, dents | 4, 32, 12, 32, 6 | 3, 24, 8, 24, 4 | 3, 16, 8, 16, 4 |
+
+The Low preset under it: no normal or parallax maps, detail, AO, soft particles, portals, refraction, caustics.
+Draw distance: none of its own (Quake's maps are small and PVS-culled; the shadow distance is the one that matters).
+Light probes (`vr_model_light_grid`): kept (a lookup a model, CPU).
+
+**Expected budget.** The PC's numbers under the ES profile (`c2d_p2_*`; ms averages, both eyes at 1760, 1832 for
+the Quest 2), times the share fixed foveation leaves (measured in 6b: ES with and without the PC's foveation; the
+Quest's FFR taken as saving the same [I]), times the GPU ratio, 12-20x for the Quest 3's XR2 Gen 2 against this RTX
+4090 and 30-50x for the Quest 2's XR2 [I: public benchmark ratios; a tiler's bandwidth savings and a desktop's fixed
+per-pass overheads pull both ways]; the CPU (main thread busy) times 3-4x (Quest 3) or 4-5x (Quest 2) per core [I].
+Against 85% of the frame (11.8 ms at 72 Hz, 9.4 ms at 90 Hz; the rest the compositor's [I]): ok, edge (the range
+straddles it), over.
+
+| scenario | FFR share | Q3 72: GPU PC, Quest | CPU PC, Quest | Q3 90: GPU PC, Quest | CPU PC, Quest | Q2 72: GPU PC, Quest | CPU PC, Quest |
+|---|---|---|---|---|---|---|---|
+| idle_e1m1 | 0.71 | 0.84, 7-12 edge | 1.70, 5-7 ok | 0.58, 5-8 ok | 1.53, 5-6 ok | 0.54, 11-19 edge | 1.62, 6-8 ok |
+| teleporter_loop_r2 | 0.49 | 1.14, 7-11 ok | 0.86, 3 ok | 0.75, 4-7 ok | 0.91, 3-4 ok | 0.68, 10-17 edge | 0.87, 3-4 ok |
+| lights_32 | 0.57 | 1.54, 10-17 edge | 1.33, 4-5 ok | 1.15, 8-13 edge | 1.35, 4-5 ok | 0.91, 15-26 over | 1.37, 5-7 ok |
+| combat_48 | 0.72 | 1.96, 17-28 over | 4.00, 12-16 over | 1.60, 14-23 over | 3.80, 11-15 over | 1.15, 25-41 over | 3.78, 15-19 over |
+| gore_slash_32 | 0.72 | 1.83, 16-26 over | 3.68, 11-15 edge | 1.31, 11-19 over | 3.52, 11-14 over | 1.46, 31-52 over | 3.88, 16-19 over |
+| ragdolls_32_active | 0.58 | 1.79, 12-21 over | 3.71, 11-15 edge | 1.31, 9-15 edge | 3.27, 10-13 over | 1.10, 19-32 over | 3.72, 15-19 over |
+| props_500_active | 0.84 | 1.86, 19-31 over | 4.11, 12-16 over | 1.64, 17-28 over | 3.75, 11-15 over | 1.40, 35-59 over | 3.57, 14-18 over |
+| combined | 0.85 | 3.62, 37-62 over | 7.06, 21-28 over | 2.45, 25-42 over | 5.89, 18-24 over | 2.03, 52-87 over | 6.29, 25-31 over |
+
+- **Quiet play fits the Quest 3 at 72 Hz and at 90 Hz** (e1m1, the teleporters; the 32 lights at the edge), with
+  dynamic resolution's room under it (0.65 of the scale: about 0.4 fewer pixels). **The bench's fights do not**: they
+  are stress tests (48 grunts, 32 ragdolls, 500 live props, everything at once), 1.5-5x over on the GPU and up to 2.4x
+  on the CPU. A Quest-sized fight (8-12 monsters) needs measuring on the device (C5/C6) with the caps above; the CPU
+  side (game logic, Box3D, gore) is as much the Quest's problem as the GPU and has no Quest work yet.
+- **The Quest 2 at 72 Hz** fits only the quietest scenes; its level needs a further step down (scale 0.55, fewer
+  dynamic lights) once C6 measures it. The Quest 3 is the target.
+- **Biggest GPU levers left**, in order [I]: the eyes' pixel count (scale, dynamic resolution, FFR's level), the post
+  chain merged into fewer passes (the float scene's tone curve, bloom, grade: each a full-screen read and write on a
+  tiler, C5), MSAA resolved on chip (`EXT_multisampled_render_to_texture`), the bound path's draws (6b).
+- A first draft (scales 1 / 0.85 / 0.75, `c2d_p_*`) measured 0.91 / 0.67 / 0.61 ms on idle e1m1; the scales were
+  lowered to the ones above from it.
+
 ## 7. Installs for his approval (none done)
 
 Sizes are approximate download sizes [I]; versions are the current stable ones at install time.
@@ -384,6 +487,8 @@ Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation acc
 Next phase: C3 — the Android build (NEEDS INSTALLS: section 7's SDK, NDK, JDK, Gradle, SDL2 source; waits for his
 approval): CMake toolchain for arm64-v8a with `-ffp-contract=off`, the Gradle project and SDL2's activity, the first
 compile of vr_android.cpp's `__ANDROID__` forms (and the crash handler merged with vr_crash.cpp's POSIX one, section
-5d), logcat console, the first boot in the emulator (flat-screen, ES 3.x). If the installs are not approved yet, the
-no-install work left is small: the `noperspective` fallback behind `-glesnoext` (section 5d), a CMake
-`QVR_FAKE_ANDROID` configure of the Linux build to keep the layer compiling there too.
+5d), logcat console, the first boot in the emulator (flat-screen, ES 3.x), `vr_quest_preset` applied on the first run
+there. If the installs are not approved yet, a no-install phase worth doing (C2e): the CPU side of the budget (section
+6c: the bench's fights are over the Quest's estimated CPU at 72 Hz and nothing Quest-specific has looked at it yet:
+where the main thread's time goes in a fight, what the job system can take, the caps a Quest-sized fight needs), the
+`noperspective` fallback behind `-glesnoext` (section 5d), and the world's textures in arrays (section 6b).

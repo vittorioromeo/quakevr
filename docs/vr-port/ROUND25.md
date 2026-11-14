@@ -2304,3 +2304,23 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
   the same bits; 0 shader errors), taaparticles under ES 2/0, vr_android_test 14/0 under `-fakeandroid`; PC:
   scenario_check 129/0, load_models_test 4/0, vr_simd_test 58880/0; dev and ThinLTO builds 0 warnings.
 - **Next:** C3 (QUEST_PLAN.md's last line): needs his approval of the installs.
+
+## Quest C2d: the ES profile's cost split and cut, the Quest preset's draft (branch agent/quest, 2026-11-14)
+
+- **What:** `-gleskeep <list>` (`QVR_GLES_KEEP`, under `-glescompat` only) keeps a switch's PC form (bindless,
+  multibind, layer, clip, glsl, foveation, views) for a bench run each; `VR_GLESForm()`. The split (QUEST_PLAN.md
+  6b): NVIDIA's foveation off was most of the ES profile's +32..+88% (the Quest has its own FFR), and the layered
+  shadow casters off the rest (combined: shadow pass 0.09 -> 2.0 ms). ES GLSL, precisions, image formats, multi-bind:
+  nothing measurable; bindless: up to -0.37 ms. With the fix below and the foveation counted, the ES profile costs 0
+  to +15% over the PC's Quest-like settings.
+- **PC fix (all GPUs):** the face-at-a-time shadow path (`vr_shadow_layered 0`, GPUs without a viewport-layer
+  extension, ES) drew each face's alias casters in list order, breaking the alias renderer's instanced batches at
+  every model change: 1806 draws and 1.16 ms of GPU for 12 faces in the combined bench; now sorted by model and skin
+  as the layered path's: 1025 draws, 0.11 ms, the same depth (`vr_shadow_layered_check`: 0 texels differ).
+- **`vr_quest_preset <0|1|2|mine>`** (vr_gfxpresets.cpp; Debug > Startup): the Low preset plus 27 rows at Quest 3
+  72 Hz / 90 Hz / Quest 2 72 Hz (scale 0.9 / 0.75 / 0.65 with dynamic resolution, no upscale or TAA, MSAA 2x at 72,
+  one shadowed light, 2048 atlas, bloom off at 90, particle, decal, ragdoll, gib and limb caps). Refuses outside
+  `-glescompat`/Android. Bench cfgs `Misc/quakevr/bench/quest_preset_*.cfg`. The expected Quest budget
+  (QUEST_PLAN.md 6c): quiet play fits the Quest 3 at 72 and 90 Hz; the bench's stress fights are over on GPU and CPU.
+- **Tests:** gles_render 8/0, scenario_check 129/0, load_models_test 4/0, vr_simd_test 58880/0, vr_gles_report 0
+  shader errors; dev and ThinLTO builds 0 warnings.
