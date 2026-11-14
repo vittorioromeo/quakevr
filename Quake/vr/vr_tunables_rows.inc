@@ -1073,6 +1073,10 @@ QVR_TUNABLE_SLIDER(vr_dirparry_window, "Parry Window", 0.0f, 0.4f, 0.01f, "%.2f 
 QVR_TUNABLE_SLIDER(vr_dirparry_through_armed, "Let Through: Armed Humanoids", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "Share of an armed humanoid's parried blow that still hurts you. 0: none.")
 QVR_TUNABLE_SLIDER(vr_dirparry_through_monster, "Let Through: Monsters", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "Share of a monster's parried blow that still hurts you. 0: none.")
 QVR_TUNABLE_SLIDER(vr_dirparry_timed_window, "Timing Window", 0.05f, 1.0f, 0.05f, "%.2f s", 0.0f, 1.0f, "A directional parry is well timed when your weapon became a valid parry, moved into the blow's way or turned to the right angle, at most this long before the contact. Held there earlier: not.")
+QVR_TUNABLE_SLIDER(vr_dirparry_offtime, "Early/Late Stagger", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "An early or late directional parry still parries (nothing through), but its stagger, flinch, push, counter window and disarm chance are this share of a well-timed one's.")
+QVR_TUNABLE_SLIDER(vr_dirparry_offtime_fade, "Early Fade", 0.0f, 0.5f, 0.01f, "%.2f s", 0.0f, 2.0f, "Early: the share falls smoothly from full to Early/Late Stagger over this long before the Timing Window.")
+QVR_TUNABLE_SLIDER(vr_dirparry_late_grace, "Late Grace", 0.0f, 0.3f, 0.01f, "%.2f s", 0.0f, 1.0f, "A blow held back for your weapon, met this long after its own moment, still counts as on time.")
+QVR_TUNABLE_SLIDER(vr_dirparry_late_fade, "Late Fade", 0.0f, 0.3f, 0.01f, "%.2f s", 0.0f, 1.0f, "Late: the share falls smoothly from full to Early/Late Stagger over this long after the Late Grace.")
 QVR_TUNABLE_SLIDER(vr_dirparry_stroke, "Stroke Window", 0.0f, 0.6f, 0.05f, "%.2f s", 0.0f, 3.0f, "A monster's own blow is dealt before its blade gets there: held back at most this long for it to meet your weapon.")
 
 QVR_TUNABLE_GROUP("Combat > Armed Humanoid Replacements")

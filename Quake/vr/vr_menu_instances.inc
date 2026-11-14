@@ -653,6 +653,19 @@ void qvr::menu::runSetupScreenTest_f()
         check(shownFor(runsetup::Launch::Campaign) && runSetup.campaign == 0, "Official Campaigns' row opens it");
         goBack();
     }
+    // Arcane Dimensions: its experimental notice's Continue opens the screen too (his flat notes 2026-11-15: it started
+    // at once), its Start the developer launch (runSetupStart). Not installed: nothing opened.
+    {
+        const int ad = qvr::ad::campaignIndex;
+        openRunSetupArcane();
+        check(VR_CampaignInstalled(ad) ? shownFor(runsetup::Launch::Campaign) && runSetup.campaign == ad
+                                       : runSetup.campaign != ad || ui().page != page,
+            "Arcane Dimensions' Continue opens it (installed) or nothing (not)");
+        if(ui().page == page)
+        {
+            goBack();
+        }
+    }
     // The Levels list after a start hall's launch (New Game's, the campaign's): the page as shown (the menu's built
     // rows, not a fresh build) has its Difficulty row at once (his flat report 2026-11-13: only after a fold).
     auto shown = [&]() -> const za::Vector<Item>& { return menu_detail::items(page); };

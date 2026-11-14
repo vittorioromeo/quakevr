@@ -76,6 +76,8 @@ cvar_t	host_fixedtick_max = {"host_fixedtick_max", "8", CVAR_NONE}; // QVR: the 
 cvar_t	host_fixedtick_spread = {"host_fixedtick_spread", "1", CVAR_NONE};
 static double host_tickpace; // QVR: the frames' recent length in ticks (host_fixedtick_spread; 0 none yet)
 
+static void Host_AutosaveNow_f (void); // QVR: vr_autosave_now (below, by Host_CheckAutosave)
+
 // QVR: host_stall <ms> (Debug menu): this frame sleeps that long, a hitch on demand (host_fixedtick_spread's check)
 static void Host_Stall_f (void)
 {
@@ -591,6 +593,7 @@ void Host_InitLocal (void)
 	Cvar_RegisterVariable (&host_fixedtick_spread); // QVR
 	Cmd_AddCommand ("host_tickstats", Host_TickStats_f); // QVR
 	Cmd_AddCommand ("host_stall", Host_Stall_f); // QVR
+	Cmd_AddCommand ("vr_autosave_now", Host_AutosaveNow_f); // QVR
 
 	Cvar_RegisterVariable (&cl_nocsqc);	//spike
 	Cvar_RegisterVariable (&max_edicts); //johnfitz
@@ -1337,6 +1340,56 @@ static void Host_CheckAutosave (void)
 	sv.autosave.cheat = 0;
 	VR_AutosaveName (sv.name, autosavename, sizeof (autosavename)); // QVR: autosave/<folder>~<map> for the other campaigns, <package>~<map> for a map package
 	Cbuf_AddText (va ("save \"%s\" 0 rotate\n", autosavename)); // QVR: rotate: the older ones kept (vr_autosave_slots)
+}
+
+/*
+==================
+Host_AutosaveNow_f
+
+QVR: vr_autosave_now (Debug > Tests > Saves): the autosave the game makes as a level starts or at a quiet moment
+(Host_CheckAutosave), made now: the same name (VR_AutosaveName: autosave/<map>, <folder>~<map> for the other campaigns,
+<package>~<map> for a Map Library package) and rotation (vr_autosave_slots), whatever sv_autosave, the score, the cheats
+or the safety wait say. Refused where the game makes none: a multiplayer game (co-op or deathmatch: saves are single
+player only), Quake VR's own maps (the hub, the tutorial), an Ironman run, the intermission.
+==================
+*/
+static void Host_AutosaveNow_f (void)
+{
+	char autosavename[MAX_QPATH];
+
+	if (!sv.active || cls.state != ca_connected)
+	{
+		Con_Printf ("vr_autosave_now: no game running here\n");
+		return;
+	}
+	if (svs.maxclients != 1)
+	{
+		Con_Printf ("vr_autosave_now: none in a multiplayer game (%d players: co-op and deathmatch make no autosaves)\n", svs.maxclients);
+		return;
+	}
+	if (!VR_AutosaveAllowed (sv.name))
+	{
+		Con_Printf ("vr_autosave_now: none on Quake VR's own maps (%s)\n", sv.name);
+		return;
+	}
+	if (VR_RunIronman ())
+	{
+		Con_Printf ("vr_autosave_now: none in an Ironman run\n");
+		return;
+	}
+	if (cl.intermission)
+	{
+		Con_Printf ("vr_autosave_now: none at the intermission\n");
+		return;
+	}
+	VR_AutosaveName (sv.name, autosavename, sizeof (autosavename));
+	sv.autosave.time = sv.qcvm.time;
+	sv.autosave.cheat = 0;
+	sv.autosave.level_started = true; // (this is the level's start one, if it had not come yet)
+	sv.autosave.wait_since = 0.;
+	sv.autosave.wait_reason = NULL;
+	Con_Printf ("vr_autosave_now: %s%s\n", autosavename, sv_autosave.value ? "" : " (sv_autosave is 0: the game makes none itself)");
+	Cbuf_InsertText (va ("save \"%s\" 0 rotate\n", autosavename)); // (next, before any queued command)
 }
 
 /*

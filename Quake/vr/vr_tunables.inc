@@ -1070,6 +1070,10 @@ QVR_TUNABLE(vr_dirparry_window, "0.1") // ... s: at its blow, its blade's way fo
 QVR_TUNABLE(vr_dirparry_through_armed, "0") // ... share of a parried blow that still hurts you: an armed humanoid's
 QVR_TUNABLE(vr_dirparry_through_monster, "0") // ... a monster's own
 QVR_TUNABLE(vr_dirparry_timed_window, "0.3") // ... s: well timed: your weapon became a valid parry (moved into its way, or turned to the angle) at most this long before the contact
+QVR_TUNABLE(vr_dirparry_offtime, "0.2") // ... an early or late parry's share of its stagger, flinch, push, counter window and disarm chance (still parried, nothing through)
+QVR_TUNABLE(vr_dirparry_offtime_fade, "0.15") // ... s: early: the share falls smoothly from full to vr_dirparry_offtime over this much earlier than the timing window
+QVR_TUNABLE(vr_dirparry_late_grace, "0.02") // ... s: a held blow met this long after its own moment still counts as on time
+QVR_TUNABLE(vr_dirparry_late_fade, "0.06") // ... s: late: the share falls smoothly to vr_dirparry_offtime over this much later than the grace
 QVR_TUNABLE(vr_dirparry_stroke, "0.45") // ... s: a monster's own blow (its line read from its frames): its blow held back at most this long for its blade to get to your weapon
 
 // Combat > Armed Humanoid Replacements

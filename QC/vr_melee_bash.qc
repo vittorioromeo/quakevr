@@ -541,7 +541,7 @@ void() VR_Stamina_Frame =
 // A parry by `p` (VR_Parry; `hand` -1: crossed arms) opens a counter's window.
 void(entity p, float hand) VR_Counter_Open =
 {
-    float window = cvar_hget(cvarh_vr_counter_window);
+    float window = cvar_hget(cvarh_vr_counter_window) * VR_Parry_TimingShare(); // (a directional parry early or late: shorter)
     if(!cvar_hget(cvarh_vr_counter) || window <= 0)
     {
         return;

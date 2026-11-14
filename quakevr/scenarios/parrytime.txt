@@ -1,0 +1,13 @@
+# parrytime: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". His rule (2026-11-15): the right direction
+# always parries; the timing scales the stagger (vr_dirparry_offtime, _offtime_fade, _late_grace, _late_fade). An ogre and a
+# sword grunt to parry early (weapon held in place long before), on time (moved in just before) and late; Show Directional
+# Parry on (its verdicts), developer 1 prints "dirparry: timing: ... x<share>" and the stagger.
+title Parry timing: an ogre and a sword grunt to parry early, on time and late (god)
+map vrtesthall
+god
+cvar vr_dirparry_debug 1
+cvar developer 1
+give "Knight's Sword" main
+spawn "Ogre" 260 60
+spawn "Armed Grunt: Sword" 200 -60
+hint Parry each: hold your sword across early, move it in just before the blow, then late. All parry; only on time staggers them long.

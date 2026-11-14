@@ -103,11 +103,13 @@ float(entity g) VR_DRP_Applies;                                            // VR
 float(entity g) VR_DRP_Done;                                               // VR_Parry: this swing was stopped already
 float(entity pl, entity g, float damage) VR_DRP_Blow;                      // VR_Parry: the parrying hand (-1: none)
 float vr_drp_ag_timed;     // VR_DRP_Blow, an armed humanoid's: this parry was well timed
+float vr_drp_ag_timing;    // ... its timing's share of the parry's stagger and rewards (VR_DRP_Timing: 1 well timed)
 float vr_drp_deferred;     // VR_DRP_Blow held the blow back (VR_Parry deals nothing now)
 float vr_drp_release;      // a held-back blow dealt now (VR_DRP_Blow holds it no more)
 float vr_drp_forced;       // VR_DRP_Frame's, VR_DRP_HeldThink's meeting: VR_Parry takes vr_drp_hand at once
 .float vr_drp_by;          // (a monster) the hand that parried this attack (VR_DRP_Done)
 .float vr_drp_timed;       // (a monster) ... that parry was well timed (VR_DRP_BecameValid)
+.float vr_drp_timing;      // (a monster) ... its timing's share (VR_DRP_Timing)
 void(entity pl) VR_DRP_HandLines;                                          // StartFrame's player think
 void(entity pl, entity g, float h) VR_DRP_Effects;                         // VR_Parry: sparks and the clang at the meeting
 void(entity pl) VR_DRP_ShowLines;                                          // the player's think: the lines shown
