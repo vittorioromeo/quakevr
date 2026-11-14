@@ -266,7 +266,7 @@ void wallSmoke(float& owed, const glm::vec3& origin, float dt, const glm::vec3& 
 // Its crackle: the wall's static one silenced once the torch has left it; the torch's own follows it, as loud as its
 // fire (its origin is where it started, else).
 // The crackle's sfx_t once a channel has played it: the sound's table (snd_dma.c known_sfx) keeps one entry per name for
-// the whole run, so after that a pointer compare tells it, not a strcmp per channel each frame.
+// the whole run once pinned (S_PrecacheSound), so after that a pointer compare tells it, not a strcmp per channel each frame.
 const sfx_t* crackleSfx = nullptr;
 
 [[nodiscard]] bool isCrackle(const sfx_t* sfx)
@@ -283,7 +283,9 @@ const sfx_t* crackleSfx = nullptr;
     {
         return false;
     }
-    crackleSfx = sfx;
+    // (S_PrecacheSound pins it, the same entry: a game's sound no code keeps is forgotten at a game switch, its entry
+    // reused by another name, S_ForgetGameSounds)
+    crackleSfx = S_PrecacheSound(crackleName);
     return true;
 }
 

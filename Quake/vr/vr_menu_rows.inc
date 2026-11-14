@@ -2308,6 +2308,10 @@ QVR_CYCLE_BYNAME(vr_menu_big_hl, "Big Menu Highlight",
     {0.f, "Icon Only"}, {1.f, "Soft Bar"}, {2.f, "Bar and Grow"})
 QVR_SLIDER_BYNAME(vr_menu_big_hl_scale, "Big Menu Grow", 1.f, 1.25f, 0.01f, "%.2fx", noExt,
     "With Big Menu Highlight: Bar and Grow: the selected main menu row's size.")
+QVR_SLIDER_BYNAME(vr_menu_wheel_scroll, "Mouse Wheel Scroll", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "On a menu with a scroll bar, a notch of the mouse wheel scrolls the page by this part of the rows shown (the selection stays on the page). 0: the wheel moves the selection a row at a time.")
+QVR_SLIDER_BYNAME(vr_menu_big_hl_alpha, "Big Menu Bar Opacity", 0.02f, 0.5f, 0.02f, "%.2f", noExt,
+    "How opaque the soft bar behind the big menus' selected row is. 0.14: as the settings pages' selected row.")
 QVR_SLIDER_BYNAME(vr_menu_toolbar_groups, "Shortcut Group Gap", 0.f, 12.f, 1.f, "%.0f px", noExt,
     "The corner's shortcut buttons in groups (game, saves, menus, settings, levels, tools): this much space between groups. 0: evenly spaced.")
 QVR_TOGGLE_BYNAME(vr_runsetup_groups, "Run Setup: Mutator Groups",
@@ -6030,6 +6034,18 @@ QVR_CYCLE(vr_findradius_grid, "findradius Search",
     "reach) finds what is near: Walk, every entity (Quake's); Big Maps, through the area grid on maps of "
     "100 entities or more, the default; Grid, always. The same entities, in the same order.",
     {0.f, "Walk"}, {1.f, "Big Maps"}, {2.f, "Grid"})
+QVR_CYCLE_BYNAME(sv_fastpushmove, "Pusher Search",
+    "sv_fastpushmove: how a moving door, plat or train finds what it pushes. Grid, the default: from the second "
+    "one moving in a tick, a grid of every entity's box hands each only those near its sweep (after vkQuake); "
+    "Walk, every entity for each (Quake's); Check, the grid from the first and every push's entities compared "
+    "with the walk (a miss warned of: Pusher Search Stats). The same entities moved, in the same order.",
+    {1.f, "Grid"}, {0.f, "Walk"}, {2.f, "Check"})
+QVR_CYCLE_BYNAME(sv_fte_hulltrace, "Hull Trace",
+    "sv_fte_hulltrace: how a move is traced through the map's collision hulls. FTE, the default: split at the "
+    "planes themselves, the far side tested by the same recursion, the impact set from the move's own ends "
+    "(after vkQuake and FTE: fewer moves slipping through thin brushes or ending inside them); Quake: the "
+    "original, to compare.",
+    {1.f, "FTE"}, {0.f, "Quake"})
 QVR_CYCLE(vr_qcexec, "QuakeC Loop",
     "vr_qcexec: the QuakeC interpreter's loop. Fast (goto), the default: the same results, errors and "
     "instruction counts as the original, quicker (docs/vr-port/QC_VM.md). Original: the old loop, to "

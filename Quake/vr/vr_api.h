@@ -154,6 +154,11 @@ int VR_LoadingPlaque (void);	// SCR_UpdateScreen: nonzero to draw Quake's loadin
 int VR_ScreenshotWrite (const char *name, unsigned char *rgb, int width, int height);
 int VR_ScreenshotPending (const char *name);
 int VR_OnMainThread (void);	// console buffer and screen updates are main-thread only; background messages still reach the log
+// The engine's C loops on the game's thread pool (vr_jobs_engine.cpp): body(begin, end, ctx) over [0, count) in chunks
+// of `chunk` (0: the pool's even share), the caller taking part, back when all ran; counted at the site (vr_jobs_sites).
+// Each chunk must write only its own items (results the same on any number of threads, vr_jobs_parallel 0 included).
+enum { VR_PF_SURFACES, VR_PF_ALIASSKINS };
+void VR_ParallelFor (int site, int count, int chunk, void (*body) (int begin, int end, void *ctx), void *ctx);
 void VR_TimeAdd (const char *what, double seconds);	// time spent in a kind of work (model loads, normal maps...), summed per stage group
 #define VR_TIMED(what, statement) do { double vr_timed_t0 = Sys_DoubleTime (); statement; VR_TimeAdd (what, Sys_DoubleTime () - vr_timed_t0); } while (0) // the statement's time, as VR_TimeAdd
 void VR_TimeFrameEnd (int signedon, int idle);	// end of _Host_Frame: the first frame ends the start-up, the first signed on a load; idle (no server, not connected) ends a load that failed
@@ -336,6 +341,7 @@ const char *VR_SaveBrushLines (void);	// SaveData_Fill: the runtime brushes as t
 const char *VR_SaveDecalLines (void);	// SaveData_Fill: the permanent decals as the save's "// qvrdecals" and "// qvrd" lines (vr_permdecals.cpp; "" none)
 void VR_SaveFlashlightState (void); // before a save snapshot or changelevel parms are captured
 void VR_OnFreshStart (void);			// Host_Map_f, Host_Loadgame_f: a game started afresh or loaded, not a changelevel (the flashlight off)
+void VR_RunNewGame (void);			// Host_Map_f: a new game; begun without the Run Setup's Start, the screen's mutators made the run's
 void VR_StoreSpawnParms (int client);	// after parm1..16 are copied from globals into a client_t
 void VR_RestoreSpawnParms (int client);	// after parm1..16 are copied from a client_t into globals
 int VR_ServerRandom (void);			// the server's own rand() (vr_srvrandom.cpp): 0..0x7fff, apart from the client's effects' C library rand()
@@ -608,6 +614,7 @@ int VR_MenuDrawTextBox (int x, int y, int width, int lines); // M_DrawTextBox: a
 int VR_MenuDrawHighlight (int cx, int cy);				// M_DrawArrowCursor: the selected row's highlight; nonzero: no cursor (the corner's buttons have the selection)
 void VR_MenuDrawBigHighlight (float x0, float x1, float yc, float half); // Menu Look: a big-letter menu's selected row's soft bar (vr_menu_big_hl)
 float VR_MenuBigGrow (void);								// Menu Look: the main menu's selected row's size (vr_menu_big_hl_scale)
+int VR_MenuWheelRows (int visible);						// the rows a wheel notch scrolls a list with a scroll bar (vr_menu_wheel_scroll; 0: off)
 float VR_MenuMainGap (void);								// Menu Look: the main menu's groups' gap over Quake's (vr_menu_main_gap)
 int VR_MenuDrawButton (int x0, int x1, int y, int selected);	// M_Confirm's buttons (x0..x1 across, the label's row y): the VR menu style's; nonzero if drawn
 // The corner's buttons (vr_menuui.cpp): "Back to game" closing the menu from any page, which reopens
@@ -706,6 +713,8 @@ int VR_SndHandOf (const channel_t *ch, float *hand);	// snd_show 2: the hand (0 
 void VR_SndStarted (channel_t *ch);					// end of S_StartSound: a new sound on the channel
 int VR_SndShot (int entnum, int entchannel, sfx_t *sfx, const float *origin, float *fvol, float attenuation, float *pitch); // start of S_StartSound: a gun's shot varied and its layers started, an empty gun's click (vr_gunsfx.cpp); 0: not played
 void VR_SndStopAll (void);							// S_StopAllSounds, the channels cleared: every voice let go (none left on a cleared channel)
+int VR_SndHoldsSfx (const sfx_t *sfx);				// S_ForgetGameSounds: nonzero: the game-time render still plays it (kept)
+void VR_SndRebase (int delta);						// S_RebaseSoundTime: paintedtime moved back by delta (its wrap): the voices' carried render with it
 int VR_SndKeepStatics (void);						// S_Update: nonzero: the static sounds of one sample not combined (each has its place)
 int VR_SndMixEnd (int paintedtime, int endtime);	// S_Update_: the mix-ahead's end, rounded down to whole frames of the voices
 void VR_SndPaint (portable_samplepair_t *buffer, int start, int end);	// S_PaintChannels, each chunk: the voices' mix added

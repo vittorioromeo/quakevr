@@ -3030,6 +3030,18 @@ void qvr::menuui::paintFoldArrow(float xc, float yc, float size, float open)
     }
 }
 
+int qvr::menuui::wheelRows(int visible)
+{
+    // (His note 2026-11-13: "whenever a menu has a scroll bar, the wheel scrolls the bar".)
+    const float part = CLAMP(0.f, vr_menu_wheel_scroll.value, 1.f);
+    return part <= 0.f ? 0 : q_max(1, static_cast<int>(static_cast<float>(visible) * part + 0.5f));
+}
+
+extern "C" int VR_MenuWheelRows(int visible)
+{
+    return qvr::menuui::wheelRows(visible);
+}
+
 // Menu Look: the big-letter menus' selected row (main menu, Single Player, Multiplayer, Skill: vr_menu_big_hl 1 and 2):
 // a soft bar behind it, x0..x1 round yc (menu y), `half` true pixels each way, fading out at its edges (a glow).
 extern "C" void VR_MenuDrawBigHighlight(float x0, float x1, float yc, float half)
@@ -3038,14 +3050,17 @@ extern "C" void VR_MenuDrawBigHighlight(float x0, float x1, float yc, float half
     {
         return;
     }
+    // vr_menu_big_hl_alpha: the bar's opacity at its middle, the bar and its three glow rings together (his note
+    // 2026-11-13: too opaque; 0.14, the small rows' bar's, colors::highlight; the first look was about 0.31).
+    const float a = CLAMP(0.02f, vr_menu_big_hl_alpha.value, 0.5f);
     const Painter p;
-    constexpr glm::vec4 glow{1.f, 0.62f, 0.25f, 0.07f};
+    const glm::vec4 glow{1.f, 0.62f, 0.25f, a * 0.16f};
     for(int ring = 3; ring >= 1; ring--)
     {
         const float grow = 2.f * static_cast<float>(ring);
         p.rounded(x0 - grow, x1 + grow, yc, half + grow, 4.f + grow, glow);
     }
-    p.rounded(x0, x1, yc, half, 4.f, colors::highlight);
+    p.rounded(x0, x1, yc, half, 4.f, glm::vec4{glm::vec3{colors::highlight}, a * 0.6f});
     p.rect(x0, x0 + 2.f, yc, half - 2.f, colors::highlightEdge);
 }
 

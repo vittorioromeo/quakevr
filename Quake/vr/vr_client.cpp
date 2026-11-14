@@ -713,7 +713,7 @@ void parsePrecacheSound()
     {
         return; // (a datagram's repeat: VR_WriteRecentPrecaches)
     }
-    cl.sound_precache[index] = S_PrecacheSound(name);
+    cl.sound_precache[index] = S_PrecacheGameSound(name); // (the game's: forgotten at a game switch)
 }
 
 // vr_particle_test quake: Quake's own effects there instead (whatever vr_particles is): its explosion's particles

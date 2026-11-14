@@ -254,4 +254,44 @@ float(float rk, float ww, float af) VR_Run_ArmedCheck1 = { VR_Test_Begin("vr_run
 float(float rk, float ww, float af) VR_Run_ArmedCheck2 = { VR_Test_Begin("vr_run_armed_check"); VR_RAT_Grunts(ww); return vr_test_fail == 0; };
 float(float rk, float ww, float af) VR_Run_ArmedCheck3 = { VR_Test_Begin("vr_run_armed_check"); VR_RAT_Armour(af); return vr_test_fail == 0; };
 float(float rk, float ww, float af) VR_Run_ArmedCheck4 = { VR_Test_Begin("vr_run_armed_check"); VR_RAT_Map(rk, af); return vr_test_fail == 0; };
+
+// vr_gameplay_classic_check (the engine's, vr_gameplaypresets.cpp), the Classic gameplay preset in the running game: no
+// gun has a reloading mode (they fire from the reserve), no grunt burst rifle, no armed humanoid, the map's grunts the
+// original ones.
+float(float a, float b, float c) VR_Classic_Check =
+{
+    VR_Test_Begin("vr_gameplay_classic_check");
+    float modes = 0;
+    float wid;
+    for(wid = 1; wid <= 40; wid = wid + 1)
+    {
+        modes = modes + VR_Reload_ModeOf(wid);
+    }
+    VR_Test_Check(modes == 0, sprintf("no gun has a reloading mode (sum %g)", modes));
+    VR_Test_Check(VR_Reload_ModeOf(WID_SHOTGUN) == 0 && VR_Reload_ModeOf(WID_ROCKET_LAUNCHER) == 0 &&
+                  VR_Reload_ModeOf(WID_REVOLVER) == 0, "the shotgun, rocket launcher and revolver fire from the reserve");
+    VR_Test_Check(cvar_hget(cvarh_vr_grunt_burst) == 0, "no burst rifle grunts");
+    float grunts = 0;
+    float armed = 0;
+    entity e = nextent(world);
+    while(e)
+    {
+        if(e.health > 0)
+        {
+            if(e.vr_ag)
+            {
+                armed = armed + 1;
+            }
+            if(e.classname == "monster_army")
+            {
+                grunts = grunts + 1;
+            }
+        }
+        e = nextent(e);
+    }
+    dprint(sprintf("vr_gameplay_classic_check: the map: %g grunts, %g armed humanoids\n", grunts, armed));
+    VR_Test_Check(armed == 0, "no armed humanoid in the map");
+    VR_Test_Check(grunts > 0, "the map's grunts are the original monster_army");
+    return vr_test_fail == 0;
+};
 #endif

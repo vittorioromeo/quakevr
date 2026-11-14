@@ -1,5 +1,0 @@
-title Flat-screen: a dagger in a holster named "dagger" in the holster menu
-map vrtesthall
-start 0 -288 25 90
-spawn weapon_dagger 60 0
-hint Take the dagger, open the holster menu (middle mouse), put it in a holster: its slot says "dagger", not "sword".

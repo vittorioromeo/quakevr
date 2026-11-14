@@ -1829,3 +1829,129 @@ is a brand-new run; continuing keeps the run's own choices (from the save) and s
   menu_shortcuts_test 14/0, `vr_menu_path_check maps/vrcalibration.map` 0 missing; menu_paths.txt regenerated (the two
   Debug rows). Not tested headless: the Map Library's button with a real installed package (the tests have none).
 - **cltick1113:** retired 6 ticked checklist lines (dagger label, gore minimal, flashlight, lean, kd stir, dog gate; none had voice notes) and 3 unused scenes (flatlean, gore_presets, nav_tele_gate).
+
+## menudrag: menu wheel scrolls the page, fainter big-menu bar, holster menu drag and drop (branch agent/menudrag, 2026-11-13)
+
+His flat notes 5, 6, 9 (2026-11-13).
+- **Wheel scrolls the bar** (`vr_menu_wheel_scroll` 0.25; Menu Look > Settings Pages, "Mouse Wheel Scroll"): on a VR
+  settings page that scrolls, a wheel notch scrolls the page by that part of the rows shown (folded rows not counted;
+  `wheelScroll`, vr_menu.cpp) and the cursor stays on the page (its first place scrolling down, its last scrolling up,
+  only where it went off); 0 or a page that fits: a notch moves the cursor a row as before. The same step
+  (`menuui::wheelRows`, `VR_MenuWheelRows`) on Search's and the Map Library's results, the drop-down lists and
+  Ironwail's own option lists (`M_List`, 3 rows before; 3 with the setting at 0). Not smooth (rows are whole steps). VR
+  sticks unchanged (no wheel there). Test aid: `menu_vr wheeltest` (the page shown).
+- **Big-menu bar** (`vr_menu_big_hl_alpha` 0.14; Menu Look > Main Menu, "Big Menu Bar Opacity", 0.02-0.5): the soft
+  bar's opacity at its middle, bar and glow rings together; 0.14 is the settings pages' selected row's
+  (`colors::highlight`); the first look was about 0.31.
+- **Holster menu drag and drop** (vr_flatholster.cpp, vr_gadget_holster.inc): the left button held on a hand's or a
+  holster's weapon picks it up (a carried prop is not; an empty slot nothing); its thumbnail and name follow the cursor,
+  its slot fades, the slots it may go to are lit (a second ring, brighter under the cursor), the rest greyed. Let go:
+  hand <-> holster sends that holster's L/R impulse (`VR_FlatHolster_Swap`: QC's refusals, records, grip flags kept),
+  hand <-> hand SWAP's `flatplay::swapHands`, holster <-> holster the new impulses 24..38 (`24 + pair index`, QC
+  `VR_FlatHolster_Pair` / `VR_FlatHolster_SwapHolsters`: weapon, flags, record and model traded, or moved into an empty
+  one). On nothing or its own slot, or the menu closed mid-drag: cancelled. Greyed by the buttons' rules: a carrying
+  hand; a weapon too big for a holster (STAT_QVR_FLATUNLOADFULL bits 2, 3 from QC `WeaponIdToHolsterable`, set in
+  `VR_FlatReload_HandFrame`). In mode 0 a drag counts as a click (letting go of the wheel then only closes).
+- **Tests:** flatholster_test 54/0 (was 38; +16 drag checks: hand->holster, holster->hand, hand<->hand,
+  holster<->holster, holster->empty holster, drop on nothing / own slot cancels, empty holster picks nothing up,
+  too-big and carrying greyed; a mid-drag screenshot); `Misc/quakevr/menu_wheel_test.sh` 5/0 (Locomotion, 129 rows);
+  menu_shortcuts_test 14/0; `vr_menu_path_check` vrcalibration 6 found, 0 missing; menu_paths.txt regenerated. Scene
+  `flat_holster_drag`.
+## classic2: Classic = no reloading, plain grunts; checklist retire (agent/classic2, 2026-11-13)
+
+- **Rows:** Classic already had `vr_reload_mode` 0, `vr_agrunt_repl`/`vr_agknight`/`vr_agdknight` 0 and `vr_grunt_burst` 0; the gap was a gun's own `vr_reload_mode_<gun>` override (12 cvars, -1 follows the global) keeping a gun reloading. 12 rows added (Classic -1, Light/Unleashed default); GAMEPLAY_PRESET.md updated. Classic Quake and Run Setup Style=Classic apply the whole table (vr_runsetup_test 73/0).
+- **Tests:** `vr_gameplay_preset_test` 25/0 (extended: a per-gun override set before Classic is cleared, `reloadModeBest()` 0, no burst or armed knights); new `vr_gameplay_classic_check` (QC `VR_Classic_Check`) after `vr_classic_quake 1; map e1m1`: no gun reload mode, no burst rifle, 18 grunts, 0 armed humanoids: `classiccheck: 2 passed, 0 failed`.
+- **Checklist:** 36 ticked lines (no voice notes) retired, the FAIL line and the rest kept, 3 run-setup lines shortened; 16 unused scenes moved to scratch/old_*; checklist_tests_check 50/0.
+
+## vkfixes: small fixes after vkQuake (agent/vkfixes, 2026-11-14)
+
+- **Freed edicts in physics** (after vkQuake 5dfca693, 43d02d34, f99e66cc, 96dae868, c664a5b3): `SV_PushEntity` no
+  longer runs `SV_Impact` (nor `VR_MissileHitDebug`) when its `SV_LinkEdict (true)`'s trigger touches freed the mover
+  or the entity it hit; toss physics, `SV_WalkMove`'s step down, `PF_droptofloor` and `SV_movestep` never set a NULL or
+  freed `groundentity`; `SV_Physics_Step` returns after a freefall whose impact or relink freed it; the edicts loop's
+  `force_retouch` relink skips one it freed; `SV_TouchLinks` stops firing triggers on an entity an earlier trigger
+  removed (and skips freed triggers); `SV_Impact` never runs a freed e2's touch. **Kept as id's:** a freed e1 (a
+  missile removing itself in its touch) still reaches e2's touch as `other` (vkQuake skips it: a gameplay change).
+- **Sound list cleared at a game switch** (after vkQuake 5e58858c, which frees the oldest half of a full list and
+  moves the rest, breaking held pointers): `S_PrecacheSound` now pins its sound (the engine's and the VR code's, which
+  keep the pointer); the maps' precache lists (`cl_parse.c`, `vr_client.cpp`), `play`/`playvol` and `S_LocalSound` use
+  `S_PrecacheGameSound` (not pinned). `S_ForgetGameSounds` (COM_SwitchGameInternal, after the cache flush) empties the
+  unpinned slots no channel or game-time render (`VR_SndHoldsSfx`) plays and nulls `cl.sound_precache` pointing at
+  them; no slot ever moves, a new name takes the first empty one. `vr_walltorch.cpp`'s crackle pointer compare pins its
+  sound. `vr_limits`' "sounds known" counts the live ones.
+- **WAV chunks read within their length** (after vkQuake d235ab8c): the LIST "mark" (24 bytes), the cue point (28),
+  fmt (16) and RIFF's WAVE (4) checked against the chunk's length, else a warning; a loop longer than the data is a
+  warning (was `Sys_Error`), played to the data's end.
+- **The sample counter's wrap** (after vkQuake 03fa1ce8, which kept looping statics restarted): at `paintedtime`
+  > 2^30 (~6h45m) `S_StopAllSounds` stopped every sound, the static ones for good. Now `S_RebaseSoundTime` moves
+  paintedtime, every channel's end, the raw samples' end and spatial audio's carried render (`VR_SndRebase`) back by
+  whole DMA buffers (and whole raw rings when the buffer is smaller): nothing stops or skips. GetSoundtime's statics
+  are file-scope now; the wrap is told by `S_Update` (the mix may run on the pool).
+- **Tests:** `vr_snd_wav_check` 5/0 (each malformed WAV against a PAGE_NOACCESS page; with the LIST check disabled it
+  FAILs "read past the file"); `vr_snd_wrap_test` 1/2 on e1m1 with sound (`-Sound`, `SDL_AUDIODRIVER=dummy`): 14
+  statics, counter jumped to 2^30, wrapped to 5434, 14 playing on, 5/0 (Debug > Other > Sound Counter Wrap runs step
+  1 by hand); `Misc/quakevr/sound_switch_test.py <agent> 30` (id1 <-> AD `vr_campaign_native`, 60 loads, the SDL
+  dummy audio driver): "sounds known" 415 in id1 and 552 in AD every cycle (before, the list only grew to the union).
+## runfix: the run setup's flat-session bugs (agent/runfix, 2026-11-14)
+
+- **Difficulty missing after a campaign's launch (1):** not a stale build. On a map without skill halls the page is a
+  row longer than the view (26 rows, 21 in view headless) and opened with the cursor on Start, so the draw scrolled
+  the top row, Difficulty, out of sight; a campaign's page (halls: no Difficulty row) fit. A fold shortened the list.
+  Now `openRunSetup` builds the page for its launch (`menuPages.done` cleared, never the size of a fresh build marking
+  the old one current), opens it at scroll 0, the cursor on Start while it is in view from the top, else on the first
+  choice (Difficulty).
+- **Bloody Nightmare (2):** always a row (`shown`/`bnShown` gone; Difficulty held at Nightmare by its pick alone).
+  **Decision:** a row of its own beside Difficulty, not a fifth Difficulty option (a registry row is one cvar; the
+  save line keeps `bn=`).
+- **Glass Cannon on the dummy (3):** the hook (`VR_Run_Damage`) was in `T_Damage`; a hand's blow goes
+  `T_Damage_VRMelee` -> `T_DamageImpl` and never doubled. Moved to `T_DamageImpl`'s start (every blow, AD's too).
+- **Stale mutators (3, 4, 8):** every Run Setup way in (Levels, Map Library, New Game, campaigns, hub) already set
+  the run in `runsetup::start()` before its map (vr_runlaunch_test: each map spawned with the new values). The stale
+  path was a new game begun without the screen's Start (`map`: the VR menu's Firing Range and Tutorial buttons, the
+  debug maps, the console): it kept the last run's mutators, or the hub's cleared ones. Now Host_Map_f calls
+  `VR_RunNewGame` (`runsetup::newGame`): unless the run was set since the last map began (the Start, `endRun`,
+  `vr_run`, a load, or any mutator's `vr_run_<id>` changed: a cvar callback, so scenarios' and tests' `cvar vr_run_x`
+  stand), the screen's mutators (rows without `apply`) become the run's with a new seed; the difficulty and the
+  presets stay the Start's (they write settings). Changelevel, `restart` and loads unchanged.
+- **Test `vr_runlaunch_test`** (Debug > Tests; frame-driven, `runLaunchTestFrame` from VR_HostFrameEnd): Levels e1m1
+  (A: Melee Only, dagger, 3x), Levels e1m1 (B: revolver, Glass Cannon, Anything Goes enemies and pickups; saved), Map
+  Library Start (no index in tests: the run's values only), New Game, Official Campaigns, the hub's teleporter, Levels
+  vrfiringrange (Glass Cannon + Melee Only), the B save loaded, Levels after the load, the Firing Range button, `vr_run
+  glasscannon 0` + `map`. Each: the values the map spawned with (`runsetup::spawnedWith`) and now, QC
+  `VR_Run_LaunchCheck` (loadout, a gun's and a hand's blow on a monster and the dummy against the same blow without
+  the run, Melee Only on the map's guns and ammo, e1m1's enemy and pickup swaps). 31/0. Script `vr_runlaunch_test`,
+  `-QuitOn "runlaunch: [0-9]+ passed"`.
+- **Other tests:** vr_runsetup_test 73/0, vr_runsetup_screen_test 21/0 (adds: the shown page has Difficulty after a
+  start hall's launch and none for a hall, Bloody Nightmare never found a row, opened at its top), vr_run_check 15/0
+  (adds `map` after a load: the screen's mutators), vr_continue_rows_test 16/0. Scenario run_glass_dummy.
+
+## vkperf: vkQuake's pusher grid, FTE hull trace, faces on the job pool (agent/vkperf, 2026-11-14)
+
+- **Pusher grid** (`sv_fastpushmove`, default 1; after vkQuake af387967, d6bf6c4c, 32f74820; sv_phys.c): from the
+  second pusher moving in a tick, a spatial hash (256-unit cells, 4096 buckets, plain heap) of every edict's abs box
+  hands SV_PushMove the edicts near its sweep (old and new box, +8 units for riders) instead of all of them. Exact by
+  construction: clients always candidates (hanging at arm's length), big boxes and edicts allocated this tick
+  (ED_Alloc hook) always, every SV_LinkEdict re-inserts, and an edict past the one under test that is linked or
+  allocated mid-push re-gathers the rest; visited in edict order with the walk's own tests (riding, VR_ClimbHangsFrom,
+  Box3D's skip, corpses). 0 = Quake's walk; 2 = the grid from the first pusher and every push checked against the
+  walk (misses warned). `sv_pushgrid_stats [reset]`. Debug > Profiling and Memory: Pusher Search, Pusher Search Stats.
+  Checks: sv_fastpushmove 2 on ad_sepulcher (awake monsters, 40 s) 12 pushes, 0 missed; prop_climb_test lift and
+  liftlight PASS with 0 and 2, output identical; nav_lift passes with 0, 1 and 2 (its timing varies run to run with
+  either: 18.6 / 32.7 / 22.7 s, one fail each way: flaky, not seeded). Idle AD maps (ad_tfuma, ad_azad, e4m7) never
+  move two pushers in a tick: the grid is built only on maps with many movers; one door costs Quake's walk as before.
+- **Hull trace** (`sv_fte_hulltrace`, default 1; after vkQuake world.c Q1BSP_RecursiveHullTrace, on since 13b4b73a):
+  a whole move (fractions 0..1) traced by FTE's recursion; Quake's kept for 0 and for partial calls.
+  `sv_hulltrace_compare [n] [seed]`: e1m1/e4m7/dm5, 100000 seeded moves per hull: 0-2 hit/miss differ, 13-24 ends
+  more than 1/8 apart, 0 solid-flag differences, 0 ends in solid either way; FTE 28.6 vs 74.1 ms (e1m1 hull 0),
+  22.5 vs 42.3 (hull 1), 1.7-3x quicker everywhere. Seeded hull walks (vr_hull_walktest 60 7): e1m3 stuck 0 / 1 hop
+  failed both ways, e2m2 and e1m1 stuck 0; vr_portals_walktest dm5 184 carried, 0 walked through with 0 and 1. Some
+  hull-walk runs (e3m3, e4m1, one e1m1) ended without their summary line in either mode (harness, not the trace).
+  Debug > Profiling and Memory: Hull Trace, Compare Hull Traces.
+- **Faces on the job pool** (after vkQuake 64ce1738; gl_model.c): CalcSurfaceExtents and Mod_CalcSurfaceBounds after
+  Mod_LoadFaces's loop through `VR_ParallelFor` (a C bridge to jobs::parallelFor, sites in vr_jobs_sites), the
+  "Bad surface extents" check after the join. `mod_surfhash`: ad_tears 532b2765, e1m1 64c21f98 with vr_jobs_parallel
+  0 and 1. ad_tears: "map faces' extents" 4.5 -> 0.7 ms (vr_startup_times), of a 2.5 s load: alias models (581 ms:
+  skins 106, normal maps 248, draw lists 139) are the bigger part; their skins upload through GL on the main thread,
+  so vkQuake's parallel skin loading does not carry over; per-model draw lists are the next candidate (not done).
+- **Not done:** the A/B benchmark tables (bench.sh --fast --reps 3, exclusive): the author's game was running.
+  Settings for them (the agent worktree's scratch): vp_base.cfg (both 0), vp_grid.cfg (grid only), vp_all.cfg (both 1).

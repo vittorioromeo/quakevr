@@ -2282,9 +2282,11 @@ vr_menu_fold_time|1|Menu Look|Fold Animation Time|Advanced VR Options > HUD and 
 vr_menu_minor_scale|1|Menu Look|Page Footer Size|Advanced VR Options > HUD and Menus > Menu Look > Page Footer Size
 vr_menu_minor_alpha|1|Menu Look|Page Footer Opacity|Advanced VR Options > HUD and Menus > Menu Look > Page Footer Opacity
 vr_menu_hl_fit|1|Menu Look|Highlight Fits the Row|Advanced VR Options > HUD and Menus > Menu Look > Highlight Fits the Row
+vr_menu_wheel_scroll|1|Menu Look|Mouse Wheel Scroll|Advanced VR Options > HUD and Menus > Menu Look > Mouse Wheel Scroll
 vr_menu_main_gap|1|Menu Look|Main Menu Group Gap|Advanced VR Options > HUD and Menus > Menu Look > Main Menu Group Gap
 vr_menu_big_hl|1|Menu Look|Big Menu Highlight|Advanced VR Options > HUD and Menus > Menu Look > Big Menu Highlight
 vr_menu_big_hl_scale|1|Menu Look|Big Menu Grow|Advanced VR Options > HUD and Menus > Menu Look > Big Menu Grow
+vr_menu_big_hl_alpha|1|Menu Look|Big Menu Bar Opacity|Advanced VR Options > HUD and Menus > Menu Look > Big Menu Bar Opacity
 vr_runsetup_groups|1|Menu Look|Run Setup: Mutator Groups|Advanced VR Options > HUD and Menus > Menu Look > Run Setup: Mutator Groups
 vr_runsetup_big|1|Menu Look|Run Setup: Difficulty and Start Size|Advanced VR Options > HUD and Menus > Menu Look > Run Setup: Difficulty and Start Size
 vr_runsetup_halls_line|1|Menu Look|Run Setup: Skill Halls Line|Advanced VR Options > HUD and Menus > Menu Look > Run Setup: Skill Halls Line
@@ -4986,6 +4988,10 @@ vr_qcexec|2|Debug - Profiling and Memory|QuakeC Loop|Advanced VR Options > Debug
 |2|Debug - Profiling and Memory|Edict Index Stats|Advanced VR Options > Debug > Profiling and Memory > Edict Index Stats
 vr_findradius_grid|2|Debug - Profiling and Memory|findradius Search|Advanced VR Options > Debug > Profiling and Memory > findradius Search
 |2|Debug - Profiling and Memory|findradius Stats|Advanced VR Options > Debug > Profiling and Memory > findradius Stats
+sv_fastpushmove|2|Debug - Profiling and Memory|Pusher Search|Advanced VR Options > Debug > Profiling and Memory > Pusher Search
+|2|Debug - Profiling and Memory|Pusher Search Stats|Advanced VR Options > Debug > Profiling and Memory > Pusher Search Stats
+sv_fte_hulltrace|2|Debug - Profiling and Memory|Hull Trace|Advanced VR Options > Debug > Profiling and Memory > Hull Trace
+|2|Debug - Profiling and Memory|Compare Hull Traces|Advanced VR Options > Debug > Profiling and Memory > Compare Hull Traces
 |2|Debug - Profiling and Memory|Force Grab Search Stats|Advanced VR Options > Debug > Profiling and Memory > Force Grab Search Stats
 vr_gun_pieces_cache|2|Debug - Profiling and Memory|Gun Shapes on Disk|Advanced VR Options > Debug > Profiling and Memory > Gun Shapes on Disk
 |2|Debug - Profiling and Memory|Gun Shapes Stats|Advanced VR Options > Debug > Profiling and Memory > Gun Shapes Stats
@@ -5226,6 +5232,7 @@ vr_debug_screen_offhand|2|Debug - Reports|Off Hand's Ammo Screen|Advanced VR Opt
 |2|Debug - Reports|Wrist Gadget|Advanced VR Options > Debug > Reports > Wrist Gadget
 |2|Debug - Reports|View Text Follow|Advanced VR Options > Debug > Reports > View Text Follow
 |2|Debug - Reports|Limits|Advanced VR Options > Debug > Reports > Limits
+|2|Debug - Reports|Sound Counter Wrap|Advanced VR Options > Debug > Reports > Sound Counter Wrap
 |2|Debug - Reports|Network: Entities Sent|Advanced VR Options > Debug > Reports > Network: Entities Sent
 |2|Debug - Reports|Server Rules|Advanced VR Options > Debug > Reports > Server Rules
 |2|Debug - Reports|Keyboard Hook|Advanced VR Options > Debug > Reports > Keyboard Hook
@@ -5315,6 +5322,7 @@ vr_maps_allow_local|2|Debug - Tools|Allow Local Map Hosts|Advanced VR Options > 
 |2|Debug - Tools|Continue Rows Test|Advanced VR Options > Debug > Tools > Continue Rows Test
 |2|Debug - Tools|List Continue Rows|Advanced VR Options > Debug > Tools > List Continue Rows
 |2|Debug - Tools|Run Setup Screen Test|Advanced VR Options > Debug > Tools > Run Setup Screen Test
+|2|Debug - Tools|Run Launch Test|Advanced VR Options > Debug > Tools > Run Launch Test
 |2|Debug - Tools|Run Setup Test|Advanced VR Options > Debug > Tools > Run Setup Test
 |2|Debug - Tools|Open the Map Browser|Advanced VR Options > Debug > Tools > Open the Map Browser
 |2|Debug - Tools|Font Sample Message|Advanced VR Options > Debug > Tools > Font Sample Message

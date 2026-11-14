@@ -61,6 +61,23 @@ void registerCommands()
 
 } // namespace qvr::jobs
 
+namespace
+{
+qvr::jobs::Site surfacesSite{"map load: faces' extents and bounds"}; // (VR_ParallelFor's sites: vr_jobs_sites)
+qvr::jobs::Site aliasSkinsSite{"model load: alias skins"};
+} // namespace
+
+extern "C" void VR_ParallelFor(int site, int count, int chunk, void (*body)(int begin, int end, void* ctx), void* ctx)
+{
+    if(count <= 0)
+    {
+        return;
+    }
+    qvr::jobs::parallelFor(site == VR_PF_ALIASSKINS ? aliasSkinsSite : surfacesSite, static_cast<za::SizeT>(count),
+        static_cast<za::SizeT>(chunk > 0 ? chunk : 0),
+        [&](za::SizeT begin, za::SizeT end) { body(static_cast<int>(begin), static_cast<int>(end), ctx); });
+}
+
 extern "C" int VR_OnMainThread(void)
 {
     // (before VR_Init, only the main thread runs)

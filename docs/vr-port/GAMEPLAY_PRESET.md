@@ -78,6 +78,7 @@ each kept on its first apply). Console: `vr_classic_quake 1` / `0` (it shows 1 w
 | `vr_grenade_shoot` | shots, blows and blasts set grenades off | 0 | 1 | 1 | ? |
 | `vr_bullettime_enabled` | bullet time (gadget tap) | 0 | 0 | 1 |  |
 | `vr_reload_mode` | reloading (3 immersive); 0: guns fire from the reserve | 0 | 3 | 3 |  |
+| `vr_reload_mode_<gun>` (12: shot, sshot, nail, snail, gl, prox, rl, light, widow, adplasma, npistol, revolver) | a gun's own reloading mode; -1 follows `vr_reload_mode`, so at Classic no override of yours keeps a gun reloading (VR and flat) | -1 | default | default |  |
 | `vr_weapon_recoil` | programmatic recoil kicks the gun in your hand | 0 | 1 | 1 | ? |
 | `vr_portals_walk` | seamless teleporters (walk and shoot through); 0: Quake's teleport | 0 | 1 | 1 |  |
 | `vr_teleporter_pair_exits` | two-way gates come out of the paired gate's face; 0: at the marker | 0 | 1 | 1 | ? |

@@ -213,7 +213,8 @@ qboolean SV_movestep (edict_t *ent, vec3_t move, qboolean relink)
 	//	Con_Printf ("back on ground\n");
 		ent->v.flags = (int)ent->v.flags & ~FL_PARTIALGROUND;
 	}
-	ent->v.groundentity = EDICT_TO_PROG(trace.ent);
+	if (trace.ent && !trace.ent->free) // QVR: never a NULL or freed ground (after vkQuake 96dae868)
+		ent->v.groundentity = EDICT_TO_PROG(trace.ent);
 
 // the move is ok
 	if (relink)

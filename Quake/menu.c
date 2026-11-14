@@ -959,7 +959,7 @@ qboolean M_List_Key (menulist_t *list, int key)
 	case K_MWHEELUP:
 		if (!overflow)
 			return false;
-		list->scroll -= 3;
+		list->scroll -= VR_MenuWheelRows (list->viewsize) > 0 ? VR_MenuWheelRows (list->viewsize) : 3; // QVR: vr_menu_wheel_scroll
 		if (list->scroll < 0)
 			list->scroll = 0;
 		M_List_UpdateMouseSelection (list);
@@ -968,7 +968,7 @@ qboolean M_List_Key (menulist_t *list, int key)
 	case K_MWHEELDOWN:
 		if (!overflow)
 			return false;
-		list->scroll += 3;
+		list->scroll += VR_MenuWheelRows (list->viewsize) > 0 ? VR_MenuWheelRows (list->viewsize) : 3; // QVR: vr_menu_wheel_scroll
 		if (list->scroll > list->numitems - list->viewsize)
 			list->scroll = list->numitems - list->viewsize;
 		if (list->scroll < 0)
