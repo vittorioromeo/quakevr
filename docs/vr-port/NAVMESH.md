@@ -599,6 +599,13 @@ build / its props' batch not done by its frame: waited N ms`).
   takes ~100 ms (no-LTO), more than 3 frames, so 3 would hitch the main thread on every new size; the walker chases as
   Quake does meanwhile, as before. 0: the old way (when done). The `jobs::parallelFor`s (the map's load, the tiles of a
   batch) block where they run and need none.
+- **Big maps** (2026-11-14, ROUND25.md "perfpicks"): a class's *first* props' batch (the map's props at its start, all
+  its tiles at once: 270-437 ms of the whole pool on ad_tears) lands on `vr_nav_job_frames_first` (45, at least
+  `vr_nav_job_frames`), the later ones on `vr_nav_job_frames`; a class's build (or disk read) lands
+  `vr_nav_build_frames` + one frame per `vr_nav_build_frames_tris` (10,000) of the map's navmesh triangles (`buildFrames`:
+  ad_tears' 1.15 M -> 133, E1M1's -> 19). Both are fixed by the map's data and the game's own events, never by the
+  CPU: the same frames on every machine (multiplayer included), the main thread still waiting for a job late on its
+  frame. `vr_nav_info` prints the frames in force and the map's triangle count.
 - **Read or built alike:** a class read from the disk cache (no job: made at once) is taken on its frame too (the load's
   classes as well), so whether the file was there doesn't change the game (it did: `vr_arena_test 43`'s first run in a
   fresh game folder ended its knight 0.007 units away). `vr_nav_async` 0 (built at once) keeps no deadline.
