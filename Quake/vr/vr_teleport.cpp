@@ -57,12 +57,19 @@ void teleportUp_f()
     return static_cast<int>(vr_teleport_enabled.value);
 }
 
-// Smooth + Teleport's rule: from the ground only (this machine's server's player; VR_ClientTeleport checks again).
+// Smooth + Teleport's rule: from the ground only (this machine's server's player, or a remote client's own as his server
+// sends it: B3d; VR_ClientTeleport checks again).
 [[nodiscard]] bool standing()
 {
-    const edict_t* p = progs::localPlayer();
-    return p && (static_cast<int>(p->v.flags) & FL_ONGROUND) != 0 && p->v.waterlevel < 2.f && !climb::holding(HAND_OFF) &&
-           !climb::holding(HAND_MAIN);
+    if(climb::holding(HAND_OFF) || climb::holding(HAND_MAIN))
+    {
+        return false;
+    }
+    if(const edict_t* p = progs::localPlayer())
+    {
+        return (static_cast<int>(p->v.flags) & FL_ONGROUND) != 0 && p->v.waterlevel < 2.f;
+    }
+    return !sv.active && cls.state == ca_connected && cl.onground && !cl.inwater;
 }
 
 [[nodiscard]] bool trace(const hands::State& s, int hand)
@@ -473,6 +480,11 @@ void init()
     Cmd_AddCommand("+teleport", teleportDown_f);
     Cmd_AddCommand("-teleport", teleportUp_f);
     Cmd_AddCommand("vr_teleport_both_test", bothTest_f);
+}
+
+Status status()
+{
+    return {wasHeld, impactValid, impact, sent};
 }
 
 bool stickMode()

@@ -2,7 +2,9 @@
 //
 // Hands, weapons, the crosshair and the teleport aim collide with the level. Ironwail's
 // client has no collision world of its own, so traces go through the local server (as the
-// old engine did): they only work while hosting, which covers single player.
+// old engine did) while hosting, which covers single player; a remote client (multiplayer,
+// another machine's server) traces its own copy of the map instead (move: the world, the
+// moving brush models it has).
 
 #pragma once
 
@@ -16,7 +18,9 @@ namespace qvr::worldtrace
 {
 
 // A box swept from `start` to `end`, ignoring the local player (or, `pass` above 0, that edict and what it owns
-// instead); nothing when not hosting.
+// instead). Not hosting (a remote client: B3d), the client's own map: the world, the lifts, doors and platforms it has
+// (not rotated; never `pass`), by the hull SV_Move picks for the box's size; no portals, hit models, monsters or players
+// whatever `type` (the client has no solidity of its entities); `ent` always null. Nothing without a map, nor in a demo.
 [[nodiscard]] za::Optional<trace_t> move(
     const glm::vec3& start, const glm::vec3& mins, const glm::vec3& maxs, const glm::vec3& end, int type, int pass = 0);
 

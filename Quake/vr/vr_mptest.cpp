@@ -18,6 +18,8 @@
 #include "vr_geom.hpp"
 #include "vr_mpavatar.hpp"
 #include "vr_clientprefs.hpp"
+#include "vr_teleport.hpp"
+#include "vr_trace.hpp"
 
 #include <chrono>
 #include <stdio.h>
@@ -214,6 +216,26 @@ void status_f()
     if(!signedOn())
     {
         return;
+    }
+    // This client's teleport aim, and its own trace straight down from its player (worldtrace::move: the local server's
+    // world hosting, else the client's own map: B3d's client-side traces; "none": no trace).
+    const qvr::teleport::Status tp = qvr::teleport::status();
+    Con_Printf("mp_teleport: aiming=%d valid=%d sent=%d impact=%.1f %.1f %.1f\n", tp.aiming ? 1 : 0, tp.valid ? 1 : 0, tp.sent,
+        tp.impact.x, tp.impact.y, tp.impact.z);
+    if(cl.viewentity > 0 && cl.viewentity < cl.num_entities)
+    {
+        const glm::vec3 from = vec(cl_entities[cl.viewentity].origin);
+        const za::Optional<trace_t> tr =
+            qvr::worldtrace::move(from, glm::vec3{0.f}, glm::vec3{0.f}, from - glm::vec3{0.f, 0.f, 256.f}, MOVE_NOMONSTERS);
+        if(tr)
+        {
+            Con_Printf("mp_trace: hosted=%d frac=%.3f floor=%.1f normal=%.2f\n", sv.active ? 1 : 0, tr->fraction, tr->endpos[2],
+                tr->plane.normal[2]);
+        }
+        else
+        {
+            Con_Printf("mp_trace: none\n");
+        }
     }
     for(int i = 1; i <= cl.maxclients && i < cl.num_entities; i++)
     {

@@ -24,7 +24,10 @@ Tests:
              each given a shotgun with his grips let go, A keeps it and B's falls; then the other way round.
     grab     the rig up: the server has each player's fists as his client poses them; B's shotgun falls from his
              open hand and he closes it on it: taken, judged by his own fist on the dedicated server.
-    suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, version, avatar, avatarcal, body, prefs, grab.
+    teleport client-side traces: B (a remote client) traces his own map down to his floor; he aims a teleport with his off
+             hand (his own trace: valid) and lets go: the server moves him there, A sees him there.
+    suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, version, avatar, avatarcal, body, prefs, grab,
+             teleport.
 
 The base folder is a Quake folder with id1 (and hipnotic, rogue, quakevr: -game as the kit's runs). Its
 id1/autoexec.cfg runs in every game: --reset-autoexec empties it first (the kit's test bases: a run's script).
@@ -728,6 +731,87 @@ def grab(s):
             "B's main weapon by report while pressing: %s" % seen)
 
 
+def status(inst):
+    """vr_mp_status on `inst` -> its lines from that report."""
+    since = inst.mark()
+    inst.cmd("vr_mp_status; echo mp_status_done")
+    n, _ = inst.wait(r"mp_status_done", 10, since, "%s's status" % inst.name)
+    return inst.lines[since:n]
+
+
+def org_of(lines, prefix, key, value):
+    """The org of the `prefix` line ("mp_client", "mp_player") whose `key` is `value` -> [x, y, z] or None."""
+    for l in lines:
+        if l.startswith(prefix + ":"):
+            m = re.search(r"\b%s=(\d+)\b.*org=([-\d.]+) ([-\d.]+) ([-\d.]+)" % key, l)
+            if m and int(m.group(1)) == value:
+                return [float(m.group(i)) for i in (2, 3, 4)]
+    return None
+
+
+TELEPORT_MIN = 48  # mp_teleport: B's aim lands this far ahead of him at least (units)
+
+
+def teleport(s):
+    """Client-side traces (vr_trace.cpp: worldtrace::move on a remote client traces the client's own map) and a remote
+    client's teleport: B, a client of the dedicated server, traces down from his player to the floor his server has him
+    on (his origin 24 over it); he aims his off hand ahead and down with +teleport (vr_teleport_enabled 1): his own aim
+    lands on the floor (valid); let go, the server moves him there and A sees him there."""
+    srv, a, b, ea, eb = join(s)
+    lines = status(b)
+    own = org_of(lines, "mp_player", "ent", eb)
+    tr = [l.strip() for l in lines if l.startswith("mp_trace:")]
+    f = dict(re.findall(r"(\w+)=([-\d.]+)", tr[0])) if tr and "none" not in tr[0] else {}
+    s.check("B's own trace down (no local server: the client's map) stops on the floor 24 under his origin",
+            bool(f) and own is not None and f.get("hosted") == "0" and float(f["frac"]) < 1.0 and
+            float(f["normal"]) > 0.99 and abs(float(f["floor"]) - (own[2] - 24.0)) <= 1.0,
+            "B at %s; %s" % (own, tr))
+
+    # B aims: the off hand at his chest, raised from steep to level (the mock's pitch up; the hand's aim is the
+    # controller's turned by his gun angle) until his aim lands on the floor at least TELEPORT_MIN units ahead.
+    b.cmd("vr_teleport_enabled 1; +teleport")
+    aim, got, impact, tried = {}, [], None, []
+    for pitch in range(60, 72):
+        b.cmd("vr_mock_hand off -0.2 1.2 -0.3 %d 0 0" % pitch)
+        for _ in range(10):
+            got = [l for l in status(b) if l.startswith("mp_teleport:")]
+            aim = dict(re.findall(r"(\w+)=([-\d.]+)", got[0])) if got else {}
+            if aim.get("aiming") == "1" and aim.get("valid") == "1":
+                break
+        m = re.search(r"impact=([-\d.]+) ([-\d.]+) ([-\d.]+)", got[0]) if got else None
+        here = [float(m.group(i)) for i in (1, 2, 3)] if m and aim.get("valid") == "1" else None
+        tried.append((pitch, round(dist(here[:2], own[:2]), 1) if here and own else None))
+        if here and own and dist(here[:2], own[:2]) >= TELEPORT_MIN:
+            # (once more: the report in the frame of the hand's command could be the last pose's aim)
+            got = [l for l in status(b) if l.startswith("mp_teleport:")]
+            m = re.search(r"valid=1 .*impact=([-\d.]+) ([-\d.]+) ([-\d.]+)", got[0]) if got else None
+            impact = [float(m.group(i)) for i in (1, 2, 3)] if m else None
+            break
+    s.check("B's teleport aim (his own trace on his client) lands on a floor %d units ahead or more" % TELEPORT_MIN,
+            impact is not None, "pitch, units ahead: %s; last %s" % (tried, got[0].strip() if got else "-"))
+    if impact is None:
+        return
+    before = org_of(status(srv), "mp_client", "slot", eb - 1)
+    b.cmd("-teleport")
+    at = before
+    for _ in range(60):
+        at = org_of(status(srv), "mp_client", "slot", eb - 1)
+        if at and dist(at, impact) <= 2.0:
+            break
+    s.metric("b_teleport_units", round(dist(before, at), 1) if before and at else -1)
+    s.check("the server moves B to where his client aimed (within 2 units)",
+            at is not None and before is not None and dist(at, impact) <= 2.0,
+            "B from %s to %s; aimed %s" % (before, at, impact))
+    seen = None
+    for _ in range(40):
+        seen = org_of(status(a), "mp_player", "ent", eb)
+        if seen and dist(seen, impact) <= 4.0:
+            break
+    s.check("A sees B where he teleported (within 4 units)", seen is not None and dist(seen, impact) <= 4.0,
+            "A sees B at %s; aimed %s" % (seen, impact))
+    b.cmd("vr_teleport_enabled 0; vr_mock_hand off")
+
+
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
     s = Session(args.exe, args.base, args.out, test, port=args.port)
     failure = None
@@ -746,6 +830,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             prefs(s)
         elif test == "mp_grab":
             grab(s)
+        elif test == "mp_teleport":
+            teleport(s)
         else:
             coop(s, args.listen, args.flat or "", lag, jitter, loss)
     except StepFailed as e:
@@ -758,7 +844,7 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -781,7 +867,7 @@ def main():
                 sys.exit(2)
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
-    elif args.test in ("bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab"):
+    elif args.test in ("bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport"):
         ok = run(args, "mp_" + args.test)
     else:
         ok = run(args, "mp_coop")
@@ -793,6 +879,7 @@ def main():
         ok = run(args, "mp_body") and ok
         ok = run(args, "mp_prefs") and ok
         ok = run(args, "mp_grab") and ok
+        ok = run(args, "mp_teleport") and ok
         print("mp_suite: %s" % ("passed" if ok else "FAILED"))
     sys.exit(0 if ok else 1)
 
