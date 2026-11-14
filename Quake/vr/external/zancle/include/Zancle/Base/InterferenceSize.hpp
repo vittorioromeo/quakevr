@@ -22,7 +22,8 @@ enum : SizeT
 
 } // namespace za
 
-#elif defined(_M_IX86) || defined(_M_X64) || defined(_M_ARM) || defined(_M_ARM64)
+#elif defined(_M_IX86) || defined(_M_X64) || defined(_M_ARM) || defined(_M_ARM64) || defined(__aarch64__) || \
+    defined(__x86_64__) || defined(__i386__) || defined(__arm__)
 
 namespace za
 {

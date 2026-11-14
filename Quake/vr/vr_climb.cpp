@@ -678,7 +678,8 @@ enum class Check
     float best = 1e30f;
     bool found = false;
     // The nearest point of `box` not in a blocker that comes first there: split round the first such blocker met.
-    const auto search = [&](this const auto& search, const Box& box, int depth) -> void {
+    // (itself as an argument, not `this auto`: the Android NDK's clang 18 cannot compile a deducing-this lambda's captures)
+    const auto search = [&](const auto& search, const Box& box, int depth) -> void {
         const glm::vec3 p = glm::clamp(h, box.lo, box.hi);
         const float d = glm::distance(p, h);
         if(d >= best)
@@ -705,11 +706,11 @@ enum class Check
                 above.lo[axis] = za::max(box.lo[axis], b.box.hi[axis] + 2e-3f);
                 if(below.lo[axis] <= below.hi[axis])
                 {
-                    search(below, depth + 1);
+                    search(search, below, depth + 1);
                 }
                 if(above.lo[axis] <= above.hi[axis])
                 {
-                    search(above, depth + 1);
+                    search(search, above, depth + 1);
                 }
             }
             return;
@@ -728,7 +729,7 @@ enum class Check
     };
     if(flat)
     {
-        search(boxOf(c), 0);
+        search(search, boxOf(c), 0);
     }
     else
     {

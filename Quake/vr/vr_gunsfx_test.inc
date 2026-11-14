@@ -45,7 +45,14 @@ void test_f()
     testkit::Tally t;
     char what[256];
     const auto check = [&](bool ok, const char* fmt, auto... args) {
-        q_snprintf(what, sizeof(what), fmt, args...);
+        if constexpr(sizeof...(args) == 0)
+        {
+            q_strlcpy(what, fmt, sizeof(what)); // (no format without arguments: -Wformat-security, an error in the NDK)
+        }
+        else
+        {
+            q_snprintf(what, sizeof(what), fmt, args...);
+        }
         t.check(ok, N, what);
     };
     if(cls.state != ca_connected || !cl.worldmodel || cl.viewentity <= 0 || !shm)
