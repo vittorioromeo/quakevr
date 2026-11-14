@@ -1906,15 +1906,31 @@ WID_SWORD = 13
 SWORD_GIVE = 150 + WID_SWORD  # the test give of a sword
 # A sword swung level from the right to the left across the front (its blade turned 150 degrees in 0.2 s, the hand
 # going across with it: about 13 m/s at the tip), held there, then brought back slowly.
-SWING_PLAY = ("0.000 main 0.65 1.25 -0.30 0 -90 0", "0.400 main 0.65 1.25 -0.30 0 -90 0",
-              "0.650 main -0.55 1.25 -0.45 0 75 0", "1.400 main -0.55 1.25 -0.45 0 75 0",
-              "3.400 main 0.65 1.25 -0.30 0 -90 0", "3.600 main 0.65 1.25 -0.30 0 -90 0")
-SWING_READY = "vr_mock_hand main 0.65 1.25 -0.30 0 -90 0"
+SWING_PLAY = ("0.000 main 0.95 1.25 -0.15 0 -100 0", "0.400 main 0.95 1.25 -0.15 0 -100 0",
+              "0.700 main -0.55 1.25 -0.45 0 75 0", "1.400 main -0.55 1.25 -0.45 0 75 0",
+              "3.400 main 0.95 1.25 -0.15 0 -100 0", "3.600 main 0.95 1.25 -0.15 0 -100 0")
+SWING_READY = "vr_mock_hand main 0.95 1.25 -0.15 0 -100 0"
 # The other's crowbar held upright in front, across a level swing's way (square to its blade and its way: the
 # directional parry's), its grip under the blade's height.
 UPRIGHT = "vr_mock_hand main -0.50 1.05 -0.45 90 0 0"
 JITTER_MS = 30.0  # B's link's jitter for the swing at it (sub-tick samples)
 JITTER_SLACK = 0.2  # the jittered swing's strength within this share of the clean one's
+
+
+EMPTY_HAND = "vr_mock_hand main 0.20 1.00 -0.10 0 0 0"  # a hand let go, drawn back low at the side
+
+
+def settled(srv, ents, tries=100):
+    """The weapons lying nearest each hand of players `ents` still (`nspeed` under 0.5, or none) in two reports running
+    -> True; False after `tries` reports (a safety net)."""
+    still = 0
+    for _ in range(tries):
+        g = ground_report(srv, "mp_drawn_sv")
+        moving = any(g.get((e, h), {}).get("nspeed", 0.0) >= 0.5 for e in ents for h in (0, 1))
+        still = 0 if moving else still + 1
+        if still >= 2:
+            return True
+    return False
 
 
 def give_until(s, srv, inst, ent, pose, impulse, wid):
@@ -1923,9 +1939,11 @@ def give_until(s, srv, inst, ent, pose, impulse, wid):
     if has == wid:
         inst.cmd(pose)
         return
-    if has != 0:  # (another weapon in that hand: let go of first, for a new press of the grip)
-        inst.cmd("vr_mock_button main grip 0")
+    if has != 0:  # (another weapon in that hand: let go of first, for a new press of the grip; the hand drawn back
+        #             and the weapon come to rest first, or the press retakes it falling against the hand, 1 run of 3)
+        inst.cmd("vr_mock_button main grip 0; %s" % EMPTY_HAND)
         weapon_until(s, srv, ent, 0)
+        settled(srv, (ent,))
     grip_then_give(srv, inst, "%s; vr_mock_button main grip 1" % pose, "main", impulse)
     weapon_until(s, srv, ent, wid)
 
@@ -1938,11 +1956,14 @@ def swing(s, srv, att, dfd, ea, ed, label, guard, open_dmg=None):
     for inst in (att, dfd):
         inst.cmd("give h 100")
     if guard is None:
-        dfd.cmd("vr_mock_button main grip 0; vr_mock_hand main 0.20 1.00 -0.10 0 0 0")
+        dfd.cmd("vr_mock_button main grip 0; %s" % EMPTY_HAND)
         weapon_until(s, srv, ed, 0)
     else:
         give_until(s, srv, dfd, ed, GUARD if guard == "level" else UPRIGHT, 167, 17)
     give_until(s, srv, att, ea, SWING_READY, SWORD_GIVE, WID_SWORD)
+    # (a weapon just let go of, still falling between them, is struck by the swing: a blow on a thrown weapon and none
+    # on the other, 1 run of 3)
+    settled(srv, (ea, ed))
     since = srv.mark()
     if os.environ.get("MP_SWING_TRACE"):
         srv.cmd("developer 3")

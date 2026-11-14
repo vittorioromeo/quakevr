@@ -231,7 +231,8 @@ float(entity g, float blowhand) VR_DRP_PvpApplies =
         return FALSE;
     }
     float wid = VRGetEntWeapon(g, blowhand - 1);
-    if(VR_AG_Class(wid) != VR_AG_CLASS_MELEE || wid == WID_CHAINSAW || handlineat(g, blowhand - 1, 0) < 0 ||
+    float at = handlineat(g, blowhand - 1, 0); // (kept while his hands are tracked: a flat-screen swing has none)
+    if(VR_AG_Class(wid) != VR_AG_CLASS_MELEE || wid == WID_CHAINSAW || at < 0 || time - at > VR_DRP_LOOKBACK ||
        vr_blow_a == vr_blow_b)
     {
         return FALSE;
