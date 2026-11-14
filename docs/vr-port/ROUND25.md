@@ -2107,3 +2107,58 @@ pages; with live preview the player kept walking once the menu opened.
   heap_allocs a frame rose (combat_48 10.8 -> 35.0, ai_crowd_64 9.1 -> 35.2, the AD fight 6.2 -> 81.9): the per-frame
   temporary hunk lists (SV_PushMove, SV_TouchLinks, VR physics) are mallocs now. If they ever show in a profile, they
   can move to their files' mem::Scratch. nh_after/nh_after2 are the runs with garbage NoFill blocks (above).
+
+## vkbench: the vkQuake ports benchmarked; the FTE hull trace stays off (agent/vkbench, 2026-11-14)
+
+Benches: `bench.sh --fast --reps 3`, exclusive, ReleaseLTO of origin/next 12c7ed23a (before the nohunk merge), the
+author's game closed. Settings (worktree scratch): vb_base.cfg (sv_fastpushmove 1, sv_fte_hulltrace 0), vb_nopush.cfg
+(0, 0), vb_hull.cfg (1, 1); vb_jobs0/1.cfg (vr_jobs_parallel). Two passes in opposite orders (base, nopush, hull; then
+hull, nopush, base: labels vb_* and vb2_* in kit/benchresults): the whole-frame and GPU numbers drift 5-10% between
+batches (the GPU's p99 halved from the first batch to the second with no GPU change), so the tables read the server's
+own phase, `cpu_phase_ms` SV_Physics (ms a frame, mean of 3), from the JSONs (scratch/vb_table.py).
+
+**FTE hull trace** (sv_fte_hulltrace 0 -> 1), SV_Physics, pass 1 | pass 2:
+
+| scenario | pass 1 | pass 2 |
+|---|---|---|
+| combat_48 | 1.445 -> 1.483 (+2.6%) | 1.417 -> 1.487 (+4.9%) ** |
+| ai_crowd_64 | 1.713 -> 1.794 (+4.7%) ** | 1.687 -> 1.731 (+2.7%) |
+| idle_e1m1 | 0.716 -> 0.792 (+10.6%) ** | 0.702 -> 0.705 (+0.4%) |
+| play_ad_tfuma_fight | 3.194 -> 3.561 (+11.5%) ** | 3.229 -> 3.389 (+5.0%) ** |
+| fight_ad_sepulcher | 0.675 -> 0.725 (+7.3%) ** | 0.671 -> 0.763 (+13.6%) ** |
+
+Slower in both orders (frame p50 too: tfuma +8.3% / +6.3%, sepulcher +2.9% / +11.8%). `sv_hulltrace_compare` timed
+it 1.7-3x quicker, but on random moves up to 512 units an axis; the game's traces are mostly short (step moves,
+8-18 units, point-sized), probably where FTE's per-call setup costs more than Quake's recursion saves. Not chased.
+
+**Pusher grid** (sv_fastpushmove 1 -> 0), SV_Physics change without the grid, pass 1 | pass 2: combat_48 +1.0% |
+-0.5%, ai_crowd_64 +0.9% | -0.4%, idle_e1m1 +0.6% | -0.9%, play_ad_tfuma_fight +2.7% | +1.4%, fight_ad_sepulcher
++11.4% | -0.5%. Within the noise but for one pass on sepulcher: no measurable gain on these scenes, no cost; it stays 1.
+
+**Faces on the job pool** (vr_jobs_parallel 0 -> 1; 0 turns off every pool job of a load, hulls, Box3D and navmesh
+too, not only the faces), load ms, median of 3:
+
+| load | jobs 0 | jobs 1 |
+|---|---|---|
+| e1m1 cold / warm / restart | 1812 / 250 / 180 | 1691 / 208 / 158 (-7%, -17%, -12%) |
+| ad_azad cold / warm | 3151 / 8320 | 1988 / 1682 (-37%, -80%) |
+| ad_tears cold | 9463 | 3704 (-61%) |
+
+ad_azad's warm load is mostly "disconnect, old server shut down" (7.7 s with 0, 4.6 s in a slow rep with 1): the first
+map's background builds joined before the second load. One ad_tears rep with 1 took 17.3 s (the 85 MB BSP's first read
+from disk), left out by the median. New bench scenario `load_ad_azad` (cold, warm). No big library map here:
+`load_ad_grendel` loaded nothing (the package is not installed on this machine).
+
+**Hull trace tests** (sv_fte_hulltrace 0 and 1 through the agent's baseline config, 4 lanes; logs scratch/vb_t0,
+vb_t1): load_models_test 4/0 both; melee_phase_test 7 of 7 both; melee_arc_test (id) every result line identical;
+ragdoll climb_test 24/24 both; stagger_test 54 PASS, 2 FAIL both (the same two: monster 2 "all 8 recovered (7)",
+monster 0 "beaten ones backpedal"; not the trace); forcegrab_block_test, walltorch_grab_test, pickup_mag_test
+identical; `vr_snd_test distance` (the occlusion's hull-0 line of sight) the same one FAIL both ("in sight, as loud as
+Quake's mix", the SDL dummy driver run); hullhit/hit_test within its run-to-run spread (e.g. grunt 193 vs 175, ogre
+475 vs 473). Hull walks (90 s, seed 7): e1m1, e3m3, e4m1 stuck 0, embedded 0, outside 0 both ways (e4m1 1 hop failed
+both). **Verdict:** nothing breaks with 1, but it is slower in play: sv_fte_hulltrace stays 0.
+
+**walk_test.sh's missing summaries:** the summary line follows a console bar left open on the same log line, so
+`^hullwalk` never matched and every run waited out its `wait` (the e3m3/e4m1/e1m1 runs "without a summary"). Now
+matched unanchored, `-QuitOn` on it (the run ends there, the log flushed every frame), and a last line
+`walk_test: N maps, M without a summary`.

@@ -661,6 +661,9 @@ def scenarios():
     add("load_ad_tears", ["r25", "loading"], "AD's ad_tears (85 MB BSP, the biggest on hand) loaded cold, native AD", None,
         "`map ad_tears` with `vr_campaign_native ad`, cold.", header=AD,
         setup=LOADS, warm=30, body=loads_body([("cold", "map ad_tears")], each=200), loads=1, frames=0)
+    add("load_ad_azad", ["loading"], "AD's ad_azad loaded cold and warm, native AD", None,
+        "`map ad_azad` with `vr_campaign_native ad`, cold then again.", header=AD,
+        setup=LOADS, warm=30, body=loads_body([("cold", "map ad_azad"), ("warm", "map ad_azad")]), loads=2, frames=0)
     add("load_ad_restarts", ["loading"], "AD's maps restarted (a death): ad_sepulcher and ad_tfuma, each cold then twice",
         None, "`map ad_sepulcher`, `restart` twice, `map ad_tfuma`, `restart` twice, native AD: the restarts keep the "
         "crates' and rocks' layouts (vr_place_keep), the hulls (vr_hull_keep).", header=AD, setup=LOADS, warm=30,

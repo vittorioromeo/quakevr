@@ -849,7 +849,7 @@ slip through or stick), no second walk. Thread-safe like Quake's (vr_ledges.cpp 
 the caller's. sv_fte_hulltrace 0: Quake's (to compare).
 ==================
 */
-cvar_t sv_fte_hulltrace = {"sv_fte_hulltrace", "0", CVAR_NONE}; // QVR: 1 = FTE's hull trace, 0 = Quake's (default 0 until melee/grab/stagger tests + benches are run)
+cvar_t sv_fte_hulltrace = {"sv_fte_hulltrace", "0", CVAR_NONE}; // QVR: 1 = FTE's hull trace, 0 = Quake's (default 0: the tests pass with 1, but it was 3-14% slower in SV_Physics in play: ROUND25.md, "vkbench")
 
 enum { rht_solid, rht_empty, rht_impact };
 
