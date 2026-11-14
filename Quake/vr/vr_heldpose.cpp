@@ -456,8 +456,10 @@ void mpDrawn_f()
                 f.rot >= 0 ? progs::fieldVec(player, f.rot) : glm::vec3{0.f});
             // (the nearest weapon's speed: the harness waits for one let go to come to rest before reaching for it)
             const edict_t* n = nearest > 0 ? edictOf(nearest) : nullptr;
-            Con_Printf(" nspeed=%.1f\n", n ? static_cast<double>(glm::length(glm::vec3{n->v.velocity[0], n->v.velocity[1],
-                n->v.velocity[2]})) : -1.0);
+            // (and where it lies: B5's harness puts the other player beside a weapon one let go of)
+            Con_Printf(" nspeed=%.1f norg=%.1f,%.1f,%.1f\n", n ? static_cast<double>(glm::length(glm::vec3{n->v.velocity[0],
+                n->v.velocity[1], n->v.velocity[2]})) : -1.0, n ? static_cast<double>(n->v.origin[0]) : 0.0,
+                n ? static_cast<double>(n->v.origin[1]) : 0.0, n ? static_cast<double>(n->v.origin[2]) : 0.0);
         }
     }
 }

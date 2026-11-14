@@ -4671,7 +4671,8 @@ void() ImpulseCommands =
     // QVR: the single-player test and debug impulses (vr_impulse_test.qc): first, as each returns or falls
     // through as it did here.
 #ifdef QVR_TESTS
-    if(!deathmatch && !coop && VR_TestImpulse())
+    // (in coop too, as the gives below: impulse 241's things put ahead of the player who asks, the multiplayer harness's)
+    if(!deathmatch && (!coop || self.impulse == 241) && VR_TestImpulse())
     {
         return;
     }

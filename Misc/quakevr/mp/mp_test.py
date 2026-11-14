@@ -31,8 +31,12 @@ Tests:
     download a dedicated server on a Map Library package's map: A (it installed) mounts it and joins; B (lacking it) is
              told with vr_mp_download 0, and with 1 installs it through the map installer (a local index and mirror)
              and joins.
+    pickup   a weapon dropped by one player and picked up by the other, each way: A's shotgun falls from his opened
+             hand, B (put beside it) closes his hand on it; then B lets it fall and A takes it.
+    forcegrab  force grab of a weapon of the level in coop: a super shotgun pickup ahead (vr_test_spawn 116); B's force
+             grab (point, trigger, flick, grip) brings it to his hand and the pickup stays for the others; then A's.
     suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, version, avatar, avatarcal, body, prefs, grab,
-             teleport, held.
+             teleport, held, ground, campaign, campaign_listen, flow, download, pickup, forcegrab.
 
 The base folder is a Quake folder with id1 (and hipnotic, rogue, quakevr: -game as the kit's runs). Its
 id1/autoexec.cfg runs in every game: --reset-autoexec empties it first (the kit's test bases: a run's script).
@@ -985,6 +989,9 @@ def ground_report(inst, prefix):
             ns = re.search(r"\bnspeed=(-?[\d.]+)", l)
             if ns:
                 out[(int(m.group(1)), int(m.group(2)))]["nspeed"] = float(ns.group(1))
+            no = re.search(r"\bnorg=(-?[\d.]+),(-?[\d.]+),(-?[\d.]+)", l)
+            if no:
+                out[(int(m.group(1)), int(m.group(2)))]["norg"] = [float(no.group(i)) for i in (1, 2, 3)]
     return out
 
 
@@ -1600,6 +1607,157 @@ def download(s):
         httpd.shutdown()
 
 
+OPEN_SPOT = (480.0, -296.0, 72.0)  # e1m1: between the coop starts (432/528 -296), the way north open ahead (yaw 90)
+COOP_SPOTS = ((432.0, -296.0, 72.0), (528.0, -296.0, 72.0))  # e1m1's coop starts (the single player start, on its
+#                                                                 step, put a player there stuck: SV_CheckStuck moved him)
+
+
+def side_spot(srv, other):
+    """Out of OPEN_SPOT's way: the coop start farther from player `other` (who may still stand on his)."""
+    at = org_of(status(srv), "mp_client", "slot", other - 1) or [0.0, 0.0, 0.0]
+    return max(COOP_SPOTS, key=lambda p: math.hypot(p[0] - at[0], p[1] - at[1]))
+
+
+THROW_SETTLE_S = 0.5  # game seconds a hand is held still before it lets go (past vr_throw's window of samples)
+
+
+def put_at(srv, inst, ent, at, yaw=None, tries=60):
+    """`inst`'s player put at `at` (setpos: it turns noclip on; "noclip" turns it off again), facing `yaw` if given,
+    until the server has him within 4 units of it across -> his origin there (a definite end: `tries` reports)."""
+    inst.cmd("setpos %.1f %.1f %.1f%s; noclip" % (at[0], at[1], at[2], "" if yaw is None else " 0 %.1f 0" % yaw))
+    got = None
+    for _ in range(tries):
+        got = org_of(status(srv), "mp_client", "slot", ent - 1)
+        if got and math.hypot(got[0] - at[0], got[1] - at[1]) <= 4:
+            return got
+    raise StepFailed("%s never put at %s (the server has him at %s)" % (inst.name, at, got))
+
+
+def lying(srv, ent, tries=100):
+    """The weapon lying nearest player `ent`'s main hand on the server, at rest in two reports running ->
+    (its entity, its origin) (a definite end: `tries` reports)."""
+    still, g = 0, {}
+    for _ in range(tries):
+        g = ground_report(srv, "mp_drawn_sv").get((ent, 1), {})
+        still = still + 1 if g.get("norg") and g.get("nspeed", 1.0) < 0.5 else 0
+        if still >= 2:
+            return g["rev"][0], g["norg"]
+    raise StepFailed("no weapon at rest by player %d's hand: %s" % (ent, g))
+
+
+def hand_over(s, srv, giver, taker, eg, et, give):
+    """The giver (at OPEN_SPOT) lets his shotgun fall from his opened main hand (given first if `give`); the taker, put
+    beside it, closes his empty main hand on it: the server puts it in the taker's hand by his own grip and fist."""
+    label = "%s to %s" % (giver.name, taker.name)
+    low = "vr_mock_hand main 0.1 0.25 -0.35 0 0 0"
+    put_at(srv, giver, eg, OPEN_SPOT, 90)
+    if give:
+        grip_then_give(srv, giver, "%s; vr_mock_button main grip 1; vr_mock_button off grip 0" % low)
+    else:
+        giver.cmd(low)
+    held = weapon_until(s, srv, eg, 4)
+    # (the hand still a moment before it opens: the mock reports a hand put elsewhere in one frame as moving that fast,
+    # and a release within the throw's window threw the gun 500 units: B to A, 1 run of 3)
+    server_time_past(srv, server_time(srv) + THROW_SETTLE_S)
+    giver.cmd("vr_mock_button main grip 0")
+    gone = weapon_until(s, srv, eg, 0)
+    s.check("%s: %s's shotgun falls from his opened hand" % (label, giver.name), held[-1] == 4 and gone[-1] == 0,
+            "%s's main weapon by report: %s, then %s" % (giver.name, held, gone))
+    gun, spot = lying(srv, eg)
+    at = org_of(status(srv), "mp_client", "slot", eg - 1)
+    d = [spot[0] - at[0], spot[1] - at[1]]
+    n = math.hypot(d[0], d[1]) or 1.0
+    beside = (spot[0] + d[0] / n * 24, spot[1] + d[1] / n * 24, at[2])
+    put_at(srv, taker, et, beside)
+    s.note("%s: the shotgun (entity %d) lies at %s; %s put at %s" % (label, gun, spot, taker.name, beside))
+
+    # The taker's empty main hand pressed and let go once (the server's let-go that retake starts from), then over the
+    # gun's grip and onto it with the grip pressed (retake: up to 3 presses).
+    taker.cmd("vr_mock_hand main 0.1 0.6 -0.2 0 0 0; vr_mock_button main grip 0")
+    since = srv.mark()
+    taker.cmd("vr_mock_button main grip 1")
+    srv.wait(r"grip: %s's main hand pressed at" % taker.name, 10, since, "%s's grip on the server" % taker.name)
+    since = srv.mark()
+    taker.cmd("vr_mock_button main grip 0")
+    line = retake(srv, taker, "main", since, r"weapon: .* taken into the main hand", "vr_mock_hand_to main spot 0 6",
+                  "vr_mock_hand_to main spot 0")
+    s.note("%s: the server's take: %s" % (label, line))
+    took = weapon_until(s, srv, et, 4)
+    left = weapon_until(s, srv, eg, 0, 1)
+    s.check("%s: %s's grip takes the shotgun %s let go of (the server's: in his main hand; %s's still empty)" % (
+        label, taker.name, giver.name, giver.name), line is not None and took[-1] == 4 and left[-1] == 0,
+        "%s's main weapon by report: %s; %s's: %s" % (taker.name, took, giver.name, left))
+
+
+def pickup(s):
+    """A weapon dropped by one player and picked up by the other, each way: A (given a shotgun) opens his hand, it falls;
+    B, put beside it, closes his hand on it: his. Then B lets it fall and A takes it back."""
+    srv, a, b, ea, eb = join(s)
+    a.cmd("name A")
+    b.cmd("name B")
+    hand_over(s, srv, a, b, ea, eb, True)
+    put_at(srv, a, ea, side_spot(srv, eb))
+    hand_over(s, srv, b, a, eb, ea, False)
+    srv.cmd("vr_debug_carry 0; developer 0")
+
+
+# The mock's force grab (Misc/quakevr/forcegrab_block_test.sh's): the empty main hand pointing down at a thing 150 units
+# ahead, the trigger pulled, the hand flicked up 0.3 m in 0.1 s, then the grip, 0.3 s after the flick: about 0.2 s before
+# the pull's 0.49 s flight ends, the middle of vr_forcegrab_catch_early's 0.35 (the script's grip at 0.55 came 0.354 s
+# before its arrival on the dedicated server, every run: just early).
+FORCEGRAB_PLAY = ("0.000 main 0.2 1.2 -0.3 60 0 0", "0.000 off -0.25 1.1 -0.2 70 0 0", "0.300 cmd +attack",
+                  "0.400 main 0.2 1.2 -0.3 60 0 0", "0.500 main 0.2 1.5 -0.25 60 0 0", "0.600 cmd -attack",
+                  "0.680 grip main 0", "0.700 grip main 1", "0.700 cmd +grabright", "2.000 main 0.2 1.5 -0.25 60 0 0")
+
+
+def force_grab(s, srv, inst, ent, play, label):
+    """`inst` at OPEN_SPOT (facing the way north) force grabs the weapon pickup 150 units ahead: the server's catch, and
+    his main hand's weapon -> that weapon (0: none)."""
+    put_at(srv, inst, ent, OPEN_SPOT, 90)
+    inst.cmd("-grabright; vr_mock_button main grip 0; vr_mock_hand main 0.2 1.2 -0.3 60 0 0; "
+             "vr_mock_hand off -0.25 1.1 -0.2 70 0 0")
+    weapon_until(s, srv, ent, 0)
+    since = srv.mark()
+    inst.cmd("vr_mock_play %s" % play)
+    got = wait_quietly(srv, r"force grab: (caught|missed|arrived)", 20, since, "%s's force grab" % inst.name)
+    s.note("%s: the server: %s" % (label, got[1].strip() if got else None))
+    seen = weapon_until(s, srv, ent, -2, 10)  # (its last reports: whatever he holds)
+    back = wait_quietly(srv, r"pickup: weapon_supershotgun back at", 5, since, "the pickup back at its place")
+    wpn = seen[-1]
+    s.check("%s: %s's force grab catches the level's super shotgun (the server's catch; his main hand holds it)" % (
+        label, inst.name), got is not None and "caught weapon_supershotgun" in got[1] and wpn not in (0, -1, 4),
+        "server: %s; his main weapon by report: %s" % (got[1].strip() if got else None, seen))
+    s.check("%s: in coop the pickup stays for the others (back at its place)" % label, back is not None,
+            "no 'pickup: weapon_supershotgun back at' on the server")
+    # (the play stopped, its grip kept: he keeps what he caught; let go, it lay where the next player is put and his
+    # force grab never started, 1 run of 1)
+    inst.cmd("vr_mock_play")
+    return wpn
+
+
+def forcegrab(s):
+    """Force grab of a weapon of the level in coop, by each player: a super shotgun pickup (the map's kind, vr_test_spawn
+    116) 150 units ahead of B; B's force grab (the mock's: point, trigger, flick, grip) brings it to his hand, his; it is
+    back at its place for the others (coop leaves it); then A, put where B stood, force grabs it: his too."""
+    srv, a, b, ea, eb = join(s)
+    a.cmd("name A")
+    b.cmd("name B")
+    play = os.path.join(s.out, "forcegrab_play.txt")
+    with open(play, "w", encoding="ascii") as f:
+        f.write("\n".join(FORCEGRAB_PLAY) + "\n")
+    srv.cmd("developer 1; vr_debug_carry 2; vr_test_spawn 116; vr_test_spawn_dist 150")
+    put_at(srv, b, eb, OPEN_SPOT, 90)
+    since = srv.mark()
+    b.cmd("impulse 241")
+    _, spawned = srv.wait(r"test spawn: weapon_supershotgun at", 10, since, "the super shotgun pickup ahead of B")
+    s.note("the server: %s" % spawned.strip())
+    wb = force_grab(s, srv, b, eb, play, "B")
+    put_at(srv, b, eb, side_spot(srv, ea))
+    wa = force_grab(s, srv, a, ea, play, "A")
+    s.metric("force_grab_wid", max(wa, wb))
+    srv.cmd("developer 0")
+
+
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
     s = Session(args.exe, args.base, args.out, test, port=args.port)
     failure = None
@@ -1632,6 +1790,10 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             flow(s)
         elif test == "mp_download":
             download(s)
+        elif test == "mp_pickup":
+            pickup(s)
+        elif test == "mp_forcegrab":
+            forcegrab(s)
         else:
             coop(s, args.listen, args.flat or "", lag, jitter, loss)
     except StepFailed as e:
@@ -1644,7 +1806,7 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -1668,7 +1830,7 @@ def main():
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "download"):
+                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab"):
         ok = run(args, "mp_" + args.test)
     else:
         ok = run(args, "mp_coop")
@@ -1687,6 +1849,8 @@ def main():
         ok = run(args, "mp_campaign_listen") and ok
         ok = run(args, "mp_flow") and ok
         ok = run(args, "mp_download") and ok
+        ok = run(args, "mp_pickup") and ok
+        ok = run(args, "mp_forcegrab") and ok
         print("mp_suite: %s" % ("passed" if ok else "FAILED"))
     sys.exit(0 if ok else 1)
 
