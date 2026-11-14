@@ -18,6 +18,7 @@
 #include "vr_geom.hpp"
 #include "vr_mpavatar.hpp"
 #include "vr_netmove.hpp"
+#include "vr_netsnap.hpp"
 #include "vr_progs.hpp"
 #include "vr_clientprefs.hpp"
 #include "vr_server.hpp"
@@ -245,6 +246,12 @@ void status_f()
         wallMs(), isDedicated ? 1 : 0, sv.active ? 1 : 0, sv.active ? svs.maxclients : 0, signedOn() ? 1 : 0,
         signedOn() ? cl.mapname : "-", signedOn() ? cl.viewentity : 0, signedOn() ? cl.intermission : 0,
         signedOn() ? cl.stats[STAT_HEALTH] : 0);
+    // (a remote server's snapshots read, undecodable ones, records; the interpolation buffer: on, its delay, the frames
+    // its time passed the newest message; B7b)
+    const qvr::netsnap::ClientCounts cs = qvr::netsnap::clientCounts();
+    Con_Printf("mp_snapcl: decoded=%d undecodable=%d bad=%d records=%d bytes=%lld interp=%d delay_ms=%.1f holds=%d\n",
+        cs.decoded, cs.undecodable, cs.bad, cs.records, cs.bytes, qvr::netsnap::interpActive() ? 1 : 0,
+        qvr::netsnap::interpDelayMs(), qvr::netsnap::interpHolds());
     if(sv.active)
     {
         int spawned = 0;
@@ -265,6 +272,10 @@ void status_f()
             const qvr::netmove::ServerCounts nm = qvr::netmove::serverCounts(i);
             Con_Printf("mp_netmoves: slot=%d run=%d lost=%d recovered=%d undecodable=%d bytes=%lld\n", i, nm.run, nm.lost,
                 nm.recovered, nm.undecodable, nm.bytes);
+            // (sent, full, delta, cut, bytes: his snapshots, whole or against the one he acknowledged; B7b)
+            const qvr::netsnap::ServerCounts ns = qvr::netsnap::serverCounts(i);
+            Con_Printf("mp_netsnap: slot=%d sent=%d full=%d delta=%d cut=%d bytes=%lld seq=%u acked=%u\n", i, ns.sent, ns.full,
+                ns.delta, ns.cut, ns.bytes, ns.seq, ns.acked);
             Con_Printf("mp_client: slot=%d name=\"%s\" spawned=%d org=%.1f %.1f %.1f inv=%d,%d,%d,%d,%d,%d,%d,%d moves=%d "
                        "merged=%d\n",
                 i, c.name, c.spawned ? 1 : 0, o[0], o[1], o[2], v ? static_cast<int>(v->health) : 0,
@@ -416,6 +427,7 @@ extern "C" void VR_MpTestInit(void)
     Cmd_AddCommand("vr_mp_status", status_f);
     Cmd_AddCommand("vr_mp_trace", trace_f);
     qvr::netmove::init(); // vr_netmove_selftest
+    qvr::netsnap::init(); // vr_netsnap_selftest
     Cmd_AddCommand("vr_goto_exit", gotoExit_f);
     Cmd_AddCommand("vr_hurt", hurt_f);
     qvr::mpavatar::init(); // vr_mp_avatars

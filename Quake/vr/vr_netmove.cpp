@@ -1,6 +1,7 @@
 // vr_netmove.cpp -- a remote client's moves up as quantized deltas with repeats (vr_netmove.hpp; MP_PLAN.md, B7).
 
 #include "vr_netmove.hpp"
+#include "vr_netsnap.hpp"
 #include "vr_engine.hpp"
 #include "vr_api.h"
 #include "vr_protocol.hpp"
@@ -242,6 +243,8 @@ struct Dequantizer
     }
 };
 
+} // namespace
+
 void writeVarint(sizebuf_t* buf, za::U32 u)
 {
     while(u >= 0x80u)
@@ -252,7 +255,7 @@ void writeVarint(sizebuf_t* buf, za::U32 u)
     MSG_WriteByte(buf, static_cast<int>(u));
 }
 
-[[nodiscard]] bool readVarint(za::U32& u)
+bool readVarint(za::U32& u)
 {
     u = 0;
     for(int shift = 0; shift < 35; shift += 7)
@@ -270,6 +273,9 @@ void writeVarint(sizebuf_t* buf, za::U32 u)
     }
     return false;
 }
+
+namespace
+{
 
 [[nodiscard]] za::U32 zigzag(za::I32 d)
 {
@@ -457,6 +463,7 @@ void writeMoves(sizebuf_t* buf, const WireMove& m, bool record)
         first++;
     }
     MSG_WriteByte(buf, QVR_CLC_MOVES);
+    writeVarint(buf, netsnap::clientAck()); // (the newest snapshot read: the base of the server's next, B7b)
     writeVarint(buf, haveBase ? base : 0);
     MSG_WriteByte(buf, static_cast<int>(seq - first + 1));
     writeVarint(buf, first);
@@ -491,11 +498,12 @@ bool serverRead(client_t* client, ApplyFn apply)
     const int slotNum = static_cast<int>(client - svs.clients);
     ServerSlot* slot = slotOf(slotNum, true);
     const int start = msg_readcount;
-    za::U32 base, first;
-    if(!slot || !readVarint(base))
+    za::U32 snapAck, base, first;
+    if(!slot || !readVarint(snapAck) || !readVarint(base))
     {
         return false;
     }
+    netsnap::serverAck(slotNum, snapAck);
     const int count = MSG_ReadByte();
     if(count < 1 || count > repeats + 1 || !readVarint(first) || first == 0)
     {
@@ -556,6 +564,12 @@ void serverWriteAck(sizebuf_t* msg, int slotNum)
     MSG_WriteByte(msg, protocol::svc_quakevr);
     MSG_WriteByte(msg, protocol::QVR_SVC_MOVEACK);
     MSG_WriteLong(msg, static_cast<int>(slot->last));
+}
+
+bool serverSends(int slotNum)
+{
+    const ServerSlot* slot = slotOf(slotNum, false);
+    return slot && slot->sends;
 }
 
 void serverReset(int slotNum)

@@ -78,6 +78,7 @@ enum SvcQuakeVr : int
     QVR_SVC_AVATARCAL = 43,       // [byte client slot][byte 1 has one, 0 none][has one: short x mpavatar::numCalFields]: a player's avatar calibration (height, arm length, handedness, gloves, body; vr_mpavatar.cpp calFields), reliable: to every client when it changes (from his "vr_avatarcal" client command), all of them to a spawning one; multiplayer only
     QVR_SVC_PACKAGE = 44,         // [string sha256, "" none]: the Map Library package the server's map is played from (mapinstall::active()), before its svc_serverinfo, to each remote client (vr_mpdownload.cpp: a client mounts or installs it, then joins again); read whatever protocol the last server had, reliable
     QVR_SVC_MOVEACK = 45,         // [long seq]: the newest of this client's QVR_CLC_MOVES the server read (vr_netmove.cpp: the base of its next deltas), in each datagram
+    QVR_SVC_SNAPSHOT = 46,        // [varint seq][varint seq - base, 0 none][varint body bytes][body]: a remote client's player state, entities and the others' avatars this frame, delta-coded against the snapshot it acknowledged in QVR_CLC_MOVES (vr_netsnap.hpp: the body's records), in place of svc_clientdata, the entities' updates and QVR_SVC_AVATAR; unreliable, multiplayer only
     QVR_SVC_RIGSEQ = 37,      // [short entity][byte 1 start, 0 stop][start: string name][float server time]: a Rig Studio sequence started on a monster by QC, or stopped (vr_rigseq.cpp), reliable
 };
 inline constexpr int ropeEnded = 255; // QVR_SVC_ROPE's count: the beam's rope ended (no corners follow)

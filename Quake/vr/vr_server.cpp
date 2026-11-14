@@ -46,6 +46,7 @@
 #include "Zancle/Math/Clamp.hpp"
 #include "vr_api.h"
 #include "vr_netmove.hpp"
+#include "vr_netsnap.hpp"
 
 
 using namespace qvr;
@@ -361,6 +362,7 @@ struct ScopedRoom
     byte sinkBuf[msgRoom];
     int ents[maxMsgs];
     int ends[maxMsgs]; // each message's end in roomBuf (the first begins at 0)
+    int kinds[maxMsgs]; // ScopedKind: an avatar goes in a snapshot client's snapshot (B7b), an unchanged one to no other
     int numMsgs;
     int openEnt; // the message being written: its entity (-1: none)
 
@@ -576,7 +578,7 @@ sizebuf_t* qvr::server::scopedBegin(int ent, bool always)
     return &r.room;
 }
 
-void qvr::server::scopedEnd()
+void qvr::server::scopedEnd(int kind)
 {
     ScopedRoom& r = scopedRoom;
     if(r.openEnt < 0)
@@ -585,6 +587,7 @@ void qvr::server::scopedEnd()
     }
     r.ents[r.numMsgs] = r.openEnt;
     r.ends[r.numMsgs] = r.room.cursize;
+    r.kinds[r.numMsgs] = kind;
     r.numMsgs++;
     r.openEnt = -1;
 }
@@ -609,9 +612,20 @@ extern "C" void VR_NoteEntityInSight(int ent)
     }
 }
 
+namespace
+{
+
+[[nodiscard]] bool scopedInSight(const ScopedRoom& r, int e)
+{
+    return e >= 0 && e < static_cast<int>(r.seen.size()) && r.seen[static_cast<za::SizeT>(e)] == r.stamp;
+}
+
+} // namespace
+
 // SV_SendClientDatagram, after the broadcast: this frame's messages about entities, those in this client's sight (all of
-// them to the loopback client, `local`), each whole while it fits.
-extern "C" void VR_WriteScoped(sizebuf_t* msg, int local)
+// them to the loopback client, `local`), each whole while it fits. An avatar unchanged since last sent goes to none (its
+// keyframe's wait), and to a snapshot client (`snap`) none: they went in its snapshot (VR_SnapEnd).
+extern "C" void VR_WriteScoped(sizebuf_t* msg, int local, int snap)
 {
     const ScopedRoom& r = scopedRoom;
     const bool cull = !local && qvr::vr_net_cullposes.value != 0.f;
@@ -622,7 +636,11 @@ extern "C" void VR_WriteScoped(sizebuf_t* msg, int local)
         const int at = from;
         from = r.ends[i];
         const int e = r.ents[i];
-        if(cull && (e < 0 || e >= static_cast<int>(r.seen.size()) || r.seen[static_cast<za::SizeT>(e)] != r.stamp))
+        if(r.kinds[i] == qvr::server::scopedAvatarUnchanged || (snap && r.kinds[i] == qvr::server::scopedAvatar))
+        {
+            continue;
+        }
+        if(cull && !scopedInSight(r, e))
         {
             continue;
         }
@@ -632,6 +650,36 @@ extern "C" void VR_WriteScoped(sizebuf_t* msg, int local)
         }
         SZ_Write(msg, r.roomBuf + at, len);
     }
+}
+
+// A remote client's snapshot (vr_netsnap.cpp; MP_PLAN.md, B7b).
+extern "C" int VR_SnapBegin(client_t* client)
+{
+    return qvr::netsnap::serverBegin(client) ? 1 : 0;
+}
+
+extern "C" void VR_SnapTake(sizebuf_t* msg, int at, int key)
+{
+    qvr::netsnap::serverTake(msg, at, key);
+}
+
+// ... the avatars in its sight (unchanged or not: the snapshot codes each against the one it acknowledged), then written.
+extern "C" void VR_SnapEnd(sizebuf_t* msg)
+{
+    const ScopedRoom& r = scopedRoom;
+    const bool cull = qvr::vr_net_cullposes.value != 0.f;
+    int from = 0;
+    for(int i = 0; i < r.numMsgs; i++)
+    {
+        const int at = from;
+        from = r.ends[i];
+        if((r.kinds[i] == qvr::server::scopedAvatar || r.kinds[i] == qvr::server::scopedAvatarUnchanged) &&
+            (!cull || scopedInSight(r, r.ents[i])))
+        {
+            qvr::netsnap::serverRecord(qvr::netsnap::avatarKey + r.ents[i], r.roomBuf + at, r.ends[i] - at);
+        }
+    }
+    qvr::netsnap::serverEnd(msg);
 }
 
 void qvr::server::queueBroadcast(const byte* data, int len)
@@ -911,6 +959,7 @@ extern "C" void VR_ClientReset(client_t* client)
         avatarsSent[clientNum] = {};
     }
     netmove::serverReset(clientNum); // (his moves' sequence and bases: a new connection's start again)
+    netsnap::serverReset(clientNum); // (and his snapshots: the next whole until he acknowledges one, B7b)
     mpavatar::serverReset(clientNum); // (his avatar calibration gone; the clients told)
     clientprefs::serverReset(clientNum); // (and his preferences: the server's until the next player's come)
 }
@@ -1414,6 +1463,8 @@ extern "C" void VR_WriteEntityUpdate(sizebuf_t* msg, edict_t* ent, int bits)
 
 extern "C" void VR_WriteClientSpawnState(sizebuf_t* msg)
 {
+    // (his client cleared its snapshots for this map: the next goes whole, B7b; the counts kept)
+    netsnap::serverReset(static_cast<int>(host_client - svs.clients), true);
     if(vrProtocol())
     {
         worldtext::serverWriteAll(msg);
@@ -1519,18 +1570,20 @@ void writeAvatars()
         AvatarSent& last = avatarsSent[i];
         const int keyframe = za::max(static_cast<int>(vr_net_avatar_keyframe.value), 1);
         const bool same = last.size == tmp.cursize && ZA_MEMCMP(last.bytes, data, static_cast<size_t>(tmp.cursize)) == 0;
-        if(same && ++last.unsent < keyframe)
-        {
-            avatarStats.skipped++;
-            continue;
-        }
+        const bool waits = same && ++last.unsent < keyframe;
+        // (queued either way: a snapshot client's snapshot has it every frame, B7b; to the others a waiting one goes not)
         sizebuf_t* msg = qvr::server::scopedBegin(i + 1, true);
         if(!msg)
         {
             continue;
         }
         SZ_Write(msg, data, tmp.cursize);
-        qvr::server::scopedEnd();
+        qvr::server::scopedEnd(waits ? qvr::server::scopedAvatarUnchanged : qvr::server::scopedAvatar);
+        if(waits)
+        {
+            avatarStats.skipped++;
+            continue;
+        }
         ZA_MEMCPY(last.bytes, data, static_cast<size_t>(tmp.cursize));
         last.size = tmp.cursize;
         last.unsent = 0;

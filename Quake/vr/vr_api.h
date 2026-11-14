@@ -51,7 +51,7 @@ int VR_NoLiquidEffects(struct qmodel_s* model, const float* point);
 // Quake VR's network version, sent after NetQuake's in the connect request ("QVR", then this long; net_dgrm.c): a
 // server whose protocol is the VR one rejects a client without it or with another, with the reason (MP_PLAN.md, B2).
 // Raise it with any change to what client and server send each other.
-#define QVR_NET_VERSION				17
+#define QVR_NET_VERSION				18
 // A remote client's moves (vr/vr_netmove.hpp: quantized deltas with repeats; the loopback's stay clc_move; MP_PLAN.md, B7).
 #define QVR_CLC_MOVES				16
 #define SOLID_NOT_BUT_TOUCHABLE		5		// Quake VR: not solid, but can be (hand) touched
@@ -417,7 +417,15 @@ void VR_AdjustMove (float *forwardmove, float *sidemove, float *upmove); // CL_S
 void VR_ReadMoveExtras (struct client_s *client);		// end of SV_ReadClientMove
 void VR_NoteEntitiesBegin (void);				// SV_WriteEntitiesToClient: a client's walk of the entities begins
 void VR_NoteEntityInSight (int ent);				// ... this one is in its PVS (its messages go to it: VR_WriteScoped)
-void VR_WriteScoped (struct sizebuf_s *msg, int local);	// SV_SendClientDatagram after the broadcast: the messages about entities it sees (an armed humanoid's pose)
+void VR_WriteScoped (struct sizebuf_s *msg, int local, int snap);	// SV_SendClientDatagram after the broadcast: the messages about entities it sees (an armed humanoid's pose; the avatars unless they went in its snapshot)
+// A remote client's snapshot (vr_netsnap.cpp; MP_PLAN.md, B7b): SV_SendClientDatagram asks whether this datagram's player
+// state and entities go as one (a client sending QVR_CLC_MOVES); its writers then cut each record they wrote from `at` on
+// off the message into it (key 0 the player state, an entity's number); VR_SnapEnd adds the avatars it sees and writes it.
+int VR_SnapBegin (struct client_s *client);
+void VR_SnapTake (struct sizebuf_s *msg, int at, int key);
+void VR_SnapEnd (struct sizebuf_s *msg);
+void VR_InterpFrame (void);				// CL_RelinkEntities, before the entities: the interpolation buffer's clock (vr_netsnap.cpp)
+int VR_InterpEntity (int num, float *origin, float *angles); // ... entity `num` placed from it (a remote server's others, a delay behind): 1, or 0 NetQuake's lerp
 int VR_MoveMerges (struct client_s *client);			// SV_ReadClientMove, at its buttons: not the first move since the server's last frame (its buttons ORed)
 void VR_ClientReset (struct client_s *client);			// SV_ConnectClient, SV_DropClient: the slot's per-client VR state cleared
 void VR_CalcStats (struct client_s *client, int *statsi, float *statsf); // end of SV_CalcStats

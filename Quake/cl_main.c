@@ -555,6 +555,7 @@ void CL_RelinkEntities (void)
 
 // determine partial update time
 	frac = CL_LerpPoint ();
+	VR_InterpFrame (); // QVR: a remote server's interpolation buffer: its clock (vr/vr_netsnap.cpp)
 
 	cl_numvisedicts = 0;
 
@@ -604,7 +605,12 @@ void CL_RelinkEntities (void)
 			continue;
 		}
 
-		if (ent->forcelink)
+		// QVR: a remote server's others (not stepping monsters: the renderer lerps their steps): from the interpolation
+		// buffer, a delay behind the newest message (vr/vr_netsnap.cpp; MP_PLAN.md, B7b)
+		if (!(r_lerpmove.value && (ent->lerpflags & LERP_MOVESTEP)) && VR_InterpEntity (i, ent->origin, ent->angles))
+		{	// (placed)
+		}
+		else if (ent->forcelink)
 		{	// the entity was not updated in the last message
 			// so move to the final spot
 			VectorCopy (ent->msg_origins[0], ent->origin);

@@ -57,6 +57,10 @@ struct Avatar
 // vr_client.cpp's dispatch: QVR_SVC_AVATAR's body (after its sub-command byte).
 void parse();
 
+// Angles (pitch, yaw, roll) `t` of the way from `a` to `b`, slerped as rotations (the avatars' turns, and the entities' in
+// the interpolation buffer: vr_netsnap.cpp).
+[[nodiscard]] glm::vec3 slerpAngles(const glm::vec3& a, const glm::vec3& b, float t);
+
 // Player entity `ent`'s avatar (1..MAX_SCOREBOARD), or nullptr: none received.
 [[nodiscard]] const Avatar* of(int ent);
 

@@ -91,6 +91,11 @@ void queueBroadcast(const unsigned char* data, int len);
 // (vr_net_cullposes; the loopback client gets them all): written into the buffer returned, then scopedEnd. nullptr: culling
 // is off, write to the broadcast instead.
 struct sizebuf_s* scopedBegin(int ent, bool always = false); // always: whatever vr_net_cullposes says (a player's avatar)
-void scopedEnd();
+// scopedEnd's kind: a player's avatar goes in a snapshot client's snapshot (vr_netsnap.cpp, B7b); one unchanged since it was
+// last sent, there only (the others wait for its keyframe).
+inline constexpr int scopedOther = 0;
+inline constexpr int scopedAvatar = 1;
+inline constexpr int scopedAvatarUnchanged = 2;
+void scopedEnd(int kind = scopedOther);
 
 } // namespace qvr::server

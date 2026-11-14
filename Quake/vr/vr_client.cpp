@@ -4,6 +4,7 @@
 #include "vr_agarmor.hpp"
 #include "vr_mpavatar.hpp"
 #include "vr_netmove.hpp"
+#include "vr_netsnap.hpp"
 #include "vr_mpdownload.hpp"
 #include "vr_clientprefs.hpp"
 #include "vr_arenaxray.hpp"
@@ -965,6 +966,7 @@ extern "C" float VR_BeamScale(qmodel_t* model)
 // CL_Record_f, recording mid-game: the demo needs the VR state received so far.
 extern "C" void VR_WriteDemoState(sizebuf_t* msg)
 {
+    netsnap::clientWantWhole(); // (a remote server's snapshots: a whole one soon, the demo's to start from; B7b)
     if(vrProtocol())
     {
         worldtext::clientWriteAll(msg);
@@ -979,6 +981,7 @@ extern "C" void VR_OnClientClearState()
     lateBrushModels.clear();
     mpavatar::clear(); // (the other players' avatars: the new server's come)
     netmove::clientClear(); // (no acknowledged move: the next sent whole, B7)
+    netsnap::clientClear(); // (no snapshot read: the server's next whole, B7b; the interpolation buffer empty)
     clientprefs::clientClear(); // (ours go up to it again)
     particles::clear();
     decals::clear();
@@ -1139,6 +1142,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_ARENAMESSAGE: worldtext::clientParseViewMessage(true); break;
         case QVR_SVC_AVATAR: mpavatar::parse(); break; // another player's head and hands (vr_mpavatar.cpp)
         case QVR_SVC_MOVEACK: netmove::parseAck(); break; // the newest of our moves the server read (vr_netmove.cpp)
+        case QVR_SVC_SNAPSHOT: netsnap::parse(); break; // our state, the entities and avatars, delta-coded (vr_netsnap.cpp)
         case QVR_SVC_PACKAGE: mpdownload::parsePackage(); break; // the server's map package (vr_mpdownload.cpp)
         case QVR_SVC_AVATARCAL: mpavatar::parseCalibration(); break; // a player's height, arms, gloves, body (vr_mpavatar.cpp)
         case QVR_SVC_TIP_MAKE:

@@ -1158,6 +1158,14 @@ za::Vector<Item> pageDebugReports()
         slider("Network: Calibration Send Interval", vr_net_avatarcal_interval, 0.f, 2.f, 0.05f, "%.2f s")
             .help("vr_net_avatarcal_interval: in multiplayer, your avatar calibration (height, arm length, handedness, "
                   "gloves, body) goes to the server when it changes, at most this often (a slider dragged: its last value)."),
+        toggle("Network: Delta Snapshots", vr_net_snapshots)
+            .help("vr_net_snapshots: hosting, a remote player's datagram (his state, the entities and the other players' hands) "
+                  "goes as the changes from the last one his game acknowledged: an idle player costs nearly nothing. Off: "
+                  "NetQuake's whole datagram every frame."),
+        toggle("Network: Interpolation Buffer", vr_net_interp)
+            .help("vr_net_interp: on a remote server, the other players and things are drawn a little behind the newest "
+                  "message, between the two around that time (the delay grows with lost packets): no stop and jump when "
+                  "packets are lost. Off: NetQuake's lerp between the last two messages."),
         toggle("Network: Cull Poses", vr_net_cullposes)
             .help("vr_net_cullposes: hosting, a remote player gets the armed humanoids' arm poses only of those he can see (on: "
                   "about 1.2 KB less in each of his datagrams on e1m1); off: every pose to every player, as before."),

@@ -787,6 +787,7 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 	int		e, i, j, numents;
 	int		bits;
 	int		startsize = msg->cursize; // QVR: vr_net_stats
+	int		entstart; // QVR: an entity's update began there (VR_SnapTake)
 	byte	*pvs;
 	vec3_t	org, forward, right, up;
 	float	miss, dist, size;
@@ -927,6 +928,7 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 
 // send an update
 		bits = 0;
+		entstart = msg->cursize; // QVR: a snapshot's record from here (VR_SnapTake)
 
 		for (i=0 ; i<3 ; i++)
 		{
@@ -1059,6 +1061,7 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 		}
 		//johnfitz
 		VR_WriteEntityUpdate (msg, ent, bits); // QVR
+		VR_SnapTake (msg, entstart, e); // QVR: a remote client's snapshot takes it (vr/vr_netsnap.cpp; none: as written)
 	}
 
 	//johnfitz -- devstats
@@ -1102,6 +1105,7 @@ void SV_WriteClientdataToMessage (edict_t *ent, sizebuf_t *msg)
 	edict_t	*other;
 	int		items;
 	eval_t	*val;
+	int		cdstart; // QVR: svc_clientdata began there (VR_SnapTake)
 
 //
 // send a damage message
@@ -1194,6 +1198,7 @@ void SV_WriteClientdataToMessage (edict_t *ent, sizebuf_t *msg)
 
 // send the data
 
+	cdstart = msg->cursize; // QVR: a snapshot's record from here (VR_SnapTake)
 	MSG_WriteByte (msg, svc_clientdata);
 	MSG_WriteShort (msg, bits);
 
@@ -1269,6 +1274,7 @@ void SV_WriteClientdataToMessage (edict_t *ent, sizebuf_t *msg)
 	if (bits & SU_WEAPONALPHA)
 		MSG_WriteByte (msg, ent->alpha); //for now, weaponalpha = client entity alpha
 	//johnfitz
+	VR_SnapTake (msg, cdstart, 0); // QVR: a remote client's snapshot takes it (vr/vr_netsnap.cpp; none: as written)
 
 	// Hack: Alkaline 1.1 uses bit flags to store the active weapon,
 	// but we only send the stat as a byte, which can lead to truncation.
@@ -1290,6 +1296,7 @@ qboolean SV_SendClientDatagram (client_t *client)
 {
 	byte		buf[MAX_DATAGRAM];
 	sizebuf_t	msg;
+	int			snap; // QVR: its datagram's state goes as a snapshot (VR_SnapBegin)
 
 	msg.data = buf;
 	msg.maxsize = sizeof(buf);
@@ -1308,9 +1315,12 @@ qboolean SV_SendClientDatagram (client_t *client)
 	VR_WriteMoveAck (&msg, client); // QVR: a remote client's newest move read: its next deltas' base (vr/vr_netmove.cpp)
 
 // add the client specific data to the datagram
+	snap = VR_SnapBegin (client); // QVR: a remote client's: its player state and entities as a snapshot (vr/vr_netsnap.cpp)
 	SV_WriteClientdataToMessage (client->edict, &msg);
 
 	SV_WriteEntitiesToClient (client->edict, &msg);
+	if (snap)
+		VR_SnapEnd (&msg); // QVR: ... with the avatars it sees, delta-coded against the one it acknowledged
 
 // copy the server datagram if there is space
 	{
@@ -1320,7 +1330,7 @@ qboolean SV_SendClientDatagram (client_t *client)
 			SZ_Write (&msg, sv.datagram.data, sendable);
 	}
 	// QVR: the messages about entities it sees (armed humanoids' poses; all of them to the loopback client)
-	VR_WriteScoped (&msg, Q_strcmp(NET_QSocketGetAddressString(client->netconnection), "LOCAL") == 0);
+	VR_WriteScoped (&msg, Q_strcmp(NET_QSocketGetAddressString(client->netconnection), "LOCAL") == 0, snap);
 
 // send the datagram
 	if (NET_SendUnreliableMessage (client->netconnection, &msg) == -1)

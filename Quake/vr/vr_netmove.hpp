@@ -4,7 +4,7 @@
 // (vr_move.cpp): nothing of single player changes. A remote client (a Quake VR server of QVR_NET_VERSION 17 or later)
 // sends each packet's moves as one QVR_CLC_MOVES message instead:
 //
-//   [byte QVR_CLC_MOVES][varint base seq, 0 none][byte count][varint first seq] then `count` moves, each the delta of its
+//   [byte QVR_CLC_MOVES][varint the newest snapshot read, 0 none: vr_netsnap.hpp][varint base seq, 0 none][byte count][varint first seq] then `count` moves, each the delta of its
 //   quantized values (quantize: every field an integer, places in 64ths of a unit from the move's origin, angles in
 //   65536ths of a turn, speeds in 1024ths...) against the one before it (the first against the base: the newest move
 //   the server acknowledged, QVR_SVC_MOVEACK; none: against zeros).
@@ -39,6 +39,10 @@ inline constexpr int maxValues = 512; // (a move's integers: numValues() <= this
 inline constexpr int ring = 64;       // moves each side keeps (a base older than this: the move sent whole)
 inline constexpr int repeats = 2;     // older moves repeated in a packet besides the new one
 
+// An unsigned varint (7 bits a byte, low first) written; read from net_message (false: it ran out). (QVR_SVC_SNAPSHOT too.)
+void writeVarint(sizebuf_t* buf, za::U32 u);
+[[nodiscard]] bool readVarint(za::U32& u);
+
 // The integers a move is sent as.
 struct Quant
 {
@@ -66,6 +70,7 @@ using ApplyFn = void (*)(client_t* client, const WireMove& m, bool newest);
 // The acknowledgement into the client's datagram (QVR_SVC_MOVEACK: the newest move read), once it sent QVR_CLC_MOVES.
 void serverWriteAck(sizebuf_t* msg, int slot);
 void serverReset(int slot);
+[[nodiscard]] bool serverSends(int slot); // it sent QVR_CLC_MOVES since its connection or map began (its snapshots too)
 // vr_mp_status: moves run, lost (never came, repeats included), recovered (run from a repeat), undecodable (the base
 // gone), bytes read.
 struct ServerCounts

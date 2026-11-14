@@ -13,6 +13,7 @@
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Lround.hpp"
+#include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Round.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "vr_climb.hpp"
@@ -22,6 +23,7 @@
 #include "vr_hands.hpp"
 #include "vr_hull.hpp"
 #include "vr_move.hpp"
+#include "vr_netsnap.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 #include "vr_render.hpp"
@@ -39,6 +41,14 @@ Avatar avatars[MAX_SCOREBOARD + 1]; // by player entity (0 unused)
 // The one before each (its msgTime: the last message it held at): drawn between the two in step with his entity's lerp
 // (vr_mp_avatar_lerp, blendedOf; MP_PLAN.md, B7).
 Avatar previousAvatars[MAX_SCOREBOARD + 1];
+// The last ones each, by their messages' times: drawn at the interpolation buffer's time (vr_netsnap.cpp; B7b).
+constexpr int avatarHistoryLen = 8;
+struct AvatarHistory
+{
+    Avatar of[avatarHistoryLen];
+    int n{0}, head{0};
+};
+AvatarHistory avatarHistories[MAX_SCOREBOARD + 1];
 
 void printCalibrations(); // (vr_mp_avatars: the calibrations, below)
 
@@ -905,13 +915,20 @@ void parse()
         previousAvatars[ent].msgTime = za::max(was.msgTime, cl.mtime[1]);
         previousAvatars[ent].valid = was.valid && was.msgTime < a.msgTime;
         was = a;
+        // The interpolation buffer's history (B7b: a snapshot has every avatar in sight); not in the message before
+        // (out of sight): it starts again.
+        AvatarHistory& h = avatarHistories[ent];
+        if(h.n > 0 && h.of[(h.head + avatarHistoryLen - 1) % avatarHistoryLen].msgTime != cl.mtime[1])
+        {
+            h.n = 0;
+        }
+        h.of[h.head] = a;
+        h.head = (h.head + 1) % avatarHistoryLen;
+        h.n = za::min(h.n + 1, avatarHistoryLen);
     }
 }
 
-namespace
-{
-
-[[nodiscard]] glm::vec3 slerpAngles(const glm::vec3& a, const glm::vec3& b, float t)
+glm::vec3 slerpAngles(const glm::vec3& a, const glm::vec3& b, float t)
 {
     if(a == b)
     {
@@ -923,6 +940,9 @@ namespace
     const glm::mat3 m = glm::mat3_cast(glm::normalize(glm::slerp(qa, qb, t)));
     return hands::anglesFromVectors(m[0], m[2]);
 }
+
+namespace
+{
 
 [[nodiscard]] float lerpAngle(float a, float b, float t)
 {
@@ -951,19 +971,54 @@ void blendHand(VrDrawnHand& h, const VrDrawnHand& p, float t)
     h.weaponAngles = slerpAngles(p.weaponAngles, h.weaponAngles, t);
 }
 
-// Avatar `e` as drawn now: between the one before and the last, at his entity's lerp (CL_LerpPoint's: the client's time
-// between the last two messages), places from his entity's origin lerped, turns slerped, curls lerped (vr_mp_avatar_lerp;
-// MP_PLAN.md, B7). Without one before (just come into sight), or off: the last as it came.
+[[nodiscard]] Avatar blend(const Avatar& p, const Avatar& a, float t);
+
+// Avatar `e` as drawn now (vr_mp_avatar_lerp; off: the last as it came). With the interpolation buffer (a remote server's
+// snapshots, vr_net_interp: B7b): between the two around its time, as his entity is. Else between the one before and the
+// last, at his entity's lerp (CL_LerpPoint's: the client's time between the last two messages; B7); without one before
+// (just come into sight): the last as it came. Places from his entity's origin lerped, turns slerped, curls lerped.
 [[nodiscard]] Avatar blendedOf(int e)
 {
     const Avatar& a = avatars[e];
-    const Avatar& p = previousAvatars[e];
-    const double span = cl.mtime[0] - cl.mtime[1];
-    if(vr_mp_avatar_lerp.value == 0.f || !p.valid || a.msgTime != cl.mtime[0] || p.msgTime != cl.mtime[1] || span <= 0.0)
+    if(vr_mp_avatar_lerp.value == 0.f)
     {
         return a;
     }
-    const float t = static_cast<float>(za::clamp((cl.time - cl.mtime[1]) / span, 0.0, 1.0));
+    if(netsnap::interpActive())
+    {
+        const AvatarHistory& h = avatarHistories[e];
+        const double rt = netsnap::interpTime();
+        const Avatar* newer = nullptr;
+        const Avatar* older = nullptr;
+        for(int k = 0; k < h.n; k++)
+        {
+            const Avatar& s = h.of[(h.head - 1 - k + 2 * avatarHistoryLen) % avatarHistoryLen];
+            if(s.msgTime <= rt)
+            {
+                older = &s;
+                break;
+            }
+            newer = &s;
+        }
+        if(!older || !newer)
+        {
+            return older ? *older : newer ? *newer : a; // (before the oldest kept, or past the newest: held)
+        }
+        const double gap = newer->msgTime - older->msgTime;
+        return blend(*older, *newer, gap > 0.0 ? static_cast<float>(za::clamp((rt - older->msgTime) / gap, 0.0, 1.0)) : 1.f);
+    }
+    const Avatar& p = previousAvatars[e];
+    const double span = cl.mtime[0] - cl.mtime[1];
+    if(!p.valid || a.msgTime != cl.mtime[0] || p.msgTime != cl.mtime[1] || span <= 0.0)
+    {
+        return a;
+    }
+    return blend(p, a, static_cast<float>(za::clamp((cl.time - cl.mtime[1]) / span, 0.0, 1.0)));
+}
+
+// `p` to `a`, `t` of the way.
+Avatar blend(const Avatar& p, const Avatar& a, float t)
+{
     if(t >= 1.f)
     {
         return a;
@@ -1217,6 +1272,10 @@ void clear()
     for(Avatar& a : previousAvatars)
     {
         a = Avatar{};
+    }
+    for(AvatarHistory& h : avatarHistories)
+    {
+        h.n = 0;
     }
     for(bool& h : cal.has)
     {
