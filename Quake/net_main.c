@@ -122,6 +122,7 @@ qsocket_t *NET_NewQSocket (void)
 	sock->sendSequence = 0;
 	sock->sendChunkBase = 0; // QVR
 	sock->qvrNetVersion = 0; // QVR
+	sock->qvrName[0] = 0; // QVR
 	sock->unreliableSendSequence = 0;
 	sock->sendMessageLength = 0;
 	sock->receiveSequence = 0;
@@ -166,6 +167,12 @@ double NET_QSocketGetTime (const qsocket_t *s)
 	return s->connecttime;
 }
 
+
+// QVR: the player's name its connect request carried ("": none; net_dgrm.c)
+const char *NET_QSocketGetQvrName (const qsocket_t *s)
+{
+	return s->qvrName;
+}
 
 const char *NET_QSocketGetAddressString (const qsocket_t *s)
 {

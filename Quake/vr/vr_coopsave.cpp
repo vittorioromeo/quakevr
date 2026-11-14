@@ -266,3 +266,33 @@ extern "C" int VR_CoopSlotSpawned(int slot)
     }
     return 1;
 }
+
+extern "C" int VR_CoopPickSlot(const char* name)
+{
+    if(!sv.loadgame || !load.coopLoaded || !svs.clients)
+    {
+        return -1; // (the first free slot, as ever)
+    }
+    const int slots = za::min(svs.maxclients, MAX_SCOREBOARD);
+    // His saved player, by the name his connect request carried (net_dgrm.c), in whichever slot it was saved in.
+    if(name && *name)
+    {
+        for(int i = 0; i < slots; i++)
+        {
+            if(!svs.clients[i].active && load.pending[i] && !strcmp(load.slots[i].name, name))
+            {
+                Con_Printf("coop save: %s back in his saved slot %d\n", name, i);
+                return i;
+            }
+        }
+    }
+    // Not a saved player still to come: a free slot no saved player waits for (a new player there), else the first free.
+    for(int i = 0; i < slots; i++)
+    {
+        if(!svs.clients[i].active && !load.pending[i])
+        {
+            return i;
+        }
+    }
+    return -1;
+}

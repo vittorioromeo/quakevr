@@ -1323,15 +1323,22 @@ def campaign(s):
 def campaign_listen(s):
     """A coop save on a listen host (A): loaded with B connected (both kept, the host's own client reconnecting as at a
     changelevel), then by A alone after he left for a single player server (the save's 4 players set again: maxplayers
-    and listen), B joining into his saved slot with what he had."""
+    and listen), C joining first and B after him, each into his own saved slot by his name (B4c: C's connection would
+    take B's slot, the first free one) with what he had."""
     srv, a, b, ea, eb = join(s, listen=True)
     sa, sb = ea - 1, eb - 1
-    a.cmd("give 3; give s 44")
-    b.cmd("give 7; give r 12")
+    c = s.client("C").start()
+    c.cmd("name C; " + s.connect_cmd(c))
+    _, jc = c.wait(r"mp_event: .*joined map=e1m1", 120, what="C joined e1m1")
+    ec = int(fields(jc)["self"])
+    sc = ec - 1
+    a.cmd("name A; give 3; give s 44")
+    b.cmd("name B; give 7; give r 12")
+    c.cmd("give 5; give n 33")
     inv1, _ = inventories_until(a, lambda inv, m: inv.get(sa, {}).get("shells") == 44 and
-                                inv.get(sb, {}).get("rockets") == 12)
-    s.check("A's and B's gifts on the listen host", inv1.get(sa, {}).get("shells") == 44 and
-            inv1.get(sb, {}).get("rockets") == 12, "%s" % inv1)
+                                inv.get(sb, {}).get("rockets") == 12 and inv.get(sc, {}).get("nails") == 33)
+    s.check("A's, B's and C's gifts on the listen host", inv1.get(sa, {}).get("shells") == 44 and
+            inv1.get(sb, {}).get("rockets") == 12 and inv1.get(sc, {}).get("nails") == 33, "%s" % inv1)
     since = a.mark()
     a.cmd("save b4listen")
     a.wait(r"Saving game to", 10, since, "the host's save")
@@ -1339,12 +1346,13 @@ def campaign_listen(s):
     b.cmd("give 8")
     inventories_until(a, lambda inv, m: all(inv.get(x, {}).get("items", 0) & 64 for x in (sa, sb)))
 
-    since_a, since_b = a.mark(), b.mark()
+    since_a, since_b, since_c = a.mark(), b.mark(), c.mark()
     a.cmd("load b4listen")
     _, ja = a.wait(r"mp_event: .*joined map=e1m1", 120, since_a, "A in the loaded game")
     _, jb = b.wait(r"mp_event: .*joined map=e1m1", 120, since_b, "B in the loaded game")
-    loaded, _ = inventories_until(a, lambda inv, m: sa in inv and sb in inv and inv[sa]["shells"] == 44)
-    for slot, name in ((sa, "A"), (sb, "B")):
+    c.wait(r"mp_event: .*joined map=e1m1", 120, since_c, "C in the loaded game")
+    loaded, _ = inventories_until(a, lambda inv, m: sa in inv and sb in inv and sc in inv and inv[sa]["shells"] == 44)
+    for slot, name in ((sa, "A"), (sb, "B"), (sc, "C")):
         diff = carried(inv1.get(slot, {}), loaded.get(slot, {}), INV_KEYS, change=False)
         s.check("the host's load with B connected: %s kept in his slot with what he had at the save" % name,
                 not diff, "saved %s; loaded %s (differ: %s)" % (inv1.get(slot), loaded.get(slot), diff))
@@ -1362,14 +1370,21 @@ def campaign_listen(s):
     srv_line = next((l for l in st if l.startswith("mp_status:")), "")
     s.check("the coop save loaded by a single player host plays it with its 4 players",
             fields(srv_line).get("clients") == "4", srv_line)
+    # C first: the first free slot is B's (1); his name gives him his own (2). Then B, into his.
+    since_c = c.mark()
+    c.cmd(s.connect_cmd(c))
+    _, jc = c.wait(r"mp_event: .*joined map=e1m1", 120, since_c, "C joining the loaded game")
     since_b = b.mark()
     b.cmd(s.connect_cmd(b))
     _, jb = b.wait(r"mp_event: .*joined map=e1m1", 120, since_b, "B joining the loaded game")
-    alone, _ = inventories_until(a, lambda inv, m: sb in inv and inv[sb]["rockets"] == 12)
-    diff = carried(inv1.get(sb, {}), alone.get(sb, {}), INV_KEYS, change=False)
-    s.check("B joins into his saved slot with what he had at the save", int(fields(jb)["self"]) == eb and not diff,
-            "B entity %s (was %d); saved %s; now %s (differ: %s)" % (fields(jb).get("self"), eb, inv1.get(sb),
-                                                                   alone.get(sb), diff))
+    alone, _ = inventories_until(a, lambda inv, m: sb in inv and inv[sb]["rockets"] == 12 and sc in inv and
+                                 inv[sc]["nails"] == 33)
+    for slot, ent, j, name in ((sc, ec, jc, "C (joining first: matched by name)"), (sb, eb, jb, "B")):
+        diff = carried(inv1.get(slot, {}), alone.get(slot, {}), INV_KEYS, change=False)
+        s.check("%s joins into his saved slot with what he had at the save" % name,
+                int(fields(j)["self"]) == ent and not diff,
+                "entity %s (was %d); saved %s; now %s (differ: %s)" % (fields(j).get("self"), ent, inv1.get(slot),
+                                                                     alone.get(slot), diff))
     diff = carried(inv1.get(sa, {}), alone.get(sa, {}), INV_KEYS, change=False)
     s.check("A, alone at the load, has what he had at the save", not diff,
             "saved %s; now %s (differ: %s)" % (inv1.get(sa), alone.get(sa), diff))

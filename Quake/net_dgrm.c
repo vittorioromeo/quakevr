@@ -834,6 +834,7 @@ static qsocket_t *_Datagram_CheckNewConnections (void)
 	int			control;
 	int			ret;
 	int			qvrVersion = 0; // QVR
+	char		qvrName[32] = {0}; // QVR: the player's name (a loaded coop game's slot)
 
 	acceptsock = dfunc.CheckNewConnections();
 	if (acceptsock == INVALID_SOCKET)
@@ -968,7 +969,11 @@ static qsocket_t *_Datagram_CheckNewConnections (void)
 	{
 		char reason[160];
 		if (msg_readcount < net_message.cursize && Q_strcmp(MSG_ReadString(), "QVR") == 0)
+		{
 			qvrVersion = MSG_ReadLong();
+			if (msg_readcount < net_message.cursize)
+				q_strlcpy(qvrName, MSG_ReadString(), sizeof(qvrName));
+		}
 		reason[0] = 0;
 		if (sv.active && (sv.protocolflags & PRFL_QUAKEVR) && qvrVersion != QVR_NET_VERSION)
 		{
@@ -1085,6 +1090,7 @@ static qsocket_t *_Datagram_CheckNewConnections (void)
 	sock->landriver = net_landriverlevel;
 	sock->addr = clientaddr;
 	sock->qvrNetVersion = qvrVersion; // QVR
+	q_strlcpy(sock->qvrName, qvrName, sizeof(sock->qvrName)); // QVR
 	Q_strcpy(sock->address, dfunc.AddrToString(&clientaddr));
 
 	// send him back the info about the server connection he has been allocated
@@ -1282,6 +1288,7 @@ static qsocket_t *_Datagram_Connect (const char *host)
 		MSG_WriteString(&net_message, "QVR");
 		MSG_WriteLong(&net_message, COM_CheckParm("-mpnetversion") && COM_CheckParm("-mpnetversion") + 1 < com_argc
 			? Q_atoi(com_argv[COM_CheckParm("-mpnetversion") + 1]) : QVR_NET_VERSION);
+		MSG_WriteString(&net_message, cl_name.string); // QVR: a loaded coop game gives him his saved slot by it
 		*((int *)net_message.data) = BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
 		dfunc.Write (newsock, net_message.data, net_message.cursize, &sendaddr);
 		SZ_Clear(&net_message);
