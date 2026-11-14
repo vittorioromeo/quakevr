@@ -25,6 +25,7 @@
 #include "vr_gorepresets.hpp"
 #include "vr_gameplaypresets.hpp"
 #include "vr_presets.hpp"
+#include "vr_scenario.hpp"
 #include "vr_cvars.hpp"
 #include "vr_monstervalues.hpp"
 #include "vr_tunables.hpp"

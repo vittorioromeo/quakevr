@@ -108,13 +108,13 @@ void() VR_SLTest_Frame =
     {
         vr_slt_phase = 3; // (saved so: the load goes on at phase 3)
         vr_slt_asked = TRUE;
-        localcmd("echo \"sltest: wet before\"\nvr_drips_info\nsave qvr_saveload\nload qvr_saveload\n");
+        localcmd("echo \"sltest: wet before\"\nvr_drips_info\nvr_wounds_info\nsave qvr_saveload\nload qvr_saveload\n");
         return;
     }
     VR_SLTest_Hands(p, "after the load");
     VR_Test_Check(VR_SLTest_Grunts() >= 2, "after the load: two armed grunts");
     vr_slt_phase = 0;
-    localcmd("echo \"sltest: wet after\"\nvr_drips_info\n");
+    localcmd("echo \"sltest: wet after\"\nvr_drips_info\nvr_wounds_info\n");
     VR_Test_Verdict(); // (echoed: after the drips' lines)
 };
 #endif

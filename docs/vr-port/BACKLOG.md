@@ -70,6 +70,8 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
 - **Hotkeys for the remaining VR interactions** (2026-11-05): audit what is left (parry, ammo switch, throw, shove,
   climb...) and propose a key or leave it VR-only.
 - **Left-handed mode** (2026-11-05): the mouse buttons' routing by hand (`flatplay::routeFire`) mirrored.
+- **Flat-screen two-handed melee pose adjustment** (2026-11-15): he ticked the checklist item for now; the 2H melee pose in
+  flat play needs adjusting later; low priority.
 - **The window's graphics** (round 20): float scene, tone mapping, grades and bloom on the window; check each feature
   with VR off.
 

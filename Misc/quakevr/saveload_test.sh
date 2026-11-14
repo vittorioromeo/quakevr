@@ -13,7 +13,7 @@ one() {
     local label="$1" extra="$2"
     local log
     log=$(bash $KIT/run.sh $AGENT $extra -Script "vr_scenario waterdrips; vr_pickup_test 16" \
-        -QuitOn "sltest: [0-9]+ passed" -Timeout 240 -Filter "sltest|^  entity|^  your|^  hand|^  held|^  holstered|exit=" 2>&1 | tr -d '\r')
+        -QuitOn "sltest: [0-9]+ passed" -Timeout 240 -Filter "sltest|^wet: coat|^  entity|^  your|^  hand|^  held|^  holstered|exit=" 2>&1 | tr -d '\r')
     echo "$log" | grep -E "sltest: (FAIL|[0-9]+ passed)" | sed "s/^/$label: /" | cut -c1-200
     local p f
     p=$(echo "$log" | grep -oE "sltest: [0-9]+ passed" | grep -oE "[0-9]+" | tail -1)
@@ -34,6 +34,23 @@ one() {
         echo "$label: PASS $n wet things kept through the load"; PASS=$((PASS + 1))
     else
         echo "$label: FAIL $lost of $n wet things dry after the load"; FAIL=$((FAIL + 1))
+    fi
+    # The shine (the wet coat, derived from the wetness): each of the five the info lists, shining before, shines after.
+    local cb ca k bad=0 shining=0
+    cb=$(echo "$log" | sed -n '/sltest: wet before/,/sltest: wet after/p' | grep -E "^wet: coat" | grep -oE "[0-9]+\.[0-9]+" | head -5)
+    ca=$(echo "$log" | sed -n '/sltest: wet after/,$p' | grep -E "^wet: coat" | grep -oE "[0-9]+\.[0-9]+" | head -5)
+    for k in 1 2 3 4 5; do
+        local b a
+        b=$(echo "$cb" | sed -n "${k}p"); a=$(echo "$ca" | sed -n "${k}p")
+        if awk "BEGIN{exit !(${b:-0} > 0.01)}"; then
+            shining=$((shining + 1))
+            awk "BEGIN{exit !(${a:-0} > 0.01)}" || bad=$((bad + 1))
+        fi
+    done
+    if [ "$shining" -gt 0 ] && [ "$bad" -eq 0 ]; then
+        echo "$label: PASS $shining shining things (wet coat) still shine after the load"; PASS=$((PASS + 1))
+    else
+        echo "$label: FAIL $bad of $shining shining things lost their shine after the load"; FAIL=$((FAIL + 1))
     fi
 }
 [ "$MODE" = "vr" ] || one flat "-ExtraArgs -flatscreenmode"

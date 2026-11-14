@@ -1,6 +1,7 @@
 // vr_wounds.cpp -- see vr_wounds.hpp.
 
 #include "vr_random.hpp"
+#include "vr_drips.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_trace.hpp"
 #include "vr_wounds_internal.hpp"
@@ -3854,27 +3855,31 @@ float wetCoat(const entity_t* e, bool& whole)
     const entity_t* part = view::gunPartSource(e);
     bool weapon = false;
     const int hand = view::handOf(part ? part : e, weapon);
+    // The shine follows the wetness drips keeps (a load restores that: no state of its own): the seconds of drying it stands for.
+    const float dripLeft = (drips::wetOf(e) > 0.f ? drips::wetOf(e) : drips::wetOf(part)) * dryTime();
     if(hand >= 0 && weapon)
     {
         whole = true;
-        return curve(handWetLeft[hand]);
+        return curve(za::max(handWetLeft[hand], dripLeft));
     }
     for(int h = 0; h < 2; h++) // a prop carried in a wet hand
     {
-        if(handWetLeft[h] > 0.f && e == gearOf(h))
+        if(e == gearOf(h) && (handWetLeft[h] > 0.f || dripLeft > 0.f))
         {
             whole = true;
-            return curve(handWetLeft[h]);
+            return curve(za::max(handWetLeft[h], dripLeft));
         }
-    }
-    if(maskOf.empty())
-    {
-        return 0.f;
     }
     const entity_t* key = e;
     const entity_t* gun = nullptr;
-    const int layer = aliasMask(e, key, gun);
-    return layer >= 0 ? curve(masks[static_cast<za::SizeT>(layer)].wetLeft) : 0.f;
+    const int layer = maskOf.empty() ? -1 : aliasMask(e, key, gun);
+    const float maskLeft = layer >= 0 ? masks[static_cast<za::SizeT>(layer)].wetLeft : 0.f;
+    if(maskLeft > 0.f)
+    {
+        return curve(za::max(maskLeft, dripLeft)); // (where its mask is wet)
+    }
+    whole = dripLeft > 0.f; // wet by drips alone (no wet mask: a loaded game's): all of it
+    return curve(dripLeft);
 }
 
 } // namespace

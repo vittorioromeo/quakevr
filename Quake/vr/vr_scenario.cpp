@@ -979,6 +979,20 @@ void worldReset()
     }
 }
 
+bool active()
+{
+    return phase == Active;
+}
+
+void endBeforeRun()
+{
+    if(phase == Active)
+    {
+        Con_Printf("vr_scenario: %s ended (a run starts: its settings put back before the run's)\n", state.run.id.cStr());
+        end();
+    }
+}
+
 void frame()
 {
     if(phase == Loading)
