@@ -1369,6 +1369,12 @@ struct MenuInstance
 
     int cursors[pageCount]{};         // each page's selected row
     int scrolls[pageCount]{};         // and its first row shown
+    // The row a Search result landed on (openEntry; ROUND25.md, "campvis"): flashed for vr_menu_flash_time from
+    // `flashStart` (realtime), the page scrolled to centre it until the row is fully open (its section unfolded).
+    int flashPage{-1};
+    int flashRow{-1};
+    double flashStart{0.0};
+    bool flashCentre{false};
     RowAnchor leftAnchors[pageCount]; // each page's position as last shown (invalid: at the top)
     int visits[pageCount]{};          // when each page was last shown (a count; 0: not since the start)
     int visitCount{0};
@@ -2810,6 +2816,22 @@ void stepFolds(int page, const za::Vector<Item>& list)
         y += rowGap(list, first) + rowHeight(list, first);
     }
     return first;
+}
+
+[[nodiscard]] int maxScroll(const za::Vector<Item>& list);
+
+// The scroll that puts row `i` in the middle of the list (as near as the rows above it allow; a Search result's row).
+[[nodiscard]] int scrollCentring(const za::Vector<Item>& list, int i)
+{
+    const int half = (listSpace(list) - rowGap(list, i) - rowHeight(list, i)) / 2;
+    int y = 0;
+    int first = i;
+    while(first > 0 && y + rowGap(list, first) + rowHeight(list, first - 1) <= half)
+    {
+        y += rowGap(list, first) + rowHeight(list, first - 1);
+        first--;
+    }
+    return q_min(first, maxScroll(list));
 }
 
 // The furthest the list scrolls (0: it fits).
@@ -4340,6 +4362,33 @@ void drawGroupRow(const Item& item, int y, bool selected)
     }
 }
 
+// A Search result's row's flash now (ROUND25.md, "campvis"): vr_menu_flash_strength, pulsing, fading out over
+// vr_menu_flash_time from the landing; 0: none (over, or off).
+[[nodiscard]] float flashAlpha()
+{
+    const float time = CLAMP(0.f, vr_menu_flash_time.value, 5.f);
+    const float t = static_cast<float>(realtime - ui().flashStart);
+    if(ui().flashPage < 0 || time <= 0.f || t < 0.f || t >= time)
+    {
+        return 0.f;
+    }
+    const float fade = CLAMP(0.f, (1.f - t / time) * 2.f, 1.f); // (whole for the first half, then fading out)
+    const float pulse = 0.7f + 0.3f * cosf(t * 2.f * 3.14159265f * 2.5f);
+    return CLAMP(0.f, vr_menu_flash_strength.value, 1.f) * fade * pulse;
+}
+
+// The flash behind row `i` at y: a glowing bar across the rows' width, stronger than the selection's.
+void drawFlash(const za::Vector<Item>& list, int i, int y)
+{
+    const float a = flashAlpha();
+    if(a <= 0.f)
+    {
+        return;
+    }
+    const float half = static_cast<float>(fullHeight(list[i])) * 0.5f;
+    menuui::paintFlash(8.f, 312.f, static_cast<float>(y) + half, half + 2.f, a);
+}
+
 // Row `item` at y, `open` its fold (0..1: a folding section's rows fade; a header's arrow turns), drawn as its look
 // has it (Item::Look): a footer's fainter (vr_menu_minor_alpha).
 void drawItem(const Item& item, int y, float open, bool selected)
@@ -5484,6 +5533,19 @@ extern "C" void VR_Menu_Draw()
     M_PrintWhite((320 - 8 * static_cast<int>(strlen(name))) / 2, l.top + 28, name);
 
     const int n = static_cast<int>(list.size());
+    if(ui().flashCentre && ui().flashPage == ui().page)
+    {
+        // A Search result's row centred (its section unfolding: again each frame until the row is fully open).
+        if(cursor == ui().flashRow && cursor < n)
+        {
+            scroll = scrollCentring(list, cursor);
+            ui().flashCentre = rowOpen(list, cursor) < 1.f;
+        }
+        else
+        {
+            ui().flashCentre = false;
+        }
+    }
     if(cursor < scroll)
     {
         scroll = cursor > 0 && list[cursor - 1].kind == Item::Header ? cursor - 1 : cursor;
@@ -5516,6 +5578,10 @@ extern "C" void VR_Menu_Draw()
         if(list[i].kind != Item::Header && rowHeight(list, i) <= 0)
         {
             continue; // (folded)
+        }
+        if(i == ui().flashRow && ui().flashPage == ui().page)
+        {
+            drawFlash(list, i, l.listTop + rowTop(list, scroll, i));
         }
         drawItem(list[i], l.listTop + rowTop(list, scroll, i), rowOpen(list, i), rowSelected && i - list[i].partOf == cursor);
     }

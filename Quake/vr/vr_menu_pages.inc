@@ -66,6 +66,8 @@
         row(opt::vr_menu_minor_alpha),
         row(opt::vr_menu_hl_fit),
         row(opt::vr_menu_wheel_scroll),
+        row(opt::vr_menu_flash_time),
+        row(opt::vr_menu_flash_strength),
         header("Main Menu"),
         row(opt::vr_menu_main_gap),
         row(opt::vr_menu_big_hl),

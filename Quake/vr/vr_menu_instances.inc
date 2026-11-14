@@ -1062,6 +1062,95 @@ void qvr::menu::sliderStep_f()
     Con_Printf("vr_menu_slider_step: no slider of %s\n", name);
 }
 
+// vr_menu_flash_test (Debug > Tools; ROUND25.md, "campvis"): a Search result opened ("Arm Drip Rate", on Gore) lands on
+// its row, which flashes (vr_menu_flash_time) and is scrolled to the list's middle (as far as the page lets it); the
+// flash is over once its time has passed; with vr_menu_flash_time 0 nothing flashes. Phases (it queues each next one
+// itself, a frame apart): start, land (until the centring settles), fade (until the flash's time is over), off. Ends
+// with its verdict line.
+namespace
+{
+struct FlashTest
+{
+    testkit::Tally tally;
+    int frames{0};
+    float time{1.5f}; // vr_menu_flash_time before it
+};
+FlashTest flashTest;
+constexpr int flashTestMaxFrames = 72 * 8; // (the give-up: the flash's longest is 5 s)
+constexpr const char* flashTestRow = "Arm Drip Rate"; // (the middle of Gore, a long page: room to centre it)
+} // namespace
+
+void qvr::menu::flashTest_f()
+{
+    constexpr const char* name = "menu_flash";
+    FlashTest& t = flashTest;
+    auto check = [&](bool ok, const char* what) { t.tally.check(ok, name, what); };
+    const char* phase = Cmd_Argc() > 1 ? Cmd_Argv(1) : "start";
+    const auto giveUp = [&](const char* what) {
+        check(false, what);
+        Cvar_SetValue("vr_menu_flash_time", t.time);
+        t.tally.verdict(name);
+    };
+    if(!strcmp(phase, "start"))
+    {
+        t = FlashTest{};
+        t.time = vr_menu_flash_time.value;
+        Cvar_SetValue("vr_menu_flash_time", 1.5f);
+        Cbuf_AddText(va("menu_vr\nvr_menu_search -open %s\nwait\nvr_menu_flash_test land\n", flashTestRow));
+        return;
+    }
+    if(!strcmp(phase, "land"))
+    {
+        if(ui().flashCentre && ++t.frames < flashTestMaxFrames)
+        {
+            Cbuf_AddText("wait\nvr_menu_flash_test land\n");
+            return;
+        }
+        const auto& list = items(ui().page);
+        const int cursor = ui().cursors[ui().page];
+        const bool onRow = cursor >= 0 && cursor < static_cast<int>(list.size());
+        check(!ui().flashCentre, "the page drawn, its centring settled");
+        check(onRow && list[cursor].label && !strcmp(list[cursor].label, flashTestRow), va("the page open on %s's row", flashTestRow));
+        check(ui().flashPage == ui().page && ui().flashRow == cursor, "the flash on that row");
+        check(flashAlpha() > 0.f, va("it flashes (strength now %.2f)", flashAlpha()));
+        if(onRow)
+        {
+            const int scroll = ui().scrolls[ui().page];
+            const int middle = rowTop(list, scroll, cursor) + rowHeight(list, cursor) / 2;
+            const int space = listSpace(list);
+            Con_Printf("menu_flash: row %d at %d of the list's %d (scroll %d of %d)\n", cursor, middle, space, scroll,
+                maxScroll(list));
+            check(abs(middle - space / 2) <= 10 || scroll == maxScroll(list) || scroll == 0, "the row in the list's middle");
+        }
+        t.frames = 0;
+        Cbuf_AddText("wait\nvr_menu_flash_test fade\n");
+        return;
+    }
+    if(!strcmp(phase, "fade"))
+    {
+        if(realtime - ui().flashStart < 1.5 + 0.05)
+        {
+            if(++t.frames >= flashTestMaxFrames)
+            {
+                giveUp("timed out: the flash's time never passed");
+                return;
+            }
+            Cbuf_AddText("wait\nvr_menu_flash_test fade\n");
+            return;
+        }
+        check(flashAlpha() == 0.f, "the flash over after its time");
+        Cvar_SetValue("vr_menu_flash_time", 0.f);
+        Cbuf_AddText(va("vr_menu_search -open %s\nwait\nvr_menu_flash_test off\n", flashTestRow));
+        return;
+    }
+    if(!strcmp(phase, "off"))
+    {
+        check(flashAlpha() == 0.f, "vr_menu_flash_time 0: no flash");
+        Cvar_SetValue("vr_menu_flash_time", t.time);
+        t.tally.verdict(name);
+    }
+}
+
 void qvr::menu::search_f()
 {
     if(Cmd_Argc() < 2)

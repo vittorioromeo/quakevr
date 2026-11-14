@@ -2314,6 +2314,10 @@ QVR_SLIDER_BYNAME(vr_menu_big_hl_alpha, "Big Menu Bar Opacity", 0.02f, 0.5f, 0.0
     "How opaque the soft bar behind the big menus' selected row is. 0.14: as the settings pages' selected row.")
 QVR_SLIDER_BYNAME(vr_menu_toolbar_groups, "Shortcut Group Gap", 0.f, 12.f, 1.f, "%.0f px", noExt,
     "The corner's shortcut buttons in groups (game, saves, menus, settings, levels, tools): this much space between groups. 0: evenly spaced.")
+QVR_SLIDER_BYNAME(vr_menu_flash_time, "Search Result Flash", 0.f, 5.f, 0.1f, "%.1f s", noExt,
+    "A Search result opened: its row flashes (a pulsing glow behind it, fading out) this long, the page scrolled to put it in the middle. 0: no flash.")
+QVR_SLIDER_BYNAME(vr_menu_flash_strength, "Search Flash Strength", 0.1f, 1.f, 0.05f, "%.2f", noExt,
+    "How strong the Search result's flash is.")
 QVR_SLIDER_BYNAME(vr_menu_group_scale, "Campaign Title Size", 1.f, 2.f, 0.05f, "%.2fx", noExt,
     "Select Campaign: each campaign's title, over a row's letters. Its Continue under it stays a row's size.")
 QVR_SLIDER_BYNAME(vr_menu_group_gap, "Campaign Gap", 0.f, 16.f, 1.f, "%.0f px", noExt,
