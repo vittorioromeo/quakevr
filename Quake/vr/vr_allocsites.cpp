@@ -206,6 +206,46 @@ void heapTest()
                "runtime's own blocks freed by it)\n", ok ? "PASS" : "FAIL", checks, mi ? "all" : "none");
 }
 
+// The temporary stack (zone.h, Temp_Alloc): nested marks across chunks, a chunk remade larger, contents kept below a
+// mark, and no heap call once its chunks exist.
+void tempTest()
+{
+    const int base = Temp_Mark();
+    bool ok = true;
+    auto* a = static_cast<unsigned char*>(Temp_Alloc(200 * 1024));
+    memset(a, 0x11, 200 * 1024);
+    const int m1 = Temp_Mark();
+    ok = ok && m1 >= base + 200 * 1024 && reinterpret_cast<uintptr_t>(a) % 16 == 0;
+    auto* b = static_cast<unsigned char*>(Temp_Alloc(200 * 1024)); // past the first chunk: the next one
+    memset(b, 0x22, 200 * 1024);
+    const int m2 = Temp_Mark();
+    auto* big = static_cast<unsigned char*>(Temp_Alloc(3 * 1024 * 1024)); // larger than the next chunk would be
+    memset(big, 0x33, 3 * 1024 * 1024);
+    ok = ok && Temp_Mark() > m2 && reinterpret_cast<uintptr_t>(big) % 16 == 0;
+    Temp_FreeToMark(m2);
+    ok = ok && Temp_Mark() == m2 && b[0] == 0x22 && b[200 * 1024 - 1] == 0x22 && a[0] == 0x11;
+    Temp_FreeToMark(m1);
+    ok = ok && Temp_Mark() == m1 && a[200 * 1024 - 1] == 0x11;
+    Temp_FreeToMark(base);
+    // warm: the same pattern again takes no heap call and gives the same blocks
+    const auto before = alloccount::statsThisThread();
+    unsigned char* again[3];
+    for(int k = 0; k < 50; k++)
+    {
+        const int m = Temp_Mark();
+        again[0] = static_cast<unsigned char*>(Temp_Alloc(200 * 1024));
+        again[1] = static_cast<unsigned char*>(Temp_Alloc(200 * 1024));
+        again[2] = static_cast<unsigned char*>(Temp_Alloc(3 * 1024 * 1024));
+        Temp_FreeToMark(m);
+    }
+    const auto after = alloccount::statsThisThread();
+    za::U64 calls = 0;
+    for(int i = 0; i < 6; ++i) calls += after.calls[i] - before.calls[i];
+    ok = ok && calls == 0 && again[0] == a && again[1] == b && again[2] == big && Temp_Mark() == base;
+    Con_Printf("vr_temp test: %s (nested marks over chunks, a larger chunk, contents below a mark, %llu heap calls warm)\n",
+        ok ? "PASS" : "FAIL", static_cast<unsigned long long>(calls));
+}
+
 // Threads allocating and freeing at once (malloc, calloc, realloc, new, aligned), a quarter of the blocks freed by
 // another thread; each block's contents checked before it goes. Million operations a second: the heap's contention.
 struct HeapStressShared
@@ -343,6 +383,7 @@ void heap_f()
     else if(!q_strcasecmp(what, "test"))
     {
         heapTest();
+        tempTest();
         return;
     }
     else if(!q_strcasecmp(what, "stress"))

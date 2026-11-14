@@ -1329,9 +1329,9 @@ extern "C" int VR_TouchLinks(edict_t* ent)
     const vr_tracy_loc* const zone = client ? &touchLinksZone : nullptr;
     if(zone) VR_TracyBeginLoc(zone);
 #endif
-    const int mark = Hunk_LowMark();
+    const int mark = Temp_Mark(); // (the temporary stack: zone.h)
     const int space = qcvm->num_edicts * 4; // (his body, his feet in flat-screen play, two hands: each query adds its finds)
-    edict_t** list = static_cast<edict_t**>(Hunk_AllocNoFill(space * sizeof(edict_t*)));
+    edict_t** list = static_cast<edict_t**>(Temp_Alloc(space * sizeof(edict_t*)));
     int found = 0;
 
     SV_AreaEdictsUnordered(ent->v.absmin, ent->v.absmax, list, &found, space);
@@ -1392,7 +1392,7 @@ extern "C" int VR_TouchLinks(edict_t* ent)
         }
     }
 
-    Hunk_FreeToLowMark(mark);
+    Temp_FreeToMark(mark);
 #ifdef QVR_TRACY
     if(zone) VR_TracyEnd();
 #endif
@@ -1498,9 +1498,9 @@ bool fistOnArmedWeapon(edict_t* player, int hand)
     const float reach = handHalfSize + weaponDrawnReach;
     const float lo[3] = {at.x - reach, at.y - reach, at.z - reach};
     const float hi[3] = {at.x + reach, at.y + reach, at.z + reach};
-    const int mark = Hunk_LowMark();
+    const int mark = Temp_Mark(); // (the temporary stack: zone.h)
     const int space = qcvm->num_edicts;
-    edict_t** list = static_cast<edict_t**>(Hunk_AllocNoFill(space * sizeof(edict_t*)));
+    edict_t** list = static_cast<edict_t**>(Temp_Alloc(space * sizeof(edict_t*)));
     int found = 0;
     SV_AreaEdictsUnordered(lo, hi, list, &found, space);
     bool on = false;
@@ -1508,7 +1508,7 @@ bool fistOnArmedWeapon(edict_t* player, int hand)
     {
         on = !list[i]->free && armedWeapon(list[i]) && handOn(list[i], player, hand == 0 ? HAND_OFF : HAND_MAIN);
     }
-    Hunk_FreeToLowMark(mark);
+    Temp_FreeToMark(mark);
     return on;
 }
 
@@ -1550,9 +1550,9 @@ edict_t* armedWeaponOver(edict_t* body, edict_t* player, int hand, int part)
     const float reach = handHalfSize + weaponDrawnReach;
     const float lo[3] = {at.x - reach, at.y - reach, at.z - reach};
     const float hi[3] = {at.x + reach, at.y + reach, at.z + reach};
-    const int mark = Hunk_LowMark();
+    const int mark = Temp_Mark(); // (the temporary stack: zone.h)
     const int space = qcvm->num_edicts;
-    edict_t** list = static_cast<edict_t**>(Hunk_AllocNoFill(space * sizeof(edict_t*)));
+    edict_t** list = static_cast<edict_t**>(Temp_Alloc(space * sizeof(edict_t*)));
     int found = 0;
     SV_AreaEdictsUnordered(lo, hi, list, &found, space);
     const bool byLimb = vr_agrunt_rag_limb_grab.value != 0.f && part >= 0;
@@ -1591,7 +1591,7 @@ edict_t* armedWeaponOver(edict_t* body, edict_t* player, int hand, int part)
             onLimb = onLimb ? onLimb : w;
         }
     }
-    Hunk_FreeToLowMark(mark);
+    Temp_FreeToMark(mark);
     return onWeapon ? onWeapon : onLimb;
 }
 }
