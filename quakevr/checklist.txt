@@ -69,6 +69,7 @@ Flat-screen or VR: load shells into the open super shotgun: their brass heads si
 Flat-screen or VR: fire the grenade launcher, then force-grab the lit grenade out of the air: its fuse starts over at the full 2.5 s with a small re-arm click and a flare of sparks, the fizz and ticks start again from the top (one stream, no leftover from before), and you can throw it again and hear it properly. {test:grenade_countdown}
 Flat-screen or VR: hold the rocket launcher and look down it from your hand: the three vents at the back of the front shroud (the chevron on the top fin, an arch on each side fin) are real holes now, black inside with walls and a back, not just paint; the pickup on the floor shows them too. {test:rl_vents}
 VR: a very quick trigger or grip press and release still registers (fire, grab).
+VR: let go of a gun and grab it again quickly: the re-grab always takes it.
 
 [9. VR: physics, bodies and gore]
 With drips on, get something wet, then reload the same map (a restart or a save of this level): no crash. {test:waterdrips}
