@@ -1956,6 +1956,84 @@ His flat notes 5, 6, 9 (2026-11-13).
 - **Not done:** the A/B benchmark tables (bench.sh --fast --reps 3, exclusive): the author's game was running.
   Settings for them (the agent worktree's scratch): vp_base.cfg (both 0), vp_grid.cfg (grid only), vp_all.cfg (both 1).
 
+## iconpick: icon picker rows; Run Setup's Difficulty, starting weapons and Enemy Count as pictures (agent/iconpick, 2026-11-14)
+
+- **Icon picker** (a general row type: `Item::icons`, `.iconPicker(list)`; `vr_menu_icons.inc`, included by
+  vr_menu.cpp): a cycle drawn as one picture a choice (`MenuIcon`: a model's thumbnail, N silhouettes of a model, or a
+  painted emblem), side by side under its label, each choice's name under its picture (two lines and smaller letters
+  where it does not fit its cell). Picked: lit on a framed plate, the name white; the others greyed (a grey copy of the
+  picture) and faded by `vr_menu_icon_dim` (0.55); the picture under the mouse or the VR laser (both through
+  M_Mousemove) in colour with a frame. A click on a picture picks it (per-picture hit test `iconAt`; between pictures
+  or on the label: only the row selected), left/right (keys, sticks) step as a cycle's do. Underneath it stays the
+  cycle (cvar, choices by name): menu paths, Search, `menu_vr dump`, the tests see the same. No drop-down for it. Same
+  code flat and in the headset. Pictures are drawn with the blood-red recolour off (their own colours).
+- **Pictures:** the toolgun's icon maker (vr_toolgun_icons.cpp, the same models: v_shot, v_nailpistol, v_revolver,
+  v_axe, v_dagger side views; soldier.mdl for Enemy Count), copied brightened 1.6x (Quake's dark guns on the dark
+  panel), grey, or white (silhouettes, tinted), each copy framed anew round what it covers (v_shot's far tiny parts
+  made its thumbnail a third of its square). "Nothing" is a painted open hand (hand.mdl read as a white block at this
+  size). Difficulty: painted emblems, 1/2/3 chevrons (green, yellow, orange), a bone skull (Nightmare), a red skull
+  dripping (Bloody Nightmare), three arches (a start map's Skill Halls). start.bsp's skill0..3 textures are only the
+  words written vertically, so not used. Copies made at first draw, kept for the session, the thumbnails' copies made
+  again after a game change (`menu::iconsGameDirChanged`).
+- **Knobs** (Menu Look > Run Setup): `vr_menu_icons` 1 (0: plain rows), `vr_menu_icon_size` 32 (16-48 menu px;
+  Difficulty, a big row, a quarter bigger), `vr_menu_icon_dim` 0.55. menu_paths.txt regenerated.
+- **Bloody Nightmare is Difficulty's fifth choice** (his call 2026-11-14; replaces runfix's separate row):
+  `vr_maps_skill` 4; the registry's `bn` row has no row of its own (`Mutator::ownRow` false) and is forced to the
+  Difficulty pick (`bloodyForced`), so the run's `vr_run_bn`, `applyBloody` (skill 3 + `vr_mg3_bn_start`), the save
+  line (`skill=3 bn=1`, old saves read the same), the summary ("Bloody Nightmare / ...") and Continue are unchanged.
+  `skill`'s run cvar is capped at 3 (`Mutator::activeMax`). `vr_runpick_bn` is no longer archived: an old config's
+  `vr_runpick_bn 1` sets Difficulty to Bloody Nightmare and clears itself. Official Campaigns > Bloody Nightmare sets
+  the pick to 4. **Decision:** a start map with skill halls now has a Difficulty row too, only "Skill Halls" (the last
+  normal difficulty kept as its value) or "Bloody Nightmare", so Bloody Nightmare stays selectable there (Dawn of the
+  Machine's start has halls).
+- **Tests:** vr_runsetup_screen_test 40/0 (adds: the four rows are icon pickers; every picture of each picked by a
+  click at its centre through VR_Menu_Mousemove + K_MOUSE1, the hover hit test checked; a click on the label picks
+  nothing; right steps through all and wraps, left wraps back; Bloody Nightmare's picture sets the bn row; a start
+  hall's Skill Halls / Bloody Nightmare by clicks keeps Hard; `vr_menu_icons 0` plain 8-px rows). vr_runsetup_test
+  78/0 (Bloody Nightmare: start skill 3, vr_run_bn 1, vr_mg3_bn_start 1, save line, summary, an older save's summary,
+  Hard clears it, the old cvar's migration). vr_runlaunch_test 31/0. `vr_menu_path_check maps/vrcalibration.map` 6
+  found, 0 missing. The real mouse path checked by `vr_mock_mouse 160 13 click` (Hard picked). Builds: dev and
+  ReleaseLTO (`-p:QvrReleaseVersion=1.1.0`) 0 warnings. Shots: `qvr-kit/scratch/iconpick_shots/`.
+- **Not checked:** the look in the headset (same canvas; the mock's screenshots are 960x540); the page now scrolls
+  more (four tall rows): folding helps.
+## campvis: Select Campaign's hierarchy, Search's landing flash, the menu stops the walk (agent/campvis, 2026-11-14)
+
+His notes: Select Campaign was a wall of same-red, same-size lines; a Search result's row is hard to spot on long
+pages; with live preview the player kept walking once the menu opened.
+- **Select Campaign** (`pageCampaigns`, vr_menu.cpp; flat and VR alike: one page). Each campaign a group of new list
+  looks (`Item::Lead`, `Sub`, `Note`, drawn by `drawGroupRow`; `Item::tagArg` a row's small dim text):
+  - the title (`VR_CampaignTitle`) big and white (`vr_menu_group_scale` 1.25: 10 px letters), pressed: a new run;
+    its status as a small dim tag at the right only when it is not just ready (`VR_CampaignTag`: missing, incomplete,
+    old version, in progress, experimental, language data, single-player; `vr_menu_group_tags` 0 none, 1 exceptions,
+    2 always: "ready" too); the help line carries the whole status;
+  - Continue under it, indented (`vr_menu_group_indent` 16 px), the fold arrow's folded triangle as a play mark, its
+    age small and dim after it (`VR_LaunchContinueLabel` part 3: "2 h ago");
+  - the run on a small dim line under that (part of the Continue row: selected with it, then as bright as it), cut at
+    a " / " part (else a word) with "..." (`fitAtWord`); the Continue row's help has the whole run;
+  - a gap above each group (`vr_menu_group_gap` 6 px; it closes as its section folds); Dawn of the Machine's Bloody
+    Nightmare now a Sub row in its group ("new game" tag); Arcane Dimensions under its own Experimental header (its
+    "experimental" tag); Campaign Data Status and Return to VR Hub in a small This Page footer (`Item::Minor`).
+  - Selection: the VR style's bar fitted round the row's text (`vr_menu_hl_fit`), the classic style's blinking arrow
+    left of it. Knobs on Menu Look's new Select Campaign section.
+- **Search lands with a flash** (`openEntry`, vr_menu_search.inc; drawn by `drawFlash`): the result's row gets a warm
+  pulsing glow behind it (`menuui::paintFlash`, the big menus' bar's shape, stronger than the selection's), whole for
+  half its time then fading (`vr_menu_flash_time` 1.5 s, 0 off; `vr_menu_flash_strength` 0.6), and the page scrolls to
+  put it in the list's middle (`scrollCentring`, again each frame while its section unfolds). State on the menu
+  instance (`flashPage`, `flashRow`, `flashStart`, `flashCentre`). Knobs on Menu Look > Settings Pages.
+- **A menu stops the walk** (flat and VR): the first move with a menu over the game lets every movement button go
+  (`CL_ReleaseMoveButtons`, cl_input.c: forward, back, strafes, turning, up/down, jump, run; keys and console
+  +commands alike: nothing resumes on close until pressed again), and while it is open the move is 0 (keys, sticks,
+  mouse, gamepad: `VR_AdjustMove`). The real cause of the slide: under live preview the server ran the world but not
+  the player's think (sv_user.c `SV_RunClients`: single player thinks only at key_game), so no friction: he slid on at
+  his walking speed until a wall (measured: 340 u/s for 194 frames). He now thinks while `VR_MenuRunsGame()`: at rest
+  in 50 frames.
+- **Tests:** `vr_continue_rows_test` 19/0 (Quake's title Lead, Continue Sub with its age, the run a Note; no tag while
+  ready; the cut at a part); `vr_menu_flash_test` 7/0 (-QuitOn "menu_flash: [0-9]+ passed": "Arm Drip Rate" on Gore
+  lands centred, row 59 at 108 of 220, flashes, over after 1.5 s, none at 0); `vr_menu_stop_test` 9/0 (-QuitOn
+  "menu_stop: [0-9]+ passed": +forward on e1m1 at 320, the VR Settings over it with live preview: no button held and
+  the server's move 0 within 3 frames, at rest within a second, still at rest after the close); menu_shortcuts_test
+  14/0; `vr_menu_path_check` vrcalibration 6 found, vrstart 5 found, 0 missing; menu_paths.txt regenerated. All three
+  tests on Debug > Tools. Shots: `qvr-kit/scratch/campvis_shots/` (campaigns_before_after.png, search_flash.png).
 ## rlvents: the rocket launcher's three vents are real recesses (agent/rlvents, 2026-11-14)
 
 - **What:** the three vents painted at the back of the front shroud (the chevron on the top fin's rear end, an arch on
@@ -2029,3 +2107,58 @@ His flat notes 5, 6, 9 (2026-11-13).
   heap_allocs a frame rose (combat_48 10.8 -> 35.0, ai_crowd_64 9.1 -> 35.2, the AD fight 6.2 -> 81.9): the per-frame
   temporary hunk lists (SV_PushMove, SV_TouchLinks, VR physics) are mallocs now. If they ever show in a profile, they
   can move to their files' mem::Scratch. nh_after/nh_after2 are the runs with garbage NoFill blocks (above).
+
+## vkbench: the vkQuake ports benchmarked; the FTE hull trace stays off (agent/vkbench, 2026-11-14)
+
+Benches: `bench.sh --fast --reps 3`, exclusive, ReleaseLTO of origin/next 12c7ed23a (before the nohunk merge), the
+author's game closed. Settings (worktree scratch): vb_base.cfg (sv_fastpushmove 1, sv_fte_hulltrace 0), vb_nopush.cfg
+(0, 0), vb_hull.cfg (1, 1); vb_jobs0/1.cfg (vr_jobs_parallel). Two passes in opposite orders (base, nopush, hull; then
+hull, nopush, base: labels vb_* and vb2_* in kit/benchresults): the whole-frame and GPU numbers drift 5-10% between
+batches (the GPU's p99 halved from the first batch to the second with no GPU change), so the tables read the server's
+own phase, `cpu_phase_ms` SV_Physics (ms a frame, mean of 3), from the JSONs (scratch/vb_table.py).
+
+**FTE hull trace** (sv_fte_hulltrace 0 -> 1), SV_Physics, pass 1 | pass 2:
+
+| scenario | pass 1 | pass 2 |
+|---|---|---|
+| combat_48 | 1.445 -> 1.483 (+2.6%) | 1.417 -> 1.487 (+4.9%) ** |
+| ai_crowd_64 | 1.713 -> 1.794 (+4.7%) ** | 1.687 -> 1.731 (+2.7%) |
+| idle_e1m1 | 0.716 -> 0.792 (+10.6%) ** | 0.702 -> 0.705 (+0.4%) |
+| play_ad_tfuma_fight | 3.194 -> 3.561 (+11.5%) ** | 3.229 -> 3.389 (+5.0%) ** |
+| fight_ad_sepulcher | 0.675 -> 0.725 (+7.3%) ** | 0.671 -> 0.763 (+13.6%) ** |
+
+Slower in both orders (frame p50 too: tfuma +8.3% / +6.3%, sepulcher +2.9% / +11.8%). `sv_hulltrace_compare` timed
+it 1.7-3x quicker, but on random moves up to 512 units an axis; the game's traces are mostly short (step moves,
+8-18 units, point-sized), probably where FTE's per-call setup costs more than Quake's recursion saves. Not chased.
+
+**Pusher grid** (sv_fastpushmove 1 -> 0), SV_Physics change without the grid, pass 1 | pass 2: combat_48 +1.0% |
+-0.5%, ai_crowd_64 +0.9% | -0.4%, idle_e1m1 +0.6% | -0.9%, play_ad_tfuma_fight +2.7% | +1.4%, fight_ad_sepulcher
++11.4% | -0.5%. Within the noise but for one pass on sepulcher: no measurable gain on these scenes, no cost; it stays 1.
+
+**Faces on the job pool** (vr_jobs_parallel 0 -> 1; 0 turns off every pool job of a load, hulls, Box3D and navmesh
+too, not only the faces), load ms, median of 3:
+
+| load | jobs 0 | jobs 1 |
+|---|---|---|
+| e1m1 cold / warm / restart | 1812 / 250 / 180 | 1691 / 208 / 158 (-7%, -17%, -12%) |
+| ad_azad cold / warm | 3151 / 8320 | 1988 / 1682 (-37%, -80%) |
+| ad_tears cold | 9463 | 3704 (-61%) |
+
+ad_azad's warm load is mostly "disconnect, old server shut down" (7.7 s with 0, 4.6 s in a slow rep with 1): the first
+map's background builds joined before the second load. One ad_tears rep with 1 took 17.3 s (the 85 MB BSP's first read
+from disk), left out by the median. New bench scenario `load_ad_azad` (cold, warm). No big library map here:
+`load_ad_grendel` loaded nothing (the package is not installed on this machine).
+
+**Hull trace tests** (sv_fte_hulltrace 0 and 1 through the agent's baseline config, 4 lanes; logs scratch/vb_t0,
+vb_t1): load_models_test 4/0 both; melee_phase_test 7 of 7 both; melee_arc_test (id) every result line identical;
+ragdoll climb_test 24/24 both; stagger_test 54 PASS, 2 FAIL both (the same two: monster 2 "all 8 recovered (7)",
+monster 0 "beaten ones backpedal"; not the trace); forcegrab_block_test, walltorch_grab_test, pickup_mag_test
+identical; `vr_snd_test distance` (the occlusion's hull-0 line of sight) the same one FAIL both ("in sight, as loud as
+Quake's mix", the SDL dummy driver run); hullhit/hit_test within its run-to-run spread (e.g. grunt 193 vs 175, ogre
+475 vs 473). Hull walks (90 s, seed 7): e1m1, e3m3, e4m1 stuck 0, embedded 0, outside 0 both ways (e4m1 1 hop failed
+both). **Verdict:** nothing breaks with 1, but it is slower in play: sv_fte_hulltrace stays 0.
+
+**walk_test.sh's missing summaries:** the summary line follows a console bar left open on the same log line, so
+`^hullwalk` never matched and every run waited out its `wait` (the e3m3/e4m1/e1m1 runs "without a summary"). Now
+matched unanchored, `-QuitOn` on it (the run ends there, the log flushed every frame), and a last line
+`walk_test: N maps, M without a summary`.

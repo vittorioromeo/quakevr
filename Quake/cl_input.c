@@ -467,6 +467,40 @@ void CL_SendMove (const usercmd_t *cmd)
 
 /*
 ============
+CL_ReleaseMoveButtons
+
+QVR: a menu opened over a running game (live preview; VR_AdjustMove): the movement buttons let go -- forward, back,
+the strafes, turning, up and down (swim, crouch), jump, run -- held by a key or typed at the console alike, so the
+player stops and nothing resumes on the menu's close until pressed again (a key still held: its later key up finds
+no down, harmless).
+============
+*/
+static kbutton_t *const move_buttons[] = {
+	&in_forward, &in_back, &in_moveleft, &in_moveright, &in_left, &in_right,
+	&in_lookup, &in_lookdown, &in_up, &in_down, &in_jump, &in_speed, &in_strafe,
+};
+
+void CL_ReleaseMoveButtons (void)
+{
+	size_t i;
+	for (i = 0; i < countof (move_buttons); i++)
+	{
+		move_buttons[i]->down[0] = move_buttons[i]->down[1] = 0;
+		move_buttons[i]->state = 0;
+	}
+}
+
+int CL_MoveButtonsHeld (void)
+{
+	size_t i;
+	int held = 0;
+	for (i = 0; i < countof (move_buttons); i++)
+		held += (move_buttons[i]->state & 1) != 0;
+	return held;
+}
+
+/*
+============
 CL_InitInput
 ============
 */
