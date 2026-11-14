@@ -118,6 +118,10 @@ void benchPose();
 // null: none), and its bones for `pieces` worn from the body's `bones` (`have` of them; made once a frame): the count.
 [[nodiscard]] qmodel_t* playerBridgeModel(qmodel_t* body);
 int playerBridgePoses(const qmodel_t* body, int pieces, const float* bones, int have, const float** out);
+// Another player's (MP_PLAN B6c): the same, made into `out` (playerBridgeMostBones * 12 floats) at each call, not kept.
+int playerBridgePosesInto(const qmodel_t* body, int pieces, const float* bones, int have, float* out);
+inline constexpr int playerPlatesMostBones = 128;      // the armour model's bones at most (vr_agarmor_internal's maxSlots)
+inline constexpr int playerBridgeMostBones = 4 * 9 * 7; // the joints' leather's (bridgeMostVerts)
 
 // Entity `num`'s armour: type 0 none, 1 green, 2 yellow, 3 red; `pieces` a mask of Piece bits; -1: vr_agarmor's again.
 void setWorn(int num, int type, int pieces);

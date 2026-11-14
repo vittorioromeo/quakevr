@@ -63,8 +63,11 @@ void parse();
 // (vr_mp_avatar_draw; multiplayer only).
 void addEntities();
 
-// VR_AliasBonePoses: an avatar's jointed hand's skinning matrices (their count; 0: not one).
+// VR_AliasBonePoses: an avatar's jointed hand's skinning matrices (their count; 0: not one); his armour's plates' and
+// their leather's (B6c: his body's bones as drawn).
 [[nodiscard]] int bonePoses(const entity_t* e, const float** matrices);
+// The body an avatar's plates (or their leather) are drawn on (avatar::modelScale: his body's scale), or nullptr.
+[[nodiscard]] const entity_t* plateBody(const entity_t* e);
 // VR_AliasMirrored: an avatar's entity drawn mirrored (an off hand, a left-handed weapon).
 [[nodiscard]] bool mirrored(const entity_t* e);
 

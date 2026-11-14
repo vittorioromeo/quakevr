@@ -519,6 +519,15 @@ enum class PlatePass : int
     Clone,
 };
 [[nodiscard]] int plateBonePoses(const entity_t* e, const float** matrices, PlatePass pass);
+// Another player's plates (MP_PLAN B6c): the plates' model and the joints' leather over his `body` (posed this frame)
+// placed into `plate` and `bridge` for the server's word on him (`type` 1-3, `pieces`; not visible: none). No morph: a
+// piece comes and goes at once. Their bones (otherPlateBonePoses): his body's as drawn, by your plates' own code.
+void placeOtherPlates(const ViewEntity& body, int type, int pieces, ViewEntity& plate, ViewEntity& bridge);
+// Their bones (VR_AliasBonePoses' count; with `matrices`, made into `out`: agarmor::playerPlatesMostBones, or for the
+// leather (`bridge`) playerBridgeMostBones, times 12 floats).
+[[nodiscard]] int otherPlateBonePoses(const entity_t& body, bool bridge, int pieces, float* out, const float** matrices);
+// vr_mp_avatars: "mp_plates_own: ent= type= pieces= skin= model=" (your plates as drawn).
+void printOwnPlates(int ent);
 // A new level or a load's armour coming (agarmor::parseEvent): the next word on the plates taken as it comes, no morph.
 void platesResync();
 // Whether the armour's plates show on your body this frame (vr_player_plates on, a piece worn, the body drawn): what the

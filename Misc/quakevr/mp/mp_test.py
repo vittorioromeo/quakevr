@@ -608,14 +608,13 @@ def cosmetics(s):
 
 
 def plates_of(lines, prefix):
-    """"mp_plates:" / "mp_plates_own:" lines -> {ent: fields (type, pieces, skin, slots, shown) with "model", "body"}."""
+    """"mp_plates:" / "mp_plates_own:" lines -> {ent: fields (type, pieces, skin, slots, shown) with "model"}."""
     out = {}
     for l in lines:
         if l.startswith(prefix + ":"):
-            f = avatar_fields(l.split(":", 1)[1])
-            for k in ("model", "body"):
-                m = re.search(r"\b%s=(\S+)" % k, l)
-                f[k] = m.group(1) if m else ""
+            f = avatar_fields(re.sub(r"\s*model=\S+", "", l.split(":", 1)[1]))
+            m = re.search(r"\bmodel=(\S+)", l)
+            f["model"] = m.group(1) if m else ""
             out[int(f["ent"][0])] = f
     return out
 

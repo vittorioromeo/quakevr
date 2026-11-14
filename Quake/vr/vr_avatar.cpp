@@ -2300,6 +2300,10 @@ float modelScale(const entity_t* e)
     {
         e = source; // (the body's mirror image: vr_bodyclone.cpp)
     }
+    if(const entity_t* body = mpavatar::plateBody(e))
+    {
+        e = body; // (another player's plates: his body's)
+    }
     if(e && qvr::view::plateBonePoses(e, nullptr, qvr::view::PlatePass::View))
     {
         return posed.ent ? posed.scale : 0.f; // (the armour's plates on it)

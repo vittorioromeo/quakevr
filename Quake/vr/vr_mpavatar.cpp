@@ -4,8 +4,10 @@
 
 #include "vr_api.h"
 
+#include "vr_agarmor.hpp"
 #include "vr_avatar.hpp"
 #include "vr_backend.hpp"
+#include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -54,6 +56,15 @@ struct Drawn
     view::ViewEntity holster[VrDrawnHolsters::count];
     view::ViewEntity pauldron[2];
     view::ViewEntity pauldronArm[2];
+    // His armour's plates and their joints' leather on his body (B6c: the server's word on him), their pieces, their bones
+    // (made as they are drawn: view::otherPlateBonePoses; sized when first shown).
+    view::ViewEntity plate;
+    view::ViewEntity plateBridge;
+    int plateType{0};
+    int platePieces{0};
+    int plateSlots{0}, plateShown{0}; // as last drawn (the report's)
+    za::Vector<float> plateBones;
+    za::Vector<float> bridgeBones;
 };
 struct DrawnAll
 {
@@ -154,6 +165,13 @@ void printAvatar(int e, const Avatar& a)
         Con_Printf(" eyeheight=%.3f yaw=%.1f moves=%d pitch=%.1f lying=%.2f climb=%.2f seated=%d\n", d.eyeHeight, a.body.yaw,
             a.moves, pitch, lying, climbWeight, d.seated ? 1 : 0);
         view::printPauldrons("mp_pauldron", e, d.pauldron);
+        if(d.plate.visible && d.plate.ent.model && !d.plateBones.empty())
+        {
+            // His plates as last drawn: their bone slots, and how many his body's bones showed (a hidden piece's collapsed).
+            Con_Printf("mp_plates: ent=%d type=%d pieces=%d skin=%d slots=%d shown=%d leather=%d model=%s\n", e, d.plateType,
+                d.platePieces, d.plate.ent.skinnum, d.plateSlots, d.plateShown, d.plateBridge.visible ? 1 : 0,
+                d.plate.ent.model->name);
+        }
     }
     if(d.frame == host_framecount - 1 || d.frame == host_framecount)
     {
@@ -222,6 +240,7 @@ void avatars_f()
         }
         view::printOwnLooks(cl.viewentity);
         view::printOwnPauldrons(cl.viewentity);
+        view::printOwnPlates(cl.viewentity);
         // His own holsters as drawn (what the others draw: the move's view::netHolsters).
         VrDrawnHolsters hs;
         view::netHolsters(hs);
@@ -389,6 +408,19 @@ void setup(int e, const Avatar& a)
     return nullptr;
 }
 
+// The avatar whose plates (or their joints' leather) `e` is (B6c), or nullptr.
+[[nodiscard]] Drawn* platesOf(const entity_t* e)
+{
+    const auto* first = reinterpret_cast<const unsigned char*>(&drawn.of[0]);
+    const auto* p = reinterpret_cast<const unsigned char*>(e);
+    if(p < first || p >= first + sizeof(drawn.of))
+    {
+        return nullptr;
+    }
+    Drawn& d = drawn.of[(p - first) / sizeof(Drawn)];
+    return e == &d.plate.ent || e == &d.plateBridge.ent ? &d : nullptr;
+}
+
 // The calibration's fields (vr_mpavatar.hpp, Calibration): each from its cvar, times `scale`, rounded, clamped to
 // [lo, hi] (on both sides: what a client sends and what the server keeps are the same numbers).
 struct CalField
@@ -477,6 +509,8 @@ void setupBody(int e, const Avatar& a, const glm::vec3& origin)
         d.pauldron[side].visible = false;
         d.pauldronArm[side].visible = false;
     }
+    d.plate.visible = false;
+    d.plateBridge.visible = false;
     const Calibration* c = cal.has[e] ? &cal.of[e] : nullptr;
     if(vr_mp_body.value == 0.f || !a.body.valid || (c && c->v[calBody] == 0) || !d.hand[0].visible || !d.hand[1].visible)
     {
@@ -559,6 +593,17 @@ void setupBody(int e, const Avatar& a, const glm::vec3& origin)
     d.handWrist[1] = poses[HAND_MAIN].wrist;
     d.eyeHeight = who.eyeHeight;
     d.seated = who.seated;
+    // His armour's plates (B6c): the server's word on him (QVR_SVC_ARMOR, as on you), drawn as yours are (your
+    // vr_player_plates: whether you see plates at all).
+    const bool plates = vr_player_plates.value != 0.f;
+    d.plateType = plates ? za::max(agarmor::clientState(e, 0), 0) : 0;
+    d.platePieces = d.plateType > 0 ? za::max(agarmor::clientState(e, 1), 0) : 0;
+    view::placeOtherPlates(d.body, d.plateType, d.platePieces, d.plate, d.plateBridge);
+    if((d.plate.visible || d.plateBridge.visible) && d.plateBones.empty())
+    {
+        d.plateBones.resize(agarmor::playerPlatesMostBones * 12, 0.f);
+        d.bridgeBones.resize(agarmor::playerBridgeMostBones * 12, 0.f);
+    }
     // His pauldrons on it (his calibration's look; the armour the server says he wears), as yours are placed.
     if(c)
     {
@@ -572,6 +617,8 @@ void setupBody(int e, const Avatar& a, const glm::vec3& origin)
                       1000.f;
         look.build = build;
         look.armour = a.armour;
+        look.plates = d.plate.visible;
+        look.platePieces = static_cast<unsigned>(d.platePieces);
         view::placePauldrons(d.body, look, e, d.pauldron, d.pauldronArm);
     }
 }
@@ -886,6 +933,8 @@ void addEntities()
         {
             add(ve);
         }
+        add(d.plate);
+        add(d.plateBridge);
         if(d.body.visible && d.body.ent.model)
         {
             // In his player model's place (it would stand round the body), or added.
@@ -949,8 +998,37 @@ int lookOf(const entity_t* e, view::SkinLook& look)
     return kind;
 }
 
+const entity_t* plateBody(const entity_t* e)
+{
+    const Drawn* p = platesOf(e);
+    return p ? &p->body.ent : nullptr;
+}
+
 int bonePoses(const entity_t* e, const float** matrices)
 {
+    if(Drawn* p = platesOf(e); p && !p->plateBones.empty())
+    {
+        // His plates or their leather: his body's bones as drawn (B6c), by your plates' own code.
+        const bool bridge = e == &p->plateBridge.ent;
+        const int n = view::otherPlateBonePoses(p->body.ent, bridge, p->platePieces,
+            bridge ? p->bridgeBones.data() : p->plateBones.data(), matrices);
+        if(!bridge && matrices && *matrices)
+        {
+            // (the report's: the slots drawn, and those his body's bones showed)
+            p->plateSlots = n;
+            p->plateShown = 0;
+            for(int i = 0; i < n; i++)
+            {
+                bool any = false;
+                for(int k = 0; k < 12; k++)
+                {
+                    any = any || (*matrices)[i * 12 + k] != 0.f;
+                }
+                p->plateShown += any ? 1 : 0;
+            }
+        }
+        return n;
+    }
     int side = 0;
     bool hand = false;
     const Drawn* d = drawnOf(e, side, hand);

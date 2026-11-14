@@ -188,6 +188,33 @@ void beginPlateMorph(int pieces, int type, bool in, double now)
 
 } // namespace
 
+// An armour model (the plates, or the joints' leather) on `body` as it is drawn: its skin the armour's colour (`type`
+// 1-3), its light and see-through the body's. Yours and the other players' (placeOtherPlates).
+void placeOnBody(view::ViewEntity& ve, qmodel_t* model, const view::ViewEntity& body, int type, float morph)
+{
+    place(ve, model, {body.ent.origin[0], body.ent.origin[1], body.ent.origin[2]}, glm::vec3{0.f}, 0, false);
+    ve.ent.skinnum = type - 1;
+    ve.ent.alpha = body.ent.alpha;
+    ve.lightMultiply = body.lightMultiply;
+    ve.lightMod = body.lightMod;
+    ve.morph = morph;
+}
+
+// The plates' bones (`numSlots` slots, each its body bone and piece) from a body's `src` (`have` bones), a piece not in
+// `pieces` collapsed (its triangles gone), into `out`.
+void fillPlateSlots(int numSlots, const int* slotBone, const int* slotPiece, const float* src, int have, int pieces, float* out)
+{
+    for(int slot = 0; slot < numSlots; slot++)
+    {
+        const int b = slotBone[slot];
+        const bool shown = src && b < have && ((pieces >> slotPiece[slot]) & 1);
+        for(int i = 0; i < 12; i++)
+        {
+            out[slot * 12 + i] = shown ? src[b * 12 + i] : 0.f;
+        }
+    }
+}
+
 void setupPlates()
 {
     PlayerPlates& p = playerPlates;
@@ -265,12 +292,7 @@ void setupPlates()
         view::ViewEntity& ve = entities.plate[i];
         if(shown)
         {
-            place(ve, armor, {body.ent.origin[0], body.ent.origin[1], body.ent.origin[2]}, glm::vec3{0.f}, 0, false);
-            ve.ent.skinnum = kind - 1;
-            ve.ent.alpha = body.ent.alpha;
-            ve.lightMultiply = body.lightMultiply;
-            ve.lightMod = body.lightMod;
-            ve.morph = morph;
+            placeOnBody(ve, armor, body, kind, morph);
             p.entityPieces[i] = shown;
         }
     };
@@ -278,12 +300,7 @@ void setupPlates()
     // (the joints' leather over the pieces worn, settled or coming: an entity of its own, its bones made once a frame)
     if(qmodel_t* bridge = pieces ? agarmor::playerBridgeModel(body.ent.model) : nullptr)
     {
-        view::ViewEntity& ve = entities.plate[plateBridge];
-        place(ve, bridge, {body.ent.origin[0], body.ent.origin[1], body.ent.origin[2]}, glm::vec3{0.f}, 0, false);
-        ve.ent.skinnum = type - 1;
-        ve.ent.alpha = body.ent.alpha;
-        ve.lightMultiply = body.lightMultiply;
-        ve.lightMod = body.lightMod;
+        placeOnBody(entities.plate[plateBridge], bridge, body, type, 0.f);
         p.bridgePieces = pieces;
     }
     for(int i = 0; i + 1 < plateEntities; i++)
@@ -604,17 +621,71 @@ int plateBonePoses(const entity_t* e, const float** matrices, PlatePass pass)
         (pass == PlatePass::Clone ? p.clone : head ? p.withHead : p.fromEyes) |= pieces;
     }
     float* out = platesBones[index];
-    for(int slot = 0; slot < numSlots; slot++)
-    {
-        const int b = slotBone[slot];
-        const bool shown = src && b < have && ((pieces >> slotPiece[slot]) & 1);
-        for(int i = 0; i < 12; i++)
-        {
-            out[slot * 12 + i] = shown ? src[b * 12 + i] : 0.f; // (a hidden piece collapsed: its triangles gone)
-        }
-    }
+    view_detail::fillPlateSlots(numSlots, slotBone, slotPiece, src, have, pieces, out);
     *matrices = out;
     return numSlots;
+}
+
+void placeOtherPlates(const ViewEntity& body, int type, int pieces, ViewEntity& plate, ViewEntity& bridge)
+{
+    plate.visible = false;
+    bridge.visible = false;
+    if(type <= 0 || !pieces || !body.visible || !body.ent.model)
+    {
+        return;
+    }
+    if(qmodel_t* armor = agarmor::playerArmorModel(body.ent.model))
+    {
+        view_detail::placeOnBody(plate, armor, body, type, 0.f);
+    }
+    if(qmodel_t* leather = agarmor::playerBridgeModel(body.ent.model))
+    {
+        view_detail::placeOnBody(bridge, leather, body, type, 0.f);
+    }
+}
+
+int otherPlateBonePoses(const entity_t& body, bool bridge, int pieces, float* out, const float** matrices)
+{
+    if(bridge)
+    {
+        if(!matrices)
+        {
+            return agarmor::playerBridgePoses(body.model, pieces, nullptr, 0, nullptr);
+        }
+        const float* src = nullptr;
+        const int have = VR_AliasBonePoses(&body, &src);
+        *matrices = out;
+        return agarmor::playerBridgePosesInto(body.model, pieces, src, have, out);
+    }
+    int numSlots = 0;
+    const int* slotBone = nullptr;
+    const int* slotPiece = nullptr;
+    if(!agarmor::playerSlots(body.model, numSlots, slotBone, slotPiece))
+    {
+        return 0;
+    }
+    if(matrices)
+    {
+        // (his body's bones as drawn: seen from outside, with its head, so his helmet too)
+        const float* src = nullptr;
+        const int have = VR_AliasBonePoses(&body, &src);
+        view_detail::fillPlateSlots(numSlots, slotBone, slotPiece, src, have, pieces, out);
+        *matrices = out;
+    }
+    return numSlots;
+}
+
+void printOwnPlates(int ent)
+{
+    // (the settled ones, else the first coming in)
+    const view::ViewEntity* shown = &entities.plate[0];
+    for(int i = plateEntities - 1; i >= 0; i--)
+    {
+        shown = entities.plate[i].visible ? &entities.plate[i] : shown;
+    }
+    const view::ViewEntity& plate = *shown;
+    Con_Printf("mp_plates_own: ent=%d type=%d pieces=%d skin=%d model=%s\n", ent, playerPlates.type, playerPlates.pieces,
+        plate.visible ? plate.ent.skinnum : -1, plate.visible && plate.ent.model ? plate.ent.model->name : "-");
 }
 
 void platesResync()
