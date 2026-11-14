@@ -180,7 +180,7 @@ player unchanged.
 |---|---|---|
 | **B1** (done) | Audit, design, plan; the harness; first e2e tests; the same-IP kick fixed | `mp_test.py suite` |
 | **B2** (mostly done; the rest is B2b) | Protocol hygiene and VR player state for two players: per-client protocol version in the handshake (a clean reject on mismatch); every move processed, edge bits ORed, per-client state reset on connect/drop; reliable chunks at most 1200 B; arm poses per client, PVS-culled; the VR player-state block and calibration message; remote players drawn with the armed humanoids' arm solver and skin on the player body (head, hands, fingers, held weapons) | `mp_avatar`: B sees A's mock hands within 2 units of where A's server has them, fingers within a step, the held weapon's model; `mp_bandwidth`: down under 25 KB/s idle on e1m1; `mp_coop` stays green |
-| **B2b** | The rest of B2: finger curls in the move and the avatar; remote players drawn with the player's own body (vr_avatar.cpp's IK from head and hands) or the armed humanoids' arm solver (vr_agarms.cpp), whichever shares more, and their held weapons' models in their hands; the avatar calibration message (height, arm length, handedness, gloves, body), reliable on change; melee sub-tick samples from every move | `mp_avatar` grown: fingers within a step, the weapon model drawn in B's view at A's hand (a screenshot pair) |
+| **B2b** (hands done; the rest is B2c) | The rest of B2: finger curls in the move and the avatar; remote players drawn with the player's own body (vr_avatar.cpp's IK from head and hands) or the armed humanoids' arm solver (vr_agarms.cpp), whichever shares more, and their held weapons' models in their hands; the avatar calibration message (height, arm length, handedness, gloves, body), reliable on change; melee sub-tick samples from every move | `mp_avatar` grown: fingers within a step, the weapon model drawn in B's view at A's hand (a screenshot pair) |
 | **B3** | Per-client data: the prefs message and `clientpref`; the rig (palm frame, fists, hotspots, weapon hull) and body calibration up; the ~25 host shortcuts replaced; client-side traces for teleport, crosshair, flashlight, hand collision | `mp_prefs` (A left-handed, B right-handed: each judged by his own), `mp_teleport` (a remote client teleports), `mp_grab` (B's own fist grabs) |
 | **B4** | Coop campaign flow: coop saves and loads (per-player blocks, versioned), autosaves, level transitions with inventories, intermission, deaths and respawns, map download (package names through the map installer; chunked fallback) | `mp_campaign` (e1m1 to e1m3 with saves and a load, both players' inventories), `mp_download` (B lacks a map: installs it, joins) |
 | **B5** | Interactions between players: drop a weapon / the other picks it up; force grab of world weapons in multiplayer; melee, parries and shoves between players; climbing, crouch, prone, jump, punch synced and judged per player | one scenario per interaction, each from both sides |
@@ -273,6 +273,50 @@ Open items (B2b and later):
 - The avatar is sent whole every frame (about 4 KB/s per visible player): B7's deltas and B9's priority.
 - Fast retransmit for the reliable window (a lost chunk waits the 1 s timeout): with B7.
 
+### B2b results (2026-11-14, release no-LTO build, loopback; `mp_test.py suite`: all 5 scenarios pass)
+
+| Scenario | Result |
+|---|---|
+| `mp_avatar` | B's copy of A's head and drawn hands 0.00 units from the server's, the main hand's angles exact; A closes his off hand (the mock's grip): its 15 joint curls at B equal the server's (mean 4.0 frames); B draws both of A's jointed hands where A drew them (0.00 units); B idle with A's avatar: down 19.3 KB/s; the server sent 39 avatars and skipped 149 as unchanged |
+| `mp_bandwidth` | B idle on e1m1: down 16.6 KB/s (was 15.5-22.5); up 50 KB/s, 702 B a move (was 640: the two drawn hands) |
+| `mp_coop`, `mp_coop_lag` | Unchanged: pass (A seen moving off in 55 ms, 218 ms at 150 ms lag) |
+
+What changed:
+
+- The move carries each hand as its client drew it (`VrDrawnHand`, `vr_move.cpp` `writeDrawnHand`): the jointed hand's
+  entity place and turn (after the palm's fit and the firing motion), its 15 joint curls as posed (the grasp's wrap of
+  what it holds included; sixteenths of a frame) and the thumb's turn, and the held weapon's model (its
+  `model_precache` index), frame, skin and place: 32 B a bare hand, 48 B with a weapon; multiplayer only
+  (`view::netHands`). The avatar passes them on instead of the controllers' poses.
+- Decision (what shares more): other players' hands are drawn from the pose their own client drew, not solved again:
+  the same handrig pose and skin (`view::remoteHandSkin`: the rig's fingers' shifts as this client's settings put them)
+  and no grasp solve, wall push or two-handed placement of their own. Exact, cheap, and every local feature (grips,
+  recoil, blades in bodies) shows as it was drawn. The body (vr_avatar.cpp's IK) is still to come: its state is the
+  local player's (one posed skeleton read by holsters, pauldrons, self-collision), so a remote body needs it made per
+  instance first (B2c).
+- `vr_mpavatar.cpp` draws each other player's hands and weapons on his entity as drawn (its lerp; an avatar older than
+  1 s or an entity not in the last message is not drawn): `VR_AddMpAvatars` (view.c, after the view's entities),
+  `mpavatar::bonePoses` (VR_AliasBonePoses), `mpavatar::mirrored` (VR_AliasMirrored). `vr_mp_avatar_draw` 1 (Debug >
+  Reports > Network: Draw Player Hands).
+- An avatar unchanged since it was last sent goes again only every `vr_net_avatar_keyframe` (8) frames (Debug > Reports
+  > Network: Avatar Keyframe): an idle player costs an eighth. Its offsets are from his entity's origin, so it rides
+  his entity between messages.
+- `QVR_NET_VERSION` 3. `vr_mp_avatars` prints the curls, what was drawn (`mp_avatar_drawn:`), the client's own hands
+  (`mp_avatar_own:`) and the server's counts (`mp_avatar_sent:`). The harness stops its games when a scenario raises.
+
+Open items (B2c and later):
+
+- No weapon reaches a hand in the harness: `impulse 154` (and `vr_test_give_wid 4; impulse 149` with the server's cvar
+  set) leaves A's main hand empty in coop on a dedicated server, and the single-player kit run shows no weapon index
+  either (`mp_avatar_own: ... wmdl=0 0`): either the give does not take, or the drawn VR weapon model is not one the
+  server precached (`netHands` sends only precached models). The weapon checks in `mp_avatar` are written and skip
+  until it does. First thing of B2c: find which, then a screenshot pair of A's hands and weapon at B.
+- The body under the hands (vr_avatar.cpp per instance), the avatar calibration message (height, arm length,
+  handedness, gloves, body; reliable on change), melee sub-tick samples from every move: B2c.
+- Remote hands use this client's cosmetics (hand size, gloves, nails): B6.
+- A held weapon's parts (the super shotgun's barrels, the revolver's crane, pumps, magazines) are drawn as the whole
+  model at its frame.
+
 ## Decisions
 
 - The harness is Python with an in-engine inbox rather than stdin or RCON: it drives GUI clients and dedicated servers
@@ -283,4 +327,4 @@ Open items (B2b and later):
   (QuakeWorld's `qport` is the full answer: B7, with the snapshot protocol).
 - Voice chat (B10) needs Opus and a noise suppressor vendored as source: to be confirmed by the author before B10.
 
-Next phase: B2b — remote players drawn: finger curls in the move and the avatar; the remote player's body posed from his avatar (vr_avatar.cpp's body IK, or the armed humanoids' arm solver: whichever shares more) with his held weapons' models in his hands; the avatar calibration message (height, arm length, handedness, gloves, body); melee sub-tick samples from every move; `mp_avatar` grown (fingers, a screenshot pair of A's hands at B).
+Next phase: B2c — the rest of B2b: a weapon in a coop client's hand in the harness (why the test give leaves it empty, or the drawn model unprecached) and `mp_avatar`'s weapon checks live, with a screenshot pair of A's hands and weapon at B; the remote player's body posed from his avatar (vr_avatar.cpp's IK made per instance); the avatar calibration message (height, arm length, handedness, gloves, body; reliable on change); melee sub-tick samples from every move.

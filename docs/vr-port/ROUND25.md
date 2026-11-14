@@ -2199,3 +2199,14 @@ MP_PLAN.md, "B2 results", has the details and numbers. In short:
 - Each player's head, hands and weapons reach the clients that see him (`QVR_SVC_AVATAR`, `vr_mpavatar.cpp`,
   `vr_mp_avatars`); not drawn yet (B2b).
 - Harness: `mp_test.py bandwidth | version | avatar`, all in `suite` (5 scenarios, all pass).
+
+## mpN (B2b): other players' hands drawn with their fingers (agent/mp, 2026-11-14; never shipped by the coordinator)
+
+- Each client sends its hands as drawn (the jointed hand's place, its 15 joint curls and thumb, the held weapon's model,
+  frame and place: `VrDrawnHand`); the avatar passes them on, and every other client draws those hands and weapons on
+  that player's entity, posed by the same hand rig, no solve of its own (`vr_mpavatar.cpp`; `vr_mp_avatar_draw`, Debug
+  > Reports > Network: Draw Player Hands). Multiplayer only; single player sends 2 bytes more a move.
+- An unchanged avatar is sent every `vr_net_avatar_keyframe` (8) frames only (Debug > Reports > Network: Avatar
+  Keyframe). `QVR_NET_VERSION` 3.
+- `mp_avatar`: A's closed off hand's curls at B equal the server's, both hands drawn at B where A drew them; the weapon
+  checks skip (no weapon reaches the test client's hand yet: MP_PLAN.md, B2b open items). `mp_test.py suite` passes.
