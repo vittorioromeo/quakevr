@@ -184,7 +184,8 @@ player unchanged.
 | **B2c** (weapon and calibration done; the rest is B2d) | The harness's weapon in hand and `mp_avatar`'s weapon checks with a screenshot pair; the avatar calibration message; the remote body; melee sub-tick samples | `mp_avatar` 17/0 (weapon checks live), `mp_avatarcal` |
 | **B2d** (done; pauldrons and gloves to B6) | The remote player's body posed from his avatar (vr_avatar.cpp's IK and skinning made per instance: one code path for the local body and remote ones), sized and dressed by his calibration (height, arm length, build, bracers, pauldrons, gloves) | `mp_body` (B's copy of A's body: wrists at A's drawn hands, head at his head, a screenshot pair; A's height changed: B's copy taller) |
 | **B3** (prefs and fists done; the rest is B3b) | Per-client data: the prefs message and `clientpref`; the rig (palm frame, fists, hotspots, weapon hull) and body calibration up; the ~25 host shortcuts replaced; client-side traces for teleport, crosshair, flashlight, hand collision | `mp_prefs` (A left-handed, B right-handed: each judged by his own), `mp_teleport` (a remote client teleports), `mp_grab` (B's own fist grabs) |
-| **B3b** | The rest of B3: the palm frame (vr_grip.cpp), weaponhotspot and the drawn pose (vr_builtins_held.inc), the weapon hull, the 2H carry and foe grab frames, the ragdoll grab fit and the crawl's hand bottom (the fists' other users), body calibration up (his measured arms and shoulders, for his copy's shoulders); client-side traces for teleport, crosshair, flashlight, hand collision; why B's dropped shotgun is not always taken back | `mp_teleport`, `mp_grab` grown (taken back every run), `mp_body` (shoulders within 0.2 with A calibrated) |
+| **B3b** (the suite reliable, the take-back a check; the rest is B3c) | The rest of B3: the palm frame (vr_grip.cpp), weaponhotspot and the drawn pose (vr_builtins_held.inc), the weapon hull, the 2H carry and foe grab frames, the ragdoll grab fit and the crawl's hand bottom (the fists' other users), body calibration up (his measured arms and shoulders, for his copy's shoulders); client-side traces for teleport, crosshair, flashlight, hand collision; why B's dropped shotgun is not always taken back | `mp_teleport`, `mp_grab` grown (taken back every run), `mp_body` (shoulders within 0.2 with A calibrated) |
+| **B3c** | The rest of B3b: the palm frame (vr_grip.cpp), weaponhotspot and the drawn pose (vr_builtins_held.inc), the weapon hull, the 2H carry and foe grab frames, the ragdoll grab fit and the crawl's hand bottom; body calibration up (his measured arms and shoulders); client-side traces for teleport, crosshair, flashlight, hand collision | `mp_teleport`, `mp_body` (shoulders within 0.2 with A calibrated), `mp_grab` grown (a 2H carry, a foe grab) |
 | **B4** | Coop campaign flow: coop saves and loads (per-player blocks, versioned), autosaves, level transitions with inventories, intermission, deaths and respawns, map download (package names through the map installer; chunked fallback) | `mp_campaign` (e1m1 to e1m3 with saves and a load, both players' inventories), `mp_download` (B lacks a map: installs it, joins) |
 | **B5** | Interactions between players: drop a weapon / the other picks it up; force grab of world weapons in multiplayer; melee, parries and shoves between players; climbing, crouch, prone, jump, punch synced and judged per player | one scenario per interaction, each from both sides |
 | **B6** | Server rules and cosmetics: every balance setting a rule (presets, armed humanoids, damage, mutators, stamina, grapple...), rule pages dimmed on a remote client; holster positions, height, seated/standing, gloves, body seen by others | `mp_rules`, `mp_cosmetics` (B's height and gloves seen by A) |
@@ -468,6 +469,44 @@ Open items (B3b):
 - The palm frame, hotspots, drawn pose, weapon hull, 2H carry and foe grab frames, body calibration up, the client-side
   traces: B3b.
 
+### B3b results, part 1 (2026-11-14, release no-LTO build, loopback; `mp_test.py suite`: all 9 scenarios pass)
+
+| Scenario | Result |
+|---|---|
+| `mp_grab` | 10/0, the take-back a check now: B's dropped shotgun taken back into his hand by his own fist in 10 runs of 10 (9 on the first press, 1 on the second; at most 3 allowed) |
+| `mp_avatar` | 17/0 (the give no longer races the grip: below) |
+| the rest | `mp_coop`, `mp_coop_lag`, `mp_bandwidth`, `mp_version`, `mp_avatarcal`, `mp_body`, `mp_prefs`: pass |
+
+Single player on the branch: scenario_check PASS (129 scenes, 0 failed), load_models_test 4/0, vr_run_check 12/0 (`scratch/b3_runcheck.sh`), the dev build 0 warnings (the Release-config build not run this part).
+
+Why the take-back and the give failed (no fist or QC take was at fault: the fist touched, the QC refused by its rules):
+
+- A grip pressed within 0.125 s of letting go is no grab (`vr_handgrabutil.qc`, the trigger's bounce). The harness pressed
+  as soon as the server had the gun fall, often within that. Now each press waits `GRIP_REPRESS_S` (0.25) of the
+  server's game time after the let-go: `vr_mp_status`'s `mp_server:` line prints `time=`; the let-go's time is the
+  server's `grip:` line (below).
+- The server saw a grip's edge again in every frame with no move from that client (a dedicated server's frame between
+  his moves): his `.vrbits0` was rewritten only when a move came, so last frame's edge stayed (a let-go noted twice
+  moved QC's release time on, into the bounce window). At the frame's end its previous bits now follow the current ones
+  (`vr_server.cpp`; bots keep their own). Single player too, in a server frame without a move: its own commit.
+- The give (`impulse 154`) in the same frame as the grip's press reached the server a move before the grip bit (the
+  move's grip bit is the client's next frame's): the default grip-to-hold let it fall at once (B3's `mp_avatar` 14/1).
+  `grip_then_give` waits for the server's grip, then gives.
+- Debug aids (`vr_debug_carry 2` with `developer 1`, on the server): `grip: <name>'s main hand pressed/let go at <time>`;
+  `weapon: <gun> not taken by the <hand> hand at <time>: grip g, pressed s ago, let go s ago`; the grab probe's line
+  also gives the thing's place, speed and whether it is on the ground.
+
+Open items (B3c):
+
+- A weapon let go of from a still, open hand rests on the palm (the hand's Box3D reach body, ROUND21's design: "a slower
+  release keeps meeting them"). From there the closing fist does not take it: it is 3-5 cm over the fist, and with
+  nothing solid under its handle it gets no "lying" slack (allowed 0). The harness's hand, held still before the give,
+  showed it every run; the scenario gives with the hand just placed, and the gun falls to the floor. Single player has
+  the same code: check whether a gun on your own palm is retaken by closing the hand (if not: a slack for a weapon
+  resting on a hand's body, or the fist's body passing it).
+- Everything else of B3b: the palm frame, hotspots and drawn pose, weapon hull, 2H carry and foe grab frames, the
+  ragdoll grab fit, the crawl's hand bottom, body calibration up, the client-side traces, `mp_teleport`.
+
 ## Decisions
 
 - The harness is Python with an in-engine inbox rather than stdin or RCON: it drives GUI clients and dedicated servers
@@ -483,4 +522,4 @@ Open items (B3b):
   from outside, they always have legs (his body mode 1 or 2 is his own first-person view); his body mode 0 draws his
   player model as before.
 
-Next phase: B3b — the rest of B3: why B's dropped shotgun is not always taken back (then `mp_grab`'s take a check); the rest of the rig up (palm frame, weaponhotspot and the drawn pose, weapon hull, 2H carry and foe grab frames, the ragdoll grab fit, the crawl's hand bottom) and body calibration up (other players' bodies' measured arms and shoulders); client-side traces for teleport, crosshair, flashlight, hand collision; `mp_teleport`; melee sub-tick samples stay with B5.
+Next phase: B3c — the rest of B3b: the rig up (palm frame, weaponhotspot and the drawn pose, weapon hull, 2H carry and foe grab frames, the ragdoll grab fit, the crawl's hand bottom) and body calibration up (other players' bodies' measured arms and shoulders); client-side traces for teleport, crosshair, flashlight, hand collision; `mp_teleport`; first, whether a weapon resting on an open palm is retaken by closing the hand (single player too); melee sub-tick samples stay with B5.

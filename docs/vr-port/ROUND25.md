@@ -2328,3 +2328,17 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
   (a later fixed frame for a class's first batch).
 - Checks: `load_models_test.sh` 4/0, `scenario_check.sh` 129 files 0 errors, 129 run 0 failed, the ReleaseLTO 1.1.0 build.
 - Cherry-picked c206e9a74 (agent/quest): particles' Support[16] uniform at locations 40-55, no longer overlapping the fragment shader's Taper/InkAlpha (20/21; a strict-linker link error). Checks: dev and ReleaseLTO 1.1.0 builds, scenario_check 129/0, flatblood_test 1 (particles drawn).
+
+## mpN (B3b, part 1): the multiplayer suite reliable (agent/mp, 2026-11-14; never shipped by the coordinator)
+
+- **A grip's edge seen once** (`vr_server.cpp`, single player too): a player's `.vrbits0` was rewritten only when one of
+  his moves came, so in a server frame without one (a dedicated server between his moves) QC saw last frame's press or
+  let-go again; at the frame's end its previous bits now follow the current ones (bots keep their own). Its own commit.
+- **`mp_grab`'s take-back is a check** (10 runs of 10): B3's misses were the harness re-pressing within QC's 0.125 s grip
+  bounce after the let-go (and the repeated let-go above moving it on). Each press now waits 0.25 s of the server's
+  game time (`vr_mp_status` prints `time=`). **`mp_avatar`'s empty hand**: the give raced the grip's press (the grip bit
+  goes up a move later; grip-to-hold dropped it): `grip_then_give` waits for the server's grip.
+- Debug aids, `vr_debug_carry 2` with `developer 1`: the grip's edges with their times, why a hand on a thrown weapon
+  does not take it, the grab probe's thing's place, speed and ground.
+- Open (MP_PLAN.md, B3c): a weapon let go of from a still, open hand rests on the palm's Box3D body and the closing fist
+  does not retake it (no "lying" slack, 3-5 cm off); single player shares the code.
