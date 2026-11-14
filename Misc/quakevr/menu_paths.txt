@@ -3483,6 +3483,10 @@ vr_dirparry_window|2|Tunables|Parry Window|Advanced VR Options > Debug > Tunable
 vr_dirparry_through_armed|2|Tunables|Let Through: Armed Humanoids|Advanced VR Options > Debug > Tunables > Let Through: Armed Humanoids
 vr_dirparry_through_monster|2|Tunables|Let Through: Monsters|Advanced VR Options > Debug > Tunables > Let Through: Monsters
 vr_dirparry_timed_window|2|Tunables|Timing Window|Advanced VR Options > Debug > Tunables > Timing Window
+vr_dirparry_offtime|2|Tunables|Early/Late Stagger|Advanced VR Options > Debug > Tunables > Early/Late Stagger
+vr_dirparry_offtime_fade|2|Tunables|Early Fade|Advanced VR Options > Debug > Tunables > Early Fade
+vr_dirparry_late_grace|2|Tunables|Late Grace|Advanced VR Options > Debug > Tunables > Late Grace
+vr_dirparry_late_fade|2|Tunables|Late Fade|Advanced VR Options > Debug > Tunables > Late Fade
 vr_dirparry_stroke|2|Tunables|Stroke Window|Advanced VR Options > Debug > Tunables > Stroke Window
 vr_agrunt_repl_skill0|2|Tunables|Easy|Advanced VR Options > Debug > Tunables > Easy
 vr_agrunt_repl_skill1|2|Tunables|Normal|Advanced VR Options > Debug > Tunables > Normal

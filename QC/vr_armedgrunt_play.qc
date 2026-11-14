@@ -853,7 +853,7 @@ void(entity attacker, entity targ) VR_AG_Parried =
     {
         return; // (its weapon's swing only: not its shove)
     }
-    float chance = cvar_hget(cvarh_vr_agrunt_parry_disarm) * (vr_parry_welltimed ? 1.5 : 1);
+    float chance = cvar_hget(cvarh_vr_agrunt_parry_disarm) * (vr_parry_welltimed ? 1.5 : 1) * VR_Parry_TimingShare();
     if(random() < chance)
     {
         // (two weapons: the striking hand's; both swinging, either)

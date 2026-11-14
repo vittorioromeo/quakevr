@@ -2405,6 +2405,42 @@ Cherry-picked 6b8e74432: VR_CrtHeapLoadHold now defined without mimalloc (QVR_MI
   missing, checklist_tests_check 51/0. Builds: dev and ReleaseLTO 0 warnings. Shots: qvr-kit/scratch/flat1115_shots/
   (icons_before_after, campaigns_before_after, completed_before_after).
 
+## Directional parry timing: the right direction always parries (branch `agent/parrytime`)
+
+His rule (2026-11-15): "As long as the direction of the player's gun/sword/etc is correct for a directional parry, it should
+count as a valid parry. But if it's early or late, the stagger effect should be severely diminished, as we want to reward
+well-timed parries."
+
+- **Test 78's 28/19 was not the parry.** It fails only when run with no `map vrtesthall` first (the bisect's and the
+  queue's runs: `-Script "vr_agrunt_test 78"`), so the test ran in `vrstart`: the posed sword misses its axis (along it 0.66
+  instead of 1.00) and the grunt stands 58 units off instead of 37, so every parry case fails, held early or not (the
+  dog bite and case 9 included). On `next` with the map, drawn and undrawn: 47/0, as every baseline since 11-06 (11-06,
+  11-12, 11-13, 11-14). The bisect's "first bad commit" 87172b999 changes only BACKLOG.md: noise from that. No commit broke it.
+  The test now ends at once with one FAIL ("needs map vrtesthall first") anywhere else.
+- **How early "held early" is** (the weapon held across from before the attack; the reference blow's time from its
+  attack's start): an armed grunt's overhead 0.38 s, a knight's chop 0.50, an ogre's swing 0.40, smash 0.50 (its blade
+  0.85), a fiend's claw 0.40, a shambler's smash 0.90, a dog's bite 0.31. The windows: well timed = in place at most
+  `vr_dirparry_timed_window` 0.3 s before the contact; `vr_dirparry_stroke` 0.45 s = how long a monster's own blow is held
+  back for its blade to reach your weapon (not a timing window); an armed humanoid's `vr_dirparry_window` 0.1 s.
+- **What changed.** `VR_DRP_Timing` (vr_dirparry.qc), the one function for every directional parry (monsters' own blows,
+  armed humanoids' swings; PvP later the same): the right direction parries at any timing, nothing through (as before).
+  Its share (`VR_DRP_TimingShare`) is 1 when your weapon got in place within the timing window and, for a blow held back for
+  your weapon, by its own moment (when its blade reaches your weapon's place, read along its way at the blow) plus
+  `vr_dirparry_late_grace`; earlier or later it falls smoothly (smoothstep) to `vr_dirparry_offtime`. The share scales the
+  parry's stagger and flinch (`VR_Parry_Interrupt`, the armed humanoid's opening flinch), its push on the attacker, the
+  counter window and an armed humanoid's disarm chance (`VR_Parry_TimingShare`, combat.qc; 1 for the guard, crossed arms
+  and flat-screen guard). "Well timed" (x1.3 strength) is unchanged.
+- **Tunables** (Debug > Tunables > Combat > Directional Parry): `vr_dirparry_offtime` 0.2 (Early/Late Stagger),
+  `vr_dirparry_offtime_fade` 0.15 s (Early Fade), `vr_dirparry_late_grace` 0.02 s, `vr_dirparry_late_fade` 0.06 s.
+  So held 0.45 s or more before the contact: x0.2; 0.375 s: x0.6.
+- **Test 78** (48 cases): held early now asks for a share of at most 0.5 (measured 0.2; the armed grunt's 0.39, in place
+  0.40 s before), moved/turned in a share of 1, moved in staggering at least 1.5x held early (knight 1.10 s vs 0.16, armed
+  grunt 1.50 vs 0.58); a last case checks the share's curve (full, the fades' middles 0.60, the floor, never rising).
+  Case 12 no longer compares its swing's end (it ends with its parry's flinch, now as long as the share makes it).
+  48/0; 35 6/0, 18 24/0, 60 6/0.
+- **Not covered by a test:** a late parry end to end (an armed humanoid's held blow can be late by 0.1 s at most; a
+  monster's by up to 0.45 s): the scene `parrytime` (an ogre and a sword grunt) is for him; `developer 1` prints
+  `dirparry: timing: in place X s before, Y s late: xS`.
 ## flat1115b: flat aim per weapon (ironsight placing, zoom), Classic in flat, Autosave Now (agent/flat1115b, 2026-11-15)
 
 - **Ironsight placing per gun (his item 5).** There were none: the flat ironsight is solved from each gun's sight line with
