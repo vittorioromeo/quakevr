@@ -77,4 +77,10 @@ void sendTracer(struct edict_s* shooter, int hand, const float from[3], const fl
 // cleared before it was sent). An explosion's temp entity launches its chunks (vr_explosiondebris.cpp) as QuakeC's does.
 void queueBroadcast(const unsigned char* data, int len);
 
+// A message about entity `ent` (an armed humanoid's pose) for the datagrams of the clients that have it in sight this frame
+// (vr_net_cullposes; the loopback client gets them all): written into the buffer returned, then scopedEnd. nullptr: culling
+// is off, write to the broadcast instead.
+struct sizebuf_s* scopedBegin(int ent);
+void scopedEnd();
+
 } // namespace qvr::server

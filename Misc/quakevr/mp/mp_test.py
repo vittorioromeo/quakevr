@@ -8,7 +8,11 @@ Tests:
              (the mock's stick) and B sees him start moving within the bound, then the same with B walking; the server
              changes level to e1m2: both are taken along and see each other again; everything quits cleanly.
              --lag/--jitter/--loss put client B behind a proxy (mp_proxy.py); the bounds grow by the lag it adds.
-    suite    coop, then coop with B at 150 ms each way and 2% loss.
+    bandwidth  both idle on e1m1: B's link down under 25 KB/s (armed humanoids' poses only of those in sight), with
+             vr_net_cullposes 0 measured too; no packet down over 1408 B (reliable chunks at most 1200 B).
+    version  a client of another Quake VR network version (-mpnetversion 1) is rejected with the reason; one of the
+             same version joins.
+    suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, version.
 
 The base folder is a Quake folder with id1 (and hipnotic, rogue, quakevr: -game as the kit's runs). Its
 id1/autoexec.cfg runs in every game: --reset-autoexec empties it first (the kit's test bases: a run's script).
@@ -56,7 +60,8 @@ def walk(s, mover, watcher, mover_ent, label, bound_ms, self_bound_ms):
     watcher.wait(r"mp_stop: .*ent=%d self=0" % mover_ent, 10, since_w, "%s stopping" % mover.name)
 
 
-def coop(s, listen, flat, lag, jitter, loss):
+def join(s, listen=False, flat="", lag=0.0, jitter=0.0, loss=0.0):
+    """A server on e1m1 (coop 1) and clients A and B joined, each seeing the other -> (server, a, b, ea, eb)."""
     if listen:
         a = srv = s.server(dedicated=False, flat="A" in flat, name="A")
     else:
@@ -84,6 +89,11 @@ def coop(s, listen, flat, lag, jitter, loss):
     _, sb = b.wait(r"mp_seen: .*ent=%d self=0" % ea, 20, what="B seeing A")
     s.check("each sees the other's player entity", True, "A sees B at %s; B sees A at %s" % (
         sa.split("org=")[1], sb.split("org=")[1]))
+    return srv, a, b, ea, eb
+
+
+def coop(s, listen, flat, lag, jitter, loss):
+    srv, a, b, ea, eb = join(s, listen, flat, lag, jitter, loss)
 
     proxy = getattr(b, "proxy", None)
     before = proxy.snapshot() if proxy else None
@@ -114,11 +124,70 @@ def coop(s, listen, flat, lag, jitter, loss):
     s.check("each sees the other on e1m2", True)
 
 
-def run(args, test, lag, jitter, loss):
+IDLE_BUDGET = 25 * 1024  # B's link down, both players idle on e1m1 (MP_PLAN.md, section 2.3: B2's target)
+IDLE_PACKETS = 360       # the window: five seconds of 72 Hz datagrams
+RELIABLE_CHUNK = 1200    # a reliable message's chunk at most (net_dgrm.c DGRM_RELIABLE_CHUNK)
+NET_HEADER = 8
+
+
+def bandwidth(s):
+    """Both players idle on e1m1: B's link down under the budget (the armed humanoids' poses only of those in his
+    sight); every packet down at most an unreliable datagram's MTU (1400) and every reliable chunk at most 1200 B."""
+    srv, a, b, ea, eb = join(s)
+    proxy = b.proxy
+    b.quiet(r"mp_(move|pos): ", 0.5, 20, "both at rest")
+    windows = {}
+    for cull in (1, 0):
+        since = srv.mark()
+        srv.cmd("vr_net_cullposes %d; echo mp_cull %d" % (cull, cull))
+        srv.wait(r"mp_cull %d" % cull, 10, since)
+        start = proxy.wait_packets("down", 72, 20)  # (a second for the change to take)
+        end = proxy.wait_packets("down", IDLE_PACKETS, 60) if start else None
+        if not end:
+            raise StepFailed("B's link carried fewer than %d packets down in 60 s" % IDLE_PACKETS)
+        windows[cull] = w = proxy.window(start, end)
+        s.metric("b_idle_cull%d" % cull, w)
+        s.note("B idle, vr_net_cullposes %d: down %s pkts/s, %s B/s, mean %s B; up %s B/s, mean %s B" % (
+            cull, w["down"]["pkts_s"], w["down"]["bytes_s"], w["down"]["mean_B"], w["up"]["bytes_s"],
+            w["up"]["mean_B"]))
+    down = windows[1]["down"]["bytes_s"]
+    s.check("B's link down idle on e1m1 under %d B/s" % IDLE_BUDGET, down < IDLE_BUDGET,
+            "%d B/s (%d B/s with every pose to every client)" % (down, windows[0]["down"]["bytes_s"]))
+    most = proxy.stats["down"][3]
+    s.check("every packet down at most %d B (no reliable chunk over %d B)" % (1400 + NET_HEADER, RELIABLE_CHUNK),
+            most <= 1400 + NET_HEADER, "largest %d B" % most)
+    srv.cmd("vr_net_cullposes 1")
+
+
+def version(s):
+    """A client of another Quake VR network version (-mpnetversion) is rejected with the reason, and a right one
+    still joins after it."""
+    srv = s.server(dedicated=True)
+    srv.start()
+    srv.cmd("coop 1; deathmatch 0; skill 1; map e1m1; vr_mp_status")
+    srv.wait(r"mp_server: map=e1m1", 120, what="the server on e1m1")
+    c = s.client("C", extra=["-mpnetversion", "1"]).start()
+    c.cmd(s.connect_cmd(c))
+    _, why = c.wait(r"network version \d+, your game 1", 60, what="C's reject")
+    s.check("a client of another network version is told why", True, why.strip())
+    _, logged = srv.wait(r"Rejected a connection", 10, what="the server's note of it")
+    s.check("the server notes the rejected client", True, logged.strip())
+    a = s.client("A").start()
+    a.cmd(s.connect_cmd(a))
+    a.wait(r"mp_event: .*joined map=e1m1", 120, what="A joined e1m1")
+    s.check("a client of the same network version joins", True)
+
+
+def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
     s = Session(args.exe, args.base, args.out, test, port=args.port)
     failure = None
     try:
-        coop(s, args.listen, args.flat or "", lag, jitter, loss)
+        if test == "mp_bandwidth":
+            bandwidth(s)
+        elif test == "mp_version":
+            version(s)
+        else:
+            coop(s, args.listen, args.flat or "", lag, jitter, loss)
     except StepFailed as e:
         failure = e
     return s.finish(failure)
@@ -126,7 +195,7 @@ def run(args, test, lag, jitter, loss):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "version", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -149,9 +218,13 @@ def main():
                 sys.exit(2)
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
+    elif args.test in ("bandwidth", "version"):
+        ok = run(args, "mp_" + args.test)
     else:
-        ok = run(args, "mp_coop", 0, 0, 0)
+        ok = run(args, "mp_coop")
         ok = run(args, "mp_coop_lag", 150, 0, 0.02) and ok
+        ok = run(args, "mp_bandwidth") and ok
+        ok = run(args, "mp_version") and ok
         print("mp_suite: %s" % ("passed" if ok else "FAILED"))
     sys.exit(0 if ok else 1)
 

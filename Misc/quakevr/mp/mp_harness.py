@@ -206,10 +206,10 @@ class Session:
         self.instances.append(inst)
         return inst
 
-    def client(self, name, flat=False, lag_ms=0.0, jitter_ms=0.0, loss=0.0, seed=1, proxy=False):
+    def client(self, name, flat=False, lag_ms=0.0, jitter_ms=0.0, loss=0.0, seed=1, proxy=False, extra=()):
         """A client; with lag, jitter or loss (or proxy=True: to count its traffic) it talks to the server through a
         proxy of its own. connect_cmd() is the console command that joins the server."""
-        inst = Instance(self, name, self.take_port(), flat=flat)
+        inst = Instance(self, name, self.take_port(), flat=flat, extra=extra)
         inst.target = self.port
         if proxy or lag_ms or jitter_ms or loss:
             p = Proxy(self.take_port(), self.port, lag_ms, jitter_ms, loss, seed).start()

@@ -121,6 +121,17 @@ class Proxy:
     def snapshot(self):
         return time.monotonic(), {d: list(v) for d, v in self.stats.items()}
 
+    def wait_packets(self, direction, count, timeout):
+        """Waits until `count` more packets have gone `direction` ("up"/"down") -> a snapshot then; None after
+        `timeout` seconds (a safety net: the caller fails its step)."""
+        start = self.stats[direction][0]
+        deadline = time.monotonic() + timeout
+        while self.stats[direction][0] - start < count:
+            if time.monotonic() > deadline:
+                return None
+            time.sleep(0.02)
+        return self.snapshot()
+
     @staticmethod
     def window(a, b):
         """Between two snapshots: per direction, packets a second, bytes a second, the mean packet."""

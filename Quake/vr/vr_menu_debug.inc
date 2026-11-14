@@ -1125,6 +1125,9 @@ za::Vector<Item> pageDebugReports()
         toggle("Network: Watch Players", vr_mp_watch)
             .help("vr_mp_watch: the console says when you see each player, when one starts moving from rest and every 32 "
                   "units he travels, with a wall-clock time in ms: compare two games' consoles for the delay between them."),
+        toggle("Network: Cull Poses", vr_net_cullposes)
+            .help("vr_net_cullposes: hosting, a remote player gets the armed humanoids' arm poses only of those he can see (on: "
+                  "about 1.2 KB less in each of his datagrams on e1m1); off: every pose to every player, as before."),
         command("Keyboard Hook", "vr_keyhook_status")
             .help("vr_keyhook_status: whether this game holds the desktop keyboard hook (only with the window's focus) and "
                   "the longest it went unserviced since the last report: every key press on the desktop waits for it."),

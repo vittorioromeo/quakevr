@@ -321,6 +321,32 @@ struct BroadcastRoom
 
 BroadcastRoom broadcastRoom{};
 
+// Messages about one entity (an armed humanoid's pose, QVR_SVC_ARMPOSE: server::scopedBegin) this frame, written after the
+// broadcast into the datagram of each client whose entity update carried that entity (its PVS: VR_NoteEntityInSight)
+// instead of into every client's (they were about 1.2 KB of each 1.4 KB datagram on e1m1, wherever the client was:
+// MP_PLAN.md, B2). The loopback client (single player, a listen host) gets them all, as before.
+struct ScopedRoom
+{
+    static constexpr int maxMsgs = 1024;
+    static constexpr int msgRoom = 256; // a message's most (a pose with every block is about 150 B)
+
+    sizebuf_t room;
+    byte roomBuf[48 * 1024];
+    sizebuf_t sink; // a message with no room left: dropped (as a full broadcast drops one)
+    byte sinkBuf[msgRoom];
+    int ents[maxMsgs];
+    int ends[maxMsgs]; // each message's end in roomBuf (the first begins at 0)
+    int numMsgs;
+    int openEnt; // the message being written: its entity (-1: none)
+
+    // the entities the client being sent to has in sight: seen[e] == stamp (one stamp a client's datagram)
+    za::Vector<int> seen;
+    int stamp;
+    int dropped; // messages with no room this frame (vr_debug_net)
+};
+
+ScopedRoom scopedRoom{};
+
 // The length of the temp entity QuakeC began at `at`, as CL_ParseTEnt reads it (0: not one, not known, or its type not
 // written yet).
 [[nodiscard]] int tempEntityLength(int at)
@@ -473,6 +499,19 @@ extern "C" void VR_BroadcastClear()
     b.qcDropped = b.qcDrops = b.unsent = b.entities = 0;
     SZ_Clear(&sv.datagram);
 
+    ScopedRoom& r = scopedRoom;
+    if(qvr::vr_debug_net.value && r.dropped)
+    {
+        Con_Printf("vr_debug_net: %d armed humanoids' poses had no room (%d B this frame)\n", r.dropped, r.room.cursize);
+    }
+    r.room.data = r.roomBuf;
+    r.room.maxsize = sizeof(r.roomBuf);
+    r.room.allowoverflow = true; // (never: each message has its room before it begins)
+    SZ_Clear(&r.room);
+    r.numMsgs = 0;
+    r.openEnt = -1;
+    r.dropped = 0;
+
     // The messages queued since the last frame (server::queueBroadcast) open this one, each whole (an explosion's
     // launches its chunks, as QuakeC's does).
     int from = 0;
@@ -489,6 +528,85 @@ extern "C" void VR_BroadcastClear()
         from = b.queuedEnds[i];
     }
     b.numQueued = 0;
+}
+
+sizebuf_t* qvr::server::scopedBegin(int ent)
+{
+    ScopedRoom& r = scopedRoom;
+    if(qvr::vr_net_cullposes.value == 0.f || !sv.active || !r.room.data)
+    {
+        return nullptr;
+    }
+    if(r.numMsgs >= ScopedRoom::maxMsgs || r.room.cursize + ScopedRoom::msgRoom > r.room.maxsize)
+    {
+        r.sink.data = r.sinkBuf;
+        r.sink.maxsize = sizeof(r.sinkBuf);
+        r.sink.allowoverflow = true;
+        SZ_Clear(&r.sink);
+        r.dropped++;
+        r.openEnt = -1;
+        return &r.sink;
+    }
+    r.openEnt = ent;
+    return &r.room;
+}
+
+void qvr::server::scopedEnd()
+{
+    ScopedRoom& r = scopedRoom;
+    if(r.openEnt < 0)
+    {
+        return;
+    }
+    r.ents[r.numMsgs] = r.openEnt;
+    r.ends[r.numMsgs] = r.room.cursize;
+    r.numMsgs++;
+    r.openEnt = -1;
+}
+
+// SV_WriteEntitiesToClient: a client's walk of the entities begins; each one in its sight (its PVS) is noted.
+extern "C" void VR_NoteEntitiesBegin()
+{
+    ScopedRoom& r = scopedRoom;
+    r.stamp++;
+    if(static_cast<int>(r.seen.size()) < qcvm->max_edicts)
+    {
+        r.seen.resize(static_cast<za::SizeT>(qcvm->max_edicts), 0);
+    }
+}
+
+extern "C" void VR_NoteEntityInSight(int ent)
+{
+    ScopedRoom& r = scopedRoom;
+    if(ent >= 0 && ent < static_cast<int>(r.seen.size()))
+    {
+        r.seen[static_cast<za::SizeT>(ent)] = r.stamp;
+    }
+}
+
+// SV_SendClientDatagram, after the broadcast: this frame's messages about entities, those in this client's sight (all of
+// them to the loopback client, `local`), each whole while it fits.
+extern "C" void VR_WriteScoped(sizebuf_t* msg, int local)
+{
+    const ScopedRoom& r = scopedRoom;
+    const bool cull = !local && qvr::vr_net_cullposes.value != 0.f;
+    int from = 0;
+    for(int i = 0; i < r.numMsgs; i++)
+    {
+        const int len = r.ends[i] - from;
+        const int at = from;
+        from = r.ends[i];
+        const int e = r.ents[i];
+        if(cull && (e < 0 || e >= static_cast<int>(r.seen.size()) || r.seen[static_cast<za::SizeT>(e)] != r.stamp))
+        {
+            continue;
+        }
+        if(msg->cursize + len > msg->maxsize - 1)
+        {
+            continue;
+        }
+        SZ_Write(msg, r.roomBuf + at, len);
+    }
 }
 
 void qvr::server::queueBroadcast(const byte* data, int len)

@@ -630,15 +630,28 @@ float agpsDot(const float* a, const float* b)
 {
     return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
+// The pose being written goes here (server::scopedBegin: to the clients that see the humanoid); nullptr: MSG_BROADCAST.
+sizebuf_t* agpsScoped = nullptr;
+
 // QC WriteByte, WriteShort, WriteCoord (MSG_BROADCAST: VR_BroadcastDest's room kept as for QuakeC's own writes)
 void agpsByte(float v)
 {
+    if(agpsScoped)
+    {
+        MSG_WriteByte(agpsScoped, static_cast<int>(v));
+        return;
+    }
     sizebuf_t* d = VR_BroadcastDest(1);
     MSG_WriteByte(d, static_cast<int>(v));
     VR_BroadcastWritten(d);
 }
 void agpsShort(float v)
 {
+    if(agpsScoped)
+    {
+        MSG_WriteShort(agpsScoped, static_cast<int>(v));
+        return;
+    }
     sizebuf_t* d = VR_BroadcastDest(2);
     MSG_WriteShort(d, static_cast<int>(v));
     VR_BroadcastWritten(d);
@@ -647,6 +660,11 @@ void agpsVec(const float* v) // (VR_AGP_WriteVec)
 {
     for(int i = 0; i < 3; i++)
     {
+        if(agpsScoped)
+        {
+            MSG_WriteCoord(agpsScoped, v[i], sv.protocolflags);
+            continue;
+        }
         sizebuf_t* d = VR_BroadcastDest(4);
         MSG_WriteCoord(d, v[i], sv.protocolflags);
         VR_BroadcastWritten(d);
@@ -700,6 +718,8 @@ void PF_agposesend()
     const float* gy = G_VECTOR(OFS_PARM6);
     const float* gz = G_VECTOR(OFS_PARM7);
     const auto glob = [&b](int i) { return b.agPose[i]; };
+    // (to the clients that see `g`: vr_net_cullposes; MP_PLAN.md, B2)
+    agpsScoped = qvr::server::scopedBegin(G_EDICTNUM(OFS_PARM0));
     agpsByte(39); // svc_quakevr
     agpsByte(36); // QVR_SVC_ARMPOSE
     agpsShort(static_cast<float>(G_EDICTNUM(OFS_PARM0)));
@@ -755,6 +775,11 @@ void PF_agposesend()
         {
             agpsByte(static_cast<float>(bytes & 255));
         }
+    }
+    if(agpsScoped)
+    {
+        agpsScoped = nullptr;
+        qvr::server::scopedEnd();
     }
     G_FLOAT(OFS_RETURN) = 1.f;
 }

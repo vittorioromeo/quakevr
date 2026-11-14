@@ -791,6 +791,7 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 
 // reset sorting bins
 	memset (net_edict_bins, 0, sizeof (net_edict_bins));
+	VR_NoteEntitiesBegin (); // QVR: the entities in its sight noted (their armed humanoids' poses go to it)
 
 // add clent
 	if (sv_netsort.value)
@@ -835,6 +836,7 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 			if (i == ent->num_leafs && ent->num_leafs < MAX_ENT_LEAFS && !VR_SV_SendPastPVS (ent)) // QVR: an arena's last foes, outlined through walls
 				continue;		// not visible
 
+			VR_NoteEntityInSight (e); // QVR
 			if (sv_netsort.value)
 			{
 				// compute ent bbox size and distance from org to the closest point in ent's bbox
@@ -1304,6 +1306,8 @@ qboolean SV_SendClientDatagram (client_t *client)
 		if (sendable > 0)
 			SZ_Write (&msg, sv.datagram.data, sendable);
 	}
+	// QVR: the messages about entities it sees (armed humanoids' poses; all of them to the loopback client)
+	VR_WriteScoped (&msg, Q_strcmp(NET_QSocketGetAddressString(client->netconnection), "LOCAL") == 0);
 
 // send the datagram
 	if (NET_SendUnreliableMessage (client->netconnection, &msg) == -1)
