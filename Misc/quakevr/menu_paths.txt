@@ -1387,6 +1387,7 @@ vr_crouch_speed|1|Locomotion|Slower When Crouched|Advanced VR Options > Movement
 vr_crouch_speed_scale|1|Locomotion|Crouched Speed|Advanced VR Options > Movement > Locomotion > Crouched Speed
 vr_slope_walk|1|Locomotion|Walk Up Slopes Slowly|Advanced VR Options > Movement > Locomotion > Walk Up Slopes Slowly
 vr_flat_aim_mode|1|Locomotion|Right Click Ironsight|Advanced VR Options > Movement > Locomotion > Right Click Ironsight
+vr_flat_aim_zoom|1|Locomotion|Right Click Aim|Advanced VR Options > Movement > Locomotion > Right Click Aim
 vr_flat_aim_sens|1|Locomotion|Aim Sensitivity|Advanced VR Options > Movement > Locomotion > Aim Sensitivity
 vr_flat_aim_sens_match|1|Locomotion|Aim Sensitivity Match|Advanced VR Options > Movement > Locomotion > Aim Sensitivity Match
 vr_flat_wall_shot|1|Locomotion|Shots Follow Gun At Walls|Advanced VR Options > Movement > Locomotion > Shots Follow Gun At Walls
@@ -5734,6 +5735,7 @@ vr_climb_prop_mass|2|Debug - Tests|Props Hold Like the Level From|Advanced VR Op
 |2|Debug - Tests|Floating Pickup Ahead|Advanced VR Options > Debug > Tests > Floating Pickup Ahead
 |2|Debug - Tests|Every Model and Limb Precached|Advanced VR Options > Debug > Tests > Every Model and Limb Precached
 |2|Debug - Tests|Every Model of This Campaign Precached|Advanced VR Options > Debug > Tests > Every Model of This Campaign Precached
+|2|Debug - Tests|Autosave Now|Advanced VR Options > Debug > Tests > Autosave Now
 |2|Debug - Tests|What Continue Would Load|Advanced VR Options > Debug > Tests > What Continue Would Load
 |2|Debug - Tests|List the Saves|Advanced VR Options > Debug > Tests > List the Saves
 |2|Debug - Tests|List the Autosaves|Advanced VR Options > Debug > Tests > List the Autosaves

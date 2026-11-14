@@ -270,6 +270,10 @@ float(float a, float b, float c) VR_Classic_Check =
     VR_Test_Check(modes == 0, sprintf("no gun has a reloading mode (sum %g)", modes));
     VR_Test_Check(VR_Reload_ModeOf(WID_SHOTGUN) == 0 && VR_Reload_ModeOf(WID_ROCKET_LAUNCHER) == 0 &&
                   VR_Reload_ModeOf(WID_REVOLVER) == 0, "the shotgun, rocket launcher and revolver fire from the reserve");
+    // The player's own reloading as played now: a flat-screen player's (vr_flat_reload, its own path) or a headset's.
+    entity pl = VR_Player();
+    VR_Test_Check(pl != world && !VRIsWeaponReloadingEnabled(pl),
+                  sprintf("the player reloads nothing (%s play)", (pl != world && VR_FlatPlay(pl)) ? "flat-screen" : "VR"));
     VR_Test_Check(cvar_hget(cvarh_vr_grunt_burst) == 0, "no burst rifle grunts");
     float grunts = 0;
     float armed = 0;

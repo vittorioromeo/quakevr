@@ -538,6 +538,18 @@ QVR_WEAPON_KEY(RevYaw, "rev_yaw")
 QVR_WEAPON_KEY(RevRoll, "rev_roll")
 QVR_WEAPON_KEY(RevThumbTop, "rev_thumb_top")
 QVR_WEAPON_KEY(RevThumbBias, "rev_thumb_bias")
+// Flat-screen aim (the right mouse button, vr_flatsight.cpp; ROUND25.md, "flat1115b"). fsight_mode: 0 the ironsight (the
+// gun brought onto its sight line, the crosshair faded out), 1 zoom (the ironsight's narrowing of the view alone: the gun
+// stays in its pose and the crosshair stays). Zoom for the guns with no sights of their own to look down (weapons.txt:
+// the nailguns, the grenade, rocket and proximity launchers, the laser cannon, the grapple). The ironsight's place for this
+// gun, on top of the solve that lines its sight line up through the eye: moved forward (more eye relief), right and up
+// (units, in the view's frame), its muzzle turned up (degrees, about the rear sight). Weapon Offsets > Sights, Flat-Screen
+// Aim. New keys: no migration.
+QVR_WEAPON_KEY(FlatAimMode, "fsight_mode")
+QVR_WEAPON_KEY(FlatSightFwd, "fsight_fwd")
+QVR_WEAPON_KEY(FlatSightRight, "fsight_right")
+QVR_WEAPON_KEY(FlatSightUp, "fsight_up")
+QVR_WEAPON_KEY(FlatSightPitch, "fsight_pitch")
 // Randomized Pickups (QC vr_run_pickups.qc): the weapon tier its map pickup is swapped within (0 the shotgun's .. 3 the
 // rocket launcher's); -1 never swapped (melee, tools, the enemies' guns); -2 (the default) not classified: the test fails.
 QVR_WEAPON_KEY(PickupTier, "pickup_tier")

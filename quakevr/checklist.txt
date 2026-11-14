@@ -8,6 +8,12 @@
 
 [1. Flat-screen: weapons and hands]
 Flat-screen: hold the axe (then a sword, the crowbar, Mjolnir, the super axe) with the left hand empty: the left hand goes onto the handle by itself and the weapon sits two-handed; take something in the left hand: back to one hand, no jumps either way (Debug > Tunables > Flatscreen > Two-Handed Melee Stance). {test:flat_melee2h}
+Flat-screen: in the holster menu (middle mouse), drag a weapon with the left button between hands and holsters: valid slots light up, the rest grey; hand to hand or holster to holster swaps; letting go on nothing cancels. {test:flat_holster_drag}
+Flat-screen or VR: shotgun in the right hand, a spent flare gun in the left: swap hands, drop, holster, draw, reload and swap mid-reload in any order, pulling both triggers after each: an empty shotgun only clicks, a loaded one fires one shell, never "ERROR: weapon clip less than zero". {test:flat_clip_unpaid}
+Flat-screen: aim with the right mouse button with the shotgun: it comes up on its sights and the crosshair fades; with the nailgun or the rocket launcher the view zooms the same way but the gun stays where it is and the crosshair stays. Weapon Offsets > Sights > Flat-Screen Aim switches the held gun between Ironsight and Zoom, and Locomotion > Right Click Aim sets every gun at once. {test:flat_aim_zoom}
+Flat-screen: aiming down the shotgun's sights, open Weapon Offsets > Sights > Flat-Screen Aim and move Ironsight Forward, Right, Up and Pitch: the sighted gun moves on the screen as you change them, and your shots still land on the crosshair. {test:flat_aim_zoom}
+Flat-screen or VR: set the Gameplay preset to Classic and play: no gun needs reloading, in the headset or on the desktop screen (no clip on the HUD, R does nothing); Light or Unleashed brings flat-screen reloading back.
+Flat-screen or VR: Debug > Tests > Saves > Autosave Now in a campaign map: Select Campaign's Continue row (and Load Autosave) shows that save, just made; in co-op it says none is made.
 
 [2. Flat-screen: Run Setup, presets and mutators]
 Flat-screen or VR: Classic Quake (or Style Classic): no gun ever needs reloading, and e1m1's grunts are all plain shotgun grunts.
