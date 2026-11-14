@@ -182,7 +182,7 @@ player unchanged.
 | **B2** (mostly done; the rest is B2b) | Protocol hygiene and VR player state for two players: per-client protocol version in the handshake (a clean reject on mismatch); every move processed, edge bits ORed, per-client state reset on connect/drop; reliable chunks at most 1200 B; arm poses per client, PVS-culled; the VR player-state block and calibration message; remote players drawn with the armed humanoids' arm solver and skin on the player body (head, hands, fingers, held weapons) | `mp_avatar`: B sees A's mock hands within 2 units of where A's server has them, fingers within a step, the held weapon's model; `mp_bandwidth`: down under 25 KB/s idle on e1m1; `mp_coop` stays green |
 | **B2b** (hands done; the rest is B2c) | The rest of B2: finger curls in the move and the avatar; remote players drawn with the player's own body (vr_avatar.cpp's IK from head and hands) or the armed humanoids' arm solver (vr_agarms.cpp), whichever shares more, and their held weapons' models in their hands; the avatar calibration message (height, arm length, handedness, gloves, body), reliable on change; melee sub-tick samples from every move | `mp_avatar` grown: fingers within a step, the weapon model drawn in B's view at A's hand (a screenshot pair) |
 | **B2c** (weapon and calibration done; the rest is B2d) | The harness's weapon in hand and `mp_avatar`'s weapon checks with a screenshot pair; the avatar calibration message; the remote body; melee sub-tick samples | `mp_avatar` 17/0 (weapon checks live), `mp_avatarcal` |
-| **B2d** | The remote player's body posed from his avatar (vr_avatar.cpp's IK and skinning made per instance: one code path for the local body and remote ones), sized and dressed by his calibration (height, arm length, build, bracers, pauldrons, gloves) | `mp_body` (B's copy of A's body: wrists at A's drawn hands, head at his head, a screenshot pair; A's height changed: B's copy taller) |
+| **B2d** (done; pauldrons and gloves to B6) | The remote player's body posed from his avatar (vr_avatar.cpp's IK and skinning made per instance: one code path for the local body and remote ones), sized and dressed by his calibration (height, arm length, build, bracers, pauldrons, gloves) | `mp_body` (B's copy of A's body: wrists at A's drawn hands, head at his head, a screenshot pair; A's height changed: B's copy taller) |
 | **B3** | Per-client data: the prefs message and `clientpref`; the rig (palm frame, fists, hotspots, weapon hull) and body calibration up; the ~25 host shortcuts replaced; client-side traces for teleport, crosshair, flashlight, hand collision | `mp_prefs` (A left-handed, B right-handed: each judged by his own), `mp_teleport` (a remote client teleports), `mp_grab` (B's own fist grabs) |
 | **B4** | Coop campaign flow: coop saves and loads (per-player blocks, versioned), autosaves, level transitions with inventories, intermission, deaths and respawns, map download (package names through the map installer; chunked fallback) | `mp_campaign` (e1m1 to e1m3 with saves and a load, both players' inventories), `mp_download` (B lacks a map: installs it, joins) |
 | **B5** | Interactions between players: drop a weapon / the other picks it up; force grab of world weapons in multiplayer; melee, parries and shoves between players; climbing, crouch, prone, jump, punch synced and judged per player | one scenario per interaction, each from both sides |
@@ -362,6 +362,51 @@ Open items:
   melee"), so it goes with B5's melee between players, gated to multiplayer, with a test of a swing split over merged moves.
 - Our own calibration comes back to us too (the server's broadcast goes to every client): kept, unused, harmless.
 
+### B2d results (2026-11-14, release no-LTO build, loopback; `mp_test.py suite`: all 7 scenarios pass)
+
+| Scenario | Result |
+|---|---|
+| `mp_body` (new) | 11/0: A on the brawny build, B draws A's body as `progs/vrbody_brawny_bare.mdl` (A's own model) after 1 report; its wrists 0.00 units from A's drawn hands' wrists; its head bone, pelvis, shoulders and wrists within 1.05 units of A's own body (the shoulders: A's own Body Calibration, not sent; the rest within 0.1); ankles 0.17; its scale 29.602 against A's 29.609 (his Height in mm). A raises his Height to 1.95 m: B's copy's scale x1.260 and shoulders x1.269 for the Height's x1.261, its scale A's own (37.313 both) after 2 reports. The pair `B_sees_A_body.png`, `B_sees_A_tall.png` in the run's folder |
+| `mp_coop`, `mp_coop_lag`, `mp_bandwidth`, `mp_version`, `mp_avatar`, `mp_avatarcal` | Unchanged: pass. B idle down 16.7 KB/s; up 50.6 KB/s, 710 B a move (was 702: the body pose) |
+
+Single player: the local body posed exactly as before: `scratch/b2d_sp.sh` (e1m1, walking, both hands placed, the body's
+skeleton shown in front, vr_body_debug 2) gives the same image pixel for pixel before and after. scenario_check PASS (129
+scenes), load_models_test 4/0, vr_run_check 11/1 (run B's QC check at e1m2's spawn, as in B2c), Release and Debug
+builds 0 warnings.
+
+What changed:
+
+- `vr_avatar.cpp` `avatar::poseOther(player, Subject, state, model, entity, hand poses)`: pose() itself, with that
+  player's body state swapped in for the frame (`Other`: the legs', climbing's and pitch's state, `detail::Motion` and
+  `swapMotion` in vr_avatar_legs.cpp; the arms' easing, the forearms' twist, the posed skin, the skeleton) and what pose()
+  reads of the local player read from `avatar::Subject` (`detail::metresToUnits`, `eyeHeight`, `bodyScale`, `localFlat`,
+  `velocity`, `onGround`: the local values exactly when posing your own): his Height, arm length (its proportions; his
+  measured arms are his client's), world scale, velocity (from his entity's last two messages; on the ground unless
+  rising or falling fast). Not for him: body tracking, flat-screen play's offsets, the blades his hands are on, the elbow
+  pushed out of the local torso, the body's pitch (swimming, lying down) and climbing feet, the footsteps, the traces
+  and debug lines. `VR_AliasBonePoses`/shadows draw his body with its head; `modelScale` knows it.
+- `bodycal::defaultShoulderOffset/Rise/Swing` (the default body's, for others' shoulders).
+- `VrBodyPose` in the move and the avatar (`vr_move.cpp`): the body's yaw (`hands::State::bodyYaw`, the torso estimate),
+  the head's height over the floor and the learnt standing height (mm), the lean's hold: 8 B, multiplayer only;
+  `QVR_NET_VERSION` 5.
+- `vr_mpavatar.cpp` `setupBody`: his body from his head, his drawn jointed hands' wrists (`view::remoteHandPose`, the
+  local `drawnHand`'s own code, `handPoseOf`) and his body pose, his build's model with or without bracers
+  (`view::bodyModel`, the local body's fallback), in his player model's place in the visible entities. `vr_mp_body` 1
+  (Debug > Reports > Network: Draw Player Bodies; 0: the player models). `vr_mp_avatars` prints `mp_body:` (each other
+  body: scale, head, head bone, pelvis, wrists, shoulders, ankles, the hand wrists it reached for) and `mp_body_own:`.
+
+Open items:
+
+- Dressing: his pauldrons and gloves (and nails, skin tone) on his body and hands are B6's cosmetics; the armour plates on
+  other players' bodies too.
+- His Body Calibration (measured arms, shoulders) is not sent: his copy's shoulders 1 unit off when he has calibrated
+  (B3, with the rig and body calibration up).
+- His swimming tilt, lying down, climbing feet and jumps are not his (upright, walking legs): B5, with the actions synced.
+- A flat-screen player's body is posed as a headset player's (no flat-play offsets) at his headset Height, not
+  `vr_flat_body_height`: B6.
+- Each other body costs about what your own does to pose (the "avatar IK" zone) every frame it is seen: B13's CPU of many
+  players.
+
 ## Decisions
 
 - The harness is Python with an in-engine inbox rather than stdin or RCON: it drives GUI clients and dedicated servers
@@ -371,5 +416,10 @@ Open items:
 - The same-IP fix compares the port too; a client back from a crash on a new port leaves a ghost until the timeout
   (QuakeWorld's `qport` is the full answer: B7, with the snapshot protocol).
 - Voice chat (B10) needs Opus and a noise suppressor vendored as source: to be confirmed by the author before B10.
+- Other players' bodies (B2d) are posed by the local body's own code with its per-frame state swapped per player, rather
+  than the state gathered into an instance struct read through a pointer everywhere: the same results for the local
+  body by construction (its reads unchanged; checked pixel for pixel), one code path, a small diff in five files. Seen
+  from outside, they always have legs (his body mode 1 or 2 is his own first-person view); his body mode 0 draws his
+  player model as before.
 
-Next phase: B2d — the remote player's body: vr_avatar.cpp's posed body made per instance (the local player's one of them, his body tests and hashes unchanged), each other player's posed from his avatar (head, drawn wrists) and sized and dressed by his calibration (QVR_SVC_AVATARCAL), with `mp_body` (B's copy of A's body at his head and hands, a screenshot pair, A's height change seen); melee sub-tick samples move to B5.
+Next phase: B3 — per-client data: the prefs message and `clientpref`; the rig (palm frame, fists, hotspots, weapon hull) and body calibration up (also other players' bodies' measured arms and shoulders); the ~25 host shortcuts replaced; client-side traces for teleport, crosshair, flashlight, hand collision; `mp_prefs`, `mp_teleport`, `mp_grab`; melee sub-tick samples stay with B5.

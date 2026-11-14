@@ -2285,3 +2285,16 @@ the window's zones, worst frames and GPU passes; map loads by stage. Everything 
 - Cherry-picked 27537ab7c: every move read since the server's last frame counts (buttons and VR bits ORed, so a press and release between two ticks is not lost); per-slot move state reset on connect and drop (sv_user.c, host.c, sv_main.c, vr_server.cpp).
 - net_dgrm.c only from dd49030c2: a second client from the same IP on another port no longer closes the first one's connection (only the exact address and port counts as a duplicate); the harness and engine-aid parts of that commit stay on agent/mp.
 - Checks: dev and ReleaseLTO 1.1.0 builds, scenario_check, load_models_test, flatkeys/flatholster/flatswap, throw_trigger_test, vr_run_check 9/0.
+
+## mpN (B2d): other players' bodies, posed by your own body's code (agent/mp, 2026-11-14; never shipped by the coordinator)
+
+- Another player's body is drawn in his player model's place, posed by `vr_avatar.cpp`'s pose() itself
+  (`avatar::poseOther`): his body's frame-to-frame state (feet, gait, the arms' easing, the forearms, the skin) swapped in
+  for the frame, and what pose() reads of you read from his (`avatar::Subject`: his Height, arm length, world scale,
+  velocity). From his head, the wrists of the hands his client drew, and his body's yaw, crouch and lean (`VrBodyPose`,
+  8 B in the move and the avatar; `QVR_NET_VERSION` 5); his build's model with or without bracers. `vr_mp_body` 1
+  (Debug > Reports > Network: Draw Player Bodies). Your own body: unchanged (the same image pixel for pixel).
+- Tests: `mp_test.py body` 11/0 (B's copy within 1.05 units of A's own body, its wrists on A's hands, A's Height raised:
+  B's copy x1.260 for x1.261), the MP suite 7/7, scenario_check PASS, load_models_test 4/0, vr_run_check 11/1 (as B2c).
+- Open: his pauldrons and gloves (B6), his measured arms (B3), his swimming, lying down and climbing (B5). Details in
+  MP_PLAN.md, "B2d results".
