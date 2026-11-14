@@ -2243,3 +2243,20 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
 ## telekeep (cherry-pick of agent/mp 88743a3e8)
 - A teleport asked in an earlier move of a server frame is kept until the server acts on it (headset above 72 Hz lost it). Checks: dev + ReleaseLTO 1.1.0 builds, vr_teleport_both_test 14/0, scenario_check 129/0, load_models_test 4/0.
 - vr_runpickups_test 1 hangs (engine spins, frames stop) at step 17 load mp_rpk_seed; also at 32ebcecc7 (muttiers merge) and 97aee6b6e, so not a recent commit. The same sequence by hand, and loading mp_rpk_seed.sav in a fresh run, both work. Cause not found.
+
+## loadhang: vr_runpickups_test's "hang" at its last load (agent/loadhang, 2026-11-14)
+- No engine hang. cdb (Windows Kits, `-pvr`: attached without suspending) at the "hang": host_framecount, sv.qcvm.time
+  and cl.time kept advancing, signon 4, sv.paused 0; the main thread's stacks moved through server frames, physics and
+  rendering. The test had finished: its last step runs just after `load mp_rpk_seed`, and its verdict was a dprint
+  (VR_Test_Print without VR_TEST_LOUD), never printed at developer 0, so run.sh's -QuitOn waited out its timeout. A
+  broadcast would not do either: that step runs between the client's spawn and begin, and SV_BroadcastPrintf skips a
+  client not yet spawned.
+- Fix (QC, tests only): `VR_TEST_ECHO` (vr_testutil.qc): VR_Test_Verdict echoes its line through the console
+  (`localcmd echo`), seen at developer 0 whatever the client's state; VR_RT_End (vr_runpickups_test, vr_ironman_test)
+  sets it.
+- At developer 1 the test also failed 7 checks since 5daa7d776 (a typed `map` is a new game: the Run Setup screen's
+  picks and a new seed): steps 2 and 6 now set `vr_run pickups 1` before their `map`, as a run's own map loads do
+  (runSet keeps the run and its seed).
+- Checks: vr_runpickups_test 1 32/0 five times at developer 0 and once at developer 1 (each ends on its verdict),
+  vr_ironman_test 1 12/0, load_models_test 4/0. No engine change, so no watchdog line; scenario_check not rerun (no
+  game or engine code touched).
