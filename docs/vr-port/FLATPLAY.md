@@ -652,6 +652,18 @@ With The Crosshair** (`vr_flat_ads_near`, 24) is the keep distance the sight use
 sight's travel has gone. `vr_flat_sight_check` (Debug > Reports) measures the weapon as drawn against the view it is drawn with;
 `Misc/quakevr/flatsight_test.sh` reads it for every gun.
 
+**A gun's own placing, and zoom** (2026-11-15, ROUND25.md "flat1115b"). On top of the solve, each gun may be moved off its lined-up
+place: weapons.txt `fsight_fwd`, `fsight_right`, `fsight_up` (units in the view's frame, forward adding eye relief) and
+`fsight_pitch` (degrees, the muzzle up about the rear sight): **Weapon Offsets > Sights, Flat-Screen Aim** for the held gun, live,
+or `vr_wofs_fsight_up_NN` on the console; `weapons_data.py promote` makes them defaults. All 0 by default (the sights exactly on
+the ray); the shots still go to the crosshair's point. `fsight_mode` 1 makes the right button **zoom** instead: the same
+narrowing of the view (`st.adsT`, `fovNarrowNow`, the look's speed), but the gun stays in its pose, the crosshair stays and the
+pose's sighted easings don't come (`flatsight::poseShare`: keepNear, the body's bob, the stance's turn and lean, the recoil's
+share, the picture's move). Zoom by default on the guns with no sights to look down: the nailgun and super nailgun, the
+grenade, rocket and proximity launchers, the laser cannon, the grapple (and the alternates inheriting them). **Right Click
+Aim** (`vr_flat_aim_zoom`, -1 per weapon; 0 every gun's ironsight; 1 every gun zooms) in Locomotion > Desktop Screen Play.
+`Misc/quakevr/flatzoom_test.sh`.
+
 **Against the walls** (**Gun Against Walls**, `vr_flat_gun_collide`, on). A held weapon goes back along the way into the body until
 it is out of the level (`pushBack`; `handpose::gunBack`, the headset's stop's points, traces and margin): towards its shoulder in
 hipfire, along the ray in the ironsight, so the sights stay on it. It stops with the arm folded (the hand `vr_flat_wall_arm_keep`,

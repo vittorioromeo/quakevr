@@ -7,12 +7,12 @@
 // game code gets its two-handed aiming bits, and the weapon's weight, recoil and spread become the two-handed ones.
 // Dual wielding is not this: both hands are full, so the case never arises and their pose is untouched.
 //
-// The ironsight: the mouse wheel's button (K_MOUSE3) toggles it, vr_flat_aim from the console the same way.
-// A gun with a sight line (sightalign::alignable: a ranged weapon), held in one hand alone. The field of view narrows
-// (vr_flat_aim_fov degrees off the plain flatscreen FOV, through VR_FlatAdsFov in gl_screen.c), and the holding hand is
-// moved so that the muzzle its weapon shoots from stands where vr_flat_ads_fwd / _up / _out and the weapon's own
-// flat_ads_fwd / _up / _out (weapons.txt) put it, off the crosshair's ray: its final place on the screen, reached over
-// the same seconds.
+// The ironsight: the right mouse button (vr_flat_aim_mode), vr_flat_aim from the console the same way. A gun with a sight
+// line (sightalign::alignable: a ranged weapon), held in one hand alone. The field of view narrows (vr_flat_aim_fov
+// degrees off the plain flatscreen FOV, through VR_FlatAdsFov in gl_screen.c), and the holding hand is moved so that the
+// gun's sight line lies on the crosshair's ray, its rear sight vr_flat_ads_relief from the eye (docs/vr-port/FLATPLAY.md,
+// "The ironsight's solve"), then by the gun's own placing (weapons.txt fsight_fwd / _right / _up / _pitch), reached over
+// the same seconds. A gun with fsight_mode 1 zooms instead: the same narrowing, the gun left in its pose, the crosshair kept.
 //
 // The aim, ironsight or not: every gun points from its muzzle at what the ray through the middle of the screen hits (far
 // along the ray if nothing), recomputed every frame from wherever the pose put the muzzle, so the shots go through the
@@ -71,6 +71,13 @@ void noteDrawn(const hands::State& s);
 // field of view's narrowing are spent over, and what flatplay eases vr_flat_gun_near to vr_flat_ads_near by when it
 // decides whether a drawn view counts as the player's own eyes (flatplay::keepNear). 0 outside the mode.
 [[nodiscard]] float adsShare();
+
+// The same travel as far as it brings the weapon onto its sights: adsShare, but 0 for a zoom-only gun (weapons.txt
+// fsight_mode 1: the view narrows and the gun stays in its pose, the crosshair kept). What the pose's easings read
+// (flatplay's keepNear, rideShare and walk bob, the sighted hit reaction); the look's speed and the view read adsShare.
+[[nodiscard]] float poseShare();
+// Whether the held weapon's aim is zoom alone (fsight_mode 1); false outside the mode or with nothing held one-handed.
+[[nodiscard]] bool zoomAim();
 
 // How far hand `h`'s weapon is on its sights this frame, 0 outside the mode: the view's own looks are spent out with it.
 [[nodiscard]] float drawnShare(int h);

@@ -1160,6 +1160,11 @@ za::Vector<Item> pageDebugTests()
                   "their limbs loaded now. Setup's preparation does this on the start map of each installed campaign "
                   "with a folder of its own (Dimension of the Machine, Dawn of the Machine)."),
         header("Saves"),
+        command("Autosave Now", "vr_autosave_now")
+            .help("vr_autosave_now: the autosave the game makes as a level starts or at a quiet moment, made now: the "
+                  "same name and rotation (Continue and Load Autosave show it), whatever Autosave, the timing or the "
+                  "safety wait say. None in co-op or deathmatch, on Quake VR's own maps or in an Ironman run, as the "
+                  "game's."),
         command("What Continue Would Load", "vr_continue_info")
             .help("vr_continue_info: the save the main menu's Continue row and the hub's Continue button load (the newest "
                   "loadable save of a campaign's map, an autosave or your own) and the newer ones passed over, printed."),
