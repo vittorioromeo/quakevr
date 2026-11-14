@@ -219,6 +219,7 @@ struct NavClass
     za::Vector<ObstacleTile> obsTiles;
     double obsAt = 0.0, obsJobMs = 0.0;
     za::U64 obsDue = 0;       // the server frame the batch goes in on (jobClock; 0: when done)
+    int obsBatches = 0;       // batches started (its first lands on vr_nav_job_frames_first)
 };
 
 // A monster's path (by edict number).
@@ -1623,6 +1624,28 @@ za::U64 dueIn(float frames)
     return frames >= 1.f ? jobClock.frame + static_cast<za::U64>(frames) : 0;
 }
 
+// A props' batch's landing frames: a class's first (the map's props at its start, all its tiles' rebuilds at once: up
+// to 0.5 s of the whole pool on ad_tears) vr_nav_job_frames_first, the rest vr_nav_job_frames (0: when done, both).
+float batchFrames(bool first)
+{
+    const float frames = vr_nav_job_frames.value;
+    return frames >= 1.f && first ? za::max(frames, vr_nav_job_frames_first.value) : frames;
+}
+
+// A class's build's landing frames: vr_nav_build_frames, one more per vr_nav_build_frames_tris of the map's triangles
+// (a big map's builds take longer: ad_tears' 1.1-1.8 s). The map's geometry alone decides it (the same on every
+// machine, whatever its load: the game stays deterministic); 0: when done.
+float buildFrames(const Geometry& g)
+{
+    const float frames = vr_nav_build_frames.value;
+    const float per = vr_nav_build_frames_tris.value;
+    if(frames < 1.f || per < 1.f)
+    {
+        return frames;
+    }
+    return frames + static_cast<float>(g.walkable.size() / static_cast<za::SizeT>(per));
+}
+
 // Whether a pending job's result goes in now: on its deadline frame (waited for if not done yet, logged), never sooner;
 // no deadline: when done. A job not on the pool (built at once) goes in at once.
 bool landsNow(jobs::Future<void>& job, za::U64 due, const char* what, const NavClass& c)
@@ -1739,7 +1762,7 @@ void printClass(const NavClass& c)
 void startClass(za::SizeT index, bool async)
 {
     NavClass& c = state.classes[index];
-    c.due = async ? dueIn(vr_nav_build_frames.value) : 0;
+    c.due = async ? dueIn(buildFrames(state.geo)) : 0;
     const Settings s = settingsNow();
     c.settings = s;
     const Grid grid = gridFor(state.geo, s);
@@ -2408,7 +2431,8 @@ void startObstacleBatch(NavClass& c, int ci, double now)
     }
     c.obsAt = now + static_cast<double>(za::max(vr_nav_prop_batch.value, 0.f));
     c.obsPending = true;
-    c.obsDue = dueIn(vr_nav_job_frames.value);
+    c.obsDue = dueIn(batchFrames(c.obsBatches == 0));
+    ++c.obsBatches;
     const auto i = static_cast<za::SizeT>(ci);
     c.obsJob = jobs::async([i]() { runObstacleBatch(state.classes[i]); });
 }
@@ -2584,9 +2608,10 @@ void info_f()
         marked, st.marks, st.unmarks, st.batches, st.tiles, st.restored, st.jobMs, st.worstJobMs, st.applyMs, st.worstApplyMs,
         obstaclesPending());
     Con_Printf("nav: jobs: server frame %llu; %d deadlines waited for (%.2f ms in all, worst %.2f): landing frames %.0f "
-               "(props' batches), %.0f (builds in play)\n",
+               "(props' batches; a class's first %.0f), %.0f (builds: %d triangles)\n",
         static_cast<unsigned long long>(jobClock.frame), jobClock.waits, jobClock.waitMs, jobClock.worstWaitMs,
-        static_cast<double>(vr_nav_job_frames.value), static_cast<double>(vr_nav_build_frames.value));
+        static_cast<double>(batchFrames(false)), static_cast<double>(batchFrames(true)),
+        static_cast<double>(buildFrames(state.geo)), static_cast<int>(state.geo.walkable.size()));
 }
 
 // Builtin navobstacles (vr_nav.hpp).

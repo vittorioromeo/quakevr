@@ -75,6 +75,7 @@ ModelLoadsInPlay modelLoadsInPlay;
 // The folders made ready this session (prepare), by their whole path: any thread.
 za::AtomicMutex preparedLock;
 za::Vector<za::String> prepared;
+za::AtomicMutex prepareLocks[static_cast<int>(Product::Count)]; // held through a product's prune and folder making
 
 za::String rootDir()
 {
@@ -218,18 +219,24 @@ za::String prepare(Product p, const char* build)
 {
     const za::String kindDir = rootDir() + "/" + kindOf(p);
     za::String dir = kindDir + "/" + build;
+    // One thread prunes and makes the product's folder; any other asking meanwhile (a write's job, the main thread)
+    // waits for it: no file is written before its folder is made, none while the prune runs (it never removes one that
+    // is being written).
+    za::LockGuard folderGuard(prepareLocks[static_cast<int>(p)]);
     {
         za::LockGuard guard(preparedLock);
         if(za::find(prepared.begin(), prepared.end(), dir) != prepared.end())
         {
             return dir;
         }
-        prepared.pushBack(dir);
     }
-    // (Two threads preparing the same folder at once: both prune and make it, the same result.)
     prune(p, kindDir, build);
-    QVR_TRACY_SCOPE(tracyScope, "disk cache directories");
-    files::createDirectories(dir.cStr());
+    {
+        QVR_TRACY_SCOPE(tracyScope, "disk cache directories");
+        files::createDirectories(dir.cStr());
+    }
+    za::LockGuard guard(preparedLock);
+    prepared.pushBack(dir);
     return dir;
 }
 
@@ -385,7 +392,8 @@ void write(Product p, const char* build, unsigned long long key, const char* ext
     unsigned b, const void* data, size_t length)
 {
     QVR_TRACY_SCOPE(tracyScope, "disk cache write prepare");
-    const za::String path = prepare(p, build) + nameOf(key, ext); // (fileFor's, the folder made ready)
+    // (The folder made ready, its first time a session pruned too, in the job: off the main thread.)
+    const za::String path = fileFor(p, build, key, ext);
     za::Vector<unsigned char> bytes;
     const unsigned header[3] = {version, a, b};
     bytes.resize(4 + sizeof(header) + length);
@@ -408,8 +416,9 @@ void write(Product p, const char* build, unsigned long long key, const char* ext
         writes.erase(writes.begin());
     }
     QVR_TRACY_SCOPE(submitScope, "disk cache submit");
-    writes.pushBack(jobs::async([p, path, bytes = ZA_MOVE(bytes)] {
+    writes.pushBack(jobs::async([p, path, buildName = za::String{build}, bytes = ZA_MOVE(bytes)] {
         QVR_TRACY_SCOPE(tracyScope, "disk cache write async");
+        (void)prepare(p, buildName.cStr());
         const Part part{bytes.data(), bytes.size()};
         if(writeAtomic(path, &part, 1))
         {

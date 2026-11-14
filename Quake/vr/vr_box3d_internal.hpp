@@ -784,6 +784,8 @@ struct World
     // A full ragdoll pool (vr_ragdoll_max): the corpses waiting for QC to make room (VR_Knockdown_MakeRoom), run after
     // syncEntities' edict loop rather than inside it; and the ones it refused, left as corpses until they are gone.
     za::Vector<int> roomWanted, roomRefused;
+    // The corpses waiting for their ragdoll (vr_ragdoll_per_frame: the most made a frame), oldest death first.
+    za::Vector<int> ragdollQueue;
     bool syncingEntities{false};
     za::Vector<Recovery> recoveries;    // knocked-down monsters getting up (Knockdowns)
     // Hands holding a ragdoll's limb (vr_ragdoll_grab; "Ragdolls"): a kinematic body at the hand and a motor joint to

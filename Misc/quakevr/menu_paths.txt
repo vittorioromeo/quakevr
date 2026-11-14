@@ -2934,6 +2934,11 @@ vr_ragdoll_hand_turn|2|Tunables|Hand Turns with Limb|Advanced VR Options > Debug
 vr_ragdoll_hand_rest|2|Tunables|Palm Rests on Limb|Advanced VR Options > Debug > Tunables > Palm Rests on Limb
 vr_ragdoll_throw|2|Tunables|Throw|Advanced VR Options > Debug > Tunables > Throw
 vr_ragdoll_blood|2|Tunables|Blood Trails|Advanced VR Options > Debug > Tunables > Blood Trails
+vr_agrunt_pose_lod|2|Tunables|Armed Pose LOD|Advanced VR Options > Debug > Tunables > Armed Pose LOD
+vr_agrunt_pose_lod_near|2|Tunables|Armed Pose LOD: Near|Advanced VR Options > Debug > Tunables > Armed Pose LOD: Near
+vr_agrunt_pose_lod_cone|2|Tunables|Armed Pose LOD: View Cone|Advanced VR Options > Debug > Tunables > Armed Pose LOD: View Cone
+vr_worn_backpack_lod_near|2|Tunables|Worn Pack LOD: Near|Advanced VR Options > Debug > Tunables > Worn Pack LOD: Near
+vr_ragdoll_per_frame|2|Tunables|New Ragdolls per Frame|Advanced VR Options > Debug > Tunables > New Ragdolls per Frame
 vr_ragdoll_sleep_skip|2|Tunables|Skip Sleeping|Advanced VR Options > Debug > Tunables > Skip Sleeping
 vr_hitmodel_skin_keep|2|Tunables|Keep Skinned Bodies|Advanced VR Options > Debug > Tunables > Keep Skinned Bodies
 vr_ragdoll_smooth|2|Tunables|Smooth Motion|Advanced VR Options > Debug > Tunables > Smooth Motion
@@ -4741,7 +4746,9 @@ vr_nav_slide|2|Tunables|Navmesh: Slide Along Walls|Advanced VR Options > Debug >
 vr_nav_stuck_log|2|Tunables|Navmesh: Log Stuck Walkers|Advanced VR Options > Debug > Tunables > Navmesh: Log Stuck Walkers
 vr_nav_prop_batch|2|Tunables|Navmesh: Prop Rebuild Interval|Advanced VR Options > Debug > Tunables > Navmesh: Prop Rebuild Interval
 vr_nav_job_frames|2|Tunables|Navmesh: Prop Rebuild Landing Frame|Advanced VR Options > Debug > Tunables > Navmesh: Prop Rebuild Landing Frame
+vr_nav_job_frames_first|2|Tunables|Navmesh: First Prop Rebuild Landing Frame|Advanced VR Options > Debug > Tunables > Navmesh: First Prop Rebuild Landing Frame
 vr_nav_build_frames|2|Tunables|Navmesh: New Size Landing Frame|Advanced VR Options > Debug > Tunables > Navmesh: New Size Landing Frame
+vr_nav_build_frames_tris|2|Tunables|Navmesh: Landing Frame per Triangles|Advanced VR Options > Debug > Tunables > Navmesh: Landing Frame per Triangles
 vr_revgrip|2|Tunables|Reverse Grip|Advanced VR Options > Debug > Tunables > Reverse Grip
 vr_revgrip_flip_time|2|Tunables|Flip Time|Advanced VR Options > Debug > Tunables > Flip Time
 vr_revgrip_volume|2|Tunables|Flip Sound Volume|Advanced VR Options > Debug > Tunables > Flip Sound Volume
