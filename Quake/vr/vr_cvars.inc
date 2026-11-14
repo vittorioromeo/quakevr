@@ -899,6 +899,11 @@ QVR_CVAR(vr_menu_big_hl_scale, "1.08", CVAR_ARCHIVE)   // that row's size while 
 QVR_CVAR(vr_menu_wheel_scroll, "0.25", CVAR_ARCHIVE)  // the mouse wheel on a menu with a scroll bar: a notch scrolls this part of the rows shown (0 to 1; 0: it moves the selection a row, as before)
 QVR_CVAR(vr_menu_big_hl_alpha, "0.14", CVAR_ARCHIVE)  // that soft bar's opacity at its middle (0.02 to 0.5; 0.14 the small rows' bar's, about 0.31 before 2026-11-13)
 QVR_CVAR(vr_menu_toolbar_groups, "5", CVAR_ARCHIVE)    // the corner's buttons in groups (game, saves, menus, settings, levels, tools, developer): this many pixels between groups (0 to 12: 0 evenly spaced)
+// Select Campaign's groups (Item::Lead, Sub, Note; ROUND25.md, "campvis"): each campaign its title, its Continue under it.
+QVR_CVAR(vr_menu_group_scale, "1.25", CVAR_ARCHIVE)    // a group's title row's letters over a row's (1 to 2: a campaign's title)
+QVR_CVAR(vr_menu_group_gap, "6", CVAR_ARCHIVE)         // the space above each group, pixels (0 to 16)
+QVR_CVAR(vr_menu_group_indent, "16", CVAR_ARCHIVE)     // a group's secondary rows (Continue) indented this far under its title, pixels (0 to 40)
+QVR_CVAR(vr_menu_group_tags, "1", CVAR_ARCHIVE)        // a campaign's status tag right of its title: 0 none, 1 only when not just ready (missing, experimental...), 2 always
 QVR_CVAR(vr_runsetup_groups, "1", CVAR_ARCHIVE)        // Run Setup's mutators in three sections (Rules, Enemies, World); 0: one Mutators section
 QVR_CVAR(vr_runsetup_big, "1.5", CVAR_ARCHIVE)         // Run Setup's Difficulty row and Start button letters over a row's (1 to 2)
 QVR_CVAR(vr_runsetup_halls_line, "0", CVAR_ARCHIVE)    // Run Setup with a start map that has its own skill halls: 1 a line saying so where Difficulty goes; 0 nothing (the halls choose)

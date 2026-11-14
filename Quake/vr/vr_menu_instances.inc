@@ -926,17 +926,28 @@ void qvr::menu::continueRowsTest_f()
         const za::Vector<Item> items = pageCampaigns();
         const Item* row = continueTestRow(items);
         char label[192];
-        q_snprintf(label, sizeof(label), "%s /%s", row ? row->infoArg(row->arg) : "",
-            row && row + 1 < items.data() + items.size() && (row + 1)->partOf == 1 ? (row + 1)->infoArg((row + 1)->arg) : "");
+        const Item* note = row && row + 1 < items.data() + items.size() && (row + 1)->partOf == 1 ? row + 1 : nullptr;
+        q_snprintf(label, sizeof(label), "%s (%s) / %s", row ? row->infoArg(row->arg) : "",
+            row && row->tagArg ? row->tagArg(row->arg) : "", note ? note->infoArg(note->arg) : "");
         char expected[192];
-        q_snprintf(expected, sizeof(expected), "Continue (just now) /  %s", t.summary);
+        q_snprintf(expected, sizeof(expected), "Continue (just now) / %s", t.summary);
         if(row && strcmp(label, expected))
         {
             Con_Printf("continue_rows: the row reads \"%s\", expected \"%s\"\n", label, expected);
         }
         check(row && !strcmp(label, expected), "Quake's row has its Continue (its age), the run's summary under it");
-        check(row && row != &items[0] && (row - 1)->infoArg == VR_CampaignLabel && (row - 1)->arg == 0,
+        check(row && row != &items[0] && (row - 1)->infoArg == VR_CampaignTitle && (row - 1)->arg == 0,
             "its Continue right under Quake's row");
+        // Select Campaign's look (ROUND25.md, "campvis"): the campaign a group's title, its Continue under it, the run
+        // a note line; Quake ready: no tag; a long run cut at a part, never mid-word.
+        check(row && note && (row - 1)->look == Item::Lead && row->look == Item::Sub && note->look == Item::Note,
+            "Quake's title, its Continue and its run line drawn as a group");
+        check(VR_CampaignUnavailable(0) != 0 || !campaignTag(0)[0], "Quake ready: no status tag");
+        char fit[64];
+        fitAtWord("Normal / Unleashed / Armed humanoids / Glass cannon", 34, fit, sizeof(fit));
+        check(!strcmp(fit, "Normal / Unleashed ..."), va("a long run cut at a part (\"%s\")", fit));
+        fitAtWord("Hard / Classic", 34, fit, sizeof(fit));
+        check(!strcmp(fit, "Hard / Classic"), "a short run whole");
         const char* save = VR_LaunchContinueSave(0, "");
         check(save && !strcmp(save, continueTestSave), "it is the save just made");
         const char* pkg = VR_LaunchContinueLabel(0, continueTestSha, 0);

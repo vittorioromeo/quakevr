@@ -75,6 +75,11 @@
         row(opt::vr_runsetup_groups),
         row(opt::vr_runsetup_big),
         row(opt::vr_runsetup_halls_line),
+        header("Select Campaign"),
+        row(opt::vr_menu_group_scale),
+        row(opt::vr_menu_group_gap),
+        row(opt::vr_menu_group_indent),
+        row(opt::vr_menu_group_tags),
         header("Shortcut Buttons"),
         row(opt::vr_menu_toolbar_groups),
     };

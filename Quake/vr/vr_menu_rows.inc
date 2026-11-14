@@ -2314,6 +2314,15 @@ QVR_SLIDER_BYNAME(vr_menu_big_hl_alpha, "Big Menu Bar Opacity", 0.02f, 0.5f, 0.0
     "How opaque the soft bar behind the big menus' selected row is. 0.14: as the settings pages' selected row.")
 QVR_SLIDER_BYNAME(vr_menu_toolbar_groups, "Shortcut Group Gap", 0.f, 12.f, 1.f, "%.0f px", noExt,
     "The corner's shortcut buttons in groups (game, saves, menus, settings, levels, tools): this much space between groups. 0: evenly spaced.")
+QVR_SLIDER_BYNAME(vr_menu_group_scale, "Campaign Title Size", 1.f, 2.f, 0.05f, "%.2fx", noExt,
+    "Select Campaign: each campaign's title, over a row's letters. Its Continue under it stays a row's size.")
+QVR_SLIDER_BYNAME(vr_menu_group_gap, "Campaign Gap", 0.f, 16.f, 1.f, "%.0f px", noExt,
+    "Select Campaign: the space above each campaign (its title, its Continue), so each stands apart.")
+QVR_SLIDER_BYNAME(vr_menu_group_indent, "Continue Indent", 0.f, 40.f, 1.f, "%.0f px", noExt,
+    "Select Campaign: how far a campaign's Continue (and its run's line) is indented under its title.")
+QVR_CYCLE_BYNAME(vr_menu_group_tags, "Campaign Status Tags",
+    "Select Campaign: the small tag right of a campaign's title. Exceptions Only: only missing, incomplete, experimental and the like (its help has the whole status).",
+    {0.f, "Off"}, {1.f, "Exceptions Only"}, {2.f, "Always"})
 QVR_TOGGLE_BYNAME(vr_runsetup_groups, "Run Setup: Mutator Groups",
     "Run Setup's mutators in three sections: Rules, Enemies and World. Off: one Mutators section.")
 QVR_SLIDER_BYNAME(vr_runsetup_big, "Run Setup: Difficulty and Start Size", 1.f, 2.f, 0.05f, "%.2fx", noExt,
