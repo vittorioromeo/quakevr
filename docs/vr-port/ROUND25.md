@@ -2831,3 +2831,6 @@ His flat report: a Run Setup Style (Classic, then Unleashed) took effect only wh
 - `vr_runlaunch_test` (86/0): the classic_drops scene run (waited for until `scenario::active()`), then the Levels list
   with Unleashed: the scene ended at the Start, the map spawned Unleashed (armed grunts, reloading), nothing for the
   guard to set back.
+## wetglint (agent/wetglint)
+
+His report: after quickload the dripping came back but the wet glint did not. The shine (the alias shader wet coat, `wounds::wetCoat`) read `Mask::wetLeft` / `handWetLeft`, set only by a liquid wound event (the rising edge); a load restoring vr_drips wetness never set them. Fix, no new state: `wetCoat` takes its seconds-left from `drips::wetOf(e)` (drips wetness times dryTime, max with the old values); a thing with no wet mask (a loaded game) shines all over. `Misc/quakevr/saveload_test.sh` checks `vr_wounds_info` `wet: coat`: each coat shining before the save shines after (flat 5, VR 5). BACKLOG: flat 2H melee pose item added.
