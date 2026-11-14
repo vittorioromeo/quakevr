@@ -44,6 +44,8 @@ Run at a grunt and throw the knight's sword or the dagger hard, point first: it 
 Hold the dagger or a sword and press B (Y on the off hand): it turns half round in a fifth of a second with a click, blade down, thumb over the pommel; press again to flip it back. {test:revgrip}
 Toss the dagger so it turns over and catch it blade down: you hold it reversed (caught blade up: upright); a force grab takes it upright; holstered and drawn, a reversed blade stays reversed. {test:revgrip}
 Held blade down, stab the grunt from above: the blade sticks in, and your hand on its handle looks the same as holding it. {test:revgrip}
+Parry an ogre's and a sword grunt's swings with your sword held across their blade's way three ways: held there long before the swing (early), moved in just before the blow (on time), and moved in after the blow should have landed (late). All three parry with no damage; only the on-time one staggers them long and pushes them back hard, early and late ones barely make them flinch. {test:parrytime}
+Debug > Tunables > Combat > Directional Parry: Early/Late Stagger, Early Fade, Late Grace and Late Fade change how much an early or late parry still staggers and how quickly it falls off; the timing window is still Timing Window. {test:parrytime}
 
 [6. VR: weapons and grips]
 Pick up the dagger (in your main hand here, the knight's sword in the other to compare): the sword's clean steel, a third of its blade, a smaller guard and grip, sitting in your hand as the sword does. {test:dagger}
