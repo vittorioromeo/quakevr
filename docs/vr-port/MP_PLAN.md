@@ -1302,15 +1302,17 @@ Open (B8c):
 - The prediction of jump, swimming, the crouched and lying boxes, climbing and the grapple, and a lift-rider test
   (`mp_predict` grown: corrections under a unit): not started this session.
 
-### B8c results, part 1: mp_loss's jumps, melee lag compensated (2026-11-14, dev no-LTO build, loopback; SUITE_RESULT)
+### B8c results, part 1: mp_loss's jumps, melee lag compensated (2026-11-14, dev no-LTO build, loopback; `mp_test.py suite`: 26 of 28 pass, `mp_loss` 12/3 and `mp_melee` 28/1 on a busy machine (B at 114 frames a second, other agents' games and builds running); alone on a quiet one 15/0 and 29/0)
 
 | Scenario | Result |
 |---|---|
 | `mp_loss` | 15/0 in 6 runs of 6 (was 13/2 in 2 of 6): 0 jumps of A's body and hands at 10% loss. The cause: 3-4 packets lost in a row (or late) left the buffer's clock past the newest message (its delay 38 ms, two ticks and a margin): the copy held at the newest place, then the next message's lerp put it 14 ms of motion (4-7 units) further in one frame. The server's own samples of A are uneven too (0 to 670 u/s tick to tick: his moves reach the server in bursts), which the lerp smooths |
 | `mp_lagcomp` | 11/0 (grown): 12 of 12 test punches (`vr_mp_punch`: a fist's 32-unit line, radius 4, into A's middle as B draws him, judged as melee's sweep judges: hitmodel_segment, a player's box grown by the line) land where B saw A, 5 of 12 where the server has him now; the shots as before (12/12, the punch sent with each shot so A's legs keep their length) |
-| `mp_melee` | 29/0, twice (the punch, parry and bash each way now run through the scope) |
+| `mp_loss` (6 runs above: 15/0; a seventh on a quiet machine 15/0) | `jumps` now scales the neighbours' steps by the buffer clock's advance each frame (`clock_steps`): a long frame is no jump. It keeps the pre-fix runs' real jumps (1 body, 2 hands) and clears the busy suite run's lerp-on trace (B's frames alternating 4 and 15-20 ms: 3 body jumps before, 0 after); its hands' roughness (1.15) still fails there. At 33-61 frames a second (heavier load later) everything fails: the check wants a quiet machine |
+| `mp_melee` | 29/0 three runs of five (the punch, parry and bash each way now run through the scope); the two others on the busy machine: 28/1, "A's sword on B: his crowbar held level ... does not parry it": A's swing struck nothing at all (no dirparry line, no damage); `mp_blade` alone 13/0 twice. Open: whether B's hands put back by a long frame's view time stood in an older pose (a trace of the scope's hand poses) |
 
-SP_RESULT
+Single player on the branch: scenario_check PASS (150 run, 0 failed), load_models_test 4/0, vr_run_check 12/0 (run B
+`3 1 0 1 0`), the dev build and the Release-config (ThinLTO) build 0 warnings.
 
 What changed:
 
