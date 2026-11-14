@@ -51,7 +51,7 @@ int VR_NoLiquidEffects(struct qmodel_s* model, const float* point);
 // Quake VR's network version, sent after NetQuake's in the connect request ("QVR", then this long; net_dgrm.c): a
 // server whose protocol is the VR one rejects a client without it or with another, with the reason (MP_PLAN.md, B2).
 // Raise it with any change to what client and server send each other.
-#define QVR_NET_VERSION				19
+#define QVR_NET_VERSION				20
 // A remote client's moves (vr/vr_netmove.hpp: quantized deltas with repeats; the loopback's stay clc_move; MP_PLAN.md, B7).
 #define QVR_CLC_MOVES				16
 #define SOLID_NOT_BUT_TOUCHABLE		5		// Quake VR: not solid, but can be (hand) touched
@@ -430,6 +430,8 @@ void VR_WriteScoped (struct sizebuf_s *msg, int local, int snap);	// SV_SendClie
 // off the message into it (key 0 the player state, an entity's number); VR_SnapEnd adds the avatars it sees and writes it.
 int VR_SnapBegin (struct client_s *client);
 void VR_SnapTake (struct sizebuf_s *msg, int at, int key);
+int VR_LagCompBegin (struct edict_s *shooter); // PF_traceline (a MOVE_HITMODEL trace): the targets where he saw them (vr/vr_lagcomp.cpp)
+void VR_LagCompEnd (void);                     // ... and back
 void VR_SnapEnd (struct sizebuf_s *msg);
 void VR_InterpFrame (void);				// CL_RelinkEntities, before the entities: the interpolation buffer's clock (vr_netsnap.cpp)
 int VR_InterpEntity (int num, float *origin, float *angles); // ... entity `num` placed from it (a remote server's others, a delay behind): 1, or 0 NetQuake's lerp

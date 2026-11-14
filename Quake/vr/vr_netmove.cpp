@@ -51,6 +51,7 @@ void visitMove(WireMove& m, V& v)
     const glm::vec3& o = r.origin;
     v.real(m.time, timeScale);
     v.real(m.frameTime, clockScale);
+    v.real(m.viewBack, clockScale);
     v.abs(m.viewAngles, angScale);
     v.integer(m.forward);
     v.integer(m.side);
@@ -632,6 +633,7 @@ void fillMove(WireMove& m, int seed)
     r.origin = glm::vec3{512.f + s * 3.1f, -1024.5f + s, 64.f};
     m.time = 1234.567f + s * 0.0139f;
     m.frameTime = 0.01389f + s * 0.0001f;
+    m.viewBack = 0.04f + s * 0.001f;
     m.viewAngles = glm::vec3{-10.f + s, 271.3f, 0.5f};
     m.forward = 200;
     m.impulse = seed & 1;

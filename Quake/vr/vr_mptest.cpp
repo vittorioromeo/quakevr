@@ -25,6 +25,7 @@
 #include "vr_server.hpp"
 #include "vr_teleport.hpp"
 #include "vr_trace.hpp"
+#include "vr_lagcomp.hpp"
 
 #include <chrono>
 #include <stdio.h>
@@ -431,6 +432,7 @@ extern "C" void VR_MpTestInit(void)
     qvr::netmove::init(); // vr_netmove_selftest
     qvr::predict::init(); // vr_mp_predict_report, vr_mp_predict_probe
     qvr::netsnap::init(); // vr_netsnap_selftest
+    qvr::lagcomp::init(); // vr_mp_shoot, the "vr_lagcomp_shot" client command
     Cmd_AddCommand("vr_goto_exit", gotoExit_f);
     Cmd_AddCommand("vr_hurt", hurt_f);
     qvr::mpavatar::init(); // vr_mp_avatars

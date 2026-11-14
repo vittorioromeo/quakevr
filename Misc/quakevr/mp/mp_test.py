@@ -2837,6 +2837,57 @@ def predict(s):
             frames0 > PREDICT_MOVES_MOST + 5, "%d moves, %d ms" % (frames0, ms0))
 
 
+
+LAGCOMP_LAG = 150          # mp_lagcomp: B's added delay each way, ms
+LAGCOMP_GAP = 160.0        # units north of B that A strafes at, facing him
+LAGCOMP_LEGS = 4           # A's strafes, alternately right and left ...
+LAGCOMP_LEG_SHOTS = 4      # ... B's test shots at him in each (the first of a leg, A still speeding up, not counted)
+LAGCOMP_SHOT_MOST = 800.0   # ms: and his test shot (a reliable command, after the move that would carry a real shot) at most
+LAGCOMP_HIT_LEAST = 0.8    # of the counted shots, judged where B saw him, this many hit him at least
+LAGCOMP_BACK = (250.0, 500.0)  # ms: how far back the others were put for B's shots (his round trip and his buffer's delay)
+
+
+def lagcomp(s):
+    """MP_PLAN B8b: lag compensation. B, 150 ms behind the server each way, shoots at A strafing across his view (a test
+    shot, vr_mp_shoot: from his eyes at A's middle as B draws him, traced on the server as shots are, MOVE_HITMODEL). The
+    server judges each against A where B's screen showed him (his move's time less his interpolation buffer's delay:
+    vr_lagcomp.cpp) and against A where it has him now: the first hits nearly always, the second mostly misses (A has
+    moved on by his speed times B's lag), which tells the two apart."""
+    srv, a, b, ea, eb = join(s, lag=LAGCOMP_LAG)
+    a.cmd("name A")
+    b.cmd("name B")
+    put_at(srv, b, eb, MELEE_SPOT, 90)
+    put_at(srv, a, ea, (MELEE_SPOT[0], MELEE_SPOT[1] + LAGCOMP_GAP, MELEE_SPOT[2]), 270)
+    counted = rewound = plain = 0
+    backs, moves = [], []
+    for leg in range(LAGCOMP_LEGS):
+        a.cmd("vr_mock_stick off %d 0" % (1 if leg % 2 == 0 else -1))
+        for shot in range(LAGCOMP_LEG_SHOTS):
+            since = srv.mark()
+            b.cmd("vr_mp_shoot %d" % ea)
+            _, line = srv.wait(r"mp_lagcomp_shot: slot=%d " % (eb - 1), 20, since, "B's shot %d.%d" % (leg, shot))
+            f = fields(line)
+            if shot == 0:
+                continue
+            counted += 1
+            rewound += 1 if int(f["rewound"]) == ea else 0
+            plain += 1 if int(f["plain"]) == ea else 0
+            backs.append(float(f["back_ms"]))
+            moves.append(float(f["move_ms"]))
+    a.cmd("vr_mock_stick off 0 0")
+    s.metric("lagcomp", {"counted": counted, "rewound": rewound, "plain": plain, "backs": backs, "moves": moves})
+    s.note("B's shots at A: %d counted, %d hit where B saw him, %d where the server has him now; back %s ms, his "
+           "moves' %s ms" % (counted, rewound, plain, backs, moves))
+    s.check("B's shots at A strafing hit where B saw him (lag compensated): %d of %d" % (rewound, counted),
+            counted > 0 and rewound >= LAGCOMP_HIT_LEAST * counted, "%d of %d" % (rewound, counted))
+    s.check("without it most miss (the test tells them apart): %d of %d" % (plain, counted),
+            plain <= counted // 2 and rewound - plain >= counted // 3, "plain %d, rewound %d" % (plain, rewound))
+    s.check("the others put back by B's round trip and his buffer's delay (%.0f..%.0f ms)" % LAGCOMP_BACK,
+            bool(backs) and all(LAGCOMP_BACK[0] <= x <= LAGCOMP_SHOT_MOST for x in backs), "%s" % backs)
+    s.check("his moves say as much (each move's view time: what lag compensation of his real shots uses)",
+            bool(moves) and all(LAGCOMP_BACK[0] <= x <= LAGCOMP_BACK[1] for x in moves), "%s" % moves)
+
+
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
     s = Session(args.exe, args.base, args.out, test, port=args.port)
     failure = None
@@ -2891,6 +2942,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             lossy(s)
         elif test == "mp_predict":
             predict(s)
+        elif test == "mp_lagcomp":
+            lagcomp(s)
         else:
             coop(s, args.listen, args.flat or "", lag, jitter, loss)
     except StepFailed as e:
@@ -2903,7 +2956,7 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "lagcomp", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -2927,7 +2980,7 @@ def main():
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict"):
+                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "lagcomp"):
         ok = run(args, "mp_" + args.test)
     else:
         ok = run(args, "mp_coop")
@@ -2956,6 +3009,7 @@ def main():
         ok = run(args, "mp_flatbody") and ok
         ok = run(args, "mp_loss") and ok
         ok = run(args, "mp_predict") and ok
+        ok = run(args, "mp_lagcomp") and ok
         # B's link per scenario (MP_PLAN B7: byte counts against mp_bandwidth's): what the next phases cut.
         print("mp_bytes: scenario, B's link up B/s (mean B), down B/s (mean B)")
         for test, w in LINKS:

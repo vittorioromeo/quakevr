@@ -2,6 +2,7 @@
 
 #include "vr_ad.hpp"
 #include "vr_hitmodel.hpp"
+#include "vr_lagcomp.hpp"
 #include "vr_hull.hpp"
 #include "vr_nav.hpp"
 #include "vr_brushes.hpp"
@@ -590,6 +591,7 @@ void resetServerWorld()
     qvr::crates::reset();
     qvr::props::resetModelCache(); // (the models' names may be others' now)
     qvr::hitmodel::reset();
+    qvr::lagcomp::reset(); // (the targets kept: this world's from its first frame)
     qvr::scenario::worldReset(); // (a checklist test scene ends at another map or a load, not at its own)
     resetBuiltinState();
 }

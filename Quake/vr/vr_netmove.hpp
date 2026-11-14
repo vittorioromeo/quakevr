@@ -29,6 +29,7 @@ struct WireMove
 {
     float time{0.f};             // the client's cl.mtime[0] (the server's ping)
     float frameTime{0.f};        // the client frame it covers, seconds (B8: the server runs his walk for it, as his prediction does)
+    float viewBack{0.f};         // how far behind `time` the others were drawn, seconds (his interpolation buffer: B8b's lag compensation)
     glm::vec3 viewAngles{0.f};
     int forward{0}, side{0}, up{0};
     int buttons{0};              // clc_move's bits (1 attack, 2 jump)

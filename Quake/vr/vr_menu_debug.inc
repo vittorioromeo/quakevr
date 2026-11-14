@@ -1170,6 +1170,10 @@ za::Vector<Item> pageDebugReports()
             .help("vr_net_predict: on a remote server, your own walking shows at once: the server's state after the newest "
                   "move it ran, your later moves replayed from it by the same code the server runs them with; a correction "
                   "eases in. Off: the server's state as it comes, a round trip late."),
+        toggle("Network: Lag Compensation", vr_net_lagcomp)
+            .help("vr_net_lagcomp: hosting, a remote player's shots meet the players and monsters where his screen showed "
+                  "them (up to vr_net_lagcomp_most back, 0.5 s). Off: where the server has them now, so he must lead his "
+                  "target by his lag."),
         toggle("Network: Moves Run One by One", vr_net_permove)
             .help("vr_net_permove: hosting, a remote player's walk runs move by move, each for his own frame's time, as his "
                   "prediction replays it. Off: once a server frame with his newest move, as NetQuake (his prediction is then "

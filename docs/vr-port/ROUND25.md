@@ -3070,3 +3070,15 @@ self-driven across the load by saved globals): `vr_scenario waterdrips`, once pl
   `map vrstart;vr_classic_roundtrip_test`, `-QuitOn "classicroundtrip: \d+ passed"`. `vr_gameplay_preset_test` 31/0
   (2 new: Back is the press's state, a hand change kept), `vr_gore_preset_test` 15/0, `vr_gameplay_classic_check` 4/0.
   menu_paths.txt regenerated (the new Debug row).
+
+## mpN (B8b, part 1): the suite's three fixed; lag compensation for shots (agent/mp, 2026-11-14; never shipped by the coordinator)
+
+- **Client commands no longer overflow cls.message** (any client of any server): the VR client's own commands (prefs,
+  held poses, rig frames, calibration) leave 512 bytes for typed ones (`client::roomForCommand`), cls.message is 4 KB.
+  Before: a typed command right after a join could Host_Error the client ("SZ_GetSpace: overflow"; mp_forcegrab).
+- **Snapshots**: a delta whose only change is the predict record decodes (the key step limit covers `predictKey`).
+- **Lag compensation** (`vr_lagcomp.cpp`; `vr_net_lagcomp` 1, `vr_net_lagcomp_most` 0.5; Debug > Reports > Network: Lag
+  Compensation): a remote client's MOVE_HITMODEL tracelines (his shots) meet the players and monsters where his screen
+  showed them; each move carries `viewBack` (QVR_NET_VERSION 20). Melee and the grapple are not compensated yet.
+- Tests: `mp_test.py lagcomp` (12/12 hits judged where B saw A, 4/12 where the server has him), `vr_netsnap_selftest` 6/0.
+  Details: MP_PLAN.md, "B8b results, part 1".

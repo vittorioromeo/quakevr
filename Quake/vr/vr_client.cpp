@@ -1056,6 +1056,8 @@ extern "C" void VR_WriteMoveExtras(sizebuf_t* buf, int forward, int side, int up
             netmove::WireMove m;
             m.time = static_cast<float>(cl.mtime[0]);
             m.frameTime = static_cast<float>(host_frametime); // (this tick's: the server walks him for it, as his prediction does)
+            // (the others drawn this far behind the newest message: his shots are judged there, B8b)
+            m.viewBack = netsnap::interpActive() ? za::clamp(static_cast<float>(cl.mtime[0] - netsnap::interpTime()), 0.f, 1.f) : 0.f;
             m.viewAngles = glm::vec3{cl.viewangles[0], cl.viewangles[1], cl.viewangles[2]};
             m.forward = forward;
             m.side = side;

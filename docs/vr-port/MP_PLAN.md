@@ -1269,7 +1269,42 @@ Open (B8b), first the suite's three:
   correction. Close quarters (vr_closequarters) too.
 - A move's time is the client's tick (host_frametime); in slow motion (VR_TimeScale) the server's credit holds him.
 
+### B8b results, part 1: the suite's three, lag compensation (2026-11-14, dev no-LTO build, loopback)
+
+| Scenario | Result |
+|---|---|
+| `mp_forcegrab` | 9/0 (was 5/1): B's client had died at the join, "Host_Error: SZ_GetSpace: overflow" from Cmd_ForwardToServer: his own commands (prefs, held poses, calibration) filled the 1 KB cls.message and the harness's typed "name B" overflowed it. The client's own commands now leave 512 bytes (client::roomForCommand; the calibration had no check at all) and cls.message is 4 KB. Any client of any server: on its own commit |
+| `mp_loss` | 15/0 three runs of four (was 14/1): the undecodable snapshots were deltas whose only change was B8's predict record (key 0x20000: a key step of 0x20001 from none, over decode's limit of 2 x avatarKey). `vr_netsnap_selftest` 6/0 with the case. The fourth run: 13/2, A's body and hands "jump" twice at 200 frames a second (the others 244-252): the machine busy, not the codec (no undecodable) |
+| `mp_moves` | 19/0 (was 17/2): the test's: the stand was read from a copy still at his last place, the crouch by the moves byte (the newest message's) before the head (the interpolation buffer's, a few frames behind) came down; both now waited for |
+| `mp_lagcomp` (new) | 9/0: B at 150 ms each way shoots A strafing 160 units off (vr_mp_shoot: at A's middle as B draws him): 12 of 12 counted shots hit judged where B saw him, 4 of 12 judged where the server has him now; B's moves put the others 312-344 ms back |
+
+What changed:
+
+- **Lag compensation** (`vr_lagcomp.cpp`, `vr_net_lagcomp` 1, `vr_net_lagcomp_most` 0.5 s): the server keeps the last 80
+  frames of the players' and monsters' places, angles, frames and hit model tracks (while a remote client plays); each
+  remote move says what its client saw (`WireMove::viewBack`: his interpolation buffer's distance behind the newest
+  message, `QVR_NET_VERSION` 20); a MOVE_HITMODEL traceline of his (PF_traceline: the shots) runs with each target put
+  back there (a player between the frames around that time, a stepping monster at the newest message's time as NetQuake's
+  lerp draws it, hit model poses at that time: `hitmodel::detail::poseNow`), then puts them back. The world, doors and
+  lifts stay. Single player and the listen host's own client: nothing (clc_move, no view behind).
+- Debug > Reports > Network: Lag Compensation. `vr_mp_shoot <ent>` (client) / `vr_lagcomp_shot` (its server side): a
+  test shot reported (`mp_lagcomp_shot:` plain and rewound hits), nothing hurt.
+
+Open (B8c):
+
+- Melee, parry, shove and the grapple are not compensated yet (their hits are engine sweeps and QC builtins, not
+  PF_traceline: hitmodel_segment and vr_admelee's sweeps take the same begin/end); other players' hands (parry) need
+  their poses kept too (each move's hand pose: the B5d decision).
+- Missiles are not compensated (as in most games: they fly in the server's world).
+- The prediction of jump, swimming, the crouched and lying boxes, climbing and the grapple, and a lift-rider test
+  (`mp_predict` grown: corrections under a unit): not started this session.
+
 ## Decisions
+
+- Lag compensation (B8b) rewinds only the targets of a MOVE_HITMODEL traceline from a remote client, for that trace,
+  rather than his whole frame's QC: the AI, triggers and his own walk keep the server's world; the view time is his
+  move's own (newest message time less his buffer's delay), capped at vr_net_lagcomp_most (0.5 s: a 150 ms link's
+  round trip and buffer is already 0.33 s, so the plan's 250 ms was too short).
 
 - A remote client's walk (B8) runs move by move on the server through `vr_pmove.cpp`, a port of sv_phys.c's walk with
   hooks, while single player and the listen host's own client keep sv_phys.c's path untouched: the two the prediction
@@ -1321,4 +1356,4 @@ Open (B8b), first the suite's three:
 - The interpolation buffer (B7b) leaves brush models and stepping monsters on NetQuake's lerp: the player's own entity
   is not delayed (no prediction until B8), and a lift he rides must stay in step with him.
 
-Next phase: B8b — the rest of B8: first B8's three suite failures (`mp_moves`' crouched copy, `mp_forcegrab`'s put_at, `mp_loss`'s undecodable snapshot: "B8 results"), then lag compensation (the server keeps the last 250 ms of hit models and hands per entity; a client's hitscan, melee, parry and shove judged as he saw them, at his interpolation buffer's time, capped), then the jump, swimming, the crouched and lying boxes, climbing and the grapple predicted through vr_pmove.cpp; tests first: `mp_lagcomp` (a hit on a moving target at 150 ms lands), `mp_predict` grown (a jump, a swim, a crouch: corrections under a unit).
+Next phase: B8c — the rest of B8: lag compensation for melee, parry, shove and the grapple (hitmodel_segment and vr_admelee's sweeps through vr_lagcomp's begin/end; other players' hand poses kept per move), then the jump, swimming, the crouched and lying boxes, climbing and the grapple predicted through vr_pmove.cpp, with a lift-rider test; tests first: `mp_lagcomp` grown (a punch at 150 ms lands), `mp_predict` grown (a jump, a swim, a crouch, a lift: corrections under a unit).
