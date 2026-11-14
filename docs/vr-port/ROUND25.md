@@ -2557,3 +2557,13 @@ Cherry-picked bd2277d6c (translucent brush models' retro decal program made in t
 ## crtheapfix
 
 Cherry-picked 6b8e74432: VR_CrtHeapLoadHold now defined without mimalloc (QVR_MIMALLOC=OFF Linux link). Checked: dev build, ReleaseLTO, WSL no-mimalloc link, load_models 352/0.
+
+## mpN (B5d): a blade's directional parry between players (agent/mp, 2026-11-14; never shipped by the coordinator)
+- Another player's melee-weapon swing (sword, axe, crowbar; not the chainsaw, not a fist) is judged by the directional
+  parry, as an armed humanoid's: VR_DRP_Eval's third kind reads his swing's line from his hand lines (`handlineat`), the
+  two frames within 0.1 s whose sweep came nearest your weapon. A fist's blow is still the guard's. Multiplayer only.
+- `mp_melee` 29/0 (a sword's swing each way: lands; the crowbar held level, the guard's pose, does not parry it; held
+  upright across its way, it does; at 30 ms jitter the same blow, 33-37 moves merged); `mp_test.py blade` runs that part.
+  `vr_mp_status` gives `merged=`. Melee sub-tick samples not needed (MP_PLAN.md, Decisions). Single player: scenario_check
+  PASS (132), load_models 4/0, vr_run_check 12/0; builds 0 warnings. `vr_agrunt_test 78` is 28/19 on the branch before
+  this phase too (not looked into). Next: B6. Details: MP_PLAN.md, "B5d results".

@@ -193,7 +193,7 @@ player unchanged.
 | **B5** (pickups and force grabs done; the rest is B5b) | Interactions between players: drop a weapon / the other picks it up; force grab of world weapons in multiplayer; melee, parries and shoves between players; climbing, crouch, prone, jump, punch synced and judged per player | one scenario per interaction, each from both sides (`mp_pickup`, `mp_forcegrab`) |
 | **B5b** (punches, guard parries, bashes; crouch, prone, jump and swim flags done; the rest is B5c) | The rest of B5: melee, parries and shoves between players (judged by each one's own hands and timing, gated to multiplayer where single player has none); climbing, crouch, prone, jump, swim and punch synced (the remote body lying, swimming, climbing, jumping as he does: the avatar's flags) and judged per player | `mp_melee` (A's swing hits B, B's parry stops A's, a shove moves him: each way), `mp_moves` (B crouches, lies prone, jumps, climbs: the server's hull and A's copy of him follow) |
 | **B5c** (climbing, swimming, the palm's shove done; the rest is B5d) | The rest of B5b: climbing between players (the server's holds per player; the remote body's climbing feet and hanging trunk from his holds); swimming checked in water (a pool map spot); a blade's directional parry between players (his swing's line, as an armed humanoid's); the open palm's shove; melee sub-tick samples (a swing split over merged moves, multiplayer only) | `mp_moves` grown (climbs a ledge, swims: A's copy follows), `mp_melee` grown (a sword's swing parried across its way, a palm shove, a swing at 30 ms jitter) |
-| **B5d** | The rest of B5c: a blade's directional parry between players (his swing's line from his hand lines, `handlineat`, as an armed humanoid's `VR_AG_WeaponLine`: VR_DRP_Eval's third kind); melee sub-tick samples (each merged move's pose to the tracker, multiplayer only) | `mp_melee` grown (a sword swung across B's crowbar: parried by the line, not the guard; a swing at 30 ms jitter: the same hit as without) |
+| **B5d** (done: B5 is done; sub-tick samples not needed, to B8) | The rest of B5c: a blade's directional parry between players (his swing's line from his hand lines, `handlineat`, as an armed humanoid's `VR_AG_WeaponLine`: VR_DRP_Eval's third kind); melee sub-tick samples (each merged move's pose to the tracker, multiplayer only) | `mp_melee` grown (a sword swung across B's crowbar: parried by the line, not the guard; a swing at 30 ms jitter: the same hit as without) |
 | **B6** | Server rules and cosmetics: every balance setting a rule (presets, armed humanoids, damage, mutators, stamina, grapple...), rule pages dimmed on a remote client; holster positions, height, seated/standing, gloves, body seen by others | `mp_rules`, `mp_cosmetics` (B's height and gloves seen by A) |
 | **B7** | Snapshots: acknowledged per-client snapshots and deltas for entities, players and avatars; quantized delta moves with repeats; interpolation buffer with quaternion slerp | `mp_loss` (10% loss: positions still continuous), byte counts per scenario |
 | **B8** | Prediction and lag compensation: shared movement code, reconciliation, then climbing and grapple; rewind of hit models and hands for hitscan, melee, parry, shove | `mp_predict` (own move off at frame 0 under 150 ms lag; corrections under 1 unit on flat ground), `mp_lagcomp` (a hit on a moving target at 150 ms lands) |
@@ -947,7 +947,49 @@ Open (B5d and later):
   scale (31.7 units a metre: "no hold"); `mp_climb` uses 1.54 and 0.63 (vr_climb_try's hold). Its plays may have been
   made at another scale: worth a look in single player.
 
+### B5d results (2026-11-14, dev no-LTO build, loopback; `mp_test.py suite`: 20 of 21 pass, `mp_melee` 27/2 (a swing struck a weapon just let go of, still falling between them: the test's), then 29/0 with the test fixed, `mp_blade` 13/0 twice)
+
+| Scenario | Result |
+|---|---|
+| `mp_melee` | 29/0: the B5c checks, then a sword's swing each way (`blade`; `mp_test.py blade` runs it alone: 13/0), the sword (`impulse 163`) swung level from the right to the left across the front (the hand 1.5 m across in 0.3 s, the blade turned 175 degrees): it lands on the other empty-handed (5.9-6.8 damage at `vr_melee_dmg_multiplier` 0.25, the head's zone); his crowbar held level across in front (the guard's pose, along its way) does not parry it ("dirparry: player's blow lands: score 0.01-0.08, 86-89 deg off square"; 4.4-6.6 damage); held upright across its way, it does ("parried by hand 1: score 1.00, 25 deg off square, gap 0.2-6 units, 0.010-0.014 s ago", no damage). Then B's swing with 30 ms of jitter on his link: 35-37 of his moves merged on the server during it, the same blow (strength 3.95 against 3.94 without, the damage less the zone's multiplier). Failed first: the level crowbar parried it ("parry: player with hand 1", the guard's), the upright one did not (the blow landed); the jittered swing already passed |
+| the other 20 | Unchanged: pass |
+
+Single player on the branch: scenario_check PASS (132 scenes; one run before it: `bench_crowd_ad` "what it placed is gone after 3.0 s", B5b's flake, not on the rerun), load_models_test 4/0, vr_run_check 12/0 (`scratch/b3_runcheck.sh`); `vr_agrunt_test 78` (the directional parry) 28/19, the same 28/19 on this phase's tests-only commit (its QC before the change): failing on the branch already, not this phase's; the dev build 0 warnings, the Release-config (ThinLTO) build 0 warnings. Every path
+this phase changed is gated to another player's blow on a player (`T_Damage_VRMelee`'s `coop || deathmatch`, VR_Parry's
+pvp); the armed humanoid's reading in VR_DRP_Eval only reads its last frame's line into locals (the same numbers).
+
+What changed:
+
+- **A blade's directional parry between players** (`vr_dirparry.qc`, `combat.qc`): another player's swing of a melee
+  weapon (a sword, an axe, a crowbar...: VR_AG_Class's melee, not the chainsaw's thrust; VR_DRP_PvpApplies, from
+  `vr_melee_blowhand`) is judged as an armed humanoid's: VR_DRP_Eval's third kind reads his swing's line from his hand
+  lines (`handlineat`: each frame's weapon parry line, VR_DRP_HandLines), the pair of frames within 0.1 s whose sweep
+  came nearest your weapon (his blade crosses it a frame or two before it meets your body), sampled 16 times; its way
+  from the turn of the blade between them. No hold-back (his blow is his own hand's: no way ahead to follow); parried:
+  `vr_dirparry_through_armed`'s share, sparks of his weapon's material on yours, the parry's sound, push, stamina and
+  counter window as ever. A fist's blow is still parried by the guard and crossed arms (B5b).
+- `vr_mp_status`' `mp_client:` lines give `merged=` (his moves that came in a frame with one of his already:
+  `server::mergedMoves`): the jitter check sees its moves merge.
+- The harness: `blade`/`swing` in `mp_melee`, `give_until`, `merged_moves`; `mp_test.py blade`; `MP_SWING_TRACE=1` puts
+  the server on developer 3 for the swings (the melee tracker's lines).
+
+Melee sub-tick samples: not done, on the test's word. Merged moves are routine (a 90 Hz client on a 72 Hz server: 170
+merged before the jitter), and at 30 ms jitter the swing lands with the same strength: the tracker reads speeds over
+the poses' own clock (`vr_posetime`) and VR_Melee_TurnVel turns a chord's speed back into the arc's, so a merged frame
+loses only the arc's middle (its sagitta: about 6 cm for two moves of a 13 m/s blade). Feeding each merged move's pose
+to the tracker would change the melee's cadence (a melee-tuning change); the moves' poses kept per frame belong with B8's
+rewind of hands for melee (Decisions).
+
+Open (B6 and later):
+
+- A thrust (a stab) between players has a line too and goes through the directional parry as a swing does (an armed
+  humanoid's thrust is read by the guard only with the chainsaw); untested.
+- The parry line kept per frame only while `vr_parry` is on and his hands are tracked (VR_Parry_GuardFrame): a flat-screen
+  attacker's swing (VR_HandMotionAction) has no hand lines, so it is read by the guard as before.
+
 ## Decisions
+
+- Melee sub-tick samples (B5d) are not fed to the tracker: merged moves are routine (a 90 Hz client on a 72 Hz server) and a swing at 30 ms jitter lands with the same strength (the poses' own clock and the chord's turn correction already give its speed); the arc's middle a merged frame skips is a few cm. Each move's hand pose kept per frame goes with B8's rewind of hands for melee, where it is needed anyway.
 
 - Map download goes through the Map Library alone: the server names the package (its sha256), the client installs it
   from its own index's entry with the installer's guards; no file and no URL comes from the server, so no chunked
@@ -975,4 +1017,4 @@ Open (B5d and later):
   from outside, they always have legs (his body mode 1 or 2 is his own first-person view); his body mode 0 draws his
   player model as before.
 
-Next phase: B5d — the rest of B5c: a blade's directional parry between players (his swing's line from `handlineat`, VR_DRP_Eval's third kind besides the armed humanoid's and the baked blow's) and melee sub-tick samples (multiplayer only); tests first: `mp_melee` grown (a sword swung across the other's crowbar: parried by the line, not the guard; a swing at 30 ms jitter lands as without).
+Next phase: B6 — server rules and cosmetics: every balance setting a server rule (presets, armed humanoids, damage, mutators, stamina, grapple...), rule pages dimmed on a remote client; holster positions, height, seated/standing, gloves, body seen by others; tests first: `mp_rules` (the server's rule wins on B, his page dimmed), `mp_cosmetics` (B's height and gloves seen by A).
