@@ -13,6 +13,7 @@ Flat-screen or VR: Change a graphics setting in VR Settings (say Bloom), then pr
 Flat-screen or VR: Select Campaign has "Arena Mode" right under Arcane Dimensions with the same "experimental" tag at its right; pressing it shows an experimental notice, and Continue opens a Run Setup with only Start, Difficulty, Gore, Ironman, Glass Cannon and Melee Only.
 Flat-screen or VR: Start Arena Mode with your normal Run Setup set to something else (Classic, no armed humanoids, Randomized Pickups); the arena plays Unleashed with armed humanoids and the smarter AI, and your next campaign's Run Setup still shows your own choices.
 Flat-screen or VR: Arena Mode never autosaves (none at the start, between or during waves) and its row never gets a Continue under it.
+Flat-screen or VR: start this scene, wade the shotgun into the pool and climb out, then quicksave and quickload: your off hand stays empty (no toolgun or axe from a holster), the grunts fire with normal poses (no bent limbs, no death knight fireballs), and what was dripping still drips. {test:waterdrips}
 
 [1. Flat-screen: weapons and hands]
 Flat-screen: hold the axe (then a sword, the crowbar, Mjolnir, the super axe) with the left hand empty: the left hand goes onto the handle by itself and the weapon sits two-handed; take something in the left hand: back to one hand, no jumps either way (Debug > Tunables > Flatscreen > Two-Handed Melee Stance). {test:flat_melee2h}

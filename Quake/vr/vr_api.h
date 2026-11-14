@@ -338,6 +338,7 @@ void VR_OnLoadGame (void);				// Host_Loadgame_f, after globals and edicts are r
 #define VR_SAVE_FORMAT 1
 int VR_ReadSaveInfo (const char *text, const char *relname);	// Host_Loadgame_f, before the old game ends: the save's build and models read (0: refused)
 const char *VR_SaveBrushLines (void);	// SaveData_Fill: the runtime brushes as the save's "// qvrb" lines (vr_brushes.cpp; "" none)
+const char *VR_SaveWetLines (void);	// SaveData_Fill: what is wet as the save's "// qvrwet" lines (vr_drips.cpp; "" none)
 const char *VR_SaveDecalLines (void);	// SaveData_Fill: the permanent decals as the save's "// qvrdecals" and "// qvrd" lines (vr_permdecals.cpp; "" none)
 void VR_SaveFlashlightState (void); // before a save snapshot or changelevel parms are captured
 void VR_OnFreshStart (void);			// Host_Map_f, Host_Loadgame_f: a game started afresh or loaded, not a changelevel (the flashlight off)
@@ -391,6 +392,7 @@ void VR_WriteDemoState (struct sizebuf_s *msg);			// CL_Record_f, recording mid-
 void VR_AdjustMove (float *forwardmove, float *sidemove, float *upmove); // CL_SendCmd: thumbstick locomotion
 void VR_ReadMoveExtras (struct client_s *client);		// end of SV_ReadClientMove
 int VR_MoveMerges (struct client_s *client);			// SV_ReadClientMove, at its buttons: not the first move since the server's last frame (its buttons ORed)
+void VR_ClientLoadedBits (struct client_s *client);		// SV_ConnectClient into a loaded game: the saved player's held grips (no new press)
 void VR_ClientReset (struct client_s *client);			// SV_ConnectClient, SV_DropClient: the slot's per-client VR state cleared
 void VR_CalcStats (struct client_s *client, int *statsi, float *statsf); // end of SV_CalcStats
 int VR_AmmoStat (struct edict_s *ent);				// SV_WriteClientdataToMessage: the status bar's ammo count (the VR progs' .currentammo is the main hand's ammo type: their counter instead)
