@@ -51,7 +51,7 @@ int VR_NoLiquidEffects(struct qmodel_s* model, const float* point);
 // Quake VR's network version, sent after NetQuake's in the connect request ("QVR", then this long; net_dgrm.c): a
 // server whose protocol is the VR one rejects a client without it or with another, with the reason (MP_PLAN.md, B2).
 // Raise it with any change to what client and server send each other.
-#define QVR_NET_VERSION				10
+#define QVR_NET_VERSION				11
 #define SOLID_NOT_BUT_TOUCHABLE		5		// Quake VR: not solid, but can be (hand) touched
 
 // Host lifetime and pacing (host.c, main_sdl.c, gl_screen.c).
@@ -66,6 +66,8 @@ void VR_StopDownloads (void);	// Host_Shutdown, before NET_Shutdown (curl_global
 void VR_BeginFrame (void);	// once per host frame, after input events and before console commands
 void VR_MpTestInit (void);	// Host_Init, after VR_Init: the multiplayer test aids (vr_mptest.cpp: -cmdinbox, vr_mp_*)
 void VR_MpTestFrame (void);	// once per host frame, before console commands: the inbox's new lines; vr_mp_watch
+void VR_MpNoteConnect (const char *host);	// CL_EstablishConnection: the address a client that leaves for the server's map package joins again (vr_mpdownload.cpp)
+void VR_MpWritePackage (struct sizebuf_s *msg);	// SV_SendServerinfo, to a remote client: QVR_SVC_PACKAGE, the server's map package (vr_mpdownload.cpp)
 int VR_IsActive (void);		// nonzero while vr_enabled is set and a backend session is running: the
 							// runtime paces frames (no frame cap, no sleeping when unfocused)
 int VR_Unpaced (void);		// nonzero while the mock headset runs frames unpaced (vr_mock_fast, the game's clock

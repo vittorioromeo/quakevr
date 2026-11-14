@@ -231,6 +231,7 @@ void CL_EstablishConnection (const char *host)
 	if (!cls.netcon)
 		Host_Error ("CL_Connect: connect failed");
 	Con_DPrintf ("CL_EstablishConnection: connected to %s\n", host);
+	VR_MpNoteConnect (host); // QVR: where to join again after mounting the server's map package (vr/vr_mpdownload.cpp)
 
 	cls.demonum = -1;			// not in the demo loop now
 	cls.state = ca_connected;

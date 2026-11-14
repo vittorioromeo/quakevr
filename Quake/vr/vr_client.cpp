@@ -3,6 +3,7 @@
 
 #include "vr_agarmor.hpp"
 #include "vr_mpavatar.hpp"
+#include "vr_mpdownload.hpp"
 #include "vr_clientprefs.hpp"
 #include "vr_arenaxray.hpp"
 #include "vr_modelmetadata.hpp"
@@ -1086,7 +1087,14 @@ extern "C" int VR_ModelSpins(int num)
 
 extern "C" int VR_ParseServerMessage(int cmd)
 {
-    if(cmd != svc_quakevr || !vrProtocol())
+    if(cmd != svc_quakevr)
+    {
+        return 0;
+    }
+    // The server's map package comes before its svc_serverinfo (vr_mpdownload.cpp): read whatever protocol the last
+    // server had (a Quake VR server takes Quake VR clients of its own network version only: net_dgrm.c).
+    const bool package = msg_readcount < net_message.cursize && net_message.data[msg_readcount] == QVR_SVC_PACKAGE;
+    if(!vrProtocol() && !package)
     {
         return 0;
     }
@@ -1109,6 +1117,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_VIEWMESSAGE: worldtext::clientParseViewMessage(false); break;
         case QVR_SVC_ARENAMESSAGE: worldtext::clientParseViewMessage(true); break;
         case QVR_SVC_AVATAR: mpavatar::parse(); break; // another player's head and hands (vr_mpavatar.cpp)
+        case QVR_SVC_PACKAGE: mpdownload::parsePackage(); break; // the server's map package (vr_mpdownload.cpp)
         case QVR_SVC_AVATARCAL: mpavatar::parseCalibration(); break; // a player's height, arms, gloves, body (vr_mpavatar.cpp)
         case QVR_SVC_TIP_MAKE:
         case QVR_SVC_TIP_NAME:

@@ -28,6 +28,9 @@ Tests:
              hand (his own trace: valid) and lets go: the server moves him there, A sees him there.
     held     the held weapon's drawn pose up: B holds a shotgun still; the server places its hotspots where B's view
              draws them; B's off hand takes its grip hotspot: the server's two-handed hold of it is B's own.
+    download a dedicated server on a Map Library package's map: A (it installed) mounts it and joins; B (lacking it) is
+             told with vr_mp_download 0, and with 1 installs it through the map installer (a local index and mirror)
+             and joins.
     suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, version, avatar, avatarcal, body, prefs, grab,
              teleport, held.
 
@@ -1475,6 +1478,99 @@ def flow(s):
     s.check("B's client sees himself alive again", int(own.get("health", "0")) > 0, "health %s" % own.get("health"))
 
 
+DL_TITLE = "QVR MP Download"
+DL_MAP = "qvrmpdl"  # the package's one map (Quake VR's own vrexample.bsp under another name: no id asset in it)
+INDEX_URL = "https://www.quaddicted.com/api/v1/"  # the default vr_maps_index_url (a test run reads its cache only)
+
+
+def dl_package(s, port):
+    """The test's map package: a zip of maps/qvrmpdl.bsp in the run's folder, served on 127.0.0.1:port; the server's and
+    B's own user base dirs (their last -basedir: cache/, qvr_addons/) given a map index that lists it -> (sha256, the
+    user dirs, the HTTP server)."""
+    import hashlib
+    import http.server
+    import socketserver
+    import threading
+    import zipfile
+    serve = os.path.join(s.out, "www")
+    os.makedirs(serve, exist_ok=True)
+    zpath = os.path.join(serve, "qvrmpdl.zip")
+    with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED) as z:
+        z.write(os.path.join(REPO, "quakevr", "maps", "vrexample.bsp"), "maps/%s.bsp" % DL_MAP)
+    with open(zpath, "rb") as f:
+        sha = hashlib.sha256(f.read()).hexdigest()
+    # sha title author date types modes sizes themes bytes startmap extract progs urls description files rating userRating
+    line = "\t".join([sha, DL_TITLE, "Quake VR test", "2026-11-14", "map", "coop", "small", "",
+                      str(os.path.getsize(zpath)), DL_MAP, "{base}/", "0", "http://127.0.0.1:%d/qvrmpdl.zip" % port,
+                      "mp_download's package", "1", "0", "0"])
+    users = {}
+    for who in ("server", "B"):
+        users[who] = os.path.join(s.out, who + "_user")
+        os.makedirs(os.path.join(users[who], "cache"), exist_ok=True)
+        with open(os.path.join(users[who], "cache", "maps_index.txt"), "w", newline="\n") as f:
+            f.write("\n".join(["#quakevr-mapindex-3", "#" + INDEX_URL, "#" + str(int(time.time())), line]) + "\n")
+
+    class Quiet(http.server.SimpleHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+    socketserver.ThreadingTCPServer.allow_reuse_address = True
+    httpd = socketserver.ThreadingTCPServer(("127.0.0.1", port), lambda *a, **k: Quiet(*a, directory=serve, **k))
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    s.note("the package %s (sha %s) served on 127.0.0.1:%d" % (DL_TITLE, sha[:12], port))
+    return sha, users, httpd
+
+
+def download(s):
+    """Map download (B4c): a dedicated server plays a Map Library package's map (installed by A's maps_install in the
+    user dir they share); a client that has the package (A) mounts it and joins again; a client that lacks it
+    (B, his own user dir) is told what to install with vr_mp_download 0, and with 1 installs it through the map
+    installer (his own index, its mirror, its checks: the server sends nothing but the package's sha256), mounts it and
+    joins. A leaves before B joins (the test map has one spawn spot)."""
+    sha, users, httpd = dl_package(s, s.take_port())
+    try:
+        # (A installs it in the user dir he shares with the server: a dedicated server reads no map index)
+        a = s.client("A", extra=["-basedir", users["server"], "+vr_maps_allow_local", "1"]).start()
+        a.wait(r"map index: ", 60, what="A's map index (its cache) read")
+        a.cmd("maps_install %s" % sha[:16])
+        a.wait(r"%s - \d+ file\(s\) written" % DL_TITLE, 60, what="A's install of the package")
+        srv = s.server(dedicated=True)
+        srv.extra = ["-basedir", users["server"]]
+        srv.start()
+        srv.cmd("coop 1; deathmatch 0; skill 1; map %s; vr_mp_status" % DL_MAP)
+        srv.wait(r"mp_server: map=%s" % DL_MAP, 120, what="the server on the package's map")
+
+        a.cmd(s.connect_cmd(a))
+        _, why = a.wait(r"mp_package: .*installed", 60, what="A told the server's package")
+        a.wait(r"mp_event: .*joined map=%s" % DL_MAP, 120, what="A joined the package's map")
+        s.check("A (the package installed) mounts it and joins the server's map", True, why.strip())
+        since = a.mark()
+        a.cmd("disconnect")
+        a.wait(r"mp_event: .*left", 20, since, "A left")
+
+        b = s.client("B", extra=["-basedir", users["B"], "+vr_maps_allow_local", "1", "+vr_mp_download", "0"]).start()
+        b.wait(r"map index: ", 60, what="B's map index (its cache) read")  # (else he would fetch Quaddicted's)
+        since = b.mark()
+        b.cmd(s.connect_cmd(b))
+        _, why = b.wait(r"mp_package: .*vr_mp_download 0", 60, since, "B refused with vr_mp_download 0")
+        s.check("B (lacking it, vr_mp_download 0) is told what to install, nothing downloaded",
+                b.find(r"mp_event: .*joined", since) is None and
+                not os.path.isdir(os.path.join(users["B"], "qvr_addons", sha[:16])), why.strip())
+        since = b.mark()
+        b.cmd("vr_mp_download 1; " + s.connect_cmd(b))
+        _, wrote = b.wait(r"%s - \d+ file\(s\) written" % DL_TITLE, 60, since, "B's install of the package")
+        _, again = b.wait(r"mp_package: .* mounted; joining again", 30, since, "B joining again")
+        b.wait(r"mp_event: .*joined map=%s" % DL_MAP, 120, since, "B joined the package's map")
+        s.check("B (vr_mp_download 1) installs the package through the map installer, then joins", True,
+                "%s; %s" % (wrote.strip(), again.strip()))
+        bsp = os.path.join(users["B"], "qvr_addons", sha[:16], "maps", DL_MAP + ".bsp")
+        s.check("B's copy is in his own package folder, as the Map Library installs it", os.path.isfile(bsp), bsp)
+        spawned = [l for l in status(srv) if re.match(r"mp_client: .*spawned=1", l)]
+        s.check("the server has B in its game", len(spawned) == 1, "; ".join(spawned))
+    finally:
+        httpd.shutdown()
+
+
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
     s = Session(args.exe, args.base, args.out, test, port=args.port)
     failure = None
@@ -1505,6 +1601,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             campaign_listen(s)
         elif test == "mp_flow":
             flow(s)
+        elif test == "mp_download":
+            download(s)
         else:
             coop(s, args.listen, args.flat or "", lag, jitter, loss)
     except StepFailed as e:
@@ -1517,7 +1615,7 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -1541,7 +1639,7 @@ def main():
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow"):
+                       "campaign", "campaign_listen", "flow", "download"):
         ok = run(args, "mp_" + args.test)
     else:
         ok = run(args, "mp_coop")
@@ -1559,6 +1657,7 @@ def main():
         ok = run(args, "mp_campaign") and ok
         ok = run(args, "mp_campaign_listen") and ok
         ok = run(args, "mp_flow") and ok
+        ok = run(args, "mp_download") and ok
         print("mp_suite: %s" % ("passed" if ok else "FAILED"))
     sys.exit(0 if ok else 1)
 

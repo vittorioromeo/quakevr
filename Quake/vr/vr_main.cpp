@@ -88,6 +88,7 @@
 #include "vr_blender.hpp"
 #include "vr_ad.hpp"
 #include "vr_mapinstall.hpp"
+#include "vr_mpdownload.hpp"
 #include "vr_relight.hpp"
 #include "vr_relight_tool.hpp"
 #include "vr_stealth.hpp"
@@ -2936,6 +2937,7 @@ extern "C" void VR_HostFrameEnd()
     qvr::blender::frame(); // vr_blender_link: the Blender add-on's Show in Game (vr_blender.cpp)
     qvr::armourstudio::frame(); // armour.txt read again when it changed (vr_armour_watch); the Armour Studio's sliders and subject
     qvr::mapinstall::poll(); // a map download or unpacking that finished, taken here (vr_mapinstall.cpp)
+    qvr::mpdownload::poll(); // a server's map package: mounted or installed, then joined again (vr_mpdownload.cpp)
     qvr::relight::poll(); // the in-game relighting's light process: its progress, its result (vr_relight.cpp)
     qvr::prepare::frame(); // the installer's preparation run's steps (-prepare: vr_prepare.cpp)
     // The derived-data cache: a miss from now on is "in play" (vr_diskcache.cpp); the warm-up started, paused, resumed.

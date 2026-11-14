@@ -1134,6 +1134,10 @@ za::Vector<Item> pageDebugReports()
         command("Network: Player Preferences", "vr_mp_prefs")
             .help("vr_mp_prefs: your per-player preferences (grip, reload and holster modes, gun angles...) that differ "
                   "from the defaults and, hosting, each player's as the server judges him by (those unlike the server's own)."),
+        toggle("Network: Install the Server's Map", vr_mp_download)
+            .help("vr_mp_download: joining a server whose map is a Map Library package you lack, it is installed as the "
+                  "Map Library's Install does (your own index, its mirrors and checks: the server names only the package), "
+                  "then you join again. Off: you are told what to install, and stay out."),
         toggle("Network: Draw Player Hands", vr_mp_avatar_draw)
             .help("vr_mp_avatar_draw: the other players' hands (their fingers too) and held weapons drawn where their own "
                   "games drew them; off: not drawn."),

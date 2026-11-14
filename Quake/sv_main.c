@@ -477,6 +477,9 @@ void SV_SendServerinfo (client_t *client)
 	sprintf (message, "%c\nFITZQUAKE %1.2f SERVER (%i CRC)\n", 2, FITZQUAKE_VERSION, qcvm->crc); //johnfitz -- include fitzquake version
 	MSG_WriteString (&client->message,message);
 
+	if (!SV_IsLocalClient (client))
+		VR_MpWritePackage (&client->message); // QVR: the map package the map is from, first (vr/vr_mpdownload.cpp)
+
 	MSG_WriteByte (&client->message, svc_serverinfo);
 	MSG_WriteLong (&client->message, sv.protocol); //johnfitz -- sv.protocol instead of PROTOCOL_VERSION
 	
