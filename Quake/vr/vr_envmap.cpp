@@ -539,7 +539,7 @@ void buildWorld()
     // -glescompat (ES 3.2 has no texture views; OES/EXT_texture_view on the Quest: [?]): the whole cube's mipmaps.
     using TextureViewFn = void(APIENTRY*)(GLuint, GLenum, GLuint, GLenum, GLuint, GLuint, GLuint, GLuint);
     if(const auto textureView =
-            VR_GLESCompat() ? nullptr : reinterpret_cast<TextureViewFn>(SDL_GL_GetProcAddress("glTextureView")))
+            VR_GLESForm(VR_GLES_FORM_VIEWS) ? nullptr : reinterpret_cast<TextureViewFn>(SDL_GL_GetProcAddress("glTextureView")))
     {
         glGenTextures(6, faceViews);
         for(int f = 0; f < 6; f++)

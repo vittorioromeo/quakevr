@@ -147,7 +147,7 @@ bool supported()
         // (Not under -glescompat: ES 3.2 has no texture views. The Quest's multiview draws into the OpenXR swapchain's
         // array layers directly: C4.)
         state.textureView =
-            VR_GLESCompat() ? nullptr : reinterpret_cast<TextureViewFn>(SDL_GL_GetProcAddress("glTextureView"));
+            VR_GLESForm(VR_GLES_FORM_VIEWS) ? nullptr : reinterpret_cast<TextureViewFn>(SDL_GL_GetProcAddress("glTextureView"));
         state.support = state.multiview && state.textureView ? 1 : 0;
     }
     Con_DPrintf("VR: single-pass stereo (GL_OVR_multiview2) %s\n", state.support ? "available" : "not available");
@@ -650,7 +650,7 @@ extern "C" unsigned VR_StereoSingleClusterTexture()
         GL_BindNative(GL_TEXTURE0, GL_TEXTURE_3D, tex);
         GL_ObjectLabelFunc(GL_TEXTURE, tex, -1, "light clusters (right eye)");
         GL_TexImage3DFunc(GL_TEXTURE_3D, 0, VR_GLESImageFormat(GL_RG32UI), LIGHT_TILES_X, LIGHT_TILES_Y, LIGHT_TILES_Z, 0,
-            VR_GLESCompat() ? GL_RGBA_INTEGER : GL_RG_INTEGER,
+            VR_GLESForm(VR_GLES_FORM_GLSL) ? GL_RGBA_INTEGER : GL_RG_INTEGER,
             GL_UNSIGNED_INT, nullptr);
         glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_BASE_LEVEL, 0);
         glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAX_LEVEL, 0);

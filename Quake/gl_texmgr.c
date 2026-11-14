@@ -2654,7 +2654,7 @@ void GLPalette_CreateResources (void)
 	glGenTextures (1, &gl_palette_lut);
 	GL_BindNative (GL_TEXTURE0, GL_TEXTURE_3D, gl_palette_lut);
 	GL_ObjectLabelFunc (GL_TEXTURE, gl_palette_lut, -1, "palette lut");
-	GL_TexImage3DFunc (GL_TEXTURE_3D, 0, VR_GLESImageFormat (GL_R8UI), 128, 128, 128, 0, GL_RED_INTEGER, VR_GLESCompat () ? GL_UNSIGNED_INT : GL_UNSIGNED_BYTE, NULL); // QVR: -glescompat: r32ui
+	GL_TexImage3DFunc (GL_TEXTURE_3D, 0, VR_GLESImageFormat (GL_R8UI), 128, 128, 128, 0, GL_RED_INTEGER, VR_GLESForm (VR_GLES_FORM_GLSL) ? GL_UNSIGNED_INT : GL_UNSIGNED_BYTE, NULL); // QVR: -glescompat: r32ui
 	glTexParameteri (GL_TEXTURE_3D, GL_TEXTURE_BASE_LEVEL, 0);
 	glTexParameteri (GL_TEXTURE_3D, GL_TEXTURE_MAX_LEVEL, 0);
 	glTexParameteri (GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);

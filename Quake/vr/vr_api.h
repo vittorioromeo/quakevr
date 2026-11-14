@@ -253,6 +253,14 @@ enum
 	VR_GLSAFE_MSAA = 1 << 6,		// multisampled scene targets
 	VR_GLSAFE_SHADOW_ATLAS = 1 << 7		// the shadow atlas at most 4096
 };
+// -glescompat's own ES forms (VR_GLESForm); -gleskeep (QVR_GLES_KEEP) keeps the PC form of some, to measure each
+enum
+{
+	VR_GLES_FORM_GLSL = 1 << 0,		// every program as ES 3.2 GLSL, the image formats ES 3.1 has (VR_GLShaderSource, VR_GLESImageFormat)
+	VR_GLES_FORM_FOVEATION = 1 << 1,	// no NVIDIA shading-rate image (vr_foveated.cpp)
+	VR_GLES_FORM_VIEWS = 1 << 2		// no texture views (single-pass stereo's eye targets, the envmap's mipmaps)
+};
+int VR_GLESForm (int form);	// nonzero: -glescompat takes the ES form of `form` (VR_GLES_FORM_*) this run
 void VR_GLStep (const char *fmt, ...) FUNC_PRINTF(1,2);	// a breadcrumb, before the GL call it names: the crash report's last steps; gl_startup.log while the game starts
 int VR_GLRecentSteps (char *out, int outSize, int count);	// vr_crash.cpp: the last `count` breadcrumbs, a line each; how many
 // Every run's logs (vr_runlogs.cpp): <game folder>/logs/<date>_<time>/, the last 5 runs kept; the bug report.

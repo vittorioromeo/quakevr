@@ -66,6 +66,7 @@ struct State
     bool keepAuto = false; // the last start was in automatic safe mode and ended well
     unsigned vendorOff = 0; // the vendor workarounds' features (and -glescompat's)
     bool esCompat = false;  // -glescompat: the features OpenGL ES 3.2 lacks off (QUEST_PLAN.md, C2)
+    unsigned esKeep = 0;    // -gleskeep: the VR_GLES_FORM_* whose PC form stays (a measurement of each one's cost)
     int esShaderErrors = 0; // -glescompat: programs that failed as ES 3.2 GLSL (VR_GLESShaderError)
     unsigned logged = 0;    // features whose "off" line was printed
     char why[256]{};        // why safe mode is on
@@ -172,6 +173,49 @@ constexpr unsigned amdDefaults = VR_GLSAFE_BINDLESS;
 // persistent mapped buffers (EXT_buffer_storage), MSAA, debug output (core in ES 3.2). vr_gles_report lists the rest.
 constexpr unsigned esCompatOff =
     VR_GLSAFE_BINDLESS | VR_GLSAFE_MULTI_BIND | VR_GLSAFE_CLIP_CONTROL | VR_GLSAFE_VIEWPORT_LAYER;
+
+// -gleskeep <list> (QVR_GLES_KEEP=<list>; comma-separated): under -glescompat, these switches keep their PC form, one
+// run each, to measure what each ES form costs (QUEST_PLAN.md section 6b). The safe-mode features (the PC feature
+// kept on) and -glescompat's own forms (VR_GLESForm).
+struct EsKeepName
+{
+    const char* name;
+    unsigned feature; // VR_GLSAFE_*: back on
+    unsigned form;    // VR_GLES_FORM_*: the PC form kept
+};
+constexpr EsKeepName esKeepNames[] = {
+    {"bindless", VR_GLSAFE_BINDLESS, 0},
+    {"multibind", VR_GLSAFE_MULTI_BIND, 0},
+    {"layer", VR_GLSAFE_VIEWPORT_LAYER, 0},
+    {"clip", VR_GLSAFE_CLIP_CONTROL, 0},
+    {"glsl", 0, VR_GLES_FORM_GLSL},
+    {"foveation", 0, VR_GLES_FORM_FOVEATION},
+    {"views", 0, VR_GLES_FORM_VIEWS},
+};
+
+// The -gleskeep list applied to the run's switches; what was kept logged.
+void applyEsKeep(const char* list)
+{
+    char kept[256] = "";
+    for(const EsKeepName& k : esKeepNames)
+    {
+        const size_t n = strlen(k.name);
+        for(const char* at = strstr(list, k.name); at; at = strstr(at + 1, k.name))
+        {
+            if((at == list || at[-1] == ',') && (at[n] == 0 || at[n] == ','))
+            {
+                glsafe.vendorOff &= ~k.feature;
+                glsafe.esKeep |= k.form;
+                q_strlcat(kept, kept[0] ? ", " : "", sizeof(kept));
+                q_strlcat(kept, k.name, sizeof(kept));
+                break;
+            }
+        }
+    }
+    VR_GLStep("GLES compat: PC forms kept (-gleskeep): %s", kept[0] ? kept : "none");
+    Con_Printf("GLES compat: PC forms kept (-gleskeep): %s\n", kept[0] ? kept : "none (names: bindless, multibind, "
+                                                                                  "layer, clip, glsl, foveation, views)");
+}
 
 } // namespace
 
@@ -301,6 +345,12 @@ extern "C" void VR_GLStartupVendor(const char* vendor, const char* renderer, con
         {
             glsafe.vendorOff &= ~static_cast<unsigned>(VR_GLSAFE_CLIP_CONTROL);
         }
+        const int keep = COM_CheckParm("-gleskeep");
+        const char* keepList = keep && keep < com_argc - 1 ? com_argv[keep + 1] : getenv("QVR_GLES_KEEP");
+        if(keepList && keepList[0])
+        {
+            applyEsKeep(keepList);
+        }
         VR_GLStep("GLES compat (-glescompat): the features OpenGL ES 3.2 lacks off");
         Con_Printf("GLES compat (-glescompat): the features OpenGL ES 3.2 lacks off (vr_gles_report)%s\n",
             glsafe.vendorOff & VR_GLSAFE_CLIP_CONTROL ? "" : "; clip control kept (-glesclipcontrol: EXT_clip_control)");
@@ -310,6 +360,11 @@ extern "C" void VR_GLStartupVendor(const char* vendor, const char* renderer, con
 extern "C" int VR_GLESCompat(void)
 {
     return glsafe.esCompat ? 1 : 0;
+}
+
+extern "C" int VR_GLESForm(int form)
+{
+    return glsafe.esCompat && !(glsafe.esKeep & static_cast<unsigned>(form)) ? 1 : 0;
 }
 
 namespace
@@ -421,7 +476,7 @@ constexpr const char* esPrecisions =
 
 extern "C" void VR_GLShaderSource(unsigned int shader, int count, const char* const* strings)
 {
-    if(!glsafe.esCompat)
+    if(!VR_GLESForm(VR_GLES_FORM_GLSL))
     {
         GL_ShaderSourceFunc(shader, count, strings, nullptr);
         return;
@@ -472,7 +527,7 @@ extern "C" void VR_GLShaderSource(unsigned int shader, int count, const char* co
 
 extern "C" unsigned VR_GLESImageFormat(unsigned format)
 {
-    if(!glsafe.esCompat)
+    if(!VR_GLESForm(VR_GLES_FORM_GLSL)) // (the GLSL declares the image formats by GL_ES: the two go together)
     {
         return format;
     }
@@ -653,7 +708,7 @@ void glesReport_f()
     Con_Printf("GLES compat: %s\n", glsafe.esCompat ? "on (-glescompat)" : "off (start with -glescompat)");
     Con_Printf("  bindless %d, multi-bind %d, clip control %d, layered casters %d, buffer storage %d, NV foveation %s\n",
         gl_bindless_able ? 1 : 0, gl_multi_bind_able ? 1 : 0, gl_clipcontrol_able ? 1 : 0, gl_viewport_layer_able,
-        gl_buffer_storage_able ? 1 : 0, glsafe.esCompat ? "off" : "when the GPU has it");
+        gl_buffer_storage_able ? 1 : 0, VR_GLESForm(VR_GLES_FORM_FOVEATION) ? "off" : "when the GPU has it");
     Con_Printf("ES forms taken under -glescompat:\n");
     for(const EsPending& p : esDone)
     {
