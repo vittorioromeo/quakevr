@@ -145,3 +145,16 @@ Fixed (6 scenes failed `runall` with "placed in a wall"):
 prone_floor, prone_tunnel, lowceil_vent, playergore, vr_skewer_snap, embed_throw, systems_torch_knock,
 flat_blood_pointblank, grunts_to_throw, agrunt_repl_gundagger (no other reference: candidates to delete); nav_arena,
 nav_crowd, nav_tower, nav_props (kept: NAVMESH.md / ROUND24.md and the navmesh checks use them).
+
+## 2026-11-14: the release audit sort (agent/relaudit)
+
+- 94 lines (79 sorted + 15 in [New]) -> 68 items in 10 sections: 1. Flat-screen: weapons and hands, 2. Flat-screen: Run
+  Setup, presets and mutators, 3. Flat-screen: menus, campaigns and the Map Library, then VR: 4. body and gear, 5. melee
+  and embedded blades, 6. weapons and grips, 7. physics, bodies and gore, 8. the hub, 9. Survival Arena, 10. recording
+  and dev tools. The empty "monsters and AI" and "navigation and teleporters" sections dropped.
+- No ticked line to retire (checklist_ticks.txt matched none; no voice notes since 11-12); no [fail] line is open.
+- Merged: the campaign row + New Game difficulty lines (2 -> 2, re-split by what each shows), the icon picker + Menu
+  Look icon settings (2 -> 1), Levels' Run Setup top + Bloody Nightmare as a fifth choice (2 -> 1), the arena's "feels
+  good" + "no hitch" (2 -> 1). Every line cut to what to do and what to see (all keys change: none was ticked).
+- New scenes: run_pickups (e1m1, Randomized Pickups Balanced), run_setup_newgame (Run Setup as New Game opens it),
+  ad_tears_window (ad_tears; AD running). 48 of 68 lines have a Test.

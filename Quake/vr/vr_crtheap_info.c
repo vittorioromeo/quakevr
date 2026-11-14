@@ -206,6 +206,12 @@ void VR_CrtHeapSetPurgeDelay(long milliseconds)
     (void)milliseconds;
 }
 
+void VR_CrtHeapLoadHold(int on, long milliseconds)
+{
+    (void)on;
+    (void)milliseconds;
+}
+
 void VR_CrtHeapCollect(void)
 {
 }

@@ -1,4 +1,4 @@
-<!-- DRAFT 2026-11-08 (release pass): full 1.1.0 notes since 1.0.1, from the beta1-4 notes, ROUND23.md and ROUND24.md.
+<!-- DRAFT 2026-11-08 (release pass), brought up to 2026-11-14 (release audit: ROUND25.md): full 1.1.0 notes since 1.0.1, from the beta1-4 notes, ROUND23.md to ROUND25.md.
 Edit, then pass with make_release.ps1 -Notes docs/vr-port/RELEASE_NOTES_1.1.md (the script appends the Files table).
 Delete this comment before publishing: -Publish refuses notes with the DRAFT marker. -->
 
@@ -16,6 +16,9 @@ Delete this comment before publishing: -Publish refuses notes with the DRAFT mar
 - **Arcane Dimensions, made for VR (experimental)**: AD's maps, monsters and rules played natively (Play > Official Campaigns). Its weapons are VR models: the two-handed Widowmaker Gatling, the Shadow Axe, the Plasma Gun, the crossbow, swords, hammer, mace and the death sergeant's flail, and AD's enemies drop what they carry.
 - **Survival Arena (new)**: Play > Maps > Survival Arena, a purpose-built map of waves that grow with you: armed and armoured foes, boss waves with perks, supplies after each wave, banners under the ceiling with the wave, foes left, time and score. A wave editor lets you make and save your own wave lists.
 - **New weapons and sights**: the nail pistol, the heavy revolver and the flare gun are now in the game (beside ammo boxes and on crates), the grunts' burst rifle is made anew, and the guns have proper iron sights: the shotguns' sight housings, the super shotgun's notch, the nail pistol's glowing inserts, the lightning and plasma guns' sights. Recoil is procedural and per weapon, gunfire is punchier, and barrels glow with heat.
+- **Run Setup and mutators (new)**: every new game starts with a Run Setup screen: difficulty (Bloody Nightmare in any map), a Classic / Light / Unleashed style, the gore preset, your starting gun and melee weapon, and mutators: Melee Only, Glass Cannon, Ironman, Randomized Pickups, Randomized Enemies, Enemy Count, Ranged Knights, Wild Weaponry and Armored Foes. Saves remember their run, and Select Campaign and the Map Library have a Continue row for each autosaved run.
+- **Classic Quake**: one switch (the Classic style, or the hub's Classic Quake board) makes the mod as close to vanilla Quake as it gets: no reloading, plain grunts, Quake's look; press again and your settings come back.
+- **The dagger and the reverse grip**: a short blade that sticks a third as deep as a sword and throws point first; press B (Y) to turn a sword or the dagger blade down for stabbing down.
 - **Earned bullet time**: the meter fills from the damage you deal to living enemies.
 - **Holsters and loot**: drag-and-drop Holster Setup, magnetic holsters that pull a thrown gun back on a physical chain, an ammo pouch that shows what it holds, and magazines that slide home.
 - **Smoother and faster**: map loads much faster (work moved off the main thread), fewer first-time hitches, dynamic resolution, a model depth pre-pass, models lit by every baked light (the model light grid), and a new Graphics Presets page.
@@ -38,6 +41,8 @@ These are in the build for testing. Expect bugs, and expect their balance and se
 - Worn backpacks on the ones carrying ranged weapons: lift them off a living enemy, rip them off in a hard pull, or loot them from the body. Replaced enemies never drop extra weapons, only what they hold and their pack.
 - Armour plates on some: helmets, cuirasses and limb plates that dent, crack and fall by the plate a shot meets.
 - Their melee keeps its spacing, their shots leave from each muzzle, their footsteps are heavy, and the held weapon follows the hand when they go ragdoll.
+- A knocked-down enemy that is still alive stirs where it lies (a head turn, a twitch, a limb drawn in) instead of lying still as if dead.
+- Monsters find their way with a navmesh (around drops, props and lifts) and walk through every teleporter they fit; a hunting monster investigates noises and follows your trail, through teleporters too.
 
 ## Combat and melee
 
@@ -89,13 +94,19 @@ These are in the build for testing. Expect bugs, and expect their balance and se
 - Fonts upscaled smoothly, with an outline and a drop shadow (Classic keeps Quake's look).
 - Your config now holds only what you changed, so new defaults reach you.
 - Create Bug Report zips your logs, crash reports and settings.
+- Menu Look (HUD and Menus): long pages fold into sections, a Search result opens with its row centred and glowing, choices such as Difficulty are rows of pictures, and the mouse wheel scrolls a page at a time.
+- Select Campaign shows each campaign with its Continue row; Arcane Dimensions sits under an Experimental header.
+- Map Library: Slipseer's maps beside Quaddicted's (a Source filter), screenshots for both, and a difficulty pick on Play.
+- Flat screen: every flat-play key can be bound from the menu (Desktop Screen Play > Flat Keys), and weapons drag between hands and holsters in the holster menu.
 
 ## Graphics and performance
 
 - Faster map loads: skins' normal maps on worker threads, fewer failed file lookups, smoother rigs prepared at once.
 - Models lit by all the baked lights (the model light grid), lit liquids lighting models.
 - Dynamic resolution, a model depth pre-pass, shadow atlas sized per map, cheaper bloom and particles.
-- Less CPU per frame in big fights (area-grid searches, fewer allocations, the arms' IK).
+- Less CPU per frame in big fights (area-grid searches, fewer allocations, the arms' IK), and in maps full of moving platforms (vkQuake's pusher grid).
+- Memory is one heap now: the old `-zone`, `-heapsize` and `-minmemory` options are no longer needed (they are ignored): the game takes the memory a map needs.
+- No more freeze the first time decals meet a translucent window in Arcane Dimensions' maps.
 
 ## Fixes
 
@@ -109,9 +120,10 @@ These are in the build for testing. Expect bugs, and expect their balance and se
 - **Arcane Dimensions**: the sky and some lights may flicker in VR when you turn or move; the hub's lower Quake slipgates go nowhere.
 - **Armed humanoids**: a knocked-down one that aims high may pull its arm in.
 - **Flat screen**: wrists can bend sharply on some holds, and a gun's end can poke a few centimetres into a wall at the limit.
+- **Multiplayer**: not yet tested with 1.1's new systems (the Multiplayer menu says so); co-op and deathmatch may have rough edges.
 - The installer and the game are not code-signed, so Windows SmartScreen may warn you (More info > Run anyway).
 
 ## Notes
 
 - Your settings carry over: configs from 1.0.x and the 1.1 betas are migrated on first start. Settings you left at an old default move to the new one, and values you changed stay yours. Armed humanoid replacements are now on even if a beta config had them off at the old default.
-- Full details: `docs/vr-port/ROUND22.md`, `ROUND23.md` and `ROUND24.md` in the repository.
+- Full details: `docs/vr-port/ROUND22.md` to `ROUND25.md` in the repository.

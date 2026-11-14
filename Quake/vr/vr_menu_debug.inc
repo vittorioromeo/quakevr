@@ -941,12 +941,14 @@ za::Vector<Item> pageDebugReports()
                   "the view back and forth, and the visor crosshair is measured each frame: how far each one moves from the "
                   "frame before (its jitter, RMS and most) and how far its hit is off the centre, in pixels at 1080 rows "
                   "(flatxhair turn: lines). It turns your view."),
+#ifndef QVR_RELEASE // (a release has no live tuning: no tune / tune_reset commands; make_release.ps1 checks the exe)
         command("Flatscreen Guns Shoot Straight Ahead", "tune vr_flat_aim_point 0")
             .help("tune vr_flat_aim_point 0: each gun shoots along the view from its own muzzle instead of at what the crosshair "
                   "is on, so near a wall its shots land beside the middle: the visor crosshair follows them (two when dual "
                   "wielding). Put it back with the next row: tunables are kept in tunables.cfg."),
         command("Flatscreen Guns Back At The Crosshair", "tune_reset vr_flat_aim_point")
             .help("tune_reset vr_flat_aim_point: the guns point at what the crosshair is on again (the default)."),
+#endif
         command("Flatscreen Hit Probe", "vr_flat_hit_probe")
             .help("vr_flat_hit_probe: since the last one, the hands' knock before and after the ironsight's share, the "
                   "punch's largest (and before its share), what of it is in the aim now, and each mark's angle and opacity."),

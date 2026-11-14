@@ -60,6 +60,9 @@ IconPictures iconPictures; // (its pictures' textures kept for the session)
     return item.look == Item::Normal ? 8 : letterSize(item);
 }
 
+// The names' line pitch (the letters 8 high, a blank row below them: no extra gap between two lines).
+constexpr int iconNameLine = 7;
+
 // Where its cells go: `n` side by side across the middle, each `cell` wide from `x0`.
 struct IconRowLayout
 {
@@ -128,7 +131,7 @@ int iconRowLeft(const Item& item)
 int iconRowHeight(const Item& item)
 {
     const IconRowLayout l = iconRowLayout(item);
-    return static_cast<int>(za::ceil(l.namesTop)) + 9 * l.lines + 3;
+    return static_cast<int>(za::ceil(l.namesTop)) + iconNameLine * l.lines + 3;
 }
 
 // The picture under (cx, menu x) and (relY, below the row's top), or -1: its cell's width, from the picture's top to
@@ -414,6 +417,16 @@ void drawIconPicture(const gfx::Picture* pic, float x, float y, float w, float h
     {
         return;
     }
+    if(pic->width > 0 && pic->height > 0)
+    {
+        // Its aspect kept: fitted inside the box, centred (letterbox or pillarbox).
+        const float pw = static_cast<float>(pic->width), ph = static_cast<float>(pic->height);
+        const float k = za::fmin(w / pw, h / ph);
+        x += (w - pw * k) * 0.5f;
+        y += (h - ph * k) * 0.5f;
+        w = pw * k;
+        h = ph * k;
+    }
     const qboolean recolor = Draw_SetMenuRecolor(false);
     pushRowColor(r, g, b, a);
     Draw_TextureRect(x, y, w, h, static_cast<gltexture_t*>(pic->texture), 1.f);
@@ -515,8 +528,8 @@ void drawIconRow(const Item& item, int y, bool selected)
         {
             const int w = nm.dim * static_cast<int>(strlen(part[line]));
             const int nx = static_cast<int>(cx) - w / 2;
-            const int ny = static_cast<int>(static_cast<float>(y) + l.namesTop) + line * 9 + (8 - nm.dim) / 2 +
-                           (lines < l.lines ? 4 : 0);
+            const int ny = static_cast<int>(static_cast<float>(y) + l.namesTop) + line * iconNameLine + (8 - nm.dim) / 2 +
+                           (lines < l.lines ? iconNameLine / 2 : 0);
             if(on)
             {
                 M_PrintWhiteEx(nx, ny, nm.dim, part[line]);

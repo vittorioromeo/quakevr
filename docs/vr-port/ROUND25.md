@@ -2513,6 +2513,15 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
   failed once, passed on the rerun), load_models 4/0, vr_run_check 12/0. Next: B5c (climbing, swimming in water, the
   blade's directional parry, palm shove, sub-tick melee). Details: MP_PLAN.md, "B5b results".
 
+## menutweak: icon picker proportions, Start placement, merged "Advanced" footer
+
+- **Icon pickers** (vr_menu_icons.inc): each picture is fitted inside its square (aspect kept, centred: a wide gun thumbnail
+  is letterboxed); `vr_menu_icon_size` default 32 -> 24 (knob kept, 16-48); a two-line name's pitch 9 -> 7 pixels
+  (`iconNameLine`), so the row is shorter.
+- **Run Setup**: Start now comes right after Difficulty (its gap above kept), then Presets, Rules, Mutators.
+- **Footer**: "This Page" and "Menu Detail" are one minor section, "Advanced" (Reset This Page, Menu Detail); Campaign's own
+  extra rows share it. Menu paths do not name sections, so menu_paths.txt is unchanged; Page Footer Size/Opacity keep
+  their names. Shots: scratch/menutweak_shots (qvr-kit).
 ## decalhitch
 
 Cherry-picked bd2277d6c (translucent brush models' retro decal program made in the load's last frame, not in play: a 2.5-3.1 s freeze on 19 AD maps); dev and ReleaseLTO builds, scenario_check, load_models_test pass; ad_tears with developer 1 prints no "made in play" line.
@@ -2528,3 +2537,23 @@ Cherry-picked bd2277d6c (translucent brush models' retro decal program made in t
   MP_PLAN.md, "B5c results".
 - climb_plays.py's ledge hold (1.638 m, 0.69 m at setpos 78 176 24) reads "no hold" at today's default scale (31.7
   units a metre: the hand inside the ledge); vr_climb_try's hold there is 98 176 49. Its plays may predate a scale change.
+## relaudit: the 1.1 release-readiness audit and a lean checklist (branch agent/relaudit, 2026-11-14)
+
+- **docs/vr-port/RELEASE_1_1.md**: everything needed to release 1.1, ticked where done; what is left for him at the top.
+- **Upgrade from beta 4 / 1.0.1** (scratch `ra_oldcfg.py`, `ra_upgrade.sh`, `ra_cmp.py`: a tag's full config with its
+  vr_defaults.cfg, run and compared): beta 4 printed "Unknown command" for `vr_handgrenade_fuse` and kept 3 of 46 changed
+  defaults (`vr_decap_head_size`, `vr_decap_neck`, `vr_gore_mist_near`: changed after the 11-08 table). Fixed:
+  `fullConfigChanges` rows; `vr_handgrenade_fuse`, `vr_nav_gate_chase`, `vr_nav_tele_stuck` in retiredCvars. After: beta 4
+  0 unknown, 0/46 stale; 1.0.1 0 unknown, 0/37 stale; `config_fullupgrade_test.sh` 9/0 (two checks added);
+  `vr_runsetup_test` 78/0, `vr_continue_rows_test` 20/0; `-zone` / `-heapsize` / `-minmemory` quiet.
+- **Release build:** `make_release.ps1 -Local` stopped on live-tuning strings in the exe: the Debug page's two
+  `tune` / `tune_reset vr_flat_aim_point` rows are development-only now. Then the package (4,096 files, the allowlist),
+  installer self-tests 41/41 and the off-screen install pass; the smoke launch ran, but its name check saw a `-dirty`
+  tree (edits during the build): rerun on a clean tree. make_release picks VS 2022's MSBuild; `-MSBuild` VS 2026's
+  builds as the kit does (a VS 2022-built `qvr_checks.exe` exited 3 silently under build.sh until rebuilt).
+- **Docs:** FEATURES (Run Setup and mutators, flat-screen play, armed humanoids, enemy AI, arena, AD, Menu Look,
+  dagger, reverse grip, stirring), README, INSTALL, CREDITS (vkQuake, FTE), the release notes brought up to 11-14.
+- **Checklist:** 94 -> 68 items in 10 sections, 3 new scenes (CHECKLIST_REORG.md, "2026-11-14").
+## crtheapfix
+
+Cherry-picked 6b8e74432: VR_CrtHeapLoadHold now defined without mimalloc (QVR_MIMALLOC=OFF Linux link). Checked: dev build, ReleaseLTO, WSL no-mimalloc link, load_models 352/0.

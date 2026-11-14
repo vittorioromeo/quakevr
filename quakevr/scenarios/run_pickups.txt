@@ -1,0 +1,4 @@
+title Randomized Pickups, Balanced, on e1m1: each item swapped for a close one as the map spawns
+map e1m1
+cvar vr_run_pickups 1
+hint Walk e1m1's start: shells, nails, armour and weapons are close swaps (a box of the same size, an armour a step off), health stays health, the keys and door items where they were.
