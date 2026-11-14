@@ -582,7 +582,9 @@ control, ThinLTO, exclusive, one repeat: a few % is noise; `kit/benchresults/c2f
   form with the merge's own barrier cost +0.04 ms GPU an eye (0.10 -> 0.14, the dev build); beside the gather's: 0.11.
 - **combat_48's 1.8 s frame** was an array twin compiled in play (the decals' retro program's, made when the first
   retro decal lands): the twins of the programs the view's settings use are now compiled when the arrays are made at
-  the map's load (`R_PrewarmArrayTwins`). C2F_RECHECK
+  the map's load (`R_PrewarmArrayTwins`). Rechecked after it, two repeats each (`c2f_idle_off`, `c2f_idle_on`):
+  combat_48 GPU 3D 1.98 off, 1.92 on, CPU 4.23, 4.10, the worst frame 14.5 ms both; idle_e1m1 0.906, 0.907 GPU,
+  1.77, 1.69 CPU.
 
 - **Equality**: `gles_render_test` (now 18 checks) runs the ES scene (PC defaults: normal maps, PBR companions, retro
   textures on) with the arrays and with `vr_world_texarrays 0`: identical (0 pixels moved, mean 0.000), every texture
