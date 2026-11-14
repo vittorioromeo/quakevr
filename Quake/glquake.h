@@ -633,6 +633,7 @@ typedef struct glprogs_s {
 	GLuint		clear_indirect;
 	GLuint		gather_indirect;
 	GLuint		cull_mark;
+	GLuint		world_arrays_merge;	// QVR: made when first needed (GL_WorldArraysMergeProgram)
 	GLuint		cluster_lights;
 	GLuint		palette_init[3];	// [metric:naive/riemersma/oklab]
 	GLuint		palette_postprocess;
@@ -645,6 +646,9 @@ void GL_ClearCachedProgram (void);
 void GL_CreateShaders (void);
 void GL_DeleteShaders (void);
 GLuint GL_WorldDecalRetroProgram (int oit, int dither, qboolean pdo); // QVR
+GLuint GL_WorldArraysProgram (GLuint program, qboolean *depthonly); // QVR: the world's textures in arrays (vr/vr_worldarrays.cpp)
+GLuint GL_WorldArraysMergeProgram (void); // QVR
+void R_BModelCallTextures (texture_t *t, gltexture_t *out[4]); // QVR: a world call's four maps as the bound path binds them (r_world.c)
 void R_PrewarmDecalPrograms (qboolean pdo); // QVR: those made in the map's load (vr/vr_decals.cpp prepare)
 void R_WorldFragments_f (void); // QVR: vr_world_fragments (r_world.c)
 void R_ModelFragments_f (void); // QVR: vr_model_fragments (gl_rmain.c)

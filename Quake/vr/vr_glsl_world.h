@@ -3,6 +3,17 @@
 
 #pragma once
 
+// The bound path's array twins (QVR_WORLD_ARRAYS, vr/vr_worldarrays.cpp): a draw of many calls (the uniform DrawID
+// -1) finds each vertex's call from its command (VertCmd: a brush model's texture, static) through the draw's table
+// (CmdCall: the call that command is in); DrawID >= 0: a draw of that call alone, as the bound path's.
+#define QVR_WORLD_ARRAYS_VS \
+"#ifdef QVR_WORLD_ARRAYS\n" \
+"layout(std430, binding=5) restrict readonly buffer VertCmdBuffer { uint vert_cmd[]; };\n" \
+"layout(std430, binding=6) restrict readonly buffer CmdCallBuffer { uint cmd_call[]; };\n" \
+"#undef DRAW_ID\n" \
+"#define DRAW_ID (DrawID >= 0 ? DrawID : int(cmd_call[vert_cmd[gl_VertexID]]))\n" \
+"#endif\n"
+
 // the world vertex shader's Quake VR outputs
 #define QVR_WORLD_VS_OUTPUTS \
 "	layout(location=11) flat out uvec4 out_nmsampler; // QVR: the normal map, the specular map\n" \
@@ -568,7 +579,7 @@
 "	if (PermDecals.x > 0.0 && in_grimepages.y > 4096.5)\n" \
 "	{\n" \
 "		vec2 grime = parallax ? in_grime + ParallaxShiftWorld(puv - uv, duvdx, duvdy, vec3(grime_dx, 0.0), vec3(grime_dy, 0.0)).xy : in_grime;\n" \
-"		vec4 perm = PermDecalsLook(grime, in_grimepages, grime_dx, grime_dy, puv, duvdx, duvdy, in_retro.xy, vec2(textureSize(Tex, 0)));\n" \
+"		vec4 perm = PermDecalsLook(grime, in_grimepages, grime_dx, grime_dy, puv, duvdx, duvdy, in_retro.xy, vec2(textureSize(Tex, 0).xy));\n" \
 "		result.rgb *= perm.rgb;\n" \
 "		fullbright *= perm.rgb;\n" \
 "		decal_mod *= perm.rgb;\n" \

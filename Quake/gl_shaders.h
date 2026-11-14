@@ -486,7 +486,7 @@ DRAW_ELEMENTS_INDIRECT_COMMAND \
 "	uvec2	sppadding;\n"\
 "#else\n"\
 "	int		baseinstance;\n"\
-"	int		padding;\n"\
+"	int		layer; // QVR: its textures' layer in their arrays (QVR_WORLD_ARRAYS: vr/vr_worldarrays.cpp)\n"\
 "#endif // BINDLESS\n"\
 "	vec4	uvclamp; // QVR: parallax mapping's rays stay in s .x to .z, t .y to .w, repeating (none where .z <= .x)\n"\
 "	vec4	detail; // QVR: the texture's detail (vr/vr_detail.cpp): s and t scales (s < 0: axes swapped), strength (0 none), layer\n"\
@@ -619,6 +619,7 @@ DRAW_ELEMENTS_INDIRECT_COMMAND \
 
 static const char world_vertex_shader[] =
 BINDLESS_VERTEX_HEADER
+QVR_WORLD_ARRAYS_VS // QVR: the bound path's array twins: many calls a draw (vr/vr_worldarrays.cpp)
 FRAMEDATA_BUFFER
 LIGHT_BUFFER
 WORLD_CALLDATA_BUFFER
@@ -650,6 +651,9 @@ QVR_TEMPORAL_VS_OUTPUT
 "#endif\n"
 "layout(location=7) flat out vec4 out_styles;\n"
 "layout(location=8) flat out float out_lmofs;\n"
+"#ifdef QVR_WORLD_ARRAYS\n" // QVR
+"	layout(location=9) flat out float out_layer;\n"
+"#endif\n"
 "#if BINDLESS\n"
 "	layout(location=9) flat out uvec4 out_samplers;\n"
 QVR_WORLD_VS_OUTPUTS // QVR: the world vertex shader's Quake VR outputs
@@ -730,6 +734,9 @@ QVR_WORLD_VS_OUTPUTS // QVR: the world vertex shader's Quake VR outputs
 "	if ((call.flags & CF_NOLIGHTMAP) != 0u)\n"
 "		out_styles.xy = vec2(1., -1.);\n"
 "	out_lmofs = in_lmofs;\n"
+"#ifdef QVR_WORLD_ARRAYS\n" // QVR
+"	out_layer = float(call.layer);\n"
+"#endif\n"
 "#if BINDLESS\n"
 "	out_samplers.xy = call.txhandle;\n"
 "	if ((call.flags & CF_USE_FULLBRIGHT) != 0u)\n"
@@ -759,7 +766,18 @@ QVR_WORLD_DEPTH_FS_MAIN;
 static const char world_fragment_shader[] =
 "#if BINDLESS\n"
 "	#extension GL_ARB_bindless_texture : require\n"
+"	#define QVR_WUV(x) (x)\n"
+"#elif defined(QVR_WORLD_ARRAYS)\n" // QVR: the bound path's array twins (vr/vr_worldarrays.cpp): the call's layer in all four
+"	layout(binding=0) uniform sampler2DArray Tex;\n"
+"	layout(binding=1) uniform sampler2DArray FullbrightTex;\n"
+"	layout(binding=3) uniform sampler2DArray NormalTex;\n"
+"	layout(binding=11) uniform sampler2DArray SpecTex;\n"
+"	#define QVR_WLAYER_DECL\n"
+"	float WLayer = 0.0;\n"
+"	#define QVR_WUV(x) vec3(x, WLayer)\n"
+"	layout(location=9) flat in float in_layer;\n"
 "#else\n"
+"	#define QVR_WUV(x) (x)\n"
 "	layout(binding=0) uniform sampler2D Tex;\n"
 "	layout(binding=1) uniform sampler2D FullbrightTex;\n"
 "	layout(binding=3) uniform sampler2D NormalTex; // QVR\n"
@@ -824,6 +842,9 @@ QVR_PARALLAX_DEPTH_OUT // QVR: pixel depth offset (vr_parallax_depth_write): PDO
 "	out_fragcolor = vec4(0.5 + 0.5 * normalize(cross(dFdx(in_pos), dFdy(in_pos))), 0.75);\n"
 "	return;\n"
 "#endif\n"
+"#ifdef QVR_WORLD_ARRAYS\n"
+"	WLayer = in_layer; // QVR\n"
+"#endif\n"
 "	vec3 fullbright = vec3(0.);\n"
 "	vec2 uv = in_uv;\n"
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_WATER) "\n"
@@ -870,7 +891,7 @@ QVR_WORLD_FS_CARVE // QVR: the carved decals (vr/vr_decals.cpp): their craters m
 "		RetroLightBegin(rl_t, dFdx(rl_t), dFdy(rl_t), dpdx, dpdy, RetroLight[0]);\n"
 "	}\n"
 "	if ((in_flags & CF_USE_FULLBRIGHT) != 0u)\n" // QVR: parallax: the moved coordinates
-"		fullbright = Retro > 0 ? RetroSample(FullbrightTex, puv, duvdx, duvdy, false).rgb : parallax ? textureGrad(FullbrightTex, puv, duvdx, duvdy).rgb : texture(FullbrightTex, uv).rgb;\n"
+"		fullbright = Retro > 0 ? RetroSample(FullbrightTex, puv, duvdx, duvdy, false).rgb : parallax ? textureGrad(FullbrightTex, QVR_WUV(puv), duvdx, duvdy).rgb : texture(FullbrightTex, QVR_WUV(uv)).rgb;\n"
 "	vec4 result;\n"
 "	if (Retro > 0)\n" // QVR
 "		result = RetroSample(Tex, puv, duvdx, duvdy, true);\n"
@@ -878,19 +899,19 @@ QVR_WORLD_FS_CARVE // QVR: the carved decals (vr/vr_decals.cpp): their craters m
 "	{\n"
 "#if DITHER >= 2\n"
 "	if (parallax)\n"
-"		result = textureGrad(Tex, puv, duvdx * 0.5, duvdy * 0.5); // QVR: a mip bias of -1\n"
+"		result = textureGrad(Tex, QVR_WUV(puv), duvdx * 0.5, duvdy * 0.5); // QVR: a mip bias of -1\n"
 "	else\n"
-"		result = texture(Tex, uv, -1.0);\n"
+"		result = texture(Tex, QVR_WUV(uv), -1.0);\n"
 "#elif DITHER\n"
 "	if (parallax)\n"
-"		result = textureGrad(Tex, puv, duvdx * 0.70710678, duvdy * 0.70710678); // QVR: -0.5\n"
+"		result = textureGrad(Tex, QVR_WUV(puv), duvdx * 0.70710678, duvdy * 0.70710678); // QVR: -0.5\n"
 "	else\n"
-"		result = texture(Tex, uv, -0.5);\n"
+"		result = texture(Tex, QVR_WUV(uv), -0.5);\n"
 "#else\n"
 "	if (parallax)\n"
-"		result = textureGrad(Tex, puv, duvdx, duvdy); // QVR\n"
+"		result = textureGrad(Tex, QVR_WUV(puv), duvdx, duvdy); // QVR\n"
 "	else\n"
-"		result = texture(Tex, uv);\n"
+"		result = texture(Tex, QVR_WUV(uv));\n"
 "#endif\n"
 "	}\n" // QVR
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_ALPHATEST) "\n"
@@ -2081,6 +2102,48 @@ DRAW_ELEMENTS_INDIRECT_COMMAND
 "		cmd.instanceCount = 0u;\n"
 "	dst_cmds[thread_id] = cmd;\n"
 "}\n";
+
+////////////////////////////////////////////////////////////////
+//
+// QVR: the bound path's array twins (vr/vr_worldarrays.cpp): the calls drawn as one, their gathered indices copied
+// one after another (a workgroup a call, in their order), each group's draw command written by its last
+//
+////////////////////////////////////////////////////////////////
+
+static const char world_arrays_merge_compute_shader[] =
+"layout(local_size_x=64) in;\n"
+"\n"
+DRAW_ELEMENTS_INDIRECT_COMMAND
+"\n"
+"layout(location=0) uniform int IndexBase; // the destination's first index in its buffer\n"
+"layout(std430, binding=5) restrict readonly buffer SrcCmdBuffer { DrawElementsIndirectCommand src_cmds[]; };\n"
+"layout(std430, binding=6) restrict writeonly buffer DstCmdBuffer { DrawElementsIndirectCommand dst_cmds[]; };\n"
+"layout(std430, binding=7) restrict readonly buffer ItemBuffer { uvec4 items[]; }; // x the command, y the group's first item, z its indices' start, w its group (+ 0x80000000: its last)\n"
+"layout(std430, binding=8) restrict readonly buffer SrcIndexBuffer { uint src_indices[]; };\n"
+"layout(std430, binding=9) restrict writeonly buffer DstIndexBuffer { uint dst_indices[]; };\n"
+"\n"
+"void main()\n"
+"{\n"
+"	uint item = gl_WorkGroupID.x;\n"
+"	uvec4 it = items[item];\n"
+"	uint ofs = it.z;\n"
+"	for (uint j = it.y; j < item; j++)\n"
+"		ofs += src_cmds[items[j].x].count;\n"
+"	uint count = src_cmds[it.x].count, first = src_cmds[it.x].firstIndex;\n"
+"	for (uint i = gl_LocalInvocationID.x; i < count; i += 64u)\n"
+"		dst_indices[ofs + i] = src_indices[first + i];\n"
+"	if (gl_LocalInvocationID.x == 0u && it.w >= 0x80000000u)\n"
+"	{\n"
+"		DrawElementsIndirectCommand cmd;\n"
+"		cmd.count = ofs + count - it.z;\n"
+"		cmd.instanceCount = 1u;\n"
+"		cmd.firstIndex = uint(IndexBase) + it.z;\n"
+"		cmd.baseVertex = 0u;\n"
+"		cmd.baseInstance = 0u;\n"
+"		dst_cmds[it.w & 0x7fffffffu] = cmd;\n"
+"	}\n"
+"}\n";
+
 
 ////////////////////////////////////////////////////////////////
 //

@@ -71,6 +71,13 @@ void VR_WaterView (int contents, int *waterwarp);			// R_SetupView, after r_wate
 void VR_DetailView (void);								// R_SetupView: the detail textures' settings this view (frame data), their array on unit 12 (vr_detail.cpp)
 struct texture_s;
 void VR_DetailCall (const struct texture_s *t, float out[4]);	// R_AddBModelCall: a texture's detail (s and t scales, strength, layer; zero: none)
+struct gltexture_s;
+void VR_WorldArraysNewMap (void);						// GL_BuildBModelMarkBuffers: the world's textures in arrays (vr_worldarrays.cpp), made at the next batch
+void VR_WorldArraysClear (void);						// GL_DeleteBModelBuffers
+int VR_WorldArraysBegin (void);						// R_ResetBModelCalls: made (again) when wanted; nonzero: in use (the bound path, vr_world_texarrays)
+int VR_WorldArraysLookup (const struct texture_s *t, struct gltexture_s *const maps[4], int *layer);	// R_AddBModelCall: its set (-1: none) and layer
+void VR_WorldArraysBind (int set);						// R_FlushBModelCalls: a set's four arrays on units 0, 1, 3, 11
+void VR_WorldArraysCount (int manydraws, int callsinmany, int alone, int bound);	// ... its draws (vr_world_texarrays_report)
 float VR_LightstyleLevel (int style, int step, int next, float frac, float level);	// R_AnimateLight: a style's level ('a' 0 .. 'z' 25) this frame, softened in VR (vr_lightstyle.cpp, vr_lightstyle_comfort)
 void VR_LightstyleFrame (void);							// R_AnimateLight, after every style: vr_lightstyle_rate's probe
 void VR_RetroUpload (void);							// R_UploadFrameData: retro textures' settings (vr_retro.cpp), uniform block 3

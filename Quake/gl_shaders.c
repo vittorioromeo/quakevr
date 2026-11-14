@@ -43,6 +43,8 @@ typedef struct {
 	qboolean	pending;	// its twin compiling in the background (GL_MultiviewPending)
 	int			missing;	// used in the multiview pass, its twin failed (GL_MultiviewStats)
 	const char	*sources[2];
+	GLuint		arraytwin;	// its twin with the world's textures in arrays (GL_WorldArraysProgram; 0: none)
+	qboolean	arraytried;
 	char		macros[1024];
 	char		name[128];
 } glprogsource_t;
@@ -58,6 +60,9 @@ static qboolean gl_multiview_unprepared; // a ported program made since GL_Multi
 static qboolean gl_multiview_async; // GL_CreateShader, GL_CreateProgramFromShaders: a twin not waited for
 static int gl_multiview_pending; // twins compiling in the background (GL_MultiviewPending)
 qboolean gl_multiview_draw; // GL_UseProgram: the multiview pass draws (twins)
+static int gl_arrays_compile; // QVR: GL_WorldArraysProgram's twin compiling (1; a failure reported, not fatal: 2)
+static qboolean gl_arrays_merge_tried; // QVR: GL_WorldArraysMergeProgram's made (or failed to be)
+static FUNC_PRINTF(2,3) GLuint GL_CreateComputeProgram (const GLchar *source, const char *name, ...); // QVR: (GL_WorldArraysMergeProgram)
 
 // QVR: GL_CreateShaders with the driver's parallel compile (gl_parallel_compile_able): every shader compiled and every
 // program linked without waiting, their statuses read at its end in the same order (GL_DeferredCheck: the same errors).
@@ -197,7 +202,7 @@ static GLuint GL_CreateShader (GLenum type, const char *source, const char *extr
 	GL_CompileShaderFunc (shader);
 	if (gl_multiview_async) // QVR: a twin made in the background: not waited for (GL_MultiviewPending)
 		return shader;
-	if (gl_shaders_deferred && !gl_multiview_compile) // QVR: its status read at GL_CreateShaders' end (GL_DeferredCheck)
+	if (gl_shaders_deferred && !gl_multiview_compile && !gl_arrays_compile) // QVR: its status read at GL_CreateShaders' end (GL_DeferredCheck)
 		return shader;
 	GL_GetShaderivFunc (shader, GL_COMPILE_STATUS, &status);
 
@@ -206,6 +211,13 @@ static GLuint GL_CreateShader (GLenum type, const char *source, const char *extr
 		char infolog[1024];
 		memset(infolog, 0, sizeof(infolog));
 		GL_GetShaderInfoLogFunc (shader, sizeof(infolog), NULL, infolog);
+		if (gl_arrays_compile) // QVR: an array twin that fails leaves its pass on the bound path
+		{
+			Con_Printf ("array twin of %s: %s shader:\n%s\n", name, typestr, infolog);
+			VR_GLESShaderError (NULL);
+			gl_arrays_compile = 2;
+			return shader;
+		}
 		if (gl_multiview_compile) // QVR: a twin that fails leaves its pass per eye
 		{
 			Con_Printf ("multiview twin of %s: %s shader:\n%s\n", name, typestr, infolog);
@@ -233,7 +245,7 @@ static GLuint GL_CreateProgramFromShaders (const GLuint *shaders, int numshaders
 	program = GL_CreateProgramFunc ();
 	GL_ObjectLabelFunc (GL_PROGRAM, program, -1, name);
 
-	if (gl_shaders_deferred && !gl_multiview_compile) // QVR
+	if (gl_shaders_deferred && !gl_multiview_compile && !gl_arrays_compile) // QVR
 	{
 		int i;
 		if (gl_num_deferred == countof (gl_deferred) || numshaders > (int) countof (gl_deferred[0].shaders))
@@ -264,7 +276,12 @@ static GLuint GL_CreateProgramFromShaders (const GLuint *shaders, int numshaders
 		char infolog[1024];
 		memset(infolog, 0, sizeof(infolog));
 		GL_GetProgramInfoLogFunc (program, sizeof(infolog), NULL, infolog);
-		if (gl_multiview_compile) // QVR: a twin
+		if (gl_arrays_compile) // QVR: an array twin
+		{
+			Con_Printf ("array twin of %s: link:\n%s\n", name, infolog);
+			gl_arrays_compile = 2;
+		}
+		else if (gl_multiview_compile) // QVR: a twin
 		{
 			Con_Printf ("multiview twin of %s: link:\n%s\n", name, infolog);
 			gl_multiview_compile = 2;
@@ -357,6 +374,77 @@ static GLuint GL_CreateProgramFromSources (int count, const GLchar **sources, co
 		return program;
 	}
 }
+
+/*
+====================
+GL_WorldArraysProgram -- QVR
+
+The twin of world program `program` drawing with the world's textures in arrays (QVR_WORLD_ARRAYS: the bound path's
+draw of many calls, vr/vr_worldarrays.cpp), made the first time it is asked for; 0 for a program without one (not a
+world program, the liquids', or a twin that failed to compile: its pass stays on the bound path). `depthonly`: the
+program reads no texture (the depth pre-pass): any call may join its draws.
+====================
+*/
+GLuint GL_WorldArraysProgram (GLuint program, qboolean *depthonly)
+{
+	GLenum types[2] = {GL_VERTEX_SHADER, GL_FRAGMENT_SHADER};
+	char macros[1024 + 64];
+	GLuint shaders[2];
+	glprogsource_t *src = NULL;
+	int i, realcount;
+
+	for (i = 0; i < gl_num_progsources && !src; i++)
+		if (gl_progsources[i].program == program)
+			src = &gl_progsources[i];
+	if (!src || !program)
+		return 0;
+	*depthonly = src->sources[1] == NULL;
+	if (src->arraytried)
+		return src->arraytwin;
+	src->arraytried = true;
+	if (strncmp (src->name, "world|", 6) && strncmp (src->name, "world pdo|", 10) && strncmp (src->name, "world depth", 11) &&
+		strncmp (src->name, "world decal retro|", 18) && strncmp (src->name, "world pdo decal retro|", 22))
+		return 0;
+	if (strstr (src->name, "MODE " QS_STRINGIFY (WORLDSHADER_WATER))) // the liquids' (translucent, in their order) stay as they are
+		return 0;
+	q_snprintf (macros, sizeof (macros), "%s#define QVR_WORLD_ARRAYS 1\n", src->macros);
+	gl_arrays_compile = 1;
+	for (i = 0, realcount = 0; i < 2; i++)
+		if (src->sources[i])
+			shaders[realcount++] = GL_CreateShader (types[i], src->sources[i], macros, src->name);
+	if (gl_arrays_compile == 1)
+		src->arraytwin = GL_CreateProgramFromShaders (shaders, realcount, src->name);
+	else
+		for (i = 0; i < realcount; i++)
+			GL_DeleteShaderFunc (shaders[i]);
+	if (gl_arrays_compile != 1)
+		src->arraytwin = 0;
+	gl_arrays_compile = 0;
+	return src->arraytwin;
+}
+
+/*
+====================
+GL_WorldArraysMergeProgram -- QVR
+
+The compute program putting a draw's calls' indices one after another (world_arrays_merge_compute_shader), made the
+first time it is needed (only the bound path with the world's textures in arrays uses it).
+====================
+*/
+GLuint GL_WorldArraysMergeProgram (void)
+{
+	if (!glprogs.world_arrays_merge && !gl_arrays_merge_tried)
+	{
+		GLuint program;
+		gl_arrays_merge_tried = true;
+		gl_arrays_compile = 1;
+		program = GL_CreateComputeProgram (world_arrays_merge_compute_shader, "world arrays merge");
+		glprogs.world_arrays_merge = gl_arrays_compile == 1 ? program : 0;
+		gl_arrays_compile = 0;
+	}
+	return glprogs.world_arrays_merge;
+}
+
 
 /*
 ====================
@@ -803,6 +891,7 @@ void GL_DeleteShaders (void)
 	gl_num_progsources = 0; // QVR: (the twins were among gl_programs)
 	gl_progsources_dropped = 0; // QVR
 	gl_multiview_pending = 0; // QVR
+	gl_arrays_merge_tried = false; // QVR
 
 	GL_UseProgramFunc (0);
 	gl_current_program = 0;

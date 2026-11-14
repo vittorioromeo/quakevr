@@ -195,8 +195,10 @@ static void TexMgr_DescribeTextureModes_f (void)
 TexMgr_SetFilterModes
 ===============
 */
+int texmgr_filter_serial; // QVR: TexMgr_SetFilterModes' calls (vr/vr_worldarrays.cpp: the arrays' filtering copied again)
 static void TexMgr_SetFilterModes (gltexture_t *glt)
 {
+	texmgr_filter_serial++; // QVR
 	if (glt->bindless_handle)
 	{
 		int sampleridx;

@@ -138,6 +138,7 @@
 #include "vr_muzzlewisps.hpp"
 #include "vr_voicenotes.hpp"
 #include "vr_detail.hpp"
+#include "vr_worldarrays.hpp"
 #include "vr_extmaps.hpp"
 #include "vr_pbr.hpp"
 #include "vr_flashlight.hpp"
@@ -2263,6 +2264,7 @@ extern "C" void VR_Init()
     pouchitems::init();
     magholster::init();
     detail::init();
+    worldarrays::init();
     extmaps::init();
     pbr::init();
     imgcache::init();

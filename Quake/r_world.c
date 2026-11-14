@@ -43,6 +43,8 @@ extern size_t gl_bmodel_indirect_buffer_size;
 extern GLuint gl_bmodel_surf_buffer;
 extern GLuint gl_bmodel_marksurf_buffer;
 extern GLuint gl_bmodel_marksurf_buffer_size;
+extern GLuint gl_bmodel_vertcmd_buffer; // QVR: the bound path's world textures in arrays (r_brush.c)
+extern int *gl_bmodel_cmdcap, gl_bmodel_numcmds; // QVR
 
 typedef struct gpumark_frame_s {
 	vec4_t		frustum[4];
@@ -239,7 +241,7 @@ typedef struct bmodel_bound_gpu_call_s {
 	GLuint		flags;
 	GLfloat		alpha;
 	GLint		baseinstance;
-	GLint		padding;
+	GLint		layer;		// QVR: its textures' layer in their arrays (vr/vr_worldarrays.cpp)
 	GLfloat		uvclamp[4];	// QVR: texture_t's (parallax mapping)
 	GLfloat		detail[4];	// QVR: its detail texture (vr/vr_detail.cpp)
 	GLfloat		extmat[4];	// QVR: x/w generated normal/height multipliers; y/z external sheen/hardness
@@ -260,12 +262,28 @@ static union {
 	struct {
 		bmodel_bound_gpu_call_t		params[MAX_BMODEL_DRAWS];
 		gltexture_t					*textures[MAX_BMODEL_DRAWS][4];	// QVR: and the normal and specular maps
+		int							set[MAX_BMODEL_DRAWS];	// QVR: its textures' set in arrays (vr/vr_worldarrays.cpp; -1 none)
+		int							cmd[MAX_BMODEL_DRAWS];	// QVR: its command (gl_bmodel_indirect_buffer's)
+		int							numinst[MAX_BMODEL_DRAWS];	// QVR: its instances
 	} bound;
 } bmodel_calls;
 static bmodel_gpu_call_remap_t		bmodel_call_remap[MAX_BMODEL_DRAWS];
 static int							num_bmodel_calls;
 static GLuint						bmodel_batch_program;
 static int							bmodel_relief_filter; // QVR: R_AddBModelCall keeps 0 every call, 1 only those with parallax relief, 2 only those without (R_DrawSolidSplit)
+// QVR: the bound path's world textures in arrays (vr/vr_worldarrays.cpp): this batch may use them; each command's call
+// in the flush's draws of many (CmdCall in the vertex shader) and the flush it was last taken in (one call a command)
+static qboolean						bmodel_arrays_on;
+static GLuint						*bmodel_cmd_call;
+static unsigned					*bmodel_cmd_stamp;
+static int							bmodel_cmd_count;
+static unsigned					bmodel_flush_stamp;
+typedef struct { GLuint cmd, groupfirst, base, group; } bmodel_merge_item_t;
+static bmodel_merge_item_t			bmodel_merge_items[MAX_BMODEL_DRAWS];
+static int							bmodel_group_key[MAX_BMODEL_DRAWS], bmodel_group_of[MAX_BMODEL_DRAWS];
+static int							bmodel_group_first[MAX_BMODEL_DRAWS], bmodel_group_count[MAX_BMODEL_DRAWS];
+static GLuint						bmodel_group_base[MAX_BMODEL_DRAWS];
+static qboolean						bmodel_call_merged[MAX_BMODEL_DRAWS];
 
 /*
 =============
@@ -398,7 +416,170 @@ static void R_ResetBModelCalls (GLuint program)
 {
 	bmodel_batch_program = program;
 	num_bmodel_calls = 0;
+	bmodel_arrays_on = !gl_bindless_able && VR_WorldArraysBegin (); // QVR: (made here: no call pending)
 }
+
+/*
+=============
+R_MergeBModelCallsArrays, R_DrawBModelCallsArrays -- QVR
+
+The flush's calls whose textures are in arrays (vr/vr_worldarrays.cpp; any call for a program reading no texture: the
+depth pre-pass), drawn with the program's array twin: each set's calls of one instance as one draw (a group: their
+gathered indices one after another, world_arrays_merge_compute_shader; each vertex's call from its command through
+CmdCall), the rest of its calls (instanced, or a command already taken) alone with their layer. The calls' order
+changes from texture to texture, never within one (the same as the bound path's within a texture). `bound`: the calls
+drawn before on the bound path (the report). The merge is dispatched beside the gather (R_FlushBModelCalls), under
+its barrier: no compute pass of its own between the draws (on a tiler each one may end the render pass).
+=============
+*/
+typedef struct { int numgroups, numitems; GLuint idxbuf, grpbuf; size_t idxofs, grpofs; } bmodel_merge_t;
+static bmodel_merge_t bmodel_merge; // R_MergeBModelCallsArrays' groups, for R_DrawBModelCallsArrays
+
+static qboolean R_MergeBModelCallsArrays (qboolean depthonly)
+{
+	int			i, g, k, numgroups = 0, numitems = 0;
+	GLuint		capacity = 0;
+	GLuint		idxbuf = 0, grpbuf = 0, buf;
+	size_t		idxofs = 0, grpofs = 0;
+	GLbyte		*ofs;
+	int			*groupfirst = bmodel_group_first, *groupcount = bmodel_group_count;
+	GLuint		*groupbase = bmodel_group_base;
+	qboolean	*merged = bmodel_call_merged;
+
+	if (bmodel_cmd_count != gl_bmodel_numcmds) // the map's commands
+	{
+		VR_HeapFree (bmodel_cmd_call);
+		VR_HeapFree (bmodel_cmd_stamp);
+		bmodel_cmd_count = gl_bmodel_numcmds;
+		bmodel_cmd_call = (GLuint *) VR_HeapCalloc (q_max (bmodel_cmd_count, 1), sizeof (bmodel_cmd_call[0]));
+		bmodel_cmd_stamp = (unsigned *) VR_HeapCalloc (q_max (bmodel_cmd_count, 1), sizeof (bmodel_cmd_stamp[0]));
+		if (!bmodel_cmd_call || !bmodel_cmd_stamp)
+			Sys_Error ("R_DrawBModelCallsArrays: out of memory (%d commands)", bmodel_cmd_count);
+	}
+	if (++bmodel_flush_stamp == 0)
+	{
+		memset (bmodel_cmd_stamp, 0, sizeof (bmodel_cmd_stamp[0]) * q_max (bmodel_cmd_count, 1));
+		bmodel_flush_stamp = 1;
+	}
+
+	// the groups (a set each, one for a program reading no texture), in the order their first calls came; each call's
+	// place: merged (one instance, its command's first call here, a map's command) or alone
+	for (i = 0; i < num_bmodel_calls; i++)
+	{
+		int key = depthonly ? 0 : bmodel_calls.bound.set[i], cmd = bmodel_calls.bound.cmd[i];
+		bmodel_group_of[i] = -1;
+		merged[i] = false;
+		if (!depthonly && key < 0)
+			continue;
+		for (g = 0; g < numgroups; g++)
+			if (bmodel_group_key[g] == key)
+				break;
+		if (g == numgroups)
+		{
+			bmodel_group_key[numgroups] = key;
+			groupcount[numgroups] = 0;
+			groupbase[numgroups] = 0;
+			numgroups++;
+		}
+		bmodel_group_of[i] = g;
+		if (bmodel_calls.bound.numinst[i] == 1 && cmd >= 0 && cmd < bmodel_cmd_count && gl_bmodel_cmdcap[cmd] > 0 &&
+			bmodel_cmd_stamp[cmd] != bmodel_flush_stamp)
+		{
+			bmodel_cmd_stamp[cmd] = bmodel_flush_stamp;
+			bmodel_cmd_call[cmd] = (GLuint) i;
+			merged[i] = true;
+			groupcount[g]++;
+			groupbase[g] += (GLuint) gl_bmodel_cmdcap[cmd]; // (its capacity, for now)
+		}
+	}
+	for (g = 0, k = 0; g < numgroups; g++) // each group's first item and indices' start
+	{
+		GLuint cap = groupbase[g];
+		groupfirst[g] = k;
+		groupbase[g] = capacity;
+		capacity += cap;
+		k += groupcount[g];
+		groupcount[g] = 0;
+	}
+	for (i = 0; i < num_bmodel_calls; i++)
+	{
+		bmodel_merge_item_t *item;
+		if (!merged[i])
+			continue;
+		g = bmodel_group_of[i];
+		item = &bmodel_merge_items[groupfirst[g] + groupcount[g]++];
+		item->cmd = (GLuint) bmodel_calls.bound.cmd[i];
+		item->groupfirst = (GLuint) groupfirst[g];
+		item->base = groupbase[g];
+		item->group = (GLuint) g;
+		numitems++;
+	}
+	for (g = 0; g < numgroups; g++) // its last item writes its draw
+		if (groupcount[g] > 0)
+			bmodel_merge_items[groupfirst[g] + groupcount[g] - 1].group |= 0x80000000u;
+
+	if (numitems > 0)
+	{
+		GL_ReserveDeviceMemory (GL_ELEMENT_ARRAY_BUFFER, sizeof (GLuint) * q_max (capacity, 1u), &idxbuf, &idxofs);
+		GL_ReserveDeviceMemory (GL_DRAW_INDIRECT_BUFFER, sizeof (bmodel_draw_indirect_t) * numgroups, &grpbuf, &grpofs);
+		GL_UseProgram (GL_WorldArraysMergeProgram ());
+		GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 5, gl_bmodel_indirect_buffer, 0, gl_bmodel_indirect_buffer_size);
+		GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 6, grpbuf, grpofs, sizeof (bmodel_draw_indirect_t) * numgroups);
+		GL_Upload (GL_SHADER_STORAGE_BUFFER, bmodel_merge_items, sizeof (bmodel_merge_items[0]) * numitems, &buf, &ofs);
+		GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 7, buf, (GLintptr)ofs, sizeof (bmodel_merge_items[0]) * numitems);
+		GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 8, gl_bmodel_ibo, 0, gl_bmodel_ibo_size);
+		GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 9, idxbuf, idxofs, sizeof (GLuint) * q_max (capacity, 1u));
+		GL_Uniform1iFunc (0, (GLint) (idxofs / sizeof (GLuint)));
+		GL_DispatchComputeFunc (numitems, 1, 1); // (the barrier: the gather's, R_FlushBModelCalls)
+	}
+	bmodel_merge.numgroups = numgroups;
+	bmodel_merge.numitems = numitems;
+	bmodel_merge.idxbuf = idxbuf;
+	bmodel_merge.idxofs = idxofs;
+	bmodel_merge.grpbuf = grpbuf;
+	bmodel_merge.grpofs = grpofs;
+	return numitems > 0;
+}
+
+static void R_DrawBModelCallsArrays (GLuint twin, qboolean depthonly, GLuint cmdbuf, size_t cmdofs, int bound)
+{
+	int			i, g, alone = 0, many = 0;
+	int			numgroups = bmodel_merge.numgroups;
+	GLuint		buf;
+	GLbyte		*ofs;
+	int			*groupcount = bmodel_group_count;
+	qboolean	*merged = bmodel_call_merged;
+
+	GL_UseProgram (twin);
+	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 5, gl_bmodel_vertcmd_buffer, 0, gl_bmodel_vbo_size / sizeof (glvert_t) * sizeof (GLuint));
+	GL_Upload (GL_SHADER_STORAGE_BUFFER, bmodel_cmd_call, sizeof (bmodel_cmd_call[0]) * q_max (bmodel_cmd_count, 1), &buf, &ofs);
+	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 6, buf, (GLintptr)ofs, sizeof (bmodel_cmd_call[0]) * q_max (bmodel_cmd_count, 1));
+	for (g = 0; g < numgroups; g++)
+	{
+		if (!depthonly)
+			VR_WorldArraysBind (bmodel_group_key[g]);
+		if (groupcount[g] > 0)
+		{
+			GL_Uniform1iFunc (0, -1);
+			GL_BindBuffer (GL_ELEMENT_ARRAY_BUFFER, bmodel_merge.idxbuf);
+			GL_BindBuffer (GL_DRAW_INDIRECT_BUFFER, bmodel_merge.grpbuf);
+			GL_DrawElementsIndirectFunc (GL_TRIANGLES, GL_UNSIGNED_INT, (const byte *)(bmodel_merge.grpofs + g * sizeof (bmodel_draw_indirect_t)));
+			many++;
+		}
+		GL_BindBuffer (GL_ELEMENT_ARRAY_BUFFER, gl_bmodel_ibo);
+		GL_BindBuffer (GL_DRAW_INDIRECT_BUFFER, cmdbuf);
+		for (i = 0; i < num_bmodel_calls; i++)
+		{
+			if (bmodel_group_of[i] != g || merged[i])
+				continue;
+			GL_Uniform1iFunc (0, i);
+			GL_DrawElementsIndirectFunc (GL_TRIANGLES, GL_UNSIGNED_INT, (const byte *)(cmdofs + i * sizeof (bmodel_draw_indirect_t)));
+			alone++;
+		}
+	}
+	VR_WorldArraysCount (many, bmodel_merge.numitems, alone, bound);
+}
+
 
 /*
 =============
@@ -410,20 +591,26 @@ static void R_FlushBModelCalls (void)
 	GLuint	cmdbuf, buf;
 	GLbyte	*ofs;
 	size_t	dstcmdofs;
+	GLuint	twin = 0; // QVR: the program's array twin (the world's textures in arrays: vr/vr_worldarrays.cpp)
+	qboolean depthonly = false, merging = false;
 
 	if (!num_bmodel_calls)
 		return;
+	if (!gl_bindless_able && bmodel_arrays_on && GL_WorldArraysMergeProgram ()) // QVR
+		twin = GL_WorldArraysProgram (bmodel_batch_program, &depthonly);
 
 	GL_ReserveDeviceMemory (GL_DRAW_INDIRECT_BUFFER, sizeof (bmodel_draw_indirect_t) * num_bmodel_calls, &cmdbuf, &dstcmdofs);
 
 	GL_BeginGroup ("cs: gather indirect draws"); // QVR: (vr_gl_markers)
+	if (twin) // QVR: (its own bindings; the gather's are made after)
+		merging = R_MergeBModelCallsArrays (depthonly);
 	GL_UseProgram (glprogs.gather_indirect);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 5, gl_bmodel_indirect_buffer, 0, gl_bmodel_indirect_buffer_size);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 6, cmdbuf, dstcmdofs, sizeof (bmodel_draw_indirect_t) * num_bmodel_calls);
 	GL_Upload (GL_SHADER_STORAGE_BUFFER, bmodel_call_remap, sizeof (bmodel_call_remap[0]) * num_bmodel_calls, &buf, &ofs);
 	GL_BindBufferRange  (GL_SHADER_STORAGE_BUFFER, 7, buf, (GLintptr)ofs, sizeof (bmodel_call_remap[0]) * num_bmodel_calls);
 	GL_DispatchComputeFunc ((num_bmodel_calls + 63) / 64, 1, 1);
-	GL_MemoryBarrierFunc (GL_COMMAND_BARRIER_BIT);
+	GL_MemoryBarrierFunc (GL_COMMAND_BARRIER_BIT | (merging ? GL_ELEMENT_ARRAY_BARRIER_BIT : 0)); // QVR: (the merge's indices)
 	GL_EndGroup (); // QVR
 
 	GL_UseProgram (bmodel_batch_program);
@@ -447,23 +634,71 @@ static void R_FlushBModelCalls (void)
 	}
 	else
 	{
-		int i;
+		int i, bound = 0;
 
 		GL_Upload (GL_SHADER_STORAGE_BUFFER, &bmodel_calls.bound.params, sizeof (bmodel_calls.bound.params[0]) * num_bmodel_calls, &buf, &ofs);
 		GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 1, buf, (GLintptr)ofs, sizeof (bmodel_calls.bound.params[0]) * num_bmodel_calls);
 
 		for (i = 0; i < num_bmodel_calls; i++)
 		{
+			if (twin && (depthonly || bmodel_calls.bound.set[i] >= 0)) // QVR: drawn from the arrays (R_DrawBModelCallsArrays)
+				continue;
+			bound++;
 			GL_Uniform1iFunc (0, i);
 			GL_BindTextures (0, 2, bmodel_calls.bound.textures[i]);
 			GL_Bind (GL_TEXTURE3, bmodel_calls.bound.textures[i][2]); // QVR: the normal map
 			GL_Bind (GL_TEXTURE11, bmodel_calls.bound.textures[i][3]); // QVR: the specular map (SpecTex)
 			GL_DrawElementsIndirectFunc (GL_TRIANGLES, GL_UNSIGNED_INT, (const byte *)(dstcmdofs + i * sizeof (bmodel_draw_indirect_t)));
 		}
+		if (twin) // QVR
+			R_DrawBModelCallsArrays (twin, depthonly, cmdbuf, dstcmdofs, bound);
 	}
 
 	num_bmodel_calls = 0;
 }
+
+/*
+=============
+R_BModelTextures -- QVR
+
+A call's maps for texture `t` (NULL: white, showtris): the texture (NULL: none, the lightmap alone), its fullbright
+(NULL: none), its normal map (or an external pack's, vr/vr_extmaps.cpp), its specular map (NULL: none); the external
+maps' numbers in `extmat`; returns their call flags. R_BModelCallTextures: the four the bound path binds.
+=============
+*/
+static unsigned R_BModelTextures (texture_t *t, gltexture_t **tx, gltexture_t **fb, gltexture_t **nm, gltexture_t **spec, float extmat[4])
+{
+	unsigned extflags;
+	if (t)
+	{
+		*tx = t->gltexture;
+		*fb = t->fullbright;
+		if (r_lightmap_cheatsafe)
+			*tx = *fb = NULL;
+		if (!gl_fullbrights.value && t->type != TEXTYPE_SKY)
+			*fb = NULL;
+	}
+	else
+	{
+		*tx = *fb = whitetexture;
+	}
+	*nm = TexMgr_NormalMap (*tx); // QVR: or an external pack's, its specular map, its glow hidden (vr/vr_extmaps.cpp)
+	extflags = VR_ExtMapsCall (*tx && t ? t : NULL, nm, spec, fb, extmat);
+	VR_PBRStrength (*nm, &extmat[0], &extmat[3]); // QVR: independent component provenance after authored pack selection
+	return extflags;
+}
+
+void R_BModelCallTextures (texture_t *t, gltexture_t *out[4])
+{
+	gltexture_t *tx, *fb, *nm, *spec;
+	float extmat[4];
+	R_BModelTextures (t, &tx, &fb, &nm, &spec, extmat);
+	out[0] = tx ? tx : greytexture;
+	out[1] = fb ? fb : blacktexture;
+	out[2] = nm;
+	out[3] = spec ? spec : whitetexture;
+}
+
 
 /*
 =============
@@ -487,26 +722,10 @@ static void R_AddBModelCall (int index, int first_instance, int num_instances, t
 	if (num_bmodel_calls == MAX_BMODEL_DRAWS)
 		R_FlushBModelCalls ();
 
-	if (t)
-	{
-		tx = t->gltexture;
-		fb = t->fullbright;
-		if (r_lightmap_cheatsafe)
-			tx = fb = NULL;
-		if (!gl_fullbrights.value && t->type != TEXTYPE_SKY)
-			fb = NULL;
-	}
-	else
-	{
-		tx = fb = whitetexture;
-	}
-
 	if (!gl_zfix.value || map_checks.value)
 		zfix = 0;
 
-	nm = TexMgr_NormalMap (tx); // QVR: or an external pack's, its specular map, its glow hidden (vr/vr_extmaps.cpp)
-	extflags = VR_ExtMapsCall (tx && t ? t : NULL, &nm, &spec, &fb, extmat);
-	VR_PBRStrength (nm, &extmat[0], &extmat[3]); // QVR: independent component provenance after authored pack selection
+	extflags = R_BModelTextures (t, &tx, &fb, &nm, &spec, extmat); // QVR: (shared with the arrays' making)
 	if (bmodel_relief_filter && (extmat[3] > 0.f) != (bmodel_relief_filter == 1)) // QVR: the depth write's split (R_DrawSolidSplit): extmat[3] the relief's height (the shader's in_pdepth: 0 none)
 		return;
 	flags =zfix | ((fb != NULL) << 1) | ((r_fullbright_cheatsafe != false) << 2) | extflags;
@@ -536,11 +755,14 @@ static void R_AddBModelCall (int index, int first_instance, int num_instances, t
 		call->flags = flags;
 		call->alpha = alpha;
 		call->baseinstance = first_instance;
-		call->padding = 0;
 		textures[0] = tx ? tx : greytexture;
 		textures[1] = fb ? fb : blacktexture;
 		textures[2] = nm; // QVR
 		textures[3] = spec ? spec : whitetexture; // QVR
+		call->layer = 0; // QVR: the world's textures in arrays (vr/vr_worldarrays.cpp)
+		bmodel_calls.bound.set[num_bmodel_calls] = bmodel_arrays_on && tx && t ? VR_WorldArraysLookup (t, textures, &call->layer) : -1;
+		bmodel_calls.bound.cmd[num_bmodel_calls] = index;
+		bmodel_calls.bound.numinst[num_bmodel_calls] = num_instances;
 		memcpy (call->uvclamp, t ? t->uvclamp : noclamp, sizeof (call->uvclamp)); // QVR
 		VR_DetailCall (tx ? t : NULL, call->detail); // QVR
 		memcpy (call->extmat, extmat, sizeof (call->extmat)); // QVR
