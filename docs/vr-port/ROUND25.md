@@ -2239,3 +2239,7 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
 - Checks: `load_models_test.sh` 4/0, `scenario_check.sh` 129 files 0 errors, 129 run 0 failed, the ReleaseLTO 1.1.0 build.
 - Cherry-picked c206e9a74 (agent/quest): particles' Support[16] uniform at locations 40-55, no longer overlapping the fragment shader's Taper/InkAlpha (20/21; a strict-linker link error). Checks: dev and ReleaseLTO 1.1.0 builds, scenario_check 129/0, flatblood_test 1 (particles drawn).
 - Cherry-picked 4793722c6 (agent/mp): vr_server.cpp rewrites a player's `.vrbits0` previous bits at the end of every server frame, not only when a move arrives (a frame without a move showed QC last frame's grip press/let-go again; a doubled let-go pushed a re-grip into the 0.125 s bounce window); bots keep the bits their QC sets.
+
+## telekeep (cherry-pick of agent/mp 88743a3e8)
+- A teleport asked in an earlier move of a server frame is kept until the server acts on it (headset above 72 Hz lost it). Checks: dev + ReleaseLTO 1.1.0 builds, vr_teleport_both_test 14/0, scenario_check 129/0, load_models_test 4/0.
+- vr_runpickups_test 1 hangs (engine spins, frames stop) at step 17 load mp_rpk_seed; also at 32ebcecc7 (muttiers merge) and 97aee6b6e, so not a recent commit. The same sequence by hand, and loading mp_rpk_seed.sav in a fresh run, both work. Cause not found.
