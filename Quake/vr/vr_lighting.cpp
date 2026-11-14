@@ -378,6 +378,14 @@ struct LayeredCaster
     entity_t* e;
     unsigned char bits; // its faces
 };
+
+// The alias renderer draws a run of casters of the same model and skin as one instanced batch: casters in that order
+// (the depth is the nearest whatever the order).
+bool castersInBatchOrder(const entity_t* a, const entity_t* b)
+{
+    const uintptr_t ma = reinterpret_cast<uintptr_t>(a->model), mb = reinterpret_cast<uintptr_t>(b->model);
+    return ma != mb ? ma < mb : a->skinnum < b->skinnum;
+}
 struct IndirectCommand
 {
     GLuint count, instanceCount, firstIndex;
@@ -762,8 +770,7 @@ void drawLayered(const glm::vec3& light, float radius, const ShadowView* views, 
         // nearest whatever the order).
         za::quickSort(cs.layered.begin(), cs.layered.end(), [](const LayeredCaster& a, const LayeredCaster& b)
         {
-            const uintptr_t ma = reinterpret_cast<uintptr_t>(a.e->model), mb = reinterpret_cast<uintptr_t>(b.e->model);
-            return ma != mb ? ma < mb : a.e->skinnum < b.e->skinnum;
+            return castersInBatchOrder(a.e, b.e);
         });
         cs.faceCasters.clear();
         cs.faceBits.clear();
@@ -793,6 +800,7 @@ void drawLayered(const glm::vec3& light, float radius, const ShadowView* views, 
             {
                 continue;
             }
+            za::quickSort(cs.faceCasters.begin(), cs.faceCasters.end(), castersInBatchOrder); // (as a face at a time's)
             const ShadowView& view = views[face];
             glViewport(static_cast<int>(view.at.x), static_cast<int>(view.at.y), static_cast<int>(size), static_cast<int>(size));
             memcpy(frustum, planes[face], sizeof(planes[face]));
@@ -909,6 +917,9 @@ void renderLight(DepthTarget& target, const glm::vec3& light, float radius, cons
             }
             if(!faceCasters.empty())
             {
+                // In batch order, as the layered path's: a draw per model and skin, not per change of model (a
+                // pile's 135 casters: 1806 draws and 1.16 ms of GPU for 12 faces, ES's path; QUEST_PLAN.md 6b).
+                za::quickSort(faceCasters.begin(), faceCasters.end(), castersInBatchOrder);
                 float savedViewProj[16];
                 memcpy(savedViewProj, r_matviewproj, sizeof(savedViewProj));
                 memcpy(r_matviewproj, &vp[0][0], sizeof(r_matviewproj));

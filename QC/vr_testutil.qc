@@ -10,6 +10,7 @@ float vr_test_fail;  // and failed
 float vr_test_flags; // VR_TEST_LOUD, VR_TEST_QUIET (VR_Test_BeginFlags)
 float VR_TEST_LOUD = 1;  // lines broadcast (bprint: seen with developer 0, as the armed grunts' tests print)
 float VR_TEST_QUIET = 2; // a pass prints no line (tests with very many checks: only the failures and the verdict)
+float VR_TEST_ECHO = 4;  // the verdict line echoed to the console (VR_Test_Verdict: a test that ends just after a load)
 float vr_test_nested;    // an inner test counting (VR_Test_Nest): VR_Test_Unnest puts the outer one back
 
 // A test (or one of its parts) starts: its tag, the tally cleared.
@@ -57,10 +58,13 @@ void(float ok) VR_Test_Count =
     if(ok) vr_test_pass++; else vr_test_fail++;
 };
 
-// The test's verdict line.
+// The test's verdict line. VR_TEST_ECHO: the console's `echo`, seen with developer 0 and whatever the client's state (a
+// broadcast reaches only a client that has begun: one just after a load has not; a dprint needs developer 1).
 void() VR_Test_Verdict =
 {
-    VR_Test_Print(sprintf("%s: %g passed, %g failed\n", vr_test_tag, vr_test_pass, vr_test_fail));
+    string line = sprintf("%s: %g passed, %g failed", vr_test_tag, vr_test_pass, vr_test_fail);
+    if(vr_test_flags & VR_TEST_ECHO) localcmd(sprintf("echo \"%s\"\n", line));
+    else VR_Test_Print(strcat(line, "\n"));
 };
 
 // A part's verdict line, for a test of several parts: `<tag>: <part> <p> passed, <f> failed` ("mg3test: caps 3 passed,
