@@ -99,7 +99,8 @@ original data. What changes:
      maps with light from lamps, lava and glowing panels (about a minute on a fast PC; *Skip* leaves it to the game's
      first start, which then relights them in the background). VisPatch's data (about 2.5 MB, from
      SourceForge) comes with it, for see-through water. See [Relit maps](#relit-maps-and-see-through-water).
-   - **Shortcuts** on the desktop and in the Start menu.
+   - **Shortcuts** on the desktop and in the Start menu, and "Quake VR Unleashed (Flat Screen)" beside them: the game
+     on your monitor with a mouse and keyboard, no headset (`-flatscreenmode`).
    - **Package:** downloaded from the latest release by default. A `QuakeVR.zip` (or a `QuakeVR` folder) next to
      `QuakeVR-Setup.exe` is used instead, with no download at all; *Use a local package…* picks one.
 6. **Install:** the files are downloaded, checked and put in place; a failed or cancelled install changes nothing.
