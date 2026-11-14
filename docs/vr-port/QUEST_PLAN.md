@@ -333,6 +333,32 @@ Results, 2026-11-14 (one repeat each, so a few percent is noise; ms averages; `k
   The CPU cost of the bound path is within the run's noise here. **Correction (C2b, section 5c):** that column ran
   with clip control off, which turns the shadows, reflections and portals off; its extra GPU time is the rest (bound
   path, standard depth, ES precisions), with fewer effects drawn. Re-run with `QVR_GLES_CLIP_CONTROL=1` in C2c.
+- **C2c re-run, the ES profile with clip control** (`kit/benchresults/q2_questesclip`; the same settings, ThinLTO,
+  exclusive, one repeat): the same effects as the Quest-like column, so the difference is now the ES profile alone
+  (layered casters off, bindless and multi-bind off, the ES precisions). ms averages:
+
+| scenario | GPU 3D Quest-like | ES no clip (C1) | ES + clip | CPU Quest-like | ES + clip |
+|---|---|---|---|---|---|
+| combat_48 | 1.47 | 2.33 | 2.30 | 4.05 | 4.06 |
+| combined | 2.98 | 3.57 | 5.47 | 7.36 | 7.31 |
+| decals_1024_stream | 0.67 | 0.86 | 0.93 | 1.50 | 1.35 |
+| gore_slash_32 | 1.62 | 2.25 | 2.42 | 4.30 | 4.02 |
+| idle_e1m1 | 0.57 | 0.79 | 0.82 | 1.54 | 1.77 |
+| idle_range | 0.64 | 0.77 | 0.84 | 1.33 | 1.41 |
+| lights_32 | 0.94 | 1.53 | 1.69 | 1.67 | 1.44 |
+| load_e1m1 | 0.54 | 0.79 | 0.81 | 4.99 | 5.00 |
+| particles_dense | 1.31 | 1.90 | 1.73 | 2.56 | 2.52 |
+| props_500_active | 1.06 | 1.36 | 1.82 | 3.82 | 3.75 |
+| ragdolls_32_active | 1.44 | 2.34 | 2.18 | 4.11 | 3.95 |
+| teleporter_loop_r2 | 0.69 | 1.49 | 1.30 | 0.84 | 0.84 |
+| teleporter_start | 0.59 | 0.80 | 0.83 | 1.00 | 0.97 |
+
+  The ES profile costs +32 to +88% GPU over the Quest-like PC settings (combined +84%, lights_32 +80%, props +72%,
+  combat +56%, ragdolls +51%, idle +44%); the CPU is unchanged (within one repeat's noise). Only `combined` and
+  `props_500_active` grew much with clip control back (shadows and reflections drawn again: +1.9 and +0.46 ms); the
+  rest was the ES profile's already. Splitting it (one gate at a time: layered casters, bindless, multi-bind,
+  precisions) is C5's first measurement on the device, where these PC numbers stop meaning much (a desktop GPU
+  pays nothing for highp; an Adreno pays for draw calls differently).
 
 ## 7. Installs for his approval (none done)
 
