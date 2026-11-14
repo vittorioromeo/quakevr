@@ -772,6 +772,7 @@ void SV_DropClient (qboolean crash)
 	host_client->netconnection = NULL;
 
 // free the client (the body stays around)
+	VR_ClientReset (host_client); // QVR: its moves and VR bits (the next player in the slot starts clean)
 	host_client->active = false;
 	host_client->name[0] = 0;
 	host_client->old_frags = -999999;

@@ -1024,7 +1024,11 @@ static qsocket_t *_Datagram_CheckNewConnections (void)
 		if (s->driver != net_driverlevel)
 			continue;
 		ret = dfunc.AddrCompare(&clientaddr, &s->addr);
-		if (ret >= 0)
+		// QVR: the same address and port only (ret 0). NetQuake took any client from the same IP (ret 1: another
+		// port) as this one back from a crash and closed this one: a second player behind the same router (or a
+		// second game on this machine, the multiplayer harness) kicked the first (docs/vr-port/MP_PLAN.md). One back
+		// from a crash on a new port leaves his old slot to time out instead.
+		if (ret == 0)
 		{
 			// is this a duplicate connection reqeust?
 			if (ret == 0 && net_time - s->connecttime < 2.0)
