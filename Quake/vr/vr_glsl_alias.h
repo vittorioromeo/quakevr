@@ -375,7 +375,11 @@
 #define QVR_ALIAS_VS_OUTPUTS \
 "layout(location=3) out vec3 out_nor; // QVR: per-pixel dynamic lights (vr/vr_lighting.cpp)\n" \
 "layout(location=4) out float out_depth; // QVR\n" \
+"#ifdef QVR_NOPERSP_W // ES without NV_shader_noperspective_interpolation: w-multiplied (vr_glsafe.cpp esHeader)\n" \
+"layout(location=5) out vec2 out_coord; // QVR\n" \
+"#else\n" \
 "layout(location=5) noperspective out vec2 out_coord; // QVR\n" \
+"#endif\n" \
 "layout(location=6) flat out float out_glow; // QVR\n" \
 "layout(location=7) flat out float out_fbboost; // QVR\n" \
 "layout(location=8) flat out float out_pdepth; // QVR: parallax mapping\n" \
@@ -678,7 +682,12 @@ SPECULAR_AA_FUNCTIONS
 #define QVR_ALIAS_FS_INPUTS \
 "layout(location=3) in vec3 in_nor; // QVR\n" \
 "layout(location=4) in float in_depth; // QVR\n" \
+"#ifdef QVR_NOPERSP_W // ES without NV_shader_noperspective_interpolation: w-multiplied (vr_glsafe.cpp esHeader)\n" \
+"layout(location=5) in vec2 in_coord_w; // QVR\n" \
+"#define in_coord (in_coord_w * gl_FragCoord.w)\n" \
+"#else\n" \
 "layout(location=5) noperspective in vec2 in_coord; // QVR\n" \
+"#endif\n" \
 "layout(location=6) flat in float in_glow; // QVR\n" \
 "layout(location=7) flat in float in_fbboost; // QVR\n" \
 "layout(location=8) flat in float in_pdepth; // QVR: parallax mapping's depth in units (vr_parallax_models; 0 off; negative: an authored map's, vr_parallax_authored)\n" \

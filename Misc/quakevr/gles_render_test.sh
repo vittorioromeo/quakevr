@@ -8,12 +8,18 @@
 # Checks: both runs drew (eyes not black); ES compiled every program and turned no feature off ("need" lines);
 # the eye differs in under 2% of its pixels by more than 60 of 765 and by under 3 per channel on average; the
 # envmap the same within that; every texture (PBR companions included) the same bits.
+# The noperspective fallback (-glesnoext, QVR_GLES_NOEXT=1: an ES driver without NV_shader_noperspective_interpolation,
+# the light tile coordinate and the retro affine texturing w-multiplied): the ES scene with r_softemu_mdl_warp 1 (the
+# models' affine texturing) drawn with and without the extension; the eye differs in under 0.01% of its pixels and by
+# under 0.1 per channel on average (measured: identical; the fallback without its gl_FragCoord.w: 0.02% and 0.81), and
+# every program compiled.
 # Prints PASS/FAIL lines and `gles_render: N passed, M failed`; exits 1 on a failure.
 AGENT=${1:-quest}
 source "$(dirname "$0")/qvrtest.sh"
-S=$TREE/scratch/gles_render; mkdir -p "$S/pc" "$S/es"
+S=$TREE/scratch/gles_render; mkdir -p "$S/pc" "$S/es" "$S/esw" "$S/esnoext"
 GAME=$KIT/bases/$AGENT/qbase/quakevr
-SCRIPT="sv_random_seed 7; vr_particle_seed 7; vr_taa 1; map e1m1; wait120; vr_eyeshot 1; wait3; vr_envmap_dump; imagehash; vr_gles_report; toggleconsole; quit"
+BASE="sv_random_seed 7; vr_particle_seed 7; vr_taa 1; map e1m1; wait120; vr_eyeshot 1; wait3; vr_envmap_dump; imagehash; vr_gles_report; toggleconsole; quit"
+SCRIPT=$BASE
 FILTER="Wrote|imagehash|shader errors|need|GLES compat|rror"
 
 run() { # run <mode> [env...]: the scene, its outputs copied to $S/<mode>
@@ -25,6 +31,14 @@ run() { # run <mode> [env...]: the scene, its outputs copied to $S/<mode>
 }
 run pc
 run es QVR_GLES_COMPAT=1 QVR_GLES_CLIP_CONTROL=1
+SCRIPT="r_softemu_mdl_warp 1; $BASE"
+run esw QVR_GLES_COMPAT=1 QVR_GLES_CLIP_CONTROL=1
+run esnoext QVR_GLES_COMPAT=1 QVR_GLES_CLIP_CONTROL=1 QVR_GLES_NOEXT=1
+python "$TREE/Misc/quakevr/gles_render_check.py" "$S/esw" "$S/esnoext" > "$S/check_noext.txt"
+cat "$S/check_noext.txt"
+read -r _ nxDiff nxMoved nxA nxB < <(grep "^eye " "$S/check_noext.txt")
+nxErrors=$(grep -aoE "[0-9]+ shader errors" "$S/esnoext.log" | tail -1)
+nxOn=$(grep -ac "treated as absent" "$S/esnoext.log")
 python "$TREE/Misc/quakevr/gles_render_check.py" "$S/pc" "$S/es" > "$S/check.txt"
 cat "$S/check.txt"
 read -r _ eyeDiff eyeMoved eyePc eyeEs < <(grep "^eye " "$S/check.txt")
@@ -41,4 +55,8 @@ check $(lt "$eyeDiff" 3) "eye: ${eyeDiff:-?} mean difference per channel (under 
 check $(lt "$envMoved" 0.02) "envmap: ${envMoved:-?} of the texels moved (under 0.02)"
 check $(lt "$envDiff" 3) "envmap: ${envDiff:-?} mean difference per channel (under 3)"
 check $([ "${texDiff:--1}" = "0" ] && [ "${texN:-0}" -gt 100 ] && echo 1 || echo 0) "textures: ${texDiff:-?} of ${texN:-?} differ (none)"
+check $([ "${nxOn:-0}" -gt 0 ] && [ "$nxErrors" = "0 shader errors" ] && echo 1 || echo 0) "-glesnoext: on, every program compiled (${nxErrors:-no report})"
+check $(awk -v a="$nxA" -v b="$nxB" 'BEGIN{exit !(a > 8 && b > 8)}' && echo 1 || echo 0) "-glesnoext: both drew (means ${nxA:-?}, ${nxB:-?})"
+check $(lt "$nxMoved" 0.0001) "-glesnoext: eye ${nxMoved:-?} of the pixels moved (under 0.0001)"
+check $(lt "$nxDiff" 0.1) "-glesnoext: eye ${nxDiff:-?} mean difference per channel (under 0.1)"
 verdict; exit $fail

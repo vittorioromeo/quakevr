@@ -67,6 +67,7 @@ struct State
     unsigned vendorOff = 0; // the vendor workarounds' features (and -glescompat's)
     bool esCompat = false;  // -glescompat: the features OpenGL ES 3.2 lacks off (QUEST_PLAN.md, C2)
     unsigned esKeep = 0;    // -gleskeep: the VR_GLES_FORM_* whose PC form stays (a measurement of each one's cost)
+    bool esNoExt = false;   // -glesnoext: as an ES driver without the optional extensions we have a fallback for
     int esShaderErrors = 0; // -glescompat: programs that failed as ES 3.2 GLSL (VR_GLESShaderError)
     unsigned logged = 0;    // features whose "off" line was printed
     char why[256]{};        // why safe mode is on
@@ -345,6 +346,14 @@ extern "C" void VR_GLStartupVendor(const char* vendor, const char* renderer, con
         {
             glsafe.vendorOff &= ~static_cast<unsigned>(VR_GLSAFE_CLIP_CONTROL);
         }
+        // -glesnoext (QVR_GLES_NOEXT=1): as an ES driver without the optional extensions that have a fallback
+        // (NV_shader_noperspective_interpolation: the w-multiplied form, VR_GLShaderSource), to test the fallbacks.
+        if(COM_CheckParm("-glesnoext") || getenv("QVR_GLES_NOEXT"))
+        {
+            glsafe.esNoExt = true;
+            VR_GLStep("GLES compat: optional extensions treated as absent (-glesnoext)");
+            Con_Printf("GLES compat: optional extensions treated as absent (-glesnoext): noperspective w-multiplied\n");
+        }
         const int keep = COM_CheckParm("-gleskeep");
         const char* keepList = keep && keep < com_argc - 1 ? com_argv[keep + 1] : getenv("QVR_GLES_KEEP");
         if(keepList && keepList[0])
@@ -403,10 +412,18 @@ extern "C" void VR_GLESInstallForms(void)
 // image types anywhere). Without -glescompat the strings are given unchanged.
 namespace
 {
+// Without NV_shader_noperspective_interpolation (or under -glesnoext) QVR_NOPERSP_W is defined: the shaders' four
+// noperspective values (the light tile coordinate in the world's and the models' shaders, the retro affine texture
+// coordinate) go out times gl_Position.w and perspective-interpolated, and come in times gl_FragCoord.w (the
+// interpolated 1/w): the screen-linear interpolation, exact up to rounding.
 constexpr const char* esHeader = "#version 320 es\n"
                                  "#ifdef GL_EXT_clip_cull_distance\n#extension GL_EXT_clip_cull_distance : enable\n#endif\n"
                                  "#ifdef GL_NV_shader_noperspective_interpolation\n"
-                                 "#extension GL_NV_shader_noperspective_interpolation : enable\n#endif\n";
+                                 "#extension GL_NV_shader_noperspective_interpolation : enable\n"
+                                 "#else\n#define QVR_NOPERSP_W 1\n#endif\n";
+constexpr const char* esHeaderNoExt = "#version 320 es\n"
+                                      "#ifdef GL_EXT_clip_cull_distance\n#extension GL_EXT_clip_cull_distance : enable\n#endif\n"
+                                      "#define QVR_NOPERSP_W 1\n";
 
 constexpr const char* esPrecisions =
     "precision highp float; precision highp int;\n"
@@ -489,7 +506,7 @@ extern "C" void VR_GLShaderSource(unsigned int shader, int count, const char* co
     const char* s = joined.cStr();
     const size_t body = strings::startsWith(s, "#version") ? nextLine(s, 0) : 0;
     const size_t code = body + codeStart(s + body);
-    za::String es{esHeader};
+    za::String es{glsafe.esNoExt ? esHeaderNoExt : esHeader};
     es += za::String{s + body, static_cast<za::SizeT>(code - body)};
     es += esPrecisions;
     es += s + code;
@@ -691,6 +708,7 @@ constexpr EsPending esDone[] = {
     {"glGetTexImage", "VR_GLGetTexImage (gl_texmgr.c, vr_envmap.cpp, vr_pbr.cpp, vr_lighting.cpp)", "FBO + glReadPixels; depth through an R32UI copy"},
     {"MultiDrawElementsIndirect", "VR_GLESInstallForms (r_world.c, vr_lighting.cpp: bindless and layered, both off)", "a DrawElementsIndirect loop"},
     {"glTextureView", "vr_envmap.cpp, vr_stereo_single.cpp", "off: the whole cube's mipmaps; two-pass stereo (C4: multiview into the swapchain)"},
+    {"noperspective (NV_shader_noperspective_interpolation)", "gl_shaders.h, vr_glsl_alias.h (QVR_NOPERSP_W)", "the extension where the driver has it, else (and -glesnoext) w-multiplied"},
     {"GL_TEXTURE_LOD_BIAS", "gl_texmgr.c, vr_gfx_gl.cpp", "not set (gl_lodbias, vr_menu_sharpen: none)"},
     {"pipeline-statistics and GL_SAMPLES_PASSED queries", "gl_rmain.c, r_world.c", "vr_model_fragments, vr_world_fragments refuse"},
     {"GL_FRAMEBUFFER_SRGB, GL_BGRA uploads", "vr_imgui.cpp, r_brush.c", "not read; lightmaps RGBA already"},
@@ -698,14 +716,14 @@ constexpr EsPending esDone[] = {
 constexpr EsPending esPending[] = {
     {"GL_DEPTH_CLAMP", "r_alias.c", "EXT_depth_clamp on the Quest [?], else the held item cut at the near plane"},
     {"gl_ClipDistance (compiles with EXT_clip_cull_distance)", "gl_shaders.h, r_world.c, r_alias.c, vr_lighting.cpp", "the extension on the Quest [?], else a discard"},
-    {"noperspective (compiles with NV_shader_noperspective_interpolation)", "gl_shaders.h, vr_glsl_alias.h", "the extension on the Quest [?], else w-multiplied"},
     {"timer queries", "vr_profile.cpp, vr_tracy.cpp, vr_lighting.cpp, gl_rmain.c", "EXT_disjoint_timer_query: the EXT names, GL_GPU_DISJOINT_EXT (C3)"},
     {"clip control (shadows, reflections, portals need it)", "gl_rmain.c, vr_lighting.cpp, vr_envmap.cpp, vr_portals.cpp", "EXT_clip_control on the Quest [?] (-glesclipcontrol), else a standard-depth path"},
 };
 
 void glesReport_f()
 {
-    Con_Printf("GLES compat: %s\n", glsafe.esCompat ? "on (-glescompat)" : "off (start with -glescompat)");
+    Con_Printf("GLES compat: %s%s\n", glsafe.esCompat ? "on (-glescompat)" : "off (start with -glescompat)",
+        glsafe.esNoExt ? "; optional extensions treated as absent (-glesnoext): noperspective w-multiplied" : "");
     Con_Printf("  bindless %d, multi-bind %d, clip control %d, layered casters %d, buffer storage %d, NV foveation %s\n",
         gl_bindless_able ? 1 : 0, gl_multi_bind_able ? 1 : 0, gl_clipcontrol_able ? 1 : 0, gl_viewport_layer_able,
         gl_buffer_storage_able ? 1 : 0, VR_GLESForm(VR_GLES_FORM_FOVEATION) ? "off" : "when the GPU has it");
