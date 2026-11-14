@@ -39,10 +39,12 @@ Tests:
              Gameplay Presets' buttons locked, his config keeps his own); the server changes two: B follows; B leaves:
              his own back. A preference and a sound on a rule page stay his.
     cosmetics  B's skin tone, gloves and nails on his hands and body as A draws them are B's own; A's copy of B's body
-             at B's height.
+             at B's height; B's holstered shotgun where B drew it (and the server's holsterpos for him), his pauldrons,
+             his seated body, his nailgun's magazine in the server's hull of it (B6b).
+    flatbody  a flat-screen B's body as A draws it is at his flat body height (B6b).
     suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, version, avatar, avatarcal, body, prefs, grab,
              teleport, held, ground, campaign, campaign_listen, flow, download, pickup, forcegrab, melee, moves, climb,
-             rules, cosmetics.
+             rules, cosmetics, flatbody.
 
 The base folder is a Quake folder with id1 (and hipnotic, rogue, quakevr: -game as the kit's runs). Its
 id1/autoexec.cfg runs in every game: --reset-autoexec empties it first (the kit's test bases: a run's script).
@@ -596,6 +598,121 @@ def cosmetics(s):
     (la,), n = reports_until(s, [a], lambda ls: abs((body_of(ls[0], "mp_body").get(eb) or {}).get("eyeheight", [0])[0] -
                                                     1.9) < 0.002, "A's copy of B's body at B's height")
     s.check("B's height: A's copy of his body is posed at it", True, "after %d reports" % n)
+    cosmetics_b6b(s, srv, a, b, ea, eb)
+
+
+HOLSTER_UNITS = 1.0  # B's holstered weapon at A, and the server's holsterpos for B, within this of where B drew it
+HOLSTER_SLOT = 2     # the holster B is given a shotgun in (impulse 190 + it: the holsterweapon<slot> fields, body::Holster)
+
+
+def holsters_of(lines, prefix):
+    """"mp_holster:" / "mp_holster_own:" / "mp_holster_sv:" / "mp_holster_point_own:" lines -> {(ent, slot): fields}."""
+    out = {}
+    for l in lines:
+        if l.startswith(prefix + ":"):
+            f = avatar_fields(l.split(":", 1)[1])
+            m = re.search(r"model=(\S+)", l)
+            f["model"] = m.group(1) if m else ""
+            out[(int(f["ent"][0]), int(f["slot"][0]))] = f
+    return out
+
+
+def pauldrons_of(lines, prefix):
+    """"mp_pauldron:" / "mp_pauldron_own:" lines -> {(ent, side): fields (skin, scale, at)}."""
+    out = {}
+    for l in lines:
+        if l.startswith(prefix + ":"):
+            f = avatar_fields(l.split(":", 1)[1])
+            out[(int(f["ent"][0]), int(f["side"][0]))] = f
+    return out
+
+
+def flatbody(s):
+    """MP_PLAN B6b: a flat-screen player's body as others draw it is at his body height (vr_flat_body_height), as his own
+    is, not his headset Height."""
+    srv, a, b, ea, eb = join(s, flat="B", b_first="vr_height_calibration 1.8; vr_flat_body_height 1.5")
+
+    def posed(lines):
+        copy = body_of(lines[0], "mp_body").get(eb)
+        return copy is not None and abs(copy["eyeheight"][0] - 1.5) < 0.002
+
+    (la,), n = reports_until(s, [a], posed, "A's copy of flat B's body at his flat body height")
+    s.check("flat B: A's copy of his body posed at his flat body height (1.5 m, his Height 1.8)", True, "after %d reports" % n)
+
+
+def cosmetics_b6b(s, srv, a, b, ea, eb):
+    """MP_PLAN B6b: B's holstered shotgun drawn at A where B drew it, and the server's holsterpos for B where B's
+    holster is; B's pauldrons (steel, bigger) on A's copy of his body as on his own; B seated: A's copy posed as his own
+    seated body (no leg fit), the joints where B's own has them; B's nailgun's seated magazine in the server's drawn
+    weapon hull of it."""
+    b.quiet(r"mp_(move|pos): ", 0.5, 20, "both at rest")
+    since = srv.mark()
+    srv.cmd("developer 1")
+    b.cmd("impulse %d" % (190 + HOLSTER_SLOT))
+    srv.wait(r"holster give: .* holster %d a shotgun" % HOLSTER_SLOT, 10, since, "B's holster given a shotgun")
+
+    def holstered(lines):
+        la, lb, ls = lines
+        own, at_a = holsters_of(lb, "mp_holster_own").get((eb, HOLSTER_SLOT)), holsters_of(la, "mp_holster").get(
+            (eb, HOLSTER_SLOT))
+        return own is not None and at_a is not None and own["model"] == at_a["model"] and \
+            dist(own["at"], at_a["at"]) <= HOLSTER_UNITS
+
+    (la, lb, ls), n = reports_until(s, [a, b, srv], holstered, "A draws B's holstered shotgun where B drew it")
+    own, at_a = holsters_of(lb, "mp_holster_own")[(eb, HOLSTER_SLOT)], holsters_of(la, "mp_holster")[(eb, HOLSTER_SLOT)]
+    s.metric("holster_off", dist(own["at"], at_a["at"]))
+    s.check("A draws B's holstered shotgun where B drew it (within %g units)" % HOLSTER_UNITS, True, "%s %.2f off, after %d "
+            "reports" % (at_a["model"], dist(own["at"], at_a["at"]), n))
+    point, sv = holsters_of(lb, "mp_holster_point_own").get((eb, HOLSTER_SLOT)), holsters_of(ls, "mp_holster_sv").get(
+        (eb, HOLSTER_SLOT))
+    off = dist(point["at"], sv["at"]) if point and sv else float("inf")
+    s.metric("holsterpos_off", off)
+    s.check("the server's holsterpos for B is B's holster as he drew it (within %g units)" % HOLSTER_UNITS,
+            off <= HOLSTER_UNITS, "%.2f (B's %r, the server's %r)" % (off, point, sv))
+
+    b.cmd("vr_body_pauldrons 1; vr_body_pauldron_style 2; vr_body_pauldron_size 1.3")
+    a.cmd("vr_body_pauldrons 1; vr_body_pauldron_style 0; vr_body_pauldron_size 1")
+
+    def pauldrons(lines):
+        la, lb = lines
+        own, at_a = pauldrons_of(lb, "mp_pauldron_own"), pauldrons_of(la, "mp_pauldron")
+        return all(own.get((eb, side)) and at_a.get((eb, side)) and own[(eb, side)]["skin"] == at_a[(eb, side)]["skin"] ==
+                   [4.0] and abs(own[(eb, side)]["scale"][0] - at_a[(eb, side)]["scale"][0]) <= 1 for side in (0, 1))
+
+    (la, lb), n = reports_until(s, [a, b], pauldrons, "A draws B's steel pauldrons at his size")
+    own, at_a = pauldrons_of(lb, "mp_pauldron_own"), pauldrons_of(la, "mp_pauldron")
+    off = max(dist(own[(eb, side)]["at"], at_a[(eb, side)]["at"]) for side in (0, 1))
+    s.metric("pauldron_off", off)
+    s.check("A draws B's pauldrons (steel, his size) on his body where B's own are (within %g units)" % BODY_UNITS,
+            off <= BODY_UNITS, "%.2f off, scale %r (B's %r), after %d reports" % (
+                off, at_a[(eb, 0)]["scale"], own[(eb, 0)]["scale"], n))
+
+    b.cmd("vr_bodycal_seated 1")
+
+    def seated(lines):
+        la, lb = lines
+        copy, own = body_of(la, "mp_body").get(eb), body_of(lb, "mp_body_own").get(eb)
+        return copy is not None and own is not None and copy.get("seated") == [1.0] and \
+            dist(copy["pelvis"], own["pelvis"]) <= BODY_UNITS
+
+    (la, lb), n = reports_until(s, [a, b], seated, "A's copy of B seated, posed as his own")
+    copy, own = body_of(la, "mp_body")[eb], body_of(lb, "mp_body_own")[eb]
+    worst = max(dist(copy[k], own[k]) for k in ("pelvis", "headjoint"))  # (the feet's stance is each body's own)
+    s.metric("seated_joint_worst", worst)
+    s.check("B seated: A's copy of his body posed as his own (pelvis and head within %g units)" % BODY_UNITS,
+            worst <= BODY_UNITS, "%.2f, after %d reports" % (worst, n))
+    b.cmd("vr_bodycal_seated 0")
+
+    # His nailgun's magazine in the server's hull of his drawn weapon (immersive reloading's magazines shown).
+    srv.cmd("vr_reload_mode 3; vr_debug_box3d 1")
+    b.cmd("vr_reload_mode 3")
+    since = srv.mark()
+    grip_then_give(srv, b, "vr_mock_button main grip 1", impulse=150 + WID_NAILGUN)
+    got = wait_quietly(srv, r"box3d: main hand's weapon progs/v_nail\.mdl: .* and its magazine", 20, since,
+                       "the server's hull of B's nailgun")
+    s.check("the server's drawn weapon hull of B's nailgun has its seated magazine", got is not None,
+            "no 'box3d: main hand's weapon progs/v_nail.mdl ... and its magazine' in the server's log")
+    srv.cmd("vr_debug_box3d 0")
 
 
 def body_of(lines, prefix):
@@ -2069,6 +2186,7 @@ def shove(s, srv, att, dfd, ea, ed, label):
 
 
 WID_SWORD = 13
+WID_NAILGUN = 6
 SWORD_GIVE = 150 + WID_SWORD  # the test give of a sword
 # A sword swung level from the right to the left across the front (its blade turned 150 degrees in 0.2 s, the hand
 # going across with it: about 13 m/s at the tip), held there, then brought back slowly.
@@ -2450,6 +2568,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             rules(s)
         elif test == "mp_cosmetics":
             cosmetics(s)
+        elif test == "mp_flatbody":
+            flatbody(s)
         else:
             coop(s, args.listen, args.flat or "", lag, jitter, loss)
     except StepFailed as e:
@@ -2462,7 +2582,7 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -2486,7 +2606,7 @@ def main():
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics"):
+                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody"):
         ok = run(args, "mp_" + args.test)
     else:
         ok = run(args, "mp_coop")
@@ -2512,6 +2632,7 @@ def main():
         ok = run(args, "mp_climb") and ok
         ok = run(args, "mp_rules") and ok
         ok = run(args, "mp_cosmetics") and ok
+        ok = run(args, "mp_flatbody") and ok
         print("mp_suite: %s" % ("passed" if ok else "FAILED"))
     sys.exit(0 if ok else 1)
 

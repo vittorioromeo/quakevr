@@ -4727,6 +4727,25 @@ void() ImpulseCommands =
         return;
     }
 
+    // Development and tests (not deathmatch): impulse 190 + a holster slot (0..5, the holsterweapon<slot> fields) puts a
+    // loaded shotgun in that holster (the multiplayer harness's mp_cosmetics: another player's holstered weapons).
+    if(!deathmatch && self.impulse >= 190 && self.impulse < 196)
+    {
+        float hs = self.impulse - 190;
+        self.impulse = 0;
+        VR_WeaponUtil_EntAddWeapon(self, WID_SHOTGUN);
+        entity hsInst = WeaponInst_New(WeaponIdToBaseClipSize(WID_SHOTGUN));
+        string hsModel = WeaponIdToModel(WID_SHOTGUN, 0);
+        if(hs == 0) { self.holsterweapon0 = WID_SHOTGUN; self.holsterweaponflags0 = 0; self.holsterweaponinst0 = hsInst; self.holsterweaponmodel0 = hsModel; }
+        if(hs == 1) { self.holsterweapon1 = WID_SHOTGUN; self.holsterweaponflags1 = 0; self.holsterweaponinst1 = hsInst; self.holsterweaponmodel1 = hsModel; }
+        if(hs == 2) { self.holsterweapon2 = WID_SHOTGUN; self.holsterweaponflags2 = 0; self.holsterweaponinst2 = hsInst; self.holsterweaponmodel2 = hsModel; }
+        if(hs == 3) { self.holsterweapon3 = WID_SHOTGUN; self.holsterweaponflags3 = 0; self.holsterweaponinst3 = hsInst; self.holsterweaponmodel3 = hsModel; }
+        if(hs == 4) { self.holsterweapon4 = WID_SHOTGUN; self.holsterweaponflags4 = 0; self.holsterweaponinst4 = hsInst; self.holsterweaponmodel4 = hsModel; }
+        if(hs == 5) { self.holsterweapon5 = WID_SHOTGUN; self.holsterweaponflags5 = 0; self.holsterweaponinst5 = hsInst; self.holsterweaponmodel5 = hsModel; }
+        dprint(sprintf("holster give: %s holster %g a shotgun\n", self.netname, hs));
+        return;
+    }
+
     // Flatscreen play (-flatscreenmode): E force-grabs what the view is pointed at (vr_flatplay.cpp reads the key and
     // sends the impulse; the force grab itself is the game's own, vr_wpnforcegrab.qc).
     // (50 and 51: the off and the main hand, the one the client turned palm out first: vr_flatfgrab.cpp.)
