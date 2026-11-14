@@ -42,6 +42,10 @@ int weaponOffsetsHolster = -1;
 
 [[nodiscard]] weapons::HolsterKind editedHolster()
 {
+    if(slotListing.holster >= 0)
+    {
+        return static_cast<weapons::HolsterKind>(slotListing.holster);
+    }
     return static_cast<weapons::HolsterKind>(CLAMP(1, static_cast<int>(vr_weapon_holster.value), weapons::holsterKinds) - 1);
 }
 
@@ -67,6 +71,10 @@ int weaponOffsetsHotspotManual = -1;
 
 [[nodiscard]] int editedHotspot()
 {
+    if(slotListing.hotspot >= 0)
+    {
+        return slotListing.hotspot;
+    }
     return CLAMP(1, static_cast<int>(vr_weapon_hotspot.value), weapons::maxHotspots) - 1;
 }
 
@@ -268,11 +276,13 @@ constexpr const char* weaponOffsetsShotHelp = "Turns where the weapon's shots, p
 [[nodiscard]] int weaponOffsetsBegin(za::Vector<Item>& list, int part)
 {
     using weapons::Key;
-    za::String& title = pageTexts.weaponOffsetsTitle[part];
+    za::String& title = listingSlots() ? slotListingTexts.title : pageTexts.weaponOffsetsTitle[part];
     weaponOffsetsHotspot = weaponOffsetsHotspotType = weaponOffsetsManual = weaponOffsetsPreviewOwn =
         weaponOffsetsHotspotManual = weaponOffsetsHolster = -1;
-    int slot = vrActive() || cls.state == ca_connected ? weapons::heldSlot(weaponOffsetsHand) : -1;
-    if(slot < 0 && cls.state == ca_connected)
+    int slot = slotListing.weapon >= 0                      ? slotListing.weapon
+               : vrActive() || cls.state == ca_connected ? weapons::heldSlot(weaponOffsetsHand)
+                                                         : -1;
+    if(slot < 0 && cls.state == ca_connected && slotListing.prop < 0)
     {
         slot = weapons::fistSlot(); // an empty hand: the hand model's own settings
     }
@@ -295,7 +305,7 @@ constexpr const char* weaponOffsetsShotHelp = "Turns where the weapon's shots, p
     const int heldSlot = slot;
     weaponOffsetsHeldSlot = heldSlot;
     weaponOffsetsInherit = weapons::inheritsFrom(heldSlot);
-    za::String& inheritTitle = pageTexts.weaponOffsetsInheritTitle[part];
+    za::String& inheritTitle = listingSlots() ? slotListingTexts.inheritTitle : pageTexts.weaponOffsetsInheritTitle[part];
     if(weaponOffsetsInherit >= 0)
     {
         slot = weaponOffsetsInherit;
@@ -315,7 +325,8 @@ constexpr const char* weaponOffsetsShotHelp = "Turns where the weapon's shots, p
         }
         return slot;
     }
-    za::Vector<za::Pair<float, za::String>>& inheritNames = pageTexts.weaponOffsetsInheritNames;
+    za::Vector<za::Pair<float, za::String>>& inheritNames =
+        listingSlots() ? slotListingTexts.inheritNames : pageTexts.weaponOffsetsInheritNames;
     inheritNames.clear();
     inheritNames.pushBack({0.f, "None"});
     for(int other = 0; other < weapons::numSlots; other++)
@@ -1061,6 +1072,212 @@ za::Vector<Item> pageWofsFlashlight()
             .help("Every weapon's place for the flashlight and the zone that clips it on, its size (Flashlight).")
     );
     return list;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Reset This Page and Changed Settings on the weapon and prop pages (ROUND25.md, "Reset This Page and changes on the
+// weapon and prop pages").
+
+bool slotValue(const cvar_t& var)
+{
+    return !q_strncasecmp(var.name, "vr_wofs_", 8) || !q_strncasecmp(var.name, "vr_prop_", 8);
+}
+
+void slotPageReset(PageRef build)
+{
+    weaponOffsetsStale = true; // (a hotspot's type, the Fingers choices: the rows shown)
+    if(build == pageWeaponWeights)
+    {
+        weaponWeightsStale = true;
+    }
+    if(build == pageHeldObjectOffsets || build == pageHeldObjectWeights)
+    {
+        heldObjectStale = true;
+    }
+}
+
+namespace
+{
+
+// A row of listSlotChanges' about to be listed: its label is texts[text] (set once every text is made: the vector grows).
+struct SlotRow
+{
+    Item item;
+    int text;
+};
+
+// `page` built (slotListing set) and its rows of a changed value of the slot not listed yet taken, labelled "<part>:
+// <label>" ("Muzzle and Sights: Muzzle X"), or for the hotspot or holster built for (`sub`: its own values, `own`,
+// `ownCount` of them) "<sub>: <label>" ("Hotspot 2: Hotspot X", "Hip: Holstered X (off body)").
+void takeSlotRows(za::Vector<SlotRow>& rows, za::Vector<za::String>& texts, za::Vector<const cvar_t*>& seen,
+    PageRef page, const char* part, const char* sub, cvar_t* const* own, int ownCount, const cvar_t* skip)
+{
+    for(Item& item : pages[pageIndex(page)].build())
+    {
+        if(!item.cvar || item.kind == Item::Action || item.kind == Item::Header || !slotValue(*item.cvar) ||
+            item.cvar == skip || !changedSetting(*item.cvar) ||
+            za::anyOf(seen.begin(), seen.end(), [&](const cvar_t* v) { return v == item.cvar; }))
+        {
+            continue;
+        }
+        const bool mine = sub && za::anyOf(own, own + ownCount, [&](const cvar_t* v) { return v == item.cvar; });
+        texts.pushBack(za::String(mine ? sub : part) + ": " + item.label);
+        seen.pushBack(item.cvar);
+        Item copy = ZA_MOVE(item);
+        copy.level = LevelStandard;
+        rows.pushBack({ZA_MOVE(copy), static_cast<int>(texts.size()) - 1});
+    }
+}
+
+[[nodiscard]] bool slotChanged(cvar_t* (*at)(int, int), int slot, int keys)
+{
+    for(int k = 0; k < keys; k++)
+    {
+        if(const cvar_t* var = at(slot, k); var && changedSetting(*var))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+[[nodiscard]] cvar_t* weaponKey(int slot, int key)
+{
+    return weapons::cvar(slot, static_cast<weapons::Key>(key));
+}
+
+[[nodiscard]] cvar_t* propKey(int slot, int key)
+{
+    return props::cvar(slot, static_cast<props::Key>(key));
+}
+
+[[nodiscard]] za::String slotHeader(const char* what, const char* id, int slot)
+{
+    return za::String(what) + ": " + id + " (_" + (slot + 1 < 10 ? "0" : "") + za::toString(slot + 1) + ")";
+}
+
+} // namespace
+
+void listSlotChanges(za::Vector<Item>& list, za::Vector<const cvar_t*>& seen)
+{
+    // The pages' state as they were built for the hands (put back after; their texts rebuilt with them: pageChanged).
+    const int wSlot = weaponOffsetsSlot, wHeld = weaponOffsetsHeldSlot, wInherit = weaponOffsetsInherit;
+    const int wHotspot = weaponOffsetsHotspot, wHotspotType = weaponOffsetsHotspotType, wManual = weaponOffsetsManual;
+    const int wPreview = weaponOffsetsPreviewOwn, wHotspotManual = weaponOffsetsHotspotManual;
+    const int wHolster = weaponOffsetsHolster, wSight = weaponOffsetsSightVersion, wSightRow = weaponOffsetsSightFocusRow;
+    const int wwSlot = weaponWeightsSlot, wwHand = weaponWeightsHand, hoHand = heldObjectHand, hoSlot = heldObjectSlot;
+    const bool wwKeep = weaponWeightsKeepHand, hoKeep = heldObjectKeepHand, hoWeapon = heldObjectWeapon;
+    const za::String hoModel = heldObjectModel;
+    const SlotListing pinned = slotListing;
+
+    za::Vector<za::String>& texts = pageTexts.changedSlotTexts;
+    texts.clear();
+    za::Vector<SlotRow> rows;
+    za::Vector<int> headers; // rows' index where a weapon's or prop's header goes, its text's index after
+    const auto headed = [&](za::String text, size_t before) {
+        if(rows.size() > before)
+        {
+            texts.pushBack(ZA_MOVE(text));
+            headers.pushBack(static_cast<int>(before));
+            headers.pushBack(static_cast<int>(texts.size()) - 1);
+        }
+    };
+    for(int slot = 0; slot < weapons::numSlots; slot++)
+    {
+        // (An inheriting weapon's pages edit the other's: listed under it.)
+        if(weapons::inheritsFrom(slot) >= 0 || !slotChanged(weaponKey, slot, static_cast<int>(weapons::Key::Count)))
+        {
+            continue;
+        }
+        slotListing = {};
+        slotListing.weapon = slot;
+        slotListing.listing = true;
+        const size_t before = rows.size();
+        const cvar_t* inherit = weapons::cvar(slot, weapons::Key::InheritFrom); // (its choices: the page's own texts)
+        takeSlotRows(rows, texts, seen, pageWeaponOffsets, "Weapon Offsets", nullptr, nullptr, 0, inherit);
+        for(const WeaponOffsetsPartPage& part : weaponOffsetsPartPages)
+        {
+            if(part.build == pageWofsTwoHanded)
+            {
+                for(int h = 0; h < weapons::maxHotspots; h++)
+                {
+                    cvar_t* own[26];
+                    for(int f = 0; f < 26; f++)
+                    {
+                        own[f] = weapons::cvar(slot, weapons::hotspotKey(h, f));
+                    }
+                    slotListing.hotspot = h;
+                    const za::String name = za::String("Hotspot ") + za::toString(h + 1); // (not va's: the pages use it)
+                    takeSlotRows(rows, texts, seen, part.build, part.link, name.cStr(), own, 26, inherit);
+                }
+                slotListing.hotspot = -1;
+            }
+            else if(part.build == pageWofsHolstered)
+            {
+                constexpr const char* kinds[weapons::holsterKinds] = {"Hip", "Upper (Chest)", "Shoulder (Back)"};
+                for(int k = 0; k < weapons::holsterKinds; k++)
+                {
+                    cvar_t* own[weapons::holsteredFields];
+                    for(int f = 0; f < weapons::holsteredFields; f++)
+                    {
+                        own[f] = weapons::cvar(slot, weapons::holsteredKey(static_cast<weapons::HolsterKind>(k), f));
+                    }
+                    slotListing.holster = k;
+                    takeSlotRows(rows, texts, seen, part.build, part.link, kinds[k], own, weapons::holsteredFields, inherit);
+                }
+                slotListing.holster = -1;
+            }
+            else
+            {
+                takeSlotRows(rows, texts, seen, part.build, part.link, nullptr, nullptr, 0, inherit);
+            }
+        }
+        takeSlotRows(rows, texts, seen, pageWeaponWeights, "Weight", nullptr, nullptr, 0, inherit);
+        headed(slotHeader("Weapon", weapons::cvar(slot, weapons::Key::ID)->string, slot), before);
+    }
+    for(int slot = 0; slot < props::numSlots; slot++)
+    {
+        if(!slotChanged(propKey, slot, static_cast<int>(props::Key::Count)))
+        {
+            continue;
+        }
+        slotListing = {};
+        slotListing.prop = slot;
+        slotListing.listing = true;
+        const size_t before = rows.size();
+        takeSlotRows(rows, texts, seen, pageHeldObjectOffsets, "Offsets", nullptr, nullptr, 0, nullptr);
+        takeSlotRows(rows, texts, seen, pageHeldObjectWeights, "Weight", nullptr, nullptr, 0, nullptr);
+        headed(slotHeader("Prop", props::cvar(slot, props::Key::ID)->string, slot), before);
+    }
+    slotListing = pinned;
+
+    // The rows, each weapon's or prop's under its header (the texts all made: their addresses kept from here).
+    size_t h = 0;
+    for(size_t r = 0; r < rows.size(); r++)
+    {
+        for(; h < headers.size() && headers[h] == static_cast<int>(r); h += 2)
+        {
+            list.pushBack(header(texts[static_cast<size_t>(headers[h + 1])].cStr()));
+        }
+        rows[r].item.label = texts[static_cast<size_t>(rows[r].text)].cStr();
+        list.pushBack(ZA_MOVE(rows[r].item));
+    }
+
+    weaponOffsetsSlot = wSlot, weaponOffsetsHeldSlot = wHeld, weaponOffsetsInherit = wInherit;
+    weaponOffsetsHotspot = wHotspot, weaponOffsetsHotspotType = wHotspotType, weaponOffsetsManual = wManual;
+    weaponOffsetsPreviewOwn = wPreview, weaponOffsetsHotspotManual = wHotspotManual;
+    weaponOffsetsHolster = wHolster, weaponOffsetsSightVersion = wSight, weaponOffsetsSightFocusRow = wSightRow;
+    weaponWeightsSlot = wwSlot, weaponWeightsHand = wwHand, heldObjectHand = hoHand, heldObjectSlot = hoSlot;
+    weaponWeightsKeepHand = wwKeep, heldObjectKeepHand = hoKeep, heldObjectWeapon = hoWeapon;
+    heldObjectModel = hoModel;
+    weaponOffsetsStale = weaponWeightsStale = heldObjectStale = true; // (built for the hands again)
+}
+
+void pinSlotPages(int weaponSlot)
+{
+    slotListing = {};
+    slotListing.weapon = weaponSlot;
+    weaponOffsetsStale = weaponWeightsStale = true;
 }
 
 // (The page shown, the Back stack: MenuInstance::page, nav.)

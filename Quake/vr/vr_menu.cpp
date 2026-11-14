@@ -2061,12 +2061,13 @@ void loadPositions()
 
 // Built on first use (cvars looked up by name exist by then); items without their cvar dropped.
 // A setting changed from its default (a * by its label; Changed Settings): its value, or for text its string. The
-// menus' own state and the presets (whose settings show it themselves) aren't.
-[[nodiscard]] bool changedSetting(const cvar_t& var)
+// menus' own state (the weapon pages' hotspot and holster picked) and the presets (whose settings show it themselves)
+// aren't. A weapon's or prop's value (slotValue): its default is that slot's own (weapons.txt's, props.txt's).
+bool changedSetting(const cvar_t& var)
 {
     if(&var == &vr_menu_level || &var == &vr_comfort_preset || &var == &vr_handedness || &var == &vr_graphics_preset ||
         &var == &vr_gore_preset || &var == &vr_gameplay_preset || &var == &vr_classic_quake ||
-        !var.default_string)
+        &var == &vr_weapon_hotspot || &var == &vr_weapon_holster || !var.default_string)
     {
         return false;
     }
@@ -2084,8 +2085,10 @@ void loadPositions()
 
 // Reset This Page (the footer): armed by a first press, done by a second within 3 seconds (MenuInstance::resetArmed*).
 
-// The pages of one weapon's or prop's settings (their own resets, Reset This Weapon...): no Reset This Page, and not on
-// Changed Settings (the held one's values, not settings of their own).
+// The pages of one weapon's or prop's settings (the held one's values; their own resets too, Reset This Weapon...):
+// Reset This Page resets the rows shown (that slot's values back to its weapons.txt or props.txt defaults: the hotspot
+// and the holster edited), and Changed Settings lists every slot's changed values under the slot's name
+// (listSlotChanges), the pages' other settings under the page's title.
 [[nodiscard]] bool slotPage(PageRef build);
 
 // The menu detail level the pages are built for (vr_menu_level; resolvePath: every page, LevelDeveloper).
@@ -2150,11 +2153,15 @@ void addMenuDetail(za::Vector<Item>& list, int page)
     {
         list.pushBack(header("Advanced").minor());
     }
-    if(settings && !slotPage(PageRef::at(page)) && page != pageIndex(pageChanged))
+    if(settings && page != pageIndex(pageChanged))
     {
         list.pushBack(action(ui().resetArmedPage == page ? "Press Again to Reset" : "Reset This Page", resetThisPage)
-                .help("Every setting on this page (as Menu Detail shows it) back to its default. Press it twice: the second "
-                      "time within 3 seconds.").minor());
+                .help(slotPage(PageRef::at(page))
+                          ? "Every setting on this page (as Menu Detail shows it) back to its default: this weapon's or "
+                            "prop's values as it ships (the hotspot or holster shown: the others stay). Press it twice: "
+                            "the second time within 3 seconds."
+                          : "Every setting on this page (as Menu Detail shows it) back to its default. Press it twice: the "
+                            "second time within 3 seconds.").minor());
     }
     list.pushBack(row(opt::vr_menu_level).minor());
 }
@@ -3139,6 +3146,10 @@ void resetThisPage()
         }
     }
     Con_Printf("VR: %s: %d setting%s back to %s default\n", pages[ui().page].title, n, n == 1 ? "" : "s", n == 1 ? "its" : "their");
+    if(slotPage(PageRef::at(ui().page)))
+    {
+        slotPageReset(PageRef::at(ui().page));
+    }
     menuPages.done[ui().page] = false;
 }
 
@@ -3157,14 +3168,16 @@ za::Vector<Item> pageChanged()
     levelOverride = LevelDeveloper;
     for(int p = 0; p < pageCount; p++)
     {
-        if(p == pageIndex(pageChanged) || slotPage(PageRef::at(p)))
+        if(p == pageIndex(pageChanged))
         {
             continue;
         }
         bool headed = false;
         for(const Item& item : items(p))
         {
+            // (A weapon's or prop's value: under its name, below.)
             if(!item.cvar || item.kind == Item::Action || !changedSetting(*item.cvar) || wrapperCvar(*item.cvar) ||
+                slotValue(*item.cvar) ||
                 za::anyOf(seen.begin(), seen.end(), [&](const cvar_t* v) { return v == item.cvar; }))
             {
                 continue;
@@ -3181,6 +3194,16 @@ za::Vector<Item> pageChanged()
         }
     }
     levelOverride = was;
+    // Every weapon's and prop's changed values (not just the held one's), each under its name; the slot pages, built for
+    // them, built for the hands again when next shown.
+    listSlotChanges(list, seen);
+    for(int p = 0; p < pageCount; p++)
+    {
+        if(slotPage(PageRef::at(p)))
+        {
+            menuPages.done[p] = false;
+        }
+    }
     if(list.empty())
     {
         list.pushBack(info(changedNone));
@@ -4875,6 +4898,117 @@ void qvr::menu::handCalMatch_f()
 
 namespace
 {
+// menu_vr pageresettest (Misc/quakevr/menu_pagereset_test.sh; ROUND25.md, "Reset This Page and changes on the weapon and
+// prop pages"): the weapon pages pinned to the shotgun's slot (no game needed), its hotspot 1 X changed (and, to stay:
+// its hotspot 2 X, its Shot Pitch on another page, the nailgun's hotspot 1 X): the * by the row, the row on Changed
+// Settings under the shotgun's name (and prop 1's Mass under its), Reset This Page on Two-Handed (pressed twice) puts
+// it back to the shotgun's weapons.txt default and leaves the others. Every value put back after. Ends
+// "pagereset_test: N passed, M failed".
+void pageResetTest()
+{
+    using weapons::Key;
+    testkit::Tally tally;
+    const auto check = [&tally](bool ok, const char* what) {
+        if(tally.check(ok, "pagereset_test", what))
+        {
+            Con_Printf("pagereset_test: PASS %s\n", what);
+        }
+    };
+    const int shot = weapons::slotForName("progs/v_shot.mdl"), nail = weapons::slotForName("progs/v_nail.mdl");
+    check(shot >= 0 && nail >= 0 && shot != nail, "the shotgun's and the nailgun's slots");
+    if(shot < 0 || nail < 0 || shot == nail)
+    {
+        tally.verdict("pagereset_test");
+        return;
+    }
+    cvar_t* const x1 = weapons::cvar(shot, weapons::hotspotKey(0, 1));
+    cvar_t* const x2 = weapons::cvar(shot, weapons::hotspotKey(1, 1));
+    cvar_t* const pitch = weapons::cvar(shot, Key::ShotPitch);
+    cvar_t* const nailX1 = weapons::cvar(nail, weapons::hotspotKey(0, 1));
+    cvar_t* const propMass = props::cvar(0, props::Key::Mass);
+    cvar_t* const all[] = {x1, x2, pitch, nailX1, propMass};
+    for(cvar_t* var : all)
+    {
+        Cvar_SetQuick(var, var->default_string);
+    }
+    const float hotspotWas = vr_weapon_hotspot.value, levelWas = vr_menu_level.value;
+    Cvar_SetValueQuick(&vr_menu_level, LevelDeveloper);
+    Cvar_SetValueQuick(&vr_weapon_hotspot, 1.f);
+    pinSlotPages(shot);
+    VR_Menu_Open();
+    const int page = pageIndex(pageWofsTwoHanded);
+    openInTree(page);
+    check(ui().page == page, "Weapon Offsets - Two-Handed shown");
+    check(!changedSetting(*x1), "the shotgun's hotspot 1 X unmarked at its default");
+    const auto has = [](const za::Vector<Item>& list, const cvar_t* var) {
+        return za::anyOf(list.begin(), list.end(), [&](const Item& item) { return item.cvar == var; });
+    };
+    const auto resetRow = [](const za::Vector<Item>& list) {
+        return za::anyOf(list.begin(), list.end(), [](const Item& item) {
+            return item.kind == Item::Action && item.action == resetThisPage;
+        });
+    };
+    check(has(items(page), x1) && resetRow(items(page)), "the page has hotspot 1 X and Reset This Page");
+    check(resetRow(items(pageIndex(pageWeaponWeights))) && resetRow(items(pageIndex(pageWofsHand))),
+        "Weapon Weights and Hand and Grip have Reset This Page");
+
+    Cvar_SetValueQuick(x1, Q_atof(x1->default_string) + 1.5f);
+    Cvar_SetValueQuick(x2, Q_atof(x2->default_string) + 2.5f);
+    Cvar_SetValueQuick(pitch, Q_atof(pitch->default_string) + 1.f);
+    Cvar_SetValueQuick(nailX1, Q_atof(nailX1->default_string) - 3.f);
+    Cvar_SetValueQuick(propMass, Q_atof(propMass->default_string) + 2.f);
+    check(changedSetting(*x1) && has(items(page), x1), "hotspot 1 X changed: its row marked (*)");
+
+    // Changed Settings: the shotgun's rows under its name, the nailgun's under its.
+    const za::Vector<Item> changed = pageChanged();
+    const za::String shotHeader = za::String("Weapon: ") + weapons::cvar(shot, Key::ID)->string;
+    int x1Row = -1, x1Header = -1, x2Row = -1, pitchRow = -1, nailRow = -1, propRow = -1, propHeader = -1;
+    for(int i = 0; i < static_cast<int>(changed.size()); i++)
+    {
+        const Item& item = changed[i];
+        if(item.kind == Item::Header && item.label && !strncmp(item.label, shotHeader.cStr(), shotHeader.size()))
+        {
+            x1Header = i;
+        }
+        if(item.kind == Item::Header && item.label && !strncmp(item.label, "Prop: ", 6) && propHeader < 0)
+        {
+            propHeader = i;
+        }
+        propRow = item.cvar == propMass ? i : propRow;
+        x1Row = item.cvar == x1 ? i : x1Row;
+        x2Row = item.cvar == x2 ? i : x2Row;
+        pitchRow = item.cvar == pitch ? i : pitchRow;
+        nailRow = item.cvar == nailX1 ? i : nailRow;
+    }
+    char line[256];
+    q_snprintf(line, sizeof(line), "Changed Settings lists hotspot 1 X under the shotgun (\"%s\" under \"%s\")",
+        x1Row >= 0 ? changed[x1Row].label : "none", x1Header >= 0 ? changed[x1Header].label : "none");
+    check(x1Row > x1Header && x1Header >= 0 && strstr(changed[x1Row].label, "Hotspot 1"), line);
+    check(x2Row > x1Header && pitchRow > x1Header && nailRow >= 0, "and hotspot 2 X, Shot Pitch, the nailgun's");
+    check(x2Row >= 0 && strstr(changed[x2Row].label, "Hotspot 2") != nullptr, "hotspot 2 X labelled Hotspot 2");
+    q_snprintf(line, sizeof(line), "a prop's Mass under its name (\"%s\" under \"%s\")",
+        propRow >= 0 ? changed[propRow].label : "none", propHeader >= 0 ? changed[propHeader].label : "none");
+    check(propRow > propHeader && propHeader >= 0, line);
+
+    // Reset This Page, pressed twice: hotspot 1 X back, the rest kept.
+    resetThisPage();
+    check(changedSetting(*x1), "one press only arms it");
+    resetThisPage();
+    check(!changedSetting(*x1) && !strcmp(x1->string, x1->default_string), "Reset This Page: hotspot 1 X at its default");
+    check(changedSetting(*x2) && changedSetting(*pitch) && changedSetting(*nailX1),
+        "hotspot 2 X, Shot Pitch (another page) and the nailgun's hotspot kept");
+    check(vr_weapon_hotspot.value == 1.f, "the hotspot picked kept (the menu's state)");
+
+    for(cvar_t* var : all)
+    {
+        Cvar_SetQuick(var, var->default_string);
+    }
+    Cvar_SetValueQuick(&vr_weapon_hotspot, hotspotWas);
+    Cvar_SetValueQuick(&vr_menu_level, levelWas);
+    pinSlotPages(-1);
+    tally.verdict("pagereset_test");
+}
+
 // The pages' numbers checked (menu_vr ids; at start, quiet unless something is wrong): each page is its number in
 // pages[] (vr_menu_table.inc; its builders are each there once and every home is a page: checked while compiling).
 // Here: each title once (vr_menu_positions and the boards' menu paths find a page by it), every page's homes reaching
@@ -5166,6 +5300,11 @@ void qvr::menu::command_f()
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "rows"))
     {
         printRows();
+        return;
+    }
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "pageresettest"))
+    {
+        pageResetTest();
         return;
     }
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "wheeltest"))
