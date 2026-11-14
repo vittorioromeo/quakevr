@@ -2825,6 +2825,80 @@ well-timed parries."
 - `mp_cosmetics` 20/0 (grown, with two images of A's view of B), `mp_rules` 14/0 (grown); the suite 23 of 25, the two
   then pass alone. Single player: plates_model_test 9/0, scenario_check 145 run 0 failed, load_models 4/0, vr_run_check
   12/0. Next: B7 (snapshots). Details: MP_PLAN.md, "B6c results".
+## The detailed ranger head on the body (worktree `takeslight`, branch `agent/rangerhead`, 2026-11-14)
+
+His ask (2026-11-15): Dawn of the Machine's ranger corpses (its `start` map) have a nicer, more detailed head: use it
+on our body. **What the corpse is**: `misc_corpse` with styles 17..22 (`vr_mg_corpses.qc`: `progs/player.mdl` frames
+49..102). No player model ships in MG3's pak, and in Quake VR `progs/player.mdl` is Quake VR's own
+(`quakevr/progs/player.mdl`: 733 vertices, 1062 triangles, a 256 x 256 skin, 144 unnamed frames; the quakevr folder is
+the highest on MG3's path). So the head he saw is ours, shipped already: nothing of the re-release is needed or read.
+(KEX itself draws the re-release's `id1/progs/player.md5mesh`: 945 vertices, 26 joints with Head/Neck, a 256 x 256
+`player_00_00.lmp`; reference only.) Its "rigs and ragdolls" are ours too: the player ragdoll rig (`player_bones.json`,
+11 bones from the same model; its head bone is cluster 5, these two islands); the corpses already ragdoll with it, and
+`limbmodel` can already cut its head as a limb (`progs/player.mdl#limb<head>`) for player gibs later.
+
+**Comparison** (offline flat renders, same light: `qvr-kit/scratch/rangerhead_shots/heads_compare.png`): Quake's head
+27 triangles, 8.5 x 7.5 units, a 296 x 194 skin; Quake VR's 131 triangles in two islands of their own (a hood with ear
+guards, 89; a sculpted face, 42), 8.1 x 9.5 units, its own 256 x 256 skin's islands (s 88..252, t 61..142): too spread
+over the skin to paint into the body's 512 x 57-texel head block as Quake's is.
+
+**Built** (`vr_rangerhead.cpp`): `vr_body_ranger_head_model` (new, archived, default 1; Appearance > Ranger Head >
+*Detailed Head*; latched at the next start like `vr_body_ranger_head`). 1: the first `progs/player.mdl` like Quake VR's
+(400..3000 vertices, frame 13 = stand1 40..70 units tall), its islands wholly above 0.2 of the height from the top
+(the next island down is 9.8 units lower), else Quake's head as before (0 too), else the placeholder.
+- The body's mesh: the placeholder's head triangles dropped and the neck's top ring narrowed as before; his head is
+  not added there but as a mesh of its own after the body's (and the bare bodies' cuff shell): `VR_RangerHeadExtend`
+  appends it to the body's md5 text (shader `vrrangerhead`, every vertex the `head` joint's), `VR_RangerHeadMesh` (now
+  told the mesh number) places it in the bind pose (1.05 x the placeholder's width, bottom 1.5 units below it) and
+  `VR_RangerHeadSkins` gives it his own skin (palette indices from his file, kept for the session, one persistent
+  texture for every body and skin number). So every draw of the body has it as it had the old one: the eye views
+  collapse it with the head joint, the mirror clone, third person, shadows, other players' bodies.
+- The Ranger Head page's sliders (size, sink, place, turn) place it live as they did Quake's (its vertices rewritten
+  in its own mesh, the neck ring in the body's).
+- `VR_AliasSurfaceNext` (bodies with the cuff shell) now draws meshes after the shells; `vr_wounds` accepts a body
+  with the head's mesh (its masks are the body's; the head reads them at its own texels: a known imperfection).
+- `vr_body_head_check <detailed|classic|off>` (verdict `rangerhead_check: N passed, M failed`); `-rangerhead_nodetail`
+  makes the detailed search fail (the fallback test).
+
+**Verified** (mock, `map start`): "the detailed head of .../quakevr/progs/player.mdl (131 triangles, 100 vertices)",
+both bodies loaded (vrbody, vrbody_bare) with his mesh and skin, `vr_body_head_check detailed` 3/0; with
+`-rangerhead_nodetail`: Quake's head painted on, `vr_body_head_check classic` 3/0. Shots front/side/back:
+`rangerhead_shots/detailed_ingame.png`, `classic_fallback.png`. Dev build 0 warnings.
+
+For him in VR: a mirror or the Ranger Head page's clone: its size and height over the neck (Size/Neck Sink apply to it),
+front, side, back; nothing of it in your own view when looking down or leaning.
+## classic3: Classic recoil, no enemy weapon drops, the burst rifle always bursts (agent/classic3, 2026-11-15)
+
+- **No recoil in Classic:** the Gameplay preset's Classic row set `vr_weapon_recoil` 0 (a "?" taste call: "Quake has no
+  gun kick"), but the models' own baked kick is always cancelled (`vr_kickcancel.cpp`), so a Classic gun had no kick
+  at all, VR and flat (flat draws the same `weaponfx` recoil). Classic now leaves it at the default (1), as Light and
+  Unleashed; GAMEPLAY_PRESET.md marks it decided.
+- **Grunts still dropped burst rifles:** Classic already had `vr_enemy_drops` 2 (never), but that is only id's random
+  extra drops (`TryEnemyDrop`); a dying grunt's own gun (`army_die` -> `VR_DropEnemyGun`), an enforcer's rifle, a
+  knight's sword, an ogre's chainsaw, an armed humanoid's held and stowed weapons and AD's soldiers' and melee monsters'
+  always fell. New `vr_enemy_held_drops` (1; Classic 0, Light/Unleashed 1) and `vr_enemy_held_drops_linger` (4 s):
+  at 0 such a weapon still falls (the death frames are drawn without it: `vr_monstermods.cpp`) but as scenery
+  (`VR_EnemyHeld_Scenery`, vr_enemyguns.qc: no hand touch, no force grab, no loot pillar, not taken by armed humanoids,
+  not counted by the drop cap), then fades as the cap's do. Every death-drop path calls it (the grunt/enforcer gun,
+  knight sword, ogre chainsaw, `VR_AG_Dying`'s held and stowed weapons, AD melee swords, Freddie's nailgun); a disarm's
+  drop (alive) and the Gremlin's stolen gun stay real. Backpacks unchanged. Rows: VR Settings > Combat > Enemy
+  Weapons, "Lying About" (and the Gameplay Presets page); menu_paths.txt regenerated.
+  **Decision:** scenery that fades rather than vanishing in the hand (the death frames have no weapon) or lying forever.
+- **The picked-up Burst Rifle fired like a shotgun:** not a wrong slot. `vr_grunt_burst` 0 (Classic and Light) turned
+  the grunts' fire back to id's shotgun and, by design, the dropped gun's too (six pellets, a clip of shells), though
+  its model is the burst rifle. Now `vr_grunt_burst` is the grunts' own fire only: the gun in your hands always bursts
+  (`VR_EnemyGun_Attack`), its clip is always rounds, it is always named the burst rifle; AD's pellet spread treats yours
+  as bullets (`AD_FirePellets`). An armed grunt holding one at `vr_grunt_burst` 0 still fires id's shotgun (no preset
+  has both). Happened outside Classic too (Light, or the toggle by hand).
+- **Tests:** `vr_gameplay_preset_test` 29/0 (Classic: recoil on, no enemy weapon drops); `vr_gameplay_classic_check`
+  4/0 (adds recoil on, `vr_enemy_held_drops` 0 and `vr_enemy_drops` 2); new `vr_classic_drop_check` (QC
+  `VR_Classic_DropCheck`, its lines with `developer 1`: the nearest plain grunt gibbed: backpack, gun takeable or
+  scenery by the cvar, then a burst rifle at `vr_grunt_burst` 0: clip 30 rounds, a pull begins a burst): Classic on
+  e1m1 8/0 in VR and in flat, default with `vr_agrunt_repl 0` 7/0. Run: `developer 1;vr_classic_quake 1;map e1m1;
+  wait10;vr_gameplay_classic_check;vr_classic_drop_check`, `-QuitOn "classicdrop: [0-9]+ passed"`. `vr_recoil_test` 126/1 after it in Classic, VR and flat; the same single FAIL (the
+  burst rifle's two-handed return time, 0.0750 vs 0.0750, a back-time tolerance) in the default preset: not this
+  change. Armed grunts unchanged: `vr_agrunt_test` 2 4/0, 28 2/0, 47 110/0. Scenario `classic_drops` (runall OK).
+  Dev and ReleaseLTO (1.1.0) builds 0 warnings.
 ## runsetup3: Bloody Nightmare out of the menus, Start first, Difficulty only without skill halls (agent/runsetup3, 2026-11-15)
 
 - **Bloody Nightmare gone from the menus (his call):** Run Setup's Difficulty is Easy..Nightmare again (every way in:

@@ -95,6 +95,7 @@ void(float xKind, float xSide) VR_ADMelee_DropOne =
         FALSE /* disappear on hit */,
         FALSE /* deal damage */,
         WeaponIdToThrowDamage(WID_SWORD));
+    VR_EnemyHeld_Scenery(w); // (vr_enemy_held_drops 0)
     if(w != world)
     {
         vr_admelee_dropped++;

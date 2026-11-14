@@ -19,6 +19,9 @@ Flat-screen or VR: Debug > Tests > Saves > Autosave Now in a campaign map: Selec
 
 [2. Flat-screen: Run Setup, presets and mutators]
 Flat-screen or VR: Melee Only with the dagger, "maxplayers 2" and a bot (impulse 100): the bot holds the dagger, skips guns and ammo, and fights with the dagger.
+Flat-screen or VR: Classic Quake: every gun kicks when it fires (recoil on, as in the other presets). {test:classic_drops}
+Flat-screen or VR: Classic Quake: a killed grunt, enforcer, knight or ogre drops its backpack but no weapon to take (its gun falls as scenery you can't grab and fades after 4 seconds). {test:classic_drops}
+Flat-screen or VR: With Burst Rifles off (Classic, Light), a grunt's burst rifle you pick up still fires 3-round bursts, not shotgun pellets. {test:classic_drops}
 
 [3. Flat-screen: menus, campaigns and the Map Library]
 Installer: install into a fresh folder and pick Snap 45, Left-handed and Medium on "Set up the game": the game has them. Change Turning in the game, run Update, change only Turn Speed: Turning stays yours.
@@ -30,6 +33,7 @@ Flat-screen or VR: Select Campaign has no Bloody Nightmare row under Dawn of the
 [4. VR: body and gear]
 With armour on, set Reloading > X With Armour and Flashlight > Forward With Armour to about 3 units (the scene does): the pouch and the belt torch stand clear of the plates, and go back when the armour is gone. {test:armour_gear}
 VR: teleport many times quickly (headset at 90 or 120 Hz): every release teleports you.
+In a mirror (or the Ranger Head page's body clone), your body wears Quake VR's detailed ranger head, the ranger corpses' one, with its own skin: check its size and height over the neck from the front, side and back, that it turns with your head, and that none of it shows in your own view when you look down or lean. Ranger Head > Detailed Head off (next start) brings back the old one.
 
 [5. VR: melee and embedded blades]
 Stab a standing monster with the sword without staggering it, keep holding, and let it walk into a teleporter: the sword comes back to your hand, not held from across the map. {test:embed_tele}

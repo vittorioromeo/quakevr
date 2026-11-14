@@ -35,7 +35,8 @@ constexpr presetcore::Row rows[] = {
     {&vr_agdknight,                     {"0",     "0",   D}}, // armed death knights
     {&vr_grunt_burst,                   {"0",     "0",   D}}, // grunts' 3-round bursts (0: id's shotgun)
     {&vr_enemy_drops,                   {"2",     "2",   D}}, // monsters drop their weapons (2: never)
-    {&vr_ammobox_drops,                 {"2",     "2",   D}}, // ammo boxes drop weapons (2: never)
+    {&vr_enemy_held_drops,              {"0",     D,     D}}, // a dying monster's own weapon to take (0: scenery)
+    {&vr_ammobox_drops,                {"2",     "2",   D}}, // ammo boxes drop weapons (2: never)
     {&vr_adgun_drops,                   {"0",     "0",   D}}, // AD soldiers drop their guns
     {&vr_admelee_drops,                 {"0",     "0",   D}}, // AD melee monsters drop their weapons
     {&vr_monster_health,                {"0",     "0",   D}}, // big monsters' health cut (0: Quake's)
@@ -94,7 +95,9 @@ constexpr presetcore::Row rows[] = {
     {&vr_reload_mode_revolver,          {"-1",    D,     D}},
     // Flat-screen play's own reloading (at the hips, whatever the modes above): Classic has none there either.
     {&vr_flat_reload,                   {"0",     D,     D}},
-    {&vr_weapon_recoil,                 {"0",     D,     D}},
+    // Recoil on everywhere (his call, 2026-11-15): the models' own baked kick is always cancelled (vr_kickcancel.cpp),
+    // so at 0 a gun had no kick at all, not Quake's.
+    {&vr_weapon_recoil,                 {D,       D,     D}},
     // The world
     {&vr_portals_walk,                  {"0",     D,     D}}, // seamless teleporters (0: Quake's teleport)
     {&vr_teleporter_pair_exits,         {"0",     D,     D}},
@@ -232,6 +235,8 @@ void testCmd()
     t.check(vr_flat_reload.value == 0.f, name, "Classic: no reloading in flat-screen play either (vr_flat_reload 0)");
     t.check(vr_grunt_burst.value == 0.f && vr_agknight.value == 0.f && vr_agdknight.value == 0.f, name,
         "Classic: plain grunts (no burst rifle), plain knights");
+    t.check(vr_weapon_recoil.value != 0.f, name, "Classic: the guns recoil (his call 2026-11-15)");
+    t.check(vr_enemy_held_drops.value == 0.f && vr_enemy_drops.value == 2.f, name, "Classic: enemies drop no weapons");
     presetKind.apply(levelLight);
     t.check(presetKind.differing(levelLight, true) == 0 && presetKind.matchingLevel() == levelLight, name, "Light sets every row");
     t.check(vr_knockdown.value == 0.f && vr_portals_walk.value != 0.f && vr_reload_mode.value != 0.f && vr_crates.value != 0.f,
@@ -424,7 +429,32 @@ void classicCheckCmd()
         qc = fn && progs::qcFloat(static_cast<func_t>(fn - qcvm->functions)) != 0.f;
     }
     t.check(qc, name, "the game: no reloading, no armed humanoids, plain grunts");
+    // His report 2026-11-15: no recoil in Classic (the models' baked kick is always cancelled: vr_kickcancel.cpp).
+    t.check(vr_weapon_recoil.value != 0.f, name, "the guns recoil (vr_weapon_recoil on)");
+    t.check(vr_enemy_held_drops.value == 0.f && vr_enemy_drops.value == 2.f, name,
+        "enemies drop no weapons (vr_enemy_held_drops 0, vr_enemy_drops 2: never)");
     t.verdict(name);
+}
+
+// vr_classic_drop_check: a grunt gibbed by the player's side (QC VR_Classic_DropCheck: its backpack falls, its burst rifle
+// to be taken or, at vr_enemy_held_drops 0, as scenery; a burst rifle in the hand bursts at vr_grunt_burst 0); prints
+// "classicdrop: N passed, M failed". Any preset: it checks against vr_enemy_held_drops as set.
+void classicDropCheckCmd()
+{
+    if(sv.active)
+    {
+        const progs::ServerVm vm;
+        if(dfunction_t* fn = VR_ED_FindFunction("VR_Classic_DropCheck"))
+        {
+            // (Its check lines are dprint's: developer 1. It returns fails * 1000 + passes.)
+            const int r = static_cast<int>(progs::qcFloat(static_cast<func_t>(fn - qcvm->functions)));
+            testkit::verdict("classicdrop", r % 1000, r / 1000);
+            return;
+        }
+    }
+    testkit::Tally t;
+    t.check(false, "classicdrop", "a game running (and a build with the tests)");
+    t.verdict("classicdrop");
 }
 
 void init()
@@ -435,6 +465,7 @@ void init()
     Cmd_AddCommand("vr_gameplay_preset_status", statusCmd);
     Cmd_AddCommand("vr_gameplay_preset_test", testCmd);
     Cmd_AddCommand("vr_gameplay_classic_check", classicCheckCmd);
+    Cmd_AddCommand("vr_classic_drop_check", classicDropCheckCmd);
 }
 
 } // namespace qvr::gameplaypresets
