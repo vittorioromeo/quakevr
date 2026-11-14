@@ -1860,7 +1860,7 @@ bool skeletonUnder(const glm::vec3& head, Skeleton& out)
 namespace
 {
 // Vertex `v` of the posed body skinned as the shader does (model units, before the entity's origin and scale).
-[[nodiscard]] glm::vec3 skinnedVertex(const iqmvert_t& v)
+[[nodiscard]] glm::vec3 skinnedVertex(const iqmvert_t& v, const float* skin = nullptr)
 {
     glm::vec3 p{0.f};
     for(int w = 0; w < 4; w++)
@@ -1869,7 +1869,7 @@ namespace
         {
             continue;
         }
-        const float* m = &posed.skin[v.idx[w] * 12];
+        const float* m = (skin ? skin : posed.skin.data()) + v.idx[w] * 12;
         const float share = static_cast<float>(v.weight[w]) / 255.f;
         for(int row = 0; row < 3; row++)
         {
@@ -1921,11 +1921,15 @@ bool posedPoint(const unsigned vert[3], const glm::vec3& bary, glm::vec3& at)
     return true;
 }
 
-bool posedMesh(za::Vector<glm::vec3>& verts, za::Vector<unsigned>& tris, za::Vector<unsigned char>& parts)
+bool posedMesh(za::Vector<glm::vec3>& verts, za::Vector<unsigned>& tris, za::Vector<unsigned char>& parts, bool withHead, za::Vector<glm::vec2>* st)
 {
     verts.clear();
     tris.clear();
     parts.clear();
+    if(st)
+    {
+        st->clear();
+    }
     if(!posed.ent || !posed.ent->model || posed.ent->model->type != mod_alias)
     {
         return false;
@@ -1963,7 +1967,11 @@ bool posedMesh(za::Vector<glm::vec3>& verts, za::Vector<unsigned>& tris, za::Vec
             {
                 weightOf[partOfBone[v[i].idx[w]]] += v[i].weight[w];
             }
-            verts.pushBack(origin + skinnedVertex(v[i]) * posed.scale);
+            verts.pushBack(origin + skinnedVertex(v[i], withHead ? posed.shadowSkin.data() : nullptr) * posed.scale);
+            if(st)
+            {
+                st->pushBack(glm::vec2{v[i].st[0], v[i].st[1]});
+            }
             vertPart.pushBack(weightOf[1] >= 127 ? 1 : weightOf[2] >= 127 ? 2 : 0);
         }
         for(int i = 0; i + 2 < hdr->numindexes; i += 3)
@@ -2173,6 +2181,18 @@ extern "C" int VR_AliasShadowBonePoses(const entity_t* e, const float** matrices
     }
     const int count = VR_AliasBonePoses(e, matrices);
     if(count && matrices && e && e == posed.ent && posed.shadowHead)
+    {
+        *matrices = posed.shadowSkin.data();
+    }
+    return count;
+}
+
+// R_PaintAliasWounds: your body's wounds painted on it as it is seen from outside (the mirror, other views): with its head.
+extern "C" int VR_AliasWoundBonePoses(const entity_t* e, const float** matrices)
+{
+    using namespace qvr::avatar;
+    const int count = VR_AliasBonePoses(e, matrices);
+    if(count == JointCount && matrices && e && e == posed.ent)
     {
         *matrices = posed.shadowSkin.data();
     }

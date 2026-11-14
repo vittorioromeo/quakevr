@@ -2874,6 +2874,37 @@ QUEST_PLAN.md section 6j ("The bisection") has the numbers. On the Quest 3 over 
   transform, instance SSBO and clip distances draws (4 to 8: 100% green). The fault is inside the real scene programs
   on Adreno. Next: a constant fragment output switched in through the ES header, then the vertex shader cut down.
 - PC unchanged: the probes act only while `vr_gl_probe` or `vr_gl_probe_fix` is set.
+## Save and load after a Test scene (agent/saveload1115)
+
+His report (flat, 2026-11-15): TEST on the waterdrips item, quicksave, quickload: a toolgun in his off hand, the grunts'
+firing poses bent (one cast the death knight's fireballs), nothing wet. Reproduced headless (flat and the VR mock). Not a
+precache-order problem: the precache list's hash and every model index were the same before and after
+(`vr_model_check`: 514 models, 0 wrong), and nothing in the armed rigs caches by model index.
+
+- **Poses and the fireballs: a QC row cache across the load.** `VR_AM_Row(kind)` (vr_armedmon.qc) fills the armed
+  monsters' row globals once per kind, `nosave vr_am_filled` + saved `vr_am_kind`. A load runs the map's spawn first
+  (SV_SpawnServer's two frames: vrtesthall's armed death knight filled the row), then the save's globals overwrite
+  `vr_am_kind` (the grunt's) and the row's floats, but not its vectors (hand vertices, anchors, shoulders) nor
+  `vr_am_spell` (a save keeps floats, strings, entities). The cache then answered "filled" for the grunt with the
+  knight's vectors and spell: guns 30+ units off the hand, fireballs. Any map with two armed kinds hit it on any load,
+  scene or not. Fix: `VR_AM_AfterLoad` (OnLoadGame) empties the cache.
+- **The off-hand toolgun: the grip's rising edge at the load.** A flatscreen player's hands always grip
+  (vr_client.cpp `gripping`). The server's previous-frame VR bits started at 0 for the reconnecting client, so its first
+  move was a new press; the off hand, posed by the left hip as the stance brings it to the gun, drew that holster's
+  weapon (W_Frame's `startedHandGrabbing`: here the axe, his the toolgun from `vr_debug_spawn_toolgun`). Only with a
+  gun in the main hand (an empty pair's pose is elsewhere). Fix: `VR_ClientLoadedBits` (SV_ConnectClient into a loaded
+  game) seeds the client's previous and received bits from the loaded player's saved `.vrbits0`: a grip held across
+  the load is no new press. A headset grip pressed after the load is still a press.
+- **Wetness: client-only state, never saved.** vr_drips.cpp's wet list was cleared by the load's new map. Now the save
+  writes `// qvrwet <what> <num> <hand> <wet> <waterline> <liquid>` lines (`VR_SaveWetLines`, SaveData_Fill, after the
+  decals), `VR_ReadSaveInfo` stages them, `VR_OnLoadGame` takes them, and each is given back as the load's map first
+  shows it (a model by entity number; your body, hands, held and holstered weapons by what they are; a holstered
+  weapon's entry now keeps its holster as its `hand`) for 3 s, drying on from there.
+
+**Test.** `Misc/quakevr/saveload_test.sh <agent> [flat|vr|both]` (vr_pickup_test 16, QC/vr_saveload_test.qc;
+self-driven across the load by saved globals): `vr_scenario waterdrips`, once placed `vr_drips_soak`, save
+`qvr_saveload`, load; checks the off hand empty, each armed grunt's gun within 18 of its hand and no spell on a grunt, and
+(the script) every thing wet out of the pool before is wet after.
 ## zoneclean (zone.h cleanup)
 
 - `Hunk_AllocNoFill` / `Hunk_AllocNameNoFill` were identical to the filling versions (`Hunk_AllocInternal` ignored `clear`; same
@@ -2950,3 +2981,43 @@ QUEST_PLAN.md section 6k has the numbers. On the Quest 3 over adb, the headset u
   compiled. Quest, process start to e1m1's first frame: 65.1 s cold, 8.3 s warm (shaders 51.1 s to 0.18 s). The
   driver's EGL blob cache keeps nothing for the app.
 - **Checks:** gles_render_test 21/0, scenario_check 150/0, load_models_test 4/0; Release and ReleaseLTO 0 warnings.
+## rangerhead2: the detailed head's wounds where struck; his head place as defaults; the recoil test's 2H time (agent/rangerhead2, 2026-11-15)
+
+- **Why the detailed head's wounds were in the wrong spots:** three causes. (1) Its texture coordinates were his own skin's
+  (s 88..252, t 61..142 of 256) while the wound mask is the body's (its layout the body's skin's): the head read the
+  body's mask at texels that belong to the body's back, arms and legs, so their wounds showed on the head (and the
+  body's skin mask, read there too, tinted it from other parts). (2) `R_PaintAliasWounds` painted the body's first
+  surface only: a blow on the head never painted the head's own mesh. (3) Your body is painted as the eye views pose
+  it, the neck and head collapsed: even the old head's (in the first surface) wounds were painted onto a collapsed head.
+- **Fix:** `packDetailed` (vr_rangerhead.cpp) puts his two islands side by side in the body's head block (the
+  placeholder's head-only texels, u 0.008..0.492, v 0.447..0.496: unused once his head is drawn), stretched to fill it;
+  his vertices' coordinates are there (the md5 text and `VR_RangerHeadMesh`), and his skin is laid out to match
+  (`progs/vrrangerhead_00_00`, 256 x 2048, no texel of his lost). `VR_RangerHeadImage` now paints the body's skin mask
+  there for him too (skin where his texels are skin colours, normals flat). `R_PaintAliasWounds` draws the head's mesh
+  as well (`VR_RangerHeadPaints`) and takes your body's bones with its head (`VR_AliasWoundBonePoses`, the shadow maps'
+  `shadowSkin`; the classic head gains from this too). The sliders need nothing: the paint draws the mesh's own
+  vertices, which they rewrite.
+- **Test:** `vr_body_head_wound_test [keep]` (vr_wounds_diag.cpp; Debug > Tools > *Wound Your Head (Mirror)*): five
+  small wounds (front, left, right, back, crown: the head's triangle farthest that way, posed with its head:
+  `avatar::posedMesh(withHead, st)`), each painted alone into your mask and read back; the blood in the head's texels,
+  mapped back onto the posed head, must have its middle within 1.5 units of the point and none farther than 5; a chest
+  wound must leave the head's texels clean. Verdict `head_wound_test: N passed, M failed` (`-QuitOn` it). Detailed head
+  11/0 (middles 0.12..0.90 off), with the sliders at size 1.8, sink 3, side -4, yaw 30, pitch 20: 11/0; the classic
+  head (`-rangerhead_nodetail`): 11/0. `vr_body_head_check detailed` 3/0, `classic` 3/0. Shot (front and back with
+  `keep`): `scratch/r2_face.png`.
+- **His values (2026-11-15) as defaults:** `vr_body_head_side` 1.75 -> 0, `vr_body_head_size` 1.3 -> 1.25 (rows in
+  `fullConfigChanges` for full configs; the Ranger Head page's *Reset Head Placement* now sets the shipped size and
+  sink: it said sink 4.5, the default is 9).
+- **vr_recoil_test's "two-handed return time" FAIL (0.0750 vs 0.0750):** the test's comparison, not the gameplay: the
+  shares were right (0.075 printed both sides); the drawn time back to rest was checked against the one-handed time
+  times the share, which the kick's floors (0.014 s of Return Time, 0.02 s a kick) and the rise's 35 ms cap make only
+  nearly so, a weapon's Return Time deciding by how much (the burst rifle's a step past the 2% + 1 ms margin). Now
+  checked against the kick as `shotKick` makes it (`backWant`: its length less its rise, within two 0.5 ms steps), and
+  that two hands bring it back sooner. 127/0 (the baseline's script).
+- load_models_test 4/0, scenario_check PASS. Dev build 0 warnings; ReleaseLTO (QvrReleaseVersion 1.1.0) 0 warnings.
+
+## arenanosave (2026-11-15)
+
+- Arena Mode: no Ironman row (rows: Start, Difficulty, Gore, Glass Cannon, Melee Only); `arenaValue` forces Ironman off, the pick untouched.
+- No saving in the arena (`vrarena`): `VR_ArenaNoSave` (vr_runsetup.cpp) makes `VR_RunIronmanRefusesSave` refuse `save`/quicksave/Save menu with "No saving in Arena Mode"; the quicksave tool is greyed with that reason. Loading stays allowed.
+- Tests: `vr_runsetup_screen_test` (five rows), `vr_runlaunch_test` (Ironman off with the pick on; save and quicksave write nothing). menu_paths unchanged by rows removal except Ironman.
