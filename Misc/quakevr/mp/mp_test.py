@@ -1914,7 +1914,7 @@ SWING_READY = "vr_mock_hand main 0.65 1.25 -0.30 0 -90 0"
 # directional parry's), its grip under the blade's height.
 UPRIGHT = "vr_mock_hand main -0.50 1.05 -0.45 90 0 0"
 JITTER_MS = 30.0  # B's link's jitter for the swing at it (sub-tick samples)
-JITTER_SLACK = 0.35  # the jittered swing's damage within this share of the clean one's
+JITTER_SLACK = 0.2  # the jittered swing's strength within this share of the clean one's
 
 
 def give_until(s, srv, inst, ent, pose, impulse, wid):
@@ -1947,13 +1947,18 @@ def swing(s, srv, att, dfd, ea, ed, label, guard, open_dmg=None):
     if os.environ.get("MP_SWING_TRACE"):
         srv.cmd("developer 3")
     play(s, att, "swing", SWING_PLAY)
-    dmg = damage_line(srv, ed, since, 4 if guard == "upright" else 15, "%s's swing landing" % att.name)
+    got = wait_quietly(srv, r"damage: player [-\d.]+ by a melee blow .*health", 4 if guard == "upright" else 15, since,
+                       "%s's swing landing" % att.name)
+    dmg = float(re.search(r"damage: player ([-\d.]+)", got[1]).group(1)) if got else None
+    zone = re.search(r" x([\d.]+) at ", got[1]) if got else None
+    swing.strength = dmg / float(zone.group(1)) if dmg is not None and zone and float(zone.group(1)) > 0 else dmg
     drp = wait_quietly(srv, r"dirparry: player's blow (parried|lands)[^\n]*", 1 if dmg is not None else 4, since,
                        "the server's directional parry of %s's swing" % att.name)
     grd = wait_quietly(srv, r"parry: player with hand", 0.5, since, "a guard parry")
     att.cmd("vr_mock_play")
     drp = drp[1].strip() if drp else None
-    s.note("%s, %s: damage %s; %s" % (label, guard or "empty-handed", dmg, drp or "no dirparry line"))
+    s.note("%s, %s: damage %s (its strength, the zone's multiplier taken out: %s); %s" % (
+        label, guard or "empty-handed", dmg, swing.strength, drp or "no dirparry line"))
     return dmg, drp, (grd[1].strip() if grd else None)
 
 
@@ -1976,7 +1981,7 @@ def blade(s, srv, a, b, ea, eb):
     for att, dfd, e1, e2 in ((a, b, ea, eb), (b, a, eb, ea)):
         label = "%s's sword on %s" % (att.name, dfd.name)
         dmg, _, _ = swing(s, srv, att, dfd, e1, e2, label, None)
-        clean[att.name] = dmg
+        clean[att.name] = swing.strength
         s.check("%s: the swing lands on him empty-handed" % label, dmg is not None and dmg > 0, "damage %s" % dmg)
         dmg, drp, grd = swing(s, srv, att, dfd, e1, e2, label, "level")
         s.check("%s: his crowbar held level along its way does not parry it (the line's, not the guard's)" % label,
@@ -1993,14 +1998,16 @@ def blade(s, srv, a, b, ea, eb):
     m1 = merged_moves(srv, eb)
     if proxy:
         proxy.jitter = 0.0
-    ref = clean.get("B")
-    s.metric("swing_jitter_dmg", dmg if dmg is not None else -1)
+    ref, got = clean.get("B"), swing.strength
+    s.metric("swing_jitter_strength", got if got is not None else -1)
     s.metric("swing_jitter_merged", m1 - m0)
     s.check("B's moves came bunched at %d ms jitter (merged on the server during the swing)" % JITTER_MS, m1 > m0,
             "%d of his moves merged (%d -> %d)" % (m1 - m0, m0, m1))
-    s.check("B's swing at %d ms jitter lands as without (damage within %d%%)" % (JITTER_MS, JITTER_SLACK * 100),
-            dmg is not None and ref is not None and abs(dmg - ref) <= JITTER_SLACK * ref,
-            "damage %s, without jitter %s" % (dmg, ref))
+    # (its strength: the damage less the zone's multiplier, which is where on A the blade met him: 0.6 an arm, 1.5 the
+    # head; a few units either way at the same swing)
+    s.check("B's swing at %d ms jitter lands as without (its strength within %d%%)" % (JITTER_MS, JITTER_SLACK * 100),
+            got is not None and ref is not None and abs(got - ref) <= JITTER_SLACK * ref,
+            "strength %s (damage %s), without jitter %s" % (got, dmg, ref))
 
 
 def melee(s, only_blade=False):
