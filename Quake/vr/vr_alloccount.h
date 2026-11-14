@@ -13,6 +13,9 @@ void VR_HeapFree(void* pointer);
 /* Aligned allocations must be paired with the aligned free (Box3D callbacks). */
 void* VR_HeapAlignedAlloc(size_t size, size_t alignment);
 void VR_HeapAlignedFree(void* pointer);
+/* zone.c's -memguard: a zeroed block on pages of its own; its free decommits them, never reused (a use after free faults). */
+void* VR_PageGuardAlloc(size_t size);
+void VR_PageGuardFree(void* pointer, size_t size);
 #ifdef __cplusplus
 }
 #endif

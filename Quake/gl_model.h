@@ -506,6 +506,7 @@ typedef struct qmodel_s
 	int			*usedtextures;
 
 	byte		*visdata;
+	int			visdatasize;	// QVR: its bytes (Mod_DecompressVis reads no further: a map's last rows can be cut short)
 	byte		*lightdata;
 	byte		*luxdata;	// QVR: the light's directions at each luxel (a .lux beside the .lit; deluxemaps), or NULL
 	char		*entities;
