@@ -94,7 +94,7 @@ both already the subject of PERF_1102's list.
 
 | # | commit | what | check |
 |---|---|---|---|
-| 1 | `ab9692a4c` | The smoke-blow meter's capture device opened (and closed) on a pool worker (`jobs::async`; the worker joins COM's multithreaded apartment first, WASAPI's objects being COM's); taken in by `meterFrame` when open; the notes' own recording waits for a pending open or close first (SDL's device table is not guarded between threads); shutdown closes on the main thread. `vr_debug_gunfx 1` prints `gunfx mic meter open (rate N)` | `armed_mix32` with `vr_debug_gunfx 1`: "gunfx mic meter open (rate 16000)", no main-thread spike (after-capture below) |
+| 1 | `ab9692a4c` | The smoke-blow meter's capture device opened (and closed) on a pool worker (`jobs::async`; the worker joins COM's multithreaded apartment first, WASAPI's objects being COM's); taken in by `meterFrame` when open; the notes' own recording waits for a pending open or close first (SDL's device table is not guarded between threads); shutdown closes on the main thread. `vr_debug_gunfx 1` prints `gunfx mic meter open (rate N)` | `armed_mix32` with `vr_debug_gunfx 1`: "gunfx mic meter open (rate 16000)". Re-captured (same build kind and settings): CPU busy max **armed_mix32 22.0 -> 11.9 ms, mut_random3x_e1m2 27.2 -> 8.4 ms**, frames over 14 ms 1 -> 0 in both; the open now shows as a 13.7-13.9 ms `Job execute` on a worker. A 4.7-5.8 ms `muzzle wisps` frame remains once a session: the first `ensureAudio` (`SDL_InitSubSystem(SDL_INIT_AUDIO)`), left on the main thread (SDL's init belongs there) |
 
 ## Needs his call (each changes behaviour or is a bigger job)
 
@@ -114,9 +114,38 @@ both already the subject of PERF_1102's list.
 
 ## Map loads
 
-(pending: the load bench is running; see "What is left")
+ThinLTO exe, his settings, exclusive, `bash kit/bench.sh <agent> --scenarios load_e1m1,load_e4m7,load_ad_azad,
+load_ad_tears,load_ad_grendel --reps 2` (`kit/benchresults/pf_loads`; the disk caches warm from earlier runs of this
+game folder, so "cold" is the process's first load, not an empty cache). Stages and kinds of work over 150 ms
+(`scratch/pf_loads.py`), ms:
+
+| load | total | biggest stages | biggest work | after the load: worst frame |
+|---|---|---|---|---|
+| e1m1 cold / warm / restart | 1782 / 192 / 149 | entities spawned 1105, view models 153 | alias models (.mdl) 1038 (307), their normal maps 497, skins 219, textures 170 (3569) | 18 / 6 / 6 |
+| e4m7 cold / warm | 1941 / 417 | entities spawned 1078 | alias models 1008 (352), normal maps 470, skins 216 | 19 / 5 |
+| ad_azad cold / warm (2 reps) | 2034-2551 / 947-1388 | entities spawned 516-525, **model light grid 1206** (rep 1), **env cube world 525-770 cold, 327-770 warm**, 2 frames (Box3D world) 150-161, smooth rigs 164 | alias models 341-351 (239), limb models 174-210 | 7-16 / 7-25 |
+| ad_tears cold (2 reps) | 2958-3165 | world model (BSP) 457-491, entities spawned 716-867, baseline + VR after load 382-429, 2 frames 330-337, smooth rigs 257, liquids 174-189, light grid 186-222 | alias models 534-631 (387), PBR companion maps 337-353, image decodes 268-275, limb models 226-291, ledges 216-219, navmesh 156 | **113 / 476** |
+| ad_grendel cold / warm | (its JSON holds the marks only: worst frame 64 ms) | | | |
+
+Earlier today on the same tree with empty caches (`kit/benchresults/vb_jobs1`, ad_tears cold): 17.3 s, of it **the
+hulls' build waited for 9.3 s** (`server: 2 frames`) and the **model light grid 5.1 s**, normal maps made from skins 3.2 s
+on the jobs: all three are disk-cached afterwards (CACHES.md: `hulls`, `lightgrid`), so they are the first-ever load's.
+
+Top costs and what could go:
+1. **`env cube world` (vr_envmap.cpp `buildWorld`): 330-770 ms on every ad_azad load, warm ones too.** `averageColor` reads
+   each world texture's smallest mip back with `glGetTexImage` (a GPU sync per texture, while the load's uploads are in
+   flight). Exact fix, not done (out of budget): issue every texture's readback into one pixel-pack buffer first, map it
+   once (one sync, the same values), or keep the averages across loads by the texture's name, CRC, size and flags. The
+   largest warm-load cost found.
+2. **Entities spawned** (QC spawn: 0.5-1.1 s; on e1m1 mostly the models it precaches: `alias models (.mdl) loaded`
+   ~3.3 ms each with their normal maps). Warm loads keep them (192 ms).
+3. **The first frames after ad_tears' load: 113-476 ms** (navmesh classes and other work landing in play: the hitch
+   table's navmesh row).
+4. The first-ever load of a big map (hulls 9.3 s, light grid 5.1 s, normal maps 3.2 s): disk-cached after it.
 
 ## What is left (for the coordinator)
+
+- **The env cube's texture averages in one readback** (map loads, item 1): the clearest exact load win left.
 
 - The ThinLTO before/after bench of the full set (`bash kit/bench.sh <agent> --scenarios combat_48,ai_crowd_64,
   idle_e1m1,fight_ad_tears,fight_ad_sepulcher,combat_48_bullettime,combat_48_spectator,crowd_ad_40,armed_mix32,
