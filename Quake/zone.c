@@ -411,7 +411,11 @@ static void *Hunk_AllocInternal (int size, const char *name, qboolean clear)
 	if (size < 0)
 		Sys_Error ("Hunk_Alloc: bad size: %i", size);
 
-	b = Mem_NewBlock (size, name, HUNK_SENTINEL, clear, "Hunk_Alloc");
+	// Always zeroed, NoFill too (`clear` unused): the old hunk's memory was mostly fresh zero pages, and something in the
+	// world's drawing reads a NoFill block before writing it: with a reused heap block's garbage, E1M1 drew 38% slower on
+	// the GPU (world+brush) and 0.3 ms slower on the CPU (ROUND25.md, "nohunk"). calloc skips the memset on fresh pages.
+	(void) clear;
+	b = Mem_NewBlock (size, name, HUNK_SENTINEL, true, "Hunk_Alloc");
 	if (hunk_low_used > 0x7fffffff - b->size)
 		Sys_Error ("Hunk_Alloc: more than 2 GiB on the hunk");
 	b->mark = hunk_low_used;
