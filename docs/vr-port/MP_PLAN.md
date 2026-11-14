@@ -195,7 +195,8 @@ player unchanged.
 | **B5c** (climbing, swimming, the palm's shove done; the rest is B5d) | The rest of B5b: climbing between players (the server's holds per player; the remote body's climbing feet and hanging trunk from his holds); swimming checked in water (a pool map spot); a blade's directional parry between players (his swing's line, as an armed humanoid's); the open palm's shove; melee sub-tick samples (a swing split over merged moves, multiplayer only) | `mp_moves` grown (climbs a ledge, swims: A's copy follows), `mp_melee` grown (a sword's swing parried across its way, a palm shove, a swing at 30 ms jitter) |
 | **B5d** (done: B5 is done; sub-tick samples not needed, to B8) | The rest of B5c: a blade's directional parry between players (his swing's line from his hand lines, `handlineat`, as an armed humanoid's `VR_AG_WeaponLine`: VR_DRP_Eval's third kind); melee sub-tick samples (each merged move's pose to the tracker, multiplayer only) | `mp_melee` grown (a sword swung across B's crowbar: parried by the line, not the guard; a swing at 30 ms jitter: the same hit as without) |
 | **B6** (done: rules, the look of hands and body, holsters, seated, flat height, pauldrons, magazine hull; B6c the plates and Locomotion's rules) | Server rules and cosmetics: every balance setting a rule (presets, armed humanoids, damage, mutators, stamina, grapple...), rule pages dimmed on a remote client; holster positions, height, seated/standing, gloves, body seen by others | `mp_rules`, `mp_cosmetics` (B's height and gloves seen by A) |
-| **B7** | Snapshots: acknowledged per-client snapshots and deltas for entities, players and avatars; quantized delta moves with repeats; interpolation buffer with quaternion slerp | `mp_loss` (10% loss: positions still continuous), byte counts per scenario |
+| **B7** (moves up and the avatars' lerp done; the rest is B7b) | Snapshots: acknowledged per-client snapshots and deltas for entities, players and avatars; quantized delta moves with repeats; interpolation buffer with quaternion slerp | `mp_loss` (10% loss: positions still continuous), byte counts per scenario |
+| **B7b** | The rest of B7: acknowledged per-client snapshots down (the client acknowledges each server frame in QVR_CLC_MOVES; entities, player states and avatars delta-coded against the acknowledged one); the entities' interpolation buffer (a fixed delay behind, adaptive to jitter, a history of messages, slerped turns) in place of NetQuake's two-message lerp for remote clients | `mp_loss`'s jump counts become checks (0 jumps of A's body and hands at 10% loss); `mp_bandwidth` down idle under 10 KB/s |
 | **B8** | Prediction and lag compensation: shared movement code, reconciliation, then climbing and grapple; rewind of hit models and hands for hitscan, melee, parry, shove | `mp_predict` (own move off at frame 0 under 150 ms lag; corrections under 1 unit on flat ground), `mp_lagcomp` (a hit on a moving target at 150 ms lands) |
 | **B9** | Compression and rate: entropy stage with trained tables, per-client rate, priority accumulator | byte budgets per scenario from section 2.3 |
 | **B10** | Proximity voice chat: capture, Opus, VAD, noise suppression, push-to-talk, a jitter buffer, voices placed by Steam Audio at the speaker's head; VR and flat; menu rows | `mp_voice` (a test tone from A heard at B, louder near, delay under 250 ms) |
@@ -528,6 +529,9 @@ warnings (vr_run_check and the Release-config build not run this part: nothing o
 
 What changed:
 
+- (Superseded 2026-11-15, his call: no extra reach. `vr_weapon_palm_grab_slack` is gone; next's palm grab from
+  agent/palmgrab took its place when B7 merged next: the handle in normal reach -> gun mode, else a prop at the
+  contact, `vr_pickup_test 17`.)
 - **A weapon lying on a hand** (single player too, its own commit): one resting on a hand's Box3D body
   (`box3d::restsOnHand`) is taken by that hand closing within `vr_weapon_palm_grab_slack` (12 cm, menu row Palm Grab
   Slack beside Handle Grab Leniency): it sits over the fist that closes under it, with nothing solid under its handle,
@@ -1111,6 +1115,48 @@ Open (after B6):
   cheap to add if it shows in VR).
 - The checklist's two set-aside scenes (`flat_holster_drag`, `flat_clip_unpaid`): the coordinator's, on next too.
 
+### B7 results, part 1 (2026-11-14, dev no-LTO build, loopback; 11 scenarios run, all pass: `mp_loss` 11/0, `mp_bandwidth` 8/0, `mp_coop` 11/0, `mp_coop` at 150 ms + 2% 11/0, `mp_avatar` 17/0, `mp_grab` 13/0, `mp_melee` 29/0, `mp_moves` 19/0, `mp_pickup` 9/0, `mp_teleport` 9/0, `mp_held` 14/0)
+
+| Scenario | Result |
+|---|---|
+| `mp_loss` (new) | B's link loses 10% each way; A walks in a circle, B traces his copy 300 frames twice (`vr_mp_trace`). The server runs B's moves with at most 2% lost (repeats recover the rest; none undecodable); A's hands ride his body: offset roughness 0.28-0.31 with `vr_mp_avatar_lerp` (14-22 off); B's up link walking 9.1-9.7 KB/s (mean 135 B). Jumps of A's whole body (1-2 in 300 frames) are metrics: B7b's |
+| `mp_bandwidth` (grown) | B's link up idle 2.2 KB/s, mean 30 B a packet (was 45 KB/s, 640 B); down idle 20 KB/s as before |
+| byte counts | Every scenario prints `mp_bytes:` (B's link over the run) and `suite` ends with the table. Up, mean a packet: coop 54-108 B, avatar 51, melee 62, moves 80, grab 113, held 121 (was 640 B everywhere); down unchanged (270-520 B): B7b |
+
+Single player on the branch: `vr_netmove_selftest` 5/0 (324 values a move; a round trip quantizes back to the same
+integers; deltas read back; an idle move 11 B, one from zeros 268 B), `vr_pickup_test 16` 3/0 and 17 5/0 (after the
+merge of next). Not run this session: scenario_check, load_models_test, vr_run_check, the release-config build (the
+single-player path is clc_move as before; `SV_ReadClientMove` only split into read and `VR_ApplyClientMove`).
+
+What changed:
+
+- **Moves up as quantized deltas with repeats** (`vr_netmove.cpp`, `QVR_CLC_MOVES` 16, `QVR_NET_VERSION` 17): a remote
+  client writes each packet's moves as one message: the base (the newest move the server acknowledged in
+  `QVR_SVC_MOVEACK`, each datagram), the count and the first sequence number, then each move as the delta of its 324
+  integers against the one before (a group mask, a mask byte a changed group, zigzag varints). Places are 64ths of a
+  unit from the move's origin (the hands, head, muzzles, ports; the magazine box and pouch absolute, their zero
+  kept), angles 65536ths of a turn (not wrapped), speeds 1024ths, the pose clock 10 us; the drawn hands and holsters
+  as the avatar sends them (eighths, curls in 16ths, the thumb in 127ths). The moves after the acknowledged one are
+  repeated (at most 2 besides the new): the server runs each once, in order (`VR_ApplyClientMove`, then the VR
+  block), counts lost, recovered, undecodable (`mp_netmoves:` in `vr_mp_status`). Both sides keep 64 moves; an
+  acknowledgement older than that, or none (a new map or connection: `VR_OnClientClearState`), sends the next from
+  zeros. The loopback client (single player, the listen host's own) still sends clc_move with floats.
+- **Avatars lerped** (`vr_mp_avatar_lerp` 1, Debug > Reports > Network: Smooth Player Hands): each avatar keeps the
+  one before; drawn between them at the entities' lerp point (the client's time between the last two messages), places
+  lerped, turns slerped as quaternions, curls lerped, holstered weapons too; a hand or weapon that came or went, or no
+  avatar in the message before (an unchanged one is not sent: it held until then), draws the last as it came.
+- `vr_mp_trace <ent> <frames>`: B's drawn copy of a player frame by frame (`mp_trace:`, then `mp_trace: done`).
+- Merged next: `vr_weapon_palm_grab_slack` dropped for next's palm grab (his call).
+
+Open items (B7b):
+
+- The down link: snapshots acknowledged per client and delta-coded (entities, player states, avatars): idle down
+  is still 20 KB/s, in play 18-31 KB/s.
+- The entities' interpolation buffer: NetQuake's two-message lerp clamps its clock to the newest message, so under
+  loss a player's whole body jumps 1-3 times in 300 frames (`mp_loss`'s jump counts; the avatars ride it). A fixed
+  delay behind with a history of messages makes these checks (0 jumps).
+- Fast retransmit of the reliable window (a lost chunk still waits 1 s).
+
 ## Decisions
 
 - Server rules (B6) are found by page, not listed: every setting under a balance page is one unless it is a preference,
@@ -1152,4 +1198,4 @@ Open (after B6):
   poses and holster offsets are his by construction, one code path, about 16 bytes a holstered weapon a move (B7's
   deltas will make an idle player's nearly free).
 
-Next phase: B7 — snapshots: acknowledged per-client snapshots with deltas for entities, players and avatars (an idle player's holsters and hands nearly free), quantized delta moves with repeats, an interpolation buffer with quaternion slerp (his holsters and hands no longer a move late on a fast turn); tests first: `mp_loss` (10% loss: positions still continuous), byte counts per scenario against `mp_bandwidth`'s.
+Next phase: B7b — snapshots down: the client acknowledges server frames in QVR_CLC_MOVES, the server delta-codes entities, player states and avatars per client against the acknowledged snapshot (an idle player nearly free); the entities' interpolation buffer for remote clients (a fixed delay behind, adaptive to jitter, a history of messages, turns slerped) in place of NetQuake's two-message lerp; tests first: `mp_loss`'s jump counts as checks (0 at 10% loss), `mp_bandwidth` down idle under 10 KB/s, the `mp_bytes` table.

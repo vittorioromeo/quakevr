@@ -2850,3 +2850,17 @@ well-timed parries."
   this branch). menu_paths.txt regenerated (the halls-line row gone). Scenario `run_setup_newgame` updated. There is no
   `maps_skill_test` in the tree. Shots: qvr-kit/scratch/runsetup3_shots/ (r3_before.png, r3_after.png: left the Levels
   list's e1m1, right New Game).
+
+## mpN (B7, part 1): moves up as quantized deltas with repeats; other players' hands lerped (agent/mp, 2026-11-14; never shipped by the coordinator)
+
+- A remote client's moves go up as `QVR_CLC_MOVES` (`vr_netmove.cpp`; `QVR_NET_VERSION` 17): 324 integers a move,
+  delta-coded against the move the server acknowledged (`QVR_SVC_MOVEACK`), the unacknowledged ones repeated (at most
+  2); the server runs each once, in order. B's up link: idle 2.2 KB/s (was 45 KB/s), walking at 10% loss 9.7 KB/s;
+  the server lost at most 2% of his moves there. The loopback client keeps clc_move: single player unchanged.
+- Other players' heads, hands, held and holstered weapons are drawn between the last two messages in step with their
+  bodies (`vr_mp_avatar_lerp` 1, Debug > Reports > Network: Smooth Player Hands): hands no longer a message behind on
+  a turn (`mp_loss`: offset roughness 0.28 against 14 off).
+- Tests: `mp_loss` (new), `mp_bandwidth`'s up check, `mp_bytes:` per scenario, `vr_netmove_selftest` 5/0; MP_PLAN.md
+  "B7 results, part 1". Next: B7b (snapshots down, the entities' interpolation buffer).
+- In VR (two machines): a remote player's hands as he turns (smooth, on his body), the Smooth Player Hands row off
+  for comparison.
