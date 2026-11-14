@@ -876,16 +876,23 @@ static void Draw_SetVertex (guivertex_t *v, float x, float y, float s, float t)
 Draw_KeepMenuGlyphSize -- QVR
 
 The VR menu canvas scales y more than x to space its rows out (VR_MenuCanvas): characters and
-pictures keep their size there, centred where they would have been.
+pictures keep their size there, centred where they would have been. Draw_MenuStretch: that y scale over the
+x scale (1: none; vr_menu_icons.inc fits its pictures with it).
 ================
 */
-static void Draw_KeepMenuGlyphSize (float *y, float *h)
+float Draw_MenuStretch (void)
 {
 	float k;
 	if (glcanvas.type != CANVAS_MENU)
-		return;
+		return 1.f;
 	k = -glcanvas.transform.scale[1] * vid.guiheight / (glcanvas.transform.scale[0] * vid.guiwidth);
-	if (k < 1.001f)
+	return k < 1.001f ? 1.f : k;
+}
+
+static void Draw_KeepMenuGlyphSize (float *y, float *h)
+{
+	float k = Draw_MenuStretch ();
+	if (k <= 1.f)
 		return;
 	*y += *h * (1.f - 1.f / k) * 0.5f;
 	*h /= k;
