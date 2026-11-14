@@ -917,6 +917,12 @@ const EntityVr* entityVr(int num)
     return &entityData[num];
 }
 
+bool roomForCommand(int n)
+{
+    constexpr int typedReserve = 512; // (bytes kept for the typed commands)
+    return n > 0 && cls.message.cursize + n + 2 + typedReserve <= cls.message.maxsize;
+}
+
 int entityNumber(const entity_t* e, int limit)
 {
     if(!e || !cl_entities || e <= cl_entities || e >= cl_entities + (limit < 0 ? cl.num_entities : limit))

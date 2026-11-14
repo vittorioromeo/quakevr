@@ -2,6 +2,8 @@
 
 #include "vr_mpavatar.hpp"
 
+#include "vr_client.hpp"
+
 #include "vr_api.h"
 
 #include "vr_agarmor.hpp"
@@ -781,6 +783,10 @@ void sendCalibration()
     for(int i = 0; i < numCalFields && n > 0 && n < static_cast<int>(sizeof(text)); i++)
     {
         n += q_snprintf(text + n, sizeof(text) - static_cast<size_t>(n), " %d", c.v[i]);
+    }
+    if(n <= 0 || n >= static_cast<int>(sizeof(text)) || !qvr::client::roomForCommand(n))
+    {
+        return; // (no room: the next frame)
     }
     MSG_WriteByte(&cls.message, clc_stringcmd);
     MSG_WriteString(&cls.message, text);

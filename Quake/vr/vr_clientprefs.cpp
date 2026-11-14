@@ -2,6 +2,8 @@
 
 #include "vr_clientprefs.hpp"
 
+#include "vr_client.hpp"
+
 #include "vr_cvars.hpp"
 #include "vr_grip.hpp"
 #include "vr_gripfit.hpp"
@@ -340,7 +342,7 @@ void sendFrame()
         {
             n += q_snprintf(text + n, sizeof(text) - static_cast<size_t>(n), za::abs(v[i]) < 5e-4f ? " 0" : " %.3f", v[i]);
         }
-        if(n <= 0 || n >= static_cast<int>(sizeof(text)) || cls.message.cursize + n + 2 > cls.message.maxsize)
+        if(n <= 0 || n >= static_cast<int>(sizeof(text)) || !qvr::client::roomForCommand(n))
         {
             return; // (no room: the next frame)
         }
@@ -433,7 +435,7 @@ void sendRig()
             n += q_snprintf(text + n, sizeof(text) - static_cast<size_t>(n), "%04x", static_cast<unsigned short>(now.v[i]));
         }
         text[n] = 0;
-        if(cls.message.cursize + n + 2 > cls.message.maxsize)
+        if(!qvr::client::roomForCommand(n))
         {
             return; // (no room: the next frame)
         }
@@ -587,7 +589,7 @@ void send()
     {
         n += q_snprintf(text + n, sizeof(text) - static_cast<size_t>(n), " %g", now[i]);
     }
-    if(cls.message.cursize + n + 2 > cls.message.maxsize)
+    if(!qvr::client::roomForCommand(n))
     {
         return; // (no room: the next frame)
     }

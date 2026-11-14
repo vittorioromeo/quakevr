@@ -1143,7 +1143,7 @@ void CL_Init (void)
 {
 	cmd_function_t *cmd;
 
-	SZ_Alloc (&cls.message, 1024);
+	SZ_Alloc (&cls.message, 4096); // QVR: was 1024; the VR client's own commands (prefs, held poses) are up to 1 KB each
 
 	CL_InitInput ();
 	CL_InitTEnts ();

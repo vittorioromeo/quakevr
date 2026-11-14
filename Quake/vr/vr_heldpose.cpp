@@ -2,6 +2,8 @@
 
 #include "vr_heldpose.hpp"
 
+#include "vr_client.hpp"
+
 #include "vr_api.h"
 #include "vr_clientprefs.hpp"
 #include "vr_cvars.hpp"
@@ -593,7 +595,7 @@ void send()
         {
             n += q_snprintf(text + n, sizeof(text) - static_cast<size_t>(n), za::abs(v[i]) < 5e-4f ? " 0" : " %.3f", v[i]);
         }
-        if(n <= 0 || n >= static_cast<int>(sizeof(text)) || cls.message.cursize + n + 2 > cls.message.maxsize)
+        if(n <= 0 || n >= static_cast<int>(sizeof(text)) || !qvr::client::roomForCommand(n))
         {
             return; // (no room: the next frame)
         }
@@ -627,7 +629,7 @@ void send()
         }
         char text[64];
         const int n = q_snprintf(text, sizeof(text), "vr_grabspot %d %d %d", hand, now.entity, now.index);
-        if(n <= 0 || cls.message.cursize + n + 2 > cls.message.maxsize)
+        if(n <= 0 || !qvr::client::roomForCommand(n))
         {
             return;
         }
@@ -640,7 +642,7 @@ void send()
     {
         char text[32];
         const int n = q_snprintf(text, sizeof(text), "vr_magpoll %d", state.magPending);
-        if(n > 0 && cls.message.cursize + n + 2 <= cls.message.maxsize)
+        if(n > 0 && qvr::client::roomForCommand(n))
         {
             MSG_WriteByte(&cls.message, clc_stringcmd);
             MSG_WriteString(&cls.message, text);
