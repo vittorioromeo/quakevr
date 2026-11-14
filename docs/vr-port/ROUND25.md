@@ -2594,3 +2594,28 @@ well-timed parries."
   burst rifle's two-handed return time, 0.0750 vs 0.0750, a back-time tolerance) in the default preset: not this
   change. Armed grunts unchanged: `vr_agrunt_test` 2 4/0, 28 2/0, 47 110/0. Scenario `classic_drops` (runall OK).
   Dev and ReleaseLTO (1.1.0) builds 0 warnings.
+## runsetup3: Bloody Nightmare out of the menus, Start first, Difficulty only without skill halls (agent/runsetup3, 2026-11-15)
+
+- **Bloody Nightmare gone from the menus (his call):** Run Setup's Difficulty is Easy..Nightmare again (every way in:
+  the Levels list, the Map Library's Play, New Game, campaigns, the hub); Select Campaign's "Bloody Nightmare / new
+  game" row under Dawn of the Machine is gone (`playMg3BloodyNightmare`, `campaignsBloodyShown`, the row funcs and its
+  rebuild check removed); `bloodyForced`, `applyBloody`, `activeMax`, `skillBloody` and the Bloody and Halls emblems
+  removed. The `bn` registry row stays only for saves: no row, no rule, 0 at every start; a save with `bn=1` loads and
+  its summary says "Bloody Nightmare". Old configs: `vr_maps_skill 4` and `vr_runpick_bn 1` become Nightmare (callbacks
+  in vr_runsetup.cpp). The QC game is untouched (the hub's relay, Chthon on skill 3); `vr_mg3_bn_start` stays a
+  console/test aid, `vr_mg3_bn_discovered` is still set by the QC but read by no menu.
+- **Start first everywhere:** the big Start is the page's first row, the cursor on it. With skill halls (New Game,
+  campaigns, the hub, a package's or the Levels list's start hall) there is no Difficulty at all (no Skill Halls row);
+  `vr_runsetup_halls_line` retired (retiredCvars). Without halls: Start, Difficulty, then Style and Gore, then the rest.
+- **Card spacing:** every icon picker's cards are spaced alike: the cell is `min(card + vr_menu_icon_gap, 320 / 4)`
+  (`iconRowMostCards` 4) for any row of up to four, so Difficulty's four sit 80 apart like the guns' at the default
+  gap (the 5-card "gap given up first" exception dropped; a gap above 16 has no further effect).
+- **Tests:** `vr_runsetup_test` 80/0 (migration, Nightmare start without BN, a bn=1 save's summary),
+  `vr_runsetup_screen_test` 50/0 (Start first and the cursor on it on the Library e1m1 / start, New Game, a campaign,
+  Arcane Dimensions, the Levels list's e1m1 and start, the hub; halls: no Difficulty; no halls: Difficulty second, 4
+  cards, no Bloody Nightmare, Style and Gore next; Difficulty's cell and gap equal the gun's and melee's at gaps 4, 16,
+  24), `vr_runlaunch_test` 31/0, `vr_continue_rows_test` 19/0, `vr_menu_path_check` vrcalibration 6 / vrstart 5 found,
+  0 missing; checklist_tests_check 62/2 (the 2 are the set-aside flat_clip_unpaid / flat_holster_drag scenes, not
+  this branch). menu_paths.txt regenerated (the halls-line row gone). Scenario `run_setup_newgame` updated. There is no
+  `maps_skill_test` in the tree. Shots: qvr-kit/scratch/runsetup3_shots/ (r3_before.png, r3_after.png: left the Levels
+  list's e1m1, right New Game).

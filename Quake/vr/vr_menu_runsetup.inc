@@ -3,9 +3,10 @@
 // Library's Play, Single Player > New Game (menu.c), Official Campaigns' rows and the hub's teleporter (QC
 // vr_run.qc: `vr_runsetup hub`). Its rows are the registry's (vr_runsetup.cpp): each a cycle on vr_runpick_<id>, a
 // line instead while another's rule holds it; Start makes them the run's (runsetup::start) and starts what opened it.
-// A start map with skill halls (id's start, a pack's hall: the campaigns, New Game, the hub, such a package): its halls
-// choose the difficulty, so its Difficulty row is only Skill Halls or Bloody Nightmare. The mutators and presets are
-// asked there too. Difficulty, the Starting gun and melee weapon and Enemy Count are icon pickers (vr_menu_icons.inc).
+// Start is always the page's first row (his call, 2026-11-15: runsetup3). A start map with skill halls (id's start, a
+// pack's hall: the campaigns, New Game, the hub, such a package): its halls choose the difficulty, so the page has no
+// Difficulty at all (Start, then the presets and mutators); elsewhere the Difficulty picker comes right after Start.
+// Difficulty, the Starting gun and melee weapon and Enemy Count are icon pickers (vr_menu_icons.inc).
 
 // What opened it, and what the page was built for (rebuilt when that or a held row changes: runSetupStale).
 struct RunSetupState
@@ -17,7 +18,6 @@ struct RunSetupState
     bool skillHalls{false};
     int builtKey{-1};
     int builtHalls{-1};
-    int lastSkill{1}; // Difficulty's last choice before Bloody Nightmare (a start hall's "Skill Halls" choice keeps it)
 };
 RunSetupState runSetup;
 
@@ -25,8 +25,7 @@ RunSetupState runSetup;
 // the guns and melee weapons the toolgun's thumbnails of their models, Nothing a bare hand, Difficulty's emblems,
 // Enemy Count's grunts.
 constexpr MenuIcon runSetupSkillIcons[] = {{.emblem = MenuIcon::Easy}, {.emblem = MenuIcon::Normal},
-    {.emblem = MenuIcon::Hard}, {.emblem = MenuIcon::Nightmare}, {.emblem = MenuIcon::Bloody}};
-constexpr MenuIcon runSetupHallsIcons[] = {{.emblem = MenuIcon::Halls}, {.emblem = MenuIcon::Bloody}};
+    {.emblem = MenuIcon::Hard}, {.emblem = MenuIcon::Nightmare}};
 constexpr MenuIcon runSetupGunIcons[] = {{.model = "progs/v_shot.mdl", .side = true},
     {.model = "progs/v_nailpistol.mdl", .side = true}, {.model = "progs/v_revolver.mdl", .side = true},
     {.emblem = MenuIcon::Hand}};
@@ -41,7 +40,7 @@ struct RunSetupIconRow
     int count;
 };
 constexpr RunSetupIconRow runSetupIconRows[] = {
-    {"skill", runSetupSkillIcons, 5},
+    {"skill", runSetupSkillIcons, 4},
     {"startgun", runSetupGunIcons, 4},
     {"startmelee", runSetupMeleeIcons, 3},
     {"enemycount", runSetupCountIcons, 3},
@@ -61,13 +60,8 @@ const MenuIcon* runSetupIcons(int i)
     return nullptr;
 }
 
-// (the Difficulty section has no header: the page starts with it, the next sections' headers give the gap)
+// (the Difficulty section has no header: it follows Start, the next sections' headers give the gap)
 constexpr const char* runSetupSections[] = {nullptr, "Presets", "Mutators"};
-
-const char* runSetupHallsLine()
-{
-    return "Difficulty: the start map's skill halls";
-}
 
 // A row held by another's rule: "Starting gun: Nothing (Melee Only)".
 const char* runSetupHeldLine(int i)
@@ -180,52 +174,24 @@ void runSetupRow(za::Vector<Item>& items, int i)
     items.pushBack(i == runsetup::find("skill") ? row.big() : row);
 }
 
-// A start map's skill halls choose the difficulty: its row only "Skill Halls" (Difficulty's last choice kept) or Bloody
-// Nightmare (always a choice: his call, 2026-11-14).
-void runSetupHallsRow(za::Vector<Item>& items)
-{
-    za::Vector<Choice> choices;
-    choices.pushBack(Choice{static_cast<float>(runSetup.lastSkill), "Skill Halls"});
-    choices.pushBack(Choice{static_cast<float>(runsetup::skillBloody), "Bloody Nightmare"});
-    items.pushBack(cycle("Difficulty", vr_maps_skill, ZA_MOVE(choices))
-                       .help("The start map's skill halls choose the difficulty. Bloody Nightmare: Nightmare and Dawn of "
-                             "the Machine's hidden difficulty (harder monsters, each level begun with the axe and shotgun only).")
-                       .big()
-                       .iconPicker(runSetupHallsIcons));
-}
-
 za::Vector<Item> pageRunSetup()
 {
     runSetup.builtKey = runsetup::pageKey();
     runSetup.builtHalls = runSetup.skillHalls ? 1 : 0;
-    if(const int s = static_cast<int>(vr_maps_skill.value + 0.5f); s >= 0 && s < runsetup::skillBloody)
-    {
-        runSetup.lastSkill = s;
-    }
     const bool grouped = vr_runsetup_groups.value != 0.f;
     za::Vector<Item> items;
+    // Start: a big button of its own, always the page's first row (his call, 2026-11-15); the Difficulty picker (none
+    // with skill halls) right after it, the sections below after their own gap.
+    items.pushBack(action("Start", runSetupStart)
+                       .help("Starts the run with these choices (kept for next time; each saved game keeps its run's "
+                             "and sets them back when loaded). Back: not started.")
+                       .button());
     for(int s = 0; s < 3; s++)
     {
         const bool mutators = s == static_cast<int>(runsetup::Section::Mutators);
-        if(s == 1)
-        {
-        // Start: a big button of its own right after the difficulty picker (Item::Button: a gap above it; the sections below start after their own gap).
-        items.pushBack(action("Start", runSetupStart)
-                           .help("Starts the run with these choices (kept for next time; each saved game keeps its run's "
-                                 "and sets them back when loaded). Back: not started.")
-                           .button());
-        }
         if(runSetupSections[s] && !(mutators && grouped))
         {
             items.pushBack(header(runSetupSections[s]));
-        }
-        if(s == static_cast<int>(runsetup::Section::Difficulty) && runSetup.skillHalls && vr_runsetup_halls_line.value != 0.f)
-        {
-            items.pushBack(info(runSetupHallsLine));
-        }
-        if(s == static_cast<int>(runsetup::Section::Difficulty) && runSetup.skillHalls)
-        {
-            runSetupHallsRow(items);
         }
         const auto shown = [s](int i) {
             const runsetup::Mutator& m = runsetup::at(i);
@@ -294,22 +260,13 @@ void openRunSetup(runsetup::Launch launch, const za::String& sha, const char* ma
     }
     const int page = pageIndex(pageRunSetup);
     openFromAnywhere(page);
-    // Built anew for this launch (its Difficulty row or the halls' line, its held rows), never the last launch's rows:
+    // Built anew for this launch (its Difficulty row or none, its held rows), never the last launch's rows:
     // runSetupStale alone missed it (a page built for the size above it counted as this launch's).
     menuPages.done[page] = false;
-    const za::Vector<Item>& built = items(page);
-    // At its top (his flat report 2026-11-13: the cursor on Start scrolled the Difficulty row out of view on a map
-    // without skill halls, the page a row longer than the view): the cursor on Start while it is in view from there,
-    // else on the first choice.
-    int start = 0;
-    int first = -1;
-    for(int i = 0; i < static_cast<int>(built.size()); i++)
-    {
-        start = built[i].look == Item::Button && built[i].label && !strcmp(built[i].label, "Start") ? i : start;
-        first = first < 0 && selectable(built[i]) ? i : first;
-    }
+    (void)items(page);
+    // At its top, the cursor on Start (the first row: the last choices one press away).
     ui().scrolls[page] = 0;
-    ui().cursors[page] = start < rowsFrom(built, 0) || first < 0 ? start : first;
+    ui().cursors[page] = 0;
 }
 
 void openRunSetupCampaign(int index)

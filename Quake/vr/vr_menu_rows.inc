@@ -2343,11 +2343,9 @@ QVR_SLIDER_BYNAME(vr_menu_icon_size, "Icon Picker Size", 16.f, 48.f, 2.f, "%.0f 
 QVR_SLIDER_BYNAME(vr_menu_icon_dim, "Icon Picker Unpicked Dim", 0.f, 0.9f, 0.05f, "%.2f", noExt,
     "How much an icon picker's choices that are not picked are greyed and faded. 0: as bright as the picked one.")
 QVR_SLIDER_BYNAME(vr_menu_icon_gap, "Icon Picker Gap", 0.f, 24.f, 1.f, "%.0f px", noExt,
-    "The gap between an icon picker's cards, menu pixels. The cards keep their width while the row has room (4: the old spacing).")
+    "The gap between an icon picker's cards, menu pixels: every picker's cards spaced alike, at most 16 (four cards across the row; 4: the old spacing).")
 QVR_SLIDER_BYNAME(vr_menu_icon_name_pitch, "Icon Picker Name Lines", 4.f, 10.f, 0.5f, "%.1f px", noExt,
     "The line pitch of an icon picker's two-line names, menu pixels (the letters 8 high; 7: the old spacing).")
-QVR_TOGGLE_BYNAME(vr_runsetup_halls_line, "Run Setup: Skill Halls Line",
-    "With a start map that has its own skill halls (id's start, a pack's hall): a line saying so where Difficulty goes. Off: nothing (the halls choose).")
 QVR_TOGGLE_BYNAME(vr_menu_vr_style, "VR Menu Style",
     "The menus fill the panel with their rows spaced out, with modern sliders and switches, and a laser from your hand points at them: trigger to click and drag.")
 QVR_TOGGLE_BYNAME(vr_menu_recolor, "Blood Red Menus",
