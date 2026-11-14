@@ -2029,3 +2029,26 @@ His flat notes 5, 6, 9 (2026-11-13).
   heap_allocs a frame rose (combat_48 10.8 -> 35.0, ai_crowd_64 9.1 -> 35.2, the AD fight 6.2 -> 81.9): the per-frame
   temporary hunk lists (SV_PushMove, SV_TouchLinks, VR physics) are mallocs now. If they ever show in a profile, they
   can move to their files' mem::Scratch. nh_after/nh_after2 are the runs with garbage NoFill blocks (above).
+
+## mp1: multiplayer audit, plan and test harness (agent/mp, 2026-11-14; never shipped by the coordinator)
+
+- **docs/vr-port/MP_PLAN.md**: the state re-verified against the code and with real runs (what works, what is broken,
+  what is missing, file:line), the research (NetQuake, QuakeWorld/ezQuake, FTE/QSS/Quakespasm-VR, DarkPlaces, Q3,
+  rollback, VR multiplayer games), the chosen architecture (server authority, owner-authoritative head and hands,
+  acked per-client snapshots and deltas, a VR player-state block drawn with the armed humanoids' arm solver,
+  prediction of the local player, lag compensation, rules/preferences/cosmetics, layered compression, downloads through
+  the map installer), the bandwidth budget, risks, phases B2-B13. MULTIPLAYER.md points at it.
+- **The harness** (`Misc/quakevr/mp/`: `mp_harness.py`, `mp_proxy.py`, `mp_test.py`; MP_PLAN.md section 4): a hidden
+  dedicated server or listen host plus clients (VR mock or flat), each with its own log (`-condebugfile`) and command
+  inbox (`-cmdinbox`), driven by Python with waits on log conditions; a UDP proxy adds lag, jitter and loss and counts
+  bytes. Engine aids in `Quake/vr/vr_mptest.cpp`: `vr_mp_watch` (wall-clock stamped joins, sightings, moves),
+  `vr_mp_mark`, `vr_mp_status` (Debug > Reports: Network: Players Seen, Network: Watch Players).
+- **Fixed:** a second client from the same IP (another port) closed the first one's connection (NetQuake's "back from
+  a crash" rule, `net_dgrm.c`): two players behind one router could not both play. A hidden test run's dedicated
+  server no longer opens a console window.
+- **Found** (B2's work): the armed humanoids' arm poses are broadcast to every client every frame, unculled (about
+  1.2 KB of each 1.4 KB datagram on e1m1: 97 KB/s down for two idle players); the move is 640 B (45 KB/s up);
+  reliable messages go out in datagrams up to 64 KB (15 KB seen at signon).
+- **Results:** `mp_test.py suite`: 11/11 and 11/11 (no lag; B at 150 ms each way and 2% loss); a listen host with a
+  flat B: 10/10. Others' moves seen 40-64 ms after the input on loopback, 206-221 ms with 150 ms added; a player sees
+  himself move a round trip late (no prediction yet): 357-368 ms at 150 ms each way.

@@ -1,5 +1,8 @@
 # Multiplayer: server vs client
 
+**Superseded where they differ by MP_PLAN.md** (2026-11-14: the re-verified state, the architecture, the phases and the
+multiplayer test harness). This file stays the detailed audit by system.
+
 State as of 2026-09-30 (branch `agent/mpreport`, base `a6e7469d`). Research only; the one code change is the test
 aid `vr_dumpplayer [client]` (vr_server.cpp).
 
