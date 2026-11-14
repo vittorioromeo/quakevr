@@ -88,10 +88,11 @@ def walk(s, mover, watcher, mover_ent, label, bound_ms, self_bound_ms):
     watcher.wait(r"mp_stop: .*ent=%d self=0" % mover_ent, 10, since_w, "%s stopping" % mover.name)
 
 
-def join(s, listen=False, flat="", lag=0.0, jitter=0.0, loss=0.0, level="e1m1", first=None):
+def join(s, listen=False, flat="", lag=0.0, jitter=0.0, loss=0.0, level="e1m1", first=None, srv_first="", b_first=""):
     """A server on `level` (coop 1) and clients A and B joined, each seeing the other -> (server, a, b, ea, eb).
     `first(srv, a, ea)`: A joins alone first and this runs before B connects (a map with one start: A moved off it, or
-    B's spawn telefrags him)."""
+    B's spawn telefrags him). `srv_first`, `b_first`: console commands the server runs before its map, B before he
+    connects."""
     if listen:
         a = srv = s.server(dedicated=False, flat="A" in flat, name="A")
     else:
@@ -99,8 +100,8 @@ def join(s, listen=False, flat="", lag=0.0, jitter=0.0, loss=0.0, level="e1m1", 
     srv.start()
     # (a listen host: maxplayers and listen before the map, its start-up map (vrstart, a server of 1) shut down first;
     # a dedicated server has its -dedicated 4 slots)
-    srv.cmd("%scoop 1; deathmatch 0; skill 1; map %s; vr_mp_status" % (
-        "disconnect; maxplayers 4; listen 1; " if listen else "", level))
+    srv.cmd("%s%scoop 1; deathmatch 0; skill 1; map %s; vr_mp_status" % (
+        "disconnect; maxplayers 4; listen 1; " if listen else "", srv_first + "; " if srv_first else "", level))
     srv.wait(r"mp_server: map=%s" % level, 120, what="the server on %s" % level)
     if not listen:
         a = s.client("A", flat="A" in flat).start()
@@ -111,6 +112,8 @@ def join(s, listen=False, flat="", lag=0.0, jitter=0.0, loss=0.0, level="e1m1", 
     if first:
         _, ja = a.wait(r"mp_event: .*joined map=%s" % level, 120, what="A joined %s" % level)
         first(srv, a, int(fields(ja)["self"]))
+    if b_first:
+        b.cmd(b_first)
     b.cmd(s.connect_cmd(b))
 
     _, ja = a.wait(r"mp_event: .*joined map=%s" % level, 120, what="A joined %s" % level)
@@ -430,6 +433,163 @@ BODY_UNITS = 1.5    # B's copy of A's body: its joints within this of A's own bo
 BODY_WRIST = 1.0    # ... its wrists within this of A's drawn hands' wrists (the arms reach them)
 BODY_SCALE = 0.005  # ... its scale (world units a metre) within this share of A's own
 BODY_SHOULDER_CAL = 0.2  # ... with A's arms calibrated, its shoulders within this of A's own (units; MP_PLAN B3c)
+
+
+# mp_rules: settings the server sets, B's own and what B must have (name: (server's, B's own, B's while joined)). A
+# gameplay preset's switch (the server's off), a melee timing rule, a deep page's (Monster Groups) and the Grappling
+# Hook's; one the server leaves at its default while B's differs (B gets the default); a preference (B's own stays) and
+# a sound on a rule page (a player's own: not a rule).
+RULES = {
+    "vr_parry_stamina": ("0", "1", "0"),
+    "vr_melee_speed": ("4.5", "2", "4.5"),
+    "vr_mgrp_ogre_kdscale": ("0.25", "2", "0.25"),
+    "vr_grapple_drop_grace": ("0.3", "0.05", "0.3"),
+    "vr_knockdown": (None, "0", "1"),
+}
+NOT_RULES = {"vr_gunangle": "55", "vr_bash_sound": "0.2"}
+
+
+def rules_report(inst, names):
+    """vr_serverrules <names> on `inst` -> ({name: {rule, value, own, locked}}, {count, remote, shadowed})."""
+    since = inst.mark()
+    inst.cmd("vr_serverrules %s; echo mp_rules_done" % " ".join(names))
+    n, _ = inst.wait(r"mp_rules_done", 10, since, "%s's rules" % inst.name)
+    out, head = {}, {}
+    for l in inst.lines[since:n]:
+        if l.startswith("mp_rule:"):
+            f = dict(m.groups() for m in re.finditer(r"(\w+)=(\S+)", l))
+            out[f.pop("name")] = f
+        elif l.startswith("mp_rules:"):
+            head = dict(m.groups() for m in re.finditer(r"(\w+)=(\S+)", l))
+    return out, head
+
+
+def rules_until(s, inst, names, done, what, tries=30):
+    """rules_report until done(report, head) (at most `tries` reports) -> (report, head, n)."""
+    for n in range(1, tries + 1):
+        r, h = rules_report(inst, names)
+        if done(r, h):
+            return r, h, n
+    s.check(what, False, "not after %d reports: %r" % (tries, rules_report(inst, names)))
+    raise StepFailed(what)
+
+
+def same(a, b):
+    return abs(float(a) - float(b)) < 1e-4
+
+
+def rules(s):
+    """Server rules (vr_serverrules.cpp; MP_PLAN B6): every balance setting (the rule pages' settings, the gameplay
+    preset's, the melee timing) is the server's. B joins with his own values: he plays by the server's (his cvars hold
+    them while joined), the rows dimmed and the Gameplay Presets' buttons locked; his own written to his config; a
+    preference and a sound stay his. The server changes rules: B follows. B leaves: his own values back."""
+    names = list(RULES) + list(NOT_RULES)
+    srv_first = "; ".join("%s %s" % (k, v[0]) for k, v in RULES.items() if v[0] is not None)
+    b_first = "; ".join(["%s %s" % (k, v[1]) for k, v in RULES.items()] + ["%s %s" % kv for kv in NOT_RULES.items()])
+    srv, a, b, ea, eb = join(s, srv_first=srv_first, b_first=b_first)
+
+    def joined_ok(r, h):
+        return h.get("shadowed") == "1" and all(k in r and same(r[k]["value"], v[2]) for k, v in RULES.items())
+
+    r, h, n = rules_until(s, b, names, joined_ok, "B plays by the server's rules")
+    s.note("B: %r %r" % (h, r))
+    s.check("B joined: his rules are the server's (a default where the server left one)", True, "after %d reports" % n)
+    s.check("B's own values kept for when he leaves",
+            all(same(r[k]["own"], v[1]) for k, v in RULES.items()), repr({k: r[k]["own"] for k in RULES}))
+    s.check("B's rule rows locked (dimmed in his menu)", all(r[k]["locked"] == "1" for k in RULES),
+            repr({k: r[k]["locked"] for k in RULES}))
+    s.check("a preference and a sound on a rule page stay B's own, unlocked",
+            all(r[k]["rule"] == "0" and r[k]["locked"] == "0" and same(r[k]["value"], v) for k, v in NOT_RULES.items()),
+            repr({k: r[k] for k in NOT_RULES}))
+    rs, hs = rules_report(srv, names)
+    s.check("the server and B know the same rules, every balance page's",
+            hs.get("count") == h.get("count") and int(h.get("count", 0)) > 1000, "server %s, B %s" % (
+                hs.get("count"), h.get("count")))
+
+    since = b.mark()
+    b.cmd("vr_menu_press Gameplay Presets > Classic")
+    _, l = b.wait(r"vr_menu_press: Gameplay Presets > Classic", 10, since, "B pressing Classic")
+    s.check("B's Gameplay Presets buttons locked (a preset sets rules)", "locked" in l, l.strip())
+
+    since = b.mark()
+    b.cmd("writeconfig mp_rules_b; echo mp_rules_written")
+    b.wait(r"mp_rules_written", 10, since, "B's config written")
+    cfg = os.path.join(s.base, "quakevr", "mp_rules_b.cfg")
+    written = {}
+    if os.path.exists(cfg):
+        with open(cfg, encoding="ascii", errors="replace") as f:
+            for line in f:
+                m = re.match(r'(\w+) "([^"]*)"', line)
+                if m:
+                    written[m.group(1)] = m.group(2)
+    # (a sparse config: a setting at its default is not written)
+    s.check("B's config holds his own values, not the server's", all(
+        same(written[k], v[1]) if k in written else v[1] == "1" for k, v in RULES.items()),
+        "%s: %r" % (cfg, {k: written.get(k) for k in RULES}))
+
+    srv.cmd("vr_parry_stamina 1; vr_mgrp_ogre_kdscale 0.75")
+    r, h, n = rules_until(s, b, names, lambda r, h: same(r["vr_parry_stamina"]["value"], 1) and
+                          same(r["vr_mgrp_ogre_kdscale"]["value"], 0.75), "the server's changed rules reach B")
+    s.check("the server changes two rules: B plays by the new values", True, "after %d reports" % n)
+
+    b.cmd("disconnect")
+    r, h, n = rules_until(s, b, names, lambda r, h: h.get("shadowed") == "0", "B left: his own values back")
+    s.check("B leaves: his own values back, nothing locked", all(
+        same(r[k]["value"], v[1]) and r[k]["locked"] == "0" for k, v in RULES.items()),
+        repr({k: (r[k]["value"], r[k]["locked"]) for k in RULES}))
+
+
+LOOK_STEP = 0.01  # a colour's part: B's own look and A's copy of it (his calibration's whole numbers: 255ths, degrees)
+
+
+def looks_of(lines, prefix):
+    """"mp_look:" / "mp_look_own:" lines -> {(ent, part): fields (avatar_fields: kind, tone, glove, nails)}."""
+    out = {}
+    for l in lines:
+        if l.startswith(prefix + ":"):
+            f = avatar_fields(l.split(":", 1)[1])
+            out[(int(f["ent"][0]), int(f["part"][0]))] = f
+    return out
+
+
+def look_off(x, y):
+    """The largest difference between two looks' colours (inf: a kind or a part missing)."""
+    if not x or not y or x["kind"] != y["kind"]:
+        return float("inf")
+    return max(abs(p - q) for k in ("tone", "glove", "nails") for p, q in zip(x[k], y[k]))
+
+
+def cosmetics(s):
+    """Cosmetics others see (MP_PLAN B6): B's skin tone, gloves (kind and colour) and painted nails on his hands and
+    body as A draws them are B's own (his avatar calibration), not A's; B's height: A's copy of his body is as tall; A's
+    own hands keep A's look."""
+    srv, a, b, ea, eb = join(s)
+    b.cmd("vr_height_calibration 1.9; vr_gloves 2; vr_glove_hue 120; vr_glove_saturation 0.8; vr_glove_lightness 0.4; "
+          "vr_skin_tone -0.4; vr_nails 1; vr_nail_hue 300; vr_nail_saturation 0.7; vr_nail_lightness 0.5")
+    a.cmd("vr_gloves 0; vr_nails 0; vr_skin_tone 0")
+
+    def seen(lines):
+        la, lb = lines
+        own_b, at_a = looks_of(lb, "mp_look_own"), looks_of(la, "mp_look")
+        return all(look_off(own_b.get((eb, p)), at_a.get((eb, p))) <= LOOK_STEP for p in (0, 1)) and \
+            (own_b.get((eb, 0)) or {}).get("glove", [0] * 4)[3] == 2
+
+    (la, lb), n = reports_until(s, [a, b], seen, "A draws B's hands with B's look")
+    own_b, at_a = looks_of(lb, "mp_look_own"), looks_of(la, "mp_look")
+    for p in (0, 1, 2):
+        s.note("part %d: B's own %r, A's copy %r" % (p, own_b.get((eb, p)), at_a.get((eb, p))))
+    s.check("A draws B's hands with B's skin tone, gloves (full, green) and nails", True, "after %d reports, off by %.4f" % (
+        n, max(look_off(own_b.get((eb, p)), at_a.get((eb, p))) for p in (0, 1))))
+    s.check("A draws B's body with B's skin tone", look_off(own_b.get((eb, 2)), at_a.get((eb, 2))) <= LOOK_STEP,
+            "B's %r, A's %r" % (own_b.get((eb, 2)), at_a.get((eb, 2))))
+    own_a = looks_of(la, "mp_look_own")
+    s.check("A's own hands keep his own look (no gloves, no nails)", all(
+        (own_a.get((ea, p)) or {}).get("glove", [1] * 4)[3] == 0 and (own_a.get((ea, p)) or {}).get("nails", [1] * 4)[3] == 0
+        for p in (0, 1)), repr({p: own_a.get((ea, p)) for p in (0, 1)}))
+
+    (la,), n = reports_until(s, [a], lambda ls: abs((body_of(ls[0], "mp_body").get(eb) or {}).get("eyeheight", [0])[0] -
+                                                    1.9) < 0.002, "A's copy of B's body at B's height")
+    s.check("B's height: A's copy of his body is posed at it", True, "after %d reports" % n)
 
 
 def body_of(lines, prefix):
@@ -2280,6 +2440,10 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             climb(s)
         elif test == "mp_forcegrab":
             forcegrab(s)
+        elif test == "mp_rules":
+            rules(s)
+        elif test == "mp_cosmetics":
+            cosmetics(s)
         else:
             coop(s, args.listen, args.flat or "", lag, jitter, loss)
     except StepFailed as e:
@@ -2292,7 +2456,7 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -2316,7 +2480,7 @@ def main():
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb"):
+                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics"):
         ok = run(args, "mp_" + args.test)
     else:
         ok = run(args, "mp_coop")
@@ -2340,6 +2504,8 @@ def main():
         ok = run(args, "mp_melee") and ok
         ok = run(args, "mp_moves") and ok
         ok = run(args, "mp_climb") and ok
+        ok = run(args, "mp_rules") and ok
+        ok = run(args, "mp_cosmetics") and ok
         print("mp_suite: %s" % ("passed" if ok else "FAILED"))
     sys.exit(0 if ok else 1)
 
