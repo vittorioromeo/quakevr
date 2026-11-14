@@ -2759,6 +2759,48 @@ QUEST_PLAN.md section 6j has the detail. On the Quest 3 over adb, with the heads
 - **"Save error."** is Android only and now says why: e1m1's autosave hits "string -14: a freed engine string".
 - PC unchanged: every change is behind the ES profile or `__ANDROID__`, except that eyeshots now read RGBA (same files)
   and "Save error." gives a reason.
+## The detailed ranger head on the body (worktree `takeslight`, branch `agent/rangerhead`, 2026-11-14)
+
+His ask (2026-11-15): Dawn of the Machine's ranger corpses (its `start` map) have a nicer, more detailed head: use it
+on our body. **What the corpse is**: `misc_corpse` with styles 17..22 (`vr_mg_corpses.qc`: `progs/player.mdl` frames
+49..102). No player model ships in MG3's pak, and in Quake VR `progs/player.mdl` is Quake VR's own
+(`quakevr/progs/player.mdl`: 733 vertices, 1062 triangles, a 256 x 256 skin, 144 unnamed frames; the quakevr folder is
+the highest on MG3's path). So the head he saw is ours, shipped already: nothing of the re-release is needed or read.
+(KEX itself draws the re-release's `id1/progs/player.md5mesh`: 945 vertices, 26 joints with Head/Neck, a 256 x 256
+`player_00_00.lmp`; reference only.) Its "rigs and ragdolls" are ours too: the player ragdoll rig (`player_bones.json`,
+11 bones from the same model; its head bone is cluster 5, these two islands); the corpses already ragdoll with it, and
+`limbmodel` can already cut its head as a limb (`progs/player.mdl#limb<head>`) for player gibs later.
+
+**Comparison** (offline flat renders, same light: `qvr-kit/scratch/rangerhead_shots/heads_compare.png`): Quake's head
+27 triangles, 8.5 x 7.5 units, a 296 x 194 skin; Quake VR's 131 triangles in two islands of their own (a hood with ear
+guards, 89; a sculpted face, 42), 8.1 x 9.5 units, its own 256 x 256 skin's islands (s 88..252, t 61..142): too spread
+over the skin to paint into the body's 512 x 57-texel head block as Quake's is.
+
+**Built** (`vr_rangerhead.cpp`): `vr_body_ranger_head_model` (new, archived, default 1; Appearance > Ranger Head >
+*Detailed Head*; latched at the next start like `vr_body_ranger_head`). 1: the first `progs/player.mdl` like Quake VR's
+(400..3000 vertices, frame 13 = stand1 40..70 units tall), its islands wholly above 0.2 of the height from the top
+(the next island down is 9.8 units lower), else Quake's head as before (0 too), else the placeholder.
+- The body's mesh: the placeholder's head triangles dropped and the neck's top ring narrowed as before; his head is
+  not added there but as a mesh of its own after the body's (and the bare bodies' cuff shell): `VR_RangerHeadExtend`
+  appends it to the body's md5 text (shader `vrrangerhead`, every vertex the `head` joint's), `VR_RangerHeadMesh` (now
+  told the mesh number) places it in the bind pose (1.05 x the placeholder's width, bottom 1.5 units below it) and
+  `VR_RangerHeadSkins` gives it his own skin (palette indices from his file, kept for the session, one persistent
+  texture for every body and skin number). So every draw of the body has it as it had the old one: the eye views
+  collapse it with the head joint, the mirror clone, third person, shadows, other players' bodies.
+- The Ranger Head page's sliders (size, sink, place, turn) place it live as they did Quake's (its vertices rewritten
+  in its own mesh, the neck ring in the body's).
+- `VR_AliasSurfaceNext` (bodies with the cuff shell) now draws meshes after the shells; `vr_wounds` accepts a body
+  with the head's mesh (its masks are the body's; the head reads them at its own texels: a known imperfection).
+- `vr_body_head_check <detailed|classic|off>` (verdict `rangerhead_check: N passed, M failed`); `-rangerhead_nodetail`
+  makes the detailed search fail (the fallback test).
+
+**Verified** (mock, `map start`): "the detailed head of .../quakevr/progs/player.mdl (131 triangles, 100 vertices)",
+both bodies loaded (vrbody, vrbody_bare) with his mesh and skin, `vr_body_head_check detailed` 3/0; with
+`-rangerhead_nodetail`: Quake's head painted on, `vr_body_head_check classic` 3/0. Shots front/side/back:
+`rangerhead_shots/detailed_ingame.png`, `classic_fallback.png`. Dev build 0 warnings.
+
+For him in VR: a mirror or the Ranger Head page's clone: its size and height over the neck (Size/Neck Sink apply to it),
+front, side, back; nothing of it in your own view when looking down or leaning.
 ## classic3: Classic recoil, no enemy weapon drops, the burst rifle always bursts (agent/classic3, 2026-11-15)
 
 - **No recoil in Classic:** the Gameplay preset's Classic row set `vr_weapon_recoil` 0 (a "?" taste call: "Quake has no
@@ -2832,3 +2874,64 @@ QUEST_PLAN.md section 6j ("The bisection") has the numbers. On the Quest 3 over 
   transform, instance SSBO and clip distances draws (4 to 8: 100% green). The fault is inside the real scene programs
   on Adreno. Next: a constant fragment output switched in through the ES header, then the vertex shader cut down.
 - PC unchanged: the probes act only while `vr_gl_probe` or `vr_gl_probe_fix` is set.
+## zoneclean (zone.h cleanup)
+
+- `Hunk_AllocNoFill` / `Hunk_AllocNameNoFill` were identical to the filling versions (`Hunk_AllocInternal` ignored `clear`; same
+  zeroing and accounting): every call (15 files) now calls `Hunk_Alloc` / `Hunk_AllocName`; the two functions and the `clear`
+  parameter are gone.
+- Kept: `Hunk_KeepLoaded` / `Hunk_ClearKeep` still protect (`Hunk_FreeToLowMark` never frees under a model loaded mid-play), and
+  `Hunk_Check` (hunk_print, cl_parse, memguard sentinels) still checks every block: neither has lost its purpose, so no removal.
+- zone.h comment rewritten: Z_ single allocations, Hunk_ mark/free-to-mark lifetimes, Cache_ flushable handles, Temp_ per-frame scratch.
+- Checks: dev build 0 warnings; ReleaseLTO 1.1.0 build; `-memguard` load_models_test 352/0; scenario_check below.
+## arenacamp: Arena Mode in Select Campaign, with its own Run Setup (branch agent/arenacamp, 2026-11-15)
+
+- **Select Campaign:** an "Arena Mode" row right under Arcane Dimensions (vr_menu.cpp pageCampaigns, `selectArenaRow`),
+  the same Lead look and the "experimental" tag at its right; dim while Quake's campaign is unavailable. Pressed: an
+  experimental notice of its own (M_Confirm, as AD's), Continue opens the arena's Run Setup (`openRunSetupArena`).
+  Never a Continue row under it.
+- **Its Run Setup** (vr_menu_runsetup.inc, `Launch::Arena`, `runSetup.arena`): Start, Difficulty, Gore (Presets),
+  Ironman, Glass Cannon, Melee Only (Rules), nothing else. Start: `runsetup::startArena` (vr_runsetup.cpp) sets the
+  run from `arenaValue`: those five from the player's picks, Style Unleashed, Armed Humanoids and Smarter AI On, Ranged
+  Knights off (the arena brings its gun knights in itself from wave 12), every other mutator at its default; the
+  `vr_runpick_*` picks are not written, so the next run's Start is his own again (the presets' My Settings mechanism
+  restores the settings Unleashed and the armed/AI rows changed). Then `vr_campaign_hub vrarena` (now accepts vrarena:
+  Quake's campaign made active first, then the map). `start()` and `startArena()` share `startWith`.
+- **No autosave:** already true (VR_AutosaveAllowed refuses "vr*" maps: level start, quiet moments, vr_autosave_now;
+  Continue's inspect skips them); vr_autosave_now now says "none in Arena Mode" on vrarena.
+- **Test aid:** `vr_runsetup arena` opens the arena's screen directly.
+- **Tests:** `vr_runsetup_test` 86/0 (arena: its five rows, the fixed values, the picks untouched, the next Start the
+  picks'); `vr_runsetup_screen_test` 55/0 (the arena screen's rows exactly the six, Start first; the next way in the
+  whole page); `vr_runlaunch_test` 43/0 (an Arena Mode step: the map spawns with the arena's values, picks unchanged,
+  sv_autosave on and no autosave/vrarena.sav after 5 s and wave 2, vr_autosave_now refused; a save written as
+  autosave/vrarena gets no Continue anywhere, then removed; Arena Mode right under AD with its tag; then the Levels
+  list: his picks the run's again); `vr_continue_rows_test` 19/0; `vr_menu_path_check` vrcalibration 6 found, 0
+  missing; menu_paths.txt regenerated (unchanged: the campaign rows are not indexed). Shots:
+  qvr-kit/scratch/arenacamp_shots/arenacamp.png (Select Campaign; the notice; the arena's Run Setup).
+- **Not changed:** Play > Maps > Survival Arena still runs `map vrarena` with the current run (a debug-style way in).
+## classictoggle: Classic Quake on and off leaves the gloves' relief flat (agent/classictoggle, 2026-11-15)
+
+- **His report (flat, on next):** in the hub, the Classic Quake board pressed twice (on, off): the gloves' relief
+  "almost as a diffuse".
+- **Cause:** the gloves' relief (`progs/hand_rig_0N_00_glove_height`) is a height map made a normal map as it loads
+  (`vr_render.cpp` `gloveHeightToNormals`), but only in `gloveTexture`; the texture keeps the height file as its source.
+  It is loaded `TEXPREF_MIPMAP|ALPHA|UNCOMPRESSED`, so `TexMgr_AlphaTested` counts it, and Classic's `vr_alpha_coverage`
+  change (1 -> 0 -> 1) reloads every alpha-tested texture from its source (`TexMgr_ReloadAlphaTested`): the relief came
+  back as raw heights (grey: a normal pointing nowhere), so the leather lost its bumps. `vid_restart` did the same.
+- **Fix:** the conversion moved into the load itself: `VR_GloveReliefNormals` (vr_render.cpp), called from
+  `TexMgr_LoadImage32` (as `VR_CleanSkin` is), so the first load and every reload make the normals.
+- **Cvars:** a full `cvarlist` diff before on / after off in the hub showed no setting left changed (only
+  `vr_gore_preset`'s display sync). But Back restored each preset's *My Settings* (kept at the first preset ever
+  applied), not the state the press found: a row changed since (in the menu, say Bloom) came back as the old My
+  Settings. Classic's first press now keeps the three presets' rows as found (`ClassicState::before`, in memory) and
+  Back sets back exactly those; a row changed by hand while Classic was on keeps its new value; with none kept (a
+  restart since) Back is My Settings as before. The line reads "Your settings back: ...".
+- **Other things checked:** the round trip test hashes every texture read from a file or a lump (4,108 in the hub:
+  world textures and their normal maps, weapons' and armour's skins and normal maps, the hands', the gloves' paint):
+  only the gloves' relief differed before the fix, none after.
+- **Test:** new `vr_classic_roundtrip_test` (Debug > Tests, "Classic Quake On and Off"): waits for the map, keeps every
+  cvar and every file texture's texels hash, presses `vr_setup_option classic` twice (the hub board's command), two
+  frames after each, compares: `classicroundtrip: 5 passed, 0 failed` in vrstart (4,114 settings, 4,108 textures); with
+  the old code (the conversion back in `gloveTexture` only) 4/1, `progs/hand_rig_00_00_glove_height` differing. Run:
+  `map vrstart;vr_classic_roundtrip_test`, `-QuitOn "classicroundtrip: \d+ passed"`. `vr_gameplay_preset_test` 31/0
+  (2 new: Back is the press's state, a hand change kept), `vr_gore_preset_test` 15/0, `vr_gameplay_classic_check` 4/0.
+  menu_paths.txt regenerated (the new Debug row).

@@ -409,13 +409,18 @@ void qvr::menu::mapsPagePick_f()
         mapPage.picked >= 0 ? "" : " (none: out of the list)");
 }
 
-// vr_runsetup [hub|newgame|library <map>]: the screen for that start (the hub's teleporter's; tests).
+// vr_runsetup [hub|newgame|arena]: the screen for that start (the hub's teleporter's; Arena Mode's past its notice;
+// tests and screenshots).
 void qvr::menu::runSetup_f()
 {
     const char* what = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
     if(!q_strcasecmp(what, "hub"))
     {
         openRunSetup(runsetup::Launch::Hub, za::String{}, nullptr, -1, true);
+    }
+    else if(!q_strcasecmp(what, "arena"))
+    {
+        openRunSetupArena();
     }
     else if(!q_strcasecmp(what, "newgame"))
     {
@@ -709,6 +714,37 @@ void qvr::menu::runSetupScreenTest_f()
             goBack();
         }
     }
+    // Arena Mode (arenacamp): its notice's Continue opens its own screen: exactly Start, Difficulty, Gore, Ironman,
+    // Glass Cannon, Melee Only (no other row: the arena's balance), Start first; Back leaves it; the next way in has
+    // the whole page again.
+    if(VR_CampaignUnavailable(0) == 0)
+    {
+        openRunSetupArena();
+        check(shownFor(runsetup::Launch::Arena) && runSetup.arena, "Arena Mode's Continue opens its screen");
+        const char* const want[] = {"Start", "Difficulty", "Gore", "Ironman", "Glass Cannon", "Melee Only"};
+        int n = 0;
+        bool same = true;
+        for(const Item& it : pageRunSetup()) // (the page's own rows: not the menu's Reset This Page under them)
+        {
+            if(selectable(it))
+            {
+                same = same && n < 6 && it.label && !strcmp(it.label, want[n]);
+                if(!same && n < 7)
+                {
+                    Con_Printf("runsetup_screen: Arena Mode's row %d: \"%s\"\n", n, it.label ? it.label : "");
+                }
+                n++;
+            }
+        }
+        check(same && n == 6, va("Arena Mode: exactly Start, Difficulty, Gore, Ironman, Glass Cannon, Melee Only (%d rows)", n));
+        startFirst(shown(), false, "Arena Mode");
+        goBack();
+        check(ui().page != page && runSetup.launch == runsetup::Launch::Arena, "Arena Mode: Back leaves it, nothing started");
+        VR_RunSetupLevel("e1m1");
+        check(!runSetup.arena && hasLabel(shown(), "Style") && hasLabel(shown(), "Armed Humanoids"),
+            "the next way in (the Levels list): the whole page again");
+        goBack();
+    }
     // The Levels list after a start hall's launch (New Game's, the campaign's): the page as shown (the menu's built
     // rows, not a fresh build) has its Difficulty row at once (his flat report 2026-11-13: only after a fold).
     VR_RunSetupLevel("e1m1"); // (the flat Levels list's Enter: not the old difficulty menu)
@@ -801,6 +837,7 @@ enum class RunLaunchWay
     Load,
     FiringRange, // the VR menu's Firing Range button (no Run Setup screen: the screen's mutators all the same)
     ConsoleRun,  // `vr_run glasscannon 0` then `map`: a run's choice set by hand is kept
+    Arena,       // Select Campaign's Arena Mode (its own screen's Start): the arena's fixed choices, no autosave
 };
 
 struct RunLaunchStep
@@ -826,10 +863,17 @@ constexpr RunLaunchStep runLaunchSteps[] = {
     {RunLaunchWay::Level, "e1m1", 0, true, true, false, "the Levels list after a load"},
     {RunLaunchWay::FiringRange, "vrfiringrange", 2, true, false, false, "the Firing Range button (no screen)"},
     {RunLaunchWay::ConsoleRun, "vrfiringrange", -1, true, false, false, "`vr_run glasscannon 0` then `map`"},
+    // Arena Mode (arenacamp): picks row 1 (Glass Cannon on, random enemies and pickups the arena turns off), then the
+    // Levels list: the player's own picks the run's again.
+    {RunLaunchWay::Arena, "vrarena", 1, true, false, false, "Arena Mode"},
+    {RunLaunchWay::Level, "e1m1", 1, true, true, false, "the Levels list after Arena Mode"},
 };
 constexpr int runLaunchStepCount = static_cast<int>(sizeof(runLaunchSteps) / sizeof(runLaunchSteps[0]));
 constexpr int runLaunchGiveUp = 72 * 60; // frames a step may wait for its map (60 s of game time)
 constexpr int runLaunchSettle = 48;      // frames after the player is in: the monsters' start thinks (0.1-0.6 s)
+// Arena Mode's step: past the level-start autosave's moment (2.5 s) and into a wave (vr_arena_goto 2 at runLaunchSettle).
+constexpr int runLaunchArenaSettle = 72 * 5;
+constexpr const char* runLaunchArenaSave = "autosave/vrarena"; // (the name an autosave of it would have)
 constexpr const char* runLaunchPresets[] = {"vr_runpick_style", "vr_runpick_gore", "vr_runpick_armed", "vr_runpick_smartai"};
 
 struct RunLaunchTest
@@ -842,6 +886,9 @@ struct RunLaunchTest
     int savedRun[64]{}; // the run saved (the Load step's)
     int expect[64]{};   // the run set by hand (the ConsoleRun step's)
     float picks[64]{}; // every pick as before the test
+    float arenaPicks[64]{}; // every pick before Arena Mode's Start (unchanged by it)
+    float autosave[2]{};    // sv_autosave, vr_autosave_level_start before Arena Mode's step (on during it)
+    bool arenaSaveBefore{false}; // an autosave/vrarena.sav there before it (not this test's to remove)
     float ask{1.f};
     testkit::Tally tally;
 };
@@ -887,6 +934,18 @@ void runLaunchGo(const RunLaunchStep& s)
             break;
         case RunLaunchWay::NewGame: VR_RunSetupNewGame(); break;
         case RunLaunchWay::Campaign: openRunSetupCampaign(0); break;
+        case RunLaunchWay::Arena:
+            for(int i = 0; i < runsetup::count() && i < 64; i++)
+            {
+                runLaunch.arenaPicks[i] = runsetup::at(i).pick->value;
+            }
+            runLaunch.autosave[0] = Cvar_VariableValue("sv_autosave");
+            runLaunch.autosave[1] = vr_autosave_level_start.value;
+            Cvar_Set("sv_autosave", "1"); // (on: none made all the same)
+            Cvar_SetValueQuick(&vr_autosave_level_start, 1.f);
+            runLaunch.arenaSaveBefore = qvr::files::exists(va("%s/%s.sav", com_gamedir, runLaunchArenaSave));
+            openRunSetupArena();
+            break;
         case RunLaunchWay::Hub: openRunSetup(runsetup::Launch::Hub, za::String{}, nullptr, -1, true); break;
         case RunLaunchWay::Map: Cbuf_AddText(va("map %s\n", s.map)); return;
         case RunLaunchWay::Load: Cbuf_AddText("load rf_launch_b\n"); return;
@@ -907,6 +966,66 @@ void runLaunchGo(const RunLaunchStep& s)
     }
 }
 
+// Arena Mode's step, past its level start and into a wave (arenacamp): the player's picks unchanged by its Start, its
+// fixed choices the run's, no autosave made (the level start's, a quiet moment's, vr_autosave_now refused); an "old"
+// autosave of the arena (the test's own save under that name) offered nowhere: no Continue under Arena Mode, not
+// Quake's Continue either. That save removed again (unless one was there before).
+void runLaunchArenaCheck()
+{
+    RunLaunchTest& t = runLaunch;
+    constexpr const char* name = "runlaunch";
+    bool kept = true;
+    for(int i = 0; i < runsetup::count() && i < 64; i++)
+    {
+        if(runsetup::at(i).pick->value != t.arenaPicks[i])
+        {
+            Con_Printf("runlaunch: Arena Mode: %s's pick %g, %g before\n", runsetup::at(i).id, runsetup::at(i).pick->value,
+                t.arenaPicks[i]);
+            kept = false;
+        }
+    }
+    t.tally.check(kept, name, "Arena Mode: the player's Run Setup picks unchanged by its Start");
+    auto active = [](const char* id) { return runsetup::activeValue(runsetup::find(id)); };
+    t.tally.check(active("style") == 3 && active("armed") == 2 && active("smartai") == 2 && active("rangedknights") == 0 &&
+                      active("pickups") == 0 && active("enemyrandom") == 0 && active("glasscannon") == 1,
+        name, va("Arena Mode: Unleashed, armed humanoids and smarter AI on, ranged knights left to the arena, the rest off; "
+                 "Glass Cannon as picked (%s)", runsetup::summary(false)));
+    t.tally.check(vr_agrunt_repl.value != 0.f && vr_ai_enhanced.value != 0.f, name,
+        "Arena Mode: the armed humanoids' and smarter AI's settings on");
+    char path[MAX_OSPATH];
+    q_snprintf(path, sizeof(path), "%s/%s.sav", com_gamedir, runLaunchArenaSave);
+    t.tally.check(!VR_AutosaveAllowed(sv.name) && (t.arenaSaveBefore || !qvr::files::exists(path)), name,
+        "Arena Mode: no autosave made (level start, 5 s in, a wave)");
+    Cmd_ExecuteString("vr_autosave_now", src_command); // (refused, with its line)
+    Cvar_SetValueQuick(&vr_arena_goto, 0.f);
+    Cvar_SetValue("sv_autosave", t.autosave[0]);
+    Cvar_SetValueQuick(&vr_autosave_level_start, t.autosave[1]);
+    // An old autosave of the arena: never a Continue.
+    Cmd_ExecuteString(va("save %s", runLaunchArenaSave), src_command);
+    Host_WaitForSaveThread();
+    VR_LaunchContinueRefresh();
+    const za::Vector<Item> camps = pageCampaigns();
+    const Item* arena = nullptr;
+    for(const Item& it : camps)
+    {
+        arena = !arena && it.infoArg == arenaModeTitle ? &it : arena;
+    }
+    const bool underAd = arena && arena != camps.data() && (arena - 1)->infoArg == VR_CampaignTitle &&
+                         (arena - 1)->arg == qvr::ad::campaignIndex;
+    const bool noContinue = arena && (arena + 1 == camps.data() + camps.size() || (arena + 1)->look != Item::Sub);
+    const char* quakeSave = VR_LaunchContinueSave(0, "");
+    Con_Printf("runlaunch: arena's save there %d, Arena Mode's row %d, no Continue %d, Quake's Continue %s\n",
+        qvr::files::exists(path) ? 1 : 0, arena ? 1 : 0, noContinue ? 1 : 0, quakeSave ? quakeSave : "none");
+    t.tally.check(qvr::files::exists(path) && arena && noContinue && (!quakeSave || strcmp(quakeSave, runLaunchArenaSave)),
+        name, "an autosave of the arena there: no Continue under Arena Mode, nor Quake's");
+    t.tally.check(underAd && arena->look == Item::Lead && arena->tagArg && !strcmp(arena->tagArg(arena->arg), "experimental"),
+        name, "Select Campaign: Arena Mode right under Arcane Dimensions, its look, \"experimental\" at its right");
+    if(!t.arenaSaveBefore)
+    {
+        (void)VR_LaunchContinueTestFixture(nullptr, runLaunchArenaSave, "");
+    }
+}
+
 void runLaunchCheck(const RunLaunchStep& s)
 {
     RunLaunchTest& t = runLaunch;
@@ -918,6 +1037,7 @@ void runLaunchCheck(const RunLaunchStep& s)
     {
         const int want = s.way == RunLaunchWay::Load         ? t.savedRun[i]
                          : s.way == RunLaunchWay::ConsoleRun ? t.expect[i]
+                         : s.way == RunLaunchWay::Arena      ? runsetup::arenaValue(i)
                                                              : runsetup::pickValue(i);
         if(runsetup::spawnedWith(i) != want || runsetup::activeValue(i) != want)
         {
@@ -942,6 +1062,10 @@ void runLaunchCheck(const RunLaunchStep& s)
             t.savedRun[i] = runsetup::activeValue(i);
         }
         Cbuf_AddText("save rf_launch_b\n");
+    }
+    if(s.way == RunLaunchWay::Arena)
+    {
+        runLaunchArenaCheck();
     }
     Con_Printf("runlaunch: checked %s: %s\n", what, runsetup::summary(false));
 }
@@ -996,7 +1120,16 @@ void qvr::menu::runLaunchTestFrame()
         return;
     }
     if(runsetup::mapSpawns() == t.spawns || !sv.active || strcmp(sv.name, s.map) != 0 || cls.signon != SIGNONS ||
-        cl.stats[STAT_HEALTH] <= 0 || ++t.settled < runLaunchSettle)
+        cl.stats[STAT_HEALTH] <= 0)
+    {
+        return;
+    }
+    const bool arena = s.way == RunLaunchWay::Arena;
+    if(arena && t.settled == runLaunchSettle)
+    {
+        Cvar_Set("vr_arena_goto", "2"); // (into a wave: none autosaved there either)
+    }
+    if(++t.settled < (arena ? runLaunchArenaSettle : runLaunchSettle))
     {
         return;
     }

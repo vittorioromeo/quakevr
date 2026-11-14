@@ -8,10 +8,14 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
 #include "vr_api_render.h"
+#include "vr_alloccount.h"
+#include "vr_testkit.hpp"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 using namespace qvr;
@@ -42,6 +46,24 @@ constexpr int maxHeadTris = 200;
 constexpr float minHeadSide = 3.f;
 constexpr float maxHeadSide = 15.f;
 constexpr int maxBoundary = 64; // the neck's opening (Quake's: 7 edges), capped with a fan
+
+// The detailed head (vr_body_ranger_head_model 1): Quake VR's own progs/player.mdl (733 vertices, 1062 triangles, a 256 x
+// 256 skin, 144 unnamed frames in Quake's order: stand1 the 13th, 52.8 units tall), the one the Dawn of the Machine's
+// ranger corpses wear. His head is two islands of their own (the hood, 89 triangles; the face, 42), every island whose
+// lowest vertex is above `islandFraction` of stand1's height down from its top (the next island's lowest is 9.8 units
+// further down). Drawn as a mesh of its own after the body's (shader `detailShader`) with his own skin.
+constexpr int detailMinVerts = 400;
+constexpr int detailMaxVerts = 3000;
+constexpr int detailMaxTris = 6000;
+constexpr int detailStandIndex = 12; // stand1 (when no frame is named so)
+constexpr float islandFraction = 0.2f;
+constexpr int detailMinHeadTris = 40;
+constexpr int detailMaxHeadTris = 1000;
+constexpr const char* detailShader = "vrrangerhead";
+// His place on the body: `detailGrow` times as wide as the placeholder head, his bottom `detailSink` below its (his hood
+// reaches lower than Quake's head: the neck goes up into it).
+constexpr float detailGrow = 1.05f;
+constexpr float detailSink = 1.5f;
 
 // On the body (progs/vrbody*: Quake units, 26.25 a metre, X forward, Z up): `grow` times as wide as the placeholder's
 // head-only vertices (his: 20 x 20 x 18 cm), centred over them, its bottom `sink` below theirs (the neck's top ring,
@@ -86,6 +108,7 @@ struct Ranger
     bool looked{false}; // vr_body_ranger_head latched and the ranger looked for (once a session: the first body loaded)
     bool on{false};     // the option, as latched
     bool ok{false};     // found and its head taken
+    bool detailed{false}; // Quake VR's detailed head (a mesh and skin of its own), else Quake's (painted on the body's)
     za::Vector<glm::vec3> pos;       // the head's vertices (units, stand1), the cap's last
     za::Vector<glm::vec2> src;       // their texels in his skin (continuous: s + 0.5; the back half's past skinW / 2)
     za::Vector<unsigned short> tris; // three a triangle, into pos
@@ -358,8 +381,94 @@ struct Tri
     return true;
 }
 
-// A player.mdl's bytes: Quake's ranger, his head taken (into `out`), or false.
-[[nodiscard]] bool parse(const za::Vector<unsigned char>& file, Ranger& out)
+// The detailed head in stand1, into `out` (pos, src, tris, mins, maxs): the islands (triangles joined by their vertices)
+// wholly above the neck; false if there are none like a head.
+[[nodiscard]] bool takeIslands(const za::Vector<glm::vec3>& p, const za::Vector<StVert>& st, const za::Vector<Tri>& tris,
+    int skinW, Ranger& out)
+{
+    float zMin = p[0].z;
+    float zMax = p[0].z;
+    for(const glm::vec3& v : p)
+    {
+        zMin = za::min(zMin, v.z);
+        zMax = za::max(zMax, v.z);
+    }
+    const float height = zMax - zMin;
+    if(height < minHeight || height > maxHeight)
+    {
+        return false;
+    }
+    const float cut = zMax - islandFraction * height;
+
+    za::Vector<int> parent;
+    parent.resize(p.size());
+    for(size_t i = 0; i < p.size(); i++)
+    {
+        parent[i] = static_cast<int>(i);
+    }
+    const auto root = [&](int a) {
+        while(parent[static_cast<size_t>(a)] != a)
+        {
+            parent[static_cast<size_t>(a)] = parent[static_cast<size_t>(parent[static_cast<size_t>(a)])];
+            a = parent[static_cast<size_t>(a)];
+        }
+        return a;
+    };
+    for(const Tri& t : tris)
+    {
+        const int a = root(t.v[0]);
+        parent[static_cast<size_t>(root(t.v[1]))] = a;
+        parent[static_cast<size_t>(root(t.v[2]))] = a;
+    }
+    za::Vector<float> lowest; // per island (by its root)
+    lowest.resize(p.size(), zMax);
+    for(size_t i = 0; i < p.size(); i++)
+    {
+        const size_t r = static_cast<size_t>(root(static_cast<int>(i)));
+        lowest[r] = za::min(lowest[r], p[i].z);
+    }
+
+    za::Vector<int> remap;
+    remap.resize(p.size() * 2, -1);
+    out.pos.clear();
+    out.src.clear();
+    out.tris.clear();
+    for(const Tri& t : tris)
+    {
+        if(lowest[static_cast<size_t>(root(t.v[0]))] <= cut)
+        {
+            continue;
+        }
+        for(const int i : t.v)
+        {
+            const bool back = !t.front && st[i].onSeam;
+            const int key = i * 2 + (back ? 1 : 0);
+            if(remap[static_cast<size_t>(key)] < 0)
+            {
+                remap[static_cast<size_t>(key)] = static_cast<int>(out.pos.size());
+                out.pos.pushBack(p[i]);
+                out.src.pushBack({static_cast<float>(st[i].s + (back ? skinW / 2 : 0)) + 0.5f, static_cast<float>(st[i].t) + 0.5f});
+            }
+            out.tris.pushBack(static_cast<unsigned short>(remap[static_cast<size_t>(key)]));
+        }
+    }
+    const int headTris = static_cast<int>(out.tris.size() / 3);
+    if(headTris < detailMinHeadTris || headTris > detailMaxHeadTris)
+    {
+        return false;
+    }
+    out.mins = out.maxs = out.pos[0];
+    for(const glm::vec3& v : out.pos)
+    {
+        out.mins = glm::min(out.mins, v);
+        out.maxs = glm::max(out.maxs, v);
+    }
+    const glm::vec3 size = out.maxs - out.mins;
+    return za::min(size.x, za::min(size.y, size.z)) >= minHeadSide && za::max(size.x, za::max(size.y, size.z)) <= maxHeadSide;
+}
+
+// A player.mdl's bytes: Quake's ranger, his head taken (into `out`), or false. `detailed`: Quake VR's detailed one.
+[[nodiscard]] bool parse(const za::Vector<unsigned char>& file, Ranger& out, bool detailed)
 {
     Reader r{file.data(), file.size()};
     const unsigned char* ident = r.take(4);
@@ -385,8 +494,9 @@ struct Tri
     const int numTris = r.i32();
     const int numFrames = r.i32();
     r.take(12); // sync type, flags, size
-    if(r.bad || numSkins < 1 || w < 8 || h < 8 || w > maxSkinSide || h > maxSkinSide || numVerts < minVerts ||
-        numVerts > maxVerts || numTris < 1 || numTris > maxTris || numFrames < 1)
+    if(r.bad || numSkins < 1 || w < 8 || h < 8 || w > maxSkinSide || h > maxSkinSide ||
+        numVerts < (detailed ? detailMinVerts : minVerts) || numVerts > (detailed ? detailMaxVerts : maxVerts) || numTris < 1 ||
+        numTris > (detailed ? detailMaxTris : maxTris) || numFrames <= (detailed ? detailStandIndex : 0))
     {
         return false;
     }
@@ -437,9 +547,10 @@ struct Tri
         }
         tris.pushBack(t);
     }
-    // stand1 (a frame of its own, or in a group).
+    // stand1 (a frame of its own, or in a group; the detailed head's: by its place when no frame is named so).
     za::Vector<glm::vec3> pose;
     const size_t frameVerts = static_cast<size_t>(numVerts) * 4;
+    int frameAt = 0; // (the frames read, a group's each)
     for(int i = 0; i < numFrames && pose.empty() && !r.bad; i++)
     {
         int count = 1;
@@ -463,7 +574,9 @@ struct Tri
             }
             char frameName[17]{};
             memcpy(frameName, name, 16);
-            if(q_strcasecmp(frameName, standFrame))
+            const bool byPlace = detailed && !frameName[0] && frameAt == detailStandIndex;
+            frameAt++;
+            if(q_strcasecmp(frameName, standFrame) && !byPlace)
             {
                 continue;
             }
@@ -473,7 +586,7 @@ struct Tri
             }
         }
     }
-    if(pose.empty() || !takeHead(pose, st, tris, w, out))
+    if(pose.empty() || !(detailed ? takeIslands(pose, st, tris, w, out) : takeHead(pose, st, tris, w, out)))
     {
         return false;
     }
@@ -516,10 +629,16 @@ struct Tri
     return !q_strcasecmp(last ? last + 1 : folder, "id1") ? 1 : 2;
 }
 
-// The first progs/player.mdl that is Quake's ranger, the game's own folder's first, then id1's, then the rest's: his
-// head.
-[[nodiscard]] bool load()
+// The first progs/player.mdl that is Quake's ranger (`detailed`: Quake VR's detailed one), the game's own folder's
+// first, then id1's, then the rest's: his head. -rangerhead_nodetail (the tests): no detailed one found.
+[[nodiscard]] bool load(bool detailed)
 {
+    if(detailed && COM_CheckParm("-rangerhead_nodetail"))
+    {
+        Con_DPrintf("vr_body_ranger_head: -rangerhead_nodetail: no detailed head\n");
+        return false;
+    }
+    ranger.detailed = detailed;
     za::Vector<unsigned char> file;
     char where[MAX_OSPATH];
     for(int pass = 0; pass < 3; pass++)
@@ -530,17 +649,17 @@ struct Tri
             {
                 continue;
             }
-            if(parse(file, ranger))
+            if(parse(file, ranger, detailed))
             {
                 q_strlcpy(ranger.path, where, sizeof(ranger.path));
-                Con_DPrintf("vr_body_ranger_head: the head of %s (%d triangles, %d vertices)\n", where,
-                    static_cast<int>(ranger.tris.size() / 3), static_cast<int>(ranger.pos.size()));
+                Con_DPrintf("vr_body_ranger_head: the %shead of %s (%d triangles, %d vertices)\n", detailed ? "detailed " : "",
+                    where, static_cast<int>(ranger.tris.size() / 3), static_cast<int>(ranger.pos.size()));
                 return true;
             }
-            Con_DPrintf("vr_body_ranger_head: %s is not Quake's ranger, passed over\n", where);
+            Con_DPrintf("vr_body_ranger_head: %s is not %s, passed over\n", where, detailed ? "Quake VR's detailed ranger" : "Quake's ranger");
         }
     }
-    Con_DPrintf("vr_body_ranger_head: no ranger found (progs/player.mdl): the placeholder head\n");
+    Con_DPrintf("vr_body_ranger_head: no %sranger found (progs/player.mdl)\n", detailed ? "detailed " : "");
     return false;
 }
 
@@ -551,7 +670,8 @@ struct Tri
     {
         ranger.looked = true;
         ranger.on = vr_body_ranger_head.value != 0.f;
-        ranger.ok = ranger.on && load();
+        // (the detailed head first when chosen, else, or without it, Quake's; neither: the placeholder)
+        ranger.ok = ranger.on && ((vr_body_ranger_head_model.value != 0.f && load(true)) || load(false));
     }
     return ranger.on && ranger.ok;
 }
@@ -682,7 +802,8 @@ struct Placed
     qmodel_t* mod{nullptr};
     char name[MAX_QPATH]{};
     int meshVerts{0}; // the mesh's vertex count (which of the model's meshes)
-    int first{0};     // his first vertex in it
+    int first{0};     // his first vertex in it (the detailed head: in his own mesh, the model's last)
+    bool detailed{false};
     bool flip{false}; // his triangles turned over in it
     float scale{1.f}; // the first version's place: ranger.pos * scale + offset
     glm::vec3 offset{0.f};
@@ -699,21 +820,22 @@ za::Vector<Placed> placed;
     return p.pivot + q.turn * ((base - p.pivot) * q.size) + q.move;
 }
 
-// His vertices and the neck's top ring placed by `q` in `v` (the mesh's); his normals too (as MD5_ComputeNormals:
-// the faces' d2 x d1 summed at each place, his copies at one place, his seam, welded) unless the loader makes them.
-void writeHead(const Placed& p, const Pose& q, iqmvert_t* v, bool normals)
+// His vertices placed by `q` in `h` (his first) and the neck's top ring in `v` (the body's mesh), either null; his
+// normals too (as MD5_ComputeNormals: the faces' d2 x d1 summed at each place, his copies at one place, his seam,
+// welded) unless the loader makes them.
+void writeHead(const Placed& p, const Pose& q, iqmvert_t* v, iqmvert_t* h, bool normals)
 {
     const size_t n = ranger.pos.size();
-    for(size_t i = 0; i < n; i++)
+    for(size_t i = 0; i < n && h; i++)
     {
         const glm::vec3 x = headPoint(p, q, i);
         for(int k = 0; k < 3; k++)
         {
-            v[static_cast<size_t>(p.first) + i].xyz[k] = x[k];
+            h[i].xyz[k] = x[k];
         }
     }
     const float dz = za::max(q.upUnits - q.sinkUnits, -p.ringDropMax);
-    for(size_t k = 0; k < p.ring.size(); k++)
+    for(size_t k = 0; k < p.ring.size() && v; k++)
     {
         const glm::vec3 x = p.ringBase[k] + glm::vec3{q.move.x, q.move.y, dz};
         for(int a = 0; a < 3; a++)
@@ -721,11 +843,10 @@ void writeHead(const Placed& p, const Pose& q, iqmvert_t* v, bool normals)
             v[p.ring[k]].xyz[a] = x[a];
         }
     }
-    if(!normals)
+    if(!normals || !h)
     {
         return;
     }
-    iqmvert_t* h = v + p.first;
     const auto at = [&](size_t i) { return geom::vec(h[i].xyz); };
     za::Vector<unsigned short> weld;
     weld.resize(n);
@@ -789,9 +910,19 @@ void onPoseChanged(cvar_t*)
         bool found = false;
         for(aliashdr_t* s = hdr; s; s = Mod_NextSurface(s))
         {
-            if(s->poseverttype == aliashdr_t::PV_IQM && s->numverts == p.meshVerts)
+            if(s->poseverttype != aliashdr_t::PV_IQM)
             {
-                writeHead(p, q, reinterpret_cast<iqmvert_t*>(reinterpret_cast<byte*>(s) + s->vertexes), true);
+                continue;
+            }
+            auto* v = reinterpret_cast<iqmvert_t*>(reinterpret_cast<byte*>(s) + s->vertexes);
+            if(s == hdr && s->numverts == p.meshVerts) // the body's (the detailed head: its neck's top ring alone)
+            {
+                writeHead(p, q, v, p.detailed ? nullptr : v + p.first, true);
+                found = true;
+            }
+            else if(p.detailed && !s->nextsurface && s->numverts == static_cast<int>(ranger.pos.size())) // his own, the last
+            {
+                writeHead(p, q, nullptr, v, true);
                 found = true;
             }
         }
@@ -818,8 +949,13 @@ void qvr::rangerhead::info_f()
 {
     const Pose q = pose();
     Con_Printf("rangerhead: %s, %d meshes placed; size %.2f, moved %.2f %.2f %.2f units, sink %.2f\n",
-        !ranger.on ? "off" : ranger.ok ? "on" : "no ranger", static_cast<int>(placed.size()), q.size, q.move.x, q.move.y,
-        q.move.z, q.sinkUnits);
+        !ranger.on ? "off" : !ranger.ok ? "no ranger" : ranger.detailed ? "the detailed head" : "Quake's head",
+        static_cast<int>(placed.size()), q.size, q.move.x, q.move.y, q.move.z, q.sinkUnits);
+    if(ranger.ok)
+    {
+        Con_Printf("  from %s: %d triangles, %d vertices, skin %d x %d\n", ranger.path, static_cast<int>(ranger.tris.size() / 3),
+            static_cast<int>(ranger.pos.size()), ranger.skinW, ranger.skinH);
+    }
     for(const Placed& p : placed)
     {
         const glm::vec3 top = headPoint(p, q, 0);
@@ -847,10 +983,15 @@ the body's (shader "vrbody") with vr_body_ranger_head, its placeholder head's tr
 (vr_rangerhead.hpp). The new arrays are the hunk's; 1 if it changed them.
 ===============
 */
-extern "C" int VR_RangerHeadMesh(void* mod, const char* model, const char* shader, const void* bonesIn, int numBones,
+extern "C" int VR_RangerHeadMesh(void* mod, const char* model, int mesh, const char* shader, const void* bonesIn, int numBones,
     void** verts, int* numVerts, unsigned short** indexes, int* numIndexes)
 {
-    if(!VR_MD5SharedSkins(shader) || !active())
+    const bool detailMesh = mesh > 0 && !q_strcasecmp(shader, detailShader);
+    if(!(mesh == 0 && VR_MD5SharedSkins(shader)) && !detailMesh)
+    {
+        return 0;
+    }
+    if(!active())
     {
         return 0;
     }
@@ -866,6 +1007,41 @@ extern "C" int VR_RangerHeadMesh(void* mod, const char* model, const char* shade
     if(head < 0)
     {
         return 0;
+    }
+    if(detailMesh)
+    {
+        // The detailed head's own mesh (VR_RangerHeadExtend's): his vertices placed as the body's mesh just before it
+        // said, his skin's texture coordinates, wholly the head joint's; in place.
+        const Placed* p = nullptr;
+        for(const Placed& e : placed)
+        {
+            p = e.mod == mod && e.detailed ? &e : p;
+        }
+        if(!p || !ranger.detailed || *numVerts != static_cast<int>(ranger.pos.size()) ||
+            *numIndexes != static_cast<int>(ranger.tris.size()))
+        {
+            return 0;
+        }
+        auto* v = static_cast<iqmvert_t*>(*verts);
+        for(size_t i = 0; i < ranger.pos.size(); i++)
+        {
+            v[i].st[0] = ranger.src[i].x / static_cast<float>(ranger.skinW);
+            v[i].st[1] = ranger.src[i].y / static_cast<float>(ranger.skinH);
+            for(int k = 0; k < 4; k++)
+            {
+                v[i].weight[k] = k ? 0 : 255;
+                v[i].idx[k] = static_cast<uint8_t>(k ? 0 : head);
+            }
+        }
+        unsigned short* idx = *indexes;
+        for(size_t t = 0; t + 2 < ranger.tris.size(); t += 3)
+        {
+            idx[t] = ranger.tris[t];
+            idx[t + 1] = ranger.tris[t + (p->flip ? 2 : 1)];
+            idx[t + 2] = ranger.tris[t + (p->flip ? 1 : 2)];
+        }
+        writeHead(*p, pose(), nullptr, v, false);
+        return 1;
     }
     const auto* in = static_cast<const iqmvert_t*>(*verts);
     const unsigned short* inIdx = *indexes;
@@ -911,21 +1087,24 @@ extern "C" int VR_RangerHeadMesh(void* mod, const char* model, const char* shade
         maxs = count ? glm::max(maxs, p) : p;
         count++;
     }
-    const size_t total = static_cast<size_t>(nv) + ranger.pos.size();
+    // (the detailed head: in a mesh of his own after this one, VR_RangerHeadExtend's)
+    const bool detailed = ranger.detailed;
+    const size_t total = static_cast<size_t>(nv) + (detailed ? 0 : ranger.pos.size());
     if(!count || total > 65535)
     {
         return 0;
     }
 
     // Placed: `grow` times as wide (Y) as the placeholder, centred over it, its bottom `sink` below the placeholder's.
-    const float scale = grow * (maxs.y - mins.y) / (ranger.maxs.y - ranger.mins.y);
+    const float scale = (detailed ? detailGrow : grow) * (maxs.y - mins.y) / (ranger.maxs.y - ranger.mins.y);
     const glm::vec3 rangerCentre = (ranger.mins + ranger.maxs) * 0.5f;
     const glm::vec3 centre = (mins + maxs) * 0.5f;
-    const glm::vec3 offset{centre.x - rangerCentre.x * scale, centre.y - rangerCentre.y * scale, mins.z - sink - ranger.mins.z * scale};
+    const glm::vec3 offset{centre.x - rangerCentre.x * scale, centre.y - rangerCentre.y * scale,
+        mins.z - (detailed ? detailSink : sink) - ranger.mins.z * scale};
 
     auto* out = static_cast<iqmvert_t*>(Hunk_Alloc(static_cast<int>(sizeof(iqmvert_t) * total)));
     memcpy(out, in, sizeof(iqmvert_t) * static_cast<size_t>(nv));
-    for(size_t i = 0; i < ranger.pos.size(); i++)
+    for(size_t i = 0; i < ranger.pos.size() && !detailed; i++)
     {
         iqmvert_t& v = out[static_cast<size_t>(nv) + i];
         const glm::vec3 p = ranger.pos[i] * scale + offset;
@@ -961,13 +1140,14 @@ extern "C" int VR_RangerHeadMesh(void* mod, const char* model, const char* shade
     }
     float rangerVolume = 0.f;
     const glm::vec3 rangerMiddle = rangerCentre * scale + offset;
+    const auto placedAt = [&](size_t i) { return ranger.pos[i] * scale + offset; };
     for(size_t t = 0; t + 2 < ranger.tris.size(); t += 3)
     {
-        rangerVolume += volume(at(nv + ranger.tris[t]), at(nv + ranger.tris[t + 1]), at(nv + ranger.tris[t + 2]), rangerMiddle);
+        rangerVolume += volume(placedAt(ranger.tris[t]), placedAt(ranger.tris[t + 1]), placedAt(ranger.tris[t + 2]), rangerMiddle);
     }
     const bool flip = (placeholderVolume < 0.f) != (rangerVolume < 0.f);
 
-    const size_t indexCount = static_cast<size_t>(kept) + ranger.tris.size();
+    const size_t indexCount = static_cast<size_t>(kept) + (detailed ? 0 : ranger.tris.size());
     auto* outIdx = static_cast<unsigned short*>(Hunk_Alloc(static_cast<int>(sizeof(unsigned short) * indexCount)));
     size_t o = 0;
     for(int t = 0; t + 2 < ni; t += 3)
@@ -992,7 +1172,7 @@ extern "C" int VR_RangerHeadMesh(void* mod, const char* model, const char* shade
             }
         }
     }
-    for(size_t t = 0; t + 2 < ranger.tris.size(); t += 3)
+    for(size_t t = 0; t + 2 < ranger.tris.size() && !detailed; t += 3)
     {
         outIdx[o++] = static_cast<unsigned short>(nv + ranger.tris[t]);
         outIdx[o++] = static_cast<unsigned short>(nv + ranger.tris[t + (flip ? 2 : 1)]);
@@ -1015,7 +1195,8 @@ extern "C" int VR_RangerHeadMesh(void* mod, const char* model, const char* shade
     p->mod = static_cast<qmodel_t*>(mod);
     q_strlcpy(p->name, p->mod ? p->mod->name : model, sizeof(p->name));
     p->meshVerts = static_cast<int>(total);
-    p->first = nv;
+    p->first = detailed ? 0 : nv;
+    p->detailed = detailed;
     p->flip = flip;
     p->scale = scale;
     p->offset = offset;
@@ -1033,11 +1214,11 @@ extern "C" int VR_RangerHeadMesh(void* mod, const char* model, const char* shade
         }
     }
     p->ringDropMax = neckCount ? za::max(0.f, ringZ - neckMaxs.z - ringClearance) : 0.f;
-    writeHead(*p, pose(), out, false);
+    writeHead(*p, pose(), out, detailed ? nullptr : out + nv, false);
 
-    Con_DPrintf("%s: the ranger's head (%d triangles for the placeholder's %d; scaled %.3f, %.2f x %.2f x %.2f units, "
+    Con_DPrintf("%s: the ranger's %shead (%d triangles for the placeholder's %d; scaled %.3f, %.2f x %.2f x %.2f units, "
                 "crown %.2f for %.2f%s)\n",
-        model, static_cast<int>(ranger.tris.size() / 3), (ni - kept) / 3, scale, (ranger.maxs.x - ranger.mins.x) * scale,
+        model, detailed ? "detailed " : "", static_cast<int>(ranger.tris.size() / 3), (ni - kept) / 3, scale, (ranger.maxs.x - ranger.mins.x) * scale,
         (ranger.maxs.y - ranger.mins.y) * scale, (ranger.maxs.z - ranger.mins.z) * scale, ranger.maxs.z * scale + offset.z,
         maxs.z, flip ? ", turned over" : "");
     *verts = out;
@@ -1055,7 +1236,7 @@ and skin masks get the ranger's head (vr_rangerhead.hpp) where the mesh draws it
 */
 extern "C" void VR_RangerHeadImage(const char* name, unsigned char* data, int width, int height, int format)
 {
-    if(!data || format != SRC_RGBA || width < 8 || height < 8 || !ranger.looked || !ranger.on || !ranger.ok)
+    if(!data || format != SRC_RGBA || width < 8 || height < 8 || !ranger.looked || !ranger.on || !ranger.ok || ranger.detailed)
     {
         return;
     }
@@ -1098,4 +1279,189 @@ extern "C" void VR_RangerHeadImage(const char* name, unsigned char* data, int wi
             px[3] = 255;
         }
     }
+}
+
+/*
+===============
+VR_RangerHeadExtend -- loadMd5Replacement: a body's file (progs/vrbody*, shader "vrbody") with the detailed head's mesh
+added after its own (and the gloves' cuff shell: VR_ModelReplacementExtend), shader "vrrangerhead": his vertices, each
+wholly the head joint's (VR_RangerHeadMesh places them and gives their texture coordinates), and his triangles; null
+when he is not drawn so (vr_body_ranger_head_model 0, no detailed head found). VR_HeapFree it.
+===============
+*/
+extern "C" char* VR_RangerHeadExtend(const char* name, const char* md5mesh)
+{
+    if(!name || !md5mesh || q_strncasecmp(name, "progs/vrbody", 12) || !strstr(md5mesh, "shader \"vrbody\"") || !active() ||
+        !ranger.detailed)
+    {
+        return nullptr;
+    }
+    const char* count = strstr(md5mesh, "numMeshes");
+    const char* joints = strstr(md5mesh, "joints");
+    const char* open = joints ? strchr(joints, '{') : nullptr;
+    if(!count || !open)
+    {
+        return nullptr;
+    }
+    count += strlen("numMeshes");
+    char* end = nullptr;
+    const long meshes = strtol(count, &end, 10);
+    if(meshes < 1 || meshes > 8 || end == count)
+    {
+        return nullptr;
+    }
+    // The head joint's index: the joints are one a line, each named first ("head" -1 ( ... ) ( ... )).
+    int head = -1;
+    int index = 0;
+    for(const char* line = strchr(open, '\n'); line && head < 0; line = strchr(line + 1, '\n'))
+    {
+        const char* p = line + 1;
+        while(*p == ' ' || *p == '\t' || *p == '\r')
+        {
+            p++;
+        }
+        if(*p == '}')
+        {
+            break;
+        }
+        if(*p != '"')
+        {
+            continue;
+        }
+        head = !q_strncasecmp(p, "\"head\"", 6) ? index : head;
+        index++;
+    }
+    if(head < 0)
+    {
+        return nullptr;
+    }
+
+    const int nv = static_cast<int>(ranger.pos.size());
+    const int nt = static_cast<int>(ranger.tris.size() / 3);
+    za::String out{md5mesh, static_cast<za::SizeT>(count - md5mesh)};
+    char buf[160];
+    q_snprintf(buf, sizeof(buf), " %ld", meshes + 1);
+    out += buf;
+    out += end;
+    q_snprintf(buf, sizeof(buf),
+        "\nmesh {\n\t// the detailed ranger's head (%s): Quake VR makes it as the body loads (vr_rangerhead.cpp)\n\tshader \"%s\"\n\n"
+        "\tnumverts %d\n",
+        "progs/player.mdl", detailShader, nv);
+    out += buf;
+    for(int i = 0; i < nv; i++)
+    {
+        q_snprintf(buf, sizeof(buf), "\tvert %d ( %.6f %.6f ) %d 1\n", i,
+            static_cast<double>(ranger.src[static_cast<size_t>(i)].x / static_cast<float>(ranger.skinW)),
+            static_cast<double>(ranger.src[static_cast<size_t>(i)].y / static_cast<float>(ranger.skinH)), i);
+        out += buf;
+    }
+    q_snprintf(buf, sizeof(buf), "\n\tnumtris %d\n", nt);
+    out += buf;
+    for(int t = 0; t < nt; t++)
+    {
+        const size_t k = static_cast<size_t>(t) * 3;
+        q_snprintf(buf, sizeof(buf), "\ttri %d %d %d %d\n", t, ranger.tris[k], ranger.tris[k + 1], ranger.tris[k + 2]);
+        out += buf;
+    }
+    q_snprintf(buf, sizeof(buf), "\n\tnumweights %d\n", nv);
+    out += buf;
+    for(int i = 0; i < nv; i++)
+    {
+        q_snprintf(buf, sizeof(buf), "\tweight %d %d 1 ( 0 0 0 )\n", i, head);
+        out += buf;
+    }
+    out += "}\n";
+    return VR_HeapStrdup(out.cStr());
+}
+
+/*
+===============
+VR_RangerHeadSkins -- Mod_LoadMD5Skins: the detailed head's mesh (shader "vrrangerhead") given his own skin (the player
+model's first, as its loader makes it: palette indices, padded, its fullbrights in the alpha), one texture for every body
+and every skin number (kept for the session, read again from his texels when the textures are). 1 if it did.
+===============
+*/
+extern "C" int VR_RangerHeadSkins(void* surfIn, const char* shader)
+{
+    if(!shader || q_strcasecmp(shader, detailShader) || !ranger.ok || !ranger.detailed || ranger.skin.empty())
+    {
+        return 0;
+    }
+    auto* surf = static_cast<aliashdr_t*>(surfIn);
+    constexpr const char* texName = "progs/vrrangerhead_00_00";
+    gltexture_t* tex = TexMgr_FindTexture(nullptr, texName);
+    if(!tex)
+    {
+        byte* data = ranger.skin.data();
+        const int size = ranger.skinW * ranger.skinH;
+        const unsigned flags = TEXPREF_PAD | TEXPREF_PERSIST | (Mod_CheckFullbrights(data, size) ? TEXPREF_ALPHABRIGHT : 0u);
+        tex = TexMgr_LoadImage(nullptr, texName, ranger.skinW, ranger.skinH, SRC_INDEXED, data, "", reinterpret_cast<src_offset_t>(data), flags);
+    }
+    for(int s = 0; s < MAX_SKINS; s++)
+    {
+        for(int f = 0; f < 4; f++)
+        {
+            surf->gltextures[s][f] = tex;
+            surf->fbtextures[s][f] = nullptr;
+        }
+    }
+    surf->numskins = MAX_SKINS;
+    surf->skinwidth = tex ? static_cast<int>(tex->width) : 1;
+    surf->skinheight = tex ? static_cast<int>(tex->height) : 1;
+    return 1;
+}
+
+bool qvr::rangerhead::hasOwnMesh(const char* modelName)
+{
+    for(const Placed& p : placed)
+    {
+        if(p.detailed && modelName && !strcmp(p.name, modelName))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+// vr_body_head_check <detailed | classic | off>: the head the bodies loaded have, against the one expected (the tests:
+// the detailed head found and drawn as a mesh of its own with his skin; Quake's painted on; or none).
+void qvr::rangerhead::check_f()
+{
+    const char* want = Cmd_Argc() > 1 ? Cmd_Argv(1) : "detailed";
+    const bool wantDetailed = !q_strcasecmp(want, "detailed");
+    const bool wantClassic = !q_strcasecmp(want, "classic");
+    testkit::Tally tally;
+    const auto expect = [&](bool ok, const char* what) { tally.check(ok, "rangerhead_check", what); };
+    expect(ranger.looked, "the head looked for (a body loaded)");
+    expect(ranger.on && ranger.ok ? (ranger.detailed ? wantDetailed : wantClassic) : !wantDetailed && !wantClassic, want);
+    int bodies = 0;
+    int headMeshes = 0;
+    int skinned = 0;
+    for(const Placed& p : placed)
+    {
+        auto* hdr = p.mod && p.mod->type == mod_alias && !strcmp(p.mod->name, p.name) ? static_cast<aliashdr_t*>(Cache_Check(&p.mod->cache)) : nullptr;
+        if(!hdr)
+        {
+            continue;
+        }
+        bodies++;
+        aliashdr_t* last = hdr;
+        for(aliashdr_t* s = hdr; s; s = Mod_NextSurface(s))
+        {
+            last = s;
+        }
+        const bool own = last != hdr && last->numverts == static_cast<int>(ranger.pos.size()) && last->numindexes == static_cast<int>(ranger.tris.size());
+        headMeshes += own ? 1 : 0;
+        skinned += own && last->gltextures[0][0] && !strcmp(last->gltextures[0][0]->name, "progs/vrrangerhead_00_00") ? 1 : 0;
+    }
+    Con_Printf("rangerhead_check: %d bodies placed, %d with the detailed head's mesh, %d with his skin\n", bodies, headMeshes, skinned);
+    if(wantDetailed)
+    {
+        expect(bodies > 0 && headMeshes == bodies && skinned == bodies, "every body has the detailed head's mesh and skin");
+    }
+    else if(wantClassic)
+    {
+        expect(bodies > 0 && headMeshes == 0, "the bodies have Quake's head painted on, no mesh of its own");
+    }
+    tally.verdict("rangerhead_check");
 }

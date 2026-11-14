@@ -1493,6 +1493,7 @@ QVR_CVAR(vr_grenade_pouch_hold_roll, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_body_mode, "3", CVAR_ARCHIVE)           // 3 shipped (vr_defaults.cfg too): the full body, legs and all
 QVR_CVAR(vr_body_build, "1", CVAR_ARCHIVE)            // 0 lean, 1 athletic, 2 brawny, 3 feminine (progs/vrbody_lean, vrbody, vrbody_brawny, vrbody_fem)
 QVR_CVAR(vr_body_ranger_head, "1", CVAR_ARCHIVE)      // the body's head: 1 the Quake ranger's, from your progs/player.mdl (vr_rangerhead.cpp), 0 the placeholder; at the next start
+QVR_CVAR(vr_body_ranger_head_model, "1", CVAR_ARCHIVE) // which ranger head: 1 Quake VR's detailed one (its progs/player.mdl, the corpses'), 0 Quake's (id1's); 1 falls back to 0 when not found; at the next start
 // The ranger's head on the body, placed live (vr_rangerhead.cpp; Appearance > Ranger Head): cm on the model and degrees,
 // about the bottom of his head (pitch nods down, yaw turns left, roll tilts right), his size, and the neck sunk into him.
 QVR_CVAR(vr_body_head_forward, "0", CVAR_ARCHIVE)     // cm forward (-10 to 10)

@@ -432,7 +432,7 @@ float frameMatchRun(const texture_t* a, const texture_t* b, float* moved)
     }
     constexpr int n = sigSize * sigSize;
     const int mark = Hunk_LowMark();
-    float* sig = static_cast<float*>(Hunk_AllocNoFill(sizeof(float) * n * 3));
+    float* sig = static_cast<float*>(Hunk_Alloc(sizeof(float) * n * 3));
     float* shifted = sig + 2 * n;
     const int w = static_cast<int>(a->width), h = static_cast<int>(a->height);
     signature(reinterpret_cast<const byte*>(a + 1), SRC_INDEXED, w, h, sig, shifted);
@@ -922,7 +922,7 @@ int prepare(const qmodel_t* mod, const char* texname, const byte* data, enum src
     const float need = za::clamp(vr_extmaps_match.value, 0.f, 1.f);
     const int mark = Hunk_LowMark();
     constexpr int sigFloats = extmaps::sigSize * extmaps::sigSize * 3;
-    Signatures sigs{data, fmt, width, height, need > 0.f ? static_cast<float*>(Hunk_AllocNoFill(sizeof(float) * sigFloats)) : nullptr};
+    Signatures sigs{data, fmt, width, height, need > 0.f ? static_cast<float*>(Hunk_Alloc(sizeof(float) * sigFloats)) : nullptr};
     const int pictures = Hunk_LowMark(); // the pack's pictures, after the signatures
     char file[MAX_QPATH];
     q_snprintf(file, sizeof(file), "%s%s", extmaps::prefix, p.mat.diffusemap[0] ? extmaps::fileOf(p.mat.diffusemap) : p.base);
