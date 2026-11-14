@@ -19,6 +19,9 @@ Flat-screen or VR: Debug > Tests > Saves > Autosave Now in a campaign map: Selec
 
 [2. Flat-screen: Run Setup, presets and mutators]
 Flat-screen or VR: Melee Only with the dagger, "maxplayers 2" and a bot (impulse 100): the bot holds the dagger, skips guns and ammo, and fights with the dagger.
+Flat-screen or VR: Classic Quake: every gun kicks when it fires (recoil on, as in the other presets). {test:classic_drops}
+Flat-screen or VR: Classic Quake: a killed grunt, enforcer, knight or ogre drops its backpack but no weapon to take (its gun falls as scenery you can't grab and fades after 4 seconds). {test:classic_drops}
+Flat-screen or VR: With Burst Rifles off (Classic, Light), a grunt's burst rifle you pick up still fires 3-round bursts, not shotgun pellets. {test:classic_drops}
 
 [3. Flat-screen: menus, campaigns and the Map Library]
 Installer: install into a fresh folder and pick Snap 45, Left-handed and Medium on "Set up the game": the game has them. Change Turning in the game, run Update, change only Turn Speed: Turning stays yours.
