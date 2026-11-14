@@ -60,7 +60,8 @@ struct State
     int safe = 0;         // 1: safe mode this run
     bool safeAuto = false;
     bool keepAuto = false; // the last start was in automatic safe mode and ended well
-    unsigned vendorOff = 0; // the vendor workarounds' features
+    unsigned vendorOff = 0; // the vendor workarounds' features (and -glescompat's)
+    bool esCompat = false;  // -glescompat: the features OpenGL ES 3.2 lacks off (QUEST_PLAN.md, C2)
     unsigned logged = 0;    // features whose "off" line was printed
     char why[256]{};        // why safe mode is on
     bool mapSpawned = false;
@@ -158,6 +159,14 @@ const char* featureName(int feature)
 // the parallax walk, decals and retro textures sampling handles passed through functions, in loops), not pinned down
 // without the GPU. The layered shadow casters (gl_ViewportIndex from a vertex shader) compiled there: kept.
 constexpr unsigned amdDefaults = VR_GLSAFE_BINDLESS;
+
+// -glescompat (QUEST_PLAN.md, C2): the PC renderer limited to what OpenGL ES 3.2 on the Quest's Adreno has, to run and
+// measure the Quest's paths on the PC before an Android build exists. Off: the optional features ES has no form of
+// (bindless textures, multi-bind, gl_ViewportIndex from a vertex shader) and clip control (EXT_clip_control: not known
+// on the Quest's driver; checked on the device in C4), and NVIDIA's shading-rate image (vr_foveated.cpp). Kept:
+// persistent mapped buffers (EXT_buffer_storage), MSAA, debug output (core in ES 3.2). vr_gles_report lists the rest.
+constexpr unsigned esCompatOff =
+    VR_GLSAFE_BINDLESS | VR_GLSAFE_MULTI_BIND | VR_GLSAFE_CLIP_CONTROL | VR_GLSAFE_VIEWPORT_LAYER;
 
 } // namespace
 
@@ -277,6 +286,18 @@ extern "C" void VR_GLStartupVendor(const char* vendor, const char* renderer, con
     {
         VR_GLStep("vendor workarounds (AMD; vr_gl_workarounds 1): %s off", featureName(VR_GLSAFE_BINDLESS));
     }
+    if(COM_CheckParm("-glescompat") || getenv("QVR_GLES_COMPAT")) // (the variable: bench.sh runs, which take no arguments)
+    {
+        glsafe.esCompat = true;
+        glsafe.vendorOff |= esCompatOff;
+        VR_GLStep("GLES compat (-glescompat): the features OpenGL ES 3.2 lacks off");
+        Con_Printf("GLES compat (-glescompat): the features OpenGL ES 3.2 lacks off (vr_gles_report)\n");
+    }
+}
+
+extern "C" int VR_GLESCompat(void)
+{
+    return glsafe.esCompat ? 1 : 0;
 }
 
 extern "C" int VR_GLSafeOff(int feature)
@@ -285,8 +306,11 @@ extern "C" int VR_GLSafeOff(int feature)
     if(off && !(glsafe.logged & static_cast<unsigned>(feature)))
     {
         glsafe.logged |= static_cast<unsigned>(feature);
-        VR_GLStep("%s: %s off", glsafe.safe ? "safe mode" : "vendor workaround", featureName(feature));
-        Con_SafePrintf("GL %s: %s off\n", glsafe.safe ? "safe mode" : "vendor workaround", featureName(feature));
+        const char* why = glsafe.safe                                                         ? "safe mode"
+                          : glsafe.esCompat && (esCompatOff & static_cast<unsigned>(feature)) ? "GLES compat"
+                                                                                              : "vendor workaround";
+        VR_GLStep("%s: %s off", why, featureName(feature));
+        Con_SafePrintf("GL %s: %s off\n", why, featureName(feature));
     }
     return off ? 1 : 0;
 }
@@ -385,10 +409,50 @@ void status_f()
     VR_GLRecentSteps(recent, sizeof(recent), 8);
     Con_Printf("Last GL steps:\n%s", recent);
 }
+
+// The desktop-GL uses not gated yet by -glescompat, from the audit (QUEST_PLAN.md, "Renderer audit"; the script
+// scratch/q1_gles_audit.py made it): each one's place and its OpenGL ES form. C2 gates them one by one.
+struct EsPending
+{
+    const char* what;
+    const char* where;
+    const char* es;
+};
+constexpr EsPending esPending[] = {
+    {"#version 430 in 52 shader sources", "gl_shaders.c, vr_gfx_gl.cpp, vr_bloom.cpp...", "one prefix: #version 320 es + precision"},
+    {"MultiDrawElementsIndirect (bindless path)", "r_world.c, vr_lighting.cpp", "the bound path's DrawElementsIndirect loop"},
+    {"glGetTexImage", "gl_texmgr.c, vr_envmap.cpp, vr_pbr.cpp, vr_lighting.cpp", "FBO + glReadPixels"},
+    {"glGetBufferSubData", "vr_gfx_gl.cpp, vr_temporal.cpp, vr_water.cpp", "glMapBufferRange(GL_MAP_READ_BIT)"},
+    {"glClearTexImage", "vr_temporal.cpp", "clear through an FBO"},
+    {"glTextureView", "vr_envmap.cpp, vr_stereo_single.cpp", "render to the array layers directly"},
+    {"GL_TEXTURE_LOD_BIAS", "gl_texmgr.c, vr_gfx_gl.cpp", "the bias in the shader (texture(s, uv, bias))"},
+    {"GL_DEPTH_CLAMP", "r_alias.c", "EXT_depth_clamp, or the view model's depth range"},
+    {"gl_ClipDistance", "gl_shaders.h, r_world.c, r_alias.c, vr_lighting.cpp", "EXT_clip_cull_distance, or a discard"},
+    {"noperspective", "gl_shaders.h, vr_glsl_alias.h", "NV_shader_noperspective_interpolation, or w-multiplied"},
+    {"textureQueryLevels", "vr_gfx_gl.cpp", "the level count as a uniform"},
+    {"timer queries (GL_TIMESTAMP, 64-bit results)", "vr_profile.cpp, vr_tracy.cpp, vr_lighting.cpp", "EXT_disjoint_timer_query"},
+    {"glDrawBuffer, glClearDepth, glDepthRange, glPolygonMode", "vr_gfx_gl.cpp, vr_glutil.cpp, gl_rmain.c, gl_vidsdl.c", "glDrawBuffers, ...f, debug only"},
+    {"GL_FRAMEBUFFER_SRGB, GL_TEXTURE_CUBE_MAP_SEAMLESS", "vr_imgui.cpp, gl_vidsdl.c", "EXT_sRGB_write_control; always on"},
+};
+
+void glesReport_f()
+{
+    Con_Printf("GLES compat: %s\n", glsafe.esCompat ? "on (-glescompat)" : "off (start with -glescompat)");
+    Con_Printf("  bindless %d, multi-bind %d, clip control %d, layered casters %d, buffer storage %d, NV foveation %s\n",
+        gl_bindless_able ? 1 : 0, gl_multi_bind_able ? 1 : 0, gl_clipcontrol_able ? 1 : 0, gl_viewport_layer_able,
+        gl_buffer_storage_able ? 1 : 0, glsafe.esCompat ? "off" : "when the GPU has it");
+    Con_Printf("Not gated yet (C2), with their ES form:\n");
+    for(const EsPending& p : esPending)
+    {
+        Con_Printf("  %s (%s): %s\n", p.what, p.where, p.es);
+    }
+    Con_Printf("vr_gles_report: %d pending\n", static_cast<int>(sizeof(esPending) / sizeof(esPending[0])));
+}
 } // namespace
 
 extern "C" void VR_GLSafeInit(void)
 {
     Cmd_AddCommand("vr_glsafe_retry", retry_f);
     Cmd_AddCommand("vr_glsafe_status", status_f);
+    Cmd_AddCommand("vr_gles_report", glesReport_f);
 }

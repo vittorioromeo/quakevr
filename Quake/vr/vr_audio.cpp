@@ -73,7 +73,7 @@
 #include "vr_audio_internal.hpp"
 #include "vr_api.h"
 
-#include <emmintrin.h> // (SSE2: x64's baseline)
+#include "vr_simd.hpp" // (the filters four lanes at a time: SSE2 on x64, NEON on ARM)
 #include <stdio.h>
 
 namespace qvr::audio
@@ -789,7 +789,7 @@ void Mixer::reverbDecode(int blocks, const Features& f, float* toL, float* toR, 
     {
         while(reverbConvolved.loadAcquire() <= b)
         {
-            _mm_pause();
+            simd::cpuRelax();
         }
         if(reverbRan[b])
         {
@@ -1109,30 +1109,31 @@ void AntiAlias::applyOne(float* x, za::Vector<float>& history, int& quiet, int n
     za::copy(x, x + n, work.begin() + h);
     const float* c = kernel.data();
     int i = 0;
-    // Four outputs at a time, each lane the scalar loop's own sums in its order (the same results, bit for bit).
+    // Four outputs at a time, each lane the scalar loop's own sums in its order (the same results, bit for bit; any
+    // backend of vr_simd.hpp).
+    using V = simd::Native;
     for(; i + 4 <= n; i += 4)
     {
         const float* in = work.data() + i;
-        __m128 s[8];
+        V::F4 s[8];
         for(int j = 0; j < 8; j++)
         {
-            s[j] = _mm_setzero_ps();
+            s[j] = V::zero();
         }
         int k = 0;
         for(; k + 8 <= taps; k += 8)
         {
             for(int j = 0; j < 8; j++)
             {
-                s[j] = _mm_add_ps(s[j], _mm_mul_ps(_mm_set1_ps(c[k + j]), _mm_loadu_ps(in + k + j)));
+                s[j] = V::add(s[j], V::mul(V::set1(c[k + j]), V::loadu(in + k + j)));
             }
         }
-        __m128 y = _mm_add_ps(_mm_add_ps(_mm_add_ps(s[0], s[1]), _mm_add_ps(s[2], s[3])),
-            _mm_add_ps(_mm_add_ps(s[4], s[5]), _mm_add_ps(s[6], s[7])));
+        V::F4 y = V::add(V::add(V::add(s[0], s[1]), V::add(s[2], s[3])), V::add(V::add(s[4], s[5]), V::add(s[6], s[7])));
         for(; k < taps; k++)
         {
-            y = _mm_add_ps(y, _mm_mul_ps(_mm_set1_ps(c[k]), _mm_loadu_ps(in + k)));
+            y = V::add(y, V::mul(V::set1(c[k]), V::loadu(in + k)));
         }
-        _mm_storeu_ps(x + i, y);
+        V::storeu(x + i, y);
     }
     for(; i < n; i++)
     {
