@@ -200,7 +200,8 @@ player unchanged.
 | **B8** (the walk predicted done; the rest is B8b) | Prediction and lag compensation: shared movement code, reconciliation, then climbing and grapple; rewind of hit models and hands for hitscan, melee, parry, shove | `mp_predict` (own move off at frame 0 under 150 ms lag; corrections under 1 unit on flat ground), `mp_lagcomp` (a hit on a moving target at 150 ms lands) |
 | **B8b** (shots compensated; the rest is B8c) | The rest of B8: lag compensation (the server's last 250 ms of hit models and hands per entity; a client's hitscan, melee, parry and shove judged at his interpolation buffer's time, capped); the jump predicted (QC's PlayerPreThink jump in the module), swimming, crouched and lying boxes, climbing and the grapple | `mp_lagcomp` (a hit on a moving target at 150 ms lands), `mp_predict` grown (a jump, a swim, a crouch: corrections under a unit) |
 | **B8c** (mp_loss's jumps and melee's lag compensation done; the prediction's moves are B8d) | mp_loss's last jumps; lag compensation for melee, parry, shove and the grapple (other players' hands kept); the jump, swimming, crouched and lying boxes, climbing and the grapple predicted, a lift rider | `mp_loss` 0 jumps, `mp_lagcomp` (a punch at 150 ms lands), `mp_predict` grown |
-| **B8d** | The prediction's moves: the jump (QC's PlayerPreThink jump in vr_pmove.cpp, stamina), swimming, the crouched and lying boxes, climbing and the grapple; a lift rider | `mp_predict` grown (a jump, a swim, a crouch, a lift: corrections under a unit) |
+| **B8d** (the jump, the crouched box and a lift rider done; the rest is B8e) | The prediction's moves: the jump (QC's PlayerPreThink jump in vr_pmove.cpp, stamina), swimming, the crouched and lying boxes, climbing and the grapple; a lift rider | `mp_predict` grown (a jump, a swim, a crouch, a lift: corrections under a unit) |
+| **B8e** | The rest of the prediction's moves: swimming and water jumps, the lying box (the crawl), climbing, the grapple, a fall onto a moving lift (the movers' motion in the replay) | `mp_predict` grown (a swim on e1m4, a crawl, a climb, a grapple pull, a drop onto e1m1's lift as it rises) |
 | **B9** | Compression and rate: entropy stage with trained tables, per-client rate, priority accumulator | byte budgets per scenario from section 2.3 |
 | **B10** | Proximity voice chat: capture, Opus, VAD, noise suppression, push-to-talk, a jitter buffer, voices placed by Steam Audio at the speaker's head; VR and flat; menu rows | `mp_voice` (a test tone from A heard at B, louder near, delay under 250 ms) |
 | **B11** | Deathmatch and bots: frags, respawns, DM item rules with VR weapons, FrikBot with VR-aware bodies | `mp_dm` (two clients and two bots, a fraglimit reached) |
@@ -1336,6 +1337,48 @@ Open (B8d):
 - Hand poses are kept per server frame (lerped between frames), not per move: a 90 Hz client's merged moves differ by a
   few mm (the B5d decision).
 
+### B8d results, part 1: the jump, the crouched box, a lift rider (2026-11-15, dev no-LTO build, loopback; `mp_test.py suite`: 26 of 27 pass, `mp_predict` 5/1 (its probe's race, below: then 20/0 in 4 runs of 4); scenario_check 150 run, 1 failed (`bench_armed16_enf`, "what it placed is gone": 3 of 3 alone), load_models_test 4/0, vr_run_check 12/0, Release (ThinLTO) build 0 warnings)
+
+| Scenario | Result |
+|---|---|
+| `mp_predict` (grown) | 20/0: B at 150 ms each way. His own jump shows 1-2 moves after his press (was a round trip). Jumping in place and walking (across the start's 16-unit step, under its ceiling): every correction 0.000 over 319-325 states, 250-262 of them in the air, drawn offset 0.000 (failed first: 9.3-10.4 units at the step, below). A crouched walk (box 36, maxspeed 240): 0.000 over 210 states. A ride on e1m1's lift (func_plat *7, 150 units up): 0.012-0.031 over 176-180 states, 50-69 of them with the lift moving under him, drawn offset at most 0.023 (failed first: 3.7 units a state walking on its top, the drawn offset 10.3) |
+
+Single player on the branch: scenario_check 150 run (the one failure a busy machine's: alone 3/3), load_models_test 4/0,
+vr_run_check 12/0 (run B `3 1 0 1 0`), the Release-config (ThinLTO) build 0 warnings. Nothing of single player's or
+the listen host's own client's path changed (`.vr_movejump` 0 there: QuakeC's jump as before).
+
+What changed:
+
+- **The jump in the moves** (`vr_pmove.cpp`): QC PlayerJump's rule (on the ground, the key released since the last;
+  270 up; FL_JUMPRELEASED and FL_ONGROUND cleared) in each move after the air move and before gravity, as a server frame
+  runs PreThink; the move's key is clc_move's bit 2. On a frame walked move by move the engine sets the QC field
+  `.vr_movejump` and PlayerPreThink leaves the jump and its release to the moves (the server's `jumped` hook plays
+  PlayerJump's sound and clears `.button2`); lying down and AD's Jump Boots stay QuakeC's (the field 0 for them: no
+  jump in the replay, a correction). The state carries the released bit and the jump speed.
+- **The crouched box in the replay**: the state's rules carry his box's height (`hull::crouchedHeight`);
+  `hull::clientPlayerTrace` takes it (Quake's 32 wide with `vr_hull_width` 0, as moveBox).
+- **A remote client's crouch read from his own head over his own feet** (`vr_server.cpp`): the move's head is placed from
+  his client's origin, his prediction, a round trip ahead of the server's; read against the server's origin a jump's rise
+  was a crouch (boxes 52 and 44 in the air), and the server's shorter box passed under the ceiling his replay met (the
+  9-10 unit corrections). Now the head is moved by the server's origin less his (`move.origin`).
+- **A lift rider**: the replay's ledge test meets the brush models too (`MOVE_NOMONSTERS`, as the server's: a lift's top
+  was a drop, double friction, 1.8 units a state walking on it); a lift under him at the last replay and now, moved
+  since, carried him: not a correction (eased in behind it, each state's 2 units sank him 10-16 units into it).
+- `QVR_NET_VERSION` 21. `vr_mp_predict_report`: `air_n`/`air_max`, `ride_n`, `err_max` (the drawn offset), `unwalked`,
+  the rules' `maxspeed`/`box`/`jump`. `vr_mp_watch 2`: each move traced (`mp_predict_sv` on the server, `mp_predict_m`
+  each replay's), `vr_mp_watch 1` each jump (`mp_predict_jump`, the server's `jumped`/`held` moves).
+- `mp_predict`'s probe waited for B's stop with no move seen (stopped at once, a few units off: no `mp_stop`): it waits
+  for his move first (the suite's 5/1).
+
+Open (B8e):
+
+- Swimming, water jumps, the lying box (the crawl), climbing, the grapple, a flat-screen player's slide: drawn as they
+  come (not predicted).
+- A fall onto a moving lift: his replay meets it where it is, not where it will be (1.5-1.9 units on landing, eased in);
+  the movers' motion in the replay (each move's time on a pusher's velocity) would take it away.
+- A room-scale jump (standing up at once from a crouch) is his own move's bit: predicted as any jump.
+- The `mp_melee` flake ("crowbar held level", busy machine): not seen this session (29/0 in the suite); not looked into.
+
 ## Decisions
 
 - Melee's lag compensation (B8c) wraps the queries (melee's sweep, a bash's find, a headbutt's target, a guard's check
@@ -1400,4 +1443,4 @@ Open (B8d):
 - The interpolation buffer (B7b) leaves brush models and stepping monsters on NetQuake's lerp: the player's own entity
   is not delayed (no prediction until B8), and a lift he rides must stay in step with him.
 
-Next phase: B8d — the prediction's moves: the jump, swimming, the crouched and lying boxes, climbing and the grapple predicted through vr_pmove.cpp, with a lift-rider test (the worst case must never desync: a correction eases in, a big one snaps); tests first: `mp_predict` grown (a jump, a swim, a crouch, a lift: corrections under a unit).
+Next phase: B8e — the rest of the prediction's moves through vr_pmove.cpp: swimming and water jumps (SV_WaterMove, e1m4's deep water), the lying box's crawl, climbing and the grapple, and a fall onto a moving lift (the movers' motion in the replay); the worst case never desynced (a correction eases in, a big one snaps); tests first: `mp_predict` grown (a swim, a crawl, a climb, a grapple pull, a drop onto e1m1's rising lift: corrections under a unit); then the `mp_melee` "crowbar held level" flake if it shows.
