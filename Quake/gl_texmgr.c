@@ -879,7 +879,7 @@ void TexMgr_LoadPalette (void)
 		Sys_Error ("Couldn't load gfx/palette.lmp");
 
 	mark = Hunk_LowMark ();
-	pal = (byte *) Hunk_AllocNoFill (768);
+	pal = (byte *) Hunk_Alloc (768);
 	if (fread (pal, 768, 1, f) != 1)
 		Sys_Error ("Failed reading gfx/palette.lmp");
 	fclose(f);
@@ -887,7 +887,7 @@ void TexMgr_LoadPalette (void)
 	COM_FOpenFile ("gfx/colormap.lmp", &f, NULL);
 	if (!f)
 		Sys_Error ("Couldn't load gfx/colormap.lmp");
-	colormap = (byte *) Hunk_AllocNoFill (256 * 64);
+	colormap = (byte *) Hunk_Alloc (256 * 64);
 	if (fread (colormap, 256 * 64, 1, f) != 1)
 		Sys_Error ("TexMgr_LoadPalette: colormap read error");
 	fclose(f);
@@ -1392,7 +1392,7 @@ static unsigned *TexMgr_8to32 (byte *in, int pixels, unsigned int *usepal)
 	int i;
 	unsigned *out, *data;
 
-	out = data = (unsigned *) Hunk_AllocNoFill (pixels*4);
+	out = data = (unsigned *) Hunk_Alloc (pixels*4);
 
 	for (i = 0; i < pixels; i++)
 		*out++ = usepal[*in++];
@@ -1415,7 +1415,7 @@ static byte *TexMgr_PadImageW (byte *in, int width, int height, byte padbyte)
 
 	outwidth = TexMgr_Pad(width);
 
-	out = data = (byte *) Hunk_AllocNoFill(outwidth*height);
+	out = data = (byte *) Hunk_Alloc(outwidth*height);
 
 	for (i = 0; i < height; i++)
 	{
@@ -1444,7 +1444,7 @@ static byte *TexMgr_PadImageH (byte *in, int width, int height, byte padbyte)
 	srcpix = width * height;
 	dstpix = width * TexMgr_Pad(height);
 
-	out = data = (byte *) Hunk_AllocNoFill(dstpix);
+	out = data = (byte *) Hunk_Alloc(dstpix);
 
 	for (i = 0; i < srcpix; i++)
 		*out++ = *in++;
@@ -1619,7 +1619,7 @@ static void TexMgr_Upload32 (gltexture_t *glt, unsigned *data, double t0)
 			{
 				coverage = VR_AlphaCoverage ((const byte *) data, glt->width * glt->height);
 				mark = Hunk_LowMark ();
-				coveragemip = (byte *) Hunk_AllocNoFill (q_max (1, glt->width * glt->height / 2) * 4);
+				coveragemip = (byte *) Hunk_Alloc (q_max (1, glt->width * glt->height / 2) * 4);
 			}
 
 			VR_TRACY_SCOPE ("texture mips made and uploaded"); // QVR: Tracy builds only (self time: the CPU's mips)
@@ -2143,7 +2143,7 @@ void TexMgr_ReloadImage (gltexture_t *glt, int shirt, int pants)
 		else if (glt->source_format == SRC_LIGHTMAP) {
 			size *= lightmap_bytes;
 		}
-		data = (byte *) Hunk_AllocNoFill (size);
+		data = (byte *) Hunk_Alloc (size);
 		sz = (int) fread (data, 1, size, f);
 		fclose (f);
 		if (sz != size) {
@@ -2215,7 +2215,7 @@ invalid:	Con_Printf ("TexMgr_ReloadImage: invalid source for %s\n", glt->name);
 
 		//translate texture
 		size = glt->width * glt->height;
-		dst = translated = (byte *) Hunk_AllocNoFill (size);
+		dst = translated = (byte *) Hunk_Alloc (size);
 		src = data;
 
 		for (i = 0; i < size; i++)

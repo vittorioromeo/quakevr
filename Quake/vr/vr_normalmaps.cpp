@@ -105,9 +105,9 @@ seams, which the bumps on the model's own light (vr_normalmap_models) would show
 static void TexMgr_DilateIslands (const MaskView &hm, float *lum, int width, int height, float *scratch = NULL)
 {
 	int		x, y, pass, mark = scratch ? 0 : Hunk_LowMark ();
-	byte	*in = scratch ? (byte *) scratch : (byte *) Hunk_AllocNoFill (width * height);
-	byte	*next = scratch ? (byte *) (scratch + width * height) : (byte *) Hunk_AllocNoFill (width * height);
-	float	*src = scratch ? scratch + 2 * width * height : (float *) Hunk_AllocNoFill (width * height * sizeof (float));
+	byte	*in = scratch ? (byte *) scratch : (byte *) Hunk_Alloc (width * height);
+	byte	*next = scratch ? (byte *) (scratch + width * height) : (byte *) Hunk_Alloc (width * height);
+	float	*src = scratch ? scratch + 2 * width * height : (float *) Hunk_Alloc (width * height * sizeof (float));
 
 	for (y = 0; y < height; y++)
 		for (x = 0; x < width; x++)
@@ -159,7 +159,7 @@ static void TexMgr_ShadingToNormals (const MaskView &hm, byte *data, int width, 
 	if (width < 1 || height < 1)
 		return;
 	mark = scratch ? 0 : Hunk_LowMark ();
-	lum = scratch ? scratch : (float *) Hunk_AllocNoFill (width * height * sizeof (float));
+	lum = scratch ? scratch : (float *) Hunk_Alloc (width * height * sizeof (float));
 	for (x = 0; x < width * height; x++)
 	{
 		lum[x] = (data[x*4+0] * 0.299f + data[x*4+1] * 0.587f + data[x*4+2] * 0.114f) * (1.f / 255.f);
@@ -169,7 +169,7 @@ static void TexMgr_ShadingToNormals (const MaskView &hm, byte *data, int width, 
 		TexMgr_DilateIslands (hm, lum, width, height, scratch ? scratch + 2 * width * height : NULL);
 	if (heights)
 	{
-		h = scratch ? scratch + width * height : (float *) Hunk_AllocNoFill (width * height * sizeof (float));
+		h = scratch ? scratch + width * height : (float *) Hunk_Alloc (width * height * sizeof (float));
 		TexMgr_ShadingToHeights (hm, lum, h, width, height, texelsperunit, scratch ? scratch + 2 * width * height : NULL);
 	}
 	// Shading relative to the texture's own brightness: Quake's dark textures as bumpy as bright ones.
@@ -219,7 +219,7 @@ static void TexMgr_ShadingToHeights (const MaskView &hm, const float *lum, float
 	float	*tmp, lo, hi, range;
 
 	mark = scratch ? 0 : Hunk_LowMark ();
-	tmp = scratch ? scratch : (float *) Hunk_AllocNoFill (count * sizeof (float));
+	tmp = scratch ? scratch : (float *) Hunk_Alloc (count * sizeof (float));
 	memcpy (h, lum, count * sizeof (float));
 	passes = texelsperunit > 1.5f ? 2 : 1;
 	for (pass = 0; pass < passes; pass++)
@@ -310,8 +310,8 @@ static void TexMgr_BoxBlur (float *a, int n, int w, int h, int r, float *scratch
 {
 	int		stride = w * n, mark = scratch ? 0 : Hunk_LowMark ();
 	float	inv = 1.f / (2 * r + 1);
-	float	*copy = scratch ? scratch : (float *) Hunk_AllocNoFill (w * h * n * sizeof (float));
-	float	*sums = scratch ? scratch + w * h * n : (float *) Hunk_AllocNoFill (stride * sizeof (float));
+	float	*copy = scratch ? scratch : (float *) Hunk_Alloc (w * h * n * sizeof (float));
+	float	*sums = scratch ? scratch + w * h * n : (float *) Hunk_Alloc (stride * sizeof (float));
 
 	TexMgr_ForRows (h, w * h, [&] (int y)
 	{
@@ -364,7 +364,7 @@ static void TexMgr_BoxBlur (float *a, int n, int w, int h, int r, float *scratch
 static void TexMgr_BlurIslands (float *out, const float *in, const float *wgt, int w, int h, int r, float *scratch)
 {
 	int		pass, count = w * h, mark = scratch ? 0 : Hunk_LowMark ();
-	float	*acc = scratch ? scratch : (float *) Hunk_AllocNoFill (count * 4 * sizeof (float));
+	float	*acc = scratch ? scratch : (float *) Hunk_Alloc (count * 4 * sizeof (float));
 
 	TexMgr_ForRows (h, count, [&] (int y)
 	{
@@ -378,7 +378,7 @@ static void TexMgr_BlurIslands (float *out, const float *in, const float *wgt, i
 	});
 	if (r <= 0)
 	{
-		float *copy = scratch ? scratch + count * 4 : (float *) Hunk_AllocNoFill (count * 4 * sizeof (float));
+		float *copy = scratch ? scratch + count * 4 : (float *) Hunk_Alloc (count * 4 * sizeof (float));
 		for (pass = 0; pass < 2; pass++)
 		{
 			memcpy (copy, acc, count * 4 * sizeof (float));
@@ -1175,7 +1175,7 @@ extern "C" int VR_MakeNormalMap (gltexture_t *glt, byte *data, int kind, int wor
 		{
 			int cache = VR_NormalCacheMode (), n = glt->width * glt->height * 4, hit = 0, cmark = Hunk_LowMark ();
 			unsigned long long key = cache ? TexMgr_SkinNormalsKey (data, glt->width, glt->height, heights, texelsperunit) : 0;
-			byte *cached = cache ? (byte *) Hunk_AllocNoFill (n) : NULL;
+			byte *cached = cache ? (byte *) Hunk_Alloc (n) : NULL;
 			hit = cache && VR_NormalCacheLoad (TexMgr_NormalCacheBuild (), key, cached, glt->width, glt->height);
 			if (hit && cache == 1)
 				memcpy (data, cached, n);
@@ -1297,7 +1297,7 @@ extern "C" byte *VR_NormalMapSource (byte *data, enum srcformat fmt, int width, 
 	byte *pristine;
 	if (!VR_NormalMaps () || fmt != SRC_RGBA)
 		return data;
-	pristine = (byte *) Hunk_AllocNoFill (width * height * 4);
+	pristine = (byte *) Hunk_Alloc (width * height * 4);
 	memcpy (pristine, data, width * height * 4);
 	return pristine;
 }

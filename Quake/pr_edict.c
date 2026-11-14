@@ -2287,7 +2287,7 @@ static void PR_FindFunctionRanges (void)
 	qcvm->functionsizes = (int *) Hunk_AllocName (qcvm->progs->numfunctions * sizeof (*order), "func_sizes");
 	mark = Hunk_LowMark ();
 
-	order = (int *) Hunk_AllocNoFill (qcvm->progs->numfunctions * sizeof (*order));
+	order = (int *) Hunk_Alloc (qcvm->progs->numfunctions * sizeof (*order));
 	for (i = 0; i < qcvm->progs->numfunctions; i++)
 		order[i] = i;
 	qsort (order, qcvm->progs->numfunctions, sizeof (*order), &PR_CompareFunction);
@@ -2336,7 +2336,7 @@ static void PR_FillOffsetTables (void)
 		*passes[pass].maxofs = maxofs;
 
 		// alloc table and fill it with -1
-		data = *passes[pass].offsets = (int *) Hunk_AllocNameNoFill ((maxofs + 1) * sizeof (int), passes[pass].allocname);
+		data = *passes[pass].offsets = (int *) Hunk_AllocName ((maxofs + 1) * sizeof (int), passes[pass].allocname);
 		for (i = 0; i <= maxofs; i++)
 			data[i] = -1;
 
