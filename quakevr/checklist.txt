@@ -29,6 +29,9 @@ Installer: install into a fresh folder and pick Snap 45, Left-handed and Medium 
 Flat-screen or VR: Run Setup's icon pictures keep their real shape (a round skull, long flat guns), the cards sit further apart and a two-line name is tighter; Menu Look > Run Setup: Icon Picker Gap and Icon Picker Name Lines tune them. {test:run_setup_newgame}
 Flat-screen or VR: finish a level: COMPLETED, the level's name and the Time, Secrets and Kills panel are in the menus' red, as are LOADING and PAUSE; with Blood Red Menus off they keep Quake's colours.
 Flat-screen or VR: Select Campaign: Arcane Dimensions sits with the other campaigns (no Experimental header) with a small "experimental" before its title; pick it and answer Continue: Run Setup opens, and its Start begins Arcane Dimensions.
+Flat-screen or VR: Single Player > New Game (or a campaign, or the hub's teleporter): Run Setup's first row is the big Start button with the cursor on it, and there is no Difficulty (the start map's skill halls choose). {test:run_setup_newgame}
+Flat-screen or VR: Levels > E1M1 (or the Map Library's Play on a single map): Run Setup shows Start first, then Difficulty with four cards (Easy to Nightmare, no Bloody Nightmare) spaced like the gun pictures, then Style and Gore.
+Flat-screen or VR: Select Campaign has no Bloody Nightmare row under Dawn of the Machine; Bloody Nightmare still starts in game from its hub's relay, and a Bloody Nightmare save's Continue still says so.
 
 [4. VR: body and gear]
 With armour on, set Reloading > X With Armour and Flashlight > Forward With Armour to about 3 units (the scene does): the pouch and the belt torch stand clear of the plates, and go back when the armour is gone. {test:armour_gear}
