@@ -1151,6 +1151,131 @@ void qvr::menu::flashTest_f()
     }
 }
 
+// vr_menu_stop_test (Debug > Tools; ROUND25.md, "campvis"): a menu opened while walking stops the player. On e1m1,
+// +forward walks him; the VR Settings opened over the running game (live preview): within 3 frames no movement button
+// is held and the server's last move is 0, then he comes to rest; the menu closed, he stays at rest (nothing resumes
+// until pressed again). Phases (each queues the next itself, a frame apart): start, in (waits for the player), walk,
+// menu, rest, closed. Ends with its verdict line.
+namespace
+{
+struct StopTest
+{
+    testkit::Tally tally;
+    int frames{0};
+};
+StopTest stopTest;
+constexpr int stopTestWalkFrames = 36;   // (half a second of walking: well past the run-up)
+constexpr int stopTestInputFrames = 3;   // (the release: at the menu's first move; the server has it a frame later)
+constexpr int stopTestMaxFrames = 600;   // (the give-up)
+[[nodiscard]] float stopTestSpeed()
+{
+    const edict_t* player = progs::localPlayer();
+    return player ? za::sqrt(player->v.velocity[0] * player->v.velocity[0] + player->v.velocity[1] * player->v.velocity[1]) : 0.f;
+}
+} // namespace
+
+void qvr::menu::stopTest_f()
+{
+    constexpr const char* name = "menu_stop";
+    StopTest& t = stopTest;
+    auto check = [&](bool ok, const char* what) { t.tally.check(ok, name, what); };
+    const char* phase = Cmd_Argc() > 1 ? Cmd_Argv(1) : "start";
+    const auto next = [&](const char* p) { Cbuf_AddText(va("wait\nvr_menu_stop_test %s\n", p)); };
+    const auto giveUp = [&](const char* what) {
+        check(false, what);
+        Cbuf_AddText("-forward\n");
+        t.tally.verdict(name);
+    };
+    if(!strcmp(phase, "start"))
+    {
+        t = StopTest{};
+        Cbuf_AddText("map e1m1\nvr_menu_stop_test in\n");
+        return;
+    }
+    if(++t.frames > stopTestMaxFrames)
+    {
+        giveUp(va("timed out in phase %s", phase));
+        return;
+    }
+    if(!strcmp(phase, "in"))
+    {
+        const edict_t* player = progs::localPlayer();
+        if(!(cls.signon == SIGNONS && player && player->v.health > 0))
+        {
+            next("in");
+            return;
+        }
+        t.frames = 0;
+        Cbuf_AddText("+forward\n");
+        next("walk");
+        return;
+    }
+    if(!strcmp(phase, "walk"))
+    {
+        if(t.frames < stopTestWalkFrames)
+        {
+            next("walk");
+            return;
+        }
+        Con_Printf("menu_stop: walking at %.0f\n", stopTestSpeed());
+        check(stopTestSpeed() > 100.f, "+forward walks him");
+        check(CL_MoveButtonsHeld() > 0, "forward held");
+        t.frames = 0;
+        Cbuf_AddText("menu_vr\n");
+        next("menu");
+        return;
+    }
+    if(!strcmp(phase, "menu"))
+    {
+        if(t.frames < stopTestInputFrames)
+        {
+            next("menu");
+            return;
+        }
+        check(key_dest == key_menu, "the menu open");
+        PR_SwitchQCVM(&sv.qcvm); // (its monster check reads the server's edicts: a console command has no VM active)
+        const bool runs = VR_MenuRunsGame() != 0;
+        PR_SwitchQCVM(nullptr);
+        check(runs, "the game running on under it (live preview)");
+        check(CL_MoveButtonsHeld() == 0, "no movement button held once it opened");
+        check(svs.clients[0].cmd.forwardmove == 0.f && svs.clients[0].cmd.sidemove == 0.f, "the server's move 0");
+        t.frames = 0;
+        next("rest");
+        return;
+    }
+    if(!strcmp(phase, "rest"))
+    {
+        if(stopTestSpeed() > 1.f)
+        {
+            if(t.frames % 24 == 0)
+            {
+                Con_Printf("menu_stop: speed %.0f at %d frames (server time %.2f)\n", stopTestSpeed(), t.frames, sv.qcvm.time);
+            }
+            next("rest");
+            return;
+        }
+        Con_Printf("menu_stop: at rest after %d frames\n", t.frames + stopTestInputFrames);
+        // (friction stops him: under a second; before, the world slid him on at his walking speed into a wall)
+        check(t.frames + stopTestInputFrames <= 72, "he comes to rest under the menu within a second");
+        t.frames = 0;
+        runSetupCloseMenu(); // (closed as a page's own close does)
+        next("closed");
+        return;
+    }
+    if(!strcmp(phase, "closed"))
+    {
+        if(t.frames < stopTestWalkFrames)
+        {
+            next("closed");
+            return;
+        }
+        check(key_dest == key_game, "the menu closed");
+        Con_Printf("menu_stop: %.0f after the close\n", stopTestSpeed());
+        check(stopTestSpeed() < 1.f && CL_MoveButtonsHeld() == 0, "nothing resumes on the close");
+        t.tally.verdict(name);
+    }
+}
+
 void qvr::menu::search_f()
 {
     if(Cmd_Argc() < 2)
