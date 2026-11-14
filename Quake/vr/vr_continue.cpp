@@ -81,6 +81,7 @@ struct ContinueSave
     int armor{0};
     float played{0.f};          // seconds into the level
     char run[160]{};            // its run's summary ("Hard / Classic"; runsetup::saveSummary), "" when it says none
+    int coopPlayers{0};         // a coop save (format 2: vr_coopsave.cpp): the players in it; 0 a single player save
 };
 ContinueSave continueSave;
 
@@ -338,7 +339,7 @@ void migrateFolderAutosaves()
 char testPackage[72]{};
 
 // Whether a save would load here, and what it is: its map, its title, its campaign, its map package.
-bool inspect(const Candidate& c, ContinueSave& out, bool verbose)
+bool inspect(const Candidate& c, ContinueSave& out, bool verbose, bool coopToo = false)
 {
     za::Vector<char> text; // (a command's working buffer: once per menu opening at most)
     if(!readSaveHead(c.path, text)) { return false; }
@@ -347,8 +348,15 @@ bool inspect(const Candidate& c, ContinueSave& out, bool verbose)
     if(Q_atoi(line) != SAVEGAME_VERSION) { return false; }
     const char* qvr = strstr(text.data(), "\n// qvr_save ");
     int format = 0;
-    // (a coop save, format 2, is not single player's to continue: loaded from Load or the console)
-    if(!qvr || sscanf(qvr + 1, "// qvr_save %d", &format) != 1 || format > VR_SAVE_FORMAT_SINGLE) { return false; }
+    // (a coop save, format 2, is not single player's to continue: Load Autosave lists it (coopToo), as Load does)
+    if(!qvr || sscanf(qvr + 1, "// qvr_save %d", &format) != 1 ||
+        format > (coopToo ? VR_SAVE_FORMAT : VR_SAVE_FORMAT_SINGLE)) { return false; }
+    out.coopPlayers = 0;
+    for(const char* s = strstr(text.data(), "\n// qvr_coopslot "); s; s = strstr(s + 1, "\n// qvr_coopslot "))
+    {
+        int slot = 0, in = 0;
+        if(sscanf(s + 1, "// qvr_coopslot %d %d", &slot, &in) == 2 && in) { ++out.coopPlayers; }
+    }
     SaveContext ctx;
     readContext(text.data(), c.path, ctx);
     if(!ctx.map[0] || !VR_AutosaveAllowed(ctx.map)) { return false; }
@@ -524,7 +532,7 @@ bool inspectAutosave(const Candidate& c, ContinueSave& out)
     q_strlcpy(e.path, c.path, sizeof(e.path));
     e.when = c.when;
     e.save = ContinueSave{};
-    e.loadable = inspect(c, e.save, false);
+    e.loadable = inspect(c, e.save, false, true); // (coop saves too: the launch rows pass over them)
     out = e.save;
     return e.loadable;
 }
@@ -587,6 +595,11 @@ void describeAutosave(const ContinueSave& s, char* line1, size_t size1, char* li
     else { q_snprintf(line1, size1, "%s: %s", s.map, s.title); }
     char when[32];
     describeAge(s.when, when, sizeof(when));
+    if(s.coopPlayers)
+    {
+        q_snprintf(line2, size2, "Coop, %d player%s, %s", s.coopPlayers, s.coopPlayers == 1 ? "" : "s", when);
+        return;
+    }
     if(!s.hasPlayer)
     {
         q_strlcpy(line2, when, size2);
@@ -670,7 +683,7 @@ void refreshLaunchSaves()
         const Candidate& c = candidates[i];
         if(!strcmp(c.relname, "autosave/relight")) { continue; } // (vr_relight.cpp's batch save)
         ContinueSave found;
-        if(!inspectAutosave(c, found)) { continue; }
+        if(!inspectAutosave(c, found) || found.coopPlayers) { continue; } // (Continue: single player's only)
         int at = 0;
         while(at < launchSaveCount && !sameGame(launchSaves[at].save, found.campaign, found.packageSha)) { ++at; }
         if(at == launchSaveCount)

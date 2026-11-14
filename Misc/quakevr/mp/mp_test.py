@@ -1461,6 +1461,13 @@ def flow(s):
     s.check("e1m2's level-start autosave on the dedicated server (autosave/coop~e1m2), A and B in it",
             got is not None and path is not None and slots_in == sorted((sa, sb)),
             "save line %s; file %s; slots in %s" % (got and got[1], path, slots_in))
+    # the Load Autosave menu's list (vr_autosave_list) has it for a host to load, marked a coop one with its players
+    since_a = a.mark()
+    a.cmd("vr_autosave_list cold")
+    wait_quietly(a, r"vr_autosave_list: \d+ autosaves", 10, since_a, "A's Load Autosave list")
+    row = a.find(r"autosave \d+: autosave/coop~e1m2 \|.*Coop, 2 players", since_a)
+    s.check("Load Autosave lists the coop autosave (coop~e1m2, Coop, 2 players)", row is not None,
+            row[1].strip() if row else "not listed")
 
     # B takes a rocket launcher (not in his level-start parms), then dies for real
     b.cmd("give 7")
