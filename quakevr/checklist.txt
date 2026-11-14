@@ -8,6 +8,8 @@
 
 [New: not yet sorted]
 Flat-screen or VR: start a coop game on e1m1 from the menu, add a bot, shoot the first grunt's gun out of its hand, then shoot or strike its body: it should die like any grunt. If it still won't die, note the teamplay setting, the weapon you hit it with, and whether it bled.
+Flat-screen or VR: With gloves on, in the hub's settings pavilion press the Classic Quake board twice (on, then off): the gloves' leather relief (stitches, creases, worn knuckles) still catches the light as before, not flat like a plain colour. {test:hub_classic}
+Flat-screen or VR: Change a graphics setting in VR Settings (say Bloom), then press the Classic Quake board twice: the setting is back as you left it, not your older My Settings. {test:hub_classic}
 
 [1. Flat-screen: weapons and hands]
 Flat-screen: hold the axe (then a sword, the crowbar, Mjolnir, the super axe) with the left hand empty: the left hand goes onto the handle by itself and the weapon sits two-handed; take something in the left hand: back to one hand, no jumps either way (Debug > Tunables > Flatscreen > Two-Handed Melee Stance). {test:flat_melee2h}
