@@ -7,6 +7,7 @@
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "vr_engine.hpp"
+#include "vr_api.h"
 #include "vr_gore.hpp"
 #include "vr_goresound.hpp"
 #include "vr_main.hpp"
@@ -59,7 +60,7 @@ struct Wet
     const entity_t* ent{nullptr};
     int num{0}; // its cl_entities number (> 0); 0 your own or a probe
     What what{What::Thing};
-    int hand{-1};          // a hand's or a held weapon's
+    int hand{-1};          // a hand's or a held weapon's; a holstered weapon's holster
     float wet{0.f};        // 1 soaked .. 0 dry
     float waterline{0.f};  // how high its liquid came up it, over its box's bottom (it carries it out with it)
     Liquid liquid{Liquid::Water};
@@ -74,6 +75,31 @@ struct Wet
 
 constexpr za::SizeT maxWet = 96;
 za::Vector<Wet> wets;
+
+// The saved game's wet things (its "// qvrwet" lines, saveLines): staged as the save is read (readSaveLines), taken by
+// its load (onLoadGame), and given back once the load's map is in, each as it is first looked at (a model by its entity
+// number, the edict's; your own by what it is and its hand or holster) for a few seconds (savedFor).
+struct SavedWet
+{
+    What what{What::Thing};
+    int num{0};  // a model's entity number
+    int hand{-1}; // your own: a hand's or held weapon's hand, a holstered weapon's holster
+    float wet{0.f};
+    float waterline{0.f};
+    Liquid liquid{Liquid::Water};
+};
+
+struct SavedWets
+{
+    za::Vector<SavedWet> staged;  // the last save read
+    za::Vector<SavedWet> pending; // its load's, given back as they appear
+    bool armed{false};            // the load's map is in: pending given back
+    double until{0.0};            // (realtime) the rest forgotten then (0: not signed on yet)
+    za::String lines;             // saveLines' text (valid until the next save)
+};
+
+SavedWets saved;
+constexpr double savedFor = 3.0;
 
 // A wounded monster (or its corpse, a while): where it was hit, in its own turning frame (its yaw) from its origin, and
 // bound to its model as drawn (bloodstream::anchorPoint: the vertex nearest, animated, armed or its ragdoll's) once it
@@ -212,6 +238,34 @@ Wet* add(const entity_t* e, int num, What what, int hand)
     return &wets.back();
 }
 
+// A wet thing the loaded save had, given back now it is looked at (dripping from here as it was then): null if none.
+Wet* addSaved(const entity_t* e, int num, What what, int hand)
+{
+    if(!saved.armed)
+    {
+        return nullptr;
+    }
+    for(za::SizeT i = 0; i < saved.pending.size(); i++)
+    {
+        const SavedWet s = saved.pending[i];
+        if(s.what != what || (what == What::Thing ? s.num != num : s.hand != hand))
+        {
+            continue;
+        }
+        saved.pending.erase(saved.pending.begin() + i);
+        Wet* w = add(e, num, what, hand);
+        if(w)
+        {
+            w->wet = s.wet;
+            w->waterline = s.waterline;
+            w->liquid = s.liquid;
+            w->lastIn = -1e9; // (out of it: drying)
+        }
+        return w;
+    }
+    return nullptr;
+}
+
 // A model's box in the world (an alias model's frames' bounds about its origin; at most 24 units out to each side).
 [[nodiscard]] bool boxOf(const entity_t& e, glm::vec3& lo, glm::vec3& hi)
 {
@@ -300,6 +354,10 @@ void scan(float dt)
         Wet* w = find(&e);
         if(!w)
         {
+            w = addSaved(&e, i, What::Thing, -1);
+        }
+        if(!w)
+        {
             const glm::vec3 bottom{0.5f * (lo.x + hi.x), 0.5f * (lo.y + hi.y), lo.z + 1.f};
             if(liquidAt(bottom) <= 0)
             {
@@ -336,6 +394,10 @@ void lookOwn(float dt)
             return;
         }
         Wet* w = find(e);
+        if(!w)
+        {
+            w = addSaved(e, 0, what, hand);
+        }
         if(!w)
         {
             if(liquidAt({0.5f * (lo.x + hi.x), 0.5f * (lo.y + hi.y), lo.z + 1.f}) <= 0)
@@ -377,7 +439,7 @@ void lookOwn(float dt)
         if(const entity_t* e = view::holsteredWeapon(stat))
         {
             const glm::vec3 o{e->origin[0], e->origin[1], e->origin[2]};
-            lookAt(e, What::Holstered, -1, o - glm::vec3{pad * 2.f}, o + glm::vec3{pad * 2.f});
+            lookAt(e, What::Holstered, stat, o - glm::vec3{pad * 2.f}, o + glm::vec3{pad * 2.f}); // (its hand: its holster)
         }
     }
     // Your own not seen this frame (a weapon put away, the body hidden): forgotten.
@@ -1282,6 +1344,20 @@ void frame(const glm::vec3& head)
         clear();
         lastWorld = cl.worldmodel;
         lastWorldGen = worldGeneration();
+        saved.armed = !saved.pending.empty(); // (a loaded save's wet things: given back from its map's first frames)
+        saved.until = 0.0;
+    }
+    if(saved.armed && cls.signon == SIGNONS)
+    {
+        if(saved.until == 0.0)
+        {
+            saved.until = realtime + savedFor;
+        }
+        else if(realtime > saved.until)
+        {
+            saved.armed = false; // (the rest never appeared: forgotten)
+            saved.pending.clear();
+        }
     }
     if(test.phase > 0)
     {
@@ -1508,6 +1584,47 @@ void clear()
     cursor = 0;
 }
 
+const char* saveLines()
+{
+    saved.lines.clear();
+    for(const Wet& w : wets)
+    {
+        if(w.what == What::Probe || w.wet <= 0.f)
+        {
+            continue;
+        }
+        saved.lines += va("// qvrwet %d %d %d %.3f %.1f %d\n", static_cast<int>(w.what), w.num, w.hand,
+            static_cast<double>(w.wet), static_cast<double>(w.waterline), static_cast<int>(w.liquid));
+    }
+    return saved.lines.cStr();
+}
+
+void readSaveLines(const char* text)
+{
+    saved.staged.clear();
+    for(const char* l = text ? strstr(text, "\n// qvrwet ") : nullptr; l; l = strstr(l + 1, "\n// qvrwet "))
+    {
+        int what = 0, liquid = 0;
+        SavedWet s;
+        if(sscanf(l + 1, "// qvrwet %d %d %d %f %f %d", &what, &s.num, &s.hand, &s.wet, &s.waterline, &liquid) != 6 ||
+            what < 0 || what >= static_cast<int>(What::Probe) || liquid < 0 || liquid > static_cast<int>(Liquid::Slime))
+        {
+            continue;
+        }
+        s.what = static_cast<What>(what);
+        s.liquid = static_cast<Liquid>(liquid);
+        s.wet = za::clamp(s.wet, 0.f, 1.f);
+        saved.staged.pushBack(s);
+    }
+}
+
+void onLoadGame()
+{
+    saved.pending = saved.staged;
+    saved.staged.clear();
+    saved.armed = false; // (armed by the load's map: frame)
+}
+
 void registerCommands()
 {
     Cmd_AddCommand("vr_drips_info", info_f);
@@ -1517,3 +1634,9 @@ void registerCommands()
 }
 
 } // namespace qvr::drips
+
+// SaveData_Fill: the wet things as the save's "// qvrwet" lines ("" none; valid until the next).
+extern "C" const char* VR_SaveWetLines(void)
+{
+    return qvr::drips::saveLines();
+}

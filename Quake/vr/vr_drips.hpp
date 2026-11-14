@@ -57,6 +57,14 @@ void noteBloodLanding();
 // All gone (a new map, vr_drips 0).
 void clear();
 
+// A saved game keeps what is wet (2026-11-15: a load had everything dry): SaveData_Fill's "// qvrwet <what> <num> <hand>
+// <wet> <waterline> <liquid>" lines (valid until the next call); VR_ReadSaveInfo reads a save's (readSaveLines), its load
+// takes them (onLoadGame, VR_OnLoadGame), and each is given back as the load's map shows it (a model by its entity
+// number; your body, hands, held and holstered weapons by what they are), drying on from there.
+[[nodiscard]] const char* saveLines();
+void readSaveLines(const char* text);
+void onLoadGame();
+
 // vr_drips_info, vr_drips_soak, vr_drips_test, vr_drips_bleed_test.
 void registerCommands();
 

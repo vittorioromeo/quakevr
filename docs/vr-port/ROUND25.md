@@ -2619,3 +2619,35 @@ well-timed parries."
   this branch). menu_paths.txt regenerated (the halls-line row gone). Scenario `run_setup_newgame` updated. There is no
   `maps_skill_test` in the tree. Shots: qvr-kit/scratch/runsetup3_shots/ (r3_before.png, r3_after.png: left the Levels
   list's e1m1, right New Game).
+
+## Save and load after a Test scene (agent/saveload1115)
+
+His report (flat, 2026-11-15): TEST on the waterdrips item, quicksave, quickload: a toolgun in his off hand, the grunts'
+firing poses bent (one cast the death knight's fireballs), nothing wet. Reproduced headless (flat and the VR mock). Not a
+precache-order problem: the precache list's hash and every model index were the same before and after
+(`vr_model_check`: 514 models, 0 wrong), and nothing in the armed rigs caches by model index.
+
+- **Poses and the fireballs: a QC row cache across the load.** `VR_AM_Row(kind)` (vr_armedmon.qc) fills the armed
+  monsters' row globals once per kind, `nosave vr_am_filled` + saved `vr_am_kind`. A load runs the map's spawn first
+  (SV_SpawnServer's two frames: vrtesthall's armed death knight filled the row), then the save's globals overwrite
+  `vr_am_kind` (the grunt's) and the row's floats, but not its vectors (hand vertices, anchors, shoulders) nor
+  `vr_am_spell` (a save keeps floats, strings, entities). The cache then answered "filled" for the grunt with the
+  knight's vectors and spell: guns 30+ units off the hand, fireballs. Any map with two armed kinds hit it on any load,
+  scene or not. Fix: `VR_AM_AfterLoad` (OnLoadGame) empties the cache.
+- **The off-hand toolgun: the grip's rising edge at the load.** A flatscreen player's hands always grip
+  (vr_client.cpp `gripping`). The server's previous-frame VR bits started at 0 for the reconnecting client, so its first
+  move was a new press; the off hand, posed by the left hip as the stance brings it to the gun, drew that holster's
+  weapon (W_Frame's `startedHandGrabbing`: here the axe, his the toolgun from `vr_debug_spawn_toolgun`). Only with a
+  gun in the main hand (an empty pair's pose is elsewhere). Fix: `VR_ClientLoadedBits` (SV_ConnectClient into a loaded
+  game) seeds the client's previous and received bits from the loaded player's saved `.vrbits0`: a grip held across
+  the load is no new press. A headset grip pressed after the load is still a press.
+- **Wetness: client-only state, never saved.** vr_drips.cpp's wet list was cleared by the load's new map. Now the save
+  writes `// qvrwet <what> <num> <hand> <wet> <waterline> <liquid>` lines (`VR_SaveWetLines`, SaveData_Fill, after the
+  decals), `VR_ReadSaveInfo` stages them, `VR_OnLoadGame` takes them, and each is given back as the load's map first
+  shows it (a model by entity number; your body, hands, held and holstered weapons by what they are; a holstered
+  weapon's entry now keeps its holster as its `hand`) for 3 s, drying on from there.
+
+**Test.** `Misc/quakevr/saveload_test.sh <agent> [flat|vr|both]` (vr_pickup_test 16, QC/vr_saveload_test.qc;
+self-driven across the load by saved globals): `vr_scenario waterdrips`, once placed `vr_drips_soak`, save
+`qvr_saveload`, load; checks the off hand empty, each armed grunt's gun within 18 of its hand and no spell on a grunt, and
+(the script) every thing wet out of the pool before is wet after.

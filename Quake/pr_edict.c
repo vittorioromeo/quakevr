@@ -2930,6 +2930,7 @@ void SaveData_Fill (savedata_t *save)
 	VR_SaveContext (save->vrcontext, sizeof (save->vrcontext)); // QVR: the campaign, the map package, the titles
 	save->vrbrushes = VR_SaveBrushLines (); // QVR: the runtime brushes (vr/vr_brushes.cpp)
 	save->vrdecals = VR_SaveDecalLines (); // QVR: the permanent decals (vr/vr_permdecals.cpp)
+	save->vrwet = VR_SaveWetLines (); // QVR: what is wet (vr/vr_drips.cpp)
 
 	/* determine buffer size */
 	size = sizeof (*save->knownstrings) * qcvm->numknownstrings;
@@ -3061,6 +3062,8 @@ void SaveData_WriteHeader (savedata_t *save)
 		fputs (save->vrbrushes, save->file); // QVR: // qvrb lines: the runtime brushes
 	if (save->vrdecals)
 		fputs (save->vrdecals, save->file); // QVR: // qvrdecals and qvrd lines: the permanent decals
+	if (save->vrwet)
+		fputs (save->vrwet, save->file); // QVR: // qvrwet lines: what is wet
 
 	ED_WriteGlobals (save);
 }

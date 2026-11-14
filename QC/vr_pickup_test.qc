@@ -1014,11 +1014,14 @@ void() VR_PalmGrabTest_Frame =
 
 void() VR_LMTest_Start; // (vr_load_models_test.qc: every weapon through a save and a load)
 void() VR_LMTest_Frame;
+void() VR_SLTest_Start; // (vr_saveload_test.qc: a Test scene through a save and a load)
+void() VR_SLTest_Frame;
 
 // Every server frame (StartFrame): a pickup test asked for (vr_pickup_test).
 void() VR_PickupTest_Frame =
 {
     VR_LMTest_Frame(); // (its next step, once a load's first frames ran)
+    VR_SLTest_Frame();
     if(keytip_step)
     {
         entity kp = VR_Player();
@@ -1041,6 +1044,10 @@ void() VR_PickupTest_Frame =
     if(!ask)
     {
         return;
+    }
+    if(ask == 16 && VR_Player() == world)
+    {
+        return; // (asked with `vr_scenario`'s map: kept until the player is in)
     }
     cvar_set("vr_pickup_test", "0");
     entity p = VR_Player();
@@ -1109,6 +1116,10 @@ void() VR_PickupTest_Frame =
     else if(ask == 15)
     {
         VR_MeleeOnlyBotTest_Run(); // (bots under Melee Only: vr_meleeonly_bot_test.qc)
+    }
+    else if(ask == 16)
+    {
+        VR_SLTest_Start(); // (a Test scene through a save and a load: vr_saveload_test.qc; VR_SLTest_Frame runs it on)
     }
     else if(ask == 17)
     {
