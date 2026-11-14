@@ -111,7 +111,7 @@ void debugBoxTouch(edict_t* target, edict_t* player, int which)
 {
     const int hand = which == HAND_OFF ? 0 : 1;
     za::Vector<glm::vec4> spheres;
-    held::fistInWorld(hand, fieldVec(player, hand == 0 ? f().offhandpos : f().handpos),
+    held::fistInWorld(player, hand, fieldVec(player, hand == 0 ? f().offhandpos : f().handpos),
         fieldVec(player, hand == 0 ? f().offhandrot : f().handrot), spheres);
     held::FistContact c;
     const bool found = held::fistContact(target, spheres, 64.f, c);
@@ -407,7 +407,7 @@ struct TouchProvider
     const int h = which == HAND_OFF ? 0 : 1;
     const float m2u = units::metresToUnits();
     const float slack = (vr_agrunt_grab_slack.value + za::max(vr_agrunt_grab_leniency.value, 0.f)) * 0.01f * m2u;
-    if(NUM_FOR_EDICT(player) == 1 && !held::fist(h).empty())
+    if(!held::fistOf(player, h).empty())
     {
         // The fist's spheres against the weapon's surface, by distance alone (not grabTouch's inside test: a held gun's
         // model is open, and a fist 20 cm over a shotgun read as sunk in it). A thin weapon has no inside a fist's
@@ -419,7 +419,7 @@ struct TouchProvider
         {
             return TouchAnswer::No;
         }
-        held::fistInWorld(h, fieldVec(player, handPosField(which)),
+        held::fistInWorld(player, h, fieldVec(player, handPosField(which)),
             fieldVec(player, which == HAND_OFF ? f().offhandrot : f().handrot), armedFist);
         const float allowed = armedAllowance(target);
         bool surface = true;
@@ -488,7 +488,7 @@ struct TouchProvider
     // Not touching it: not taken (the author's notes hip1m1_2026-10-07_22-33-15, vrfiringrange_2026-10-07_22-49-20: the
     // hand's 5-unit box at its point against the box round the handle caught it with the fist ~20 cm off). Without a fist
     // (no jointed hand model): by its box, as before.
-    return held::fist(h).empty() ? TouchAnswer::Pass : TouchAnswer::No;
+    return held::fistOf(player, h).empty() ? TouchAnswer::Pass : TouchAnswer::No;
 }
 
 // Anything else with a .handtouch: the hand's box against the thing's own box (and its touch bonus).
@@ -526,9 +526,9 @@ struct TouchProvider
     const int h = which == HAND_OFF ? 0 : 1;
     const glm::vec3 hand = fieldVec(player, handPosField(which));
     armedFist.clear();
-    if(NUM_FOR_EDICT(player) == 1 && !held::fist(h).empty())
+    if(!held::fistOf(player, h).empty())
     {
-        held::fistInWorld(h, hand, fieldVec(player, which == HAND_OFF ? f().offhandrot : f().handrot), armedFist);
+        held::fistInWorld(player, h, hand, fieldVec(player, which == HAND_OFF ? f().offhandrot : f().handrot), armedFist);
     }
     if(armedFist.empty())
     {
@@ -1517,13 +1517,13 @@ float armedGrabGap(edict_t* weapon, edict_t* player, int hand, float& allowed, b
     // (handOn's armed weapon branch, keep in step: its allowance, the fist against the drawn surface, then its sweep.)
     allowed = 0.f;
     swept = false;
-    if(!weapon || !player || weapon->free || hand < 0 || hand > 1 || held::fist(hand).empty() || !armedWeapon(weapon))
+    if(!weapon || !player || weapon->free || hand < 0 || hand > 1 || held::fistOf(player, hand).empty() || !armedWeapon(weapon))
     {
         return ZA_FLOAT_MAX;
     }
     const float m2u = units::metresToUnits();
     allowed = armedAllowance(weapon);
-    held::fistInWorld(hand, fieldVec(player, hand == 0 ? f().offhandpos : f().handpos),
+    held::fistInWorld(player, hand, fieldVec(player, hand == 0 ? f().offhandpos : f().handpos),
         fieldVec(player, hand == 0 ? f().offhandrot : f().handrot), armedFist);
     bool surface = true;
     float gap = armedFistGap(weapon, za::max(allowed, 0.25f * m2u), -1e30f, surface);
@@ -1567,9 +1567,9 @@ edict_t* armedWeaponOver(edict_t* body, edict_t* player, int hand, int part)
             continue;
         }
         // The fist on its drawn shape (Show Disarm Volumes' measure); no fist known: the hand's point in its drawn box.
-        float allowed = held::fist(hand).empty() ? armedAllowance(w) : 0.f;
+        float allowed = held::fistOf(player, hand).empty() ? armedAllowance(w) : 0.f;
         bool swept = false;
-        const float gap = held::fist(hand).empty()
+        const float gap = held::fistOf(player, hand).empty()
                               ? (held::nearDrawn(w, at, armedAllowance(w)) ? 0.f : ZA_FLOAT_MAX)
                               : armedGrabGap(w, player, hand, allowed, swept);
         if(gap <= za::max(allowed, 0.f) && gap < least)

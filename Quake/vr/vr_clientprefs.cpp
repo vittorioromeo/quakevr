@@ -3,9 +3,12 @@
 #include "vr_clientprefs.hpp"
 
 #include "vr_cvars.hpp"
+#include "vr_held.hpp"
 #include "vr_tunables_api.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
+#include <math.h>
 #include <string.h>
 
 namespace qvr::clientprefs
@@ -34,6 +37,20 @@ constexpr const char* prefNames[] = {
 constexpr int prefCount = static_cast<int>(sizeof(prefNames) / sizeof(prefNames[0]));
 constexpr int prefsCommandVersion = 1; // "vr_prefs <version> <count> <values>": another version's or count's is ignored
 
+// The rig (B3): each hand's fist as this client poses it (held::fist: spheres in the hand's frame, world units), in
+// 64ths of a unit, up as "vr_rig <version> <hand> <total> <first> <hex>" (4 shorts a sphere, at most rigChunk spheres
+// a command, one command a frame) when a sphere moved more than a step.
+constexpr int rigCommandVersion = 2;
+constexpr int maxFistSpheres = 128;
+constexpr int rigChunk = 24;
+constexpr float rigStep = 64.f;
+
+struct Fist
+{
+    int n{0};
+    short v[maxFistSpheres * 4]{};
+};
+
 struct State
 {
     const cvar_t* vars[prefCount]{}; // (found by name on first use: cvars and tuning constants)
@@ -42,6 +59,13 @@ struct State
     float lastSent[prefCount]{};
     bool sent{false};
     double nextSend{0.0};
+    Fist fistSent[2];
+    bool fistWasSent[2]{};
+    double nextRigSend{0.0};
+    Fist fistGoing[2];             // (being sent, a chunk a frame)
+    int nextChunk[2]{-1, -1};      // (its next sphere; -1 none going)
+    // Server: each slot's fists as they come in (whole: held::setPlayerFist).
+    glm::vec4 slotFist[MAX_SCOREBOARD][2][maxFistSpheres]{};
     // Server: each slot's.
     float slot[MAX_SCOREBOARD][prefCount]{};
     bool slotHas[MAX_SCOREBOARD]{};
@@ -95,6 +119,163 @@ void prefs_f()
     state.slotHas[slot] = true;
 }
 
+[[nodiscard]] int hexDigit(char c)
+{
+    return c >= '0' && c <= '9' ? c - '0' : c >= 'a' && c <= 'f' ? c - 'a' + 10 : c >= 'A' && c <= 'F' ? c - 'A' + 10 : -1;
+}
+
+// "vr_rig <version> <hand> <total> <first> <hex>|-": spheres `first`... of a client's fist of that hand (sendRig); with
+// the last, the whole fist kept for his slot (held::setPlayerFist).
+void rig_f()
+{
+    if(cmd_source != src_client || !sv.active || !host_client || Cmd_Argc() != 6 || Q_atoi(Cmd_Argv(1)) != rigCommandVersion)
+    {
+        return;
+    }
+    const int slot = static_cast<int>(host_client - svs.clients);
+    const int hand = Q_atoi(Cmd_Argv(2));
+    if(slot < 0 || slot >= MAX_SCOREBOARD || (hand != 0 && hand != 1))
+    {
+        return;
+    }
+    const int total = Q_atoi(Cmd_Argv(3));
+    const int first = Q_atoi(Cmd_Argv(4));
+    const char* hex = Cmd_Argv(5);
+    const int len = !strcmp(hex, "-") ? 0 : static_cast<int>(strlen(hex));
+    if(total < 0 || total > maxFistSpheres || first < 0 || len % 16 != 0 || first + len / 16 > total)
+    {
+        return;
+    }
+    {
+        for(int s = 0; s < len / 16; s++)
+        {
+            float c[4];
+            for(int k = 0; k < 4; k++)
+            {
+                int u = 0;
+                for(int d = 0; d < 4; d++)
+                {
+                    const int x = hexDigit(hex[s * 16 + k * 4 + d]);
+                    if(x < 0)
+                    {
+                        return;
+                    }
+                    u = u * 16 + x;
+                }
+                c[k] = static_cast<float>(static_cast<short>(static_cast<unsigned short>(u))) / rigStep;
+            }
+            state.slotFist[slot][hand][first + s] = glm::vec4{c[0], c[1], c[2], za::max(c[3], 0.f)};
+        }
+    }
+    if(first + len / 16 == total)
+    {
+        za::Vector<glm::vec4> spheres;
+        for(int s = 0; s < total; s++)
+        {
+            spheres.pushBack(state.slotFist[slot][hand][s]);
+        }
+        held::setPlayerFist(slot, hand, spheres);
+    }
+}
+
+[[nodiscard]] Fist quantized(const za::Vector<glm::vec4>& spheres)
+{
+    Fist q;
+    for(const glm::vec4& s : spheres)
+    {
+        if(q.n >= maxFistSpheres)
+        {
+            break;
+        }
+        for(int k = 0; k < 4; k++)
+        {
+            q.v[q.n * 4 + k] = static_cast<short>(za::clamp(lroundf(s[k] * rigStep), -32767L, 32767L));
+        }
+        q.n++;
+    }
+    return q;
+}
+
+// Off by more than a step anywhere (a hand's settings changed), or another number of spheres.
+[[nodiscard]] bool moved(const Fist& a, const Fist& b)
+{
+    if(a.n != b.n)
+    {
+        return true;
+    }
+    for(int i = 0; i < a.n * 4; i++)
+    {
+        if(za::abs(static_cast<int>(a.v[i]) - static_cast<int>(b.v[i])) > 1)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+// The sum of a fist's coordinates and radii (vr_mp_prefs: the server's and the client's compared).
+[[nodiscard]] float fistSum(const za::Vector<glm::vec4>& spheres)
+{
+    float sum = 0.f;
+    for(const glm::vec4& s : spheres)
+    {
+        sum += za::abs(s.x) + za::abs(s.y) + za::abs(s.z) + s.w;
+    }
+    return sum;
+}
+
+// One hand's fist up a frame at most, when it moved, at most every vr_net_avatarcal_interval; only with room in the
+// reliable buffer (else the next frame).
+void sendRig()
+{
+    if(realtime < state.nextRigSend)
+    {
+        return;
+    }
+    for(int hand = 0; hand < 2; hand++)
+    {
+        if(state.nextChunk[hand] <= 0)
+        {
+            const Fist now = quantized(held::fist(hand));
+            if(state.fistWasSent[hand] && !moved(now, state.fistSent[hand]))
+            {
+                continue;
+            }
+            state.fistGoing[hand] = now;
+            state.nextChunk[hand] = 0;
+        }
+        const Fist& now = state.fistGoing[hand];
+        const int first = za::max(state.nextChunk[hand], 0);
+        const int last = za::min(first + rigChunk, now.n);
+        char text[64 + rigChunk * 16];
+        int n = q_snprintf(text, sizeof(text), "vr_rig %d %d %d %d ", rigCommandVersion, hand, now.n, first);
+        if(last <= first)
+        {
+            text[n++] = '-';
+        }
+        for(int i = first * 4; i < last * 4; i++)
+        {
+            n += q_snprintf(text + n, sizeof(text) - static_cast<size_t>(n), "%04x", static_cast<unsigned short>(now.v[i]));
+        }
+        text[n] = 0;
+        if(cls.message.cursize + n + 2 > cls.message.maxsize)
+        {
+            return; // (no room: the next frame)
+        }
+        MSG_WriteByte(&cls.message, clc_stringcmd);
+        MSG_WriteString(&cls.message, text);
+        state.nextChunk[hand] = last;
+        if(last >= now.n)
+        {
+            state.fistSent[hand] = now;
+            state.fistWasSent[hand] = true;
+            state.nextChunk[hand] = -1;
+            state.nextRigSend = realtime + static_cast<double>(za::max(vr_net_avatarcal_interval.value, 0.f));
+        }
+        return;
+    }
+}
+
 // vr_mp_prefs: this client's preferences (the ones off the defaults: "mp_prefs_own:") and, hosting, each client's as the
 // server has them (those that differ from the server's own: "mp_prefs_sv:").
 void mpPrefs_f()
@@ -102,7 +283,9 @@ void mpPrefs_f()
     resolve();
     if(cls.state == ca_connected && cl.viewentity > 0)
     {
-        Con_Printf("mp_prefs_own: ent=%d sent=%d", cl.viewentity, state.sent ? 1 : 0);
+        Con_Printf("mp_prefs_own: ent=%d sent=%d fist0=%d fist1=%d fistsum0=%.3f fistsum1=%.3f", cl.viewentity,
+            state.sent ? 1 : 0, static_cast<int>(held::fist(0).size()), static_cast<int>(held::fist(1).size()),
+            fistSum(held::fist(0)), fistSum(held::fist(1)));
         for(int i = 0; i < prefCount; i++)
         {
             const cvar_t* var = state.vars[i];
@@ -121,7 +304,11 @@ void mpPrefs_f()
             {
                 continue;
             }
-            Con_Printf("mp_prefs_sv: ent=%d has=%d", slot + 1, state.slotHas[slot] ? 1 : 0);
+            const edict_t* player = (const edict_t*)((const byte*)sv.qcvm.edicts + (slot + 1) * sv.qcvm.edict_size);
+            Con_Printf("mp_prefs_sv: ent=%d has=%d fist0=%d fist1=%d fistsum0=%.3f fistsum1=%.3f fistgrabs=%d", slot + 1,
+                state.slotHas[slot] ? 1 : 0, static_cast<int>(held::fistOf(player, 0).size()),
+                static_cast<int>(held::fistOf(player, 1).size()), fistSum(held::fistOf(player, 0)),
+                fistSum(held::fistOf(player, 1)), held::playerFistGrabs(slot));
             int same = 0;
             for(int i = 0; i < prefCount && state.slotHas[slot]; i++)
             {
@@ -197,6 +384,7 @@ void send()
         now[i] = ownValue(i);
         changed = changed || now[i] != state.lastSent[i];
     }
+    sendRig();
     if(!changed || (state.sent && realtime < state.nextSend))
     {
         return;
@@ -206,6 +394,10 @@ void send()
     for(int i = 0; i < prefCount && n > 0 && n < static_cast<int>(sizeof(text)); i++)
     {
         n += q_snprintf(text + n, sizeof(text) - static_cast<size_t>(n), " %g", now[i]);
+    }
+    if(cls.message.cursize + n + 2 > cls.message.maxsize)
+    {
+        return; // (no room: the next frame)
     }
     MSG_WriteByte(&cls.message, clc_stringcmd);
     MSG_WriteString(&cls.message, text);
@@ -217,6 +409,8 @@ void send()
 void clientClear()
 {
     state.sent = false;
+    state.fistWasSent[0] = state.fistWasSent[1] = false;
+    state.nextChunk[0] = state.nextChunk[1] = -1;
 }
 
 void serverReset(int slot)
@@ -224,6 +418,8 @@ void serverReset(int slot)
     if(slot >= 0 && slot < MAX_SCOREBOARD)
     {
         state.slotHas[slot] = false;
+        held::setPlayerFist(slot, 0, {});
+        held::setPlayerFist(slot, 1, {});
     }
 }
 
@@ -231,6 +427,7 @@ void init()
 {
     Cmd_AddCommand("vr_mp_prefs", mpPrefs_f);
     Cmd_AddCommand_ClientCommand("vr_prefs", prefs_f);
+    Cmd_AddCommand_ClientCommand("vr_rig", rig_f);
 }
 
 } // namespace qvr::clientprefs

@@ -23,7 +23,8 @@ namespace qvr::clientprefs
 // player), else the server's.
 [[nodiscard]] float forQc(int pref, const cvar_t* var);
 
-// Client: this player's preferences up, when they changed (at most every vr_net_avatarcal_interval); from the move.
+// Client: this player's preferences up, when they changed (at most every vr_net_avatarcal_interval); from the move. And
+// his rig: each hand's fist as he poses it (held::fist; the server's held::fistOf for him), when it changed.
 void send();
 
 // Client: a new connection: they go up again.

@@ -393,7 +393,6 @@ namespace
     return true;
 }
 
-const za::Vector<glm::vec4> noFist; // (syncHands: a hand that pushes no fist's spheres)
 } // namespace
 
 void syncHands(float dt)
@@ -418,7 +417,7 @@ void syncHands(float dt)
             const glm::vec3 angles = fieldVec(player, progs::handFields(h).rot);
             vec3_t in{angles.x, angles.y, angles.z}, fwd, right, up;
             AngleVectors(in, fwd, right, up);
-            const za::Vector<glm::vec4>& fist = i == 1 ? held::fist(h) : noFist;
+            const za::Vector<glm::vec4>& fist = held::fistOf(player, h); // (each player's own: B3)
             const bool byFist = !fist.empty();
             const glm::vec3 at = byFist ? point : point - vec(fwd) * (radius * world->m2u);
             const b3Quat turn = byFist ? toB3(glm::quat_cast(held::axesFromAngles(&angles[0], true))) : b3Quat_identity;

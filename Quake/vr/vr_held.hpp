@@ -198,6 +198,19 @@ void fistInWorld(int hand, const glm::vec3& pos, const glm::vec3& angles, za::Ve
 // The fist of `hand` (setFist's: the hand's frame, world units; empty: not known).
 [[nodiscard]] const za::Vector<glm::vec4>& fist(int hand);
 
+// Server: `player`'s fist of `hand` (MP_PLAN.md, B3): the local one (fist) for this game's own player (player 1 of a
+// listen server or single player), else the one his client sent (setPlayerFist; multiplayer); empty: not known.
+[[nodiscard]] const za::Vector<glm::vec4>& fistOf(const edict_t* player, int hand);
+
+// fistInWorld with `player`'s fist (fistOf).
+void fistInWorld(const edict_t* player, int hand, const glm::vec3& pos, const glm::vec3& angles, za::Vector<glm::vec4>& out);
+
+// Server: client slot `slot`'s fist of `hand` as his client posed it (vr_clientprefs.cpp's "vr_rig"; empty: forgotten).
+void setPlayerFist(int slot, int hand, const za::Vector<glm::vec4>& spheres);
+
+// Server: the touches a remote player's own fist made (grabTouch true), per client slot (vr_mp_prefs; mp_grab).
+[[nodiscard]] int playerFistGrabs(int slot);
+
 // What a fist found against a thing's drawn surface: the least gap (units) from a sphere of it to the surface (negative:
 // sunk in), that sphere's middle and the surface's nearest point to it.
 struct FistContact

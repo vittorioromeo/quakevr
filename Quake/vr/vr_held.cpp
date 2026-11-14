@@ -864,6 +864,9 @@ bool nearDrawnBox(edict_t* ent, const glm::vec3& p, float margin)
 // The fists in their hands' frames (setFist).
 za::Vector<glm::vec4> fists[2];
 const za::Vector<glm::vec4> noFist; // (fist: a hand that is neither)
+// The server's: each client slot's fists as his client sent them (setPlayerFist), and the grabs they judged.
+za::Vector<glm::vec4> playerFists[MAX_SCOREBOARD][2];
+int playerFistGrabCount[MAX_SCOREBOARD]{};
 
 // A sphere round all of `spheres`: its middle, and its radius.
 float bounds(const za::Vector<glm::vec4>& spheres, glm::vec3& centre)
@@ -1238,6 +1241,49 @@ const za::Vector<glm::vec4>& fist(int hand)
     return hand == 0 || hand == 1 ? fists[hand] : noFist;
 }
 
+const za::Vector<glm::vec4>& fistOf(const edict_t* player, int hand)
+{
+    if((hand != 0 && hand != 1) || !player)
+    {
+        return noFist;
+    }
+    const int num = static_cast<int>(((const byte*)player - (const byte*)sv.qcvm.edicts) / sv.qcvm.edict_size);
+    if(num == 1 && cls.state != ca_dedicated)
+    {
+        return fists[hand]; // (this game's own player: its hands)
+    }
+    const int slot = num - 1;
+    return svs.maxclients > 1 && slot >= 0 && slot < MAX_SCOREBOARD ? playerFists[slot][hand] : noFist;
+}
+
+void setPlayerFist(int slot, int hand, const za::Vector<glm::vec4>& spheres)
+{
+    if(slot >= 0 && slot < MAX_SCOREBOARD && (hand == 0 || hand == 1))
+    {
+        playerFists[slot][hand] = spheres;
+        if(spheres.empty() && hand == 0)
+        {
+            playerFistGrabCount[slot] = 0; // (a new player in the slot)
+        }
+    }
+}
+
+int playerFistGrabs(int slot)
+{
+    return slot >= 0 && slot < MAX_SCOREBOARD ? playerFistGrabCount[slot] : 0;
+}
+
+void fistInWorld(const edict_t* player, int hand, const glm::vec3& pos, const glm::vec3& angles, za::Vector<glm::vec4>& out)
+{
+    out.clear();
+    const za::Vector<glm::vec4>& spheres = fistOf(player, hand);
+    const glm::mat3 axes = axesFromAngles(&angles[0], true);
+    for(const glm::vec4& s : spheres)
+    {
+        out.pushBack(glm::vec4{pos + axes * glm::vec3{s}, s.w});
+    }
+}
+
 void fistInWorld(int hand, const glm::vec3& pos, const glm::vec3& angles, za::Vector<glm::vec4>& out)
 {
     out.clear();
@@ -1362,7 +1408,8 @@ bool grabTouch(edict_t* ent, edict_t* player, int hand, float slack)
     const float m2u = units::metresToUnits();
     const bool debug = vr_debug_carry.value || vr_debug_physics_shapes.value;
 
-    if(fists[hand].empty())
+    const za::Vector<glm::vec4>& fist = fistOf(player, hand); // (his own: B3)
+    if(fist.empty())
     {
         // Not known (no jointed hand model): the old test, the hand's point in its box and near its surface.
         constexpr float legacyReach = 0.08f; // metres
@@ -1377,7 +1424,7 @@ bool grabTouch(edict_t* ent, edict_t* player, int hand, float slack)
     }
 
     za::Vector<glm::vec4>& spheres = scratch.grabSpheres;
-    fistInWorld(hand, pos, angles, spheres);
+    fistInWorld(player, hand, pos, angles, spheres);
     const float allowed = vr_carry_grab_bias.value * 0.01f * m2u + slack;
     // Nothing of it near (the fist's bounds farther than it may be from the box the thing is drawn in: not its entity
     // box, which for the brush-model ammo and health boxes is a small cube round their origin, a corner): no
@@ -1396,6 +1443,14 @@ bool grabTouch(edict_t* ent, edict_t* player, int hand, float slack)
     FistContact c;
     const bool found = fistContact(ent, spheres, za::fmax(allowed, 0.f) + 1.f, c);
     const bool touches = found && c.gap <= allowed;
+    if(touches && &fist != &fists[hand])
+    {
+        const int slot = static_cast<int>(((const byte*)player - (const byte*)sv.qcvm.edicts) / sv.qcvm.edict_size) - 1;
+        if(slot >= 0 && slot < MAX_SCOREBOARD)
+        {
+            playerFistGrabCount[slot]++; // (a remote player's fist on a thing, his own fist's: vr_mp_prefs)
+        }
+    }
     if(debug)
     {
         noteCarryProbe(hand, ent, found ? c.from : centre, found ? c.gap : -1.f, found ? c.at : centre, allowed, &spheres,
