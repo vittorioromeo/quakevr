@@ -170,8 +170,8 @@ is the same build with a lower preset (half the GPU) [I].
 | Phase | Scope | Needs installs? |
 |---|---|---|
 | C1 (done) | Research, audit, decision, this plan; `vr_simd.hpp` + `vr_simd_test`; `-glescompat` + `vr_gles_report`; `quest_budget.cfg` and the budget runs | No |
-| **C2** (C2a, C2b done; C2c next) | **PC portability layer**: the 14 ungated rows behind `VR_GLESCompat()` (one `#version`/precision prefix for all programs, `glGetTexImage`/`glGetBufferSubData`/`glClearTexImage`/`glTextureView` replacements, LOD bias in shaders, depth clamp, clip distance, noperspective, timer-query wrapper); the GLSL made ES-valid (checked by compiling every program as `#version 320 es` with the PC driver where it accepts ES profiles, else with glslang if he approves it); `-glescompat` runs every test suite clean; `-fp-contract`-free scalar check; a "no child process" mode for the relight and motion children; an `Android`-guarded skeleton for crash/files/paths that compiles on the PC (`QVR_FAKE_ANDROID`) | No |
-| C3 | Android build: CMake toolchain for `arm64-v8a`, Gradle project (`Android/`), SDL2's Android activity, `-ffp-contract=off`, assets path and permissions, logcat console, the APK; first boot in the Android emulator (flatscreen, ES 3.x) for files, sound and menus | **Yes** (list below) |
+| C2 (done: C2a, C2b, C2c) | **PC portability layer**: the 14 ungated rows behind `VR_GLESCompat()` (one `#version`/precision prefix for all programs, `glGetTexImage`/`glGetBufferSubData`/`glClearTexImage`/`glTextureView` replacements, LOD bias in shaders, depth clamp, clip distance, noperspective, timer-query wrapper); the GLSL made ES-valid (checked by compiling every program as `#version 320 es` with the PC driver where it accepts ES profiles, else with glslang if he approves it); `-glescompat` runs every test suite clean; `-fp-contract`-free scalar check; a "no child process" mode for the relight and motion children; an `Android`-guarded skeleton for crash/files/paths that compiles on the PC (`QVR_FAKE_ANDROID`) | No |
+| **C3** (next; needs his approval of section 7's installs) | Android build: CMake toolchain for `arm64-v8a`, Gradle project (`Android/`), SDL2's Android activity, `-ffp-contract=off`, assets path and permissions, logcat console, the APK; first boot in the Android emulator (flatscreen, ES 3.x) for files, sound and menus | **Yes** (list below) |
 | C4 | OpenXR on Android: `XR_KHR_opengl_es_enable` binding, Android loader init, swapchains as GLES texture arrays, multiview into them, refresh rate, `XR_EXT_performance_settings`, `XR_FB_foveation`, Touch controller bindings (already OpenXR actions), visibility mask; first headset boot; a GL extension dump of the Quest's driver resolves the [?] rows | **Yes** + a Quest in developer mode |
 | C5 | Renderer on device: driver bugs, the post chain merged into fewer passes for the Quest preset, program binary cache, MSAA on tile, invalidations at pass ends; Adreno profiling (`ovrgpuprofiler`, RenderDoc) | Yes (device tools) |
 | C6 | Perf and defaults: a Quest graphics preset (Quest 3 and Quest 2 levels) from measurements, dynamic resolution and foveation level tied to frame time, CPU/GPU levels, thread affinity (big cores), memory caps (shadow atlas, textures); latency: late latch of poses, `xrWaitFrame` pacing | Device |
@@ -259,6 +259,43 @@ is the same build with a lower preset (half the GPU) [I].
   shadow and TAA tests under `-glescompat`), the no-child-process mode for the relight and motion children, the
   `QVR_FAKE_ANDROID` skeleton.
 
+## 5d. C2c: the render paths under ES, the Android layer's skeleton, no child processes (done, no installs)
+
+- **The render paths under the ES profile** (`Misc/quakevr/gles_render_test.sh <agent>`, `gles_render_check.py`):
+  e1m1's start with TAA on (`vr_taa 1`), the map lights' shadows (the player's own on the floor), the envmap and the
+  PBR companions at their defaults, seeded, drawn once on the PC and once under `-glescompat -glesclipcontrol`; the
+  left eye after 120 frames, `vr_envmap_dump`, `imagehash` compared. Result: the eye 0.0005 of its pixels moved by
+  more than 60 of 765 (mean 1.03 per channel), the envmap identical, 3599 textures (the PBR companions among them)
+  the same bits, 0 shader errors, no feature off. `taaparticles_test` (the flat-screen TAA's half-size particles)
+  under ES + clip control: 2/0. `vr_shadow_layered_check` is not an ES test (no layered casters there: it would
+  compare the face-at-a-time path with itself).
+- **The Android platform layer's skeleton** (`vr_android.cpp`): the layer's logic is shared (the base folder: the
+  app's external files folder unless `-basedir`, where the player copies `id1`; `<base>/quakevr/crash`; a missing
+  `id1/pak0.pak` named in the log; a crash handler on SIGSEGV/SIGABRT/SIGFPE/SIGILL/SIGBUS that writes a report
+  from fixed buffers, signal-safe: the signal, the build, the return addresses from `<unwind.h>`'s
+  `_Unwind_Backtrace`, into `crash.txt` and logcat, then the default action, the system's tombstone). Its Android
+  calls (`SDL_AndroidGetExternalStoragePath`, `__android_log_write`, the unwinder, `sigaction`, `open/write`) sit in
+  one `os` namespace whose Android forms compile only under `__ANDROID__` (C3 is their first compile) and whose PC
+  forms stand in: `QVR_FAKE_ANDROID_DIR` as the external folder, stderr as the log, the signal handlers recorded but
+  not installed (the PC's own crash handler stays). On the PC the layer is off unless **`-fakeandroid`** (or
+  `QVR_FAKE_ANDROID=1`, or a build defining `QVR_FAKE_ANDROID`). **`vr_android_test`** (Debug > Startup): under
+  `-fakeandroid` 14 passed, 0 failed (folders, every signal's handler, a report written and read back as a crash
+  writes it, no child processes).
+- **No child processes** (`VR_ChildProcesses()`): none on Android, under `-fakeandroid` or with
+  **`-nochildprocesses`** on the PC. The relighting (ericw-tools' light as a process) and the motion review's
+  Re-evaluate (a second copy of the game) refuse with a message saying so (the motion review: run `vr_motion_eval` in
+  the game instead); both are developer tools, so on the Quest they stay off (an in-process light would mean building
+  ericw-tools as a library: not planned).
+- **For C3:** `vr_crash.cpp`'s POSIX handler (Linux: glibc's `backtrace`, `dladdr`, `sigaltstack`) is the richer
+  one; on Android `backtrace` exists only from API 33 (`execinfo.h`). C3 either skips it under `__ANDROID__` (main
+  installs vr_android's first; VR_InstallCrashHandler would replace it) or gives it vr_android's unwinder and logcat
+  and drops the skeleton's handler (the reuse rule favours the second). Sys_Printf to logcat is C3's too (`os::log`).
+- **Not done (optional, waits for C4's extension dump):** the `noperspective` fallback behind `-glesnoext` (the light
+  tile coordinate and the retro affine texturing: `v * gl_Position.w` out, `* gl_FragCoord.w` in, exact; 4 shader
+  sites in gl_shaders.h and vr_glsl_alias.h), the clip-distance fallback, the standard-depth path.
+- **Verified:** PC: scenario_check 129/0, load_models_test 4/0, vr_simd_test 58880/0; dev and ThinLTO builds 0
+  warnings; ES + clip control: gles_render 8/0, taaparticles 2/0; `-fakeandroid`: vr_android_test 14/0.
+
 ## 6. Perf budget (PC, as a relative picture)
 
 Runs: `bench.sh quest --scenarios core --reps 1 --hz 72 --eye 1760`, ThinLTO, exclusive; PC defaults, then
@@ -318,9 +355,9 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C2c — the end of the PC portability layer, no installs: the ES runs of the render tests (envmap, PBR
-bakes, shadows, TAA under `-glescompat -glesclipcontrol`) and the section 6 GLES column re-run with clip control; a
-no-child-process mode for the relight and motion children; a `QVR_FAKE_ANDROID` skeleton (crash, files, paths) that
-compiles on the PC; optionally the noperspective fallback (exact, cheap) behind a `-glesnoext` switch that models a
-driver without the optional extensions. The standard-depth shadow/envmap/portal path and the clip-distance fallback
-wait for C4's extension dump (only if the Quest lacks `EXT_clip_control` / `EXT_clip_cull_distance`).
+Next phase: C3 — the Android build (NEEDS INSTALLS: section 7's SDK, NDK, JDK, Gradle, SDL2 source; waits for his
+approval): CMake toolchain for arm64-v8a with `-ffp-contract=off`, the Gradle project and SDL2's activity, the first
+compile of vr_android.cpp's `__ANDROID__` forms (and the crash handler merged with vr_crash.cpp's POSIX one, section
+5d), logcat console, the first boot in the emulator (flat-screen, ES 3.x). If the installs are not approved yet, the
+no-install work left is small: the `noperspective` fallback behind `-glesnoext` (section 5d), a CMake
+`QVR_FAKE_ANDROID` configure of the Linux build to keep the layer compiling there too.

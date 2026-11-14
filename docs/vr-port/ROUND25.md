@@ -2288,3 +2288,19 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
   (a later fixed frame for a class's first batch).
 - Checks: `load_models_test.sh` 4/0, `scenario_check.sh` 129 files 0 errors, 129 run 0 failed, the ReleaseLTO 1.1.0 build.
 - Cherry-picked c206e9a74 (agent/quest): particles' Support[16] uniform at locations 40-55, no longer overlapping the fragment shader's Taper/InkAlpha (20/21; a strict-linker link error). Checks: dev and ReleaseLTO 1.1.0 builds, scenario_check 129/0, flatblood_test 1 (particles drawn).
+
+## Quest C2c: the render paths under ES, the Android layer's skeleton, no child processes (branch agent/quest, 2026-11-14)
+
+- **What:** `Misc/quakevr/gles_render_test.sh <agent>` draws e1m1 (TAA, map-light shadows, envmap, PBR) on the PC and
+  under `-glescompat -glesclipcontrol` and compares the eye, the envmap dump and every texture's hash.
+  `vr_android.cpp`: the Android platform layer's skeleton (base and crash folders, a signal-safe crash report with
+  an unwinder stack, logcat), its Android calls in one `os` namespace with PC stand-ins; off on the PC unless
+  `-fakeandroid` (`QVR_FAKE_ANDROID=1`). `VR_ChildProcesses()`: none on Android or with `-nochildprocesses`; the
+  relighting and the motion review's Re-evaluate refuse with a message. Debug > Startup: Android Layer Test
+  (`vr_android_test`). PC defaults and behaviour unchanged. Details: QUEST_PLAN.md section 5d.
+- **Merge fix:** origin/next's envmap averages read through a pixel pack buffer with `glGetTexImage`; under
+  `-glescompat` they now read each texture through `VR_GLGetTexImage` into memory (the PC path unchanged).
+- **Tests:** gles_render 8/0 (eye 0.0005 of the pixels moved, mean 1.03 per channel; envmap identical; 3599 textures
+  the same bits; 0 shader errors), taaparticles under ES 2/0, vr_android_test 14/0 under `-fakeandroid`; PC:
+  scenario_check 129/0, load_models_test 4/0, vr_simd_test 58880/0; dev and ThinLTO builds 0 warnings.
+- **Next:** C3 (QUEST_PLAN.md's last line): needs his approval of the installs.
