@@ -497,7 +497,7 @@ void mockLook_f()
 // its grip (0) to its muzzle's (1), at its slice's middle (the grab-anywhere tests: vr_agrunt_test 39); "agweaponpalm":
 // the palm's middle there instead of the hand's point (a fist closing round it).
 // "vr_mock_hand_to <main|off> spot <index> [<height cm>]": at its hotspot `index` (a grip's point, a blade's zone's middle:
-// view::groundHotspotPoint), `height` cm over it (vr_weapon_grab_hotspots tests). "vr_mock_hand_to <main|off> button":
+// view::groundHotspotPoint; -1: its handle, its origin), `height` cm over it (vr_weapon_grab_hotspots tests). "vr_mock_hand_to <main|off> button":
 // its fingertip on the wrist gadget's side button (the gear lights: vr_gearlights.cpp), or `units` off its face ("button
 // <units>"). "vr_mock_hand_to <main|off> screen <cm> [<side cm>] [<part>]": its middle (palm) `cm` over the gadget
 // screen's middle along its normal, `side cm` along its right ("screenbutt", or the part "butt": the butt of the gun it
@@ -589,10 +589,15 @@ bool weaponSpot(int index, float height, glm::vec3& out)
 {
     int num = 0;
     const char* name = "";
+    glm::vec3 handle{0.f}; // (its origin: index -1)
     if(!sv.active || svs.maxclients < 1)
     {
         num = nearestClientWeapon();
         name = "a weapon (this client's entity)";
+        if(num)
+        {
+            handle = geom::vec(cl_entities[num].origin);
+        }
     }
     else
     {
@@ -601,11 +606,19 @@ bool weaponSpot(int index, float height, glm::vec3& out)
         edict_t* best = nearestThrownWeapon();
         num = best ? NUM_FOR_EDICT(best) : 0;
         name = best ? PR_GetString(best->v.netname) : "";
+        if(best)
+        {
+            handle = geom::vec(best->v.origin);
+        }
         PR_PopQCVM(oldVm);
     }
-    if(!num || !view::groundHotspotPoint(num, index, out))
+    if(!num || (index >= 0 && !view::groundHotspotPoint(num, index, out)))
     {
         return false;
+    }
+    if(index < 0)
+    {
+        out = handle;
     }
     out.z += height * 0.01f * units::metresToUnits();
     Con_Printf("vr_mock_hand_to: %s, its hotspot %d: %.1f %.1f %.1f\n", name, index, out.x, out.y, out.z);

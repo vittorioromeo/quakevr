@@ -798,10 +798,15 @@ def teleport(s):
 
     # B aims: the off hand at his chest, raised from steep to level (the mock's pitch up; the hand's aim is the
     # controller's turned by his gun angle) until his aim lands on the floor at least TELEPORT_MIN units ahead.
+    # (turned left and right too: from one of the two coop spawn spots straight ahead is a wall 46 units off, the aim
+    # never on the floor: 1 run in 4)
     b.cmd("vr_teleport_enabled 1; +teleport")
     got, impact, tried = [], None, []
-    for pitch in range(58, 72):
-        b.cmd("vr_mock_hand off -0.2 1.2 -0.3 %d 0 0" % pitch)
+    aims = [(pitch, yaw) for yaw in (0, 35, -35) for pitch in range(58, 72)]
+    for pitch, yaw in aims:
+        if impact is not None:
+            break
+        b.cmd("vr_mock_hand off -0.2 1.2 -0.3 %d %d 0" % (pitch, yaw))
         # (the aim settled: the same report twice in a row, the hand's new pose reached; at most 20 reports)
         last = None
         for _ in range(20):
@@ -811,12 +816,11 @@ def teleport(s):
             last = got[0] if got else None
         m = re.search(r"valid=1 .*impact=([-\d.]+) ([-\d.]+) ([-\d.]+)", got[0]) if got else None
         here = [float(m.group(i)) for i in (1, 2, 3)] if m else None
-        tried.append((pitch, round(dist(here[:2], own[:2]), 1) if here and own else None))
+        tried.append((pitch, yaw, round(dist(here[:2], own[:2]), 1) if here and own else None))
         if here and own and dist(here[:2], own[:2]) >= TELEPORT_MIN:
             impact = here
-            break
     s.check("B's teleport aim (his own trace on his client) lands on a floor %d units ahead or more" % TELEPORT_MIN,
-            impact is not None, "pitch, units ahead: %s; last %s" % (tried, got[0].strip() if got else "-"))
+            impact is not None, "pitch, yaw, units ahead: %s; last %s" % (tried, got[0].strip() if got else "-"))
     if impact is None:
         return
     srv.cmd("developer 1")  # (the server's "teleport: asked to ..." / "teleport refused: ..." in its log)
@@ -1116,7 +1120,9 @@ def ground(s):
     tried = []
     # (the hand's yaw turns the way its held blade would point: against the lying blade's way, reversed)
     turn = "0 0 0"
-    # (the hand over its blade's hotspot as it lies: with hotspots off, a fist on it takes it by its handle)
+    # (the hand over its handle as it lies (`spot -1`: its origin): with hotspots off, a fist on it takes it by its
+    # handle; a fist on its blade lying flat was held 2.9 cm off it by the hand's body, short of a take, 1 run in 5,
+    # where at its handle vr_weapon_grab_handle_leniency allows it, as a player reaching for the hilt)
     # (turned up high in one frame, then put over the sword in the next: `vr_mock_hand_to` steps from the hand's last
     # place, so the two in one frame left it where the turn put it every other time; turned low by the sword, it swept
     # through it, flinging it at 473 u/s, 3 runs of 3)
@@ -1125,7 +1131,7 @@ def ground(s):
             since = b.mark()
             b.cmd("vr_mock_hand off -0.1 1.0 -0.35 %s; echo mp_over_turned" % turn)
             b.wait(r"mp_over_turned", 10, since, "B's off hand turned")
-            b.cmd("vr_mock_hand_to off spot 0 6")
+            b.cmd("vr_mock_hand_to off spot -1 6")
         return place
 
     def agreed():
@@ -1171,7 +1177,7 @@ def ground(s):
             sv_r["rev"][1] == own_r["rev"][1] and abs(sv_r["rev"][2] - own_r["rev"][2]) <= 0.2,
             "server %s; B's own %s" % (sv_r.get("rev"), own_r.get("rev")))
     line = retake(srv, b, "off", gone_since, r"revgrip: .* taken (reversed|upright)",
-                  over(turn), "vr_mock_hand_to off spot 0", settled=agreed)
+                  over(turn), "vr_mock_hand_to off spot -1", settled=agreed)
     s.note("the server's take: %s" % line)
     want = "reversed" if own_r.get("rev", (0, -1, 0))[1] == 1 else "upright"
     s.check("B's grip takes the sword %s, as his view chose (the server's QC VR_RevGrip_OnTake)" % want,
