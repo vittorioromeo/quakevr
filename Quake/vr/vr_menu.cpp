@@ -4815,7 +4815,7 @@ void checkLinks()
         showPage(pageIndex(pageSearch));
         const int target = search.index[e].page;
         const za::String label = search.index[e].label;
-        const cvar_t* const cvar = search.index[e].isPage ? nullptr : search.index[e].cvar;
+        [[maybe_unused]] const cvar_t* const cvar = search.index[e].isPage ? nullptr : search.index[e].cvar;
         openEntry(e);
         entries++;
         bool landed = key_dest == key_menu && m_state == m_vr && ui().page == target;
