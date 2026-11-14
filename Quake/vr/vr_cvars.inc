@@ -897,17 +897,17 @@ QVR_CVAR(vr_menu_section_gap, "0.75", CVAR_ARCHIVE)   // the VR pages' space abo
 // Menu Look (vr_menu_pages.inc pageMenuLook; ROUND25.md, "Menu look"): the menus' visual hierarchy, each part tweakable.
 QVR_CVAR(vr_menu_main_gap, "1.6", CVAR_ARCHIVE)        // the main menu's gap between its groups, over Quake's 10 pixels (0 to 3: 0 none; less where the canvas is short)
 QVR_CVAR(vr_menu_header_scale, "1.25", CVAR_ARCHIVE)   // the VR pages' section headers' letters over a row's (1 to 2)
-QVR_CVAR(vr_menu_minor_scale, "0.75", CVAR_ARCHIVE)    // the This Page and Menu Detail sections' letters and rows over the others' (0.5 to 1: 1 as the rest)
+QVR_CVAR(vr_menu_minor_scale, "0.75", CVAR_ARCHIVE)    // the Advanced footer section's letters and rows over the others' (0.5 to 1: 1 as the rest)
 QVR_CVAR(vr_menu_minor_alpha, "0.65", CVAR_ARCHIVE)    // and how opaque they are (0.2 to 1)
 QVR_CVAR(vr_menu_fold, "1", CVAR_ARCHIVE)              // the VR pages' sections fold: a press on a header (its arrow) hides its rows, again shows them (0: never folded, headers not selectable)
 QVR_CVAR(vr_menu_fold_time, "0.15", CVAR_ARCHIVE)      // a fold's slide and fade, seconds (0 to 0.5: 0 at once)
 QVR_CVAR(vr_menu_folded, "", CVAR_ARCHIVE)             // the folded sections, "page title|section header" separated by ';' (written as they fold; a row reached by path, search or menu_vr unfolds its section)
 QVR_CVAR(vr_menu_hl_fit, "1", CVAR_ARCHIVE)            // the VR pages' selected-row bar as wide as the row's label and value (0: across the menu, as before)
-QVR_CVAR(vr_menu_big_hl, "2", CVAR_ARCHIVE)            // the big-letter menus' (main menu, Single Player, Multiplayer, Skill) selected row: 0 Quake's spinning icon only, 1 a soft bar behind it too, 2 and the main menu's row grown (vr_menu_big_hl_scale)
+QVR_CVAR(vr_menu_big_hl, "1", CVAR_ARCHIVE)            // the big-letter menus' (main menu, Single Player, Multiplayer, Skill) selected row: 0 Quake's spinning icon only, 1 a soft bar behind it too, 2 and the main menu's row grown (vr_menu_big_hl_scale)
 QVR_CVAR(vr_menu_big_hl_scale, "1.08", CVAR_ARCHIVE)   // that row's size while selected (1 to 1.25)
 QVR_CVAR(vr_menu_wheel_scroll, "0.25", CVAR_ARCHIVE)  // the mouse wheel on a menu with a scroll bar: a notch scrolls this part of the rows shown (0 to 1; 0: it moves the selection a row, as before)
 QVR_CVAR(vr_menu_big_hl_alpha, "0.14", CVAR_ARCHIVE)  // that soft bar's opacity at its middle (0.02 to 0.5; 0.14 the small rows' bar's, about 0.31 before 2026-11-13)
-QVR_CVAR(vr_menu_toolbar_groups, "5", CVAR_ARCHIVE)    // the corner's buttons in groups (game, saves, menus, settings, levels, tools, developer): this many pixels between groups (0 to 12: 0 evenly spaced)
+QVR_CVAR(vr_menu_toolbar_groups, "6", CVAR_ARCHIVE)    // the corner's buttons in groups (game, saves, menus, settings, levels, tools, developer): this many pixels between groups (0 to 12: 0 evenly spaced)
 // Select Campaign's groups (Item::Lead, Sub, Note; ROUND25.md, "campvis"): each campaign its title, its Continue under it.
 QVR_CVAR(vr_menu_group_scale, "1.25", CVAR_ARCHIVE)    // a group's title row's letters over a row's (1 to 2: a campaign's title)
 QVR_CVAR(vr_menu_group_gap, "6", CVAR_ARCHIVE)         // the space above each group, pixels (0 to 16)
@@ -919,7 +919,7 @@ QVR_CVAR(vr_runsetup_groups, "1", CVAR_ARCHIVE)        // Run Setup's mutators i
 QVR_CVAR(vr_runsetup_big, "1.5", CVAR_ARCHIVE)         // Run Setup's Difficulty row and Start button letters over a row's (1 to 2)
 QVR_CVAR(vr_runsetup_halls_line, "0", CVAR_ARCHIVE)    // Run Setup with a start map that has its own skill halls: 1 a line saying so where Difficulty goes; 0 nothing (the halls choose)
 QVR_CVAR(vr_menu_icons, "1", CVAR_ARCHIVE)             // icon picker rows (Run Setup's Difficulty, Starting gun, Starting melee weapon, Enemy Count): each choice a picture with its name under it; 0 plain choice rows
-QVR_CVAR(vr_menu_icon_size, "32", CVAR_ARCHIVE)        // an icon picker's pictures, menu pixels across (16 to 48; Run Setup's Difficulty a quarter bigger)
+QVR_CVAR(vr_menu_icon_size, "24", CVAR_ARCHIVE)        // an icon picker's pictures, menu pixels across (16 to 48; Run Setup's Difficulty a quarter bigger)
 QVR_CVAR(vr_menu_icon_dim, "0.55", CVAR_ARCHIVE)       // an icon picker's choices not picked: greyed and faded by this much (0 as the picked one .. 0.9)
 QVR_CVAR(vr_menu_flat_shortcuts, "1", CVAR_ARCHIVE)    // the VR menus' corner buttons (Back to game, Search, Console, VR Settings, Advanced VR, Levels, Map Library, Relighting) on a flat screen too, for the desktop mouse (vr_menuui.cpp)
 QVR_CVAR(vr_menu_flat_vr_style, "1", CVAR_ARCHIVE)     // on by default (his decision 2026-11-08); with VR off: the headset's menu layout on the window (vr_menuui.cpp, FlatPanel): a panel of the window's shape, the corner's column beside the menu, the desktop mouse as the laser; a corner dragged moves it, the wheel while dragging resizes it

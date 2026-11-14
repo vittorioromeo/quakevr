@@ -545,7 +545,10 @@ const FullConfigChange fullConfigChanges[] = {
     {&vr_body_elbow_lift, "4"},
     {&vr_bodytrack_arm_fit, "1"},
     {&vr_deadzone_outer, "5"},
+    {&vr_decap_head_size, "1.15"}, // beheading judged at the cut (2026-11-11; release audit 2026-11-14)
+    {&vr_decap_neck, "3"},         // the same
     {&vr_ghost_hands_fade_from, "6"},
+    {&vr_gore_mist_near, "40"},    // blood mist made at the camera (2026-11-10; release audit 2026-11-14)
     {&vr_particle_near_cull, "10"},
     {&vr_particle_near_fade, "30"},
     {&vr_relight_ao, "1.5"},
@@ -1410,6 +1413,10 @@ constexpr const char* retiredCvars[] = {
     "vr_bullettime_tap_twohanded",    // (cascade) taps while two-handed: the gadget lock, always on, stops them anyway
     // 2026-11-13: monsters walk through every teleporter they can step into and fit (ROUND25.md, "portalsall").
     "vr_portals_monsters_all",        // 1: unpaired (id map) teleporters walked too (0: paired ones only)
+    // 2026-11-14 (release audit, ROUND25.md "relaudit"): names an old config still holds that printed "Unknown command".
+    "vr_handgrenade_fuse",            // beta 4's hand grenade fuse (a full config holds it): one fuse now, the tunable vr_grenade_fuse
+    "vr_nav_gate_chase",              // a tunable until 2026-11-13 (always on now; ROUND25.md "revpicks")
+    "vr_nav_tele_stuck",              // a tunable until 2026-11-13 (a 0.5 s constant now)
 };
 
 // Settings renamed: the old name still reads and sets the new one (Cvar_FindVar asks here when a name is not found):

@@ -75,9 +75,18 @@ float vr_am_range_threat;   // ... its least and best times this while you hold 
 // it holds a melee weapon or none (VR_AG_CheckAttack: VR_AM_SpellTry); a gun's holder fires the gun, casting on a
 // cooldown (VR_AM_GunCasts).
 var void() vr_am_spell;     // its frames' first function (SUB_Null: none)
+// The row filled is kind vr_am_kind's (nothing else writes the row's globals, all constants: asked again for the same
+// kind, ~400-1,300 times a frame in a 3x crowd, it returns at once). Not saved: a loaded game's progs start empty, the
+// row's vectors among them (a save keeps floats and strings only), so it is filled again.
+nosave float vr_am_filled;
 
 void(float k) VR_AM_Row =
 {
+    if(vr_am_filled && k == vr_am_kind)
+    {
+        return;
+    }
+    vr_am_filled = 1;
     vr_am_kind = k;
     vr_am_spell = SUB_Null;
     if(k == VR_AM_DKNIGHT)

@@ -158,6 +158,9 @@ them all, and each page's *Reset This Page* puts its settings back. [docs/SETTIN
 - **Stamina** and tired arms (optional), enemy shoves, and a **training dummy** that can be any enemy and fights
   back.
 - **Positional damage** (headshots, arms and legs) and knockback in both directions.
+- **Armed humanoids** (on by default): grunts, enforcers and knights carry real weapons, yours included; disarm them
+  in a tug-of-war, shoot their armour plates off, and take what they drop. Monsters sneak and hunt with a stealth AI
+  and find their way with a navmesh, through teleporters too.
 
 ### Physics and gore
 
@@ -215,7 +218,12 @@ them all, and each page's *Reset This Page* puts its settings back. [docs/SETTIN
   custom maps and download, install, uninstall and play them in the game. **Other mods** run in a compatibility mode.
 - **Multiplayer and bots** (FrikBot), with a fixed 72 Hz server tick: **work in progress**, expect rough edges and
   missing features in co-op and deathmatch.
-- **Flat-screen play** (`vr_enabled 0`, or the *flat screen* shortcut).
+- **Arcane Dimensions** (experimental) played natively from your own install, and the **Survival Arena**: waves of
+  armed and armoured foes that grow with you.
+- **Run Setup** before every new game: difficulty, a Classic / Light / Unleashed style, the gore preset, your
+  starting weapons and mutators (Melee Only, Glass Cannon, Ironman, randomized pickups and enemies, more enemies).
+- **Flat-screen play** (`-flatscreenmode`, the installer's *Flat Screen* shortcut): Quake VR's physical game with a
+  mouse and keyboard, guns held as in VR, ironsights, leaning, sliding, mantling and the force grab.
 - **For recording and testing:** a spectator camera, slow motion and highlight markers for trailers; voice notes, an
   in-game checklist, a motion recorder and debug pages for playtesters.
 

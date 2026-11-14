@@ -198,6 +198,14 @@ za::Vector<Item> pageRunSetup()
     for(int s = 0; s < 3; s++)
     {
         const bool mutators = s == static_cast<int>(runsetup::Section::Mutators);
+        if(s == 1)
+        {
+        // Start: a big button of its own right after the difficulty picker (Item::Button: a gap above it; the sections below start after their own gap).
+        items.pushBack(action("Start", runSetupStart)
+                           .help("Starts the run with these choices (kept for next time; each saved game keeps its run's "
+                                 "and sets them back when loaded). Back: not started.")
+                           .button());
+        }
         if(runSetupSections[s] && !(mutators && grouped))
         {
             items.pushBack(header(runSetupSections[s]));
@@ -258,11 +266,6 @@ za::Vector<Item> pageRunSetup()
             }
         }
     }
-    // Start: a big button of its own below the mutators (Item::Button: a gap above it, not in their section).
-    items.pushBack(action("Start", runSetupStart)
-                       .help("Starts the run with these choices (kept for next time; each saved game keeps its run's "
-                             "and sets them back when loaded). Back: not started.")
-                       .button());
     return items;
 }
 

@@ -1,0 +1,4 @@
+title Run Setup as New Game opens it: the icon pickers, Difficulty only Skill Halls or Bloody Nightmare
+map start
+cmd vr_runsetup newgame
+hint Run Setup as New Game opens it: Starting Gun, Starting Melee Weapon and Enemy Count are pictures; click them and use left/right. Difficulty offers only Skill Halls or Bloody Nightmare. Menu Look > Run Setup: Icon Pickers, Icon Picker Size, Unpicked Dim.

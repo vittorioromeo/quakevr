@@ -911,6 +911,8 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"cratecrowbarput", PF_cratecrowbarput},
     {"crateplace", PF_crateplace},
     {"sightblocked", PF_sightblocked},
+    {"unseenfar", PF_unseenfar},
+    {"turnrpy", PF_turnrpy},
     {"heldshape", PF_heldshape},
     {"heldbox", PF_heldbox},
     {"modelpoint", PF_modelpoint},

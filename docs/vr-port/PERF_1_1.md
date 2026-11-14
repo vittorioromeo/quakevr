@@ -120,7 +120,30 @@ first props batch (24 crates and barrels blocking: 40-54 tiles rebuilt with them
 builds land on frame 18 and are only waited for when their disk file is missing: the first play after a new exe.)
 Not changed: the landing frame is the determinism contract (item 1 below).
 
+### His calls (2026-11-14, branch `agent/perfpicks`: items 1-4 of "Needs his call", each a tunable)
+
+| # | commit | what | check |
+|---|---|---|---|
+| 5 | `1bc1a031a` | Navmesh landing frames on big maps: a class's first props' batch on `vr_nav_job_frames_first` (45); a class's build or disk read on `vr_nav_build_frames` + walkable triangles / `vr_nav_build_frames_tris` (10,000: ad_tears 133 frames, E1M1 ~19). Pure functions of the map and the game's events | Seeded tests' outcome lines byte-identical over 2 runs alone and 4 runs in two lanes at once: nav_tele_metric `3c851856` (17/20), test 43 `8bb14908` (13/0), test 41 `b0a9e67d` (14/1, the dog's fail the same with both tunables 0). **fight_ad_tears max frame 140 / 26 / 24 -> 22 / 24 / 22 ms** |
+| 6 | `215487499` | `vr_ragdoll_per_frame` 4: at most 4 new ragdolls a server frame, the rest queued oldest death first; knockdowns at once | ragdoll_test, saveload_test (ROUND25.md "perfpicks"). The bench's 32 kills fall in its set-up, before the window: not measured by it |
+| 7 | `220fc2240` | Armed humanoids: unseen, far, idle holders posed every other server frame (`vr_agrunt_pose_lod` 1, `_near` 384, `_cone` 80); far unseen worn packs not placed (`vr_worn_backpack_lod_near` 1500); `VR_AM_Row` cached, `VR_AGP_TurnDir`'s rotation in builtin `turnrpy` | `profile_qc`, nav_hunt_e1m1_3x (fast, ThinLTO): **QuakeC 5.14 -> 4.01 ms a frame** (profiler on), `VR_AGP_Pose` 2.49 -> 1.46 incl. (77 -> 58 calls), `VR_AGP_TurnDir` 0.28 -> 0.02, `VR_AM_Row` 0.10 -> 0.02; `VR_WP_Place` 0.34 -> 0.33 (most packs near or in view). Pose tests' agtest lines identical LOD on / off |
+| 8 | `1a95237d3` | The disk cache's first write: folder making and prune in its job (a per-product lock through both) | fight_ad_tears (the session's first write) |
+
+Bench (ThinLTO, `--fast --reps 3`, exclusive; `kit/benchresults/pp_before`, `pp_after`, `pp_after2`; ms, the 3 runs pooled):
+
+| scenario | frame p50 | frame p99 | frame max | CPU avg |
+|---|---|---|---|---|
+| fight_ad_tears | 2.85 -> 2.72 | 5.72 -> 4.27 | 140.1 -> 23.8 | 2.70 -> 2.56 |
+| nav_hunt_e1m1_3x | 6.69 -> 6.08 | 12.71 -> 11.82 | 15.6 -> 17.2 | 6.38 -> 5.96 |
+| combat_48 (*) | 3.78 -> 3.62-3.74 | 7.01 -> 6.34-7.19 | 12.7 -> 9.3-21.5 | 3.79 -> 3.67-3.75 |
+| ragdolls_32_active (*) | 3.78 -> 3.35-3.53 | 12.59 -> 9.14-9.71 | 29.4 -> 15.3-26.3 | 4.05 -> 3.63-3.85 |
+
+(*) after: only the runs with the GPU at its usual speed (3D 3.0-3.2 ms); 5 of 9 ran with every GPU pass ~70% slower
+(3D 5.3-5.7 ms, CPU too: something else on the machine, OBS was recording), left out.
+
 ## Needs his call (each changes behaviour or is a bigger job)
+
+Items 1-4 applied (above, "His calls").
 
 1. **The navmesh's landing frames on big maps.** (a) Props' batches (`vr_nav_job_frames`, 3): on ad_tears the first
    batch per class needs 270-437 ms of the whole pool, so the main thread waits **216-316 ms** (fast mode; 113-476 ms paced).
