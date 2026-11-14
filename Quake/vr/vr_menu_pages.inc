@@ -307,6 +307,7 @@ void resetFlatKeys()
         open("Flat Keys", pageIndex(pageFlatKeys))
             .help("The keys flat play reads itself (leans, swap, grab, shove, punch, reload, drop, grenade, bullet time, flashlight, holster menu...): rebind each here, press a key."),
         row(opt::vr_flat_aim_mode),
+        row(opt::vr_flat_aim_zoom),
         row(opt::vr_flat_aim_sens),
         row(opt::vr_flat_aim_sens_match),
         row(opt::vr_flat_wall_shot),
