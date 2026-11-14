@@ -218,6 +218,7 @@ static byte *Mod_DecompressVis (byte *in, qmodel_t *model)
 	int		c;
 	byte	*out;
 	byte	*outend;
+	const byte *inend;
 	int		row;
 
 	row = (model->numleafs+7)>>3;
@@ -241,8 +242,17 @@ static byte *Mod_DecompressVis (byte *in, qmodel_t *model)
 		return mod_decompressed;
 	}
 
+	// QVR: no read past the vis data: a map whose last leaf's row is cut short (the compiler's) read the bytes after
+	// its block, harmless in the old one-block hunk, garbage (or a fault, -memguard) on the heap; the rest is zeros
+	inend = model->visdata && in >= model->visdata ? model->visdata + model->visdatasize : NULL;
 	do
 	{
+		if (inend && (in >= inend || (!*in && in + 1 >= inend)))
+		{
+			while (out < outend)
+				*out++ = 0;
+			break;
+		}
 		if (*in)
 		{
 			*out++ = *in++;
@@ -1157,9 +1167,11 @@ static void Mod_LoadVisibility (lump_t *l)
 	if (!l->filelen)
 	{
 		loadmodel->visdata = NULL;
+		loadmodel->visdatasize = 0;
 		return;
 	}
 	loadmodel->visdata = (byte *) Hunk_AllocNameNoFill ( l->filelen, loadname);
+	loadmodel->visdatasize = l->filelen;
 	memcpy (loadmodel->visdata, mod_base + l->fileofs, l->filelen);
 }
 
@@ -2645,6 +2657,7 @@ static byte *Mod_LoadVisibilityExternal(FILE* f)
 		Hunk_FreeToLowMark (mark);
 		return NULL;
 	}
+	loadmodel->visdatasize = filelen;
 	return visdata;
 }
 
