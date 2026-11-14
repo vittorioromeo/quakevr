@@ -3138,3 +3138,19 @@ self-driven across the load by saved globals): `vr_scenario waterdrips`, once pl
 - Tests: `mp_test.py loss` 6 of 6 runs 0 jumps (was 2 of 6 failing); `mp_test.py lagcomp` 11/0 (new: 12/12 test
   punches land where B saw A at 150 ms each way, 5/12 where the server has him); `mp_melee` 29/0. Details: MP_PLAN.md,
   "B8c results, part 1".
+
+## mpN (B8d, part 1): the jump, the crouched box and a lift rider predicted (agent/mp, 2026-11-15; never shipped by the coordinator)
+
+- **The jump predicted** (`vr_pmove.cpp`): QC PlayerJump's rule runs in each move of a remote client walked move by move
+  (the move whose key pressed it), on the server and in his client's replay; QC's new `.vr_movejump` (set by the
+  engine on those frames) makes PlayerPreThink leave the jump and its release to the moves. Lying down and AD's Jump
+  Boots stay QuakeC's. Single player and the listen host's own client: the field is 0, QuakeC's jump as before.
+- **The crouched box in the replay** (the state's box height, `hull::clientPlayerTrace` with a height), and a remote
+  client's crouch read from his head over his own feet (`vr_server.cpp`: his head was read against the server's origin,
+  a round trip behind his prediction: a jump's rise was a crouch, a shorter box in the air than his replay's).
+- **A lift rider**: the replay's ledge test meets brush models (a lift's top was a drop: double friction); a lift that
+  moved under him between replays carried him, not a correction (they sank him 10-16 units into it).
+- `QVR_NET_VERSION` 21. `vr_mp_watch 2` traces each move on both sides (`mp_predict_sv`, `mp_predict_m`).
+- Tests: `mp_test.py predict` 20/0 four runs (grown: his own jump shows 1-2 moves after his press; jumping in place and
+  across the start's step, a crouched walk and a ride on e1m1's lift: every correction and the drawn offset under
+  0.04 units); the MP suite 26 of 27 (`mp_predict`'s probe race, fixed). Details: MP_PLAN.md, "B8d results, part 1".
