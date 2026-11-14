@@ -689,6 +689,35 @@ def scenarios():
     add("gpu_shore_spray", ["gpu", "liquids"], "vrtesthall's pool from its edge: shore foam and spray along its walls",
         "vrtesthall", "At the pool's west edge looking across it at the far wall (the shore's foam particles and spray "
         "along the wall line, the water's refraction and swells).", pos="180 -256 24 20 0 0")
+    # ---- the 1.1 performance campaign (2026-11-14, group `perf1114`; PERF_1_1.md): the run setup's mutators on a real
+    # map (every monster woken onto the god-mode player, the shotgun firing), the navmesh's walkers hunting with lifts,
+    # the Map Library and a settings page over the running game.
+    ARMED3X = ["skill 2", "vr_agrunt_repl 1", "vr_agknight 1", "vr_agdknight 1", "vr_ai_enhanced 1", "vr_run_enemycount 2",
+               "vr_run_seed 7"]
+    wake_all = ["vr_test_monsters 4"] + waits(30) + ["vr_test_monsters 2"] + waits(60)
+    add("mut_armed3x_e1m2", ["perf1114", "armed", "combat"], "E1M2 at 3x enemies, armed, wild weaponry, armoured, ranged knights",
+        "e1m2", "E1M2 (skill 2) with Enemy Count 3x, Armed Humanoids, Wild Weaponry, Armored Foes, Ranged Knights and the "
+        "Smarter AI (vr_run_* set by hand before the map): every monster woken onto the god-mode player at the spawn, "
+        "the shotgun on the nearest every 50 frames: the armed crowd's AI, navmesh paths, armour, weapons, ragdolls.",
+        header=ARMED3X + ["vr_run_rangedknights 1", "vr_run_wildweapons 1", "vr_run_armoredfoes 1"], hostile=True,
+        setup=wake_all + gun(4), warm=60, load_wait=240, body=shoot_every(50))
+    add("mut_random3x_e1m2", ["perf1114", "combat"], "E1M2 at 3x enemies, randomized enemies and pickups",
+        "e1m2", "mut_armed3x_e1m2 with Randomized Enemies and Randomized Pickups (Balanced) instead of the armed "
+        "mutators: the swapped kinds' first spawns, the mixed crowd.",
+        header=ARMED3X + ["vr_run_enemyrandom 1", "vr_run_pickups 1"], hostile=True,
+        setup=wake_all + gun(4), warm=60, load_wait=240, body=shoot_every(50))
+    add("nav_hunt_e1m1_3x", ["perf1114", "combat"], "E1M1 at 3x enemies hunting you across the map on the navmesh",
+        "e1m1", "E1M1 (skill 2), Enemy Count 3x, the Smarter AI, lift links on (vr_nav_lifts, vr_nav_plat_monsters), "
+        "approach slots 8; every monster woken onto the player in the computer room: the walkers' paths across the map "
+        "(Detour queries, the lift), the stealth AI's hearing of the shots (the shotgun every 50 frames).",
+        header=ARMED3X + ["vr_nav 1", "vr_nav_lifts 1", "vr_nav_plat_monsters 1", "vr_nav_teleports 1", "vr_nav_slots 8"],
+        pos=E1M1_ROOM,
+        hostile=True, setup=wake_all + gun(4), warm=60, load_wait=240, body=shoot_every(50))
+    add("menu_maplib_e1m1", ["perf1114", "features"], "the Map Library page open over E1M1", "e1m1",
+        "idle_e1m1 with the Map Library (maps_page): its rows, thumbnails and panels.", setup=["maps_page"], warm=90)
+    add("menu_preview_e1m1", ["perf1114", "features"], "the VR settings open over E1M1 with Live Preview (the game runs)",
+        "e1m1", "menu_open_e1m1 with ui_live_preview 1: the game keeps running under the menu (monsters asleep).",
+        setup=["ui_live_preview 1", "menu_vr"], warm=60)
     for n in ("idle_e1m1", "fight_ad_tears", "fight_ad_sepulcher", "play_ad_tfuma_fight", "armed_16", "crowd_ad_40",
               "combined", "particles_dense", "explosions_storm", "gore_blast_crowd_32", "lights_32", "flashlight_e1m1",
               "tanks_fields", "water_range_surface", "lava_e1m7"):
