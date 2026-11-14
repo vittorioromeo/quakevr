@@ -1362,7 +1362,7 @@ QVR_TUNABLE(vr_knockdown_ledge_reach, "0.5") // how far ahead a ledge is looked 
 QVR_TUNABLE(vr_knockdown_ledge_margin, "24") // units past that travel (times vr_knockdown_ledge_reach) where a ledge still counts
 QVR_TUNABLE(vr_knockdown_wiggle_pause, "0.5") // pause between bursts, seconds; 0 continuous (the default since config 89; 1 before)
 QVR_TUNABLE(vr_knockdown_stir, "1") // concussed stirring of a living knockdown lying limp (2026-11-13): now and then a slow head turn, a hand's twitch, an arm or a leg drawn in (vr_box3d_ragdoll.cpp stirPick), each turn times this (0..10; 0 off)
-QVR_TUNABLE(vr_knockdown_stir_rate, "1") // how often it stirs: its pauses over this (0.1..12)
+QVR_TUNABLE(vr_knockdown_stir_rate, "12") // how often it stirs: its pauses over this (0.1..12)
 QVR_TUNABLE(vr_knockdown_stir_deg, "40") // degrees a move turns its joint at its most (each 0.6..1 of it; a leg 0.7, a hand 0.8 of that), times vr_knockdown_stir (2026-11-13: one 12..32 deg move came at most in a knockdown before)
 QVR_TUNABLE(vr_knockdown_stir_time, "0.65") // seconds a move takes, out and back (each 0.7..1.3 of it)
 QVR_TUNABLE(vr_knockdown_stir_pause, "0.3") // seconds a joint's moves pause between (each 0.5..1.5 of it), over vr_knockdown_stir_rate
