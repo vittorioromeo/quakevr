@@ -835,6 +835,10 @@ za::Vector<Item> pageDebugProfiling()
         command("OpenGL ES Report", "vr_gles_report")
             .help("vr_gles_report: the Quest (OpenGL ES 3.2) profile: what -glescompat turns off, the desktop-only GL "
                   "calls given their ES form and those still pending, and the shader errors an ES compile gave."),
+        command("Quest Preset: Quest 3 72 Hz", "vr_quest_preset 0")
+            .help("vr_quest_preset 0 (1: Quest 3 at 90 Hz, 2: Quest 2; mine: back as before): the Low graphics preset, "
+                  "then the Quest's draft rows (resolution, MSAA, shadows, bloom, particles, marks, bodies). Only under "
+                  "-glescompat: the PC's settings stay."),
         command("ES Texture Read-Back Test", "vr_gles_readback_test")
             .help("vr_gles_readback_test: every texture, the envmap and the shadow atlases read back by glGetTexImage "
                   "and by its OpenGL ES form (a framebuffer and glReadPixels), compared byte for byte; the verdict to "

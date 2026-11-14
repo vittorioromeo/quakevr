@@ -4,6 +4,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_presets.hpp"
+#include "vr_api.h"
 
 namespace qvr::gfxpresets
 {
@@ -118,6 +119,92 @@ constexpr presetcore::Table table{"graphics", "VR Settings > Graphics Presets", 
     static_cast<int>(sizeof(presetRows) / sizeof(presetRows[0])), levelNames, levelCount};
 presetcore::Kind presetKind{table};
 
+// The Quest (standalone, OpenGL ES; QUEST_PLAN.md section 6c, C6's groundwork): the Low preset, then these rows, at
+// three targets. A draft from the PC's numbers under the ES profile scaled to the XR2 Gen 2 (estimates, not device
+// measurements: C6 sets them from the headset's). Only under -glescompat (and on Android): the PC's settings are
+// never touched by it. The resolution: the share of the runtime's recommended eye size, the rest of the frame from
+// dynamic resolution (vr_dynres) once C6 ties it to the GPU's frame time; no upscaling pass (the compositor scales).
+// clang-format off
+constexpr presetcore::Row questRows[] = {
+    //                                   Q3 72 Hz  Q3 90 Hz  Q2 72 Hz
+    // The eyes' pixels: the GPU's biggest lever (every pass scales with it)
+    {&vr_render_scale,                {"0.9",    "0.75",   "0.65"}},
+    {&vr_dynres,                      {"1",      "1",      "1"}},
+    {&vr_dynres_min,                  {"0.65",   "0.6",    "0.55"}},
+    {&vr_upscale,                     {"0",      "0",      "0"}},     // bilinear: no full-size pass
+    {&vid_fsaa,                       {"2",      "0",      "0"}},     // on a tiler MSAA resolves on chip (C5 measures 4x)
+    {&vr_taa,                         {"0",      "0",      "0"}},     // its history reads and writes: bandwidth
+    // Shadows: one shadowed dynamic light, the atlas a quarter of Low's (16 MB of depth instead of 64)
+    {&vr_shadow_dlights,              {"1",      "1",      "0"}},
+    {&vr_shadow_dlight_size,          {"256",    "256",    "256"}},
+    {&vr_shadow_maplights,            {"0",      "0",      "0"}},
+    {&vr_shadow_atlas,                {"2048",   "2048",   "2048"}},
+    {&vr_shadow_distance,             {"768",    "640",    "512"}},
+    // Post-processing: bloom's chain of half-size passes off at 90 Hz and on the Quest 2 (the tone curve kept: the look)
+    {&vr_bloom,                       {D,        "0",      "0"}},
+    {&vr_heat_haze,                   {"0",      "0",      "0"}},
+    {&vr_water_reflections,           {"0",      "0",      "0"}},     // (the envmap)
+    {&vr_rim_light,                   {"0",      "0",      "0"}},     // (the envmap)
+    // Lights from things (each one a cluster entry every pixel near it walks)
+    {&vr_torch_lights,                {"2",      "2",      "1"}},
+    {&vr_lavanail_lights,             {"2",      "2",      "1"}},
+    {&vr_explosion_debris_lights,     {"2",      "2",      "0"}},
+    // Particles, marks, bodies: fill rate, the decal walk, and the CPU's physics (the big cores ~3x slower than a PC's)
+    {&vr_particle_max_screen,         {"0.08",   "0.06",   "0.05"}},
+    {&vr_particle_halfres,            {"1",      "1",      "1"}},
+    {&vr_decal_max,                   {"256",    "192",    "128"}},
+    {&vr_decal_bucket_max,            {"48",     "32",     "32"}},
+    {&vr_ragdoll_max,                 {"4",      "3",      "3"}},
+    {&vr_smallgibs_max,               {"32",     "24",     "16"}},
+    {&vr_limbs_max,                   {"12",     "8",      "8"}},
+    {&vr_explosion_debris_max,        {"32",     "24",     "16"}},
+    {&vr_gore_dents_max,              {"6",      "4",      "4"}},
+};
+// clang-format on
+
+constexpr int questLevelCount = 3;
+constexpr const char* questLevelNames[questLevelCount] = {"Quest 3 (72 Hz)", "Quest 3 (90 Hz)", "Quest 2 (72 Hz)"};
+constexpr presetcore::Table questTable{"quest", "vr_quest_preset (-glescompat)", questRows,
+    static_cast<int>(sizeof(questRows) / sizeof(questRows[0])), questLevelNames, questLevelCount};
+presetcore::Kind questKind{questTable};
+
+// vr_quest_preset [0 Quest 3 72 Hz | 1 Quest 3 90 Hz | 2 Quest 2 72 Hz | mine]: the Low preset, then the Quest's rows.
+void questPresetCmd()
+{
+    if(!VR_GLESCompat() && !VR_Android())
+    {
+        Con_Printf("vr_quest_preset: the Quest's settings, only under -glescompat (or on Android)\n");
+        return;
+    }
+    if(Cmd_Argc() < 2)
+    {
+        Con_Printf("vr_quest_preset <level>: the Low graphics preset, then the Quest's rows (\"mine\": as before)\n");
+        for(int i = 0; i < questLevelCount; i++)
+        {
+            Con_Printf("  %d %s\n", i, questLevelNames[i]);
+        }
+        questKind.printStatus();
+        return;
+    }
+    if(!q_strcasecmp(Cmd_Argv(1), "mine"))
+    {
+        if(!questKind.restoreMine() || !presetKind.restoreMine())
+        {
+            Con_Printf("vr_quest_preset: no settings kept from before yet\n");
+        }
+        return;
+    }
+    const int level = Q_atoi(Cmd_Argv(1));
+    if(level < 0 || level >= questLevelCount)
+    {
+        Con_Printf("vr_quest_preset: 0 to %d\n", questLevelCount - 1);
+        return;
+    }
+    presetKind.apply(1); // Low
+    questKind.apply(level);
+    Con_Printf("vr_quest_preset: %s (the Low preset and %d rows)\n", questLevelNames[level], questTable.rowCount);
+}
+
 // vr_graphics_preset: 0..4 applies that preset, 5 My Settings; then back to -1 (a button: the state is
 // vr_graphics_preset_status's, and the menu's).
 void onPresetCvar(cvar_t* var)
@@ -231,6 +318,7 @@ void init()
     Cvar_SetCallback(&vr_graphics_preset, onPresetCvar);
     Cmd_AddCommand("vr_graphics_preset_save", saveCmd);
     Cmd_AddCommand("vr_graphics_preset_status", statusCmd);
+    Cmd_AddCommand("vr_quest_preset", questPresetCmd);
 }
 
 } // namespace qvr::gfxpresets
