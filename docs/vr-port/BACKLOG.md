@@ -161,6 +161,11 @@ Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
 - **AI companion** (2026-11-15): a coop partner that plays campaigns/levels with the player, using the navmesh
   pathfinding and answering the player's commands (follow, stay, attack that, fetch, go there), like the Skyrim dog
   demo. Builds on multiplayer's coop (agent/mp), FrikBot, the navmesh and the stealth/hunt AI.
+- **HDR display output for flat play** (2026-11-15): the scene is already float (RGBA16F with `vr_tonemap`) and
+  tone-mapped to SDR (vr_tonemap.hpp, vr_flatlook.cpp); missing is an HDR10/scRGB window. Windows + OpenGL has no
+  standard HDR swapchain: present through a DXGI flip-model swapchain via WGL_NV_DX_interop2, or the Vulkan path
+  (VK_EXT_swapchain_colorspace). Needs: a peak-brightness/paper-white setting, HUD and menus at paper white, SDR
+  fallback, an HDR monitor to test. Gain is mostly highlights (fire, lava, muzzle flashes, bloom, sky); VR stays SDR. M.
 - **Renderer ideas from Hexenwail** (2026-11-15 research; github.com/hexenwail/hexenwail, a Hexen II engine on
   Ironwail's renderer approach; clone in kit `scratch/hexenwail_cmp/hw`):
   - Bicubic lightmap filtering (`r_lightmap_bicubic` in their world shader, plus their lightmap gutter fix #113):
