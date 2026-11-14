@@ -128,6 +128,8 @@ struct Bindings
     } arenaCards;
 
     float* spawnServerFromSaveFile{nullptr};
+    // intermission_running: QC's intermission, the server's own (a dedicated server has no cl.intermission)
+    float* intermissionRunning{nullptr};
     // vr_music_track: the CD track target_vr_music switched to (0: the map's own); sent at a connect (a loaded game)
     float* musicTrack{nullptr};
     // vr_map_content_seed: the map's content seed (srvrandom::mapSeed), set at its load; saved with the game

@@ -1419,6 +1419,12 @@ def flow(s):
             all(int(v.get("intermission", "0")) > 0 for v in seen.values()),
             "A %s; B %s" % (seen["A"].get("intermission"), seen["B"].get("intermission")))
     s.check("A is told B exited the level", a.find(r"exited the level", since_a) is not None, "")
+    # a save on the dedicated server in the intermission: refused by QC's state (it has no client of its own)
+    since_srv = srv.mark()
+    srv.cmd("save b4inter")
+    got = wait_quietly(srv, r"Can't save in intermission|Saving game to", 10, since_srv, "the server's save answer")
+    s.check("a save on the dedicated server in the intermission is refused (QC's intermission_running)",
+            got is not None and "Can't save" in got[1], got[1].strip() if got else "no answer")
 
     # A's trigger held through the intermission's 2 seconds: on to e1m2, both
     a.cmd("vr_mock_button main trigger 1")

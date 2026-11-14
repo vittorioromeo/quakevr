@@ -389,6 +389,13 @@ void checkGameCode(const Bindings& b)
 
 } // namespace
 
+// Host_Savegame_f: the server's QC is in its intermission (a dedicated server has no cl.intermission of its own).
+extern "C" int VR_ServerIntermission(void)
+{
+    const float* running = qvr::progs::bindings().intermissionRunning;
+    return sv.active && running && *running != 0.f;
+}
+
 extern "C" void VR_OnProgsLoaded()
 {
     if(qcvm != &sv.qcvm)
@@ -485,6 +492,7 @@ extern "C" void VR_OnProgsLoaded()
         b.melee = findMeleeHistory();
 
         b.spawnServerFromSaveFile = globalFloat("spawnServerFromSaveFile");
+        b.intermissionRunning = globalFloat("intermission_running");
         b.playerTimeOffset = globalFloat("vr_player_time_offset");
         b.handTimeScale = globalFloat("vr_hand_time_scale");
         b.musicTrack = globalFloat("vr_music_track");

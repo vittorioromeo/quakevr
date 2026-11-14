@@ -2562,7 +2562,7 @@ static void Host_Savegame_f (void)
 	if (VR_RunIronmanRefusesSave ()) // QVR: the run's Ironman: no saving (the quick and auto saves come here too)
 		return;
 
-	if (cl.intermission)
+	if (cl.intermission || VR_ServerIntermission ()) // QVR: the server's QC too (a dedicated server has no client)
 	{
 		Con_Printf ("Can't save in intermission.\n");
 		return;
