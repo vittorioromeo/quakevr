@@ -2314,3 +2314,7 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
 ## decalhitch
 
 Cherry-picked bd2277d6c (translucent brush models' retro decal program made in the load's last frame, not in play: a 2.5-3.1 s freeze on 19 AD maps); dev and ReleaseLTO builds, scenario_check, load_models_test pass; ad_tears with developer 1 prints no "made in play" line.
+
+## crtheapfix
+
+Cherry-picked 6b8e74432: VR_CrtHeapLoadHold now defined without mimalloc (QVR_MIMALLOC=OFF Linux link). Checked: dev build, ReleaseLTO, WSL no-mimalloc link, load_models 352/0.
