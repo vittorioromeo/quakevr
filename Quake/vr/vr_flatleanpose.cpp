@@ -487,7 +487,7 @@ struct SlideTest
 SlideTest slideTest;
 
 // The slide's own gun offsets: taken off for the run, given back after.
-Tunable* const slideOffsets[] = {&vr_flat_gun_ahead_slide, &vr_flat_gun_down_slide, &vr_flat_gun_out_slide, &vr_flat_slide_gun_roll};
+const Tunable* const slideOffsets[] = {&vr_flat_gun_ahead_slide, &vr_flat_gun_down_slide, &vr_flat_gun_out_slide, &vr_flat_slide_gun_roll};
 
 void setOffset(int i, float value)
 {
