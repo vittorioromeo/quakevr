@@ -677,7 +677,9 @@ void SV_RunClients (void)
 		}
 
 // always pause in single player if in console or menus
-		if (!sv.paused && !VR_RuntimeMenuPause () && (svs.maxclients > 1 || key_dest == key_game) ) // QVR: the runtime's menu pauses
+// QVR: unless the game runs on under the menu (live preview): his moves (0 there: VR_AdjustMove) still think, so his
+// friction stops him; without it the world moved him on at his last walking speed
+		if (!sv.paused && !VR_RuntimeMenuPause () && (svs.maxclients > 1 || key_dest == key_game || VR_MenuRunsGame ())) // QVR: the runtime's menu pauses
 			SV_ClientThink ();
 	}
 }

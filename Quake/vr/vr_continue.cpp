@@ -645,6 +645,7 @@ struct LaunchSave
     ContinueSave save;
     char label[192]{}; // "Continue (12 min ago): Hard / Classic"
     char title[48]{};  // "Continue (12 min ago)" (Select Campaign's row; its run on the line under it)
+    char age[32]{};    // "12 min ago" (Select Campaign's Continue row: dim, after "Continue")
     char help[320]{};
 };
 constexpr int maxLaunchSaves = 64;
@@ -693,9 +694,8 @@ LaunchSave* launchSave(int campaign, const char* sha)
 // row cuts; the help has it whole), "Continue (12 min ago)" for a save without run choices.
 void describeLaunch(LaunchSave& l)
 {
-    char when[32];
-    describeAge(l.save.when, when, sizeof(when));
-    q_snprintf(l.title, sizeof(l.title), "Continue (%s)", when);
+    describeAge(l.save.when, l.age, sizeof(l.age));
+    q_snprintf(l.title, sizeof(l.title), "Continue (%s)", l.age);
     if(l.save.run[0]) { q_snprintf(l.label, sizeof(l.label), "%s: %s", l.title, l.save.run); }
     else { q_strlcpy(l.label, l.title, sizeof(l.label)); }
     char line1[96], line2[96];
@@ -742,7 +742,7 @@ extern "C" const char* VR_LaunchContinueLabel(int campaign, const char* sha, int
     LaunchSave* l = launchSave(campaign, sha);
     if(!l) { return nullptr; }
     describeLaunch(*l);
-    return part == 1 ? l->title : part == 2 ? l->save.run : l->label;
+    return part == 1 ? l->title : part == 2 ? l->save.run : part == 3 ? l->age : l->label;
 }
 
 extern "C" const char* VR_LaunchContinueHelp(int campaign, const char* sha)

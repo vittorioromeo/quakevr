@@ -359,6 +359,8 @@ void CL_SendMove (const usercmd_t *cmd);
 int  CL_ReadFromServer (void);
 void CL_AdjustAngles (void);
 void CL_BaseMove (usercmd_t *cmd);
+void CL_ReleaseMoveButtons (void); // QVR: every held movement button let go (a menu opened over the running game)
+int  CL_MoveButtonsHeld (void);    // QVR: how many are held (vr_menu_stop_test)
 qboolean CL_InCutscene (void);
 
 qboolean CL_IsPlayerEnt (const entity_t *ent);

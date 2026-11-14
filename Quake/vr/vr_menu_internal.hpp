@@ -126,6 +126,27 @@ struct Choice
     const char* label;
 };
 
+// An icon picker's picture for one choice (Item::icons; vr_menu_icons.inc): a model's thumbnail (the toolgun's icon
+// maker, vr_toolgun_icons.cpp), that many of its silhouettes side by side, or a drawn emblem.
+struct MenuIcon
+{
+    enum Emblem : unsigned char
+    {
+        NoEmblem,
+        Easy,      // one chevron
+        Normal,    // two
+        Hard,      // three
+        Nightmare, // a skull
+        Bloody,    // a red skull, dripping
+        Halls,     // three arches: a start map's skill halls choose
+        Hand       // an open hand: nothing in it (bare fists)
+    };
+    const char* model{nullptr}; // a model's thumbnail, or nullptr (the emblem)
+    bool side{false};           // ... seen from its right side (a gun's length across)
+    Emblem emblem{NoEmblem};
+    int figures{0};             // > 0: that many of the model's silhouettes side by side (Enemy Count)
+};
+
 struct Item
 {
     enum Kind
@@ -211,18 +232,41 @@ struct Item
     // How it is drawn (Menu Look; ROUND25.md, "Menu look"): Minor (minor(): every page's This Page and Menu Detail
     // sections, smaller and fainter: vr_menu_minor_*), Big (big(): Run Setup's Difficulty, letters vr_runsetup_big
     // times a row's), Button (button(): Run Setup's Start, a large button of its own, centred, below a gap).
+    // A group of list rows (Select Campaign's campaigns; ROUND25.md, "campvis"): Lead (lead(): a group's first row,
+    // its letters vr_menu_group_scale, white, a gap above it, vr_menu_group_gap; its tagArg a small dim tag at the
+    // right), Sub (sub(): a secondary action under it, indented by vr_menu_group_indent, a play mark before it, its
+    // tagArg dim after it), Note (note(): a dim small line under a Sub row, part of it: cut at a word, "...").
     enum Look : unsigned char
     {
         Normal,
         Minor,
         Big,
-        Button
+        Button,
+        Lead,
+        Sub,
+        Note
     };
     Look look{Normal};
+
+    // A group's row's small dim text (Look Lead, Sub): tagArg(arg); empty: none.
+    const char* (*tagArg)(int){nullptr};
 
     // In a folded section (vr_menu_fold; set on the built page by applyFolds, vr_menu.cpp): no height, not reached by
     // the cursor's steps; selected anyway (a path, Search, menu_vr), its section unfolds.
     bool folded{false};
+
+    // An icon picker (iconPicker(): a cycle; vr_menu_icons.inc; ROUND25.md, "iconpick"): one picture a choice (`icons`,
+    // as many as `choices`), side by side under the label, each choice's name under its picture; the picked one lit,
+    // the rest greyed (vr_menu_icon_dim); a click on one picks it, left and right step. Still a cycle underneath (its
+    // cvar, its choices by name: menu paths, menu_vr, the tests). vr_menu_icons 0: drawn as a plain cycle.
+    const MenuIcon* icons{nullptr};
+
+    [[nodiscard]] Item iconPicker(const MenuIcon* list) const
+    {
+        Item i = *this;
+        i.icons = list;
+        return i;
+    }
 
     [[nodiscard]] Item looking(Look l) const
     {
@@ -233,6 +277,9 @@ struct Item
     [[nodiscard]] Item minor() const { return looking(Minor); }
     [[nodiscard]] Item big() const { return looking(Big); }
     [[nodiscard]] Item button() const { return looking(Button); }
+    [[nodiscard]] Item lead() const { return looking(Lead); }
+    [[nodiscard]] Item sub() const { return looking(Sub); }
+    [[nodiscard]] Item note() const { return looking(Note); }
 
     // A setting only one mode uses (vrOnly(), flatOnly(); most by their cvar: rowMode, vr_menu.cpp): dimmed while the
     // game runs in the other mode, its help saying so, still changed from here (a headset's settings set up from the

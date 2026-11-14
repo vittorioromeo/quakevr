@@ -135,6 +135,8 @@ void paintButton(float x0, float x1, float yc, float half, bool lit);
 // `size` from its middle to its tip, pointing right folded (open 0) and turning down as it opens (open 1).
 bool rowHighlight(float x0, float x1, float yc, float half);
 void paintFoldArrow(float xc, float yc, float size, float open);
+// A Search result's row's flash (vr_menu.cpp drawFlash): a glowing bar x0..x1 round yc, `alpha` (0..1) its strength.
+void paintFlash(float x0, float x1, float yc, float half, float alpha);
 
 // Whether a menu in the headset shows the spectator camera's preview (vr_spectator_preview, while the camera is on;
 // placed by the last 2D pass): vr_stereo.cpp then makes it from the camera's image.

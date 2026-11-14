@@ -3064,6 +3064,19 @@ extern "C" void VR_MenuDrawBigHighlight(float x0, float x1, float yc, float half
     p.rect(x0, x0 + 2.f, yc, half - 2.f, colors::highlightEdge);
 }
 
+void qvr::menuui::paintFlash(float x0, float x1, float yc, float half, float alpha)
+{
+    // Warm glow rings round a bar (the big menus' highlight's shape), in both menu styles; alpha its strength.
+    const Painter p;
+    const glm::vec4 glow{1.f, 0.62f, 0.25f, alpha * 0.22f};
+    for(int ring = 3; ring >= 1; ring--)
+    {
+        const float grow = 2.f * static_cast<float>(ring);
+        p.rounded(x0 - grow, x1 + grow, yc, half + grow, 4.f + grow, glow);
+    }
+    p.rounded(x0, x1, yc, half, 4.f, glm::vec4{1.f, 0.7f, 0.35f, alpha * 0.45f});
+}
+
 // Menu Look: the main menu's selected row's size (vr_menu_big_hl 2: vr_menu_big_hl_scale; 1 otherwise), and the gap
 // between its groups over Quake's (vr_menu_main_gap).
 extern "C" float VR_MenuBigGrow(void)

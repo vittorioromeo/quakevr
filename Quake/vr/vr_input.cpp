@@ -510,6 +510,9 @@ float autorunBlend = 0.f;
 // The stick's horizontal speed last asked of the server (VR_AdjustMove; the test and vr_debug_stick).
 float lastStickSpeed = 0.f;
 
+// Whether a menu was over the game at the last move (VR_AdjustMove: its opening lets the movement buttons go).
+bool menuWasOver = false;
+
 void stickKey(StickKey& k, float value, bool menu)
 {
     constexpr double repeatDelay = 0.4;
@@ -2066,12 +2069,21 @@ bool primaryHeld(int hand)
 // the old engine's VR_Move): that hand, or the head in modes 1 and 4 (the torso's direction is only a yaw).
 extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove)
 {
+    // A menu over the game (flat or VR; the game running on under it: live preview, multiplayer): the player stops.
+    // Its opening lets every held movement button go (keys, console +commands: CL_ReleaseMoveButtons), so nothing
+    // resumes on its close until pressed again; while it is open no move at all (keys, sticks, mouse, gamepad).
+    const bool menuOver = key_dest == key_menu;
+    if(menuOver && !menuWasOver)
+    {
+        CL_ReleaseMoveButtons();
+    }
+    menuWasOver = menuOver;
     // The Weapon Studio's window owns his move keys while it is open -- W A S D and Q E fly its drawn camera there
     // (vr_weaponstudio.cpp) -- so his own walking is paused for those frames, whatever his keys and his sticks were
     // pressed to. Nothing here is kept, so the window's Close gives the walking back exactly as it was; his looking is
     // untouched either way.
     // The flatscreen fly camera likewise: its W A S D fly the camera, and he stands still (vr_flycam.cpp).
-    if(weaponstudio::active() || flycam::on())
+    if(menuOver || weaponstudio::active() || flycam::on())
     {
         *forwardmove = 0.f;
         *sidemove = 0.f;
