@@ -34,8 +34,16 @@ cvar_t* const meleeTiming[] = {
     &vr_deflect_window,      // and how long it stays a bat
 };
 
+// Locomotion's balance settings (MP_PLAN B6c): by name, as the page mixes them with each player's comfort, turning and
+// controls (his stick's mode and curve, his run key, his speed under sv_maxspeed: the server's own cap).
+cvar_t* const locomotionRules[] = {
+    &vr_crouch_speed,       // whether crouching slows you (the server's hull and the client's stick both read it)
+    &vr_crouch_speed_scale, // and how much
+    &vr_slope_walk,         // walking up slopes from a standstill (the server's physics)
+};
+
 // The balance pages: every setting under them (Search's paths: menu::forEachSettingPath) is a rule, but for those below.
-// (Not Locomotion: its comfort, turning and controls are each player's own.)
+// (Not Locomotion: its comfort, turning and controls are each player's own; its few balance ones above.)
 constexpr const char* rulePages[] = {
     "Advanced VR Options > Combat",
     "Advanced VR Options > Carrying and Throwing",
@@ -122,6 +130,10 @@ void build()
     }
     state.built = true;
     for(cvar_t* var : meleeTiming)
+    {
+        consider(var);
+    }
+    for(cvar_t* var : locomotionRules)
     {
         consider(var);
     }
