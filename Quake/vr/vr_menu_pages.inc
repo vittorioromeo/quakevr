@@ -80,6 +80,8 @@
         row(opt::vr_menu_icons),
         row(opt::vr_menu_icon_size),
         row(opt::vr_menu_icon_dim),
+        row(opt::vr_menu_icon_gap),
+        row(opt::vr_menu_icon_name_pitch),
         header("Select Campaign"),
         row(opt::vr_menu_group_scale),
         row(opt::vr_menu_group_gap),
@@ -307,6 +309,7 @@ void resetFlatKeys()
         open("Flat Keys", pageIndex(pageFlatKeys))
             .help("The keys flat play reads itself (leans, swap, grab, shove, punch, reload, drop, grenade, bullet time, flashlight, holster menu...): rebind each here, press a key."),
         row(opt::vr_flat_aim_mode),
+        row(opt::vr_flat_aim_zoom),
         row(opt::vr_flat_aim_sens),
         row(opt::vr_flat_aim_sens_match),
         row(opt::vr_flat_wall_shot),

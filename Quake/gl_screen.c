@@ -1143,6 +1143,7 @@ static void SCR_DrawPause (void)
 {
 	qpic_t	*pic;
 	float	alpha;
+	qboolean recolor; // QVR
 
 	if (!cl.paused)
 		return;
@@ -1161,10 +1162,12 @@ static void SCR_DrawPause (void)
 
 	GL_SetCanvas (CANVAS_MENU); //johnfitz
 	GL_PushCanvasColor (1.f, 1.f, 1.f, alpha);
+	recolor = Draw_SetMenuRecolor (true); // QVR: in the menus' red (vr_menu_recolor)
 
 	pic = Draw_CachePic ("gfx/pause.lmp");
 	Draw_Pic ( (320 - pic->width)/2, (240 - 48 - pic->height)/2, pic); //johnfitz -- stretched menus
 
+	Draw_SetMenuRecolor (recolor); // QVR
 	GL_PopCanvasColor ();
 
 	scr_tileclear_updates = 0; //johnfitz
@@ -1178,14 +1181,17 @@ SCR_DrawLoading
 static void SCR_DrawLoading (void)
 {
 	qpic_t	*pic;
+	qboolean recolor; // QVR
 
 	if (!scr_drawloading)
 		return;
 
 	GL_SetCanvas (CANVAS_MENU); //johnfitz
+	recolor = Draw_SetMenuRecolor (true); // QVR: in the menus' red (vr_menu_recolor)
 
 	pic = Draw_CachePic ("gfx/loading.lmp");
 	Draw_Pic ( (320 - pic->width)/2, (240 - 48 - pic->height)/2, pic); //johnfitz -- stretched menus
+	Draw_SetMenuRecolor (recolor); // QVR
 
 	scr_tileclear_updates = 0; //johnfitz
 }

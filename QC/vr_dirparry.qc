@@ -20,6 +20,13 @@
 //   is vertical, between it and you, at your weapon; its way towards you: a weapon level across parries, read at the blow.
 // - Well timed (VR_DRP_BecameValid): your weapon became a valid parry shortly before the contact, moved in or turned to the
 //   angle: within vr_dirparry_timed_window s, your line as it was then failed against its line at the contact.
+// - Timing (his rule, 2026-11-15: "As long as the direction of the player's gun/sword/etc is correct for a directional
+//   parry, it should count as a valid parry. But if it's early or late, the stagger effect should be severely diminished";
+//   VR_DRP_Timing, every directional parry's one function): the right direction parries at any timing, nothing through.
+//   What it does to the attacker (its stagger and flinch, the push, the counter window, the disarm chance) is full when
+//   well timed (in place within vr_dirparry_timed_window s of the contact, and by its blow's own moment plus
+//   vr_dirparry_late_grace: a blow held back for your weapon) and falls smoothly to vr_dirparry_offtime over
+//   vr_dirparry_offtime_fade s earlier, vr_dirparry_late_fade s later.
 // - What a parry lets through: vr_dirparry_through_armed, _monster (0: nothing).
 // - Baked: the line is read as drawn at any moment of the stroke, ahead too (its frames are known). A blow is dealt as its
 //   frame starts, the frame before still drawn, up to vr_dirparry_stroke s before its blade gets there; so with your
@@ -58,6 +65,11 @@ float VR_DV_DIR_BLADE = 13;
 float VR_DV_DIR_WAY = 14;
 .float vr_drp_pend;      // (an armed humanoid) its blow held back: its damage (0: none), until when
 .float vr_drp_pend_until;
+.float vr_drp_pend_at;  // ... when it would have met your weapon (its blow's own moment; a parry after it is late)
+float vr_drp_due;       // VR_DRP_Frame's, VR_DRP_HeldThink's forced parry of a held blow: its vr_drp_pend_at (0: not held)
+float vr_drp_lead;      // the last parry's timing (VR_DRP_Timing): your weapon a valid parry this long before the contact (s)
+float vr_drp_late;      // ... the contact this long after its blow's own moment (s; 0: on time)
+float vr_drp_share;    // ... its share of the stagger and rewards (1: well timed; vr_dirparry_offtime early or late)
 float VR_DRP_NEAR = 48; // units: your weapon this near its blade's way at its blow holds the blow back
 float vr_drp_hand;      // the last reading's: the hand whose weapon met it best (-1: none)
 float vr_drp_score;     // ... its score (0..1)
@@ -538,7 +550,9 @@ void(entity g, entity w) VR_DRP_Frame =
         {
             vr_drp_forced = TRUE;
             vr_drp_w = w;
+            vr_drp_due = pending ? g.vr_drp_pend_at : 0;
             float through = VR_Parry(pl, g, g, pending ? g.vr_drp_pend : 20); // (the parry's events; dealt: vr_dirparry_through_armed's)
+            vr_drp_due = 0;
             vr_drp_w = world;
             vr_drp_forced = FALSE;
             if(through > 0)
@@ -589,29 +603,48 @@ void(entity pl) VR_DRP_HandLines =
     vr_drp_pb = keepB;
 };
 
+// A directional parry's timing's share (0..1) of what it does to the attacker: `lead` s your weapon was in place before the
+// contact, the contact `late` s after its blow's own moment. 1 within the window (and the grace), falling smoothly
+// (smoothstep) to vr_dirparry_offtime over vr_dirparry_offtime_fade s earlier, vr_dirparry_late_fade s later.
+float(float lead, float late) VR_DRP_TimingShare =
+{
+    float least = min(1, max(0, cvar_hget(cvarh_vr_dirparry_offtime)));
+    float early = max(0, lead - max(0, cvar_hget(cvarh_vr_dirparry_timed_window))) /
+                  max(0.001, cvar_hget(cvarh_vr_dirparry_offtime_fade));
+    float tardy = max(0, late - max(0, cvar_hget(cvarh_vr_dirparry_late_grace))) /
+                  max(0.001, cvar_hget(cvarh_vr_dirparry_late_fade));
+    float x = min(1, max(early, tardy));
+    return 1 - (1 - least) * x * x * (3 - 2 * x);
+};
+
 // The parry just read by your hand `h` against `g`'s blow (vr_drp_*): well timed: your weapon became a valid parry shortly
 // before now: as it was within vr_dirparry_timed_window s, it failed against this contact's line (too far from it, or at the
-// wrong angle, or not in your hand). Held there all that time: not.
+// wrong angle, or not in your hand). Held there all that time: not. vr_drp_lead: since when it was valid (looked back as far
+// as the timing's fade goes; further: that far).
 float(entity g, entity pl, float h) VR_DRP_BecameValid =
 {
     float window = max(0, cvar_hget(cvarh_vr_dirparry_timed_window));
+    float span = window + max(0, cvar_hget(cvarh_vr_dirparry_offtime_fade));
     float threshold = cvar_hget(cvarh_vr_dirparry_threshold);
     float lunge = !g.vr_ag && VR_DRP_Lunge(g);
     vector ea = vr_drp_ea;
     vector eb = vr_drp_eb;
     vector sq = vr_drp_sq;
+    vr_drp_lead = 0;
     for(float back = 0; back < 128; back++)
     {
         float at = handlineat(pl, h, back);
-        if(at < 0 || time - at > window)
+        if(at < 0 || time - at > span)
         {
+            vr_drp_lead = max(vr_drp_lead, span + 0.001); // (held there all along: early)
             return FALSE;
         }
+        vr_drp_lead = time - at;
         vector a = vr_blow_a;
         vector b = vr_blow_b;
         if(a == b)
         {
-            return TRUE; // (no weapon in that hand then)
+            return vr_drp_lead <= window; // (no weapon in that hand then)
         }
         if(lunge)
         {
@@ -621,10 +654,23 @@ float(entity g, entity pl, float h) VR_DRP_BecameValid =
         }
         if(VR_DRP_Marks(normalize(b - a), sq, VR_AG_SegDist(ea, eb, a, b)) < threshold)
         {
-            return TRUE;
+            return vr_drp_lead <= window;
         }
     }
     return FALSE;
+};
+
+// Every directional parry's timing (his rule, 2026-11-15: the header's "Timing"; monsters' own blows, armed humanoids'
+// swings, another player's alike): `g`'s blow parried by your hand `h` now: well timed (VR_DRP_BecameValid), and the
+// timing's share of what the parry does to it (vr_drp_share; vr_drp_lead, vr_drp_late). Late: a held blow
+// (vr_drp_due, its own moment) your weapon got in the way of only after that moment (in place before it and met
+// after: its blade just got there later, on time).
+float(entity g, entity pl, float h) VR_DRP_Timing =
+{
+    float timed = VR_DRP_BecameValid(g, pl, h);
+    vr_drp_late = (vr_drp_forced && vr_drp_due > 0) ? max(0, time - vr_drp_lead - vr_drp_due) : 0;
+    vr_drp_share = VR_DRP_TimingShare(vr_drp_lead, vr_drp_late);
+    return timed;
 };
 
 // A monster's own blow held back (VR_DRP_Blow; self a follower, its owner the monster, its enemy you): each frame its line
@@ -649,7 +695,9 @@ void() VR_DRP_HeldThink =
         {
             g.vr_drp_pend = 0;
             vr_drp_forced = TRUE;
+            vr_drp_due = g.vr_drp_pend_at;
             float rest = VR_Parry(pl, g, g, hurt);
+            vr_drp_due = 0;
             vr_drp_forced = FALSE;
             vr_drp_early = vr_drp_early + 1;
             if(rest > 0)
@@ -716,6 +764,11 @@ float(entity pl, entity g, float damage) VR_DRP_Blow =
         if(!vr_drp_release && window > 0 && vr_drp_hand >= 0 && vr_drp_gap < VR_DRP_NEAR &&
            (!met || (baked && vr_drp_tau > VR_DRP_SOON)))
         {
+            if(g.vr_drp_pend <= 0)
+            {
+                // (its blow's own moment: when its blade gets to your weapon's place, read along its way now)
+                g.vr_drp_pend_at = time + min(window, max(0, vr_drp_tau));
+            }
             g.vr_drp_pend = max(g.vr_drp_pend, damage);
             g.vr_drp_pend_until = time + window;
             vr_drp_deferred = TRUE;
@@ -747,12 +800,15 @@ float(entity pl, entity g, float damage) VR_DRP_Blow =
     }
     g.vr_drp_swing = !baked ? g.vr_ag_act_at : g.vr_melee_begun > 0 ? g.vr_melee_begun : time;
     g.vr_drp_by = vr_drp_hand;
-    g.vr_drp_timed = vr_drp_ag_timed = VR_DRP_BecameValid(g, pl, vr_drp_hand);
+    g.vr_drp_timed = vr_drp_ag_timed = VR_DRP_Timing(g, pl, vr_drp_hand);
+    g.vr_drp_timing = vr_drp_ag_timing = vr_drp_share;
     vr_drp_parries = vr_drp_parries + 1;
     vr_parry_at = vr_drp_at;
     dprint(sprintf("dirparry: %s's blow parried by hand %g: score %.2f (%.0f deg off square, gap %.1f units, %.3f s %s)\n",
         g.classname, vr_drp_hand, vr_drp_score, vr_drp_off, vr_drp_gap, fabs(vr_drp_tau),
         vr_drp_tau > 0 ? "ahead" : "ago"));
+    dprint(sprintf("dirparry: timing: in place %.2f s before, %.2f s late: x%.2f%s\n", vr_drp_lead, vr_drp_late,
+        vr_drp_share, g.vr_drp_timed ? " (well timed)" : ""));
     if(vr_dv_on)
     {
         VR_DV_Mark(baked ? g : (vr_drp_w ? vr_drp_w : g.vr_ag_prop), vr_drp_at, VR_DV_PARRY, sprintf("dirparry %.2f", vr_drp_score));

@@ -2337,6 +2337,10 @@ QVR_SLIDER_BYNAME(vr_menu_icon_size, "Icon Picker Size", 16.f, 48.f, 2.f, "%.0f 
     "An icon picker's pictures, menu pixels across (Run Setup's Difficulty a quarter bigger).")
 QVR_SLIDER_BYNAME(vr_menu_icon_dim, "Icon Picker Unpicked Dim", 0.f, 0.9f, 0.05f, "%.2f", noExt,
     "How much an icon picker's choices that are not picked are greyed and faded. 0: as bright as the picked one.")
+QVR_SLIDER_BYNAME(vr_menu_icon_gap, "Icon Picker Gap", 0.f, 24.f, 1.f, "%.0f px", noExt,
+    "The gap between an icon picker's cards, menu pixels. The cards keep their width while the row has room (4: the old spacing).")
+QVR_SLIDER_BYNAME(vr_menu_icon_name_pitch, "Icon Picker Name Lines", 4.f, 10.f, 0.5f, "%.1f px", noExt,
+    "The line pitch of an icon picker's two-line names, menu pixels (the letters 8 high; 7: the old spacing).")
 QVR_TOGGLE_BYNAME(vr_runsetup_halls_line, "Run Setup: Skill Halls Line",
     "With a start map that has its own skill halls (id's start, a pack's hall): a line saying so where Difficulty goes. Off: nothing (the halls choose).")
 QVR_TOGGLE_BYNAME(vr_menu_vr_style, "VR Menu Style",
@@ -6283,7 +6287,13 @@ QVR_CYCLE(vr_flat_aim_mode, "Right Click Ironsight",
     "the buttons are the hands' own, as when dual wielding: the left button the right hand's, the right button the left "
     "hand's (a gun fires, a melee weapon or a prop strikes).",
     {0.f, "Hold"}, {1.f, "Toggle"})
-QVR_SLIDER(vr_flat_aim_sens, "Aim Sensitivity", 0.1f, 2.f, 0.05f, "%.2fx", ext(0.05f, 5.f),
+QVR_CYCLE(vr_flat_aim_zoom, "Right Click Aim",
+    "Playing on the desktop screen: what aiming with the right mouse button does. Ironsight: the gun comes up to your eye "
+    "on its sights and the crosshair fades. Zoom: the same narrowing of the view, the gun stays where it is and the "
+    "crosshair stays. Per Weapon: each gun's own (Weapon Offsets > Sights, Flat-Screen Aim: zoom for the guns with no "
+    "sights to look down: the nailguns, the grenade, rocket and proximity launchers, the laser cannon) (vr_flat_aim_zoom).",
+    {-1.f, "Per Weapon"}, {0.f, "Ironsight"}, {1.f, "Zoom"})
+QVR_SLIDER(vr_flat_aim_sens,"Aim Sensitivity", 0.1f, 2.f, 0.05f, "%.2fx", ext(0.05f, 5.f),
     "Playing on the desktop screen: the mouse's, gyro's and stick's look speed while aiming down the sights, times this, "
     "on top of the slowing the narrower view brings (Aim Sensitivity Match). It comes in with the sights (vr_flat_aim_sens).")
 QVR_CYCLE(vr_flat_aim_sens_match, "Aim Sensitivity Match",
