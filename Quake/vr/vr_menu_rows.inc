@@ -2294,9 +2294,9 @@ QVR_SLIDER_BYNAME(vr_menu_main_gap, "Main Menu Group Gap", 0.f, 3.f, 0.1f, "%.1f
 QVR_SLIDER_BYNAME(vr_menu_header_scale, "Section Header Size", 1.f, 2.f, 0.05f, "%.2fx", noExt,
     "The settings pages' section headers' letters, over a row's: bigger headers make the sections easier to tell apart.")
 QVR_SLIDER_BYNAME(vr_menu_minor_scale, "Page Footer Size", 0.5f, 1.f, 0.05f, "%.2fx", noExt,
-    "The This Page (Reset This Page) and Menu Detail sections under every page: their letters and rows, over the others'.")
+    "The Advanced section (Reset This Page, Menu Detail) under every page: their letters and rows, over the others'.")
 QVR_SLIDER_BYNAME(vr_menu_minor_alpha, "Page Footer Opacity", 0.2f, 1.f, 0.05f, "%.2f", noExt,
-    "How faint the This Page and Menu Detail sections are (1: as the rest).")
+    "How faint the Advanced section is (1: as the rest).")
 QVR_TOGGLE_BYNAME(vr_menu_fold, "Folding Sections",
     "The settings pages' sections fold: a press on a section's header (its arrow) hides its rows, another shows them again. Each page keeps its folds. Off: every section open, headers not selectable.")
 QVR_SLIDER_BYNAME(vr_menu_fold_time, "Fold Animation Time", 0.f, 0.5f, 0.01f, "%.2f s", noExt,
