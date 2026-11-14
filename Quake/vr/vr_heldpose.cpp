@@ -454,7 +454,10 @@ void mpDrawn_f()
             const progs::HandFields& f = progs::handFields(hand);
             printGround(state.slotSpot[slot][hand], nearest, choice, cosine, at,
                 f.rot >= 0 ? progs::fieldVec(player, f.rot) : glm::vec3{0.f});
-            Con_Printf("\n");
+            // (the nearest weapon's speed: the harness waits for one let go to come to rest before reaching for it)
+            const edict_t* n = nearest > 0 ? edictOf(nearest) : nullptr;
+            Con_Printf(" nspeed=%.1f\n", n ? static_cast<double>(glm::length(glm::vec3{n->v.velocity[0], n->v.velocity[1],
+                n->v.velocity[2]})) : -1.0);
         }
     }
 }

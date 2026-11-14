@@ -41,6 +41,7 @@ import math
 import os
 import re
 import sys
+import time
 import traceback
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -734,15 +735,16 @@ def grab(s):
     # A hand's touch is judged as it or the thing moves: a gun come to rest under a still hand is never touched (B3f's
     # mp_grab 12/1: the press after it stopped). Each press is made with the hand where it let go, then lowered 6 cm onto
     # the gun, as a player reaches for it.
+    # The gun can still slide as the hand comes down on it (B3f: 1 run of 4 missed all 3 presses): the hand is placed on
+    # it again before every report while pressing, 2 cm into it and 4 cm over it by turns (onto_each_report).
     seen, presses = [], 0
     for presses in range(1, 4):
         _, gone = srv.wait(r"grip: .*main hand let go at", 10, since, "B's let-go on the server")
         server_time_past(srv, float(gone.rsplit(" ", 1)[1]) + GRIP_REPRESS_S)
         b.cmd("vr_mock_hand main 0.1 0.25 -0.35 0 0 0; vr_mock_button main grip 1")
-        seen += b_weapon_until(4, 4)
+        seen += b_weapon_until(4, 2)
         if seen[-1] != 4:
-            b.cmd("vr_mock_hand_to main spot 0 -2")  # (onto it as it lies: the mock's target on a remote client, B3f)
-            seen += b_weapon_until(4, 6)
+            seen += onto_each_report(b, "vr_mock_hand_to main spot 0", b_weapon_until, 4, 10)
         if seen[-1] == 4:
             break
         since = srv.mark()
@@ -973,6 +975,9 @@ def ground_report(inst, prefix):
                 "rev": (int(rev.group(1)), int(rev.group(2)), float(rev.group(3))),
                 "hand": [float(hand.group(i)) for i in (1, 2, 3)],
                 "rot": [float(rot.group(i)) for i in (1, 2, 3)]}
+            ns = re.search(r"\bnspeed=(-?[\d.]+)", l)
+            if ns:
+                out[(int(m.group(1)), int(m.group(2)))]["nspeed"] = float(ns.group(1))
     return out
 
 
@@ -984,25 +989,57 @@ def wait_quietly(inst, pattern, timeout, since, what):
         return None
 
 
+def at_rest(srv, key, ent, tries=100):
+    """The weapon `ent` lying nearest the server's hand `key` (ent, hand) still (its speed, `nspeed`, under 0.5) in two
+    reports running -> True; False after `tries` reports (a safety net)."""
+    still = 0
+    for _ in range(tries):
+        g = ground_report(srv, "mp_drawn_sv").get(key, {})
+        moving = g.get("rev", (0,))[0] != ent or g.get("nspeed", 1.0) >= 0.5
+        still = 0 if moving else still + 1
+        if still >= 2:
+            return True
+    return False
+
+
+ONTO_DEPTHS_CM = (-2, 4)  # a retaking hand into the weapon and up again, alternately (each reach down a move: a touch
+#                            judged; 1 cm steps left a fist 0.77 cm off a sword on the floor)
+
+
+def onto_each_report(b, target, until, want, tries):
+    """B's hand placed on `target` (a `vr_mock_hand_to` target less its height) before each of up to `tries` reports
+    (`until(want, 1)`), alternately ONTO_DEPTHS_CM into it, until the report says `want` -> the reports' values."""
+    seen = []
+    for i in range(tries):
+        b.cmd("%s %d" % (target, ONTO_DEPTHS_CM[i % 2]))
+        seen += until(want, 1)
+        if seen[-1] == want:
+            break
+    return seen
+
+
 def retake(srv, b, hand, gone_since, taken_re, above, down, presses=3, settled=None):
     """B presses `hand`'s grip GRIP_REPRESS_S of the server's game time after its let-go (logged after `gone_since`) with
     the hand placed by `above` (and, given `settled`, once it says the server has the hand there), then moves it into the
-    weapon lying still (`down`: a hand's touch is judged as it moves), until the server logs `taken_re` (at most `presses`
-    presses, each let go again when it took nothing) -> the line."""
+    weapon (`down`, a `vr_mock_hand_to` target less its height: placed again every half second, 2 cm into it and 4 cm over it by turns: a
+    hand's touch is judged as it moves, and the weapon may still slide), until the server logs `taken_re` (at most
+    `presses` presses, each let go again when it took nothing) -> the line."""
     since = gone_since
     for _ in range(presses):
         _, gone = srv.wait(r"grip: .*%s hand let go at" % hand, 10, since, "B's %s let-go on the server" % hand)
         server_time_past(srv, float(gone.rsplit(" ", 1)[1]) + GRIP_REPRESS_S)
-        b.cmd(above)
+        above() if callable(above) else b.cmd(above)
         if settled:
             settled()
         since = srv.mark()
         b.cmd("vr_mock_button %s grip 1" % hand)
         srv.wait(r"grip: .*%s hand pressed at" % hand, 10, since, "B's %s grip on the server" % hand)
-        b.cmd(down)
-        got = wait_quietly(srv, taken_re, 3, since, "B's %s hand taking it" % hand)
-        if got:
-            return got[1]
+        got = None
+        for i in range(12):  # (onto it again every half second: it may still slide; a reach down every other time)
+            b.cmd("%s %d" % (down, ONTO_DEPTHS_CM[i % 2]))
+            got = wait_quietly(srv, taken_re, 0.5, since, "B's %s hand taking it" % hand)
+            if got:
+                return got[1]
         since = srv.mark()
         b.cmd("vr_mock_button %s grip 0" % hand)
     return None
@@ -1056,7 +1093,7 @@ def ground(s):
             own_g.get("gs", (0, -1))[0] > 0 and sv_g.get("gs") == own_g.get("gs"),
             "server %s; B's own %s" % (sv_g.get("gs"), own_g.get("gs")))
     line = retake(srv, b, "main", gone_since, r"weapon: .* taken into the main hand", above,
-                  "vr_mock_hand_to main spot %d -2" % grips[0])
+                  "vr_mock_hand_to main spot %d" % grips[0])
     s.note("the server's take: %s" % line)
     s.check("B's grip takes the shotgun by that hotspot (the server's QC: 'by its hotspot %d')" % grips[0],
             line is not None and ("by its hotspot %d" % grips[0]) in line, "server: %s" % line)
@@ -1072,6 +1109,7 @@ def ground(s):
         if off[-1] == 13:
             break
     s.check("B holds the given sword in his off hand (the server's report)", off[-1] == 13, "B's off weapon: %s" % off)
+    nearest_before = ground_report(srv, "mp_drawn_sv").get((eb, 0), {}).get("rev", (0,))[0]
     gone_since = srv.mark()
     b.cmd("vr_mock_button off grip 0")
     own_r = sv_r = {}
@@ -1079,7 +1117,16 @@ def ground(s):
     # (the hand's yaw turns the way its held blade would point: against the lying blade's way, reversed)
     turn = "0 0 0"
     # (the hand over its blade's hotspot as it lies: with hotspots off, a fist on it takes it by its handle)
-    over = "vr_mock_hand off -0.1 0.25 -0.35 %s; vr_mock_hand_to off spot 0 6"
+    # (turned up high in one frame, then put over the sword in the next: `vr_mock_hand_to` steps from the hand's last
+    # place, so the two in one frame left it where the turn put it every other time; turned low by the sword, it swept
+    # through it, flinging it at 473 u/s, 3 runs of 3)
+    def over(turn):
+        def place():
+            since = b.mark()
+            b.cmd("vr_mock_hand off -0.1 1.0 -0.35 %s; echo mp_over_turned" % turn)
+            b.wait(r"mp_over_turned", 10, since, "B's off hand turned")
+            b.cmd("vr_mock_hand_to off spot 0 6")
+        return place
 
     def agreed():
         """B's own and the server's reports of his off hand until the server has the hand where his view has it (its
@@ -1094,14 +1141,24 @@ def ground(s):
         return o, v
 
     # (first the sword come to rest by the hand: the weapon lying nearest it one that may be held reversed; a sword
-    # still tumbling from the hand was once not the nearest, a run of 3)
-    b.cmd(over % turn)
+    # still tumbling from the hand was once not the nearest, a run of 3; the hand placed over it while it still tumbled
+    # flung it away at 400 u/s, 2 runs of 3: the server's sword at rest first, as a player waits for it to land)
+    # (the sword: the weapon lying nearest his off hand once the server has it let go, not the one nearest before)
+    srv.wait(r"grip: .*off hand let go at", 10, gone_since, "B's off hand let-go on the server")
+    sword = 0
+    for _ in range(30):
+        sword = ground_report(srv, "mp_drawn_sv").get((eb, 0), {}).get("rev", (0,))[0]
+        if sword > 0 and sword != nearest_before:
+            break
+    s.check("the sword let go comes to rest on the server", sword > 0 and sword != nearest_before and at_rest(srv, (eb, 0), sword),
+            "the sword: entity %d (the weapon lying nearest before: %d)" % (sword, nearest_before))
+    over(turn)()
     for _ in range(30):
         own_r = ground_report(b, "mp_drawn_own").get((eb, 0), {})
         if own_r.get("rev", (0, -1, 0))[1] >= 0:
             break
     for turn in ("0 0 0", "0 180 0", "0 90 0", "0 -90 0"):
-        b.cmd(over % turn)
+        over(turn)()
         own_r, sv_r = agreed()
         tried.append((turn, own_r.get("rev"), sv_r.get("rev"), own_r.get("rot"), sv_r.get("rot")))
         if own_r.get("rev", (0, -1, 0))[1] == 1:
@@ -1114,12 +1171,199 @@ def ground(s):
             sv_r["rev"][1] == own_r["rev"][1] and abs(sv_r["rev"][2] - own_r["rev"][2]) <= 0.2,
             "server %s; B's own %s" % (sv_r.get("rev"), own_r.get("rev")))
     line = retake(srv, b, "off", gone_since, r"revgrip: .* taken (reversed|upright)",
-                  over % turn, "vr_mock_hand_to off spot 0 -2", settled=agreed)
+                  over(turn), "vr_mock_hand_to off spot 0", settled=agreed)
     s.note("the server's take: %s" % line)
     want = "reversed" if own_r.get("rev", (0, -1, 0))[1] == 1 else "upright"
     s.check("B's grip takes the sword %s, as his view chose (the server's QC VR_RevGrip_OnTake)" % want,
             line is not None and (" taken %s" % want) in line, "server: %s" % line)
     srv.cmd("vr_debug_carry 0; developer 0")
+
+
+INV_KEYS = ("health", "armor", "items", "shells", "nails", "rockets", "cells", "weapon")
+IT_ROCKET_LAUNCHER = 32
+
+
+def inventories(srv):
+    """The server's players' inventories (vr_mp_status's `mp_client: ... inv=`) -> {slot: {INV_KEYS...}}, and the map."""
+    since = srv.mark()
+    srv.cmd("vr_mp_status")
+    n, last = srv.wait(r"mp_server: map=", 10, since, "the server's status")
+    out = {}
+    for l in srv.lines[since:n]:
+        m = re.match(r"mp_client: slot=(\d+) .*spawned=1 .*inv=([-\d,]+)", l)
+        if m:
+            out[int(m.group(1))] = dict(zip(INV_KEYS, (int(x) for x in m.group(2).split(","))))
+    return out, fields(last).get("map", "")
+
+
+def inventories_until(srv, done, tries=60):
+    """inventories(srv) until done(inv, map) -> (inv, map) (the last, at most `tries` reports)."""
+    inv, mapname = {}, ""
+    for _ in range(tries):
+        inv, mapname = inventories(srv)
+        if done(inv, mapname):
+            break
+    return inv, mapname
+
+
+def carried(before, after, keys=("items", "shells", "nails", "rockets", "cells", "weapon"), change=True):
+    """The inventory keys that differ (a level's change keeps these; health is clamped to 50..100, shells raised to 25 at
+    least: QC's SetChangeParms; `change` False: the same game state, no such rule)."""
+    def want(k):
+        v = before.get(k)
+        return max(v, 25) if change and k == "shells" and v is not None else v
+    return [k for k in keys if want(k) != after.get(k)]
+
+
+def campaign(s):
+    """The coop campaign flow (B4): a dedicated server's coop e1m1 to e1m2 to e1m3, both players' inventories carried by
+    each change of level; a save on e1m2 (each player's block: `// qvr_coop`, `// qvr_coopslot`), then its load from
+    e1m3 with both players kept (each back in his own slot with what he had); B killed after the load respawns with his
+    level-start inventory of the loaded level (his saved parms), not of the level he loaded from."""
+    t0 = time.time()
+    srv, a, b, ea, eb = join(s)
+    sa, sb = ea - 1, eb - 1
+    a.cmd("give 3; give 4; give s 60; give n 80")
+    b.cmd("give 5; give 6; give n 90; give r 9")
+    inv1, _ = inventories_until(srv, lambda inv, m: inv.get(sa, {}).get("nails") == 80 and
+                                inv.get(sb, {}).get("rockets") == 9)
+    s.note("e1m1: A %s; B %s" % (inv1.get(sa), inv1.get(sb)))
+    s.check("A's and B's gifts on the server (e1m1)", inv1.get(sa, {}).get("nails") == 80 and
+            inv1.get(sb, {}).get("rockets") == 9, "%s" % inv1)
+
+    def change(level, before, label):
+        since_a, since_b = a.mark(), b.mark()
+        srv.cmd("changelevel %s" % level)
+        a.wait(r"mp_event: .*joined map=%s" % level, 120, since_a, "A on %s" % level)
+        b.wait(r"mp_event: .*joined map=%s" % level, 120, since_b, "B on %s" % level)
+        inv, m = inventories_until(srv, lambda inv, m: m == level and sa in inv and sb in inv)
+        for slot, name in ((sa, "A"), (sb, "B")):
+            diff = carried(before.get(slot, {}), inv.get(slot, {}))
+            s.check("%s: %s's inventory carried (weapons, ammo, the weapon in hand)" % (label, name), not diff and
+                    inv.get(slot, {}).get("health", 0) >= 50,
+                    "before %s; after %s (differ: %s)" % (before.get(slot), inv.get(slot), diff))
+        return inv
+
+    start2 = change("e1m2", inv1, "e1m1 to e1m2")
+    # B takes a rocket launcher on e1m2 (after its start: not in his level-start parms), A some cells
+    b.cmd("give 7")
+    a.cmd("give c 40")
+    inv2, _ = inventories_until(srv, lambda inv, m: inv.get(sb, {}).get("items", 0) & IT_ROCKET_LAUNCHER and
+                                inv.get(sa, {}).get("cells") == 40)
+    s.check("B's rocket launcher and A's cells on e1m2", inv2.get(sb, {}).get("items", 0) & IT_ROCKET_LAUNCHER and
+            inv2.get(sa, {}).get("cells") == 40, "%s" % inv2)
+
+    since = srv.mark()
+    srv.cmd("save b4coop")
+    srv.wait(r"Saving game to", 10, since, "the server's save")
+    path = None
+    for _ in range(50):
+        path = next((os.path.join(s.base, d, "b4coop.sav") for d in os.listdir(s.base)
+                     if os.path.isfile(os.path.join(s.base, d, "b4coop.sav")) and
+                     os.path.getmtime(os.path.join(s.base, d, "b4coop.sav")) >= t0 - 5), None)
+        if path:
+            text = open(path, encoding="latin-1").read()
+            if "\n// qvr_coop " in text and text.rstrip().endswith("}"):
+                break
+        time.sleep(0.1)
+    text = open(path, encoding="latin-1").read() if path else ""
+    coop_line = re.search(r"^// qvr_coop (\d+) (\d+) (\d+)$", text, re.M)
+    slots_in = re.findall(r"^// qvr_coopslot (\d+) 1 (\d+) ", text, re.M)
+    s.note("the save: %s; %s; players in: %s" % (path, coop_line.group(0) if coop_line else None, slots_in))
+    s.check("a coop save on the dedicated server, each player's block in it (qvr_coop: 4 slots; qvr_coopslot for A's "
+            "and B's)", coop_line is not None and coop_line.group(2) == "4" and
+            sorted(int(x[0]) for x in slots_in) == sorted((sa, sb)) and "// qvr_save 2 " in text,
+            "qvr_coop %s; slots in %s" % (coop_line.group(0) if coop_line else None, slots_in))
+
+    inv3 = change("e1m3", inv2, "e1m2 to e1m3")
+    a.cmd("give 8")
+    b.cmd("give 8")
+    inventories_until(srv, lambda inv, m: all(inv.get(x, {}).get("items", 0) & 64 for x in (sa, sb)))
+
+    since_a, since_b, since_srv = a.mark(), b.mark(), srv.mark()
+    srv.cmd("load b4coop")
+    _, ja = a.wait(r"mp_event: .*joined map=e1m2", 120, since_a, "A back on e1m2")
+    _, jb = b.wait(r"mp_event: .*joined map=e1m2", 120, since_b, "B back on e1m2")
+    loaded, m = inventories_until(srv, lambda inv, m: m == "e1m2" and sa in inv and sb in inv)
+    for slot, name in ((sa, "A"), (sb, "B")):
+        diff = carried(inv2.get(slot, {}), loaded.get(slot, {}), INV_KEYS, change=False)
+        s.check("the load from e1m3: %s kept, back on e1m2 in his slot with what he had at the save" % name,
+                m == "e1m2" and not diff, "saved %s; loaded %s (differ: %s)" % (inv2.get(slot), loaded.get(slot), diff))
+    s.check("the load keeps both players in their slots (each his own entity again)",
+            (int(fields(ja)["self"]), int(fields(jb)["self"])) == (ea, eb),
+            "A %s, B %s; before %d, %d" % (fields(ja).get("self"), fields(jb).get("self"), ea, eb))
+
+    s.check("the server gave each saved player's block to his slot ('coop save: 2 players of 4 slots')",
+            srv.find(r"coop save: 2 players of 4 slots", since_srv) is not None, "")
+
+    # B suicides (kill: QC's ClientKill respawns him at once): his inventory the loaded level's start (his saved parms:
+    # no rocket launcher), not e1m3's (with it)
+    since_b = b.mark()
+    b.cmd("kill")
+    b.wait(r"suicides", 10, since_b, "B's suicide")
+    back, _ = inventories_until(srv, lambda inv, m: sb in inv and not inv[sb]["items"] & IT_ROCKET_LAUNCHER, 20)
+    diff = carried(start2.get(sb, {}), back.get(sb, {}), ("items", "shells", "nails", "rockets", "cells"), change=False)
+    s.note("B respawned: %s; his e1m2 start %s; his e1m3 start %s" % (back.get(sb), start2.get(sb), inv3.get(sb)))
+    s.check("B respawns with his level-start inventory of the loaded e1m2 (his saved parms: no rocket launcher)",
+            back.get(sb, {}).get("health", 0) > 0 and not diff and not back[sb]["items"] & IT_ROCKET_LAUNCHER,
+            "respawned %s; e1m2 start %s (differ: %s)" % (back.get(sb), start2.get(sb), diff))
+    s.metric("inventories", {"e1m1": inv1, "e1m2_start": start2, "e1m2_saved": inv2, "e1m3_start": inv3,
+                             "loaded": loaded, "b_respawned": back.get(sb)})
+
+
+def campaign_listen(s):
+    """A coop save on a listen host (A): loaded with B connected (both kept, the host's own client reconnecting as at a
+    changelevel), then by A alone after he left for a single player server (the save's 4 players set again: maxplayers
+    and listen), B joining into his saved slot with what he had."""
+    srv, a, b, ea, eb = join(s, listen=True)
+    sa, sb = ea - 1, eb - 1
+    a.cmd("give 3; give s 44")
+    b.cmd("give 7; give r 12")
+    inv1, _ = inventories_until(a, lambda inv, m: inv.get(sa, {}).get("shells") == 44 and
+                                inv.get(sb, {}).get("rockets") == 12)
+    s.check("A's and B's gifts on the listen host", inv1.get(sa, {}).get("shells") == 44 and
+            inv1.get(sb, {}).get("rockets") == 12, "%s" % inv1)
+    since = a.mark()
+    a.cmd("save b4listen")
+    a.wait(r"Saving game to", 10, since, "the host's save")
+    a.cmd("give 8")
+    b.cmd("give 8")
+    inventories_until(a, lambda inv, m: all(inv.get(x, {}).get("items", 0) & 64 for x in (sa, sb)))
+
+    since_a, since_b = a.mark(), b.mark()
+    a.cmd("load b4listen")
+    _, ja = a.wait(r"mp_event: .*joined map=e1m1", 120, since_a, "A in the loaded game")
+    _, jb = b.wait(r"mp_event: .*joined map=e1m1", 120, since_b, "B in the loaded game")
+    loaded, _ = inventories_until(a, lambda inv, m: sa in inv and sb in inv and inv[sa]["shells"] == 44)
+    for slot, name in ((sa, "A"), (sb, "B")):
+        diff = carried(inv1.get(slot, {}), loaded.get(slot, {}), INV_KEYS, change=False)
+        s.check("the host's load with B connected: %s kept in his slot with what he had at the save" % name,
+                not diff, "saved %s; loaded %s (differ: %s)" % (inv1.get(slot), loaded.get(slot), diff))
+    s.check("both in their own slots again", (int(fields(ja)["self"]), int(fields(jb)["self"])) == (ea, eb),
+            "A %s, B %s" % (fields(ja).get("self"), fields(jb).get("self")))
+
+    # A leaves for a single player server (B dropped), then loads the coop save alone; B joins it again
+    since_a, since_b = a.mark(), b.mark()
+    a.cmd("disconnect; maxplayers 1; map e1m1")
+    a.wait(r"mp_event: .*joined map=e1m1", 120, since_a, "A alone on e1m1")
+    since_a = a.mark()
+    a.cmd("load b4listen")
+    a.wait(r"mp_event: .*joined map=e1m1", 120, since_a, "A in the coop save loaded alone")
+    st = status(a)
+    srv_line = next((l for l in st if l.startswith("mp_status:")), "")
+    s.check("the coop save loaded by a single player host plays it with its 4 players",
+            fields(srv_line).get("clients") == "4", srv_line)
+    since_b = b.mark()
+    b.cmd(s.connect_cmd(b))
+    _, jb = b.wait(r"mp_event: .*joined map=e1m1", 120, since_b, "B joining the loaded game")
+    alone, _ = inventories_until(a, lambda inv, m: sb in inv and inv[sb]["rockets"] == 12)
+    diff = carried(inv1.get(sb, {}), alone.get(sb, {}), INV_KEYS, change=False)
+    s.check("B joins into his saved slot with what he had at the save", int(fields(jb)["self"]) == eb and not diff,
+            "B entity %s (was %d); saved %s; now %s (differ: %s)" % (fields(jb).get("self"), eb, inv1.get(sb),
+                                                                   alone.get(sb), diff))
+    diff = carried(inv1.get(sa, {}), alone.get(sa, {}), INV_KEYS, change=False)
+    s.check("A, alone at the load, has what he had at the save", not diff,
+            "saved %s; now %s (differ: %s)" % (inv1.get(sa), alone.get(sa), diff))
 
 
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
@@ -1146,6 +1390,10 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             held(s)
         elif test == "mp_ground":
             ground(s)
+        elif test == "mp_campaign":
+            campaign(s)
+        elif test == "mp_campaign_listen":
+            campaign_listen(s)
         else:
             coop(s, args.listen, args.flat or "", lag, jitter, loss)
     except StepFailed as e:
@@ -1158,7 +1406,7 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -1181,7 +1429,8 @@ def main():
                 sys.exit(2)
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
-    elif args.test in ("bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground"):
+    elif args.test in ("bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
+                       "campaign", "campaign_listen"):
         ok = run(args, "mp_" + args.test)
     else:
         ok = run(args, "mp_coop")
@@ -1196,6 +1445,8 @@ def main():
         ok = run(args, "mp_teleport") and ok
         ok = run(args, "mp_held") and ok
         ok = run(args, "mp_ground") and ok
+        ok = run(args, "mp_campaign") and ok
+        ok = run(args, "mp_campaign_listen") and ok
         print("mp_suite: %s" % ("passed" if ok else "FAILED"))
     sys.exit(0 if ok else 1)
 
