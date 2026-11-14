@@ -169,8 +169,26 @@ def coop(s, listen, flat, lag, jitter, loss):
     s.check("each sees the other on e1m2", True)
 
 
-IDLE_BUDGET = 25 * 1024  # B's link down, both players idle on e1m1 (MP_PLAN.md, section 2.3: B2's target)
+IDLE_BUDGET = 10 * 1024  # B's link down, both players idle on e1m1 (MP_PLAN.md, section 2.3: B7b's acknowledged snapshots)
 IDLE_PACKETS = 360       # the window: five seconds of 72 Hz datagrams
+
+
+def snap_status(srv, eb):
+    """The server's snapshots to client entity `eb` (vr_mp_status's "mp_netsnap:" fields; {} none)."""
+    since = srv.mark()
+    srv.cmd("vr_mp_status")
+    srv.wait(r"mp_server: map=", 10, since)
+    sn = [fields(l) for l in srv.lines[since:] if l.startswith("mp_netsnap: slot=%d " % (eb - 1))]
+    return sn[-1] if sn else {}
+
+
+def client_snap_status(c):
+    """A client's snapshots read and its interpolation buffer (vr_mp_status's "mp_snapcl:" fields; {} none)."""
+    since = c.mark()
+    c.cmd("vr_mp_status")
+    c.wait(r"mp_snapcl: ", 10, since)
+    sn =[fields(l) for l in c.lines[since:] if l.startswith("mp_snapcl: ")]
+    return sn[-1] if sn else {}
 RELIABLE_CHUNK = 1200    # a reliable message's chunk at most (net_dgrm.c DGRM_RELIABLE_CHUNK)
 NET_HEADER = 8
 
@@ -200,7 +218,13 @@ def bandwidth(s):
     s.check("B's link up idle on e1m1 under %d B/s (quantized delta moves, B7)" % UP_BUDGET, up < UP_BUDGET,
             "%d B/s, mean %d B a packet (was 45 KB/s, 640 B)" % (up, windows[1]["up"]["mean_B"]))
     s.check("B's link down idle on e1m1 under %d B/s" % IDLE_BUDGET, down < IDLE_BUDGET,
-            "%d B/s (%d B/s with every pose to every client)" % (down, windows[0]["down"]["bytes_s"]))
+            "%d B/s, mean %d B a packet (%d B/s with every pose to every client; was 20 KB/s before B7b)" % (
+                down, windows[1]["down"]["mean_B"], windows[0]["down"]["bytes_s"]))
+    # (B7b: B acknowledges the server's snapshots in his moves; the server codes his against the one he acknowledged)
+    sn = snap_status(srv, eb)
+    s.metric("b_netsnap", sn)
+    s.check("the server delta-codes B's snapshots against the ones he acknowledged",
+            bool(sn) and int(sn["delta"]) > 0 and int(sn["delta"]) > 10 * int(sn["full"]), "%s" % sn)
     most = proxy.stats["down"][3]
     s.check("every packet down at most %d B (no reliable chunk over %d B)" % (1400 + NET_HEADER, RELIABLE_CHUNK),
             most <= 1400 + NET_HEADER, "largest %d B" % most)
@@ -2701,12 +2725,18 @@ def lossy(s):
                 "recovered %s" % nm[-1]["recovered"])
         s.check("every QVR_CLC_MOVES had its base (the acknowledged move)", int(nm[-1]["undecodable"]) == 0,
                 "undecodable %s" % nm[-1]["undecodable"])
-    # (B7b: NetQuake's entity lerp still jumps his whole body a few times under loss -- its clock clamped to the newest
-    # message, then a late one: the entity interpolation buffer, a fixed delay behind with a history of messages, makes
-    # these checks; until then the counts are metrics.)
+    # (B7b: the entities' interpolation buffer -- a delay behind the newest message, adaptive to the gaps, with a
+    # history of messages -- draws his body and hands without a jump; NetQuake's two-message lerp jumped 1-3 times.)
     s.metric("loss_jumps", {"body": on[0], "hands": on[1], "body_lerp_off": off[0], "hands_lerp_off": off[1]})
-    s.note("B7b: jumps of A's body %d, hands %d in %d frames (lerp off: %d, %d): the entity interpolation buffer's" % (
-        on[0], on[1], TRACE_FRAMES, off[0], off[1]))
+    s.check("at %d%% loss A's body never jumps in B's view (%d frames)" % (LOSS * 100, TRACE_FRAMES), on[0] == 0,
+            "%d jumps (avatar lerp off: %d)" % (on[0], off[0]))
+    s.check("at %d%% loss A's hands never jump in B's view" % (LOSS * 100), on[1] == 0,
+            "%d jumps (avatar lerp off: %d)" % (on[1], off[1]))
+    cs = client_snap_status(b)
+    s.metric("b_snapcl", cs)
+    s.check("B reads every snapshot that came (each one's acknowledged base kept)",
+            bool(cs) and int(cs["decoded"]) > 0 and int(cs["undecodable"]) == 0, "%s" % cs)
+    s.check("B draws the others from the interpolation buffer", bool(cs) and int(cs["interp"]) == 1, "%s" % cs)
     s.check("A's hands ride his body smoothly in B's view (offset roughness at most %.1f)" % SMOOTH_MOST,
             on[2] <= SMOOTH_MOST, "%.2f (lerp off: %.2f; B's frames a second %.0f)" % (on[2], off[2], on[3]))
     s.check("B's link up walking under %d B/s at %d%% loss" % (UP_BUDGET, LOSS * 100), w["up"]["bytes_s"] < UP_BUDGET,
