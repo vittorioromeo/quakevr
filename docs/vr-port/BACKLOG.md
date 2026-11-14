@@ -161,6 +161,18 @@ Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
 - **AI companion** (2026-11-15): a coop partner that plays campaigns/levels with the player, using the navmesh
   pathfinding and answering the player's commands (follow, stay, attack that, fetch, go there), like the Skyrim dog
   demo. Builds on multiplayer's coop (agent/mp), FrikBot, the navmesh and the stealth/hunt AI.
+- **Renderer ideas from Hexenwail** (2026-11-15 research; github.com/hexenwail/hexenwail, a Hexen II engine on
+  Ironwail's renderer approach; clone in kit `scratch/hexenwail_cmp/hw`):
+  - Bicubic lightmap filtering (`r_lightmap_bicubic` in their world shader, plus their lightmap gutter fix #113):
+    smoother lightmap shadows up close in VR; a few texture fetches per world pixel. S-M.
+  - Pre-compressed DDS/KTX replacement textures (their img_dds.c: BC1-7, KTX 1.1), uploaded as is: less VRAM and
+    faster loads with HD packs. Desktop only (Quest needs ASTC/ETC2). M.
+  - Hi-Z occlusion culling (`gl_hiz_cull`, gl_worldcull.c: previous frame's depth pyramid in the cull compute
+    shader; 44-58% of surfaces culled on demo1): only if a capture shows world draws as the cost; one-frame holes on
+    head turns/doors and per-eye pyramids make it risky in VR. L.
+  - Their web/PWA build (web/, docs/WEBGL_RENDERER.md, docs/PWA.md): reference for the Emscripten/WebGL item.
+  - Small: MAX_ENT_LEAFS 32 -> 64 (entity popping on big maps); V_RenderView returning when not connected (their
+    headless map-change crash, f67ccf0); CI that compiles every shader with glslang.
 
 ## 11. Performance and parked
 
