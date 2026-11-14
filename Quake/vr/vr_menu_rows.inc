@@ -4039,6 +4039,9 @@ QVR_SLIDER(vr_weapon_grab_handle_leniency, "Handle Grab Leniency", 0.f, 10.f, 0.
     "A gun lying on a table or the floor is taken by its handle with your fist this much farther off it than "
     "the slack above (the hand at its handle; your hand nudging it doesn't stop it). Only a direct grab: a "
     "weapon caught in the air has Mid-Air Catch Leniency, and a force grab is unchanged. 0: as anywhere on it.")
+QVR_SLIDER(vr_weapon_palm_grab_slack, "Palm Grab Slack", 0.f, 20.f, 0.5f, "%.1f cm", noExt,
+    "A gun you let go of from a still, open hand rests on your palm; closing that hand takes it back within this much "
+    "of its surface (the fist closes under it). 0: only by the fist on it.")
 QVR_SLIDER(vr_weapon_catch_handle_leniency, "Mid-Air Catch Leniency", 0.f, 15.f, 0.5f, "%.1f cm", noExt,
     "A weapon in the air (tossed up to re-grip it, flipped, spinning) is caught by its handle with your fist "
     "this much off it. Not a force grab's pull. 0: only by your fist on it.")

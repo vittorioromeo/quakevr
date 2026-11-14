@@ -480,6 +480,12 @@ struct TouchProvider
     {
         slack = za::max(vr_weapon_catch_handle_leniency.value, 0.f) * 0.01f * m2u;
     }
+    // Lying on this hand (let go of from a still, open hand: it rests on the hand's Box3D body, over the fist that closes
+    // under it, with nothing solid under its handle): vr_weapon_palm_grab_slack (MP_PLAN B3c).
+    if(box3d::restsOnHand(NUM_FOR_EDICT(target), NUM_FOR_EDICT(player), h))
+    {
+        slack = za::max(slack, za::max(vr_weapon_palm_grab_slack.value, 0.f) * 0.01f * m2u);
+    }
     if(held::grabTouch(target, player, h, slack))
     {
         out.distance = fromHandle;
