@@ -411,6 +411,7 @@ def avatarcal(s):
 BODY_UNITS = 1.5    # B's copy of A's body: its joints within this of A's own body (units)
 BODY_WRIST = 1.0    # ... its wrists within this of A's drawn hands' wrists (the arms reach them)
 BODY_SCALE = 0.005  # ... its scale (world units a metre) within this share of A's own
+BODY_SHOULDER_CAL = 0.2  # ... with A's arms calibrated, its shoulders within this of A's own (units; MP_PLAN B3c)
 
 
 def body_of(lines, prefix):
@@ -514,6 +515,26 @@ def body(s):
             abs(ratio / want - 1.0) <= 0.02 and abs(sh / want - 1.0) <= 0.02,
             "scale x%.3f, shoulders x%.3f, the Height x%.3f" % (ratio, sh, want))
     s.note("screenshot: %s" % b.screenshot("sees_A_tall"))
+
+    # A calibrates his arms (Body Calibration's results: arm lengths, shoulders wider, higher, further back, their rise
+    # and swing; MP_PLAN B3c): B's copy takes them from his calibration, its shoulders where A's own body has them.
+    before_w = dist(own["shoulder0"], own["shoulder1"])
+    a.cmd("vr_bodycal_upper_arm 31; vr_bodycal_forearm 28; vr_bodycal_shoulders_back 0.02; vr_bodycal_shoulders_up 0.03; "
+          "vr_bodycal_shoulders_out 0.05; vr_bodycal_shoulder_rise 30; vr_bodycal_shoulder_swing 15")
+
+    def calibrated(lines):
+        la, lb = lines
+        own, copy = body_of(la, "mp_body_own").get(ea), body_of(lb, "mp_body").get(ea)
+        return own is not None and copy is not None and dist(own["shoulder0"], own["shoulder1"]) > before_w + 1.0 and \
+            max(dist(copy["shoulder%d" % h], own["shoulder%d" % h]) for h in (0, 1)) <= BODY_SHOULDER_CAL
+
+    (la, lb), n = reports_until(s, [a, b], calibrated, "A's arms calibrated: B's copy's shoulders A's own", 30)
+    own, copy = body_of(la, "mp_body_own")[ea], body_of(lb, "mp_body")[ea]
+    off = max(dist(copy["shoulder%d" % h], own["shoulder%d" % h]) for h in (0, 1))
+    s.metric("body_cal_shoulders", off)
+    s.check("A's arms calibrated (shoulders %.1f units wider): B's copy's shoulders within %g units of A's own"
+            % (dist(own["shoulder0"], own["shoulder1"]) - before_w, BODY_SHOULDER_CAL), off <= BODY_SHOULDER_CAL,
+            "%.2f after %d reports" % (off, n))
 
 
 

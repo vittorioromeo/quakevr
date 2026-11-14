@@ -124,6 +124,8 @@ extern const Subject* subject;
 // The posed body's velocity (world units a second), and whether it stands on the ground (cl.velocity, cl.onground).
 [[nodiscard]] glm::vec3 velocity();
 [[nodiscard]] bool onGround();
+// The arms posed: yours (bodycal::ownArms) or the other player's (Subject::arms).
+[[nodiscard]] bodycal::Arms arms();
 
 // ---- The legs (vr_avatar_legs.cpp) ----
 

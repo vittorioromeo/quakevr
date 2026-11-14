@@ -105,6 +105,22 @@ void switchShown();
 // Degrees the shoulders rise reaching up and swing forward reaching far forward.
 [[nodiscard]] float shoulderRise();
 [[nodiscard]] float shoulderSwing();
+// All of the above at once: a player's arms as his body is posed with them (yours: ownArms; another player's: from his
+// calibration, vr_mpavatar.cpp; until it comes, defaultArms).
+struct Arms
+{
+    float measuredCm[2]{0.f, 0.f}; // measuredArmCm
+    float tweakCm[2]{0.f, 0.f};    // armTweakCm
+    glm::vec3 shoulderOffset{0.f}; // shoulderOffset()
+    float rise{0.f};               // shoulderRise()
+    float swing{0.f};              // shoulderSwing()
+    [[nodiscard]] bool calibrated() const
+    {
+        return measuredCm[0] > 0.f && measuredCm[1] > 0.f;
+    }
+};
+[[nodiscard]] Arms ownArms();
+[[nodiscard]] Arms defaultArms();
 // The same for the default body (no measurement, no tweak): another player's body (vr_avatar.cpp poseOther).
 [[nodiscard]] glm::vec3 defaultShoulderOffset();
 [[nodiscard]] float defaultShoulderRise();

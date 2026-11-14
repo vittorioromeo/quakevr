@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include "vr_bodycal.hpp" // bodycal::Arms
 #include "vr_engine.hpp" // qmodel_t, entity_t
 #include "vr_hands.hpp"
 #include "vr_units.hpp"
@@ -259,11 +260,12 @@ struct Subject
     float metresToUnits{units::perMetre};   // his world scale's (units::metresToUnits)
     float eyeHeight{units::modelEyeHeight}; // metres (units::eyeHeight: his Height)
     float armLength{1.f};                   // his vr_body_arm_length
+    bodycal::Arms arms{bodycal::defaultArms()}; // his arms' measurements, tweaks and shoulders (his calibration's)
     glm::vec3 velocity{0.f};                // his entity's, world units a second
     bool onGround{true};
 };
 // `player`: 1 .. MAX_SCOREBOARD. Returns the entity origin (the pelvis), as pose(). Not his swimming, lying down or
-// climbing yet (upright, the legs walking), nor his own arm measurements (his arm length's proportions).
+// climbing yet (upright, the legs walking). His arms are his calibration's (Subject::arms: measured, tweaked, shoulders).
 glm::vec3 poseOther(int player, const Subject& who, const hands::State& s, qmodel_t* model, const entity_t* ent,
     const HandPose handPoses[2]);
 // Player `player`'s body as posed this frame (false: not posed this frame), and its shoulders (the pauldrons).

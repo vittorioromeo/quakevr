@@ -45,12 +45,12 @@ void clear();
 
 // The avatar calibration (MP_PLAN.md, B2c): what others need of a player's body and see of it, from his own settings --
 // height, seated height, arm length, world scale, handedness and the gadget's arm, gloves (kind, colour), nails, skin
-// tone, body (mode, build, bracers, pauldrons). Each as an integer (calFields in vr_mpavatar.cpp: metres in mm, shares
+// tone, body (mode, build, bracers, pauldrons), his arms (Body Calibration's measurements, tweaks and shoulders: B3c). Each as an integer (calFields in vr_mpavatar.cpp: metres in mm, shares
 // in thousandths...), so what is sent, kept and compared is exact. The client sends his up when it changes (a
 // "vr_avatarcal" client command, reliable, at most every vr_net_avatarcal_interval); the server keeps one per client
 // slot and passes it on to every client (QVR_SVC_AVATARCAL, reliable), and all of them to a joining client.
 // Multiplayer only.
-inline constexpr int numCalFields = 16;
+inline constexpr int numCalFields = 25;
 struct Calibration
 {
     int v[numCalFields]{};

@@ -310,10 +310,11 @@ void setup(int e, const Avatar& a)
 struct CalField
 {
     const char* name;
-    const cvar_t* var;
+    const cvar_t* var; // (null: get's)
     float scale;
     int lo;
     int hi;
+    float (*get)(){nullptr};
 };
 const CalField calFields[numCalFields] = {
     {"height", &vr_height_calibration, 1000.f, 500, 2500}, // mm (the eyes' standing height, calibrated)
@@ -332,8 +333,18 @@ const CalField calFields[numCalFields] = {
     {"build", &vr_body_build, 1.f, 0, 3},
     {"bracers", &vr_body_bracers, 1.f, 0, 1},
     {"pauldrons", &vr_body_pauldrons, 1.f, 0, 1},
+    // His arms as his body poses them (Body Calibration's measurements with his tweaks: bodycal::ownArms; MP_PLAN B3c).
+    {"upper", nullptr, 10.f, 0, 600, [] { return bodycal::ownArms().measuredCm[0]; }}, // mm (0: not measured)
+    {"fore", nullptr, 10.f, 0, 600, [] { return bodycal::ownArms().measuredCm[1]; }},
+    {"tupper", nullptr, 10.f, -500, 500, [] { return bodycal::ownArms().tweakCm[0]; }}, // mm
+    {"tfore", nullptr, 10.f, -500, 500, [] { return bodycal::ownArms().tweakCm[1]; }},
+    {"sback", nullptr, 1000.f, -500, 500, [] { return bodycal::ownArms().shoulderOffset.x; }}, // mm from the model's
+    {"sup", nullptr, 1000.f, -500, 500, [] { return bodycal::ownArms().shoulderOffset.y; }},
+    {"sout", nullptr, 1000.f, -500, 500, [] { return bodycal::ownArms().shoulderOffset.z; }},
+    {"srise", nullptr, 10.f, -1800, 1800, [] { return bodycal::ownArms().rise; }}, // tenths of a degree
+    {"sswing", nullptr, 10.f, -1800, 1800, [] { return bodycal::ownArms().swing; }},
 };
-constexpr int calCommandVersion = 1; // "vr_avatarcal <version> <the fields>": another version's is ignored
+constexpr int calCommandVersion = 2; // "vr_avatarcal <version> <the fields>": another version's is ignored
 
 struct CalState
 {
@@ -348,7 +359,8 @@ struct CalState
 CalState cal;
 
 // calFields' places (setupBody).
-constexpr int calHeight = 0, calArm = 2, calScale = 3, calBody = 12, calBuild = 13, calBracers = 14;
+constexpr int calHeight = 0, calArm = 2, calScale = 3, calBody = 12, calBuild = 13, calBracers = 14, calUpper = 16,
+              calTweakUpper = 18, calShoulders = 20, calRise = 23, calSwing = 24;
 
 // Avatar `e`'s body (vr_mp_body; MP_PLAN.md, B2d): posed by the code that poses your own (avatar::poseOther), from his
 // head, his drawn hands (their wrists, as your own body's arms take yours) and how his client poses his body (a.body),
@@ -374,6 +386,16 @@ void setupBody(int e, const Avatar& a, const glm::vec3& origin)
         who.metresToUnits = units::perMetre * static_cast<float>(c->v[calScale]) / 1000.f;
         build = c->v[calBuild];
         bare = c->v[calBracers] == 0;
+        for(int b = 0; b < 2; b++)
+        {
+            who.arms.measuredCm[b] = static_cast<float>(c->v[calUpper + b]) / 10.f;
+            who.arms.tweakCm[b] = static_cast<float>(c->v[calTweakUpper + b]) / 10.f;
+        }
+        who.arms.shoulderOffset = glm::vec3{static_cast<float>(c->v[calShoulders]), static_cast<float>(c->v[calShoulders + 1]),
+                                      static_cast<float>(c->v[calShoulders + 2])} /
+                                  1000.f;
+        who.arms.rise = static_cast<float>(c->v[calRise]) / 10.f;
+        who.arms.swing = static_cast<float>(c->v[calSwing]) / 10.f;
     }
     // His velocity from his entity's last two messages; on the ground unless rising or falling fast (the client is not
     // told; a walk down stairs stays on its feet).
@@ -425,7 +447,8 @@ void setupBody(int e, const Avatar& a, const glm::vec3& origin)
     Calibration c;
     for(int i = 0; i < numCalFields; i++)
     {
-        c.v[i] = calClamp(i, static_cast<int>(std::lround(calFields[i].var->value * calFields[i].scale)));
+        const float value = calFields[i].var ? calFields[i].var->value : calFields[i].get();
+        c.v[i] = calClamp(i, static_cast<int>(std::lround(value * calFields[i].scale)));
     }
     return c;
 }

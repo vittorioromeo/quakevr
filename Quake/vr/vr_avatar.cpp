@@ -261,6 +261,11 @@ bool onGround()
     return subject ? subject->onGround : cl.onground;
 }
 
+bodycal::Arms arms()
+{
+    return subject ? subject->arms : bodycal::ownArms();
+}
+
 // World position of `joint` from its posed parent.
 [[nodiscard]] glm::vec3 childPos(const Body& b, int joint)
 {
@@ -850,12 +855,12 @@ struct ArmLengths
     const float length = CLAMP(0.5f, subject ? subject->armLength : vr_body_arm_length.value, 2.f);
     const float cm = detail::metresToUnits() * 0.01f;
     ArmLengths r;
-    // (another player's: his arm length's proportions; his own measurements and tweaks are his client's)
-    const float mu = subject ? 0.f : bodycal::measuredArmCm(0), mf = subject ? 0.f : bodycal::measuredArmCm(1);
-    const float tweak[2]{subject ? 0.f : bodycal::armTweakCm(0), subject ? 0.f : bodycal::armTweakCm(1)};
-    r.upper = za::max(5.f * cm, (mu > 0.f ? mu * cm : boneLength(UpperArmL, ForearmL) * m2w * length) + tweak[0] * cm);
-    r.fore = za::max(5.f * cm, (mf > 0.f ? mf * cm : boneLength(ForearmL, HandL) * m2w * length) + tweak[1] * cm);
-    r.calibrated = !subject && bodycal::calibrated();
+    // (another player's: his measurements and tweaks, from his calibration: MP_PLAN B3c)
+    const bodycal::Arms a = detail::arms();
+    const float mu = a.measuredCm[0], mf = a.measuredCm[1];
+    r.upper = za::max(5.f * cm, (mu > 0.f ? mu * cm : boneLength(UpperArmL, ForearmL) * m2w * length) + a.tweakCm[0] * cm);
+    r.fore = za::max(5.f * cm, (mf > 0.f ? mf * cm : boneLength(ForearmL, HandL) * m2w * length) + a.tweakCm[1] * cm);
+    r.calibrated = a.calibrated();
     return r;
 }
 
@@ -969,7 +974,7 @@ struct ClavicleRest
     // Crouched (vr_body_crouch_shoulders_*): further back, up and out, and the collarbone swung back and up about the
     // base of the neck, as deep as the crouch (Body::crouchPose).
     const float crouched = b.crouchPose;
-    const glm::vec3 so = (posingOther() ? bodycal::defaultShoulderOffset() : bodycal::shoulderOffset()) + glm::vec3{vr_body_crouch_shoulders_back.value,
+    const glm::vec3 so = detail::arms().shoulderOffset + glm::vec3{vr_body_crouch_shoulders_back.value,
                                                          vr_body_crouch_shoulders_up.value, vr_body_crouch_shoulders_out.value} *
                                                          crouched;
     out.pos = childPos(b, clav) + (-cFwd * so.x + cUp * so.y + out.lateral * so.z) * b.m2w;
@@ -1011,10 +1016,8 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     const float armLen =
         lengths.calibrated ? lengths.upper + lengths.fore : (boneLength(upper, fore) + boneLength(fore, hand)) * b.m2w;
     const glm::vec3 restShoulder = c.pos + rest * (localOffset(upper) * b.m2w);
-    c.rot = clavicleTurn(wrist - restShoulder, lateral, cUp, cFwd, armLen,
-                posingOther() ? bodycal::defaultShoulderRise() : bodycal::shoulderRise(),
-                posingOther() ? bodycal::defaultShoulderSwing() : bodycal::shoulderSwing(), lengths.calibrated) *
-            rest;
+    const bodycal::Arms arms = detail::arms();
+    c.rot = clavicleTurn(wrist - restShoulder, lateral, cUp, cFwd, armLen, arms.rise, arms.swing, lengths.calibrated) * rest;
 
     // Body tracking (vr_bodytrack_arm_fit, by the arm weight): the clavicle turns on, about the base of the neck, to take
     // the shoulder towards the tracked one (a shrug, the shoulder forward or back), by up to trackedShoulderTurn.
