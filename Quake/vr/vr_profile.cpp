@@ -171,6 +171,7 @@ struct Node
     // This frame.
     za::I64 frameNs{0};
     int frameCalls{0};
+    int frameDraws{0}; // the draw calls made inside it (vr_profcounts.drawcalls), its children's included
     bool cpuTouched{false};
     double gpuFrameMs{0.0};
     bool gpuTouched{false};
@@ -179,6 +180,7 @@ struct Node
     double cpuSum{0.0}; // ms
     double cpuMax{0.0};
     za::I64 calls{0};
+    za::I64 draws{0};
     double gpuSum{0.0};
     double gpuMax{0.0};
     bool gpu{false};
@@ -193,6 +195,7 @@ struct Open
     int node;
     za::I64 start;
     int gpuRec; // -1: CPU only
+    int draws0; // vr_profcounts.drawcalls at its start
 };
 za::Vector<Open> stack;
 
@@ -539,6 +542,7 @@ void resetInterval(za::I64 now)
     {
         n.cpuSum = n.cpuMax = n.gpuSum = n.gpuMax = 0.0;
         n.calls = 0;
+        n.draws = 0;
     }
     intervalStart = now;
     intervalFrames = intervalGpuFrames = intervalHitches = intervalStalls = 0;
@@ -591,9 +595,11 @@ void foldCpu(bool keep)
             n.cpuSum += ms;
             n.cpuMax = za::max(n.cpuMax, ms);
             n.calls += n.frameCalls;
+            n.draws += n.frameDraws;
         }
         n.frameNs = 0;
         n.frameCalls = 0;
+        n.frameDraws = 0;
         n.cpuTouched = false;
     }
     cpuTouched.clear();
@@ -906,7 +912,8 @@ void writeFile(double seconds)
 
 void printTree()
 {
-    Con_Printf("%-30s %6s %6s %6s %6s\n", "scope (ms/frame)", "cpu", "max", "gpu", "max");
+    Con_Printf("%-30s %6s %6s %6s %6s %6s\n", "scope (ms/frame)", "cpu", "max", "gpu", "max", "draws");
+    const double frames = za::max(intervalFrames, 1);
     za::Vector<int> todo{0};
     while(!todo.empty())
     {
@@ -926,7 +933,8 @@ void printTree()
         q_snprintf(name, sizeof(name), "%*s%s", 2 * n.depth, "", n.name);
         if(n.gpu)
         {
-            Con_Printf("%-30s %6.2f %6.2f %6.2f %6.2f\n", name, s.cpuAvg, s.cpuMax, s.gpuAvg, s.gpuMax);
+            Con_Printf("%-30s %6.2f %6.2f %6.2f %6.2f %6.0f\n", name, s.cpuAvg, s.cpuMax, s.gpuAvg, s.gpuMax,
+                static_cast<double>(n.draws) / frames);
         }
         else
         {
@@ -1050,7 +1058,7 @@ void begin(const char* name, bool gpu)
         return;
     }
     const int parent = stack.empty() ? 0 : stack.back().node;
-    Open o{child(parent, name), za::Clock::nowNanoseconds(), -1};
+    Open o{child(parent, name), za::Clock::nowNanoseconds(), -1, vr_profcounts.drawcalls};
     if(gpu && gpuOk)
     {
         GpuSlot& s = slots[slotIndex];
@@ -1086,6 +1094,7 @@ void endScope()
     const za::I64 ns = za::Clock::nowNanoseconds() - o.start;
     n.frameNs += ns;
     ++n.frameCalls;
+    n.frameDraws += vr_profcounts.drawcalls - o.draws0;
     // Its own time to its system; its parent's (whose time holds it) less.
     const Node& p = nodes[n.parent];
     if(n.system != p.system || n.view != p.view)
