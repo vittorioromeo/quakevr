@@ -64,6 +64,8 @@ Flat-screen or VR: look down the rocket launcher from your hand: the three vents
 VR: a very quick trigger or grip press and release still fires or grabs.
 VR: let go of a gun and grab it again quickly: the re-grab always takes it.
 Let a gun go onto your other, open palm so it rests there, then close that hand: with your fist on its handle it is taken by the handle and fires; with the handle off your palm it is held where it lies, as a prop (it doesn't jump to the handle), and a hand closing a few centimetres off a gun takes nothing. {test:palmgrab}
+Holding the shotgun, open Weapon Offsets > Two-Handed and Hotspots, move hotspot 1's X: its row gets a *, and Reset This Page at the bottom (press it twice) puts it back to the shipped value while hotspot 2 and the other pages keep their values.
+Open Changed Settings (VR Settings): every weapon and prop you've tuned is listed under its own header (Weapon: progs/v_shot.mdl (_02)...), each row labelled by its page or hotspot ("Hotspot 1: Hotspot X"), and changing a row there changes that weapon.
 
 [7. VR: physics, bodies and gore]
 On e1m1 with three times the enemies, turn quickly toward armed grunts you could not see: their guns, arms and backpacks are already in place, no pop.

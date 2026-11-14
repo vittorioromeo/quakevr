@@ -2379,6 +2379,41 @@ Cherry-picked bd2277d6c (translucent brush models' retro decal program made in t
 ## crtheapfix
 
 Cherry-picked 6b8e74432: VR_CrtHeapLoadHold now defined without mimalloc (QVR_MIMALLOC=OFF Linux link). Checked: dev build, ReleaseLTO, WSL no-mimalloc link, load_models 352/0.
+
+## Reset This Page and changes on the weapon and prop pages (branch agent/pagereset, 2026-11-15)
+
+His 11-15 note: he changed the shotgun's two-handed hotspot by accident and had no way back. Every page with settings
+now has the footer's Reset This Page (two presses within 3 seconds), the weapon and prop pages too (`slotPage`: the
+Weapon Offsets main page and its parts, Weapon Weights, Held Object Offsets and Weights), which had none.
+
+- **Reset This Page on a weapon or prop page** resets the rows shown, as on any page: the page's weapon's (or prop's)
+  values back to that slot's own default (its `vr_wofs_*_NN` / `vr_prop_*_NN` stand-in's default: weapons.txt's,
+  props.txt's), the slot the page edits (an inheriting weapon's page edits its parent's: those). On Two-Handed and
+  Hotspots only the hotspot shown (the others stay); on Holstered only the holster kind shown. The page's other settings
+  (Show Hotspots, Preview in Holster, the Weapon Weights page's global weight rows) go back too. Reset This Weapon,
+  Holstered Back to 0 and the rest stay as they were. The page is rebuilt after (`slotPageReset`: a hotspot's type).
+- **The menus' own state:** the Hotspot and Holster pickers (`vr_weapon_hotspot`, `vr_weapon_holster`) are no longer
+  "changed" settings: no `*`, not on Changed Settings, never reset.
+- **The `*`** by a changed row already compared with the stand-in's default (the slot's): unchanged.
+- **Changed Settings** lists every weapon's and prop's changed values, not just the held one's, each under a header
+  "Weapon: progs/v_shot.mdl (_02)" / "Prop: maps/b_explob.bsp (_01)", labelled by part ("Hand and Grip: Offset X
+  (forward)", "Muzzle and Sights: Muzzle X", "Weight: Mass"), a hotspot's "Hotspot 2: Hotspot X", a holster's "Hip:
+  Holstered X (off body)"; each row the page's own (its range, its help), changed or put back there.
+  `listSlotChanges` (vr_menu_wofs.inc) builds each changed slot's pages for it (`SlotListing`: the slot, each hotspot,
+  each holster kind; the pages' titles into their own strings, the pages' state put back after), skipping inheriting
+  slots (listed under the parent) and Inherit From (its choices are the page's texts). A changed value no page variant
+  shows (a manual curl while Fingers is Automatic) isn't listed; Reset This Weapon still resets it. The weapon pages'
+  other settings stay under their page's title.
+- **Test:** `Misc/quakevr/menu_pagereset_test.sh <agent>` (`menu_vr pageresettest`; the weapon pages pinned to the
+  shotgun's slot, `pinSlotPages`: no map): hotspot 1 X changed -> `*`, on Changed Settings under the shotgun ->
+  Reset This Page on Two-Handed restores the weapons.txt default; hotspot 2 X, Shot Pitch (another page), the
+  nailgun's hotspot and the picker kept; a prop's Mass listed under its name. 14/0.
+- **Audit** (pages with values): every VR menu page with a setting row gets Reset This Page from `addMenuDetail` (Debug,
+  Tunables, the Armour Studio menu page, the presets' pages...); none other was left out. Without one, by design: Search,
+  Console and Maps (drawn their own way), Changed Settings (the list itself), the presets' choices (as before). The
+  studios' own windows (Weapon Studio, Rig Studio, Armour Studio's window, Pose Studio, the blade editor) are not menu
+  pages: they keep their own resets (reset this slot, Reset This Pose, Reset Part/Kind, Reset Pose/Grips, Reset Blade)
+  and draw no `*`; the weapon values they change show on Changed Settings now.
 ## flat1115a: icon pictures' aspect, card gap, red banners, Arcane Dimensions with the campaigns (agent/flat1115a, 2026-11-15)
 
 ## coopdisarm
