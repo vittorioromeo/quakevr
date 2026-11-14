@@ -2743,6 +2743,90 @@ def lossy(s):
             "%d B/s, mean %d B (was 640 B a move)" % (w["up"]["bytes_s"], w["up"]["mean_B"]))
 
 
+PREDICT_LAG = 150        # mp_predict: B's added delay each way, ms (a 300 ms round trip)
+PREDICT_MOVES_MOST = 2   # B's own move shows this many moves (client ticks) after his press at most: the press's, drawn as the next comes
+PREDICT_CORR_MOST = 1.0  # a correction on flat ground (the replay all on the floor, no wall) at most, units
+PREDICT_LEGS = 4         # B walks there and back twice
+PREDICT_LEG_STATES = 72  # each leg: this many of the server's states read (about a second)
+
+
+def predict_report(inst):
+    """vr_mp_status's "mp_predict:" fields on a client ({} none)."""
+    return fields(next((l for l in status(inst) if l.startswith("mp_predict:")), ""))
+
+
+def predict_until(s, inst, key, at_least, what, tries=200):
+    """Polls `inst`'s prediction report until its `key` is `at_least` -> the report (a definite end: `tries`)."""
+    pr = {}
+    for _ in range(tries):
+        pr = predict_report(inst)
+        if pr and float(pr.get(key, 0)) >= at_least:
+            return pr
+    raise StepFailed("%s: %s never reached %s (%s)" % (what, key, at_least, pr))
+
+
+def own_move_frames(s, b, label, go, stop):
+    """B's own drawn entity moving off after his press, in his moves sent (vr_mp_predict_probe) -> (moves, ms)."""
+    since = b.mark()
+    b.cmd("vr_mp_predict_probe %s; %s" % (label, go))
+    _, moved = b.wait(r"mp_predict_moved: .*%s" % label, 20, since, "B's own move (%s)" % label)
+    f = fields(moved)
+    b.cmd(stop)
+    b.wait(r"mp_stop: .*self=1", 20, since, "B at rest again (%s)" % label)
+    return int(f["moves"]), int(f["ms"])
+
+
+def predict(s):
+    """MP_PLAN B8: B, 150 ms behind the server each way, predicts his own walking. His moves run on the server one by
+    one for their own frame's time (vr_pmove.cpp, the code his client runs too); the server's state after the newest
+    move it ran comes back with that move's number, and his client replays the moves after it from there. His own
+    move shows at the frame of his press (without prediction: a round trip, about 22 frames); walking there and back on
+    e1m1's flat floor, each new state moves his prediction by under a unit; at rest he stands where the server has him."""
+    srv, a, b, ea, eb = join(s, lag=PREDICT_LAG)
+    put_at(srv, b, eb, OPEN_SPOT, 90)
+    b.quiet(r"mp_predict_corr: ", 1.0, 20, "B settled at his spot")
+    b.cmd("vr_mp_predict_report reset")  # (the counts from here: put_at's setpos is a teleport)
+    b.cmd("vr_mp_watch 1")
+    frames, ms = own_move_frames(s, b, "predicted", "vr_mock_stick off 0 1", "vr_mock_stick off 0 0")
+    s.metric("own_move_frames", frames)
+    s.metric("own_move_ms", ms)
+    s.check("B's own move shows %d move(s) after his press at most (%d ms each way)" % (PREDICT_MOVES_MOST, PREDICT_LAG),
+            0 <= frames <= PREDICT_MOVES_MOST, "%d moves, %d ms" % (frames, ms))
+    pr0 = predict_report(b)
+    s.check("B predicts (the server's states read, his moves replayed)", bool(pr0) and int(pr0.get("states", 0)) > 0 and
+            int(pr0.get("on", 0)) == 1, "%s" % pr0)
+    states = int(pr0.get("states", 0))
+    for leg in range(PREDICT_LEGS):
+        b.cmd("vr_mock_stick off 0 %s" % ("0.5" if leg % 2 == 0 else "-0.5"))
+        states += PREDICT_LEG_STATES
+        predict_until(s, b, "states", states, "B's leg %d" % leg)
+    since = b.mark()
+    b.cmd("vr_mock_stick off 0 0")
+    b.wait(r"mp_stop: .*self=1", 20, since, "B at rest after his walk")
+    pr = predict_until(s, b, "states", states + 36, "B at rest")
+    s.metric("b_predict", pr)
+    s.note("B's prediction: %s" % " ".join("%s=%s" % kv for kv in sorted(pr.items())))
+    s.check("B replays the moves the server has not run yet (about a round trip of them)",
+            float(pr.get("depth_mean", 0)) >= 10, "mean %s moves replayed a frame" % pr.get("depth_mean"))
+    s.check("B's corrections on flat ground under %.1f unit" % PREDICT_CORR_MOST,
+            int(pr.get("flat_n", 0)) >= 50 and float(pr.get("flat_max", 99)) < PREDICT_CORR_MOST,
+            "max %s over %s states on flat ground (all states: max %s, mean %s)" % (
+                pr.get("flat_max"), pr.get("flat_n"), pr.get("corr_max"), pr.get("corr_mean")))
+    own = org_of(status(b), "mp_player", "self", 1)
+    sv = org_of(status(srv), "mp_client", "slot", eb - 1)
+    gap = dist(own, sv) if own and sv else 99.0
+    s.check("at rest B stands where the server has him (within 1 unit)", gap <= 1.0,
+            "B draws himself at %s, the server has him at %s" % (own, sv))
+    # Without prediction (his client draws the server's state): a round trip before his own move shows.
+    b.cmd("vr_net_predict 0")
+    b.quiet(r"mp_(move|pos): .*self=1", 0.5, 20, "B at rest, drawn as the server has him")
+    frames0, ms0 = own_move_frames(s, b, "unpredicted", "vr_mock_stick off 0 -1", "vr_mock_stick off 0 0")
+    b.cmd("vr_net_predict 1")
+    s.metric("own_move_frames_unpredicted", frames0)
+    s.check("without prediction his own move takes the round trip (the test tells them apart)",
+            frames0 > PREDICT_MOVES_MOST + 5, "%d moves, %d ms" % (frames0, ms0))
+
+
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
     s = Session(args.exe, args.base, args.out, test, port=args.port)
     failure = None
@@ -2795,6 +2879,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             flatbody(s)
         elif test == "mp_loss":
             lossy(s)
+        elif test == "mp_predict":
+            predict(s)
         else:
             coop(s, args.listen, args.flat or "", lag, jitter, loss)
     except StepFailed as e:
@@ -2807,7 +2893,7 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -2831,7 +2917,7 @@ def main():
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss"):
+                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict"):
         ok = run(args, "mp_" + args.test)
     else:
         ok = run(args, "mp_coop")
@@ -2859,6 +2945,7 @@ def main():
         ok = run(args, "mp_cosmetics") and ok
         ok = run(args, "mp_flatbody") and ok
         ok = run(args, "mp_loss") and ok
+        ok = run(args, "mp_predict") and ok
         # B's link per scenario (MP_PLAN B7: byte counts against mp_bandwidth's): what the next phases cut.
         print("mp_bytes: scenario, B's link up B/s (mean B), down B/s (mean B)")
         for test, w in LINKS:
