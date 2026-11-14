@@ -136,6 +136,7 @@
 .float sawcord; // the chainsaws' starter cords (vr_chainsaw.qc VR_SAWCORD_*: which hand holds one, a pull)
 .float vr_flatscreen; // this player plays flatscreen (-flatscreenmode, his own client: the engine sets it from his move): VR_FlatPlay
 .float vr_prone; // the player lies down (vr_prone: his box vr_prone_height tall; the engine sets it from his move): no jumping (PlayerJump)
+.float vr_movejump; // a remote client's walk runs move by move (the engine sets it each frame, vr_predict.cpp): his jump is the engine's, in the move whose key pressed it (PlayerPreThink leaves it; 0 again for AD's boots)
 .float vr_stand; // the head's height over the floor, a share of the standing (calibrated) eye height (1 standing; 0 not known): the engine sets it from his move (VR_KdTrig_Tackle)
 .float handdrop;// a heavy weapon wrenched out of a hand (the engine's vr_weight_drop: VR_HANDDROP_*, weapons.qc)
 .float handsynth; // the hands whose motion in this move is synthesized, not for gestures (the engine's vr_handsource.cpp: VR_HANDSYNTH_*, VR_HandMotionTracked)

@@ -1948,7 +1948,16 @@ void() PlayerPreThink =
     if(self.deadflag == DEAD_DYING)
         return;    // dying, so do nothing
 
-    if(self.button2)
+    if(self.vr_movejump && (self.ad_moditems & ad_IT_ARTJUMPBOOTS))
+    {
+        self.vr_movejump = FALSE; // (AD's boots jump in the air too: QuakeC's, once a frame)
+    }
+    if(self.vr_movejump)
+    {
+        // A remote client's walk runs move by move (MP_PLAN B8d): the engine jumps as PlayerJump does, in the move whose
+        // key pressed it (vr_pmove.cpp), so his own prediction jumps with it; the key's release is its too.
+    }
+    else if(self.button2)
     {
         PlayerJump();
     }

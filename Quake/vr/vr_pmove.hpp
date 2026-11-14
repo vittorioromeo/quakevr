@@ -23,6 +23,7 @@ struct Input
     vec3_t steer{0.f, 0.f, 0.f};     // the angles steering it (the head's: VR_MoveAngles); walking: the yaw alone
     vec3_t view{0.f, 0.f, 0.f};      // the aim (Quake's wall friction)
     vec3_t roomscale{0.f, 0.f, 0.f}; // the room-scale walk, units a second (its x, y)
+    bool jump{false};                // the jump key held (clc_move's bit 2)
 };
 
 // The server's rules a move runs by (the server's values, sent with each state: the client replays with them).
@@ -40,13 +41,15 @@ struct Rules
     bool gravityOn{true};        // out of water and no water jump (the server frame's SV_CheckWater)
     bool wading{false};          // waterlevel 1 (stairs up off the ground too)
     bool roomscaleOn{true};      // the room-scale walk moves him (not held under a low ceiling: vr_lowceil)
+    float jumpSpeed{0.f};        // QC PlayerJump's, run in each move (270); 0: QuakeC jumps (once a server frame)
+    float boxHeight{0.f};        // his box's height over his feet crouched (hull::crouchedHeight; 0: standing)
 };
 
 // The player as a move sees him. The hooks default to a client's world (BSP models only, nothing touched).
 struct Body
 {
     vec3_t origin{0.f, 0.f, 0.f}, velocity{0.f, 0.f, 0.f};
-    int flags{0};                          // FL_ONGROUND, FL_WATERJUMP
+    int flags{0};                          // FL_ONGROUND, FL_WATERJUMP, FL_JUMPRELEASED
     vec3_t groundNormal{0.f, 0.f, 1.f};    // the walkable floor last met (vr_slope_walk) ...
     float groundAge{1e6f};                 // ... this long ago, seconds
     bool removed{false};                   // a touch removed him (the server's): the move ends
@@ -74,6 +77,8 @@ struct Body
     virtual void closeQuarters(float*) {}
     // Moving back is held off for a moment after a teleporter (Quake's hack).
     [[nodiscard]] virtual bool backHeld() { return false; }
+    // He jumped (PlayerJump's sound, its .button2 cleared: the server's).
+    virtual void jumped() {}
 };
 
 // Walls and floors met during the last playerMove (a prediction's "flat ground": none but the floor, no step).
@@ -85,7 +90,8 @@ struct MoveNotes
     bool slope{false};   // a floor not level met (normal under 0.999 up)
 };
 
-// One move of a walking player (SV_ClientThink's walk, gravity, SV_WalkMove, the room-scale walk), for in.dt.
+// One move of a walking player (SV_ClientThink's walk, QC PlayerPreThink's jump, gravity, SV_WalkMove, the room-scale
+// walk), for in.dt.
 void playerMove(Body& b, const Input& in, const Rules& r, MoveNotes* notes = nullptr);
 
 // The pieces (each as sv_user.c / sv_phys.c, the move's dt for host_frametime).

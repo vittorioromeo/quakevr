@@ -2806,6 +2806,86 @@ def own_move_frames(s, b, label, go, stop):
     return int(f["moves"]), int(f["ms"])
 
 
+def predict_segment(s, b, what, go, states, legs=(), reset=True):
+    """B's prediction over one segment of moves (the report reset, `go` sent, then each of `legs` (console commands) for
+    `states` of the server's states read) -> the report at its end."""
+    first = "%s%s" % ("vr_mp_predict_report reset; " if reset else "", go)
+    if first:
+        b.cmd(first)
+    n = int(predict_report(b).get("states", 0))
+    for leg in legs or ("",):
+        if leg:
+            b.cmd(leg)
+        n += states
+        pr = predict_until(s, b, "states", n, "B %s" % what)
+    s.note("B's prediction, %s: %s" % (what, " ".join("%s=%s" % kv for kv in sorted(pr.items()))))
+    return pr
+
+
+def predict_corr_check(s, what, pr, least=20):
+    """The segment's corrections and drawn offset under PREDICT_CORR_MOST (at least `least` states compared)."""
+    s.check("B's corrections %s under %.1f unit (and his drawn offset)" % (what, PREDICT_CORR_MOST),
+            int(pr.get("corr_n", 0)) >= least and float(pr.get("corr_max", 99)) < PREDICT_CORR_MOST and
+            float(pr.get("err_max", 99)) < PREDICT_CORR_MOST,
+            "max %s over %s states (in the air: %s over %s), drawn offset at most %s" % (
+                pr.get("corr_max"), pr.get("corr_n"), pr.get("air_max"), pr.get("air_n"), pr.get("err_max")))
+
+
+# e1m1's lift (func_plat *7, at the bottom until a player stands on it: 150 units up at 150 u/s, held up while he stays)
+LIFT_SPOT = (-544.0, 2656.0, -94.0)  # over its middle at the bottom (its top -119): a unit over it (no fall onto it moving)
+LIFT_TOP = 31.0 + 24.0               # his origin on it at the top
+
+
+def predict_moves(s, srv, b, eb):
+    """MP_PLAN B8d: the prediction's moves. A jump (QC's PlayerJump, run in the move whose key pressed it: his own jump
+    shows at his press, and the air's corrections stay under a unit), a crouched walk (the crouched box's rules), and a
+    ride on e1m1's lift (the lift he stands on carries him between the server's states: no correction, no offset)."""
+    srv.cmd("vr_mp_watch 1")  # (the server's trace of B's jumps and held moves: mp_predict_sv)
+    frames, ms = own_move_frames(s, b, "jumped", "+jump", "-jump")
+    s.metric("own_jump_frames", frames)
+    s.check("B's own jump shows %d move(s) after his press at most (%d ms each way)" % (PREDICT_MOVES_MOST, PREDICT_LAG),
+            0 <= frames <= PREDICT_MOVES_MOST, "%d moves, %d ms" % (frames, ms))
+    # (the walking jumps cross e1m1's 16-unit step south of the spot, under its ceiling: a crouched box read there from
+    # his head against the server's origin, not his own, was a ceiling his replay met and the server's walk did not)
+    pr = predict_segment(s, b, "jumping in place and walking", "+jump", 36,
+                         ("-jump", "+jump", "-jump; vr_mock_stick off 0 0.5", "+jump", "-jump", "vr_mock_stick off 0 -0.5",
+                          "+jump", "-jump; vr_mock_stick off 0 0", ""))
+    s.metric("b_predict_jump", pr)
+    s.check("B jumped (states read in the air)", int(pr.get("air_n", 0)) >= 20, "%s" % pr.get("air_n"))
+    predict_corr_check(s, "jumping", pr)
+    b.cmd("vr_mock_hand head 0 %.2f 0" % CROUCH_HEAD)
+    predict_until(s, b, "states", int(predict_report(b).get("states", 0)) + 36, "B crouched")
+    pr = predict_segment(s, b, "walking crouched", "", 72, ("vr_mock_stick off 0 0.5", "vr_mock_stick off 0 -0.5",
+                                                            "vr_mock_stick off 0 0"))
+    s.metric("b_predict_crouch", pr)
+    s.check("B's crouched rules (his speed under the standing one's)", 0 < float(pr.get("maxspeed", 0)) < 300,
+            "maxspeed %s" % pr.get("maxspeed"))
+    predict_corr_check(s, "walking crouched", pr)
+    b.cmd("vr_mock_hand head")
+    b.cmd("notarget; god")
+    since = b.mark()
+    put_at(srv, b, eb, LIFT_SPOT, 90)
+    # (counted from his prediction's snap to the spot on: the lift starts up as he arrives, a second's ride)
+    b.wait(r"mp_predict_corr: c=\d{3,}", 20, since, "B's prediction put over the lift")
+    b.cmd("vr_mp_predict_report reset")
+    low = org_of(status(srv), "mp_client", "slot", eb - 1)
+    s.check("B's prediction counted from low on the lift (the ride ahead)", bool(low) and low[2] < LIFT_TOP - 40,
+            "the server has him at %s" % (low,))
+    pr = predict_segment(s, b, "riding the lift", "", 36, ("", "", "", "vr_mock_stick off 0.3 0", "vr_mock_stick off 0 0"),
+                         reset=False)
+    s.metric("b_predict_lift", pr)
+    sv = org_of(status(srv), "mp_client", "slot", eb - 1)
+    s.check("B rode the lift up (the server has him at its top; states the lift under him moved: 12 at least)",
+            bool(sv) and abs(sv[2] - LIFT_TOP) < 2.0 and int(pr.get("ride_n", 0)) >= 12,
+            "%s, %s states" % (sv, pr.get("ride_n")))
+    predict_corr_check(s, "riding the lift", pr)
+    own = org_of(status(b), "mp_player", "self", 1)
+    gap = dist(own, sv) if own and sv else 99.0
+    s.check("on the lift at rest B stands where the server has him (within 1 unit)", gap <= 1.0,
+            "B draws himself at %s, the server has him at %s" % (own, sv))
+    b.cmd("notarget; god")
+
+
 def predict(s):
     """MP_PLAN B8: B, 150 ms behind the server each way, predicts his own walking. His moves run on the server one by
     one for their own frame's time (vr_pmove.cpp, the code his client runs too); the server's state after the newest
@@ -2855,6 +2935,8 @@ def predict(s):
     s.metric("own_move_frames_unpredicted", frames0)
     s.check("without prediction his own move takes the round trip (the test tells them apart)",
             frames0 > PREDICT_MOVES_MOST + 5, "%d moves, %d ms" % (frames0, ms0))
+    b.quiet(r"mp_predict_corr: ", 1.0, 20, "B predicted again")
+    predict_moves(s, srv, b, eb)
 
 
 

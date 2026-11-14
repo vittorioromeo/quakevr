@@ -5077,9 +5077,10 @@ int playerBoxFits(qmodel_t* world, const glm::vec3& start, const glm::vec3& end)
     return !tr.startsolid && !tr.allsolid && tr.fraction >= 1.f;
 }
 
-bool clientPlayerTrace(qmodel_t* world, qmodel_t* model, float width, const float* start, const float* end, trace_t& trace)
+bool clientPlayerTrace(qmodel_t* world, qmodel_t* model, float width, float height, const float* start, const float* end,
+    trace_t& trace)
 {
-    if(width <= 0.f || sv.active || !world || !model || model->type != mod_brush || model->numnodes <= 0)
+    if((width <= 0.f && height <= 0.f) || sv.active || !world || !model || model->type != mod_brush || model->numnodes <= 0)
     {
         return false; // (a server here keeps its own map's brushes: never a remote client's prediction)
     }
@@ -5100,8 +5101,8 @@ bool clientPlayerTrace(qmodel_t* world, qmodel_t* model, float width, const floa
     {
         return false;
     }
-    const float half = za::clamp(width, minWidth, maxWidth) * 0.5f;
-    const glm::vec3 lo{-half, -half, -24.f}, hi{half, half, -24.f + hull1Height(world)};
+    const float half = width > 0.f ? za::clamp(width, minWidth, maxWidth) * 0.5f : 16.f;
+    const glm::vec3 lo{-half, -half, -24.f}, hi{half, half, -24.f + (height > 0.f ? height : hull1Height(world))};
     const glm::vec3 centre = (lo + hi) * 0.5f;
     const Tree& t = treeFor(built, static_cast<za::SizeT>(sub), (hi - lo) * 0.5f, model->name);
     trace = treeTrace(t, t.heads[static_cast<za::SizeT>(sub)], geom::vec(start) + centre, geom::vec(end) + centre);
@@ -5335,6 +5336,11 @@ bool hasLyingBox(const edict_t* ent)
 {
     const int num = clientNum(ent);
     return num >= 1 && num < crouchSlots && proneNow[num];
+}
+
+float crouchedHeight(const edict_t* ent)
+{
+    return crouchTop(ent);
 }
 
 int localProne()

@@ -5,6 +5,7 @@
 #include "vr_cvars.hpp"
 #include "vr_hull.hpp"
 #include "vr_netsnap.hpp"
+#include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 
 #include "Zancle/Math/Clamp.hpp"
@@ -40,7 +41,11 @@ enum StateBits
     bitRoomscale = 128,
     bitHullBrushModels = 256, // the narrowed box meets brush models too (vr_hull_brushmodels)
     bitEdgeProbe = 512,       // the ledge test from the narrowed box's edge (vr_hull_edge_probe)
+    bitJumpReleased = 1024,   // FL_JUMPRELEASED (the jump key let go since his last jump)
 };
+
+constexpr float jumpSpeed = 270.f; // QC PlayerJump's
+constexpr int chanBody = 4;        // QC's CHAN_BODY
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Server
@@ -154,6 +159,14 @@ struct EdictBody final : pmove::Body
         VR_CloseQuartersMove(ent, wishvel);
     }
     bool backHeld() override { return qcvm->time < ent->v.teleport_time; }
+    bool jumpedNow{false}; // (vr_mp_watch's trace)
+    void jumped() override
+    {
+        jumpedNow = true;
+        store();
+        SV_StartSound(ent, chanBody, "player/plyrjmp8.wav", 255, 1.f); // (PlayerJump's: ATTN_NORM)
+        ent->v.button2 = 0.f;
+    }
 
     // After QuakeC ran: removed, or its changes taken.
     void after()
@@ -187,6 +200,7 @@ void computeRules(edict_t* ent, pmove::Rules& r)
     r.slopeWalk = vr_slope_walk.value != 0.f;
     r.nostep = sv_nostep.value != 0.f;
     r.roomscaleOn = hull::heightHold(ent) == 0;
+    r.boxHeight = hull::crouchedHeight(ent);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -220,23 +234,32 @@ struct ClientPredict
     double lastNewTime{0.0};     // ... when it was first seen (realtime), and its frame's time
     float lastDt{0.f};
     double lastRelink{0.0};      // realtime of the last frame drawn (the offset's decay)
-    int ridden{0}; // the brush entity he stands on (drawn at its newest place)
+    int ridden{0}; // the brush entity he stands on (drawn at its newest place) ...
+    vec3_t riddenAt{0.f, 0.f, 0.f}; // ... where it was at the last replay
 
     // vr_mp_predict_report.
-    int states{0}, frames{0}, unpredicted{0};
+    int states{0}, frames{0}, unpredicted{0}, unWalked{0};
     long long depthSum{0};
-    int corrN{0}, flatN{0};
-    float corrMax{0.f}, corrSum{0.f}, flatMax{0.f};
+    int corrN{0}, flatN{0}, airN{0}, rideN{0}; // (rideN: states a lift under him moved since the last)
+    float corrMax{0.f}, corrSum{0.f}, flatMax{0.f}, airMax{0.f}, errMax{0.f};
 
     // vr_mp_predict_probe.
     bool probing{false};
     char probeLabel[32]{};
     int probeFrame{0};
     za::U32 probeMove{0}; // the newest move sent when armed
+    za::U32 jumpTraced{0}; // vr_mp_watch: the move whose replayed jump was printed last
     double probeTime{0.0};
     vec3_t probeOrg{0.f, 0.f, 0.f};
 };
 ClientPredict cp;
+
+// A brush model of the map (a door, a lift) in the newest message, unturned: a move meets it there.
+[[nodiscard]] bool brushMover(const entity_t& e)
+{
+    return e.model && e.model->type == mod_brush && e.model->name[0] == '*' && e.msgtime == cl.mtime[0] &&
+           e.msg_angles[0][0] == 0.f && e.msg_angles[0][1] == 0.f && e.msg_angles[0][2] == 0.f;
+}
 
 // The client's world as a move sees it: the map's hull 1 and the brush models (doors, lifts) at their newest places.
 // (The narrowed box, the server's vr_hull_width, through vr_hull.cpp's brushes rebuilt from this map: as SV_Move meets it.)
@@ -252,7 +275,7 @@ struct ClientBody final : pmove::Body
         best.fraction = 1.f;
         best.allsolid = true;
         VectorCopy(end, best.endpos);
-        if(!hull::clientPlayerTrace(cl.worldmodel, cl.worldmodel, cp.hullWidth, start, end, best))
+        if(!hull::clientPlayerTrace(cl.worldmodel, cl.worldmodel, cp.hullWidth, cp.rules.boxHeight, start, end, best))
         {
             hull_t* hull = &cl.worldmodel->hulls[1];
             SV_RecursiveHullCheck(hull, hull->firstclipnode, 0.f, 1.f, const_cast<float*>(start), const_cast<float*>(end), &best);
@@ -261,8 +284,7 @@ struct ClientBody final : pmove::Body
         for(int k = 1; k < cl.num_entities; k++)
         {
             const entity_t& e = cl_entities[k];
-            if(!e.model || e.model->type != mod_brush || e.model->name[0] != '*' || e.msgtime != cl.mtime[0] ||
-                e.msg_angles[0][0] != 0.f || e.msg_angles[0][1] != 0.f || e.msg_angles[0][2] != 0.f)
+            if(!brushMover(e))
             {
                 continue;
             }
@@ -275,7 +297,7 @@ struct ClientBody final : pmove::Body
             tr.fraction = 1.f;
             tr.allsolid = true;
             VectorCopy(end, tr.endpos);
-            if(!narrow || !hull::clientPlayerTrace(cl.worldmodel, e.model, cp.hullWidth, s, t, tr))
+            if(!narrow || !hull::clientPlayerTrace(cl.worldmodel, e.model, cp.hullWidth, cp.rules.boxHeight, s, t, tr))
             {
                 hull_t* h = &e.model->hulls[1];
                 SV_RecursiveHullCheck(h, h->firstclipnode, 0.f, 1.f, s, t, &tr);
@@ -318,9 +340,37 @@ struct ClientBody final : pmove::Body
         VectorCopy(stop, tr.endpos);
         hull_t* hull = &cl.worldmodel->hulls[0];
         SV_RecursiveHullCheck(hull, hull->firstclipnode, 0.f, 1.f, start, stop, &tr);
-        return tr.fraction == 1.f && !(fix && tr.startsolid);
+        bool solid = tr.startsolid;
+        float fraction = tr.fraction;
+        // (and the brush models: MOVE_NOMONSTERS meets them -- the lift or door he walks on, B8d)
+        for(int k = 1; k < cl.num_entities && fraction == 1.f; k++)
+        {
+            const entity_t& e = cl_entities[k];
+            if(!brushMover(e))
+            {
+                continue;
+            }
+            vec3_t s, t;
+            VectorSubtract(start, e.msg_origins[0], s);
+            VectorSubtract(stop, e.msg_origins[0], t);
+            trace_t et;
+            memset(&et, 0, sizeof(et));
+            et.fraction = 1.f;
+            et.allsolid = true;
+            VectorCopy(t, et.endpos);
+            hull_t* h = &e.model->hulls[0];
+            SV_RecursiveHullCheck(h, h->firstclipnode, 0.f, 1.f, s, t, &et);
+            if(et.allsolid || et.startsolid || et.fraction < fraction)
+            {
+                fraction = et.fraction;
+                solid = solid || et.startsolid;
+            }
+        }
+        return fraction == 1.f && !(fix && solid);
     }
     void floorMet(const trace_t&) override { ground = hit; }
+    bool jumpedNow{false}; // (vr_mp_watch's trace)
+    void jumped() override { jumpedNow = true; }
     void steppedOnto(const trace_t&) override { ground = hit; }
 };
 
@@ -344,7 +394,8 @@ bool replay(vec3_t out, vec3_t before)
     ClientBody b;
     VectorCopy(cp.origin, b.origin);
     VectorCopy(cp.velocity, b.velocity);
-    b.flags = (cp.bits & bitOnGround ? FL_ONGROUND : 0) | (cp.bits & bitWaterJump ? FL_WATERJUMP : 0);
+    b.flags = (cp.bits & bitOnGround ? FL_ONGROUND : 0) | (cp.bits & bitWaterJump ? FL_WATERJUMP : 0) |
+              (cp.bits & bitJumpReleased ? FL_JUMPRELEASED : 0);
     VectorCopy(cp.groundNormal, b.groundNormal);
     b.groundAge = cp.groundAge;
     const za::U32 newest = netmove::clientNewest();
@@ -363,7 +414,18 @@ bool replay(vec3_t out, vec3_t before)
             return false;
         }
         VectorCopy(b.origin, before);
+        b.jumpedNow = false;
         pmove::playerMove(b, inputOf(m), cp.rules, &notes);
+        if(b.jumpedNow && s != cp.jumpTraced && vr_mp_watch.value != 0.f)
+        {
+            cp.jumpTraced = s; // (each move's jump once: a replay that moves it to another move prints that one)
+            Con_Printf("mp_predict_jump: s=%u seq=%u bits=%d z=%.2f\n", s, cp.seq, cp.bits, cp.origin[2]);
+        }
+        if(vr_mp_watch.value >= 2.f && cp.fresh)
+        {
+            Con_Printf("mp_predict_m: s=%u seq=%u y=%.2f z=%.2f vz=%.1f fl=%d dt=%.4f box=%.1f\n", s, cp.seq, b.origin[1],
+                b.origin[2], b.velocity[2], b.flags, inputOf(m).dt, cp.rules.boxHeight);
+        }
         Past& p = cp.cur[s % pastRing];
         p.seq = s;
         VectorCopy(b.origin, p.org);
@@ -371,19 +433,32 @@ bool replay(vec3_t out, vec3_t before)
     }
     VectorCopy(b.origin, out);
     cp.depthSum += depth;
-    cp.ridden = (b.flags & FL_ONGROUND) ? b.ground : 0;
+    const int ridden = (b.flags & FL_ONGROUND) ? b.ground : 0;
+    // The lift he stood on at the last replay and still does: what it moved since carried him (the server's push, in
+    // its newest state), not a correction (B8d; else each state of a ride eased in behind it, sinking him into it).
+    vec3_t carried{0.f, 0.f, 0.f};
+    if(ridden > 0 && ridden == cp.ridden)
+    {
+        VectorSubtract(cl_entities[ridden].msg_origins[0], cp.riddenAt, carried);
+    }
+    cp.ridden = ridden;
+    if(ridden > 0)
+    {
+        VectorCopy(cl_entities[ridden].msg_origins[0], cp.riddenAt);
+    }
 
     if(cp.fresh)
     {
         // The correction: the newest move both this replay and the last one predicted, where each put him.
         for(za::U32 s = newest; s > cp.seq; s--)
         {
-            const Past& was = cp.past[s % pastRing];
+            Past was = cp.past[s % pastRing];
             const Past& now = cp.cur[s % pastRing];
             if(was.seq != s || now.seq != s)
             {
                 continue;
             }
+            VectorAdd(was.org, carried, was.org);
             const float c = dist(was.org, now.org);
             if(c > 1.f && vr_mp_watch.value != 0.f)
             {
@@ -397,6 +472,15 @@ bool replay(vec3_t out, vec3_t before)
             {
                 cp.flatN++;
                 cp.flatMax = q_max(cp.flatMax, c);
+            }
+            if(notes.air)
+            {
+                cp.airN++;
+                cp.airMax = q_max(cp.airMax, c);
+            }
+            if(VectorLength(carried) > 0.f)
+            {
+                cp.rideN++;
             }
             if(c >= snapAt)
             {
@@ -457,6 +541,7 @@ pmove::Input inputOf(const netmove::WireMove& m)
         in.view[i] = m.viewAngles[i];
         in.roomscale[i] = m.vr.roomscaleMove[i];
     }
+    in.jump = (m.buttons & 2) != 0;
     return in;
 }
 
@@ -499,7 +584,7 @@ void parseState()
     const float age = MSG_ReadFloat();
     pmove::Rules r;
     for(float* f : {&r.maxspeed, &r.stickScale, &r.accelerate, &r.friction, &r.stopspeed, &r.edgefriction, &r.gravity,
-            &r.maxvelocity, &r.stepsize, &r.roomscaleScale})
+            &r.maxvelocity, &r.stepsize, &r.roomscaleScale, &r.jumpSpeed, &r.boxHeight})
     {
         *f = MSG_ReadFloat();
     }
@@ -538,28 +623,34 @@ void clientClear()
     cp.states = keep.states;
     cp.frames = keep.frames;
     cp.unpredicted = keep.unpredicted;
+    cp.unWalked = keep.unWalked;
     cp.depthSum = keep.depthSum;
     cp.corrN = keep.corrN;
     cp.flatN = keep.flatN;
     cp.corrMax = keep.corrMax;
     cp.corrSum = keep.corrSum;
     cp.flatMax = keep.flatMax;
+    cp.airN = keep.airN;
+    cp.rideN = keep.rideN;
+    cp.airMax = keep.airMax;
+    cp.errMax = keep.errMax;
 }
 
 void report()
 {
-    Con_Printf("mp_predict: on=%d plain=%d states=%d frames=%d unpredicted=%d depth_mean=%.1f corr_n=%d corr_max=%.3f "
-               "corr_mean=%.3f flat_n=%d flat_max=%.3f err=%.3f seq=%u newest=%u\n",
+    Con_Printf("mp_predict: on=%d plain=%d states=%d frames=%d unpredicted=%d unwalked=%d depth_mean=%.1f corr_n=%d "
+               "corr_max=%.3f corr_mean=%.3f flat_n=%d flat_max=%.3f air_n=%d air_max=%.3f ride_n=%d err=%.3f "
+               "err_max=%.3f maxspeed=%.1f box=%.1f jump=%.0f seq=%u newest=%u\n",
         vr_net_predict.value != 0.f && netmove::clientUses() ? 1 : 0, cp.bits & bitWalked ? 1 : 0, cp.states, cp.frames,
-        cp.unpredicted, cp.frames > 0 ? static_cast<double>(cp.depthSum) / cp.frames : 0.0, cp.corrN, cp.corrMax,
-        cp.corrN > 0 ? cp.corrSum / cp.corrN : 0.f, cp.flatN, cp.flatMax, VectorLength(cp.error), cp.seq,
-        netmove::clientNewest());
+        cp.unpredicted, cp.unWalked, cp.frames > 0 ? static_cast<double>(cp.depthSum) / cp.frames : 0.0, cp.corrN, cp.corrMax,
+        cp.corrN > 0 ? cp.corrSum / cp.corrN : 0.f, cp.flatN, cp.flatMax, cp.airN, cp.airMax, cp.rideN, VectorLength(cp.error),
+        cp.errMax, cp.rules.maxspeed, cp.rules.boxHeight, cp.rules.jumpSpeed, cp.seq, netmove::clientNewest());
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(0), "vr_mp_predict_report") && !q_strcasecmp(Cmd_Argv(1), "reset"))
     {
         // (vr_mp_predict_report reset: the counts from here, a test's setup left out; the states read go on)
-        cp.frames = cp.unpredicted = cp.corrN = cp.flatN = 0;
+        cp.frames = cp.unpredicted = cp.unWalked = cp.corrN = cp.flatN = cp.airN = cp.rideN = 0;
         cp.depthSum = 0;
-        cp.corrMax = cp.corrSum = cp.flatMax = 0.f;
+        cp.corrMax = cp.corrSum = cp.flatMax = cp.airMax = cp.errMax = 0.f;
     }
 }
 
@@ -582,6 +673,10 @@ extern "C" void VR_PredictBeginRead(client_t* client)
         serverSlots[slot].n = 0; // (moves a frame not walked one by one dropped: it ran the newest, as NetQuake)
         serverSlots[slot].walked = false;
         serverSlots[slot].plain = false; // (VR_PredictThink says again: a dead or paused frame does not think)
+        if(client->edict)
+        {
+            progs::setFieldFloat(client->edict, progs::fields().vr_movejump, 0.f); // (QuakeC's jump until it does)
+        }
     }
 }
 
@@ -600,6 +695,8 @@ extern "C" int VR_PredictThink(edict_t* ent)
     {
         computeRules(ent, s->rules);
     }
+    // (PlayerPreThink leaves his jump to his moves: lying down or AD's boots, QuakeC's; the field clears for the boots)
+    progs::setFieldFloat(ent, progs::fields().vr_movejump, s->plain && !hull::isProne(ent) ? 1.f : 0.f);
     return s->plain ? 1 : 0;
 }
 
@@ -620,21 +717,31 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
     const bool water = SV_CheckWater(ent);
     r.gravityOn = !water && !(static_cast<int>(ent->v.flags) & FL_WATERJUMP);
     r.wading = ent->v.waterlevel != 0.f;
+    r.jumpSpeed = progs::fieldFloatOr(ent, progs::fields().vr_movejump, 0.f) != 0.f ? jumpSpeed : 0.f;
     SV_CheckStuck(ent);
 
     EdictBody b{ent};
     VectorCopy(s->groundNormal, b.groundNormal);
     b.groundAge = s->groundAge;
     s->credit = q_min(s->credit + static_cast<float>(host_frametime) * creditRate, creditMost);
+    const int slot = static_cast<int>(s - serverSlots);
     for(int k = 0; k < s->n && !b.removed; k++)
     {
         pmove::Input in = s->queue[k];
-        if(in.dt > s->credit)
+        const bool held = in.dt > s->credit;
+        if(held)
         {
             in.dt = s->credit; // (a client running ahead of the server's clock: held to it)
         }
         s->credit -= in.dt;
+        b.jumpedNow = false;
         pmove::playerMove(b, in, r);
+        if((b.jumpedNow || held || vr_mp_watch.value >= 2.f) && vr_mp_watch.value != 0.f)
+        {
+            Con_Printf("mp_predict_sv: slot=%d s=%u%s%s y=%.2f z=%.2f vz=%.1f fl=%d dt=%.4f box=%.1f\n", slot,
+                netmove::serverLast(slot) - (s->n - 1 - k), b.jumpedNow ? " jumped" : "", held ? " held" : "",
+                b.origin[1], b.origin[2], b.velocity[2], b.flags, in.dt, hull::crouchedHeight(ent));
+        }
     }
     if(!b.removed)
     {
@@ -654,7 +761,7 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
 extern "C" void VR_WritePredict(sizebuf_t* msg, client_t* client)
 {
     const int slot = static_cast<int>(client - svs.clients);
-    if(!movesOneByOne(slot) || !client->edict || msg->cursize + 112 > msg->maxsize)
+    if(!movesOneByOne(slot) || !client->edict || msg->cursize + 120 > msg->maxsize)
     {
         return;
     }
@@ -666,7 +773,8 @@ extern "C" void VR_WritePredict(sizebuf_t* msg, client_t* client)
                      (flags & FL_WATERJUMP ? bitWaterJump : 0) | (r.slopeWalk ? bitSlopeWalk : 0) |
                      (r.nostep ? bitNoStep : 0) | (r.gravityOn ? bitGravity : 0) | (r.wading ? bitWading : 0) |
                      (r.roomscaleOn ? bitRoomscale : 0) | (vr_hull_brushmodels.value != 0.f ? bitHullBrushModels : 0) |
-                     (vr_hull_edge_probe.value != 0.f ? bitEdgeProbe : 0);
+                     (vr_hull_edge_probe.value != 0.f ? bitEdgeProbe : 0) |
+                     (flags & FL_JUMPRELEASED ? bitJumpReleased : 0);
     const int at = msg->cursize;
     MSG_WriteByte(msg, protocol::svc_quakevr);
     MSG_WriteByte(msg, protocol::QVR_SVC_PREDICT);
@@ -681,7 +789,7 @@ extern "C" void VR_WritePredict(sizebuf_t* msg, client_t* client)
     }
     MSG_WriteFloat(msg, s.groundAge);
     for(const float f : {r.maxspeed, r.stickScale, r.accelerate, r.friction, r.stopspeed, r.edgefriction, r.gravity,
-            r.maxvelocity, r.stepsize, r.roomscaleScale})
+            r.maxvelocity, r.stepsize, r.roomscaleScale, r.jumpSpeed, r.boxHeight})
     {
         MSG_WriteFloat(msg, f);
     }
@@ -725,6 +833,7 @@ extern "C" void VR_PredictRelink(int num, float* origin)
         if(netmove::clientUses() && cls.signon == SIGNONS)
         {
             cp.unpredicted++;
+            cp.unWalked += cp.have && !(cp.bits & bitWalked) ? 1 : 0; // (the server's frame not run move by move)
         }
         VectorCopy(vec3_origin, cp.error);
         cp.ridden = 0;
@@ -743,6 +852,7 @@ extern "C" void VR_PredictRelink(int num, float* origin)
         cp.lastDt > 0.f ? q_min(q_max(static_cast<float>((realtime - cp.lastNewTime) / cp.lastDt), 0.f), 1.f) : 1.f;
     const float k = expf(-static_cast<float>(since) / easeTime);
     VectorScale(cp.error, k, cp.error);
+    cp.errMax = q_max(cp.errMax, VectorLength(cp.error));
     for(int i = 0; i < 3; i++)
     {
         cp.drawn[i] = before[i] + frac * (predicted[i] - before[i]) + cp.error[i];

@@ -499,6 +499,26 @@ void playerMove(Body& b, const Input& in, const Rules& r, MoveNotes* notes)
         notes->air = true;
     }
     airMove(b, in, r, onground);
+    if(r.jumpSpeed > 0.f)
+    {
+        // QC PlayerPreThink's jump (PlayerJump; after SV_ClientThink's air move, before the physics, as a server frame
+        // runs them), in the move whose key pressed it. The rules' cases it leaves to QuakeC (deep water, a water jump,
+        // lying down, AD's boots) are moves not run here, or jumpSpeed 0.
+        if(!in.jump)
+        {
+            b.flags |= FL_JUMPRELEASED;
+        }
+        else if((b.flags & FL_ONGROUND) && (b.flags & FL_JUMPRELEASED))
+        {
+            b.flags &= ~(FL_JUMPRELEASED | FL_ONGROUND); // (don't pogo stick; don't stairwalk)
+            b.velocity[2] += r.jumpSpeed;
+            b.jumped();
+            if(notes)
+            {
+                notes->air = true;
+            }
+        }
+    }
     checkVelocity(b, r);
     if(r.gravityOn)
     {

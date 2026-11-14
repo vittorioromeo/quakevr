@@ -1078,7 +1078,15 @@ void applyVrMove(client_t* client, const VrMove& move)
     // asked as before, with his own head deciding (true).
     const bool flat = (move.vrBits0 & protocol::moveFlatplayBit) != 0;
     const bool flatCrouch = flat && (move.vrBits0 & protocol::moveFlatCrouchBit) != 0;
-    hull::updateCrouch(ent, move.headPos, !flat || flatCrouch);
+    // A remote client's head over his feet as his own client had it (from the origin he placed it from: his prediction,
+    // a round trip ahead of this server's -- a jump's rise read as a crouch, a shorter box in the air than his replay's:
+    // B8d). The loopback's and single player's are the server's own origin: as before.
+    glm::vec3 head = move.headPos;
+    if(netmove::serverSends(clientNum) && move.origin != glm::vec3{0.f} && head != glm::vec3{0.f})
+    {
+        head += glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]} - move.origin;
+    }
+    hull::updateCrouch(ent, head, !flat || flatCrouch);
     const int crouched = hull::isCrouched(ent) ? (1 << 23) : 0;
     // Lying down (vr_prone; his crouched box then the lowest, vr_prone_height): QC's .vr_prone (no jumping: PlayerJump).
     setFieldFloat(ent, f.vr_prone, hull::isProne(ent) ? 1.f : 0.f);
