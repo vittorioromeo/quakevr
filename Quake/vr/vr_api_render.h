@@ -181,6 +181,10 @@ void *VR_AliasSurfaceNext (const struct entity_s *e, void *mainhdr, void *hdr);
 // The gloves' painted leather for a hand (vr_glove_paint; vr_render.cpp): its detail and wear, its relief (grey: none);
 // [2] its painted nails' mask (vr_nails; black: none). Units 7, 8, 9.
 void VR_AliasGlovePaint (const struct entity_s *e, struct gltexture_s *out[3]);
+// TexMgr_LoadImage32, as it loads or reloads texture `name` (RGBA, width x height): a glove's relief
+// (progs/hand_rig_0N_00_glove_height) made its normal map in `data`, in place; any other texture untouched. A reload
+// (vr_alpha_coverage's, vid_restart's) reads the height file again, so it is made there, not only at the first load.
+void VR_GloveReliefNormals (const char *name, unsigned char *data, int width, int height);
 // r_lerpmodels 3 (vr_animsmooth.cpp): whether `e`, drawn between poses pose1 and pose2 at `blend` (R_SetupAliasFrame's),
 // goes along a spline through four poses: smooth[0], [1] the first and fourth (pose numbers), [2] 1 + where its bones'
 // swings are in the batch's buffer (0: none), weights the four poses'. `zeroblend`: its instance's padding (a steadied

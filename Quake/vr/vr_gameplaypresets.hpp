@@ -9,8 +9,9 @@
 // first apply (<gamedir>/gameplay_my_settings.cfg). Never comfort, calibration, the body, controls, sound, graphics or
 // gore; the hands, grabbing and holsters are the same at every level.
 //
-// Classic Quake: Graphics Off (Quake), Gore Minimal and Gameplay Classic at once; Back to My Settings sets all three
-// kinds' My Settings back.
+// Classic Quake: Graphics Off (Quake), Gore Minimal and Gameplay Classic at once; Back sets back exactly what its first
+// press found (a row changed by hand since kept), or, with none kept (a restart since), the three kinds' My Settings.
+// vr_classic_roundtrip_test presses it twice as the hub's board does and compares every setting and file texture.
 //
 // Console: vr_gameplay_preset 0 Classic, 1 Light, 2 Unleashed (3: My Settings) applies it and goes back to -1 (a
 // button, as vr_graphics_preset); vr_gameplay_preset_save is Save as My Settings; vr_gameplay_preset_status prints the
@@ -48,8 +49,8 @@ void menuApply(int level);
 void menuRestoreMine();
 void menuSaveMine();
 
-// Classic Quake: the three presets at once, what it changed said on the line under it (classicLine); Back to My
-// Settings: the three kinds' My Settings back.
+// Classic Quake: the three presets at once, what it changed said on the line under it (classicLine); Back: the rows as
+// the first press found them (else the three kinds' My Settings).
 void classicApply();
 void classicBack();
 [[nodiscard]] bool classicActive();
