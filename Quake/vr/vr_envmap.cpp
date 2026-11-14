@@ -12,6 +12,8 @@
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
 #include "vr_api_render.h"
+#include "vr_api.h"
+#include "vr_glutil.hpp"
 
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>
@@ -242,7 +244,7 @@ void main()
         return glm::vec4{0.5f, 0.5f, 0.5f, 1.f};
     }
     za::Vector<float> px(static_cast<size_t>(w) * h * 4);
-    glGetTexImage(GL_TEXTURE_2D, level, GL_RGBA, GL_FLOAT, px.data());
+    VR_GLGetTexImage(GL_TEXTURE_2D, level, GL_RGBA, GL_FLOAT, px.data());
     glm::vec4 sum{0.f};
     for(size_t i = 0; i < px.size(); i += 4)
     {
@@ -872,7 +874,7 @@ void dump_f()
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_CUBE_MAP, cube);
     for(int f = 0; f < 6; f++)
     {
-        glGetTexImage(GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, 0, GL_RGB, GL_FLOAT, face.data());
+        VR_GLGetTexImage(GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, 0, GL_RGB, GL_FLOAT, face.data());
         for(int y = 0; y < size; y++)
         {
             for(int x = 0; x < size; x++)
@@ -898,6 +900,24 @@ void dump_f()
 void init()
 {
     Cmd_AddCommand("vr_envmap_dump", dump_f);
+}
+
+void readbackTest(int& passed, int& failed)
+{
+    if(!cube || facesDone < 6)
+    {
+        return;
+    }
+    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_CUBE_MAP, cube);
+    for(int f = 0; f < 6; f++)
+    {
+        for(int level = 0; level < levels; level++)
+        {
+            const int same = gfx::readTexImageSame(GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, level, GL_RGBA, GL_FLOAT, "envmap");
+            (same > 0 ? passed : failed)++;
+        }
+    }
+    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_CUBE_MAP, 0);
 }
 
 void shutdown()

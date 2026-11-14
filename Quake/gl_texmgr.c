@@ -538,14 +538,14 @@ static void TexMgr_Imagedump_f (void)
 			for (i = 0; i < 6; i++)
 			{
 				q_snprintf(tganame, sizeof(tganame), "imagedump/%s%s.tga", tempname, suf[i]);
-				glGetTexImage(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, format, GL_UNSIGNED_BYTE, buffer);
+				VR_GLGetTexImage(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, format, GL_UNSIGNED_BYTE, buffer);
 				Image_WriteTGA (tganame, buffer, glt->width, glt->height*glt->depth, channels*8, true);
 			}
 		}
 		else
 		{
 			q_snprintf(tganame, sizeof(tganame), "imagedump/%s.tga", tempname);
-			glGetTexImage(glt->target, 0, format, GL_UNSIGNED_BYTE, buffer);
+			VR_GLGetTexImage(glt->target, 0, format, GL_UNSIGNED_BYTE, buffer);
 			Image_WriteTGA (tganame, buffer, glt->width, glt->height*glt->depth, channels*8, true);
 		}
 
@@ -604,7 +604,7 @@ static void TexMgr_Imagehash_f (void)
 		GL_Bind (GL_TEXTURE0, glt);
 		for (f = 0; f < faces; f++)
 		{
-			glGetTexImage (faces == 6 ? GL_TEXTURE_CUBE_MAP_POSITIVE_X + f : glt->target, 0, GL_RGBA, GL_UNSIGNED_BYTE, buffer);
+			VR_GLGetTexImage (faces == 6 ? GL_TEXTURE_CUBE_MAP_POSITIVE_X + f : glt->target, 0, GL_RGBA, GL_UNSIGNED_BYTE, buffer);
 			for (i = 0; i < facebytes; i++)
 				h = (h ^ buffer[i]) * 1099511628211ULL;
 		}
@@ -617,6 +617,32 @@ static void TexMgr_Imagehash_f (void)
 	}
 	fclose (out);
 	Con_Printf ("imagehash: %d textures, sum %016llx, to %s\n", count, total, path);
+}
+
+/*
+===============
+TexMgr_ReadbackTest -- QVR: vr_gles_readback_test's part (vr/vr_glsafe.cpp): every loaded texture's level 0 (each
+face of a cube) read as RGBA bytes by glGetTexImage and by its OpenGL ES form (VR_GLGetTexImage under -glescompat),
+counted the same, different or skipped (integer or compressed: no ES read)
+===============
+*/
+void TexMgr_ReadbackTest (int *passed, int *failed, int *skipped)
+{
+	gltexture_t *glt;
+	VR_LoadJobsJoin ();
+	glPixelStorei (GL_PACK_ALIGNMENT, 1);
+	for (glt = active_gltextures; glt; glt = glt->next)
+	{
+		int faces = (glt->flags & TEXPREF_CUBEMAP) ? 6 : 1;
+		int f;
+		GL_Bind (GL_TEXTURE0, glt);
+		for (f = 0; f < faces; f++)
+		{
+			int same = VR_GLReadTexImageSame (faces == 6 ? GL_TEXTURE_CUBE_MAP_POSITIVE_X + f : glt->target, 0, GL_RGBA, GL_UNSIGNED_BYTE, glt->name);
+			*(same > 0 ? passed : same == 0 ? failed : skipped) += 1;
+		}
+	}
+	glPixelStorei (GL_PACK_ALIGNMENT, 4);
 }
 
 /*

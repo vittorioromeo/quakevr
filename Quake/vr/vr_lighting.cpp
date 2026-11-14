@@ -1729,7 +1729,7 @@ void readDepth(const DepthTarget& t, za::Vector<float>& out)
         return;
     }
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, t.tex);
-    glGetTexImage(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, GL_FLOAT, out.data());
+    VR_GLGetTexImage(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, GL_FLOAT, out.data());
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, 0);
 }
 
@@ -1865,6 +1865,20 @@ void layeredCheck(const Render& renderAll)
 }
 
 } // namespace
+
+void lighting::readbackTest(int& passed, int& failed)
+{
+    for(const DepthTarget* t : {&atlas, &staticAtlas})
+    {
+        if(t->tex && t->width > 0)
+        {
+            GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, t->tex);
+            const int same = gfx::readTexImageSame(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, GL_FLOAT, "shadow atlas");
+            (same > 0 ? passed : failed)++;
+            GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, 0);
+        }
+    }
+}
 
 // ----------------------------------------------------------------------------
 // Engine hooks

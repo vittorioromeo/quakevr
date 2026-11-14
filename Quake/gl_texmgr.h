@@ -144,6 +144,7 @@ void TexMgr_FreeTextures (unsigned int flags, unsigned int mask);
 void TexMgr_FreeTexturesForOwner (qmodel_t *owner);
 void TexMgr_NewGame (void);
 void TexMgr_Init (void);
+void TexMgr_ReadbackTest (int *passed, int *failed, int *skipped); // QVR: vr_gles_readback_test's part
 void TexMgr_DeleteTextureObjects (void);
 void TexMgr_ApplySettings (void);
 qboolean TexMgr_UsesFilterOverride (void);

@@ -54,4 +54,8 @@ float capKey();
 // Lights given shadows this frame: dynamic ones, and map lights (vr_memstats).
 void shadowCounts(int& dlights, int& mapLights);
 
+// vr_gles_readback_test's part: the shadow atlases' depth read by glGetTexImage and by its ES form (copied as bits
+// to an R32UI texture), counted the same or not (nothing for an atlas not made).
+void readbackTest(int& passed, int& failed);
+
 } // namespace qvr::lighting

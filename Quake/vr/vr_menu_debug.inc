@@ -832,6 +832,13 @@ za::Vector<Item> pageDebugProfiling()
                   "(quakevr/crash/gl_startup.log has the start-up's)."),
         command("Retry the Full Renderer", "vr_glsafe_retry")
             .help("vr_glsafe_retry: the automatic safe mode (kept after a start that crashed) off from the next start."),
+        command("OpenGL ES Report", "vr_gles_report")
+            .help("vr_gles_report: the Quest (OpenGL ES 3.2) profile: what -glescompat turns off, the desktop-only GL "
+                  "calls given their ES form and those still pending, and the shader errors an ES compile gave."),
+        command("ES Texture Read-Back Test", "vr_gles_readback_test")
+            .help("vr_gles_readback_test: every texture, the envmap and the shadow atlases read back by glGetTexImage "
+                  "and by its OpenGL ES form (a framebuffer and glReadPixels), compared byte for byte; the verdict to "
+                  "the console."),
         header("Diagnostics"),
         command("Game Code and Folders", "vr_gamecode")
             .help("vr_gamecode: the folders the game reads from (its base dirs, game dirs and search path) and where its "

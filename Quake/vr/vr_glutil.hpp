@@ -45,6 +45,20 @@ void drawNoColour();
 // framebuffer (ES has no glClearTexImage; `tex` must be colour-renderable). The framebuffer binding is kept.
 void clearTexture(GLuint tex, const float rgba[4]);
 
+// Level `level` of the texture bound to `target` (GL_TEXTURE_2D, 3D, 2D_ARRAY or a cube face) read into `out` as
+// glGetTexImage would (`format` GL_RGBA, GL_RGB, GL_RED or GL_DEPTH_COMPONENT; `type` GL_UNSIGNED_BYTE or GL_FLOAT;
+// the pack alignment kept), waiting for the GPU. With `esForm` (VR_GLGetTexImage under -glescompat) the OpenGL ES
+// form, since ES has no glGetTexImage: each layer attached to a framebuffer and read with glReadPixels in the
+// format ES guarantees (RGBA bytes from normalized textures, RGBA floats from float ones), then converted; a depth
+// texture (2D) copied first, bit for bit, into an R32UI one (ES reads no depth). False, `out` zeroed, when it cannot:
+// an integer, compressed or not colour-renderable texture under the ES form, or a format or type not listed.
+[[nodiscard]] bool readTexImage(GLenum target, GLint level, GLenum format, GLenum type, void* out, bool esForm);
+
+// vr_gles_readback_test's part: level `level` of the texture bound to `target` read both ways (readTexImage with and
+// without esForm) as `format`/`type`: 1 the same bytes, 0 not (a warning names `what`), -1 the ES form cannot read it
+// (an integer or compressed texture: skipped).
+[[nodiscard]] int readTexImageSame(GLenum target, GLint level, GLenum format, GLenum type, const char* what);
+
 // How a RenderTarget's texture is made (one level, bilinear).
 struct RenderTargetFormat
 {

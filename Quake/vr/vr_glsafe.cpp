@@ -21,7 +21,10 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_api.h"
+#include "vr_envmap.hpp"
+#include "vr_lighting.hpp"
 #include "vr_strings.hpp"
+#include "vr_testkit.hpp"
 
 #include <cstdarg>
 #include <cstdio>
@@ -292,8 +295,15 @@ extern "C" void VR_GLStartupVendor(const char* vendor, const char* renderer, con
     {
         glsafe.esCompat = true;
         glsafe.vendorOff |= esCompatOff;
+        // -glesclipcontrol (QVR_GLES_CLIP_CONTROL=1): as an ES driver with EXT_clip_control (the Quest's: [?], C4),
+        // which the shadows, reflections and portals need (without it they are off).
+        if(COM_CheckParm("-glesclipcontrol") || getenv("QVR_GLES_CLIP_CONTROL"))
+        {
+            glsafe.vendorOff &= ~static_cast<unsigned>(VR_GLSAFE_CLIP_CONTROL);
+        }
         VR_GLStep("GLES compat (-glescompat): the features OpenGL ES 3.2 lacks off");
-        Con_Printf("GLES compat (-glescompat): the features OpenGL ES 3.2 lacks off (vr_gles_report)\n");
+        Con_Printf("GLES compat (-glescompat): the features OpenGL ES 3.2 lacks off (vr_gles_report)%s\n",
+            glsafe.vendorOff & VR_GLSAFE_CLIP_CONTROL ? "" : "; clip control kept (-glesclipcontrol: EXT_clip_control)");
     }
 }
 
@@ -594,10 +604,10 @@ constexpr EsPending esDone[] = {
     {"glDrawBuffer, glClearDepth, glDepthRange, glPolygonMode", "gfx::drawNoColour, ...f forms, VR_GLPolygonMode", "glDrawBuffers, float forms, no wireframe"},
     {"GL_TEXTURE_CUBE_MAP_SEAMLESS", "gl_vidsdl.c", "always on in ES (not enabled)"},
     {"NVIDIA Image Scaling (vr_upscale 2)", "vr_upscale.cpp", "off: FSR instead"},
+    {"glGetTexImage", "VR_GLGetTexImage (gl_texmgr.c, vr_envmap.cpp, vr_pbr.cpp, vr_lighting.cpp)", "FBO + glReadPixels; depth through an R32UI copy"},
 };
 constexpr EsPending esPending[] = {
     {"MultiDrawElementsIndirect (bindless path)", "r_world.c, vr_lighting.cpp", "the bound path's DrawElementsIndirect loop"},
-    {"glGetTexImage", "gl_texmgr.c, vr_envmap.cpp, vr_pbr.cpp, vr_lighting.cpp", "FBO + glReadPixels"},
     {"glTextureView", "vr_envmap.cpp, vr_stereo_single.cpp", "render to the array layers directly"},
     {"GL_TEXTURE_LOD_BIAS", "gl_texmgr.c, vr_gfx_gl.cpp", "the bias in the shader (texture(s, uv, bias))"},
     {"GL_DEPTH_CLAMP", "r_alias.c", "EXT_depth_clamp, or the view model's depth range"},
@@ -626,6 +636,23 @@ void glesReport_f()
     Con_Printf("vr_gles_report: %d pending, %d shader errors\n", static_cast<int>(sizeof(esPending) / sizeof(esPending[0])),
         glsafe.esShaderErrors);
 }
+
+// vr_gles_readback_test (a test: Debug > Tests): every texture read back by glGetTexImage and by its OpenGL ES form
+// (gfx::readTexImage: a framebuffer and glReadPixels; depth as bits through an R32UI copy), byte for byte: the
+// loaded textures as RGBA bytes, the envmap's faces and levels as floats, the shadow atlases' depth. Runs with or
+// without -glescompat (the PC has both); integer and compressed textures are skipped (no ES read).
+void readbackTest_f()
+{
+    int passed = 0, failed = 0, skipped = 0;
+    TexMgr_ReadbackTest(&passed, &failed, &skipped);
+    const int textures = passed + failed;
+    qvr::envmap::readbackTest(passed, failed);
+    const int envmap = passed + failed - textures;
+    qvr::lighting::readbackTest(passed, failed);
+    Con_Printf("Read back: %d textures (%d skipped), %d envmap levels, %d atlases\n", textures, skipped, envmap,
+        passed + failed - textures - envmap);
+    testkit::verdict("vr_gles_readback_test", passed, failed);
+}
 } // namespace
 
 extern "C" void VR_GLSafeInit(void)
@@ -633,4 +660,5 @@ extern "C" void VR_GLSafeInit(void)
     Cmd_AddCommand("vr_glsafe_retry", retry_f);
     Cmd_AddCommand("vr_glsafe_status", status_f);
     Cmd_AddCommand("vr_gles_report", glesReport_f);
+    Cmd_AddCommand("vr_gles_readback_test", readbackTest_f);
 }

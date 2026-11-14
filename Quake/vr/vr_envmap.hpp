@@ -45,4 +45,8 @@ void shutdown();
 // Its command (vr_envmap_dump).
 void init();
 
+// vr_gles_readback_test's part: each face and level of the cube read as RGBA floats by glGetTexImage and by its ES
+// form, counted the same or not (nothing while the cube has not been drawn).
+void readbackTest(int& passed, int& failed);
+
 } // namespace qvr::envmap
