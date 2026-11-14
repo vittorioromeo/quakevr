@@ -6283,7 +6283,13 @@ QVR_CYCLE(vr_flat_aim_mode, "Right Click Ironsight",
     "the buttons are the hands' own, as when dual wielding: the left button the right hand's, the right button the left "
     "hand's (a gun fires, a melee weapon or a prop strikes).",
     {0.f, "Hold"}, {1.f, "Toggle"})
-QVR_SLIDER(vr_flat_aim_sens, "Aim Sensitivity", 0.1f, 2.f, 0.05f, "%.2fx", ext(0.05f, 5.f),
+QVR_CYCLE(vr_flat_aim_zoom, "Right Click Aim",
+    "Playing on the desktop screen: what aiming with the right mouse button does. Ironsight: the gun comes up to your eye "
+    "on its sights and the crosshair fades. Zoom: the same narrowing of the view, the gun stays where it is and the "
+    "crosshair stays. Per Weapon: each gun's own (Weapon Offsets > Sights, Flat-Screen Aim: zoom for the guns with no "
+    "sights to look down: the nailguns, the grenade, rocket and proximity launchers, the laser cannon) (vr_flat_aim_zoom).",
+    {-1.f, "Per Weapon"}, {0.f, "Ironsight"}, {1.f, "Zoom"})
+QVR_SLIDER(vr_flat_aim_sens,"Aim Sensitivity", 0.1f, 2.f, 0.05f, "%.2fx", ext(0.05f, 5.f),
     "Playing on the desktop screen: the mouse's, gyro's and stick's look speed while aiming down the sights, times this, "
     "on top of the slowing the narrower view brings (Aim Sensitivity Match). It comes in with the sights (vr_flat_aim_sens).")
 QVR_CYCLE(vr_flat_aim_sens_match, "Aim Sensitivity Match",
