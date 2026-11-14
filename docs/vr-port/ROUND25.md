@@ -2798,3 +2798,36 @@ self-driven across the load by saved globals): `vr_scenario waterdrips`, once pl
 ## wetglint (agent/wetglint)
 
 His report: after quickload the dripping came back but the wet glint did not. The shine (the alias shader wet coat, `wounds::wetCoat`) read `Mask::wetLeft` / `handWetLeft`, set only by a liquid wound event (the rising edge); a load restoring vr_drips wetness never set them. Fix, no new state: `wetCoat` takes its seconds-left from `drips::wetOf(e)` (drips wetness times dryTime, max with the old values); a thing with no wet mask (a loaded game) shines all over. `Misc/quakevr/saveload_test.sh` checks `vr_wounds_info` `wet: coat`: each coat shining before the save shines after (flat 5, VR 5). BACKLOG: flat 2H melee pose item added.
+
+## torchgrab: the torso's torch taken whatever the other hand holds (agent/torchgrab, 2026-11-15)
+
+His notes (start_2026-11-14_23-38-09, _23-38-55, vrtesthall_2026-11-15_00-09-43, _00-10-19, _00-11-08): with the torch
+on the torso and the dagger in the right hand, the left hand could not take the torch at all (fine once he gave the
+dagger a two-handed hotspot); with the super shotgun held one-handed, sometimes not even 30 cm from the gun.
+
+Two rules in `gameGripWins` (vr_flashlight.cpp: whether the game's grip wins over the torch for a hand at it):
+- **The two-handed hotspot alone won.** `body::hotspot` says HS_OFFHAND_2H_GRAB whenever the hands are 5-25 units
+  apart, whatever the other hand holds. For a weapon with no fitted grip (`!s.grip2HValid`) the game's grip won there,
+  even for one that may never be held in two hands: the dagger (slot 52, Two-Handed: Not Allowed) won anywhere 5-25
+  units from the right hand, which is where the chest torch is.
+- **The weapon's line ran from 30 cm behind the hand** (`otherWeaponNear`, for a sword's pommel): any gun held
+  one-handed at the chest or low at the belt, pointing away from the torch, covered it (within 12 cm of that line).
+  Not the holsters or the clip-on zone (the "cap"): those were already nearest-wins.
+
+Now `otherWeaponNear` asks the game's own rules (vr_twohand.cpp), and the nearest wins: the fist on the weapon's surface
+where gripping holds it anywhere (`twohand::onOtherWeapon`, the view's free-grip candidate); its fitted grip
+(`s.grip2H`, within 8 units less its bias, and nearer than the torch's axis); a weapon with no fitted grip, or a sword
+(`twohand::swordHeld`: its blade), within 12 cm of its line from the hand to the muzzle or tip and nearer than the
+torch's axis. A weapon the other hand may not hold (`twohand::forbidden`) wins by its surface only. The 2H hotspot case
+itself never wins any more.
+
+His dagger tuning promoted (weapons.txt slot 52, `weapons_data.py promote`): `2h_mode` 2 -> 1 and its hs1 grip
+(type 1, x -1.785095, y -2.161255, z -11.23747, pitch -6.90695, yaw 8.52477, roll -3.05592). Not promoted (not
+asked): his `bl_from/near/org_x/org_y/org_z/spine/width_52` and `muzzle_x/y/z_52`, none of them defaults yet.
+
+Test aid: `vr_test_give_flags` (impulse 149's weapon flags; 3072 with id 13 gives the dagger). The probe prints
+`helping` per hand and the main weapon's grip and muzzle. Test: `flash_grab_test.py <agent> otherweapon` (verdict line
+`otherweapon: N passed, M failed`): the dagger without its grip (the old defaults) and with it, the super shotgun
+one-handed at the chest, the shotgun low at the belt; the off hand at the torch takes it, at the weapon's grip (or 60%
+along it) holds the weapon, the torch left on. Before 4/3 (the dagger, the chest and the belt cases at the torch);
+after 7/0. `mounted:9-10` (the two gun torso turns) 312 lit, 312 taken. Scenario `torch_otherweapon`.
