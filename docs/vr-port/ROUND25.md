@@ -2244,6 +2244,8 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
 - A teleport asked in an earlier move of a server frame is kept until the server acts on it (headset above 72 Hz lost it). Checks: dev + ReleaseLTO 1.1.0 builds, vr_teleport_both_test 14/0, scenario_check 129/0, load_models_test 4/0.
 - vr_runpickups_test 1 hangs (engine spins, frames stop) at step 17 load mp_rpk_seed; also at 32ebcecc7 (muttiers merge) and 97aee6b6e, so not a recent commit. The same sequence by hand, and loading mp_rpk_seed.sav in a fresh run, both work. Cause not found.
 
+## shadowsort (cherry-pick of agent/quest 163dc0001)
+- Shadow casters in the face-at-a-time path (vr_shadow_layered 0) drawn sorted by model and skin so instanced batching works: combined bench 1806 draws/1.16 ms -> 1025/0.11 ms (vr_shadow_layered 0 bench: combined GPU -13.7%, p99 frame -18.8%; lights_32 frame p50 -14.9%); vr_shadow_layered_check 0 texels differ with vr_shadow_layered 0 and 1; scenario_check 129/0, load_models_test 4/0.
 ## loadhang: vr_runpickups_test's "hang" at its last load (agent/loadhang, 2026-11-14)
 - No engine hang. cdb (Windows Kits, `-pvr`: attached without suspending) at the "hang": host_framecount, sv.qcvm.time
   and cl.time kept advancing, signon 4, sv.paused 0; the main thread's stacks moved through server frames, physics and
