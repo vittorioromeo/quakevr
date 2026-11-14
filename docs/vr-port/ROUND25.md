@@ -2381,6 +2381,30 @@ Cherry-picked bd2277d6c (translucent brush models' retro decal program made in t
 Cherry-picked 6b8e74432: VR_CrtHeapLoadHold now defined without mimalloc (QVR_MIMALLOC=OFF Linux link). Checked: dev build, ReleaseLTO, WSL no-mimalloc link, load_models 352/0.
 ## flat1115a: icon pictures' aspect, card gap, red banners, Arcane Dimensions with the campaigns (agent/flat1115a, 2026-11-15)
 
+## coopdisarm
+
+His report (flat, 11-15, on next): a coop listen game on e1m1, a bot added, the first grunt disarmed by shooting its gun,
+then unkillable though it walked to him and punched. **Not reproduced**; a regression test added.
+
+- New `vr_agrunt_test 215` (QC/vr_armedgrunt_coopdisarm_test.qc): a shotgun grunt (or with `scratch3 1` the map's own
+  nearest armed grunt, e1m1's replacement, brought ahead) hunting the player; the player's shotgun blasts
+  (FireBulletsImpl, as his: VR_AGS_Shot's disarm by shots) at its gun until it is knocked out (its body's health held
+  at 1000 meanwhile, its own back after), `scratch4` seconds disarmed (fists, its seek for a weapon; default 1), then
+  blasts on its body until it dies. Ends on `agtest: test 215 over`.
+- Results: single player (vrtesthall), coop without a bot (e1m1's own Burst Rifle grunt 4 s disarmed; vrtesthall's 8 s), coop with
+  a FrikBot (vrtesthall and e1m1), coop with `teamplay 1`, `vr_flatplay 1`: every one shot out in 1-4 blasts and killed in
+  1-2 body blasts (health 30 -> 6 -> dead); with a bot near, the bot's shots killed it first (a normal corpse).
+  `vr_agrunt_test 2` (disarm, rearm, kill) 4/0, `203` (dual disarm) 81/0.
+- Read and ruled out: T_DamageDeal's early outs after a disarm (takedamage, FL_GODMODE, invincible_finished,
+  FL_SPECIFICDAMAGE/VR_DamageCredit, TeamHealthDam: the player's steam is his team, never a monster's 0), the
+  shot-blocking held-weapon test (VR_AGS_Held needs it in the grunt's hand), VR_AG_DisarmTry's stagger, the coop branches
+  in ai.qc and the armed grunt files (none touch damage), FrikBot (sets no monster's flags, health or takedamage).
+- Not covered: his real flat input. `-flatscreenmode` under the mock headset leaves `.vr_flatscreen` 0, so a `+attack`
+  tap fires from the mock hand, not the view; the test fires the same pellets the gun does. If it recurs: his teamplay
+  setting, the weapon used after the disarm, and whether its body bled would split damage-not-dealt from
+  damage-not-landing.
+- agent/mp: no change to the damage, disarm or armed-grunt paths (its QC diff is PvP parry, holsters, pickups, test
+  impulses), so neither the bug nor a fix is there.
 ## palmgrab: closing a hand on a gun resting on or against it (branch agent/palmgrab, 2026-11-15)
 
 His design (2026-11-15; MP_PLAN B3c, agent/mp's 0a203126f, whose 12 cm `vr_weapon_palm_grab_slack` is NOT taken): a
