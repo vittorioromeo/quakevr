@@ -92,6 +92,9 @@ za::Vector<ClientMove> clientMoves;
     return &svs.clients[client].message;
 }
 
+// The move's teleport bit (vr_client.cpp's VRBITS0_TELEPORTING: the spot in VrMove::teleportTarget).
+constexpr int vrBitsTeleporting = 1 << 0;
+
 // vrbits0 pairs a "current" bit with the "previous" bit just above it.
 constexpr int currentBitsMask = (1 << 1) | (1 << 3) | (1 << 6) | (1 << 8) | (1 << 10) | (1 << 12);
 
@@ -783,7 +786,19 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     {
         clientMoves.resize(clientNum + 1);
     }
-    clientMoves[clientNum] = {true, move, move.origin};
+    // A teleport asked in an earlier move of this server frame is kept with its spot: VR_ClientTeleport reads the stored
+    // move once a frame, and a later move of the same frame without the bit overwrote it (the teleport lost: two moves
+    // in a frame, a headset faster than the tick or a remote client's packets bunched; mp_teleport).
+    VrMove kept = move;
+    if(const ClientMove& prev = clientMoves[clientNum]; prev.valid && clientNum < static_cast<int>(clientBits.size()) &&
+                                                       clientBits[clientNum].moves > 1 &&
+                                                       (prev.move.vrBits0 & vrBitsTeleporting) &&
+                                                       !(move.vrBits0 & vrBitsTeleporting))
+    {
+        kept.vrBits0 |= vrBitsTeleporting;
+        kept.teleportTarget = prev.move.teleportTarget;
+    }
+    clientMoves[clientNum] = {true, kept, move.origin};
 
     const FieldOffsets& f = fields();
 
