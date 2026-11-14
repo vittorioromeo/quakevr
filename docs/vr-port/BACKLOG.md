@@ -155,6 +155,12 @@ Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
   any Vulkan decision (VULKAN_MIGRATION.md); QuakeRay (github.com/f1ames0ff/QuakeRay) unreviewed.
 - **Platforms:** Linux (WSL build in progress), Steam Frame (with kblood), standalone Quest (OpenXR on Android,
   GLES/Vulkan, mobile budget), bHaptics (2026-10-11).
+- **Emscripten/WebGL port** (2026-11-15): the game in a browser (flat first; WebXR later?). Builds on the Quest work's
+  GLES 3 profile (`-glescompat`, agent/quest) and the no-child-process mode; open: threads (SharedArrayBuffer), the
+  file system for paks, audio, download size.
+- **AI companion** (2026-11-15): a coop partner that plays campaigns/levels with the player, using the navmesh
+  pathfinding and answering the player's commands (follow, stay, attack that, fetch, go there), like the Skyrim dog
+  demo. Builds on multiplayer's coop (agent/mp), FrikBot, the navmesh and the stealth/hunt AI.
 
 ## 11. Performance and parked
 
