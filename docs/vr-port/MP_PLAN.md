@@ -40,21 +40,21 @@ is the newer (each claim below was re-checked on 2026-11-14 at `origin/next` 17d
 | Problem | Where | Evidence |
 |---|---|---|
 | **Two players from one IP kicked each other (fixed in this phase).** NetQuake took a connect from a known IP on another port as that player back from a crash and closed his connection: two players behind one router, or two games on one machine, could not both play | `net_dgrm.c:1021-1053` (now compares the port too) | [run]: before the fix, B's connect dropped A ("Client unconnected removed") |
-| **Armed humanoids' arm poses go to every client every server frame, unculled.** `VR_AG_SendPose` writes `QVR_SVC_ARMPOSE` to `MSG_BROADCAST`: about 16 messages of 20-104 B, about 1.2 KB of every 1.4 KB datagram on e1m1, wherever the client is. The shared datagram is copied into a client's packet only whole: a map with more armed humanoids loses every broadcast sound, particle and pose for remote clients | `QC/vr_armedgrunt_pose.qc:1213-1230`; `sv_main.c:1285` | [run]: `cl_shownet 2` on B; down 97 KB/s, mean 1350 B a packet, of which entities 124 B (`vr_net_stats`) |
+| **Armed humanoids' arm poses go to every client every server frame, unculled. (fixed in B2: a remote client gets only the poses of those in its PVS, vr_net_cullposes; B idle 15.5-19.6 KB/s down, was 97-100)** `VR_AG_SendPose` writes `QVR_SVC_ARMPOSE` to `MSG_BROADCAST`: about 16 messages of 20-104 B, about 1.2 KB of every 1.4 KB datagram on e1m1, wherever the client is. The shared datagram is copied into a client's packet only whole: a map with more armed humanoids loses every broadcast sound, particle and pose for remote clients | `QC/vr_armedgrunt_pose.qc:1213-1230`; `sv_main.c:1285` | [run]: `cl_shownet 2` on B; down 97 KB/s, mean 1350 B a packet, of which entities 124 B (`vr_net_stats`) |
 | **The client's move is 640 B, 72 a second (45 KB/s up).** The VR block grew from 291 B to 613 B (+32 with the lamp lit), all floats: 2 x 11 hand vectors, magazine boxes, pouch, load ports, launch offsets... | `vr_move.cpp:50-115` | [run]: proxy, up mean 640 B, 71 pkts/s |
-| **Reliable messages go out in datagrams of up to 64 KB** (`MAX_DATAGRAM` 64000): a 15 KB UDP datagram at signon. Over the internet it is IP-fragmented; one lost fragment loses it all, and some routers drop fragments | `quakedef.h:100`, `net_dgrm.c:185-225` | [run]: proxy, largest down 14998 B |
+| **Reliable messages go out in datagrams of up to 64 KB (fixed in B2: chunks of at most 1200 B, 16 in flight; largest packet down now 1405 B, an unreliable datagram)** (`MAX_DATAGRAM` 64000): a 15 KB UDP datagram at signon. Over the internet it is IP-fragmented; one lost fragment loses it all, and some routers drop fragments | `quakedef.h:100`, `net_dgrm.c:185-225` | [run]: proxy, largest down 14998 B |
 | **The server uses the host's state for every player.** Listen-host shortcuts: `vr_grip.cpp:439` (palm frame, player 1 only), `vr_box3d_hands.cpp:421` (fist spheres, player 1), `vr_box3d_hands.cpp:643` (drawn weapon hull, player 1), `vr_physics.cpp:379` (fist grabs, player 1), `vr_builtins_held.inc:77,172,503,850,858` (`weaponhotspot`/drawn pose, player 1 only), `vr_carry2h.cpp:273,326`, `vr_foegrab.cpp:208,216,530,701`, `vr_climb.cpp:1318-1326` (host's body calibration and scale), `vr_held.cpp:865,1232` (host's drawn fists), `vr_hitmodel.cpp:453,457` (host's lerp cvars) | [code] |
 | **Every setting QC reads is the host's.** QC reads 1851 distinct cvars (`cvar_hget`), personal ones among them (`vr_gunangle`, holster, reload, grip, throw, force-grab modes...): one value for all players | `QC/*.qc` [code] |
 | **Client code reads the local server.** `worldtrace::move` is `SV_Move` (teleport aim, crosshair, flashlight, hand collision): nothing on a remote client; `serverInHand` and the 2H hold read `sv.qcvm` | `vr_trace.cpp:37`, `vr_held.cpp:1854,2235` [code] |
-| **Last move wins.** Each move overwrites the edict's fields and the VR bits (`bits.received =`), so a press and release inside one tick is lost, and the melee speeds see one sample a tick | `vr_server.cpp:758,795` [code] |
-| **Per-client state survives a slot change.** `clientMoves` is cleared only on a world reset; a player taking a freed slot inherits its last state until his first move | `vr_server.cpp:1303-1306` [code] |
+| **Last move wins. (fixed in B2: the buttons and VR bits of every move since the last frame ORed; melee sub-tick samples still open)** Each move overwrites the edict's fields and the VR bits (`bits.received =`), so a press and release inside one tick is lost, and the melee speeds see one sample a tick | `vr_server.cpp:758,795` [code] |
+| **Per-client state survives a slot change. (fixed in B2: VR_ClientReset on connect and drop)** `clientMoves` is cleared only on a world reset; a player taking a freed slot inherits its last state until his first move | `vr_server.cpp:1303-1306` [code] |
 | **The mock's autopilot is listen-only.** `vr_mock_walk_to`/`turn_to` read the server's edict 1; a remote test client walks with `vr_mock_stick` instead | `vr_backend_mock.cpp:1490` [code] |
 
 ### 1.3 What is missing
 
 | Missing | Notes |
 |---|---|
-| Remote VR avatars | Other players are `player.mdl` turned by their aim: no head, hands, fingers, body IK, held weapons, holsters, lamp, climb holds for anyone else [code: no avatar message in `vr_protocol.hpp`] |
+| Remote VR avatars | B2: each player's head, hands (positions, angles) and weapons reach the clients that see him (QVR_SVC_AVATAR, vr_mpavatar.cpp; mp_avatar: within 0.10 units). Still missing: fingers (not in the move), drawing them (body IK, held weapon models), holsters, lamp, climb holds, calibration |
 | Downloads | No `svc_download`/chunked download; the `Download` in `host_cmd.c:581` is the map library's HTTPS fetch (`vr_mapindex.cpp`, `vr_mapinstall.cpp`) [code] |
 | Coop saves | `save` refuses with more than one player ("Can't save multiplayer games", `host_cmd.c:2571`); autoload too (`host_cmd.c:2196`) [code] |
 | Single-player-only systems | 33 `svs.maxclients == 1` gates in `Quake/vr`: bullet time, timescale, crates placed about, flashlight's save state, relight, Setup, holster setup, the toolgun, arena cards, the chainsaw's cord state, live preview, late precache of `vr_prepare` [code] |
@@ -178,8 +178,9 @@ player unchanged.
 
 | Phase | Scope | Tests first |
 |---|---|---|
-| **B1** (this) | Audit, design, plan; the harness; first e2e tests; the same-IP kick fixed | `mp_test.py suite` |
-| **B2** | Protocol hygiene and VR player state for two players: per-client protocol version in the handshake (a clean reject on mismatch); every move processed, edge bits ORed, per-client state reset on connect/drop; reliable chunks at most 1200 B; arm poses per client, PVS-culled; the VR player-state block and calibration message; remote players drawn with the armed humanoids' arm solver and skin on the player body (head, hands, fingers, held weapons) | `mp_avatar`: B sees A's mock hands within 2 units of where A's server has them, fingers within a step, the held weapon's model; `mp_bandwidth`: down under 25 KB/s idle on e1m1; `mp_coop` stays green |
+| **B1** (done) | Audit, design, plan; the harness; first e2e tests; the same-IP kick fixed | `mp_test.py suite` |
+| **B2** (mostly done; the rest is B2b) | Protocol hygiene and VR player state for two players: per-client protocol version in the handshake (a clean reject on mismatch); every move processed, edge bits ORed, per-client state reset on connect/drop; reliable chunks at most 1200 B; arm poses per client, PVS-culled; the VR player-state block and calibration message; remote players drawn with the armed humanoids' arm solver and skin on the player body (head, hands, fingers, held weapons) | `mp_avatar`: B sees A's mock hands within 2 units of where A's server has them, fingers within a step, the held weapon's model; `mp_bandwidth`: down under 25 KB/s idle on e1m1; `mp_coop` stays green |
+| **B2b** | The rest of B2: finger curls in the move and the avatar; remote players drawn with the player's own body (vr_avatar.cpp's IK from head and hands) or the armed humanoids' arm solver (vr_agarms.cpp), whichever shares more, and their held weapons' models in their hands; the avatar calibration message (height, arm length, handedness, gloves, body), reliable on change; melee sub-tick samples from every move | `mp_avatar` grown: fingers within a step, the weapon model drawn in B's view at A's hand (a screenshot pair) |
 | **B3** | Per-client data: the prefs message and `clientpref`; the rig (palm frame, fists, hotspots, weapon hull) and body calibration up; the ~25 host shortcuts replaced; client-side traces for teleport, crosshair, flashlight, hand collision | `mp_prefs` (A left-handed, B right-handed: each judged by his own), `mp_teleport` (a remote client teleports), `mp_grab` (B's own fist grabs) |
 | **B4** | Coop campaign flow: coop saves and loads (per-player blocks, versioned), autosaves, level transitions with inventories, intermission, deaths and respawns, map download (package names through the map installer; chunked fallback) | `mp_campaign` (e1m1 to e1m3 with saves and a load, both players' inventories), `mp_download` (B lacks a map: installs it, joins) |
 | **B5** | Interactions between players: drop a weapon / the other picks it up; force grab of world weapons in multiplayer; melee, parries and shoves between players; climbing, crouch, prone, jump, punch synced and judged per player | one scenario per interaction, each from both sides |
@@ -232,6 +233,46 @@ First results (2026-11-14, release no-LTO build, loopback):
 | dedicated, B at 150 ms + 2% loss | PASS | 215-221 / 52-68 ms | 206-214 / 357-368 ms | PASS | exit 0 x3 | up 44 KB/s, down 97 KB/s |
 | listen host A, flat B | PASS | 55 / 56 ms | 64 / 64 ms | PASS | exit 0 x2 | up 45 KB/s, down 98 KB/s |
 
+
+### B2 results (2026-11-14, release no-LTO build, loopback; `mp_test.py suite`: all 5 scenarios pass)
+
+| Scenario | Result |
+|---|---|
+| `mp_bandwidth` | B idle on e1m1: down 15.5 KB/s (216 B a datagram) with `vr_net_cullposes 1`, 96.6 KB/s with 0; 19.6-22.5 KB/s with A's avatar added. Largest packet down 1405 B (was 14998 B) |
+| `mp_version` | A client with `-mpnetversion 1` is told "This Quake VR server has network version 2, your game 1..."; the server logs it; a right one joins |
+| `mp_avatar` | B's copy of A's head and hands within 0.10 units of the server's, the main hand's angles exact, the weapon the same; B has none of himself |
+| `mp_coop`, `mp_coop_lag` (150 ms, 2% loss) | Unchanged: pass; B sees A move off in 184-211 ms under the lag; signon over the lossy link with the chunked reliable channel |
+
+What changed:
+
+- `net_dgrm.c`: reliable messages in chunks of at most 1200 B (`DGRM_RELIABLE_CHUNK`), up to 16 in flight
+  (`DGRM_RELIABLE_WINDOW`); the receiver is NetQuake's (acks counted in order only; a 1 s timeout resends what is in
+  flight, go back N). Works with unchanged peers in both directions.
+- The connect request carries "QVR" and `QVR_NET_VERSION` (2, `vr_api.h`): a server with the VR protocol rejects a
+  client of another version or none, with the reason; `qsocket_t.qvrNetVersion` keeps it per client.
+  `-mpnetversion N` fakes another (the test).
+- `sv_user.c`, `vr_server.cpp`: every move since the server's last frame counts (buttons and VR bits ORed:
+  `VR_MoveMerges`); `VR_ClientReset` clears a slot's moves and bits on connect and drop. (Single player too: a
+  press and release between two ticks was lost.)
+- Entity-scoped messages (`vr_server.cpp` ScopedRoom, `server::scopedBegin/End`): written after the broadcast into
+  each remote client's datagram when the entity passed its PVS test this frame (`VR_NoteEntityInSight`); the loopback
+  client gets them all (single player unchanged). The armed humanoids' poses (`agposesend`) use it
+  (`vr_net_cullposes`, Debug > Reports > Network: Cull Poses); so does the avatar.
+- `QVR_SVC_AVATAR` (42): each spawned player's head and hands from his last move (eighths of a unit from his origin,
+  16-bit angles) and weapons, about 47 B, to the clients that see him; multiplayer only (`svs.maxclients > 1`).
+  `vr_mpavatar.cpp` keeps them per player; `vr_mp_avatars` (Debug > Reports > Network: Player Avatars) prints them
+  and the server's.
+
+Open items (B2b and later):
+
+- Nothing draws the avatar yet. `vr_avatar.cpp` already poses the local player's skinned body from head and hands:
+  feeding it a remote player's avatar is likely the shortest path to one code path for both (the plan said the
+  armed humanoids' solver; B2b decides by what shares more).
+- Finger curls are not in the move (`VrMove` has none): add them (5 bytes a hand) and to the avatar.
+- The up link is still 45 KB/s (640 B a move): B7's quantized delta moves.
+- The avatar is sent whole every frame (about 4 KB/s per visible player): B7's deltas and B9's priority.
+- Fast retransmit for the reliable window (a lost chunk waits the 1 s timeout): with B7.
+
 ## Decisions
 
 - The harness is Python with an in-engine inbox rather than stdin or RCON: it drives GUI clients and dedicated servers
@@ -242,4 +283,4 @@ First results (2026-11-14, release no-LTO build, loopback):
   (QuakeWorld's `qport` is the full answer: B7, with the snapshot protocol).
 - Voice chat (B10) needs Opus and a noise suppressor vendored as source: to be confirmed by the author before B10.
 
-Next phase: B2 — protocol hygiene and VR player state for two players: per-client protocol version, every move processed with edge bits ORed and per-client resets, reliable chunks at most 1200 B, armed humanoids' arm poses per client and PVS-culled (down from 97 KB/s idle), and the VR player-state block (head, hands, fingers, held weapons) drawing remote players with the armed humanoids' arm solver; harness scenarios `mp_avatar` and `mp_bandwidth` first.
+Next phase: B2b — remote players drawn: finger curls in the move and the avatar; the remote player's body posed from his avatar (vr_avatar.cpp's body IK, or the armed humanoids' arm solver: whichever shares more) with his held weapons' models in his hands; the avatar calibration message (height, arm length, handedness, gloves, body); melee sub-tick samples from every move; `mp_avatar` grown (fingers, a screenshot pair of A's hands at B).

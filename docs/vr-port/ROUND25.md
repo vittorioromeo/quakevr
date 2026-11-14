@@ -2184,3 +2184,18 @@ both). **Verdict:** nothing breaks with 1, but it is slower in play: sv_fte_hull
 `^hullwalk` never matched and every run waited out its `wait` (the e3m3/e4m1/e1m1 runs "without a summary"). Now
 matched unanchored, `-QuitOn` on it (the run ends there, the log flushed every frame), and a last line
 `walk_test: N maps, M without a summary`.
+
+## mpN (B2): protocol hygiene, culled poses, player avatars (agent/mp, 2026-11-14; never shipped by the coordinator)
+
+MP_PLAN.md, "B2 results", has the details and numbers. In short:
+
+- Reliable messages go out in 1200 B chunks, 16 in flight (`net_dgrm.c`), not one datagram of up to 64 KB; peers
+  unchanged either way. The connect request carries Quake VR's network version (`QVR_NET_VERSION` 2): a VR server
+  rejects another, with the reason.
+- Every move since the server's last frame counts (buttons and VR bits ORed); a slot's move state is reset on connect
+  and drop. Single player too: a press and release between two 72 Hz ticks (a 90 Hz headset) was lost.
+- Armed humanoids' poses go only to the remote clients whose PVS has them (`vr_net_cullposes` 1, Debug > Reports >
+  Network: Cull Poses); the loopback client gets them all. A coop client idle on e1m1: down 15.5 KB/s, was 97.
+- Each player's head, hands and weapons reach the clients that see him (`QVR_SVC_AVATAR`, `vr_mpavatar.cpp`,
+  `vr_mp_avatars`); not drawn yet (B2b).
+- Harness: `mp_test.py bandwidth | version | avatar`, all in `suite` (5 scenarios, all pass).
