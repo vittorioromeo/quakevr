@@ -8,6 +8,7 @@
 #include "vr_box3d_internal.hpp"
 #include "vr_weapon_ids.h"
 #include "vr_cvars.hpp"
+#include "vr_heldpose.hpp"
 #include "vr_tunables.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -653,6 +654,30 @@ namespace
         key.generation = shapeGeneration;
         inHand = d.inHand;
         return key;
+    }
+    // Another player's: the weapon as his client drew it in his hand (vr_heldpose.hpp; MP_PLAN.md B3e), its model the
+    // server's of the same name.
+    if(const heldpose::Hand* r = heldpose::remote(player, h); r && r->drawn && name && *name && r->slot == weapons::slotForName(name))
+    {
+        const qmodel_t* model = nullptr;
+        for(int m = 1; m < MAX_MODELS && sv.model_precache[m]; m++)
+        {
+            if(!strcmp(sv.model_precache[m], name))
+            {
+                model = sv.models[m];
+                break;
+            }
+        }
+        if(model && model->type == mod_alias)
+        {
+            key.what = Key::Weapon;
+            key.model = model;
+            key.mirrored = r->mirrored;
+            key.mag = nullptr; // (his magazine's box is not sent: the gun's own body only)
+            key.generation = shapeGeneration;
+            inHand = r->inHand;
+            return key;
+        }
     }
     const int muzzleOfs = progs::handFields(h).muzzle;
     const glm::vec3 muzzle = muzzleOfs >= 0 ? fieldVec(player, muzzleOfs) : point;

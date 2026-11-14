@@ -32,6 +32,7 @@
 #include "vr_modelcollide.hpp"
 #include "vr_grip.hpp"
 #include "vr_held.hpp"
+#include "vr_heldpose.hpp"
 #include "vr_highlights.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_mapstyle.hpp"

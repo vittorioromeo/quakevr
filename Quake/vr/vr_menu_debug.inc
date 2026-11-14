@@ -1122,6 +1122,9 @@ za::Vector<Item> pageDebugReports()
         command("Network: Players Seen", "vr_mp_status")
             .help("vr_mp_status: the players this client sees (entity, name, where, whether the last message carried them) "
                   "and, hosting, the server's clients. The multiplayer harness (Misc/quakevr/mp) reads the same lines."),
+        command("Network: Held Weapons", "vr_mp_drawn")
+            .help("vr_mp_drawn: each hand's held weapon as this client draws it (its hotspots, the two-handed hold, a weapon "
+                  "carried off its handle) and, hosting, as the server places each player's from what his client sent."),
         toggle("Network: Watch Players", vr_mp_watch)
             .help("vr_mp_watch: the console says when you see each player, when one starts moving from rest and every 32 "
                   "units he travels, with a wall-clock time in ms: compare two games' consoles for the delay between them."),

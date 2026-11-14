@@ -26,8 +26,10 @@ Tests:
              open hand and he closes it on it: taken, judged by his own fist on the dedicated server.
     teleport client-side traces: B (a remote client) traces his own map down to his floor; he aims a teleport with his off
              hand (his own trace: valid) and lets go: the server moves him there, A sees him there.
+    held     the held weapon's drawn pose up: B holds a shotgun still; the server places its hotspots where B's view
+             draws them; B's off hand takes its grip hotspot: the server's two-handed hold of it is B's own.
     suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, version, avatar, avatarcal, body, prefs, grab,
-             teleport.
+             teleport, held.
 
 The base folder is a Quake folder with id1 (and hipnotic, rogue, quakevr: -game as the kit's runs). Its
 id1/autoexec.cfg runs in every game: --reset-autoexec empties it first (the kit's test bases: a run's script).
@@ -828,6 +830,109 @@ def teleport(s):
     b.cmd("vr_teleport_enabled 0; vr_mock_hand off")
 
 
+def drawn_report(inst, prefix):
+    """vr_mp_drawn on `inst` -> {(ent, hand): {"drawn", "slot", "help", "carrying", "spots": {i: [type, x, y, z]}}}
+    from its `prefix` lines ("mp_drawn_own": the client's own view; "mp_drawn_sv": the server's of each player)."""
+    since = inst.mark()
+    inst.cmd("vr_mp_drawn; echo mp_drawn_done")
+    n, _ = inst.wait(r"mp_drawn_done", 10, since, "%s's held weapons" % inst.name)
+    out = {}
+    for l in inst.lines[since:n]:
+        if l.startswith(prefix + ":"):
+            f = dict(re.findall(r"(\w+)=([-\d.,]+)", l))
+            spots = {int(k[2:]): [float(x) for x in v.split(",")] for k, v in f.items() if re.match(r"hs\d$", k)}
+            out[(int(f["ent"]), int(f["hand"]))] = {k: int(float(f[k])) for k in ("drawn", "slot", "help", "carrying")}
+            out[(int(f["ent"]), int(f["hand"]))]["spots"] = spots
+    return out
+
+
+def weapon_until(s, srv, ent, want, tries=30):
+    """The server's main-hand weapon of player `ent` by report until it is `want` (at most `tries` reports)."""
+    seen = []
+    for _ in range(tries):
+        (lines,) = reports(s, [srv])
+        seen.append(int(by_ent(lines, "mp_avatar_sv").get(ent, {}).get("wpn", [-1])[0]))
+        if seen[-1] == want:
+            break
+    return seen
+
+
+def spots_off(own, sv):
+    """The farthest the server's hotspots are from the client's own (the same types at the same indices), or None."""
+    a, b = own.get("spots", {}), sv.get("spots", {})
+    if not a or set(a) != set(b) or any(int(a[i][0]) != int(b[i][0]) for i in a):
+        return None
+    return max(dist(a[i][1:], b[i][1:]) for i in a)
+
+
+HOTSPOT_SLACK = 0.5  # units: a held weapon's hotspots on the server from where its holder's view draws them
+
+
+def held(s):
+    """The held weapon's drawn pose up (vr_heldpose.cpp): B holds a given shotgun still in his main hand; the dedicated
+    server places its hotspots (QC weaponhotspot) where B's own view draws them; B's off hand takes its grip hotspot:
+    the server's two-handed hold of B's off hand (QC weaponanygrip) is his own view's (1: by a hotspot)."""
+    srv, a, b, ea, eb = join(s)
+    grip_then_give(srv, b, "vr_mock_hand main 0.1 0.25 -0.35 0 0 0; vr_mock_button main grip 1; vr_mock_button off grip 0")
+    seen = weapon_until(s, srv, eb, 4)
+    s.check("B holds the given shotgun (the server's report)", seen[-1] == 4, "B's main weapon by report: %s" % seen)
+    own = sv = {}
+    off = None
+    for _ in range(20):
+        own = drawn_report(b, "mp_drawn_own").get((eb, 1), {})
+        sv = drawn_report(srv, "mp_drawn_sv").get((eb, 1), {})
+        off = spots_off(own, sv)
+        if off is not None and off <= HOTSPOT_SLACK and sv.get("drawn") == 1:
+            break
+    s.note("B's own: %s; the server's: %s" % (own, sv))
+    s.check("B's view draws the shotgun in his main hand with its hotspots", own.get("drawn") == 1 and bool(own.get("spots")),
+            "B's own: %s" % own)
+    s.check("the server has B's drawn shotgun (its slot, as drawn)", sv.get("drawn") == 1 and sv.get("slot") == own.get("slot"),
+            "server: %s; B's own: %s" % (sv, own))
+    if off is not None:
+        s.metric("hotspot_off", round(off, 3))
+    s.check("the server places B's hotspots where his view draws them (within %.1f)" % HOTSPOT_SLACK,
+            off is not None and off <= HOTSPOT_SLACK, "farthest off: %s" % off)
+
+    grips = sorted(i for i, v in own.get("spots", {}).items() if int(v[0]) == 1)
+    if not grips:
+        raise StepFailed("the shotgun has no grip hotspot: %s" % own)
+    b.cmd("vr_mock_hand_to off heldspot %d palm; vr_mock_button off grip 1" % grips[0])
+    own0 = sv0 = {}
+    for _ in range(20):
+        own0 = drawn_report(b, "mp_drawn_own").get((eb, 0), {})
+        sv0 = drawn_report(srv, "mp_drawn_sv").get((eb, 0), {})
+        if own0.get("help", 0) > 0 and sv0.get("help") == own0.get("help"):
+            break
+    # (1 by a hotspot; 2 anywhere on it: vr_weapon_grab_anywhere, on by default, takes a hotspot's hold as anywhere's)
+    s.check("B's off hand holds the shotgun at its grip hotspot (his view: two-handed, 1 or 2)", own0.get("help", 0) > 0,
+            "B's own off hand: %s" % own0)
+    s.check("the server's two-handed hold of B's off hand is his view's (weaponanygrip)",
+            sv0.get("help", 0) > 0 and sv0.get("help") == own0.get("help"), "server: %s; B's own: %s" % (sv0, own0))
+
+    # The hand-off (QC VRTryHandOff, by the server's weaponanygrip of B's off hand): B lets go with his main hand; the
+    # shotgun stays in his off hand, carried off its handle where it holds it.
+    b.cmd("vr_mock_button main grip 0")
+    wpn = []
+    for _ in range(30):
+        (lines,) = reports(s, [srv])
+        wpn = by_ent(lines, "mp_avatar_sv").get(eb, {}).get("wpn", [])
+        own0 = drawn_report(b, "mp_drawn_own").get((eb, 0), {})
+        sv0 = drawn_report(srv, "mp_drawn_sv").get((eb, 0), {})
+        if own0.get("carrying") == 1 and sv0.get("carrying") == 1 and wpn and int(wpn[0]) == 0:
+            break
+    s.note("after the hand-off: the server's main weapon of B %s; B's own off hand %s; the server's %s" % (wpn, own0, sv0))
+    # (B's view draws the weapons the server gives his hands: the shotgun drawn in his off hand is the server's hand-off)
+    s.check("B's main hand let go: the server hands the shotgun off to his off hand (weaponanygrip)",
+            bool(wpn) and int(wpn[0]) == 0 and own0.get("drawn") == 1 and own0.get("slot") == own.get("slot"),
+            "the server's main weapon of B: %s; B's off hand draws %s" % (wpn, own0))
+    carried_off = spots_off(own0, sv0)
+    if carried_off is not None:
+        s.metric("carried_hotspot_off", round(carried_off, 3))
+    s.check("the server has B's off hand carrying it off its handle, as his view draws it (weapondrawnpose)",
+            own0.get("carrying") == 1 and sv0.get("carrying") == 1, "server: %s; B's own: %s" % (sv0, own0))
+
+
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
     s = Session(args.exe, args.base, args.out, test, port=args.port)
     failure = None
@@ -848,6 +953,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             grab(s)
         elif test == "mp_teleport":
             teleport(s)
+        elif test == "mp_held":
+            held(s)
         else:
             coop(s, args.listen, args.flat or "", lag, jitter, loss)
     except StepFailed as e:
@@ -860,7 +967,7 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -883,7 +990,7 @@ def main():
                 sys.exit(2)
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
-    elif args.test in ("bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport"):
+    elif args.test in ("bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held"):
         ok = run(args, "mp_" + args.test)
     else:
         ok = run(args, "mp_coop")
@@ -896,6 +1003,7 @@ def main():
         ok = run(args, "mp_prefs") and ok
         ok = run(args, "mp_grab") and ok
         ok = run(args, "mp_teleport") and ok
+        ok = run(args, "mp_held") and ok
         print("mp_suite: %s" % ("passed" if ok else "FAILED"))
     sys.exit(0 if ok else 1)
 

@@ -10,6 +10,7 @@
 #include "vr_grip.hpp"
 #include "vr_gripfit.hpp"
 #include "vr_held.hpp"
+#include "vr_heldpose.hpp"
 #include "vr_physics.hpp"
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
@@ -320,15 +321,20 @@ glm::vec3 serverPlace(edict_t* ent, edict_t* player, bool grab)
     if(grab || it == holds.end())
     {
         // The hand taking hold of what the other holds alone, drawn held out of it at its surface
-        // (vr_hand_collide_props_keep_out; a listen server's own player): it takes it there, not where the real hand is
-        // in it, and holds it from there (Hold::reach).
+        // (vr_hand_collide_props_keep_out; a listen server's own player, or another as his client drew it last:
+        // vr_heldpose.hpp): it takes it there, not where the real hand is in it, and holds it from there (Hold::reach).
         glm::vec3 reach[2]{glm::vec3{0.f}, glm::vec3{0.f}};
-        if(grab && cls.state != ca_dedicated && NUM_FOR_EDICT(player) == 1)
+        if(grab)
         {
+            const bool local = cls.state != ca_dedicated && NUM_FOR_EDICT(player) == 1;
             const int first = grip::serverHand(num);
             for(int h = 0; h < 2; h++)
             {
-                const glm::vec3 out = h != first ? view::heldOutOf(h, num) : glm::vec3{0.f};
+                const heldpose::Hand* r = local ? nullptr : heldpose::remote(player, h);
+                const glm::vec3 out = h == first ? glm::vec3{0.f}
+                                      : local    ? view::heldOutOf(h, num)
+                                      : r && r->outOfEnt == num ? r->outOf
+                                                                : glm::vec3{0.f};
                 if(out == glm::vec3{0.f})
                 {
                     continue;

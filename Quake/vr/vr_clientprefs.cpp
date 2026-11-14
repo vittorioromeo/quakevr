@@ -5,6 +5,7 @@
 #include "vr_cvars.hpp"
 #include "vr_grip.hpp"
 #include "vr_held.hpp"
+#include "vr_heldpose.hpp"
 #include "vr_tunables_api.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -518,6 +519,7 @@ void send()
     }
     sendRig();
     sendFrame();
+    heldpose::send(); // (the held weapon's drawn pose: vr_heldpose.cpp)
     if(!changed || (state.sent && realtime < state.nextSend))
     {
         return;
@@ -545,6 +547,7 @@ void clientClear()
     state.fistWasSent[0] = state.fistWasSent[1] = false;
     state.nextChunk[0] = state.nextChunk[1] = -1;
     state.frameWasSent[0] = state.frameWasSent[1] = false;
+    heldpose::clientClear();
 }
 
 void serverReset(int slot)
@@ -556,6 +559,7 @@ void serverReset(int slot)
         held::setPlayerFist(slot, 1, {});
         grip::setPlayerFrame(slot, 0, {});
         grip::setPlayerFrame(slot, 1, {});
+        heldpose::serverReset(slot);
     }
 }
 
@@ -565,6 +569,7 @@ void init()
     Cmd_AddCommand_ClientCommand("vr_prefs", prefs_f);
     Cmd_AddCommand_ClientCommand("vr_rig", rig_f);
     Cmd_AddCommand_ClientCommand("vr_rigframe", rigFrame_f);
+    heldpose::init(); // (vr_mp_drawn, the "vr_heldpose" client command)
 }
 
 } // namespace qvr::clientprefs
