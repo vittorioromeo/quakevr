@@ -62,7 +62,14 @@ struct Android
     bool on = false;            // an Android build, or the fake-Android mode
     char base[maxPath]{};       // the base folder (id1 and quakevr in it)
     char crashDir[maxPath]{};   // <base>/quakevr/crash: vr_crash.cpp's reports
+    bool firstRun = false;      // no config at start: the Quest's graphics settings applied (VR_AndroidFirstRun)
 } android;
+
+// No config (ironwail.cfg) in `gamedir` yet: the game's first run there.
+bool noConfigIn(const char* gamedir)
+{
+    return !(Sys_FileType(va("%s/%s", gamedir, CONFIG_NAME)) & FS_ENT_FILE);
+}
 
 // The console's text on its way to logcat: logcat makes each write a line, Sys_Printf's text comes in pieces, so the
 // pieces are joined into lines here (any thread: the spin lock).
@@ -218,7 +225,20 @@ void test_f()
     logLines.len = pending;
     SDL_AtomicUnlock(&logLines.lock);
 
-    Con_Printf("vr_android_test: base %s, crash reports %s\n", android.base, VR_CrashReportDir());
+    // The first run (the Quest's graphics settings then): a folder without a config is one, a folder with one is not.
+    t.check(noConfigIn(android.crashDir), name, "a config seen where there is none");
+    char cfgDir[maxPath];
+    copyPath(cfgDir, android.crashDir, "/config_test");
+    Sys_mkdir(cfgDir);
+    if(FILE* f = fopen(va("%s/%s", cfgDir, CONFIG_NAME), "wb"))
+    {
+        fputs("// vr_android_test\n", f);
+        fclose(f);
+    }
+    t.check(!noConfigIn(cfgDir), name, "a config not seen");
+
+    Con_Printf("vr_android_test: base %s, crash reports %s, first run %d\n", android.base, VR_CrashReportDir(),
+        android.firstRun ? 1 : 0);
     t.verdict(name);
 }
 
@@ -273,6 +293,12 @@ extern "C" int VR_Android(void)
 extern "C" void VR_AndroidLog(const char* text)
 {
     logText(text);
+}
+
+extern "C" int VR_AndroidFirstRun(void)
+{
+    android.firstRun = android.on && noConfigIn(com_gamedir);
+    return android.firstRun;
 }
 
 // Child processes of our own (the relighting's light runs, the motion review's evaluation copy): none on Android

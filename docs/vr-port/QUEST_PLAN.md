@@ -173,7 +173,7 @@ is the same build with a lower preset (half the GPU) [I].
 | C2 (done: C2a, C2b, C2c, C2d: the ES cost split and cut, the Quest preset's draft, sections 6b-6c) | **PC portability layer**: the 14 ungated rows behind `VR_GLESCompat()` (one `#version`/precision prefix for all programs, `glGetTexImage`/`glGetBufferSubData`/`glClearTexImage`/`glTextureView` replacements, LOD bias in shaders, depth clamp, clip distance, noperspective, timer-query wrapper); the GLSL made ES-valid (checked by compiling every program as `#version 320 es` with the PC driver where it accepts ES profiles, else with glslang if he approves it); `-glescompat` runs every test suite clean; `-fp-contract`-free scalar check; a "no child process" mode for the relight and motion children; an `Android`-guarded skeleton for crash/files/paths that compiles on the PC (`QVR_FAKE_ANDROID`) | No |
 | C2e (done, section 6d) | The CPU side of the Quest budget measured (a fight's split, QuakeC per function), draws per scope in `vr_profile_dump`, the bound path's draws located; the `noperspective` fallback (`-glesnoext`) | No |
 | C2f (done, section 6e) | The world's textures in texture arrays for the bound path (`vr_world_texarrays`): a draw a set of textures alike instead of a draw a texture | No |
-| **C3** (next; needs his approval of section 7's installs) | Android build: CMake toolchain for `arm64-v8a`, Gradle project (`Android/`), SDL2's Android activity, `-ffp-contract=off`, assets path and permissions, logcat console, the APK; first boot in the Android emulator (flatscreen, ES 3.x) for files, sound and menus | **Yes** (list below) |
+| C3 (done but the boot, section 6g; installs approved and done, section 7) | Android build: CMake toolchain for `arm64-v8a`, Gradle project (`Android/`), SDL2's Android activity, `-ffp-contract=off`, assets path and permissions, logcat console, the APK; first boot in the Android emulator (flatscreen, ES 3.x) for files, sound and menus (no emulator installed: the first boot is C4's, on the headset) | **Yes** (list below) |
 | C4 | OpenXR on Android: `XR_KHR_opengl_es_enable` binding, Android loader init, swapchains as GLES texture arrays, multiview into them, refresh rate, `XR_EXT_performance_settings`, `XR_FB_foveation`, Touch controller bindings (already OpenXR actions), visibility mask; first headset boot; a GL extension dump of the Quest's driver resolves the [?] rows | **Yes** + a Quest in developer mode |
 | C5 | Renderer on device: driver bugs, the post chain merged into fewer passes for the Quest preset, program binary cache, MSAA on tile, invalidations at pass ends; Adreno profiling (`ovrgpuprofiler`, RenderDoc) | Yes (device tools) |
 | C6 | Perf and defaults: a Quest graphics preset (Quest 3 and Quest 2 levels) from measurements, dynamic resolution and foveation level tied to frame time, CPU/GPU levels, thread affinity (big cores), memory caps (shadow atlas, textures); latency: late latch of poses, `xrWaitFrame` pacing | Device |
@@ -634,7 +634,68 @@ Now made in the load's last frame (`VR_SignonPrewarm` -> `decals::prepareTranslu
 translucent and OIT is in effect): none in play after it; the load pays 7 ms with the driver's cache, up to 2.9 s
 without (AD's start map, behind the loading screen).
 
-## 7. Installs for his approval (none done)
+## 6g. C3: the Android build (done but the first boot: no emulator; the installs of section 7)
+
+- **The build** (`Android/README.md`): the top-level `CMakeLists.txt` under the NDK's toolchain includes
+  `Android/android.cmake`: the engine as **`libquakevr.so`** (a shared library SDL2's Java activity loads; its
+  `SDL_main` is `main_sdl.c`'s `main`), SDL2 2.30.9 built from its source as `libSDL2.so`, GLES 3.2 + EGL, liblog;
+  **`-ffp-contract=off` on every target** (his approval; `compile_commands.json`: 793 of 793 files; the library's
+  disassembly, 3.63 M lines: **0** `fmadd`/`fmsub`/`fmla`/`fmls`); `-Wl,--no-undefined`; mimalloc, user directories,
+  codecs, curl and OpenXR off (OpenXR: C4). `Android/build_native.sh` builds it with the SDK's CMake 3.22.1 and Ninja.
+- **The first arm64 compile of every source** (NDK 27.2, clang 18.0.3, libc++ 18, API 29): 877 objects; what didn't
+  compile, fixed with the PC unchanged: Zancle's `reference_converts_from_temporary` (neither the builtin nor the trait
+  in clang 18: `__reference_binds_to_temporary`) and its interference sizes (no `__GCC_DESTRUCTIVE_SIZE`); the one
+  deducing-this lambda (`vr_climb.cpp`: clang 18 "cannot compile this l-value expression yet"); `__rdtsc` in
+  `vr_findradius.cpp`'s stats (the monotonic clock off x86, as `pr_exec.c`); a format call without arguments
+  (`-Wformat-security`, an NDK error). The link: `glGetTexImage`/`glPolygonMode` (desktop-only, never reached under the
+  ES profile) compiled out on Android, and **a PC bug: `VR_CrtHeapLoadHold` had no definition without mimalloc** (the
+  Linux build with `-DQVR_MIMALLOC=OFF` failed to link; its own commit). vr_android.cpp's `__ANDROID__` forms compiled.
+- **Android only**: an OpenGL ES 3.2 context (`gl_vidsdl.c`), the ES profile always on (`VR_GLESCompat`, without
+  `-glescompat`), `vr_quest_preset 0` after `quake.rc` on the first run (no `ironwail.cfg` in the game folder yet:
+  `VR_AndroidFirstRun`), the console in **logcat** (`Sys_Printf`, `Sys_ReportError` through `VR_AndroidLog`: the
+  pieces joined into lines, tag `QuakeVR`; `adb logcat -s QuakeVR SDL`).
+- **One crash handler** (5d's choice, the reuse rule): `vr_crash.cpp`'s POSIX handler runs on Android (sigaltstack,
+  dladdr names, the map/GPU/VR lines, one report a process), its stack from `_Unwind_Backtrace` there (bionic has
+  `backtrace` from API 33 only; Linux keeps glibc's, the same frames), the report into logcat as well, then the
+  default action (the system's tombstone). vr_android.cpp's own handler is gone: `VR_AndroidStart` points the reports
+  at `<base>/quakevr/crash`. `vr_android_test` (`-fakeandroid`): 12 passed, 0 failed (the folders, the reports' folder
+  being the layer's, logcat's lines, the first-run test).
+- **The APK** (`Android/package_apk.sh`: javac against android.jar + core-lambda-stubs, d8, aapt2, zipalign,
+  apksigner with a debug key made once; no Gradle plugin download): `QuakeVR.apk` **20.2 MB**, `apksigner verify` OK;
+  `aapt2 dump badging`: `com.vittorioromeo.quakevr`, min SDK 29, target 32, GLES 0x30002, launchable
+  `QuakeVRActivity`, native code arm64-v8a. Inside: `libquakevr.so` 24.8 MB stripped (132.8 MB with its debug info,
+  kept in `build-android/` for addr2line), `libSDL2.so` 1.4 MB, Steam Audio's `libphonon.so` 20.5 MB (optional),
+  `classes.dex` (SDL2's activity and ours). The game's files: the app's external files folder, no permission.
+- **The Gradle project** (`Android/settings.gradle`, `Android/app/build.gradle`: AGP 8.7.3, the same CMake project,
+  SDL2's Java from its source, `libphonon.so` copied in when `qvrSteamAudioDir` is set): **not run**: its first run
+  downloads the Android Gradle Plugin and its dependencies from Google's Maven (section 7, his approval);
+  `package_apk.sh` makes the same APK without it.
+- **Not done**: the first boot (no Android emulator installed; on the Quest the APK runs as a flat panel: C4's first
+  step before OpenXR); codecs (music: WAV only), the Android runtime checks of the `[?]` rows.
+
+## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
+
+Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
+`ANDROID_NDK_HOME` and `PATH`; the downloads kept in `dl\`):
+
+| Tool | Version | Path |
+|---|---|---|
+| Microsoft Build of OpenJDK | 17.0.21 (LTS) | `F:\QuakeVRDev\jdk-17` |
+| Android SDK command-line tools | 12.0 | `F:\QuakeVRDev\android-sdk\cmdline-tools\latest` |
+| Platform-Tools (adb) | 37.0.1 | `...\android-sdk\platform-tools` |
+| SDK Platform | android-34 (rev 3) | `...\android-sdk\platforms\android-34` |
+| Build-Tools | 34.0.0 | `...\android-sdk\build-tools\34.0.0` |
+| CMake (+ Ninja) | 3.22.1 | `...\android-sdk\cmake\3.22.1` |
+| NDK | 27.2.12479018 (clang 18.0.3) | `...\android-sdk\ndk\27.2.12479018` |
+| Gradle | 8.10.2 | `F:\QuakeVRDev\gradle-8.10.2` |
+| SDL2 source | 2.30.9 | `F:\QuakeVRDev\SDL2-2.30.9` (`QVR_SDL2_DIR`) |
+| Steam Audio | 4.8.1 (Android ARMv8 `libphonon.so`) | `F:\QuakeVRDev\steamaudio\steamaudio` (`QVR_STEAMAUDIO_DIR`) |
+| Khronos OpenXR loader for Android | 1.1.53 (AAR) | `F:\QuakeVRDev\openxr\openxr_loader_for_android-1.1.53.aar` (C4) |
+| Meta OpenXR SDK | git `bbed2f2` (2026-02-12; headers) | `F:\QuakeVRDev\Meta-OpenXR-SDK` (C4) |
+
+Not installed (still for his approval): the Android Gradle Plugin's Maven download (Gradle's first run of
+`Android/`, about 200-300 MB in `~/.gradle` [I]; `package_apk.sh` does without it), the Android Emulator and a system
+image (optional), Meta Quest Developer Hub (optional), glslangValidator (optional). The original list, for reference:
 
 Sizes are approximate download sizes [I]; versions are the current stable ones at install time.
 
@@ -655,13 +716,12 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C3 — the Android build (NEEDS INSTALLS: section 7's SDK, NDK, JDK, Gradle, SDL2 source; waits for his
-approval): CMake toolchain for arm64-v8a with `-ffp-contract=off`, the Gradle project and SDL2's activity, the first
-compile of vr_android.cpp's `__ANDROID__` forms (and the crash handler merged with vr_crash.cpp's POSIX one, section
-5d), logcat console, the first boot in the emulator (flat-screen, ES 3.x), `vr_quest_preset` applied on the first run
-there. If the installs are not approved yet, the no-install phase worth doing (C2h): the world textures' memory under
-the ES profile (section 6e's open item: the 2D copies the arrays duplicate, 8.9-15 MB in e1m1, freed once nothing else
-reads them, or never uploaded; the liquids into the arrays too; the PC unchanged, `gles_render_test` equal). Waiting
-on his call, not on installs: the armed humanoids' CPU cost (section 6d: 1.5 ms of a fight's 4.4; poses of unseen
-holders, a Quest cap on armed replacements); `bd2277d6c` (the PC's translucent decal program hitch, section 6f) to
-`next`.
+Next phase: C4a — OpenXR on Android without the headset (no new installs: the loader AAR and Meta's headers are in
+`F:\QuakeVRDev`): `QVR_HAVE_OPENXR` in the Android build with the AAR's `libopenxr_loader.so` packaged, the loader's
+Android init (`xrInitializeLoaderKHR`, `XR_KHR_android_create_instance`), the `XR_KHR_opengl_es_enable` binding from
+SDL's EGL display/config/context, GLES swapchain formats, the manifest's VR category and Quest features; compiled and
+packaged, the PC unchanged. Then C4b, the headset's first boot (NEEDS his Quest in developer mode, adb): the flat panel
+first (this APK as is: files, logcat, the crash report), then OpenXR, the extension dump that resolves the `[?]` rows,
+the `imageRect` origin (6f). Without the headset, C2h (no installs): the world textures' memory under the ES profile
+(section 6e's open item). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU
+cost (section 6d), `bd2277d6c` and `6b8e74432` (PC fixes, sections 6f, 6g) to `next`.

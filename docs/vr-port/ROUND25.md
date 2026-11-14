@@ -2438,3 +2438,18 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
   the ES profile only) post-processes the eye straight into the image's lower left part and the layer shows that part
   (OpenXR `subImage.imageRect`): the resample is gone, the part identical to the old resample target
   (gles_render_test 21/0). The UI is drawn at the eye's size there.
+
+## questN: Quest C3, the Android build (agent/quest, 2026-11-14)
+
+- **The build** (`Android/README.md`, QUEST_PLAN.md 6g): the NDK's toolchain (27.2, clang 18) with the top-level
+  CMakeLists.txt (`Android/android.cmake`: `libquakevr.so` + SDL2 2.30.9 from source, GLES 3.2, `-ffp-contract=off`
+  everywhere: 0 FMA instructions in the library), `Android/build_native.sh`, `Android/package_apk.sh` (the APK from the
+  SDK's build tools, no Gradle plugin download: 20.2 MB, signed with a debug key, verified), the Gradle project (not
+  run: its plugin download waits for his approval). Tools installed under `F:\QuakeVRDev` (QUEST_PLAN.md section 7).
+- **Android only**: an ES 3.2 context, the ES profile always on, `vr_quest_preset 0` on the first run, the console in
+  logcat (`VR_AndroidLog`). One crash handler: vr_crash.cpp's POSIX one, the unwinder's stack and logcat on Android;
+  vr_android.cpp only sets its folder (`vr_android_test` under `-fakeandroid`: 12/0).
+- **Fixed for clang 18 (the PC unchanged)**: Zancle's temporary-binding trait and interference sizes, the deducing-this
+  lambda in vr_climb.cpp, `__rdtsc` in vr_findradius.cpp, a format call without arguments. **PC bug (6b8e74432)**:
+  `VR_CrtHeapLoadHold` was missing without mimalloc (a Linux `-DQVR_MIMALLOC=OFF` build failed to link).
+- **Not done**: the first boot (no emulator; the headset's is C4b). Next: C4a, OpenXR on Android compiled and packaged.
