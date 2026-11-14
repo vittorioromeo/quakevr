@@ -3021,3 +3021,18 @@ QUEST_PLAN.md section 6k has the numbers. On the Quest 3 over adb, the headset u
 - Arena Mode: no Ironman row (rows: Start, Difficulty, Gore, Glass Cannon, Melee Only); `arenaValue` forces Ironman off, the pick untouched.
 - No saving in the arena (`vrarena`): `VR_ArenaNoSave` (vr_runsetup.cpp) makes `VR_RunIronmanRefusesSave` refuse `save`/quicksave/Save menu with "No saving in Arena Mode"; the quicksave tool is greyed with that reason. Loading stays allowed.
 - Tests: `vr_runsetup_screen_test` (five rows), `vr_runlaunch_test` (Ironman off with the pick on; save and quicksave write nothing). menu_paths unchanged by rows removal except Ironman.
+
+## Quest C4e: from 2 FPS to ~39 on the Quest 3 (branch `agent/quest`, 2026-11-14)
+
+QUEST_PLAN.md section 6l has the numbers. e1m1's start over adb, the headset unworn:
+- **CPU (370 ms in "models"):** ES has no `GL_ARB_buffer_storage`, so `GL_Upload` was a `glBufferSubData` into a
+  buffer in use, which Adreno copies whole. `GL_EXT_buffer_storage` (Android) now gives the persistent mapped frame
+  buffers: under 1 ms.
+- **GPU (the world's fragment shader, ~280 ms):** the ES struct copy of C4d copied `Light.gateinverse[3]` with a
+  loop; the index into a local struct's array kept the whole `Light` in scratch memory for every pixel. Literal-size
+  arrays are now copied unrolled (`vr_glsafe.cpp` `appendMemberCopies`). Found with `-glesdefine QVR_PROBE_*` cuts
+  (gl_shaders.h: CUT1-5, LCOUNT, NOSHADOW, SIMPLELOOP, NOPARALLAX, NORETRO, NOCARVE; kept for the next split).
+- **MSAA:** `vr_quest_preset 0` now `vid_fsaa 0` (2x cost ~100 ms: resolved through memory).
+- **Frame:** 424 ms -> 25.6 ms (39 FPS); without the world 14.1 ms (72 Hz). `vr_profile_slow_ms` (Debug > Profiling,
+  250 as before) keeps slow frames in the profiler's averages.
+- **Checks:** gles_render_test 21/0, scenario_check 150/0, load_models_test 4/0; dev and LTO builds 0 warnings.

@@ -876,6 +876,41 @@ the world and the models pitch black, some menu shapes missing; ~55 s to the fir
 - Not cached: the VR programs (`VR_PrecompilePrograms`: 1.7 s cold, 0.4 s warm), the multiview and texture-array twins
   (made later, in the background).
 
+## 6l. C4e: from 2 FPS to ~39 (2026-11-14; adb, the headset unworn; no installs)
+
+Method (all `scratch/c4e_*`): one launch on e1m1's start, a cfg of variants (`c4e_gen.py`: each set, 4 frames,
+then `vr_profile` over N frames with `vr_profile_gpu 0`, `vr_profile_dump`, undone), summarised by `c4e_ab.py`
+(frame period, CPU busy; the run's shader-error count: a probe that fails to compile draws nothing and looks fast).
+simpleperf can't sample on the Quest (`cpu-clock`/`cpu-cycles` "not supported" for the app); the GPU timer queries
+work but split a tiler's passes, so the cuts were by A/B. **`vr_profile_slow_ms`** (new, Debug > Profiling "Slow
+Frames Kept", 250 as before): frames over it are left out of the averages; at 2 FPS every frame was one.
+- **Before** (C4d's APK): 424-450 ms a frame (2 FPS): CPU 280 ms in "models" + "ui" (370 + 20), GPU ~800 ms.
+- **1. The CPU: the frame buffers' uploads** (`GL_Upload`): ES has no `GL_ARB_buffer_storage`, so every upload was a
+  `glBufferSubData` into the frame's host buffer while the GPU still used it, which Adreno copies whole. Now
+  `GL_EXT_buffer_storage` (Android) gives the persistent mapped buffers the PC has: "models" 370 -> under 1 ms CPU.
+- **2. The GPU: the world's fragment shader**, split with `-glesdefine` probes (gl_shaders.h `QVR_PROBE_*`, kept):
+  the whole frame 383 ms; FSCONST (a constant colour) 35; cut after the texture read (CUT1) 82, after the decals
+  (CUT2) 68, after the lightmap (CUT3) 72, before the lights' loop (CUT5) 100, after it (CUT4) 383; the loop with a
+  plain point light read in place (SIMPLELOOP) 125; no shadow code (NOSHADOW) 397; the lights in a pixel's cluster
+  (LCOUNT, an eyeshot): 0 almost everywhere. So the loop cost ~280 ms **without running**: the ES struct copy of
+  6k (`Light l = Lights[i]`, member by member) copied `gateinverse[3]` with a `for` loop; that index into a local
+  struct's array made Adreno keep the whole 240-byte `Light` in scratch memory for every pixel. **Fix**
+  (`vr_glsafe.cpp` `appendMemberCopies`): a literal array size up to 16 is copied element by element, unrolled.
+  The frame: 383 -> 140 ms.
+- **3. MSAA**: `vid_fsaa 2` -> 0 took the frame from 138 to 41 ms (the float scene's 2x MSAA goes through memory, not
+  resolved on chip: no `EXT_multisampled_render_to_texture` path yet). **`vr_quest_preset` 0 now has `vid_fsaa 0`**
+  (as the 90 Hz and Quest 2 levels).
+- **After** (the preset reapplied, `+vr_quest_preset 0`, 120 frames each): **25.6 ms (39 FPS)**; `r_drawworld 0`:
+  14.1 ms (72 Hz); render scale 0.7 (dynres off): 29 ms (not pixel-bound now: the world's draws themselves).
+- Checked and not the cause: parallax code present but unused (NOPARALLAX: no change, 138 vs 140 ms), the shadow code
+  (NOSHADOW), dynamic lights (`r_dynamic 0`), the hidden-area mask, bloom, particles, the models (`r_drawentities 0`:
+  ~the same as with them at every step).
+- Open: the world's remaining ~11 ms over the rest (the uber-shader's size on Adreno: NORETRO + NOCARVE + NOSHADOW +
+  NOPARALLAX together were 62 ms against 138 at MSAA 2x: a "lite" ES world shader with what the Quest preset turns
+  off compiled out is the next lever; `vr_decal_carve` is on in the preset); MSAA on chip
+  (`EXT_multisampled_render_to_texture`); dynamic resolution never lowered the scale (vr_dynres needs the GPU's time:
+  check what it reads on ES); the striped texels and caching the VR programs: not reached.
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
@@ -919,9 +954,11 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C4e (after 6k: the world drawn, the boot 65 s cold / 8 s warm) — his look in the headset (the world, the
-models, the striped texel patterns of 6k's eyeshots), the frame's 35 ms (simpleperf, the frame fence in `GL_AcquireFrameResources`), the
-menu panel's resolution, the save's freed engine string; no installs. The original C4c scope: the headset worn, and the frame (NEEDS him wearing the Quest 3 over USB for the visual part; no
+Next phase: C4f (after 6l: e1m1 at ~39 FPS, 72 Hz with the world off) — the world's fragment shader to 72 Hz (a
+lite ES variant with what the Quest preset turns off compiled out: carved decals, retro textures' start, shadows,
+parallax; measured together 2.2x at MSAA 2x), MSAA on chip (`EXT_multisampled_render_to_texture`), vr_dynres on ES,
+then his look in the headset (smoothness, the striped texels of 6k's eyeshots, the menu panel's resolution, the save's
+freed engine string); no installs. The original C4c scope: the headset worn, and the frame (NEEDS him wearing the Quest 3 over USB for the visual part; no
 installs: simpleperf is the NDK's): first what he sees (e1m1's image in both eyes, the `imageRect` origin of 6f, the
 menus' panel, the Touch controllers, sound), then why a frame takes 35 ms with the CPU and GPU both under 40% busy
 (simpleperf, `vr_profile`; the syncs: query reads, fences, readbacks, `xrWaitFrame`), the first launch's ~55 s of

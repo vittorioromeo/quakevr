@@ -887,9 +887,15 @@ QVR_PARALLAX_DEPTH_OUT // QVR: pixel depth offset (vr_parallax_depth_write): PDO
 "	// QVR: parallax occlusion mapping (vr_parallax) moves where the textures are read; their mip level is still\n"
 "	// the surface's (the moved coordinates jump where the height field hides itself)\n"
 "	vec2 puv = uv;\n"
+"#ifndef QVR_PROBE_NORETRO\n" // QVR: -glesdefine's probe (C4e): no retro textures' start
 "	RetroBegin(in_retro.z, in_retro.xy, duvdx, duvdy, dpdx, dpdy, facing);\n" // QVR: retro textures (vr_retro.h; Retro 0: none); before the carved decals (their retro style's blocks)
+"#endif\n"
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_SOLID) "\n"
+"#ifdef QVR_PROBE_NOPARALLAX\n" // QVR: -glesdefine's probe (C4e): no parallax code
+"	bool parallax = false;\n" // (a carved decal sets it: its moved coordinates read with textureGrad)
+"#else\n"
 "	bool parallax = in_pdepth > 0.; // the instance's depth: the world's, an item box's (vr_parallax_items)\n"
+"#endif\n"
 "	ParallaxPlane = Parallax3.x; // QVR: where the polygon sits in the relief (1: its bottom, vr_lighting.cpp)\n"
 "	if (parallax)\n"
 "		puv = ParallaxUV(NormalTex, uv, duvdx, duvdy, dpdx, dpdy, facing, in_pos - EyePos, in_pdepth, Parallax.z, in_uvclamp);\n"
@@ -897,7 +903,13 @@ QVR_PARALLAX_DEPTH_OUT // QVR: pixel depth offset (vr_parallax_depth_write): PDO
 "	if (ParallaxDist != 0. && Parallax2.w > 0.) // QVR: the hit's depth (bounded by the pre-pass's: glprogs.world_depth_pdo; nearer: raised)\n"
 "		gl_FragDepth = ParallaxFragDepth(ViewProj, in_pos, normalize(in_pos - EyePos), ParallaxDist, (in_flags & CF_USE_POLYGON_OFFSET) != 0u);\n"
 "#endif\n"
+"#ifdef QVR_PROBE_NOCARVE\n" // QVR: -glesdefine's probe (C4e): no carved decals' code
+"	const bool carve_on = false;\n"
+"	const vec3 carve_bend = vec3(0.), carve_light = vec3(0.);\n"
+"	const float carve_dark = 1.;\n"
+"#else\n"
 QVR_WORLD_FS_CARVE // QVR: the carved decals (vr/vr_decals.cpp): their craters move where the textures are read, as parallax does
+"#endif\n"
 "#else\n"
 "	const bool parallax = false;\n" // QVR: no parallax mapping here
 "	const bool carve_on = false;\n"

@@ -132,7 +132,7 @@ constexpr presetcore::Row questRows[] = {
     {&vr_dynres,                      {"1",      "1",      "1"}},
     {&vr_dynres_min,                  {"0.65",   "0.6",    "0.55"}},
     {&vr_upscale,                     {"0",      "0",      "0"}},     // bilinear: no full-size pass
-    {&vid_fsaa,                       {"2",      "0",      "0"}},     // on a tiler MSAA resolves on chip (C5 measures 4x)
+    {&vid_fsaa,                       {"0",      "0",      "0"}},     // off: 2x cost the Quest 3 ~100 ms a frame (C4e: e1m1 138 -> 41 ms; the float scene's MSAA resolved through memory, not on chip)
     {&vr_taa,                         {"0",      "0",      "0"}},     // its history reads and writes: bandwidth
     // Shadows: one shadowed dynamic light, the atlas a quarter of Low's (16 MB of depth instead of 64)
     {&vr_shadow_dlights,              {"1",      "1",      "0"}},
