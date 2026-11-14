@@ -181,6 +181,8 @@ player unchanged.
 | **B1** (done) | Audit, design, plan; the harness; first e2e tests; the same-IP kick fixed | `mp_test.py suite` |
 | **B2** (mostly done; the rest is B2b) | Protocol hygiene and VR player state for two players: per-client protocol version in the handshake (a clean reject on mismatch); every move processed, edge bits ORed, per-client state reset on connect/drop; reliable chunks at most 1200 B; arm poses per client, PVS-culled; the VR player-state block and calibration message; remote players drawn with the armed humanoids' arm solver and skin on the player body (head, hands, fingers, held weapons) | `mp_avatar`: B sees A's mock hands within 2 units of where A's server has them, fingers within a step, the held weapon's model; `mp_bandwidth`: down under 25 KB/s idle on e1m1; `mp_coop` stays green |
 | **B2b** (hands done; the rest is B2c) | The rest of B2: finger curls in the move and the avatar; remote players drawn with the player's own body (vr_avatar.cpp's IK from head and hands) or the armed humanoids' arm solver (vr_agarms.cpp), whichever shares more, and their held weapons' models in their hands; the avatar calibration message (height, arm length, handedness, gloves, body), reliable on change; melee sub-tick samples from every move | `mp_avatar` grown: fingers within a step, the weapon model drawn in B's view at A's hand (a screenshot pair) |
+| **B2c** (weapon and calibration done; the rest is B2d) | The harness's weapon in hand and `mp_avatar`'s weapon checks with a screenshot pair; the avatar calibration message; the remote body; melee sub-tick samples | `mp_avatar` 17/0 (weapon checks live), `mp_avatarcal` |
+| **B2d** | The remote player's body posed from his avatar (vr_avatar.cpp's IK and skinning made per instance: one code path for the local body and remote ones), sized and dressed by his calibration (height, arm length, build, bracers, pauldrons, gloves) | `mp_body` (B's copy of A's body: wrists at A's drawn hands, head at his head, a screenshot pair; A's height changed: B's copy taller) |
 | **B3** | Per-client data: the prefs message and `clientpref`; the rig (palm frame, fists, hotspots, weapon hull) and body calibration up; the ~25 host shortcuts replaced; client-side traces for teleport, crosshair, flashlight, hand collision | `mp_prefs` (A left-handed, B right-handed: each judged by his own), `mp_teleport` (a remote client teleports), `mp_grab` (B's own fist grabs) |
 | **B4** | Coop campaign flow: coop saves and loads (per-player blocks, versioned), autosaves, level transitions with inventories, intermission, deaths and respawns, map download (package names through the map installer; chunked fallback) | `mp_campaign` (e1m1 to e1m3 with saves and a load, both players' inventories), `mp_download` (B lacks a map: installs it, joins) |
 | **B5** | Interactions between players: drop a weapon / the other picks it up; force grab of world weapons in multiplayer; melee, parries and shoves between players; climbing, crouch, prone, jump, punch synced and judged per player | one scenario per interaction, each from both sides |
@@ -317,6 +319,49 @@ Open items (B2c and later):
 - A held weapon's parts (the super shotgun's barrels, the revolver's crane, pumps, magazines) are drawn as the whole
   model at its frame.
 
+### B2c results (2026-11-14, release no-LTO build, loopback; `mp_test.py suite`: all 6 scenarios pass)
+
+| Scenario | Result |
+|---|---|
+| `mp_avatar` | 17/0, the weapon checks live: A's main hand holds the given shotgun (server weapon 4); B draws it (`progs/v_shot.mdl`) 0.10 units from where A drew it; the screenshot pair `A_own_hands.png` (A's raised hands and shotgun) and `B_sees_A.png` (B facing A: A's hands and shotgun on his body) in the run's folder |
+| `mp_avatarcal` (new) | 9/0: each client has the other's calibration exactly as the other's game has it, the server both; A's glove change reaches B; B leaves: A forgets his; B joins again: each has the other's (A's from B's spawn) |
+| `mp_coop`, `mp_coop_lag`, `mp_bandwidth`, `mp_version` | Unchanged: pass |
+
+Single player on the branch: scenario_check PASS (129 scenes, 0 failed), load_models_test 4/0, Release and Debug builds
+0 warnings. `vr_run_check` (no canonical script: `scratch/b2c_runcheck.sh` from ROUND25's description) 11/1: run B (melee
+only, `map e1m2` after run A) fails the QC game check right at its spawn, with no message; every SP path this phase
+touched is a no-op in single player (`cl.maxclients`/`svs.maxclients` 1), so not chased here.
+
+What changed:
+
+- Why the harness's hand was empty: the give took (the server's weapon 4 the next frame), and the default grip-to-hold
+  let it fall at once (the mock's main grip was not held). `mp_avatar` holds it; `vr_dumpplayer` takes 1-based clients
+  (the scenario asked for 0). `Instance.screenshot(label)` (`mp_harness.py`): the window's image moved into the run's folder.
+- The avatar calibration (`QVR_SVC_AVATARCAL` 43; `vr_mpavatar.cpp` calFields): height (`vr_height_calibration`), seated
+  height, arm length (`vr_body_arm_length`), world scale, handedness, the gadget's arm, gloves (kind, hue, saturation,
+  lightness), nails, skin tone, body mode, build, bracers, pauldrons; integers (mm, thousandths, bytes), clamped on both
+  sides. Up as the `vr_avatarcal` client command (reliable, whitelisted in `sv_user.c`) when it changes, at most every
+  `vr_net_avatarcal_interval` (0.25 s; Debug > Reports > Network: Calibration Send Interval); the server keeps one per
+  slot, passes a change to every client (`sv.reliable_datagram`), all of them to a spawning client
+  (`VR_WriteClientSpawnState`), a cleared one when a slot is reset. Multiplayer only. `vr_mp_avatars` prints
+  `mp_avatar_cal:` (the others'), `mp_avatar_cal_own:`, `mp_avatar_cal_sv:`. `QVR_NET_VERSION` 4.
+
+Open items:
+
+- Nothing uses the calibration yet: the remote body (B2d) will size and dress itself by it; B6's cosmetics draw remote
+  hands with the sender's gloves, nails and skin tone (they still use this client's).
+- The body (B2d): `vr_avatar.cpp` keeps one posed body in file-scope state (`posed`, `posedSkeleton`, `armEase`,
+  `costTrace`, the motion's ease and follower state, the legs' and climb/lie modules' state) read by holsters, pauldrons
+  and self-collision. Plan: gather it into a `BodyInstance` (the local player's one of them), `pose(instance, ...)` from
+  head and hands (a remote player's from his avatar: head, the drawn wrists as the hand targets), skinning per instance
+  for VR_AliasBonePoses; the local body's hashes and the body tests unchanged first, then remote instances.
+- Melee sub-tick samples: the melee tracker (`vr_melee.qc` VR_Melee_Track) already measures speeds over the poses' own
+  clock (`vr_posetime`), so bunched moves (jitter, a 90 Hz headset) are not misread as faster or slower; what a merged
+  frame loses is the swing's middle poses (its sweep is a chord across them). Feeding each move's pose to the tracker
+  changes its sample cadence, single player's at 90/120 Hz too: a melee-tuning change (archived takes, "don't tune
+  melee"), so it goes with B5's melee between players, gated to multiplayer, with a test of a swing split over merged moves.
+- Our own calibration comes back to us too (the server's broadcast goes to every client): kept, unused, harmless.
+
 ## Decisions
 
 - The harness is Python with an in-engine inbox rather than stdin or RCON: it drives GUI clients and dedicated servers
@@ -327,4 +372,4 @@ Open items (B2c and later):
   (QuakeWorld's `qport` is the full answer: B7, with the snapshot protocol).
 - Voice chat (B10) needs Opus and a noise suppressor vendored as source: to be confirmed by the author before B10.
 
-Next phase: B2c — the rest of B2b: a weapon in a coop client's hand in the harness (why the test give leaves it empty, or the drawn model unprecached) and `mp_avatar`'s weapon checks live, with a screenshot pair of A's hands and weapon at B; the remote player's body posed from his avatar (vr_avatar.cpp's IK made per instance); the avatar calibration message (height, arm length, handedness, gloves, body; reliable on change); melee sub-tick samples from every move.
+Next phase: B2d — the remote player's body: vr_avatar.cpp's posed body made per instance (the local player's one of them, his body tests and hashes unchanged), each other player's posed from his avatar (head, drawn wrists) and sized and dressed by his calibration (QVR_SVC_AVATARCAL), with `mp_body` (B's copy of A's body at his head and hands, a screenshot pair, A's height change seen); melee sub-tick samples move to B5.

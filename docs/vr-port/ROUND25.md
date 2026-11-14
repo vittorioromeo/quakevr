@@ -2210,6 +2210,24 @@ MP_PLAN.md, "B2 results", has the details and numbers. In short:
   Keyframe). `QVR_NET_VERSION` 3.
 - `mp_avatar`: A's closed off hand's curls at B equal the server's, both hands drawn at B where A drew them; the weapon
   checks skip (no weapon reaches the test client's hand yet: MP_PLAN.md, B2b open items). `mp_test.py suite` passes.
+
+## mpN (B2c): a weapon in the harness's hand, the avatar calibration (agent/mp, 2026-11-14; never shipped by the coordinator)
+
+- The harness's empty hand: the test give (`impulse 154`) did put the shotgun in A's main hand, and the default
+  grip-to-hold let it fall the next frame (the mock's main grip was not held). `mp_avatar` now holds the grip; its
+  weapon checks are live (B draws A's shotgun, `progs/v_shot.mdl`, where A drew it) and it saves a screenshot pair (A's
+  own view of his raised hands and shotgun, B facing A): `Instance.screenshot` in `mp_harness.py`.
+- The avatar calibration (`QVR_SVC_AVATARCAL`, `vr_mpavatar.cpp` calFields): height, seated height, arm length, world
+  scale, handedness, the gadget's arm, gloves and their colour, nails, skin tone, body mode, build, bracers and
+  pauldrons, as integers. A client sends his up when it changes (the `vr_avatarcal` client command, reliable; at most
+  every `vr_net_avatarcal_interval` 0.25 s, Debug > Reports > Network: Calibration Send Interval); the server keeps one
+  per slot and passes it on to every client, all of them to a spawning client, and a cleared one when a slot is reset.
+  Multiplayer only: single player sends nothing. `vr_mp_avatars` prints them (`mp_avatar_cal*:`). Nothing uses them yet
+  (the remote body and B6's cosmetics will). `QVR_NET_VERSION` 4.
+- `mp_avatarcal` (new, in the suite): each has the other's calibration exactly, the server both; A's glove change
+  reaches B; B leaves: A forgets his; B joins again: each has the other's.
+- Melee sub-tick samples: not done (MP_PLAN.md, B2c open items: the melee tracker already reads speeds over the poses'
+  own clock; the samples change its cadence, a melee-tuning change, so with B5's melee between players).
 ## hunkfollow: nohunk's two follow-ups (agent/hunkfollow, 2026-11-14)
 
 - **The uninitialised read (nohunk's "Open"):** `vr_extmaps.cpp` `signature()` (the 64 x 64 detail signatures that
