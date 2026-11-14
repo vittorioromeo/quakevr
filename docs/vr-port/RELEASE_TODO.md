@@ -1,6 +1,6 @@
 # Before 1.1.0: Vittorio's to-do
 
-Short list. The full procedure is in [RELEASING.md](RELEASING.md). Release pass of 2026-11-08 (ROUND24.md, "Release pass
+Short list. The full procedure is in [RELEASING.md](RELEASING.md); the audit of 2026-11-14 (what is done, what is left) is [RELEASE_1_1.md](RELEASE_1_1.md). Release pass of 2026-11-08 (ROUND24.md, "Release pass
 for 1.1"): the local build, the package, the installer harness, the smoke launch, the upgrade path and the campaigns all
 pass on `agent/relpass`.
 

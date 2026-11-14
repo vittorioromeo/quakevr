@@ -164,6 +164,10 @@ through walls, so it can't get stuck. Settings: Carrying and Throwing > *Force G
   and stands as any enemy you pick, bleeding and dying as that enemy does (Gore > *Training Dummy*). It can attack
   you every few seconds so you can practise parrying (Combat > Parry and Bash > *Training Dummy Attacks*).
 - Settings: Combat > *Melee* (with the headbutt), *Parry and Bash*, *Batting and Catching*, *Damage and Knockback*.
+- **The dagger:** a short blade beside the swords in the firing range and the toolgun's list, and a starting melee
+  weapon. A stab sticks in a third as deep as a sword's, it throws point first, and armed humanoids carry it too.
+- **Reverse grip:** holding a sword or the dagger, press B (Y on the off hand) to turn it blade down, thumb over the
+  pommel, for stabbing down; press again to flip it back. Catch a tossed dagger blade down and you hold it reversed.
 
 ## Bullet time
 
@@ -202,6 +206,29 @@ you like). Throws stay true in it. Combat > *Bullet Time*.
   limb to drag them, throw them with one or two hands, pile them up; they bleed and burn.
 - **Knockdowns:** a hard shove can knock a monster down as a live ragdoll that struggles and gets up again; a shove
   that carries it over a ledge always knocks it down (Combat > *Knockdowns*).
+- **Stirring:** a monster knocked down and still alive stirs where it lies (a head turn, a hand's twitch, a limb drawn
+  in), so it never reads as dead (`vr_knockdown_stir`).
+
+## Armed humanoids
+
+On by default (Gameplay > *Replace All Humanoids*; Run Setup's *Armed Humanoids*): grunts, enforcers, knights and
+death knights carry real weapons, yours included, and use them with the player weapons' own code, in Quake, the
+mission packs and Arcane Dimensions. Combat > *Armed Grunts* sets the odds of each weapon tier, dual wielding and a
+gun with an axe or a dagger.
+
+- **Disarm** them in a tug-of-war with one or two hands (they hold on, headbutt, shove or fire at you), with a strike
+  on the weapon or the hand, a shot to the gun, or by taking the weapon of a downed one; then turn it on them.
+- They **parry** your blows (and you theirs), keep their distance, mind their friends, dual-wield, pick weapons up,
+  wear **backpacks** you can lift off and **armour plates** that dent, crack and fall off as you shoot them, and drop
+  what they hold when they die.
+
+## Enemy AI
+
+- **Stealth AI** (Combat > *Stealth AI*; `vr_ai_enhanced`, on): monsters are Idle, Alert or Hostile. Light, your
+  flashlight and noise give you away; an alerted monster investigates what it heard and follows your trail, through
+  teleporters too. `vr_ai_enhanced 0` is Quake's AI exactly.
+- **Navmesh:** walking monsters find their way around drops, props and lifts, and walk through every teleporter they
+  fit (and back), instead of running straight at you.
 
 ## Fire and lightning
 
@@ -286,6 +313,12 @@ you like). Throws stay true in it. Combat > *Bullet Time*.
 - **Map boards** (the text signs in the hub, tutorial and firing range) are CRT screens.
 - **Colours:** one *Player Effects Hue* colours the gadget's screen, the force grab, the teleport arc, the crosshair
   and the menu laser (HUD and Menus > *Colours*).
+- **Menu Look** (HUD and Menus > *Menu Look*): long pages fold into sections (click a header to fold or unfold it),
+  a Search result opens its page with the row in the middle and a short glow behind it, the mouse wheel scrolls a
+  page a quarter at a time, and choices such as Difficulty or the starting gun are rows of pictures (*Icon
+  Pickers*). Sizes, gaps, highlights and the flash are all set there.
+- **Holster menu on a flat screen** (middle mouse): drag a weapon with the left button from hand to holster, holster
+  to hand, hand to hand or holster to holster.
 
 ## Flashlight
 
@@ -397,7 +430,55 @@ Most of these have switches on the *Graphics* pages, and the *Preset* there sets
   (`func_vr_tip`) and use Quake VR's entities ([vr-port/MAPPING.md](vr-port/MAPPING.md)). **Other mods** run in a
   compatibility mode: your hand aims and their weapons fire from your gun, and you can walk the room and teleport,
   but there are no off-hand weapons, holsters, throwing or melee. See [INSTALL.md](INSTALL.md#custom-maps-and-mods).
-- **Flat screen:** `vr_enabled 0` plays on the monitor, with a mouse and keyboard.
+- **Select Campaign** lists each campaign with a *Continue (N min ago)* row under it when it has an autosave, the
+  run's choices on the line below; it loads straight into that save. The Map Library's installed packages have the
+  same *Continue* button. Arcane Dimensions sits under an *Experimental* header.
+- **Arcane Dimensions** (experimental; Play > Official Campaigns, after a prompt): AD's maps, monsters and rules
+  played natively, from your own AD install. Its weapons are VR models: the two-handed Widowmaker Gatling, the Shadow
+  Axe, the Plasma Gun, the crossbow, swords, hammer, mace and the death sergeant's flail. See
+  [vr-port/ARCANE_DIMENSIONS.md](vr-port/ARCANE_DIMENSIONS.md).
+- **Survival Arena** (Play > Survival Arena): waves that grow with you, armed and armoured foes, boss waves with
+  perks, supplies after each wave, banners with the wave, foes left, time and score. A budget director (on by
+  default) gives each wave a theme (Melee Rush, Ranged Siege, Elite, Knightfall...) and sends foes in groups, with a
+  surge or an ambush once or twice a wave. Debug > Tools > *Arena Wave Editor* makes your own wave lists.
+- **Flat screen:** see [Flat-screen play](#flat-screen-play).
+
+## Starting a run: Run Setup, presets and mutators
+
+New Game, a campaign's row, the Map Library's *Play*, the Levels list and the hub's campaign teleporter open **Run
+Setup** first: a summary line ("Hard / Unleashed / Pistol start"), then Difficulty, the presets and the mutators, and
+*Start*. Your last choices are kept for next time; a save remembers its run, and loading it brings that run back.
+
+- **Difficulty:** Easy to Nightmare, and Bloody Nightmare (Dawn of the Machine's rules, in any map). A start map with
+  skill halls offers only *Skill Halls* or Bloody Nightmare.
+- **Style** (the Gameplay preset; also VR Settings > *Gameplay Presets*): *Classic* (as close to Quake as Quake VR
+  gets: no reloading, plain grunts, Quake's look), *Light*, *Unleashed* (everything as shipped) or *My Settings*.
+  The hub's settings pavilion has a Classic Quake board.
+- **Gore** (the Gore preset; also Gore > *Gore Preset*): Full, Minimal, Off or My Settings.
+- **Armed Humanoids** and **Smarter AI**: as the Style sets them, or off or on.
+- **Starting Gun** (Shotgun, Nail Pistol, Heavy Revolver, Nothing) and **Starting Melee Weapon** (Axe, Dagger,
+  Nothing): what a new game starts with.
+- **Mutators:** *Melee Only* (guns and ammo can't be taken), *Glass Cannon* (you and the monsters take double
+  damage), *Randomized Pickups* (Balanced or Anything Goes: the map's items swapped as it loads; keys stay put),
+  *Ironman* (no saving; a death restarts the level with what you entered it with), *Enemy Count* (1x, 2x, 3x),
+  *Randomized Enemies* (Balanced or Anything Goes), and with armed humanoids on: *Ranged Knights* (knights carry
+  guns), *Wild Weaponry* and *Armored Foes*.
+- `vr_runsetup_ask 0` skips the screen and uses your last choices.
+
+## Flat-screen play
+
+Start the game with `-flatscreenmode` (the installer's "Quake VR Unleashed (Flat Screen)" shortcut) to play Quake
+VR's physical game with a mouse and keyboard: the hands and guns are drawn and simulated as in VR, posed per weapon
+and aimed at the crosshair from the muzzle.
+
+- **Mouse:** with one weapon, left click fires and right click aims down the sights (hold, or a toggle); dual
+  wielding, each button fires one hand.
+- **Keys:** Q / E lean (round corners, over a gun at a wall), 3 swaps hands, crouch at a run slides, X lies down, V
+  melee, G drop, mouse 4 or R force grab, mouse 5 shove, Z bullet time, F7 the toolgun, the middle mouse button the
+  holster menu; hold jump at a ledge in reach to mantle onto it. Every key is set in Movement > Locomotion > *Desktop
+  Screen Play* > *Flat Keys*.
+- Melee weapons with the other hand empty take a two-handed stance; punches, shoves and parries work as in VR.
+- The menus use the headset's layout in a panel, the mouse as the laser (Menu > *VR Menu Layout on a Flat Screen*).
 
 ## Multiplayer
 

@@ -1,0 +1,3 @@
+title Arcane Dimensions' ad_tears: decals near a translucent window, the first time (start Arcane Dimensions first)
+map ad_tears
+hint Find a translucent window and shoot the walls near it: no freeze the first time the decals and the window are in view.

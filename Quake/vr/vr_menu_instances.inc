@@ -617,8 +617,11 @@ void qvr::menu::runSetupScreenTest_f()
     check(items.size() > 0 && items[0].kind != Item::Header && !hasLabel(items, "Run Setup"),
         "no title, no recap: the page starts with the difficulty picker");
     check(allRows, "its rows: Difficulty, the presets, the mutators, Start");
-    check(ui().cursors[page] == static_cast<int>(items.size()) - 1 || ui().cursors[page] == 0,
+    const int cur = ui().cursors[page];
+    check(cur == 0 || (cur > 0 && cur < static_cast<int>(items.size()) && items[static_cast<size_t>(cur)].label &&
+                          !strcmp(items[static_cast<size_t>(cur)].label, "Start")),
         "the cursor on Start (or on Difficulty, the page longer than its view)");
+    check(items.size() > 1 && items[1].label && !strcmp(items[1].label, "Start"), "Start right after the difficulty picker");
     goBack();
     check(ui().page != page && runSetup.launch == runsetup::Launch::Library, "Back leaves it, nothing started");
 

@@ -1,103 +1,98 @@
 # Quake VR playtest checklist (VR menu > Checklist). One line = one thing to try: what to do and what to look for; tick what works, tell me what doesn't.
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired (their marks stay in checklist_ticks.txt); older items are in git history.
-# Sections run in play-test order: the flat-screen sections first (what you'd try at the desk: flat weapons, setup and menus, presets, monsters and navigation), then the headset's (body, melee, weapons, physics, the hub, the arena, recording and dev tools). A line that works in either mode sits where it is most natural to test. A line's text is the key of its tick: reword a line and it is untested again.
+# Sections run in play-test order: the flat-screen sections first (what you'd try at the desk: flat weapons, the run setup, menus and the Map Library), then the headset's (body, melee, weapons, physics, the hub, the arena, recording and dev tools). A line that works in either mode sits where it is most natural to test. A line's text is the key of its tick: reword a line and it is untested again.
 # A flat-only line starts "Flat-screen:"; a line that works in either mode starts "Flat-screen or VR:" (try it in either); the rest are for the headset.
 # New lines from a ship land in a [New: not yet sorted] section at the top (or in the section a lines file names on its first line, "[section: <name>]"); the next sort moves them into place and drops that section.
 # A line ending in {test:<id>} has a Test button: it loads quakevr/scenarios/<id>.txt's scene (docs/vr-port/TESTING.md, "Checklist scenarios"); give new lines one whenever a scene fits. Flat-screen lines' scenes work under -flatscreenmode too (the game's mode is picked at start-up, not by the scene).
-# Lines are only for something new or changed you can see or feel: one line per flow, never "works as before" (2026-11-08 rework: 210 lines down to 83; 2026-11-09 cleanup: every ticked line retired, 139 down to 66; 2026-11-09 format pass: plain words only, scenes named by {test:<id>} tags; 2026-11-11 reorganisation: 126 lines down to 86: the 13 ticked lines retired, 10 dropped (lines about a switch that was removed, "as before" lines, duplicates of newer lines) with the two leaked branch-name comments, 32 merged into 15 where one scene tests them (the crowd, tower, takes, parry, crawl, tunnel and arena director lines), the stale "vr_arena_director 0 (the default)" fixed; sections split by mode: Flat-screen, VR, Both modes; 2026-11-11 evening: 30 ticked lines retired, an emptied section kept for the next lines; 2026-11-13 reorganisation: 126 lines down to 79: the 45 ticked lines retired (the voice notes on them were addressed by later lines), 3 duplicates dropped, one line split in two; sections by mode and subject: Flat-screen, then VR; every line that can have a Test has one, 8 new scenes; docs/vr-port/CHECKLIST_REORG.md). Misc/quakevr/checklist_tests_check.py checks every tag's scene file and the format (no "(agent/", "Test:", scratch or qvr-agents paths, .sh names; sections in order).
-
-[New: not yet sorted]
-Flat-screen or VR: Official Campaigns: a campaign's row asks the Run Setup screen first; Arcane Dimensions keeps its own confirmation.
-Flat-screen or VR: Randomized Pickups, Balanced: ammo, armour and weapons are swapped for close ones, health stays health, keys and door items stay put.
-Flat-screen or VR: with the shotgun in the right hand and a spent flare gun in the left, swap hands, drop, holster and draw, reload and swap mid-reload in any order, pulling the triggers after each: an empty shotgun only clicks, a loaded one fires one shell, and no "ERROR: weapon clip less than zero" ever appears. {test:flat_clip_unpaid}
-Flat-screen or VR: play a campaign a little (Run Setup: e.g. Hard, Classic) until it autosaves, quit to the menu and open Select Campaign: under that campaign's row a "Continue (N min ago)" row with the run on the line below ("Hard / Classic ..."); pressing it loads straight into the save with those run choices, no Run Setup screen. Campaigns without an autosave have no Continue row.
-Flat-screen or VR: in the Map Library, pick an installed package you have played (and autosaved) in: a "Continue (N min ago): <run>" button sits above Uninstall / Reinstall and loads its newest autosave directly; a package never played shows none. Play still opens Run Setup for a brand-new run.
-Flat-screen: on a long settings page (Locomotion), the mouse wheel scrolls the page a quarter of its rows a notch and the selection stays on the page; Menu Look > Mouse Wheel Scroll sets it (0: row by row as before).
-Flat-screen or VR: the main menu's selected row's soft bar is now as faint as the settings pages' highlight; Menu Look > Big Menu Bar Opacity sets it.
-Flat-screen: in the holster menu (middle mouse), drag a weapon with the left button: hand to holster and back, hand to hand (swap), holster to holster (swap or move); valid slots light up, others grey, letting go on nothing cancels. {test:flat_holster_drag}
-Flat-screen or VR: Play > Official Campaigns: each campaign's title big and white, a small dim tag at its right only when it isn't just ready, its Continue indented under it with a play mark and a dim age, the run on a small dim line under that (cut at a part with "..."), a gap between campaigns, Arcane Dimensions under an Experimental header, Campaign Data Status and Return to VR Hub in a small footer; hover and selection clear on both the title and the Continue row.
-Flat-screen or VR: open Search, find a setting on a long page (e.g. Arm Drip Rate) and open it: the page lands with that row in the middle and a pulsing glow behind it for about 1.5 s (Menu Look > Search Result Flash and Search Flash Strength).
-Flat-screen or VR: walk forward and open the menu with Live Preview on: you stop at once and stay stopped; after closing the menu you don't walk again until you press forward again.
-Flat-screen or VR: Run Setup (Levels > e1m1): Difficulty, Starting gun, Starting melee weapon and Enemy Count are rows of pictures with names under them; the picked one sits on a lit plate, the others are grey and faded, the one under the mouse or laser is outlined in colour. Click each picture and use left/right: the choice follows, and the pictures read well on the VR panel.
-Flat-screen or VR: Run Setup's Difficulty has Bloody Nightmare as a fifth choice after Nightmare (no separate Bloody Nightmare row); pick it and Start: a Nightmare game with Bloody Nightmare's rules, and the save's Continue line says Bloody Nightmare.
-Flat-screen or VR: New Game or a campaign (start map with skill halls): Run Setup's Difficulty offers only "Skill Halls" or "Bloody Nightmare".
-Flat-screen or VR: Menu Look > Run Setup: Icon Pickers off gives plain choice rows; Icon Picker Size and Unpicked Dim change the pictures at once.
+# Lines are only for something new or changed you can see or feel: one line per flow, never "works as before". History of the sorts: git log of this file and docs/vr-port/CHECKLIST_REORG.md (latest: 2026-11-14 release audit, 94 lines down to 68, 71 with three from a later ship: the [New] section sorted, near-duplicates merged, every line cut to what to do and what to see, 3 new scenes). Misc/quakevr/checklist_tests_check.py checks every tag's scene file and the format (no "(agent/", "Test:", scratch or qvr-agents paths, .sh names; sections in order).
 
 [1. Flat-screen: weapons and hands]
-Flat-screen: hold the axe (then a sword, the crowbar, Mjolnir, the super axe) with the left hand empty: it goes onto the handle by itself without swinging and the weapon sits in a two-handed stance; take a weapon or a prop in the left hand and it eases back to the one-handed hold, with no jumps either way. Tune it in Debug > Tunables > Flatscreen > Two-Handed Melee Stance. {test:flat_melee2h}
+Flat-screen: hold the axe (then a sword, the crowbar, Mjolnir, the super axe) with the left hand empty: the left hand goes onto the handle by itself and the weapon sits two-handed; take something in the left hand: back to one hand, no jumps either way (Debug > Tunables > Flatscreen > Two-Handed Melee Stance). {test:flat_melee2h}
+Flat-screen: in the holster menu (middle mouse), drag a weapon with the left button between hands and holsters: valid slots light up, the rest grey; hand to hand or holster to holster swaps; letting go on nothing cancels. {test:flat_holster_drag}
+Flat-screen or VR: shotgun in the right hand, a spent flare gun in the left: swap hands, drop, holster, draw, reload and swap mid-reload in any order, pulling both triggers after each: an empty shotgun only clicks, a loaded one fires one shell, never "ERROR: weapon clip less than zero". {test:flat_clip_unpaid}
 
-[2. Flat-screen: setup, menus and the Map Library]
-Installer: install into a fresh folder; the "Set up the game" page shows the settings tree; pick Snap 45, Left-handed and Medium: set in the game. Change Turning in the game, run Update, change only Turn Speed: Turning stays as you set it.
-Flat-screen or VR: Select Campaign's Run Setup, then the Levels list's on e1m1: the page opens at its top with Difficulty in view (the cursor on Difficulty when Start would be off the page).
-Flat-screen or VR: Glass Cannon on: punches and swings at the firing range's dummy show twice the damage (not only shots); Melee Only: its guns and ammo can't be taken. {test:run_glass_dummy}
-Flat-screen or VR: change Enemy Count, Randomized Enemies and Pickups, then start from Levels, the Map Library, New Game, a campaign or the hub: the map has exactly those (no earlier run's). The Firing Range button uses the screen's mutators too.
-
-[3. Flat-screen: presets and gore settings]
+[2. Flat-screen: Run Setup, presets and mutators]
+Flat-screen or VR: Official Campaigns: a campaign's row opens Run Setup first; Arcane Dimensions keeps its own confirmation instead.
+Flat-screen or VR: New Game, or a campaign whose start map has skill halls: Run Setup's Difficulty offers only Skill Halls or Bloody Nightmare. {test:run_setup_newgame}
+Flat-screen or VR: Run Setup's Difficulty, Starting Gun, Starting Melee Weapon and Enemy Count are pictures with names: the picked one on a lit plate, the others grey, the hovered one outlined; clicks and left/right follow, and they read well on the VR panel. Menu Look > Run Setup: Icon Pickers off gives plain rows; Icon Picker Size and Unpicked Dim change them at once. {test:run_setup_newgame}
+Flat-screen or VR: the icon pickers (Run Setup's Difficulty, Starting Gun, Enemy Count) are shorter, the pictures keep their proportions (not stretched) and a name on two lines is tightly spaced; Menu Look > Icon Picker Size still resizes them. {test:run_setup_newgame}
+Flat-screen or VR: Run Setup shows the Start button right under the Difficulty picker, with Presets, Rules and Mutators below it. {test:run_setup_newgame}
+Flat-screen or VR: Levels > e1m1's Run Setup opens at its top with Difficulty in view (also after Select Campaign's Run Setup); Bloody Nightmare is a fifth picture after Nightmare: Start it and you get Nightmare with Bloody Nightmare's rules, and the save's Continue line says Bloody Nightmare.
+Flat-screen or VR: change Enemy Count, Randomized Enemies and Randomized Pickups, then start from Levels, the Map Library, New Game, a campaign or the hub: the map has exactly those, never an earlier run's; the Firing Range button uses them too.
+Flat-screen or VR: Randomized Pickups, Balanced: ammo, armour and weapons become close ones, health stays health, keys and door items stay put. {test:run_pickups}
+Flat-screen or VR: Glass Cannon: punches and swings at the firing range's dummy show twice the damage, not only shots; Melee Only: its guns and ammo can't be taken. {test:run_glass_dummy}
 Flat-screen or VR: Classic Quake (or Style Classic): no gun ever needs reloading, and e1m1's grunts are all plain shotgun grunts.
+Flat-screen or VR: Melee Only with the dagger, "maxplayers 2" and a bot (impulse 100): the bot holds the dagger, skips guns and ammo, and fights with the dagger.
 
-[4. Flat-screen: monsters and AI]
-Flat-screen or VR: Melee Only with the dagger, "maxplayers 2" and a bot (impulse 100): it holds the dagger, skips guns and ammo, and fights with the dagger.
+[3. Flat-screen: menus, campaigns and the Map Library]
+Flat-screen or VR: play a campaign until it autosaves, quit to the menu and open Select Campaign: a "Continue (N min ago)" row under that campaign, its run on the line below, loads straight into the save with no Run Setup; campaigns without an autosave have none.
+Flat-screen or VR: Map Library, an installed package you have autosaved in: a "Continue (N min ago): <run>" button above Uninstall / Reinstall loads its newest autosave; a package never played has none, and Play still opens Run Setup.
+Flat-screen or VR: Select Campaign reads at a glance: big white titles, a dim tag only when a campaign isn't ready, Continue indented under its campaign with a dim age, Arcane Dimensions under an Experimental header, a small footer; hover and selection clear on titles and Continue rows.
+Flat-screen or VR: Search a setting on a long page (Arm Drip Rate) and open it: the page lands with that row in the middle, glowing for about 1.5 s (Menu Look > Search Result Flash, Search Flash Strength).
+Flat-screen: on a long page (Locomotion) one mouse wheel notch scrolls a quarter of the rows and the selection stays on the page (Menu Look > Mouse Wheel Scroll; 0: row by row).
+Flat-screen or VR: the main menu's selected row has a soft bar as faint as the settings pages' highlight (Menu Look > Big Menu Bar Opacity).
+Flat-screen or VR: walk forward and open the menu with Live Preview on: you stop at once, and after closing it you don't walk until you press forward again.
+Flat-screen or VR: the small footer at the bottom of every settings page is one section called Advanced, holding Reset This Page and Menu Detail.
+Installer: install into a fresh folder and pick Snap 45, Left-handed and Medium on "Set up the game": the game has them. Change Turning in the game, run Update, change only Turn Speed: Turning stays yours.
 
-[5. Flat-screen: navigation and teleporters]
-
-[6. VR: body and gear]
-With armour on, set Advanced VR Options > Weapons > Reloading > X With Armour and Flashlight > Forward With Armour to a small value (about 3 units, 0.03 m; the scene sets those): the pouch and the belt torch should stand clear of the plates, and go back to normal when the armour is gone. {test:armour_gear}
+[4. VR: body and gear]
+With armour on, set Reloading > X With Armour and Flashlight > Forward With Armour to about 3 units (the scene does): the pouch and the belt torch stand clear of the plates, and go back when the armour is gone. {test:armour_gear}
 VR: teleport many times quickly (headset at 90 or 120 Hz): every release teleports you.
 
-[7. VR: melee and embedded blades]
-Stab a standing monster with the sword (not hard enough to stagger it), keep holding it, and let it walk into a teleporter: the sword comes back to your hand, not held from across the map. {test:embed_tele}
-Stab a grunt deep and hold the sword: swing your hand sideways, pull it back, lift it over your head with one hand pointing the sword up: the staggering body (and a dead one) follows your hand closely, a little behind, and hangs on the blade overhead; an axe the same, a bit less; an ogre much harder. Blade Hold Strength (Advanced VR Options > Combat > Embedded Blades, and VR Settings > Gameplay): at x0.25 it lags and sags, at x10 the body comes all the way up the blade and swings round with your wrist. {test:embed_stab}
-Hold a sword left in a dead grunt (or a staggering one) by its handle and lift your hand a little, turning your wrist as you do: the sword and the drawn hand stay on your real hand and rise with it, no further (they used to drift 30 cm off and jump up with the wrist); the body comes with the blade and goes round with your wrist. Grip the handle again a little off it: the handle comes to your hand in a fifth of a second. {test:embed_handle}
-Grip the handle of a sword left in a crate or in a body, the blade rolled or tilted any way: the drawn hand lies on the handle exactly as it holds that sword normally, not turned on it. {test:embed_handle}
-Stab a standing grunt hard so that it staggers and keep hold: if your hand went on past the hilt, or stopped short of it, the body is pushed or pulled along the blade until the handle is in your hand. Say if that feels wrong after a stab (Debug > Tunables > Moving: Held by the Handle turns it off, Moving: Handle Comes to the Hand sets how fast). {test:embed_handle}
-Stab a wooden crate and keep hold of the sword: move your hand aside and the crate comes with it, the handle staying in your real hand; lift, and one hand only tips it; turning your wrist doesn't swing the crate about. It is held by a joint at the handle now (Debug > Tunables > Moving: Held by the Handle turns it off). {test:embed_crates}
-Leave a blade in a crate or a barrel and push or pull the crate with your other hand or your body: the blade goes with it, where it went in. Grip the handle again a little to the side of it: the handle comes to your hand across the blade. {test:embed_crates}
-With a gib, a head or a limb skewered on your sword, reach for it with your free hand: the grip takes it only with your hand at the gib itself, and the hand is drawn on the gib's surface (it used to float 9 cm or more off it, on a ball the size of its box). {test:skewer_grip}
-Run at a grunt and throw the knight's sword or the dagger hard, point first: it dies whole (no gibs), falling with the blade deep in its body (about 80% of the blade in); with Quad it still gibs, and handle-first or flat throws are as before. {test:throw_nogib}
-Hold the dagger or a sword and press B (or Y on the off hand): it turns half round in your hand over a fifth of a second with a click, blade down, the thumb over the pommel; press again to flip it back. {test:revgrip}
-Toss the dagger, let it turn over in the air and catch it blade down: you hold it reversed; caught blade up, upright. A force grab always takes it upright, and a reversed blade holstered and drawn again stays reversed. {test:revgrip}
-Held blade down, stab the grunt from above: the blade sticks in, and your hand on its handle in the body looks the same as holding it. {test:revgrip}
+[5. VR: melee and embedded blades]
+Stab a standing monster with the sword without staggering it, keep holding, and let it walk into a teleporter: the sword comes back to your hand, not held from across the map. {test:embed_tele}
+Stab a grunt deep and hold the sword: swing sideways, pull back, lift it overhead: the body (alive or dead) follows your hand a little behind and hangs on the blade; an axe a bit less, an ogre much less. Blade Hold Strength x0.25 lags and sags, x10 pulls the body up the blade and round with your wrist. {test:embed_stab}
+Hold a sword left in a dead or staggering grunt by its handle and lift a little, turning your wrist: the sword and the drawn hand stay on your real hand, and the body comes with the blade; grip it a little off the handle: the handle comes to your hand in a fifth of a second. {test:embed_handle}
+Grip the handle of a sword left in a crate or a body, the blade rolled or tilted any way: the drawn hand lies on the handle exactly as it holds that sword normally. {test:embed_handle}
+Stab a standing grunt hard enough to stagger it and keep hold: if your hand went past the hilt or stopped short, the body slides along the blade until the handle is in your hand (Debug > Tunables > Moving: Held by the Handle, Moving: Handle Comes to the Hand). {test:embed_handle}
+Stab a wooden crate and keep hold: move your hand aside and the crate comes along with the handle in your hand; lifting with one hand only tips it, and turning your wrist doesn't swing it about. {test:embed_crates}
+Leave a blade in a crate or a barrel and push or pull the crate with your other hand or your body: the blade goes with it, where it went in. {test:embed_crates}
+With a gib, a head or a limb skewered on your sword, reach for it with your free hand: it takes it only at the gib itself, and the hand is drawn on the gib's surface, not floating off it. {test:skewer_grip}
+Run at a grunt and throw the knight's sword or the dagger hard, point first: it dies whole, falling with about 80% of the blade in its body; with Quad it still gibs, and handle-first or flat throws are as before. {test:throw_nogib}
+Hold the dagger or a sword and press B (Y on the off hand): it turns half round in a fifth of a second with a click, blade down, thumb over the pommel; press again to flip it back. {test:revgrip}
+Toss the dagger so it turns over and catch it blade down: you hold it reversed (caught blade up: upright); a force grab takes it upright; holstered and drawn, a reversed blade stays reversed. {test:revgrip}
+Held blade down, stab the grunt from above: the blade sticks in, and your hand on its handle looks the same as holding it. {test:revgrip}
 
-[8. VR: weapons and grips]
-Pick up the new dagger (it lies in your main hand here, the knight's sword in the other to compare): it should look like the sword's clean steel, a third of its blade, a smaller guard and grip, and sit in your hand as the sword does. {test:dagger}
-Swing and stab the grunt with the dagger: a stab should stick in a third as deep as the sword's and hold the body as a sword stab does; a throw should stick point first; it hurts about 0.6 of the sword (Combat > Weapon Damage > Melee > Dagger). {test:dagger}
-The dagger: stab a severed head and a limb onto it: each sits a little way back from the tip, well short of the hilt (shallower than on the sword), and a second gib will not go on while one is on it; the sword takes up to three as before. {test:dagger}
-Let the armed grunt with the dagger fight you, and disarm it: it should hold and swing the dagger one-handed as grunts hold swords, and pick it up again. {test:dagger}
+[6. VR: weapons and grips]
+Pick up the dagger (in your main hand here, the knight's sword in the other to compare): the sword's clean steel, a third of its blade, a smaller guard and grip, sitting in your hand as the sword does. {test:dagger}
+Swing and stab the grunt with the dagger: a stab sticks a third as deep as the sword's and holds the body as a sword stab does, a throw sticks point first, and it hurts about 0.6 of the sword (Combat > Weapon Damage > Melee > Dagger). {test:dagger}
+Stab a severed head and a limb onto the dagger: each sits a little back from the tip, short of the hilt, and a second gib won't go on while one is on it (the sword still takes three). {test:dagger}
+Let the armed grunt with the dagger fight you, then disarm it: it holds and swings the dagger one-handed as grunts hold swords, and picks it up again. {test:dagger}
 Flat-screen or VR: daggers lie beside the two swords in the firing range and in the toolgun's Weapons list; holster one and throw one as you would the sword. {test:dagger}
-The super axe's blade shape and muzzle, and the slot 36 torch offsets, are now your tuned defaults: check they look as you left them. {test:superaxe_blade}
+The super axe's blade shape and muzzle and the slot 36 torch offsets are your tuned values: they look as you left them. {test:superaxe_blade}
 Clip the flashlight on the super shotgun and break it open: the torch and its beam drop with the barrels instead of the barrels swinging through it. {test:ssg_open_torch}
-Flat-screen or VR: load shells into the open super shotgun: their brass heads sit flush with the barrels' breech face, not sunk in the bores; an empty chamber still shows its open bore. {test:ssg_open_torch}
-Flat-screen or VR: fire the grenade launcher, then force-grab the lit grenade out of the air: its fuse starts over at the full 2.5 s with a small re-arm click and a flare of sparks, the fizz and ticks start again from the top (one stream, no leftover from before), and you can throw it again and hear it properly. {test:grenade_countdown}
-Flat-screen or VR: hold the rocket launcher and look down it from your hand: the three vents at the back of the front shroud (the chevron on the top fin, an arch on each side fin) are real holes now, black inside with walls and a back, not just paint; the pickup on the floor shows them too. {test:rl_vents}
-VR: a very quick trigger or grip press and release still registers (fire, grab).
+Flat-screen or VR: load shells into the open super shotgun: their brass heads sit flush with the breech face, not sunk in the bores; an empty chamber shows its open bore. {test:ssg_open_torch}
+Flat-screen or VR: fire the grenade launcher and force-grab the lit grenade out of the air: its fuse restarts at the full 2.5 s with a re-arm click and sparks, one fizz and tick stream from the top, and you can throw it again. {test:grenade_countdown}
+Flat-screen or VR: look down the rocket launcher from your hand: the three vents at the back of the front shroud are real holes, black inside with walls and a back; the floor pickup shows them too. {test:rl_vents}
+VR: a very quick trigger or grip press and release still fires or grabs.
 VR: let go of a gun and grab it again quickly: the re-grab always takes it.
 
-[9. VR: physics, bodies and gore]
-With drips on, get something wet, then reload the same map (a restart or a save of this level): no crash. {test:waterdrips}
-Push a grunt and a hell knight gently off a high ledge so they grab its lip: the grunt should pull itself up and climb in onto the top without its hips sinking back onto the edge, and the hell knight should get its second hand onto the lip as it pulls itself up instead of hanging on one hand. {test:rag_hang}
-VR or flat: particles (blood, smoke, sparks, muzzle wisps) look as before.
+[7. VR: physics, bodies and gore]
+With drips on, get something wet, then reload the same map (a restart, or a save of this level): no crash. {test:waterdrips}
+Push a grunt and a hell knight gently off a high ledge so they grab its lip: the grunt climbs onto the top without its hips sinking back onto the edge, and the hell knight gets its second hand onto the lip as it pulls up. {test:rag_hang}
+Flat-screen or VR: particles (blood, smoke, sparks, muzzle wisps) look as before the memory rewrite.
+Flat-screen or VR: on ad_tears, shoot walls near a translucent window: no freeze the first time the decals and the window are in view. {test:ad_tears_window}
 
-[10. VR: the hub]
-In the hub's settings pavilion, the new Classic Quake board inside the east railing (north of the stairs down): press it (its screen says On and the hub takes Quake's look), press again (Off: your settings, everything back). {test:hub_classic}
+[8. VR: the hub]
+In the hub's settings pavilion, press the Classic Quake board inside the east railing (north of the stairs down): its screen says On and the hub takes Quake's look; press again: Off, your settings back. {test:hub_classic}
 
-[11. VR: Survival Arena (Play > Survival Arena)]
-The arena is nice: play it, feels good? Note improvements. {test:arena_run}
-Survival Arena waves start without a hitch at each new wave. {test:arena_run}
-Survival Arena from wave 6 on (Normal): grunts and enforcers now come with the heavy revolver, the burst rifle, the enforcer's laser rifle, the knight's and death knight's swords, the chainsaw, Mjolnir and the Super Axe, each first on one foe at its own wave and then in the mix; their drops are yours to pick up and fire. {test:arena_newguns}
-Survival Arena with Arcane Dimensions' data: from wave 11 (Normal) the waves also bring AD's soldiers' guns (defender's shotgun, crossbow, grenade and rocket launchers, plasma rifle, flamethrower, centurion's plasma gun, poison sprayer), the Widowmaker, Shadow Axe and Plasma Gun, and AD's swords, hammer and mace.
+[9. VR: Survival Arena (Play > Survival Arena)]
+Play the arena a while: it feels good and each new wave starts without a hitch; note anything to improve. {test:arena_run}
+Survival Arena from wave 6 (Normal): grunts and enforcers bring the heavy revolver, burst rifle, laser rifle, the knights' swords, chainsaw, Mjolnir and the Super Axe, each first on one foe at its wave; their drops are yours to fire. {test:arena_newguns}
+Survival Arena with Arcane Dimensions' data: from wave 11 (Normal) the waves also bring AD's soldiers' guns, the Widowmaker, Shadow Axe and Plasma Gun, and AD's swords, hammer and mace.
 Survival Arena budget director (on by default: Combat > Survival Arena > Budget Director; docs/vr-port/ARENA_DIRECTOR.md):
-- Start a run without changing any setting: the budget director runs it (each countdown names the wave's theme, such as "Wave 3 in 3... Melee Rush"); turn Budget Director off and the next run plays exactly the classic waves. {test:arena_run}
-- A run's waves change every run, and a wave's foes follow its theme (a Melee Rush brings blades and dogs, a Ranged Siege guns from far, an Elite few armoured big ones). {test:arena_gunknights}
-- Spawns come in small groups with a pause after each; kill an arrival quickly and the next group waits for you, dawdle and they pile up. Once or twice a wave a "SURGE!" (or "AMBUSH!", behind you) with a horn brings a bigger group from several sides at once. {test:arena_run}
-- Knights and death knights carry real guns from about wave 12 / 18 (shotguns, nailguns, launchers), fire them at you and drop them when they fall; a Knightfall wave is mostly them; a boss wave can bring a death knight in red armour with the best gun so far (a rocket launcher, a laser cannon). {test:arena_gunknights}
-- A kill within 4 s of the foe coming in counts as a quick kill: the wave clear line says "N quick kills: +score". {test:arena_run}
-- A clear's supplies grow with the wave beaten and lean on how you're doing: badly hurt, more medkits (a megahealth when very low); untouched, now and then a quad, a ring or (late) a pentagram; red armour from wave 22.
-Debug > Tools > Arena Wave Editor: build a wave with an armed grunt, dual axes, red armour and infected with shambler; save, assign it to Normal, Play from wave 1: the panel readable, laser, stick scrolling and panel keys work. {test:vrarena_calm}
+- Start a run without changing anything: each countdown names the wave's theme ("Wave 3 in 3... Melee Rush"); with Budget Director off the next run plays the classic waves. {test:arena_run}
+- Waves change every run and follow their theme: a Melee Rush brings blades and dogs, a Ranged Siege guns from far, an Elite a few armoured big ones. {test:arena_gunknights}
+- Spawns come in small groups with a pause after each: kill an arrival quickly and the next waits, dawdle and they pile up; once or twice a wave a horn and "SURGE!" (or "AMBUSH!" behind you) brings a bigger group. {test:arena_run}
+- From about wave 12 / 18 knights and death knights carry real guns, fire them and drop them; a Knightfall wave is mostly them; a boss wave may bring a death knight in red armour with the best gun so far. {test:arena_gunknights}
+- A kill within 4 s of the foe arriving is a quick kill: the wave clear line says "N quick kills: +score". {test:arena_run}
+- A clear's supplies grow with the wave and lean on how you're doing: badly hurt, more medkits (a megahealth when very low); untouched, now and then a quad, a ring or late a pentagram; red armour from wave 22.
+Debug > Tools > Arena Wave Editor: build a wave with an armed grunt, dual axes, red armour and infected with shambler, save it, assign it to Normal and play from wave 1: the panel readable, laser, stick scrolling and panel keys work. {test:vrarena_calm}
 
-[12. VR: recording and dev tools]
-Takes: with OBS running, press TAKE on the wrist gadget, act, press STOP; a small blinking red light shows in the headset while it runs (never in OBS's recording or the mirror), then the rating prompt; KEEP renames OBS's file to <date>_<scene>_t01_keep, REJECT moves it to rejected/. During a take hold the left grip and press X then Y: vr_take_list shows an in and an out mark there, and X / Y did nothing in the game. Press SET UP, knock a few props about, then RETAKE: the scene comes back as set up and a new take starts by itself. {test:takes}
-Takes, Clip That: with a take session open, play a little, press CLIP on the gadget (or F8): OBS's folder gets a <date>_<scene>_tNN_clip file holding the last seconds, which KEEP / MAYBE / REJECT rate like a take. Flat-screen: F7 starts and stops a take (a small REC line top right while it runs, the prompt after), keypad 1 / 2 / 3 rate it, F8 clips, Home / PgUp mark in and out. {test:takes}
-Takes: record a voice note during a take, shoot a few takes with in/out marks, rate some keep and maybe, transcribe the notes, press END on the gadget; OBS's folder gets session_<date>/ with the keep and maybe files, session.json and timeline.fcpxml, which Resolve imports (File > Import > Timeline) as the keep takes trimmed to their marks, then the maybe ones, the voice notes as markers. {test:takes}
+[10. VR: recording and dev tools]
+Takes: with OBS running, press TAKE on the wrist gadget, act, press STOP: a small blinking red light in the headset only, then the rating prompt; KEEP renames OBS's file to <date>_<scene>_t01_keep, REJECT moves it to rejected/. Left grip + X then Y marks in and out (vr_take_list shows them, X / Y do nothing in game); SET UP, knock props about, RETAKE: the scene comes back and a new take starts. {test:takes}
+Takes, Clip That: in a take session press CLIP (or F8): OBS's folder gets a <date>_<scene>_tNN_clip file of the last seconds, rated like a take. Flat-screen: F7 starts and stops a take (a REC line top right), keypad 1 / 2 / 3 rate it, F8 clips, Home / PgUp mark in and out. {test:takes}
+Takes: record a voice note in a take, shoot a few takes with marks, rate some keep and maybe, transcribe, press END: OBS's folder gets session_<date>/ with the files, session.json and timeline.fcpxml, which Resolve imports as the keep takes trimmed to their marks, then the maybe ones, the notes as markers. {test:takes}
 Start the Armour Studio near an armed grunt, then leave the menu (or close the studio's window): the grunt fights again and your blows hurt it. {test:armourstudio_close}
-Debug > Embedded Blades: Why, in slow motion: each stab says why it stuck or not, why it came out, how far a miss was off; a sound when a blade stays in or comes out. {test:embed_stab}
+Debug > Embedded Blades: Why, in slow motion: each stab says why it stuck or not, why it came out and how far a miss was off, with a sound when a blade stays in or comes out. {test:embed_stab}
 Show Melee Arcs: each blow's own rule is drawn (a spawn's leap ring, the dragon's tail all round, a vore's shove cone, armed grunts' arcs). {test:agrunt_melee_spacing}

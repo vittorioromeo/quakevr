@@ -229,7 +229,7 @@ struct Item
     // A setting that can't be used here (unavailable()): dimmed, shown off, not changed; its help says why.
     bool unavailable{false};
 
-    // How it is drawn (Menu Look; ROUND25.md, "Menu look"): Minor (minor(): every page's This Page and Menu Detail
+    // How it is drawn (Menu Look; ROUND25.md, "Menu look"): Minor (minor(): every page's Advanced footer
     // sections, smaller and fainter: vr_menu_minor_*), Big (big(): Run Setup's Difficulty, letters vr_runsetup_big
     // times a row's), Button (button(): Run Setup's Start, a large button of its own, centred, below a gap).
     // A group of list rows (Select Campaign's campaigns; ROUND25.md, "campvis"): Lead (lead(): a group's first row,
