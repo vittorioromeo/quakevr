@@ -2,12 +2,17 @@
 
 A **run** is a game from its start to the next start: Single Player > New Game, the Map Library's Play, an Official
 Campaign's row, the hub's teleporter to the start map. Each of those opens the **Run Setup** screen first (a VR page,
-`vr_menu_runsetup.inc`, opened from the flat menus too): Difficulty (Easy .. Nightmare, and Bloody Nightmare as its
-fifth choice, always offered), the presets (Style = the Gameplay preset, Gore), the mutators, and Start. Difficulty,
-the Starting gun and melee weapon and Enemy Count are icon pickers (`vr_menu_icons.inc`). `vr_runsetup_ask 0` skips
-the screen (the last choices are used). A start map with skill halls (id's start, a pack's hall, every campaign, New
-Game, the hub): its halls choose, so its Difficulty row is only Skill Halls or Bloody Nightmare; the presets and
-mutators are still asked.
+`vr_menu_runsetup.inc`, opened from the flat menus too): Start first (always the first row, the cursor on it), then
+Difficulty (Easy .. Nightmare), the presets (Style = the Gameplay preset, Gore) and the mutators. Difficulty, the
+Starting gun and melee weapon and Enemy Count are icon pickers (`vr_menu_icons.inc`), their cards spaced alike.
+`vr_runsetup_ask 0` skips the screen (the last choices are used). A start map with skill halls (id's start, a pack's
+hall, every campaign, New Game, the hub): its halls choose, so the screen has no Difficulty at all (Start, then the
+presets and mutators).
+
+Bloody Nightmare (Dawn of the Machine's hidden difficulty) is not in the menus (his call, 2026-11-15): the game's own
+way in only (its hub's relay, Chthon on skill 3: QC `vr_mg3_*`). A save of such a game (`bn=1`) loads and says so in
+its summary; an old config's `vr_maps_skill 4` or `vr_runpick_bn 1` becomes Nightmare. `vr_mg3_bn_start 1` (with skill
+3, before Dawn of the Machine's start map) is left as a console and test aid.
 
 ## How a choice works
 
@@ -103,8 +108,8 @@ choices themselves are the engine's line.
 
 | id | options | does |
 | --- | --- | --- |
-| `skill` | Easy..Nightmare, Bloody Nightmare | Quake's skill (pick: `vr_maps_skill`, 4 Bloody Nightmare; the run's `skill` at most 3) |
-| `bn` | Off, On | Dawn of the Machine's Bloody Nightmare (`vr_mg3_bn_start` at the start; serverflags carry it): no row of its own, on while Difficulty's pick is Bloody Nightmare (an old config's `vr_runpick_bn 1` becomes that pick); saves keep `skill=3 bn=1` |
+| `skill` | Easy..Nightmare | Quake's skill (pick: `vr_maps_skill`; an old config's 4 becomes 3); not shown with skill halls |
+| `bn` | Off, On | A saved game's Bloody Nightmare (an older save's `skill=3 bn=1`: its summary says "Bloody Nightmare"): no row, no pick (an old config's `vr_runpick_bn 1` becomes Nightmare), 0 at every start; the game's serverflags carry the real thing |
 | `style` | My Settings, Classic, Light, Unleashed (default) | the Gameplay preset |
 | `gore` | My Settings (default), Full, Minimal, Off | the Gore preset |
 | `armed` | As Style, Off, On | `vr_agrunt_repl`, `vr_agknight`, `vr_agdknight` |
@@ -213,10 +218,11 @@ choices themselves are the engine's line.
 
 - `vr_run` prints the run (and the screen's picks); `vr_run <id> <value>` sets one (applied); `vr_run start`;
   `vr_runsetup [hub|newgame]` opens the screen.
-- `vr_runsetup_test` (73): the registry, a run's start, the held rows, the save line round trip (a run's choices and
+- `vr_runsetup_test` (80): the registry (Bloody Nightmare's migration and old saves), a run's start, the held rows, the save line round trip (a run's choices and
   the presets' values; the line fits its buffer with every choice at its longest), an old save, the hub. Presets' My Settings in the test files; settings set back.
-- `vr_runsetup_screen_test` (21): each way in opens the screen, skill halls hide
-  Difficulty, a held row is a line, the page opens at its top (Difficulty in view), Back, Start.
+- `vr_runsetup_screen_test` (50): each way in opens the screen with Start its first row and the cursor on it, skill
+  halls hide Difficulty (elsewhere it is second, then Style and Gore), Difficulty's four cards spaced as the weapon
+  pickers', the icon pickers' clicks and keys, a held row is a line, Back, Start.
 - `vr_runlaunch_test` ("runlaunch: N passed"; menu side `vr_menu_instances.inc`, QC `VR_Run_LaunchCheck`): every way
   in (Levels, the Map Library's Start, New Game, Official Campaigns, the hub's teleporter, a load, the Firing Range
   button, `vr_run` then `map`), each with other choices than the run before: the map spawned with the run's values

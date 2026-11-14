@@ -6,6 +6,7 @@
 #include "vr_edictindex.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_progs.hpp"
+#include "vr_physics.hpp"
 #include "vr_testkit.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
@@ -1965,6 +1966,24 @@ namespace
     }
     return gap;
 }
+
+// Whether the local player's `hand` takes the weapon `e` only by its resting on or against the hand (the listen server's:
+// physics::weaponOnHandOnly). Not hosting: false.
+[[nodiscard]] bool onHandOnly(const entity_t& e, int hand)
+{
+    const int num = static_cast<int>(&e - cl_entities);
+    if(!sv.active || num <= 0 || cl.viewentity <= 0)
+    {
+        return false;
+    }
+    const progs::ServerVm vm; // (the server's fields: the view runs outside its VM)
+    if(num >= qcvm->num_edicts || cl.viewentity >= qcvm->num_edicts)
+    {
+        return false;
+    }
+    edict_t* weapon = EDICT_NUM(num);
+    return !weapon->free && physics::weaponOnHandOnly(weapon, EDICT_NUM(cl.viewentity), hand);
+}
 } // namespace
 
 // Each frame, before the weapons are placed: for each empty hand, the weapon lying nearest it, and the hotspot it would
@@ -2038,6 +2057,14 @@ void updateGroundSpots(const hands::State& s)
                     closest = za::fmax(surface, 0.f);
                     spot = twohand::anywhereSpot;
                 }
+            }
+            // On or against this hand, out of the fist's reach (a gun on the open palm, over the fist closing under it):
+            // the server takes it where it touches the hand (physics::weaponOnHandOnly), so it is carried there, anywhere
+            // on it, not by a handle or hotspot the fist doesn't reach.
+            if(vr_weapon_grab_anywhere.value && onHandOnly(*e, hand))
+            {
+                closest = 0.f;
+                spot = twohand::anywhereSpot;
             }
             if(vr_debug_2h_grip.value >= 2.f && vr_gametime >= groundPrintAt)
             {

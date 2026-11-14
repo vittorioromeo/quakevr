@@ -2633,8 +2633,96 @@ Cherry-picked 6b8e74432: VR_CrtHeapLoadHold now defined without mimalloc (QVR_MI
 - `mp_cosmetics` 14/0 (grown), `mp_flatbody` 6/0 (new); the suite 23 of 24 (`mp_flow`'s autosave list once, then 16/0).
   Single player: scenario_check PASS (147), load_models 4/0, vr_run_check 12/0. Next: B6c (the armour plates on other
   players' bodies). Details: MP_PLAN.md, "B6b results".
+## Reset This Page and changes on the weapon and prop pages (branch agent/pagereset, 2026-11-15)
+
+His 11-15 note: he changed the shotgun's two-handed hotspot by accident and had no way back. Every page with settings
+now has the footer's Reset This Page (two presses within 3 seconds), the weapon and prop pages too (`slotPage`: the
+Weapon Offsets main page and its parts, Weapon Weights, Held Object Offsets and Weights), which had none.
+
+- **Reset This Page on a weapon or prop page** resets the rows shown, as on any page: the page's weapon's (or prop's)
+  values back to that slot's own default (its `vr_wofs_*_NN` / `vr_prop_*_NN` stand-in's default: weapons.txt's,
+  props.txt's), the slot the page edits (an inheriting weapon's page edits its parent's: those). On Two-Handed and
+  Hotspots only the hotspot shown (the others stay); on Holstered only the holster kind shown. The page's other settings
+  (Show Hotspots, Preview in Holster, the Weapon Weights page's global weight rows) go back too. Reset This Weapon,
+  Holstered Back to 0 and the rest stay as they were. The page is rebuilt after (`slotPageReset`: a hotspot's type).
+- **The menus' own state:** the Hotspot and Holster pickers (`vr_weapon_hotspot`, `vr_weapon_holster`) are no longer
+  "changed" settings: no `*`, not on Changed Settings, never reset.
+- **The `*`** by a changed row already compared with the stand-in's default (the slot's): unchanged.
+- **Changed Settings** lists every weapon's and prop's changed values, not just the held one's, each under a header
+  "Weapon: progs/v_shot.mdl (_02)" / "Prop: maps/b_explob.bsp (_01)", labelled by part ("Hand and Grip: Offset X
+  (forward)", "Muzzle and Sights: Muzzle X", "Weight: Mass"), a hotspot's "Hotspot 2: Hotspot X", a holster's "Hip:
+  Holstered X (off body)"; each row the page's own (its range, its help), changed or put back there.
+  `listSlotChanges` (vr_menu_wofs.inc) builds each changed slot's pages for it (`SlotListing`: the slot, each hotspot,
+  each holster kind; the pages' titles into their own strings, the pages' state put back after), skipping inheriting
+  slots (listed under the parent) and Inherit From (its choices are the page's texts). A changed value no page variant
+  shows (a manual curl while Fingers is Automatic) isn't listed; Reset This Weapon still resets it. The weapon pages'
+  other settings stay under their page's title.
+- **Test:** `Misc/quakevr/menu_pagereset_test.sh <agent>` (`menu_vr pageresettest`; the weapon pages pinned to the
+  shotgun's slot, `pinSlotPages`: no map): hotspot 1 X changed -> `*`, on Changed Settings under the shotgun ->
+  Reset This Page on Two-Handed restores the weapons.txt default; hotspot 2 X, Shot Pitch (another page), the
+  nailgun's hotspot and the picker kept; a prop's Mass listed under its name. 14/0.
+- **Audit** (pages with values): every VR menu page with a setting row gets Reset This Page from `addMenuDetail` (Debug,
+  Tunables, the Armour Studio menu page, the presets' pages...); none other was left out. Without one, by design: Search,
+  Console and Maps (drawn their own way), Changed Settings (the list itself), the presets' choices (as before). The
+  studios' own windows (Weapon Studio, Rig Studio, Armour Studio's window, Pose Studio, the blade editor) are not menu
+  pages: they keep their own resets (reset this slot, Reset This Pose, Reset Part/Kind, Reset Pose/Grips, Reset Blade)
+  and draw no `*`; the weapon values they change show on Changed Settings now.
 ## flat1115a: icon pictures' aspect, card gap, red banners, Arcane Dimensions with the campaigns (agent/flat1115a, 2026-11-15)
 
+## coopdisarm
+
+His report (flat, 11-15, on next): a coop listen game on e1m1, a bot added, the first grunt disarmed by shooting its gun,
+then unkillable though it walked to him and punched. **Not reproduced**; a regression test added.
+
+- New `vr_agrunt_test 215` (QC/vr_armedgrunt_coopdisarm_test.qc): a shotgun grunt (or with `scratch3 1` the map's own
+  nearest armed grunt, e1m1's replacement, brought ahead) hunting the player; the player's shotgun blasts
+  (FireBulletsImpl, as his: VR_AGS_Shot's disarm by shots) at its gun until it is knocked out (its body's health held
+  at 1000 meanwhile, its own back after), `scratch4` seconds disarmed (fists, its seek for a weapon; default 1), then
+  blasts on its body until it dies. Ends on `agtest: test 215 over`.
+- Results: single player (vrtesthall), coop without a bot (e1m1's own Burst Rifle grunt 4 s disarmed; vrtesthall's 8 s), coop with
+  a FrikBot (vrtesthall and e1m1), coop with `teamplay 1`, `vr_flatplay 1`: every one shot out in 1-4 blasts and killed in
+  1-2 body blasts (health 30 -> 6 -> dead); with a bot near, the bot's shots killed it first (a normal corpse).
+  `vr_agrunt_test 2` (disarm, rearm, kill) 4/0, `203` (dual disarm) 81/0.
+- Read and ruled out: T_DamageDeal's early outs after a disarm (takedamage, FL_GODMODE, invincible_finished,
+  FL_SPECIFICDAMAGE/VR_DamageCredit, TeamHealthDam: the player's steam is his team, never a monster's 0), the
+  shot-blocking held-weapon test (VR_AGS_Held needs it in the grunt's hand), VR_AG_DisarmTry's stagger, the coop branches
+  in ai.qc and the armed grunt files (none touch damage), FrikBot (sets no monster's flags, health or takedamage).
+- Not covered: his real flat input. `-flatscreenmode` under the mock headset leaves `.vr_flatscreen` 0, so a `+attack`
+  tap fires from the mock hand, not the view; the test fires the same pellets the gun does. If it recurs: his teamplay
+  setting, the weapon used after the disarm, and whether its body bled would split damage-not-dealt from
+  damage-not-landing.
+- agent/mp: no change to the damage, disarm or armed-grunt paths (its QC diff is PvP parry, holsters, pickups, test
+  impulses), so neither the bug nor a fix is there.
+## palmgrab: closing a hand on a gun resting on or against it (branch agent/palmgrab, 2026-11-15)
+
+His design (2026-11-15; MP_PLAN B3c, agent/mp's 0a203126f, whose 12 cm `vr_weapon_palm_grab_slack` is NOT taken): a
+hand closing on a gun that rests on or leans against that hand's Box3D body (the open hand; a gun on the open palm sits
+3-5 cm over the fist that closes under it) takes it, with no reach beyond the fist's anywhere:
+- The fist reaches it (the same test as before: `held::grabTouch` with `vr_weapon_grab_slack`, the handle's
+  `vr_weapon_grab_handle_leniency` / `vr_weapon_catch_handle_leniency`): as before, by the handle within
+  `vr_weapon_grab_anywhere_min` (gun mode), a hotspot, or anywhere on it.
+- The fist doesn't reach it but it is on or against the hand (`box3d::restsOnHand(..., minUp -2)`: any contact with the
+  hand's body): taken where it lies against the hand, as a prop, anywhere on it (`twohand::anywhereSpot`: carried,
+  QVR_WPNFLAG_FOREGRIP_CARRIED), never moved onto its handle or a hotspot the fist doesn't reach.
+- Neither: nothing (a hand closing a few centimetres off a gun takes nothing, as before).
+
+Code: `vr_physics.cpp` onWeapon (the slack computation split out as `weaponGrabSlack`; `weaponAgainstHand`), the view's
+choice in `vr_view_hands.cpp` updateGroundSpots through `physics::weaponOnHandOnly` (one test, both sides).
+`box3d::restsOnHand` takes `minUp` (default `restOnHandUp`, 0.3, the old `restUp`). The local player only (another
+player's hand has no anywhere hold: it takes handles only, as before), and only with `vr_weapon_grab_anywhere` on.
+
+Test: `vr_pickup_test 17` (VR_PalmGrabTest_*; ends `palmgrab test:`, 5 checks): the shotgun let go of low over the
+floor lies there; the off hand, steered onto marks by its measured place (world units back to mock metres), (A) closes
+on its handle: gun mode; (C) closes 12 units over its barrel: nothing; (B) the same with the gun against the hand: a
+prop, carried. The contact in (B) is stood in for by `vr_test_handcontact <hand> <0|1>` (a test command: a weapon within
+half a metre of that hand counts as against it, in the same weaponAgainstHand the physics' contact goes through):
+headless, a gun let go of onto the mock's open palm doesn't stay there (it tips off or passes through the thin open-hand
+box; probed over heights 1.15-1.5 m, offsets 0-25 cm, the shotgun and the heavy revolver, with and without
+`vr_gunangle 0`), so the physical rest itself is his to check (scenario `palmgrab`). The mock's hand angles carry
+vr_gunangle (mock pitch 0 is about 69 degrees down): the test's poses pitch up 69. The view's check runs in the server's
+VM (`progs::ServerVm`: without it the view never saw the contact and (B) was taken by the handle). Unchanged:
+pickup_mag 3/3, crate_grip (carry2h_grip 10/0), flatholster 54/0, revgrip (vr_embed_test 42) 24/0; Release-TracyFull 0
+warnings.
 - **Icon pictures stretched (the real cause):** the VR menu canvas scales y more than x (`VR_MenuCanvas`: the row
   spacing; about 2x on the flat panel). Glyphs keep their size (`Draw_KeepMenuGlyphSize`) but `Draw_TextureRect` did
   not, so menutweak's fit (in menu pixels) still came out about twice as tall. `Draw_MenuStretch()` (gl_draw.c) gives
@@ -2659,6 +2747,42 @@ Cherry-picked 6b8e74432: VR_CrtHeapLoadHold now defined without mimalloc (QVR_MI
   missing, checklist_tests_check 51/0. Builds: dev and ReleaseLTO 0 warnings. Shots: qvr-kit/scratch/flat1115_shots/
   (icons_before_after, campaigns_before_after, completed_before_after).
 
+## Directional parry timing: the right direction always parries (branch `agent/parrytime`)
+
+His rule (2026-11-15): "As long as the direction of the player's gun/sword/etc is correct for a directional parry, it should
+count as a valid parry. But if it's early or late, the stagger effect should be severely diminished, as we want to reward
+well-timed parries."
+
+- **Test 78's 28/19 was not the parry.** It fails only when run with no `map vrtesthall` first (the bisect's and the
+  queue's runs: `-Script "vr_agrunt_test 78"`), so the test ran in `vrstart`: the posed sword misses its axis (along it 0.66
+  instead of 1.00) and the grunt stands 58 units off instead of 37, so every parry case fails, held early or not (the
+  dog bite and case 9 included). On `next` with the map, drawn and undrawn: 47/0, as every baseline since 11-06 (11-06,
+  11-12, 11-13, 11-14). The bisect's "first bad commit" 87172b999 changes only BACKLOG.md: noise from that. No commit broke it.
+  The test now ends at once with one FAIL ("needs map vrtesthall first") anywhere else.
+- **How early "held early" is** (the weapon held across from before the attack; the reference blow's time from its
+  attack's start): an armed grunt's overhead 0.38 s, a knight's chop 0.50, an ogre's swing 0.40, smash 0.50 (its blade
+  0.85), a fiend's claw 0.40, a shambler's smash 0.90, a dog's bite 0.31. The windows: well timed = in place at most
+  `vr_dirparry_timed_window` 0.3 s before the contact; `vr_dirparry_stroke` 0.45 s = how long a monster's own blow is held
+  back for its blade to reach your weapon (not a timing window); an armed humanoid's `vr_dirparry_window` 0.1 s.
+- **What changed.** `VR_DRP_Timing` (vr_dirparry.qc), the one function for every directional parry (monsters' own blows,
+  armed humanoids' swings; PvP later the same): the right direction parries at any timing, nothing through (as before).
+  Its share (`VR_DRP_TimingShare`) is 1 when your weapon got in place within the timing window and, for a blow held back for
+  your weapon, by its own moment (when its blade reaches your weapon's place, read along its way at the blow) plus
+  `vr_dirparry_late_grace`; earlier or later it falls smoothly (smoothstep) to `vr_dirparry_offtime`. The share scales the
+  parry's stagger and flinch (`VR_Parry_Interrupt`, the armed humanoid's opening flinch), its push on the attacker, the
+  counter window and an armed humanoid's disarm chance (`VR_Parry_TimingShare`, combat.qc; 1 for the guard, crossed arms
+  and flat-screen guard). "Well timed" (x1.3 strength) is unchanged.
+- **Tunables** (Debug > Tunables > Combat > Directional Parry): `vr_dirparry_offtime` 0.2 (Early/Late Stagger),
+  `vr_dirparry_offtime_fade` 0.15 s (Early Fade), `vr_dirparry_late_grace` 0.02 s, `vr_dirparry_late_fade` 0.06 s.
+  So held 0.45 s or more before the contact: x0.2; 0.375 s: x0.6.
+- **Test 78** (48 cases): held early now asks for a share of at most 0.5 (measured 0.2; the armed grunt's 0.39, in place
+  0.40 s before), moved/turned in a share of 1, moved in staggering at least 1.5x held early (knight 1.10 s vs 0.16, armed
+  grunt 1.50 vs 0.58); a last case checks the share's curve (full, the fades' middles 0.60, the floor, never rising).
+  Case 12 no longer compares its swing's end (it ends with its parry's flinch, now as long as the share makes it).
+  48/0; 35 6/0, 18 24/0, 60 6/0.
+- **Not covered by a test:** a late parry end to end (an armed humanoid's held blow can be late by 0.1 s at most; a
+  monster's by up to 0.45 s): the scene `parrytime` (an ogre and a sword grunt) is for him; `developer 1` prints
+  `dirparry: timing: in place X s before, Y s late: xS`.
 ## flat1115b: flat aim per weapon (ironsight placing, zoom), Classic in flat, Autosave Now (agent/flat1115b, 2026-11-15)
 
 - **Ironsight placing per gun (his item 5).** There were none: the flat ironsight is solved from each gun's sight line with
@@ -2701,3 +2825,28 @@ Cherry-picked 6b8e74432: VR_CrtHeapLoadHold now defined without mimalloc (QVR_MI
 - `mp_cosmetics` 20/0 (grown, with two images of A's view of B), `mp_rules` 14/0 (grown); the suite 23 of 25, the two
   then pass alone. Single player: plates_model_test 9/0, scenario_check 145 run 0 failed, load_models 4/0, vr_run_check
   12/0. Next: B7 (snapshots). Details: MP_PLAN.md, "B6c results".
+## runsetup3: Bloody Nightmare out of the menus, Start first, Difficulty only without skill halls (agent/runsetup3, 2026-11-15)
+
+- **Bloody Nightmare gone from the menus (his call):** Run Setup's Difficulty is Easy..Nightmare again (every way in:
+  the Levels list, the Map Library's Play, New Game, campaigns, the hub); Select Campaign's "Bloody Nightmare / new
+  game" row under Dawn of the Machine is gone (`playMg3BloodyNightmare`, `campaignsBloodyShown`, the row funcs and its
+  rebuild check removed); `bloodyForced`, `applyBloody`, `activeMax`, `skillBloody` and the Bloody and Halls emblems
+  removed. The `bn` registry row stays only for saves: no row, no rule, 0 at every start; a save with `bn=1` loads and
+  its summary says "Bloody Nightmare". Old configs: `vr_maps_skill 4` and `vr_runpick_bn 1` become Nightmare (callbacks
+  in vr_runsetup.cpp). The QC game is untouched (the hub's relay, Chthon on skill 3); `vr_mg3_bn_start` stays a
+  console/test aid, `vr_mg3_bn_discovered` is still set by the QC but read by no menu.
+- **Start first everywhere:** the big Start is the page's first row, the cursor on it. With skill halls (New Game,
+  campaigns, the hub, a package's or the Levels list's start hall) there is no Difficulty at all (no Skill Halls row);
+  `vr_runsetup_halls_line` retired (retiredCvars). Without halls: Start, Difficulty, then Style and Gore, then the rest.
+- **Card spacing:** every icon picker's cards are spaced alike: the cell is `min(card + vr_menu_icon_gap, 320 / 4)`
+  (`iconRowMostCards` 4) for any row of up to four, so Difficulty's four sit 80 apart like the guns' at the default
+  gap (the 5-card "gap given up first" exception dropped; a gap above 16 has no further effect).
+- **Tests:** `vr_runsetup_test` 80/0 (migration, Nightmare start without BN, a bn=1 save's summary),
+  `vr_runsetup_screen_test` 50/0 (Start first and the cursor on it on the Library e1m1 / start, New Game, a campaign,
+  Arcane Dimensions, the Levels list's e1m1 and start, the hub; halls: no Difficulty; no halls: Difficulty second, 4
+  cards, no Bloody Nightmare, Style and Gore next; Difficulty's cell and gap equal the gun's and melee's at gaps 4, 16,
+  24), `vr_runlaunch_test` 31/0, `vr_continue_rows_test` 19/0, `vr_menu_path_check` vrcalibration 6 / vrstart 5 found,
+  0 missing; checklist_tests_check 62/2 (the 2 are the set-aside flat_clip_unpaid / flat_holster_drag scenes, not
+  this branch). menu_paths.txt regenerated (the halls-line row gone). Scenario `run_setup_newgame` updated. There is no
+  `maps_skill_test` in the tree. Shots: qvr-kit/scratch/runsetup3_shots/ (r3_before.png, r3_after.png: left the Levels
+  list's e1m1, right New Game).

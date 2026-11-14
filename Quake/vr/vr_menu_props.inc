@@ -15,6 +15,32 @@
 [[nodiscard]] za::Vector<Item> pageWeaponWeights();
 void showPage(int target);
 
+// Changed Settings' listing (listSlotChanges, vr_menu_wofs.inc): the weapon and prop pages built for one slot, one
+// hotspot and one kind of holster, not for what the hands hold and the menu's choices (-1: as usual). The weapon alone,
+// not listing: the test's (menu_vr pageresettest: pinSlotPages).
+struct SlotListing
+{
+    int weapon{-1};
+    int prop{-1};
+    int hotspot{-1};
+    int holster{-1};
+    bool listing{false};
+};
+SlotListing slotListing;
+
+// The pages' texts while listing (not the pages' own: the rows of the pages as last built point at those).
+struct SlotListingTexts
+{
+    za::String title, inheritTitle;
+    za::Vector<za::Pair<float, za::String>> inheritNames;
+};
+SlotListingTexts slotListingTexts;
+
+[[nodiscard]] bool listingSlots()
+{
+    return slotListing.listing;
+}
+
 // "Main: 8.0 kg x1.00, 1.2 cm 3.4 deg": what a hand holds as the weight sees it (the spring's offset from the hand).
 [[nodiscard]] const char* weightReadout(int hand)
 {
@@ -161,10 +187,10 @@ void weaponWeightsPrint()
 za::Vector<Item> pageWeaponWeights()
 {
     using weapons::Key;
-    za::String& title = pageTexts.weaponWeightsTitle;
-    za::String& inheritTitle = pageTexts.weaponWeightsInheritTitle;
+    za::String& title = listingSlots() ? slotListingTexts.title : pageTexts.weaponWeightsTitle;
+    za::String& inheritTitle = listingSlots() ? slotListingTexts.inheritTitle : pageTexts.weaponWeightsInheritTitle;
     // Opened with the chosen hand empty and a weapon in the other: that one.
-    if(!weaponWeightsKeepHand)
+    if(!weaponWeightsKeepHand && slotListing.weapon < 0)
     {
         const int here = weaponWeightsSlotOf(weaponWeightsHand), there = weaponWeightsSlotOf(1 - weaponWeightsHand);
         if((here < 0 || here == weapons::fistSlot()) && there >= 0 && there != weapons::fistSlot())
@@ -173,7 +199,7 @@ za::Vector<Item> pageWeaponWeights()
         }
     }
     weaponWeightsKeepHand = false;
-    const int held = weaponWeightsSlotOf(weaponWeightsHand);
+    const int held = slotListing.weapon >= 0 ? slotListing.weapon : weaponWeightsSlotOf(weaponWeightsHand);
     const char* hand = weaponWeightsHand == 1 ? "Main hand" : "Off hand";
     za::Vector<Item> list;
     weaponWeightsSlot = held;
@@ -352,6 +378,16 @@ bool heldObjectWeapon = false; // the page's prop is the held weapon's physics-p
 // title and the other hand's action).
 bool heldObjectBegin(za::Vector<Item>& list, za::String& title, void (*otherHand)())
 {
+    if(slotListing.prop >= 0)
+    {
+        // Changed Settings' listing: that slot's prop, as it is (no hand, no claim).
+        heldObjectModel = props::cvar(slotListing.prop, props::Key::ID)->string;
+        heldObjectWeapon = false;
+        heldObjectSlot = slotListing.prop;
+        slotListingTexts.title = heldObjectModel;
+        list.pushBack(header(slotListingTexts.title.cStr()));
+        return true;
+    }
     if(!heldObjectKeepHand)
     {
         const bool here = !heldPropModel(heldObjectHand, false).empty(), there = !heldPropModel(1 - heldObjectHand, false).empty();

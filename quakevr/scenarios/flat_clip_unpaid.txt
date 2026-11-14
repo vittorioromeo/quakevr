@@ -1,0 +1,12 @@
+# flat_clip_unpaid: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode):
+# his 2026-11-13 report, "ERROR: weapon clip less than zero" firing the shotgun with a spent flare gun in the left hand
+# (QC weapons.qc W_CheckNoAmmo, delAmmoOrClipAndUpdateCounter; the headless check: vr_flatswap_test 5).
+title Flat-screen: the shotgun in the right hand, a flare gun in the left, shells to reload
+hint Play with -flatscreenmode. Fire both flares, then empty the shotgun. Now swap hands, drop the flare gun, holster and draw the guns, reload and swap in the middle of a reload, in any order, pulling both triggers after each step: an empty shotgun only clicks, a loaded one fires one shell, and the console never prints an ERROR line.
+map vrtesthall
+god
+notarget
+give "Shotgun" main
+give "Flare Gun" off
+spawn "Shells" 120 0
+spawn "Grunt" 320 40
