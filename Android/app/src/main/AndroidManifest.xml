@@ -36,7 +36,10 @@
         android:hasCode="true"
         android:extractNativeLibs="true"
         android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
-        android:hardwareAccelerated="true">
+        android:hardwareAccelerated="true"
+        android:debuggable="true">
+        <!-- debuggable: the development APK (debug key): `adb shell run-as` reads the game's files (eye images, logs,
+             saves: 0660 to adb's shell) and simpleperf profiles it; a store build leaves it out. -->
 
         <meta-data android:name="com.oculus.supportedDevices" android:value="quest2|quest3|quest3s" />
 

@@ -1241,7 +1241,7 @@ static void GL_CheckExtensions (void)
 	gl_clipcontrol_able =
 		!COM_CheckParm ("-noclipcontrol") &&
 		!VR_GLSafeOff (VR_GLSAFE_CLIP_CONTROL) && // QVR: safe mode, vendor workarounds (vr/vr_glsafe.cpp)
-		GL_FindExtension ("GL_ARB_clip_control") &&
+		(GL_FindExtension ("GL_ARB_clip_control") || (VR_GLESCompat () && GL_FindExtension ("GL_EXT_clip_control"))) && // QVR: ES: glClipControlEXT (GL_InitFunctions' ES names), the same enums
 		GL_InitFunctions (gl_arb_clip_control_functions, false)
 	;
 
@@ -1578,7 +1578,8 @@ GL_EndRendering
 */
 void GL_EndRendering (void)
 {
-	GL_PostProcess ();
+	if (!VR_NoWindow ()) // QVR: Android with VR running: no window image (vr/vr_main.cpp)
+		GL_PostProcess ();
 	GL_ReleaseFrameResources ();
 	if (!scr_skipupdate)
 		VR_ImGuiRender (); // QVR: the flat-screen tools' windows (the Rig Studio), last (vr/vr_imgui.cpp)

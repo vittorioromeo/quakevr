@@ -31,6 +31,16 @@ inline constexpr float sceneMax = 8.f;
 // vr_eyeshot: after an eye's post-process, saves its image (`imageFbo`, width x height) and with vr_eyeshot 2 its
 // float scene (`sceneFbo`) to <gamedir>/eyeshots; clears vr_eyeshot after the right eye.
 void eyeshot(int eye, unsigned imageFbo, unsigned sceneFbo, int width, int height);
+// vr_gl_probe 1 (Debug > Startup; once, then 0): at an eye's `stage` (0 scene drawn, 1 post-processed, 2 with the UI),
+// each framebuffer's completeness, colour format and the share of its pixels that are not black (read back), and a
+// clear-and-read self-test: where an eye's image goes black, by numbers (the Quest: C4c). Clears it after the right
+// eye's last stage.
+// vr_gl_probe: queries around an eye's scene (begin, then end: prints its primitives and whether samples passed).
+void glProbeScene(bool begin);
+// vr_gl_probe: an upload (`size` bytes of `data` at `offset` in `buffer`) read back and compared.
+void probeUpload(const char* what, unsigned buffer, size_t offset, const void* data, size_t size);
+void glProbe(int eye, int stage, unsigned sceneFbo, unsigned compositeFbo, unsigned imageFbo, int width, int height,
+    int imageWidth, int imageHeight);
 // The number the next eyeshot's files take (eyeshots/<map>_<number>_L.png).
 [[nodiscard]] int nextEyeshot();
 

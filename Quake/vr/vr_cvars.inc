@@ -503,6 +503,9 @@ QVR_CVAR(vr_xr_skip_incompatible_layers, "1", CVAR_ARCHIVE)
 // or Meta's menu): 1 the eyes are not rendered, the last frame is shown again (world-locked: the runtime reprojects
 // it; the GPU left to the runtime's menu); 0 they are rendered as usual.
 QVR_CVAR(vr_xr_unfocused, "1", CVAR_ARCHIVE)
+// Android (the Quest) while VR runs: 0 the app's window gets no flat image and no present (the system never shows it:
+// the headset's frames only); 1 drawn and presented as on the PC (the flat-panel APK). No effect on the PC.
+QVR_CVAR(vr_android_window, "0", CVAR_NONE)
 // While the runtime's own menu has the focus (as vr_xr_unfocused): 1 a single player game paused as the game's own
 // menu pauses it (the world and its time stand still; the sounds faded to vr_xr_unfocused_volume, the music paused),
 // resumed as the focus comes back; 0 it runs on (multiplayer always does: the server isn't paused for one player).
@@ -2387,6 +2390,7 @@ QVR_CVAR(vr_flat_taa, "0", CVAR_ARCHIVE)               // flat-screen temporal a
 QVR_CVAR(vr_taa, "0", CVAR_ARCHIVE)                    // 1: temporal anti-aliasing (replaces MSAA in the eyes)
 QVR_CVAR(vr_taa_sharpen, "0.3", CVAR_ARCHIVE)          // sharpening after the resolve (0 off; 1 strong)
 QVR_CVAR(vr_temporal_debug, "0", CVAR_NONE)            // 1: the motion vectors in the eyes; 2: the reactive mask and rejected history; 3: the reprojection test (vr_temporal_error)
+QVR_CVAR(vr_gl_probe, "0", CVAR_NONE)               // 1: the next frame's eye framebuffers by numbers (completeness, the share not black at each stage: tonemap::glProbe), then 0
 QVR_CVAR(vr_eyeshot, "0", CVAR_NONE)                // 1: save the next frame's eye images to <gamedir>/eyeshots (2: also the float scene, .pfm; 3: with the UI, as the headset shows it)
 // Liquids (vr_water.cpp): 0 everywhere is Quake's look.
 QVR_CVAR(vr_map_liquid_alpha, "0", CVAR_ARCHIVE)      // a map's own wateralpha, lavaalpha, slimealpha, telealpha (its worldspawn keys) win over r_wateralpha and the others (Ironwail's rule); 0: your settings always

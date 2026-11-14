@@ -783,6 +783,34 @@ the sleeping compositor).
   distances with their extensions; the image in the headset, the `imageRect` origin (6f), the controllers, sound in
   the headset: need it worn.
 
+## 6j. C4c: the black world on the headset (in progress; adb, the headset unworn; no installs)
+
+His first look (2026-11-15, VR APK, e1m1): the ammo screens, the wrist gadget, loot beams and the menu panel drawn,
+the world and the models pitch black, some menu shapes missing; ~55 s to the first frame; 24 FPS; the menu blurry.
+
+- **Tools made for it** (both stay; Debug > Startup): the VR APK is **debuggable** (`adb shell run-as` reads the
+  app's internal folder; simpleperf can attach), **`vr_android_export <path>`** copies game files (eyeshots, saves)
+  into the internal `export/` folder (what the game writes in its external folder is 0660 to adb's shell), and
+  **`vr_gl_probe 1`**: the next frame's eye framebuffers by numbers (complete or not, the share of pixels not black
+  after the scene, the post-process and the UI; the scene's primitives and whether samples passed; the frame data's
+  upload read back and compared; a clear-and-read self-test). `scratch/c4c_dev.sh` (cfg push, export pull).
+- **OpenGL ES errors found with `-gldebug` (Adreno's debug output) and fixed** (the PC's `-glescompat` on a desktop
+  driver accepts all of them, so `gles_render_test` never saw them):
+  - every TexMgr upload refused (3199 a boot: "pixel buffer format is not compatible"): `GL_RGB` and `GL_RG8`
+    internal formats from RGBA bytes are not ES; under the ES profile they are RGBA8 (a solid texture's alpha made
+    opaque, as `GL_RGB`'s reads are), and no texture is compressed at its upload (`gl_compress_textures`);
+  - the light clusters (both eyes') and the palette LUT bound as images while mutable (5950 a boot: ES binds only
+    immutable textures as images): `glTexStorage3D` under the ES profile;
+  - the eyeshot's `glReadPixels` as `GL_RGB` (refused by ES: the Quest's eye images were black whatever the eyes
+    showed): read as RGBA, the alpha dropped (PC: the same files);
+  - the world arrays' depth pre-pass twin and a vertex-only multiview twin linked without a fragment shader
+    (Adreno: "Operation Failed"): an empty one, as the plain programs got in C4b.
+- **Android defaults**: `EXT_clip_control` taken when the driver has it (the Quest 3 does; `-glesnoclipcontrol` for
+  the standard-depth path): reversed Z as the PC, the map lights' shadows back; the app's window gets no flat image
+  and no `eglSwapBuffers` while VR runs (`vr_android_window` 0; 1 for the flat-panel APK).
+- **Save error.** (Android only: the PC's e1m1 autosave works) now says why (`pr_save_error`: the string or edict
+  reference the save thread could not write).
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,

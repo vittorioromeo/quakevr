@@ -68,6 +68,7 @@ int VR_SkipScreen (void);	// SCR_UpdateScreen: nonzero to skip this frame's draw
 							// frames aren't drawn)
 void VR_HeadlessView (void);	// ... and instead: the eyes' views and view entities set up (what the game reads), no GL
 int VR_DebugWindowUnfocused (void); // main loop: vr_debug_window_unfocused (the flat screen's background sleep, tests)
+int VR_NoWindow (void);		// GL_EndRendering: Android with VR running: no window image nor present (vr_android_window)
 int VR_SkipSwap (void);		// GL_EndRendering: nonzero to leave this frame unpresented (unpaced frames present
 							// ten a second: a present waits for the display's refresh, the bulk of such a frame;
 							// in VR the focused mirror at most once a refresh, vr_mirror_hz; unfocused vr_mirror_unfocused_hz)

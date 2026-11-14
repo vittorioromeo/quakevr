@@ -117,7 +117,10 @@ void GLLight_CreateResources (void)
 	glGenTextures (1, &gl_lightclustertexture);
 	GL_BindNative (GL_TEXTURE0, GL_TEXTURE_3D, gl_lightclustertexture);
 	GL_ObjectLabelFunc (GL_TEXTURE, gl_lightclustertexture, -1, "light clusters");
-	GL_TexImage3DFunc (GL_TEXTURE_3D, 0, VR_GLESImageFormat (GL_RG32UI), LIGHT_TILES_X, LIGHT_TILES_Y, LIGHT_TILES_Z, 0, VR_GLESForm (VR_GLES_FORM_GLSL) ? GL_RGBA_INTEGER : GL_RG_INTEGER, GL_UNSIGNED_INT, NULL); // QVR: -glescompat: rgba32ui
+	if (VR_GLESForm (VR_GLES_FORM_GLSL)) // QVR: -glescompat: rgba32ui, immutable (OpenGL ES binds only those as images)
+		GL_TexStorage3DFunc (GL_TEXTURE_3D, 1, VR_GLESImageFormat (GL_RG32UI), LIGHT_TILES_X, LIGHT_TILES_Y, LIGHT_TILES_Z);
+	else
+		GL_TexImage3DFunc (GL_TEXTURE_3D, 0, GL_RG32UI, LIGHT_TILES_X, LIGHT_TILES_Y, LIGHT_TILES_Z, 0, GL_RG_INTEGER, GL_UNSIGNED_INT, NULL);
 	glTexParameteri (GL_TEXTURE_3D, GL_TEXTURE_BASE_LEVEL, 0);
 	glTexParameteri (GL_TEXTURE_3D, GL_TEXTURE_MAX_LEVEL, 0);
 	glTexParameteri (GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);

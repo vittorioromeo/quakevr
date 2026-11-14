@@ -1076,10 +1076,14 @@ extern "C" int VR_RenderView()
         R_AliasEyeCacheBegin(eyeCache <= 0 ? 0 : stereo::firstEye ? 1 : eyeCache >= 2 ? 3 : 2);
         stereosingle::beginEye(eye);
         temporal::beginEye(eye);
+        tonemap::glProbeScene(true); // (vr_gl_probe)
         V_RenderView();
+        tonemap::glProbeScene(false);
         temporal::endEye();
         stereosingle::endEye();
         R_AliasEyeCacheBegin(0);
+        tonemap::glProbe(eye, 0, framebufs.scene.fbo, framebufs.composite.fbo, stereo::targetFbo, width, height, shownWidth,
+            shownHeight); // (vr_gl_probe: Debug > Startup)
         dynres::testLoad(eye, framebufs.composite.fbo, width, height); // (vr_dynres_test_load: Debug > Profiling)
         {
             QVR_TRACY_SCOPE(zoneFoveated, "eye: foveated end"); // (profiling builds only: the eye's own steps)
@@ -1123,6 +1127,7 @@ extern "C" int VR_RenderView()
         {
             tonemap::eyeshot(eye, stereo::targetFbo, framebufs.composite.fbo, shownWidth, shownHeight);
         }
+        tonemap::glProbe(eye, 1, 0, framebufs.composite.fbo, stereo::targetFbo, width, height, shownWidth, shownHeight);
 
         // The UI over the eye's final image, at its full size: after the post-processing, it is not warped or blurred
         // under water (vr_water.cpp), the glow is not added over it, nor the eye's gamma. The wrist gadget and all
@@ -1137,6 +1142,7 @@ extern "C" int VR_RenderView()
         {
             tonemap::eyeshot(eye, stereo::targetFbo, framebufs.composite.fbo, shownWidth, shownHeight);
         }
+        tonemap::glProbe(eye, 2, 0, framebufs.composite.fbo, stereo::targetFbo, width, height, shownWidth, shownHeight);
         if(stereo::mirrored(eye))
         {
             stereo::drawUi(hands::current().eyeOrigin[eye], framebufs.composite.fbo, width, height,

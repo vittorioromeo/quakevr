@@ -607,6 +607,8 @@ Same as PR_GetString, except it uses known strings from a saved snapshot
 instead of the current VM state
 ============
 */
+char pr_save_error[128]; // QVR: the first reason a save stopped (the save thread writes it once; "Save error." says it)
+
 static const char *PR_GetSaveString (savedata_t *save, int num)
 {
 	if (num >= 0 && num < qcvm->stringssize)
@@ -615,14 +617,17 @@ static const char *PR_GetSaveString (savedata_t *save, int num)
 	{
 		if (!save->knownstrings[-1 - num])
 		{
-			SDL_AtomicCAS (&save->abort, 0, -1);
+			if (SDL_AtomicCAS (&save->abort, 0, -1))
+				q_snprintf (pr_save_error, sizeof (pr_save_error), "string %d: a freed engine string", num);
 			return "";
 		}
 		return save->knownstrings[-1 - num];
 	}
 	else
 	{
-		SDL_AtomicCAS (&save->abort, 0, -1);
+		if (SDL_AtomicCAS (&save->abort, 0, -1))
+			q_snprintf (pr_save_error, sizeof (pr_save_error), "string %d out of range (%d strings, %d engine strings)",
+				num, qcvm->stringssize, save->numknownstrings);
 		return "";
 	}
 }
@@ -2665,7 +2670,8 @@ int SAVE_NUM_FOR_EDICT (savedata_t *save, edict_t *e)
 
 	if (b < 0 || b >= save->num_edicts)
 	{
-		SDL_AtomicCAS (&save->abort, 0, -1);
+		if (SDL_AtomicCAS (&save->abort, 0, -1)) // QVR: the reason (pr_save_error)
+			q_snprintf (pr_save_error, sizeof (pr_save_error), "an edict reference %d out of range (%d edicts)", b, save->num_edicts);
 		return 0;
 	}
 

@@ -416,6 +416,8 @@ GLuint GL_WorldArraysProgram (GLuint program, qboolean *depthonly)
 	for (i = 0, realcount = 0; i < 2; i++)
 		if (src->sources[i])
 			shaders[realcount++] = GL_CreateShader (types[i], src->sources[i], macros, src->name);
+	if (realcount == 1 && VR_GLESForm (VR_GLES_FORM_GLSL)) // (the depth pre-pass's twin: an empty fragment shader, as above)
+		shaders[realcount++] = GL_CreateShader (GL_FRAGMENT_SHADER, "void main() {}\n", macros, src->name);
 	if (gl_arrays_compile == 1)
 		src->arraytwin = GL_CreateProgramFromShaders (shaders, realcount, src->name);
 	else
@@ -469,6 +471,8 @@ static void GL_MultiviewMake (glprogsource_t *src, qboolean async)
 	for (j = 0, realcount = 0; j < 2; j++)
 		if (src->sources[j])
 			shaders[realcount++] = GL_CreateShader (types[j], src->sources[j], src->macros, src->name);
+	if (realcount == 1 && VR_GLESForm (VR_GLES_FORM_GLSL)) // (a vertex-only program: an empty fragment shader, as above)
+		shaders[realcount++] = GL_CreateShader (GL_FRAGMENT_SHADER, "void main() {}\n", src->macros, src->name);
 	if (gl_multiview_compile == 1)
 		src->twin = GL_CreateProgramFromShaders (shaders, realcount, src->name);
 	else

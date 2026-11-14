@@ -2748,8 +2748,24 @@ extern "C" int VR_DebugWindowUnfocused()
     return vr_debug_window_unfocused.value != 0.f ? 1 : 0;
 }
 
+// Android with VR running (the Quest's immersive app): the window is never shown, so no flat image is drawn into it
+// nor presented (its post-process pass and eglSwapBuffers: a swap the system doesn't show can wait on its buffer
+// queue, C4c); vr_android_window 1 keeps them (the flat-panel APK).
+extern "C" int VR_NoWindow()
+{
+#ifdef __ANDROID__
+    return vrActive() && vr_android_window.value == 0.f ? 1 : 0;
+#else
+    return 0;
+#endif
+}
+
 extern "C" int VR_SkipSwap()
 {
+    if(VR_NoWindow())
+    {
+        return 1;
+    }
     // vr_mock_fast: a present waits for the display's refresh (vsync off or not: the compositor's pace in a window),
     // most of an unpaced frame. Present ten times a second: the window still shows the run.
     // In VR with the window unfocused, the mirror's presents are thinned (vr_mirror_unfocused_hz): the driver's cap on

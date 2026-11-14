@@ -242,6 +242,70 @@ void test_f()
     t.verdict(name);
 }
 
+// vr_android_export <path> (Debug > Startup): a file or a folder's files under the game folder (eyeshots, a save,
+// a log) copied into the app's internal files folder's export/, which a debuggable APK's `adb shell run-as` reads
+// (what the game writes in its external folder is 0660 to adb's shell: section 6i of QUEST_PLAN.md).
+void export_f()
+{
+    if(Cmd_Argc() < 2)
+    {
+        Con_Printf("vr_android_export <file or folder under the game folder>: copied to the app's internal export/\n");
+        return;
+    }
+#ifdef __ANDROID__
+    const char* internal = SDL_AndroidGetInternalStoragePath();
+#else
+    const char* internal = nullptr;
+#endif
+    if(!internal)
+    {
+        Con_Printf("vr_android_export: Android only\n");
+        return;
+    }
+    char to[maxPath];
+    copyPath(to, internal, "/export");
+    Sys_mkdir(to);
+    char from[maxPath];
+    q_snprintf(from, sizeof from, "%s/%s", com_gamedir, Cmd_Argv(1));
+    const auto copyOne = [&](const char* src, const char* name) {
+        char dst[maxPath];
+        q_snprintf(dst, sizeof dst, "%s/%s", to, name);
+        FILE* in = fopen(src, "rb");
+        FILE* out = in ? fopen(dst, "wb") : nullptr;
+        size_t bytes = 0;
+        char buf[16384];
+        for(size_t n = 0; out && (n = fread(buf, 1, sizeof buf, in)) > 0; bytes += n)
+        {
+            fwrite(buf, 1, n, out);
+        }
+        if(out)
+        {
+            fclose(out);
+        }
+        if(in)
+        {
+            fclose(in);
+        }
+        Con_Printf("vr_android_export: %s -> %s (%s, %d bytes)\n", src, dst, out ? "copied" : "failed", static_cast<int>(bytes));
+    };
+    if(Sys_FileType(from) & FS_ENT_DIRECTORY)
+    {
+        findfile_t* f = Sys_FindFirst(from, nullptr);
+        for(; f; f = Sys_FindNext(f))
+        {
+            if(!(f->attribs & FA_DIRECTORY))
+            {
+                char src[maxPath];
+                q_snprintf(src, sizeof src, "%s/%s", from, f->name);
+                copyOne(src, f->name);
+            }
+        }
+        return;
+    }
+    const char* slash = strrchr(from, '/');
+    copyOne(from, slash ? slash + 1 : from);
+}
+
 } // namespace
 
 // main, after COM_InitArgv, before the crash handler and SDL: on Android (or -fakeandroid on the PC), the base
@@ -311,4 +375,5 @@ extern "C" int VR_ChildProcesses(void)
 extern "C" void VR_AndroidInit(void)
 {
     Cmd_AddCommand("vr_android_test", test_f);
+    Cmd_AddCommand("vr_android_export", export_f);
 }

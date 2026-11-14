@@ -847,6 +847,12 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_android_test: the Android platform layer (start with -fakeandroid on the PC): the base and crash "
                   "folders, the crash handler's signals and a report written as a crash writes it, no child processes; "
                   "the verdict to the console."),
+        command("Eye Framebuffers Probe", "vr_gl_probe 1")
+            .help("vr_gl_probe 1: the next frame's eye framebuffers by numbers (complete or not, the share of pixels "
+                  "not black after the scene, the post-process and the UI) and a clear-and-read self-test; to the console."),
+        command("Android: Export Eye Images", "vr_android_export eyeshots")
+            .help("vr_android_export eyeshots: the eye images (vr_eyeshot) copied into the app's internal export/ "
+                  "folder, which a debuggable APK's `adb shell run-as` reads (Android only)."),
         header("Diagnostics"),
         command("Game Code and Folders", "vr_gamecode")
             .help("vr_gamecode: the folders the game reads from (its base dirs, game dirs and search path) and where its "

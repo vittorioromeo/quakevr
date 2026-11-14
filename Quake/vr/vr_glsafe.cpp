@@ -347,7 +347,8 @@ extern "C" void VR_GLStartupVendor(const char* vendor, const char* renderer, con
         glsafe.vendorOff |= esCompatOff;
         // -glesclipcontrol (QVR_GLES_CLIP_CONTROL=1): as an ES driver with EXT_clip_control (the Quest's: [?], C4),
         // which the shadows, reflections and portals need (without it they are off).
-        if(COM_CheckParm("-glesclipcontrol") || getenv("QVR_GLES_CLIP_CONTROL"))
+        // Android: kept unless -glesnoclipcontrol (the driver's EXT_clip_control, gl_vidsdl.c; the Quest 3 has it: C4c).
+        if(COM_CheckParm("-glesclipcontrol") || getenv("QVR_GLES_CLIP_CONTROL") || (esContext && !COM_CheckParm("-glesnoclipcontrol")))
         {
             glsafe.vendorOff &= ~static_cast<unsigned>(VR_GLSAFE_CLIP_CONTROL);
         }

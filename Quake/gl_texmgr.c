@@ -684,7 +684,8 @@ TexMgr_CanCompress
 */
 static qboolean TexMgr_CanCompress (gltexture_t *glt)
 {
-	return glt->source_format != SRC_LIGHTMAP && (glt->flags & TEXPREF_UNCOMPRESSED) == 0;
+	return glt->source_format != SRC_LIGHTMAP && (glt->flags & TEXPREF_UNCOMPRESSED) == 0 &&
+		!VR_GLESForm (VR_GLES_FORM_GLSL); // QVR: OpenGL ES compresses no texture at its upload (glTexImage2D)
 }
 
 /*
@@ -1629,6 +1630,26 @@ static void TexMgr_Upload32 (gltexture_t *glt, unsigned *data, double t0)
 	{
 		internalformat.id = heights ? GL_RGBA8 : GL_RG8;
 		internalformat.ratio = heights ? 1 : 2;
+	}
+	// QVR: OpenGL ES takes RGBA bytes only into an RGBA format (GL_RGB, GL_RG8 from GL_RGBA data: GL_INVALID_OPERATION,
+	// no texture: the Quest's black world, QUEST_PLAN.md C4c). RGBA8 there; a solid texture's alpha made opaque, as
+	// GL_RGB's reads are (the mips are made from this buffer); the normal maps' extra channels unread.
+	if (VR_GLESForm (VR_GLES_FORM_GLSL) && (internalformat.id == GL_RGB || internalformat.id == GL_RG8))
+	{
+		if (internalformat.id == GL_RGB)
+		{
+			// (a cube map's or an array's data: an image a face or layer)
+			int layers = glt->target == GL_TEXTURE_CUBE_MAP ? 6 : glt->target == GL_TEXTURE_2D_ARRAY ? (int) glt->depth : 1;
+			int i, k, n = glt->width * glt->height;
+			for (k = 0; k < layers; k++)
+			{
+				byte *image = glt->target == GL_TEXTURE_2D ? (byte *) data : ((byte **) data)[k];
+				for (i = 0; image && i < n; i++)
+					image[4 * i + 3] = 255;
+			}
+		}
+		internalformat.id = GL_RGBA8;
+		internalformat.ratio = 1;
 	}
 	glt->compression = internalformat.ratio;
 	GL_Bind (GL_TEXTURE0, glt);
@@ -2656,7 +2677,10 @@ void GLPalette_CreateResources (void)
 	glGenTextures (1, &gl_palette_lut);
 	GL_BindNative (GL_TEXTURE0, GL_TEXTURE_3D, gl_palette_lut);
 	GL_ObjectLabelFunc (GL_TEXTURE, gl_palette_lut, -1, "palette lut");
-	GL_TexImage3DFunc (GL_TEXTURE_3D, 0, VR_GLESImageFormat (GL_R8UI), 128, 128, 128, 0, GL_RED_INTEGER, VR_GLESForm (VR_GLES_FORM_GLSL) ? GL_UNSIGNED_INT : GL_UNSIGNED_BYTE, NULL); // QVR: -glescompat: r32ui
+	if (VR_GLESForm (VR_GLES_FORM_GLSL)) // QVR: -glescompat: r32ui, immutable (OpenGL ES binds only those as images)
+		GL_TexStorage3DFunc (GL_TEXTURE_3D, 1, VR_GLESImageFormat (GL_R8UI), 128, 128, 128);
+	else
+		GL_TexImage3DFunc (GL_TEXTURE_3D, 0, GL_R8UI, 128, 128, 128, 0, GL_RED_INTEGER, GL_UNSIGNED_BYTE, NULL);
 	glTexParameteri (GL_TEXTURE_3D, GL_TEXTURE_BASE_LEVEL, 0);
 	glTexParameteri (GL_TEXTURE_3D, GL_TEXTURE_MAX_LEVEL, 0);
 	glTexParameteri (GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
