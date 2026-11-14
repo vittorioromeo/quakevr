@@ -441,10 +441,12 @@ struct PageTexts
     za::String heldObjectOffsetsTitle, heldObjectWeightsTitle;
     za::Vector<za::String> checklistSections; // the Checklist's headers
     za::String checklistUndone;               // the item Undo Last Tick changed last (its help says)
+    za::Vector<za::String> changedSlotTexts;  // Changed Settings' weapon and prop headers and rows (listSlotChanges)
     auto members()
     {
         return qvr::mem::list(weaponOffsetsTitle, weaponOffsetsInheritTitle, weaponOffsetsInheritNames, weaponWeightsTitle,
-            weaponWeightsInheritTitle, heldObjectOffsetsTitle, heldObjectWeightsTitle, checklistSections, checklistUndone);
+            weaponWeightsInheritTitle, heldObjectOffsetsTitle, heldObjectWeightsTitle, checklistSections, checklistUndone,
+            changedSlotTexts);
     }
 };
 
@@ -850,6 +852,15 @@ extern int weaponOffsetsSlot;
 extern bool weaponOffsetsStale;
 void weightPageShown(PageRef build);
 [[nodiscard]] bool weightPageStale(PageRef build);
+// A weapon's or prop's own value (a vr_wofs_*_NN or vr_prop_*_NN stand-in: its default that slot's weapons.txt's or
+// props.txt's), and Changed Settings' rows for every slot's changed values (each slot's pages built for it, its rows
+// under a header per weapon or prop; `seen` the cvars listed already); after Reset This Page on a slot page, that page's
+// slot rebuilt (a hotspot's type...). ROUND25.md, "Reset This Page and changes on the weapon and prop pages".
+[[nodiscard]] bool slotValue(const cvar_t& var);
+[[nodiscard]] bool changedSetting(const cvar_t& var); // (vr_menu.cpp: a * by its label)
+void listSlotChanges(za::Vector<Item>& list, za::Vector<const cvar_t*>& seen);
+void slotPageReset(PageRef build);
+void pinSlotPages(int weaponSlot); // (menu_vr pageresettest: the weapon pages built for that slot; -1: the hands' again)
 [[nodiscard]] const char* weightReadout(int hand);
 // (the Retro Textures pages' template, below)
 [[nodiscard]] za::Vector<Item> retroCategoryItems(retro::Category c, void (*reset)());

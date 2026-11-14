@@ -991,7 +991,7 @@ glm::vec3 pressOffset(int player, int hand)
     return world->hands[static_cast<za::SizeT>(player)][static_cast<za::SizeT>(hand)].press;
 }
 
-bool restsOnHand(int num, int player, int hand)
+bool restsOnHand(int num, int player, int hand, float minUp)
 {
     if(!world || num <= 0 || num >= static_cast<int>(world->slots.size()) || player < 1 ||
         player >= static_cast<int>(world->hands.size()) || hand < 0 || hand > 1)
@@ -1019,7 +1019,7 @@ bool restsOnHand(int num, int player, int hand)
         {
             // (The manifold's normal points from A to B: here from the hand up into the prop.)
             const float up = isA ? -c.manifolds[m].normal.z : c.manifolds[m].normal.z;
-            if(c.manifolds[m].pointCount > 0 && up > restUp)
+            if(c.manifolds[m].pointCount > 0 && up > minUp)
             {
                 return true;
             }

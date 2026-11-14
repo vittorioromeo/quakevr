@@ -32,9 +32,10 @@
 //   `scratch2 1`: each line case's eye image from close up (vr_dirparry_linecheck look), its line printed in its frame.
 // A blow by your weapon where the reference's line is (20 on), a monster held ahead of you and its attack forced; each kind's
 // reference (your fists: the blow lands, its line and the plane it sweeps taken), then your weapon there:
-//   across: parried, sparks, nothing through, not well timed (held there from before its attack); along its way: lands;
-//   moved in, turned in: well timed (0.15 s before its line gets there, from aside; from along its way); through 0.5: half of it
-//   gets through:
+//   across: parried, sparks, nothing through, not well timed (held there from before its attack): early, its timing's share
+//   (VR_DRP_Timing, his rule of 2026-11-15) at most 0.5; along its way: lands; moved in, turned in: well timed (0.15 s before
+//   its line gets there, from aside; from along its way), the share 1, moved in staggering it at least 1.5x as long as held
+//   early did; through 0.5: half of it gets through:
 //   20-25 a knight's chop (vr_agknight 0; the plane upright: a weapon level across): reference, across, along, moved in, turned in,
 //   through;  26-28 an ogre's swing (the plane level: a weapon upright), across, along;  29-30 an ogre's smash, across;  31-32 a
 //   fiend's claw, across;  33-34 a shambler's smash, across;  35-37 a dog's bite and 38-40 a fiend's leap (lunges, data: a vertical
@@ -42,6 +43,8 @@
 //   fists land, level across parried, no reading;  43-47 an armed sword grunt's overhead: reference, across, moved in, turned in,
 //   through. The monster's kept at its place (its charge varies from run to run, and your weapon's held still in the world). `scratch2 1` with Show Disarm Volumes
 //   on: screenshots of the knight's and the ogre's lines on them.
+// Last, the timing's share as numbers (VR_DRPT_TimingCurve: full in the window and the grace, the fades' middles, the
+// floor past them, never rising). Needs vrtesthall (`map vrtesthall` first): elsewhere one FAIL saying so.
 // Each `agtest: PASS|FAIL dirparry <case>: ...`; ends on `agtest: test 78 over: P passed, F failed`.
 // ----------------------------------------------------------------------------
 
@@ -102,6 +105,7 @@ float vr_drpt_refd;      // the reference swing's blade recorded
 float vr_drpt_t0;        // the swing's start
 float vr_drpt_ev0;       // counters at the swing's start
 float vr_drpt_pr0;
+float vr_drpt_stag_early; // a monster's blow held early: its stagger (moved in after it: much longer)
 float vr_drpt_fx0;
 
 string(float c) VR_DRPT_Name =
@@ -229,9 +233,40 @@ void(entity p) VR_DRPT_Apply =
     p.handvel = '0 0 0';
 };
 
+// His rule (2026-11-15) as numbers: VR_DRP_TimingShare at the tunables now: full in the window (and the grace), half way
+// down the fades their middle, vr_dirparry_offtime past them and at most 0.5 (severely less), never rising as it gets
+// earlier or later.
+void() VR_DRPT_TimingCurve =
+{
+    float w = max(0, cvar_hget(cvarh_vr_dirparry_timed_window));
+    float f = max(0.001, cvar_hget(cvarh_vr_dirparry_offtime_fade));
+    float gr = max(0, cvar_hget(cvarh_vr_dirparry_late_grace));
+    float lf = max(0.001, cvar_hget(cvarh_vr_dirparry_late_fade));
+    float least = min(1, max(0, cvar_hget(cvarh_vr_dirparry_offtime)));
+    float mid = (1 + least) * 0.5;
+    float ok = ((VR_DRP_TimingShare(0, 0) == 1) && (VR_DRP_TimingShare(w, 0) == 1) && (VR_DRP_TimingShare(0, gr) == 1) &&
+                (fabs(VR_DRP_TimingShare(w + f * 0.5, 0) - mid) < 0.001) && (fabs(VR_DRP_TimingShare(0, gr + lf * 0.5) - mid) < 0.001) &&
+                (fabs(VR_DRP_TimingShare(w + f, 0) - least) < 0.001) && (fabs(VR_DRP_TimingShare(0, gr + lf) - least) < 0.001) &&
+                (fabs(VR_DRP_TimingShare(5, 5) - least) < 0.001) && (least <= 0.5));
+    float prevE = 2;
+    float prevL = 2;
+    for(float t = 0; t <= 1; t += 0.01)
+    {
+        float e = VR_DRP_TimingShare(t, 0);
+        float l = VR_DRP_TimingShare(0, t);
+        ok = (ok && (e <= prevE + 0.000001) && (l <= prevL + 0.000001));
+        prevE = e;
+        prevL = l;
+    }
+    VR_AGT_Check(sprintf("dirparry the timing's share (his rule, 2026-11-15): well timed 1, early by %.2f s %.2f, late by %.2f s %.2f, "
+        "past the fades %.2f, never rising", f * 0.5, VR_DRP_TimingShare(w + f * 0.5, 0), lf * 0.5,
+        VR_DRP_TimingShare(0, gr + lf * 0.5), least), ok);
+};
+
 void() VR_DRPT_End =
 {
     entity p = vr_agt_player;
+    VR_DRPT_TimingCurve();
     cvar_set("vr_agrunt_parry", ftos(vr_drpt_keep_parry));
     localcmd(sprintf("tune vr_dirparry_contact %g\ntune vr_dirparry_through_monster 0\ntune vr_dirparry_through_armed 0\n", vr_drpt_keep_contact)); // (tunables: set by `tune`)
     cvar_set("vr_dirparry_debug", ftos(vr_drpt_keep_debug));
@@ -311,7 +346,8 @@ void(entity g, float c) VR_DRPT_Judge =
     {
         float lr = vr_drpt_len / max(0.001, vr_drpt_ref_len);
         float sr = vr_drpt_swung / max(0.001, vr_drpt_ref_swung);
-        extra = ((fabs(lr - 2) < 0.01) && (sr >= 1.8) && (sr <= 2.2));
+        // (case 12's swing ends with its parry's flinch, as long as the timing's share makes it: its end not compared)
+        extra = ((fabs(lr - 2) < 0.01) && (((sr >= 1.8) && (sr <= 2.2)) || (c == 12)));
         got = sprintf("%s; its length %.3f s (x%.3f), its end %.2f s (x%.2f)", got, vr_drpt_len, lr, vr_drpt_swung, sr);
         if(c == 11)
         {
@@ -576,6 +612,8 @@ void() VR_DRPT_BFrame =
         vr_parried = 0;
         vr_drpt_b_len = (k == 0 ? 11 : k < 3 ? 14 : k == 3 ? 15 : k == 4 ? 12 : k == 5 ? 8 : 1) * 0.1;
         vr_parry_welltimed = FALSE;
+        vr_drp_share = -1;
+        vr_parry_last_stagger = 0;
         vr_drpt_shot = FALSE;
         vr_drpt_t0 = time;
         vr_drpt_shot = FALSE;
@@ -671,6 +709,16 @@ void() VR_DRPT_BFrame =
             got = sprintf("%s; last: score %.2f, %.0f deg off square, gap %.1f, %.2f s", got, vr_drp_score, vr_drp_off, vr_drp_gap,
                 vr_drp_tau);
         }
+        if(parries > 0)
+        {
+            // (his rule, 2026-11-15: early or late still parried; its stagger by the timing's share)
+            got = sprintf("%s; timing x%.2f (in place %.2f s before, %.2f s late), its stagger %.2f s", got, vr_drp_share,
+                vr_drp_lead, vr_drp_late, vr_parry_last_stagger);
+        }
+        if(r == 1)
+        {
+            vr_drpt_stag_early = vr_parry_last_stagger;
+        }
         if(r == 0)
         {
             vr_drpt_b_hurt = hurt;
@@ -690,7 +738,7 @@ void() VR_DRPT_BFrame =
         }
         else if(r == 1)
         {
-            ok = ((parries == 1) && (fx >= 1) && (hurt == 0) && !vr_parry_welltimed);
+            ok = ((parries == 1) && (fx >= 1) && (hurt == 0) && !vr_parry_welltimed && (vr_drp_share >= 0) && (vr_drp_share <= 0.5));
         }
         else if((r == 2) || (r == 8))
         {
@@ -698,7 +746,13 @@ void() VR_DRPT_BFrame =
         }
         else if((r == 4) || (r == 5))
         {
-            ok = ((parries == 1) && (fx >= 1) && (hurt == 0) && vr_parry_welltimed);
+            ok = ((parries == 1) && (fx >= 1) && (hurt == 0) && vr_parry_welltimed && (vr_drp_share >= 0.999));
+            if((r == 4) && (vr_drpt_stag_early > 0))
+            {
+                // (the same blow held early before it: a much shorter stagger)
+                got = sprintf("%s; held early's %.2f s", got, vr_drpt_stag_early);
+                ok = (ok && (vr_parry_last_stagger >= vr_drpt_stag_early * 1.5));
+            }
         }
         else if(r == 6)
         {
@@ -747,6 +801,14 @@ void() VR_DRPT_Frame =
     }
     if(vr_agt_step == 0)
     {
+        if(c == 0 && mapname != "vrtesthall")
+        {
+            // (Its places are vrtesthall's: run elsewhere (the start map, a script with no `map vrtesthall`: 28/19 in
+            // vrstart, 2026-11-14) its poses and spawns miss, saying nothing about the parry.)
+            VR_AGT_Check(sprintf("dirparry: run on %s: needs map vrtesthall first", mapname), FALSE);
+            cvar_set("vr_agrunt_test", "0"); // (its verdict; nothing set yet to put back)
+            return;
+        }
         if(c == 0)
         {
             vr_drpt_keep_parry = cvar_hget(cvarh_vr_agrunt_parry);

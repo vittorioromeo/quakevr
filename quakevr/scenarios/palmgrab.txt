@@ -1,0 +1,7 @@
+# palmgrab: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title A gun resting on your hand: taken by the handle in reach, else where it lies
+map vrtesthall
+god
+give "Shotgun" main
+spawn "Large Crate" 60 0
+hint Lay the shotgun on the crate, or let it go onto your other open palm. Close a hand with its fist on the handle: taken by the handle, it fires. Rest your open hand on the barrel, handle well away, and close it: held where it lies, as a prop (it doesn't jump to the handle). A fist closed a few centimetres over it takes nothing.
