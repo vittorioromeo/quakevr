@@ -74,6 +74,9 @@ float VR_AGP_REACH = 128;     // ... its right hand reaching for a weapon lying 
 .float vr_agp_runw;           // its run's sway's share (eased)
 .float vr_agp_rdy;            // a melee weapon or the fists ready (an enemy) or carried (eased)
 .float vr_agp_rl_at;          // its reload's start (vr_ag_reload1; 0 none)
+.float vr_agp_lod_pose;       // VR_AGP_Lod: its last pose's time, its last skipped frame's, its origin then
+.float vr_agp_lod_skip;
+.vector vr_agp_lod_org;
 .vector vr_agp_twist;        // vr_agrunt_upper: its chest's turn towards its gun's aim (yaw, pitch; eased)
 float vr_agp_gunpose;         // VR_AGP_Pose: a gun (or two) held as a player holds it this frame (VR_AGP_ArmsGun)
 
@@ -1374,22 +1377,23 @@ float(entity g) VR_AGP_TorsoNow =
 };
 
 // A direction in its body's space turned by vr_agp_tq (roll about x, pitch about y, yaw about z: the client's chest turn).
+// (Its cosines and sines (roll, pitch, yaw) kept for the turn they were made for: ~530 calls a frame in a 3x crowd, 7 a
+// pose with the same turn; the turn itself in the engine, turnrpy: the same float steps in the same order.)
+vector vr_agp_trq;         // the turn vr_agp_trc / vr_agp_trs are for
+var vector vr_agp_trc = '1 1 1';
+vector vr_agp_trs;
 vector(vector d) VR_AGP_TurnDir =
 {
-    float r = vr_agp_tq_z * (3.14159265 / 180);
-    float p = vr_agp_tq_y * (3.14159265 / 180);
-    float y = vr_agp_tq_x * (3.14159265 / 180);
-    vector o;
-    o_x = d_x;
-    o_y = d_y * cos(r) - d_z * sin(r);
-    o_z = d_y * sin(r) + d_z * cos(r);
-    d = o;
-    o_x = d_x * cos(p) + d_z * sin(p);
-    o_z = -d_x * sin(p) + d_z * cos(p);
-    d = o;
-    o_x = d_x * cos(y) - d_y * sin(y);
-    o_y = d_x * sin(y) + d_y * cos(y);
-    return o;
+    if(vr_agp_tq != vr_agp_trq)
+    {
+        vr_agp_trq = vr_agp_tq;
+        float r = vr_agp_tq_z * (3.14159265 / 180);
+        float p = vr_agp_tq_y * (3.14159265 / 180);
+        float y = vr_agp_tq_x * (3.14159265 / 180);
+        vr_agp_trc = [cos(r), cos(p), cos(y)];
+        vr_agp_trs = [sin(r), sin(p), sin(y)];
+    }
+    return turnrpy(d, vr_agp_trc, vr_agp_trs);
 };
 
 // `g`'s pose (vr_agp_*: computed, its right grip `posL`) carried by its torso's turn now: the hands' targets drawn back,
@@ -2084,6 +2088,46 @@ void(entity g, entity pL) VR_AGP_LeftBlade =
     vr_agp_vl = vr_agp_vl - vr_am_anchor_at; // (MeleeLeft's grip: fitted to its body already)
     vr_agp_wl = 1;
     vr_agp_flags = VR_AGP_LEFT | VR_AGP_LEFTWPN;
+};
+
+// The pose's level of detail (vr_agrunt_pose_lod; PERF_1_1.md, "Applied"): TRUE when `g` skips its pose this frame.
+// One no player can see (unseenfar: farther than vr_agrunt_pose_lod_near from each, outside each one's view) and
+// doing nothing its pose times (no attack, cast or shove under way, no aim or guard raised, no weapon being taken up,
+// not a studio's or held still) is posed every other server frame; never twice skipped in a row.
+float(entity g, float still) VR_AGP_Lod =
+{
+    float skip = cvar_hget(cvarh_vr_agrunt_pose_lod) && !still && !vr_agp_quiet && g.health > 0 && !g.vr_ag_act &&
+        g.vr_ag_took_at <= 0 && !g.vr_agk_held && !g.vr_agk_live && g.vr_ag_aimw <= 0 && g.vr_agp_rdy <= 0 &&
+        g.vr_agp_lod_pose > g.vr_agp_lod_skip && g.vr_agp_lod_pose < time && !isragdoll(g);
+    if(skip)
+    {
+        skip = unseenfar(g, cvar_hget(cvarh_vr_agrunt_pose_lod_near));
+    }
+    if(skip)
+    {
+        g.vr_agp_lod_skip = time;
+    }
+    else
+    {
+        g.vr_agp_lod_pose = time;
+        g.vr_agp_lod_org = g.origin;
+    }
+    return skip;
+};
+
+// A skipped pose's frame (VR_AGP_Lod): its weapon carried along by its move since its last pose.
+void(entity g, entity p) VR_AGP_LodCarry =
+{
+    vector moved = g.origin - g.vr_agp_lod_org;
+    if(moved != '0 0 0')
+    {
+        setorigin(p, p.origin + moved);
+        if(g.vr_ag_prop2 && g.vr_ag_prop2 != p)
+        {
+            setorigin(g.vr_ag_prop2, g.vr_ag_prop2.origin + moved);
+        }
+        g.vr_agp_lod_org = g.origin;
+    }
 };
 
 // `g`'s pose this server frame, its weapon `p` (world: its fists) placed by it and the pose sent (QVR_SVC_ARMPOSE).

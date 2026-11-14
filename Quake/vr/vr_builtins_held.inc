@@ -944,6 +944,78 @@ void PF_sightblocked()
     G_INT(OFS_RETURN) = EDICT_TO_PROG(EDICT_NUM(num));
 }
 
+// float unseenfar(entity e, float near): 1 when `e` is farther than `near` units from every player's eyes and outside
+// each one's view (vr_agrunt_pose_lod_cone degrees off where he looks, its box's half diagonal round it), else 0. From
+// the players' server state alone (origin, view_ofs, v_angle): the same in every run of the same game, multiplayer too.
+// The armed humanoids' pose level of detail (QC VR_AGP_Lod: vr_agrunt_pose_lod) and their worn packs' placing.
+void PF_unseenfar()
+{
+    const edict_t* e = G_EDICT(OFS_PARM0);
+    const float near = G_FLOAT(OFS_PARM1);
+    const float cone = glm::radians(za::clamp(vr_agrunt_pose_lod_cone.value, 0.f, 180.f));
+    const glm::vec3 mid = geom::vec(e->v.origin) + (geom::vec(e->v.mins) + geom::vec(e->v.maxs)) * 0.5f;
+    const float round = glm::length(geom::vec(e->v.maxs) - geom::vec(e->v.mins)) * 0.5f;
+    G_FLOAT(OFS_RETURN) = 1.f;
+    for(int i = 0; i < svs.maxclients; i++)
+    {
+        const client_t& c = svs.clients[i];
+        if(!c.active || !c.edict)
+        {
+            continue;
+        }
+        const edict_t* p = c.edict;
+        const glm::vec3 to = mid - (geom::vec(p->v.origin) + geom::vec(p->v.view_ofs));
+        const float dist = glm::length(to);
+        if(dist <= near + round)
+        {
+            G_FLOAT(OFS_RETURN) = 0.f;
+            return;
+        }
+        vec3_t f, r, u;
+        vec3_t look = {p->v.v_angle[0], p->v.v_angle[1], p->v.v_angle[2]};
+        AngleVectors(look, f, r, u);
+        const float off = acosf(za::clamp(glm::dot(to / dist, geom::vec(f)), -1.f, 1.f));
+        if(off - za::atan2(round, dist) <= cone)
+        {
+            G_FLOAT(OFS_RETURN) = 0.f;
+            return;
+        }
+    }
+}
+
+// vector turnrpy(vector d, vector c, vector s): QC VR_AGP_TurnDir's turn (roll about x, pitch about y, yaw about z: the
+// armed humanoids' chest turn), c and s the three angles' cosines and sines. Each step one float operation in QC's order
+// (no fused multiply-adds: -ffp-contract=off), so the result is QC's to the bit.
+void PF_turnrpy()
+{
+    const float* d = G_VECTOR(OFS_PARM0);
+    const float* c = G_VECTOR(OFS_PARM1);
+    const float* s = G_VECTOR(OFS_PARM2);
+    float a = d[1] * c[0];
+    float b = d[2] * s[0];
+    const float y1 = a - b;
+    a = d[1] * s[0];
+    b = d[2] * c[0];
+    const float z1 = a + b;
+    a = d[0] * c[1];
+    b = z1 * s[1];
+    const float x2 = a + b;
+    a = -d[0];
+    a = a * s[1];
+    b = z1 * c[1];
+    const float z2 = a + b;
+    a = x2 * c[2];
+    b = y1 * s[2];
+    const float x3 = a - b;
+    a = x2 * s[2];
+    b = y1 * c[2];
+    const float y3 = a + b;
+    float* out = G_VECTOR(OFS_RETURN);
+    out[0] = x3;
+    out[1] = y3;
+    out[2] = z2;
+}
+
 // float heldshape(entity prop, vector start, vector end): where the line from `start` to `end` first meets the shape of
 // `prop` held in a hand (its held body, as the hand holds it), as a fraction of it; 1 if it doesn't or `prop` isn't held
 // (box3d::heldRay). A crate held up stops monsters' shots (weapons.qc VR_Crate_ShieldShot).
