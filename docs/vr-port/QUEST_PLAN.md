@@ -808,8 +808,16 @@ the world and the models pitch black, some menu shapes missing; ~55 s to the fir
 - **Android defaults**: `EXT_clip_control` taken when the driver has it (the Quest 3 does; `-glesnoclipcontrol` for
   the standard-depth path): reversed Z as the PC, the map lights' shadows back; the app's window gets no flat image
   and no `eglSwapBuffers` while VR runs (`vr_android_window` 0; 1 for the flat-panel APK).
-- **Save error.** (Android only: the PC's e1m1 autosave works) now says why (`pr_save_error`: the string or edict
-  reference the save thread could not write).
+- **Save error.** (Android only: the PC's e1m1 autosave works) now says why: "string -14: a freed engine string"
+  (`pr_save_error`; an edict field still points at an engine string slot freed since).
+- **Still black after all of it** (`vr_gl_probe`, e1m1's start): the eye's scene draws 31-35 k primitives, the frame
+  data's UBO reads back byte for byte (ViewProj sane), depth clear 0 / `GL_GEQUAL` (reversed Z), colour mask on,
+  draw buffer `COLOR_ATTACHMENT0`, the framebuffers complete, no GL error; yet the composite is 0.00% non-black at
+  every stage (the eye clears to 0 0 0 0, so a missing clear and a fragment output of 0 look the same). The vertex
+  side is fine: the fragments are rejected (depth/stencil against the hidden-area mask or a stale depth) or write 0.
+  Next probes: `GL_ANY_SAMPLES_PASSED` around the world alone (the mask's draw passes samples too), the eye's clear
+  colour made non-black to see whether the clear lands, `vr_visibility_mask 0`, the world fragment shader with a
+  constant output. Boot: still ~53-55 s on relaunches after a reinstall; FPS and the menu's sharpness: not reached.
 
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
@@ -854,7 +862,9 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C4c — the headset worn, and the frame (NEEDS him wearing the Quest 3 over USB for the visual part; no
+Next phase: C4c (continued, section 6j) — the black eye scene first (the probes listed there), then the boot's
+compiles (a program binary cache), the frame's 35 ms (simpleperf, the frame fence in `GL_AcquireFrameResources`), the
+menu panel's resolution, the save's freed engine string; no installs. The original C4c scope: the headset worn, and the frame (NEEDS him wearing the Quest 3 over USB for the visual part; no
 installs: simpleperf is the NDK's): first what he sees (e1m1's image in both eyes, the `imageRect` origin of 6f, the
 menus' panel, the Touch controllers, sound), then why a frame takes 35 ms with the CPU and GPU both under 40% busy
 (simpleperf, `vr_profile`; the syncs: query reads, fences, readbacks, `xrWaitFrame`), the first launch's ~55 s of
