@@ -42,6 +42,7 @@ Flat-screen or VR: Melee Only with the dagger, "maxplayers 2" and a bot (impulse
 
 [6. VR: body and gear]
 With armour on, set Advanced VR Options > Weapons > Reloading > X With Armour and Flashlight > Forward With Armour to a small value (about 3 units, 0.03 m; the scene sets those): the pouch and the belt torch should stand clear of the plates, and go back to normal when the armour is gone. {test:armour_gear}
+VR: teleport many times quickly (headset at 90 or 120 Hz): every release teleports you.
 
 [7. VR: melee and embedded blades]
 Stab a standing monster with the sword (not hard enough to stagger it), keep holding it, and let it walk into a teleporter: the sword comes back to your hand, not held from across the map. {test:embed_tele}

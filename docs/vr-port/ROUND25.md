@@ -2399,3 +2399,6 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
 - Test aids: `vr_mp_drawn` adds each empty hand's ground spot and the nearest lying weapon's reverse grip choice; the
   mock's `vr_mock_hand_to <hand> spot <i>` works on a remote client; QC logs the off hand's grip presses
   (`vr_debug_carry 2`). Kit runs and the MP harness share the base's autoexec: never run both at once.
+## telekeep (cherry-pick of agent/mp 88743a3e8)
+- A teleport asked in an earlier move of a server frame is kept until the server acts on it (headset above 72 Hz lost it). Checks: dev + ReleaseLTO 1.1.0 builds, vr_teleport_both_test 14/0, scenario_check 129/0, load_models_test 4/0.
+- vr_runpickups_test 1 hangs (engine spins, frames stop) at step 17 load mp_rpk_seed; also at 32ebcecc7 (muttiers merge) and 97aee6b6e, so not a recent commit. The same sequence by hand, and loading mp_rpk_seed.sav in a fresh run, both work. Cause not found.
