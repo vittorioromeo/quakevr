@@ -5,8 +5,11 @@
 #include "vr_skinedge.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_jobs.hpp"
 #include "vr_mem.hpp"
 #include "vr_strings.hpp"
+
+#include "Zancle/Algorithm/Sort.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
@@ -70,6 +73,25 @@ struct Tri
     float len[3];
     float area2; // twice the signed area (0: a line or a point)
 };
+
+// A triangle on the skin and its texels' box (VR_SkinEdgesModel; ok false: a vertex out of range, skipped).
+struct TriBox
+{
+    Tri t;
+    int x0, x1, y0, y1;
+    bool ok;
+};
+
+// VR_SkinEdgesModel's per-model lists (main thread; its bands of rows on the pool read them, write their own rows).
+struct EdgeTriScratch
+{
+    za::Vector<TriBox> tris;     // by triangle
+    za::Vector<za::U32> setBy;   // per texel with a source: the triangle that gave it
+    za::Vector<za::U64> order;   // (triangle << 32 | texel) of the edge texels: the order a serial walk finds them
+    auto members() { return mem::list(tris, setBy, order); }
+};
+mem::Scratch<EdgeTriScratch> triScratch{"skin edges triangles"};
+jobs::Site edgeSite{"skin edges"}; // (its parallelFor: vr_jobs_sites)
 
 [[nodiscard]] Tri makeTri(const float (&x)[3], const float (&y)[3])
 {
@@ -278,75 +300,108 @@ extern "C" void VR_SkinEdgesModel(
         y0 = za::clamp(static_cast<int>(za::floor(za::min(t.y[0], za::min(t.y[1], t.y[2])))) - 1, 0, height - 1);
         y1 = za::clamp(static_cast<int>(za::ceil(za::max(t.y[0], za::max(t.y[1], t.y[2])))) + 1, 0, height - 1);
     };
-    // the texels whose middles a triangle has
+    // The triangles and their boxes, then two passes over bands of rows on the pool: each band walks every triangle
+    // over its own rows only (its writes are its rows'; the second pass reads `inside` of the rows round it, all made
+    // by then), so the result is the serial walk's whatever the split.
+    EdgeTriScratch& ts = triScratch;
+    ts.tris.clear();
     for(int i = 0; i < numtris; i++)
     {
-        Tri t;
-        if(!corners(i, t))
+        TriBox& b = ts.tris.emplaceBack();
+        b.ok = corners(i, b.t);
+        if(b.ok)
         {
-            continue;
+            box(b.t, b.x0, b.x1, b.y0, b.y1);
         }
-        int x0, x1, y0, y1;
-        box(t, x0, x1, y0, y1);
-        for(int y = y0; y <= y1; y++)
+    }
+    ts.setBy.clear();
+    ts.setBy.resize(texels, 0u);
+    constexpr za::SizeT bandRows = 16;
+    // the texels whose middles a triangle has
+    jobs::parallelFor(edgeSite, static_cast<za::SizeT>(height), bandRows, [&](za::SizeT r0, za::SizeT r1) {
+        for(const TriBox& b : ts.tris)
         {
-            for(int x = x0; x <= x1; x++)
+            const int y0 = za::max(b.y0, static_cast<int>(r0)), y1 = za::min(b.y1, static_cast<int>(r1) - 1);
+            if(!b.ok || y0 > y1)
             {
-                if(contains(t, static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f))
+                continue;
+            }
+            for(int y = y0; y <= y1; y++)
+            {
+                for(int x = b.x0; x <= b.x1; x++)
                 {
-                    s.inside[static_cast<za::SizeT>(y) * width + x] = 1;
+                    if(contains(b.t, static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f))
+                    {
+                        s.inside[static_cast<za::SizeT>(y) * width + x] = 1;
+                    }
                 }
             }
         }
-    }
+    });
     // the texels a triangle touches with no triangle's middle in them: each the first touching triangle's texel next
     // to it (its sides first, then its corners) that it has inside, else any neighbour some triangle has inside
     constexpr int nx[8] = {0, 0, 1, -1, 1, 1, -1, -1};
     constexpr int ny[8] = {1, -1, 0, 0, 1, -1, 1, -1};
-    for(int i = 0; i < numtris; i++)
-    {
-        Tri t;
-        if(!corners(i, t))
+    jobs::parallelFor(edgeSite, static_cast<za::SizeT>(height), bandRows, [&](za::SizeT r0, za::SizeT r1) {
+        for(za::SizeT i = 0; i < ts.tris.size(); i++)
         {
-            continue;
-        }
-        int x0, x1, y0, y1;
-        box(t, x0, x1, y0, y1);
-        for(int y = y0; y <= y1; y++)
-        {
-            for(int x = x0; x <= x1; x++)
+            const TriBox& b = ts.tris[i];
+            const Tri& t = b.t;
+            const int y0 = za::max(b.y0, static_cast<int>(r0)), y1 = za::min(b.y1, static_cast<int>(r1) - 1);
+            if(!b.ok || y0 > y1)
             {
-                const za::SizeT k = static_cast<za::SizeT>(y) * width + x;
-                if(s.inside[k] || s.source[k] || !touches(t, x, y))
+                continue;
+            }
+            for(int y = y0; y <= y1; y++)
+            {
+                for(int x = b.x0; x <= b.x1; x++)
                 {
-                    continue;
-                }
-                za::U32 from = 0;
-                for(int pass = 0; pass < 2 && !from; pass++)
-                {
-                    for(int n = 0; n < 8 && !from; n++)
+                    const za::SizeT k = static_cast<za::SizeT>(y) * width + x;
+                    if(s.inside[k] || s.source[k] || !touches(t, x, y))
                     {
-                        const int X = x + nx[n], Y = y + ny[n];
-                        if(X < 0 || Y < 0 || X >= width || Y >= height)
+                        continue;
+                    }
+                    za::U32 from = 0;
+                    for(int pass = 0; pass < 2 && !from; pass++)
+                    {
+                        for(int n = 0; n < 8 && !from; n++)
                         {
-                            continue;
-                        }
-                        const za::SizeT kn = static_cast<za::SizeT>(Y) * width + X;
-                        const bool ok = pass == 0 ? s.inside[kn] && contains(t, static_cast<float>(X) + 0.5f, static_cast<float>(Y) + 0.5f)
-                                                  : s.inside[kn] != 0;
-                        if(ok)
-                        {
-                            from = static_cast<za::U32>(kn) + 1u;
+                            const int X = x + nx[n], Y = y + ny[n];
+                            if(X < 0 || Y < 0 || X >= width || Y >= height)
+                            {
+                                continue;
+                            }
+                            const za::SizeT kn = static_cast<za::SizeT>(Y) * width + X;
+                            const bool ok = pass == 0 ? s.inside[kn] && contains(t, static_cast<float>(X) + 0.5f, static_cast<float>(Y) + 0.5f)
+                                                      : s.inside[kn] != 0;
+                            if(ok)
+                            {
+                                from = static_cast<za::U32>(kn) + 1u;
+                            }
                         }
                     }
-                }
-                if(from)
-                {
-                    s.source[k] = from;
-                    s.touched.pushBack(static_cast<za::U32>(k));
+                    if(from)
+                    {
+                        s.source[k] = from;
+                        ts.setBy[k] = static_cast<za::U32>(i);
+                    }
                 }
             }
         }
+    });
+    // in the serial walk's order: by triangle, then row, then column (the texel's index)
+    ts.order.clear();
+    for(za::SizeT k = 0; k < texels; k++)
+    {
+        if(s.source[k])
+        {
+            ts.order.pushBack(static_cast<za::U64>(ts.setBy[k]) << 32 | static_cast<za::U64>(k));
+        }
+    }
+    za::quickSort(ts.order.begin(), ts.order.end());
+    for(const za::U64 o : ts.order)
+    {
+        s.touched.pushBack(static_cast<za::U32>(o & 0xffffffffu));
     }
     if(s.touched.empty())
     {

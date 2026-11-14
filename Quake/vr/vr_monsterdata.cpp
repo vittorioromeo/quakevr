@@ -47,7 +47,18 @@ za::Array<za::String, monsterValueCount> texts;    // each value's text now
 za::Array<za::String, monsterValueCount> defaults; // ... and monsters.txt's
 za::Vector<const char*> classnames;                // monsters.txt's blocks' names, in vr_monsterdata.inc's order
 za::Vector<const char*> keyNames;                  // ... and its keys
-ankerl::unordered_dense::map<za::String, int> byName; // a value's index by its old cvar name
+// Looked up by a lowered name without making a za::String of it (findStandIn: the lunges' QC, every few frames).
+struct NameHash
+{
+    using is_transparent = void;
+    [[nodiscard]] za::SizeT operator()(za::StringView s) const { return ankerl::unordered_dense::hash<za::StringView>{}(s); }
+};
+struct NameEqual
+{
+    using is_transparent = void;
+    [[nodiscard]] bool operator()(za::StringView a, za::StringView b) const { return a == b; }
+};
+ankerl::unordered_dense::map<za::String, int, NameHash, NameEqual> byName; // a value's index by its old cvar name
 
 [[nodiscard]] int indexOf(za::Vector<const char*>& names, const char* name)
 {
@@ -164,7 +175,7 @@ cvar_t* findStandIn(const char* name)
     char lower[96];
     q_strlcpy(lower, name, sizeof(lower));
     q_strlwr(lower);
-    const auto it = byName.find(za::String{lower});
+    const auto it = byName.find(za::StringView{lower});
     return it == byName.end() ? nullptr : &monsterValues[it->second];
 }
 
