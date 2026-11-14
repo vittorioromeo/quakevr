@@ -363,6 +363,7 @@ void Host_EndGame (const char *message, ...)
 	else
 		CL_Disconnect ();
 
+	Temp_FreeToMark (0); // QVR: (as Host_Error)
 	longjmp (host_abortserver, 1);
 }
 
@@ -410,6 +411,7 @@ void Host_ReportError (const char *error, ...)
 
 	inerror = false;
 
+	Temp_FreeToMark (0); // QVR: whatever held temporary lists (a touch's QuakeC that erred) is unwound
 	longjmp (host_abortserver, 1);
 }
 
@@ -898,6 +900,7 @@ void Host_ClearMemory (void)
 /* host_hunklevel MUST be set at this point */
 	Hunk_ClearKeep (); // QVR: the models kept on the hunk go with it (Hunk_KeepLoaded)
 	Hunk_FreeToLowMark (host_hunklevel);
+	Temp_FreeToMark (0); // QVR: the temporary stack (zone.h; empty unless an error unwound past a free)
 	cls.signon = 0; // not CL_ClearSignons()
 	memset (&sv, 0, sizeof(sv));
 
