@@ -248,6 +248,10 @@ struct State
     char line[1024]{}; // (about 12 characters a choice: room for many more; saveLine checks it fits)
     char summary[256]{};
     bool runSet{false};                // the run's values set since the last map began (start, endRun, vr_run, a load)
+    bool started{false};               // ... by a Start whose map comes at once (startWith): see keepStartValues
+    bool startMap{false};              // ... and the `map` it began is this one (newGame): the next spawn's
+    int presetSets{0};                 // the presets' settings the last spawn found changed since its Start, set again
+    za::Vector<za::String> startValues; // the presets' settings as the Start left them (keepStartValues)
     int spawns{0};                     // maps begun (beforeMapLoad), a new game's or a save's
     int spawnedWith[registryCount]{}; // the run's values the last one spawned with (vr_runlaunch_test)
 };
@@ -305,7 +309,7 @@ void runCmd()
 {
     if(Cmd_Argc() >= 2 && !strcmp(Cmd_Argv(1), "start"))
     {
-        start();
+        start(false);
         Con_Printf("vr_run: started: %s\n", summary(false));
         return;
     }
@@ -555,7 +559,7 @@ void testCmd()
     Cvar_Set("vr_runpick_rangedknights", "1");
     Cvar_Set("vr_runpick_wildweapons", "1");
     Cvar_Set("vr_runpick_armoredfoes", "1");
-    start();
+    start(false);
     t.check(vr_run_rangedknights.value == 1.f && vr_run_wildweapons.value == 1.f && vr_run_armoredfoes.value == 1.f, name,
         "start: Ranged Knights, Wild Weaponry, Armored Foes (Armed Humanoids on)");
     t.check(vr_run_pickups.value == 2.f && vr_run_ironman.value == 1.f && ironman() && vr_run_seed.value >= 1.f, name,
@@ -606,7 +610,7 @@ void testCmd()
         Cvar_Set("vr_runpick_style", "2");
         t.check(held(true), name, "As Style with Light: held Off");
         Cvar_Set("vr_runpick_armed", "1");
-        start();
+        start(false);
         t.check(vr_run_rangedknights.value == 0.f && vr_run_wildweapons.value == 0.f && vr_run_armoredfoes.value == 0.f,
             name, "a run with Armed Humanoids Off starts them Off (the picks kept)");
         t.check(vr_runpick_rangedknights.value == 1.f, name, "the held pick itself is kept for next time");
@@ -636,7 +640,7 @@ void testCmd()
     Cvar_Set("vr_runpick_rangedknights", "0");
     Cvar_Set("vr_runpick_wildweapons", "0");
     Cvar_Set("vr_runpick_armoredfoes", "0");
-    start();
+    start(false);
     t.check(gameplaypresets::kind().matchingLevel() == gameplaypresets::levelUnleashed && vr_run_glasscannon.value == 0.f &&
                 vr_run_pickups.value == 0.f && !ironman() && vr_run_rangedknights.value == 0.f && vr_run_armoredfoes.value == 0.f,
         name, "run B: Unleashed, no glass cannon, pickups as the map's, saving allowed");
@@ -689,7 +693,7 @@ void testCmd()
         t.check(cvarInt(vr_maps_skill) == 3 && vr_runpick_bn.value == 0.f, name,
             "an old config's vr_runpick_bn 1: Nightmare, the old pick cleared");
         Cvar_Set("vr_mg3_bn_start", "0");
-        start();
+        start(false);
         t.check(pickValue(bn) == 0 && skill.value == 3.f && vr_run_bn.value == 0.f && vr_mg3_bn_start.value == 0.f &&
                     strstr(saveLine(), " bn=0 ") != nullptr,
             name, "Nightmare started: skill 3, no Bloody Nightmare (vr_run_bn 0, vr_mg3_bn_start 0, bn=0)");
@@ -702,7 +706,7 @@ void testCmd()
         t.check(strstr(saveSummary("x\n// qvr_run skill=3 bn=1 style=3\n", 3), "Bloody Nightmare") != nullptr, name,
             "a save's (an older one's) skill=3 bn=1: Bloody Nightmare in its summary");
         Cvar_Set("vr_maps_skill", "2");
-        start();
+        start(false);
         t.check(skill.value == 2.f && vr_run_bn.value == 0.f, name, "the next start (Hard): Bloody Nightmare gone");
         Cvar_SetValueQuick(&vr_maps_skill, static_cast<float>(skillPick));
     }
@@ -748,7 +752,7 @@ void testCmd()
             kept = kept && registry[i].pick->value == before[i];
         }
         t.check(kept, name, "Arena Mode: the picks untouched");
-        start();
+        start(false);
         t.check(vr_run_style.value == 1.f && vr_run_armed.value == 1.f && vr_run_smartai.value == 1.f &&
                     vr_run_pickups.value == 2.f && vr_run_enemycount.value == 2.f && vr_agrunt_repl.value == 0.f,
             name, va("the next run's Start: the picks again (%s)", summary(false)));
@@ -875,8 +879,54 @@ int arenaValue(int i)
 
 namespace
 {
+// Every setting the Style, Gore, Armed Humanoids and Smarter AI rows set: the Gameplay and Gore presets' rows.
+template <typename F>
+void forEachPresetVar(F&& f)
+{
+    presetcore::Kind* const kinds[] = {&gameplaypresets::kind(), &gorepresets::kind()};
+    for(presetcore::Kind* k : kinds)
+    {
+        for(int r = 0; r < k->table().rowCount; r++)
+        {
+            f(k->table().rows[r].var);
+        }
+    }
+}
+
+// presetlate (his flat report 2026-11-15: the Style took effect on the second start only): the presets' settings as
+// a Start left them, the map it begins spawns with exactly those (beforeMapLoad: whatever ran in between, set again).
+void keepStartValues()
+{
+    state.startValues.clear();
+    forEachPresetVar([](cvar_t* v) { state.startValues.pushBack(za::String{v->string}); });
+}
+
+// The presets' settings changed since the Start set back (each printed); how many.
+int restoreStartValues()
+{
+    int i = 0;
+    int n = 0;
+    const int kept = static_cast<int>(state.startValues.size());
+    forEachPresetVar([&](cvar_t* v) {
+        if(i < kept && strcmp(v->string, state.startValues[i].cStr()) != 0)
+        {
+            Con_Printf("Run setup: %s is \"%s\", the run's Start set \"%s\": set again before %s spawns\n", v->name,
+                v->string, state.startValues[i].cStr(), sv.name);
+            Cvar_SetQuick(v, state.startValues[i].cStr());
+            n++;
+        }
+        i++;
+    });
+    if(n > 0)
+    {
+        gorepresets::sync();
+        gameplaypresets::syncClassic();
+    }
+    return n;
+}
+
 // The run starts with `value(i)` for each row (all read before any is set: a rule reads the picks).
-void startWith(int (*value)(int))
+void startWith(int (*value)(int), bool mapNow)
 {
     int values[registryCount];
     for(int i = 0; i < registryCount; i++)
@@ -896,18 +946,21 @@ void startWith(int (*value)(int))
     Cvar_SetValueQuick(&vr_run_seed, static_cast<float>(newSeed()));
     Cvar_Set("vr_run_hubgo", "0");
     state.runSet = true;
+    state.started = mapNow;
+    state.startMap = false;
+    keepStartValues();
     Con_Printf("Run setup: %s\n", summary(false));
 }
 } // namespace
 
-void start()
+void start(bool mapNow)
 {
-    startWith(pickValue);
+    startWith(pickValue, mapNow);
 }
 
 void startArena()
 {
-    startWith(arenaValue); // (the picks untouched: the next run's Start sets its own again)
+    startWith(arenaValue, true); // (the picks untouched: the next run's Start sets its own again)
 }
 
 void newGame()
@@ -915,6 +968,8 @@ void newGame()
     // Begun by the Run Setup's Start (or the hub's end of a run, `vr_run <id> <value>`): as set.
     if(state.runSet)
     {
+        state.startMap = state.started; // (a Start's own `map`: its map spawns with the Start's presets)
+        state.started = false;
         return;
     }
     // (A mutator's vr_run_<id> set by hand since the last map began, a scenario's `cvar vr_run_meleeonly 1`, a test's:
@@ -944,6 +999,9 @@ void beforeMapLoad(bool loadingSave)
     {
         Cvar_SetValueQuick(&vr_run_seed, static_cast<float>(newSeed()));
     }
+    state.presetSets = !loadingSave && state.startMap ? restoreStartValues() : 0;
+    state.started = false;
+    state.startMap = false;
     state.runSet = false;
     state.spawns++;
     for(int i = 0; i < registryCount; i++)
@@ -966,6 +1024,11 @@ int mapSpawns()
 int spawnedWith(int i)
 {
     return i >= 0 && i < registryCount ? state.spawnedWith[i] : -1;
+}
+
+int spawnPresetSets()
+{
+    return state.presetSets;
 }
 
 void endRun()

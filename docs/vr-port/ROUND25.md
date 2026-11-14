@@ -2794,3 +2794,30 @@ self-driven across the load by saved globals): `vr_scenario waterdrips`, once pl
 - Arena Mode: no Ironman row (rows: Start, Difficulty, Gore, Glass Cannon, Melee Only); `arenaValue` forces Ironman off, the pick untouched.
 - No saving in the arena (`vrarena`): `VR_ArenaNoSave` (vr_runsetup.cpp) makes `VR_RunIronmanRefusesSave` refuse `save`/quicksave/Save menu with "No saving in Arena Mode"; the quicksave tool is greyed with that reason. Loading stays allowed.
 - Tests: `vr_runsetup_screen_test` (five rows), `vr_runlaunch_test` (Ironman off with the pick on; save and quicksave write nothing). menu_paths unchanged by rows removal except Ironman.
+
+## presetlate (2026-11-15)
+
+His flat report: a Run Setup Style (Classic, then Unleashed) took effect only when the run was started a second time.
+
+- Order of events, every way in (Levels list, Map Library, New Game, Official Campaigns, the hub's teleporter, Arena
+  Mode; a Continue row is a load: the save's run): the Start (`runSetupStart`) sets every `vr_run_<id>` and applies the
+  presets' rows at once (`applyStyle` / `applyGore` / `applyArmed` / `applySmartAi`: `Cvar_SetQuick`, no Cbuf), then
+  queues the launch (`M_LevelStart`: `disconnect`, `skill`, `map`; New Game `map start`; a campaign `map start`
+  after its folders; the arena `vr_campaign_hub vrarena`). `Host_Map_f` -> `newGame` (kept: `runSet`) ->
+  `SV_SpawnServer` -> `VR_OnSpawnServerBeforeLoad` -> `beforeMapLoad` -> the entities. QC reads the settings as each
+  monster spawns (`cvar_hget`: the cvar itself, no cached copy). Nothing in that chain defers or latches a preset row.
+- Not reproduced headless: `vr_runlaunch_test` now picks a different Style and Gore (and Armed Humanoids over Light) on
+  every way in and checks the first start; all passed on next before the fix too. Whatever set the last run's values
+  back in his game ran between the Start and the spawn (a queued command, a config) or is outside these paths.
+- Fix (a guarantee, whatever the cause): a Start whose map comes at once (`runsetup::start(mapNow)`; not the hub's
+  teleporter, the screen without a launch, `vr_run start`) keeps every Gameplay and Gore preset row's value; that `map`'s
+  spawn (`beforeMapLoad`, before any entity) sets back any changed since, printing `Run setup: <cvar> is "x", the run's
+  Start set "y": set again before <map> spawns` (the line to look for in his console if it ever shows).
+- Test `vr_runlaunch_test` (80/0): per step its Style/Gore/Armed picks (each other than the run before: Light, Classic,
+  Unleashed, Classic, Unleashed, Light + Armed On, Unleashed, a load of Classic, Unleashed, the arena's, Classic); checks
+  the presets' settings (`matchingLevel`, the Gore choice, `vr_agrunt_repl`, `vr_reload_mode`) and the map (QC
+  `VR_Run_PresetLaunchCheck`: every grunt and enforcer armed or none; the guns' reloading modes); step 9 queues
+  `vr_agrunt_repl 0; vr_reload_mode 0` after its Start, ahead of its `map`: both set back (2), every other step 0.
+- Found on the way (not fixed): Classic + 3x Enemy Count on e1m1 leaves two grunt copies in solid
+  (`vr_run_enemies_check`: "2 copies in solid"; Classic's full-size hulls, `vr_mhull 0`); the test keeps Classic off
+  that pick row.

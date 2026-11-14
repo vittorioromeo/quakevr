@@ -849,26 +849,39 @@ struct RunLaunchStep
     bool loadout;     // a new game: the run's starting weapons
     bool save;        // saved after its check (the run the Load step brings back)
     const char* what;
+    // The presets picked before its Start (-1: the pick left as it is): Style (1 Classic, 2 Light, 3 Unleashed), Gore
+    // (1 Full, 2 Minimal, 3 Off), Armed Humanoids (0 As Style, 1 Off, 2 On). Each other than the run before it: the
+    // map spawns with them on its first start (presetlate: his flat report 2026-11-15, the second start only).
+    int style;
+    int gore;
+    int armed;
 };
 constexpr RunLaunchStep runLaunchSteps[] = {
-    {RunLaunchWay::Level, "e1m1", 0, true, true, false, "the Levels list"},
-    {RunLaunchWay::Level, "e1m1", 1, true, true, true, "the Levels list again, other choices"},
-    {RunLaunchWay::Library, "e1m1", 0, true, true, false, "the Map Library's Play"},
-    {RunLaunchWay::NewGame, "start", 1, true, true, false, "New Game"},
-    {RunLaunchWay::Campaign, "start", 0, true, true, false, "Official Campaigns' row"},
-    {RunLaunchWay::Map, "vrstart", -1, false, false, false, "the hub"},
-    {RunLaunchWay::Hub, "start", 1, true, false, false, "the hub's teleporter"},
-    {RunLaunchWay::Level, "vrfiringrange", 2, true, false, false, "the Levels list: the firing range"},
-    {RunLaunchWay::Load, "e1m1", -1, true, false, false, "the saved run loaded"},
-    {RunLaunchWay::Level, "e1m1", 0, true, true, false, "the Levels list after a load"},
-    {RunLaunchWay::FiringRange, "vrfiringrange", 2, true, false, false, "the Firing Range button (no screen)"},
-    {RunLaunchWay::ConsoleRun, "vrfiringrange", -1, true, false, false, "`vr_run glasscannon 0` then `map`"},
+    // (Classic with picks row 0 on e1m1 is left out: Classic's full-size hulls leave two of 3x Enemy Count's copies in
+    // solid there, VR_Run_LaunchCheck's miss; ROUND25.md, "presetlate".)
+    {RunLaunchWay::Level, "e1m1", 0, true, true, false, "the Levels list", 2, 2, 0},
+    {RunLaunchWay::Level, "e1m1", 1, true, true, true, "the Levels list again, other choices", 1, 1, 0},
+    {RunLaunchWay::Library, "e1m1", 0, true, true, false, "the Map Library's Play", 3, 3, 0},
+    {RunLaunchWay::NewGame, "start", 1, true, true, false, "New Game", 1, 2, 0},
+    {RunLaunchWay::Campaign, "start", 0, true, true, false, "Official Campaigns' row", 3, 1, 0},
+    {RunLaunchWay::Map, "vrstart", -1, false, false, false, "the hub", -1, -1, -1},
+    {RunLaunchWay::Hub, "start", 1, true, false, false, "the hub's teleporter", 2, 3, 2},
+    {RunLaunchWay::Level, "vrfiringrange", 2, true, false, false, "the Levels list: the firing range", 3, 3, 0},
+    {RunLaunchWay::Load, "e1m1", -1, true, false, false, "the saved run loaded", -1, -1, -1},
+    {RunLaunchWay::Level, "e1m1", 0, true, true, false, "the Levels list after a load", 3, 2, 0},
+    {RunLaunchWay::FiringRange, "vrfiringrange", 2, true, false, false, "the Firing Range button (no screen)", -1, -1, -1},
+    {RunLaunchWay::ConsoleRun, "vrfiringrange", -1, true, false, false, "`vr_run glasscannon 0` then `map`", -1, -1, -1},
     // Arena Mode (arenacamp): picks row 1 (Glass Cannon on, random enemies and pickups the arena turns off), then the
-    // Levels list: the player's own picks the run's again.
-    {RunLaunchWay::Arena, "vrarena", 1, true, false, false, "Arena Mode"},
-    {RunLaunchWay::Level, "e1m1", 1, true, true, false, "the Levels list after Arena Mode"},
+    // Levels list: the player's own picks the run's again (Classic after the arena's Unleashed).
+    {RunLaunchWay::Arena, "vrarena", 1, true, false, false, "Arena Mode", 1, 2, 0},
+    {RunLaunchWay::Level, "e1m1", 1, true, true, false, "the Levels list after Arena Mode", 1, 3, 0},
 };
 constexpr int runLaunchStepCount = static_cast<int>(sizeof(runLaunchSteps) / sizeof(runLaunchSteps[0]));
+// The step whose Start is followed, before its `map`, by commands changing two of the Style's settings (the armed
+// humanoids, the guns' reloading: as whatever set the last run's back in his game would): its map spawns with the
+// Start's all the same, those two set back (runsetup::spawnPresetSets). Every other step: none to set back.
+constexpr int runLaunchDriftStep = 9;
+constexpr const char* runLaunchDrift = "vr_agrunt_repl 0\nvr_reload_mode 0\n";
 constexpr int runLaunchGiveUp = 72 * 60; // frames a step may wait for its map (60 s of game time)
 constexpr int runLaunchSettle = 48;      // frames after the player is in: the monsters' start thinks (0.1-0.6 s)
 // Arena Mode's step: past the level-start autosave's moment (2.5 s) and into a wave (vr_arena_goto 2 at runLaunchSettle).
@@ -926,6 +939,14 @@ void runLaunchGo(const RunLaunchStep& s)
     {
         runLaunchSetPicks(runLaunchPicks[s.picks]);
     }
+    const int presets[] = {s.style, s.gore, s.armed};
+    for(int p = 0; p < 3; p++)
+    {
+        if(presets[p] >= 0)
+        {
+            Cvar_SetValue(runLaunchPresets[p], static_cast<float>(presets[p])); // (as the screen's row sets it)
+        }
+    }
     switch(s.way)
     {
         case RunLaunchWay::Level: VR_RunSetupLevel(s.map); break;
@@ -961,6 +982,10 @@ void runLaunchGo(const RunLaunchStep& s)
             return;
     }
     runSetupStart();
+    if(&s == &runLaunchSteps[runLaunchDriftStep])
+    {
+        Cbuf_InsertText(runLaunchDrift); // (ahead of the Start's `map`)
+    }
     if(s.way == RunLaunchWay::Hub)
     {
         Cbuf_AddText("changelevel start\n"); // (the teleporter, vr_run_hubgo set: it lets him through)
@@ -1040,6 +1065,39 @@ void runLaunchArenaCheck()
     }
 }
 
+// The run's presets in effect in the map it spawned, on its first start (presetlate): the settings Style, Gore and
+// Armed Humanoids set (the Gameplay preset's level unless a row is set over it, the Gore preset's choice, the armed
+// humanoids' and reloading's cvars), and the map as they say (QC VR_Run_PresetLaunchCheck: its grunts armed or not,
+// the guns' reloading modes).
+void runLaunchPresetCheck(const char* what)
+{
+    RunLaunchTest& t = runLaunch;
+    const int style = runsetup::activeValue(runsetup::find("style"));
+    const int gore = runsetup::activeValue(runsetup::find("gore"));
+    const int armed = runsetup::activeValue(runsetup::find("armed"));
+    const int smartai = runsetup::activeValue(runsetup::find("smartai"));
+    if(style <= 0)
+    {
+        return; // (My Settings: the test's own; nothing to expect)
+    }
+    const bool armedOn = armed == 2 || (armed == 0 && style == 3);
+    const bool level = armed != 0 || smartai != 0 || gameplaypresets::kind().matchingLevel() == style - 1;
+    const bool cvars = (vr_agrunt_repl.value != 0.f) == armedOn && (vr_reload_mode.value == 0.f) == (style == 1);
+    const bool goreOk = gore <= 0 || gorepresets::matching() == gore;
+    if(!level || !cvars || !goreOk)
+    {
+        Con_Printf("runlaunch: %s: Style %d (preset level %d), Gore %d (preset %d), Armed %d: vr_agrunt_repl %g, "
+                   "vr_reload_mode %g\n",
+            what, style, gameplaypresets::kind().matchingLevel(), gore, gorepresets::matching(), armed,
+            vr_agrunt_repl.value, vr_reload_mode.value);
+    }
+    t.tally.check(level && cvars && goreOk, "runlaunch", va("%s: the presets' settings as the run's Style, Gore and Armed Humanoids", what));
+    const bool grunts = !strcmp(sv.name, "e1m1") && runsetup::activeValue(runsetup::find("enemyrandom")) == 0;
+    t.tally.check(runsetup::qcTest("VR_Run_PresetLaunchCheck", armedOn ? 1.f : 0.f, style == 1 ? 0.f : 1.f, grunts ? 1.f : 0.f),
+        "runlaunch", va("%s: the map spawned with them: grunts %s, reloading %s (VR_Run_PresetLaunchCheck)", what,
+                         armedOn ? "armed" : "plain", style == 1 ? "off" : "on"));
+}
+
 void runLaunchCheck(const RunLaunchStep& s)
 {
     RunLaunchTest& t = runLaunch;
@@ -1069,6 +1127,13 @@ void runLaunchCheck(const RunLaunchStep& s)
     const float en = active("enemycount") + 3.f * active("enemyrandom") + 9.f * active("pickups");
     t.tally.check(runsetup::qcTest("VR_Run_LaunchCheck", w, gm, en), "runlaunch",
         va("%s: the game as they say (VR_Run_LaunchCheck)", what));
+    runLaunchPresetCheck(what);
+    const bool drift = &s == &runLaunchSteps[runLaunchDriftStep];
+    t.tally.check(runsetup::spawnPresetSets() == (drift ? 2 : 0), "runlaunch",
+        va("%s: %s (%d set back)", what,
+            drift ? "the two settings changed after its Start set back to the Start's before the map spawned"
+                  : "no preset setting changed between its Start and the map's spawn",
+            runsetup::spawnPresetSets()));
     if(s.save)
     {
         for(int i = 0; i < runsetup::count() && i < 64; i++)
