@@ -2404,3 +2404,34 @@ then unkillable though it walked to him and punched. **Not reproduced**; a regre
   damage-not-landing.
 - agent/mp: no change to the damage, disarm or armed-grunt paths (its QC diff is PvP parry, holsters, pickups, test
   impulses), so neither the bug nor a fix is there.
+## flat1115b: flat aim per weapon (ironsight placing, zoom), Classic in flat, Autosave Now (agent/flat1115b, 2026-11-15)
+
+- **Ironsight placing per gun (his item 5).** There were none: the flat ironsight is solved from each gun's sight line with
+  no number per weapon (the old `flat_ads_*` keys were retired 2026-11-05); only the globals (`vr_flat_ads_relief`,
+  `_screen_x/_y`, `vr_flat_aim_fov`) moved it. New weapons.txt keys `fsight_fwd`, `fsight_right`, `fsight_up` (units in the
+  view's frame, forward adds eye relief; clamped to 10) and `fsight_pitch` (degrees, muzzle up about the rear sight; 20),
+  applied in `flatsight::sighted` so the reach, stance and wall code all see the moved gun; shots still go to the
+  crosshair's point. Live: Weapon Offsets > Sights > Flat-Screen Aim (the held gun) or `vr_wofs_fsight_up_NN` on the
+  console; saved as config overrides, `weapons_data.py promote` makes them defaults. All 0 shipped.
+- **Zoom per gun (item 6).** `fsight_mode` 1: the right button narrows the view exactly as the ironsight does (same
+  `st.adsT` travel, FOV, look speed) but the gun stays in its pose and the crosshair stays. Shared code, one switch:
+  `sightPosed` / `posedT` in vr_flatsight.cpp gate everything that moves the gun or reads the sighted pose (the solve, the
+  wall's back way and tilt, the stance's armSight, keepRecoil, crosshairFade, the picture's screen shift, stance turn and
+  lean), and `flatsight::poseShare` replaces `adsShare` in flatplay's keepNear, rideShare and walk bob. `adsShare` (the
+  FOV and sensitivity travel) is unchanged. Zoom picks (weapons.txt, promoted with `weapons_data.py promote`): nailgun,
+  super nailgun, grenade launcher, rocket launcher, laser cannon, proximity gun, grapple (slots 3,4,5,6,9,10,17; the
+  alternates 11-14 inherit). Ironsight kept: shotguns, lightning/plasma, grunt gun, enforcer rifle, flare gun, revolver,
+  nail pistol, crossbow, AD guns. Global override `vr_flat_aim_zoom` (-1 per weapon, 0 all ironsight, 1 all zoom),
+  Locomotion > Right Click Aim. `vr_flat_sight_check` prints a `zoom` line for a zoom gun.
+- **Classic in flat (item 7).** Flat play reloads by its own `vr_flat_reload` (QC `VRIsWeaponReloadingEnabled`, the
+  server's STAT_QVR_RELOADMODE), which no preset row set. Row added: Classic 0, Light/Unleashed default 1
+  (GAMEPLAY_PRESET.md). `vr_gameplay_preset_test` checks it at Classic and Light; QC `VR_Classic_Check` now also checks
+  the player reloads nothing as played (flat or VR).
+- **Autosave Now (item 11).** `vr_autosave_now` (host.c, beside Host_CheckAutosave; Debug > Tests > Saves): the game's
+  autosave now, same name (`VR_AutosaveName`) and rotation, ignoring sv_autosave, score and safety wait; refused in a
+  multiplayer game (co-op/deathmatch make no autosaves, saves are SP only), on vr* maps, in Ironman, at intermission.
+- **Tests:** new `Misc/quakevr/flatzoom_test.sh` 10/0 (Up 2: both sights 2.000 off the ray; Pitch 5: 4.99 deg; zoom:
+  fov 59.3 from 90, gun shift 0, crosshair 1.00; nailgun zooms, shotgun sights); `flatsight_test.sh` 12/0 (runs with
+  `vr_flat_aim_zoom 0`: it measures every gun's sight line); new `Misc/quakevr/autosavenow_test.sh` 4/0 (autosave/e1m1
+  written, Continue "just now"; co-op refused); `vr_gameplay_preset_test` 27/0; `vr_gameplay_classic_check` 2/0 in VR
+  and in flat. Dev and Release-TracyFull builds 0 warnings. Scenario `flat_aim_zoom`.
