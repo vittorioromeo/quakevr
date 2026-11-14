@@ -912,6 +912,8 @@ QVR_CVAR(vr_runsetup_halls_line, "0", CVAR_ARCHIVE)    // Run Setup with a start
 QVR_CVAR(vr_menu_icons, "1", CVAR_ARCHIVE)             // icon picker rows (Run Setup's Difficulty, Starting gun, Starting melee weapon, Enemy Count): each choice a picture with its name under it; 0 plain choice rows
 QVR_CVAR(vr_menu_icon_size, "24", CVAR_ARCHIVE)        // an icon picker's pictures, menu pixels across (16 to 48; Run Setup's Difficulty a quarter bigger)
 QVR_CVAR(vr_menu_icon_dim, "0.55", CVAR_ARCHIVE)       // an icon picker's choices not picked: greyed and faded by this much (0 as the picked one .. 0.9)
+QVR_CVAR(vr_menu_icon_gap, "16", CVAR_ARCHIVE)         // an icon picker's gap between its cards, menu pixels (0 to 24; the cards keep their width while the row has room: 16 puts them 80 apart, 4 the old 68)
+QVR_CVAR(vr_menu_icon_name_pitch, "6", CVAR_ARCHIVE)   // an icon picker's two-line names: their lines' pitch, menu pixels (4 to 10; the old 7)
 QVR_CVAR(vr_menu_flat_shortcuts, "1", CVAR_ARCHIVE)    // the VR menus' corner buttons (Back to game, Search, Console, VR Settings, Advanced VR, Levels, Map Library, Relighting) on a flat screen too, for the desktop mouse (vr_menuui.cpp)
 QVR_CVAR(vr_menu_flat_vr_style, "1", CVAR_ARCHIVE)     // on by default (his decision 2026-11-08); with VR off: the headset's menu layout on the window (vr_menuui.cpp, FlatPanel): a panel of the window's shape, the corner's column beside the menu, the desktop mouse as the laser; a corner dragged moves it, the wheel while dragging resizes it
 QVR_CVAR(vr_menu_flat_scale, "0.954", CVAR_ARCHIVE)      // that panel's size, a share of the window's (0.4 to 1): the zoom buttons (- and +) step it by 1.1

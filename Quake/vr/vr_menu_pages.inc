@@ -80,6 +80,8 @@
         row(opt::vr_menu_icons),
         row(opt::vr_menu_icon_size),
         row(opt::vr_menu_icon_dim),
+        row(opt::vr_menu_icon_gap),
+        row(opt::vr_menu_icon_name_pitch),
         header("Select Campaign"),
         row(opt::vr_menu_group_scale),
         row(opt::vr_menu_group_gap),

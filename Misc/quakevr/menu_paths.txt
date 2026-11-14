@@ -2295,6 +2295,8 @@ vr_runsetup_halls_line|1|Menu Look|Run Setup: Skill Halls Line|Advanced VR Optio
 vr_menu_icons|1|Menu Look|Icon Pickers|Advanced VR Options > HUD and Menus > Menu Look > Icon Pickers
 vr_menu_icon_size|1|Menu Look|Icon Picker Size|Advanced VR Options > HUD and Menus > Menu Look > Icon Picker Size
 vr_menu_icon_dim|1|Menu Look|Icon Picker Unpicked Dim|Advanced VR Options > HUD and Menus > Menu Look > Icon Picker Unpicked Dim
+vr_menu_icon_gap|1|Menu Look|Icon Picker Gap|Advanced VR Options > HUD and Menus > Menu Look > Icon Picker Gap
+vr_menu_icon_name_pitch|1|Menu Look|Icon Picker Name Lines|Advanced VR Options > HUD and Menus > Menu Look > Icon Picker Name Lines
 vr_menu_group_scale|1|Menu Look|Campaign Title Size|Advanced VR Options > HUD and Menus > Menu Look > Campaign Title Size
 vr_menu_group_gap|1|Menu Look|Campaign Gap|Advanced VR Options > HUD and Menus > Menu Look > Campaign Gap
 vr_menu_group_indent|1|Menu Look|Continue Indent|Advanced VR Options > HUD and Menus > Menu Look > Continue Indent
