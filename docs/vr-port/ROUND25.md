@@ -2516,3 +2516,15 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
 ## decalhitch
 
 Cherry-picked bd2277d6c (translucent brush models' retro decal program made in the load's last frame, not in play: a 2.5-3.1 s freeze on 19 AD maps); dev and ReleaseLTO builds, scenario_check, load_models_test pass; ad_tears with developer 1 prints no "made in play" line.
+
+## mpN (B5c): climbing between players, swimming and the palm's shove checked (agent/mp, 2026-11-14; never shipped by the coordinator)
+- The avatar's moves byte says which hands hold a ledge; each hold (the server's, `climb::serverHold`, shared with
+  calcStats) follows the weapons (`QVR_NET_VERSION` 13). Other players' bodies climb from them: the trunk hanging under
+  the head, the feet on footholds on a listen host, hanging on a client of a dedicated server (no world to trace there,
+  as for his own feet).
+- `mp_climb` 11/0 (new, vrclimb: hang, let go, mantle, each way), `mp_moves` 19/0 (swims in e1m4's deep water: the
+  copy tilted), `mp_melee` 21/0 (an open palm's shove). Single player: scenario_check PASS (129), load_models 4/0,
+  vr_run_check 12/0. Next: B5d (a blade's directional parry between players, melee sub-tick samples). Details:
+  MP_PLAN.md, "B5c results".
+- climb_plays.py's ledge hold (1.638 m, 0.69 m at setpos 78 176 24) reads "no hold" at today's default scale (31.7
+  units a metre: the hand inside the ledge); vr_climb_try's hold there is 98 176 49. Its plays may predate a scale change.

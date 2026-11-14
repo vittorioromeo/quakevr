@@ -192,7 +192,8 @@ player unchanged.
 | **B4** (done: saves, loads, level changes with inventories; B4b: coop autosaves, the exit and intermission, a real death and respawn; B4c: slots by name, coop autosaves in Load Autosave, the intermission save, map download through the Map Library) | Coop campaign flow: coop saves and loads (per-player blocks, versioned), autosaves, level transitions with inventories, intermission, deaths and respawns, map download (package names through the map installer; chunked fallback) | `mp_campaign` (e1m1 to e1m3 with saves and a load, both players' inventories), `mp_download` (B lacks a map: installs it, joins) |
 | **B5** (pickups and force grabs done; the rest is B5b) | Interactions between players: drop a weapon / the other picks it up; force grab of world weapons in multiplayer; melee, parries and shoves between players; climbing, crouch, prone, jump, punch synced and judged per player | one scenario per interaction, each from both sides (`mp_pickup`, `mp_forcegrab`) |
 | **B5b** (punches, guard parries, bashes; crouch, prone, jump and swim flags done; the rest is B5c) | The rest of B5: melee, parries and shoves between players (judged by each one's own hands and timing, gated to multiplayer where single player has none); climbing, crouch, prone, jump, swim and punch synced (the remote body lying, swimming, climbing, jumping as he does: the avatar's flags) and judged per player | `mp_melee` (A's swing hits B, B's parry stops A's, a shove moves him: each way), `mp_moves` (B crouches, lies prone, jumps, climbs: the server's hull and A's copy of him follow) |
-| **B5c** | The rest of B5b: climbing between players (the server's holds per player; the remote body's climbing feet and hanging trunk from his holds); swimming checked in water (a pool map spot); a blade's directional parry between players (his swing's line, as an armed humanoid's); the open palm's shove; melee sub-tick samples (a swing split over merged moves, multiplayer only) | `mp_moves` grown (climbs a ledge, swims: A's copy follows), `mp_melee` grown (a sword's swing parried across its way, a palm shove, a swing at 30 ms jitter) |
+| **B5c** (climbing, swimming, the palm's shove done; the rest is B5d) | The rest of B5b: climbing between players (the server's holds per player; the remote body's climbing feet and hanging trunk from his holds); swimming checked in water (a pool map spot); a blade's directional parry between players (his swing's line, as an armed humanoid's); the open palm's shove; melee sub-tick samples (a swing split over merged moves, multiplayer only) | `mp_moves` grown (climbs a ledge, swims: A's copy follows), `mp_melee` grown (a sword's swing parried across its way, a palm shove, a swing at 30 ms jitter) |
+| **B5d** | The rest of B5c: a blade's directional parry between players (his swing's line from his hand lines, `handlineat`, as an armed humanoid's `VR_AG_WeaponLine`: VR_DRP_Eval's third kind); melee sub-tick samples (each merged move's pose to the tracker, multiplayer only) | `mp_melee` grown (a sword swung across B's crowbar: parried by the line, not the guard; a swing at 30 ms jitter: the same hit as without) |
 | **B6** | Server rules and cosmetics: every balance setting a rule (presets, armed humanoids, damage, mutators, stamina, grapple...), rule pages dimmed on a remote client; holster positions, height, seated/standing, gloves, body seen by others | `mp_rules`, `mp_cosmetics` (B's height and gloves seen by A) |
 | **B7** | Snapshots: acknowledged per-client snapshots and deltas for entities, players and avatars; quantized delta moves with repeats; interpolation buffer with quaternion slerp | `mp_loss` (10% loss: positions still continuous), byte counts per scenario |
 | **B8** | Prediction and lag compensation: shared movement code, reconciliation, then climbing and grapple; rewind of hit models and hands for hitscan, melee, parry, shove | `mp_predict` (own move off at frame 0 under 150 ms lag; corrections under 1 unit on flat ground), `mp_lagcomp` (a hit on a moving target at 150 ms lands) |
@@ -908,6 +909,44 @@ Open (B5c and later):
   line, as `VR_DRP_*` reads an armed humanoid's); the open palm's shove untested (the same Find and Hit as the bash).
 - Melee sub-tick samples (a swing split over merged moves; multiplayer only, B2c's note): not done.
 
+### B5c results (2026-11-14, dev no-LTO build, loopback; `mp_test.py suite`: all 21 scenarios pass)
+
+| Scenario | Result |
+|---|---|
+| `mp_climb` (new) | 11/0, each way, on vrclimb (A joins alone first and is moved off the map's one start: B's spawn telefragged him there, 1 run): B takes the ledge with both hands (vr_climb_try's hold, 98 176 49) and hangs: the server's holds (`moves=192`, both hands) and A's copy of him (`moves=192`, climbing weight 1.0); he lets go: both back to 0; he mantles over the top: the server puts him on it (z 24 -> 48-51). Failed first: the copy had no holds and no climbing weight (the server's own holds per player already worked) |
+| `mp_moves` | 19/0: the B5b checks, then a changelevel to e1m4 and each swims in its deep water (e1m1's pool is 24 units deeper than a player under it: on its bottom at once; the spot found from the BSP's player hull) while the other watches: the server has him under (waterlevel 3) off the bottom, the copy tilted forward (pitch 15-38). Passed with no game change (B5b's waterlevel bits) |
+| `mp_melee` | 21/0: the B5b checks, then each way an open palm (the empty main hand turned palm forward) pushed into the other: "bash hit: player", the other moved 8+ units. Passed with no game change (VR_Bash_Find takes players since B5b) |
+| the other 18 | Unchanged: pass |
+
+Single player on the branch: scenario_check PASS (129 scenes, 0 failed), load_models_test 4/0, vr_run_check 12/0
+(`scratch/b3_runcheck.sh`); the dev build 0 warnings, the Release-config (ThinLTO) build 0 warnings. The local body
+climbs as before (updateClimbing's reads of the local player unchanged; calcStats' holds through the same `holdOf`).
+
+What changed:
+
+- **Climbing between players** (`vr_mpavatar.hpp`, `vr_climb.cpp`): the avatar's moves byte has two more bits, a hand
+  holding a ledge (`climb::serverHold`: the hold calcStats sends a player's own client, shared code); each hold follows
+  the weapons in the avatar (eighths from his origin, a byte of yaw out of the face: 7 bytes a hand, only while it
+  holds). `QVR_NET_VERSION` 13. Another player's body runs `updateClimbing` from his holds (`Subject::holds`, the
+  swapped per-player `climbing` state since B2d): the trunk hangs under the head, the feet take footholds (traced on a
+  listen host, past his own box) or hang (a client of a dedicated server has no world to trace: as his own feet there).
+  `vr_mp_avatars`' `mp_body:` lines give `climb=` (the copy's climbing weight).
+- The harness: `join(level=, first=)` (a map with one start: A in alone first, moved off it), `mp_climb`, swims in
+  `mp_moves`, `shove` in `mp_melee`; `face_off` moves the defender to the coop start the attacker is not on (B onto A's
+  stayed stuck, 1 run of 2 before this phase).
+
+Open (B5d and later):
+
+- A sword's swing between players parried only by the guard, not across its way (the directional parry needs his
+  swing's line: `handlineat` keeps each player's weapon lines a few frames back, enough for VR_DRP_Eval's armed-humanoid
+  branch); a weapon's swing landing on a player at all is untested.
+- Melee sub-tick samples (a swing split over merged moves; multiplayer only, B2c's note): not done.
+- A climber's feet on a client of a dedicated server hang (no footholds: no world to trace, his own body's too); a
+  client-side trace of the world model would give both theirs.
+- climb_plays.py's ledge hold (1.638 m up, 0.69 m ahead at setpos 78 176 24) is inside the ledge at the default world
+  scale (31.7 units a metre: "no hold"); `mp_climb` uses 1.54 and 0.63 (vr_climb_try's hold). Its plays may have been
+  made at another scale: worth a look in single player.
+
 ## Decisions
 
 - Map download goes through the Map Library alone: the server names the package (its sha256), the client installs it
@@ -926,11 +965,14 @@ Open (B5c and later):
   also measures each link's bytes.
 - The same-IP fix compares the port too; a client back from a crash on a new port leaves a ghost until the timeout
   (QuakeWorld's `qport` is the full answer: B7, with the snapshot protocol).
-- Voice chat (B10) needs Opus and a noise suppressor vendored as source: to be confirmed by the author before B10.
+- Voice chat (B10) may vendor Opus and RNNoise (his approval, 2026-11-15: official sources, version and sha256
+  recorded, their BSD licences in CREDITS).
+- Another player's climbing (B5c) is sent as his server-side holds (the lip and the face's way), not his feet: each
+  client poses his feet as it poses its own (its footholds, or hanging), one code path, 7 bytes a holding hand.
 - Other players' bodies (B2d) are posed by the local body's own code with its per-frame state swapped per player, rather
   than the state gathered into an instance struct read through a pointer everywhere: the same results for the local
   body by construction (its reads unchanged; checked pixel for pixel), one code path, a small diff in five files. Seen
   from outside, they always have legs (his body mode 1 or 2 is his own first-person view); his body mode 0 draws his
   player model as before.
 
-Next phase: B5c — the rest of B5b: climbing between players (the server's holds per player; the remote body's climbing feet and hanging trunk), swimming checked in water, a blade's directional parry between players, the palm shove, melee sub-tick samples; tests first: `mp_moves` grown (climbs, swims), `mp_melee` grown (a sword parried across its way, a palm shove, a swing under jitter).
+Next phase: B5d — the rest of B5c: a blade's directional parry between players (his swing's line from `handlineat`, VR_DRP_Eval's third kind besides the armed humanoid's and the baked blow's) and melee sub-tick samples (multiplayer only); tests first: `mp_melee` grown (a sword swung across the other's crowbar: parried by the line, not the guard; a swing at 30 ms jitter lands as without).
