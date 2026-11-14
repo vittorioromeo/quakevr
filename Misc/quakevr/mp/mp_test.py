@@ -88,8 +88,10 @@ def walk(s, mover, watcher, mover_ent, label, bound_ms, self_bound_ms):
     watcher.wait(r"mp_stop: .*ent=%d self=0" % mover_ent, 10, since_w, "%s stopping" % mover.name)
 
 
-def join(s, listen=False, flat="", lag=0.0, jitter=0.0, loss=0.0):
-    """A server on e1m1 (coop 1) and clients A and B joined, each seeing the other -> (server, a, b, ea, eb)."""
+def join(s, listen=False, flat="", lag=0.0, jitter=0.0, loss=0.0, level="e1m1", first=None):
+    """A server on `level` (coop 1) and clients A and B joined, each seeing the other -> (server, a, b, ea, eb).
+    `first(srv, a, ea)`: A joins alone first and this runs before B connects (a map with one start: A moved off it, or
+    B's spawn telefrags him)."""
     if listen:
         a = srv = s.server(dedicated=False, flat="A" in flat, name="A")
     else:
@@ -97,21 +99,24 @@ def join(s, listen=False, flat="", lag=0.0, jitter=0.0, loss=0.0):
     srv.start()
     # (a listen host: maxplayers and listen before the map, its start-up map (vrstart, a server of 1) shut down first;
     # a dedicated server has its -dedicated 4 slots)
-    srv.cmd("%scoop 1; deathmatch 0; skill 1; map e1m1; vr_mp_status" % (
-        "disconnect; maxplayers 4; listen 1; " if listen else ""))
-    srv.wait(r"mp_server: map=e1m1", 120, what="the server on e1m1")
+    srv.cmd("%scoop 1; deathmatch 0; skill 1; map %s; vr_mp_status" % (
+        "disconnect; maxplayers 4; listen 1; " if listen else "", level))
+    srv.wait(r"mp_server: map=%s" % level, 120, what="the server on %s" % level)
     if not listen:
         a = s.client("A", flat="A" in flat).start()
     # (B always through a proxy: with no lag it only counts B's traffic)
     b = s.client("B", flat="B" in flat, lag_ms=lag, jitter_ms=jitter, loss=loss, proxy=True).start()
     if not listen:
         a.cmd(s.connect_cmd(a))
+    if first:
+        _, ja = a.wait(r"mp_event: .*joined map=%s" % level, 120, what="A joined %s" % level)
+        first(srv, a, int(fields(ja)["self"]))
     b.cmd(s.connect_cmd(b))
 
-    _, ja = a.wait(r"mp_event: .*joined map=e1m1", 120, what="A joined e1m1")
-    _, jb = b.wait(r"mp_event: .*joined map=e1m1", 120, what="B joined e1m1")
+    _, ja = a.wait(r"mp_event: .*joined map=%s" % level, 120, what="A joined %s" % level)
+    _, jb = b.wait(r"mp_event: .*joined map=%s" % level, 120, what="B joined %s" % level)
     ea, eb = int(fields(ja)["self"]), int(fields(jb)["self"])
-    s.check("A and B joined coop e1m1", ea != eb, "A is entity %d, B %d" % (ea, eb))
+    s.check("A and B joined coop %s" % level, ea != eb, "A is entity %d, B %d" % (ea, eb))
 
     _, sa = a.wait(r"mp_seen: .*ent=%d self=0" % eb, 20, what="A seeing B")
     _, sb = b.wait(r"mp_seen: .*ent=%d self=0" % ea, 20, what="B seeing A")
@@ -1767,6 +1772,12 @@ GUARD = "vr_mock_hand main 0.15 1.35 -0.35 0 90 0"  # a crowbar held across in f
 BASH_PLAY = ("0.000 main 0.15 1.35 -0.35 0 90 0", "0.600 main 0.15 1.35 -0.35 0 90 0", "0.700 main 0.15 1.35 -0.80 0 90 0",
              "1.200 main 0.15 1.35 -0.80 0 90 0", "1.700 main 0.15 1.35 -0.35 0 90 0", "2.000 main 0.15 1.35 -0.35 0 90 0")
 MELEE_SPOT = OPEN_SPOT  # e1m1: the attacker here facing north, the other FACE_GAP north of him facing south
+# The shove (VR_Bash_Stance 2: an open hand, its palm facing ahead: the main hand's palm is its -right, so turned 90
+# degrees to the right), pushed forward as the bash is.
+PALM = "vr_mock_hand main 0.15 1.35 -0.35 0 -90 0"
+SHOVE_PLAY = ("0.000 main 0.15 1.35 -0.35 0 -90 0", "0.600 main 0.15 1.35 -0.35 0 -90 0",
+              "0.700 main 0.15 1.35 -0.80 0 -90 0", "1.200 main 0.15 1.35 -0.80 0 -90 0",
+              "1.700 main 0.15 1.35 -0.35 0 -90 0", "2.000 main 0.15 1.35 -0.35 0 -90 0")
 
 
 def health_of(srv, ent):
@@ -1777,7 +1788,8 @@ def health_of(srv, ent):
 
 def face_off(s, srv, att, dfd, ea, ed):
     """`att` at MELEE_SPOT facing north, `dfd` FACE_GAP north of him facing him -> (att's origin, dfd's origin)."""
-    put_at(srv, dfd, ed, COOP_SPOTS[0])  # (out of the way first: the two may be trading places)
+    put_at(srv, dfd, ed, side_spot(srv, ea))  # (out of the way first: the two may be trading places; the coop start
+    #                                             the attacker is not on: B onto A's, 1 run of 2, stayed stuck where he was)
     oa = put_at(srv, att, ea, MELEE_SPOT, 90)
     od = put_at(srv, dfd, ed, (MELEE_SPOT[0], MELEE_SPOT[1] + FACE_GAP, MELEE_SPOT[2]), 270)
     return oa, od
@@ -1873,9 +1885,26 @@ def bash(s, srv, att, dfd, ea, ed, label):
     att.cmd("vr_mock_play")
 
 
+def shove(s, srv, att, dfd, ea, ed, label):
+    """`att`'s empty main hand, open, its palm facing ahead, pushed forward into `dfd`: the server's shove (VR_Bash_Find
+    and VR_Bash_Hit, as the bash's: an empty hand can only shove), `dfd` moved."""
+    _, od = face_off(s, srv, att, dfd, ea, ed)
+    att.cmd("vr_mock_button main grip 0; vr_mock_button main trigger 0; %s" % PALM)
+    weapon_until(s, srv, ea, 0)
+    since = srv.mark()
+    play(s, att, "shove", SHOVE_PLAY)
+    got = wait_quietly(srv, r"bash hit: player", 15, since, "%s's shove" % att.name)
+    moved, at = pushed(srv, ed, od, 1, 16)
+    s.check("%s: %s's open palm shoves %s (the server's shove of a player, his hand empty)" % (label, att.name,
+            dfd.name), got is not None, got[1].strip() if got else "no 'bash hit: player' on the server")
+    s.check("%s: %s is moved by the palm's shove" % (label, dfd.name), moved > 8,
+            "%s's origin %s -> %s (%.1f away)" % (dfd.name, od, at, moved))
+    att.cmd("vr_mock_play")
+
+
 def melee(s):
     """Melee between players, each way: A's punch hurts B (judged by A's hands on the server); B's guard parries A's
-    punch (cut, A pushed back); B's bash shoves A; then the other way round."""
+    punch (cut, A pushed back); B's bash shoves A; A's open palm shoves B; then the other way round."""
     srv, a, b, ea, eb = join(s)
     a.cmd("name A")
     b.cmd("name B")
@@ -1887,6 +1916,7 @@ def melee(s):
         bash(s, srv, dfd, att, e2, e1, "%s on %s" % (dfd.name, att.name))
         for inst in (a, b):  # (the crowbar let go of: both empty-handed again)
             inst.cmd("vr_mock_button main grip 0")
+        shove(s, srv, att, dfd, e1, e2, label)
     srv.cmd("developer 0; vr_debug_shots 0")
 
 
@@ -1923,7 +1953,7 @@ def moves_until(s, srv, mover, watcher, em, label, verb, how, test, tries=40):
     ok = sv >= 0 and bool(cp) and test(sv, cp)
     s.check("%s: %s %s (the server: moves=%d; %s's copy: moves=%s pitch=%s lying=%s)" % (
         label, mover.name, want, sv, watcher.name, cp.get("moves"), cp.get("pitch"), cp.get("lying")), ok,
-        "copy's head joint %s" % cp.get("headjoint"))
+        "copy's head joint %s, climbing %s" % (cp.get("headjoint"), cp.get("climb")))
     return sv, cp
 
 
@@ -1955,14 +1985,122 @@ def moves_each(s, srv, mover, watcher, em, ew, label):
     mover.cmd("-jump")
 
 
+# e1m4's deep water (e1m1's pool is 24 units deeper than a player under it at most: he is on its bottom at once). By its
+# BSP's player hull (scratch b5c_scan.py): free 200 units below and 380 north of SWIM_SPOT; the swimmer swims slowly
+# north (cl_forwardspeed 30: no sinking while he swims), the watcher in the water 200 units west of his way.
+SWIM_LEVEL = "e1m4"
+SWIM_SPOT = (1072.0, 1300.0, 560.0)
+SWIM_WATCH = (872.0, 1400.0, 560.0)
+SWIM_PITCH = 15.0  # degrees: the watcher's copy of him tilted at least this far forward (vr_body_swim_tilt)
+
+
+def swim_each(s, srv, mover, watcher, em, ew, label, spot, watch, yaw):
+    """`mover` (put at `spot`, facing `yaw`) swims under water in e1m4 while `watcher` (at `watch`) watches: the server
+    has him fully under (waterlevel 3) and off the bottom, and the watcher's copy of his body tilts forward, swimming.
+    (Each put where he was already, the second time round: put at the spot the other had sunk from, A's setpos ran and
+    the server kept him where he was, 1 run of 1: found stuck there, by something of the other's left at that spot.)"""
+    mover.cmd("vr_mock_hand head; -forward; cl_forwardspeed 30")
+    put_at(srv, mover, em, spot, yaw)
+    put_at(srv, watcher, ew, watch)
+    mover.cmd("+forward")
+    moves_until(s, srv, mover, watcher, em, label, "swims", "under water, off the bottom; the copy tilted forward",
+                lambda sv, cp: sv >> 4 & 3 == 3 and not sv & MV_GROUND and int(cp["moves"][0]) >> 4 & 3 == 3 and
+                cp["pitch"][0] >= SWIM_PITCH, 60)
+    mover.cmd("-forward")
+
+
 def moves(s):
-    """Moves synced (MP_PLAN.md, B5b): B crouches, lies down, gets up and jumps while A watches -- the server's boxes and
-    ground follow him and A's copy of his body lies down and gets up with him; then the other way round."""
+    """Moves synced (MP_PLAN.md, B5b, B5c): B crouches, lies down, gets up and jumps while A watches -- the server's
+    boxes and ground follow him and A's copy of his body lies down and gets up with him; then the other way round. Then
+    each swims in e1m4's deep water, the other watching: his copy swims tilted."""
     srv, a, b, ea, eb = join(s)
     a.cmd("name A")
     b.cmd("name B")
     moves_each(s, srv, b, a, eb, ea, "B, A watching")
     moves_each(s, srv, a, b, ea, eb, "A, B watching")
+    since_a, since_b = a.mark(), b.mark()
+    srv.cmd("changelevel %s" % SWIM_LEVEL)
+    a.wait(r"mp_event: .*joined map=%s" % SWIM_LEVEL, 120, since_a, "A on %s" % SWIM_LEVEL)
+    b.wait(r"mp_event: .*joined map=%s" % SWIM_LEVEL, 120, since_b, "B on %s" % SWIM_LEVEL)
+    swim_each(s, srv, b, a, eb, ea, "B, A watching", SWIM_SPOT, SWIM_WATCH, 90)
+    swim_each(s, srv, a, b, ea, eb, "A, B watching", SWIM_WATCH, SWIM_SPOT, 0)
+
+
+# vrclimb (climb_plays.py's hang and overtop): facing the ledge east from CLIMB_SPOT; its hold (vr_climb_try 94 176 46:
+# "lenient hold 98 176 49") 1.54 m up and 0.63 m ahead in play space at the clients' scale (31.7 units a metre: the
+# mock's hand at 0.69 m ahead was at x 99.8; climb_plays.py's 1.638 and 0.69 were "no hold": inside the ledge). The
+# watcher off the map's one start. The mantle's head leant in to the wall, as a player at a wall does.
+CLIMB_SPOT = (78.0, 176.0, 24.0)
+CLIMB_WATCH = (-40.0, -310.0, 24.0)  # (climb_jump.py's site, off the map's one start)
+CLIMB_WATCH_YAW = 76.0  # (towards CLIMB_SPOT)
+HOLD_Y, HOLD_FWD = 1.54, -0.63
+CLIMB_LEAN = ("0.000 head 0 1.646 0", "0.600 head 0 1.62 -0.28")
+MV_CLIMB_OFF, MV_CLIMB_MAIN = 64, 128  # vr_mpavatar.hpp: a hand holds a ledge (the server's hold, B5c)
+MANTLE_RISE = 24.0  # units: the mantle puts him on the ledge's top at least this much higher
+
+
+def hang_play():
+    """Both hands onto the ledge, pulled down 0.25 m (no mantle) and held there (30 s: the play stopped once seen); the
+    head upright, as climb_plays.py's hang (leant in, the hands went into the face: "no hold")."""
+    lines = ["0.000 head 0 1.646 0"]
+    for h, x in (("off", -0.12), ("main", 0.12)):
+        at = "%s %.2f %.3f %.2f 40 0 0" % (h, x, HOLD_Y, HOLD_FWD)
+        down = "%s %.2f %.3f %.2f 40 0 0" % (h, x, HOLD_Y - 0.25, HOLD_FWD)
+        lines += ["0.000 %s %.2f 1.2 -0.3 40 0 0" % (h, x), "0.500 " + at, "1.000 " + at, "2.000 " + down,
+                  "30.000 " + down]
+    return lines + ["0.700 cmd +graboff", "0.750 cmd +grabmain"]
+
+
+def overtop_play():
+    """climb_plays.py overtop: both hands on the ledge, pulled down to the hips and in, pushed down and out over the
+    top (the mantle), let go at 4 s."""
+    lines = list(CLIMB_LEAN)
+    for h, x in (("off", -0.12), ("main", 0.12)):
+        lines += ["0.000 %s %.2f 1.1 -0.2 70 0 0" % (h, x * 2), "0.600 %s %.2f %.3f %.2f 70 0 0" % (h, x, HOLD_Y, HOLD_FWD),
+                  "1.000 %s %.2f %.3f %.2f 70 0 0" % (h, x, HOLD_Y, HOLD_FWD), "2.000 %s %.2f 1.0 -0.35 70 0 0" % (h, x),
+                  "2.300 %s %.2f 1.0 -0.35 70 0 0" % (h, x), "2.900 %s %.2f 0.95 -0.75 70 0 0" % (h, x),
+                  "4.000 %s %.2f 0.95 -0.75 70 0 0" % (h, x), "5.000 %s %.2f 1.1 -0.2 70 0 0" % (h, x * 2)]
+    return lines + ["0.700 cmd +graboff", "0.750 cmd +grabmain", "4.000 cmd -graboff", "4.000 cmd -grabmain"]
+
+
+def climb_each(s, srv, mover, watcher, em, ew, label):
+    """`mover` takes vrclimb's ledge with both hands and hangs from it while `watcher` watches: the server holds him
+    (his own holds, per player), the watcher's copy of his body climbs (its climbing weight: the trunk hanging under the
+    head, the feet off the floor); he lets go: both back; then he mantles onto the ledge: the server puts him on top."""
+    mover.cmd("vr_mock_play; -graboff; -grabmain; vr_mock_hand head")
+    start = put_at(srv, mover, em, CLIMB_SPOT, 0)  # (first: the watcher's spot is the last mover's, now on the ledge)
+    put_at(srv, watcher, ew, CLIMB_WATCH, CLIMB_WATCH_YAW)
+    play(s, mover, "hang", hang_play())
+    both = MV_CLIMB_OFF | MV_CLIMB_MAIN
+    moves_until(s, srv, mover, watcher, em, label, "hangs", "both hands on the ledge (the server's holds and the copy's)",
+                lambda sv, cp: sv & both == both and int(cp["moves"][0]) & both == both and cp.get("climb", [-1.0])[0] >= 0.9, 60)
+    mover.cmd("vr_mock_play; -graboff; -grabmain")
+    moves_until(s, srv, mover, watcher, em, label, "lets go", "no holds; the copy climbs no more",
+                lambda sv, cp: not sv & both and not int(cp["moves"][0]) & both and cp.get("climb", [-1.0])[0] == 0.0, 60)
+    start = put_at(srv, mover, em, CLIMB_SPOT, 0)
+    since = srv.mark()
+    play(s, mover, "overtop", overtop_play())
+    top = None
+    for _ in range(80):
+        at = org_of(status(srv), "mp_client", "slot", em - 1)
+        if at and at[2] - start[2] >= MANTLE_RISE:
+            top = at
+            break
+    mantled = wait_quietly(srv, r"climb: .*mantle", 1, since, "the server's mantle")
+    s.check("%s: %s mantles onto the ledge (the server's: from %s to %s)" % (label, mover.name, start, top),
+            top is not None, "the server's mantle line: %s" % (mantled[1].strip() if mantled else None))
+    mover.cmd("vr_mock_play; -graboff; -grabmain")
+
+
+def climb(s):
+    """Climbing between players (MP_PLAN.md, B5c), on vrclimb (one start: A moved off it before B joins): B hangs from
+    the ledge while A watches, lets go, mantles onto it; then A, B watching."""
+    srv, a, b, ea, eb = join(s, level="vrclimb", first=lambda srv, a, ea: put_at(srv, a, ea, CLIMB_WATCH,
+                                                                                         CLIMB_WATCH_YAW))
+    a.cmd("name A")
+    b.cmd("name B")
+    climb_each(s, srv, b, a, eb, ea, "B, A watching")
+    climb_each(s, srv, a, b, ea, eb, "A, B watching")
 
 
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
@@ -2003,6 +2141,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             moves(s)
         elif test == "mp_melee":
             melee(s)
+        elif test == "mp_climb":
+            climb(s)
         elif test == "mp_forcegrab":
             forcegrab(s)
         else:
@@ -2017,7 +2157,7 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "moves", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "moves", "climb", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -2041,7 +2181,7 @@ def main():
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "moves"):
+                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "moves", "climb"):
         ok = run(args, "mp_" + args.test)
     else:
         ok = run(args, "mp_coop")
@@ -2064,6 +2204,7 @@ def main():
         ok = run(args, "mp_forcegrab") and ok
         ok = run(args, "mp_melee") and ok
         ok = run(args, "mp_moves") and ok
+        ok = run(args, "mp_climb") and ok
         print("mp_suite: %s" % ("passed" if ok else "FAILED"))
     sys.exit(0 if ok else 1)
 
