@@ -412,11 +412,19 @@ qboolean R_PaintBrushWounds (entity_t *e, int numsplats, const float *splats)
 R_ResetBModelCalls
 =============
 */
+static void R_PrewarmArrayTwins (void);
 static void R_ResetBModelCalls (GLuint program)
 {
 	bmodel_batch_program = program;
 	num_bmodel_calls = 0;
-	bmodel_arrays_on = !gl_bindless_able && VR_WorldArraysBegin (); // QVR: (made here: no call pending)
+	bmodel_arrays_on = false;
+	if (!gl_bindless_able) // QVR: the world's textures in arrays (made here: no call pending)
+	{
+		int arrays = VR_WorldArraysBegin ();
+		bmodel_arrays_on = arrays != 0;
+		if (arrays == 2) // just made: their programs' twins compiled now, not in play
+			R_PrewarmArrayTwins ();
+	}
 }
 
 /*
@@ -888,6 +896,38 @@ void R_PrewarmDecalPrograms (qboolean pdo)
 	GL_WorldDecalRetroProgram (0, R_WorldDither (), pdo);
 	if (pdo) // its plain twin too: the depth write's split draws the far and flat surfaces with it (R_DrawSolidSplit)
 		GL_WorldDecalRetroProgram (0, R_WorldDither (), false);
+	if (bmodel_arrays_on) // QVR: and their array twins (vr/vr_worldarrays.cpp)
+		R_PrewarmArrayTwins ();
+}
+
+/*
+=============
+R_PrewarmArrayTwins -- QVR
+
+The array twins (vr/vr_worldarrays.cpp, GL_WorldArraysProgram) of the world programs this view's settings draw with
+(its dither; opaque and OIT, solid and fence, the parallax depth write's, the pre-passes, the decals' retro ones made
+so far), compiled when the arrays are made at the map's load: a twin made in play stalls a frame (a world shader:
+over a second on this PC).
+=============
+*/
+static void R_PrewarmArrayTwins (void)
+{
+	const int dither = R_WorldDither ();
+	qboolean depthonly;
+	int oit, alphatest;
+	for (oit = 0; oit < 2; oit++)
+	{
+		for (alphatest = 0; alphatest < 2; alphatest++)
+			GL_WorldArraysProgram (glprogs.world[oit][dither][alphatest], &depthonly);
+		if (glprogs.world_decal_retro[oit][dither])
+			GL_WorldArraysProgram (glprogs.world_decal_retro[oit][dither], &depthonly);
+	}
+	GL_WorldArraysProgram (glprogs.world_pdo[dither], &depthonly);
+	if (glprogs.world_pdo_decal_retro[dither])
+		GL_WorldArraysProgram (glprogs.world_pdo_decal_retro[dither], &depthonly);
+	GL_WorldArraysProgram (glprogs.world_depth, &depthonly);
+	GL_WorldArraysProgram (glprogs.world_depth_pdo, &depthonly);
+	GL_WorldArraysMergeProgram ();
 }
 
 static GLuint R_ChooseBModelProgram (qboolean oit, qboolean alphatest, qboolean pdo)

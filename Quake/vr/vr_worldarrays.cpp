@@ -442,7 +442,7 @@ extern "C" void VR_WorldArraysClear(void)
     st.wanted = false;
 }
 
-// R_ResetBModelCalls (no call pending): the arrays made, or made again, when wanted; nonzero: in use
+// R_ResetBModelCalls (no call pending): the arrays made, or made again, when wanted; nonzero: in use (2: made just now)
 extern "C" int VR_WorldArraysBegin(void)
 {
     if(!wantedHere())
@@ -460,8 +460,10 @@ extern "C" int VR_WorldArraysBegin(void)
         memset(st.merged, 0, sizeof(st.merged));
         st.statFrame = r_framecount;
     }
+    bool built = false;
     if((st.wanted || st.stale) && st.builtFrame != r_framecount && st.rebuilds <= kMaxRebuilds)
     {
+        built = true;
         st.rebuilds += st.wanted ? 0 : 1;
         st.wanted = st.stale = false;
         st.builtFrame = r_framecount;
@@ -471,7 +473,7 @@ extern "C" int VR_WorldArraysBegin(void)
     {
         refreshFiltering();
     }
-    return st.sets.empty() ? 0 : 1;
+    return st.sets.empty() ? 0 : built ? 2 : 1;
 }
 
 // R_AddBModelCall: texture t's set (-1: none, the bound path) and its layer, `maps` the call's four
