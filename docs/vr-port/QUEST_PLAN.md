@@ -843,6 +843,39 @@ the world and the models pitch black, some menu shapes missing; ~55 s to the fir
     ES header (`vr_glsafe.cpp`) that the world/alias shaders test to output a constant colour at the top of the
     fragment shader's main (a VS fault keeps it black, a FS fault turns it magenta), then the VS's outputs cut down.
 
+## 6k. C4d: the black world found and fixed; the program binary cache (2026-11-14; adb, the headset unworn)
+
+- **The split** (`-glesdefine A,B,...`: `#define A 1` in every ES shader's header; the `QVR_PROBE_*` switches in
+  `gl_shaders.h`; e1m1's start, the composite's share of pixels not black, `vr_gl_probe 1`):
+  - `QVR_PROBE_FSCONST` (the world's and the models' fragment shaders write magenta first): 0%. A vertex-side fault.
+  - `NOINVARIANT` (no `invariant gl_Position`), `DRAWID0` (every call as the first), `NOCLIP` (clip distances 1): 0%.
+  - `VSPOS` (`ViewProj * in_pos`, nothing clipped): 100% magenta. The fault is in the world VS's own transform.
+  - (Probes since removed:) the first instance's matrix read by its members from the SSBO: 100%;
+    `Transform(in_pos, instance_data[0])` (the struct passed whole): 0%; `Instance ic = instance_data[0];` then its
+    members: 0%; a local `Instance` filled member by member, given to `Transform`: 100%; its `alpha` alone: right.
+  - **Cause: Adreno (driver 0837.0.9) reads a struct copied whole out of an SSBO wrong** (`Instance instance =
+    instance_data[i];`, `InstanceData inst = instances[...]`): the copy's matrix drops every vertex. Every world and
+    model program (and their depth pre-passes) does it, so no scene fragment was ever written.
+- **Fix (ES form only, `vr_glsafe.cpp` `expandStructCopies`):** every `T v = b[i];` of a struct `T` the source declares
+  becomes `T v; v.m = b[i].m; ...` member by member (array members element by element, the struct's own `#if` lines
+  kept). `-glesstructcopy` leaves the copies whole (the bug back: a driver update's check). The PC's `-glescompat`
+  compiles the same rewrite (`gles_render_test` 21/0); the PC's own GLSL is untouched. On the Quest: the composite
+  99.5% not black, e1m1's start corridor lit and textured, a model drawn (eyeshots `scratch/c4d_eyes/`). Seen there and
+  left for later: blocky, striped texel patterns on the walls and floor (dithering or a texture format; unchecked).
+- **The program binary cache** (`vr_program_cache`, default 1: on under OpenGL ES, 2 also on the PC, 0 off; read before
+  the window opens): each program's `glGetProgramBinary` kept in one pack per driver identity (vendor, renderer,
+  version: `<cache root>/programs/<hash>.bin`), keyed by the very text the driver compiles (`VR_GLShaderHash`: the ES
+  rewrite, the header's switches, the macros); given back with `glProgramBinary`, a binary the driver refuses made again
+  from the sources and replaced. From harness4's stash (on the PC it saved ~20 ms, hence off there by default).
+  On the Quest, `vr_startup_times`, process start to e1m1's first frame: **cold 65.1 s** (GL_CreateShaders 51.1 s, VR
+  programs 1.7 s, map load 11.9 s), **warm 8.3 s** (103 programs from their binaries in 126 ms, GL_CreateShaders 0.18 s,
+  VR programs 0.4 s, map load 7.2 s); the warm start draws the same (99.7% not black). The PC with
+  `vr_program_cache 2`: GL_CreateShaders 11.5 s cold (a low-impact run), 0.42 s warm (106 programs).
+- **The driver's own blob cache (`EGL_ANDROID_blob_cache`) is not in use**: after a dozen starts the app's cache folder
+  has no `com.android.opengl.shaders_cache` (only `oat_primary`), and every start compiled for ~51 s.
+- Not cached: the VR programs (`VR_PrecompilePrograms`: 1.7 s cold, 0.4 s warm), the multiview and texture-array twins
+  (made later, in the background).
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
@@ -886,10 +919,8 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C4c (continued, section 6j) — the black eye scene first: split the real world/alias programs on Adreno
-(the ES-header macro probe of 6j's bisection: a constant fragment output, then the vertex shader's outputs and its
-`call_data[DRAW_ID]` path cut down), then the boot's
-compiles (a program binary cache), the frame's 35 ms (simpleperf, the frame fence in `GL_AcquireFrameResources`), the
+Next phase: C4e (after 6k: the world drawn, the boot 65 s cold / 8 s warm) — his look in the headset (the world, the
+models, the striped texel patterns of 6k's eyeshots), the frame's 35 ms (simpleperf, the frame fence in `GL_AcquireFrameResources`), the
 menu panel's resolution, the save's freed engine string; no installs. The original C4c scope: the headset worn, and the frame (NEEDS him wearing the Quest 3 over USB for the visual part; no
 installs: simpleperf is the NDK's): first what he sees (e1m1's image in both eyes, the `imageRect` origin of 6f, the
 menus' panel, the Touch controllers, sound), then why a frame takes 35 ms with the CPU and GPU both under 40% busy

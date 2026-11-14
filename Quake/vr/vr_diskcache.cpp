@@ -556,3 +556,235 @@ extern "C" void VR_NormalCacheChecked(int same, const char* name)
 {
     qvr::diskcache::noteChecked(Product::NormalMaps, same != 0, name);
 }
+
+// The GL programs' binaries (vr_api.h VR_ProgCache*; gl_shaders.c; QUEST_PLAN.md, C4d): the Quest's Adreno compiles the
+// start's ~120 programs in ~51 s at every start (its EGL blob cache keeps nothing: no shaders_cache file in the app's
+// cache folder); the driver gives each one back (glProgramBinary) from one pack file per driver identity (vendor,
+// renderer, version: another driver, or an update of it, never reads it), read once a session. A program's key hashes
+// the very text the driver compiles (VR_GLShaderHash: the ES rewrite and its switches included). Pack: "QVPB", its
+// layout's version, the count, then each program's key (8 bytes), format, length and binary. Main thread only (GL).
+// (From harness4's stash: on the PC it saved nothing, 273 vs 296 ms, so it is off there by default.)
+namespace
+{
+
+constexpr char progMagic[4] = {'Q', 'V', 'P', 'B'};
+constexpr unsigned progVersion = 1;
+
+struct ProgEntry
+{
+    unsigned long long key;
+    unsigned format;
+    za::Vector<char> data;
+    bool used; // asked for, or made, this session
+};
+
+struct ProgCache
+{
+    za::Vector<ProgEntry> entries;
+    unsigned long long driver = 0; // the pack's driver identity (its file's name)
+    bool loaded = false;
+    bool batch = false; // inside GL_CreateShaders: written at its end
+    bool dirty = false;
+};
+ProgCache progCache;
+
+za::String progPath(unsigned long long driver)
+{
+    char name[48];
+    snprintf(name, sizeof(name), "/programs/%016llx.bin", driver);
+    return rootDir() + name;
+}
+
+void progLoad()
+{
+    progCache.entries.clear();
+    za::Vector<char> bytes;
+    if(!qvr::files::readBytes(progPath(progCache.driver).cStr(), bytes) || bytes.size() < 12 ||
+        memcmp(bytes.data(), progMagic, 4) != 0)
+    {
+        return;
+    }
+    unsigned header[2];
+    memcpy(header, bytes.data() + 4, sizeof(header));
+    if(header[0] != progVersion)
+    {
+        return;
+    }
+    size_t at = 12;
+    for(unsigned i = 0; i < header[1]; i++)
+    {
+        ProgEntry e{};
+        unsigned length = 0;
+        if(at + 16 > bytes.size())
+        {
+            break;
+        }
+        memcpy(&e.key, bytes.data() + at, 8);
+        memcpy(&e.format, bytes.data() + at + 8, 4);
+        memcpy(&length, bytes.data() + at + 12, 4);
+        at += 16;
+        if(length > bytes.size() - at)
+        {
+            break;
+        }
+        e.data.resize(length);
+        memcpy(e.data.data(), bytes.data() + at, length);
+        at += length;
+        progCache.entries.pushBack(static_cast<ProgEntry&&>(e));
+    }
+}
+
+void progWrite()
+{
+    // (Programs not used this session are dropped once they are as many as the used: old sources' binaries don't pile
+    // up, and the few made later in play (the decals' retro programs) are kept meanwhile.)
+    int used = 0;
+    for(const ProgEntry& e : progCache.entries)
+    {
+        used += e.used;
+    }
+    if(static_cast<int>(progCache.entries.size()) > 2 * used)
+    {
+        za::Vector<ProgEntry> kept;
+        for(ProgEntry& e : progCache.entries)
+        {
+            if(e.used)
+            {
+                kept.pushBack(static_cast<ProgEntry&&>(e));
+            }
+        }
+        progCache.entries = static_cast<za::Vector<ProgEntry>&&>(kept);
+    }
+    za::Vector<char> bytes;
+    const unsigned header[2] = {progVersion, static_cast<unsigned>(progCache.entries.size())};
+    bytes.resize(12);
+    memcpy(bytes.data(), progMagic, 4);
+    memcpy(bytes.data() + 4, header, sizeof(header));
+    for(const ProgEntry& e : progCache.entries)
+    {
+        const size_t at = bytes.size();
+        const unsigned length = static_cast<unsigned>(e.data.size());
+        bytes.resize(at + 16 + length);
+        memcpy(bytes.data() + at, &e.key, 8);
+        memcpy(bytes.data() + at + 8, &e.format, 4);
+        memcpy(bytes.data() + at + 12, &length, 4);
+        if(length)
+        {
+            memcpy(bytes.data() + at + 16, e.data.data(), length);
+        }
+    }
+    qvr::files::createDirectories((rootDir() + "/programs").cStr());
+    const qvr::diskcache::Part part{bytes.data(), bytes.size()};
+    if(!qvr::diskcache::writeAtomic(progPath(progCache.driver), &part, 1))
+    {
+        Con_DPrintf("vr_program_cache: %s not written\n", progPath(progCache.driver).cStr());
+    }
+    progCache.dirty = false;
+}
+
+ProgEntry* progFind(unsigned long long key)
+{
+    for(ProgEntry& e : progCache.entries)
+    {
+        if(e.key == key)
+        {
+            return &e;
+        }
+    }
+    return nullptr;
+}
+
+} // namespace
+
+extern "C" int VR_ProgCacheOn(void)
+{
+#if defined(__ANDROID__)
+    return qvr::vr_program_cache.value >= 1.f;
+#else
+    return qvr::vr_program_cache.value >= 2.f;
+#endif
+}
+
+extern "C" unsigned long long VR_ProgCacheKey(unsigned long long h, const char* text)
+{
+    const size_t n = text ? strlen(text) : 0;
+    h = qvr::diskcache::wideHash(h ? h : qvr::diskcache::fnvStart, &n, sizeof(n)); // (each part's length first: no run-ons)
+    return qvr::diskcache::wideHash(h, text ? text : "", n);
+}
+
+extern "C" void VR_ProgCacheBegin(const char* vendor, const char* renderer, const char* version)
+{
+    unsigned long long driver = VR_ProgCacheKey(0, vendor);
+    driver = VR_ProgCacheKey(driver, renderer);
+    driver = VR_ProgCacheKey(driver, version);
+    if(!progCache.loaded || driver != progCache.driver)
+    {
+        progCache.driver = driver;
+        progCache.loaded = true;
+        const double t0 = Sys_DoubleTime();
+        progLoad();
+        VR_TimeAdd(progCache.entries.empty() ? "  the program cache's pack: none" : "  the program cache's pack read",
+            Sys_DoubleTime() - t0); // load timing (vr_startup_times)
+        Con_DPrintf("vr_program_cache: %d programs in %s\n", static_cast<int>(progCache.entries.size()),
+            progPath(driver).cStr());
+    }
+    progCache.batch = true;
+}
+
+extern "C" const void* VR_ProgCacheFind(unsigned long long key, unsigned* format, int* length)
+{
+    ProgEntry* e = progCache.loaded ? progFind(key) : nullptr;
+    if(!e || e->data.empty())
+    {
+        return nullptr;
+    }
+    e->used = true;
+    *format = e->format;
+    *length = static_cast<int>(e->data.size());
+    return e->data.data();
+}
+
+extern "C" void VR_ProgCacheReject(unsigned long long key)
+{
+    for(size_t i = 0; i < progCache.entries.size(); i++)
+    {
+        if(progCache.entries[i].key == key)
+        {
+            progCache.entries.erase(progCache.entries.begin() + i);
+            progCache.dirty = true;
+            return;
+        }
+    }
+}
+
+extern "C" void VR_ProgCacheAdd(unsigned long long key, unsigned format, const void* data, int length)
+{
+    if(!progCache.loaded || length <= 0)
+    {
+        return;
+    }
+    ProgEntry* e = progFind(key);
+    if(!e)
+    {
+        progCache.entries.pushBack(ProgEntry{key, 0, {}, true});
+        e = &progCache.entries.back();
+    }
+    e->format = format;
+    e->used = true;
+    e->data.resize(static_cast<size_t>(length));
+    memcpy(e->data.data(), data, static_cast<size_t>(length));
+    progCache.dirty = true;
+    if(!progCache.batch)
+    {
+        progWrite(); // (a program made in play: rare, the decals' retro ones)
+    }
+}
+
+extern "C" void VR_ProgCacheEnd(void)
+{
+    progCache.batch = false;
+    if(progCache.dirty)
+    {
+        progWrite();
+    }
+}

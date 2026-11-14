@@ -1800,6 +1800,7 @@ void	VID_Init (void)
 		"vr_glsafe", // QVR: GL safe mode, decided before the window opens (vr/vr_glsafe.cpp)
 		"vr_diagnostics", // QVR: diagnostics mode, from before the window (vr/vr_diagnostics.cpp)
 		"vr_gl_workarounds",
+		"vr_program_cache", // QVR: the GL programs' binaries, used by GL_CreateShaders (vr/vr_diskcache.cpp)
 	};
 #define num_readvars	Q_COUNTOF(read_vars)
 

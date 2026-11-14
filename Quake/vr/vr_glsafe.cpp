@@ -684,15 +684,9 @@ void appendMemberCopies(za::String& out, const GlslStruct& st, const za::String&
     out += s + copied;
     return out;
 }
-} // namespace
-
-extern "C" void VR_GLShaderSource(unsigned int shader, int count, const char* const* strings)
+// The ES 3.2 form of a shader's strings: the text VR_GLShaderSource gives the driver under VR_GLES_FORM_GLSL.
+[[nodiscard]] za::String esShaderText(int count, const char* const* strings)
 {
-    if(!VR_GLESForm(VR_GLES_FORM_GLSL))
-    {
-        GL_ShaderSourceFunc(shader, count, strings, nullptr);
-        return;
-    }
     za::String whole;
     for(int k = 0; k < count; k++)
     {
@@ -722,6 +716,31 @@ extern "C" void VR_GLShaderSource(unsigned int shader, int count, const char* co
     es += za::String{s + body, static_cast<za::SizeT>(code - body)};
     es += esPrecisions;
     es += s + code;
+    return es;
+}
+} // namespace
+
+extern "C" unsigned long long VR_GLShaderHash(unsigned long long h, int count, const char* const* strings)
+{
+    if(!VR_GLESForm(VR_GLES_FORM_GLSL))
+    {
+        for(int k = 0; k < count; k++)
+        {
+            h = VR_ProgCacheKey(h, strings[k]);
+        }
+        return h;
+    }
+    return VR_ProgCacheKey(h, esShaderText(count, strings).cStr());
+}
+
+extern "C" void VR_GLShaderSource(unsigned int shader, int count, const char* const* strings)
+{
+    if(!VR_GLESForm(VR_GLES_FORM_GLSL))
+    {
+        GL_ShaderSourceFunc(shader, count, strings, nullptr);
+        return;
+    }
+    const za::String es = esShaderText(count, strings);
     const char* text = es.cStr();
     GL_ShaderSourceFunc(shader, 1, &text, nullptr);
     if(COM_CheckParm("-glesverbose")) // (a check run: each error with its source line; the compile waited for)

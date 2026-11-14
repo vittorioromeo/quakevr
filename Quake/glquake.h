@@ -157,6 +157,9 @@ extern	const char	*gl_version;
 	x(void,			GetProgramiv, (GLuint program, GLenum pname, GLint *params))\
 	x(void,			UseProgram, (GLuint program))\
 	x(void,			LinkProgram, (GLuint program))\
+	x(void,			ProgramBinary, (GLuint program, GLenum binaryFormat, const void *binary, GLsizei length)) /* QVR: the program cache (GL 4.1, GL ES 3.0) */\
+	x(void,			GetProgramBinary, (GLuint program, GLsizei bufSize, GLsizei *length, GLenum *binaryFormat, void *binary)) /* QVR */\
+	x(void,			ProgramParameteri, (GLuint program, GLenum pname, GLint value)) /* QVR */\
 	x(void,			GetProgramInfoLog, (GLuint program, GLsizei bufSize, GLsizei *length, GLchar *infoLog))\
 	x(GLuint,		CreateShader, (GLenum type))\
 	x(void,			DeleteShader, (GLuint shader))\
@@ -247,6 +250,13 @@ extern	const char	*gl_version;
 	x(void,			ClipControl, (GLenum origin, GLenum depth))\
 
 #define GL_ZERO_TO_ONE		0x935F
+
+#ifndef GL_PROGRAM_BINARY_LENGTH // QVR: the program cache (gl_shaders.c; GL 4.1, GL ES 3.0)
+#define GL_PROGRAM_BINARY_LENGTH			0x8741
+#endif
+#ifndef GL_PROGRAM_BINARY_RETRIEVABLE_HINT
+#define GL_PROGRAM_BINARY_RETRIEVABLE_HINT	0x8257
+#endif
 
 #define QGL_ALL_FUNCTIONS(x)\
 	QGL_CORE_FUNCTIONS(x)\

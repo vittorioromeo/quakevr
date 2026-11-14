@@ -225,6 +225,17 @@ int VR_ReliefCacheLoad (const char *build, unsigned long long key, unsigned char
 void VR_ReliefCacheStore (const char *build, unsigned long long key, const unsigned char *rgba, int width, int height);
 void VR_NoteModelLoad (const char *name, double seconds); // a model's load from its file; counted while a map is in play
 void VR_TexCacheFinishWrites (void); // the cache files still being written finished (VR_Shutdown)
+// The GL programs' binaries (gl_shaders.c; vr_diskcache.cpp; QUEST_PLAN.md, C4d): one pack file per GL driver under the
+// cache root (<root>/programs/<driver hash>.bin), read once, written when a program was made: the Quest's ~51 s of
+// shader compiles at every start. vr_program_cache (default 1: on under OpenGL ES; 2 also on the PC; 0 off).
+int VR_ProgCacheOn (void);
+unsigned long long VR_ProgCacheKey (unsigned long long h, const char *text); // a program's key, part by part (h 0: the first)
+void VR_ProgCacheBegin (const char *vendor, const char *renderer, const char *version); // GL_CreateShaders' start
+const void *VR_ProgCacheFind (unsigned long long key, unsigned *format, int *length); // a binary, or NULL
+void VR_ProgCacheReject (unsigned long long key); // the driver refused it (dropped; made again)
+void VR_ProgCacheAdd (unsigned long long key, unsigned format, const void *data, int length);
+void VR_ProgCacheEnd (void); // GL_CreateShaders' end: the pack written when one was added (later adds: at once)
+unsigned long long VR_GLShaderHash (unsigned long long h, int count, const char *const *strings); // vr_glsafe.cpp: the text VR_GLShaderSource gives the driver
 void VR_NormalCacheChecked (int same, const char *name);	// vr_normalmap_cache 2: a map made again against its file	// end of _Host_Frame: the first frame drawn ends the start-up, and a load once signed on
 
 // Filesystem (common.c).

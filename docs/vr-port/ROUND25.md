@@ -2935,3 +2935,18 @@ QUEST_PLAN.md section 6j ("The bisection") has the numbers. On the Quest 3 over 
   `map vrstart;vr_classic_roundtrip_test`, `-QuitOn "classicroundtrip: \d+ passed"`. `vr_gameplay_preset_test` 31/0
   (2 new: Back is the press's state, a hand change kept), `vr_gore_preset_test` 15/0, `vr_gameplay_classic_check` 4/0.
   menu_paths.txt regenerated (the new Debug row).
+
+## Quest C4d: the black world fixed; the program binary cache (branch `agent/quest`, 2026-11-14)
+
+QUEST_PLAN.md section 6k has the numbers. On the Quest 3 over adb, the headset unworn, e1m1's start:
+- **Cause:** Adreno (0837.0.9) reads a struct copied whole out of a buffer wrong (`Instance instance =
+  instance_data[i];`): the copy's matrix drops every vertex, in every world and model program. Found with
+  `-glesdefine` (macros in the ES header switching the shaders' `QVR_PROBE_*` cuts: a constant fragment colour, the
+  plain transform, no invariance, draw 0, no clipping).
+- **Fix (ES form only):** `vr_glsafe.cpp` rewrites each such copy member by member; `-glesstructcopy` turns it off.
+  The world and the models draw (99.5% of the eye not black, was 0%). The PC's GLSL is untouched.
+- **Program binary cache:** `vr_program_cache` (1: on under OpenGL ES, 2: also on the PC, 0: off; read before the
+  window opens) keeps each program's driver binary in `<cache>/programs/<driver hash>.bin`, keyed by the exact text
+  compiled. Quest, process start to e1m1's first frame: 65.1 s cold, 8.3 s warm (shaders 51.1 s to 0.18 s). The
+  driver's EGL blob cache keeps nothing for the app.
+- **Checks:** gles_render_test 21/0, scenario_check 150/0, load_models_test 4/0; Release and ReleaseLTO 0 warnings.

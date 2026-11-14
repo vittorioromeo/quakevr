@@ -71,10 +71,81 @@ typedef struct {
 	GLuint		shaders[2];
 	int			numshaders;
 	char		name[128];
+	unsigned long long	key; // its binary kept once linked (the program cache; 0: not)
 } gldeferred_t;
 static gldeferred_t gl_deferred[256];
 static int gl_num_deferred;
 static qboolean gl_shaders_deferred;
+
+// QVR: the program cache (vr/vr_diskcache.cpp VR_ProgCache*, vr_program_cache; QUEST_PLAN.md, C4d): a program's binary
+// from the driver kept, given back the next start instead of compiling and linking its shaders.
+static qboolean gl_progcache_on; // decided at GL_CreateShaders
+static unsigned long long gl_progcache_key; // the program being linked's key (0: none, not kept)
+
+static void GL_ProgramRegister (GLuint program)
+{
+	if (gl_num_programs == countof(gl_programs))
+		Sys_Error ("gl_programs overflow");
+	gl_programs[gl_num_programs] = program;
+	gl_num_programs++;
+}
+
+static GLuint GL_ProgramFromCache (unsigned long long key, const char *name)
+{
+	unsigned format = 0;
+	int length = 0;
+	GLint status = GL_FALSE;
+	GLuint program;
+	double t0;
+	const void *data = VR_ProgCacheFind (key, &format, &length);
+	if (!data)
+		return 0;
+	VR_GLStep ("program %s from its binary", name); // (breadcrumbs, vr/vr_glsafe.cpp)
+	t0 = Sys_DoubleTime ();
+	program = GL_CreateProgramFunc ();
+	GL_ObjectLabelFunc (GL_PROGRAM, program, -1, name);
+	GL_ProgramBinaryFunc (program, (GLenum) format, data, length);
+	GL_GetProgramivFunc (program, GL_LINK_STATUS, &status);
+	VR_TimeAdd (status == GL_TRUE ? "  programs from their binaries (the program cache)" : "  program binaries refused (made again)",
+		Sys_DoubleTime () - t0); // load timing (vr_startup_times)
+	if (status != GL_TRUE) // (the driver refused it: made from the sources, its new binary kept)
+	{
+		GL_DeleteProgramFunc (program);
+		VR_ProgCacheReject (key);
+		return 0;
+	}
+	GL_ProgramRegister (program);
+	return program;
+}
+
+static void GL_ProgramToCache (GLuint program, unsigned long long key)
+{
+	GLint length = 0;
+	GLenum format = 0;
+	GLsizei got = 0;
+	void *data;
+	GL_GetProgramivFunc (program, GL_PROGRAM_BINARY_LENGTH, &length);
+	if (length <= 0)
+		return;
+	data = malloc (length);
+	if (!data)
+		return;
+	GL_GetProgramBinaryFunc (program, length, &got, &format, data);
+	if (got > 0)
+		VR_ProgCacheAdd (key, format, data, got);
+	free (data);
+}
+
+static int GL_ShaderStrings (GLenum type, const char *source, const char *extradefs, char *header, size_t headersize, const char **strings);
+
+static unsigned long long GL_ProgramKey (unsigned long long key, GLenum type, const char *source, const char *extradefs)
+{ // QVR: a shader's part of its program's key: its type and the very text the driver compiles (VR_GLShaderHash)
+	const char *strings[16];
+	char header[256], typestr[16];
+	int numstrings = GL_ShaderStrings (type, source, extradefs, header, sizeof (header), strings);
+	q_snprintf (typestr, sizeof (typestr), "%x", type);
+	return VR_GLShaderHash (VR_ProgCacheKey (key, typestr), numstrings, strings);
+}
 
 /*
 =============
@@ -150,12 +221,37 @@ static qboolean AppendString (char **dst, const char *dstend, const char *str, i
 GL_CreateShader
 =============
 */
+static int GL_ShaderStrings (GLenum type, const char *source, const char *extradefs, char *header, size_t headersize, const char **strings)
+{ // QVR: a shader's strings (GL_CreateShader; the program cache's key, GL_ProgramKey)
+	int numstrings = 0;
+	q_snprintf (header, headersize,
+		"#version 430\n"
+		"\n"
+		"#define BINDLESS %d\n"
+		"#define REVERSED_Z %d\n"
+		"#define QVR_SHADER_AB %d\n", // QVR: tests (vr_shader_reload)
+		gl_bindless_able,
+		gl_clipcontrol_able,
+		gl_shader_ab
+	);
+	strings[numstrings++] = header;
+	if (gl_multiview_compile) // QVR: a multiview twin (single-pass stereo): both eyes from each draw
+		strings[numstrings++] = type == GL_VERTEX_SHADER ?
+			"#extension GL_OVR_multiview2 : require\nlayout(num_views = 2) in;\n#define QVR_MULTIVIEW 1\n#define QVR_VIEW int(gl_ViewID_OVR)\n" :
+			"#extension GL_OVR_multiview2 : require\n#define QVR_MULTIVIEW 1\n#define QVR_VIEW int(gl_ViewID_OVR)\n";
+
+	if (extradefs && *extradefs)
+		strings[numstrings++] = extradefs;
+	strings[numstrings++] = source;
+	return numstrings;
+}
+
 static GLuint GL_CreateShader (GLenum type, const char *source, const char *extradefs, const char *name)
 {
 	const char *strings[16];
 	const char *typestr = NULL;
 	char header[256];
-	int numstrings = 0;
+	int numstrings;
 	GLint status;
 	GLuint shader;
 
@@ -175,25 +271,7 @@ static GLuint GL_CreateShader (GLenum type, const char *source, const char *extr
 			break;
 	}
 
-	q_snprintf (header, sizeof (header),
-		"#version 430\n"
-		"\n"
-		"#define BINDLESS %d\n"
-		"#define REVERSED_Z %d\n"
-		"#define QVR_SHADER_AB %d\n", // QVR: tests (vr_shader_reload)
-		gl_bindless_able,
-		gl_clipcontrol_able,
-		gl_shader_ab
-	);
-	strings[numstrings++] = header;
-	if (gl_multiview_compile) // QVR: a multiview twin (single-pass stereo): both eyes from each draw
-		strings[numstrings++] = type == GL_VERTEX_SHADER ?
-			"#extension GL_OVR_multiview2 : require\nlayout(num_views = 2) in;\n#define QVR_MULTIVIEW 1\n#define QVR_VIEW int(gl_ViewID_OVR)\n" :
-			"#extension GL_OVR_multiview2 : require\n#define QVR_MULTIVIEW 1\n#define QVR_VIEW int(gl_ViewID_OVR)\n";
-
-	if (extradefs && *extradefs)
-		strings[numstrings++] = extradefs;
-	strings[numstrings++] = source;
+	numstrings = GL_ShaderStrings (type, source, extradefs, header, sizeof (header), strings);
 
 	VR_GLStep ("compile %s %s shader", name, typestr); // QVR: breadcrumbs (vr/vr_glsafe.cpp)
 	shader = GL_CreateShaderFunc (type);
@@ -256,6 +334,7 @@ static GLuint GL_CreateProgramFromShaders (const GLuint *shaders, int numshaders
 		for (i = 0; i < numshaders; i++)
 			deferred->shaders[i] = shaders[i]; // (deleted below: kept while attached, their status still there to read)
 		q_strlcpy (deferred->name, name, sizeof (deferred->name));
+		deferred->key = gl_progcache_key; // QVR: its binary kept at GL_DeferredCheck
 	}
 
 	while (numshaders-- > 0)
@@ -266,6 +345,8 @@ static GLuint GL_CreateProgramFromShaders (const GLuint *shaders, int numshaders
 	}
 
 	VR_GLStep ("link %s", name); // QVR: breadcrumbs (vr/vr_glsafe.cpp)
+	if (gl_progcache_key) // QVR: its binary to be kept (GL_ProgramToCache)
+		GL_ProgramParameteriFunc (program, GL_PROGRAM_BINARY_RETRIEVABLE_HINT, GL_TRUE);
 	GL_LinkProgramFunc (program);
 	status = GL_TRUE;
 	if (!gl_multiview_async && !deferred) // QVR: a twin made in the background: its status later (GL_MultiviewPending); deferred: GL_DeferredCheck
@@ -289,11 +370,10 @@ static GLuint GL_CreateProgramFromShaders (const GLuint *shaders, int numshaders
 		else
 		GL_InitError ("Error linking %s program:\n\n%s", name, infolog);
 	}
+	else if (gl_progcache_key && !deferred && !gl_multiview_async) // QVR: the program cache (deferred: GL_DeferredCheck)
+		GL_ProgramToCache (program, gl_progcache_key);
 
-	if (gl_num_programs == countof(gl_programs))
-		Sys_Error ("gl_programs overflow");
-	gl_programs[gl_num_programs] = program;
-	gl_num_programs++;
+	GL_ProgramRegister (program); // QVR
 
 	return program;
 }
@@ -348,17 +428,34 @@ static GLuint GL_CreateProgramFromSources (int count, const GLchar **sources, co
 
 	name = eval;
 
-	realcount = 0;
-	for (i = 0; i < count; i++)
-		if (sources[i])
-			shaders[realcount++] = GL_CreateShader (types[i], sources[i], macros, name);
-	// QVR: OpenGL ES links no graphics program without a fragment shader (the depth-only ones: the sky stencil, the
-	// world's depth pre-pass): an empty one there (the Quest's Adreno refuses the link; QUEST_PLAN.md, C4b)
-	if (realcount == 1 && count == 2 && types[0] == GL_VERTEX_SHADER && VR_GLESForm (VR_GLES_FORM_GLSL))
-		shaders[realcount++] = GL_CreateShader (GL_FRAGMENT_SHADER, "void main() {}\n", macros, name);
-
 	{ // QVR: a graphics program's sources kept for its multiview twin (GL_MultiviewProgram)
-		GLuint program = GL_CreateProgramFromShaders (shaders, realcount, name);
+		// QVR: OpenGL ES links no graphics program without a fragment shader (the depth-only ones: the sky stencil, the
+		// world's depth pre-pass): an empty one there (the Quest's Adreno refuses the link; QUEST_PLAN.md, C4b)
+		const qboolean emptyfrag = count == 2 && types[0] == GL_VERTEX_SHADER && sources[0] && !sources[1] && VR_GLESForm (VR_GLES_FORM_GLSL);
+		const char *emptysource = "void main() {}\n";
+		unsigned long long key = 0;
+		GLuint program = 0;
+		if (gl_progcache_on && !gl_multiview_compile && !gl_arrays_compile && !gl_multiview_async) // QVR: the program cache
+		{
+			for (i = 0; i < count; i++)
+				if (sources[i])
+					key = GL_ProgramKey (key, types[i], sources[i], macros);
+			if (emptyfrag)
+				key = GL_ProgramKey (key, GL_FRAGMENT_SHADER, emptysource, macros);
+			program = GL_ProgramFromCache (key, name);
+		}
+		if (!program)
+		{
+			realcount = 0;
+			for (i = 0; i < count; i++)
+				if (sources[i])
+					shaders[realcount++] = GL_CreateShader (types[i], sources[i], macros, name);
+			if (emptyfrag)
+				shaders[realcount++] = GL_CreateShader (GL_FRAGMENT_SHADER, emptysource, macros, name);
+			gl_progcache_key = key;
+			program = GL_CreateProgramFromShaders (shaders, realcount, name);
+			gl_progcache_key = 0;
+		}
 		if (count == 2 && !gl_multiview_compile && gl_num_progsources < (int) countof (gl_progsources))
 		{
 			glprogsource_t *src = &gl_progsources[gl_num_progsources++];
@@ -791,6 +888,8 @@ static void GL_DeferredCheck (void)
 			GL_GetProgramInfoLogFunc (d->program, sizeof (infolog), NULL, infolog);
 			GL_InitError ("Error linking %s program:\n\n%s", d->name, infolog);
 		}
+		if (d->key) // QVR: the program cache
+			GL_ProgramToCache (d->program, d->key);
 	}
 	gl_num_deferred = 0;
 }
@@ -800,9 +899,14 @@ static void GL_CreateShadersAll (void);
 void GL_CreateShaders (void)
 {
 	gl_shaders_deferred = gl_parallel_compile_able; // QVR: the driver's threads (GL_DeferredCheck at the end)
+	gl_progcache_on = VR_ProgCacheOn () != 0; // QVR: the program cache (vr_program_cache; vr/vr_diskcache.cpp)
+	if (gl_progcache_on)
+		VR_ProgCacheBegin (gl_vendor, gl_renderer, gl_version);
 	GL_CreateShadersAll ();
 	GL_DeferredCheck ();
 	gl_shaders_deferred = false;
+	if (gl_progcache_on)
+		VR_ProgCacheEnd (); // (the pack written when a program was made)
 }
 
 static void GL_CreateShadersAll (void)
