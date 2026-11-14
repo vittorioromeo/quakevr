@@ -2671,3 +2671,55 @@ front, side, back; nothing of it in your own view when looking down or leaning.
   `Hunk_Check` (hunk_print, cl_parse, memguard sentinels) still checks every block: neither has lost its purpose, so no removal.
 - zone.h comment rewritten: Z_ single allocations, Hunk_ mark/free-to-mark lifetimes, Cache_ flushable handles, Temp_ per-frame scratch.
 - Checks: dev build 0 warnings; ReleaseLTO 1.1.0 build; `-memguard` load_models_test 352/0; scenario_check below.
+## arenacamp: Arena Mode in Select Campaign, with its own Run Setup (branch agent/arenacamp, 2026-11-15)
+
+- **Select Campaign:** an "Arena Mode" row right under Arcane Dimensions (vr_menu.cpp pageCampaigns, `selectArenaRow`),
+  the same Lead look and the "experimental" tag at its right; dim while Quake's campaign is unavailable. Pressed: an
+  experimental notice of its own (M_Confirm, as AD's), Continue opens the arena's Run Setup (`openRunSetupArena`).
+  Never a Continue row under it.
+- **Its Run Setup** (vr_menu_runsetup.inc, `Launch::Arena`, `runSetup.arena`): Start, Difficulty, Gore (Presets),
+  Ironman, Glass Cannon, Melee Only (Rules), nothing else. Start: `runsetup::startArena` (vr_runsetup.cpp) sets the
+  run from `arenaValue`: those five from the player's picks, Style Unleashed, Armed Humanoids and Smarter AI On, Ranged
+  Knights off (the arena brings its gun knights in itself from wave 12), every other mutator at its default; the
+  `vr_runpick_*` picks are not written, so the next run's Start is his own again (the presets' My Settings mechanism
+  restores the settings Unleashed and the armed/AI rows changed). Then `vr_campaign_hub vrarena` (now accepts vrarena:
+  Quake's campaign made active first, then the map). `start()` and `startArena()` share `startWith`.
+- **No autosave:** already true (VR_AutosaveAllowed refuses "vr*" maps: level start, quiet moments, vr_autosave_now;
+  Continue's inspect skips them); vr_autosave_now now says "none in Arena Mode" on vrarena.
+- **Test aid:** `vr_runsetup arena` opens the arena's screen directly.
+- **Tests:** `vr_runsetup_test` 86/0 (arena: its five rows, the fixed values, the picks untouched, the next Start the
+  picks'); `vr_runsetup_screen_test` 55/0 (the arena screen's rows exactly the six, Start first; the next way in the
+  whole page); `vr_runlaunch_test` 43/0 (an Arena Mode step: the map spawns with the arena's values, picks unchanged,
+  sv_autosave on and no autosave/vrarena.sav after 5 s and wave 2, vr_autosave_now refused; a save written as
+  autosave/vrarena gets no Continue anywhere, then removed; Arena Mode right under AD with its tag; then the Levels
+  list: his picks the run's again); `vr_continue_rows_test` 19/0; `vr_menu_path_check` vrcalibration 6 found, 0
+  missing; menu_paths.txt regenerated (unchanged: the campaign rows are not indexed). Shots:
+  qvr-kit/scratch/arenacamp_shots/arenacamp.png (Select Campaign; the notice; the arena's Run Setup).
+- **Not changed:** Play > Maps > Survival Arena still runs `map vrarena` with the current run (a debug-style way in).
+## classictoggle: Classic Quake on and off leaves the gloves' relief flat (agent/classictoggle, 2026-11-15)
+
+- **His report (flat, on next):** in the hub, the Classic Quake board pressed twice (on, off): the gloves' relief
+  "almost as a diffuse".
+- **Cause:** the gloves' relief (`progs/hand_rig_0N_00_glove_height`) is a height map made a normal map as it loads
+  (`vr_render.cpp` `gloveHeightToNormals`), but only in `gloveTexture`; the texture keeps the height file as its source.
+  It is loaded `TEXPREF_MIPMAP|ALPHA|UNCOMPRESSED`, so `TexMgr_AlphaTested` counts it, and Classic's `vr_alpha_coverage`
+  change (1 -> 0 -> 1) reloads every alpha-tested texture from its source (`TexMgr_ReloadAlphaTested`): the relief came
+  back as raw heights (grey: a normal pointing nowhere), so the leather lost its bumps. `vid_restart` did the same.
+- **Fix:** the conversion moved into the load itself: `VR_GloveReliefNormals` (vr_render.cpp), called from
+  `TexMgr_LoadImage32` (as `VR_CleanSkin` is), so the first load and every reload make the normals.
+- **Cvars:** a full `cvarlist` diff before on / after off in the hub showed no setting left changed (only
+  `vr_gore_preset`'s display sync). But Back restored each preset's *My Settings* (kept at the first preset ever
+  applied), not the state the press found: a row changed since (in the menu, say Bloom) came back as the old My
+  Settings. Classic's first press now keeps the three presets' rows as found (`ClassicState::before`, in memory) and
+  Back sets back exactly those; a row changed by hand while Classic was on keeps its new value; with none kept (a
+  restart since) Back is My Settings as before. The line reads "Your settings back: ...".
+- **Other things checked:** the round trip test hashes every texture read from a file or a lump (4,108 in the hub:
+  world textures and their normal maps, weapons' and armour's skins and normal maps, the hands', the gloves' paint):
+  only the gloves' relief differed before the fix, none after.
+- **Test:** new `vr_classic_roundtrip_test` (Debug > Tests, "Classic Quake On and Off"): waits for the map, keeps every
+  cvar and every file texture's texels hash, presses `vr_setup_option classic` twice (the hub board's command), two
+  frames after each, compares: `classicroundtrip: 5 passed, 0 failed` in vrstart (4,114 settings, 4,108 textures); with
+  the old code (the conversion back in `gloveTexture` only) 4/1, `progs/hand_rig_00_00_glove_height` differing. Run:
+  `map vrstart;vr_classic_roundtrip_test`, `-QuitOn "classicroundtrip: \d+ passed"`. `vr_gameplay_preset_test` 31/0
+  (2 new: Back is the press's state, a hand change kept), `vr_gore_preset_test` 15/0, `vr_gameplay_classic_check` 4/0.
+  menu_paths.txt regenerated (the new Debug row).

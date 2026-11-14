@@ -73,6 +73,7 @@ struct Page
 [[nodiscard]] bool runSetupStale(); // (vr_menu_runsetup.inc: a row held or let go since it was built)
 void openRunSetupCampaign(int index); // Official Campaigns' row: the Run Setup screen, then the campaign
 void openRunSetupArcane(); // Arcane Dimensions' row after its experimental notice: the same screen, then its launch
+void openRunSetupArena();  // Arena Mode's row after its experimental notice: the arena's own screen, then the arena
 // (Settings with their home on another page link to it: one home per setting.)
 [[nodiscard]] za::Vector<Item> pageMain();
 [[nodiscard]] za::Vector<Item> pageVrsHud();

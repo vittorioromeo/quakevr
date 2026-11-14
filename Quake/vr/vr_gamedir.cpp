@@ -910,13 +910,13 @@ void campaignSelectCommand()
     selectCampaign(i, !q_strcasecmp(Cmd_Argv(0), "vr_campaign_native"), true);
 }
 
-// vr_campaign_hub [vrstart|vrtutorial|vrfiringrange]: Quake's campaign, then that VR map (the hub, vrstart, by
-// default). A command of its own: a changelevel there from another campaign cannot rebuild the game folders
-// mid-spawn.
+// vr_campaign_hub [vrstart|vrtutorial|vrfiringrange|vrarena]: Quake's campaign, then that VR map (the hub, vrstart, by
+// default; vrarena: Select Campaign's Arena Mode, vr_menu_runsetup.inc). A command of its own: a changelevel there from
+// another campaign cannot rebuild the game folders mid-spawn.
 void campaignHubCommand()
 {
     const char* map = Cmd_Argc() > 1 ? Cmd_Argv(1) : VR_HubMap();
-    if(!VR_IsVrMap(map)) { map = VR_HubMap(); }
+    if(!VR_IsVrMap(map) && q_strcasecmp(map, "vrarena")) { map = VR_HubMap(); }
     if(selectCampaign(0, false, false, false)) { Cbuf_InsertText(va("map %s\n", map)); }
 }
 } // namespace

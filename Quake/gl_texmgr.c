@@ -510,7 +510,6 @@ static void TexMgr_Imagedump_f (void)
 
 	q_snprintf(dirname, sizeof(dirname), "%s/%s", com_gamedir, reldirname);
 
-	glPixelStorei (GL_PACK_ALIGNMENT, 1);/* for widths that aren't a multiple of 4 */
 
 	//loop through textures
 	for (glt = active_gltextures; glt; glt = glt->next)
@@ -585,7 +584,6 @@ static void TexMgr_Imagehash_f (void)
 		Con_Printf ("imagehash: can't write %s\n", path);
 		return;
 	}
-	glPixelStorei (GL_PACK_ALIGNMENT, 1);
 	for (glt = active_gltextures; glt; glt = glt->next)
 	{
 		int faces = (glt->flags & TEXPREF_CUBEMAP) ? 6 : 1;
@@ -1517,6 +1515,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 
 	if (glt->source_format == SRC_RGBA && !normalmap) // QVR: a full-colour weapon skin without its painted blood (vr_gore_clean_skins)
 	{
+		VR_GloveReliefNormals (glt->name, (byte *) data, glt->width, glt->height); // QVR: a glove's relief: its heights made normals (vr/vr_render.cpp), at each reload too
 		data = (unsigned *) VR_CleanSkin (glt->name, (byte *) data, glt->width, glt->height, 4);
 		data = (unsigned *) VR_SkinEdgeFill (glt->name, (byte *) data, glt->width, glt->height, 4); // QVR: its triangles' edge texels filled (vr_skin_edge_fill)
 	}
@@ -2330,6 +2329,44 @@ void TexMgr_ReloadAlphaTested (void)
 		if (TexMgr_AlphaTested (glt))
 			TexMgr_ReloadImage (glt, -1, -1);
 	in_reload_images = false;
+}
+
+/*
+================
+TexMgr_FileTextureHashes -- QVR: each 2D texture read from a file or a lump (what a reload makes again from its
+source), its name and its first level's texels (as RGBA) hashed (FNV-1a), passed to `fn`; returns how many
+(vr_classic_roundtrip_test: a settings round trip's reloads must leave them as they were)
+================
+*/
+int TexMgr_FileTextureHashes (void (*fn) (void *ctx, const char *name, unsigned hash), void *ctx)
+{
+	gltexture_t	*glt;
+	int			n = 0;
+
+	for (glt = active_gltextures; glt; glt = glt->next)
+	{
+		GLint w = 0, h = 0;
+		int mark, i, size;
+		unsigned hash = 2166136261u;
+		byte *texels;
+		if (!glt->texnum || !glt->source_file[0] || glt->source_format == SRC_LIGHTMAP || glt->target != GL_TEXTURE_2D)
+			continue;
+		GL_Bind (GL_TEXTURE0, glt);
+		glGetTexLevelParameteriv (GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &w);
+		glGetTexLevelParameteriv (GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &h);
+		if (w <= 0 || h <= 0)
+			continue;
+		size = w * h * 4;
+		mark = Hunk_LowMark ();
+		texels = (byte *) Hunk_AllocNoFill (size);
+		glGetTexImage (GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, texels);
+		for (i = 0; i < size; i++)
+			hash = (hash ^ texels[i]) * 16777619u;
+		Hunk_FreeToLowMark (mark);
+		fn (ctx, glt->name, hash);
+		n++;
+	}
+	return n;
 }
 
 /*
