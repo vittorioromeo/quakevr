@@ -1538,6 +1538,12 @@ za::Vector<Item> pageDebugTests()
         command("God Mode", "god").help("god: takes no damage (again: takes damage)."),
         command("Quad Damage", "impulse 255").help("Quad Damage for 30 seconds."),
         command("All Weapons", "impulse 9").help("Every weapon and full ammo."),
+        command("Go to the Level's Exit", "vr_goto_exit")
+            .help("vr_goto_exit [<slot>]: puts you (hosting a coop game: the player in that slot, 0 the first) in the "
+                  "level's exit, as if you walked into it: the intermission (a press goes on) or the next level."),
+        command("Take Damage: 1000", "vr_hurt 1000")
+            .help("vr_hurt <damage> [<slot>]: you (hosting a coop game: the player in that slot) take that much damage from "
+                  "the world, as from a fall: a real death at 1000 (not 'kill', which respawns at once); a press respawns."),
     };
 }
 

@@ -1372,6 +1372,109 @@ def campaign_listen(s):
             "saved %s; now %s (differ: %s)" % (inv1.get(sa), alone.get(sa), diff))
 
 
+def saved_text(s, relname, t0, tries=50):
+    """The save `relname` (".sav" added) in a game folder under the base, written since `t0` (wall clock) and whole
+    (its last line the closing brace) -> (path, text); (None, "") if none came (at most `tries` looks a tenth apart)."""
+    for _ in range(tries):
+        for d in os.listdir(s.base):
+            path = os.path.join(s.base, d, relname + ".sav")
+            if os.path.isfile(path) and os.path.getmtime(path) >= t0 - 1:
+                text = open(path, encoding="latin-1").read()
+                # (whole: its last edict's brace, or the edict count after it)
+                if "\n// qvr_coop " in text and (text.rstrip().endswith("}") or re.search(r"// \d+ edicts\s*$", text)):
+                    return path, text
+        time.sleep(0.1)
+    return None, ""
+
+
+def own_status(inst):
+    """inst's own `mp_status:` fields (its map, intermission, health as its client sees them)."""
+    return fields(next((l for l in status(inst) if l.startswith("mp_status:")), ""))
+
+
+def flow(s):
+    """The rest of the coop campaign flow (B4b), on a dedicated server: B put in e1m1's exit (vr_goto_exit): both see
+    the intermission, A's trigger held goes on to e1m2 (QC's IntermissionThink: a press after its 2 seconds); there the
+    level-start autosave, both players in it (autosave/coop~e1m2: Host_CheckCoopAutosave); B killed for real (vr_hurt:
+    QC's T_Damage, not `kill`): dead on his client and the server, his trigger pressed respawns him with his level-start
+    inventory of e1m2 (QC's respawn in coop: setspawnparms), not the rocket launcher he took after it."""
+    srv, a, b, ea, eb = join(s)
+    sa, sb = ea - 1, eb - 1
+    # (the harness starts its games with autosaves off; e1m2's start has a monster in sight: waited for 2 seconds of
+    # game time, not 60; the autosave's waits logged)
+    srv.cmd("sv_autosave 1; vr_autosave_safe_maxdelay 2; developer 1")
+    since_a, since_b, since_srv = a.mark(), b.mark(), srv.mark()
+    srv.cmd("vr_goto_exit %d" % sb)
+    got = wait_quietly(srv, r"vr_goto_exit: .* in the exit to e1m2", 10, since_srv, "B in e1m1's exit")
+    s.check("the server puts B in e1m1's exit (vr_goto_exit)", got is not None, "no 'vr_goto_exit: ... e1m2' line")
+    seen = {}
+    for _ in range(60):
+        seen = {"A": own_status(a), "B": own_status(b)}
+        if all(int(v.get("intermission", "0")) > 0 for v in seen.values()):
+            break
+    s.check("A and B both see the intermission (their clients' cl.intermission)",
+            all(int(v.get("intermission", "0")) > 0 for v in seen.values()),
+            "A %s; B %s" % (seen["A"].get("intermission"), seen["B"].get("intermission")))
+    s.check("A is told B exited the level", a.find(r"exited the level", since_a) is not None, "")
+
+    # A's trigger held through the intermission's 2 seconds: on to e1m2, both
+    a.cmd("vr_mock_button main trigger 1")
+    ja = wait_quietly(a, r"mp_event: .*joined map=e1m2", 60, since_a, "A on e1m2")
+    jb = wait_quietly(b, r"mp_event: .*joined map=e1m2", 60, since_b, "B on e1m2")
+    a.cmd("vr_mock_button main trigger 0")
+    s.check("A's trigger press ends the intermission: A and B on e1m2", ja is not None and jb is not None,
+            "A %s; B %s" % (ja and ja[1], jb and jb[1]))
+    if ja is None or jb is None:
+        return
+    t0 = time.time()
+
+    # the level-start autosave, both in
+    start, _ = inventories_until(srv, lambda inv, m: m == "e1m2" and sa in inv and sb in inv)
+    got = wait_quietly(srv, r"Saving game to .*autosave/coop~e1m2", 30, since_srv, "the coop autosave of e1m2")
+    path, text = saved_text(s, os.path.join("autosave", "coop~e1m2"), t0)
+    slots_in = sorted(int(x) for x in re.findall(r"^// qvr_coopslot (\d+) 1 ", text, re.M))
+    s.note("the autosave: %s; players in: %s" % (path, slots_in))
+    s.check("e1m2's level-start autosave on the dedicated server (autosave/coop~e1m2), A and B in it",
+            got is not None and path is not None and slots_in == sorted((sa, sb)),
+            "save line %s; file %s; slots in %s" % (got and got[1], path, slots_in))
+
+    # B takes a rocket launcher (not in his level-start parms), then dies for real
+    b.cmd("give 7")
+    inventories_until(srv, lambda inv, m: inv.get(sb, {}).get("items", 0) & IT_ROCKET_LAUNCHER)
+    since_b, since_srv = b.mark(), srv.mark()
+    srv.cmd("vr_hurt 1000 %d" % sb)
+    dead = wait_quietly(srv, r"vr_hurt: .* dead", 10, since_srv, "B dead on the server")
+    own = {}
+    for _ in range(40):
+        own = own_status(b)
+        if int(own.get("health", "1")) <= 0:
+            break
+    s.check("B killed for real (vr_hurt 1000: T_Damage): dead on the server and on his client",
+            dead is not None and int(own.get("health", "1")) <= 0, "server %s; B's client health %s" %
+            (dead and dead[1], own.get("health")))
+    s.check("B is not respawned at once (a real death: not kill's)", b.find(r"suicides", since_b) is None and
+            int(own.get("health", "1")) <= 0, "")
+
+    # his trigger pressed and let go until he is back (QC's PlayerDeathThink: all buttons up, then one down)
+    back, presses = {}, 0
+    for presses in range(1, 31):
+        b.cmd("vr_mock_button main trigger 1")
+        back, _ = inventories(srv)
+        b.cmd("vr_mock_button main trigger 0")
+        if back.get(sb, {}).get("health", 0) > 0:
+            break
+        back, _ = inventories(srv)
+        if back.get(sb, {}).get("health", 0) > 0:
+            break
+    diff = carried(start.get(sb, {}), back.get(sb, {}), ("items", "shells", "nails", "rockets", "cells"), change=False)
+    s.note("B respawned after %d presses: %s; his e1m2 start %s" % (presses, back.get(sb), start.get(sb)))
+    s.check("B's trigger respawns him (coop: QC's respawn), with his e1m2 start inventory (no rocket launcher)",
+            back.get(sb, {}).get("health", 0) > 0 and not diff and not back[sb]["items"] & IT_ROCKET_LAUNCHER,
+            "respawned %s; start %s (differ: %s)" % (back.get(sb), start.get(sb), diff))
+    own = own_status(b)
+    s.check("B's client sees himself alive again", int(own.get("health", "0")) > 0, "health %s" % own.get("health"))
+
+
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
     s = Session(args.exe, args.base, args.out, test, port=args.port)
     failure = None
@@ -1400,6 +1503,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             campaign(s)
         elif test == "mp_campaign_listen":
             campaign_listen(s)
+        elif test == "mp_flow":
+            flow(s)
         else:
             coop(s, args.listen, args.flat or "", lag, jitter, loss)
     except StepFailed as e:
@@ -1412,7 +1517,7 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -1436,7 +1541,7 @@ def main():
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen"):
+                       "campaign", "campaign_listen", "flow"):
         ok = run(args, "mp_" + args.test)
     else:
         ok = run(args, "mp_coop")
@@ -1453,6 +1558,7 @@ def main():
         ok = run(args, "mp_ground") and ok
         ok = run(args, "mp_campaign") and ok
         ok = run(args, "mp_campaign_listen") and ok
+        ok = run(args, "mp_flow") and ok
         print("mp_suite: %s" % ("passed" if ok else "FAILED"))
     sys.exit(0 if ok else 1)
 

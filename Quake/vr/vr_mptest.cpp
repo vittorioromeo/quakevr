@@ -17,6 +17,7 @@
 #include "vr_engine.hpp"
 #include "vr_geom.hpp"
 #include "vr_mpavatar.hpp"
+#include "vr_progs.hpp"
 #include "vr_clientprefs.hpp"
 #include "vr_teleport.hpp"
 #include "vr_trace.hpp"
@@ -193,9 +194,11 @@ void mark_f()
 
 void status_f()
 {
-    Con_Printf("mp_status: t=%lld dedicated=%d server=%d clients=%d connected=%d map=%s self=%d\n", wallMs(),
-        isDedicated ? 1 : 0, sv.active ? 1 : 0, sv.active ? svs.maxclients : 0, signedOn() ? 1 : 0,
-        signedOn() ? cl.mapname : "-", signedOn() ? cl.viewentity : 0);
+    // (intermission, health: this client's view, cl.intermission and its health stat: the coop exit and death, B4b)
+    Con_Printf("mp_status: t=%lld dedicated=%d server=%d clients=%d connected=%d map=%s self=%d intermission=%d health=%d\n",
+        wallMs(), isDedicated ? 1 : 0, sv.active ? 1 : 0, sv.active ? svs.maxclients : 0, signedOn() ? 1 : 0,
+        signedOn() ? cl.mapname : "-", signedOn() ? cl.viewentity : 0, signedOn() ? cl.intermission : 0,
+        signedOn() ? cl.stats[STAT_HEALTH] : 0);
     if(sv.active)
     {
         int spawned = 0;
@@ -255,6 +258,96 @@ void status_f()
     }
 }
 
+// The player a host's debug command acts on: the client in slot Cmd_Argv(`arg`) (0, or none given: the first), in the
+// game and alive; null (said why) otherwise.
+edict_t* slotPlayer(const char* command, int arg)
+{
+    const int slot = Cmd_Argc() > arg ? Q_atoi(Cmd_Argv(arg)) : 0;
+    if(!sv.active || slot < 0 || slot >= svs.maxclients || !svs.clients[slot].active || !svs.clients[slot].spawned ||
+        !svs.clients[slot].edict)
+    {
+        Con_Printf("%s: %s\n", command, sv.active ? "no player in that slot" : "not hosting a game");
+        return nullptr;
+    }
+    if(deathmatch.value != 0.f)
+    {
+        Con_Printf("%s: not in deathmatch\n", command);
+        return nullptr;
+    }
+    return svs.clients[slot].edict;
+}
+
+// The level an exit leads to (its QC field .map), "?" without one.
+const char* nextMap(edict_t* exit)
+{
+    const eval_t* v = GetEdictFieldValueByName(exit, "map");
+    return v && v->string ? PR_GetString(v->string) : "?";
+}
+
+// vr_goto_exit [<slot>]: the player (hosting: the one in that slot) put in the level's exit (its first
+// trigger_changelevel's middle), touching it as if he walked in: the intermission, or the next level (Debug > Tests >
+// Cheats; the coop campaign's exit, mp_flow).
+void gotoExit_f()
+{
+    edict_t* player = slotPlayer("vr_goto_exit", 1);
+    if(!player || player->v.health <= 0.f)
+    {
+        return;
+    }
+    const qvr::progs::ServerVm vm;
+    edict_t* exit = nullptr;
+    for(int i = svs.maxclients + 1; i < qcvm->num_edicts && !exit; i++)
+    {
+        edict_t* e = EDICT_NUM(i);
+        exit = !e->free && !strcmp(PR_GetString(e->v.classname), "trigger_changelevel") ? e : nullptr;
+    }
+    if(!exit)
+    {
+        Con_Printf("vr_goto_exit: no exit (trigger_changelevel) in this level\n");
+        return;
+    }
+    for(int k = 0; k < 3; k++)
+    {
+        player->v.origin[k] = (exit->v.absmin[k] + exit->v.absmax[k]) * 0.5f;
+    }
+    pr_global_struct->time = qcvm->time;
+    SV_LinkEdict(player, true); // (its touch: changelevel_touch)
+    Con_Printf("vr_goto_exit: %s in the exit to %s at %.0f %.0f %.0f\n", PR_GetString(player->v.netname),
+        nextMap(exit), player->v.origin[0], player->v.origin[1], player->v.origin[2]);
+}
+
+// vr_hurt <damage> [<slot>]: the player (hosting: the one in that slot) takes that much damage from the world (QC's
+// T_Damage, as a fall's): a real death, not `kill`'s respawn at once (Debug > Tests > Cheats; mp_flow's death).
+void hurt_f()
+{
+    if(Cmd_Argc() < 2)
+    {
+        Con_Printf("usage: vr_hurt <damage> [<slot>]\n");
+        return;
+    }
+    edict_t* player = slotPlayer("vr_hurt", 2);
+    if(!player || player->v.health <= 0.f)
+    {
+        return;
+    }
+    const qvr::progs::ServerVm vm;
+    const func_t fn = qvr::progs::findFunction("T_Damage");
+    if(!fn)
+    {
+        Con_Printf("vr_hurt: no T_Damage in the game's progs\n");
+        return;
+    }
+    pr_global_struct->time = qcvm->time;
+    pr_global_struct->self = EDICT_TO_PROG(player);
+    G_INT(OFS_PARM0) = EDICT_TO_PROG(player);
+    G_INT(OFS_PARM1) = EDICT_TO_PROG(qcvm->edicts);
+    G_INT(OFS_PARM2) = EDICT_TO_PROG(qcvm->edicts);
+    G_FLOAT(OFS_PARM3) = static_cast<float>(Q_atof(Cmd_Argv(1)));
+    PR_ExecuteProgram(fn);
+    Con_Printf("vr_hurt: %s at %.0f health%s\n", PR_GetString(player->v.netname), player->v.health,
+        player->v.health <= 0.f ? ", dead" : "");
+}
+
 } // namespace
 
 extern "C" void VR_MpTestInit(void)
@@ -267,6 +360,8 @@ extern "C" void VR_MpTestInit(void)
     }
     Cmd_AddCommand("vr_mp_mark", mark_f);
     Cmd_AddCommand("vr_mp_status", status_f);
+    Cmd_AddCommand("vr_goto_exit", gotoExit_f);
+    Cmd_AddCommand("vr_hurt", hurt_f);
     qvr::mpavatar::init(); // vr_mp_avatars
     qvr::clientprefs::init(); // vr_mp_prefs, the "vr_prefs" client command
 }

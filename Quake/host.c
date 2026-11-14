@@ -1188,10 +1188,71 @@ QVR: true while an autosave due waits for it to be safe (Host_AutosaveUnsafe), w
 (developer 1); false when it may be made: safe, or the monsters waited for vr_autosave_safe_maxdelay seconds.
 ==================
 */
+static qboolean Host_AutosaveWaitFor (int unsafe, const char *reason);
+
 static qboolean Host_AutosaveWait (void)
 {
 	const char	*reason;
 	int			unsafe = Host_AutosaveUnsafe (&reason);
+
+	return Host_AutosaveWaitFor (unsafe, reason);
+}
+
+/*
+==================
+Host_CheckCoopAutosave
+
+QVR: a coop game's autosave (MP_PLAN.md B4b): only as each level starts (vr_autosave_level_start, sv_autosave), once
+every player in the game is in it and alive and none is in danger (Host_AutosaveUnsafe for each: the longest wait
+ends it), on a dedicated server too. Its name is autosave/coop~<the single player's name>, a coop save (format 2):
+Continue and Load Autosave pass over it, `load autosave/coop~<map>` loads it. The interval's autosaves follow one
+player: none in coop.
+==================
+*/
+static void Host_CheckCoopAutosave (void)
+{
+	int			i, players = 0, unsafe = 0, u;
+	const char	*reason = "", *r;
+	client_t	*c;
+	edict_t		*own = sv_player;
+	char		single[MAX_QPATH], autosavename[MAX_QPATH];
+
+	if (sv.autosave.level_started || !sv_autosave.value || deathmatch.value || !coop.value || qcvm->time < 2.5)
+		return;
+	if (!Cvar_VariableValue ("vr_autosave_level_start") || !VR_AutosaveAllowed (sv.name) || VR_RunIronman () ||
+		COM_PrepareRun ())
+	{
+		sv.autosave.level_started = true;
+		return;
+	}
+	for (i = 0, c = svs.clients; i < svs.maxclients; i++, c++)
+	{
+		if (!c->active)
+			continue;
+		if (!c->spawned || !c->edict || c->edict->v.health <= 0.f)
+			return; // (a player still coming in, or dead: not yet)
+		sv_player = c->edict;
+		u = Host_AutosaveUnsafe (&r);
+		sv_player = own;
+		if (u > unsafe)
+		{
+			unsafe = u;
+			reason = r;
+		}
+		players++;
+	}
+	if (!players || Host_AutosaveWaitFor (unsafe, reason))
+		return;
+	sv.autosave.level_started = true;
+	sv.autosave.time = qcvm->time;
+	VR_AutosaveName (sv.name, single, sizeof (single));
+	q_snprintf (autosavename, sizeof (autosavename), "autosave/coop~%s", single + strlen ("autosave/"));
+	Con_DPrintf ("Autosave: coop, %d players\n", players);
+	Cbuf_AddText (va ("save \"%s\" 0 rotate\n", autosavename));
+}
+
+static qboolean Host_AutosaveWaitFor (int unsafe, const char *reason)
+{
 	float		maxdelay = Cvar_VariableValue ("vr_autosave_safe_maxdelay");
 
 	if (!unsafe)
@@ -1227,6 +1288,11 @@ static void Host_CheckAutosave (void)
 	float health_change, speed, elapsed, score;
 	char autosavename[MAX_QPATH]; // QVR
 
+	if (svs.maxclients > 1) // QVR: coop's, at each level's start (MP_PLAN.md B4b)
+	{
+		Host_CheckCoopAutosave ();
+		return;
+	}
 	if (!sv_autosave.value || sv_autosave_interval.value <= 0.f || svs.maxclients != 1 || sv_player->v.health <= 0.f || cl.intermission)
 		return;
 	if (!VR_AutosaveAllowed (sv.name)) // QVR: none on Quake VR's own maps (the hub, the tutorial...: vr_continue.cpp)
