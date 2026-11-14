@@ -2417,7 +2417,7 @@ int TexMgr_FileTextureHashes (void (*fn) (void *ctx, const char *name, unsigned 
 		size = w * h * 4;
 		mark = Hunk_LowMark ();
 		texels = (byte *) Hunk_Alloc (size);
-		glGetTexImage (GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, texels);
+		VR_GLGetTexImage (GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, texels); // QVR: its ES form under -glescompat (Android: no glGetTexImage)
 		for (i = 0; i < size; i++)
 			hash = (hash ^ texels[i]) * 16777619u;
 		Hunk_FreeToLowMark (mark);
