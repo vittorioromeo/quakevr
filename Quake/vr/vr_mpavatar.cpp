@@ -148,6 +148,17 @@ void printAvatar(int e, const Avatar& a)
         Con_Printf(" eyeheight=%.3f yaw=%.1f moves=%d pitch=%.1f lying=%.2f climb=%.2f\n", d.eyeHeight, a.body.yaw,
             a.moves, pitch, lying, climbWeight);
     }
+    if(d.frame == host_framecount - 1 || d.frame == host_framecount)
+    {
+        for(int part = 0; part < 3; part++)
+        {
+            const view::ViewEntity& ve = part < 2 ? d.hand[part] : d.body;
+            if(ve.visible && ve.ent.model && (part < 2 || d.bodyPosed))
+            {
+                view::printLook("mp_look", e, part, &ve.ent);
+            }
+        }
+    }
     for(int side = 0; side < 2; side++)
     {
         for(const view::ViewEntity* ve : {&d.hand[side], &d.weapon[side]})
@@ -190,6 +201,7 @@ void avatars_f()
             printSkeleton("mp_body_own", cl.viewentity, avatar::posedEntity()->model->name, k);
             Con_Printf("\n");
         }
+        view::printOwnLooks(cl.viewentity);
     }
     if(sv.active)
     {
@@ -359,8 +371,13 @@ const CalField calFields[numCalFields] = {
     {"sout", nullptr, 1000.f, -500, 500, [] { return bodycal::ownArms().shoulderOffset.z; }},
     {"srise", nullptr, 10.f, -1800, 1800, [] { return bodycal::ownArms().rise; }}, // tenths of a degree
     {"sswing", nullptr, 10.f, -1800, 1800, [] { return bodycal::ownArms().swing; }},
+    // His painted nails' colour (B6).
+    {"nhue", &vr_nail_hue, 1.f, 0, 360},
+    {"nsat", &vr_nail_saturation, 255.f, 0, 255},
+    {"nlight", &vr_nail_lightness, 255.f, 0, 255},
+    {"ngloss", &vr_nail_gloss, 255.f, 0, 255},
 };
-constexpr int calCommandVersion = 2; // "vr_avatarcal <version> <the fields>": another version's is ignored
+constexpr int calCommandVersion = 3; // "vr_avatarcal <version> <the fields>": another version's is ignored
 
 struct CalState
 {
@@ -375,6 +392,8 @@ struct CalState
 CalState cal;
 
 // calFields' places (setupBody).
+constexpr int calGloves = 6, calGloveHue = 7, calGloveSat = 8, calGloveLight = 9, calNails = 10, calTone = 11, calNailHue = 25,
+              calNailSat = 26, calNailLight = 27, calNailGloss = 28;
 constexpr int calHeight = 0, calArm = 2, calScale = 3, calBody = 12, calBuild = 13, calBracers = 14, calUpper = 16,
               calTweakUpper = 18, calShoulders = 20, calRise = 23, calSwing = 24;
 
@@ -781,6 +800,52 @@ void addEntities()
             }
         }
     }
+    // Their skin masks (a skin tone, gloves, nails: their own look, view::lookOf) found now, outside the draw loops.
+    entity_t* shown[(MAX_SCOREBOARD + 1) * 3];
+    int count = 0;
+    for(int e = 1; e <= MAX_SCOREBOARD; e++)
+    {
+        Drawn& d = drawn.of[e];
+        if(d.frame == host_framecount)
+        {
+            for(view::ViewEntity* ve : {&d.hand[0], &d.hand[1], &d.body})
+            {
+                if(ve->visible && ve->ent.model)
+                {
+                    shown[count++] = &ve->ent;
+                }
+            }
+        }
+    }
+    render::precacheSkinMasks(shown, count);
+}
+
+int lookOf(const entity_t* e, view::SkinLook& look)
+{
+    const auto* first = reinterpret_cast<const unsigned char*>(&drawn.of[0]);
+    const auto* p = reinterpret_cast<const unsigned char*>(e);
+    if(p < first || p >= first + sizeof(drawn.of))
+    {
+        return 0;
+    }
+    const int owner = static_cast<int>((p - first) / sizeof(Drawn));
+    const Drawn& d = drawn.of[owner];
+    const int kind = e == &d.hand[0].ent || e == &d.hand[1].ent ? 1 : e == &d.body.ent ? 2 : 0;
+    if(!kind || !cal.has[owner])
+    {
+        return 0; // (a weapon; no calibration yet: drawn bare)
+    }
+    const int* v = cal.of[owner].v;
+    look.tone = static_cast<float>(v[calTone]) / 100.f;
+    look.gloves = v[calGloves];
+    look.glove = glm::vec3{static_cast<float>(v[calGloveHue]), static_cast<float>(v[calGloveSat]) / 255.f,
+        static_cast<float>(v[calGloveLight]) / 255.f};
+    look.nails = v[calNails] != 0;
+    look.nail = glm::vec3{static_cast<float>(v[calNailHue]), static_cast<float>(v[calNailSat]) / 255.f,
+        static_cast<float>(v[calNailLight]) / 255.f};
+    look.nailGloss = static_cast<float>(v[calNailGloss]) / 255.f;
+    look.bare = v[calBracers] == 0;
+    return kind;
 }
 
 int bonePoses(const entity_t* e, const float** matrices)

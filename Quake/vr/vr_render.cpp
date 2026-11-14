@@ -574,7 +574,7 @@ extern "C" void VR_AliasInstance(const entity_t* e, const float matrix[16], cons
         }
     }
     ZA_MEMSET(out->nails, 0, sizeof(out->nails));
-    if(standard && vr_nails.value > 0.f && render::nailMask(e)) // painted nails (vr_nails): their mask read
+    if(standard && render::nailMask(e)) // painted nails (vr_nails; another player's: his own): their mask read
     {
         (void)view::nailLook(e, out->nails);
     }
@@ -823,11 +823,17 @@ void gloveLayersUpdate(const entity_t* const* own, int count); // (below)
 // Each (model, skin) is searched for once (a missing file too) until textures are freed.
 void VR_PrecacheSkinMasks()
 {
-    skinMasksValidate();
     entity_t* own[3]{};
     view::woundTargets(own);
-    for(entity_t* e : own)
+    qvr::render::precacheSkinMasks(own, 3);
+}
+
+void qvr::render::precacheSkinMasks(entity_t* const* ents, int count)
+{
+    skinMasksValidate();
+    for(int i = 0; i < count; i++)
     {
+        entity_t* e = ents[i];
         if(!e || !e->model)
         {
             continue;
@@ -844,7 +850,7 @@ void VR_PrecacheSkinMasks()
         }
         skinMasks.entries[skinMasks.count++] = SkinMaskEntry{e->model, kind, skin, skinMaskTexture(kind, skin)};
     }
-    gloveLayersUpdate(own, 3);
+    gloveLayersUpdate(ents, count);
 }
 
 gltexture_t* VR_AliasSkinMask(const entity_t* e)
@@ -1022,7 +1028,7 @@ void gloveLayersUpdate(const entity_t* const* own, int count)
             l.paint = gloveTexture(skinMaskSkin(e, 1), "glove");
             l.height = l.paint ? gloveTexture(skinMaskSkin(e, 1), "glove_height") : nullptr;
         }
-        if(!l.nailsLooked && vr_nails.value > 0.f)
+        if(float nails[4]; !l.nailsLooked && view::nailLook(e, nails))
         {
             l.nailsLooked = true;
             l.nails = gloveTexture(skinMaskSkin(e, 1), "nails");
@@ -1093,7 +1099,8 @@ void glovesReload_f()
 
 gltexture_t* nailMask(const entity_t* e)
 {
-    if(vr_nails.value <= 0.f || !e->model || gloveLayers.frees != TexMgr_FreeCount() || view::skinMaskWanted(e) != 1)
+    if(float nails[4]; !e->model || !view::nailLook(e, nails) || gloveLayers.frees != TexMgr_FreeCount() ||
+        view::skinMaskWanted(e) != 1)
     {
         return nullptr;
     }

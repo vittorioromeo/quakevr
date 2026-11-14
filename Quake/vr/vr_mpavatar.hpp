@@ -9,6 +9,11 @@
 #include "vr_engine.hpp"
 #include "vr_move.hpp"
 
+namespace qvr::view
+{
+struct SkinLook;
+}
+
 namespace qvr::mpavatar
 {
 
@@ -59,17 +64,21 @@ void addEntities();
 // VR_AliasMirrored: an avatar's entity drawn mirrored (an off hand, a left-handed weapon).
 [[nodiscard]] bool mirrored(const entity_t* e);
 
+// Another player's hand or body (an avatar's: 1 a hand, 2 the body; else 0): his look, from his calibration (B6: his
+// skin tone, gloves and nails as he set them; none received yet: 0, drawn bare).
+[[nodiscard]] int lookOf(const entity_t* e, view::SkinLook& look);
+
 // A new connection: no avatars.
 void clear();
 
 // The avatar calibration (MP_PLAN.md, B2c): what others need of a player's body and see of it, from his own settings --
-// height, seated height, arm length, world scale, handedness and the gadget's arm, gloves (kind, colour), nails, skin
+// height, seated height, arm length, world scale, handedness and the gadget's arm, gloves (kind, colour), nails (and colour: B6), skin
 // tone, body (mode, build, bracers, pauldrons), his arms (Body Calibration's measurements, tweaks and shoulders: B3c). Each as an integer (calFields in vr_mpavatar.cpp: metres in mm, shares
 // in thousandths...), so what is sent, kept and compared is exact. The client sends his up when it changes (a
 // "vr_avatarcal" client command, reliable, at most every vr_net_avatarcal_interval); the server keeps one per client
 // slot and passes it on to every client (QVR_SVC_AVATARCAL, reliable), and all of them to a joining client.
 // Multiplayer only.
-inline constexpr int numCalFields = 25;
+inline constexpr int numCalFields = 29;
 struct Calibration
 {
     int v[numCalFields]{};

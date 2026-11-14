@@ -26,6 +26,7 @@
 #include "vr_mdldequant.hpp"
 #include "vr_meleeshow.hpp"
 #include "vr_nailslide.hpp"
+#include "vr_mpavatar.hpp"
 #include "vr_seated.hpp"
 #include "vr_ragtool.hpp"
 #include "vr_crosshair.hpp"
@@ -3940,7 +3941,20 @@ bool skinTint(const entity_t* e, float tint[4], float range[4])
     return true;
 }
 
-int skinTone(const entity_t* e, float tone[4])
+SkinLook ownLook()
+{
+    SkinLook l;
+    l.tone = vr_skin_tone.value;
+    l.gloves = static_cast<int>(CLAMP(0.f, vr_gloves.value, 2.f));
+    l.glove = glm::vec3{vr_glove_hue.value, vr_glove_saturation.value, vr_glove_lightness.value};
+    l.nails = vr_nails.value > 0.f;
+    l.nail = glm::vec3{vr_nail_hue.value, vr_nail_saturation.value, vr_nail_lightness.value};
+    l.nailGloss = vr_nail_gloss.value;
+    l.bare = drawnBare;
+    return l;
+}
+
+int lookOf(const entity_t* e, SkinLook& look)
 {
     int kind = 0;
     if(e == &entities.body.ent || cloneSource(e) == &entities.body.ent)
@@ -3955,7 +3969,19 @@ int skinTone(const entity_t* e, float tone[4])
             kind = 1;
         }
     }
-    const float amount = CLAMP(-1.f, vr_skin_tone.value, 1.f);
+    if(kind)
+    {
+        look = ownLook();
+        return kind;
+    }
+    return mpavatar::lookOf(e, look); // (another player's hands and body: his own look)
+}
+
+int skinTone(const entity_t* e, float tone[4])
+{
+    SkinLook look;
+    const int kind = lookOf(e, look);
+    const float amount = CLAMP(-1.f, look.tone, 1.f);
     const glm::vec3 colour = amount < 0.f ? glm::mix(glm::vec3{1.f}, glm::vec3{0.22f, 0.15f, 0.12f}, -amount) :
         glm::mix(glm::vec3{1.f}, glm::vec3{1.4f, 1.35f, 1.3f}, amount);
     geom::store(colour, tone);
@@ -3981,22 +4007,21 @@ namespace
 
 int gloveLook(const entity_t* e, float glove[4], float cuff[4])
 {
-    float tone[4];
-    const int kind = skinTone(e, tone);
-    const int mode = static_cast<int>(CLAMP(0.f, vr_gloves.value, 2.f));
+    SkinLook look;
+    const int kind = lookOf(e, look);
+    const int mode = za::clamp(look.gloves, 0, 2);
     glove[0] = glove[1] = glove[2] = glove[3] = 0.f;
     cuff[0] = cuff[1] = cuff[2] = cuff[3] = 0.f;
     if(!kind || !mode)
     {
         return 0;
     }
-    const glm::vec3 colour = hslToRgb(vr_glove_hue.value, CLAMP(0.f, vr_glove_saturation.value, 1.f),
-        CLAMP(0.f, vr_glove_lightness.value, 1.f));
+    const glm::vec3 colour = hslToRgb(look.glove.x, CLAMP(0.f, look.glove.y, 1.f), CLAMP(0.f, look.glove.z, 1.f));
     geom::store(colour, glove);
     glove[3] = static_cast<float>(mode); // the skin mask's channel: G fingerless, B full (make_skin_masks.py)
     if(kind == 2)
     {
-        if(!drawnBare)
+        if(!look.bare)
         {
             glove[3] = 0.f; // the bracers cover the wrist: nothing of the glove on the body
             return 0;
@@ -4024,20 +4049,33 @@ void gloveCuffRange(float cuff[4])
 bool nailLook(const entity_t* e, float nails[4])
 {
     nails[0] = nails[1] = nails[2] = nails[3] = 0.f;
-    if(vr_nails.value <= 0.f)
+    SkinLook look;
+    if(lookOf(e, look) != 1 || !look.nails)
     {
         return false;
     }
-    float tone[4];
-    if(skinTone(e, tone) != 1)
-    {
-        return false;
-    }
-    const glm::vec3 colour = hslToRgb(vr_nail_hue.value, CLAMP(0.f, vr_nail_saturation.value, 1.f),
-        CLAMP(0.f, vr_nail_lightness.value, 1.f));
+    const glm::vec3 colour = hslToRgb(look.nail.x, CLAMP(0.f, look.nail.y, 1.f), CLAMP(0.f, look.nail.z, 1.f));
     geom::store(colour, nails);
-    nails[3] = 1.f + CLAMP(0.f, vr_nail_gloss.value, 1.f);
+    nails[3] = 1.f + CLAMP(0.f, look.nailGloss, 1.f);
     return true;
+}
+
+void printLook(const char* what, int ent, int part, const entity_t* e)
+{
+    float tone[4], glove[4], cuff[4], nails[4];
+    const int kind = skinTone(e, tone);
+    (void)gloveLook(e, glove, cuff);
+    (void)nailLook(e, nails);
+    Con_Printf("%s: ent=%d part=%d kind=%d tone=%.4f %.4f %.4f %.4f glove=%.4f %.4f %.4f %.4f nails=%.4f %.4f %.4f %.4f\n",
+        what, ent, part, kind, tone[0], tone[1], tone[2], tone[3], glove[0], glove[1], glove[2], glove[3], nails[0], nails[1],
+        nails[2], nails[3]);
+}
+
+void printOwnLooks(int ent)
+{
+    printLook("mp_look_own", ent, 0, &entities.hand[HAND_OFF].ent);
+    printLook("mp_look_own", ent, 1, &entities.hand[HAND_MAIN].ent);
+    printLook("mp_look_own", ent, 2, &entities.body.ent);
 }
 
 int skinMaskWanted(const entity_t* e)

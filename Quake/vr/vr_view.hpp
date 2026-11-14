@@ -53,6 +53,21 @@ struct ViewEntity
 // 0): your body (and its copy in a mirror), its forearms' skin turning to the hand's colour towards the wrist; a jointed
 // hand (w -1), its end inside the arm folded onto the wrist's line. False for any other entity (none).
 [[nodiscard]] bool skinTint(const entity_t* e, float tint[4], float range[4]);
+// A player's look on his skin and hands (MP_PLAN.md, B6: cosmetics others see): your own from your settings (ownLook), another
+// player's from his avatar calibration (mpavatar::lookOf), so his hands and body are drawn as he dressed them.
+struct SkinLook
+{
+    float tone{0.f};      // vr_skin_tone: -1 dark .. 1 light
+    int gloves{0};        // vr_gloves: 0 none, 1 fingerless, 2 full
+    glm::vec3 glove{0.f}; // vr_glove_hue (degrees), _saturation, _lightness
+    bool nails{false};    // vr_nails
+    glm::vec3 nail{0.f};  // vr_nail_hue, _saturation, _lightness
+    float nailGloss{0.f}; // vr_nail_gloss
+    bool bare{false};     // bare forearms (no bracers): a glove's cuff over the body's forearm
+};
+[[nodiscard]] SkinLook ownLook();
+// `e`'s look and kind: 1 a jointed hand, 2 a body (yours, and another player's), zero other entities.
+[[nodiscard]] int lookOf(const entity_t* e, SkinLook& look);
 // Skin-only tone: kind 1 the jointed hand, 2 the body, zero other entities.
 [[nodiscard]] int skinTone(const entity_t* e, float tone[4]);
 // Gloves (vr_gloves, vr_glove_hue/saturation/lightness) on the same entities: `glove` the leather's colour (rgb) and the
@@ -65,6 +80,10 @@ void gloveCuffRange(float cuff[4]);
 // Painted nails (vr_nails, vr_nail_hue/saturation/lightness/gloss) on a jointed hand (skinTone's kind 1): `nails` the
 // polish's colour (rgb) and 1 + its gloss (w; 0 none: no nails on `e`). True when drawn.
 [[nodiscard]] bool nailLook(const entity_t* e, float nails[4]);
+// vr_mp_avatars' "mp_look:" lines (the harness's mp_cosmetics): `e`'s kind, tone, glove and nails as drawn; your own
+// hands' and body's as "mp_look_own:" (parts 0 off hand, 1 main hand, 2 body).
+void printLook(const char* what, int ent, int part, const entity_t* e);
+void printOwnLooks(int ent);
 // The kind (as skinTone's) when `e` reads its skin mask (a skin tone, a glove or painted nails on it), else zero.
 [[nodiscard]] int skinMaskWanted(const entity_t* e);
 // A power-up's glow on `e` (Quad's blue, the pentagram's red, the biosuit's green; vr_view.cpp powerupGlow): on your
