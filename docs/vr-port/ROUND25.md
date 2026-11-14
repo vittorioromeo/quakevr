@@ -2379,6 +2379,7 @@ Cherry-picked bd2277d6c (translucent brush models' retro decal program made in t
 ## crtheapfix
 
 Cherry-picked 6b8e74432: VR_CrtHeapLoadHold now defined without mimalloc (QVR_MIMALLOC=OFF Linux link). Checked: dev build, ReleaseLTO, WSL no-mimalloc link, load_models 352/0.
+## flat1115a: icon pictures' aspect, card gap, red banners, Arcane Dimensions with the campaigns (agent/flat1115a, 2026-11-15)
 
 ## palmgrab: closing a hand on a gun resting on or against it (branch agent/palmgrab, 2026-11-15)
 
@@ -2410,6 +2411,66 @@ vr_gunangle (mock pitch 0 is about 69 degrees down): the test's poses pitch up 6
 VM (`progs::ServerVm`: without it the view never saw the contact and (B) was taken by the handle). Unchanged:
 pickup_mag 3/3, crate_grip (carry2h_grip 10/0), flatholster 54/0, revgrip (vr_embed_test 42) 24/0; Release-TracyFull 0
 warnings.
+- **Icon pictures stretched (the real cause):** the VR menu canvas scales y more than x (`VR_MenuCanvas`: the row
+  spacing; about 2x on the flat panel). Glyphs keep their size (`Draw_KeepMenuGlyphSize`) but `Draw_TextureRect` did
+  not, so menutweak's fit (in menu pixels) still came out about twice as tall. `Draw_MenuStretch()` (gl_draw.c) gives
+  that factor; `drawIconPicture` fits the picture in screen proportions and brings its height back to menu pixels: the
+  skull is round, the arches square, the guns long and flat (letterboxed in the box's width).
+- **Name lines** `vr_menu_icon_name_pitch` 6 (was 7: 14% tighter). **Card gap** `vr_menu_icon_gap` 16 (was 4): the
+  plates keep their width and sit 80 apart instead of 68 (+18%) while the row's 320 pixels have room; a five-choice
+  row (Difficulty) gives the gap up first, down to the old 4. **Decision:** read as the cards' spacing, not 15-20% of
+  the 4-pixel gap (sub-pixel). Rows in Menu Look > Run Setup; menu_paths.txt regenerated.
+- **Banners in the menus' red:** `Sbar_IntermissionOverlay` (COMPLETED, inter.lmp, the level's name, the numbers),
+  `Sbar_FinaleOverlay`, `SCR_DrawLoading`, `SCR_DrawPause` draw with `Draw_SetMenuRecolor(true)`: vr_menu_recolor and
+  its hue, strength and saturation; off with it.
+- **Select Campaign:** no Experimental header; Arcane Dimensions a Lead row with the others, a small dim "experimental"
+  before its title (`Item::tagLeftArg`, drawn by `drawGroupRow`; its right tag dropped). Its notice's Continue now
+  opens Run Setup (`openRunSetupArcane`); Start runs the developer launch `vr_campaign_native ad` (`runSetupStart`), as
+  the row did before.
+- **Checklist:** 17 ticked lines retired (no voice notes since 11-12); scenes flat_holster_drag, flat_clip_unpaid,
+  run_glass_dummy set aside (nothing else uses them); run_setup_newgame and run_pickups kept (docs, code). The two
+  [New] lines sorted into 7. physics and bodies, shortened. The failed Classic Quake line stays.
+- **Tests:** vr_runsetup_screen_test 42/0 (adds: Arcane Dimensions' Continue opens the screen), vr_continue_rows_test
+  19/0, vr_menu_flash_test 7/0, menu_shortcuts_test 14/0, vr_menu_path_check vrcalibration 6 / vrstart 5 found, 0
+  missing, checklist_tests_check 51/0. Builds: dev and ReleaseLTO 0 warnings. Shots: qvr-kit/scratch/flat1115_shots/
+  (icons_before_after, campaigns_before_after, completed_before_after).
+
+## Directional parry timing: the right direction always parries (branch `agent/parrytime`)
+
+His rule (2026-11-15): "As long as the direction of the player's gun/sword/etc is correct for a directional parry, it should
+count as a valid parry. But if it's early or late, the stagger effect should be severely diminished, as we want to reward
+well-timed parries."
+
+- **Test 78's 28/19 was not the parry.** It fails only when run with no `map vrtesthall` first (the bisect's and the
+  queue's runs: `-Script "vr_agrunt_test 78"`), so the test ran in `vrstart`: the posed sword misses its axis (along it 0.66
+  instead of 1.00) and the grunt stands 58 units off instead of 37, so every parry case fails, held early or not (the
+  dog bite and case 9 included). On `next` with the map, drawn and undrawn: 47/0, as every baseline since 11-06 (11-06,
+  11-12, 11-13, 11-14). The bisect's "first bad commit" 87172b999 changes only BACKLOG.md: noise from that. No commit broke it.
+  The test now ends at once with one FAIL ("needs map vrtesthall first") anywhere else.
+- **How early "held early" is** (the weapon held across from before the attack; the reference blow's time from its
+  attack's start): an armed grunt's overhead 0.38 s, a knight's chop 0.50, an ogre's swing 0.40, smash 0.50 (its blade
+  0.85), a fiend's claw 0.40, a shambler's smash 0.90, a dog's bite 0.31. The windows: well timed = in place at most
+  `vr_dirparry_timed_window` 0.3 s before the contact; `vr_dirparry_stroke` 0.45 s = how long a monster's own blow is held
+  back for its blade to reach your weapon (not a timing window); an armed humanoid's `vr_dirparry_window` 0.1 s.
+- **What changed.** `VR_DRP_Timing` (vr_dirparry.qc), the one function for every directional parry (monsters' own blows,
+  armed humanoids' swings; PvP later the same): the right direction parries at any timing, nothing through (as before).
+  Its share (`VR_DRP_TimingShare`) is 1 when your weapon got in place within the timing window and, for a blow held back for
+  your weapon, by its own moment (when its blade reaches your weapon's place, read along its way at the blow) plus
+  `vr_dirparry_late_grace`; earlier or later it falls smoothly (smoothstep) to `vr_dirparry_offtime`. The share scales the
+  parry's stagger and flinch (`VR_Parry_Interrupt`, the armed humanoid's opening flinch), its push on the attacker, the
+  counter window and an armed humanoid's disarm chance (`VR_Parry_TimingShare`, combat.qc; 1 for the guard, crossed arms
+  and flat-screen guard). "Well timed" (x1.3 strength) is unchanged.
+- **Tunables** (Debug > Tunables > Combat > Directional Parry): `vr_dirparry_offtime` 0.2 (Early/Late Stagger),
+  `vr_dirparry_offtime_fade` 0.15 s (Early Fade), `vr_dirparry_late_grace` 0.02 s, `vr_dirparry_late_fade` 0.06 s.
+  So held 0.45 s or more before the contact: x0.2; 0.375 s: x0.6.
+- **Test 78** (48 cases): held early now asks for a share of at most 0.5 (measured 0.2; the armed grunt's 0.39, in place
+  0.40 s before), moved/turned in a share of 1, moved in staggering at least 1.5x held early (knight 1.10 s vs 0.16, armed
+  grunt 1.50 vs 0.58); a last case checks the share's curve (full, the fades' middles 0.60, the floor, never rising).
+  Case 12 no longer compares its swing's end (it ends with its parry's flinch, now as long as the share makes it).
+  48/0; 35 6/0, 18 24/0, 60 6/0.
+- **Not covered by a test:** a late parry end to end (an armed humanoid's held blow can be late by 0.1 s at most; a
+  monster's by up to 0.45 s): the scene `parrytime` (an ogre and a sword grunt) is for him; `developer 1` prints
+  `dirparry: timing: in place X s before, Y s late: xS`.
 ## flat1115b: flat aim per weapon (ironsight placing, zoom), Classic in flat, Autosave Now (agent/flat1115b, 2026-11-15)
 
 - **Ironsight placing per gun (his item 5).** There were none: the flat ironsight is solved from each gun's sight line with

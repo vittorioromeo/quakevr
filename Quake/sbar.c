@@ -2189,6 +2189,7 @@ void Sbar_IntermissionOverlay (void)
 	char	map[80];
 	int		ltime, lsecrets, lmonsters;
 	int		total;
+	qboolean recolor; // QVR
 
 	if (cl.qcvm.extfuncs.CSQC_DrawScores && !qcvm)
 	{
@@ -2241,6 +2242,8 @@ void Sbar_IntermissionOverlay (void)
 	total = q_max (ltime, lsecrets);
 	total = q_max (lmonsters, total);
 
+	recolor = Draw_SetMenuRecolor (true); // QVR: the banners, the level's name and the numbers in the menus' red (vr_menu_recolor)
+
 	pic = Draw_CachePic ("gfx/inter.lmp");
 	total += pic->width + 24;
 	total = q_min (320, total);
@@ -2253,6 +2256,8 @@ void Sbar_IntermissionOverlay (void)
 	Sbar_IntermissionText (160 + total / 2 - ltime, 64, time, 0);
 	Sbar_IntermissionText (160 + total / 2 - lsecrets, 104, secrets, 0);
 	Sbar_IntermissionText (160 + total / 2 - lmonsters, 144, monsters, 0);
+
+	Draw_SetMenuRecolor (recolor); // QVR
 }
 
 
@@ -2264,10 +2269,13 @@ Sbar_FinaleOverlay
 void Sbar_FinaleOverlay (void)
 {
 	qpic_t	*pic;
+	qboolean recolor; // QVR
 
 	GL_SetCanvas (CANVAS_MENU); //johnfitz
 
+	recolor = Draw_SetMenuRecolor (true); // QVR: in the menus' red (vr_menu_recolor)
 	pic = Draw_CachePic ("gfx/finale.lmp");
 	Draw_Pic ( (320 - pic->width)/2, 16, pic); //johnfitz -- stretched menus
+	Draw_SetMenuRecolor (recolor); // QVR
 }
 

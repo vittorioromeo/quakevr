@@ -2296,6 +2296,8 @@ vr_runsetup_halls_line|1|Menu Look|Run Setup: Skill Halls Line|Advanced VR Optio
 vr_menu_icons|1|Menu Look|Icon Pickers|Advanced VR Options > HUD and Menus > Menu Look > Icon Pickers
 vr_menu_icon_size|1|Menu Look|Icon Picker Size|Advanced VR Options > HUD and Menus > Menu Look > Icon Picker Size
 vr_menu_icon_dim|1|Menu Look|Icon Picker Unpicked Dim|Advanced VR Options > HUD and Menus > Menu Look > Icon Picker Unpicked Dim
+vr_menu_icon_gap|1|Menu Look|Icon Picker Gap|Advanced VR Options > HUD and Menus > Menu Look > Icon Picker Gap
+vr_menu_icon_name_pitch|1|Menu Look|Icon Picker Name Lines|Advanced VR Options > HUD and Menus > Menu Look > Icon Picker Name Lines
 vr_menu_group_scale|1|Menu Look|Campaign Title Size|Advanced VR Options > HUD and Menus > Menu Look > Campaign Title Size
 vr_menu_group_gap|1|Menu Look|Campaign Gap|Advanced VR Options > HUD and Menus > Menu Look > Campaign Gap
 vr_menu_group_indent|1|Menu Look|Continue Indent|Advanced VR Options > HUD and Menus > Menu Look > Continue Indent
@@ -3481,6 +3483,10 @@ vr_dirparry_window|2|Tunables|Parry Window|Advanced VR Options > Debug > Tunable
 vr_dirparry_through_armed|2|Tunables|Let Through: Armed Humanoids|Advanced VR Options > Debug > Tunables > Let Through: Armed Humanoids
 vr_dirparry_through_monster|2|Tunables|Let Through: Monsters|Advanced VR Options > Debug > Tunables > Let Through: Monsters
 vr_dirparry_timed_window|2|Tunables|Timing Window|Advanced VR Options > Debug > Tunables > Timing Window
+vr_dirparry_offtime|2|Tunables|Early/Late Stagger|Advanced VR Options > Debug > Tunables > Early/Late Stagger
+vr_dirparry_offtime_fade|2|Tunables|Early Fade|Advanced VR Options > Debug > Tunables > Early Fade
+vr_dirparry_late_grace|2|Tunables|Late Grace|Advanced VR Options > Debug > Tunables > Late Grace
+vr_dirparry_late_fade|2|Tunables|Late Fade|Advanced VR Options > Debug > Tunables > Late Fade
 vr_dirparry_stroke|2|Tunables|Stroke Window|Advanced VR Options > Debug > Tunables > Stroke Window
 vr_agrunt_repl_skill0|2|Tunables|Easy|Advanced VR Options > Debug > Tunables > Easy
 vr_agrunt_repl_skill1|2|Tunables|Normal|Advanced VR Options > Debug > Tunables > Normal
