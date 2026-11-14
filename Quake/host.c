@@ -1656,6 +1656,7 @@ void _Host_Frame (double time)
 
 //check the stdin for commands (dedicated servers)
 	Host_GetConsoleCommands ();
+	VR_MpTestFrame (); // QVR: a test harness's inbox (-cmdinbox) read; vr_mp_watch's prints (vr/vr_mptest.cpp)
 
 // process console commands
 	VR_ProfileBegin ("commands"); // QVR: profile
@@ -1889,6 +1890,7 @@ void Host_Init (void)
 	SV_Init ();
 	VR_TimeMark ("console, progs, models, net, server init"); // QVR
 	VR_Init (); // QVR
+	VR_MpTestInit (); // QVR: -cmdinbox, vr_mp_mark, vr_mp_status (vr/vr_mptest.cpp)
 	VR_TimeMark ("VR init (cvars, commands)"); // QVR
 
 	Con_Printf ("Quake VR %s\n", VR_BuildInfo ()); // QVR: "1.1.0-dev build 4321 (abc1234) 2026-10-17 14:05"

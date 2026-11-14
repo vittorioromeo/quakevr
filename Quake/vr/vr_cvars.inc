@@ -280,7 +280,9 @@ QVR_CVAR(vr_debug_box3d, "0", CVAR_NONE)             // 1: bodies made, woken an
 QVR_CVAR(vr_physsound, "2", CVAR_ARCHIVE)             // all of them: their volume (0 off; up to 2: over 1 the client multiplies them, vr_audio.cpp)
 QVR_CVAR(vr_physsound_grab, "0.7", CVAR_ARCHIVE)      // a climbing hand taking a hold (by the hold's texture: wood, metal, stone): volume (0 off)
 QVR_CVAR(vr_debug_glstate, "0", CVAR_NONE)            // 1 each texture bind the engine's cache skipped while GL had another texture there ("texcache: stale bind", gl_texmgr.c: a texture deleted around GL_DeleteNativeTexture), a clip rectangle left on at a frame's end ("glstate:"), and particles, tubes or bent meshes drawn from an earlier frame's upload (GL_Upload's space reused: garbage; "glstate: ... earlier frame's upload")
-QVR_CVAR(vr_debug_net, "0", CVAR_NONE)                // 1:each frame the unreliable broadcast (sv.datagram) was full: what QuakeC lost, what a client was not sent; 2: also each second the most sent (vr_server.cpp, VR_BroadcastDest)
+QVR_CVAR(vr_mp_watch, "0", CVAR_NONE)                // 1: this client prints when it sees each player's entity, when one starts moving from rest and every 32 units of its travel, wall-clock stamped (the multiplayer harness; vr_mptest.cpp)
+QVR_CVAR(vr_mp_watch_dist, "2", CVAR_NONE)           // vr_mp_watch: units from where a player stood still that count as moving off
+QVR_CVAR(vr_debug_net, "0", CVAR_NONE)               // 1:each frame the unreliable broadcast (sv.datagram) was full: what QuakeC lost, what a client was not sent; 2: also each second the most sent (vr_server.cpp, VR_BroadcastDest)
 QVR_CVAR(vr_debug_physsound, "0", CVAR_NONE)          // 1: each impact, scrape and grab played; 2: also the hits skipped and each scrape grain
 // Spatial audio (vr_audio.cpp, Steam Audio; ROUND21.md, "Spatial audio (Steam Audio)"). Without phonon.dll: Quake's panning.
 QVR_CVAR(vr_snd_spatial, "1", CVAR_ARCHIVE)           // 0 Quake's mixer as it was; 1 the features below in VR; 2 also on the desktop (headphones)

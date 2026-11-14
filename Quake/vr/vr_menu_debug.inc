@@ -1119,6 +1119,12 @@ za::Vector<Item> pageDebugReports()
         command("Server Rules", "vr_serverrules")
             .help("vr_serverrules: the settings the server judges by for every player (melee timing): their values, and on "
                   "a remote server's client the server's against yours."),
+        command("Network: Players Seen", "vr_mp_status")
+            .help("vr_mp_status: the players this client sees (entity, name, where, whether the last message carried them) "
+                  "and, hosting, the server's clients. The multiplayer harness (Misc/quakevr/mp) reads the same lines."),
+        toggle("Network: Watch Players", vr_mp_watch)
+            .help("vr_mp_watch: the console says when you see each player, when one starts moving from rest and every 32 "
+                  "units he travels, with a wall-clock time in ms: compare two games' consoles for the delay between them."),
         command("Keyboard Hook", "vr_keyhook_status")
             .help("vr_keyhook_status: whether this game holds the desktop keyboard hook (only with the window's focus) and "
                   "the longest it went unserviced since the last report: every key press on the desktop waits for it."),

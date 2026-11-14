@@ -1025,7 +1025,14 @@ void Sys_Init (void)
 		host_parms->numcpus = 1;
 	Sys_Printf("Detected %d CPUs.\n", host_parms->numcpus);
 
-	if (isDedicated)
+	// QVR: a hidden test run's dedicated server (QVR_TEST_HIDDEN: the multiplayer harness) opens no console window on
+	// the desktop: its output goes to the -condebug log alone, its commands come from -cmdinbox (vr/vr_mptest.cpp).
+	if (isDedicated && getenv ("QVR_TEST_HIDDEN"))
+	{
+		hinput = GetStdHandle (STD_INPUT_HANDLE);
+		houtput = GetStdHandle (STD_OUTPUT_HANDLE);
+	}
+	else if (isDedicated)
 	{
 		if (!AllocConsole ())
 		{
@@ -1179,6 +1186,9 @@ const char *Sys_ConsoleInput (void)
 	INPUT_RECORD	recs[1024];
 	int		ch;
 	DWORD		dummy, numread, numevents;
+
+	if (getenv ("QVR_TEST_HIDDEN"))
+		return NULL; // QVR: a hidden test run's dedicated server has no console (Sys_Init): -cmdinbox instead
 
 	for ( ;; )
 	{
