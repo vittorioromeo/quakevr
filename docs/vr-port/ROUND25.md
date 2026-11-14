@@ -2794,3 +2794,30 @@ self-driven across the load by saved globals): `vr_scenario waterdrips`, once pl
 - Arena Mode: no Ironman row (rows: Start, Difficulty, Gore, Glass Cannon, Melee Only); `arenaValue` forces Ironman off, the pick untouched.
 - No saving in the arena (`vrarena`): `VR_ArenaNoSave` (vr_runsetup.cpp) makes `VR_RunIronmanRefusesSave` refuse `save`/quicksave/Save menu with "No saving in Arena Mode"; the quicksave tool is greyed with that reason. Loading stays allowed.
 - Tests: `vr_runsetup_screen_test` (five rows), `vr_runlaunch_test` (Ironman off with the pick on; save and quicksave write nothing). menu_paths unchanged by rows removal except Ironman.
+
+## stuckgrunts: Enemy Count's copies placed with the box they stand with (agent/stuckgrunts, 2026-11-15)
+
+- Found by presetlate: Classic + 3x Enemy Count on e1m1 left two grunt copies in solid. Reproduced headless every time
+  (`vr_runpick_style 1; vr_runpick_enemycount 2; vr_run start; map e1m1; wait60; vr_run_enemies_check 2 0`): copies at
+  (-2.8 623.9 24) and (876.6 2622.6 -72), in worldspawn; by wait90 the first had been pushed out 4 units (so a wait90
+  check passed: why the round's earlier runs missed it).
+- Cause: id's grunt, dog, knight, zombie, tarbaby and scrag have 24-wide boxes (`setsize '-12 -12 -24'`). Quake's hull
+  selection lays hull 1 (32 wide) from a narrower box's corner, so with `vr_mhull 0` (Classic) such a monster stands in
+  hull 1 shifted 4 units along +x and +y. `VR_RunEnemyCount_Fits` tested the kind's centred 32-wide box only
+  (Unleashed's `vr_mhull` centres a narrow width inside it, so only Classic showed it).
+- Fix (`vr_run_enemycount.qc`): `Fits` also traces the box the copy's spawn function will give it (its monster's own
+  mins/maxs) at the spot, as the engine traces it (the copy not solid yet: Quake's hull, the shift included); no fit:
+  the next spot of the rings, else no copy, now logged (developer 1: "Enemy Count: no room for copy k of X at o").
+  e1m1 still gets 45 copies of 23 monsters at 3x.
+- Check: the engine calls QC `VR_Run_MonsterCopied` (pr_edict.c, `vr_runsetup.cpp`) after each copy's spawn function:
+  its own box a unit up, tested as SV_TestEntityPosition would (world, BSP models, bodies); in solid: logged ("Enemy
+  Count: copy k of X spawned in solid at ...") and counted; `vr_run_enemies_check` fails on any. Without the fix it
+  reported e1m1's two copies; with it 0.
+- Sweep (one run, skill 1, wait60 checks): e1m1, e1m2, e2m1, e4m1, each a baseline then Classic 3x, Unleashed 3x, Light
+  2x, Unleashed 3x + Anything Goes: runenemies 76/0, no copy in solid as it spawned or at the check anywhere. Script:
+  per map `vr_runpick_enemycount 0; vr_runpick_enemyrandom 0; vr_run start; map M; wait60; vr_run_enemies_check 0 0`,
+  then per case `vr_runpick_style S; vr_runpick_enemycount C; vr_runpick_enemyrandom R; vr_run start; map M; wait60;
+  vr_run_enemies_check C R`; at the end `vr_run_enemies_check verdict` (`-QuitOn "runenemies: [0-9]+ passed"`).
+- Scenario `run_enemycount_classic` (Enemy Count 3x with `vr_mhull 0`, plain grunts, Quake's AI, on e1m1).
+- Not changed: one of e4m1's own monsters is in solid by the check's test with Classic (the same shifted hull, where the
+  mapper put it; the check allows the map's own).

@@ -1268,3 +1268,10 @@ extern "C" int VR_Run_MonsterCopy(edict_t* copy, edict_t* orig, int k)
 {
     return qvr::runsetup::qcOnEdict("VR_Run_MonsterCopy", copy, orig, static_cast<float>(k)) != 0.f ? 1 : 0;
 }
+
+// ... and spawned (its spawn function run, its own box set): QC VR_Run_MonsterCopied tests that box where it stands
+// (in solid: logged and counted for vr_run_enemies_check).
+extern "C" void VR_Run_MonsterCopied(edict_t* copy, edict_t* orig)
+{
+    qvr::runsetup::qcOnEdict("VR_Run_MonsterCopied", copy, orig, 0.f);
+}
