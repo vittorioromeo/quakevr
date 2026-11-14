@@ -2779,6 +2779,26 @@ void prepare()
     }
 }
 
+void prepareTranslucent()
+{
+    if(!vr_decals.value || retro::categorySet(retro::Category::Decals) <= 0)
+    {
+        return;
+    }
+    // A brush model spawned translucent (AD's glass, water volumes, illusionary walls: its baseline's alpha). Made
+    // otherwise when one is first drawn with a retro mark about (R_ChooseBModelProgram): 2.6-3.1 s in play.
+    for(int i = 1; i < cl.num_entities; ++i)
+    {
+        const entity_state_t& b = cl_entities[i].baseline;
+        const qmodel_t* m = b.modelindex > 0 && b.modelindex < MAX_MODELS ? cl.model_precache[b.modelindex] : nullptr;
+        if(m && m->type == mod_brush && m->name[0] == '*' && b.alpha != ENTALPHA_DEFAULT && b.alpha != ENTALPHA_ONE)
+        {
+            R_PrewarmTranslucentDecalPrograms();
+            return;
+        }
+    }
+}
+
 void clear()
 {
     decals.clear();

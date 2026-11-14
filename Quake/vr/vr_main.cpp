@@ -2014,6 +2014,8 @@ extern "C" void VR_SignonPrewarm()
     QVR_PROFILE("vr signon prewarm");
     ao::integrateFinished();
     VR_TimeMark("signon prewarm: occlusion bakes taken in");
+    decals::prepareTranslucent(); // (the baselines are in: the map's translucent brush models known)
+    VR_TimeMark("signon prewarm: translucent decal programs");
 }
 
 // vr_screenshot_frames <n> (Debug > Teleporters): a screenshot of each of the next n frames drawn, every one (a `wait`
