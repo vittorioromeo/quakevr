@@ -762,6 +762,7 @@ int VR_HasNativeCampaignDirectory(const char *paths);
 int VR_CampaignDataAvailable(const char *dir);
 void VR_OpenCampaignSelector(void);
 const char *VR_CampaignLabel(int index);
+const char *VR_CampaignTag(int index);   // its status in a word or two ("missing"); "" when it is just ready
 const char *VR_CampaignHelp(int index);
 void VR_SelectCampaign(int index);
 int VR_CampaignUnavailable(int index);
@@ -786,7 +787,8 @@ void VR_AutosaveName(const char *map, char *out, size_t size); // the running ga
 // Continue on the launch rows (vr_continue.cpp): Select Campaign's campaign rows and the Map Library's packages each
 // offer their game's newest loadable autosave (sha "" or NULL: the campaign's, no package; else that package's).
 void VR_LaunchContinueRefresh(void);                                  // the autosaves read again (the page built)
-// part 0: "Continue (12 min ago): Hard / Classic", 1: "Continue (12 min ago)", 2: "Hard / Classic" (its run); NULL: none
+// part 0: "Continue (12 min ago): Hard / Classic", 1: "Continue (12 min ago)", 2: "Hard / Classic" (its run),
+// 3: "12 min ago"; NULL: none
 const char *VR_LaunchContinueLabel(int campaign, const char *sha, int part);
 const char *VR_LaunchContinueHelp(int campaign, const char *sha);    // its help line; NULL: none
 const char *VR_LaunchContinueSave(int campaign, const char *sha);    // the save's name ("autosave/e1m3"); NULL: none

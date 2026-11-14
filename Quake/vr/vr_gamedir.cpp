@@ -927,11 +927,27 @@ extern "C" const char* VR_CampaignLabel(int index)
         va("%s: %s", campaigns[index].title, campaigns[index].status == 1 && !campaigns[index].nativeReady ?
             (index == qvr::ad::campaignIndex ? "experimental" : "native in progress") : campaignStatus(index)) : "";
 }
+// Select Campaign's tag right of a campaign's title (ROUND25.md, "campvis"): only the exceptions, in a word or two (the
+// help line has the whole status); "" while it is just ready to play.
+extern "C" const char* VR_CampaignTag(int index)
+{
+    if(index < 0 || index >= int(countof(campaigns))) { return ""; }
+    const Campaign& c = campaigns[index];
+    if(c.status == 0) { return "missing"; }
+    if(c.status == 2) { return "incomplete"; }
+    if(c.status == 3) { return "old version"; }
+    if(!c.nativeReady) { return index == qvr::ad::campaignIndex ? "experimental" : "in progress"; }
+    if(index >= 3 && missingLanguage(index)) { return "language data"; }
+    if(soloOnly(index) && campaignMultiplayerRequested()) { return "single-player"; }
+    return "";
+}
 extern "C" const char* VR_CampaignHelp(int index)
 {
     if(index < 0 || index >= int(countof(campaigns))) { return ""; }
     const Campaign& c = campaigns[index];
-    return va("%s. Data: %s. %s", c.title, c.root[0] ? c.root : "configured basedirs",
+    const bool tagged = VR_CampaignTag(index)[0] != 0; // (its row shows a short tag: its whole status here)
+    return va("%s%s%s. Data: %s. %s", c.title, tagged ? ": " : "", tagged ? campaignStatus(index) : "",
+        c.root[0] ? c.root : "configured basedirs",
         c.status != 1 ? "Supply complete owned campaign files to play." :
         soloOnly(index) && campaignMultiplayerRequested() ? "Accepted for single-player: set coop 0, deathmatch 0, maxplayers 1; multiplayer context/join/respawn is not accepted." :
         index >= 3 && missingLanguage(index) ? "Language data incomplete: supply updated owned rerelease id1 tables, or enable store discovery." :

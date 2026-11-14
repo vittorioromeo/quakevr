@@ -27,7 +27,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	ZONEID		0x1d4a11
 #define	ZONEFREED	0x1d4a10	// QVR: a freed block's id (Z_Free's double-free check)
 
-void Cache_FreeLow (int new_low_hunk);
 
 // QVR: vr_zone_threadcheck 1: the hunk, the cache and the zone used from any thread but the main one crash at once, with
 // that thread's stack (qvr_crash.txt). None of them is thread-safe: even Cache_Check (Mod_Extradata) relinks the cache's
@@ -196,84 +195,143 @@ char *Z_Strdup (const char *s)
 
 //============================================================================
 
+/*
+==============================================================================
+
+						HUNK AND CACHE MEMORY
+
+QVR: the hunk and the cache are the heap now (ROUND25.md, "nohunk"; vkQuake's route: its 85d526c replaced the zone, the
+hunk and the cache with plain allocation over mimalloc). There is no big block any more (-heapsize, -minmemory: gone),
+no segments, and the cache no longer lives in the hunk's free space (it never moves or evicts).
+
+The hunk keeps its lifetimes: every Hunk_Alloc is a heap block of its own, pushed on a stack; Hunk_LowMark is the
+bytes on the stack (headers included), and Hunk_FreeToLowMark (mark) frees every block pushed since that mark, newest
+first. So the level's data still goes at Host_ClearMemory, a loader's temporary buffers at its own free, as before.
+The blocks are no longer one contiguous range: the loaders that built a model on the hunk and copied the range to the
+cache (alias models, the VR rigs) hand their blocks to the cache instead (Hunk_MoveToCache): the offsets between them
+(aliashdr_t's intptr_t fields) stay valid, as nothing moves.
+
+The cache is owned blocks: Cache_Alloc allocates, Cache_Free frees, Cache_Check is the pointer (no LRU, no purge);
+Cache_Flush (a game change) frees them all.
+
+Every block has a header (its size, its name, a sentinel, the links) checked on free and by Hunk_Check; Debug builds
+add a tail word after the caller's (16-byte rounded) bytes, checked on free and by Hunk_Check (an overrun).
+==============================================================================
+*/
+
 #define	HUNK_SENTINEL	0x1df001ed
+#define	CACHE_SENTINEL	0x1dca11ed
+#define	FREED_SENTINEL	0x1dfee1ed	// a freed block (a double free)
 
-#define HUNKNAME_LEN	24
-typedef struct
+#define MEMNAME_LEN		32
+typedef struct memblock_s
 {
-	int		sentinel;
-	int		size;		// including sizeof(hunk_t), -1 = not allocated
-	char	name[HUNKNAME_LEN];
-} hunk_t;
+	struct memblock_s	*hprev;		// hunk: the block under it; a cache entry's owned blocks: the next one
+	struct memblock_s	*cprev, *cnext;	// cache: the entries' list
+	struct memblock_s	*owned;		// cache: the hunk blocks it took over (Hunk_MoveToCache), chained by hprev
+	cache_user_t		*user;		// cache: its owner
+	int					size;		// this block: the header, the caller's bytes rounded to 16 (and the Debug tail)
+	int					mark;		// hunk: Hunk_LowMark before it
+	int					total;		// cache: its bytes with the owned blocks'
+	int					sentinel;
+	char				name[MEMNAME_LEN];
+} memblock_t;
 
-typedef struct hunkseg_s
-{
-	int					base;
-	int					size;
-	int					used;
-	int					pad; // pad to power of 2
-} hunkseg_t;
+#define MEMHDR			((int) ((sizeof (memblock_t) + 15) & ~15))	// the caller's bytes keep the heap's 16-byte alignment
+#define MEMDATA(b)		((void *) ((byte *) (b) + MEMHDR))
+#define MEMBLOCK(p)		((memblock_t *) ((byte *) (p) - MEMHDR))
 
-#define MAX_SEGMENTS	8
-#define SEG_MEM(seg)	((byte *) ((seg) + 1))
-#define LASTSEG			(hunk_segments[hunk_numsegments-1])
+#ifndef NDEBUG
+#define MEM_TAIL		((int) sizeof (int))	// Debug: the sentinel after the caller's bytes
+#else
+#define MEM_TAIL		0
+#endif
 
-static int				hunk_low_used;
-static int				hunk_keep_mark; // QVR: Hunk_KeepLoaded: frees stop here
-static int				hunk_numsegments;
-static hunkseg_t		*hunk_segments[MAX_SEGMENTS];
-
-typedef enum
-{
-	HF_UNINIT			= 0,
-	HF_CLEAR			= 1 << 0,
-} hunkflags_t;
-
+static memblock_t	*hunk_top;			// the newest hunk block
+static int			hunk_low_used;		// the hunk's bytes (Hunk_LowMark)
+static int			hunk_peak;			// the most ever (vr_limits)
+static int			hunk_count;			// hunk blocks
+static int			hunk_keep_mark;		// QVR: Hunk_KeepLoaded: frees stop here
+static memblock_t	cache_head;			// the cache entries' list head
+static size_t		cache_used, cache_peak;	// the cache's bytes (headers included) and the most ever (vr_limits)
+static int			cache_count;		// cache entries
 
 /*
 ===================
-Hunk_Size
+Mem_CheckBlock -- a block's sentinel and (Debug) tail
 ===================
 */
-static int Hunk_Size (void)
+static void Mem_CheckBlock (const memblock_t *b, int sentinel, const char *who)
 {
-	return LASTSEG->base + LASTSEG->size;
+	if (b->sentinel == FREED_SENTINEL)
+		Sys_Error ("%s: a freed block", who);
+	if (b->sentinel != sentinel)
+		Sys_Error ("%s: trashed sentinel", who);
+	if (b->size < MEMHDR + MEM_TAIL)
+		Sys_Error ("%s: bad size", who);
+#ifndef NDEBUG
+	{
+		int tail;
+		memcpy (&tail, (const byte *) b + b->size - MEM_TAIL, sizeof (tail));
+		if (tail != sentinel)
+			Sys_Error ("%s: %s's tail was overwritten (an overrun of its %i bytes)", who, b->name[0] ? b->name : "a block",
+				b->size - MEMHDR - MEM_TAIL);
+	}
+#endif
 }
 
-
 /*
 ===================
-Hunk_GetName
+Mem_NewBlock -- a block of `size` caller's bytes (zeroed if `clear`), its header filled
 ===================
 */
-static const char *Hunk_GetName (const hunk_t *hunk)
+static memblock_t *Mem_NewBlock (int size, const char *name, int sentinel, qboolean clear, const char *who)
 {
-	return hunk->name[0] ? hunk->name : "unknown";
+	memblock_t	*b;
+	size_t		total = (size_t) MEMHDR + (((size_t) size + 15) & ~(size_t) 15) + MEM_TAIL;
+
+	if (total > 0x7fffffff)
+		Sys_Error ("%s: %i bytes are too many", who, size);
+	b = (memblock_t *) (clear ? VR_HeapCalloc (1, total) : VR_HeapMalloc (total));
+	if (!b)
+		Sys_Error ("%s: failed on %i bytes", who, size);
+	if (!clear)
+		memset (b, 0, sizeof (*b));
+	b->size = (int) total;
+	b->sentinel = sentinel;
+	if (name)
+		q_strlcpy (b->name, name, MEMNAME_LEN);
+#ifndef NDEBUG
+	memcpy ((byte *) b + total - MEM_TAIL, &sentinel, sizeof (sentinel));
+#endif
+	return b;
+}
+
+static void Mem_FreeBlock (memblock_t *b, int sentinel, const char *who)
+{
+	Mem_CheckBlock (b, sentinel, who);
+	b->sentinel = FREED_SENTINEL;
+	VR_HeapFree (b);
 }
 
 /*
 ==============
 Hunk_Check
 
-Run consistency and sentinel trashing checks
+Run consistency and sentinel trashing checks (QVR: every hunk block's and cache block's)
 ==============
 */
 void Hunk_Check (void)
 {
-	int i, ofs;
+	const memblock_t *b, *o;
 
-	for (i = 0; i < hunk_numsegments && hunk_segments[i]->base < hunk_low_used; i++)
+	for (b = hunk_top; b; b = b->hprev)
+		Mem_CheckBlock (b, HUNK_SENTINEL, "Hunk_Check");
+	for (b = cache_head.cnext; b && b != &cache_head; b = b->cnext)
 	{
-		const hunkseg_t *seg = hunk_segments[i];
-		for (ofs = 0; ofs < seg->used; )
-		{
-			const hunk_t *h = (const hunk_t *) (SEG_MEM (seg) + ofs);
-			if (h->sentinel != HUNK_SENTINEL)
-				Sys_Error ("Hunk_Check: trashed sentinel");
-			if (h->size < (int) sizeof(hunk_t) || h->size + ofs > seg->size)
-				Sys_Error ("Hunk_Check: bad size");
-			ofs += h->size;
-		}
+		Mem_CheckBlock (b, CACHE_SENTINEL, "Hunk_Check (cache)");
+		for (o = b->owned; o; o = o->hprev)
+			Mem_CheckBlock (o, HUNK_SENTINEL, "Hunk_Check (a cache entry's hunk block)");
 	}
 }
 
@@ -287,103 +345,44 @@ Otherwise, allocations with the same name will be totaled up before printing.
 */
 void Hunk_Print (qboolean all)
 {
-	int i, count, sum, totalblocks;
+	const memblock_t	**blocks, *b;
+	int					i, n, count, sum;
 
-	count = 0;
-	sum = 0;
-	totalblocks = 0;
+	Hunk_Check ();
+	blocks = (const memblock_t **) VR_HeapMalloc ((size_t) q_max (hunk_count, 1) * sizeof (*blocks));
+	if (!blocks)
+		return;
+	n = 0;
+	for (b = hunk_top; b && n < hunk_count; b = b->hprev)
+		blocks[n++] = b; // newest first: printed oldest first
 
 	Con_SafePrintf ("\n");
-
-	// print segments if more than 1
-	if (hunk_numsegments > 1)
-	{
-		Con_SafePrintf ("             Segments\n");
-		Con_SafePrintf ("---------------------------------\n");
-		Con_SafePrintf ("id :     offset :       size\n");
-		Con_SafePrintf ("---------------------------------\n");
-		for (i = 0; i < hunk_numsegments; i++)
-			Con_SafePrintf ("%2i : %10i : %10i\n", i, hunk_segments[i]->base, hunk_segments[i]->size);
-		Con_SafePrintf ("---------------------------------\n");
-		Con_SafePrintf ("\n");
-		Con_SafePrintf ("           Allocations\n");
-		Con_SafePrintf ("---------------------------------\n");
-	}
-
 	if (all)
-		Con_SafePrintf ("    offset :       size : name\n");
+		Con_SafePrintf ("      mark :       size : name\n");
 	else
 		Con_SafePrintf ("allocs :       size : name\n");
 	Con_SafePrintf ("---------------------------------\n");
 
-	for (i = 0; i < hunk_numsegments; i++)
+	count = sum = 0;
+	for (i = n - 1; i >= 0; i--)
 	{
-		const hunkseg_t *seg = hunk_segments[i];
-		if (seg->base < hunk_low_used)
+		const char *name = blocks[i]->name[0] ? blocks[i]->name : "unknown";
+		count++;
+		sum += blocks[i]->size;
+		if (all)
+			Con_SafePrintf ("%10i : %10i : %s\n", blocks[i]->mark, blocks[i]->size, name);
+		if (!i || strncmp (name, blocks[i - 1]->name[0] ? blocks[i - 1]->name : "unknown", MEMNAME_LEN - 1) != 0)
 		{
-			int ofs;
-
-			for (ofs = 0; ofs < seg->used; )
-			{
-				const hunk_t *h, *next;
-
-				h = (const hunk_t *) (SEG_MEM (seg) + ofs);
-
-				// if this is the last block in the segment, then the next block is either
-				// the first block of the next segment, or NULL if this is the last segment
-				if (ofs + h->size == seg->used)
-					next = i != hunk_numsegments - 1 ? (const hunk_t *) SEG_MEM (hunk_segments[i + 1]) : NULL;
-				else // at least 1 more block in the current segment
-					next = (const hunk_t *) ((byte *)h + h->size);
-
-				//
-				// run consistency checks
-				//
-				if (h->sentinel != HUNK_SENTINEL)
-					Sys_Error ("Hunk_Check: trashed sentinel");
-				if (h->size < (int) sizeof(hunk_t) || h->size + ofs > seg->size)
-					Sys_Error ("Hunk_Check: bad size");
-
-				count++;
-				totalblocks++;
-				sum += h->size;
-
-				//
-				// print the single block
-				//
-				if (all)
-					Con_SafePrintf ("%10i : %10i : %s\n", seg->base + ofs, h->size, Hunk_GetName (h));
-
-				//
-				// print the total
-				//
-				if (!next || strncmp (Hunk_GetName (h), Hunk_GetName (next), HUNKNAME_LEN - 1) != 0)
-				{
-					if (!all)
-						Con_SafePrintf ("%6i : %10i : %s\n", count, sum, Hunk_GetName (h));
-					count = 0;
-					sum = 0;
-				}
-
-				ofs += h->size;
-			}
+			if (!all)
+				Con_SafePrintf ("%6i : %10i : %s\n", count, sum, name);
+			count = sum = 0;
 		}
 	}
+	VR_HeapFree ((void *) blocks);
 
 	Con_SafePrintf ("---------------------------------\n");
-
-	if (all)
-	{
-		Con_SafePrintf ("%10s   %10i   USED (%d alloc%s)\n", "", hunk_low_used, PLURAL (totalblocks));
-		Con_SafePrintf ("%10s   %10i   REMAINING\n", "", Hunk_Size () - hunk_low_used);
-		Con_SafePrintf ("%10s   %10i   TOTAL\n", "", Hunk_Size ());
-	}
-	else
-	{
-		Con_SafePrintf ("%6i : %10i : USED\n", totalblocks, hunk_low_used);
-		Con_SafePrintf ("%6s : %10i : REMAINING\n", "", Hunk_Size () - hunk_low_used);
-		Con_SafePrintf ("%6s : %10i : TOTAL\n", "", Hunk_Size ());
-	}
+	Con_SafePrintf ("%6i : %10i : USED (the heap: no maximum)\n", n, hunk_low_used);
+	Con_SafePrintf ("%6i : %10i : CACHE (%s)\n", cache_count, (int) q_min (cache_used, (size_t) 0x7fffffff), "cache_print: each");
 }
 
 /*
@@ -393,51 +392,7 @@ Hunk_Print_f -- johnfitz -- console command to call hunk_print
 */
 void Hunk_Print_f (void)
 {
-	Hunk_Print (false);
-}
-
-/*
-===================
-Hunk_SegForOfs
-===================
-*/
-static int Hunk_SegForOfs (int ofs)
-{
-	int i;
-
-	for (i = hunk_numsegments - 1; i >= 0; i--)
-	{
-		const hunkseg_t *seg = hunk_segments[i];
-		if (seg->base <= ofs && ofs < seg->base + seg->size)
-			return i;
-	}
-
-	Sys_Error ("Hunk_SegForOfs: bad offset %d (max: %d)", ofs, Hunk_Size ());
-
-	return -1;
-}
-
-/*
-===================
-Hunk_SegForPtr
-===================
-*/
-static int Hunk_SegForPtr (const void *ptr)
-{
-	int i;
-
-	for (i = hunk_numsegments - 1; i >= 0; i--)
-	{
-		const hunkseg_t *seg = hunk_segments[i];
-		const byte *begin = SEG_MEM (seg);
-		const byte *end = begin + seg->size;
-		if (PTR_IN_RANGE (ptr, begin, end))
-			return i;
-	}
-
-	Sys_Error ("Hunk_SegForPtr: bad pointer");
-
-	return -1;
+	Hunk_Print (Cmd_Argc () > 1 && !q_strcasecmp (Cmd_Argv (1), "all"));
 }
 
 
@@ -446,86 +401,33 @@ static int Hunk_SegForPtr (const void *ptr)
 Hunk_AllocInternal
 ===================
 */
-static void *Hunk_AllocInternal (int size, const char *name, hunkflags_t flags)
+static void *Hunk_AllocInternal (int size, const char *name, qboolean clear)
 {
+	memblock_t	*b;
+
 	Zone_CheckThread ();
-	hunkseg_t	*seg;
-	hunk_t		*h;
-	int			i;
-
-#ifdef PARANOID
-	Hunk_Check ();
-#endif
-
 	if (size == 0)
 		return NULL;
-
 	if (size < 0)
 		Sys_Error ("Hunk_Alloc: bad size: %i", size);
 
-	size = sizeof(hunk_t) + ((size+15)&~15);
+	// Always zeroed, NoFill too (`clear` unused): the old hunk's memory was mostly fresh zero pages, and something in the
+	// world's drawing reads a NoFill block before writing it: with a reused heap block's garbage, E1M1 drew 38% slower on
+	// the GPU (world+brush) and 0.3 ms slower on the CPU (ROUND25.md, "nohunk"). calloc skips the memset on fresh pages.
+	(void) clear;
+	b = Mem_NewBlock (size, name, HUNK_SENTINEL, true, "Hunk_Alloc");
+	if (hunk_low_used > 0x7fffffff - b->size)
+		Sys_Error ("Hunk_Alloc: more than 2 GiB on the hunk");
+	b->mark = hunk_low_used;
+	b->hprev = hunk_top;
+	hunk_top = b;
+	hunk_low_used += b->size;
+	hunk_count++;
+	if (hunk_low_used > hunk_peak)
+		hunk_peak = hunk_low_used;
 
-	i = Hunk_SegForOfs (hunk_low_used);
-
-	// skip segments that can't handle this request (adjusting hunk_low_used)
-	while (i < hunk_numsegments && (hunk_low_used - hunk_segments[i]->base) + size > hunk_segments[i]->size)
-	{
-		hunk_low_used = hunk_segments[i]->base + hunk_segments[i]->size;
-		i++;
-	}
-
-	// add new segment if we've reached the end
-	if (i == hunk_numsegments)
-	{
-		int newbase, newsize;
-
-		if (hunk_numsegments == MAX_SEGMENTS)
-			Sys_Error ("Hunk_Alloc: segment overflow");
-
-		Cache_Flush ();
-
-		newbase = LASTSEG->base + LASTSEG->size;
-		newsize = LASTSEG->size * 2;
-		newsize = q_max (newsize, size);
-
-		Sys_Printf ("Allocating new hunk segment: %.2lf MiB\n", newsize / 1048576.0);
-
-		seg = (hunkseg_t *) VR_HeapMalloc (sizeof (hunkseg_t) + newsize);
-		if (!seg)
-		{
-			Sys_Error ("Hunk_Alloc: failed on %i bytes", size);
-			return NULL;
-		}
-
-		seg->base = newbase;
-		seg->size = newsize;
-		seg->used = 0;
-
-		hunk_segments[hunk_numsegments++] = seg;
-		hunk_low_used = seg->base;
-	}
-
-	seg = hunk_segments[i];
-	h = (hunk_t *) (SEG_MEM (seg) + hunk_low_used - seg->base);
-	VR_TracyAllocationWindow(1); // cache relocation can call tracing while this new header is not initialized
-	hunk_low_used += size;
-	seg->used = hunk_low_used - seg->base;
-
-	Cache_FreeLow (hunk_low_used);
-
-	if (flags & HF_CLEAR)
-		memset (h, 0, size);
-
-	h->size = size;
-	h->sentinel = HUNK_SENTINEL;
-	if (name)
-		q_strlcpy (h->name, name, HUNKNAME_LEN);
-	else
-		h->name[0] = '\0';
-
-	VR_TracyAllocationWindow(0);
-	VR_TracyAlloc(h + 1, h->size, 1, hunk_low_used);
-	return (void *)(h+1);
+	VR_TracyAlloc (MEMDATA (b), b->size, 1, hunk_low_used);
+	return MEMDATA (b);
 }
 
 /*
@@ -535,7 +437,7 @@ Hunk_AllocName
 */
 void *Hunk_AllocName (int size, const char *name)
 {
-	return Hunk_AllocInternal (size, name, HF_CLEAR);
+	return Hunk_AllocInternal (size, name, true);
 }
 
 /*
@@ -545,7 +447,7 @@ Hunk_AllocNameNoFill
 */
 void *Hunk_AllocNameNoFill (int size, const char *name)
 {
-	return Hunk_AllocInternal (size, name, HF_UNINIT);
+	return Hunk_AllocInternal (size, name, false);
 }
 
 /*
@@ -575,25 +477,26 @@ int	Hunk_LowMark (void)
 
 /*
 ===================
-Hunk_Usage -- QVR (vr_limits)
+Hunk_Usage, Cache_Usage -- QVR (vr_limits)
 ===================
 */
-void Hunk_Usage (int *used, int *peak, int *size, int *segments, int *maxsegments)
+void Hunk_Usage (int *used, int *peak, int *blocks)
 {
-	static int hunk_peak;
-	if (hunk_low_used > hunk_peak)
-		hunk_peak = hunk_low_used;
 	*used = hunk_low_used;
 	*peak = hunk_peak;
-	*size = Hunk_Size ();
-	*segments = hunk_numsegments;
-	*maxsegments = MAX_SEGMENTS;
+	*blocks = hunk_count;
+}
+
+void Cache_Usage (size_t *used, size_t *peak, int *entries)
+{
+	*used = cache_used;
+	*peak = cache_peak;
+	*entries = cache_count;
 }
 
 void Hunk_FreeToLowMark (int mark)
 {
 	Zone_CheckThread ();
-	int i;
 
 	if (mark < 0 || mark > hunk_low_used)
 		Sys_Error ("Hunk_FreeToLowMark: bad mark %i", mark);
@@ -608,10 +511,17 @@ void Hunk_FreeToLowMark (int mark)
 		mark = hunk_keep_mark;
 	}
 
-	VR_TracyHunkReset(mark);
-	hunk_low_used = mark;
-	for (i = Hunk_SegForOfs (hunk_low_used); i < hunk_numsegments; i++)
-		hunk_segments[i]->used = q_max (0, hunk_low_used - hunk_segments[i]->base);
+	VR_TracyHunkReset (mark);
+	while (hunk_top && hunk_top->mark >= mark)
+	{
+		memblock_t *b = hunk_top;
+		hunk_top = b->hprev;
+		hunk_count--;
+		Mem_FreeBlock (b, HUNK_SENTINEL, "Hunk_FreeToLowMark");
+	}
+	hunk_low_used = hunk_top ? hunk_top->mark + hunk_top->size : 0;
+	if (hunk_low_used != mark)
+		Sys_Error ("Hunk_FreeToLowMark: bad mark %i (inside a block: %i)", mark, hunk_low_used);
 }
 
 /*
@@ -621,7 +531,7 @@ Hunk_KeepLoaded -- QVR
 A model whose data stays on the hunk (a sprite, a brush model) was just loaded: nothing frees under it until
 Hunk_ClearKeep. Quake loads them only with the map, with no temporary allocation open; Quake VR also loads them during
 play (a late precache: VR_LatePrecacheModel), maybe from QuakeC called while one is open (SV_TouchLinks, VR_TouchLinks,
-SV_PushMove keep their lists on the hunk), whose free would otherwise hand the model's memory to the cache.
+SV_PushMove keep their lists on the hunk), whose free would otherwise free the model's memory.
 ===================
 */
 void Hunk_KeepLoaded (void)
@@ -655,180 +565,83 @@ CACHE MEMORY
 ===============================================================================
 */
 
-#define CACHENAME_LEN	32
-typedef struct cache_system_s
+static void Cache_Link (memblock_t *b)
 {
-	int			size;		// including this header
-	cache_user_t		*user;
-	char			name[CACHENAME_LEN];
-	struct cache_system_s	*prev, *next;
-	struct cache_system_s	*lru_prev, *lru_next;	// for LRU flushing
-} cache_system_t;
-
-cache_system_t *Cache_TryAlloc (int size, qboolean nobottom);
-
-cache_system_t	cache_head;
-
-/*
-===========
-Cache_Move
-===========
-*/
-void Cache_Move ( cache_system_t *c)
-{
-	cache_system_t		*new_cs;
-
-// we are clearing up space at the bottom, so only allocate it late
-	new_cs = Cache_TryAlloc (c->size, true);
-	if (new_cs)
-	{
-//		Con_Printf ("cache_move ok\n");
-
-		Q_memcpy ( new_cs+1, c+1, c->size - sizeof(cache_system_t) );
-		new_cs->user = c->user;
-		Q_memcpy (new_cs->name, c->name, sizeof(new_cs->name));
-		Cache_Free (c->user, false); //johnfitz -- added second argument
-		new_cs->user->data = (void *)(new_cs+1);
-		VR_TracyAlloc(new_cs + 1, new_cs->size, 2, 0);
-	}
-	else
-	{
-//		Con_Printf ("cache_move failed\n");
-
-		Cache_Free (c->user, true); // tough luck... //johnfitz -- added second argument
-	}
+	if (!cache_head.cnext)
+		cache_head.cnext = cache_head.cprev = &cache_head;
+	b->cnext = cache_head.cnext;
+	b->cprev = &cache_head;
+	cache_head.cnext->cprev = b;
+	cache_head.cnext = b;
+	cache_used += (size_t) b->total;
+	cache_count++;
+	if (cache_used > cache_peak)
+		cache_peak = cache_used;
 }
 
 /*
-============
-Cache_FreeLow
+===================
+Hunk_MoveToCache -- QVR (ROUND25.md, "nohunk")
 
-Throw things out until the hunk can be expanded to the given point
-============
+What the loaders did as "Cache_Alloc (c, Hunk_LowMark () - start); memcpy (c->data, data, ...); Hunk_FreeToLowMark
+(start)", without the copy: every hunk block pushed since `start` goes to the cache entry, `data` (one of those blocks,
+the model's header) its data. The blocks stay where they are, so the offsets between them stay valid.
+===================
 */
-void Cache_FreeLow (int new_low_hunk)
+void *Hunk_MoveToCache (int start, cache_user_t *c, void *data, const char *name)
 {
-	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
-	cache_system_t	*c;
-	hunkseg_t		*seg;
-	int				ofs;
+	memblock_t	*owner = NULL, *owned = NULL, *b, *next;
+	int			total = 0;
 
-	// can only allocate space in the last segment
-	new_low_hunk = q_max (new_low_hunk, LASTSEG->base);
-
-	while (1)
+	Zone_CheckThread ();
+	if (c->data)
+		Sys_Error ("Hunk_MoveToCache: already allocated");
+	if (start < 0 || start > hunk_low_used)
+		Sys_Error ("Hunk_MoveToCache: bad mark %i", start);
+	for (b = hunk_top; b && b->mark >= start; b = b->hprev)
+		if (MEMDATA (b) == data)
+			owner = b;
+	if (!owner)
+		Sys_Error ("Hunk_MoveToCache: %s's data is not a hunk block above the mark", name);
+	if (start < hunk_keep_mark && hunk_keep_mark <= hunk_low_used)
 	{
-		c = cache_head.next;
-		if (c == &cache_head)
-			return;		// nothing in cache at all
-		seg = hunk_segments[Hunk_SegForPtr (c)];
-		ofs = (byte *) (c) - SEG_MEM (seg);
-		if (ofs + seg->base >= new_low_hunk)
-			return;		// there is space to grow the hunk
-		Cache_Move ( c );	// reclaim the space
-	}
-}
-
-void Cache_UnlinkLRU (cache_system_t *cs)
-{
-	if (!cs->lru_next || !cs->lru_prev)
-		Sys_Error ("Cache_UnlinkLRU: NULL link");
-
-	cs->lru_next->lru_prev = cs->lru_prev;
-	cs->lru_prev->lru_next = cs->lru_next;
-
-	cs->lru_prev = cs->lru_next = NULL;
-}
-
-void Cache_MakeLRU (cache_system_t *cs)
-{
-	if (cs->lru_next || cs->lru_prev)
-		Sys_Error ("Cache_MakeLRU: active link");
-
-	cache_head.lru_next->lru_prev = cs;
-	cs->lru_next = cache_head.lru_next;
-	cs->lru_prev = &cache_head;
-	cache_head.lru_next = cs;
-}
-
-/*
-============
-Cache_TryAlloc
-
-Looks for a free block of memory between the high and low hunk marks
-Size should already include the header and padding
-============
-*/
-cache_system_t *Cache_TryAlloc (int size, qboolean nobottom)
-{
-	cache_system_t	*cs, *new_cs;
-	int ofs = q_max (hunk_low_used, LASTSEG->base);
-
-// is the cache completely empty?
-	if (!nobottom && cache_head.prev == &cache_head)
-	{
-		if ((ofs - LASTSEG->base) + size > LASTSEG->size)
-			Sys_Error ("Cache_TryAlloc: %i is greater then free hunk", size);
-
-		new_cs = (cache_system_t *) (SEG_MEM (LASTSEG) + ofs - LASTSEG->base);
-		memset (new_cs, 0, sizeof(*new_cs));
-		new_cs->size = size;
-
-		cache_head.prev = cache_head.next = new_cs;
-		new_cs->prev = new_cs->next = &cache_head;
-
-		Cache_MakeLRU (new_cs);
-		return new_cs;
+		Con_DPrintf ("Hunk_MoveToCache: %s took a model kept on the hunk with it\n", name);
+		hunk_keep_mark = start;
 	}
 
-// search from the bottom up for space
-
-	new_cs = (cache_system_t *) (SEG_MEM (LASTSEG) + ofs - LASTSEG->base);
-	cs = cache_head.next;
-
-	do
+	for (b = hunk_top; b && b->mark >= start; b = next)
 	{
-		if (!nobottom || cs != cache_head.next)
+		next = b->hprev;
+		Mem_CheckBlock (b, HUNK_SENTINEL, "Hunk_MoveToCache");
+		VR_TracyFree (MEMDATA (b));
+		total += b->size;
+		hunk_count--;
+		if (b != owner)
 		{
-			if ( (byte *)cs - (byte *)new_cs >= size)
-			{	// found space
-				memset (new_cs, 0, sizeof(*new_cs));
-				new_cs->size = size;
-
-				new_cs->next = cs;
-				new_cs->prev = cs->prev;
-				cs->prev->next = new_cs;
-				cs->prev = new_cs;
-
-				Cache_MakeLRU (new_cs);
-
-				return new_cs;
-			}
+			b->hprev = owned;
+			owned = b;
 		}
-
-	// continue looking
-		new_cs = (cache_system_t *)((byte *)cs + cs->size);
-		cs = cs->next;
-
-	} while (cs != &cache_head);
-
-// try to allocate one at the very end
-	if ((byte *)new_cs - SEG_MEM (LASTSEG) + size <= LASTSEG->size)
-	{
-		memset (new_cs, 0, sizeof(*new_cs));
-		new_cs->size = size;
-
-		new_cs->next = &cache_head;
-		new_cs->prev = cache_head.prev;
-		cache_head.prev->next = new_cs;
-		cache_head.prev = new_cs;
-
-		Cache_MakeLRU (new_cs);
-
-		return new_cs;
 	}
+	hunk_top = b;
+	hunk_low_used = start;
 
-	return NULL;		// couldn't allocate
+	// the owner becomes a cache block (its tail rewritten with the cache's sentinel)
+	owner->hprev = NULL;
+	owner->owned = owned;
+	owner->user = c;
+	owner->total = total;
+	owner->sentinel = CACHE_SENTINEL;
+#ifndef NDEBUG
+	{
+		const int s = CACHE_SENTINEL;
+		memcpy ((byte *) owner + owner->size - MEM_TAIL, &s, sizeof (s));
+	}
+#endif
+	q_strlcpy (owner->name, name, MEMNAME_LEN);
+	Cache_Link (owner);
+	c->data = data;
+	VR_TracyAlloc (data, (unsigned long long) total, 2, 0);
+	return data;
 }
 
 /*
@@ -841,8 +654,8 @@ Throw everything out, so new data will be demand cached
 void Cache_Flush (void)
 {
 	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
-	while (cache_head.next != &cache_head)
-		Cache_Free ( cache_head.next->user, true); // reclaim the space //johnfitz -- added second argument
+	while (cache_head.cnext && cache_head.cnext != &cache_head)
+		Cache_Free (cache_head.cnext->user, true); // reclaim the space //johnfitz -- added second argument
 }
 
 /*
@@ -852,14 +665,14 @@ Cache_FlushExcept -- QVR: Cache_Flush, but the entries `keep` accepts stay (a ca
 */
 void Cache_FlushExcept (qboolean (*keep) (cache_user_t *c))
 {
-	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
-	cache_system_t	*cs, *next;
+	memblock_t	*b, *next;
 
-	for (cs = cache_head.next; cs != &cache_head; cs = next)
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
+	for (b = cache_head.cnext; b && b != &cache_head; b = next)
 	{
-		next = cs->next;
-		if (!keep (cs->user))
-			Cache_Free (cs->user, true);
+		next = b->cnext;
+		if (!keep (b->user))
+			Cache_Free (b->user, true);
 	}
 }
 
@@ -871,12 +684,11 @@ Cache_Print
 */
 void Cache_Print (void)
 {
-	cache_system_t	*cd;
+	const memblock_t	*b;
 
-	for (cd = cache_head.next ; cd != &cache_head ; cd = cd->next)
-	{
-		Con_Printf ("%8i : %s\n", cd->size, cd->name);
-	}
+	for (b = cache_head.cnext; b && b != &cache_head; b = b->cnext)
+		Con_Printf ("%8i : %s\n", b->total, b->name);
+	Con_Printf ("%8i : %i entries\n", (int) q_min (cache_used, (size_t) 0x7fffffff), cache_count);
 }
 
 /*
@@ -887,7 +699,7 @@ Cache_Report
 */
 void Cache_Report (void)
 {
-	Con_DPrintf ("%4.1f megabyte data cache\n", (Hunk_Size () - hunk_low_used) / (float)(1024*1024) );
+	Con_DPrintf ("%4.1f megabyte data cache (the heap: no maximum)\n", cache_used / (float)(1024*1024));
 }
 
 /*
@@ -898,38 +710,47 @@ Cache_Init
 */
 void Cache_Init (void)
 {
-	cache_head.next = cache_head.prev = &cache_head;
-	cache_head.lru_next = cache_head.lru_prev = &cache_head;
+	cache_head.cnext = cache_head.cprev = &cache_head;
 
 	Cmd_AddCommand ("flush", Cache_Flush);
+	Cmd_AddCommand ("cache_print", Cache_Print); // QVR
 }
 
 /*
 ==============
 Cache_Free
 
-Frees the memory and removes it from the LRU list
+Frees the memory (QVR: and the hunk blocks it took over: Hunk_MoveToCache)
 ==============
 */
 void Cache_Free (cache_user_t *c, qboolean freetextures) //johnfitz -- added second argument
 {
+	memblock_t	*b, *o;
+
 	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	Zone_CheckThread ();
-	cache_system_t	*cs;
 
 	if (!c->data)
 		Sys_Error ("Cache_Free: not allocated");
 
-	VR_TracyFree(c->data);
-	cs = ((cache_system_t *)c->data) - 1;
+	b = MEMBLOCK (c->data);
+	Mem_CheckBlock (b, CACHE_SENTINEL, "Cache_Free");
+	if (b->user != c)
+		Sys_Error ("Cache_Free: %s is not this owner's", b->name);
 
-	cs->prev->next = cs->next;
-	cs->next->prev = cs->prev;
-	cs->next = cs->prev = NULL;
+	VR_TracyFree (c->data);
+	b->cprev->cnext = b->cnext;
+	b->cnext->cprev = b->cprev;
+	cache_used -= (size_t) b->total;
+	cache_count--;
+	while ((o = b->owned) != NULL)
+	{
+		b->owned = o->hprev;
+		Mem_FreeBlock (o, HUNK_SENTINEL, "Cache_Free (a hunk block it took over)");
+	}
+	Mem_FreeBlock (b, CACHE_SENTINEL, "Cache_Free");
 
 	c->data = NULL;
-
-	Cache_UnlinkLRU (cs);
 
 	//johnfitz -- if a model becomes uncached, free the gltextures.  This only works
 	//becuase the cache_user_t is the last component of the qmodel_t struct.  Should
@@ -948,25 +769,14 @@ Cache_Check
 void *Cache_Check (cache_user_t *c)
 {
 	Zone_CheckThread ();
-	cache_system_t	*cs;
-
-	if (!c->data)
-		return NULL;
-
-	cs = ((cache_system_t *)c->data) - 1;
-
-// move to head of LRU
-	Cache_UnlinkLRU (cs);
-	Cache_MakeLRU (cs);
-
-	return c->data;
+	return c->data; // QVR: no LRU to move it in (nothing is purged)
 }
 
 
 /*
 ==============
-Cache_Peek -- QVR: the data, or NULL; the LRU left alone, so any thread may (the sound mix on the thread pool, S_MixKick:
-the main thread frees, moves or allocates only after joining it)
+Cache_Peek -- QVR: the data, or NULL; from any thread (the sound mix on the thread pool, S_MixKick: the main thread
+frees only after joining it)
 ==============
 */
 void *Cache_Peek (const cache_user_t *c)
@@ -981,9 +791,9 @@ Cache_Alloc
 */
 void *Cache_Alloc (cache_user_t *c, int size, const char *name)
 {
-	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
+	memblock_t	*b;
+
 	Zone_CheckThread ();
-	cache_system_t	*cs;
 
 	if (c->data)
 		Sys_Error ("Cache_Alloc: already allocated");
@@ -991,29 +801,14 @@ void *Cache_Alloc (cache_user_t *c, int size, const char *name)
 	if (size <= 0)
 		Sys_Error ("Cache_Alloc: size %i", size);
 
-	size = (size + sizeof(cache_system_t) + 15) & ~15;
+	b = Mem_NewBlock (size, name, CACHE_SENTINEL, true, "Cache_Alloc");
+	b->user = c;
+	b->total = b->size;
+	Cache_Link (b);
+	c->data = MEMDATA (b);
 
-// find memory for it
-	while (1)
-	{
-		cs = Cache_TryAlloc (size, false);
-		if (cs)
-		{
-			q_strlcpy (cs->name, name, CACHENAME_LEN);
-			c->data = (void *)(cs+1);
-			cs->user = c;
-			break;
-		}
-
-	// free the least recently used cahedat
-		if (cache_head.lru_prev == &cache_head)
-			Sys_Error ("Cache_Alloc: out of memory"); // not enough memory at all
-
-		Cache_Free (cache_head.lru_prev->user, true); //johnfitz -- added second argument
-	}
-
-	VR_TracyAlloc(c->data, cs->size, 2, 0);
-	return Cache_Check (c);
+	VR_TracyAlloc (c->data, (unsigned long long) b->total, 2, 0);
+	return c->data;
 }
 
 //============================================================================
@@ -1024,18 +819,12 @@ void *Cache_Alloc (cache_user_t *c, int size, const char *name)
 Memory_Init
 ========================
 */
-void Memory_Init (void *buf, int size)
+void Memory_Init (void)
 {
 	zone_main_thread = SDL_ThreadID ();
 
-	hunk_segments[0] = (hunkseg_t *) buf;
-	hunk_segments[0]->base = 0;
-	hunk_segments[0]->size = size - sizeof (hunkseg_t);
-	hunk_numsegments = 1;
-	hunk_low_used = 0;
-
 	Cache_Init ();
-	// QVR: no zone block on the hunk any more, and no -zone (the zone is the heap: ROUND25.md, "nozone")
+	// QVR: no big block any more: the zone, the hunk and the cache are the heap (ROUND25.md, "nozone", "nohunk")
 
 	Cmd_AddCommand ("hunk_print", Hunk_Print_f); //johnfitz
 }
@@ -1046,21 +835,13 @@ void Memory_Init (void *buf, int size)
 void Memory_TracySnapshot(void)
 {
     zblock_t *b;
-    cache_system_t *c;
-    int i, ofs;
+    const memblock_t *m;
     for(b = zone_live.next; b != &zone_live; b = b->next)
         VR_TracyAlloc(b + 1, b->size, 0, 0);
-    for(i = 0; i < hunk_numsegments; ++i)
-        for(ofs = 0; ofs < hunk_segments[i]->used;)
-        {
-            hunk_t *h = (hunk_t *)(SEG_MEM(hunk_segments[i]) + ofs);
-            if(h->size <= 0) break; // unused padding between segments
-            ofs += h->size;
-            VR_TracyAlloc(h + 1, h->size, 1, hunk_segments[i]->base + ofs);
-        }
-    if(cache_head.next)
-        for(c = cache_head.next; c != &cache_head; c = c->next)
-            if(c->user) VR_TracyAlloc(c + 1, c->size, 2, 0);
+    for(m = hunk_top; m; m = m->hprev)
+        VR_TracyAlloc(MEMDATA(m), m->size, 1, m->mark + m->size);
+    for(m = cache_head.cnext; m && m != &cache_head; m = m->cnext)
+        VR_TracyAlloc(MEMDATA(m), m->total, 2, 0);
     VR_TracyPlot("Zone physical bytes", (double) zone_used);
     VR_TracyPlot("Hunk physical bytes", hunk_low_used);
 }
@@ -1069,42 +850,26 @@ void Memory_TracySnapshot(void)
 #ifdef QVR_TRACY
 void Memory_TracyPlots(void)
 {
-    cache_system_t *c;
-    double bytes = 0;
-    for(c = cache_head.next; c && c != &cache_head; c = c->next) bytes += c->size;
     VR_TracyPlot("Zone physical bytes", (double) zone_used);
     VR_TracyPlot("Hunk physical bytes", hunk_low_used);
-    VR_TracyPlot("Cache physical bytes", bytes);
+    VR_TracyPlot("Cache physical bytes", (double) cache_used);
 }
 #endif
 
 #ifdef QVR_TRACY
-// Independent live allocator traversal reconciles the event ledger, including reset/move/realloc boundaries.
+// Independent live allocator traversal reconciles the event ledger, including reset and hand-over boundaries.
 void Memory_TracyValidate(void)
 {
     zblock_t *b;
-    cache_system_t *c;
+    const memblock_t *m;
     unsigned long long count[3] = {0}, bytes[3] = {0};
-    int i, ofs;
+    int i;
     for(b = zone_live.next; b != &zone_live; b = b->next)
         { ++count[0]; bytes[0] += b->size; }
-    for(i = 0; i < hunk_numsegments; ++i)
-        for(ofs = 0; ofs < hunk_segments[i]->used;)
-        {
-            hunk_t *h = (hunk_t *)(SEG_MEM(hunk_segments[i]) + ofs);
-            if(h->size <= 0) break;
-            ofs += h->size;
-            ++count[1]; bytes[1] += h->size;
-        }
-    if(cache_head.next)
-        for(c = cache_head.next; c != &cache_head; c = c->next)
-            if(c->user) { ++count[2]; bytes[2] += c->size; }
+    for(m = hunk_top; m; m = m->hprev)
+        { ++count[1]; bytes[1] += m->size; }
+    for(m = cache_head.cnext; m && m != &cache_head; m = m->cnext)
+        { ++count[2]; bytes[2] += m->total; }
     for(i = 0; i < 3; ++i) VR_TracyCheckPool(i, count[i], bytes[i]);
-}
-int Memory_TracyCacheMove(cache_user_t *c)
-{
-    void *old = c->data;
-    Cache_Move(((cache_system_t *)old) - 1);
-    return c->data && c->data != old;
 }
 #endif

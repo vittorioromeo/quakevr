@@ -519,18 +519,15 @@ void selectCampaignRow(int index)
 }
 
 // A campaign row's Continue (under it, when the campaign has an autosave; vr_continue.cpp, "Continue on the launch
-// rows"): "Continue (12 min ago)", its run ("Hard / Classic") on the line under it (part of it: a narrow row cuts a
-// long line), its newest autosave loaded directly with its run's choices.
+// rows"): "Continue", its age dim after it ("12 min ago": campaignContinueAge), its run ("Hard / Classic") on a small
+// line under it (part of it: cut at a word; the help has it whole), its newest autosave loaded directly with its run's
+// choices.
 void runSetupCloseMenu(); // (vr_menu_runsetup.inc)
-const char* campaignContinueLabel(int index)
-{
-    const char* label = VR_LaunchContinueLabel(index, "", 1);
-    return label ? label : "Continue";
-}
+const char* campaignContinueLabel(int) { return "Continue"; }
 const char* campaignContinueRun(int index)
 {
     const char* run = VR_LaunchContinueLabel(index, "", 2);
-    return run && run[0] ? va("  %s", run) : "  (no run choices saved)";
+    return run && run[0] ? run : "(no run choices saved)";
 }
 const char* campaignContinueHelp(int index)
 {
@@ -545,41 +542,71 @@ void continueCampaignRow(int index)
     }
 }
 
+// Its status tag (vr_menu_group_tags: 0 none, 1 the exceptions only, 2 "ready" too).
+const char* campaignTag(int index)
+{
+    const int tags = static_cast<int>(vr_menu_group_tags.value);
+    const char* tag = VR_CampaignTag(index);
+    return tags <= 0 ? "" : tags >= 2 && !tag[0] ? "ready" : tag;
+}
+const char* campaignContinueAge(int index)
+{
+    const char* age = VR_LaunchContinueLabel(index, "", 3);
+    return age ? age : "";
+}
+const char* bloodyNightmareText(int) { return "Bloody Nightmare"; }
+const char* bloodyNightmareTag(int) { return "new game"; }
+const char* bloodyNightmareHelp(int)
+{
+    return "A new Dawn of the Machine game on Bloody Nightmare: skill 3, harder monsters, each level begun with the axe "
+           "and shotgun only. Killing Chthon on it starts its new game.";
+}
+void bloodyNightmareRow(int) { playMg3BloodyNightmare(); }
+
+// Select Campaign (ROUND25.md, "campvis"): each campaign a group: its title (Item::Lead: pressed, a new run), its
+// Continue under it (Item::Sub) with the run on a line under that (Item::Note); Arcane Dimensions in a section of its
+// own; the page's other rows in a small footer.
 [[nodiscard]] za::Vector<Item> pageCampaigns()
 {
     za::Vector<Item> items{header("Official Campaigns")};
     VR_LaunchContinueRefresh(); // (the page is built again each time it is shown)
+    // Dawn of the Machine's hidden difficulty: offered once found in a game (the hell knight's head, or the hub's
+    // Bloody Nightmare button: QC sets vr_mg3_bn_discovered); in Dawn of the Machine's group.
+    campaignsBloodyShown = vr_mg3_bn_discovered.value != 0.f ? 1 : 0;
     for(int i = 0; i < VR_CampaignCount(); ++i) // (Arcane Dimensions too: its row dim until it is ready)
     {
-        Item choice = row(VR_CampaignLabel, VR_CampaignHelp, selectCampaignRow, i, -1);
+        if(i == qvr::ad::campaignIndex)
+        {
+            items.pushBack(header("Experimental"));
+        }
+        Item choice = row(VR_CampaignTitle, VR_CampaignHelp, selectCampaignRow, i, -1).lead();
+        choice.tagArg = campaignTag;
         choice.dimArg = [](int index) -> bool
         { return index == qvr::ad::campaignIndex ? !VR_CampaignInstalled(index) : VR_CampaignUnavailable(index) != 0; };
         items.pushBack(choice);
         // (Arcane Dimensions plays in its own game folder: its saves are not this one's)
         if(i != qvr::ad::campaignIndex && VR_LaunchContinueSave(i, ""))
         {
-            Item resume = row(campaignContinueLabel, campaignContinueHelp, continueCampaignRow, i, -1);
+            Item resume = row(campaignContinueLabel, campaignContinueHelp, continueCampaignRow, i, -1).sub();
+            resume.tagArg = campaignContinueAge;
             resume.dimArg = [](int index) -> bool { return VR_CampaignUnavailable(index) != 0; };
             items.pushBack(resume);
-            Item run = row(campaignContinueRun, campaignContinueHelp, nullptr, i, -1);
+            Item run = row(campaignContinueRun, campaignContinueHelp, nullptr, i, -1).note();
             run.dimArg = resume.dimArg;
             run.partOf = 1;
             items.pushBack(run);
         }
+        if(i == 5 && campaignsBloodyShown)
+        {
+            Item bloody = row(bloodyNightmareText, bloodyNightmareHelp, bloodyNightmareRow, i, -1).sub();
+            bloody.tagArg = bloodyNightmareTag;
+            bloody.dimArg = [](int) -> bool { return VR_CampaignUnavailable(5) != 0; };
+            items.pushBack(bloody);
+        }
     }
-    // Dawn of the Machine's hidden difficulty: offered once found in a game (the hell knight's head, or the hub's
-    // Bloody Nightmare button: QC sets vr_mg3_bn_discovered).
-    campaignsBloodyShown = vr_mg3_bn_discovered.value != 0.f ? 1 : 0;
-    if(campaignsBloodyShown)
-    {
-        Item bloody = action("Dawn of the Machine: Bloody Nightmare", playMg3BloodyNightmare)
-            .help("A new Dawn of the Machine game on Bloody Nightmare: skill 3, harder monsters, each level begun with the "
-                  "axe and shotgun only. Killing Chthon on it starts its new game.");
-        bloody.dimArg = [](int) -> bool { return VR_CampaignUnavailable(5) != 0; };
-        items.pushBack(bloody);
-    }
-    items.pushBack(command("Campaign Data Status", "vr_campaign_status"));
-    items.pushBack(action("Return to VR Hub", playHub));
+    items.pushBack(header("This Page").minor());
+    items.pushBack(command("Campaign Data Status", "vr_campaign_status").minor());
+    items.pushBack(action("Return to VR Hub", playHub).minor());
     return items;
 }
 
@@ -1346,6 +1373,12 @@ struct MenuInstance
 
     int cursors[pageCount]{};         // each page's selected row
     int scrolls[pageCount]{};         // and its first row shown
+    // The row a Search result landed on (openEntry; ROUND25.md, "campvis"): flashed for vr_menu_flash_time from
+    // `flashStart` (realtime), the page scrolled to centre it until the row is fully open (its section unfolded).
+    int flashPage{-1};
+    int flashRow{-1};
+    double flashStart{0.0};
+    bool flashCentre{false};
     RowAnchor leftAnchors[pageCount]; // each page's position as last shown (invalid: at the top)
     int visits[pageCount]{};          // when each page was last shown (a count; 0: not since the start)
     int visitCount{0};
@@ -2647,7 +2680,9 @@ void consoleEdges(float& left, float& right);
 {
     switch(item.look)
     {
-        case Item::Minor: return CLAMP(0.5f, vr_menu_minor_scale.value, 1.f);
+        case Item::Minor:
+        case Item::Note: return CLAMP(0.5f, vr_menu_minor_scale.value, 1.f);
+        case Item::Lead: return CLAMP(1.f, vr_menu_group_scale.value, 2.f);
         case Item::Big:
         case Item::Button: return CLAMP(1.f, vr_runsetup_big.value, 2.f);
         default: return item.kind == Item::Header ? CLAMP(1.f, vr_menu_header_scale.value, 2.f) : 1.f;
@@ -2709,6 +2744,11 @@ void consoleEdges(float& left, float& right);
     {
         return item.look == Item::Minor ? static_cast<int>(za::round(static_cast<float>(sectionGap()) * lookScale(item)))
                                         : sectionGap() + letterSize(item) - 8;
+    }
+    if(item.look == Item::Lead && i > 0 && list[i - 1].kind != Item::Header)
+    {
+        // A group's (Select Campaign's campaign) space above it, closing as it folds.
+        return static_cast<int>(za::round(CLAMP(0.f, vr_menu_group_gap.value, 16.f) * rowOpen(list, i)));
     }
     return item.look == Item::Button && rowOpen(list, i) > 0.f ? sectionGap() + 6 : 0;
 }
@@ -2790,6 +2830,22 @@ void stepFolds(int page, const za::Vector<Item>& list)
         y += rowGap(list, first) + rowHeight(list, first);
     }
     return first;
+}
+
+[[nodiscard]] int maxScroll(const za::Vector<Item>& list);
+
+// The scroll that puts row `i` in the middle of the list (as near as the rows above it allow; a Search result's row).
+[[nodiscard]] int scrollCentring(const za::Vector<Item>& list, int i)
+{
+    const int half = (listSpace(list) - rowGap(list, i) - rowHeight(list, i)) / 2;
+    int y = 0;
+    int first = i;
+    while(first > 0 && y + rowGap(list, first) + rowHeight(list, first - 1) <= half)
+    {
+        y += rowGap(list, first) + rowHeight(list, first - 1);
+        first--;
+    }
+    return q_min(first, maxScroll(list));
 }
 
 // The furthest the list scrolls (0: it fits).
@@ -4207,11 +4263,154 @@ void drawArrowChar(int x, int y)
 
 void drawItemLooked(const Item& item, int y, float open, bool selected);
 
+// `text` in `out` at most `chars` characters, cut at a word (a run's " / " parts, else a space) with " ..." after it
+// (Select Campaign's run line: never cut mid-word; the row's help has it whole).
+void fitAtWord(const char* text, int chars, char* out, size_t size)
+{
+    const int len = static_cast<int>(strlen(text));
+    if(len <= chars)
+    {
+        q_strlcpy(out, text, size);
+        return;
+    }
+    int cut = 0, cutPart = 0; // (the longest cut at a space; at a " / " part's end)
+    for(int p = 1; p < len; ++p)
+    {
+        if(text[p] != ' ')
+        {
+            continue;
+        }
+        int end = p; // (the word before the space, a separator's slash and spaces dropped)
+        bool part = false;
+        while(end > 0 && (text[end - 1] == ' ' || text[end - 1] == '/'))
+        {
+            part = part || text[end - 1] == '/';
+            --end;
+        }
+        part = part || text[p + 1] == '/';
+        if(end > 0 && end + 4 <= chars)
+        {
+            cut = end;
+            cutPart = part ? end : cutPart;
+        }
+    }
+    cut = cutPart > 0 ? cutPart : cut;
+    if(cut == 0)
+    {
+        q_strlcpy(out, "...", size);
+        return;
+    }
+    q_snprintf(out, size, "%.*s ...", cut, text);
+}
+
+// The x of a group's rows (Item::Lead; Sub and Note indented by vr_menu_group_indent): room left of it for the classic
+// style's arrow cursor.
+constexpr int groupLeft = 14;
+
+// Select Campaign's rows (Item::Lead, Sub, Note; ROUND25.md, "campvis"): a campaign's title big and white, its status
+// a small dim tag at the right; its Continue indented under it, a play mark before it, its age dim after it; the run on
+// a small dim line under that (part of the Continue row), cut at a word. The selected row's bar (or the classic style's
+// arrow) round its text; a note line selected with its row is drawn as bright as the row.
+void drawGroupRow(const Item& item, int y, bool selected)
+{
+    const int dim = letterSize(item);
+    const bool dimmed = item.dimArg && item.dimArg(item.arg);
+    const char* text = item.infoArg ? item.infoArg(item.arg) : item.label;
+    const char* tag = item.tagArg ? item.tagArg(item.arg) : "";
+    const int indent = groupLeft + (item.look == Item::Lead ? 0 : static_cast<int>(CLAMP(0.f, vr_menu_group_indent.value, 40.f)));
+    const int markRoom = 10; // (Sub's play mark; Note's line under its text)
+    const int minorDim = static_cast<int>(za::round(8.f * CLAMP(0.5f, vr_menu_minor_scale.value, 1.f)));
+    const float tagAlpha = CLAMP(0.2f, vr_menu_minor_alpha.value, 1.f);
+    if(item.look == Item::Note)
+    {
+        char line[64];
+        fitAtWord(text, (316 - indent - markRoom) / q_max(dim, 1), line, sizeof(line));
+        pushRowColor(1.f, 1.f, 1.f, dimmed ? 0.4f : 1.f);
+        M_PrintEx(indent + markRoom, y, dim, line);
+        GL_PopCanvasColor();
+        return;
+    }
+    const int textX = item.look == Item::Sub ? indent + markRoom : indent;
+    const int textEnd = textX + dim * static_cast<int>(strlen(text));
+    int barEnd = textEnd;
+    int tagX = 0;
+    const int tagLen = static_cast<int>(strlen(tag));
+    if(tagLen > 0)
+    {
+        if(item.look == Item::Lead)
+        {
+            tagX = q_max(318 - minorDim * tagLen, textEnd + 6); // (right-aligned, never over the title)
+        }
+        else
+        {
+            tagX = textEnd + dim;
+            barEnd = tagX + minorDim * tagLen;
+        }
+    }
+    if(selected)
+    {
+        const bool fit = vr_menu_hl_fit.value != 0.f;
+        if(!drawRowBar(fit ? static_cast<float>(indent - 4) : 4.f, fit ? static_cast<float>(barEnd + 4) : 316.f, y, dim))
+        {
+            drawArrowChar(indent - 12, y + (dim - 8) / 2);
+        }
+    }
+    pushRowColor(1.f, 1.f, 1.f, dimmed ? 0.4f : 1.f);
+    if(item.look == Item::Sub)
+    {
+        menuui::paintFoldArrow(static_cast<float>(indent) + 3.f, static_cast<float>(y) + static_cast<float>(dim) * 0.5f,
+            static_cast<float>(dim) * 0.38f, 0.f); // (the play mark: the fold arrow's folded, pointing right)
+    }
+    if(item.look == Item::Lead || selected)
+    {
+        M_PrintWhiteEx(textX, y, dim, text);
+    }
+    else
+    {
+        M_PrintEx(textX, y, dim, text);
+    }
+    GL_PopCanvasColor();
+    if(tagLen > 0)
+    {
+        pushRowColor(1.f, 1.f, 1.f, (dimmed ? 0.6f : 1.f) * tagAlpha);
+        M_PrintEx(tagX, y + dim - minorDim, minorDim, tag); // (small, on its text's baseline)
+        GL_PopCanvasColor();
+    }
+}
+
+// A Search result's row's flash now (ROUND25.md, "campvis"): vr_menu_flash_strength, pulsing, fading out over
+// vr_menu_flash_time from the landing; 0: none (over, or off).
+[[nodiscard]] float flashAlpha()
+{
+    const float time = CLAMP(0.f, vr_menu_flash_time.value, 5.f);
+    const float t = static_cast<float>(realtime - ui().flashStart);
+    if(ui().flashPage < 0 || time <= 0.f || t < 0.f || t >= time)
+    {
+        return 0.f;
+    }
+    const float fade = CLAMP(0.f, (1.f - t / time) * 2.f, 1.f); // (whole for the first half, then fading out)
+    const float pulse = 0.7f + 0.3f * cosf(t * 2.f * 3.14159265f * 2.5f);
+    return CLAMP(0.f, vr_menu_flash_strength.value, 1.f) * fade * pulse;
+}
+
+// The flash behind row `i` at y: a glowing bar across the rows' width, stronger than the selection's.
+void drawFlash(const za::Vector<Item>& list, int i, int y)
+{
+    const float a = flashAlpha();
+    if(a <= 0.f)
+    {
+        return;
+    }
+    const float half = static_cast<float>(fullHeight(list[i])) * 0.5f;
+    menuui::paintFlash(8.f, 312.f, static_cast<float>(y) + half, half + 2.f, a);
+}
+
 // Row `item` at y, `open` its fold (0..1: a folding section's rows fade; a header's arrow turns), drawn as its look
 // has it (Item::Look): a footer's fainter (vr_menu_minor_alpha).
 void drawItem(const Item& item, int y, float open, bool selected)
 {
-    float fade = item.look == Item::Minor ? CLAMP(0.2f, vr_menu_minor_alpha.value, 1.f) : 1.f;
+    // (a group's note line too, unless its row is selected: then it reads as the rest of its row)
+    float fade = item.look == Item::Minor || (item.look == Item::Note && !selected) ? CLAMP(0.2f, vr_menu_minor_alpha.value, 1.f) : 1.f;
     if(item.kind != Item::Header && open < 1.f)
     {
         fade *= CLAMP(0.f, (open - 0.35f) / 0.65f, 1.f); // (gone before its row is half folded: no overlap to see)
@@ -4347,6 +4546,11 @@ void drawItemLooked(const Item& item, int y, float open, bool selected)
             }
             GL_PopCanvasColor();
         }
+        return;
+    }
+    if(item.wide && (item.look == Item::Lead || item.look == Item::Sub || item.look == Item::Note))
+    {
+        drawGroupRow(item, y, selected);
         return;
     }
     if(item.wide)
@@ -5355,6 +5559,19 @@ extern "C" void VR_Menu_Draw()
     M_PrintWhite((320 - 8 * static_cast<int>(strlen(name))) / 2, l.top + 28, name);
 
     const int n = static_cast<int>(list.size());
+    if(ui().flashCentre && ui().flashPage == ui().page)
+    {
+        // A Search result's row centred (its section unfolding: again each frame until the row is fully open).
+        if(cursor == ui().flashRow && cursor < n)
+        {
+            scroll = scrollCentring(list, cursor);
+            ui().flashCentre = rowOpen(list, cursor) < 1.f;
+        }
+        else
+        {
+            ui().flashCentre = false;
+        }
+    }
     if(cursor < scroll)
     {
         scroll = cursor > 0 && list[cursor - 1].kind == Item::Header ? cursor - 1 : cursor;
@@ -5387,6 +5604,10 @@ extern "C" void VR_Menu_Draw()
         if(list[i].kind != Item::Header && rowHeight(list, i) <= 0)
         {
             continue; // (folded)
+        }
+        if(i == ui().flashRow && ui().flashPage == ui().page)
+        {
+            drawFlash(list, i, l.listTop + rowTop(list, scroll, i));
         }
         drawItem(list[i], l.listTop + rowTop(list, scroll, i), rowOpen(list, i), rowSelected && i - list[i].partOf == cursor);
     }
