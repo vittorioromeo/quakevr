@@ -4682,6 +4682,9 @@ QVR_TOGGLE(vr_body_ranger_head, "Use the Ranger's Head",
     "The head your body has in the mirror, the third-person views and shadows (never in your own eyes): "
     "the Quake ranger's, taken from your game's player model, or off for the plain placeholder head. "
     "Takes effect at the next start; the rows below apply at once.")
+QVR_TOGGLE(vr_body_ranger_head_model, "Detailed Head",
+    "On: Quake VR's own, more detailed ranger head (the one the ranger corpses wear), with its own skin. "
+    "Off: the original Quake ranger's head. Takes effect at the next start.")
 QVR_SLIDER(vr_body_head_size, "Size", 0.5f, 2.f, 0.05f, "%.2fx", noExt,
     "How big the head is (1 the first version's size, a little small).")
 QVR_SLIDER(vr_body_head_sink, "Neck Sink", 0.f, 12.f, 0.5f, "%.1f cm", noExt,

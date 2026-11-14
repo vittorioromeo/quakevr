@@ -474,11 +474,29 @@ extern "C" void* VR_AliasSurfaceFirst(const entity_t* e, void* mainhdr)
 extern "C" void* VR_AliasSurfaceNext(const entity_t* e, void* mainhdr, void* hdr)
 {
     auto* main = static_cast<aliashdr_t*>(mainhdr);
-    if(!gloveShells(e))
+    const int shells = gloveShells(e);
+    if(!shells)
     {
         return Mod_NextSurface(static_cast<aliashdr_t*>(hdr));
     }
-    return hdr != main ? main : nullptr; // the shell, then the model's own (one) mesh
+    // The shell, then the model's own mesh, then any after the shells (a body's detailed head: vr_rangerhead.cpp).
+    aliashdr_t* past = main;
+    for(int i = 0; i <= shells && past; i++)
+    {
+        past = Mod_NextSurface(past);
+    }
+    if(hdr == main)
+    {
+        return past;
+    }
+    for(aliashdr_t* s = past; s; s = Mod_NextSurface(s))
+    {
+        if(s == hdr)
+        {
+            return Mod_NextSurface(s);
+        }
+    }
+    return main; // (from the shell)
 }
 
 // R_DrawAliasModel_Real: the instance's Quake VR data (vraliasinstance_t). kind 1: drawn as usual; 0: r_showtris or

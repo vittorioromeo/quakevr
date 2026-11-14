@@ -646,6 +646,7 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
 {
     return {
         row(opt::vr_body_ranger_head),
+        row(opt::vr_body_ranger_head_model),
         header("Size and Neck"),
         row(opt::vr_body_head_size),
         row(opt::vr_body_head_sink),

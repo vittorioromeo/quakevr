@@ -33,6 +33,7 @@ Flat-screen or VR: Select Campaign has no Bloody Nightmare row under Dawn of the
 [4. VR: body and gear]
 With armour on, set Reloading > X With Armour and Flashlight > Forward With Armour to about 3 units (the scene does): the pouch and the belt torch stand clear of the plates, and go back when the armour is gone. {test:armour_gear}
 VR: teleport many times quickly (headset at 90 or 120 Hz): every release teleports you.
+In a mirror (or the Ranger Head page's body clone), your body wears Quake VR's detailed ranger head, the ranger corpses' one, with its own skin: check its size and height over the neck from the front, side and back, that it turns with your head, and that none of it shows in your own view when you look down or lean. Ranger Head > Detailed Head off (next start) brings back the old one.
 
 [5. VR: melee and embedded blades]
 Stab a standing monster with the sword without staggering it, keep holding, and let it walk into a teleporter: the sword comes back to your hand, not held from across the map. {test:embed_tele}

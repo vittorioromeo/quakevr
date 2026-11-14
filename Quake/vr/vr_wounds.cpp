@@ -5,6 +5,7 @@
 #include "vr_trace.hpp"
 #include "vr_wounds_internal.hpp"
 #include "vr_bloodprints.hpp"
+#include "vr_rangerhead.hpp"
 #include "vr_dents.hpp"
 #include "vr_bloodstream.hpp"
 #include "vr_engine.hpp"
@@ -728,8 +729,10 @@ constexpr float boxTexels = 2.5f; // a unit (the monsters' skins' about 2)
     }
     auto* hdr = static_cast<aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(model)));
     // One surface, or the jointed hand's and bare forearms' glove shells after it (vr_handrig.cpp gloveShells: the
-    // skin's layout, u + 2; only the first surface is painted, the shells read its mask).
-    if(!hdr || (Mod_NextSurface(hdr) && !handrig::gloveShellSurfaces(model->name)) || hdr->numskins <= 0)
+    // skin's layout, u + 2; only the first surface is painted, the shells read its mask), or a body's detailed head
+    // after them (vr_rangerhead.cpp: its texels its own skin's, the mask read there all the same).
+    if(!hdr || (Mod_NextSurface(hdr) && !handrig::gloveShellSurfaces(model->name) && !rangerhead::hasOwnMesh(model->name)) ||
+        hdr->numskins <= 0)
     {
         return false;
     }
