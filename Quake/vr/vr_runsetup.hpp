@@ -88,8 +88,11 @@ struct Mutator
 [[nodiscard]] int activeValue(int i);
 [[nodiscard]] int forcedValue(int i); // -1: free
 
-// The run starts: every vr_run_<id> from its pick (forced ones held), each apply(Start).
-void start();
+// The run starts: every vr_run_<id> from its pick (forced ones held), each apply(Start). `mapNow`: its `map` comes at
+// once (the Levels list, New Game, a campaign, the Map Library): that map spawns with the presets' settings exactly as
+// this Start set them (beforeMapLoad sets back any changed in between; presetlate). false: the hub's teleporter, the
+// screen without a launch, `vr_run start` (the map comes later: the player's own changes meanwhile stay).
+void start(bool mapNow = true);
 
 // Arena Mode (Select Campaign's row under Arcane Dimensions; ROUND25.md, "arenacamp"): its Run Setup screen shows only
 // Difficulty, Gore, Ironman, Glass Cannon and Melee Only (arenaShows: the player's picks); every other choice is fixed
@@ -111,6 +114,7 @@ void newGame();
 void beforeMapLoad(bool loadingSave);
 [[nodiscard]] int mapSpawns();       // maps begun so far
 [[nodiscard]] int spawnedWith(int i); // registry row i's value the last map spawned with
+[[nodiscard]] int spawnPresetSets();  // the presets' settings the last spawn set back to its Start's (0: none changed)
 // The server's QC check `name` with up to three floats: true when it answers non-zero (false: no such function).
 [[nodiscard]] bool qcTest(const char* name, float a, float b, float c);
 

@@ -7,14 +7,11 @@
 # Lines are only for something new or changed you can see or feel: one line per flow, never "works as before". History of the sorts: git log of this file and docs/vr-port/CHECKLIST_REORG.md (latest: 2026-11-14 release audit, 94 lines down to 68, 71 with three from a later ship: the [New] section sorted, near-duplicates merged, every line cut to what to do and what to see, 3 new scenes; 2026-11-15: 17 ticked lines retired, the [New] section sorted). Misc/quakevr/checklist_tests_check.py checks every tag's scene file and the format (no "(agent/", "Test:", scratch or qvr-agents paths, .sh names; sections in order).
 
 [New: not yet sorted]
-Flat-screen or VR: start a coop game on e1m1 from the menu, add a bot, shoot the first grunt's gun out of its hand, then shoot or strike its body: it should die like any grunt. If it still won't die, note the teamplay setting, the weapon you hit it with, and whether it bled.
 Flat-screen or VR: With gloves on, in the hub's settings pavilion press the Classic Quake board twice (on, then off): the gloves' leather relief (stitches, creases, worn knuckles) still catches the light as before, not flat like a plain colour. {test:hub_classic}
 Flat-screen or VR: Change a graphics setting in VR Settings (say Bloom), then press the Classic Quake board twice: the setting is back as you left it, not your older My Settings. {test:hub_classic}
-Flat-screen or VR: Select Campaign has "Arena Mode" right under Arcane Dimensions with the same "experimental" tag at its right; pressing it shows an experimental notice, and Continue opens a Run Setup with only Start, Difficulty, Gore, Ironman, Glass Cannon and Melee Only.
-Flat-screen or VR: Start Arena Mode with your normal Run Setup set to something else (Classic, no armed humanoids, Randomized Pickups); the arena plays Unleashed with armed humanoids and the smarter AI, and your next campaign's Run Setup still shows your own choices.
-Flat-screen or VR: Arena Mode never autosaves (none at the start, between or during waves) and its row never gets a Continue under it.
 Flat-screen or VR: start this scene, wade the shotgun into the pool and climb out, then quicksave and quickload: your off hand stays empty (no toolgun or axe from a holster), the grunts fire with normal poses (no bent limbs, no death knight fireballs), and what was dripping still drips. {test:waterdrips}
-Arena Mode: the Run Setup screen has no Ironman row (Start, Difficulty, Gore, Glass Cannon, Melee Only). In the arena try save, quicksave (key, gesture, menu) and the Save menu: each is refused with "No saving in Arena Mode"; loading another save still works.
+wetglint: the wet shine on things, hands and weapons survives quicksave/quickload (follows the drips' wetness). TEST on the waterdrips item: quicksave while wet, quickload: still shiny and dripping.
+Flat-screen or VR: run a checklist TEST scene (e.g. the Classic drops one), then open Levels > E1M1, set Style to Unleashed in Run Setup and press Start once: the grunts hold real guns and the guns reload; again with Style Classic: plain grunts, no reloading, on the first start.
 
 [1. Flat-screen: weapons and hands]
 Flat-screen: hold the axe (then a sword, the crowbar, Mjolnir, the super axe) with the left hand empty: the left hand goes onto the handle by itself and the weapon sits two-handed; take something in the left hand: back to one hand, no jumps either way (Debug > Tunables > Flatscreen > Two-Handed Melee Stance). {test:flat_melee2h}
@@ -22,10 +19,8 @@ Flat-screen: in the holster menu (middle mouse), drag a weapon with the left but
 Flat-screen or VR: shotgun in the right hand, a spent flare gun in the left: swap hands, drop, holster, draw, reload and swap mid-reload in any order, pulling both triggers after each: an empty shotgun only clicks, a loaded one fires one shell, never "ERROR: weapon clip less than zero". {test:flat_clip_unpaid}
 Flat-screen: aim with the right mouse button with the shotgun: it comes up on its sights and the crosshair fades; with the nailgun or the rocket launcher the view zooms the same way but the gun stays where it is and the crosshair stays. Weapon Offsets > Sights > Flat-Screen Aim switches the held gun between Ironsight and Zoom, and Locomotion > Right Click Aim sets every gun at once. {test:flat_aim_zoom}
 Flat-screen: aiming down the shotgun's sights, open Weapon Offsets > Sights > Flat-Screen Aim and move Ironsight Forward, Right, Up and Pitch: the sighted gun moves on the screen as you change them, and your shots still land on the crosshair. {test:flat_aim_zoom}
-Flat-screen or VR: Debug > Tests > Saves > Autosave Now in a campaign map: Select Campaign's Continue row (and Load Autosave) shows that save, just made; in co-op it says none is made.
 
 [2. Flat-screen: Run Setup, presets and mutators]
-Flat-screen or VR: Melee Only with the dagger, "maxplayers 2" and a bot (impulse 100): the bot holds the dagger, skips guns and ammo, and fights with the dagger.
 Flat-screen or VR: Classic Quake: every gun kicks when it fires (recoil on, as in the other presets). {test:classic_drops}
 Flat-screen or VR: Classic Quake: a killed grunt, enforcer, knight or ogre drops its backpack but no weapon to take (its gun falls as scenery you can't grab and fades after 4 seconds). {test:classic_drops}
 Flat-screen or VR: With Burst Rifles off (Classic, Light), a grunt's burst rifle you pick up still fires 3-round bursts, not shotgun pellets. {test:classic_drops}
@@ -34,15 +29,9 @@ Flat-screen or VR: With Burst Rifles off (Classic, Light), a grunt's burst rifle
 Installer: install into a fresh folder and pick Snap 45, Left-handed and Medium on "Set up the game": the game has them. Change Turning in the game, run Update, change only Turn Speed: Turning stays yours.
 Flat-screen or VR: Run Setup's icon pictures keep their real shape (a round skull, long flat guns), the cards sit further apart and a two-line name is tighter; Menu Look > Run Setup: Icon Picker Gap and Icon Picker Name Lines tune them. {test:run_setup_newgame}
 Flat-screen or VR: Single Player > New Game (or a campaign, or the hub's teleporter): Run Setup's first row is the big Start button with the cursor on it, and there is no Difficulty (the start map's skill halls choose). {test:run_setup_newgame}
-Flat-screen or VR: Levels > E1M1 (or the Map Library's Play on a single map): Run Setup shows Start first, then Difficulty with four cards (Easy to Nightmare, no Bloody Nightmare) spaced like the gun pictures, then Style and Gore.
-Flat-screen or VR: Select Campaign has no Bloody Nightmare row under Dawn of the Machine; Bloody Nightmare still starts in game from its hub's relay, and a Bloody Nightmare save's Continue still says so.
 
 [4. VR: body and gear]
 With armour on, set Reloading > X With Armour and Flashlight > Forward With Armour to about 3 units (the scene does): the pouch and the belt torch stand clear of the plates, and go back when the armour is gone. {test:armour_gear}
-VR: teleport many times quickly (headset at 90 or 120 Hz): every release teleports you.
-In a mirror (or the Ranger Head page's body clone), your body wears Quake VR's detailed ranger head, the ranger corpses' one, with its own skin: check its size and height over the neck from the front, side and back, that it turns with your head, and that none of it shows in your own view when you look down or lean. Ranger Head > Detailed Head off (next start) brings back the old one.
-In a mirror (or the Ranger Head page's body clone), have a grunt shoot your head, or use Debug > Tools > Wound Your Head (Mirror): the wounds show on the head where it was hit (front, sides, back, crown), wounds elsewhere on the body never show on the head, and the head's skin looks as before.
-The head's default place is now centred (Right 0) and Size 1.25: check it sits right on the neck from the front and side; Reset Head Placement on the Ranger Head page gives these.
 
 [5. VR: melee and embedded blades]
 Stab a standing monster with the sword without staggering it, keep holding, and let it walk into a teleporter: the sword comes back to your hand, not held from across the map. {test:embed_tele}
@@ -71,18 +60,11 @@ Clip the flashlight on the super shotgun and break it open: the torch and its be
 Flat-screen or VR: load shells into the open super shotgun: their brass heads sit flush with the breech face, not sunk in the bores; an empty chamber shows its open bore. {test:ssg_open_torch}
 Flat-screen or VR: fire the grenade launcher and force-grab the lit grenade out of the air: its fuse restarts at the full 2.5 s with a re-arm click and sparks, one fizz and tick stream from the top, and you can throw it again. {test:grenade_countdown}
 Flat-screen or VR: look down the rocket launcher from your hand: the three vents at the back of the front shroud are real holes, black inside with walls and a back; the floor pickup shows them too. {test:rl_vents}
-VR: a very quick trigger or grip press and release still fires or grabs.
-VR: let go of a gun and grab it again quickly: the re-grab always takes it.
 Let a gun go onto your other, open palm so it rests there, then close that hand: with your fist on its handle it is taken by the handle and fires; with the handle off your palm it is held where it lies, as a prop (it doesn't jump to the handle), and a hand closing a few centimetres off a gun takes nothing. {test:palmgrab}
-Holding the shotgun, open Weapon Offsets > Two-Handed and Hotspots, move hotspot 1's X: its row gets a *, and Reset This Page at the bottom (press it twice) puts it back to the shipped value while hotspot 2 and the other pages keep their values.
-Open Changed Settings (VR Settings): every weapon and prop you've tuned is listed under its own header (Weapon: progs/v_shot.mdl (_02)...), each row labelled by its page or hotspot ("Hotspot 1: Hotspot X"), and changing a row there changes that weapon.
 
 [7. VR: physics, bodies and gore]
-On e1m1 with three times the enemies, turn quickly toward armed grunts you could not see: their guns, arms and backpacks are already in place, no pop.
-Kill a crowd at once (a rocket or a quad): no freeze on the kill; the bodies go limp a few per frame, each after its death frame, all ending as ragdolls.
 With drips on, get something wet, then reload the same map (a restart, or a save of this level): no crash. {test:waterdrips}
 Push a grunt and a hell knight gently off a high ledge so they grab its lip: the grunt climbs onto the top without its hips sinking back onto the edge, and the hell knight gets its second hand onto the lip as it pulls up. {test:rag_hang}
-Flat-screen or VR: particles (blood, smoke, sparks, muzzle wisps) look as before the memory rewrite.
 Flat-screen or VR: on ad_tears, shoot walls near a translucent window: no freeze the first time the decals and the window are in view. {test:ad_tears_window}
 
 [8. VR: the hub]
