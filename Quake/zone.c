@@ -435,7 +435,7 @@ void Hunk_Print_f (void)
 Hunk_AllocInternal
 ===================
 */
-static void *Hunk_AllocInternal (int size, const char *name, qboolean clear)
+static void *Hunk_AllocInternal (int size, const char *name)
 {
 	memblock_t	*b;
 
@@ -445,10 +445,9 @@ static void *Hunk_AllocInternal (int size, const char *name, qboolean clear)
 	if (size < 0)
 		Sys_Error ("Hunk_Alloc: bad size: %i", size);
 
-	// Always zeroed, NoFill too (`clear` unused), as the old hunk's fresh pages mostly were. Non-zeroed blocks once made
+	// Always zeroed (the old NoFill variants are gone: they were identical), as the old hunk's fresh pages mostly were. Non-zeroed blocks once made
 	// E1M1 draw 38% slower ("nohunk"): vr_extmaps' signature read past its buffer, fixed ("hunkfollow"); not zeroing them
 	// gained nothing measurable after that (map loads within noise), so they stay zeroed: calloc skips fresh pages.
-	(void) clear;
 	b = Mem_NewBlock (size, name, HUNK_SENTINEL, true, "Hunk_Alloc");
 	if (hunk_low_used > 0x7fffffff - b->size)
 		Sys_Error ("Hunk_Alloc: more than 2 GiB on the hunk");
@@ -471,17 +470,7 @@ Hunk_AllocName
 */
 void *Hunk_AllocName (int size, const char *name)
 {
-	return Hunk_AllocInternal (size, name, true);
-}
-
-/*
-===================
-Hunk_AllocNameNoFill
-===================
-*/
-void *Hunk_AllocNameNoFill (int size, const char *name)
-{
-	return Hunk_AllocInternal (size, name, false);
+	return Hunk_AllocInternal (size, name);
 }
 
 /*
@@ -492,16 +481,6 @@ Hunk_Alloc
 void *Hunk_Alloc (int size)
 {
 	return Hunk_AllocName (size, NULL);
-}
-
-/*
-===================
-Hunk_AllocNoFill
-===================
-*/
-void *Hunk_AllocNoFill (int size)
-{
-	return Hunk_AllocNameNoFill (size, NULL);
 }
 
 int	Hunk_LowMark (void)
@@ -587,7 +566,7 @@ void Hunk_ClearKeep (void)
 char *Hunk_Strdup (const char *s, const char *name)
 {
 	size_t sz = strlen(s) + 1;
-	char *ptr = (char *) Hunk_AllocNameNoFill (sz, name);
+	char *ptr = (char *) Hunk_AllocName (sz, name);
 	memcpy (ptr, s, sz);
 	return ptr;
 }

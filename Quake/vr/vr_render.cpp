@@ -915,7 +915,7 @@ static constexpr float gloveReliefGain = 2.f;
 // the heights a texel apart lost the slopes on coarser mips). ~4 ms at 1024 x 1024, at each read only.
 void gloveHeightToNormals(byte* rgba, int width, int height)
 {
-    byte* h = static_cast<byte*>(Hunk_AllocNoFill(width * height)); // (freed with the image: the caller's mark)
+    byte* h = static_cast<byte*>(Hunk_Alloc(width * height)); // (freed with the image: the caller's mark)
     for(int i = 0; i < width * height; i++)
     {
         h[i] = rgba[i * 4];

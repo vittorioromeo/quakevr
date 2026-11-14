@@ -2662,6 +2662,15 @@ front, side, back; nothing of it in your own view when looking down or leaning.
   `maps_skill_test` in the tree. Shots: qvr-kit/scratch/runsetup3_shots/ (r3_before.png, r3_after.png: left the Levels
   list's e1m1, right New Game).
 
+## zoneclean (zone.h cleanup)
+
+- `Hunk_AllocNoFill` / `Hunk_AllocNameNoFill` were identical to the filling versions (`Hunk_AllocInternal` ignored `clear`; same
+  zeroing and accounting): every call (15 files) now calls `Hunk_Alloc` / `Hunk_AllocName`; the two functions and the `clear`
+  parameter are gone.
+- Kept: `Hunk_KeepLoaded` / `Hunk_ClearKeep` still protect (`Hunk_FreeToLowMark` never frees under a model loaded mid-play), and
+  `Hunk_Check` (hunk_print, cl_parse, memguard sentinels) still checks every block: neither has lost its purpose, so no removal.
+- zone.h comment rewritten: Z_ single allocations, Hunk_ mark/free-to-mark lifetimes, Cache_ flushable handles, Temp_ per-frame scratch.
+- Checks: dev build 0 warnings; ReleaseLTO 1.1.0 build; `-memguard` load_models_test 352/0; scenario_check below.
 ## arenacamp: Arena Mode in Select Campaign, with its own Run Setup (branch agent/arenacamp, 2026-11-15)
 
 - **Select Campaign:** an "Arena Mode" row right under Arcane Dimensions (vr_menu.cpp pageCampaigns, `selectArenaRow`),

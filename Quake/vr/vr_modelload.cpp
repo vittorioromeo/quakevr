@@ -361,7 +361,7 @@ extern "C" void VR_LoadSkinNormalMaps (qmodel_t *loadmodel, void *hdr, const stv
 	if (w > 0 && h > 0)
 	{
 		// the triangles' corners on the skin (the back's seam vertices half a skin right)
-		float *corners = (float *) Hunk_AllocNoFill (q_max (pheader->numtris, 1) * 6 * sizeof (float));
+		float *corners = (float *) Hunk_Alloc (q_max (pheader->numtris, 1) * 6 * sizeof (float));
 		for (i = 0, n = 0; i < pheader->numtris; i++)
 		{
 			for (j = 0; j < 3; j++)
@@ -563,7 +563,7 @@ static void Mod_MD5SkinNormalMap (aliashdr_t *surf, gltexture_t *glt, const char
 	if (!md5islands || md5islands_surf != surf || md5islands_w != w || md5islands_h != h)
 	{
 		VR_HeapFree (md5islands);
-		corners = (float *) Hunk_AllocNoFill (q_max (surf->numtris, 1) * 6 * sizeof (float));
+		corners = (float *) Hunk_Alloc (q_max (surf->numtris, 1) * 6 * sizeof (float));
 		for (i = 0; i < surf->numtris; i++)
 			for (j = 0; j < 3; j++)
 			{
