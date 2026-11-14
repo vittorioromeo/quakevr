@@ -2383,3 +2383,4 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
 - `vr_mp_drawn` (Debug > Reports > Network: Held Weapons).
 - Next (MP_PLAN.md, B3f): the grip fit's hand rig, weapongrabspot and the reverse grip's choice, the magnetic holsters per
   player; `mp_grab` grown.
+- Cherry-picked 4793722c6 (agent/mp): vr_server.cpp rewrites a player's `.vrbits0` previous bits at the end of every server frame, not only when a move arrives (a frame without a move showed QC last frame's grip press/let-go again; a doubled let-go pushed a re-grip into the 0.125 s bounce window); bots keep the bits their QC sets.
