@@ -60,10 +60,20 @@ constexpr float islandFraction = 0.2f;
 constexpr int detailMinHeadTris = 40;
 constexpr int detailMaxHeadTris = 1000;
 constexpr const char* detailShader = "vrrangerhead";
+constexpr const char* headTexName = "progs/vrrangerhead_00_00"; // his skin, the mesh's texture (VR_RangerHeadSkins)
 // His place on the body: `detailGrow` times as wide as the placeholder head, his bottom `detailSink` below its (his hood
 // reaches lower than Quake's head: the neck goes up into it).
 constexpr float detailGrow = 1.05f;
 constexpr float detailSink = 1.5f;
+// His texture coordinates on the body (packDetailed): the body's head block's head-only texels (the placeholder's, not
+// drawn with his head; the neck's top ring keeps v <= neckTopV), a pad round them; his islands `detailGap` apart. The
+// wound masks are the body's skin's layout: his wounds there, nothing else's.
+constexpr float detailU0 = 0.008f;
+constexpr float detailU1 = 0.492f;
+constexpr float detailV0 = 0.447f;
+constexpr float detailV1 = 0.496f;
+constexpr float detailGap = 0.008f;
+constexpr int maxPackedSide = 2048; // his skin laid out so: its texture's longest side
 
 // On the body (progs/vrbody*: Quake units, 26.25 a metre, X forward, Z up): `grow` times as wide as the placeholder's
 // head-only vertices (his: 20 x 20 x 18 cm), centred over them, its bottom `sink` below theirs (the neck's top ring,
@@ -119,6 +129,19 @@ struct Ranger
     int skinH{0};
     Rect half[2]; // the texels his front (0) and back (1) halves take
     char path[MAX_OSPATH]{};
+    // The detailed head (packDetailed): his skin's islands (their texels, `from`) side by side in the body's head block
+    // (`to`, the body's texture coordinates), his vertices' coordinates there (`st`: the wound masks are the body's, read
+    // there) and his skin laid out so (`packed`, packedW x packedH, palette indices: the mesh's own texture).
+    struct Island
+    {
+        Rect from;
+        Rect to;
+    };
+    za::Vector<Island> islands;
+    za::Vector<glm::vec2> st;
+    za::Vector<unsigned char> packed;
+    int packedW{0};
+    int packedH{0};
 };
 Ranger ranger;
 
@@ -467,6 +490,138 @@ struct Tri
     return za::min(size.x, za::min(size.y, size.z)) >= minHeadSide && za::max(size.x, za::max(size.y, size.z)) <= maxHeadSide;
 }
 
+// The palette index the detailed head's packed skin has at the body's texture coordinates (u, v): the island nearest
+// across (its texels clamped to it), anywhere (the pads and the texture round the block take the nearest).
+[[nodiscard]] int detailIndexAt(const Ranger& r, float u, float v)
+{
+    const Ranger::Island* best = nullptr;
+    float bestGap = 1e30f;
+    for(const Ranger::Island& is : r.islands)
+    {
+        const float gapU = u < is.to.x0 ? is.to.x0 - u : u > is.to.x1 ? u - is.to.x1 : 0.f;
+        if(gapU < bestGap)
+        {
+            bestGap = gapU;
+            best = &is;
+        }
+    }
+    if(!best)
+    {
+        return 0;
+    }
+    const Rect& f = best->from;
+    const Rect& t = best->to;
+    const float x = za::clamp(f.x0 + (u - t.x0) / (t.x1 - t.x0) * (f.x1 - f.x0), f.x0, f.x1 - 0.01f);
+    const float y = za::clamp(f.y0 + (v - t.y0) / (t.y1 - t.y0) * (f.y1 - f.y0), f.y0, f.y1 - 0.01f);
+    const int xi = za::clamp(static_cast<int>(x), 0, r.skinW - 1);
+    const int yi = za::clamp(static_cast<int>(y), 0, r.skinH - 1);
+    return r.skin[static_cast<size_t>(yi) * static_cast<size_t>(r.skinW) + static_cast<size_t>(xi)];
+}
+
+// The detailed head's islands packed into the body's head block (the placeholder's head-only texels, free once his head
+// is drawn instead): left to right, `detailGap` apart, all stretched alike to fill it (the wound masks are painted where
+// they are struck, in the world: a stretch only changes how fine they are there). His vertices' coordinates (`st`) and
+// his skin laid out so (`packed`, each axis as fine as his skin's texels or finer, up to maxPackedSide). False: none.
+[[nodiscard]] bool packDetailed(Ranger& r)
+{
+    const size_t nv = r.src.size();
+    if(nv == 0 || r.skin.empty() || r.skinW <= 0 || r.skinH <= 0)
+    {
+        return false;
+    }
+    za::Vector<int> parent;
+    parent.resize(nv);
+    for(size_t i = 0; i < nv; i++)
+    {
+        parent[i] = static_cast<int>(i);
+    }
+    const auto root = [&](int a) {
+        while(parent[static_cast<size_t>(a)] != a)
+        {
+            parent[static_cast<size_t>(a)] = parent[static_cast<size_t>(parent[static_cast<size_t>(a)])];
+            a = parent[static_cast<size_t>(a)];
+        }
+        return a;
+    };
+    for(size_t t = 0; t + 2 < r.tris.size(); t += 3)
+    {
+        const int a = root(r.tris[t]);
+        parent[static_cast<size_t>(root(r.tris[t + 1]))] = a;
+        parent[static_cast<size_t>(root(r.tris[t + 2]))] = a;
+    }
+    za::Vector<int> islandOf; // per vertex
+    islandOf.resize(nv, -1);
+    za::Vector<int> islandOfRoot;
+    islandOfRoot.resize(nv, -1);
+    r.islands.clear();
+    for(size_t i = 0; i < nv; i++)
+    {
+        const size_t root_ = static_cast<size_t>(root(static_cast<int>(i)));
+        if(islandOfRoot[root_] < 0)
+        {
+            islandOfRoot[root_] = static_cast<int>(r.islands.size());
+            r.islands.pushBack({Rect{r.src[i].x, r.src[i].y, r.src[i].x, r.src[i].y}, Rect{}});
+        }
+        const int k = islandOfRoot[root_];
+        islandOf[i] = k;
+        Rect& f = r.islands[static_cast<size_t>(k)].from;
+        f.x0 = za::min(f.x0, r.src[i].x);
+        f.y0 = za::min(f.y0, r.src[i].y);
+        f.x1 = za::max(f.x1, r.src[i].x);
+        f.y1 = za::max(f.y1, r.src[i].y);
+    }
+    float sumW = 0.f;
+    float maxH = 0.f;
+    for(Ranger::Island& is : r.islands)
+    {
+        is.from.x0 -= 0.5f; // (the texels the corners are the middles of, whole)
+        is.from.y0 -= 0.5f;
+        is.from.x1 += 0.5f;
+        is.from.y1 += 0.5f;
+        sumW += is.from.x1 - is.from.x0;
+        maxH = za::max(maxH, is.from.y1 - is.from.y0);
+    }
+    const float n = static_cast<float>(r.islands.size());
+    const float ku = (detailU1 - detailU0 - detailGap * (n - 1.f)) / sumW; // body coordinates a texel of his
+    const float kv = (detailV1 - detailV0) / maxH;
+    if(ku <= 0.f || kv <= 0.f)
+    {
+        return false;
+    }
+    float u = detailU0;
+    for(Ranger::Island& is : r.islands)
+    {
+        is.to = Rect{u, detailV0, u + (is.from.x1 - is.from.x0) * ku, detailV0 + (is.from.y1 - is.from.y0) * kv};
+        u = is.to.x1 + detailGap;
+    }
+    r.st.resize(nv);
+    for(size_t i = 0; i < nv; i++)
+    {
+        const Ranger::Island& is = r.islands[static_cast<size_t>(islandOf[i])];
+        r.st[i] = {is.to.x0 + (r.src[i].x - is.from.x0) * ku, is.to.y0 + (r.src[i].y - is.from.y0) * kv};
+    }
+    const auto side = [](float texels) {
+        int s = 64;
+        while(s < maxPackedSide && static_cast<float>(s) < texels)
+        {
+            s *= 2;
+        }
+        return s;
+    };
+    r.packedW = side(1.f / ku);
+    r.packedH = side(1.f / kv);
+    r.packed.resize(static_cast<size_t>(r.packedW) * static_cast<size_t>(r.packedH));
+    for(int y = 0; y < r.packedH; y++)
+    {
+        for(int x = 0; x < r.packedW; x++)
+        {
+            r.packed[static_cast<size_t>(y) * static_cast<size_t>(r.packedW) + static_cast<size_t>(x)] = static_cast<unsigned char>(
+                detailIndexAt(r, (static_cast<float>(x) + 0.5f) / static_cast<float>(r.packedW), (static_cast<float>(y) + 0.5f) / static_cast<float>(r.packedH)));
+        }
+    }
+    return true;
+}
+
 // A player.mdl's bytes: Quake's ranger, his head taken (into `out`), or false. `detailed`: Quake VR's detailed one.
 [[nodiscard]] bool parse(const za::Vector<unsigned char>& file, Ranger& out, bool detailed)
 {
@@ -649,11 +804,16 @@ struct Tri
             {
                 continue;
             }
-            if(parse(file, ranger, detailed))
+            if(parse(file, ranger, detailed) && (!detailed || packDetailed(ranger)))
             {
                 q_strlcpy(ranger.path, where, sizeof(ranger.path));
                 Con_DPrintf("vr_body_ranger_head: the %shead of %s (%d triangles, %d vertices)\n", detailed ? "detailed " : "",
                     where, static_cast<int>(ranger.tris.size() / 3), static_cast<int>(ranger.pos.size()));
+                if(detailed)
+                {
+                    Con_DPrintf("vr_body_ranger_head: his %d islands in the body's head block, his skin laid out %d x %d\n",
+                        static_cast<int>(ranger.islands.size()), ranger.packedW, ranger.packedH);
+                }
                 return true;
             }
             Con_DPrintf("vr_body_ranger_head: %s is not %s, passed over\n", where, detailed ? "Quake VR's detailed ranger" : "Quake's ranger");
@@ -698,6 +858,10 @@ struct Tri
 // The palette index his skin has at the body's texture coordinates (u, v) in the painted region.
 [[nodiscard]] int fromBody(float u, float v)
 {
+    if(ranger.detailed)
+    {
+        return detailIndexAt(ranger, u, v);
+    }
     const int h = u >= (destU0 + destU1) * 0.5f ? 1 : 0;
     float u0;
     float u1;
@@ -1025,8 +1189,8 @@ extern "C" int VR_RangerHeadMesh(void* mod, const char* model, int mesh, const c
         auto* v = static_cast<iqmvert_t*>(*verts);
         for(size_t i = 0; i < ranger.pos.size(); i++)
         {
-            v[i].st[0] = ranger.src[i].x / static_cast<float>(ranger.skinW);
-            v[i].st[1] = ranger.src[i].y / static_cast<float>(ranger.skinH);
+            v[i].st[0] = ranger.st[i].x;
+            v[i].st[1] = ranger.st[i].y;
             for(int k = 0; k < 4; k++)
             {
                 v[i].weight[k] = k ? 0 : 255;
@@ -1231,12 +1395,13 @@ extern "C" int VR_RangerHeadMesh(void* mod, const char* model, int mesh, const c
 /*
 ===============
 VR_RangerHeadImage -- Image_LoadImage: an image just decoded. The body's skins (progs/vrbody_NN_00), their normal maps
-and skin masks get the ranger's head (vr_rangerhead.hpp) where the mesh draws it, once the body's mesh has taken it.
+and skin masks get the ranger's head (vr_rangerhead.hpp) where the mesh draws it, once the body's mesh has taken it. The
+detailed head's mesh has its own skin but reads the body's skin mask there (VR_AliasSkinMask: the entity's): his too.
 ===============
 */
 extern "C" void VR_RangerHeadImage(const char* name, unsigned char* data, int width, int height, int format)
 {
-    if(!data || format != SRC_RGBA || width < 8 || height < 8 || !ranger.looked || !ranger.on || !ranger.ok || ranger.detailed)
+    if(!data || format != SRC_RGBA || width < 8 || height < 8 || !ranger.looked || !ranger.on || !ranger.ok)
     {
         return;
     }
@@ -1351,8 +1516,7 @@ extern "C" char* VR_RangerHeadExtend(const char* name, const char* md5mesh)
     for(int i = 0; i < nv; i++)
     {
         q_snprintf(buf, sizeof(buf), "\tvert %d ( %.6f %.6f ) %d 1\n", i,
-            static_cast<double>(ranger.src[static_cast<size_t>(i)].x / static_cast<float>(ranger.skinW)),
-            static_cast<double>(ranger.src[static_cast<size_t>(i)].y / static_cast<float>(ranger.skinH)), i);
+            static_cast<double>(ranger.st[static_cast<size_t>(i)].x), static_cast<double>(ranger.st[static_cast<size_t>(i)].y), i);
         out += buf;
     }
     q_snprintf(buf, sizeof(buf), "\n\tnumtris %d\n", nt);
@@ -1383,19 +1547,19 @@ and every skin number (kept for the session, read again from his texels when the
 */
 extern "C" int VR_RangerHeadSkins(void* surfIn, const char* shader)
 {
-    if(!shader || q_strcasecmp(shader, detailShader) || !ranger.ok || !ranger.detailed || ranger.skin.empty())
+    if(!shader || q_strcasecmp(shader, detailShader) || !ranger.ok || !ranger.detailed || ranger.packed.empty())
     {
         return 0;
     }
     auto* surf = static_cast<aliashdr_t*>(surfIn);
-    constexpr const char* texName = "progs/vrrangerhead_00_00";
-    gltexture_t* tex = TexMgr_FindTexture(nullptr, texName);
+    gltexture_t* tex = TexMgr_FindTexture(nullptr, headTexName);
     if(!tex)
     {
-        byte* data = ranger.skin.data();
-        const int size = ranger.skinW * ranger.skinH;
+        // (his skin laid out as his texture coordinates on the body are: packDetailed)
+        byte* data = ranger.packed.data();
+        const int size = ranger.packedW * ranger.packedH;
         const unsigned flags = TEXPREF_PAD | TEXPREF_PERSIST | (Mod_CheckFullbrights(data, size) ? TEXPREF_ALPHABRIGHT : 0u);
-        tex = TexMgr_LoadImage(nullptr, texName, ranger.skinW, ranger.skinH, SRC_INDEXED, data, "", reinterpret_cast<src_offset_t>(data), flags);
+        tex = TexMgr_LoadImage(nullptr, headTexName, ranger.packedW, ranger.packedH, SRC_INDEXED, data, "", reinterpret_cast<src_offset_t>(data), flags);
     }
     for(int s = 0; s < MAX_SKINS; s++)
     {
@@ -1409,6 +1573,28 @@ extern "C" int VR_RangerHeadSkins(void* surfIn, const char* shader)
     surf->skinwidth = tex ? static_cast<int>(tex->width) : 1;
     surf->skinheight = tex ? static_cast<int>(tex->height) : 1;
     return 1;
+}
+
+/*
+===============
+VR_RangerHeadPaints -- R_PaintAliasWounds: whether a body's surface after its first is the detailed head's mesh (its
+wounds painted into the body's mask too: his texture coordinates are the body's head block's, packDetailed).
+===============
+*/
+extern "C" int VR_RangerHeadPaints(const void* surfIn)
+{
+    const auto* surf = static_cast<const aliashdr_t*>(surfIn);
+    const gltexture_t* tex = surf && surf->numskins > 0 ? surf->gltextures[0][0] : nullptr;
+    return tex && !strcmp(tex->name, headTexName) ? 1 : 0;
+}
+
+bool qvr::rangerhead::headBlock(float lo[2], float hi[2])
+{
+    lo[0] = paintU0;
+    lo[1] = paintV0;
+    hi[0] = paintU1;
+    hi[1] = paintV1;
+    return ranger.looked && ranger.on && ranger.ok;
 }
 
 bool qvr::rangerhead::hasOwnMesh(const char* modelName)
@@ -1452,7 +1638,7 @@ void qvr::rangerhead::check_f()
         }
         const bool own = last != hdr && last->numverts == static_cast<int>(ranger.pos.size()) && last->numindexes == static_cast<int>(ranger.tris.size());
         headMeshes += own ? 1 : 0;
-        skinned += own && last->gltextures[0][0] && !strcmp(last->gltextures[0][0]->name, "progs/vrrangerhead_00_00") ? 1 : 0;
+        skinned += own && last->gltextures[0][0] && !strcmp(last->gltextures[0][0]->name, headTexName) ? 1 : 0;
     }
     Con_Printf("rangerhead_check: %d bodies placed, %d with the detailed head's mesh, %d with his skin\n", bodies, headMeshes, skinned);
     if(wantDetailed)

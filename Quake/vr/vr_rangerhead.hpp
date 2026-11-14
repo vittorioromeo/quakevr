@@ -31,8 +31,12 @@ namespace qvr::rangerhead
 
 void init();   // the vr_body_head_* callbacks
 void info_f(); // vr_body_head_info: the option, the meshes placed, where his head and the neck's top are
-// Whether the model named so has the detailed head's mesh after its own (vr_wounds.cpp: its masks still the first's).
+// Whether the model named so has the detailed head's mesh after its own (vr_wounds.cpp: its masks still the first's; his
+// texture coordinates in the body's head block, his wounds painted there: VR_RangerHeadPaints).
 [[nodiscard]] bool hasOwnMesh(const char* modelName);
+// The body's head block (texture coordinates lo .. hi, u and v): the texels the ranger's head (either) is drawn with, its
+// wounds painted in, nothing else's. False when no ranger's head was taken (the placeholder's).
+[[nodiscard]] bool headBlock(float lo[2], float hi[2]);
 void check_f(); // vr_body_head_check <detailed | classic | off>: the bodies' head against the one expected (the tests)
 
 } // namespace qvr::rangerhead
