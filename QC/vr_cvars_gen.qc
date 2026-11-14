@@ -898,6 +898,8 @@ float cvarh_vr_enemy_aim_show;
 float cvarh_vr_enemy_aim_wide;
 float cvarh_vr_enemy_drops;
 float cvarh_vr_enemy_drops_chance_mult;
+float cvarh_vr_enemy_held_drops;
+float cvarh_vr_enemy_held_drops_linger;
 float cvarh_vr_enemy_liquid_damage;
 float cvarh_vr_enemy_melee_ag_reach;
 float cvarh_vr_enemy_melee_arc;
@@ -2985,6 +2987,8 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_enemy_aim_wide = VR_CVar_Make("vr_enemy_aim_wide");
     cvarh_vr_enemy_drops = VR_CVar_Make("vr_enemy_drops");
     cvarh_vr_enemy_drops_chance_mult = VR_CVar_Make("vr_enemy_drops_chance_mult");
+    cvarh_vr_enemy_held_drops = VR_CVar_Make("vr_enemy_held_drops");
+    cvarh_vr_enemy_held_drops_linger = VR_CVar_Make("vr_enemy_held_drops_linger");
     cvarh_vr_enemy_liquid_damage = VR_CVar_Make("vr_enemy_liquid_damage");
     cvarh_vr_enemy_melee_ag_reach = VR_CVar_Make("vr_enemy_melee_ag_reach");
     cvarh_vr_enemy_melee_arc = VR_CVar_Make("vr_enemy_melee_arc");

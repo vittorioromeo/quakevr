@@ -88,6 +88,7 @@ vr_bullettime_tap_blow_quiet|0|VR Settings - Weapons and Bullet Time|Quiet After
 @page|0|VR Settings - Gameplay||VR Settings > Gameplay
 vr_agrunt_repl|0|VR Settings - Gameplay|Replace All Humanoids|VR Settings > Gameplay > Replace All Humanoids
 vr_enemy_drops|0|VR Settings - Gameplay|Enemy Weapon Drops|VR Settings > Gameplay > Enemy Weapon Drops
+vr_enemy_held_drops|0|VR Settings - Gameplay|Dead Enemies' Weapons|VR Settings > Gameplay > Dead Enemies' Weapons
 vr_enemy_shove|0|VR Settings - Gameplay|Enemy Shoves|VR Settings > Gameplay > Enemy Shoves
 vr_enemy_melee_arc|0|VR Settings - Gameplay|Melee Arc|VR Settings > Gameplay > Melee Arc
 vr_knockdown|0|VR Settings - Gameplay|Knockdowns|VR Settings > Gameplay > Knockdowns
@@ -969,6 +970,8 @@ vr_sword_damage_mult|1|Weapon Damage|Knight's Sword|Advanced VR Options > Combat
 vr_gruntgun_damage|1|Weapon Damage|Grunt's Burst Rifle|Advanced VR Options > Combat > Weapon Damage > Grunt's Burst Rifle
 |1|Weapon Damage|Reset This Page|Advanced VR Options > Combat > Weapon Damage > Reset This Page
 @page|1|Enemy Weapons||Advanced VR Options > Combat > Enemy Weapons
+vr_enemy_held_drops|1|Enemy Weapons|Dead Enemies' Weapons|Advanced VR Options > Combat > Enemy Weapons > Dead Enemies' Weapons
+vr_enemy_held_drops_linger|1|Enemy Weapons|Scenery Weapons Fade After|Advanced VR Options > Combat > Enemy Weapons > Scenery Weapons Fade After
 vr_enemy_weapon_depleted_loot|1|Enemy Weapons|Spent Guns Stand Out|Advanced VR Options > Combat > Enemy Weapons > Spent Guns Stand Out
 vr_grunt_burst|1|Enemy Weapons|Burst Rifles|Advanced VR Options > Combat > Enemy Weapons > Burst Rifles
 vr_enemygun_spent_smoke|1|Enemy Weapons|Spent Smoke|Advanced VR Options > Combat > Enemy Weapons > Spent Smoke

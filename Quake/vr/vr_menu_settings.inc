@@ -220,6 +220,7 @@ int itemCollectionPageMode = -1; // the mode the page was built for (Backpacks T
         header("Enemies"),
         row(opt::vr_agrunt_repl),
         row(opt::vr_enemy_drops),
+        row(opt::vr_enemy_held_drops),
         row(opt::vr_enemy_shove),
         row(opt::vr_enemy_melee_arc),
         header("Hands On"),

@@ -311,11 +311,12 @@ void() VR_DropOgreChainsaw =
     at = trace_endpos + (from - trace_endpos) * 0.2 * (trace_fraction < 1);
     vector vel = v_forward * -15 - v_right * 20 + v_right * (crandom() * 15) + '0 0 60';
     float least = min(max(0, cvar_hget(cvarh_vr_chainsaw_drop_fuel_min)), VR_CHAINSAW_TANK); // Enemy Weapons: Fuel When Dropped
-    CreateThrownWeapon(self, WID_CHAINSAW, 0, WeaponInst_New(floor(least + random() * (VR_CHAINSAW_TANK - least))) /* its fuel */,
+    VR_EnemyHeld_Scenery(CreateThrownWeapon(self, WID_CHAINSAW, 0,
+        WeaponInst_New(floor(least + random() * (VR_CHAINSAW_TANK - least))) /* its fuel */,
         at, self.angles, vel, randomVec(40),
         FALSE /* disappear on hit */,
         FALSE /* deal damage */,
-        WeaponIdToThrowDamage(WID_CHAINSAW));
+        WeaponIdToThrowDamage(WID_CHAINSAW))); // (scenery at vr_enemy_held_drops 0)
 };
 
 // The chain's look on `e`, made of `m` (VR_MaterialOf, before the tick's damage: a gib may be gone after it), at `at`,
