@@ -17,6 +17,11 @@
 
 namespace qvr::view
 {
+namespace
+{
+int netModelIndex[2]{0, 0}; // netHands: each hand's weapon's model_precache index last found
+} // namespace
+
 void setGhost(int hand, qmodel_t* model, const glm::vec3& pos, const glm::vec3& rot, float alpha)
 {
     if(hand < 0 || hand > 1)
@@ -207,6 +212,68 @@ int handBonePoses(const entity_t* e, const float** matrices)
         }
     }
     return 0;
+}
+
+void netHands(VrDrawnHand out[2])
+{
+    // A model's model_precache index (the last one found per hand kept: a pointer test a frame).
+    const auto precacheIndex = [](int hand, const qmodel_t* model)
+    {
+        int& last = netModelIndex[hand];
+        if(last > 0 && last < MAX_MODELS && cl.model_precache[last] == model)
+        {
+            return last;
+        }
+        last = 0;
+        for(int i = 1; i < MAX_MODELS && cl.model_precache[i]; i++)
+        {
+            if(cl.model_precache[i] == model)
+            {
+                last = i;
+                break;
+            }
+        }
+        return last;
+    };
+    for(int hand = 0; hand < 2; hand++)
+    {
+        VrDrawnHand& h = out[hand];
+        h = VrDrawnHand{};
+        const ViewEntity& he = entities.hand[hand];
+        if(rigHands[hand].drawn && he.visible && he.ent.model)
+        {
+            h.flags |= VrDrawnHand::handBit | (he.mirrored ? VrDrawnHand::handMirrorBit : 0);
+            h.handOrigin = vec3Of(he.ent.origin);
+            h.handAngles = vec3Of(he.ent.angles);
+            for(int f = 0; f < VrDrawnHand::fingers; f++)
+            {
+                for(int j = 0; j < VrDrawnHand::joints; j++)
+                {
+                    h.curl[f][j] = rigHands[hand].pose.curl[f][j];
+                }
+            }
+            h.thumb = rigHands[hand].pose.metacarpal;
+        }
+        const ViewEntity& we = entities.weapon[hand];
+        if(we.visible && we.ent.model && !isHandModel(we.ent.model))
+        {
+            if(const int index = precacheIndex(hand, we.ent.model); index > 0)
+            {
+                h.flags |= VrDrawnHand::weaponBit | (we.mirrored ? VrDrawnHand::weaponMirrorBit : 0);
+                h.weaponModel = static_cast<za::U16>(index);
+                h.weaponFrame = static_cast<za::U8>(za::clamp(we.ent.frame, 0, 255));
+                h.weaponSkin = static_cast<za::U8>(za::clamp(we.ent.skinnum, 0, 255));
+                h.weaponOrigin = vec3Of(we.ent.origin);
+                h.weaponAngles = vec3Of(we.ent.angles);
+            }
+        }
+    }
+}
+
+qmodel_t* remoteHandSkin(int hand, const VrDrawnHand& h, float* out)
+{
+    qmodel_t* const model = viewModel(handrig::modelName());
+    return remoteRigSkin(model, hand, h, out) ? model : nullptr;
 }
 
 void ragdollHandProbe_f()

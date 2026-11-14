@@ -12,9 +12,11 @@ Tests:
              vr_net_cullposes 0 measured too; no packet down over 1408 B (reliable chunks at most 1200 B).
     version  a client of another Quake VR network version (-mpnetversion 1) is rejected with the reason; one of the
              same version joins.
-    avatar   B has A's avatar (QVR_SVC_AVATAR): head and hands within 2 units of the server's, the main hand's angles
-             within 3 degrees, his weapon; none of himself; the bytes it costs.
-    suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, version.
+    avatar   B has A's avatar (QVR_SVC_AVATAR): head and drawn hands within 2 units of the server's, the main hand's
+             angles within 3 degrees, his weapon; none of himself; A closes his off hand: its finger curls at B within a
+             step of the server's, closed; B draws A's jointed hands (and his weapon's model) where A drew them; the
+             bytes it costs and the avatars the server sent and skipped as unchanged.
+    suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, version, avatar.
 
 The base folder is a Quake folder with id1 (and hipnotic, rogue, quakevr: -game as the kit's runs). Its
 id1/autoexec.cfg runs in every game: --reset-autoexec empties it first (the kit's test bases: a run's script).
@@ -25,6 +27,7 @@ import argparse
 import os
 import re
 import sys
+import traceback
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -197,30 +200,113 @@ def angle_diff(a, b):
     return max(abs((x - y + 180.0) % 360.0 - 180.0) for x, y in zip(a, b))
 
 
+CURL_STEP = 1.0 / 16.0  # a finger joint's curl as sent: sixteenths of a frame (vr_move.cpp writeDrawnHand)
+CLOSED_CURL = 1.5       # A's off hand closed (the grip): its fingers' mean curl at B at least this (frames; open ~0)
+
+
+def reports(s, insts):
+    """vr_mp_avatars on each of `insts` at once -> per instance its lines from that report."""
+    marks = [i.mark() for i in insts]
+    for i in insts:
+        i.cmd("vr_mp_avatars")
+    out = []
+    for i, since in zip(insts, marks):
+        n, _ = i.wait(r"mp_avatars: done", 10, since, "%s's avatars" % i.name)
+        out.append(i.lines[since:n + 1])
+    return out
+
+
+def by_ent(lines, prefix):
+    return {int(avatar_fields(l)["ent"][0]): avatar_fields(l) for l in lines if l.startswith(prefix + ":")}
+
+
+def drawn_at(lines, ent):
+    """B's "mp_avatar_drawn:" lines for `ent` -> {(side, kind): (model, [x, y, z])}."""
+    out = {}
+    for l in lines:
+        m = re.match(r"mp_avatar_drawn: ent=(\d+) side=(\d) kind=(\w+) model=(\S+) mirrored=\d at=([-\d. ]+)", l.strip())
+        if m and int(m.group(1)) == ent:
+            out[(int(m.group(2)), m.group(3))] = (m.group(4), [float(x) for x in m.group(5).split()])
+    return out
+
+
 def avatar(s):
-    """B has A's avatar (QVR_SVC_AVATAR): his head and both hands within 2 units of where the server has them from A's
-    moves, the main hand's angles within 3 degrees, his weapon; B gets no avatar of himself; the bytes it costs."""
+    """B has A's avatar (QVR_SVC_AVATAR): his head and both drawn hands within 2 units of where the server has them from
+    A's moves, the main hand's angles within 3 degrees, his weapon; B gets no avatar of himself. A closes his off hand:
+    B gets its fingers' curls within a step of the server's, closed. B draws A's jointed hands and his weapon's model where
+    A drew them (within 2 units of A's own). The bytes it costs, idle (an unchanged avatar every vr_net_avatar_keyframe
+    frames) and the server's counts."""
     srv, a, b, ea, eb = join(s)
     b.quiet(r"mp_(move|pos): ", 0.5, 20, "both at rest")
-    since_s, since_b = srv.mark(), b.mark()
-    srv.cmd("vr_mp_avatars")
-    b.cmd("vr_mp_avatars")
-    srv.wait(r"mp_avatars: done", 10, since_s, "the server's avatars")
-    b.wait(r"mp_avatars: done", 10, since_b, "B's avatars")
-    sv = {int(avatar_fields(l)["ent"][0]): avatar_fields(l) for l in srv.lines[since_s:] if l.startswith("mp_avatar_sv:")}
-    got = {int(avatar_fields(l)["ent"][0]): avatar_fields(l) for l in b.lines[since_b:] if l.startswith("mp_avatar:")}
+    # A closes his off hand (the mock's grip): his fingers curl, eased in over vr_hand_fit_blend; B's copy is read until
+    # they are closed (a definite end: at most 20 reports).
+    # (and the shotgun, WID_SHOTGUN 4, into his main hand: the test give, impulse 150 + 4)
+    a.cmd("vr_mock_button off grip 1; impulse 154")
+    got = sv = own = None
+    lines_b = []
+    for _ in range(20):
+        lines_s, lines_b, lines_a = reports(s, [srv, b, a])
+        sv, got, own = by_ent(lines_s, "mp_avatar_sv"), by_ent(lines_b, "mp_avatar"), by_ent(lines_a, "mp_avatar_own")
+        if ea in got and sum(got[ea]["curl0"][:15]) / 15.0 >= CLOSED_CURL and ea in sv and ea in own and \
+                own[ea]["wmdl"][1] > 0 and got[ea]["wmdl"][1] > 0 and \
+                max(abs(x - y) for x, y in zip(got[ea]["curl0"], sv[ea]["curl0"])) <= CURL_STEP + 1e-4:
+            break
     s.check("B has A's avatar", ea in got, "B has %s; the server %s" % (sorted(got), sorted(sv)))
     s.check("B has no avatar of himself", eb not in got)
     if ea not in got or ea not in sv:
         return
     mine, theirs = got[ea], sv[ea]
+    for l in lines_b:
+        if l.startswith("mp_avatar"):
+            s.note("B: " + l.strip())
     worst = max(max(abs(x - y) for x, y in zip(mine[k], theirs[k])) for k in ("head", "hand0", "hand1"))
     s.metric("avatar_worst_units", worst)
-    s.check("A's head and hands at B within %g units of the server's" % AVATAR_UNITS, worst <= AVATAR_UNITS,
+    s.check("A's head and drawn hands at B within %g units of the server's" % AVATAR_UNITS, worst <= AVATAR_UNITS,
             "worst %.2f; B: hand1 %s, server: hand1 %s" % (worst, mine["hand1"], theirs["hand1"]))
     turn = angle_diff(mine["rot1"], theirs["rot1"])
     s.check("A's main hand's angles at B within %g degrees" % AVATAR_DEGREES, turn <= AVATAR_DEGREES, "%.2f" % turn)
     s.check("A's weapon at B", mine["wpn"][0] == theirs["wpn"][0], "%d (server %d)" % (mine["wpn"][0], theirs["wpn"][0]))
+    off = max(abs(x - y) for k in ("curl0", "curl1") for x, y in zip(mine[k], theirs[k]))
+    s.metric("avatar_curl_worst", off)
+    s.check("A's finger curls at B within a step (%g) of the server's" % CURL_STEP, off <= CURL_STEP + 1e-4,
+            "worst %.4f; B: curl0 %s" % (off, mine["curl0"][:15]))
+    closed = sum(mine["curl0"][:15]) / 15.0
+    s.metric("avatar_offhand_closed_curl", closed)
+    s.check("A's off hand closed at B (mean curl at least %g frames)" % CLOSED_CURL, closed >= CLOSED_CURL, "%.2f" % closed)
+
+    # B draws them: the jointed hands and the main hand's weapon (its model the one A drew) where A drew them.
+    mine_own = own.get(ea)
+    d = drawn_at(lines_b, ea)
+    s.check("B draws A's two jointed hands", (0, "hand") in d and (1, "hand") in d, "drawn: %s" % sorted(d))
+    if mine_own and (1, "hand") in d:
+        gap = max(abs(x - y) for x, y in zip(d[(1, "hand")][1], mine_own["hand1"]))
+        s.metric("avatar_drawn_hand_gap", gap)
+        s.check("A's main hand drawn at B within %g units of where A drew it" % AVATAR_UNITS, gap <= AVATAR_UNITS,
+                "%.2f" % gap)
+    has_weapon = mine_own is not None and int(mine_own["wmdl"][1]) > 0
+    if not has_weapon:
+        # (MP_PLAN.md, B2b open items: the test give, impulse 154, puts nothing in a coop client's hand on a dedicated
+        # server yet; the weapon checks wait for it)
+        s.note("SKIP the weapon drawn at B: A's main hand holds no weapon (%s)" % (mine_own.get("wmdl") if mine_own else None))
+    else:
+        s.check("B draws A's weapon in his main hand", (1, "weapon") in d and int(mine["wmdl"][1]) == int(mine_own["wmdl"][1]),
+                "drawn: %s; B's model index %d, A's %d" % (d.get((1, "weapon")), mine["wmdl"][1], mine_own["wmdl"][1]))
+        if (1, "weapon") in d:
+            gap = max(abs(x - y) for x, y in zip(d[(1, "weapon")][1], mine_own["weapon1"]))
+            s.metric("avatar_drawn_weapon_gap", gap)
+            s.check("A's weapon drawn at B within %g units of where A drew it" % AVATAR_UNITS, gap <= AVATAR_UNITS,
+                    "%.2f (%s)" % (gap, d[(1, "weapon")][0]))
+    for l in lines_s:
+        if l.startswith("mp_avatar_sent:"):
+            s.note("server: " + l.strip())
+    if not has_weapon:
+        since = srv.mark()
+        srv.cmd("vr_dumpplayer %d; echo mp_dump_done" % (ea - 1))
+        srv.wait(r"mp_dump_done", 10, since)
+        for l in srv.lines[since:]:
+            if "weapon" in l or "vr_dumpplayer" in l:
+                s.note("server: " + l.strip())
+
     start = b.proxy.wait_packets("down", 72, 20)
     end = b.proxy.wait_packets("down", IDLE_PACKETS, 60) if start else None
     if end:
@@ -243,6 +329,9 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             coop(s, args.listen, args.flat or "", lag, jitter, loss)
     except StepFailed as e:
         failure = e
+    except Exception as e:  # (a scenario's own bug: its games still stopped, the verdict still printed)
+        traceback.print_exc()
+        failure = StepFailed("the scenario failed: %r" % e)
     return s.finish(failure)
 
 

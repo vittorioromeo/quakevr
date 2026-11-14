@@ -6,6 +6,7 @@
 
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
+#include "vr_move.hpp"
 #include "vr_pouchitems.hpp"
 #include "vr_weapons.hpp"
 
@@ -445,6 +446,13 @@ void woundTargets(entity_t* out[3]);
 
 // The jointed hand (vr_handrig.cpp): the skinning matrices of `e` if it is a drawn hand rig (their count, else 0).
 [[nodiscard]] int handBonePoses(const entity_t* e, const float** matrices);
+
+// Multiplayer (MP_PLAN.md, B2b): the hands and held weapons as drawn last ([0] off, [1] main), for the move (the other
+// players draw them: vr_mpavatar.cpp). A weapon whose model the server has not precached is left out (others can't name it).
+void netHands(VrDrawnHand out[2]);
+// Another player's jointed hand `h` (his hand `hand`: its fingers' places as your settings put them): posed and skinned
+// into `out` (handrig::skin's matrices). The rig's model, or nullptr: no jointed hand to draw.
+qmodel_t* remoteHandSkin(int hand, const VrDrawnHand& h, float* out);
 // The armour's plates on your body (vr_player_plates; vr_view_body.cpp setupPlates): `e`'s bones if it is one of their
 // entities (0: not), the body's as this pass draws them, a hidden piece's collapsed, the helmet only where the head is
 // drawn (View: as VR_AliasBonePoses has the body; Shadow: as the shadow maps have it; Clone: its mirror image, with its head).

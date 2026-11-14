@@ -28,6 +28,7 @@
 #include "vr_ragdoll.hpp"
 #include "vr_seated.hpp"
 #include "vr_view.hpp"
+#include "vr_mpavatar.hpp"
 
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -2183,6 +2184,10 @@ extern "C" int VR_AliasBonePoses(const entity_t* e, const float** matrices)
     if(const int hand = qvr::view::handBonePoses(e, matrices))
     {
         return hand; // the jointed hands (vr_handrig.cpp)
+    }
+    if(const int remote = qvr::mpavatar::bonePoses(e, matrices))
+    {
+        return remote; // another player's jointed hand, posed as his client drew it (vr_mpavatar.cpp)
     }
     if(const int ragdollBones = qvr::ragdoll::bonePoses(e, matrices))
     {

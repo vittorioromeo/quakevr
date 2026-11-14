@@ -1128,6 +1128,12 @@ za::Vector<Item> pageDebugReports()
         command("Network: Player Avatars", "vr_mp_avatars")
             .help("vr_mp_avatars: the other players' heads, hands and weapons as this client has them (QVR_SVC_AVATAR) and, "
                   "hosting, as the server has them from their moves."),
+        toggle("Network: Draw Player Hands", vr_mp_avatar_draw)
+            .help("vr_mp_avatar_draw: the other players' hands (their fingers too) and held weapons drawn where their own "
+                  "games drew them; off: not drawn."),
+        slider("Network: Avatar Keyframe", vr_net_avatar_keyframe, 1.f, 72.f, 1.f, "%.0f frames")
+            .help("vr_net_avatar_keyframe: hosting, a player's hands unchanged since they were last sent go again only every "
+                  "this many frames (1: every frame). What a lost packet or a player just come into sight waits at most."),
         toggle("Network: Cull Poses", vr_net_cullposes)
             .help("vr_net_cullposes: hosting, a remote player gets the armed humanoids' arm poses only of those he can see (on: "
                   "about 1.2 KB less in each of his datagrams on e1m1); off: every pose to every player, as before."),

@@ -954,6 +954,7 @@ void V_SetupView (void) // QVR
 	//johnfitz -- removed lcd code
 
 	VR_SetupViewEntities (); // QVR
+	VR_AddMpAvatars (); // QVR: the other players' hands and weapons, as their clients drew them
 }
 
 void V_RenderView (void)

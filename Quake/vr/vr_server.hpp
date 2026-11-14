@@ -29,6 +29,9 @@ void rebaseHands(struct edict_s* player);
 // Forgets every client's VR move (a new server).
 void resetClients();
 
+// The avatars (QVR_SVC_AVATAR) this server has sent, those left unsent as unchanged (vr_net_avatar_keyframe), their bytes.
+void avatarCounts(int& sent, int& skipped, long long& bytes);
+
 // Head angles of `player`'s latest move, as a vec3_t (nullptr without one).
 [[nodiscard]] float* clientHeadAngles(struct edict_s* player);
 

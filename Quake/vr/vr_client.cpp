@@ -543,6 +543,12 @@ void poseMove(VrMove& move)
     {
         handMove(move, hs, h);
     }
+    // The hands and weapons as drawn (last frame's view): the other players draw them so (MP_PLAN.md, B2b). Multiplayer only
+    // (the server passes them on to nobody in single player: 2 bytes).
+    if(cl.maxclients > 1)
+    {
+        view::netHands(move.drawn);
+    }
 
     move.headVel = hs.headVel;
     // The ammo pouch's rounds as placed last frame (pouch reloading; all zero: no pouch). It goes with the body, not the
@@ -961,6 +967,7 @@ extern "C" void VR_OnClientClearState()
     rigseq::clientClear(); // (the sequences drawn: the server tells the new map's)
     entityData.clear();
     lateBrushModels.clear();
+    mpavatar::clear(); // (the other players' avatars: the new server's come)
     particles::clear();
     decals::clear();
     worldtext::clientReset();

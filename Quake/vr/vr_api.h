@@ -51,7 +51,7 @@ int VR_NoLiquidEffects(struct qmodel_s* model, const float* point);
 // Quake VR's network version, sent after NetQuake's in the connect request ("QVR", then this long; net_dgrm.c): a
 // server whose protocol is the VR one rejects a client without it or with another, with the reason (MP_PLAN.md, B2).
 // Raise it with any change to what client and server send each other.
-#define QVR_NET_VERSION				2
+#define QVR_NET_VERSION				3
 #define SOLID_NOT_BUT_TOUCHABLE		5		// Quake VR: not solid, but can be (hand) touched
 
 // Host lifetime and pacing (host.c, main_sdl.c, gl_screen.c).
@@ -571,6 +571,7 @@ int VR_EntityTrail (int ent, int type);											// CL_RocketTrail: rockets, la
 
 // Client view (view.c): runs on the main thread, before the renderer.
 void VR_SetupViewEntities (void);						// V_RenderView, before R_RenderView
+void VR_AddMpAvatars (void);							// V_RenderView, after VR_SetupViewEntities: the other players' hands and weapons (vr_mpavatar.cpp)
 int VR_BloodActive (void); // peripheral feedback; independent of screen tints
 void VR_BloodBind (void); // uniforms 2..4 in viewblend/warpscale
 void VR_OnDamage (int armor, int blood, const float *from);	// V_ParseDamage: a hit knocks the drawn hands, the controllers buzz (vr_painknock.cpp)

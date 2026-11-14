@@ -11,6 +11,7 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_geom.hpp"
 #include "vr_render.hpp"
+#include "vr_mpavatar.hpp"
 #include "vr_engine.hpp"
 #include "vr_agarmor.hpp"
 #include "vr_anchor.hpp"
@@ -233,7 +234,7 @@ void entityMatrix(const entity_t& e, bool mirrored, int scale, const glm::vec3& 
 extern "C" int VR_AliasMirrored(const entity_t* e)
 {
     const view::ViewEntity* ve = view::find(e);
-    return ve && ve->mirrored;
+    return ve ? ve->mirrored : mpavatar::mirrored(e); // (or another player's hand or weapon: vr_mpavatar.cpp)
 }
 
 extern "C" int VR_AliasTwoSided(const entity_t* e)

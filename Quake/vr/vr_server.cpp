@@ -35,6 +35,8 @@
 #include "vr_worldtext.hpp"
 
 #include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Container/InPlaceVector.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -69,6 +71,22 @@ struct ClientMove
     glm::vec3 base{0.f}; // the player origin the hand fields are placed from (see rebaseHands)
 };
 za::Vector<ClientMove> clientMoves;
+
+// Per client slot: its avatar as last sent (writeAvatars: an unchanged one waits for its keyframe); and the counts.
+constexpr int avatarMaxBytes = 160; // (2 + 2 + 1 + 12 + 2 * 47 + 8 = 119 at most)
+struct AvatarSent
+{
+    byte bytes[avatarMaxBytes]{};
+    int size{0};
+    int unsent{0}; // frames since it was last sent
+};
+za::Vector<AvatarSent> avatarsSent;
+struct AvatarStats
+{
+    int sent{0}, skipped{0};
+    long long bytes{0};
+};
+AvatarStats avatarStats;
 
 [[nodiscard]] ClientMove* clientMoveOf(edict_t* player)
 {
@@ -878,6 +896,10 @@ extern "C" void VR_ClientReset(client_t* client)
     {
         clientMoves[clientNum] = {};
     }
+    if(clientNum >= 0 && clientNum < static_cast<int>(avatarsSent.size()))
+    {
+        avatarsSent[clientNum] = {};
+    }
 }
 
 extern "C" void VR_ReadMoveExtras(client_t* client)
@@ -1370,6 +1392,9 @@ extern "C" void VR_WriteRecentPrecaches(sizebuf_t* msg)
 namespace
 {
 
+// The avatar as last sent per client slot (writeAvatars: an unchanged one waits for its keyframe), and the counts
+// (vr_mp_avatars: sent, skipped as unchanged, bytes): avatarsSent, avatarStats (above).
+
 // A short of `v` in eighths of a unit, clamped (an avatar's offsets from the player's origin: +-4095 units).
 void writeEighths(sizebuf_t* msg, const glm::vec3& v)
 {
@@ -1405,26 +1430,51 @@ void writeAvatars()
         {
             continue;
         }
+        // Written here first: unchanged since the last sent (an idle player), it goes only every vr_net_avatar_keyframe
+        // frames (what a lost one or a player just come into sight waits at most).
+        byte data[avatarMaxBytes];
+        sizebuf_t tmp{};
+        tmp.data = data;
+        tmp.maxsize = avatarMaxBytes;
+        // (offsets from the origin his client placed them from: the hands as drawn on his body, wherever the server has it)
+        const glm::vec3 origin = m.move.origin;
+        MSG_WriteByte(&tmp, svc_quakevr);
+        MSG_WriteByte(&tmp, QVR_SVC_AVATAR);
+        MSG_WriteShort(&tmp, i + 1);
+        MSG_WriteByte(&tmp, (m.move.vrBits0 & protocol::moveFlatplayBit) ? 1 : 0);
+        writeEighths(&tmp, m.move.headPos - m.base); // (rebaseHands moves the head and its base along together)
+        writeAngles16(&tmp, m.move.headAngles);
+        for(const VrDrawnHand& h : m.move.drawn)
+        {
+            writeDrawnHand(&tmp, h, origin);
+        }
+        MSG_WriteLong(&tmp, static_cast<int>(c.edict->v.weapon));
+        MSG_WriteLong(&tmp, static_cast<int>(fieldFloatOr(c.edict, f.weapon2, 0.f)));
+
+        if(static_cast<int>(avatarsSent.size()) < svs.maxclients)
+        {
+            avatarsSent.resize(svs.maxclients);
+        }
+        AvatarSent& last = avatarsSent[i];
+        const int keyframe = za::max(static_cast<int>(vr_net_avatar_keyframe.value), 1);
+        const bool same = last.size == tmp.cursize && ZA_MEMCMP(last.bytes, data, static_cast<size_t>(tmp.cursize)) == 0;
+        if(same && ++last.unsent < keyframe)
+        {
+            avatarStats.skipped++;
+            continue;
+        }
         sizebuf_t* msg = qvr::server::scopedBegin(i + 1, true);
         if(!msg)
         {
             continue;
         }
-        const glm::vec3 origin{c.edict->v.origin[0], c.edict->v.origin[1], c.edict->v.origin[2]};
-        MSG_WriteByte(msg, svc_quakevr);
-        MSG_WriteByte(msg, QVR_SVC_AVATAR);
-        MSG_WriteShort(msg, i + 1);
-        MSG_WriteByte(msg, (m.move.vrBits0 & protocol::moveFlatplayBit) ? 1 : 0);
-        writeEighths(msg, m.move.headPos - origin);
-        writeAngles16(msg, m.move.headAngles);
-        for(const VrHandMove& h : m.move.hands)
-        {
-            writeEighths(msg, h.pos - origin);
-            writeAngles16(msg, h.rot);
-        }
-        MSG_WriteLong(msg, static_cast<int>(c.edict->v.weapon));
-        MSG_WriteLong(msg, static_cast<int>(fieldFloatOr(c.edict, f.weapon2, 0.f)));
+        SZ_Write(msg, data, tmp.cursize);
         qvr::server::scopedEnd();
+        ZA_MEMCPY(last.bytes, data, static_cast<size_t>(tmp.cursize));
+        last.size = tmp.cursize;
+        last.unsent = 0;
+        avatarStats.sent++;
+        avatarStats.bytes += tmp.cursize;
     }
 }
 
@@ -1523,6 +1573,14 @@ void dumpPlayer_f()
 void resetClients()
 {
     clientMoves.clear();
+    avatarsSent.clear();
+}
+
+void avatarCounts(int& sent, int& skipped, long long& bytes)
+{
+    sent = avatarStats.sent;
+    skipped = avatarStats.skipped;
+    bytes = avatarStats.bytes;
 }
 
 const VrMove* clientMove(edict_t* player)

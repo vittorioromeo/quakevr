@@ -926,7 +926,36 @@ struct PosedSpheresCache
     auto members() { return mem::list(memos); }
 };
 mem::Cache<PosedSpheresCache> posedSpheresMemo{"view posed spheres", mem::GameDirChange | mem::ModelReload};
+
+// remoteRigSkin's pose (another player's hand: no state kept between hands, only the scratch).
+struct RemoteRig
+{
+    handrig::Pose pose;
+    handrig::Posed posed;
+};
+RemoteRig remoteRig;
 } // namespace
+
+bool remoteRigSkin(qmodel_t* model, int hand, const VrDrawnHand& h, float* out)
+{
+    if(!(h.flags & VrDrawnHand::handBit) || !handrig::usable(model))
+    {
+        return false;
+    }
+    handrig::Pose& pose = remoteRig.pose;
+    rigShifts(model, hand, pose);
+    for(int f = 0; f < VrDrawnHand::fingers; f++)
+    {
+        for(int j = 0; j < VrDrawnHand::joints; j++)
+        {
+            pose.curl[f][j] = h.curl[f][j];
+        }
+    }
+    pose.metacarpal = h.thumb;
+    handrig::pose(pose, remoteRig.posed);
+    handrig::skin(remoteRig.posed, out);
+    return true;
+}
 
 // The empty hand at the controller's pose (setupHand's: turned by the fist's angle offsets), open (`fist` false) or closed
 // as a full press of the grip, trigger and thumb draws it (every finger curled), as the grasp's spheres, in the hand's
