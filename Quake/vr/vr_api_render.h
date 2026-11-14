@@ -51,6 +51,9 @@ int VR_DebugGLState (void);							// GL_BindNative, SCR_UpdateScreen: nonzero to
 unsigned VR_PostProcessTarget (void);					// GL_PostProcess output framebuffer (0 = window)
 void VR_OverrideProjection (float matrix[16]);			// R_SetFrustum: the eye's asymmetric projection
 void VR_GLProbeUpload (const char *what, unsigned buffer, size_t offset, const void *data, size_t size); // vr_gl_probe: the upload read back, compared
+void VR_GLProbeBuffer (const char *what, unsigned buffer, size_t offset, size_t size); // vr_gl_probe: a GPU-written buffer read back
+void VR_GLProbeState (const char *where);				// vr_gl_probe: the GL state at a draw, its program validated
+void VR_GLProbeSceneEnd (void);						// R_RenderScene, its last draw: vr_gl_probe 3's red where nothing drew
 void VR_DrawHiddenArea (void);						// R_RenderScene, after R_Clear: the lenses' hidden area at the near plane (vr_visibility_mask)
 // Single-pass stereo (vr_stereo_single.cpp, docs/vr-port/STEREO.md).
 int VR_StereoSinglePhase (void);						// 1 the multiview pass (both eyes), 2 an eye's own view after it, 0 neither

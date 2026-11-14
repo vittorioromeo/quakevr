@@ -2389,7 +2389,8 @@ QVR_CVAR(vr_flat_taa, "0", CVAR_ARCHIVE)               // flat-screen temporal a
 QVR_CVAR(vr_taa, "0", CVAR_ARCHIVE)                    // 1: temporal anti-aliasing (replaces MSAA in the eyes)
 QVR_CVAR(vr_taa_sharpen, "0.3", CVAR_ARCHIVE)          // sharpening after the resolve (0 off; 1 strong)
 QVR_CVAR(vr_temporal_debug, "0", CVAR_NONE)            // 1: the motion vectors in the eyes; 2: the reactive mask and rejected history; 3: the reprojection test (vr_temporal_error)
-QVR_CVAR(vr_gl_probe, "0", CVAR_NONE)               // 1: the next frame's eye framebuffers by numbers (completeness, the share not black at each stage: tonemap::glProbe), then 0
+QVR_CVAR(vr_gl_probe_fix, "0", CVAR_NONE)           // the probe's bisection on the world's bound-path draws (tonemap::probeState): 1 clip distances off, 2 culling off (the cache's GL_SetState not told)
+QVR_CVAR(vr_gl_probe, "0", CVAR_NONE)               // 1: the next frame's eye framebuffers by numbers (completeness, the share not black at each stage: tonemap::glProbe), then 0; 2/3 also paint blue under the scene / red where nothing drew (glProbeDraw)
 QVR_CVAR(vr_eyeshot, "0", CVAR_NONE)                // 1: save the next frame's eye images to <gamedir>/eyeshots (2: also the float scene, .pfm; 3: with the UI, as the headset shows it)
 // Liquids (vr_water.cpp): 0 everywhere is Quake's look.
 QVR_CVAR(vr_map_liquid_alpha, "0", CVAR_ARCHIVE)      // a map's own wateralpha, lavaalpha, slimealpha, telealpha (its worldspawn keys) win over r_wateralpha and the others (Ironwail's rule); 0: your settings always

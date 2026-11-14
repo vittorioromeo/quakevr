@@ -123,6 +123,11 @@ static void R_MarkVisSurfaces (byte* vis)
 	GL_MemoryBarrierFunc (GL_COMMAND_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT | GL_ELEMENT_ARRAY_BARRIER_BIT);
 	GL_EndGroup (); // QVR
 
+	VR_GLProbeBuffer ("world indirect commands", gl_bmodel_indirect_buffer, 0, // QVR: vr_gl_probe (Debug > Startup)
+		q_min ((size_t)cl.worldmodel->texofs[TEXTYPE_COUNT], (size_t)64) * sizeof(bmodel_draw_indirect_t));
+	VR_GLProbeBuffer ("world indices", gl_bmodel_ibo, 0, q_min (gl_bmodel_ibo_size, (size_t)262144));
+	VR_GLProbeBuffer ("world vertices", gl_bmodel_vbo, 0, q_min (gl_bmodel_vbo_size, (size_t)4096));
+
 	GL_EndGroup ();
 }
 
@@ -571,6 +576,7 @@ static void R_DrawBModelCallsArrays (GLuint twin, qboolean depthonly, GLuint cmd
 			GL_Uniform1iFunc (0, -1);
 			GL_BindBuffer (GL_ELEMENT_ARRAY_BUFFER, bmodel_merge.idxbuf);
 			GL_BindBuffer (GL_DRAW_INDIRECT_BUFFER, bmodel_merge.grpbuf);
+			VR_GLProbeState ("a world arrays group"); // QVR: vr_gl_probe (Debug > Startup)
 			GL_DrawElementsIndirectFunc (GL_TRIANGLES, GL_UNSIGNED_INT, (const byte *)(bmodel_merge.grpofs + g * sizeof (bmodel_draw_indirect_t)));
 			many++;
 		}
@@ -656,6 +662,7 @@ static void R_FlushBModelCalls (void)
 			GL_BindTextures (0, 2, bmodel_calls.bound.textures[i]);
 			GL_Bind (GL_TEXTURE3, bmodel_calls.bound.textures[i][2]); // QVR: the normal map
 			GL_Bind (GL_TEXTURE11, bmodel_calls.bound.textures[i][3]); // QVR: the specular map (SpecTex)
+			VR_GLProbeState ("a world call"); // QVR: vr_gl_probe (Debug > Startup)
 			GL_DrawElementsIndirectFunc (GL_TRIANGLES, GL_UNSIGNED_INT, (const byte *)(dstcmdofs + i * sizeof (bmodel_draw_indirect_t)));
 		}
 		if (twin) // QVR
@@ -1136,6 +1143,7 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 
 	GL_Upload (GL_SHADER_STORAGE_BUFFER, bmodel_instances, sizeof(bmodel_instances[0]) * totalinst, &buf, &ofs);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 2, buf, (GLintptr)ofs, sizeof(bmodel_instances[0]) * totalinst);
+	VR_GLProbeUpload ("world instances", buf, (size_t)ofs, bmodel_instances, sizeof(bmodel_instances[0]) * totalinst); // QVR: vr_gl_probe
 	VR_TracyEnd (); // QVR
 
 	// QVR: the opaque world and brush models' depth first (the same draws, depth only), so that their costly shading

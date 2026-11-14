@@ -1265,6 +1265,7 @@ extern "C" void VR_DrawHiddenArea()
     if(stereo::renderingEye && !stereo::spectatorView) // no lenses in front of the spectator camera
     {
         stereo::drawHiddenArea();
+        tonemap::glProbeDraw(false); // vr_gl_probe 2: blue under the scene
         foveated::beginScene(stereo::currentEye, vid.width, vid.height); // vr_foveated, until the scene ends
     }
 }

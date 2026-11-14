@@ -2370,6 +2370,8 @@ void R_RenderScene (void)
 	R_ShowSkeletons ();
 
 	R_ShowPointFile ();
+
+	VR_GLProbeSceneEnd (); // QVR: vr_gl_probe 3 (Debug > Startup)
 }
 
 /*

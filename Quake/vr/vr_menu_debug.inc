@@ -850,6 +850,12 @@ za::Vector<Item> pageDebugProfiling()
         command("Eye Framebuffers Probe", "vr_gl_probe 1")
             .help("vr_gl_probe 1: the next frame's eye framebuffers by numbers (complete or not, the share of pixels "
                   "not black after the scene, the post-process and the UI) and a clear-and-read self-test; to the console."),
+        command("Eye Probe: Blue Under the Scene", "vr_gl_probe 2")
+            .help("vr_gl_probe 2: the probe, with the eye painted blue after its clear (no depth test): blue left after "
+                  "the scene means its fragments were rejected, black means they wrote 0."),
+        command("Eye Probe: Red Where Nothing Drew", "vr_gl_probe 3")
+            .help("vr_gl_probe 3: the probe, with red painted after the scene where the depth still holds the clear's "
+                  "value (nothing drew there)."),
         command("Android: Export Eye Images", "vr_android_export eyeshots")
             .help("vr_android_export eyeshots: the eye images (vr_eyeshot) copied into the app's internal export/ "
                   "folder, which a debuggable APK's `adb shell run-as` reads (Android only)."),
