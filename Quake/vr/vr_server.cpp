@@ -92,6 +92,9 @@ za::Vector<ClientMove> clientMoves;
     return &svs.clients[client].message;
 }
 
+// The move's teleport bit (vr_client.cpp's VRBITS0_TELEPORTING: the spot in VrMove::teleportTarget).
+constexpr int vrBitsTeleporting = 1 << 0;
+
 // vrbits0 pairs a "current" bit with the "previous" bit just above it.
 constexpr int currentBitsMask = (1 << 1) | (1 << 3) | (1 << 6) | (1 << 8) | (1 << 10) | (1 << 12);
 
@@ -783,7 +786,19 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     {
         clientMoves.resize(clientNum + 1);
     }
-    clientMoves[clientNum] = {true, move, move.origin};
+    // A teleport asked in an earlier move of this server frame is kept with its spot: VR_ClientTeleport reads the stored
+    // move once a frame, and a later move of the same frame without the bit overwrote it (the teleport lost: two moves
+    // in a frame, a headset faster than the tick or a remote client's packets bunched; mp_teleport).
+    VrMove kept = move;
+    if(const ClientMove& prev = clientMoves[clientNum]; prev.valid && clientNum < static_cast<int>(clientBits.size()) &&
+                                                       clientBits[clientNum].moves > 1 &&
+                                                       (prev.move.vrBits0 & vrBitsTeleporting) &&
+                                                       !(move.vrBits0 & vrBitsTeleporting))
+    {
+        kept.vrBits0 |= vrBitsTeleporting;
+        kept.teleportTarget = prev.move.teleportTarget;
+    }
+    clientMoves[clientNum] = {true, kept, move.origin};
 
     const FieldOffsets& f = fields();
 
@@ -1281,10 +1296,23 @@ extern "C" void VR_ServerFrameEnd()
         return;
     }
 
-    // This frame's VR bits become next frame's "previous" bits.
-    for(ClientBits& bits : clientBits)
+    // This frame's VR bits become next frame's "previous" bits. The player's own .vrbits0 too: a frame with no move from
+    // his client (a dedicated server's frame between two of his moves, bunched moves) keeps it as it was, and an edge
+    // (a grip pressed or let go) was seen again every such frame (a let-go noted twice: QC's grip times moved on).
+    const int vrbitsOfs = fields().vrbits0;
+    for(size_t i = 0; i < clientBits.size(); i++)
     {
+        ClientBits& bits = clientBits[i];
         bits.previousFrame = bits.received;
+        // (a bot has no connection and no moves: its own QC sets its bits)
+        const bool mover = static_cast<int>(i) < svs.maxclients && svs.clients[i].active && svs.clients[i].netconnection;
+        edict_t* const ent = mover ? svs.clients[i].edict : nullptr;
+        if(ent && vrbitsOfs >= 0)
+        {
+            const int now = static_cast<int>(fieldFloatOr(ent, vrbitsOfs, 0.f));
+            setFieldFloat(ent, vrbitsOfs, static_cast<float>(
+                (now & ~(currentBitsMask << 1)) | ((bits.received & currentBitsMask) << 1)));
+        }
     }
 
     // Late precaches (setmodel on an unprecached model, precache_* after load).
