@@ -138,9 +138,15 @@ def main():
     ap.add_argument("--loss", type=float, default=0.0, help="client B's game packet loss, 0..1, each way")
     ap.add_argument("--reset-autoexec", action="store_true", help="empty <base>/id1/autoexec.cfg first")
     args = ap.parse_args()
+    autoexec = os.path.join(args.base, "id1", "autoexec.cfg")
     if args.reset_autoexec:
-        with open(os.path.join(args.base, "id1", "autoexec.cfg"), "w", encoding="ascii") as f:
+        with open(autoexec, "w", encoding="ascii") as f:
             f.write("// emptied by mp_test.py --reset-autoexec (the harness drives its games through -cmdinbox)\n")
+    elif os.path.exists(autoexec):
+        with open(autoexec, encoding="ascii", errors="replace") as f:
+            if any(l.strip().split(";")[0] in ("quit", "map", "disconnect") or l.startswith("map ") for l in f):
+                print("mp_test: %s runs a script (a kit run's: map/quit); --reset-autoexec empties it" % autoexec)
+                sys.exit(2)
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     else:
