@@ -59,6 +59,23 @@ read -r _ arTexN arTexDiff < <(grep "^imagehash " "$S/check_arrays.txt")
 read -r _ _ _ _ arMany _ _ _ arCalls _ _ _ arAlone _ arBound _ < <(grep -a "^world arrays last frame" "$S/es.log" | tail -1)
 arSets=$(grep -aoE "world arrays: [0-9]+ sets, [0-9]+ textures" "$S/es.log" | tail -1)
 arOffDraws=$(grep -a "^world arrays last frame" "$S/esoff.log" | tail -1)
+# The eye's sub-image (vr_eye_subimage, QUEST_PLAN.md C2g; on under the ES profile): the Quest preset (render scale 0.9,
+# bilinear; dynamic resolution off: a fixed size) drawn into a part of the image, no resample pass; its final image
+# (vr_eyeshot 1: the part) against the same scene's resample target with it off (vr_eyeshot 2): the same size,
+# identical. The PC (vr_render_scale 0.9, bilinear, the setting at its default) still fills the image.
+SUBRUN="sv_random_seed 7; vr_particle_seed 7; map e1m1; wait120"
+SCRIPT="vr_quest_preset 0; vr_dynres 0; vr_eye_subimage 0; $SUBRUN; vr_eyeshot 2; wait3; toggleconsole; quit"
+mkdir -p "$S/qoff" "$S/qsub" "$S/pcsub"; run qoff QVR_GLES_COMPAT=1 QVR_GLES_CLIP_CONTROL=1
+SCRIPT="vr_quest_preset 0; vr_dynres 0; $SUBRUN; vr_eyeshot 1; wait3; toggleconsole; quit"
+run qsub QVR_GLES_COMPAT=1 QVR_GLES_CLIP_CONTROL=1
+SCRIPT="vr_render_scale 0.9; vr_upscale 0; vr_dynres 0; $SUBRUN; vr_eyeshot 1; wait3; toggleconsole; quit"
+run pcsub
+python "$TREE/Misc/quakevr/gles_render_check.py" "$S/qoff" "$S/qsub" > "$S/check_subimage.txt"
+python "$TREE/Misc/quakevr/gles_render_check.py" "$S/pcsub" "$S/qsub" > "$S/check_subimage_pc.txt"
+grep "^eye" "$S/check_subimage.txt"
+read -r _ sbDiff sbMoved sbA sbB < <(grep "^eye " "$S/check_subimage.txt")
+read -r _ sbW sbH _ _ sbExact < <(grep "^eyesize " "$S/check_subimage.txt")
+read -r _ pcW pcH _ _ _ < <(grep "^eyesize " "$S/check_subimage_pc.txt")
 lt() { awk -v a="$1" -v b="$2" 'BEGIN{exit !(a != "" && a >= 0 && a < b)}' && echo 1 || echo 0; }
 check $(awk -v a="$eyePc" -v b="$eyeEs" 'BEGIN{exit !(a > 8 && b > 8)}' && echo 1 || echo 0) "both runs drew the eye (means ${eyePc:-?}, ${eyeEs:-?})"
 check $([ "$esErrors" = "0 shader errors" ] && echo 1 || echo 0) "ES compiled every program (${esErrors:-no report})"
@@ -78,4 +95,7 @@ check $(awk -v a="$arA" -v b="$arB" 'BEGIN{exit !(a > 8 && b > 8)}' && echo 1 ||
 check $(lt "$arMoved" 0.0001) "arrays: eye ${arMoved:-?} of the pixels moved against a draw a texture (under 0.0001)"
 check $(lt "$arDiff" 0.1) "arrays: eye ${arDiff:-?} mean difference per channel (under 0.1)"
 check $([ "${arTexDiff:--1}" = "0" ] && echo 1 || echo 0) "arrays: textures ${arTexDiff:-?} of ${arTexN:-?} differ (none)"
+check $(awk -v a="$sbA" -v b="$sbB" 'BEGIN{exit !(a > 8 && b > 8)}' && echo 1 || echo 0) "sub-image: both drew (means ${sbA:-?}, ${sbB:-?})"
+check $([ "${sbExact:--1}" = "0" ] && echo 1 || echo 0) "sub-image: the eye's part (${sbW:-?} x ${sbH:-?}) identical to the resample target's (${sbExact:-?} pixels differ)"
+check $([ "${pcW:-0}" -gt "${sbW:-0}" ] && [ "${pcH:-0}" -gt "${sbH:-0}" ] && echo 1 || echo 0) "sub-image: the PC fills its image (${pcW:-?} x ${pcH:-?}, the ES part ${sbW:-?} x ${sbH:-?})"
 verdict; exit $fail

@@ -40,6 +40,7 @@
 #include "vr_temporal.hpp"
 #include "vr_tonemap.hpp"
 #include "vr_tracy.h"
+#include "vr_tunables.hpp"
 #include "vr_upscale.hpp"
 #include "vr_water.hpp"
 #include "vr_window.hpp"
@@ -944,6 +945,26 @@ extern "C" int VR_RenderView()
     const int width = scaledEyeSize(imageWidth, sizes.maxWidth);
     const int height = scaledEyeSize(imageHeight, sizes.maxHeight);
     stereo::resampling = width != imageWidth || height != imageHeight || upscale::sharpenAtNative();
+    // vr_eye_subimage (QUEST_PLAN.md C2g): an eye drawn smaller and resampled bilinearly is post-processed straight
+    // into its image's lower left part instead, and the layer shows that part: the compositor's own sampling scales it
+    // (it resamples the image anyway), one full-screen read and write an eye fewer (a tiler's bandwidth). The part's
+    // pixels are the resample target's; the UI is drawn into it at the eye's size.
+    const int subImageMode = static_cast<int>(vr_eye_subimage.value);
+    bool subImage = stereo::resampling && width <= imageWidth && height <= imageHeight &&
+                    (subImageMode >= 2 || (subImageMode == 1 && (VR_GLESCompat() || VR_Android()))) &&
+                    upscale::resamplesBilinearly(width, height, imageWidth, imageHeight);
+    subImage = be->setEyeImageRect(0, subImage ? width : 0, subImage ? height : 0) && subImage;
+    subImage = be->setEyeImageRect(1, subImage ? width : 0, subImage ? height : 0) && subImage;
+    if(subImage)
+    {
+        stereo::resampling = false;
+    }
+    else
+    {
+        be->setEyeImageRect(0, 0, 0); // (the left eye's set before the right's refused)
+    }
+    const int shownWidth = subImage ? width : imageWidth; // the eye's part of its image: the UI's, the final eyeshot's
+    const int shownHeight = subImage ? height : imageHeight;
     // (profiling builds: the eyes' drawn width over the image's, vr_render_scale's result, and the width itself)
     VR_TracyPlot("Render scale", static_cast<double>(width) / imageWidth);
     VR_TracyPlot("Eye render width", width);
@@ -1092,7 +1113,7 @@ extern "C" int VR_RenderView()
         }
         {
             QVR_TRACY_SCOPE(zoneFoveatedDebug, "eye: foveated debug");
-            foveated::drawDebug(eye, stereo::targetFbo, imageWidth, imageHeight, width, height); // vr_foveated_debug
+            foveated::drawDebug(eye, stereo::targetFbo, shownWidth, shownHeight, width, height); // vr_foveated_debug
             if(stereo::mirrored(eye))
             {
                 foveated::drawDebug(eye, framebufs.composite.fbo, width, height, width, height);
@@ -1100,21 +1121,21 @@ extern "C" int VR_RenderView()
         }
         if(shotFinal)
         {
-            tonemap::eyeshot(eye, stereo::targetFbo, framebufs.composite.fbo, imageWidth, imageHeight);
+            tonemap::eyeshot(eye, stereo::targetFbo, framebufs.composite.fbo, shownWidth, shownHeight);
         }
 
         // The UI over the eye's final image, at its full size: after the post-processing, it is not warped or blurred
         // under water (vr_water.cpp), the glow is not added over it, nor the eye's gamma. The wrist gadget and all
         // else in the world are in the scene. Over the scene's colours too, for the mirror.
         const Fov& eyeFov = frame.eyes[eye].fov; // (the canvas's size: vr_menu_resolution)
-        panel::noteEyeImage(static_cast<float>(imageHeight) / za::max(1e-3f, za::tan(eyeFov.up) - za::tan(eyeFov.down)));
+        panel::noteEyeImage(static_cast<float>(shownHeight) / za::max(1e-3f, za::tan(eyeFov.up) - za::tan(eyeFov.down)));
         {
             QVR_TRACY_SCOPE(zoneUi, "eye: UI");
-            stereo::drawUi(hands::current().eyeOrigin[eye], stereo::targetFbo, imageWidth, imageHeight, !recordingClean(), true); // (recording mode: no head text)
+            stereo::drawUi(hands::current().eyeOrigin[eye], stereo::targetFbo, shownWidth, shownHeight, !recordingClean(), true); // (recording mode: no head text)
         }
         if(shotUi)
         {
-            tonemap::eyeshot(eye, stereo::targetFbo, framebufs.composite.fbo, imageWidth, imageHeight);
+            tonemap::eyeshot(eye, stereo::targetFbo, framebufs.composite.fbo, shownWidth, shownHeight);
         }
         if(stereo::mirrored(eye))
         {

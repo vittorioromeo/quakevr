@@ -944,6 +944,8 @@ void R_PrewarmTranslucentDecalPrograms (void)
 {
 	if (R_GetEffectiveAlphaMode () == ALPHAMODE_OIT)
 		GL_WorldDecalRetroProgram (1, R_WorldDither (), false);
+	if (bmodel_arrays_on) // QVR: and its array twin (arrays made later: R_PrewarmArrayTwins finds it then)
+		R_PrewarmArrayTwins ();
 }
 
 static GLuint R_ChooseBModelProgram (qboolean oit, qboolean alphatest, qboolean pdo)

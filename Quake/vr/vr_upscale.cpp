@@ -466,13 +466,21 @@ float radiusTangent()
     return za::tan(glm::radians(degrees));
 }
 
+bool resamplesBilinearly(int width, int height, int imageWidth, int imageHeight)
+{
+    const int mode = za::clamp(static_cast<int>(vr_upscale.value), 0, 2);
+    const bool upscaling = width < imageWidth && height < imageHeight;
+    const bool native = width == imageWidth && height == imageHeight;
+    return !(upscaling && mode > 0) && !(native && sharpenAtNative());
+}
+
 void resample(int eye, GLuint source, GLuint sourceFbo, int width, int height, GLuint target, int imageWidth,
     int imageHeight)
 {
     int mode = za::clamp(static_cast<int>(vr_upscale.value), 0, 2);
     const bool upscaling = width < imageWidth && height < imageHeight;
     const bool native = width == imageWidth && height == imageHeight;
-    if(!(upscaling && mode > 0) && !(native && sharpenAtNative()))
+    if(resamplesBilinearly(width, height, imageWidth, imageHeight))
     {
         blit(sourceFbo, width, height, target, imageWidth, imageHeight);
         return;

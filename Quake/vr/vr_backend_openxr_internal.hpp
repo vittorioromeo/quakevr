@@ -215,6 +215,12 @@ public:
 
     [[nodiscard]] const char* systemName() const override;
 
+    bool setEyeImageRect(int eye, int width, int height) override
+    {
+        eyeRects[eye] = {width, height};
+        return true;
+    }
+
     [[nodiscard]] unsigned acquireEyeImage(int eye) override;
 
     void releaseEyeImage(int eye) override;
@@ -266,6 +272,7 @@ private:
     XrPath handPaths[2]{XR_NULL_PATH, XR_NULL_PATH}; // [0] left, [1] right
     XrSpace handSpaces[2]{XR_NULL_HANDLE, XR_NULL_HANDLE};
     Swapchain swapchains[2];
+    XrExtent2Di eyeRects[2]{}; // setEyeImageRect: the part of each eye's image shown this frame (0 x 0: all of it)
     Swapchain panel;
     int64_t colorFormat{GL_RGBA8};
     bool panelPending{false}; // an image was released for the frame being finished

@@ -47,6 +47,15 @@ def image(reader, a, b):
 def main():
     pc, es = sys.argv[1], sys.argv[2]
     print("eye", image(read_png, os.path.join(pc, "eye.png"), os.path.join(es, "eye.png")))
+    # (the eyes' sizes, and the pixels differing at all: an exact comparison; -1 when either is missing)
+    ea, eb = os.path.join(pc, "eye.png"), os.path.join(es, "eye.png")
+    if os.path.exists(ea) and os.path.exists(eb):
+        (wa, ha, pa), (wb, hb, pb) = read_png(ea), read_png(eb)
+        same = (wa, ha) == (wb, hb)
+        exact = sum(pa[p:p + 3] != pb[p:p + 3] for p in range(0, wa * ha * 3, 3)) if same else -1
+        print("eyesize", wa, ha, wb, hb, exact)
+    else:
+        print("eyesize -1 -1 -1 -1 -1")
     print("envmap", image(read_tga, os.path.join(pc, "envmap.tga"), os.path.join(es, "envmap.tga")))
     hashes = [os.path.join(d, "imagehash.txt") for d in (pc, es)]
     if all(os.path.exists(h) for h in hashes):

@@ -29,6 +29,10 @@ struct Lens
 // Whether the eyes must be post-processed into a texture even at render scale 1 (vr_upscale_sharpen_native).
 [[nodiscard]] bool sharpenAtNative();
 
+// Whether resample would scale an eye of this size into its image bilinearly (no upscaler, no sharpening): what the
+// compositor can do instead (vr_eye_subimage).
+[[nodiscard]] bool resamplesBilinearly(int width, int height, int imageWidth, int imageHeight);
+
 // The tangent of vr_upscale_radius (0: everywhere), for the debug overlay.
 [[nodiscard]] float radiusTangent();
 

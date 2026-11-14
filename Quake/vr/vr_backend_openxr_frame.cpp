@@ -234,7 +234,11 @@ void OpenXrBackend::endFrame(bool rendered)
             projViews[eye].pose = views[eye].pose;
             projViews[eye].fov = views[eye].fov;
             projViews[eye].subImage.swapchain = swapchains[eye].handle;
-            projViews[eye].subImage.imageRect.extent = {swapchains[eye].width, swapchains[eye].height};
+            // (vr_eye_subimage: the eye drawn into the image's lower left part, the compositor scales it; the [?] of
+            // GL's origin for imageRect on the Quest's runtime: C4 checks it)
+            const XrExtent2Di rect = eyeRects[eye];
+            projViews[eye].subImage.imageRect.extent = rect.width > 0 && rect.height > 0
+                ? rect : XrExtent2Di{swapchains[eye].width, swapchains[eye].height};
             lastViews[eye] = projViews[eye];
         }
         haveLastViews = true;
