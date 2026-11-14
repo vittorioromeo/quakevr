@@ -32,18 +32,28 @@ constexpr int startGunNothing = 3; // (the Starting gun's "Nothing")
 // What the choices do beyond their cvar
 // ----------------------------------------------------------------------------
 
-// Bloody Nightmare holds the difficulty at Nightmare. (Always a choice, found in Dawn of the Machine or not: his call,
-// 2026-11-13.)
-int skillForced()
+// Bloody Nightmare: Difficulty's fifth choice (his call, 2026-11-14: not a toggle of its own; always a choice, found in
+// Dawn of the Machine or not). The "bn" row has no row of its own: its value is that choice's.
+int bloodyForced()
 {
-    return vr_runpick_bn.value != 0.f ? 3 : -1;
+    return cvarInt(vr_maps_skill) >= skillBloody ? 1 : 0;
 }
 
 void applySkill(int value, Phase phase)
 {
     if(phase == Phase::Start)
     {
-        Cvar_SetValueQuick(&skill, static_cast<float>(value));
+        Cvar_SetValueQuick(&skill, static_cast<float>(value < 3 ? value : 3)); // (Bloody Nightmare: Nightmare's skill)
+    }
+}
+
+// An old config's (or a script's) vr_runpick_bn 1: Difficulty's Bloody Nightmare, the old pick cleared.
+void oldBloodyPick(cvar_t* var)
+{
+    if(var->value != 0.f)
+    {
+        Cvar_SetValueQuick(&vr_maps_skill, static_cast<float>(skillBloody));
+        Cvar_SetQuick(var, "0");
     }
 }
 
@@ -160,13 +170,17 @@ int armedOnlyForced()
 // clang-format off
 const Mutator registry[] = {
     {.id = "skill", .label = "Difficulty", .section = Section::Difficulty,
-        .options = {"Easy", "Normal", "Hard", "Nightmare"}, .tags = {"Easy", "Normal", "Hard", "Nightmare"},
-        .def = 1, .oldSave = -1, .help = "Quake's skill: Easy, Normal, Hard, Nightmare.", .pick = &vr_maps_skill,
-        .active = &skill, .apply = applySkill, .forced = skillForced, .heldBy = "Bloody Nightmare"},
+        .options = {"Easy", "Normal", "Hard", "Nightmare", "Bloody Nightmare"},
+        .tags = {"Easy", "Normal", "Hard", "Nightmare", "Nightmare"}, // (Bloody Nightmare: the bn row's tag, summary())
+        .def = 1, .oldSave = -1,
+        .help = "Quake's skill: Easy, Normal, Hard, Nightmare. Bloody Nightmare: Nightmare and Dawn of the Machine's hidden "
+                "difficulty (harder monsters, each level begun with the axe and shotgun only).",
+        .pick = &vr_maps_skill, .active = &skill, .apply = applySkill, .activeMax = 3},
     {.id = "bn", .label = "Bloody Nightmare", .section = Section::Difficulty,
         .options = {"Off", "On"}, .tags = {"", "Bloody Nightmare"}, // (in the difficulty's place: summary())
         .help = "Dawn of the Machine's hidden difficulty: Nightmare, harder monsters, each level begun with the axe and shotgun only.",
-        .pick = &vr_runpick_bn, .active = &vr_run_bn, .apply = applyBloody},
+        .pick = &vr_runpick_bn, .active = &vr_run_bn, .apply = applyBloody, .forced = bloodyForced,
+        .heldBy = "Difficulty", .ownRow = false},
     {.id = "style", .label = "Style", .section = Section::Presets,
         .options = {"My Settings", "Classic", "Light", "Unleashed"}, .tags = {"My Settings", "Classic", "Light", "Unleashed"},
         .def = 3, .oldSave = -1,
@@ -277,7 +291,9 @@ State state;
 
 void setActive(int i, int value)
 {
-    Cvar_SetValueQuick(registry[i].active, static_cast<float>(clampValue(registry[i], value)));
+    const Mutator& m = registry[i];
+    const int v = clampValue(m, value);
+    Cvar_SetValueQuick(m.active, static_cast<float>(m.activeMax >= 0 && v > m.activeMax ? m.activeMax : v));
 }
 
 void applyActive(int i, Phase phase)
@@ -671,6 +687,35 @@ void testCmd()
             name, va("an old save's startweapon=%d becomes gun %d, melee %d", v, oldWant[v - 1][0], oldWant[v - 1][1]));
     }
 
+    // Bloody Nightmare: Difficulty's fifth choice (no row of its own): skill 3 and its mechanism, its tag in the
+    // difficulty's place, the save line's skill=3 bn=1 (an older save's the same); an old config's vr_runpick_bn 1
+    // becomes that choice.
+    {
+        const int skillPick = cvarInt(vr_maps_skill);
+        const int bn = find("bn");
+        Cvar_SetValueQuick(&vr_maps_skill, static_cast<float>(skillBloody));
+        t.check(!registry[bn].ownRow && forcedValue(bn) == 1 && pickValue(bn) == 1 && pickValue(find("skill")) == skillBloody,
+            name, "Difficulty's Bloody Nightmare: the bn row (no row of its own) on");
+        start();
+        char sum[256];
+        q_strlcpy(sum, summary(false), sizeof(sum));
+        const bool line = strstr(saveLine(), " skill=3 ") && strstr(saveLine(), " bn=1 ");
+        t.check(skill.value == 3.f && vr_run_bn.value == 1.f && vr_mg3_bn_start.value == 1.f && line &&
+                    !strncmp(sum, "Bloody Nightmare /", 18) && !strstr(sum + 18, "Nightmare"),
+            name, va("start: skill 3, vr_run_bn 1, vr_mg3_bn_start 1, save line skill=3 bn=1, summary \"%s\"", sum));
+        t.check(strstr(saveSummary("x\n// qvr_run skill=3 bn=1 style=3\n", 3), "Bloody Nightmare") != nullptr, name,
+            "a save's (an older one's) skill=3 bn=1: Bloody Nightmare in its summary");
+        Cvar_Set("vr_maps_skill", "2");
+        start();
+        t.check(pickValue(bn) == 0 && skill.value == 2.f && vr_run_bn.value == 0.f &&
+                    vr_mg3_bn_start.value == 0.f,
+            name, "Hard: no Bloody Nightmare");
+        Cvar_Set("vr_runpick_bn", "1");
+        t.check(cvarInt(vr_maps_skill) == skillBloody && vr_runpick_bn.value == 0.f, name,
+            "an old config's vr_runpick_bn 1: Difficulty's Bloody Nightmare, the old pick cleared");
+        Cvar_SetValueQuick(&vr_maps_skill, static_cast<float>(skillPick));
+    }
+
     // The hub ends a run: the mutators back to their defaults.
     Cvar_Set("vr_run_meleeonly", "1");
     Cvar_Set("vr_run_ironman", "1");
@@ -847,7 +892,7 @@ const char* summaryOf(const int* values)
     // Each shown row's tag in the registry's order; two exceptions: Bloody Nightmare stands in the difficulty's place,
     // and the starting gun and melee weapon are one part ("Revolver and dagger start").
     const int bn = find("bn");
-    const bool bloody = registry[bn].isShown() && value(bn) > 0;
+    const bool bloody = value(bn) > 0;
     const int startGun = find("startgun");
     for(int i = 0; i < registryCount; i++)
     {
@@ -1054,6 +1099,8 @@ void init()
             Cvar_SetCallback(registry[i].active, [](cvar_t*) { state.runSet = true; });
         }
     }
+    Cvar_SetCallback(&vr_runpick_bn, oldBloodyPick);
+    oldBloodyPick(&vr_runpick_bn); // (a config read before this)
 }
 
 } // namespace qvr::runsetup

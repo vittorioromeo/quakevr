@@ -126,6 +126,27 @@ struct Choice
     const char* label;
 };
 
+// An icon picker's picture for one choice (Item::icons; vr_menu_icons.inc): a model's thumbnail (the toolgun's icon
+// maker, vr_toolgun_icons.cpp), that many of its silhouettes side by side, or a drawn emblem.
+struct MenuIcon
+{
+    enum Emblem : unsigned char
+    {
+        NoEmblem,
+        Easy,      // one chevron
+        Normal,    // two
+        Hard,      // three
+        Nightmare, // a skull
+        Bloody,    // a red skull, dripping
+        Halls,     // three arches: a start map's skill halls choose
+        Hand       // an open hand: nothing in it (bare fists)
+    };
+    const char* model{nullptr}; // a model's thumbnail, or nullptr (the emblem)
+    bool side{false};           // ... seen from its right side (a gun's length across)
+    Emblem emblem{NoEmblem};
+    int figures{0};             // > 0: that many of the model's silhouettes side by side (Enemy Count)
+};
+
 struct Item
 {
     enum Kind
@@ -223,6 +244,19 @@ struct Item
     // In a folded section (vr_menu_fold; set on the built page by applyFolds, vr_menu.cpp): no height, not reached by
     // the cursor's steps; selected anyway (a path, Search, menu_vr), its section unfolds.
     bool folded{false};
+
+    // An icon picker (iconPicker(): a cycle; vr_menu_icons.inc; ROUND25.md, "iconpick"): one picture a choice (`icons`,
+    // as many as `choices`), side by side under the label, each choice's name under its picture; the picked one lit,
+    // the rest greyed (vr_menu_icon_dim); a click on one picks it, left and right step. Still a cycle underneath (its
+    // cvar, its choices by name: menu paths, menu_vr, the tests). vr_menu_icons 0: drawn as a plain cycle.
+    const MenuIcon* icons{nullptr};
+
+    [[nodiscard]] Item iconPicker(const MenuIcon* list) const
+    {
+        Item i = *this;
+        i.icons = list;
+        return i;
+    }
 
     [[nodiscard]] Item looking(Look l) const
     {

@@ -154,6 +154,7 @@ void mapsPage_f(); // maps_page [text]: the Map Library page, with the text type
 void mapsPageStats_f();
 void runSetup_f();           // vr_runsetup [hub|newgame]: the Run Setup screen (vr_menu_runsetup.inc)
 void runSetupScreenTest_f(); // vr_runsetup_screen_test: the Run Setup screen's ways in (Debug > Tests)
+void iconsGameDirChanged();  // VR_OnGameDirChanged: the icon pickers' thumbnails toned again (vr_menu_icons.inc)
 void runLaunchTest_f();      // vr_runlaunch_test: every way a run starts, the map spawned with its choices (Debug > Tests)
 void runLaunchTestFrame();   // ... its steps, a frame at a time (VR_HostFrameEnd)
 void continueRowsTest_f();   // vr_continue_rows_test: Continue on Select Campaign's and the Map Library's rows

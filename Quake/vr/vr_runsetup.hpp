@@ -9,8 +9,8 @@
 //   saved game (the `// qvr_run` line: saveLine()) and set back from it when one is loaded (readSaveLines(),
 //   onLoadGame()); a changelevel keeps it (a cvar). The QC reads it (vr_run.qc's hooks, a file per mutator);
 // - apply(value, phase): what a choice sets beyond its cvar (the presets, the armed and AI switches, Bloody Nightmare);
-// - forced(): a rule another choice imposes (Melee Only holds the Starting gun at nothing; Bloody Nightmare holds the
-//   difficulty at Nightmare), the screen showing it held.
+// - forced(): a rule another choice imposes (Melee Only holds the Starting gun at nothing; Difficulty's Bloody
+//   Nightmare choice sets the "bn" row, which has no row of its own), the screen showing it held.
 // Presets never overwrite the player's settings without keeping them: the Gameplay and Gore presets' first apply keeps
 // My Settings (vr_presets.cpp), and "My Settings" is a Style and Gore choice of its own.
 
@@ -45,7 +45,11 @@ enum class Phase
     Load,  // a saved game of a run is loaded
 };
 
-constexpr int maxOptions = 4;
+constexpr int maxOptions = 5;
+
+// Difficulty's fifth choice (vr_maps_skill 4): Bloody Nightmare, skill 3 and its mechanism (the "bn" row, which has no
+// row of its own: its value follows this choice; the save line keeps `skill=3 bn=1`).
+constexpr int skillBloody = 4;
 
 // A registry line (designated initializers: a line names only what it needs; the rest is the defaults below).
 struct Mutator
@@ -65,6 +69,10 @@ struct Mutator
     int (*forced)(){};                       // the value another choice holds this one at, or -1; nullptr: never
     bool (*shown)(){};                       // nullptr: always shown
     const char* heldBy{nullptr};             // the choice whose rule holds it (the screen: "held by ..."), or nullptr
+    bool ownRow{true};                       // false: no row of its own on the screen (its value another row's choice:
+                                             // Bloody Nightmare, Difficulty's fifth)
+    int activeMax{-1};                       // the run's cvar never set above this (-1: the last option): the choices past
+                                             // it are another row's (Difficulty's Bloody Nightmare: skill 3)
 
     [[nodiscard]] int optionCount() const
     {

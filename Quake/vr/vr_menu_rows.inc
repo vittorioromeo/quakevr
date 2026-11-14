@@ -2318,6 +2318,12 @@ QVR_TOGGLE_BYNAME(vr_runsetup_groups, "Run Setup: Mutator Groups",
     "Run Setup's mutators in three sections: Rules, Enemies and World. Off: one Mutators section.")
 QVR_SLIDER_BYNAME(vr_runsetup_big, "Run Setup: Difficulty and Start Size", 1.f, 2.f, 0.05f, "%.2fx", noExt,
     "Run Setup's Difficulty row and Start button: their letters over a row's.")
+QVR_TOGGLE_BYNAME(vr_menu_icons, "Icon Pickers",
+    "Run Setup's Difficulty, Starting gun, Starting melee weapon and Enemy Count as rows of pictures, each choice's name under it: click one, or left and right. Off: plain choice rows.")
+QVR_SLIDER_BYNAME(vr_menu_icon_size, "Icon Picker Size", 16.f, 48.f, 2.f, "%.0f px", noExt,
+    "An icon picker's pictures, menu pixels across (Run Setup's Difficulty a quarter bigger).")
+QVR_SLIDER_BYNAME(vr_menu_icon_dim, "Icon Picker Unpicked Dim", 0.f, 0.9f, 0.05f, "%.2f", noExt,
+    "How much an icon picker's choices that are not picked are greyed and faded. 0: as bright as the picked one.")
 QVR_TOGGLE_BYNAME(vr_runsetup_halls_line, "Run Setup: Skill Halls Line",
     "With a start map that has its own skill halls (id's start, a pack's hall): a line saying so where Difficulty goes. Off: nothing (the halls choose).")
 QVR_TOGGLE_BYNAME(vr_menu_vr_style, "VR Menu Style",
