@@ -2958,3 +2958,23 @@ front, side, back; nothing of it in your own view when looking down or leaning.
   MP_PLAN.md "B7b results".
 - In VR (two machines): another player walking and turning (smooth, no stop-and-jump), his hands on his body; the
   Interpolation Buffer row off for comparison.
+
+## mpN (B8, part 1): a remote client's own walk predicted (agent/mp, 2026-11-14; never shipped by the coordinator)
+
+- `vr_pmove.cpp`: the walk one move at a time (SV_AirMove's steering, friction and acceleration; gravity with
+  vr_slope_walk; SV_FlyMove, SV_WalkMove's steps, wall friction and unstick; the room-scale walk), the server's parts
+  (touches, links, props, close quarters) as a Body's hooks. A remote client's server and his client both run it.
+- The server runs a remote client's moves one by one, each for its own frame's time (`frameTime` in the move), in a
+  frame whose walk is plain (walking, alive, not swimming, lying or flat-screen sliding); his datagram carries the state
+  after the newest move run and the rules it ran by (`QVR_SVC_PREDICT`, a snapshot record; `QVR_NET_VERSION` 19).
+  `vr_net_permove` 1 (Debug > Reports > Network: Moves Run One by One).
+- His client replays the moves sent since, against its own copy of the map with the server's narrowed box
+  (`hull::clientPlayerTrace`), and draws himself there, between his last two moves; a correction eases in over 0.1 s;
+  a lift he stands on is drawn at its newest place. `vr_net_predict` 1 (Network: Predict Own Walk; Prediction Report).
+- `mp_predict` (B 150 ms each way): his own move shows 2 ticks after his press (19 ms; without: 23 ticks, 328 ms);
+  walking on e1m1's floor, ramp and steps every correction 0.000 units over 325 states. MP_PLAN.md "B8 results".
+- Single player and a listen host's own client: unchanged (clc_move; sv_phys.c's path untouched).
+- Not predicted yet (drawn as they come, a round trip late): the jump (QuakeC's), swimming, crouched and lying boxes,
+  climbing, the grapple; lag compensation is B8b.
+- In VR (two machines, one with lag): walk, strafe and turn on the remote client: your view moves at once, no rubber
+  band on floors, ramps and stairs; jump (it shows late and eases in: B8b); ride a lift (the lift and you together).

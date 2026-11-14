@@ -197,7 +197,8 @@ player unchanged.
 | **B6** (done: rules, the look of hands and body, holsters, seated, flat height, pauldrons, magazine hull; B6c the plates and Locomotion's rules) | Server rules and cosmetics: every balance setting a rule (presets, armed humanoids, damage, mutators, stamina, grapple...), rule pages dimmed on a remote client; holster positions, height, seated/standing, gloves, body seen by others | `mp_rules`, `mp_cosmetics` (B's height and gloves seen by A) |
 | **B7** (done: moves up, the avatars' lerp; B7b snapshots down and the interpolation buffer) | Snapshots: acknowledged per-client snapshots and deltas for entities, players and avatars; quantized delta moves with repeats; interpolation buffer with quaternion slerp | `mp_loss` (10% loss: positions still continuous), byte counts per scenario |
 | **B7b** (done: B7 is done; fast retransmit of the reliable window to B9) | The rest of B7: acknowledged per-client snapshots down (the client acknowledges each server frame in QVR_CLC_MOVES; entities, player states and avatars delta-coded against the acknowledged one); the entities' interpolation buffer (a fixed delay behind, adaptive to jitter, a history of messages, slerped turns) in place of NetQuake's two-message lerp for remote clients | `mp_loss`'s jump counts become checks (0 jumps of A's body and hands at 10% loss); `mp_bandwidth` down idle under 10 KB/s |
-| **B8** | Prediction and lag compensation: shared movement code, reconciliation, then climbing and grapple; rewind of hit models and hands for hitscan, melee, parry, shove | `mp_predict` (own move off at frame 0 under 150 ms lag; corrections under 1 unit on flat ground), `mp_lagcomp` (a hit on a moving target at 150 ms lands) |
+| **B8** (the walk predicted done; the rest is B8b) | Prediction and lag compensation: shared movement code, reconciliation, then climbing and grapple; rewind of hit models and hands for hitscan, melee, parry, shove | `mp_predict` (own move off at frame 0 under 150 ms lag; corrections under 1 unit on flat ground), `mp_lagcomp` (a hit on a moving target at 150 ms lands) |
+| **B8b** | The rest of B8: lag compensation (the server's last 250 ms of hit models and hands per entity; a client's hitscan, melee, parry and shove judged at his interpolation buffer's time, capped); the jump predicted (QC's PlayerPreThink jump in the module), swimming, crouched and lying boxes, climbing and the grapple | `mp_lagcomp` (a hit on a moving target at 150 ms lands), `mp_predict` grown (a jump, a swim, a crouch: corrections under a unit) |
 | **B9** | Compression and rate: entropy stage with trained tables, per-client rate, priority accumulator | byte budgets per scenario from section 2.3 |
 | **B10** | Proximity voice chat: capture, Opus, VAD, noise suppression, push-to-talk, a jitter buffer, voices placed by Steam Audio at the speaker's head; VR and flat; menu rows | `mp_voice` (a test tone from A heard at B, louder near, delay under 250 ms) |
 | **B11** | Deathmatch and bots: frags, respawns, DM item rules with VR weapons, FrikBot with VR-aware bodies | `mp_dm` (two clients and two bots, a fraglimit reached) |
@@ -229,6 +230,10 @@ The engine's aids (`Quake/vr/vr_mptest.cpp`):
   snapshots sent (`mp_netsnap:` sent, full, delta, cut, bytes, the acknowledged one); on a client its snapshots read
   and its interpolation buffer (`mp_snapcl:` decoded, undecodable, its delay, frames held past the newest).
 - `vr_netmove_selftest`, `vr_netsnap_selftest`: the moves' and the snapshots' codecs.
+- `vr_mp_predict_report [reset]` (Debug > Reports > Network: Prediction Report; also in `vr_mp_status`): a remote
+  client's prediction (`mp_predict:` states read, frames predicted, moves replayed a frame, corrections all and on flat
+  ground); `vr_mp_predict_probe <label>`: `mp_predict_moved:` when his own drawn entity first moves (moves sent, frames,
+  ms since); with `vr_mp_watch 1` each correction over a unit prints `mp_predict_corr:` (the state, both places, notes).
 - A dedicated server started with `QVR_TEST_HIDDEN` opens no console window (`sys_sdl_win.c`).
 
 Running it (the kit's base for this worktree; `--reset-autoexec` empties its `id1/autoexec.cfg`, which the kit's
@@ -1209,7 +1214,67 @@ Open (after B7):
 - Fast retransmit of the reliable window (a lost chunk still waits 1 s): B9.
 - Your own player, and what you ride, at NetQuake's lerp while the others are a delay behind: B8's prediction.
 
+### B8 results, part 1: the walk predicted (2026-11-14, dev no-LTO build, loopback; `mp_test.py suite`: 23 of 26 pass: `mp_moves` 17/2, `mp_forcegrab` 5/1, `mp_loss` 14/1, below)
+
+| Scenario | Result |
+|---|---|
+| `mp_predict` (new) | 11/0: B at 150 ms each way. His own move shows 2 moves (client ticks) after his press, 19 ms (without prediction: 23 moves, 328 ms); 22.8 moves replayed a frame (the round trip); over 325 states read while he walks there and back on e1m1 (the start's floor, its ramp and steps down north) every correction 0.000 units (flat ground 117 of them, 0.000); at rest he draws himself where the server has him. Failed first: no `mp_predict:`, no probe |
+
+Single player on the branch: scenario_check PASS (150 scenes run, 0 failed), load_models_test 4/0, vr_run_check 12/0
+(run B `3 1 0 1 0`), `vr_netmove_selftest` 5/0, `vr_netsnap_selftest` 5/0; the dev build and the Release-config
+(ThinLTO) build 0 warnings. The loopback client sends clc_move: sv_phys.c's walk as before.
+
+What changed:
+
+- **One walk module** (`vr_pmove.cpp`): sv_user.c's SV_AirMove (the head steering, friction, acceleration, the air's) and
+  sv_phys.c's gravity, SV_FlyMove, SV_WalkMove (steps, wall friction, the unstick) with a move's own time for
+  host_frametime, the room-scale walk and vr_slope_walk's gravity, over a `Body` whose hooks are what only the server
+  has (touches, links, props stood on and shoved, the slope's record, close quarters, the teleporter's back-off).
+- **The server runs a remote client's moves one by one** (`vr_predict.cpp`, `vr_net_permove` 1): each move read is
+  queued with its frame's time (a new field of the move, `frameTime`, 10 us); a frame whose walk is plain (walking,
+  alive, not swimming, water-jumping, lying or flat-screen) skips SV_AirMove and runs the queue through the module in
+  SV_Physics_Client (once SV_CheckWater and SV_CheckStuck, as before; QuakeC's PreThink and PostThink once a frame as
+  before), each move held to a clock credit (the server's time x 1.05, at most 0.25 s ahead). A hanging, climbing or
+  teleporting frame takes its own path as before and drops the queue. Single player and a listen host's own client send
+  clc_move: none of this runs for them.
+- **QVR_SVC_PREDICT** (47, `QVR_NET_VERSION` 19): his state after the newest move run (its number, origin, velocity,
+  flags, the ground normal and its age) and the rules it ran by (the speed with stamina, carry, heavy weapon and crouch
+  scales, the stick's scale, friction, gravity, step...; the narrowed hull's width, the edge probe), as a snapshot
+  record (an idle player's costs a few bytes).
+- **His client replays** (`vr_net_predict` 1): each frame, the moves sent after that state through the same module,
+  against this map's world and brush models with the server's narrowed box (`hull::clientPlayerTrace`: vr_hull.cpp's
+  brushes rebuilt from the client's map; Quake's hull 1 without narrowing) and the server's ledge probe; his entity (the
+  view, hands, body) drawn between the places before and after his newest move by the time since it was made (frames
+  faster than ticks: no step a tick); a new state that moves the prediction eases in (decays by e in 0.1 s; 64 units or
+  more: at once); the door or lift he stands on drawn at its newest place (where his replay met it). Without a plain
+  state (the server's flag) he is drawn as it comes.
+- Debug > Reports > Network: Predict Own Walk, Moves Run One by One, Prediction Report.
+
+Open (B8b), first the suite's three:
+
+- **`mp_moves`' crouch** (new failures, B8's): the watcher's copy of a crouching player keeps its standing head (0 units
+  lower) both ways; with `vr_net_predict 0` on the clients (the server still one by one) A's way passes (25 units lower)
+  and B's still fails, his copy read standing at another place (454 -280: still eased from face_off's setpos). Suspects:
+  the avatar's head height (`vr_avatar.cpp` standing(), eyeHeight) against the predicted origin, and the stand reading
+  taken mid-correction after a setpos. First thing next session.
+- `mp_forcegrab` 5/1: "B never put at OPEN_SPOT (the server has him at None)": no B line in the server's status (B3f's
+  put_at flake, or his setpos: to check with the prediction on and off).
+- `mp_loss` 14/1: one snapshot undecodable of 168 at 10% loss (B7b's check; each snapshot now carries the prediction
+  record: to check whether a cut record's base went missing).
+- Lag compensation: the server's last 250 ms of hit models and hands, judged at his interpolation buffer's time.
+- The jump is QuakeC's (PlayerPreThink): the server's state shows it a round trip later and the correction eases it in;
+  predicting it means the jump in the module (QC's rules, stamina). Swimming, water jumps, the crouched and lying boxes,
+  climbing, the grapple, a flat-screen player's slide: drawn as they come (not predicted), each a case for the module.
+- Other players and monsters are not in his replay's world (the server's walk meets them): a bump into one is a
+  correction. Close quarters (vr_closequarters) too.
+- A move's time is the client's tick (host_frametime); in slow motion (VR_TimeScale) the server's credit holds him.
+
 ## Decisions
+
+- A remote client's walk (B8) runs move by move on the server through `vr_pmove.cpp`, a port of sv_phys.c's walk with
+  hooks, while single player and the listen host's own client keep sv_phys.c's path untouched: the two the prediction
+  must agree on (his server and his client) run the same code to the bit, and single player cannot change by
+  construction. Moving single player onto the module too is possible later with the hash audits.
 
 - Server rules (B6) are found by page, not listed: every setting under a balance page is one unless it is a preference,
   unsaved, or named as a player's own (`ownParts`); a misfiled setting is one word there. A remote server's client plays by
@@ -1256,4 +1321,4 @@ Open (after B7):
 - The interpolation buffer (B7b) leaves brush models and stepping monsters on NetQuake's lerp: the player's own entity
   is not delayed (no prediction until B8), and a lift he rides must stay in step with him.
 
-Next phase: B8 — prediction and lag compensation: the walk/swim/crouch/prone movement shared by client and server (one C++ module both call), the server's acknowledged state plus a replay of the unacknowledged moves (QVR_CLC_MOVES' sequence numbers), smooth correction on mismatch; then climbing and the grapple; the server's last 250 ms of hit models and hands per entity, a client's hitscan, melee, parry and shove judged as he saw them (his interpolation buffer's time); tests first: `mp_predict` (own move off at frame 0 under 150 ms lag; corrections under 1 unit on flat ground), `mp_lagcomp` (a hit on a moving target at 150 ms lands).
+Next phase: B8b — the rest of B8: first B8's three suite failures (`mp_moves`' crouched copy, `mp_forcegrab`'s put_at, `mp_loss`'s undecodable snapshot: "B8 results"), then lag compensation (the server keeps the last 250 ms of hit models and hands per entity; a client's hitscan, melee, parry and shove judged as he saw them, at his interpolation buffer's time, capped), then the jump, swimming, the crouched and lying boxes, climbing and the grapple predicted through vr_pmove.cpp; tests first: `mp_lagcomp` (a hit on a moving target at 150 ms lands), `mp_predict` grown (a jump, a swim, a crouch: corrections under a unit).
