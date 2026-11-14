@@ -190,7 +190,8 @@ player unchanged.
 | **B3e** (the held weapon's drawn pose up done; the rest is B3f) | The rest of B3d: the drawn pose up per player (weaponhotspot, weaponanygrip, weapondrawnpose's carried weapon and axes, the drawn weapon hull, the 2H carry's reach offset); `mp_grab` grown | `mp_held` (B's hotspots on the server where his view draws them; his two-handed hold and hand-off judged by his own) |
 | **B3f** (done: B3 is done) | The rest of B3e: the grip fit's hand rig per player (`vr_gripfit.cpp`), the ground weapon's grab hotspot and the reverse grip's choice per player (weapongrabspot, weapondrawnpose 43), the magnetic holsters' poll and places per player; `mp_grab` grown (a 2H carry, a foe grab, the palm slack) | `mp_grab` grown, `mp_held` grown (a reverse grip) |
 | **B4** (done: saves, loads, level changes with inventories; B4b: coop autosaves, the exit and intermission, a real death and respawn; B4c: slots by name, coop autosaves in Load Autosave, the intermission save, map download through the Map Library) | Coop campaign flow: coop saves and loads (per-player blocks, versioned), autosaves, level transitions with inventories, intermission, deaths and respawns, map download (package names through the map installer; chunked fallback) | `mp_campaign` (e1m1 to e1m3 with saves and a load, both players' inventories), `mp_download` (B lacks a map: installs it, joins) |
-| **B5** | Interactions between players: drop a weapon / the other picks it up; force grab of world weapons in multiplayer; melee, parries and shoves between players; climbing, crouch, prone, jump, punch synced and judged per player | one scenario per interaction, each from both sides |
+| **B5** (pickups and force grabs done; the rest is B5b) | Interactions between players: drop a weapon / the other picks it up; force grab of world weapons in multiplayer; melee, parries and shoves between players; climbing, crouch, prone, jump, punch synced and judged per player | one scenario per interaction, each from both sides (`mp_pickup`, `mp_forcegrab`) |
+| **B5b** | The rest of B5: melee, parries and shoves between players (judged by each one's own hands and timing, gated to multiplayer where single player has none); climbing, crouch, prone, jump, swim and punch synced (the remote body lying, swimming, climbing, jumping as he does: the avatar's flags) and judged per player | `mp_melee` (A's swing hits B, B's parry stops A's, a shove moves him: each way), `mp_moves` (B crouches, lies prone, jumps, climbs: the server's hull and A's copy of him follow) |
 | **B6** | Server rules and cosmetics: every balance setting a rule (presets, armed humanoids, damage, mutators, stamina, grapple...), rule pages dimmed on a remote client; holster positions, height, seated/standing, gloves, body seen by others | `mp_rules`, `mp_cosmetics` (B's height and gloves seen by A) |
 | **B7** | Snapshots: acknowledged per-client snapshots and deltas for entities, players and avatars; quantized delta moves with repeats; interpolation buffer with quaternion slerp | `mp_loss` (10% loss: positions still continuous), byte counts per scenario |
 | **B8** | Prediction and lag compensation: shared movement code, reconciliation, then climbing and grapple; rewind of hit models and hands for hitscan, melee, parry, shove | `mp_predict` (own move off at frame 0 under 150 ms lag; corrections under 1 unit on flat ground), `mp_lagcomp` (a hit on a moving target at 150 ms lands) |
@@ -827,6 +828,44 @@ Open (B5 and later):
   by a client lacking it: "Model maps/x.bsp not found", as before (no chunked fallback: Decisions).
 - A stranger joining a loaded coop game when every free slot is a saved player's still takes that player's edict.
 
+### B5 results, part 1 (2026-11-14, dev no-LTO build, loopback; `mp_test.py suite`: 17 of 18 pass, `mp_ground` 14/1 (its shotgun retake: 3 presses, none took it), then 15/0 alone)
+
+Before it, the full suite (B4c's build merged with `next`: the vis over-read fix and `-memguard`): 16 of 16 pass,
+`mp_download` 8/0 with its index wait.
+
+| Scenario | Result |
+|---|---|
+| `mp_pickup` (new) | 9/0: on a dedicated server A (put at an open spot of e1m1, given a shotgun) opens his low hand: it falls; B, put 24 units beyond it, closes his empty main hand on it (his grip, then his fist onto its hotspot 0: `retake`): the server puts it in B's hand ("taken into the main hand ... by its hotspot 0"), A's stays empty. Then the other way: B lets it fall, A takes it. Passed with no game change: a thrown weapon is taken by whoever's hand closes on it |
+| `mp_forcegrab` (new) | 9/0: a super shotgun pickup of the level (the map's `weapon_supershotgun`, an object with `vr_item_objects` 1: `vr_test_spawn 116`) 150 units ahead of B; B's force grab (the mock's: point down at it, trigger, flick up, grip) brings it to his hand: caught, his; in coop it goes back to its place for the others ("pickup: weapon_supershotgun back at"); then A, put where B stood, force grabs it: his too. Passed with no game change (VR_Forcegrab_IsEligible takes a level weapon in coop as the object it is; its catch, weapon_touch with `leave`, gives it and VR_PickupObj_Return puts it back) |
+
+Single player on the branch: scenario_check PASS (129 scenes, 0 failed), load_models_test 4/0, vr_run_check 12/0
+(`scratch/b3_runcheck.sh`); the dev build 0 warnings, the Release-config (ThinLTO) build 0 warnings.
+
+What changed (test aids only; nothing a player meets):
+
+- Impulse 241 (`vr_test_spawn`: things put ahead of the player who asks) works in coop too, as the test gives (150..189)
+  already did (`ImpulseCommands`: the other test impulses stay single player). `vr_test_spawn 116`: a super shotgun pickup
+  of the map's kind on the floor ahead.
+- `vr_mp_drawn`'s server lines give where the weapon lying nearest each hand is (`norg=`): the harness puts the other
+  player beside a weapon let go of.
+- A force grab that arrives uncaught says why (developer 1): the hand free, gripping, how long before its arrival the
+  grip was pressed.
+- The harness: `put_at` (setpos, then noclip off: a player put somewhere of e1m1 by the server, waited for), `lying`,
+  `hand_over`, `force_grab`. A hand held still `THROW_SETTLE_S` (0.5 s of game time) before it opens: the mock reports a
+  hand put elsewhere in one frame as moving that fast, and a release inside the throw's window threw the gun 500 units
+  (1 run of 3). The mock's force grab presses the grip 0.3 s after its flick: the block test's 0.05 s came 0.354 s
+  before the pull arrived on the dedicated server, every run (`vr_forcegrab_catch_early` 0.35: just too early).
+
+Open (B5b and later):
+
+- Melee, parries and shoves between players; climbing, crouch, prone, jump, swim and punch synced and judged per player
+  (B2d's remote body is upright with walking legs whatever he does: lying, swimming, climbing, jumping): B5b.
+- A force grab never started for A with a weapon lying at his feet under his open hand (B's caught one let go there; 1
+  run of 1, the test now keeps the catch): to look at in single player (the hand's touch of a weapon lying, or the
+  lock-on, may take the hand first).
+- Level weapons with `vr_item_objects` 0 (plain pickups) are not force grabbed in coop or deathmatch (they stay for all);
+  deathmatch 1's weapons (taken, then respawned): B11.
+
 ## Decisions
 
 - Map download goes through the Map Library alone: the server names the package (its sha256), the client installs it
@@ -852,4 +891,4 @@ Open (B5 and later):
   from outside, they always have legs (his body mode 1 or 2 is his own first-person view); his body mode 0 draws his
   player model as before.
 
-Next phase: B5 — interactions between players: a weapon dropped by one and picked up by the other; force grab of world weapons in multiplayer; melee, parries and shoves between players; climbing, crouch, prone, jump and punch synced and judged per player; tests first: one scenario per interaction, each from both sides (`mp_pickup`, `mp_forcegrab`, `mp_melee`, `mp_moves`).
+Next phase: B5b — the rest of B5: melee, parries and shoves between players; climbing, crouch, prone, jump, swim and punch synced (the remote body lying, swimming, climbing, jumping as he does) and judged per player; tests first: one scenario per interaction, each from both sides (`mp_melee`, `mp_moves`).

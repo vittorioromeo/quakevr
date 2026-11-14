@@ -2493,3 +2493,12 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
   (fewer bodies and particles) since a31689eab (every move since the last server tick counts: the bench's +attack
   presses land differently at 90 Hz input over 72 Hz ticks). Nothing to fix; for CPU p99s in --fast, read cpu_busy with
   the GPU unsaturated (a smaller --eye) or a paced run. Scripts: scratch/uf_crowd.sh, uf_hitch2.py.
+## mpN (B5, part 1): a weapon passed between players, force grabs of level weapons in coop (agent/mp, 2026-11-14; never shipped by the coordinator)
+- Both already work on a dedicated server with no game change: a shotgun one player lets fall is taken by the other's
+  hand closing on it (each way); a level weapon (an object, `vr_item_objects` 1) is force grabbed by each player in turn
+  and, in coop, goes back to its place for the others.
+- Test aids: impulse 241 in coop (as the test gives), `vr_test_spawn 116` (a super shotgun pickup ahead), `vr_mp_drawn`'s
+  `norg=` (where the weapon nearest a hand lies), a force grab arriving uncaught says why (developer 1).
+- `mp_pickup` 9/0, `mp_forcegrab` 9/0 (new); the suite 17 of 18 (`mp_ground`'s shotgun retake missed once, 15/0
+  alone). Single player: scenario_check PASS (129), load_models 4/0, vr_run_check
+  12/0. Next: B5b (melee, parries, shoves between players; moves synced). Details: MP_PLAN.md, "B5 results, part 1".
