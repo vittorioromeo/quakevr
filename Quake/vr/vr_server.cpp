@@ -530,10 +530,10 @@ extern "C" void VR_BroadcastClear()
     b.numQueued = 0;
 }
 
-sizebuf_t* qvr::server::scopedBegin(int ent)
+sizebuf_t* qvr::server::scopedBegin(int ent, bool always)
 {
     ScopedRoom& r = scopedRoom;
-    if(qvr::vr_net_cullposes.value == 0.f || !sv.active || !r.room.data)
+    if((!always && qvr::vr_net_cullposes.value == 0.f) || !sv.active || !r.room.data)
     {
         return nullptr;
     }
@@ -1367,6 +1367,69 @@ extern "C" void VR_WriteRecentPrecaches(sizebuf_t* msg)
     }
 }
 
+namespace
+{
+
+// A short of `v` in eighths of a unit, clamped (an avatar's offsets from the player's origin: +-4095 units).
+void writeEighths(sizebuf_t* msg, const glm::vec3& v)
+{
+    for(int i = 0; i < 3; i++)
+    {
+        MSG_WriteShort(msg, static_cast<int>(za::clamp(std::round(v[i] * 8.f), -32767.f, 32767.f)));
+    }
+}
+
+void writeAngles16(sizebuf_t* msg, const glm::vec3& a)
+{
+    for(int i = 0; i < 3; i++)
+    {
+        MSG_WriteAngle16(msg, a[i], sv.protocolflags);
+    }
+}
+
+// Each VR player's avatar this frame (QVR_SVC_AVATAR: his head and hands as his last move placed them, his weapons) to
+// the other clients that see him (server::scopedBegin; his own client does not: his entity is not noted for himself).
+// Multiplayer only: a single player's own hands are his client's (MP_PLAN.md, B2; vr_avatar.cpp draws nothing yet).
+void writeAvatars()
+{
+    if(svs.maxclients <= 1)
+    {
+        return;
+    }
+    const FieldOffsets& f = fields();
+    for(int i = 0; i < svs.maxclients && i < static_cast<int>(clientMoves.size()); i++)
+    {
+        const client_t& c = svs.clients[i];
+        const ClientMove& m = clientMoves[i];
+        if(!c.active || !c.spawned || !c.edict || !m.valid)
+        {
+            continue;
+        }
+        sizebuf_t* msg = qvr::server::scopedBegin(i + 1, true);
+        if(!msg)
+        {
+            continue;
+        }
+        const glm::vec3 origin{c.edict->v.origin[0], c.edict->v.origin[1], c.edict->v.origin[2]};
+        MSG_WriteByte(msg, svc_quakevr);
+        MSG_WriteByte(msg, QVR_SVC_AVATAR);
+        MSG_WriteShort(msg, i + 1);
+        MSG_WriteByte(msg, (m.move.vrBits0 & protocol::moveFlatplayBit) ? 1 : 0);
+        writeEighths(msg, m.move.headPos - origin);
+        writeAngles16(msg, m.move.headAngles);
+        for(const VrHandMove& h : m.move.hands)
+        {
+            writeEighths(msg, h.pos - origin);
+            writeAngles16(msg, h.rot);
+        }
+        MSG_WriteLong(msg, static_cast<int>(c.edict->v.weapon));
+        MSG_WriteLong(msg, static_cast<int>(fieldFloatOr(c.edict, f.weapon2, 0.f)));
+        qvr::server::scopedEnd();
+    }
+}
+
+} // namespace
+
 extern "C" void VR_ServerFrameEnd()
 {
     QVR_TRACY_SCOPE(zoneFrameEnd, "VR server frame end"); // (profiling builds only, as the steps' zones)
@@ -1404,6 +1467,8 @@ extern "C" void VR_ServerFrameEnd()
     {
         bits.previousFrame = bits.received;
     }
+
+    writeAvatars(); // the other players' heads and hands to each client that sees them
 
     // Late precaches (setmodel on an unprecached model, precache_* after load).
     broadcastNewPrecaches(sv.model_precache, broadcastModelCount, QVR_SVC_PRECACHE_MODEL);

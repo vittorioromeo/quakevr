@@ -80,7 +80,7 @@ void queueBroadcast(const unsigned char* data, int len);
 // A message about entity `ent` (an armed humanoid's pose) for the datagrams of the clients that have it in sight this frame
 // (vr_net_cullposes; the loopback client gets them all): written into the buffer returned, then scopedEnd. nullptr: culling
 // is off, write to the broadcast instead.
-struct sizebuf_s* scopedBegin(int ent);
+struct sizebuf_s* scopedBegin(int ent, bool always = false); // always: whatever vr_net_cullposes says (a player's avatar)
 void scopedEnd();
 
 } // namespace qvr::server

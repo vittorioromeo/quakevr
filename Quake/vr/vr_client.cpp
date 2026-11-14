@@ -2,6 +2,7 @@
 // VR input commands, building the VR move from tracking, and parsing VR server data.
 
 #include "vr_agarmor.hpp"
+#include "vr_mpavatar.hpp"
 #include "vr_arenaxray.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_client.hpp"
@@ -1090,6 +1091,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_FLOATTEXT: worldtext::clientParseFloatText(); break;
         case QVR_SVC_VIEWMESSAGE: worldtext::clientParseViewMessage(false); break;
         case QVR_SVC_ARENAMESSAGE: worldtext::clientParseViewMessage(true); break;
+        case QVR_SVC_AVATAR: mpavatar::parse(); break; // another player's head and hands (vr_mpavatar.cpp)
         case QVR_SVC_TIP_MAKE:
         case QVR_SVC_TIP_NAME:
         case QVR_SVC_TIP_TEXT:

@@ -1125,6 +1125,9 @@ za::Vector<Item> pageDebugReports()
         toggle("Network: Watch Players", vr_mp_watch)
             .help("vr_mp_watch: the console says when you see each player, when one starts moving from rest and every 32 "
                   "units he travels, with a wall-clock time in ms: compare two games' consoles for the delay between them."),
+        command("Network: Player Avatars", "vr_mp_avatars")
+            .help("vr_mp_avatars: the other players' heads, hands and weapons as this client has them (QVR_SVC_AVATAR) and, "
+                  "hosting, as the server has them from their moves."),
         toggle("Network: Cull Poses", vr_net_cullposes)
             .help("vr_net_cullposes: hosting, a remote player gets the armed humanoids' arm poses only of those he can see (on: "
                   "about 1.2 KB less in each of his datagrams on e1m1); off: every pose to every player, as before."),

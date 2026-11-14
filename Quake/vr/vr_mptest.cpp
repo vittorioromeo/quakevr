@@ -10,10 +10,13 @@
 // - `vr_mp_mark <label>`: prints "mp_mark: t=<ms> <label> org=<own origin>" (a scenario's step, timestamped).
 // - `vr_mp_status` (Debug > Reports > Network: Players Seen): this client's view of the players (and on a server, its
 //   clients): who is in, where, whether this frame's message carried them.
+// - `vr_mp_avatars` (Debug > Reports > Network: Player Avatars; vr_mpavatar.cpp): the other players' heads and hands this
+//   client has (QVR_SVC_AVATAR: "mp_avatar:") and, hosting, the server's (from their moves: "mp_avatar_sv:").
 
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_geom.hpp"
+#include "vr_mpavatar.hpp"
 
 #include <chrono>
 #include <stdio.h>
@@ -235,6 +238,7 @@ extern "C" void VR_MpTestInit(void)
     }
     Cmd_AddCommand("vr_mp_mark", mark_f);
     Cmd_AddCommand("vr_mp_status", status_f);
+    qvr::mpavatar::init(); // vr_mp_avatars
 }
 
 extern "C" void VR_MpTestFrame(void)

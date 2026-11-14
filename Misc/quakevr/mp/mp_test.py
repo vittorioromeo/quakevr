@@ -12,6 +12,8 @@ Tests:
              vr_net_cullposes 0 measured too; no packet down over 1408 B (reliable chunks at most 1200 B).
     version  a client of another Quake VR network version (-mpnetversion 1) is rejected with the reason; one of the
              same version joins.
+    avatar   B has A's avatar (QVR_SVC_AVATAR): head and hands within 2 units of the server's, the main hand's angles
+             within 3 degrees, his weapon; none of himself; the bytes it costs.
     suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, version.
 
 The base folder is a Quake folder with id1 (and hipnotic, rogue, quakevr: -game as the kit's runs). Its
@@ -21,6 +23,7 @@ The last line is the verdict, "mp_<test>: N passed, M failed".
 
 import argparse
 import os
+import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -178,6 +181,54 @@ def version(s):
     s.check("a client of the same network version joins", True)
 
 
+AVATAR_UNITS = 2.0  # B's copy of A's head and hands against the server's: quantized to an eighth, a frame or so apart
+AVATAR_DEGREES = 3.0
+
+
+def avatar_fields(line):
+    """An "mp_avatar:" / "mp_avatar_sv:" line -> {name: [floats]} (head, hand0, hand1, rot1, wpn, ent...)."""
+    out = {}
+    for m in re.finditer(r"(\w+)=([-\d. ]+?)(?= \w+=|$)", line.strip()):
+        out[m.group(1)] = [float(x) for x in m.group(2).split()]
+    return out
+
+
+def angle_diff(a, b):
+    return max(abs((x - y + 180.0) % 360.0 - 180.0) for x, y in zip(a, b))
+
+
+def avatar(s):
+    """B has A's avatar (QVR_SVC_AVATAR): his head and both hands within 2 units of where the server has them from A's
+    moves, the main hand's angles within 3 degrees, his weapon; B gets no avatar of himself; the bytes it costs."""
+    srv, a, b, ea, eb = join(s)
+    b.quiet(r"mp_(move|pos): ", 0.5, 20, "both at rest")
+    since_s, since_b = srv.mark(), b.mark()
+    srv.cmd("vr_mp_avatars")
+    b.cmd("vr_mp_avatars")
+    srv.wait(r"mp_avatars: done", 10, since_s, "the server's avatars")
+    b.wait(r"mp_avatars: done", 10, since_b, "B's avatars")
+    sv = {int(avatar_fields(l)["ent"][0]): avatar_fields(l) for l in srv.lines[since_s:] if l.startswith("mp_avatar_sv:")}
+    got = {int(avatar_fields(l)["ent"][0]): avatar_fields(l) for l in b.lines[since_b:] if l.startswith("mp_avatar:")}
+    s.check("B has A's avatar", ea in got, "B has %s; the server %s" % (sorted(got), sorted(sv)))
+    s.check("B has no avatar of himself", eb not in got)
+    if ea not in got or ea not in sv:
+        return
+    mine, theirs = got[ea], sv[ea]
+    worst = max(max(abs(x - y) for x, y in zip(mine[k], theirs[k])) for k in ("head", "hand0", "hand1"))
+    s.metric("avatar_worst_units", worst)
+    s.check("A's head and hands at B within %g units of the server's" % AVATAR_UNITS, worst <= AVATAR_UNITS,
+            "worst %.2f; B: hand1 %s, server: hand1 %s" % (worst, mine["hand1"], theirs["hand1"]))
+    turn = angle_diff(mine["rot1"], theirs["rot1"])
+    s.check("A's main hand's angles at B within %g degrees" % AVATAR_DEGREES, turn <= AVATAR_DEGREES, "%.2f" % turn)
+    s.check("A's weapon at B", mine["wpn"][0] == theirs["wpn"][0], "%d (server %d)" % (mine["wpn"][0], theirs["wpn"][0]))
+    start = b.proxy.wait_packets("down", 72, 20)
+    end = b.proxy.wait_packets("down", IDLE_PACKETS, 60) if start else None
+    if end:
+        w = b.proxy.window(start, end)["down"]
+        s.metric("b_idle_down_with_avatar", w)
+        s.note("B idle with A's avatar: down %s B/s, mean %s B" % (w["bytes_s"], w["mean_B"]))
+
+
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
     s = Session(args.exe, args.base, args.out, test, port=args.port)
     failure = None
@@ -186,6 +237,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             bandwidth(s)
         elif test == "mp_version":
             version(s)
+        elif test == "mp_avatar":
+            avatar(s)
         else:
             coop(s, args.listen, args.flat or "", lag, jitter, loss)
     except StepFailed as e:
@@ -195,7 +248,7 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "version", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -218,13 +271,14 @@ def main():
                 sys.exit(2)
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
-    elif args.test in ("bandwidth", "version"):
+    elif args.test in ("bandwidth", "version", "avatar"):
         ok = run(args, "mp_" + args.test)
     else:
         ok = run(args, "mp_coop")
         ok = run(args, "mp_coop_lag", 150, 0, 0.02) and ok
         ok = run(args, "mp_bandwidth") and ok
         ok = run(args, "mp_version") and ok
+        ok = run(args, "mp_avatar") and ok
         print("mp_suite: %s" % ("passed" if ok else "FAILED"))
     sys.exit(0 if ok else 1)
 
