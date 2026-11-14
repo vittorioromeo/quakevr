@@ -550,7 +550,7 @@ const char* campaignTag(int index)
     const char* tag = VR_CampaignTag(index);
     if(index == qvr::ad::campaignIndex && !strcmp(tag, "experimental"))
     {
-        return ""; // (shown before its title: tagLeftArg)
+        return tag; // (always shown, at the right of its title: his call 2026-11-15)
     }
     return tags <= 0 ? "" : tags >= 2 && !tag[0] ? "ready" : tag;
 }
@@ -569,8 +569,8 @@ const char* bloodyNightmareHelp(int)
 void bloodyNightmareRow(int) { playMg3BloodyNightmare(); }
 
 // Select Campaign (ROUND25.md, "campvis"): each campaign a group: its title (Item::Lead: pressed, a new run), its
-// Continue under it (Item::Sub) with the run on a line under that (Item::Note); Arcane Dimensions with them, a small
-// "experimental" before its title (flat1115a); the page's other rows in a small footer.
+// Continue under it (Item::Sub) with the run on a line under that (Item::Note); Arcane Dimensions with them, its
+// "experimental" tag at the right of its title (flat1115a); the page's other rows in a small footer.
 [[nodiscard]] za::Vector<Item> pageCampaigns()
 {
     za::Vector<Item> items{header("Official Campaigns")};
@@ -581,11 +581,7 @@ void bloodyNightmareRow(int) { playMg3BloodyNightmare(); }
     for(int i = 0; i < VR_CampaignCount(); ++i) // (Arcane Dimensions too: its row dim until it is ready)
     {
         Item choice = row(VR_CampaignTitle, VR_CampaignHelp, selectCampaignRow, i, -1).lead();
-        choice.tagArg = campaignTag;
-        if(i == qvr::ad::campaignIndex) // (with the others; its "experimental" before its title, not at the right)
-        {
-            choice.tagLeftArg = [](int) -> const char* { return "experimental"; };
-        }
+        choice.tagArg = campaignTag; // (Arcane Dimensions: "experimental", at the right like before)
         choice.dimArg = [](int index) -> bool
         { return index == qvr::ad::campaignIndex ? !VR_CampaignInstalled(index) : VR_CampaignUnavailable(index) != 0; };
         items.pushBack(choice);
