@@ -23,6 +23,9 @@ Flat-screen or VR: Melee Only with the dagger, "maxplayers 2" and a bot (impulse
 Flat-screen or VR: play a campaign until it autosaves, quit to the menu and open Select Campaign: a "Continue (N min ago)" row under that campaign, its run on the line below, loads straight into the save with no Run Setup; campaigns without an autosave have none.
 Flat-screen or VR: Map Library, an installed package you have autosaved in: a "Continue (N min ago): <run>" button above Uninstall / Reinstall loads its newest autosave; a package never played has none, and Play still opens Run Setup.
 Installer: install into a fresh folder and pick Snap 45, Left-handed and Medium on "Set up the game": the game has them. Change Turning in the game, run Update, change only Turn Speed: Turning stays yours.
+Flat-screen or VR: Run Setup's icon pictures keep their real shape (a round skull, square arches, long flat guns), the cards sit further apart and a two-line name is tighter; Menu Look > Run Setup: Icon Picker Gap and Icon Picker Name Lines tune them. {test:run_setup_newgame}
+Flat-screen or VR: finish a level: COMPLETED, the level's name and the Time, Secrets and Kills panel are in the menus' red, as are LOADING and PAUSE; with Blood Red Menus off they keep Quake's colours.
+Flat-screen or VR: Select Campaign: Arcane Dimensions sits with the other campaigns (no Experimental header) with a small "experimental" before its title; pick it and answer Continue: Run Setup opens, and its Start begins Arcane Dimensions.
 
 [4. VR: body and gear]
 With armour on, set Reloading > X With Armour and Flashlight > Forward With Armour to about 3 units (the scene does): the pouch and the belt torch stand clear of the plates, and go back when the armour is gone. {test:armour_gear}
