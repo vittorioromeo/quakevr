@@ -189,7 +189,7 @@ player unchanged.
 | **B3d** (client-side traces, teleport, palm frame up done; the rest is B3e) | The rest of B3c: the rig up (palm frame, weaponhotspot and the drawn pose, weapon hull, 2H carry and foe grab frames, the ragdoll grab fit, the crawl's hand bottom); client-side traces for teleport, crosshair, flashlight, hand collision | `mp_teleport`, `mp_grab` grown (palm frames; a 2H carry, a foe grab, the palm slack) |
 | **B3e** (the held weapon's drawn pose up done; the rest is B3f) | The rest of B3d: the drawn pose up per player (weaponhotspot, weaponanygrip, weapondrawnpose's carried weapon and axes, the drawn weapon hull, the 2H carry's reach offset); `mp_grab` grown | `mp_held` (B's hotspots on the server where his view draws them; his two-handed hold and hand-off judged by his own) |
 | **B3f** (done: B3 is done) | The rest of B3e: the grip fit's hand rig per player (`vr_gripfit.cpp`), the ground weapon's grab hotspot and the reverse grip's choice per player (weapongrabspot, weapondrawnpose 43), the magnetic holsters' poll and places per player; `mp_grab` grown (a 2H carry, a foe grab, the palm slack) | `mp_grab` grown, `mp_held` grown (a reverse grip) |
-| **B4** | Coop campaign flow: coop saves and loads (per-player blocks, versioned), autosaves, level transitions with inventories, intermission, deaths and respawns, map download (package names through the map installer; chunked fallback) | `mp_campaign` (e1m1 to e1m3 with saves and a load, both players' inventories), `mp_download` (B lacks a map: installs it, joins) |
+| **B4** (saves, loads, level changes with inventories done; the rest is B4b) | Coop campaign flow: coop saves and loads (per-player blocks, versioned), autosaves, level transitions with inventories, intermission, deaths and respawns, map download (package names through the map installer; chunked fallback) | `mp_campaign` (e1m1 to e1m3 with saves and a load, both players' inventories), `mp_download` (B lacks a map: installs it, joins) |
 | **B5** | Interactions between players: drop a weapon / the other picks it up; force grab of world weapons in multiplayer; melee, parries and shoves between players; climbing, crouch, prone, jump, punch synced and judged per player | one scenario per interaction, each from both sides |
 | **B6** | Server rules and cosmetics: every balance setting a rule (presets, armed humanoids, damage, mutators, stamina, grapple...), rule pages dimmed on a remote client; holster positions, height, seated/standing, gloves, body seen by others | `mp_rules`, `mp_cosmetics` (B's height and gloves seen by A) |
 | **B7** | Snapshots: acknowledged per-client snapshots and deltas for entities, players and avatars; quantized delta moves with repeats; interpolation buffer with quaternion slerp | `mp_loss` (10% loss: positions still continuous), byte counts per scenario |
@@ -704,7 +704,54 @@ Moved on (none blocks coop play):
 - The reverse grip's cosine on the server can differ from his view's by up to ~0.15 while the weapon still slides (the
   server's place of it, not the client's interpolated one); the choice only flips near a right angle.
 
+### B4 results, part 1 (2026-11-14, dev no-LTO build, loopback; `mp_test.py suite`: 14 of 16 pass, `mp_teleport` 6/1 (B3f's flaky aim, `None`) and `mp_ground` 14/1 (below))
+
+| Scenario | Result |
+|---|---|
+| `mp_campaign` (new) | 17/0: a dedicated server's coop e1m1 to e1m2 to e1m3, both players' weapons, ammo and weapon in hand carried by each change (shells raised to 25: QC's SetChangeParms); a save on e1m2 (`// qvr_save 2`, `// qvr_coop 1 4 1`, a `// qvr_coopslot` block for A and B); its load from e1m3 with both kept, each in his own slot (the same entity) with what he had at the save, the server's "coop save: 2 players of 4 slots"; B's suicide after the load respawns him with the loaded e1m2's start (his saved parms: no rocket launcher), not e1m3's |
+| `mp_campaign_listen` (new) | 11/0: a listen host's coop save loaded with B connected (both kept; the host's own client reconnecting as at a changelevel), then by the host alone after he went single player (`maxplayers 1`): the save's 4 players set again, B joining into his saved slot with his saved inventory |
+| `mp_grab` | 13/0 in 9 runs of 9 (B3f: 1 run of 4 missed): the hand placed on the gun again every report while pressing, into it and over it by turns |
+| `mp_ground` | 15/0 in 4 runs of 4, then 14/1 in the suite (it had failed 2 of 3, 3 of 3 once the sword was waited for): the sword let go waited for at rest (the server's nearest weapon's speed, `vr_mp_drawn` `nspeed=`); the hand turned up high in one frame, then put over the sword in the next. Still flaky, about 1 in 5: the sword lying on its flat side, the off fist placed 2 cm below its hotspot stops 2.9 cm off its surface ("against this hand", allowed 0: the hand barely moves), so the reversed take never comes |
+
+Single player on the branch: load_models_test 4/0, vr_run_check 12/0 (`scratch/b3_runcheck.sh`: a save and its load, a
+changelevel), scenario_check PASS (129 scenes, 0 failed); the dev build 0 warnings. A single player save is written and
+read as before (format 1, no `qvr_coop` line, slot 0's edict the loaded player's for the whole level).
+
+What changed:
+
+- **Coop saves** (`vr_coopsave.cpp`): a save of more than one player (any but deathmatch: console, menu Save, the
+  Quicksave tool) adds `// qvr_coop <format> <maxclients> <coop>` and per slot `// qvr_coopslot <slot> <in> [<count>
+  <parm1..> <name>]` (the player's level-start parms, ext parms included; `count` lets another build's number of parms
+  load). It is save format 2: older builds refuse it (they would load its players' edicts as a single player game's);
+  single player saves stay format 1, and Continue skips coop saves.
+- **The load** (`Host_Loadgame_f`): played with the save's number of players (the edicts after theirs are numbered from
+  it: a single player save loaded in a game of 4 was misnumbered before, and a coop save of more players than
+  `-maxplayers` allows is refused). Connected players are kept when that number is the game's already: they reconnect,
+  each in his slot, as at a changelevel, and get the serverinfo again after the save's models are precached. Otherwise
+  the game is shut down and `maxplayers`, `coop` and `deathmatch` set from the save. Each slot gets its saved parms (a
+  coop respawn after a load gives the loaded level's start; before, every slot but the first kept whatever level's parms
+  it had). A player joining a slot that was empty in the save enters as a new player (ClientConnect, PutClientInServer)
+  instead of into a blank edict; the game stays paused until every saved player still connected is back in (or left).
+- `vr_mp_status`'s `mp_client:` lines carry each player's inventory (`inv=health,armor,items,shells,nails,rockets,cells,
+  weapon`); `vr_mp_drawn`'s server lines the speed of the weapon lying nearest each hand (`nspeed=`).
+
+Open (B4b):
+
+- `mp_ground`'s sword retake (1 in 5): reach the sword's surface (its middle, not hotspot 0, or a sweep across it).
+
+- Autosaves in coop (`Host_CheckAutosave` follows the host's own player; a dedicated server has none): the level-start
+  autosave at least, all players alive.
+- Intermission and the exit: a player in the exit trigger, the intermission seen by both, a press going on.
+- A real death (not a suicide: ClientKill respawns at once) and the press that respawns in coop.
+- A rejoining player matched to his saved slot by name (now by slot: a player joining another free slot after a load
+  is a new player).
+- Map download (`mp_download`: package names through the map installer; a chunked fallback).
+
 ## Decisions
+
+- Coop saves keep the players' slots rather than matching them by name: the slot is what numbers their edicts, a
+  player who stayed connected keeps it through the load, and a player joining later takes the slot he is given (by name:
+  B4b). A coop save is format 2 so that older builds refuse it rather than load it wrong.
 
 - The harness is Python with an in-engine inbox rather than stdin or RCON: it drives GUI clients and dedicated servers
   the same way, needs no network control channel, and stays inert unless `-cmdinbox` is given.
@@ -719,4 +766,4 @@ Moved on (none blocks coop play):
   from outside, they always have legs (his body mode 1 or 2 is his own first-person view); his body mode 0 draws his
   player model as before.
 
-Next phase: B4 — (first: `mp_grab`'s retake reliable, the hand placed on the gun every report while pressing, B3f's flaky item) coop campaign flow: coop saves and loads (per-player blocks, versioned), autosaves, level transitions with inventories, intermission, deaths and respawns, map download (package names through the map installer; chunked fallback); tests first: `mp_campaign` (e1m1 to e1m3 with saves and a load, both players' inventories), `mp_download` (B lacks a map: installs it, joins).
+Next phase: B4b — the rest of the coop campaign flow: autosaves in coop (the level-start one, all players alive), intermission and the exit (both see it, a press goes on), a real death and the coop respawn press, a rejoining player matched to his saved slot by name, map download (package names through the map installer; a chunked fallback); tests first: `mp_campaign` grown (an autosave, the exit, a death), `mp_download` (B lacks a map: installs it, joins).

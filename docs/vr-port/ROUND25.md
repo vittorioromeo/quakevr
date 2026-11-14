@@ -2402,3 +2402,13 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
 ## telekeep (cherry-pick of agent/mp 88743a3e8)
 - A teleport asked in an earlier move of a server frame is kept until the server acts on it (headset above 72 Hz lost it). Checks: dev + ReleaseLTO 1.1.0 builds, vr_teleport_both_test 14/0, scenario_check 129/0, load_models_test 4/0.
 - vr_runpickups_test 1 hangs (engine spins, frames stop) at step 17 load mp_rpk_seed; also at 32ebcecc7 (muttiers merge) and 97aee6b6e, so not a recent commit. The same sequence by hand, and loading mp_rpk_seed.sav in a fresh run, both work. Cause not found.
+## mpN (B4, part 1): coop saves and loads, level changes with inventories (agent/mp, 2026-11-14; never shipped by the coordinator)
+- A coop game saves (console, menu Save, Quicksave; not deathmatch) with each player's block: `// qvr_coop`, `// qvr_coopslot`
+  (his level-start parms and name; save format 2, refused by older builds; single player saves stay format 1, Continue skips
+  coop saves). Its load plays it with the save's number of players, keeps connected players in their slots (they reconnect as
+  at a changelevel), gives each slot its parms (a coop respawn after a load: the loaded level's start), spawns a player into
+  a slot empty in the save as a new one, and stays paused until the saved players still connected are back.
+- `mp_campaign` 17/0 (e1m1 to e1m3, a save, its load, a respawn), `mp_campaign_listen` 11/0; `mp_grab` 9 of 9 and
+  `mp_ground` 4 of 4 (the retaking hand placed again every report; the sword waited for at rest, `vr_mp_drawn` `nspeed=`).
+- Single player: load_models 4/0, vr_run_check 12/0, scenario_check PASS. Next: B4b (coop autosaves, the exit and
+  intermission, a real death, slots by name, map download). Details: MP_PLAN.md, "B4 results, part 1".
