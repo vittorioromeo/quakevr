@@ -2794,3 +2794,7 @@ self-driven across the load by saved globals): `vr_scenario waterdrips`, once pl
 - Arena Mode: no Ironman row (rows: Start, Difficulty, Gore, Glass Cannon, Melee Only); `arenaValue` forces Ironman off, the pick untouched.
 - No saving in the arena (`vrarena`): `VR_ArenaNoSave` (vr_runsetup.cpp) makes `VR_RunIronmanRefusesSave` refuse `save`/quicksave/Save menu with "No saving in Arena Mode"; the quicksave tool is greyed with that reason. Loading stays allowed.
 - Tests: `vr_runsetup_screen_test` (five rows), `vr_runlaunch_test` (Ironman off with the pick on; save and quicksave write nothing). menu_paths unchanged by rows removal except Ironman.
+
+## wetglint (agent/wetglint)
+
+His report: after quickload the dripping came back but the wet glint did not. The shine (the alias shader wet coat, `wounds::wetCoat`) read `Mask::wetLeft` / `handWetLeft`, set only by a liquid wound event (the rising edge); a load restoring vr_drips wetness never set them. Fix, no new state: `wetCoat` takes its seconds-left from `drips::wetOf(e)` (drips wetness times dryTime, max with the old values); a thing with no wet mask (a loaded game) shines all over. `Misc/quakevr/saveload_test.sh` checks `vr_wounds_info` `wet: coat`: each coat shining before the save shines after (flat 5, VR 5). BACKLOG: flat 2H melee pose item added.
