@@ -2658,9 +2658,28 @@ def steps(points):
     return [dist(points[i], points[i - 1]) for i in range(1, len(points))]
 
 
-def jumps(st):
-    """Frames whose step is over JUMP_RATIO times both neighbours' and JUMP_SLACK more (a position that jumps)."""
-    return sum(1 for i in range(1, len(st) - 1) if st[i] > JUMP_RATIO * max(st[i - 1], st[i + 1]) + JUMP_SLACK)
+def jumps(st, dts=None):
+    """Frames whose step is over JUMP_RATIO times both neighbours' and JUMP_SLACK more (a position that jumps). With
+    `dts` (each step's advance of the clock the copy is drawn at: B8c), the neighbours' speeds times this frame's
+    advance: a long frame on a busy machine moves the copy further without a jump."""
+    if dts is None or len(dts) != len(st):
+        return sum(1 for i in range(1, len(st) - 1) if st[i] > JUMP_RATIO * max(st[i - 1], st[i + 1]) + JUMP_SLACK)
+    n = 0
+    for i in range(1, len(st) - 1):
+        lo, hi = dts[i - 1], dts[i + 1]
+        near = max(st[i - 1] / lo * dts[i] if lo > 1e-5 else st[i - 1],
+                   st[i + 1] / hi * dts[i] if hi > 1e-5 else st[i + 1])
+        n += 1 if st[i] > JUMP_RATIO * near + JUMP_SLACK else 0
+    return n
+
+
+def clock_steps(lines):
+    """B's "mp_trace:" lines -> each frame's advance of the buffer's clock (rt), or None (an older build's trace)."""
+    tl = [l for l in lines if l.startswith("mp_trace: t=")]
+    if not tl or any(" rt=" not in l for l in tl):
+        return None
+    rts = [float(fields(l)["rt"]) for l in tl]
+    return [rts[i] - rts[i - 1] for i in range(1, len(rts))]
 
 
 def median(xs):
@@ -2686,8 +2705,9 @@ def loss_trace(s, a, b, ea, lerp, label):
     body = [t[1] for t in tr]
     offs = [[t[2][k] - t[1][k] for k in range(3)] for t in tr]
     offs1 = [[t[3][k] - t[1][k] for k in range(3)] for t in tr]
-    body_j = jumps(steps(body))
-    hand_j = jumps(steps([t[2] for t in tr])) + jumps(steps([t[3] for t in tr]))
+    dts = clock_steps(b.lines[since:])
+    body_j = jumps(steps(body), dts)
+    hand_j = jumps(steps([t[2] for t in tr]), dts) + jumps(steps([t[3] for t in tr]), dts)
     rough = max(roughness(offs), roughness(offs1))
     span = tr[-1][0] - tr[0][0] if len(tr) > 1 else 0.0
     fps = (len(tr) - 1) / span if span > 0 else 0.0

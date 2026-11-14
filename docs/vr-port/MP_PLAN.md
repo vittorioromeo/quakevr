@@ -198,7 +198,9 @@ player unchanged.
 | **B7** (done: moves up, the avatars' lerp; B7b snapshots down and the interpolation buffer) | Snapshots: acknowledged per-client snapshots and deltas for entities, players and avatars; quantized delta moves with repeats; interpolation buffer with quaternion slerp | `mp_loss` (10% loss: positions still continuous), byte counts per scenario |
 | **B7b** (done: B7 is done; fast retransmit of the reliable window to B9) | The rest of B7: acknowledged per-client snapshots down (the client acknowledges each server frame in QVR_CLC_MOVES; entities, player states and avatars delta-coded against the acknowledged one); the entities' interpolation buffer (a fixed delay behind, adaptive to jitter, a history of messages, slerped turns) in place of NetQuake's two-message lerp for remote clients | `mp_loss`'s jump counts become checks (0 jumps of A's body and hands at 10% loss); `mp_bandwidth` down idle under 10 KB/s |
 | **B8** (the walk predicted done; the rest is B8b) | Prediction and lag compensation: shared movement code, reconciliation, then climbing and grapple; rewind of hit models and hands for hitscan, melee, parry, shove | `mp_predict` (own move off at frame 0 under 150 ms lag; corrections under 1 unit on flat ground), `mp_lagcomp` (a hit on a moving target at 150 ms lands) |
-| **B8b** | The rest of B8: lag compensation (the server's last 250 ms of hit models and hands per entity; a client's hitscan, melee, parry and shove judged at his interpolation buffer's time, capped); the jump predicted (QC's PlayerPreThink jump in the module), swimming, crouched and lying boxes, climbing and the grapple | `mp_lagcomp` (a hit on a moving target at 150 ms lands), `mp_predict` grown (a jump, a swim, a crouch: corrections under a unit) |
+| **B8b** (shots compensated; the rest is B8c) | The rest of B8: lag compensation (the server's last 250 ms of hit models and hands per entity; a client's hitscan, melee, parry and shove judged at his interpolation buffer's time, capped); the jump predicted (QC's PlayerPreThink jump in the module), swimming, crouched and lying boxes, climbing and the grapple | `mp_lagcomp` (a hit on a moving target at 150 ms lands), `mp_predict` grown (a jump, a swim, a crouch: corrections under a unit) |
+| **B8c** (mp_loss's jumps and melee's lag compensation done; the prediction's moves are B8d) | mp_loss's last jumps; lag compensation for melee, parry, shove and the grapple (other players' hands kept); the jump, swimming, crouched and lying boxes, climbing and the grapple predicted, a lift rider | `mp_loss` 0 jumps, `mp_lagcomp` (a punch at 150 ms lands), `mp_predict` grown |
+| **B8d** | The prediction's moves: the jump (QC's PlayerPreThink jump in vr_pmove.cpp, stamina), swimming, the crouched and lying boxes, climbing and the grapple; a lift rider | `mp_predict` grown (a jump, a swim, a crouch, a lift: corrections under a unit) |
 | **B9** | Compression and rate: entropy stage with trained tables, per-client rate, priority accumulator | byte budgets per scenario from section 2.3 |
 | **B10** | Proximity voice chat: capture, Opus, VAD, noise suppression, push-to-talk, a jitter buffer, voices placed by Steam Audio at the speaker's head; VR and flat; menu rows | `mp_voice` (a test tone from A heard at B, louder near, delay under 250 ms) |
 | **B11** | Deathmatch and bots: frags, respawns, DM item rules with VR weapons, FrikBot with VR-aware bodies | `mp_dm` (two clients and two bots, a fraglimit reached) |
@@ -1300,7 +1302,46 @@ Open (B8c):
 - The prediction of jump, swimming, the crouched and lying boxes, climbing and the grapple, and a lift-rider test
   (`mp_predict` grown: corrections under a unit): not started this session.
 
+### B8c results, part 1: mp_loss's jumps, melee lag compensated (2026-11-14, dev no-LTO build, loopback; SUITE_RESULT)
+
+| Scenario | Result |
+|---|---|
+| `mp_loss` | 15/0 in 6 runs of 6 (was 13/2 in 2 of 6): 0 jumps of A's body and hands at 10% loss. The cause: 3-4 packets lost in a row (or late) left the buffer's clock past the newest message (its delay 38 ms, two ticks and a margin): the copy held at the newest place, then the next message's lerp put it 14 ms of motion (4-7 units) further in one frame. The server's own samples of A are uneven too (0 to 670 u/s tick to tick: his moves reach the server in bursts), which the lerp smooths |
+| `mp_lagcomp` | 11/0 (grown): 12 of 12 test punches (`vr_mp_punch`: a fist's 32-unit line, radius 4, into A's middle as B draws him, judged as melee's sweep judges: hitmodel_segment, a player's box grown by the line) land where B saw A, 5 of 12 where the server has him now; the shots as before (12/12, the punch sent with each shot so A's legs keep their length) |
+| `mp_melee` | 29/0, twice (the punch, parry and bash each way now run through the scope) |
+
+SP_RESULT
+
+What changed:
+
+- **The interpolation buffer's clock** (`vr_netsnap.cpp`, `cushion` half a tick): within half a tick of the newest
+  message it slows (its rate times the room left over the cushion), to a stop at it; the delay's rate catches up after
+  (at most 1.15). `holds` counts the slowed frames. `vr_mp_trace` prints the clock (`rt`, `nw`, `dl`) and the traced
+  entity's newest sample (`st`, `so`): `scratch/b8c_jumps.py`'s analysis.
+- **Lag compensation's QC scope** (`lagcompbegin(e)` / `lagcompend()`, vr_lagcomp.cpp): `VR_Melee_Sweep`,
+  `VR_Bash_Find` and `VR_Headbutt_Target` are wrappers of their old bodies (`...Now`) in the scope with self; `VR_Parry`
+  runs `VR_Parry_HandFor` in the attacker's (another player's blow: the defender's guard where the attacker saw it).
+  Nested scopes (a traceline inside) do nothing. The kept frames now hold each player's hands (`handpos`, `handrot`,
+  both hands; pos lerped as the origin); `end` restores each target's present place plus what the scope moved it, and
+  keeps a frame, angles or hand turn the scope changed.
+
+Open (B8d):
+
+- The prediction's moves (the jump, swimming, the crouched and lying boxes, climbing, the grapple, a lift rider):
+  `mp_predict` grown, corrections under a unit, the worst case never desynced.
+- Not compensated: the grapple's hook (a missile: it flies and bites in the server's world, `hitmodel_any` on touch),
+  missiles, the directional parry's deferred blows (`VR_DRP_Blow`), tackles (bodies meeting in the server's world).
+- Hand poses are kept per server frame (lerped between frames), not per move: a 90 Hz client's merged moves differ by a
+  few mm (the B5d decision).
+
 ## Decisions
+
+- Melee's lag compensation (B8c) wraps the queries (melee's sweep, a bash's find, a headbutt's target, a guard's check
+  against another player's blow) in QC's scope, not the whole melee frame: the blow is dealt, pushes and deaths happen,
+  where the targets are (no ragdoll or effect at a past place for the others), as Source and Overwatch deal a rewound
+  hit. Its end keeps what the scope did to a target (moved by the push, a death's frame) on top of its present place.
+  The interpolation buffer's clock (B8c) slows to a stop near the newest message rather than extrapolating: no
+  overshoot to take back, at the cost of a slowed copy during a long gap.
 
 - Lag compensation (B8b) rewinds only the targets of a MOVE_HITMODEL traceline from a remote client, for that trace,
   rather than his whole frame's QC: the AI, triggers and his own walk keep the server's world; the view time is his
@@ -1357,4 +1398,4 @@ Open (B8c):
 - The interpolation buffer (B7b) leaves brush models and stepping monsters on NetQuake's lerp: the player's own entity
   is not delayed (no prediction until B8), and a lift he rides must stay in step with him.
 
-Next phase: B8c — the rest of B8: lag compensation for melee, parry, shove and the grapple (hitmodel_segment and vr_admelee's sweeps through vr_lagcomp's begin/end; other players' hand poses kept per move), then the jump, swimming, the crouched and lying boxes, climbing and the grapple predicted through vr_pmove.cpp, with a lift-rider test; tests first: `mp_lagcomp` grown (a punch at 150 ms lands), `mp_predict` grown (a jump, a swim, a crouch, a lift: corrections under a unit).
+Next phase: B8d — the prediction's moves: the jump, swimming, the crouched and lying boxes, climbing and the grapple predicted through vr_pmove.cpp, with a lift-rider test (the worst case must never desync: a correction eases in, a big one snaps); tests first: `mp_predict` grown (a jump, a swim, a crouch, a lift: corrections under a unit).

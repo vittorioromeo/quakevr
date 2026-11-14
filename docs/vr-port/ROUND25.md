@@ -3122,3 +3122,19 @@ self-driven across the load by saved globals): `vr_scenario waterdrips`, once pl
 - Arena Mode: no Ironman row (rows: Start, Difficulty, Gore, Glass Cannon, Melee Only); `arenaValue` forces Ironman off, the pick untouched.
 - No saving in the arena (`vrarena`): `VR_ArenaNoSave` (vr_runsetup.cpp) makes `VR_RunIronmanRefusesSave` refuse `save`/quicksave/Save menu with "No saving in Arena Mode"; the quicksave tool is greyed with that reason. Loading stays allowed.
 - Tests: `vr_runsetup_screen_test` (five rows), `vr_runlaunch_test` (Ironman off with the pick on; save and quicksave write nothing). menu_paths unchanged by rows removal except Ironman.
+
+## mpN (B8c, part 1): mp_loss's last jumps; lag compensation for melee (agent/mp, 2026-11-14; never shipped by the coordinator)
+
+- **The interpolation buffer** (`vr_netsnap.cpp`): its clock slows to a stop within half a tick of the newest message
+  (`cushion`) instead of running past it and holding; past it, the next message's lerp threw the others a gap's motion
+  forward at once (3-4 packets lost in a row at 10% loss: mp_loss's last "jumps"). `holds` (vr_mp_status) now counts
+  the slowed frames. `vr_mp_trace` prints the buffer's clock and the traced entity's newest sample.
+- **Melee lag compensated** (`vr_lagcomp.cpp`; QC builtins `lagcompbegin(e)` / `lagcompend()`): a remote client's
+  melee sweep (`VR_Melee_Sweep`), bash find (`VR_Bash_Find`), headbutt target and the guard check of a player struck by
+  another player (`VR_Parry_HandFor` in `VR_Parry`) meet the others where his screen showed them; the blow is dealt
+  where they are. The kept frames hold the players' hands (pos, rot); the scope's end keeps what it did to a target.
+  Single player and the listen host's own client: `lagcompbegin` returns 0. Not compensated: the grapple's hook and
+  missiles (they fly in the server's world), the directional parry's deferred blows (VR_DRP_Blow), tackles.
+- Tests: `mp_test.py loss` 6 of 6 runs 0 jumps (was 2 of 6 failing); `mp_test.py lagcomp` 11/0 (new: 12/12 test
+  punches land where B saw A at 150 ms each way, 5/12 where the server has him); `mp_melee` 29/0. Details: MP_PLAN.md,
+  "B8c results, part 1".
