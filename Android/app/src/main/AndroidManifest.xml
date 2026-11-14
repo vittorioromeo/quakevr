@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Quake VR on Android (the Quest): docs/vr-port/QUEST_PLAN.md, C3. A flat-screen app until C4 (OpenXR) adds the VR
+     category and the headset's features. The game's files: the app's external files folder
+     (/sdcard/Android/data/com.vittorioromeo.quakevr/files: id1/ and quakevr/), which needs no permission. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    android:versionCode="1"
+    android:versionName="1.1.0"
+    android:installLocation="auto">
+
+    <!-- OpenGL ES 3.2 (the engine's ES profile) -->
+    <uses-feature android:glEsVersion="0x00030002" android:required="true" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <uses-feature android:name="android.hardware.gamepad" android:required="false" />
+    <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
+    <uses-feature android:name="android.hardware.usb.host" android:required="false" />
+
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <application android:label="Quake VR"
+        android:allowBackup="false"
+        android:hasCode="true"
+        android:extractNativeLibs="true"
+        android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
+        android:hardwareAccelerated="true">
+
+        <meta-data android:name="com.oculus.supportedDevices" android:value="quest2|quest3|quest3s" />
+
+        <activity android:name="com.vittorioromeo.quakevr.QuakeVRActivity"
+            android:label="Quake VR"
+            android:alwaysRetainTaskState="true"
+            android:launchMode="singleTask"
+            android:screenOrientation="landscape"
+            android:configChanges="layoutDirection|locale|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation|density"
+            android:preferMinimalPostProcessing="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>

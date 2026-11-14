@@ -885,6 +885,11 @@ void Sys_ReportError (const char *error, ...)
 	fputs (errortxt2, stderr);
 	fputs (text, stderr);
 	fputs ("\n\n", stderr);
+#ifdef __ANDROID__
+	VR_AndroidLog (errortxt2); // QVR: logcat (stderr goes nowhere on Android)
+	VR_AndroidLog (text);
+	VR_AndroidLog ("\n");
+#endif
 	if (!isDedicated)
 		PL_ErrorDialog(text);
 
@@ -902,7 +907,11 @@ void Sys_Printf (const char *fmt, ...)
 	va_end (argptr);
 
 	UTF8_FromQuake (u8text, sizeof (u8text), qtext);
+#ifdef __ANDROID__
+	VR_AndroidLog (u8text); // QVR: the console in logcat ("adb logcat -s QuakeVR"; stdout goes nowhere on Android)
+#else
 	printf ("%s", u8text);
+#endif
 
 	// log all messages to file as well if -condebug was specified
 	Con_DebugLog (u8text);

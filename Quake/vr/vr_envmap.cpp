@@ -301,7 +301,9 @@ void averageColors(za::Span<const gltexture_t* const> textures,
             if(r.w > 0)
             {
                 GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, r.tex->texnum);
+#ifndef __ANDROID__ // (Android: always the ES branch above)
                 glGetTexImage(GL_TEXTURE_2D, r.level, GL_RGBA, GL_FLOAT, reinterpret_cast<void*>(r.offset));
+#endif
             }
         }
         px = static_cast<const float*>(GL_MapBufferRangeFunc(GL_PIXEL_PACK_BUFFER, 0, static_cast<GLsizeiptr>(total),

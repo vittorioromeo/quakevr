@@ -336,7 +336,12 @@ extern "C" void VR_GLStartupVendor(const char* vendor, const char* renderer, con
     {
         VR_GLStep("vendor workarounds (AMD; vr_gl_workarounds 1): %s off", featureName(VR_GLSAFE_BINDLESS));
     }
-    if(COM_CheckParm("-glescompat") || getenv("QVR_GLES_COMPAT")) // (the variable: bench.sh runs, which take no arguments)
+#ifdef __ANDROID__
+    constexpr bool esContext = true; // (Android: always an OpenGL ES 3.2 context, gl_vidsdl.c)
+#else
+    constexpr bool esContext = false;
+#endif
+    if(esContext || COM_CheckParm("-glescompat") || getenv("QVR_GLES_COMPAT")) // (the variable: bench.sh runs, which take no arguments)
     {
         glsafe.esCompat = true;
         glsafe.vendorOff |= esCompatOff;
@@ -559,10 +564,14 @@ extern "C" unsigned VR_GLESImageFormat(unsigned format)
 
 extern "C" void VR_GLPolygonMode(unsigned mode)
 {
+#ifdef __ANDROID__
+    (void)mode; // (no glPolygonMode in OpenGL ES: the wireframe views draw filled)
+#else
     if(!glsafe.esCompat)
     {
         glPolygonMode(GL_FRONT_AND_BACK, mode);
     }
+#endif
 }
 
 extern "C" int VR_GLESShaderError(const char* message)

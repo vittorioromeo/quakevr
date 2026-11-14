@@ -459,9 +459,14 @@ bool readTexImage(GLenum target, GLint level, GLenum format, GLenum type, void* 
     const size_t align = static_cast<size_t>(za::max(packAlignment, 1));
     const size_t stride = (static_cast<size_t>(w) * channels * typeBytes + align - 1) / align * align;
     const size_t bytes = stride * static_cast<size_t>(h) * static_cast<size_t>(d);
+#ifdef __ANDROID__
+    esForm = true; // (OpenGL ES has no glGetTexImage: the ES form, whatever was asked)
+#endif
     if(!esForm)
     {
+#ifndef __ANDROID__
         glGetTexImage(target, level, format, type, out);
+#endif
         return true;
     }
     memset(out, 0, bytes);

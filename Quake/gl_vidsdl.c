@@ -519,9 +519,17 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, qboolean fu
 		if (vid_borderless.value)
 			flags |= SDL_WINDOW_BORDERLESS;
 
+#ifdef __ANDROID__
+		// QVR: Android (the Quest): an OpenGL ES 3.2 context through EGL; the renderer's ES profile is on there
+		// (VR_GLESCompat, vr_glsafe.cpp; QUEST_PLAN.md)
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+#else
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, MIN_GL_VERSION_MAJOR);
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, MIN_GL_VERSION_MINOR);
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+#endif
 #ifndef NDEBUG
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
 #else
