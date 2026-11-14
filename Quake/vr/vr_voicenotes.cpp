@@ -33,6 +33,16 @@
 
 #include "Zancle/Math/MinMax.hpp"
 
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#include <objbase.h> // (CoInitializeEx: the meter's device opened on a worker)
+#endif
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -65,6 +75,15 @@ double meterUntil = 0.0;              // realtime it closes at, unless wanted ag
 double meterRetryAt = 0.0;            // no microphone: realtime to try again at
 double meterLastSamples = 0.0;
 float meterLevel = 0.f;
+// Opening and closing a capture device takes the audio driver 15-25 ms (WASAPI): done on a worker, never the frame's
+// thread (PERF_1_1.md: a hitch each time smoke came near the mouth after the meter had closed).
+struct MeterOpened
+{
+    SDL_AudioDeviceID id = 0;
+    int rate = wantedRate;
+};
+jobs::Future<MeterOpened> meterOpening; // (valid while the meter's device is being opened)
+jobs::Future<bool> meterClosing;        // (the last close, on a worker)
 constexpr double meterLinger = 10.0;  // seconds open after the last want (no opening and closing as a gun comes and goes)
 constexpr double meterRetry = 30.0;   // seconds between tries with no microphone
 constexpr double meterStale = 0.25;   // seconds with no samples: the level is 0 (the device went away)
@@ -309,12 +328,15 @@ void newBase(za::String& when)
     when = text;
 }
 
+void settleMeterJobs();
+
 void start(bool fromButton)
 {
     if(recording || !ensureAudio())
     {
         return;
     }
+    settleMeterJobs(); // (the meter's device opening or closing on a worker: done first)
 
     SDL_AudioSpec want{}, have{};
     want.freq = wantedRate;
@@ -391,11 +413,56 @@ void stop()
     return mouth(at, facing) && glm::distance(hands::current().pos[HAND_OFF], at) < mouthReach * units::metresToUnits();
 }
 
-void closeMeter()
+// The meter's device, opened by wantMicLevel's worker, taken in once it is open.
+void takeOpenedMeter()
 {
+    if(!meterOpening.ready())
+    {
+        return;
+    }
+    const MeterOpened opened = meterOpening.get();
+    if(opened.id)
+    {
+        meter = opened.id;
+        meterRate = opened.rate;
+        meterLastSamples = realtime;
+    }
+    if(vr_debug_gunfx.value != 0.f)
+    {
+        Con_Printf("gunfx mic meter %s (rate %d)\n", opened.id ? "open" : "not opened", opened.rate);
+    }
+}
+
+// `wait`: here and now (shutdown, the notes' own device about to open: SDL opens one device at a time safely).
+void settleMeterJobs()
+{
+    meterOpening.wait();
+    takeOpenedMeter();
+    meterClosing.wait();
+}
+
+void closeMeter(bool wait = false)
+{
+    if(wait)
+    {
+        settleMeterJobs();
+    }
     if(meter)
     {
-        SDL_CloseAudioDevice(meter);
+        const SDL_AudioDeviceID id = meter;
+        if(wait)
+        {
+            SDL_CloseAudioDevice(id);
+        }
+        else
+        {
+            meterClosing = jobs::async(
+                [id]()
+                {
+                    SDL_CloseAudioDevice(id);
+                    return true;
+                });
+        }
         meter = 0;
     }
     meterLevel = 0.f;
@@ -404,6 +471,7 @@ void closeMeter()
 // Once a frame: the samples since the last, their RMS into the level.
 void meterFrame()
 {
+    takeOpenedMeter();
     if(meter && realtime > meterUntil)
     {
         closeMeter();
@@ -576,7 +644,9 @@ void wantMicLevel()
         return; // (a fake level: no microphone)
     }
     meterUntil = realtime + meterLinger;
-    if(meter || realtime < meterRetryAt)
+    takeOpenedMeter();
+    // (one device opened or closed at a time: SDL's device table is not guarded between threads)
+    if(meter || meterOpening.valid() || (meterClosing.valid() && !meterClosing.ready()) || realtime < meterRetryAt)
     {
         return;
     }
@@ -585,18 +655,29 @@ void wantMicLevel()
     {
         return;
     }
-    SDL_AudioSpec want{}, have{};
-    want.freq = wantedRate;
-    want.format = AUDIO_S16SYS;
-    want.channels = 1;
-    want.samples = 256; // (16 ms: the level follows the breath)
-    meter = SDL_OpenAudioDevice(deviceName(true), 1, &want, &have, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE);
-    if(meter)
-    {
-        meterRate = have.freq;
-        meterLastSamples = realtime;
-        SDL_PauseAudioDevice(meter, 0);
-    }
+    const char* named = deviceName(true);
+    meterOpening = jobs::async(
+        [name = za::String{named ? named : ""}]()
+        {
+#ifdef _WIN32
+            // (WASAPI's device objects are COM's: this worker joins the multithreaded apartment, once, and stays in it)
+            (void)CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+#endif
+            SDL_AudioSpec want{}, have{};
+            want.freq = wantedRate;
+            want.format = AUDIO_S16SYS;
+            want.channels = 1;
+            want.samples = 256; // (16 ms: the level follows the breath)
+            MeterOpened opened;
+            opened.id = SDL_OpenAudioDevice(name.empty() ? nullptr : name.cStr(), 1, &want, &have,
+                SDL_AUDIO_ALLOW_FREQUENCY_CHANGE);
+            if(opened.id)
+            {
+                opened.rate = have.freq;
+                SDL_PauseAudioDevice(opened.id, 0);
+            }
+            return opened;
+        });
 }
 
 float micLevel()
@@ -621,7 +702,7 @@ bool mouth(glm::vec3& at, glm::vec3& facing)
 void shutdown()
 {
     stop();
-    closeMeter();
+    closeMeter(true);
 }
 
 void finishWrites()
