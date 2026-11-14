@@ -894,11 +894,11 @@ QVR_CVAR(vr_menu_fold, "1", CVAR_ARCHIVE)              // the VR pages' sections
 QVR_CVAR(vr_menu_fold_time, "0.15", CVAR_ARCHIVE)      // a fold's slide and fade, seconds (0 to 0.5: 0 at once)
 QVR_CVAR(vr_menu_folded, "", CVAR_ARCHIVE)             // the folded sections, "page title|section header" separated by ';' (written as they fold; a row reached by path, search or menu_vr unfolds its section)
 QVR_CVAR(vr_menu_hl_fit, "1", CVAR_ARCHIVE)            // the VR pages' selected-row bar as wide as the row's label and value (0: across the menu, as before)
-QVR_CVAR(vr_menu_big_hl, "2", CVAR_ARCHIVE)            // the big-letter menus' (main menu, Single Player, Multiplayer, Skill) selected row: 0 Quake's spinning icon only, 1 a soft bar behind it too, 2 and the main menu's row grown (vr_menu_big_hl_scale)
+QVR_CVAR(vr_menu_big_hl, "1", CVAR_ARCHIVE)            // the big-letter menus' (main menu, Single Player, Multiplayer, Skill) selected row: 0 Quake's spinning icon only, 1 a soft bar behind it too, 2 and the main menu's row grown (vr_menu_big_hl_scale)
 QVR_CVAR(vr_menu_big_hl_scale, "1.08", CVAR_ARCHIVE)   // that row's size while selected (1 to 1.25)
 QVR_CVAR(vr_menu_wheel_scroll, "0.25", CVAR_ARCHIVE)  // the mouse wheel on a menu with a scroll bar: a notch scrolls this part of the rows shown (0 to 1; 0: it moves the selection a row, as before)
 QVR_CVAR(vr_menu_big_hl_alpha, "0.14", CVAR_ARCHIVE)  // that soft bar's opacity at its middle (0.02 to 0.5; 0.14 the small rows' bar's, about 0.31 before 2026-11-13)
-QVR_CVAR(vr_menu_toolbar_groups, "5", CVAR_ARCHIVE)    // the corner's buttons in groups (game, saves, menus, settings, levels, tools, developer): this many pixels between groups (0 to 12: 0 evenly spaced)
+QVR_CVAR(vr_menu_toolbar_groups, "6", CVAR_ARCHIVE)    // the corner's buttons in groups (game, saves, menus, settings, levels, tools, developer): this many pixels between groups (0 to 12: 0 evenly spaced)
 // Select Campaign's groups (Item::Lead, Sub, Note; ROUND25.md, "campvis"): each campaign its title, its Continue under it.
 QVR_CVAR(vr_menu_group_scale, "1.25", CVAR_ARCHIVE)    // a group's title row's letters over a row's (1 to 2: a campaign's title)
 QVR_CVAR(vr_menu_group_gap, "6", CVAR_ARCHIVE)         // the space above each group, pixels (0 to 16)
