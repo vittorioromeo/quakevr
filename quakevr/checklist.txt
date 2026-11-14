@@ -4,40 +4,28 @@
 # A flat-only line starts "Flat-screen:"; a line that works in either mode starts "Flat-screen or VR:" (try it in either); the rest are for the headset.
 # New lines from a ship land in a [New: not yet sorted] section at the top (or in the section a lines file names on its first line, "[section: <name>]"); the next sort moves them into place and drops that section.
 # A line ending in {test:<id>} has a Test button: it loads quakevr/scenarios/<id>.txt's scene (docs/vr-port/TESTING.md, "Checklist scenarios"); give new lines one whenever a scene fits. Flat-screen lines' scenes work under -flatscreenmode too (the game's mode is picked at start-up, not by the scene).
-# Lines are only for something new or changed you can see or feel: one line per flow, never "works as before". History of the sorts: git log of this file and docs/vr-port/CHECKLIST_REORG.md (latest: 2026-11-14 release audit, 94 lines down to 68, 71 with three from a later ship: the [New] section sorted, near-duplicates merged, every line cut to what to do and what to see, 3 new scenes). Misc/quakevr/checklist_tests_check.py checks every tag's scene file and the format (no "(agent/", "Test:", scratch or qvr-agents paths, .sh names; sections in order).
-
-[New: not yet sorted]
-On e1m1 with three times the enemies, turn quickly toward armed grunts and enforcers you could not see: their arms, guns and backpacks are already in place as they come into view, with no pop or one-frame jump.
-Kill a crowd at once with a rocket or a quad: the bodies go limp a few at a time over a few frames (no long freeze on the kill), each first playing its death frame, and they all end up as ragdolls.
+# Lines are only for something new or changed you can see or feel: one line per flow, never "works as before". History of the sorts: git log of this file and docs/vr-port/CHECKLIST_REORG.md (latest: 2026-11-14 release audit, 94 lines down to 68, 71 with three from a later ship: the [New] section sorted, near-duplicates merged, every line cut to what to do and what to see, 3 new scenes; 2026-11-15: 17 ticked lines retired, the [New] section sorted). Misc/quakevr/checklist_tests_check.py checks every tag's scene file and the format (no "(agent/", "Test:", scratch or qvr-agents paths, .sh names; sections in order).
 
 [1. Flat-screen: weapons and hands]
 Flat-screen: hold the axe (then a sword, the crowbar, Mjolnir, the super axe) with the left hand empty: the left hand goes onto the handle by itself and the weapon sits two-handed; take something in the left hand: back to one hand, no jumps either way (Debug > Tunables > Flatscreen > Two-Handed Melee Stance). {test:flat_melee2h}
 Flat-screen: in the holster menu (middle mouse), drag a weapon with the left button between hands and holsters: valid slots light up, the rest grey; hand to hand or holster to holster swaps; letting go on nothing cancels. {test:flat_holster_drag}
 Flat-screen or VR: shotgun in the right hand, a spent flare gun in the left: swap hands, drop, holster, draw, reload and swap mid-reload in any order, pulling both triggers after each: an empty shotgun only clicks, a loaded one fires one shell, never "ERROR: weapon clip less than zero". {test:flat_clip_unpaid}
+Flat-screen: aim with the right mouse button with the shotgun: it comes up on its sights and the crosshair fades; with the nailgun or the rocket launcher the view zooms the same way but the gun stays where it is and the crosshair stays. Weapon Offsets > Sights > Flat-Screen Aim switches the held gun between Ironsight and Zoom, and Locomotion > Right Click Aim sets every gun at once. {test:flat_aim_zoom}
+Flat-screen: aiming down the shotgun's sights, open Weapon Offsets > Sights > Flat-Screen Aim and move Ironsight Forward, Right, Up and Pitch: the sighted gun moves on the screen as you change them, and your shots still land on the crosshair. {test:flat_aim_zoom}
+Flat-screen or VR: set the Gameplay preset to Classic and play: no gun needs reloading, in the headset or on the desktop screen (no clip on the HUD, R does nothing); Light or Unleashed brings flat-screen reloading back.
+Flat-screen or VR: Debug > Tests > Saves > Autosave Now in a campaign map: Select Campaign's Continue row (and Load Autosave) shows that save, just made; in co-op it says none is made.
 
 [2. Flat-screen: Run Setup, presets and mutators]
-Flat-screen or VR: Official Campaigns: a campaign's row opens Run Setup first; Arcane Dimensions keeps its own confirmation instead.
-Flat-screen or VR: New Game, or a campaign whose start map has skill halls: Run Setup's Difficulty offers only Skill Halls or Bloody Nightmare. {test:run_setup_newgame}
-Flat-screen or VR: Run Setup's Difficulty, Starting Gun, Starting Melee Weapon and Enemy Count are pictures with names: the picked one on a lit plate, the others grey, the hovered one outlined; clicks and left/right follow, and they read well on the VR panel. Menu Look > Run Setup: Icon Pickers off gives plain rows; Icon Picker Size and Unpicked Dim change them at once. {test:run_setup_newgame}
-Flat-screen or VR: the icon pickers (Run Setup's Difficulty, Starting Gun, Enemy Count) are shorter, the pictures keep their proportions (not stretched) and a name on two lines is tightly spaced; Menu Look > Icon Picker Size still resizes them. {test:run_setup_newgame}
-Flat-screen or VR: Run Setup shows the Start button right under the Difficulty picker, with Presets, Rules and Mutators below it. {test:run_setup_newgame}
-Flat-screen or VR: Levels > e1m1's Run Setup opens at its top with Difficulty in view (also after Select Campaign's Run Setup); Bloody Nightmare is a fifth picture after Nightmare: Start it and you get Nightmare with Bloody Nightmare's rules, and the save's Continue line says Bloody Nightmare.
-Flat-screen or VR: change Enemy Count, Randomized Enemies and Randomized Pickups, then start from Levels, the Map Library, New Game, a campaign or the hub: the map has exactly those, never an earlier run's; the Firing Range button uses them too.
-Flat-screen or VR: Randomized Pickups, Balanced: ammo, armour and weapons become close ones, health stays health, keys and door items stay put. {test:run_pickups}
-Flat-screen or VR: Glass Cannon: punches and swings at the firing range's dummy show twice the damage, not only shots; Melee Only: its guns and ammo can't be taken. {test:run_glass_dummy}
 Flat-screen or VR: Classic Quake (or Style Classic): no gun ever needs reloading, and e1m1's grunts are all plain shotgun grunts.
 Flat-screen or VR: Melee Only with the dagger, "maxplayers 2" and a bot (impulse 100): the bot holds the dagger, skips guns and ammo, and fights with the dagger.
 
 [3. Flat-screen: menus, campaigns and the Map Library]
 Flat-screen or VR: play a campaign until it autosaves, quit to the menu and open Select Campaign: a "Continue (N min ago)" row under that campaign, its run on the line below, loads straight into the save with no Run Setup; campaigns without an autosave have none.
 Flat-screen or VR: Map Library, an installed package you have autosaved in: a "Continue (N min ago): <run>" button above Uninstall / Reinstall loads its newest autosave; a package never played has none, and Play still opens Run Setup.
-Flat-screen or VR: Select Campaign reads at a glance: big white titles, a dim tag only when a campaign isn't ready, Continue indented under its campaign with a dim age, Arcane Dimensions under an Experimental header, a small footer; hover and selection clear on titles and Continue rows.
-Flat-screen or VR: Search a setting on a long page (Arm Drip Rate) and open it: the page lands with that row in the middle, glowing for about 1.5 s (Menu Look > Search Result Flash, Search Flash Strength).
-Flat-screen: on a long page (Locomotion) one mouse wheel notch scrolls a quarter of the rows and the selection stays on the page (Menu Look > Mouse Wheel Scroll; 0: row by row).
-Flat-screen or VR: the main menu's selected row has a soft bar as faint as the settings pages' highlight (Menu Look > Big Menu Bar Opacity).
-Flat-screen or VR: walk forward and open the menu with Live Preview on: you stop at once, and after closing it you don't walk until you press forward again.
-Flat-screen or VR: the small footer at the bottom of every settings page is one section called Advanced, holding Reset This Page and Menu Detail.
 Installer: install into a fresh folder and pick Snap 45, Left-handed and Medium on "Set up the game": the game has them. Change Turning in the game, run Update, change only Turn Speed: Turning stays yours.
+Flat-screen or VR: Run Setup's icon pictures keep their real shape (a round skull, square arches, long flat guns), the cards sit further apart and a two-line name is tighter; Menu Look > Run Setup: Icon Picker Gap and Icon Picker Name Lines tune them. {test:run_setup_newgame}
+Flat-screen or VR: finish a level: COMPLETED, the level's name and the Time, Secrets and Kills panel are in the menus' red, as are LOADING and PAUSE; with Blood Red Menus off they keep Quake's colours.
+Flat-screen or VR: Select Campaign: Arcane Dimensions sits with the other campaigns (no Experimental header) with a small "experimental" before its title; pick it and answer Continue: Run Setup opens, and its Start begins Arcane Dimensions.
 
 [4. VR: body and gear]
 With armour on, set Reloading > X With Armour and Flashlight > Forward With Armour to about 3 units (the scene does): the pouch and the belt torch stand clear of the plates, and go back when the armour is gone. {test:armour_gear}
@@ -72,6 +60,8 @@ VR: a very quick trigger or grip press and release still fires or grabs.
 VR: let go of a gun and grab it again quickly: the re-grab always takes it.
 
 [7. VR: physics, bodies and gore]
+On e1m1 with three times the enemies, turn quickly toward armed grunts you could not see: their guns, arms and backpacks are already in place, no pop.
+Kill a crowd at once (a rocket or a quad): no freeze on the kill; the bodies go limp a few per frame, each after its death frame, all ending as ragdolls.
 With drips on, get something wet, then reload the same map (a restart, or a save of this level): no crash. {test:waterdrips}
 Push a grunt and a hell knight gently off a high ledge so they grab its lip: the grunt climbs onto the top without its hips sinking back onto the edge, and the hell knight gets its second hand onto the lip as it pulls up. {test:rag_hang}
 Flat-screen or VR: particles (blood, smoke, sparks, muzzle wisps) look as before the memory rewrite.

@@ -2633,3 +2633,60 @@ Cherry-picked 6b8e74432: VR_CrtHeapLoadHold now defined without mimalloc (QVR_MI
 - `mp_cosmetics` 14/0 (grown), `mp_flatbody` 6/0 (new); the suite 23 of 24 (`mp_flow`'s autosave list once, then 16/0).
   Single player: scenario_check PASS (147), load_models 4/0, vr_run_check 12/0. Next: B6c (the armour plates on other
   players' bodies). Details: MP_PLAN.md, "B6b results".
+## flat1115a: icon pictures' aspect, card gap, red banners, Arcane Dimensions with the campaigns (agent/flat1115a, 2026-11-15)
+
+- **Icon pictures stretched (the real cause):** the VR menu canvas scales y more than x (`VR_MenuCanvas`: the row
+  spacing; about 2x on the flat panel). Glyphs keep their size (`Draw_KeepMenuGlyphSize`) but `Draw_TextureRect` did
+  not, so menutweak's fit (in menu pixels) still came out about twice as tall. `Draw_MenuStretch()` (gl_draw.c) gives
+  that factor; `drawIconPicture` fits the picture in screen proportions and brings its height back to menu pixels: the
+  skull is round, the arches square, the guns long and flat (letterboxed in the box's width).
+- **Name lines** `vr_menu_icon_name_pitch` 6 (was 7: 14% tighter). **Card gap** `vr_menu_icon_gap` 16 (was 4): the
+  plates keep their width and sit 80 apart instead of 68 (+18%) while the row's 320 pixels have room; a five-choice
+  row (Difficulty) gives the gap up first, down to the old 4. **Decision:** read as the cards' spacing, not 15-20% of
+  the 4-pixel gap (sub-pixel). Rows in Menu Look > Run Setup; menu_paths.txt regenerated.
+- **Banners in the menus' red:** `Sbar_IntermissionOverlay` (COMPLETED, inter.lmp, the level's name, the numbers),
+  `Sbar_FinaleOverlay`, `SCR_DrawLoading`, `SCR_DrawPause` draw with `Draw_SetMenuRecolor(true)`: vr_menu_recolor and
+  its hue, strength and saturation; off with it.
+- **Select Campaign:** no Experimental header; Arcane Dimensions a Lead row with the others, a small dim "experimental"
+  before its title (`Item::tagLeftArg`, drawn by `drawGroupRow`; its right tag dropped). Its notice's Continue now
+  opens Run Setup (`openRunSetupArcane`); Start runs the developer launch `vr_campaign_native ad` (`runSetupStart`), as
+  the row did before.
+- **Checklist:** 17 ticked lines retired (no voice notes since 11-12); scenes flat_holster_drag, flat_clip_unpaid,
+  run_glass_dummy set aside (nothing else uses them); run_setup_newgame and run_pickups kept (docs, code). The two
+  [New] lines sorted into 7. physics and bodies, shortened. The failed Classic Quake line stays.
+- **Tests:** vr_runsetup_screen_test 42/0 (adds: Arcane Dimensions' Continue opens the screen), vr_continue_rows_test
+  19/0, vr_menu_flash_test 7/0, menu_shortcuts_test 14/0, vr_menu_path_check vrcalibration 6 / vrstart 5 found, 0
+  missing, checklist_tests_check 51/0. Builds: dev and ReleaseLTO 0 warnings. Shots: qvr-kit/scratch/flat1115_shots/
+  (icons_before_after, campaigns_before_after, completed_before_after).
+
+## flat1115b: flat aim per weapon (ironsight placing, zoom), Classic in flat, Autosave Now (agent/flat1115b, 2026-11-15)
+
+- **Ironsight placing per gun (his item 5).** There were none: the flat ironsight is solved from each gun's sight line with
+  no number per weapon (the old `flat_ads_*` keys were retired 2026-11-05); only the globals (`vr_flat_ads_relief`,
+  `_screen_x/_y`, `vr_flat_aim_fov`) moved it. New weapons.txt keys `fsight_fwd`, `fsight_right`, `fsight_up` (units in the
+  view's frame, forward adds eye relief; clamped to 10) and `fsight_pitch` (degrees, muzzle up about the rear sight; 20),
+  applied in `flatsight::sighted` so the reach, stance and wall code all see the moved gun; shots still go to the
+  crosshair's point. Live: Weapon Offsets > Sights > Flat-Screen Aim (the held gun) or `vr_wofs_fsight_up_NN` on the
+  console; saved as config overrides, `weapons_data.py promote` makes them defaults. All 0 shipped.
+- **Zoom per gun (item 6).** `fsight_mode` 1: the right button narrows the view exactly as the ironsight does (same
+  `st.adsT` travel, FOV, look speed) but the gun stays in its pose and the crosshair stays. Shared code, one switch:
+  `sightPosed` / `posedT` in vr_flatsight.cpp gate everything that moves the gun or reads the sighted pose (the solve, the
+  wall's back way and tilt, the stance's armSight, keepRecoil, crosshairFade, the picture's screen shift, stance turn and
+  lean), and `flatsight::poseShare` replaces `adsShare` in flatplay's keepNear, rideShare and walk bob. `adsShare` (the
+  FOV and sensitivity travel) is unchanged. Zoom picks (weapons.txt, promoted with `weapons_data.py promote`): nailgun,
+  super nailgun, grenade launcher, rocket launcher, laser cannon, proximity gun, grapple (slots 3,4,5,6,9,10,17; the
+  alternates 11-14 inherit). Ironsight kept: shotguns, lightning/plasma, grunt gun, enforcer rifle, flare gun, revolver,
+  nail pistol, crossbow, AD guns. Global override `vr_flat_aim_zoom` (-1 per weapon, 0 all ironsight, 1 all zoom),
+  Locomotion > Right Click Aim. `vr_flat_sight_check` prints a `zoom` line for a zoom gun.
+- **Classic in flat (item 7).** Flat play reloads by its own `vr_flat_reload` (QC `VRIsWeaponReloadingEnabled`, the
+  server's STAT_QVR_RELOADMODE), which no preset row set. Row added: Classic 0, Light/Unleashed default 1
+  (GAMEPLAY_PRESET.md). `vr_gameplay_preset_test` checks it at Classic and Light; QC `VR_Classic_Check` now also checks
+  the player reloads nothing as played (flat or VR).
+- **Autosave Now (item 11).** `vr_autosave_now` (host.c, beside Host_CheckAutosave; Debug > Tests > Saves): the game's
+  autosave now, same name (`VR_AutosaveName`) and rotation, ignoring sv_autosave, score and safety wait; refused in a
+  multiplayer game (co-op/deathmatch make no autosaves, saves are SP only), on vr* maps, in Ironman, at intermission.
+- **Tests:** new `Misc/quakevr/flatzoom_test.sh` 10/0 (Up 2: both sights 2.000 off the ray; Pitch 5: 4.99 deg; zoom:
+  fov 59.3 from 90, gun shift 0, crosshair 1.00; nailgun zooms, shotgun sights); `flatsight_test.sh` 12/0 (runs with
+  `vr_flat_aim_zoom 0`: it measures every gun's sight line); new `Misc/quakevr/autosavenow_test.sh` 4/0 (autosave/e1m1
+  written, Continue "just now"; co-op refused); `vr_gameplay_preset_test` 27/0; `vr_gameplay_classic_check` 2/0 in VR
+  and in flat. Dev and Release-TracyFull builds 0 warnings. Scenario `flat_aim_zoom`.

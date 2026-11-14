@@ -259,6 +259,8 @@ constexpr float aimFullAhead = 24.f; // and from this far on the muzzle's own pl
 constexpr float aimBlockedBy = 1.f;  // the muzzle's line stopping this far short of what the crosshair is on: blocked
 constexpr int aimSteps = 8;          // the turn moves the muzzle the aim is measured from: each pass closes most of what is left
 constexpr float minFov = 20.f;      // the ironsight never takes a view under this field of view (degrees)
+constexpr float sightMoveMax = 10.f;  // a gun's own ironsight placing (fsight_fwd / _right / _up) at most this far (units)
+constexpr float sightPitchMax = 20.f; // and its turn (fsight_pitch) at most this many degrees
 constexpr float reliefMin = 3.f;     // vr_flat_ads_relief's range, and the nearest a wall pushes the rear sight to the eye
 constexpr float reliefMax = 30.f;
 constexpr float handNearEye = 7.f;   // the hand on a gun whose sights stand far ahead of it (the laser cannon's) is no nearer the
@@ -368,9 +370,10 @@ constexpr float floorMarginMax = 6.f;    // vr_flat_prone_floor_margin's range (
 
 // Where the sight picture stands on the screen (vr_flat_ads_screen_x / _y, percent of the screen's height, x to the right,
 // y up), the travel's share of it: 0 0 at the screen's centre.
+[[nodiscard]] float posedT();
 [[nodiscard]] glm::vec2 screenShift()
 {
-    const float done = flatplay::active() ? za::clamp(st.adsT, 0.f, 1.f) : 0.f;
+    const float done = flatplay::active() ? posedT() : 0.f;
     return {za::clamp(vr_flat_ads_screen_x.value, -screenMax, screenMax) * done,
         za::clamp(vr_flat_ads_screen_y.value, -screenMax, screenMax) * done};
 }
@@ -394,6 +397,31 @@ constexpr float floorMarginMax = 6.f;    // vr_flat_prone_floor_margin's range (
     return m && st.sightModel[h] == m;
 }
 
+// Whether `h`'s weapon aims by zoom alone (weapons.txt fsight_mode 1): the ironsight's narrowing of the view, the gun left in
+// its pose and the crosshair kept.
+[[nodiscard]] bool zoomOnly(int h)
+{
+    if(vr_flat_aim_zoom.value >= 0.f) // (every gun's the same: vr_flat_aim_zoom 0 the ironsight, 1 zoom)
+    {
+        return vr_flat_aim_zoom.value != 0.f;
+    }
+    const int slot = h >= 0 ? weapons::heldSlot(h) : -1;
+    return slot >= 0 && weapons::value(slot, weapons::Key::FlatAimMode) != 0.f;
+}
+
+// Whether `h`'s weapon is brought onto its sights: a sight line known as the hand holds it, and not a zoom-only gun.
+[[nodiscard]] bool sightPosed(int h)
+{
+    return sightKnown(h) && !zoomOnly(h);
+}
+
+// How far the held weapon has come onto its sights: the travel (st.adsT), none for a zoom-only gun (whose travel is the
+// view's narrowing alone: fovNarrowNow still reads st.adsT).
+[[nodiscard]] float posedT()
+{
+    return st.holding >= 0 && !zoomOnly(st.holding) ? za::clamp(st.adsT, 0.f, 1.f) : 0.f;
+}
+
 // The hand's place and turn that put the sight line on the ray, the rear sight `relief` from the eye, in the view's frame.
 struct Sighted
 {
@@ -407,6 +435,24 @@ struct Sighted
     const glm::vec3 axis = glm::cross(line, d);
     Sighted out; // (the least turn taking the line onto the ray: the gun stays upright)
     out.turn = glm::mat3_cast(glm::normalize(glm::quat{1.f + glm::dot(line, d), axis.x, axis.y, axis.z}));
+    // The gun's own placing (weapons.txt fsight_*, Weapon Offsets > Sights): its muzzle turned up about the rear sight, the
+    // rear sight moved forward along the ray and right and up in the view's frame (all 0: the sights lined up on the ray).
+    const int slot = weapons::heldSlot(h);
+    if(slot >= 0)
+    {
+        using weapons::Key;
+        const float pitch = za::clamp(weapons::value(slot, Key::FlatSightPitch), -sightPitchMax, sightPitchMax);
+        if(pitch != 0.f)
+        {
+            // (About the view's right, +y here: a negative angle takes forward towards up.)
+            out.turn = glm::mat3_cast(glm::angleAxis(glm::radians(-pitch), glm::vec3{0.f, 1.f, 0.f})) * out.turn;
+        }
+        const glm::vec3 place{za::clamp(weapons::value(slot, Key::FlatSightFwd), -sightMoveMax, sightMoveMax),
+            za::clamp(weapons::value(slot, Key::FlatSightRight), -sightMoveMax, sightMoveMax),
+            za::clamp(weapons::value(slot, Key::FlatSightUp), -sightMoveMax, sightMoveMax)};
+        out.hand = d * (relief + place.x) + glm::vec3{0.f, place.y, place.z} - out.turn * st.sightRear[h];
+        return out;
+    }
     out.hand = d * relief - out.turn * st.sightRear[h];
     return out;
 }
@@ -597,7 +643,7 @@ void aimAtPoint(hands::State& s, const glm::vec3& aim)
         hands::angleVectors(aim + glm::vec3{0.f, 0.f, flatplay::gunRoll(h)}, viewFwd, viewRight, viewUp);
         // In the sight the muzzle stays on the drawn gun's (st.sightMuzzle, the same travel); else it goes where the hand's
         // turn takes it.
-        const bool onSight = h == st.holding && st.adsT > 0.f;
+        const bool onSight = h == st.holding && posedT() > 0.f;
         const glm::vec3 place = onSight ? st.sightMuzzle : muzzleNow(s, h);
         st.aimBlocked[h] = glm::distance(lineStop(place, point), point) > aimBlockedBy;
         for(int i = 0; i < aimSteps; i++)
@@ -610,7 +656,7 @@ void aimAtPoint(hands::State& s, const glm::vec3& aim)
             s.rot[h].z += vr_fakevr_handroll.value;
             if(onSight && i + 1 < aimSteps)
             {
-                const glm::vec3 back = (place - muzzleNow(s, h)) * st.adsT;
+                const glm::vec3 back = (place - muzzleNow(s, h)) * posedT();
                 s.pos[h] += back;
                 if(st.pinned)
                 {
@@ -697,7 +743,7 @@ bool adsApplies()
     const glm::vec3 home = shoulderInView - handInView;
     const float len = glm::length(home);
     const glm::vec3 hip = len > 1e-3f ? home / len : glm::vec3{-1.f, 0.f, 0.f};
-    const float sight = h == st.holding && sightKnown(h) ? za::clamp(st.adsT, 0.f, 1.f) : 0.f;
+    const float sight = h == st.holding && sightPosed(h) ? za::clamp(st.adsT, 0.f, 1.f) : 0.f;
     const glm::vec3 way = hip * (1.f - sight) - sightDir() * sight;
     const float wayLen = glm::length(way);
     return wayLen > 1e-3f ? way / wayLen : -sightDir();
@@ -868,7 +914,7 @@ void tiltNeedFor(const hands::State& s, int h, const glm::mat3& view, const glm:
     const float offUp = glm::degrees(za::acos(za::clamp(hand[0].z, -1.f, 1.f))); // the muzzle's way off straight up
     // (Sighted and looking down past sightTiltDownFrom, none by sightTiltDownTo: tilted there the gun's rear and the hands went
     // into the chest, 3.6 deep at 55 down; the gun's end stays hidden in the wall as it was.)
-    const float sight = h == st.holding && sightKnown(h) ? za::clamp(st.adsT, 0.f, 1.f) : 0.f;
+    const float sight = h == st.holding && sightPosed(h) ? za::clamp(st.adsT, 0.f, 1.f) : 0.f;
     const float down = -view[0].z; // the sine of the look's pitch down
     // (And sighted, vr_flat_wall_tilt_sighted of it at most: tilted, the sights leave the ray.)
     const float downFade =
@@ -1094,7 +1140,7 @@ void pushBack(hands::State& s, const glm::vec3& aim)
         glm::vec3 way = backWay(h, hand, shoulder);
 
         // As far as the arm folds in hipfire, as far as the rear sight comes to the eye in the sight.
-        const float sight = h == st.holding && sightKnown(h) ? za::clamp(st.adsT, 0.f, 1.f) : 0.f;
+        const float sight = h == st.holding && sightPosed(h) ? za::clamp(st.adsT, 0.f, 1.f) : 0.f;
         // (Kept vr_flat_wall_margin off the wall, the hand on it too, in hipfire: sighted, the rear sight's place is
         // vr_flat_ads_wall_keep's.)
         const float margin = za::clamp(vr_flat_wall_margin.value, 0.f, wallMarginMax) * (1.f - sight);
@@ -1263,7 +1309,7 @@ void pushBack(hands::State& s, const glm::vec3& aim)
         }
         const glm::vec3 moved = view * way * za::min(st.back[h], roomMost) + worldUp * st.raise[h];
         s.pos[h] += moved;
-        if(st.adsT > 0.f && h == st.holding)
+        if(posedT() > 0.f && h == st.holding)
         {
             st.sightMuzzle += moved;
         }
@@ -1589,7 +1635,7 @@ void centreOnSight(hands::State& s, const glm::vec3& aim)
     offTheRay(org, dir, m, st.offBefore, st.sightAngle);
     st.offAfter = st.offBefore;
     st.sightMuzzle = m;
-    if(!sightKnown(st.holding))
+    if(!sightPosed(st.holding))
     {
         st.relief = 0.f;
         return;
@@ -1673,7 +1719,7 @@ void stanceAndLook(const hands::State& s, const glm::vec3& aim, const glm::vec3&
             slideHip = slideFor(hipAt, held[0], spotKeepHip);
             st.armHip = armShare(s, st.helping, hipAt - held[0] * slideHip);
         }
-        if(sightKnown(st.holding))
+        if(sightPosed(st.holding))
         {
             glm::vec3 org, dir;
             flatplay::crosshairRay(s, aim, org, dir);
@@ -1693,7 +1739,7 @@ void stanceAndLook(const hands::State& s, const glm::vec3& aim, const glm::vec3&
     }
     if(freshFrame)
     {
-        const float sighted = za::clamp(st.adsT, 0.f, 1.f);
+        const float sighted = posedT();
         st.lookSlide = slideHip + (slide - slideHip) * sighted;
     }
     if(!freshFrame)
@@ -1712,13 +1758,14 @@ void stanceAndLook(const hands::State& s, const glm::vec3& aim, const glm::vec3&
         st.stanceSign = st.helping == HAND_OFF ? -1.f : 1.f; // the yaw grows to his left: the left shoulder comes forward by a turn to the right
     }
     // What decides it is what the arm needs where the gun stands, or is going: the sight's place while it is asked for.
-    const float need = st.adsWanted ? st.armSight : st.armHip;
+    const bool sightWanted = st.adsWanted && sightPosed(st.holding); // (a zoom-only gun stays in its pose)
+    const float need = sightWanted ? st.armSight : st.armHip;
     st.lookFar = need > lookKeep || (st.lookFar && need > lookKeep - lookBack);
     // Hands on the body: the hand goes off the hotspot as the need grows past lookSoftFrom, all of it by lookKeep, and comes back the
     // same way: a look that takes the hotspot out of reach takes the hand off it over some degrees, not in a frame.
     // (Sighted, the gun stands where the arm reaches it nearly straight, along the fore-end: reliefFor's spotKeepAds.)
-    const float softFrom = st.adsWanted ? lookSoftFromAds : lookSoftFrom;
-    const float softTo = st.adsWanted ? lookKeepAds : lookKeep;
+    const float softFrom = sightWanted ? lookSoftFromAds : lookSoftFrom;
+    const float softTo = sightWanted ? lookKeepAds : lookKeep;
     const float soft = za::clamp((need - softFrom) / (softTo - softFrom), 0.f, 1.f);
     st.lookTarget = flatplay::onBody() ? 1.f - soft * soft * (3.f - 2.f * soft) : 1.f;
     if(flatplay::onBody())
@@ -2140,7 +2187,7 @@ void noteDrawn(const hands::State& s)
 
 float drawnSight(int h, glm::vec3& hand, glm::mat3& turn)
 {
-    if(!flatplay::active() || h != st.holding || st.adsT <= 0.f || !sightKnown(h))
+    if(!flatplay::active() || h != st.holding || st.adsT <= 0.f || !sightPosed(h))
     {
         return 0.f;
     }
@@ -2152,7 +2199,7 @@ float drawnSight(int h, glm::vec3& hand, glm::mat3& turn)
 
 float crosshairFade()
 {
-    return flatplay::active() ? 1.f - geom::smooth01(za::clamp(st.adsT, 0.f, 1.f)) : 1.f;
+    return flatplay::active() ? 1.f - geom::smooth01(posedT()) : 1.f;
 }
 
 void keepRecoil(glm::vec3& pos, glm::vec3& angles)
@@ -2162,7 +2209,7 @@ void keepRecoil(glm::vec3& pos, glm::vec3& angles)
         return;
     }
     const float share =
-        glm::mix(1.f, za::clamp(vr_flat_ads_recoil.value, 0.f, 1.f), geom::smooth01(za::clamp(st.adsT, 0.f, 1.f)));
+        glm::mix(1.f, za::clamp(vr_flat_ads_recoil.value, 0.f, 1.f), geom::smooth01(posedT()));
     RecoilProbe& p = recoilProbe;
     p.rawPos = glm::max(p.rawPos, glm::length(pos));
     p.rawAngles = glm::max(p.rawAngles, glm::length(angles));
@@ -2267,7 +2314,7 @@ float wallDepth(int h, float* floorDepth, glm::vec3* floorAt)
 
 float drawnShare(int h)
 {
-    return flatplay::active() && h == st.holding && sightKnown(h) ? za::clamp(st.adsT, 0.f, 1.f) : 0.f;
+    return flatplay::active() && h == st.holding && sightPosed(h) ? za::clamp(st.adsT, 0.f, 1.f) : 0.f;
 }
 
 float lookShare(int h)
@@ -2320,7 +2367,7 @@ float elbowPole(int h, glm::vec3& way)
 float stanceYaw()
 {
     const float turn = za::clamp(st.stancePistol ? vr_flat_pistol_turn.value : vr_flat_stance_turn.value, 0.f, 45.f);
-    const float sighted = za::clamp(vr_flat_ads_turn.value, 0.f, 30.f) * geom::smooth01(za::clamp(st.adsT, 0.f, 1.f));
+    const float sighted = za::clamp(vr_flat_ads_turn.value, 0.f, 30.f) * geom::smooth01(posedT());
     return st.stanceSign * (turn + sighted) * geom::smooth01(st.stanceT);
 }
 
@@ -2335,7 +2382,7 @@ float stanceLean()
     {
         return 0.f;
     }
-    return za::clamp(vr_flat_ads_lean.value, 0.f, 30.f) * geom::smooth01(za::clamp(st.adsT, 0.f, 1.f)) * geom::smooth01(st.stanceT);
+    return za::clamp(vr_flat_ads_lean.value, 0.f, 30.f) * geom::smooth01(posedT()) * geom::smooth01(st.stanceT);
 }
 
 float stanceSpot(int h, glm::vec3& local)
@@ -2387,6 +2434,16 @@ float adsShare()
     // crosshair, the field of view's narrowing and flatplay's easing of vr_flat_gun_near into vr_flat_ads_near are all
     // spent over. 0 outside flatscreen play (frame() puts the travel back to nothing there).
     return za::clamp(st.adsT, 0.f, 1.f);
+}
+
+float poseShare()
+{
+    return flatplay::active() ? posedT() : 0.f;
+}
+
+bool zoomAim()
+{
+    return flatplay::active() && st.holding >= 0 && zoomOnly(st.holding);
 }
 
 float fov(float basefov)
@@ -2550,7 +2607,7 @@ void print(const hands::State& s)
                "tilt %.1f need %.1f depth %.2f left %.2f\nflatwallturn: t %.4f on %.3f angle %.1f up %.3f side %.3f cant %.3f block %d "
                "room %.2f raise %.2f eyecap %d wall %.3f probes %d floor %d\n",
         vr_gametime,
-        adsApplies()                                                ? "on"
+        adsApplies()                                                ? (zoomOnly(st.holding) ? "zoom" : "on")
         : !st.ads                                                   ? "off"
         : st.holding >= 0 && sightalign::alignable(st.holding) ? "waits" // (asked, tilted up at a wall: vr_flat_wall_block_ads)
                                                                     : "no sights",
@@ -2596,6 +2653,12 @@ static void check_f()
         return;
     }
     const sightalign::SightLine line = sightalign::sightLine(wf.model);
+    if(h == st.holding && zoomOnly(h))
+    {
+        Con_Printf("flatsightcheck: %s zoom t %.2f fov %.2f hip %.2f shift %.3f xhair %.2f\n",
+            wf.model->name, st.adsT, r_refdef.fov_x, st.baseFov, glm::length(st.shift), crosshairFade());
+        return;
+    }
     {
         // Where the weapon is drawn in the camera's frame (forward, right, up; and its pitch on the screen, degrees, up
         // positive): the hand, the muzzle, the sights. What a gun drawn lower or higher than the others is read from.

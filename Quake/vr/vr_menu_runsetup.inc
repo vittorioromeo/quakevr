@@ -107,7 +107,16 @@ void runSetupStart()
             goBack(); // (the library shows why: the package's line)
             return;
         case runsetup::Launch::NewGame: M_NewGameStart(); return;
-        case runsetup::Launch::Campaign: VR_SelectCampaign(runSetup.campaign); return;
+        case runsetup::Launch::Campaign:
+            if(runSetup.campaign == qvr::ad::campaignIndex)
+            {
+                // Arcane Dimensions (experimental, confirmed before the screen): the developer launch, as the menu's
+                // row did before it went through this screen.
+                Cbuf_InsertText("vr_campaign_native ad\n");
+                return;
+            }
+            VR_SelectCampaign(runSetup.campaign);
+            return;
         case runsetup::Launch::Level:
             M_LevelStart(runSetup.map.cStr(), runSetup.skillHalls ? -1 : runsetup::activeValue(runsetup::find("skill")));
             return;
@@ -308,6 +317,19 @@ void openRunSetupCampaign(int index)
     if(VR_CampaignUnavailable(index) != 0)
     {
         VR_SelectCampaign(index); // (only its reason printed)
+        return;
+    }
+    openRunSetup(runsetup::Launch::Campaign, za::String{}, nullptr, index, true);
+}
+
+// Arcane Dimensions, its experimental notice answered Continue (vr_menu.cpp selectCampaignRow): the Run Setup screen as
+// the other campaigns get, its Start the developer launch (runSetupStart). Not installed: only the reason printed.
+void openRunSetupArcane()
+{
+    const int index = qvr::ad::campaignIndex;
+    if(!VR_CampaignInstalled(index))
+    {
+        VR_SelectCampaign(index);
         return;
     }
     openRunSetup(runsetup::Launch::Campaign, za::String{}, nullptr, index, true);

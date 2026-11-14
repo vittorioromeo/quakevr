@@ -508,9 +508,10 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
 // Whether Official Campaigns was built with the Bloody Nightmare row (items(): rebuilt when that changes).
 int campaignsBloodyShown = -1;
 
-// Arcane Dimensions: experimental. Chosen in the menu it asks first (M_Confirm), then starts as the developer launch
-// does (vr_campaign_native ad: the same game folder, start map and settings).
-void startArcaneDimensions() { Con_Printf("VR: Arcane Dimensions confirmed in the menu.\n"); Cbuf_InsertText("vr_campaign_native ad\n"); }
+// Arcane Dimensions: experimental. Chosen in the menu it asks first (M_Confirm), then opens the Run Setup screen as the
+// other campaigns do; its Start launches as the developer launch does (vr_campaign_native ad: the same game folder,
+// start map and settings; vr_menu_runsetup.inc runSetupStart).
+void startArcaneDimensions() { Con_Printf("VR: Arcane Dimensions confirmed in the menu.\n"); openRunSetupArcane(); }
 void selectCampaignRow(int index)
 {
     if(index != qvr::ad::campaignIndex) { openRunSetupCampaign(index); return; } // (the Run Setup screen first)
@@ -547,6 +548,10 @@ const char* campaignTag(int index)
 {
     const int tags = static_cast<int>(vr_menu_group_tags.value);
     const char* tag = VR_CampaignTag(index);
+    if(index == qvr::ad::campaignIndex && !strcmp(tag, "experimental"))
+    {
+        return tag; // (always shown, at the right of its title: his call 2026-11-15)
+    }
     return tags <= 0 ? "" : tags >= 2 && !tag[0] ? "ready" : tag;
 }
 const char* campaignContinueAge(int index)
@@ -564,8 +569,8 @@ const char* bloodyNightmareHelp(int)
 void bloodyNightmareRow(int) { playMg3BloodyNightmare(); }
 
 // Select Campaign (ROUND25.md, "campvis"): each campaign a group: its title (Item::Lead: pressed, a new run), its
-// Continue under it (Item::Sub) with the run on a line under that (Item::Note); Arcane Dimensions in a section of its
-// own; the page's other rows in a small footer.
+// Continue under it (Item::Sub) with the run on a line under that (Item::Note); Arcane Dimensions with them, its
+// "experimental" tag at the right of its title (flat1115a); the page's other rows in a small footer.
 [[nodiscard]] za::Vector<Item> pageCampaigns()
 {
     za::Vector<Item> items{header("Official Campaigns")};
@@ -575,12 +580,8 @@ void bloodyNightmareRow(int) { playMg3BloodyNightmare(); }
     campaignsBloodyShown = vr_mg3_bn_discovered.value != 0.f ? 1 : 0;
     for(int i = 0; i < VR_CampaignCount(); ++i) // (Arcane Dimensions too: its row dim until it is ready)
     {
-        if(i == qvr::ad::campaignIndex)
-        {
-            items.pushBack(header("Experimental"));
-        }
         Item choice = row(VR_CampaignTitle, VR_CampaignHelp, selectCampaignRow, i, -1).lead();
-        choice.tagArg = campaignTag;
+        choice.tagArg = campaignTag; // (Arcane Dimensions: "experimental", at the right like before)
         choice.dimArg = [](int index) -> bool
         { return index == qvr::ad::campaignIndex ? !VR_CampaignInstalled(index) : VR_CampaignUnavailable(index) != 0; };
         items.pushBack(choice);
@@ -4338,7 +4339,9 @@ void drawGroupRow(const Item& item, int y, bool selected)
         GL_PopCanvasColor();
         return;
     }
-    const int textX = item.look == Item::Sub ? indent + markRoom : indent;
+    const char* tagLeft = item.look == Item::Lead && item.tagLeftArg ? item.tagLeftArg(item.arg) : "";
+    const int tagLeftLen = static_cast<int>(strlen(tagLeft));
+    const int textX = item.look == Item::Sub ? indent + markRoom : indent + (tagLeftLen > 0 ? minorDim * tagLeftLen + 6 : 0);
     const int textEnd = textX + dim * static_cast<int>(strlen(text));
     int barEnd = textEnd;
     int tagX = 0;
@@ -4378,10 +4381,17 @@ void drawGroupRow(const Item& item, int y, bool selected)
         M_PrintEx(textX, y, dim, text);
     }
     GL_PopCanvasColor();
-    if(tagLen > 0)
+    if(tagLen > 0 || tagLeftLen > 0)
     {
         pushRowColor(1.f, 1.f, 1.f, (dimmed ? 0.6f : 1.f) * tagAlpha);
-        M_PrintEx(tagX, y + dim - minorDim, minorDim, tag); // (small, on its text's baseline)
+        if(tagLen > 0)
+        {
+            M_PrintEx(tagX, y + dim - minorDim, minorDim, tag); // (small, on its text's baseline)
+        }
+        if(tagLeftLen > 0)
+        {
+            M_PrintEx(indent, y + dim - minorDim, minorDim, tagLeft);
+        }
         GL_PopCanvasColor();
     }
 }

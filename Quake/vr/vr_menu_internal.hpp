@@ -252,6 +252,8 @@ struct Item
 
     // A group's row's small dim text (Look Lead, Sub): tagArg(arg); empty: none.
     const char* (*tagArg)(int){nullptr};
+    // A Lead row's small dim tag before its title (Arcane Dimensions' "experimental"): tagLeftArg(arg); empty: none.
+    const char* (*tagLeftArg)(int){nullptr};
 
     // In a folded section (vr_menu_fold; set on the built page by applyFolds, vr_menu.cpp): no height, not reached by
     // the cursor's steps; selected anyway (a path, Search, menu_vr), its section unfolds.
