@@ -524,6 +524,7 @@ constexpr double peakDecay = 0.01;      // s a second: the longest gap's hold on
 constexpr double clockGain = 4.0;       // the delay's clock: this much faster a second behind (slower ahead) ...
 constexpr double rateLeast = 0.85, rateMost = 1.15; // ... within these
 constexpr double snapAfter = 0.25;      // s off its target: set there (a new map, a long stall)
+constexpr double cushion = 0.5 * tick;  // the draw time this near the newest message: its clock slows, to a stop at it
 
 struct Sample
 {
@@ -548,7 +549,7 @@ struct Interp
     double newest{0.0};   // the newest message's time
     double peak{0.0};     // the longest recent gap: how far past the newest the clock was when a message came
     double delay{0.0};
-    int holds{0};         // frames the draw time passed the newest message (a gap longer than the delay)
+    int holds{0};         // frames the draw time slowed near the newest message (a gap longer than the delay)
 };
 Interp interp;
 
@@ -757,9 +758,14 @@ void interpFrame()
     }
     else
     {
-        ip.rt += dt * za::clamp(1.0 + err * clockGain, rateLeast, rateMost);
+        // Near the newest message (a gap longer than the delay: lost packets in a row, a late one) the clock slows to
+        // a stop as it nears it rather than running past and holding: past it, the entities stood at the newest place
+        // and the next message's lerp put them a gap's motion further at once (B8c: mp_loss's "jumps" at 10% loss).
+        // They slow down smoothly instead and the clock's rate catches the delay up after.
+        const double room = za::clamp((ip.newest - ip.rt) / cushion, 0.0, 1.0);
+        ip.holds += room < 1.0 ? 1 : 0;
+        ip.rt += dt * za::clamp(1.0 + err * clockGain, rateLeast, rateMost) * room;
     }
-    ip.holds += ip.rt > ip.newest ? 1 : 0;
 }
 
 bool interpEntity(int num, float origin[3], float angles[3])
@@ -835,6 +841,29 @@ double interpDelayMs()
 int interpHolds()
 {
     return interp.holds;
+}
+
+double interpNewest()
+{
+    return interp.newest;
+}
+
+bool interpSample(int num, int back, double& t, float origin[3])
+{
+    const Interp& ip = interp;
+    if(num <= 0 || num >= static_cast<int>(ip.of.size()))
+    {
+        return false;
+    }
+    const History& h = ip.of[static_cast<za::SizeT>(num)];
+    if(back < 0 || back >= h.n)
+    {
+        return false;
+    }
+    const Sample& s = h.s[(h.head - 1 - back + 2 * historyLen) % historyLen];
+    t = s.t;
+    memcpy(origin, s.origin, sizeof(s.origin));
+    return true;
 }
 
 namespace

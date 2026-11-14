@@ -232,9 +232,17 @@ void traceFrame()
         return; // (not drawn this frame: counted when it is)
     }
     trace.lastFrame = frame;
-    Con_Printf("mp_trace: t=%lld ent=%d f=%d ct=%.4f org=%.2f %.2f %.2f h0=%.2f %.2f %.2f h1=%.2f %.2f %.2f\n", wallMs(),
-        trace.ent, frame, cl.time, body.x, body.y, body.z, hands[0].x, hands[0].y, hands[0].z, hands[1].x, hands[1].y,
-        hands[1].z);
+    double st = 0.0;
+    float so[3]{};
+    if(!qvr::netsnap::interpSample(trace.ent, 0, st, so))
+    {
+        st = -1.0;
+    }
+    Con_Printf("mp_trace: t=%lld ent=%d f=%d ct=%.4f org=%.2f %.2f %.2f h0=%.2f %.2f %.2f h1=%.2f %.2f %.2f rt=%.4f "
+               "nw=%.4f dl=%.1f rl=%.4f st=%.4f so=%.2f %.2f %.2f\n",
+        wallMs(), trace.ent, frame, cl.time, body.x, body.y, body.z, hands[0].x, hands[0].y, hands[0].z, hands[1].x,
+        hands[1].y, hands[1].z, qvr::netsnap::interpTime(), qvr::netsnap::interpNewest(), qvr::netsnap::interpDelayMs(),
+        realtime, st, so[0], so[1], so[2]);
     if(--trace.left == 0)
     {
         Con_Printf("mp_trace: done\n");

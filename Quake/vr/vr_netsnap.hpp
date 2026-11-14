@@ -102,6 +102,9 @@ void interpFrame();
 [[nodiscard]] double interpTime();
 [[nodiscard]] double interpDelayMs();
 [[nodiscard]] int interpHolds();
+[[nodiscard]] double interpNewest(); // the newest message's server time (vr_mp_trace)
+// Entity `num`'s sample `back` messages before its newest (0: the newest): its server time and place (vr_mp_trace).
+[[nodiscard]] bool interpSample(int num, int back, double& t, float origin[3]);
 
 // vr_netsnap_selftest (the codec: full, delta, gone, unchanged, a budget's cut; ends "netsnap selftest: N passed, M
 // failed").
