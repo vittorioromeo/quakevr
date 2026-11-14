@@ -1559,7 +1559,8 @@ def download(s):
     try:
         # (A installs it in the user dir he shares with the server: a dedicated server reads no map index)
         a = s.client("A", extra=["-basedir", users["server"], "+vr_maps_allow_local", "1"]).start()
-        a.wait(r"map index: ", 60, what="A's map index (its cache) read")
+        # (a fresh user dir: its caches cold, the game's start takes about a minute, its shaders compiled again)
+        a.wait(r"map index: [0-9]+ packages", 240, what="A's map index (its cache) read")
         a.cmd("maps_install %s" % sha[:16])
         a.wait(r"%s - \d+ file\(s\) written" % DL_TITLE, 60, what="A's install of the package")
         srv = s.server(dedicated=True)
@@ -1577,7 +1578,7 @@ def download(s):
         a.wait(r"mp_event: .*left", 20, since, "A left")
 
         b = s.client("B", extra=["-basedir", users["B"], "+vr_maps_allow_local", "1", "+vr_mp_download", "0"]).start()
-        b.wait(r"map index: ", 60, what="B's map index (its cache) read")  # (else he would fetch Quaddicted's)
+        b.wait(r"map index: [0-9]+ packages", 240, what="B's map index (its cache) read")  # (else he would fetch Quaddicted's)
         since = b.mark()
         b.cmd(s.connect_cmd(b))
         _, why = b.wait(r"mp_package: .*vr_mp_download 0", 60, since, "B refused with vr_mp_download 0")

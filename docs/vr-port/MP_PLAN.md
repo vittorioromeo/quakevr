@@ -55,7 +55,7 @@ is the newer (each claim below was re-checked on 2026-11-14 at `origin/next` 17d
 | Missing | Notes |
 |---|---|
 | Remote VR avatars | B2: each player's head, hands (positions, angles) and weapons reach the clients that see him (QVR_SVC_AVATAR, vr_mpavatar.cpp; mp_avatar: within 0.10 units). Still missing: fingers (not in the move), drawing them (body IK, held weapon models), holsters, lamp, climb holds, calibration |
-| Downloads | No `svc_download`/chunked download; the `Download` in `host_cmd.c:581` is the map library's HTTPS fetch (`vr_mapindex.cpp`, `vr_mapinstall.cpp`) [code] |
+| Downloads (B4c: a Map Library package the server names, installed by the client's Map Library; nothing else) | No `svc_download`/chunked download; the `Download` in `host_cmd.c:581` is the map library's HTTPS fetch (`vr_mapindex.cpp`, `vr_mapinstall.cpp`) [code] |
 | Coop saves | `save` refuses with more than one player ("Can't save multiplayer games", `host_cmd.c:2571`); autoload too (`host_cmd.c:2196`) [code] |
 | Single-player-only systems | 33 `svs.maxclients == 1` gates in `Quake/vr`: bullet time, timescale, crates placed about, flashlight's save state, relight, Setup, holster setup, the toolgun, arena cards, the chainsaw's cord state, live preview, late precache of `vr_prepare` [code] |
 | Per-client preferences, rig, body data up | No userinfo/setinfo/prefs message; the server cannot know a player's handedness, height or holsters [code] |
@@ -189,7 +189,7 @@ player unchanged.
 | **B3d** (client-side traces, teleport, palm frame up done; the rest is B3e) | The rest of B3c: the rig up (palm frame, weaponhotspot and the drawn pose, weapon hull, 2H carry and foe grab frames, the ragdoll grab fit, the crawl's hand bottom); client-side traces for teleport, crosshair, flashlight, hand collision | `mp_teleport`, `mp_grab` grown (palm frames; a 2H carry, a foe grab, the palm slack) |
 | **B3e** (the held weapon's drawn pose up done; the rest is B3f) | The rest of B3d: the drawn pose up per player (weaponhotspot, weaponanygrip, weapondrawnpose's carried weapon and axes, the drawn weapon hull, the 2H carry's reach offset); `mp_grab` grown | `mp_held` (B's hotspots on the server where his view draws them; his two-handed hold and hand-off judged by his own) |
 | **B3f** (done: B3 is done) | The rest of B3e: the grip fit's hand rig per player (`vr_gripfit.cpp`), the ground weapon's grab hotspot and the reverse grip's choice per player (weapongrabspot, weapondrawnpose 43), the magnetic holsters' poll and places per player; `mp_grab` grown (a 2H carry, a foe grab, the palm slack) | `mp_grab` grown, `mp_held` grown (a reverse grip) |
-| **B4** (saves, loads, level changes with inventories done; B4b: coop autosaves, the exit and intermission, a real death and respawn; the rest is B4c) | Coop campaign flow: coop saves and loads (per-player blocks, versioned), autosaves, level transitions with inventories, intermission, deaths and respawns, map download (package names through the map installer; chunked fallback) | `mp_campaign` (e1m1 to e1m3 with saves and a load, both players' inventories), `mp_download` (B lacks a map: installs it, joins) |
+| **B4** (done: saves, loads, level changes with inventories; B4b: coop autosaves, the exit and intermission, a real death and respawn; B4c: slots by name, coop autosaves in Load Autosave, the intermission save, map download through the Map Library) | Coop campaign flow: coop saves and loads (per-player blocks, versioned), autosaves, level transitions with inventories, intermission, deaths and respawns, map download (package names through the map installer; chunked fallback) | `mp_campaign` (e1m1 to e1m3 with saves and a load, both players' inventories), `mp_download` (B lacks a map: installs it, joins) |
 | **B5** | Interactions between players: drop a weapon / the other picks it up; force grab of world weapons in multiplayer; melee, parries and shoves between players; climbing, crouch, prone, jump, punch synced and judged per player | one scenario per interaction, each from both sides |
 | **B6** | Server rules and cosmetics: every balance setting a rule (presets, armed humanoids, damage, mutators, stamina, grapple...), rule pages dimmed on a remote client; holster positions, height, seated/standing, gloves, body seen by others | `mp_rules`, `mp_cosmetics` (B's height and gloves seen by A) |
 | **B7** | Snapshots: acknowledged per-client snapshots and deltas for entities, players and avatars; quantized delta moves with repeats; interpolation buffer with quaternion slerp | `mp_loss` (10% loss: positions still continuous), byte counts per scenario |
@@ -785,7 +785,55 @@ Open (B4c):
 - Saving during a dedicated server's intermission: `Host_Savegame_f` checks `cl.intermission`, the server's own client's
   (none on a dedicated server); QC's `intermission_running` is the server's.
 
+### B4c results (2026-11-14, dev no-LTO build, loopback; `mp_test.py suite`: 15 of 16 pass, `mp_download` then 8/0 alone after its index wait was fixed (below))
+
+| Scenario | Result |
+|---|---|
+| `mp_download` (new) | 8/0: a test package (Quake VR's own `vrexample.bsp` as `maps/qvrmpdl.bsp`, zipped by the test, listed in a local index, served from 127.0.0.1) installed by A's `maps_install` in the user dir he shares with a dedicated server, which plays its map; A (installed, not mounted) told the server's package, mounts it and joins again; B (his own user dir, lacking it) told what to install with `vr_mp_download 0` (nothing written), then with 1 installs it through the map installer (into his `qvr_addons/<sha16>/`), mounts it and joins: the server has him in. Failed first: "Model maps/qvrmpdl.bsp not found" (a client never mounted the server's package, installed or not) |
+| `mp_campaign_listen` | 14/0: a third player C; after the host's lone load C joins first (the first free slot is B's) and is given his own saved slot by his name, then B his: each with what he had at the save. Failed first: C took B's slot and inventory; then the host's own client took slot 3 (its name unknown: the loopback carries none) |
+| `mp_flow` | 16/0: a save on the dedicated server in the intermission refused ("Can't save in intermission."; it was written before); the Load Autosave list (`vr_autosave_list`) has `autosave/coop~e1m2` ("Coop, 2 players") |
+
+Single player on the branch: scenario_check PASS (129 scenes, 0 failed), load_models_test 4/0, vr_run_check 12/0
+(`scratch/b3_runcheck.sh`); the dev build 0 warnings, the Release-config (ThinLTO) build 0 warnings. `mp_download`'s
+first suite run waited for the index's "started" line and timed out on the fresh user dir's cold start (63 s: its
+shader cache empty); it now waits for "map index: N packages", up to 240 s.
+
+What changed:
+
+- **Map download** (`vr_mpdownload.cpp`): the server sends each remote client `QVR_SVC_PACKAGE` (the sha256 of the Map
+  Library package its map is played from, `mapinstall::active()`; "" for the stock game's) before its svc_serverinfo,
+  read whatever protocol the last server had. A client whose mounted package differs leaves at once (mounting rebuilds
+  the game folders, which ends a connection) and then: has it installed: mounts it and joins again at the address it
+  connected to; lacks it, with `vr_mp_download` 1 (default; Debug > Reports > Network: Install the Server's Map):
+  `mapinstall::begin` on its own index's entry for that sha256, the Map Library's own job (the index's mirrors, the size,
+  disk, zip-bomb, path and progs.dat guards, the sha256 check), then mounts and joins again; a package its index does not
+  list: the index fetched once (as `maps_fetch`), else "not in the Map Library's index"; with 0: told what to install. A
+  client with a package mounted joining a stock map unmounts it and joins again. One rejoin per package (no loop).
+  `QVR_NET_VERSION` 11.
+- **Slots by name**: the connect request carries the player's name after the network version; in a loaded coop game a
+  new connection takes the free slot of the saved player of that name (`VR_CoopPickSlot`; the host's own client by his
+  `name`), else a free slot no saved player waits for (a new player there), else the first free one (as before). Two
+  saved players of one name: the first free of them.
+- **The intermission**: `Host_Savegame_f` refuses while the server's QC is in its intermission (`intermission_running`,
+  bound in vr_progs.cpp), not only the host's own client's (`cl.intermission`).
+- **Load Autosave** lists coop autosaves (format 2) with "Coop, N players" on their second line; the host loads one as
+  any (the save's players set again: B4). Continue and the launch rows' Continue still pass over them.
+
+Open (B5 and later):
+
+- A dedicated server reads no map index (`mapindex::start` is a client's): installing on one needs `maps_fetch` first,
+  or a client sharing its user dir (as the test does). It could read its cached copy at start-up (no fetch).
+- A server's map that is neither the stock game's nor a Map Library package (a map copied in by hand) cannot be joined
+  by a client lacking it: "Model maps/x.bsp not found", as before (no chunked fallback: Decisions).
+- A stranger joining a loaded coop game when every free slot is a saved player's still takes that player's edict.
+
 ## Decisions
+
+- Map download goes through the Map Library alone: the server names the package (its sha256), the client installs it
+  from its own index's entry with the installer's guards; no file and no URL comes from the server, so no chunked
+  fallback over the game connection (no new network code to untrusted hosts). Joining needs the package to be in the
+  Map Library (Quaddicted or Slipseer). `vr_mp_download` defaults to 1: the same packages the Map Library installs on a
+  click, from the same mirrors.
 
 - Coop saves keep the players' slots rather than matching them by name: the slot is what numbers their edicts, a
   player who stayed connected keeps it through the load, and a player joining later takes the slot he is given (by name:
@@ -804,4 +852,4 @@ Open (B4c):
   from outside, they always have legs (his body mode 1 or 2 is his own first-person view); his body mode 0 draws his
   player model as before.
 
-Next phase: B4c — the rest of the coop campaign flow: a rejoining player matched to his saved slot by name, coop saves listed for the host (Load Autosave's coop autosaves), saving in a dedicated server's intermission refused by QC's state, map download (package names through the map installer; a chunked fallback); tests first: `mp_campaign_listen` grown (B rejoins into another free slot: matched by name), `mp_download` (B lacks a map: installs it, joins).
+Next phase: B5 — interactions between players: a weapon dropped by one and picked up by the other; force grab of world weapons in multiplayer; melee, parries and shoves between players; climbing, crouch, prone, jump and punch synced and judged per player; tests first: one scenario per interaction, each from both sides (`mp_pickup`, `mp_forcegrab`, `mp_melee`, `mp_moves`).

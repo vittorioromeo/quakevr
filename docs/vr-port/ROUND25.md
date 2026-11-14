@@ -2450,3 +2450,15 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
   handle (`vr_mock_hand_to <hand> spot -1`), `mp_teleport`'s aim turned left and right (a wall ahead of one spawn spot).
 - Suite 15/15; single player: load_models 4/0, vr_run_check 12/0, scenario_check PASS; dev and Release builds 0 warnings.
   Next: B4c (slots by name, coop saves listed for the host, map download). Details: MP_PLAN.md, "B4b results".
+
+## mpN (B4c): map download through the Map Library, slots by name, coop autosaves listed (agent/mp, 2026-11-14; never shipped by the coordinator)
+- Joining a server whose map is a Map Library package: the server names it (`QVR_SVC_PACKAGE`, its sha256, before the
+  serverinfo); a client with another mounted leaves, mounts it (installed) or installs it from its own index through the
+  map installer (its mirrors and guards; nothing comes from the server but the sha256), and joins again. `vr_mp_download`
+  1 (Debug > Reports > Network: Install the Server's Map); 0: told what to install. Network version 11.
+- A loaded coop game gives a joining player his saved slot by his name (sent in the connect request); a stranger takes a
+  slot no saved player waits for. Saving in a dedicated server's intermission is refused (QC's `intermission_running`).
+  Load Autosave lists coop autosaves ("Coop, N players"); Continue still passes over them.
+- `mp_download` 8/0 (new), `mp_campaign_listen` 14/0 (C joins first into his own slot), `mp_flow` 16/0. Single player:
+  scenario_check PASS (129), load_models 4/0, vr_run_check 12/0. Next: B5 (interactions between players). Details:
+  MP_PLAN.md, "B4c results".
