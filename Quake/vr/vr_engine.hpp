@@ -128,6 +128,7 @@ void SV_AreaEdictsUnordered (const float *mins, const float *maxs, edict_t **lis
 void SV_AreaRadiusCandidates (const float *mins, const float *maxs, edict_t **list, int *listcount, int listspace); // world.c: the same by the boxes as linked (findradius)
 int SV_HullPointContents (hull_t *hull, int num, vec3_t p); // world.c: the ledge map (vr_ledges.cpp)
 void Z_Usage (size_t *used, size_t *peak, size_t *count);	// zone.c: the zone's bytes in use (headers included), most ever, blocks in use (vr_limits)
-void Hunk_Usage (int *used, int *peak, int *size, int *segments, int *maxsegments); // zone.c (vr_limits)
+void Hunk_Usage (int *used, int *peak, int *blocks); // zone.c: the hunk's bytes (headers included), most ever, blocks (vr_limits)
+void Cache_Usage (size_t *used, size_t *peak, int *entries); // zone.c: the cache's bytes, most ever, entries (vr_limits)
 }
 

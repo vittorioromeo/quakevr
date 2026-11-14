@@ -146,12 +146,17 @@ void command_f()
         row("zone blocks", static_cast<int>(zoneBlocks), 0, "Z_Malloc'd blocks in use (cvar values, aliases, arguments)");
         int used = 0;
         int peak = 0;
-        int size = 0;
-        int segments = 0;
-        int maxSegments = 0;
-        Hunk_Usage(&used, &peak, &size, &segments, &maxSegments);
-        rowPeak("hunk, MiB", used >> 20, peak >> 20, size >> 20, "grows by segments (-heapsize <KiB> the first)");
-        row("hunk segments", segments, maxSegments, "each twice the last; past the last: Sys_Error");
+        int blocks = 0;
+        Hunk_Usage(&used, &peak, &blocks);
+        rowPeak("hunk, KiB", used >> 10, peak >> 10, 0, "the heap: no maximum (was 384 MiB, -heapsize)");
+        row("hunk blocks", blocks, 0, "Hunk_Alloc'd blocks in use (the level's data, loaders' buffers)");
+        size_t cacheUsed = 0;
+        size_t cachePeak = 0;
+        int cacheEntries = 0;
+        Cache_Usage(&cacheUsed, &cachePeak, &cacheEntries);
+        rowPeak("cache, KiB", static_cast<int>(cacheUsed / 1024), static_cast<int>(cachePeak / 1024), 0,
+            "the heap: no maximum, never purged (alias models, sounds; freed by a game change)");
+        row("cache entries", cacheEntries, 0, "models and sounds cached (cache_print: each)");
         const mem::Totals held = mem::totals();
         rowInfo("VR scratch, KiB", va("%9d in %d sets (given back at each map; vr_memstats: the largest)",
                                        static_cast<int>(held.scratchBytes / 1024), held.scratchSets));
