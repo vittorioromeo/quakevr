@@ -312,6 +312,16 @@ void glProbe(int eye, int stage, unsigned sceneFbo, unsigned compositeFbo, unsig
             drawFbo, drawBuffer, viewport[0], viewport[1], viewport[2], viewport[3], mask[0], mask[1], mask[2], mask[3],
             glIsEnabled(GL_SCISSOR_TEST) ? 1 : 0, glIsEnabled(GL_RASTERIZER_DISCARD) ? 1 : 0, glIsEnabled(GL_BLEND) ? 1 : 0,
             glIsEnabled(GL_DEPTH_TEST) ? 1 : 0, glIsEnabled(GL_CULL_FACE) ? 1 : 0);
+        GLfloat clearDepth = -1.f, clearColour[4] = {};
+        GLint depthFunc = 0, depthMask = 0, stencilFunc = 0;
+        glGetFloatv(GL_DEPTH_CLEAR_VALUE, &clearDepth);
+        glGetFloatv(GL_COLOR_CLEAR_VALUE, clearColour);
+        glGetIntegerv(GL_DEPTH_FUNC, &depthFunc);
+        glGetIntegerv(GL_DEPTH_WRITEMASK, &depthMask);
+        glGetIntegerv(GL_STENCIL_FUNC, &stencilFunc);
+        Con_Printf("  depth: clear %g func 0x%x write %d; stencil test %d func 0x%x; clear colour %g %g %g %g\n", clearDepth,
+            depthFunc, depthMask, glIsEnabled(GL_STENCIL_TEST) ? 1 : 0, stencilFunc, clearColour[0], clearColour[1],
+            clearColour[2], clearColour[3]);
         for(const unsigned f : {sceneFbo, compositeFbo})
         {
             GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, f);

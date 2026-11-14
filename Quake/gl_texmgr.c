@@ -1632,12 +1632,14 @@ static void TexMgr_Upload32 (gltexture_t *glt, unsigned *data, double t0)
 		internalformat.ratio = heights ? 1 : 2;
 	}
 	// QVR: OpenGL ES takes RGBA bytes only into an RGBA format (GL_RGB, GL_RG8 from GL_RGBA data: GL_INVALID_OPERATION,
-	// no texture: the Quest's black world, QUEST_PLAN.md C4c). RGBA8 there; a solid texture's alpha made opaque, as
-	// GL_RGB's reads are (the mips are made from this buffer); the normal maps' extra channels unread.
+	// no texture: QUEST_PLAN.md C4c). RGBA8 there, its texels made what GL_RGB's and GL_RG8's reads give (alpha 1; RG8:
+	// blue 0), so the ES textures read back as the PC's (the mips are made from this buffer).
 	if (VR_GLESForm (VR_GLES_FORM_GLSL) && (internalformat.id == GL_RGB || internalformat.id == GL_RG8))
 	{
-		if (internalformat.id == GL_RGB)
+		if (internalformat.id == GL_RGB || internalformat.id == GL_RG8)
 		{
+			// (GL_RG8's reads: blue 0, alpha 1; GL_RGB's: alpha 1)
+			qboolean rg = internalformat.id == GL_RG8;
 			// (a cube map's or an array's data: an image a face or layer)
 			int layers = glt->target == GL_TEXTURE_CUBE_MAP ? 6 : glt->target == GL_TEXTURE_2D_ARRAY ? (int) glt->depth : 1;
 			int i, k, n = glt->width * glt->height;
@@ -1645,7 +1647,11 @@ static void TexMgr_Upload32 (gltexture_t *glt, unsigned *data, double t0)
 			{
 				byte *image = glt->target == GL_TEXTURE_2D ? (byte *) data : ((byte **) data)[k];
 				for (i = 0; image && i < n; i++)
+				{
+					if (rg)
+						image[4 * i + 2] = 0;
 					image[4 * i + 3] = 255;
+				}
 			}
 		}
 		internalformat.id = GL_RGBA8;

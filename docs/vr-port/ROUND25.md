@@ -2652,3 +2652,22 @@ well-timed parries."
   `vr_flat_aim_zoom 0`: it measures every gun's sight line); new `Misc/quakevr/autosavenow_test.sh` 4/0 (autosave/e1m1
   written, Continue "just now"; co-op refused); `vr_gameplay_preset_test` 27/0; `vr_gameplay_classic_check` 2/0 in VR
   and in flat. Dev and Release-TracyFull builds 0 warnings. Scenario `flat_aim_zoom`.
+
+## Quest C4c: the black world on the headset, first part (branch `agent/quest`, 2026-11-14)
+
+QUEST_PLAN.md section 6j has the detail. On the Quest 3 over adb, with the headset unworn:
+- **OpenGL ES errors that Adreno reports (`-gldebug`) and a desktop driver under `-glescompat` accepts, fixed:** TexMgr
+  uploads from `GL_RGB`/`GL_RG8` internal formats are now RGBA8 under the ES profile, so every texture uploads; the
+  light-cluster and palette-LUT image textures are now immutable (`glTexStorage3D`); eyeshots read back as RGBA; the
+  depth-only array/multiview twins now get an empty fragment shader. After the fixes, `-gldebug` shows no error in a frame.
+- **Android:** `EXT_clip_control` is used when the driver has it (the Quest 3 does; `-glesnoclipcontrol` turns it
+  off). While VR runs there is no window image and no swap (`vr_android_window` 0). The APK is debuggable.
+- **New debug tools (Debug > Startup):** `vr_gl_probe 1` (the eye framebuffers by numbers, the scene's primitives,
+  the frame data's upload read back, a clear-and-read self-test) and `vr_android_export <path>` (files copied to where
+  `adb shell run-as` reads them).
+- **Still black:** the eye's composite is 0% non-black even though the scene draws 31-35 k primitives, the frame
+  UBO uploads byte for byte and the self-test reads back. The vertex side is fine, so the next suspects are on the
+  fragment side (depth/stencil state, the world fragment shader's inputs). The PC's ES mode draws the same scene.
+- **"Save error."** is Android only and now says why: e1m1's autosave hits "string -14: a freed engine string".
+- PC unchanged: every change is behind the ES profile or `__ANDROID__`, except that eyeshots now read RGBA (same files)
+  and "Save error." gives a reason.
