@@ -2379,6 +2379,31 @@ Cherry-picked bd2277d6c (translucent brush models' retro decal program made in t
 ## crtheapfix
 
 Cherry-picked 6b8e74432: VR_CrtHeapLoadHold now defined without mimalloc (QVR_MIMALLOC=OFF Linux link). Checked: dev build, ReleaseLTO, WSL no-mimalloc link, load_models 352/0.
+## flat1115a: icon pictures' aspect, card gap, red banners, Arcane Dimensions with the campaigns (agent/flat1115a, 2026-11-15)
+
+- **Icon pictures stretched (the real cause):** the VR menu canvas scales y more than x (`VR_MenuCanvas`: the row
+  spacing; about 2x on the flat panel). Glyphs keep their size (`Draw_KeepMenuGlyphSize`) but `Draw_TextureRect` did
+  not, so menutweak's fit (in menu pixels) still came out about twice as tall. `Draw_MenuStretch()` (gl_draw.c) gives
+  that factor; `drawIconPicture` fits the picture in screen proportions and brings its height back to menu pixels: the
+  skull is round, the arches square, the guns long and flat (letterboxed in the box's width).
+- **Name lines** `vr_menu_icon_name_pitch` 6 (was 7: 14% tighter). **Card gap** `vr_menu_icon_gap` 16 (was 4): the
+  plates keep their width and sit 80 apart instead of 68 (+18%) while the row's 320 pixels have room; a five-choice
+  row (Difficulty) gives the gap up first, down to the old 4. **Decision:** read as the cards' spacing, not 15-20% of
+  the 4-pixel gap (sub-pixel). Rows in Menu Look > Run Setup; menu_paths.txt regenerated.
+- **Banners in the menus' red:** `Sbar_IntermissionOverlay` (COMPLETED, inter.lmp, the level's name, the numbers),
+  `Sbar_FinaleOverlay`, `SCR_DrawLoading`, `SCR_DrawPause` draw with `Draw_SetMenuRecolor(true)`: vr_menu_recolor and
+  its hue, strength and saturation; off with it.
+- **Select Campaign:** no Experimental header; Arcane Dimensions a Lead row with the others, a small dim "experimental"
+  before its title (`Item::tagLeftArg`, drawn by `drawGroupRow`; its right tag dropped). Its notice's Continue now
+  opens Run Setup (`openRunSetupArcane`); Start runs the developer launch `vr_campaign_native ad` (`runSetupStart`), as
+  the row did before.
+- **Checklist:** 17 ticked lines retired (no voice notes since 11-12); scenes flat_holster_drag, flat_clip_unpaid,
+  run_glass_dummy set aside (nothing else uses them); run_setup_newgame and run_pickups kept (docs, code). The two
+  [New] lines sorted into 7. physics and bodies, shortened. The failed Classic Quake line stays.
+- **Tests:** vr_runsetup_screen_test 42/0 (adds: Arcane Dimensions' Continue opens the screen), vr_continue_rows_test
+  19/0, vr_menu_flash_test 7/0, menu_shortcuts_test 14/0, vr_menu_path_check vrcalibration 6 / vrstart 5 found, 0
+  missing, checklist_tests_check 51/0. Builds: dev and ReleaseLTO 0 warnings. Shots: qvr-kit/scratch/flat1115_shots/
+  (icons_before_after, campaigns_before_after, completed_before_after).
 
 ## flat1115b: flat aim per weapon (ironsight placing, zoom), Classic in flat, Autosave Now (agent/flat1115b, 2026-11-15)
 
