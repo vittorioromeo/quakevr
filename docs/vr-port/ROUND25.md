@@ -2269,3 +2269,35 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
   6 reps where it moved; no confirmed per-frame regression, worst frames and warm loads down; crowd_ad_40's p99 and
   +1-2 heap allocs a frame listed. Fixed: `load_reloads` crashed (Host_ClearMemory kept `cl_entities` after freeing
   it; a campaign switch's CL_ForgetModels wrote it: unmapped since nohunk). Now NULL there, as at start-up.
+
+## uafsweep: dangling pointers after the hunk/cache removal; crowd_ad_40's p99 (agent/uafsweep, 2026-11-14)
+
+- **`-memguard` / `QVR_MEMGUARD=1`** (zone.c, vr_alloccount.cpp `VR_PageGuardAlloc/Free`; a debugging aid, off by
+  default, a start-up line and `hunk_print`'s USED line say when on): every zone, hunk and cache block on pages of its
+  own, ending at its last page's end (the next page reserved: an overrun faults); its free decommits the pages and
+  keeps them reserved, so the address is never reused and any later use through a kept pointer faults with that use's
+  stack in the crash report. The environment variable reaches every child game (bench.sh, scenario_check.sh, ...).
+  Release builds suffice (no debug-CRT dialogs). Proven on the known bug: with `cl_entities = NULL` undone, `map e1m1;
+  map uf_nosuchmap; map hip1m1` (a failed map after Host_ClearMemory, then a campaign switch) faults at
+  CL_ForgetModels (cl_main.c:153); load_reloads didn't fault (it never leaves a failed map before a switch).
+- **Found and fixed:** `Mod_DecompressVis` read past the end of a map's vis data: a last row cut short by the compiler
+  (e1m3, vrteleporters: Mod_CheckWaterVis at load) read the bytes after the block; harmless in the old one-block hunk
+  (the next allocation's bytes), heap garbage since nohunk (wrong PVS bits for that leaf), a fault under -memguard.
+  `qmodel_t.visdatasize` now bounds it; the rest of a cut row is zeros. No other hit.
+- **Runs under -memguard** (Release): the id1 <-> AD switch loop 30 round trips (scratch/uf_gen.py: `game ad quakevr;
+  map ad_azad` / `game quakevr; map e1m1`, with failed maps after Host_ClearMemory and campaign switches from there,
+  disconnect + hip1m1, `flush` and `r_enhancedmodels 0/1` under a running map, restart, save/load, changelevel; 90 game
+  changes) no fault; scenario_check 129 files 0 errors, 129 run 0 failed; load_models_test 4/0 (352/0); vr_run_check
+  15/0 and runenemies 17/0 (mr_tests' runcheck script); load_reloads, load_changelevel, load_hip1m1, load_ad_restarts,
+  saveload_e1m1 (their bench scripts, 120 frames) no fault, every load reported. A grep of the file-scope pointers to
+  models and level data: the VR systems' cached world pointers (vr_envmap, vr_detail, vr_lighting, ...) already check
+  `worldGeneration()`; the switch is a start-up option, so no Debug menu row.
+- **crowd_ad_40's p99 (6.6 -> 9.6 ms): not a CPU cost but GPU back-pressure in the bench's unpaced `--fast` mode.**
+  The hitch log (`vr_profile 1; vr_profile_hitch 0.8`, exclusive, ThinLTO, 2048 eyes) has ~15 window frames of 6-10 ms
+  spent in `screen`'s own time (no child scope: the driver blocking the submit) and nothing else unusual. With 512
+  eyes (same CPU work): p99 12.2 -> 6.2 ms and those frames gone. Paced at 90 Hz (`-RealTime`, as in the headset): CPU
+  busy p99 6.8 ms, frame p99 11.37 (the 11.1 budget). The day's work made the CPU faster (median -12%) than the GPU's
+  3.2-3.5 ms a frame, so unpaced frames now outrun the GPU and wait on it in bursts. The fight also plays differently
+  (fewer bodies and particles) since a31689eab (every move since the last server tick counts: the bench's +attack
+  presses land differently at 90 Hz input over 72 Hz ticks). Nothing to fix; for CPU p99s in --fast, read cpu_busy with
+  the GPU unsaturated (a smaller --eye) or a paced run. Scripts: scratch/uf_crowd.sh, uf_hitch2.py.
