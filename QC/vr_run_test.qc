@@ -42,8 +42,13 @@ void() VR_RT_Store =
     cvar_set("vr_run_test_tally", ftos(vr_test_pass * 1000 + vr_test_fail));
 };
 
+// The verdict line seen with developer 0 too (echoed: the last step runs just after a load, before the client has begun,
+// when a broadcast is dropped). It was a dprint: at developer 0 the run never printed it, so run.sh's -QuitOn waited out
+// its timeout and the finished test looked like an engine hang at its last load (ROUND25.md, "loadhang"). The checks'
+// lines stay developer 1's.
 void() VR_RT_End =
 {
+    vr_test_flags = vr_test_flags | VR_TEST_ECHO;
     VR_Test_Verdict();
     cvar_set("vr_run_test_tally", "0");
     VR_RT_To(0, FALSE);
@@ -160,7 +165,9 @@ void() VR_RT_Pickups =
         cvar_set("vr_run_test_a", ftos(vr_rt_hash));
         cvar_set("vr_run_test_b", ftos(VR_RT_Links()));
         cvar_set("vr_run_test_c", ftos(total_monsters));
-        localcmd("map e1m1\n");
+        // (`vr_run`: the run's choice set since the last map, so the `map` keeps the run, its seed too; a bare `map` is
+        // a new game with the Run Setup screen's picks and a new seed: vr_runsetup.cpp newGame.)
+        localcmd("vr_run pickups 1\nmap e1m1\n");
         VR_RT_To(3, TRUE);
     }
     else if(step == 3)
@@ -192,7 +199,7 @@ void() VR_RT_Pickups =
         // Another run (its own seed) on e1m2, then the first run's save loaded and a changelevel: the saved run's seed
         // back (the save's `// qvr_run` line), so e1m2's pickups are the first run's again.
         cvar_set("vr_run_test_a", ftos(vr_rt_hash));
-        localcmd("vr_run_seed 4242\nmap e1m2\n");
+        localcmd("vr_run_seed 4242\nvr_run pickups 1\nmap e1m2\n");
         VR_RT_To(10, TRUE);
     }
     else if(step == 10)
