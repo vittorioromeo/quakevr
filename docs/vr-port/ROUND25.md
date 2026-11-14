@@ -2512,3 +2512,7 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
 - `mp_melee` 17/0, `mp_moves` 17/0 (new); the suite 20 of 20. Single player: scenario_check PASS (129; `bench_crowd_ad`
   failed once, passed on the rerun), load_models 4/0, vr_run_check 12/0. Next: B5c (climbing, swimming in water, the
   blade's directional parry, palm shove, sub-tick melee). Details: MP_PLAN.md, "B5b results".
+
+## decalhitch
+
+Cherry-picked bd2277d6c (translucent brush models' retro decal program made in the load's last frame, not in play: a 2.5-3.1 s freeze on 19 AD maps); dev and ReleaseLTO builds, scenario_check, load_models_test pass; ad_tears with developer 1 prints no "made in play" line.
