@@ -68,6 +68,14 @@ void *Hunk_AllocName (int size, const char *name); // returns 0 filled memory
 void *Hunk_AllocNameNoFill (int size, const char *name); // QVR: zeroed too now (zone.c, "nohunk")
 char *Hunk_Strdup (const char *s, const char *name);
 
+// QVR: short-lived scratch for a frame's lists (SV_TouchLinks, SV_PushMove, VR_TouchLinks...: they were hunk
+// temporaries, one heap block each since "nohunk"): a stack in grow-only chunks kept between uses, so no heap call once
+// warm. Nests like the hunk's marks; not zeroed; main thread only; Host_Error and Host_ClearMemory empty it.
+int		Temp_Mark (void);
+void	*Temp_Alloc (size_t size);
+void	Temp_FreeToMark (int mark);
+void	Temp_Usage (int *chunks, int *bytes, int *peak);
+
 int	Hunk_LowMark (void);
 void Hunk_FreeToLowMark (int mark);
 void Hunk_KeepLoaded (void); // QVR: a model just loaded on the hunk: no free goes under it (zone.c)
