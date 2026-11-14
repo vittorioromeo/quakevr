@@ -1461,7 +1461,7 @@ void writeAvatars()
         MSG_WriteByte(&tmp, svc_quakevr);
         MSG_WriteByte(&tmp, QVR_SVC_AVATAR);
         MSG_WriteShort(&tmp, i + 1);
-        MSG_WriteByte(&tmp, (m.move.vrBits0 & protocol::moveFlatplayBit) ? 1 : 0);
+        MSG_WriteByte(&tmp, mpavatar::movesByte(c.edict, (m.move.vrBits0 & protocol::moveFlatplayBit) != 0));
         writeEighths(&tmp, m.move.headPos - m.base); // (rebaseHands moves the head and its base along together)
         writeAngles16(&tmp, m.move.headAngles);
         writeBodyPose(&tmp, m.move.body); // (his body's yaw, crouch and lean, as his client poses it: B2d)

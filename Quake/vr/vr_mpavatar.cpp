@@ -10,6 +10,7 @@
 
 #include "vr_cvars.hpp"
 #include "vr_handrig.hpp"
+#include "vr_hull.hpp"
 #include "vr_move.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
@@ -132,7 +133,11 @@ void printAvatar(int e, const Avatar& a)
         printSkeleton("mp_body", e, d.body.ent.model->name, d.skeleton);
         printVec("handwrist0", d.handWrist[0]);
         printVec("handwrist1", d.handWrist[1]);
-        Con_Printf(" eyeheight=%.3f yaw=%.1f\n", d.eyeHeight, a.body.yaw);
+        float pitch = 0.f;
+        float lying = 0.f;
+        (void)avatar::otherPitch(e, pitch, lying);
+        Con_Printf(" eyeheight=%.3f yaw=%.1f moves=%d pitch=%.1f lying=%.2f\n", d.eyeHeight, a.body.yaw, a.moves, pitch,
+            lying);
     }
     for(int side = 0; side < 2; side++)
     {
@@ -406,7 +411,10 @@ void setupBody(int e, const Avatar& a, const glm::vec3& origin)
     const glm::vec3 moved{ent.msg_origins[0][0] - ent.msg_origins[1][0], ent.msg_origins[0][1] - ent.msg_origins[1][1],
         ent.msg_origins[0][2] - ent.msg_origins[1][2]};
     who.velocity = dt > 1e-4 && dt < 0.5 && glm::length(moved) < 64.f ? moved / static_cast<float>(dt) : glm::vec3{0.f};
-    who.onGround = za::abs(who.velocity.z) < 120.f;
+    // (B5b: on the ground, lying down and in the water as the server has him -- his body lying, swimming as he does)
+    who.onGround = (a.moves & avatarOnGround) != 0;
+    who.lying = (a.moves & avatarLying) != 0;
+    who.waterlevel = (a.moves >> avatarWaterShift) & 3;
 
     hands::State s;
     s.valid = true;
@@ -637,13 +645,25 @@ void serverWriteAll(sizebuf_t* msg)
     }
 }
 
+int movesByte(const edict_t* ent, bool flat)
+{
+    // (the server's VM: the hull's per-client boxes are numbered by its edicts -- a console command's report runs outside it)
+    const progs::ServerVm vm;
+    const int water = CLAMP(0, static_cast<int>(ent->v.waterlevel), 3);
+    const int bits = (flat ? avatarFlat : 0) | (hull::isCrouched(ent) ? avatarCrouched : 0) |
+                     (hull::isProne(ent) ? avatarLying : 0) |
+                     ((static_cast<int>(ent->v.flags) & FL_ONGROUND) ? avatarOnGround : 0) | (water << avatarWaterShift);
+    return bits;
+}
+
 void parse()
 {
     const int ent = MSG_ReadShort();
     Avatar a;
     a.valid = true;
     a.received = realtime;
-    a.flat = (MSG_ReadByte() & 1) != 0;
+    a.moves = MSG_ReadByte();
+    a.flat = (a.moves & avatarFlat) != 0;
     a.head = readEighths();
     a.headAngles = readAngles16();
     a.body = readBodyPose();

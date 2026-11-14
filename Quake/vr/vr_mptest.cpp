@@ -213,12 +213,13 @@ void status_f()
             const float* o = c.edict ? c.edict->v.origin : vec3_origin;
             // (inv: his health, armour, items, shells, nails, rockets, cells and weapon: the coop campaign's checks, B4)
             const entvars_t* v = c.edict ? &c.edict->v : nullptr;
-            Con_Printf("mp_client: slot=%d name=\"%s\" spawned=%d org=%.1f %.1f %.1f inv=%d,%d,%d,%d,%d,%d,%d,%d\n", i,
-                c.name, c.spawned ? 1 : 0, o[0], o[1], o[2], v ? static_cast<int>(v->health) : 0,
+            // (moves: how the server has him move, as his avatar tells the others: mpavatar::movesByte, B5b)
+            Con_Printf("mp_client: slot=%d name=\"%s\" spawned=%d org=%.1f %.1f %.1f inv=%d,%d,%d,%d,%d,%d,%d,%d moves=%d\n",
+                i, c.name, c.spawned ? 1 : 0, o[0], o[1], o[2], v ? static_cast<int>(v->health) : 0,
                 v ? static_cast<int>(v->armorvalue) : 0, v ? static_cast<int>(v->items) : 0,
                 v ? static_cast<int>(v->ammo_shells) : 0, v ? static_cast<int>(v->ammo_nails) : 0,
                 v ? static_cast<int>(v->ammo_rockets) : 0, v ? static_cast<int>(v->ammo_cells) : 0,
-                v ? static_cast<int>(v->weapon) : 0);
+                v ? static_cast<int>(v->weapon) : 0, c.edict ? qvr::mpavatar::movesByte(c.edict, false) : 0);
         }
         Con_Printf("mp_server: map=%s spawned=%d time=%.3f\n", sv.name, spawned, sv.qcvm.time); // (time: the game's clock)
     }

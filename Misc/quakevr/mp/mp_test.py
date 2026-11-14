@@ -1890,6 +1890,81 @@ def melee(s):
     srv.cmd("developer 0; vr_debug_shots 0")
 
 
+# vr_mpavatar.hpp: the avatar's first byte (mpavatar::movesByte; the server's vr_mp_status `moves=`)
+MV_CROUCHED, MV_LYING, MV_GROUND = 2, 4, 8
+CROUCH_HEAD = 0.9  # m: the mock's head this high crouches (under the crouched box's top)
+PRONE_HEAD = 0.4   # m: and this high lies down (crawl_test.py's: the eyes under vr_prone_eye)
+LYING_PITCH = 30.0  # degrees: the watcher's copy of him laid at least this far forward (lying: 0.5 of the way at least)
+
+
+def server_moves(srv, ent):
+    """Player `ent`'s `moves=` on the server (vr_mp_status), -1: none."""
+    for l in status(srv):
+        m = re.match(r"mp_client: slot=(\d+) .*moves=(\d+)", l)
+        if m and int(m.group(1)) == ent - 1:
+            return int(m.group(2))
+    return -1
+
+
+def copy_of(s, watcher, ent):
+    """The watcher's copy of player `ent`'s body by report -> its fields (moves, pitch, lying, headjoint...) or {}."""
+    (lines,) = reports(s, [watcher])
+    return body_of(lines, "mp_body").get(ent, {})
+
+
+def moves_until(s, srv, mover, watcher, em, label, verb, how, test, tries=40):
+    """The server's moves for `em` and the watcher's copy of him by report until test(server moves, copy) -> both."""
+    want = "%s: %s" % (verb, how)
+    sv, cp = -1, {}
+    for _ in range(tries):
+        sv, cp = server_moves(srv, em), copy_of(s, watcher, em)
+        if sv >= 0 and cp and test(sv, cp):
+            break
+    ok = sv >= 0 and bool(cp) and test(sv, cp)
+    s.check("%s: %s %s (the server: moves=%d; %s's copy: moves=%s pitch=%s lying=%s)" % (
+        label, mover.name, want, sv, watcher.name, cp.get("moves"), cp.get("pitch"), cp.get("lying")), ok,
+        "copy's head joint %s" % cp.get("headjoint"))
+    return sv, cp
+
+
+def moves_each(s, srv, mover, watcher, em, ew, label):
+    """`mover` (FACE_GAP from `watcher`, face to face) crouches, lies down, gets up and jumps: the server's boxes and
+    ground follow his head and keys, and the watcher's copy of his body lies down, gets up, leaves the ground with him."""
+    face_off(s, srv, watcher, mover, ew, em)
+    mover.cmd("vr_mock_hand head; vr_mock_hand main 0.2 1.0 -0.3 0 0 0; vr_mock_hand off -0.2 1.0 -0.3 0 0 0")
+    _, stand = moves_until(s, srv, mover, watcher, em, label, "stands", "standing, on the ground",
+                           lambda sv, cp: sv & MV_GROUND and not sv & (MV_CROUCHED | MV_LYING) and
+                           cp["moves"][0] == sv and cp["lying"][0] == 0.0)
+    mover.cmd("vr_mock_hand head 0 %.2f 0" % CROUCH_HEAD)
+    _, crouch = moves_until(s, srv, mover, watcher, em, label, "crouches", "crouched (his crouched box), not lying",
+                            lambda sv, cp: sv & MV_CROUCHED and not sv & MV_LYING and int(cp["moves"][0]) & MV_CROUCHED)
+    if stand.get("headjoint") and crouch.get("headjoint"):
+        drop = stand["headjoint"][2] - crouch["headjoint"][2]
+        s.check("%s: %s's copy of %s crouches with him (its head %.1f units lower)" % (label, watcher.name, mover.name,
+                drop), drop > 8, "standing %s, crouched %s" % (stand["headjoint"], crouch["headjoint"]))
+    mover.cmd("vr_mock_hand head 0 %.2f 0" % PRONE_HEAD)
+    moves_until(s, srv, mover, watcher, em, label, "lies down", "lying (his lying box), the copy laid forward",
+                lambda sv, cp: sv & MV_LYING and int(cp["moves"][0]) & MV_LYING and cp["pitch"][0] >= LYING_PITCH and
+                cp["lying"][0] >= 0.5)
+    mover.cmd("vr_mock_hand head")
+    moves_until(s, srv, mover, watcher, em, label, "gets up", "standing again, the copy upright",
+                lambda sv, cp: not sv & (MV_CROUCHED | MV_LYING) and cp["lying"][0] == 0.0 and cp["pitch"][0] < 1.0)
+    mover.cmd("+jump")
+    moves_until(s, srv, mover, watcher, em, label, "jumps", "off the ground (the server's and the copy's)",
+                lambda sv, cp: not sv & MV_GROUND and not int(cp["moves"][0]) & MV_GROUND, 60)
+    mover.cmd("-jump")
+
+
+def moves(s):
+    """Moves synced (MP_PLAN.md, B5b): B crouches, lies down, gets up and jumps while A watches -- the server's boxes and
+    ground follow him and A's copy of his body lies down and gets up with him; then the other way round."""
+    srv, a, b, ea, eb = join(s)
+    a.cmd("name A")
+    b.cmd("name B")
+    moves_each(s, srv, b, a, eb, ea, "B, A watching")
+    moves_each(s, srv, a, b, ea, eb, "A, B watching")
+
+
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
     s = Session(args.exe, args.base, args.out, test, port=args.port)
     failure = None
@@ -1924,6 +1999,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             download(s)
         elif test == "mp_pickup":
             pickup(s)
+        elif test == "mp_moves":
+            moves(s)
         elif test == "mp_melee":
             melee(s)
         elif test == "mp_forcegrab":
@@ -1940,7 +2017,7 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "moves", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -1964,7 +2041,7 @@ def main():
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee"):
+                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "moves"):
         ok = run(args, "mp_" + args.test)
     else:
         ok = run(args, "mp_coop")
@@ -1986,6 +2063,7 @@ def main():
         ok = run(args, "mp_pickup") and ok
         ok = run(args, "mp_forcegrab") and ok
         ok = run(args, "mp_melee") and ok
+        ok = run(args, "mp_moves") and ok
         print("mp_suite: %s" % ("passed" if ok else "FAILED"))
     sys.exit(0 if ok else 1)
 

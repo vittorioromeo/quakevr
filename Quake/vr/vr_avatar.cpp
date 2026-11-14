@@ -1749,11 +1749,8 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
     {
         updateWater(b, s, dt);
     }
-    // (Another player's: upright; his swimming, lying down and climbing are his client's to send: MP_PLAN.md, B5.)
-    if(!posingOther())
-    {
-        updateBodyPitch(s, dt); // (next frame's solveTorso: the trunk's turn)
-    }
+    // (Another player's from how the server has him: lying down, swimming; his climbing feet not yet: MP_PLAN.md, B5c.)
+    updateBodyPitch(s, dt); // (next frame's solveTorso: the trunk's turn)
     updateGait(b, dt);
     const glm::vec3 stand = s.head - glm::vec3{s.lean.x, s.lean.y, 0.f}; // where the body stands (the box's middle)
     updateStance(b, stand, dt);
@@ -1968,6 +1965,18 @@ bool otherSkeleton(int player, Skeleton& out)
         return false;
     }
     out = others[player].skeleton;
+    return true;
+}
+
+bool otherPitch(int player, float& angle, float& lying)
+{
+    // (this frame or the last: a report between two frames' poses)
+    if(player < 1 || player > MAX_SCOREBOARD || others[player].frame < host_framecount - 1 || !others[player].posed.ent)
+    {
+        return false;
+    }
+    angle = others[player].motion.bodyPitch.angle;
+    lying = others[player].motion.bodyPitch.lying;
     return true;
 }
 

@@ -12,11 +12,22 @@
 namespace qvr::mpavatar
 {
 
+// The avatar's first byte: a flatscreen player, and how the server has him move (MP_PLAN.md, B5b: his body lying,
+// swimming, crouched, in the air as he is): his crouched and lying boxes (vr_hull.cpp), on the ground, his waterlevel.
+inline constexpr int avatarFlat = 1;
+inline constexpr int avatarCrouched = 2;
+inline constexpr int avatarLying = 4;
+inline constexpr int avatarOnGround = 8;
+inline constexpr int avatarWaterShift = 4; // (two bits: Quake's waterlevel, 0 .. 3)
+// The server's byte for client entity `ent` (vr_server.cpp writeAvatars, vr_mp_status).
+[[nodiscard]] int movesByte(const edict_t* ent, bool flat);
+
 struct Avatar
 {
     bool valid{false};
     double received{0.0}; // realtime it came
     bool flat{false};     // a flatscreen player
+    int moves{0};         // that byte as the server sent it (avatarCrouched...)
     glm::vec3 head{0.f};  // from his entity's origin
     glm::vec3 headAngles{0.f};
     VrBodyPose body;      // how his client poses his body (its yaw, the head's height, the lean)

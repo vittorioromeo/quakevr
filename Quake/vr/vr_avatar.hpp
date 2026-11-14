@@ -263,13 +263,18 @@ struct Subject
     bodycal::Arms arms{bodycal::defaultArms()}; // his arms' measurements, tweaks and shoulders (his calibration's)
     glm::vec3 velocity{0.f};                // his entity's, world units a second
     bool onGround{true};
+    bool lying{false};                      // the server has him lying down (his lying box: vr_prone)
+    int waterlevel{0};                      // Quake's, the server's (3: under; swimming off the ground)
 };
-// `player`: 1 .. MAX_SCOREBOARD. Returns the entity origin (the pelvis), as pose(). Not his swimming, lying down or
-// climbing yet (upright, the legs walking). His arms are his calibration's (Subject::arms: measured, tweaked, shoulders).
+// `player`: 1 .. MAX_SCOREBOARD. Returns the entity origin (the pelvis), as pose(). His swimming and lying down as the
+// server has him (Subject::lying, waterlevel, onGround: the body's pitch); not his climbing feet yet (MP_PLAN.md, B5c).
+// His arms are his calibration's (Subject::arms: measured, tweaked, shoulders).
 glm::vec3 poseOther(int player, const Subject& who, const hands::State& s, qmodel_t* model, const entity_t* ent,
     const HandPose handPoses[2]);
 // Player `player`'s body as posed this frame (false: not posed this frame), and its shoulders (the pauldrons).
 [[nodiscard]] bool otherSkeleton(int player, Skeleton& out);
+// Player `player`'s body's pitch as posed this frame (degrees forward; lying: 0 .. 1 how far laid down), false: not posed.
+[[nodiscard]] bool otherPitch(int player, float& angle, float& lying);
 [[nodiscard]] bool otherShoulder(int player, int side, Shoulder& out);
 // The same body carried by the head's move since it was posed, to under `head` (this frame's hands::State::head): for
 // what is placed before this frame's body is posed (flatplay::drawnOffset's arm hold, flatsight's helping hand). The body
