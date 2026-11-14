@@ -16,6 +16,7 @@
 #include "vr_testkit.hpp"
 #include "vr_random.hpp"
 #include "vr_runsetup.hpp"
+#include "vr_files.hpp"
 #include "vr_menu_internal.hpp"
 #include "vr_armourdata.hpp"
 #include "vr_flataimsens.hpp"
@@ -504,6 +505,24 @@ void selectCampaignRow(int index)
         startArcaneDimensions);
 }
 
+// Arena Mode (ROUND25.md, "arenacamp"): the Survival Arena as a run of its own, Select Campaign's row under Arcane
+// Dimensions with the same "experimental" tag. Its notice (as AD's) first, then its own Run Setup screen (five rows:
+// vr_menu_runsetup.inc), whose Start brings the player into the arena. Never a Continue row: the arena never autosaves
+// (VR_AutosaveAllowed: Quake VR's own maps), and an old autosave of it is never offered.
+const char* arenaModeTitle(int) { return "Arena Mode"; }
+const char* arenaModeHelp(int)
+{
+    return "The Survival Arena as a run of its own: waves of armed humanoids, harder and more frequent. You start "
+           "unarmed on the dais and take their weapons from them. Experimental; it never autosaves.";
+}
+const char* arenaModeTag(int) { return "experimental"; }
+void startArenaMode() { Con_Printf("VR: Arena Mode confirmed in the menu.\n"); openRunSetupArena(); }
+void selectArenaRow(int)
+{
+    M_Confirm("Arena Mode is still\nexperimental and might have bugs.\nIt never autosaves.", "Continue", "Back", 0.f,
+        startArenaMode);
+}
+
 // A campaign row's Continue (under it, when the campaign has an autosave; vr_continue.cpp, "Continue on the launch
 // rows"): "Continue", its age dim after it ("12 min ago": campaignContinueAge), its run ("Hard / Classic") on a small
 // line under it (part of it: cut at a word; the help has it whole), its newest autosave loaded directly with its run's
@@ -570,6 +589,14 @@ const char* campaignContinueAge(int index)
             run.dimArg = resume.dimArg;
             run.partOf = 1;
             items.pushBack(run);
+        }
+        if(i == qvr::ad::campaignIndex)
+        {
+            // Arena Mode right under Arcane Dimensions, its look, its tag; no Continue ever (arenacamp).
+            Item arena = row(arenaModeTitle, arenaModeHelp, selectArenaRow, 0, -1).lead();
+            arena.tagArg = arenaModeTag;
+            arena.dimArg = [](int) -> bool { return VR_CampaignUnavailable(0) != 0; };
+            items.pushBack(arena);
         }
     }
     items.pushBack(header("Advanced").minor());
