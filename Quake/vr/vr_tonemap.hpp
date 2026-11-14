@@ -41,6 +41,9 @@ void glProbeScene(bool begin);
 // false: after the clear, no depth test), so a scene whose fragments are rejected leaves it blue and one that writes 0
 // paints it black; 3 red over it (`after` true) where the depth still holds the clear value (nothing drawn there).
 void glProbeDraw(bool after);
+// vr_gl_probe 4 and 5: the world's first `indices` indices (`ibo`, `vbo` of `stride`) in green, no depth test: 4
+// through the frame's ViewProj alone, 5 through the first world instance's matrix too.
+void glProbeWorld(unsigned vbo, unsigned ibo, int stride, int indices);
 // vr_gl_probe: an upload (`size` bytes of `data` at `offset` in `buffer`) read back and compared.
 void probeUpload(const char* what, unsigned buffer, size_t offset, const void* data, size_t size);
 // vr_gl_probe: a GPU-written buffer's words read back (how many are not zero, the largest, the first eight).

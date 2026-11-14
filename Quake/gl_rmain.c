@@ -2371,7 +2371,11 @@ void R_RenderScene (void)
 
 	R_ShowPointFile ();
 
-	VR_GLProbeSceneEnd (); // QVR: vr_gl_probe 3 (Debug > Startup)
+	{ // QVR: vr_gl_probe 3 to 5 (Debug > Startup)
+		extern GLuint gl_bmodel_vbo, gl_bmodel_ibo;
+		extern size_t gl_bmodel_ibo_size;
+		VR_GLProbeSceneEnd (gl_bmodel_vbo, gl_bmodel_ibo, (int)sizeof (glvert_t), (int)q_min (gl_bmodel_ibo_size / 4, (size_t)65536));
+	}
 }
 
 /*

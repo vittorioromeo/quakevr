@@ -315,7 +315,80 @@ void main()
     gl_FragDepth = Depth;
 }
 )";
+// vr_gl_probe 4 and 5: the world's vertices through the frame's ViewProj (4), or the first world instance's matrix
+// too (5), in one colour: the world's vertex path cut down to its data.
+constexpr const char* probeWorldVs = R"(#version 430
+layout(std140, binding = 0) uniform FrameDataUBO { mat4 ViewProj; };
+struct Instance { vec4 mat[3]; };
+layout(std430, binding = 2) restrict readonly buffer InstanceBuffer { vec4 instance_words[]; };
+layout(location = 0) uniform int Mode;
+layout(location = 0) in vec3 in_pos;
+void main()
+{
+    vec3 p = in_pos;
+    if(Mode == 5)
+    {
+        mat4x3 world = transpose(mat3x4(instance_words[0], instance_words[1], instance_words[2]));
+        p = mat3(world[0], world[1], world[2]) * p + world[3];
+    }
+    gl_Position = ViewProj * vec4(p, 1.0);
+    if(Mode >= 6) // the world's clip distances: 1 and 2 written (0 too in mode 7), plane 1 on (off in mode 8)
+    {
+        gl_ClipDistance[1] = 0.0;
+        gl_ClipDistance[2] = 1.0;
+        if(Mode == 7)
+        {
+            gl_ClipDistance[0] = 1.0;
+        }
+    }
+}
+)";
+constexpr const char* probeWorldFs = R"(#version 430
+layout(location = 0) out vec4 Out;
+void main()
+{
+    Out = vec4(0.25, 1.0, 0.25, 1.0);
+}
+)";
+GLuint probeWorldProgram = 0;
 } // namespace
+
+void glProbeWorld(unsigned vbo, unsigned ibo, int stride, int indices)
+{
+    const int mode = static_cast<int>(vr_gl_probe.value);
+    if(mode < 4 || mode > 8 || !vbo || !ibo || indices <= 0)
+    {
+        return;
+    }
+    if(!probeWorldProgram)
+    {
+        probeWorldProgram = gfx::glProgram(probeWorldVs, probeWorldFs, "vr gl probe world");
+        if(!probeWorldProgram)
+        {
+            return;
+        }
+    }
+    GL_UseProgram(probeWorldProgram);
+    GL_SetState(GLS_BLEND_OPAQUE | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(1));
+    GL_Uniform1iFunc(0, mode);
+    GL_BindBuffer(GL_ARRAY_BUFFER, vbo);
+    GL_BindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+    GL_VertexAttribPointerFunc(0, 3, GL_FLOAT, GL_FALSE, stride, nullptr);
+    const bool plane = mode == 6 || mode == 7;
+    if(plane)
+    {
+        glEnable(GL_CLIP_DISTANCE1);
+    }
+    glDrawElements(GL_TRIANGLES, indices, GL_UNSIGNED_INT, nullptr);
+    if(plane)
+    {
+        glDisable(GL_CLIP_DISTANCE1);
+    }
+    static constexpr const char* what[] = {"ViewProj alone", "the first instance's matrix too",
+        "clip distances 1 and 2 written, plane 1 on", "clip distances 0 to 2 written, plane 1 on",
+        "clip distances 1 and 2 written, no plane on"};
+    Con_Printf("  probe draw %d (the world's first %d indices in green: %s) drawn\n", mode, indices, what[mode - 4]);
+}
 
 void glProbeDraw(bool after)
 {
@@ -613,11 +686,12 @@ extern "C" void VR_GLProbeState(const char* where)
     tonemap::probeState(where);
 }
 
-extern "C" void VR_GLProbeSceneEnd()
+extern "C" void VR_GLProbeSceneEnd(unsigned vbo, unsigned ibo, int stride, int indices)
 {
     if(stereo::isRenderingEye())
     {
         tonemap::glProbeDraw(true);
+        tonemap::glProbeWorld(vbo, ibo, stride, indices);
     }
 }
 

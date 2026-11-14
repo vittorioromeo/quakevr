@@ -2816,3 +2816,19 @@ QUEST_PLAN.md section 6j has the detail. On the Quest 3 over adb, with the heads
   this branch). menu_paths.txt regenerated (the halls-line row gone). Scenario `run_setup_newgame` updated. There is no
   `maps_skill_test` in the tree. Shots: qvr-kit/scratch/runsetup3_shots/ (r3_before.png, r3_after.png: left the Levels
   list's e1m1, right New Game).
+
+## Quest C4c continued: the black eye scene bisected (branch `agent/quest`, 2026-11-14)
+
+QUEST_PLAN.md section 6j ("The bisection") has the numbers. On the Quest 3 over adb, the headset unworn, e1m1's start:
+- **New probes (Debug > Startup):** `vr_gl_probe 2` paints the eye blue after its clear (no depth test), `3` paints red
+  after the scene where the depth still holds the clear value, `4`/`5` draw the world's own vertices and indices in
+  green through the frame UBO's ViewProj (5: the first instance's SSBO matrix too), `6` to `8` add the world's clip
+  distances. `vr_gl_probe 1` also reads back the world's GPU-written buffers (cull commands, indices, vertices), the
+  instance upload, the draw state and each program's validation and buffer-block layout at the first world draws;
+  `vr_gl_probe_fix` (1 clip distances off, 2 culling off) acts on the world's draws.
+- **Found:** the scene target, its copy to the composite and the readback work (2: 100% blue); no scene draw writes a
+  colour or a depth (3: 100% red): the world, its depth pass, the models, showtris alike; every buffer, the UBO/SSBO
+  layouts and bindings, the state and the programs' validation are as on the PC; a minimal program with the same data,
+  transform, instance SSBO and clip distances draws (4 to 8: 100% green). The fault is inside the real scene programs
+  on Adreno. Next: a constant fragment output switched in through the ES header, then the vertex shader cut down.
+- PC unchanged: the probes act only while `vr_gl_probe` or `vr_gl_probe_fix` is set.

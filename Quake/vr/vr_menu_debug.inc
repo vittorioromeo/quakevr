@@ -856,6 +856,10 @@ za::Vector<Item> pageDebugProfiling()
         command("Eye Probe: Red Where Nothing Drew", "vr_gl_probe 3")
             .help("vr_gl_probe 3: the probe, with red painted after the scene where the depth still holds the clear's "
                   "value (nothing drew there)."),
+        command("Eye Probe: the World's Data in Green", "vr_gl_probe 4")
+            .help("vr_gl_probe 4: the probe, with the world's vertices and indices drawn in green through the frame's "
+                  "ViewProj by a minimal program (5: through the first instance's matrix too; 6 to 8: with the world's "
+                  "clip distances): green means the data and the transform are good."),
         command("Android: Export Eye Images", "vr_android_export eyeshots")
             .help("vr_android_export eyeshots: the eye images (vr_eyeshot) copied into the app's internal export/ "
                   "folder, which a debuggable APK's `adb shell run-as` reads (Android only)."),

@@ -818,6 +818,30 @@ the world and the models pitch black, some menu shapes missing; ~55 s to the fir
   Next probes: `GL_ANY_SAMPLES_PASSED` around the world alone (the mask's draw passes samples too), the eye's clear
   colour made non-black to see whether the clear lands, `vr_visibility_mask 0`, the world fragment shader with a
   constant output. Boot: still ~53-55 s on relaunches after a reinstall; FPS and the menu's sharpness: not reached.
+- **The bisection (C4c continued, 2026-11-14; `vr_gl_probe` 2 to 8, `vr_gl_probe_fix`, Debug > Startup)**, e1m1's
+  start, both eyes, every result the same in each eye:
+  - **2** (blue painted after the clear, no depth test): the composite is 100% blue (0.25 0.5 1.0) after the scene:
+    the scene target, its copy to the composite and the readback all work, and **not one scene fragment lands**.
+  - **3** (red after the scene where the depth still holds the clear value): 100% red: **no scene draw writes depth**
+    either (not the world, not its depth pre-pass, not the models with `r_drawworld 0`, not `r_showtris 1`, not with
+    `vr_world_texarrays 0` or `vr_visibility_mask 0`). The fragments are not written-as-0: they never pass.
+  - The world's GPU-written buffers read back as the PC's (the cull's indirect commands, 132 of 300 words; indices
+    53298 of 65536 not zero, largest 30917; the vertices), the instance upload byte for byte, the frame UBO byte for
+    byte; every buffer block's driver layout equals the range bound (FrameDataUBO 2080, CallBuffer 80/call,
+    InstanceBuffer 176, LightBuffer 448, AOBlock 10512, RetroUBO 4112, TemporalBlock 96); the draw state at the world's
+    draws is sane (scene fbo, viewport, depth range 0 1, `GL_GEQUAL`, depth write on, clip distance 1 only, no depth
+    clamp, no alpha-to-coverage, sample mask all, no stencil/scissor/discard) and **every world program validates**.
+  - `vr_gl_probe_fix 1` (clip distances off) and `3` (culling off too) at each world draw: still nothing.
+  - **4** (the world's own VBO and IBO through the frame UBO's ViewProj, a minimal program, no depth test): 100% green;
+    **5** (through the first instance's matrix from the InstanceBuffer SSBO too): 100% green; **6 to 8** (with the
+    world's clip distances written, plane 1 on or off, distance 0 written or not): 100% green.
+  - So the data, the transform, the UBO/SSBO bindings, the clip planes and the targets are good: **what drops every
+    fragment is inside the real scene programs** (the world's and the models' alike), on Adreno only (the PC's ES mode
+    draws them). Left to split: the world vertex shader's own path (`call_data[DRAW_ID]` through the `DrawID` uniform,
+    `invariant gl_Position`, its ~13 outputs up to location 29, the temporal block) against its fragment shader (a
+    discard every fragment takes, an output Adreno rejects). The next probe: a start-up switch defining a macro in the
+    ES header (`vr_glsafe.cpp`) that the world/alias shaders test to output a constant colour at the top of the
+    fragment shader's main (a VS fault keeps it black, a FS fault turns it magenta), then the VS's outputs cut down.
 
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
@@ -862,7 +886,9 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C4c (continued, section 6j) — the black eye scene first (the probes listed there), then the boot's
+Next phase: C4c (continued, section 6j) — the black eye scene first: split the real world/alias programs on Adreno
+(the ES-header macro probe of 6j's bisection: a constant fragment output, then the vertex shader's outputs and its
+`call_data[DRAW_ID]` path cut down), then the boot's
 compiles (a program binary cache), the frame's 35 ms (simpleperf, the frame fence in `GL_AcquireFrameResources`), the
 menu panel's resolution, the save's freed engine string; no installs. The original C4c scope: the headset worn, and the frame (NEEDS him wearing the Quest 3 over USB for the visual part; no
 installs: simpleperf is the NDK's): first what he sees (e1m1's image in both eyes, the `imageRect` origin of 6f, the
