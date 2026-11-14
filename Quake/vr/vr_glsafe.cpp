@@ -312,6 +312,35 @@ extern "C" int VR_GLESCompat(void)
     return glsafe.esCompat ? 1 : 0;
 }
 
+namespace
+{
+using DrawElementsIndirectFn = void(APIENTRY*)(GLenum, GLenum, const void*);
+DrawElementsIndirectFn esDrawElementsIndirect = nullptr; // (the driver's, under -glescompat)
+
+// glMultiDrawElementsIndirect as ES has it (EXT_multi_draw_indirect is not in ES 3.2, the Quest's: [?]): one
+// glDrawElementsIndirect a command. (The callers are the bindless world path and the layered shadow casters, both
+// off under -glescompat: a safety net for a new caller.)
+void APIENTRY esMultiDrawElementsIndirect(GLenum mode, GLenum type, const void* indirect, GLsizei count, GLsizei stride)
+{
+    const uintptr_t step = stride ? static_cast<uintptr_t>(stride) : 5u * sizeof(GLuint);
+    for(GLsizei i = 0; i < count; i++)
+    {
+        esDrawElementsIndirect(mode, type, reinterpret_cast<const void*>(reinterpret_cast<uintptr_t>(indirect) + i * step));
+    }
+}
+} // namespace
+
+// GL_Init, the functions loaded: under -glescompat the GL calls ES lacks replaced by their ES forms.
+extern "C" void VR_GLESInstallForms(void)
+{
+    if(!glsafe.esCompat)
+    {
+        return;
+    }
+    esDrawElementsIndirect = GL_DrawElementsIndirectFunc;
+    (GL_MultiDrawElementsIndirectFunc) = esMultiDrawElementsIndirect; // (the parentheses: not the counting macro)
+}
+
 // -glescompat: every shader as OpenGL ES 3.2 GLSL, so the PC's driver (ARB_ES3_2_compatibility) checks each program
 // the way the Quest's will. The source's "#version 430" line becomes "#version 320 es", the ES extensions our gates
 // use are enabled where the driver has them (sources test GL_ES and the extension's macro), and precision statements
@@ -605,16 +634,18 @@ constexpr EsPending esDone[] = {
     {"GL_TEXTURE_CUBE_MAP_SEAMLESS", "gl_vidsdl.c", "always on in ES (not enabled)"},
     {"NVIDIA Image Scaling (vr_upscale 2)", "vr_upscale.cpp", "off: FSR instead"},
     {"glGetTexImage", "VR_GLGetTexImage (gl_texmgr.c, vr_envmap.cpp, vr_pbr.cpp, vr_lighting.cpp)", "FBO + glReadPixels; depth through an R32UI copy"},
+    {"MultiDrawElementsIndirect", "VR_GLESInstallForms (r_world.c, vr_lighting.cpp: bindless and layered, both off)", "a DrawElementsIndirect loop"},
+    {"glTextureView", "vr_envmap.cpp, vr_stereo_single.cpp", "off: the whole cube's mipmaps; two-pass stereo (C4: multiview into the swapchain)"},
+    {"GL_TEXTURE_LOD_BIAS", "gl_texmgr.c, vr_gfx_gl.cpp", "not set (gl_lodbias, vr_menu_sharpen: none)"},
+    {"pipeline-statistics and GL_SAMPLES_PASSED queries", "gl_rmain.c, r_world.c", "vr_model_fragments, vr_world_fragments refuse"},
+    {"GL_FRAMEBUFFER_SRGB, GL_BGRA uploads", "vr_imgui.cpp, r_brush.c", "not read; lightmaps RGBA already"},
 };
 constexpr EsPending esPending[] = {
-    {"MultiDrawElementsIndirect (bindless path)", "r_world.c, vr_lighting.cpp", "the bound path's DrawElementsIndirect loop"},
-    {"glTextureView", "vr_envmap.cpp, vr_stereo_single.cpp", "render to the array layers directly"},
-    {"GL_TEXTURE_LOD_BIAS", "gl_texmgr.c, vr_gfx_gl.cpp", "the bias in the shader (texture(s, uv, bias))"},
-    {"GL_DEPTH_CLAMP", "r_alias.c", "EXT_depth_clamp, or the view model's depth range"},
+    {"GL_DEPTH_CLAMP", "r_alias.c", "EXT_depth_clamp on the Quest [?], else the held item cut at the near plane"},
     {"gl_ClipDistance (compiles with EXT_clip_cull_distance)", "gl_shaders.h, r_world.c, r_alias.c, vr_lighting.cpp", "the extension on the Quest [?], else a discard"},
     {"noperspective (compiles with NV_shader_noperspective_interpolation)", "gl_shaders.h, vr_glsl_alias.h", "the extension on the Quest [?], else w-multiplied"},
-    {"timer, pipeline-statistics and GL_SAMPLES_PASSED queries", "vr_profile.cpp, vr_tracy.cpp, vr_lighting.cpp, gl_rmain.c, r_world.c", "EXT_disjoint_timer_query; the statistics off"},
-    {"GL_FRAMEBUFFER_SRGB, GL_BGRA uploads", "vr_imgui.cpp, r_brush.c", "EXT_sRGB_write_control; RGBA"},
+    {"timer queries", "vr_profile.cpp, vr_tracy.cpp, vr_lighting.cpp, gl_rmain.c", "EXT_disjoint_timer_query: the EXT names, GL_GPU_DISJOINT_EXT (C3)"},
+    {"clip control (shadows, reflections, portals need it)", "gl_rmain.c, vr_lighting.cpp, vr_envmap.cpp, vr_portals.cpp", "EXT_clip_control on the Quest [?] (-glesclipcontrol), else a standard-depth path"},
 };
 
 void glesReport_f()

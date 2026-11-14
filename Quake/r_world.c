@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "vr/vr_tracy.h" // QVR: profiling scopes (compiled out of normal builds)
+#include "vr/vr_api.h"
 #include "vr/vr_api_render.h"
 
 extern cvar_t gl_fullbrights, r_oldskyleaf, r_showtris; //johnfitz
@@ -576,6 +577,11 @@ static worldfragments_t worldfragments;
 
 void R_WorldFragments_f (void)
 {
+	if (VR_GLESCompat ())
+	{
+		Con_Printf ("vr_world_fragments: not under -glescompat (OpenGL ES has no pipeline statistics or sample counts)\n");
+		return;
+	}
 	if (worldfragments.queries[0])
 		GL_DeleteQueriesFunc (2, worldfragments.queries);
 	memset (&worldfragments, 0, sizeof (worldfragments));

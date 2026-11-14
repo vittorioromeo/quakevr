@@ -144,7 +144,10 @@ bool supported()
     if(found)
     {
         state.multiview = reinterpret_cast<MultiviewFn>(SDL_GL_GetProcAddress("glFramebufferTextureMultiviewOVR"));
-        state.textureView = reinterpret_cast<TextureViewFn>(SDL_GL_GetProcAddress("glTextureView"));
+        // (Not under -glescompat: ES 3.2 has no texture views. The Quest's multiview draws into the OpenXR swapchain's
+        // array layers directly: C4.)
+        state.textureView =
+            VR_GLESCompat() ? nullptr : reinterpret_cast<TextureViewFn>(SDL_GL_GetProcAddress("glTextureView"));
         state.support = state.multiview && state.textureView ? 1 : 0;
     }
     Con_DPrintf("VR: single-pass stereo (GL_OVR_multiview2) %s\n", state.support ? "available" : "not available");

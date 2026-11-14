@@ -1426,6 +1426,7 @@ static void GL_Init (void)
 	VR_GLStep ("GL functions and extensions (GL_CheckExtensions)"); // QVR
 	GL_CheckExtensions ();
 	GL_InstallFramebufferShadow (); // QVR
+	VR_GLESInstallForms (); // QVR: -glescompat: the ES forms of calls ES lacks (vr/vr_glsafe.cpp)
 
 	VR_GLStep ("vertex array, buffer alignments"); // QVR
 	GL_GenVertexArraysFunc (1, &globalvao);

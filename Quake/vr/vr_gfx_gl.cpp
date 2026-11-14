@@ -2440,7 +2440,10 @@ void beginCanvas(Target& canvas, int width, int height, bool mipmaps, float lodB
         // Seen smaller than its pixels in the headset (vr_menu_resolution): trilinear, anisotropic where the panel is
         // seen at an angle, sharpened by a negative bias (vr_menu_sharpen).
         GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, canvas.texture);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, lodBias);
+        if(!VR_GLESCompat()) // (ES has no LOD bias parameter: the panel unsharpened there)
+        {
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, lodBias);
+        }
         if(gl_max_anisotropy > 1.f) // else not supported
         {
             glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, za::min(8.f, gl_max_anisotropy));

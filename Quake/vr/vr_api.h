@@ -280,6 +280,7 @@ void VR_GLFrame (void);	// GL_EndRendering, before the swap
 void VR_GLMapSpawned (const char *map);	// VR_NoteMapSpawn
 void VR_GLStartupShutdown (int error);	// Host_Shutdown: the start-up's log ended (a quit, an error)
 void VR_GLSafeInit (void);	// VR_Init: vr_glsafe_retry, vr_glsafe_status, vr_gles_report
+void VR_GLESInstallForms (void);	// GL_Init, the functions loaded: -glescompat: glMultiDrawElementsIndirect as a glDrawElementsIndirect loop
 int VR_GLESCompat (void);	// nonzero: -glescompat, the renderer kept to what OpenGL ES 3.2 has (vr_glsafe.cpp; QUEST_PLAN.md)
 void VR_GLShaderSource (unsigned int shader, int count, const char *const *strings);	// glShaderSource for every program: -glescompat: as "#version 320 es" with precisions
 unsigned VR_GLESImageFormat (unsigned format);	// an image (load/store) texture's format: -glescompat: one ES 3.1 has (rg32ui as rgba32ui, r8ui as r32ui, r8 as rgba8)

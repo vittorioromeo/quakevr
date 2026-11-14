@@ -1255,6 +1255,11 @@ static modelfragments_t modelfragments;
 
 void R_ModelFragments_f (void)
 {
+	if (VR_GLESCompat ())
+	{
+		Con_Printf ("vr_model_fragments: not under -glescompat (OpenGL ES has no pipeline statistics or sample counts)\n");
+		return;
+	}
 	if (modelfragments.queries[0])
 		GL_DeleteQueriesFunc (MF_QUERIES, modelfragments.queries);
 	memset (&modelfragments, 0, sizeof (modelfragments));
