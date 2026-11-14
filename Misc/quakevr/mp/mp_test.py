@@ -783,27 +783,27 @@ def teleport(s):
     # B aims: the off hand at his chest, raised from steep to level (the mock's pitch up; the hand's aim is the
     # controller's turned by his gun angle) until his aim lands on the floor at least TELEPORT_MIN units ahead.
     b.cmd("vr_teleport_enabled 1; +teleport")
-    aim, got, impact, tried = {}, [], None, []
-    for pitch in range(60, 72):
+    got, impact, tried = [], None, []
+    for pitch in range(58, 72):
         b.cmd("vr_mock_hand off -0.2 1.2 -0.3 %d 0 0" % pitch)
-        for _ in range(10):
-            got = [l for l in status(b) if l.startswith("mp_teleport:")]
-            aim = dict(re.findall(r"(\w+)=([-\d.]+)", got[0])) if got else {}
-            if aim.get("aiming") == "1" and aim.get("valid") == "1":
+        # (the aim settled: the same report twice in a row, the hand's new pose reached; at most 20 reports)
+        last = None
+        for _ in range(20):
+            got = [l.strip() for l in status(b) if l.startswith("mp_teleport:")]
+            if got and "aiming=1" in got[0] and got[0] == last:
                 break
-        m = re.search(r"impact=([-\d.]+) ([-\d.]+) ([-\d.]+)", got[0]) if got else None
-        here = [float(m.group(i)) for i in (1, 2, 3)] if m and aim.get("valid") == "1" else None
+            last = got[0] if got else None
+        m = re.search(r"valid=1 .*impact=([-\d.]+) ([-\d.]+) ([-\d.]+)", got[0]) if got else None
+        here = [float(m.group(i)) for i in (1, 2, 3)] if m else None
         tried.append((pitch, round(dist(here[:2], own[:2]), 1) if here and own else None))
         if here and own and dist(here[:2], own[:2]) >= TELEPORT_MIN:
-            # (once more: the report in the frame of the hand's command could be the last pose's aim)
-            got = [l for l in status(b) if l.startswith("mp_teleport:")]
-            m = re.search(r"valid=1 .*impact=([-\d.]+) ([-\d.]+) ([-\d.]+)", got[0]) if got else None
-            impact = [float(m.group(i)) for i in (1, 2, 3)] if m else None
+            impact = here
             break
     s.check("B's teleport aim (his own trace on his client) lands on a floor %d units ahead or more" % TELEPORT_MIN,
             impact is not None, "pitch, units ahead: %s; last %s" % (tried, got[0].strip() if got else "-"))
     if impact is None:
         return
+    srv.cmd("developer 1")  # (the server's "teleport: asked to ..." / "teleport refused: ..." in its log)
     before = org_of(status(srv), "mp_client", "slot", eb - 1)
     b.cmd("-teleport")
     at = before
@@ -811,6 +811,9 @@ def teleport(s):
         at = org_of(status(srv), "mp_client", "slot", eb - 1)
         if at and dist(at, impact) <= 2.0:
             break
+    srv.cmd("developer 0")
+    sent = [l.strip() for l in status(b) if l.startswith("mp_teleport:")]
+    s.note("B after the release: %s" % sent)
     s.metric("b_teleport_units", round(dist(before, at), 1) if before and at else -1)
     s.check("the server moves B to where his client aimed (within 2 units)",
             at is not None and before is not None and dist(at, impact) <= 2.0,

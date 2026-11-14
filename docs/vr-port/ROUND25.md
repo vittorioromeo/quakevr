@@ -2355,3 +2355,17 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
   posed with them, not the default body's. `mp_body` checks his copy's shoulders against his own with his arms
   calibrated.
 - Next (MP_PLAN.md, B3d): the rest of the rig per player, client-side traces, `mp_teleport`.
+
+## mpN (B3d, part 1): client-side traces, a remote client's teleport, the palm frame up (agent/mp, 2026-11-14; never shipped by the coordinator)
+
+- **A remote client traces its own map** (`worldtrace::move`, `vr_trace.cpp`): the world and the doors, lifts and
+  platforms it has, with the clip hull `SV_Move` picks for the box (no monsters, players, portals or hit models). The
+  teleport aim, the crosshair's reach, the flashlight beam's length and the hands stopping at walls now work on a client
+  of another machine's server (before: nothing there). Hosting and single player: the server's `SV_Move` as before.
+  `mp_teleport` 9/0: B aims, lets go, the server moves him onto his aim's spot and A sees him there.
+- **Each player's palm frame on the server** (`vr_rigframe`; `grip::handFrameOf`): what he holds is placed, foes are held
+  and ragdoll limbs fitted by his own measured hand; the crawl's hand bottom by his own fist. `QVR_NET_VERSION` 8.
+- **A released teleport could be lost** (single player too): a later move in the same server frame overwrote the
+  one asking for it (a headset faster than the 72 Hz tick sends two moves in some frames). Now kept (`vr_server.cpp`).
+- Next (MP_PLAN.md, B3e): the drawn weapon's pose per player (weaponhotspot and its builtins, the weapon hull, the 2H
+  carry's reach), `mp_grab` grown.

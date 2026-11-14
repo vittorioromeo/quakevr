@@ -186,6 +186,7 @@ player unchanged.
 | **B3** (prefs and fists done; the rest is B3b) | Per-client data: the prefs message and `clientpref`; the rig (palm frame, fists, hotspots, weapon hull) and body calibration up; the ~25 host shortcuts replaced; client-side traces for teleport, crosshair, flashlight, hand collision | `mp_prefs` (A left-handed, B right-handed: each judged by his own), `mp_teleport` (a remote client teleports), `mp_grab` (B's own fist grabs) |
 | **B3b** (the suite reliable, the take-back a check; the rest is B3c) | The rest of B3: the palm frame (vr_grip.cpp), weaponhotspot and the drawn pose (vr_builtins_held.inc), the weapon hull, the 2H carry and foe grab frames, the ragdoll grab fit and the crawl's hand bottom (the fists' other users), body calibration up (his measured arms and shoulders, for his copy's shoulders); client-side traces for teleport, crosshair, flashlight, hand collision; why B's dropped shotgun is not always taken back | `mp_teleport`, `mp_grab` grown (taken back every run), `mp_body` (shoulders within 0.2 with A calibrated) |
 | **B3c** (palm grab and body calibration up done; the rest is B3d) | The rest of B3b: the palm frame (vr_grip.cpp), weaponhotspot and the drawn pose (vr_builtins_held.inc), the weapon hull, the 2H carry and foe grab frames, the ragdoll grab fit and the crawl's hand bottom; body calibration up (his measured arms and shoulders); client-side traces for teleport, crosshair, flashlight, hand collision | `mp_teleport`, `mp_body` (shoulders within 0.2 with A calibrated), `mp_grab` grown (a 2H carry, a foe grab) |
+| **B3d** (client-side traces, teleport, palm frame up done; the rest is B3e) | The rest of B3c: the rig up (palm frame, weaponhotspot and the drawn pose, weapon hull, 2H carry and foe grab frames, the ragdoll grab fit, the crawl's hand bottom); client-side traces for teleport, crosshair, flashlight, hand collision | `mp_teleport`, `mp_grab` grown (palm frames; a 2H carry, a foe grab, the palm slack) |
 | **B4** | Coop campaign flow: coop saves and loads (per-player blocks, versioned), autosaves, level transitions with inventories, intermission, deaths and respawns, map download (package names through the map installer; chunked fallback) | `mp_campaign` (e1m1 to e1m3 with saves and a load, both players' inventories), `mp_download` (B lacks a map: installs it, joins) |
 | **B5** | Interactions between players: drop a weapon / the other picks it up; force grab of world weapons in multiplayer; melee, parries and shoves between players; climbing, crouch, prone, jump, punch synced and judged per player | one scenario per interaction, each from both sides |
 | **B6** | Server rules and cosmetics: every balance setting a rule (presets, armed humanoids, damage, mutators, stamina, grapple...), rule pages dimmed on a remote client; holster positions, height, seated/standing, gloves, body seen by others | `mp_rules`, `mp_cosmetics` (B's height and gloves seen by A) |
@@ -541,6 +542,56 @@ Open items (B3c, the rest):
 - The palm slack has no multiplayer check yet: `mp_grab` gives with the hand just placed (the gun falls to the floor);
   a case with B's hand held still before the give (B3b saw the gun rest on his palm there) would check it.
 
+### B3d results, part 1 (2026-11-14, dev no-LTO build, loopback; `mp_test.py suite`: 9 of 10 pass, `mp_teleport` then 9/0 in 5 runs of 5 after the fix below)
+
+| Scenario | Result |
+|---|---|
+| `mp_teleport` (new) | 9/0: B, a client of the dedicated server, traces his own map straight down to the floor his server has him on (24 under his origin, `hosted=0`); his off hand's teleport aim (his own sweep, `vr_teleport_enabled 1`) lands on the floor 88 units ahead; let go, the server moves him there (within 2 units: exactly) and A sees him there. Failed first: the old build had no trace on a remote client (`mp_trace: none`, no aim) |
+| `mp_grab` | 12/0, grown: the server has each player's palm frames as his client measures them (their 13 values' sum within 0.7: equal to 3 decimals) |
+| the rest | `mp_coop` 11/0, `mp_coop_lag` 11/0, `mp_bandwidth` 7/0, `mp_version` 6/0, `mp_avatar` 17/0, `mp_avatarcal` 9/0, `mp_body` 12/0, `mp_prefs` 10/0 |
+
+Single player on the branch: `vr_teleport_both_test` 14/0, `vr_pickup_test 16` (palm rest) 3/0, `crawl_test.py` 18/0,
+scenario_check PASS (129 scenes, 0 failed), load_models_test 4/0, vr_run_check 12/0 (`scratch/b3_runcheck.sh`), the dev
+build 0 warnings (the ReleaseLTO build not run this part). Every path changed is the same in single player: the local player's trace is the server's
+`SV_Move`, `handFrameOf`/`fistOf` of player 1 are the local hand's.
+
+What changed:
+
+- **Client-side traces** (`vr_trace.cpp`): `worldtrace::move` on a remote client (no local server; never in a demo)
+  traces the client's own copy of the map: the world and the lifts, doors and platforms it has (worldtrace::world's
+  list, unrotated), with the hull `SV_Move` picks for the box's size and its offset, so a box sweep stops where the
+  server's would. Not monsters or players (the client has no solidity of its entities; the hands' sweeps pass what bleeds
+  anyway), no portals or hit models, `ent` null. Its users on a remote client now work: the teleport aim, the crosshair's
+  reach, the flashlight beam's length, the hands stopping at walls (`vr_handpose.cpp`), the flat sights. Before, all of
+  them got nothing there. Smooth + Teleport's "from the ground only" on a remote client reads his `cl.onground` and
+  `cl.inwater` (the server checks again).
+- **The palm frame up**: each hand's `grip::HandFrame` as the client measures it (the jointed hand as drawn: the palm,
+  its normal, the grip channel) goes up as `vr_rigframe` (reliable, whitelisted; again when a value moves 0.05, at most
+  every `vr_net_avatarcal_interval`). `grip::handFrameOf(player, hand, left)` (your own measured one for this game's own
+  player, his for another, else the default hand's) is used where the server places what a player holds
+  (`grip::serverTake`), by the foe grab's palms (`vr_foegrab.cpp`) and by the ragdoll grab fit (`vr_box3d_ragparts.cpp`,
+  which also takes his own fist: before, player 1 on a listen host only). The crawl's hand bottom
+  (`vr_physics_water.cpp`) takes his own fist (was the host's). `QVR_NET_VERSION` 8.
+- **A teleport in an earlier move of a server frame was lost** (single player too, its own commit):
+  `VR_ClientTeleport` reads the stored move once a frame, and a later move of the same frame without the bit
+  overwrote it (the suite's `mp_teleport` failed so once: B's release never reached the server's move). Now the
+  bit and its spot are kept (`vr_server.cpp`). In single player: two moves in a server frame whenever the headset
+  runs faster than the tick.
+- Debug aids: `vr_mp_status` on a client prints `mp_teleport:` (aiming, valid, sent, the aim's spot) and `mp_trace:`
+  (its own trace down); `vr_mp_prefs` gives each hand's frame (`frameN`, `framesumN`) on both sides; the grip's log says
+  `measured` when the frame placing a prop is a measured one (his or yours).
+
+Open items (B3e):
+
+- The drawn pose per player: `weaponhotspot` and the other `vr_builtins_held.inc` builtins that read the local drawn
+  weapon (`view::weaponHotspot`, `heldWeaponAxes`, the reverse grip, the carried weapon's pose: about 12 sites gated on
+  `NUM_FOR_EDICT(player) == 1`), the drawn weapon hull (`vr_box3d_hands.cpp` `view::drawnWeapon`), the 2H carry's reach
+  offsets (`vr_carry2h.cpp`), the grip fit's hand rig (`vr_gripfit.cpp`: `local` only). These need the drawn weapon's
+  place in the hand per player up (a small block on change, as the rig), then the same per-player lookups.
+- `mp_grab` grown with a 2H carry, a foe grab and the palm slack (B's hand held still before the give).
+- The client trace has no monsters: on a remote client the crosshair reaches through a monster to the wall (B7's
+  snapshots could carry the entities' solidity).
+
 ## Decisions
 
 - The harness is Python with an in-engine inbox rather than stdin or RCON: it drives GUI clients and dedicated servers
@@ -556,4 +607,4 @@ Open items (B3c, the rest):
   from outside, they always have legs (his body mode 1 or 2 is his own first-person view); his body mode 0 draws his
   player model as before.
 
-Next phase: B3d — the rest of B3c: the rig up (palm frame, weaponhotspot and the drawn pose, weapon hull, 2H carry and foe grab frames, the ragdoll grab fit, the crawl's hand bottom); client-side traces for teleport, crosshair, flashlight, hand collision; `mp_teleport`; `mp_grab` grown (a 2H carry, a foe grab, the palm slack with B's hand held still before the give); melee sub-tick samples stay with B5.
+Next phase: B3e — the rest of B3d: the drawn pose up per player (the drawn weapon's place in the hand: weaponhotspot and the vr_builtins_held.inc builtins gated on player 1, the drawn weapon hull, the 2H carry's reach offsets, the grip fit's hand rig); `mp_grab` grown (a 2H carry, a foe grab, the palm slack with B's hand held still before the give); melee sub-tick samples stay with B5.
