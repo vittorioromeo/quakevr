@@ -2283,6 +2283,8 @@ vr_menu_minor_scale|1|Menu Look|Page Footer Size|Advanced VR Options > HUD and M
 vr_menu_minor_alpha|1|Menu Look|Page Footer Opacity|Advanced VR Options > HUD and Menus > Menu Look > Page Footer Opacity
 vr_menu_hl_fit|1|Menu Look|Highlight Fits the Row|Advanced VR Options > HUD and Menus > Menu Look > Highlight Fits the Row
 vr_menu_wheel_scroll|1|Menu Look|Mouse Wheel Scroll|Advanced VR Options > HUD and Menus > Menu Look > Mouse Wheel Scroll
+vr_menu_flash_time|1|Menu Look|Search Result Flash|Advanced VR Options > HUD and Menus > Menu Look > Search Result Flash
+vr_menu_flash_strength|1|Menu Look|Search Flash Strength|Advanced VR Options > HUD and Menus > Menu Look > Search Flash Strength
 vr_menu_main_gap|1|Menu Look|Main Menu Group Gap|Advanced VR Options > HUD and Menus > Menu Look > Main Menu Group Gap
 vr_menu_big_hl|1|Menu Look|Big Menu Highlight|Advanced VR Options > HUD and Menus > Menu Look > Big Menu Highlight
 vr_menu_big_hl_scale|1|Menu Look|Big Menu Grow|Advanced VR Options > HUD and Menus > Menu Look > Big Menu Grow
@@ -2290,6 +2292,10 @@ vr_menu_big_hl_alpha|1|Menu Look|Big Menu Bar Opacity|Advanced VR Options > HUD 
 vr_runsetup_groups|1|Menu Look|Run Setup: Mutator Groups|Advanced VR Options > HUD and Menus > Menu Look > Run Setup: Mutator Groups
 vr_runsetup_big|1|Menu Look|Run Setup: Difficulty and Start Size|Advanced VR Options > HUD and Menus > Menu Look > Run Setup: Difficulty and Start Size
 vr_runsetup_halls_line|1|Menu Look|Run Setup: Skill Halls Line|Advanced VR Options > HUD and Menus > Menu Look > Run Setup: Skill Halls Line
+vr_menu_group_scale|1|Menu Look|Campaign Title Size|Advanced VR Options > HUD and Menus > Menu Look > Campaign Title Size
+vr_menu_group_gap|1|Menu Look|Campaign Gap|Advanced VR Options > HUD and Menus > Menu Look > Campaign Gap
+vr_menu_group_indent|1|Menu Look|Continue Indent|Advanced VR Options > HUD and Menus > Menu Look > Continue Indent
+vr_menu_group_tags|1|Menu Look|Campaign Status Tags|Advanced VR Options > HUD and Menus > Menu Look > Campaign Status Tags
 vr_menu_toolbar_groups|1|Menu Look|Shortcut Group Gap|Advanced VR Options > HUD and Menus > Menu Look > Shortcut Group Gap
 |1|Menu Look|Reset This Page|Advanced VR Options > HUD and Menus > Menu Look > Reset This Page
 @page|1|Graphics - Relighting||Advanced VR Options > Graphics > Relighting
@@ -5319,6 +5325,8 @@ vr_maps_slipseer|2|Debug - Tools|Slipseer Maps|Advanced VR Options > Debug > Too
 vr_maps_slipseer_delay|2|Debug - Tools|Slipseer Page Spacing|Advanced VR Options > Debug > Tools > Slipseer Page Spacing
 vr_maps_allow_local|2|Debug - Tools|Allow Local Map Hosts|Advanced VR Options > Debug > Tools > Allow Local Map Hosts
 |2|Debug - Tools|Pick the First Map|Advanced VR Options > Debug > Tools > Pick the First Map
+|2|Debug - Tools|Search Flash Test|Advanced VR Options > Debug > Tools > Search Flash Test
+|2|Debug - Tools|Menu Stops Walking Test|Advanced VR Options > Debug > Tools > Menu Stops Walking Test
 |2|Debug - Tools|Continue Rows Test|Advanced VR Options > Debug > Tools > Continue Rows Test
 |2|Debug - Tools|List Continue Rows|Advanced VR Options > Debug > Tools > List Continue Rows
 |2|Debug - Tools|Run Setup Screen Test|Advanced VR Options > Debug > Tools > Run Setup Screen Test
