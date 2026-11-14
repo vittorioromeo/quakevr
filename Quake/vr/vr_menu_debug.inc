@@ -839,6 +839,10 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_gles_readback_test: every texture, the envmap and the shadow atlases read back by glGetTexImage "
                   "and by its OpenGL ES form (a framebuffer and glReadPixels), compared byte for byte; the verdict to "
                   "the console."),
+        command("Android Layer Test", "vr_android_test")
+            .help("vr_android_test: the Android platform layer (start with -fakeandroid on the PC): the base and crash "
+                  "folders, the crash handler's signals and a report written as a crash writes it, no child processes; "
+                  "the verdict to the console."),
         header("Diagnostics"),
         command("Game Code and Folders", "vr_gamecode")
             .help("vr_gamecode: the folders the game reads from (its base dirs, game dirs and search path) and where its "
