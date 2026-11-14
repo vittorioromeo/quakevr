@@ -179,14 +179,133 @@ Top costs and what could go:
    table's navmesh row).
 4. The first-ever load of a big map (hulls 9.3 s, light grid 5.1 s, normal maps 3.2 s): disk-cached after it.
 
+## Before/after bench of the day's perf work (2026-11-14, branch `agent/bench11`)
+
+Before = `094dac831` (next just before the `nozone` merge; 1.1.0-beta4's tag is not on next), after = next at
+`a2a1d5391` (nozone, vkperf, nohunk, hunkfollow, profile, profile2, and the day's other merges: classic2, menudrag,
+campvis, iconpick, mpsp, partuniform...) plus the crash fix below. Both ThinLTO, `bench.sh --fast --reps 3`, exclusive,
+his `quakevr/ironwail.cfg` (a copy, the same file for both), next's scenario list on both trees (the before tree got
+next's `qvrbench.py`: the change adds scenarios only). The full set (PERF_1_1's 12 + `perf1114`) and every `load_*`
+scenario; the scenarios that moved over 3% in the first pass were run again (3 more reps each, before and after in
+one session each) and the tables are the medians over all 6 (`kit/benchresults/b1_before`, `b1_before2`, `b1_after`,
+`b1_after2`; merged and tabled by `scratch/b1_merge.py`, `b1_table.py`). Each cell: before / after (change);
+`**+**` worse by 3% or more past a floor (0.05 ms, 0.5 allocs, 1 ms for loads' frames, 10 ms for load totals),
+`-` better.
+
+**Headline.** No per-frame regression the repeats confirm: CPU and frame medians are within +-3% everywhere but
+`crowd_ad_40` (median -12%, p99 +44%, below) and `fight_ad_tears` (+4%, +-9% between sessions of the same exe). The
+worst frames are lower nearly everywhere (idle_e1m1 33 -> 9 ms, play_e1m1_fight 21 -> 8, nav_hunt 34 -> 16,
+armed_mix32 47 -> 22: the zone and hunk work). Warm and restart loads are faster (ad_azad warm -33%, ad_sepulcher
+restarts -20/-27%, hip1m1 -> e1m1 campaign switch -34%, e4m7 warm -15%). **One crash found and fixed**: `load_reloads`
+crashed on every run after (below). Session-to-session noise is large on this machine in fast mode (the same exe's
+`menu_maplib_e1m1` 2.26 then 1.55 ms p50; `combat_48_spectator` before 3.85 then 5.57): single 3-rep numbers under
+~10% are not evidence.
+
+**The crash (fixed, `host.c`).** `map ad_grendel` after warden (a campaign switch: `VR_CanLoadCampaignMap` ->
+`COM_SwitchGameInternal` -> `CL_ForgetModels`) wrote `cl_entities[i].model` into freed memory: `cl_entities` is on the
+map's hunk, `Host_ClearMemory` freed it but kept the pointer. Before nohunk the hunk was one block and the write landed
+in it; since nohunk its blocks are the heap's and a large one is unmapped when freed (access violation, 3 of 3 runs).
+`Host_ClearMemory` now forgets it (`cl_entities = NULL`, `cl_max_edicts = 0`: the start-up state, which
+`CL_ForgetModels` already checks). After: load_reloads, load_changelevel, load_hip1m1, load_ad_restarts and
+saveload_e1m1 all complete (`kit/benchresults/b1_fixchk`), then load_reloads 3 of 3 in `b1_after2`.
+
+### Frames (ms; heap allocs = main-thread allocations a frame)
+
+| scenario | frame p50 | frame p99 | frame max | CPU busy avg | CPU busy p99 | GPU 3D avg | heap allocs/f avg | heap p99 |
+|---|---|---|---|---|---|---|---|---|
+| ai_crowd_64 | 3.17 / 3.23 (+2%) | 4.84 / 5.02 (+4%) **+** | 8.4 / 6.6 (-21%) - | 2.89 / 2.97 (+3%) | 4.79 / 4.96 (+3%) **+** | 0.86 / 0.86 (-1%) | 6.7 / 6.3 (-6%) | 105 / 105 (+0%) |
+| armed_mix32 | 3.73 / 3.75 (+1%) | 6.00 / 6.14 (+2%) | 46.5 / 22.0 (-53%) - | 3.60 / 3.60 (-0%) | 5.95 / 6.10 (+2%) | 2.91 / 2.76 (-5%) - | 4.2 / 6.2 (+50%) **+** | 97 / 93 (-4%) - |
+| combat_48 | 3.62 / 3.59 (-1%) | 11.79 / 10.75 (-9%) - | 17.3 / 14.6 (-16%) - | 3.76 / 3.74 (-0%) | 11.74 / 10.70 (-9%) - | 3.49 / 3.46 (-1%) | 7.3 / 7.5 (+2%) | 106 / 107 (+1%) |
+| combat_48_bullettime | 3.02 / 3.07 (+1%) | 6.03 / 5.74 (-5%) - | 10.9 / 9.4 (-14%) - | 2.90 / 2.97 (+2%) | 5.98 / 5.71 (-5%) - | 2.59 / 2.58 (-0%) | 1.4 / 2.1 (+49%) **+** | 17 / 19 (+12%) **+** |
+| combat_48_spectator | 3.90 / 3.79 (-3%) | 13.99 / 13.76 (-2%) | 29.2 / 16.2 (-45%) - | 4.06 / 4.02 (-1%) | 13.95 / 13.71 (-2%) | 3.77 / 3.75 (-0%) | 7.3 / 7.5 (+3%) | 108 / 108 (+0%) |
+| crowd_ad_40 | 3.90 / 3.43 (-12%) - | 6.64 / 9.59 (+44%) **+** | 23.4 / 17.8 (-24%) - | 3.84 / 3.42 (-11%) - | 6.60 / 9.54 (+45%) **+** | 3.35 / 3.09 (-8%) - | 11.7 / 12.8 (+9%) **+** | 124 / 155 (+26%) **+** |
+| fight_ad_sepulcher | 2.51 / 2.45 (-2%) | 4.15 / 4.39 (+6%) **+** | 11.4 / 8.2 (-28%) - | 2.36 / 2.34 (-1%) | 4.09 / 4.34 (+6%) **+** | 1.80 / 1.81 (+0%) | 0.5 / 2.1 (+351%) **+** | 8 / 10 (+18%) **+** |
+| fight_ad_tears | 2.87 / 3.00 (+4%) **+** | 4.69 / 4.57 (-3%) | 29.4 / 28.3 (-4%) - | 2.75 / 2.85 (+4%) **+** | 4.63 / 4.52 (-2%) | 1.94 / 1.95 (+0%) | 1.4 / 3.3 (+139%) **+** | 10 / 10 (+0%) |
+| gore_blast_crowd_32 | 2.85 / 2.82 (-1%) | 7.18 / 7.29 (+1%) | 33.5 / 31.6 (-6%) - | 3.16 / 3.15 (-0%) | 6.96 / 6.87 (-1%) | 2.49 / 2.49 (+0%) | 10.2 / 10.5 (+3%) | 53 / 42 (-21%) - |
+| idle_e1m1 | 1.46 / 1.47 (+1%) | 4.39 / 4.31 (-2%) | 33.0 / 8.9 (-73%) - | 1.47 / 1.47 (-1%) | 4.36 / 4.28 (-2%) | 1.31 / 1.31 (+0%) | 0.0 / 0.8 (+2057%) **+** | 2 / 3 (+50%) **+** |
+| load_ad_grendel | 0.05 / 0.05 (+0%) | 0.37 / 0.39 (+6%) | 61.2 / 67.8 (+11%) **+** | 0.24 / 0.26 (+8%) | 0.24 / 0.38 (+59%) **+** | 0.00 / 0.00 (+0%) | 23.1 / 25.7 (+11%) **+** | 0 / 1 (+0%) |
+| menu_maplib_e1m1 | 1.54 / 1.57 (+2%) | 4.66 / 4.71 (+1%) | 8.3 / 8.6 (+3%) | 1.56 / 1.64 (+5%) **+** | 4.63 / 4.67 (+1%) | 1.36 / 1.37 (+0%) | 19.9 / 20.7 (+4%) **+** | 24 / 24 (+0%) |
+| menu_preview_e1m1 | 1.61 / 1.56 (-3%) - | 4.99 / 4.77 (-5%) - | 9.4 / 9.1 (-3%) | 1.65 / 1.56 (-6%) - | 4.96 / 4.74 (-5%) - | 1.43 / 1.37 (-4%) - | 9.8 / 10.6 (+8%) **+** | 12 / 13 (+8%) **+** |
+| mut_armed3x_e1m2 | 4.74 / 4.74 (-0%) | 8.09 / 8.33 (+3%) **+** | 22.3 / 15.3 (-31%) - | 4.55 / 4.57 (+1%) | 8.03 / 8.28 (+3%) **+** | 2.31 / 2.32 (+0%) | 8.3 / 8.5 (+2%) | 224 / 60 (-73%) - |
+| mut_random3x_e1m2 | 2.78 / 2.76 (-1%) | 7.48 / 7.61 (+2%) | 22.8 / 14.3 (-37%) - | 2.79 / 2.73 (-2%) | 7.43 / 7.56 (+2%) | 2.49 / 2.43 (-2%) | 6.5 / 8.6 (+32%) **+** | 64 / 66 (+5%) **+** |
+| nav_hunt_e1m1_3x | 6.73 / 6.79 (+1%) | 11.98 / 12.16 (+1%) | 34.0 / 16.3 (-52%) - | 6.29 / 6.36 (+1%) | 11.89 / 12.09 (+2%) | 3.12 / 3.10 (-1%) | 10.2 / 7.0 (-32%) - | 217 / 86 (-60%) - |
+| play_e1m1_fight | 2.80 / 2.84 (+2%) | 4.50 / 4.51 (+0%) | 21.4 / 8.1 (-62%) - | 2.55 / 2.58 (+1%) | 4.42 / 4.45 (+1%) | 2.06 / 2.03 (-1%) | 4.8 / 4.9 (+2%) | 118 / 47 (-60%) - |
+| ragdolls_32_active | 3.30 / 3.31 (+0%) | 7.17 / 7.40 (+3%) **+** | 30.9 / 33.2 (+7%) **+** | 3.44 / 3.53 (+2%) | 7.13 / 7.34 (+3%) | 2.83 / 2.85 (+1%) | 5.9 / 6.8 (+16%) **+** | 44 / 47 (+7%) **+** |
+
+### Map loads (ms; the scenario's loads in order, median of the repeats)
+
+| scenario | load | total ms | first frame ms | worst frame after |
+|---|---|---|---|---|
+| load_ad_azad | map ad_azad: ad_azad | 2010 / 1771 (-12%) - | 9.8 / 14.7 (+50%) **+** | 12.0 / 24.0 (+99%) **+** |
+| load_ad_azad | map ad_azad: ad_azad | 940 / 632 (-33%) - | 10.5 / 16.9 (+60%) **+** | 12.7 / 14.2 (+11%) **+** |
+| load_ad_restarts | map ad_sepulcher: ad_sepulcher | 2028 / 1982 (-2%) | 18.9 / 18.4 (-3%) | 17.6 / 17.9 (+1%) |
+| load_ad_restarts | restart ad_sepulcher: ad_sepulcher | 1131 / 900 (-20%) - | 18.3 / 16.4 (-11%) - | 8.7 / 10.7 (+22%) **+** |
+| load_ad_restarts | restart ad_sepulcher: ad_sepulcher | 1274 / 927 (-27%) - | 16.5 / 16.6 (+0%) | 6.6 / 20.8 (+216%) **+** |
+| load_ad_restarts | map ad_tfuma: ad_tfuma | 1277 / 1271 (-0%) | 11.3 / 11.3 (-0%) | 9.1 / 8.9 (-2%) |
+| load_ad_restarts | restart ad_tfuma: ad_tfuma | 487 / 482 (-1%) | 7.2 / 7.1 (-1%) | 11.7 / 26.1 (+124%) **+** |
+| load_ad_restarts | restart ad_tfuma: ad_tfuma | 416 / 422 (+1%) | 6.9 / 7.0 (+2%) | 29.6 / 13.5 (-54%) - |
+| load_ad_sepulcher | map ad_sepulcher: ad_sepulcher | 2055 / 2038 (-1%) | 18.9 / 19.7 (+5%) | 23.5 / 24.6 (+5%) **+** |
+| load_ad_sepulcher | map ad_sepulcher: ad_sepulcher | 1003 / 840 (-16%) - | 16.4 / 16.8 (+3%) | 12.2 / 10.6 (-13%) - |
+| load_ad_tears | map ad_tears: ad_tears | 2397 / 2369 (-1%) | 21.7 / 21.7 (-0%) | 27.6 / 28.1 (+2%) |
+| load_ad_tfuma | map ad_tfuma: ad_tfuma | 1386 / 1409 (+2%) | 12.6 / 12.8 (+1%) | 16.7 / 16.6 (-1%) |
+| load_ad_tfuma | map ad_tfuma: ad_tfuma | 460 / 487 (+6%) **+** | 7.1 / 7.4 (+4%) | 9.2 / 8.9 (-3%) |
+| load_changelevel | changelevel e1m2: e1m2 | 379 / 375 (-1%) | 4.9 / 4.6 (-6%) | 5.9 / 5.1 (-13%) |
+| load_changelevel | changelevel e1m1: e1m1 | 184 / 187 (+2%) | 2.5 / 2.6 (+6%) | 7.7 / 7.0 (-10%) |
+| load_e1m1 | map e1m1: e1m1 | 1596 / 1692 (+6%) **+** | 67.4 / 68.3 (+1%) | 18.3 / 18.9 (+3%) |
+| load_e1m1 | map e1m1: e1m1 | 188 / 186 (-1%) | 3.3 / 3.4 (+3%) | 4.8 / 5.7 (+19%) |
+| load_e1m1 | restart e1m1: e1m1 | 141 / 150 (+6%) | 3.0 / 2.7 (-10%) | 7.7 / 5.5 (-28%) - |
+| load_e1m1_qrp | map e1m1: e1m1 | 1836 / 1865 (+2%) | 69.8 / 69.7 (-0%) | 19.4 / 19.1 (-1%) |
+| load_e1m1_qrp | map e1m1: e1m1 | 329 / 337 (+3%) | 3.6 / 3.3 (-9%) | 6.4 / 5.4 (-15%) |
+| load_e4m7 | map e4m7: e4m7 | 2006 / 1875 (-7%) - | 70.1 / 66.6 (-5%) - | 20.1 / 19.7 (-2%) |
+| load_e4m7 | map e4m7: e4m7 | 478 / 407 (-15%) - | 5.6 / 5.7 (+1%) | 3.1 / 5.2 (+68%) **+** |
+| load_hip1m1 | map hip1m1: hip1m1 | 1995 / 1807 (-9%) - | 68.7 / 66.2 (-4%) - | 20.3 / 19.6 (-4%) |
+| load_hip1m1 | map hip1m1: hip1m1 | 336 / 341 (+2%) | 6.3 / 6.9 (+8%) | 4.6 / 4.6 (+0%) |
+| load_hip1m1 | map e1m1: e1m1 | 1284 / 850 (-34%) - | 7.0 / 6.7 (-4%) | 5.7 / 5.5 (-2%) |
+| load_reloads | map warden: warden | 2949 / 2846 (-4%) - | 77.3 / 76.5 (-1%) | 31.3 / 30.9 (-1%) |
+| load_reloads | restart warden: warden | 675 / 659 (-2%) | 7.7 / 9.8 (+26%) **+** | 6.9 / 7.4 (+7%) |
+| load_reloads | map warden: warden | 468 / 586 (+25%) **+** | 12.6 / 10.9 (-13%) - | 12.3 / 12.1 (-2%) |
+| load_reloads | map e1m1: e1m1 | 943 / 895 (-5%) - | 6.4 / 6.6 (+3%) | 4.5 / 4.5 (-2%) |
+| load_reloads | restart e1m1: e1m1 | 154 / 159 (+4%) | 2.5 / 2.6 (+2%) | 6.9 / 6.6 (-4%) |
+| load_reloads | changelevel e1m2: e1m2 | 308 / 315 (+2%) | 4.6 / 4.8 (+4%) | 4.5 / 3.1 (-31%) - |
+| load_reloads | changelevel e1m1: e1m1 | 172 / 179 (+4%) | 2.6 / 2.8 (+9%) | 6.9 / 4.5 (-36%) - |
+| load_session_qrp | map start: start | 1779 / 1781 (+0%) | 69.5 / 67.0 (-4%) - | 30.9 / 31.6 (+2%) |
+| load_session_qrp | changelevel e1m1: e1m1 | 437 / 443 (+1%) | 5.1 / 3.3 (-35%) - | 5.9 / 5.6 (-4%) |
+| load_session_qrp | changelevel e1m2: e1m2 | 487 / 493 (+1%) | 4.4 / 4.3 (-1%) | 5.4 / 5.8 (+7%) |
+| load_session_qrp | changelevel e1m1: e1m1 | 322 / 334 (+4%) **+** | 2.7 / 2.9 (+6%) | 5.8 / 6.0 (+3%) |
+| load_session_qrp_flat | map start: start | 1808 / 1765 (-2%) | 62.3 / 60.8 (-2%) | 6.8 / 7.2 (+6%) |
+| load_session_qrp_flat | changelevel e1m1: e1m1 | 438 / 500 (+14%) **+** | 6.7 / 2.7 (-60%) - | 3.5 / 3.6 (+4%) |
+| load_session_qrp_flat | changelevel e1m2: e1m2 | 483 / 500 (+4%) **+** | 4.6 / 4.0 (-13%) | 3.4 / 3.1 (-10%) |
+| load_session_qrp_flat | changelevel e1m1: e1m1 | 322 / 351 (+9%) **+** | 2.7 / 2.6 (-3%) | 3.0 / 3.0 (+1%) |
+| load_vrstart | map vrstart: vrstart | 2720 / 2615 (-4%) - | 76.1 / 71.0 (-7%) - | 22.9 / 22.4 (-2%) |
+| load_vrstart | map vrstart: vrstart | 661 / 650 (-2%) | 13.0 / 13.9 (+7%) | 6.3 / 5.9 (-7%) |
+| load_vrstart | restart vrstart: vrstart | 582 / 487 (-16%) - | 5.2 / 8.6 (+65%) **+** | 5.9 / 6.5 (+10%) |
+| load_warden | map warden: warden | 2968 / 2908 (-2%) | 74.7 / 75.9 (+2%) | 31.0 / 32.4 (+5%) **+** |
+| load_warden | map warden: warden | 685 / 700 (+2%) | 8.8 / 9.8 (+12%) **+** | 7.8 / 8.6 (+11%) |
+
+(`load_reloads`' ad_grendel loads are missing on both sides: `Couldn't spawn server maps/ad_grendel.bsp` in that
+scenario's sequence, before and after alike; `load_ad_grendel` itself loads it. `load_ad_grendel`'s row in the frames
+table is its load window.)
+
+**Flagged, not fixed (listed):**
+1. `crowd_ad_40` frame p99 6.6 -> 9.6 ms (both sessions: 6.6 -> 9.1, 6.9 -> 10.0) while its average (-11%), median
+   (-12%), max (23 -> 18) and every CPU phase's average are lower. Frames over twice the median 2.5 -> 16 per 900:
+   a periodic ~2x-median frame, in this scenario only (the hitch counts of the others are flat or lower). The fight
+   also plays differently (particles 7365 -> 5490, awake bodies 201 -> 169, monsters alive 30.5 -> 32.3: a gameplay
+   change among the day's merges), so it is not the same work. At 90 Hz pacing the profile capture of the same scene
+   had CPU p99 6.7 ms (table above): under the budget. Needs a Tracy capture of the fast run to name it.
+2. Heap allocations a frame up by 1-2 in `fight_ad_sepulcher` (0.5 -> 2.1), `fight_ad_tears` (1.4 -> 3.3),
+   `armed_mix32` (4.2 -> 6.2), `mut_random3x_e1m2` (6.5 -> 8.6), `idle_e1m1` (0 -> 0.8): the hunk's temporary blocks
+   now counted as heap allocations (nohunk) or the day's new per-frame work; p99s are flat or lower. `pf_cap.sh <sc>
+   <label> 1 1` with `vr_alloc_sites` names them.
+3. Loads, single-session (3 reps): `load_session_qrp_flat`'s changelevels +4-14% (the VR one, 6 reps: +1-4%),
+   `load_e1m1` cold +6%, `load_reloads`' second `map warden` 468 -> 586; the first frames after `ad_azad`'s loads
+   10 -> 15-17 ms and after `vrstart`'s restart 5 -> 9 ms (small, within a frame's budget at 90 Hz).
+
 ## What is left (for the coordinator)
 
 - Second pass done: the env cube's averages in one readback, the allocation trace, the skin edges on the pool, the
   ad_tears post-load hitch's cause (the props' navmesh batches: his call 1a). Tests: `load_models_test.sh`,
   `scenario_check.sh` full and the release-config build after the merge (ROUND25.md "profile2").
-- The ThinLTO before/after bench of the full set (`bash kit/bench.sh <agent> --scenarios combat_48,ai_crowd_64,
-  idle_e1m1,fight_ad_tears,fight_ad_sepulcher,combat_48_bullettime,combat_48_spectator,crowd_ad_40,armed_mix32,
-  ragdolls_32_active,gore_blast_crowd_32,play_e1m1_fight,perf1114 --reps 3 --settings <his cfg>`): not run (the
-  captures above took the night's exclusive time; the fix touches no per-frame path, only the hitch).
+- The ThinLTO before/after bench of the full set: done ("Before/after bench of the day's perf work" above; the load_reloads crash fixed; crowd_ad_40's p99 and the per-frame allocations listed).
 - An allocation capture (`pf_cap.sh <scenario> <label> 1 1`: memory detail on) of the fights: the main thread makes
   10-60 heap allocations a frame at the median and 140-450 at p99 (`nav_hunt` 454); `vr_alloc_sites 300 40` names them.

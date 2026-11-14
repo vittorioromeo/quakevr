@@ -42,6 +42,7 @@ Flat-screen or VR: Melee Only with the dagger, "maxplayers 2" and a bot (impulse
 
 [6. VR: body and gear]
 With armour on, set Advanced VR Options > Weapons > Reloading > X With Armour and Flashlight > Forward With Armour to a small value (about 3 units, 0.03 m; the scene sets those): the pouch and the belt torch should stand clear of the plates, and go back to normal when the armour is gone. {test:armour_gear}
+VR: teleport many times quickly (headset at 90 or 120 Hz): every release teleports you.
 
 [7. VR: melee and embedded blades]
 Stab a standing monster with the sword (not hard enough to stagger it), keep holding it, and let it walk into a teleporter: the sword comes back to your hand, not held from across the map. {test:embed_tele}
@@ -69,6 +70,7 @@ Flat-screen or VR: load shells into the open super shotgun: their brass heads si
 Flat-screen or VR: fire the grenade launcher, then force-grab the lit grenade out of the air: its fuse starts over at the full 2.5 s with a small re-arm click and a flare of sparks, the fizz and ticks start again from the top (one stream, no leftover from before), and you can throw it again and hear it properly. {test:grenade_countdown}
 Flat-screen or VR: hold the rocket launcher and look down it from your hand: the three vents at the back of the front shroud (the chevron on the top fin, an arch on each side fin) are real holes now, black inside with walls and a back, not just paint; the pickup on the floor shows them too. {test:rl_vents}
 VR: a very quick trigger or grip press and release still registers (fire, grab).
+VR: let go of a gun and grab it again quickly: the re-grab always takes it.
 
 [9. VR: physics, bodies and gore]
 With drips on, get something wet, then reload the same map (a restart or a save of this level): no crash. {test:waterdrips}

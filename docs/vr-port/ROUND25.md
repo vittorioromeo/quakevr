@@ -2341,3 +2341,34 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
   the candidates change behaviour of a key feature (his call: poses of unseen holders, a Quest cap on armed
   replacements) or are worth ~2%.
 - **Tests:** gles_render 12/0 (the -glesnoext image identical; a deliberately broken fallback fails it), scenario_check 129/0, load_models_test 4/0, vr_simd_test 58880/0; dev and ThinLTO builds 0 warnings.
+- Cherry-picked 4793722c6 (agent/mp): vr_server.cpp rewrites a player's `.vrbits0` previous bits at the end of every server frame, not only when a move arrives (a frame without a move showed QC last frame's grip press/let-go again; a doubled let-go pushed a re-grip into the 0.125 s bounce window); bots keep the bits their QC sets.
+
+## telekeep (cherry-pick of agent/mp 88743a3e8)
+- A teleport asked in an earlier move of a server frame is kept until the server acts on it (headset above 72 Hz lost it). Checks: dev + ReleaseLTO 1.1.0 builds, vr_teleport_both_test 14/0, scenario_check 129/0, load_models_test 4/0.
+- vr_runpickups_test 1 hangs (engine spins, frames stop) at step 17 load mp_rpk_seed; also at 32ebcecc7 (muttiers merge) and 97aee6b6e, so not a recent commit. The same sequence by hand, and loading mp_rpk_seed.sav in a fresh run, both work. Cause not found.
+
+## shadowsort (cherry-pick of agent/quest 163dc0001)
+- Shadow casters in the face-at-a-time path (vr_shadow_layered 0) drawn sorted by model and skin so instanced batching works: combined bench 1806 draws/1.16 ms -> 1025/0.11 ms (vr_shadow_layered 0 bench: combined GPU -13.7%, p99 frame -18.8%; lights_32 frame p50 -14.9%); vr_shadow_layered_check 0 texels differ with vr_shadow_layered 0 and 1; scenario_check 129/0, load_models_test 4/0.
+## loadhang: vr_runpickups_test's "hang" at its last load (agent/loadhang, 2026-11-14)
+- No engine hang. cdb (Windows Kits, `-pvr`: attached without suspending) at the "hang": host_framecount, sv.qcvm.time
+  and cl.time kept advancing, signon 4, sv.paused 0; the main thread's stacks moved through server frames, physics and
+  rendering. The test had finished: its last step runs just after `load mp_rpk_seed`, and its verdict was a dprint
+  (VR_Test_Print without VR_TEST_LOUD), never printed at developer 0, so run.sh's -QuitOn waited out its timeout. A
+  broadcast would not do either: that step runs between the client's spawn and begin, and SV_BroadcastPrintf skips a
+  client not yet spawned.
+- Fix (QC, tests only): `VR_TEST_ECHO` (vr_testutil.qc): VR_Test_Verdict echoes its line through the console
+  (`localcmd echo`), seen at developer 0 whatever the client's state; VR_RT_End (vr_runpickups_test, vr_ironman_test)
+  sets it.
+- At developer 1 the test also failed 7 checks since 5daa7d776 (a typed `map` is a new game: the Run Setup screen's
+  picks and a new seed): steps 2 and 6 now set `vr_run pickups 1` before their `map`, as a run's own map loads do
+  (runSet keeps the run and its seed).
+- Checks: vr_runpickups_test 1 32/0 five times at developer 0 and once at developer 1 (each ends on its verdict),
+  vr_ironman_test 1 12/0, load_models_test 4/0. No engine change, so no watchdog line; scenario_check not rerun (no
+  game or engine code touched).
+
+## bench11: the day's perf work before/after, ThinLTO (agent/bench11, 2026-11-14)
+
+- PERF_1_1.md "Before/after bench of the day's perf work": `094dac831` vs next, the full set + perf1114 + every load_*,
+  6 reps where it moved; no confirmed per-frame regression, worst frames and warm loads down; crowd_ad_40's p99 and
+  +1-2 heap allocs a frame listed. Fixed: `load_reloads` crashed (Host_ClearMemory kept `cl_entities` after freeing
+  it; a campaign switch's CL_ForgetModels wrote it: unmapped since nohunk). Now NULL there, as at start-up.

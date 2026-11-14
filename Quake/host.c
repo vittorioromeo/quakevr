@@ -901,6 +901,10 @@ void Host_ClearMemory (void)
 /* host_hunklevel MUST be set at this point */
 	Hunk_ClearKeep (); // QVR: the models kept on the hunk go with it (Hunk_KeepLoaded)
 	Hunk_FreeToLowMark (host_hunklevel);
+	// QVR: cl_entities was on the map's hunk (CL_ClearState): gone with it, so nothing writes it before the next map's
+	// (CL_ForgetModels at a campaign switch wrote freed blocks: the hunk's blocks are the heap's since nohunk)
+	cl_entities = NULL; // as at start-up, before any map
+	cl_max_edicts = 0;
 	Temp_FreeToMark (0); // QVR: the temporary stack (zone.h; empty unless an error unwound past a free)
 	cls.signon = 0; // not CL_ClearSignons()
 	memset (&sv, 0, sizeof(sv));
