@@ -60,6 +60,7 @@ Flat-screen or VR: fire the grenade launcher and force-grab the lit grenade out 
 Flat-screen or VR: look down the rocket launcher from your hand: the three vents at the back of the front shroud are real holes, black inside with walls and a back; the floor pickup shows them too. {test:rl_vents}
 VR: a very quick trigger or grip press and release still fires or grabs.
 VR: let go of a gun and grab it again quickly: the re-grab always takes it.
+Let a gun go onto your other, open palm so it rests there, then close that hand: with your fist on its handle it is taken by the handle and fires; with the handle off your palm it is held where it lies, as a prop (it doesn't jump to the handle), and a hand closing a few centimetres off a gun takes nothing. {test:palmgrab}
 
 [7. VR: physics, bodies and gore]
 On e1m1 with three times the enemies, turn quickly toward armed grunts you could not see: their guns, arms and backpacks are already in place, no pop.

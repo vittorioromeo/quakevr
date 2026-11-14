@@ -2381,6 +2381,36 @@ Cherry-picked bd2277d6c (translucent brush models' retro decal program made in t
 Cherry-picked 6b8e74432: VR_CrtHeapLoadHold now defined without mimalloc (QVR_MIMALLOC=OFF Linux link). Checked: dev build, ReleaseLTO, WSL no-mimalloc link, load_models 352/0.
 ## flat1115a: icon pictures' aspect, card gap, red banners, Arcane Dimensions with the campaigns (agent/flat1115a, 2026-11-15)
 
+## palmgrab: closing a hand on a gun resting on or against it (branch agent/palmgrab, 2026-11-15)
+
+His design (2026-11-15; MP_PLAN B3c, agent/mp's 0a203126f, whose 12 cm `vr_weapon_palm_grab_slack` is NOT taken): a
+hand closing on a gun that rests on or leans against that hand's Box3D body (the open hand; a gun on the open palm sits
+3-5 cm over the fist that closes under it) takes it, with no reach beyond the fist's anywhere:
+- The fist reaches it (the same test as before: `held::grabTouch` with `vr_weapon_grab_slack`, the handle's
+  `vr_weapon_grab_handle_leniency` / `vr_weapon_catch_handle_leniency`): as before, by the handle within
+  `vr_weapon_grab_anywhere_min` (gun mode), a hotspot, or anywhere on it.
+- The fist doesn't reach it but it is on or against the hand (`box3d::restsOnHand(..., minUp -2)`: any contact with the
+  hand's body): taken where it lies against the hand, as a prop, anywhere on it (`twohand::anywhereSpot`: carried,
+  QVR_WPNFLAG_FOREGRIP_CARRIED), never moved onto its handle or a hotspot the fist doesn't reach.
+- Neither: nothing (a hand closing a few centimetres off a gun takes nothing, as before).
+
+Code: `vr_physics.cpp` onWeapon (the slack computation split out as `weaponGrabSlack`; `weaponAgainstHand`), the view's
+choice in `vr_view_hands.cpp` updateGroundSpots through `physics::weaponOnHandOnly` (one test, both sides).
+`box3d::restsOnHand` takes `minUp` (default `restOnHandUp`, 0.3, the old `restUp`). The local player only (another
+player's hand has no anywhere hold: it takes handles only, as before), and only with `vr_weapon_grab_anywhere` on.
+
+Test: `vr_pickup_test 17` (VR_PalmGrabTest_*; ends `palmgrab test:`, 5 checks): the shotgun let go of low over the
+floor lies there; the off hand, steered onto marks by its measured place (world units back to mock metres), (A) closes
+on its handle: gun mode; (C) closes 12 units over its barrel: nothing; (B) the same with the gun against the hand: a
+prop, carried. The contact in (B) is stood in for by `vr_test_handcontact <hand> <0|1>` (a test command: a weapon within
+half a metre of that hand counts as against it, in the same weaponAgainstHand the physics' contact goes through):
+headless, a gun let go of onto the mock's open palm doesn't stay there (it tips off or passes through the thin open-hand
+box; probed over heights 1.15-1.5 m, offsets 0-25 cm, the shotgun and the heavy revolver, with and without
+`vr_gunangle 0`), so the physical rest itself is his to check (scenario `palmgrab`). The mock's hand angles carry
+vr_gunangle (mock pitch 0 is about 69 degrees down): the test's poses pitch up 69. The view's check runs in the server's
+VM (`progs::ServerVm`: without it the view never saw the contact and (B) was taken by the handle). Unchanged:
+pickup_mag 3/3, crate_grip (carry2h_grip 10/0), flatholster 54/0, revgrip (vr_embed_test 42) 24/0; Release-TracyFull 0
+warnings.
 - **Icon pictures stretched (the real cause):** the VR menu canvas scales y more than x (`VR_MenuCanvas`: the row
   spacing; about 2x on the flat panel). Glyphs keep their size (`Draw_KeepMenuGlyphSize`) but `Draw_TextureRect` did
   not, so menutweak's fit (in menu pixels) still came out about twice as tall. `Draw_MenuStretch()` (gl_draw.c) gives

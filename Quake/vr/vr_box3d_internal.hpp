@@ -1392,7 +1392,6 @@ void traceGibContacts();
 [[nodiscard]] bool bornInside(int a, int b);
 void noteThrows();
 void syncHands(float dt);
-constexpr float restUp = 0.3f;         // a prop rests on a hand where their contact's normal (up into it) is this steep (restsOnHand)
 [[nodiscard]] World::HandBody* reachOf(b3BodyId body, int player);
 [[nodiscard]] bool reachSkips(const World::HandBody& hb, int player, int num);
 // Whether hand `hand` (QC's: 0 the off hand, 1 the main) of client `player` holds `num`'s ragdoll in a tug (ragdolltug).
