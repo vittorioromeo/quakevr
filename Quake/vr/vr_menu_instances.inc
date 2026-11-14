@@ -838,6 +838,7 @@ enum class RunLaunchWay
     FiringRange, // the VR menu's Firing Range button (no Run Setup screen: the screen's mutators all the same)
     ConsoleRun,  // `vr_run glasscannon 0` then `map`: a run's choice set by hand is kept
     Arena,       // Select Campaign's Arena Mode (its own screen's Start): the arena's fixed choices, no autosave
+    Scene,       // a checklist test scene (runLaunchScene, its map `map`): its settings set, waited for until it runs
 };
 
 struct RunLaunchStep
@@ -875,7 +876,13 @@ constexpr RunLaunchStep runLaunchSteps[] = {
     // Levels list: the player's own picks the run's again (Classic after the arena's Unleashed).
     {RunLaunchWay::Arena, "vrarena", 1, true, false, false, "Arena Mode", 1, 2, 0},
     {RunLaunchWay::Level, "e1m1", 1, true, true, false, "the Levels list after Arena Mode", 1, 3, 0},
+    // His log (2026-11-14): a test scene running (classic_drops: Classic's armed humanoids and bursts off, kept to put
+    // back), then the Levels list with Unleashed: the scene's settings put back before the run's are set, never over
+    // them at the map's spawn (the first run Unleashed; nothing for beforeMapLoad to set back).
+    {RunLaunchWay::Scene, "e1m1", -1, false, false, false, "the classic_drops test scene", -1, -1, -1},
+    {RunLaunchWay::Level, "e1m1", 0, true, true, false, "the Levels list during a test scene", 3, 1, 0},
 };
+constexpr const char* runLaunchScene = "classic_drops";
 constexpr int runLaunchStepCount = static_cast<int>(sizeof(runLaunchSteps) / sizeof(runLaunchSteps[0]));
 // The step whose Start is followed, before its `map`, by commands changing two of the Style's settings (the armed
 // humanoids, the guns' reloading: as whatever set the last run's back in his game would): its map spawns with the
@@ -971,6 +978,7 @@ void runLaunchGo(const RunLaunchStep& s)
         case RunLaunchWay::Hub: openRunSetup(runsetup::Launch::Hub, za::String{}, nullptr, -1, true); break;
         case RunLaunchWay::Map: Cbuf_AddText(va("map %s\n", s.map)); return;
         case RunLaunchWay::Load: Cbuf_AddText("load rf_launch_b\n"); return;
+        case RunLaunchWay::Scene: Cbuf_AddText(va("vr_scenario %s\n", runLaunchScene)); return;
         case RunLaunchWay::FiringRange: playFiringRange(); return;
         case RunLaunchWay::ConsoleRun:
             Cmd_ExecuteString("vr_run glasscannon 0", src_command);
@@ -1208,7 +1216,8 @@ void qvr::menu::runLaunchTestFrame()
     {
         Cvar_Set("vr_arena_goto", "2"); // (into a wave: none autosaved there either)
     }
-    if(++t.settled < (arena ? runLaunchArenaSettle : runLaunchSettle))
+    if(++t.settled < (arena ? runLaunchArenaSettle : runLaunchSettle) ||
+        (s.way == RunLaunchWay::Scene && !scenario::active())) // (the scene running: its things placed)
     {
         return;
     }

@@ -2821,3 +2821,13 @@ His flat report: a Run Setup Style (Classic, then Unleashed) took effect only wh
 - Found on the way (not fixed): Classic + 3x Enemy Count on e1m1 leaves two grunt copies in solid
   (`vr_run_enemies_check`: "2 copies in solid"; Classic's full-size hulls, `vr_mhull 0`); the test keeps Classic off
   that pick row.
+- Cause (the coordinator, from his log 2026-11-14_22-40-06): a checklist test scene was running (classic_drops), then
+  Levels > E1M1 with Classic. The Start set the run's settings; the map change then ended the scene
+  (`scenario::worldReset`), whose put-back ("5 settings put back") set its saved old values over the run's before the
+  map spawned. The second start had no scene left. Fix: `scenario::endBeforeRun()` (vr_scenario.cpp) ends a running
+  scene, its settings put back, before a run sets its own: at a Start (`startWith`), a new game's mutators
+  (`newGame`) and a save's run (`onLoadGame`); not a scene loading its own map. The `beforeMapLoad` guard above stays
+  (it runs after the scene's put-back, prints only when it sets something back; it set nothing back here).
+- `vr_runlaunch_test` (86/0): the classic_drops scene run (waited for until `scenario::active()`), then the Levels list
+  with Unleashed: the scene ended at the Start, the map spawned Unleashed (armed grunts, reloading), nothing for the
+  guard to set back.

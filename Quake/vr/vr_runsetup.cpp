@@ -8,6 +8,7 @@
 #include "vr_gorepresets.hpp"
 #include "vr_presets.hpp"
 #include "vr_progs.hpp"
+#include "vr_scenario.hpp"
 #include "vr_srvrandom.hpp"
 #include "vr_testkit.hpp"
 
@@ -928,6 +929,7 @@ int restoreStartValues()
 // The run starts with `value(i)` for each row (all read before any is set: a rule reads the picks).
 void startWith(int (*value)(int), bool mapNow)
 {
+    scenario::endBeforeRun(); // (a test scene's settings put back first, never over the run's: presetlate)
     int values[registryCount];
     for(int i = 0; i < registryCount; i++)
     {
@@ -977,6 +979,7 @@ void newGame()
     // Else (the Firing Range and Tutorial buttons, the debug menu's maps, `map` typed): never the last run's mutators
     // (his flat report 2026-11-13: they were); the screen's, as its Start would set them. Not the rows that write
     // settings (the difficulty, the presets, Armed Humanoids, Smarter AI): those only by the screen's Start.
+    scenario::endBeforeRun(); // (a test scene running: its settings put back before the mutators are set)
     int values[registryCount];
     for(int i = 0; i < registryCount; i++)
     {
@@ -1198,6 +1201,7 @@ void onLoadGame()
         return;
     }
     state.reading = false;
+    scenario::endBeforeRun(); // (a test scene running: its settings put back before the save's run is set)
     if(!state.haveLine)
     {
         Con_Printf("Run setup: this saved game has no run choices (saved before they were): the mutators at their "
