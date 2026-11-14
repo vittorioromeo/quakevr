@@ -24,8 +24,7 @@ Flat-screen: hold the axe (then a sword, the crowbar, Mjolnir, the super axe) wi
 
 [2. Flat-screen: setup, menus and the Map Library]
 Installer: install into a fresh folder; the "Set up the game" page shows the settings tree; pick Snap 45, Left-handed and Medium: set in the game. Change Turning in the game, run Update, change only Turn Speed: Turning stays as you set it.
-Flat-screen or VR: Select Campaign's Run Setup, then the Levels list's on e1m1: the page opens at its top with Difficulty and Bloody Nightmare in view (the cursor on Difficulty when Start would be off the page).
-Flat-screen or VR: Bloody Nightmare is a Run Setup row even if you never found it in Dawn of the Machine.
+Flat-screen or VR: Select Campaign's Run Setup, then the Levels list's on e1m1: the page opens at its top with Difficulty in view (the cursor on Difficulty when Start would be off the page).
 Flat-screen or VR: Glass Cannon on: punches and swings at the firing range's dummy show twice the damage (not only shots); Melee Only: its guns and ammo can't be taken. {test:run_glass_dummy}
 Flat-screen or VR: change Enemy Count, Randomized Enemies and Pickups, then start from Levels, the Map Library, New Game, a campaign or the hub: the map has exactly those (no earlier run's). The Firing Range button uses the screen's mutators too.
 
