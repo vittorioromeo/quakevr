@@ -964,8 +964,9 @@ void(float xHand, float shotcount, vector dir, vector spread, vector muzzle) AD_
     float ssg = shotcount > 6; // (a super shotgun's pair of barrels; one barrel fires as the shotgun, as ours)
     float wid = VRGetWeapon(xHand);
     float shotgun = wid == WID_SHOTGUN || wid == WID_SUPER_SHOTGUN || wid == WID_GRUNTGUN;
-    // The burst rifle is a bullet, not a shotgun blast: retain its tighter spread.
-    if(wid == WID_GRUNTGUN && cvar_hget(cvarh_vr_grunt_burst)) shotgun = FALSE;
+    // The burst rifle is a bullet, not a shotgun blast: retain its tighter spread (yours always: VR_EnemyGun_Attack; an
+    // armed grunt's at vr_grunt_burst 0 fires id's shotgun, VR_FireGruntGun).
+    if(wid == WID_GRUNTGUN && ((self.flags & FL_CLIENT) || cvar_hget(cvarh_vr_grunt_burst))) shotgun = FALSE;
     vector pattern = (shotgun ? AD_SharpSpread(ssg ? ad_SPREAD_SSG : ad_SPREAD_SG) : spread);
     pattern = pattern * cvar_hget(cvarh_vr_ad_pellet_spread);
     float speed = (ssg ? ad_SPEED_PLAYERSSG : ad_SPEED_PLAYERSG) * max(0.1, cvar_hget(cvarh_vr_ad_pellet_speed));

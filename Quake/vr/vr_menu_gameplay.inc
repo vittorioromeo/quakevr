@@ -932,6 +932,8 @@ void ikStretchReset()
                   "defender's shotgun, the pyro's flamethrower and the fumigator's poison sprayer. Their damage, ammo and "
                   "speed, to balance them."),
         header("Lying About"),
+        row(opt::vr_enemy_held_drops),
+        row(opt::vr_enemy_held_drops_linger),
         row(opt::vr_enemy_weapon_depleted_loot),
         header("Ogres' Chainsaws"),
         open("Chainsaw Engine", pageIndex(pageChainsawEngine))

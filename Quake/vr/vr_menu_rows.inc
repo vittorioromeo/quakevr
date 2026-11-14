@@ -1389,10 +1389,15 @@ QVR_TOGGLE(vr_enemy_weapon_depleted_loot, "Spent Guns Stand Out",
     "Off: an empty burst rifle, laser rifle or Arcane Dimensions soldier's gun, or an ogre's chainsaw out "
     "of fuel, lying about (nothing ever refills them) has no loot pillar and the force grab skips it; a hand still picks it up. On: as any "
     "weapon (vr_enemy_weapon_depleted_loot).")
+QVR_TOGGLE(vr_enemy_held_drops, "Dead Enemies' Weapons",
+    "On: a dying monster's own weapon (a grunt's burst rifle, an enforcer's laser rifle, a knight's sword, an "
+    "ogre's chainsaw, an armed humanoid's) falls for you to take. Off (the Classic preset): it falls as scenery "
+    "nobody can take and fades away (vr_enemy_held_drops).")
+QVR_SLIDER(vr_enemy_held_drops_linger, "Scenery Weapons Fade After", 0.f, 30.f, 0.5f, "%.1f s", ext(0.f, 300.f),
+    "Dead Enemies' Weapons off: how long such a weapon lies before it fades away (vr_enemy_held_drops_linger).")
 QVR_TOGGLE(vr_grunt_burst, "Burst Rifles",
-    "On: grunts fire 3-round bursts of single bullets, tighter than a shotgun's pellets, and the gun a "
-    "grunt drops fires the same bursts. Off: id's shotgun, the grunts' and the dropped guns' (six "
-    "pellets as yours, a shell a shot: a third of Rounds).")
+    "On: grunts fire 3-round bursts of single bullets, tighter than a shotgun's pellets. Off: id's shotgun "
+    "(4 pellets). The burst rifle a grunt drops always fires bursts in your hands (it is a burst rifle).")
 QVR_SLIDER(vr_enemygun_spent_smoke, "Spent Smoke", 0.f, 15.f, 0.5f, "%.1f s", ext(0.f, 60.f),
     "A burst rifle or a laser rifle whose last round you fire smokes this long, in the hand or dropped: it "
     "is done, drop it (0: never).")
