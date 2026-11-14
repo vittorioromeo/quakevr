@@ -57,6 +57,21 @@ void writeDrawnHand(sizebuf_t* buf, const VrDrawnHand& h, const glm::vec3& origi
 // A curl as written (sixteenths of a frame, -8 .. 7.94): what the reader gets for `c`.
 [[nodiscard]] float quantizedCurl(float c);
 
+// How this client poses its body (vr_avatar.cpp's inputs beyond the head and hands): the torso's yaw (hands::State::bodyYaw),
+// the head's height over the play space's floor and its learnt standing height (metres: the crouch, the legs' fit) and
+// how sure a lean is. Multiplayer only (valid): the other players pose his body by it (MP_PLAN.md, B2d). Written as a
+// byte (valid), then a 16-bit angle, two shorts (mm) and a byte (255ths): 8 B.
+struct VrBodyPose
+{
+    bool valid{false};
+    float yaw{0.f};
+    float headHeight{0.f};
+    float standingHeight{0.f};
+    float leanHold{0.f};
+};
+void writeBodyPose(sizebuf_t* buf, const VrBodyPose& p);
+[[nodiscard]] VrBodyPose readBodyPose();
+
 struct VrMove
 {
     glm::vec3 headAngles{0.f}; // -> .v_viewangle (.v_angle carries the aim angles)
@@ -108,6 +123,7 @@ struct VrMove
     float light{-1.f};
     // The hands as this client drew them last ([0] off, [1] main; view::netHands): for the other players (the avatar).
     VrDrawnHand drawn[2];
+    VrBodyPose body; // (multiplayer, with `drawn`)
 };
 
 void writeVrMove(sizebuf_t* buf, const VrMove& move);

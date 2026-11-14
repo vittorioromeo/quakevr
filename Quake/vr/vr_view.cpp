@@ -2939,29 +2939,37 @@ void setupWorldWeapons(const hands::State& s, bool queueTexts)
 }
 } // namespace
 
+// A drawn hand entity's wrist and orientation (`rig`: the jointed hand, else hand_base.mdl): drawnHand's, and another
+// player's drawn hand (vr_mpavatar.cpp, his body's arms).
+[[nodiscard]] avatar::HandPose handPoseOf(const view::ViewEntity& base, bool rig)
+{
+    // The centre of the wrist in hand_base.mdl (frame 0), or the jointed hand's (its palm is shorter: make_hand_rig.py).
+    const glm::vec3 handWrist = rig ? vec3Of(handrig::data::wrist) : glm::vec3{-6.86f, -1.08f, 1.42f};
+    avatar::HandPose hp;
+    const view::ModelSpace space{base}; // (its matrix made once for the points)
+    hp.wrist = space.point(handWrist);
+    // hand_base.mdl: +x towards the fingers, +z the index finger's side, +y the palm's.
+    const glm::vec3 alongX = space.point(handWrist + glm::vec3{1.f, 0.f, 0.f});
+    const glm::vec3 alongZ = space.point(handWrist + glm::vec3{0.f, 0.f, 1.f});
+    hp.up = glm::normalize(alongZ - hp.wrist);
+    hp.back = glm::normalize(space.point(handWrist + glm::vec3{0.f, -1.f, 0.f}) - hp.wrist);
+    hp.forward = glm::normalize(alongX - hp.wrist);
+    if(rig) // (its size: the bare forearms' ends fit round it, avatar.cpp)
+    {
+        hp.unit = {glm::distance(alongX, hp.wrist), glm::distance(space.point(handWrist + glm::vec3{0.f, 1.f, 0.f}), hp.wrist),
+            glm::distance(alongZ, hp.wrist)};
+    }
+    return hp;
+}
+
 // The drawn hands' wrists and orientations, for the body's arms and the wrist gadget.
 [[nodiscard]] avatar::HandPose drawnHand(const hands::State& s, int hand)
 {
-    // The centre of the wrist in hand_base.mdl (frame 0), or the jointed hand's (its palm is shorter: make_hand_rig.py).
-    const glm::vec3 handWrist = rigHands[hand].drawn ? vec3Of(handrig::data::wrist) : glm::vec3{-6.86f, -1.08f, 1.42f};
-
     avatar::HandPose hp;
     const view::ViewEntity& base = entities.hand[hand];
     if(entities.weapon[hand].ent.model && base.ent.model)
     {
-        const view::ModelSpace space{base}; // (its matrix made once for the points)
-        hp.wrist = space.point(handWrist);
-        // hand_base.mdl: +x towards the fingers, +z the index finger's side, +y the palm's.
-        const glm::vec3 alongX = space.point(handWrist + glm::vec3{1.f, 0.f, 0.f});
-        const glm::vec3 alongZ = space.point(handWrist + glm::vec3{0.f, 0.f, 1.f});
-        hp.up = glm::normalize(alongZ - hp.wrist);
-        hp.back = glm::normalize(space.point(handWrist + glm::vec3{0.f, -1.f, 0.f}) - hp.wrist);
-        hp.forward = glm::normalize(alongX - hp.wrist);
-        if(rigHands[hand].drawn) // (its size: the bare forearms' ends fit round it, avatar.cpp)
-        {
-            hp.unit = {glm::distance(alongX, hp.wrist), glm::distance(space.point(handWrist + glm::vec3{0.f, 1.f, 0.f}), hp.wrist),
-                glm::distance(alongZ, hp.wrist)};
-        }
+        hp = handPoseOf(base, rigHands[hand].drawn);
     }
     else
     {

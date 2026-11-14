@@ -4,6 +4,10 @@
 
 #include "vr_api.h"
 
+#include "vr_avatar.hpp"
+#include "vr_backend.hpp"
+#include "Zancle/Math/Abs.hpp"
+
 #include "vr_cvars.hpp"
 #include "vr_handrig.hpp"
 #include "vr_move.hpp"
@@ -29,6 +33,12 @@ struct Drawn
     view::ViewEntity weapon[2];
     float skin[2][handrig::data::numJoints * 12]{};
     int frame{-1}; // host_framecount it was last set up
+    // His body (vr_mp_body), as last posed (the report's: the skeleton, the wrists its arms reached for).
+    view::ViewEntity body;
+    bool bodyPosed{false};
+    avatar::Skeleton skeleton;
+    glm::vec3 handWrist[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    float eyeHeight{0.f};
 };
 struct DrawnAll
 {
@@ -85,6 +95,22 @@ void printCurls(const char* name, const VrDrawnHand& h)
     Con_Printf("%.3f %.3f %.3f", h.thumb.x, h.thumb.y, h.thumb.z);
 }
 
+// A posed body's joints (the harness's mp_body): its scale (world units a metre), the head it was posed under and its
+// head bone, the pelvis, the wrists (per hand), the ankles (per side). No newline.
+void printSkeleton(const char* what, int e, const char* model, const avatar::Skeleton& k)
+{
+    Con_Printf("%s: ent=%d model=%s m2w=%.3f", what, e, model, k.m2w);
+    printVec("head", k.head);
+    printVec("headjoint", k.headJoint);
+    printVec("pelvis", k.pelvis);
+    printVec("wrist0", k.wrist[HAND_OFF]);
+    printVec("wrist1", k.wrist[HAND_MAIN]);
+    printVec("shoulder0", k.shoulder[HAND_OFF]);
+    printVec("shoulder1", k.shoulder[HAND_MAIN]);
+    printVec("ankle0", k.ankle[0]);
+    printVec("ankle1", k.ankle[1]);
+}
+
 // One line per avatar (the harness's mp_avatar): head and hands in the world (from his entity's origin now), the main
 // hand's angles, the curls and thumbs, the weapons' models; then what was drawn of it last frame.
 void printAvatar(int e, const Avatar& a)
@@ -100,6 +126,13 @@ void printAvatar(int e, const Avatar& a)
     Con_Printf(" flags=%d %d wmdl=%d %d wpn=%d %d age=%.0f\n", a.hands[0].flags, a.hands[1].flags, a.hands[0].weaponModel,
         a.hands[1].weaponModel, a.weapon, a.weapon2, (realtime - a.received) * 1000.0);
     const Drawn& d = drawn.of[e];
+    if(d.bodyPosed && d.body.ent.model && (d.frame == host_framecount - 1 || d.frame == host_framecount))
+    {
+        printSkeleton("mp_body", e, d.body.ent.model->name, d.skeleton);
+        printVec("handwrist0", d.handWrist[0]);
+        printVec("handwrist1", d.handWrist[1]);
+        Con_Printf(" eyeheight=%.3f yaw=%.1f\n", d.eyeHeight, a.body.yaw);
+    }
     for(int side = 0; side < 2; side++)
     {
         for(const view::ViewEntity* ve : {&d.hand[side], &d.weapon[side]})
@@ -136,6 +169,12 @@ void avatars_f()
         printVec("hand1", own[1].handOrigin);
         printVec("weapon1", own[1].weaponOrigin);
         Con_Printf(" flags=%d %d wmdl=%d %d\n", own[0].flags, own[1].flags, own[0].weaponModel, own[1].weaponModel);
+        // And his own body as last posed (what the others' copies of it should match).
+        if(avatar::Skeleton k; avatar::skeleton(k) && avatar::posedEntity() && avatar::posedEntity()->model)
+        {
+            printSkeleton("mp_body_own", cl.viewentity, avatar::posedEntity()->model->name, k);
+            Con_Printf("\n");
+        }
     }
     if(sv.active)
     {
@@ -214,6 +253,8 @@ void add(view::ViewEntity& ve)
     }
 }
 
+void setupBody(int e, const Avatar& a, const glm::vec3& origin);
+
 // Avatar `e`'s hands and weapons placed on his entity as drawn now (its lerp: they ride it between messages).
 void setup(int e, const Avatar& a)
 {
@@ -241,6 +282,7 @@ void setup(int e, const Avatar& a)
             }
         }
     }
+    setupBody(e, a, origin);
 }
 
 [[nodiscard]] const Drawn* drawnOf(const entity_t* e, int& side, bool& hand)
@@ -304,6 +346,74 @@ struct CalState
     bool slotHas[MAX_SCOREBOARD]{};
 };
 CalState cal;
+
+// calFields' places (setupBody).
+constexpr int calHeight = 0, calArm = 2, calScale = 3, calBody = 12, calBuild = 13, calBracers = 14;
+
+// Avatar `e`'s body (vr_mp_body; MP_PLAN.md, B2d): posed by the code that poses your own (avatar::poseOther), from his
+// head, his drawn hands (their wrists, as your own body's arms take yours) and how his client poses his body (a.body),
+// at his height, arm length and world scale, his build's model and its bracers or bare forearms (his calibration's; the
+// defaults until it comes). His body mode 0 (none): his player model, as before. Both his jointed hands must be drawn.
+void setupBody(int e, const Avatar& a, const glm::vec3& origin)
+{
+    Drawn& d = drawn.of[e];
+    d.body.visible = false;
+    d.bodyPosed = false;
+    const Calibration* c = cal.has[e] ? &cal.of[e] : nullptr;
+    if(vr_mp_body.value == 0.f || !a.body.valid || (c && c->v[calBody] == 0) || !d.hand[0].visible || !d.hand[1].visible)
+    {
+        return;
+    }
+    avatar::Subject who;
+    int build = 1;
+    bool bare = false;
+    if(c)
+    {
+        who.eyeHeight = static_cast<float>(c->v[calHeight]) / 1000.f;
+        who.armLength = static_cast<float>(c->v[calArm]) / 1000.f;
+        who.metresToUnits = units::perMetre * static_cast<float>(c->v[calScale]) / 1000.f;
+        build = c->v[calBuild];
+        bare = c->v[calBracers] == 0;
+    }
+    // His velocity from his entity's last two messages; on the ground unless rising or falling fast (the client is not
+    // told; a walk down stairs stays on its feet).
+    const entity_t& ent = cl_entities[e];
+    const double dt = cl.mtime[0] - cl.mtime[1];
+    const glm::vec3 moved{ent.msg_origins[0][0] - ent.msg_origins[1][0], ent.msg_origins[0][1] - ent.msg_origins[1][1],
+        ent.msg_origins[0][2] - ent.msg_origins[1][2]};
+    who.velocity = dt > 1e-4 && dt < 0.5 && glm::length(moved) < 64.f ? moved / static_cast<float>(dt) : glm::vec3{0.f};
+    who.onGround = za::abs(who.velocity.z) < 120.f;
+
+    hands::State s;
+    s.valid = true;
+    s.head = origin + a.head;
+    s.headAngles = a.headAngles;
+    s.playerOrigin = origin;
+    s.lean = glm::vec3{a.head.x, a.head.y, 0.f};
+    s.bodyYaw = a.body.yaw;
+    s.headHeight = a.body.headHeight;
+    s.standingHeight = a.body.standingHeight;
+    s.leanHold = a.body.leanHold;
+    s.crouchRatio = s.headHeight > 0.f ? za::clamp(who.eyeHeight / s.headHeight - 1.f, 0.f, 1.f) : 0.f;
+    avatar::HandPose poses[2];
+    view::remoteHandPose(d.hand[0], poses[HAND_OFF]);
+    view::remoteHandPose(d.hand[1], poses[HAND_MAIN]);
+    qmodel_t* model = view::bodyModel(build, bare);
+    if(!model)
+    {
+        return;
+    }
+    const glm::vec3 at = avatar::poseOther(e, who, s, model, &d.body.ent, poses);
+    if(!avatar::otherSkeleton(e, d.skeleton))
+    {
+        return;
+    }
+    placeEntity(d.body, model, at, glm::vec3{0.f}, 0, 0, false);
+    d.bodyPosed = true;
+    d.handWrist[0] = poses[HAND_OFF].wrist;
+    d.handWrist[1] = poses[HAND_MAIN].wrist;
+    d.eyeHeight = who.eyeHeight;
+}
 
 [[nodiscard]] int calClamp(int field, int v)
 {
@@ -511,6 +621,7 @@ void parse()
     a.flat = (MSG_ReadByte() & 1) != 0;
     a.head = readEighths();
     a.headAngles = readAngles16();
+    a.body = readBodyPose();
     for(VrDrawnHand& h : a.hands)
     {
         h = readDrawnHand(glm::vec3{0.f}); // (offsets from his entity's origin)
@@ -554,6 +665,20 @@ void addEntities()
         {
             add(d.weapon[side]);
             add(d.hand[side]);
+        }
+        if(d.body.visible && d.body.ent.model)
+        {
+            // In his player model's place (it would stand round the body), or added.
+            bool replaced = false;
+            for(int i = 0; i < cl_numvisedicts && !replaced; i++)
+            {
+                replaced = cl_visedicts[i] == &cl_entities[e];
+                cl_visedicts[i] = replaced ? &d.body.ent : cl_visedicts[i];
+            }
+            if(!replaced)
+            {
+                add(d.body);
+            }
         }
     }
 }

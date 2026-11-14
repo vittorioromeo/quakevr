@@ -16,7 +16,11 @@ Tests:
              angles within 3 degrees, his weapon; none of himself; A closes his off hand: its finger curls at B within a
              step of the server's, closed; B draws A's jointed hands (and his weapon's model) where A drew them; the
              bytes it costs and the avatars the server sent and skipped as unchanged.
-    suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, version, avatar.
+    avatarcal  each client's avatar calibration (height, arm length, gloves, body...) reaches the other and the server.
+    body     B draws A's body (avatar::poseOther: the code that poses A's own): A's build's model, its wrists at A's drawn
+             hands, its joints (head, pelvis, shoulders, wrists) within 1.5 units of A's own body and its scale A's; a
+             screenshot pair (B facing A); A's Height raised: B's copy grows by as much (its scale and shoulders), as A's own.
+    suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, version, avatar, avatarcal, body.
 
 The base folder is a Quake folder with id1 (and hipnotic, rogue, quakevr: -game as the kit's runs). Its
 id1/autoexec.cfg runs in every game: --reset-autoexec empties it first (the kit's test bases: a run's script).
@@ -399,6 +403,116 @@ def avatarcal(s):
     s.check("B joins again: he has A's calibration (sent at his spawn), A has his", True, "after %d reports" % n)
 
 
+BODY_UNITS = 1.5    # B's copy of A's body: its joints within this of A's own body (units)
+BODY_WRIST = 1.0    # ... its wrists within this of A's drawn hands' wrists (the arms reach them)
+BODY_SCALE = 0.005  # ... its scale (world units a metre) within this share of A's own
+
+
+def body_of(lines, prefix):
+    """"mp_body:" / "mp_body_own:" lines -> {ent: fields (avatar_fields) with "model"}."""
+    out = {}
+    for l in lines:
+        if l.startswith(prefix + ":"):
+            f = avatar_fields(l)
+            m = re.search(r"model=(\S+)", l)
+            f["model"] = m.group(1) if m else ""
+            out[int(f["ent"][0])] = f
+    return out
+
+
+def dist(a, b):
+    return math.sqrt(sum((x - y) ** 2 for x, y in zip(a, b)))
+
+
+def face(s, a, b, head_a, head_b):
+    """A and B turn to face each other (B steps towards A, the stick let go as he moves off); A holds both hands up."""
+    yaw_b = math.degrees(math.atan2(head_a[1] - head_b[1], head_a[0] - head_b[0]))
+    since_a, since_b = a.mark(), b.mark()
+    a.cmd("vr_mock_hand main 0.2 1.3 -0.35 0 0 0; vr_mock_hand off -0.25 1.45 -0.3 0 0 0; "
+          "vr_mock_turn_to %.0f" % (yaw_b + 180.0))
+    b.cmd("vr_mock_turn_to %.0f" % yaw_b)
+    a.wait(r"vr_mock_turn_to: facing", 20, since_a, "A turned to face B")
+    b.wait(r"vr_mock_turn_to: facing", 20, since_b, "B turned to face A")
+    a.cmd("vr_mock_turn_to off")
+    since_b = b.mark()
+    b.cmd("vr_mock_turn_to off; vr_mock_stick off 0 1")
+    b.wait(r"mp_move: .*self=1", 20, since_b, "B stepping towards A")
+    b.cmd("vr_mock_stick off 0 0")
+    b.wait(r"mp_stop: .*self=1", 20, since_b, "B stopping")
+
+
+def body(s):
+    """B draws A's body, posed from A's avatar by the code that poses A's own (vr_avatar.cpp poseOther): A's build's
+    model, its arms reaching A's drawn hands, its joints where A's own body has them, its scale A's (his calibration).
+    A raises his Height: B's copy grows as A's own does. A screenshot pair: B facing A before and after."""
+    srv, a, b, ea, eb = join(s)
+    b.quiet(r"mp_(move|pos): ", 0.5, 20, "both at rest")
+    a.cmd("vr_body_build 2")  # (the brawny build: B must draw A's, not his own athletic one)
+    la, lb = reports(s, [a, b])
+    head_a = (by_ent(lb, "mp_avatar").get(ea) or {}).get("head")
+    head_b = (by_ent(la, "mp_avatar").get(eb) or {}).get("head")
+    s.check("each has the other's avatar", head_a is not None and head_b is not None)
+    if head_a is None or head_b is None:
+        return
+    face(s, a, b, head_a, head_b)
+
+    def settled(lines):
+        la, lb = lines
+        own, copy = body_of(la, "mp_body_own").get(ea), body_of(lb, "mp_body").get(ea)
+        return own is not None and copy is not None and "brawny" in own["model"] and copy["model"] == own["model"] and \
+            abs(copy["m2w"][0] / own["m2w"][0] - 1.0) <= BODY_SCALE and dist(copy["pelvis"], own["pelvis"]) <= BODY_UNITS
+
+    (la, lb), n = reports_until(s, [a, b], settled, "B draws A's body (his build) where A's own is", 30)
+    own, copy = body_of(la, "mp_body_own")[ea], body_of(lb, "mp_body")[ea]
+    s.note("A: " + next(l.strip() for l in la if l.startswith("mp_body_own:")))
+    s.note("B: " + next(l.strip() for l in lb if l.startswith("mp_body:")))
+    s.check("B draws A's body as A's build's model", copy["model"] == own["model"], "%s (A's own %s), after %d reports"
+            % (copy["model"], own["model"], n))
+    reach = max(dist(copy["wrist%d" % h], copy["handwrist%d" % h]) for h in (0, 1))
+    s.metric("body_wrist_to_hand", reach)
+    s.check("B's copy's wrists at A's drawn hands (within %g units)" % BODY_WRIST, reach <= BODY_WRIST, "%.2f" % reach)
+    worst, which = 0.0, ""
+    for k in ("headjoint", "pelvis", "shoulder0", "shoulder1", "wrist0", "wrist1"):
+        d = dist(copy[k], own[k])
+        if d > worst:
+            worst, which = d, k
+    s.metric("body_joint_worst", worst)
+    s.check("B's copy's head, pelvis, shoulders and wrists within %g units of A's own" % BODY_UNITS, worst <= BODY_UNITS,
+            "worst %.2f (%s)" % (worst, which))
+    feet = max(dist(copy["ankle%d" % f], own["ankle%d" % f]) for f in (0, 1))
+    s.metric("body_ankle_worst", feet)
+    s.note("ankles: B's copy %.2f units from A's own (their stance is each body's own)" % feet)
+    s.note("screenshot: %s" % b.screenshot("sees_A_body"))
+
+    # A raises his Height: his body is scaled to it, and B's copy (his calibration, sent on change) with it.
+    before_m2w, before_sh, before_eye = copy["m2w"][0], dist(copy["shoulder0"], copy["shoulder1"]), copy["eyeheight"][0]
+    height = 1.95
+    a.cmd("vr_height_calibration %g" % height)
+
+    def grown(lines):
+        la, lb = lines
+        own, copy = body_of(la, "mp_body_own").get(ea), body_of(lb, "mp_body").get(ea)
+        return own is not None and copy is not None and own["m2w"][0] > before_m2w * 1.05 and \
+            abs(copy["m2w"][0] / own["m2w"][0] - 1.0) <= BODY_SCALE
+
+    (la, lb), n = reports_until(s, [a, b], grown, "A's Height raised: B's copy grows as A's own", 30)
+    own, copy = body_of(la, "mp_body_own")[ea], body_of(lb, "mp_body")[ea]
+    ratio = copy["m2w"][0] / before_m2w
+    sh = dist(copy["shoulder0"], copy["shoulder1"]) / before_sh
+    want = height / before_eye
+    s.metric("body_grown_scale", ratio)
+    s.metric("body_grown_shoulders", sh)
+    s.check("A's Height raised: B's copy's scale is A's own (within %g)" % BODY_SCALE,
+            abs(copy["m2w"][0] / own["m2w"][0] - 1.0) <= BODY_SCALE, "B %.3f, A %.3f, after %d reports"
+            % (copy["m2w"][0], own["m2w"][0], n))
+    s.check("B's copy taller by the Height's ratio (scale and shoulders, within 2%)",
+            abs(ratio / want - 1.0) <= 0.02 and abs(sh / want - 1.0) <= 0.02,
+            "scale x%.3f, shoulders x%.3f, the Height x%.3f" % (ratio, sh, want))
+    s.note("screenshot: %s" % b.screenshot("sees_A_tall"))
+
+
+
+
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
     s = Session(args.exe, args.base, args.out, test, port=args.port)
     failure = None
@@ -411,6 +525,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             avatarcal(s)
         elif test == "mp_avatar":
             avatar(s)
+        elif test == "mp_body":
+            body(s)
         else:
             coop(s, args.listen, args.flat or "", lag, jitter, loss)
     except StepFailed as e:
@@ -423,7 +539,7 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -446,7 +562,7 @@ def main():
                 sys.exit(2)
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
-    elif args.test in ("bandwidth", "version", "avatar", "avatarcal"):
+    elif args.test in ("bandwidth", "version", "avatar", "avatarcal", "body"):
         ok = run(args, "mp_" + args.test)
     else:
         ok = run(args, "mp_coop")
@@ -455,6 +571,7 @@ def main():
         ok = run(args, "mp_version") and ok
         ok = run(args, "mp_avatar") and ok
         ok = run(args, "mp_avatarcal") and ok
+        ok = run(args, "mp_body") and ok
         print("mp_suite: %s" % ("passed" if ok else "FAILED"))
     sys.exit(0 if ok else 1)
 

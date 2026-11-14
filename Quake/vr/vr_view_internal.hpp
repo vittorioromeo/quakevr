@@ -967,6 +967,7 @@ struct HolsterSeen
 inline HolsterSeen holsterSeen[HolsterCount];
 
 [[nodiscard]] avatar::HandPose drawnHand(const hands::State& s, int hand);
+[[nodiscard]] avatar::HandPose handPoseOf(const view::ViewEntity& base, bool rig);
 void gadgetTouches(const hands::State& s, bool posingNow);
 void quadArcs(const hands::State& s);
 void powerupInfo_f();

@@ -548,6 +548,12 @@ void poseMove(VrMove& move)
     if(cl.maxclients > 1)
     {
         view::netHands(move.drawn);
+        // (and how his body is posed under them: B2d)
+        move.body.valid = hs.valid;
+        move.body.yaw = hs.bodyYaw;
+        move.body.headHeight = hs.headHeight;
+        move.body.standingHeight = hs.standingHeight;
+        move.body.leanHold = hs.leanHold;
     }
 
     move.headVel = hs.headVel;

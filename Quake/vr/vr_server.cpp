@@ -74,7 +74,7 @@ struct ClientMove
 za::Vector<ClientMove> clientMoves;
 
 // Per client slot: its avatar as last sent (writeAvatars: an unchanged one waits for its keyframe); and the counts.
-constexpr int avatarMaxBytes = 160; // (2 + 2 + 1 + 12 + 2 * 47 + 8 = 119 at most)
+constexpr int avatarMaxBytes = 160; // (2 + 2 + 1 + 12 + 8 + 2 * 47 + 8 = 127 at most)
 struct AvatarSent
 {
     byte bytes[avatarMaxBytes]{};
@@ -1447,6 +1447,7 @@ void writeAvatars()
         MSG_WriteByte(&tmp, (m.move.vrBits0 & protocol::moveFlatplayBit) ? 1 : 0);
         writeEighths(&tmp, m.move.headPos - m.base); // (rebaseHands moves the head and its base along together)
         writeAngles16(&tmp, m.move.headAngles);
+        writeBodyPose(&tmp, m.move.body); // (his body's yaw, crouch and lean, as his client poses it: B2d)
         for(const VrDrawnHand& h : m.move.drawn)
         {
             writeDrawnHand(&tmp, h, origin);

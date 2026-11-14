@@ -1,7 +1,8 @@
 // vr_mpavatar.hpp -- other players' VR state (QVR_SVC_AVATAR): their heads, and their hands and held weapons as their own
 // clients drew them (the jointed hand's place, its fingers' curls and thumb; the weapon's model, frame and place), kept per
 // player and drawn on his entity (MP_PLAN.md, B2b). The server writes them (vr_server.cpp writeAvatars) to each client
-// that sees that player. The body under them (vr_avatar.cpp's, posed from them) is the next phase's.
+// that sees that player. His body under them is vr_avatar.cpp's, posed from them by the code that poses your own (B2d:
+// avatar::poseOther), sized and dressed by his calibration; it takes his player model's place (vr_mp_body).
 
 #pragma once
 
@@ -18,6 +19,7 @@ struct Avatar
     bool flat{false};     // a flatscreen player
     glm::vec3 head{0.f};  // from his entity's origin
     glm::vec3 headAngles{0.f};
+    VrBodyPose body;      // how his client poses his body (its yaw, the head's height, the lean)
     VrDrawnHand hands[2]; // [0] off hand, [1] main hand; places from his entity's origin
     int weapon{0};
     int weapon2{0};

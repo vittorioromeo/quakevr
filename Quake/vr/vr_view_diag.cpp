@@ -276,6 +276,26 @@ qmodel_t* remoteHandSkin(int hand, const VrDrawnHand& h, float* out)
     return remoteRigSkin(model, hand, h, out) ? model : nullptr;
 }
 
+void remoteHandPose(const ViewEntity& hand, avatar::HandPose& out)
+{
+    out = handPoseOf(hand, true);
+}
+
+qmodel_t* bodyModel(int build, bool bare)
+{
+    // (setupBody's choice: the build's bare model, its own, the athletic one)
+    if(qmodel_t* m = bare ? viewModel(bodyModelName(build, true)) : nullptr; m && avatar::usable(m))
+    {
+        return m;
+    }
+    if(qmodel_t* m = viewModel(bodyModelName(build, false)); avatar::usable(m))
+    {
+        return m;
+    }
+    qmodel_t* m = viewModel("progs/vrbody.mdl");
+    return avatar::usable(m) ? m : nullptr;
+}
+
 void ragdollHandProbe_f()
 {
     const float cm = 100.f / units::metresToUnits();

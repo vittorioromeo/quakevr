@@ -13,6 +13,11 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 
+namespace qvr::avatar
+{
+struct HandPose;
+}
+
 namespace qvr::view
 {
 
@@ -453,6 +458,12 @@ void netHands(VrDrawnHand out[2]);
 // Another player's jointed hand `h` (his hand `hand`: its fingers' places as your settings put them): posed and skinned
 // into `out` (handrig::skin's matrices). The rig's model, or nullptr: no jointed hand to draw.
 qmodel_t* remoteHandSkin(int hand, const VrDrawnHand& h, float* out);
+// Another player's drawn jointed hand (its entity, placed by vr_mpavatar.cpp): its wrist and orientation as your own drawn
+// hands' are taken for your body's arms (his body's arms reach it).
+void remoteHandPose(const ViewEntity& hand, avatar::HandPose& out);
+// The body model of a build (vr_body_build's; `bare`: its bare forearms', vr_body_bracers 0), falling back as your own body
+// does (the athletic build's): usable as the VR body, or nullptr.
+[[nodiscard]] qmodel_t* bodyModel(int build, bool bare);
 // The armour's plates on your body (vr_player_plates; vr_view_body.cpp setupPlates): `e`'s bones if it is one of their
 // entities (0: not), the body's as this pass draws them, a hidden piece's collapsed, the helmet only where the head is
 // drawn (View: as VR_AliasBonePoses has the body; Shadow: as the shadow maps have it; Clone: its mirror image, with its head).

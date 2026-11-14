@@ -14,6 +14,7 @@
 
 #include "vr_engine.hpp" // qmodel_t, entity_t
 #include "vr_hands.hpp"
+#include "vr_units.hpp"
 #include "Zancle/Container/Vector.hpp"
 
 namespace qvr::avatar
@@ -245,8 +246,29 @@ struct Skeleton
     float sole[2]{0.f, 0.f};                          // the ankle's height over the sole, world units
     unsigned steps[2]{0u, 0u}; // each foot's touchdowns so far: the walk's swings ending, the standing steps (counting up)
     glm::vec3 head{0.f};       // the head it was posed under (hands::State::head)
+    glm::vec3 headJoint{0.f};  // the head bone as posed (the skull's base)
+    glm::vec3 pelvis{0.f};     // the pelvis as posed
 };
 [[nodiscard]] bool skeleton(Skeleton& out);
+
+// Another player's body (MP_PLAN.md, B2d; vr_mpavatar.cpp draws them): posed by pose()'s own code from his avatar (his
+// head, the hands as his client drew them), sized by his calibration, with its own motion (feet, gait, the arms' easing)
+// kept per player. What pose() reads of the local player is his instead:
+struct Subject
+{
+    float metresToUnits{units::perMetre};   // his world scale's (units::metresToUnits)
+    float eyeHeight{units::modelEyeHeight}; // metres (units::eyeHeight: his Height)
+    float armLength{1.f};                   // his vr_body_arm_length
+    glm::vec3 velocity{0.f};                // his entity's, world units a second
+    bool onGround{true};
+};
+// `player`: 1 .. MAX_SCOREBOARD. Returns the entity origin (the pelvis), as pose(). Not his swimming, lying down or
+// climbing yet (upright, the legs walking), nor his own arm measurements (his arm length's proportions).
+glm::vec3 poseOther(int player, const Subject& who, const hands::State& s, qmodel_t* model, const entity_t* ent,
+    const HandPose handPoses[2]);
+// Player `player`'s body as posed this frame (false: not posed this frame), and its shoulders (the pauldrons).
+[[nodiscard]] bool otherSkeleton(int player, Skeleton& out);
+[[nodiscard]] bool otherShoulder(int player, int side, Shoulder& out);
 // The same body carried by the head's move since it was posed, to under `head` (this frame's hands::State::head): for
 // what is placed before this frame's body is posed (flatplay::drawnOffset's arm hold, flatsight's helping hand). The body
 // as drawn is a frame old there, and a frame's move (a slide at 400 u/s, a long frame) is units: a frame-time-dependent

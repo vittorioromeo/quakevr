@@ -30,6 +30,7 @@
 #include "vr_view.hpp"
 #include "vr_mpavatar.hpp"
 
+#include "Zancle/Base/Swap.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -219,6 +220,38 @@ namespace detail
 // Climbing's weight (Climbing::weight, 0 .. 1), for solveTorso: the lean taken out while climbing.
 float climbHang = 0.f;
 
+const Subject* subject = nullptr;
+
+float metresToUnits()
+{
+    return subject ? subject->metresToUnits : units::metresToUnits();
+}
+
+float eyeHeight()
+{
+    return subject ? subject->eyeHeight : units::eyeHeight();
+}
+
+float bodyScale()
+{
+    return subject ? subject->eyeHeight / units::modelEyeHeight : units::bodyScale();
+}
+
+bool localFlat()
+{
+    return !subject && flatplay::active();
+}
+
+glm::vec3 velocity()
+{
+    return subject ? subject->velocity : glm::vec3{cl.velocity[0], cl.velocity[1], cl.velocity[2]};
+}
+
+bool onGround()
+{
+    return subject ? subject->onGround : cl.onground;
+}
+
 // World position of `joint` from its posed parent.
 [[nodiscard]] glm::vec3 childPos(const Body& b, int joint)
 {
@@ -245,9 +278,9 @@ namespace
 [[nodiscard]] float legFit(const hands::State& s, Body& b)
 {
     b.legM2w = b.m2w;
-    const float m2u = units::metresToUnits();
+    const float m2u = detail::metresToUnits();
     const float scaledFor = b.m2w / m2u * units::modelEyeHeight; // the eye height the body is scaled to
-    if(!vr_body_leg_fit.value || seated::active() || s.standingHeight <= 0.f)
+    if(!vr_body_leg_fit.value || (!posingOther() && seated::active()) || s.standingHeight <= 0.f)
     {
         return 0.f;
     }
@@ -276,8 +309,8 @@ namespace
 void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPose = true)
 {
     const Bind& bd = bind();
-    b.m2w = units::metresToUnits() * (scale > 0.f ? scale : units::bodyScale());
-    b.floorZ = s.head.z - s.headHeight * units::metresToUnits();
+    b.m2w = detail::metresToUnits() * (scale > 0.f ? scale : detail::bodyScale());
+    b.floorZ = s.head.z - s.headHeight * detail::metresToUnits();
     const float standLift = legFit(s, b);
 
     glm::vec3 right, up;
@@ -290,7 +323,7 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     // the neck under it is measured as with a level look (with the look's pitch, the whole body slid back and up under a look
     // down and forward past the eye under a look up: the camera inside its chest and shoulders).
     glm::vec3 nf = hf, nr = hr, nu = hu;
-    if(flatplay::active())
+    if(localFlat())
     {
         hands::angleVectors({0.f, s.headAngles.y, 0.f}, nf, nr, nu);
     }
@@ -310,7 +343,7 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     if(leanLen > 0.01f)
     {
         // Down from where the player stands up straight (learnt: the calibrated height is only close to it).
-        const float leanDrop = za::max(0.f, s.standingHeight - s.headHeight) * units::metresToUnits();
+        const float leanDrop = za::max(0.f, s.standingHeight - s.headHeight) * detail::metresToUnits();
         const float h = za::min(leanDrop, torsoLen);
         const float allowed = za::sqrt(za::max(0.f, torsoLen * torsoLen - (torsoLen - h) * (torsoLen - h)));
         // Only as sure as it is a lean (vr_lean_detect): the body lagging the head as the player walks in the room
@@ -320,7 +353,7 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     }
     // Body tracking (vr_bodytrack.cpp; not the reference poses): the tracked spine's tilt blended in, which then also
     // tells the crouch from the lean (the drop it does not explain is a crouch) and replaces the crouch's own tilt.
-    const bodytrack::Trunk tracked = crouchPose ? bodytrack::trunk() : bodytrack::Trunk{};
+    const bodytrack::Trunk tracked = crouchPose && !posingOther() ? bodytrack::trunk() : bodytrack::Trunk{};
     glm::vec3 leanDir = leanLen > 0.01f ? leanOff / leanLen : b.fwd;
     if(tracked.weight > 0.f)
     {
@@ -350,7 +383,7 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     const float w = b.crouchPose;
     glm::vec3 top = standingTop - (nf * vr_body_crouch_eye_forward.value + nu * vr_body_crouch_eye_up.value) * (w * b.m2w);
     // Flatscreen play: the crouch takes his shoulders further down off the eye than his head goes (world units, as the mode's own).
-    top += flatplay::crouchNeck(nf, s.headAngles.x) * w;
+    top += posingOther() ? glm::vec3{0.f} : flatplay::crouchNeck(nf, s.headAngles.x) * w;
     // Sliding (flat-screen play, vr_flatmove.cpp): the leant-back trunk hangs off a neck further back than the eye (the
     // chin to the chest): the chest under the view, the legs out in front seen past it (vr_flat_slide_neck_back).
     // (Not the reference poses: the Follower's upright reference moved back with it, the holsters and pouches it carries
@@ -427,7 +460,7 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     }
     // Flatscreen play: the chest takes a share of the look's pitch, half of it in the spine below (flatplay::chestPitch), and leans
     // into a gun sighted in both hands (flatsight::stanceLean: the head stays, the collapsed neck spans it).
-    if(crouchPose && flatplay::active())
+    if(crouchPose && localFlat())
     {
         // (Not in a slide: the leant-back trunk stays straight, its chest under the view: vr_flatmove.cpp.)
         const float lean = (flatplay::chestPitch(s.headAngles.x) + (flatplay::onBody() ? flatsight::stanceLean() : 0.f)) *
@@ -503,7 +536,7 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     Bone& n = b.bones[Neck];
     n = Bone{};
     n.pos = childPos(b, Neck);
-    const glm::vec3 headAt = top + flatplay::headLean(s.headAngles); // (flatscreen play: the chest's share of the look carries the head)
+    const glm::vec3 headAt = top + (posingOther() ? glm::vec3{0.f} : flatplay::headLean(s.headAngles)); // (flatscreen play: the chest's share of the look carries the head)
     n.rot = basis(headAt - n.pos, turn * b.fwd);
     n.size = COLLAPSED;
 
@@ -805,13 +838,15 @@ struct ArmLengths
 };
 [[nodiscard]] ArmLengths armLengths(float m2w)
 {
-    const float length = CLAMP(0.5f, vr_body_arm_length.value, 2.f);
-    const float cm = units::metresToUnits() * 0.01f;
+    const float length = CLAMP(0.5f, subject ? subject->armLength : vr_body_arm_length.value, 2.f);
+    const float cm = detail::metresToUnits() * 0.01f;
     ArmLengths r;
-    const float mu = bodycal::measuredArmCm(0), mf = bodycal::measuredArmCm(1);
-    r.upper = za::max(5.f * cm, (mu > 0.f ? mu * cm : boneLength(UpperArmL, ForearmL) * m2w * length) + bodycal::armTweakCm(0) * cm);
-    r.fore = za::max(5.f * cm, (mf > 0.f ? mf * cm : boneLength(ForearmL, HandL) * m2w * length) + bodycal::armTweakCm(1) * cm);
-    r.calibrated = bodycal::calibrated();
+    // (another player's: his arm length's proportions; his own measurements and tweaks are his client's)
+    const float mu = subject ? 0.f : bodycal::measuredArmCm(0), mf = subject ? 0.f : bodycal::measuredArmCm(1);
+    const float tweak[2]{subject ? 0.f : bodycal::armTweakCm(0), subject ? 0.f : bodycal::armTweakCm(1)};
+    r.upper = za::max(5.f * cm, (mu > 0.f ? mu * cm : boneLength(UpperArmL, ForearmL) * m2w * length) + tweak[0] * cm);
+    r.fore = za::max(5.f * cm, (mf > 0.f ? mf * cm : boneLength(ForearmL, HandL) * m2w * length) + tweak[1] * cm);
+    r.calibrated = !subject && bodycal::calibrated();
     return r;
 }
 
@@ -880,7 +915,7 @@ ArmEase armEase;
 // his note 2026-11-05, "a little bit of IK stretch like we did for the enemies"), eased in and back (once a frame of game time).
 [[nodiscard]] float armStretchNow(int side)
 {
-    const bool onBlade = cl.stats[side == 1 ? protocol::STAT_QVR_EMBEDMAIN : protocol::STAT_QVR_EMBEDOFF] > 0;
+    const bool onBlade = !posingOther() && cl.stats[side == 1 ? protocol::STAT_QVR_EMBEDMAIN : protocol::STAT_QVR_EMBEDOFF] > 0;
     float& w = armEase.embed[side];
     double& at = armEase.embedTime[side];
     const float dt = at >= 0.0 ? static_cast<float>(CLAMP(0.0, vr_gametime - at, 0.1)) : 0.f;
@@ -925,7 +960,7 @@ struct ClavicleRest
     // Crouched (vr_body_crouch_shoulders_*): further back, up and out, and the collarbone swung back and up about the
     // base of the neck, as deep as the crouch (Body::crouchPose).
     const float crouched = b.crouchPose;
-    const glm::vec3 so = bodycal::shoulderOffset() + glm::vec3{vr_body_crouch_shoulders_back.value,
+    const glm::vec3 so = (posingOther() ? bodycal::defaultShoulderOffset() : bodycal::shoulderOffset()) + glm::vec3{vr_body_crouch_shoulders_back.value,
                                                          vr_body_crouch_shoulders_up.value, vr_body_crouch_shoulders_out.value} *
                                                          crouched;
     out.pos = childPos(b, clav) + (-cFwd * so.x + cUp * so.y + out.lateral * so.z) * b.m2w;
@@ -967,8 +1002,9 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     const float armLen =
         lengths.calibrated ? lengths.upper + lengths.fore : (boneLength(upper, fore) + boneLength(fore, hand)) * b.m2w;
     const glm::vec3 restShoulder = c.pos + rest * (localOffset(upper) * b.m2w);
-    c.rot = clavicleTurn(wrist - restShoulder, lateral, cUp, cFwd, armLen, bodycal::shoulderRise(),
-                bodycal::shoulderSwing(), lengths.calibrated) *
+    c.rot = clavicleTurn(wrist - restShoulder, lateral, cUp, cFwd, armLen,
+                posingOther() ? bodycal::defaultShoulderRise() : bodycal::shoulderRise(),
+                posingOther() ? bodycal::defaultShoulderSwing() : bodycal::shoulderSwing(), lengths.calibrated) *
             rest;
 
     // Body tracking (vr_bodytrack_arm_fit, by the arm weight): the clavicle turns on, about the base of the neck, to take
@@ -977,7 +1013,7 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     glm::vec3 trackedElbow{0.f};
     float trackedFit = 0.f;
     bodytrack::ArmFit fitReport; // (vr_bodytrack_stats, vr_bodytrack_dump)
-    if(easeWrists && bodytrack::trackedArm(side, trackedShoulder, trackedElbow, trackedFit))
+    if(easeWrists && !posingOther() && bodytrack::trackedArm(side, trackedShoulder, trackedElbow, trackedFit))
     {
         fitReport.weight = trackedFit;
         const glm::vec3 from = safeNormalize(c.rot * localOffset(upper), lateral);
@@ -1093,7 +1129,7 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     // (flatsight::elbowPole), as a person's support elbow goes, not up in front of the eye the arm's own pole turns it to there;
     // the wrist's ease below swings it back by as little of that share.
     float flatElbow = 0.f;
-    if(glm::vec3 way; easeWrists && (flatElbow = flatsight::elbowPole(side == 0 ? HAND_OFF : HAND_MAIN, way)) > 0.f)
+    if(glm::vec3 way; easeWrists && !posingOther() && (flatElbow = flatsight::elbowPole(side == 0 ? HAND_OFF : HAND_MAIN, way)) > 0.f)
     {
         pole = glm::mix(pole, way * glm::length(pole), flatElbow);
     }
@@ -1122,7 +1158,7 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     float(&lastSwivel)[2] = armEase.swivel;
     double(&lastSwivelTime)[2] = armEase.swivelTime;
     float swivel = 0.f;
-    costTrace.want = easeWrists && vr_debug_arm.value == 1.f;
+    costTrace.want = easeWrists && !posingOther() && vr_debug_arm.value == 1.f;
     if(const float limits = easeWrists ? vr_body_wrist_limits.value : 0.f; limits > 0.f && glm::length(handPose.forward) > 0.5f)
     {
         const glm::vec3 axis = safeNormalize(wrist - u.pos);
@@ -1141,7 +1177,7 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     lastSwivel[side] = swivel;
 
     // Body tracking (vr_bodytrack.cpp): the elbow swung round to the tracked elbow's side (the hand stays).
-    if(easeWrists)
+    if(easeWrists && !posingOther())
     {
         bodytrack::swivelElbow(side, u.pos, wrist, elbow, bend);
     }
@@ -1154,7 +1190,8 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     {
         // (Its joint kept 2 cm out: 3 cm of its flesh's 5.5, less the centimetre an arm at rest lies against the torso
         // by; a relaxed arm hanging at the side is 2.5 cm out.)
-        const float want = selfcollide::elbowSwing(u.pos, elbow, wrist, 0.03f * b.m2w);
+        // (another player's: none; the torso's capsules are the local body's)
+        const float want = posingOther() ? 0.f : selfcollide::elbowSwing(u.pos, elbow, wrist, 0.03f * b.m2w);
         const double now = vr_gametime;
         const double since = lastOutTime[side] >= 0.0 ? CLAMP(0.0, now - lastOutTime[side], 0.1) : -1.0;
         const float out = since < 0.0 ? want : glm::mix(lastOut[side], want, 1.f - za::exp(-static_cast<float>(since) / 0.05f));
@@ -1199,12 +1236,12 @@ void solveArm(Body& b, int side, const HandPose& handPose)
         a = fa;
         l = fl;
     }
-    if(easeWrists)
+    if(easeWrists && !posingOther())
     {
         bodytrack::armFitted(side, fitReport);
     }
 
-    if(easeWrists && vr_debug_arm.value != 0.f)
+    if(easeWrists && !posingOther() && vr_debug_arm.value != 0.f)
     {
         traceArm(b, side, u.pos, poleElbow, poleBend, elbow, bend, wrist, handRot, swivel, tuck, lastOut[side]);
     }
@@ -1348,6 +1385,49 @@ struct ForearmTwist
     float angles[twistJoints + 2]{}; // radians
 };
 ForearmTwist forearms[2];
+
+// The other players' bodies (poseOther), by player entity: each one's state from frame to frame, swapped in for the
+// globals above (the body being posed) while it is posed, and what was posed.
+struct Other
+{
+    int frame{-1};        // host_framecount it was last posed
+    double posedAt{-1.0}; // realtime then (a body not posed for a while starts afresh)
+    Motion motion;
+    ArmEase armEase;
+    ForearmTwist forearms[2];
+    Posed posed;
+    Skeleton skeleton;
+    bool bareArms{false};
+};
+Other others[MAX_SCOREBOARD + 1];
+
+void swapOther(Other& o)
+{
+    swapMotion(o.motion);
+    za::genericSwap(armEase, o.armEase);
+    za::genericSwap(forearms[0], o.forearms[0]);
+    za::genericSwap(forearms[1], o.forearms[1]);
+    za::genericSwap(posed, o.posed);
+    za::genericSwap(posedSkeleton, o.skeleton);
+    za::genericSwap(bareArms, o.bareArms);
+}
+
+// The other player's body drawn as `e` this frame, or null.
+[[nodiscard]] const Other* otherDrawn(const entity_t* e)
+{
+    if(!e || cl.maxclients <= 1)
+    {
+        return nullptr;
+    }
+    for(const Other& o : others)
+    {
+        if(o.posed.ent == e && o.frame == host_framecount)
+        {
+            return &o;
+        }
+    }
+    return nullptr;
+}
 
 // The turn about `axis` (radians, -pi .. pi) that takes `from` to `to`, less any swing off it.
 [[nodiscard]] float twistAbout(const glm::mat3& from, const glm::mat3& to, const glm::vec3& axis)
@@ -1645,7 +1725,7 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
     QVR_PROFILE("avatar IK");
     Body b;
     solveTorso(s, b);
-    debugHead = s.head;
+    debugHead = posingOther() ? debugHead : s.head;
     const ModelInfo* known = infoOf(model);
     bareArms = known && known->bare;
 
@@ -1657,10 +1737,15 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
     {
         updateWater(b, s, dt);
     }
-    updateBodyPitch(s, dt); // (next frame's solveTorso: the trunk's turn)
+    // (Another player's: upright; his swimming, lying down and climbing are his client's to send: MP_PLAN.md, B5.)
+    if(!posingOther())
+    {
+        updateBodyPitch(s, dt); // (next frame's solveTorso: the trunk's turn)
+    }
     updateGait(b, dt);
     const glm::vec3 stand = s.head - glm::vec3{s.lean.x, s.lean.y, 0.f}; // where the body stands (the box's middle)
     updateStance(b, stand, dt);
+    if(!posingOther())
     {
         const double t0 = vr_debug_climb_feet.value >= 2.f ? Sys_DoubleTime() : 0.0;
         updateClimbing(b, dt, legs);
@@ -1669,9 +1754,12 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
     glm::mat3 still[2];
     solveLeg(b, stand, 0, legs, still[0]);
     solveLeg(b, stand, 1, legs, still[1]);
-    logClimbing(b);
-    traceLean(b, s);
-    captureLieProbe(b, s);
+    if(!posingOther())
+    {
+        logClimbing(b);
+        traceLean(b, s);
+        captureLieProbe(b, s);
+    }
 
     // The thighs relative to the pelvis, as they are and standing still (Follower::thigh).
     posed.legs = legs;
@@ -1692,6 +1780,8 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
         Skeleton& k = posedSkeleton;
         k.m2w = b.m2w;
         k.head = s.head;
+        k.headJoint = b.bones[Head].pos;
+        k.pelvis = b.bones[Pelvis].pos;
         k.legs = legs;
         for(int side = 0; side < 2; side++)
         {
@@ -1726,12 +1816,15 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
             bt.ankle[side] = k.ankle[side];
         }
         bt.leanHold = s.leanHold;
-        bodytrack::posed(bt);
+        if(!posingOther())
+        {
+            bodytrack::posed(bt);
+        }
     }
 
     // Preview: the body in front of the player, with its head, facing them (2) or turned to show
     // its left side (3).
-    if(vr_body_debug.value >= 2.f)
+    if(vr_body_debug.value >= 2.f && !posingOther())
     {
         const glm::vec3 root{s.head.x, s.head.y, 0.f};
         const glm::vec3 centre = root + b.fwd * (1.8f * b.m2w);
@@ -1745,7 +1838,10 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
         b.bones[Neck].size = b.bones[Head].size = 1.f;
     }
 
-    queueDebug(b);
+    if(!posingOther())
+    {
+        queueDebug(b);
+    }
 
     // Skinning matrices, relative to the entity (at the pelvis, scaled by k: world units per
     // model unit, so that the bones themselves keep the model's scale and its normals).
@@ -1794,11 +1890,14 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
             memcpy(shadow, &posed.skin[i * 12], 12 * sizeof(float));
         }
     }
-    posed.eyes = s.head + flatplay::eyeNudge(s.headAngles); // (the flatscreen eye, nudged: its inside is hidden from there too)
+    posed.eyes = s.head + (posingOther() ? glm::vec3{0.f} : flatplay::eyeNudge(s.headAngles)); // (the flatscreen eye, nudged: its inside is hidden from there too)
     posed.m2w = b.m2w;
 
     posed.ent = ent;
-    playersteps::frame(posedSkeleton); // the player's steps on the feet just posed
+    if(!posingOther())
+    {
+        playersteps::frame(posedSkeleton); // the player's steps on the feet just posed
+    }
     posed.scale = k;
     const Bind& bd = bind();
     for(int side = 0; side < 2; side++)
@@ -1825,6 +1924,49 @@ bool skeleton(Skeleton& out)
         return false;
     }
     out = posedSkeleton;
+    return true;
+}
+
+glm::vec3 poseOther(int player, const Subject& who, const hands::State& s, qmodel_t* model, const entity_t* ent,
+    const HandPose handPoses[2])
+{
+    if(player < 1 || player > MAX_SCOREBOARD || subject)
+    {
+        return s.head;
+    }
+    Other& o = others[player];
+    if(o.posedAt < 0.0 || realtime - o.posedAt > 0.5 || realtime < o.posedAt)
+    {
+        o = Other{}; // (out of sight a while, or another player in the slot: his feet placed afresh)
+    }
+    swapOther(o);
+    subject = &who;
+    const glm::vec3 origin = pose(s, model, ent, handPoses, true); // (seen from outside: always with legs)
+    subject = nullptr;
+    swapOther(o);
+    o.frame = host_framecount;
+    o.posedAt = realtime;
+    return origin;
+}
+
+bool otherSkeleton(int player, Skeleton& out)
+{
+    if(player < 1 || player > MAX_SCOREBOARD || others[player].frame != host_framecount || !others[player].posed.ent)
+    {
+        return false;
+    }
+    out = others[player].skeleton;
+    return true;
+}
+
+bool otherShoulder(int player, int side, Shoulder& out)
+{
+    if(player < 1 || player > MAX_SCOREBOARD || side < 0 || side > 1 || others[player].frame != host_framecount ||
+        !others[player].posed.ent)
+    {
+        return false;
+    }
+    out = others[player].posed.shoulders[side];
     return true;
 }
 
@@ -2128,6 +2270,10 @@ float modelScale(const entity_t* e)
     {
         return posed.ent ? posed.scale : 0.f; // (the armour's plates on it)
     }
+    if(const Other* o = e && e != posed.ent ? otherDrawn(e) : nullptr)
+    {
+        return o->posed.scale; // (another player's body)
+    }
     return e && e == posed.ent ? posed.scale : 0.f;
 }
 
@@ -2211,6 +2357,14 @@ extern "C" int VR_AliasBonePoses(const entity_t* e, const float** matrices)
             *matrices = posed.shadowSkin.data();
         }
         return count;
+    }
+    if(const Other* other = e && e != posed.ent ? otherDrawn(e) : nullptr)
+    {
+        if(matrices)
+        {
+            *matrices = other->posed.shadowSkin.data(); // another player's body: seen from outside, with its head
+        }
+        return JointCount;
     }
     if(!e || e != posed.ent)
     {

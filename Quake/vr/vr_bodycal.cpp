@@ -3317,6 +3317,21 @@ float shoulderRise()
     return (calibrated() ? vr_bodycal_shoulder_rise.value : defaultRise) + vr_body_tweak_shoulder_rise.value;
 }
 
+glm::vec3 defaultShoulderOffset()
+{
+    return defaultShoulders;
+}
+
+float defaultShoulderRise()
+{
+    return defaultRise;
+}
+
+float defaultShoulderSwing()
+{
+    return defaultSwing;
+}
+
 float shoulderSwing()
 {
     return (calibrated() ? vr_bodycal_shoulder_swing.value : defaultSwing) + vr_body_tweak_shoulder_swing.value;

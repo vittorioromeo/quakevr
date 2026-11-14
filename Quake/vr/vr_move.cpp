@@ -162,6 +162,32 @@ VrDrawnHand readDrawnHand(const glm::vec3& origin)
     return h;
 }
 
+void writeBodyPose(sizebuf_t* buf, const VrBodyPose& p)
+{
+    MSG_WriteByte(buf, p.valid ? 1 : 0);
+    if(p.valid)
+    {
+        MSG_WriteShort(buf, static_cast<int>(za::round(p.yaw * 65536.f / 360.f)) & 65535);
+        MSG_WriteShort(buf, za::clamp(static_cast<int>(za::round(p.headHeight * 1000.f)), -32767, 32767));
+        MSG_WriteShort(buf, za::clamp(static_cast<int>(za::round(p.standingHeight * 1000.f)), -32767, 32767));
+        MSG_WriteByte(buf, za::clamp(static_cast<int>(za::round(p.leanHold * 255.f)), 0, 255));
+    }
+}
+
+VrBodyPose readBodyPose()
+{
+    VrBodyPose p;
+    p.valid = MSG_ReadByte() == 1;
+    if(p.valid)
+    {
+        p.yaw = static_cast<float>(MSG_ReadShort()) * (360.f / 65536.f);
+        p.headHeight = static_cast<float>(MSG_ReadShort()) / 1000.f;
+        p.standingHeight = static_cast<float>(MSG_ReadShort()) / 1000.f;
+        p.leanHold = static_cast<float>(MSG_ReadByte()) / 255.f;
+    }
+    return p;
+}
+
 void writeVrMove(sizebuf_t* buf, const VrMove& move)
 {
     writeVec3(buf, move.headAngles);
@@ -231,6 +257,7 @@ void writeVrMove(sizebuf_t* buf, const VrMove& move)
     {
         writeDrawnHand(buf, h, move.origin);
     }
+    writeBodyPose(buf, move.body);
 }
 
 za::Optional<VrMove> readVrMove()
@@ -305,6 +332,7 @@ za::Optional<VrMove> readVrMove()
     {
         h = readDrawnHand(in.finite ? move.origin : glm::vec3{0.f});
     }
+    move.body = readBodyPose();
 
     if(!in.finite)
     {
