@@ -483,7 +483,7 @@ void drawIconRow(const Item& item, int y, bool selected)
             const int n = icon.figures;
             const float s = l.size * (n == 1 ? 1.f : n == 2 ? 0.86f : 0.76f);
             const float span = za::fmin(l.cell - 6.f, l.size * 1.5f) - s;
-            const float tint = on ? 1.f : hover ? 0.85f : 0.62f;
+            const float tint = on ? 1.f : hover ? 0.85f : 0.5f;
             for(int k = 0; k < n; k++)
             {
                 const int f = n == 3 ? (k == 2 ? 1 : k == 1 ? 2 : 0) : k; // (3: left, right, then the middle over them)
