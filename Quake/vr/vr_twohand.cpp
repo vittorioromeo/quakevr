@@ -1617,6 +1617,17 @@ int groundSpot(int hand, int entity)
     return entity > 0 && g.entity == entity && g.index >= 0 && vr_gametime - g.record.time < 0.25 ? g.index + 1 : 0;
 }
 
+void groundSpotNow(int hand, int& entity, int& index)
+{
+    entity = 0;
+    index = -1;
+    if((hand == 0 || hand == 1) && groundSpot(hand, groundSpots[hand].entity) > 0)
+    {
+        entity = groundSpots[hand].entity;
+        index = groundSpots[hand].index;
+    }
+}
+
 void updateHotspots(hands::State& s)
 {
     for(int hand = 0; hand < 2; hand++)

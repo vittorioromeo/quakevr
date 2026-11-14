@@ -639,6 +639,10 @@ nextmsg:
 					ret = 1; // QVR: the player's palm frames as his client measures them (vr_clientprefs.cpp)
 				else if (q_strncasecmp(s, "vr_heldpose ", 12) == 0)
 					ret = 1; // QVR: the player's held weapons' drawn pose as his client draws them (vr_heldpose.cpp)
+				else if (q_strncasecmp(s, "vr_grabspot ", 12) == 0)
+					ret = 1; // QVR: the hotspot of a weapon lying about his empty hand is near (vr_heldpose.cpp, B3f)
+				else if (q_strncasecmp(s, "vr_magpoll ", 11) == 0)
+					ret = 1; // QVR: his magnetic holsters' presses (vr_heldpose.cpp, B3f)
 
 				if (ret == 1)
 					Cmd_ExecuteString (s, src_client);

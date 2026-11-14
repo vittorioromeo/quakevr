@@ -635,16 +635,17 @@ def own_prefs(inst):
 GRIP_REPRESS_S = 0.25  # game seconds after a let-go before the harness presses a grip again (the QC's bounce: 0.125)
 
 
-def grip_then_give(srv, inst, grips):
-    """`grips` (the mock's grip buttons, its hands) on `inst`, then the test give of a shotgun (impulse 154: 150 + WID 4)
-    once the server has his main grip pressed. The give in the same frame as the press could reach the server a move
-    before the grip (the move's grip bit is the client's next frame's): the default grip-to-hold let it fall at once
-    (B3's mp_avatar 14/1, A's main hand empty). Leaves the server's grip log on (vr_debug_carry 2, developer 1)."""
+def grip_then_give(srv, inst, grips, hand="main", impulse=154):
+    """`grips` (the mock's grip buttons, its hands) on `inst`, then the test give of a shotgun (impulse 154: 150 + WID 4;
+    170 + WID in the off hand) once the server has that hand's grip pressed. The give in the same frame as the press could
+    reach the server a move before the grip (the move's grip bit is the client's next frame's): the default grip-to-hold
+    let it fall at once (B3's mp_avatar 14/1, A's main hand empty). Leaves the server's grip log on (vr_debug_carry 2,
+    developer 1)."""
     srv.cmd("vr_debug_carry 2; developer 1")
     since = srv.mark()
     inst.cmd(grips)
-    srv.wait(r"grip: .*main hand pressed at", 10, since, "%s's main grip on the server" % inst.name)
-    inst.cmd("impulse 154")
+    srv.wait(r"grip: .*%s hand pressed at" % hand, 10, since, "%s's %s grip on the server" % (inst.name, hand))
+    inst.cmd("impulse %d" % impulse)
 
 
 def server_time(srv):
@@ -664,6 +665,7 @@ def server_time_past(srv, t, tries=200):
 
 
 FRAME_SUM_SLACK = 0.7  # a palm frame's 13 values each within the step it is sent again at (0.05), and its 3 decimals
+RIG_SUM_SLACK = 1.4    # the grip fit's hand rig: its 27 values each within that step
 
 
 def grab(s):
@@ -675,7 +677,9 @@ def grab(s):
     got = {}
     def frames_ok(sv, own):
         return all(own.get("frame%d" % h) == 1 and sv.get("frame%d" % h) == 1 and
-                   abs(sv.get("framesum%d" % h, 0) - own.get("framesum%d" % h, 0)) <= FRAME_SUM_SLACK for h in (0, 1))
+                   abs(sv.get("framesum%d" % h, 0) - own.get("framesum%d" % h, 0)) <= FRAME_SUM_SLACK and
+                   own.get("rig%d" % h) == 1 and sv.get("rig%d" % h) == 1 and
+                   abs(sv.get("rigsum%d" % h, 0) - own.get("rigsum%d" % h, 0)) <= RIG_SUM_SLACK for h in (0, 1))
 
     for _ in range(20):
         own_a, own_b, got = own_prefs(a), own_prefs(b), prefs_report(s, srv)
@@ -687,10 +691,12 @@ def grab(s):
             break
     for e, own, name in ((ea, own_a, "A"), (eb, own_b, "B")):
         sv = got.get(e, {})
-        s.check("the server has %s's palm frames as his client measures them (B3d: their sum within %.2f)" % (
-            name, FRAME_SUM_SLACK), frames_ok(sv, own),
-                "server %s; %s's own %s" % ({k: v for k, v in sv.items() if k.startswith("frame")},
-                                            name, {k: v for k, v in own.items() if k.startswith("frame")}))
+        s.check("the server has %s's palm frames and grip fit hand rigs as his client measures them (B3d, B3f: their "
+                "sums within %.2f, %.2f)" % (name, FRAME_SUM_SLACK, RIG_SUM_SLACK), frames_ok(sv, own),
+                "server %s; %s's own %s" % ({k: v for k, v in sv.items() if k.startswith(("frame", "rig"))},
+                                            name, {k: v for k, v in own.items() if k.startswith(("frame", "rig"))}))
+    s.check("the dedicated server poses a hand for the grip fit (its rig's points: the hand's mesh loaded there)",
+            got.get(eb, {}).get("rigpts", 0) > 0, "rigpts=%s" % got.get(eb, {}).get("rigpts"))
     for e, own, name in ((ea, own_a, "A"), (eb, own_b, "B")):
         sv = got.get(e, {})
         s.check("the server has %s's fists as his client poses them (spheres, their sum within the 64ths sent)" % name,
@@ -725,11 +731,15 @@ def grab(s):
     # 4"). Each press here comes GRIP_REPRESS_S of the server's game time after the let-go (the server's "let go at").
     # The gun falls by his feet and can knock against his box and slide: pressed while it slid out of the fist, it is let
     # go and pressed again, as a player would (at most 3 presses).
+    # A hand's touch is judged as it or the thing moves: a gun come to rest under a still hand is never touched (B3f's
+    # mp_grab 12/1: the press after it stopped). Each press is made with the hand where it let go, then lowered 6 cm onto
+    # the gun, as a player reaches for it.
     seen, presses = [], 0
     for presses in range(1, 4):
         _, gone = srv.wait(r"grip: .*main hand let go at", 10, since, "B's let-go on the server")
         server_time_past(srv, float(gone.rsplit(" ", 1)[1]) + GRIP_REPRESS_S)
-        b.cmd("vr_mock_button main grip 1")
+        b.cmd("vr_mock_hand main 0.1 0.25 -0.35 0 0 0; vr_mock_button main grip 1")
+        b.cmd("vr_mock_hand main 0.1 0.19 -0.35 0 0 0")
         seen += b_weapon_until(4, 8)
         if seen[-1] == 4:
             break
@@ -929,8 +939,166 @@ def held(s):
     carried_off = spots_off(own0, sv0)
     if carried_off is not None:
         s.metric("carried_hotspot_off", round(carried_off, 3))
+    # (B3f: 1.4 units off before, the client's hand frame of a carried weapon taken from its entity)
+    s.check("the server places the carried shotgun's hotspots where B's view draws them (within %.1f)" % HOTSPOT_SLACK,
+            carried_off is not None and carried_off <= HOTSPOT_SLACK, "farthest off: %s" % carried_off)
+    # (the off hand's place: B's own view's, the server's move's)
+    hand_own = ground_report(b, "mp_drawn_own").get((eb, 0), {}).get("hand")
+    hand_sv = ground_report(srv, "mp_drawn_sv").get((eb, 0), {}).get("hand")
+    if hand_own and hand_sv:
+        s.metric("carried_hand_off", round(dist(hand_own, hand_sv), 3))
     s.check("the server has B's off hand carrying it off its handle, as his view draws it (weapondrawnpose)",
             own0.get("carrying") == 1 and sv0.get("carrying") == 1, "server: %s; B's own: %s" % (sv0, own0))
+
+
+def ground_report(inst, prefix):
+    """vr_mp_drawn's B3f parts on `inst` -> {(ent, hand): {"gs": (weapon, index), "rev": (weapon, choice, cosine),
+    "hand": [x, y, z]}} from its `prefix` lines (the ground spot an empty hand is near, the weapon lying nearest it and
+    how it would take it: -1 not reversible, 0 upright, 1 reversed)."""
+    since = inst.mark()
+    inst.cmd("vr_mp_drawn; echo mp_drawn_done")
+    n, _ = inst.wait(r"mp_drawn_done", 10, since, "%s's held weapons" % inst.name)
+    out = {}
+    for l in inst.lines[since:n]:
+        m = re.match(r"%s: ent=(\d+) hand=(\d)" % prefix, l)
+        gs = re.search(r"\bgs=(-?\d+),(-?\d+)", l)
+        rev = re.search(r"\brev=(-?\d+),(-?\d+),(-?[\d.]+)", l)
+        hand = re.search(r"\bat=(-?[\d.]+),(-?[\d.]+),(-?[\d.]+)", l)
+        rot = re.search(r"\brot=(-?[\d.]+),(-?[\d.]+),(-?[\d.]+)", l)
+        if m and gs and rev and hand and rot:
+            out[(int(m.group(1)), int(m.group(2)))] = {
+                "gs": (int(gs.group(1)), int(gs.group(2))),
+                "rev": (int(rev.group(1)), int(rev.group(2)), float(rev.group(3))),
+                "hand": [float(hand.group(i)) for i in (1, 2, 3)],
+                "rot": [float(rot.group(i)) for i in (1, 2, 3)]}
+    return out
+
+
+def wait_quietly(inst, pattern, timeout, since, what):
+    """inst.wait, or None when it times out (the scenario checks instead of stopping)."""
+    try:
+        return inst.wait(pattern, timeout, since, what)
+    except StepFailed:
+        return None
+
+
+def retake(srv, b, hand, gone_since, taken_re, above, down, presses=3):
+    """B presses `hand`'s grip GRIP_REPRESS_S of the server's game time after its let-go (logged after `gone_since`) with
+    the hand placed by `above`, then moves it into the weapon lying still (`down`: a hand's touch is judged as it moves),
+    until the server logs `taken_re` (at most `presses` presses, each let go again when it took nothing) -> the line."""
+    since = gone_since
+    for _ in range(presses):
+        _, gone = srv.wait(r"grip: .*%s hand let go at" % hand, 10, since, "B's %s let-go on the server" % hand)
+        server_time_past(srv, float(gone.rsplit(" ", 1)[1]) + GRIP_REPRESS_S)
+        b.cmd(above)
+        since = srv.mark()
+        b.cmd("vr_mock_button %s grip 1" % hand)
+        srv.wait(r"grip: .*%s hand pressed at" % hand, 10, since, "B's %s grip on the server" % hand)
+        b.cmd(down)
+        got = wait_quietly(srv, taken_re, 3, since, "B's %s hand taking it" % hand)
+        if got:
+            return got[1]
+        since = srv.mark()
+        b.cmd("vr_mock_button %s grip 0" % hand)
+    return None
+
+
+def ground(s):
+    """What the server asks of a remote player's grab of a weapon lying about, and his magnetic holsters (B3f): B's
+    holster press (vr_magholster_return) reaches the server's QC as his; his empty hand at a hotspot of the shotgun he
+    dropped: the server's ground spot of it is his view's (weapongrabspot), and his grip there carries it by that
+    hotspot; his off hand over a knight's sword he dropped (hotspots off: by its handle), turned so that his view takes it
+    reversed: the server's reverse grip choice is his view's (weapondrawnpose 43 by his own hand and vr_revgrip), and his
+    grip takes it so."""
+    srv, a, b, ea, eb = join(s)
+    srv.cmd("developer 1")
+    since = srv.mark()
+    b.cmd("vr_magholster_return")
+    got = wait_quietly(srv, r"magholster: player %d asked 4" % eb, 10, since, "B's holster press on the server")
+    s.check("B's magnetic holster press (return them all) reaches the server's QC as his (magholsterpoll)", got is not None,
+            "no 'magholster: player %d asked 4' in the server's log" % eb)
+
+    # The shotgun given, its hotspots as B's view draws them; let go, it falls by his feet.
+    grip_then_give(srv, b, "vr_mock_hand main 0.1 0.25 -0.35 0 0 0; vr_mock_button main grip 1; vr_mock_button off grip 0")
+    weapon_until(s, srv, eb, 4)
+    own = {}
+    for _ in range(20):
+        own = drawn_report(b, "mp_drawn_own").get((eb, 1), {})
+        if own.get("spots"):
+            break
+    grips = sorted(i for i, v in own.get("spots", {}).items() if int(v[0]) == 1)
+    if not grips:
+        raise StepFailed("the shotgun has no grip hotspot: %s" % own)
+    gone_since = srv.mark()
+    b.cmd("vr_mock_button main grip 0")
+    seen = weapon_until(s, srv, eb, 0)
+    s.check("B's shotgun falls from his opened hand", seen[-1] == 0, "B's main weapon by report: %s" % seen)
+
+    # His main hand over its grip hotspot as it lies (placed again each report: it may still slide), within the view's
+    # reach of a ground spot (15 cm).
+    above = "vr_mock_hand_to main spot %d 6" % grips[0]
+    own_g = sv_g = {}
+    for _ in range(30):
+        b.cmd(above)
+        own_g = ground_report(b, "mp_drawn_own").get((eb, 1), {})
+        sv_g = ground_report(srv, "mp_drawn_sv").get((eb, 1), {})
+        if own_g.get("gs", (0, -1))[0] > 0 and sv_g.get("gs") == own_g.get("gs"):
+            break
+    s.note("B's own main hand: %s; the server's: %s" % (own_g, sv_g))
+    s.check("B's view finds his empty main hand at the shotgun's grip hotspot %d" % grips[0],
+            own_g.get("gs", (0, -1))[0] > 0 and own_g["gs"][1] == grips[0], "B's own: %s" % own_g)
+    s.check("the server's ground spot of B's main hand is his view's (weapongrabspot)",
+            own_g.get("gs", (0, -1))[0] > 0 and sv_g.get("gs") == own_g.get("gs"),
+            "server %s; B's own %s" % (sv_g.get("gs"), own_g.get("gs")))
+    line = retake(srv, b, "main", gone_since, r"weapon: .* taken into the main hand", above,
+                  "vr_mock_hand_to main spot %d -2" % grips[0])
+    s.note("the server's take: %s" % line)
+    s.check("B's grip takes the shotgun by that hotspot (the server's QC: 'by its hotspot %d')" % grips[0],
+            line is not None and ("by its hotspot %d" % grips[0]) in line, "server: %s" % line)
+
+    # The sword in his off hand (impulse 170 + WID_SWORD 13), let go; hotspots off on B: taken by its handle.
+    b.cmd("vr_weapon_grab_hotspots 0; vr_weapon_grab_anywhere 0")
+    grip_then_give(srv, b, "vr_mock_hand off -0.1 0.25 -0.35 0 0 0; vr_mock_button off grip 1", "off", 183)
+    off = []
+    for _ in range(30):
+        (lines,) = reports(s, [srv])
+        off.append(int((by_ent(lines, "mp_avatar_sv").get(eb, {}).get("wpn", [-1, -1]) + [-1, -1])[1]))
+        if off[-1] == 13:
+            break
+    s.check("B holds the given sword in his off hand (the server's report)", off[-1] == 13, "B's off weapon: %s" % off)
+    gone_since = srv.mark()
+    b.cmd("vr_mock_button off grip 0")
+    own_r = sv_r = {}
+    tried = []
+    # (the hand's yaw turns the way its held blade would point: against the lying blade's way, reversed)
+    turn = "0 0 0"
+    # (the hand over its blade's hotspot as it lies: with hotspots off, a fist on it takes it by its handle)
+    over = "vr_mock_hand off -0.1 0.25 -0.35 %s; vr_mock_hand_to off spot 0 6"
+    for turn in ("0 0 0", "0 180 0", "0 90 0", "0 -90 0"):
+        b.cmd(over % turn)
+        for _ in range(20):
+            own_r = ground_report(b, "mp_drawn_own").get((eb, 0), {})
+            sv_r = ground_report(srv, "mp_drawn_sv").get((eb, 0), {})
+            if own_r.get("rev", (0, -1, 0))[0] > 0 and sv_r.get("rev", (0,))[0] == own_r["rev"][0] and \
+                    sv_r["rev"][1] == own_r["rev"][1]:
+                break
+        tried.append((turn, own_r.get("rev"), sv_r.get("rev"), own_r.get("rot"), sv_r.get("rot")))
+        if own_r.get("rev", (0, -1, 0))[1] == 1:
+            break
+    s.note("the sword's reverse grip by the hand's turn (B's own, the server's; their hand angles): %s" % tried)
+    s.check("B's view would take the sword lying by him reversed at one of the hand's turns tried",
+            own_r.get("rev", (0, -1, 0))[1] == 1, "tried %s" % tried)
+    s.check("the server's reverse grip choice for B's off hand is his view's (the same sword, choice, cosine within 0.2)",
+            own_r.get("rev", (0,))[0] > 0 and sv_r.get("rev", (0,))[0] == own_r["rev"][0] and
+            sv_r["rev"][1] == own_r["rev"][1] and abs(sv_r["rev"][2] - own_r["rev"][2]) <= 0.2,
+            "server %s; B's own %s" % (sv_r.get("rev"), own_r.get("rev")))
+    line = retake(srv, b, "off", gone_since, r"revgrip: .* taken (reversed|upright)",
+                  over % turn, "vr_mock_hand_to off spot 0 -2")
+    s.note("the server's take: %s" % line)
+    want = "reversed" if own_r.get("rev", (0, -1, 0))[1] == 1 else "upright"
+    s.check("B's grip takes the sword %s, as his view chose (the server's QC VR_RevGrip_OnTake)" % want,
+            line is not None and (" taken %s" % want) in line, "server: %s" % line)
+    srv.cmd("vr_debug_carry 0; developer 0")
 
 
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
@@ -955,6 +1123,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             teleport(s)
         elif test == "mp_held":
             held(s)
+        elif test == "mp_ground":
+            ground(s)
         else:
             coop(s, args.listen, args.flat or "", lag, jitter, loss)
     except StepFailed as e:
@@ -967,7 +1137,7 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -990,7 +1160,7 @@ def main():
                 sys.exit(2)
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
-    elif args.test in ("bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held"):
+    elif args.test in ("bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground"):
         ok = run(args, "mp_" + args.test)
     else:
         ok = run(args, "mp_coop")
@@ -1004,6 +1174,7 @@ def main():
         ok = run(args, "mp_grab") and ok
         ok = run(args, "mp_teleport") and ok
         ok = run(args, "mp_held") and ok
+        ok = run(args, "mp_ground") and ok
         print("mp_suite: %s" % ("passed" if ok else "FAILED"))
     sys.exit(0 if ok else 1)
 

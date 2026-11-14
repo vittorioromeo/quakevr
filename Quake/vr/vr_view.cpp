@@ -794,8 +794,19 @@ bool view::carriedWeaponInHand(int hand, glm::vec3& handle, glm::vec3& tip)
 int view::reverseGripChoice(const entity_t& e, int hand, float& cosine)
 {
     cosine = 1.f;
+    if(hand < 0 || hand > 1)
+    {
+        return -1;
+    }
+    return reverseGripChoiceAt(e, hand, hands::current().visualRot[hand], vr_revgrip.value != 0.f && !flatplay::active(), cosine);
+}
+
+int view::reverseGripChoiceAt(const entity_t& e, int hand, const glm::vec3& handRot, bool mayReverse, float& cosine)
+{
+    cosine = 1.f;
     const int slot = e.model && e.model->type == mod_alias ? weapons::slotForModel(e.model) : -1;
-    if(hand < 0 || hand > 1 || !reverseGripAllowed(slot) || flatplay::active())
+    // (reverseGripAllowed's, with his vr_revgrip as `mayReverse`)
+    if(hand < 0 || hand > 1 || !mayReverse || slot < 0 || slot == weapons::fistSlot() || weapons::value(slot, Key::RevGrip) < 0.5f)
     {
         return -1;
     }
@@ -804,7 +815,7 @@ int view::reverseGripChoice(const entity_t& e, int hand, float& cosine)
     const glm::vec3 tip = view::anchorPosition(e, false, 1.f, weapons::anchor(slot, Key::MuzzleAnchor),
         weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
     const glm::mat3 lying = anglesBasis(glm::vec3{-e.angles[0], e.angles[1], e.angles[2]});
-    const glm::mat3 upright = anglesBasis(weaponTurn(hands::current().visualRot[hand], slot, hand == HAND_OFF));
+    const glm::mat3 upright = anglesBasis(weaponTurn(handRot, slot, hand == HAND_OFF));
     const glm::vec3 blade = tip - origin;
     const glm::vec3 thumb = upright * (glm::transpose(lying) * blade);
     const float len = glm::length(blade) * glm::length(thumb);

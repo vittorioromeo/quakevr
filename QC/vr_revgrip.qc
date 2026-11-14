@@ -33,7 +33,7 @@ float(entity ent, entity p, float xHand, float xFlags, float xUpright) VR_RevGri
     {
         return flags | own;
     }
-    vector c = weapondrawnpose(ent, xHand, 43);
+    vector c = weapondrawnpose(ent, xHand, 43, p); // (p's own hand and vr_revgrip: MP_PLAN.md B3f)
     if(cvar_hget(cvarh_developer) && c_y)
     {
         dprint(sprintf("revgrip: %s taken %s (blade to the thumb's side: cos %.2f)\n", ent.netname, c_x ? "reversed" : "upright", c_z));

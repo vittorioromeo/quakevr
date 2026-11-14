@@ -322,6 +322,9 @@ bool weaponLocalGeometry(qmodel_t* model, glm::vec3& muzzle, glm::vec3& butt, gl
 // none in flat-screen play), 0 upright (its blade to the thumb's side), 1 reversed (to the little finger's); `cosine`: of the
 // blade's way and the thumb's side's (the normal grip's blade, at the hand's turn now).
 [[nodiscard]] int reverseGripChoice(const entity_t& e, int hand, float& cosine);
+// The same for a hand at angles `handRot` (world) that may hold a weapon reversed or not (`mayReverse`: his vr_revgrip on, not
+// in flat-screen play): another player's on a server (MP_PLAN.md, B3f: his move's hand, his own vr_revgrip).
+[[nodiscard]] int reverseGripChoiceAt(const entity_t& e, int hand, const glm::vec3& handRot, bool mayReverse, float& cosine);
 // Whether the weapon the local player's `hand` holds may be held reversed (its eject button flips the grip: QC weapondrawnpose 46).
 [[nodiscard]] bool heldMayReverse(int hand);
 // The same in flat play too: the predicate of the eject button's flip (heldMayReverse is its VR half) and of the flat

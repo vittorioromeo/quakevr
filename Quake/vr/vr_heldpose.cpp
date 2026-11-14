@@ -3,10 +3,14 @@
 #include "vr_heldpose.hpp"
 
 #include "vr_api.h"
+#include "vr_clientprefs.hpp"
 #include "vr_cvars.hpp"
 #include "vr_hands.hpp"
 #include "vr_held.hpp"
+#include "vr_magholster.hpp"
+#include "vr_modelmetadata.hpp"
 #include "vr_progs.hpp"
+#include "vr_tunables.hpp"
 #include "vr_twohand.hpp"
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
@@ -116,17 +120,99 @@ void encode(const Hand& h, float v[valueCount])
     return h;
 }
 
+// One hand's ground spot (B3f): the weapon entity it is near a hotspot of (0 none) and that hotspot.
+struct Spot
+{
+    int entity{0};
+    int index{-1};
+};
+
 struct State
 {
     // Client: what went up last, each hand's.
     float sent[2][valueCount]{};
     bool wasSent[2]{};
     double nextSend[2]{};
+    Spot spotSent[2];   // (B3f)
+    int magPending{0};  // the holster presses taken from magholster::poll, not sent yet
     // Server: each slot's.
     Hand slot[MAX_SCOREBOARD][2];
     bool slotHas[MAX_SCOREBOARD][2]{};
+    Spot slotSpot[MAX_SCOREBOARD][2];
+    int slotMag[MAX_SCOREBOARD]{};
 };
 State state;
+
+[[nodiscard]] int numOf(const edict_t* e)
+{
+    if(!e || !sv.qcvm.edicts)
+    {
+        return -1;
+    }
+    return static_cast<int>(((const byte*)e - (const byte*)sv.qcvm.edicts) / sv.qcvm.edict_size);
+}
+
+[[nodiscard]] edict_t* edictOf(int num)
+{
+    return num > 0 && num < sv.qcvm.num_edicts ? (edict_t*)((byte*)sv.qcvm.edicts + num * sv.qcvm.edict_size) : nullptr;
+}
+
+// A weapon edict as the view's entity_t (its model, place, turn): what view::reverseGripChoice reads.
+[[nodiscard]] entity_t weaponEntity(const edict_t* weapon)
+{
+    entity_t ent{};
+    const int index = static_cast<int>(weapon->v.modelindex);
+    ent.model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    VectorCopy(weapon->v.origin, ent.origin);
+    VectorCopy(weapon->v.angles, ent.angles);
+    return ent;
+}
+
+// The weapon lying about nearest `at` (vr_mp_drawn's): on the server the thrown_weapon edict, else 0.
+[[nodiscard]] int nearestServerWeapon(const glm::vec3& at)
+{
+    int best = 0;
+    float bestDist = 0.f;
+    for(int i = svs.maxclients + 1; i < sv.qcvm.num_edicts; i++)
+    {
+        edict_t* e = edictOf(i);
+        if(!e || e->free || !e->v.modelindex || strcmp(PR_GetString(e->v.classname), "thrown_weapon") != 0)
+        {
+            continue;
+        }
+        const float d = glm::distance(at, glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]});
+        if(!best || d < bestDist)
+        {
+            best = i;
+            bestDist = d;
+        }
+    }
+    return best;
+}
+
+// The same on this client: the weapon model drawn nearest `at` that is no view entity of its own (as the view's ground
+// spots look for one: vr_view_hands.cpp updateGroundSpots).
+[[nodiscard]] int nearestClientWeapon(const glm::vec3& at)
+{
+    int best = 0;
+    float bestDist = 0.f;
+    for(int i = 0; i < cl_numvisedicts; i++)
+    {
+        const entity_t* e = cl_visedicts[i];
+        if(!e || e < cl_entities || e >= cl_entities + cl_max_edicts || !e->model || e->model->type != mod_alias ||
+            view::find(e) || e == &cl_entities[cl.viewentity] || !modelmeta::has(e->model, modelmeta::Trait::ViewWeapon))
+        {
+            continue;
+        }
+        const float d = glm::distance(at, glm::vec3{e->origin[0], e->origin[1], e->origin[2]});
+        if(!best || d < bestDist)
+        {
+            best = static_cast<int>(e - cl_entities);
+            bestDist = d;
+        }
+    }
+    return best;
+}
 
 // The client's own `hand` as his view drew it last, in the hand's frame (vr_heldpose.hpp).
 [[nodiscard]] Hand measure(int hand)
@@ -157,7 +243,10 @@ State state;
             }
         }
         handPoseDrawn = entity * glm::inverse(d.inHand);
-        havePose = true;
+        // (A weapon carried off its handle is placed again after its place in the hand was taken (the carry's pose): its
+        // entity less that place is not the hand. Its hotspots go into the tracked hand's frame below, the frame the
+        // carry places it in: B3f, the server's carried hotspots 1.4 units off before.)
+        havePose = !twohand::carrying(hand);
         h.drawn = true;
         h.mirrored = d.mirrored;
         h.slot = weapons::slotForModel(d.model);
@@ -244,6 +333,51 @@ void heldPose_f()
     state.slotHas[slot][hand] = true;
 }
 
+// The client command's sender's slot, or -1 (not a client's, no server).
+[[nodiscard]] int senderSlot()
+{
+    if(cmd_source != src_client || !sv.active || !host_client)
+    {
+        return -1;
+    }
+    const int slot = static_cast<int>(host_client - svs.clients);
+    return slot >= 0 && slot < MAX_SCOREBOARD ? slot : -1;
+}
+
+// "vr_grabspot <hand> <entity> <index>": the weapon a client's empty hand is near a hotspot of (0 -1: none), kept for his
+// slot until the next.
+void grabSpot_f()
+{
+    const int slot = senderSlot();
+    const int hand = Q_atoi(Cmd_Argv(1));
+    const int entity = Q_atoi(Cmd_Argv(2));
+    const int index = Q_atoi(Cmd_Argv(3));
+    if(slot < 0 || Cmd_Argc() != 4 || (hand != 0 && hand != 1) || entity < 0 || entity >= sv.qcvm.max_edicts || index < -1 ||
+        index > twohand::anywhereSpot)
+    {
+        return;
+    }
+    state.slotSpot[slot][hand] = Spot{entity, entity > 0 ? index : -1};
+}
+
+// "vr_magpoll <bits>": a client's magnetic holster presses (magholster::poll's), kept until his QC asks.
+void magPoll_f()
+{
+    const int slot = senderSlot();
+    if(slot >= 0 && Cmd_Argc() == 2)
+    {
+        state.slotMag[slot] |= Q_atoi(Cmd_Argv(1)) & 7;
+    }
+}
+
+// vr_mp_drawn's B3f parts of a hand: its ground spot, the weapon lying nearest it and how it would take it (the reverse
+// grip's choice and cosine), and the hand's place and angles.
+void printGround(const Spot& spot, int nearest, int choice, float cosine, const glm::vec3& hand, const glm::vec3& rot)
+{
+    Con_Printf(" gs=%d,%d rev=%d,%d,%.2f at=%.2f,%.2f,%.2f rot=%.1f,%.1f,%.1f", spot.entity, spot.index, nearest, choice, cosine,
+        hand.x, hand.y, hand.z, rot.x, rot.y, rot.z);
+}
+
 // vr_mp_drawn: the held weapons' hotspots as this client draws them ("mp_drawn_own:", world) and, hosting, as the server
 // places each player's ("mp_drawn_sv:"): the multiplayer harness compares them.
 void printHand(const char* prefix, int ent, int hand, const Hand& h, const glm::vec3* spots)
@@ -258,7 +392,6 @@ void printHand(const char* prefix, int ent, int hand, const Hand& h, const glm::
             Con_Printf(" hs%d=%d,%.2f,%.2f,%.2f", i, h.spotType[i], spots[i].x, spots[i].y, spots[i].z);
         }
     }
-    Con_Printf("\n");
 }
 
 void mpDrawn_f()
@@ -274,32 +407,52 @@ void mpDrawn_f()
                 spots[i] = view::weaponHotspot(hand, i).pos;
             }
             printHand("mp_drawn_own", cl.viewentity, hand, h, spots);
+            Spot spot;
+            twohand::groundSpotNow(hand, spot.entity, spot.index);
+            const glm::vec3 at = hands::current().pos[hand];
+            const int nearest = nearestClientWeapon(at);
+            float cosine = 1.f;
+            const int choice = nearest > 0 ? view::reverseGripChoice(cl_entities[nearest], hand, cosine) : -1;
+            printGround(spot, nearest, choice, cosine, at, hands::current().visualRot[hand]);
+            Con_Printf("\n");
         }
     }
     if(!sv.active)
     {
         return;
     }
+    const progs::ServerVm vm;
     for(int slot = 0; slot < svs.maxclients && slot < MAX_SCOREBOARD; slot++)
     {
         if(!svs.clients[slot].active)
         {
             continue;
         }
-        edict_t* player = (edict_t*)((byte*)sv.qcvm.edicts + (slot + 1) * sv.qcvm.edict_size);
-        for(int hand = 0; hand < 2; hand++)
+        edict_t* player = edictOf(slot + 1);
+        for(int hand = 0; hand < 2 && player; hand++)
         {
             const Hand* r = remote(player, hand);
-            if(!r)
+            if(!r && !isRemote(player))
             {
                 continue;
             }
+            const Hand h = r ? *r : Hand{};
             glm::vec3 spots[maxSpots];
             for(int i = 0; i < maxSpots; i++)
             {
-                spots[i] = toWorld(player, hand, r->spotPos[i]);
+                spots[i] = toWorld(player, hand, h.spotPos[i]);
             }
-            printHand("mp_drawn_sv", slot + 1, hand, *r, spots);
+            printHand("mp_drawn_sv", slot + 1, hand, h, spots);
+            glm::vec3 at;
+            glm::mat3 axes;
+            handPose(player, hand, at, axes);
+            const int nearest = nearestServerWeapon(at);
+            float cosine = 1.f;
+            const int choice = nearest > 0 ? reverseGrip(player, hand, edictOf(nearest), cosine) : -1;
+            const progs::HandFields& f = progs::handFields(hand);
+            printGround(state.slotSpot[slot][hand], nearest, choice, cosine, at,
+                f.rot >= 0 ? progs::fieldVec(player, f.rot) : glm::vec3{0.f});
+            Con_Printf("\n");
         }
     }
 }
@@ -309,6 +462,71 @@ void mpDrawn_f()
 bool isLocal(const edict_t* player)
 {
     return cls.state != ca_dedicated && slotOf(player) == 0;
+}
+
+bool isRemote(const edict_t* player)
+{
+    const int slot = slotOf(player);
+    return svs.maxclients > 1 && slot >= 0 && slot < MAX_SCOREBOARD && slot < svs.maxclients && !isLocal(player);
+}
+
+int grabSpot(edict_t* player, int hand, const edict_t* weapon)
+{
+    const int num = numOf(weapon);
+    if(hand != 0 && hand != 1)
+    {
+        return 0;
+    }
+    if(isRemote(player))
+    {
+        const Spot& s = state.slotSpot[slotOf(player)][hand];
+        if(vr_debug_carry.value >= 2.f)
+        {
+            Con_Printf("grabspot: player %d's %s hand, weapon %d: his client's spot %d %d\n", slotOf(player) + 1,
+                hand == 0 ? "off" : "main", num, s.entity, s.index);
+        }
+        return num > 0 && s.entity == num && s.index >= 0 ? s.index + 1 : 0;
+    }
+    const bool local = sv.active && cls.state == ca_connected && numOf(player) == 1;
+    return local && (vr_weapon_grab_hotspots.value || vr_weapon_grab_anywhere.value) ? twohand::groundSpot(hand, num) : 0;
+}
+
+int reverseGrip(edict_t* player, int hand, const edict_t* weapon, float& cosine)
+{
+    cosine = 1.f;
+    if(!weapon || (hand != 0 && hand != 1))
+    {
+        return -1;
+    }
+    const entity_t ent = weaponEntity(weapon);
+    if(player && isRemote(player))
+    {
+        // His move's hand (the angles his client drew it at), his own vr_revgrip, his flat-screen play.
+        const progs::HandFields& f = progs::handFields(hand);
+        const glm::vec3 rot = f.rot >= 0 ? progs::fieldVec(player, f.rot) : glm::vec3{player->v.angles[0], player->v.angles[1], 0.f};
+        const bool flat = progs::fieldFloatOr(player, progs::fields().vr_flatscreen, 0.f) != 0.f;
+        const cvar_t* var = tunableFind("vr_revgrip");
+        const float revgrip = clientprefs::value(clientprefs::indexOf(var), var, player);
+        return view::reverseGripChoiceAt(ent, hand, rot, revgrip != 0.f && !flat, cosine);
+    }
+    return sv.active && cls.state == ca_connected ? view::reverseGripChoice(ent, hand, cosine) : -1;
+}
+
+int magPoll(const edict_t* player)
+{
+    if(isRemote(player))
+    {
+        const int slot = slotOf(player);
+        const int bits = state.slotMag[slot];
+        state.slotMag[slot] = 0;
+        if(bits && developer.value)
+        {
+            Con_Printf("magholster: player %d asked %d\n", slot + 1, bits);
+        }
+        return bits;
+    }
+    const bool local = sv.active && cls.state == ca_connected && numOf(player) == 1;
+    return local ? magholster::poll() : 0;
 }
 
 const Hand* remote(const edict_t* player, int hand)
@@ -374,12 +592,50 @@ void send()
         state.wasSent[hand] = true;
         state.nextSend[hand] = now + static_cast<double>(za::max(vr_net_avatarcal_interval.value, 0.f));
     }
+    if(sv.active)
+    {
+        return; // (hosting: the server asks this game's own view and holsters)
+    }
+    // B3f: the ground spot of each empty hand when it changed, the holster presses when there are some (only with room in
+    // the reliable buffer: else the next frame).
+    for(int hand = 0; hand < 2; hand++)
+    {
+        Spot now;
+        twohand::groundSpotNow(hand, now.entity, now.index);
+        if(now.entity == state.spotSent[hand].entity && now.index == state.spotSent[hand].index)
+        {
+            continue;
+        }
+        char text[64];
+        const int n = q_snprintf(text, sizeof(text), "vr_grabspot %d %d %d", hand, now.entity, now.index);
+        if(n <= 0 || cls.message.cursize + n + 2 > cls.message.maxsize)
+        {
+            return;
+        }
+        MSG_WriteByte(&cls.message, clc_stringcmd);
+        MSG_WriteString(&cls.message, text);
+        state.spotSent[hand] = now;
+    }
+    state.magPending |= magholster::poll();
+    if(state.magPending)
+    {
+        char text[32];
+        const int n = q_snprintf(text, sizeof(text), "vr_magpoll %d", state.magPending);
+        if(n > 0 && cls.message.cursize + n + 2 <= cls.message.maxsize)
+        {
+            MSG_WriteByte(&cls.message, clc_stringcmd);
+            MSG_WriteString(&cls.message, text);
+            state.magPending = 0;
+        }
+    }
 }
 
 void clientClear()
 {
     state.wasSent[0] = state.wasSent[1] = false;
     state.nextSend[0] = state.nextSend[1] = 0.0;
+    state.spotSent[0] = state.spotSent[1] = Spot{};
+    state.magPending = 0;
 }
 
 void serverReset(int slot)
@@ -388,6 +644,8 @@ void serverReset(int slot)
     {
         state.slotHas[slot][0] = state.slotHas[slot][1] = false;
         state.slot[slot][0] = state.slot[slot][1] = Hand{};
+        state.slotSpot[slot][0] = state.slotSpot[slot][1] = Spot{};
+        state.slotMag[slot] = 0;
     }
 }
 
@@ -395,6 +653,8 @@ void init()
 {
     Cmd_AddCommand("vr_mp_drawn", mpDrawn_f);
     Cmd_AddCommand_ClientCommand("vr_heldpose", heldPose_f);
+    Cmd_AddCommand_ClientCommand("vr_grabspot", grabSpot_f);
+    Cmd_AddCommand_ClientCommand("vr_magpoll", magPoll_f);
 }
 
 } // namespace qvr::heldpose

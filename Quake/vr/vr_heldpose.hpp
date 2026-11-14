@@ -57,7 +57,22 @@ void handPose(edict_t* player, int hand, glm::vec3& pos, glm::mat3& axes);
 // A point in `player`'s hand frame (Hand's) placed on his hand now.
 [[nodiscard]] glm::vec3 toWorld(edict_t* player, int hand, const glm::vec3& local);
 
-// Client: each hand's drawn pose up when it changed (from clientprefs::send).
+// B3f: what the server asks of a weapon lying about at a player's grab, and his magnetic holsters' presses. His client
+// sends them up ("vr_grabspot <hand> <entity> <index>" when the hotspot an empty hand is near changes, twohand::groundSpotNow;
+// "vr_magpoll <bits>" when magholster::poll has some); the reverse grip's choice is the server's, by his move's hand and his
+// own vr_revgrip (a preference) and flat-screen play.
+
+// Server: another player than this game's own (multiplayer; the client sends his own).
+[[nodiscard]] bool isRemote(const edict_t* player);
+// Server, QC weapongrabspot: the hotspot (index + 1; 0 none: its handle) by which `player`'s empty `hand` takes `weapon`.
+[[nodiscard]] int grabSpot(edict_t* player, int hand, const edict_t* weapon);
+// Server, QC weapondrawnpose(weapon, hand, 43, player): how `player`'s `hand` takes the loose `weapon` now (-1 it may not be
+// held reversed, 0 upright, 1 reversed; view::reverseGripChoice); `cosine` its blade's way's.
+[[nodiscard]] int reverseGrip(edict_t* player, int hand, const edict_t* weapon, float& cosine);
+// Server, QC magholsterpoll: what `player` asked since the last call, taken (magholster::poll's bits).
+[[nodiscard]] int magPoll(const edict_t* player);
+
+// Client: each hand's drawn pose up when it changed (from clientprefs::send); the ground spots and holster presses (B3f).
 void send();
 // Client: a new connection: they go up again.
 void clientClear();

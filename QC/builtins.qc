@@ -232,7 +232,7 @@ float(float wave) arenadirplan = #0;
 float(float what, float i, float field) arenadirget = #0;
 string(float what, float i) arenadirname = #0;
 float(float wave, float threat, float hp, float dom) arenadirsupply = #0;
-vector(entity player, float hand, float what) weapondrawnpose = #0;
+vector(entity player, float hand, float what, ...) weapondrawnpose = #0; // (43: [entity taker], the player taking it)
 // Embedded blades (vr_embedhold.qc; vr_axestick.cpp stickHeld): the just-made blade w put into the body host at `at`, going at
 // `vel` (units/s), from where `hand`'s weapon is drawn: 1 if it stuck (VR_AxeStick_Stuck called), 0 not, -1 not yet: the blade as drawn
 // doesn't touch its drawn model, its .vr_stick_depth how far off (units).

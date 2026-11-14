@@ -59,6 +59,7 @@ struct HandRig
     handrig::Pose pose;
 };
 HandRig handRigs[2];
+PlayerRig playerRigs[MAX_SCOREBOARD][2]; // server: each other player's, as his client sent them (B3f)
 
 // What a fit works on (filled at each grab; kept for vr_grip_fit_last's bench): the hand's points in the prop's frame,
 // w how deep each may press in (handfit's probes: group 0 the palm's, group 1 + f finger f's at each curl, from
@@ -456,22 +457,79 @@ void setHandRig(int hand, const glm::mat4* rigToHand, const handrig::Pose& pose)
     }
 }
 
+static_assert(rigFingers == handrig::FingerCount);
+
+PlayerRig ownRig(int hand)
+{
+    PlayerRig out;
+    if((hand == 0 || hand == 1) && handRigs[hand].valid)
+    {
+        out.valid = true;
+        out.rigToHand = handRigs[hand].rigToHand;
+        for(int f = 0; f < rigFingers; f++)
+        {
+            out.shift[f] = handRigs[hand].pose.shift[f];
+        }
+    }
+    return out;
+}
+
+void setPlayerRig(int slot, int hand, const PlayerRig& rig)
+{
+    if(slot >= 0 && slot < MAX_SCOREBOARD && (hand == 0 || hand == 1))
+    {
+        playerRigs[slot][hand] = rig;
+    }
+}
+
+PlayerRig playerRig(int slot, int hand)
+{
+    return slot >= 0 && slot < MAX_SCOREBOARD && (hand == 0 || hand == 1) ? playerRigs[slot][hand] : PlayerRig{};
+}
+
+int rigPointCount()
+{
+    return static_cast<int>(rigPointsNow().body.size());
+}
+
 const Result& last()
 {
     return lastResult;
 }
 
-bool fit(int num, int hand, bool local, bool twoHand, const glm::mat3& handToProp, const glm::vec3& handInProp, const glm::vec3& lo,
+bool fit(int num, int hand, int player, bool twoHand, const glm::mat3& handToProp, const glm::vec3& handInProp, const glm::vec3& lo,
     const glm::vec3& hi, const za::Vector<glm::vec3>* drawn, glm::vec3& move)
 {
     move = glm::vec3{0.f};
-    if(!vr_grip_fit.value || !local || (hand != 0 && hand != 1) || !handRigs[hand].valid)
+    if(!vr_grip_fit.value || (hand != 0 && hand != 1))
+    {
+        return false;
+    }
+    // This game's own player's rig as drawn here; another's as his client sent it (B3f).
+    HandRig other;
+    const HandRig* rig = nullptr;
+    if(cls.state != ca_dedicated && player == 1)
+    {
+        rig = handRigs[hand].valid ? &handRigs[hand] : nullptr;
+    }
+    else if(svs.maxclients > 1 && player >= 1 && player <= MAX_SCOREBOARD && playerRigs[player - 1][hand].valid)
+    {
+        const PlayerRig& p = playerRigs[player - 1][hand];
+        other.valid = true;
+        other.rigToHand = p.rigToHand;
+        for(int f = 0; f < rigFingers; f++)
+        {
+            other.pose.shift[f] = p.shift[f];
+        }
+        rig = &other;
+    }
+    if(!rig)
     {
         return false;
     }
     const za::I64 t0 = za::Clock::nowNanoseconds();
     const RigPoints& r = rigPointsNow();
-    const HandRig& h = handRigs[hand];
+    const HandRig& h = *rig;
     if(r.body.empty() || r.length <= 0.f)
     {
         return false;

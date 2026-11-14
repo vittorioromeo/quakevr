@@ -11,6 +11,7 @@
 #include "vr_cvars.hpp"
 #include "vr_handrig.hpp"
 #include "vr_move.hpp"
+#include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 #include "vr_render.hpp"
 #include "vr_server.hpp"
@@ -207,8 +208,9 @@ void avatars_f()
             }
             printCurls("curl0", q[0]);
             printCurls("curl1", q[1]);
-            Con_Printf(" flags=%d %d wmdl=%d %d wpn=%d\n", m->drawn[0].flags, m->drawn[1].flags, m->drawn[0].weaponModel,
-                m->drawn[1].weaponModel, static_cast<int>(c.edict->v.weapon));
+            Con_Printf(" flags=%d %d wmdl=%d %d wpn=%d %d\n", m->drawn[0].flags, m->drawn[1].flags, m->drawn[0].weaponModel,
+                m->drawn[1].weaponModel, static_cast<int>(c.edict->v.weapon),
+                static_cast<int>(progs::fieldFloatOr(c.edict, progs::fields().weapon2, 0.f)));
         }
         int sent = 0, skipped = 0;
         long long bytes = 0;

@@ -62,6 +62,11 @@ void(entity xEntPlayer) VR_HandGrabUtil_UpdateState =
         dprint(sprintf("grip: %s's main hand %s at %.3f\n", xEntPlayer.netname,
             VRGetMainHandGrabbingBit(xEntPlayer) ? "pressed" : "let go", time));
     }
+    if(cvar_hget(cvarh_vr_debug_carry) >= 2 && VRGetOffHandGrabbingBit(xEntPlayer) != VRGetOffHandPrevGrabbingBit(xEntPlayer))
+    {
+        dprint(sprintf("grip: %s's off hand %s at %.3f\n", xEntPlayer.netname,
+            VRGetOffHandGrabbingBit(xEntPlayer) ? "pressed" : "let go", time));
+    }
 }
 
 inline float(entity xEntPlayer, float xHand) VR_HandGrabUtil_IsHandGrabbing =

@@ -271,7 +271,7 @@ static void fitGrip(edict_t* ent, edict_t* player, Hold& hold, const Frame& obje
 {
     const int num = NUM_FOR_EDICT(ent);
     const int first = grip::serverHand(num);
-    const bool local = cls.state != ca_dedicated && NUM_FOR_EDICT(player) == 1;
+    const int who = NUM_FOR_EDICT(player); // (his own hand's rig: gripfit::fit, B3f)
     const glm::vec3 lo{ent->v.mins[0], ent->v.mins[1], ent->v.mins[2]};
     const glm::vec3 hi{ent->v.maxs[0], ent->v.maxs[1], ent->v.maxs[2]};
     const glm::quat toObject = glm::inverse(object.rot);
@@ -283,7 +283,7 @@ static void fitGrip(edict_t* ent, edict_t* player, Hold& hold, const Frame& obje
             continue;
         }
         glm::vec3 move{0.f};
-        if(gripfit::fit(num, i, local, true, glm::mat3_cast(toObject * hands[i].rot), toObject * (hands[i].pos - object.pos), lo, hi, nullptr,
+        if(gripfit::fit(num, i, who, true, glm::mat3_cast(toObject * hands[i].rot), toObject * (hands[i].pos - object.pos), lo, hi, nullptr,
                move))
         {
             hold.grip[i] += move;

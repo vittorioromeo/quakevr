@@ -4,6 +4,7 @@
 
 #include "vr_cvars.hpp"
 #include "vr_grip.hpp"
+#include "vr_gripfit.hpp"
 #include "vr_held.hpp"
 #include "vr_heldpose.hpp"
 #include "vr_tunables_api.hpp"
@@ -35,7 +36,9 @@ constexpr const char* prefNames[] = {
     "vr_forcegrab_mode", "vr_handgrenade_arm",
     // flat-screen play's
     "vr_flat_autoreload", "vr_flat_reload_hold", "vr_flat_grenade_arm_mode", "vr_flat_holster_drop_ahead",
-    "vr_flat_holsters", "vr_flat_saw_autostart"};
+    "vr_flat_holsters", "vr_flat_saw_autostart",
+    // the reverse grip (B3f: the server's choice for him at a grab, vr_heldpose.cpp reverseGrip)
+    "vr_revgrip"};
 constexpr int prefCount = static_cast<int>(sizeof(prefNames) / sizeof(prefNames[0]));
 constexpr int prefsCommandVersion = 1; // "vr_prefs <version> <count> <values>": another version's or count's is ignored
 
@@ -56,10 +59,43 @@ struct Fist
 // The palm frame (B3d): each hand's grip::HandFrame as this client measures it (the jointed hand as drawn: the palm, the
 // way it faces, the grip channel), up as "vr_rigframe <version> <hand> <values>" when a value moved more than frameStep
 // (units; the directions' parts as much), at most every vr_net_avatarcal_interval. The server places what the player
-// holds by it (grip::handFrameOf).
-constexpr int rigFrameCommandVersion = 1;
+// holds by it (grip::handFrameOf). With it the grip fit's hand rig (B3f: gripfit::PlayerRig, measured with the frame): its
+// rig-to-hand matrix and fingers' shifts; zeros: none.
+constexpr int rigFrameCommandVersion = 2;
 constexpr int frameValueCount = 13; // palm, palm normal, channel point, channel direction (3 each), channel radius
+constexpr int handRigValueCount = 12 + 3 * gripfit::rigFingers; // the matrix's columns' x y z, each finger's shift
+constexpr int rigFrameValueCount = frameValueCount + handRigValueCount;
 constexpr float frameStep = 0.05f;
+
+void handRigValues(const gripfit::PlayerRig& r, float out[handRigValueCount])
+{
+    for(int c = 0; c < 4; c++)
+    {
+        for(int k = 0; k < 3; k++)
+        {
+            out[c * 3 + k] = r.valid ? r.rigToHand[c][k] : 0.f;
+        }
+    }
+    for(int f = 0; f < gripfit::rigFingers; f++)
+    {
+        for(int k = 0; k < 3; k++)
+        {
+            out[12 + f * 3 + k] = r.valid ? r.shift[f][k] : 0.f;
+        }
+    }
+}
+
+[[nodiscard]] float handRigSum(const gripfit::PlayerRig& r)
+{
+    float v[handRigValueCount];
+    handRigValues(r, v);
+    float sum = 0.f;
+    for(const float x : v)
+    {
+        sum += za::abs(x);
+    }
+    return sum;
+}
 
 void frameValues(const grip::HandFrame& f, float out[frameValueCount])
 {
@@ -99,7 +135,7 @@ struct State
     double nextRigSend{0.0};
     Fist fistGoing[2];             // (being sent, a chunk a frame)
     int nextChunk[2]{-1, -1};      // (its next sphere; -1 none going)
-    float frameSent[2][frameValueCount]{};
+    float frameSent[2][rigFrameValueCount]{};
     bool frameWasSent[2]{};
     double nextFrameSend{0.0};
     // Server: each slot's fists as they come in (whole: held::setPlayerFist).
@@ -216,11 +252,12 @@ void rig_f()
     }
 }
 
-// "vr_rigframe <version> <hand> <13 values>": a client's measured frame of that hand (sendFrame), kept for his slot
-// (grip::setPlayerFrame). Values out of reach (not numbers, farther than a hand) leave it as it was.
+// "vr_rigframe <version> <hand> <40 values>": a client's measured frame of that hand and its rig (sendFrame), kept for his
+// slot (grip::setPlayerFrame, gripfit::setPlayerRig). Values out of reach (not numbers, farther than a hand) leave them as
+// they were.
 void rigFrame_f()
 {
-    if(cmd_source != src_client || !sv.active || !host_client || Cmd_Argc() != 3 + frameValueCount ||
+    if(cmd_source != src_client || !sv.active || !host_client || Cmd_Argc() != 3 + rigFrameValueCount ||
         Q_atoi(Cmd_Argv(1)) != rigFrameCommandVersion)
     {
         return;
@@ -231,15 +268,29 @@ void rigFrame_f()
     {
         return;
     }
-    float v[frameValueCount];
-    for(int i = 0; i < frameValueCount; i++)
+    float v[rigFrameValueCount];
+    for(int i = 0; i < rigFrameValueCount; i++)
     {
         v[i] = Q_atof(Cmd_Argv(3 + i));
-        if(!(za::abs(v[i]) <= 32.f))
+        if(!(za::abs(v[i]) <= (i < frameValueCount ? 32.f : 64.f)))
         {
             return;
         }
     }
+    gripfit::PlayerRig rig;
+    const float* r = v + frameValueCount;
+    for(int c = 0; c < 4; c++)
+    {
+        rig.rigToHand[c] = glm::vec4{r[c * 3], r[c * 3 + 1], r[c * 3 + 2], c == 3 ? 1.f : 0.f};
+    }
+    for(int f = 0; f < gripfit::rigFingers; f++)
+    {
+        rig.shift[f] = {r[12 + f * 3], r[12 + f * 3 + 1], r[12 + f * 3 + 2]};
+    }
+    // (a matrix with no turn in it: none measured)
+    rig.valid = glm::length(glm::vec3{rig.rigToHand[0]}) > 1e-4f && glm::length(glm::vec3{rig.rigToHand[1]}) > 1e-4f &&
+                glm::length(glm::vec3{rig.rigToHand[2]}) > 1e-4f;
+    gripfit::setPlayerRig(slot, hand, rig.valid ? rig : gripfit::PlayerRig{});
     grip::HandFrame f;
     f.measured = true;
     f.palm = {v[0], v[1], v[2]};
@@ -271,10 +322,11 @@ void sendFrame()
         {
             continue;
         }
-        float v[frameValueCount];
+        float v[rigFrameValueCount];
         frameValues(f, v);
+        handRigValues(gripfit::ownRig(hand), v + frameValueCount);
         bool moved = !state.frameWasSent[hand];
-        for(int i = 0; i < frameValueCount && !moved; i++)
+        for(int i = 0; i < rigFrameValueCount && !moved; i++)
         {
             moved = za::abs(v[i] - state.frameSent[hand][i]) > frameStep;
         }
@@ -282,13 +334,13 @@ void sendFrame()
         {
             continue;
         }
-        char text[256];
+        char text[640];
         int n = q_snprintf(text, sizeof(text), "vr_rigframe %d %d", rigFrameCommandVersion, hand);
-        for(int i = 0; i < frameValueCount && n > 0 && n < static_cast<int>(sizeof(text)); i++)
+        for(int i = 0; i < rigFrameValueCount && n > 0 && n < static_cast<int>(sizeof(text)); i++)
         {
-            n += q_snprintf(text + n, sizeof(text) - static_cast<size_t>(n), " %.3f", v[i]);
+            n += q_snprintf(text + n, sizeof(text) - static_cast<size_t>(n), za::abs(v[i]) < 5e-4f ? " 0" : " %.3f", v[i]);
         }
-        if(cls.message.cursize + n + 2 > cls.message.maxsize)
+        if(n <= 0 || n >= static_cast<int>(sizeof(text)) || cls.message.cursize + n + 2 > cls.message.maxsize)
         {
             return; // (no room: the next frame)
         }
@@ -412,7 +464,9 @@ void mpPrefs_f()
         for(int h = 0; h < 2; h++)
         {
             const grip::HandFrame f = grip::handFrame(h, h == 0, true);
-            Con_Printf(" frame%d=%d framesum%d=%.3f", h, f.measured ? 1 : 0, h, frameSum(f));
+            const gripfit::PlayerRig r = gripfit::ownRig(h);
+            Con_Printf(" frame%d=%d framesum%d=%.3f rig%d=%d rigsum%d=%.3f", h, f.measured ? 1 : 0, h, frameSum(f), h,
+                r.valid ? 1 : 0, h, handRigSum(r));
         }
         for(int i = 0; i < prefCount; i++)
         {
@@ -440,8 +494,11 @@ void mpPrefs_f()
             for(int h = 0; h < 2; h++)
             {
                 const grip::HandFrame f = grip::handFrameOf(player, h, h == 0);
-                Con_Printf(" frame%d=%d framesum%d=%.3f", h, f.measured ? 1 : 0, h, frameSum(f));
+                const gripfit::PlayerRig r = gripfit::playerRig(slot, h);
+                Con_Printf(" frame%d=%d framesum%d=%.3f rig%d=%d rigsum%d=%.3f", h, f.measured ? 1 : 0, h, frameSum(f), h,
+                    r.valid ? 1 : 0, h, handRigSum(r));
             }
+            Con_Printf(" rigpts=%d", gripfit::rigPointCount());
             int same = 0;
             for(int i = 0; i < prefCount && state.slotHas[slot]; i++)
             {
@@ -559,6 +616,8 @@ void serverReset(int slot)
         held::setPlayerFist(slot, 1, {});
         grip::setPlayerFrame(slot, 0, {});
         grip::setPlayerFrame(slot, 1, {});
+        gripfit::setPlayerRig(slot, 0, {});
+        gripfit::setPlayerRig(slot, 1, {});
         heldpose::serverReset(slot);
     }
 }

@@ -74,17 +74,14 @@ void PF_weaponhotspotinfo()
 }
 
 // float(entity player, float hand, entity weapon) weapongrabspot: the hotspot (index + 1; 0 none: its handle) by which
-// `player`'s empty `hand` takes `weapon` lying about (vr_weapon_grab_hotspots: the local player's view found the hand
-// nearer that grip or blade hotspot than the handle; vr_twohand.cpp groundSpot). Others' are 0.
+// `player`'s empty `hand` takes `weapon` lying about (vr_weapon_grab_hotspots: the player's view found the hand nearer that
+// grip or blade hotspot than the handle; vr_twohand.cpp groundSpot; another player's as his client sent it: B3f).
 void PF_weapongrabspot()
 {
     edict_t* player = G_EDICT(OFS_PARM0);
     edict_t* weapon = G_EDICT(OFS_PARM2);
     const int hand = static_cast<int>(G_FLOAT(OFS_PARM1)) == 0 ? 0 : 1;
-    const bool local = sv.active && cls.state == ca_connected && NUM_FOR_EDICT(player) == 1;
-    G_FLOAT(OFS_RETURN) = local && (vr_weapon_grab_hotspots.value || vr_weapon_grab_anywhere.value)
-                              ? static_cast<float>(twohand::groundSpot(hand, NUM_FOR_EDICT(weapon)))
-                              : 0.f;
+    G_FLOAT(OFS_RETURN) = static_cast<float>(heldpose::grabSpot(player, hand, weapon));
 }
 
 // float(entity player, float hand) weaponanygrip: how `player`'s empty `hand` holds the weapon in its other hand: 0 not,
@@ -305,16 +302,13 @@ void PF_weapondrawnpose()
     }
     if(what == 43)
     {
-        // weapondrawnpose(w, hand, 43): the reverse grip (ROUND25.md "revgrip"; QC VR_RevGrip_Choose): how this listen server's own
-        // `hand` (QC's) takes the loose weapon `w` now: '<1 reversed, 0 upright> <1 it may be held reversed, else 0> <the cosine
-        // of its blade's way and the thumb's side's>' (view::reverseGripChoice).
-        const int index = static_cast<int>(player->v.modelindex);
-        entity_t ent{};
-        ent.model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
-        VectorCopy(player->v.origin, ent.origin);
-        VectorCopy(player->v.angles, ent.angles);
+        // weapondrawnpose(w, hand, 43[, p]): the reverse grip (ROUND25.md "revgrip"; QC VR_RevGrip_Choose): how player `p`'s
+        // `hand` (QC's; without `p` this listen server's own) takes the loose weapon `w` now: '<1 reversed, 0 upright> <1 it may
+        // be held reversed, else 0> <the cosine of its blade's way and the thumb's side's>' (view::reverseGripChoice; another
+        // player's by his move's hand and his own vr_revgrip: heldpose::reverseGrip, B3f).
+        edict_t* taker = qcvm->argc > 3 ? G_EDICT(OFS_PARM3) : nullptr;
         float cosine = 1.f;
-        const int choice = sv.active && cls.state == ca_connected ? view::reverseGripChoice(ent, hand, cosine) : -1;
+        const int choice = heldpose::reverseGrip(taker, hand, player, cosine);
         progs::returnVec({choice > 0 ? 1.f : 0.f, choice >= 0 ? 1.f : 0.f, cosine});
         return;
     }
@@ -906,16 +900,14 @@ void PF_meleeshow()
         geom::vec(a), geom::vec(b), G_FLOAT(OFS_PARM4));
 }
 
-// Magnetic holsters (QC vr_magholster.qc; vr_magholster.cpp). float(entity player) magholsterpoll: what the local
-// player asked since the last call, taken (1 the off hand's bind button at a holster, 2 the main hand's, 4 every bound
-// weapon home at once: vr_magholster_return); others' 0. vector(entity player, float slot) holsterpos: holster `slot`'s
-// place (body::Holster, the holsterweapon<slot> fields' order) as the local player's body has it ('0 0 0': unknown, or
-// another player: QC's own estimate then).
+// Magnetic holsters (QC vr_magholster.qc; vr_magholster.cpp). float(entity player) magholsterpoll: what the player asked
+// since the last call, taken (1 the off hand's bind button at a holster, 2 the main hand's, 4 every bound weapon home at
+// once: vr_magholster_return; another player's as his client sent them: heldpose::magPoll, B3f). vector(entity player,
+// float slot) holsterpos: holster `slot`'s place (body::Holster, the holsterweapon<slot> fields' order) as the local
+// player's body has it ('0 0 0': unknown, or another player: QC's own estimate then; his own places are B6's).
 void PF_magholsterpoll()
 {
-    edict_t* player = G_EDICT(OFS_PARM0);
-    const bool local = sv.active && cls.state == ca_connected && NUM_FOR_EDICT(player) == 1;
-    G_FLOAT(OFS_RETURN) = local ? static_cast<float>(magholster::poll()) : 0.f;
+    G_FLOAT(OFS_RETURN) = static_cast<float>(heldpose::magPoll(G_EDICT(OFS_PARM0)));
 }
 
 void PF_holsterpos()

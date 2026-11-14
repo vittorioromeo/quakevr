@@ -556,18 +556,53 @@ edict_t* nearestThrownWeapon(bool armed = false, int side = 0)
     return best;
 }
 
+// A remote client's (no server here: MP_PLAN.md B3f): the weapon model drawn nearest the player that is none of his own
+// view's (as the view's ground spots look for one), its client entity number; 0 none.
+int nearestClientWeapon()
+{
+    if(cls.state != ca_connected || cl.viewentity <= 0)
+    {
+        return 0;
+    }
+    const glm::vec3 me = geom::vec(cl_entities[cl.viewentity].origin);
+    int best = 0;
+    float bestDist = 0.f;
+    for(int i = 0; i < cl_numvisedicts; i++)
+    {
+        const entity_t* e = cl_visedicts[i];
+        if(!e || e < cl_entities || e >= cl_entities + cl_max_edicts || !e->model || e->model->type != mod_alias ||
+            view::find(e) || e == &cl_entities[cl.viewentity] || !modelmeta::has(e->model, modelmeta::Trait::ViewWeapon))
+        {
+            continue;
+        }
+        const float d = glm::distance(geom::vec(e->origin), me);
+        if(!best || d < bestDist)
+        {
+            best = static_cast<int>(e - cl_entities);
+            bestDist = d;
+        }
+    }
+    return best;
+}
+
 bool weaponSpot(int index, float height, glm::vec3& out)
 {
+    int num = 0;
+    const char* name = "";
     if(!sv.active || svs.maxclients < 1)
     {
-        return false;
+        num = nearestClientWeapon();
+        name = "a weapon (this client's entity)";
     }
-    qcvm_t* oldVm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldVm);
-    edict_t* best = nearestThrownWeapon();
-    const int num = best ? NUM_FOR_EDICT(best) : 0;
-    const char* name = best ? PR_GetString(best->v.netname) : "";
-    PR_PopQCVM(oldVm);
+    else
+    {
+        qcvm_t* oldVm = nullptr;
+        PR_PushQCVM(&sv.qcvm, &oldVm);
+        edict_t* best = nearestThrownWeapon();
+        num = best ? NUM_FOR_EDICT(best) : 0;
+        name = best ? PR_GetString(best->v.netname) : "";
+        PR_PopQCVM(oldVm);
+    }
     if(!num || !view::groundHotspotPoint(num, index, out))
     {
         return false;
