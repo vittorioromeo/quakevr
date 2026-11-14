@@ -406,6 +406,14 @@ float(entity ent, float xHand) wpnthrow_handtouch_ent_hand =
     {
         performWeaponSwitch = TRUE;
     }
+    else if(VRGetHandtouchHand(ent) == xHand && cvar_hget(cvarh_vr_debug_carry) >= 2)
+    {
+        // (why a hand on it does not take it: the grip pressed too long ago, or too soon after it was let go)
+        dprint(sprintf("weapon: %s not taken by the %s hand at %.3f: grip %g, pressed %.3f s ago, let go %.3f s ago\n", ent.netname,
+            xHand == cVR_MainHand ? "main" : "off", time, VR_HandGrabUtil_IsHandGrabbing(entPlayer, xHand),
+            time - VR_HandGrabUtil_Impl_GetLastGrabTime(entPlayer, xHand),
+            time - VR_HandGrabUtil_Impl_GetLastReleaseTime(entPlayer, xHand)));
+    }
 
     if(performWeaponSwitch)
     {

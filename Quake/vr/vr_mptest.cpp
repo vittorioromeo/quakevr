@@ -209,7 +209,7 @@ void status_f()
             Con_Printf("mp_client: slot=%d name=\"%s\" spawned=%d org=%.1f %.1f %.1f\n", i, c.name, c.spawned ? 1 : 0,
                 o[0], o[1], o[2]);
         }
-        Con_Printf("mp_server: map=%s spawned=%d\n", sv.name, spawned);
+        Con_Printf("mp_server: map=%s spawned=%d time=%.3f\n", sv.name, spawned, sv.qcvm.time); // (time: the game's clock)
     }
     if(!signedOn())
     {

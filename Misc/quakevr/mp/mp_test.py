@@ -251,7 +251,8 @@ def avatar(s):
     # they are closed (a definite end: at most 20 reports).
     # (and the shotgun, WID_SHOTGUN 4, into his main hand: the test give, impulse 150 + 4; held by its grip, or the hand
     # lets it fall at once: the default grip-to-hold)
-    a.cmd("vr_mock_button main grip 1; vr_mock_button off grip 1; impulse 154")
+    grip_then_give(srv, a, "vr_mock_button main grip 1; vr_mock_button off grip 1")
+    srv.cmd("vr_debug_carry 0; developer 0")
     got = sv = own = None
     lines_b = []
     for _ in range(20):
@@ -605,6 +606,37 @@ def own_prefs(inst):
     return {}
 
 
+GRIP_REPRESS_S = 0.25  # game seconds after a let-go before the harness presses a grip again (the QC's bounce: 0.125)
+
+
+def grip_then_give(srv, inst, grips):
+    """`grips` (the mock's grip buttons, its hands) on `inst`, then the test give of a shotgun (impulse 154: 150 + WID 4)
+    once the server has his main grip pressed. The give in the same frame as the press could reach the server a move
+    before the grip (the move's grip bit is the client's next frame's): the default grip-to-hold let it fall at once
+    (B3's mp_avatar 14/1, A's main hand empty). Leaves the server's grip log on (vr_debug_carry 2, developer 1)."""
+    srv.cmd("vr_debug_carry 2; developer 1")
+    since = srv.mark()
+    inst.cmd(grips)
+    srv.wait(r"grip: .*main hand pressed at", 10, since, "%s's main grip on the server" % inst.name)
+    inst.cmd("impulse 154")
+
+
+def server_time(srv):
+    """The server's game clock (vr_mp_status's "mp_server: ... time=")."""
+    since = srv.mark()
+    srv.cmd("vr_mp_status")
+    _, line = srv.wait(r"mp_server: .*time=", 10, since, "the server's status")
+    return float(fields(line)["time"])
+
+
+def server_time_past(srv, t, tries=200):
+    """Asks the server its game clock until it is past `t` (a definite end: at most `tries` asks, each a frame or more)."""
+    for _ in range(tries):
+        if server_time(srv) > t:
+            return
+    raise StepFailed("the server's clock never passed %.3f" % t)
+
+
 def grab(s):
     """The rig up (vr_clientprefs.cpp "vr_rig"): the dedicated server has each player's fists as his client poses them
     (within the 64ths of a unit they are sent in); B lets a given shotgun fall from his low hand (Hold) and closes his
@@ -639,33 +671,40 @@ def grab(s):
                 break
         return seen
 
-    b.cmd("vr_mock_hand main 0.1 0.25 -0.35 0 0 0; vr_mock_button main grip 1; vr_mock_button off grip 0; impulse 154")
+    # (the server's log: "grip: player's main hand let go at <time>", "grab: main hand, thrown_weapon: the fist touches...",
+    # "weapon: ... not taken by the main hand at <time>: grip 1, pressed ... s ago, let go ... s ago")
+    grip_then_give(srv, b, "vr_mock_hand main 0.1 0.25 -0.35 0 0 0; vr_mock_button main grip 1; vr_mock_button off grip 0")
     held = b_weapon_until(4)
+    since = srv.mark()
     b.cmd("vr_mock_button main grip 0")
     seen = b_weapon_until(0)
     s.check("B's given shotgun in his gripping hand, then falls from it opened", held[-1] == 4 and seen[-1] == 0,
             "B's main weapon by report: %s, then %s" % (held, seen))
     before = prefs_report(s, srv).get(eb, {}).get("fistgrabs", 0)
-    # (a grab is the grip's press: one that came while the dropped gun could not be taken back yet, still falling or
-    # just let go, is let go and pressed again, as a player would: at most 4 presses)
-    srv.cmd("vr_debug_carry 2")  # (the server's log: "grab: main hand, thrown_weapon: the fist touches...")
-    seen = []
-    for press in range(4):
+    # A grip pressed again within 0.125 s of letting go is no grab (vr_handgrabutil.qc: a bounce of the trigger). B3's
+    # harness pressed as soon as the server had the gun fall, often within that: that press never took it (its "2 runs of
+    # 4"). Each press here comes GRIP_REPRESS_S of the server's game time after the let-go (the server's "let go at").
+    # The gun falls by his feet and can knock against his box and slide: pressed while it slid out of the fist, it is let
+    # go and pressed again, as a player would (at most 3 presses).
+    seen, presses = [], 0
+    for presses in range(1, 4):
+        _, gone = srv.wait(r"grip: .*main hand let go at", 10, since, "B's let-go on the server")
+        server_time_past(srv, float(gone.rsplit(" ", 1)[1]) + GRIP_REPRESS_S)
         b.cmd("vr_mock_button main grip 1")
         seen += b_weapon_until(4, 8)
         if seen[-1] == 4:
             break
+        since = srv.mark()
         b.cmd("vr_mock_button main grip 0")
-        reports(s, [srv])
-    srv.cmd("vr_debug_carry 0")
+    srv.cmd("vr_debug_carry 0; developer 0")
     after = prefs_report(s, srv).get(eb, {}).get("fistgrabs", 0)
     s.metric("b_fist_grabs", after - before)
+    s.metric("b_retake_presses", presses)
     s.check("B closes his hand on it: the server judges it by his own fist (it touches the dropped shotgun)",
             after > before, "fist touches %d -> %d" % (before, after))
-    # (Taken back into his hand: 2 runs of 4 so far; the fist touches it every frame of the press either way, the QC's
-    # take refuses: MP_PLAN.md, B3 open items. A note until it is chased, not a check.)
-    s.metric("b_retaken", 1 if seen[-1] == 4 else 0)
-    s.note("B's main weapon by report while pressing: %s (taken back: %s)" % (seen, "yes" if seen[-1] == 4 else "no"))
+    # (9 runs of 9 since the server stopped seeing a grip's edge again in frames without a move; a second press in 1)
+    s.check("B's grip takes the dropped shotgun back into his hand (at most 3 presses)", seen[-1] == 4,
+            "B's main weapon by report while pressing: %s" % seen)
 
 
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):

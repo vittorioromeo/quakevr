@@ -1458,9 +1458,10 @@ bool grabTouch(edict_t* ent, edict_t* player, int hand, float slack)
     }
     if(vr_debug_carry.value >= 2.f)
     {
-        Con_Printf("grab: %s hand, %s: the fist %s, %.2f cm from its surface (allowed %.2f cm)\n", hand == 0 ? "off" : "main",
-            PR_GetString(ent->v.classname), touches ? "touches" : "doesn't touch", found ? c.gap / m2u * 100.f : 999.f,
-            allowed / m2u * 100.f);
+        Con_Printf("grab: %s hand, %s: the fist %s, %.2f cm from its surface (allowed %.2f cm; it is at %.1f %.1f %.1f, %.0f u/s%s)\n",
+            hand == 0 ? "off" : "main", PR_GetString(ent->v.classname), touches ? "touches" : "doesn't touch",
+            found ? c.gap / m2u * 100.f : 999.f, allowed / m2u * 100.f, ent->v.origin[0], ent->v.origin[1], ent->v.origin[2],
+            glm::length(geom::vec(ent->v.velocity)), (static_cast<int>(ent->v.flags) & FL_ONGROUND) ? " on the ground" : "");
     }
     return touches;
 }
