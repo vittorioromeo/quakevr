@@ -581,10 +581,21 @@ static FUNC_PRINTF(3,4) GLuint GL_CreateProgram (const GLchar *vertSource, const
 	GLenum types[2] = {GL_VERTEX_SHADER, GL_FRAGMENT_SHADER};
 	va_list argptr;
 	GLuint program;
+	const double start = Sys_DoubleTime (); // QVR
 
 	va_start (argptr, name);
 	program = GL_CreateProgramFromSources (2, sources, types, name, argptr);
 	va_end (argptr);
+
+	// QVR: a program made in play is a hitch (a lazily made variant: GL_WorldDecalRetroProgram's translucent ones)
+	if (cls.state == ca_connected && cls.signon == SIGNONS)
+	{
+		char macros[256];
+		va_start (argptr, name);
+		q_vsnprintf (macros, sizeof (macros), name, argptr);
+		va_end (argptr);
+		Con_DPrintf ("GL program made in play: %s, %.0f ms\n", macros, (Sys_DoubleTime () - start) * 1000.0);
+	}
 
 	return program;
 }
