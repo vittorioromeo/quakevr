@@ -1,5 +1,5 @@
 # vrarena_gen.py -- writes quakevr/maps/vrarena.map, the Survival Arena (the armed-humanoid survival mode's own map:
-# Play > Survival Arena; the wave director is QC/vr_arena.qc, gated on the map's name), and with --compile builds it
+# Official Campaigns > Arena Mode; the wave director is QC/vr_arena.qc, gated on the map's name), and with --compile builds it
 # (qbsp, vis and light: ericw-tools 2.0, make_vrtesthall_map.py's and make_vrcalibration_map.py's profile).
 #
 #   python Misc/quakevr/maps/vrarena_gen.py [--compile [--preset fast|final]] [--check] [--holes RAYS]

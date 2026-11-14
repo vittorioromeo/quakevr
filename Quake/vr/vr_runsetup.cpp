@@ -707,6 +707,55 @@ void testCmd()
         Cvar_SetValueQuick(&vr_maps_skill, static_cast<float>(skillPick));
     }
 
+    // Arena Mode (arenacamp): its five rows the picks', the rest fixed; the picks untouched; the next Start the picks'.
+    {
+        Cvar_Set("vr_runpick_style", "1");
+        Cvar_Set("vr_runpick_gore", "2");
+        Cvar_Set("vr_runpick_armed", "1");
+        Cvar_Set("vr_runpick_smartai", "1");
+        Cvar_Set("vr_runpick_rangedknights", "1");
+        Cvar_Set("vr_runpick_pickups", "2");
+        Cvar_Set("vr_runpick_enemycount", "2");
+        Cvar_Set("vr_runpick_meleeonly", "1");
+        Cvar_Set("vr_runpick_glasscannon", "1");
+        Cvar_Set("vr_runpick_ironman", "1");
+        Cvar_Set("vr_maps_skill", "2");
+        float before[registryCount];
+        for(int i = 0; i < registryCount; i++)
+        {
+            before[i] = registry[i].pick->value;
+        }
+        int shownRows = 0;
+        for(int i = 0; i < registryCount; i++)
+        {
+            shownRows += arenaShows(i) ? 1 : 0;
+        }
+        t.check(shownRows == 5 && arenaShows(find("skill")) && arenaShows(find("gore")) && arenaShows(find("ironman")) &&
+                    arenaShows(find("glasscannon")) && arenaShows(find("meleeonly")),
+            name, "Arena Mode: its screen's five choices");
+        startArena();
+        t.check(skill.value == 2.f && vr_run_gore.value == 2.f && vr_run_ironman.value == 1.f &&
+                    vr_run_glasscannon.value == 1.f && vr_run_meleeonly.value == 1.f,
+            name, "Arena Mode: Difficulty, Gore, Ironman, Glass Cannon, Melee Only as picked");
+        t.check(vr_run_style.value == 3.f && vr_run_armed.value == 2.f && vr_run_smartai.value == 2.f &&
+                    vr_run_rangedknights.value == 0.f && vr_run_pickups.value == 0.f && vr_run_enemycount.value == 0.f &&
+                    vr_run_startgun.value == static_cast<float>(startGunNothing) && vr_run_startmelee.value == 0.f,
+            name, va("Arena Mode: Unleashed, armed and smarter AI on, the rest off (%s)", summary(false)));
+        t.check(vr_agrunt_repl.value != 0.f && vr_ai_enhanced.value != 0.f, name, "Arena Mode: their settings on");
+        bool kept = true;
+        for(int i = 0; i < registryCount; i++)
+        {
+            kept = kept && registry[i].pick->value == before[i];
+        }
+        t.check(kept, name, "Arena Mode: the picks untouched");
+        start();
+        t.check(vr_run_style.value == 1.f && vr_run_armed.value == 1.f && vr_run_smartai.value == 1.f &&
+                    vr_run_pickups.value == 2.f && vr_run_enemycount.value == 2.f && vr_agrunt_repl.value == 0.f,
+            name, va("the next run's Start: the picks again (%s)", summary(false)));
+        Cvar_Set("vr_runpick_meleeonly", "0");
+        Cvar_Set("vr_runpick_ironman", "0");
+    }
+
     // The hub ends a run: the mutators back to their defaults.
     Cvar_Set("vr_run_meleeonly", "1");
     Cvar_Set("vr_run_ironman", "1");
@@ -781,12 +830,54 @@ int activeValue(int i)
     return clampValue(m, cvarInt(*m.active));
 }
 
-void start()
+// Arena Mode's screen (ROUND25.md, "arenacamp"): the player's own picks for these; every other choice fixed by
+// arenaValue (his call 2026-11-15: "anything else would disrupt the arena mode balance/mechanics").
+constexpr const char* arenaRows[] = {"skill", "gore", "ironman", "glasscannon", "meleeonly"};
+
+bool arenaShows(int i)
+{
+    for(const char* id : arenaRows)
+    {
+        if(!q_strcasecmp(at(i).id, id))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+int arenaValue(int i)
+{
+    const Mutator& m = at(i);
+    if(arenaShows(i))
+    {
+        return pickValue(i);
+    }
+    if(!strcmp(m.id, "style"))
+    {
+        return 3; // Unleashed
+    }
+    if(!strcmp(m.id, "armed") || !strcmp(m.id, "smartai"))
+    {
+        return 2; // On
+    }
+    if(m.forced == startGunForced)
+    {
+        const int held = startGunForced(); // (Melee Only, the screen's: no starting gun)
+        return held >= 0 ? held : m.def;
+    }
+    return m.def; // (Ranged Knights off: the arena's waves bring gun knights in themselves; the rest off)
+}
+
+namespace
+{
+// The run starts with `value(i)` for each row (all read before any is set: a rule reads the picks).
+void startWith(int (*value)(int))
 {
     int values[registryCount];
     for(int i = 0; i < registryCount; i++)
     {
-        values[i] = pickValue(i); // (all read before any is set: a rule reads the picks)
+        values[i] = value(i);
     }
     for(int i = 0; i < registryCount; i++)
     {
@@ -802,6 +893,17 @@ void start()
     Cvar_Set("vr_run_hubgo", "0");
     state.runSet = true;
     Con_Printf("Run setup: %s\n", summary(false));
+}
+} // namespace
+
+void start()
+{
+    startWith(pickValue);
+}
+
+void startArena()
+{
+    startWith(arenaValue); // (the picks untouched: the next run's Start sets its own again)
 }
 
 void newGame()

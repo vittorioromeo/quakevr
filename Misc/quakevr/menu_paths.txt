@@ -314,7 +314,6 @@ vr_tips_size|1|Tips|Panel Text Size|Advanced VR Options > Tips > Panel Text Size
 |1|Play|Tutorial|Advanced VR Options > Play > Tutorial
 |1|Play|Firing Range|Advanced VR Options > Play > Firing Range
 |1|Play|Melee Recording Room|Advanced VR Options > Play > Melee Recording Room
-|1|Play|Survival Arena|Advanced VR Options > Play > Survival Arena
 |1|Play|Add Bot (Team 0)|Advanced VR Options > Play > Add Bot (Team 0)
 |1|Play|Add Bot (Team 1)|Advanced VR Options > Play > Add Bot (Team 1)
 |1|Play|Kick Bot|Advanced VR Options > Play > Kick Bot
@@ -665,6 +664,7 @@ vr_blood_health_curve|0|Blood Feedback|Health Scaling Curve|VR Settings > Comfor
 |0|Blood Feedback|Reset This Page|VR Settings > Comfort, Teleport and Turning > Blood Feedback > Reset This Page
 @page|0|Ranger Head||VR Settings > Player Appearance > Ranger Head
 vr_body_ranger_head|0|Ranger Head|Use the Ranger's Head|VR Settings > Player Appearance > Ranger Head > Use the Ranger's Head
+vr_body_ranger_head_model|0|Ranger Head|Detailed Head|VR Settings > Player Appearance > Ranger Head > Detailed Head
 vr_body_head_size|0|Ranger Head|Size|VR Settings > Player Appearance > Ranger Head > Size
 vr_body_head_sink|0|Ranger Head|Neck Sink|VR Settings > Player Appearance > Ranger Head > Neck Sink
 vr_body_head_forward|0|Ranger Head|Forward|VR Settings > Player Appearance > Ranger Head > Forward
@@ -5701,6 +5701,7 @@ vr_test_weaponinst_slot|2|Debug - Tests|Holster|Advanced VR Options > Debug > Te
 |2|Debug - Tests|Take It Back|Advanced VR Options > Debug > Tests > Take It Back
 |2|Debug - Tests|Switch Hands|Advanced VR Options > Debug > Tests > Switch Hands
 |2|Debug - Tests|Gameplay Preset and Classic Quake|Advanced VR Options > Debug > Tests > Gameplay Preset and Classic Quake
+|2|Debug - Tests|Classic Quake On and Off|Advanced VR Options > Debug > Tests > Classic Quake On and Off
 |2|Debug - Tests|Gore Preset|Advanced VR Options > Debug > Tests > Gore Preset
 |2|Debug - Tests|Presets' State|Advanced VR Options > Debug > Tests > Presets' State
 |2|Debug - Tests|Shotgun in the Off Hand|Advanced VR Options > Debug > Tests > Shotgun in the Off Hand

@@ -297,7 +297,7 @@ byte* compose(const Recipe& recipe, int* w, int* h, enum srcformat* fmt)
     *w = normal ? nw : bump ? bw : gw;
     *h = normal ? nh : bump ? bh : gh;
     *fmt = SRC_RGBA;
-    byte* out = static_cast<byte*>(Hunk_AllocNoFill(static_cast<size_t>(*w) * *h * 4));
+    byte* out = static_cast<byte*>(Hunk_Alloc(static_cast<size_t>(*w) * *h * 4));
     for(int y = 0; y < *h; ++y)
     for(int x = 0; x < *w; ++x)
     {
@@ -523,7 +523,7 @@ void test_f()
         auto withCRLF = [](const char* text)
         {
             const size_t length = strlen(text);
-            char* out = static_cast<char*>(Hunk_AllocNoFill(length * 2 + 1));
+            char* out = static_cast<char*>(Hunk_Alloc(length * 2 + 1));
             char* o = out;
             for(const char* c = text; *c; ++c)
             {

@@ -730,7 +730,7 @@ extern "C" byte* VR_SkinRelief(gltexture_t* glt, byte* data)
 
     int mw = 0, mh = 0;
     const byte* mask = VR_SkinIslands(&mw, &mh);
-    byte* map = static_cast<byte*>(Hunk_AllocNoFill((size_t)W * H * 4));
+    byte* map = static_cast<byte*>(Hunk_Alloc((size_t)W * H * 4));
     unsigned long long key = qvr::diskcache::fnvStart;
     const int cache = VR_NormalCacheMode();
     {

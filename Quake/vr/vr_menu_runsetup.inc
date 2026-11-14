@@ -16,8 +16,10 @@ struct RunSetupState
     za::String map; // "": the package's start map
     int campaign{-1};
     bool skillHalls{false};
+    bool arena{false}; // Arena Mode's screen (its own rows: runsetup::arenaShows), kept after its Start
     int builtKey{-1};
     int builtHalls{-1};
+    int builtArena{-1};
 };
 RunSetupState runSetup;
 
@@ -72,7 +74,8 @@ const char* runSetupHeldLine(int i)
 
 bool runSetupStale()
 {
-    return runSetup.builtKey != runsetup::pageKey() || runSetup.builtHalls != (runSetup.skillHalls ? 1 : 0);
+    return runSetup.builtKey != runsetup::pageKey() || runSetup.builtHalls != (runSetup.skillHalls ? 1 : 0) ||
+           runSetup.builtArena != (runSetup.arena ? 1 : 0);
 }
 
 void runSetupCloseMenu()
@@ -85,11 +88,24 @@ void runSetupCloseMenu()
 // Start: the picks made the run's, then what opened the screen starts it.
 void runSetupStart()
 {
-    runsetup::start();
     const runsetup::Launch launch = runSetup.launch;
+    if(launch == runsetup::Launch::Arena)
+    {
+        runsetup::startArena(); // (the arena's fixed choices; the picks untouched)
+    }
+    else
+    {
+        runsetup::start();
+    }
     runSetup.launch = runsetup::Launch::None;
     switch(launch)
     {
+        case runsetup::Launch::Arena:
+            // Quake's campaign, then the arena (vr_campaign_hub: the game folders rebuilt first when another campaign
+            // is the active one; the map closes the menu).
+            Con_Printf("VR: Arena Mode started from the menu.\n");
+            Cbuf_InsertText("vr_campaign_hub vrarena\n");
+            return;
         case runsetup::Launch::Library:
             if(mapinstall::play(runSetup.sha, runSetup.map.size() ? runSetup.map.cStr() : nullptr,
                    runSetup.skillHalls ? -1 : runsetup::activeValue(runsetup::find("skill"))))
@@ -178,10 +194,36 @@ za::Vector<Item> pageRunSetup()
 {
     runSetup.builtKey = runsetup::pageKey();
     runSetup.builtHalls = runSetup.skillHalls ? 1 : 0;
+    runSetup.builtArena = runSetup.arena ? 1 : 0;
     const bool grouped = vr_runsetup_groups.value != 0.f;
     za::Vector<Item> items;
     // Start: a big button of its own, always the page's first row (his call, 2026-11-15); the Difficulty picker (none
     // with skill halls) right after it, the sections below after their own gap.
+    if(runSetup.arena)
+    {
+        // Arena Mode (ROUND25.md, "arenacamp"): Start, Difficulty, Gore, Ironman, Glass Cannon, Melee Only, nothing
+        // else (his call 2026-11-15: the rest would disrupt the arena's balance; runsetup::arenaValue fixes them).
+        items.pushBack(action("Start", runSetupStart)
+                           .help("Starts Arena Mode with these choices: Unleashed, armed humanoids and the smarter AI "
+                                 "always, the other mutators off; your Run Setup for other runs is left as it is. Back: "
+                                 "not started.")
+                           .button());
+        constexpr const char* order[] = {"skill", "gore", "ironman", "glasscannon", "meleeonly"};
+        constexpr const char* before[] = {nullptr, "Presets", "Rules", nullptr, nullptr};
+        for(int o = 0; o < 5; o++)
+        {
+            const int i = runsetup::find(order[o]);
+            if(before[o])
+            {
+                items.pushBack(header(before[o]));
+            }
+            if(i >= 0 && runsetup::arenaShows(i))
+            {
+                runSetupRow(items, i);
+            }
+        }
+        return items;
+    }
     items.pushBack(action("Start", runSetupStart)
                        .help("Starts the run with these choices (kept for next time; each saved game keeps its run's "
                              "and sets them back when loaded). Back: not started.")
@@ -253,6 +295,7 @@ void openRunSetup(runsetup::Launch launch, const za::String& sha, const char* ma
     runSetup.map = map ? za::String{map} : za::String{};
     runSetup.campaign = campaign;
     runSetup.skillHalls = skillHalls;
+    runSetup.arena = launch == runsetup::Launch::Arena;
     if(vr_runsetup_ask.value == 0.f)
     {
         runSetupStart();
@@ -290,4 +333,16 @@ void openRunSetupArcane()
         return;
     }
     openRunSetup(runsetup::Launch::Campaign, za::String{}, nullptr, index, true);
+}
+
+// Arena Mode, its experimental notice answered Continue (vr_menu.cpp selectArenaRow): the arena's own Run Setup screen
+// (pageRunSetup: its five rows), its Start the arena (runSetupStart). Quake's campaign unavailable: its reason printed.
+void openRunSetupArena()
+{
+    if(VR_CampaignUnavailable(0) != 0)
+    {
+        VR_SelectCampaign(0); // (only its reason printed)
+        return;
+    }
+    openRunSetup(runsetup::Launch::Arena, za::String{}, "vrarena", -1, false);
 }

@@ -253,7 +253,7 @@ extern "C" byte* VR_CleanSkin(const char* name, byte* data, int width, int heigh
         }
         return data;
     }
-    byte* out = static_cast<byte*>(Hunk_AllocNoFill(static_cast<int>(size))); // freed with the upload's (TexMgr's mark)
+    byte* out = static_cast<byte*>(Hunk_Alloc(static_cast<int>(size))); // freed with the upload's (TexMgr's mark)
     memcpy(out, data, size);
     const za::U32* pair = pairs;
     for(za::SizeT i = 0; i < e.count; i++, pair += 2)

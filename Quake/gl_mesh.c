@@ -56,7 +56,7 @@ void GL_MakeAliasModelDisplayLists (qmodel_t *aliasmodel, aliashdr_t *paliashdr)
 	aliasmesh_t *desc;
 
 	// first, copy the verts onto the hunk
-	verts = (trivertx_t *) Hunk_AllocNoFill (paliashdr->numposes * paliashdr->numverts * sizeof(trivertx_t));
+	verts = (trivertx_t *) Hunk_Alloc (paliashdr->numposes * paliashdr->numverts * sizeof(trivertx_t));
 	paliashdr->vertexes = (byte *)verts - (byte *)paliashdr;
 	for (i=0 ; i<paliashdr->numposes ; i++)
 		for (j=0 ; j<paliashdr->numverts ; j++)
@@ -64,7 +64,7 @@ void GL_MakeAliasModelDisplayLists (qmodel_t *aliasmodel, aliashdr_t *paliashdr)
 
 	// QVR: room for each vertex's path along its animations dequantised (vr/vr_mdldequant.cpp), computed
 	// by the first upload (GLMesh_LoadVertexBuffer): the positions' offsets, then the normals
-	paliashdr->dequant = (byte *) Hunk_AllocNoFill (paliashdr->numposes * paliashdr->numverts * 2 * sizeof (unsigned)) - (byte *)paliashdr;
+	paliashdr->dequant = (byte *) Hunk_Alloc (paliashdr->numposes * paliashdr->numverts * 2 * sizeof (unsigned)) - (byte *)paliashdr;
 	paliashdr->dequantready = 0;
 
 	// there can never be more than this number of verts and we just put them all on the hunk

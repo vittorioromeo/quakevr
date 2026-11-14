@@ -29,6 +29,7 @@ enum class Launch
     Campaign, // Official Campaigns' row
     Level,    // the flat Levels list (menu_maps, a map by name): `map <name>`
     Hub,      // the hub's teleporter to the start map
+    Arena,    // Select Campaign's Arena Mode: the Survival Arena (vrarena) with the arena's run (startArena)
 };
 
 enum class Section
@@ -89,6 +90,15 @@ struct Mutator
 
 // The run starts: every vr_run_<id> from its pick (forced ones held), each apply(Start).
 void start();
+
+// Arena Mode (Select Campaign's row under Arcane Dimensions; ROUND25.md, "arenacamp"): its Run Setup screen shows only
+// Difficulty, Gore, Ironman, Glass Cannon and Melee Only (arenaShows: the player's picks); every other choice is fixed
+// for the arena's balance (arenaValue: Unleashed, Armed Humanoids and Smarter AI on, Ranged Knights off -- the arena's
+// waves bring gun knights in themselves -- the rest at their defaults). startArena starts the run with those values,
+// the picks untouched (the next run's Start sets its own again).
+[[nodiscard]] bool arenaShows(int i);
+[[nodiscard]] int arenaValue(int i);
+void startArena();
 
 // Host_Map_f (VR_RunNewGame): a new game. Begun by the screen's Start, the hub's end of a run or `vr_run <id> <value>`,
 // or with a run's cvar set by hand since the last map: as set; else (the Firing Range button, `map` typed) the screen's

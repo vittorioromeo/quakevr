@@ -87,6 +87,7 @@ void Draw_ReplacePicRGBA (qpic_t *pic, const char *name, int width, int height, 
 	const unsigned *data, qboolean smooth); // gl_draw.c: the same of RGBA texels (texwidth x texheight drawn width x height)
 int Mod_ReloadAliasModels (qboolean (*match) (const char *name, void *ctx), void *ctx); // gl_model.c (vr_model_reload)
 void TexMgr_ReloadAlphaTested (void);				// gl_texmgr.c: as vr_alpha_coverage changes
+int TexMgr_FileTextureHashes (void (*fn) (void *ctx, const char *name, unsigned hash), void *ctx); // gl_texmgr.c: the file-read textures, their texels hashed (vr_classic_roundtrip_test)
 gltexture_t *TexMgr_LoadNormalMap (gltexture_t *base, const char *name, int width, int height, enum srcformat format,
 	byte *data, const char *source_file, src_offset_t source_offset, int kind, int worldwidth); // gl_texmgr.c: a texture's normal map (VR_LoadNormalMap)
 qboolean TexMgr_NormalMapAuthored (gltexture_t *glt); // gl_texmgr.c: whether its normal map is an authored file's (NORMALMAP_FILE)

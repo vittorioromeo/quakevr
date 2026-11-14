@@ -24,29 +24,22 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define __ZZONE_H
 
 /*
- memory allocation (QVR: all of it is the heap now, mimalloc's: zone.c, ROUND25.md "nozone", "nohunk")
+ Memory (QVR: every allocation is a block of the heap, mimalloc's; the API names three lifetime groups over it, plus
+ a scratch stack. zone.c, ROUND25.md "nozone", "nohunk")
 
+Z_???   Single allocations: Z_Malloc returns zeroed memory, Z_Free releases it (Z_Free (NULL) is fine). For small,
+        dynamic things (command text, strings) whose owner frees them.
 
-H_??? The hunk: allocations in a stack fashion, each a heap block of its own.
-Hunk_LowMark is the bytes on the stack; the only way memory is released is
-Hunk_FreeToLowMark, which frees every block allocated since that mark. The
-blocks are not contiguous: a loader that built a model on the hunk hands its
-blocks to the cache (Hunk_MoveToCache) instead of copying the range.
+Hunk_???  Lifetimes by mark: each allocation is zeroed, 16 byte aligned, a block of its own, and named for hunk_print.
+        Hunk_LowMark is a mark (the bytes allocated so far); Hunk_FreeToLowMark frees every block allocated since it,
+        and is the only way hunk memory is released (a map's data, an upload's temporaries). A loader that built a
+        model on the hunk can hand its blocks to the cache (Hunk_MoveToCache). Hunk_KeepLoaded holds a model loaded
+        mid-play: no free goes below it until Hunk_ClearKeep.
 
-Hunk allocations should be given a name, so the Hunk_Print () function
-can display usage.
-Hunk allocations are guaranteed to be 16 byte aligned.
+Cache_???  Flushable handles for model and sound data that may stay loaded between levels: owned blocks, freed by
+        Cache_Free and Cache_Flush (a game change); never moved or purged.
 
-
-Z_??? Zone memory functions used for small, dynamic allocations like text
-strings from command input.  QVR: thin wrappers over the heap (calloc and
-free with a small checked header: zone.c, ROUND25.md "nozone"); no longer a
-fixed block at the bottom of the hunk.
-
-Cache_??? Cache memory is for objects that can be dynamically loaded and
-can usefully stay persistant between levels.  QVR: owned heap blocks, freed
-by Cache_Free and Cache_Flush (a game change); never moved or purged.
-
+Temp_???  Per-frame scratch: a stack of reused chunks for short-lived lists, with marks like the hunk's.
 */
 
 void Memory_Init (void);
@@ -63,9 +56,7 @@ char *Z_Strdup (const char *s);
 #endif
 
 void *Hunk_Alloc (int size); // returns 0 filled memory
-void *Hunk_AllocNoFill (int size); // QVR: zeroed too now (zone.c, "nohunk")
 void *Hunk_AllocName (int size, const char *name); // returns 0 filled memory
-void *Hunk_AllocNameNoFill (int size, const char *name); // QVR: zeroed too now (zone.c, "nohunk")
 char *Hunk_Strdup (const char *s, const char *name);
 
 // QVR: short-lived scratch for a frame's lists (SV_TouchLinks, SV_PushMove, VR_TouchLinks...: they were hunk
