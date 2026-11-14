@@ -294,7 +294,7 @@ namespace
     b.legM2w = b.m2w;
     const float m2u = detail::metresToUnits();
     const float scaledFor = b.m2w / m2u * units::modelEyeHeight; // the eye height the body is scaled to
-    if(!vr_body_leg_fit.value || (!posingOther() && seated::active()) || s.standingHeight <= 0.f)
+    if(!vr_body_leg_fit.value || posedSeated() || s.standingHeight <= 0.f)
     {
         return 0.f;
     }

@@ -300,64 +300,17 @@ void setupPlates()
 // left shoulder joint; the right side draws them mirrored.
 void setupPauldrons()
 {
-    for(int side = 0; side < 2; side++)
-    {
-        entities.pauldron[side].visible = false;
-        entities.pauldronArm[side].visible = false;
-    }
-    const view::ViewEntity& body = entities.body;
-    if(!vr_body_pauldrons.value || !body.visible)
-    {
-        return;
-    }
-
-    // Skins: 0 leather, 1-3 the armours' colours, 4 steel.
-    const int style = static_cast<int>(vr_body_pauldron_style.value);
-    // (the armour's plates on: its colour is theirs, the caps the ranger's own leather, and none under a plate: below)
-    const bool plates = vr_player_plates.value != 0.f;
-    const int skin = style == 1 ? (plates ? 0 : armorWorn()) : style >= 2 ? 4 : 0;
-
-    // Made for the athletic build.
-    const int build = avatar::bodyBuild();
-    const float size = CLAMP(0.25f, vr_body_pauldron_size.value, 4.f) * avatar::buildShape(build).pauldron;
-    const float k = avatar::modelScale(&body.ent); // world units per model unit
-    const unsigned char scale = static_cast<unsigned char>(CLAMP(1.f, k * size * ENTSCALE_DEFAULT + 0.5f, 255.f));
-    const float follow = CLAMP(0.f, vr_body_pauldron_follow.value, 1.f);
-
-    for(int side = 0; side < 2; side++)
-    {
-        avatar::Shoulder sh;
-        if(!avatar::shoulder(side, sh))
-        {
-            return;
-        }
-
-        // A plate on this shoulder takes the cap's and the lames' place (they'd show through it).
-        if(plates && (playerPlates.pieces >> (side == 0 ? agarmor::PauldronL : agarmor::PauldronR)) & 1)
-        {
-            continue;
-        }
-
-        const bool mirrored = side == 1;
-        // Offsets in the body's bind space: forward, out (left for the left side), up.
-        const glm::vec3 offset = glm::vec3{vr_body_pauldron_forward.value,
-                                     vr_body_pauldron_out.value * (mirrored ? -1.f : 1.f), vr_body_pauldron_up.value} *
-                                 sh.m2w;
-
-        const glm::quat capRot = glm::slerp(sh.clavicle, sh.upperArm, follow);
-        const auto part = [&](view::ViewEntity& ve, const char* model, const glm::quat& rot) {
-            const glm::mat3 m = glm::mat3_cast(rot);
-            const glm::vec3 a = hands::anglesFromVectors(m[0], m[2]);
-            place(ve, viewModel(model), sh.joint + rot * offset, {-a.x, a.y, a.z}, 0, mirrored);
-            ve.ent.skinnum = skin;
-            ve.ent.scale = scale;
-            ve.ent.alpha = body.ent.alpha;
-            ve.lightMultiply = body.lightMultiply;
-            ve.lightMod = body.lightMod;
-        };
-        part(entities.pauldron[side], "progs/vrpauldron.mdl", capRot);
-        part(entities.pauldronArm[side], "progs/vrpauldron_arm.mdl", sh.upperArm);
-    }
+    view::PauldronLook look;
+    look.on = vr_body_pauldrons.value != 0.f;
+    look.style = static_cast<int>(vr_body_pauldron_style.value);
+    look.size = vr_body_pauldron_size.value;
+    look.follow = vr_body_pauldron_follow.value;
+    look.offset = {vr_body_pauldron_forward.value, vr_body_pauldron_out.value, vr_body_pauldron_up.value};
+    look.build = avatar::bodyBuild();
+    look.armour = armorWorn();
+    look.plates = vr_player_plates.value != 0.f;
+    look.platePieces = static_cast<unsigned>(playerPlates.pieces);
+    view::placePauldrons(entities.body, look, 0, entities.pauldron, entities.pauldronArm);
 }
 
 // ----------------------------------------------------------------------------
@@ -508,6 +461,80 @@ void setupFrontButton(int hand)
 
 namespace qvr::view
 {
+
+void placePauldrons(const ViewEntity& body, const PauldronLook& look, int player, ViewEntity cap[2], ViewEntity arm[2])
+{
+    for(int side = 0; side < 2; side++)
+    {
+        cap[side].visible = false;
+        arm[side].visible = false;
+    }
+    if(!look.on || !body.visible)
+    {
+        return;
+    }
+
+    // Skins: 0 leather, 1-3 the armours' colours, 4 steel.
+    // (the armour's plates on: its colour is theirs, the caps the ranger's own leather, and none under a plate: below)
+    const int skin = look.style == 1 ? (look.plates ? 0 : look.armour) : look.style >= 2 ? 4 : 0;
+
+    // Made for the athletic build.
+    const float size = CLAMP(0.25f, look.size, 4.f) * avatar::buildShape(look.build).pauldron;
+    const float k = avatar::modelScale(&body.ent); // world units per model unit
+    const unsigned char scale = static_cast<unsigned char>(CLAMP(1.f, k * size * ENTSCALE_DEFAULT + 0.5f, 255.f));
+    const float follow = CLAMP(0.f, look.follow, 1.f);
+
+    for(int side = 0; side < 2; side++)
+    {
+        avatar::Shoulder sh;
+        if(!(player > 0 ? avatar::otherShoulder(player, side, sh) : avatar::shoulder(side, sh)))
+        {
+            return;
+        }
+
+        // A plate on this shoulder takes the cap's and the lames' place (they'd show through it).
+        if(look.plates && (look.platePieces >> (side == 0 ? agarmor::PauldronL : agarmor::PauldronR)) & 1)
+        {
+            continue;
+        }
+
+        const bool mirrored = side == 1;
+        // Offsets in the body's bind space: forward, out (left for the left side), up.
+        const glm::vec3 offset = glm::vec3{look.offset.x, look.offset.y * (mirrored ? -1.f : 1.f), look.offset.z} * sh.m2w;
+
+        const glm::quat capRot = glm::slerp(sh.clavicle, sh.upperArm, follow);
+        const auto part = [&](ViewEntity& ve, const char* model, const glm::quat& rot) {
+            const glm::mat3 m = glm::mat3_cast(rot);
+            const glm::vec3 a = hands::anglesFromVectors(m[0], m[2]);
+            view_detail::place(ve, view_detail::viewModel(model), sh.joint + rot * offset, {-a.x, a.y, a.z}, 0, mirrored);
+            ve.ent.skinnum = skin;
+            ve.ent.scale = scale;
+            ve.ent.alpha = body.ent.alpha;
+            ve.lightMultiply = body.lightMultiply;
+            ve.lightMod = body.lightMod;
+        };
+        part(cap[side], "progs/vrpauldron.mdl", capRot);
+        part(arm[side], "progs/vrpauldron_arm.mdl", sh.upperArm);
+    }
+}
+
+void printPauldrons(const char* what, int ent, const ViewEntity cap[2])
+{
+    for(int side = 0; side < 2; side++)
+    {
+        const ViewEntity& ve = cap[side];
+        if(ve.visible && ve.ent.model)
+        {
+            Con_Printf("%s: ent=%d side=%d skin=%d scale=%d at=%.2f %.2f %.2f\n", what, ent, side, ve.ent.skinnum, ve.ent.scale,
+                ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]);
+        }
+    }
+}
+
+void printOwnPauldrons(int ent)
+{
+    printPauldrons("mp_pauldron_own", ent, entities.pauldron);
+}
 
 int plateBonePoses(const entity_t* e, const float** matrices, PlatePass pass)
 {

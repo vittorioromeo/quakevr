@@ -477,6 +477,29 @@ void woundTargets(entity_t* out[3]);
 // Multiplayer (MP_PLAN.md, B2b): the hands and held weapons as drawn last ([0] off, [1] main), for the move (the other
 // players draw them: vr_mpavatar.cpp). A weapon whose model the server has not precached is left out (others can't name it).
 void netHands(VrDrawnHand out[2]);
+// ... and the holsters as drawn last (B6b): their points and the weapons in them, in body::Holster's order (their stats').
+void netHolsters(VrDrawnHolsters& out);
+
+// The pauldrons' look (vr_body_pauldron*): yours from your settings, another player's from his calibration and the armour
+// the server says he wears (MP_PLAN.md, B6b).
+struct PauldronLook
+{
+    bool on{false};
+    int style{0};          // vr_body_pauldron_style
+    float size{1.f};       // vr_body_pauldron_size
+    float follow{0.f};     // vr_body_pauldron_follow
+    glm::vec3 offset{0.f}; // vr_body_pauldron_forward, _out, _up
+    int build{1};          // his body's build
+    int armour{0};         // the armour worn: 0 none, 1 green, 2 yellow, 3 red
+    bool plates{false};    // the armour's plates drawn on the body (a plate on a shoulder: no pauldron there)
+    unsigned platePieces{0};
+};
+// The pauldrons of `body` (posed this frame: yours, `player` 0, or player `player`'s, avatar::otherShoulder) placed into
+// `cap` and `arm` ([0] left, [1] right; not visible: none). One code path for yours and the others'.
+void placePauldrons(const ViewEntity& body, const PauldronLook& look, int player, ViewEntity cap[2], ViewEntity arm[2]);
+// vr_mp_avatars: "<what>: ent= side= skin= scale= at=" for each cap drawn; yours as "mp_pauldron_own".
+void printPauldrons(const char* what, int ent, const ViewEntity cap[2]);
+void printOwnPauldrons(int ent);
 // Another player's jointed hand `h` (his hand `hand`: its fingers' places as your settings put them): posed and skinned
 // into `out` (handrig::skin's matrices). The rig's model, or nullptr: no jointed hand to draw.
 qmodel_t* remoteHandSkin(int hand, const VrDrawnHand& h, float* out);

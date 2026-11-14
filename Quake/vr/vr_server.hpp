@@ -19,6 +19,9 @@ void init(); // registers commands
 // room-scale moves), or nullptr for a client that sent none. Whatever the progs: the engine's own
 // VR physics work from these, not from QC fields.
 [[nodiscard]] const VrMove* clientMove(struct edict_s* player);
+// Holster `slot` (body::Holster's order) of the client `player` as his client drew it, carried with his entity since
+// (MP_PLAN.md, B6b: QC's holsterpos for a remote player). False: none sent.
+[[nodiscard]] bool holsterPoint(struct edict_s* player, int slot, glm::vec3& out);
 
 // How many of client `clientNum`'s moves came in a server frame that had one of his already (merged: their VR bits ORed,
 // the hands' last pose kept) since he connected: vr_mp_status `merged=` (MP_PLAN.md, B5d: melee at jitter).

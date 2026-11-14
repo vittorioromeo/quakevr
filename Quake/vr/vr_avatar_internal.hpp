@@ -7,6 +7,7 @@
 #include "vr_engine.hpp"
 #include "vr_geom.hpp"
 #include "vr_hands.hpp"
+#include "vr_seated.hpp"
 #include "vr_units.hpp"
 
 #include "Zancle/Container/Array.hpp"
@@ -121,6 +122,11 @@ extern const Subject* subject;
 [[nodiscard]] float bodyScale();
 // The local player's flat-screen play (flatplay::active()); never another's.
 [[nodiscard]] bool localFlat();
+// The posed body's seated play (seated::active(); another player's: his calibration's, Subject::seated: B6b).
+[[nodiscard]] inline bool posedSeated()
+{
+    return subject ? subject->seated : seated::active();
+}
 // The posed body's velocity (world units a second), and whether it stands on the ground (cl.velocity, cl.onground).
 [[nodiscard]] glm::vec3 velocity();
 [[nodiscard]] bool onGround();

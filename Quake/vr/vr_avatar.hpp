@@ -269,6 +269,7 @@ struct Subject
     glm::vec3 holdAt[2]{};                  // ... where (world), and the way out from its face (horizontal)
     glm::vec3 holdOut[2]{};
     int player{0};                          // his entity (a listen host's foothold traces pass his own box by)
+    bool seated{false};                     // he plays seated (posed as his own seated body: no leg fit; B6b)
 };
 // `player`: 1 .. MAX_SCOREBOARD. Returns the entity origin (the pelvis), as pose(). His swimming, lying down and climbing
 // as the server has him (Subject::lying, waterlevel, onGround: the body's pitch; Subject::holds: the trunk hanging under

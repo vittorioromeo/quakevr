@@ -72,6 +72,27 @@ struct VrBodyPose
 void writeBodyPose(sizebuf_t* buf, const VrBodyPose& p);
 [[nodiscard]] VrBodyPose readBodyPose();
 
+// The holsters as this client drew them last (view::netHolsters; MP_PLAN.md, B6b): each holster's point (body::Holster's
+// order, world: QC's holsterpos for him on the server) and the weapon drawn in it, as the hands' (the others draw his
+// holstered weapons as he does: his holster places, seated layout, Holstered poses). Multiplayer only (valid).
+struct VrDrawnHolsters
+{
+    static constexpr int count = 6;
+    bool valid{false};
+    glm::vec3 at[count]{};
+    za::U8 weapons{0};  // bit h: a weapon drawn in holster h
+    za::U8 mirrored{0}; // bit h: drawn mirrored (the left-hand holsters)
+    za::U16 model[count]{}; // model_precache index
+    za::U8 frame[count]{};
+    za::U8 skin[count]{};
+    glm::vec3 origin[count]{}; // world
+    glm::vec3 angles[count]{};
+};
+// Written as a byte (valid), then, valid, the points (eighths from `origin`, 36 B) when `points`, the weapons' and the
+// mirrored bytes and 16 B a drawn weapon (model, frame, skin, place, turn).
+void writeDrawnHolsters(sizebuf_t* buf, const VrDrawnHolsters& h, const glm::vec3& origin, bool points);
+[[nodiscard]] VrDrawnHolsters readDrawnHolsters(const glm::vec3& origin, bool points);
+
 struct VrMove
 {
     glm::vec3 headAngles{0.f}; // -> .v_viewangle (.v_angle carries the aim angles)
@@ -124,6 +145,7 @@ struct VrMove
     // The hands as this client drew them last ([0] off, [1] main; view::netHands): for the other players (the avatar).
     VrDrawnHand drawn[2];
     VrBodyPose body; // (multiplayer, with `drawn`)
+    VrDrawnHolsters holsters; // (multiplayer, with `drawn`: B6b)
 };
 
 void writeVrMove(sizebuf_t* buf, const VrMove& move);

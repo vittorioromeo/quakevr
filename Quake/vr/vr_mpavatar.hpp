@@ -47,7 +47,11 @@ struct Avatar
     int weapon2{0};
     glm::vec3 holdAt[2]{};  // [0] off hand, [1] main: where it holds (moves' avatarHold*), from his entity's origin
     glm::vec3 holdOut[2]{}; // ... and the way out from the face (horizontal, unit)
+    VrDrawnHolsters holsters; // his holstered weapons as he drew them, from his entity's origin (B6b; no points)
+    int armour{0};            // the armour he wears (gearByte: his pauldrons' colour)
 };
+// The server's gear byte for client entity `ent` (after the holsters): the armour he wears, 0 none .. 3 red.
+[[nodiscard]] int gearByte(const edict_t* ent);
 
 // vr_client.cpp's dispatch: QVR_SVC_AVATAR's body (after its sub-command byte).
 void parse();
@@ -73,12 +77,12 @@ void clear();
 
 // The avatar calibration (MP_PLAN.md, B2c): what others need of a player's body and see of it, from his own settings --
 // height, seated height, arm length, world scale, handedness and the gadget's arm, gloves (kind, colour), nails (and colour: B6), skin
-// tone, body (mode, build, bracers, pauldrons), his arms (Body Calibration's measurements, tweaks and shoulders: B3c). Each as an integer (calFields in vr_mpavatar.cpp: metres in mm, shares
+// tone, body (mode, build, bracers, pauldrons; their style, size and place, seated play, a flat-screen body height: B6b), his arms (Body Calibration's measurements, tweaks and shoulders: B3c). Each as an integer (calFields in vr_mpavatar.cpp: metres in mm, shares
 // in thousandths...), so what is sent, kept and compared is exact. The client sends his up when it changes (a
 // "vr_avatarcal" client command, reliable, at most every vr_net_avatarcal_interval); the server keeps one per client
 // slot and passes it on to every client (QVR_SVC_AVATARCAL, reliable), and all of them to a joining client.
 // Multiplayer only.
-inline constexpr int numCalFields = 29;
+inline constexpr int numCalFields = 37;
 struct Calibration
 {
     int v[numCalFields]{};

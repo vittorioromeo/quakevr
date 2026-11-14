@@ -25,7 +25,7 @@ namespace
 {
 
 // "vr_heldpose <version> <hand> <valueCount values>" (encode's order); another version's or count's is ignored.
-constexpr int commandVersion = 1;
+constexpr int commandVersion = 2; // (2: flagMag, B6b)
 constexpr int valueCount = 62;
 constexpr float step = 0.05f; // (units, and the directions' parts as much: a change smaller goes up with the next one)
 constexpr float most = 256.f; // (a value farther than this: not a hand's, the command ignored)
@@ -38,7 +38,8 @@ enum Flag : int
     flagCarrying = 4,
     flagAxes = 8,
     flagMayReverse = 16,
-    flagFlippable = 32
+    flagFlippable = 32,
+    flagMag = 64
 };
 
 void put3(float* v, int at, const glm::vec3& p)
@@ -56,7 +57,8 @@ void put3(float* v, int at, const glm::vec3& p)
 void encode(const Hand& h, float v[valueCount])
 {
     v[0] = static_cast<float>((h.drawn ? flagDrawn : 0) | (h.mirrored ? flagMirrored : 0) | (h.carrying ? flagCarrying : 0) |
-                              (h.axesKnown ? flagAxes : 0) | (h.mayReverse ? flagMayReverse : 0) | (h.flippable ? flagFlippable : 0));
+                              (h.axesKnown ? flagAxes : 0) | (h.mayReverse ? flagMayReverse : 0) | (h.flippable ? flagFlippable : 0) |
+                              (h.mag ? flagMag : 0));
     v[1] = static_cast<float>(h.slot);
     v[2] = static_cast<float>(h.helpKind);
     v[3] = h.flip;
@@ -91,6 +93,7 @@ void encode(const Hand& h, float v[valueCount])
     h.axesKnown = (flags & flagAxes) != 0;
     h.mayReverse = (flags & flagMayReverse) != 0;
     h.flippable = (flags & flagFlippable) != 0;
+    h.mag = (flags & flagMag) != 0;
     h.slot = static_cast<int>(v[1]);
     h.helpKind = static_cast<int>(v[2]);
     h.flip = v[3];
@@ -251,6 +254,7 @@ State state;
         havePose = !twohand::carrying(hand);
         h.drawn = true;
         h.mirrored = d.mirrored;
+        h.mag = d.mag != nullptr;
         h.slot = weapons::slotForModel(d.model);
         h.inHand = d.inHand;
     }

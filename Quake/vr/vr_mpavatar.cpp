@@ -22,6 +22,7 @@
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 #include "vr_render.hpp"
+#include "vr_seated.hpp"
 #include "vr_server.hpp"
 #include "vr_view.hpp"
 
@@ -48,6 +49,11 @@ struct Drawn
     avatar::Skeleton skeleton;
     glm::vec3 handWrist[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     float eyeHeight{0.f};
+    bool seated{false};
+    // His holstered weapons (B6b: as he drew them, body::Holster's order) and pauldrons on his body (his look).
+    view::ViewEntity holster[VrDrawnHolsters::count];
+    view::ViewEntity pauldron[2];
+    view::ViewEntity pauldronArm[2];
 };
 struct DrawnAll
 {
@@ -145,8 +151,21 @@ void printAvatar(int e, const Avatar& a)
         (void)avatar::otherPitch(e, pitch, lying);
         float climbWeight = 0.f;
         (void)avatar::otherClimb(e, climbWeight);
-        Con_Printf(" eyeheight=%.3f yaw=%.1f moves=%d pitch=%.1f lying=%.2f climb=%.2f\n", d.eyeHeight, a.body.yaw,
-            a.moves, pitch, lying, climbWeight);
+        Con_Printf(" eyeheight=%.3f yaw=%.1f moves=%d pitch=%.1f lying=%.2f climb=%.2f seated=%d\n", d.eyeHeight, a.body.yaw,
+            a.moves, pitch, lying, climbWeight, d.seated ? 1 : 0);
+        view::printPauldrons("mp_pauldron", e, d.pauldron);
+    }
+    if(d.frame == host_framecount - 1 || d.frame == host_framecount)
+    {
+        for(int i = 0; i < VrDrawnHolsters::count; i++)
+        {
+            const view::ViewEntity& ve = d.holster[i];
+            if(ve.visible && ve.ent.model)
+            {
+                Con_Printf("mp_holster: ent=%d slot=%d model=%s mirrored=%d at=%.2f %.2f %.2f\n", e, i, ve.ent.model->name,
+                    ve.mirrored ? 1 : 0, ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]);
+            }
+        }
     }
     if(d.frame == host_framecount - 1 || d.frame == host_framecount)
     {
@@ -202,6 +221,21 @@ void avatars_f()
             Con_Printf("\n");
         }
         view::printOwnLooks(cl.viewentity);
+        view::printOwnPauldrons(cl.viewentity);
+        // His own holsters as drawn (what the others draw: the move's view::netHolsters).
+        VrDrawnHolsters hs;
+        view::netHolsters(hs);
+        for(int i = 0; i < VrDrawnHolsters::count && hs.valid; i++)
+        {
+            Con_Printf("mp_holster_point_own: ent=%d slot=%d at=%.2f %.2f %.2f\n", cl.viewentity, i, hs.at[i].x, hs.at[i].y,
+                hs.at[i].z);
+            if(hs.weapons & (1 << i))
+            {
+                Con_Printf("mp_holster_own: ent=%d slot=%d model=%s mirrored=%d at=%.2f %.2f %.2f\n", cl.viewentity, i,
+                    cl.model_precache[hs.model[i]] ? cl.model_precache[hs.model[i]]->name : "?", (hs.mirrored >> i) & 1,
+                    hs.origin[i].x, hs.origin[i].y, hs.origin[i].z);
+            }
+        }
     }
     if(sv.active)
     {
@@ -237,6 +271,14 @@ void avatars_f()
             Con_Printf(" flags=%d %d wmdl=%d %d wpn=%d %d\n", m->drawn[0].flags, m->drawn[1].flags, m->drawn[0].weaponModel,
                 m->drawn[1].weaponModel, static_cast<int>(c.edict->v.weapon),
                 static_cast<int>(progs::fieldFloatOr(c.edict, progs::fields().weapon2, 0.f)));
+            // (QC's holsterpos for him: B6b)
+            for(int slot = 0; slot < VrDrawnHolsters::count; slot++)
+            {
+                if(glm::vec3 at; server::holsterPoint(c.edict, slot, at))
+                {
+                    Con_Printf("mp_holster_sv: ent=%d slot=%d at=%.2f %.2f %.2f\n", i + 1, slot, at.x, at.y, at.z);
+                }
+            }
         }
         int sent = 0, skipped = 0;
         long long bytes = 0;
@@ -310,6 +352,20 @@ void setup(int e, const Avatar& a)
             }
         }
     }
+    // His holstered weapons where he drew them (his holsters' places, their seated layout, his Holstered poses: B6b).
+    const VrDrawnHolsters& hs = a.holsters;
+    for(int i = 0; i < VrDrawnHolsters::count; i++)
+    {
+        d.holster[i].visible = false;
+        qmodel_t* model = hs.valid && (hs.weapons & (1 << i)) && hs.model[i] > 0 && hs.model[i] < MAX_MODELS
+                              ? cl.model_precache[hs.model[i]]
+                              : nullptr;
+        if(model && model->type == mod_alias)
+        {
+            placeEntity(d.holster[i], model, origin + hs.origin[i], hs.angles[i], za::min(static_cast<int>(hs.frame[i]),
+                model->numframes - 1), hs.skin[i], (hs.mirrored & (1 << i)) != 0);
+        }
+    }
     setupBody(e, a, origin);
 }
 
@@ -376,8 +432,17 @@ const CalField calFields[numCalFields] = {
     {"nsat", &vr_nail_saturation, 255.f, 0, 255},
     {"nlight", &vr_nail_lightness, 255.f, 0, 255},
     {"ngloss", &vr_nail_gloss, 255.f, 0, 255},
+    // Seated play (his body posed as his own seated: no leg fit), a flat-screen player's body height, his pauldrons (B6b).
+    {"sitting", nullptr, 1.f, 0, 1, [] { return seated::active() ? 1.f : 0.f; }},
+    {"flatheight", &vr_flat_body_height, 1000.f, 1000, 2200}, // mm
+    {"pstyle", &vr_body_pauldron_style, 1.f, 0, 2},
+    {"psize", &vr_body_pauldron_size, 100.f, 25, 400},       // hundredths
+    {"pfollow", &vr_body_pauldron_follow, 255.f, 0, 255},
+    {"pfwd", &vr_body_pauldron_forward, 1000.f, -500, 500}, // thousandths
+    {"pout", &vr_body_pauldron_out, 1000.f, -500, 500},
+    {"pup", &vr_body_pauldron_up, 1000.f, -500, 500},
 };
-constexpr int calCommandVersion = 3; // "vr_avatarcal <version> <the fields>": another version's is ignored
+constexpr int calCommandVersion = 4; // "vr_avatarcal <version> <the fields>": another version's is ignored
 
 struct CalState
 {
@@ -394,8 +459,9 @@ CalState cal;
 // calFields' places (setupBody).
 constexpr int calGloves = 6, calGloveHue = 7, calGloveSat = 8, calGloveLight = 9, calNails = 10, calTone = 11, calNailHue = 25,
               calNailSat = 26, calNailLight = 27, calNailGloss = 28;
-constexpr int calHeight = 0, calArm = 2, calScale = 3, calBody = 12, calBuild = 13, calBracers = 14, calUpper = 16,
-              calTweakUpper = 18, calShoulders = 20, calRise = 23, calSwing = 24;
+constexpr int calHeight = 0, calArm = 2, calScale = 3, calBody = 12, calBuild = 13, calBracers = 14, calPauldrons = 15,
+              calUpper = 16, calTweakUpper = 18, calShoulders = 20, calRise = 23, calSwing = 24, calSitting = 29,
+              calFlatHeight = 30, calPauldronStyle = 31, calPauldronSize = 32, calPauldronFollow = 33, calPauldronOffset = 34;
 
 // Avatar `e`'s body (vr_mp_body; MP_PLAN.md, B2d): posed by the code that poses your own (avatar::poseOther), from his
 // head, his drawn hands (their wrists, as your own body's arms take yours) and how his client poses his body (a.body),
@@ -406,6 +472,11 @@ void setupBody(int e, const Avatar& a, const glm::vec3& origin)
     Drawn& d = drawn.of[e];
     d.body.visible = false;
     d.bodyPosed = false;
+    for(int side = 0; side < 2; side++)
+    {
+        d.pauldron[side].visible = false;
+        d.pauldronArm[side].visible = false;
+    }
     const Calibration* c = cal.has[e] ? &cal.of[e] : nullptr;
     if(vr_mp_body.value == 0.f || !a.body.valid || (c && c->v[calBody] == 0) || !d.hand[0].visible || !d.hand[1].visible)
     {
@@ -431,6 +502,12 @@ void setupBody(int e, const Avatar& a, const glm::vec3& origin)
                                   1000.f;
         who.arms.rise = static_cast<float>(c->v[calRise]) / 10.f;
         who.arms.swing = static_cast<float>(c->v[calSwing]) / 10.f;
+        // (B6b: seated, posed as his own seated body is; a flat-screen player at his body height, as units::eyeHeight)
+        who.seated = c->v[calSitting] != 0 && !a.flat;
+        if(a.flat)
+        {
+            who.eyeHeight = static_cast<float>(c->v[calFlatHeight]) / 1000.f;
+        }
     }
     // His velocity from his entity's last two messages; on the ground unless rising or falling fast (the client is not
     // told; a walk down stairs stays on its feet).
@@ -481,6 +558,22 @@ void setupBody(int e, const Avatar& a, const glm::vec3& origin)
     d.handWrist[0] = poses[HAND_OFF].wrist;
     d.handWrist[1] = poses[HAND_MAIN].wrist;
     d.eyeHeight = who.eyeHeight;
+    d.seated = who.seated;
+    // His pauldrons on it (his calibration's look; the armour the server says he wears), as yours are placed.
+    if(c)
+    {
+        view::PauldronLook look;
+        look.on = c->v[calPauldrons] != 0;
+        look.style = c->v[calPauldronStyle];
+        look.size = static_cast<float>(c->v[calPauldronSize]) / 100.f;
+        look.follow = static_cast<float>(c->v[calPauldronFollow]) / 255.f;
+        look.offset = glm::vec3{static_cast<float>(c->v[calPauldronOffset]), static_cast<float>(c->v[calPauldronOffset + 1]),
+                          static_cast<float>(c->v[calPauldronOffset + 2])} /
+                      1000.f;
+        look.build = build;
+        look.armour = a.armour;
+        view::placePauldrons(d.body, look, e, d.pauldron, d.pauldronArm);
+    }
 }
 
 [[nodiscard]] int calClamp(int field, int v)
@@ -747,6 +840,8 @@ void parse()
             a.holdOut[h] = glm::vec3{za::cos(yaw), za::sin(yaw), 0.f};
         }
     }
+    a.holsters = readDrawnHolsters(glm::vec3{0.f}, false); // (offsets from his entity's origin)
+    a.armour = MSG_ReadByte();
     if(ent > 0 && ent <= MAX_SCOREBOARD && ent != cl.viewentity)
     {
         avatars[ent] = a;
@@ -784,6 +879,12 @@ void addEntities()
         {
             add(d.weapon[side]);
             add(d.hand[side]);
+            add(d.pauldron[side]);
+            add(d.pauldronArm[side]);
+        }
+        for(view::ViewEntity& ve : d.holster)
+        {
+            add(ve);
         }
         if(d.body.visible && d.body.ent.model)
         {
@@ -868,8 +969,39 @@ bool mirrored(const entity_t* e)
 {
     int side = 0;
     bool hand = false;
-    const Drawn* d = drawnOf(e, side, hand);
-    return d && (hand ? d->hand[side].mirrored : d->weapon[side].mirrored);
+    if(const Drawn* d = drawnOf(e, side, hand))
+    {
+        return hand ? d->hand[side].mirrored : d->weapon[side].mirrored;
+    }
+    // (his holstered weapons, his pauldrons: B6b)
+    const auto* first = reinterpret_cast<const unsigned char*>(&drawn.of[0]);
+    const auto* p = reinterpret_cast<const unsigned char*>(e);
+    if(p < first || p >= first + sizeof(drawn.of))
+    {
+        return false;
+    }
+    const Drawn& o = drawn.of[(p - first) / sizeof(Drawn)];
+    for(const view::ViewEntity& ve : o.holster)
+    {
+        if(e == &ve.ent)
+        {
+            return ve.mirrored;
+        }
+    }
+    for(int s = 0; s < 2; s++)
+    {
+        if(e == &o.pauldron[s].ent || e == &o.pauldronArm[s].ent)
+        {
+            return o.pauldron[s].mirrored || o.pauldronArm[s].mirrored;
+        }
+    }
+    return false;
+}
+
+int gearByte(const edict_t* ent)
+{
+    const int items = static_cast<int>(ent->v.items);
+    return ent->v.armorvalue <= 0.f ? 0 : (items & IT_ARMOR3) ? 3 : (items & IT_ARMOR2) ? 2 : (items & IT_ARMOR1) ? 1 : 0;
 }
 
 void clear()

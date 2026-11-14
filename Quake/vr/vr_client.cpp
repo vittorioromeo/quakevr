@@ -556,6 +556,7 @@ void poseMove(VrMove& move)
         move.body.headHeight = hs.headHeight;
         move.body.standingHeight = hs.standingHeight;
         move.body.leanHold = hs.leanHold;
+        view::netHolsters(move.holsters); // (and his holsters: B6b)
     }
 
     move.headVel = hs.headVel;

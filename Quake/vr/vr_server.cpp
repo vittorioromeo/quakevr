@@ -76,7 +76,7 @@ struct ClientMove
 za::Vector<ClientMove> clientMoves;
 
 // Per client slot: its avatar as last sent (writeAvatars: an unchanged one waits for its keyframe); and the counts.
-constexpr int avatarMaxBytes = 160; // (2 + 2 + 1 + 12 + 8 + 2 * 47 + 8 + 2 * 7 holds = 141 at most)
+constexpr int avatarMaxBytes = 260; // (2 + 2 + 1 + 12 + 8 + 2 * 47 + 8 + 2 * 7 holds + 3 + 6 * 16 holsters + 1 = 241 at most)
 struct AvatarSent
 {
     byte bytes[avatarMaxBytes]{};
@@ -1476,6 +1476,8 @@ void writeAvatars()
         MSG_WriteLong(&tmp, static_cast<int>(c.edict->v.weapon));
         MSG_WriteLong(&tmp, static_cast<int>(fieldFloatOr(c.edict, f.weapon2, 0.f)));
         mpavatar::writeHolds(&tmp, c.edict, origin); // (his climbing holds, as the moves byte says: B5c)
+        writeDrawnHolsters(&tmp, m.move.holsters, origin, false); // (his holstered weapons as he drew them: B6b)
+        MSG_WriteByte(&tmp, mpavatar::gearByte(c.edict));        // (the armour he wears: his pauldrons' colour)
 
         if(static_cast<int>(avatarsSent.size()) < svs.maxclients)
         {
@@ -1626,6 +1628,17 @@ const VrMove* clientMove(edict_t* player)
 {
     const ClientMove* m = clientMoveOf(player);
     return m ? &m->move : nullptr;
+}
+
+bool holsterPoint(edict_t* player, int slot, glm::vec3& out)
+{
+    const ClientMove* m = clientMoveOf(player);
+    if(!m || !m->move.holsters.valid || slot < 0 || slot >= VrDrawnHolsters::count)
+    {
+        return false;
+    }
+    out = glm::vec3{player->v.origin[0], player->v.origin[1], player->v.origin[2]} + m->move.holsters.at[slot] - m->move.origin;
+    return true;
 }
 
 int mergedMoves(int clientNum)

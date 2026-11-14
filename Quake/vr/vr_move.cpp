@@ -188,6 +188,66 @@ VrBodyPose readBodyPose()
     return p;
 }
 
+void writeDrawnHolsters(sizebuf_t* buf, const VrDrawnHolsters& h, const glm::vec3& origin, bool points)
+{
+    MSG_WriteByte(buf, h.valid ? 1 : 0);
+    if(!h.valid)
+    {
+        return;
+    }
+    if(points)
+    {
+        for(const glm::vec3& p : h.at)
+        {
+            writeEighths(buf, p, origin);
+        }
+    }
+    MSG_WriteByte(buf, h.weapons);
+    MSG_WriteByte(buf, h.mirrored);
+    for(int i = 0; i < VrDrawnHolsters::count; i++)
+    {
+        if(h.weapons & (1 << i))
+        {
+            MSG_WriteShort(buf, h.model[i]);
+            MSG_WriteByte(buf, h.frame[i]);
+            MSG_WriteByte(buf, h.skin[i]);
+            writeEighths(buf, h.origin[i], origin);
+            writeAngles16(buf, h.angles[i]);
+        }
+    }
+}
+
+VrDrawnHolsters readDrawnHolsters(const glm::vec3& origin, bool points)
+{
+    VrDrawnHolsters h;
+    h.valid = MSG_ReadByte() == 1;
+    if(!h.valid)
+    {
+        return h;
+    }
+    if(points)
+    {
+        for(glm::vec3& p : h.at)
+        {
+            p = readEighths(origin);
+        }
+    }
+    h.weapons = static_cast<za::U8>(MSG_ReadByte());
+    h.mirrored = static_cast<za::U8>(MSG_ReadByte());
+    for(int i = 0; i < VrDrawnHolsters::count; i++)
+    {
+        if(h.weapons & (1 << i))
+        {
+            h.model[i] = static_cast<za::U16>(MSG_ReadShort());
+            h.frame[i] = static_cast<za::U8>(MSG_ReadByte());
+            h.skin[i] = static_cast<za::U8>(MSG_ReadByte());
+            h.origin[i] = readEighths(origin);
+            h.angles[i] = readAngles16();
+        }
+    }
+    return h;
+}
+
 void writeVrMove(sizebuf_t* buf, const VrMove& move)
 {
     writeVec3(buf, move.headAngles);
@@ -258,6 +318,7 @@ void writeVrMove(sizebuf_t* buf, const VrMove& move)
         writeDrawnHand(buf, h, move.origin);
     }
     writeBodyPose(buf, move.body);
+    writeDrawnHolsters(buf, move.holsters, move.origin, true);
 }
 
 za::Optional<VrMove> readVrMove()
@@ -333,6 +394,7 @@ za::Optional<VrMove> readVrMove()
         h = readDrawnHand(in.finite ? move.origin : glm::vec3{0.f});
     }
     move.body = readBodyPose();
+    move.holsters = readDrawnHolsters(in.finite ? move.origin : glm::vec3{0.f}, true);
 
     if(!in.finite)
     {

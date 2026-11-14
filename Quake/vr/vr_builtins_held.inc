@@ -904,7 +904,8 @@ void PF_meleeshow()
 // since the last call, taken (1 the off hand's bind button at a holster, 2 the main hand's, 4 every bound weapon home at
 // once: vr_magholster_return; another player's as his client sent them: heldpose::magPoll, B3f). vector(entity player,
 // float slot) holsterpos: holster `slot`'s place (body::Holster, the holsterweapon<slot> fields' order) as the local
-// player's body has it ('0 0 0': unknown, or another player: QC's own estimate then; his own places are B6's).
+// player's body has it, another player's as his client drew it (his move's holsters, carried with his entity since:
+// MP_PLAN.md B6b); '0 0 0': unknown (QC's own estimate then).
 void PF_magholsterpoll()
 {
     G_FLOAT(OFS_RETURN) = static_cast<float>(heldpose::magPoll(G_EDICT(OFS_PARM0)));
@@ -919,6 +920,10 @@ void PF_holsterpos()
     if(local && slot >= 0 && slot < body::HolsterCount && hands::current().valid)
     {
         out = body::holsterPosition(hands::current(), static_cast<body::Holster>(slot));
+    }
+    else if(!local && !server::holsterPoint(player, slot, out))
+    {
+        out = glm::vec3{0.f};
     }
     for(int i = 0; i < 3; i++)
     {

@@ -673,7 +673,8 @@ namespace
             key.what = Key::Weapon;
             key.model = model;
             key.mirrored = r->mirrored;
-            key.mag = nullptr; // (his magazine's box is not sent: the gun's own body only)
+            // (his magazine as he draws it seated in it: the gun's own magazine model, B6b)
+            key.mag = vr_reload_mag_collide.value && r->mag ? view::magazineModelOf(model) : nullptr;
             key.generation = shapeGeneration;
             inHand = r->inHand;
             return key;

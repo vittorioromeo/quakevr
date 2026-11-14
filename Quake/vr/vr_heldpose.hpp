@@ -23,6 +23,7 @@ struct Hand
 {
     bool drawn{false};        // a weapon drawn in it lately (slot, mirrored, inHand)
     bool mirrored{false};     // drawn as the off hand holds it
+    bool mag{false};          // its magazine drawn seated in it (view::DrawnWeapon::mag: the weapon hull's; B6b)
     int slot{-1};             // its Weapon Offsets slot
     glm::mat4 inHand{1.f};    // its entity's place and turn (view::DrawnWeapon::inHand)
     int spotType[maxSpots]{}; // its hotspots (view::weaponHotspot; type 0 none)

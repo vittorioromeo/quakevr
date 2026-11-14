@@ -4403,6 +4403,42 @@ entity_t* holsteredWeapon(int stat)
     return nullptr;
 }
 
+void netHolsters(VrDrawnHolsters& out)
+{
+    out = VrDrawnHolsters{};
+    for(int h = 0; h < HolsterCount; h++)
+    {
+        const HolsterSeen& seen = holsterSeen[h];
+        if(seen.placed < host_framecount - 1)
+        {
+            continue; // (not drawn lately: no body, dead)
+        }
+        out.valid = true;
+        const int stat = static_cast<int>(bodyHolster[h]);
+        out.at[stat] = seen.pivot;
+        const ViewEntity& ve = entities.holster[h];
+        if(!holsterLive[h] || !ve.visible || !ve.ent.model || ve.ent.model->type != mod_alias)
+        {
+            continue;
+        }
+        int index = 0;
+        for(int i = 1; i < MAX_MODELS && cl.model_precache[i] && !index; i++)
+        {
+            index = cl.model_precache[i] == ve.ent.model ? i : 0;
+        }
+        if(index > 0) // (a model the server has not precached: others can't name it)
+        {
+            out.weapons = static_cast<za::U8>(out.weapons | (1 << stat));
+            out.mirrored = static_cast<za::U8>(out.mirrored | (ve.mirrored ? 1 << stat : 0));
+            out.model[stat] = static_cast<za::U16>(index);
+            out.frame[stat] = static_cast<za::U8>(za::clamp(ve.ent.frame, 0, 255));
+            out.skin[stat] = static_cast<za::U8>(za::clamp(ve.ent.skinnum, 0, 255));
+            out.origin[stat] = glm::vec3{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]};
+            out.angles[stat] = glm::vec3{ve.ent.angles[0], ve.ent.angles[1], ve.ent.angles[2]};
+        }
+    }
+}
+
 const ViewEntity* holsterGun(int index)
 {
     if(index < 0 || index >= HolsterCount)
