@@ -28,6 +28,11 @@ void reset(); // a new map (the history and the clients' times)
 [[nodiscard]] bool begin(edict_t* shooter, double most = -1.0); // (most: seconds back at most; < 0: vr_net_lagcomp_most)
 void end();
 
-void init(); // cvars' commands: vr_lagcomp_shot (a client's test shot, reported), vr_mp_shoot (the client's)
+void init(); // cvars' commands: vr_lagcomp_shot / _punch (a client's test shot or punch, reported), vr_mp_shoot / _punch
+
+// QC: float lagcompbegin(entity e), void lagcompend() (B8c): melee's sweeps, a bash's and a headbutt's finds and a
+// parry of another player's blow judged as e saw the others (their places, poses and hands), as his shots are.
+void PF_lagcompbegin();
+void PF_lagcompend();
 
 } // namespace qvr::lagcomp

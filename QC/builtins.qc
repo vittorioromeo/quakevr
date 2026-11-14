@@ -602,6 +602,12 @@ float(entity e) hitmodel_target = #0; // whether e's model is what is hit (the o
 // far along the hose (0 at the tank, 1 at the gun) its nearest point within `radius` of a..b is (trace_endpos that
 // point), -1 missed, -2 no hose drawn (vr_adtank.cpp, a listen server's).
 float(entity e, vector a, vector b, float radius, float hitclass) hitmodel_segment = #0;
+// Lag compensation's scope (vr_lagcomp.cpp, MP_PLAN.md B8c): with e a remote client, the players and monsters put back
+// where his screen showed them (their places, poses, a player's hands) -> 1, then lagcompend() puts them back keeping
+// what the scope did to them; 0 (nothing moved: single player, the listen host's own client, nested): no lagcompend.
+// Only queries go inside (melee's sweep, a bash's find): the blow is dealt where they are.
+float(entity e) lagcompbegin = #0;
+void() lagcompend = #0;
 // The segment a..b, a sphere of `radius`, against any entity's Quake .mdl as drawn (a prop's, an item's: not only a
 // monster's): where along it it first meets it (0: it starts in it), -1 missed, -2 no such model (a brush model: its box).
 float(entity e, vector a, vector b, float radius) hitmodel_any = #0;

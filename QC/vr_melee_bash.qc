@@ -771,7 +771,20 @@ entity vr_bash_victims;
 float vr_bash_reach_mul; // VR_Bash_Find's reach times this (0: 1; flatscreen's shove: vr_flat_shove_reach, VR_FlatShove)
 float vr_bash_pad_mul;   // and its pad round the line (0: 1; flatscreen's shove: vr_flat_shove_width)
 vector vr_bash_across;   // an open palm's line across (half of it, '0 0 0': none; flatscreen's two-handed shove: palm to palm)
+// (A remote client's finds the others where his screen showed them: lagcompbegin, MP_PLAN.md B8c.)
+float(float xHand, entity b, vector xForward) VR_Bash_FindNow;
 float(float xHand, entity b, vector xForward) VR_Bash_Find =
+{
+    float lc = lagcompbegin(self);
+    float hits = VR_Bash_FindNow(xHand, b, xForward);
+    if(lc)
+    {
+        lagcompend();
+    }
+    return hits;
+};
+
+float(float xHand, entity b, vector xForward) VR_Bash_FindNow =
 {
     vector a = b.mh_near;
     vector c = b.mh_far;

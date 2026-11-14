@@ -662,6 +662,8 @@ nextmsg:
 					ret = 1; // QVR: his magnetic holsters' presses (vr_heldpose.cpp, B3f)
 				else if (q_strncasecmp(s, "vr_lagcomp_shot ", 16) == 0)
 					ret = 1; // QVR: a test shot, judged and reported, nothing hurt (vr_lagcomp.cpp, B8b)
+				else if (q_strncasecmp(s, "vr_lagcomp_punch ", 17) == 0)
+					ret = 1; // QVR: a test punch, the same (B8c)
 
 				if (ret == 1)
 					Cmd_ExecuteString (s, src_client);

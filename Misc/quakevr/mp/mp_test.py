@@ -2859,13 +2859,15 @@ def lagcomp(s):
     put_at(srv, b, eb, MELEE_SPOT, 90)
     put_at(srv, a, ea, (MELEE_SPOT[0], MELEE_SPOT[1] + LAGCOMP_GAP, MELEE_SPOT[2]), 270)
     counted = rewound = plain = 0
+    punches = p_rewound = p_plain = 0
     backs, moves = [], []
     for leg in range(LAGCOMP_LEGS):
         a.cmd("vr_mock_stick off %d 0" % (1 if leg % 2 == 0 else -1))
         for shot in range(LAGCOMP_LEG_SHOTS):
             since = srv.mark()
-            b.cmd("vr_mp_shoot %d" % ea)
+            b.cmd("vr_mp_shoot %d; vr_mp_punch %d" % (ea, ea))  # (together: A's legs as long as before B8c's punch)
             _, line = srv.wait(r"mp_lagcomp_shot: slot=%d " % (eb - 1), 20, since, "B's shot %d.%d" % (leg, shot))
+            _, pline = srv.wait(r"mp_lagcomp_punch: slot=%d " % (eb - 1), 20, since, "B's punch %d.%d" % (leg, shot))
             f = fields(line)
             if shot == 0:
                 continue
@@ -2874,7 +2876,20 @@ def lagcomp(s):
             plain += 1 if int(f["plain"]) == ea else 0
             backs.append(float(f["back_ms"]))
             moves.append(float(f["move_ms"]))
+            # (B8c: a test punch the same way -- a fist's line into A's middle as B draws him, judged as melee's sweep
+            # is, hitmodel_segment, in the same scope)
+            f = fields(pline)
+            punches += 1
+            p_rewound += 1 if int(f["rewound"]) == ea else 0
+            p_plain += 1 if int(f["plain"]) == ea else 0
     a.cmd("vr_mock_stick off 0 0")
+    s.metric("lagcomp_punch", {"counted": punches, "rewound": p_rewound, "plain": p_plain})
+    s.note("B's punches at A: %d counted, %d landed where B saw him, %d where the server has him now" % (
+        punches, p_rewound, p_plain))
+    s.check("B's punches at A strafing land where B saw him (melee lag compensated): %d of %d" % (p_rewound, punches),
+            punches > 0 and p_rewound >= LAGCOMP_HIT_LEAST * punches, "%d of %d" % (p_rewound, punches))
+    s.check("without it most punches miss: %d of %d" % (p_plain, punches), p_plain <= punches // 2,
+            "plain %d, rewound %d" % (p_plain, p_rewound))
     s.metric("lagcomp", {"counted": counted, "rewound": rewound, "plain": plain, "backs": backs, "moves": moves})
     s.note("B's shots at A: %d counted, %d hit where B saw him, %d where the server has him now; back %s ms, his "
            "moves' %s ms" % (counted, rewound, plain, backs, moves))

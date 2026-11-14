@@ -1409,8 +1409,21 @@ float vr_msw_wall_i;
 // crossed it nearest its middle met it, as its outermost striking point in it (its kind, a stab's or a cut's:
 // VR_Melee_Decide). The pommel's: the earliest along the sweep. A wall only when nothing that bleeds is struck, and not
 // by a point going down (a hand reaching for a holster); where the blade went deepest into it (the middle of the lines
-// as deep).
+// as deep). A remote client's sweep meets the others where his screen showed them (lag compensation: lagcompbegin,
+// MP_PLAN.md B8c); the blow is dealt where they are.
+float(float xHand, entity b) VR_Melee_SweepNow;
 float(float xHand, entity b) VR_Melee_Sweep =
+{
+    float lc = lagcompbegin(self);
+    float struck = VR_Melee_SweepNow(xHand, b);
+    if(lc)
+    {
+        lagcompend();
+    }
+    return struck;
+};
+
+float(float xHand, entity b) VR_Melee_SweepNow =
 {
     float n = b.mh_n;
     if(n <= 0)

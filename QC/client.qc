@@ -2960,8 +2960,21 @@ float(entity e, vector xHead, vector xDir) VR_Headbutt_Reaches =
     return hitmodel_segment(e, xHead, xHead + xDir * 22, 6, HITCLASS_MELEE) >= 0;
 };
 
-// The monster a headbutt from `xHead` along `xDir` hits, or world.
+// The monster a headbutt from `xHead` along `xDir` hits, or world (a remote client's: where his screen showed it,
+// lagcompbegin, MP_PLAN.md B8c).
+entity(vector xHead, vector xDir) VR_Headbutt_TargetNow;
 entity(vector xHead, vector xDir) VR_Headbutt_Target =
+{
+    float lc = lagcompbegin(self);
+    entity e = VR_Headbutt_TargetNow(xHead, xDir);
+    if(lc)
+    {
+        lagcompend();
+    }
+    return e;
+};
+
+entity(vector xHead, vector xDir) VR_Headbutt_TargetNow =
 {
     entity best = world;
     float bestDist = 99999;

@@ -75,6 +75,7 @@
 #include "vr_rigstudio.hpp"
 #include "vr_adtank.hpp" // (hitmodel_segment's class -1: a tank's hose)
 #include "vr_blade.hpp"
+#include "vr_lagcomp.hpp"
 #include "vr_meleeshow.hpp"
 #include "vr_weapons.hpp"
 #include "vr_weight.hpp"
@@ -1063,6 +1064,8 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"hitmodel_target", PF_hitmodel_target},
     {"hitmodel_segment", PF_hitmodel_segment},
     {"hitmodel_any", PF_hitmodel_any},
+    {"lagcompbegin", lagcomp::PF_lagcompbegin},
+    {"lagcompend", lagcomp::PF_lagcompend},
     {"bodygap", PF_bodygap},
     {"modelanchor", PF_modelanchor},
     {"modelanchorpoint", PF_modelanchorpoint},

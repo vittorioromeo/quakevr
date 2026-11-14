@@ -3039,7 +3039,13 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
     else
     {
         vr_parry_from = attacker.origin;
+        // (another player's blow from a remote client: the guard where his screen showed it, MP_PLAN.md B8c)
+        float lc = lagcompbegin(attacker);
         hand = VR_Parry_HandFor(targ, to);
+        if(lc)
+        {
+            lagcompend();
+        }
     }
     if(hand < 0)
     {
