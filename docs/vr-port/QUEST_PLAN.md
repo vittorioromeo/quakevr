@@ -648,7 +648,8 @@ without (AD's start map, behind the loading screen).
   deducing-this lambda (`vr_climb.cpp`: clang 18 "cannot compile this l-value expression yet"); `__rdtsc` in
   `vr_findradius.cpp`'s stats (the monotonic clock off x86, as `pr_exec.c`); a format call without arguments
   (`-Wformat-security`, an NDK error). The link: `glGetTexImage`/`glPolygonMode` (desktop-only, never reached under the
-  ES profile) compiled out on Android, and **a PC bug: `VR_CrtHeapLoadHold` had no definition without mimalloc** (the
+  ES profile) compiled out on Android; warnings: 0 of ours (a fresh build: SDL2's own `ASensorManager_getInstance`
+  deprecation; Zancle's GCC-only `-Wclass-memaccess` pragma now kept from clang), and **a PC bug: `VR_CrtHeapLoadHold` had no definition without mimalloc** (the
   Linux build with `-DQVR_MIMALLOC=OFF` failed to link; its own commit). vr_android.cpp's `__ANDROID__` forms compiled.
 - **Android only**: an OpenGL ES 3.2 context (`gl_vidsdl.c`), the ES profile always on (`VR_GLESCompat`, without
   `-glescompat`), `vr_quest_preset 0` after `quake.rc` on the first run (no `ironwail.cfg` in the game folder yet:
