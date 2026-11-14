@@ -511,7 +511,6 @@ extern int		current_skill;	// skill level for currently loaded level (in case
 
 extern qboolean		isDedicated;
 
-extern int		minimum_memory;
 
 void Host_InvokeOnMainThread (void (*func) (void *param), void *param);
 

@@ -1973,3 +1973,59 @@ His flat notes 5, 6, 9 (2026-11-13).
   the classic `g_rock2.mdl` (vr_pickup_prop_models 0) is a separate low-poly mesh and was left alone.
 - **Tests:** load_models_test.sh 4/4; flat screenshots held (hip, sighted, sighted at fov 45) and on the floor, before and
   after, and Blender close-ups: kit `scratch/rlvents_shots/`. Scene: `quakevr/scenarios/rl_vents.txt`.
+## nohunk: the hunk and the cache are the heap (agent/nohunk, 2026-11-14)
+
+- **His call:** follow vkQuake (85d526c): no hunk, no cache, plain allocation over mimalloc. **The heap was already
+  mimalloc:** vendored in Quake/vr/external/mimalloc (MIT, 1.3 MB of sources, static library, vr_crtheap.c routes the C
+  heap to it); `VR_HeapMalloc`/`VR_HeapCalloc` are counted malloc/calloc, so mimalloc's. Nothing to add.
+- **Hunk (zone.c):** every `Hunk_Alloc*` is a heap block of its own (an 80-byte header: size, mark, name, sentinel,
+  links; a Debug tail word), pushed on a stack. `Hunk_LowMark` is the bytes on the stack, `Hunk_FreeToLowMark` frees the
+  blocks pushed since the mark, newest first: every lifetime is as before (the level at Host_ClearMemory, the loaders'
+  temporaries at their frees, `Hunk_KeepLoaded` kept), and no call site changed. Gone: the 384 MiB block
+  (`DEFAULT_MEMORY`), segments, `-heapsize`/`-minmemory` (a start-up line says they're ignored), `minimum_memory`.
+  `Hunk_Check` walks every hunk and cache block (sentinels, Debug tails); `hunk_print [all]` (grouped by name, from the
+  bottom) and a new `cache_print`. No Hunk_TempAlloc/HighMark existed (Ironwail had dropped them).
+- **Cache:** `Cache_Alloc` is a zeroed heap block, `Cache_Free` frees it, `Cache_Check` is the pointer (no LRU, nothing
+  purged or moved: Cache_Move, Cache_FreeLow, Cache_TryAlloc gone); `Cache_Flush` / `Cache_FlushExcept` (a game or
+  campaign switch, `flush`) free them. `S_MixJoin` stays before every free.
+- **The one contiguity user:** seven loaders built a model on the hunk and copied the range to the cache (`Cache_Alloc
+  (end - start); memcpy (hdr); Hunk_FreeToLowMark (start)`: mdl, md3, md5 in gl_model.c; agarmor, agarmor_bridge,
+  ragdoll, rig2). Blocks are no longer contiguous, so they call `Hunk_MoveToCache (start, &mod->cache, hdr, name)`: the
+  blocks since the mark go to the cache entry (hdr's block its head, the rest owned by it), no copy; aliashdr_t's
+  `intptr_t` offsets between blocks stay valid since nothing moves. `texels[]` was an `int` offset: now `intptr_t`;
+  the four VR rigs copied their source's texel offsets verbatim (relative to another header): now rebased.
+- **Hunk blocks are always zeroed, NoFill too.** With NoFill blocks left as malloc'd, idle_e1m1 drew world+brush 38%
+  slower on the GPU (0.56 -> 0.78 ms) and the CPU's screen 0.3 ms slower, reproducibly (two after-runs), and AD/firing
+  range maps not at all: something in the world's drawing reads a NoFill block before writing it (the old hunk was
+  fresh zero pages). Zeroed, it matches the old numbers exactly (0.561 / 0.559). **Open:** find that read (r_brush.c /
+  gl_model.c NoFill users); calloc costs nothing on fresh pages.
+- **vr_limits:** "hunk, KiB" (in use / peak, no maximum), "hunk blocks", "cache, KiB" (in use / peak), "cache entries".
+  e1m1: hunk 44,137 KiB in 2,591 blocks, cache 67,426 KiB in 308 entries; ad_azad: hunk 85,969 KiB, cache 119,767 KiB.
+  **Tracy:** pools Zone/Hunk/Cache kept (the hunk's events per block, `VR_TracyHunkReset` on frees, a hand-over frees the
+  blocks' Hunk events and adds one Cache event); the memory test's "cache move" step is now a hand-over test
+  (`Tracy cache hand-over test: PASS`); `Memory_TracyCacheMove` gone. Release-Tracy/TracyFull build (not captured).
+- **Verified:** Release, ReleaseLTO, Debug, Release-TracyFull 0 warnings. id1 mutator save/load loop 18/0 and
+  `pr_knownstrings_check` 44/0; AD loop (ad_crucial, start, ad_swampy: saves, loads, changelevels) no error, 44/0;
+  game switch id1 <-> AD (ad_azad / e1m1) 50 round trips: no error, the hunk (2,280 blocks, 45,196,800 bytes) and the
+  cache (308 entries, 69,044,320 bytes) identical at cycles 1, 10, ... 50, mimalloc's commit flat (4.4 GB +-0.1);
+  `load_models_test.sh` 4/0 (352/0); `scenario_check.sh` 142 files 0 errors, 142 run 0 failed. Debug (MI_DEBUG checks,
+  tail guards, hunk_print's Hunk_Check x3): e1m1 save, changelevel, load, `r_enhancedmodels` 0/1 (every alias entry
+  with its handed-over blocks freed and rebuilt), `flush`, hip1m1 (campaign switch) and back, `vr_heap test` PASS.
+  Debug on ad_azad stops on a Box3D assert (b3HullBuilder_IsConsistent, hull.c:1463, a mover's hull from
+  vr_box3d_mesh.cpp solidLeaves): **the same on origin/next's Debug build** (pre-existing, not this change).
+  Not run: a Map Library package save/load loop (no package mounted in the agent base outside bench.sh's
+  load_ad_grendel, which loaded cold and warm fine). Scripts: scratch/nh_*.sh.
+- **Memory** (process, after the map's load; ThinLTO, one run): e1m1 working set 1,048 -> 1,064 MB, commit 3,998 ->
+  3,776 MB; e1m2 1,092 -> 1,145 MB, commit 4,061 -> 3,879; ad_azad 1,547 -> 1,585 MB, commit 4,784 -> 4,624 MB. The
+  384 MiB block's commit is gone; the cache no longer shares (and evicts from) the hunk's free space, so the touched
+  pages rise by about the cache's size past what the hunk had touched. The cache is never purged now (vkQuake's too):
+  it grows with the models and sounds a game uses until a game switch.
+- **Load times** (vr_startup_times, ms, one run): e1m1 cold 2,146 -> 1,831, warm 201 -> 210; changelevel e1m2 368 ->
+  370; ad_azad cold 3,100 -> 2,986, warm 1,840 -> 1,804. bench load_e1m1 (median of 3): cold 1,652 -> 1,665 (+0.8%),
+  warm 188 -> 198 (+5.2%); load_ad_grendel cold max frame 66.4 -> 59.5 ms.
+- **Bench** (`--fast --reps 3`, exclusive, ThinLTO; labels nh_before (origin/next 5b4685dcb), nh_after3 (zeroed hunk,
+  merged)): frame p50 ms combat_48 3.844 -> 3.823 (-0.5%), ai_crowd_64 3.095 -> 3.172 (+2.5%), idle_e1m1 1.464 ->
+  1.462, play_ad_tfuma_fight 7.167 -> 7.229 (+0.9%); CPU avg combat_48 +5.1%, the rest within 3%. Read "no change".
+  heap_allocs a frame rose (combat_48 10.8 -> 35.0, ai_crowd_64 9.1 -> 35.2, the AD fight 6.2 -> 81.9): the per-frame
+  temporary hunk lists (SV_PushMove, SV_TouchLinks, VR physics) are mallocs now. If they ever show in a profile, they
+  can move to their files' mem::Scratch. nh_after/nh_after2 are the runs with garbage NoFill blocks (above).

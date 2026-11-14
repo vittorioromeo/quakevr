@@ -3630,7 +3630,8 @@ bool makeModel(qmodel_t* mod)
     q_strlcpy(hdr->frames[0].name, "armor", sizeof(hdr->frames[0].name));
     memcpy(hdr->gltextures, kh->gltextures, sizeof(hdr->gltextures));
     memcpy(hdr->fbtextures, kh->fbtextures, sizeof(hdr->fbtextures));
-    memcpy(hdr->texels, kh->texels, sizeof(hdr->texels));
+    for(int i = 0; i < MAX_SKINS; i++) // the source's texels, as offsets from this header (they are other blocks)
+        hdr->texels[i] = kh->texels[i] ? reinterpret_cast<const byte*>(kh) + kh->texels[i] - reinterpret_cast<const byte*>(hdr) : 0;
     const rig2::Rig* rig = rigOf(src);
     for(int b = 0; b < numBones; b++)
     {
@@ -3713,15 +3714,7 @@ bool makeModel(qmodel_t* mod)
         mod->mins[i] = mod->ymins[i] = mod->rmins[i] = -box;
         mod->maxs[i] = mod->ymaxs[i] = mod->rmaxs[i] = box;
     }
-    const int total = Hunk_LowMark() - start;
-    Cache_Alloc(&mod->cache, total, mod->name);
-    if(!mod->cache.data)
-    {
-        Hunk_FreeToLowMark(start);
-        return false;
-    }
-    memcpy(mod->cache.data, hdr, static_cast<size_t>(total));
-    Hunk_FreeToLowMark(start);
+    Hunk_MoveToCache(start, &mod->cache, hdr, mod->name); // its hunk blocks, without a copy (ROUND25.md, "nohunk")
     Con_DPrintf("agarmor: %s made (%d vertices, %d triangles, %d bones)\n", mod->name, numVerts, numIndexes / 3, numBones);
     return true;
 }

@@ -4084,7 +4084,8 @@ extern "C" int VR_SyntheticModel(qmodel_t* mod)
     }
     memcpy(hdr->gltextures, sh->gltextures, sizeof(hdr->gltextures));
     memcpy(hdr->fbtextures, sh->fbtextures, sizeof(hdr->fbtextures));
-    memcpy(hdr->texels, sh->texels, sizeof(hdr->texels));
+    for(int i = 0; i < MAX_SKINS; i++) // the source's texels, as offsets from this header (they are other blocks)
+        hdr->texels[i] = sh->texels[i] ? reinterpret_cast<const byte*>(sh) + sh->texels[i] - reinterpret_cast<const byte*>(hdr) : 0;
     for(int b = 0; b < numBones; b++)
     {
         q_strlcpy(bones[b].name, rig->bones[b].name, sizeof(bones[b].name));
@@ -4142,15 +4143,7 @@ extern "C" int VR_SyntheticModel(qmodel_t* mod)
         mod->mins[i] = mod->ymins[i] = mod->rmins[i] = -64.f;
         mod->maxs[i] = mod->ymaxs[i] = mod->rmaxs[i] = 64.f;
     }
-    const int total = Hunk_LowMark() - start;
-    Cache_Alloc(&mod->cache, total, mod->name);
-    if(!mod->cache.data)
-    {
-        Hunk_FreeToLowMark(start);
-        return false;
-    }
-    memcpy(mod->cache.data, hdr, static_cast<size_t>(total));
-    Hunk_FreeToLowMark(start);
+    Hunk_MoveToCache(start, &mod->cache, hdr, mod->name); // its hunk blocks, without a copy (ROUND25.md, "nohunk")
     Con_DPrintf("ragdoll: %s made (%d vertices, %d bones)\n", mod->name, numVerts, numBones);
     return true;
 }
