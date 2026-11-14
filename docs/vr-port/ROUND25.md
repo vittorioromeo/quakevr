@@ -2067,3 +2067,23 @@ pages; with live preview the player kept walking once the menu opened.
   heap_allocs a frame rose (combat_48 10.8 -> 35.0, ai_crowd_64 9.1 -> 35.2, the AD fight 6.2 -> 81.9): the per-frame
   temporary hunk lists (SV_PushMove, SV_TouchLinks, VR physics) are mallocs now. If they ever show in a profile, they
   can move to their files' mem::Scratch. nh_after/nh_after2 are the runs with garbage NoFill blocks (above).
+
+## quest1: standalone Quest plan, SIMD layer, GLES compat mode (agent/quest, 2026-11-14)
+
+Phase C1 of the Quest port (docs/vr-port/QUEST_PLAN.md: research, the audit with file:line, the decision, phases
+C2-C7, the install list for his approval). Branch `agent/quest`, not shipped by the coordinator.
+
+- **Decision:** one renderer with an OpenGL ES 3.2 profile (no PC cost: chosen at start-up), Vulkan as the long-term
+  path and the fallback. The renderer's GL 4.4/4.5 extras already have fallbacks (safe mode's gates); 14 small groups
+  of desktop-only calls remain (`vr_gles_report`). The Quest's real problem is the tiler's budget (full-screen passes,
+  multiview into the swapchain for foveation), planned for C5/C6.
+- **`Quake/vr/vr_simd.hpp`** (SSE2 / NEON / scalar backends): the AO bake's ray kernel, the audio anti-alias filter and
+  the interpolation taps use it, so they build on ARM; the spin wait is Zancle's `ZA_CPU_RELAX`. `vr_simd_test`:
+  58880 passed, 0 failed (SSE2 against scalar, bit for bit). Audio goldens bit-identical before/after; `vr_ao_bench
+  sse reference soldier` the same bytes. NEON compiled for aarch64-linux-android with the PC's clang (not run yet).
+- **`-glescompat`** (`QVR_GLES_COMPAT=1` for bench.sh): bindless, multi-bind, clip control, layered casters and NV
+  foveation off; `VR_GLESCompat()` for C2's gates; `vr_gles_report` lists the live switches and the pending rows.
+- `Misc/quakevr/bench/quest_budget.cfg` (Quest-like settings for budget runs), `Misc/quakevr/gles_audit.py` (the
+  audit's counts). Budget runs (QUEST_PLAN.md section 6): the Quest-like settings halve the eyes' GPU time on the PC;
+  the GLES profile adds 15-60% back (layered casters, bindless, clip control off), to split in C2.
+- Not done: anything that needs an install (NDK, SDK, loader): C3 onwards.

@@ -198,16 +198,4 @@ using Native = Neon;
 using Native = Scalar;
 #endif
 
-// A spin-wait's pause (SSE2's pause, AArch64's yield).
-inline void cpuRelax()
-{
-#if defined(QVR_SIMD_SSE2)
-    _mm_pause();
-#elif defined(_M_ARM64) && defined(_MSC_VER) && !defined(__clang__)
-    __yield();
-#elif defined(__aarch64__) || defined(__arm__)
-    __asm__ __volatile__("yield");
-#endif
-}
-
 } // namespace simd

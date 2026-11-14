@@ -411,7 +411,7 @@ void status_f()
 }
 
 // The desktop-GL uses not gated yet by -glescompat, from the audit (QUEST_PLAN.md, "Renderer audit"; the script
-// scratch/q1_gles_audit.py made it): each one's place and its OpenGL ES form. C2 gates them one by one.
+// Misc/quakevr/gles_audit.py makes it): each one's place and its OpenGL ES form. C2 gates them one by one.
 struct EsPending
 {
     const char* what;

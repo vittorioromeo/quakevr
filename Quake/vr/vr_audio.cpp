@@ -74,6 +74,7 @@
 #include "vr_api.h"
 
 #include "vr_simd.hpp" // (the filters four lanes at a time: SSE2 on x64, NEON on ARM)
+#include "Zancle/Base/CpuRelax.hpp"
 #include <stdio.h>
 
 namespace qvr::audio
@@ -789,7 +790,7 @@ void Mixer::reverbDecode(int blocks, const Features& f, float* toL, float* toR, 
     {
         while(reverbConvolved.loadAcquire() <= b)
         {
-            simd::cpuRelax();
+            ZA_CPU_RELAX(); // (pause on x86, yield on ARM)
         }
         if(reverbRan[b])
         {
