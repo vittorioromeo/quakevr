@@ -616,10 +616,7 @@ const char* campaignContinueAge(int index)
         action("Tutorial", playTutorial),
         action("Firing Range", playFiringRange),
         command("Melee Recording Room", "map vrmelee-recording"),
-        command("Survival Arena", "map vrarena")
-            .help("The arena: waves of armed humanoids, harder and more frequent. You start unarmed on the dais and "
-                  "take their weapons from them. The waves follow the game's difficulty -- smaller and calmer on Easy, "
-                  "bigger, quicker and thicker on Nightmare (Combat > Survival Arena)."),
+        // (no Survival Arena here: Official Campaigns > Arena Mode, through its own Run Setup; his call 2026-11-15)
         header("Bots (Multiplayer)"),
         action("Add Bot (Team 0)", addBotTeam0),
         action("Add Bot (Team 1)", addBotTeam1),
