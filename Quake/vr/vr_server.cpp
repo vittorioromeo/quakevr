@@ -1281,10 +1281,23 @@ extern "C" void VR_ServerFrameEnd()
         return;
     }
 
-    // This frame's VR bits become next frame's "previous" bits.
-    for(ClientBits& bits : clientBits)
+    // This frame's VR bits become next frame's "previous" bits. The player's own .vrbits0 too: a frame with no move from
+    // his client (a dedicated server's frame between two of his moves, bunched moves) keeps it as it was, and an edge
+    // (a grip pressed or let go) was seen again every such frame (a let-go noted twice: QC's grip times moved on).
+    const int vrbitsOfs = fields().vrbits0;
+    for(size_t i = 0; i < clientBits.size(); i++)
     {
+        ClientBits& bits = clientBits[i];
         bits.previousFrame = bits.received;
+        // (a bot has no connection and no moves: its own QC sets its bits)
+        const bool mover = static_cast<int>(i) < svs.maxclients && svs.clients[i].active && svs.clients[i].netconnection;
+        edict_t* const ent = mover ? svs.clients[i].edict : nullptr;
+        if(ent && vrbitsOfs >= 0)
+        {
+            const int now = static_cast<int>(fieldFloatOr(ent, vrbitsOfs, 0.f));
+            setFieldFloat(ent, vrbitsOfs, static_cast<float>(
+                (now & ~(currentBitsMask << 1)) | ((bits.received & currentBitsMask) << 1)));
+        }
     }
 
     // Late precaches (setmodel on an unprecached model, precache_* after load).
