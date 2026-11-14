@@ -221,7 +221,8 @@ vr_agrunt_test   201      vr_armedgrunt_test.qc            dual wielders' both g
 vr_agrunt_test   211      vr_armedgrunt_second_test.qc     Pick Up a Second, smarter: idle near takes, far ignored, in a fight past the combat range ignored, very near taken (downtime), taken away: gives up
 vr_agrunt_test   212      vr_meleerules_test.qc            the shared melee rules: an armed sword's blow lands from ahead, a side-step dodges it; Show Melee Arcs shows each kind's rule (arc, leap, all round, shove)
 vr_agrunt_test   213      vr_meleerules_test.qc            the nearest monster's bite parried (AD's lost soul; your crowbar's guard held)
-vr_agrunt_test   214      vr_armedgrunt_extent_test.qc     a held weapon's drawn extent (agweaponextent) follows vr_gunmodelscale changed mid-map, and back
+vr_agrunt_test   215      vr_armedgrunt_coopdisarm_test.qc a grunt disarmed by shooting its gun still dies of blasts on its body (single player; coop with a bot)
+vr_agrunt_test   214      vr_armedgrunt_extent_test.qc    a held weapon's drawn extent (agweaponextent) follows vr_gunmodelscale changed mid-map, and back
 
 vr_flare_test    1*       vr_flaregun_test.qc              (the self-test (its fall-through))
 vr_flare_test    2-4      vr_flaregun_test.qc              (VR_FLT_Give)
@@ -255,6 +256,7 @@ vr_pickup_test   12       vr_pickup_test.qc                every holdable weapon
 vr_pickup_test   13       vr_pickup_test.qc                vrtutorial's keycard: its GRABBED tip let out as a hand takes it, gone as it is kept (VR_KeyTipTest_Start)
 vr_pickup_test   14       vr_pickup_test.qc                Melee Only: a dropped burst rifle, a map shotgun, a crate's flare gun, shells refused (force grab, grip, catch, walk); axe and dagger taken; off: taken (VR_MeleeOnlyTest_Run, vr_meleeonly_test.qc)
 vr_pickup_test   15       vr_pickup_test.qc                Melee Only and FrikBot bots: the run's dagger at the start, no gun chosen though held, guns/ammo no goals and not snatched, the dagger swung at a grunt; off: guns again (VR_MeleeOnlyBotTest_Run, vr_meleeonly_bot_test.qc; maxplayers 2, deathmatch 0)
+vr_pickup_test   17       vr_pickup_test.qc                his 11-15 design: a gun on the floor taken by the off hand: closed on its handle -> gun mode; closed 12 units over its barrel -> nothing; the same against the hand (vr_test_handcontact) -> a prop, carried (VR_PalmGrabTest_Start)
 
 vr_reload_test   1        vr_reload_test.qc                (VRIsHandEmpty)
 vr_reload_test   2        vr_reload_test.qc                (VR_Reload_IsRound)

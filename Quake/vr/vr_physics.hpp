@@ -22,6 +22,12 @@ inline constexpr int FL_FORCEGRABBABLE = 1 << 15;
 // shape: vr_physics.cpp handOn). Holding enemies (vr_foegrab.cpp) leaves such a grip to the weapon's tug.
 [[nodiscard]] bool fistOnArmedWeapon(edict_t* player, int hand);
 
+// Whether `player`'s hand (0 off, 1 main) takes the weapon lying about or in the air `weapon` only by its resting on or
+// leaning against the hand's Box3D body, the fist not reaching it (vr_physics.cpp onWeapon: a gun on the open palm, over
+// the fist closing under it): the view carries it where it touches the hand, anywhere on it (vr_view_hands.cpp
+// updateGroundSpots), not by its handle. No reach beyond the fist's: grips away from the handle stay the player's.
+[[nodiscard]] bool weaponOnHandOnly(edict_t* weapon, edict_t* player, int hand);
+
 // Show Disarm Volumes (vr_disarmviz.cpp): handOn's measure of `player`'s fist (hand 0 off, 1 main) on an armed monster's
 // weapon without its grip test: the gap (units; negative sunk in) to its drawn surface, its last places' sweep included
 // (`swept`: only the sweep reaches it), and the allowance a grab takes it within. ZA_FLOAT_MAX: no fist, no surface, or
@@ -41,6 +47,7 @@ inline constexpr int FL_FORCEGRABBABLE = 1 << 15;
 // vr_prop_query_test: exact reference checks with temporary live-transform mutations.
 void testModelQueries();
 void propTouchStats_f();
+void testHandContact_f(); // vr_test_handcontact <hand> <0|1>: tests stand in for a weapon against the hand (vr_pickup_test 17)
 void grabBench_f(); // vr_agrunt_grab_bench [calls]: the fist-on-weapon gap's cost a call (Debug > Profiling)
 
 // QC's carryangles: a held object's angles (into `out`), turning with the hand at `handAngles`.

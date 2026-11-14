@@ -6,6 +6,9 @@
 # A line ending in {test:<id>} has a Test button: it loads quakevr/scenarios/<id>.txt's scene (docs/vr-port/TESTING.md, "Checklist scenarios"); give new lines one whenever a scene fits. Flat-screen lines' scenes work under -flatscreenmode too (the game's mode is picked at start-up, not by the scene).
 # Lines are only for something new or changed you can see or feel: one line per flow, never "works as before". History of the sorts: git log of this file and docs/vr-port/CHECKLIST_REORG.md (latest: 2026-11-14 release audit, 94 lines down to 68, 71 with three from a later ship: the [New] section sorted, near-duplicates merged, every line cut to what to do and what to see, 3 new scenes; 2026-11-15: 17 ticked lines retired, the [New] section sorted). Misc/quakevr/checklist_tests_check.py checks every tag's scene file and the format (no "(agent/", "Test:", scratch or qvr-agents paths, .sh names; sections in order).
 
+[New: not yet sorted]
+Flat-screen or VR: start a coop game on e1m1 from the menu, add a bot, shoot the first grunt's gun out of its hand, then shoot or strike its body: it should die like any grunt. If it still won't die, note the teamplay setting, the weapon you hit it with, and whether it bled.
+
 [1. Flat-screen: weapons and hands]
 Flat-screen: hold the axe (then a sword, the crowbar, Mjolnir, the super axe) with the left hand empty: the left hand goes onto the handle by itself and the weapon sits two-handed; take something in the left hand: back to one hand, no jumps either way (Debug > Tunables > Flatscreen > Two-Handed Melee Stance). {test:flat_melee2h}
 Flat-screen: in the holster menu (middle mouse), drag a weapon with the left button between hands and holsters: valid slots light up, the rest grey; hand to hand or holster to holster swaps; letting go on nothing cancels. {test:flat_holster_drag}
@@ -60,6 +63,7 @@ Flat-screen or VR: fire the grenade launcher and force-grab the lit grenade out 
 Flat-screen or VR: look down the rocket launcher from your hand: the three vents at the back of the front shroud are real holes, black inside with walls and a back; the floor pickup shows them too. {test:rl_vents}
 VR: a very quick trigger or grip press and release still fires or grabs.
 VR: let go of a gun and grab it again quickly: the re-grab always takes it.
+Let a gun go onto your other, open palm so it rests there, then close that hand: with your fist on its handle it is taken by the handle and fires; with the handle off your palm it is held where it lies, as a prop (it doesn't jump to the handle), and a hand closing a few centimetres off a gun takes nothing. {test:palmgrab}
 
 [7. VR: physics, bodies and gore]
 On e1m1 with three times the enemies, turn quickly toward armed grunts you could not see: their guns, arms and backpacks are already in place, no pop.
