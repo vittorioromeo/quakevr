@@ -567,6 +567,7 @@ void SV_ConnectClient (int clientnum)
 		memcpy (spawn_parms, client->spawn_parms, sizeof(spawn_parms));
 	memset (client, 0, sizeof(*client));
 	client->netconnection = netconnection;
+	VR_ClientReset (client); // QVR: no moves or VR bits left from the slot's last player
 
 	strcpy (client->name, "unconnected");
 	client->active = true;

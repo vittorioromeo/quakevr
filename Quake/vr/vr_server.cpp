@@ -56,6 +56,7 @@ struct ClientBits
 {
     int previousFrame{0};
     int received{0};
+    int moves{0}; // moves read since the server's last frame (VR_MoveMerges): after the first, their bits are ORed
 };
 
 za::Vector<ClientBits> clientBits;
@@ -734,6 +735,33 @@ void setAmmoPouch(edict_t* ent, const glm::vec3 (&box)[4])
 
 } // namespace
 
+extern "C" int VR_MoveMerges(client_t* client)
+{
+    const int clientNum = static_cast<int>(client - svs.clients);
+    if(clientNum < 0 || clientNum >= svs.maxclients)
+    {
+        return 0;
+    }
+    if(clientNum >= static_cast<int>(clientBits.size()))
+    {
+        clientBits.resize(clientNum + 1);
+    }
+    return clientBits[clientNum].moves++ > 0 ? 1 : 0;
+}
+
+extern "C" void VR_ClientReset(client_t* client)
+{
+    const int clientNum = static_cast<int>(client - svs.clients);
+    if(clientNum >= 0 && clientNum < static_cast<int>(clientBits.size()))
+    {
+        clientBits[clientNum] = {};
+    }
+    if(clientNum >= 0 && clientNum < static_cast<int>(clientMoves.size()))
+    {
+        clientMoves[clientNum] = {};
+    }
+}
+
 extern "C" void VR_ReadMoveExtras(client_t* client)
 {
     if(!vrProtocol())
@@ -792,7 +820,10 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
         clientBits.resize(clientNum + 1);
     }
     ClientBits& bits = clientBits[clientNum];
-    bits.received = move.vrBits0 & ~(protocol::moveFlatplayBit | protocol::moveFlatCrouchBit);
+    // Every move since the server's last frame counts: a press (and release) between two frames is seen this frame,
+    // the bits ORed (the last move won: MP_PLAN.md, B2). VR_MoveMerges counted this move.
+    const int movedBits = move.vrBits0 & ~(protocol::moveFlatplayBit | protocol::moveFlatCrouchBit);
+    bits.received = bits.moves > 1 ? (bits.received | movedBits) : movedBits;
     // This player plays flatscreen (-flatscreenmode, his own client's: vr_flatplay.cpp): the QC's per-player gate
     // (VR_FlatPlay: no reloading, E's grab, 1 and 2 cycling; the hands' touch below).
     setFieldFloat(ent, f.vr_flatscreen, (move.vrBits0 & protocol::moveFlatplayBit) ? 1.f : 0.f);
@@ -1238,6 +1269,12 @@ extern "C" void VR_ServerFrameEnd()
     QVR_TRACY_CALL("sv end: armour", qvr::agarmor::serverFrame()); // the armed humanoids' armour sent where it changed (vr_agarmor.cpp)
     qvr::arenaxray::serverFrame(); // the arena's last foes marked or not, sent where it changed (vr_arenaxray.cpp)
     qvr::rigstudio::serverFrame(); // the Rig Studio's scene: its subject made and held (nothing while closed)
+
+    // The next move read starts the next frame's buttons and bits (VR_MoveMerges; any protocol: the buttons too).
+    for(ClientBits& bits : clientBits)
+    {
+        bits.moves = 0;
+    }
 
     if(!vrProtocol())
     {

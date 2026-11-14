@@ -390,6 +390,8 @@ int VR_FlatHudTime (float *level, int *state);			// its bullet time bar: 0 while
 void VR_WriteDemoState (struct sizebuf_s *msg);			// CL_Record_f, recording mid-game
 void VR_AdjustMove (float *forwardmove, float *sidemove, float *upmove); // CL_SendCmd: thumbstick locomotion
 void VR_ReadMoveExtras (struct client_s *client);		// end of SV_ReadClientMove
+int VR_MoveMerges (struct client_s *client);			// SV_ReadClientMove, at its buttons: not the first move since the server's last frame (its buttons ORed)
+void VR_ClientReset (struct client_s *client);			// SV_ConnectClient, SV_DropClient: the slot's per-client VR state cleared
 void VR_CalcStats (struct client_s *client, int *statsi, float *statsf); // end of SV_CalcStats
 int VR_AmmoStat (struct edict_s *ent);				// SV_WriteClientdataToMessage: the status bar's ammo count (the VR progs' .currentammo is the main hand's ammo type: their counter instead)
 int VR_ActiveWeaponStat (struct edict_s *ent);			// SV_WriteClientdataToMessage: the active weapon item bit

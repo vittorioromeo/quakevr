@@ -497,6 +497,10 @@ void SV_ReadClientMove (usercmd_t *move)
 
 // read buttons
 	bits = MSG_ReadByte ();
+	// QVR: every move since the server's last frame counts (a press and release between two frames was lost: the last
+	// move won), the buttons ORed (MP_PLAN.md, B2)
+	if (VR_MoveMerges (host_client))
+		bits |= ((int)host_client->edict->v.button0 & 1) | (((int)host_client->edict->v.button2 & 1) << 1);
 	host_client->edict->v.button0 = bits & 1;
 	host_client->edict->v.button2 = (bits & 2)>>1;
 
