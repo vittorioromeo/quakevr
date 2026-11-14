@@ -446,6 +446,14 @@ extern "C" unsigned VR_GLESImageFormat(unsigned format)
     }
 }
 
+extern "C" void VR_GLPolygonMode(unsigned mode)
+{
+    if(!glsafe.esCompat)
+    {
+        glPolygonMode(GL_FRONT_AND_BACK, mode);
+    }
+}
+
 extern "C" int VR_GLESShaderError(const char* message)
 {
     if(!glsafe.esCompat)
@@ -570,29 +578,33 @@ void status_f()
     Con_Printf("Last GL steps:\n%s", recent);
 }
 
-// The desktop-GL uses not gated yet by -glescompat, from the audit (QUEST_PLAN.md, "Renderer audit"; the script
-// Misc/quakevr/gles_audit.py makes it): each one's place and its OpenGL ES form. C2 gates them one by one.
+// The desktop-GL uses from the audit (QUEST_PLAN.md, "Renderer audit"; the script Misc/quakevr/gles_audit.py makes
+// it): each one's place and its OpenGL ES form; esDone: the ones -glescompat takes the ES form of (C2).
 struct EsPending
 {
     const char* what;
     const char* where;
     const char* es;
 };
+constexpr EsPending esDone[] = {
+    {"#version 430 in every program", "VR_GLShaderSource (all five compile sites)", "#version 320 es, precisions, ES image formats"},
+    {"glGetBufferSubData", "gfx::readBuffer", "glMapBufferRange(GL_MAP_READ_BIT)"},
+    {"glClearTexImage", "gfx::clearTexture", "a clear through a framebuffer"},
+    {"textureQueryLevels", "(no use left)", "-"},
+    {"glDrawBuffer, glClearDepth, glDepthRange, glPolygonMode", "gfx::drawNoColour, ...f forms, VR_GLPolygonMode", "glDrawBuffers, float forms, no wireframe"},
+    {"GL_TEXTURE_CUBE_MAP_SEAMLESS", "gl_vidsdl.c", "always on in ES (not enabled)"},
+    {"NVIDIA Image Scaling (vr_upscale 2)", "vr_upscale.cpp", "off: FSR instead"},
+};
 constexpr EsPending esPending[] = {
-    {"#version 430 in 52 shader sources", "gl_shaders.c, vr_gfx_gl.cpp, vr_bloom.cpp...", "one prefix: #version 320 es + precision"},
     {"MultiDrawElementsIndirect (bindless path)", "r_world.c, vr_lighting.cpp", "the bound path's DrawElementsIndirect loop"},
     {"glGetTexImage", "gl_texmgr.c, vr_envmap.cpp, vr_pbr.cpp, vr_lighting.cpp", "FBO + glReadPixels"},
-    {"glGetBufferSubData", "vr_gfx_gl.cpp, vr_temporal.cpp, vr_water.cpp", "glMapBufferRange(GL_MAP_READ_BIT)"},
-    {"glClearTexImage", "vr_temporal.cpp", "clear through an FBO"},
     {"glTextureView", "vr_envmap.cpp, vr_stereo_single.cpp", "render to the array layers directly"},
     {"GL_TEXTURE_LOD_BIAS", "gl_texmgr.c, vr_gfx_gl.cpp", "the bias in the shader (texture(s, uv, bias))"},
     {"GL_DEPTH_CLAMP", "r_alias.c", "EXT_depth_clamp, or the view model's depth range"},
-    {"gl_ClipDistance", "gl_shaders.h, r_world.c, r_alias.c, vr_lighting.cpp", "EXT_clip_cull_distance, or a discard"},
-    {"noperspective", "gl_shaders.h, vr_glsl_alias.h", "NV_shader_noperspective_interpolation, or w-multiplied"},
-    {"textureQueryLevels", "vr_gfx_gl.cpp", "the level count as a uniform"},
-    {"timer queries (GL_TIMESTAMP, 64-bit results)", "vr_profile.cpp, vr_tracy.cpp, vr_lighting.cpp", "EXT_disjoint_timer_query"},
-    {"glDrawBuffer, glClearDepth, glDepthRange, glPolygonMode", "vr_gfx_gl.cpp, vr_glutil.cpp, gl_rmain.c, gl_vidsdl.c", "glDrawBuffers, ...f, debug only"},
-    {"GL_FRAMEBUFFER_SRGB, GL_TEXTURE_CUBE_MAP_SEAMLESS", "vr_imgui.cpp, gl_vidsdl.c", "EXT_sRGB_write_control; always on"},
+    {"gl_ClipDistance (compiles with EXT_clip_cull_distance)", "gl_shaders.h, r_world.c, r_alias.c, vr_lighting.cpp", "the extension on the Quest [?], else a discard"},
+    {"noperspective (compiles with NV_shader_noperspective_interpolation)", "gl_shaders.h, vr_glsl_alias.h", "the extension on the Quest [?], else w-multiplied"},
+    {"timer, pipeline-statistics and GL_SAMPLES_PASSED queries", "vr_profile.cpp, vr_tracy.cpp, vr_lighting.cpp, gl_rmain.c, r_world.c", "EXT_disjoint_timer_query; the statistics off"},
+    {"GL_FRAMEBUFFER_SRGB, GL_BGRA uploads", "vr_imgui.cpp, r_brush.c", "EXT_sRGB_write_control; RGBA"},
 };
 
 void glesReport_f()
@@ -601,7 +613,12 @@ void glesReport_f()
     Con_Printf("  bindless %d, multi-bind %d, clip control %d, layered casters %d, buffer storage %d, NV foveation %s\n",
         gl_bindless_able ? 1 : 0, gl_multi_bind_able ? 1 : 0, gl_clipcontrol_able ? 1 : 0, gl_viewport_layer_able,
         gl_buffer_storage_able ? 1 : 0, glsafe.esCompat ? "off" : "when the GPU has it");
-    Con_Printf("Not gated yet (C2), with their ES form:\n");
+    Con_Printf("ES forms taken under -glescompat:\n");
+    for(const EsPending& p : esDone)
+    {
+        Con_Printf("  %s (%s): %s\n", p.what, p.where, p.es);
+    }
+    Con_Printf("Not gated yet, with their ES form:\n");
     for(const EsPending& p : esPending)
     {
         Con_Printf("  %s (%s): %s\n", p.what, p.where, p.es);

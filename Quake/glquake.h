@@ -193,6 +193,8 @@ extern	const char	*gl_version;
 	x(GLenum,		CheckFramebufferStatus, (GLenum target))\
 	x(void,			BlitFramebuffer, (GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter))\
 	x(void,			DrawBuffers, (GLsizei n, const GLenum *bufs))\
+	x(void,			ClearDepthf, (GLfloat d)) /* QVR: the float forms, ES's only ones (QUEST_PLAN.md) */\
+	x(void,			DepthRangef, (GLfloat n, GLfloat f))\
 	x(void,			ClearBufferfv, (GLenum buffer, GLint drawbuffer, const GLfloat *value))\
 	x(void,			BlendFunci, (GLuint buf, GLenum sfactor, GLenum dfactor))\
 	x(void,			DebugMessageCallback, (GLDEBUGPROC callback, const void *userParam))\

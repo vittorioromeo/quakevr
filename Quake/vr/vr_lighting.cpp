@@ -1544,7 +1544,7 @@ AtlasGrowth atlasGrowth;
             GL_BindFramebufferFunc(GL_FRAMEBUFFER, atlas.fbo);
             glDisable(GL_SCISSOR_TEST);
             GL_SetState(glstate & ~GLS_NO_ZWRITE);
-            glClearDepth(0.f);
+            GL_ClearDepthfFunc(0.f);
             glClear(GL_DEPTH_BUFFER_BIT);
             GL_BindFramebufferFunc(GL_FRAMEBUFFER, 0);
             glFinish();
@@ -2076,7 +2076,7 @@ extern "C" void VR_RenderShadowMaps(void)
             glScissor(static_cast<int>(s.staticOrigin.x), static_cast<int>(s.staticOrigin.y), static_cast<int>(3.f * mapSlotSize),
                 static_cast<int>(2.f * mapSlotSize));
             GL_SetState(glstate & ~GLS_NO_ZWRITE);
-            glClearDepth(0.f);
+            GL_ClearDepthfFunc(0.f);
             glClear(GL_DEPTH_BUFFER_BIT);
             indices.clear();
             collectWorld(cl.worldmodel->nodes, l.pos, l.value / l.scale);
@@ -2099,7 +2099,7 @@ extern "C" void VR_RenderShadowMaps(void)
         GL_BindFramebufferFunc(GL_FRAMEBUFFER, atlas.fbo);
         glScissor(0, 0, atlas.width, atlas.height);
         GL_SetState(glstate & ~GLS_NO_ZWRITE);
-        glClearDepth(0.f);
+        GL_ClearDepthfFunc(0.f);
         glClear(GL_DEPTH_BUFFER_BIT);
         glDisable(GL_SCISSOR_TEST);
         profile::end();

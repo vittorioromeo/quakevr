@@ -34,6 +34,17 @@ void ownDeferred(GLuint& program, bool* failed);
 // Whether the framebuffer bound to GL_FRAMEBUFFER is complete.
 [[nodiscard]] bool boundFramebufferComplete();
 
+// The bound framebuffer draws no colour (glDrawBuffers with GL_NONE: the form ES has).
+void drawNoColour();
+
+// `size` bytes at `offset` of the buffer bound to `target` read into `out`, waiting for the GPU: glGetBufferSubData,
+// or under -glescompat a read mapping (ES has no glGetBufferSubData). False when neither can.
+[[nodiscard]] bool readBuffer(GLenum target, GLintptr offset, GLsizeiptr size, void* out);
+
+// Level 0 of the 2D texture `tex` set to `rgba` everywhere: glClearTexImage, or under -glescompat a clear through a
+// framebuffer (ES has no glClearTexImage; `tex` must be colour-renderable). The framebuffer binding is kept.
+void clearTexture(GLuint tex, const float rgba[4]);
+
 // How a RenderTarget's texture is made (one level, bilinear).
 struct RenderTargetFormat
 {

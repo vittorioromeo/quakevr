@@ -1501,30 +1501,20 @@ ParticleBatch uploadParticles(za::Span<const ParticleInstance> particles, bool t
     return {buf, reinterpret_cast<za::SizeT>(ofs), particles.size(), trim, gl_frameres_serial};
 }
 
-namespace
-{
-using GetBufferSubDataFn = void(APIENTRY*)(GLenum, GLintptr, GLsizeiptr, void*);
-GetBufferSubDataFn particleWasteGet = nullptr; // (readParticleWaste: looked up on its first use)
-} // namespace
-
 bool readParticleWaste(za::Span<za::U32> counts)
 {
     if(!particleWasteBuffer || !particleWasteCounted || counts.size() < static_cast<za::SizeT>(particleWasteSlots * 3))
     {
         return false;
     }
-    if(!particleWasteGet)
-    {
-        particleWasteGet = reinterpret_cast<GetBufferSubDataFn>(SDL_GL_GetProcAddress("glGetBufferSubData"));
-    }
-    if(!particleWasteGet)
-    {
-        return false;
-    }
     const auto bytes = static_cast<GLsizeiptr>(particleWasteSlots * 3 * sizeof(za::U32));
     GL_MemoryBarrierFunc(GL_BUFFER_UPDATE_BARRIER_BIT);
     GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, particleWasteBuffer);
-    particleWasteGet(GL_SHADER_STORAGE_BUFFER, 0, bytes, counts.data());
+    if(!gfx::readBuffer(GL_SHADER_STORAGE_BUFFER, 0, bytes, counts.data()))
+    {
+        GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+        return false;
+    }
     const za::Vector<za::U32> zero(static_cast<za::SizeT>(particleWasteSlots * 3), 0u);
     GL_BufferSubDataFunc(GL_SHADER_STORAGE_BUFFER, 0, bytes, zero.data());
     particleWasteCounted = false;
@@ -1648,7 +1638,7 @@ namespace
         const bool complete = GL_CheckFramebufferStatusFunc(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
         GL_BindFramebufferFunc(GL_FRAMEBUFFER, target->markFbo);
         GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, depth, 0);
-        glDrawBuffer(GL_NONE);
+        gfx::drawNoColour();
         glReadBuffer(GL_NONE);
         target->depth = depth;
         target->generation = underGenerations; // its marks unknown: cleared before the next use

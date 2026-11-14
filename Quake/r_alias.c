@@ -2057,9 +2057,9 @@ qboolean R_PaintAliasWounds (entity_t *e, int numsplats, const float *splats, in
 	GL_Uniform4fvFunc (1, numsplats * 5, splats);
 
 	GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, 1);
-	glPolygonMode (GL_FRONT_AND_BACK, GL_LINE);
+	VR_GLPolygonMode (GL_LINE); // QVR: ES: none (filled)
 	GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, 1);
-	glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
+	VR_GLPolygonMode (GL_FILL);
 	return true;
 }
 

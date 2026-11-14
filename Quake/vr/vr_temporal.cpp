@@ -389,10 +389,6 @@ struct TemporalBlock // std140: QVR_TEMPORAL_BLOCK (vr_glsl.h)
     float size[4];   // xy 1 / the eye's size
 };
 
-using GetBufferSubDataFn = void(APIENTRY*)(GLenum, GLintptr, GLsizeiptr, void*);
-using ClearTexImageFn = void(APIENTRY*)(GLuint, GLint, GLenum, GLenum, const void*);
-GetBufferSubDataFn getBufferSubData = nullptr;
-ClearTexImageFn clearTexImage = nullptr;
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Helpers
@@ -505,8 +501,6 @@ bool invert4(const float* m, float* out)
         state.resolveProgram = program(nullptr, GL_COMPUTE_SHADER, resolveCs, "vr taa resolve");
         state.maskProgram = program(nullptr, GL_COMPUTE_SHADER, maskCs, "vr taa mask");
         state.applyProgram = program(applyVs, GL_FRAGMENT_SHADER, applyFs, "vr taa apply");
-        getBufferSubData = reinterpret_cast<GetBufferSubDataFn>(SDL_GL_GetProcAddress("glGetBufferSubData"));
-        clearTexImage = reinterpret_cast<ClearTexImageFn>(SDL_GL_GetProcAddress("glClearTexImage"));
         state.failed = !state.resolveProgram || !state.maskProgram || !state.applyProgram;
         for(GLuint* p : {&state.resolveProgram, &state.maskProgram, &state.applyProgram})
         {
@@ -570,10 +564,9 @@ void ensureTextures(int width, int height)
             e.depth[i] = makeTexture(GL_R32F, width, height, GL_NEAREST, "taa history depth");
         }
     }
-    if(clearTexImage) // (no stale stamp can match)
     {
-        const float none[4] = {0.f, 0.f, 0.f, -1.f};
-        clearTexImage(state.motionTex, 0, GL_RGBA, GL_FLOAT, none);
+        const float none[4] = {0.f, 0.f, 0.f, -1.f}; // (no stale stamp can match)
+        gfx::clearTexture(state.motionTex, none);
     }
     state.texWidth = width;
     state.texHeight = height;
@@ -811,14 +804,14 @@ void registerCommands()
     Cmd_AddCommand("vr_temporal_error",
         []
         {
-            if(!state.statsBuffer || !getBufferSubData)
+            if(!state.statsBuffer)
             {
                 Con_Printf("vr_temporal_error: no data (vr_temporal_debug 3 in the headset first)\n");
                 return;
             }
             std::uint32_t stats[statsViews * 4] = {};
             GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, state.statsBuffer);
-            getBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(stats), stats);
+            (void)gfx::readBuffer(GL_SHADER_STORAGE_BUFFER, 0, sizeof(stats), stats); // (zeros if it can't)
             GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
             for(int eye = state.flat ? flatView : 0; eye < (state.flat ? statsViews : 2); eye++)
             {

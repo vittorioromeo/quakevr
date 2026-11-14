@@ -4,6 +4,14 @@
 #include "Zancle/Container/Vector.hpp"
 #include "vr_api.h"
 
+#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
+#include <SDL2/SDL.h>
+#else
+#include "SDL.h"
+#endif
+
+#include <cstring>
+
 namespace qvr::gfx
 {
 
@@ -108,6 +116,80 @@ void relinkToNothing(const DeferredProgram& d)
 }
 
 } // namespace
+
+namespace
+{
+using GetBufferSubDataFn = void(APIENTRY*)(GLenum, GLintptr, GLsizeiptr, void*);
+using ClearTexImageFn = void(APIENTRY*)(GLuint, GLint, GLenum, GLenum, const void*);
+struct DesktopOnly // (looked up on first use; desktop GL's, not in ES)
+{
+    bool looked{false};
+    GetBufferSubDataFn getBufferSubData{nullptr};
+    ClearTexImageFn clearTexImage{nullptr};
+};
+DesktopOnly desktopOnly;
+
+void lookUpDesktopOnly()
+{
+    if(!desktopOnly.looked)
+    {
+        desktopOnly.looked = true;
+        desktopOnly.getBufferSubData = reinterpret_cast<GetBufferSubDataFn>(SDL_GL_GetProcAddress("glGetBufferSubData"));
+        desktopOnly.clearTexImage = reinterpret_cast<ClearTexImageFn>(SDL_GL_GetProcAddress("glClearTexImage"));
+    }
+}
+} // namespace
+
+void drawNoColour()
+{
+    const GLenum none = GL_NONE;
+    GL_DrawBuffersFunc(1, &none);
+}
+
+bool readBuffer(GLenum target, GLintptr offset, GLsizeiptr size, void* out)
+{
+    if(VR_GLESCompat())
+    {
+        const void* p = GL_MapBufferRangeFunc(target, offset, size, GL_MAP_READ_BIT);
+        if(!p)
+        {
+            return false;
+        }
+        memcpy(out, p, static_cast<size_t>(size));
+        return GL_UnmapBufferFunc(target) == GL_TRUE;
+    }
+    lookUpDesktopOnly();
+    if(!desktopOnly.getBufferSubData)
+    {
+        return false;
+    }
+    desktopOnly.getBufferSubData(target, offset, size, out);
+    return true;
+}
+
+void clearTexture(GLuint tex, const float rgba[4])
+{
+    if(VR_GLESCompat())
+    {
+        GLint previous = 0;
+        glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &previous);
+        GLuint fbo = 0;
+        GL_GenFramebuffersFunc(1, &fbo);
+        GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, fbo);
+        GL_FramebufferTexture2DFunc(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0);
+        const GLenum colour = GL_COLOR_ATTACHMENT0;
+        GL_DrawBuffersFunc(1, &colour);
+        GL_ClearBufferfvFunc(GL_COLOR, 0, rgba);
+        GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, static_cast<GLuint>(previous));
+        GL_DeleteFramebuffersFunc(1, &fbo);
+        return;
+    }
+    lookUpDesktopOnly();
+    if(desktopOnly.clearTexImage)
+    {
+        desktopOnly.clearTexImage(tex, 0, GL_RGBA, GL_FLOAT, rgba);
+    }
+}
 
 bool compiled(const GLuint shader, const char* name)
 {
@@ -273,7 +355,7 @@ bool RenderTarget::ensure(const int w, const int h, const RenderTargetFormat& fo
     GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, format.depth ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0);
     if(format.depth)
     {
-        glDrawBuffer(GL_NONE);
+        gfx::drawNoColour();
         glReadBuffer(GL_NONE);
     }
     if(!boundFramebufferComplete())

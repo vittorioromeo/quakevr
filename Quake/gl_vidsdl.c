@@ -1372,19 +1372,20 @@ static void GL_SetupState (void)
 	if (gl_clipcontrol_able)
 	{
 		GL_ClipControlFunc (GL_LOWER_LEFT, GL_ZERO_TO_ONE);
-		glClearDepth (0.f);
+		GL_ClearDepthfFunc (0.f); // QVR: the float form (ES has no other)
 		glDepthFunc (GL_GEQUAL);
 	}
 	else
 	{
-		glClearDepth (1.f);
+		GL_ClearDepthfFunc (1.f);
 		glDepthFunc (GL_LEQUAL);
 	}
 	glFrontFace (GL_CW); //johnfitz -- glquake used CCW with backwards culling -- let's do it right
-	glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
+	VR_GLPolygonMode (GL_FILL); // QVR: none on ES
 	GL_DepthRange (ZRANGE_FULL); //johnfitz -- moved here becuase gl_ztrick is gone.
 	glEnable (GL_BLEND);
-	glEnable (GL_TEXTURE_CUBE_MAP_SEAMLESS);
+	if (!VR_GLESCompat ()) // QVR: always on in ES 3.x (no such switch there)
+		glEnable (GL_TEXTURE_CUBE_MAP_SEAMLESS);
 	glEnable (GL_SAMPLE_SHADING);
 
 	GL_ResetState ();

@@ -566,21 +566,21 @@ void GL_DepthRange (zrange_t range)
 	{
 	default:
 	case ZRANGE_FULL:
-		glDepthRange (0.f, 1.f);
+		GL_DepthRangefFunc (0.f, 1.f);
 		break;
 
 	case ZRANGE_VIEWMODEL:
 		if (gl_clipcontrol_able)
-			glDepthRange (0.7f, 1.f);
+			GL_DepthRangefFunc (0.7f, 1.f);
 		else
-			glDepthRange (0.f, 0.3f);
+			GL_DepthRangefFunc (0.f, 0.3f);
 		break;
 
 	case ZRANGE_NEAR:
 		if (gl_clipcontrol_able)
-			glDepthRange (1.f, 1.f);
+			GL_DepthRangefFunc (1.f, 1.f);
 		else
-			glDepthRange (0.f, 0.f);
+			GL_DepthRangefFunc (0.f, 0.f);
 		break;
 	}
 }
@@ -2152,7 +2152,7 @@ void R_ShowTris (void)
 
 	if (r_showtris.value == 1)
 		GL_DepthRange (ZRANGE_NEAR);
-	glPolygonMode (GL_FRONT_AND_BACK, GL_LINE);
+	VR_GLPolygonMode (GL_LINE); // QVR: ES: none (filled)
 	GL_PolygonOffset (OFFSET_SHOWTRIS);
 
 	ofs = cl_modtype_ofs;
@@ -2175,7 +2175,7 @@ void R_ShowTris (void)
 
 	R_DrawParticles_ShowTris ();
 
-	glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
+	VR_GLPolygonMode (GL_FILL);
 	GL_PolygonOffset (OFFSET_NONE);
 	if (r_showtris.value == 1)
 		GL_DepthRange (ZRANGE_FULL);
