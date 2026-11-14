@@ -442,3 +442,36 @@ za::Vector<Site> traceSites(za::U64& total, za::U64& dropped, bool peakFrame)
 }
 
 } // namespace qvr::alloccount
+
+// The page guard (zone.c's -memguard): a block on pages of its own, ending at its last committed page's end (the next
+// page reserved, never committed: an overrun faults); its free decommits the pages and keeps them reserved, so the
+// address is never handed out again and any later read or write through a kept pointer faults (a crash report with the
+// stack of the use). Elsewhere than Windows: plain calloc/free (no guard).
+extern "C" void* VR_PageGuardAlloc(size_t size)
+{
+#ifdef _WIN32
+    const size_t page = 4096;
+    const size_t span = (size + page - 1) / page * page;
+    const size_t lead = span - ((size + 15) & ~static_cast<size_t>(15)); // 16-byte aligned, ending at most 15 bytes short
+    unsigned char* base = static_cast<unsigned char*>(VirtualAlloc(nullptr, span + page, MEM_RESERVE, PAGE_NOACCESS));
+    if(!base || !VirtualAlloc(base, span, MEM_COMMIT, PAGE_READWRITE)) return nullptr;
+    return base + lead; // committed pages are zeroed
+#else
+    return calloc(1, size ? size : 1);
+#endif
+}
+
+extern "C" void VR_PageGuardFree(void* pointer, size_t size)
+{
+    if(!pointer) return;
+#ifdef _WIN32
+    const size_t page = 4096;
+    const size_t span = (size + page - 1) / page * page;
+    const size_t lead = span - ((size + 15) & ~static_cast<size_t>(15)); // 16-byte aligned, ending at most 15 bytes short
+    unsigned char* base = static_cast<unsigned char*>(pointer) - lead;
+    VirtualFree(base, span, MEM_DECOMMIT);
+#else
+    (void)size;
+    free(pointer);
+#endif
+}

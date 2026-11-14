@@ -84,6 +84,35 @@ typedef struct zblock_s
 #define ZONE_TAIL	0
 #endif
 
+/*
+QVR: -memguard (a debugging aid, ROUND25.md "uafsweep"): every zone, hunk and cache block on pages of its own
+(VR_PageGuardAlloc), its free decommitting them and never handing the address out again: a pointer kept past its
+block's free (a dangling cl_entities after Host_ClearMemory, a model's data after Cache_Flush) faults at its first use,
+and the crash report has that use's stack, instead of reading whatever reused the memory. Slow and address-hungry: test
+runs only; or the environment's QVR_MEMGUARD=1 (the kit's scripts, bench.sh's runs: every child game). Decided at the first block (after COM_InitArgv), never changed (a block is freed the way it was made).
+*/
+static int		mem_guard = -1;
+
+static qboolean Mem_Guarded (void)
+{
+	if (mem_guard < 0)
+		mem_guard = COM_CheckParm ("-memguard") != 0 || (getenv ("QVR_MEMGUARD") && atoi (getenv ("QVR_MEMGUARD")));
+	return mem_guard != 0;
+}
+
+static void *Mem_Calloc (size_t total)
+{
+	return Mem_Guarded () ? VR_PageGuardAlloc (total) : VR_HeapCalloc (1, total);
+}
+
+static void Mem_Release (void *p, size_t total)
+{
+	if (Mem_Guarded ())
+		VR_PageGuardFree (p, total);
+	else
+		VR_HeapFree (p);
+}
+
 static size_t	zone_used, zone_peak; // QVR: bytes in use (headers included) and the most ever (vr_limits)
 static size_t	zone_count; // blocks in use
 #ifdef QVR_TRACY
@@ -138,7 +167,7 @@ void Z_Free (void *ptr)
 	zone_used -= block->size;
 	zone_count--;
 	block->id = ZONEFREED;
-	VR_HeapFree (block);
+	Mem_Release (block, block->size);
 }
 
 
@@ -157,7 +186,7 @@ void *Z_Malloc (int size)
 		Sys_Error ("Z_Malloc: bad size %i", size);
 
 	total = sizeof (zblock_t) + (size_t) size + ZONE_TAIL;
-	block = (zblock_t *) VR_HeapCalloc (1, total);
+	block = (zblock_t *) Mem_Calloc (total);
 	if (!block)
 		Sys_Error ("Z_Malloc: failed on allocation of %i bytes", size);
 	block->size = total;
@@ -292,7 +321,7 @@ static memblock_t *Mem_NewBlock (int size, const char *name, int sentinel, qbool
 
 	if (total > 0x7fffffff)
 		Sys_Error ("%s: %i bytes are too many", who, size);
-	b = (memblock_t *) (clear ? VR_HeapCalloc (1, total) : VR_HeapMalloc (total));
+	b = (memblock_t *) (clear || Mem_Guarded () ? Mem_Calloc (total) : VR_HeapMalloc (total));
 	if (!b)
 		Sys_Error ("%s: failed on %i bytes", who, size);
 	if (!clear)
@@ -311,7 +340,7 @@ static void Mem_FreeBlock (memblock_t *b, int sentinel, const char *who)
 {
 	Mem_CheckBlock (b, sentinel, who);
 	b->sentinel = FREED_SENTINEL;
-	VR_HeapFree (b);
+	Mem_Release (b, (size_t) b->size);
 }
 
 /*
@@ -381,7 +410,7 @@ void Hunk_Print (qboolean all)
 	VR_HeapFree ((void *) blocks);
 
 	Con_SafePrintf ("---------------------------------\n");
-	Con_SafePrintf ("%6i : %10i : USED (the heap: no maximum)\n", n, hunk_low_used);
+	Con_SafePrintf ("%6i : %10i : USED (the heap: no maximum%s)\n", n, hunk_low_used, Mem_Guarded () ? "; -memguard" : "");
 	Con_SafePrintf ("%6i : %10i : CACHE (%s)\n", cache_count, (int) q_min (cache_used, (size_t) 0x7fffffff), "cache_print: each");
 	{
 		int chunks, bytes, peak;
@@ -932,6 +961,8 @@ void Memory_Init (void)
 	zone_main_thread = SDL_ThreadID ();
 
 	Cache_Init ();
+	if (Mem_Guarded ())
+		Sys_Printf ("-memguard: every zone, hunk and cache block on its own pages, never reused (a use after free faults)\n");
 	// QVR: no big block any more: the zone, the hunk and the cache are the heap (ROUND25.md, "nozone", "nohunk")
 
 	Cmd_AddCommand ("hunk_print", Hunk_Print_f); //johnfitz
