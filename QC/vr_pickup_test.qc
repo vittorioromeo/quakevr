@@ -799,45 +799,20 @@ void() VR_KeyTipTest_Frame =
 };
 
 // vr_pickup_test 17 (his 2026-11-15 design; MP_PLAN B3c: a gun on an open palm sits 3-5 cm over the fist closing under
-// it): the off hand still in front of him, open, palm up; the shotgun let go of from the main hand just over it lands on
-// the palm and rests there. Closing the off hand takes it: (A) its handle on the palm, within the fist's reach: by the
-// handle, in gun mode; (B) its handle well off the palm, out of the fist's reach: as a prop, where it lies on the hand
-// (carried, QVR_WPNFLAG_FOREGRIP_CARRIED). In (B) the main hand first closes 10-12 cm off it, touching nothing: nothing
-// taken (no reach beyond the fist's). Ends on "palmgrab test:".
-float palmgrab_step;   // 0 idle; 1 placed, the gun to drop; 2 let go of, settling; 3 the main hand closing off it; 4 the off hand closing
+// it): a hand closing on a gun resting on or against it takes it by the handle where the fist reaches the handle, else
+// as a prop where it lies against the hand (carried, QVR_WPNFLAG_FOREGRIP_CARRIED); no more reach anywhere. The shotgun
+// let go of low over the floor lies there; the off hand then:
+// (A) steered over its handle, then onto it and closed: taken by the handle (gun mode);
+// (C) closes 12 units over its barrel, touching nothing: nothing taken;
+// (B) the same with the gun against the hand (vr_test_handcontact: the physics' contact stood in for; headless, a gun
+//     let go of onto the mock's open palm tips off it or passes through it): taken as a prop, carried, not by its handle.
+// The hand is steered onto its marks by its measured place (tracking metres from the world's units). Ends on
+// "palmgrab test:".
+float palmgrab_step;   // 0 idle; 1 the gun to drop; 2 settling; 3 (A) onto its handle; 4 let go of; 5 (C); 6 (B)
 float palmgrab_frames; // frames in this step
-float palmgrab_case;   // 0 (A) handle on the palm; 1 (B) handle off it
+vector palmgrab_trk;   // the off hand's mock place (tracking metres)
+vector palmgrab_mark;  // where the off hand is steered (world)
 entity palmgrab_gun;
-
-// The main hand over the off palm (tracking space, metres), holding the gun by its handle, pointing ahead: (A) right
-// over it; (B) 20 cm nearer him, the gun's length ahead over the palm. (Pitched up 69 degrees: vr_gunangle's 70 undone,
-// the gun level and the off palm up.)
-float palmgrab_wid; // the gun dropped
-string(float c) VR_PalmGrabTest_MainPose =
-{
-    return sprintf("-0.05 1.3 %g 69 0 0", c == 0 ? -0.40 : -0.20);
-};
-
-// (The main hand gripping, the gun given once its grip is on the server: a weapon is held while gripped.)
-void(float c) VR_PalmGrabTest_Place =
-{
-    palmgrab_case = c;
-    palmgrab_step = 1;
-    palmgrab_frames = 0;
-    palmgrab_gun = world;
-    palmgrab_wid = WID_SHOTGUN;
-    VRSetEntWeapon(self, cVR_OffHand, WID_FIST);
-    W_SetCurrentAmmoFor(cVR_OffHand);
-    localcmd(sprintf("vr_mock_button off grip 0; vr_mock_button main grip 1; vr_mock_hand off -0.05 1.0 -0.40 69 0 90; "
-        "vr_mock_hand main %s\n", VR_PalmGrabTest_MainPose(c)));
-};
-
-void() VR_PalmGrabTest_Start =
-{
-    VR_Test_BeginFlags("palmgrab test", VR_TEST_LOUD);
-    self.items = self.items | IT_SHOTGUN;
-    VR_PalmGrabTest_Place(0);
-};
 
 void(float to) VR_PalmGrabTest_To =
 {
@@ -845,17 +820,34 @@ void(float to) VR_PalmGrabTest_To =
     palmgrab_frames = 0;
 };
 
-// The thrown weapon nearest the off hand.
-entity() VR_PalmGrabTest_Gun =
+// The off hand (open or gripping), level, at palmgrab_trk.
+void(float grip) VR_PalmGrabTest_Off =
+{
+    localcmd(sprintf("vr_mock_hand off %g %g %g 69 0 0; vr_mock_button off grip %g\n", palmgrab_trk_x, palmgrab_trk_y,
+        palmgrab_trk_z, grip));
+};
+
+// palmgrab_trk moved by the off hand's measured miss of palmgrab_mark (tracking: +x right, +y up, -z ahead).
+void() VR_PalmGrabTest_Steer =
+{
+    makevectors([0, self.angles_y, 0]);
+    vector e = (palmgrab_mark - self.offhandpos) / VRMetersToUnits();
+    palmgrab_trk_x += e * v_right;
+    palmgrab_trk_y += e_z;
+    palmgrab_trk_z -= e * v_forward;
+};
+
+// The thrown weapon nearest `p`.
+entity(vector p) VR_PalmGrabTest_Gun =
 {
     float least = 999999;
     entity best = world;
     entity e = find(world, classname, "thrown_weapon");
     while(e != world)
     {
-        if(vlen(e.origin - self.offhandpos) < least)
+        if(vlen(e.origin - p) < least)
         {
-            least = vlen(e.origin - self.offhandpos);
+            least = vlen(e.origin - p);
             best = e;
         }
         e = find(e, classname, "thrown_weapon");
@@ -863,26 +855,52 @@ entity() VR_PalmGrabTest_Gun =
     return best;
 };
 
+void() VR_PalmGrabTest_Start =
+{
+    VR_Test_BeginFlags("palmgrab test", VR_TEST_LOUD);
+    entity e = find(world, classname, "thrown_weapon");
+    while(e != world) // (none other lying about: the one let go of is the one taken)
+    {
+        entity next = find(e, classname, "thrown_weapon");
+        remove(e);
+        e = next;
+    }
+    self.items = self.items | IT_SHOTGUN;
+    VRSetEntWeapon(self, cVR_OffHand, WID_FIST);
+    W_SetCurrentAmmoFor(cVR_OffHand);
+    palmgrab_gun = world;
+    palmgrab_trk = '-0.35 0.9 -0.2';
+    localcmd("vr_test_handcontact 0 0; vr_mock_button main grip 1; vr_mock_hand main 0.1 0.35 -0.45 69 0 0\n");
+    VR_PalmGrabTest_Off(0);
+    VR_PalmGrabTest_To(1);
+};
+
+void() VR_PalmGrabTest_End =
+{
+    localcmd("vr_test_handcontact 0 0; vr_mock_button off grip 0; vr_mock_button main grip 0\n");
+    palmgrab_step = 0;
+    VR_Test_Verdict();
+};
+
 // Every server frame while it runs (self is the player).
 void() VR_PalmGrabTest_Frame =
 {
     palmgrab_frames++;
-    string what = palmgrab_case == 0 ? "(A) handle on the palm" : "(B) handle off the palm";
-    if(palmgrab_frames > 360)
+    if(palmgrab_frames > 600)
     {
-        VR_Test_Check(FALSE, sprintf("%s: timed out in step %g", what, palmgrab_step));
-        VR_Test_Verdict();
-        localcmd("vr_mock_button off grip 0; vr_mock_button main grip 0\n");
-        palmgrab_step = 0;
+        VR_Test_Check(FALSE, sprintf("timed out in step %g", palmgrab_step));
+        VR_PalmGrabTest_End();
         return;
     }
+    float offWeapon = VRGetEntWeapon(self, cVR_OffHand);
+    float carried = VRGetEntWeaponFlags(self, cVR_OffHand) & QVR_WPNFLAG_FOREGRIP_CARRIED;
     if(palmgrab_step == 1)
     {
-        // (the hands placed and still a moment, the gun given; held a moment, let go of with no speed; the main hand
-        // away once it is clear of it)
+        // (the main hand placed and gripping, the gun given; held a moment, let go of with no speed, low over the
+        // floor; the main hand away)
         if(palmgrab_frames == 36 && VR_HandGrabUtil_IsHandGrabbing(self, cVR_MainHand))
         {
-            VRSetEntWeapon(self, cVR_MainHand, palmgrab_wid);
+            VRSetEntWeapon(self, cVR_MainHand, WID_SHOTGUN);
             W_SetCurrentAmmoFor(cVR_MainHand);
         }
         if(palmgrab_frames == 72)
@@ -902,65 +920,95 @@ void() VR_PalmGrabTest_Frame =
         {
             return;
         }
-        palmgrab_gun = VR_PalmGrabTest_Gun();
-        float on = palmgrab_gun != world && palmgrab_gun.origin_z > self.absmin_z + 24;
-        VR_Test_Check(on, sprintf("%s: the gun let go of rests on the open off palm (its handle %.1f units from the hand, "
-            "%.1f over the floor)", what, palmgrab_gun != world ? vlen(palmgrab_gun.origin - self.offhandpos) : -1,
+        palmgrab_gun = VR_PalmGrabTest_Gun(self.origin);
+        float lies = palmgrab_gun != world && palmgrab_gun.origin_z < self.absmin_z + 12 &&
+                     vlen(palmgrab_gun.velocity) < 1;
+        VR_Test_Check(lies, sprintf("the shotgun let go of lies on the floor (%.1f over it)",
             palmgrab_gun != world ? palmgrab_gun.origin_z - self.absmin_z : -1));
-        if(!on)
+        if(!lies)
         {
-            palmgrab_step = 0;
-            VR_Test_Verdict();
+            VR_PalmGrabTest_End();
             return;
         }
-        if(palmgrab_case == 1)
-        {
-            localcmd("vr_mock_hand main 0.07 1.10 -0.40 0 0 0; vr_mock_button main grip 1\n");
-            VR_PalmGrabTest_To(3);
-            return;
-        }
-        localcmd("vr_mock_button off grip 1\n");
-        VR_PalmGrabTest_To(4);
+        palmgrab_trk = '0.1 0.35 -0.45';
+        VR_PalmGrabTest_To(3);
         return;
     }
     if(palmgrab_step == 3)
     {
-        if(palmgrab_frames < 36)
+        // Steered 8 units over its handle, open (frames 1, 7, 13: out of the fist's reach), then onto the handle and closed
+        // in one move (19): taken by the fist on the handle (30).
+        if(palmgrab_frames == 1 || palmgrab_frames == 7 || palmgrab_frames == 13 || palmgrab_frames == 19)
         {
-            return;
+            palmgrab_mark = palmgrab_gun.origin + (palmgrab_frames == 19 ? '0 0 1' : '0 0 8');
+            if(palmgrab_frames > 1)
+            {
+                VR_PalmGrabTest_Steer();
+            }
+            VR_PalmGrabTest_Off(palmgrab_frames == 19);
         }
-        VR_Test_Check(VRGetEntWeapon(self, cVR_MainHand) != palmgrab_wid && palmgrab_gun.classname == "thrown_weapon",
-            sprintf("%s: the main hand closing 10-12 cm off it takes nothing (main hand %g)", what,
-                VRGetEntWeapon(self, cVR_MainHand)));
-        localcmd("vr_mock_button main grip 0; vr_mock_hand main 0.45 1.0 -0.2 0 0 0; vr_mock_button off grip 1\n");
-        VR_PalmGrabTest_To(4);
+        else if(palmgrab_frames == 30)
+        {
+            VR_Test_Check(offWeapon == WID_SHOTGUN && !carried, sprintf("(A) the hand closing on its handle takes it by "
+                "the handle, in gun mode (off hand %g, carried %g)", offWeapon, carried));
+            VR_PalmGrabTest_Off(0); // (let go of: it passes through the open hand to the floor)
+            VR_PalmGrabTest_To(4);
+        }
         return;
     }
     if(palmgrab_step == 4)
     {
-        if(VRGetEntWeapon(self, cVR_OffHand) != palmgrab_wid && palmgrab_frames < 36)
+        if(palmgrab_frames == 108)
         {
-            return;
+            palmgrab_gun = VR_PalmGrabTest_Gun(self.offhandpos);
+            VR_Test_Check(palmgrab_gun != world && offWeapon != WID_SHOTGUN, "(A) let go of, it lies about again");
+            if(palmgrab_gun == world)
+            {
+                VR_PalmGrabTest_End();
+                return;
+            }
+            VR_PalmGrabTest_To(5);
         }
-        float carried = VRGetEntWeaponFlags(self, cVR_OffHand) & QVR_WPNFLAG_FOREGRIP_CARRIED;
-        VR_Test_Check(VRGetEntWeapon(self, cVR_OffHand) == palmgrab_wid, sprintf("%s: closing the off hand takes it "
-            "(off hand %g, %g frames)", what, VRGetEntWeapon(self, cVR_OffHand), palmgrab_frames));
-        if(palmgrab_case == 0)
+        return;
+    }
+    if(palmgrab_step == 5 || palmgrab_step == 6)
+    {
+        // 12 units over its barrel, 10 ahead of its handle: steered (frames 1-19), closed at 24, looked at 36.
+        if(palmgrab_frames == 1 || palmgrab_frames == 10 || palmgrab_frames == 19)
         {
-            VR_Test_Check(!carried, sprintf("%s: by its handle, in gun mode", what));
+            makevectors([0, palmgrab_gun.angles_y, 0]);
+            palmgrab_mark = palmgrab_gun.origin + v_forward * 10 + '0 0 12';
+            if(palmgrab_frames > 1)
+            {
+                VR_PalmGrabTest_Steer();
+            }
+            VR_PalmGrabTest_Off(0);
+            if(palmgrab_frames == 19 && palmgrab_step == 6)
+            {
+                localcmd("vr_test_handcontact 0 1\n");
+            }
         }
-        else
+        else if(palmgrab_frames == 24)
         {
-            VR_Test_Check(carried, sprintf("%s: as a prop where it lies on the hand, not by its handle", what));
+            VR_PalmGrabTest_Off(1);
         }
-        if(palmgrab_case == 0)
+        else if(palmgrab_frames == 36)
         {
-            VR_PalmGrabTest_Place(1);
-            return;
+            float off = vlen(self.offhandpos - palmgrab_mark);
+            if(palmgrab_step == 5)
+            {
+                VR_Test_Check(offWeapon != WID_SHOTGUN && palmgrab_gun.classname == "thrown_weapon",
+                    sprintf("(C) closing 12 units over its barrel, touching nothing, takes nothing (the hand %.1f off "
+                        "its mark)", off));
+                VR_PalmGrabTest_Off(0);
+                VR_PalmGrabTest_To(6);
+                return;
+            }
+            VR_Test_Check(offWeapon == WID_SHOTGUN && carried, sprintf("(B) the same, the gun against the hand: taken "
+                "as a prop where it is, carried, not by its handle (off hand %g, carried %g, the hand %.1f off its mark)",
+                offWeapon, carried, off));
+            VR_PalmGrabTest_End();
         }
-        localcmd("vr_mock_button off grip 0\n");
-        palmgrab_step = 0;
-        VR_Test_Verdict();
     }
 };
 

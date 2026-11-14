@@ -2398,10 +2398,15 @@ choice in `vr_view_hands.cpp` updateGroundSpots through `physics::weaponOnHandOn
 `box3d::restsOnHand` takes `minUp` (default `restOnHandUp`, 0.3, the old `restUp`). The local player only (another
 player's hand has no anywhere hold: it takes handles only, as before), and only with `vr_weapon_grab_anywhere` on.
 
-Test: `vr_pickup_test 17` (VR_PalmGrabTest_*; ends `palmgrab test:`): the shotgun let go of from the main hand onto the
-open, palm-up off hand, then (A) handle on the palm -> gun mode, (B) handle off it -> the main hand closing off it takes
-nothing, then the off hand takes it carried. NOT YET PASSING: in single player the dropped gun does not stay on the mock
-off palm (it tips off or passes through the thin open-hand box; probes over heights 1.15-1.5 m, offsets 0-25 cm, the
-shotgun and the heavy revolver, with and without `vr_gunangle 0`). The mock's hand angles carry vr_gunangle (mock pitch
-0 is 69-70 degrees down): the poses pitch up 69. Unchanged: vr_pickup_test 1/3 (pickup_mag 3 PASS), crate_grip
-(carry2h_grip 10/0), flatholster 54/0, revgrip (vr_embed_test 42) 24/0.
+Test: `vr_pickup_test 17` (VR_PalmGrabTest_*; ends `palmgrab test:`, 5 checks): the shotgun let go of low over the
+floor lies there; the off hand, steered onto marks by its measured place (world units back to mock metres), (A) closes
+on its handle: gun mode; (C) closes 12 units over its barrel: nothing; (B) the same with the gun against the hand: a
+prop, carried. The contact in (B) is stood in for by `vr_test_handcontact <hand> <0|1>` (a test command: a weapon within
+half a metre of that hand counts as against it, in the same weaponAgainstHand the physics' contact goes through):
+headless, a gun let go of onto the mock's open palm doesn't stay there (it tips off or passes through the thin open-hand
+box; probed over heights 1.15-1.5 m, offsets 0-25 cm, the shotgun and the heavy revolver, with and without
+`vr_gunangle 0`), so the physical rest itself is his to check (scenario `palmgrab`). The mock's hand angles carry
+vr_gunangle (mock pitch 0 is about 69 degrees down): the test's poses pitch up 69. The view's check runs in the server's
+VM (`progs::ServerVm`: without it the view never saw the contact and (B) was taken by the handle). Unchanged:
+pickup_mag 3/3, crate_grip (carry2h_grip 10/0), flatholster 54/0, revgrip (vr_embed_test 42) 24/0; Release-TracyFull 0
+warnings.

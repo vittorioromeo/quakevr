@@ -1943,8 +1943,12 @@ namespace
 [[nodiscard]] bool onHandOnly(const entity_t& e, int hand)
 {
     const int num = static_cast<int>(&e - cl_entities);
-    if(!sv.active || qcvm != &sv.qcvm || num <= 0 || num >= qcvm->num_edicts || cl.viewentity <= 0 ||
-        cl.viewentity >= qcvm->num_edicts)
+    if(!sv.active || num <= 0 || cl.viewentity <= 0)
+    {
+        return false;
+    }
+    const progs::ServerVm vm; // (the server's fields: the view runs outside its VM)
+    if(num >= qcvm->num_edicts || cl.viewentity >= qcvm->num_edicts)
     {
         return false;
     }

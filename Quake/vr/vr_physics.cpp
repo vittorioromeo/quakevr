@@ -485,10 +485,23 @@ struct TouchProvider
 // Whether a weapon lying about or in the air rests on or leans against hand `which`'s Box3D body (a gun let go of onto
 // an open palm lies there, over the fist that closes under it), for the local player, who holds a weapon anywhere on
 // it (vr_weapon_grab_anywhere; the view's twohand::groundSpot: others' hands take only handles).
+// (Tests: vr_test_handcontact <hand 0 off|1 main> <0|1>: a weapon whose drawn box is within half a metre of that hand
+// counts as against it, the physics' contact stood in for: vr_pickup_test 17. A gun doesn't stay on the mock's palm.)
+bool testHandContact[2]{false, false};
+
 [[nodiscard]] bool weaponAgainstHand(edict_t* target, edict_t* player, int which)
 {
-    return vr_weapon_grab_anywhere.value && NUM_FOR_EDICT(player) == 1 &&
-           box3d::restsOnHand(NUM_FOR_EDICT(target), NUM_FOR_EDICT(player), which == HAND_OFF ? 0 : 1, -2.f);
+    const int h = which == HAND_OFF ? 0 : 1;
+    if(!vr_weapon_grab_anywhere.value || NUM_FOR_EDICT(player) != 1)
+    {
+        return false;
+    }
+    if(testHandContact[h] &&
+        held::nearDrawn(target, fieldVec(player, handPosField(which)), 0.5f * units::metresToUnits()))
+    {
+        return true;
+    }
+    return box3d::restsOnHand(NUM_FOR_EDICT(target), NUM_FOR_EDICT(player), h, -2.f);
 }
 
 [[nodiscard]] TouchAnswer onWeapon(edict_t* target, edict_t* player, int which, grab::Candidate& out)
@@ -1446,6 +1459,16 @@ namespace qvr::physics
 void propTouchStats_f()
 {
     Con_Printf("prop touch verification: %llu callbacks checked\n", static_cast<unsigned long long>(touchVerified));
+}
+
+void testHandContact_f()
+{
+    if(Cmd_Argc() < 3)
+    {
+        Con_Printf("usage: vr_test_handcontact <hand: 0 off, 1 main> <0|1>\n");
+        return;
+    }
+    testHandContact[atoi(Cmd_Argv(1)) == 0 ? 0 : 1] = atoi(Cmd_Argv(2)) != 0;
 }
 
 void grabBench(); // (below: in the server's progs)
