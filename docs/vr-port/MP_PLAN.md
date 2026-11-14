@@ -1269,7 +1269,7 @@ Open (B8b), first the suite's three:
   correction. Close quarters (vr_closequarters) too.
 - A move's time is the client's tick (host_frametime); in slow motion (VR_TimeScale) the server's credit holds him.
 
-### B8b results, part 1: the suite's three, lag compensation (2026-11-14, dev no-LTO build, loopback)
+### B8b results, part 1: the suite's three, lag compensation (2026-11-14, dev no-LTO build, loopback; `mp_test.py suite`: 26 of 27 pass, `mp_loss` 13/2 (A's copy's body 1 and hands 2 "jumps" at 10% loss, 249 frames a second: 2 runs of 6 today, open); scenario_check 150/0, load_models_test 4/0, vr_run_check 12/0, Release (ThinLTO) build 0 warnings)
 
 | Scenario | Result |
 |---|---|
@@ -1296,6 +1296,7 @@ Open (B8c):
   PF_traceline: hitmodel_segment and vr_admelee's sweeps take the same begin/end); other players' hands (parry) need
   their poses kept too (each move's hand pose: the B5d decision).
 - Missiles are not compensated (as in most games: they fly in the server's world).
+- `mp_loss`'s "jumps" check (A's copy at 10% loss): 1-2 jumps in 2 runs of 6 (frame rate normal, no undecodable snapshot left): to find first in B8c.
 - The prediction of jump, swimming, the crouched and lying boxes, climbing and the grapple, and a lift-rider test
   (`mp_predict` grown: corrections under a unit): not started this session.
 
