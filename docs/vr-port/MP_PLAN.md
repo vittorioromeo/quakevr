@@ -191,7 +191,8 @@ player unchanged.
 | **B3f** (done: B3 is done) | The rest of B3e: the grip fit's hand rig per player (`vr_gripfit.cpp`), the ground weapon's grab hotspot and the reverse grip's choice per player (weapongrabspot, weapondrawnpose 43), the magnetic holsters' poll and places per player; `mp_grab` grown (a 2H carry, a foe grab, the palm slack) | `mp_grab` grown, `mp_held` grown (a reverse grip) |
 | **B4** (done: saves, loads, level changes with inventories; B4b: coop autosaves, the exit and intermission, a real death and respawn; B4c: slots by name, coop autosaves in Load Autosave, the intermission save, map download through the Map Library) | Coop campaign flow: coop saves and loads (per-player blocks, versioned), autosaves, level transitions with inventories, intermission, deaths and respawns, map download (package names through the map installer; chunked fallback) | `mp_campaign` (e1m1 to e1m3 with saves and a load, both players' inventories), `mp_download` (B lacks a map: installs it, joins) |
 | **B5** (pickups and force grabs done; the rest is B5b) | Interactions between players: drop a weapon / the other picks it up; force grab of world weapons in multiplayer; melee, parries and shoves between players; climbing, crouch, prone, jump, punch synced and judged per player | one scenario per interaction, each from both sides (`mp_pickup`, `mp_forcegrab`) |
-| **B5b** | The rest of B5: melee, parries and shoves between players (judged by each one's own hands and timing, gated to multiplayer where single player has none); climbing, crouch, prone, jump, swim and punch synced (the remote body lying, swimming, climbing, jumping as he does: the avatar's flags) and judged per player | `mp_melee` (A's swing hits B, B's parry stops A's, a shove moves him: each way), `mp_moves` (B crouches, lies prone, jumps, climbs: the server's hull and A's copy of him follow) |
+| **B5b** (punches, guard parries, bashes; crouch, prone, jump and swim flags done; the rest is B5c) | The rest of B5: melee, parries and shoves between players (judged by each one's own hands and timing, gated to multiplayer where single player has none); climbing, crouch, prone, jump, swim and punch synced (the remote body lying, swimming, climbing, jumping as he does: the avatar's flags) and judged per player | `mp_melee` (A's swing hits B, B's parry stops A's, a shove moves him: each way), `mp_moves` (B crouches, lies prone, jumps, climbs: the server's hull and A's copy of him follow) |
+| **B5c** | The rest of B5b: climbing between players (the server's holds per player; the remote body's climbing feet and hanging trunk from his holds); swimming checked in water (a pool map spot); a blade's directional parry between players (his swing's line, as an armed humanoid's); the open palm's shove; melee sub-tick samples (a swing split over merged moves, multiplayer only) | `mp_moves` grown (climbs a ledge, swims: A's copy follows), `mp_melee` grown (a sword's swing parried across its way, a palm shove, a swing at 30 ms jitter) |
 | **B6** | Server rules and cosmetics: every balance setting a rule (presets, armed humanoids, damage, mutators, stamina, grapple...), rule pages dimmed on a remote client; holster positions, height, seated/standing, gloves, body seen by others | `mp_rules`, `mp_cosmetics` (B's height and gloves seen by A) |
 | **B7** | Snapshots: acknowledged per-client snapshots and deltas for entities, players and avatars; quantized delta moves with repeats; interpolation buffer with quaternion slerp | `mp_loss` (10% loss: positions still continuous), byte counts per scenario |
 | **B8** | Prediction and lag compensation: shared movement code, reconciliation, then climbing and grapple; rewind of hit models and hands for hitscan, melee, parry, shove | `mp_predict` (own move off at frame 0 under 150 ms lag; corrections under 1 unit on flat ground), `mp_lagcomp` (a hit on a moving target at 150 ms lands) |
@@ -866,6 +867,47 @@ Open (B5b and later):
 - Level weapons with `vr_item_objects` 0 (plain pickups) are not force grabbed in coop or deathmatch (they stay for all);
   deathmatch 1's weapons (taken, then respawned): B11.
 
+### B5b results (2026-11-14, dev no-LTO build, loopback; `mp_test.py suite`: all 20 scenarios pass)
+
+| Scenario | Result |
+|---|---|
+| `mp_melee` (new) | 17/0, each way: A's closed fist punched at B 40 units ahead (the mock's 5.7 m/s punch): the server's blow, judged by A's own hand, 3.1 damage (`vr_melee_dmg_multiplier` 0.25), B's health 100 -> 96; B holds a crowbar across (the guard): A's punch parried ("parry: player with hand 1"), its damage cut to 0.78, A pushed 16-17 units back; B pushes the crowbar forward (a bash): "bash hit: player, 3.0 damage, knocked back at 227 u/s", A moved 18-24 units. Failed first: no parry (VR_Parry took only monsters), the bash never ran (VR_Bash_Find took only monsters); the punch already landed |
+| `mp_moves` (new) | 17/0, each way: B (40 units from A, face to face) crouches (the mock's head at 0.9 m): the server's crouched box, A's copy of him crouched (its head 25 units lower); lies down (0.4 m): the server's lying box, A's copy laid forward (pitch 55, lying 1.0); gets up: upright again (pitch under 1); jumps: off the ground on the server and in A's copy (its head 20 units up). Failed first: the copy upright (pitch 0) while the server had him lying |
+| the other 18 | Unchanged: pass (`mp_body` 12/0 with the server's on-ground flag for the legs) |
+
+Single player on the branch: scenario_check PASS (129 scenes; one run before it: `bench_crowd_ad` "what it placed is gone
+after 3.0 s", not again on the rerun: a crowd scene, nothing this phase touched), load_models_test 4/0, vr_run_check 12/0
+(`scratch/b3_runcheck.sh`); the dev build 0 warnings, the Release-config (ThinLTO) build 0 warnings. Every path this
+phase changed is gated to multiplayer (`coop || deathmatch`, a player's blow on another; others' bodies only) or reads
+the local player's values exactly as before (`updateBodyPitch`: `localFlat()` is `flatplay::active()` and
+`detail::metresToUnits()`/`bodyScale()` are units' own when posing your own body).
+
+What changed:
+
+- **Parries between players** (`combat.qc`): T_Damage_VRMelee hands a player's blow on another player (coop or
+  deathmatch) to VR_Parry with `vr_parry_pvp`: the other's guard (a weapon held across, VR_Parry_HandFor) or crossed
+  arms take it as a monster's punch (no directional parry: a player's swing has no baked line yet), its damage cut by
+  `vr_parry_reduction`, both pushed apart, his stamina and counter window as ever; VR_Parry_Interrupt does nothing to a
+  player (no `th_run`).
+- **Shoves and bashes find other players** (`vr_melee_bash.qc` VR_Bash_Find, multiplayer only): the push and damage as
+  a monster's; no forced pain or stagger (`attack_finished`) for a player (his pain is T_Damage's own); knockdowns stay
+  monsters'.
+- **Moves synced** (`vr_mpavatar.hpp` `movesByte`): the avatar's first byte (was: flat-screen) carries how the server has
+  him move: crouched and lying boxes (vr_hull.cpp), on the ground, his waterlevel. `QVR_NET_VERSION` 12. Another
+  player's body runs `updateBodyPitch` (vr_avatar_pitch.cpp) from his `avatar::Subject` (lying, waterlevel, on the
+  ground; his eyes over his box's feet): it lies down, swims tilted and leaves the ground as he does; his legs' on-ground
+  is the server's flag (was: his vertical speed under 120). `vr_mp_avatars`' `mp_body:` lines give `moves= pitch= lying=`,
+  the server's `mp_client:` lines `moves=`.
+
+Open (B5c and later):
+
+- Climbing between players: the server's holds per player and the remote body's climbing feet and hanging trunk
+  (`updateClimbing` is still the local player's only).
+- Swimming not tested in water (e1m1's start has none: a pool spot on another map for `mp_moves`).
+- A sword's swing between players parried only by the guard, not across its way (the directional parry needs his swing's
+  line, as `VR_DRP_*` reads an armed humanoid's); the open palm's shove untested (the same Find and Hit as the bash).
+- Melee sub-tick samples (a swing split over merged moves; multiplayer only, B2c's note): not done.
+
 ## Decisions
 
 - Map download goes through the Map Library alone: the server names the package (its sha256), the client installs it
@@ -891,4 +933,4 @@ Open (B5b and later):
   from outside, they always have legs (his body mode 1 or 2 is his own first-person view); his body mode 0 draws his
   player model as before.
 
-Next phase: B5b — the rest of B5: melee, parries and shoves between players; climbing, crouch, prone, jump, swim and punch synced (the remote body lying, swimming, climbing, jumping as he does) and judged per player; tests first: one scenario per interaction, each from both sides (`mp_melee`, `mp_moves`).
+Next phase: B5c — the rest of B5b: climbing between players (the server's holds per player; the remote body's climbing feet and hanging trunk), swimming checked in water, a blade's directional parry between players, the palm shove, melee sub-tick samples; tests first: `mp_moves` grown (climbs, swims), `mp_melee` grown (a sword parried across its way, a palm shove, a swing under jitter).

@@ -2502,3 +2502,13 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
 - `mp_pickup` 9/0, `mp_forcegrab` 9/0 (new); the suite 17 of 18 (`mp_ground`'s shotgun retake missed once, 15/0
   alone). Single player: scenario_check PASS (129), load_models 4/0, vr_run_check
   12/0. Next: B5b (melee, parries, shoves between players; moves synced). Details: MP_PLAN.md, "B5 results, part 1".
+
+## mpN (B5b): melee between players, moves synced (agent/mp, 2026-11-14; never shipped by the coordinator)
+- A player's punch on another already landed; now (coop or deathmatch only) the other's guard or crossed arms parry it
+  as a monster's punch (VR_Parry's `vr_parry_pvp`: damage cut, both pushed apart), and shoves and bashes find other
+  players (pushed, damaged; no forced stagger).
+- The avatar's first byte carries the server's crouched/lying boxes, on-ground and waterlevel (`QVR_NET_VERSION` 12):
+  other players' bodies lie down, swim tilted and leave the ground as they do (`updateBodyPitch` from the Subject).
+- `mp_melee` 17/0, `mp_moves` 17/0 (new); the suite 20 of 20. Single player: scenario_check PASS (129; `bench_crowd_ad`
+  failed once, passed on the rerun), load_models 4/0, vr_run_check 12/0. Next: B5c (climbing, swimming in water, the
+  blade's directional parry, palm shove, sub-tick melee). Details: MP_PLAN.md, "B5b results".
