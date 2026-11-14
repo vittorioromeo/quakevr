@@ -29,7 +29,7 @@ is the newer (each claim below was re-checked on 2026-11-14 at `origin/next` 17d
 | Level changes | `changelevel e1m2` on the server takes both clients along; they see each other again | [run] |
 | Dedicated server quit | Exits 0 (MULTIPLAYER.md's crash on quit, `vr_imgprefetch` workers, is gone) | 6 runs [run] |
 | Flat with VR | A flatscreen client (`-flatscreenmode`) joins a VR host, walks (+forward), is seen; the server knows him per player (`.vr_flatscreen`, the flat crouch bit) | `vr_server.cpp:795-819` [code]; listen run [run] |
-| Server rules | Every balance setting (1853: the balance pages', the gameplay preset's, the melee timing; B6) goes to every client (`QVR_SVC_RULES`); a remote client plays by them while joined (his own kept, back when he leaves) and his menu shows them dimmed | `vr_serverrules.cpp:17-27` [code] |
+| Server rules | Every balance setting (1856: the balance pages', the gameplay preset's, the melee timing, Locomotion's crouch speed, its scale and slope walking; B6, B6c) goes to every client (`QVR_SVC_RULES`); a remote client plays by them while joined (his own kept, back when he leaves) and his menu shows them dimmed | `vr_serverrules.cpp:17-27` [code] |
 | Late precaches | Broadcast to every client (`QVR_SVC_PRECACHE_*`) | `vr_server.cpp:1253-1254` [code] |
 | Per-client server state | Climbing, Box3D hand bodies and standing, carry, melee, force grab, rope tags are kept per player | [old], spot-checked `vr_box3d_hands.cpp:421,643` [code] |
 | Server tick | A steady 72 Hz for listen and dedicated servers (`host_fixedtick 1`) | `host.c:67` [code] |
@@ -194,7 +194,7 @@ player unchanged.
 | **B5b** (punches, guard parries, bashes; crouch, prone, jump and swim flags done; the rest is B5c) | The rest of B5: melee, parries and shoves between players (judged by each one's own hands and timing, gated to multiplayer where single player has none); climbing, crouch, prone, jump, swim and punch synced (the remote body lying, swimming, climbing, jumping as he does: the avatar's flags) and judged per player | `mp_melee` (A's swing hits B, B's parry stops A's, a shove moves him: each way), `mp_moves` (B crouches, lies prone, jumps, climbs: the server's hull and A's copy of him follow) |
 | **B5c** (climbing, swimming, the palm's shove done; the rest is B5d) | The rest of B5b: climbing between players (the server's holds per player; the remote body's climbing feet and hanging trunk from his holds); swimming checked in water (a pool map spot); a blade's directional parry between players (his swing's line, as an armed humanoid's); the open palm's shove; melee sub-tick samples (a swing split over merged moves, multiplayer only) | `mp_moves` grown (climbs a ledge, swims: A's copy follows), `mp_melee` grown (a sword's swing parried across its way, a palm shove, a swing at 30 ms jitter) |
 | **B5d** (done: B5 is done; sub-tick samples not needed, to B8) | The rest of B5c: a blade's directional parry between players (his swing's line from his hand lines, `handlineat`, as an armed humanoid's `VR_AG_WeaponLine`: VR_DRP_Eval's third kind); melee sub-tick samples (each merged move's pose to the tracker, multiplayer only) | `mp_melee` grown (a sword swung across B's crowbar: parried by the line, not the guard; a swing at 30 ms jitter: the same hit as without) |
-| **B6** (rules, the look of hands and body, holsters, seated, flat height, pauldrons, magazine hull done; the plates are B6c) | Server rules and cosmetics: every balance setting a rule (presets, armed humanoids, damage, mutators, stamina, grapple...), rule pages dimmed on a remote client; holster positions, height, seated/standing, gloves, body seen by others | `mp_rules`, `mp_cosmetics` (B's height and gloves seen by A) |
+| **B6** (done: rules, the look of hands and body, holsters, seated, flat height, pauldrons, magazine hull; B6c the plates and Locomotion's rules) | Server rules and cosmetics: every balance setting a rule (presets, armed humanoids, damage, mutators, stamina, grapple...), rule pages dimmed on a remote client; holster positions, height, seated/standing, gloves, body seen by others | `mp_rules`, `mp_cosmetics` (B's height and gloves seen by A) |
 | **B7** | Snapshots: acknowledged per-client snapshots and deltas for entities, players and avatars; quantized delta moves with repeats; interpolation buffer with quaternion slerp | `mp_loss` (10% loss: positions still continuous), byte counts per scenario |
 | **B8** | Prediction and lag compensation: shared movement code, reconciliation, then climbing and grapple; rewind of hit models and hands for hitscan, melee, parry, shove | `mp_predict` (own move off at frame 0 under 150 ms lag; corrections under 1 unit on flat ground), `mp_lagcomp` (a hit on a moving target at 150 ms lands) |
 | **B9** | Compression and rate: entropy stage with trained tables, per-client rate, priority accumulator | byte budgets per scenario from section 2.3 |
@@ -1077,6 +1077,40 @@ Open (B6c):
 - His holsters ride his entity between his moves (as his hands do): a fast turn of his body draws them a move late.
 - Not seen in an image yet: the holstered weapons, pauldrons and seated body of another player (numbers only).
 
+### B6c results (2026-11-14, dev no-LTO build, loopback; `mp_test.py suite`: 23 of 25 pass, `mp_flow` 15/1 (its known autosave-list flake) and `mp_pickup` 5/1 (A never put at his spot: "None"), then 16/0 and 9/0 alone)
+
+| Scenario | Result |
+|---|---|
+| `mp_cosmetics` (grown) | 20/0: as B6b's, then A faces B (an image: B's steel pauldrons, green gloves and holstered weapons at A, `A_sees_B_cosmetics.png`); B given yellow armour (`give a 150`): A's copy of his body draws `progs/vrbody_bare.mdl#armor` (the plates made over B's body model there), skin 1 (yellow), pieces 1023 as B's own after 2-3 reports, 33 of 33 bone slots posed by B's body's bones as drawn, the joints' leather on; no pauldron cap under a plate (none on either side, as B's own); A, unarmoured, has no plates; an image (`A_sees_B_plates.png`: B plated in yellow, helmet on); B's armour worn down (`give a 101`): A's copy sheds to B's own pieces (223) after 2 reports. Failed first: no `mp_plates:` line (nothing drawn) |
+| `mp_rules` (grown) | 14/0: the server on `vr_crouch_speed_scale 0.5`, `vr_slope_walk 0` and `vr_crouch_speed` at its default; B joins with 0.9, 1 and 0: he plays by the server's, his own kept and back when he leaves, the rows locked; `vr_movement_mode` and `vr_move_curve` (Locomotion's controls) stay his. 1857 rules. Failed first: the three not rules |
+| the others | Unchanged: pass (`mp_flow`, `mp_pickup` as above) |
+
+Single player on the branch: plates_model_test 9/0 (the local plates' code now shared), scenario_check 145 scenes run, 0 failed (its FAIL is 2 checklist tags whose scenes `next` set aside: `flat_holster_drag`, `flat_clip_unpaid`, the same on origin/next), load_models_test 4/0, vr_run_check 12/0; the dev build 0 warnings, the Release-config (ThinLTO) build 0 warnings. Your own plates are placed and posed by the same code as before (`placeOnBody`, `fillPlateSlots` split out of setupPlates and plateBonePoses); nothing is drawn for others with one client.
+
+What changed:
+
+- **Other players' plates** (`view::placeOtherPlates`, `view::otherPlateBonePoses`): the server already sent each
+  player's plates (QC's `.vr_pp_type`, `.vr_pp_mask`) to every client in `QVR_SVC_ARMOR`; a client now draws them on
+  his copy of the body: the plates' model and the joints' leather made over his build's body model
+  (`agarmor::playerArmorModel`, `playerBridgeModel`), coloured by his armour, their bones his body's as drawn (with its
+  head: his helmet shows), a piece he lacks collapsed, by the code that poses yours. Their bones are made into his
+  avatar's buffers (`agarmor::playerBridgePosesInto`: the leather's, not the local frame cache), at his body's scale
+  (`mpavatar::plateBody` for `avatar::modelScale`). Your `vr_player_plates` 0 shows nobody's. His pauldrons give way to
+  his plates as yours do. No morph: a piece of his comes and goes at once (his debris still flies from QC).
+- **Locomotion's balance settings are rules by name** (`locomotionRules`: `vr_crouch_speed`, `vr_crouch_speed_scale`,
+  `vr_slope_walk`); the stick's mode, curve, autorun and speed key stay each player's (the server caps speed by
+  `sv_maxspeed` anyway).
+- Reports (`vr_mp_avatars`): `mp_plates:` (type, pieces, skin, slots and those shown as last drawn, leather, model),
+  `mp_plates_own:`. No protocol change (`QVR_NET_VERSION` stays 16).
+
+Open (after B6):
+
+- His holsters ride his entity between his moves (as his hands do): a fast turn of his body draws them a move late (B7's
+  interpolation buffer).
+- Another player's plates appear and go without the morph yours have (a morph per player needs his own morph state;
+  cheap to add if it shows in VR).
+- The checklist's two set-aside scenes (`flat_holster_drag`, `flat_clip_unpaid`): the coordinator's, on next too.
+
 ## Decisions
 
 - Server rules (B6) are found by page, not listed: every setting under a balance page is one unless it is a preference,
@@ -1118,4 +1152,4 @@ Open (B6c):
   poses and holster offsets are his by construction, one code path, about 16 bytes a holstered weapon a move (B7's
   deltas will make an idle player's nearly free).
 
-Next phase: B6c — the armour's plates on other players' bodies (QVR_SVC_ARMOR per player to every client that sees him, his plates drawn on his copy of the body by the local plates' code), then Locomotion's few balance settings as rules by name; tests first: `mp_cosmetics` grown (B with yellow armour and plates: A's copy draws his pieces and colour).
+Next phase: B7 — snapshots: acknowledged per-client snapshots with deltas for entities, players and avatars (an idle player's holsters and hands nearly free), quantized delta moves with repeats, an interpolation buffer with quaternion slerp (his holsters and hands no longer a move late on a fast turn); tests first: `mp_loss` (10% loss: positions still continuous), byte counts per scenario against `mp_bandwidth`'s.

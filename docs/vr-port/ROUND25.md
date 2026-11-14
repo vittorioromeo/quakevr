@@ -2690,3 +2690,14 @@ Cherry-picked 6b8e74432: VR_CrtHeapLoadHold now defined without mimalloc (QVR_MI
   `vr_flat_aim_zoom 0`: it measures every gun's sight line); new `Misc/quakevr/autosavenow_test.sh` 4/0 (autosave/e1m1
   written, Continue "just now"; co-op refused); `vr_gameplay_preset_test` 27/0; `vr_gameplay_classic_check` 2/0 in VR
   and in flat. Dev and Release-TracyFull builds 0 warnings. Scenario `flat_aim_zoom`.
+
+## mpN (B6c): other players' armour plates; Locomotion's balance rules (agent/mp, 2026-11-14; never shipped by the coordinator)
+- Another player's armour plates (the server's `QVR_SVC_ARMOR` word on him, already sent to every client) are drawn on
+  his copy of the body by your plates' code: the plates' model and joints' leather over his build's body, his armour's
+  colour, his body's bones (helmet included), no pauldron under a plate; no morph for his. Your `vr_player_plates` 0
+  hides everyone's.
+- `vr_crouch_speed`, `vr_crouch_speed_scale` and `vr_slope_walk` are server rules by name (Locomotion's controls stay
+  each player's).
+- `mp_cosmetics` 20/0 (grown, with two images of A's view of B), `mp_rules` 14/0 (grown); the suite 23 of 25, the two
+  then pass alone. Single player: plates_model_test 9/0, scenario_check 145 run 0 failed, load_models 4/0, vr_run_check
+  12/0. Next: B7 (snapshots). Details: MP_PLAN.md, "B6c results".
