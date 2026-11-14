@@ -24,6 +24,7 @@ The last line is the verdict, "mp_<test>: N passed, M failed".
 """
 
 import argparse
+import math
 import os
 import re
 import sys
@@ -240,8 +241,9 @@ def avatar(s):
     b.quiet(r"mp_(move|pos): ", 0.5, 20, "both at rest")
     # A closes his off hand (the mock's grip): his fingers curl, eased in over vr_hand_fit_blend; B's copy is read until
     # they are closed (a definite end: at most 20 reports).
-    # (and the shotgun, WID_SHOTGUN 4, into his main hand: the test give, impulse 150 + 4)
-    a.cmd("vr_mock_button off grip 1; impulse 154")
+    # (and the shotgun, WID_SHOTGUN 4, into his main hand: the test give, impulse 150 + 4; held by its grip, or the hand
+    # lets it fall at once: the default grip-to-hold)
+    a.cmd("vr_mock_button main grip 1; vr_mock_button off grip 1; impulse 154")
     got = sv = own = None
     lines_b = []
     for _ in range(20):
@@ -284,11 +286,10 @@ def avatar(s):
         s.check("A's main hand drawn at B within %g units of where A drew it" % AVATAR_UNITS, gap <= AVATAR_UNITS,
                 "%.2f" % gap)
     has_weapon = mine_own is not None and int(mine_own["wmdl"][1]) > 0
-    if not has_weapon:
-        # (MP_PLAN.md, B2b open items: the test give, impulse 154, puts nothing in a coop client's hand on a dedicated
-        # server yet; the weapon checks wait for it)
-        s.note("SKIP the weapon drawn at B: A's main hand holds no weapon (%s)" % (mine_own.get("wmdl") if mine_own else None))
-    else:
+    s.check("A's main hand holds the given shotgun (A's own drawn model, the server's weapon)",
+            has_weapon and int(theirs["wpn"][0]) == 4,
+            "A's model index %s, the server's weapon %d" % (mine_own.get("wmdl") if mine_own else None, theirs["wpn"][0]))
+    if has_weapon:
         s.check("B draws A's weapon in his main hand", (1, "weapon") in d and int(mine["wmdl"][1]) == int(mine_own["wmdl"][1]),
                 "drawn: %s; B's model index %d, A's %d" % (d.get((1, "weapon")), mine["wmdl"][1], mine_own["wmdl"][1]))
         if (1, "weapon") in d:
@@ -301,7 +302,7 @@ def avatar(s):
             s.note("server: " + l.strip())
     if not has_weapon:
         since = srv.mark()
-        srv.cmd("vr_dumpplayer %d; echo mp_dump_done" % (ea - 1))
+        srv.cmd("vr_dumpplayer %d; echo mp_dump_done" % ea)
         srv.wait(r"mp_dump_done", 10, since)
         for l in srv.lines[since:]:
             if "weapon" in l or "vr_dumpplayer" in l:
@@ -313,6 +314,28 @@ def avatar(s):
         w = b.proxy.window(start, end)["down"]
         s.metric("b_idle_down_with_avatar", w)
         s.note("B idle with A's avatar: down %s B/s, mean %s B" % (w["bytes_s"], w["mean_B"]))
+
+    # The pair to look at: A's own view of his hands and shotgun, and B turned to face A (his hands and the shotgun as A
+    # drew them, on his body), each saved into the session's folder.
+    # B and A turn to face each other and B takes a step towards A (the stick, let go as he moves off); A
+    # holds both hands up in front of him.
+    b_at = by_ent(lines_a, "mp_avatar").get(eb)  # (B's head as A has it)
+    if b_at:
+        yaw_b = math.degrees(math.atan2(mine["head"][1] - b_at["head"][1], mine["head"][0] - b_at["head"][0]))
+        since_a, since_b = a.mark(), b.mark()
+        a.cmd("vr_mock_hand main 0.15 1.6 -0.45 0 0 0; vr_mock_hand off -0.15 1.6 -0.45 0 0 0; "
+              "vr_mock_turn_to %.0f" % (yaw_b + 180.0))
+        b.cmd("vr_mock_turn_to %.0f" % yaw_b)
+        a.wait(r"vr_mock_turn_to: facing", 20, since_a, "A turned to face B")
+        b.wait(r"vr_mock_turn_to: facing", 20, since_b, "B turned to face A")
+        a.cmd("vr_mock_turn_to off")
+        since_b = b.mark()
+        b.cmd("vr_mock_turn_to off; vr_mock_stick off 0 1")
+        b.wait(r"mp_move: .*self=1", 20, since_b, "B stepping towards A")
+        b.cmd("vr_mock_stick off 0 0")
+        b.wait(r"mp_stop: .*self=1", 20, since_b, "B stopping")
+        reports(s, [b])  # (a frame or more after A's hands moved: B has them)
+        s.note("screenshots: %s, %s" % (a.screenshot("own_hands"), b.screenshot("sees_A")))
 
 
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):

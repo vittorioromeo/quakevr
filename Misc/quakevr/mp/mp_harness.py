@@ -161,6 +161,30 @@ class Instance:
                 raise StepFailed("%s: never quiet (%s) within %g s" % (self.name, what or pattern, timeout))
             time.sleep(0.02)
 
+    def screenshot(self, label, timeout=30):
+        """A screenshot (the window: the mock headset's left eye) moved into the session's folder as <name>_<label>.png
+        -> its path. The game writes it on a thread under another name and renames it when complete: the wait is on the
+        file (a safety timeout)."""
+        since = self.mark()
+        self.cmd('cl_screenshotname "screenshots/mp_%s_%s"; screenshot' % (self.name, label))
+        _, line = self.wait(r"Wrote .*mp_%s_%s" % (self.name, label), timeout, since, "%s's screenshot" % self.name)
+        rel = line.split("Wrote ", 1)[1].strip()
+        found = None
+        deadline = time.monotonic() + timeout * self.s.time_scale
+        while not found:
+            for game in [g for g in GAMES if g != "-game"][::-1] + ["id1"]:
+                p = os.path.join(self.s.base, game, rel)
+                if os.path.exists(p):
+                    found = p
+                    break
+            if not found:
+                if time.monotonic() > deadline:
+                    raise StepFailed("%s: the screenshot %s never appeared" % (self.name, rel))
+                time.sleep(0.05)
+        out = os.path.join(self.s.out, "%s_%s.png" % (self.name, label))
+        os.replace(found, out)  # (moved out of the shared base)
+        return out
+
     def stop(self, timeout=20):
         """quit, then the exit code (None: had to be killed)."""
         if not self.proc:
