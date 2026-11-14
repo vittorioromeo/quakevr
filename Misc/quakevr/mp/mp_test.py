@@ -661,6 +661,9 @@ def server_time_past(srv, t, tries=200):
     raise StepFailed("the server's clock never passed %.3f" % t)
 
 
+FRAME_SUM_SLACK = 0.7  # a palm frame's 13 values each within the step it is sent again at (0.05), and its 3 decimals
+
+
 def grab(s):
     """The rig up (vr_clientprefs.cpp "vr_rig"): the dedicated server has each player's fists as his client poses them
     (within the 64ths of a unit they are sent in); B lets a given shotgun fall from his low hand (Hold) and closes his
@@ -668,14 +671,24 @@ def grab(s):
     srv, a, b, ea, eb = join(s)
     own_b = own_a = {}
     got = {}
+    def frames_ok(sv, own):
+        return all(own.get("frame%d" % h) == 1 and sv.get("frame%d" % h) == 1 and
+                   abs(sv.get("framesum%d" % h, 0) - own.get("framesum%d" % h, 0)) <= FRAME_SUM_SLACK for h in (0, 1))
+
     for _ in range(20):
         own_a, own_b, got = own_prefs(a), own_prefs(b), prefs_report(s, srv)
         ok = all(got.get(e, {}).get("fist%d" % h, 0) > 0 and
                  got[e]["fist%d" % h] == own["fist%d" % h] and
                  abs(got[e]["fistsum%d" % h] - own["fistsum%d" % h]) <= own["fist%d" % h] * 4 / 128.0 + 0.01
                  for e, own in ((ea, own_a), (eb, own_b)) for h in (0, 1))
-        if ok:
+        if ok and frames_ok(got.get(ea, {}), own_a) and frames_ok(got.get(eb, {}), own_b):
             break
+    for e, own, name in ((ea, own_a, "A"), (eb, own_b, "B")):
+        sv = got.get(e, {})
+        s.check("the server has %s's palm frames as his client measures them (B3d: their sum within %.2f)" % (
+            name, FRAME_SUM_SLACK), frames_ok(sv, own),
+                "server %s; %s's own %s" % ({k: v for k, v in sv.items() if k.startswith("frame")},
+                                            name, {k: v for k, v in own.items() if k.startswith("frame")}))
     for e, own, name in ((ea, own_a, "A"), (eb, own_b, "B")):
         sv = got.get(e, {})
         s.check("the server has %s's fists as his client poses them (spheres, their sum within the 64ths sent)" % name,

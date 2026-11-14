@@ -3,6 +3,7 @@
 #include "vr_clientprefs.hpp"
 
 #include "vr_cvars.hpp"
+#include "vr_grip.hpp"
 #include "vr_held.hpp"
 #include "vr_tunables_api.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -51,6 +52,39 @@ struct Fist
     short v[maxFistSpheres * 4]{};
 };
 
+// The palm frame (B3d): each hand's grip::HandFrame as this client measures it (the jointed hand as drawn: the palm, the
+// way it faces, the grip channel), up as "vr_rigframe <version> <hand> <values>" when a value moved more than frameStep
+// (units; the directions' parts as much), at most every vr_net_avatarcal_interval. The server places what the player
+// holds by it (grip::handFrameOf).
+constexpr int rigFrameCommandVersion = 1;
+constexpr int frameValueCount = 13; // palm, palm normal, channel point, channel direction (3 each), channel radius
+constexpr float frameStep = 0.05f;
+
+void frameValues(const grip::HandFrame& f, float out[frameValueCount])
+{
+    const glm::vec3 parts[4]{f.palm, f.palmNormal, f.channelPoint, f.channelDir};
+    for(int p = 0; p < 4; p++)
+    {
+        for(int k = 0; k < 3; k++)
+        {
+            out[p * 3 + k] = parts[p][k];
+        }
+    }
+    out[12] = f.channelRadius;
+}
+
+[[nodiscard]] float frameSum(const grip::HandFrame& f)
+{
+    float v[frameValueCount];
+    frameValues(f, v);
+    float sum = 0.f;
+    for(const float x : v)
+    {
+        sum += za::abs(x);
+    }
+    return sum;
+}
+
 struct State
 {
     const cvar_t* vars[prefCount]{}; // (found by name on first use: cvars and tuning constants)
@@ -64,6 +98,9 @@ struct State
     double nextRigSend{0.0};
     Fist fistGoing[2];             // (being sent, a chunk a frame)
     int nextChunk[2]{-1, -1};      // (its next sphere; -1 none going)
+    float frameSent[2][frameValueCount]{};
+    bool frameWasSent[2]{};
+    double nextFrameSend{0.0};
     // Server: each slot's fists as they come in (whole: held::setPlayerFist).
     glm::vec4 slotFist[MAX_SCOREBOARD][2][maxFistSpheres]{};
     // Server: each slot's.
@@ -178,6 +215,91 @@ void rig_f()
     }
 }
 
+// "vr_rigframe <version> <hand> <13 values>": a client's measured frame of that hand (sendFrame), kept for his slot
+// (grip::setPlayerFrame). Values out of reach (not numbers, farther than a hand) leave it as it was.
+void rigFrame_f()
+{
+    if(cmd_source != src_client || !sv.active || !host_client || Cmd_Argc() != 3 + frameValueCount ||
+        Q_atoi(Cmd_Argv(1)) != rigFrameCommandVersion)
+    {
+        return;
+    }
+    const int slot = static_cast<int>(host_client - svs.clients);
+    const int hand = Q_atoi(Cmd_Argv(2));
+    if(slot < 0 || slot >= MAX_SCOREBOARD || (hand != 0 && hand != 1))
+    {
+        return;
+    }
+    float v[frameValueCount];
+    for(int i = 0; i < frameValueCount; i++)
+    {
+        v[i] = Q_atof(Cmd_Argv(3 + i));
+        if(!(za::abs(v[i]) <= 32.f))
+        {
+            return;
+        }
+    }
+    grip::HandFrame f;
+    f.measured = true;
+    f.palm = {v[0], v[1], v[2]};
+    f.palmNormal = {v[3], v[4], v[5]};
+    f.channelPoint = {v[6], v[7], v[8]};
+    f.channelDir = {v[9], v[10], v[11]};
+    f.channelRadius = za::max(v[12], 0.f);
+    if(glm::length(f.palmNormal) < 0.5f || glm::length(f.channelDir) < 0.5f)
+    {
+        return;
+    }
+    f.palmNormal = glm::normalize(f.palmNormal);
+    f.channelDir = glm::normalize(f.channelDir);
+    grip::setPlayerFrame(slot, hand, f);
+}
+
+// One hand's measured frame up a frame at most, when it moved, at most every vr_net_avatarcal_interval; only with room
+// in the reliable buffer (else the next frame).
+void sendFrame()
+{
+    if(realtime < state.nextFrameSend)
+    {
+        return;
+    }
+    for(int hand = 0; hand < 2; hand++)
+    {
+        const grip::HandFrame f = grip::handFrame(hand, hand == 0, true);
+        if(!f.measured)
+        {
+            continue;
+        }
+        float v[frameValueCount];
+        frameValues(f, v);
+        bool moved = !state.frameWasSent[hand];
+        for(int i = 0; i < frameValueCount && !moved; i++)
+        {
+            moved = za::abs(v[i] - state.frameSent[hand][i]) > frameStep;
+        }
+        if(!moved)
+        {
+            continue;
+        }
+        char text[256];
+        int n = q_snprintf(text, sizeof(text), "vr_rigframe %d %d", rigFrameCommandVersion, hand);
+        for(int i = 0; i < frameValueCount && n > 0 && n < static_cast<int>(sizeof(text)); i++)
+        {
+            n += q_snprintf(text + n, sizeof(text) - static_cast<size_t>(n), " %.3f", v[i]);
+        }
+        if(cls.message.cursize + n + 2 > cls.message.maxsize)
+        {
+            return; // (no room: the next frame)
+        }
+        MSG_WriteByte(&cls.message, clc_stringcmd);
+        MSG_WriteString(&cls.message, text);
+        memcpy(state.frameSent[hand], v, sizeof(v));
+        state.frameWasSent[hand] = true;
+        state.nextFrameSend = realtime + static_cast<double>(za::max(vr_net_avatarcal_interval.value, 0.f));
+        return;
+    }
+}
+
 [[nodiscard]] Fist quantized(const za::Vector<glm::vec4>& spheres)
 {
     Fist q;
@@ -286,6 +408,11 @@ void mpPrefs_f()
         Con_Printf("mp_prefs_own: ent=%d sent=%d fist0=%d fist1=%d fistsum0=%.3f fistsum1=%.3f", cl.viewentity,
             state.sent ? 1 : 0, static_cast<int>(held::fist(0).size()), static_cast<int>(held::fist(1).size()),
             fistSum(held::fist(0)), fistSum(held::fist(1)));
+        for(int h = 0; h < 2; h++)
+        {
+            const grip::HandFrame f = grip::handFrame(h, h == 0, true);
+            Con_Printf(" frame%d=%d framesum%d=%.3f", h, f.measured ? 1 : 0, h, frameSum(f));
+        }
         for(int i = 0; i < prefCount; i++)
         {
             const cvar_t* var = state.vars[i];
@@ -309,6 +436,11 @@ void mpPrefs_f()
                 state.slotHas[slot] ? 1 : 0, static_cast<int>(held::fistOf(player, 0).size()),
                 static_cast<int>(held::fistOf(player, 1).size()), fistSum(held::fistOf(player, 0)),
                 fistSum(held::fistOf(player, 1)), held::playerFistGrabs(slot));
+            for(int h = 0; h < 2; h++)
+            {
+                const grip::HandFrame f = grip::handFrameOf(player, h, h == 0);
+                Con_Printf(" frame%d=%d framesum%d=%.3f", h, f.measured ? 1 : 0, h, frameSum(f));
+            }
             int same = 0;
             for(int i = 0; i < prefCount && state.slotHas[slot]; i++)
             {
@@ -385,6 +517,7 @@ void send()
         changed = changed || now[i] != state.lastSent[i];
     }
     sendRig();
+    sendFrame();
     if(!changed || (state.sent && realtime < state.nextSend))
     {
         return;
@@ -411,6 +544,7 @@ void clientClear()
     state.sent = false;
     state.fistWasSent[0] = state.fistWasSent[1] = false;
     state.nextChunk[0] = state.nextChunk[1] = -1;
+    state.frameWasSent[0] = state.frameWasSent[1] = false;
 }
 
 void serverReset(int slot)
@@ -420,6 +554,8 @@ void serverReset(int slot)
         state.slotHas[slot] = false;
         held::setPlayerFist(slot, 0, {});
         held::setPlayerFist(slot, 1, {});
+        grip::setPlayerFrame(slot, 0, {});
+        grip::setPlayerFrame(slot, 1, {});
     }
 }
 
@@ -428,6 +564,7 @@ void init()
     Cmd_AddCommand("vr_mp_prefs", mpPrefs_f);
     Cmd_AddCommand_ClientCommand("vr_prefs", prefs_f);
     Cmd_AddCommand_ClientCommand("vr_rig", rig_f);
+    Cmd_AddCommand_ClientCommand("vr_rigframe", rigFrame_f);
 }
 
 } // namespace qvr::clientprefs

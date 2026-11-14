@@ -1141,11 +1141,11 @@ constexpr float crawlFallbackDrop = 0.03f;
     return v == 0 || PROG_TO_EDICT(v)->free;
 }
 
-// The hand's lowest point in the world (z): the bottom of its fist's spheres as the client posed them (held::fist: the
-// knuckles or the fingers, whichever is lowest as it is turned), not the controller's place.
-[[nodiscard]] float crawlHandBottom(const VrHandMove& hand, int h)
+// The hand's lowest point in the world (z): the bottom of its fist's spheres as the client posed them (held::fistOf: the
+// knuckles or the fingers, whichever is lowest as it is turned; each player's own: B3d), not the controller's place.
+[[nodiscard]] float crawlHandBottom(const edict_t* ent, const VrHandMove& hand, int h)
 {
-    const za::Vector<glm::vec4>& fist = held::fist(h);
+    const za::Vector<glm::vec4>& fist = held::fistOf(ent, h);
     if(fist.empty())
     {
         return hand.pos.z - crawlFallbackDrop * units::metresToUnits();
@@ -1281,7 +1281,7 @@ extern "C" void VR_AfterCrawlMove(edict_t* ent, float forwardmove, float sidemov
         // Any way along the floor (his note 2026-11-08: pulled back, forward; pushed ahead, back; sideways, sideways).
         const glm::vec2 level{hand.vel.x, hand.vel.y};
         const float levelSpeed = glm::length(level);
-        const float height = crawlHandBottom(hand, h) - feet; // (its lowest point: the knuckles or the fingers)
+        const float height = crawlHandBottom(ent, hand, h) - feet; // (its lowest point: the knuckles or the fingers)
         if(vr_prone_crawl_debug.value >= 2.f)
         {
             Con_Printf("crawl: %s hand lowest %.1f over the feet (its place %.1f), %.2f m/s, %s%s\n", h ? "main" : "off",
