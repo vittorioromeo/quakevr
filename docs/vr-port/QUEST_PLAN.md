@@ -170,7 +170,7 @@ is the same build with a lower preset (half the GPU) [I].
 | Phase | Scope | Needs installs? |
 |---|---|---|
 | C1 (done) | Research, audit, decision, this plan; `vr_simd.hpp` + `vr_simd_test`; `-glescompat` + `vr_gles_report`; `quest_budget.cfg` and the budget runs | No |
-| **C2** | **PC portability layer**: the 14 ungated rows behind `VR_GLESCompat()` (one `#version`/precision prefix for all programs, `glGetTexImage`/`glGetBufferSubData`/`glClearTexImage`/`glTextureView` replacements, LOD bias in shaders, depth clamp, clip distance, noperspective, timer-query wrapper); the GLSL made ES-valid (checked by compiling every program as `#version 320 es` with the PC driver where it accepts ES profiles, else with glslang if he approves it); `-glescompat` runs every test suite clean; `-fp-contract`-free scalar check; a "no child process" mode for the relight and motion children; an `Android`-guarded skeleton for crash/files/paths that compiles on the PC (`QVR_FAKE_ANDROID`) | No |
+| **C2** (C2a done; C2b next) | **PC portability layer**: the 14 ungated rows behind `VR_GLESCompat()` (one `#version`/precision prefix for all programs, `glGetTexImage`/`glGetBufferSubData`/`glClearTexImage`/`glTextureView` replacements, LOD bias in shaders, depth clamp, clip distance, noperspective, timer-query wrapper); the GLSL made ES-valid (checked by compiling every program as `#version 320 es` with the PC driver where it accepts ES profiles, else with glslang if he approves it); `-glescompat` runs every test suite clean; `-fp-contract`-free scalar check; a "no child process" mode for the relight and motion children; an `Android`-guarded skeleton for crash/files/paths that compiles on the PC (`QVR_FAKE_ANDROID`) | No |
 | C3 | Android build: CMake toolchain for `arm64-v8a`, Gradle project (`Android/`), SDL2's Android activity, `-ffp-contract=off`, assets path and permissions, logcat console, the APK; first boot in the Android emulator (flatscreen, ES 3.x) for files, sound and menus | **Yes** (list below) |
 | C4 | OpenXR on Android: `XR_KHR_opengl_es_enable` binding, Android loader init, swapchains as GLES texture arrays, multiview into them, refresh rate, `XR_EXT_performance_settings`, `XR_FB_foveation`, Touch controller bindings (already OpenXR actions), visibility mask; first headset boot; a GL extension dump of the Quest's driver resolves the [?] rows | **Yes** + a Quest in developer mode |
 | C5 | Renderer on device: driver bugs, the post chain merged into fewer passes for the Quest preset, program binary cache, MSAA on tile, invalidations at pass ends; Adreno profiling (`ovrgpuprofiler`, RenderDoc) | Yes (device tools) |
@@ -194,6 +194,34 @@ is the same build with a lower preset (half the GPU) [I].
   PC defaults and behaviour unchanged without the flag.
 - **`Misc/quakevr/bench/quest_budget.cfg`** (Low preset, no MSAA, scale 1, no dynamic resolution) and
   **`Misc/quakevr/gles_audit.py`**. Budget runs: section 6.
+
+## 5b. C2a: the GLSL as ES 3.2, the first desktop-only calls (done, no installs)
+
+- **Every program compiled as ES 3.2 GLSL under `-glescompat`** (`VR_GLShaderSource`, vr_glsafe.cpp: the one
+  `glShaderSource` for gl_shaders.c and the four VR compile sites; imgui gets its own `#version 300 es` shaders). The
+  `#version 430` line becomes `#version 320 es` plus `EXT_clip_cull_distance` and `NV_shader_noperspective_interpolation`
+  where the driver has them, and precision statements go before the first line of code. The PC's NVIDIA driver
+  (RTX 4090, 621.01) compiles ES shaders in our 4.3 core context (`ARB_ES3_2_compatibility`), so it checks every
+  program the way an ES driver would. Under `-glescompat` a failed program is printed and counted, not fatal
+  (`vr_gles_report: N pending, M shader errors`); `-glesverbose` prints each error with its source line.
+- **The GLSL fixed for ES** (the same code on the desktop: the conversions it did implicitly now spelled out): int and
+  uint literals and indices, `.length()` as uint, undefined macros in `#if` defined (`RETRO`, NIS's), no
+  `layout(depth_any)` on ES (`EXT_conservative_depth`; it is the default anyway), FSR's `0u`. Image formats ES 3.1
+  lacks (`VR_GLESImageFormat`): the light clusters `rg32ui` as `rgba32ui` (256 KB more), the palette LUT `r8ui` as
+  `r32ui` (8 MB instead of 2; C5 may move it to a buffer), the TAA mask `r8` as `rgba8`. NVIDIA Image Scaling's GLSL
+  leans on implicit conversions everywhere: off under ES (`vr_upscale 2` takes FSR). Start-up: 229 failing programs
+  to 0. **PC fix found:** the particles' `Support[16]` sat on uniform locations 20-35 over the fragment shader's
+  `Taper` (20) and `InkAlpha` (21): a link error on a strict linker; moved to 40-55.
+- **ES forms of desktop-only calls:** `gfx::readBuffer` (glGetBufferSubData, or `glMapBufferRange(READ)` under ES:
+  the water mesh, TAA stats, particle waste; the water mesh's hash is the same both ways, 0b34a576 on e1m1),
+  `gfx::clearTexture` (glClearTexImage, or a clear through a framebuffer), `gfx::drawNoColour` (glDrawBuffers),
+  `glClearDepthf`/`glDepthRangef` (function table; the same values on the PC), `VR_GLPolygonMode` (none on ES: the
+  wireframe debug views draw filled), `GL_TEXTURE_CUBE_MAP_SEAMLESS` not enabled on ES (always on there).
+- **Verified:** with `QVR_GLES_COMPAT=1`: scenario_check 129 run, 0 failed, 0 shader errors; load_models_test 4/0;
+  e1m1 draws the same as the PC mode. PC mode: scenario_check 129/0, load_models_test 4/0, vr_simd_test 58880/0.
+- **Open, for the device (C4) [?]:** `GL_MAX_FRAGMENT_IMAGE_UNIFORMS` on Adreno (the world and model fragment shaders
+  read the light clusters as an image; ES 3.1's minimum is 0: a `usampler3D` + `texelFetch` form if it is 0);
+  `EXT_clip_cull_distance` and `NV_shader_noperspective_interpolation` on Adreno (the shaders compile with them here).
 
 ## 6. Perf budget (PC, as a relative picture)
 
@@ -252,6 +280,9 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C2 — PC portability layer, no installs: gate the 14 desktop-only GL uses behind `VR_GLESCompat()` (one
-`#version 320 es` + precision prefix for every program), make `-glescompat` pass the test suites, and add the
-Android-shaped fallbacks (no child processes, crash/paths stubs) that compile and run on the PC.
+Next phase: C2b — the rest of the PC portability layer, no installs: the 9 rows `vr_gles_report` still lists
+(glGetTexImage as FBO + glReadPixels, glTextureView, LOD bias in the shaders, depth clamp, the clip-distance and
+noperspective fallbacks, a timer-query wrapper with the statistics queries off, sRGB write control, RGBA uploads,
+the bindless-only multi-draw), the ES runs of the render tests (envmaps, PBR bakes, shadows, TAA), a no-child-process
+mode for the relight and motion children, and a `QVR_FAKE_ANDROID` skeleton (crash, files, paths) that compiles on
+the PC.

@@ -2220,3 +2220,20 @@ matched unanchored, `-QuitOn` on it (the run ends there, the log flushed every f
   temporary stack's peak there: 12,672 bytes in its one 256 KiB chunk); the release configuration (MSBuild ReleaseLTO,
   QvrReleaseVersion=1.1.0) builds with no error or warning.
 - Scripts: scratch/hf_*.sh, hf_*.py (hf_bisect.sh: the per-site bisection; the fill switch was temporary, removed).
+
+## Quest C2a: every program as ES 3.2 GLSL under -glescompat, the first ES call forms (branch agent/quest, 2026-11-14)
+
+- **What:** `-glescompat` (or `QVR_GLES_COMPAT=1`) now compiles every shader as `#version 320 es` with precisions
+  (`VR_GLShaderSource`, vr_glsafe.cpp: the one glShaderSource for the engine and the VR passes), so the PC's NVIDIA
+  driver checks them the way an ES driver would; a failure there is printed and counted (`vr_gles_report`), not
+  fatal; `-glesverbose` prints each error with its source line. The GLSL was made ES-valid (229 failing programs to
+  0) without changing what the desktop compiles to; ES-only image formats (`VR_GLESImageFormat`); NIS off on ES.
+  ES forms of glGetBufferSubData, glClearTexImage, glDrawBuffer, glClearDepth/glDepthRange, glPolygonMode
+  (`gfx::readBuffer`, `gfx::clearTexture`, `gfx::drawNoColour`, the float forms, `VR_GLPolygonMode`). No PC default
+  or behaviour changes without the flag. Details and open items: QUEST_PLAN.md section 5b.
+- **PC fix (own commit):** the particles' `Support[16]` overlapped the fragment shader's `Taper`/`InkAlpha` uniform
+  locations (20, 21): a link error on a strict linker; now 40-55.
+- **Tests:** `QVR_GLES_COMPAT=1`: scenario_check 129/0 (0 shader errors), load_models_test 4/0; the water mesh read
+  back the same both ways (hash 0b34a576). PC: scenario_check 129/0, load_models_test 4/0, vr_simd_test 58880/0.
+- **Next:** C2b (QUEST_PLAN.md's last line): the 9 rows `vr_gles_report` still lists, ES runs of the render tests,
+  no-child-process mode, the `QVR_FAKE_ANDROID` skeleton.
