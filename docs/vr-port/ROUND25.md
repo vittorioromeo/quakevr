@@ -2864,3 +2864,23 @@ well-timed parries."
   "B7 results, part 1". Next: B7b (snapshots down, the entities' interpolation buffer).
 - In VR (two machines): a remote player's hands as he turns (smooth, on his body), the Smooth Player Hands row off
   for comparison.
+
+## mpN (B7b): snapshots down acknowledged and delta-coded; the entities' interpolation buffer (agent/mp, 2026-11-14; never shipped by the coordinator)
+
+- A remote client acknowledges the newest snapshot it read in each `QVR_CLC_MOVES`; the server writes its datagram's
+  player state, entity updates and the avatars it sees as records of one `QVR_SVC_SNAPSHOT` (`vr_netsnap.cpp`;
+  `QVR_NET_VERSION` 18), coded against the acknowledged one: an unchanged record is not sent, a changed one goes as a
+  byte mask or whole, a gone one as its key. The client rebuilds the whole set and parses each record with NetQuake's
+  own parsers: the rest of the client is unchanged. B idle on e1m1: down 7 KB/s, mean 97 B (was 20 KB/s, 270 B).
+  `vr_net_snapshots` 1 (Debug > Reports > Network: Delta Snapshots; 0 NetQuake's whole datagram).
+- A remote client draws the others (not brush models: doors and lifts stay in step with the player riding them; not
+  stepping monsters: the renderer lerps those) a delay behind the newest message, between the two around that time,
+  turns slerped; the delay follows the longest recent gap (about 40 ms at 10% loss), its clock eased (never a jump);
+  the other players' hands and weapons at the same time. `vr_net_interp` 1 (Network: Interpolation Buffer).
+  `mp_loss`: 0 jumps of A's body and hands at 10% loss (were 1-3), hand offset roughness 0.21 (was 0.28-0.68).
+- Single player, the listen host's own client and demos of them: unchanged (no snapshot, no buffer). A demo recorded
+  on a remote server mid-game asks for a whole snapshot to start from.
+- Tests: `mp_loss`'s jump checks, `mp_bandwidth` under 10 KB/s and the server's deltas, `vr_netsnap_selftest` 5/0;
+  MP_PLAN.md "B7b results".
+- In VR (two machines): another player walking and turning (smooth, no stop-and-jump), his hands on his body; the
+  Interpolation Buffer row off for comparison.

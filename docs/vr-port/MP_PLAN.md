@@ -59,8 +59,8 @@ is the newer (each claim below was re-checked on 2026-11-14 at `origin/next` 17d
 | Coop saves | `save` refuses with more than one player ("Can't save multiplayer games", `host_cmd.c:2571`); autoload too (`host_cmd.c:2196`) [code] |
 | Single-player-only systems | 33 `svs.maxclients == 1` gates in `Quake/vr`: bullet time, timescale, crates placed about, flashlight's save state, relight, Setup, holster setup, the toolgun, arena cards, the chainsaw's cord state, live preview, late precache of `vr_prepare` [code] |
 | Per-client preferences, rig, body data up | No userinfo/setinfo/prefs message; the server cannot know a player's handedness, height or holsters [code] |
-| Prediction, lag compensation, interpolation buffer | NetQuake's two-message lerp only (`cl_main.c`); hits judged where the server has things now [old, code unchanged] |
-| Delta compression against acknowledged state | Entities are deltas against their baseline only; `U_QVR_*` extras resent every frame [old] |
+| Prediction, lag compensation (interpolation buffer: done in B7b) | Hits judged where the server has things now; your own moves wait a round trip [code] |
+| Delta compression against acknowledged state (done in B7b: record-level, a byte mask within a record) | Field-level coding and an entropy stage: B9 |
 | A lag simulator | None in the engine; the harness's `mp_proxy.py` adds it outside |
 | Voice | Nothing (Steam Audio's spatial mixer is there to place voices: `vr_audio.cpp`) |
 
@@ -146,8 +146,8 @@ is the newer (each claim below was re-checked on 2026-11-14 at `origin/next` 17d
 
 | Link | Now [run] | Target | How |
 |---|---|---|---|
-| Up (moves) | 45 KB/s (640 B x 71) | 8-12 KB/s | about 60 B a quantized delta move + two repeats |
-| Down, 2 players idle, e1m1 | 97 KB/s (1350 B x 72) | 6-10 KB/s | arm poses culled and delta-coded; acked deltas |
+| Up (moves) | 2.3 KB/s idle, 4-10 KB/s walking (B7; was 45 KB/s, 640 B x 71) | 8-12 KB/s | about 60 B a quantized delta move + two repeats |
+| Down, 2 players idle, e1m1 | 7 KB/s (97 B x 72; B7b; was 97 KB/s) | 6-10 KB/s | arm poses culled and delta-coded; acked deltas |
 | Down, 4 players and 20 monsters in sight, combat | (datagram full: entities dropped) | 25-35 KB/s | about 40 B a player block, 8-12 B a moving monster, 30 B an armed pose delta, events; far things at 36/18 Hz |
 | Reliable | up to 64 KB datagrams | at most 1200 B each | chunked to the MTU |
 
@@ -195,8 +195,8 @@ player unchanged.
 | **B5c** (climbing, swimming, the palm's shove done; the rest is B5d) | The rest of B5b: climbing between players (the server's holds per player; the remote body's climbing feet and hanging trunk from his holds); swimming checked in water (a pool map spot); a blade's directional parry between players (his swing's line, as an armed humanoid's); the open palm's shove; melee sub-tick samples (a swing split over merged moves, multiplayer only) | `mp_moves` grown (climbs a ledge, swims: A's copy follows), `mp_melee` grown (a sword's swing parried across its way, a palm shove, a swing at 30 ms jitter) |
 | **B5d** (done: B5 is done; sub-tick samples not needed, to B8) | The rest of B5c: a blade's directional parry between players (his swing's line from his hand lines, `handlineat`, as an armed humanoid's `VR_AG_WeaponLine`: VR_DRP_Eval's third kind); melee sub-tick samples (each merged move's pose to the tracker, multiplayer only) | `mp_melee` grown (a sword swung across B's crowbar: parried by the line, not the guard; a swing at 30 ms jitter: the same hit as without) |
 | **B6** (done: rules, the look of hands and body, holsters, seated, flat height, pauldrons, magazine hull; B6c the plates and Locomotion's rules) | Server rules and cosmetics: every balance setting a rule (presets, armed humanoids, damage, mutators, stamina, grapple...), rule pages dimmed on a remote client; holster positions, height, seated/standing, gloves, body seen by others | `mp_rules`, `mp_cosmetics` (B's height and gloves seen by A) |
-| **B7** (moves up and the avatars' lerp done; the rest is B7b) | Snapshots: acknowledged per-client snapshots and deltas for entities, players and avatars; quantized delta moves with repeats; interpolation buffer with quaternion slerp | `mp_loss` (10% loss: positions still continuous), byte counts per scenario |
-| **B7b** | The rest of B7: acknowledged per-client snapshots down (the client acknowledges each server frame in QVR_CLC_MOVES; entities, player states and avatars delta-coded against the acknowledged one); the entities' interpolation buffer (a fixed delay behind, adaptive to jitter, a history of messages, slerped turns) in place of NetQuake's two-message lerp for remote clients | `mp_loss`'s jump counts become checks (0 jumps of A's body and hands at 10% loss); `mp_bandwidth` down idle under 10 KB/s |
+| **B7** (done: moves up, the avatars' lerp; B7b snapshots down and the interpolation buffer) | Snapshots: acknowledged per-client snapshots and deltas for entities, players and avatars; quantized delta moves with repeats; interpolation buffer with quaternion slerp | `mp_loss` (10% loss: positions still continuous), byte counts per scenario |
+| **B7b** (done: B7 is done; fast retransmit of the reliable window to B9) | The rest of B7: acknowledged per-client snapshots down (the client acknowledges each server frame in QVR_CLC_MOVES; entities, player states and avatars delta-coded against the acknowledged one); the entities' interpolation buffer (a fixed delay behind, adaptive to jitter, a history of messages, slerped turns) in place of NetQuake's two-message lerp for remote clients | `mp_loss`'s jump counts become checks (0 jumps of A's body and hands at 10% loss); `mp_bandwidth` down idle under 10 KB/s |
 | **B8** | Prediction and lag compensation: shared movement code, reconciliation, then climbing and grapple; rewind of hit models and hands for hitscan, melee, parry, shove | `mp_predict` (own move off at frame 0 under 150 ms lag; corrections under 1 unit on flat ground), `mp_lagcomp` (a hit on a moving target at 150 ms lands) |
 | **B9** | Compression and rate: entropy stage with trained tables, per-client rate, priority accumulator | byte budgets per scenario from section 2.3 |
 | **B10** | Proximity voice chat: capture, Opus, VAD, noise suppression, push-to-talk, a jitter buffer, voices placed by Steam Audio at the speaker's head; VR and flat; menu rows | `mp_voice` (a test tone from A heard at B, louder near, delay under 250 ms) |
@@ -225,7 +225,10 @@ The engine's aids (`Quake/vr/vr_mptest.cpp`):
   (`mp_drawn_own:` its hotspots in the world, the two-handed hold, a weapon carried off its handle) and, on a server,
   as it places each other player's from what his client sent (`mp_drawn_sv:`).
 - `vr_mp_mark <label>`, `vr_mp_status` (Debug > Reports > Network: Players Seen): a timestamped step; the players
-  seen and, on a server, its clients (`mp_server: map=... spawned=N`).
+  seen and, on a server, its clients (`mp_server: map=... spawned=N`); each client's moves read (`mp_netmoves:`) and
+  snapshots sent (`mp_netsnap:` sent, full, delta, cut, bytes, the acknowledged one); on a client its snapshots read
+  and its interpolation buffer (`mp_snapcl:` decoded, undecodable, its delay, frames held past the newest).
+- `vr_netmove_selftest`, `vr_netsnap_selftest`: the moves' and the snapshots' codecs.
 - A dedicated server started with `QVR_TEST_HIDDEN` opens no console window (`sys_sdl_win.c`).
 
 Running it (the kit's base for this worktree; `--reset-autoexec` empties its `id1/autoexec.cfg`, which the kit's
@@ -1157,6 +1160,55 @@ Open items (B7b):
   delay behind with a history of messages makes these checks (0 jumps).
 - Fast retransmit of the reliable window (a lost chunk still waits 1 s).
 
+### B7b results (2026-11-14, dev no-LTO build, loopback; `mp_test.py suite`: all 25 scenarios pass)
+
+First, what B7 part 1 skipped, on its tip: the suite 24 of 25 (`mp_loss`'s hand roughness 0.68 against 0.5: NetQuake's
+lerp under loss, this phase's), scenario_check PASS (149 scenes), load_models_test 4/0, vr_run_check 12/0.
+
+| Scenario | Result |
+|---|---|
+| `mp_loss` (grown) | 15/0: at 10% loss each way, 0 jumps of A's body and 0 of his hands in 300 of B's frames (NetQuake's lerp: 1-3), hand offset roughness 0.21 (was 0.28-0.68); B read every snapshot that came (164, none undecodable), the buffer's delay 40 ms, its time past the newest message 6 frames of 600 (a gap longer than the delay: held, no jump). Failed first: no jump checks, no `mp_snapcl:` |
+| `mp_bandwidth` (grown) | 9/0: B idle on e1m1 down 7.0 KB/s, mean 97 B (was 20 KB/s, 270 B; the budget now 10 KB/s); the server's snapshots to B nearly all deltas against the one he acknowledged. Failed first: 20 KB/s over 10 |
+| byte counts | Down, B/s (B7 part 1 -> B7b): coop 30.7 -> 18.9 K, avatar 22.4 -> 9.6 K, body 23.7 -> 14.3 K, grab 23.1 -> 16.1 K, held 27.4 -> 18.0 K, campaign 58.0 -> 25.0 K, flow 67.5 -> 30.4 K, melee 30.7 -> 9.7 K, moves 25.6 -> 15.4 K, pickup 25.4 -> 10.7 K, climb 11.5 -> 4.8 K, loss 18.6 -> 7.4 K. What is left in play is mostly the armed humanoids' poses (`QVR_SVC_ARMPOSE`, scoped, not yet in the snapshot) and the broadcast |
+| the others | Unchanged: pass |
+
+Single player on the branch: scenario_check PASS (149 scenes run, 0 failed), load_models_test 4/0, vr_run_check 12/0
+(run B checked `3 1 0 1 0`), `vr_netsnap_selftest` 5/0, `vr_netmove_selftest` 5/0; the dev build 0 warnings, the
+Release-config (ThinLTO) build 0 warnings. The loopback client gets NetQuake's datagram (no snapshot) and draws with
+NetQuake's lerp (the buffer is off without snapshots): single player and the listen host's own view are unchanged.
+
+What changed:
+
+- **Snapshots down** (`vr_netsnap.cpp`, `QVR_SVC_SNAPSHOT` 46, `QVR_NET_VERSION` 18): `QVR_CLC_MOVES` begins with the
+  newest snapshot the client read. For a client that sends `QVR_CLC_MOVES` (remote), the server's writers of the player
+  state (svc_clientdata, from its first byte: damage and setangle stay events), each entity's update and each avatar it
+  sees (`QVR_SVC_AVATAR`, every frame now for it: the keyframe wait is the other clients') cut what they wrote off the
+  datagram as records keyed 0, the entity's number, 65536 + the player's entity (`VR_SnapTake`, `VR_SnapEnd`). The
+  records, sorted by key, go as one message coded against the acknowledged snapshot (both sides keep 32): unchanged
+  records nothing, a changed one a byte mask over the base's bytes or whole (whichever is smaller), a new one whole, a
+  gone one its key; past the datagram's room the rest stay as the base's on both sides. The client rebuilds the set and
+  parses each record with NetQuake's parsers (`CL_ParseUpdate`, `CL_ParseClientdata`, the VR dispatch), so the rest of
+  the client sees NetQuake's whole datagram. A spawn (a new map) or an acknowledgement of 0 starts again from whole; a
+  demo begun mid-game acknowledges 0 until a whole one comes (its start). `vr_net_snapshots` 1.
+- **The interpolation buffer** (`netsnap::interpEntity`, `vr_net_interp` 1): a remote client keeps each entity's last 8
+  places and angles with their messages' server times and draws the others at a time a delay behind the newest message:
+  between the two messages around it, turns slerped (`mpavatar::slerpAngles`, now shared), a teleport (over 100 units)
+  not lerped. The delay is the longest recent gap between messages plus half a tick (1.5 ticks to 250 ms; the longest
+  fades 10 ms a second), its clock eased at most 15% faster or slower to follow (a stall of over 250 ms resets it). Not
+  for brush models (doors and lifts stay in step with the player's own entity, which he rides: NetQuake's lerp) nor for
+  stepping monsters (the renderer lerps their steps). The other players' avatars are drawn at the same time from their
+  own last 8 (B7's two-message lerp without snapshots).
+- Reports: `mp_netsnap:` (server, per client), `mp_snapcl:` (client) in `vr_mp_status`; Debug > Reports > Network:
+  Delta Snapshots, Interpolation Buffer.
+
+Open (after B7):
+
+- The armed humanoids' poses (`QVR_SVC_ARMPOSE`) and the broadcast are outside the snapshot: in play they are most of
+  what is left down (B9: the poses as records, the priority accumulator).
+- Field-level coding (a moving entity's record goes as its changed bytes, about 6-10 B) and the entropy stage: B9.
+- Fast retransmit of the reliable window (a lost chunk still waits 1 s): B9.
+- Your own player, and what you ride, at NetQuake's lerp while the others are a delay behind: B8's prediction.
+
 ## Decisions
 
 - Server rules (B6) are found by page, not listed: every setting under a balance page is one unless it is a preference,
@@ -1198,4 +1250,10 @@ Open items (B7b):
   poses and holster offsets are his by construction, one code path, about 16 bytes a holstered weapon a move (B7's
   deltas will make an idle player's nearly free).
 
-Next phase: B7b — snapshots down: the client acknowledges server frames in QVR_CLC_MOVES, the server delta-codes entities, player states and avatars per client against the acknowledged snapshot (an idle player nearly free); the entities' interpolation buffer for remote clients (a fixed delay behind, adaptive to jitter, a history of messages, turns slerped) in place of NetQuake's two-message lerp; tests first: `mp_loss`'s jump counts as checks (0 at 10% loss), `mp_bandwidth` down idle under 10 KB/s, the `mp_bytes` table.
+- Snapshots (B7b) are delta-coded per record, a record being the bytes NetQuake's own writer wrote, rather than field by
+  field: every entity extension (`U_QVR_*`, the avatars, the player state) is covered with no codec of its own, and the
+  client parses with NetQuake's parsers (the rest of the client unchanged). Field-level coding and entropy are B9's.
+- The interpolation buffer (B7b) leaves brush models and stepping monsters on NetQuake's lerp: the player's own entity
+  is not delayed (no prediction until B8), and a lift he rides must stay in step with him.
+
+Next phase: B8 — prediction and lag compensation: the walk/swim/crouch/prone movement shared by client and server (one C++ module both call), the server's acknowledged state plus a replay of the unacknowledged moves (QVR_CLC_MOVES' sequence numbers), smooth correction on mismatch; then climbing and the grapple; the server's last 250 ms of hit models and hands per entity, a client's hitscan, melee, parry and shove judged as he saw them (his interpolation buffer's time); tests first: `mp_predict` (own move off at frame 0 under 150 ms lag; corrections under 1 unit on flat ground), `mp_lagcomp` (a hit on a moving target at 150 ms lands).
