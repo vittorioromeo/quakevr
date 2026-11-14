@@ -56,6 +56,7 @@
 #include "vr_geom.hpp"
 #include "vr_api.h"
 #include "vr_api_render.h"
+#include "vr_mem.hpp"
 
 namespace qvr::avatar
 {
@@ -63,6 +64,14 @@ using namespace detail;
 
 namespace
 {
+// posedMesh's buffer (the main thread: the player's gore binding its wounds, the flat sweep).
+struct PosedMeshScratch
+{
+    za::Vector<unsigned char> vertPart; // a surface's vertices' parts
+    auto members() { return qvr::mem::list(vertPart); }
+};
+mem::Scratch<PosedMeshScratch> posedMeshScratch{"avatar posed mesh"};
+
 
 // The twist joints' places along the forearm, from the elbow (make_vrbody.py's TWISTS: at its rings).
 constexpr int twistJoints = 4;
@@ -1945,7 +1954,8 @@ bool posedMesh(za::Vector<glm::vec3>& verts, za::Vector<unsigned>& tris, za::Vec
         const unsigned base = static_cast<unsigned>(verts.size());
         const auto* v = reinterpret_cast<const iqmvert_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
         const auto* idx = reinterpret_cast<const unsigned short*>(reinterpret_cast<const byte*>(hdr) + hdr->indexes);
-        za::Vector<unsigned char> vertPart;
+        za::Vector<unsigned char>& vertPart = posedMeshScratch.vertPart;
+        vertPart.clear();
         for(int i = 0; i < hdr->numverts_vbo; i++)
         {
             int weightOf[3]{0, 0, 0};
