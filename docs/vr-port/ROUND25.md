@@ -2260,3 +2260,10 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
 - Checks: vr_runpickups_test 1 32/0 five times at developer 0 and once at developer 1 (each ends on its verdict),
   vr_ironman_test 1 12/0, load_models_test 4/0. No engine change, so no watchdog line; scenario_check not rerun (no
   game or engine code touched).
+
+## bench11: the day's perf work before/after, ThinLTO (agent/bench11, 2026-11-14)
+
+- PERF_1_1.md "Before/after bench of the day's perf work": `094dac831` vs next, the full set + perf1114 + every load_*,
+  6 reps where it moved; no confirmed per-frame regression, worst frames and warm loads down; crowd_ad_40's p99 and
+  +1-2 heap allocs a frame listed. Fixed: `load_reloads` crashed (Host_ClearMemory kept `cl_entities` after freeing
+  it; a campaign switch's CL_ForgetModels wrote it: unmapped since nohunk). Now NULL there, as at start-up.
