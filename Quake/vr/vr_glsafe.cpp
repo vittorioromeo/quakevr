@@ -354,6 +354,10 @@ extern "C" void VR_GLStartupVendor(const char* vendor, const char* renderer, con
         }
         // -glesnoext (QVR_GLES_NOEXT=1): as an ES driver without the optional extensions that have a fallback
         // (NV_shader_noperspective_interpolation: the w-multiplied form, VR_GLShaderSource), to test the fallbacks.
+        if(const int define = COM_CheckParm("-glesdefine"); define && define < com_argc - 1)
+        {
+            Con_Printf("GLES compat: every shader with -glesdefine %s (VR_GLShaderSource)\n", com_argv[define + 1]);
+        }
         if(COM_CheckParm("-glesnoext") || getenv("QVR_GLES_NOEXT"))
         {
             glsafe.esNoExt = true;
@@ -495,6 +499,191 @@ constexpr const char* esPrecisions =
     }
     return i;
 }
+
+// Adreno (the Quest 3's GL ES driver, 0837.0.9) reads a struct copied whole out of a buffer wrong: `Instance instance =
+// instance_data[i];` gives a matrix that drops every vertex (QUEST_PLAN.md 6j, C4d: the world's and the models' black
+// eyes), while the same members read one by one are right. So under the ES form every `T v = b[i];` of a struct T
+// declared in the source becomes `T v; v.m = b[i].m; ...`, member by member (an array member element by element), the
+// struct's own #if lines kept around its members. The PC's -glescompat compiles the same rewrite (gles_render_test).
+[[nodiscard]] bool isIdent(char c)
+{
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
+}
+
+[[nodiscard]] size_t skipBlanks(const char* s, size_t i)
+{
+    while(s[i] == ' ' || s[i] == '\t')
+    {
+        i++;
+    }
+    return i;
+}
+
+[[nodiscard]] size_t identEnd(const char* s, size_t i)
+{
+    while(isIdent(s[i]))
+    {
+        i++;
+    }
+    return i;
+}
+
+struct GlslStruct
+{
+    const char* name = nullptr;
+    size_t nameLen = 0;
+    const char* body = nullptr; // between its braces
+    size_t bodyLen = 0;
+};
+constexpr int maxGlslStructs = 32;
+
+// The structs a source declares ("struct Name" at a line's start, its members up to the closing brace).
+[[nodiscard]] int findStructs(const char* s, GlslStruct* out)
+{
+    int n = 0;
+    for(size_t i = 0; s[i] && n < maxGlslStructs; i = nextLine(s, i))
+    {
+        size_t j = skipBlanks(s, i);
+        if(!strings::startsWith(s + j, "struct") || isIdent(s[j + 6]))
+        {
+            continue;
+        }
+        j = skipBlanks(s, j + 6);
+        const size_t nameEnd = identEnd(s, j);
+        const char* open = strchr(s + nameEnd, '{');
+        const char* close = open ? strchr(open, '}') : nullptr;
+        if(nameEnd == j || !close || strcspn(s + nameEnd, ";{") != static_cast<size_t>(open - (s + nameEnd)))
+        {
+            continue;
+        }
+        out[n++] = GlslStruct{s + j, nameEnd - j, open + 1, static_cast<size_t>(close - open - 1)};
+    }
+    return n;
+}
+
+// The member-by-member copy of the struct st from `src` (b[i]) into v: its #if lines kept, its declarations split.
+void appendMemberCopies(za::String& out, const GlslStruct& st, const za::String& v, const za::String& src)
+{
+    const za::String body{st.body, static_cast<za::SizeT>(st.bodyLen)};
+    const char* b = body.cStr();
+    for(size_t i = 0; b[i]; i = nextLine(b, i))
+    {
+        const size_t lineEnd = i + strcspn(b + i, "\n");
+        size_t end = i;
+        while(end < lineEnd && !(b[end] == '/' && b[end + 1] == '/'))
+        {
+            end++;
+        }
+        size_t j = skipBlanks(b, i);
+        if(j >= end)
+        {
+            continue;
+        }
+        if(b[j] == '#')
+        {
+            out += "\n";
+            out += za::String{b + j, static_cast<za::SizeT>(end - j)};
+            out += "\n";
+            continue;
+        }
+        j = skipBlanks(b, identEnd(b, j)); // (the type)
+        while(j < end && isIdent(b[j]))
+        {
+            const size_t nameEnd = identEnd(b, j);
+            const za::String name{b + j, static_cast<za::SizeT>(nameEnd - j)};
+            size_t k = skipBlanks(b, nameEnd);
+            if(b[k] == '[')
+            {
+                const size_t sizeEnd = k + strcspn(b + k, "]");
+                out += " for (int qvr_k = 0; qvr_k < ";
+                out += za::String{b + k + 1, static_cast<za::SizeT>(sizeEnd - k - 1)}; // (its size)
+                out += "; qvr_k++) ";
+                out += v;
+                out += ".";
+                out += name;
+                out += "[qvr_k] = ";
+                out += src;
+                out += ".";
+                out += name;
+                out += "[qvr_k];";
+                k = skipBlanks(b, sizeEnd + 1);
+            }
+            else
+            {
+                out += " ";
+                out += v;
+                out += ".";
+                out += name;
+                out += " = ";
+                out += src;
+                out += ".";
+                out += name;
+                out += ";";
+            }
+            j = b[k] == ',' ? skipBlanks(b, k + 1) : end; // (the next declarator, or the line's end)
+        }
+    }
+}
+
+// The source with every `T v = b[i];` of a struct T it declares made member by member.
+[[nodiscard]] za::String expandStructCopies(const char* s)
+{
+    GlslStruct structs[maxGlslStructs];
+    const int count = findStructs(s, structs);
+    za::String out;
+    size_t copied = 0; // s up to here is in out
+    for(size_t i = 0; count > 0 && s[i]; i = nextLine(s, i))
+    {
+        const size_t t = skipBlanks(s, i);
+        const size_t typeEnd = identEnd(s, t);
+        const GlslStruct* st = nullptr;
+        for(int k = 0; k < count && typeEnd > t; k++)
+        {
+            if(structs[k].nameLen == typeEnd - t && memcmp(structs[k].name, s + t, typeEnd - t) == 0)
+            {
+                st = &structs[k];
+            }
+        }
+        if(!st)
+        {
+            continue;
+        }
+        const size_t v = skipBlanks(s, typeEnd);
+        const size_t vEnd = identEnd(s, v);
+        size_t at = skipBlanks(s, vEnd);
+        if(vEnd == v || s[at] != '=')
+        {
+            continue;
+        }
+        const size_t from = skipBlanks(s, at + 1);
+        at = identEnd(s, from);
+        if(at == from || s[at] != '[')
+        {
+            continue;
+        }
+        int depth = 0; // the index's closing bracket (nested ones inside it)
+        do
+        {
+            depth += s[at] == '[' ? 1 : s[at] == ']' ? -1 : 0;
+            at++;
+        } while(s[at] && s[at] != '\n' && depth > 0);
+        const size_t semi = skipBlanks(s, at);
+        if(depth != 0 || s[semi] != ';')
+        {
+            continue;
+        }
+        const za::String var{s + v, static_cast<za::SizeT>(vEnd - v)};
+        out += za::String{s + copied, static_cast<za::SizeT>(t - copied)};
+        out += za::String{st->name, static_cast<za::SizeT>(st->nameLen)};
+        out += " ";
+        out += var;
+        out += ";";
+        appendMemberCopies(out, *st, var, za::String{s + from, static_cast<za::SizeT>(at - from)});
+        copied = semi + 1; // (the rest of its line after it)
+    }
+    out += s + copied;
+    return out;
+}
 } // namespace
 
 extern "C" void VR_GLShaderSource(unsigned int shader, int count, const char* const* strings)
@@ -504,15 +693,32 @@ extern "C" void VR_GLShaderSource(unsigned int shader, int count, const char* co
         GL_ShaderSourceFunc(shader, count, strings, nullptr);
         return;
     }
-    za::String joined;
+    za::String whole;
     for(int k = 0; k < count; k++)
     {
-        joined += strings[k];
+        whole += strings[k];
     }
+    const za::String joined = COM_CheckParm("-glesstructcopy") ? whole : expandStructCopies(whole.cStr()); // (-glesstructcopy: the copies left whole, as the PC's)
     const char* s = joined.cStr();
     const size_t body = strings::startsWith(s, "#version") ? nextLine(s, 0) : 0;
     const size_t code = body + codeStart(s + body);
     za::String es{glsafe.esNoExt ? esHeaderNoExt : esHeader};
+    // -glesdefine A,B,...: "#define A 1" (and B ...) in every ES shader's header: the shaders' QVR_PROBE_* switches
+    // (gl_shaders.h; QUEST_PLAN.md 6j: the world and model programs split on a device)
+    const int define = COM_CheckParm("-glesdefine");
+    if(define && define < com_argc - 1)
+    {
+        for(const char* d = com_argv[define + 1]; *d; d += strcspn(d, ",") + (d[strcspn(d, ",")] ? 1 : 0))
+        {
+            const size_t len = strcspn(d, ",");
+            if(len > 0)
+            {
+                es += "#define ";
+                es += za::String{d, static_cast<za::SizeT>(len)};
+                es += " 1\n";
+            }
+        }
+    }
     es += za::String{s + body, static_cast<za::SizeT>(code - body)};
     es += esPrecisions;
     es += s + code;

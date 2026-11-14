@@ -566,6 +566,10 @@ DRAW_ELEMENTS_INDIRECT_COMMAND \
 "	layout(location=0) uniform int DrawID;\n"\
 "	#define DRAW_ID			DrawID\n"\
 "#endif\n"\
+"#ifdef QVR_PROBE_DRAWID0\n" /* QVR: -glesdefine's probe (vr/vr_glsafe.cpp): every call as the first */ \
+"	#undef DRAW_ID\n"\
+"	#define DRAW_ID			0\n"\
+"#endif\n"\
 "\n"\
 
 ////////////////////////////////////////////////////////////////
@@ -634,7 +638,9 @@ QVR_WORLD_VS_PERMDECALS // QVR: the permanent decals' layer (vr/vr_permdecals.cp
 QVR_TEMPORAL_BLOCK // QVR: temporal AA's motion vectors (vr/vr_temporal.cpp)
 QVR_TEMPORAL_VS_OUTPUT
 "\n"
+"#ifndef QVR_PROBE_NOINVARIANT // QVR: -glesdefine's probe (vr/vr_glsafe.cpp)\n"
 "invariant gl_Position; // QVR: the opaque world's depth pre-pass (glprogs.world_depth) gives the very same depths\n"
+"#endif\n"
 "layout(location=0) flat out uint out_flags;\n"
 "layout(location=1) flat out float out_alpha;\n"
 "layout(location=2) out vec3 out_pos;\n"
@@ -746,6 +752,15 @@ QVR_WORLD_VS_OUTPUTS // QVR: the world vertex shader's Quake VR outputs
 "		out_samplers.zw = out_samplers.xy;\n"
 "	out_nmsampler = uvec4(call.nmhandle, call.sphandle); // QVR: and the specular map\n"
 "#endif\n"
+"#ifdef QVR_PROBE_VSPOS\n" // QVR: -glesdefine's probe (vr/vr_glsafe.cpp): the plain transform, nothing clipped
+"	gl_Position = ViewProj * vec4(in_pos, 1.0);\n"
+"	gl_ClipDistance[1] = 1.0;\n"
+"	gl_ClipDistance[2] = 1.0;\n"
+"#endif\n"
+"#ifdef QVR_PROBE_NOCLIP\n" // QVR: nothing clipped
+"	gl_ClipDistance[1] = 1.0;\n"
+"	gl_ClipDistance[2] = 1.0;\n"
+"#endif\n"
 "}\n";
 
 ////////////////////////////////////////////////////////////////
@@ -838,6 +853,10 @@ QVR_PARALLAX_DEPTH_OUT // QVR: pixel depth offset (vr_parallax_depth_write): PDO
 "#endif\n"
 "#if QVR_PDO\n"
 "	gl_FragDepth = gl_FragCoord.z; // QVR: the surface's own, unless the parallax mapping's hit is further\n"
+"#endif\n"
+"#ifdef QVR_PROBE_FSCONST\n" // QVR: -glesdefine's probe (vr/vr_glsafe.cpp): a constant magenta
+"	out_fragcolor = vec4(1.0, 0.0, 1.0, 1.0);\n"
+"	return;\n"
 "#endif\n"
 "#if " QS_STRINGIFY (SHOW_WORLD_NORMALS) "\n"
 "	out_fragcolor = vec4(0.5 + 0.5 * normalize(cross(dFdx(in_pos), dFdy(in_pos))), 0.75);\n"
@@ -1478,7 +1497,9 @@ ALIAS_INSTANCE_BUFFER
 "#else\n"
 "#define ALIAS_INSTANCE_ID gl_InstanceID\n"
 "#endif\n"
+"#ifndef QVR_PROBE_NOINVARIANT // QVR: -glesdefine's probe (vr/vr_glsafe.cpp)\n"
 "invariant gl_Position; // QVR: the models' depth pre-pass (glprogs.alias_depth) gives the very same depths\n"
+"#endif\n"
 "\n"
 "struct PoseVertex\n"
 "{\n"
@@ -1698,6 +1719,10 @@ QVR_BEHIND_SHOWN_GATE_ALIAS // QVR: see-through models behind a teleporter shown
 "void main()\n"
 "{\n"
 "	QVR_TEMPORAL_WRITE(0.0); // QVR: first (before any early return)\n"
+"#ifdef QVR_PROBE_FSCONST\n" // QVR: -glesdefine's probe (vr/vr_glsafe.cpp): a constant magenta
+"	out_fragcolor = vec4(1.0, 0.0, 1.0, 1.0);\n"
+"	return;\n"
+"#endif\n"
 "	vec2 uv = in_texcoord;\n"
 "	bool gloveShell = uv.x >= 1.5 && instances[in_instance].GloveShell.x > 0.0; // QVR: a glove's shell (its u 2 along)\n"
 "	if (gloveShell)\n"
