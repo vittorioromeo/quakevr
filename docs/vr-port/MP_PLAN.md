@@ -185,7 +185,7 @@ player unchanged.
 | **B2d** (done; pauldrons and gloves to B6) | The remote player's body posed from his avatar (vr_avatar.cpp's IK and skinning made per instance: one code path for the local body and remote ones), sized and dressed by his calibration (height, arm length, build, bracers, pauldrons, gloves) | `mp_body` (B's copy of A's body: wrists at A's drawn hands, head at his head, a screenshot pair; A's height changed: B's copy taller) |
 | **B3** (prefs and fists done; the rest is B3b) | Per-client data: the prefs message and `clientpref`; the rig (palm frame, fists, hotspots, weapon hull) and body calibration up; the ~25 host shortcuts replaced; client-side traces for teleport, crosshair, flashlight, hand collision | `mp_prefs` (A left-handed, B right-handed: each judged by his own), `mp_teleport` (a remote client teleports), `mp_grab` (B's own fist grabs) |
 | **B3b** (the suite reliable, the take-back a check; the rest is B3c) | The rest of B3: the palm frame (vr_grip.cpp), weaponhotspot and the drawn pose (vr_builtins_held.inc), the weapon hull, the 2H carry and foe grab frames, the ragdoll grab fit and the crawl's hand bottom (the fists' other users), body calibration up (his measured arms and shoulders, for his copy's shoulders); client-side traces for teleport, crosshair, flashlight, hand collision; why B's dropped shotgun is not always taken back | `mp_teleport`, `mp_grab` grown (taken back every run), `mp_body` (shoulders within 0.2 with A calibrated) |
-| **B3c** | The rest of B3b: the palm frame (vr_grip.cpp), weaponhotspot and the drawn pose (vr_builtins_held.inc), the weapon hull, the 2H carry and foe grab frames, the ragdoll grab fit and the crawl's hand bottom; body calibration up (his measured arms and shoulders); client-side traces for teleport, crosshair, flashlight, hand collision | `mp_teleport`, `mp_body` (shoulders within 0.2 with A calibrated), `mp_grab` grown (a 2H carry, a foe grab) |
+| **B3c** (palm grab and body calibration up done; the rest is B3d) | The rest of B3b: the palm frame (vr_grip.cpp), weaponhotspot and the drawn pose (vr_builtins_held.inc), the weapon hull, the 2H carry and foe grab frames, the ragdoll grab fit and the crawl's hand bottom; body calibration up (his measured arms and shoulders); client-side traces for teleport, crosshair, flashlight, hand collision | `mp_teleport`, `mp_body` (shoulders within 0.2 with A calibrated), `mp_grab` grown (a 2H carry, a foe grab) |
 | **B4** | Coop campaign flow: coop saves and loads (per-player blocks, versioned), autosaves, level transitions with inventories, intermission, deaths and respawns, map download (package names through the map installer; chunked fallback) | `mp_campaign` (e1m1 to e1m3 with saves and a load, both players' inventories), `mp_download` (B lacks a map: installs it, joins) |
 | **B5** | Interactions between players: drop a weapon / the other picks it up; force grab of world weapons in multiplayer; melee, parries and shoves between players; climbing, crouch, prone, jump, punch synced and judged per player | one scenario per interaction, each from both sides |
 | **B6** | Server rules and cosmetics: every balance setting a rule (presets, armed humanoids, damage, mutators, stamina, grapple...), rule pages dimmed on a remote client; holster positions, height, seated/standing, gloves, body seen by others | `mp_rules`, `mp_cosmetics` (B's height and gloves seen by A) |
@@ -507,6 +507,40 @@ Open items (B3c):
 - Everything else of B3b: the palm frame, hotspots and drawn pose, weapon hull, 2H carry and foe grab frames, the
   ragdoll grab fit, the crawl's hand bottom, body calibration up, the client-side traces, `mp_teleport`.
 
+### B3c results, part 1 (2026-11-14, dev no-LTO build, loopback; `mp_test.py suite`: all 9 scenarios pass)
+
+| Scenario | Result |
+|---|---|
+| `mp_body` | 12/0, grown: A's arms calibrated (Body Calibration's results set: his shoulders 6.2 units wider), B's copy's shoulders within 0.10 units of A's own (allowed 0.2) |
+| the rest | `mp_coop` 11/0, `mp_coop_lag` 11/0, `mp_bandwidth` 7/0, `mp_version` 6/0, `mp_avatar` 17/0, `mp_avatarcal` 9/0, `mp_prefs` 10/0, `mp_grab` 10/0 |
+
+Single player on the branch: `vr_pickup_test 16` 3/0 (new), scenario_check PASS, load_models_test 4/0, the dev build 0
+warnings (vr_run_check and the Release-config build not run this part: nothing of the run or the release config changed).
+
+What changed:
+
+- **A weapon lying on a hand** (single player too, its own commit): one resting on a hand's Box3D body
+  (`box3d::restsOnHand`) is taken by that hand closing within `vr_weapon_palm_grab_slack` (12 cm, menu row Palm Grab
+  Slack beside Handle Grab Leniency): it sits over the fist that closes under it, with nothing solid under its handle,
+  and had no slack at all. Single player's answer to B3b's question: a gun let go of from a still, open hand (palm up
+  or sideways) passes through the hand's new open-hand body (`reachSink`) to the floor, and one laid on the open palm
+  slides off it within a second, so there no gun is left over a closing fist (`vr_pickup_test 16` checks the first).
+  The grab's debug line (`vr_debug_carry 2`) says `on this hand` / `against this hand`.
+- **Body calibration up**: the avatar calibration carries his arms as his own body poses them (`bodycal::Arms`:
+  Body Calibration's measured upper arm and forearm, his tweaks, the shoulders' place, rise and swing), 9 fields more
+  (`numCalFields` 25, `calCommandVersion` 2, `QVR_NET_VERSION` 7). Another player's body is posed with them
+  (`avatar::Subject::arms`; `detail::arms()` is your own `bodycal::ownArms()` or his), where before it had the default
+  body's arms; the local body reads the same values through the same struct (no change).
+
+Open items (B3c, the rest):
+
+- The rig's other parts per player: the palm frame (vr_grip.cpp), weaponhotspot and the drawn pose
+  (vr_builtins_held.inc), the weapon hull, the 2H carry and foe grab frames, the ragdoll grab fit
+  (`vr_box3d_ragparts.cpp`, player 1 only), the crawl's hand bottom (`vr_physics_water.cpp`); client-side traces for
+  teleport, crosshair, flashlight, hand collision; `mp_teleport`; `mp_grab` grown (a 2H carry, a foe grab).
+- The palm slack has no multiplayer check yet: `mp_grab` gives with the hand just placed (the gun falls to the floor);
+  a case with B's hand held still before the give (B3b saw the gun rest on his palm there) would check it.
+
 ## Decisions
 
 - The harness is Python with an in-engine inbox rather than stdin or RCON: it drives GUI clients and dedicated servers
@@ -522,4 +556,4 @@ Open items (B3c):
   from outside, they always have legs (his body mode 1 or 2 is his own first-person view); his body mode 0 draws his
   player model as before.
 
-Next phase: B3c — the rest of B3b: the rig up (palm frame, weaponhotspot and the drawn pose, weapon hull, 2H carry and foe grab frames, the ragdoll grab fit, the crawl's hand bottom) and body calibration up (other players' bodies' measured arms and shoulders); client-side traces for teleport, crosshair, flashlight, hand collision; `mp_teleport`; first, whether a weapon resting on an open palm is retaken by closing the hand (single player too); melee sub-tick samples stay with B5.
+Next phase: B3d — the rest of B3c: the rig up (palm frame, weaponhotspot and the drawn pose, weapon hull, 2H carry and foe grab frames, the ragdoll grab fit, the crawl's hand bottom); client-side traces for teleport, crosshair, flashlight, hand collision; `mp_teleport`; `mp_grab` grown (a 2H carry, a foe grab, the palm slack with B's hand held still before the give); melee sub-tick samples stay with B5.

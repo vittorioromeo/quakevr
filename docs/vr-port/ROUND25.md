@@ -2342,3 +2342,16 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
   does not take it, the grab probe's thing's place, speed and ground.
 - Open (MP_PLAN.md, B3c): a weapon let go of from a still, open hand rests on the palm's Box3D body and the closing fist
   does not retake it (no "lying" slack, 3-5 cm off); single player shares the code.
+
+## mpN (B3c, part 1): palm grab slack, body calibration up (agent/mp, 2026-11-14; never shipped by the coordinator)
+
+- **Palm Grab Slack** (`vr_weapon_palm_grab_slack`, 12 cm; Weapons menu beside Handle Grab Leniency; single player too,
+  its own commit): a weapon resting on a hand's Box3D body (`box3d::restsOnHand`) is taken by that hand closing within
+  this much of its surface (it sits over the fist that closes under it and had no slack). In single player a gun let go
+  of from a still, open hand passes through the new open-hand body to the floor (`vr_pickup_test 16`, 3/0), and one
+  laid on the palm slides off, so it matters where a gun does rest on a hand (seen on a remote player's palm).
+- **Other players' arms are theirs**: the avatar calibration carries Body Calibration's measured arm lengths, his
+  tweaks and his shoulders' place, rise and swing (`bodycal::Arms`; `QVR_NET_VERSION` 7); his body on your screen is
+  posed with them, not the default body's. `mp_body` checks his copy's shoulders against his own with his arms
+  calibrated.
+- Next (MP_PLAN.md, B3d): the rest of the rig per player, client-side traces, `mp_teleport`.
