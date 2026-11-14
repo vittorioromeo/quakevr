@@ -1956,6 +1956,46 @@ His flat notes 5, 6, 9 (2026-11-13).
 - **Not done:** the A/B benchmark tables (bench.sh --fast --reps 3, exclusive): the author's game was running.
   Settings for them (the agent worktree's scratch): vp_base.cfg (both 0), vp_grid.cfg (grid only), vp_all.cfg (both 1).
 
+## iconpick: icon picker rows; Run Setup's Difficulty, starting weapons and Enemy Count as pictures (agent/iconpick, 2026-11-14)
+
+- **Icon picker** (a general row type: `Item::icons`, `.iconPicker(list)`; `vr_menu_icons.inc`, included by
+  vr_menu.cpp): a cycle drawn as one picture a choice (`MenuIcon`: a model's thumbnail, N silhouettes of a model, or a
+  painted emblem), side by side under its label, each choice's name under its picture (two lines and smaller letters
+  where it does not fit its cell). Picked: lit on a framed plate, the name white; the others greyed (a grey copy of the
+  picture) and faded by `vr_menu_icon_dim` (0.55); the picture under the mouse or the VR laser (both through
+  M_Mousemove) in colour with a frame. A click on a picture picks it (per-picture hit test `iconAt`; between pictures
+  or on the label: only the row selected), left/right (keys, sticks) step as a cycle's do. Underneath it stays the
+  cycle (cvar, choices by name): menu paths, Search, `menu_vr dump`, the tests see the same. No drop-down for it. Same
+  code flat and in the headset. Pictures are drawn with the blood-red recolour off (their own colours).
+- **Pictures:** the toolgun's icon maker (vr_toolgun_icons.cpp, the same models: v_shot, v_nailpistol, v_revolver,
+  v_axe, v_dagger side views; soldier.mdl for Enemy Count), copied brightened 1.6x (Quake's dark guns on the dark
+  panel), grey, or white (silhouettes, tinted), each copy framed anew round what it covers (v_shot's far tiny parts
+  made its thumbnail a third of its square). "Nothing" is a painted open hand (hand.mdl read as a white block at this
+  size). Difficulty: painted emblems, 1/2/3 chevrons (green, yellow, orange), a bone skull (Nightmare), a red skull
+  dripping (Bloody Nightmare), three arches (a start map's Skill Halls). start.bsp's skill0..3 textures are only the
+  words written vertically, so not used. Copies made at first draw, kept for the session, the thumbnails' copies made
+  again after a game change (`menu::iconsGameDirChanged`).
+- **Knobs** (Menu Look > Run Setup): `vr_menu_icons` 1 (0: plain rows), `vr_menu_icon_size` 32 (16-48 menu px;
+  Difficulty, a big row, a quarter bigger), `vr_menu_icon_dim` 0.55. menu_paths.txt regenerated.
+- **Bloody Nightmare is Difficulty's fifth choice** (his call 2026-11-14; replaces runfix's separate row):
+  `vr_maps_skill` 4; the registry's `bn` row has no row of its own (`Mutator::ownRow` false) and is forced to the
+  Difficulty pick (`bloodyForced`), so the run's `vr_run_bn`, `applyBloody` (skill 3 + `vr_mg3_bn_start`), the save
+  line (`skill=3 bn=1`, old saves read the same), the summary ("Bloody Nightmare / ...") and Continue are unchanged.
+  `skill`'s run cvar is capped at 3 (`Mutator::activeMax`). `vr_runpick_bn` is no longer archived: an old config's
+  `vr_runpick_bn 1` sets Difficulty to Bloody Nightmare and clears itself. Official Campaigns > Bloody Nightmare sets
+  the pick to 4. **Decision:** a start map with skill halls now has a Difficulty row too, only "Skill Halls" (the last
+  normal difficulty kept as its value) or "Bloody Nightmare", so Bloody Nightmare stays selectable there (Dawn of the
+  Machine's start has halls).
+- **Tests:** vr_runsetup_screen_test 40/0 (adds: the four rows are icon pickers; every picture of each picked by a
+  click at its centre through VR_Menu_Mousemove + K_MOUSE1, the hover hit test checked; a click on the label picks
+  nothing; right steps through all and wraps, left wraps back; Bloody Nightmare's picture sets the bn row; a start
+  hall's Skill Halls / Bloody Nightmare by clicks keeps Hard; `vr_menu_icons 0` plain 8-px rows). vr_runsetup_test
+  78/0 (Bloody Nightmare: start skill 3, vr_run_bn 1, vr_mg3_bn_start 1, save line, summary, an older save's summary,
+  Hard clears it, the old cvar's migration). vr_runlaunch_test 31/0. `vr_menu_path_check maps/vrcalibration.map` 6
+  found, 0 missing. The real mouse path checked by `vr_mock_mouse 160 13 click` (Hard picked). Builds: dev and
+  ReleaseLTO (`-p:QvrReleaseVersion=1.1.0`) 0 warnings. Shots: `qvr-kit/scratch/iconpick_shots/`.
+- **Not checked:** the look in the headset (same canvas; the mock's screenshots are 960x540); the page now scrolls
+  more (four tall rows): folding helps.
 ## campvis: Select Campaign's hierarchy, Search's landing flash, the menu stops the walk (agent/campvis, 2026-11-14)
 
 His notes: Select Campaign was a wall of same-red, same-size lines; a Search result's row is hard to spot on long
@@ -2087,3 +2127,96 @@ C2-C7, the install list for his approval). Branch `agent/quest`, not shipped by 
   audit's counts). Budget runs (QUEST_PLAN.md section 6): the Quest-like settings halve the eyes' GPU time on the PC;
   the GLES profile adds 15-60% back (layered casters, bindless, clip control off), to split in C2.
 - Not done: anything that needs an install (NDK, SDK, loader): C3 onwards.
+## vkbench: the vkQuake ports benchmarked; the FTE hull trace stays off (agent/vkbench, 2026-11-14)
+
+Benches: `bench.sh --fast --reps 3`, exclusive, ReleaseLTO of origin/next 12c7ed23a (before the nohunk merge), the
+author's game closed. Settings (worktree scratch): vb_base.cfg (sv_fastpushmove 1, sv_fte_hulltrace 0), vb_nopush.cfg
+(0, 0), vb_hull.cfg (1, 1); vb_jobs0/1.cfg (vr_jobs_parallel). Two passes in opposite orders (base, nopush, hull; then
+hull, nopush, base: labels vb_* and vb2_* in kit/benchresults): the whole-frame and GPU numbers drift 5-10% between
+batches (the GPU's p99 halved from the first batch to the second with no GPU change), so the tables read the server's
+own phase, `cpu_phase_ms` SV_Physics (ms a frame, mean of 3), from the JSONs (scratch/vb_table.py).
+
+**FTE hull trace** (sv_fte_hulltrace 0 -> 1), SV_Physics, pass 1 | pass 2:
+
+| scenario | pass 1 | pass 2 |
+|---|---|---|
+| combat_48 | 1.445 -> 1.483 (+2.6%) | 1.417 -> 1.487 (+4.9%) ** |
+| ai_crowd_64 | 1.713 -> 1.794 (+4.7%) ** | 1.687 -> 1.731 (+2.7%) |
+| idle_e1m1 | 0.716 -> 0.792 (+10.6%) ** | 0.702 -> 0.705 (+0.4%) |
+| play_ad_tfuma_fight | 3.194 -> 3.561 (+11.5%) ** | 3.229 -> 3.389 (+5.0%) ** |
+| fight_ad_sepulcher | 0.675 -> 0.725 (+7.3%) ** | 0.671 -> 0.763 (+13.6%) ** |
+
+Slower in both orders (frame p50 too: tfuma +8.3% / +6.3%, sepulcher +2.9% / +11.8%). `sv_hulltrace_compare` timed
+it 1.7-3x quicker, but on random moves up to 512 units an axis; the game's traces are mostly short (step moves,
+8-18 units, point-sized), probably where FTE's per-call setup costs more than Quake's recursion saves. Not chased.
+
+**Pusher grid** (sv_fastpushmove 1 -> 0), SV_Physics change without the grid, pass 1 | pass 2: combat_48 +1.0% |
+-0.5%, ai_crowd_64 +0.9% | -0.4%, idle_e1m1 +0.6% | -0.9%, play_ad_tfuma_fight +2.7% | +1.4%, fight_ad_sepulcher
++11.4% | -0.5%. Within the noise but for one pass on sepulcher: no measurable gain on these scenes, no cost; it stays 1.
+
+**Faces on the job pool** (vr_jobs_parallel 0 -> 1; 0 turns off every pool job of a load, hulls, Box3D and navmesh
+too, not only the faces), load ms, median of 3:
+
+| load | jobs 0 | jobs 1 |
+|---|---|---|
+| e1m1 cold / warm / restart | 1812 / 250 / 180 | 1691 / 208 / 158 (-7%, -17%, -12%) |
+| ad_azad cold / warm | 3151 / 8320 | 1988 / 1682 (-37%, -80%) |
+| ad_tears cold | 9463 | 3704 (-61%) |
+
+ad_azad's warm load is mostly "disconnect, old server shut down" (7.7 s with 0, 4.6 s in a slow rep with 1): the first
+map's background builds joined before the second load. One ad_tears rep with 1 took 17.3 s (the 85 MB BSP's first read
+from disk), left out by the median. New bench scenario `load_ad_azad` (cold, warm). No big library map here:
+`load_ad_grendel` loaded nothing (the package is not installed on this machine).
+
+**Hull trace tests** (sv_fte_hulltrace 0 and 1 through the agent's baseline config, 4 lanes; logs scratch/vb_t0,
+vb_t1): load_models_test 4/0 both; melee_phase_test 7 of 7 both; melee_arc_test (id) every result line identical;
+ragdoll climb_test 24/24 both; stagger_test 54 PASS, 2 FAIL both (the same two: monster 2 "all 8 recovered (7)",
+monster 0 "beaten ones backpedal"; not the trace); forcegrab_block_test, walltorch_grab_test, pickup_mag_test
+identical; `vr_snd_test distance` (the occlusion's hull-0 line of sight) the same one FAIL both ("in sight, as loud as
+Quake's mix", the SDL dummy driver run); hullhit/hit_test within its run-to-run spread (e.g. grunt 193 vs 175, ogre
+475 vs 473). Hull walks (90 s, seed 7): e1m1, e3m3, e4m1 stuck 0, embedded 0, outside 0 both ways (e4m1 1 hop failed
+both). **Verdict:** nothing breaks with 1, but it is slower in play: sv_fte_hulltrace stays 0.
+
+**walk_test.sh's missing summaries:** the summary line follows a console bar left open on the same log line, so
+`^hullwalk` never matched and every run waited out its `wait` (the e3m3/e4m1/e1m1 runs "without a summary"). Now
+matched unanchored, `-QuitOn` on it (the run ends there, the log flushed every frame), and a last line
+`walk_test: N maps, M without a summary`.
+
+## hunkfollow: nohunk's two follow-ups (agent/hunkfollow, 2026-11-14)
+
+- **The uninitialised read (nohunk's "Open"):** `vr_extmaps.cpp` `signature()` (the 64 x 64 detail signatures that
+  decide whether an animated texture's frames are one surface: `frameMatchRun`, VR_AnimSurfaces) read past the end of
+  its `tmp` buffer: the optimised code for the blur's `& (sigSize - 1)` wrap gave row 0's cells 1-3 a term or two from
+  after `tmp` (a 1000-filled guard region after it moved them by 40-80; the same formula written out by hand, and the
+  fixed code, don't). With zeroed memory after the block that was a small error; with a reused heap block's garbage
+  (about -1e19) the same huge value landed in both frames' signatures, every correlation came out 1.000 (moved 0.7998),
+  so every animated texture's frames shared one surface, and E1M1's world+brush drew 38% slower. Found by bisecting:
+  NoFill blocks filled with garbage (not zeroed) per call site, idle_e1m1's world+brush GPU time each (0.77 ms with
+  vr_extmaps' blocks garbage, 0.56 with any other site's); a 0xCD fill didn't reproduce it (what lay after the block
+  was what mattered). Fixed: the wrap is a modulo (`(y + dy + sigSize) % sigSize`, a row pointer). After it, garbage
+  NoFill blocks draw the same: world+brush 0.562 (zeroed) / 0.560 (garbage) / 0.559 (0xCD).
+- **Hunk blocks stay zeroed:** not zeroing NoFill blocks gained nothing measurable: load_e1m1 (3 reps, median) cold
+  1,832 vs 1,807 ms, warm 191 vs 189 / 161 vs 163 ms: noise. calloc costs nothing on fresh pages; zone.c says why.
+- **Temporary stack (zone.h, `Temp_Mark` / `Temp_Alloc` / `Temp_FreeToMark`):** the per-frame lists that were hunk
+  temporaries (one heap block each since nohunk) go on grow-only chunks kept between uses (256 KiB first, each next
+  twice as big up to 64 MiB, a chunk remade larger when a list doesn't fit; marks nest like the hunk's, across chunks).
+  Users: `SV_TouchLinks`, `SV_PushMove`, the three VR touch lists in vr_physics.cpp (`VR_TouchLinks` and the two
+  hand/weapon finds), `R_DrawSkeleton`. Host_Error / Host_EndGame (a touch's QuakeC erring mid-list) and
+  Host_ClearMemory empty it. `hunk_print` shows its chunks and peak; `vr_heap test` also runs `vr_temp test` (nested
+  marks over three chunks, a larger chunk, contents kept below a mark, no heap call warm: PASS). Late precaches from
+  those touches no longer happen inside a hunk temporary (Hunk_KeepLoaded stays for any other).
+- **Heap calls a frame** (vr_alloc_sites 300 frames, main thread, events incl. frees): combat_48 9.9 a frame (the
+  rest is `new`/`delete`, 0.16 malloc); the AD fight 8.1, all Box3D's own (b3ComputeMeshManifolds, hull creation)
+  which the old 6.2 also had.
+- **Bench** (`--fast --reps 3`, exclusive, ThinLTO; before: nohunk's nh_after3 run, origin/next with zeroed hunk
+  blocks; after: hf_after): frame p50 ms combat_48 3.823 -> 3.481 (-9%), ai_crowd_64 3.172 -> 3.115, idle_e1m1
+  1.462 -> 1.457, play_ad_tfuma_fight 7.229 -> 6.747 (-7%); combat_48 p99 8.75 -> 5.92, max 36.8 -> 10.1. Heap allocs a
+  frame (bench heap/fr): combat_48 35.0 -> 10.5 (pre-nohunk 10.8), ai_crowd_64 35.2 -> 9.2 (9.1), idle_e1m1 2.3 -> 0.8
+  (0.8), the AD fight 81.9 -> 6.2 (6.2).
+- **Verified** (merged with origin/next): Release 0 warnings; load_models_test 4/0; id1 mutator save/load loop 18/0 and
+  `pr_knownstrings_check` 44/0; AD loop (ad_crucial, start, ad_swampy: saves, loads, changelevels) no error, 44/0;
+  `scenario_check.sh` 129 files 0 errors, 129 run 0 failed; Debug (MI_DEBUG, tail guards, Hunk_Check): e1m1 save,
+  changelevel, load, the firing range with spawned monsters, `vr_heap test` and `vr_temp test` PASS, no error (the
+  temporary stack's peak there: 12,672 bytes in its one 256 KiB chunk); the release configuration (MSBuild ReleaseLTO,
+  QvrReleaseVersion=1.1.0) builds with no error or warning.
+- Scripts: scratch/hf_*.sh, hf_*.py (hf_bisect.sh: the per-site bisection; the fill switch was temporary, removed).

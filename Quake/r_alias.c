@@ -1103,8 +1103,8 @@ static void R_DrawSkeleton (const aliashdr_t *paliashdr, const float model_matri
 	if (paliashdr->poseverttype != PV_IQM)
 		return;
 
-	mark = Hunk_LowMark ();
-	positions = (vec3_t *) Hunk_AllocNoFill (sizeof (*positions) * paliashdr->numbones);
+	mark = Temp_Mark (); // QVR: the temporary stack (zone.h)
+	positions = (vec3_t *) Temp_Alloc (sizeof (*positions) * paliashdr->numbones);
 
 	bindpose = (const bonepose_t *) ((const byte *) paliashdr + paliashdr->bindpose);
 	boneinfo = (const boneinfo_t *) ((const byte *) paliashdr + paliashdr->boneinfo);
@@ -1130,7 +1130,7 @@ static void R_DrawSkeleton (const aliashdr_t *paliashdr, const float model_matri
 		R_EmitLine (positions[parent], positions[i], 0xFFFF00FFu);
 	}
 
-	Hunk_FreeToLowMark (mark);
+	Temp_FreeToMark (mark);
 }
 
 /*

@@ -2,10 +2,12 @@
 
 A **run** is a game from its start to the next start: Single Player > New Game, the Map Library's Play, an Official
 Campaign's row, the hub's teleporter to the start map. Each of those opens the **Run Setup** screen first (a VR page,
-`vr_menu_runsetup.inc`, opened from the flat menus too): Difficulty and Bloody Nightmare (always offered), the presets
-(Style = the Gameplay preset, Gore), the mutators, and Start. `vr_runsetup_ask 0` skips the screen (the last choices
-are used). A start map with skill halls (id's start, a pack's hall, every campaign, New Game, the hub) has no
-Difficulty row: its halls choose; the presets and mutators are still asked.
+`vr_menu_runsetup.inc`, opened from the flat menus too): Difficulty (Easy .. Nightmare, and Bloody Nightmare as its
+fifth choice, always offered), the presets (Style = the Gameplay preset, Gore), the mutators, and Start. Difficulty,
+the Starting gun and melee weapon and Enemy Count are icon pickers (`vr_menu_icons.inc`). `vr_runsetup_ask 0` skips
+the screen (the last choices are used). A start map with skill halls (id's start, a pack's hall, every campaign, New
+Game, the hub): its halls choose, so its Difficulty row is only Skill Halls or Bloody Nightmare; the presets and
+mutators are still asked.
 
 ## How a choice works
 
@@ -101,8 +103,8 @@ choices themselves are the engine's line.
 
 | id | options | does |
 | --- | --- | --- |
-| `skill` | Easy..Nightmare | Quake's skill (pick: `vr_maps_skill`; held at Nightmare by Bloody Nightmare) |
-| `bn` | Off, On | Dawn of the Machine's Bloody Nightmare (`vr_mg3_bn_start` at the start; serverflags carry it) |
+| `skill` | Easy..Nightmare, Bloody Nightmare | Quake's skill (pick: `vr_maps_skill`, 4 Bloody Nightmare; the run's `skill` at most 3) |
+| `bn` | Off, On | Dawn of the Machine's Bloody Nightmare (`vr_mg3_bn_start` at the start; serverflags carry it): no row of its own, on while Difficulty's pick is Bloody Nightmare (an old config's `vr_runpick_bn 1` becomes that pick); saves keep `skill=3 bn=1` |
 | `style` | My Settings, Classic, Light, Unleashed (default) | the Gameplay preset |
 | `gore` | My Settings (default), Full, Minimal, Off | the Gore preset |
 | `armed` | As Style, Off, On | `vr_agrunt_repl`, `vr_agknight`, `vr_agdknight` |
