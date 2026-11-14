@@ -265,16 +265,24 @@ struct Subject
     bool onGround{true};
     bool lying{false};                      // the server has him lying down (his lying box: vr_prone)
     int waterlevel{0};                      // Quake's, the server's (3: under; swimming off the ground)
+    bool holds[2]{};                        // [0] off hand, [1] main: holds a ledge (the server's: climb::serverHold)
+    glm::vec3 holdAt[2]{};                  // ... where (world), and the way out from its face (horizontal)
+    glm::vec3 holdOut[2]{};
+    int player{0};                          // his entity (a listen host's foothold traces pass his own box by)
 };
-// `player`: 1 .. MAX_SCOREBOARD. Returns the entity origin (the pelvis), as pose(). His swimming and lying down as the
-// server has him (Subject::lying, waterlevel, onGround: the body's pitch); not his climbing feet yet (MP_PLAN.md, B5c).
-// His arms are his calibration's (Subject::arms: measured, tweaked, shoulders).
+// `player`: 1 .. MAX_SCOREBOARD. Returns the entity origin (the pelvis), as pose(). His swimming, lying down and climbing
+// as the server has him (Subject::lying, waterlevel, onGround: the body's pitch; Subject::holds: the trunk hanging under
+// the head, the feet on footholds -- found on a listen host, hanging on a client of another server, which has no world to
+// trace: MP_PLAN.md, B5c). His arms are his calibration's (Subject::arms: measured, tweaked, shoulders).
 glm::vec3 poseOther(int player, const Subject& who, const hands::State& s, qmodel_t* model, const entity_t* ent,
     const HandPose handPoses[2]);
 // Player `player`'s body as posed this frame (false: not posed this frame), and its shoulders (the pauldrons).
 [[nodiscard]] bool otherSkeleton(int player, Skeleton& out);
 // Player `player`'s body's pitch as posed this frame (degrees forward; lying: 0 .. 1 how far laid down), false: not posed.
 [[nodiscard]] bool otherPitch(int player, float& angle, float& lying);
+// Player `player`'s body's climbing as posed this frame or the last (0 .. 1: the hanging trunk's and the feet's weight),
+// false: not posed.
+[[nodiscard]] bool otherClimb(int player, float& weight);
 [[nodiscard]] bool otherShoulder(int player, int side, Shoulder& out);
 // The same body carried by the head's move since it was posed, to under `head` (this frame's hands::State::head): for
 // what is placed before this frame's body is posed (flatplay::drawnOffset's arm hold, flatsight's helping hand). The body

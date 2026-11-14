@@ -3545,6 +3545,40 @@ bool qvr::climb::grunt(edict_t* ent, float choice, float volume)
     return false;
 }
 
+namespace
+{
+
+// Where climber `c`'s hand `h` holds now and the way out from its face: a grip's hold, or a flat mantle's hand on the
+// ledge while the mantle runs (flatMantleHands). False: it holds nothing.
+bool holdOf(const Climber* c, int h, glm::vec3& hold, glm::vec3& out)
+{
+    const Climber::FlatHold* flat = c && !c->grips[h].active && c->phase == Phase::Mantling && c->flatHolds[h].on
+                                        ? &c->flatHolds[h]
+                                        : nullptr;
+    if(!c || (!c->grips[h].active && !flat))
+    {
+        return false;
+    }
+    out = flat ? flat->out : c->grips[h].ledge.out;
+    if(flat)
+    {
+        const bool moves = flat->entNum > 0 && flat->entNum < qcvm->num_edicts;
+        hold = flat->hold + (moves ? vec(EDICT_NUM(flat->entNum)->v.origin) - flat->entOrigin : glm::vec3{0.f});
+    }
+    else
+    {
+        hold = holdNow(c->grips[h]);
+    }
+    return true;
+}
+
+} // namespace
+
+bool qvr::climb::serverHold(edict_t* ent, int hand, glm::vec3& at, glm::vec3& out)
+{
+    return hand >= 0 && hand < 2 && holdOf(climberOf(ent), hand, at, out);
+}
+
 void qvr::climb::calcStats(edict_t* ent, int* statsi)
 {
     using namespace protocol;
@@ -3554,24 +3588,11 @@ void qvr::climb::calcStats(edict_t* ent, int* statsi)
     {
         const int first = h ? STAT_QVR_CLIMBMAINX : STAT_QVR_CLIMBOFFX;
         glm::vec3 hold{0.f};
-        // (A flat mantle's hand on the ledge: as a grip's hold, while the mantle runs: flatMantleHands.)
-        const Climber::FlatHold* flat = c && !c->grips[h].active && c->phase == Phase::Mantling && c->flatHolds[h].on
-                                            ? &c->flatHolds[h]
-                                            : nullptr;
-        if(c && (c->grips[h].active || flat))
+        glm::vec3 out{0.f};
+        if(holdOf(c, h, hold, out))
         {
-            const glm::vec3& out = flat ? flat->out : c->grips[h].ledge.out;
             const int yaw = static_cast<int>(za::lround(za::atan2(out.y, out.x) / glm::two_pi<float>() * yawSteps)) & 255;
             bits |= (1 << h) | ((c->grips[h].serial & 63) << (2 + 6 * h)) | (yaw << (14 + 8 * h));
-            if(flat)
-            {
-                const bool moves = flat->entNum > 0 && flat->entNum < qcvm->num_edicts;
-                hold = flat->hold + (moves ? vec(EDICT_NUM(flat->entNum)->v.origin) - flat->entOrigin : glm::vec3{0.f});
-            }
-            else
-            {
-                hold = holdNow(c->grips[h]);
-            }
         }
         for(int i = 0; i < 3; i++)
         {

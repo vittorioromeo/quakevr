@@ -40,6 +40,10 @@ bool grunt(edict_t* ent, float choice, float volume);
 // the way out from its face (horizontal). False: it holds nothing. (vr_avatar.cpp: the feet's holds while climbing.)
 bool heldAt(int hand, glm::vec3& at, glm::vec3& out);
 
+// Server: the same for player `ent`'s hand `hand` (0 off, 1 main), as calcStats sends his own client: the others'
+// copies of his body climb from his holds (vr_mpavatar.cpp, MP_PLAN.md B5c).
+bool serverHold(edict_t* ent, int hand, glm::vec3& at, glm::vec3& out);
+
 // Server: whether `ent`'s hand `hand` (0 off, 1 main) is empty (no weapon, carried thing, force grab, flashlight) and its
 // grip there is not for a holster or a pouch (one that would draw or take something): free to hold on to something else
 // (an enemy: vr_foegrab.cpp).

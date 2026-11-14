@@ -1749,16 +1749,18 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
     {
         updateWater(b, s, dt);
     }
-    // (Another player's from how the server has him: lying down, swimming; his climbing feet not yet: MP_PLAN.md, B5c.)
+    // (Another player's from how the server has him: lying down, swimming, climbing: MP_PLAN.md, B5b, B5c.)
     updateBodyPitch(s, dt); // (next frame's solveTorso: the trunk's turn)
     updateGait(b, dt);
     const glm::vec3 stand = s.head - glm::vec3{s.lean.x, s.lean.y, 0.f}; // where the body stands (the box's middle)
     updateStance(b, stand, dt);
-    if(!posingOther())
     {
-        const double t0 = vr_debug_climb_feet.value >= 2.f ? Sys_DoubleTime() : 0.0;
-        updateClimbing(b, dt, legs);
-        climbing.updateMs = vr_debug_climb_feet.value >= 2.f ? (Sys_DoubleTime() - t0) * 1000.0 : 0.0;
+        const double t0 = vr_debug_climb_feet.value >= 2.f && !posingOther() ? Sys_DoubleTime() : 0.0;
+        updateClimbing(b, dt, legs); // (another player's from his holds: Subject::holds)
+        if(!posingOther())
+        {
+            climbing.updateMs = vr_debug_climb_feet.value >= 2.f ? (Sys_DoubleTime() - t0) * 1000.0 : 0.0;
+        }
     }
     glm::mat3 still[2];
     solveLeg(b, stand, 0, legs, still[0]);
@@ -1977,6 +1979,16 @@ bool otherPitch(int player, float& angle, float& lying)
     }
     angle = others[player].motion.bodyPitch.angle;
     lying = others[player].motion.bodyPitch.lying;
+    return true;
+}
+
+bool otherClimb(int player, float& weight)
+{
+    if(player < 1 || player > MAX_SCOREBOARD || others[player].frame < host_framecount - 1 || !others[player].posed.ent)
+    {
+        return false;
+    }
+    weight = others[player].motion.climbing.weight;
     return true;
 }
 

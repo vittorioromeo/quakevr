@@ -7,6 +7,13 @@
 #include "vr_avatar.hpp"
 #include "vr_backend.hpp"
 #include "Zancle/Math/Abs.hpp"
+#include "Zancle/Math/Atan2.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Lround.hpp"
+#include "Zancle/Math/Round.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "vr_climb.hpp"
 
 #include "vr_cvars.hpp"
 #include "vr_handrig.hpp"
@@ -136,8 +143,10 @@ void printAvatar(int e, const Avatar& a)
         float pitch = 0.f;
         float lying = 0.f;
         (void)avatar::otherPitch(e, pitch, lying);
-        Con_Printf(" eyeheight=%.3f yaw=%.1f moves=%d pitch=%.1f lying=%.2f\n", d.eyeHeight, a.body.yaw, a.moves, pitch,
-            lying);
+        float climbWeight = 0.f;
+        (void)avatar::otherClimb(e, climbWeight);
+        Con_Printf(" eyeheight=%.3f yaw=%.1f moves=%d pitch=%.1f lying=%.2f climb=%.2f\n", d.eyeHeight, a.body.yaw,
+            a.moves, pitch, lying, climbWeight);
     }
     for(int side = 0; side < 2; side++)
     {
@@ -415,6 +424,14 @@ void setupBody(int e, const Avatar& a, const glm::vec3& origin)
     who.onGround = (a.moves & avatarOnGround) != 0;
     who.lying = (a.moves & avatarLying) != 0;
     who.waterlevel = (a.moves >> avatarWaterShift) & 3;
+    // (B5c: his holds, the server's -- his climbing trunk and feet)
+    for(int h = 0; h < 2; h++)
+    {
+        who.holds[h] = (a.moves & (h ? avatarHoldMain : avatarHoldOff)) != 0;
+        who.holdAt[h] = origin + a.holdAt[h];
+        who.holdOut[h] = a.holdOut[h];
+    }
+    who.player = e;
 
     hands::State s;
     s.valid = true;
@@ -650,10 +667,39 @@ int movesByte(const edict_t* ent, bool flat)
     // (the server's VM: the hull's per-client boxes are numbered by its edicts -- a console command's report runs outside it)
     const progs::ServerVm vm;
     const int water = CLAMP(0, static_cast<int>(ent->v.waterlevel), 3);
-    const int bits = (flat ? avatarFlat : 0) | (hull::isCrouched(ent) ? avatarCrouched : 0) |
-                     (hull::isProne(ent) ? avatarLying : 0) |
-                     ((static_cast<int>(ent->v.flags) & FL_ONGROUND) ? avatarOnGround : 0) | (water << avatarWaterShift);
+    int bits = (flat ? avatarFlat : 0) | (hull::isCrouched(ent) ? avatarCrouched : 0) |
+               (hull::isProne(ent) ? avatarLying : 0) |
+               ((static_cast<int>(ent->v.flags) & FL_ONGROUND) ? avatarOnGround : 0) | (water << avatarWaterShift);
+    edict_t* e = const_cast<edict_t*>(ent); // (climb's server calls take the edict as the VM's)
+    for(int h = 0; h < 2; h++)
+    {
+        glm::vec3 at, out;
+        if(climb::serverHold(e, h, at, out))
+        {
+            bits |= h ? avatarHoldMain : avatarHoldOff;
+        }
+    }
     return bits;
+}
+
+void writeHolds(sizebuf_t* msg, const edict_t* ent, const glm::vec3& origin)
+{
+    const progs::ServerVm vm;
+    edict_t* e = const_cast<edict_t*>(ent);
+    for(int h = 0; h < 2; h++)
+    {
+        glm::vec3 at, out;
+        if(climb::serverHold(e, h, at, out))
+        {
+            const glm::vec3 v = at - origin;
+            for(int i = 0; i < 3; i++)
+            {
+                MSG_WriteShort(msg, static_cast<int>(za::clamp(za::round(v[i] * 8.f), -32767.f, 32767.f)));
+            }
+            const float yaw = za::atan2(out.y, out.x) / glm::two_pi<float>() * 256.f;
+            MSG_WriteByte(msg, static_cast<int>(za::lround(yaw)) & 255);
+        }
+    }
 }
 
 void parse()
@@ -673,6 +719,15 @@ void parse()
     }
     a.weapon = MSG_ReadLong();
     a.weapon2 = MSG_ReadLong();
+    for(int h = 0; h < 2; h++)
+    {
+        if(a.moves & (h ? avatarHoldMain : avatarHoldOff))
+        {
+            a.holdAt[h] = readEighths();
+            const float yaw = static_cast<float>(MSG_ReadByte()) / 256.f * glm::two_pi<float>();
+            a.holdOut[h] = glm::vec3{za::cos(yaw), za::sin(yaw), 0.f};
+        }
+    }
     if(ent > 0 && ent <= MAX_SCOREBOARD && ent != cl.viewentity)
     {
         avatars[ent] = a;

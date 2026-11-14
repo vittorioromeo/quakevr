@@ -75,7 +75,7 @@ struct ClientMove
 za::Vector<ClientMove> clientMoves;
 
 // Per client slot: its avatar as last sent (writeAvatars: an unchanged one waits for its keyframe); and the counts.
-constexpr int avatarMaxBytes = 160; // (2 + 2 + 1 + 12 + 8 + 2 * 47 + 8 = 127 at most)
+constexpr int avatarMaxBytes = 160; // (2 + 2 + 1 + 12 + 8 + 2 * 47 + 8 + 2 * 7 holds = 141 at most)
 struct AvatarSent
 {
     byte bytes[avatarMaxBytes]{};
@@ -1471,6 +1471,7 @@ void writeAvatars()
         }
         MSG_WriteLong(&tmp, static_cast<int>(c.edict->v.weapon));
         MSG_WriteLong(&tmp, static_cast<int>(fieldFloatOr(c.edict, f.weapon2, 0.f)));
+        mpavatar::writeHolds(&tmp, c.edict, origin); // (his climbing holds, as the moves byte says: B5c)
 
         if(static_cast<int>(avatarsSent.size()) < svs.maxclients)
         {

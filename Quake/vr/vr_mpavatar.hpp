@@ -19,8 +19,14 @@ inline constexpr int avatarCrouched = 2;
 inline constexpr int avatarLying = 4;
 inline constexpr int avatarOnGround = 8;
 inline constexpr int avatarWaterShift = 4; // (two bits: Quake's waterlevel, 0 .. 3)
+// B5c: his off (main) hand holds a ledge (the server's hold: climb::serverHold). Each hold follows the weapons: where it
+// is (from his entity's origin, eighths) and the way out from its face (a byte of yaw).
+inline constexpr int avatarHoldOff = 64;
+inline constexpr int avatarHoldMain = 128;
 // The server's byte for client entity `ent` (vr_server.cpp writeAvatars, vr_mp_status).
 [[nodiscard]] int movesByte(const edict_t* ent, bool flat);
+// The server's holds of client entity `ent` after the weapons (as movesByte's bits say), from `origin`.
+void writeHolds(sizebuf_t* msg, const edict_t* ent, const glm::vec3& origin);
 
 struct Avatar
 {
@@ -34,6 +40,8 @@ struct Avatar
     VrDrawnHand hands[2]; // [0] off hand, [1] main hand; places from his entity's origin
     int weapon{0};
     int weapon2{0};
+    glm::vec3 holdAt[2]{};  // [0] off hand, [1] main: where it holds (moves' avatarHold*), from his entity's origin
+    glm::vec3 holdOut[2]{}; // ... and the way out from the face (horizontal, unit)
 };
 
 // vr_client.cpp's dispatch: QVR_SVC_AVATAR's body (after its sub-command byte).
