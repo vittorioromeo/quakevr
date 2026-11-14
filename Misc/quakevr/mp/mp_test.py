@@ -662,7 +662,7 @@ def grab(s):
     s.metric("b_fist_grabs", after - before)
     s.check("B closes his hand on it: the server judges it by his own fist (it touches the dropped shotgun)",
             after > before, "fist touches %d -> %d" % (before, after))
-    # (Taken back into his hand: 1 run in 3 so far; the fist touches it every frame of the press either way, the QC's
+    # (Taken back into his hand: 2 runs of 4 so far; the fist touches it every frame of the press either way, the QC's
     # take refuses: MP_PLAN.md, B3 open items. A note until it is chased, not a check.)
     s.metric("b_retaken", 1 if seen[-1] == 4 else 0)
     s.note("B's main weapon by report while pressing: %s (taken back: %s)" % (seen, "yes" if seen[-1] == 4 else "no"))

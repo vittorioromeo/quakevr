@@ -2298,6 +2298,18 @@ the window's zones, worst frames and GPU passes; map loads by stage. Everything 
   B's copy x1.260 for x1.261), the MP suite 7/7, scenario_check PASS, load_models_test 4/0, vr_run_check 11/1 (as B2c).
 - Open: his pauldrons and gloves (B6), his measured arms (B3), his swimming, lying down and climbing (B5). Details in
   MP_PLAN.md, "B2d results".
+
+## mpN (B3): per-player preferences and fists (agent/mp, 2026-11-14; never shipped by the coordinator)
+
+- `vr_clientprefs.cpp`: 32 per-player preferences (grip, reload, holster, force grab and grenade modes, the gun angles,
+  flat play's) go up as the `vr_prefs` client command when they change; the server keeps them per slot. The QC's
+  `cvar_hget` of one answers, in multiplayer, with the player in `self` (else `other`); the new builtin
+  `clientpref(player, handle)` names him. Each hand's fist goes up too (`vr_rig`, chunked); the server's fist users
+  (`held::fistOf`) judge a remote player by his own. `vr_mp_prefs` (Debug > Reports > Network: Player Preferences).
+  `QVR_NET_VERSION` 6. Single player unchanged.
+- Tests: `mp_test.py prefs` 10/0, `grab` 9/0 (the take-back is a note so far: 2 runs of 4), the MP suite 8/9 (mp_avatar
+  14/1 once, 17/0 again), scenario_check PASS, load_models_test 4/0, vr_run_check 12/0. Details and open items in
+  MP_PLAN.md, "B3 results".
 ## profile2: the perf campaign's second pass (agent/profile2, 2026-11-14)
 
 Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his call"). Behaviour and visuals unchanged.

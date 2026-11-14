@@ -183,7 +183,8 @@ player unchanged.
 | **B2b** (hands done; the rest is B2c) | The rest of B2: finger curls in the move and the avatar; remote players drawn with the player's own body (vr_avatar.cpp's IK from head and hands) or the armed humanoids' arm solver (vr_agarms.cpp), whichever shares more, and their held weapons' models in their hands; the avatar calibration message (height, arm length, handedness, gloves, body), reliable on change; melee sub-tick samples from every move | `mp_avatar` grown: fingers within a step, the weapon model drawn in B's view at A's hand (a screenshot pair) |
 | **B2c** (weapon and calibration done; the rest is B2d) | The harness's weapon in hand and `mp_avatar`'s weapon checks with a screenshot pair; the avatar calibration message; the remote body; melee sub-tick samples | `mp_avatar` 17/0 (weapon checks live), `mp_avatarcal` |
 | **B2d** (done; pauldrons and gloves to B6) | The remote player's body posed from his avatar (vr_avatar.cpp's IK and skinning made per instance: one code path for the local body and remote ones), sized and dressed by his calibration (height, arm length, build, bracers, pauldrons, gloves) | `mp_body` (B's copy of A's body: wrists at A's drawn hands, head at his head, a screenshot pair; A's height changed: B's copy taller) |
-| **B3** | Per-client data: the prefs message and `clientpref`; the rig (palm frame, fists, hotspots, weapon hull) and body calibration up; the ~25 host shortcuts replaced; client-side traces for teleport, crosshair, flashlight, hand collision | `mp_prefs` (A left-handed, B right-handed: each judged by his own), `mp_teleport` (a remote client teleports), `mp_grab` (B's own fist grabs) |
+| **B3** (prefs and fists done; the rest is B3b) | Per-client data: the prefs message and `clientpref`; the rig (palm frame, fists, hotspots, weapon hull) and body calibration up; the ~25 host shortcuts replaced; client-side traces for teleport, crosshair, flashlight, hand collision | `mp_prefs` (A left-handed, B right-handed: each judged by his own), `mp_teleport` (a remote client teleports), `mp_grab` (B's own fist grabs) |
+| **B3b** | The rest of B3: the palm frame (vr_grip.cpp), weaponhotspot and the drawn pose (vr_builtins_held.inc), the weapon hull, the 2H carry and foe grab frames, the ragdoll grab fit and the crawl's hand bottom (the fists' other users), body calibration up (his measured arms and shoulders, for his copy's shoulders); client-side traces for teleport, crosshair, flashlight, hand collision; why B's dropped shotgun is not always taken back | `mp_teleport`, `mp_grab` grown (taken back every run), `mp_body` (shoulders within 0.2 with A calibrated) |
 | **B4** | Coop campaign flow: coop saves and loads (per-player blocks, versioned), autosaves, level transitions with inventories, intermission, deaths and respawns, map download (package names through the map installer; chunked fallback) | `mp_campaign` (e1m1 to e1m3 with saves and a load, both players' inventories), `mp_download` (B lacks a map: installs it, joins) |
 | **B5** | Interactions between players: drop a weapon / the other picks it up; force grab of world weapons in multiplayer; melee, parries and shoves between players; climbing, crouch, prone, jump, punch synced and judged per player | one scenario per interaction, each from both sides |
 | **B6** | Server rules and cosmetics: every balance setting a rule (presets, armed humanoids, damage, mutators, stamina, grapple...), rule pages dimmed on a remote client; holster positions, height, seated/standing, gloves, body seen by others | `mp_rules`, `mp_cosmetics` (B's height and gloves seen by A) |
@@ -407,6 +408,66 @@ Open items:
 - Each other body costs about what your own does to pose (the "avatar IK" zone) every frame it is seen: B13's CPU of many
   players.
 
+### B3 results (2026-11-14, release no-LTO build, loopback; `mp_test.py suite`: 8 of 9 pass, `mp_avatar` 14/1 then 17/0 alone)
+
+| Scenario | Result |
+|---|---|
+| `mp_prefs` (new) | 10/0: the dedicated server has both players' preferences (A's Sticky grip, B's 32 the defaults); A on Sticky keeps a given shotgun with his grips let go, B on Hold drops his (the server's own: Hold), for 5 reports in a row; the other way round after both change (A's falls at once, B keeps a new one) |
+| `mp_grab` (new) | 7/0: the server has each player's fists (93 spheres a hand) as his client poses them (their coordinate sum within the 64ths sent: 477.23 against 477.00); B's given shotgun falls from his opened hand; he closes it again: the server's grab test is his own fist's (25-32 touches on the dropped gun, 2-11 cm). Taken back into his hand: 2 runs of 4 (a note, `b_retaken`; open item) |
+| the rest | `mp_coop`, `mp_coop_lag`, `mp_bandwidth`, `mp_version`, `mp_avatarcal`, `mp_body`: pass. `mp_avatar`: once 14/1 (A's main hand empty after the give with both grips held: the server's weapon 0), 17/0 run again: an open item |
+
+Single player on the branch: scenario_check PASS (129 scenes), load_models_test 4/0, vr_run_check 12/0 (run B checked as
+`3 1 0 1 0` with `vr_run startgun 3`: Melee Only forces the gun to Nothing; `scratch/b3_runcheck.sh`), the Release
+build 0 warnings (the Debug build not run this phase). Every path this phase touched is a no-op in single player
+(`svs.maxclients` 1; the fist of player 1 the local one, as before).
+
+What changed:
+
+- `vr_clientprefs.cpp` (new): 32 per-player preferences, the settings of how a player's own hands and controls work that
+  the server's QC reads: the gun angles (`vr_gunangle`, `vr_gunyaw`, `vr_offhandpitch`, `vr_offhandyaw`,
+  `vr_handcal_off_mirror`), grips and holsters (`vr_weapon_grip_mode`, `vr_weapon_cycle_mode`, `vr_holster_mode`,
+  `vr_holster_haptics`, `vr_2h_handoff`, `vr_ammo_switch_empty_hand`), the reload modes (`vr_reload_mode` and the 12
+  per-weapon ones), `vr_forcegrab_mode`, `vr_handgrenade_arm`, and flat play's (`vr_flat_autoreload`,
+  `vr_flat_reload_hold`, `vr_flat_grenade_arm_mode`, `vr_flat_holster_drop_ahead`, `vr_flat_holsters`,
+  `vr_flat_saw_autostart`). Up as the `vr_prefs` client command (reliable, whitelisted in `sv_user.c`) when one changes,
+  at most every `vr_net_avatarcal_interval`; the server keeps them per slot (forgotten with the slot: `VR_ClientReset`).
+- The QC reads them unchanged: `cvar_hget` of a preference, in multiplayer, answers with the value of the player in
+  `self`, else in `other` (a touch: the item is `self`), else the server's; `clientpref(player, handle)` (new builtin)
+  names the player (used by the grip mode's two reads, `vr_wpnholster.qc`). Single player, demos, a slot whose prefs have
+  not come yet: the server's settings, as before (one compare more in `cvar_hget`).
+- The rig up: each hand's fist as the client poses it (`held::fist`: the closed jointed hand's spheres in the hand's
+  frame) as `vr_rig` commands (64ths of a unit, 24 spheres a command, one a frame, only with room in the reliable buffer;
+  again when a sphere moves more than a step). `held::fistOf(player, hand)` / `fistInWorld(player, ...)`: the local fist
+  for this game's own player (single player, a listen host's player 1: unchanged), else the one his client sent. The
+  server's fist users take it: the grab test (`held::grabTouch`), the armed humanoids' weapons, worn packs, weapons lying
+  about, the disarm gap, Box3D's fist spheres (`vr_box3d_hands.cpp`). Before, a remote player on a listen server was
+  judged by the host's fist, and on a dedicated server by the old box test.
+- `vr_mp_prefs` (Debug > Reports > Network: Player Preferences): this client's preferences off the defaults and its fists
+  (`mp_prefs_own:`), and hosting each player's as the server has them (`mp_prefs_sv:`: those unlike the server's own, his
+  fists' spheres and sums, the touches his own fist made). `QVR_NET_VERSION` 6.
+
+Decisions:
+
+- A preference's QC read answers for `self`, else `other` (not every read site converted to `clientpref`): the 2048
+  settings the QC reads stay one call each, and the player a personal setting is about is `self` in his own think and
+  weapon code and `other` in an item's touch. A read whose player is neither (a monster's code about a player) gets the
+  server's: convert it to `clientpref` when one matters.
+- Not preferences: aim assists (`vr_throw_assist`) and anything balance-like stay the server's (B6's rules); the
+  handedness settings (`vr_stick_swap`, `vr_gadget_arm`, `vr_flashlight_side`) are read by the client only (the gadget's
+  arm already goes up with the calibration).
+
+Open items (B3b):
+
+- `mp_avatar` once found A's main hand empty after the give with both grips held (14/1; 17/0 again): perhaps A's own
+  fists, now known to the dedicated server, closing on something first. Look at it with the take-back item below.
+- B's dropped shotgun, his fist on it 2-11 cm (allowed 5-6), was taken back in 2 runs of 4: the handtouch answers yes and
+  the QC's take still refuses (a remote-player shortcut in the take, `vr_builtins_held.inc`'s player-1 sites, or the
+  dropped gun's regrab rules): chase it first in B3b, then make `mp_grab`'s take a check.
+- The other fist users still read the local fist: the ragdoll grab fit (`vr_box3d_ragparts.cpp`, player 1 only), the
+  crawl's hand bottom (`vr_physics_water.cpp`), the carry check's debug lines.
+- The palm frame, hotspots, drawn pose, weapon hull, 2H carry and foe grab frames, body calibration up, the client-side
+  traces: B3b.
+
 ## Decisions
 
 - The harness is Python with an in-engine inbox rather than stdin or RCON: it drives GUI clients and dedicated servers
@@ -422,4 +483,4 @@ Open items:
   from outside, they always have legs (his body mode 1 or 2 is his own first-person view); his body mode 0 draws his
   player model as before.
 
-Next phase: B3 — per-client data: the prefs message and `clientpref`; the rig (palm frame, fists, hotspots, weapon hull) and body calibration up (also other players' bodies' measured arms and shoulders); the ~25 host shortcuts replaced; client-side traces for teleport, crosshair, flashlight, hand collision; `mp_prefs`, `mp_teleport`, `mp_grab`; melee sub-tick samples stay with B5.
+Next phase: B3b — the rest of B3: why B's dropped shotgun is not always taken back (then `mp_grab`'s take a check); the rest of the rig up (palm frame, weaponhotspot and the drawn pose, weapon hull, 2H carry and foe grab frames, the ragdoll grab fit, the crawl's hand bottom) and body calibration up (other players' bodies' measured arms and shoulders); client-side traces for teleport, crosshair, flashlight, hand collision; `mp_teleport`; melee sub-tick samples stay with B5.
