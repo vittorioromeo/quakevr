@@ -1956,6 +1956,46 @@ His flat notes 5, 6, 9 (2026-11-13).
 - **Not done:** the A/B benchmark tables (bench.sh --fast --reps 3, exclusive): the author's game was running.
   Settings for them (the agent worktree's scratch): vp_base.cfg (both 0), vp_grid.cfg (grid only), vp_all.cfg (both 1).
 
+## iconpick: icon picker rows; Run Setup's Difficulty, starting weapons and Enemy Count as pictures (agent/iconpick, 2026-11-14)
+
+- **Icon picker** (a general row type: `Item::icons`, `.iconPicker(list)`; `vr_menu_icons.inc`, included by
+  vr_menu.cpp): a cycle drawn as one picture a choice (`MenuIcon`: a model's thumbnail, N silhouettes of a model, or a
+  painted emblem), side by side under its label, each choice's name under its picture (two lines and smaller letters
+  where it does not fit its cell). Picked: lit on a framed plate, the name white; the others greyed (a grey copy of the
+  picture) and faded by `vr_menu_icon_dim` (0.55); the picture under the mouse or the VR laser (both through
+  M_Mousemove) in colour with a frame. A click on a picture picks it (per-picture hit test `iconAt`; between pictures
+  or on the label: only the row selected), left/right (keys, sticks) step as a cycle's do. Underneath it stays the
+  cycle (cvar, choices by name): menu paths, Search, `menu_vr dump`, the tests see the same. No drop-down for it. Same
+  code flat and in the headset. Pictures are drawn with the blood-red recolour off (their own colours).
+- **Pictures:** the toolgun's icon maker (vr_toolgun_icons.cpp, the same models: v_shot, v_nailpistol, v_revolver,
+  v_axe, v_dagger side views; soldier.mdl for Enemy Count), copied brightened 1.6x (Quake's dark guns on the dark
+  panel), grey, or white (silhouettes, tinted), each copy framed anew round what it covers (v_shot's far tiny parts
+  made its thumbnail a third of its square). "Nothing" is a painted open hand (hand.mdl read as a white block at this
+  size). Difficulty: painted emblems, 1/2/3 chevrons (green, yellow, orange), a bone skull (Nightmare), a red skull
+  dripping (Bloody Nightmare), three arches (a start map's Skill Halls). start.bsp's skill0..3 textures are only the
+  words written vertically, so not used. Copies made at first draw, kept for the session, the thumbnails' copies made
+  again after a game change (`menu::iconsGameDirChanged`).
+- **Knobs** (Menu Look > Run Setup): `vr_menu_icons` 1 (0: plain rows), `vr_menu_icon_size` 32 (16-48 menu px;
+  Difficulty, a big row, a quarter bigger), `vr_menu_icon_dim` 0.55. menu_paths.txt regenerated.
+- **Bloody Nightmare is Difficulty's fifth choice** (his call 2026-11-14; replaces runfix's separate row):
+  `vr_maps_skill` 4; the registry's `bn` row has no row of its own (`Mutator::ownRow` false) and is forced to the
+  Difficulty pick (`bloodyForced`), so the run's `vr_run_bn`, `applyBloody` (skill 3 + `vr_mg3_bn_start`), the save
+  line (`skill=3 bn=1`, old saves read the same), the summary ("Bloody Nightmare / ...") and Continue are unchanged.
+  `skill`'s run cvar is capped at 3 (`Mutator::activeMax`). `vr_runpick_bn` is no longer archived: an old config's
+  `vr_runpick_bn 1` sets Difficulty to Bloody Nightmare and clears itself. Official Campaigns > Bloody Nightmare sets
+  the pick to 4. **Decision:** a start map with skill halls now has a Difficulty row too, only "Skill Halls" (the last
+  normal difficulty kept as its value) or "Bloody Nightmare", so Bloody Nightmare stays selectable there (Dawn of the
+  Machine's start has halls).
+- **Tests:** vr_runsetup_screen_test 40/0 (adds: the four rows are icon pickers; every picture of each picked by a
+  click at its centre through VR_Menu_Mousemove + K_MOUSE1, the hover hit test checked; a click on the label picks
+  nothing; right steps through all and wraps, left wraps back; Bloody Nightmare's picture sets the bn row; a start
+  hall's Skill Halls / Bloody Nightmare by clicks keeps Hard; `vr_menu_icons 0` plain 8-px rows). vr_runsetup_test
+  78/0 (Bloody Nightmare: start skill 3, vr_run_bn 1, vr_mg3_bn_start 1, save line, summary, an older save's summary,
+  Hard clears it, the old cvar's migration). vr_runlaunch_test 31/0. `vr_menu_path_check maps/vrcalibration.map` 6
+  found, 0 missing. The real mouse path checked by `vr_mock_mouse 160 13 click` (Hard picked). Builds: dev and
+  ReleaseLTO (`-p:QvrReleaseVersion=1.1.0`) 0 warnings. Shots: `qvr-kit/scratch/iconpick_shots/`.
+- **Not checked:** the look in the headset (same canvas; the mock's screenshots are 960x540); the page now scrolls
+  more (four tall rows): folding helps.
 ## campvis: Select Campaign's hierarchy, Search's landing flash, the menu stops the walk (agent/campvis, 2026-11-14)
 
 His notes: Select Campaign was a wall of same-red, same-size lines; a Search result's row is hard to spot on long

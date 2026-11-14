@@ -31,6 +31,10 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+#include "vr_geom.hpp"
+#include "Zancle/Container/InPlaceVector.hpp"
+#include "vr_toolgun_icons.hpp"
 #include "vr_api.h"
 
 extern "C" cvar_t scr_fov; // gl_screen.c (Aim Sensitivity's help)
@@ -488,12 +492,12 @@ void playFiringRange() { Cbuf_AddText("map vrfiringrange\n"); }
 // Official Campaigns > Dawn of the Machine: Bloody Nightmare: skill 3 and vr_mg3_bn_start (the start map's first frame
 // makes it a Bloody Nightmare game, QC vr_mg3_defs.qc MG3_Frame), then the campaign as its own row starts it. While
 // the campaign cannot start, only its reason is printed and nothing is set.
-// Now through the Run Setup screen, its Bloody Nightmare row on (its rule: skill 3 and vr_mg3_bn_start at the start).
+// Now through the Run Setup screen, Difficulty's Bloody Nightmare chosen (skill 3 and vr_mg3_bn_start at the start).
 void playMg3BloodyNightmare()
 {
     if(VR_CampaignUnavailable(5) == 0)
     {
-        Cvar_Set("vr_runpick_bn", "1");
+        Cvar_SetValueQuick(&vr_maps_skill, static_cast<float>(qvr::runsetup::skillBloody));
     }
     openRunSetupCampaign(5);
 }
@@ -2634,6 +2638,9 @@ void consoleEdges(float& left, float& right);
 // A VR page's rows' leftmost text (menu x), for the corner's buttons (menu::contentLeft): each label right-aligned
 // to the values' column (drawItem: midPos - 28 - its width), headers and lines of information centred (these 40
 // characters at most). Kept per page and build (MenuInstance::rowsLeft).
+[[nodiscard]] bool iconRowOn(const Item& item); // (vr_menu_icons.inc: an icon picker's row, its leftmost picture)
+[[nodiscard]] int iconRowLeft(const Item& item);
+
 [[nodiscard]] int pageRowsLeft()
 {
     if(ui().rowsLeft.page != ui().page || ui().rowsLeft.build != builds[ui().page])
@@ -2646,6 +2653,7 @@ void consoleEdges(float& left, float& right);
             const int len = item.label ? static_cast<int>(strlen(item.label)) : 0;
             const int dim = item.kind == Item::Header || item.look != Item::Normal ? letterSize(item) : 8;
             const int x = item.kind == Item::Header ? (320 - dim * len) / 2 - dim - 10 // (its fold arrow and bar left of it)
+                          : iconRowOn(item) ? iconRowLeft(item)
                           : item.kind == Item::Info || item.look == Item::Button ? 0
                                                     : midPos - 28 - dim * len;
             // (a setting's room for its "changed" mark left of its label: drawItem)
@@ -2689,8 +2697,14 @@ void consoleEdges(float& left, float& right);
 
 // A row's height unfolded: 8, its letters' for a footer's or a big row, a button's with room round its label. A header
 // stays 8 high: its bigger letters reach up into the gap above it (rowGap).
+[[nodiscard]] int iconRowHeight(const Item& item); // (vr_menu_icons.inc)
+
 [[nodiscard]] int fullHeight(const Item& item)
 {
+    if(iconRowOn(item))
+    {
+        return iconRowHeight(item);
+    }
     if(item.look == Item::Button)
     {
         return letterSize(item) + 8;
@@ -3942,7 +3956,7 @@ constexpr int dropDownBar = 16; // the scrollbar's column, inside the box's righ
 
 [[nodiscard]] bool opensDropDown(const Item& item)
 {
-    return item.kind == Item::Cycle && vr_menu_dropdown.value >= 2.f && item.cvar &&
+    return item.kind == Item::Cycle && vr_menu_dropdown.value >= 2.f && item.cvar && !iconRowOn(item) &&
            static_cast<int>(item.choices.size()) >= static_cast<int>(vr_menu_dropdown.value) && !isToggle(item);
 }
 
@@ -4245,6 +4259,8 @@ void drawArrowChar(int x, int y)
     M_DrawCharacter(x, y, 12 + (static_cast<int>(realtime * 4) & 1));
 }
 
+#include "vr_menu_icons.inc"
+
 void drawItemLooked(const Item& item, int y, float open, bool selected);
 
 // `text` in `out` at most `chars` characters, cut at a word (a run's " / " parts, else a space) with " ..." after it
@@ -4437,6 +4453,11 @@ void drawItemLooked(const Item& item, int y, float open, bool selected)
             menuui::paintFoldArrow(arrowX, static_cast<float>(ty) + static_cast<float>(dim) * 0.5f, static_cast<float>(dim) * 0.32f, open);
         }
         M_PrintWhiteEx(x, ty, dim, item.label);
+        return;
+    }
+    if(iconRowOn(item))
+    {
+        drawIconRow(item, y, selected); // (an icon picker: vr_menu_icons.inc)
         return;
     }
     if(item.look == Item::Button)
@@ -5088,6 +5109,11 @@ void qvr::menu::init()
     }
     Cvar_SetCallback(&vr_menu_bullettime, onWrapperSet);
     Cvar_SetCallback(&vr_menu_pickup_mode, onWrapperSet);
+}
+
+void qvr::menu::iconsGameDirChanged()
+{
+    menu_detail::iconsGameDirChangedImpl();
 }
 
 void qvr::menu::command_f()
@@ -5789,6 +5815,11 @@ extern "C" void VR_Menu_Key(int key, int repeat)
                 }
                 break;
             }
+            if(iconRowOn(list[cursor]))
+            {
+                (void)iconRowClick(list, cursor, m_mousex, m_mousey); // (the picture under it picked; between them nothing)
+                break;
+            }
             if(opensDropDown(list[cursor]))
             {
                 openDropDown(list[cursor], cursor);
@@ -5892,6 +5923,8 @@ extern "C" void VR_Menu_Mousemove(float cx, float cy)
         }
         return;
     }
+
+    iconRowMouse(list, cx, cy); // (over an icon picker: the picture under it outlined)
 
     // Over a button row: the button under it picked.
     if(const int raw = rowAtRaw(cy); raw >= 0 && list[raw].buttons > 0 && list[raw].partOf > 0 && buttonAt(list[raw], cx) != ui().button)
