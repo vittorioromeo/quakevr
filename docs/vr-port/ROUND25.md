@@ -2214,3 +2214,9 @@ the window's zones, worst frames and GPU passes; map loads by stage. Everything 
   temporary stack's peak there: 12,672 bytes in its one 256 KiB chunk); the release configuration (MSBuild ReleaseLTO,
   QvrReleaseVersion=1.1.0) builds with no error or warning.
 - Scripts: scratch/hf_*.sh, hf_*.py (hf_bisect.sh: the per-site bisection; the fill switch was temporary, removed).
+
+## mpsp: two single-player-relevant fixes from agent/mp
+
+- Cherry-picked 27537ab7c: every move read since the server's last frame counts (buttons and VR bits ORed, so a press and release between two ticks is not lost); per-slot move state reset on connect and drop (sv_user.c, host.c, sv_main.c, vr_server.cpp).
+- net_dgrm.c only from dd49030c2: a second client from the same IP on another port no longer closes the first one's connection (only the exact address and port counts as a duplicate); the harness and engine-aid parts of that commit stay on agent/mp.
+- Checks: dev and ReleaseLTO 1.1.0 builds, scenario_check, load_models_test, flatkeys/flatholster/flatswap, throw_trigger_test, vr_run_check 9/0.
