@@ -544,6 +544,15 @@ QVR_CVAR(vr_debug_mirror_vsync, "0", CVAR_NONE)
 // of the panel's area on Auto), at the next VR start: smaller images cost less to render, copy (SteamVR's OpenGL path
 // copies each into its own textures) and keep in video memory. 0.5 .. 1.
 QVR_CVAR(vr_xr_eye_scale, "1", CVAR_ARCHIVE)
+// The Quest's runtime (Android; the PC's runtimes never get these extensions; vr_backend_openxr_quest.cpp), applied
+// while the session runs, again when changed; 0 leaves the runtime's own. vr_xr_refresh_rate: the display's refresh
+// rate in Hz (XR_FB_display_refresh_rate; the nearest one offered, e.g. 72, 90, 120). vr_xr_cpu_level and
+// vr_xr_gpu_level (XR_EXT_performance_settings): 1 power savings, 2 sustained low, 3 sustained high, 4 boost.
+// vr_xr_foveation (XR_FB_foveation): the eye images' fixed foveation, 1 low, 2 medium, 3 high (dynamic: off).
+QVR_CVAR(vr_xr_refresh_rate, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_xr_cpu_level, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_xr_gpu_level, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_xr_foveation, "0", CVAR_ARCHIVE)
 // The headset panel's pixels per eye, "WxH", for the menu's status box (the runtime's resolution and the eyes' as a
 // share of it, and its warning); "" looked up by the headset's name (Quest 2, 3, 3S, Pro, Index, Vive, Reverb G2,
 // Pico 4...: SteamVR names none, Virtual Desktop and Meta do).

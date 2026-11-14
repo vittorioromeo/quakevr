@@ -47,6 +47,8 @@ bool OpenXrBackend::beginFrame(TrackingState& tracking, FrameState& frame)
             fetchHiddenArea(eye);
         }
     }
+    const XrSwapchain eyeHandles[2] = {swapchains[0].handle, swapchains[1].handle};
+    quest.apply(session, eyeHandles); // (Android: the refresh rate, CPU/GPU levels, foveation when changed)
 
     XrFrameWaitInfo waitInfo{XR_TYPE_FRAME_WAIT_INFO};
     frameState = XrFrameState{XR_TYPE_FRAME_STATE};
@@ -434,6 +436,8 @@ void OpenXrBackend::fetchHiddenArea(int eye)
 bool OpenXrBackend::createSwapchain(Swapchain& sc, int32_t width, int32_t height, XrSwapchainUsageFlags usage, const char* what)
 {
     XrSwapchainCreateInfo info{XR_TYPE_SWAPCHAIN_CREATE_INFO};
+    XrSwapchainCreateInfoFoveationFB foveationInfo{XR_TYPE_SWAPCHAIN_CREATE_INFO_FOVEATION_FB};
+    info.next = &sc != &panel ? quest.swapchainNext(foveationInfo) : nullptr; // (the eyes: foveation-capable, Quest)
     info.usageFlags = usage;
     info.format = colorFormat;
     info.sampleCount = 1;
@@ -498,7 +502,7 @@ bool OpenXrBackend::createSwapchain(Swapchain& sc, int32_t width, int32_t height
         return false;
     }
     sc.images.clear();
-    sc.images.resize(imageCount, XrSwapchainImageOpenGLKHR{XR_TYPE_SWAPCHAIN_IMAGE_OPENGL_KHR});
+    sc.images.resize(imageCount, SwapchainImageGl{swapchainImageGlType});
     step("%s: xrEnumerateSwapchainImages (%u OpenGL images)", what, imageCount);
     if(!contextReady(what))
     {
@@ -512,7 +516,7 @@ bool OpenXrBackend::createSwapchain(Swapchain& sc, int32_t width, int32_t height
     {
         return false;
     }
-    for(const XrSwapchainImageOpenGLKHR& image : sc.images)
+    for(const SwapchainImageGl& image : sc.images)
     {
         if(image.image == 0)
         {
@@ -521,7 +525,7 @@ bool OpenXrBackend::createSwapchain(Swapchain& sc, int32_t width, int32_t height
         }
     }
     // Named for vr_vram_report (the runtime's textures, in our context; a name that is not ours: a GL error, cleared).
-    for(const XrSwapchainImageOpenGLKHR& image : sc.images)
+    for(const SwapchainImageGl& image : sc.images)
     {
         GL_ObjectLabelFunc(GL_TEXTURE, image.image, -1, va("xr swapchain %s", what));
     }

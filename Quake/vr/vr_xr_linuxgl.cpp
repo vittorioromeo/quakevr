@@ -1,12 +1,15 @@
 // vr_xr_linuxgl.cpp -- Linux: the game's GLX or EGL context for the OpenXR session's binding (vr_xr_linuxgl.hpp).
+// Android (the Quest): EGL alone (SDL's ES context, XR_KHR_opengl_es_enable's binding), no GLX.
 
 #if defined(QVR_HAVE_OPENXR) && !defined(_WIN32)
 
 #include "vr_xr_linuxgl.hpp"
 
+#ifndef __ANDROID__
 #include <GL/glx.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#endif
 
 #include <dlfcn.h>
 #include <stdio.h>
@@ -78,6 +81,12 @@ const Egl& eglFunctions()
     return egl;
 }
 
+#ifdef __ANDROID__
+bool glxCurrent(Binding&, const char**)
+{
+    return false; // (no GLX on Android)
+}
+#else
 bool glxCurrent(Binding& out, const char** why)
 {
     Display* const display = glXGetCurrentDisplay();
@@ -116,6 +125,7 @@ bool glxCurrent(Binding& out, const char** why)
     *why = out.fbConfig ? "" : "the GLX context's FBConfig not found (bound without it)";
     return true;
 }
+#endif
 
 bool eglCurrent(Binding& out, const char** why)
 {
@@ -184,21 +194,25 @@ bool same(const Binding& a, const Binding& b)
 
 bool makeCurrent(const Binding& b)
 {
+#ifndef __ANDROID__
     if(b.api == Api::Glx)
     {
         return b.display && glXMakeCurrent(static_cast<Display*>(b.display), b.drawable, static_cast<GLXContext>(b.context));
     }
+#endif
     const Egl& e = eglFunctions();
     return b.api == Api::Egl && e.makeCurrent && e.makeCurrent(b.eglDisplay, b.eglDraw, b.eglRead, b.context);
 }
 
 void release()
 {
+#ifndef __ANDROID__
     if(Display* const display = glXGetCurrentDisplay(); display && glXGetCurrentContext())
     {
         glXMakeCurrent(display, None, nullptr);
         return;
     }
+#endif
     const Egl& e = eglFunctions();
     if(e.getCurrentDisplay && e.makeCurrent)
     {
@@ -216,7 +230,11 @@ void* proc(Api api, const char* name)
         void* const fn = eglGetProcAddressFn();
         return fn ? reinterpret_cast<void* (*)(const char*)>(fn)(name) : nullptr;
     }
+#ifdef __ANDROID__
+    return nullptr;
+#else
     return reinterpret_cast<void*>(glXGetProcAddressARB(reinterpret_cast<const GLubyte*>(name)));
+#endif
 }
 
 void* eglGetProcAddressFn()

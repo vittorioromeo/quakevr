@@ -57,12 +57,20 @@ while read -r f; do win "$f" >> "$win_classes"; done < "$out/classes.txt"
 # The libraries, stripped (the unstripped ones stay in the build folder: a crash report's addresses resolve there).
 "$strip" --strip-unneeded -o "$(win "$stage/lib/arm64-v8a/libquakevr.so")" "$(win "$native/libquakevr.so")"
 "$strip" --strip-unneeded -o "$(win "$stage/lib/arm64-v8a/libSDL2.so")" "$(win "$native/sdl2/libSDL2.so")"
+# Khronos' OpenXR loader (C4a: the build copies it beside libquakevr.so when it has OpenXR), as Khronos ships it.
+if [ -f "$native/libopenxr_loader.so" ]; then
+	cp "$native/libopenxr_loader.so" "$stage/lib/arm64-v8a/libopenxr_loader.so"
+fi
 if [ -n "${QVR_STEAMAUDIO_DIR:-}" ] && [ -f "$QVR_STEAMAUDIO_DIR/lib/android-armv8/libphonon.so" ]; then
 	cp "$QVR_STEAMAUDIO_DIR/lib/android-armv8/libphonon.so" "$stage/lib/arm64-v8a/libphonon.so"
 fi
 
 # The manifest (its package named here: Gradle takes it from the module's namespace) and the package.
-sed 's|<manifest |<manifest package="com.vittorioromeo.quakevr" |' "$here/app/src/main/AndroidManifest.xml" > "$out/AndroidManifest.xml"
+# QVR_ANDROID_FLAT=1: the flat-panel APK (the manifest's vr-only lines left out: no VR category or head tracking).
+vrOnly='p'
+[ "${QVR_ANDROID_FLAT:-0}" = "1" ] && vrOnly='/vr-only/d;p'
+sed -n -e "$vrOnly" "$here/app/src/main/AndroidManifest.xml" |
+	sed 's|<manifest |<manifest package="com.vittorioromeo.quakevr" |' > "$out/AndroidManifest.xml"
 "$bt/aapt2$exe" link -o "$(win "$out/unaligned.apk")" -I "$(win "$androidJar")" \
 	--manifest "$(win "$out/AndroidManifest.xml")" \
 	--min-sdk-version 29 --target-sdk-version 32 --version-code 1 --version-name 1.1.0

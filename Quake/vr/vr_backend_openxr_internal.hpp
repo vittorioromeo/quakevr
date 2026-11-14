@@ -43,6 +43,17 @@
 #include <unknwn.h> // IUnknown, which openxr_platform.h needs and lean Windows headers omit
 
 #define XR_USE_PLATFORM_WIN32
+#elif defined(__ANDROID__)
+// Android (the Quest): the loader's Android init and instance (XR_KHR_loader_init_android,
+// XR_KHR_android_create_instance: the JavaVM and the activity) and the ES binding (XrGraphicsBindingOpenGLESAndroidKHR,
+// XR_KHR_opengl_es_enable: SDL's EGL display, config and context, found as on Linux: vr_xr_linuxgl.hpp).
+#include "vr_xr_linuxgl.hpp"
+#include <EGL/egl.h>
+#include <jni.h>
+#include <pthread.h>
+#include <unistd.h>
+#define XR_USE_PLATFORM_ANDROID
+#define XR_USE_GRAPHICS_API_OPENGL_ES
 #else
 // Linux: the GLX binding (XrGraphicsBindingOpenGLXlibKHR) or the EGL one (XrGraphicsBindingEGLMNDX). Their X11, GLX
 // and EGL types declared as Xlib.h, glx.h and egl.h have them (without those headers' macros here:
@@ -74,6 +85,51 @@ typedef void* EGLContext;
 
 namespace qvr::oxr
 {
+
+// A swapchain's GL image: XR_KHR_opengl_enable's, or XR_KHR_opengl_es_enable's on Android (the same fields).
+#ifdef __ANDROID__
+using SwapchainImageGl = XrSwapchainImageOpenGLESKHR;
+inline constexpr XrStructureType swapchainImageGlType = XR_TYPE_SWAPCHAIN_IMAGE_OPENGL_ES_KHR;
+#else
+using SwapchainImageGl = XrSwapchainImageOpenGLKHR;
+inline constexpr XrStructureType swapchainImageGlType = XR_TYPE_SWAPCHAIN_IMAGE_OPENGL_KHR;
+#endif
+
+// The Quest's runtime extensions (vr_backend_openxr_quest.cpp), each enabled when offered, on Android alone (the PC's
+// runtimes never get them: its behaviour unchanged): XR_FB_display_refresh_rate (vr_xr_refresh_rate),
+// XR_EXT_performance_settings (vr_xr_cpu_level, vr_xr_gpu_level), XR_FB_foveation with XR_FB_foveation_configuration
+// and XR_FB_swapchain_update_state (vr_xr_foveation: the eye swapchains' fixed foveation). All in Khronos' headers
+// (Meta's SDK has only its preview extensions besides). Every setting's 0 leaves the runtime's own.
+struct QuestExtensions
+{
+    bool refreshRate{false};
+    bool perfSettings{false};
+    bool foveation{false};      // (the three extensions together)
+    uint8_t foveationParts{0}; // the three's bits, as offered (want)
+    PFN_xrEnumerateDisplayRefreshRatesFB enumerateRefreshRates{nullptr};
+    PFN_xrRequestDisplayRefreshRateFB requestRefreshRate{nullptr};
+    PFN_xrPerfSettingsSetPerformanceLevelEXT setPerformanceLevel{nullptr};
+    PFN_xrCreateFoveationProfileFB createFoveationProfile{nullptr};
+    PFN_xrDestroyFoveationProfileFB destroyFoveationProfile{nullptr};
+    PFN_xrUpdateSwapchainFB updateSwapchain{nullptr};
+    // The values applied (apply: again when a cvar or an eye swapchain changes; -1: not yet).
+    float refreshApplied{-1.f};
+    float cpuApplied{-1.f};
+    float gpuApplied{-1.f};
+    float foveationApplied{-1.f};
+    XrSwapchain foveated[2]{XR_NULL_HANDLE, XR_NULL_HANDLE};
+
+    // Requests `offered` when it is one of these (Android): appended to `enabled`. Off Android, nothing.
+    void want(const char* offered, za::Vector<const char*>& enabled);
+    // The functions, after xrCreateInstance (an extension without them is dropped).
+    void bind(XrInstance instance);
+    // The cvars' values, when they or the eye swapchains changed (a running session; every frame, cheap).
+    void apply(XrSession session, const XrSwapchain (&eyes)[2]);
+    // Chained into an eye swapchain's create info (XR_FB_foveation: its images foveation-capable); null: not.
+    [[nodiscard]] const void* swapchainNext(XrSwapchainCreateInfoFoveationFB& storage) const;
+    // The refresh rates offered and the levels, for the log (start).
+    void log(XrSession session) const;
+};
 
 // Reads away the GL errors left pending (at most 16): the runtime's own GL calls check glGetError.
 inline void drainGlErrors()
@@ -246,7 +302,7 @@ private:
         XrSwapchain handle{XR_NULL_HANDLE};
         int32_t width{0};
         int32_t height{0};
-        za::Vector<XrSwapchainImageOpenGLKHR> images;
+        za::Vector<SwapchainImageGl> images;
     };
 
     XrInstance instance{XR_NULL_HANDLE};
@@ -328,6 +384,7 @@ private:
     xrgl::Binding glctx;                          // the game's GLX or EGL context, as bound to the session
     bool eglExtension{false};                     // XR_MNDX_egl_enable enabled (the EGL binding possible)
 #endif
+    QuestExtensions quest;                        // the Quest's runtime extensions (Android)
     xrruntime::Attempt currentAttempt;            // the runtime being started (start())
     float debugButtonsWas{0.f};                   // vr_debug_buttons last frame
     PFN_xrGetVisibilityMaskKHR getVisibilityMask{nullptr};
