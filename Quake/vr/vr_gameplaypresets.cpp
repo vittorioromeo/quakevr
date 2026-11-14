@@ -91,6 +91,8 @@ constexpr presetcore::Row rows[] = {
     {&vr_reload_mode_adplasma,          {"-1",    D,     D}},
     {&vr_reload_mode_npistol,           {"-1",    D,     D}},
     {&vr_reload_mode_revolver,          {"-1",    D,     D}},
+    // Flat-screen play's own reloading (at the hips, whatever the modes above): Classic has none there either.
+    {&vr_flat_reload,                   {"0",     D,     D}},
     {&vr_weapon_recoil,                 {"0",     D,     D}},
     // The world
     {&vr_portals_walk,                  {"0",     D,     D}}, // seamless teleporters (0: Quake's teleport)
@@ -226,12 +228,14 @@ void testCmd()
     t.check(vr_agrunt_repl.value == 0.f && vr_portals_walk.value == 0.f && vr_reload_mode.value == 0.f, name,
         "Classic: no armed grunts, Quake's teleporters, no reloading");
     t.check(reloadModeBest() == 0, name, "Classic: no gun reloads, even with a per-gun override set before");
+    t.check(vr_flat_reload.value == 0.f, name, "Classic: no reloading in flat-screen play either (vr_flat_reload 0)");
     t.check(vr_grunt_burst.value == 0.f && vr_agknight.value == 0.f && vr_agdknight.value == 0.f, name,
         "Classic: plain grunts (no burst rifle), plain knights");
     presetKind.apply(levelLight);
     t.check(presetKind.differing(levelLight, true) == 0 && presetKind.matchingLevel() == levelLight, name, "Light sets every row");
     t.check(vr_knockdown.value == 0.f && vr_portals_walk.value != 0.f && vr_reload_mode.value != 0.f && vr_crates.value != 0.f,
         name, "Light: no knockdowns, seamless teleporters, reloading and crates kept");
+    t.check(vr_flat_reload.value != 0.f, name, "Light: flat-screen reloading kept");
     presetKind.apply(levelUnleashed);
     int notDefault = 0;
     for(const presetcore::Row& row : rows)
