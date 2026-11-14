@@ -1955,3 +1955,21 @@ His flat notes 5, 6, 9 (2026-11-13).
   so vkQuake's parallel skin loading does not carry over; per-model draw lists are the next candidate (not done).
 - **Not done:** the A/B benchmark tables (bench.sh --fast --reps 3, exclusive): the author's game was running.
   Settings for them (the agent worktree's scratch): vp_base.cfg (both 0), vp_grid.cfg (grid only), vp_all.cfg (both 1).
+
+## rlvents: the rocket launcher's three vents are real recesses (agent/rlvents, 2026-11-14)
+
+- **What:** the three vents painted at the back of the front shroud (the chevron on the top fin's rear end, an arch on
+  each side fin's) are cut into `src_models/blend/v_rock2/v_rock2.blend` (frame 0) and exported with the add-on's
+  pipeline (`blend_export.py`): each fin's rear end faces are rebuilt as a rim around an opening traced from the painted
+  dark texels (its corners on texel centres, so the rim's skin maps as before), and the opening goes into the fin as a
+  recess (walls and a back face, on a black texel of the vent paint). Depth 2.0 units on top, 1.5 on the sides; each
+  recess runs along the body's surface under it (top: +x rising 0.12; sides: +x outward 0.121), so it never enters the
+  body: the closest point is 0.14 units outside it, the backs 0.24-0.37 inside the fins.
+- **Numbers:** 935 -> 1047 triangles (928 kept in place, 119 new), 97 new file vertices; every anchor `ok` (the off
+  hand's sits on the left fin's outer corner, kept); holes check: 0 see-through, 0 flipped, cracks 1 -> 2 (0 wide);
+  0 texels changed; the normal map re-baked; weapons.txt's `fx_gfx_mask` re-written on the new triangle count. A second
+  export of the saved .blend writes the same files byte for byte.
+- **The pickup:** map pickups draw the held model (`vr_pickup_prop_models 1`, the default), so they show the vents too;
+  the classic `g_rock2.mdl` (vr_pickup_prop_models 0) is a separate low-poly mesh and was left alone.
+- **Tests:** load_models_test.sh 4/4; flat screenshots held (hip, sighted, sighted at fov 45) and on the floor, before and
+  after, and Blender close-ups: kit `scratch/rlvents_shots/`. Scene: `quakevr/scenarios/rl_vents.txt`.

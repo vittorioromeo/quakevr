@@ -1,0 +1,9 @@
+# rl_vents: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The rocket launcher's three fin vents
+# cut as real recesses (v_rock2.blend; docs/vr-port/ROUND25.md, "rlvents").
+title The rocket launcher's hollow vents
+hint Hold the rocket launcher and look down it from your hand: the three vents at the back of the front shroud (the chevron on the top fin, an arch on each side fin) are real holes now, black inside, with walls and a back. Look into them from an angle; one on the floor too.
+map vrtesthall
+god
+notarget
+give "Rocket Launcher" main
+spawn "Rocket Launcher" 60 0
