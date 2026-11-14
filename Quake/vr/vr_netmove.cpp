@@ -50,6 +50,7 @@ void visitMove(WireMove& m, V& v)
     v.abs(r.origin, posScale);
     const glm::vec3& o = r.origin;
     v.real(m.time, timeScale);
+    v.real(m.frameTime, clockScale);
     v.abs(m.viewAngles, angScale);
     v.integer(m.forward);
     v.integer(m.side);
@@ -493,6 +494,22 @@ void clientClear()
     memset(c.seqs, 0, sizeof(c.seqs));
 }
 
+za::U32 clientNewest()
+{
+    return clientState.nextSeq - 1;
+}
+
+bool clientMoveAt(za::U32 seq, WireMove& m)
+{
+    const ClientState& c = clientState;
+    if(seq == 0 || seq >= c.nextSeq || c.seqs[seq % ring] != seq)
+    {
+        return false;
+    }
+    dequantize(c.moves[seq % ring], m); // (the integers sent: the server's values exactly)
+    return true;
+}
+
 bool serverRead(client_t* client, ApplyFn apply)
 {
     const int slotNum = static_cast<int>(client - svs.clients);
@@ -572,6 +589,12 @@ bool serverSends(int slotNum)
     return slot && slot->sends;
 }
 
+za::U32 serverLast(int slotNum)
+{
+    const ServerSlot* slot = slotOf(slotNum, false);
+    return slot ? slot->last : 0;
+}
+
 void serverReset(int slotNum)
 {
     if(ServerSlot* slot = slotOf(slotNum, false))
@@ -608,6 +631,7 @@ void fillMove(WireMove& m, int seed)
     VrMove& r = m.vr;
     r.origin = glm::vec3{512.f + s * 3.1f, -1024.5f + s, 64.f};
     m.time = 1234.567f + s * 0.0139f;
+    m.frameTime = 0.01389f + s * 0.0001f;
     m.viewAngles = glm::vec3{-10.f + s, 271.3f, 0.5f};
     m.forward = 200;
     m.impulse = seed & 1;

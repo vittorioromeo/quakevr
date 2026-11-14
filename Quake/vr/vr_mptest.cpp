@@ -18,6 +18,7 @@
 #include "vr_geom.hpp"
 #include "vr_mpavatar.hpp"
 #include "vr_netmove.hpp"
+#include "vr_predict.hpp"
 #include "vr_netsnap.hpp"
 #include "vr_progs.hpp"
 #include "vr_clientprefs.hpp"
@@ -252,6 +253,7 @@ void status_f()
     Con_Printf("mp_snapcl: decoded=%d undecodable=%d bad=%d records=%d bytes=%lld interp=%d delay_ms=%.1f holds=%d\n",
         cs.decoded, cs.undecodable, cs.bad, cs.records, cs.bytes, qvr::netsnap::interpActive() ? 1 : 0,
         qvr::netsnap::interpDelayMs(), qvr::netsnap::interpHolds());
+    qvr::predict::report(); // (B8: our own walk predicted)
     if(sv.active)
     {
         int spawned = 0;
@@ -427,6 +429,7 @@ extern "C" void VR_MpTestInit(void)
     Cmd_AddCommand("vr_mp_status", status_f);
     Cmd_AddCommand("vr_mp_trace", trace_f);
     qvr::netmove::init(); // vr_netmove_selftest
+    qvr::predict::init(); // vr_mp_predict_report, vr_mp_predict_probe
     qvr::netsnap::init(); // vr_netsnap_selftest
     Cmd_AddCommand("vr_goto_exit", gotoExit_f);
     Cmd_AddCommand("vr_hurt", hurt_f);

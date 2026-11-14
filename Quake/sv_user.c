@@ -434,6 +434,9 @@ void SV_ClientThink (void)
 		angles[YAW] = v_angle[YAW];
 	}
 
+	if (VR_PredictThink (sv_player)) // QVR: a remote client's walk runs his moves one by one in the physics (vr/vr_predict.cpp, B8)
+		return;
+
 	if ( (int)sv_player->v.flags & FL_WATERJUMP )
 	{
 		SV_WaterJump ();
@@ -702,6 +705,7 @@ void SV_RunClients (void)
 			continue;
 
 		sv_player = host_client->edict;
+		VR_PredictBeginRead (host_client); // QVR: his moves queue as they are read (vr/vr_predict.cpp, B8)
 
 		if (!SV_ReadClientMessage ())
 		{

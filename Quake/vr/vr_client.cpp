@@ -4,6 +4,7 @@
 #include "vr_agarmor.hpp"
 #include "vr_mpavatar.hpp"
 #include "vr_netmove.hpp"
+#include "vr_predict.hpp"
 #include "vr_netsnap.hpp"
 #include "vr_mpdownload.hpp"
 #include "vr_clientprefs.hpp"
@@ -981,6 +982,7 @@ extern "C" void VR_OnClientClearState()
     lateBrushModels.clear();
     mpavatar::clear(); // (the other players' avatars: the new server's come)
     netmove::clientClear(); // (no acknowledged move: the next sent whole, B7)
+    predict::clientClear(); // (no state from the server: his own walk drawn as it comes until one, B8)
     netsnap::clientClear(); // (no snapshot read: the server's next whole, B7b; the interpolation buffer empty)
     clientprefs::clientClear(); // (ours go up to it again)
     particles::clear();
@@ -1047,6 +1049,7 @@ extern "C" void VR_WriteMoveExtras(sizebuf_t* buf, int forward, int side, int up
             // instead, with the moves the server has not acknowledged (MP_PLAN.md, B7).
             netmove::WireMove m;
             m.time = static_cast<float>(cl.mtime[0]);
+            m.frameTime = static_cast<float>(host_frametime); // (this tick's: the server walks him for it, as his prediction does)
             m.viewAngles = glm::vec3{cl.viewangles[0], cl.viewangles[1], cl.viewangles[2]};
             m.forward = forward;
             m.side = side;
@@ -1142,6 +1145,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_ARENAMESSAGE: worldtext::clientParseViewMessage(true); break;
         case QVR_SVC_AVATAR: mpavatar::parse(); break; // another player's head and hands (vr_mpavatar.cpp)
         case QVR_SVC_MOVEACK: netmove::parseAck(); break; // the newest of our moves the server read (vr_netmove.cpp)
+        case QVR_SVC_PREDICT: predict::parseState(); break; // our state after the newest of our moves the server ran (vr_predict.cpp)
         case QVR_SVC_SNAPSHOT: netsnap::parse(); break; // our state, the entities and avatars, delta-coded (vr_netsnap.cpp)
         case QVR_SVC_PACKAGE: mpdownload::parsePackage(); break; // the server's map package (vr_mpdownload.cpp)
         case QVR_SVC_AVATARCAL: mpavatar::parseCalibration(); break; // a player's height, arms, gloves, body (vr_mpavatar.cpp)

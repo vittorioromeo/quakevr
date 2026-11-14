@@ -1317,6 +1317,7 @@ qboolean SV_SendClientDatagram (client_t *client)
 // add the client specific data to the datagram
 	snap = VR_SnapBegin (client); // QVR: a remote client's: its player state and entities as a snapshot (vr/vr_netsnap.cpp)
 	SV_WriteClientdataToMessage (client->edict, &msg);
+	VR_WritePredict (&msg, client); // QVR: a remote client's state after the newest of his moves run (vr/vr_predict.cpp, B8)
 
 	SV_WriteEntitiesToClient (client->edict, &msg);
 	if (snap)

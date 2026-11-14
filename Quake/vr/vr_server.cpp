@@ -46,6 +46,7 @@
 #include "Zancle/Math/Clamp.hpp"
 #include "vr_api.h"
 #include "vr_netmove.hpp"
+#include "vr_predict.hpp"
 #include "vr_netsnap.hpp"
 
 
@@ -959,6 +960,7 @@ extern "C" void VR_ClientReset(client_t* client)
         avatarsSent[clientNum] = {};
     }
     netmove::serverReset(clientNum); // (his moves' sequence and bases: a new connection's start again)
+    predict::serverReset(clientNum); // (his queued moves and their clock, B8)
     netsnap::serverReset(clientNum); // (and his snapshots: the next whole until he acknowledges one, B7b)
     mpavatar::serverReset(clientNum); // (his avatar calibration gone; the clients told)
     clientprefs::serverReset(clientNum); // (and his preferences: the server's until the next player's come)
@@ -1091,6 +1093,7 @@ void applyNetMove(client_t* client, const netmove::WireMove& m, bool /*newest*/)
 {
     VR_ApplyClientMove(client, m.time, &m.viewAngles[0], m.forward, m.side, m.up, m.buttons, m.impulse);
     applyVrMove(client, m.vr);
+    predict::serverQueue(client, m); // (his walk runs move by move in the frame's physics, B8)
 }
 
 } // namespace

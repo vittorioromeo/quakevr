@@ -86,6 +86,12 @@ void moveSize(const edict_t* ent, float& width, float& height);
 // world: 1 if it gets there, 0 if not, -1 when narrowing is off (Quake's hull 1 is used).
 [[nodiscard]] int playerBoxFits(qmodel_t* world, const glm::vec3& start, const glm::vec3& end);
 
+// A remote client's prediction (vr_predict.cpp): the standing player's box `width` wide (the server's vr_hull_width) from
+// start to end against `model` (the client's map `world` or one of its brush models, in the model's own space), as the
+// server's SV_Move meets it. False: width 0, a server in this game (its map's brushes), or not the map's model.
+[[nodiscard]] bool clientPlayerTrace(qmodel_t* world, qmodel_t* model, float width, const float* start, const float* end,
+    trace_t& trace);
+
 // A client's move received (vr_server.cpp): his crouch from his head's height over his feet: crouched
 // when his eyes are under the crouched box's top (vr_crouch_height); standing again once they are back over it and the
 // standing box fits where he is. flatscreenCrouch (vr_flatplay.cpp, vr_server.cpp): whether the flatscreen player's

@@ -28,6 +28,7 @@ namespace qvr::netmove
 struct WireMove
 {
     float time{0.f};             // the client's cl.mtime[0] (the server's ping)
+    float frameTime{0.f};        // the client frame it covers, seconds (B8: the server runs his walk for it, as his prediction does)
     glm::vec3 viewAngles{0.f};
     int forward{0}, side{0}, up{0};
     int buttons{0};              // clc_move's bits (1 attack, 2 jump)
@@ -62,6 +63,9 @@ void writeMoves(sizebuf_t* buf, const WireMove& m, bool record);
 // QVR_SVC_MOVEACK's body; a new connection's or map's state (VR_OnClientClearState).
 void parseAck();
 void clientClear();
+// The newest move sent (0: none yet) and a sent move by number, as the server reads it (false: gone from the ring).
+[[nodiscard]] za::U32 clientNewest();
+[[nodiscard]] bool clientMoveAt(za::U32 seq, WireMove& m);
 
 // Server: QVR_CLC_MOVES's body from client slot `slot`; `apply` runs each move it has not run yet, in order. False: a
 // malformed message (the client dropped).
@@ -71,6 +75,7 @@ using ApplyFn = void (*)(client_t* client, const WireMove& m, bool newest);
 void serverWriteAck(sizebuf_t* msg, int slot);
 void serverReset(int slot);
 [[nodiscard]] bool serverSends(int slot); // it sent QVR_CLC_MOVES since its connection or map began (its snapshots too)
+[[nodiscard]] za::U32 serverLast(int slot); // the newest move run (0: none)
 // vr_mp_status: moves run, lost (never came, repeats included), recovered (run from a repeat), undecodable (the base
 // gone), bytes read.
 struct ServerCounts

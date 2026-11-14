@@ -1166,6 +1166,17 @@ za::Vector<Item> pageDebugReports()
             .help("vr_net_interp: on a remote server, the other players and things are drawn a little behind the newest "
                   "message, between the two around that time (the delay grows with lost packets): no stop and jump when "
                   "packets are lost. Off: NetQuake's lerp between the last two messages."),
+        toggle("Network: Predict Own Walk", vr_net_predict)
+            .help("vr_net_predict: on a remote server, your own walking shows at once: the server's state after the newest "
+                  "move it ran, your later moves replayed from it by the same code the server runs them with; a correction "
+                  "eases in. Off: the server's state as it comes, a round trip late."),
+        toggle("Network: Moves Run One by One", vr_net_permove)
+            .help("vr_net_permove: hosting, a remote player's walk runs move by move, each for his own frame's time, as his "
+                  "prediction replays it. Off: once a server frame with his newest move, as NetQuake (his prediction is then "
+                  "off by a move whenever two come in one frame)."),
+        command("Network: Prediction Report", "vr_mp_predict_report")
+            .help("vr_mp_predict_report: the server's states read, the moves replayed a frame, the corrections (all, and on "
+                  "flat ground), the frames not predicted."),
         toggle("Network: Cull Poses", vr_net_cullposes)
             .help("vr_net_cullposes: hosting, a remote player gets the armed humanoids' arm poses only of those he can see (on: "
                   "about 1.2 KB less in each of his datagrams on e1m1); off: every pose to every player, as before."),

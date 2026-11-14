@@ -1374,6 +1374,11 @@ void SV_Physics_Client (edict_t	*ent, int num)
 	case MOVETYPE_WALK:
 		if (!SV_RunThink (ent))
 			return;
+		if (VR_PredictWalks (ent)) // QVR: a remote client's moves one by one, each for its own frame (vr/vr_predict.cpp, B8)
+		{
+			SV_ZONE ("SV client predicted walk", VR_PredictPhysics (ent));
+			break;
+		}
 		if (!SV_CheckWater (ent) && ! ((int)ent->v.flags & FL_WATERJUMP) )
 		{
 			vec3_t nogravity; // QVR
@@ -1406,7 +1411,8 @@ void SV_Physics_Client (edict_t	*ent, int num)
 	default:
 		Sys_Error ("SV_Physics_client: bad movetype %i", (int)ent->v.movetype);
 	}
-	SV_ZONE ("SV client roomscale move", VR_ClientRoomscaleMove (ent)); // QVR
+	if (!VR_PredictWalks (ent)) // QVR: (one by one: in each move)
+		SV_ZONE ("SV client roomscale move", VR_ClientRoomscaleMove (ent)); // QVR
 
 postthink: // QVR
 //

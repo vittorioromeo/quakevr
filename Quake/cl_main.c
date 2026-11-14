@@ -676,6 +676,8 @@ void CL_RelinkEntities (void)
 			}
 		}
 
+		VR_PredictRelink (i, ent->origin); // QVR: our own walk predicted; the lift we stand on at its newest (vr/vr_predict.cpp, B8)
+
 		if (ent->forcelink || ent->lerpflags & LERP_RESETMOVE)
 			CL_ResetTrail (ent);
 
