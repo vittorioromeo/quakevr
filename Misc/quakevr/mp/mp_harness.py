@@ -34,6 +34,11 @@ def fields(line):
     return {k: v.strip('"') for k, v in FIELD.findall(line)}
 
 
+# Each finished scenario's client links through a proxy: (test, Proxy.window over the whole run) (mp_test.py suite's
+# byte table, MP_PLAN B7).
+LINKS = []
+
+
 def author_game_running():
     """The author's own game (a build from his checkout, quakevr-iw) is running: the tests keep out of its way."""
     try:
@@ -272,6 +277,13 @@ class Session:
         for p in self.proxies:
             p.stop()
             self.note(p.summary())
+            if p.first is not None and p.last is not None and p.last > p.first:
+                w = p.window((p.first, {d: [0, 0, 0, 0] for d in ("up", "down")}), (p.last, p.stats))
+                self.metric("link_%d" % p.listen_port, w)
+                LINKS.append((self.test, w))
+                print("mp_bytes: %s up %d B/s (mean %d B) down %d B/s (mean %d B)" % (
+                    self.test, w["up"]["bytes_s"], w["up"]["mean_B"], w["down"]["bytes_s"], w["down"]["mean_B"]),
+                    flush=True)
         passed = sum(1 for c in self.checks if c[1])
         failed = len(self.checks) - passed
         summary = {"test": self.test, "passed": passed, "failed": failed,

@@ -63,7 +63,7 @@ import traceback
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-from mp_harness import Session, StepFailed, fields  # noqa: E402
+from mp_harness import LINKS, Session, StepFailed, fields  # noqa: E402
 
 REPO = os.path.normpath(os.path.join(HERE, "..", "..", ".."))
 EXE = os.path.join(REPO, "Windows", "VisualStudio", "Build-ironwail", "bin", "x64", "Release", "ironwail.exe")
@@ -196,6 +196,9 @@ def bandwidth(s):
             cull, w["down"]["pkts_s"], w["down"]["bytes_s"], w["down"]["mean_B"], w["up"]["bytes_s"],
             w["up"]["mean_B"]))
     down = windows[1]["down"]["bytes_s"]
+    up = windows[1]["up"]["bytes_s"]
+    s.check("B's link up idle on e1m1 under %d B/s (quantized delta moves, B7)" % UP_BUDGET, up < UP_BUDGET,
+            "%d B/s, mean %d B a packet (was 45 KB/s, 640 B)" % (up, windows[1]["up"]["mean_B"]))
     s.check("B's link down idle on e1m1 under %d B/s" % IDLE_BUDGET, down < IDLE_BUDGET,
             "%d B/s (%d B/s with every pose to every client)" % (down, windows[0]["down"]["bytes_s"]))
     most = proxy.stats["down"][3]
@@ -2592,6 +2595,124 @@ def climb(s):
     climb_each(s, srv, a, b, ea, eb, "A, B watching")
 
 
+LOSS = 0.10              # mp_loss: B's game packets lost, each way
+TRACE_FRAMES = 300       # B's frames traced each time (about 4 s)
+UP_BUDGET = 12 * 1024    # B's link up in play, B/s (MP_PLAN.md, section 2.3: 8-12 KB/s, B7's quantized delta moves)
+LOST_MOST = 0.02         # B's moves the server never runs, at most (one is lost only with three packets in a row)
+JUMP_RATIO, JUMP_SLACK = 3.0, 2.0  # a frame's step over 3 times both its neighbours' and 2 units more: a jump
+SMOOTH_MOST = 0.5        # the hands' offset from the body: median |second difference| / median |step| at most
+
+
+def trace_of(lines):
+    """B's "mp_trace:" lines -> [(cl.time, org, h0, h1)]."""
+    out = []
+    for l in lines:
+        if not l.startswith("mp_trace: t="):
+            continue
+        p = l.split()
+        vec3 = {}
+        for i, tok in enumerate(p):
+            key = tok.split("=")[0]
+            if key in ("org", "h0", "h1") and i + 2 < len(p):
+                vec3[key] = [float(tok.split("=")[1]), float(p[i + 1]), float(p[i + 2])]
+        ct = float(fields(l)["ct"])
+        out.append((ct, vec3["org"], vec3["h0"], vec3["h1"]))
+    return out
+
+
+def steps(points):
+    return [dist(points[i], points[i - 1]) for i in range(1, len(points))]
+
+
+def jumps(st):
+    """Frames whose step is over JUMP_RATIO times both neighbours' and JUMP_SLACK more (a position that jumps)."""
+    return sum(1 for i in range(1, len(st) - 1) if st[i] > JUMP_RATIO * max(st[i - 1], st[i + 1]) + JUMP_SLACK)
+
+
+def median(xs):
+    xs = sorted(xs)
+    return xs[len(xs) // 2] if xs else 0.0
+
+
+def roughness(points):
+    """median |second difference| / median |step| of a path (0 smooth; a staircase of steps and stops: about 1 or more)."""
+    st = steps(points)
+    d2 = [dist([points[i + 1][k] - points[i][k] for k in range(3)], [points[i][k] - points[i - 1][k] for k in range(3)])
+          for i in range(1, len(points) - 1)]
+    return median(d2) / max(median(st), 1e-3)
+
+
+def loss_trace(s, a, b, ea, lerp, label):
+    """A walks and turns (the mock's sticks: a circle) while B traces his copy of A for TRACE_FRAMES frames with
+    vr_mp_avatar_lerp `lerp` -> (body jumps, hand jumps, the hands' offset roughness, frames a second)."""
+    since = b.mark()
+    b.cmd("vr_mp_avatar_lerp %d; vr_mp_trace %d %d" % (lerp, ea, TRACE_FRAMES))
+    b.wait(r"^mp_trace: done", 120, since, "B's trace of A (%s)" % label)
+    tr = trace_of(b.lines[since:])
+    body = [t[1] for t in tr]
+    offs = [[t[2][k] - t[1][k] for k in range(3)] for t in tr]
+    offs1 = [[t[3][k] - t[1][k] for k in range(3)] for t in tr]
+    body_j = jumps(steps(body))
+    hand_j = jumps(steps([t[2] for t in tr])) + jumps(steps([t[3] for t in tr]))
+    rough = max(roughness(offs), roughness(offs1))
+    span = tr[-1][0] - tr[0][0] if len(tr) > 1 else 0.0
+    fps = (len(tr) - 1) / span if span > 0 else 0.0
+    s.note("%s: %d frames (%.0f a second of B's game clock), body step median %.2f, jumps body %d hands %d, hand offset "
+           "roughness %.2f" % (label, len(tr), fps, median(steps(body)), body_j, hand_j, rough))
+    return body_j, hand_j, rough, fps
+
+
+def lossy(s):
+    """MP_PLAN B7: B's link loses 10% of the game packets each way. B's moves still reach the server (each packet
+    repeats the moves after the one it acknowledged: the server runs nearly all of them); B's copy of A, walking in a
+    circle, moves continuously (no jump of his body or hands frame to frame) and his hands ride his body smoothly
+    (vr_mp_avatar_lerp: between the server's last two messages, in step with his entity's lerp; off for comparison);
+    B's link up in play under the budget."""
+    srv, a, b, ea, eb = join(s, loss=LOSS)
+    proxy = b.proxy
+    since_srv = srv.mark()
+    srv.cmd("vr_mp_status")
+    srv.wait(r"mp_server: map=", 10, since_srv)
+    before = [l for l in srv.lines[since_srv:] if l.startswith("mp_netmoves: slot=%d " % (eb - 1))]
+    start = proxy.snapshot()
+    a.cmd("vr_mock_stick off 0 1; vr_mock_stick main 0.5 0")
+    b.cmd("vr_mock_stick off 0 1")  # (B walks too: his moves up change every frame)
+    off = loss_trace(s, a, b, ea, 0, "lerp off")
+    on = loss_trace(s, a, b, ea, 1, "lerp on")
+    w = proxy.window(start, proxy.snapshot())
+    a.cmd("vr_mock_stick off 0 0; vr_mock_stick main 0 0")
+    b.cmd("vr_mock_stick off 0 0")
+    s.metric("b_link_loss", w)
+    s.note("B's link in play at %d%% loss: up %s B/s (mean %s B), down %s B/s (mean %s B)" % (
+        LOSS * 100, w["up"]["bytes_s"], w["up"]["mean_B"], w["down"]["bytes_s"], w["down"]["mean_B"]))
+    since_srv = srv.mark()
+    srv.cmd("vr_mp_status")
+    srv.wait(r"mp_server: map=", 10, since_srv)
+    nm = [fields(l) for l in srv.lines[since_srv:] if l.startswith("mp_netmoves: slot=%d " % (eb - 1))]
+    s.check("the server reads B's moves as QVR_CLC_MOVES", bool(nm) and int(nm[-1]["run"]) > 0,
+            "%s; before the walk: %s" % (nm[-1] if nm else "none", before[-1] if before else "none"))
+    if nm:
+        run_n, lost = int(nm[-1]["run"]), int(nm[-1]["lost"])
+        s.metric("b_moves", nm[-1])
+        s.check("at %d%% loss the server runs all but %d%% of B's moves (the repeats)" % (LOSS * 100, LOST_MOST * 100),
+                lost <= LOST_MOST * (run_n + lost), "run %d, lost %d, recovered from repeats %s, undecodable %s" % (
+                    run_n, lost, nm[-1]["recovered"], nm[-1]["undecodable"]))
+        s.check("some of B's moves came only in a later packet's repeats", int(nm[-1]["recovered"]) > 0,
+                "recovered %s" % nm[-1]["recovered"])
+        s.check("every QVR_CLC_MOVES had its base (the acknowledged move)", int(nm[-1]["undecodable"]) == 0,
+                "undecodable %s" % nm[-1]["undecodable"])
+    # (B7b: NetQuake's entity lerp still jumps his whole body a few times under loss -- its clock clamped to the newest
+    # message, then a late one: the entity interpolation buffer, a fixed delay behind with a history of messages, makes
+    # these checks; until then the counts are metrics.)
+    s.metric("loss_jumps", {"body": on[0], "hands": on[1], "body_lerp_off": off[0], "hands_lerp_off": off[1]})
+    s.note("B7b: jumps of A's body %d, hands %d in %d frames (lerp off: %d, %d): the entity interpolation buffer's" % (
+        on[0], on[1], TRACE_FRAMES, off[0], off[1]))
+    s.check("A's hands ride his body smoothly in B's view (offset roughness at most %.1f)" % SMOOTH_MOST,
+            on[2] <= SMOOTH_MOST, "%.2f (lerp off: %.2f; B's frames a second %.0f)" % (on[2], off[2], on[3]))
+    s.check("B's link up walking under %d B/s at %d%% loss" % (UP_BUDGET, LOSS * 100), w["up"]["bytes_s"] < UP_BUDGET,
+            "%d B/s, mean %d B (was 640 B a move)" % (w["up"]["bytes_s"], w["up"]["mean_B"]))
+
+
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
     s = Session(args.exe, args.base, args.out, test, port=args.port)
     failure = None
@@ -2642,6 +2763,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             cosmetics(s)
         elif test == "mp_flatbody":
             flatbody(s)
+        elif test == "mp_loss":
+            lossy(s)
         else:
             coop(s, args.listen, args.flat or "", lag, jitter, loss)
     except StepFailed as e:
@@ -2654,7 +2777,7 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -2678,7 +2801,7 @@ def main():
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody"):
+                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss"):
         ok = run(args, "mp_" + args.test)
     else:
         ok = run(args, "mp_coop")
@@ -2705,6 +2828,12 @@ def main():
         ok = run(args, "mp_rules") and ok
         ok = run(args, "mp_cosmetics") and ok
         ok = run(args, "mp_flatbody") and ok
+        ok = run(args, "mp_loss") and ok
+        # B's link per scenario (MP_PLAN B7: byte counts against mp_bandwidth's): what the next phases cut.
+        print("mp_bytes: scenario, B's link up B/s (mean B), down B/s (mean B)")
+        for test, w in LINKS:
+            print("mp_bytes: %-20s up %6d (%4d)  down %6d (%4d)" % (test, w["up"]["bytes_s"], w["up"]["mean_B"],
+                                                              w["down"]["bytes_s"], w["down"]["mean_B"]))
         print("mp_suite: %s" % ("passed" if ok else "FAILED"))
     sys.exit(0 if ok else 1)
 
