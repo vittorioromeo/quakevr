@@ -650,6 +650,7 @@ GLuint GL_WorldArraysProgram (GLuint program, qboolean *depthonly); // QVR: the 
 GLuint GL_WorldArraysMergeProgram (void); // QVR
 void R_BModelCallTextures (texture_t *t, gltexture_t *out[4]); // QVR: a world call's four maps as the bound path binds them (r_world.c)
 void R_PrewarmDecalPrograms (qboolean pdo); // QVR: those made in the map's load (vr/vr_decals.cpp prepare)
+void R_PrewarmTranslucentDecalPrograms (void); // QVR: the translucent brush models' (vr/vr_decals.cpp prepareTranslucent)
 void R_WorldFragments_f (void); // QVR: vr_world_fragments (r_world.c)
 void R_ModelFragments_f (void); // QVR: vr_model_fragments (gl_rmain.c)
 extern qboolean gl_multiview_draw; // QVR: the multiview pass draws: GL_UseProgram takes the twins (single-pass stereo)

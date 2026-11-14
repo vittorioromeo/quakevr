@@ -105,6 +105,10 @@ void init();
 // A map's load (VR_NewMap): the atlas on the GPU, so that the first mark draws at once.
 void prepare();
 
+// The load's last frame (VR_SignonPrewarm: the baselines in): the translucent brush models' program with the decals'
+// retro code, when the map has one (2.6-3.1 s to compile in play: a mid-game freeze in AD's maps).
+void prepareTranslucent();
+
 // Drawn in each eye (VR_DrawSceneOpaque).
 void draw();
 
