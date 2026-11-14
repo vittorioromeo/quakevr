@@ -451,7 +451,8 @@ struct TouchProvider
     return weaponByFist(target);
 }
 
-[[nodiscard]] TouchAnswer onWeapon(edict_t* target, edict_t* player, int which, grab::Candidate& out)
+// How far off a weapon lying about or in the air the fist of `player`'s hand `which` takes it (see onWeapon).
+[[nodiscard]] float weaponGrabSlack(edict_t* target, edict_t* player, int which)
 {
     // (With vr_weapon_grab_slack more if it lies on the floor or is stuck: a gun lying flat is thinner than the lowest the
     // fist gets over the floor. Not one in the air: a catch is by the closed fist on it, as a prop's.)
@@ -462,10 +463,8 @@ struct TouchProvider
     // In the air (tossed up to re-grip it, flipped, spinning): vr_weapon_catch_handle_leniency at its handle, a trick
     // catch's (ROUND22.md, "Mid-air catches": the closing fist missed a falling axe's handle by a few centimetres).
     // Not one a force grab pulls (QC fg_state 1): its catch is its own (vr_forcegrab_catch_radius).
-    const int h = which == HAND_OFF ? 0 : 1;
     const float m2u = units::metresToUnits();
-    const glm::vec3 hand = fieldVec(player, handPosField(which));
-    const float fromHandle = glm::distance(hand, vec(target->v.origin));
+    const float fromHandle = glm::distance(fieldVec(player, handPosField(which)), vec(target->v.origin));
     const bool atHandle = fromHandle <= za::max(vr_weapon_grab_anywhere_min.value, 0.f) * 0.01f * m2u;
     float slack = 0.f;
     if(lyingWeapon(target))
@@ -480,7 +479,31 @@ struct TouchProvider
     {
         slack = za::max(vr_weapon_catch_handle_leniency.value, 0.f) * 0.01f * m2u;
     }
-    if(held::grabTouch(target, player, h, slack))
+    return slack;
+}
+
+// Whether a weapon lying about or in the air rests on or leans against hand `which`'s Box3D body (a gun let go of onto
+// an open palm lies there, over the fist that closes under it), for the local player, who holds a weapon anywhere on
+// it (vr_weapon_grab_anywhere; the view's twohand::groundSpot: others' hands take only handles).
+[[nodiscard]] bool weaponAgainstHand(edict_t* target, edict_t* player, int which)
+{
+    return vr_weapon_grab_anywhere.value && NUM_FOR_EDICT(player) == 1 &&
+           box3d::restsOnHand(NUM_FOR_EDICT(target), NUM_FOR_EDICT(player), which == HAND_OFF ? 0 : 1, -2.f);
+}
+
+[[nodiscard]] TouchAnswer onWeapon(edict_t* target, edict_t* player, int which, grab::Candidate& out)
+{
+    const int h = which == HAND_OFF ? 0 : 1;
+    const float fromHandle = glm::distance(fieldVec(player, handPosField(which)), vec(target->v.origin));
+    if(held::grabTouch(target, player, h, weaponGrabSlack(target, player, which)))
+    {
+        out.distance = fromHandle;
+        return TouchAnswer::Yes;
+    }
+    // Out of the fist's reach (no farther than the above: grips away from the handle stay the player's choice), but on or
+    // against this hand: taken where it touches the hand, as a prop is, anywhere on it (the view records it so:
+    // vr_view_hands.cpp updateGroundSpots, physics::weaponOnHandOnly). With the handle in reach, by it, as above.
+    if(weaponAgainstHand(target, player, which))
     {
         out.distance = fromHandle;
         return TouchAnswer::Yes;
@@ -1486,6 +1509,17 @@ void grabBench()
     const float m2u = units::metresToUnits();
     held::benchFistGap(best, armedFist, vr_carry_grab_bias.value * 0.01f * m2u + vr_agrunt_grab_slack.value * 0.01f * m2u,
         Cmd_Argc() > 1 ? atoi(Cmd_Argv(1)) : 200);
+}
+
+bool weaponOnHandOnly(edict_t* weapon, edict_t* player, int hand)
+{
+    if(!weapon || !player || hand < 0 || hand > 1 || !weaponByFist(weapon))
+    {
+        return false;
+    }
+    // (`which`, the touch stage's hand, is the same 0 or 1.)
+    return weaponAgainstHand(weapon, player, hand) &&
+           !held::grabTouch(weapon, player, hand, weaponGrabSlack(weapon, player, hand));
 }
 
 bool fistOnArmedWeapon(edict_t* player, int hand)
