@@ -60,19 +60,27 @@ IconPictures iconPictures; // (its pictures' textures kept for the session)
     return item.look == Item::Normal ? 8 : letterSize(item);
 }
 
-// The names' line pitch (the letters 8 high, a blank row below them: no extra gap between two lines).
-constexpr int iconNameLine = 7;
+// The names' line pitch (vr_menu_icon_name_pitch; the letters 8 high, drawn at their own size).
+[[nodiscard]] float iconNameLine()
+{
+    return CLAMP(4.f, vr_menu_icon_name_pitch.value, 10.f);
+}
 
-// Where its cells go: `n` side by side across the middle, each `cell` wide from `x0`.
+// Where its cells go: `n` side by side across the middle, each `cell` wide from `x0`; a card's plate is the cell less
+// `gap` (vr_menu_icon_gap), half of it each side.
 struct IconRowLayout
 {
     int n{0};
     float cell{0.f};
+    float gap{4.f};
     float x0{0.f};
     float size{0.f};    // the pictures'
     float iconTop{0.f}; // below the row's top
     float namesTop{0.f};
     int lines{1};       // the names' lines (a long one on two)
+
+    [[nodiscard]] float plate() const { return cell - gap; }
+    [[nodiscard]] float nameCell() const { return plate() + 4.f; } // the names' room (iconName: 3 less), as before the gap knob
 };
 
 // A choice's name in its cell: one line at 8 pixels if it fits, else split at its middle space onto two (`split`: where
@@ -110,15 +118,19 @@ struct IconName
     IconRowLayout l;
     l.n = static_cast<int>(item.choices.size());
     l.size = iconSize(item);
-    const float cellMax = za::fmax(l.size + 20.f, 68.f);
-    const float total = za::fmin(304.f, cellMax * static_cast<float>(l.n));
-    l.cell = total / static_cast<float>(q_max(l.n, 1));
-    l.x0 = 160.f - total * 0.5f;
+    // A card's plate as wide as before the gap knob (its picture's size and room round it); the gap between cards
+    // wanted, given up first (down to the old 4) when the row's 320 menu pixels have no room for it.
+    const float card = za::fmax(l.size + 20.f, 68.f) - 4.f;
+    const float gapWant = CLAMP(0.f, vr_menu_icon_gap.value, 24.f);
+    const float n = static_cast<float>(q_max(l.n, 1));
+    l.cell = za::fmin(card + gapWant, 320.f / n);
+    l.gap = za::fmin(gapWant, za::fmax(za::fmin(gapWant, 4.f), l.cell - card));
+    l.x0 = 160.f - l.cell * n * 0.5f;
     l.iconTop = static_cast<float>(iconTitleSize(item) + 5);
     l.namesTop = l.iconTop + l.size + 3.f;
     for(const Choice& c : item.choices)
     {
-        l.lines = q_max(l.lines, iconName(c.label, l.cell).split > 0 ? 2 : 1);
+        l.lines = q_max(l.lines, iconName(c.label, l.nameCell()).split > 0 ? 2 : 1);
     }
     return l;
 }
@@ -131,7 +143,7 @@ int iconRowLeft(const Item& item)
 int iconRowHeight(const Item& item)
 {
     const IconRowLayout l = iconRowLayout(item);
-    return static_cast<int>(za::ceil(l.namesTop)) + iconNameLine * l.lines + 3;
+    return static_cast<int>(za::ceil(l.namesTop + 8.f + iconNameLine() * static_cast<float>(l.lines - 1))) + 2;
 }
 
 // The picture under (cx, menu x) and (relY, below the row's top), or -1: its cell's width, from the picture's top to
@@ -419,13 +431,17 @@ void drawIconPicture(const gfx::Picture* pic, float x, float y, float w, float h
     }
     if(pic->width > 0 && pic->height > 0)
     {
-        // Its aspect kept: fitted inside the box, centred (letterbox or pillarbox).
+        // Its aspect kept on screen: fitted inside the box, centred (letterbox or pillarbox). The menu canvas scales y
+        // more than x (VR_MenuCanvas's row spacing, `stretch`), so the box is `stretch` times taller on screen than
+        // its menu pixels say: fitted in screen proportions, then its height brought back to menu pixels.
+        const float stretch = Draw_MenuStretch();
         const float pw = static_cast<float>(pic->width), ph = static_cast<float>(pic->height);
-        const float k = za::fmin(w / pw, h / ph);
-        x += (w - pw * k) * 0.5f;
-        y += (h - ph * k) * 0.5f;
-        w = pw * k;
-        h = ph * k;
+        const float k = za::fmin(w / pw, h * stretch / ph);
+        const float dw = pw * k, dh = ph * k / stretch;
+        x += (w - dw) * 0.5f;
+        y += (h - dh) * 0.5f;
+        w = dw;
+        h = dh;
     }
     const qboolean recolor = Draw_SetMenuRecolor(false);
     pushRowColor(r, g, b, a);
@@ -475,6 +491,7 @@ void drawIconRow(const Item& item, int y, bool selected)
         const MenuIcon& icon = item.icons[c];
         const float cx0 = l.x0 + static_cast<float>(c) * l.cell;
         const float cx = cx0 + l.cell * 0.5f;
+        const float px0 = cx0 + l.gap * 0.5f; // its plate's left
         const float top = static_cast<float>(y) + l.iconTop;
         const bool on = c == picked;
         const bool hover = iconHover.page == page && iconHover.icon == c && iconHover.item == &item;
@@ -482,12 +499,12 @@ void drawIconRow(const Item& item, int y, bool selected)
         {
             // The picked one on a plate (brighter while the row is selected), framed.
             const float rgb[3] = {0.55f, 0.42f, 0.25f};
-            Draw_FillEx(cx0 + 2.f, top - 2.f, l.cell - 4.f, rowH - l.iconTop, rgb, (selected ? 0.34f : 0.22f) * rowFade);
-            iconFrame(cx0 + 2.f, cx0 + l.cell - 2.f, top - 2.f, static_cast<float>(y) + rowH, selected ? 0.9f : 0.55f);
+            Draw_FillEx(px0, top - 2.f, l.plate(), rowH - l.iconTop, rgb, (selected ? 0.34f : 0.22f) * rowFade);
+            iconFrame(px0, px0 + l.plate(), top - 2.f, static_cast<float>(y) + rowH, selected ? 0.9f : 0.55f);
         }
         else if(hover)
         {
-            iconFrame(cx0 + 2.f, cx0 + l.cell - 2.f, top - 2.f, static_cast<float>(y) + rowH, 0.45f);
+            iconFrame(px0, px0 + l.plate(), top - 2.f, static_cast<float>(y) + rowH, 0.45f);
         }
         const float fade = on || hover ? 1.f : 1.f - dim;
         if(icon.figures > 0)
@@ -495,7 +512,7 @@ void drawIconRow(const Item& item, int y, bool selected)
             // That many silhouettes side by side (overlapping), the middle one in front.
             const int n = icon.figures;
             const float s = l.size * (n == 1 ? 1.f : n == 2 ? 0.86f : 0.76f);
-            const float span = za::fmin(l.cell - 6.f, l.size * 1.5f) - s;
+            const float span = za::fmin(l.plate() - 2.f, l.size * 1.5f) - s;
             const float tint = on ? 1.f : hover ? 0.85f : 0.5f;
             for(int k = 0; k < n; k++)
             {
@@ -512,7 +529,7 @@ void drawIconRow(const Item& item, int y, bool selected)
         }
         // Its name under it (two lines where it needs them), white while picked.
         const char* name = item.choices[c].label;
-        const IconName nm = iconName(name, l.cell);
+        const IconName nm = iconName(name, l.nameCell());
         char part[2][32]{};
         if(nm.split > 0)
         {
@@ -528,8 +545,10 @@ void drawIconRow(const Item& item, int y, bool selected)
         {
             const int w = nm.dim * static_cast<int>(strlen(part[line]));
             const int nx = static_cast<int>(cx) - w / 2;
-            const int ny = static_cast<int>(static_cast<float>(y) + l.namesTop) + line * iconNameLine + (8 - nm.dim) / 2 +
-                           (lines < l.lines ? iconNameLine / 2 : 0);
+            const float pitch = iconNameLine();
+            const int ny = static_cast<int>(za::floor(static_cast<float>(y) + l.namesTop + static_cast<float>(line) * pitch +
+                                                      (lines < l.lines ? pitch * 0.5f : 0.f) + 0.5f)) +
+                           (8 - nm.dim) / 2;
             if(on)
             {
                 M_PrintWhiteEx(nx, ny, nm.dim, part[line]);
