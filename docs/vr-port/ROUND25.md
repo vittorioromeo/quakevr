@@ -2332,3 +2332,17 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
 - **Left:** the after bench and `profile_qc` after; the release-config build; ragdoll and scenario_check runs;
   load_models_test; menu_paths.txt regeneration for the five new Tunables rows; PERF_1_1.md "Applied"; the checklist
   lines; the merge of origin/next.
+- **Finished (second worker).** Determinism (no-LTO, fast mode; `scratch/pp_det2.sh`; fingerprint = md5 of the outcome
+  lines without wall-clock ms): `nav_tele_metric` (the retired scene restored uncommitted for the run: the old
+  `pp_det.sh`'s logs were empty because the author retired that scene, the runs timed out on an unknown scene; test 43
+  had no `map vrarena` first), `vr_arena_test 43` (props) and `vr_arena_test 41` (the towers: every class built in play
+  on vrarena), 2 runs alone and 2 x 2 lanes at once: **all byte-identical** per test (`3c851856` 17/20, `8bb14908`
+  13/0, `b0a9e67d` 14/1), 0-4 deadline waits a run. Test 41's one fail (a dog not down the tower in 40 s) is the same
+  with `vr_nav_job_frames_first 0; vr_nav_build_frames_tris 0` (the old frames): not this branch's.
+- After bench and `profile_qc`: PERF_1_1.md "His calls" (fight_ad_tears max 140 -> 22-24 ms; nav_hunt_e1m1_3x CPU avg
+  6.38 -> 5.96, QuakeC 5.14 -> 4.01 ms a frame with the profiler on; 5 of the 9 combat_48 / ragdolls_32_active runs had a
+  slow GPU throughout, left out). ragdolls_32_active kills its 32 in the set-up, before its window: it does not time
+  `vr_ragdoll_per_frame`'s burst.
+- Checks: scenario_check 129 files 0 errors, 129 run 0 failed; load_models_test 4/0 (352/0); ragdoll_test flat blast
+  pile slowmo save and saveload_test PASS; vr_run_check 15/0, runenemies 17/0; menu_paths.txt +7 Tunables rows;
+  ReleaseLTO 1.1.0 build.
