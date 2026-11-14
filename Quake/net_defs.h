@@ -145,6 +145,8 @@ typedef struct qsocket_s
 
 	unsigned int	ackSequence;
 	unsigned int	sendSequence;
+	unsigned int	sendChunkBase;	// QVR: the sequence of the reliable message's first chunk (net_dgrm.c)
+	int		qvrNetVersion;	// QVR: the peer's Quake VR network version from its connect request (0: none; net_dgrm.c)
 	unsigned int	unreliableSendSequence;
 	int		sendMessageLength;
 	byte		sendMessage [NET_MAXMESSAGE];

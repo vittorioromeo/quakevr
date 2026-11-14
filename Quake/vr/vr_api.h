@@ -48,6 +48,10 @@ int VR_NoLiquidEffects(struct qmodel_s* model, const float* point);
 #define PRFL_QUAKEVR				(1 << 16)
 #define PRFL_QUAKEVR_PROGS			(1 << 17)
 #define VR_ENTITY_UPDATE_MAXSIZE	40		// bytes VR_WriteEntityUpdate may add
+// Quake VR's network version, sent after NetQuake's in the connect request ("QVR", then this long; net_dgrm.c): a
+// server whose protocol is the VR one rejects a client without it or with another, with the reason (MP_PLAN.md, B2).
+// Raise it with any change to what client and server send each other.
+#define QVR_NET_VERSION				2
 #define SOLID_NOT_BUT_TOUCHABLE		5		// Quake VR: not solid, but can be (hand) touched
 
 // Host lifetime and pacing (host.c, main_sdl.c, gl_screen.c).
@@ -392,6 +396,9 @@ int VR_FlatHudTime (float *level, int *state);			// its bullet time bar: 0 while
 void VR_WriteDemoState (struct sizebuf_s *msg);			// CL_Record_f, recording mid-game
 void VR_AdjustMove (float *forwardmove, float *sidemove, float *upmove); // CL_SendCmd: thumbstick locomotion
 void VR_ReadMoveExtras (struct client_s *client);		// end of SV_ReadClientMove
+void VR_NoteEntitiesBegin (void);				// SV_WriteEntitiesToClient: a client's walk of the entities begins
+void VR_NoteEntityInSight (int ent);				// ... this one is in its PVS (its messages go to it: VR_WriteScoped)
+void VR_WriteScoped (struct sizebuf_s *msg, int local);	// SV_SendClientDatagram after the broadcast: the messages about entities it sees (an armed humanoid's pose)
 int VR_MoveMerges (struct client_s *client);			// SV_ReadClientMove, at its buttons: not the first move since the server's last frame (its buttons ORed)
 void VR_ClientReset (struct client_s *client);			// SV_ConnectClient, SV_DropClient: the slot's per-client VR state cleared
 void VR_CalcStats (struct client_s *client, int *statsi, float *statsf); // end of SV_CalcStats

@@ -120,6 +120,8 @@ qsocket_t *NET_NewQSocket (void)
 	sock->lastMessageTime = net_time;
 	sock->ackSequence = 0;
 	sock->sendSequence = 0;
+	sock->sendChunkBase = 0; // QVR
+	sock->qvrNetVersion = 0; // QVR
 	sock->unreliableSendSequence = 0;
 	sock->sendMessageLength = 0;
 	sock->receiveSequence = 0;

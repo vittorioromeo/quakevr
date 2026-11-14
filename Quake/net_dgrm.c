@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "net_sys.h"
 #include "net_defs.h"
 #include "net_dgrm.h"
+#include "vr/vr_api.h" // QVR: PRFL_QUAKEVR, QVR_NET_VERSION
 
 // This is enables a simple IP banning mechanism
 #define BAN_TEST
@@ -129,12 +130,75 @@ static void NET_Ban_f (void)
 #endif	// BAN_TEST
 
 
+// QVR: a reliable message goes out in chunks of at most DGRM_RELIABLE_CHUNK bytes (each its own UDP datagram, small
+// enough never to be IP-fragmented: NetQuake sent up to MAX_DATAGRAM, 64000 B, one lost fragment losing it all and some
+// routers dropping fragments), with up to DGRM_RELIABLE_WINDOW chunks in flight (NetQuake waited for each chunk's ack: a
+// round trip a chunk). The receiver is NetQuake's, unchanged: it acks every data packet and takes only the next one in
+// order, so an ack counts only in order (one for a later chunk is for a packet it dropped), and a timeout sends every
+// chunk in flight again (docs/vr-port/MP_PLAN.md, B2).
+#define DGRM_RELIABLE_CHUNK		1200
+#define DGRM_RELIABLE_WINDOW	16
+
+static unsigned int ReliableChunks (const qsocket_t *sock)
+{
+	return ((unsigned int) sock->sendMessageLength + DGRM_RELIABLE_CHUNK - 1) / DGRM_RELIABLE_CHUNK;
+}
+
+// the chunk with this sequence (sendChunkBase is the first's)
+static int SendReliableChunk (qsocket_t *sock, unsigned int sequence)
+{
+	unsigned int	offset = (sequence - sock->sendChunkBase) * DGRM_RELIABLE_CHUNK;
+	unsigned int	dataLen = q_min ((unsigned int) DGRM_RELIABLE_CHUNK, (unsigned int) sock->sendMessageLength - offset);
+	unsigned int	eom = (offset + dataLen >= (unsigned int) sock->sendMessageLength) ? NETFLAG_EOM : 0;
+	unsigned int	packetLen = NET_HEADERSIZE + dataLen;
+
+	packetBuffer.length = BigLong(packetLen | (NETFLAG_DATA | eom));
+	packetBuffer.sequence = BigLong(sequence);
+	Q_memcpy (packetBuffer.data, sock->sendMessage + offset, dataLen);
+
+	if (sfunc.Write (sock->socket, (byte *)&packetBuffer, packetLen, &sock->addr) == -1)
+		return -1;
+
+	sock->lastSendTime = net_time;
+	return 1;
+}
+
+// the chunks not sent yet that the window has room for
+static int SendMessageNext (qsocket_t *sock)
+{
+	unsigned int	end = sock->sendChunkBase + ReliableChunks (sock);
+
+	sock->sendNext = false;
+	if (sock->canSend)
+		return 1; // (all of it acked: nothing in flight)
+	while ((int) (end - sock->sendSequence) > 0 && sock->sendSequence - sock->ackSequence < DGRM_RELIABLE_WINDOW)
+	{
+		if (SendReliableChunk (sock, sock->sendSequence) == -1)
+			return -1;
+		sock->sendSequence++;
+		packetsSent++;
+	}
+	return 1;
+}
+
+// every chunk in flight again (go back N: the receiver dropped the ones after a lost one)
+static int ReSendMessage (qsocket_t *sock)
+{
+	unsigned int	sequence;
+
+	sock->sendNext = false;
+	for (sequence = sock->ackSequence; sequence != sock->sendSequence; sequence++)
+	{
+		if (SendReliableChunk (sock, sequence) == -1)
+			return -1;
+		packetsReSent++;
+	}
+	return 1;
+}
+
+
 int Datagram_SendMessage (qsocket_t *sock, sizebuf_t *data)
 {
-	unsigned int	packetLen;
-	unsigned int	dataLen;
-	unsigned int	eom;
-
 #ifdef DEBUG
 	if (data->cursize == 0)
 		Sys_Error("Datagram_SendMessage: zero length message");
@@ -148,97 +212,10 @@ int Datagram_SendMessage (qsocket_t *sock, sizebuf_t *data)
 
 	Q_memcpy(sock->sendMessage, data->data, data->cursize);
 	sock->sendMessageLength = data->cursize;
-
-	if (data->cursize <= MAX_DATAGRAM)
-	{
-		dataLen = data->cursize;
-		eom = NETFLAG_EOM;
-	}
-	else
-	{
-		dataLen = MAX_DATAGRAM;
-		eom = 0;
-	}
-	packetLen = NET_HEADERSIZE + dataLen;
-
-	packetBuffer.length = BigLong(packetLen | (NETFLAG_DATA | eom));
-	packetBuffer.sequence = BigLong(sock->sendSequence++);
-	Q_memcpy (packetBuffer.data, sock->sendMessage, dataLen);
-
+	sock->sendChunkBase = sock->sendSequence; // QVR: (== ackSequence: the last message all acked)
 	sock->canSend = false;
 
-	if (sfunc.Write (sock->socket, (byte *)&packetBuffer, packetLen, &sock->addr) == -1)
-		return -1;
-
-	sock->lastSendTime = net_time;
-	packetsSent++;
-	return 1;
-}
-
-
-static int SendMessageNext (qsocket_t *sock)
-{
-	unsigned int	packetLen;
-	unsigned int	dataLen;
-	unsigned int	eom;
-
-	if (sock->sendMessageLength <= MAX_DATAGRAM)
-	{
-		dataLen = sock->sendMessageLength;
-		eom = NETFLAG_EOM;
-	}
-	else
-	{
-		dataLen = MAX_DATAGRAM;
-		eom = 0;
-	}
-	packetLen = NET_HEADERSIZE + dataLen;
-
-	packetBuffer.length = BigLong(packetLen | (NETFLAG_DATA | eom));
-	packetBuffer.sequence = BigLong(sock->sendSequence++);
-	Q_memcpy (packetBuffer.data, sock->sendMessage, dataLen);
-
-	sock->sendNext = false;
-
-	if (sfunc.Write (sock->socket, (byte *)&packetBuffer, packetLen, &sock->addr) == -1)
-		return -1;
-
-	sock->lastSendTime = net_time;
-	packetsSent++;
-	return 1;
-}
-
-
-static int ReSendMessage (qsocket_t *sock)
-{
-	unsigned int	packetLen;
-	unsigned int	dataLen;
-	unsigned int	eom;
-
-	if (sock->sendMessageLength <= MAX_DATAGRAM)
-	{
-		dataLen = sock->sendMessageLength;
-		eom = NETFLAG_EOM;
-	}
-	else
-	{
-		dataLen = MAX_DATAGRAM;
-		eom = 0;
-	}
-	packetLen = NET_HEADERSIZE + dataLen;
-
-	packetBuffer.length = BigLong(packetLen | (NETFLAG_DATA | eom));
-	packetBuffer.sequence = BigLong(sock->sendSequence - 1);
-	Q_memcpy (packetBuffer.data, sock->sendMessage, dataLen);
-
-	sock->sendNext = false;
-
-	if (sfunc.Write (sock->socket, (byte *)&packetBuffer, packetLen, &sock->addr) == -1)
-		return -1;
-
-	sock->lastSendTime = net_time;
-	packetsReSent++;
-	return 1;
+	return SendMessageNext (sock); // QVR: its first chunks, as many as the window takes
 }
 
 
@@ -364,33 +341,22 @@ int	Datagram_GetMessage (qsocket_t *sock)
 
 		if (flags & NETFLAG_ACK)
 		{
-			if (sequence != (sock->sendSequence - 1))
+			// QVR: the next chunk in order only (one in flight after it: the receiver dropped that, a lost one
+			// before it; one already acked: a duplicate)
+			if (sequence != sock->ackSequence || sock->ackSequence == sock->sendSequence)
 			{
 				Con_DPrintf("Stale ACK received\n");
 				continue;
 			}
-			if (sequence == sock->ackSequence)
-			{
-				sock->ackSequence++;
-				if (sock->ackSequence != sock->sendSequence)
-					Con_DPrintf("ack sequencing error\n");
-			}
-			else
-			{
-				Con_DPrintf("Duplicate ACK received\n");
-				continue;
-			}
-			sock->sendMessageLength -= MAX_DATAGRAM;
-			if (sock->sendMessageLength > 0)
-			{
-				memmove (sock->sendMessage, sock->sendMessage + MAX_DATAGRAM, sock->sendMessageLength);
-				sock->sendNext = true;
-			}
-			else
+			sock->ackSequence++;
+			if (sock->ackSequence - sock->sendChunkBase >= ReliableChunks (sock))
 			{
 				sock->sendMessageLength = 0;
 				sock->canSend = true;
+				sock->sendNext = false;
 			}
+			else
+				sock->sendNext = true; // the window's room: the next chunks (after this read)
 			continue;
 		}
 
@@ -867,6 +833,7 @@ static qsocket_t *_Datagram_CheckNewConnections (void)
 	int			command;
 	int			control;
 	int			ret;
+	int			qvrVersion = 0; // QVR
 
 	acceptsock = dfunc.CheckNewConnections();
 	if (acceptsock == INVALID_SOCKET)
@@ -997,6 +964,36 @@ static qsocket_t *_Datagram_CheckNewConnections (void)
 		return NULL;
 	}
 
+	// QVR: Quake VR's network version ("QVR" and a long after NetQuake's; vr/vr_api.h): a VR server takes the same only
+	{
+		char reason[160];
+		if (msg_readcount < net_message.cursize && Q_strcmp(MSG_ReadString(), "QVR") == 0)
+			qvrVersion = MSG_ReadLong();
+		reason[0] = 0;
+		if (sv.active && (sv.protocolflags & PRFL_QUAKEVR) && qvrVersion != QVR_NET_VERSION)
+		{
+			if (qvrVersion == 0)
+				q_snprintf(reason, sizeof(reason), "This is a Quake VR server (network version %d): join with Quake VR.\n",
+					QVR_NET_VERSION);
+			else
+				q_snprintf(reason, sizeof(reason), "This Quake VR server has network version %d, your game %d: join with "
+					"the same Quake VR version.\n", QVR_NET_VERSION, qvrVersion);
+		}
+		if (reason[0])
+		{
+			Con_Printf("Rejected a connection from %s: %s", dfunc.AddrToString(&clientaddr), reason);
+			SZ_Clear(&net_message);
+			// save space for the header, filled in later
+			MSG_WriteLong(&net_message, 0);
+			MSG_WriteByte(&net_message, CCREP_REJECT);
+			MSG_WriteString(&net_message, reason);
+			*((int *)net_message.data) = BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
+			dfunc.Write (acceptsock, net_message.data, net_message.cursize, &clientaddr);
+			SZ_Clear(&net_message);
+			return NULL;
+		}
+	}
+
 #ifdef BAN_TEST
 	// check for a ban
 	if (clientaddr.qsa_family == AF_INET)
@@ -1087,6 +1084,7 @@ static qsocket_t *_Datagram_CheckNewConnections (void)
 	sock->socket = newsock;
 	sock->landriver = net_landriverlevel;
 	sock->addr = clientaddr;
+	sock->qvrNetVersion = qvrVersion; // QVR
 	Q_strcpy(sock->address, dfunc.AddrToString(&clientaddr));
 
 	// send him back the info about the server connection he has been allocated
@@ -1280,6 +1278,10 @@ static qsocket_t *_Datagram_Connect (const char *host)
 		MSG_WriteByte(&net_message, CCREQ_CONNECT);
 		MSG_WriteString(&net_message, "QUAKE");
 		MSG_WriteByte(&net_message, NET_PROTOCOL_VERSION);
+		// QVR: Quake VR's network version (vr/vr_api.h; -mpnetversion N: another, the harness's reject test)
+		MSG_WriteString(&net_message, "QVR");
+		MSG_WriteLong(&net_message, COM_CheckParm("-mpnetversion") && COM_CheckParm("-mpnetversion") + 1 < com_argc
+			? Q_atoi(com_argv[COM_CheckParm("-mpnetversion") + 1]) : QVR_NET_VERSION);
 		*((int *)net_message.data) = BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
 		dfunc.Write (newsock, net_message.data, net_message.cursize, &sendaddr);
 		SZ_Clear(&net_message);
