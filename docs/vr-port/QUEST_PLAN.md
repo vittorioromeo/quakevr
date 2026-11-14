@@ -593,6 +593,46 @@ control, ThinLTO, exclusive, one repeat: a few % is noise; `kit/benchresults/c2f
   `GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS`: C4's limit dump); the arrays are copies (8.9 MB in e1m1 under the preset,
   15 MB with normal maps): the 2D world textures could be freed on the Quest once nothing else reads them (brush models
   of other files, the bound path's leftovers still do); the liquids still draw a texture at a time (few).
+- **C2f's skipped checks, run in C2g** (merged with `origin/next` 4c4ac5b3f): PC scenario_check 129/0,
+  load_models_test 4/0, vr_simd_test 58880/0; the release configuration (MSBuild ReleaseLTO,
+  `-p:QvrReleaseVersion=1.1.0`) 0 warnings, 0 errors.
+
+## 6f. C2g: the eyes' post chain under the Quest preset (done, no installs)
+
+**The premise of 6c's lever was wrong**: the tone curve, the grade, bloom's composite, the underwater wobble and the
+dither are already one full-screen pass (`GL_PostProcess`: one read of the float scene, one write). The eye's
+full-screen passes under the Quest 3 72 Hz preset are: the MSAA resolve (`vid_fsaa 2`; "resolve/warp"), bloom's first
+downsample (reads the scene, writes a quarter), the post-process, and **the bilinear resample** (render scale 0.9,
+`vr_upscale 0`: the post-process's target scaled into the runtime's image, a full read and write; "upscale").
+- **`vr_eye_subimage`** (a tunable, Debug > Tunables "Eye Sub-Image": 0 off, **1 under the ES profile** (`-glescompat`,
+  Android: the default), 2 always; the PC never uses it at 1): an eye drawn smaller than its image and resampled
+  bilinearly (`upscale::resamplesBilinearly`, shared with `upscale::resample`) is post-processed straight into the
+  image's lower left part, and the projection layer shows that part (`Backend::setEyeImageRect`: OpenXR's
+  `subImage.imageRect`; the mock accepts it). The compositor's own sampling (it resamples the image for the lenses
+  anyway) scales it: **the resample pass is gone** (one full-screen read and write an eye; on the Quest 3 at 0.9, about
+  1858 x 1987 x 4 bytes read and written twice a frame). The UI, the foveated debug overlay and the final eyeshot are
+  drawn at the part's size (the UI's text at the eye's resolution, not the image's: the trade, C5 to judge).
+- **Equality**: `gles_render_test` (now 21 checks): under the Quest preset (dynamic resolution off: a fixed size) the
+  eye's part (922 x 922 in the mock) is **identical** (0 pixels differ) to the same scene's resample target with it off
+  (`vr_eyeshot 2`); the PC at `vr_render_scale 0.9`, bilinear, still fills its image (1024 x 1024).
+- **Cost** (idle e1m1, ES + clip control, the preset with `vr_dynres 0`, the dev build, `vr_profile` 240 frames,
+  `scratch/questN_prof.sh`): the "upscale" scope (0.07 + 0.03 ms GPU a frame, both eyes) is gone; the rest within noise.
+  On this PC that is small; on a tiler the pass is bandwidth (C5 measures it).
+- **Not merged, and why**: bloom's downsample needs the whole scene before the post-process reads its result (a pass
+  boundary on any GPU); the MSAA resolve is the tiler's own with `EXT_multisampled_render_to_texture` (resolved on chip,
+  no pass: C4/C5, the device's extension).
+- **Open, for the device (C4)**: OpenXR's `imageRect` for an OpenGL ES swapchain: the part drawn from the lower left (GL's
+  origin); if the Quest's runtime reads the offset from the top, the offset is `imageHeight - height` (one line in
+  vr_backend_openxr_frame.cpp; the image shows the eye's top cut off and black at the bottom if wrong).
+
+**A PC hitch found on the way (fixed, its own commit bd2277d6c, may ship to `next`)**: C2f's 1.8 s frame (an array
+twin made in play) has a PC cousin on `origin/next`: the translucent brush models' program with the decals' retro code
+(`GL_WorldDecalRetroProgram`'s OIT variant, made by `R_ChooseBModelProgram` when a translucent brush model is first
+drawn with a retro mark about; ROUND22.md left it lazy). Measured in play with the new developer line "GL program made
+in play": **2.5-3.1 s** in ad_tears, ad_crucial and ad_necrokeep (19 of AD's maps have translucent brush models).
+Now made in the load's last frame (`VR_SignonPrewarm` -> `decals::prepareTranslucent`, when a baseline brush model is
+translucent and OIT is in effect): none in play after it; the load pays 7 ms with the driver's cache, up to 2.9 s
+without (AD's start map, behind the loading screen).
 
 ## 7. Installs for his approval (none done)
 
@@ -619,8 +659,9 @@ Next phase: C3 — the Android build (NEEDS INSTALLS: section 7's SDK, NDK, JDK,
 approval): CMake toolchain for arm64-v8a with `-ffp-contract=off`, the Gradle project and SDL2's activity, the first
 compile of vr_android.cpp's `__ANDROID__` forms (and the crash handler merged with vr_crash.cpp's POSIX one, section
 5d), logcat console, the first boot in the emulator (flat-screen, ES 3.x), `vr_quest_preset` applied on the first run
-there. If the installs are not approved yet, the no-install phase worth doing (C2g): the eyes' post chain merged into
-fewer full-screen passes under the Quest preset (section 6c's second GPU lever: the float scene's tone curve, bloom's
-composite and the grade read and written once on a tiler, not once each; the PC's chain unchanged, `gles_render_test`
-equal). Waiting on his call, not on installs: the armed humanoids' CPU cost (section 6d: 1.5 ms of a fight's 4.4;
-poses of unseen holders, a Quest cap on armed replacements).
+there. If the installs are not approved yet, the no-install phase worth doing (C2h): the world textures' memory under
+the ES profile (section 6e's open item: the 2D copies the arrays duplicate, 8.9-15 MB in e1m1, freed once nothing else
+reads them, or never uploaded; the liquids into the arrays too; the PC unchanged, `gles_render_test` equal). Waiting
+on his call, not on installs: the armed humanoids' CPU cost (section 6d: 1.5 ms of a fight's 4.4; poses of unseen
+holders, a Quest cap on armed replacements); `bd2277d6c` (the PC's translucent decal program hitch, section 6f) to
+`next`.

@@ -2423,3 +2423,18 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
   (fewer bodies and particles) since a31689eab (every move since the last server tick counts: the bench's +attack
   presses land differently at 90 Hz input over 72 Hz ticks). Nothing to fix; for CPU p99s in --fast, read cpu_busy with
   the GPU unsaturated (a smaller --eye) or a paced run. Scripts: scratch/uf_crowd.sh, uf_hitch2.py.
+
+## questN: Quest C2g, the eye's sub-image; the PC's translucent decal program hitch (agent/quest, 2026-11-14)
+
+- **C2f's skipped checks** (after merging `origin/next` 4c4ac5b3f): scenario_check 129/0, load_models_test 4/0,
+  vr_simd_test 58880/0, the release configuration (ReleaseLTO, `-p:QvrReleaseVersion=1.1.0`) 0 warnings.
+- **PC hitch, on `next` too (fixed in bd2277d6c, its own commit)**: the translucent brush models' program with the
+  decals' retro code (OIT) was made the first time one was drawn with a retro mark about: 2.5-3.1 s frozen in
+  ad_tears, ad_crucial, ad_necrokeep (19 AD maps have translucent brush models). Now made in the load's last frame when
+  the map has one (`decals::prepareTranslucent`); none in play after it (`scratch/questN_hitch.sh`). developer 1 prints
+  "GL program made in play: <name>, <ms>" for any program made after the signon.
+- **C2g** (QUEST_PLAN.md 6f): the tone curve, grade, bloom's composite and dither were already one pass; the extra
+  full-screen pass under the Quest preset was the bilinear resample into the runtime's image. `vr_eye_subimage` (Auto:
+  the ES profile only) post-processes the eye straight into the image's lower left part and the layer shows that part
+  (OpenXR `subImage.imageRect`): the resample is gone, the part identical to the old resample target
+  (gles_render_test 21/0). The UI is drawn at the eye's size there.
