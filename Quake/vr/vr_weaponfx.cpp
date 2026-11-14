@@ -1431,6 +1431,11 @@ void twoHandTest(const Check& check)
         }
         return -1.f;
     };
+    // ... as the kick is made (shotKick): its length (kickSeconds of the time share, its floors: 0.014 s of Return Time,
+    // 0.02 s a kick) less its rise. Not the one-handed time times the share: the floors and the rise's 35 ms cap make
+    // that only nearly so, a weapon's own Return Time deciding how nearly (the burst rifle's was a step past the margin).
+    const auto backWant = [&](float support) { return za::max(kickSeconds(held, twoHandShare(held, support).time), 0.02f) - riseOf(support); };
+    constexpr float backSlack = 0.0011f; // backTime's 0.5 ms steps, twice, and a little
     // Every slider (kick back, muzzle rise, return time, haptic punch: Weapon Effects' and the weapon's own) set alike:
     // as the one share they were before vr_recoil_2h_* (2026-10-31).
     cvar_t* const globals[4] = {&vr_recoil_2h_kick, &vr_recoil_2h_rise, &vr_recoil_2h_time, &vr_recoil_2h_haptic};
@@ -1468,8 +1473,8 @@ void twoHandTest(const Check& check)
         tip2 / tip1, share);
     check(fabsf(back2 / back1 - share) < 1e-3f, "and its kick back (ratio)", back2 / back1, share);
     const float time1 = backTime(0.f), time2 = backTime(1.f);
-    check(fabsf(time2 / time1 - share) < 0.02f, "and back to rest from the peak in the share of the time (ratio)",
-        time2 / time1, share);
+    check(time2 < time1 && fabsf(time1 - backWant(0.f)) <= backSlack && fabsf(time2 - backWant(1.f)) <= backSlack,
+        "and back to rest from the peak sooner, in the share of the time (its kick's, s)", time2, backWant(1.f));
     Con_Printf("vr_recoil_test: two-handed share %.2f: peak %.3f / %.3f deg, %.3f / %.3f cm, back in %.4f / %.4f s\n",
         share, tip2, tip1, back2, back1, time2, time1);
 
@@ -1492,10 +1497,10 @@ void twoHandTest(const Check& check)
             float b = 0.f;
             const float tip = drawnAt(1.f, riseOf(1.f), b);
             const float time = backTime(1.f);
-            const float tipWant = tip2 * (i == 1 ? want / 0.3f : 1.f), backWant = back2 * (i == 0 ? want / 0.3f : 1.f);
-            const float timeWant = time2 * (i == 2 ? want / 0.3f : 1.f);
-            only = only && fabsf(tip - tipWant) <= 1e-3f * za::max(tipWant, 1.f) && fabsf(b - backWant) <= 1e-3f * za::max(backWant, 1.f) &&
-                   fabsf(time - timeWant) <= 0.02f * timeWant + 0.001f;
+            const float tipWant = tip2 * (i == 1 ? want / 0.3f : 1.f), kickWant = back2 * (i == 0 ? want / 0.3f : 1.f);
+            const float timeWant = backWant(1.f); // (its kick's, as made with these shares: see backWant)
+            only = only && fabsf(tip - tipWant) <= 1e-3f * za::max(tipWant, 1.f) && fabsf(b - kickWant) <= 1e-3f * za::max(kickWant, 1.f) &&
+                   fabsf(time - timeWant) <= backSlack && (i != 2 || time < time2);
             check(only, va("two-handed %s (%s) moves its own value only (share; peak deg, cm; s back)", names[i],
                             own ? "the weapon's own" : "Weapon Effects'"),
                 got[i], want);

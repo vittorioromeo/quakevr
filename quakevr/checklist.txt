@@ -14,6 +14,7 @@ Flat-screen or VR: Select Campaign has "Arena Mode" right under Arcane Dimension
 Flat-screen or VR: Start Arena Mode with your normal Run Setup set to something else (Classic, no armed humanoids, Randomized Pickups); the arena plays Unleashed with armed humanoids and the smarter AI, and your next campaign's Run Setup still shows your own choices.
 Flat-screen or VR: Arena Mode never autosaves (none at the start, between or during waves) and its row never gets a Continue under it.
 Flat-screen or VR: start this scene, wade the shotgun into the pool and climb out, then quicksave and quickload: your off hand stays empty (no toolgun or axe from a holster), the grunts fire with normal poses (no bent limbs, no death knight fireballs), and what was dripping still drips. {test:waterdrips}
+Arena Mode: the Run Setup screen has no Ironman row (Start, Difficulty, Gore, Glass Cannon, Melee Only). In the arena try save, quicksave (key, gesture, menu) and the Save menu: each is refused with "No saving in Arena Mode"; loading another save still works.
 
 [1. Flat-screen: weapons and hands]
 Flat-screen: hold the axe (then a sword, the crowbar, Mjolnir, the super axe) with the left hand empty: the left hand goes onto the handle by itself and the weapon sits two-handed; take something in the left hand: back to one hand, no jumps either way (Debug > Tunables > Flatscreen > Two-Handed Melee Stance). {test:flat_melee2h}
@@ -40,6 +41,8 @@ Flat-screen or VR: Select Campaign has no Bloody Nightmare row under Dawn of the
 With armour on, set Reloading > X With Armour and Flashlight > Forward With Armour to about 3 units (the scene does): the pouch and the belt torch stand clear of the plates, and go back when the armour is gone. {test:armour_gear}
 VR: teleport many times quickly (headset at 90 or 120 Hz): every release teleports you.
 In a mirror (or the Ranger Head page's body clone), your body wears Quake VR's detailed ranger head, the ranger corpses' one, with its own skin: check its size and height over the neck from the front, side and back, that it turns with your head, and that none of it shows in your own view when you look down or lean. Ranger Head > Detailed Head off (next start) brings back the old one.
+In a mirror (or the Ranger Head page's body clone), have a grunt shoot your head, or use Debug > Tools > Wound Your Head (Mirror): the wounds show on the head where it was hit (front, sides, back, crown), wounds elsewhere on the body never show on the head, and the head's skin looks as before.
+The head's default place is now centred (Right 0) and Size 1.25: check it sits right on the neck from the front and side; Reset Head Placement on the Ranger Head page gives these.
 
 [5. VR: melee and embedded blades]
 Stab a standing monster with the sword without staggering it, keep holding, and let it walk into a teleporter: the sword comes back to your hand, not held from across the map. {test:embed_tele}

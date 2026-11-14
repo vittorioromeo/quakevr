@@ -5414,6 +5414,7 @@ vr_permdecal_show|2|Debug - Tools|Show Permanent Decal Pages|Advanced VR Options
 |2|Debug - Tools|Log Weapon Blood as Drawn|Advanced VR Options > Debug > Tools > Log Weapon Blood as Drawn
 |2|Debug - Tools|Burn Your Arms|Advanced VR Options > Debug > Tools > Burn Your Arms
 |2|Debug - Tools|Wound Your Arms|Advanced VR Options > Debug > Tools > Wound Your Arms
+|2|Debug - Tools|Wound Your Head (Mirror)|Advanced VR Options > Debug > Tools > Wound Your Head (Mirror)
 |2|Debug - Tools|Soak Your Arms|Advanced VR Options > Debug > Tools > Soak Your Arms
 |2|Debug - Tools|Test Light|Advanced VR Options > Debug > Tools > Test Light
 |2|Debug - Tools|Test Bullet Time Empty Notice|Advanced VR Options > Debug > Tools > Test Bullet Time Empty Notice

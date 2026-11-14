@@ -646,6 +646,7 @@ void M_NewGameStart (void);								// menu.c: the new game itself (map start), t
 int VR_RunIronman (void);								// the run's Ironman is on (vr_runsetup.cpp): no saving, the menus' Save greyed, no autosaves
 int VR_CoopPickSlot (const char *name);				// SV_CheckForNewClients: the slot a new player takes (-1: the first free; vr_coopsave.cpp)
 int VR_ServerIntermission (void);					// Host_Savegame_f: the server's QC is in its intermission (intermission_running; vr_progs.cpp)
+int VR_ArenaNoSave (void);								// in Arena Mode (vrarena): no saving of any kind
 int VR_RunIronmanRefusesSave (void);					// Host_Savegame_f: 1 when Ironman refuses it (said on the console and the screen)
 void VR_Menu_Draw (void);								// M_Draw, m_vr
 // Several menu panels (vr_menu.cpp; MULTI_MENU.md): M_Draw draws the first panel's menu (the 2D layer's canvas) whichever

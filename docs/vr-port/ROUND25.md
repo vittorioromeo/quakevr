@@ -3082,3 +3082,43 @@ self-driven across the load by saved globals): `vr_scenario waterdrips`, once pl
   showed them; each move carries `viewBack` (QVR_NET_VERSION 20). Melee and the grapple are not compensated yet.
 - Tests: `mp_test.py lagcomp` (12/12 hits judged where B saw A, 4/12 where the server has him), `vr_netsnap_selftest` 6/0.
   Details: MP_PLAN.md, "B8b results, part 1".
+## rangerhead2: the detailed head's wounds where struck; his head place as defaults; the recoil test's 2H time (agent/rangerhead2, 2026-11-15)
+
+- **Why the detailed head's wounds were in the wrong spots:** three causes. (1) Its texture coordinates were his own skin's
+  (s 88..252, t 61..142 of 256) while the wound mask is the body's (its layout the body's skin's): the head read the
+  body's mask at texels that belong to the body's back, arms and legs, so their wounds showed on the head (and the
+  body's skin mask, read there too, tinted it from other parts). (2) `R_PaintAliasWounds` painted the body's first
+  surface only: a blow on the head never painted the head's own mesh. (3) Your body is painted as the eye views pose
+  it, the neck and head collapsed: even the old head's (in the first surface) wounds were painted onto a collapsed head.
+- **Fix:** `packDetailed` (vr_rangerhead.cpp) puts his two islands side by side in the body's head block (the
+  placeholder's head-only texels, u 0.008..0.492, v 0.447..0.496: unused once his head is drawn), stretched to fill it;
+  his vertices' coordinates are there (the md5 text and `VR_RangerHeadMesh`), and his skin is laid out to match
+  (`progs/vrrangerhead_00_00`, 256 x 2048, no texel of his lost). `VR_RangerHeadImage` now paints the body's skin mask
+  there for him too (skin where his texels are skin colours, normals flat). `R_PaintAliasWounds` draws the head's mesh
+  as well (`VR_RangerHeadPaints`) and takes your body's bones with its head (`VR_AliasWoundBonePoses`, the shadow maps'
+  `shadowSkin`; the classic head gains from this too). The sliders need nothing: the paint draws the mesh's own
+  vertices, which they rewrite.
+- **Test:** `vr_body_head_wound_test [keep]` (vr_wounds_diag.cpp; Debug > Tools > *Wound Your Head (Mirror)*): five
+  small wounds (front, left, right, back, crown: the head's triangle farthest that way, posed with its head:
+  `avatar::posedMesh(withHead, st)`), each painted alone into your mask and read back; the blood in the head's texels,
+  mapped back onto the posed head, must have its middle within 1.5 units of the point and none farther than 5; a chest
+  wound must leave the head's texels clean. Verdict `head_wound_test: N passed, M failed` (`-QuitOn` it). Detailed head
+  11/0 (middles 0.12..0.90 off), with the sliders at size 1.8, sink 3, side -4, yaw 30, pitch 20: 11/0; the classic
+  head (`-rangerhead_nodetail`): 11/0. `vr_body_head_check detailed` 3/0, `classic` 3/0. Shot (front and back with
+  `keep`): `scratch/r2_face.png`.
+- **His values (2026-11-15) as defaults:** `vr_body_head_side` 1.75 -> 0, `vr_body_head_size` 1.3 -> 1.25 (rows in
+  `fullConfigChanges` for full configs; the Ranger Head page's *Reset Head Placement* now sets the shipped size and
+  sink: it said sink 4.5, the default is 9).
+- **vr_recoil_test's "two-handed return time" FAIL (0.0750 vs 0.0750):** the test's comparison, not the gameplay: the
+  shares were right (0.075 printed both sides); the drawn time back to rest was checked against the one-handed time
+  times the share, which the kick's floors (0.014 s of Return Time, 0.02 s a kick) and the rise's 35 ms cap make only
+  nearly so, a weapon's Return Time deciding by how much (the burst rifle's a step past the 2% + 1 ms margin). Now
+  checked against the kick as `shotKick` makes it (`backWant`: its length less its rise, within two 0.5 ms steps), and
+  that two hands bring it back sooner. 127/0 (the baseline's script).
+- load_models_test 4/0, scenario_check PASS. Dev build 0 warnings; ReleaseLTO (QvrReleaseVersion 1.1.0) 0 warnings.
+
+## arenanosave (2026-11-15)
+
+- Arena Mode: no Ironman row (rows: Start, Difficulty, Gore, Glass Cannon, Melee Only); `arenaValue` forces Ironman off, the pick untouched.
+- No saving in the arena (`vrarena`): `VR_ArenaNoSave` (vr_runsetup.cpp) makes `VR_RunIronmanRefusesSave` refuse `save`/quicksave/Save menu with "No saving in Arena Mode"; the quicksave tool is greyed with that reason. Loading stays allowed.
+- Tests: `vr_runsetup_screen_test` (five rows), `vr_runlaunch_test` (Ironman off with the pick on; save and quicksave write nothing). menu_paths unchanged by rows removal except Ironman.

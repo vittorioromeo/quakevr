@@ -361,6 +361,10 @@ int VR_RangerHeadMesh (void *mod, const char *model, int mesh, const char *shade
 char *VR_RangerHeadExtend (const char *name, const char *md5mesh);
 int VR_RangerHeadSkins (void *surf, const char *shader);
 void VR_RangerHeadImage (const char *name, unsigned char *data, int width, int height, int format);
+// R_PaintAliasWounds: a body's surface after its first that is the detailed head's mesh (painted into the body's mask too).
+int VR_RangerHeadPaints (const void *surf);
+// R_PaintAliasWounds: as VR_AliasBonePoses, your body with its head (as it is seen from outside: its wounds painted there).
+int VR_AliasWoundBonePoses (const struct entity_s *e, const float **matrices);
 
 
 // Dynamic ambient occlusion (vr_ao.cpp; see vr_ao.hpp).

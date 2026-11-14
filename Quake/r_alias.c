@@ -1936,7 +1936,9 @@ R_PaintAliasWounds -- QVR
 Wounds painted on models (vr/vr_wounds.cpp): `e` as it is drawn this frame (its pose, its lerp, its place; a posed
 skeleton's bones), drawn into the bound framebuffer (its wound mask's layer; the viewport: its region) laid out by its
 skin's coordinates, with `numsplats` splats (five vec4 each: gl_shaders.h's wound_paint_fragment_shader). The caller
-sets the blending (the most of what is there and what is painted). Its first surface only (the one its mask is for).
+sets the blending (the most of what is there and what is painted). Its first surface only (the one its mask is for),
+and a body's detailed head's mesh (VR_RangerHeadPaints: his texels in the body's head block). Your body as seen from
+outside, with its head (VR_AliasWoundBonePoses: the eye views collapse it).
 `side` 0 or 1: only that side of a mask kept per side (your body's: its left and middle, its right), -1 all of it.
 Its triangles, then their edges as lines: a texel a triangle's edge crosses without covering its middle is painted too
 (the skin is read there at the edges of its islands).
@@ -2013,7 +2015,7 @@ qboolean R_PaintAliasWounds (entity_t *e, int numsplats, const float *splats, in
 	buffers[0] = buf;
 	offsets[0] = (GLintptr) ofs;
 	sizes[0] = sizeof (data);
-	numbones = hdr->poseverttype == PV_IQM ? VR_AliasBonePoses (e, &bones) : 0;
+	numbones = hdr->poseverttype == PV_IQM ? VR_AliasWoundBonePoses (e, &bones) : 0; // QVR: your body with its head
 	if (numbones)
 	{
 		GL_Upload (GL_SHADER_STORAGE_BUFFER, bones, sizeof (bonepose_t) * numbones, &bonebuf, &boneofs);
@@ -2056,10 +2058,15 @@ qboolean R_PaintAliasWounds (entity_t *e, int numsplats, const float *splats, in
 	GL_Uniform1iFunc (0, numsplats);
 	GL_Uniform4fvFunc (1, numsplats * 5, splats);
 
-	GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, 1);
-	glPolygonMode (GL_FRONT_AND_BACK, GL_LINE);
-	GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, 1);
-	glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
+	for (surf = hdr; surf; surf = Mod_NextSurface (surf)) // QVR: and the body's detailed head's mesh (its texels the body's head block's)
+	{
+		if (surf != hdr && !VR_RangerHeadPaints (surf))
+			continue;
+		GL_DrawElementsInstancedFunc (GL_TRIANGLES, surf->numindexes, GL_UNSIGNED_SHORT, (void*)surf->eboofs, 1);
+		glPolygonMode (GL_FRONT_AND_BACK, GL_LINE);
+		GL_DrawElementsInstancedFunc (GL_TRIANGLES, surf->numindexes, GL_UNSIGNED_SHORT, (void*)surf->eboofs, 1);
+		glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
+	}
 	return true;
 }
 

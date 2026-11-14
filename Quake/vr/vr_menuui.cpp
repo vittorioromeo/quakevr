@@ -786,6 +786,10 @@ QuickSaveSeen quickSaveSeen;
         {
             return "Not playing a local game";
         }
+        if(VR_ArenaNoSave())
+        {
+            return "No saving in Arena Mode";
+        }
         if(VR_RunIronman())
         {
             return "Ironman: no saving";
