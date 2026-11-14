@@ -2220,4 +2220,21 @@ the window's zones, worst frames and GPU passes; map loads by stage. Everything 
 - Cherry-picked 27537ab7c: every move read since the server's last frame counts (buttons and VR bits ORed, so a press and release between two ticks is not lost); per-slot move state reset on connect and drop (sv_user.c, host.c, sv_main.c, vr_server.cpp).
 - net_dgrm.c only from dd49030c2: a second client from the same IP on another port no longer closes the first one's connection (only the exact address and port counts as a duplicate); the harness and engine-aid parts of that commit stay on agent/mp.
 - Checks: dev and ReleaseLTO 1.1.0 builds, scenario_check, load_models_test, flatkeys/flatholster/flatswap, throw_trigger_test, vr_run_check 9/0.
+## profile2: the perf campaign's second pass (agent/profile2, 2026-11-14)
+
+Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his call"). Behaviour and visuals unchanged.
+
+- **Env cube world on load** (`vr_envmap.cpp`): the world textures' average colours read back in one pixel-pack buffer,
+  mapped once: ad_azad's readbacks 207-217 -> 14-33 ms (113 textures), the per-vertex colours bit-identical (hashed).
+  What the stage still waits for is the GPU's backlog from the load.
+- **Per-frame heap events**: `avatar::posedMesh` keeps its part buffer (`mem::Scratch` "avatar posed mesh"),
+  `monsterdata::findStandIn` looks up without making a string: nav_hunt_e1m1_3x 31.6 -> 16.3 main-thread heap events a
+  frame, combat_48 8.9 -> 8.0 (`vr_alloc_sites`); the rest are first-use cache fills and kept buffers growing.
+- **Alias model load**: the skin edges (`vr_skinedge.cpp`, 0.36 ms a model on the main thread) on the job pool by bands
+  of rows, the same edge list (compared with the serial walk: 895 models, 0 differ). New Tracy zones in the skins'
+  normal maps; the rest of a model's load is GL uploads and residency, 30-100 us a skin.
+- **ad_tears' first frames after load (113-476 ms)**: the props' navmesh batches (40-54 tiles with crates as obstacles,
+  270-437 ms on the whole pool) landing on their fixed 3rd frame (`vr_nav_job_frames`): left for him with a proposal
+  (a later fixed frame for a class's first batch).
+- Checks: `load_models_test.sh` 4/0, `scenario_check.sh` 129 files 0 errors, 129 run 0 failed, the ReleaseLTO 1.1.0 build.
 - Cherry-picked c206e9a74 (agent/quest): particles' Support[16] uniform at locations 40-55, no longer overlapping the fragment shader's Taper/InkAlpha (20/21; a strict-linker link error). Checks: dev and ReleaseLTO 1.1.0 builds, scenario_check 129/0, flatblood_test 1 (particles drawn).
