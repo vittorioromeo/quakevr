@@ -349,8 +349,13 @@ int VR_MD5SharedSkins (const char *shader);				// Mod_LoadMD5Skins: the skins on
 // read, its influences baked (`bones` its boneinfo_t, `verts` its iqmvert_t): new hunk arrays, 1 if it changed them
 // (`mod` the qmodel_t, kept to place the head again live: vr_body_head_*).
 // Image_LoadImage: an image decoded (`format` its enum srcformat): the body's skins painted where that head is drawn.
-int VR_RangerHeadMesh (void *mod, const char *model, const char *shader, const void *bones, int numbones, void **verts,
+// `mesh` its number in the file (the body's first; the detailed head's own after it, shader "vrrangerhead").
+int VR_RangerHeadMesh (void *mod, const char *model, int mesh, const char *shader, const void *bones, int numbones, void **verts,
 	int *numverts, unsigned short **indexes, int *numindexes);
+// loadMd5Replacement: a body's file with the detailed head's mesh added (VR_HeapFree it), or NULL; Mod_LoadMD5Skins: that
+// mesh given his skin (1), else 0.
+char *VR_RangerHeadExtend (const char *name, const char *md5mesh);
+int VR_RangerHeadSkins (void *surf, const char *shader);
 void VR_RangerHeadImage (const char *name, unsigned char *data, int width, int height, int format);
 
 
