@@ -646,6 +646,23 @@ za::Vector<Item> pageWofsSights()
             .help("Draws each held gun's sight line in blue: its rear point (yellow), its front one (cyan), and the line through "
                   "them to the wall. Painted sights: the shotguns, the lightning gun; the others a line along the top.")
     );
+    {
+        const char* placeHelp = "Playing on the desktop screen, this gun's ironsight (right mouse button) moved from where its "
+                                "sights line up through your eye: forward (further from the eye), right and up (units), its "
+                                "muzzle turned up (degrees). 0: the sights exactly on the crosshair. Changes show at once while "
+                                "aiming; your shots still go to the crosshair.";
+        list.pushBackMultiple(
+            header("Flat-Screen Aim"),
+            cycle("Right Click Aim", weapons::cvar(slot, Key::FlatAimMode), {{0.f, "Ironsight"}, {1.f, "Zoom"}})
+                .help("Playing on the desktop screen: Ironsight brings this gun up to your eye on its sights and fades the "
+                      "crosshair; Zoom narrows the view the same way but leaves the gun where it is, the crosshair kept "
+                      "(for guns with no sights to look down). Locomotion > Right Click Aim can set every gun's at once."),
+            s("Ironsight Forward", Key::FlatSightFwd, -10.f, 10.f, 0.1f, "%+.1f").help(placeHelp),
+            s("Ironsight Right", Key::FlatSightRight, -10.f, 10.f, 0.1f, "%+.1f").help(placeHelp),
+            s("Ironsight Up", Key::FlatSightUp, -10.f, 10.f, 0.1f, "%+.1f").help(placeHelp),
+            s("Ironsight Pitch (up)", Key::FlatSightPitch, -20.f, 20.f, 0.5f, "%+.1f").help(placeHelp)
+        );
+    }
     list.pushBackMultiple(
         header("Muzzle"),
         s("Muzzle X", Key::MuzzleOffsetX, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f).help("Where shots and the muzzle flash start, from the muzzle vertex."),

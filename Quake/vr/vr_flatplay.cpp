@@ -453,7 +453,7 @@ constexpr float eyeOffMax = 8.f; // vr_flat_eye_fwd / vr_flat_eye_up: the eye of
 {
     const float hip = za::clamp(vr_flat_gun_near.value, nearMin, nearMax);
     const float ads = za::clamp(vr_flat_ads_near.value, nearMin, nearMax);
-    return hip + (ads - hip) * za::clamp(flatsight::adsShare(), 0.f, 1.f);
+    return hip + (ads - hip) * flatsight::poseShare();
 }
 
 // The share of the drawn view's own move off the pose's eye (the walk's bob, a step's easing) the drawn body and hands ride together:
@@ -461,7 +461,7 @@ constexpr float eyeOffMax = 8.f; // vr_flat_eye_fwd / vr_flat_eye_up: the eye of
 [[nodiscard]] float rideShare()
 {
     const float share = za::clamp(vr_flat_body_bob.value, 0.f, 1.f);
-    return share + (1.f - share) * za::clamp(flatsight::adsShare(), 0.f, 1.f);
+    return share + (1.f - share) * flatsight::poseShare();
 }
 
 // Whether the drawn view is his own eyes: not a chase view, and not standing further from his own head than keepNear --
@@ -2073,7 +2073,7 @@ void stepFeel()
     {
         return glm::vec3{0.f};
     }
-    const float ads = za::clamp(flatsight::adsShare(), 0.f, 1.f);
+    const float ads = flatsight::poseShare(); // (a zoom-only gun stays in its pose: its walk bob too)
     const float share = 1.f + (za::clamp(vr_flat_ads_bob_fwd.value, 0.f, 1.f) - 1.f) * ads;
     return axes(camAngles)[0] * (amount * bobFwd * share * feel.amp * -za::cos(2.f * feel.phase));
 }
