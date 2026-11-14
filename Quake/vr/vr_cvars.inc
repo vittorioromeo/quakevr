@@ -1485,12 +1485,12 @@ QVR_CVAR(vr_body_ranger_head_model, "1", CVAR_ARCHIVE) // which ranger head: 1 Q
 // The ranger's head on the body, placed live (vr_rangerhead.cpp; Appearance > Ranger Head): cm on the model and degrees,
 // about the bottom of his head (pitch nods down, yaw turns left, roll tilts right), his size, and the neck sunk into him.
 QVR_CVAR(vr_body_head_forward, "0", CVAR_ARCHIVE)     // cm forward (-10 to 10)
-QVR_CVAR(vr_body_head_side, "1.75", CVAR_ARCHIVE)        // cm to the right (-10 to 10)
+QVR_CVAR(vr_body_head_side, "0", CVAR_ARCHIVE)           // cm to the right (-10 to 10)
 QVR_CVAR(vr_body_head_up, "0", CVAR_ARCHIVE)          // cm up (-10 to 10)
 QVR_CVAR(vr_body_head_pitch, "0", CVAR_ARCHIVE)       // degrees, chin down (-45 to 45)
 QVR_CVAR(vr_body_head_yaw, "0", CVAR_ARCHIVE)         // degrees, turned left (-45 to 45)
 QVR_CVAR(vr_body_head_roll, "0", CVAR_ARCHIVE)        // degrees, tilted right (-45 to 45)
-QVR_CVAR(vr_body_head_size, "1.3", CVAR_ARCHIVE)      // times the first version's size (0.5 to 2)
+QVR_CVAR(vr_body_head_size, "1.25", CVAR_ARCHIVE)     // times the first version's size (0.5 to 2)
 QVR_CVAR(vr_body_head_sink, "9", CVAR_ARCHIVE)      // cm the head is lowered over the neck, the neck's top with it (0 to 12)
 QVR_CVAR(vr_skin_tone, "0", CVAR_ARCHIVE) // skin-only shader: -1 dark, 0 authored skin, +1 light
 QVR_CVAR(vr_gloves, "0", CVAR_ARCHIVE)                // gloves on the jointed hands: 0 none, 1 fingerless (the fingertips bare), 2 full; with bare forearms a cuff over the wrist (make_skin_masks.py's G, B)

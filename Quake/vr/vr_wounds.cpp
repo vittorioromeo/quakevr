@@ -567,6 +567,17 @@ void subtract(int layer, const glm::vec4& amount, bool ownOnly = false)
     }
 }
 
+} // namespace
+namespace detail
+{
+void clearMask(int layer)
+{
+    subtract(layer, glm::vec4{1.f});
+}
+} // namespace detail
+namespace
+{
+
 // `n` splats painted on `e` into the bound layer (the blending set): an alias model by its skin, a held brush model (a
 // box) by its box (r_world.c's R_PaintBrushWounds).
 void paintModel(entity_t* e, int n, const float* splats, int side)

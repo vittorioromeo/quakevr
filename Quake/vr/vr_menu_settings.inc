@@ -662,7 +662,7 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
         row(opt::vr_menu_body_clone_distance),
         row(opt::vr_menu_body_clone_side),
         command("Reset Head Placement",
-            "vr_body_head_size 1.3; vr_body_head_sink 4.5; vr_body_head_forward 0; vr_body_head_side 0; vr_body_head_up 0; "
+            "vr_body_head_size 1.25; vr_body_head_sink 9; vr_body_head_forward 0; vr_body_head_side 0; vr_body_head_up 0; "
             "vr_body_head_pitch 0; vr_body_head_yaw 0; vr_body_head_roll 0")
             .help("Back to the shipped size, sink and place."),
     };
