@@ -2788,3 +2788,9 @@ self-driven across the load by saved globals): `vr_scenario waterdrips`, once pl
   checked against the kick as `shotKick` makes it (`backWant`: its length less its rise, within two 0.5 ms steps), and
   that two hands bring it back sooner. 127/0 (the baseline's script).
 - load_models_test 4/0, scenario_check PASS. Dev build 0 warnings; ReleaseLTO (QvrReleaseVersion 1.1.0) 0 warnings.
+
+## arenanosave (2026-11-15)
+
+- Arena Mode: no Ironman row (rows: Start, Difficulty, Gore, Glass Cannon, Melee Only); `arenaValue` forces Ironman off, the pick untouched.
+- No saving in the arena (`vrarena`): `VR_ArenaNoSave` (vr_runsetup.cpp) makes `VR_RunIronmanRefusesSave` refuse `save`/quicksave/Save menu with "No saving in Arena Mode"; the quicksave tool is greyed with that reason. Loading stays allowed.
+- Tests: `vr_runsetup_screen_test` (five rows), `vr_runlaunch_test` (Ironman off with the pick on; save and quicksave write nothing). menu_paths unchanged by rows removal except Ironman.

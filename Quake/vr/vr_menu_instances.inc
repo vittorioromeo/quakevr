@@ -714,14 +714,14 @@ void qvr::menu::runSetupScreenTest_f()
             goBack();
         }
     }
-    // Arena Mode (arenacamp): its notice's Continue opens its own screen: exactly Start, Difficulty, Gore, Ironman,
+    // Arena Mode (arenacamp): its notice's Continue opens its own screen: exactly Start, Difficulty, Gore,
     // Glass Cannon, Melee Only (no other row: the arena's balance), Start first; Back leaves it; the next way in has
     // the whole page again.
     if(VR_CampaignUnavailable(0) == 0)
     {
         openRunSetupArena();
         check(shownFor(runsetup::Launch::Arena) && runSetup.arena, "Arena Mode's Continue opens its screen");
-        const char* const want[] = {"Start", "Difficulty", "Gore", "Ironman", "Glass Cannon", "Melee Only"};
+        const char* const want[] = {"Start", "Difficulty", "Gore", "Glass Cannon", "Melee Only"};
         int n = 0;
         bool same = true;
         for(const Item& it : pageRunSetup()) // (the page's own rows: not the menu's Reset This Page under them)
@@ -736,7 +736,7 @@ void qvr::menu::runSetupScreenTest_f()
                 n++;
             }
         }
-        check(same && n == 6, va("Arena Mode: exactly Start, Difficulty, Gore, Ironman, Glass Cannon, Melee Only (%d rows)", n));
+        check(same && n == 5, va("Arena Mode: exactly Start, Difficulty, Gore, Glass Cannon, Melee Only (%d rows)", n));
         startFirst(shown(), false, "Arena Mode");
         goBack();
         check(ui().page != page && runSetup.launch == runsetup::Launch::Arena, "Arena Mode: Back leaves it, nothing started");
@@ -935,6 +935,7 @@ void runLaunchGo(const RunLaunchStep& s)
         case RunLaunchWay::NewGame: VR_RunSetupNewGame(); break;
         case RunLaunchWay::Campaign: openRunSetupCampaign(0); break;
         case RunLaunchWay::Arena:
+            Cvar_Set("vr_runpick_ironman", "1"); // (his pick: left alone by the arena's Start, which forces Ironman off)
             for(int i = 0; i < runsetup::count() && i < 64; i++)
             {
                 runLaunch.arenaPicks[i] = runsetup::at(i).pick->value;
@@ -987,8 +988,9 @@ void runLaunchArenaCheck()
     t.tally.check(kept, name, "Arena Mode: the player's Run Setup picks unchanged by its Start");
     auto active = [](const char* id) { return runsetup::activeValue(runsetup::find(id)); };
     t.tally.check(active("style") == 3 && active("armed") == 2 && active("smartai") == 2 && active("rangedknights") == 0 &&
-                      active("pickups") == 0 && active("enemyrandom") == 0 && active("glasscannon") == 1,
-        name, va("Arena Mode: Unleashed, armed humanoids and smarter AI on, ranged knights left to the arena, the rest off; "
+                      active("pickups") == 0 && active("enemyrandom") == 0 && active("glasscannon") == 1 &&
+                      active("ironman") == 0 && vr_run_ironman.value == 0.f,
+        name, va("Arena Mode: Ironman forced off (his pick on, unchanged), Unleashed, armed humanoids and smarter AI on, ranged knights left to the arena, the rest off; "
                  "Glass Cannon as picked (%s)", runsetup::summary(false)));
     t.tally.check(vr_agrunt_repl.value != 0.f && vr_ai_enhanced.value != 0.f, name,
         "Arena Mode: the armed humanoids' and smarter AI's settings on");
@@ -1000,9 +1002,21 @@ void runLaunchArenaCheck()
     Cvar_SetValueQuick(&vr_arena_goto, 0.f);
     Cvar_SetValue("sv_autosave", t.autosave[0]);
     Cvar_SetValueQuick(&vr_autosave_level_start, t.autosave[1]);
-    // An old autosave of the arena: never a Continue.
-    Cmd_ExecuteString(va("save %s", runLaunchArenaSave), src_command);
+    // No saving of any kind in the arena: save and quicksave write nothing (the line said), the Save menu refused.
+    const char* nosaveProbe = "an_arena_nosave";
+    char probePath[MAX_OSPATH];
+    q_snprintf(probePath, sizeof(probePath), "%s/%s.sav", com_gamedir, nosaveProbe);
+    Cmd_ExecuteString(va("save %s", nosaveProbe), src_command);
+    Cmd_ExecuteString("save quick", src_command);
     Host_WaitForSaveThread();
+    Con_Printf("runlaunch: nosave: arena %d, probe %d, quick %d\n", VR_ArenaNoSave(), qvr::files::exists(probePath) ? 1 : 0,
+        qvr::files::exists(va("%s/quick.sav", com_gamedir)) ? 1 : 0);
+    t.tally.check(VR_ArenaNoSave() && !qvr::files::exists(probePath),
+        name, "Arena Mode: save and quicksave refused (\"No saving in Arena Mode\"), no file written");
+    // An old autosave of the arena (made some other way: never a Continue).
+    (void)qvr::files::writeText(probePath, "5\nold arena autosave\n// qvr_package\n// qvr_package_title\n");
+    (void)VR_LaunchContinueTestFixture(nosaveProbe, runLaunchArenaSave, "");
+    (void)qvr::files::remove(probePath);
     VR_LaunchContinueRefresh();
     const za::Vector<Item> camps = pageCampaigns();
     const Item* arena = nullptr;

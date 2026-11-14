@@ -730,13 +730,13 @@ void testCmd()
         {
             shownRows += arenaShows(i) ? 1 : 0;
         }
-        t.check(shownRows == 5 && arenaShows(find("skill")) && arenaShows(find("gore")) && arenaShows(find("ironman")) &&
+        t.check(shownRows == 4 && arenaShows(find("skill")) && arenaShows(find("gore")) && !arenaShows(find("ironman")) &&
                     arenaShows(find("glasscannon")) && arenaShows(find("meleeonly")),
             name, "Arena Mode: its screen's five choices");
         startArena();
-        t.check(skill.value == 2.f && vr_run_gore.value == 2.f && vr_run_ironman.value == 1.f &&
+        t.check(skill.value == 2.f && vr_run_gore.value == 2.f && vr_run_ironman.value == 0.f &&
                     vr_run_glasscannon.value == 1.f && vr_run_meleeonly.value == 1.f,
-            name, "Arena Mode: Difficulty, Gore, Ironman, Glass Cannon, Melee Only as picked");
+            name, "Arena Mode: Difficulty, Gore, Glass Cannon, Melee Only as picked, Ironman forced off");
         t.check(vr_run_style.value == 3.f && vr_run_armed.value == 2.f && vr_run_smartai.value == 2.f &&
                     vr_run_rangedknights.value == 0.f && vr_run_pickups.value == 0.f && vr_run_enemycount.value == 0.f &&
                     vr_run_startgun.value == static_cast<float>(startGunNothing) && vr_run_startmelee.value == 0.f,
@@ -832,7 +832,7 @@ int activeValue(int i)
 
 // Arena Mode's screen (ROUND25.md, "arenacamp"): the player's own picks for these; every other choice fixed by
 // arenaValue (his call 2026-11-15: "anything else would disrupt the arena mode balance/mechanics").
-constexpr const char* arenaRows[] = {"skill", "gore", "ironman", "glasscannon", "meleeonly"};
+constexpr const char* arenaRows[] = {"skill", "gore", "glasscannon", "meleeonly"}; // (no Ironman: the arena never saves)
 
 bool arenaShows(int i)
 {
@@ -852,6 +852,10 @@ int arenaValue(int i)
     if(arenaShows(i))
     {
         return pickValue(i);
+    }
+    if(!strcmp(m.id, "ironman"))
+    {
+        return 0; // (forced off in the arena; his pick untouched)
     }
     if(!strcmp(m.id, "style"))
     {
@@ -1213,8 +1217,20 @@ extern "C" int VR_RunIronman()
     return qvr::runsetup::ironman();
 }
 
+// Arena Mode (the Survival Arena, vrarena): no saving of any kind (his call 2026-11-15; loading stays allowed).
+extern "C" int VR_ArenaNoSave()
+{
+    return sv.active && !q_strcasecmp(sv.name, "vrarena") ? 1 : 0;
+}
+
 extern "C" int VR_RunIronmanRefusesSave()
 {
+    if(VR_ArenaNoSave())
+    {
+        Con_Printf("No saving in Arena Mode\n");
+        SCR_CenterPrint("No saving in Arena Mode");
+        return 1;
+    }
     if(!qvr::runsetup::ironman())
     {
         return 0;

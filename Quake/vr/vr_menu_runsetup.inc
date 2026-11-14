@@ -201,16 +201,16 @@ za::Vector<Item> pageRunSetup()
     // with skill halls) right after it, the sections below after their own gap.
     if(runSetup.arena)
     {
-        // Arena Mode (ROUND25.md, "arenacamp"): Start, Difficulty, Gore, Ironman, Glass Cannon, Melee Only, nothing
+        // Arena Mode (ROUND25.md, "arenacamp"): Start, Difficulty, Gore, Glass Cannon, Melee Only (no Ironman: the arena never saves), nothing
         // else (his call 2026-11-15: the rest would disrupt the arena's balance; runsetup::arenaValue fixes them).
         items.pushBack(action("Start", runSetupStart)
                            .help("Starts Arena Mode with these choices: Unleashed, armed humanoids and the smarter AI "
                                  "always, the other mutators off; your Run Setup for other runs is left as it is. Back: "
                                  "not started.")
                            .button());
-        constexpr const char* order[] = {"skill", "gore", "ironman", "glasscannon", "meleeonly"};
-        constexpr const char* before[] = {nullptr, "Presets", "Rules", nullptr, nullptr};
-        for(int o = 0; o < 5; o++)
+        constexpr const char* order[] = {"skill", "gore", "glasscannon", "meleeonly"};
+        constexpr const char* before[] = {nullptr, "Presets", "Rules", nullptr};
+        for(int o = 0; o < 4; o++)
         {
             const int i = runsetup::find(order[o]);
             if(before[o])
