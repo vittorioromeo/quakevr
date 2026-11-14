@@ -128,6 +128,7 @@ void VR_SetCrashDir (const char *gamedir);	// Host_Init: the reports go to <game
 void VR_ErrorReport (const char *message);	// Sys_ReportError: the error's report, the stack from Sys_Error's caller (VR_LastCrashReport names it)
 void VR_FatalError (const char *message);	// Sys_ReportError off the main thread (Windows): the report, a dialog, the process ended there (no engine shutdown from a worker)
 const char *VR_LastCrashReport (void);	// PL_ErrorDialog: the report written ("": none)
+const char *VR_CrashReportDir (void);	// the folder the reports go to (VR_SetCrashDir's; vr_android_test)
 int VR_ErrorDialogSuppressed (const char *errorMsg);	// PL_ErrorDialog: nonzero if written to qvr_error.txt instead
 
 // Start-up and map-load timing (vr_startup.cpp: vr_startup_times, vr_walltime).
@@ -289,8 +290,9 @@ void VR_GLMapSpawned (const char *map);	// VR_NoteMapSpawn
 void VR_GLStartupShutdown (int error);	// Host_Shutdown: the start-up's log ended (a quit, an error)
 void VR_GLSafeInit (void);	// VR_Init: vr_glsafe_retry, vr_glsafe_status, vr_gles_report
 void VR_GLESInstallForms (void);	// GL_Init, the functions loaded: -glescompat: glMultiDrawElementsIndirect as a glDrawElementsIndirect loop
-const char *VR_AndroidStart (int argc, char **argv);	// main, first: on Android (or -fakeandroid on the PC) the base folder and the crash handler; the base folder to use, or NULL (vr_android.cpp; QUEST_PLAN.md C2c)
+const char *VR_AndroidStart (int argc, char **argv);	// main, first: on Android (or -fakeandroid on the PC) the base folder and the crash reports' folder (<base>/quakevr/crash; the handler: vr_crash.cpp's); the base folder to use, or NULL (vr_android.cpp; QUEST_PLAN.md C2c, C3)
 int VR_Android (void);	// nonzero: an Android build, or the PC's fake-Android mode (-fakeandroid, QVR_FAKE_ANDROID)
+void VR_AndroidLog (const char *text);	// Sys_Printf on Android: the console's text into logcat, a line a message (vr_android.cpp)
 int VR_ChildProcesses (void);	// nonzero: processes of our own may start (relighting's light, the motion review's evaluation copy); 0 on Android and with -nochildprocesses
 void VR_AndroidInit (void);	// VR_Init: vr_android_test
 int VR_GLESCompat (void);	// nonzero: -glescompat, the renderer kept to what OpenGL ES 3.2 has (vr_glsafe.cpp; QUEST_PLAN.md)

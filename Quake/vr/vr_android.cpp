@@ -1,15 +1,15 @@
-// vr_android.cpp -- the Android platform layer's skeleton (QUEST_PLAN.md, C2c): where the game's files are, the crash
-// handler (signals, the stack by unwinding, a report file and the log), and no child processes. The layer's logic is
-// shared; the calls into Android go through `os` below, whose Android forms compile only in an Android build (C3)
+// vr_android.cpp -- the Android platform layer (QUEST_PLAN.md, C2c and C3): where the game's files are, the crash
+// reports' folder (the handler is vr_crash.cpp's POSIX one, shared with Linux: signals, the stack by unwinding on
+// Android, the report into the folder and logcat), the console's text in logcat, and no child processes. The layer's
+// logic is shared; the calls into Android go through `os` below, whose Android forms compile only in an Android build
 // and whose PC forms stand in for them, so that the layer compiles and runs on the PC: in the fake-Android mode
-// (-fakeandroid, QVR_FAKE_ANDROID=1 in the environment, or a build with QVR_FAKE_ANDROID defined). Off on the PC
-// by default: nothing here changes a PC run without the switch. vr_android_test checks the layer (Debug > Startup).
+// (-fakeandroid, QVR_FAKE_ANDROID=1 in the environment, or a build with QVR_FAKE_ANDROID defined). Off on the PC by
+// default: nothing here changes a PC run without the switch. vr_android_test checks the layer (Debug > Startup).
 
 #include "vr_api.h"
 #include "vr_engine.hpp"
 #include "vr_testkit.hpp"
 
-#include <csignal>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -18,10 +18,6 @@
 #ifdef __ANDROID__
 #include <SDL_system.h>
 #include <android/log.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <unwind.h>
 #endif
 
 namespace
@@ -37,58 +33,10 @@ const char* externalFilesDir()
     return SDL_AndroidGetExternalStoragePath();
 }
 
-// A line in the system log (logcat), signal-safe.
-void log(const char* text)
+// A message in the system log (logcat): `error` for the layer's own warnings, else the console's text.
+void log(const char* text, bool error)
 {
-    __android_log_write(ANDROID_LOG_ERROR, "QuakeVR", text);
-}
-
-struct UnwindState
-{
-    void** frames;
-    int count;
-    int max;
-};
-
-_Unwind_Reason_Code unwindFrame(_Unwind_Context* context, void* arg)
-{
-    UnwindState* s = static_cast<UnwindState*>(arg);
-    const uintptr_t pc = _Unwind_GetIP(context);
-    if(pc && s->count < s->max)
-    {
-        s->frames[s->count++] = reinterpret_cast<void*>(pc);
-    }
-    return s->count < s->max ? _URC_NO_REASON : _URC_END_OF_STACK;
-}
-
-// The return addresses on this thread's stack (no glibc backtrace on Android: the unwinder's).
-int backtrace(void** frames, int max)
-{
-    UnwindState s{frames, 0, max};
-    _Unwind_Backtrace(unwindFrame, &s);
-    return s.count;
-}
-
-void installSignal(int sig, void (*handler)(int))
-{
-    struct sigaction sa{};
-    sa.sa_handler = handler;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESETHAND; // (a second fault in the handler ends the process)
-    sigaction(sig, &sa, nullptr);
-}
-
-// The whole of `data` into `path` (signal-safe: open, write, close).
-bool writeFile(const char* path, const char* data, size_t len)
-{
-    const int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    if(fd < 0)
-    {
-        return false;
-    }
-    const bool ok = write(fd, data, len) == static_cast<ssize_t>(len);
-    close(fd);
-    return ok;
+    __android_log_write(error ? ANDROID_LOG_ERROR : ANDROID_LOG_INFO, "QuakeVR", text);
 }
 #else
 // The fake-Android mode: QVR_FAKE_ANDROID_DIR as the external files folder, else none (the PC's base folder kept).
@@ -97,154 +45,68 @@ const char* externalFilesDir()
     return getenv("QVR_FAKE_ANDROID_DIR");
 }
 
-void log(const char* text)
+void log(const char* text, bool)
 {
     fputs(text, stderr);
-}
-
-int backtrace(void**, int)
-{
-    return 0; // (the PC's own crash handler has the stacks)
-}
-
-// Recorded, not installed: the PC's crash handler (vr_crash.cpp) stays the one that runs.
-void (*installed[NSIG])(int){};
-void installSignal(int sig, void (*handler)(int))
-{
-    if(sig >= 0 && sig < NSIG)
-    {
-        installed[sig] = handler;
-    }
-}
-
-bool writeFile(const char* path, const char* data, size_t len)
-{
-    FILE* f = fopen(path, "wb");
-    if(!f)
-    {
-        return false;
-    }
-    const bool ok = fwrite(data, 1, len, f) == len;
-    return fclose(f) == 0 && ok;
+    fputs("\n", stderr);
 }
 #endif
 } // namespace os
 
-// The fatal signals the handler reports (SIGBUS: POSIX only).
-constexpr int crashSignals[] = {SIGSEGV, SIGABRT, SIGFPE, SIGILL,
-#ifdef SIGBUS
-    SIGBUS
-#endif
-};
-
 constexpr int maxPath = 1024;
-constexpr int maxFrames = 48;
-constexpr int reportSize = 4096;
+constexpr size_t logLineSize = 1024; // logcat cuts a message at about 4 KB; a console line is far shorter
 
-// The layer's state (set once at start-up, main thread; the crash handler reads it).
+// The layer's state (set once at start-up, main thread).
 struct Android
 {
     bool on = false;            // an Android build, or the fake-Android mode
     char base[maxPath]{};       // the base folder (id1 and quakevr in it)
-    char crashDir[maxPath]{};   // <base>/quakevr/crash
-    char crashPath[maxPath]{};  // <crashDir>/crash.txt: the last crash's report
-    char report[reportSize]{};  // the report, built in the handler without allocating
-    void* frames[maxFrames]{};
+    char crashDir[maxPath]{};   // <base>/quakevr/crash: vr_crash.cpp's reports
 } android;
 
-// Signal-safe text building into a fixed buffer.
-struct Writer
+// The console's text on its way to logcat: logcat makes each write a line, Sys_Printf's text comes in pieces, so the
+// pieces are joined into lines here (any thread: the spin lock).
+struct LogLines
 {
-    char* out;
-    size_t cap;
+    SDL_SpinLock lock = 0;
+    char line[logLineSize]{};
     size_t len = 0;
+    void (*sink)(const char*) = nullptr; // (vr_android_test's capture; null: os::log)
+} logLines;
 
-    void put(const char* s)
-    {
-        for(; s && *s && len + 1 < cap; s++)
-        {
-            out[len++] = *s;
-        }
-        out[len] = '\0';
-    }
-    void hex(uintptr_t v)
-    {
-        char digits[2 + sizeof(uintptr_t) * 2 + 1];
-        int n = 0;
-        digits[n++] = '0';
-        digits[n++] = 'x';
-        for(int shift = static_cast<int>(sizeof(uintptr_t)) * 8 - 4; shift >= 0; shift -= 4)
-        {
-            digits[n++] = "0123456789abcdef"[(v >> shift) & 15];
-        }
-        digits[n] = '\0';
-        put(digits);
-    }
-    void dec(int v)
-    {
-        char digits[12];
-        int n = sizeof digits - 1;
-        digits[n] = '\0';
-        const bool negative = v < 0;
-        unsigned u = negative ? 0u - static_cast<unsigned>(v) : static_cast<unsigned>(v);
-        do
-        {
-            digits[--n] = static_cast<char>('0' + u % 10);
-            u /= 10;
-        } while(u && n > 1);
-        if(negative && n > 0)
-        {
-            digits[--n] = '-';
-        }
-        put(digits + n);
-    }
-};
-
-const char* signalName(int sig)
+void emitLine()
 {
-    switch(sig)
+    logLines.line[logLines.len] = '\0';
+    if(logLines.sink)
     {
-        case SIGSEGV: return "SIGSEGV (bad memory access)";
-        case SIGABRT: return "SIGABRT (abort)";
-        case SIGFPE: return "SIGFPE (arithmetic)";
-        case SIGILL: return "SIGILL (illegal instruction)";
-#ifdef SIGBUS
-        case SIGBUS: return "SIGBUS (bus error)";
-#endif
-        default: return "signal";
+        logLines.sink(logLines.line);
     }
+    else
+    {
+        os::log(logLines.line, false);
+    }
+    logLines.len = 0;
 }
 
-// The report of a crash by `sig` with `count` frames, into android.report: its length.
-size_t formatReport(int sig, int count)
+void logText(const char* text)
 {
-    Writer w{android.report, sizeof android.report};
-    w.put("Quake VR crashed: signal ");
-    w.dec(sig);
-    w.put(" ");
-    w.put(signalName(sig));
-    w.put("\nBuild: ");
-    w.put(VR_BuildInfo());
-    w.put("\nStack (return addresses; symbolize with the build's unstripped .so: ndk-stack or addr2line):\n");
-    for(int i = 0; i < count; i++)
+    SDL_AtomicLock(&logLines.lock);
+    for(const char* c = text; c && *c; c++)
     {
-        w.put("  ");
-        w.hex(reinterpret_cast<uintptr_t>(android.frames[i]));
-        w.put("\n");
+        if(*c == '\n')
+        {
+            emitLine();
+        }
+        else
+        {
+            logLines.line[logLines.len++] = *c;
+            if(logLines.len + 1 >= sizeof logLines.line)
+            {
+                emitLine(); // (a line longer than the buffer: in pieces)
+            }
+        }
     }
-    return w.len;
-}
-
-// A fatal signal: the report into the log and <crashDir>/crash.txt, then the signal again, by default (the system's
-// own tombstone follows).
-void crashSignal(int sig)
-{
-    const int count = os::backtrace(android.frames, maxFrames);
-    const size_t len = formatReport(sig, count);
-    os::log(android.report);
-    os::writeFile(android.crashPath, android.report, len);
-    signal(sig, SIG_DFL);
-    raise(sig);
+    SDL_AtomicUnlock(&logLines.lock);
 }
 
 void copyPath(char (&out)[maxPath], const char* a, const char* b = "")
@@ -271,6 +133,32 @@ bool fakeRequested(int argc, char** argv)
 #endif
 }
 
+// vr_android_test's logcat capture.
+struct LogCapture
+{
+    int lines = 0;
+    size_t chars = 0;
+    size_t longest = 0;
+    char first[64]{};
+    char second[64]{};
+} logCapture;
+
+void captureLine(const char* line)
+{
+    const size_t n = strlen(line);
+    if(logCapture.lines == 0)
+    {
+        q_strlcpy(logCapture.first, line, sizeof logCapture.first);
+    }
+    else if(logCapture.lines == 1)
+    {
+        q_strlcpy(logCapture.second, line, sizeof logCapture.second);
+    }
+    logCapture.lines++;
+    logCapture.chars += n;
+    logCapture.longest = n > logCapture.longest ? n : logCapture.longest;
+}
+
 // vr_android_test: the layer's checks (an Android build, or the PC's fake-Android mode).
 void test_f()
 {
@@ -287,38 +175,58 @@ void test_f()
     q_snprintf(expect, sizeof expect, "%s/quakevr/crash", android.base);
     t.check(!strcmp(android.crashDir, expect), name, "crash folder not <base>/quakevr/crash");
     t.check(Sys_FileType(android.crashDir) & FS_ENT_DIRECTORY, name, "crash folder not made");
-#ifndef __ANDROID__
-    for(const int sig : crashSignals)
+
+    // The crash handler (vr_crash.cpp) reports into the same folder: a file put there is seen through its path.
+    char probe[maxPath];
+    q_snprintf(probe, sizeof probe, "%s/crash_probe.txt", android.crashDir);
+    if(FILE* f = fopen(probe, "wb"))
     {
-        t.check(os::installed[sig] == crashSignal, name, va("no handler for signal %d", sig));
-    }
-#endif
-    // A report as the handler writes it, to a test file beside crash.txt (not a real crash's).
-    android.frames[0] = reinterpret_cast<void*>(static_cast<uintptr_t>(0x1234abcd));
-    const size_t len = formatReport(SIGSEGV, 1);
-    char path[maxPath];
-    q_snprintf(path, sizeof path, "%s/crash_test.txt", android.crashDir);
-    t.check(os::writeFile(path, android.report, len), name, "report not written");
-    char back[reportSize]{};
-    if(FILE* f = fopen(path, "rb"))
-    {
-        const size_t n = fread(back, 1, sizeof back - 1, f);
-        back[n] = '\0';
+        fputs("vr_android_test\n", f);
         fclose(f);
     }
-    t.check(strlen(back) == len, name, "report read back at another length");
-    t.check(strstr(back, va("signal %d SIGSEGV", SIGSEGV)) != nullptr, name, "no signal line");
-    t.check(strstr(back, "0x") && strstr(back, "1234abcd"), name, "no frame address");
-    t.check(strstr(back, VR_BuildInfo()) != nullptr, name, "no build line");
-    Con_Printf("vr_android_test: base %s, crash reports %s\n", android.base, android.crashPath);
+    t.check(Sys_FileType(va("%s/crash_probe.txt", VR_CrashReportDir())) & FS_ENT_FILE, name,
+        va("the crash reports go elsewhere: %s", VR_CrashReportDir()));
+
+    // The console's text into logcat: pieces joined into lines, a newline a message, an overlong line in pieces.
+    SDL_AtomicLock(&logLines.lock);
+    const size_t pending = logLines.len; // (text of the game's own, waiting for its newline: kept aside)
+    char kept[logLineSize];
+    memcpy(kept, logLines.line, pending);
+    logLines.len = 0;
+    logLines.sink = captureLine;
+    SDL_AtomicUnlock(&logLines.lock);
+    logCapture = {};
+    logText("abc");
+    logText("def\nghi\n");
+    t.check(logCapture.lines == 2, name, va("%d log lines from \"abc\" \"def\\nghi\\n\", not 2", logCapture.lines));
+    t.check(!strcmp(logCapture.first, "abcdef") && !strcmp(logCapture.second, "ghi"), name, "log lines not joined");
+    logText("jkl");
+    t.check(logCapture.lines == 2, name, "a line without its newline sent");
+    logText("\n");
+    char longLine[2600];
+    memset(longLine, 'x', sizeof longLine - 2);
+    longLine[sizeof longLine - 2] = '\n';
+    longLine[sizeof longLine - 1] = '\0';
+    logCapture = {};
+    logText(longLine);
+    t.check(logCapture.lines == 3 && logCapture.chars == sizeof longLine - 2 && logCapture.longest < logLineSize, name,
+        va("a %d-character line: %d messages, %d characters", static_cast<int>(sizeof longLine - 2), logCapture.lines,
+            static_cast<int>(logCapture.chars)));
+    SDL_AtomicLock(&logLines.lock);
+    logLines.sink = nullptr;
+    memcpy(logLines.line, kept, pending);
+    logLines.len = pending;
+    SDL_AtomicUnlock(&logLines.lock);
+
+    Con_Printf("vr_android_test: base %s, crash reports %s\n", android.base, VR_CrashReportDir());
     t.verdict(name);
 }
 
 } // namespace
 
 // main, after COM_InitArgv, before the crash handler and SDL: on Android (or -fakeandroid on the PC), the base
-// folder (the external files folder unless -basedir) and the crash handler. Returns the base folder to use, or
-// null (the PC's own).
+// folder (the external files folder unless -basedir) and the crash reports' folder. Returns the base folder to use,
+// or null (the PC's own).
 extern "C" const char* VR_AndroidStart(int argc, char** argv)
 {
 #ifdef __ANDROID__
@@ -345,18 +253,14 @@ extern "C" const char* VR_AndroidStart(int argc, char** argv)
     Sys_mkdir(quakevr);
     copyPath(android.crashDir, quakevr, "/crash");
     Sys_mkdir(android.crashDir);
-    copyPath(android.crashPath, android.crashDir, "/crash.txt");
-    for(const int sig : crashSignals)
-    {
-        os::installSignal(sig, crashSignal);
-    }
+    VR_SetCrashDir(quakevr); // (vr_crash.cpp's reports in <base>/quakevr/crash, before Host_Init sets the game's)
     char pak[maxPath];
     copyPath(pak, android.base, "/id1/pak0.pak");
     if(!(Sys_FileType(pak) & FS_ENT_FILE))
     {
         char line[maxPath + 128];
-        q_snprintf(line, sizeof line, "Quake VR: no %s: copy Quake's id1 folder into %s\n", pak, android.base);
-        os::log(line);
+        q_snprintf(line, sizeof line, "Quake VR: no %s: copy Quake's id1 folder into %s", pak, android.base);
+        os::log(line, true);
     }
     return given ? nullptr : android.base;
 }
@@ -364,6 +268,11 @@ extern "C" const char* VR_AndroidStart(int argc, char** argv)
 extern "C" int VR_Android(void)
 {
     return android.on;
+}
+
+extern "C" void VR_AndroidLog(const char* text)
+{
+    logText(text);
 }
 
 // Child processes of our own (the relighting's light runs, the motion review's evaluation copy): none on Android
