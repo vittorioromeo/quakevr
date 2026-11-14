@@ -922,6 +922,8 @@ extern "C" void VR_AutosaveName(const char* map, char* out, size_t size)
     autosaveName(map, VR_ActiveCampaign(), qvr::mapinstall::active().cStr(), out, size);
 }
 
+// None on Quake VR's own maps ("vr..."): the hub, the tutorial, and the arena (Select Campaign's Arena Mode never
+// autosaves, and an old autosave of vrarena is never offered as a Continue: inspect's check).
 extern "C" int VR_AutosaveAllowed(const char* map)
 {
     return q_strncasecmp(map, "vr", 2) != 0;

@@ -17,6 +17,7 @@
 #include "vr_crates.hpp"
 #include "vr_debris.hpp"
 #include "vr_diskcache.hpp"
+#include "vr_drips.hpp"
 #include "vr_explosiondebris.hpp"
 #include "vr_ledges.hpp"
 #include "vr_limbmodel.hpp"
@@ -924,6 +925,7 @@ extern "C" int VR_ReadSaveInfo(const char* text, const char* relname)
     sscanf(line, "// qvr_save %d progs %x build %127[^\r\n]", &format, &crc, build);
     qvr::brushes::readSaveLines(text); // (made again after the load: restoreAfterLoad)
     qvr::permdecals::readSaveLines(text); // (the permanent decals: baked again once its map has loaded)
+    qvr::drips::readSaveLines(text);      // (what is wet: given back as the load's map shows it, VR_OnLoadGame)
     qvr::runsetup::readSaveLines(text);   // (the run's choices: set when the load goes ahead, VR_OnBeginLoadGame)
     if(!VR_ReadCoopLines(text, relname))  // (a coop save's players: vr_coopsave.cpp)
     {
@@ -1358,6 +1360,7 @@ extern "C" void VR_OnLoadGame()
 
     callEntryPoint(sv_bindings.OnLoadGame);
     qvr::flashlight::restoreState();
+    qvr::drips::onLoadGame(); // (the save's wet things, read with it: given back once its map is in)
 }
 
 extern "C" void VR_StoreSpawnParms(int client)

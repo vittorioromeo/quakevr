@@ -115,13 +115,40 @@ constexpr const char* levelNames[levelCount] = {"Classic", "Light", "Unleashed"}
 constexpr presetcore::Table table{"gameplay", "VR Settings > Gameplay Presets", rows, rowCount, levelNames, levelCount};
 presetcore::Kind presetKind{table};
 
+// A row Classic Quake's press set: its value before and the value Classic gave it.
+struct ClassicRow
+{
+    cvar_t* var{nullptr};
+    za::String was;
+    za::String set;
+};
+
 // Classic Quake's line: what the last press changed.
 struct ClassicState
 {
     char line[200]{};
     bool busy{false}; // vr_classic_quake set by the game itself (syncClassic): not a press
+    // The three presets' rows as the first press found them (empty: none kept): the second press sets back exactly
+    // those, not an older My Settings; a row changed by hand since keeps its new value. In memory only: after a
+    // restart, Back is each preset's My Settings.
+    za::Vector<ClassicRow> before;
 };
 ClassicState classic;
+
+// vr_classic_roundtrip_test's state between its start and its end (frames apart).
+struct RoundTrip
+{
+    struct Value
+    {
+        za::String name;
+        za::String value;
+    };
+    bool started{false};
+    int waits{0}; // frames waited for the map to load
+    za::Vector<Value> cvars;
+    za::Vector<Value> textures; // (value: the texels' hash)
+};
+RoundTrip roundTrip;
 
 void onPresetCvar(cvar_t* var)
 {
@@ -299,6 +326,18 @@ void testCmd()
     t.check(gfxpresets::matchesMine() && gfxpresets::matchingLevel() == gfxpresets::levelHigh, name, "Back: Graphics My Settings");
     t.check(gorepresets::kind().matchesMine() && gorepresets::matching() == gorepresets::choiceFull, name, "Back: Gore My Settings");
     t.check(presetKind.matchesMine() && presetKind.matchingLevel() == levelUnleashed, name, "Back: Gameplay My Settings");
+    // His report 2026-11-15: Back sets back exactly what the first press found, not an older My Settings; a row changed
+    // by hand while Classic was on keeps its new value.
+    Cvar_SetQuick(&vr_bloom, "0.37");
+    Cvar_SetValue("vr_classic_quake", 1.f);
+    Cvar_SetValue("vr_classic_quake", 0.f);
+    t.check(strcmp(vr_bloom.string, "0.37") == 0 && presetKind.matchingLevel() == levelUnleashed, name,
+        "Back: a setting changed after My Settings was kept is as the press found it");
+    Cvar_SetValue("vr_classic_quake", 1.f);
+    Cvar_SetQuick(&vr_bloom, "0.21");
+    Cvar_SetValue("vr_classic_quake", 0.f);
+    t.check(strcmp(vr_bloom.string, "0.21") == 0 && presetKind.matchingLevel() == levelUnleashed, name,
+        "Back: a setting changed by hand while Classic was on keeps its value");
 
     // As they were, and the players' own My Settings again.
     int i = 0;
@@ -310,8 +349,119 @@ void testCmd()
         }
         k->useTestFile(false);
     }
+    classic.before.clear(); // (the test's presses: none kept for the player's next)
     gorepresets::sync();
     syncClassic();
+    t.verdict(name);
+}
+
+void roundTripCvar(RoundTrip& r)
+{
+    r.cvars.clear();
+    for(const cvar_t* var = Cvar_FindVarAfter("", 0); var; var = var->next)
+    {
+        r.cvars.pushBack(RoundTrip::Value{za::String{var->name}, za::String{var->string}});
+    }
+}
+
+void roundTripTexture(void* ctx, const char* texName, unsigned hash)
+{
+    char text[16];
+    q_snprintf(text, sizeof(text), "%08x", hash);
+    static_cast<za::Vector<RoundTrip::Value>*>(ctx)->pushBack(RoundTrip::Value{za::String{texName}, za::String{text}});
+}
+
+// The values of `now` that differ from `was`'s of the same name (the k-th of a name with the k-th), each printed; `seen`
+// counts the names in both.
+int roundTripDiffer(const za::Vector<RoundTrip::Value>& was, const za::Vector<RoundTrip::Value>& now, const char* what,
+    int& seen)
+{
+    int differ = 0;
+    seen = 0;
+    za::Vector<bool> used;
+    used.resize(now.size(), false);
+    for(const RoundTrip::Value& a : was)
+    {
+        for(za::SizeT j = 0; j < now.size(); j++)
+        {
+            if(used[j] || strcmp(now[j].name.cStr(), a.name.cStr()) != 0)
+            {
+                continue;
+            }
+            used[j] = true;
+            seen++;
+            if(strcmp(now[j].value.cStr(), a.value.cStr()) != 0)
+            {
+                differ++;
+                Con_Printf("classicroundtrip: %s %s was \"%s\", now \"%s\"\n", what, a.name.cStr(), a.value.cStr(),
+                    now[j].value.cStr());
+            }
+            break;
+        }
+    }
+    return differ;
+}
+
+// vr_classic_roundtrip_test: Classic Quake pressed twice, as the hub's board does (vr_setup_option classic), in a map;
+// then every setting and every texture read from a file (their texels) as before (his report 2026-11-15: the gloves'
+// relief flat after it: vr_alpha_coverage's reload had made it again without its normals). Starts, presses, and ends
+// itself a few frames later (each press's changes applied at a frame's start: TexMgr_ApplySettings); prints
+// "classicroundtrip: N passed, M failed".
+void roundTripCmd()
+{
+    constexpr const char* name = "classicroundtrip";
+    const bool end = Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "end");
+    if(!end)
+    {
+        if(cls.state != ca_connected || !cl.worldmodel || cls.signon != SIGNONS)
+        {
+            // (a map still loading: tried again next frame, for at most ~10 seconds of frames)
+            constexpr int maxWaits = 720;
+            if(sv.active && roundTrip.waits++ < maxWaits)
+            {
+                Cbuf_AddText("wait\nvr_classic_roundtrip_test\n");
+                return;
+            }
+            roundTrip.waits = 0;
+            testkit::Tally t;
+            t.check(false, name, "a map loaded (timed out)");
+            t.verdict(name);
+            return;
+        }
+        roundTrip.waits = 0;
+        gorepresets::sync();
+        syncClassic();
+        roundTripCvar(roundTrip);
+        roundTrip.textures.clear();
+        TexMgr_FileTextureHashes(roundTripTexture, &roundTrip.textures);
+        roundTrip.started = true;
+        Cbuf_AddText("vr_setup_option classic\nwait\nwait\nvr_setup_option classic\nwait\nwait\nvr_classic_roundtrip_test end\n");
+        return;
+    }
+    testkit::Tally t;
+    t.check(roundTrip.started, name, "started (vr_classic_roundtrip_test, no argument)");
+    roundTrip.started = false;
+    gorepresets::sync();
+    syncClassic();
+    RoundTrip now;
+    roundTripCvar(now);
+    TexMgr_FileTextureHashes(roundTripTexture, &now.textures);
+    int cvarsSeen = 0;
+    int texSeen = 0;
+    const int cvarsDiffer = roundTripDiffer(roundTrip.cvars, now.cvars, "setting", cvarsSeen);
+    const int texDiffer = roundTripDiffer(roundTrip.textures, now.textures, "texture", texSeen);
+    bool relief = false;
+    for(const RoundTrip::Value& v : roundTrip.textures)
+    {
+        relief = relief || za::StringView{v.name.cStr()}.endsWith(za::StringView{"_glove_height"});
+    }
+    Con_Printf("classicroundtrip: %d settings, %d textures compared; last press: %s\n", cvarsSeen, texSeen, classic.line);
+    t.check(!classicActive() && vr_classic_quake.value == 0.f, name, "Classic Quake off again");
+    t.check(cvarsSeen > 1000 && cvarsDiffer == 0, name, "every setting as before");
+    t.check(relief, name, "the gloves' relief loaded (progs/hand_rig_0N_00_glove_height)");
+    t.check(texSeen > 10 && texDiffer == 0, name, "every texture read from a file as before (the gloves' relief too)");
+    roundTrip.cvars.clear();
+    roundTrip.textures.clear();
     t.verdict(name);
 }
 
@@ -368,9 +518,26 @@ void classicApply()
     q_strlcpy(was[0], gfxpresets::stateName(), sizeof(was[0]));
     q_strlcpy(was[1], gorepresets::stateName(), sizeof(was[1]));
     q_strlcpy(was[2], presetKind.stateName(), sizeof(was[2]));
+    presetcore::Kind* const kinds[] = {&gfxpresets::kind(), &gorepresets::kind(), &presetKind};
+    const bool keep = classic.before.empty(); // (pressed again while shown off: the first press's values stay)
+    if(keep)
+    {
+        for(presetcore::Kind* k : kinds)
+        {
+            for(int i = 0; i < k->table().rowCount; i++)
+            {
+                cvar_t* var = k->table().rows[i].var;
+                classic.before.pushBack(ClassicRow{var, za::String{var->string}, za::String{}});
+            }
+        }
+    }
     gfxpresets::apply(0);
     gorepresets::apply(gorepresets::choiceMinimal);
     presetKind.apply(levelClassic);
+    for(ClassicRow& row : classic.before)
+    {
+        row.set = za::String{row.var->string};
+    }
     q_snprintf(classic.line, sizeof(classic.line), "Set Graphics Off (Quake), Gore Minimal, Gameplay Classic (were %s, %s, %s).",
         was[0], was[1], was[2]);
     syncClassic();
@@ -378,6 +545,23 @@ void classicApply()
 
 void classicBack()
 {
+    if(!classic.before.empty())
+    {
+        // His report 2026-11-15: the round trip sets back exactly what the first press found.
+        for(const ClassicRow& row : classic.before)
+        {
+            if(strcmp(row.var->string, row.set.cStr()) == 0)
+            {
+                Cvar_SetQuick(row.var, row.was.cStr());
+            }
+        }
+        classic.before.clear();
+        gorepresets::sync();
+        q_snprintf(classic.line, sizeof(classic.line), "Your settings back: Graphics %s, Gore %s, Gameplay %s.",
+            gfxpresets::stateName(), gorepresets::stateName(), presetKind.stateName());
+        syncClassic();
+        return;
+    }
     const bool g = gfxpresets::restoreMine();
     const bool b = gorepresets::restoreMine();
     const bool p = presetKind.restoreMine();
@@ -466,6 +650,7 @@ void init()
     Cmd_AddCommand("vr_gameplay_preset_test", testCmd);
     Cmd_AddCommand("vr_gameplay_classic_check", classicCheckCmd);
     Cmd_AddCommand("vr_classic_drop_check", classicDropCheckCmd);
+    Cmd_AddCommand("vr_classic_roundtrip_test", roundTripCmd);
 }
 
 } // namespace qvr::gameplaypresets

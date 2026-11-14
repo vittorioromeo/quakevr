@@ -314,6 +314,7 @@ typedef struct savedata_s
 	const char		*vrbrushes;		// QVR: the runtime brushes' lines (VR_SaveBrushLines; valid until the next fill)
 	const char		*vrdecals;		// QVR: the permanent decals' lines (VR_SaveDecalLines; valid until the next fill)
 	const char		*vrcoop;		// QVR: a coop game's per-player blocks (VR_SaveCoopLines; valid until the next fill)
+	const char		*vrwet;			// QVR: the wet things' lines (VR_SaveWetLines; valid until the next fill)
 	byte			*buffer;
 	int				buffersize;
 } savedata_t;

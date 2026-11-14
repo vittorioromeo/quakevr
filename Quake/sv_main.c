@@ -585,7 +585,10 @@ void SV_ConnectClient (int clientnum)
 	client->message.allowoverflow = true;		// we can catch it
 
 	if (loadedslot)
+	{
 		memcpy (client->spawn_parms, spawn_parms, sizeof(spawn_parms));
+		VR_ClientLoadedBits (client); // QVR: a grip held when saved is no new press (vr/vr_server.cpp)
+	}
 	else
 	{
 	// call the progs to get default spawn parms for the new client

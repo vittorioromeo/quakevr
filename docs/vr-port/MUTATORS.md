@@ -204,6 +204,17 @@ choices themselves are the engine's line.
   (0.75: Easy 75%, Normal 80%, Hard 84%, Nightmare 90%); the type and pieces stay the skill's. Every armed kind,
   knights included; the Survival Arena's waves keep their own roll.
 
+### Arena Mode (the arena's own run)
+
+Select Campaign's **Arena Mode** row (under Arcane Dimensions, "experimental") opens, past its notice, a Run Setup screen
+with only Start, Difficulty, Gore, Ironman, Glass Cannon and Melee Only (`runsetup::arenaShows`: the player's own
+picks). Everything else is fixed for the arena's balance (`runsetup::arenaValue`, `startArena`): Style Unleashed, Armed
+Humanoids and Smarter AI on, Ranged Knights off (the arena's waves bring gun knights in themselves from wave 12), every
+other mutator at its default (no starting gun with Melee Only). The `vr_runpick_*` picks are never written, so the next
+run's Start is the player's own again. A new mutator is off in the arena unless it is added to `arenaRows`
+(vr_runsetup.cpp). The arena never autosaves (`VR_AutosaveAllowed`: Quake VR's own maps) and has no Continue row.
+`vr_runsetup arena` opens its screen directly (tests, screenshots).
+
 ## Console and tests
 
 - `vr_runpickups_test 1` ("runpickups: N passed", `vr_run_test.qc`): Balanced on e1m1 with seed 777 (rules, the map's

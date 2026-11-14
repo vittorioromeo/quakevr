@@ -1054,7 +1054,10 @@ za::Vector<Item> pageDebugTests()
             .help("Each level sets every row, Unleashed is the defaults, Custom, My Settings kept and set back, Classic "
                   "Quake and Back to My Settings (the console says \"gameplaypreset: N passed, M failed\"). Your own My "
                   "Settings and settings untouched."),
-        command("Gore Preset", "vr_gore_preset_test").help("The Gore preset's check (in a map)."),
+        command("Classic Quake On and Off", "vr_classic_roundtrip_test")
+            .help("In a map: Classic Quake pressed twice, as the hub's board does; then every setting and every texture "
+                  "read from a file (the gloves' relief too) as before (\"classicroundtrip: N passed, M failed\")."),
+        command("Gore Preset","vr_gore_preset_test").help("The Gore preset's check (in a map)."),
         command("Presets' State", "vr_graphics_preset_status; vr_gore_preset_status; vr_gameplay_preset_status")
             .help("Which level each preset's settings match, and the rows that differ when Custom."),
         header("Reloading"),

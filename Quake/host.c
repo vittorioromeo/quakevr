@@ -1440,7 +1440,10 @@ static void Host_AutosaveNow_f (void)
 	}
 	if (!VR_AutosaveAllowed (sv.name))
 	{
-		Con_Printf ("vr_autosave_now: none on Quake VR's own maps (%s)\n", sv.name);
+		if (!q_strcasecmp (sv.name, "vrarena")) // (Arena Mode: never an autosave, his call 2026-11-15)
+			Con_Printf ("vr_autosave_now: none in Arena Mode (the arena never autosaves)\n");
+		else
+			Con_Printf ("vr_autosave_now: none on Quake VR's own maps (%s)\n", sv.name);
 		return;
 	}
 	if (VR_RunIronman ())

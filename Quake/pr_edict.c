@@ -2287,7 +2287,7 @@ static void PR_FindFunctionRanges (void)
 	qcvm->functionsizes = (int *) Hunk_AllocName (qcvm->progs->numfunctions * sizeof (*order), "func_sizes");
 	mark = Hunk_LowMark ();
 
-	order = (int *) Hunk_AllocNoFill (qcvm->progs->numfunctions * sizeof (*order));
+	order = (int *) Hunk_Alloc (qcvm->progs->numfunctions * sizeof (*order));
 	for (i = 0; i < qcvm->progs->numfunctions; i++)
 		order[i] = i;
 	qsort (order, qcvm->progs->numfunctions, sizeof (*order), &PR_CompareFunction);
@@ -2336,7 +2336,7 @@ static void PR_FillOffsetTables (void)
 		*passes[pass].maxofs = maxofs;
 
 		// alloc table and fill it with -1
-		data = *passes[pass].offsets = (int *) Hunk_AllocNameNoFill ((maxofs + 1) * sizeof (int), passes[pass].allocname);
+		data = *passes[pass].offsets = (int *) Hunk_AllocName ((maxofs + 1) * sizeof (int), passes[pass].allocname);
 		for (i = 0; i <= maxofs; i++)
 			data[i] = -1;
 
@@ -2931,6 +2931,7 @@ void SaveData_Fill (savedata_t *save)
 	save->vrbrushes = VR_SaveBrushLines (); // QVR: the runtime brushes (vr/vr_brushes.cpp)
 	save->vrdecals = VR_SaveDecalLines (); // QVR: the permanent decals (vr/vr_permdecals.cpp)
 	save->vrcoop = VR_SaveCoopLines (); // QVR: a coop game's per-player blocks (vr/vr_coopsave.cpp)
+	save->vrwet = VR_SaveWetLines (); // QVR: what is wet (vr/vr_drips.cpp)
 
 	/* determine buffer size */
 	size = sizeof (*save->knownstrings) * qcvm->numknownstrings;
@@ -3065,6 +3066,8 @@ void SaveData_WriteHeader (savedata_t *save)
 		fputs (save->vrdecals, save->file); // QVR: // qvrdecals and qvrd lines: the permanent decals
 	if (save->vrcoop)
 		fputs (save->vrcoop, save->file); // QVR: // qvr_coop and qvr_coopslot lines: the players' blocks
+	if (save->vrwet)
+		fputs (save->vrwet, save->file); // QVR: // qvrwet lines: what is wet
 
 	ED_WriteGlobals (save);
 }

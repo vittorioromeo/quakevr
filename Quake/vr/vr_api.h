@@ -360,6 +360,7 @@ int VR_CoopSlotLoaded (int slot);	// a loaded game: that slot's edict is a loade
 int VR_CoopSlotSpawned (int slot);	// Host_Spawn_f: that slot spawned; 1: the loaded game may run (no saved player still connecting)
 int VR_CoopSlotDropped (int slot);	// SV_DropClient: a saved player still to spawn left; 1: the loaded coop game may run now
 const char *VR_SaveBrushLines (void);	// SaveData_Fill: the runtime brushes as the save's "// qvrb" lines (vr_brushes.cpp; "" none)
+const char *VR_SaveWetLines (void);	// SaveData_Fill: what is wet as the save's "// qvrwet" lines (vr_drips.cpp; "" none)
 const char *VR_SaveDecalLines (void);	// SaveData_Fill: the permanent decals as the save's "// qvrdecals" and "// qvrd" lines (vr_permdecals.cpp; "" none)
 void VR_SaveFlashlightState (void); // before a save snapshot or changelevel parms are captured
 void VR_OnFreshStart (void);			// Host_Map_f, Host_Loadgame_f: a game started afresh or loaded, not a changelevel (the flashlight off)
@@ -433,6 +434,7 @@ void VR_SnapEnd (struct sizebuf_s *msg);
 void VR_InterpFrame (void);				// CL_RelinkEntities, before the entities: the interpolation buffer's clock (vr_netsnap.cpp)
 int VR_InterpEntity (int num, float *origin, float *angles); // ... entity `num` placed from it (a remote server's others, a delay behind): 1, or 0 NetQuake's lerp
 int VR_MoveMerges (struct client_s *client);			// SV_ReadClientMove, at its buttons: not the first move since the server's last frame (its buttons ORed)
+void VR_ClientLoadedBits (struct client_s *client);		// SV_ConnectClient into a loaded game: the saved player's held grips (no new press)
 void VR_ClientReset (struct client_s *client);			// SV_ConnectClient, SV_DropClient: the slot's per-client VR state cleared
 void VR_CalcStats (struct client_s *client, int *statsi, float *statsf); // end of SV_CalcStats
 int VR_AmmoStat (struct edict_s *ent);				// SV_WriteClientdataToMessage: the status bar's ammo count (the VR progs' .currentammo is the main hand's ammo type: their counter instead)

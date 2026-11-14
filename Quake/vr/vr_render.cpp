@@ -28,6 +28,7 @@
 #include "vr_ragdoll.hpp"
 #include "vr_rig2.hpp"
 #include "vr_rigstudio.hpp"
+#include "vr_strings.hpp"
 #include "vr_dirparryviz.hpp"
 #include "vr_hitreact.hpp"
 #include "vr_flamewobble.hpp"
@@ -921,7 +922,7 @@ static constexpr float gloveReliefGain = 2.f;
 // the heights a texel apart lost the slopes on coarser mips). ~4 ms at 1024 x 1024, at each read only.
 void gloveHeightToNormals(byte* rgba, int width, int height)
 {
-    byte* h = static_cast<byte*>(Hunk_AllocNoFill(width * height)); // (freed with the image: the caller's mark)
+    byte* h = static_cast<byte*>(Hunk_Alloc(width * height)); // (freed with the image: the caller's mark)
     for(int i = 0; i < width * height; i++)
     {
         h[i] = rgba[i * 4];
@@ -970,12 +971,7 @@ void gloveHeightToNormals(byte* rgba, int width, int height)
             Con_Printf("glove paint: %s is not RGBA as read: no relief\n", path);
             pixels = nullptr;
         }
-        const double t0 = Sys_DoubleTime();
-        if(pixels && relief)
-        {
-            gloveHeightToNormals(pixels, width, height);
-        }
-        const double made = (Sys_DoubleTime() - t0) * 1000.0;
+        // (a relief's heights made its normal map as it uploads: VR_GloveReliefNormals, at every reload too)
         gltexture_t* texture = pixels ? TexMgr_LoadImage(nullptr, path, width, height, format, pixels, path, 0,
                                             TEXPREF_MIPMAP | TEXPREF_NOPICMIP | TEXPREF_ALPHA |
                                                 (exact ? TEXPREF_UNCOMPRESSED : TEXPREF_NONE))
@@ -983,14 +979,7 @@ void gloveHeightToNormals(byte* rgba, int width, int height)
         Hunk_FreeToLowMark(mark);
         if(texture)
         {
-            if(relief)
-            {
-                Con_DPrintf("glove paint: %s read (%d x %d), its normal map made in %.1f ms\n", path, width, height, made);
-            }
-            else
-            {
-                Con_DPrintf("glove paint: %s read (%d x %d)\n", path, width, height);
-            }
+            Con_DPrintf("glove paint: %s read (%d x %d)\n", path, width, height);
         }
         if(texture || s == 0)
         {
@@ -1086,6 +1075,21 @@ void VR_PrewarmSkinMasks()
     {
         (void)gloveTexture(0, "nails");
     }
+}
+
+// His report 2026-11-15: Classic Quake on and off left the gloves' relief flat. Its vr_alpha_coverage change reloads the
+// alpha-tested textures from their files (TexMgr_ReloadAlphaTested), the relief among them: its normals were made only
+// in gloveTexture, so the reload uploaded the raw heights (grey, a normal pointing nowhere). Made here, as it uploads.
+extern "C" void VR_GloveReliefNormals(const char* name, unsigned char* data, int width, int height)
+{
+    if(!data || !qvr::strings::startsWith(name, "progs/hand_rig_") || !qvr::strings::endsWith(name, "_glove_height"))
+    {
+        return;
+    }
+    const double t0 = Sys_DoubleTime();
+    gloveHeightToNormals(data, width, height);
+    Con_DPrintf("glove paint: %s's normal map made (%d x %d) in %.1f ms\n", name, width, height,
+        (Sys_DoubleTime() - t0) * 1000.0);
 }
 
 void VR_AliasGlovePaint(const entity_t* e, gltexture_t* out[3])

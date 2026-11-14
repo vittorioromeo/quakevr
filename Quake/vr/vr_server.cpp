@@ -944,6 +944,28 @@ extern "C" int VR_MoveMerges(client_t* client)
     return merges ? 1 : 0;
 }
 
+// SV_ConnectClient into a loaded game (after VR_ClientReset): the grips and buttons held when the game was saved (its
+// player's saved .vrbits0, current bits) count as held the frame before, so a grip still held across the load is no new
+// press. Else the first move's grip was a rising edge: an empty hand at a holster drew its weapon (QC W_Frame's
+// startedHandGrabbing). A flatscreen player's hands always grip (vr_client.cpp gripping): his off hand, posed by the
+// hip holster as the stance takes it to the gun, drew the axe or the toolgun there after every load (2026-11-15).
+extern "C" void VR_ClientLoadedBits(client_t* client)
+{
+    const int clientNum = static_cast<int>(client - svs.clients);
+    const int ofs = fields().vrbits0;
+    if(clientNum < 0 || clientNum >= svs.maxclients || ofs < 0 || !sv.active)
+    {
+        return;
+    }
+    if(clientNum >= static_cast<int>(clientBits.size()))
+    {
+        clientBits.resize(clientNum + 1);
+    }
+    const int saved = static_cast<int>(fieldFloatOr(EDICT_NUM(clientNum + 1), ofs, 0.f));
+    // (received too: a server frame before his first move makes it the previous frame's)
+    clientBits[clientNum].previousFrame = clientBits[clientNum].received = saved & currentBitsMask;
+}
+
 extern "C" void VR_ClientReset(client_t* client)
 {
     const int clientNum = static_cast<int>(client - svs.clients);

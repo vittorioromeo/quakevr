@@ -798,7 +798,7 @@ void() VR_KeyTipTest_Frame =
     }
 };
 
-// vr_pickup_test 16 (MP_PLAN B3c: in multiplayer a gun let go of from a remote player's still, open hand was seen resting
+// vr_pickup_test 18 (MP_PLAN B3c: in multiplayer a gun let go of from a remote player's still, open hand was seen resting
 // on his palm, 3-5 cm over the closing fist, and not taken back): single player's case. The mock's main hand still in
 // front of him, palm up, gripping; the shotgun given (impulse 154) once the grip is held; held 0.5 s, let go; after 1 s
 // it is out of the hand and on the floor: it passed through the open hand's new body (reachSink), so no gun is left
@@ -1107,11 +1107,14 @@ void() VR_PalmGrabTest_Frame =
 
 void() VR_LMTest_Start; // (vr_load_models_test.qc: every weapon through a save and a load)
 void() VR_LMTest_Frame;
+void() VR_SLTest_Start; // (vr_saveload_test.qc: a Test scene through a save and a load)
+void() VR_SLTest_Frame;
 
 // Every server frame (StartFrame): a pickup test asked for (vr_pickup_test).
 void() VR_PickupTest_Frame =
 {
     VR_LMTest_Frame(); // (its next step, once a load's first frames ran)
+    VR_SLTest_Frame();
     if(keytip_step)
     {
         entity kp = VR_Player();
@@ -1141,6 +1144,10 @@ void() VR_PickupTest_Frame =
     if(!ask)
     {
         return;
+    }
+    if(ask == 16 && VR_Player() == world)
+    {
+        return; // (asked with `vr_scenario`'s map: kept until the player is in)
     }
     cvar_set("vr_pickup_test", "0");
     entity p = VR_Player();
@@ -1212,11 +1219,15 @@ void() VR_PickupTest_Frame =
     }
     else if(ask == 16)
     {
-        VR_PalmRestTest_Start(); // (a gun on the open palm taken back by closing the hand; VR_PalmRestTest_Frame runs it on)
+        VR_SLTest_Start(); // (a Test scene through a save and a load: vr_saveload_test.qc; VR_SLTest_Frame runs it on)
     }
     else if(ask == 17)
     {
         VR_PalmGrabTest_Start(); // (a gun resting on the open off palm taken by closing it; VR_PalmGrabTest_Frame runs it on)
+    }
+    else if(ask == 18)
+    {
+        VR_PalmRestTest_Start(); // (a gun on the open palm taken back by closing the hand; VR_PalmRestTest_Frame runs it on)
     }
     self = oself;
 };
