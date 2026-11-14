@@ -189,7 +189,7 @@ player unchanged.
 | **B3d** (client-side traces, teleport, palm frame up done; the rest is B3e) | The rest of B3c: the rig up (palm frame, weaponhotspot and the drawn pose, weapon hull, 2H carry and foe grab frames, the ragdoll grab fit, the crawl's hand bottom); client-side traces for teleport, crosshair, flashlight, hand collision | `mp_teleport`, `mp_grab` grown (palm frames; a 2H carry, a foe grab, the palm slack) |
 | **B3e** (the held weapon's drawn pose up done; the rest is B3f) | The rest of B3d: the drawn pose up per player (weaponhotspot, weaponanygrip, weapondrawnpose's carried weapon and axes, the drawn weapon hull, the 2H carry's reach offset); `mp_grab` grown | `mp_held` (B's hotspots on the server where his view draws them; his two-handed hold and hand-off judged by his own) |
 | **B3f** (done: B3 is done) | The rest of B3e: the grip fit's hand rig per player (`vr_gripfit.cpp`), the ground weapon's grab hotspot and the reverse grip's choice per player (weapongrabspot, weapondrawnpose 43), the magnetic holsters' poll and places per player; `mp_grab` grown (a 2H carry, a foe grab, the palm slack) | `mp_grab` grown, `mp_held` grown (a reverse grip) |
-| **B4** (saves, loads, level changes with inventories done; the rest is B4b) | Coop campaign flow: coop saves and loads (per-player blocks, versioned), autosaves, level transitions with inventories, intermission, deaths and respawns, map download (package names through the map installer; chunked fallback) | `mp_campaign` (e1m1 to e1m3 with saves and a load, both players' inventories), `mp_download` (B lacks a map: installs it, joins) |
+| **B4** (saves, loads, level changes with inventories done; B4b: coop autosaves, the exit and intermission, a real death and respawn; the rest is B4c) | Coop campaign flow: coop saves and loads (per-player blocks, versioned), autosaves, level transitions with inventories, intermission, deaths and respawns, map download (package names through the map installer; chunked fallback) | `mp_campaign` (e1m1 to e1m3 with saves and a load, both players' inventories), `mp_download` (B lacks a map: installs it, joins) |
 | **B5** | Interactions between players: drop a weapon / the other picks it up; force grab of world weapons in multiplayer; melee, parries and shoves between players; climbing, crouch, prone, jump, punch synced and judged per player | one scenario per interaction, each from both sides |
 | **B6** | Server rules and cosmetics: every balance setting a rule (presets, armed humanoids, damage, mutators, stamina, grapple...), rule pages dimmed on a remote client; holster positions, height, seated/standing, gloves, body seen by others | `mp_rules`, `mp_cosmetics` (B's height and gloves seen by A) |
 | **B7** | Snapshots: acknowledged per-client snapshots and deltas for entities, players and avatars; quantized delta moves with repeats; interpolation buffer with quaternion slerp | `mp_loss` (10% loss: positions still continuous), byte counts per scenario |
@@ -747,6 +747,44 @@ Open (B4b):
   is a new player).
 - Map download (`mp_download`: package names through the map installer; a chunked fallback).
 
+### B4b results (2026-11-14, dev no-LTO build, loopback; `mp_test.py suite`: 15 of 15 pass, `mp_flow` new)
+
+| Scenario | Result |
+|---|---|
+| `mp_flow` (new) | 14/0: on a dedicated server, B put in e1m1's exit (`vr_goto_exit 1`): A is told B exited, both clients see the intermission (`cl.intermission`), A's trigger held goes on to e1m2 (QC's IntermissionThink after its 2 seconds), both arrive; e1m2's level-start autosave `autosave/coop~e1m2` made with A and B in it (a monster in sight at the start: made after `vr_autosave_safe_maxdelay`, 2 s in the test); B, given a rocket launcher, killed for real (`vr_hurt 1000 1`: QC's T_Damage): dead on the server and his client, not respawned at once; his trigger pressed respawns him (first press) with his e1m2 start inventory, no rocket launcher (QC's respawn in coop: setspawnparms). Failed first: no coop autosave (`Host_CheckAutosave` returned for `svs.maxclients != 1`), no `vr_goto_exit` / `vr_hurt` |
+| `mp_ground` | 15/0 in 4 runs of 4 (B4: 1 in 5 failed): the sword retaken at its handle (`vr_mock_hand_to off spot -1`: its origin), where `vr_weapon_grab_handle_leniency` (5 cm) allows the fist held 2.9 cm off the sword's flat side by the hand's body; at its blade nothing does (`vr_weapon_grab_slack` 0) |
+| `mp_teleport` | 9/0 in 4 runs of 4 (3 with B on the spawn spot that failed): the aim turned 35 degrees left and right too. The failures were B's spawn spot (528 -296): straight ahead a wall 46 units off, the aim never on the floor (`aiming=1 valid=0`, the impact climbing it); the other spot (432 -296) passed |
+
+Single player on the branch: load_models_test 4/0, vr_run_check 12/0 (`scratch/b3_runcheck.sh`), scenario_check PASS
+(129 scenes, 0 failed), a single player level-start autosave still `autosave/e1m1`; `vr_goto_exit` on e1m1 alone: the
+intermission. The dev and Release-config (ThinLTO) builds 0 warnings.
+
+What changed:
+
+- **Coop autosaves** (`host.c` `Host_CheckCoopAutosave`): in a coop game (more than one player, `coop` set, not
+  deathmatch), with `sv_autosave` and `vr_autosave_level_start` on, an autosave as each level starts (a map, a
+  changelevel; not a load), on a dedicated server too: once every player in the game is in and alive and none is in
+  danger (`Host_AutosaveUnsafe` for each player; the longest wait, `vr_autosave_safe_maxdelay`, ends it as in single
+  player). Named `autosave/coop~<the single player name>` (`autosave/coop~e1m2`), kept in rotation (`save ... 0 rotate`);
+  a coop save (format 2), so Continue and Load Autosave pass over it: `load autosave/coop~e1m2` loads it. The interval's
+  autosaves follow one player's health and fire: none in coop. A player joining after the level's start (the first map
+  of a dedicated server) is not in that level's autosave.
+- **Debug > Tests > Cheats**: `vr_goto_exit [<slot>]` ("Go to the Level's Exit": you, hosting the player in that slot,
+  put in the level's first `trigger_changelevel`, touching it) and `vr_hurt <damage> [<slot>]` ("Take Damage: 1000":
+  QC's T_Damage from the world, a real death; not in deathmatch). Both work in single player too.
+- `vr_mp_status`'s `mp_status:` line carries the client's `intermission=` and `health=`; the mock's `vr_mock_hand_to
+  <hand> spot -1 [<cm>]` is the weapon lying nearest's handle (its origin).
+- The intermission's press and the coop respawn press needed no change: a VR client's trigger reaches QC's
+  IntermissionThink and PlayerDeathThink as `button0`.
+
+Open (B4c):
+
+- A rejoining player matched to his saved slot by name (now by slot).
+- Coop autosaves in Load Autosave (a list of coop saves for the host: format 2 is passed over now).
+- Map download (`mp_download`: package names through the map installer; a chunked fallback).
+- Saving during a dedicated server's intermission: `Host_Savegame_f` checks `cl.intermission`, the server's own client's
+  (none on a dedicated server); QC's `intermission_running` is the server's.
+
 ## Decisions
 
 - Coop saves keep the players' slots rather than matching them by name: the slot is what numbers their edicts, a
@@ -766,4 +804,4 @@ Open (B4b):
   from outside, they always have legs (his body mode 1 or 2 is his own first-person view); his body mode 0 draws his
   player model as before.
 
-Next phase: B4b — the rest of the coop campaign flow: autosaves in coop (the level-start one, all players alive), intermission and the exit (both see it, a press goes on), a real death and the coop respawn press, a rejoining player matched to his saved slot by name, map download (package names through the map installer; a chunked fallback); tests first: `mp_campaign` grown (an autosave, the exit, a death), `mp_download` (B lacks a map: installs it, joins).
+Next phase: B4c — the rest of the coop campaign flow: a rejoining player matched to his saved slot by name, coop saves listed for the host (Load Autosave's coop autosaves), saving in a dedicated server's intermission refused by QC's state, map download (package names through the map installer; a chunked fallback); tests first: `mp_campaign_listen` grown (B rejoins into another free slot: matched by name), `mp_download` (B lacks a map: installs it, joins).

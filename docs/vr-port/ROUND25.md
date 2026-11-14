@@ -2438,3 +2438,15 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
   6 reps where it moved; no confirmed per-frame regression, worst frames and warm loads down; crowd_ad_40's p99 and
   +1-2 heap allocs a frame listed. Fixed: `load_reloads` crashed (Host_ClearMemory kept `cl_entities` after freeing
   it; a campaign switch's CL_ForgetModels wrote it: unmapped since nohunk). Now NULL there, as at start-up.
+
+## mpN (B4b): coop autosaves, the exit and intermission, a real death and respawn (agent/mp, 2026-11-14; never shipped by the coordinator)
+- A coop game autosaves as each level starts (`sv_autosave`, `vr_autosave_level_start`; dedicated servers too): once every
+  player is in and alive and none in danger (each player's `Host_AutosaveUnsafe`, `vr_autosave_safe_maxdelay` as in single
+  player), named `autosave/coop~<map>` (a coop save: Continue and Load Autosave pass over it; `load autosave/coop~e1m2`).
+- Debug > Tests > Cheats: "Go to the Level's Exit" (`vr_goto_exit [<slot>]`) and "Take Damage: 1000" (`vr_hurt <damage>
+  [<slot>]`, QC's T_Damage: a real death, not `kill`). Single player too.
+- `mp_flow` 14/0 (B in e1m1's exit, both see the intermission, A's trigger goes on to e1m2, its coop autosave with both, B
+  killed and respawned by his trigger with his level-start inventory). Flaky fixes: `mp_ground`'s sword retaken at its
+  handle (`vr_mock_hand_to <hand> spot -1`), `mp_teleport`'s aim turned left and right (a wall ahead of one spawn spot).
+- Suite 15/15; single player: load_models 4/0, vr_run_check 12/0, scenario_check PASS; dev and Release builds 0 warnings.
+  Next: B4c (slots by name, coop saves listed for the host, map download). Details: MP_PLAN.md, "B4b results".
