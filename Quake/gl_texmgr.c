@@ -2358,7 +2358,7 @@ int TexMgr_FileTextureHashes (void (*fn) (void *ctx, const char *name, unsigned 
 			continue;
 		size = w * h * 4;
 		mark = Hunk_LowMark ();
-		texels = (byte *) Hunk_AllocNoFill (size);
+		texels = (byte *) Hunk_Alloc (size);
 		glGetTexImage (GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, texels);
 		for (i = 0; i < size; i++)
 			hash = (hash ^ texels[i]) * 16777619u;
