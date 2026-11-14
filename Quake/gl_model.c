@@ -3604,7 +3604,7 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 	int					size;
 	daliasframetype_t	*pframetype;
 	daliasskintype_t	*pskintype;
-	int					start, end, total;
+	int					start;
 
 	start = Hunk_LowMark ();
 
@@ -3825,22 +3825,14 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 //
 // move the complete, relocatable alias model to the cache
 //
-	VR_TRACY_SCOPE("alias cache copy");
-	end = Hunk_LowMark ();
-	total = end - start;
-
-	Cache_Alloc (&mod->cache, total, loadname);
-	if (!mod->cache.data)
-		return;
-	memcpy (mod->cache.data, pheader, total);
+	VR_TRACY_SCOPE("alias cache hand-over");
+	Hunk_MoveToCache (start, &mod->cache, pheader, loadname); // QVR: its hunk blocks, without a copy (ROUND25.md, "nohunk")
 
 	mod->sortkey = ((CRC_Block (mod->name, strlen(mod->name)) >> 1) & MODSORT_FRAMEMASK) << MODSORT_FRAMEBITS;
 	if (mod->flags & MF_HOLEY)
 		mod->sortkey |= MODSORT_ALIAS_ALPHATEST;
 	else
 		mod->sortkey &= ~MODSORT_ALIAS_ALPHATEST;
-
-	Hunk_FreeToLowMark (start);
 }
 
 //=============================================================================
@@ -4640,7 +4632,7 @@ static qboolean Mod_LoadMD5MeshModel (qmodel_t *mod, const char *buffer)
 	const char			*fname = mod->name;
 	unsigned short		*poutindexes;
 	iqmvert_t			*poutvert;
-	int					start, end, total;
+	int					start;
 	aliashdr_t			*outhdr = NULL, *surf;
 	size_t				hdrsize;
 
@@ -4861,15 +4853,7 @@ static qboolean Mod_LoadMD5MeshModel (qmodel_t *mod, const char *buffer)
 	//
 	// move the complete, relocatable alias model to the cache
 	//
-	end = Hunk_LowMark ();
-	total = end - start;
-
-	Cache_Alloc (&mod->cache, total, loadname);
-	if (!mod->cache.data)
-		return false;
-	memcpy (mod->cache.data, outhdr, total);
-
-	Hunk_FreeToLowMark (start);
+	Hunk_MoveToCache (start, &mod->cache, outhdr, loadname); // QVR: its hunk blocks, without a copy (ROUND25.md, "nohunk")
 	return true;
 
 error:
@@ -5288,7 +5272,7 @@ static void Mod_LoadMD3Model (qmodel_t* mod, const char* buffer)
 	md3Header_t* in_header;
 	md3Surface_t* in_surf;
 	aliashdr_t* mainhdr, * hdr;
-	int start, end, total;
+	int start;
 	char basepath[MAX_QPATH], md3path[MAX_QPATH], loadname[32];
 	int skinnum;
 
@@ -5541,10 +5525,5 @@ static void Mod_LoadMD3Model (qmodel_t* mod, const char* buffer)
 	GLMesh_LoadVertexBuffer (mod, mainhdr);
 	Mod_CalcAliasBounds (mainhdr);
 
-	end = Hunk_LowMark ();
-	total = end - start;
-	Cache_Alloc (&mod->cache, total, loadname);
-	if (!mod->cache.data) return;
-	memcpy (mod->cache.data, mainhdr, total);
-	Hunk_FreeToLowMark (start);
+	Hunk_MoveToCache (start, &mod->cache, mainhdr, loadname); // QVR: its hunk blocks, without a copy (ROUND25.md, "nohunk")
 }

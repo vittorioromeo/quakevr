@@ -54,7 +54,6 @@ extern "C" void Memory_TracyPlots(void);
 extern "C" double TexMgr_TracyBytes(void);
 extern "C" void Memory_TracySnapshot(void);
 extern "C" void Memory_TracyValidate(void);
-extern "C" int Memory_TracyCacheMove(cache_user_t* cache);
 extern "C" const char* VR_ActiveCampaignFolder();
 extern "C" int VR_IsNativeCampaignLaunch();
 
@@ -313,7 +312,7 @@ void preset()
 void memoryTest()
 {
     QVR_TRACY_SCOPE(scope, "Tracy allocation lifecycle test");
-    Con_Printf("Tracy memory test: run from the console/menu, not mid-fight (may evict cache)\n");
+    Con_Printf("Tracy memory test: run from the console/menu, not mid-fight (the cache is the heap: nothing is evicted)\n");
     const float oldDetail = memoryDetail.value;
     Cvar_SetValueQuick(&memoryDetail, 1);
     void* ptr = Z_Malloc(37);
@@ -333,8 +332,18 @@ void memoryTest()
     cache_user_t cache{};
     Cache_Alloc(&cache, 513, "tracy-test");
     Memory_TracyValidate();
-    Con_Printf("Tracy cache move test: %s\n", Memory_TracyCacheMove(&cache) ? "MOVED" : "evicted");
-    Memory_TracyValidate();
+    {
+        // The cache never moves now (ROUND25.md, "nohunk"): a loader's hunk blocks handed to the cache instead.
+        cache_user_t moved{};
+        const int start = Hunk_LowMark();
+        void* head = Hunk_AllocName(64, "tracy-test head");
+        Hunk_AllocName(200, "tracy-test body");
+        Hunk_MoveToCache(start, &moved, head, "tracy-test");
+        Memory_TracyValidate();
+        Con_Printf("Tracy cache hand-over test: %s\n", moved.data == head && Hunk_LowMark() == start ? "PASS" : "FAIL");
+        Cache_Free(&moved, false);
+        Memory_TracyValidate();
+    }
     if(cache.data) Cache_Free(&cache, false);
     Memory_TracyValidate();
     ptr = Z_Malloc(71);

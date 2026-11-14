@@ -696,7 +696,8 @@ bool makeBridgeModel(qmodel_t* mod, const Shell& s, const aliashdr_t* kh)
     q_strlcpy(hdr->frames[0].name, "bridge", sizeof(hdr->frames[0].name));
     memcpy(hdr->gltextures, kh->gltextures, sizeof(hdr->gltextures));
     memcpy(hdr->fbtextures, kh->fbtextures, sizeof(hdr->fbtextures));
-    memcpy(hdr->texels, kh->texels, sizeof(hdr->texels));
+    for(int i = 0; i < MAX_SKINS; i++) // the source's texels, as offsets from this header (they are other blocks)
+        hdr->texels[i] = kh->texels[i] ? reinterpret_cast<const byte*>(kh) + kh->texels[i] - reinterpret_cast<const byte*>(hdr) : 0;
     for(int b = 0; b < numVerts; b++)
     {
         q_snprintf(bones[b].name, sizeof(bones[b].name), "bridge:%d", b);
@@ -771,15 +772,7 @@ bool makeBridgeModel(qmodel_t* mod, const Shell& s, const aliashdr_t* kh)
         mod->mins[i] = mod->ymins[i] = mod->rmins[i] = -128.f;
         mod->maxs[i] = mod->ymaxs[i] = mod->rmaxs[i] = 128.f;
     }
-    const int total = Hunk_LowMark() - start;
-    Cache_Alloc(&mod->cache, total, mod->name);
-    if(!mod->cache.data)
-    {
-        Hunk_FreeToLowMark(start);
-        return false;
-    }
-    memcpy(mod->cache.data, hdr, static_cast<size_t>(total));
-    Hunk_FreeToLowMark(start);
+    Hunk_MoveToCache(start, &mod->cache, hdr, mod->name); // its hunk blocks, without a copy (ROUND25.md, "nohunk")
     Con_DPrintf("agarmor: %s made (%d vertices, %d triangles)\n", mod->name, numVerts, numIndexes / 3);
     return true;
 }
