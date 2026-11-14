@@ -208,8 +208,14 @@ void status_f()
             }
             spawned += c.spawned ? 1 : 0;
             const float* o = c.edict ? c.edict->v.origin : vec3_origin;
-            Con_Printf("mp_client: slot=%d name=\"%s\" spawned=%d org=%.1f %.1f %.1f\n", i, c.name, c.spawned ? 1 : 0,
-                o[0], o[1], o[2]);
+            // (inv: his health, armour, items, shells, nails, rockets, cells and weapon: the coop campaign's checks, B4)
+            const entvars_t* v = c.edict ? &c.edict->v : nullptr;
+            Con_Printf("mp_client: slot=%d name=\"%s\" spawned=%d org=%.1f %.1f %.1f inv=%d,%d,%d,%d,%d,%d,%d,%d\n", i,
+                c.name, c.spawned ? 1 : 0, o[0], o[1], o[2], v ? static_cast<int>(v->health) : 0,
+                v ? static_cast<int>(v->armorvalue) : 0, v ? static_cast<int>(v->items) : 0,
+                v ? static_cast<int>(v->ammo_shells) : 0, v ? static_cast<int>(v->ammo_nails) : 0,
+                v ? static_cast<int>(v->ammo_rockets) : 0, v ? static_cast<int>(v->ammo_cells) : 0,
+                v ? static_cast<int>(v->weapon) : 0);
         }
         Con_Printf("mp_server: map=%s spawned=%d time=%.3f\n", sv.name, spawned, sv.qcvm.time); // (time: the game's clock)
     }

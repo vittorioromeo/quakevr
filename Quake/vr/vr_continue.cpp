@@ -347,7 +347,8 @@ bool inspect(const Candidate& c, ContinueSave& out, bool verbose)
     if(Q_atoi(line) != SAVEGAME_VERSION) { return false; }
     const char* qvr = strstr(text.data(), "\n// qvr_save ");
     int format = 0;
-    if(!qvr || sscanf(qvr + 1, "// qvr_save %d", &format) != 1 || format > VR_SAVE_FORMAT) { return false; }
+    // (a coop save, format 2, is not single player's to continue: loaded from Load or the console)
+    if(!qvr || sscanf(qvr + 1, "// qvr_save %d", &format) != 1 || format > VR_SAVE_FORMAT_SINGLE) { return false; }
     SaveContext ctx;
     readContext(text.data(), c.path, ctx);
     if(!ctx.map[0] || !VR_AutosaveAllowed(ctx.map)) { return false; }

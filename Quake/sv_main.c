@@ -551,6 +551,7 @@ void SV_ConnectClient (int clientnum)
 	struct qsocket_s *netconnection;
 	int				i;
 	float			spawn_parms[NUM_SPAWN_PARMS];
+	int				loadedslot;
 
 	client = svs.clients + clientnum;
 
@@ -563,7 +564,10 @@ void SV_ConnectClient (int clientnum)
 // set up the client_t
 	netconnection = client->netconnection;
 
-	if (sv.loadgame)
+	// QVR: a loaded game's slot keeps its parms only when it holds a saved player (a coop save's empty slot: a new
+	// player's, vr/vr_coopsave.cpp)
+	loadedslot = VR_CoopSlotLoaded (clientnum);
+	if (loadedslot)
 		memcpy (spawn_parms, client->spawn_parms, sizeof(spawn_parms));
 	memset (client, 0, sizeof(*client));
 	client->netconnection = netconnection;
@@ -577,7 +581,7 @@ void SV_ConnectClient (int clientnum)
 	client->message.maxsize = sizeof(client->msgbuf);
 	client->message.allowoverflow = true;		// we can catch it
 
-	if (sv.loadgame)
+	if (loadedslot)
 		memcpy (client->spawn_parms, spawn_parms, sizeof(spawn_parms));
 	else
 	{

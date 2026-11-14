@@ -2209,7 +2209,7 @@ void M_Menu_Save_f (void)
 		return;
 	if (cl.intermission)
 		return;
-	if (svs.maxclients != 1)
+	if (svs.maxclients != 1 && deathmatch.value) // QVR: a coop host saves its game (each player's block: vr_coopsave.cpp)
 		return;
 	if (VR_RunIronmanRefusesSave ()) // QVR: the run's Ironman: no saving (said on the console and the screen)
 		return;

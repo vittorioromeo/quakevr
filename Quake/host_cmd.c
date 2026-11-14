@@ -2568,9 +2568,10 @@ static void Host_Savegame_f (void)
 		return;
 	}
 
-	if (svs.maxclients != 1)
+	// QVR: a coop game is saved with each player's block (vr/vr_coopsave.cpp, MP_PLAN.md B4); deathmatch is not
+	if (svs.maxclients != 1 && deathmatch.value)
 	{
-		Con_Printf ("Can't save multiplayer games.\n");
+		Con_Printf ("Can't save deathmatch games.\n");
 		return;
 	}
 
@@ -2675,6 +2676,8 @@ static void Host_Loadgame_f (void)
 	int	version;
 	float	spawn_parms[NUM_SPAWN_PARMS];
 	qboolean kexonly = false;
+	int	coopclients;	// QVR: the save's players (0: a single player save)
+	qboolean keepclients;	// QVR: the players connected kept (a coop save of this game's number of players)
 
 	if (cmd_source != src_command)
 		return;
@@ -2817,10 +2820,39 @@ static void Host_Loadgame_f (void)
 		return;
 	}
 
-// Note: calling CL_Disconnect instead of CL_Disconnect_f to avoid stopping the music
-	CL_Disconnect ();
-	if (sv.active)
-		Host_ShutdownServer (false);
+	// QVR: a save is played with its own number of players: the edicts after theirs are numbered from it (a coop save's
+	// `// qvr_coop` line, vr/vr_coopsave.cpp; a single player save's 1). The players are kept when that is this game's
+	// number already: they reconnect, each in his slot, as at a changelevel.
+	coopclients = VR_CoopSaveClients ();
+	if (coopclients > svs.maxclientslimit)
+	{
+		Con_Printf ("ERROR: %s is a coop save of %d players; this game takes %d at most: not loaded\n", relname,
+			coopclients, svs.maxclientslimit);
+		VR_HeapFree (start);
+		start = NULL;
+		SCR_EndLoadingPlaque ();
+		return;
+	}
+	keepclients = coopclients > 1 && sv.active && svs.maxclients == coopclients;
+
+	if (!keepclients)
+	{
+	// Note: calling CL_Disconnect instead of CL_Disconnect_f to avoid stopping the music
+		CL_Disconnect ();
+		if (sv.active)
+			Host_ShutdownServer (false);
+		if (svs.maxclients != q_max (coopclients, 1))
+		{
+			Cmd_ExecuteString (va ("maxplayers %d", q_max (coopclients, 1)), src_command);
+			if (coopclients <= 1)
+				Cvar_Set ("coop", "0");
+		}
+	}
+	if (coopclients > 1)
+	{
+		Cvar_Set ("deathmatch", "0");
+		Cvar_Set ("coop", VR_CoopSaveIsCoop () ? "1" : "0");
+	}
 
 	PR_SwitchQCVM(&sv.qcvm);
 	VR_OnBeginLoadGame (); // QVR
@@ -2906,13 +2938,28 @@ static void Host_Loadgame_f (void)
 	for (i = 0; i < NUM_SPAWN_PARMS; i++)
 		svs.clients->spawn_parms[i] = spawn_parms[i];
 	VR_OnLoadGame (); // QVR
+	VR_CoopApplyLoad (); // QVR: a coop save's players' parms to their slots (vr/vr_coopsave.cpp)
 	VR_TimeMark ("load: the saved game's entities"); // QVR
 
 	PR_SwitchQCVM(NULL);
 
 	q_strlcpy (sv.lastsave, relname, sizeof (sv.lastsave));
 
-	if (cls.state != ca_dedicated)
+	if (keepclients)
+	{
+		// QVR: the players kept were sent the map's serverinfo before the save's edicts (and the models they precache)
+		// were loaded: sent again now, as to a player connecting to the loaded game
+		PR_SwitchQCVM (&sv.qcvm);
+		for (i = 0; i < svs.maxclients; i++)
+		{
+			if (!svs.clients[i].active)
+				continue;
+			SZ_Clear (&svs.clients[i].message);
+			SV_SendServerinfo (&svs.clients[i]);
+		}
+		PR_SwitchQCVM (NULL);
+	}
+	else if (cls.state != ca_dedicated)
 	{
 		CL_EstablishConnection ("local");
 		Host_Reconnect_f ();
@@ -3290,6 +3337,7 @@ static void Host_Spawn_f (void)
 	int		i;
 	client_t	*client;
 	edict_t	*ent;
+	int		loadedslot;
 
 	if (cmd_source == src_command)
 	{
@@ -3306,10 +3354,13 @@ static void Host_Spawn_f (void)
 	}
 
 // run the entrance script
-	if (sv.loadgame)
+	// QVR: a coop save's empty slot (vr/vr_coopsave.cpp) is a new player's: entered as in a level started
+	loadedslot = VR_CoopSlotLoaded (host_client - svs.clients);
+	if (loadedslot)
 	{	// loaded games are fully inited already
-		// if this is the last client to be connected, unpause
-		sv.paused = false;
+		// if this is the last client to be connected, unpause (QVR: of a coop save's players still connected)
+		if (VR_CoopSlotSpawned (host_client - svs.clients))
+			sv.paused = false;
 	}
 	else
 	{
@@ -3335,6 +3386,8 @@ static void Host_Spawn_f (void)
 			Sys_Printf ("%s entered the game\n", host_client->name);
 
 		PR_ExecuteProgram (pr_global_struct->PutClientInServer);
+		if (sv.loadgame && VR_CoopSlotSpawned (host_client - svs.clients))
+			sv.paused = false; // QVR: (a new player in a loaded coop game)
 	}
 
 // send all current names, colors, and frag counts
@@ -3409,7 +3462,7 @@ static void Host_Spawn_f (void)
 	}
 	MSG_WriteByte (&host_client->message, svc_setangle);
 	for (i = 0; i < 2; i++)
-		if (sv.loadgame)
+		if (loadedslot)
 			MSG_WriteAngle (&host_client->message, ent->v.v_angle[i], sv.protocolflags );
 		else
 			MSG_WriteAngle (&host_client->message, ent->v.angles[i], sv.protocolflags );

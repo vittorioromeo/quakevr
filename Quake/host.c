@@ -777,6 +777,9 @@ void SV_DropClient (qboolean crash)
 	host_client->name[0] = 0;
 	host_client->old_frags = -999999;
 	net_activeconnections--;
+	// QVR: a loaded coop game paused for its players to come back runs once none still connected is to come
+	if (sv.paused && VR_CoopSlotDropped (host_client - svs.clients))
+		sv.paused = false;
 
 // send notification to all clients
 	for (i = 0, client = svs.clients; i < svs.maxclients; i++, client++)

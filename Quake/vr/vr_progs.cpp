@@ -303,6 +303,11 @@ float staminaEffort(edict_t* p, float cost, const char* what)
     return za::clamp(out, 0.f, 1.f);
 }
 
+float* clientExtParms(int client)
+{
+    return clientExtSpawnParms(client);
+}
+
 } // namespace qvr::progs
 
 using namespace qvr::progs;
@@ -912,6 +917,11 @@ extern "C" int VR_ReadSaveInfo(const char* text, const char* relname)
     qvr::brushes::readSaveLines(text); // (made again after the load: restoreAfterLoad)
     qvr::permdecals::readSaveLines(text); // (the permanent decals: baked again once its map has loaded)
     qvr::runsetup::readSaveLines(text);   // (the run's choices: set when the load goes ahead, VR_OnBeginLoadGame)
+    if(!VR_ReadCoopLines(text, relname))  // (a coop save's players: vr_coopsave.cpp)
+    {
+        SCR_CenterPrint("Coop saved game not loaded\n(see the console)");
+        return 0;
+    }
     if(format > VR_SAVE_FORMAT)
     {
         Con_Printf("ERROR: %s was saved by a newer build (%s, save format %d; this one, %s, reads up to %d): not loaded\n",

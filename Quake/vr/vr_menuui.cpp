@@ -798,9 +798,9 @@ QuickSaveSeen quickSaveSeen;
         {
             return "Cannot save in intermission";
         }
-        if(svs.maxclients != 1)
+        if(svs.maxclients != 1 && deathmatch.value != 0.f) // (a coop host saves: vr_coopsave.cpp)
         {
-            return "Cannot save multiplayer games";
+            return "Cannot save deathmatch games";
         }
         if(const edict_t* player = progs::localPlayer(); player && player->v.health <= 0)
         {

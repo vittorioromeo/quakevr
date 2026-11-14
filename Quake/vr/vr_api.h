@@ -340,9 +340,21 @@ void VR_CheckLoadedReferences (int num_edicts);	// Host_Loadgame_f, the edicts p
 void VR_OnLoadGame (void);				// Host_Loadgame_f, after globals and edicts are restored
 // Saved games: after the light styles, `// qvr_save <format> progs <crc> build <build>` and `// qvr_model <i> <name>` for
 // the model precache list (SaveData_WriteHeader). VR_SAVE_FORMAT goes up when a save this build writes would load wrong
-// in an older one; a save of a newer format is refused (VR_ReadSaveInfo).
-#define VR_SAVE_FORMAT 1
+// in an older one; a save of a newer format is refused (VR_ReadSaveInfo). A single player save is still written as format
+// 1 (VR_SAVE_FORMAT_SINGLE: older builds load it as before); a coop save is format 2 (older builds refuse it: they would
+// load its players' edicts as a single player game's).
+#define VR_SAVE_FORMAT 2
+#define VR_SAVE_FORMAT_SINGLE 1
 int VR_ReadSaveInfo (const char *text, const char *relname);	// Host_Loadgame_f, before the old game ends: the save's build and models read (0: refused)
+// Coop saves (vr/vr_coopsave.cpp, MP_PLAN.md B4): per-player blocks in a save of more than one player.
+const char *VR_SaveCoopLines (void);	// SaveData_Fill: the `// qvr_coop` lines ("" for a single player game; valid until the next fill)
+int VR_ReadCoopLines (const char *text, const char *relname);	// VR_ReadSaveInfo: the loading save's blocks read (0: refused)
+int VR_CoopSaveClients (void);	// the loading save's players (its maxclients), 0 for a single player save
+int VR_CoopSaveIsCoop (void);	// the loading coop save's `coop`
+void VR_CoopApplyLoad (void);	// Host_Loadgame_f, the edicts loaded: each slot's saved spawn parms given to it
+int VR_CoopSlotLoaded (int slot);	// a loaded game: that slot's edict is a loaded player's (1 for every slot of a single player save's)
+int VR_CoopSlotSpawned (int slot);	// Host_Spawn_f: that slot spawned; 1: the loaded game may run (no saved player still connecting)
+int VR_CoopSlotDropped (int slot);	// SV_DropClient: a saved player still to spawn left; 1: the loaded coop game may run now
 const char *VR_SaveBrushLines (void);	// SaveData_Fill: the runtime brushes as the save's "// qvrb" lines (vr_brushes.cpp; "" none)
 const char *VR_SaveDecalLines (void);	// SaveData_Fill: the permanent decals as the save's "// qvrdecals" and "// qvrd" lines (vr_permdecals.cpp; "" none)
 void VR_SaveFlashlightState (void); // before a save snapshot or changelevel parms are captured

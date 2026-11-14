@@ -438,6 +438,9 @@ void loadNoticeFrame();
 // vr_gamecode: where the game code (progs.dat) comes from and whether it is this build's (said again), the base dirs and
 // the search path (Debug > Diagnostics; a player's "guns only props" report).
 void gameCode_f();
+// Client `client`'s stored level-start parm17..parm75 (numExtSpawnParms of them; parm1..16 are in its client_t): a coop
+// save's per-player blocks (vr_coopsave.cpp).
+[[nodiscard]] float* clientExtParms(int client);
 
 } // namespace qvr::progs
 
