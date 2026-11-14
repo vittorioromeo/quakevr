@@ -2384,3 +2384,18 @@ Details and numbers in [PERF_1_1.md](PERF_1_1.md) ("Second pass", "Needs his cal
 - Next (MP_PLAN.md, B3f): the grip fit's hand rig, weapongrabspot and the reverse grip's choice, the magnetic holsters per
   player; `mp_grab` grown.
 - Cherry-picked 4793722c6 (agent/mp): vr_server.cpp rewrites a player's `.vrbits0` previous bits at the end of every server frame, not only when a move arrives (a frame without a move showed QC last frame's grip press/let-go again; a doubled let-go pushed a re-grip into the 0.125 s bounce window); bots keep the bits their QC sets.
+
+## mpN (B3f): a remote player's grab of a weapon lying about, his holster presses, his grip fit hand (agent/mp, 2026-11-14; never shipped by the coordinator)
+
+- **Per player now** (`vr_heldpose.cpp`; `QVR_NET_VERSION` 10): the hotspot an empty hand takes a lying weapon by
+  (`vr_grabspot`, held 0.25 s after it is lost), the reverse grip's choice (QC passes the taker to `weapondrawnpose` 43;
+  his move's hand, his own `vr_revgrip`, now a preference), magnetic holster presses (`vr_magpoll`), the grip fit's hand
+  rig (with the palm frame: `vr_rigframe` version 2). A carried weapon's hotspots on the server were 1.4 units off: the
+  client measured them on the weapon's entity, which the carry places again; now on the tracked hand (0.03).
+- B3 is done; B4 (coop campaign) next. Moved on: another player's `holsterpos` (QC's estimate) and the magazine's box to
+  B6, `mp_grab`'s 2H carry / foe grab / palm slack to B5.
+- `mp_ground` (new) 14/0, `mp_grab` 13/0 (its retake flaky, ~1 in 4), `mp_held` 14/0; single player: revgrip 24/0,
+  gun_wall PASS, crate_grip 10/0, magholster `time`, load_models 4/0, scenario_check, vr_run_check 12/0.
+- Test aids: `vr_mp_drawn` adds each empty hand's ground spot and the nearest lying weapon's reverse grip choice; the
+  mock's `vr_mock_hand_to <hand> spot <i>` works on a remote client; QC logs the off hand's grip presses
+  (`vr_debug_carry 2`). Kit runs and the MP harness share the base's autoexec: never run both at once.

@@ -29,6 +29,7 @@ constexpr int commandVersion = 1;
 constexpr int valueCount = 62;
 constexpr float step = 0.05f; // (units, and the directions' parts as much: a change smaller goes up with the next one)
 constexpr float most = 256.f; // (a value farther than this: not a hand's, the command ignored)
+constexpr double spotHold = 0.25; // s: a ground spot lost goes up this late (send; twohand::groundSpot's grace)
 
 enum Flag : int
 {
@@ -134,6 +135,7 @@ struct State
     bool wasSent[2]{};
     double nextSend[2]{};
     Spot spotSent[2];   // (B3f)
+    double spotSeen[2]{}; // when each hand last had a spot (realtime)
     int magPending{0};  // the holster presses taken from magholster::poll, not sent yet
     // Server: each slot's.
     Hand slot[MAX_SCOREBOARD][2];
@@ -602,7 +604,15 @@ void send()
     {
         Spot now;
         twohand::groundSpotNow(hand, now.entity, now.index);
-        if(now.entity == state.spotSent[hand].entity && now.index == state.spotSent[hand].index)
+        if(now.entity > 0)
+        {
+            state.spotSeen[hand] = realtime;
+        }
+        // A spot lost is sent a moment late (spotHold): the hand closing on the weapon leaves the spot as its move goes up,
+        // and the server's touch in that move must still find it (this game's own server reads the view's spot of the
+        // frame before: twohand::groundSpot).
+        if((now.entity == state.spotSent[hand].entity && now.index == state.spotSent[hand].index) ||
+            (now.entity == 0 && realtime - state.spotSeen[hand] < spotHold))
         {
             continue;
         }

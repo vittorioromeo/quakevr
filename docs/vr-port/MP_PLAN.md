@@ -188,7 +188,7 @@ player unchanged.
 | **B3c** (palm grab and body calibration up done; the rest is B3d) | The rest of B3b: the palm frame (vr_grip.cpp), weaponhotspot and the drawn pose (vr_builtins_held.inc), the weapon hull, the 2H carry and foe grab frames, the ragdoll grab fit and the crawl's hand bottom; body calibration up (his measured arms and shoulders); client-side traces for teleport, crosshair, flashlight, hand collision | `mp_teleport`, `mp_body` (shoulders within 0.2 with A calibrated), `mp_grab` grown (a 2H carry, a foe grab) |
 | **B3d** (client-side traces, teleport, palm frame up done; the rest is B3e) | The rest of B3c: the rig up (palm frame, weaponhotspot and the drawn pose, weapon hull, 2H carry and foe grab frames, the ragdoll grab fit, the crawl's hand bottom); client-side traces for teleport, crosshair, flashlight, hand collision | `mp_teleport`, `mp_grab` grown (palm frames; a 2H carry, a foe grab, the palm slack) |
 | **B3e** (the held weapon's drawn pose up done; the rest is B3f) | The rest of B3d: the drawn pose up per player (weaponhotspot, weaponanygrip, weapondrawnpose's carried weapon and axes, the drawn weapon hull, the 2H carry's reach offset); `mp_grab` grown | `mp_held` (B's hotspots on the server where his view draws them; his two-handed hold and hand-off judged by his own) |
-| **B3f** | The rest of B3e: the grip fit's hand rig per player (`vr_gripfit.cpp`), the ground weapon's grab hotspot and the reverse grip's choice per player (weapongrabspot, weapondrawnpose 43), the magnetic holsters' poll and places per player; `mp_grab` grown (a 2H carry, a foe grab, the palm slack) | `mp_grab` grown, `mp_held` grown (a reverse grip) |
+| **B3f** (done: B3 is done) | The rest of B3e: the grip fit's hand rig per player (`vr_gripfit.cpp`), the ground weapon's grab hotspot and the reverse grip's choice per player (weapongrabspot, weapondrawnpose 43), the magnetic holsters' poll and places per player; `mp_grab` grown (a 2H carry, a foe grab, the palm slack) | `mp_grab` grown, `mp_held` grown (a reverse grip) |
 | **B4** | Coop campaign flow: coop saves and loads (per-player blocks, versioned), autosaves, level transitions with inventories, intermission, deaths and respawns, map download (package names through the map installer; chunked fallback) | `mp_campaign` (e1m1 to e1m3 with saves and a load, both players' inventories), `mp_download` (B lacks a map: installs it, joins) |
 | **B5** | Interactions between players: drop a weapon / the other picks it up; force grab of world weapons in multiplayer; melee, parries and shoves between players; climbing, crouch, prone, jump, punch synced and judged per player | one scenario per interaction, each from both sides |
 | **B6** | Server rules and cosmetics: every balance setting a rule (presets, armed humanoids, damage, mutators, stamina, grapple...), rule pages dimmed on a remote client; holster positions, height, seated/standing, gloves, body seen by others | `mp_rules`, `mp_cosmetics` (B's height and gloves seen by A) |
@@ -640,6 +640,70 @@ Open items (B3f):
 - `mp_grab` grown with a 2H carry, a foe grab and the palm slack (B's hand held still before the give).
 - The client trace has no monsters (B7).
 
+### B3f results (2026-11-14, dev no-LTO build, loopback; `mp_test.py suite`: 12 of 14 pass, `mp_grab` and `mp_teleport` then pass alone; see the flaky retakes below)
+
+B3 is done with this phase: everything a remote player's hands do with weapons and props in coop is judged by his own
+client's view, hands and settings. What is left of B3's list is cosmetic or rare and moves on (see "Moved on" below).
+
+| Scenario | Result |
+|---|---|
+| `mp_ground` (new) | 14/0: B's magnetic holster press (`vr_magholster_return`) reaches the server's QC as his (`magholsterpoll`); his empty main hand over the grip hotspot of the shotgun he dropped: the server's ground spot of it (`weapongrabspot`) is his view's, and his grip carries it by that hotspot (the server's "by its hotspot 0"); his off hand over a knight's sword he dropped (hotspots off: by its handle), turned so his view takes it reversed: the server's choice for him (`weapondrawnpose` 43) is his view's (cosine -0.99 both), and his grip takes it reversed. Before: none of it for a player of another machine (spot 0, never reversed, presses lost) |
+| `mp_grab` | 13/0, grown: the server has each player's grip fit hand rig as his client measures it (27 values, sums equal to 3 decimals); the dedicated server poses the hand's points (40). Its retake now reaches into the gun (below) |
+| `mp_held` | 14/0, grown: the carried shotgun's hotspots on the server within 0.03 units of B's drawn ones (1.42 before: the fix below) |
+| the rest | `mp_coop` 11/0, `mp_coop_lag` 11/0, `mp_bandwidth` 7/0, `mp_version` 6/0, `mp_avatar` 17/0, `mp_avatarcal` 9/0, `mp_body` 12/0, `mp_prefs` 10/0, `mp_teleport` 9/0 (6/1 once in the suite: B's aim never came, `aiming=0`; alone 9/0) |
+
+Flaky (test mechanics, not the per-player code): a gun come to rest under a still mock hand is never touched (a hand's
+touch is judged as it or the thing moves), so the retakes press with the hand where it let go and then move it onto the
+gun (`vr_mock_hand_to ... spot`, which now works on a remote client); `mp_grab`'s retake still misses in about 1 run of 4
+(the gun still sliding as the hand is placed on it: all 3 presses miss); `mp_ground` passed 14/0 in its last 3 runs, its
+earlier misses fixed (a sword let go onto the carried shotgun was flung away: the main hand is now raised out of the
+way; a hand's ground spot lost as it closed on the gun: `spotHold`). Next: place the hand on the gun every report while
+pressing.
+
+Single player on the branch: `vr_embed_test 42` (revgrip) 24/0, gun_wall_test PASS (a crowbar taken by its hotspot),
+crate_grip_test 10/0 (the grip fit), magholster_test `time` (bound by the stick click, home in holster 3), load_models_test
+4/0, scenario_check PASS (129 scenes, 0 failed), vr_run_check 12/0; the dev build 0 warnings, ThinLTO 0 warnings. Every local path reads what it read before: the
+local player's ground spot, reverse grip, holster presses and hand rig come from this game's own view as before
+(`heldpose::isRemote` is false with one client and for a listen host's own player).
+
+What changed:
+
+- **The ground spot up** (`vr_heldpose.cpp`): a remote client sends `vr_grabspot <hand> <entity> <index>` when the hotspot
+  an empty hand is near changes (`twohand::groundSpotNow`); a spot lost goes up 0.25 s late (`spotHold`: the hand closing
+  on the gun leaves the spot in the move whose touch takes it, as this game's own server reads the view's spot of the
+  frame before); the server's `weapongrabspot` answers with it for that weapon (`heldpose::grabSpot`).
+- **The reverse grip's choice per player**: QC passes the taker (`weapondrawnpose(w, hand, 43, p)`); for another player
+  the server chooses by his move's hand angles, his own `vr_revgrip` (now a preference: `vr_prefs` grows by one) and his
+  flat-screen play (`view::reverseGripChoiceAt`, `heldpose::reverseGrip`).
+- **Magnetic holster presses up**: a remote client sends `vr_magpoll <bits>` (what `magholster::poll` took) when there
+  are some; the server's `magholsterpoll` hands them to his QC (`heldpose::magPoll`). Before, a dedicated server's
+  players never bound a holster.
+- **The grip fit's hand rig up**: `vr_rigframe` version 2 carries each hand's rig-to-hand matrix and fingers' shifts with
+  the palm frame (40 values); `gripfit::fit` takes the player (his own rig: `gripfit::playerRig`), so props a remote
+  player takes are fitted out of his hand as the host's are.
+- **A carried weapon's hotspots on the hand** (the 1.4 units of B3e): the client measured them in the frame of the
+  weapon's entity less its place in the hand, which the carry's pose moves after that place was taken; a carrying hand's
+  are now measured in the tracked hand's frame (the frame the carry places it in). The server's `.offhandpos` was right
+  (the hands agree within 0.03).
+- Both new commands whitelisted in `sv_user.c`; `QVR_NET_VERSION` 10. QC logs the off hand's grip presses as the main
+  hand's (`vr_debug_carry 2`), the mock's `spot` target works on a remote client (its own entities), the server's avatar
+  report gives both hands' weapons (`wpn=<main> <off>`), `vr_mp_drawn` each empty hand's ground spot, the weapon lying
+  nearest and how it would be taken (`gs=`, `rev=`, `at=`, `rot=`).
+- The harness: a hand's touch is judged as it or the thing moves, so a gun come to rest under a still mock hand is never
+  touched; `mp_grab`'s and `mp_ground`'s retakes press with the hand above it and then lower it into the gun (`retake`).
+  Kit runs and the harness share the base's `id1/autoexec.cfg`: never run both at once (a kit run's script quits the
+  harness's games).
+
+Moved on (none blocks coop play):
+
+- `holsterpos` for another player (the magnetic holsters' flight home and its distance check use QC's estimate of his
+  holsters, `VR_Grapple_HolsterPos`, a few units off): with his holster places seen by others, B6.
+- `mp_grab` grown with a 2H carry, a foe grab and the palm slack: B5 (interactions, one scenario each, from both sides).
+- The magazine's box (a remote player's drawn weapon hull has the gun's body only): B6.
+- The client trace has no monsters: B7. Melee sub-tick samples: B5.
+- The reverse grip's cosine on the server can differ from his view's by up to ~0.15 while the weapon still slides (the
+  server's place of it, not the client's interpolated one); the choice only flips near a right angle.
+
 ## Decisions
 
 - The harness is Python with an in-engine inbox rather than stdin or RCON: it drives GUI clients and dedicated servers
@@ -655,4 +719,4 @@ Open items (B3f):
   from outside, they always have legs (his body mode 1 or 2 is his own first-person view); his body mode 0 draws his
   player model as before.
 
-Next phase: B3f — the rest of B3e: the grip fit's hand rig per player (vr_gripfit.cpp), weapongrabspot and the reverse grip's choice (weapondrawnpose 43) per player (sent with the grip), the magnetic holsters' poll and places per player, the carried weapon's 1.4-unit offset on the server; `mp_grab` grown (a 2H carry, a foe grab, the palm slack with B's hand held still before the give); melee sub-tick samples stay with B5.
+Next phase: B4 — (first: `mp_grab`'s retake reliable, the hand placed on the gun every report while pressing, B3f's flaky item) coop campaign flow: coop saves and loads (per-player blocks, versioned), autosaves, level transitions with inventories, intermission, deaths and respawns, map download (package names through the map installer; chunked fallback); tests first: `mp_campaign` (e1m1 to e1m3 with saves and a load, both players' inventories), `mp_download` (B lacks a map: installs it, joins).

@@ -739,8 +739,10 @@ def grab(s):
         _, gone = srv.wait(r"grip: .*main hand let go at", 10, since, "B's let-go on the server")
         server_time_past(srv, float(gone.rsplit(" ", 1)[1]) + GRIP_REPRESS_S)
         b.cmd("vr_mock_hand main 0.1 0.25 -0.35 0 0 0; vr_mock_button main grip 1")
-        b.cmd("vr_mock_hand main 0.1 0.19 -0.35 0 0 0")
-        seen += b_weapon_until(4, 8)
+        seen += b_weapon_until(4, 4)
+        if seen[-1] != 4:
+            b.cmd("vr_mock_hand_to main spot 0 -2")  # (onto it as it lies: the mock's target on a remote client, B3f)
+            seen += b_weapon_until(4, 6)
         if seen[-1] == 4:
             break
         since = srv.mark()
@@ -982,15 +984,18 @@ def wait_quietly(inst, pattern, timeout, since, what):
         return None
 
 
-def retake(srv, b, hand, gone_since, taken_re, above, down, presses=3):
+def retake(srv, b, hand, gone_since, taken_re, above, down, presses=3, settled=None):
     """B presses `hand`'s grip GRIP_REPRESS_S of the server's game time after its let-go (logged after `gone_since`) with
-    the hand placed by `above`, then moves it into the weapon lying still (`down`: a hand's touch is judged as it moves),
-    until the server logs `taken_re` (at most `presses` presses, each let go again when it took nothing) -> the line."""
+    the hand placed by `above` (and, given `settled`, once it says the server has the hand there), then moves it into the
+    weapon lying still (`down`: a hand's touch is judged as it moves), until the server logs `taken_re` (at most `presses`
+    presses, each let go again when it took nothing) -> the line."""
     since = gone_since
     for _ in range(presses):
         _, gone = srv.wait(r"grip: .*%s hand let go at" % hand, 10, since, "B's %s let-go on the server" % hand)
         server_time_past(srv, float(gone.rsplit(" ", 1)[1]) + GRIP_REPRESS_S)
         b.cmd(above)
+        if settled:
+            settled()
         since = srv.mark()
         b.cmd("vr_mock_button %s grip 1" % hand)
         srv.wait(r"grip: .*%s hand pressed at" % hand, 10, since, "B's %s grip on the server" % hand)
@@ -1057,7 +1062,8 @@ def ground(s):
             line is not None and ("by its hotspot %d" % grips[0]) in line, "server: %s" % line)
 
     # The sword in his off hand (impulse 170 + WID_SWORD 13), let go; hotspots off on B: taken by its handle.
-    b.cmd("vr_weapon_grab_hotspots 0; vr_weapon_grab_anywhere 0")
+    # (the main hand with the carried shotgun raised out of the way: a sword let go onto it was flung 90 units, 2 runs of 6)
+    b.cmd("vr_weapon_grab_hotspots 0; vr_weapon_grab_anywhere 0; vr_mock_hand main 0.45 1.3 -0.1 0 0 0")
     grip_then_give(srv, b, "vr_mock_hand off -0.1 0.25 -0.35 0 0 0; vr_mock_button off grip 1", "off", 183)
     off = []
     for _ in range(30):
@@ -1074,14 +1080,29 @@ def ground(s):
     turn = "0 0 0"
     # (the hand over its blade's hotspot as it lies: with hotspots off, a fist on it takes it by its handle)
     over = "vr_mock_hand off -0.1 0.25 -0.35 %s; vr_mock_hand_to off spot 0 6"
+
+    def agreed():
+        """B's own and the server's reports of his off hand until the server has the hand where his view has it (its
+        angles within 3 degrees: the move with the new turn arrived) and the same choice (at most 20 reports each)."""
+        o = v = {}
+        for _ in range(20):
+            o = ground_report(b, "mp_drawn_own").get((eb, 0), {})
+            v = ground_report(srv, "mp_drawn_sv").get((eb, 0), {})
+            if o.get("rev", (0, -1, 0))[0] > 0 and v.get("rev", (0,))[0] == o["rev"][0] and v["rev"][1] == o["rev"][1] \
+                    and angle_diff(o["rot"], v["rot"]) <= 3.0:
+                break
+        return o, v
+
+    # (first the sword come to rest by the hand: the weapon lying nearest it one that may be held reversed; a sword
+    # still tumbling from the hand was once not the nearest, a run of 3)
+    b.cmd(over % turn)
+    for _ in range(30):
+        own_r = ground_report(b, "mp_drawn_own").get((eb, 0), {})
+        if own_r.get("rev", (0, -1, 0))[1] >= 0:
+            break
     for turn in ("0 0 0", "0 180 0", "0 90 0", "0 -90 0"):
         b.cmd(over % turn)
-        for _ in range(20):
-            own_r = ground_report(b, "mp_drawn_own").get((eb, 0), {})
-            sv_r = ground_report(srv, "mp_drawn_sv").get((eb, 0), {})
-            if own_r.get("rev", (0, -1, 0))[0] > 0 and sv_r.get("rev", (0,))[0] == own_r["rev"][0] and \
-                    sv_r["rev"][1] == own_r["rev"][1]:
-                break
+        own_r, sv_r = agreed()
         tried.append((turn, own_r.get("rev"), sv_r.get("rev"), own_r.get("rot"), sv_r.get("rot")))
         if own_r.get("rev", (0, -1, 0))[1] == 1:
             break
@@ -1093,7 +1114,7 @@ def ground(s):
             sv_r["rev"][1] == own_r["rev"][1] and abs(sv_r["rev"][2] - own_r["rev"][2]) <= 0.2,
             "server %s; B's own %s" % (sv_r.get("rev"), own_r.get("rev")))
     line = retake(srv, b, "off", gone_since, r"revgrip: .* taken (reversed|upright)",
-                  over % turn, "vr_mock_hand_to off spot 0 -2")
+                  over % turn, "vr_mock_hand_to off spot 0 -2", settled=agreed)
     s.note("the server's take: %s" % line)
     want = "reversed" if own_r.get("rev", (0, -1, 0))[1] == 1 else "upright"
     s.check("B's grip takes the sword %s, as his view chose (the server's QC VR_RevGrip_OnTake)" % want,
