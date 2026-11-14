@@ -6,7 +6,7 @@ far are [RELEASE_TODO.md](RELEASE_TODO.md). Nothing was pushed, tagged or publis
 
 ## What's left for you
 
-- [ ] **Your VR pass:** the in-game checklist (VR menu > Checklist: 68 items in 10 sections, flat-screen first; 48
+- [ ] **Your VR pass:** the in-game checklist (VR menu > Checklist: 71 items in 10 sections, flat-screen first; 50
   with a Test button). At least sections 4-10 (the headset's).
 - [ ] **Confirm the shipped defaults** (section 2 below): the Run Setup's (Style Unleashed, Gore My Settings, Armed
   Humanoids and Smarter AI As Style, Shotgun and Axe, every mutator Off, Enemy Count 1x) and two Menu Look values your

@@ -604,7 +604,7 @@ void bloodyNightmareRow(int) { playMg3BloodyNightmare(); }
             items.pushBack(bloody);
         }
     }
-    items.pushBack(header("This Page").minor());
+    items.pushBack(header("Advanced").minor());
     items.pushBack(command("Campaign Data Status", "vr_campaign_status").minor());
     items.pushBack(action("Return to VR Hub", playHub).minor());
     return items;
@@ -2140,15 +2140,22 @@ void addMenuDetail(za::Vector<Item>& list, int page)
     {
         return; // (drawn their own way: vr_menu_search.inc, vr_menu_console.inc, vr_menu_maps.inc)
     }
+    // One footer section, "Advanced": Reset This Page (a page with settings) and Menu Detail (smaller and fainter than the
+    // page's own sections: Item::Minor, vr_menu_minor_scale and _alpha). A page that made its own "Advanced" header
+    // (Campaign: its extra rows) shares it.
+    const bool ownHeader = za::anyOf(list.begin(), list.end(), [](const Item& item) {
+        return item.kind == Item::Header && item.look == Item::Minor && item.label && !strcmp(item.label, "Advanced");
+    });
+    if(!ownHeader)
+    {
+        list.pushBack(header("Advanced").minor());
+    }
     if(settings && !slotPage(PageRef::at(page)) && page != pageIndex(pageChanged))
     {
-        // (Both footers smaller and fainter than the page's own sections: Item::Minor, vr_menu_minor_scale and _alpha.)
-        list.pushBack(header("This Page").minor());
         list.pushBack(action(ui().resetArmedPage == page ? "Press Again to Reset" : "Reset This Page", resetThisPage)
                 .help("Every setting on this page (as Menu Detail shows it) back to its default. Press it twice: the second "
                       "time within 3 seconds.").minor());
     }
-    list.pushBack(header("Menu Detail").minor());
     list.pushBack(row(opt::vr_menu_level).minor());
 }
 

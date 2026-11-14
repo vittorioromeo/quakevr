@@ -4,7 +4,7 @@
 # A flat-only line starts "Flat-screen:"; a line that works in either mode starts "Flat-screen or VR:" (try it in either); the rest are for the headset.
 # New lines from a ship land in a [New: not yet sorted] section at the top (or in the section a lines file names on its first line, "[section: <name>]"); the next sort moves them into place and drops that section.
 # A line ending in {test:<id>} has a Test button: it loads quakevr/scenarios/<id>.txt's scene (docs/vr-port/TESTING.md, "Checklist scenarios"); give new lines one whenever a scene fits. Flat-screen lines' scenes work under -flatscreenmode too (the game's mode is picked at start-up, not by the scene).
-# Lines are only for something new or changed you can see or feel: one line per flow, never "works as before". History of the sorts: git log of this file and docs/vr-port/CHECKLIST_REORG.md (latest: 2026-11-14 release audit, 79 lines down to 64: the [New] section sorted, near-duplicates merged, every line cut to what to do and what to see, 3 new scenes). Misc/quakevr/checklist_tests_check.py checks every tag's scene file and the format (no "(agent/", "Test:", scratch or qvr-agents paths, .sh names; sections in order).
+# Lines are only for something new or changed you can see or feel: one line per flow, never "works as before". History of the sorts: git log of this file and docs/vr-port/CHECKLIST_REORG.md (latest: 2026-11-14 release audit, 94 lines down to 68, 71 with three from a later ship: the [New] section sorted, near-duplicates merged, every line cut to what to do and what to see, 3 new scenes). Misc/quakevr/checklist_tests_check.py checks every tag's scene file and the format (no "(agent/", "Test:", scratch or qvr-agents paths, .sh names; sections in order).
 
 [1. Flat-screen: weapons and hands]
 Flat-screen: hold the axe (then a sword, the crowbar, Mjolnir, the super axe) with the left hand empty: the left hand goes onto the handle by itself and the weapon sits two-handed; take something in the left hand: back to one hand, no jumps either way (Debug > Tunables > Flatscreen > Two-Handed Melee Stance). {test:flat_melee2h}
@@ -15,6 +15,8 @@ Flat-screen or VR: shotgun in the right hand, a spent flare gun in the left: swa
 Flat-screen or VR: Official Campaigns: a campaign's row opens Run Setup first; Arcane Dimensions keeps its own confirmation instead.
 Flat-screen or VR: New Game, or a campaign whose start map has skill halls: Run Setup's Difficulty offers only Skill Halls or Bloody Nightmare. {test:run_setup_newgame}
 Flat-screen or VR: Run Setup's Difficulty, Starting Gun, Starting Melee Weapon and Enemy Count are pictures with names: the picked one on a lit plate, the others grey, the hovered one outlined; clicks and left/right follow, and they read well on the VR panel. Menu Look > Run Setup: Icon Pickers off gives plain rows; Icon Picker Size and Unpicked Dim change them at once. {test:run_setup_newgame}
+Flat-screen or VR: the icon pickers (Run Setup's Difficulty, Starting Gun, Enemy Count) are shorter, the pictures keep their proportions (not stretched) and a name on two lines is tightly spaced; Menu Look > Icon Picker Size still resizes them. {test:run_setup_newgame}
+Flat-screen or VR: Run Setup shows the Start button right under the Difficulty picker, with Presets, Rules and Mutators below it. {test:run_setup_newgame}
 Flat-screen or VR: Levels > e1m1's Run Setup opens at its top with Difficulty in view (also after Select Campaign's Run Setup); Bloody Nightmare is a fifth picture after Nightmare: Start it and you get Nightmare with Bloody Nightmare's rules, and the save's Continue line says Bloody Nightmare.
 Flat-screen or VR: change Enemy Count, Randomized Enemies and Randomized Pickups, then start from Levels, the Map Library, New Game, a campaign or the hub: the map has exactly those, never an earlier run's; the Firing Range button uses them too.
 Flat-screen or VR: Randomized Pickups, Balanced: ammo, armour and weapons become close ones, health stays health, keys and door items stay put. {test:run_pickups}
@@ -30,6 +32,7 @@ Flat-screen or VR: Search a setting on a long page (Arm Drip Rate) and open it: 
 Flat-screen: on a long page (Locomotion) one mouse wheel notch scrolls a quarter of the rows and the selection stays on the page (Menu Look > Mouse Wheel Scroll; 0: row by row).
 Flat-screen or VR: the main menu's selected row has a soft bar as faint as the settings pages' highlight (Menu Look > Big Menu Bar Opacity).
 Flat-screen or VR: walk forward and open the menu with Live Preview on: you stop at once, and after closing it you don't walk until you press forward again.
+Flat-screen or VR: the small footer at the bottom of every settings page is one section called Advanced, holding Reset This Page and Menu Detail.
 Installer: install into a fresh folder and pick Snap 45, Left-handed and Medium on "Set up the game": the game has them. Change Turning in the game, run Update, change only Turn Speed: Turning stays yours.
 
 [4. VR: body and gear]
