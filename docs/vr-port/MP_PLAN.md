@@ -207,7 +207,7 @@ player unchanged.
 | **B8h** (rounds used by B and the mantle done; the rest is B8i) | Climbing in his replay (the mantle's timed path first, then the hang's pull from his own moves' hands), the grapple's pull, the hands' climb out of the water | `mp_predict` grown (a mantle, a hang and pull up, a grapple pull, a hand's climb out: corrections under a unit) |
 | **B8i** | The hang in his moves (each move's hands for hangPull/hangMove; the grips, `owed` and the phase in the state), the grapple's pull, the hands' climb out of the water | `mp_predictclimb --part hang` (a hang and pull up: corrections under a unit), `mp_predict` grown (a grapple pull, a hand's climb out) |
 | **B9** (the review done; #1-#2 unified; the rest B11a-c) | Code quality: one code path for single player and multiplayer (section "B9 review") | the MP suite, SP regressions identical |
-| **B11a-c** | The rest of the B9 review: heldpose's own-player view asks into the slot store; vr_pmove for every player (then monsters); one avatar routine for any player entity | SP hash audits + MP suite |
+| **B11a-c** (done: B11a, B11b parts 1-2, B11c parts 1-2) | The rest of the B9 review: heldpose's own-player view asks into the slot store; vr_pmove for every player (then monsters); one avatar routine for any player entity | SP hash audits + MP suite |
 | **B12** (was B9) | Compression and rate: entropy stage with trained tables, per-client rate, priority accumulator | byte budgets per scenario from section 2.3 |
 | **B10** | Proximity voice chat: capture, Opus, VAD, noise suppression, push-to-talk, a jitter buffer, voices placed by Steam Audio at the speaker's head; VR and flat; menu rows | `mp_voice` (a test tone from A heard at B, louder near, delay under 250 ms) |
 | **B11** | Deathmatch and bots: frags, respawns, DM item rules with VR weapons, FrikBot with VR-aware bodies | `mp_dm` (two clients and two bots, a fraglimit reached) |
@@ -1117,7 +1117,8 @@ What changed:
   head: his helmet shows), a piece he lacks collapsed, by the code that poses yours. Their bones are made into his
   avatar's buffers (`agarmor::playerBridgePosesInto`: the leather's, not the local frame cache), at his body's scale
   (`mpavatar::plateBody` for `avatar::modelScale`). Your `vr_player_plates` 0 shows nobody's. His pauldrons give way to
-  his plates as yours do. No morph: a piece of his comes and goes at once (his debris still flies from QC).
+  his plates as yours do. No morph: a piece of his comes and goes at once (his debris still flies from QC); B11c part 2
+  gives his the morphs yours have.
 - **Locomotion's balance settings are rules by name** (`locomotionRules`: `vr_crouch_speed`, `vr_crouch_speed_scale`,
   `vr_slope_walk`); the stick's mode, curve, autorun and speed key stay each player's (the server caps speed by
   `sv_maxspeed` anyway).
@@ -1129,7 +1130,7 @@ Open (after B6):
 - His holsters ride his entity between his moves (as his hands do): a fast turn of his body draws them a move late (B7's
   interpolation buffer).
 - Another player's plates appear and go without the morph yours have (a morph per player needs his own morph state;
-  cheap to add if it shows in VR).
+  cheap to add if it shows in VR). **Done** (B11c part 2: `view::morphPlates`, his own state).
 - The checklist's two set-aside scenes (`flat_holster_drag`, `flat_clip_unpaid`): the coordinator's, on next too.
 
 ### B7 results, part 1 (2026-11-14, dev no-LTO build, loopback; 11 scenarios run, all pass: `mp_loss` 11/0, `mp_bandwidth` 8/0, `mp_coop` 11/0, `mp_coop` at 150 ms + 2% 11/0, `mp_avatar` 17/0, `mp_grab` 13/0, `mp_melee` 29/0, `mp_moves` 19/0, `mp_pickup` 9/0, `mp_teleport` 9/0, `mp_held` 14/0)
@@ -1495,7 +1496,7 @@ should come from one system for every player), **done** (unified in B9).
 | 2 | `clientprefs::value`/`forQc`, `PF_cvar_hget` | `svs.maxclients > 1` before a slot's preferences | **done**: the check dropped (a slot without preferences gives the game's own value: single player always) |
 | 3 | vr_heldpose.cpp (`isLocal`, `isRemote`, `grabSpot`, `reverseGrip`, `magPoll`, `remote`), vr_builtins_held.inc (weapon hotspot, any-grip, help kind: 5 sites), vr_carry2h.cpp:333, vr_box3d_hands.cpp:661, `grip::serverTake`'s `h.local` | the host's own player: the client's view asked live (hotspots, ground spot, reverse grip, magazine presses); others: their slot's drawn pose, spot, presses | **unify** (B11a, medium, 1 session): the host publishes its `heldpose::Hand`, ground spot and presses into its slot as #1; readers read the slot only. Three different "local" tests today (`sv.active && cls.state == ca_connected && num == 1`, `cls.state != ca_dedicated && slot == 0`, `num == 1 && cls.state != ca_dedicated`) become `clientprefs::ownSlot`. Care: the remote path turns hotspots through the player's hand fields (`toWorld`), the local one through the view: single player's numbers change unless published unquantized in the same frame; check with the SP hash audits. **Done** (B11a: `heldpose::publishOwn` before each server frame, the view's world places carried in the slot: "B11a results") |
 | 4 | sv_user.c:437 `VR_PredictThink`, sv_phys.c:1377/1414 `VR_PredictWalks` (vr_predict.cpp) | a remote client's walk: his moves one by one through vr_pmove.cpp; the host's own player (and a flat or old client): SV_Physics + QC PlayerPreThink | **unify** (B11b, large, 2 sessions; highest value): vr_pmove for every player, the host's own included (behind a cvar first, SP traces compared frame by frame), so prediction, server and single player are one module; then monsters' step and swim through the same body code. **Done** (B11b parts 1-2: `vr_pmove_own`, default 0 (his call, "For him (B11b)"); with 1, single player's traced walk, jump, crouch, lift, swim, water jump and crawl are frame-identical; monsters kept: not clean, "B11b results, part 2") |
-| 5 | vr_mpavatar.cpp (remote bodies, `bonePoses`), vr_view_diag.cpp `remoteRigSkin`/`remoteHandSkin`, vr_avatar.cpp:1430 `otherDrawn` (`cl.maxclients <= 1`), :2392 | another player's body, hands, holsters, plates drawn from his avatar block; the own from the live rig (vr_view_body, vr_view_hands) | **unify** (B11c, large, 2 sessions): one routine draws any player entity from an avatar state (the own filled from the live rig, others from snapshots), the flat player's own body (third person, vr_flattp) from it too. **Part 1 done** (B11c: the body, its plates and pauldrons through `view::drawBody` for yours and every copy; the hands, held and holstered weapons left: part 2) |
+| 5 | vr_mpavatar.cpp (remote bodies, `bonePoses`), vr_view_diag.cpp `remoteRigSkin`/`remoteHandSkin`, vr_avatar.cpp:1430 `otherDrawn` (`cl.maxclients <= 1`), :2392 | another player's body, hands, holsters, plates drawn from his avatar block; the own from the live rig (vr_view_body, vr_view_hands) | **unify** (B11c, large, 2 sessions): one routine draws any player entity from an avatar state (the own filled from the live rig, others from snapshots), the flat player's own body (third person, vr_flattp) from it too. **Part 1 done** (B11c: the body, its plates and pauldrons through `view::drawBody` for yours and every copy; the hands, held and holstered weapons left: part 2). **Done** (B11c part 2: `view::drawHand`, `drawGear`, `drawHands`; the plates' morphs per player: "B11c results, part 2") |
 | 6 | vr_teleport.cpp:72, vr_trace.cpp:159, vr_hull.cpp:5083 | no server edict for the own player (a remote client): the client's state (`cl.onground`, `cl.worldmodel`, the prediction's hulls) | **unify** (small): one "own player" accessor (on ground, in water, the world to trace) answering from the edict when hosting, from the prediction's state otherwise. **Done** (B11c: `progs::ownSource`, `ownStanding`) |
 | 7 | vr_predict.cpp:750/1155, vr_netsnap.cpp:736/774 | only `cl.viewentity` predicted; others interpolated, the own not delayed | keep (network: latency hiding is the owner's alone) |
 | 8 | vr_lagcomp.cpp:245/291/296, pr_cmds.c:754 | rewind only with remote clients (`anyRemote`), per shooter | keep (network: the host's own latency is 0, the rewind an identity) |
@@ -2017,6 +2018,37 @@ water jump out: fixed, then 28/0 twice); scenario_check 138/0, load_models_test 
   34/1 twice (the magazine into B's gun, then the shell at his pouch: the known hand-placement flakes) then 35/0 alone.
   scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0, Release (ThinLTO) build 0 warnings.
 
+### B11c results, part 2: the hands, held and holstered weapons of any player; his plates' morphs (2026-11-15, dev no-LTO build, loopback)
+
+- **One set of routines draws any player's hands and weapons** (vr_view.hpp, vr_view_hands.cpp): `view::drawHand` (a
+  jointed hand: its fingers posed and skinned, the rig placed, its skin and whether it shows) and `view::drawGear` (a
+  weapon in a hand or a holster: model, place, frame, skin, mirrored). Yours call them at the end of the live rig's
+  solve (`setupRigHand`, `setupWeapon`, `setupHolsters`), with what is the own view's alone (the grasp and the palm's
+  fit, a gun's kick, shake and turns, the reverse grip, the holsters' places on your body, a wound's blood skin) already
+  in the place, pose and skin given; every copy calls them through `view::drawHands`, from his snapshot (his
+  `VrDrawnHand`s and `VrDrawnHolsters` from his entity as drawn, his fingers shaped by your rig's settings as before).
+  Gone: mpavatar's `placeEntity` (a copy of the view's `place`), `view::remoteHandSkin` and `remoteRigSkin`.
+- **His plates morph as yours** (`view::morphPlates` on a `view::PlateMorphs` state: yours and one per copy): a piece
+  he gains comes in over your `vr_player_plates_morph_time`, another armour's pieces go out where the new one's come in;
+  taken as they come when his copy is first drawn (or after 36 frames unseen) and on a new server. A copy now has the
+  settled plates' entity and one per morph, their bones each, as yours. The alias renderer reaches a copy's entities
+  through `mpavatar::find` (a plate's morph value, VR_AliasMorph; mirrored, VR_AliasMirrored: `mpavatar::mirrored` gone).
+- Reports: `vr_mp_avatars` prints `mp_hands:` / `mp_hands_own:` (each hand, held and holstered weapon as drawn: place,
+  angles, frame, skin, the rig's bones summed); `mp_plates:` and `mp_plates_own:` add `begun=`, `coming=` (and the
+  copy's `morph=`, the newest coming in's shader value).
+- **Single player identical** (scratch `b11c2_sp.sh`: seeded e1m1, a sword in the off hand and a shotgun in the main
+  (grip mode 1), three holstered weapons, gloves, the body, pauldrons and red plates given mid-run so they come in by
+  their morph; from the eyes, a camera off the head and flat third person): every number equal before and after (hands,
+  weapons, holsters, bones' sums, plates' entities and morph values, body, looks), the eyeshot strip 0 pixels apart,
+  the flat one 215 pixels by at most 8 levels (run noise). revgrip (vr_embed_test 42) 24/0, flipgrip (44) 39/0,
+  magholster_test the same draws, distances and times as part 1's, handroll 17/0, flathands 76/0, screenhands 4/0.
+- MP: mp_cosmetics 22/0 (grown: A's copy of B's plates comes in by a morph, begun 1, all 1023 pieces coming, its
+  shader value 2.001 at the first report; settled after 75 reports with A's morph time at 2 s), mp_body 12/0, mp_held
+  14/0, mp_flatbody 6/0, mp_disarm 35/0.
+- Open: a copy's plates and hands have no wounds or power-up shading (yours: `showPlayerState`; his would need his
+  wounds sent). The copies' ViewEntities are still found by their own lookups (mpavatar::find, bonePoses, lookOf) beside
+  yours (view::find): one registry for every player's view entities would fold them, a small follow-up.
+
 ## For him (B11b)
 
 `vr_pmove_own` stays 0 (Debug > Network, "Movement: Own Walk Through Moves"). If it were 1, single player would walk
@@ -2100,4 +2132,4 @@ QuakeC's PlayerPreThink parts. Exactly what would change:
 - The interpolation buffer (B7b) leaves brush models and stepping monsters on NetQuake's lerp: the player's own entity
   is not delayed (no prediction until B8), and a lift he rides must stay in step with him.
 
-Next phase: B11c part 2 -- the hands, held weapons and holstered weapons of any player entity through one routine (as part 1's body: yours placed from the live rig's drawn state, the copies from their snapshots; the copies' plates morphing as yours through BodyPlates).
+Next phase: B12 (was B9) -- compression and rate: the fast retransmit of the reliable window, an entropy stage with trained tables for the snapshots and moves, a per-client rate and a priority accumulator, measured against section 2.3's byte budgets per scenario (B10's voice chat after it: his approval stands, but vendoring Opus and RNNoise is a download from their official sources, which a worker may not make; the coordinator or he places the sources first).
