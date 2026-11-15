@@ -269,7 +269,6 @@ struct ClientPredict
     float holdLeft{0.f};  // .teleport_time less the message's time
     float jumpDir[2]{0.f, 0.f}; // .movedir's x, y (a water jump's push)
     bool fresh{false};    // a new state since the last replay
-    bool landing{false};  // ... from the air onto the ground
 
     // The replay.
     int frame{-1};               // host_framecount of the last one
@@ -294,8 +293,8 @@ struct ClientPredict
     int states{0}, frames{0}, unpredicted{0}, unWalked{0};
     long long depthSum{0};
     int corrN{0}, flatN{0}, airN{0}, rideN{0}; // (rideN: states a lift under him moved since the last)
-    int swimN{0}, wjN{0}, landMovingN{0}, pushN{0}; // (states swimming, in a water jump; landings on a moving brush
-                                                 // model; replayed moves a mover pushed him)
+    int swimN{0}, wjN{0}, landMovingN{0}, pushN{0}; // (states swimming, in a water jump; replays landing him on a
+                                                 // brush model still moving; replayed moves a mover pushed him)
     float swimMax{0.f}, liftMax{0.f}; // (liftMax: the lift's own predicted place moved under him, a state)
     float corrMax{0.f}, corrSum{0.f}, flatMax{0.f}, airMax{0.f}, errMax{0.f};
 
@@ -587,6 +586,7 @@ bool replay(vec3_t out, vec3_t before)
     }
     pmove::MoveNotes notes;
     netmove::WireMove m;
+    bool landedMoving = false; // (a move landed him on a lift or door still moving)
     int depth = 0;
     float lastDt = 0.f;
     VectorCopy(b.origin, before);
@@ -599,12 +599,15 @@ bool replay(vec3_t out, vec3_t before)
         VectorCopy(b.origin, before);
         b.jumpedNow = false;
         const pmove::Input in = inputOf(m);
+        const bool inAir = !(b.flags & FL_ONGROUND);
         pmove::playerMove(b, in, cp.rules, &notes);
         // The lift under him goes on after his move, carrying him; one moving into him pushes him.
         vec3_t liftAt;
         b.pushedNow = false;
         const int on = b.moversAfter(in.dt, liftAt);
         cp.pushN += b.pushedNow && cp.fresh ? 1 : 0;
+        vec3_t onVel;
+        landedMoving = landedMoving || (inAir && on > 0 && moverVel(on, onVel) > b.moveTime && VectorLength(onVel) > 0.f);
         lastDt = in.dt;
         b.moveTime += in.dt;
         if(b.jumpedNow && s != cp.jumpTraced && vr_mp_watch.value != 0.f)
@@ -642,11 +645,7 @@ bool replay(vec3_t out, vec3_t before)
         cp.riddenAfter = b.moveTime;
         cp.riddenBefore = b.moveTime - lastDt;
     }
-    if(cp.fresh && cp.landing)
-    {
-        cp.landMovingN += ridden > 0 && VectorLength(cp.riddenVel) > 0.f ? 1 : 0;
-        cp.landing = false;
-    }
+    cp.landMovingN += cp.fresh && landedMoving ? 1 : 0;
 
     if(cp.fresh)
     {
@@ -845,7 +844,6 @@ void parseState()
     r.waterDrag = (bits & bitWaterDrag) != 0;
     r.waterJumpOut = (bits & bitWaterJumpOut) != 0;
     r.roomscaleOn = (bits & bitRoomscale) != 0;
-    cp.landing = cp.have && !(cp.bits & bitOnGround) && (bits & bitOnGround);
     cp.have = true;
     cp.holdLeft = q_max(static_cast<float>(teleportTime - cl.mtime[0]), -1.f);
     cp.jumpDir[0] = jumpDir[0];
