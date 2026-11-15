@@ -18,7 +18,8 @@ namespace qvr::pmove
 // One move: what the client asked for over one of its frames.
 struct Input
 {
-    float dt{0.f};                   // its duration, seconds (clamped by the caller)
+    double dt{0.0};                  // its duration, seconds (clamped by the caller); a double as host_frametime, so the
+                                     // pieces of sv_user.c / sv_phys.c that multiply by it round as theirs (B11b part 2)
     float forward{0.f}, side{0.f};   // the stick (clc_move's units)
     float up{0.f};                   // clc_move's upmove (swimming: up or down)
     vec3_t steer{0.f, 0.f, 0.f};     // the angles steering it (the head's: VR_MoveAngles); walking: the yaw alone
@@ -224,7 +225,11 @@ struct Body
     bool removed{false};                   // a touch removed him (the server's): the move ends
     float holdLeft{0.f};                   // .teleport_time less the time: moving back held, a water jump's end
     float jumpDir[2]{0.f, 0.f};            // a water jump's push over the edge (.movedir's x, y)
-    int waterLevel{0}, waterType{CONTENTS_EMPTY}; // (each move's, found at its start)
+    // The water's level and type: SV_CheckWater's, found by each move after its walk or swim chose (as a server frame's
+    // runs after SV_ClientThink and PlayerPreThink, before gravity and SV_WalkMove): at a move's start the last move's,
+    // which its walk, swim, QC WaterMove's drag and CheckWaterJump go by, as single player's (B11b part 2).
+    int waterLevel{0}, waterType{CONTENTS_EMPTY};
+    int thinkLevel{0};                     // the level the last move's walk or swim went by (the server's strokes)
     float crawl[2]{0.f, 0.f};              // the crawl's own speed along the floor (lying down: Rules::crawl)
     Mantle mantle;                         // mantling: the move carries him along it (B8h)
     bool mantledNow{false};                // the last move ended the mantle (he stands)
@@ -286,7 +291,8 @@ struct MoveNotes
 // and jump, gravity, SV_WalkMove, the room-scale walk), for in.dt.
 void playerMove(Body& b, const Input& in, const Rules& r, MoveNotes* notes = nullptr);
 
-// SV_CheckWater's level (0-3) and type at the body's origin, as each move finds them (b.waterLevel, b.waterType).
+// SV_CheckWater's level (0-3) and type at the body's origin, as each move finds them (b.waterLevel, b.waterType: before
+// its gravity and walk).
 void checkWater(Body& b, const Rules& r);
 
 // Climbing out of the water by hand (vr_water_jump 0, climbing on; ROUND21.md): a hand of r.climbHands gripping
@@ -301,6 +307,6 @@ bool waterClimbTry(Body& b, const Input& in, const Rules& r);
 // The pieces (each as sv_user.c / sv_phys.c, the move's dt for host_frametime).
 int clipVelocity(const float* in, const float* normal, float* out, float overbounce);
 int flyMove(Body& b, float time, trace_t* steptrace, MoveNotes* notes);
-void walkMove(Body& b, const Input& in, const Rules& r, float dt, MoveNotes* notes);
+void walkMove(Body& b, const Input& in, const Rules& r, double dt, MoveNotes* notes);
 
 } // namespace qvr::pmove

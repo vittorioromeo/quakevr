@@ -37,7 +37,7 @@ trace_t push(Body& b, const float* move)
 }
 
 // SV_UserFriction.
-void friction(Body& b, const Rules& r, float dt)
+void friction(Body& b, const Rules& r, double dt)
 {
     float* vel = b.velocity;
     const float speed = sqrtf(vel[0] * vel[0] + vel[1] * vel[1]);
@@ -47,7 +47,7 @@ void friction(Body& b, const Rules& r, float dt)
     }
     const float fr = b.overDropoff(vel, speed) ? r.friction * r.edgefriction : r.friction;
     const float control = speed < r.stopspeed ? r.stopspeed : speed;
-    float newspeed = speed - dt * control * fr;
+    float newspeed = static_cast<float>(speed - dt * control * fr); // (in double, as sv_user.c's host_frametime)
     if(newspeed < 0.f)
     {
         newspeed = 0.f;
@@ -59,7 +59,7 @@ void friction(Body& b, const Rules& r, float dt)
 }
 
 // SV_Accelerate.
-void accelerate(Body& b, float wishspeed, const float* wishdir, const Rules& r, float dt)
+void accelerate(Body& b, float wishspeed, const float* wishdir, const Rules& r, double dt)
 {
     const float currentspeed = DotProduct(b.velocity, wishdir);
     const float addspeed = wishspeed - currentspeed;
@@ -67,7 +67,7 @@ void accelerate(Body& b, float wishspeed, const float* wishdir, const Rules& r, 
     {
         return;
     }
-    float accelspeed = r.accelerate * dt * wishspeed;
+    float accelspeed = static_cast<float>(r.accelerate * dt * wishspeed);
     if(accelspeed > addspeed)
     {
         accelspeed = addspeed;
@@ -79,7 +79,7 @@ void accelerate(Body& b, float wishspeed, const float* wishdir, const Rules& r, 
 }
 
 // SV_AirAccelerate.
-void airAccelerate(Body& b, float wishspeed, float* wishveloc, const Rules& r, float dt)
+void airAccelerate(Body& b, float wishspeed, float* wishveloc, const Rules& r, double dt)
 {
     float wishspd = VectorNormalize(wishveloc);
     if(wishspd > 30.f)
@@ -92,7 +92,7 @@ void airAccelerate(Body& b, float wishspeed, float* wishveloc, const Rules& r, f
     {
         return;
     }
-    float accelspeed = r.accelerate * wishspeed * dt;
+    float accelspeed = static_cast<float>(r.accelerate * wishspeed * dt);
     if(accelspeed > addspeed)
     {
         accelspeed = addspeed;
@@ -185,7 +185,7 @@ void swimMove(Body& b, const Input& in, const Rules& r, bool onground)
     float newspeed = 0.f;
     if(speed)
     {
-        newspeed = speed - in.dt * speed * r.friction;
+        newspeed = static_cast<float>(speed - in.dt * speed * r.friction);
         if(newspeed < 0.f)
         {
             newspeed = 0.f;
@@ -200,7 +200,7 @@ void swimMove(Body& b, const Input& in, const Rules& r, bool onground)
         if(addspeed > 0.f)
         {
             VectorNormalize(wishvel);
-            float accelspeed = r.accelerate * wishspeed * in.dt;
+            float accelspeed = static_cast<float>(r.accelerate * wishspeed * in.dt);
             if(accelspeed > addspeed)
             {
                 accelspeed = addspeed;
@@ -215,7 +215,7 @@ void swimMove(Body& b, const Input& in, const Rules& r, bool onground)
     // VR_AfterWaterMove's glide: part of the friction just taken given back off the bottom; then its cap.
     if(r.glide > 0.f && !onground)
     {
-        const float lost = in.dt * r.friction;
+        const float lost = static_cast<float>(in.dt) * r.friction; // (VR_AfterWaterMove's float frame time)
         if(lost > 0.f && lost < 0.9f)
         {
             VectorScale(vel, (1.f - lost * (1.f - r.glide)) / (1.f - lost), vel);
@@ -256,11 +256,11 @@ void checkVelocity(Body& b, const Rules& r)
 }
 
 // SV_AddGravity, then vr_slope_walk's VR_GroundGravity: on a walkable slope met lately, only its part into the slope.
-void gravity(Body& b, const Rules& r, float dt)
+void gravity(Body& b, const Rules& r, double dt)
 {
     vec3_t before;
     VectorCopy(b.velocity, before);
-    b.velocity[2] -= r.gravity * dt;
+    b.velocity[2] = static_cast<float>(b.velocity[2] - r.gravity * dt); // (in double, as SV_AddGravity's)
     const float* n = b.groundNormal;
     if(!r.slopeWalk || !(b.flags & FL_ONGROUND) || b.groundAge > 0.1f || n[2] <= 0.7f || n[2] >= 0.9999f)
     {
@@ -500,7 +500,7 @@ int flyMove(Body& b, float time, trace_t* steptrace, MoveNotes* notes)
 }
 
 // SV_WalkMove.
-void walkMove(Body& b, const Input& in, const Rules& r, float dt, MoveNotes* notes)
+void walkMove(Body& b, const Input& in, const Rules& r, double dt, MoveNotes* notes)
 {
     const int oldonground = b.flags & FL_ONGROUND;
     b.flags &= ~FL_ONGROUND;
@@ -510,7 +510,8 @@ void walkMove(Body& b, const Input& in, const Rules& r, float dt, MoveNotes* not
     VectorCopy(b.velocity, oldvel);
 
     trace_t steptrace{};
-    int clip = flyMove(b, dt, &steptrace, notes);
+    const float time = static_cast<float>(dt); // (SV_FlyMove's float time)
+    int clip = flyMove(b, time, &steptrace, notes);
     if(!(clip & 2) || b.removed)
     {
         return;
@@ -529,7 +530,7 @@ void walkMove(Body& b, const Input& in, const Rules& r, float dt, MoveNotes* not
 
     VectorCopy(oldorg, b.origin);
     upmove[2] = r.stepsize;
-    downmove[2] = -r.stepsize + oldvel[2] * dt;
+    downmove[2] = static_cast<float>(-r.stepsize + oldvel[2] * dt);
 
     push(b, upmove);
     if(b.removed)
@@ -540,7 +541,7 @@ void walkMove(Body& b, const Input& in, const Rules& r, float dt, MoveNotes* not
     b.velocity[0] = oldvel[0];
     b.velocity[1] = oldvel[1];
     b.velocity[2] = 0.f;
-    clip = flyMove(b, dt, &steptrace, notes);
+    clip = flyMove(b, time, &steptrace, notes);
     if(b.removed)
     {
         return;
@@ -856,7 +857,7 @@ void crawlMove(Body& b, const Input& in, const Rules& r, bool onground)
     const float scale = r.stickScale * (b.waterLevel >= 1 ? r.shallowStick : 1.f); // (the stick as SV_AirMove got it)
     float want[2] = {0.f, 0.f};
     const bool pulling = crawlStickWant(in.steer[YAW], in.forward * scale, in.side * scale, r.crawlTop, onground, want);
-    crawlStep(b.crawl, want, pulling, r.crawlFriction, za::max(0.f, r.crawlMost), in.dt, onground, b.velocity);
+    crawlStep(b.crawl, want, pulling, r.crawlFriction, za::max(0.f, r.crawlMost), static_cast<float>(in.dt), onground, b.velocity);
 }
 
 namespace
@@ -1382,6 +1383,8 @@ bool mantleStep(Mantle& m, float dt, float* out)
 
 void playerMove(Body& b, const Input& in, const Rules& r, MoveNotes* notes)
 {
+    // (the VR pieces' and QuakeC's frame time: a float, as theirs; sv_user.c's and sv_phys.c's: in.dt, a double)
+    const float fdt = static_cast<float>(in.dt);
     b.mantledNow = false;
     if(b.hang.on)
     {
@@ -1404,8 +1407,8 @@ void playerMove(Body& b, const Input& in, const Rules& r, MoveNotes* notes)
         {
             notes->air = true;
         }
-        hangStep(b, b.hang, in.hands, nullptr, in.dt, b.hangSums);
-        if(hangMantle(b, b.hang, in.hands, in.headZ, in.dt, b.mantle))
+        hangStep(b, b.hang, in.hands, nullptr, fdt, b.hangSums);
+        if(hangMantle(b, b.hang, in.hands, in.headZ, fdt, b.mantle))
         {
             b.hang.on = false;
         }
@@ -1419,7 +1422,7 @@ void playerMove(Body& b, const Input& in, const Rules& r, MoveNotes* notes)
         {
             notes->air = true;
         }
-        const bool done = mantleStep(b.mantle, in.dt, b.origin);
+        const bool done = mantleStep(b.mantle, fdt, b.origin);
         VectorCopy(vec3_origin, b.velocity);
         b.flags &= ~FL_ONGROUND;
         if(done)
@@ -1435,9 +1438,11 @@ void playerMove(Body& b, const Input& in, const Rules& r, MoveNotes* notes)
     {
         notes->air = true;
     }
-    // SV_ClientThink: the water jump, the swim or the walk, by the level where the move starts (a server frame's
-    // SV_CheckWater, each move's here: his replay finds it as the server does).
-    checkWater(b, r);
+    // SV_ClientThink: the water jump, the swim or the walk, by the level the last move found (a server frame's
+    // SV_CheckWater runs after SV_ClientThink and PlayerPreThink: they go by the last frame's; B11b part 2). Its
+    // drag, the water jump out and the jump's swim below too; this move's own level, found after them, its gravity and
+    // walk (b.waterLevel and b.waterType at a move's start are part of the state: the record carries them).
+    b.thinkLevel = b.waterLevel;
     if(b.flags & FL_WATERJUMP)
     {
         // SV_WaterJump: carried over the edge until out of the water or its time is up (gravity off meanwhile).
@@ -1472,7 +1477,7 @@ void playerMove(Body& b, const Input& in, const Rules& r, MoveNotes* notes)
     // QC WaterMove's drag (PlayerPreThink, after SV_ClientThink's move), in water and not jumping out of it.
     if(r.waterDrag && b.waterLevel && !(b.flags & FL_WATERJUMP))
     {
-        const float k = 0.8f * static_cast<float>(b.waterLevel) * in.dt;
+        const float k = 0.8f * static_cast<float>(b.waterLevel) * fdt;
         for(int i = 0; i < 3; i++)
         {
             b.velocity[i] -= k * b.velocity[i];
@@ -1525,13 +1530,14 @@ void playerMove(Body& b, const Input& in, const Rules& r, MoveNotes* notes)
     // to the moves: B8j part 4), on the move's B/Y.
     if(b.grapple.on)
     {
-        grappleStep(b, b.grapple, (in.reels & b.grapple.drivers) != 0, in.dt);
+        grappleStep(b, b.grapple, (in.reels & b.grapple.drivers) != 0, fdt);
         if(notes && !(b.flags & FL_ONGROUND))
         {
             notes->air = true;
         }
     }
     checkVelocity(b, r);
+    checkWater(b, r); // (SV_Physics_Client's, before gravity: this move's level, the next move's walk or swim's)
     if(b.waterLevel < 2 && !(b.flags & FL_WATERJUMP))
     {
         gravity(b, r, in.dt);
@@ -1556,8 +1562,8 @@ void playerMove(Body& b, const Input& in, const Rules& r, MoveNotes* notes)
         b.flags |= og;
         VectorCopy(oldvel, b.velocity);
     }
-    b.groundAge += in.dt;
-    b.holdLeft -= in.dt;
+    b.groundAge += fdt;
+    b.holdLeft -= fdt;
 }
 
 } // namespace qvr::pmove

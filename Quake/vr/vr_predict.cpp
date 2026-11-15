@@ -62,6 +62,16 @@ constexpr int chanBody = 4;        // QC's CHAN_BODY
 // ---------------------------------------------------------------------------------------------------------------------
 // Server
 
+// The water's type in the state record's two bits (B11b part 2): none, water (a current too), slime, lava.
+[[nodiscard]] constexpr int waterCode(int type)
+{
+    return type == CONTENTS_SLIME ? 2 : type == CONTENTS_LAVA ? 3 : type <= CONTENTS_WATER ? 1 : 0;
+}
+[[nodiscard]] constexpr int waterOfCode(int code)
+{
+    return code == 1 ? CONTENTS_WATER : code == 2 ? CONTENTS_SLIME : code == 3 ? CONTENTS_LAVA : CONTENTS_EMPTY;
+}
+
 struct ServerSlot
 {
     pmove::Input queue[maxQueued];
@@ -75,6 +85,10 @@ struct ServerSlot
     float crawl[2]{0.f, 0.f}; // the crawl's own speed after the frame (physics::crawlState's)
     pmove::Grapple grapple;   // the grapple's rope in his moves after the frame (B8j part 4; not on: none) ...
     int grappleHook{0};       // ... its hook's edict (the reel's ramp goes on while it is the same)
+    // The water's level and type his last move found (the next move's walk or swim goes by them: B11b part 2); not
+    // walked last frame: the edict's (the last frame's SV_CheckWater).
+    int waterLevel{0}, waterType{CONTENTS_EMPTY};
+    int waterFrame{-1}; // ... the host frame his moves found them in
 };
 ServerSlot serverSlots[MAX_SCOREBOARD];
 
@@ -150,7 +164,9 @@ void grappleStore(edict_t* hook, const pmove::Grapple& g)
     {
         m.vr = *vr;
     }
-    return inputOf(m);
+    pmove::Input in = inputOf(m);
+    in.dt = host_frametime; // (the frame's own, a double: sv_user.c's and sv_phys.c's rounding, B11b part 2)
+    return in;
 }
 
 // The player's edict as a move sees him: the module's state copied in and out around every hook that runs QuakeC or
@@ -363,6 +379,7 @@ struct ClientPredict
     int numMovers{0};
     float holdLeft{0.f};  // .teleport_time less the message's time
     float jumpDir[2]{0.f, 0.f}; // .movedir's x, y (a water jump's push)
+    int waterLevel{0}, waterType{CONTENTS_EMPTY}; // the water his last move found (B11b part 2)
     float crawl[2]{0.f, 0.f};   // the crawl's own speed (lying down: B8g)
     pmove::Mantle mantle;       // mantling: its way and time at the state (B8h)
     pmove::Hang hang;           // hanging: the holds, the hands' last places, the owed at the state (B8i)
@@ -691,6 +708,8 @@ bool replay(vec3_t out, vec3_t before)
     b.holdLeft = cp.holdLeft;
     b.jumpDir[0] = cp.jumpDir[0];
     b.jumpDir[1] = cp.jumpDir[1];
+    b.waterLevel = b.thinkLevel = cp.waterLevel;
+    b.waterType = cp.waterType;
     b.crawl[0] = cp.crawl[0];
     b.crawl[1] = cp.crawl[1];
     b.mantle = cp.mantle;
@@ -705,8 +724,7 @@ bool replay(vec3_t out, vec3_t before)
     }
     if(cp.fresh)
     {
-        pmove::checkWater(b, cp.rules);
-        cp.swimN += b.waterLevel >= 2 ? 1 : 0;
+        cp.swimN += cp.waterLevel >= 2 ? 1 : 0;
         cp.crawlN += cp.bits & bitLying ? 1 : 0;
     }
     pmove::MoveNotes notes;
@@ -929,7 +947,7 @@ void probe_f()
 pmove::Input inputOf(const netmove::WireMove& m)
 {
     pmove::Input in;
-    in.dt = m.frameTime > 0.f ? (m.frameTime < moveMost ? m.frameTime : moveMost) : 0.f;
+    in.dt = static_cast<double>(m.frameTime > 0.f ? (m.frameTime < moveMost ? m.frameTime : moveMost) : 0.f);
     in.forward = static_cast<float>(m.forward);
     in.side = static_cast<float>(m.side);
     in.up = static_cast<float>(m.up);
@@ -1174,6 +1192,8 @@ void parseState()
     cp.holdLeft = q_max(static_cast<float>(teleportTime - cl.mtime[0]), -1.f);
     cp.jumpDir[0] = jumpDir[0];
     cp.jumpDir[1] = jumpDir[1];
+    cp.waterLevel = (climbBits >> 4) & 3; // (his next move's walk or swim goes by them: B11b part 2)
+    cp.waterType = waterOfCode((climbBits >> 6) & 3);
     cp.numMovers = numMovers;
     memcpy(cp.movers, movers, sizeof(movers));
     if(bits & bitWaterJump)
@@ -1413,6 +1433,11 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
         return;
     }
     pmove::Rules& r = s->rules;
+    if(s->waterFrame != host_framecount - 1)
+    {
+        s->waterLevel = static_cast<int>(ent->v.waterlevel); // (the last frame's SV_CheckWater: his walk or swim's)
+        s->waterType = static_cast<int>(ent->v.watertype);
+    }
     SV_CheckWater(ent); // (the frame's, for QuakeC and the water's effects; each move finds its own)
     r.jumpSpeed = progs::fieldFloatOr(ent, progs::fields().vr_movejump, 0.f) != 0.f ? jumpSpeed : 0.f;
     r.waterJumpOut = progs::fieldFloatOr(ent, progs::fields().vr_movewaterjump, 0.f) != 0.f; // (PlayerPreThink's)
@@ -1437,6 +1462,8 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
     }
 
     EdictBody b{ent};
+    b.waterLevel = b.thinkLevel = s->waterLevel;
+    b.waterType = s->waterType;
     b.mantle = mantle;
     b.hang = hang;
     // The grapple's rope (B8j part 4: QC VR_Grapple_ServiceAnchor left its hold and reel to his moves this frame).
@@ -1550,22 +1577,22 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
         {
             climb::hangMoved(ent, b.hang, hangSums, b.mantle); // (the mantle begun by a move, else the frame's part)
         }
-        if(b.waterLevel >= 2 && !(b.flags & FL_WATERJUMP) && s->n > 0 && !mantling && !hanging)
+        if(b.thinkLevel >= 2 && !(b.flags & FL_WATERJUMP) && s->n > 0 && !mantling && !hanging)
         {
             // The hands' strokes (VR_AfterWaterMove's, less the glide the moves ran), once a frame on the newest move's
-            // stick: the server's alone (his replay corrects to them, eased in).
-            const float scale = r.stickScale * (b.waterLevel >= 3 || !(b.flags & FL_ONGROUND) ? r.swimStick : r.wadeStick);
+            // stick: the server's alone (his replay corrects to them, eased in). By the level its swim went by.
+            const float scale = r.stickScale * (b.thinkLevel >= 3 || !(b.flags & FL_ONGROUND) ? r.swimStick : r.wadeStick);
             physics::swimStrokes(ent, newest.forward * scale, newest.side * scale, newest.up * scale);
         }
         if(crawl)
         {
             crawl[0] = b.crawl[0];
             crawl[1] = b.crawl[1];
-            if(b.waterLevel < 2 && s->n > 0 && !mantling && !hanging)
+            if(b.thinkLevel < 2 && s->n > 0 && !mantling && !hanging)
             {
                 // The hands' pulls (VR_AfterCrawlMove's, the stick's want with them), once a frame on the newest move's
                 // stick: the server's alone (his replay corrects to them, eased in).
-                const float scale = r.stickScale * (b.waterLevel >= 1 ? r.shallowStick : 1.f);
+                const float scale = r.stickScale * (b.thinkLevel >= 1 ? r.shallowStick : 1.f);
                 physics::crawlHands(ent, newest.forward * scale, newest.side * scale);
             }
         }
@@ -1575,6 +1602,9 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
     s->crawl[1] = crawl ? crawl[1] : 0.f;
     VectorCopy(b.groundNormal, s->groundNormal);
     s->groundAge = b.groundAge;
+    s->waterLevel = b.waterLevel;
+    s->waterType = b.waterType;
+    s->waterFrame = host_framecount;
     s->n = 0;
     s->walked = true;
     if(!ent->free)
@@ -1612,7 +1642,12 @@ extern "C" void VR_WritePredict(sizebuf_t* msg, client_t* client)
     MSG_WriteByte(msg, protocol::QVR_SVC_PREDICT);
     MSG_WriteShort(msg, bits | (mantling ? bitMantle : 0) | (hanging ? bitHang : 0) | (takes ? bitTake : 0));
     const bool grappled = s.walked && s.grapple.on; // (the grapple's rope in his moves: B8j part 4)
-    MSG_WriteByte(msg, (r.waterClimb ? 1 : 0) | (r.climbHands << 1) | (grappled ? 8 : 0)); // (the hands' climb out: B8j part 3)
+    // (the hands' climb out: B8j part 3; the water his last move found, his next move's walk or swim's: B11b part 2)
+    const bool waterOwn = s.waterFrame == host_framecount; // (else the next frame's moves start from the edict's)
+    const int waterLevel = waterOwn ? s.waterLevel : static_cast<int>(ent->v.waterlevel);
+    const int waterType = waterOwn ? s.waterType : static_cast<int>(ent->v.watertype);
+    MSG_WriteByte(msg, (r.waterClimb ? 1 : 0) | (r.climbHands << 1) | (grappled ? 8 : 0) | ((waterLevel & 3) << 4) |
+                           (waterCode(waterType) << 6));
     MSG_WriteLong(msg, static_cast<int>(netmove::serverLast(slot)));
     for(const float* p : {ent->v.origin, ent->v.velocity, static_cast<const float*>(s.groundNormal)})
     {
