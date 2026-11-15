@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""flash_grab_test.py <agent> [mounted|returning|timing|moving|options|gunzone|pergun|clipon|all, comma-separated;
+"""flash_grab_test.py <agent> [mounted|returning|timing|moving|options|gunzone|pergun|clipon|otherweapon|all, comma-separated;
 mounted:A-B the torso turns A..B only, timing:1+timescale0.3 those time scales only]
 
 "Highlighted implies grabbable" for the flashlight (ROUND21.md, "Flashlight: lit but not taken"): in the mock, with
@@ -21,6 +21,8 @@ at the lamp as the game reads it, moving).
   clipon     clipping on eased in (vr_flashlight_clip_time): on at once, drawn coming in from where it was (from the
              hand, the belt, onto the head), at once with 0; Flashlight Can Clip On (vr_wofs_torch_clip_NN) off
   moving     the same reaches and a still hand at the lamp while the thumbsticks move and turn the player
+  otherweapon the torso torch with a weapon in the main hand (a dagger without a two-handed grip and with one, the
+             super shotgun one-handed at the chest, the shotgun at the belt): taken at it, the weapon held at its grip
   returning  the lamp let go of and springing home: the main hand, still, at spots along its way, grips at several
              moments of the flight (a catch)
 
@@ -103,6 +105,9 @@ def parse(lines):
             d["gunslot"], d["gunat"], d["gunturn"] = int(rest[2]), [float(x) for x in rest[4:7]], [float(x) for x in rest[8:11]]
         elif rest[0] == "clipease":  # clipease CM cm DEG deg (still off its place, easing in)
             d["easecm"], d["easedeg"] = float(rest[1]), float(rest[3])
+        elif rest[0] == "mainweapon":  # mainweapon grip V x y z muzzle x y z (the world)
+            d["gripvalid"], d["grip"], d["muzzle"] = int(rest[2]), [float(x) for x in rest[3:6]], \
+                [float(x) for x in rest[7:10]]
         elif rest[0] == "torso":
             v = [float(x) for x in rest[1::1] if re.match(r"^-?[0-9.]+$", x)]
             d["torso"], d["lamp"], d["offpos"], d["mainpos"] = v[0], v[1:4], v[4:7], v[7:10]
@@ -760,6 +765,84 @@ def judge(lines, samples, hand, handIndex, cen):
     return litNotTaken == 0 and lit > 0
 
 
+# otherweapon's cases: (name, the main hand's mock pose, what puts its weapon in it). The dagger (13 of flags 3072, slot
+# 52) without its two-handed grip (Two-Handed: Not Allowed, no hotspot: the defaults before 2026-11-15) and with it (his
+# hotspot, the defaults since); the super shotgun held one-handed at the chest pointing ahead; the shotgun held low at
+# the belt pointing down (its line from 30 cm behind the hand went up over the torch).
+DAGGER = ["vr_test_give_wid 13", "vr_test_give_flags 3072", "impulse 149"]
+OTHER_CASES = [
+    ("dagger_no2h", "0.12 1.3 -0.25 70 0 0", ["vr_wofs_2h_mode_52 2", "vr_wofs_hs1_type_52 0"] + DAGGER),
+    ("dagger_2h", "0.12 1.3 -0.25 70 0 0", ["vr_wofs_2h_mode_52 1", "vr_wofs_hs1_type_52 1"] + DAGGER),
+    ("ssg_chest", "0.0 1.36 -0.3 70 0 0", ["impulse 155"]),
+    ("shotgun_belt", "-0.03 1.17 -0.15 0 0 0", ["impulse 154"]),
+]
+
+
+def to_mock(world, g):
+    """A world point in the mock's tracking space, from a probe with the off hand at REF."""
+    d = [world[k] - g["offpos"][k] for k in range(3)]
+    return (REF[0] + d[0] / UNITS_PER_METRE, REF[1] + d[2] / UNITS_PER_METRE, REF[2] - d[1] / UNITS_PER_METRE)
+
+
+def otherweapon(agent):
+    """The torso's torch with a weapon in the main hand (his notes start_2026-11-14_23-38-09, vrtesthall_2026-11-15_00-10-19):
+    the off hand at the torch takes it, whatever the weapon's two-handed grips; the off hand at the weapon's own grip (or
+    along a weapon with none) holds the weapon in both hands, the torch left on the body. One run finds each case's torch
+    and grip (a probe with the off hand at REF), the next presses at them."""
+    pre = ["vr_weapon_grip_mode 1", "vr_mock_button main grip 1"]
+    cmds = setup()
+    for name, main, give in OTHER_CASES:
+        cmds += [f"vr_mock_look 50 0", f"vr_mock_hand main {main}"] + pre + give + [
+            f"vr_mock_hand off {REF[0]} {REF[1]} {REF[2]} {HAND_ROT}"] + waits(30) + [f"vr_flashlight_probe cal_{name}"]
+    cal = parse(run(agent, "fg_othercal", cmds))
+    cmds = setup()
+    trials = []  # (tag, name, want: "torch" or "weapon")
+    for name, main, give in OTHER_CASES:
+        g = cal.get(f"cal_{name}")
+        if not g or "lamp" not in g or "muzzle" not in g:
+            print(f"  FAIL {name}: no calibration probe (no weapon in the main hand?)")
+            trials.append((None, name, "cal"))
+            continue
+        lamp = to_mock(g["lamp"], g)
+        # The weapon's grip: its fitted two-handed grip (its first hotspot, as drawn), else 60% of the way from its handle
+        # to the muzzle or the tip (vr_mock_hand_to: twice, the body following the hand between).
+        to = "heldspot 0" if g["gripvalid"] else "held 0.6"
+        cmds += [f"vr_mock_look 50 0", f"vr_mock_hand main {main}"] + pre + give
+        for want in ("torch", "weapon"):
+            if want == "weapon" and name == "dagger_no2h":
+                continue  # (held in one hand only)
+            tag = f"o_{name}_{want}"
+            trials.append((tag, name, want))
+            place = [f"vr_mock_hand off {lamp[0]:.4f} {lamp[1]:.4f} {lamp[2]:.4f} {HAND_ROT}"] if want == "torch" else [
+                f"vr_mock_hand_to off {to}"] + waits(5) + [f"vr_mock_hand_to off {to}"]
+            # (The game's grab, +grableft, as the binding sends it with the grip the torch didn't take: gun_wall_test.sh.)
+            grab = ["+grableft"] if want == "weapon" else []
+            cmds += ["vr_mock_button off grip 0"] + place + waits(24) + [f"vr_flashlight_probe {tag}", "vr_mock_button off grip 1"] + \
+                grab + waits(3) + [f"vr_flashlight_probe {tag}p", "vr_mock_button off grip 0", "-grableft", "vr_flashlight_home",
+                                   "vr_flashlight 0"] + waits(
+                2) + ["vr_flashlight 1", f"vr_mock_hand off {REF[0]} {REF[1] - 0.3} {REF[2] - 0.3} {HAND_ROT}"] + waits(6)
+    got = parse(run(agent, "fg_other", cmds))
+    passed = failed = 0
+    for tag, name, want in trials:
+        post = got.get(f"{tag}p") if tag else None
+        if not post or "off" not in post:
+            failed += 1
+            if tag:
+                print(f"  FAIL {tag}: no probe")
+            continue
+        took = post["mode"] == "held" and post["holder"] == 0
+        helping = post["off"].get("helping", 0) == 1
+        ok = took if want == "torch" else (helping and post["mode"] == "mounted")
+        pre_ = got.get(tag, {}).get("off", {})
+        print(f"  {'ok  ' if ok else 'FAIL'} {name}: off hand at the {want}: torch {post['mode']} holder {post['holder']}, "
+              f"holds the weapon {int(helping)} (before the press: lit {pre_.get('lit')} game {pre_.get('game')} "
+              f"hotspot {pre_.get('hotspot')})")
+        passed += ok
+        failed += not ok
+    print(f"otherweapon: {passed} passed, {failed} failed")
+    return failed == 0 and passed > 0
+
+
 def main():
     agent = sys.argv[1]
     # Sections, comma-separated (run_baseline.py runs the long ones as parts in parallel lanes); mounted:A-B only the
@@ -798,6 +881,9 @@ def main():
     if want("moving"):
         print("== moving (thumbstick locomotion and turning)")
         ok = moving(agent) and ok
+    if want("otherweapon"):
+        print("== otherweapon (the torso's torch with a weapon in the other hand)")
+        ok = otherweapon(agent) and ok
     print("PASS" if ok else "FAIL")
     sys.exit(0 if ok else 1)
 

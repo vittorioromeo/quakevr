@@ -26,6 +26,7 @@
 #include "vr_progs.hpp"
 #include "vr_trace.hpp"
 #include "vr_throw.hpp"
+#include "vr_twohand.hpp"
 #include "vr_units.hpp"
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
@@ -1238,26 +1239,58 @@ void noteIntent(const hands::State& s)
     return handNear(s, hand) || glm::distance(s.pos[HAND_OFF], s.pos[HAND_MAIN]) < 5.f;
 }
 
-// Whether a hand is at the other hand's weapon, to hold it with both: within gunReach of its line from 30 cm behind
-// the hand (a two-handed sword's grip below it, its pommel) to the muzzle or the tip.
+// Whether a hand is at the other hand's weapon where the game would take it in both hands (vr_twohand.cpp's own rules),
+// and nearer it than the lamp's axis (the nearest wins): on its surface where gripping holds it anywhere
+// (vr_weapon_grab_anywhere: the view's candidate, the fist touching it); at its fitted two-handed grip (s.grip2H,
+// within 8 units less its bias); with no fitted grip (a gun held anywhere along it) or a sword (its blade), within
+// gunReach of its line from the hand to the muzzle or the tip. A weapon the other hand may not hold (Two-Handed: Not
+// Allowed: the dagger by default) is taken by its surface only. Before 2026-11-15 the line ran from 30 cm behind the
+// hand whatever the weapon (a gun held one-handed at the chest kept the hand from the torch 30 cm away), and a weapon
+// with no fitted grip won anywhere 5-25 units from its hand, even one never held in two (the dagger: the torso's torch
+// could not be taken at all; his notes start_2026-11-14_23-38-09, vrtesthall_2026-11-15_00-10-19).
 [[nodiscard]] bool otherWeaponNear(const hands::State& s, int hand)
 {
+    const int other = 1 - hand;
+    if(weaponless(other))
+    {
+        return false;
+    }
+    if(twohand::onOtherWeapon(hand))
+    {
+        return true;
+    }
+    if(twohand::forbidden(other))
+    {
+        return false;
+    }
+    const float lamp = st.placed ? lampDistance(s, hand) : 1e9f;
+    if(s.grip2HValid[other])
+    {
+        // (vr_twohand.cpp: within 5.5 units of the grip, less its bias; here with a margin.)
+        const glm::vec3 from = s.grip2HPalm[other] ? hands::palmPoint(s, hand) : s.pos[hand];
+        const float d = glm::distance(from, s.grip2H[other]) - s.grip2HBias[other];
+        if(d < 8.f && d < lamp)
+        {
+            return true;
+        }
+        if(!twohand::swordHeld(other))
+        {
+            return false;
+        }
+    }
     view::WeaponMount m;
-    if(!view::weaponMount(1 - hand, m))
+    if(!view::weaponMount(other, m))
     {
         return false;
     }
-    const float m2u = units::metresToUnits();
-    const glm::vec3 along = m.muzzle - m.pos;
-    const float len = glm::length(along);
-    if(len < 1e-3f)
+    const glm::vec3 ab = m.muzzle - m.pos;
+    if(glm::dot(ab, ab) < 1e-6f)
     {
         return false;
     }
-    const glm::vec3 a = m.pos - along * (0.3f * m2u / len);
-    const glm::vec3 ab = m.muzzle - a;
-    const float t = za::clamp(glm::dot(s.pos[hand] - a, ab) / glm::dot(ab, ab), 0.f, 1.f);
-    return glm::distance(s.pos[hand], a + ab * t) < gunReach * m2u;
+    const float t = za::clamp(glm::dot(s.pos[hand] - m.pos, ab) / glm::dot(ab, ab), 0.f, 1.f);
+    const float d = glm::distance(s.pos[hand], m.pos + ab * t);
+    return d < gunReach * units::metresToUnits() && d < lamp;
 }
 
 // Whether the game's grip wins over the stored lamp's for a hand at it: at the other hand's weapon (holding it with
@@ -1275,25 +1308,12 @@ void noteIntent(const hands::State& s)
     switch(s.hotspot[hand])
     {
         case body::HS_NONE: return false;
+        // The two-handed grip's hotspot is anywhere 5-25 units from the other hand: where on the other weapon the game
+        // takes it is otherWeaponNear's (above), by the weapon's own grips; the hotspot alone never wins (round 21: a
+        // gun held at the ready kept the other hand from the belt's torch; 2026-11-15: a weapon with no fitted grip,
+        // the dagger, kept it from the torch at all).
         case body::HS_OFFHAND_2H_GRAB:
-        case body::HS_MAINHAND_2H_GRAB:
-        {
-            // The two-handed grip's hotspot is anywhere 5-25 units from the other hand. A gun held by its fitted grips
-            // (s.grip2HValid) is taken there only (vr_twohand.cpp: within 5.5 units of the grip, less its bias; here
-            // with a margin): a gun held at the ready no longer keeps the other hand from the belt's torch (round 21,
-            // flashlight tuning: the grip there did nothing at all).
-            const int other = 1 - hand;
-            if(weaponless(other))
-            {
-                return false;
-            }
-            if(!s.grip2HValid[other])
-            {
-                return true;
-            }
-            const glm::vec3 from = s.grip2HPalm[other] ? hands::palmPoint(s, hand) : s.pos[hand];
-            return glm::distance(from, s.grip2H[other]) - s.grip2HBias[other] < 8.f;
-        }
+        case body::HS_MAINHAND_2H_GRAB: return false;
         case body::HS_HAND_SWITCH:
         case body::HS_MAGAZINE: // (the other gun's magazine: held)
         case body::HS_CARRIED_GRIP: return !weaponless(1 - hand); // (with nothing in the other hand, nothing to take)
@@ -2273,11 +2293,19 @@ void probe_f()
     for(int hand = 0; hand < 2; hand++)
     {
         const bool at = st.mode != Mode::Held && hand != st.gunHand && handAt(s, hand);
-        Con_Printf("torchprobe %s %s lit %d drawn %d at %d game %d hotspot %d empty %d still %d presslit %d pressgame %d presses %d\n",
+        // (helping: the hand holds the other hand's weapon too, by a grip or anywhere: flash_grab_test.py otherweapon.)
+        Con_Printf("torchprobe %s %s lit %d drawn %d at %d game %d hotspot %d empty %d still %d presslit %d pressgame %d presses %d "
+                   "helping %d\n",
             tag, hand == HAND_MAIN ? "main" : "off", st.hovered[hand] ? 1 : 0, st.drawnAt[hand] ? 1 : 0, at ? 1 : 0,
             at && !reachesLamp(s, hand) ? 1 : 0, static_cast<int>(s.hotspot[hand]), handEmpty(hand) ? 1 : 0,
             still(s, hand) ? 1 : 0, st.pressLit[hand] ? 1 : 0,
-            st.pressGame[hand] ? 1 : 0, st.presses[hand]);
+            st.pressGame[hand] ? 1 : 0, st.presses[hand], twohand::helping(hand) || twohand::freeHelping(hand) ? 1 : 0);
+    }
+    // The main hand's weapon: its fitted two-handed grip and its muzzle (or tip), in the world (otherweapon's targets).
+    if(view::WeaponMount wm; view::weaponMount(HAND_MAIN, wm))
+    {
+        Con_Printf("torchprobe %s mainweapon grip %d %.2f %.2f %.2f muzzle %.2f %.2f %.2f\n", tag, s.grip2HValid[HAND_MAIN] ? 1 : 0,
+            s.grip2H[HAND_MAIN].x, s.grip2H[HAND_MAIN].y, s.grip2H[HAND_MAIN].z, wm.muzzle.x, wm.muzzle.y, wm.muzzle.z);
     }
     if(developer.value)
     {
