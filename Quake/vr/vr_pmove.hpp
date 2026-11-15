@@ -6,7 +6,7 @@
 // SV_WalkMove (steps, wall friction, the unstick) with the move's own duration in place of host_frametime, plus the
 // room-scale walk (vr_physics.cpp VR_ClientRoomscaleMove) and the slope's gravity (vr_slope_walk). What only the server
 // knows (touches, props stood on and shoved, the edicts) are a Body's hooks. Single player and a listen host's own
-// client keep sv_phys.c's path: nothing of theirs runs here.
+// client keep sv_phys.c's path unless vr_pmove_own (B11b: then frame-identical in the traced walk, swim and lift).
 
 #pragma once
 

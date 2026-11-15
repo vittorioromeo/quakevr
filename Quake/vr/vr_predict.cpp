@@ -88,7 +88,8 @@ struct ServerSlot
     // The water's level and type his last move found (the next move's walk or swim goes by them: B11b part 2); not
     // walked last frame: the edict's (the last frame's SV_CheckWater).
     int waterLevel{0}, waterType{CONTENTS_EMPTY};
-    int waterFrame{-1}; // ... the host frame his moves found them in
+    double waterNext{-1.0}; // ... the server's time of the frame after the one his moves found them in (a server frame
+                            // may skip a host frame or a host frame run two: its own clock, SV_Physics's increment)
 };
 ServerSlot serverSlots[MAX_SCOREBOARD];
 
@@ -1433,7 +1434,7 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
         return;
     }
     pmove::Rules& r = s->rules;
-    if(s->waterFrame != host_framecount - 1)
+    if(s->waterNext != qcvm->time)
     {
         s->waterLevel = static_cast<int>(ent->v.waterlevel); // (the last frame's SV_CheckWater: his walk or swim's)
         s->waterType = static_cast<int>(ent->v.watertype);
@@ -1604,7 +1605,7 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
     s->groundAge = b.groundAge;
     s->waterLevel = b.waterLevel;
     s->waterType = b.waterType;
-    s->waterFrame = host_framecount;
+    s->waterNext = qcvm->time + host_frametime; // (as SV_Physics advances it)
     s->n = 0;
     s->walked = true;
     if(!ent->free)
@@ -1643,7 +1644,7 @@ extern "C" void VR_WritePredict(sizebuf_t* msg, client_t* client)
     MSG_WriteShort(msg, bits | (mantling ? bitMantle : 0) | (hanging ? bitHang : 0) | (takes ? bitTake : 0));
     const bool grappled = s.walked && s.grapple.on; // (the grapple's rope in his moves: B8j part 4)
     // (the hands' climb out: B8j part 3; the water his last move found, his next move's walk or swim's: B11b part 2)
-    const bool waterOwn = s.waterFrame == host_framecount; // (else the next frame's moves start from the edict's)
+    const bool waterOwn = s.waterNext == sv.qcvm.time; // (after SV_Physics; else the next frame's start from the edict's)
     const int waterLevel = waterOwn ? s.waterLevel : static_cast<int>(ent->v.waterlevel);
     const int waterType = waterOwn ? s.waterType : static_cast<int>(ent->v.watertype);
     MSG_WriteByte(msg, (r.waterClimb ? 1 : 0) | (r.climbHands << 1) | (grappled ? 8 : 0) | ((waterLevel & 3) << 4) |
