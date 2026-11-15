@@ -335,8 +335,8 @@ defaults
     rev "0"
     rev_pitch "0"
     rev_roll "0"
-    rev_thumb_bias "0"
-    rev_thumb_top "1"
+    rev_thumb_bias "-1" // his dagger's, 2026-11-15 (ROUND25.md "flipgrip2"): every reversed blade alike
+    rev_thumb_top "0"
     rev_x "0"
     rev_y "0"
     rev_yaw "0"

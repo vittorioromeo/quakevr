@@ -842,6 +842,29 @@ glm::mat3 view::heldReverseTurn(int slot, int hand)
     return hand >= 0 && hand <= 1 ? reverseTurn(slot, hand == HAND_OFF, drawnFlip(hand)) : glm::mat3{1.f};
 }
 
+glm::mat3 view::twoHandTurn(int slot, int hand)
+{
+    const glm::mat3 g = heldReverseTurn(slot, hand);
+    if(hand < 0 || hand > 1 || !flipMirrored(slot, drawnFlip(hand)) || !flipHolds[hand].valid)
+    {
+        return g;
+    }
+    // The upright hold's line from the hand to its grip (`up`), half turned with the weapon, onto the line to where the grip is now.
+    const FlipHold& f = flipHolds[hand];
+    if(glm::length(f.up) < 0.5f || glm::length(f.now) < 0.5f)
+    {
+        return g; // (the grip at the hand itself: no line)
+    }
+    const glm::vec3 from = glm::normalize(g * f.up), to = glm::normalize(f.now);
+    const float c = glm::dot(from, to);
+    if(c < -0.999f)
+    {
+        return g;
+    }
+    const glm::vec3 axis = glm::cross(from, to);
+    return glm::mat3_cast(glm::normalize(glm::quat{1.f + c, axis.x, axis.y, axis.z})) * g;
+}
+
 int view::carriedGripChoice(int hand, float& cosine)
 {
     cosine = 1.f;

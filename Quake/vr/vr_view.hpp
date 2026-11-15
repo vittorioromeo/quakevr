@@ -328,6 +328,11 @@ bool weaponLocalGeometry(qmodel_t* model, glm::vec3& muzzle, glm::vec3& butt, gl
 // The reverse grip's turn in `hand`'s frame for its weapon of `slot` as drawn now (the identity upright or carried): the two-handed
 // hold's blade line (vr_twohand.cpp bladeDirection) turns with it.
 [[nodiscard]] glm::mat3 heldReverseTurn(int slot, int hand);
+// The two-handed hold by the grip below the hand (ROUND25.md "flipgrip2"): held reversed and mirrored (vr_revgrip_2h_mirror), the
+// other hand's grip is not where the half turn takes it but mirrored along the handle; the turn Q in `hand`'s frame that takes the
+// upright hold's line to it (the least turn after the half turn): the hold worked out for the hand turned by Q holds the weapon by
+// the mirrored grip. heldReverseTurn otherwise.
+[[nodiscard]] glm::mat3 twoHandTurn(int slot, int hand);
 // How the local player's `hand` takes the weapon its other hand carries off its handle now (QC weapondrawnpose 47, the hand-off
 // taken back: VRTakeCarriedWeapon): as reverseGripChoice, by the carried weapon as drawn.
 [[nodiscard]] int carriedGripChoice(int hand, float& cosine);
