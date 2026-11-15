@@ -3540,3 +3540,17 @@ QUEST_PLAN.md section 6s has the runs. On the Quest 3 over adb, unworn, until it
   workaround (`QVR_PROBE_WIAO`: the coordinates' derivatives by `interpolateAtOffset`, read by `textureGrad`).
 - PC: gles_render_test 21/0, the eye under `-glescompat` the same bits with the lite form on and off, scenario_check
   138/0, load_models_test 4/0, dev and LTO builds 0 warnings.
+## 1.1 patch notes: PATCH_NOTES_1.1.md, and the RC's release text (branch agent/patchnotes11, 2026-11-16)
+
+- **docs/vr-port/PATCH_NOTES_1.1.md** (new, 463 lines, 290 bullets): 1.1 against 1.0/1.0.1, 14 highlights, then every
+  shipped change by area (combat and enemies, melee and throwing, weapons, gore/fire/water, movement and body, flat
+  screen, menus, campaigns and modes, graphics and performance, audio, tools, comfort, ~45 bug fixes, known issues).
+  Sources: the beta1-4 GitHub notes, RELEASE_NOTES_1.1.md, the section titles of ROUND22-25.md, FEATURES.md; menu labels
+  checked in vr_menu_rows.inc. Left out: internal work (tests, refactors, build), multiplayer and Quest, and fixes to
+  features new since beta 4 (folded into their feature lines). Not claimed: mimalloc (already in 1.0.1), Doom on the
+  wrist gadget (its code is in v1.0.1), the Linux build.
+- **RELEASE_NOTES_1.1.md**: DRAFT comment removed (make_release -Publish accepts it), a link to the patch notes on
+  next, a "Release candidate: please test" section (what to try, Options > Create Bug Report): drop that section for
+  the final 1.1.0. Stale known issues fixed: AD's sky flicker (fixed 10-27, e5f54c30e, the NaN fog) and the AD hub's
+  lower slipgates (ad_hub_test) moved to Fixes.
+- For the final 1.1: re-read PATCH_NOTES_1.1.md against what lands after the RC (add lines, drop the RC sentence).

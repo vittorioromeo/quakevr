@@ -1,8 +1,10 @@
-<!-- DRAFT 2026-11-08 (release pass), brought up to 2026-11-14 (release audit: ROUND25.md) and 2026-11-15 (rcbase: grip flip, player disarm, parry timing, third-person camera, ranger head, page resets, Run Setup without Bloody Nightmare): full 1.1.0 notes since 1.0.1, from the beta1-4 notes, ROUND23.md to ROUND25.md.
-Edit, then pass with make_release.ps1 -Notes docs/vr-port/RELEASE_NOTES_1.1.md (the script appends the Files table).
-Delete this comment before publishing: -Publish refuses notes with the DRAFT marker. -->
-
 **Quake VR: UNLEASHED 1.1.0**: the biggest update since 1.0. Enemies now fight back with real weapons, stagger and scramble as active ragdolls, and wear armour you can shoot off; Arcane Dimensions and a new Survival Arena join the campaigns; and the whole game can now be played on a flat screen with mouse and keyboard. Everything from the four 1.1 betas is in, plus a lot since beta 4. Please report bugs: Options > Create Bug Report makes a zip you can attach.
+
+**The full patch notes** (every change and fix since 1.0, by area): [PATCH_NOTES_1.1.md](https://github.com/vittorioromeo/quakevr/blob/next/docs/vr-port/PATCH_NOTES_1.1.md).
+
+## Release candidate: please test
+
+This build is the **1.1 release candidate**, for testers: unless something serious turns up, it becomes 1.1.0. Please play it, in VR or on a flat screen, and try the highlights below first: the armed humanoids (disarm them, get disarmed, parry), the active ragdolls, the armour, a run with Run Setup and a mutator or two, Arena Mode, the dagger and the reverse grip, embedded blades, and flat-screen play (`-flatscreenmode`). Found a bug? **Options > Create Bug Report** makes a zip of your logs, crash reports and settings: attach it to a GitHub issue with a line on what happened.
 
 ## Highlights
 
@@ -118,11 +120,12 @@ These are in the build for testing. Expect bugs, and expect their balance and se
 - A crash holding one enemy with both hands; a crash on quickload; crashes in The Matriarch of Decay and The Sacrifice; Shub-Niggurath's teleporter after a save.
 - Enemies stay active ragdolls after loading a save; sounds no longer cut each other off.
 - OBS Mirror's OpenXR layer is skipped at startup; a focused desktop window no longer slows the headset.
+- Arcane Dimensions: the sky and world no longer flash dark when you turn or move; the hub's lower Quake slipgates work.
 - Many smaller fixes and cleanups.
 
 ## Known issues
 
-- **Arcane Dimensions**: the sky and some lights may flicker in VR when you turn or move; the hub's lower Quake slipgates go nowhere.
+- **Arcane Dimensions** is experimental: expect bugs and balance changes.
 - **Armed humanoids**: a knocked-down one that aims high may pull its arm in.
 - **Flat screen**: wrists can bend sharply on some holds, and a gun's end can poke a few centimetres into a wall at the limit.
 - **Multiplayer**: not yet tested with 1.1's new systems (the Multiplayer menu says so); co-op and deathmatch may have rough edges.
@@ -131,4 +134,4 @@ These are in the build for testing. Expect bugs, and expect their balance and se
 ## Notes
 
 - Your settings carry over: configs from 1.0.x and the 1.1 betas are migrated on first start. Settings you left at an old default move to the new one, and values you changed stay yours. Armed humanoid replacements are now on even if a beta config had them off at the old default.
-- Full details: `docs/vr-port/ROUND22.md` to `ROUND25.md` in the repository.
+- Every change and fix since 1.0: [PATCH_NOTES_1.1.md](https://github.com/vittorioromeo/quakevr/blob/next/docs/vr-port/PATCH_NOTES_1.1.md). Developer notes: `docs/vr-port/ROUND22.md` to `ROUND25.md` in the repository.
