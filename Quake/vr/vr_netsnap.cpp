@@ -178,6 +178,15 @@ void addFrom(Snapshot& to, const Snapshot& from, const Record& r)
     to.add(r.key, from.data(r), r.len);
 }
 
+// `s`'s record of `key` (records sorted by key), nullptr none.
+[[nodiscard]] const Record* findKey(const Snapshot& s, int key)
+{
+    const Record* const first = s.records.data();
+    const Record* const last = first + s.records.size();
+    const Record* const r = std::lower_bound(first, last, key, [](const Record& x, int k) { return x.key < k; });
+    return r != last && r->key == key ? r : nullptr;
+}
+
 // ---- B12b: an entity's update by its fields ---------------------------------------------------------------------------
 //
 // NetQuake's entity update (sv_main.c SV_WriteEntitiesToClient: its bits, its number, then each field its bits name, then
@@ -194,8 +203,16 @@ constexpr int wireFields = 16; // model, frame, colormap, skin, effects, origin1
                                // alpha, scale, frame2, model2, lerpfinish: their order in the update
 constexpr int wireBit[wireFields] = {U_MODEL, U_FRAME, U_COLORMAP, U_SKIN, U_EFFECTS, U_ORIGIN1, U_ANGLE1, U_ORIGIN2,
     U_ANGLE2, U_ORIGIN3, U_ANGLE3, U_ALPHA, U_SCALE, U_FRAME2, U_MODEL2, U_LERPFINISH};
-constexpr int fieldOrder[wireFields] = {15, 1, 5, 7, 9, 8, 6, 10, 0, 2, 3, 4, 11, 12, 13, 14}; // mask bit -> field
-constexpr za::U32 maskTail = 1u << wireFields, maskBits = 1u << (wireFields + 1);
+constexpr int fieldOrder[wireFields] = {15, 1, 5, 7, 9, 8, 6, 10, 0, 2, 3, 4, 11, 12, 13, 14}; // mask bit 1 + i -> field
+constexpr za::U32 maskTrend = 1u, maskTail = 1u << (wireFields + 1), maskBits = 1u << (wireFields + 2);
+[[nodiscard]] constexpr za::U32 maskField(int m)
+{
+    return 1u << (1 + m);
+}
+[[nodiscard]] constexpr bool trendField(int f) // the origins and angles: a moving thing's
+{
+    return f >= 5 && f <= 10;
+}
 constexpr int fieldsMost = maxDeltaLen + 64; // an update's bytes at most (a longer one: not by its fields)
 
 struct EntFields
@@ -363,8 +380,43 @@ int putVarint(za::U8* out, za::U32 v)
 za::U8 fieldsBuf[fieldsMost];   // (an encoding by fields: encode's)
 za::U8 fieldsCheck[fieldsMost]; // (... its decoding: fieldsVerify's, decode's)
 
-// `cur` (an entity's update) by its fields against `base`'s into `out` (at most fieldsMost): its size, -1 when not.
-[[nodiscard]] int fieldsEncode(const za::U8* base, int baseLen, const za::U8* cur, int curLen, unsigned pflags, za::U8* out)
+// Each field's reference (`ref`): the base's value, or with `trend` (the base's older record, `older`; `ahead` frames past
+// the base, it `span` past the older) an origin's or angle's where its last change carries it (the base's plus that
+// change times ahead / span, in integers: the same on both sides). False: no trend there (the older not an update).
+[[nodiscard]] bool fieldRefs(const EntFields& b, const Trend* trend, const za::U8* older, int olderLen, unsigned pflags,
+    za::U32* ref)
+{
+    memcpy(ref, b.v, sizeof(b.v));
+    if(!trend)
+    {
+        return true;
+    }
+    EntFields o;
+    if(!older || trend->span <= 0 || !parseFields(older, olderLen, pflags, o))
+    {
+        return false;
+    }
+    for(int f = 0; f < wireFields; f++)
+    {
+        const za::U32 bit = static_cast<za::U32>(wireBit[f]);
+        if(!trendField(f) || !(b.bits & bit) || !(o.bits & bit))
+        {
+            continue;
+        }
+        const int n = fieldSize(f, pflags);
+        const za::U32 zig = fieldChange(o.v[f], b.v[f], n);
+        const za::I64 d = (zig & 1u) ? -static_cast<za::I64>(zig >> 1) - 1 : static_cast<za::I64>(zig >> 1);
+        const za::I64 step = d * trend->ahead / trend->span;
+        const za::U32 mask = n >= 4 ? 0xFFFFFFFFu : (1u << (8 * n)) - 1u;
+        ref[f] = (b.v[f] + static_cast<za::U32>(step)) & mask;
+    }
+    return true;
+}
+
+// `cur` (an entity's update) by its fields against `base`'s into `out` (at most fieldsMost): its size, -1 when not. With
+// `trend` (and the base's older record), the origins and angles against their trend too when that is smaller.
+[[nodiscard]] int fieldsEncode(const za::U8* base, int baseLen, const za::U8* cur, int curLen, unsigned pflags, za::U8* out,
+    const Trend* trend = nullptr, const za::U8* older = nullptr, int olderLen = 0)
 {
     EntFields b, c;
     if(curLen > maxDeltaLen || !parseFields(base, baseLen, pflags, b) || !parseFields(cur, curLen, pflags, c) || b.num != c.num)
@@ -373,15 +425,33 @@ za::U8 fieldsCheck[fieldsMost]; // (... its decoding: fieldsVerify's, decode's)
     }
     za::U32 mask = 0;
     za::U32 zig[wireFields]{};
-    for(int m = 0; m < wireFields; m++)
+    za::U32 refs[2][wireFields];
+    const bool trended = trend && fieldRefs(b, trend, older, olderLen, pflags, refs[1]);
+    (void)fieldRefs(b, nullptr, nullptr, 0, pflags, refs[0]);
+    int bestCost = 1 << 30;
+    for(int k = 0; k < (trended ? 2 : 1); k++)
     {
-        const int f = fieldOrder[m];
-        if(!(c.bits & static_cast<za::U32>(wireBit[f])))
+        za::U32 km = k ? maskTrend : 0u;
+        za::U32 kz[wireFields]{};
+        int cost = 0;
+        for(int m = 0; m < wireFields; m++)
         {
-            continue;
+            const int f = fieldOrder[m];
+            if(!(c.bits & static_cast<za::U32>(wireBit[f])))
+            {
+                continue;
+            }
+            kz[m] = fieldChange(refs[k][f], c.v[f], fieldSize(f, pflags));
+            km |= kz[m] != 0 ? maskField(m) : 0u;
+            cost += kz[m] != 0 ? varintSize(kz[m]) : 0;
         }
-        zig[m] = fieldChange(b.v[f], c.v[f], fieldSize(f, pflags));
-        mask |= zig[m] != 0 ? 1u << m : 0u;
+        cost += varintSize(km);
+        if(cost < bestCost)
+        {
+            bestCost = cost;
+            mask = km;
+            memcpy(zig, kz, sizeof(zig));
+        }
     }
     const bool tailSame = b.tailLen == c.tailLen && memcmp(b.tail, c.tail, static_cast<size_t>(c.tailLen)) == 0;
     mask |= tailSame ? 0u : maskTail;
@@ -393,7 +463,7 @@ za::U8 fieldsCheck[fieldsMost]; // (... its decoding: fieldsVerify's, decode's)
     }
     for(int m = 0; m < wireFields; m++)
     {
-        if(mask & (1u << m))
+        if(mask & maskField(m))
         {
             at += putVarint(out + at, zig[m]);
         }
@@ -431,7 +501,8 @@ za::U8 fieldsCheck[fieldsMost]; // (... its decoding: fieldsVerify's, decode's)
 
 // fieldsEncode's (`d`, at most `len` bytes) against `base` into `out` (fieldsMost): the update's length, -1 when malformed;
 // `used`: the bytes read.
-[[nodiscard]] int fieldsDecode(const za::U8* base, int baseLen, const za::U8* d, int len, unsigned pflags, za::U8* out, int& used)
+[[nodiscard]] int fieldsDecode(const za::U8* base, int baseLen, const za::U8* d, int len, unsigned pflags, za::U8* out, int& used,
+    const Trend* trend = nullptr, const za::U8* older = nullptr, int olderLen = 0)
 {
     EntFields e;
     if(!parseFields(base, baseLen, pflags, e))
@@ -444,6 +515,11 @@ za::U8 fieldsCheck[fieldsMost]; // (... its decoding: fieldsVerify's, decode's)
     {
         return -1;
     }
+    za::U32 ref[wireFields];
+    if(!fieldRefs(e, (mask & maskTrend) ? trend : nullptr, older, olderLen, pflags, ref) || ((mask & maskTrend) && !trend))
+    {
+        return -1;
+    }
     if((mask & maskBits) && !(getVarint(d, len, at, x) && ((e.bits ^= x), true)))
     {
         return -1;
@@ -452,14 +528,12 @@ za::U8 fieldsCheck[fieldsMost]; // (... its decoding: fieldsVerify's, decode's)
     {
         return -1;
     }
-    za::U32 old[wireFields];
-    memcpy(old, e.v, sizeof(old));
     for(int m = 0; m < wireFields; m++)
     {
         const int f = fieldOrder[m];
         const bool present = (e.bits & static_cast<za::U32>(wireBit[f])) != 0;
-        e.v[f] = present ? old[f] : 0;
-        if(!(mask & (1u << m)))
+        e.v[f] = present ? ref[f] : 0;
+        if(!(mask & maskField(m)))
         {
             continue;
         }
@@ -468,7 +542,7 @@ za::U8 fieldsCheck[fieldsMost]; // (... its decoding: fieldsVerify's, decode's)
         {
             return -1;
         }
-        e.v[f] = fieldApply(old[f], zig, fieldSize(f, pflags));
+        e.v[f] = fieldApply(ref[f], zig, fieldSize(f, pflags));
     }
     za::U8 tail[maxDeltaLen];
     if(mask & maskTail)
@@ -536,10 +610,11 @@ za::U8 fieldsCheck[fieldsMost]; // (... its decoding: fieldsVerify's, decode's)
 }
 
 // fieldsEncode's `size` bytes in fieldsBuf decode against `base` to `cur` exactly (else it is not sent: B12b's safety).
-[[nodiscard]] bool fieldsVerify(const za::U8* base, int baseLen, const za::U8* cur, int curLen, int size, unsigned pflags)
+[[nodiscard]] bool fieldsVerify(const za::U8* base, int baseLen, const za::U8* cur, int curLen, int size, unsigned pflags,
+    const Trend* trend = nullptr, const za::U8* older = nullptr, int olderLen = 0)
 {
     int used = 0;
-    const int n = fieldsDecode(base, baseLen, fieldsBuf, size, pflags, fieldsCheck, used);
+    const int n = fieldsDecode(base, baseLen, fieldsBuf, size, pflags, fieldsCheck, used, trend, older, olderLen);
     return n == curLen && used == size && memcmp(fieldsCheck, cur, static_cast<size_t>(n)) == 0;
 }
 
@@ -565,7 +640,7 @@ long long entOps[4][2]{};    // the client: the entities' entries read by op (go
 } // namespace
 
 int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budget, Snapshot& sent, unsigned pflags,
-    const float* prio, za::U8* unsent, int soft)
+    const Trend* trend, const float* prio, za::U8* unsent, int soft)
 {
     sent.records.clear();
     sent.bytes.clear();
@@ -605,9 +680,15 @@ int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budge
             const int deltaSize = b->len == c->len && c->len <= maxDeltaLen ? bytesDelta(nullptr, base->data(*b), cur.data(*c), c->len)
                                                                             : wholeSize + 1;
             // (an entity's update: by its fields too, when its decoding gives it back exactly; the smallest goes)
-            int fieldsSize = keyClass(c->key) == 1 ? fieldsEncode(base->data(*b), b->len, cur.data(*c), c->len, pflags, fieldsBuf) : -1;
-            fieldsSize = fieldsSize >= 0 && fieldsVerify(base->data(*b), b->len, cur.data(*c), c->len, fieldsSize, pflags) ? fieldsSize
-                                                                                                                      : wholeSize + 1;
+            const Record* o = trend && keyClass(c->key) == 1 ? findKey(*trend->older, c->key) : nullptr;
+            const za::U8* od = o ? trend->older->data(*o) : nullptr;
+            const int ol = o ? o->len : 0;
+            int fieldsSize = keyClass(c->key) == 1 ? fieldsEncode(base->data(*b), b->len, cur.data(*c), c->len, pflags, fieldsBuf,
+                                                         trend, od, ol)
+                                                   : -1;
+            fieldsSize = fieldsSize >= 0 && fieldsVerify(base->data(*b), b->len, cur.data(*c), c->len, fieldsSize, pflags, trend, od, ol)
+                             ? fieldsSize
+                             : wholeSize + 1;
             const int ci1 = static_cast<za::I32>(ci - 1);
             e = fieldsSize < deltaSize && fieldsSize < wholeSize ? Entry{c->key, opFields, fieldsSize, ci1}
                 : deltaSize < wholeSize                          ? Entry{c->key, opDelta, deltaSize, ci1}
@@ -687,7 +768,9 @@ int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budge
         }
         else if(e.op == opFields)
         {
-            const int n = fieldsEncode(base->data(*b), b->len, cur.data(*c), c->len, pflags, fieldsBuf);
+            const Record* o = trend ? findKey(*trend->older, c->key) : nullptr;
+            const int n = fieldsEncode(base->data(*b), b->len, cur.data(*c), c->len, pflags, fieldsBuf, trend,
+                o ? trend->older->data(*o) : nullptr, o ? o->len : 0);
             SZ_Write(body, fieldsBuf, n); // (the size the first pass measured and checked)
         }
         else if(e.op == opWhole)
@@ -709,7 +792,7 @@ int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budge
     return written;
 }
 
-bool decode(const Snapshot* base, int bodyLen, Snapshot& out, unsigned pflags, long long* tally)
+bool decode(const Snapshot* base, int bodyLen, Snapshot& out, unsigned pflags, const Trend* trend, long long* tally)
 {
     out.records.clear();
     out.bytes.clear();
@@ -797,8 +880,9 @@ bool decode(const Snapshot* base, int bodyLen, Snapshot& out, unsigned pflags, l
         if(op == opFields)
         {
             int used = 0;
+            const Record* o = trend ? findKey(*trend->older, key) : nullptr;
             const int n = fieldsDecode(base->data(*b), b->len, net_message.data + msg_readcount, end - msg_readcount, pflags,
-                fieldsCheck, used);
+                fieldsCheck, used, trend, o ? trend->older->data(*o) : nullptr, o ? o->len : 0);
             if(n < 0)
             {
                 return false;
@@ -1055,7 +1139,16 @@ void serverEnd(sizebuf_t* msg)
         bl.prio[i] = keyClass(key) == 0 || keyClass(key) == 3 ? INFINITY
                                                               : weightOf(key, eye, fwd) * (1.f + (wi >= 0 ? s->waits[static_cast<za::SizeT>(wi)] : 0));
     }
-    encode(base, bl.cur, &body, room, sent, sv.protocolflags, bl.prio.data(), bl.unsent.data(), za::min(budget, room));
+    // (B12b: the base's own base, kept by both sides: the moving things' trend)
+    Trend trend;
+    const za::U32 older = base ? base->baseSeq : 0u;
+    if(older != 0 && seq - older < static_cast<za::U32>(ring) && s->snaps[older % ring].seq == older)
+    {
+        trend = Trend{&s->snaps[older % ring], static_cast<int>(seq - base->seq), static_cast<int>(base->seq - older)};
+    }
+    encode(base, bl.cur, &body, room, sent, sv.protocolflags, trend.older ? &trend : nullptr, bl.prio.data(), bl.unsent.data(),
+        za::min(budget, room));
+    sent.baseSeq = base ? base->seq : 0u;
     int waited = 0;
     for(za::SizeT i = 0; i < n; i++)
     {
@@ -1315,8 +1408,16 @@ void parse()
         base = &c.snaps[(seq - dist) % ring];
         ok = seq > dist && base->seq == seq - dist;
     }
+    // (B12b: the base's own base, the moving things' trend: the server's choice, by the same rule)
+    Trend trend;
+    const za::U32 older = base ? base->baseSeq : 0u;
+    if(older != 0 && seq - older < static_cast<za::U32>(ring) && c.snaps[older % ring].seq == older)
+    {
+        trend = Trend{&c.snaps[older % ring], static_cast<int>(seq - base->seq), static_cast<int>(base->seq - older)};
+    }
     Snapshot& out = c.snaps[seq % ring];
-    ok = ok && decode(base, static_cast<int>(len), out, cl.protocolflags, byteCounts.snap);
+    ok = ok && decode(base, static_cast<int>(len), out, cl.protocolflags, trend.older ? &trend : nullptr, byteCounts.snap);
+    out.baseSeq = ok && base ? base->seq : 0u;
     msg_readcount = bodyStart + static_cast<int>(len);
     msg_badread = false;
     if(!ok)
@@ -1687,11 +1788,11 @@ void fillSnapshot(Snapshot& s, int n, int len, int seed)
     sizebuf_t buf{};
     buf.data = t.data;
     buf.maxsize = sizeof(t.data);
-    encode(base, cur, &buf, budget, t.sent, selftestFlags);
+    encode(base, cur, &buf, budget, t.sent, selftestFlags, nullptr);
     bytes = buf.cursize;
     net_message = buf;
     MSG_BeginReading();
-    return decode(base, buf.cursize, t.read, selftestFlags) && sameSnapshot(t.read, t.sent);
+    return decode(base, buf.cursize, t.read, selftestFlags, nullptr) && sameSnapshot(t.read, t.sent);
 }
 
 } // namespace
@@ -1780,11 +1881,11 @@ void selftest_f()
         sizebuf_t buf{};
         buf.data = t.data;
         buf.maxsize = sizeof(t.data);
-        encode(&t.base, t.cur, &buf, 4096, t.sent, selftestFlags, prio, unsent, 40);
+        encode(&t.base, t.cur, &buf, 4096, t.sent, selftestFlags, nullptr, prio, unsent, 40);
         const int bytes = buf.cursize;
         net_message = buf;
         MSG_BeginReading();
-        bool rateOk = n <= 64 && decode(&t.base, buf.cursize, t.read, selftestFlags) && sameSnapshot(t.read, t.sent);
+        bool rateOk = n <= 64 && decode(&t.base, buf.cursize, t.read, selftestFlags, nullptr) && sameSnapshot(t.read, t.sent);
         int waited = 0;
         for(za::SizeT i = 0; i < n && i < 64; i++)
         {
@@ -1834,6 +1935,38 @@ void selftest_f()
         int oddBytes = 0;
         ok = roundTrip(&t.base, t.cur, 4096, oddBytes) && sameSnapshot(t.read, t.cur);
         check(ok, va("a record that is no update: read back the same (%d bytes)", oddBytes));
+
+        // a gib flying and tumbling (every origin and angle changing by as much each frame), the base 2 frames past its
+        // older, the current 1 past the base: against its trend (where its last change carries it) it is nearly free
+        const float go[3][3] = {{100.f, 40.f, 80.f}, {124.f, 36.f, 86.f}, {136.f, 34.f, 89.f}};
+        const float ga[3][3] = {{10.f, 20.f, 30.f}, {50.f, 60.f, 10.f}, {70.f, 80.f, 0.f}};
+        const int gibBits = U_ORIGIN1 | U_ORIGIN2 | U_ORIGIN3 | U_ANGLE1 | U_ANGLE2 | U_ANGLE3;
+        Snapshot older;
+        for(int i = 0; i < 3; i++)
+        {
+            const int len = entityUpdate(u[i], gibBits, 77, go[i], ga[i], 0, 0, 0, 0);
+            Snapshot& s = i == 0 ? older : i == 1 ? t.base : t.cur;
+            s.clear();
+            s.add(77, u[i], len);
+        }
+        const Trend trend{&older, 1, 2};
+        int sizes[2]{};
+        bool trendOk = true;
+        for(int k = 0; k < 2; k++)
+        {
+            sizebuf_t buf{};
+            buf.data = t.data;
+            buf.maxsize = sizeof(t.data);
+            encode(&t.base, t.cur, &buf, 4096, t.sent, selftestFlags, k ? &trend : nullptr);
+            sizes[k] = buf.cursize;
+            net_message = buf;
+            MSG_BeginReading();
+            trendOk = trendOk && decode(&t.base, buf.cursize, t.read, selftestFlags, k ? &trend : nullptr) &&
+                      sameSnapshot(t.read, t.cur);
+        }
+        check(trendOk && sizes[1] < sizes[0] && sizes[1] <= 4,
+            va("a gib flying and tumbling, against its trend: read back the same in %d bytes (against the base: %d)", sizes[1],
+                sizes[0]));
     }
     net_message = savedMsg;
     msg_readcount = savedCount;

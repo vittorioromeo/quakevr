@@ -56,6 +56,7 @@ struct Record
 struct Snapshot
 {
     za::U32 seq{0};
+    za::U32 baseSeq{0}; // the snapshot it was coded against (0: none; B12b's trend)
     za::Vector<Record> records;
     za::Vector<za::U8> bytes;
 
@@ -71,11 +72,19 @@ struct Snapshot
 // Past the budget (`soft`, a rate's, when given: the infinite priorities to `budget`): with `prio` (one a `cur` record),
 // the gone entries and the highest priorities that fit go (B12's rate), else in key order until one does not fit;
 // `unsent` (one a `cur` record, zeroed by the caller) marks the changed or new records that waited.
-// `pflags`: the protocol's flags (its coordinates' and angles' sizes: an entity's update by its fields, B12b).
+// `pflags`: the protocol's flags (its coordinates' and angles' sizes: an entity's update by its fields, B12b). `trend`
+// (nullptr none): the base's own base, which both sides keep: a moving thing's origins and angles coded against where
+// their last change carries them (`ahead` frames past the base, the base `span` past the older).
+struct Trend
+{
+    const Snapshot* older{nullptr};
+    int ahead{0}, span{0};
+};
 int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budget, Snapshot& sent, unsigned pflags,
-    const float* prio = nullptr, za::U8* unsent = nullptr, int soft = -1);
+    const Trend* trend, const float* prio = nullptr, za::U8* unsent = nullptr, int soft = -1);
 // `tally` (keyClasses counts, or nullptr): each entry's bytes added by its key's class (keyClass).
-[[nodiscard]] bool decode(const Snapshot* base, int bodyLen, Snapshot& out, unsigned pflags, long long* tally = nullptr);
+[[nodiscard]] bool decode(const Snapshot* base, int bodyLen, Snapshot& out, unsigned pflags, const Trend* trend,
+    long long* tally = nullptr);
 inline constexpr int keyClasses = 5; // 0 the player state, 1 an entity, 2 an avatar, 3 the walk's state, 4 a pose
 [[nodiscard]] constexpr int keyClass(int key)
 {
