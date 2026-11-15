@@ -4820,6 +4820,11 @@ weapon 51
     hs1_y "-2.161255"
     hs1_yaw "8.52477"
     hs1_z "-11.23747"
+    bl_org_x "-1.6193"
+    bl_org_y "-0.0506"
+    bl_org_z "-0.0207"
+    bl_spine "1"
+    bl_width "0.2816"
     embed "1"
     skewer_most "1" // one gib at a time on the short blade (his note 2026-11-13)
     skewer_depth "0.5" // and shallower: half the sword's 8 units from the tip
@@ -4841,9 +4846,9 @@ weapon 51
     hide_hand "0.0"
     id "progs/v_dagger.mdl"
     muzzle_av "12.5665 0.0082 30.3419"
-    muzzle_x "0"
-    muzzle_y "0"
-    muzzle_z "0"
+    muzzle_x "0.3709"
+    muzzle_y "0.1079"
+    muzzle_z "0.3393"
     pitch "15.5"
     roll "0"
     scale "0.34"
@@ -4885,8 +4890,8 @@ weapon 51
     w_len "34"
     torch_clip "0"
     w_heft "0" // dagger
-    bl_from "0.331"
-    bl_near "0.321"
+    bl_from "0.05"
+    bl_near "0.6173"
     // The reverse grip, blade down (ROUND25.md "revgrip"): taken blade down, or flipped by its eject button.
     rev "1"
 }
