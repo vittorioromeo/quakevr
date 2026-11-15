@@ -1,0 +1,10 @@
+# run_enemycount_classic: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Enemy Count 3x with
+# Classic's rows that matter for placing the copies (Quake's monster hulls, plain grunts, Quake's sight and hearing):
+# two of e1m1's grunt copies stood 4 units into its walls before the fix (ROUND25.md, "stuckgrunts").
+title Run mutator Enemy Count 3x with Classic on e1m1: no copy in a wall
+map e1m1
+cvar vr_run_enemycount 2
+cvar vr_mhull 0
+cvar vr_agrunt_repl 0
+cvar vr_ai_enhanced 0
+hint Classic and Enemy Count 3x: every monster stands with two more of its kind beside it, each clear of the walls (none half inside one, none stuck where it spawned); they come for you as Quake's monsters do.

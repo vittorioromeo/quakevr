@@ -1227,6 +1227,17 @@ bool forbidden(int hand)
     return twoHandsForbidden(weapons::heldSlot(hand));
 }
 
+bool swordHeld(int hand)
+{
+    const int slot = weapons::heldSlot(hand);
+    return slot >= 0 && weaponId(hand) != widFist && static_cast<int>(weapons::value(slot, Key::TwoHMode)) == WPN_2H_SWORD;
+}
+
+bool onOtherWeapon(int hand)
+{
+    return vr_weapon_grab_anywhere.value != 0.f && hand >= 0 && hand < 2 && freeCandidate[hand];
+}
+
 bool flickAllowed(int holding)
 {
     // One-handed always; with the other hand on it, only by a cup (a two-handed pistol grip, round the holding hand's

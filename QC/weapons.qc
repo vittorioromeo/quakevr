@@ -4695,6 +4695,8 @@ void() ImpulseCommands =
     {
         float cheatHand = cVR_MainHand;
         float cheatWid = self.impulse == 149 ? rint(cvar_hget(cvarh_vr_test_give_wid)) : self.impulse - 150;
+        // (Impulse 149: with the flags vr_test_give_flags, e.g. id 13 with 3072, the dagger.)
+        float cheatFlags = self.impulse == 149 ? rint(cvar_hget(cvarh_vr_test_give_flags)) : 0;
         if(self.impulse >= 170)
         {
             cheatHand = cVR_OffHand;
@@ -4723,7 +4725,7 @@ void() ImpulseCommands =
             return; // no such weapon (it broke the hand's weapon state)
         }
         VR_WeaponUtil_EntAddWeapon(self, cheatWid);
-        VRGiveEntWeapon(self, cheatHand, cheatWid, 0, WeaponIdToBaseClipSize(cheatWid)); // (a new one: the old is gone)
+        VRGiveEntWeapon(self, cheatHand, cheatWid, cheatFlags, WeaponIdToBaseClipSize(cheatWid)); // (a new one: the old is gone)
         W_SetCurrentAmmoFor(cheatHand);
         self.impulse = 0;
         return;

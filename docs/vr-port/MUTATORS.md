@@ -100,6 +100,7 @@ designated initializers (a line names only the fields it needs; the others defau
 | `VR_Run_Respawn()` | `respawn` (a dead single player), after the tutorial's checkpoints; TRUE: taken over | Ironman: `restart fresh` |
 | `VR_Run_MonsterSpawning()` | the engine's `ED_LoadFromFile`, before a map's `monster_*` spawns, while Enemy Count or Randomized Enemies is on (self: its keys parsed, its spawn function not run) | Randomized Enemies' swap (its classname: the new kind spawns from the map's own keys), then Enemy Count's number of copies (0..2) |
 | `VR_Run_MonsterCopy(k)` | `ED_LoadFromFile`, once the whole map has spawned (self: copy k, its monster's keys parsed again; other: its monster) | Enemy Count's placement beside its monster; FALSE: no room, no copy |
+| `VR_Run_MonsterCopied()` | `ED_LoadFromFile`, right after a placed copy's spawn function (self: the copy; other: its monster) | its own box tested where it stands: in solid, logged and counted for `vr_run_enemies_check` |
 
 A mutator that keeps state of its own in QC (Ironman's lives, say) keeps it in a saved global or field; the run's
 choices themselves are the engine's line.
@@ -176,7 +177,11 @@ choices themselves are the engine's line.
   enforcer, knight or death knight swapped in is armed as the run says (its spawn function decides).
 - **Copies:** placed after the whole map spawned: a ring around the monster, reached in a straight line, clear of the
   world, entities and other monsters (their kinds' boxes, solid or not yet), in no trigger volume the monster is not in
-  (closet teleporters), on a floor within 24 units of its monster's (walkers), in the same water (swimmers). They keep
+  (closet teleporters), on a floor within 24 units of its monster's (walkers), in the same water (swimmers), and clear
+  with the box its spawn function gives it (its monster's), as the engine traces that box: Quake's hulls lay hull 1
+  from a narrower box's corner (id's grunt, dog, knight, zombie are 24 wide), so with `vr_mhull 0` (Classic) such a
+  monster stands in hull 1 shifted 4 units along x and y (ROUND25.md "stuckgrunts"). A copy with no room is logged
+  ("Enemy Count: no room ...", developer 1); one whose own box is in solid as it spawns too (the check fails on it). They keep
   the targetname (wake, appear, are killtargeted together), never fire anything (no target, killtarget, AD deathtarget):
   the map's death-counting triggers count the map's own, as made. They count in `total_monsters`.
 - **Saved games and changelevel:** the entities are saved as they are; a new map gets its own. The roll: the map's name,
@@ -244,7 +249,8 @@ run's Start is the player's own again. A new mutator is off in the arena unless 
   the end-to-end check in a running game (QC `VR_Run_TestCheck`); the round notes' script starts run A, saves, starts
   run B, loads A, changes level.
 - `vr_run_enemies_check <enemycount> <enemyrandom>` / `vr_run_enemies_check verdict` ("runenemies: N passed"): the
-  running map as those choices spawned it (QC `VR_Run_EnemiesCheck`: copies beside their kind, not stuck, firing nothing,
+  running map as those choices spawned it (QC `VR_Run_EnemiesCheck`: copies beside their kind, not stuck (none whose
+  own box was in solid as it spawned: `VR_Run_MonsterCopied`, the engine's call after each copy's spawn), firing nothing,
   most monsters copied; swaps of allowed kinds; nothing dead at the start; `total_monsters` in id's maps) and its trigger
   chains (`VR_Run_EnemiesChains`: targets and killtargets resolved, trigger_counter uses) equal to the same map's first
   check with both off. ROUND25.md "mutenemies" has the scripts.

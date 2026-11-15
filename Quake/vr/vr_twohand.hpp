@@ -30,6 +30,11 @@ void apply(hands::State& s);
 
 // Whether the weapon `hand` holds may not be held in two hands (its Two-Handed: Not Allowed).
 [[nodiscard]] bool forbidden(int hand);
+// Whether the weapon `hand` holds is held in two hands as a sword (Two-Handed: Sword: the other hand below, or on the blade).
+[[nodiscard]] bool swordHeld(int hand);
+// Whether the empty `hand` is on the other hand's weapon where gripping holds it anywhere (vr_weapon_grab_anywhere; the
+// view's candidate this frame: setFreeCandidate).
+[[nodiscard]] bool onOtherWeapon(int hand);
 
 // Whether the weapon in `holding` may be flick-reloaded (vr_flick.cpp): held in that hand alone, or the other hand holds
 // it by a cup only (not its barrel, a foregrip or anywhere on it), and not carried off its handle.
