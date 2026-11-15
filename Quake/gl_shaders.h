@@ -852,6 +852,7 @@ QVR_TEMPORAL_FS_OUTPUT
 "\n"
 QVR_WORLD_FS_FUNCTIONS // QVR: detail, parallax, specular anti-aliasing, the baked light's bumps
 QVR_PARALLAX_DEPTH_OUT // QVR: pixel depth offset (vr_parallax_depth_write): PDO 1 in glprogs.world_pdo only (solid, not OIT)
+QVR_WORLD_FS_LITE // QVR: the ES lite world's features compiled out of main (VR_GLESWorldLite; QUEST_PLAN.md 6p)
 "void main()\n"
 "{\n"
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_WATER) "\n" // QVR: first (before any early return)

@@ -1525,7 +1525,9 @@ QVR_DENT_FUNCTIONS \
 "		result.rgb += glowColor * glowStrength * (pow(rim, 2.0) * 1.1 + (in_glow > 0. ? 0.08 : 0.12));\n" \
 "	}\n" \
 "	result.rgb += morphSeam; // QVR: a morph's glowing seam\n" \
+"#ifndef QVR_ALIAS_OPAQUE\n" /* QVR: the opaque form (glprogs.alias_opaque, vr_gl_alias_opaque): no discard, so a tiler rejects hidden pixels before shading them (C4i) */ \
 "	if (!morphShown) // QVR: this model is not there yet (or any more) in a morph\n" \
 "		discard;\n" \
 "	if (in_color.a < 1.0 && BehindShownGate(in_pos + EyePos)) // QVR: see-through, behind a teleporter shown in this view\n" \
-"		discard;\n"
+"		discard;\n" \
+"#endif\n"

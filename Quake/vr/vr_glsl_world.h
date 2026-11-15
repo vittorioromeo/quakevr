@@ -694,6 +694,37 @@ QVR_PERMDECAL_FUNCTIONS \
 "	vec3 liquid_tex = result.rgb; // QVR: unlit (lava glows)\n" \
 "#endif\n"
 
+// The ES lite world (VR_GLESWorldLite, C4i; QUEST_PLAN.md 6p): the features the settings turn off taken out of the
+// world's main() as constants, so that Adreno compiles none of their code (it pays for an untaken branch's registers).
+// Each is a uniform's switch that is then always off: retro textures (vr_retro 0: Retro stays 0), retro lighting
+// (vr_retrolight 0), normal maps (vr_normalmaps 0: LightTweak.w 0), the dynamic ambient occlusion (vr_ao_dynamic and
+// vr_ao_brush 0: no occluders), caustics (vr_water_caustics 0), detail textures (vr_detail 0). After every function, so
+// that only main()'s calls are replaced.
+#define QVR_WORLD_FS_LITE \
+"#ifdef QVR_LITE_NORETRO\n" \
+"#define RetroBegin(a, b, c, d, e, f, g)\n" \
+"#endif\n" \
+"#ifdef QVR_LITE_NORETROLIGHT\n" \
+"#define RetroLightBegin(a, b, c, d, e, f)\n" \
+"#define RetroLightmapUV(uv, s) (uv)\n" \
+"#define RetroLightAt(p, b) (p)\n" \
+"#define RetroShadowAt(p, l) (l)\n" \
+"#define RetroLightWorld(a, b, c, d)\n" \
+"#endif\n" \
+"#ifdef QVR_LITE_NOBUMP\n" \
+"vec4 QvrLiteLightTweak() { return vec4(LightTweak.xyz, 0.0); }\n" \
+"#define LightTweak QvrLiteLightTweak()\n" \
+"#endif\n" \
+"#ifdef QVR_LITE_NOAO\n" \
+"#define DynamicAO(p, n, s, c, d) 1.0\n" \
+"#endif\n" \
+"#ifdef QVR_LITE_NOCAUSTICS\n" \
+"#define LiquidCaustics(p, n) 1.0\n" \
+"#endif\n" \
+"#ifdef QVR_LITE_NODETAIL\n" \
+"#define DetailFactor(a, b, c, d, e) 1.0\n" \
+"#endif\n"
+
 // light contrast, normal maps in the baked light, specular
 #define QVR_WORLD_FS_LIGHT \
 "	if (LightTweak.x != 1. || AmbientLight.x > 0.) // QVR: the room's own fill light first (vr_ambient_light: a share of Quake's full light added to the lightmap), then the contrast about Quake's full light (vr_light_contrast): darker shade, lamps as bright\n" \

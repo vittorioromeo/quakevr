@@ -713,6 +713,7 @@ void R_FlushAliasInstances (qboolean showtris)
 	int			numvrbones;	// QVR
 	GLuint		vrbonebuf;	// QVR
 	GLbyte		*vrboneofs;	// QVR
+	GLuint		shadeprog;	// QVR: the shading program (glprogs.alias, or its opaque form without discard)
 
 	if (!ibuf.count)
 		return;
@@ -759,10 +760,13 @@ void R_FlushAliasInstances (qboolean showtris)
 		break;
 	}
 	depthonly = aliasdepth && !alphatest && !translucent; // QVR: a shadow map's opaque casters: no fragment shader (holey skins keep theirs)
+	shadeprog = glprogs.alias[oit][mode][alphatest][poseverttype];
+	if (!translucent && !alphatest && !aliasdepth && !aliasxray && !showtris && glprogs.alias_opaque[mode][poseverttype] && VR_AliasOpaqueForm (ibuf.ent))
+		shadeprog = glprogs.alias_opaque[mode][poseverttype]; // QVR: no discard: hidden pixels rejected before shading on a tiler (vr_gl_alias_opaque)
 	if (depthonly)
 		GL_UseProgram (layered ? glprogs.alias_depth_layered[poseverttype] : glprogs.alias_depth[poseverttype]);
 	else
-		GL_UseProgram (glprogs.alias[oit][mode][alphatest][poseverttype]);
+		GL_UseProgram (shadeprog);
 	notex = depthonly && aliasdepthshare; // QVR: none of the fragment shader's textures bound (vr_shadow_setup_share)
 	if (layered) // QVR: the faces' view-projections and the draws (holey skins are drawn a face at a time: vr_lighting.cpp)
 	{
@@ -899,7 +903,7 @@ void R_FlushAliasInstances (qboolean showtris)
 			GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, drawcount);
 		}
 		glColorMask (GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-		GL_UseProgram (glprogs.alias[oit][mode][alphatest][poseverttype]);
+		GL_UseProgram (shadeprog);
 		GL_SetState (opaque_state | GLS_NO_ZWRITE);
 		VR_GPUZoneEnd ();
 	}
@@ -1062,6 +1066,8 @@ static qboolean R_Alias_CanAddToBatch (const entity_t *e)
 	if (VR_AliasBonePoses (ibuf.ent, NULL) || VR_AliasBonePoses (e, NULL)) // QVR: bone matrices are per entity
 		return false;
 	if (!aliasdepth && VR_AliasDepthPrepass (ibuf.ent) != VR_AliasDepthPrepass (e)) // QVR: the batch's depth pre-pass is the first's
+		return false;
+	if (!aliasdepth && VR_AliasOpaqueForm (ibuf.ent) != VR_AliasOpaqueForm (e)) // QVR: so is its program without discard (a morph needs its discard)
 		return false;
 
 	return true;

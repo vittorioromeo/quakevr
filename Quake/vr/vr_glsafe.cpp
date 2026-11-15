@@ -25,6 +25,7 @@
 #include "vr_lighting.hpp"
 #include "vr_strings.hpp"
 #include "vr_testkit.hpp"
+#include "vr_tunables.hpp"
 
 #include <cctype>
 #include <cstdarg>
@@ -393,7 +394,7 @@ extern "C" int VR_GLESForm(int form)
 // 0). The programs are made again when this changes (GL_WorldLiteCheck). -glesfull: never (the whole shader, as the PC's).
 extern "C" int VR_GLESWorldLite(void)
 {
-    if(!VR_GLESForm(VR_GLES_FORM_GLSL) || COM_CheckParm("-glesfull"))
+    if(!VR_GLESForm(VR_GLES_FORM_GLSL) || vr_gl_world_lite.value <= 0.f || COM_CheckParm("-glesfull"))
     {
         return 0;
     }
@@ -405,6 +406,29 @@ extern "C" int VR_GLESWorldLite(void)
     if(vr_decal_carve.value == 0.f)
     {
         lite |= 2;
+    }
+    if(vr_gl_world_lite.value < 2.f)
+    {
+        return lite;
+    }
+    // C4i (QUEST_PLAN.md 6p): the other switches off in the Quest preset or his settings, each a uniform the shader
+    // tests (gl_shaders.h QVR_WORLD_FS_LITE): 4 normal maps, 8 the dynamic ambient occlusion, 16 caustics, 32 retro
+    // lighting, 64 retro textures, 128 detail textures.
+    const struct
+    {
+        bool off;
+        int bit;
+    } more[] = {
+        {vr_normalmaps.value == 0.f, 4},
+        {vr_ao_dynamic.value <= 0.f && vr_ao_brush.value <= 0.f, 8},
+        {vr_water_caustics.value == 0.f, 16},
+        {vr_retrolight.value == 0.f, 32},
+        {vr_retro.value == 0.f, 64},
+        {vr_detail.value == 0.f, 128},
+    };
+    for(const auto& m : more)
+    {
+        lite |= m.off ? m.bit : 0;
     }
     return lite;
 }

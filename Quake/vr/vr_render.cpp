@@ -279,6 +279,23 @@ extern "C" int VR_AliasDepthPrepass(const entity_t* e)
     return ve && ve->morph == 0.f;
 }
 
+// C4i: the models' program without discard (glprogs.alias_opaque, made under the ES profile only): every discard of
+// the models' fragment shader is a morph's (a view entity's: VR_AliasMorph) or a see-through model's behind a gate, so
+// an opaque draw of anything not morphing never needs one. r_alias.c keeps a morphing entity out of others' batches.
+extern "C" int VR_AliasOpaqueForm(const entity_t* e)
+{
+    if(vr_gl_alias_opaque.value == 0.f || !e)
+    {
+        return 0;
+    }
+    if(!VR_IsViewEntity(e))
+    {
+        return 1;
+    }
+    const view::ViewEntity* ve = view::find(e);
+    return !ve || ve->morph == 0.f ? 1 : 0;
+}
+
 extern "C" int VR_AliasPlayerFirst(const entity_t* e)
 {
     // Your own models stand nearest the eye: drawn (opaque) before the world, the world's depth pre-pass and shading skip

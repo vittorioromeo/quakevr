@@ -917,17 +917,21 @@ GL_WorldLiteDefines -- QVR
 The world programs' extra defines for their lite form under the ES profile (gl_world_lite: VR_GLESWorldLite's bits).
 =============
 */
-static const char *const gl_world_lite_defines[4] =
+static const char *const gl_world_lite_names[8] = // QVR: VR_GLESWorldLite's bits, in order (vr_api.h)
 {
-	"",
-	"; QVR_LITE_NOPARALLAX 1",
-	"; QVR_LITE_NOCARVE 1",
-	"; QVR_LITE_NOPARALLAX 1; QVR_LITE_NOCARVE 1",
+	"; QVR_LITE_NOPARALLAX 1", "; QVR_LITE_NOCARVE 1", "; QVR_LITE_NOBUMP 1", "; QVR_LITE_NOAO 1",
+	"; QVR_LITE_NOCAUSTICS 1", "; QVR_LITE_NORETROLIGHT 1", "; QVR_LITE_NORETRO 1", "; QVR_LITE_NODETAIL 1",
 };
+static char gl_world_lite_defines[256]; // the defines of gl_world_lite's bits (GL_WorldLiteDefines)
 
 static const char *GL_WorldLiteDefines (void)
 {
-	return gl_world_lite_defines[gl_world_lite & 3];
+	int i;
+	gl_world_lite_defines[0] = 0;
+	for (i = 0; i < (int)countof (gl_world_lite_names); i++)
+		if (gl_world_lite & (1 << i))
+			q_strlcat (gl_world_lite_defines, gl_world_lite_names[i], sizeof (gl_world_lite_defines));
+	return gl_world_lite_defines;
 }
 
 /*
@@ -997,6 +1001,11 @@ static void GL_CreateShadersAll (void)
 				for (poseverttype = 0; poseverttype < 3; poseverttype++) 
 					glprogs.alias[oit][mode][alphatest][poseverttype] =
 					GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias|OIT %d; MODE %d; ALPHATEST %d; POSEVERTTYPE %d", oit, mode, alphatest, poseverttype);
+	if (VR_GLESForm (VR_GLES_FORM_GLSL)) // QVR: the opaque models' form without discard (vr_gl_alias_opaque: a tiler's early depth rejection; QUEST_PLAN.md 6p)
+		for (mode = 0; mode < 3; mode++)
+			for (poseverttype = 0; poseverttype < 3; poseverttype++)
+				glprogs.alias_opaque[mode][poseverttype] =
+					GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias opaque|OIT 0; MODE %d; ALPHATEST 0; POSEVERTTYPE %d; QVR_ALIAS_OPAQUE 1", mode, poseverttype);
 	for (poseverttype = 0; poseverttype < 3; poseverttype++) // QVR; MODE 0 (standard) in these: an undefined name in #if is an error in GLSL (strict drivers)
 		glprogs.alias_depth[poseverttype] = GL_CreateProgram (alias_vertex_shader, NULL, "alias depth|MODE 0; POSEVERTTYPE %d", poseverttype);
 	for (poseverttype = 0; poseverttype < 3; poseverttype++) // QVR: into all their faces at once (vr/vr_lighting.cpp)
