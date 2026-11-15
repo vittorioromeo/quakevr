@@ -451,6 +451,14 @@ extern "C" int VR_GLESWorldLite(void)
     {
         lite |= m.off ? m.bit : 0;
     }
+    if(vr_gl_lights_plain.value != 0.f && vr_shadow_dlights.value <= 0.f && vr_shadow_maplights.value <= 0.f &&
+        vr_dlight_falloff.value == 0.f && (vr_portals.value <= 0.f || vr_teleporters.value <= 0.f))
+    {
+        // C4p (QUEST_PLAN.md 6w): every light plain (no shadows, portal lights, DarkPlaces falloff): the world's lights'
+        // loop without their code, 1 << 26 (gl_shaders.c GL_LightsLiteDefines). The Quest 3 paid ~3.5 ms of the world's
+        // shading for each light covering the view with that code merely compiled in (Adreno: registers), ~0.3 without.
+        lite |= 1 << 26;
+    }
     if(vr_gl_lights_lite.value != 0.f)
     {
         // C4l (QUEST_PLAN.md 6s; off by default since C4m, 6t: measured in one launch it cost 0.6 ms of a fight, its

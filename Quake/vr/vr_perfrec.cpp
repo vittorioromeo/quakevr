@@ -151,7 +151,7 @@ void writeHeader()
     strftime(when, sizeof when, "%Y-%m-%d %H:%M:%S", localtime(&now));
     fprintf(f, "# Quake VR perf recording (vr_perf_record), %s; GL %s\n", when, gl_renderer ? gl_renderer : "?");
     fprintf(f, "# settings:");
-    const char* const quest[] = {"vr_quest_preset", "vr_gles_define", "vr_gl_lights_lite", "vr_gl_alias_plain_mask",
+    const char* const quest[] = {"vr_quest_preset", "vr_gles_define", "vr_gl_lights_lite", "vr_gl_lights_plain", "vr_gl_alias_plain_mask",
         "vr_gl_world_lite"};
     for(const char* name : profile::settingCvars)
     {

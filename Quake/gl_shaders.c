@@ -927,7 +927,7 @@ static const char *const gl_world_lite_names[8] = // QVR: VR_GLESWorldLite's bit
 	"; QVR_LITE_NOPARALLAX 1", "; QVR_LITE_NOCARVE 1", "; QVR_LITE_NOBUMP 1", "; QVR_LITE_NOAO 1",
 	"; QVR_LITE_NOCAUSTICS 1", "; QVR_LITE_NORETROLIGHT 1", "; QVR_LITE_NORETRO 1", "; QVR_LITE_NODETAIL 1",
 };
-static char gl_world_lite_defines[320]; // the defines of gl_world_lite's bits (GL_WorldLiteDefines)
+static char gl_world_lite_defines[512]; // the defines of gl_world_lite's bits (GL_WorldLiteDefines)
 
 /*
 =============
@@ -950,6 +950,8 @@ static void GL_LightsLiteDefines (char *out, size_t size, qboolean world)
 		q_strlcat (out, "; QVR_LITE_NOPORTALLIGHT 1", size);
 	if (gl_world_lite & (1 << 25))
 		q_strlcat (out, "; QVR_LITE_ONEFILTER 1", size);
+	if (world && (gl_world_lite & (1 << 26))) // C4p: plain lights alone (vr_gl_lights_plain)
+		q_strlcat (out, "; QVR_LITE_PLAINLIGHT 1", size);
 }
 
 static const char *GL_WorldLiteDefines (void)

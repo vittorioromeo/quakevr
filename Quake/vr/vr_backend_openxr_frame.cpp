@@ -50,6 +50,19 @@ bool OpenXrBackend::beginFrame(TrackingState& tracking, FrameState& frame)
     }
     const XrSwapchain eyeHandles[2] = {swapchains[0].handle, swapchains[1].handle};
     quest.apply(session, eyeHandles); // (Android: the refresh rate, CPU/GPU levels, foveation when changed)
+    if(quest.wantNewEyes)
+    {
+        // vr_xr_foveation changed mid-game (C4p): the runtime crashed in xrEndFrame after updating swapchains in use,
+        // so new eye swapchains (no image of theirs acquired yet; every frame attaches its image anew) take the level.
+        quest.wantNewEyes = false;
+        xrruntime::note("OpenXR: new eye swapchains for vr_xr_foveation %g\n", static_cast<double>(vr_xr_foveation.value));
+        if(!createEyeSwapchains())
+        {
+            return true;
+        }
+        const XrSwapchain freshHandles[2] = {swapchains[0].handle, swapchains[1].handle};
+        quest.apply(session, freshHandles);
+    }
 
     XrFrameWaitInfo waitInfo{XR_TYPE_FRAME_WAIT_INFO};
     frameState = XrFrameState{XR_TYPE_FRAME_STATE};

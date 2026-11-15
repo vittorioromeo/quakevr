@@ -187,6 +187,11 @@ void QuestExtensions::apply(XrSession session, const XrSwapchain (&eyes)[2])
     if(foveation && eyes[0] != XR_NULL_HANDLE && eyes[1] != XR_NULL_HANDLE &&
         (level != foveationApplied || (newEyes && level > 0.f)))
     {
+        if(!newEyes && foveationApplied >= 0.f)
+        {
+            wantNewEyes = true; // a change on swapchains in use: on new ones (C4p; the backend calls again with them)
+            return;
+        }
         foveationApplied = level;
         foveated[0] = eyes[0];
         foveated[1] = eyes[1];

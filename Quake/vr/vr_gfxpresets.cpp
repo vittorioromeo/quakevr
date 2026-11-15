@@ -135,8 +135,10 @@ constexpr presetcore::Row questRows[] = {
     {&vid_fsaa,                       {"0",      "0",      "0"}},     // off: 2x cost the Quest 3 ~100 ms a frame (C4e: e1m1 138 -> 41 ms; the float scene's MSAA resolved through memory, not on chip)
     {&vr_taa,                         {"0",      "0",      "0"}},     // its history reads and writes: bandwidth
     {&r_oit,                          {"0",      "0",      "0"}},     // translucent things sorted, not order-independent: OIT's own target is a render pass more an eye (-0.6 to -0.9 ms of the Quest 3's GPU, C4j)
-    // Shadows: one shadowed dynamic light, the atlas a quarter of Low's (16 MB of depth instead of 64)
-    {&vr_shadow_dlights,              {"1",      "1",      "0"}},
+    // Shadows: no shadowed dynamic light, so the world's lights take the plain loop (vr_gl_lights_plain: a big light
+    // ~3.5 ms of world shading with the shadow code compiled in, ~1 without; C4p, QUEST_PLAN.md 6w); the atlas a quarter
+    // of Low's (16 MB of depth instead of 64) for whoever turns them on
+    {&vr_shadow_dlights,              {"0",      "0",      "0"}},
     {&vr_shadow_dlight_size,          {"256",    "256",    "256"}},
     {&vr_shadow_maplights,            {"0",      "0",      "0"}},
     {&vr_shadow_atlas,                {"2048",   "2048",   "2048"}},
