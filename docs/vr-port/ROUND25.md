@@ -3678,3 +3678,18 @@ the same exact rules" as enemies; an option, on by default, single player and mu
   PASS 26/30, prop_climb_test 12/0, slopes_test pass, mantle_height_test PASS.
 - Results: suite all 29 pass, scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0, Release (ThinLTO) 0
   warnings. Not done: the grapple's pull, the hands' water climb-out (next: B8j part 3), mp_predict's lift-landing flake.
+
+## mpN B8j part 3: the hands' climb out of the water predicted (agent/mp, 2026-11-15)
+
+- **One function for the climb out by hand** (MP_PLAN "B8j results, part 3"): QC VR_WaterClimb_HandPull moved into
+  vr_pmove.cpp (`pmove::waterClimbTry`, over Quake's WaterJumpTry along the hand's way). Single player's frame calls it
+  through QC's new builtin `waterclimb(hands)` (CheckWaterJump: the gripping, empty hands); a remote client's moves run
+  it after each move's drag on the server and in his replay (`.vr_movewaterclimb`: on, the empty hands; the state
+  carries it). The feel and the `waterjump: climbed out by hand` print stay QuakeC's (`VR_WaterClimb_Climbed`).
+  `QVR_NET_VERSION` 29.
+- `mp_predictclimb --part waterclimb` (new, start map's pool): lifted out by the main hand pulled down; his replay
+  climbs him out at the same move; every correction 0.000 over 499 states; on the top where the server has him. 9/0.
+- Single player: the same climb (start map's pool, the mock's hand: top 33.2 over the feet, rising at 251).
+- Results: suite 28 of 29 (mp_climb 10/1, A's mantle, then 11/0 alone), mp_predictclimb 23/0, scenario_check 138/0,
+  load_models_test 4/0, vr_run_check 12/0, Release (ThinLTO) 0 warnings. Not done: the grapple's pull (next: B8j part 4, planned in MP_PLAN), mp_predict's lift-landing
+  flake, B11a.

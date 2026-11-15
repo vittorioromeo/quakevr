@@ -1719,6 +1719,43 @@ Open (B8j, the rest):
 - mp_predict's occasional lift-landing 1.354 correction: not looked at.
 - A hang from a brush model or prop, other players in his replay, getting up from lying at once: unchanged.
 
+### B8j results, part 3: the hands' climb out of the water predicted (2026-11-15, dev no-LTO build, loopback; `mp_test.py suite` 28 of 29 pass: `mp_climb` 10/1 (A's mantle: no hold taken by his play, no climb code touched) then 11/0 alone; `mp_predictclimb` 23/0; scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0, Release (ThinLTO) build 0 warnings)
+
+| Scenario | Result |
+|---|---|
+| `mp_predictclimb --part waterclimb` (new) | On the start map's pool (vr_water_jump 0, climbing on) B (150 ms each way) swims west to its edge (a bank the ledge map has no lip on: the climb's hold does not take it), raises his main hand 0.4 m ahead over the top, grips and pulls it down at 0.9 m/s: lifted out (the server's `waterjump: climbed out by hand 1, the top 34.0 above the feet, rising at 253`), his replay climbed him out at the same move (`mp_predict_wclimb: replay`, 21 replays), every correction 0.000 over 499 states (228 in the air); on the top at rest where the server has him. 9/0 |
+| single player | The same climb through QC's builtin (start map's pool, the mock's hand pulled down): `climbed out by hand 1, the top 33.2 above the feet, rising at 251`, as QuakeC's own did (the same traces and numbers, transcribed) |
+
+What changed:
+
+- **The climb out by hand is one function** (`pmove::waterClimbTry`, vr_pmove.cpp: QC VR_WaterClimb_HandPull moved
+  there, over Quake's WaterJumpTry along the hand's way, `waterJumpAlong`): a hand of the frame's empty ones
+  (`Rules::climbHands`, QC `VR_WaterClimb_FreeHands`) gripping (`Input::grabs`), ground under it, pulled down at
+  `waterClimbPull` (0.3 m/s; `Input::handVel`, the move's hand velocity) lifts him out, high enough to clear the top
+  (`Rules::minsZ`). Single player's (and the listen host's own client's) frame calls it once through QC's new builtin
+  `waterclimb(hands)` (CheckWaterJump: B9's one path); a remote client's moves run it after each move's drag, waist
+  deep, on the server and in his replay. The feel and the print are QuakeC's (`VR_WaterClimb_Climbed`, through the
+  Body hook `waterClimbed`).
+- PlayerPreThink sets `.vr_movewaterclimb` (bit 0 on, bits 1-2 the empty hands) for a client walked move by move with
+  the hands' climb (vr_water_jump 0, climbing on, VR); CheckWaterJump leaves it to his moves. The state carries it (a
+  byte after the bits) and `Rules::minsZ`. `QVR_NET_VERSION` 29. `vr_mp_predict_report`: `wclimb` (1 + the hands),
+  `wclimb_n` (replays that climbed him out); `vr_mp_watch 1`: `mp_predict_wclimb` (the server's move, his replay's).
+- Not the same as the server yet: a hand's busy kind changing within a frame (the empty hands are the frame's), the
+  replay's world (a prop or a monster on the top: BSP only): eased corrections, never a desync.
+
+Open (B8j, the rest):
+
+- **The grapple's pull** (vr_grapple.qc, the hook on the world: VR_Grapple_ServiceAnchor's HoldPlayer and Wind, run in
+  PlayerPreThink's VR_Grapple_PlayerFrame once a frame): not started. The plan: the rope's first corner from him
+  (`gr_pa`, the engine's `ropepivot`), its path beyond (`gr_ba`), the length (`gh_len`), the reel's speed and ramp
+  (`gh_speed`, `gh_reel`, the stamina's share), the payout and the shortest length in the state; each move's reel and
+  unreel buttons (VR_Grapple_ReelHeld: the hand's secondary, or the other driver's) and HoldPlayer's hold and Wind's
+  winding in the moves (one function, the anchor's QC calling it through a builtin for single player, B9); the taut
+  twang and the overstretch's loosen are the server's (hooks). A hook on a prop, a monster or a lying gun: the
+  server's (their own physics).
+- mp_predict's occasional lift-landing 1.354 correction: not looked at.
+- A hang from a brush model or prop, other players in his replay, getting up from lying at once: unchanged.
+
 ## Decisions
 
 - Melee's lag compensation (B8c) wraps the queries (melee's sweep, a bash's find, a headbutt's target, a guard's check
@@ -1783,4 +1820,4 @@ Open (B8j, the rest):
 - The interpolation buffer (B7b) leaves brush models and stepping monsters on NetQuake's lerp: the player's own entity
   is not delayed (no prediction until B8), and a lift he rides must stay in step with him.
 
-Next phase: B8j part 3 -- the grapple's pull predicted (AD's hook, QC: the rope in the state, the reel in the moves) and the hands' climb out of the water where no ledge is (QC VR_WaterClimb_HandPull, vr_water_jump 0), each with an `mp_predictclimb` part under a unit; then MP_PLAN's B11a-c unification (the B9 review's #3-#5).
+Next phase: B8j part 4 -- the grapple's pull predicted (vr_grapple.qc's hook on the world: the rope's corner, length and reel in the state, HoldPlayer and Wind in the moves as one function single player's frame calls through a builtin; "B8j results, part 3", Open), with an `mp_predictclimb --part grapple` under a unit; then mp_predict's lift-landing 1.354 correction if cheap; then MP_PLAN's B11a (grab spots, hotspots and magazine presses for the host's own player through the same slot store) and B11b-c.
