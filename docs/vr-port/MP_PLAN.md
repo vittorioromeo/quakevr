@@ -2271,7 +2271,23 @@ Tests:
   ends the spurt; voice activation sends the loud tone and stops on silence; RNNoise on: frames flow; no microphone:
   told, nothing opened, not sending. With B 50 ms away, 30 ms jitter and 5% loss each way (`mp_voice_lossy`, the jitter
   and loss from after his join): 196 ms, 132 played, 17 recovered by FEC, 4 concealed of 153, none late, the tone's share
-  0.69 (before the copies: 61 of 153 lost to NetQuake's overtaken-datagram drop).
+  0.69-0.86, 4 late (each raising the delay a frame; the first spurt starts at 40 ms, its jitter not yet
+  measured: at most 8 allowed) (before the copies: 61 of 153 lost to NetQuake's overtaken-datagram drop).
+- `mp_test.py suite` (33 scenarios with `mp_voice` and `mp_voice_lossy`): 28 pass; `mp_avatar` 15/1 (B draws A's
+  weapon: None), `mp_climb` 7/2 (A never put at the ledge), `mp_predictclimb` 27/1, `mp_disarm` 34/1 (the shell into
+  A's reserve), `mp_voice_lossy` 20/1 (1 late frame, the bound then 0): each passes alone (17/0, 11/0, 28/0, 35/0,
+  21/0 with the bound 8). scenario_check 139 of 141 (`classic_drops`, `magthrow`: "Grunt Burst Rifle" is not a toolgun
+  Weapons entry, the toolgun calls it "Burst Rifle": data from next, not B10v), load_models_test 4/0, vr_run_check 12/0,
+  the dev and the Release (ThinLTO) builds 0 warnings (ThinLTO needed the engine's libopus import library dropped: the
+  music's libopus-0.dll stays, loaded by libopusfile-0.dll; nothing of the engine's called it).
+
+### For him (B10v)
+
+- In VR with a second player: hold the off hand at your mouth and press its upper button (Voice Notes off) to talk;
+  his voice should come from his head, fade with distance, and show `((o))` over him. Try Voice Activation and the
+  Radio (Debug > Reports, the Voice rows), and `vr_voicechat_mute <name>`.
+- Untested headless: a real microphone (and its device choice, vr_note_device) and the two spatial mixers playing the
+  looping voice sound. Flat play has no default key: bind one to `+vr_voicechat`.
 
 ## For him (B11b)
 

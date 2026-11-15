@@ -4106,8 +4106,11 @@ def voice(s, listen=False, lag=0.0, jitter=0.0, loss=0.0):
     sp = speakers[sa]
     sent, out = int(send_a["frames"]), voice_out(sp)
     s.metric("voice_b", sp)
-    s.check("B's jitter buffer gives out every frame A sent (played, recovered, concealed; none late)",
-            sent - 20 <= out <= sent + 2 and int(sp["late"]) == 0,
+    # (with jitter a few may come late before his delay grows to it: the first spurt starts at 40 ms, its jitter not
+    # measured yet; each late one raises the delay by a frame, at most 8 times)
+    most_late = 8 if jitter > 0 else 0
+    s.check("B's jitter buffer gives out every frame A sent (played, recovered, concealed; at most %d late)" % most_late,
+            sent - 20 <= out <= sent + 2 and int(sp["late"]) <= most_late,
             "A sent %d, B gave out %d: %s played, %s recovered by FEC, %s concealed, %s late, %s skipped, jitter %s ms" % (
                 sent, out, sp["played"], sp["recovered"], sp["concealed"], sp["late"], sp["skipped"], sp["jitter_ms"]))
     share_min = 0.5 if loss > 0 else 0.8
