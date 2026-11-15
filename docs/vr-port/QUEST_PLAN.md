@@ -936,6 +936,37 @@ image, `vr_eyeshot 2`: the post-processed eye before the copy into the swapchain
 - **Frame time: not measured** this time: the unworn headset holds frames (`xrWaitFrame` 47-60 ms, 75 ms apart); C4e's
   25.6 ms stands. Dynamic resolution does lower the scale on ES (0.9 -> 0.65 seen in the eye images' sizes).
 
+## 6n. C4g: the stretched, crawling world and opaque water were `centroid`; the lite ES world (2026-11-15; adb, unworn)
+
+His look (C4f APK, `vr_quest_preset 0`, e1m1): the world's and the ammo boxes' (brush models') textures "incredibly
+stretched", flickering, colours about right; the alias models perfect; water without transparency; too choppy.
+Method: `scratch/c4g_seq.sh` (C4f's, `MAP=` for another map), `c4g_probes.sh` (one launch per `-glesdefine` set),
+`c4g_crop.py` (full-size crops, brightened), `c4g_perf.sh` (a warm-up then 300 frames, `vr_profile_gpu 1`).
+- **Not precision**: the ES header already declares `highp` for every type and stage (`vr_glsafe.cpp` esHeader).
+- **The split**: the texture read alone (`QVR_PROBE_LOD0`, `CUT1`, `CUT2`) is right; once the lightmap code is live
+  (`CUT3`, and `CUT3T`: the texture alone, the light kept live by a test no value passes) the texture is a smear; the
+  texture coordinates read at the shader's end with all of it live (`UVLATE`) are noise, at its start (`UV`) smooth.
+- **Cause: Adreno (driver 0837.0.9) interpolates the world's other inputs wrong once its `centroid` input (the lightmap
+  coordinates, `in_lmuv`) is read**: `in_uv` garbage (the textures read at huge, crawling coordinates: low mips,
+  stretched), the water's flat inputs too (its alpha and look: a flat green, no texture, nothing seen through). Not the
+  interface's size (limits now in `vr_gles_report`: 128 components each way, 31 varying vectors; the world uses 22
+  locations) and not the location numbers (prevclip moved from 29 to 23: the same).
+- **Fix (ES form only, `dropCentroid`)**: `centroid` dropped from every shader's ES text; `-glescentroid` keeps it (a
+  driver update's check). Without MSAA (the Quest preset's) centroid and centre sampling are the same. `QVR_PROBE_NOCENTROID`
+  showed it first (UVLATE smooth, CUT3T the true texture). e1m1's walls and ceiling and vrtesthall's pool (its tiles seen
+  through the water) now as the PC's; eyeshots `scratch/c4g_eyes/` (before: `a1_0.png`, `a1_crop.png`; after:
+  `f2_1.png`, `fin_1.png`, `f2_crop.png`, `fin_crop.png`; water: `w2_crop.png` before, `w1_crop.png` after).
+- **The lite ES world** (`VR_GLESWorldLite`, `GL_WorldLiteCheck`): under the ES profile the world programs leave out
+  parallax mapping while `vr_parallax` or `vr_normalmaps` is 0 and carved decals while `vr_decal_carve` is 0 (the
+  Quest preset's, from Low: `QVR_LITE_NOPARALLAX`, `QVR_LITE_NOCARVE`); a change of those settings makes the shaders again
+  at the next frame (the program cache gives back the rest); `-glesfull` keeps the whole shader. e1m1's start, GPU a
+  frame (unworn; frames held by the runtime, so the GPU's timer queries, not the frame period): **full 21.0 / 21.1 /
+  21.5 ms, lite 18.6 / 18.4 / 17.7 ms**; the frame period ~20 ms (50 fps; 72 Hz needs 13.9).
+- **The rest of the GPU frame** (one launch each, `-glesdefine`, against ~18.7 then): retro textures off (`NORETRO`, his
+  setting) 16.9 ms, no shadow code (`NOSHADOW`; the preset keeps one shadowed light) 17.9, a constant world colour
+  (`FSCONST`) 11.3: so ~11 ms is not the world's shading (the eyes' post chain, models, clears) and ~7 ms is.
+- Not reached: MSAA on chip (the preset has none), dynamic resolution's floor (0.65), the bloom fault, bullet time.
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
@@ -979,18 +1010,11 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C4g (after 6m) — his look with bloom off and sRGB raw (squares gone? colours right? bullet time and a
-Resolution Scale change still black?); the bloom chain's fault on Adreno (a step-by-step `vr_eyeshot 2` of its levels at
-scale 0.9); then the perf items carried from C4f below; no installs. C4f's perf scope, not reached: the world's fragment shader to 72 Hz (a
-lite ES variant with what the Quest preset turns off compiled out: carved decals, retro textures' start, shadows,
-parallax; measured together 2.2x at MSAA 2x), MSAA on chip (`EXT_multisampled_render_to_texture`), vr_dynres on ES,
-then his look in the headset (smoothness, the striped texels of 6k's eyeshots, the menu panel's resolution, the save's
-freed engine string); no installs. The original C4c scope: the headset worn, and the frame (NEEDS him wearing the Quest 3 over USB for the visual part; no
-installs: simpleperf is the NDK's): first what he sees (e1m1's image in both eyes, the `imageRect` origin of 6f, the
-menus' panel, the Touch controllers, sound), then why a frame takes 35 ms with the CPU and GPU both under 40% busy
-(simpleperf, `vr_profile`; the syncs: query reads, fences, readbacks, `xrWaitFrame`), the first launch's ~55 s of
-shader compiles (the second launch's, the driver cache; `OES_get_program_binary`), e1m1's "Save error.", and the ES
-paths to the extensions the Quest has (`EXT_clip_control` for the shadows, depth clamp, clip distances) on by
-default there. Then C5 (multiview into the swapchain). Without the headset, C2h (no installs): the world textures'
-memory under the ES profile (section 6e's open item). Waiting on his call: the Android Gradle Plugin download
+Next phase: C4h (after 6n) — his look in the headset with the centroid fix (the world's and the ammo boxes' textures
+sharp and steady? water see-through? the menu panel's sharpness), then the frame to 72 Hz at `vr_quest_preset 0`
+(GPU ~18 ms now: the ~11 ms outside the world's shading first: a GPU split of the eyes' post chain, models and
+clears by A/B; retro textures' cost on Adreno (1.8 ms); MSAA on chip only if he wants MSAA back; dynamic resolution's
+floor), the bloom chain's fault on Adreno (its levels step by step with `vr_eyeshot 2`), bullet time's black view;
+no installs. Still open from before: e1m1's save error (a freed engine string), C5 (multiview into the swapchain),
+C2h (the world textures' memory under the ES profile). Waiting on his call: the Android Gradle Plugin download
 (section 7), the armed humanoids' CPU cost (section 6d).

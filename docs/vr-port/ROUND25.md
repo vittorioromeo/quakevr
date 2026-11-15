@@ -3259,3 +3259,15 @@ after 7/0. `mounted:9-10` (the two gun torso turns) 312 lit, 312 taken. Scenario
   1.5 on the sides along +x (the fins are straight), walls and back on a dark vent texel; new vertices follow the face in every shot frame.
   Exported with `blend_export.py`: 935 -> 1027 triangles, anchors ok, holes check 0 see-through, 0 flipped; normal map re-baked,
   `fx_gfx_mask` rewritten. Scene `mrl_vents`; load_models_test 4/4. Blender before/after: kit `scratch/mrlvents_shots/`.
+## Quest C4g: the stretched world and opaque water were `centroid`; the lite ES world (branch `agent/quest`, 2026-11-15)
+
+QUEST_PLAN.md section 6n has the runs. On the Quest 3 over adb, the headset unworn:
+- **World and brush models stretched and crawling, water opaque:** not float precision (the ES header was already
+  highp). Adreno interpolates the world shader's other inputs wrong once its `centroid` lightmap coordinates are read:
+  the texture coordinates came out as noise. The ES text now drops `centroid` (`vr_glsafe.cpp` `dropCentroid`;
+  `-glescentroid` keeps it); no MSAA in the Quest preset, so nothing is lost. e1m1 and vrtesthall's pool as the PC's.
+- **Lite ES world:** with parallax (`vr_parallax`/`vr_normalmaps` 0) or carved decals (`vr_decal_carve` 0) off, the ES
+  world programs leave their code out, made again when those settings change (`GL_WorldLiteCheck`, once a frame);
+  `-glesfull` keeps the whole shader. GPU 21.0-21.5 -> 17.7-18.6 ms a frame at e1m1's start (still ~50 fps).
+- **Tools:** probes `QVR_PROBE_CUT3T`, `UVLATE`, `NOCENTROID`; `vr_gles_report` prints the interface limits.
+- PC unchanged: gles_render_test 21/0, scenario_check 155/0, load_models_test 4/0.
