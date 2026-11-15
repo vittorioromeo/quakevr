@@ -1,0 +1,10 @@
+title The flip grip: a dagger and a sword to flip, drop, throw, hand over and pull out of a crate, either way round
+map vrtesthall
+start 0 -288 25 90
+god
+give "Dagger" main
+give "Knight's Sword" off
+spawn "Wooden Crate" 60 -40
+spawn "Wooden Crate" 60 -40 34
+spawn "Grunt" 110 60
+hint Flip the dagger blade down (B or Y), then hold its hotspot with your other hand: two-handed, blade still down. Drop it and throw it reversed: it leaves your hand the way you held it. Set it on the crate and take it back palm up and palm down: a real grip both ways, never a prop. Hold it by the hotspot in your other hand, let go with the main hand, turn your hand and grab the handle: the grip follows your hand. Stab the crate or the grunt, let go, and grab the handle the other way round: the hand drawn on it stays with your real hand.

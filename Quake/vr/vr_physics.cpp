@@ -25,6 +25,7 @@
 #include "vr_portals.hpp"
 #include "vr_protocol.hpp"
 #include "vr_units.hpp"
+#include "vr_view.hpp"
 #include "vr_particles.hpp"
 #include "vr_profile.hpp"
 #include "vr_tracy.h"
@@ -451,6 +452,26 @@ struct TouchProvider
     return weaponByFist(target);
 }
 
+// How far the point of `player`'s hand `which` is from the handle of the weapon `target` lying about or in the air: its origin, or
+// for a sword or dagger that may be held reversed the point of a hand holding it so (the flip grip, his note 2026-11-14: "with the
+// opposite grip, it feels like it's not able to grab it, and most of the time I grab it in prop mode"; view::looseReversedHandPoint),
+// whichever is nearer.
+[[nodiscard]] float weaponHandleDistance(edict_t* target, edict_t* player, int which)
+{
+    const glm::vec3 at = fieldVec(player, handPosField(which));
+    float d = glm::distance(at, vec(target->v.origin));
+    const int index = static_cast<int>(target->v.modelindex);
+    entity_t ent{};
+    ent.model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    VectorCopy(target->v.origin, ent.origin);
+    VectorCopy(target->v.angles, ent.angles);
+    if(glm::vec3 reversed; ent.model && view::looseReversedHandPoint(ent, reversed))
+    {
+        d = za::min(d, glm::distance(at, reversed));
+    }
+    return d;
+}
+
 // How far off a weapon lying about or in the air the fist of `player`'s hand `which` takes it (see onWeapon).
 [[nodiscard]] float weaponGrabSlack(edict_t* target, edict_t* player, int which)
 {
@@ -464,7 +485,7 @@ struct TouchProvider
     // catch's (ROUND22.md, "Mid-air catches": the closing fist missed a falling axe's handle by a few centimetres).
     // Not one a force grab pulls (QC fg_state 1): its catch is its own (vr_forcegrab_catch_radius).
     const float m2u = units::metresToUnits();
-    const float fromHandle = glm::distance(fieldVec(player, handPosField(which)), vec(target->v.origin));
+    const float fromHandle = weaponHandleDistance(target, player, which);
     const bool atHandle = fromHandle <= za::max(vr_weapon_grab_anywhere_min.value, 0.f) * 0.01f * m2u;
     float slack = 0.f;
     if(lyingWeapon(target))
@@ -507,7 +528,7 @@ bool testHandContact[2]{false, false};
 [[nodiscard]] TouchAnswer onWeapon(edict_t* target, edict_t* player, int which, grab::Candidate& out)
 {
     const int h = which == HAND_OFF ? 0 : 1;
-    const float fromHandle = glm::distance(fieldVec(player, handPosField(which)), vec(target->v.origin));
+    const float fromHandle = weaponHandleDistance(target, player, which);
     if(held::grabTouch(target, player, h, weaponGrabSlack(target, player, which)))
     {
         out.distance = fromHandle;

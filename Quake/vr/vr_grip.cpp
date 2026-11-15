@@ -428,7 +428,7 @@ void logPlace(const char* what, int num, const Held& h)
 
 } // namespace
 
-glm::vec3 serverTake(edict_t* e, edict_t* player, int hand, bool left, const float* handAngles, const glm::vec3& offset)
+glm::vec3 serverTake(edict_t* e, edict_t* player, int hand, bool left, const float* handAngles, const glm::vec3& offset, bool fit)
 {
     const qmodel_t* model = modelOf(e);
     const int num = NUM_FOR_EDICT(e);
@@ -462,7 +462,7 @@ glm::vec3 serverTake(edict_t* e, edict_t* player, int hand, bool left, const flo
     placeNow(h);
     // The grip fit (vr_gripfit.hpp): the hand's spheres into the prop's frame where it is now placed in the hand; moved
     // out of the hand if they sink in too deep, and kept so (placeNow adds it again when its settings change).
-    if(fitsMode(static_cast<int>(za::lround(props::value(h.prop.slot, props::Key::GripMode)))))
+    if(fit && fitsMode(static_cast<int>(za::lround(props::value(h.prop.slot, props::Key::GripMode)))))
     {
         const glm::mat3 toProp = glm::transpose(h.now.rot);
         glm::vec3 move{0.f};

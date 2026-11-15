@@ -88,8 +88,10 @@ struct Prop
 // Server side (QC's carrygrip, carryplace; vr_builtins.cpp).
 // As `player`'s `hand` (0 off, 1 main; `left`: the left one) at `handAngles` takes `e`: its place in the hand, taken from
 // where it is now (its angles, and `offset`: its origin in the hand, forward, right, up, as .carry_offset). Kept, its
-// turn set (its angles now) and its origin's place in the hand returned (forward, right, up).
-[[nodiscard]] glm::vec3 serverTake(edict_t* e, edict_t* player, int hand, bool left, const float* handAngles, const glm::vec3& offset);
+// turn set (its angles now) and its origin's place in the hand returned (forward, right, up). `fit` false: no grip fit
+// (vr_gripfit.hpp), the hand already on its drawn surface (a gib pulled off a blade as the hand held it there).
+[[nodiscard]] glm::vec3 serverTake(edict_t* e, edict_t* player, int hand, bool left, const float* handAngles, const glm::vec3& offset,
+    bool fit = true);
 // Each frame it is held in one hand: its place in the hand (forward, right, up), placed again if its settings changed;
 // its turn with the hand set (its angles). `offset`: .carry_offset as QC has it (kept if the grip has no place for it).
 [[nodiscard]] glm::vec3 serverFrame(edict_t* e, const float* handAngles, const glm::vec3& offset);

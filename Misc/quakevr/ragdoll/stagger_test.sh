@@ -125,7 +125,9 @@ for c in $CASES; do
             done
         done ;;
     taken)
-        run "$PRE;vr_test_spawn 0;vr_test_spawn_dist 80;impulse 241;wait40;vr_knockdown_test 0;wait200;vr_knockdown_test 1;wait40;setpos ${TAKEN:-38 -571 41};wait300;setpos 206 -700 41;wait600;toggleconsole;quit" \
+        # (No stirring while it lies there: at vr_knockdown_stir_rate 12, his default since 948d2c328, it stirs off the
+        # spot TAKEN names and rises elsewhere, nothing in its way.)
+        run "$PRE;vr_knockdown_stir 0;vr_test_spawn 0;vr_test_spawn_dist 80;impulse 241;wait40;vr_knockdown_test 0;wait200;vr_knockdown_test 1;wait40;setpos ${TAKEN:-38 -571 41};wait300;setpos 206 -700 41;wait600;toggleconsole;quit" \
             "getup|handback|knockdown: monster|no room|rror|CRASH" | grep -v "^$\|^exit" > "$OUT"
         grep "spot taken\|rises through its\|no room" "$OUT" | cut -c1-140
         verdict $(grep -q "its spot taken" "$OUT" && ! grep -q "rror\|CRASH" "$OUT" && echo 1 || echo 0) "grunt: its spot taken (beside him or slumps)" ;;

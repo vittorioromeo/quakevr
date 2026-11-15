@@ -3062,7 +3062,10 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         vr_parry_dir_timed = (drp && !flatGuard && hand >= 0 && !armsCrossed) ? (baked ? attacker.vr_drp_timed : vr_drp_ag_timed) : -1;
         vr_parry_strength = VR_Parry_Strength(targ, hand, armsCrossed);
         // (his rule, 2026-11-15: the right direction parries at any timing; early or late, its effect on it much less)
-        vr_parry_timing_cut = vr_parry_dir_timed >= 0 ? 1 - (baked ? attacker.vr_drp_timing : vr_drp_ag_timing) : 0;
+        // (not a test's forced parry: the pose not looked at, no directional parry read for this blow, its timing a
+        // stale one, 0 before any: every forced parry's stagger, push and disarm went to nothing; agrunt 24, 2026-11-15)
+        vr_parry_timing_cut = (vr_parry_dir_timed >= 0 && !vr_parry_test_force) ?
+            1 - (baked ? attacker.vr_drp_timing : vr_drp_ag_timing) : 0;
     }
     // The parry's cooldown, per monster (vr_parry_cooldown; NOTES.md vrfiringrange_2026-10-01_16-44-46, _22-58-06,
     // _22-59-02: the ogre's chainsaw, a knight's swing, one attack several quick blows): a blow parried within that long

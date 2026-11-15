@@ -324,6 +324,23 @@ bool weaponLocalGeometry(qmodel_t* model, glm::vec3& muzzle, glm::vec3& butt, gl
 // The weapon in `hand` as drawn last, in the hand's frame (forward, left, up): its axes (forward, up) and its share of the
 // reverse grip now (gripFlip). False: none drawn (tests: QC weapondrawnpose 44, 45).
 [[nodiscard]] bool heldWeaponAxes(int hand, glm::vec3& forward, glm::vec3& up, float& flip);
+// The flip grip (ROUND25.md, "flipgrip"): one pose for a blade held either way, through every way out of and into a hand.
+// The reverse grip's turn in `hand`'s frame for its weapon of `slot` as drawn now (the identity upright or carried): the two-handed
+// hold's blade line (vr_twohand.cpp bladeDirection) turns with it.
+[[nodiscard]] glm::mat3 heldReverseTurn(int slot, int hand);
+// How the local player's `hand` takes the weapon its other hand carries off its handle now (QC weapondrawnpose 47, the hand-off
+// taken back: VRTakeCarriedWeapon): as reverseGripChoice, by the carried weapon as drawn.
+[[nodiscard]] int carriedGripChoice(int hand, float& cosine);
+// Where the point of a hand taking the loose weapon `e` (a model of its own, lying at its origin and angles) reversed is (its
+// handle the other way round: the reverse grip's hand point); false: none (a weapon that may not be held reversed). The grab's
+// "at its handle" (vr_physics.cpp, updateGroundSpots) takes the nearer of it and the origin (QC weapondrawnpose 48: tests).
+[[nodiscard]] bool looseReversedHandPoint(const entity_t& e, glm::vec3& point);
+// The same for the weapon `hand` carries off its handle as drawn now (twohand's HS_CARRIED_GRIP: taken back either way).
+[[nodiscard]] bool carriedReversedHandPoint(int hand, glm::vec3& point);
+// A weapon of `slot` leaving the local player's `hand` (a drop, a throw: QC weapondrawnpose 49, 50): the angles (a view's, as the hand's
+// `handRot`) that the weapon lying about keeps the way it is drawn by (the reverse grip's turn baked in: rot Rev), and the move of
+// its origin from the hand's point (reverseShift). `handRot` and nothing for a weapon held upright.
+[[nodiscard]] glm::vec3 leavingTurn(int hand, int slot, const glm::vec3& handRot, glm::vec3& shift);
 
 // The same weapon's handle and tip in the frame of the hand that carries it as it was drawn (its position and `rot`:
 // forward, right, up), for the server to place on the hand of the move it runs (QC's melee: VR_Melee_FreeLine). False if
