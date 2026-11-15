@@ -3664,3 +3664,17 @@ the same exact rules" as enemies; an option, on by default, single player and mu
 - Results: suite 27 of 29 (mp_predict's lift landing 1.354 and mp_disarm's pouch shell: flakes away from climbing; alone
   28/0 and 35/0), mp_predictclimb 14/0, scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0, Release (ThinLTO)
   0 warnings. Next: B8j part 2 (a hold taken in the air, the grapple's pull, the hands' climb out where no ledge is).
+
+## mpN B8j part 2: a hold taken in the air predicted (agent/mp, 2026-11-15)
+
+- **The take runs in each move** (MP_PLAN "B8j results, part 2"): one function (`takeTry`, vr_climb.cpp) for single
+  player's frame and a remote client's moves on the server (`climb::moveTake`, VR_PredictPhysics) and in his replay
+  (`climb::replayTake`): the press memory on the moves' clock, the take's rules (the server's once a frame, in the
+  state: `bitTake`), findHold over a `Seeker` (the server's player, or the replay's world alone); the ledge maps are
+  built from the client's world too (`ledges::world`). `QVR_NET_VERSION` 28.
+- `mp_predictclimb --part airgrab` (new): a jump at vrclimb's ledge, taken as the hands pass the lip 13.6 units up; the
+  take's state 0.000 (it was the fall since, a round trip's), every correction 0.000 over 354 states.
+- Single player: the same take (the air grab's retry is an age summed over frames instead of a press time): climb_jump.py
+  PASS 26/30, prop_climb_test 12/0, slopes_test pass, mantle_height_test PASS.
+- Results: suite all 29 pass, scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0, Release (ThinLTO) 0
+  warnings. Not done: the grapple's pull, the hands' water climb-out (next: B8j part 3), mp_predict's lift-landing flake.

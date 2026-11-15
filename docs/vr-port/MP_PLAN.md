@@ -1679,6 +1679,46 @@ Open (B8j, the rest):
 - A hang from a brush model or prop (the holds' motion in the replay), other players in his replay (B8g's), getting up
   from lying at once (B8g's): unchanged.
 
+### B8j results, part 2: a hold taken in the air predicted (2026-11-15, dev no-LTO build, loopback; `mp_test.py suite` all 29 pass; `mp_predictclimb` 19/0; scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0, Release (ThinLTO) build 0 warnings)
+
+| Scenario | Result |
+|---|---|
+| `mp_predictclimb --part airgrab` (new) | On vrclimb B (150 ms each way) jumps at the ledge, both hands under its lip in front of the face, the grips pressed 20 ms into the jump (no hold yet: the press keeps looking in the air) and the ledge taken as the hands pass the lip, his body 13.6 units up ("pressed 14 ms before, in the air"); held, let go, falls. His replay took it at the same move (`mp_predict_take: replay`): the take's state 0.000 (`trans_max`; it was the fall since, a round trip's), every correction 0.000 over 354 states (151 in the air, 121 hanging); on the floor at rest where the server has him |
+| single player's climbs | climb_jump.py (the air grab's retry, 30 press times) PASS 26/30; prop_climb_test 12/0 twice, slopes_test all pass, mantle_height_test PASS (the same heads: 20.0-20.1 at the default) |
+
+What changed:
+
+- **The take is one function** (`takeTry`, vr_climb.cpp): a hand's press (its edge, the air grab's retry on an age kept
+  on the moves' clock: `climb::TakeMemory`), the gates (`climb::TakeRules`: climbing on, the regrab delay left, the
+  holsters that win per hotspot standing and hanging, the busy hands, too tired, the leniency radii, Lowest Ledge, the
+  hang's box and mantle rules: the server's once a frame) and the search (findHold over a `Seeker`: the server's player,
+  with the brush models, props and ladders round the hand, or a replay's body with the world alone and its own lines).
+  Single player's frame runs it as one move (`gripHand`, the same numbers: the retry's age is the frames' times summed);
+  a remote client's moves run it after each move's step on the server (`climb::moveTake` in VR_PredictPhysics: a hold on
+  the world hangs the next moves at once, one that moves stops the frame's moves for his frame's hang) and in his replay
+  (`climb::replayTake`: the grip's part of takeHold, `gripTaken`, and hangState's on the world alone).
+- **The ledge maps are the client's too** (`ledges::world()`: the server's world model, else the client's: the same BSP
+  built by the same code, so the same map and hash).
+- **The state carries the take** (bit `bitTake` while climbing is on: the press memory and the rules, 65 bytes; a
+  delta-coded record, unchanged when idle: the regrab delay is clamped at 0). Each move's take inputs ride in
+  `pmove::Input` (the controllers' own points, the throw velocities, the head, the hotspots, the buttons: the integers
+  sent, relative to the body). `QVR_NET_VERSION` 28.
+- Not the same as the server yet: what the replay's world lacks (a ledge on a brush model or prop, a monster's or another
+  player's body over a hold, AD's ladders and their off switches) and a re-press in the server frame a full let-go came
+  in (the server's climb lets go a frame later; the replay applies the regrab delay at the move): eased corrections,
+  never a desync.
+- A remote client's grip that takes a hold in his moves is hidden from QuakeC from the next frame (VR_ClimbPreThink runs
+  before his moves): its first frame's press reaches PlayerPreThink, as a press at no hold does. Single player and the
+  listen host's own client unchanged (their take is still before the QC, in VR_ClimbPreThink).
+
+Open (B8j, the rest):
+
+- The grapple's pull (AD's hook, QC: the rope in the state, the reel in the moves) and the hands' climb out of the water
+  where no ledge is (QC VR_WaterClimb_HandPull's water jump, vr_water_jump 0): not started (a session each: both are QC's
+  per-frame pulls; they need their QC halves moved into the module, as the walk's jump and drag were).
+- mp_predict's occasional lift-landing 1.354 correction: not looked at.
+- A hang from a brush model or prop, other players in his replay, getting up from lying at once: unchanged.
+
 ## Decisions
 
 - Melee's lag compensation (B8c) wraps the queries (melee's sweep, a bash's find, a headbutt's target, a guard's check
@@ -1743,4 +1783,4 @@ Open (B8j, the rest):
 - The interpolation buffer (B7b) leaves brush models and stepping monsters on NetQuake's lerp: the player's own entity
   is not delayed (no prediction until B8), and a lift he rides must stay in step with him.
 
-Next phase: B8j part 2 -- a hold taken in the air predicted (the ledge maps from the client's world, gripHold's world part in the moves; `mp_predictclimb` grown with a jump at the ledge, `trans_max` under a unit), the grapple's pull (the rope in the state, the reel in the moves) and the hands' climb out of the water where no ledge is (vr_water_jump 0); after it MP_PLAN's B11a-c unification (the B9 review's #3-#5).
+Next phase: B8j part 3 -- the grapple's pull predicted (AD's hook, QC: the rope in the state, the reel in the moves) and the hands' climb out of the water where no ledge is (QC VR_WaterClimb_HandPull, vr_water_jump 0), each with an `mp_predictclimb` part under a unit; then MP_PLAN's B11a-c unification (the B9 review's #3-#5).
