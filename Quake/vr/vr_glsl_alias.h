@@ -725,7 +725,11 @@ SPECULAR_AA_FUNCTIONS
 "		return vec3(0.);\n" \
 "	vec3 pos = RetroLightAt(in_pos + EyePos, RetroLight[5].y); /* QVR: or its retro lighting block's (vr_retrolight.h) */\n" \
 "	vec3 spos = RetroShadowAt(in_pos + EyePos, pos); /* ... where the shadows are looked up */\n" \
+"#ifdef QVR_LITE_NODLFALLOFF\n" /* the ES lite form (C4l): no DarkPlaces falloff (vr_dlight_falloff 0) */ \
+"	const bool darkplaces = false;\n" \
+"#else\n" \
 "	bool darkplaces = (ShadowFlags & 16u) != 0u;\n" \
+"#endif\n" \
 "	float unit = (ShadowFlags & 32u) != 0u ? 1.0 / 128.0 : Fog.w < 0. ? 2.0 / 200.0 : 1.0 / 200.0; // the sign of Fog.w: overbright models\n" \
 "	float angleScale = darkplaces ? 1.0 : 2.0; // LightAngle doubles the lit part (over its ambient 0.3)\n" \
 "	vec3 toEye = normalize(EyePos - pos);\n" \
@@ -751,7 +755,11 @@ SPECULAR_AA_FUNCTIONS
 "			vec3 dir = tl * inv;\n" \
 "			float lit = (darkplaces ? DarkPlacesAtten(d, l.radius) : (l.radius - d) * unit) * (1.0 - smoothstep(0.0, 1.0, l.spot.w + dot(l.spot.xyz, dir))); // SpotCone\n" \
 "			if (lit > 0. && l.shadow.z > 0.)\n" \
+"#ifdef QVR_LITE_ONEFILTER\n" /* the ES lite form (C4l): one filter's code (vr_glsl_lighting.h) */ \
+"				lit *= mix(RetroShadowQuant(DlightShadowMap(l, spos, n)), 1.0, l.shadow2.y);\n" \
+"#else\n" \
 "				lit *= mix(RetroShadowQuant(l.shadow2.x > 0. ? SpotShadow(l, spos, n) : ShadowLookup(ShadowAtlas, l.shadow.xyz, ShadowOffset(spos - l.origin, n, l.shadow.z))), 1.0, l.shadow2.y);\n" \
+"#endif\n" \
 "			if (lit <= 0.)\n" \
 "				continue;\n" \
 "			float ndl = dot(bumped, dir);\n" \
@@ -1292,6 +1300,9 @@ QVR_DENT_FUNCTIONS \
 // The ES lite form (GL_AliasLiteDefines, C4j; QUEST_PLAN.md 6q): retro lighting (vr_retrolight 0: its frame data all
 // 0, so RetroLight[5].z 0) taken out of main() as constants, as the world's QVR_WORLD_FS_LITE; after every function.
 #define QVR_ALIAS_FS_LITE \
+"#ifdef QVR_ALITE_NORETRO\n" /* -glesdefine's probe (C4l): the models' retro textures' code out (vr_retro 0) */ \
+"#define RetroBegin(a, b, c, d, e, f, g) Retro = 0\n" \
+"#endif\n" \
 "#ifdef QVR_LITE_NORETROLIGHT\n" \
 "#define RetroLightBegin(a, b, c, d, e, f)\n" \
 "#define RetroLightModel(a, b, c)\n" \

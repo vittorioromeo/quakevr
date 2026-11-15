@@ -442,6 +442,33 @@ extern "C" int VR_GLESWorldLite(void)
     {
         lite |= m.off ? m.bit : 0;
     }
+    if(vr_gl_lights_lite.value != 0.f)
+    {
+        // C4l (QUEST_PLAN.md 6s): the dynamic lights' code the settings leave unused, out of the lights' loops (the
+        // world's loop's mere presence cost ~7 ms of the Quest 3's GPU in a fight, its lights ~1): 1 << 19 the map
+        // lights' shadows of moving things (vr_shadow_maplights 0: no light carries one), 1 << 20 DarkPlaces' falloff
+        // (vr_dlight_falloff 0; the models' loop too), 1 << 21 the shadow filter's kernel as a constant (vr_shadow_filter
+        // in bits 22-23), with retro lighting off (its hard shadows pick their own), 1 << 24 the portal lights' path
+        // (vr_portals 0), 1 << 25 one shadow filter's code for spot and point lights: gl_shaders.c GL_LightsLiteDefines.
+        if(vr_shadow_maplights.value <= 0.f)
+        {
+            lite |= 1 << 19;
+        }
+        if(vr_dlight_falloff.value == 0.f)
+        {
+            lite |= 1 << 20;
+        }
+        if(vr_portals.value <= 0.f || vr_teleporters.value <= 0.f)
+        {
+            lite |= 1 << 24; // the portal lights' path (vr_portals.cpp lightGates makes none): ~3.7 ms in the fight
+        }
+        lite |= 1 << 25; // a spot's and a point light's shadow map read by one filter's code (the same picture): ~2.5 ms
+        if(lite & 32)
+        {
+            const int filter = static_cast<int>(vr_shadow_filter.value);
+            lite |= (1 << 21) | ((filter < 0 ? 0 : filter > 3 ? 3 : filter) << 22);
+        }
+    }
     return lite;
 }
 

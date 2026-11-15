@@ -922,7 +922,30 @@ static const char *const gl_world_lite_names[8] = // QVR: VR_GLESWorldLite's bit
 	"; QVR_LITE_NOPARALLAX 1", "; QVR_LITE_NOCARVE 1", "; QVR_LITE_NOBUMP 1", "; QVR_LITE_NOAO 1",
 	"; QVR_LITE_NOCAUSTICS 1", "; QVR_LITE_NORETROLIGHT 1", "; QVR_LITE_NORETRO 1", "; QVR_LITE_NODETAIL 1",
 };
-static char gl_world_lite_defines[256]; // the defines of gl_world_lite's bits (GL_WorldLiteDefines)
+static char gl_world_lite_defines[320]; // the defines of gl_world_lite's bits (GL_WorldLiteDefines)
+
+/*
+=============
+GL_LightsLiteDefines -- QVR
+
+The lights' loops' lite form (C4l; QUEST_PLAN.md 6s: VR_GLESWorldLite's bits 19-23, vr_gl_lights_lite) appended to
+`out`: no map lights' shadows (the world's only: the models' loop skips those lights), no DarkPlaces falloff, the shadow
+filter's kernel as a constant, no portal lights (the world's only), one filter's code for spot and point lights.
+=============
+*/
+static void GL_LightsLiteDefines (char *out, size_t size, qboolean world)
+{
+	if (world && (gl_world_lite & (1 << 19)))
+		q_strlcat (out, "; QVR_LITE_NOMAPSHADOW 1", size);
+	if (gl_world_lite & (1 << 20))
+		q_strlcat (out, "; QVR_LITE_NODLFALLOFF 1", size);
+	if (gl_world_lite & (1 << 21))
+		q_strlcat (out, va ("; QVR_LITE_SHADOWFILT %d", (gl_world_lite >> 22) & 3), size);
+	if (world && (gl_world_lite & (1 << 24)))
+		q_strlcat (out, "; QVR_LITE_NOPORTALLIGHT 1", size);
+	if (gl_world_lite & (1 << 25))
+		q_strlcat (out, "; QVR_LITE_ONEFILTER 1", size);
+}
 
 static const char *GL_WorldLiteDefines (void)
 {
@@ -931,10 +954,11 @@ static const char *GL_WorldLiteDefines (void)
 	for (i = 0; i < (int)countof (gl_world_lite_names); i++)
 		if (gl_world_lite & (1 << i))
 			q_strlcat (gl_world_lite_defines, gl_world_lite_names[i], sizeof (gl_world_lite_defines));
+	GL_LightsLiteDefines (gl_world_lite_defines, sizeof (gl_world_lite_defines), true);
 	return gl_world_lite_defines;
 }
 
-static char gl_alias_lite_defines[64]; // the models' share of them (GL_AliasLiteDefines)
+static char gl_alias_lite_defines[128]; // the models' share of them (GL_AliasLiteDefines)
 
 /*
 =============
@@ -955,6 +979,7 @@ static const char *GL_AliasLiteDefines (void)
 		q_strlcat (gl_alias_lite_defines, gl_world_lite_names[0], sizeof (gl_alias_lite_defines));
 	if (gl_world_lite & 32)
 		q_strlcat (gl_alias_lite_defines, gl_world_lite_names[5], sizeof (gl_alias_lite_defines));
+	GL_LightsLiteDefines (gl_alias_lite_defines, sizeof (gl_alias_lite_defines), false);
 	return gl_alias_lite_defines;
 }
 
