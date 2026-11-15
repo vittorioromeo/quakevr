@@ -57,7 +57,30 @@ VR_CXXFLAGS += -I$(RECAST_DIR)/Recast/Include -I$(RECAST_DIR)/Detour/Include
 RECAST_CXXFLAGS = $(filter-out -std=% -O% -g -W%,$(CFLAGS)) -O2 -DNDEBUG -w -fno-exceptions \
 	-I$(RECAST_DIR)/Recast/Include -I$(RECAST_DIR)/Detour/Include
 
-QVR_CLEAN = vr/*.o vr/*.d $(ZANCLEOBJS) $(ZANCLEOBJS:%.o=%.d) $(RECASTOBJS) $(RECASTOBJS:%.o=%.d)
+# Opus and RNNoise (vr/external/opus/README.md, vr/external/rnnoise/README.md): voice chat's codec (float, no DNN, no
+# SIMD) and noise suppressor (its built-in model), plain C, always optimised (-O2 -DNDEBUG); warnings off (vendored code).
+OPUS_DIR = vr/external/opus
+RNNOISE_DIR = vr/external/rnnoise
+VOICEOBJS := $(patsubst %.c,%.o,$(wildcard $(OPUS_DIR)/src/*.c $(OPUS_DIR)/celt/*.c $(OPUS_DIR)/silk/*.c \
+	$(OPUS_DIR)/silk/float/*.c $(RNNOISE_DIR)/src/*.c))
+OBJS += $(VOICEOBJS)
+OBJDEPS += $(VOICEOBJS:%.o=%.d)
+VR_CXXFLAGS += -I$(OPUS_DIR)/include -I$(RNNOISE_DIR)/include
+OPUS_CFLAGS = $(filter-out -std=% -O% -g -W%,$(CFLAGS)) -O2 -DNDEBUG -w -DOPUS_BUILD -DUSE_ALLOCA -DHAVE_ALLOCA_H \
+	-DHAVE_LRINT -DHAVE_LRINTF -I$(OPUS_DIR)/include -I$(OPUS_DIR)/src -I$(OPUS_DIR)/celt -I$(OPUS_DIR)/silk \
+	-I$(OPUS_DIR)/silk/float
+RNNOISE_CFLAGS = $(filter-out -std=% -O% -g -W%,$(CFLAGS)) -O2 -DNDEBUG -w -I$(RNNOISE_DIR)/include -I$(RNNOISE_DIR)/src
+
+QVR_CLEAN = vr/*.o vr/*.d $(ZANCLEOBJS) $(ZANCLEOBJS:%.o=%.d) $(RECASTOBJS) $(RECASTOBJS:%.o=%.d) $(VOICEOBJS) \
+	$(VOICEOBJS:%.o=%.d)
+
+$(OPUS_DIR)/%.o:	$(OPUS_DIR)/%.c $(MAKEFILE)
+	@echo "Compiling $<" && \
+	$(CC) -c $(OPUS_CFLAGS) -MMD -MP -o $@ $<
+
+$(RNNOISE_DIR)/%.o:	$(RNNOISE_DIR)/%.c $(MAKEFILE)
+	@echo "Compiling $<" && \
+	$(CC) -c $(RNNOISE_CFLAGS) -MMD -MP -o $@ $<
 
 $(RECAST_DIR)/%.o:	$(RECAST_DIR)/%.cpp $(MAKEFILE)
 	@echo "Compiling $<" && \

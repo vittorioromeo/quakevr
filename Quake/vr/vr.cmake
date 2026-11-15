@@ -176,6 +176,38 @@ else()
 endif()
 target_link_libraries(ironwail PRIVATE qvr_recast)
 
+# Opus and RNNoise (external/opus/README.md, external/rnnoise/README.md): voice chat's codec (float, no DNN, no SIMD)
+# and noise suppressor (its built-in model, plain C), static libraries always optimised (NDEBUG), Debug too; warnings off
+# (vendored code). Plain C on every platform: the same objects on x64 and the Quest's arm64.
+set(QVR_OPUS_DIR "${CMAKE_CURRENT_LIST_DIR}/external/opus")
+file(GLOB QVR_OPUS_SRC CONFIGURE_DEPENDS "${QVR_OPUS_DIR}/src/*.c" "${QVR_OPUS_DIR}/celt/*.c" "${QVR_OPUS_DIR}/silk/*.c"
+	"${QVR_OPUS_DIR}/silk/float/*.c")
+add_library(qvr_opus STATIC ${QVR_OPUS_SRC})
+target_include_directories(qvr_opus PUBLIC "${QVR_OPUS_DIR}/include")
+target_include_directories(qvr_opus PRIVATE "${QVR_OPUS_DIR}/src" "${QVR_OPUS_DIR}/celt" "${QVR_OPUS_DIR}/silk"
+	"${QVR_OPUS_DIR}/silk/float")
+target_compile_definitions(qvr_opus PRIVATE NDEBUG OPUS_BUILD USE_ALLOCA HAVE_LRINT HAVE_LRINTF)
+if (NOT WIN32)
+	target_compile_definitions(qvr_opus PRIVATE HAVE_ALLOCA_H)
+endif()
+set(QVR_RNNOISE_DIR "${CMAKE_CURRENT_LIST_DIR}/external/rnnoise")
+file(GLOB QVR_RNNOISE_SRC CONFIGURE_DEPENDS "${QVR_RNNOISE_DIR}/src/*.c")
+add_library(qvr_rnnoise STATIC ${QVR_RNNOISE_SRC})
+target_include_directories(qvr_rnnoise PUBLIC "${QVR_RNNOISE_DIR}/include")
+target_include_directories(qvr_rnnoise PRIVATE "${QVR_RNNOISE_DIR}/src")
+target_compile_definitions(qvr_rnnoise PRIVATE NDEBUG)
+foreach(lib qvr_opus qvr_rnnoise)
+	if (MSVC)
+		target_compile_options(${lib} PRIVATE /O2 /Ob2 /RTC- /w)
+	else()
+		target_compile_options(${lib} PRIVATE -O2 -w)
+	endif()
+	if (NOT WIN32)
+		target_link_libraries(${lib} PUBLIC m)
+	endif()
+endforeach()
+target_link_libraries(ironwail PRIVATE qvr_opus qvr_rnnoise)
+
 # Zancle (external/zancle/README.md): the modules the Quake VR code uses, a static library with its own settings: C++23;
 # optimised and without Zancle's asserts (NDEBUG) in Release; in Debug by QVR_ZANCLE_DEBUG: ON, built as the engine's
 # Debug with its asserts on (a failure calls vr_zancle.cpp's handler, installed by za::setAssertHandler, as in the
