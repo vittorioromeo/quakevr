@@ -349,6 +349,43 @@ void PF_weapondrawnpose()
         progs::returnVec({flip, local && view::heldMayReverse(hand) ? 1.f : 0.f, local && view::heldGripFlippable(hand) ? 1.f : 0.f});
         return;
     }
+    if(what == 47)
+    {
+        // weapondrawnpose(player, hand, 47): the flip grip (ROUND25.md "flipgrip"): how this listen server's own `hand` takes the
+        // weapon its other hand carries off its handle now (QC VRTakeCarriedWeapon), as 43 (view::carriedGripChoice).
+        float cosine = 1.f;
+        const int choice = sv.active && cls.state == ca_connected ? view::carriedGripChoice(hand, cosine) : -1;
+        progs::returnVec({choice > 0 ? 1.f : 0.f, choice >= 0 ? 1.f : 0.f, cosine});
+        return;
+    }
+    if(what == 48)
+    {
+        // weapondrawnpose(w, hand, 48): where the point of a hand taking the loose weapon `w` reversed is (tests; the grabs' handle:
+        // view::looseReversedHandPoint); '0 0 0' none.
+        const int index = static_cast<int>(player->v.modelindex);
+        entity_t ent{};
+        ent.model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+        VectorCopy(player->v.origin, ent.origin);
+        VectorCopy(player->v.angles, ent.angles);
+        glm::vec3 point{0.f};
+        progs::returnVec(view::looseReversedHandPoint(ent, point) ? point : glm::vec3{0.f});
+        return;
+    }
+    if(what == 49 || what == 50)
+    {
+        // weapondrawnpose(player, hand, 49 / 50): this listen server's own `hand`'s weapon leaving it (a drop, a throw: QC
+        // DropWeaponInHandScaled), held reversed as drawn: 49 the angles it is let go of at (the hand's, the reverse grip's turn
+        // baked in: the prop keeps the way it was held), 50 its origin's move from the hand's point; the hand's angles and
+        // '0 0 0' upright, or not the local player's (view::leavingTurn).
+        const FieldOffsets& f = fields();
+        const int rotField = hand ? f.handrot : f.offhandrot;
+        const glm::vec3 handRot = rotField >= 0 ? progs::fieldVec(player, rotField) : glm::vec3{0.f};
+        glm::vec3 shift{0.f};
+        const bool local = sv.active && cls.state == ca_connected && NUM_FOR_EDICT(player) == 1;
+        const glm::vec3 rot = local ? view::leavingTurn(hand, weapons::heldSlot(hand), handRot, shift) : handRot;
+        progs::returnVec(what == 49 ? rot : shift);
+        return;
+    }
     if(what == 40)
     {
         // weapondrawnpose(player, hand, 40): this listen server's own `hand` (QC's) as drawn against the models

@@ -1010,6 +1010,8 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"carrypouch", PF_carrypouch},
     {"carryfrontpouch", PF_carryfrontpouch},
     {"carryfit", PF_carryfit},
+    {"skewerhold", PF_skewerhold},
+    {"skewerplace", PF_skewerplace},
     {"carry2h", PF_carry2h},
     {"carrybody", PF_carrybody},
     {"carryreach", PF_carryreach},

@@ -799,7 +799,8 @@ int view::reverseGripChoice(const entity_t& e, int hand, float& cosine)
     {
         return -1;
     }
-    return reverseGripChoiceAt(e, hand, hands::current().visualRot[hand], vr_revgrip.value != 0.f && !flatplay::active(), cosine);
+    // (The hand's own turn, not its drawn one: an empty hand on the other hand's carried weapon is drawn on it.)
+    return reverseGripChoiceAt(e, hand, hands::current().rot[hand], vr_revgrip.value != 0.f && !flatplay::active(), cosine);
 }
 
 int view::reverseGripChoiceAt(const entity_t& e, int hand, const glm::vec3& handRot, bool mayReverse, float& cosine)
@@ -845,6 +846,55 @@ bool view::heldWeaponAxes(int hand, glm::vec3& forward, glm::vec3& up, float& fl
     up = glm::normalize(glm::vec3{m[2]});
     flip = gripFlip(hand);
     return true;
+}
+
+glm::mat3 view::heldReverseTurn(int slot, int hand)
+{
+    return hand >= 0 && hand <= 1 ? reverseTurn(slot, hand == HAND_OFF, drawnFlip(hand)) : glm::mat3{1.f};
+}
+
+int view::carriedGripChoice(int hand, float& cosine)
+{
+    cosine = 1.f;
+    const int other = 1 - hand;
+    if(hand < 0 || hand > 1 || !weaponCarried[other] || !entities.weapon[other].visible)
+    {
+        return -1;
+    }
+    return reverseGripChoice(entities.weapon[other].ent, hand, cosine);
+}
+
+bool view::looseReversedHandPoint(const entity_t& e, glm::vec3& point)
+{
+    const int slot = e.model && e.model->type == mod_alias ? weapons::slotForModel(e.model) : -1;
+    return slot >= 0 && reversedHandPoint(e.model, slot, false, glm::vec3{e.origin[0], e.origin[1], e.origin[2]},
+                                    glm::vec3{-e.angles[0], e.angles[1], e.angles[2]}, point);
+}
+
+bool view::carriedReversedHandPoint(int hand, glm::vec3& point)
+{
+    if(hand < 0 || hand > 1 || !weaponCarried[hand] || !entities.weapon[hand].visible || !entities.weapon[hand].ent.model)
+    {
+        return false;
+    }
+    const entity_t& e = entities.weapon[hand].ent;
+    const int slot = weapons::slotForModel(e.model);
+    const bool mirrored = drawnAs[hand].mirrored;
+    return slot >= 0 && reversedHandPoint(e.model, slot, mirrored, glm::vec3{e.origin[0], e.origin[1], e.origin[2]},
+                                    handTurnOfWeapon(glm::vec3{-e.angles[0], e.angles[1], e.angles[2]}, slot, mirrored), point);
+}
+
+glm::vec3 view::leavingTurn(int hand, int slot, const glm::vec3& handRot, glm::vec3& shift)
+{
+    const float flip = slot >= 0 ? drawnFlip(hand) : 0.f;
+    shift = glm::vec3{0.f};
+    if(flip <= 0.f)
+    {
+        return handRot;
+    }
+    const bool mirrored = hand == HAND_OFF;
+    shift = reverseShift(slot, mirrored, flip, handRot);
+    return uprightTurnOf(handRot, slot, mirrored, flip);
 }
 
 bool view::heldWeaponLine(int hand, glm::vec3& handle, glm::vec3& tip)

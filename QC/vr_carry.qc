@@ -692,6 +692,7 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Nudge =
 // Holding
 
 float vr_carry_quiet; // set round VR_Carry_Start: no pickup sound (a wall torch pulled out played its own: vr_walltorch.qc)
+float vr_carry_asheld; // set round VR_Carry_Start: taken where it is, the hand on its surface (no fit to the fist: VR_Skewer_Take)
 
 // A hand closing on the prop `e` (VR_Carry_Start): what it is made of, as the physics sounds class it (vr_physsound.cpp
 // materialOf) -- a crate or a piece of one wood, a rock or a brick stone, an explosive box metal: the climbing hand's
@@ -733,13 +734,14 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_FitToHand =
     // otherwise (any part of it can be taken).
     float rightHand = xHand == cVR_MainHand; // (the right controller, left-handed too)
     vector palm = rightHand ? v_right * -1 : v_right;
-    vector d = xBox.origin + carryfit(xBox, handPos, palm) - handPos;
+    // (Taken as held, vr_carry_asheld: the hand already on its drawn surface, as a gib pulled off a blade; neither fit moves it.)
+    vector d = xBox.origin + (vr_carry_asheld ? '0 0 0' : carryfit(xBox, handPos, palm)) - handPos;
     xBox.carry_offset_x = d * v_forward;
     xBox.carry_offset_y = d * v_right;
     xBox.carry_offset_z = d * v_up;
     // Its place and turn in the hand by its Held Object Offsets' grip (where taken: as above; fixed; in the palm; along
     // the handle; and the offset on top): the engine keeps them from here, and places it again when they change.
-    xBox.carry_offset = carrygrip(xBox, xPlayer, xHand, !rightHand, handRot, xBox.carry_offset);
+    xBox.carry_offset = carrygrip(xBox, xPlayer, xHand, !rightHand, handRot, xBox.carry_offset, vr_carry_asheld);
     xBox.carry_trigger = VRGetEntFireButtonPressed(xPlayer, xHand);
     if(cvar_hget(cvarh_developer))
     {

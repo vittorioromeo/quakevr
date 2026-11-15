@@ -1,6 +1,6 @@
 """Actual e1m1 secret doors/Quad trigger: tracked fists and a shotgun; enemy blood controls.
 Run after building: python Misc/quakevr/secret_hits_test.py <worktree-name>
-The kit's quakevr junction keeps all test saves inside that worktree.
+Its saves land in the run's game folder: the worktree's quakevr in lane 0, the lane's own copy in a lane (QVR_LANE).
 """
 import os
 from pathlib import Path
@@ -14,6 +14,9 @@ tree = Path(f"C:/OHWorkspace/qvr-agents/{name}")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import qvrtest  # noqa: E402  (the tests' library: Misc/quakevr/qvrtest.py)
 kit = qvrtest.KIT
+# (The game folder of this run's lane: lane 0's quakevr is the worktree's, a lane's (QVR_LANE) is its own copy, where
+# its saves and console log land.)
+game = Path(qvrtest.game_dir(name))
 steps = ["vr_enabled 1", "vr_fixed_frames 1", "developer 1", "vr_weapon_grip_mode 1",
          "vr_gunangle 0", "vr_gunyaw 0", "vr_handcal_x 0", "vr_handcal_y 0", "vr_handcal_z 0",
          "vr_handcal_roll 0", "vr_handcal_off_mirror 0", "vr_handcal_off_x 0", "vr_handcal_off_y 0",
@@ -60,14 +63,14 @@ if '--check' not in sys.argv:
     if result.returncode:
         print(result.stderr)
         raise SystemExit(result.returncode)
-    log = Path(f"{kit}/bases/{name}/" + ("qbase" + (".lane" + os.environ["QVR_LANE"] if os.environ.get("QVR_LANE") else "")) + "/qconsole.log").read_text(errors="replace")
+    log = (game / "qconsole.log").read_text(errors="replace")
     (tree / "scratch").mkdir(exist_ok=True); (tree / "scratch" / "secretfx-test.log").write_text(log)  # (scratch: git-ignored)
 else:
     log = (tree / 'scratch' / 'secretfx-test.log').read_text()
 assert "SECRET_HITS_DONE" in log, "test did not finish"
 
 def snapshot(case, stage):
-    text = (tree / "quakevr" / f"secretfx-{case}-{stage}.sav").read_text()
+    text = (game / "quakevr" / f"secretfx-{case}-{stage}.sav").read_text()
     return [dict(re.findall(r'"([^\"]+)"\s+"([^\"]*)"', block))
             for block in re.findall(r"\{([^}]*)\}", text)]
 

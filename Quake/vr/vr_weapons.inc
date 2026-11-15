@@ -538,6 +538,15 @@ QVR_WEAPON_KEY(RevYaw, "rev_yaw")
 QVR_WEAPON_KEY(RevRoll, "rev_roll")
 QVR_WEAPON_KEY(RevThumbTop, "rev_thumb_top")
 QVR_WEAPON_KEY(RevThumbBias, "rev_thumb_bias")
+// The flip grip (ROUND25.md, "flipgrip"): held reversed, the second hand on a grip hotspot holds it as on the upright weapon, turned
+// with it (the same hotspot); this moves (units, as the hotspot's Held Hand X/Y/Z) and turns (degrees, its Pitch/Yaw/Roll) that
+// hand as drawn on top, only while reversed. New keys: no migration.
+QVR_WEAPON_KEY(RevHelpX, "rev_2h_vx")
+QVR_WEAPON_KEY(RevHelpY, "rev_2h_vy")
+QVR_WEAPON_KEY(RevHelpZ, "rev_2h_vz")
+QVR_WEAPON_KEY(RevHelpPitch, "rev_2h_vpitch")
+QVR_WEAPON_KEY(RevHelpYaw, "rev_2h_vyaw")
+QVR_WEAPON_KEY(RevHelpRoll, "rev_2h_vroll")
 // Flat-screen aim (the right mouse button, vr_flatsight.cpp; ROUND25.md, "flat1115b"). fsight_mode: 0 the ironsight (the
 // gun brought onto its sight line, the crosshair faded out), 1 zoom (the ironsight's narrowing of the view alone: the gun
 // stays in its pose and the crosshair stays). Zoom for the guns with no sights of their own to look down (weapons.txt:

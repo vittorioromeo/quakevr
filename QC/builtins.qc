@@ -299,6 +299,8 @@ vector(float kind, float which) admeleehead = #0;
 float(entity player) magholsterpoll = #0;
 vector(entity player, float slot) holsterpos = #0;
 vector(entity e, vector handpos, vector palm) carryfit = #0; // at the grip: how far to move it (the way the palm faces) to sit against the palm, not in the fist (vr_held_surface_fit)
+vector(entity g, vector at, vector handangles, float what) skewerhold = #0; // a hold on a skewered gib in its frame: what 0 the point `at`, 1 the hand's turn (angles)
+vector(entity g, vector handpos, vector handangles, vector at, vector turn) skewerplace = #0; // the gib turned (angles set) and its origin returned so the hand holds it as skewerhold had it
 vector(entity e, entity player, float grab) carry2h = #0; // held in both hands: at the second grip (grab 1) the grips are kept; after, where it goes (its angles are set)
 void(vector at, float damage) physicsblast = #0; // an explosion throws the rigid bodies round it (Box3D's)
 // Held Object Offsets (vr_props.inc, by the prop's model): a setting ("mass": kg, the setting else Box3D's; "throw": the
@@ -313,7 +315,7 @@ vector(entity e, vector handangles, float lefthand) propgrip = #0;
 // `offset` in the hand (forward, right, up: where it was taken): its turn in the hand set (its angles now) and its origin's
 // place returned (.carry_offset). carryplace: each frame it is held in one hand, its angles set (turning with the hand)
 // and its place in the hand returned (`offset` is .carry_offset; placed again at once when its settings change).
-vector(entity e, entity player, float hand, float lefthand, vector handangles, vector offset) carrygrip = #0;
+vector(entity e, entity player, float hand, float lefthand, vector handangles, vector offset, float asheld) carrygrip = #0; // asheld 1: no grip fit (the hand already on its drawn surface)
 vector(entity e, vector handangles, vector offset) carryplace = #0;
 // Keep a solid carried prop outside its carrier's torso, sweeping from its current pose.
 // trace_allsolid: trapped between torso and level, release it.

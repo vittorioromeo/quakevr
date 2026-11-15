@@ -1030,6 +1030,16 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xVelScale
     // Carried off its handle (the hand-off, a hotspot, anywhere: QVR_WPNFLAG_FOREGRIP_CARRIED): it leaves from where it
     // is drawn, not as if held by its handle (the local player's view knows; else from the hand).
     vector throwRot = VRGetHandRot(xHand);
+    if((xWeaponFlags & QVR_WPNFLAG_REVGRIP) && !(xWeaponFlags & QVR_WPNFLAG_FOREGRIP_CARRIED))
+    {
+        // Held reversed (blade down): it leaves the hand the way it was drawn, the reverse grip's turn and move baked into its
+        // angles and place (the flip grip, his notes 2026-11-14: dropped it lay flipped, thrown it flew the wrong way round).
+        vector revAt = origin + weapondrawnpose(ent, xHand, 50);
+        traceline(origin, revAt, TRUE, ent); // never inside a wall
+        origin = trace_endpos;
+        throwRot = weapondrawnpose(ent, xHand, 49);
+        dprint(sprintf("thrown: held reversed, angles %v (the hand's %v)\n", throwRot, VRGetHandRot(xHand)));
+    }
     if((xWeaponFlags & QVR_WPNFLAG_FOREGRIP_CARRIED) && weapondrawnpose(ent, xHand, 2) != '0 0 0')
     {
         vector carriedAt = origin + (weapondrawnpose(ent, xHand, 0) - handNow);
@@ -1410,8 +1420,10 @@ void(entity ent, float xHand) VRTakeCarriedWeapon =
     float other = VRGetOtherHand(xHand);
     float flags = VRGetEntWeaponFlags(ent, other);
 
+    // (A sword or dagger: upright or reversed by its blade's way in the hand taking it back: the flip grip, vr_revgrip.qc.)
+    flags = VR_RevGrip_TakeCarried(ent, xHand, flags - (flags & QVR_WPNFLAG_FOREGRIP_CARRIED));
     VRPassEntWeapon(ent, xHand, VRGetEntWeapon(ent, other));
-    VRSetEntWeaponFlags(ent, xHand, flags - (flags & QVR_WPNFLAG_FOREGRIP_CARRIED));
+    VRSetEntWeaponFlags(ent, xHand, flags);
     VRMoveEntWeaponInst(ent, other, xHand); // (its magazine, its id)
     VRSetHandEmpty(ent, other);
     W_SetCurrentAmmo();

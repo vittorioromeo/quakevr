@@ -693,11 +693,12 @@ void PF_carryangles()
 // `hand` (cVR_MainHand or cVR_OffHand; lefthand: the left one) at `handangles` takes `e`, whose origin is at `offset` in
 // the hand (forward, right, up: where it was taken, as .carry_offset): its place in the hand by its Held Object Offsets'
 // grip (vr_grip.hpp): its turn with the hand kept (its angles set now) and its origin's place returned (.carry_offset).
+// asheld (optional) 1: no grip fit, the hand already on its drawn surface (vr_skewer.qc VR_Skewer_Take).
 void PF_carrygrip()
 {
     const float* o = G_VECTOR(OFS_PARM5);
     const glm::vec3 v = grip::serverTake(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1), static_cast<int>(G_FLOAT(OFS_PARM2)),
-        G_FLOAT(OFS_PARM3) != 0.f, G_VECTOR(OFS_PARM4), geom::vec(o));
+        G_FLOAT(OFS_PARM3) != 0.f, G_VECTOR(OFS_PARM4), geom::vec(o), qcvm->argc < 7 || G_FLOAT(OFS_PARM6) == 0.f);
     float* out = G_VECTOR(OFS_RETURN);
     out[0] = v.x;
     out[1] = v.y;
@@ -753,6 +754,40 @@ void PF_carryfit()
     out[0] = v.x;
     out[1] = v.y;
     out[2] = v.z;
+}
+
+// vector(entity g, vector at, vector handangles, float what) skewerhold: a hand's hold on a gib skewered on a blade, in the gib's
+// own frame (vr_skewer.qc VR_Skewer_Grip): `what` 0, the point `at` (from its origin, along its axes); 1, the hand's turn
+// there, as a view's angles (held::anglesFromAxes). What VR_Skewer_Take carries into the hand (skewerplace).
+void PF_skewerhold()
+{
+    const edict_t* g = G_EDICT(OFS_PARM0);
+    const glm::mat3 axes = held::axesFromAngles(g->v.angles, false); // (gibs, heads and limbs: alias models)
+    float* out = G_VECTOR(OFS_RETURN);
+    if(G_FLOAT(OFS_PARM3) == 0.f)
+    {
+        const glm::vec3 v = glm::transpose(axes) * (geom::vec(G_VECTOR(OFS_PARM1)) - geom::vec(g->v.origin));
+        out[0] = v.x;
+        out[1] = v.y;
+        out[2] = v.z;
+        return;
+    }
+    held::anglesFromAxes(glm::transpose(axes) * held::axesFromAngles(G_VECTOR(OFS_PARM2), true), out, true);
+}
+
+// vector(entity g, vector handpos, vector handangles, vector at, vector turn) skewerplace: the gib turned and placed so that a
+// hand at `handpos`, `handangles` holds it as skewerhold had the hold (`at`, `turn`): its angles set now, its new origin
+// returned (VR_Skewer_Take: the hand stays on its surface where it took hold, his note 2026-11-15 00:03).
+void PF_skewerplace()
+{
+    edict_t* g = G_EDICT(OFS_PARM0);
+    const glm::mat3 hand = held::axesFromAngles(G_VECTOR(OFS_PARM2), true);
+    held::anglesFromAxes(hand * glm::transpose(held::axesFromAngles(G_VECTOR(OFS_PARM4), true)), g->v.angles, false);
+    const glm::vec3 o = geom::vec(G_VECTOR(OFS_PARM1)) - held::axesFromAngles(g->v.angles, false) * geom::vec(G_VECTOR(OFS_PARM3));
+    float* out = G_VECTOR(OFS_RETURN);
+    out[0] = o.x;
+    out[1] = o.y;
+    out[2] = o.z;
 }
 
 // vector(entity e, entity player, float grab) carry2h: a prop held in both hands (vr_carry2h.cpp): at the second

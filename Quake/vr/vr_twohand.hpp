@@ -102,7 +102,9 @@ struct HeldAs
 // it is carried at.)
 void recordHelp(const hands::State& s, int hand, const glm::vec3& drawnPos, const glm::vec3& drawnRot,
     const glm::vec3& holderPos, const glm::vec3& holderRot, bool holderMirrored);
-void setCarriedHandle(int hand, const glm::vec3& pos);
+// `reversed`: a sword or dagger's other handle point, a hand holding it reversed (the flip grip: view::carriedReversedHandPoint):
+// taken back there too.
+void setCarriedHandle(int hand, const glm::vec3& pos, const glm::vec3* reversed = nullptr);
 
 // After the hotspots: the empty hand at the handle of the gun the other hand carries is at
 // HS_CARRIED_GRIP (grabbing there takes the gun back); one on the other gun's magazine (hands::State::onMagazine) at

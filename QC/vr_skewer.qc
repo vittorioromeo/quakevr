@@ -48,7 +48,9 @@
 .float  vr_skewer_cut;     // TRUE: on the edge at its cut
 .float  vr_skewer_cutt;    // when it went on
 .vector vr_skewer_gripv;   // the other hand's hold, in the blade hand's frame from it
-.vector vr_skewer_gripd;   // and from its middle, on its surface (world): where the hand has it once taken off (VR_Skewer_Take)
+.vector vr_skewer_gripd;   // and from its middle, on its surface (world), as it took hold: where the engine draws the hand
+.vector vr_skewer_gripl;   // that hold in the gib's own frame (skewerhold) ...
+.vector vr_skewer_gript;   // ... and the hand's turn there: how the hand has it once taken off (VR_Skewer_Take)
 .float  vr_skewer_peak;    // its fastest own speed lately (m/s) ...
 .vector vr_skewer_peakv;   // ... that move (units/s) ...
 .float  vr_skewer_peakt;   // ... and when
@@ -293,12 +295,20 @@ void(entity g, entity p, float xHand) VR_Skewer_Take =
 {
     // Into the hand where it held it (his note 2026-11-08 17:08: the hand had torn it off yards from it and held it there, a gap):
     // the gib comes to the hand, the hand on its surface where it took hold.
-    if(g.vr_skewer_grip == xHand + 1 && g.vr_skewer_gripd != '0 0 0')
+    // Held as it was held on the blade (his note 2026-11-15 00:03: pulled off, the drawn hand was off the gib, which seemed to float;
+    // the world offset of the grip, taken as it took hold, missed the gib's turns with the blade since, 4.5 cm and 28 degrees in
+    // vr_embed_test 34): the gib turned and placed so that the hand has it at its hold in its own frame (skewerhold, as the engine's
+    // pin drew the hand), the hand's turn on it as then. Taken so (vr_carry_asheld): neither the fit to the fist nor the grip fit
+    // moves it again (the grip fit's hulls, wider than a gib as drawn, pushed it 2 units off the hand: it floated).
+    float asHeld = g.vr_skewer_grip == xHand + 1 && g.vr_skewer_gripd != '0 0 0';
+    if(asHeld)
     {
-        setorigin(g, g.origin + (VRGetEntHandPos(p, xHand) - g.vr_skewer_gripd - g.vr_skewer_c));
+        setorigin(g, skewerplace(g, VRGetEntHandPos(p, xHand), VRGetEntHandRot(p, xHand), g.vr_skewer_gripl, g.vr_skewer_gript));
     }
     VR_Skewer_Clear(g);
+    vr_carry_asheld = asHeld;
     VR_Carry_Start(p, xHand, g);
+    vr_carry_asheld = FALSE;
     dprint(sprintf("skewer: %s taken by hand %g\n", g.classname, xHand));
 };
 
@@ -444,6 +454,10 @@ float(entity g) VR_Skewer_Grip =
             makevectors(VRGetEntHandRot(p, h));
             vector palmWay = h == cVR_MainHand ? v_right * -1 : v_right;
             g.vr_skewer_gripd = VRGetEntHandPos(p, h) - carryfit(g, VRGetEntHandPos(p, h), palmWay) - g.vr_skewer_c;
+            // The same hold in its own frame, as the engine's pin keeps the drawn hand on it while it turns with the blade: carried
+            // into the hand when it comes off (VR_Skewer_Take).
+            g.vr_skewer_gripl = skewerhold(g, g.vr_skewer_c + g.vr_skewer_gripd, VRGetEntHandRot(p, h), 0);
+            g.vr_skewer_gript = skewerhold(g, '0 0 0', VRGetEntHandRot(p, h), 1);
             if(g.vr_skewer_cut)
             {
                 VR_Skewer_Basis(g);

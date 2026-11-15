@@ -338,7 +338,8 @@ void noteThrows()
         {
             continue;
         }
-        world->slots[num].flight = true; // (its spin aligns in the air: spinAlign)
+        world->slots[num].flight = true; // (its spin aligns in the air: spinAlign; a point steadies: pointAlign)
+        world->slots[num].flightAge = 0.f;
         if(grace <= 0.f && !debug)
         {
             continue;
