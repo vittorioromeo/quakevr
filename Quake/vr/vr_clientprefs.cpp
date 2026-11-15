@@ -40,7 +40,9 @@ constexpr const char* prefNames[] = {
     "vr_flat_autoreload", "vr_flat_reload_hold", "vr_flat_grenade_arm_mode", "vr_flat_holster_drop_ahead",
     "vr_flat_holsters", "vr_flat_saw_autostart",
     // the reverse grip (B3f: the server's choice for him at a grab, vr_heldpose.cpp reverseGrip)
-    "vr_revgrip"};
+    "vr_revgrip",
+    // his link: the most the server sends him a second (B12, vr_netsnap.cpp)
+    "vr_net_rate"};
 constexpr int prefCount = static_cast<int>(sizeof(prefNames) / sizeof(prefNames[0]));
 constexpr int prefsCommandVersion = 1; // "vr_prefs <version> <count> <values>": another version's or count's is ignored
 

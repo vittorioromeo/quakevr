@@ -2,6 +2,7 @@
 // MP_PLAN.md, B7b).
 
 #include "vr_netsnap.hpp"
+#include "vr_clientprefs.hpp"
 #include "vr_netmove.hpp"
 #include "vr_mpavatar.hpp"
 #include "vr_engine.hpp"
@@ -179,93 +180,159 @@ void addFrom(Snapshot& to, const Snapshot& from, const Record& r)
 
 } // namespace
 
-int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budget, Snapshot& sent)
+namespace
+{
+
+// encode's first pass: each record that differs from the base's (in key order), its op and its size (without its head)
+struct Entry
+{
+    za::I32 key{0}, op{0}, size{0}, ci{-1}; // ci: its record in `cur` (-1: gone)
+    float prio{0.f};
+    bool chosen{true};
+};
+za::Vector<Entry> entries;   // (encode's scratch)
+za::Vector<za::I32> byPrio;  // (... the entries in priority order)
+constexpr int headMost = 3;  // an entry's head: a key's step under 2^19
+za::Vector<int> poseEntries; // the client: the pose entries read of each entity (vr_net_bytes poses; the rate's priorities)
+za::Vector<float> poseDists; // ... and the sum of its distances from us at each (their mean: where it was meanwhile)
+
+} // namespace
+
+int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budget, Snapshot& sent, const float* prio,
+    za::U8* unsent, int soft)
 {
     sent.records.clear();
     sent.bytes.clear();
     budget = za::min(budget, body->maxsize);
-    int written = 0, prevKey = -1;
-    bool cut = false; // the budget reached: the rest as the base's (what the client keeps)
-    za::SizeT bi = 0, ci = 0;
+    soft = soft < 0 ? budget : za::min(soft, budget);
     const za::SizeT bn = base ? base->records.size() : 0, cn = cur.records.size();
-    const auto fits = [&](int need) {
-        if(!cut && body->cursize + need <= budget)
-        {
-            return true;
-        }
-        cut = true;
-        return false;
-    };
-    while(bi < bn || ci < cn)
+
+    // What differs from the base, and whether all of it fits; if not, which entries go: in key order until one does
+    // not fit (no priorities: the rest wait), or the ones that must (gone entries, priority infinite) and then the
+    // highest priorities that fit.
+    entries.clear();
+    int need = body->cursize;
+    for(za::SizeT bi = 0, ci = 0; bi < bn || ci < cn;)
     {
         const Record* b = bi < bn ? &base->records[bi] : nullptr;
         const Record* c = ci < cn ? &cur.records[ci] : nullptr;
-        if(c && (!b || c->key < b->key)) // new: whole
+        Entry e;
+        if(c && (!b || c->key < b->key))
         {
+            e = Entry{c->key, opWhole, varintSize(static_cast<za::U32>(c->len)) + c->len, static_cast<za::I32>(ci)};
             ci++;
-            const za::U32 head = entryHead(c->key, prevKey, opWhole);
-            if(fits(varintSize(head) + varintSize(static_cast<za::U32>(c->len)) + c->len))
-            {
-                netmove::writeVarint(body, head);
-                netmove::writeVarint(body, static_cast<za::U32>(c->len));
-                SZ_Write(body, cur.data(*c), c->len);
-                addFrom(sent, cur, *c);
-                prevKey = c->key;
-                written++;
-            }
-            continue;
         }
-        if(!c || b->key < c->key) // gone
+        else if(!c || b->key < c->key)
+        {
+            e = Entry{b->key, opGone, 0, -1};
+            bi++;
+        }
+        else
         {
             bi++;
-            const za::U32 head = entryHead(b->key, prevKey, opGone);
-            if(fits(varintSize(head)))
+            ci++;
+            if(b->len == c->len && memcmp(base->data(*b), cur.data(*c), static_cast<size_t>(c->len)) == 0)
             {
-                netmove::writeVarint(body, head);
-                prevKey = b->key;
-                written++;
+                continue;
             }
-            else
+            const int wholeSize = varintSize(static_cast<za::U32>(c->len)) + c->len;
+            const int deltaSize = b->len == c->len && c->len <= maxDeltaLen ? bytesDelta(nullptr, base->data(*b), cur.data(*c), c->len)
+                                                                            : wholeSize + 1;
+            e = deltaSize < wholeSize ? Entry{c->key, opDelta, deltaSize, static_cast<za::I32>(ci - 1)}
+                                      : Entry{c->key, opWhole, wholeSize, static_cast<za::I32>(ci - 1)};
+        }
+        e.prio = e.ci < 0 ? INFINITY : prio ? prio[e.ci] : 0.f;
+        need += headMost + e.size;
+        entries.emplaceBack(e);
+    }
+    if(need > soft)
+    {
+        int used = body->cursize;
+        if(!prio)
+        {
+            bool cut = false;
+            for(Entry& e : entries)
+            {
+                cut = cut || used + headMost + e.size > soft;
+                e.chosen = !cut;
+                used += e.chosen ? headMost + e.size : 0;
+            }
+        }
+        else
+        {
+            byPrio.clear();
+            for(za::SizeT i = 0; i < entries.size(); i++)
+            {
+                byPrio.emplaceBack(static_cast<za::I32>(i));
+            }
+            std::stable_sort(byPrio.begin(), byPrio.end(), [](za::I32 a, za::I32 b) {
+                return entries[static_cast<za::SizeT>(a)].prio > entries[static_cast<za::SizeT>(b)].prio;
+            });
+            for(const za::I32 i : byPrio)
+            {
+                Entry& e = entries[static_cast<za::SizeT>(i)];
+                e.chosen = used + headMost + e.size <= (e.prio == INFINITY ? budget : soft);
+                used += e.chosen ? headMost + e.size : 0;
+            }
+        }
+    }
+
+    // Written in key order: the chosen entries (each as long as its real head fits too); the others keep the base's
+    // record on both sides (a new one: none yet), `unsent` marks their records.
+    int written = 0, prevKey = -1;
+    za::SizeT bi = 0, ci = 0;
+    for(const Entry& e : entries)
+    {
+        // (the records before it: unchanged)
+        for(; ci < cn && cur.records[ci].key < e.key; ci++)
+        {
+            addFrom(sent, cur, cur.records[ci]);
+        }
+        for(; bi < bn && base->records[bi].key < e.key; bi++)
+        {
+        }
+        const Record* b = bi < bn && base->records[bi].key == e.key ? &base->records[bi] : nullptr;
+        const Record* c = ci < cn && cur.records[ci].key == e.key ? &cur.records[ci] : nullptr;
+        bi += b ? 1 : 0;
+        ci += c ? 1 : 0;
+        const za::U32 head = entryHead(e.key, prevKey, e.op);
+        if(!e.chosen || body->cursize + varintSize(head) + e.size > budget)
+        {
+            if(b)
             {
                 addFrom(sent, *base, *b);
             }
-            continue;
-        }
-        bi++;
-        ci++;
-        if(b->len == c->len && memcmp(base->data(*b), cur.data(*c), static_cast<size_t>(c->len)) == 0)
-        {
-            addFrom(sent, cur, *c); // (unchanged: not sent)
-            continue;
-        }
-        const int wholeSize = varintSize(static_cast<za::U32>(c->len)) + c->len;
-        const int deltaSize = b->len == c->len && c->len <= maxDeltaLen ? bytesDelta(nullptr, base->data(*b), cur.data(*c), c->len)
-                                                                        : wholeSize + 1;
-        const int op = deltaSize < wholeSize ? opDelta : opWhole;
-        const za::U32 head = entryHead(c->key, prevKey, op);
-        if(!fits(varintSize(head) + za::min(deltaSize, wholeSize)))
-        {
-            addFrom(sent, *base, *b);
+            if(c && unsent)
+            {
+                unsent[ci - 1] = 1;
+            }
             continue;
         }
         netmove::writeVarint(body, head);
-        if(op == opDelta)
+        if(e.op == opDelta)
         {
             bytesDelta(body, base->data(*b), cur.data(*c), c->len);
         }
-        else
+        else if(e.op == opWhole)
         {
             netmove::writeVarint(body, static_cast<za::U32>(c->len));
             SZ_Write(body, cur.data(*c), c->len);
         }
-        addFrom(sent, cur, *c);
-        prevKey = c->key;
+        if(c)
+        {
+            addFrom(sent, cur, *c);
+        }
+        prevKey = e.key;
         written++;
+    }
+    for(; ci < cn; ci++)
+    {
+        addFrom(sent, cur, cur.records[ci]);
     }
     return written;
 }
 
-bool decode(const Snapshot* base, int bodyLen, Snapshot& out)
+bool decode(const Snapshot* base, int bodyLen, Snapshot& out, long long* tally)
 {
     out.records.clear();
     out.bytes.clear();
@@ -277,19 +344,44 @@ bool decode(const Snapshot* base, int bodyLen, Snapshot& out)
     za::SizeT bi = 0;
     const za::SizeT bn = base ? base->records.size() : 0;
     int prevKey = -1;
+    int tallyClass = 0, tallyAt = msg_readcount;
     while(msg_readcount < end)
     {
         // (a key's step is at most the last key + 1, from none: the predict record alone in a delta was refused
         // under a limit of 2 x avatarKey -- mp_loss's undecodable snapshots, B8b)
+        const int entryAt = msg_readcount;
         za::U32 head;
         if(!netmove::readVarint(head) || (head >> 2) == 0 || (head & 3u) > static_cast<za::U32>(opDelta) ||
-            (head >> 2) > static_cast<za::U32>(predictKey + 1))
+            (head >> 2) > static_cast<za::U32>(keyLimit) || prevKey + static_cast<int>(head >> 2) >= keyLimit)
         {
             return false;
         }
         const int key = prevKey + static_cast<int>(head >> 2);
         const int op = static_cast<int>(head & 3u);
         prevKey = key;
+        if(tally)
+        {
+            tally[tallyClass] += entryAt - tallyAt; // (the entry before: its bytes to its class)
+            tallyClass = keyClass(key);
+            tallyAt = entryAt;
+            const int e = key - poseKey;
+            if(op != opGone && e >= 0 && e < 65536)
+            {
+                if(e >= static_cast<int>(poseEntries.size()))
+                {
+                    poseEntries.resize(static_cast<za::SizeT>(e) + 1, 0);
+                    poseDists.resize(static_cast<za::SizeT>(e) + 1, 0.f);
+                }
+                poseEntries[static_cast<za::SizeT>(e)]++;
+                if(e < cl.num_entities && cl.viewentity > 0 && cl.viewentity < cl.num_entities)
+                {
+                    const float* o = cl_entities[e].origin;
+                    const float* me = cl_entities[cl.viewentity].origin;
+                    poseDists[static_cast<za::SizeT>(e)] += sqrtf((o[0] - me[0]) * (o[0] - me[0]) + (o[1] - me[1]) * (o[1] - me[1]) +
+                                                                  (o[2] - me[2]) * (o[2] - me[2]));
+                }
+            }
+        }
         while(bi < bn && base->records[bi].key < key)
         {
             addFrom(out, *base, base->records[bi++]); // (unchanged)
@@ -330,6 +422,10 @@ bool decode(const Snapshot* base, int bodyLen, Snapshot& out)
     {
         addFrom(out, *base, base->records[bi++]);
     }
+    if(tally)
+    {
+        tally[tallyClass] += msg_readcount - tallyAt;
+    }
     return msg_readcount == end && !msg_badread;
 }
 
@@ -345,16 +441,67 @@ struct ServerSlot
     za::U32 acked{0};
     Snapshot snaps[ring];
     ServerCounts counts;
+    // B12's rate (his vr_net_rate, B/s; 0 none): the bytes he may still be sent (a bucket filled at the rate, at most
+    // a burst), and each record's wait (frames it changed and waited: entities, avatars, poses by entity) for its priority
+    double tokens{0.0}, filledAt{-1.0};
+    za::Vector<za::U16> waits;
 };
 za::Vector<ServerSlot> serverSlots;
+
+constexpr double rateBurst = 0.1;  // s of his rate the bucket holds (at least a full datagram)
+constexpr int netHeader = 8;       // NetQuake's datagram header (the bytes his link carries a datagram besides ours)
+constexpr float nearUnits = 256.f; // a record's weight: 1 here, halving each this much farther ...
+constexpr float aheadWeight = 2.f; // ... twice ahead of his view (within 60 degrees), twice again another player's
+
+// A record's index in his waits (-1: his own state, never waiting): entities, avatars, poses by entity.
+[[nodiscard]] int waitIndex(int key)
+{
+    const int cls = keyClass(key);
+    const int ents = qcvm ? qcvm->max_edicts : 0;
+    const int e = cls == 1 ? key : cls == 2 ? key - avatarKey : cls == 4 ? key - poseKey : -1;
+    if(e < 0 || e >= ents)
+    {
+        return -1;
+    }
+    return (cls == 1 ? 0 : cls == 2 ? 1 : 2) * ents + e;
+}
+
+// A record's weight for the player at `eye` looking along `fwd`: nearer and ahead first.
+[[nodiscard]] float weightOf(int key, const float eye[3], const float fwd[3])
+{
+    const int cls = keyClass(key);
+    const int e = cls == 1 ? key : cls == 2 ? key - avatarKey : key - poseKey;
+    if(e <= 0 || e >= qcvm->num_edicts)
+    {
+        return 1.f;
+    }
+    const edict_t* ed = EDICT_NUM(e);
+    float d[3], len2 = 0.f, dot = 0.f;
+    for(int k = 0; k < 3; k++)
+    {
+        d[k] = (ed->v.absmin[k] + ed->v.absmax[k]) * 0.5f - eye[k];
+        len2 += d[k] * d[k];
+        dot += d[k] * fwd[k];
+    }
+    const float dist = sqrtf(len2);
+    float w = nearUnits / (nearUnits + dist);
+    w *= dot > 0.5f * dist ? aheadWeight : 1.f;
+    w *= cls == 2 ? aheadWeight : 1.f;
+    return w;
+}
 
 // The snapshot being made for the client whose datagram is being written (serverBegin .. serverEnd).
 struct Building
 {
     bool on{false};
     int slot{-1};
+    client_t* client{nullptr};
+    int rate{0};
     Snapshot cur;
     za::U8 body[MAX_DATAGRAM];
+    za::Vector<float> prio;    // each record's priority (cur's order)
+    za::Vector<za::U8> unsent; // each record that waited
+    int chargeSlot{-1};        // the slot whose datagram serverCharge charges (serverEnd's)
 };
 Building building;
 
@@ -393,8 +540,31 @@ bool serverBegin(client_t* client)
     }
     b.on = true;
     b.slot = slot;
+    b.client = client;
     b.cur.clear();
+    // (his rate: his own preference; the bucket filled by the game's time since his last datagram)
+    b.rate = client->edict ? za::max(0, static_cast<int>(clientprefs::value(clientprefs::indexOf(&vr_net_rate), &vr_net_rate, client->edict)))
+                           : 0;
+    ServerSlot& s = *slotOf(slot, true);
+    const double now = qcvm->time;
+    if(b.rate > 0)
+    {
+        const double most = za::max(static_cast<double>(b.rate) * rateBurst, static_cast<double>(DATAGRAM_MTU + netHeader));
+        s.tokens = s.filledAt < 0.0 || now < s.filledAt ? most : za::min(most, s.tokens + b.rate * (now - s.filledAt));
+    }
+    s.filledAt = now;
     return true;
+}
+
+void serverCharge(int bytes)
+{
+    Building& b = building;
+    ServerSlot* s = slotOf(b.chargeSlot, false);
+    b.chargeSlot = -1;
+    if(s && b.rate > 0)
+    {
+        s->tokens -= bytes + netHeader;
+    }
 }
 
 bool serverRecording()
@@ -446,7 +616,57 @@ void serverEnd(sizebuf_t* msg)
     body.data = bl.body;
     body.maxsize = static_cast<int>(sizeof(bl.body));
     const za::SizeT before = bl.cur.records.size();
-    encode(base, bl.cur, &body, room, sent);
+
+    // Its budget (B12): the room left after what is written and the broadcast to come (its events before poses, as when
+    // the poses came after it; at most half), and under his rate what his bucket holds after them.
+    const int broadcast = za::min(sv.datagram.cursize, room / 2);
+    int budget = room - broadcast;
+    if(bl.rate > 0)
+    {
+        budget = za::min(budget, static_cast<int>(s->tokens) - msg->cursize - broadcast - netHeader - 6);
+    }
+    budget = za::max(budget, 0);
+    // Each record's priority: his own state always first; the others by weight (near, ahead, a player) times their wait.
+    const za::SizeT n = bl.cur.records.size();
+    bl.prio.resize(n);
+    bl.unsent.clear();
+    bl.unsent.resize(n, 0);
+    const int ents = qcvm->max_edicts;
+    if(static_cast<int>(s->waits.size()) != 3 * ents)
+    {
+        s->waits.clear();
+        s->waits.resize(static_cast<za::SizeT>(3 * ents), 0);
+    }
+    float eye[3]{}, fwd[3]{1.f, 0.f, 0.f};
+    if(const edict_t* p = bl.client ? bl.client->edict : nullptr)
+    {
+        vec3_t right, up;
+        AngleVectors(const_cast<float*>(p->v.v_angle), fwd, right, up);
+        for(int k = 0; k < 3; k++)
+        {
+            eye[k] = p->v.origin[k] + p->v.view_ofs[k];
+        }
+    }
+    for(za::SizeT i = 0; i < n; i++)
+    {
+        const int key = bl.cur.records[i].key;
+        const int wi = waitIndex(key);
+        bl.prio[i] = keyClass(key) == 0 || keyClass(key) == 3 ? INFINITY
+                                                              : weightOf(key, eye, fwd) * (1.f + (wi >= 0 ? s->waits[static_cast<za::SizeT>(wi)] : 0));
+    }
+    encode(base, bl.cur, &body, room, sent, bl.prio.data(), bl.unsent.data(), za::min(budget, room));
+    int waited = 0;
+    for(za::SizeT i = 0; i < n; i++)
+    {
+        const int wi = waitIndex(bl.cur.records[i].key);
+        if(wi >= 0)
+        {
+            za::U16& w = s->waits[static_cast<za::SizeT>(wi)];
+            w = bl.unsent[i] ? static_cast<za::U16>(za::min(static_cast<int>(w) + 1, 60000)) : za::U16{0};
+        }
+        waited += bl.unsent[i];
+    }
+    bl.chargeSlot = bl.slot;
     sent.seq = seq;
     MSG_WriteByte(msg, protocol::svc_quakevr);
     MSG_WriteByte(msg, protocol::QVR_SVC_SNAPSHOT);
@@ -459,6 +679,9 @@ void serverEnd(sizebuf_t* msg)
     c.sent++;
     (base ? c.delta : c.full)++;
     c.cut += body.cursize >= room - 8 && sent.records.size() != before ? 1 : 0;
+    c.waited += waited;
+    c.waitFrames += waited > 0 ? 1 : 0;
+    c.rate = bl.rate;
     c.bytes += msg->cursize - at + 2;
     c.seq = seq;
     c.acked = s->acked;
@@ -512,6 +735,18 @@ struct ClientState
     ClientCounts counts;
 };
 ClientState clientState;
+
+// What this client read, by kind (noteMessage, noteCommand; B12's byte table).
+struct ByteCounts
+{
+    long long reliable{0}, unreliable{0}, messages{0};
+    long long svc[256]{};       // the unreliable messages' bytes by command (an entity's update: U_SIGNAL's)
+    long long qvr[256]{};       // ... svc_quakevr's by its sub-command
+    long long snap[keyClasses]{}; // a snapshot's entries by their keys' class (its own header: the rest of qvr's)
+    bool reliableMsg{false};
+    int openAt{-1}, openCmd{0}, openSub{0}; // the command being read: where it began
+};
+ByteCounts byteCounts;
 
 // ---- The interpolation buffer ----------------------------------------------------------------------------------------
 
@@ -680,7 +915,7 @@ void parse()
         ok = seq > dist && base->seq == seq - dist;
     }
     Snapshot& out = c.snaps[seq % ring];
-    ok = ok && decode(base, static_cast<int>(len), out);
+    ok = ok && decode(base, static_cast<int>(len), out, byteCounts.snap);
     msg_readcount = bodyStart + static_cast<int>(len);
     msg_badread = false;
     if(!ok)
@@ -729,6 +964,87 @@ void clientClear()
 ClientCounts clientCounts()
 {
     return clientState.counts;
+}
+
+void noteMessage(int kind)
+{
+    ByteCounts& b = byteCounts;
+    b.reliableMsg = kind == 1;
+    b.openAt = -1;
+    b.messages++;
+    (b.reliableMsg ? b.reliable : b.unreliable) += net_message.cursize;
+}
+
+void noteCommand(int at)
+{
+    ByteCounts& b = byteCounts;
+    if(b.openAt >= 0 && at > b.openAt && !b.reliableMsg)
+    {
+        (b.openCmd == protocol::svc_quakevr ? b.qvr[b.openSub] : b.svc[b.openCmd]) += at - b.openAt;
+    }
+    b.openAt = -1;
+    if(at >= 0 && at < net_message.cursize)
+    {
+        b.openAt = at;
+        b.openCmd = (net_message.data[at] & U_SIGNAL) ? U_SIGNAL : net_message.data[at];
+        b.openSub = at + 1 < net_message.cursize ? net_message.data[at + 1] : 0;
+    }
+}
+
+void bytesReset()
+{
+    byteCounts = ByteCounts{};
+}
+
+// "mp_netbytes:" the bytes read since the connection (or `vr_net_bytes reset`): reliable and unreliable, the unreliable
+// by kind (the snapshot's entries by class: its player state, entities, avatars, walk state, poses; its header; the
+// poses, avatars and entities outside it; sounds, temp entities, the rest), then the three biggest of the rest.
+void bytesReport()
+{
+    const ByteCounts& b = byteCounts;
+    long long snapEntries = 0;
+    for(const long long n : b.snap)
+    {
+        snapEntries += n;
+    }
+    const long long snap = b.qvr[protocol::QVR_SVC_SNAPSHOT], pose = b.qvr[protocol::QVR_SVC_ARMPOSE],
+                    avatar = b.qvr[protocol::QVR_SVC_AVATAR], ent = b.svc[U_SIGNAL], cd = b.svc[svc_clientdata],
+                    sound = b.svc[svc_sound], tent = b.svc[svc_temp_entity];
+    const long long rest = b.unreliable - snap - pose - avatar - ent - cd - sound - tent;
+    // (the rest's three biggest: "q<sub>" a svc_quakevr's, else the command's number)
+    int top[3] = {-1, -1, -1};
+    long long topN[3] = {0, 0, 0};
+    for(int i = 0; i < 512; i++)
+    {
+        const bool q = i >= 256;
+        const int c = i & 255;
+        if((q && (c == protocol::QVR_SVC_SNAPSHOT || c == protocol::QVR_SVC_ARMPOSE || c == protocol::QVR_SVC_AVATAR)) ||
+            (!q && (c == U_SIGNAL || c == svc_clientdata || c == svc_sound || c == svc_temp_entity || c == protocol::svc_quakevr)))
+        {
+            continue;
+        }
+        const long long n = q ? b.qvr[c] : b.svc[c];
+        for(int k = 0; k < 3; k++)
+        {
+            if(n > topN[k])
+            {
+                for(int m = 2; m > k; m--)
+                {
+                    top[m] = top[m - 1];
+                    topN[m] = topN[m - 1];
+                }
+                top[k] = i;
+                topN[k] = n;
+                break;
+            }
+        }
+    }
+    Con_Printf("mp_netbytes: messages=%lld reliable=%lld unreliable=%lld snap=%lld snap_cd=%lld snap_ent=%lld snap_av=%lld "
+               "snap_pred=%lld snap_pose=%lld snap_hdr=%lld pose=%lld avatar=%lld ent=%lld cd=%lld sound=%lld tent=%lld "
+               "rest=%lld top=%s%d:%lld,%s%d:%lld,%s%d:%lld\n",
+        b.messages, b.reliable, b.unreliable, snap, b.snap[0], b.snap[1], b.snap[2], b.snap[3], b.snap[4],
+        snap - snapEntries, pose, avatar, ent, cd, sound, tent, rest, top[0] >= 256 ? "q" : "", top[0] & 255, topN[0],
+        top[1] >= 256 ? "q" : "", top[1] & 255, topN[1], top[2] >= 256 ? "q" : "", top[2] & 255, topN[2]);
 }
 
 bool interpActive()
@@ -984,6 +1300,50 @@ void selftest_f()
     check(cutOk && cutBytes <= 200 && t.sent.records.size() < t.cur.records.size(),
         va("past a budget of 200 bytes: cut there (%d bytes, %d of %d records), the client's as the server keeps it", cutBytes,
             static_cast<int>(t.sent.records.size()), static_cast<int>(t.cur.records.size())));
+    {
+        // B12: a pose record (the largest keys) alone new, then changed: read back the same
+        int poseBytes = 0;
+        za::U8 buf[48]{};
+        t.cur = t.base;
+        t.cur.add(poseKey + 300, buf, 48);
+        t.cur.sortByKey();
+        bool poseOk = roundTrip(&t.base, t.cur, 4096, poseBytes) && sameSnapshot(t.sent, t.cur);
+        t.base = t.cur;
+        t.cur.bytes[t.cur.records[t.cur.records.size() - 1].at + 9] ^= 0x22;
+        poseOk = poseOk && roundTrip(&t.base, t.cur, 4096, poseBytes) && sameSnapshot(t.sent, t.cur) && poseBytes < 10;
+        check(poseOk, va("a pose record new, then a byte of it changed: read back the same (%d bytes)", poseBytes));
+    }
+    {
+        // B12's rate: every record changed, a soft budget of 40 bytes: the player state (infinite priority) and the
+        // highest priority go, the others wait as the base's on both sides; read back the same
+        t.cur = t.base;
+        const za::SizeT n = t.cur.records.size();
+        float prio[64]{};
+        za::U8 unsent[64]{};
+        for(za::SizeT i = 0; i < n && i < 64; i++)
+        {
+            t.cur.bytes[t.cur.records[i].at] ^= 0x01;
+            prio[i] = t.cur.records[i].key == clientdataKey ? INFINITY : i == 30 ? 10.f : 1.f;
+        }
+        sizebuf_t buf{};
+        buf.data = t.data;
+        buf.maxsize = sizeof(t.data);
+        encode(&t.base, t.cur, &buf, 4096, t.sent, prio, unsent, 40);
+        const int bytes = buf.cursize;
+        net_message = buf;
+        MSG_BeginReading();
+        bool rateOk = n <= 64 && decode(&t.base, buf.cursize, t.read) && sameSnapshot(t.read, t.sent);
+        int waited = 0;
+        for(za::SizeT i = 0; i < n && i < 64; i++)
+        {
+            waited += unsent[i];
+        }
+        rateOk = rateOk && !unsent[0] && !unsent[30] && waited >= static_cast<int>(n) - 6 && bytes <= 40 &&
+                 memcmp(t.sent.data(t.sent.records[30]), t.cur.data(t.cur.records[30]), 4) == 0 &&
+                 memcmp(t.sent.data(t.sent.records[29]), t.base.data(t.base.records[29]), 4) == 0;
+        check(rateOk, va("a rate's budget of 40 bytes: the player state and the highest priority sent, %d of %d waited (%d bytes)",
+                           waited, static_cast<int>(n), bytes));
+    }
     net_message = savedMsg;
     msg_readcount = savedCount;
     msg_badread = savedBad;
@@ -993,9 +1353,43 @@ void selftest_f()
 void init()
 {
     Cmd_AddCommand("vr_netsnap_selftest", selftest_f);
+    // vr_net_bytes [reset]: what this client read from its server, by kind ("mp_netbytes:"; reset: from zero)
+    Cmd_AddCommand("vr_net_bytes", [] {
+        if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "reset"))
+        {
+            bytesReset();
+            poseEntries.clear();
+            poseDists.clear();
+        }
+        bytesReport();
+        if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "poses"))
+        {
+            // (each armed humanoid's pose entries read since the reset, and its mean distance from us at them: the rate's
+            // priorities, B12)
+            for(za::SizeT e = 0; e < poseEntries.size(); e++)
+            {
+                if(poseEntries[e] > 0)
+                {
+                    Con_Printf("mp_netprio: ent=%d dist=%.0f entries=%d\n", static_cast<int>(e),
+                        e < poseDists.size() ? poseDists[e] / static_cast<float>(poseEntries[e]) : 0.f, poseEntries[e]);
+                }
+            }
+            Con_Printf("mp_netprio: done\n");
+        }
+    });
 }
 
 } // namespace qvr::netsnap
+
+extern "C" void VR_NoteServerMessage(int kind)
+{
+    qvr::netsnap::noteMessage(kind);
+}
+
+extern "C" void VR_NoteServerCommand(int at)
+{
+    qvr::netsnap::noteCommand(at);
+}
 
 extern "C" void VR_InterpFrame()
 {

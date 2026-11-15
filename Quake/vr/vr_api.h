@@ -51,7 +51,7 @@ int VR_NoLiquidEffects(struct qmodel_s* model, const float* point);
 // Quake VR's network version, sent after NetQuake's in the connect request ("QVR", then this long; net_dgrm.c): a
 // server whose protocol is the VR one rejects a client without it or with another, with the reason (MP_PLAN.md, B2).
 // Raise it with any change to what client and server send each other.
-#define QVR_NET_VERSION				30
+#define QVR_NET_VERSION				31
 // A remote client's moves (vr/vr_netmove.hpp: quantized deltas with repeats; the loopback's stay clc_move; MP_PLAN.md, B7).
 #define QVR_CLC_MOVES				16
 #define SOLID_NOT_BUT_TOUCHABLE		5		// Quake VR: not solid, but can be (hand) touched
@@ -448,6 +448,8 @@ void VR_WriteEntityUpdate (struct sizebuf_s *msg, struct edict_s *ent, int bits)
 int VR_StepLerpInterval (struct edict_s *ent);			// SV_WriteEntitiesToClient: U_LERPFINISH's byte for a stepping monster in the air (moved every server frame), -1 else (vr_server.cpp)
 void VR_ParseEntityUpdate (int num, int bits);			// CL_ParseUpdate, after the fitz fields
 int VR_ParseServerMessage (int cmd);					// unknown svc: nonzero if handled
+void VR_NoteServerMessage (int kind);					// CL_ReadFromServer: a message read (1 reliable, 2 unreliable): the byte counts (vr_netsnap.cpp, vr_net_bytes)
+void VR_NoteServerCommand (int at);						// CL_ParseServerMessage: the next command begins at `at` (the message's size: its end)
 int VR_ParseBeamEntity (int ent);						// CL_ParseBeam: beam key for an entity
 enum { QVR_DLIGHT_MUZZLE, QVR_DLIGHT_ROCKET, QVR_DLIGHT_EXPLOSION };
 enum { QVR_DECAL_TE_GUNSHOT, QVR_DECAL_TE_EXPLOSION, QVR_DECAL_TE_SPIKE, QVR_DECAL_TE_SUPERSPIKE, QVR_DECAL_TE_MONSTERSPIKE };

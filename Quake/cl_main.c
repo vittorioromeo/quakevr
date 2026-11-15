@@ -853,6 +853,7 @@ int CL_ReadFromServer (void)
 			break;
 
 		cl.last_received_message = realtime;
+		VR_NoteServerMessage (ret); // QVR: the byte counts by kind (vr_net_bytes)
 		VR_ProfileBegin ("parse"); // QVR: profile
 		CL_ParseServerMessage ();
 		VR_ProfileEnd (); // QVR

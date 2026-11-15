@@ -1125,6 +1125,7 @@ void CL_ParseServerMessage (void)
 		if (msg_badread)
 			Host_Error ("CL_ParseServerMessage: Bad server message");
 
+		VR_NoteServerCommand (msg_readcount); // QVR: the byte counts by kind (vr_net_bytes)
 		cmd = MSG_ReadByte ();
 
 		if (cmd == -1)

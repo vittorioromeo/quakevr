@@ -12,6 +12,12 @@
 //   gone, 1 whole ([varint length][bytes]), 2 the base's changed (its length; [a byte a 8 groups of 8 bytes: any changed]
 //   [a byte each changed group: its changed bytes][those bytes]).
 //
+// The armed humanoids' poses in its sight (QVR_SVC_ARMPOSE, poseKey + the humanoid) are records too (B12): one sent this
+// frame is in the set, one skipped (the pose's level of detail) is gone, so the client parses the same poses NetQuake's
+// datagram would carry. A client's rate (vr_net_rate, his preference) caps the body: the changed records go by priority
+// (the player's own state first, then the nearest and those ahead of his view; each one's wait adds to its priority), the
+// rest stay as the base's on both sides and wait.
+//
 // A record the same as the base's is not sent: an idle player and what he sees nearly free. The client puts the base's
 // records and the changed ones together and parses every one, as if the server had sent NetQuake's whole datagram: the
 // rest of the client (its entities, lerps, avatars) is unchanged. The loopback client and single player get NetQuake's
@@ -35,7 +41,9 @@ namespace qvr::netsnap
 inline constexpr int ring = 32;           // snapshots each side keeps (an acknowledgement older than this: sent whole)
 inline constexpr int avatarKey = 1 << 16; // + a player's entity: his avatar's record
 inline constexpr int clientdataKey = 0;   // the player's own state (svc_clientdata)
-inline constexpr int predictKey = 2 << 16; // his walk's state (QVR_SVC_PREDICT, vr_predict.cpp): the last key there is
+inline constexpr int predictKey = 2 << 16; // his walk's state (QVR_SVC_PREDICT, vr_predict.cpp)
+inline constexpr int poseKey = 3 << 16;    // + an armed humanoid's entity: its pose this frame (QVR_SVC_ARMPOSE, B12)
+inline constexpr int keyLimit = 4 << 16;   // every key below this
 
 // One snapshot: its records (sorted by key), each its bytes in `bytes`.
 struct Record
@@ -59,8 +67,18 @@ struct Snapshot
 // Codec. encode: `cur`'s records (sorted) against `base` (nullptr: none) as a QVR_SVC_SNAPSHOT body into `body`, at most
 // `budget` bytes; `sent` becomes what the client will have (records past the budget: the base's). Returns the records
 // written. decode: a body (from net_message's read position, `bodyLen` bytes) against `base` into `out`; false: malformed.
-int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budget, Snapshot& sent);
-[[nodiscard]] bool decode(const Snapshot* base, int bodyLen, Snapshot& out);
+// Past the budget (`soft`, a rate's, when given: the infinite priorities to `budget`): with `prio` (one a `cur` record),
+// the gone entries and the highest priorities that fit go (B12's rate), else in key order until one does not fit;
+// `unsent` (one a `cur` record, zeroed by the caller) marks the changed or new records that waited.
+int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budget, Snapshot& sent, const float* prio = nullptr,
+    za::U8* unsent = nullptr, int soft = -1);
+// `tally` (keyClasses counts, or nullptr): each entry's bytes added by its key's class (keyClass).
+[[nodiscard]] bool decode(const Snapshot* base, int bodyLen, Snapshot& out, long long* tally = nullptr);
+inline constexpr int keyClasses = 5; // 0 the player state, 1 an entity, 2 an avatar, 3 the walk's state, 4 a pose
+[[nodiscard]] constexpr int keyClass(int key)
+{
+    return key == clientdataKey ? 0 : key < avatarKey ? 1 : key < predictKey ? 2 : key < poseKey ? 3 : 4;
+}
 
 // Server (sv_main.c through vr_api.h). begin: whether this datagram's records go into a snapshot (a remote client that
 // sends QVR_CLC_MOVES, vr_net_snapshots on); then take() cuts each record off the end of `msg`; end() writes the snapshot.
@@ -69,11 +87,15 @@ int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budge
 void serverTake(sizebuf_t* msg, int at, int key);
 void serverRecord(int key, const za::U8* data, int len);
 void serverEnd(sizebuf_t* msg);
+void serverCharge(int bytes); // the datagram whose snapshot serverEnd wrote: its size, off his rate's bucket
 void serverAck(int slot, za::U32 seq); // QVR_CLC_MOVES's acknowledgement
 void serverReset(int slot, bool keepCounts = false); // a new connection's (or, counts kept, a new map's spawn)
 struct ServerCounts
 {
     int sent{0}, full{0}, delta{0}, cut{0};
+    int rate{0};           // his rate (B/s; 0 none)
+    long long waited{0};   // changed records that waited (his rate, or a full datagram)
+    int waitFrames{0};     // snapshots in which any waited
     long long bytes{0};
     za::U32 seq{0}, acked{0};
 };
@@ -92,6 +114,14 @@ struct ClientCounts
     long long bytes{0};
 };
 [[nodiscard]] ClientCounts clientCounts();
+
+// What this client read from its server, by kind (B12's byte table: `vr_net_bytes`, vr_mp_status's "mp_netbytes:").
+// noteMessage: CL_ReadFromServer read a message (CL_GetMessage's 1 reliable, 2 unreliable); noteCommand:
+// CL_ParseServerMessage's next command begins at `at` (the message's size: it ended).
+void noteMessage(int kind);
+void noteCommand(int at);
+void bytesReport();
+void bytesReset();
 
 // The interpolation buffer. active: a remote server's snapshots read, vr_net_interp on (not a demo). frame: once a frame
 // before the entities are placed (its clock). entity: entity `num`'s place and angles a delay behind; false: as before.

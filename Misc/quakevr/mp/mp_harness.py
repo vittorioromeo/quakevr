@@ -38,6 +38,26 @@ def fields(line):
 # byte table, MP_PLAN B7).
 LINKS = []
 
+# The kinds of B12's byte table (vr_net_bytes's fields): the snapshot's entries (the player state, entities, avatars, the
+# walk's state, the armed humanoids' poses, its header) and what goes outside it.
+KINDS = ("snap_cd", "snap_ent", "snap_av", "snap_pred", "snap_pose", "snap_hdr", "pose", "avatar", "ent", "cd", "sound",
+         "tent", "rest", "reliable")
+
+
+def kind_rates(kinds, down_bytes_s):
+    """vr_net_bytes's fields -> each kind's share of the proxy's down rate, B/s ({} none)."""
+    try:
+        total = int(kinds["reliable"]) + int(kinds["unreliable"])
+    except (KeyError, ValueError):
+        return {}
+    if total <= 0:
+        return {}
+    return {k: int(round(down_bytes_s * int(kinds.get(k, 0)) / total)) for k in KINDS}
+
+
+def format_kinds(rates):
+    return " ".join("%s=%d" % (k, rates[k]) for k in KINDS if rates.get(k))
+
 
 def author_game_running():
     """The author's own game (a build from his checkout, quakevr-iw) is running: the tests keep out of its way."""
@@ -268,6 +288,19 @@ class Session:
     def finish(self, failure=None):
         if failure:
             self.check("scenario", False, str(failure))
+        # B12's byte table: what each proxied client read, by kind (vr_net_bytes), before the games stop.
+        kinds = {}
+        for inst in self.instances:
+            if getattr(inst, "proxy", None) is None or not inst.proc or inst.proc.poll() is not None:
+                continue
+            try:
+                since = inst.mark()
+                inst.cmd("vr_net_bytes")
+                _, line = inst.wait(r"mp_netbytes: ", 10, since)
+                kinds = fields(line)
+                self.metric("netbytes_%s" % inst.name, kinds)
+            except StepFailed:
+                pass
         # Clients first, the server last (its exit code: a clean quit, MULTIPLAYER.md's old crash on quit).
         for inst in sorted(self.instances, key=lambda i: 1 if i.name == "server" else 0):
             code = inst.stop()
@@ -280,10 +313,13 @@ class Session:
             if p.first is not None and p.last is not None and p.last > p.first:
                 w = p.window((p.first, {d: [0, 0, 0, 0] for d in ("up", "down")}), (p.last, p.stats))
                 self.metric("link_%d" % p.listen_port, w)
+                w["kinds"] = kind_rates(kinds, w["down"]["bytes_s"])
                 LINKS.append((self.test, w))
                 print("mp_bytes: %s up %d B/s (mean %d B) down %d B/s (mean %d B)" % (
                     self.test, w["up"]["bytes_s"], w["up"]["mean_B"], w["down"]["bytes_s"], w["down"]["mean_B"]),
                     flush=True)
+                if w["kinds"]:
+                    print("mp_bytes: %s down by kind, B/s: %s" % (self.test, format_kinds(w["kinds"])), flush=True)
         passed = sum(1 for c in self.checks if c[1])
         failed = len(self.checks) - passed
         summary = {"test": self.test, "passed": passed, "failed": failed,

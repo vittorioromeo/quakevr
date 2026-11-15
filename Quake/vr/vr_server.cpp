@@ -363,6 +363,7 @@ struct ScopedRoom
     byte roomBuf[48 * 1024];
     sizebuf_t sink; // a message with no room left: dropped (as a full broadcast drops one)
     byte sinkBuf[msgRoom];
+    byte poseJoin[4 * msgRoom]; // an entity's poses of one frame as one snapshot record (VR_SnapEnd; one, as a rule)
     int ents[maxMsgs];
     int ends[maxMsgs]; // each message's end in roomBuf (the first begins at 0)
     int kinds[maxMsgs]; // ScopedKind: an avatar goes in a snapshot client's snapshot (B7b), an unchanged one to no other
@@ -639,7 +640,9 @@ extern "C" void VR_WriteScoped(sizebuf_t* msg, int local, int snap)
         const int at = from;
         from = r.ends[i];
         const int e = r.ents[i];
-        if(r.kinds[i] == qvr::server::scopedAvatarUnchanged || (snap && r.kinds[i] == qvr::server::scopedAvatar))
+        // (a snapshot client's avatars and poses went in its snapshot: VR_SnapEnd)
+        if(r.kinds[i] == qvr::server::scopedAvatarUnchanged || (snap && r.kinds[i] == qvr::server::scopedAvatar) ||
+            (snap && r.kinds[i] == qvr::server::scopedOther && cull && qvr::vr_net_snapposes.value != 0.f))
         {
             continue;
         }
@@ -652,6 +655,10 @@ extern "C" void VR_WriteScoped(sizebuf_t* msg, int local, int snap)
             continue;
         }
         SZ_Write(msg, r.roomBuf + at, len);
+    }
+    if(snap)
+    {
+        qvr::netsnap::serverCharge(msg->cursize); // (the datagram whole: off his rate, B12)
     }
 }
 
@@ -680,6 +687,58 @@ extern "C" void VR_SnapEnd(sizebuf_t* msg)
             (!cull || scopedInSight(r, r.ents[i])))
         {
             qvr::netsnap::serverRecord(qvr::netsnap::avatarKey + r.ents[i], r.roomBuf + at, r.ends[i] - at);
+        }
+    }
+    // The armed humanoids' poses in its sight (B12; vr_net_cullposes 0: every pose to every client in the broadcast, as
+    // before): a record each, an entity's poses of this frame together (one a frame, as a rule).
+    if(cull && qvr::vr_net_snapposes.value != 0.f)
+    {
+        ScopedRoom& w = scopedRoom;
+        from = 0;
+        for(int i = 0; i < r.numMsgs; i++)
+        {
+            const int at = from;
+            from = r.ends[i];
+            const int e = r.ents[i];
+            if(r.kinds[i] != qvr::server::scopedOther || !scopedInSight(r, e))
+            {
+                continue;
+            }
+            bool earlier = false; // (merged into the record of its entity's first already)
+            for(int j = 0; j < i && !earlier; j++)
+            {
+                earlier = r.kinds[j] == qvr::server::scopedOther && r.ents[j] == e;
+            }
+            if(earlier)
+            {
+                continue;
+            }
+            int len = r.ends[i] - at;
+            bool more = false;
+            for(int j = i + 1; j < r.numMsgs && !more; j++)
+            {
+                more = r.kinds[j] == qvr::server::scopedOther && r.ents[j] == e;
+            }
+            if(!more)
+            {
+                qvr::netsnap::serverRecord(qvr::netsnap::poseKey + e, r.roomBuf + at, len);
+                continue;
+            }
+            len = 0;
+            int jfrom = 0;
+            for(int j = 0; j < r.numMsgs; j++)
+            {
+                const int jat = jfrom;
+                jfrom = r.ends[j];
+                const int jlen = r.ends[j] - jat;
+                if(j >= i && r.kinds[j] == qvr::server::scopedOther && r.ents[j] == e &&
+                    len + jlen <= static_cast<int>(sizeof(w.poseJoin)))
+                {
+                    memcpy(w.poseJoin + len, r.roomBuf + jat, static_cast<size_t>(jlen));
+                    len += jlen;
+                }
+            }
+            qvr::netsnap::serverRecord(qvr::netsnap::poseKey + e, w.poseJoin, len);
         }
     }
     qvr::netsnap::serverEnd(msg);

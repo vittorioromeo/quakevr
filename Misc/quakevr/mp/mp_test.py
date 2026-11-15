@@ -10,6 +10,9 @@ Tests:
              --lag/--jitter/--loss put client B behind a proxy (mp_proxy.py); the bounds grow by the lag it adds.
     bandwidth  both idle on e1m1: B's link down under 25 KB/s (armed humanoids' poses only of those in sight), with
              vr_net_cullposes 0 measured too; no packet down over 1408 B (reliable chunks at most 1200 B).
+    armed    (B12) six armed humanoids ahead of B in vrtesthall, idle and in combat: B's link down by kind (vr_net_bytes)
+             with their poses outside his snapshot (vr_net_snapposes 0) and in it, under the budgets; under vr_net_rate
+             6000: his link within it, a snapshot every datagram, the nearest poses more often than the farthest.
     version  a client of another Quake VR network version (-mpnetversion 1) is rejected with the reason; one of the
              same version joins.
     avatar   B has A's avatar (QVR_SVC_AVATAR): head and drawn hands within 2 units of the server's, the main hand's
@@ -74,7 +77,7 @@ import traceback
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-from mp_harness import LINKS, Session, StepFailed, fields  # noqa: E402
+from mp_harness import LINKS, Session, StepFailed, fields, format_kinds, kind_rates  # noqa: E402
 
 REPO = os.path.normpath(os.path.join(HERE, "..", "..", ".."))
 EXE = os.path.join(REPO, "Windows", "VisualStudio", "Build-ironwail", "bin", "x64", "Release", "ironwail.exe")
@@ -240,6 +243,125 @@ def bandwidth(s):
     s.check("every packet down at most %d B (no reliable chunk over %d B)" % (1400 + NET_HEADER, RELIABLE_CHUNK),
             most <= 1400 + NET_HEADER, "largest %d B" % most)
     srv.cmd("vr_net_cullposes 1")
+
+
+HALL_START_Y, HALL_Z = -288.0, 24.0  # vrtesthall's start (facing +y): its hall ahead
+# Six armed grunts in a line ahead of A in the hall (vr_physics_spawn monster_vr_grunt: its own weapon roll), each `dist`
+# along his facing (+x or +y from his spot, the hall either way); B beside him: about 110 to 410 units from B.
+ARMED_SPAWNS = (110, 170, 230, 290, 350, 410)
+ARMED_B = (-200.0, HALL_START_Y, HALL_Z)
+# B's link down with the six in sight (B12's measurement, their poses outside his snapshot -> in it): idle 47.3 -> 6.3
+# KB/s, in combat 56.3 -> 31.9 KB/s (MP_PLAN.md, section 2.3: 6-10 KB/s idle, 25-35 KB/s in combat)
+ARMED_IDLE_BUDGET = 10 * 1024
+ARMED_COMBAT_BUDGET = 35 * 1024
+ARMED_RATE = 12000       # B's vr_net_rate in combat, B/s: well under what the six cost him (about 32 KB/s)
+RATE_SLACK = 1.15        # the link down under his rate within this (a datagram's burst, the reliable)
+
+
+def net_window(s, srv, b, label, packets=IDLE_PACKETS):
+    """B's link down over `packets` datagrams, with what he read by kind over it (vr_net_bytes reset .. poses) ->
+    (proxy window, kinds in B/s, [(dist, entries) of each armed humanoid's pose], the server's mp_netsnap for B)."""
+    proxy = b.proxy
+    since = b.mark()
+    b.cmd("vr_net_bytes reset")
+    b.wait(r"mp_netbytes: ", 10, since)
+    start = proxy.wait_packets("down", 1, 20)
+    end = proxy.wait_packets("down", packets, 60) if start else None
+    if not end:
+        raise StepFailed("%s: B's link carried fewer than %d packets down in 60 s" % (label, packets))
+    w = proxy.window(start, end)
+    since = b.mark()
+    b.cmd("vr_net_bytes poses")
+    _, line = b.wait(r"mp_netbytes: ", 10, since)
+    b.wait(r"mp_netprio: done", 10, since)
+    prio = [(float(fields(l)["dist"]), int(fields(l)["entries"])) for l in b.lines[since:]
+            if l.startswith("mp_netprio: ent=")]
+    kinds = kind_rates(fields(line), w["down"]["bytes_s"])
+    s.metric("armed_%s" % label, {"link": w, "kinds": kinds, "prio": prio})
+    s.note("%s: down %d B/s (mean %d B, %s pkts/s); by kind: %s; poses (dist, entries): %s" % (
+        label, w["down"]["bytes_s"], w["down"]["mean_B"], w["down"]["pkts_s"], format_kinds(kinds),
+        " ".join("%.0f:%d" % p for p in sorted(prio))))
+    return w, kinds, sorted(prio), snap_status(srv, b.ent)
+
+
+def armed(s):
+    """(B12) Six armed humanoids ahead of B in vrtesthall: what his link carries down, by kind, with their poses outside
+    his snapshot (vr_net_snapposes 0, as before) and in it; idle (both players notarget) and in combat (they shoot at
+    him, both god); then under a low rate (vr_net_rate): his link under it, his own state every frame, the nearest
+    humanoids' poses more often than the farthest's, nothing undecodable."""
+    srv, a, b, ea, eb = join(s, level="vrtesthall", srv_first="developer 1",
+                             first=lambda srv, a, ea: put_at(srv, a, ea, (-260.0, HALL_START_Y - 60.0, HALL_Z), 90))
+    b.ent = eb
+    a.cmd("god; notarget")
+    b.cmd("god; notarget")
+    put_at(srv, b, eb, ARMED_B, 90)
+    for dist in ARMED_SPAWNS:
+        # (ahead of the first player, A: an armed grunt rolling its own weapon; vr_physics_spawn, the server's console)
+        since = srv.mark()
+        srv.cmd("vr_physics_spawn monster_vr_grunt %d 0" % dist)
+        _, made = srv.wait(r"vr_physics_spawn: \d+ monster_vr_grunt at", 20, since, "an armed grunt %d ahead" % dist)
+        s.note("spawned: " + made.split("vr_physics_spawn: ")[1].strip())
+    # (their poses reach B: the bytes of them he read)
+    seen = 0
+    for _ in range(40):
+        since = b.mark()
+        b.cmd("vr_net_bytes")
+        _, line = b.wait(r"mp_netbytes: ", 10, since)
+        f = fields(line)
+        seen = int(f["pose"]) + int(f["snap_pose"])
+        if seen > 500:
+            break
+    s.check("the armed humanoids' poses reach B", seen > 500, "%d B of them read" % seen)
+    out = {}
+    for snapposes in (0, 1):
+        since = srv.mark()
+        srv.cmd("vr_net_snapposes %d; echo mp_snapposes %d" % (snapposes, snapposes))
+        srv.wait(r"mp_snapposes %d" % snapposes, 10, since)
+        out[("idle", snapposes)] = net_window(s, srv, b, "idle_snapposes%d" % snapposes)
+
+    # In combat: notarget off (a toggle), they turn on the players.
+    a.cmd("notarget")
+    b.cmd("notarget")
+    for snapposes in (0, 1):
+        since = srv.mark()
+        srv.cmd("vr_net_snapposes %d; echo mp_snapposes %d" % (snapposes, snapposes))
+        srv.wait(r"mp_snapposes %d" % snapposes, 10, since)
+        out[("combat", snapposes)] = net_window(s, srv, b, "combat_snapposes%d" % snapposes)
+    # Under a low rate, still in combat (each pose changes every frame: the nearest should come most often).
+    sn0 = snap_status(srv, eb)
+    b.cmd("vr_net_rate %d" % ARMED_RATE)
+    for _ in range(60):  # (his preference up: the server's report of his rate)
+        if int(snap_status(srv, eb).get("rate", 0)) == ARMED_RATE:
+            break
+    w, kinds, prio, sn = net_window(s, srv, b, "rate%d" % ARMED_RATE)
+    b.cmd("vr_net_rate 0")
+    down = w["down"]["bytes_s"]
+    s.check("under vr_net_rate %d: the server holds him to it" % ARMED_RATE, sn and int(sn["rate"]) == ARMED_RATE and
+            int(sn["waited"]) > int(sn0.get("waited", 0)), "%s" % sn)
+    s.check("under vr_net_rate %d: B's link down within %g of it" % (ARMED_RATE, RATE_SLACK),
+            down <= ARMED_RATE * RATE_SLACK, "%d B/s, mean %d B" % (down, w["down"]["mean_B"]))
+    sent = int(sn["sent"]) - int(sn0["sent"]) if sn and sn0 else 0
+    s.check("under it: a snapshot (his own state) still in every datagram", sent >= 0.9 * IDLE_PACKETS,
+            "%d snapshots in %d datagrams or more" % (sent, IDLE_PACKETS))
+    near = [e for d, e in prio[:2]]
+    far = [e for d, e in prio[-2:]]
+    s.check("under it: the nearest humanoids' poses come more often than the farthest's",
+            len(prio) >= 4 and sum(near) > 1.2 * sum(far), "nearest two %s, farthest two %s (of %s)" % (near, far, prio))
+    cs = client_snap_status(b)
+    s.check("under it: none undecodable", cs and int(cs["undecodable"]) == 0, "%s" % cs)
+
+    for mode, budget in (("idle", ARMED_IDLE_BUDGET), ("combat", ARMED_COMBAT_BUDGET)):
+        before, kb = out[(mode, 0)][0]["down"]["bytes_s"], out[(mode, 0)][1]
+        after, ka = out[(mode, 1)][0]["down"]["bytes_s"], out[(mode, 1)][1]
+        # (outside it: at most the datagrams already on their way when the server switched)
+        s.check("%s: the poses go in B's snapshot (none outside it)" % mode,
+                ka.get("snap_pose", 0) > 0 and ka.get("pose", 0) <= 0.02 * ka.get("snap_pose", 0),
+                "in it %d B/s, outside %d B/s (before: outside %d B/s)" % (ka.get("snap_pose", 0), ka.get("pose", 0),
+                                                                          kb.get("pose", 0)))
+        s.check("%s: B's link down with six armed humanoids in sight under %d B/s" % (mode, budget),
+                budget <= 0 or after < budget, "%d B/s (their poses outside his snapshot: %d B/s)" % (after, before))
+    cs = client_snap_status(b)
+    s.check("B read every snapshot (none undecodable)", cs and int(cs["undecodable"]) == 0, "%s" % cs)
 
 
 def version(s):
@@ -3788,6 +3910,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
     try:
         if test == "mp_bandwidth":
             bandwidth(s)
+        elif test == "mp_armed":
+            armed(s)
         elif test == "mp_version":
             version(s)
         elif test == "mp_avatarcal":
@@ -3852,9 +3976,23 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
     return s.finish(failure)
 
 
+def print_bytes_table():
+    """B's link per scenario (MP_PLAN B7, B12): up and down, and down by kind (vr_net_bytes, scaled to the link's rate):
+    poses (in the snapshot + outside it), entities, avatars, his own state (player state + walk), the snapshot's header,
+    sounds and temp entities, the rest of the unreliable, the reliable."""
+    print("mp_bytes: scenario, B's link up B/s (mean B), down B/s (mean B); down by kind B/s: pose ent av own hdr snd+te rest rel")
+    for test, w in LINKS:
+        k = w.get("kinds") or {}
+        g = lambda *names: sum(k.get(n, 0) for n in names)
+        print("mp_bytes: %-20s up %6d (%4d)  down %6d (%4d)  %6d %6d %6d %6d %5d %5d %5d %5d" % (
+            test, w["up"]["bytes_s"], w["up"]["mean_B"], w["down"]["bytes_s"], w["down"]["mean_B"],
+            g("snap_pose", "pose"), g("snap_ent", "ent"), g("snap_av", "avatar"), g("snap_cd", "snap_pred", "cd"),
+            g("snap_hdr"), g("sound", "tent"), g("rest"), g("reliable")))
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "lagcomp", "disarm", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "lagcomp", "disarm", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -3888,13 +4026,14 @@ def main():
                 sys.exit(2)
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
-    elif args.test in ("bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
+    elif args.test in ("bandwidth", "armed", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
                        "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "lagcomp", "disarm"):
         ok = run(args, "mp_" + args.test)
     else:
         ok = run(args, "mp_coop")
         ok = run(args, "mp_coop_lag", 150, 0, 0.02) and ok
         ok = run(args, "mp_bandwidth") and ok
+        ok = run(args, "mp_armed") and ok
         ok = run(args, "mp_version") and ok
         ok = run(args, "mp_avatar") and ok
         ok = run(args, "mp_avatarcal") and ok
@@ -3922,10 +4061,7 @@ def main():
         ok = run(args, "mp_lagcomp") and ok
         ok = run(args, "mp_disarm") and ok
         # B's link per scenario (MP_PLAN B7: byte counts against mp_bandwidth's): what the next phases cut.
-        print("mp_bytes: scenario, B's link up B/s (mean B), down B/s (mean B)")
-        for test, w in LINKS:
-            print("mp_bytes: %-20s up %6d (%4d)  down %6d (%4d)" % (test, w["up"]["bytes_s"], w["up"]["mean_B"],
-                                                              w["down"]["bytes_s"], w["down"]["mean_B"]))
+        print_bytes_table()
         print("mp_suite: %s" % ("passed" if ok else "FAILED"))
     sys.exit(0 if ok else 1)
 

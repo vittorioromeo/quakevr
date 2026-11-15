@@ -1196,6 +1196,12 @@ za::Vector<Item> pageDebugReports()
         toggle("Network: Cull Poses", vr_net_cullposes)
             .help("vr_net_cullposes: hosting, a remote player gets the armed humanoids' arm poses only of those he can see (on: "
                   "about 1.2 KB less in each of his datagrams on e1m1); off: every pose to every player, as before."),
+        toggle("Network: Poses in Snapshots", vr_net_snapposes)
+            .help("vr_net_snapposes: hosting, a remote player's armed humanoids' arm poses go in his snapshot, coded against the "
+                  "ones he has (on); off: each whole every frame, after the other messages, as before."),
+        slider("Network: Rate Cap", vr_net_rate, 0.f, 64000.f, 2000.f, "%.0f B/s")
+            .help("vr_net_rate: on a remote server, the most it sends you a second (0: no cap). Under it the nearest things and "
+                  "those ahead of you update first, the far ones wait (MP_PLAN B12); vr_net_bytes shows what you read."),
         command("Keyboard Hook", "vr_keyhook_status")
             .help("vr_keyhook_status: whether this game holds the desktop keyboard hook (only with the window's focus) and "
                   "the longest it went unserviced since the last report: every key press on the desktop waits for it."),

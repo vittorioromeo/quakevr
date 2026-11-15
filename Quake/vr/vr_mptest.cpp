@@ -285,8 +285,10 @@ void status_f()
                 nm.recovered, nm.undecodable, nm.bytes);
             // (sent, full, delta, cut, bytes: his snapshots, whole or against the one he acknowledged; B7b)
             const qvr::netsnap::ServerCounts ns = qvr::netsnap::serverCounts(i);
-            Con_Printf("mp_netsnap: slot=%d sent=%d full=%d delta=%d cut=%d bytes=%lld seq=%u acked=%u\n", i, ns.sent, ns.full,
-                ns.delta, ns.cut, ns.bytes, ns.seq, ns.acked);
+            // (B12: his rate, the changed records that waited for it and the snapshots with any)
+            Con_Printf("mp_netsnap: slot=%d sent=%d full=%d delta=%d cut=%d bytes=%lld seq=%u acked=%u rate=%d waited=%lld "
+                       "waitframes=%d\n",
+                i, ns.sent, ns.full, ns.delta, ns.cut, ns.bytes, ns.seq, ns.acked, ns.rate, ns.waited, ns.waitFrames);
             // (then his main hand's gun's magazine: its weapon record's .wi_clip; B8h, rounds loaded by hand)
             const qvr::progs::FieldOffsets& pf = qvr::progs::fields();
             int clip = 0;
