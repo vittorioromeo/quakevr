@@ -2304,59 +2304,92 @@ def disarm(s):
     srv.cmd("vr_debug_carry 0; developer 0")
 
 
+# The rounds handed over (MP B10b): (what, the main hand's weapon whose pouch kind it is, its give, the reserve's key,
+# the round's classname, a part of its model's name).
+AMMO_KINDS = (
+    ("shell", 4, "", "shells", "vr_ammo_shell", "vr_shell"),
+    ("nail magazine", 6, "give n 100", "nails", "vr_ammo_mag", "vr_mag_nail"),
+    ("rocket", 10, "give r 20", "rockets", "vr_ammo_front", "vr_round_rocket"),
+)
+
+
 def ammo_give(s, srv, a, b, ea, eb):
-    """A loose shell handed over (Weapon Mode Immersive's ammo pouch, vr_reload_mode 3): A takes a shell from his pouch
-    and lets it fall ahead of him; B, put beside it, takes it up and lets go of it at his own pouch: one shell less in
-    A's reserve, one more in B's (the single player rules: VR_Reload_Refund, the loose round's carry)."""
+    """Rounds handed over (Weapon Mode Immersive's ammo pouch, vr_reload_mode 3): a shell, a nail magazine and a rocket in
+    turn. A takes one from his pouch (his main hand's weapon gives its kind) and lets it fall ahead of him; B, put where
+    A stood, takes it up (from the floor, not a round of his own pouch) and lets go of it at his own pouch: A's reserve
+    that much less, B's that much more (the single player rules, one path: the loose round's carry, VR_Reload_LetGo,
+    VR_Reload_Refund). Then a shell the other way, B's to A (a listen host's own player: the single player's case), B
+    armed with a shotgun first."""
     for inst in (srv, a, b):
         inst.cmd("vr_reload_mode 3")
-    a.cmd("vr_mock_play; vr_mock_button off grip 0")  # (his main hand keeps the shotgun: the pouch gives its kind)
+    for kind in AMMO_KINDS:
+        ammo_give_one(s, srv, a, b, ea, eb, kind[1] != 4, *kind)
+    ammo_give_one(s, srv, b, a, eb, ea, True, *AMMO_KINDS[0])
+
+
+def ammo_give_one(s, srv, a, b, ea, eb, arm, what, wid, give, key, classname, model):
+    """One round of kind `what` from `a`'s pouch to `b`'s (ammo_give); `arm`: `a` is given the weapon first."""
+    an, bn = a.name, b.name
+    a.cmd("vr_mock_play; vr_mock_button off grip 0")
     b.cmd("vr_mock_play; vr_mock_button main grip 0; vr_mock_button off grip 0")
     put_at(srv, b, eb, side_spot(srv, ea))
     put_at(srv, a, ea, OPEN_SPOT, 90)
+    if arm:  # (WID 4 the shotgun, 6 the nailgun, 10 the rocket launcher)
+        if give:
+            a.cmd(give)
+        a.cmd("vr_mock_button main grip 1")
+        server_time_past(srv, server_time(srv) + THROW_SETTLE_S)
+        a.cmd("impulse %d" % (150 + wid))
+        weapon_until(s, srv, ea, wid, 15)
     inv0, _ = inventories(srv)
+    have0 = inv0.get(ea - 1, {}).get(key, 0)
     server_time_past(srv, server_time(srv) + THROW_SETTLE_S)
     a.cmd("vr_mock_hand_to off ammopouch")
     server_time_past(srv, server_time(srv) + THROW_SETTLE_S)
     a.cmd("vr_mock_button off grip 1")
-    inv1, _ = inventories_until(srv, lambda inv, m: inv.get(ea - 1, {}).get("shells", 0) < inv0.get(ea - 1, {}).get(
-        "shells", 0), 30)
+    inv1, _ = inventories_until(srv, lambda inv, m: inv.get(ea - 1, {}).get(key, 0) < have0, 30)
     a.cmd("vr_mock_hand off -0.15 1.2 -0.45 0 0 0")
     server_time_past(srv, server_time(srv) + THROW_SETTLE_S)
     a.cmd("vr_mock_button off grip 0")
     server_time_past(srv, server_time(srv) + 1.5)
-    taken = inv0.get(ea - 1, {}).get("shells", 0) - inv1.get(ea - 1, {}).get("shells", 0)
-    s.check("ammo: A takes a shell out of his pouch and lets it fall (his reserve one less)", taken >= 1,
-            "A's shells %s -> %s" % (inv0.get(ea - 1, {}).get("shells"), inv1.get(ea - 1, {}).get("shells")))
+    taken = have0 - inv1.get(ea - 1, {}).get(key, 0)
+    s.check("ammo: %s takes a %s out of his pouch and lets it fall (his reserve less)" % (an, what), taken >= 1,
+            "%s's %s %s -> %s" % (an, key, have0, inv1.get(ea - 1, {}).get(key)))
     at = org_of(status(srv), "mp_client", "slot", ea - 1)
     put_at(srv, a, ea, side_spot(srv, eb))
     put_at(srv, b, eb, (at[0], at[1] + 8, at[2]), 90)
     b.cmd("vr_mock_hand off -0.15 0.6 -0.35 0 0 0")
     server_time_past(srv, server_time(srv) + THROW_SETTLE_S)
-    got = False
+    # (B's own client's entities: a remote client has no server to ask for the round's classname, so the one A let fall
+    # is found by its model; B10's "nearest vr_ammo_shell" found none there, the hand stayed at B's pouch and took a
+    # pair of his own: the "open item" was the test's.)
+    mine0 = inv1.get(eb - 1, {}).get(key, 0)
     took = None
     for _ in range(3):
-        b.cmd("vr_mock_hand_to off nearest vr_ammo_shell")
+        # (At its origin: 1 unit over it, a shell lying on its side was 3.1 cm off the fist.)
+        b.cmd("vr_mock_hand_to off nearestmodel %s" % model)
         server_time_past(srv, server_time(srv) + THROW_SETTLE_S)
         since = srv.mark()
         b.cmd("vr_mock_button off grip 1")
-        took = took or wait_quietly(srv, r"carry: vr_ammo_shell held at", 2, since, "B's hand taking the shell")
-        server_time_past(srv, server_time(srv) + THROW_SETTLE_S)
-        b.cmd("vr_mock_hand_to off ammopouch")
-        server_time_past(srv, server_time(srv) + THROW_SETTLE_S)
-        b.cmd("vr_mock_button off grip 0")
-        inv2, _ = inventories_until(srv, lambda inv, m: inv.get(eb - 1, {}).get("shells", 0) > inv0.get(eb - 1, {}).get(
-            "shells", 0), 10)
-        got = inv2.get(eb - 1, {}).get("shells", 0) > inv0.get(eb - 1, {}).get("shells", 0)
-        if got:
+        took = wait_quietly(srv, r"carry: %s held at" % classname, 2, since, "%s's hand taking the %s" % (bn, what))
+        if took:
             break
-    s.check("ammo: B's hand takes up the shell A dropped (the server's carry of it)", took is not None,
-            "no 'carry: vr_ammo_shell held' on the server")
-    # (Open, MP_PLAN B10: let go of at a remote player's own pouch, the carried round does not go back into his reserve
-    # (VR_Reload_LetGo's AtPouch: his hand's hotspot while carrying); a metric until it is fixed, not a check.)
-    s.metric("ammo_into_b_reserve", 1 if got else 0)
-    s.note("ammo: B's shells %s -> %s after letting go of it at his pouch" % (inv0.get(eb - 1, {}).get("shells"),
-                                                                             inv2.get(eb - 1, {}).get("shells")))
+        b.cmd("vr_mock_button off grip 0")
+        server_time_past(srv, server_time(srv) + THROW_SETTLE_S)
+    inv_t, _ = inventories(srv)
+    from_floor = took is not None and inv_t.get(eb - 1, {}).get(key, 0) == mine0
+    s.check("ammo: %s's hand takes up the %s %s dropped (the server's carry of it, not one of his own pouch)" % (bn, what, an),
+            from_floor, "carry %s; %s's %s %s -> %s" % ("seen" if took else "not seen", bn, key, mine0,
+                                                       inv_t.get(eb - 1, {}).get(key)))
+    server_time_past(srv, server_time(srv) + THROW_SETTLE_S)
+    b.cmd("vr_mock_hand_to off ammopouch")
+    server_time_past(srv, server_time(srv) + THROW_SETTLE_S)
+    b.cmd("vr_mock_button off grip 0")
+    inv2, _ = inventories_until(srv, lambda inv, m: inv.get(eb - 1, {}).get(key, 0) > mine0, 10)
+    got = inv2.get(eb - 1, {}).get(key, 0) - mine0
+    s.metric("ammo_into_%s_reserve_%s" % (bn.lower(), key), got)
+    s.check("ammo: let go of at %s's own pouch, the %s goes into his reserve (as much as %s lost)" % (bn, what, an),
+            from_floor and got == taken, "%s's %s %s -> %s (%s lost %s)" % (bn, key, mine0, inv2.get(eb - 1, {}).get(key), an, taken))
 
 
 FACE_GAP = 40.0  # mp_melee: units between the two players, face to face (their boxes 8 apart: a punch's reach)

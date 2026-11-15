@@ -511,8 +511,9 @@ void mockLook_f()
 // "vr_mock_hand_to <main|off> ragdoll <part> [<units>]": at the middle of that part of the ragdoll nearest you (its
 // rig's bone number: vr_ragdoll_info; "near": the part nearest the hand; "head", "neck": its head's joint), `units` over it (the grab tests). "vr_mock_hand_to <main|off> by <dx> <dy> <dz>":
 // moved by that much (world units: lifting, swinging what it holds). "vr_mock_hand_to <main|off> nearest <classname>
-// [<units>]": at the origin of the entity of that classname nearest you (vr_limb: a limb cut off), `units` over it.
-// "vr_mock_hand_to <main|off> ammopouch": at the ammo pouch (vr_reload_mode 3); "pouchport [<units>]": the hand's own
+// [<units>]": at the origin of the entity of that classname nearest you (vr_limb: a limb cut off), `units` over it
+// (the server's: a local game); "nearestmodel <substring> [<units>]": the drawn one whose model's name holds it (a
+// remote client's too). "vr_mock_hand_to <main|off> ammopouch": at the ammo pouch (vr_reload_mode 3); "pouchport [<units>]": the hand's own
 // gun's load point on the pouch's rounds' top, units above them (pouch reloading); "pouchmag <slot> [<up> [<left>
 // [<out>]]]": on that magazine's top as drawn in the pouch, moved by those units; "holster <0..5>": at that holster's
 // point (body::Holster); "grenadepouch": at the grenade pouch (vr_handgrenade); "vr_mock_hand_to <main|off> lport
@@ -1075,6 +1076,46 @@ void handToNearest(int hand)
     moveHandTo(hand, target);
 }
 
+// "nearestmodel <substring> [<units>]": at the origin of the drawn entity nearest you whose model's name holds
+// `substring` (none of your own view's, not you), `units` over it. The client's entities, so a remote client's too (no
+// server there: MP B10b, a round another player dropped).
+void handToNearestModel(int hand)
+{
+    if(cls.state != ca_connected || cl.viewentity <= 0)
+    {
+        Con_Printf("vr_mock_hand_to: not connected\n");
+        return;
+    }
+    const glm::vec3 me = geom::vec(cl_entities[cl.viewentity].origin);
+    const entity_t* best = nullptr;
+    float bestDist = 0.f;
+    for(int i = 0; i < cl_numvisedicts; i++)
+    {
+        const entity_t* e = cl_visedicts[i];
+        if(!e || e < cl_entities || e >= cl_entities + cl_max_edicts || !e->model || view::find(e) ||
+            e == &cl_entities[cl.viewentity] || !strstr(e->model->name, Cmd_Argv(3)))
+        {
+            continue;
+        }
+        const float d = glm::distance(geom::vec(e->origin), me);
+        if(!best || d < bestDist)
+        {
+            best = e;
+            bestDist = d;
+        }
+    }
+    if(!best)
+    {
+        Con_Printf("vr_mock_hand_to: no drawn %s\n", Cmd_Argv(3));
+        return;
+    }
+    glm::vec3 target = geom::vec(best->origin);
+    target.z += Cmd_Argc() >= 5 ? Q_atof(Cmd_Argv(4)) : 0.f;
+    Con_Printf("vr_mock_hand_to: %s (entity %d): %.1f %.1f %.1f\n", best->model->name,
+        static_cast<int>(best - cl_entities), target.x, target.y, target.z);
+    moveHandTo(hand, target);
+}
+
 // A ragdoll's limb (vr_ragdoll: the grab tests), `units` over its middle; or where the hand is moved by a
 // world offset (units).
 void handToRagdollOrBy(int hand, bool by)
@@ -1207,6 +1248,11 @@ void mockHandTo_f()
         handToNearest(hand);
         return;
     }
+    if(hand >= 0 && Cmd_Argc() >= 4 && Cmd_Argc() <= 5 && !q_strcasecmp(Cmd_Argv(2), "nearestmodel"))
+    {
+        handToNearestModel(hand);
+        return;
+    }
     if(hand >= 0 && Cmd_Argc() >= 5 && !q_strcasecmp(Cmd_Argv(2), "touch"))
     {
         // The touchscreen (vr_touch.hpp): the fingertip `cm` (0) in front of the screen an app asks touches of, at its
@@ -1241,6 +1287,7 @@ void mockHandTo_f()
                    "       vr_mock_hand_to <main|off> ragdoll <part|near|head> [<units over it>]\n"
                    "       vr_mock_hand_to <main|off> by <dx> <dy> <dz>\n"
                    "       vr_mock_hand_to <main|off> nearest <classname> [<units over it>]\n"
+                   "       vr_mock_hand_to <main|off> nearestmodel <model name part> [<units over it>]\n"
                    "       vr_mock_hand_to <main|off> ammopouch\n"
                    "       vr_mock_hand_to <main|off> pouchport [<units above>]\n"
                    "       vr_mock_hand_to <main|off> pouchmag <slot> [<up> [<left> [<out>]]]\n"
