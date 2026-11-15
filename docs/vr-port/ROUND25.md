@@ -3467,3 +3467,5 @@ MRL (slot 14, v_multi2.mdl) now holds no offset keys of its own: it inherits the
 - mp_test.py disarm (17/0 dedicated, 17/0 --listen): gentle pull slips (0.18 m/s), yank takes (2.48 m/s), toss to A
   taken, B's holsters as A draws them (every slot given, one drawn, after death), a shell from A's pouch taken by B.
 - Open: a carried round let go at a remote player's own pouch is not refunded (metric ammo_into_b_reserve); MP_PLAN B10.
+- Checks: mp_test.py suite 27 of 28 (mp_ground 14/1, its known 'None' grip flake, then 15/0 alone; mp_disarm 17/0),
+  scenario_check 137/0, load_models_test 4/0, ReleaseLTO build 0 warnings. vr_run_check not run (runs untouched).
