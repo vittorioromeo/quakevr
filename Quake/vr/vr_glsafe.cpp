@@ -71,6 +71,7 @@ struct State
     unsigned esKeep = 0;    // -gleskeep: the VR_GLES_FORM_* whose PC form stays (a measurement of each one's cost)
     bool esNoExt = false;   // -glesnoext: as an ES driver without the optional extensions we have a fallback for
     int esShaderErrors = 0; // -glescompat: programs that failed as ES 3.2 GLSL (VR_GLESShaderError)
+    za::String esDefineUsed; // vr_gles_define as the ES shaders last took it (VR_GLESDefineChanged)
     unsigned logged = 0;    // features whose "off" line was printed
     char why[256]{};        // why safe mode is on
     bool mapSpawned = false;
@@ -392,6 +393,12 @@ extern "C" int VR_GLESForm(int form)
 // off compiled out (Adreno pays for their mere presence: QUEST_PLAN.md 6n, e1m1 GPU 18.7 -> 15.7 ms a frame).
 // Bits: 1 no parallax mapping (vr_parallax or vr_normalmaps 0), 2 no carved decals (vr_decal_carve
 // 0). The programs are made again when this changes (GL_WorldLiteCheck). -glesfull: never (the whole shader, as the PC's).
+// C4m (QUEST_PLAN.md 6t): vr_gles_define no longer what the ES shaders were made with (GL_WorldLiteCheck makes them again).
+extern "C" int VR_GLESDefineChanged(void)
+{
+    return VR_GLESForm(VR_GLES_FORM_GLSL) && strcmp(vr_gles_define.string, glsafe.esDefineUsed.cStr()) != 0;
+}
+
 extern "C" int VR_GLESWorldLite(void)
 {
     if(!VR_GLESForm(VR_GLES_FORM_GLSL) || vr_gl_world_lite.value <= 0.f || COM_CheckParm("-glesfull"))
@@ -827,10 +834,9 @@ void appendMemberCopies(za::String& out, const GlslStruct& st, const za::String&
     za::String es{glsafe.esNoExt ? esHeaderNoExt : esHeader};
     // -glesdefine A,B,...: "#define A 1" (and B ...) in every ES shader's header: the shaders' QVR_PROBE_* switches
     // (gl_shaders.h; QUEST_PLAN.md 6j: the world and model programs split on a device)
-    const int define = COM_CheckParm("-glesdefine");
-    if(define && define < com_argc - 1)
-    {
-        for(const char* d = com_argv[define + 1]; *d; d += strcspn(d, ",") + (d[strcspn(d, ",")] ? 1 : 0))
+    // and vr_gles_define's (C4m: the same in a session, the shaders made again when it changes: GL_WorldLiteCheck)
+    const auto addDefines = [&es](const char* list) {
+        for(const char* d = list; *d; d += strcspn(d, ",") + (d[strcspn(d, ",")] ? 1 : 0))
         {
             const size_t len = strcspn(d, ",");
             if(len > 0)
@@ -840,7 +846,14 @@ void appendMemberCopies(za::String& out, const GlslStruct& st, const za::String&
                 es += " 1\n";
             }
         }
+    };
+    const int define = COM_CheckParm("-glesdefine");
+    if(define && define < com_argc - 1)
+    {
+        addDefines(com_argv[define + 1]);
     }
+    glsafe.esDefineUsed = vr_gles_define.string;
+    addDefines(vr_gles_define.string);
     es += za::String{s + body, static_cast<za::SizeT>(code - body)};
     es += esPrecisions;
     es += s + code;

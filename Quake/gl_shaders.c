@@ -1020,9 +1020,10 @@ ones made before. Never on the PC's own GLSL (VR_GLESWorldLite 0 there).
 void GL_WorldLiteCheck (void)
 {
 	int lite = VR_GLESWorldLite ();
-	if (lite == gl_world_lite || !gl_num_programs)
+	qboolean defines = VR_GLESDefineChanged (); // QVR: vr_gles_define's probes (C4m)
+	if ((lite == gl_world_lite && !defines) || !gl_num_programs)
 		return;
-	Con_DPrintf ("world programs' lite form %d -> %d: shaders made again\n", gl_world_lite, lite);
+	Con_DPrintf ("world programs' lite form %d -> %d%s: shaders made again\n", gl_world_lite, lite, defines ? ", vr_gles_define changed" : "");
 	GL_DeleteShaders ();
 	GL_CreateShaders ();
 }
