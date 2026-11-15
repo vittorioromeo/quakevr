@@ -43,6 +43,10 @@ void apply(hands::State& s);
 // Whether the weapon in `hand` is held two-handed by its blade (a sword's half-sword grip: the other
 // hand towards the tip), rather than by its foregrip or grip.
 [[nodiscard]] bool bladeGrip(int hand);
+// Whether the other hand holds the weapon in `holding` away from its handle: anywhere on it (a free grip) or by its blade
+// (bladeGrip). The flip grip's gate (ROUND25.md "flipgate"; view::gripFlipBlocked): a sword or dagger held in two hands flips
+// only with both hands on its handle (the other on its two-handed grip hotspot).
+[[nodiscard]] bool heldOffHandle(int holding);
 
 // Where the helping hand `hand` is drawn on the blade it holds (bladeGrip(1 - hand)): its pose
 // (`pos`, `rot`: in, as tracked and drawn; out, on the blade), given the holding hand's drawn pose.

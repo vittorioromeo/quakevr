@@ -4772,6 +4772,8 @@ vr_revgrip_forcegrab|2|Tunables|Force Grab Catch|Advanced VR Options > Debug > T
 vr_revgrip_volume|2|Tunables|Flip Sound Volume|Advanced VR Options > Debug > Tunables > Flip Sound Volume
 vr_revgrip_pivot|2|Tunables|Flip Pivot|Advanced VR Options > Debug > Tunables > Flip Pivot
 vr_revgrip_pivot_shift|2|Tunables|Flip Pivot Shift|Advanced VR Options > Debug > Tunables > Flip Pivot Shift
+vr_revgrip_2h_gate|2|Tunables|Two-Handed Flip|Advanced VR Options > Debug > Tunables > Two-Handed Flip
+vr_revgrip_blocked_pulse|2|Tunables|Refused Flip Pulse|Advanced VR Options > Debug > Tunables > Refused Flip Pulse
 vr_revgrip_2h_mirror|2|Tunables|Reversed Two-Handed Hand|Advanced VR Options > Debug > Tunables > Reversed Two-Handed Hand
 |2|Tunables|Reset This Page|Advanced VR Options > Debug > Tunables > Reset This Page
 @page|2|Debug - Cheats and Recording||Advanced VR Options > Debug > Cheats and Recording

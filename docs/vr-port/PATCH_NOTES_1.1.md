@@ -147,7 +147,8 @@ old default move to the new one, and values you changed stay yours.
   a sword and throws point first. Armed humanoids carry it too.
 - The reverse grip: press B (Y) holding a sword or the dagger to turn it blade down for stabbing down. The flip turns
   about your fist and carries through two-handed holds (mirrored), passing between hands, drops, throws, and taking a
-  reversed blade off a table or out of a body; catch a tossed dagger blade down and you hold it reversed.
+  reversed blade off a table or out of a body; catch a tossed dagger blade down and you hold it reversed. Held in two
+  hands, it flips only with both hands on the handle (not with the other hand on the blade or anywhere else).
 - Thrown swords and daggers come round point first; a blade thrown blade first sinks deep and kills whole.
 - One consistent throw for props and weapons.
 - Grab floating pickups out of the air, and catch things in mid-air.
