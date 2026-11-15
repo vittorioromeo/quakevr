@@ -45,10 +45,14 @@ Tests:
     flatbody  a flat-screen B's body as A draws it is at his flat body height (B6b).
     disarm   (B10) A holds a shotgun out; B's hand closes on it and pulls gently: it slips off; B yanks: it is his. B tosses
              it to A, who takes it. B's holsters as A draws them (a shotgun in each slot, one drawn, after his death). A
-             shell from A's pouch let fall: B's hand takes it up.
+             shell, a nail magazine and a rocket from A's pouch let fall: B's hand takes each up and lets it go at his
+             pouch (his reserve up by A's loss); a nail magazine and a rocket B loads into his own gun (B8h). --part
+             give|use: the rounds alone.
+    predictclimb  (B8h) on vrclimb, B 150 ms behind each way mantles onto the ledge: the mantle runs in his moves, his
+             replay's corrections under a unit; at rest he is where the server has him. --part mantle: it alone.
     suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, version, avatar, avatarcal, body, prefs, grab,
              teleport, held, ground, campaign, campaign_listen, flow, download, pickup, forcegrab, melee, moves, climb,
-             rules, cosmetics, flatbody.
+             rules, cosmetics, flatbody, loss, predict, predictclimb, lagcomp, disarm.
 
 The base folder is a Quake folder with id1 (and hipnotic, rogue, quakevr: -game as the kit's runs). Its
 id1/autoexec.cfg runs in every game: --reset-autoexec empties it first (the kit's test bases: a run's script).

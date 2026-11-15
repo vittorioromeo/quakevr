@@ -3603,3 +3603,15 @@ the same exact rules" as enemies; an option, on by default, single player and mu
 - Checks: vr_pd_test 10/0, mp_disarm 27/0 dedicated and --listen; mp_test.py suite 26 of 28
   (mp_ground 14/1, mp_pickup 8/1: known grip flakes, then 15/0 and 9/0 alone), scenario_check 138/0, load_models_test
   4/0, vr_run_check 15/0 (runenemies 17/0), Release ThinLTO build 0 warnings. Next: B8h (MP_PLAN).
+
+## mpN B8h part 1: rounds used by B; the mantle predicted (agent/mp, 2026-11-15)
+
+- mp_disarm's use part (`--part use`): a nail magazine and a rocket A let fall, taken up by B and loaded into his own
+  gun at its port (his magazine out by its button, the launcher fired empty first): seated / loaded, his reserve
+  unchanged. Worked at once: no game fix. `vr_mp_status` `mp_client inv=` gains the main gun's clip (a ninth value).
+- The mantle runs in a remote client's moves: `pmove::Mantle` / `pmove::mantleStep` (vr_pmove.cpp) is the one step,
+  single player's mantle frame (vr_climb.cpp `mantleStep`, its time run now `Climber::mantleAt`) and the server's and
+  his replay's moves alike; `climb::mantlePath` / `climb::mantleMoved` around VR_PredictPhysics; the state carries the
+  way and its time (`bitMantle`). New scenario `mp_predictclimb` (`--part mantle`): 19 mantling states, corrections
+  0.000 over 285, at rest where the server has him. QVR_NET_VERSION 25.
+- Checks: CHECKS_LINE. Next: B8i (the hang in the moves, the grapple's pull, the hands' climb out; MP_PLAN).

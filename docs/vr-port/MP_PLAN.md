@@ -204,7 +204,8 @@ player unchanged.
 | **B8e** (swimming, the water jump's carry and the movers' motion done; the rest is B8f) | The rest of the prediction's moves: swimming and water jumps, the lying box (the crawl), climbing, the grapple, a fall onto a moving lift (the movers' motion in the replay) | `mp_predict` grown (a swim on e1m4, a crawl, a climb, a grapple pull, a drop onto e1m1's lift as it rises) |
 | **B8f** (the drop onto a rising lift and Quake's water jump out done; the rest is B8g) | The drop onto a rising lift's one correction (12.7 units, below), a water jump out tested, the lying box's crawl (the stick's share in the moves), climbing and the grapple (drawn as they come today) | `mp_predict` grown (the drop under a unit, a water jump, a crawl, a climb, a grapple pull) |
 | **B8g** (the lying box's crawl done; the rest is B8h) | The lying box's crawl (the stick's share in the moves), climbing and the grapple; the hands' climb out of the water (vr_water_jump 0) | `mp_predict` grown (a crawl, a climb, a grapple pull, a hand's climb out: corrections under a unit) |
-| **B8h** | Climbing in his replay (the mantle's timed path first, then the hang's pull from his own moves' hands), the grapple's pull, the hands' climb out of the water | `mp_predict` grown (a mantle, a hang and pull up, a grapple pull, a hand's climb out: corrections under a unit) |
+| **B8h** (rounds used by B and the mantle done; the rest is B8i) | Climbing in his replay (the mantle's timed path first, then the hang's pull from his own moves' hands), the grapple's pull, the hands' climb out of the water | `mp_predict` grown (a mantle, a hang and pull up, a grapple pull, a hand's climb out: corrections under a unit) |
+| **B8i** | The hang in his moves (each move's hands for hangPull/hangMove; the grips, `owed` and the phase in the state), the grapple's pull, the hands' climb out of the water | `mp_predictclimb --part hang` (a hang and pull up: corrections under a unit), `mp_predict` grown (a grapple pull, a hand's climb out) |
 | **B9** (the review done; #1-#2 unified; the rest B11a-c) | Code quality: one code path for single player and multiplayer (section "B9 review") | the MP suite, SP regressions identical |
 | **B11a-c** | The rest of the B9 review: heldpose's own-player view asks into the slot store; vr_pmove for every player (then monsters); one avatar routine for any player entity | SP hash audits + MP suite |
 | **B12** (was B9) | Compression and rate: entropy stage with trained tables, per-client rate, priority accumulator | byte budgets per scenario from section 2.3 |
@@ -1570,6 +1571,40 @@ should come from one system for every player), **done** (unified in B9).
   a buzz), handing an item hand to hand (both holding it, one lets go), a helping hand up a ledge (the climb's hold on
   another's hand), reviving a downed coop player.
 
+### B8h results, part 1: rounds used by B; the mantle predicted (2026-11-15, dev no-LTO build, loopback; SUITE_LINE)
+
+| Scenario | Result |
+|---|---|
+| `mp_disarm` (grown: `--part use`) | A's dropped nail magazine and rocket taken up by B from the floor and loaded into his own gun at its loading port (his off hand to `vr_mock_hand_to off lport`, as his client draws the port): "a magazine of 24 seated (hand 1)", "1 into the gun (hand 1)", his gun's magazine 0 -> 24 and 0 -> 1, his reserve unchanged. It worked at once: no game fix (the shared path, VR_Reload_LoadInto, is every player's). 13/0 `--part use`; the whole scenario 35/0 `--listen` |
+| `mp_predictclimb` (new; `--part mantle`) | On vrclimb, B (150 ms each way) takes the ledge with both hands, pulls down and pushes over the top (mp_climb's overtop): 19 states mantling, each walked move by move; every correction 0.000 over 285 states (20 of them in the mantle), drawn offset 0.000; on the top at rest he is where the server has him (118 179.6 72) |
+
+What changed:
+
+- **The mantle runs in his moves** (`pmove::Mantle`, `pmove::mantleStep`, vr_pmove.cpp): its way (from, up to mid, over
+  to, at an even speed along the two) and the time it has run. Single player's mantle frame (vr_climb.cpp
+  `mantleStep`) steps the same function by `host_frametime` (the time run is now `Climber::mantleAt`, not a start
+  time: the same numbers); a remote client whose moves run one by one has `VR_ClientClimb` leave the mantling frame to
+  the walk (`VR_PredictWalks`), and VR_PredictPhysics runs it in each move (`climb::mantlePath` before, the brush
+  model's or prop's motion added as before; `climb::mantleMoved` after: its time kept, at its end he stands and the
+  climb lets go, as before). The move that ends it ends there; the moves after it walk.
+- **The state carries it** (bit `bitMantle`, the way's three points, its time run and its length) and his replay
+  carries him along it at each move's time: the server's clock is his moves', so the two agree to the bit.
+- No moves, no mantle: a client whose moves stop (a stall) freezes on the way until they come, as his walk does; one
+  that stops sending per-move moves falls back to the frame's mantle (its time run carries over).
+- `vr_mp_status`'s `mp_client inv=` gains a ninth value: the main hand's gun's magazine (its weapon record's `wi_clip`).
+  `vr_mp_predict_report`: `mantle_n`. `QVR_NET_VERSION` 25.
+
+Open (B8h, the rest):
+
+- **The hang** (a hanging frame is the server's, drawn as it comes; the mantle's start is a correction, the drawn body
+  snapping from the server's place to the predicted one). Next: the hang in the moves, each move's hands (the moves
+  carry them: `WireMove::vr`) for hangPull's motion relative to the body, hangMove's limits; the state the grips (the
+  holds, each hand's last relative place, light or not, the top), `owed` and the phase (slipping). keepWithinReach,
+  settleOwed, reachCheck, tryMantle and the stamina the server's once a frame after the moves (corrections, eased in).
+- The grapple's pull (the rope in the state, the reel in the moves) and the hands' climb out of the water (vr_water_jump
+  0): not started.
+- Other players are not in his replay (B8g's open item), getting up from lying at once (B8g's): unchanged.
+
 ## Decisions
 
 - Melee's lag compensation (B8c) wraps the queries (melee's sweep, a bash's find, a headbutt's target, a guard's check
@@ -1634,4 +1669,4 @@ should come from one system for every player), **done** (unified in B9).
 - The interpolation buffer (B7b) leaves brush models and stepping monsters on NetQuake's lerp: the player's own entity
   is not delayed (no prediction until B8), and a lift he rides must stay in step with him.
 
-Next phase: B8h (B10b done; first, a small test: a magazine and a rocket A dropped loaded by B into his own gun, `mp_disarm`'s ammo part) — B8h — climbing in his replay (the mantle's timed path from the state first, then the hang's pull from his own moves' hands: vr_climb.cpp hangPull/hangMove), the grapple's pull (the rope in the state, the reel in the moves), the hands' climb out of the water (vr_water_jump 0: a hand's grip and pull, the server's today); tests first: `mp_predict --part` grown (corrections under a unit); then the `mp_melee` "crowbar held level" flake if it shows.
+Next phase: B8i (B8h's rounds used by B and the mantle done) — the hang in his replay (each move's hands, carried in the moves, through vr_climb.cpp hangPull/hangMove run per move on the server and in his replay; the grips, `owed` and the phase in the state; keepWithinReach, settleOwed, reachCheck, tryMantle and the stamina the server's once a frame after the moves), then the grapple's pull (the rope in the state, the reel in the moves) and the hands' climb out of the water (vr_water_jump 0); tests first: `mp_predictclimb --part hang`, `mp_predict --part` grown (corrections under a unit); after it MP_PLAN's B11a-c unification (the B9 review's #3-#5).
