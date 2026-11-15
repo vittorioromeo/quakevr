@@ -1185,7 +1185,8 @@ za::Vector<Item> pageDebugReports()
         toggle("Movement: Own Walk Through Moves", vr_pmove_own)
             .help("vr_pmove_own: your own walk (single player, or hosting) runs through the same move code a remote "
                   "player's moves and his prediction run, one move a frame. Off: Quake's server physics and QuakeC's "
-                  "jump and water code, as before. A test of the one movement module (MP_PLAN B11b)."),
+                  "jump and water code, the old path, kept as the fallback. On by default: one movement module for "
+                  "single player, hosting and multiplayer (MP_PLAN B11b)."),
         toggle("Movement: Trace Walk Each Frame", vr_pmove_trace)
             .help("vr_pmove_trace: each server frame, every player's place, speed and flags after his physics printed "
                   "(pmtrace: lines), to compare two runs frame by frame. A test aid."),

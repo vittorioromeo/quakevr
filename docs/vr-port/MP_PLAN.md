@@ -1495,7 +1495,7 @@ should come from one system for every player), **done** (unified in B9).
 | 1 | `held::fistOf`, `grip::handFrameOf`, `gripfit::fit` (vr_held/vr_grip/vr_gripfit.cpp; readers: Box3D hands, ragdoll parts, foe grabs, physics touches, water pulls, carry, grips) | player 1 of a non-dedicated server: the client's live globals; else `svs.maxclients > 1`: his slot's (sent) | **done**: one per-slot store; the host's own client puts its hands into its slot as it measures them (`clientprefs::ownSlot`, `publishOwn`; at a slot reset too), a remote one's come in his messages; the loopback copies of the host's own no longer sent |
 | 2 | `clientprefs::value`/`forQc`, `PF_cvar_hget` | `svs.maxclients > 1` before a slot's preferences | **done**: the check dropped (a slot without preferences gives the game's own value: single player always) |
 | 3 | vr_heldpose.cpp (`isLocal`, `isRemote`, `grabSpot`, `reverseGrip`, `magPoll`, `remote`), vr_builtins_held.inc (weapon hotspot, any-grip, help kind: 5 sites), vr_carry2h.cpp:333, vr_box3d_hands.cpp:661, `grip::serverTake`'s `h.local` | the host's own player: the client's view asked live (hotspots, ground spot, reverse grip, magazine presses); others: their slot's drawn pose, spot, presses | **unify** (B11a, medium, 1 session): the host publishes its `heldpose::Hand`, ground spot and presses into its slot as #1; readers read the slot only. Three different "local" tests today (`sv.active && cls.state == ca_connected && num == 1`, `cls.state != ca_dedicated && slot == 0`, `num == 1 && cls.state != ca_dedicated`) become `clientprefs::ownSlot`. Care: the remote path turns hotspots through the player's hand fields (`toWorld`), the local one through the view: single player's numbers change unless published unquantized in the same frame; check with the SP hash audits. **Done** (B11a: `heldpose::publishOwn` before each server frame, the view's world places carried in the slot: "B11a results") |
-| 4 | sv_user.c:437 `VR_PredictThink`, sv_phys.c:1377/1414 `VR_PredictWalks` (vr_predict.cpp) | a remote client's walk: his moves one by one through vr_pmove.cpp; the host's own player (and a flat or old client): SV_Physics + QC PlayerPreThink | **unify** (B11b, large, 2 sessions; highest value): vr_pmove for every player, the host's own included (behind a cvar first, SP traces compared frame by frame), so prediction, server and single player are one module; then monsters' step and swim through the same body code. **Done** (B11b parts 1-2: `vr_pmove_own`, default 0 (his call, "For him (B11b)"); with 1, single player's traced walk, jump, crouch, lift, swim, water jump and crawl are frame-identical; monsters kept: not clean, "B11b results, part 2") |
+| 4 | sv_user.c:437 `VR_PredictThink`, sv_phys.c:1377/1414 `VR_PredictWalks` (vr_predict.cpp) | a remote client's walk: his moves one by one through vr_pmove.cpp; the host's own player (and a flat or old client): SV_Physics + QC PlayerPreThink | **unify** (B11b, large, 2 sessions; highest value): vr_pmove for every player, the host's own included (behind a cvar first, SP traces compared frame by frame), so prediction, server and single player are one module; then monsters' step and swim through the same body code. **Done** (B11b parts 1-2: `vr_pmove_own`, default 1 since B11c part 2 (his call, "For him (B11b)"; 0 the fallback); with 1, single player's traced walk, jump, crouch, lift, swim, water jump and crawl are frame-identical; monsters kept: not clean, "B11b results, part 2") |
 | 5 | vr_mpavatar.cpp (remote bodies, `bonePoses`), vr_view_diag.cpp `remoteRigSkin`/`remoteHandSkin`, vr_avatar.cpp:1430 `otherDrawn` (`cl.maxclients <= 1`), :2392 | another player's body, hands, holsters, plates drawn from his avatar block; the own from the live rig (vr_view_body, vr_view_hands) | **unify** (B11c, large, 2 sessions): one routine draws any player entity from an avatar state (the own filled from the live rig, others from snapshots), the flat player's own body (third person, vr_flattp) from it too. **Part 1 done** (B11c: the body, its plates and pauldrons through `view::drawBody` for yours and every copy; the hands, held and holstered weapons left: part 2). **Done** (B11c part 2: `view::drawHand`, `drawGear`, `drawHands`; the plates' morphs per player: "B11c results, part 2") |
 | 6 | vr_teleport.cpp:72, vr_trace.cpp:159, vr_hull.cpp:5083 | no server edict for the own player (a remote client): the client's state (`cl.onground`, `cl.worldmodel`, the prediction's hulls) | **unify** (small): one "own player" accessor (on ground, in water, the world to trace) answering from the edict when hosting, from the prediction's state otherwise. **Done** (B11c: `progs::ownSource`, `ownStanding`) |
 | 7 | vr_predict.cpp:750/1155, vr_netsnap.cpp:736/774 | only `cl.viewentity` predicted; others interpolated, the own not delayed | keep (network: latency hiding is the owner's alone) |
@@ -1871,7 +1871,7 @@ clc_move again: single player is sv_phys.c's SV_WalkMove and QuakeC's PlayerPreT
 
 What changed:
 
-- **`vr_pmove_own`** (default 0; Debug > Network, "Movement: Own Walk Through Moves"): this game's own player
+- **`vr_pmove_own`** (default 0, 1 since B11c part 2: his call; Debug > Network, "Movement: Own Walk Through Moves"): this game's own player
   (`clientprefs::ownSlot()`) walks through the remote client's code path (VR_PredictThink, VR_PredictPhysics,
   vr_pmove.cpp): one move a frame, built from his clc_move (`host_client->cmd`, the jump and attack bits) and his VR
   block (`server::clientMove`) as a WireMove, through the same `inputOf`, for the frame's time. Everything keyed on
@@ -2045,11 +2045,24 @@ water jump out: fixed, then 28/0 twice); scenario_check 138/0, load_models_test 
 - MP: mp_cosmetics 22/0 (grown: A's copy of B's plates comes in by a morph, begun 1, all 1023 pieces coming, its
   shader value 2.001 at the first report; settled after 75 reports with A's morph time at 2 s), mp_body 12/0, mp_held
   14/0, mp_flatbody 6/0, mp_disarm 35/0.
+- **The shared movement path on by default** (his call, 2026-11-16: "For him (B11b)"): `vr_pmove_own` 1, so single
+  player and a listen host's own player walk through vr_pmove.cpp as a remote client's moves and his prediction do; 0
+  stays as the fallback (Debug > Network). The one known change: tracked hands' swim strokes and crawl pulls push one
+  frame later (after the move, not in SV_ClientThink before it). With 1 the default: `pmtrace_all.sh` (0 against 1, frame
+  by frame) walk 463, lift 330, swim 345, water jump out 181, crawl 380 frames all identical; prop_climb_test 12/12,
+  mantle_height_test PASS (the shallowest pull 0.3 m at 8, 0.45 m at the default, as before), crawl_test 18/0.
+- Final checks (vr_pmove_own 1, everything above built in): `mp_test.py suite` 29 of 30 pass: mp_climb 7/2 (A never
+  put at the ledge for B's mantle: the known suite flake of its setup) then 11/0 alone; scenario_check 138/0,
+  load_models_test 4/0, vr_run_check 12/0, Release (ThinLTO) build 0 warnings.
 - Open: a copy's plates and hands have no wounds or power-up shading (yours: `showPlayerState`; his would need his
   wounds sent). The copies' ViewEntities are still found by their own lookups (mpavatar::find, bonePoses, lookOf) beside
   yours (view::find): one registry for every player's view entities would fold them, a small follow-up.
 
 ## For him (B11b)
+
+**His answer (2026-11-16): on.** `vr_pmove_own` defaults to 1 since B11c part 2; 0 stays as the fallback (Debug >
+Network, "Movement: Own Walk Through Moves"). The checks with the new default are in "B11c results, part 2". What he
+was asked (as of B11b):
 
 `vr_pmove_own` stays 0 (Debug > Network, "Movement: Own Walk Through Moves"). If it were 1, single player would walk
 through vr_pmove.cpp (the module a remote client's moves and his prediction run) instead of sv_phys.c's SV_WalkMove and
@@ -2085,7 +2098,9 @@ QuakeC's PlayerPreThink parts. Exactly what would change:
 - A remote client's walk (B8) runs move by move on the server through `vr_pmove.cpp`, a port of sv_phys.c's walk with
   hooks, while single player and the listen host's own client keep sv_phys.c's path untouched: the two the prediction
   must agree on (his server and his client) run the same code to the bit, and single player cannot change by
-  construction. Moving single player onto the module too is possible later with the hash audits.
+  construction. Moving single player onto the module too is possible later with the hash audits. (Since B11c part 2,
+  his call: single player and the listen host walk through the module too, `vr_pmove_own` 1, frame-identical in the
+  traces; sv_phys.c's path is the fallback, 0.)
 
 - Server rules (B6) are found by page, not listed: every setting under a balance page is one unless it is a preference,
   unsaved, or named as a player's own (`ownParts`); a misfiled setting is one word there. A remote server's client plays by

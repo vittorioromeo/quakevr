@@ -3792,3 +3792,17 @@ the same exact rules" as enemies; an option, on by default, single player and mu
 - Single player identical (seeded body numbers equal, strips within run noise; revgrip 24/0, flipgrip 39/0, magholster's
   147 holsterpos reads equal to the old ones). MP suite 29/31 (both flakes pass alone), scenario_check 138/0,
   load_models_test 4/0, vr_run_check 12/0, Release build 0 warnings. Left: the hands and weapons (MP_PLAN, B11c part 2).
+
+## mpN B11c part 2: single player walks through vr_pmove; any player's hands and weapons through one routine (agent/mp, 2026-11-15)
+
+- **`vr_pmove_own` defaults to 1** (his call): single player and a listen host's own player walk through vr_pmove.cpp,
+  the module a remote client's moves and his prediction run (one walk code for all); 0 (Debug > Network, "Movement: Own
+  Walk Through Moves") is the fallback to sv_phys.c's SV_WalkMove and QC PlayerPreThink. The one behaviour change:
+  tracked hands' swim strokes and crawl pulls push one frame later (after the move, not before it). Traces 0 against 1
+  frame-identical (walk, lift, swim, water jump out, crawl); prop_climb_test 12/12, mantle_height_test PASS, crawl_test 18/0.
+- `view::drawHand`/`drawGear` (vr_view_hands.cpp) draw your jointed hands, held and holstered weapons and every other
+  player's copy (`view::drawHands`, from his snapshot); `view::morphPlates` gives his plates your morphs. `vr_mp_avatars
+  hands` reports them. Single player identical (seeded numbers equal, eyeshot 0 pixels apart; revgrip 24/0, flipgrip
+  39/0, magholster unchanged, handroll 17/0, flathands 76/0, screenhands 4/0).
+- MP suite 29/30 (mp_climb's setup flake, 11/0 alone), scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0,
+  Release build 0 warnings. Details: MP_PLAN "B11c results, part 2".
