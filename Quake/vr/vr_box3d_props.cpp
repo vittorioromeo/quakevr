@@ -486,6 +486,7 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind, bool resized = false)
     s.kind = kind;
     markSlotActive(num);
     s.flight = false;
+    s.flightAge = 0.f;
     s.model = model;
     s.modelRev = brushes::revision(model); // (a runtime brush's model is made again in place: vr_brushes.cpp)
     s.hull = kind == Kind::Actor && model && model->type == mod_alias ? actorHull(ent, model) : nullptr;

@@ -4493,6 +4493,10 @@ void() VR_Embed_TestFrame =
             VR_ET_To(0);
         }
         cvar_set("vr_embed", "1"); // (off by default for 1.1, on in his config: with it off blades don't stick and these all fail)
+        if(ask == 47)
+        {
+            VR_TP_Begin(); // (thrown swords and daggers settle point first: vr_throwpoint_test.qc)
+        }
         if(ask == 41)
         {
             VR_TG_Begin(); // (thrown blades that kill whole: vr_throwgib_test.qc)
@@ -4727,6 +4731,10 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
     else if(vr_et_on == 6)
     {
         VR_ET_Kinds();
+    }
+    else if(vr_et_on == 47)
+    {
+        VR_TP_Frame(); // (thrown swords and daggers settle point first: vr_throwpoint_test.qc)
     }
     else if(vr_et_on == 41)
     {
