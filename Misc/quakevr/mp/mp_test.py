@@ -1142,7 +1142,7 @@ def grab(s):
         if seen[-1] == 4:
             break
         since = srv.mark()
-        b.cmd("vr_mock_button main grip 0")
+        b.cmd("vr_mock_button off grip 0")
     srv.cmd("vr_debug_carry 0; developer 0")
     after = prefs_report(s, srv).get(eb, {}).get("fistgrabs", 0)
     s.metric("b_fist_grabs", after - before)
@@ -2143,6 +2143,217 @@ def forcegrab(s):
     wa = force_grab(s, srv, a, ea, play, "A")
     s.metric("force_grab_wid", max(wa, wb))
     srv.cmd("developer 0")
+
+
+HOLD_OUT = "vr_mock_hand main 0.15 1.2 -0.45 0 0 0"  # mp_disarm: a gun held out in front at the chest
+B10_GAP = 48.0  # mp_disarm: units between the two players, face to face (a hand reaches the other's held gun)
+# The pulls (rel: from where the hand is, metres in tracking space; +z towards the puller): gently, 0.3 m in 1.5 s
+# (0.2 m/s: it slips off), and a yank, 0.3 m in 0.1 s (3 m/s; vr_disarm_player_pull 1.5).
+GENTLE_PULL = ("0.000 rel main 0 0 0", "1.500 rel main 0 0 0.3", "2.000 rel main 0 0 0.3")
+YANK_PULL = ("0.000 rel main 0 0 0", "0.100 rel main 0 0 0.3", "0.500 rel main 0 0 0.3")
+# A toss underhand to the player ahead: the hand back low, swung forward and up 0.6 m in 0.15 s, let go at its top.
+TOSS_PLAY = ("0.000 main 0.15 1.0 -0.10 0 0 0", "0.400 main 0.15 1.0 -0.10 0 0 0", "0.550 main 0.15 1.3 -0.65 0 0 0",
+             "0.550 grip main 0", "1.000 main 0.15 1.3 -0.65 0 0 0")
+
+
+def hand_at(srv, inst, ent, target, tries=60):
+    """`inst`'s main hand moved to world point `target` (vr_mock_hand_to) until the server has it within 2 units ->
+    its place there (a definite end: `tries` reports)."""
+    got = None
+    for i in range(tries):
+        if i % 10 == 0:
+            inst.cmd("vr_mock_hand_to main %.1f %.1f %.1f" % tuple(target))
+        got = ground_report(srv, "mp_drawn_sv").get((ent, 1), {}).get("hand")
+        if got and dist(got, target) <= 2:
+            return got
+    raise StepFailed("%s's hand never at %s on the server (it has %s)" % (inst.name, target, got))
+
+
+def grab_weapon_of(s, srv, taker, victim, et, ev, label):
+    """`taker`'s empty main hand onto the shotgun `victim` holds out (its grip hotspot as the server places it), the grip
+    pressed once the server has the hand there -> the server's "takes hold" line (None: no hold)."""
+    sv = drawn_report(srv, "mp_drawn_sv").get((ev, 1), {})
+    spots = [v[1:] for v in sv.get("spots", {}).values() if int(v[0]) == 1] or [v[1:] for v in sv.get("spots", {}).values()]
+    if not spots:
+        raise StepFailed("%s: no hotspot of %s's shotgun on the server: %s" % (label, victim.name, sv))
+    taker.cmd("vr_mock_play; vr_mock_button main grip 0")
+    hand_at(srv, taker, et, spots[0])
+    server_time_past(srv, server_time(srv) + GRIP_REPRESS_S)  # (the hand still: a grab, not a swipe; the let-go's bounce)
+    since = srv.mark()
+    taker.cmd("vr_mock_button main grip 1")
+    got = wait_quietly(srv, r"pdisarm: %s's hand 1 takes hold of %s's weapon" % (taker.name, victim.name), 10, since,
+                       "%s's hold on %s's shotgun" % (taker.name, victim.name))
+    s.note("%s: %s's hand on %s's shotgun's hotspot %s: %s" % (label, taker.name, victim.name, spots[0],
+                                                             got[1].strip() if got else None))
+    return got[1] if got else None
+
+
+def holsters_synced(s, a, b, eb, label):
+    """B's holsters as A draws them are B's own (every slot B draws, the same model, within HOLSTER_UNITS; none more)."""
+    def same(lines):
+        la, lb = lines
+        own = {k: v for k, v in holsters_of(lb, "mp_holster_own").items() if k[0] == eb}
+        at_a = {k: v for k, v in holsters_of(la, "mp_holster").items() if k[0] == eb}
+        return set(own) == set(at_a) and all(own[k]["model"] == at_a[k]["model"] and
+                                             dist(own[k]["at"], at_a[k]["at"]) <= HOLSTER_UNITS for k in own)
+    try:
+        (la, lb), n = reports_until(s, [a, b], same, "%s: A draws B's holsters as B does" % label)
+    except StepFailed as e:
+        s.check("%s: A draws B's holsters as B does" % label, False, str(e))
+        return
+    own = sorted("%d:%s" % (k[1], v["model"]) for k, v in holsters_of(lb, "mp_holster_own").items() if k[0] == eb)
+    s.check("%s: A draws B's holsters as B does (slot:model, within %g units)" % (label, HOLSTER_UNITS), True,
+            "%s, after %d reports" % (own or "none", n))
+
+
+def disarm(s):
+    """MP B10 (his voice notes 2026-11-15): another player's weapon taken by a grab and a pull, given back by a toss,
+    holsters seen by the other. A holds a shotgun out, B faces him; B's hand closes on its grip hotspot and pulls gently:
+    it slips off, A keeps it; B grabs again and yanks: the shotgun is B's (A's hand empty). B tosses it to A: it lands by
+    A and A's grip takes it. B's holsters (a shotgun given in each slot, one taken out, after his death) as A draws them."""
+    srv, a, b, ea, eb = join(s)
+    a.cmd("name A")
+    b.cmd("name B")
+    put_at(srv, b, eb, side_spot(srv, ea))
+    put_at(srv, a, ea, OPEN_SPOT, 90)
+    put_at(srv, b, eb, (OPEN_SPOT[0], OPEN_SPOT[1] + B10_GAP, OPEN_SPOT[2]), 270)
+    grip_then_give(srv, a, "%s; vr_mock_button main grip 1; vr_mock_button off grip 0" % HOLD_OUT)
+    held = weapon_until(s, srv, ea, 4)
+    s.check("A holds a shotgun out (the server's report)", held[-1] == 4, "A's main weapon by report: %s" % held)
+    b.cmd("vr_mock_hand main 0.15 1.2 -0.2 0 0 0; vr_mock_button main grip 0; vr_mock_button off grip 0")
+
+    # The gentle pull: the hold slips off, A keeps his shotgun.
+    hold = grab_weapon_of(s, srv, b, a, eb, ea, "gentle")
+    s.check("gentle: B's grip on A's shotgun takes hold of it (on its drawn model, a still hand)", hold is not None,
+            "no 'takes hold' on the server")
+    since = srv.mark()
+    b.cmd("vr_mock_play %s" % play(s, b, "gentle", GENTLE_PULL))
+    slip = wait_quietly(srv, r"pdisarm: B lets go of A's weapon \(slipped off", 10, since, "B's hold slipping off")
+    kept = weapon_until(s, srv, ea, 4, 3)
+    mine = weapon_until(s, srv, eb, 0, 3)
+    s.check("gentle: a pull too gentle (0.2 m/s) slips off: A keeps his shotgun, B's hand empty",
+            slip is not None and kept[-1] == 4 and mine[-1] == 0,
+            "server: %s; A's main weapon %s, B's %s" % (slip[1].strip() if slip else None, kept, mine))
+
+    # The yank: his.
+    hold = grab_weapon_of(s, srv, b, a, eb, ea, "yank")
+    since = srv.mark()
+    b.cmd("vr_mock_play %s" % play(s, b, "yank", YANK_PULL))
+    took = wait_quietly(srv, r"pdisarm: A's .* taken by B \(hand 1\): pulled at", 10, since, "B's yank")
+    mine = weapon_until(s, srv, eb, 4)
+    gone = weapon_until(s, srv, ea, 0)
+    s.check("yank: B's grip and a hard pull (3 m/s) take A's shotgun into B's hand (A's hand empty)",
+            hold is not None and took is not None and mine[-1] == 4 and gone[-1] == 0,
+            "server: %s; B's main weapon %s, A's %s" % (took[1].strip() if took else None, mine, gone))
+    s.metric("disarm_takes", 1 if took else 0)
+
+    # The toss back: B swings it underhand towards A and lets go; it lands by A; A's empty hand takes it.
+    a.cmd("vr_mock_button main grip 0; vr_mock_hand main 0.1 0.6 -0.2 0 0 0")
+    server_time_past(srv, server_time(srv) + THROW_SETTLE_S)
+    since = srv.mark()
+    b.cmd("vr_mock_play %s" % play(s, b, "toss", TOSS_PLAY))
+    thrown = wait_quietly(srv, r"thrown: velocity", 10, since, "B's toss")
+    gone = weapon_until(s, srv, eb, 0)
+    gun, spot = lying(srv, ea)
+    at = org_of(status(srv), "mp_client", "slot", ea - 1)
+    s.note("toss: %s; the shotgun (entity %d) lies at %s, A at %s" % (thrown[1].strip() if thrown else None, gun, spot, at))
+    s.check("toss: B's shotgun leaves his hand thrown towards A and lands within reach of him (64 units)",
+            thrown is not None and gone[-1] == 0 and math.hypot(spot[0] - at[0], spot[1] - at[1]) <= 64,
+            "B's main weapon %s; it lies %.0f units from A" % (gone, math.hypot(spot[0] - at[0], spot[1] - at[1])))
+    # (A steps up to it: 20 units short of it on his side, as hand_over's taker; a toss lands within a step, not a reach)
+    d = [spot[0] - at[0], spot[1] - at[1]]
+    n = math.hypot(d[0], d[1]) or 1.0
+    if n > 20:
+        put_at(srv, a, ea, (spot[0] - d[0] / n * 20, spot[1] - d[1] / n * 20, at[2]))
+    since = srv.mark()
+    a.cmd("vr_mock_button main grip 1")
+    srv.wait(r"grip: A's main hand pressed at", 10, since, "A's grip on the server")
+    since = srv.mark()
+    a.cmd("vr_mock_button main grip 0")
+    line = retake(srv, a, "main", since, r"weapon: .* taken into the main hand", "vr_mock_hand_to main spot 0 6",
+                  "vr_mock_hand_to main spot 0")
+    back = weapon_until(s, srv, ea, 4)
+    s.check("toss: A's grip takes the shotgun B tossed him (the server's: in his main hand)",
+            line is not None and back[-1] == 4, "server: %s; A's main weapon %s" % (line, back))
+
+    # B's holsters as A sees them: a shotgun given in each slot, one taken out by hand, after his death.
+    b.cmd("vr_mock_play; vr_mock_button main grip 0")
+    holsters_synced(s, a, b, eb, "holsters at the start")
+    for slot in range(6):
+        since = srv.mark()
+        b.cmd("impulse %d" % (190 + slot))
+        wait_quietly(srv, r"holster give: .* holster %d a shotgun" % slot, 5, since, "B's holster %d given" % slot)
+    holsters_synced(s, a, b, eb, "a shotgun given in each holster")
+    since = srv.mark()
+    b.cmd("vr_mock_hand_to main holster %d" % HOLSTER_SLOT)
+    server_time_past(srv, server_time(srv) + THROW_SETTLE_S)
+    b.cmd("vr_mock_button main grip 1")
+    out = weapon_until(s, srv, eb, -2, 15)
+    s.note("holster %d drawn by B's hand: his main weapon by report %s" % (HOLSTER_SLOT, out))
+    holsters_synced(s, a, b, eb, "one taken out by hand")
+    since = srv.mark()
+    b.cmd("kill")
+    server_time_past(srv, server_time(srv) + 3.0)
+    b.cmd("vr_mock_button main grip 0; +jump; wait; -jump")
+    server_time_past(srv, server_time(srv) + 1.0)
+    holsters_synced(s, a, b, eb, "after B's death and respawn")
+    ammo_give(s, srv, a, b, ea, eb)
+    srv.cmd("vr_debug_carry 0; developer 0")
+
+
+def ammo_give(s, srv, a, b, ea, eb):
+    """A loose shell handed over (Weapon Mode Immersive's ammo pouch, vr_reload_mode 3): A takes a shell from his pouch
+    and lets it fall ahead of him; B, put beside it, takes it up and lets go of it at his own pouch: one shell less in
+    A's reserve, one more in B's (the single player rules: VR_Reload_Refund, the loose round's carry)."""
+    for inst in (srv, a, b):
+        inst.cmd("vr_reload_mode 3")
+    a.cmd("vr_mock_play; vr_mock_button off grip 0")  # (his main hand keeps the shotgun: the pouch gives its kind)
+    b.cmd("vr_mock_play; vr_mock_button main grip 0; vr_mock_button off grip 0")
+    put_at(srv, b, eb, side_spot(srv, ea))
+    put_at(srv, a, ea, OPEN_SPOT, 90)
+    inv0, _ = inventories(srv)
+    server_time_past(srv, server_time(srv) + THROW_SETTLE_S)
+    a.cmd("vr_mock_hand_to off ammopouch")
+    server_time_past(srv, server_time(srv) + THROW_SETTLE_S)
+    a.cmd("vr_mock_button off grip 1")
+    inv1, _ = inventories_until(srv, lambda inv, m: inv.get(ea - 1, {}).get("shells", 0) < inv0.get(ea - 1, {}).get(
+        "shells", 0), 30)
+    a.cmd("vr_mock_hand off -0.15 1.2 -0.45 0 0 0")
+    server_time_past(srv, server_time(srv) + THROW_SETTLE_S)
+    a.cmd("vr_mock_button off grip 0")
+    server_time_past(srv, server_time(srv) + 1.5)
+    taken = inv0.get(ea - 1, {}).get("shells", 0) - inv1.get(ea - 1, {}).get("shells", 0)
+    s.check("ammo: A takes a shell out of his pouch and lets it fall (his reserve one less)", taken >= 1,
+            "A's shells %s -> %s" % (inv0.get(ea - 1, {}).get("shells"), inv1.get(ea - 1, {}).get("shells")))
+    at = org_of(status(srv), "mp_client", "slot", ea - 1)
+    put_at(srv, a, ea, side_spot(srv, eb))
+    put_at(srv, b, eb, (at[0], at[1] + 8, at[2]), 90)
+    b.cmd("vr_mock_hand off -0.15 0.6 -0.35 0 0 0")
+    server_time_past(srv, server_time(srv) + THROW_SETTLE_S)
+    got = False
+    took = None
+    for _ in range(3):
+        b.cmd("vr_mock_hand_to off nearest vr_ammo_shell")
+        server_time_past(srv, server_time(srv) + THROW_SETTLE_S)
+        since = srv.mark()
+        b.cmd("vr_mock_button off grip 1")
+        took = took or wait_quietly(srv, r"carry: vr_ammo_shell held at", 2, since, "B's hand taking the shell")
+        server_time_past(srv, server_time(srv) + THROW_SETTLE_S)
+        b.cmd("vr_mock_hand_to off ammopouch")
+        server_time_past(srv, server_time(srv) + THROW_SETTLE_S)
+        b.cmd("vr_mock_button off grip 0")
+        inv2, _ = inventories_until(srv, lambda inv, m: inv.get(eb - 1, {}).get("shells", 0) > inv0.get(eb - 1, {}).get(
+            "shells", 0), 10)
+        got = inv2.get(eb - 1, {}).get("shells", 0) > inv0.get(eb - 1, {}).get("shells", 0)
+        if got:
+            break
+    s.check("ammo: B's hand takes up the shell A dropped (the server's carry of it)", took is not None,
+            "no 'carry: vr_ammo_shell held' on the server")
+    # (Open, MP_PLAN B10: let go of at a remote player's own pouch, the carried round does not go back into his reserve
+    # (VR_Reload_LetGo's AtPouch: his hand's hotspot while carrying); a metric until it is fixed, not a check.)
+    s.metric("ammo_into_b_reserve", 1 if got else 0)
+    s.note("ammo: B's shells %s -> %s after letting go of it at his pouch" % (inv0.get(eb - 1, {}).get("shells"),
+                                                                             inv2.get(eb - 1, {}).get("shells")))
 
 
 FACE_GAP = 40.0  # mp_melee: units between the two players, face to face (their boxes 8 apart: a punch's reach)
@@ -3186,6 +3397,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             lossy(s)
         elif test == "mp_predict":
             predict(s)
+        elif test == "mp_disarm":
+            disarm(s)
         elif test == "mp_lagcomp":
             lagcomp(s)
         else:
@@ -3200,7 +3413,7 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "lagcomp", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "lagcomp", "disarm", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -3230,7 +3443,7 @@ def main():
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "lagcomp"):
+                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "lagcomp", "disarm"):
         ok = run(args, "mp_" + args.test)
     else:
         ok = run(args, "mp_coop")
@@ -3260,6 +3473,7 @@ def main():
         ok = run(args, "mp_loss") and ok
         ok = run(args, "mp_predict") and ok
         ok = run(args, "mp_lagcomp") and ok
+        ok = run(args, "mp_disarm") and ok
         # B's link per scenario (MP_PLAN B7: byte counts against mp_bandwidth's): what the next phases cut.
         print("mp_bytes: scenario, B's link up B/s (mean B), down B/s (mean B)")
         for test, w in LINKS:

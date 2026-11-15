@@ -577,6 +577,7 @@ vr_armedgrunt.qc
 vr_ogre_friends.qc // ogres mind their friends (with the armed humanoids' VR_AI_FriendCare)
 vr_armedgrunt_pose.qc
 vr_armedgrunt_play.qc
+vr_pdisarm.qc // another player's weapon taken by a grab and a pull (MP B10); VR_Player_Disarm
 vr_armedgrunt_shot.qc
 vr_ownclash.qc // weapon clash: your own two weapons meeting; the weapon-on-weapon material table (after VR_AG_SegDist)
 vr_armedgrunt_parry.qc

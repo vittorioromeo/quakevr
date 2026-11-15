@@ -2216,9 +2216,11 @@ PlayerPostThink
 Called every frame after physics are run
 ================
 */
+void(entity pl) VR_PDis_Frame; // (vr_pdisarm.qc)
 void() PlayerPostThink =
 {
     VR_PP_Frame(self); // QVR: the armour's plates follow what is left of it (vr_playerplates.qc; bots too)
+    VR_PDis_Frame(self); // QVR: another player's weapon grabbed and pulled out of his hand (vr_pdisarm.qc)
 
     // FRIKBOT
     if(BotPostFrame())

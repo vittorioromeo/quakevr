@@ -2654,6 +2654,10 @@ QVR_CVAR(vr_agrunt_weapon_undrawn, "-1", CVAR_NONE)  // (the tests' reading: vr_
 QVR_CVAR(vr_agrunt_grab_gap, "999", CVAR_NONE)         // (the tests' reading: with vr_agrunt_debug, the main fist's last gap to an armed monster's weapon, cm)
 QVR_CVAR(vr_agrunt_saw_drop_running, "1", CVAR_ARCHIVE) // 1: an armed humanoid that was fighting you with a chainsaw drops it running (dead, disarmed, a tug won), as yours runs on as it lies (vr_chainsaw_drop_run): taken up meanwhile, no cord to pull; one that never saw you drops it off
 QVR_CVAR(vr_agrunt_grab_speed, "1.25", CVAR_ARCHIVE)     // m/s: a hand moving faster than this (relative to you: a punch, a swipe) doesn't take hold of its weapon (0: any speed)
+QVR_CVAR(vr_disarm_player, "1", CVAR_ARCHIVE)            // 1: an empty hand closed on another player's held weapon (as drawn, not too fast: vr_agrunt_grab_speed) and pulled away from him hard enough takes it into that hand (QC vr_pdisarm.qc)
+QVR_CVAR(vr_disarm_player_pull, "1.5", CVAR_ARCHIVE)     // m/s: ... the pull's least speed away from him (your hand against his)
+QVR_CVAR(vr_disarm_player_reach, "8", CVAR_ARCHIVE)      // cm: ... the hand at most this far from his weapon's drawn line or a hotspot of it as it closes
+QVR_CVAR(vr_disarm_player_slip, "15", CVAR_ARCHIVE)      // cm: ... a pull too gentle: the hand slips off once this far from his weapon
 QVR_CVAR(vr_agrunt_tug_let_go, "85", CVAR_ARCHIVE)      // cm: in the physical tug, your hand lets go of its weapon (lost) once its controller is this far from where it holds it (pulled away, or you stepped back) before its grip gives; till then your drawn hand stays on the weapon
 QVR_CVAR(vr_agrunt_tug_downed_scale, "0.5", CVAR_ARCHIVE) // a staggering or downed one: its weapon still needs a tug, its time this share of a standing one's (0: the grab takes it at once, as before)
 QVR_CVAR(vr_agrunt_tug_second_grab, "0", CVAR_ARCHIVE)  // your other hand grabbing its weapon in a tug: 0 joins it (both pulls count, it gives sooner), 1 tears it free at once

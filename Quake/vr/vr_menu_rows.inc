@@ -1300,6 +1300,16 @@ QVR_SLIDER(vr_agrunt_grab_speed, "Grab: Fastest Hand", 0.f, 6.f, 0.1f, "%.1f m/s
     "A hand moving faster than this (a punch, a swipe) doesn't grab its weapon: its speed against you or "
     "against the weapon (going with a swing to catch it), the lesser, in real time (bullet time too). 0: "
     "any speed (vr_agrunt_grab_speed).")
+QVR_TOGGLE(vr_disarm_player, "Players: Grab and Pull Disarms",
+    "Multiplayer: an empty hand closed on another player's weapon where it is drawn (no faster than Grab: "
+    "Fastest Hand) and pulled away from him hard enough takes it into your hand. No tug (vr_disarm_player).")
+QVR_SLIDER(vr_disarm_player_pull, "Players: Disarm Pull", 0.3f, 5.f, 0.1f, "%.1f m/s", ext(0.1f, 20.f),
+    "How fast your hand must pull another player's weapon away from him to take it; slower, your hand "
+    "slips off it (vr_disarm_player_pull).")
+QVR_SLIDER(vr_disarm_player_reach, "Players: Disarm Grab Reach", 2.f, 20.f, 1.f, "%.0f cm", ext(0.f, 50.f),
+    "How near another player's drawn weapon your hand must close to grab it (vr_disarm_player_reach).")
+QVR_SLIDER(vr_disarm_player_slip, "Players: Disarm Slip", 5.f, 50.f, 1.f, "%.0f cm", ext(1.f, 100.f),
+    "A pull too gentle: your hand slips off his weapon once this far from it (vr_disarm_player_slip).")
 QVR_SLIDER(vr_agrunt_tug_strength, "Tug: Its Pull", 0.f, 3.f, 0.1f, "%.1f", ext(0.f, 3.f),
     "How hard its arms pull its weapon back in the tug (vr_agrunt_tug_strength).")
 QVR_SLIDER(vr_agrunt_tug_sway, "Tug: Torso Sway", 0.f, 3.f, 0.1f, "%.1f", ext(0.f, 3.f),
