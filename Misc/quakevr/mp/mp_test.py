@@ -43,6 +43,9 @@ Tests:
              his seated body, his nailgun's magazine in the server's hull of it (B6b); B's armour's plates (yellow,
              their pieces) on A's copy of his body, fewer as his armour wears; A's view of B (B6c).
     flatbody  a flat-screen B's body as A draws it is at his flat body height (B6b).
+    disarm   (B10) A holds a shotgun out; B's hand closes on it and pulls gently: it slips off; B yanks: it is his. B tosses
+             it to A, who takes it. B's holsters as A draws them (a shotgun in each slot, one drawn, after his death). A
+             shell from A's pouch let fall: B's hand takes it up.
     suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, version, avatar, avatarcal, body, prefs, grab,
              teleport, held, ground, campaign, campaign_listen, flow, download, pickup, forcegrab, melee, moves, climb,
              rules, cosmetics, flatbody.

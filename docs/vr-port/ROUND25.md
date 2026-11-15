@@ -3458,3 +3458,12 @@ for the host's own player, one avatar routine for any player entity.
 ## mrlfix + clretire1116 (agent/mrlfix)
 
 MRL (slot 14, v_multi2.mdl) now holds no offset keys of its own: it inherits the rocket launcher (slot 6) for the ammo screen (wpntxt_*), button (wpnbtn_*), finger/hand_*, grips (x/y/z/pitch/yaw, 2h_*), hotspot and muzzle; only id, inherit and its fx_* shot effects stay. His config had no vr_wofs values for either slot. 52 ticked lines retired from checklist.txt (those he spoke of at 03:xx kept); 19 scenes only they used moved out (kept any still named by code, docs, or other lines). No flat screenshot taken.
+
+## mpN B10: player-to-player interactions (agent/mp)
+
+- Grab-disarm of another player (QC vr_pdisarm.qc, VR_Player_Disarm): grip closed on his drawn weapon (8 cm of its line
+  or a hotspot, lag compensated, no faster than vr_agrunt_grab_speed), pulled away at 1.5 m/s: yours; gentler slips at
+  15 cm. Cvars vr_disarm_player 1, _pull 1.5, _reach 8, _slip 15 (Armed Grunts page). No tug, one path for every player.
+- mp_test.py disarm (17/0 dedicated, 17/0 --listen): gentle pull slips (0.18 m/s), yank takes (2.48 m/s), toss to A
+  taken, B's holsters as A draws them (every slot given, one drawn, after death), a shell from A's pouch taken by B.
+- Open: a carried round let go at a remote player's own pouch is not refunded (metric ammo_into_b_reserve); MP_PLAN B10.

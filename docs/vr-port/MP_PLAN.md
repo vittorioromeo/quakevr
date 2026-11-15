@@ -1522,6 +1522,33 @@ should come from one system for every player), **done** (unified in B9).
   one movement module), #5 one avatar routine for any player entity (B11c, large, 2 sessions), #6 an own-player
   accessor for the client-side fallbacks (small). Fast retransmit and compression stay later (the old B9 row: B12).
 
+### B10 results: his player-to-player features (2026-11-15, dev no-LTO build, loopback; `mp_disarm` 17/0 dedicated and 17/0 `--listen`)
+
+(The voice chat row above keeps its own id for later; this B10 is his overnight list, OVERNIGHT_1115.md.)
+- **Grab-disarm** (QC `vr_pdisarm.qc`): an empty hand whose grip closes on another player's held weapon (within
+  `vr_disarm_player_reach` 8 cm of its melee line butt..tip or a hotspot of it, as the server places them: lag
+  compensated for a remote taker) no faster than the armed humanoids' `vr_agrunt_grab_speed` holds it; pulled away from
+  his chest at `vr_disarm_player_pull` 1.5 m/s or more (the hands' relative speed) it is the taker's, in that hand; a
+  gentler pull slips off at `vr_disarm_player_slip` 15 cm. No tug, no ragdoll. `vr_disarm_player` 1 (Armed Grunts page
+  rows, beside Grab: Fastest Hand; server rules by page). `VR_Player_Disarm(v, hand, taker, takerHand, why)` is the
+  entity-generic "out of a player's hand" (the drop's own path, then the catch of VR_AG_Yank): the "player disarm by
+  shots/melee" work expected on next should call it (it had not landed at this merge).
+- **Giving weapons**: a toss (an underhand swing let go at its top) lands by the other and his grip takes it (one code
+  path with drops: `mp_pickup`). **Ammo**: a shell taken from A's pouch and let fall is taken up by B's hand (the
+  carry). **Open**: let go at B's own pouch it does not go back into B's reserve (metric `ammo_into_b_reserve` 0):
+  `VR_Reload_LetGo`'s AtPouch reads B's hand hotspot field, which his client seems not to send as the pouch while the
+  hand carries a round (A's empty hand at his pouch does take a shell); magazines and rockets untested for the same reason.
+- **Holsters**: B's holsters as A draws them equal B's own (slot, model, within 1 unit) at the start, with a shotgun
+  given in every slot (slots 2-5 drawn by default), one drawn out by hand, after his death and respawn.
+
+### For him (B10)
+
+- Grab-disarm feel: is 1.5 m/s the right pull (a deliberate yank, not a reach)? Should the victim feel it (a buzz) or
+  hold on harder with both hands on it (today: two hands on it change nothing)?
+- Small interactions not built (each needs his call): a high-five or fist bump (two hands meeting at speed: a sound and
+  a buzz), handing an item hand to hand (both holding it, one lets go), a helping hand up a ledge (the climb's hold on
+  another's hand), reviving a downed coop player.
+
 ## Decisions
 
 - Melee's lag compensation (B8c) wraps the queries (melee's sweep, a bash's find, a headbutt's target, a guard's check
@@ -1586,4 +1613,4 @@ should come from one system for every player), **done** (unified in B9).
 - The interpolation buffer (B7b) leaves brush models and stepping monsters on NetQuake's lerp: the player's own entity
   is not delayed (no prediction until B8), and a lift he rides must stay in step with him.
 
-Next phase: B10 — his features (kit scratch/OVERNIGHT_1115.md): disarm another player by grabbing his weapon on its model and pulling (no tug of war); give weapons and ammo (drop/throw guns, magazines, shells: others take and use them); holster contents synced and visible (check B6b); small interactions that fit; new code through the B9 slot store (no own/remote branches in readers). Then B8h — climbing in his replay (the mantle's timed path from the state first, then the hang's pull from his own moves' hands: vr_climb.cpp hangPull/hangMove), the grapple's pull (the rope in the state, the reel in the moves), the hands' climb out of the water (vr_water_jump 0: a hand's grip and pull, the server's today); tests first: `mp_predict --part` grown (corrections under a unit); then the `mp_melee` "crowbar held level" flake if it shows.
+Next phase: B8h (B10 done but one open item: a round let go at a remote player's own pouch back into his reserve, the hand's pouch hotspot while carrying; magazines and rockets handed over checked with it) — B8h — climbing in his replay (the mantle's timed path from the state first, then the hang's pull from his own moves' hands: vr_climb.cpp hangPull/hangMove), the grapple's pull (the rope in the state, the reel in the moves), the hands' climb out of the water (vr_water_jump 0: a hand's grip and pull, the server's today); tests first: `mp_predict --part` grown (corrections under a unit); then the `mp_melee` "crowbar held level" flake if it shows.
