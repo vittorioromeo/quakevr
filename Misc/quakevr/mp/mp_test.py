@@ -48,8 +48,9 @@ Tests:
              shell, a nail magazine and a rocket from A's pouch let fall: B's hand takes each up and lets it go at his
              pouch (his reserve up by A's loss); a nail magazine and a rocket B loads into his own gun (B8h). --part
              give|use: the rounds alone.
-    predictclimb  (B8h) on vrclimb, B 150 ms behind each way mantles onto the ledge: the mantle runs in his moves, his
-             replay's corrections under a unit; at rest he is where the server has him. --part mantle: it alone.
+    predictclimb  (B8h, B8i) on vrclimb, B 150 ms behind each way hangs from the ledge, pulls himself up and lets go,
+             then mantles onto it: the hang's steps and the mantle run in his moves, his replay's corrections under a
+             unit; at rest he is where the server has him. --part hang|mantle: one alone.
     suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, version, avatar, avatarcal, body, prefs, grab,
              teleport, held, ground, campaign, campaign_listen, flow, download, pickup, forcegrab, melee, moves, climb,
              rules, cosmetics, flatbody, loss, predict, predictclimb, lagcomp, disarm.

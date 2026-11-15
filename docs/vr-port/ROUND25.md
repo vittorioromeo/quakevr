@@ -3635,3 +3635,17 @@ the same exact rules" as enemies; an option, on by default, single player and mu
   (Run Setup's Bloody Nightmare, AD's Experimental header). RELEASE_1_1.md: Menu Look and `vr_flat_chest_down` done.
 - **Defaults** since the audit (c94b2b300): 4 changed (his Menu Look pair, the ranger head's size and side), 25 new,
   no debug or test switch on by default, no personal setting promoted.
+
+## mpN B8i part 1: the hang predicted; mp_ground's sword retake (agent/mp, 2026-11-15)
+
+- **mp_ground's sword retake (3 of 4 runs failing): the test's, not the game's, not flipgrip's.** The harness put B's hand in
+  place (`vr_mock_hand`: the mock reports the jump as 21 m/s for 3 frames) and let go ~140 ms later, inside the throw
+  estimate's window: each drop was a 10 m/s throw down that bounced and slid out of his reach. Single player's drop of a
+  still hand: 0 m/s. Fix: `let_go_still` (THROW_SETTLE_S, as mp_pickup), the shotgun's ground spot waited for at its grip
+  hotspot. 5/5 runs 15/0.
+- **The hang predicted** (MP_PLAN "B8i results"): `pmove::hangStep`/`moveBody` (vr_pmove.cpp) are vr_climb.cpp's hang step,
+  one function for single player's frame, the server's moves and the client's replay; the state carries the holds, owed and
+  slipping (`QVR_NET_VERSION` 26). `mp_predictclimb --part hang`: 249 hanging states, corrections 0.000. A hold's take and
+  the mantle's start (the server's searches) are counted apart (`trans_n`/`trans_max`; the mantle's start ~43 units).
+- Results: mp_test.py suite 28 of 29 pass: mp_disarm 6/1 (its gentle pull's setup: A's shotgun not yet in his hand at the server), then 35/0 twice alone; mp_ground 15/0 in the suite and 5 of 5 alone; scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0, prop_climb_test 12/0, Release (ThinLTO) build 0 warnings
+
