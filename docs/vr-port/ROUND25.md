@@ -3075,3 +3075,16 @@ His flat report: a Run Setup Style (Classic, then Unleashed) took effect only wh
 ## wetglint (agent/wetglint)
 
 His report: after quickload the dripping came back but the wet glint did not. The shine (the alias shader wet coat, `wounds::wetCoat`) read `Mask::wetLeft` / `handWetLeft`, set only by a liquid wound event (the rising edge); a load restoring vr_drips wetness never set them. Fix, no new state: `wetCoat` takes its seconds-left from `drips::wetOf(e)` (drips wetness times dryTime, max with the old values); a thing with no wet mask (a loaded game) shines all over. `Misc/quakevr/saveload_test.sh` checks `vr_wounds_info` `wet: coat`: each coat shining before the save shines after (flat 5, VR 5). BACKLOG: flat 2H melee pose item added.
+
+## Quest C4f: the squares are the bloom; sRGB written raw on ES (branch `agent/quest`, 2026-11-15)
+
+QUEST_PLAN.md section 6m has the runs. On the Quest 3 over adb, the headset unworn:
+- **Squares / flicker / black views:** the coloured and black squares over the eyes come from the bloom chain after any
+  change of the eyes' size (render scale, dynamic resolution); `vr_bloom 0` clears them in the same launch. Cause inside
+  `vr_bloom.cpp` not found (not the scene targets' contents, not NaNs in the bright pass, not retro). `vr_quest_preset 0`
+  now has `vr_bloom 0`.
+- **sRGB:** ES encoded the game's already gamma-encoded colours again into the sRGB swapchain (pale); now
+  `EXT_sRGB_write_control` turns that off at session start (`-glessrgbencode` keeps the encoding).
+- **Tools:** world probes `QVR_PROBE_LOD0/LM/UV/RETRO/LUTI` (`-glesdefine`); `eyeshot:` logs a failed read. The
+  swapchain image reads back as zeros on the Quest: use `vr_eyeshot 2`.
+- **Not reached:** the frame time (the unworn headset holds frames), the lite ES world shader, MSAA on chip.

@@ -911,6 +911,31 @@ Frames Kept", 250 as before): frames over it are left out of the averages; at 2 
   (`EXT_multisampled_render_to_texture`); dynamic resolution never lowered the scale (vr_dynres needs the GPU's time:
   check what it reads on ES); the striped texels and caching the VR programs: not reached.
 
+## 6m. C4f: the coloured squares, black views; sRGB (2026-11-15; adb, the headset unworn; no installs)
+
+His look (C4e APK, `vr_quest_preset 0`): world colours wrong and flickering, bullet time black, black after a
+Resolution Scale change, choppy. Method: `scratch/c4f_seq.sh` (one launch, steps of commands each followed by an eye
+image, `vr_eyeshot 2`: the post-processed eye before the copy into the swapchain), `c4f_shot.sh`, `c4f_img.py`.
+- **The final eye image can't be read back on the Quest**: `vr_eyeshot 1`/`3` and `vr_gl_probe`'s "image" read the
+  swapchain image as all zeros with no GL error (`eyeshot:` now logs a read error; none comes). Use `vr_eyeshot 2`.
+- **World probes** (`-glesdefine`, gl_shaders.h): `QVR_PROBE_LOD0` (the texture's top level), `_LM` (the lightmap),
+  `_UV`, `_RETRO` (retro set/on), `_LUTI` (the palette table's index): the world's textures, lightmap and UVs are
+  right; retro textures and retro lighting are on in his config (`_RETRO`, `_UV`).
+- **The squares are the bloom** (one launch, steps): the red/yellow/green/black squares (and magenta ones) come and go
+  per launch and always follow a change of the eyes' size (render scale, dynamic resolution); `r_drawworld 0` keeps
+  them, `vr_particle_halfres 0` keeps them, `vr_bloom 0` clears them at once; with bloom on a launch can be all black
+  (f4). At scale 0.7 they were absent in every run. Tried and not the cause: the retro palette's dynamic component index
+  (`RetroPal[i >> 2u][i & 3u]`: the same with a select), `vr_retro 0`, clearing the scene targets when made, a
+  NaN/Inf filter in the bloom's bright pass (still squares: reverted). Cause inside the bloom chain (R11F_G11F_B10F
+  targets, `vr_bloom.cpp`) not found. **`vr_quest_preset 0` now has `vr_bloom 0`** (as the 90 Hz and Quest 2 levels).
+- **Bullet time**: before the swapchain copy the eye is drawn (tinted, `vr_eyeshot 2`); his black view is most likely
+  the same bloom fault (the black launches); unconfirmed for want of a readable final image.
+- **sRGB**: the swapchain is `GL_SRGB8_ALPHA8`; OpenGL ES encodes every write into an sRGB image (the PC with
+  `GL_FRAMEBUFFER_SRGB` off writes as is), so the game's gamma-encoded colours were encoded twice (pale). Now
+  `EXT_sRGB_write_control` (the Quest 3 has it) turns that off at session start; `-glessrgbencode` keeps it.
+- **Frame time: not measured** this time: the unworn headset holds frames (`xrWaitFrame` 47-60 ms, 75 ms apart); C4e's
+  25.6 ms stands. Dynamic resolution does lower the scale on ES (0.9 -> 0.65 seen in the eye images' sizes).
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
@@ -954,7 +979,9 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C4f (after 6l: e1m1 at ~39 FPS, 72 Hz with the world off) — the world's fragment shader to 72 Hz (a
+Next phase: C4g (after 6m) — his look with bloom off and sRGB raw (squares gone? colours right? bullet time and a
+Resolution Scale change still black?); the bloom chain's fault on Adreno (a step-by-step `vr_eyeshot 2` of its levels at
+scale 0.9); then the perf items carried from C4f below; no installs. C4f's perf scope, not reached: the world's fragment shader to 72 Hz (a
 lite ES variant with what the Quest preset turns off compiled out: carved decals, retro textures' start, shadows,
 parallax; measured together 2.2x at MSAA 2x), MSAA on chip (`EXT_multisampled_render_to_texture`), vr_dynres on ES,
 then his look in the headset (smoothness, the striped texels of 6k's eyeshots, the menu panel's resolution, the save's

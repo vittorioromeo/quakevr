@@ -77,10 +77,6 @@ void main()
     vec2 t = Params.zw;
     vec3 c = max(max(texture(Scene, uv + vec2(-t.x, -t.y)).rgb, texture(Scene, uv + vec2(t.x, -t.y)).rgb),
                  max(texture(Scene, uv + vec2(-t.x, t.y)).rgb, texture(Scene, uv + vec2(t.x, t.y)).rgb));
-    // Not a number or infinite (a texel nothing wrote: the lenses' hidden area of a target just made, which OpenGL ES
-    // leaves as it was in memory): none. Each level spreads it into a block, the 1x1 mean into the whole view (C4f:
-    // the Quest's eyes in black and coloured squares, or all black, after a size change).
-    c = mix(c, vec3(0.0), equal(floatBitsToUint(c) & 0x7f800000u, uvec3(0x7f800000u)));
     float bright = max(c.r, max(c.g, c.b));
     c *= min(bright, 2.0) / max(bright, 1e-3); // the float scene (vr_tonemap) glows by at most 2: no flicker from specks
     bright = min(bright, 2.0);
