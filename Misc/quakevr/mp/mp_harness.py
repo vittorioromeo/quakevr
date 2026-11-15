@@ -94,7 +94,7 @@ class Instance:
     def args(self):
         a = [self.s.exe, "-basedir", self.s.base] + GAMES + [
             "-condebug", "-condebugfile", self.log, "-cmdinbox", self.inbox,
-            "-foreignconfigs", "-noconfigwrite", "-noaddons", "-nosound",
+            "-foreignconfigs", "-noconfigwrite", "-noaddons", "-nosound", "-nomic",
             "-ip", "127.0.0.1", "-port", str(self.port)]
         if self.dedicated:
             a += ["-dedicated", str(self.dedicated)]

@@ -3,6 +3,7 @@
 
 #include "vr_agarmor.hpp"
 #include "vr_mpavatar.hpp"
+#include "vr_voicechat.hpp"
 #include "vr_netmove.hpp"
 #include "vr_predict.hpp"
 #include "vr_netsnap.hpp"
@@ -1157,6 +1158,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_SNAPSHOT: netsnap::parse(); break; // our state, the entities and avatars, delta-coded (vr_netsnap.cpp)
         case QVR_SVC_PACKAGE: mpdownload::parsePackage(); break; // the server's map package (vr_mpdownload.cpp)
         case QVR_SVC_AVATARCAL: mpavatar::parseCalibration(); break; // a player's height, arms, gloves, body (vr_mpavatar.cpp)
+        case QVR_SVC_VOICE: voicechat::parse(); break; // another player's voice frames (vr_voicechat.cpp, B10v)
         case QVR_SVC_TIP_MAKE:
         case QVR_SVC_TIP_NAME:
         case QVR_SVC_TIP_TEXT:

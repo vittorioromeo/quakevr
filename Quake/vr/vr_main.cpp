@@ -138,6 +138,7 @@
 #include "vr_walltorch.hpp"
 #include "vr_muzzlewisps.hpp"
 #include "vr_voicenotes.hpp"
+#include "vr_voicechat.hpp"
 #include "vr_detail.hpp"
 #include "vr_extmaps.hpp"
 #include "vr_pbr.hpp"
@@ -2236,6 +2237,7 @@ extern "C" void VR_Init()
     input::init();
     inputlag::registerCommands();
     voicenotes::init();
+    voicechat::init();
     muzzlewisps::init();
     highlights::init();
     lootbeams::init();
@@ -2424,6 +2426,7 @@ extern "C" void VR_Shutdown()
     highlights::shutdown(); // a log still open: its JSON and EDL written
     if(state)
     {
+        voicechat::shutdown();
         voicenotes::shutdown();
         motion::shutdown();
         animrec::shutdown();
@@ -2519,6 +2522,7 @@ extern "C" void VR_BeginFrame()
         {
             QVR_TRACY_SCOPE(zoneNotesTips, "texts: notes, tips, highlights");
             voicenotes::frame(); // after the clear: its indicator is queued anew each frame
+            voicechat::frame();  // (multiplayer: capture, play-out, the talking indicators, B10v)
             tips::frame();       // a tip due, the one showing (vr_tips)
             highlights::frame(); // the game's clock against realtime, a multi-kill's end
         }

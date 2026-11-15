@@ -1613,8 +1613,8 @@ void bytesReport()
     }
     const long long snap = b.qvr[protocol::QVR_SVC_SNAPSHOT], pose = b.qvr[protocol::QVR_SVC_ARMPOSE],
                     avatar = b.qvr[protocol::QVR_SVC_AVATAR], ent = b.svc[U_SIGNAL], cd = b.svc[svc_clientdata],
-                    sound = b.svc[svc_sound], tent = b.svc[svc_temp_entity];
-    const long long rest = b.unreliable - snap - pose - avatar - ent - cd - sound - tent;
+                    sound = b.svc[svc_sound], tent = b.svc[svc_temp_entity], voice = b.qvr[protocol::QVR_SVC_VOICE];
+    const long long rest = b.unreliable - snap - pose - avatar - ent - cd - sound - tent - voice;
     // (the rest's three biggest: "q<sub>" a svc_quakevr's, else the command's number)
     int top[3] = {-1, -1, -1};
     long long topN[3] = {0, 0, 0};
@@ -1622,7 +1622,8 @@ void bytesReport()
     {
         const bool q = i >= 256;
         const int c = i & 255;
-        if((q && (c == protocol::QVR_SVC_SNAPSHOT || c == protocol::QVR_SVC_ARMPOSE || c == protocol::QVR_SVC_AVATAR)) ||
+        if((q && (c == protocol::QVR_SVC_SNAPSHOT || c == protocol::QVR_SVC_ARMPOSE || c == protocol::QVR_SVC_AVATAR ||
+                     c == protocol::QVR_SVC_VOICE)) ||
             (!q && (c == U_SIGNAL || c == svc_clientdata || c == svc_sound || c == svc_temp_entity || c == protocol::svc_quakevr)))
         {
             continue;
@@ -1645,9 +1646,9 @@ void bytesReport()
     }
     Con_Printf("mp_netbytes: messages=%lld reliable=%lld unreliable=%lld snap=%lld snap_cd=%lld snap_ent=%lld snap_av=%lld "
                "snap_pred=%lld snap_pose=%lld snap_hdr=%lld pose=%lld avatar=%lld ent=%lld cd=%lld sound=%lld tent=%lld "
-               "rest=%lld top=%s%d:%lld,%s%d:%lld,%s%d:%lld ent_ops=%lld/%lld,%lld/%lld,%lld/%lld,%lld/%lld\n",
+               "voice=%lld rest=%lld top=%s%d:%lld,%s%d:%lld,%s%d:%lld ent_ops=%lld/%lld,%lld/%lld,%lld/%lld,%lld/%lld\n",
         b.messages, b.reliable, b.unreliable, snap, b.snap[0], b.snap[1], b.snap[2], b.snap[3], b.snap[4],
-        snap - snapEntries, pose, avatar, ent, cd, sound, tent, rest, top[0] >= 256 ? "q" : "", top[0] & 255, topN[0],
+        snap - snapEntries, pose, avatar, ent, cd, sound, tent, voice, rest, top[0] >= 256 ? "q" : "", top[0] & 255, topN[0],
         top[1] >= 256 ? "q" : "", top[1] & 255, topN[1], top[2] >= 256 ? "q" : "", top[2] & 255, topN[2], entOps[0][0], entOps[0][1],
         entOps[1][0], entOps[1][1], entOps[2][0], entOps[2][1], entOps[3][0], entOps[3][1]);
 }

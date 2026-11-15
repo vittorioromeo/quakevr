@@ -60,9 +60,14 @@ Tests:
              him; a hold taken in the air (B8j part 2); the hands' climb out of the start map's pool (B8j part 3); the
              grapple's reel and hang from vrclimb's ceiling (B8j part 4). --part hang|mantle|airgrab|waterclimb|grapple:
              one alone.
+    voice    (B10v) A's voice (a tone in place of his microphone) heard at B: in order through the jitter buffer,
+             the tone kept, the delay under 250 ms (+ the added lag); nearer louder, the radio full; his volume,
+             muted; push-to-talk released, voice activation; the server's voice budget and B's rate cap hold
+             his voice bytes; RNNoise on; no microphone. --lag/--jitter/--loss: B's link; --listen: A hosts.
     suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, armed, retransmit, version, avatar, avatarcal, body, prefs, grab,
              teleport, held, ground, campaign, campaign_listen, flow, download, pickup, forcegrab, melee, moves, climb,
-             rules, cosmetics, flatbody, loss, predict, predictclimb, lagcomp, disarm.
+             rules, cosmetics, flatbody, loss, predict, predictclimb, lagcomp, disarm, voice, voice with B 50 ms (30 ms
+             jitter, 5% loss) away.
 
 The base folder is a Quake folder with id1 (and hipnotic, rogue, quakevr: -game as the kit's runs). Its
 id1/autoexec.cfg runs in every game: --reset-autoexec empties it first (the kit's test bases: a run's script).
@@ -4012,6 +4017,180 @@ def lagcomp(s):
             bool(moves) and all(LAGCOMP_BACK[0] <= x <= LAGCOMP_BACK[1] for x in moves), "%s" % moves)
 
 
+VOICE_HZ = 440              # A's test tone (vr_voicechat_test_tone: in place of his microphone)
+VOICE_DELAY_MS = 250        # A's tone captured -> heard at B (the capture's frame, the server, B's jitter delay and lead)
+VOICE_BUDGET = 6000         # vr_net_voice_bytes' default, B/s
+VOICE_LOW_BUDGET = 1500     # the server's budget cut to this: B's voice bytes held to it, frames dropped
+VOICE_RATE = 8000           # B's vr_net_rate: his voice budget half of it (4000 B/s), still over A's ~3.3 KB/s
+VOICE_SLACK = 1.2           # a budget's bucket burst and the measuring window's edges
+
+
+def voice_report(inst, hz=VOICE_HZ):
+    """`inst`'s vr_voicechat_report -> (its sending line's fields, {slot: its speaker line's fields})."""
+    since = inst.mark()
+    inst.cmd("vr_voicechat_report %d" % hz)
+    i, _ = inst.wait(r"mp_voice: done", 10, since, what="%s's voice report" % inst.name)
+    send, speakers = {}, {}
+    for line in inst.lines[since:i + 1]:
+        if "mp_voice_send:" in line:
+            send = fields(line)
+        elif "mp_voice: slot=" in line:
+            f = fields(line)
+            speakers[int(f["slot"])] = f
+    return send, speakers
+
+
+def voice_out(f):
+    """A speaker line's frames out of B's jitter buffer (played, recovered by FEC, concealed)."""
+    return int(f["played"]) + int(f["recovered"]) + int(f["concealed"]) if f else 0
+
+
+def voice_until(s, inst, slot, done, what, tries=400):
+    """`inst`'s reports until done(send, speaker of `slot`) -> those (a definite end: `tries` reports)."""
+    send, sp = {}, None
+    for _ in range(tries):
+        send, speakers = voice_report(inst)
+        sp = speakers.get(slot)
+        if done(send, sp):
+            return send, sp
+    raise StepFailed("%s: %s never came (last: %s)" % (inst.name, what, sp))
+
+
+def voice_bytes(inst):
+    """`inst`'s voice bytes read since its vr_net_bytes reset."""
+    since = inst.mark()
+    inst.cmd("vr_net_bytes")
+    _, line = inst.wait(r"mp_netbytes: ", 10, since, what="%s's byte counts" % inst.name)
+    return int(fields(line)["voice"])
+
+
+def voice_rate(s, b, a, sa, label, frames=100):
+    """B's voice bytes a second while A sends `frames` more frames (vr_net_bytes reset first) -> B/s."""
+    since = b.mark()
+    b.cmd("vr_net_bytes reset")
+    b.wait(r"mp_netbytes: ", 10, since)
+    t0 = time.monotonic()
+    start = int(voice_report(a)[0]["frames"])
+    voice_until(s, a, sa, lambda send, sp: int(send.get("frames", 0)) >= start + frames, "%s: %d more frames" % (label, frames))
+    rate = voice_bytes(b) / max(0.1, time.monotonic() - t0)
+    s.metric("voice_bytes_s_" + label, round(rate))
+    return rate
+
+
+def voice(s, listen=False, lag=0.0, jitter=0.0, loss=0.0):
+    """(B10v) A's voice (a test tone in place of his microphone, -nomic: none opened) heard at B: received, played in
+    order through the jitter buffer, the tone's frequency kept, within the delay bound; at his head (nearer louder, the
+    radio full); muted and his volume; push-to-talk released ends it, voice activation starts and stops it; the server's
+    voice budget and B's rate cap hold his voice bytes; noise suppression on keeps it flowing; a press without a
+    microphone breaks nothing."""
+    srv, a, b, ea, eb = join(s, listen=listen, lag=lag, jitter=jitter, loss=loss)
+    sa = ea - 1
+    bound = VOICE_DELAY_MS + lag + jitter
+    since_a, since_b = a.mark(), b.mark()
+    a.cmd("vr_voicechat_denoise 0; vr_voicechat_mode 0; vr_voicechat_test_level 0.25; vr_voicechat_test_tone %d; "
+          "vr_voicechat_reset; +vr_voicechat" % VOICE_HZ)
+    _, tx = a.wait(r"mp_voice_tx: ", 20, since_a, what="A sending his first voice frame")
+    _, rx = b.wait(r"mp_voice_rx: t=\d+ slot=%d " % sa, 20, since_b, what="B playing A's first voice frame")
+    delay = int(fields(rx)["t"]) - int(fields(tx)["t"])
+    s.metric("voice_delay_ms", delay)
+    s.check("A's first voice frame heard at B within %d ms" % bound, 0 <= delay < bound,
+            "%d ms (B decodes it %s ms ahead of his mix)" % (delay, fields(rx)["ahead_ms"]))
+
+    # three seconds of tone: B plays every frame A sent (in order, the lost recovered or concealed), the tone kept
+    _, sp = voice_until(s, b, sa, lambda send, sp: voice_out(sp) >= 150, "150 frames of A's voice at B")
+    send_a = voice_report(a)[0]
+    _, speakers = voice_report(b)
+    sp = speakers[sa]
+    sent, out = int(send_a["frames"]), voice_out(sp)
+    s.metric("voice_b", sp)
+    s.check("B's jitter buffer gives out every frame A sent (played, recovered, concealed; none late)",
+            sent - 20 <= out <= sent + 2 and int(sp["late"]) == 0,
+            "A sent %d, B gave out %d: %s played, %s recovered by FEC, %s concealed, %s late, %s skipped, jitter %s ms" % (
+                sent, out, sp["played"], sp["recovered"], sp["concealed"], sp["late"], sp["skipped"], sp["jitter_ms"]))
+    share_min = 0.5 if loss > 0 else 0.8
+    s.check("the tone heard at B (%d Hz, its share of the power over %.1f)" % (VOICE_HZ, share_min),
+            float(sp["tone"]) > share_min and abs(float(sp["freq"]) - VOICE_HZ) < 10,
+            "share %s, %s Hz, rms %s" % (sp["tone"], sp["freq"], sp["rms"]))
+    if loss > 0:
+        s.check("B's losses recovered (Opus FEC) or concealed", int(sp["recovered"]) + int(sp["concealed"]) > 0,
+                "%s recovered, %s concealed" % (sp["recovered"], sp["concealed"]))
+    s.check("B shows A talking", sp["talking"] == "1", "talking=%s" % sp["talking"])
+
+    # at his head: nearer louder; the radio full
+    near_d, near_g = float(sp["dist"]), float(sp["gain"])
+    put_at(srv, a, ea, (OPEN_SPOT[0], OPEN_SPOT[1] + 700.0, OPEN_SPOT[2]))
+    _, far = voice_until(s, b, sa, lambda send, sp: sp and float(sp["dist"]) > near_d + 400, "A's voice from afar at B")
+    s.check("A's voice quieter from farther (vr_voicechat_attenuation 0.5)", float(far["gain"]) < near_g - 0.15,
+            "%.0f units: gain %.3f; %s units: %s" % (near_d, near_g, far["dist"], far["gain"]))
+    b.cmd("vr_voicechat_radio 1")
+    _, radio = voice_until(s, b, sa, lambda send, sp: sp and float(sp["gain"]) > 0.99, "the radio's full volume")
+    s.check("the radio: A at full volume wherever he is", True, "%s units: gain %s" % (radio["dist"], radio["gain"]))
+    b.cmd("vr_voicechat_radio 0")
+    put_at(srv, a, ea, OPEN_SPOT)
+
+    # his volume, then muted
+    b.cmd("vr_voicechat_player_volume %d 0.5" % ea)
+    _, half = voice_until(s, b, sa, lambda send, sp: sp and float(sp["dist"]) < near_d + 200 and
+                          float(sp["gain"]) < 0.6, "A at half volume")
+    s.check("A's own volume at B (vr_voicechat_player_volume 0.5)", float(half["gain"]) <= 0.5 + 1e-3, "gain %s" % half["gain"])
+    b.cmd("vr_voicechat_player_volume %d 1; vr_voicechat_mute %d 1" % (ea, ea))
+    _, muted = voice_until(s, b, sa, lambda send, sp: sp and sp["muted"] == "1" and sp["talking"] == "0", "A muted")
+    played0 = voice_out(muted)
+    rec0 = int(muted["received"])
+    _, later = voice_until(s, b, sa, lambda send, sp: sp and int(sp["received"]) >= rec0 + 25, "frames on while muted")
+    s.check("muted: A's frames still come, none played", voice_out(later) == played0,
+            "received %d -> %s, given out %d -> %d" % (rec0, later["received"], played0, voice_out(later)))
+    b.cmd("vr_voicechat_mute %d 0" % ea)
+    voice_until(s, b, sa, lambda send, sp: sp and sp["talking"] == "1", "A heard again")
+
+    # the budgets: the server's (B's voice bytes held to it, frames dropped), B's rate cap (half of it his voice's)
+    full = voice_rate(s, b, a, sa, "full")
+    s.check("A's voice on B's link within the voice budget (%d B/s)" % VOICE_BUDGET,
+            1500 < full < VOICE_BUDGET * VOICE_SLACK, "%.0f B/s" % full)
+    since = srv.mark()
+    srv.cmd("vr_net_voice_bytes %d; echo mp_voice_budget" % VOICE_LOW_BUDGET)
+    srv.wait(r"mp_voice_budget", 10, since)
+    low = voice_rate(s, b, a, sa, "low")
+    since = srv.mark()
+    srv.cmd("vr_voicechat_relay")
+    i, _ = srv.wait(r"mp_voice_relay: done", 10, since)
+    relay_b = next((fields(l) for l in srv.lines[since:i] if "slot=%d " % (eb - 1) in l), {})
+    s.check("the server's budget cut to %d B/s: B's voice bytes held to it, A's late frames dropped" % VOICE_LOW_BUDGET,
+            low < VOICE_LOW_BUDGET * VOICE_SLACK and int(relay_b.get("out_dropped", 0)) > 0,
+            "%.0f B/s; the relay to B: %s" % (low, relay_b))
+    srv.cmd("vr_net_voice_bytes %d" % VOICE_BUDGET)
+    b.cmd("vr_net_rate %d" % VOICE_RATE)
+    capped = voice_rate(s, b, a, sa, "rate")
+    s.check("under B's vr_net_rate %d: his voice within half of it, still heard" % VOICE_RATE,
+            1500 < capped < VOICE_RATE / 2 * VOICE_SLACK, "%.0f B/s" % capped)
+    b.cmd("vr_net_rate 0")
+
+    # push-to-talk released: the spurt ends at B; voice activation sends while the tone is loud, stops when it is not
+    a.cmd("-vr_voicechat")
+    voice_until(s, a, sa, lambda send, sp: send.get("sending") == "0", "A's sending stopped")
+    _, ended = voice_until(s, b, sa, lambda send, sp: sp and sp["talking"] == "0", "A's spurt over at B")
+    s.check("push-to-talk released: A no longer heard talking at B", True, "%s spurts" % ended["spurts"])
+    a.cmd("vr_voicechat_mode 1")
+    voice_until(s, a, sa, lambda send, sp: send.get("sending") == "1", "voice activation sending the tone")
+    a.cmd("vr_voicechat_test_level 0")
+    send, _ = voice_until(s, a, sa, lambda send, sp: send.get("sending") == "0", "voice activation stopped on silence")
+    s.check("voice activation: sent while the tone is loud, stopped after it falls silent", True, "%s spurts" % send["spurts"])
+
+    # noise suppression on: the frames still flow and come through
+    a.cmd("vr_voicechat_mode 0; vr_voicechat_denoise 1; vr_voicechat_test_level 0.25; +vr_voicechat")
+    rec0 = int(voice_report(b)[1][sa]["received"])
+    _, dn = voice_until(s, b, sa, lambda send, sp: sp and int(sp["received"]) >= rec0 + 50, "frames with RNNoise on")
+    s.check("RNNoise on: A's frames still reach B", True, "tone share after RNNoise %s" % dn["tone"])
+
+    # no microphone (-nomic): a press says so and breaks nothing
+    since = a.mark()
+    a.cmd("-vr_voicechat; vr_voicechat_test_tone 0; +vr_voicechat")
+    a.wait(r"Voice chat: no microphone", 10, since, what="A told he has no microphone")
+    send, _ = voice_report(a)
+    s.check("push-to-talk without a microphone: told, nothing opened, the game on", send.get("mic") == "0" and send.get("sending") == "0", "%s" % send)
+    a.cmd("-vr_voicechat")
+
+
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
     s = Session(args.exe, args.base, args.out, test, port=args.port)
     failure = None
@@ -4076,6 +4255,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             disarm(s)
         elif test == "mp_lagcomp":
             lagcomp(s)
+        elif test in ("mp_voice", "mp_voice_lossy"):
+            voice(s, args.listen, lag, jitter, loss)
         else:
             coop(s, args.listen, args.flat or "", lag, jitter, loss)
     except StepFailed as e:
@@ -4102,7 +4283,7 @@ def print_bytes_table():
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "lagcomp", "disarm", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "lagcomp", "disarm", "voice", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -4139,6 +4320,8 @@ def main():
     elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
                        "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "lagcomp", "disarm"):
         ok = run(args, "mp_" + args.test)
+    elif args.test == "voice":
+        ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)
     else:
         ok = run(args, "mp_coop")
         ok = run(args, "mp_coop_lag", 150, 0, 0.02) and ok
@@ -4171,6 +4354,8 @@ def main():
         ok = run(args, "mp_predictclimb") and ok
         ok = run(args, "mp_lagcomp") and ok
         ok = run(args, "mp_disarm") and ok
+        ok = run(args, "mp_voice") and ok
+        ok = run(args, "mp_voice_lossy", 50, 30, 0.05) and ok
         # B's link per scenario (MP_PLAN B7: byte counts against mp_bandwidth's): what the next phases cut.
         print_bytes_table()
         print("mp_suite: %s" % ("passed" if ok else "FAILED"))

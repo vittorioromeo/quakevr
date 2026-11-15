@@ -22,6 +22,7 @@
 #include "vr_ledges.hpp"
 #include "vr_move.hpp"
 #include "vr_mpavatar.hpp"
+#include "vr_voicechat.hpp"
 #include "vr_clientprefs.hpp"
 #include "vr_motion.hpp"
 #include "vr_engine.hpp"
@@ -1075,6 +1076,7 @@ extern "C" void VR_ClientReset(client_t* client)
     predict::serverReset(clientNum); // (his queued moves and their clock, B8)
     netsnap::serverReset(clientNum); // (and his snapshots: the next whole until he acknowledges one, B7b)
     mpavatar::serverReset(clientNum); // (his avatar calibration gone; the clients told)
+    voicechat::serverReset(clientNum); // (his voice frames and budget, B10v)
     clientprefs::serverReset(clientNum); // (and his preferences: the server's until the next player's come)
 }
 

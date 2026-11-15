@@ -35,6 +35,7 @@
 #include "vr_progs.hpp"
 #include "vr_teleport.hpp"
 #include "vr_voicenotes.hpp"
+#include "vr_voicechat.hpp"
 #include "vr_takes.hpp"
 #include "vr_seated.hpp"
 #include "vr_timescale.hpp"
@@ -1658,6 +1659,12 @@ void buttonChanged(const InputState& in, int h, const ButtonKeys& b, bool now)
         voicenotes::offhandButton(now))
     {
         logButton(h, b, now, b.key[h], "a voice note");
+        return;
+    }
+    // In a multiplayer game with voice chat on push-to-talk (and Voice Notes off), the same button at the mouth talks.
+    if(h == HAND_OFF && b.button == &HandInput::secondary && voicechat::offhandButton(now))
+    {
+        logButton(h, b, now, b.key[h], "push-to-talk");
         return;
     }
     // With the motion recorder armed, its record button (vr_motion_button) starts and ends a take instead.

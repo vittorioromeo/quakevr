@@ -1873,6 +1873,10 @@ bool takesOffHand(const InputState& in)
 extern "C" byte* VR_SndMemory(const char* name, int* size)
 {
     using namespace qvr::doom;
+    if(byte* ring = VR_VoicechatSound(name, size)) // (voice chat's speakers' rings: vr_voicechat.cpp)
+    {
+        return ring;
+    }
     if(strncmp(name, "doom/", 5) != 0)
     {
         return nullptr;

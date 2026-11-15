@@ -446,6 +446,8 @@ void CL_SendMove (const usercmd_t *cmd)
 		in_impulse = 0;
 	}
 
+	VR_WriteVoice (&buf); // QVR: voice chat's frames (vr/vr_voicechat.cpp, B10v)
+
 //
 // deliver the message
 //

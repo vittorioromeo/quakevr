@@ -1315,6 +1315,7 @@ qboolean SV_SendClientDatagram (client_t *client)
 	MSG_WriteByte (&msg, svc_time);
 	MSG_WriteFloat (&msg, qcvm->time);
 	VR_WriteRecentPrecaches (&msg); // QVR: a late precache before what uses it (vr/vr_server.cpp)
+	VR_WriteVoiceTo (&msg, client); // QVR: the other players' voices, under his voice budget (vr/vr_voicerelay.cpp, B10v)
 	VR_WriteMoveAck (&msg, client); // QVR: a remote client's newest move read: its next deltas' base (vr/vr_netmove.cpp)
 
 // add the client specific data to the datagram

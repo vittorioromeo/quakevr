@@ -679,6 +679,14 @@ nextmsg:
 				SV_ReadClientMove (&host_client->cmd);
 				break;
 
+			case QVR_CLC_VOICE: // QVR: a client's voice frames (vr/vr_voicerelay.cpp, B10v)
+				if (!VR_ReadVoice (host_client))
+				{
+					Sys_Printf ("SV_ReadClientMessage: a malformed QVR_CLC_VOICE\n");
+					return false;
+				}
+				break;
+
 			case QVR_CLC_MOVES: // QVR: a remote client's moves, quantized deltas with repeats (vr/vr_netmove.cpp)
 				if (!VR_ReadQvrMoves (host_client))
 				{

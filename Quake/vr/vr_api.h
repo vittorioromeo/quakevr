@@ -51,9 +51,11 @@ int VR_NoLiquidEffects(struct qmodel_s* model, const float* point);
 // Quake VR's network version, sent after NetQuake's in the connect request ("QVR", then this long; net_dgrm.c): a
 // server whose protocol is the VR one rejects a client without it or with another, with the reason (MP_PLAN.md, B2).
 // Raise it with any change to what client and server send each other.
-#define QVR_NET_VERSION				32
+#define QVR_NET_VERSION				33
 // A remote client's moves (vr/vr_netmove.hpp: quantized deltas with repeats; the loopback's stay clc_move; MP_PLAN.md, B7).
 #define QVR_CLC_MOVES				16
+// A client's voice frames (vr/vr_voicechat.hpp: Opus, 20 ms each; MP_PLAN.md, B10v), after his move.
+#define QVR_CLC_VOICE				17
 #define SOLID_NOT_BUT_TOUCHABLE		5		// Quake VR: not solid, but can be (hand) touched
 
 // Host lifetime and pacing (host.c, main_sdl.c, gl_screen.c).
@@ -406,6 +408,10 @@ int VR_CorpseBox (struct edict_s *mover, struct edict_s *touch, const float *sta
 // host_cmd.c).
 int VR_MoveMainFire (int lmb);					// CL_SendMove's attack bit: +attack's state in, the main hand's trigger out (flatscreen play: flatplay::routeFire, the mouse's buttons by what the hands hold; otherwise as it came)
 void VR_WriteMoveExtras (struct sizebuf_s *buf, int forward, int side, int up, int buttons, int impulse); // end of CL_SendMove (a remote client's: the whole move rewritten as QVR_CLC_MOVES)
+void VR_WriteVoice (struct sizebuf_s *buf);			// CL_SendMove: voice chat's frames waiting, after the move (vr_voicechat.cpp)
+int VR_ReadVoice (struct client_s *client);			// SV_ReadClientMessage's QVR_CLC_VOICE: 0 a malformed one
+void VR_WriteVoiceTo (struct sizebuf_s *msg, struct client_s *client); // SV_SendClientDatagram: the other players' voices
+unsigned char *VR_VoicechatSound (const char *name, int *size); // S_LoadSound: a speaker's looping ring (VR_SndMemory)
 int VR_ReadQvrMoves (struct client_s *client);			// SV_ReadClientMessage's QVR_CLC_MOVES: 0 a malformed one (vr_netmove.cpp)
 void VR_ApplyClientMove (struct client_s *client, float time, const float *angles, int forward, int side, int up, int buttons, int impulse); // sv_user.c: a move's NetQuake part run (SV_ReadClientMove's, read)
 void VR_WriteMoveAck (struct sizebuf_s *msg, struct client_s *client); // SV_SendClientDatagram: QVR_SVC_MOVEACK (vr_netmove.cpp)

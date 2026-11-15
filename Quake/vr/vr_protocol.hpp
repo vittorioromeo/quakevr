@@ -80,6 +80,7 @@ enum SvcQuakeVr : int
     QVR_SVC_MOVEACK = 45,         // [long seq]: the newest of this client's QVR_CLC_MOVES the server read (vr_netmove.cpp: the base of its next deltas), in each datagram
     QVR_SVC_SNAPSHOT = 46,        // [varint seq][varint seq - base, 0 none][varint body bytes][body]: a remote client's player state, entities and the others' avatars this frame, delta-coded against the snapshot it acknowledged in QVR_CLC_MOVES (vr_netsnap.hpp: the body's records), in place of svc_clientdata, the entities' updates and QVR_SVC_AVATAR; unreliable, multiplayer only
     QVR_SVC_PREDICT = 47,         // [byte flags][long seq][origin, velocity, ground normal: 9 floats][ground age][rules: 10 floats]: a remote client's state after the newest of his moves the server ran, and the rules it ran them by (vr_predict.cpp: his prediction replays the later ones from it); a snapshot record, multiplayer only
+    QVR_SVC_VOICE = 48,           // [byte speaker's client slot][byte count] x ([short seq][byte flags: 1 a talk spurt's first, 2 its end marker][byte len][len bytes: an Opus frame, 20 ms]): another player's voice (vr_voicerelay.cpp, vr_voicechat.cpp; unreliable, under his voice budget, B10v)
     QVR_SVC_RIGSEQ = 37,      // [short entity][byte 1 start, 0 stop][start: string name][float server time]: a Rig Studio sequence started on a monster by QC, or stopped (vr_rigseq.cpp), reliable
 };
 inline constexpr int ropeEnded = 255; // QVR_SVC_ROPE's count: the beam's rope ended (no corners follow)
