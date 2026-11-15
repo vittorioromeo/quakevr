@@ -3672,3 +3672,8 @@ His flat-screen notes (2026-11-16) and the coordinator's disarm-sound item.
   sustained cost (e1m1's fight 21 ms p50, demo1 22 ms, against 13.9), then fight CPU spikes and one ~400 ms frame a
   map in an eye's CPU; mid-game shader compiles 1 (0.3 ms), uploads small. `vr_gl_foveation` still no effect: its
   texture is not the one the scene is drawn into (6u). `vr_perf_mark <label>` new.
+## btnfix (agent/btnfix)
+
+- Cherry-picked 502d2e13c (agent/mp): command buttons (buttonEffect 3) are pressed only by a player or what he threw; `vr_systems_test 17` passes (needs `developer 1`, map vrtesthall). Other buttons are not buttonEffect 3, unaffected.
+- Scenes classic_drops and magthrow gave "Grunt Burst Rifle" (renamed "Burst Rifle" by flat1116): fixed, plus the comments in pose_*_guns. The saves keep the old netname (harmless). `scenario_check`: 141 run, 0 failed.
+- flattoolgun_test 11/0; `vr_run_armed_check` 13 PASS / 0 FAIL (run mutators set before `vr_run start`).

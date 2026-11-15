@@ -42,6 +42,8 @@ void() VR_SysTest_MatDump =
 // 15 the author's chain: a blast kills a grunt and flings its body into a wall torch, the torch falls lit onto crates,
 //    a crate catches
 // 16 a crate dropped (no hand) on a grunt and the same crate thrown by the player: the same stagger chance
+// 17 (vrtesthall) a command button (buttonEffect 3: NEW GAME) pressed only by a player: not by a monster on it nor by a
+//    weapon no player threw (B12c: a gib storm pressed NEW GAME)
 
 float vr_st_case;  // the running scene (0 none)
 float vr_st_step;
@@ -197,6 +199,56 @@ void() VR_ST_Run =
         b.movedir = md;
         VR_ST_End(off == STATE_BOTTOM && on != STATE_BOTTOM, sprintf("off: %s, on: %s", off == STATE_BOTTOM ? "not pressed" : "pressed",
             on != STATE_BOTTOM ? "pressed" : "not pressed"));
+        return;
+    }
+    if(vr_st_case == 17)
+    {
+        // (vrtesthall: its NEW GAME and VR HUB buttons run a map command; the command made harmless for the test)
+        entity cb = find(world, classname, "func_button");
+        while(cb != world && (cb.buttonEffect != 3 || cb.state != STATE_BOTTOM || cb.touch != button_touch_any))
+        {
+            cb = find(cb, classname, "func_button");
+        }
+        if(cb == world)
+        {
+            VR_ST_End(FALSE, "no command button resting in this map (vrtesthall has them)");
+            return;
+        }
+        string was = cb.targetname;
+        cb.targetname = "echo systems_test: the command button ran\n";
+        entity cg = VR_ST_Grunt(VR_ST_At(160, 0, 0), TRUE);
+        entity cw = spawn();
+        cw.classname = "thrown_weapon"; // (VR_Button_Thrown's: a thing flung at it, fast enough)
+        cw.velocity = '0 0 -1' * (cvar_hget(cvarh_vr_button_throw_speed) + 100);
+        setorigin(cw, realorigin(cb));
+        entity cself = self;
+        entity cother = other;
+        self = cb;
+        // a living monster on it (vr_monsters_press_buttons 1; as a floor button: the rule's)
+        vector cbDir = cb.movedir;
+        cb.movedir = '0 0 -8';
+        cvar_set("vr_monsters_press_buttons", "1");
+        other = cg;
+        button_touch_any();
+        cvar_set("vr_monsters_press_buttons", "0");
+        cb.movedir = cbDir;
+        float byMonster = cb.state;
+        // a weapon no player threw (a blast's), then the same thrown by the player
+        other = cw;
+        button_touch_any();
+        float byFlung = cb.state;
+        cw.owner = p;
+        button_touch_any();
+        float byPlayer = cb.state;
+        self = cself;
+        other = cother;
+        cb.targetname = was;
+        remove(cw);
+        remove(cg);
+        VR_ST_End(byMonster == STATE_BOTTOM && byFlung == STATE_BOTTOM && byPlayer != STATE_BOTTOM,
+            sprintf("a monster on it: %s; a weapon flung by none: %s; thrown by the player: %s",
+                byMonster == STATE_BOTTOM ? "not pressed" : "PRESSED", byFlung == STATE_BOTTOM ? "not pressed" : "PRESSED",
+                byPlayer != STATE_BOTTOM ? "pressed" : "NOT pressed"));
         return;
     }
     if(vr_st_case == 14)
@@ -394,7 +446,7 @@ void() VR_SysTest_Frame =
     {
         VR_SysTest_MatDump();
     }
-    if(ask >= 10 && ask <= 16)
+    if(ask >= 10 && ask <= 17)
     {
         VR_Test_Begin("systems_test");
         vr_st_case = ask;
