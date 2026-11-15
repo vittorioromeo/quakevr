@@ -24,6 +24,7 @@
 // stopped ones none, the rest as ever); the head shots hurt it.
 // ----------------------------------------------------------------------------
 
+float VR_AGDT_STILL = 30; // test 74: its body's speed (u/s) under which it lies down (its fall over; stirring as it lies)
 float vr_agdt_m;        // test 74: the method
 float vr_agdt_ph;       // ... the phase
 float vr_agdt_try;      // ... the try (its point and pull)
@@ -239,7 +240,10 @@ void() VR_AGDT_Down =
         float there = FALSE;
         if(vr_agdt_ph == 0)
         {
-            vr_agdt_still = (g.vr_knockdown == 1 && vlen(g.vr_ag_fall_v) < 10 && t > 0.5) ? vr_agdt_still + 1 : 0;
+            // (its fall over: under 30 u/s for 15 frames. Not 10: lying down alive it stirs (vr_knockdown_stir), and at the
+            // promoted vr_knockdown_stir_rate 12 its body moves 12-27 u/s all along, so a lift-and-slam never "lay still"
+            // before its get-up: no state; ROUND25.md "agrunt4874")
+            vr_agdt_still = (g.vr_knockdown == 1 && vlen(g.vr_ag_fall_v) < VR_AGDT_STILL && t > 0.5) ? vr_agdt_still + 1 : 0;
             there = vr_agdt_still >= 15;
         }
         else
