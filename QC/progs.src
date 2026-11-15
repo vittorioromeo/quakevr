@@ -201,6 +201,7 @@ vr_flipgrip_test.qc
 vr_flipgate_test.qc
 vr_throwgib_test.qc
 vr_throwpoint_test.qc
+vr_throwdmg_test.qc
 vr_airskewer_test.qc
 vr_agarmor_fx_test.qc
 vr_agarmor_shot_test.qc

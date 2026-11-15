@@ -138,6 +138,7 @@ QVR_FIELD(vr_stick_lean)  // the engine's: the leeway's turn now (axis times deg
 QVR_FIELD(vr_stick_shake) // QC's: how near the tug is to tugging it out (0..1: the shake, vr_embed_tug_shake)
 QVR_FIELD(vr_stick_freecheck) // the engine's: when its handle was last checked for being in the body (vr_embed_handle_free)
 QVR_FIELD(vr_stick_freed) // the engine's: degrees its handle was turned out of the body, all told (for the test)
+QVR_FIELD(vr_stick_lost) // the engine's: since when what it is in can't say where it is (its triangle squashed: QC drops it)
 QVR_FIELD(vr_hold_rot0)   // QC's: the handle hand's angles as it took hold (the leeway is from them)
 QVR_FIELD(vr_hold_player) // QC's (vr_embedhold.qc): who holds a blade stuck in a body, for the debug view
 QVR_FIELD(vr_hold_hands)  // the hands on it (bits: 1 the off hand, 2 the main)
