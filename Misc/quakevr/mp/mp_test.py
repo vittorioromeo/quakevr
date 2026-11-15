@@ -258,7 +258,8 @@ ARMED_B = (-200.0, HALL_START_Y, HALL_Z)
 ARMED_IDLE_BUDGET = 10 * 1024
 ARMED_COMBAT_BUDGET = 35 * 1024
 ARMED_RATE = 12000       # B's vr_net_rate in combat, B/s: well under what the six cost him (about 32 KB/s)
-ARMED_ENT_MEAN = 8.0     # B12b: an entity's changed update by its fields, B (head included; byte by byte it was ~10.5)
+ARMED_ENT_MEAN = 9.0     # B12b: an entity's changed update by its fields, B (head included; byte by byte it was ~10.5); B12c: 9 (8 before: a cosmetic fragment that waited for its budget changed over more frames)
+ARMED_COSMETIC = 128     # B12c: vr_net_cosmetic_bytes' default: the cosmetic fragments' bytes in a datagram at most
 RATE_SLACK = 1.15        # the link down under his rate within this (a datagram's burst, the reliable)
 
 
@@ -269,26 +270,38 @@ def net_window(s, srv, b, label, packets=IDLE_PACKETS):
     proxy = b.proxy
     since = b.mark()
     b.cmd("vr_net_bytes reset")
+    srv.cmd("vr_net_classes reset")  # (B12c: the server's entity entries by classname over the window)
     b.wait(r"mp_netbytes: ", 10, since)
     start = proxy.wait_packets("down", 1, 20)
     end = proxy.wait_packets("down", packets, 60) if start else None
     if not end:
-        raise StepFailed("%s: B's link carried fewer than %d packets down in 60 s" % (label, packets))
+        # (B12c: why, when it is known: B dropped (the server's game ended: a map command, as the gib storm's press of
+        # vrtesthall's NEW GAME button did) or his link stalled)
+        left = [l.strip() for l in b.lines[since:] if l.startswith("mp_event:") and l.rstrip().endswith(" left")]
+        spawned = [l.strip() for l in srv.lines if l.startswith("SpawnServer:")]
+        raise StepFailed("%s: B's link carried fewer than %d packets down in 60 s%s" % (
+            label, packets, " (B left the game: %s; the server's map loads: %d)" % (left[0], len(spawned)) if left else ""))
     w = proxy.window(start, end)
+    ssince = srv.mark()
+    srv.cmd("vr_net_classes")
     since = b.mark()
     b.cmd("vr_net_bytes poses")
     _, line = b.wait(r"mp_netbytes: ", 10, since)
     b.wait(r"mp_netprio: done", 10, since)
-    prio = [(float(fields(l)["dist"]), int(fields(l)["entries"])) for l in b.lines[since:]
+    prio = [(float(fields(l)["dist"]), int(fields(l)["entries"]), int(fields(l)["ent"])) for l in b.lines[since:]
             if l.startswith("mp_netprio: ent=")]
     kinds = kind_rates(fields(line), w["down"]["bytes_s"])
     ops = [tuple(int(x) for x in p.split("/")) for p in fields(line).get("ent_ops", "0/0,0/0,0/0,0/0").split(",")]
     s.metric("armed_%s" % label, {"link": w, "kinds": kinds, "prio": prio, "ent_ops": ops})
     s.note("%s: down %d B/s (mean %d B, %s pkts/s); by kind: %s; poses (dist, entries): %s" % (
         label, w["down"]["bytes_s"], w["down"]["mean_B"], w["down"]["pkts_s"], format_kinds(kinds),
-        " ".join("%.0f:%d" % p for p in sorted(prio))))
+        " ".join("%.0f:%d" % p[:2] for p in sorted(prio))))
     s.note("%s: the snapshot's entity entries (count/bytes): gone %d/%d, whole %d/%d, byte by byte %d/%d, by fields %d/%d"
            % ((label,) + tuple(v for op in ops for v in op)))
+    srv.wait(r"mp_netclass: done", 10, ssince)
+    classes = [fields(l) for l in srv.lines[ssince:] if l.startswith("mp_netclass: class=")]
+    s.note("%s: the server's entity entries by class (to every remote client; bytes/entries/whole/things): %s" % (
+        label, ", ".join("%s %s/%s/%s/%s" % (c["class"], c["bytes"], c["entries"], c["whole"], c["ents"]) for c in classes)))
     return w, kinds, sorted(prio), snap_status(srv, b.ent), ops
 
 
@@ -327,6 +340,21 @@ def retransmit(s):
     srv.cmd("net_stats")
     _, line = srv.wait(r"windows resent: fast", 10, since)
     s.note("server: %s" % " ".join(l.strip() for l in srv.lines[since:] if l.startswith("windows resent")))
+
+
+def alive(srv, ent):
+    """(B12c) Whether entity `ent` on the server is a living thing now (the edict command's health over 0)."""
+    since = srv.mark()
+    srv.cmd("edict %d; echo mp_edict_done" % ent)
+    n, _ = srv.wait(r"mp_edict_done", 10, since)
+    for l in srv.lines[since:n]:
+        f = l.split()
+        if len(f) == 2 and f[0] == "health":
+            try:
+                return float(f[1]) > 0
+            except ValueError:
+                return False
+    return False
 
 
 def armed(s):
@@ -388,19 +416,27 @@ def armed(s):
     sent = int(sn["sent"]) - int(sn0["sent"]) if sn and sn0 else 0
     s.check("under it: a snapshot (his own state) still in every datagram", sent >= 0.9 * IDLE_PACKETS,
             "%d snapshots in %d datagrams or more" % (sent, IDLE_PACKETS))
-    near = [e for d, e in prio[:2]]
-    far = [e for d, e in prio[-2:]]
+    # (B12c) only the humanoids alive at the window's end (alive through it: they don't come back): one killed in it
+    # sent poses only until it fell (a near one killed early read as the rate's fault: 5 and 10 entries against 60)
+    every = prio
+    prio = [p for p in prio if alive(srv, p[2])]
+    near = [e for d, e, _ in prio[:2]]
+    far = [e for d, e, _ in prio[-2:]]
     # (B12b) by how much depends on how far apart they stood: a record's weight is 256 / (256 + distance)
     # (vr_netsnap.cpp weightOf), so the nearest two's share over the farthest two's should be at least half way to
     # their weights' ratio (the fixed 1.2 failed with the six close together once the entities cost less)
     def weight(d):
         return 256.0 / (256.0 + d)
-    ratio = (sum(weight(d) for d, _ in prio[:2]) / max(1e-6, sum(weight(d) for d, _ in prio[-2:]))) if len(prio) >= 4 else 1.0
+    ratio = (sum(weight(p[0]) for p in prio[:2]) / max(1e-6, sum(weight(p[0]) for p in prio[-2:]))) if len(prio) >= 4 else 1.0
     want = 1.0 + 0.5 * (ratio - 1.0)
+    if len(prio) < 4:
+        # (the fight killed too many in the window to compare two and two: noted, not failed)
+        s.note("under it: the nearest humanoids' poses against the farthest's not measured: %d alive at the end of %s" % (
+            len(prio), every))
     s.check("under it: the nearest humanoids' poses come more often than the farthest's (half way to their weights' ratio)",
-            len(prio) >= 4 and sum(near) > want * sum(far) and sum(near) > sum(far),
-            "nearest two %s, farthest two %s: %.2f, wanted %.2f (weights %.2f; of %s)" % (
-                near, far, sum(near) / max(1, sum(far)), want, ratio, prio))
+            len(prio) < 4 or (sum(near) > want * sum(far) and sum(near) > sum(far)),
+            "nearest two %s, farthest two %s: %.2f, wanted %.2f (weights %.2f; the living of %s)" % (
+                near, far, sum(near) / max(1, sum(far)), want, ratio, every))
     cs = client_snap_status(b)
     s.check("under it: none undecodable", cs and int(cs["undecodable"]) == 0, "%s" % cs)
 
@@ -413,6 +449,15 @@ def armed(s):
             "%d of %d by fields, %.1f B each (byte by byte %d/%d, by fields %d/%d)" % (
                 ops[3][0], changed, mean, ops[2][0], ops[2][1], ops[3][0], ops[3][1]))
 
+    # (B12c) the cosmetic fragments (small gibs, explosion chunks) within their own budget in each of B's datagrams
+    # (vr_net_cosmetic_bytes), over the combat window with the poses in his snapshot
+    s0, s1 = out[("combat", 0)][3], out[("combat", 1)][3]
+    if s0 and s1 and "cosmetic" in s1:
+        snaps = max(1, int(s1["sent"]) - int(s0["sent"]))
+        per = (int(s1["cosmetic"]) - int(s0["cosmetic"])) / float(snaps)
+        s.check("combat: the cosmetic fragments' entries within their budget, %d B a datagram" % ARMED_COSMETIC,
+                per <= ARMED_COSMETIC, "%.1f B a datagram over %d snapshots, %d of their records waited" % (
+                    per, snaps, int(s1["cwaited"]) - int(s0["cwaited"])))
     for mode, budget in (("idle", ARMED_IDLE_BUDGET), ("combat", ARMED_COMBAT_BUDGET)):
         before, kb = out[(mode, 0)][0]["down"]["bytes_s"], out[(mode, 0)][1]
         after, ka = out[(mode, 1)][0]["down"]["bytes_s"], out[(mode, 1)][1]

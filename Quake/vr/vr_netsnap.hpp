@@ -52,6 +52,7 @@ struct Record
     za::I32 key{0};
     za::I32 at{0};
     za::I32 len{0};
+    bool fresh{false}; // decode's: its entry was in this snapshot (new or changed; not the base's kept: B12c's samples)
 };
 struct Snapshot
 {
@@ -80,8 +81,11 @@ struct Trend
     const Snapshot* older{nullptr};
     int ahead{0}, span{0};
 };
+// `cosmetic` (one a `cur` record, or nullptr) marks the cosmetic fragments' records, whose changed entries take at most
+// `cosmeticBudget` bytes (by priority, with `prio`; B12c), the rest waiting as a rate's do.
 int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budget, Snapshot& sent, unsigned pflags,
-    const Trend* trend, const float* prio = nullptr, za::U8* unsent = nullptr, int soft = -1);
+    const Trend* trend, const float* prio = nullptr, za::U8* unsent = nullptr, int soft = -1, const za::U8* cosmetic = nullptr,
+    int cosmeticBudget = -1);
 // `tally` (keyClasses counts, or nullptr): each entry's bytes added by its key's class (keyClass).
 [[nodiscard]] bool decode(const Snapshot* base, int bodyLen, Snapshot& out, unsigned pflags, const Trend* trend,
     long long* tally = nullptr);
@@ -108,6 +112,8 @@ struct ServerCounts
     long long waited{0};   // changed records that waited (his rate, or a full datagram)
     int waitFrames{0};     // snapshots in which any waited
     long long bytes{0};
+    long long cosmeticBytes{0}; // (B12c) the cosmetic fragments' entries' bytes ...
+    long long cosmeticWaited{0}; // ... and their changed records that waited for their budget (or his rate)
     za::U32 seq{0}, acked{0};
 };
 [[nodiscard]] ServerCounts serverCounts(int slot);

@@ -1202,6 +1202,10 @@ za::Vector<Item> pageDebugReports()
         slider("Network: Rate Cap", vr_net_rate, 0.f, 64000.f, 2000.f, "%.0f B/s")
             .help("vr_net_rate: on a remote server, the most it sends you a second (0: no cap). Under it the nearest things and "
                   "those ahead of you update first, the far ones wait (MP_PLAN B12); vr_net_bytes shows what you read."),
+        slider("Network: Fragments' Bytes", vr_net_cosmetic_bytes, 0.f, 512.f, 16.f, "%.0f B")
+            .help("vr_net_cosmetic_bytes: hosting, the most of a remote player's datagram the cosmetic fragments (small gibs, "
+                  "explosion chunks) take, the nearest first; the rest wait a frame or two and his game draws them between "
+                  "(MP_PLAN B12c: a gib storm's bytes). 0: no budget of their own."),
         command("Keyboard Hook", "vr_keyhook_status")
             .help("vr_keyhook_status: whether this game holds the desktop keyboard hook (only with the window's focus) and "
                   "the longest it went unserviced since the last report: every key press on the desktop waits for it."),

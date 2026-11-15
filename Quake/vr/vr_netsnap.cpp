@@ -9,6 +9,7 @@
 #include "vr_api.h"
 #include "vr_cvars.hpp"
 #include "vr_protocol.hpp"
+#include "vr_progs.hpp"
 #include "vr_testkit.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
@@ -629,6 +630,7 @@ struct Entry
     za::I32 key{0}, op{0}, size{0}, ci{-1}; // ci: its record in `cur` (-1: gone)
     float prio{0.f};
     bool chosen{true};
+    bool cosmetic{false}; // (B12c: a cosmetic fragment's: its own budget)
 };
 za::Vector<Entry> entries;   // (encode's scratch)
 za::Vector<za::I32> byPrio;  // (... the entries in priority order)
@@ -636,11 +638,20 @@ constexpr int headMost = 3;  // an entry's head: a key's step under 2^19
 za::Vector<int> poseEntries; // the client: the pose entries read of each entity (vr_net_bytes poses; the rate's priorities)
 za::Vector<float> poseDists; // ... and the sum of its distances from us at each (their mean: where it was meanwhile)
 long long entOps[4][2]{};    // the client: the entities' entries read by op (gone, whole, delta, fields): count, bytes
+// The server: its snapshots' entity entries written, by entity number (vr_net_classes: by classname; B12c's gib storms)
+struct SentTally
+{
+    long long bytes{0};
+    int entries{0}, whole{0};
+};
+za::Vector<SentTally> sentByEnt;
+bool tallySent{false}; // (serverEnd's encode: not the self-test's)
+int cosmeticWritten{0}; // (encode's last: its cosmetic fragments' entries' bytes)
 
 } // namespace
 
 int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budget, Snapshot& sent, unsigned pflags,
-    const Trend* trend, const float* prio, za::U8* unsent, int soft)
+    const Trend* trend, const float* prio, za::U8* unsent, int soft, const za::U8* cosmetic, int cosmeticBudget)
 {
     sent.records.clear();
     sent.bytes.clear();
@@ -653,6 +664,7 @@ int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budge
     // highest priorities that fit.
     entries.clear();
     int need = body->cursize;
+    int cosmeticNeed = 0;
     for(za::SizeT bi = 0, ci = 0; bi < bn || ci < cn;)
     {
         const Record* b = bi < bn ? &base->records[bi] : nullptr;
@@ -695,10 +707,14 @@ int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budge
                                                                  : Entry{c->key, opWhole, wholeSize, ci1};
         }
         e.prio = e.ci < 0 ? INFINITY : prio ? prio[e.ci] : 0.f;
+        e.cosmetic = cosmetic && e.ci >= 0 && cosmetic[e.ci] != 0;
         need += headMost + e.size;
+        cosmeticNeed += e.cosmetic ? headMost + e.size : 0;
         entries.emplaceBack(e);
     }
-    if(need > soft)
+    // (B12c: the cosmetic fragments' own budget, by priority; without priorities they go as the rest)
+    const bool cosmeticOver = prio && cosmeticBudget >= 0 && cosmeticNeed > cosmeticBudget;
+    if(need > soft || cosmeticOver)
     {
         int used = body->cursize;
         if(!prio)
@@ -721,11 +737,27 @@ int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budge
             std::stable_sort(byPrio.begin(), byPrio.end(), [](za::I32 a, za::I32 b) {
                 return entries[static_cast<za::SizeT>(a)].prio > entries[static_cast<za::SizeT>(b)].prio;
             });
+            int cosmeticUsed = 0;
+            bool firstFinite = true;
             for(const za::I32 i : byPrio)
             {
                 Entry& e = entries[static_cast<za::SizeT>(i)];
-                e.chosen = used + headMost + e.size <= (e.prio == INFINITY ? budget : soft);
-                used += e.chosen ? headMost + e.size : 0;
+                const int cost = headMost + e.size;
+                const bool cosmeticRoom = !e.cosmetic || !cosmeticOver || cosmeticUsed + cost <= cosmeticBudget;
+                e.chosen = e.prio == INFINITY ? used + cost <= budget : used + cost <= soft && cosmeticRoom;
+                // (B12c) Under a rate (soft under the datagram's room), the highest priority goes even past what his
+                // bucket holds now when it fits the datagram and the bucket is not in debt: the bucket goes below
+                // zero and the next datagrams carry only what must go until it is paid back (his rate held on
+                // average). Else a record larger than a frame's share of his rate never went while smaller, lower
+                // ones took the room every frame (mp_armed: the two nearest armed humanoids' poses, 1 entry each in
+                // 5 s, the farthest two's 150).
+                if(e.prio != INFINITY && firstFinite)
+                {
+                    firstFinite = false;
+                    e.chosen = e.chosen || (cosmeticRoom && soft > 0 && soft < budget && used + cost <= budget);
+                }
+                used += e.chosen ? cost : 0;
+                cosmeticUsed += e.chosen && e.cosmetic ? cost : 0;
             }
         }
     }
@@ -733,6 +765,7 @@ int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budge
     // Written in key order: the chosen entries (each as long as its real head fits too); the others keep the base's
     // record on both sides (a new one: none yet), `unsent` marks their records.
     int written = 0, prevKey = -1;
+    cosmeticWritten = 0;
     za::SizeT bi = 0, ci = 0;
     for(const Entry& e : entries)
     {
@@ -761,6 +794,7 @@ int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budge
             }
             continue;
         }
+        const int entryAt = body->cursize;
         netmove::writeVarint(body, head);
         if(e.op == opDelta)
         {
@@ -781,6 +815,18 @@ int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budge
         if(c)
         {
             addFrom(sent, cur, *c);
+        }
+        cosmeticWritten += e.cosmetic ? body->cursize - entryAt : 0;
+        if(tallySent && keyClass(e.key) == 1)
+        {
+            if(e.key >= static_cast<int>(sentByEnt.size()))
+            {
+                sentByEnt.resize(static_cast<za::SizeT>(e.key) + 1);
+            }
+            SentTally& t = sentByEnt[static_cast<za::SizeT>(e.key)];
+            t.bytes += body->cursize - entryAt;
+            t.entries++;
+            t.whole += e.op == opWhole ? 1 : 0;
         }
         prevKey = e.key;
         written++;
@@ -870,6 +916,7 @@ bool decode(const Snapshot* base, int bodyLen, Snapshot& out, unsigned pflags, c
                 return false;
             }
             out.add(key, net_message.data + msg_readcount, static_cast<int>(len));
+            out.records.back().fresh = true;
             msg_readcount += static_cast<int>(len);
             continue;
         }
@@ -888,11 +935,13 @@ bool decode(const Snapshot* base, int bodyLen, Snapshot& out, unsigned pflags, c
                 return false;
             }
             out.add(key, fieldsCheck, n);
+            out.records.back().fresh = true;
             msg_readcount += used;
             continue;
         }
         const za::I32 at = static_cast<za::I32>(out.bytes.size());
         addFrom(out, *base, *b);
+        out.records.back().fresh = true;
         if(!readBytesDelta(out.bytes.data() + at, b->len, end))
         {
             return false;
@@ -986,9 +1035,27 @@ struct Building
     za::U8 body[MAX_DATAGRAM];
     za::Vector<float> prio;    // each record's priority (cur's order)
     za::Vector<za::U8> unsent; // each record that waited
+    za::Vector<za::U8> cosmetic; // each record a cosmetic fragment's (B12c)
     int chargeSlot{-1};        // the slot whose datagram serverCharge charges (serverEnd's)
 };
 Building building;
+
+// (B12c) A cosmetic fragment's entity: a small gib or an explosion's chunk (nothing touches them: vr_smallgibs.qc,
+// vr_explosiondebris.cpp), whose updates have a budget of their own (vr_net_cosmetic_bytes).
+[[nodiscard]] bool isCosmetic(int num)
+{
+    if(num <= 0 || num >= qcvm->num_edicts)
+    {
+        return false;
+    }
+    const edict_t* ed = EDICT_NUM(num);
+    if(ed->free)
+    {
+        return false;
+    }
+    const char* name = PR_GetString(ed->v.classname);
+    return strcmp(name, "vr_smallgib") == 0 || strcmp(name, "vr_explosion_debris") == 0;
+}
 
 [[nodiscard]] ServerSlot* slotOf(int slot, bool make)
 {
@@ -1132,9 +1199,13 @@ void serverEnd(sizebuf_t* msg)
             eye[k] = p->v.origin[k] + p->v.view_ofs[k];
         }
     }
+    bl.cosmetic.clear();
+    bl.cosmetic.resize(n, 0);
+    const int cosmeticBudget = static_cast<int>(vr_net_cosmetic_bytes.value);
     for(za::SizeT i = 0; i < n; i++)
     {
         const int key = bl.cur.records[i].key;
+        bl.cosmetic[i] = cosmeticBudget > 0 && keyClass(key) == 1 && isCosmetic(key) ? 1 : 0;
         const int wi = waitIndex(key);
         bl.prio[i] = keyClass(key) == 0 || keyClass(key) == 3 ? INFINITY
                                                               : weightOf(key, eye, fwd) * (1.f + (wi >= 0 ? s->waits[static_cast<za::SizeT>(wi)] : 0));
@@ -1146,8 +1217,15 @@ void serverEnd(sizebuf_t* msg)
     {
         trend = Trend{&s->snaps[older % ring], static_cast<int>(seq - base->seq), static_cast<int>(base->seq - older)};
     }
+    tallySent = true;
     encode(base, bl.cur, &body, room, sent, sv.protocolflags, trend.older ? &trend : nullptr, bl.prio.data(), bl.unsent.data(),
-        za::min(budget, room));
+        za::min(budget, room), bl.cosmetic.data(), cosmeticBudget > 0 ? cosmeticBudget : -1);
+    tallySent = false;
+    int cosmeticWaited = 0;
+    for(za::SizeT i = 0; i < n; i++)
+    {
+        cosmeticWaited += bl.unsent[i] && bl.cosmetic[i] ? 1 : 0;
+    }
     sent.baseSeq = base ? base->seq : 0u;
     int waited = 0;
     for(za::SizeT i = 0; i < n; i++)
@@ -1175,6 +1253,8 @@ void serverEnd(sizebuf_t* msg)
     c.cut += body.cursize >= room - 8 && sent.records.size() != before ? 1 : 0;
     c.waited += waited;
     c.waitFrames += waited > 0 ? 1 : 0;
+    c.cosmeticBytes += cosmeticWritten;
+    c.cosmeticWaited += cosmeticWaited;
     c.rate = bl.rate;
     c.bytes += msg->cursize - at + 2;
     c.seq = seq;
@@ -1254,6 +1334,7 @@ constexpr double clockGain = 4.0;       // the delay's clock: this much faster a
 constexpr double rateLeast = 0.85, rateMost = 1.15; // ... within these
 constexpr double snapAfter = 0.25;      // s off its target: set there (a new map, a long stall)
 constexpr double cushion = 0.5 * tick;  // the draw time this near the newest message: its clock slows, to a stop at it
+constexpr double restGap = 4.0 * tick;  // (B12c) a thing unchanged longer than this rested: it sets off from its place
 
 struct Sample
 {
@@ -1302,7 +1383,7 @@ void interpArrive(double t)
 }
 
 // Entity `e`'s place in snapshot `seq` (the one read before it: `prevSeq`) into its history.
-void interpNote(int e, za::U32 prevSeq, za::U32 seq)
+void interpNote(int e, za::U32 prevSeq, za::U32 seq, bool fresh)
 {
     Interp& ip = interp;
     if(e <= 0 || e >= cl.num_entities)
@@ -1321,6 +1402,25 @@ void interpNote(int e, za::U32 prevSeq, za::U32 seq)
     }
     h.model = ent.model;
     h.seq = seq;
+    // (B12c) An unchanged record adds no place: its newest stands (a thing at rest, or one whose update waited: a cosmetic
+    // fragment's budget, a rate's: drawn between its places as they come, not stopped a frame). One unchanged longer
+    // than restGap rested there: that place again a frame before this one, so it sets off from it.
+    if(!fresh && h.n > 0)
+    {
+        return;
+    }
+    if(h.n > 0)
+    {
+        const Sample last = h.s[(h.head - 1 + historyLen) % historyLen];
+        if(cl.mtime[0] - last.t > restGap + 0.5 * tick)
+        {
+            Sample& rest = h.s[h.head];
+            rest = last;
+            rest.t = cl.mtime[0] - tick;
+            h.head = (h.head + 1) % historyLen;
+            h.n = za::min(h.n + 1, historyLen);
+        }
+    }
     Sample& s = h.s[h.head];
     s.t = cl.mtime[0];
     memcpy(s.origin, ent.msg_origins[0], sizeof(s.origin));
@@ -1373,7 +1473,7 @@ void apply(const Snapshot& s, za::U32 prevSeq, za::U32 seq)
     {
         if(r.key > clientdataKey && r.key < avatarKey)
         {
-            interpNote(r.key, prevSeq, seq);
+            interpNote(r.key, prevSeq, seq, r.fresh);
         }
     }
 }
@@ -1898,6 +1998,44 @@ void selftest_f()
                            waited, static_cast<int>(n), bytes));
     }
     {
+        // B12c: the cosmetic fragments' own budget. Every record changed, the odd ones cosmetic (the later, the higher
+        // their priority), 30 bytes for them: every other record goes; the cosmetic ones within 30 bytes, the highest
+        // priority among them sent, the rest wait as the base's; read back the same
+        t.cur = t.base;
+        const za::SizeT n = t.cur.records.size();
+        float prio[64]{};
+        za::U8 unsent[64]{};
+        za::U8 cosm[64]{};
+        int last = -1;
+        for(za::SizeT i = 0; i < n && i < 64; i++)
+        {
+            t.cur.bytes[t.cur.records[i].at] ^= 0x01;
+            const bool self = t.cur.records[i].key == clientdataKey;
+            prio[i] = self ? INFINITY : 1.f + static_cast<float>(i);
+            cosm[i] = !self && i % 2 == 1 ? 1 : 0;
+            last = cosm[i] ? static_cast<int>(i) : last;
+        }
+        sizebuf_t buf{};
+        buf.data = t.data;
+        buf.maxsize = sizeof(t.data);
+        encode(&t.base, t.cur, &buf, 4096, t.sent, selftestFlags, nullptr, prio, unsent, -1, cosm, 30);
+        const int cosmeticBytes = cosmeticWritten;
+        net_message = buf;
+        MSG_BeginReading();
+        bool cosOk = n <= 64 && last > 0 && decode(&t.base, buf.cursize, t.read, selftestFlags, nullptr) && sameSnapshot(t.read, t.sent);
+        int others = 0, cosWaited = 0, cosSent = 0;
+        for(za::SizeT i = 0; i < n && i < 64; i++)
+        {
+            others += !cosm[i] && unsent[i] ? 1 : 0;
+            cosWaited += cosm[i] && unsent[i] ? 1 : 0;
+            cosSent += cosm[i] && !unsent[i] ? 1 : 0;
+        }
+        cosOk = cosOk && others == 0 && cosSent > 0 && cosWaited > 0 && cosmeticBytes <= 30 && !unsent[last];
+        check(cosOk, va("the cosmetic fragments' budget of 30 bytes: every other record sent (%d waited), %d of them sent in %d "
+                        "bytes (the highest priority among them), %d waited",
+                         others, cosSent, cosmeticBytes, cosWaited));
+    }
+    {
         // B12b: entity updates by their fields. A grunt (300: a long number) and its weapon (301) stepping: origins,
         // yaw, frame and lerp changed, the weapon's tail not; then the grunt's layout changed (its pitch now sent, its
         // lerp not): read back the same, in fewer bytes than byte by byte (the delta of the same, measured by encode)
@@ -1974,9 +2112,65 @@ void selftest_f()
     tally.verdict("netsnap selftest");
 }
 
+// vr_net_classes [reset] (the server): its snapshots' entity entries to every remote client since the reset, by the
+// entities' classnames, the costliest first ("mp_netclass: class=... bytes=... entries=... whole=... ents=...", then
+// "mp_netclass: done"): what a gib storm's bytes are (B12c). A slot reused by another thing counts as what is in it now.
+void classesReport()
+{
+    struct ByClass
+    {
+        const char* name{""};
+        long long bytes{0};
+        int entries{0}, whole{0}, ents{0};
+    };
+    za::Vector<ByClass> by;
+    if(sv.active)
+    {
+        const progs::ServerVm vm;
+        for(za::SizeT n = 1; n < sentByEnt.size() && static_cast<int>(n) < qcvm->num_edicts; n++)
+        {
+            const SentTally& t = sentByEnt[n];
+            if(t.entries == 0)
+            {
+                continue;
+            }
+            const edict_t* ed = EDICT_NUM(static_cast<int>(n));
+            const char* name = ed->free ? "(freed)" : PR_GetString(ed->v.classname);
+            ByClass* hit = nullptr;
+            for(ByClass& b : by)
+            {
+                hit = !hit && strcmp(b.name, name) == 0 ? &b : hit;
+            }
+            if(!hit)
+            {
+                by.emplaceBack(ByClass{name});
+                hit = &by.back();
+            }
+            hit->bytes += t.bytes;
+            hit->entries += t.entries;
+            hit->whole += t.whole;
+            hit->ents++;
+        }
+        std::sort(by.begin(), by.end(), [](const ByClass& a, const ByClass& b) { return a.bytes > b.bytes; });
+        for(za::SizeT i = 0; i < by.size() && i < 10; i++)
+        {
+            Con_Printf("mp_netclass: class=%s bytes=%lld entries=%d whole=%d ents=%d\n", by[i].name[0] ? by[i].name : "(none)",
+                by[i].bytes, by[i].entries, by[i].whole, by[i].ents);
+        }
+    }
+    Con_Printf("mp_netclass: done\n");
+}
+
 void init()
 {
     Cmd_AddCommand("vr_netsnap_selftest", selftest_f);
+    Cmd_AddCommand("vr_net_classes", [] {
+        if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "reset"))
+        {
+            sentByEnt.clear();
+        }
+        classesReport();
+    });
     // vr_net_bytes [reset]: what this client read from its server, by kind ("mp_netbytes:"; reset: from zero)
     Cmd_AddCommand("vr_net_bytes", [] {
         if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "reset"))
