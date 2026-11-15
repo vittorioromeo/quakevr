@@ -3250,3 +3250,57 @@ embedded, over the body it killed.
 - Scene `throw_hard` (a grunt, a knight, an ogre; the sword and the dagger).
 - Open: a blade in a body the engine models only by its box (`MonsterBox`: no Quake .mdl) still follows the box as the body
   dies; a blade striking a gun sticks in it (a clang and a bounce would be truer). Not changed.
+## flipgate: a two-handed blade flips only with both hands on its handle (agent/flipgate, 2026-11-15)
+
+His notes (vrtesthall_2026-11-15_18-02-24, _18-03-10): the flipped 2H hold is fine now, but the dagger held near its tip by the
+other hand ("anywhere") and flipped sent that hand a long way; the sword held anywhere or by its blade (half-sword) ended right
+but stretched. His rule: held in two hands, the grip flips only when both hands are on the handle.
+- **The gate** (`view::gripFlipBlocked`, `twohand::heldOffHandle`: the holding hand's free grip on, or `bladeGrip`): the weapon may
+  flip but the other hand holds it off its handle. QC `weapondrawnpose(p, hand, 46)`'s z is now 1 may flip, -1 refused by the gate,
+  0 none; `VR_RevGrip_Flip` (the eject button's and the flat holster menu's FLIP GRIP alike) refuses on -1: the grip unchanged, no
+  sound, a light short pulse (`haptic(hand, 0, 0.03, 40, vr_revgrip_blocked_pulse)`). One hand, or the other on the 2H grip hotspot
+  (the handle), flips as before. Flat play goes through the same check (FLIP GRIP: impulses 84, 85).
+- **Tunables** (Debug > Tunables > Weapons > Reverse Grip): Two-Handed Flip (`vr_revgrip_2h_gate` 1 Handle Only, 0 Always: before),
+  Refused Flip Pulse (`vr_revgrip_blocked_pulse` 0.25, 0 none).
+- On the knight's sword the blade hotspot runs to the tip, so a hand on its blade away from the handle takes the blade grip (gated
+  as such); a free "anywhere" grip is the dagger's (no blade hotspot).
+- **Test** `vr_embed_test 45` (QC/vr_flipgate_test.qc, `flipgate: 25 passed, 0 failed`): dagger and knight's sword, one hand and
+  the 2H hotspot flip (46 z 1); the dagger held anywhere (weaponanygrip 2), the sword near the guard and on its blade hotspot:
+  46 z -1, the flip refused (counted, grip unchanged); case 8 the dagger anywhere with the gate 0: flips. Unchanged: flipgrip (44)
+  39/0, revgrip (42) 24/0. Seen: in the mock the knight's sword's 2H hold by the hotspot lets go after a flip (the mirrored
+  hotspot moves ~9 units past the still mock hand; the dagger's stays held); his VR note says the 2H flip feels fine.
+- To check in VR: the dagger held at the tip, the sword on its blade: B/Y does nothing but a light tap; on the handle: flips.
+## flat1116: Burst Rifle name, toolgun gun+blade, gun-and-axe melee, flat B = next ammo, disarm sounds (agent/flat1116, 2026-11-16)
+
+His flat-screen notes (2026-11-16) and the coordinator's disarm-sound item.
+
+- **Burst Rifle.** The holster menu names weapons from `vr_notectx.cpp` `weaponNames` ("grunt's shotgun"): now
+  "Burst Rifle", as are the QC weapon table (pickups, `WeaponIdToWeaponName`), `VR_EnemyGun_Name` (console), the toolgun's
+  and Debug's spawn entries, Weapon Holds and the armed grunts' weights. With `vr_grunt_burst 0` the grunts still fire
+  pellets, but the gun in your hands always bursts, so the name holds.
+- **Toolgun gun + axe.** The game supports it (`vr_ag_gunaxe`: the replacements' `vr_agrunt_repl_gunaxe`, a gun and an axe
+  or a dagger; the ranged knights' crossbow and sword), but only a replacement's roll set the flag, and the toolgun's
+  Left Hand list paired melee with melee and guns with guns only. Now `armedPairs` / QC `VR_AM_UiPairs` also offer a
+  one-handed blade beside a dual-wieldable gun in the right hand (never a blade then a gun, nor a big gun), and
+  `VR_AM_ArmAll` sets `vr_ag_gunaxe` for such keys (map `weapon2` too; FGD regenerated). Test
+  `vr_toolgun_armed_pair_test` (Debug > Tests): 7/7 (shotgun/Burst Rifle + axe, shotgun + dagger: gun and axe; two guns;
+  two blades; axe + shotgun and rocket launcher + axe not offered).
+- **No damage from gun-and-axe grunts.** Cause: the axe swings in its left hand (`vr_ag_left`) while the gun is the
+  pose's right-hand prop, so `VR_AGP` only ran `VR_DRP_Frame` when the right prop was melee: a blow held back for your
+  weapon near its way (`VR_DRP_Blow`, `vr_dirparry_window`) was never let go, parried or dropped, and every later blow
+  was folded into it: no damage, no `VR_PD_Blow` roll, ever (pre-fix: 29 blows, 1 held, 0 ended). The axe-only grunt was
+  fine. Fix: the left blade of a gun-and-axe grunt runs `VR_DRP_Frame` when it is the swinging prop. Rules unchanged: a
+  parry across the blow blocks, a landed blow hurts and may disarm (`vr_player_disarm_chance`). Counters
+  `vr_drp_held_n` / `_done`. Test `vr_pd_test 2` (`Misc/quakevr/pd_melee_test.sh <agent> [flat]`): 8/8 VR mock
+  (gun+axe 44 damage, 4 rolls 4 disarms; axe-only the same), 8/8 flat (gun+axe 2 parried, 2 landed). Scene
+  `agrunt_gunaxe_melee`.
+- **Flat B = Next Ammo Type.** `vr_flat_key_ammo` "b" (Flat Keys page; in the flat key list so its bind is left off):
+  impulse 43, the headset's weapon button (`ToggleSecondaryAmmo`: multi-rockets/-grenades, the thunderbolt's...; nothing
+  for a weapon without). B was already flat's `vr_flat_key_toolgun_adjust` (held, toolgun in hand only), no global bind:
+  B keeps that with the toolgun in hand and sends nothing then. `flat_ammo_key_test.sh`: 3/3. Scene `flat_ammo_key`.
+- **Disarm sounds.** `VR_PD_DisarmSound` in `VR_PD_Disarm` (every disarm of yours: shots, blows, later grabs): the clang
+  `vr/disarm_clang.wav` at the dropped weapon for everyone (`sound`), the sting `vr/disarm_sting.wav` to you alone
+  (`playvol`, not placed), with the existing hand buzz; `vr_player_disarm_sound` 1 (Disarming: Your Weapon). Picked by
+  numbers (`make_disarm_sounds.py`'s header): StarNinjas `sword_clash.1` (0 ms attack, longest ring 0.8 s, ~6 kHz) and
+  Kenney `error_003` (instant, 0.3 s, ~1.4 kHz); the Medieval pack's minute-long takes unused. CREDITS.md. vr_pd_test 1
+  11/11 (sounds started for each disarm).

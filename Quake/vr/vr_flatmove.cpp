@@ -2618,7 +2618,7 @@ namespace
 // Every key flat play reads itself, in the menu's order (Locomotion > Desktop Screen Play > Flat Keys): the cvars a key's
 // bind name is kept in. Key_Event leaves these keys' binds off (VR_FlatKeyOwned); the Flat Keys page rebinds them.
 cvar_t* const flatKeyList[] = {&vr_flat_key_lean_left, &vr_flat_key_lean_right, &vr_flat_key_prone, &vr_flat_key_swap, &vr_flat_key_grab, &vr_flat_key_shove, &vr_flat_key_punch,
-    &vr_flat_key_reload, &vr_flat_key_drop, &vr_flat_key_grenade, &vr_flat_key_bullettime, &vr_flat_key_flashlight, &vr_flat_key_holster_menu, &vr_flat_key_flycam,
+    &vr_flat_key_reload, &vr_flat_key_ammo, &vr_flat_key_drop, &vr_flat_key_grenade, &vr_flat_key_bullettime, &vr_flat_key_flashlight, &vr_flat_key_holster_menu, &vr_flat_key_flycam,
     &vr_flat_key_toolgun, &vr_flat_key_toolgun_menu, &vr_flat_key_toolgun_adjust};
 } // namespace
 

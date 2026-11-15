@@ -1,0 +1,9 @@
+# agrunt_gunaxe_melee: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title A gun and an axe up close: its axe on you while you hold a weapon in front (no god)
+map vrtesthall
+health 400
+give "Shotgun" main
+spawnarmed monster_vr_grunt 4 2 70
+spawnarmed monster_vr_grunt 2 0 70 -90
+cvar vr_player_disarm 1
+hint Two grunts walk up to you: one with a shotgun and an axe, one with an axe alone. Hold your shotgun in front of you. An axe swing that your weapon doesn't parry across its way hurts you, and a blow landing on your weapon may knock it out of your hand (Disarming: Your Weapon); a parry across its way blocks it. Flat-screen: the guard (right mouse button) parries what comes from the front.

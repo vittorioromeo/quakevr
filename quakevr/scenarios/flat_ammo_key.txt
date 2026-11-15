@@ -1,0 +1,7 @@
+# flat_ammo_key: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Flat-screen: B switches the weapon's ammo type (rocket launcher, grenade launcher)
+map vrtesthall
+god
+give "Rocket Launcher" main
+cmd impulse 9
+hint Flat-screen: press B (Next Ammo Type, Flat Keys) with the rocket launcher: its multi-rockets, B again its rockets. Try the grenade launcher and the thunderbolt too (impulse 9 gave them all).

@@ -322,13 +322,15 @@ void PF_weapondrawnpose()
     if(what == 46)
     {
         // weapondrawnpose(player, hand, 46): '<its share of the reverse grip as drawn (0..1: tests)> <1: the weapon held may be
-        // held reversed (QC VR_RevGrip_HandFrame: its eject button flips it)> 0'.
+        // held reversed (QC VR_RevGrip_HandFrame: its eject button flips it)> <1 its grip may be flipped now, -1 not while the other
+        // hand holds it away from its handle (view::gripFlipBlocked, ROUND25.md "flipgate"), 0 none>'.
         glm::vec3 forward{0.f}, up{0.f};
         float flip = 0.f;
         const bool local = sv.active && cls.state == ca_connected;
         (void)(local && view::heldWeaponAxes(hand, forward, up, flip));
         // (z: 1 in flat play too, the flat holster menu's FLIP GRIP button's: view::heldGripFlippable)
-        progs::returnVec({flip, local && view::heldMayReverse(hand) ? 1.f : 0.f, local && view::heldGripFlippable(hand) ? 1.f : 0.f});
+        const float flippable = !local || !view::heldGripFlippable(hand) ? 0.f : view::gripFlipBlocked(hand) ? -1.f : 1.f;
+        progs::returnVec({flip, local && view::heldMayReverse(hand) ? 1.f : 0.f, flippable});
         return;
     }
     if(what == 47)

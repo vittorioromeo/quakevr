@@ -24,6 +24,7 @@
 float revgripKeep; // TRUE while a blade comes back into the hand that held it (VR_Embed_Free): its own grip kept
 .float vr_revgrip_sec; // bits, 1 the off hand, 2 the main: its eject button held last frame
 float vr_revgrip_flips; // (the tests: the flips made by the button)
+float vr_revgrip_refused; // (the tests: the flips refused by the gate: the other hand off the handle)
 
 // The flags `xFlags` of the weapon `ent` taken by `p`'s `xHand` (wpnthrow_handtouch_impl), with its grip: upright for a force
 // grab's catch (`xUpright`) or a weapon that may not be reversed; its own kept (revgripKeep); else by its blade's way.
@@ -109,6 +110,22 @@ void(float xHand) VR_RevGrip_Flip =
     vector may = weapondrawnpose(self, xHand, 46);
     if((flags & QVR_WPNFLAG_FOREGRIP_CARRIED) || !may_z)
     {
+        return;
+    }
+    // The flip gate (ROUND25.md "flipgate"; his note 2026-11-15): held in two hands, it flips only with both on its handle; the
+    // other hand holding it anywhere else or by its blade refuses it, with a light pulse (vr_revgrip_2h_gate, _blocked_pulse).
+    if(may_z < 0)
+    {
+        vr_revgrip_refused = vr_revgrip_refused + 1;
+        float pulse = cvar_hget(cvarh_vr_revgrip_blocked_pulse);
+        if(pulse > 0)
+        {
+            haptic(xHand, 0, 0.03, 40, min(1, pulse));
+        }
+        if(cvar_hget(cvarh_developer))
+        {
+            dprint(sprintf("revgrip: hand %g's flip refused: the other hand holds it off its handle\n", xHand));
+        }
         return;
     }
     flags = (flags & QVR_WPNFLAG_REVGRIP) ? flags - QVR_WPNFLAG_REVGRIP : flags | QVR_WPNFLAG_REVGRIP;
