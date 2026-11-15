@@ -495,6 +495,11 @@ za::Vector<Item> pageDebugProfiling()
         command("Foveate Scene Colours and Depth", "vr_gl_foveation_parts 3")
             .help("vr_gl_foveation_parts 3: Scene Foveation on the eyes' colours and their depth/stencil (and 7: the "
                   "order-independent transparency targets too). A framebuffer the driver won't take turns it off."),
+        command("Add 3 Big Test Lights", "vr_test_dlights 3")
+            .help("vr_test_dlights 3: three lasting dynamic lights as big as an explosion's (radius 350), in a row 160 units "
+                  "ahead: the cost of big lights on a still scene (vr_test_dlights <count> <radius> <distance>; 0 removes "
+                  "them)."),
+        command("Remove the Test Lights", "vr_test_dlights 0").help("vr_test_dlights 0: removes the test lights."),
         command("List the Frame's Render Passes", "vr_gl_passes 1")
             .help("vr_gl_passes 1: the next frame's framebuffer binds in the console, in order, each with the draws made "
                   "into it and the profiler's scope at the bind (Profiling on for the names). On a tiled GPU (the Quest) "

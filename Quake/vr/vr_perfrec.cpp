@@ -5,6 +5,7 @@
 #include "vr_cvars.hpp"
 #include "vr_dynres.hpp"
 #include "vr_alloccount.hpp"
+#include "vr_api.h"
 
 #include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Base/IntTypes.hpp"
@@ -460,6 +461,8 @@ void gpu(za::U64 serial, const double* phaseMs, double spanMs)
     drain(0);
 }
 
+void testDlights_f();
+
 void init()
 {
     Cmd_AddCommand("vr_perf_mark", [] {
@@ -469,6 +472,44 @@ void init()
             Con_Printf("vr_perf_mark: not recording (vr_perf_record 1)\n");
         }
     });
+    Cmd_AddCommand("vr_test_dlights", testDlights_f);
+}
+
+// C4p (QUEST_PLAN.md 6w): lasting dynamic lights as big as an explosion's, in a row before the eyes, so the cost of
+// big lights is measured on a still scene (a fight's explosions come and go). 0 removes them.
+void testDlights_f()
+{
+    {
+        constexpr int key = -0x5E00;
+        constexpr int maxLights = 8;
+        const int count = Cmd_Argc() > 1 ? za::clamp(Q_atoi(Cmd_Argv(1)), 0, maxLights) : 1;
+        const float radius = Cmd_Argc() > 2 ? static_cast<float>(Q_atof(Cmd_Argv(2))) : 350.f;
+        const float dist = Cmd_Argc() > 3 ? static_cast<float>(Q_atof(Cmd_Argv(3))) : 160.f;
+        if(!cl.worldmodel)
+        {
+            Con_Printf("vr_test_dlights: no map\n");
+            return;
+        }
+        vec3_t fwd, right, up;
+        AngleVectors(cl.viewangles, fwd, right, up);
+        for(int i = 0; i < maxLights; i++)
+        {
+            dlight_t* dl = CL_AllocDlight(key - i);
+            if(i >= count)
+            {
+                dl->die = 0.f;
+                dl->radius = 0.f;
+                continue;
+            }
+            VectorMA(r_refdef.vieworg, dist, fwd, dl->origin);
+            VectorMA(dl->origin, (static_cast<float>(i) - static_cast<float>(count - 1) * 0.5f) * 48.f, right, dl->origin);
+            dl->radius = radius;
+            dl->die = static_cast<float>(cl.time + 100000.0);
+            dl->decay = 0.f;
+            VR_TuneDlight(QVR_DLIGHT_EXPLOSION, 0, dl);
+        }
+        Con_Printf("vr_test_dlights: %d of radius %.0f, %.0f ahead\n", count, static_cast<double>(radius), static_cast<double>(dist));
+    }
 }
 
 void xrFrame(int missed, double periodMs)
