@@ -204,6 +204,8 @@ void printAvatar(int e, const Avatar& a)
     }
     if(d.frame == host_framecount - 1 || d.frame == host_framecount)
     {
+        const float* const skin[2] = {d.hand[0].visible ? d.skin[0] : nullptr, d.hand[1].visible ? d.skin[1] : nullptr};
+        view::printHands("mp_hands", e, d.hand, skin, d.weapon, d.holster, VrDrawnHolsters::count);
         for(int part = 0; part < 3; part++)
         {
             const view::ViewEntity& ve = part < 2 ? d.hand[part] : d.body;
@@ -258,6 +260,7 @@ void avatars_f()
         view::printOwnLooks(cl.viewentity);
         view::printOwnPauldrons(cl.viewentity);
         view::printOwnPlates(cl.viewentity);
+        view::printOwnHands(cl.viewentity);
         // His own holsters as drawn (what the others draw: the move's view::netHolsters).
         VrDrawnHolsters hs;
         view::netHolsters(hs);

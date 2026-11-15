@@ -594,6 +594,11 @@ qmodel_t* drawBody(const BodyDraw& b, const BodyEntities& out);
 [[nodiscard]] int otherPlateBonePoses(const entity_t& body, bool bridge, int pieces, float* out, const float** matrices);
 // vr_mp_avatars: "mp_plates_own: ent= type= pieces= skin= model=" (your plates as drawn).
 void printOwnPlates(int ent);
+// vr_mp_avatars: a player's jointed hands, held and holstered weapons as drawn, a line each ("<what>: ent= kind=hand|weapon|
+// holster index= model= mirrored= frame= skin= at= ang= bones=": the hand's skinning matrices summed); yours as "mp_hands_own".
+void printHands(const char* what, int ent, const ViewEntity hand[2], const float* const skin[2], const ViewEntity weapon[2],
+    const ViewEntity* holster, int numHolsters);
+void printOwnHands(int ent);
 // A new level or a load's armour coming (agarmor::parseEvent): the next word on the plates taken as it comes, no morph.
 void platesResync();
 // Whether the armour's plates show on your body this frame (vr_player_plates on, a piece worn, the body drawn): what the

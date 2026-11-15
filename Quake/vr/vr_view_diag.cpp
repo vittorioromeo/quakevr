@@ -281,6 +281,48 @@ void remoteHandPose(const ViewEntity& hand, avatar::HandPose& out)
     out = handPoseOf(hand, true);
 }
 
+void printHands(const char* what, int ent, const ViewEntity hand[2], const float* const skin[2], const ViewEntity weapon[2],
+    const ViewEntity* holster, int numHolsters)
+{
+    const auto line = [&](const char* kind, int index, const ViewEntity& ve, const float* bones) {
+        if(!ve.visible || !ve.ent.model)
+        {
+            return;
+        }
+        // (the jointed hand's skinning matrices summed, each weighted by its place: one number for its pose)
+        double sum = 0.0;
+        for(int i = 0; bones && i < handrig::data::numJoints * 12; i++)
+        {
+            sum += static_cast<double>(bones[i]) * static_cast<double>(i % 97 + 1);
+        }
+        Con_Printf("%s: ent=%d kind=%s index=%d model=%s mirrored=%d frame=%d skin=%d at=%.3f %.3f %.3f ang=%.3f %.3f %.3f "
+                   "bones=%.4f\n",
+            what, ent, kind, index, ve.ent.model->name, ve.mirrored ? 1 : 0, ve.ent.frame, ve.ent.skinnum, ve.ent.origin[0],
+            ve.ent.origin[1], ve.ent.origin[2], ve.ent.angles[0], ve.ent.angles[1], ve.ent.angles[2], sum);
+    };
+    for(int side = 0; side < 2; side++)
+    {
+        line("hand", side, hand[side], skin[side]);
+        line("weapon", side, weapon[side], nullptr);
+    }
+    for(int i = 0; i < numHolsters; i++)
+    {
+        line("holster", i, holster[i], nullptr);
+    }
+}
+
+void printOwnHands(int ent)
+{
+    const float* const skin[2] = {rigHands[0].drawn ? rigHands[0].skin.data() : nullptr,
+        rigHands[1].drawn ? rigHands[1].skin.data() : nullptr};
+    ViewEntity weapon[2] = {entities.weapon[0], entities.weapon[1]};
+    for(ViewEntity& w : weapon)
+    {
+        w.visible = w.visible && w.ent.model && !isHandModel(w.ent.model); // (the empty hand's "weapon": none)
+    }
+    printHands("mp_hands_own", ent, entities.hand, skin, weapon, entities.holster, HolsterCount);
+}
+
 qmodel_t* bodyModel(int build, bool bare)
 {
     // (setupBody's choice: the build's bare model, its own, the athletic one)
