@@ -1384,6 +1384,9 @@ QVR_TOGGLE(vr_player_disarm, "You Can Be Disarmed",
     "same rules as yours on an armed grunt's: shots add up and roll, a projectile rolls once, a blow landing on your "
     "weapon (not a parry) knocks it out. It drops where you can pick it up again, its ammo kept. Fists and empty hands "
     "never. In multiplayer, other players' too (vr_player_disarm).")
+QVR_SLIDER(vr_player_disarm_sound, "Your Disarm Sound", 0.f, 1.f, 0.05f, "%.2f", ext(),
+    "Your weapon knocked out of your hand: the volume of its clang (at the weapon, for everyone near) and of the short "
+    "alert only you hear (0: silent) (vr_player_disarm_sound).")
 QVR_SLIDER(vr_player_disarm_chance, "Your Disarm Chance", 0.f, 2.f, 0.05f, "%.2fx", ext(0.f, 10.f),
     "Times the armed grunts' chance when it is your weapon that is hit (1: the same exact rules; at most certain; "
     "0: never) (vr_player_disarm_chance).")

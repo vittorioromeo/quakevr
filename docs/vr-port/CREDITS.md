@@ -186,6 +186,15 @@ off under -1 dBFS.
 | `burst2.wav` | the same take's second shot | 4.398-4.898 |
 | `burst3.wav` | the second shot, 5% slower | 4.398-4.923 |
 
+### Player disarm sounds (`quakevr/sound/vr/disarm_clang.wav`, `disarm_sting.wav`)
+
+Your weapon knocked out of your hand (QC `vr_playerdisarm.qc` `VR_PD_DisarmSound`): the clang from **StarNinjas**'
+"20 Sword Sound Effects" ([OpenGameArt](https://opengameart.org/content/20-sword-sound-effects), `sword_clash.1.ogg`),
+the alert sting from **Kenney**'s "Interface Sounds" ([kenney.nl](https://kenney.nl/assets/interface-sounds),
+`error_003.ogg`), both [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) (public domain: no attribution
+needed, credited here anyway). `Misc/quakevr/make_disarm_sounds.py` cuts them from the downloaded packs (not in the
+repository): mono, 22050 Hz 16-bit, high-passed at 30 Hz, trimmed to 0.9 s and 0.5 s with a fade-out, peaks at -1 dBFS.
+
 ### Shotgun shell insert sounds (`quakevr/sound/vr/reload_shell_in*.wav`)
 
 Immersive reloading's shell pushed into the shotgun's port (QC `vr_reload.qc`), from **Shotgun Reload Sound effects** by

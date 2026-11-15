@@ -1032,6 +1032,7 @@ vr_agrunt_shotdisarm_proj_near|1|Armed Grunts|Projectile: Near Miss|Advanced VR 
 vr_agrunt_shotdisarm_proj_max|1|Armed Grunts|Projectile: Most Chance|Advanced VR Options > Combat > Armed Grunts > Projectile: Most Chance
 vr_player_disarm|1|Armed Grunts|You Can Be Disarmed|Advanced VR Options > Combat > Armed Grunts > You Can Be Disarmed
 vr_player_disarm_chance|1|Armed Grunts|Your Disarm Chance|Advanced VR Options > Combat > Armed Grunts > Your Disarm Chance
+vr_player_disarm_sound|1|Armed Grunts|Your Disarm Sound|Advanced VR Options > Combat > Armed Grunts > Your Disarm Sound
 vr_agrunt_ik|1|Armed Grunts|Hands on the Grips|Advanced VR Options > Combat > Armed Grunts > Hands on the Grips
 vr_agrunt_w_fists|1|Armed Grunts|Fists|Advanced VR Options > Combat > Armed Grunts > Fists
 vr_agrunt_w_axe|1|Armed Grunts|Axe|Advanced VR Options > Combat > Armed Grunts > Axe

@@ -882,6 +882,7 @@ void ikStretchReset()
         header("Disarming: Your Weapon"),
         row(opt::vr_player_disarm),
         row(opt::vr_player_disarm_chance),
+        row(opt::vr_player_disarm_sound),
         header("Their Hands"),
         row(opt::vr_agrunt_ik),
         open("Grip Editor", pageIndex(pageArmedGrips))

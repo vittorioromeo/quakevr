@@ -2671,6 +2671,7 @@ QVR_CVAR(vr_agrunt_shotdisarm_proj_ref, "9", CVAR_ARCHIVE)     // ... the damage
 QVR_CVAR(vr_agrunt_shotdisarm_proj_near, "4", CVAR_ARCHIVE)    // ... units past the weapon or hand a miss still rolls, its chance down to 0 there
 QVR_CVAR(vr_agrunt_shotdisarm_proj_max, "0.8", CVAR_ARCHIVE)   // ... the most one projectile's chance (a rocket's direct hit)
 QVR_CVAR(vr_player_disarm, "1", CVAR_ARCHIVE)                 // 1: enemies' shots and blows on your held weapon or its hand knock it out by the armed grunts' rules (vr_playerdisarm.qc; multiplayer: other players' too)
+QVR_CVAR(vr_player_disarm_sound, "1", CVAR_ARCHIVE)           // your weapon knocked out: its sounds' volume (the clang at the weapon for everyone near, vr/disarm_clang.wav; the alert to you alone, vr/disarm_sting.wav; 0 silent; QC VR_PD_Disarm)
 QVR_CVAR(vr_player_disarm_chance, "1", CVAR_ARCHIVE)          // times the armed grunts' chance for your weapon (1 the same; at most certain; 0 never)
 QVR_CVAR(vr_pd_test, "0", CVAR_NONE)                          // the player disarm's test (QC vr_playerdisarm_test.qc; Debug > Tests > Player Disarm): 1 shots at your gun and body, the option off
 QVR_CVAR(vr_agrunt_shotdisarm_debug, "0", CVAR_NONE)          // 1: prints each shot's part (weapon/hand/body), the damage adding up, the roll; 2: also shows the hit volumes (sparks)

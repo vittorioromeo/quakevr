@@ -124,6 +124,8 @@ void(entity p) VR_PDT_Run =
         VR_Test_Check(vr_pd_disarms == vr_pdt_dis0 + 1 && vr_pd_last_hand == cVR_MainHand,
             sprintf("a blast across the gun: knocked out of the main hand (%g)", vr_pd_disarms - vr_pdt_dis0));
         VR_Test_Check(VRIsHandWeaponless(p, cVR_MainHand), "the main hand empty");
+        VR_Test_Check(vr_pd_sounds == vr_pd_disarms, sprintf("its sounds started (the clang, the sting): %g of %g disarms",
+            vr_pd_sounds, vr_pd_disarms));
         vr_pdt_drop = vr_wpn_dropped;
         VR_Test_Check(vr_pdt_drop != world && vr_pdt_drop.classname == "thrown_weapon" && vr_pdt_drop.weapon == WID_SHOTGUN &&
             vr_pdt_drop.handtouch == wpnthrow_handtouch,
