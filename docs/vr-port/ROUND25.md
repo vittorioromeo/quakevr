@@ -2795,6 +2795,68 @@ self-driven across the load by saved globals): `vr_scenario waterdrips`, once pl
 - No saving in the arena (`vrarena`): `VR_ArenaNoSave` (vr_runsetup.cpp) makes `VR_RunIronmanRefusesSave` refuse `save`/quicksave/Save menu with "No saving in Arena Mode"; the quicksave tool is greyed with that reason. Loading stays allowed.
 - Tests: `vr_runsetup_screen_test` (five rows), `vr_runlaunch_test` (Ironman off with the pick on; save and quicksave write nothing). menu_paths unchanged by rows removal except Ironman.
 
+## stuckgrunts: Enemy Count's copies placed with the box they stand with (agent/stuckgrunts, 2026-11-15)
+
+- Found by presetlate: Classic + 3x Enemy Count on e1m1 left two grunt copies in solid. Reproduced headless every time
+  (`vr_runpick_style 1; vr_runpick_enemycount 2; vr_run start; map e1m1; wait60; vr_run_enemies_check 2 0`): copies at
+  (-2.8 623.9 24) and (876.6 2622.6 -72), in worldspawn; by wait90 the first had been pushed out 4 units (so a wait90
+  check passed: why the round's earlier runs missed it).
+- Cause: id's grunt, dog, knight, zombie, tarbaby and scrag have 24-wide boxes (`setsize '-12 -12 -24'`). Quake's hull
+  selection lays hull 1 (32 wide) from a narrower box's corner, so with `vr_mhull 0` (Classic) such a monster stands in
+  hull 1 shifted 4 units along +x and +y. `VR_RunEnemyCount_Fits` tested the kind's centred 32-wide box only
+  (Unleashed's `vr_mhull` centres a narrow width inside it, so only Classic showed it).
+- Fix (`vr_run_enemycount.qc`): `Fits` also traces the box the copy's spawn function will give it (its monster's own
+  mins/maxs) at the spot, as the engine traces it (the copy not solid yet: Quake's hull, the shift included); no fit:
+  the next spot of the rings, else no copy, now logged (developer 1: "Enemy Count: no room for copy k of X at o").
+  e1m1 still gets 45 copies of 23 monsters at 3x.
+- Check: the engine calls QC `VR_Run_MonsterCopied` (pr_edict.c, `vr_runsetup.cpp`) after each copy's spawn function:
+  its own box a unit up, tested as SV_TestEntityPosition would (world, BSP models, bodies); in solid: logged ("Enemy
+  Count: copy k of X spawned in solid at ...") and counted; `vr_run_enemies_check` fails on any. Without the fix it
+  reported e1m1's two copies; with it 0.
+- Sweep (one run, skill 1, wait60 checks): e1m1, e1m2, e2m1, e4m1, each a baseline then Classic 3x, Unleashed 3x, Light
+  2x, Unleashed 3x + Anything Goes: runenemies 76/0, no copy in solid as it spawned or at the check anywhere. Script:
+  per map `vr_runpick_enemycount 0; vr_runpick_enemyrandom 0; vr_run start; map M; wait60; vr_run_enemies_check 0 0`,
+  then per case `vr_runpick_style S; vr_runpick_enemycount C; vr_runpick_enemyrandom R; vr_run start; map M; wait60;
+  vr_run_enemies_check C R`; at the end `vr_run_enemies_check verdict` (`-QuitOn "runenemies: [0-9]+ passed"`).
+- Scenario `run_enemycount_classic` (Enemy Count 3x with `vr_mhull 0`, plain grunts, Quake's AI, on e1m1).
+- Not changed: one of e4m1's own monsters is in solid by the check's test with Classic (the same shifted hull, where the
+  mapper put it; the check allows the map's own).
+## presetlate (2026-11-15)
+
+His flat report: a Run Setup Style (Classic, then Unleashed) took effect only when the run was started a second time.
+
+- Order of events, every way in (Levels list, Map Library, New Game, Official Campaigns, the hub's teleporter, Arena
+  Mode; a Continue row is a load: the save's run): the Start (`runSetupStart`) sets every `vr_run_<id>` and applies the
+  presets' rows at once (`applyStyle` / `applyGore` / `applyArmed` / `applySmartAi`: `Cvar_SetQuick`, no Cbuf), then
+  queues the launch (`M_LevelStart`: `disconnect`, `skill`, `map`; New Game `map start`; a campaign `map start`
+  after its folders; the arena `vr_campaign_hub vrarena`). `Host_Map_f` -> `newGame` (kept: `runSet`) ->
+  `SV_SpawnServer` -> `VR_OnSpawnServerBeforeLoad` -> `beforeMapLoad` -> the entities. QC reads the settings as each
+  monster spawns (`cvar_hget`: the cvar itself, no cached copy). Nothing in that chain defers or latches a preset row.
+- Not reproduced headless: `vr_runlaunch_test` now picks a different Style and Gore (and Armed Humanoids over Light) on
+  every way in and checks the first start; all passed on next before the fix too. Whatever set the last run's values
+  back in his game ran between the Start and the spawn (a queued command, a config) or is outside these paths.
+- Fix (a guarantee, whatever the cause): a Start whose map comes at once (`runsetup::start(mapNow)`; not the hub's
+  teleporter, the screen without a launch, `vr_run start`) keeps every Gameplay and Gore preset row's value; that `map`'s
+  spawn (`beforeMapLoad`, before any entity) sets back any changed since, printing `Run setup: <cvar> is "x", the run's
+  Start set "y": set again before <map> spawns` (the line to look for in his console if it ever shows).
+- Test `vr_runlaunch_test` (80/0): per step its Style/Gore/Armed picks (each other than the run before: Light, Classic,
+  Unleashed, Classic, Unleashed, Light + Armed On, Unleashed, a load of Classic, Unleashed, the arena's, Classic); checks
+  the presets' settings (`matchingLevel`, the Gore choice, `vr_agrunt_repl`, `vr_reload_mode`) and the map (QC
+  `VR_Run_PresetLaunchCheck`: every grunt and enforcer armed or none; the guns' reloading modes); step 9 queues
+  `vr_agrunt_repl 0; vr_reload_mode 0` after its Start, ahead of its `map`: both set back (2), every other step 0.
+- Found on the way (not fixed): Classic + 3x Enemy Count on e1m1 leaves two grunt copies in solid
+  (`vr_run_enemies_check`: "2 copies in solid"; Classic's full-size hulls, `vr_mhull 0`); the test keeps Classic off
+  that pick row.
+- Cause (the coordinator, from his log 2026-11-14_22-40-06): a checklist test scene was running (classic_drops), then
+  Levels > E1M1 with Classic. The Start set the run's settings; the map change then ended the scene
+  (`scenario::worldReset`), whose put-back ("5 settings put back") set its saved old values over the run's before the
+  map spawned. The second start had no scene left. Fix: `scenario::endBeforeRun()` (vr_scenario.cpp) ends a running
+  scene, its settings put back, before a run sets its own: at a Start (`startWith`), a new game's mutators
+  (`newGame`) and a save's run (`onLoadGame`); not a scene loading its own map. The `beforeMapLoad` guard above stays
+  (it runs after the scene's put-back, prints only when it sets something back; it set nothing back here).
+- `vr_runlaunch_test` (86/0): the classic_drops scene run (waited for until `scenario::active()`), then the Levels list
+  with Unleashed: the scene ended at the Start, the map spawned Unleashed (armed grunts, reloading), nothing for the
+  guard to set back.
 ## wetglint (agent/wetglint)
 
 His report: after quickload the dripping came back but the wet glint did not. The shine (the alias shader wet coat, `wounds::wetCoat`) read `Mask::wetLeft` / `handWetLeft`, set only by a liquid wound event (the rising edge); a load restoring vr_drips wetness never set them. Fix, no new state: `wetCoat` takes its seconds-left from `drips::wetOf(e)` (drips wetness times dryTime, max with the old values); a thing with no wet mask (a loaded game) shines all over. `Misc/quakevr/saveload_test.sh` checks `vr_wounds_info` `wet: coat`: each coat shining before the save shines after (flat 5, VR 5). BACKLOG: flat 2H melee pose item added.
@@ -2845,3 +2907,35 @@ body, reversed, the drawn hand 17-55 degrees from the mock hand (under 95: the m
 turn). Unchanged: revgrip (42) 24/0, embedgrip (33) 15/0, propblade (34) 14/0, embeddagger (40) 24/0, palmgrab (pickup 17) 5/0.
 To check in VR: the reversed 2H hand's look (the tweak rows), the drop/throw in reverse, the table pickup both ways, the
 embedded handle grabbed palm up and down.
+## torchgrab: the torso's torch taken whatever the other hand holds (agent/torchgrab, 2026-11-15)
+
+His notes (start_2026-11-14_23-38-09, _23-38-55, vrtesthall_2026-11-15_00-09-43, _00-10-19, _00-11-08): with the torch
+on the torso and the dagger in the right hand, the left hand could not take the torch at all (fine once he gave the
+dagger a two-handed hotspot); with the super shotgun held one-handed, sometimes not even 30 cm from the gun.
+
+Two rules in `gameGripWins` (vr_flashlight.cpp: whether the game's grip wins over the torch for a hand at it):
+- **The two-handed hotspot alone won.** `body::hotspot` says HS_OFFHAND_2H_GRAB whenever the hands are 5-25 units
+  apart, whatever the other hand holds. For a weapon with no fitted grip (`!s.grip2HValid`) the game's grip won there,
+  even for one that may never be held in two hands: the dagger (slot 52, Two-Handed: Not Allowed) won anywhere 5-25
+  units from the right hand, which is where the chest torch is.
+- **The weapon's line ran from 30 cm behind the hand** (`otherWeaponNear`, for a sword's pommel): any gun held
+  one-handed at the chest or low at the belt, pointing away from the torch, covered it (within 12 cm of that line).
+  Not the holsters or the clip-on zone (the "cap"): those were already nearest-wins.
+
+Now `otherWeaponNear` asks the game's own rules (vr_twohand.cpp), and the nearest wins: the fist on the weapon's surface
+where gripping holds it anywhere (`twohand::onOtherWeapon`, the view's free-grip candidate); its fitted grip
+(`s.grip2H`, within 8 units less its bias, and nearer than the torch's axis); a weapon with no fitted grip, or a sword
+(`twohand::swordHeld`: its blade), within 12 cm of its line from the hand to the muzzle or tip and nearer than the
+torch's axis. A weapon the other hand may not hold (`twohand::forbidden`) wins by its surface only. The 2H hotspot case
+itself never wins any more.
+
+His dagger tuning promoted (weapons.txt slot 52, `weapons_data.py promote`): `2h_mode` 2 -> 1 and its hs1 grip
+(type 1, x -1.785095, y -2.161255, z -11.23747, pitch -6.90695, yaw 8.52477, roll -3.05592). Not promoted (not
+asked): his `bl_from/near/org_x/org_y/org_z/spine/width_52` and `muzzle_x/y/z_52`, none of them defaults yet.
+
+Test aid: `vr_test_give_flags` (impulse 149's weapon flags; 3072 with id 13 gives the dagger). The probe prints
+`helping` per hand and the main weapon's grip and muzzle. Test: `flash_grab_test.py <agent> otherweapon` (verdict line
+`otherweapon: N passed, M failed`): the dagger without its grip (the old defaults) and with it, the super shotgun
+one-handed at the chest, the shotgun low at the belt; the off hand at the torch takes it, at the weapon's grip (or 60%
+along it) holds the weapon, the torch left on. Before 4/3 (the dagger, the chest and the belt cases at the torch);
+after 7/0. `mounted:9-10` (the two gun torso turns) 312 lit, 312 taken. Scenario `torch_otherweapon`.

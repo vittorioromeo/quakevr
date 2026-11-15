@@ -557,4 +557,60 @@ float(float w, float gm, float en) VR_Run_LaunchCheck =
                    refused, looked, vr_rpk_swapped));
     return ok;
 };
+
+// ... the run's presets in the map it just started (presetlate: his flat report 2026-11-15, the Style taking effect on
+// the second start only). `armed` 1: every grunt and enforcer alive is an armed humanoid, 0: none is; `reload` 1: the
+// shotgun has a reloading mode, 0: no gun has, -1: not checked; `grunts` 1: the map has grunts for sure (e1m1, its own
+// monsters). 1: as expected (each miss printed).
+float(float armed, float reload, float grunts) VR_Run_PresetLaunchCheck =
+{
+    float ag = 0;
+    float plain = 0;
+    entity e = nextent(world);
+    while(e)
+    {
+        if(e.health > 0 && (e.flags & FL_MONSTER) && !VR_IsDummy(e)) // (the firing range's training dummy: never armed)
+        {
+            if(e.vr_ag)
+            {
+                ag = ag + 1;
+            }
+            else if(e.classname == "monster_army" || e.classname == "monster_enforcer")
+            {
+                plain = plain + 1;
+            }
+        }
+        e = nextent(e);
+    }
+    float modes = 0;
+    float wid;
+    for(wid = 1; wid <= 40; wid = wid + 1)
+    {
+        modes = modes + VR_Reload_ModeOf(wid);
+    }
+    float shot = VR_Reload_ModeOf(WID_SHOTGUN);
+    float ok;
+    if(armed)
+    {
+        ok = ((plain == 0) && (!grunts || (ag > 0)));
+    }
+    else
+    {
+        ok = ((ag == 0) && (!grunts || (plain > 0)));
+    }
+    if(reload == 0)
+    {
+        ok = (ok && (modes == 0));
+    }
+    else if(reload == 1)
+    {
+        ok = (ok && (shot != 0));
+    }
+    if(!ok)
+    {
+        bprint(sprintf("runlaunch: %s: %g armed humanoids, %g plain grunts and enforcers (armed %g); reload modes %g, the shotgun's %g (reload %g)\n",
+                       mapname, ag, plain, armed, modes, shot, reload));
+    }
+    return ok;
+};
 #endif

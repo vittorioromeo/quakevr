@@ -95,7 +95,8 @@ void runSetupStart()
     }
     else
     {
-        runsetup::start();
+        // (the hub's teleporter and the screen without a launch: the map comes later, the player's own changes stay)
+        runsetup::start(launch != runsetup::Launch::Hub && launch != runsetup::Launch::None);
     }
     runSetup.launch = runsetup::Launch::None;
     switch(launch)
