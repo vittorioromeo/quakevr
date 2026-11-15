@@ -3614,4 +3614,4 @@ the same exact rules" as enemies; an option, on by default, single player and mu
   his replay's moves alike; `climb::mantlePath` / `climb::mantleMoved` around VR_PredictPhysics; the state carries the
   way and its time (`bitMantle`). New scenario `mp_predictclimb` (`--part mantle`): 19 mantling states, corrections
   0.000 over 285, at rest where the server has him. QVR_NET_VERSION 25.
-- Checks: CHECKS_LINE. Next: B8i (the hang in the moves, the grapple's pull, the hands' climb out; MP_PLAN).
+- Checks: mp suite 28 of 29 (mp_ground's sword retake flake: the sword lands out of B's reach, seen on the old engine too), mp_predictclimb 8/0, mp_disarm 35/0 --listen, mantle_height_test PASS, prop_climb_test 12/0, scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0, Release ThinLTO 0 warnings. Next: B8i (the hang in the moves, the grapple's pull, the hands' climb out; MP_PLAN).

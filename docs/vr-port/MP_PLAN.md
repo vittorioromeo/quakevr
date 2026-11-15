@@ -1571,7 +1571,7 @@ should come from one system for every player), **done** (unified in B9).
   a buzz), handing an item hand to hand (both holding it, one lets go), a helping hand up a ledge (the climb's hold on
   another's hand), reviving a downed coop player.
 
-### B8h results, part 1: rounds used by B; the mantle predicted (2026-11-15, dev no-LTO build, loopback; SUITE_LINE)
+### B8h results, part 1: rounds used by B; the mantle predicted (2026-11-15, dev no-LTO build, loopback; `mp_test.py suite` 28 of 29 pass: `mp_ground` 14/1 (the sword retake "None": it landed out of B's reach, his hand stepped 0.6 m to 2.6 m down after it; the known B10b flake, on the engine before B8h too; then 14/1 and 13/2 alone, the pre-B8h engine 15/0 once); `mp_predictclimb` 8/0, `mp_disarm` 35/0, `mp_predict` 28/0; scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0, Release (ThinLTO) build 0 warnings)
 
 | Scenario | Result |
 |---|---|
