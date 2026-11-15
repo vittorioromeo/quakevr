@@ -16,7 +16,7 @@ vector vr_wtest_at;   // (and where the first trace met the piece: a punch's pla
 
 // A clear way into `m`'s piece `xPiece` (a joint; -1 the torso) at `xAt`: from 24 units off, the first trace that strikes
 // it there. FALSE: none.
-float(entity m, vector xAt, float xPiece) VR_Limb_WearTestAim =
+float(entity m, vector xAt, float xPiece) VR_Limb_WearTestAimAt =
 {
     for(float up = 0; up < 3; up++)
     {
@@ -36,6 +36,49 @@ float(entity m, vector xAt, float xPiece) VR_Limb_WearTestAim =
         }
     }
     return FALSE;
+};
+
+// VR_Limb_WearTestAimAt at `xAt`, then (a limb: where the corpse lies, its point there can sit inside the next piece, an
+// arm folded on itself) at the limb model's origin and halfway to it.
+float(entity m, vector xAt, float xPiece) VR_Limb_WearTestAim =
+{
+    if(VR_Limb_WearTestAimAt(m, xAt, xPiece))
+    {
+        return TRUE;
+    }
+    if(xPiece <= 0)
+    {
+        return FALSE;
+    }
+    vector o = limbplace(m, xPiece, 0);
+    return VR_Limb_WearTestAimAt(m, o, xPiece) || VR_Limb_WearTestAimAt(m, (o + xAt) * 0.5, xPiece);
+};
+
+// The limb tests 30-36, 42 and 44 strike, aimed (VR_Limb_WearTestAim): VR_Limb_TestBone's (an arm's lower part) when
+// there is a clear way into it, else the first other lower limb part, else any limb joint, with one. -1: none. (Where
+// the corpse settles moves with the physics world's shapes: 2026-11-14 the rocket launcher's new view model alone left
+// the grunt's forearm folded under its hand, no way into it from any side.)
+float(entity m) VR_Limb_WearTestBone =
+{
+    float b = VR_Limb_TestBone(m);
+    if((b > 0) && VR_Limb_WearTestAim(m, limbplace(m, b, 3), b))
+    {
+        return b;
+    }
+    float top = VR_Limb_TopJoints(m);
+    float all = ragdolllimbs(m, 0);
+    for(float pass = 0; pass < 2; pass++)
+    {
+        for(float c = 1; c < VR_LIMB_JOINTS; c++)
+        {
+            if((c != b) && (all & VR_Limb_Bit(c)) && ((pass == 1) || !(top & VR_Limb_Bit(c)))
+               && VR_Limb_WearTestAim(m, limbplace(m, c, 3), c))
+            {
+                return c;
+            }
+        }
+    }
+    return -1;
 };
 
 // One hit of test `xTest`'s weapon along the aimed way (self the player).
@@ -189,6 +232,12 @@ void(entity m) VR_Limb_WearTestEvery =
         float hits = 0;
         while((hits < 60) && !m.vr_gib && m.vr_corpse && (vr_limb_cuts == cuts) && (vr_limb_pops == pops) && (m.vr_headless == headless))
         {
+            // (Aimed again before each punch: the punches move the body, and the last aim's point can lie on the
+            // torso by now.)
+            if(hits && !VR_Limb_WearTestAim(m, (piece == 0) ? ragdollcut(m, 6) : limbplace(m, piece, 3), piece))
+            {
+                break;
+            }
             VR_Limb_WearTestHit(41, m);
             hits++;
         }
@@ -249,10 +298,11 @@ void(float xTest) VR_Limb_WearTest =
     }
     float torso = xTest == 37;
     float head = xTest == 38 || xTest == 41 || xTest == 43;
-    float b = head ? 0 : VR_Limb_TestBone(m);
+    float limb = !head && !torso;
+    float b = head ? 0 : (limb ? VR_Limb_WearTestBone(m) : VR_Limb_TestBone(m)); // (a limb: aimed already)
     float piece = torso ? -1 : b;
     vector at = head ? ragdollcut(m, 6) : limbplace(m, torso ? 0 : b, 3);
-    if(!VR_Limb_WearTestAim(m, at, piece))
+    if(limb ? (b < 0) : !VR_Limb_WearTestAim(m, at, piece))
     {
         bprint(sprintf("limbtest: wear %g: no clear way into %s's piece %g FAIL\n", xTest, m.classname, piece));
         return;
