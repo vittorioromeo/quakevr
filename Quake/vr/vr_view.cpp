@@ -32,6 +32,7 @@
 #include "vr_flatplay.hpp"
 #include "vr_flathit.hpp"
 #include "vr_flatsight.hpp"
+#include "vr_flattp.hpp"
 #include "vr_geom.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
@@ -5473,6 +5474,15 @@ extern "C" void VR_SetupViewEntities()
             {
                 ve.ent.alpha = ENTALPHA_ENCODE(0.3f);
             }
+        });
+    }
+
+    // Flatscreen play's third-person camera near his head (a wall pulled it in): the body, hands and weapons fade, so the
+    // view is not filled by the back of his head (vr_flat_tp_fade; vr_flattp.cpp). 1 otherwise: nothing is touched.
+    if(const float fade = flattp::bodyAlpha(); fade < 1.f)
+    {
+        forEachEntity([fade](view::ViewEntity& ve) {
+            ve.ent.alpha = ENTALPHA_ENCODE(ENTALPHA_DECODE(ve.ent.alpha) * fade);
         });
     }
 

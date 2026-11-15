@@ -1454,6 +1454,7 @@ vr_flat_mantle_look_max|1|Locomotion|Mantle Look Up Most|Advanced VR Options > M
 vr_flat_mantle_time|1|Locomotion|Mantle Window|Advanced VR Options > Movement > Locomotion > Mantle Window
 vr_flat_mantle_grunt_delay|1|Locomotion|Mantle Grunt Delay|Advanced VR Options > Movement > Locomotion > Mantle Grunt Delay
 vr_flat_slide|1|Locomotion|Slide|Advanced VR Options > Movement > Locomotion > Slide
+vr_flat_tp|1|Locomotion|Third-Person Camera|Advanced VR Options > Movement > Locomotion > Third-Person Camera
 vr_flat_speed_fov|1|Locomotion|Speed FOV|Advanced VR Options > Movement > Locomotion > Speed FOV
 vr_flat_speed_fov_max|1|Locomotion|Speed FOV Most|Advanced VR Options > Movement > Locomotion > Speed FOV Most
 vr_flat_speed_fov_from|1|Locomotion|Speed FOV From Speed|Advanced VR Options > Movement > Locomotion > Speed FOV From Speed
@@ -5599,6 +5600,8 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Flat Slide: Into A Crate|Advanced VR Options > Debug > Tests > Flat Slide: Into A Crate
 |2|Debug - Tests|Flat Slide: Into A Grunt|Advanced VR Options > Debug > Tests > Flat Slide: Into A Grunt
 |2|Debug - Tests|Flat Speed FOV: Walk, Run, Slide, Hop|Advanced VR Options > Debug > Tests > Flat Speed FOV: Walk, Run, Slide, Hop
+|2|Debug - Tests|Flat Third-Person Camera Test|Advanced VR Options > Debug > Tests > Flat Third-Person Camera Test
+|2|Debug - Tests|Flat Third-Person Camera Status|Advanced VR Options > Debug > Tests > Flat Third-Person Camera Status
 |2|Debug - Tests|Flat Speed FOV Status|Advanced VR Options > Debug > Tests > Flat Speed FOV Status
 |2|Debug - Tests|Flat Aim Sensitivity Test|Advanced VR Options > Debug > Tests > Flat Aim Sensitivity Test
 |2|Debug - Tests|Flat Aim Sensitivity Status|Advanced VR Options > Debug > Tests > Flat Aim Sensitivity Status
@@ -8460,6 +8463,23 @@ vr_flat_visor_fog_clear|1|Visor HUD Look|Visor Fog Clears In|Advanced VR Options
 vr_flat_visor_low_health|1|Visor HUD Look|Visor Low Health|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Low Health
 vr_flat_visor_boot|1|Visor HUD Look|Visor Power On|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Power On
 |1|Visor HUD Look|Reset This Page|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Reset This Page
+@page|1|Third-Person Camera||Advanced VR Options > Movement > Locomotion > Third-Person Camera
+vr_flat_tp|1|Third-Person Camera|Third-Person Camera|Advanced VR Options > Movement > Locomotion > Third-Person Camera > Third-Person Camera
+|1|Third-Person Camera|Toggle Now|Advanced VR Options > Movement > Locomotion > Third-Person Camera > Toggle Now
+vr_flat_tp_back|1|Third-Person Camera|Distance Behind|Advanced VR Options > Movement > Locomotion > Third-Person Camera > Distance Behind
+vr_flat_tp_right|1|Third-Person Camera|Shoulder Offset|Advanced VR Options > Movement > Locomotion > Third-Person Camera > Shoulder Offset
+vr_flat_tp_up|1|Third-Person Camera|Height Above Eyes|Advanced VR Options > Movement > Locomotion > Third-Person Camera > Height Above Eyes
+vr_flat_tp_side|1|Third-Person Camera|Shoulder|Advanced VR Options > Movement > Locomotion > Third-Person Camera > Shoulder
+vr_flat_tp_auto_swap|1|Third-Person Camera|Swap Shoulder At Walls|Advanced VR Options > Movement > Locomotion > Third-Person Camera > Swap Shoulder At Walls
+vr_flat_tp_fov|1|Third-Person Camera|Field Of View|Advanced VR Options > Movement > Locomotion > Third-Person Camera > Field Of View
+vr_flat_tp_probe|1|Third-Person Camera|Wall Margin|Advanced VR Options > Movement > Locomotion > Third-Person Camera > Wall Margin
+vr_flat_tp_ease_out|1|Third-Person Camera|Ease Back Out|Advanced VR Options > Movement > Locomotion > Third-Person Camera > Ease Back Out
+vr_flat_tp_ease_side|1|Third-Person Camera|Shoulder Swap Time|Advanced VR Options > Movement > Locomotion > Third-Person Camera > Shoulder Swap Time
+vr_flat_tp_fade|1|Third-Person Camera|Fade Body Nearer Than|Advanced VR Options > Movement > Locomotion > Third-Person Camera > Fade Body Nearer Than
+vr_flat_tp_fade_min|1|Third-Person Camera|Faded Body Opacity|Advanced VR Options > Movement > Locomotion > Third-Person Camera > Faded Body Opacity
+vr_flat_tp_aim|1|Third-Person Camera|Aiming Down The Sights|Advanced VR Options > Movement > Locomotion > Third-Person Camera > Aiming Down The Sights
+vr_flat_tp_aim_scale|1|Third-Person Camera|Sighted Distance|Advanced VR Options > Movement > Locomotion > Third-Person Camera > Sighted Distance
+|1|Third-Person Camera|Reset This Page|Advanced VR Options > Movement > Locomotion > Third-Person Camera > Reset This Page
 @page|2|Gibs and Corpses - Corpse Damage and Health||Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Corpse Damage and Health
 @page|2|Gibs and Corpses - Ragdolls||Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings
 vr_ragdoll_start|2|Gibs and Corpses - Ragdolls|Go Limp At|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Go Limp At

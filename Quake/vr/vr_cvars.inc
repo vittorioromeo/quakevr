@@ -4273,6 +4273,20 @@ QVR_CVAR(vr_flat_speed_fov_ease_out, "0.15", CVAR_ARCHIVE) // the speed FOV: sec
 QVR_CVAR(vr_flat_mantle_fov_bonus, "0.06", CVAR_ARCHIVE)    // the speed FOV: added to its multiplier while mantling (0..0.5; 0 none; 0.06: 40% of the slide's vr_flat_slide_fov_bonus; vr_flatspeedfov.cpp)
 QVR_CVAR(vr_flat_mantle_fov_ease, "0.15", CVAR_ARCHIVE)     // the mantle's FOV kick: seconds (time constant) it widens over as a mantle starts (0: at once)
 QVR_CVAR(vr_flat_mantle_fov_ease_out, "0.25", CVAR_ARCHIVE) // the mantle's FOV kick: seconds (time constant) it narrows back over after the mantle (0: at once)
+QVR_CVAR(vr_flat_tp, "0", CVAR_ARCHIVE)                 // flatscreen play: 1 an over-the-shoulder third-person camera (vr_flat_tp_*; vr_flattp.cpp, FLATPLAY.md "The third-person camera"); 0 his own eyes, as before. A headset ignores it
+QVR_CVAR(vr_flat_tp_back, "56", CVAR_ARCHIVE)           // the third-person camera: units behind the eye, along the look (0..200)
+QVR_CVAR(vr_flat_tp_right, "16", CVAR_ARCHIVE)          // the third-person camera: units out to the shoulder's side (0..64; vr_flat_tp_side picks the shoulder)
+QVR_CVAR(vr_flat_tp_up, "6", CVAR_ARCHIVE)              // the third-person camera: units above the eye, in the look's frame (-64..64)
+QVR_CVAR(vr_flat_tp_fov, "1.1", CVAR_ARCHIVE)           // the third-person camera: the field of view times this while it is out (0.5..1.5; 1 the view's own)
+QVR_CVAR(vr_flat_tp_probe, "8", CVAR_ARCHIVE)           // the third-person camera: its collision ball's radius, units (0..16): it stops this far short of a wall, past the near plane's corners
+QVR_CVAR(vr_flat_tp_ease_out, "0.35", CVAR_ARCHIVE)     // the third-person camera: seconds (time constant) it eases back out over after a wall pulled it in (0: at once); in is always at once
+QVR_CVAR(vr_flat_tp_side, "0", CVAR_ARCHIVE)            // the third-person camera: 0 over the right shoulder, 1 over the left
+QVR_CVAR(vr_flat_tp_auto_swap, "1", CVAR_ARCHIVE)       // the third-person camera: 1 the near shoulder's side blocked (a wall at that side) and the other clearer, it moves to the other shoulder, and back when clear; 0 never
+QVR_CVAR(vr_flat_tp_ease_side, "0.2", CVAR_ARCHIVE)     // the third-person camera: seconds (time constant) a shoulder swap takes (0: at once)
+QVR_CVAR(vr_flat_tp_aim, "0", CVAR_ARCHIVE)             // the third-person camera while aiming down the sights: 0 into his own eyes over the ironsight's travel, back out after; 1 kept over the shoulder, drawn in (vr_flat_tp_aim_scale), the sight's zoom as in first person
+QVR_CVAR(vr_flat_tp_aim_scale, "0.5", CVAR_ARCHIVE)     // the third-person camera, vr_flat_tp_aim 1: its distance behind times this while sighted, the shoulder's offset kept (0.1..1)
+QVR_CVAR(vr_flat_tp_fade, "28", CVAR_ARCHIVE)           // the third-person camera: nearer the eye than this (units) the body, hands and weapons fade, to vr_flat_tp_fade_min at 8 (0: never fade)
+QVR_CVAR(vr_flat_tp_fade_min, "0.25", CVAR_ARCHIVE)     // the third-person camera: the body's opacity at its nearest (0..1)
 QVR_CVAR(vr_flat_death_vomit, "1", CVAR_ARCHIVE)        // flatscreen play, dying with the view in the ragdoll's head (vr_death_view 2): 1 Vomit Mode for that death whatever vr_death_view_vomit says (the cvar untouched; vr_deathview.cpp vomit()); 0 vr_death_view_vomit decides, as in the headset
 QVR_CVAR(vr_flat_death_vomit_look, "0", CVAR_ARCHIVE)   // flatscreen play in Vomit Mode on death (vr_deathview.cpp flatView): 0 the view is exactly the ragdoll head's turn, the mouse ignored (the author's note 2026-11-08); 1 the mouse's look added on top of the head's turn (the old behaviour)
 QVR_CVAR(vr_flat_body_height, "1.55", CVAR_ARCHIVE)      // flatscreen play: the body's eye height in metres (1..2.2; vr_units.hpp eyeHeight): the body, its poses and the held weapons are sized to it, not to the headset's Height (vr_height_calibration, kept for VR; the author's decision 2026-11-08)

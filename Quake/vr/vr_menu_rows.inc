@@ -6633,6 +6633,49 @@ QVR_TOGGLE(vr_flat_slide, "Slide",
     "Playing on the desktop screen (-flatscreenmode): crouching (Left Ctrl) while running starts a slide, faster at "
     "first, down a slope faster still, up one slowing to a crouch; jump out of it to keep the speed. Tuning: Debug > "
     "Tunables > Flatscreen > Slide (vr_flat_slide).")
+QVR_TOGGLE(vr_flat_tp, "Third-Person Camera",
+    "Playing on the desktop screen: the view from over your shoulder, your whole body in front of you, instead of your "
+    "own eyes. It is pulled in when a wall comes behind it and eases back out; the shots go where the crosshair points "
+    "(vr_flat_tp; off by default).")
+QVR_SLIDER(vr_flat_tp_back, "Distance Behind", 0.f, 200.f, 2.f, "%.0f units", noExt,
+    "Playing on the desktop screen, third person: how far behind your eyes the camera stands, along the look "
+    "(vr_flat_tp_back).")
+QVR_SLIDER(vr_flat_tp_right, "Shoulder Offset", 0.f, 64.f, 1.f, "%.0f units", noExt,
+    "Playing on the desktop screen, third person: how far out to the shoulder's side the camera stands (0: straight "
+    "behind your head; vr_flat_tp_right).")
+QVR_SLIDER(vr_flat_tp_up, "Height Above Eyes", -64.f, 64.f, 1.f, "%.0f units", noExt,
+    "Playing on the desktop screen, third person: how far above your eyes the camera stands (vr_flat_tp_up).")
+QVR_CYCLE(vr_flat_tp_side, "Shoulder",
+    "Playing on the desktop screen, third person: which shoulder the camera looks over (vr_flat_tp_side).",
+    {0.f, "Right"}, {1.f, "Left"})
+QVR_TOGGLE(vr_flat_tp_auto_swap, "Swap Shoulder At Walls",
+    "Playing on the desktop screen, third person: with a wall at the shoulder's side and the other side clearer, the "
+    "camera moves over the other shoulder, and back once clear (vr_flat_tp_auto_swap).")
+QVR_SLIDER(vr_flat_tp_fov, "Field Of View", 0.5f, 1.5f, 0.01f, "x%.2f", noExt,
+    "Playing on the desktop screen, third person: the field of view times this while the camera is out (1: the view's "
+    "own; vr_flat_tp_fov).")
+QVR_SLIDER(vr_flat_tp_probe, "Wall Margin", 0.f, 16.f, 0.5f, "%.1f units", noExt,
+    "Playing on the desktop screen, third person: the radius of the ball the camera sweeps with: it stops this far "
+    "short of a wall, so its view never cuts into one (vr_flat_tp_probe).")
+QVR_SLIDER(vr_flat_tp_ease_out, "Ease Back Out", 0.f, 2.f, 0.05f, "%.2f s", noExt,
+    "Playing on the desktop screen, third person: how slowly the camera eases back out after a wall pulled it in, a "
+    "time constant in seconds (0: at once). It always comes in at once (vr_flat_tp_ease_out).")
+QVR_SLIDER(vr_flat_tp_ease_side, "Shoulder Swap Time", 0.f, 2.f, 0.05f, "%.2f s", noExt,
+    "Playing on the desktop screen, third person: how long a shoulder swap takes, a time constant in seconds (0: at "
+    "once; vr_flat_tp_ease_side).")
+QVR_SLIDER(vr_flat_tp_fade, "Fade Body Nearer Than", 0.f, 64.f, 1.f, "%.0f units", noExt,
+    "Playing on the desktop screen, third person: with the camera pulled in nearer your eyes than this, your body, hands "
+    "and weapons fade, so the back of your head does not fill the view (0: never; vr_flat_tp_fade).")
+QVR_SLIDER(vr_flat_tp_fade_min, "Faded Body Opacity", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "Playing on the desktop screen, third person: how see-through your body is at its most faded (vr_flat_tp_fade_min).")
+QVR_CYCLE(vr_flat_tp_aim, "Aiming Down The Sights",
+    "Playing on the desktop screen, third person: aiming down the sights either goes into your own eyes over the "
+    "sights' travel and back out after, or keeps the camera over your shoulder, drawn in, with the sights' zoom "
+    "(vr_flat_tp_aim).",
+    {0.f, "First Person"}, {1.f, "Stay Third Person"})
+QVR_SLIDER(vr_flat_tp_aim_scale, "Sighted Distance", 0.1f, 1.f, 0.05f, "x%.2f", noExt,
+    "Playing on the desktop screen, third person, staying in third person aiming: the camera's distance behind times "
+    "this while sighted; its shoulder offset stays (vr_flat_tp_aim_scale).")
 QVR_TOGGLE(vr_flat_speed_fov, "Speed FOV",
     "Playing on the desktop screen: faster than a run along the floor -- a slide, a bunny hop chain -- the view widens "
     "smoothly, up to Speed FOV Most at Speed FOV Full Speed, and eases back as you slow. Aiming down the sights takes "
