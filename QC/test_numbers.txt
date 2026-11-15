@@ -30,6 +30,7 @@ dispatch vr_pp_test QC/vr_playerplates_test.qc VR_PP_TestFrame ask
 dispatch vr_flatitems_test QC/vr_flatitems_test.qc VR_FlatItemsTest_Frame ask
 dispatch vr_flatgate_test QC/vr_flatgate_test.qc VR_FlatGateTest_Frame ask
 dispatch vr_selfshot_test QC/vr_selfshot_test.qc VR_SelfShotTest_Frame ask
+dispatch vr_pd_test QC/vr_playerdisarm_test.qc VR_PlayerDisarmTest_Frame ask
 dispatch vr_projinherit_test QC/vr_projinherit_test.qc VR_ProjInheritTest_Frame ask
 dispatch vr_grenfuse_test QC/vr_grenfuse_test.qc VR_GrenFuseTest_Frame ask
 dispatch vr_flatmove_test QC/vr_flatmove_test.qc VR_FlatMoveTest_Frame ask
@@ -41,11 +42,12 @@ vr_embed_test    2        vr_embed_test.qc                 the pictures' scene: 
 vr_embed_test    3        vr_embed_test.qc                 the save's scene: the same plus one in a live grunt
 vr_embed_test    4        vr_embed_test.qc                 after the load: each still stuck where it was
 vr_embed_test    40       vr_dagger_test.qc                the dagger: a swing, a stab (less deep than the sword's), thrown at a wall and a grunt
-vr_embed_test    47       vr_throwpoint_test.qc            his 2026-11-15: thrown swords and daggers settle point first in the air (good throws more often, not all; bad throws and axes unchanged)
+vr_embed_test    47       vr_throwpoint_test.qc            his 2026-11-15: thrown swords and daggers settle point first in the air (good and VR-style overhand throws point first, spun ones stay a spin, extremes steady all; axes unchanged)
+vr_embed_test    48       vr_airskewer_test.qc             his 2026-11-15: a gib tossed up skewered in the air by a fast thrust (not a slow push, not a swing across; a hanging one the same)
 vr_embed_test    41       vr_throwgib_test.qc              his 2026-11-12: a running throw blade first (sword, dagger) kills a grunt whole, the blade deep in the body; Quad gibs; handle first unchanged
 vr_embed_test    42       vr_revgrip_test.qc               the reverse grip (his 2026-11-13): caught blade down reversed, blade up upright, force grab upright, the eject button's flip over frames, holstered and drawn kept, a reversed downward stab sticks, the hand on its handle as held
 vr_embed_test    43       vr_revgrip_test.qc               the pictures' scene: the dagger before your eyes upright, then reversed
-vr_embed_test    44       vr_flipgrip_test.qc              the flip grip (his 2026-11-14): reversed, its 2H hotspot there and held; handed off upright, taken back reversed; let go of reversed, lying as held; off a table reversed and upright by the handle; stuck upright, taken reversed, the hand on the handle as the real hand
+vr_embed_test    44       vr_flipgrip_test.qc              the flip grip (his 2026-11-14): reversed, its 2H hotspot there and held; handed off upright, taken back reversed; let go of reversed, lying as held; off a table reversed and upright by the handle; stuck upright, taken reversed, the hand on the handle as the real hand; flipgrip2: reversed 2H (dagger and knight's sword), the hotspot on the pommel's side above the hand, the off hand turned as upright (knuckles out)
 vr_embed_test    6        vr_embed_test.qc                 every other blade at the wall: AD's, the Super Axe, what never sticks
 vr_embed_test    5        vr_embed_test.qc                 the pictures' scene: you before the sword in the corpse
 vr_embed_test    7        vr_embed_test.qc                 held stabs and swung axes: decision, hold, slide, free, let go, regrab, plates, ends
@@ -729,6 +731,7 @@ vr_flatgate_test 3        vr_flatgate_test.qc              flat-screen: a level 
 
 vr_selfshot_test 1        vr_selfshot_test.qc              shooting yourself: shots and nails aimed at your palm, forearm, thigh: hit there, damage, buzz, wound at the point; the head met (headshot multiplier, pain sound mid-fire); a grunt's hit mid-fire: pain sound, rate-limited; option off, another player: never
 vr_selfshot_test 2        vr_selfshot_test.qc              shooting yourself: ordinary firing from a grid of hand poses, both hands: no self-hit
+vr_pd_test       1        vr_playerdisarm_test.qc          the player disarmed: a grunt's blast across your gun knocks it out (forced certain), it lies on the floor with its clip; across your body: no; an enforcer's laser across the gun: out; vr_player_disarm 0: never
 
 vr_projinherit_test 1     vr_projinherit_test.qc           projectiles keep your motion: strafing, nails and rockets on the aim, grenades their share; a hand swing in grenades only
 vr_grenfuse_test 1        vr_grenfuse_test.qc              one fuse for every grenade: hand, launcher and ogre grenades go off together after arming, each lit with its countdown (none with vr_grenade_countdown 0)

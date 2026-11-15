@@ -973,6 +973,8 @@ vector(vector xAVel) VRThrowSpinCapped =
     return xAVel;
 }
 
+entity vr_wpn_dropped; // DropWeaponInHandScaled's: the weapon it threw or dropped (world: none; vr_playerdisarm.qc's push)
+
 // `xVelScale`: times the throw's velocity and spin (1: thrown; vr_weight_drop_velocity: wrenched out, the grip lost
 // rather than a throw, which the throw assist does not aim either).
 // The hand's weapon (`xWeapon`, `xWeaponFlags`: the hand's) thrown or dropped: a prop, with the hand's record (its
@@ -1077,6 +1079,7 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xVelScale
         FALSE /* disappear on hit */,
         TRUE /* deal damage */,
         WeaponIdToThrowDamage(xWeapon));
+    vr_wpn_dropped = thrown;
 
     if(thrown != world)
     {

@@ -2151,7 +2151,7 @@ def forcegrab(s):
 HOLD_OUT = "vr_mock_hand main 0.15 1.2 -0.45 0 0 0"  # mp_disarm: a gun held out in front at the chest
 B10_GAP = 48.0  # mp_disarm: units between the two players, face to face (a hand reaches the other's held gun)
 # The pulls (rel: from where the hand is, metres in tracking space; +z towards the puller): gently, 0.3 m in 1.5 s
-# (0.2 m/s: it slips off), and a yank, 0.3 m in 0.1 s (3 m/s; vr_disarm_player_pull 1.5).
+# (0.2 m/s: it slips off), and a yank, 0.3 m in 0.1 s (3 m/s; vr_player_disarm_pull 1.5).
 GENTLE_PULL = ("0.000 rel main 0 0 0", "1.500 rel main 0 0 0.3", "2.000 rel main 0 0 0.3")
 YANK_PULL = ("0.000 rel main 0 0 0", "0.100 rel main 0 0 0.3", "0.500 rel main 0 0 0.3")
 # A toss underhand to the player ahead: the hand back low, swung forward and up 0.6 m in 0.15 s, let go at its top.

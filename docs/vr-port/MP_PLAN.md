@@ -1525,11 +1525,11 @@ should come from one system for every player), **done** (unified in B9).
 ### B10 results: his player-to-player features (2026-11-15, dev no-LTO build, loopback; `mp_disarm` 17/0 dedicated and 17/0 `--listen`)
 
 (The voice chat row above keeps its own id for later; this B10 is his overnight list, OVERNIGHT_1115.md.)
-- **Grab-disarm** (QC `vr_pdisarm.qc`): an empty hand whose grip closes on another player's held weapon (within
-  `vr_disarm_player_reach` 8 cm of its melee line butt..tip or a hotspot of it, as the server places them: lag
+- **Grab-disarm** (QC `vr_playerdisarm_grab.qc`): an empty hand whose grip closes on another player's held weapon (within
+  `vr_player_disarm_reach` 8 cm of its melee line butt..tip or a hotspot of it, as the server places them: lag
   compensated for a remote taker) no faster than the armed humanoids' `vr_agrunt_grab_speed` holds it; pulled away from
-  his chest at `vr_disarm_player_pull` 1.5 m/s or more (the hands' relative speed) it is the taker's, in that hand; a
-  gentler pull slips off at `vr_disarm_player_slip` 15 cm. No tug, no ragdoll. `vr_disarm_player` 1 (Armed Grunts page
+  his chest at `vr_player_disarm_pull` 1.5 m/s or more (the hands' relative speed) it is the taker's, in that hand; a
+  gentler pull slips off at `vr_player_disarm_slip` 15 cm. No tug, no ragdoll. `vr_player_disarm_grab` 1 (Armed Grunts page
   rows, beside Grab: Fastest Hand; server rules by page). `VR_Player_Disarm(v, hand, taker, takerHand, why)` is the
   entity-generic "out of a player's hand" (the drop's own path, then the catch of VR_AG_Yank): the "player disarm by
   shots/melee" work expected on next should call it (it had not landed at this merge).

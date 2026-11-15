@@ -326,6 +326,7 @@ float(entity e) VR_Blow_StrikesAsWall =
 };
 
 float(float xHand, entity b, entity e) VR_Skewer_SweepPasses; // (vr_skewer.qc)
+float(float xHand, entity e) VR_Skewer_AirTarget; // (vr_skewer.qc)
 
 // ----------------------------------------------------------------------------
 // Deciding a blow
@@ -1631,7 +1632,8 @@ float(float xHand, entity b) VR_Melee_SweepNow =
     while(e)
     {
         // A small gib just torn out: struck only to burst (vr_smallgibs_blow_burst), never batted (VR_SmallGib_BlowSpared).
-        if((VR_Blow_Strikable(e) || VR_SmallGib_BlowBursts(e)) &&
+        // A gib you threw, in its throw: only a blade driven at it, to skewer it (VR_Skewer_AirTarget).
+        if((VR_Blow_Strikable(e) || VR_SmallGib_BlowBursts(e) || VR_Skewer_AirTarget(xHand, e)) &&
            (VR_Melee_BoxTarget(e) || (corpses && VR_Melee_CorpseTarget(e))) && !VR_Skewer_SweepPasses(xHand, b, e))
         {
             vector lo = e.origin + e.mins;

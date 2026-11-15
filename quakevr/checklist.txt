@@ -24,10 +24,16 @@ Installer: install into a fresh folder and pick Snap 45, Left-handed and Medium 
 Flip the dagger blade down (B or Y) and close your other hand on its two-handed hotspot: the hotspot is still shown (Show Hotspots) and you hold it two-handed, blade still down; tune that hand under Weapon Offsets > Hand > Reversed 2H Hand X..Roll if it looks off. {test:flipgrip}
 With a gib on your sword taken in your free hand, pull it off the tip (or tug it off): once off the blade the hand stays on the gib's surface where it held it, the gib no longer floating off the hand. {test:skewer_grip}
 Throw a sword or a dagger roughly point first at a grunt a few steps off: it steadies towards its point in the first few tenths of a second (not straight like an arrow) and sticks more often; a tumbling or badly aimed throw still tumbles, an axe flies as before. {test:throw_point}
+First set the dagger's Reversed X and Z back to 0 (Weapon Offsets > Hand > Reverse Grip): the flip now turns the blade about your fist's own middle, so flip the dagger and the knight's sword blade down (B or Y) and check the fist stays where it was on the handle with no per-sword tweaks, the thumb wrapped. {test:flipgrip}
+Flip the dagger blade down and close your other hand on its two-handed hotspot: the hotspot is now above your main hand, and the other hand holds the handle like the main hand does (thumb up, knuckles away from you, wrist straight); try the knight's sword the same way. {test:flipgrip}
+Throw a sword or a dagger overhand at a grunt a few steps off, any way you like (javelin, reverse grip, with or without a wrist flick): it comes round to its point within about a fifth of a second and flies point first; a hard deliberate spin still spins. If it is too much or too little, Debug > Tunables > Point-First Settling (strength, Time, Tumble, Spin Damping) go to extremes. {test:throw_point}
+Pull a gib off the sword, toss it up and stab it with the sword's point as it flies: it goes back on the blade; a slow push or a swing across does not put it on. {test:throw_point}
 
 [6. VR: weapons and grips]
 Flat-screen or VR: switch the rocket launcher to its multi-rocket model and look down it from your hand: the three vents at the back of the front shroud (top fin, both side fins) are real holes now, black inside with walls and a back, like the rocket launcher's. {test:mrl_vents}
 Flat-screen or VR: hold the rocket launcher in its multi-rocket model and the normal one, one after the other: the ammo screen on the finger, the grips and the muzzle sit in the same places on both. {test:mrl_vents}
+Hold your gun out towards shooting grunts or an enforcer: shots that hit the gun or your gun hand now and then knock it out of your hand (sparks, ricochet, buzz, flash); it drops to the floor with its ammo and you can pick it up again. Shots on your body never disarm you, fists never. {test:player_disarm}
+A knight's sword or an ogre's chainsaw landing on your weapon held at the wrong angle (not a parry) knocks it out of your hand; a proper parry never does. Combat > Armed Grunts, Disarming: Your Weapon turns it off or scales the chance.
 
 [7. VR: physics, bodies and gore]
 

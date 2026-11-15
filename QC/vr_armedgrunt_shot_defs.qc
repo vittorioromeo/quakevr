@@ -25,6 +25,14 @@ float(entity targ, entity inflictor, entity attacker, float take) VR_AGS_Hit;
 // VR_AG_WeaponStruck (its weapon's think): the flights through it, its roll. TRUE: shot out of its hand.
 float(entity g, entity p) VR_AGS_Frame;
 
+// The player disarmed by the same rules (vr_playerdisarm.qc; vr_player_disarm): anyone's (`xFrom`, not the player hit)
+// hitscan path xA..xB on a player's held weapon or the hand holding it adds up (the shot goes on as ever).
+void(entity xFrom, vector xA, vector xB, vector xDir, float xDamage, float xKind) VR_PD_Shot;
+// PlayerPostThink: the projectiles through `pl`'s weapons and hands, the rolls due.
+void(entity pl) VR_PD_Frame;
+// VR_Parry: a blow with a line by `by` that landed (no parry) meeting `pl`'s weapon in hand `h` `gap` units off its line.
+void(entity pl, entity by, float h, float damage, float gap) VR_PD_Blow;
+
 // vr_agrunt_test 50..59 (vr_armedgrunt_shot_test.qc).
 #ifdef QVR_TESTS
 void(float t) VR_AGS_TestFrame;

@@ -574,10 +574,11 @@ QVR_TUNABLE(vr_throw_restitution, "0.25")
 QVR_TUNABLE(vr_throw_friction, "0.5")
 QVR_TUNABLE(vr_throw_spin_max, "20") // rad/s
 QVR_TUNABLE(vr_throw_spin_align, "8")
-QVR_TUNABLE(vr_throw_point_align, "1") // a thrown sword or dagger settling point first (vr_box3d_step.cpp pointAlign); 0 off
-QVR_TUNABLE(vr_throw_point_time, "0.3") // s: how long after the throw it may
-QVR_TUNABLE(vr_throw_point_angle, "45") // degrees: its point at most this far off its flight to be helped
-QVR_TUNABLE(vr_throw_point_spin, "1.5") // turns/s: a tumble this fast or faster is left a tumble
+QVR_TUNABLE(vr_throw_point_align, "1") // a thrown sword or dagger settling point first (vr_box3d_step.cpp pointAlign): its spring's strength; 0 off
+QVR_TUNABLE(vr_throw_point_time, "0.5") // s: how long after the throw it may
+QVR_TUNABLE(vr_throw_point_angle, "180") // degrees: its point at most this far off its flight as it leaves the hand (180: any)
+QVR_TUNABLE(vr_throw_point_spin, "3") // turns/s across the blade as it leaves the hand: the whole help up to half this, none from it
+QVR_TUNABLE(vr_throw_point_damp, "1") // its damping of the tumble across the blade (1: critical, no overshoot)
 QVR_TUNABLE(vr_shot_push_pellet, "6") // N s, each shotgun and double shotgun pellet's push (monsters' too)
 QVR_TUNABLE(vr_shot_push_nail, "12") // N s, a nail's (the nailgun's, scrags', knights', enforcers' lasers)
 QVR_TUNABLE(vr_shot_push_supernail, "24") // N s, a super nailgun nail's
@@ -2496,3 +2497,6 @@ QVR_TUNABLE(vr_revgrip, "1") // 1: a sword or dagger (Weapon Offsets' Reverse Gr
 QVR_TUNABLE(vr_revgrip_flip_time, "0.18") // ... s: the eject button's flip of the grip turns the blade half round over this long (vr_view_weapon.cpp gripFlip; 0: at once)
 QVR_TUNABLE(vr_revgrip_forcegrab, "0") // ... 0: a force grab's catch takes a sword or dagger upright (his note 2026-11-13); 1: as any grab, by its blade's way in the hand (the flip grip, ROUND25.md "flipgrip")
 QVR_TUNABLE(vr_revgrip_volume, "0.7") // ... the flip's sound's volume (0..1: the hand closing on a handle, vr/phys/grab_metal*.wav; 0 silent)
+QVR_TUNABLE(vr_revgrip_pivot, "1") // ... 1: the blade turns half round about the fist's own middle on its handle (abreast of the drawn hand's palm; ROUND25.md "flipgrip2"); 0: about the handle's middle (before)
+QVR_TUNABLE(vr_revgrip_pivot_shift, "0.35") // ... units: that pivot this far from the palm's middle along the handle towards the blade (the fist's middle: the drawn hand's, the same for every weapon; his dagger's Reversed Z 1.1, 2026-11-15)
+QVR_TUNABLE(vr_revgrip_2h_mirror, "1") // ... held reversed, the other hand on its grip hotspot: 1 holds it as it did upright, turned as the holding hand (knuckles out), its place mirrored along the handle (above the hand, blade down; ROUND25.md "flipgrip2"); 0: turned half round with the blade (before)
