@@ -30,6 +30,8 @@ Flip the dagger blade down and close your other hand on its two-handed hotspot: 
 [6. VR: weapons and grips]
 Flat-screen or VR: switch the rocket launcher to its multi-rocket model and look down it from your hand: the three vents at the back of the front shroud (top fin, both side fins) are real holes now, black inside with walls and a back, like the rocket launcher's. {test:mrl_vents}
 Flat-screen or VR: hold the rocket launcher in its multi-rocket model and the normal one, one after the other: the ammo screen on the finger, the grips and the muzzle sit in the same places on both. {test:mrl_vents}
+Hold your gun out towards shooting grunts or an enforcer: shots that hit the gun or your gun hand now and then knock it out of your hand (sparks, ricochet, buzz, flash); it drops to the floor with its ammo and you can pick it up again. Shots on your body never disarm you, fists never. {test:player_disarm}
+A knight's sword or an ogre's chainsaw landing on your weapon held at the wrong angle (not a parry) knocks it out of your hand; a proper parry never does. Combat > Armed Grunts, Disarming: Your Weapon turns it off or scales the chance.
 
 [7. VR: physics, bodies and gore]
 
