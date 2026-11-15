@@ -1,0 +1,23 @@
+# Quake VR 1.1 trailer: the feature sections, in order. apply_titles.py puts each title at the timeline marker
+# named like the section (its "marker:" if given, else its title; case ignored).
+#
+# [Title]              the big line (Pirata One)
+# subtitle: ...        the small line (Cinzel); "|" breaks the line, else it wraps at "wrap:" characters
+# corner: ...          top-right (default), top-left, bottom-left, bottom-right
+# marker: ...          the timeline marker's name, when it is not the title
+# seconds: ...         how long the title is on screen, in and out included (at most the title clip's length, 5 s)
+# in: / out: ...       the in and out animations' lengths in seconds (default: the template's, 40 and 26 frames)
+# intensity: ...       0 to 2: how much blood, flicker and smear (default 1)
+#
+# Lines before the first [Title] set the defaults for all sections.
+
+corner: top-right
+seconds: 4.5
+
+[Stabbing & Impaling]
+marker: stab
+subtitle: Charge, throw, and stab. | Lift and manipulate impaled enemies.
+
+[Armed Grunts]
+marker: grunts
+subtitle: Soldiers that pick up and use your weapons.

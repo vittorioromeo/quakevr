@@ -42,7 +42,7 @@ spawnarmed monster_vr_grunt 26 0 164 -215
 spawnarmed monster_vr_grunt 27 0 208 -172
 # Plasma Gun
 spawnarmed monster_vr_grunt 103 0 242 -120
-# Grunt Burst Rifle
+# Burst Rifle
 spawnarmed monster_vr_grunt 15 0 263 -61
 # Plasma Soldier's Rifle
 spawnarmed monster_vr_grunt 22 0 270 0
