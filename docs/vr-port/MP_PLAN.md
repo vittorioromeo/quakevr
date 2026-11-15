@@ -209,7 +209,7 @@ player unchanged.
 | **B9** (the review done; #1-#2 unified; the rest B11a-c) | Code quality: one code path for single player and multiplayer (section "B9 review") | the MP suite, SP regressions identical |
 | **B11a-c** (done: B11a, B11b parts 1-2, B11c parts 1-2) | The rest of the B9 review: heldpose's own-player view asks into the slot store; vr_pmove for every player (then monsters); one avatar routine for any player entity | SP hash audits + MP suite |
 | **B12** (was B9; the poses in the snapshot, the rate and its priorities done; the rest is B12b) | Compression and rate: entropy stage with trained tables, per-client rate, priority accumulator | byte budgets per scenario from section 2.3 (`mp_armed`) |
-| **B12b** | The entities' field-level coding (the largest kind left in combat), the fast retransmit of the reliable window, then an entropy stage only if it pays against them | `mp_armed`'s combat budget lowered; a lost reliable chunk resent within a round trip |
+| **B12b** (done: the entities by their fields and trend, the reliable window's resends; entropy measured, not needed) | The entities' field-level coding (the largest kind left in combat), the fast retransmit of the reliable window, then an entropy stage only if it pays against them | `mp_armed`'s combat budget lowered; a lost reliable chunk resent within a round trip |
 | **B10** | Proximity voice chat: capture, Opus, VAD, noise suppression, push-to-talk, a jitter buffer, voices placed by Steam Audio at the speaker's head; VR and flat; menu rows | `mp_voice` (a test tone from A heard at B, louder near, delay under 250 ms) |
 | **B11** | Deathmatch and bots: frags, respawns, DM item rules with VR weapons, FrikBot with VR-aware bodies | `mp_dm` (two clients and two bots, a fraglimit reached) |
 | **B12** | Determinism: Box3D, navmesh and pathfinding hashes equal across runs with several clients; the server-thread audit in multiplayer | hash scenarios |
@@ -2104,6 +2104,69 @@ Not done (measured, left for B12b): an entropy stage. With the poses in, what is
 the poses' deltas (9.4 KB/s); the rest (time, move acknowledgements, prediction, header) about 4 KB/s. Field-level
 coding of the entities comes before an entropy stage; the fast retransmit of the reliable window is still open.
 
+### B12b results: the entities by their fields, the reliable window's resends (2026-11-15, dev no-LTO build, loopback; `mp_armed` 17/0, `mp_retransmit` 7/0)
+
+First the measurement (`vr_net_bytes`' new `ent_ops`: the snapshot's entity entries by op). In `mp_armed`'s combat the
+entities' entries were byte by byte against the base (op 2) far more often than whole: 11299 deltas of 10.5 B each
+(head included) against 608 whole ones of 21.7 B in one window. Not the layout changes the B12 notes guessed: a moving
+thing's fields (origin, yaw, frame, the lerp byte counting down every frame) change every frame, and the byte delta
+paid a group mask and whole changed bytes for each.
+
+| Scenario | Result |
+|---|---|
+| `mp_armed` | B's changed entity entries in combat by their fields: 3537 of 3650, 6.0 B each (byte by byte: 10.5); idle 4.1 B (5.3). Combat's entity bytes: 9.9 and 27.2 KB/s before (the fight decides: a grunt shot by another dies, its gibs and weapon fly), 3.8-14.6 KB/s after; B's link in combat 17.1-29.8 KB/s (budget 35), idle 5.4-5.7 KB/s (budget 10). New check: the changed entries mostly by fields, at most 8 B each. Failed first: 0 by fields. One suite run with two grunts killed by the others' fire (before the trend coding): 47.2 KB/s, entities 33.4 KB/s, 8.5 B an entry: the flying pieces, which the trend now codes |
+| `mp_retransmit` (new) | B 100 ms away each way: a one-chunk reliable message's dropped chunk resent 0.51 s after the drop (its timeout: twice the measured round trip and 50 ms; NetQuake's: a second), a five-chunk message's dropped first chunk resent 0.22 s after (two acks of later chunks: about one round trip); both arrive whole; `net_stats` counts 1 window resent at its timeout and 1 fast |
+| `vr_netsnap_selftest` | 12/0 (was 8): a grunt (a long entity number) and its weapon stepping by fields 24 B (byte by byte 30); the grunt's layout changed (a pitch sent, no lerp) 28 B (whole 53); a record that is no update (no U_SIGNAL) byte by byte as before; a gib flying and tumbling against its trend 3 B (against the base 14) |
+
+What changed:
+
+- **An entity's update by its fields** (`vr_netsnap.cpp` fieldsEncode/fieldsDecode, op 3; `QVR_NET_VERSION` 32): the
+  update is split at NetQuake's fields (its bits, number, model, frame, colormap, skin, effects, origins and angles in
+  the protocol's sizes, alpha, scale, frame2, model2, lerpfinish) with Quake VR's own (`U_QVR_*`) as one tail; the entry
+  is a varint mask (the trend's bit, then the changed fields: lerp, frame, the origins, yaw in its first byte), the bits
+  xor the base's when they changed, each change modulo its field's size zigzagged (a yaw across 0 degrees: small), the
+  tail byte by byte or whole when it changed. A field the base lacks counts from 0. The server sends it only when its
+  own decoding gives the update back exactly (else byte by byte or whole as before), so it is lossless whatever the
+  bytes mean; the smallest of the three goes. The client rebuilds NetQuake's update and parses it as before.
+- **The trend**: each snapshot remembers the one it was coded against (`baseSeq`), and both sides keep the base's own
+  base while it is in the ring; a moving thing's origins and angles may be coded against where their last change
+  carries them (the base's value plus that change times frames ahead over frames between, in integers, the same on both
+  sides) when that is smaller (the mask's first bit). A flying gib or tumbling weapon then costs its head and a byte.
+- **The reliable window's resends** (`net_dgrm.c`): the timeout is twice the chunks' smoothed round trip plus 50 ms
+  (Karn's rule: a resent chunk's ack not measured), at least 0.15 s, doubling with each timeout in a row up to
+  NetQuake's second (a peer not reading, a map loading: never more often than that allows). Two acks of later chunks
+  (the receiver keeps only the next in order, so one before them was lost) send the window again at once, once until
+  the next ack in order. `net_stats` prints the windows resent by timeout and fast. Loopback and single player unchanged.
+- `vr_net_reliable_test <entity> <bytes>` (server): a reliable message of that size to a player's client, which prints
+  `mp_reliable: <bytes> bytes` when it arrives. `mp_proxy.py` drops the next reliable chunks down on request
+  (`drop_reliable_down`, at least a size) and times their resend.
+
+Not done (measured, left): an entropy stage. Against `mp_armed`'s budgets it does not pay now: combat 17.1-29.8 KB/s of
+35, idle 5.4-5.7 of 10. What is left down in combat is the poses' byte deltas (8-12 KB/s, the largest kind now), then
+the entities (mostly new things whole: gibs, shots, dropped weapons), the walk state (1.2-1.5 KB/s). A pose record
+coded by its fields and trend (as the entities now) is the cheaper next step if the budgets ever tighten. The combat
+budget stays 35 KB/s: the fight sets the spread (grunts killing each other), and lowering it would make the scenario
+flaky, not the code better.
+
+Final checks: `mp_test.py suite` after the fields and resends (before the trend): 27 of 31 (`mp_armed` 14/3 in a gib
+storm, `mp_pickup` 8/1, `mp_predict` 23/1, `mp_disarm` 34/1: their known flakes; `mp_predictclimb` 28/0, B12's
+keepalive fix holding); after the trend: 30 of 31 (`mp_armed` 16/1, the rate's nearest-over-farthest check). That check
+now wants the nearest two's share half way to their weights' ratio (the fixed 1.2 failed with the six standing close
+once the entities cost less): 1.20 against 1.17 wanted. `mp_armed` alone after it: 16/1, combat 40.1 KB/s over the 35
+budget in another gib storm (a grunt gibbed at B's feet: dozens of `vr_smallgib`, new entities whole). Once (1 run of
+5) B's link stopped 20 s in during such a storm (the proxy idle, B's log silent until the harness quit him; nothing
+undecodable, no error): open, below. vr_netsnap_selftest 12/0, vr_pd_test 1 11/0 (the merge). Not run this phase:
+scenario_check, load_models_test, vr_run_check (single player's loopback untouched: the codec and the resends are a
+remote client's only).
+
+Open (B12b):
+
+- **Gib storms**: `mp_armed`'s combat goes over 35 KB/s when a grunt is gibbed in front of B (40-47 KB/s; the new gibs
+  whole, then flying). Their spawn could go as one record per burst, or the gibs' updates could be culled by size and
+  distance; or the scenario's grunts made unable to kill each other, so it measures six armed humanoids as it says.
+- **One stalled run**: B's link stopped mid-storm once (above). Not reproduced in 4 more runs; look at B's frame time
+  and the server's sends to him (`vr_net_stats`) when it recurs.
+
 ## For him (B11b)
 
 **His answer (2026-11-16): on.** `vr_pmove_own` defaults to 1 since B11c part 2; 0 stays as the fallback (Debug >
@@ -2193,4 +2256,4 @@ QuakeC's PlayerPreThink parts. Exactly what would change:
 - The interpolation buffer (B7b) leaves brush models and stepping monsters on NetQuake's lerp: the player's own entity
   is not delayed (no prediction until B8), and a lift he rides must stay in step with him.
 
-Next phase: B12b -- the rest of compression: the entities' field-level coding (NetQuake's updates of moving grunts and their weapons, whole whenever their bits change: 8.4 KB/s of `mp_armed`'s 22.9 in combat), the fast retransmit of the reliable window, then an entropy stage only if it still pays, against `mp_armed`'s budgets (B10's voice chat after it: his approval stands, but vendoring Opus and RNNoise is a download from their official sources, which a worker may not make; the coordinator or he places the sources first).
+Next phase: B12c -- `mp_armed`'s gib storms (the open items of B12b: the burst's new entities, the one stalled run), then the poses by their fields and trend if a budget still needs it; then B10's voice chat once the Opus and RNNoise sources are placed in the tree (a worker may not download them), else B11 (deathmatch and bots).

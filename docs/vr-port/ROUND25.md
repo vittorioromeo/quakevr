@@ -3853,3 +3853,14 @@ His flat-screen notes (2026-11-16) and the coordinator's disarm-sound item.
   numbers (`make_disarm_sounds.py`'s header): StarNinjas `sword_clash.1` (0 ms attack, longest ring 0.8 s, ~6 kHz) and
   Kenney `error_003` (instant, 0.3 s, ~1.4 kHz); the Medieval pack's minute-long takes unused. CREDITS.md. vr_pd_test 1
   11/11 (sounds started for each disarm).
+
+## MP B12b: the entities by their fields, the reliable window's resends (agent/mp, 2026-11-15)
+
+- **Snapshot entity entries by their fields** (`vr_netsnap.cpp`, op 3, `QVR_NET_VERSION` 32): NetQuake's update split
+  at its fields, the changed ones sent as zigzagged changes modulo their size, origins and angles optionally against
+  their trend (the base's own base, kept by both sides); sent only when the server's own decoding gives the update back
+  exactly. `mp_armed` combat: 6.0-7.3 B a changed entry (byte by byte 10.5). Details: MP_PLAN.md, "B12b results".
+- **Reliable resends** (`net_dgrm.c`): timeout twice the measured round trip + 50 ms (0.15 s to NetQuake's 1 s,
+  backing off), a fast resend at two acks of later chunks. `mp_retransmit` (new): 0.51 s and 0.22 s at 100 ms each way.
+  `vr_net_reliable_test <entity> <bytes>` (server). Single player and the loopback unchanged.
+- Merge of next: the disarm sounds now play in the shared `VR_Player_Disarm` (shots, blows and another player's grab).

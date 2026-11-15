@@ -390,8 +390,17 @@ def armed(s):
             "%d snapshots in %d datagrams or more" % (sent, IDLE_PACKETS))
     near = [e for d, e in prio[:2]]
     far = [e for d, e in prio[-2:]]
-    s.check("under it: the nearest humanoids' poses come more often than the farthest's",
-            len(prio) >= 4 and sum(near) > 1.2 * sum(far), "nearest two %s, farthest two %s (of %s)" % (near, far, prio))
+    # (B12b) by how much depends on how far apart they stood: a record's weight is 256 / (256 + distance)
+    # (vr_netsnap.cpp weightOf), so the nearest two's share over the farthest two's should be at least half way to
+    # their weights' ratio (the fixed 1.2 failed with the six close together once the entities cost less)
+    def weight(d):
+        return 256.0 / (256.0 + d)
+    ratio = (sum(weight(d) for d, _ in prio[:2]) / max(1e-6, sum(weight(d) for d, _ in prio[-2:]))) if len(prio) >= 4 else 1.0
+    want = 1.0 + 0.5 * (ratio - 1.0)
+    s.check("under it: the nearest humanoids' poses come more often than the farthest's (half way to their weights' ratio)",
+            len(prio) >= 4 and sum(near) > want * sum(far) and sum(near) > sum(far),
+            "nearest two %s, farthest two %s: %.2f, wanted %.2f (weights %.2f; of %s)" % (
+                near, far, sum(near) / max(1, sum(far)), want, ratio, prio))
     cs = client_snap_status(b)
     s.check("under it: none undecodable", cs and int(cs["undecodable"]) == 0, "%s" % cs)
 
