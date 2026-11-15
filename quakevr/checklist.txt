@@ -64,6 +64,7 @@ Flat-screen or VR: look down the rocket launcher from your hand: the three vents
 Let a gun go onto your other, open palm so it rests there, then close that hand: with your fist on its handle it is taken by the handle and fires; with the handle off your palm it is held where it lies, as a prop (it doesn't jump to the handle), and a hand closing a few centimetres off a gun takes nothing. {test:palmgrab}
 With the flashlight on your torso and the dagger in your right hand held near your chest, take the torch with your left hand: it comes every time; grip the dagger's new two-handed spot instead and you hold the dagger in both hands. {test:torch_otherweapon}
 Hold the super shotgun or the shotgun one-handed close to your chest or low at your belt and take the torso torch with the other hand: nothing stops it 20-30 cm from the gun any more; your hand on the gun's foregrip still takes the gun in both hands. {test:torch_otherweapon}
+Flat-screen or VR: switch the rocket launcher to its multi-rocket model and look down it from your hand: the three vents at the back of the front shroud (top fin, both side fins) are real holes now, black inside with walls and a back, like the rocket launcher's. {test:mrl_vents}
 
 [7. VR: physics, bodies and gore]
 With drips on, get something wet, then reload the same map (a restart, or a save of this level): no crash. {test:waterdrips}

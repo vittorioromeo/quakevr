@@ -2920,3 +2920,11 @@ after 7/0. `mounted:9-10` (the two gun torso turns) 312 lit, 312 taken. Scenario
 - **Open: agrunt 74** (downtug 16/21): first bad 749e048b3, the agent/promstir merge (948d2c328: his
   vr_knockdown_stir_rate 12). Setting vr_knockdown_stir 0 in the test (as c951e75c7 did for the stagger test)
   did not bring it back, so that change was dropped; needs a look at what the stir rate does to a downed grunt's tug.
+## mrlvents: the multi-rocket launcher's vents are real recesses too (agent/mrlvents, 2026-11-15)
+
+- **What:** the rocket launcher's alt model `v_multi2.mdl` (`v_multi2.blend`) had the same painted vents with no holes. Same cut as rlvents,
+  scripted (`scratch/mv_vents.py`, not committed): each fin's rear end face is rebuilt as a rim around an opening traced from the dark
+  texels of its own skin (inset 0.28 units, 8 vertices at most, rim UVs the affine map of the old face's), a recess 2.0 deep on top and
+  1.5 on the sides along +x (the fins are straight), walls and back on a dark vent texel; new vertices follow the face in every shot frame.
+  Exported with `blend_export.py`: 935 -> 1027 triangles, anchors ok, holes check 0 see-through, 0 flipped; normal map re-baked,
+  `fx_gfx_mask` rewritten. Scene `mrl_vents`; load_models_test 4/4. Blender before/after: kit `scratch/mrlvents_shots/`.
