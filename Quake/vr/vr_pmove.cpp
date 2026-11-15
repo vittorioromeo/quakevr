@@ -712,8 +712,49 @@ void crawlMove(Body& b, const Input& in, const Rules& r, bool onground)
     crawlStep(b.crawl, want, pulling, r.crawlFriction, za::max(0.f, r.crawlMost), in.dt, onground, b.velocity);
 }
 
+bool mantleStep(Mantle& m, float dt, float* out)
+{
+    m.at += dt;
+    vec3_t d0, d1;
+    VectorSubtract(m.mid, m.from, d0);
+    VectorSubtract(m.to, m.mid, d1);
+    const float up = VectorLength(d0);
+    const float over = VectorLength(d1);
+    const float t = m.time > 0.f ? CLAMP(0.f, m.at / m.time, 1.f) : 1.f;
+    const float along = t * (up + over);
+    const bool first = along <= up && up > 0.f;
+    const float* a = first ? m.from : m.mid;
+    const float* z = first ? m.mid : m.to;
+    const float f = first ? along / up : over > 0.f ? (along - up) / over : 1.f;
+    for(int i = 0; i < 3; i++)
+    {
+        out[i] = a[i] + (z[i] - a[i]) * f; // (glm::mix's)
+    }
+    return t >= 1.f;
+}
+
 void playerMove(Body& b, const Input& in, const Rules& r, MoveNotes* notes)
 {
+    b.mantledNow = false;
+    if(b.mantle.on)
+    {
+        // Mantling (vr_climb.cpp's way up and over): carried along it at the move's time, nothing else; at its end he
+        // stands (the server's climb then lets go: climb::mantleMoved).
+        if(notes)
+        {
+            notes->air = true;
+        }
+        const bool done = mantleStep(b.mantle, in.dt, b.origin);
+        VectorCopy(vec3_origin, b.velocity);
+        b.flags &= ~FL_ONGROUND;
+        if(done)
+        {
+            b.mantle.on = false;
+            b.mantledNow = true;
+            b.flags |= FL_ONGROUND;
+        }
+        return;
+    }
     const bool onground = (b.flags & FL_ONGROUND) != 0;
     if(notes && !onground)
     {

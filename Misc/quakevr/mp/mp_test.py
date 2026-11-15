@@ -3321,6 +3321,50 @@ def predict_waterjump(s, srv, a, b, eb, first=True):
             "B draws himself at %s, the server has him at %s" % (own, sv))
 
 
+def predict_mantle(s, srv, a, b, ea, eb):
+    """MP_PLAN B8h: the mantle predicted. On vrclimb B takes the ledge with both hands, pulls himself down and pushes
+    over the top (climb_plays.py's overtop, mp_climb's): the server's mantle runs in his moves (its way and time in the
+    state: pmove::mantleStep, the code single player's mantle frame steps with), his replay carries him along it at each
+    move's time: his corrections stay under a unit, and on the top at rest he stands where the server has him. (The hang
+    before it is the server's still: drawn as it comes.)"""
+    b.cmd("vr_mock_play; -graboff; -grabmain; vr_mock_hand head")
+    start = put_at(srv, b, eb, CLIMB_SPOT, 0)
+    b.quiet(r"mp_predict_corr: ", 1.0, 20, "B settled at the wall")
+    since = srv.mark()
+    b.cmd("vr_mp_predict_report reset")
+    play(s, b, "overtop", overtop_play())
+    pr = predict_segment(s, b, "mantling onto the ledge", "", 72, ("", "", "", "", ""), reset=False)
+    s.metric("b_predict_mantle", pr)
+    mantled = wait_quietly(srv, r"climb: .*mantle", 1, since, "the server's mantle")
+    sv = org_of(status(srv), "mp_client", "slot", eb - 1)
+    s.check("B mantled onto the ledge (states mantling walked move by move: 5 at least; the server has him %d units up "
+            "at least)" % MANTLE_RISE, int(pr.get("mantle_n", 0)) >= 5 and bool(sv) and sv[2] - start[2] >= MANTLE_RISE,
+            "%s mantling states, the server has him at %s (from %s); %s" % (
+                pr.get("mantle_n"), sv, start, mantled[1].strip() if mantled else "no mantle line"))
+    predict_corr_check(s, "mantling", pr)
+    own = org_of(status(b), "mp_player", "self", 1)
+    gap = dist(own, sv) if own and sv else 99.0
+    s.check("on the top at rest B stands where the server has him (within 1 unit)", gap <= 1.0,
+            "B draws himself at %s, the server has him at %s" % (own, sv))
+    b.cmd("vr_mock_play; -graboff; -grabmain")
+
+
+def predict_climb(s):
+    """MP_PLAN B8h: climbing predicted, on vrclimb (one start: A moved off it before B joins), B 150 ms behind the
+    server each way: the mantle (predict_mantle). `--part mantle`: it alone, `--repeat` times."""
+    srv, a, b, ea, eb = join(s, lag=PREDICT_LAG, level="vrclimb",
+                             first=lambda srv, a, ea: put_at(srv, a, ea, CLIMB_WATCH, CLIMB_WATCH_YAW))
+    a.cmd("name A")
+    b.cmd("name B")
+    srv.cmd("vr_mp_watch %d; vr_climb_debug 1" % PART_WATCH)
+    b.cmd("vr_mp_watch %d" % PART_WATCH)
+    for k in range(PART_REPEAT if PART else 1):
+        if PART:
+            s.note("--part %s, take %d" % (PART, k + 1))
+        if PART in ("", "mantle"):
+            predict_mantle(s, srv, a, b, ea, eb)
+
+
 def predict(s):
     """MP_PLAN B8: B, 150 ms behind the server each way, predicts his own walking. His moves run on the server one by
     one for their own frame's time (vr_pmove.cpp, the code his client runs too); the server's state after the newest
@@ -3513,6 +3557,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             lossy(s)
         elif test == "mp_predict":
             predict(s)
+        elif test == "mp_predictclimb":
+            predict_climb(s)
         elif test == "mp_disarm":
             disarm(s)
         elif test == "mp_lagcomp":
@@ -3529,7 +3575,7 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "lagcomp", "disarm", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "lagcomp", "disarm", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -3540,8 +3586,8 @@ def main():
     ap.add_argument("--jitter", type=float, default=0.0, help="client B's delay varies by this much, ms")
     ap.add_argument("--loss", type=float, default=0.0, help="client B's game packet loss, 0..1, each way")
     ap.add_argument("--reset-autoexec", action="store_true", help="empty <base>/id1/autoexec.cfg first")
-    ap.add_argument("--part", default="", choices=["", "lift", "waterjump", "swim", "crawl", "give", "use"],
-                    help="predict: only this segment (traced with vr_mp_watch 1; --watch 2); disarm: give or use, the rounds alone")
+    ap.add_argument("--part", default="", choices=["", "lift", "waterjump", "swim", "crawl", "mantle", "give", "use"],
+                    help="predict: only this segment (traced with vr_mp_watch 1; --watch 2); predictclimb: mantle; disarm: give or use, the rounds alone")
     ap.add_argument("--repeat", type=int, default=1, help="predict --part: takes in one run (lift: one)")
     ap.add_argument("--watch", type=int, default=1, help="predict --part: vr_mp_watch on the server and B (3: corrections over 0.05 traced)")
     args = ap.parse_args()
@@ -3560,7 +3606,7 @@ def main():
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "lagcomp", "disarm"):
+                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "lagcomp", "disarm"):
         ok = run(args, "mp_" + args.test)
     else:
         ok = run(args, "mp_coop")
@@ -3589,6 +3635,7 @@ def main():
         ok = run(args, "mp_flatbody") and ok
         ok = run(args, "mp_loss") and ok
         ok = run(args, "mp_predict") and ok
+        ok = run(args, "mp_predictclimb") and ok
         ok = run(args, "mp_lagcomp") and ok
         ok = run(args, "mp_disarm") and ok
         # B's link per scenario (MP_PLAN B7: byte counts against mp_bandwidth's): what the next phases cut.

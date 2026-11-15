@@ -2,6 +2,7 @@
 
 #include "vr_predict.hpp"
 #include "vr_api.h"
+#include "vr_climb.hpp"
 #include "vr_cvars.hpp"
 #include "vr_hull.hpp"
 #include "vr_netsnap.hpp"
@@ -48,6 +49,7 @@ enum StateBits
     bitWaterJumpOut = 2048,   // Quake's jump out of the water in the moves (B8f: QC's .vr_movewaterjump)
     bitCrawl = 4096,          // lying down, crawling with his arms: the stick's share of the crawl in the moves (B8g)
     bitLying = 8192,          // the lying box (hull::hasLyingBox: its height is the rules' box)
+    bitMantle = 64,           // mantling: the mantle's way and time follow (B8h: his moves carry him along it)
 };
 
 constexpr float jumpSpeed = 270.f; // QC PlayerJump's
@@ -277,6 +279,7 @@ struct ClientPredict
     float holdLeft{0.f};  // .teleport_time less the message's time
     float jumpDir[2]{0.f, 0.f}; // .movedir's x, y (a water jump's push)
     float crawl[2]{0.f, 0.f};   // the crawl's own speed (lying down: B8g)
+    pmove::Mantle mantle;       // mantling: its way and time at the state (B8h)
     bool fresh{false};    // a new state since the last replay
 
     // The replay.
@@ -305,6 +308,7 @@ struct ClientPredict
     int swimN{0}, wjN{0}, landMovingN{0}, pushN{0}; // (states swimming, in a water jump; replays landing him on a
                                                  // brush model still moving; replayed moves a mover pushed him)
     int crawlN{0};                               // (states lying down: the lying box, B8g)
+    int mantleN{0};                              // (states mantling: B8h)
     float swimMax{0.f}, liftMax{0.f}; // (liftMax: the lift's own predicted place moved under him, a state)
     float corrMax{0.f}, corrSum{0.f}, flatMax{0.f}, airMax{0.f}, errMax{0.f};
 
@@ -586,6 +590,7 @@ bool replay(vec3_t out, vec3_t before)
     b.jumpDir[1] = cp.jumpDir[1];
     b.crawl[0] = cp.crawl[0];
     b.crawl[1] = cp.crawl[1];
+    b.mantle = cp.mantle;
     const za::U32 newest = netmove::clientNewest();
     if(newest < cp.seq || newest - cp.seq >= static_cast<za::U32>(pastRing))
     {
@@ -822,6 +827,20 @@ void parseState()
     float crawl[2];
     crawl[0] = MSG_ReadFloat();
     crawl[1] = MSG_ReadFloat();
+    pmove::Mantle mantle;
+    if(bits & bitMantle)
+    {
+        mantle.on = true;
+        for(float* p : {mantle.from, mantle.mid, mantle.to})
+        {
+            for(int i = 0; i < 3; i++)
+            {
+                p[i] = MSG_ReadFloat();
+            }
+        }
+        mantle.at = MSG_ReadFloat();
+        mantle.time = MSG_ReadFloat();
+    }
     pmove::Rules r;
     for(float* f : {&r.maxspeed, &r.stickScale, &r.accelerate, &r.friction, &r.stopspeed, &r.edgefriction, &r.gravity,
             &r.maxvelocity, &r.stepsize, &r.roomscaleScale, &r.jumpSpeed, &r.boxHeight, &r.feetZ, &r.waistZ, &r.eyeZ,
@@ -866,6 +885,8 @@ void parseState()
     cp.have = true;
     cp.crawl[0] = crawl[0];
     cp.crawl[1] = crawl[1];
+    cp.mantle = mantle;
+    cp.mantleN += mantle.on ? 1 : 0;
     cp.holdLeft = q_max(static_cast<float>(teleportTime - cl.mtime[0]), -1.f);
     cp.jumpDir[0] = jumpDir[0];
     cp.jumpDir[1] = jumpDir[1];
@@ -912,6 +933,7 @@ void clientClear()
     cp.landMovingN = keep.landMovingN;
     cp.pushN = keep.pushN;
     cp.crawlN = keep.crawlN;
+    cp.mantleN = keep.mantleN;
 }
 
 void report()
@@ -919,18 +941,18 @@ void report()
     Con_Printf("mp_predict: on=%d plain=%d states=%d frames=%d unpredicted=%d unwalked=%d depth_mean=%.1f corr_n=%d "
                "corr_max=%.3f corr_mean=%.3f flat_n=%d flat_max=%.3f air_n=%d air_max=%.3f ride_n=%d err=%.3f "
                "err_max=%.3f maxspeed=%.1f box=%.1f jump=%.0f swim_n=%d swim_max=%.3f wj_n=%d land_moving=%d "
-               "lift_max=%.3f pushed=%d lying=%d arms=%d crawl_n=%d seq=%u newest=%u\n",
+               "lift_max=%.3f pushed=%d lying=%d arms=%d crawl_n=%d mantle_n=%d seq=%u newest=%u\n",
         vr_net_predict.value != 0.f && netmove::clientUses() ? 1 : 0, cp.bits & bitWalked ? 1 : 0, cp.states, cp.frames,
         cp.unpredicted, cp.unWalked, cp.frames > 0 ? static_cast<double>(cp.depthSum) / cp.frames : 0.0, cp.corrN, cp.corrMax,
         cp.corrN > 0 ? cp.corrSum / cp.corrN : 0.f, cp.flatN, cp.flatMax, cp.airN, cp.airMax, cp.rideN, VectorLength(cp.error),
         cp.errMax, cp.rules.maxspeed, cp.rules.boxHeight, cp.rules.jumpSpeed, cp.swimN, cp.swimMax, cp.wjN,
-        cp.landMovingN, cp.liftMax, cp.pushN, cp.bits & bitLying ? 1 : 0, cp.rules.crawl ? 1 : 0, cp.crawlN, cp.seq,
+        cp.landMovingN, cp.liftMax, cp.pushN, cp.bits & bitLying ? 1 : 0, cp.rules.crawl ? 1 : 0, cp.crawlN, cp.mantleN, cp.seq,
         netmove::clientNewest());
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(0), "vr_mp_predict_report") && !q_strcasecmp(Cmd_Argv(1), "reset"))
     {
         // (vr_mp_predict_report reset: the counts from here, a test's setup left out; the states read go on)
         cp.frames = cp.unpredicted = cp.unWalked = cp.corrN = cp.flatN = cp.airN = cp.rideN = 0;
-        cp.swimN = cp.wjN = cp.landMovingN = cp.pushN = cp.crawlN = 0;
+        cp.swimN = cp.wjN = cp.landMovingN = cp.pushN = cp.crawlN = cp.mantleN = 0;
         cp.depthSum = 0;
         cp.corrMax = cp.corrSum = cp.flatMax = cp.airMax = cp.errMax = cp.swimMax = cp.liftMax = 0.f;
     }
@@ -1002,9 +1024,15 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
     SV_CheckWater(ent); // (the frame's, for QuakeC and the water's effects; each move finds its own)
     r.jumpSpeed = progs::fieldFloatOr(ent, progs::fields().vr_movejump, 0.f) != 0.f ? jumpSpeed : 0.f;
     r.waterJumpOut = progs::fieldFloatOr(ent, progs::fields().vr_movewaterjump, 0.f) != 0.f; // (PlayerPreThink's)
-    SV_CheckStuck(ent);
+    pmove::Mantle mantle;
+    const bool mantling = climb::mantlePath(ent, mantle); // (B8h: the mantle's way, run by his moves)
+    if(!mantling)
+    {
+        SV_CheckStuck(ent); // (not on the mantle's way: single player's mantle frame does not either)
+    }
 
     EdictBody b{ent};
+    b.mantle = mantle;
     VectorCopy(s->groundNormal, b.groundNormal);
     b.groundAge = s->groundAge;
     float* crawl = r.crawl ? physics::crawlState(ent) : nullptr; // (the crawl's own speed: his moves carry it)
@@ -1039,7 +1067,11 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
     if(!b.removed)
     {
         b.store();
-        if(b.waterLevel >= 2 && !(b.flags & FL_WATERJUMP) && s->n > 0)
+        if(mantling)
+        {
+            climb::mantleMoved(ent, b.mantle, !b.mantle.on); // (its time kept; at its end he stands, the climb lets go)
+        }
+        if(b.waterLevel >= 2 && !(b.flags & FL_WATERJUMP) && s->n > 0 && !mantling)
         {
             // The hands' strokes (VR_AfterWaterMove's, less the glide the moves ran), once a frame on the newest move's
             // stick: the server's alone (his replay corrects to them, eased in).
@@ -1050,7 +1082,7 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
         {
             crawl[0] = b.crawl[0];
             crawl[1] = b.crawl[1];
-            if(b.waterLevel < 2 && s->n > 0)
+            if(b.waterLevel < 2 && s->n > 0 && !mantling)
             {
                 // The hands' pulls (VR_AfterCrawlMove's, the stick's want with them), once a frame on the newest move's
                 // stick: the server's alone (his replay corrects to them, eased in).
@@ -1089,10 +1121,12 @@ extern "C" void VR_WritePredict(sizebuf_t* msg, client_t* client)
                      (vr_hull_edge_probe.value != 0.f ? bitEdgeProbe : 0) |
                      (flags & FL_JUMPRELEASED ? bitJumpReleased : 0) | (r.waterJumpOut ? bitWaterJumpOut : 0) |
                      (r.crawl ? bitCrawl : 0) | (hull::hasLyingBox(ent) ? bitLying : 0);
+    pmove::Mantle mantle;
+    const bool mantling = climb::mantlePath(const_cast<edict_t*>(ent), mantle);
     const int at = msg->cursize;
     MSG_WriteByte(msg, protocol::svc_quakevr);
     MSG_WriteByte(msg, protocol::QVR_SVC_PREDICT);
-    MSG_WriteShort(msg, bits);
+    MSG_WriteShort(msg, bits | (mantling ? bitMantle : 0));
     MSG_WriteLong(msg, static_cast<int>(netmove::serverLast(slot)));
     for(const float* p : {ent->v.origin, ent->v.velocity, static_cast<const float*>(s.groundNormal)})
     {
@@ -1107,6 +1141,18 @@ extern "C" void VR_WritePredict(sizebuf_t* msg, client_t* client)
     MSG_WriteFloat(msg, ent->v.movedir[1]);
     MSG_WriteFloat(msg, s.crawl[0]);
     MSG_WriteFloat(msg, s.crawl[1]);
+    if(mantling)
+    {
+        for(const float* p : {mantle.from, mantle.mid, mantle.to})
+        {
+            for(int i = 0; i < 3; i++)
+            {
+                MSG_WriteFloat(msg, p[i]);
+            }
+        }
+        MSG_WriteFloat(msg, mantle.at);
+        MSG_WriteFloat(msg, mantle.time);
+    }
     for(const float f : {r.maxspeed, r.stickScale, r.accelerate, r.friction, r.stopspeed, r.edgefriction, r.gravity,
             r.maxvelocity, r.stepsize, r.roomscaleScale, r.jumpSpeed, r.boxHeight, r.feetZ, r.waistZ, r.eyeZ,
             r.shallowStick, r.wadeStick, r.swimStick, r.swimMax, r.glide, r.swimMost, r.maxsZ, r.crawlTop,

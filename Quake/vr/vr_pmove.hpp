@@ -76,6 +76,18 @@ bool crawlStep(float* crawl, const float* want, bool pulling, float friction, fl
 // most `top`, added to `want` -- true if it pulls (on the ground, more than 1 unit asked).
 bool crawlStickWant(float yaw, float forwardmove, float sidemove, float top, bool onGround, float* want);
 
+// A mantle (vr_climb.cpp, B8h): the body carried from `from` straight up to `mid`, then over to `to`, at an even speed
+// along the two, in `time` seconds; `at` the time it has run. One way for single player's frame (vr_climb's mantleStep)
+// and a remote client's moves (the server's and his replay's).
+struct Mantle
+{
+    bool on{false};
+    float from[3]{0.f, 0.f, 0.f}, mid[3]{0.f, 0.f, 0.f}, to[3]{0.f, 0.f, 0.f};
+    float at{0.f}, time{0.f};
+};
+// One step of `dt` along it: its place at its new time (`out`) -- true when it reached its end.
+bool mantleStep(Mantle& m, float dt, float* out);
+
 // The player as a move sees him. The hooks default to a client's world (BSP models only, nothing touched).
 struct Body
 {
@@ -88,6 +100,8 @@ struct Body
     float jumpDir[2]{0.f, 0.f};            // a water jump's push over the edge (.movedir's x, y)
     int waterLevel{0}, waterType{CONTENTS_EMPTY}; // (each move's, found at its start)
     float crawl[2]{0.f, 0.f};              // the crawl's own speed along the floor (lying down: Rules::crawl)
+    Mantle mantle;                         // mantling: the move carries him along it (B8h)
+    bool mantledNow{false};                // the last move ended the mantle (he stands)
 
     virtual ~Body() = default;
     // The map's contents at a point (SV_PointContents: the world's, a current as water).

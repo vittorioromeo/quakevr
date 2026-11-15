@@ -13,6 +13,11 @@ namespace qvr::hands
 struct State;
 }
 
+namespace qvr::pmove
+{
+struct Mantle;
+}
+
 namespace qvr::climb
 {
 
@@ -60,6 +65,13 @@ bool serverHold(edict_t* ent, int hand, glm::vec3& at, glm::vec3& out);
 // Server: every player's holds and mantle forgotten (a map loaded, a saved game loaded: their entity numbers and ledge
 // maps are another world's).
 void reset();
+
+// Server: `ent` mantling: its way now (the brush model's or prop's motion since it began added) and the time it has
+// run, for pmove::mantleStep -> true (false: not mantling). Single player's frame and a remote client's moves (MP B8h).
+[[nodiscard]] bool mantlePath(edict_t* ent, pmove::Mantle& m);
+// Server: `ent`'s mantle after a frame or his moves ran it (pmove::mantleStep, his place set): its time kept; `done`,
+// at its end: he stands (on a brush model or prop: on it), the climb lets go.
+void mantleMoved(edict_t* ent, const pmove::Mantle& m, bool done);
 
 // Server: the player's holds as stats (STAT_QVR_CLIMB*), for the drawn hands.
 void calcStats(edict_t* ent, int* statsi);

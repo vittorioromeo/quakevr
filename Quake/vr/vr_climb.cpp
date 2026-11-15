@@ -144,6 +144,7 @@
 #include "vr_mem.hpp"
 #include "vr_move.hpp"
 #include "vr_physsound.hpp"
+#include "vr_pmove.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 #include "vr_server.hpp"
@@ -1098,7 +1099,7 @@ struct Climber
 {
     Grip grips[2];
     Phase phase{Phase::Free};
-    double mantleStart{0.0};
+    float mantleAt{0.f}; // the mantle's time run (its frames', or a remote client's moves': MP B8h)
     glm::vec3 mantleFrom{0.f}, mantleMid{0.f}, mantleTo{0.f};
     int mantleEnt{0};           // the brush model mantled onto (0: the world): the way follows it,
     glm::vec3 mantleBase{0.f};  // from where it was at the start
@@ -2575,12 +2576,12 @@ struct Hang
     glm::vec3 done{0.f};
 };
 
-// A mantle's step.
-void mantleStep(edict_t* ent, Climber& c, double time)
+// The mantle's way now, for pmove::mantleStep (one step for single player's frame and a remote client's moves, MP B8h).
+// Onto a brush model: the way moves with it (the push carries the body too: VR_ClimbCarried). Onto a prop: as it lies
+// now (its spot on it kept). `onto`: what it goes onto (null: the world, or it is gone).
+pmove::Mantle mantleWay(Climber& c, edict_t*& onto)
 {
-    // Onto a brush model: the way moves with it (the push carries the body too: VR_ClimbCarried). Onto a prop: as it
-    // lies now (its spot on it kept).
-    edict_t* onto = c.mantleEnt > 0 && c.mantleEnt < qcvm->num_edicts ? EDICT_NUM(c.mantleEnt) : nullptr;
+    onto = c.mantleEnt > 0 && c.mantleEnt < qcvm->num_edicts ? EDICT_NUM(c.mantleEnt) : nullptr;
     box3d::ClimbBody body;
     if(onto && c.mantleProp && box3d::climbBody(c.mantleEnt, body))
     {
@@ -2594,18 +2595,22 @@ void mantleStep(edict_t* ent, Climber& c, double time)
     {
         onto = nullptr;
     }
-    const float up = glm::distance(c.mantleFrom, c.mantleMid);
-    const float over = glm::distance(c.mantleMid, c.mantleTo);
-    const float t = CLAMP(0.f, static_cast<float>((time - c.mantleStart) / mantleTime), 1.f);
-    const float along = t * (up + over);
-    const glm::vec3 pos = (along <= up && up > 0.f
-                              ? glm::mix(c.mantleFrom, c.mantleMid, along / up)
-                              : glm::mix(c.mantleMid, c.mantleTo, over > 0.f ? (along - up) / over : 1.f)) +
-                          c.mantleShift;
-    setVec(ent->v.origin, pos);
-    setVec(ent->v.velocity, glm::vec3{0.f});
-    ent->v.flags = static_cast<float>(static_cast<int>(ent->v.flags) & ~FL_ONGROUND);
-    if(t >= 1.f)
+    pmove::Mantle m;
+    m.on = true;
+    setVec(m.from, c.mantleFrom + c.mantleShift);
+    setVec(m.mid, c.mantleMid + c.mantleShift);
+    setVec(m.to, c.mantleTo + c.mantleShift);
+    m.at = c.mantleAt;
+    m.time = mantleTime;
+    return m;
+}
+
+// The mantle after a step (its place set): its time kept; at its end (`done`) he stands, on what it went onto.
+void mantleEnd(edict_t* ent, Climber& c, const pmove::Mantle& m, bool done, edict_t* onto)
+{
+    c.mantleAt = m.at;
+    const glm::vec3 pos = vec(ent->v.origin);
+    if(done)
     {
         transition(ent, c, Phase::Free, Why::Mantled);
         ent->v.flags = static_cast<float>(static_cast<int>(ent->v.flags) | FL_ONGROUND);
@@ -2620,6 +2625,18 @@ void mantleStep(edict_t* ent, Climber& c, double time)
     }
     c.lastOrigin = pos;
     SV_CheckWater(ent);
+}
+
+// A mantle's frame (single player, a listen host's own player: once a frame; a remote client's moves run it one by one
+// instead, vr_predict.cpp).
+void mantleStep(edict_t* ent, Climber& c)
+{
+    edict_t* onto = nullptr;
+    pmove::Mantle m = mantleWay(c, onto);
+    const bool done = pmove::mantleStep(m, static_cast<float>(host_frametime), ent->v.origin);
+    setVec(ent->v.velocity, glm::vec3{0.f});
+    ent->v.flags = static_cast<float>(static_cast<int>(ent->v.flags) & ~FL_ONGROUND);
+    mantleEnd(ent, c, m, done, onto);
 }
 
 // The pull, the carry, what is owed, and what the body would do unhindered.
@@ -2909,7 +2926,8 @@ void reachCheck(Hang& hang)
 void startMantle(edict_t* ent, Climber& c, const Grip& g, const glm::vec3& mid, const glm::vec3& to, float headAbove,
     double time)
 {
-    c.mantleStart = time;
+    (void)time;
+    c.mantleAt = 0.f;
     c.mantleFrom = vec(ent->v.origin);
     c.mantleMid = mid;
     c.mantleTo = to;
@@ -3188,6 +3206,10 @@ extern "C" int VR_ClientClimb(edict_t* ent)
         return 0;
     }
     Climber& c = *cp;
+    if(c.phase == Phase::Mantling && VR_PredictWalks(ent))
+    {
+        return 0; // (a remote client's moves run the mantle, one by one: the walk's think, then VR_PredictPhysics; MP B8h)
+    }
     if(!SV_RunThink(ent))
     {
         return -1;
@@ -3201,7 +3223,7 @@ extern "C" int VR_ClientClimb(edict_t* ent)
     case Phase::Slipping:
         return hangFrame(ent, c, time);
     case Phase::Mantling:
-        mantleStep(ent, c, time);
+        mantleStep(ent, c);
         return 1;
     }
     return 0;
@@ -3496,6 +3518,30 @@ constexpr int mantleStatBit = 1 << 30; // STAT_QVR_CLIMB: mantling now (bits 0-2
 }
 
 } // namespace
+
+bool qvr::climb::mantlePath(edict_t* ent, pmove::Mantle& m)
+{
+    Climber* c = climberOf(ent);
+    if(!c || c->phase != Phase::Mantling)
+    {
+        return false;
+    }
+    edict_t* onto = nullptr;
+    m = mantleWay(*c, onto);
+    return true;
+}
+
+void qvr::climb::mantleMoved(edict_t* ent, const pmove::Mantle& m, bool done)
+{
+    Climber* c = climberOf(ent);
+    if(!c || c->phase != Phase::Mantling)
+    {
+        return;
+    }
+    edict_t* onto = nullptr;
+    mantleWay(*c, onto); // (what it goes onto: the same frame's)
+    mantleEnd(ent, *c, m, done, onto);
+}
 
 void qvr::climb::reset()
 {
