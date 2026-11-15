@@ -1863,7 +1863,9 @@ Open (B11a):
 "LOCAL", but that is the loopback's *server* side; the client's is "localhost" (net_loop.c). So since B7, single player
 and a listen host's own client sent QVR_CLC_MOVES over the loopback, the server walked them move by move as a remote
 client (vr_pmove), and since B8 they predicted themselves from QVR_SVC_PREDICT. Single player on agent/mp was not
-next's path (every "single player identical" check since B7 compared two exes that both had it). Now the loopback sends
+next's path (every "single player identical" check since B7 compared two exes that both had it). Now `clientUses` is false while
+this game hosts (`!sv.active`: its client is the loopback's; comparing with "localhost" instead failed mp_climb's
+mantles on a dedicated server 3 runs of 3, so a client of 127.0.0.1 may carry that name too) and the loopback sends
 clc_move again: single player is sv_phys.c's SV_WalkMove and QuakeC's PlayerPreThink, as on next (the trace's `m=0`).
 
 What changed:

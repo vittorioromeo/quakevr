@@ -3748,7 +3748,8 @@ the same exact rules" as enemies; an option, on by default, single player and mu
 
 - **Bug (agent/mp only, own commit):** `netmove::clientUses()` compared the client socket's address with "LOCAL",
   the loopback's server side; the client side is "localhost". Since B7 single player and a listen host's own client
-  sent QVR_CLC_MOVES, were walked move by move as a remote client and (B8) predicted themselves. Fixed: the loopback
+  sent QVR_CLC_MOVES, were walked move by move as a remote client and (B8) predicted themselves. Fixed (`!sv.active`: a
+  hosting game's client is the loopback's; "localhost" broke mp_climb's mantles on a dedicated server): the loopback
   sends clc_move again, single player walks through sv_phys.c as on next.
 - **`vr_pmove_own`** (default 0) walks this game's own player through vr_pmove (one move a frame from his clc_move and
   VR block, `inputOf`); **`vr_pmove_trace`** prints `pmtrace:` lines each server frame. Both in Debug > Network.

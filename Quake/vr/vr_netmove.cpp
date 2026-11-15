@@ -438,10 +438,10 @@ bool readDelta(const Quant& base, Quant& q)
 
 bool clientUses()
 {
-    // (the loopback's client socket is "localhost", its server side "LOCAL": net_loop.c. Until B11b this asked for
-    // "LOCAL", so single player and a listen host's own client sent QVR_CLC_MOVES and predicted themselves too)
-    return cls.state == ca_connected && cls.netcon && (cl.protocolflags & PRFL_QUAKEVR) &&
-           strcmp(NET_QSocketGetAddressString(cls.netcon), "localhost") != 0;
+    // (not this game's own server: a client connected while it hosts is the loopback's. Until B11b this asked whether
+    // the socket's address was "LOCAL", the loopback's server side -- its client side is "localhost" -- so single
+    // player and a listen host's own client sent QVR_CLC_MOVES and predicted themselves too)
+    return cls.state == ca_connected && cls.netcon && (cl.protocolflags & PRFL_QUAKEVR) && !sv.active;
 }
 
 void writeMoves(sizebuf_t* buf, const WireMove& m, bool record)
