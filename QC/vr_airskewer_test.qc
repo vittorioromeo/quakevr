@@ -92,7 +92,9 @@ void() VR_AS_Frame =
         vr_as_g = VR_AS_Gib(p, at, vr_as_case != 3);
         VR_ET_To(3);
     }
-    else if(vr_et_s == 3 && (vr_as_case == 3 || vr_as_g.velocity_z <= 0 || t > 1))
+    // (A gib is armed a moment after it is made, VR_Gib_MakeDestroyable: struck before, the blow passes it. The hanging one waited
+    // for nothing and the thrust raced its arming: 1 run in 6 not on the blade.)
+    else if(vr_et_s == 3 && ((vr_as_g.takedamage && (vr_as_case == 3 || vr_as_g.velocity_z <= 0)) || t > 1))
     {
         // At the top of its rise: the drive.
         vector mid = vr_as_g.origin + (vr_as_g.mins + vr_as_g.maxs) * 0.5;
