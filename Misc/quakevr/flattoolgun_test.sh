@@ -4,7 +4,7 @@
 # left button clicks on it, Esc and mouse 3 close it; B held is the headset's X/A (the mouse moves and turns what the
 # physgun holds). Headless, fast mode; each run ends on its own last line (-QuitOn); prints "flattoolgun: N passed, M failed".
 #   panel    F7; mouse 3; Monsters > (page 2) > Armed Humanoid > Choose; Esc; the left button: an armed grunt spawned;
-#            mouse 3; Weapons > Grunt Burst Rifle; mouse 3 shut; the left button: weapon_gruntgun spawned
+#            mouse 3; Weapons > Burst Rifle; mouse 3 shut; the left button: weapon_gruntgun spawned
 #   physgun  a grunt spawned, the physgun takes it (the left button held); B held: the mouse up pushes it out 20 units,
 #            right turns it -20 degrees, the view's angles unchanged; B let go: the mouse the view's again
 AGENT=${1:?agent}
@@ -18,7 +18,7 @@ KEY() { echo "vr_mock_key $1 down; wait2; vr_mock_key $1 up; wait3"; }
 CLICK=$(KEY mouse1)
 TO() { echo "vr_flat_mouse_move to $1; wait2; $CLICK"; }
 
-bash $KIT/run.sh $AGENT $FLAT -Script "$BASE; $(KEY F7); wait10; vr_toolgun_tool 0; $(KEY mouse3); $(TO Monsters); $(TO '>'); $(TO 'Armed Humanoid'); $(TO Choose); vr_flat_mouse_move 30 0; screenshot; $(KEY escape); vr_flat_mouse_move 5 0; vr_toolgun_status; $CLICK; wait5; $(KEY mouse3); $(TO Weapons); $(TO '>'); vr_flat_mouse_move to Grunt Burst Rifle; wait3; screenshot; $CLICK; $(KEY mouse3); $CLICK; wait5; screenshot; echo flattoolgun: panel done; toggleconsole; quit" \
+bash $KIT/run.sh $AGENT $FLAT -Script "$BASE; $(KEY F7); wait10; vr_toolgun_tool 0; $(KEY mouse3); $(TO Monsters); $(TO '>'); $(TO 'Armed Humanoid'); $(TO Choose); vr_flat_mouse_move 30 0; screenshot; $(KEY escape); vr_flat_mouse_move 5 0; vr_toolgun_status; $CLICK; wait5; $(KEY mouse3); $(TO Weapons); $(TO '>'); vr_flat_mouse_move to Burst Rifle; wait3; screenshot; $CLICK; $(KEY mouse3); $CLICK; wait5; screenshot; echo flattoolgun: panel done; toggleconsole; quit" \
     -QuitOn "^flattoolgun: panel done" -Timeout 180 -Filter "$FILTER" -Out "$S/panel.png" > "$S/panel.log" 2>&1
 L="$S/panel.log"
 check $(grep -aq "^flatplay: F7: the toolgun" "$L" && echo 1 || echo 0) "panel: F7 gives the toolgun"
@@ -27,7 +27,7 @@ check $(grep -a "^vr_flat_mouse_move: 30 0" "$L" | grep -aq "taken" && echo 1 ||
 check $(grep -a "^vr_flat_mouse_move: 5 0" "$L" | grep -aq "the view's" && echo 1 || echo 0) "panel: Esc closed it, the mouse the view's again"
 check $(grep -aiq "^toolgun: hand 1, tool spawn, panel closed" "$L" && echo 1 || echo 0) "panel: still in the game after Esc (no menu), panel closed"
 check $(grep -aqE "^toolgun: spawned [0-9]+ monster_[a-z_]* " "$L" && echo 1 || echo 0) "panel: the left button spawned the armed humanoid chosen on it ($(grep -aE '^toolgun: spawned' "$L" | head -1))"
-check $(grep -aqE "^toolgun: spawned [0-9]+ weapon_gruntgun " "$L" && echo 1 || echo 0) "panel: the left button spawned the Grunt Burst Rifle chosen on it"
+check $(grep -aqE "^toolgun: spawned [0-9]+ weapon_gruntgun " "$L" && echo 1 || echo 0) "panel: the left button spawned the Burst Rifle chosen on it"
 
 bash $KIT/run.sh $AGENT $FLAT -Script "$BASE; $(KEY F7); wait10; vr_toolgun_tool 0; vr_toolgun_select 0; wait2; $CLICK; wait20; vr_toolgun_tool 2; wait3; vr_toolgun_status; vr_mock_key mouse1 down; wait10; vr_toolgun_status; vr_mock_key b down; wait3; vr_flat_mouse_move 0 -40; vr_flat_mouse_move 50 0; wait5; vr_toolgun_status; viewpos; vr_mock_key b up; wait3; vr_flat_mouse_move 5 0; vr_mock_key mouse1 up; wait3; echo flattoolgun: physgun done; toggleconsole; quit" \
     -QuitOn "^flattoolgun: physgun done" -Timeout 180 -Filter "^(toolgun: (spawned|physgun|hand|aim|target)|vr_flat_mouse_move|flattoolgun|\(|Current)" > "$S/physgun.log" 2>&1

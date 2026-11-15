@@ -134,6 +134,28 @@ void(entity pl, float h, float amount, vector dir, entity by, vector at, string 
         max(0.01, cvar_hget(cvarh_vr_agrunt_shotdisarm_damage))));
 };
 
+// Your weapon knocked out (VR_PD_Disarm: shots, blows; any later disarm of yours goes through it): its sounds at
+// vr_player_disarm_sound. A metal clang at the weapon (the one dropped, else the hand) for everyone near, and a short
+// alert sting to `pl` alone, not placed (the client's playvol: a local sound). Sounds: make_disarm_sounds.py (CC0).
+float vr_pd_sounds; // the disarm sounds started (the tests)
+void(entity pl, float h) VR_PD_DisarmSound =
+{
+    float vol = min(1, max(0, cvar_hget(cvarh_vr_player_disarm_sound)));
+    if(vol <= 0)
+    {
+        return;
+    }
+    entity at = vr_wpn_dropped != world ? vr_wpn_dropped : pl;
+    sound(at, at == pl ? CHAN_AUTO : CHAN_BODY, "vr/disarm_clang.wav", vol, ATTN_NORM);
+    if(pl.flags & FL_CLIENT)
+    {
+        stuffcmd(pl, sprintf("playvol vr/disarm_sting.wav %g\n", vol));
+    }
+    vr_pd_sounds = vr_pd_sounds + 1;
+    dprint(sprintf("playerdisarm: sounds: the clang at %s for everyone near, the sting to %s (hand %g, volume %g)\n",
+        at == pl ? "your hand" : "the weapon", pl.netname, h, vol));
+};
+
 // `pl`'s hand `h`'s weapon knocked out (going `dir`, as hard as `speed`): it drops as the grip lost drops it.
 void(entity pl, float h, vector dir, float speed, string why) VR_PD_Disarm =
 {
@@ -146,7 +168,7 @@ void(entity pl, float h, vector dir, float speed, string why) VR_PD_Disarm =
     vector at = VRGetEntHandPos(pl, h);
     particle2(at, '0 0 60', QVR_PARTICLE_PRESET_SPARKS, 12);
     sound(pl, CHAN_AUTO, sprintf("weapons/ric%g.wav", 1 + min(2, floor(random() * 3))), 1, ATTN_NORM);
-    haptic(h, 0.0, 0.35, 120, 1.0);
+    haptic(h, 0.0, 0.35, 120, 1.0); // (that controller's buzz in VR)
     stuffcmd(pl, "bf\n"); // (a flash, as a pickup's)
     vr_wpn_dropped = world;
     DropWeaponInHandScaled(pl, h, VRGetEntWeapon(pl, h), VRGetEntWeaponFlags(pl, h),
@@ -155,6 +177,7 @@ void(entity pl, float h, vector dir, float speed, string why) VR_PD_Disarm =
     {
         vr_wpn_dropped.velocity = vr_wpn_dropped.velocity + normalize(dir) * speed * 0.5 + '0 0 60';
     }
+    VR_PD_DisarmSound(pl, h);
     sprint(pl, "Your weapon is knocked out of your hand!\n");
     vr_pd_disarms = vr_pd_disarms + 1;
     vr_pd_last_hand = h;

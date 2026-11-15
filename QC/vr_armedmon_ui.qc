@@ -23,13 +23,13 @@ float(float k) VR_AM_UiKindFrame = { VR_AM_Row(k); return vr_am_f_stand; };
 // What row `k` may hold of the "weapon" key `code` (VR_AG_Decode's: a weapon id, an AD upgrade's or melee kind's code):
 // 0 nothing (not a weapon here: no data for it, the grapple, the toolgun, its fists, a class its row doesn't hold);
 // else 1, + 2 when it pairs (VR_AG_Pairable: a one-handed melee weapon, or a gun not too big; two pair when both do and
-// both are melee or both guns: VR_AM_UiPairs, the engine's toolgun::armed::pairs), + 4 * its class (VR_AG_CLASS_*: the
-// page's order).
+// both are melee, both guns, or a gun and then a blade: VR_AM_UiPairs, the engine's toolgun::armed::pairs), + 4 * its
+// class (VR_AG_CLASS_*: the page's order).
 float(float w1, float w2) VR_AM_UiPairs =
 {
     float m1 = floor(w1 / 4) == VR_AG_CLASS_MELEE;
     float m2 = floor(w2 / 4) == VR_AG_CLASS_MELEE;
-    return (w1 & 2) && (w2 & 2) && m1 == m2;
+    return (w1 & 2) && (w2 & 2) && ((m1 == m2) || (!m1 && m2)); // (a gun and a blade: vr_ag_gunaxe, VR_AM_ArmAll)
 };
 
 float(float k, float code) VR_AM_UiWeapon =

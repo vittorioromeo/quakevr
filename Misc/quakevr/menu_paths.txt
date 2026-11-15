@@ -967,7 +967,7 @@ vr_dmg_lava_nail|1|Weapon Damage|Lava Nails|Advanced VR Options > Combat > Weapo
 vr_crowbar_damage|1|Weapon Damage|Crowbar|Advanced VR Options > Combat > Weapon Damage > Crowbar
 vr_dagger_damage|1|Weapon Damage|Dagger|Advanced VR Options > Combat > Weapon Damage > Dagger
 vr_sword_damage_mult|1|Weapon Damage|Knight's Sword|Advanced VR Options > Combat > Weapon Damage > Knight's Sword
-vr_gruntgun_damage|1|Weapon Damage|Grunt's Burst Rifle|Advanced VR Options > Combat > Weapon Damage > Grunt's Burst Rifle
+vr_gruntgun_damage|1|Weapon Damage|Burst Rifle|Advanced VR Options > Combat > Weapon Damage > Burst Rifle
 |1|Weapon Damage|Reset This Page|Advanced VR Options > Combat > Weapon Damage > Reset This Page
 @page|1|Enemy Weapons||Advanced VR Options > Combat > Enemy Weapons
 vr_enemy_held_drops|1|Enemy Weapons|Dead Enemies' Weapons|Advanced VR Options > Combat > Enemy Weapons > Dead Enemies' Weapons
@@ -1032,6 +1032,7 @@ vr_agrunt_shotdisarm_proj_near|1|Armed Grunts|Projectile: Near Miss|Advanced VR 
 vr_agrunt_shotdisarm_proj_max|1|Armed Grunts|Projectile: Most Chance|Advanced VR Options > Combat > Armed Grunts > Projectile: Most Chance
 vr_player_disarm|1|Armed Grunts|You Can Be Disarmed|Advanced VR Options > Combat > Armed Grunts > You Can Be Disarmed
 vr_player_disarm_chance|1|Armed Grunts|Your Disarm Chance|Advanced VR Options > Combat > Armed Grunts > Your Disarm Chance
+vr_player_disarm_sound|1|Armed Grunts|Your Disarm Sound|Advanced VR Options > Combat > Armed Grunts > Your Disarm Sound
 vr_agrunt_ik|1|Armed Grunts|Hands on the Grips|Advanced VR Options > Combat > Armed Grunts > Hands on the Grips
 vr_agrunt_w_fists|1|Armed Grunts|Fists|Advanced VR Options > Combat > Armed Grunts > Fists
 vr_agrunt_w_axe|1|Armed Grunts|Axe|Advanced VR Options > Combat > Armed Grunts > Axe
@@ -1046,7 +1047,7 @@ vr_agrunt_w_sng|1|Armed Grunts|Super Nailgun|Advanced VR Options > Combat > Arme
 vr_agrunt_w_gl|1|Armed Grunts|Grenade Launcher|Advanced VR Options > Combat > Armed Grunts > Grenade Launcher
 vr_agrunt_w_rl|1|Armed Grunts|Rocket Launcher|Advanced VR Options > Combat > Armed Grunts > Rocket Launcher
 vr_agrunt_w_lg|1|Armed Grunts|Thunderbolt|Advanced VR Options > Combat > Armed Grunts > Thunderbolt
-vr_agrunt_w_gruntgun|1|Armed Grunts|Grunt's Burst Rifle|Advanced VR Options > Combat > Armed Grunts > Grunt's Burst Rifle
+vr_agrunt_w_gruntgun|1|Armed Grunts|Burst Rifle|Advanced VR Options > Combat > Armed Grunts > Burst Rifle
 vr_agrunt_w_enfrifle|1|Armed Grunts|Enforcer's Laser Rifle|Advanced VR Options > Combat > Armed Grunts > Enforcer's Laser Rifle
 vr_agrunt_w_packs|1|Armed Grunts|Mission Packs' (Each)|Advanced VR Options > Combat > Armed Grunts > Mission Packs' (Each)
 vr_agrunt_w_adrocket|1|Armed Grunts|Rocket Soldier's Launcher|Advanced VR Options > Combat > Armed Grunts > Rocket Soldier's Launcher
@@ -5588,6 +5589,8 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Shoot Yourself: Aimed|Advanced VR Options > Debug > Tests > Shoot Yourself: Aimed
 |2|Debug - Tests|Shoot Yourself: Ordinary Firing|Advanced VR Options > Debug > Tests > Shoot Yourself: Ordinary Firing
 |2|Debug - Tests|Player Disarm: Shots on Your Gun|Advanced VR Options > Debug > Tests > Player Disarm: Shots on Your Gun
+|2|Debug - Tests|Player Disarm: Melee on Your Gun|Advanced VR Options > Debug > Tests > Player Disarm: Melee on Your Gun
+|2|Debug - Tests|Toolgun: Armed Humanoid Pairs|Advanced VR Options > Debug > Tests > Toolgun: Armed Humanoid Pairs
 |2|Debug - Tests|Projectiles Keep Your Motion|Advanced VR Options > Debug > Tests > Projectiles Keep Your Motion
 |2|Debug - Tests|Grenade Fuses|Advanced VR Options > Debug > Tests > Grenade Fuses
 |2|Debug - Tests|Projectiles: Flat Turn|Advanced VR Options > Debug > Tests > Projectiles: Flat Turn
@@ -6507,8 +6510,8 @@ vr_agrunt_hold_grunt_supershotgun|1|Armed Grunts - Weapon Holds|Double-Barrelled
 vr_agrunt_posecat_grunt_supershotgun|1|Armed Grunts - Weapon Holds|Double-Barrelled Shotgun: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Double-Barrelled Shotgun: Poses
 vr_agrunt_hold_grunt_widowmaker|1|Armed Grunts - Weapon Holds|Widowmaker (AD)|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Widowmaker (AD)
 vr_agrunt_posecat_grunt_widowmaker|1|Armed Grunts - Weapon Holds|Widowmaker (AD): Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Widowmaker (AD): Poses
-vr_agrunt_hold_grunt_gruntgun|1|Armed Grunts - Weapon Holds|Grunt's Shotgun|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Grunt's Shotgun
-vr_agrunt_posecat_grunt_gruntgun|1|Armed Grunts - Weapon Holds|Grunt's Shotgun: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Grunt's Shotgun: Poses
+vr_agrunt_hold_grunt_gruntgun|1|Armed Grunts - Weapon Holds|Burst Rifle|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Burst Rifle
+vr_agrunt_posecat_grunt_gruntgun|1|Armed Grunts - Weapon Holds|Burst Rifle: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Burst Rifle: Poses
 vr_agrunt_hold_grunt_enfrifle|1|Armed Grunts - Weapon Holds|Enforcer's Laser Rifle|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Enforcer's Laser Rifle
 vr_agrunt_posecat_grunt_enfrifle|1|Armed Grunts - Weapon Holds|Enforcer's Laser Rifle: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Enforcer's Laser Rifle: Poses
 vr_agrunt_hold_grunt_nailgun|1|Armed Grunts - Weapon Holds|Nailgun|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Nailgun
@@ -6565,8 +6568,8 @@ vr_agrunt_hold_enforcer_supershotgun|1|Armed Grunts - Weapon Holds|Double-Barrel
 vr_agrunt_posecat_enforcer_supershotgun|1|Armed Grunts - Weapon Holds|Double-Barrelled Shotgun: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Double-Barrelled Shotgun: Poses
 vr_agrunt_hold_enforcer_widowmaker|1|Armed Grunts - Weapon Holds|Widowmaker (AD)|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Widowmaker (AD)
 vr_agrunt_posecat_enforcer_widowmaker|1|Armed Grunts - Weapon Holds|Widowmaker (AD): Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Widowmaker (AD): Poses
-vr_agrunt_hold_enforcer_gruntgun|1|Armed Grunts - Weapon Holds|Grunt's Shotgun|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Grunt's Shotgun
-vr_agrunt_posecat_enforcer_gruntgun|1|Armed Grunts - Weapon Holds|Grunt's Shotgun: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Grunt's Shotgun: Poses
+vr_agrunt_hold_enforcer_gruntgun|1|Armed Grunts - Weapon Holds|Burst Rifle|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Burst Rifle
+vr_agrunt_posecat_enforcer_gruntgun|1|Armed Grunts - Weapon Holds|Burst Rifle: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Burst Rifle: Poses
 vr_agrunt_hold_enforcer_enfrifle|1|Armed Grunts - Weapon Holds|Enforcer's Laser Rifle|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Enforcer's Laser Rifle
 vr_agrunt_posecat_enforcer_enfrifle|1|Armed Grunts - Weapon Holds|Enforcer's Laser Rifle: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Enforcer's Laser Rifle: Poses
 vr_agrunt_hold_enforcer_nailgun|1|Armed Grunts - Weapon Holds|Nailgun|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Nailgun
@@ -8409,6 +8412,7 @@ vr_stealth_light_force|2|Stealth AI Tests|Force the Light on You|Advanced VR Opt
 |1|Flat Keys|Shove|Advanced VR Options > Movement > Locomotion > Flat Keys > Shove
 |1|Flat Keys|Punch|Advanced VR Options > Movement > Locomotion > Flat Keys > Punch
 |1|Flat Keys|Reload|Advanced VR Options > Movement > Locomotion > Flat Keys > Reload
+|1|Flat Keys|Next Ammo Type|Advanced VR Options > Movement > Locomotion > Flat Keys > Next Ammo Type
 |1|Flat Keys|Drop|Advanced VR Options > Movement > Locomotion > Flat Keys > Drop
 |1|Flat Keys|Quick Grenade|Advanced VR Options > Movement > Locomotion > Flat Keys > Quick Grenade
 |1|Flat Keys|Bullet Time|Advanced VR Options > Movement > Locomotion > Flat Keys > Bullet Time
@@ -9208,7 +9212,7 @@ vr_explosion_debris_light_radius|1|Explosion Debris|Glow Light Radius|Advanced V
 |2|Spawn Pickup Weapons|Death Knight's Sword|Advanced VR Options > Debug > Cheats and Recording > Spawn Pickup Weapons > Death Knight's Sword
 |2|Spawn Pickup Weapons|Dagger|Advanced VR Options > Debug > Cheats and Recording > Spawn Pickup Weapons > Dagger
 |2|Spawn Pickup Weapons|Ogre's Chainsaw|Advanced VR Options > Debug > Cheats and Recording > Spawn Pickup Weapons > Ogre's Chainsaw
-|2|Spawn Pickup Weapons|Grunt Burst Rifle|Advanced VR Options > Debug > Cheats and Recording > Spawn Pickup Weapons > Grunt Burst Rifle
+|2|Spawn Pickup Weapons|Burst Rifle|Advanced VR Options > Debug > Cheats and Recording > Spawn Pickup Weapons > Burst Rifle
 |2|Spawn Pickup Weapons|Enforcer's Rifle|Advanced VR Options > Debug > Cheats and Recording > Spawn Pickup Weapons > Enforcer's Rifle
 |2|Spawn Pickup Weapons|Super Axe (Dawn of the Machine)|Advanced VR Options > Debug > Cheats and Recording > Spawn Pickup Weapons > Super Axe (Dawn of the Machine)
 |2|Spawn Pickup Weapons|Toolgun|Advanced VR Options > Debug > Cheats and Recording > Spawn Pickup Weapons > Toolgun

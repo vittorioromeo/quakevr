@@ -381,6 +381,8 @@ old default move to the new one, and values you changed stay yours.
 - Heavy footsteps for enemies and armed humanoids, from real recordings; your footsteps' volume follows your speed.
 - A metal crack when an armour plate breaks; smash sounds and thuds for ragdolls; louder wooden crates.
 - A feminine voice option.
+- Your weapon knocked out of your hand: a metal clang where it flies and a short alert only you hear (with a buzz on
+  that controller in VR), its volume in Disarming: Your Weapon.
 - Sounds no longer cut each other off; late sounds are kept in saves; fire crackles start again after loading.
 
 ### Tools and modding
@@ -450,6 +452,13 @@ old default move to the new one, and values you changed stay yours.
 - The changelevel error and a cold first frame.
 - A QuakeC string search that always reported a match (affects mods).
 - Physics engine updated with upstream fixes.
+- The grunts' burst rifle is named "Burst Rifle" everywhere (it was "grunt's shotgun" in the holster menu).
+- The toolgun's Armed Humanoid page can pair a gun with an axe, dagger or other one-handed blade, as the armed
+  replacements do.
+- Grunts holding a gun and an axe hurt you and can knock your weapon out again when you hold a weapon in front of you
+  (their axe blows near your weapon were held back and never landed); a parry across the blow still blocks it.
+- Flat-screen: B switches the weapon to its other ammo (rocket and grenade launchers, thunderbolt), rebindable on
+  the Flat Keys page.
 - Many smaller fixes and cleanups.
 
 ### Known issues
