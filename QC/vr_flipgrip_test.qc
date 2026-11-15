@@ -16,6 +16,9 @@
 //   6 the knight's sword stabbed down upright into a grunt and let go of; the hand turned for the other grip closes on its handle:
 //     taken reversed, and the hand drawn on the handle within a small angle of the real hand (the engine's vr_embed_probe_hctl;
 //     note 6: it was drawn twisted).
+//   7, 8 (flipgrip2, his note 2026-11-15): the knight's sword upright, then reversed, held two-handed as 0, 1 (no per-weapon tweaks).
+//   0/1 and 7/8 also: reversed, the grip hotspot above the main hand on the pommel's side; the off hand on it turned as upright
+//   against the main hand, knuckles away from you, its wrist no more bent than upright (VR_FG_HelpCheck).
 // Ends `flipgrip: N passed, M failed`.
 
 float vr_fg_spot;   // the dagger's grip hotspot (its index), -1 none
@@ -151,6 +154,59 @@ float(float s, float t, vector xAway, vector xAt, vector xBlade, float xFlags) V
     return FALSE;
 };
 
+// flipgrip2 (his note 2026-11-15): the off hand on the grip hotspot, held two-handed. Upright: its turn in the main hand's frame
+// and against its own controller noted. Reversed (blade down): the hotspot on the pommel's side of the main hand, above it; the off
+// hand drawn turned as upright against the main hand (the same relative turn: knuckles out, not half round with the blade), its
+// knuckles away from you and its wrist no more bent than upright (the engine's drawn hand: weapondrawnpose 51, 52).
+vector vr_fg_rf0, vr_fg_ru0; // upright: the drawn off hand's forward and up in the main hand's frame
+float vr_fg_bend0;           // ... and its turn from its controller (degrees)
+vector vr_fg_l1;             // the blade's line held one-handed
+float vr_fg_took0;           // upright: the two-handed line's cos to it
+void(float xRevd, string xWhat) VR_FG_HelpCheck =
+{
+    entity p = self;
+    vector f = weapondrawnpose(p, cVR_OffHand, 51);
+    vector u = weapondrawnpose(p, cVR_OffHand, 52);
+    makevectors(VRGetHandRot(cVR_MainHand));
+    vector rf = [f * v_forward, f * v_right, f * v_up];
+    vector ru = [u * v_forward, u * v_right, u * v_up];
+    makevectors(VRGetHandRot(cVR_OffHand));
+    float bend = VR_RG_TurnBetween(f, u, v_forward, v_up);
+    if(!xRevd)
+    {
+        vr_fg_rf0 = rf;
+        vr_fg_ru0 = ru;
+        vr_fg_bend0 = bend;
+        VR_Test_Print(sprintf("flipgrip: upright, %s's off hand drawn %.1f degrees from its controller\n", xWhat, bend));
+        return;
+    }
+    float rel = VR_RG_TurnBetween(rf, ru, vr_fg_rf0, vr_fg_ru0);
+    VR_Test_Check(rel < 25, sprintf("reversed, %s held two-handed: the off hand on its grip turned as upright against the main hand "
+        "(%.1f degrees off; half round with the blade it was about 180)", xWhat, rel));
+    makevectors(p.v_viewangle);
+    VR_Test_Check(f * v_forward > 0.3, sprintf("... its knuckles away from you (its forward . yours %.2f)", f * v_forward));
+    VR_Test_Check(bend < vr_fg_bend0 + 30, sprintf("... its wrist no more bent than upright (%.1f degrees from its controller; %.1f "
+        "upright)", bend, vr_fg_bend0));
+};
+
+// Reversed and held one-handed, blade down: the grip hotspot on the pommel's side of the main hand, above it (it was below).
+void(string xWhat) VR_FG_SpotCheck =
+{
+    vector hs = weaponhotspot(self, cVR_MainHand, vr_fg_spot) - VRGetHandPos(cVR_MainHand);
+    vector ln = VR_RG_Line();
+    VR_Test_Check(hs * ln < 0, sprintf("reversed, %s: its grip hotspot on the pommel's side of the main hand (%.1f along the blade; "
+        "the half turn put it on the blade's)", xWhat, hs * ln));
+    // (The mock hand's roll is not always level after the cases before: above only checked with the blade pointing down.)
+    if(ln_z < -0.7)
+    {
+        VR_Test_Check(hs_z > 0, sprintf("... the blade pointing down (line z %.2f): above the main hand (%.1f up)", ln_z, hs_z));
+    }
+    else
+    {
+        VR_Test_Print(sprintf("flipgrip: (the blade not pointing down, line z %.2f: above not checked)\n", ln_z));
+    }
+};
+
 void() VR_FG_Begin =
 {
     VR_Test_BeginFlags("flipgrip", VR_TEST_LOUD);
@@ -180,9 +236,12 @@ void() VR_FG_Frame =
     vector eye = VRGetHeadPos(p);
     makevectors(p.v_viewangle);
     vector before = eye + v_forward * 20 + v_right * 4 - v_up * 10; // (the main hand's place, before you, a little low)
-    // ---- 0, 1: upright, then reversed: the hotspot and a two-handed hold
-    if(vr_et_case <= 1)
+    // ---- 0, 1: upright, then reversed: the hotspot and a two-handed hold (7, 8: the same with the knight's sword, no tweaks)
+    float sword = vr_et_case == 7 || vr_et_case == 8;
+    if(vr_et_case <= 1 || sword)
     {
+        float revd = vr_et_case == 1 || vr_et_case == 8;
+        string what = sword ? "the knight's sword" : "the dagger";
         if(vr_et_s == 0)
         {
             localcmd(sprintf("-graboff\nvr_mock_hand_to main %v\nvr_mock_hand_aim main %v\n+grabmain\n", before, before + v_forward * 400));
@@ -190,25 +249,27 @@ void() VR_FG_Frame =
         }
         else if(vr_et_s == 1 && VR_HandGrabUtil_IsHandGrabbing(p, h) && t > 0.2)
         {
-            VR_EH_Give(WID_SWORD, VR_RG_Dagger() | (vr_et_case == 1 ? QVR_WPNFLAG_REVGRIP : 0));
+            VR_EH_Give(WID_SWORD, (sword ? 0 : VR_RG_Dagger()) | (revd ? QVR_WPNFLAG_REVGRIP : 0));
             VR_ET_To(2);
         }
         else if(vr_et_s == 2 && t > 0.4)
         {
             float spot = VR_FG_Spot();
             vector hs = weaponhotspot(p, h, spot) - VRGetHandPos(h);
-            if(vr_et_case == 0)
+            if(!revd)
             {
                 vr_fg_spot = spot;
                 vr_fg_hs0 = hs;
                 vr_fg_line = VR_RG_Line();
-                VR_Test_Check(spot >= 0, sprintf("upright: the dagger's grip hotspot (%g) at %v from the hand", spot, hs));
+                VR_Test_Check(spot >= 0, sprintf("upright: %s's grip hotspot (%g) at %v from the hand", what, spot, hs));
             }
             else
             {
                 VR_Test_Check(spot == vr_fg_spot && spot >= 0, sprintf("reversed: the grip hotspot still there (%g; was %g)", spot, vr_fg_spot));
                 VR_Test_Check(vlen(hs - vr_fg_hs0) > 2, sprintf("... turned with the blade: at %v from the hand (%v upright)", hs, vr_fg_hs0));
+                VR_FG_SpotCheck(what);
             }
+            vr_fg_l1 = VR_RG_Line();
             if(spot < 0)
             {
                 VR_EH_NextCase();
@@ -219,13 +280,27 @@ void() VR_FG_Frame =
         else if(vr_et_s >= 10 && vr_et_s < 20 && VR_FG_OffOnSpot(10, t))
         {
             float along = VR_RG_Line() * vr_fg_line;
-            string how = vr_et_case == 0 ? "upright" : "reversed";
+            string how = revd ? "reversed" : "upright";
             VR_Test_Check(VRGet2HAiming(p), sprintf("%s: the off hand closed on its hotspot holds it two-handed", how));
-            if(vr_et_case == 1)
+            // (The blade's turn as the second hand takes hold: the hold's line against the one hand's. Reversed, mirrored, it is the
+            // upright hold's: the aim worked out for the mirrored grip, view::twoHandTurn.)
+            float took = VR_RG_Line() * vr_fg_l1;
+            if(revd)
             {
                 VR_Test_Check(along < -0.7 && VR_RG_Flip() > 0.99, sprintf("... still held blade down (line cos %.2f against upright, flip %.2f)",
                     along, VR_RG_Flip()));
+                VR_Test_Check(fabs(took - vr_fg_took0) < 0.15, sprintf("... the hold turned the blade as upright (cos %.2f to the one hand's "
+                    "line; %.2f upright)", took, vr_fg_took0));
             }
+            else
+            {
+                vr_fg_took0 = took;
+            }
+            VR_ET_To(20);
+        }
+        else if(vr_et_s == 20 && t > 0.3)
+        {
+            VR_FG_HelpCheck(revd, what);
             localcmd("-graboff\n");
             VR_EH_NextCase();
         }

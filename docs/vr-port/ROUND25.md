@@ -2971,6 +2971,26 @@ Test aid: `vr_test_give_flags` (impulse 149's weapon flags; 3072 with id 13 give
 one-handed at the chest, the shotgun low at the belt; the off hand at the torch takes it, at the weapon's grip (or 60%
 along it) holds the weapon, the torch left on. Before 4/3 (the dagger, the chest and the belt cases at the torch);
 after 7/0. `mounted:9-10` (the two gun torso turns) 312 lit, 312 taken. Scenario `torch_otherweapon`.
+## agrunt4874: an axe grunt that never closed in; downtug's "lying still" (agent/agrunt4874, 2026-11-15)
+
+- **`vr_agrunt_test 48` (the axe grunt standing case: dist min 210, never within 64), a game fix.** Not the trail: the
+  axe grunt saw you (trail 0, never a marker as its goal). 0.25 s into its case it was hit by a laser still in flight
+  from the previous case's Laser Rifle grunt, which the test had removed meanwhile; grunts infight with grunts, so
+  VR_Provoke took the shooter's freed edict as its enemy. A freed edict keeps its health and lies at the map's origin,
+  so ai_run's "enemy dead?" never dropped it and the grunt walked to '0 0 0' for good. The navtrail merge only changed
+  which case left a laser in flight (the lanes' `vr_mock_fast 2; sv_random_seed 1`; it passed without them). Now
+  VR_Provoke never turns on a removed attacker, and ai_run drops a removed enemy (and won't go back to a removed
+  oldenemy) as a dead one (`VR_AG_Freed`, the existing helper). In play: a monster hurt by a shot whose shooter was
+  removed meanwhile (the toolgun, a killtarget, a corpse cleanup) no longer hunts the map's origin. 18 passed, 0 failed
+  (lanes' settings; was 17/1). Every monster's ai_run is the same code, so knights, ogres, dogs, fiends share the fix;
+  a monster that sees its enemy already chases it directly (VR_Stealth_LoseNow turns the trail off on any sighting).
+- **`vr_agrunt_test 74` (downtug 16/21), a test fix.** Phase 0 ("lying down") waited for its body under 10 u/s for 15
+  frames. At the promoted `vr_knockdown_stir_rate` 12 a live knockdown stirs all the while it lies, its body moving
+  12-27 u/s, so the lift-and-slam case never "lay still" before its get-up (no state) and the bar (80%: 16.8 of 21)
+  slipped by one. `vr_knockdown_stir 0` alone didn't restore it because the run's other cases shift with it (one
+  more "nothing" in the getting-up phase). Now lying down is its fall over: under 30 u/s (`VR_AGDT_STILL`) for 15
+  frames; the falls themselves run 44-310 u/s. 18/22 (lanes), 19/22 (default), 18/21 (stir 0). Left as before: the
+  getting-up phase's barrel-and-step-back try takes nothing in all four methods (also at stir rate 1).
 
 ## thirdperson: flat play's over-the-shoulder camera (agent/thirdperson, 2026-11-15)
 
@@ -3033,3 +3053,58 @@ research notes and the behaviour. Settings (archived): `vr_flat_tp` 0, `_back` 5
   1.5 on the sides along +x (the fins are straight), walls and back on a dark vent texel; new vertices follow the face in every shot frame.
   Exported with `blend_export.py`: 935 -> 1027 triangles, anchors ok, holes check 0 see-through, 0 flipped; normal map re-baked,
   `fx_gfx_mask` rewritten. Scene `mrl_vents`; load_models_test 4/4. Blender before/after: kit `scratch/mrlvents_shots/`.
+
+## flipgrip2: the flip's pivot is the fist; the reversed two-handed hold mirrored (agent/flipgrip2, 2026-11-15)
+
+His note (vrtesthall_2026-11-15_03-14-49): the flip "much better", but the dagger needed tweaks (his config: `rev_x_52` -0.15,
+`rev_z_52` 1.1, `rev_thumb_top_52` 0, `rev_thumb_bias_52` -1; his `hs1_*_52` equal the shipped ones); and the flipped two-handed
+hold was wrong: the hotspot below the main hand (expected above), the other hand's knuckles towards him, the wrist bent past 180.
+
+**On paper.** Frames in the holding (main) hand: `a` the handle's line (pommel to blade, upright), `n` the palm's normal made square
+to it, `R` the hand's turn, `O` the weapon's angle offsets. Reversed, the hand stays on its controller and only the weapon turns:
+`G`, half round about `n` through a pivot `c` on the handle (`reverseTurn`), so the weapon is `R G O` and the handle is the same
+line through the fist. Two-handed upright: the main fist on the handle, the other fist below it at `-d a` from it, both thumbs
+towards the blade, knuckles out; the other hand's turn relative to the main hand is `h0`. Flipped in a real hand: the main hand
+is unchanged and the blade leaves it on the little finger's side; the pommel is up; the other hand holds the same handle the way
+the main hand does: thumb up (now towards the pommel), knuckles out, so its turn relative to the main hand is still `h0`, and its
+fist is at `+d a`: the positions swap along the handle (a reflection along `a` about the main fist), nothing across it. What the
+code did (flipgrip): the other hand carried rigidly with the weapon, `R G h0` and its point `c + G (p - c)`: `G` sends `a` to
+`-a` and the knuckle direction (across the handle, square to `n`) to its opposite: thumb down, knuckles in (his "towards the
+player", the wrist past a half turn), and the point's offset across the handle flipped too: the dagger's hotspot point is 2 units
+off the handle (it is the hand's point, not its fist), so it went 4 units across, to below and in front (measured: 3.9 below,
+3.7 along the blade's side). Pitch 180 on the hand (his guess) is `G` again (about `n`); the wrist-to-knuckle axis would keep the
+thumb up but put the knuckles in. The right answer is neither: no turn at all relative to the main hand, a move along the handle.
+- **The other hand** (`flipSpot`, vr_view_hands.cpp; `vr_revgrip_2h_mirror` 1): turned `R h0` (`helpingTurn` without the flip; its
+  Held Hand move in the main hand's frame, its part along the handle mirrored: `flipVisualPos`); its point `q_up + delta` in the main
+  hand's frame, `delta = -2 ((palm_up - c) . a) a` (the fist's middle is its palm's, `palmAt`; the point moves with the fist), plus
+  the weapon's Reversed X/Y/Z. The hotspot (`placeHotspots`), the grab (the same world hotspot) and the fitted fingers
+  (`canonicalHotspotGrip` with the flip: the reversed weapon against the mirrored hand) all use it.
+- **The aim** (`view::twoHandTurn`): the 2H solves (the fixed hold's `applyHotspots`, the sword hold's `bladeDirection` for its grip
+  below the hand; the half-sword blade grip keeps `G`) worked out for the hand turned by `Q = (least turn from G q_up to q_now) G`
+  instead of `G`: the upright hold's line onto the mirrored grip's, so taking hold turns the blade exactly as upright does
+  (test: cos to the one-handed line 1.00 both ways).
+- **The pivot** (`reverseLearn`; `vr_revgrip_pivot` 1, `vr_revgrip_pivot_shift` 0.35): why the dagger felt off. The half turn was about
+  the handle's middle (butt to an estimated guard); a fist off that middle by `e` along the handle slid `2e` along it when flipped
+  (the guard's estimate, Blade From or 0.15 of the length, is a guess for the swords too). Now about the fist's own middle: the point
+  of the handle's line abreast of the drawn hand's palm (`palmOnWeapon`: the main hand posed as `canonicalOwnGrip`), 0.35 units towards
+  the blade (the palm's centre sits a little below the fist's middle; one constant of the hand, the same for every weapon). Dagger:
+  the reversed weapon moves (-0.03 0.01 1.09) in the hand's frame against before: his (-0.15 0 1.1) made by the model (the 0.15
+  forward, 3 mm, left out). Knight's sword: (-0.05 0 -0.22). Learnt again once the jointed hand is there.
+- **His tweaks:** `rev_x`/`rev_z` unnecessary (he must set his dagger's back to 0, else they add on top: the checklist line says so);
+  the thumb is a hand-pose preference, not geometry: `rev_thumb_top` 0 (wrapped) and `rev_thumb_bias` -1 promoted to the defaults
+  block of weapons.txt (every reversed blade). `rev_2h_v*` stay as an optional tweak (0).
+- **Tunables** (Debug > Tunables > Weapons > Reverse Grip): Flip Pivot (`vr_revgrip_pivot` 1 the fist, 0 the handle's middle),
+  Flip Pivot Shift (`vr_revgrip_pivot_shift` 0.35 units), Reversed Two-Handed Hand (`vr_revgrip_2h_mirror` 1 as the holding hand,
+  0 turned with the blade). QC `weapondrawnpose(p, hand, 51 / 52)`: the drawn hand's forward and up (tests).
+- **Tests:** `vr_embed_test 44` extended (cases 7, 8: the knight's sword upright then reversed, held two-handed, no tweaks; checks in
+  1 and 8: the grip hotspot on the pommel's side of the main hand, above it with the blade down (dagger 2.5-3.1 up, sword 4.2-5.1
+  up); the other hand turned as upright against the main hand (0.0 degrees; 180.0 before), knuckles away from you (forward . yours
+  0.97 / 0.99; -0.97 before), the wrist no more bent than upright; the hold's turn of the blade as upright). With both new
+  tunables at 0 (the old way): 6 failed, as his note says. Now `flipgrip: 39 passed, 0 failed` (35 with case 6's SKIP). Unchanged:
+  revgrip (42) 24/0, embedgrip (33) 15/0, propblade (34) 15/0, embeddagger (40) 24/0, palmgrab (pickup 17) 5/0.
+- To check in VR: reset the dagger's Reversed X/Z, flip the dagger and the knight's sword (the fist stays on the handle, no tweak);
+  flipped, the other hand on the hotspot above the main hand: thumb up, knuckles out, a natural wrist.
+
+## mrlfix + clretire1116 (agent/mrlfix)
+
+MRL (slot 14, v_multi2.mdl) now holds no offset keys of its own: it inherits the rocket launcher (slot 6) for the ammo screen (wpntxt_*), button (wpnbtn_*), finger/hand_*, grips (x/y/z/pitch/yaw, 2h_*), hotspot and muzzle; only id, inherit and its fx_* shot effects stay. His config had no vr_wofs values for either slot. 52 ticked lines retired from checklist.txt (those he spoke of at 03:xx kept); 19 scenes only they used moved out (kept any still named by code, docs, or other lines). No flat screenshot taken.

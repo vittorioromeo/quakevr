@@ -641,6 +641,29 @@ inline view::DrawnWeapon drawnWeapons[2];
 // change): called by whatever has the model at hand (the held weapon, a blade in a body, one to be taken).
 void reverseLearn(const qmodel_t* model, int slot);
 [[nodiscard]] glm::vec3 reverseShift(int slot, bool mirrored, float flip, const glm::vec3& rot);
+// The reverse grip's share eased as drawn (smoothstep of `flip`), and its per-weapon move alone (Key::RevX.., the hand's frame).
+[[nodiscard]] float reverseEased(float flip);
+[[nodiscard]] glm::vec3 reverseTweak(int slot, bool mirrored, float flip);
+// The flip grip's two-handed hold (ROUND25.md "flipgrip2"; vr_revgrip_2h_mirror): held reversed, the other hand on the grip
+// hotspot `h` holds it as it did upright, turned as the holding hand (`hand`, holding slot `slot`'s `model`), its fist's place
+// mirrored along the handle about the holding fist's (the half turn's pivot). `qUp`: the hotspot's point in the holding hand's
+// frame (x forward, y left, z up, from its controller) upright; `delta`: its move along the handle, reversed (add the weapon's
+// reverseTweak too). False: not a grip, or the handle not learnt yet.
+[[nodiscard]] bool flipSpot(int hand, int slot, qmodel_t* model, const weapons::Hotspot& h, glm::vec3& qUp, glm::vec3& delta);
+// Whether the flip grip's two-handed hold is the mirrored one (vr_revgrip_2h_mirror) for slot `slot` held reversed `flip`.
+[[nodiscard]] bool flipMirrored(int slot, float flip);
+// A held hotspot's Held Hand move (`p`, the holding main hand's frame) with its part along slot `slot`'s handle mirrored, `flip`
+// of the way (the hold mirrored along the handle).
+[[nodiscard]] glm::vec3 flipVisualPos(int slot, float flip, const glm::vec3& p);
+// Per hand, as its hotspots were last placed (placeHotspots): its weapon's first grip hotspot held reversed and mirrored, in the
+// hand's frame from its controller: upright (`up`) and as placed now (`now`). The two-handed aim's turn (view::twoHandTurn).
+struct FlipHold
+{
+    bool valid{false};
+    glm::vec3 up{0.f};
+    glm::vec3 now{0.f};
+};
+inline FlipHold flipHolds[2];
 // Its handle's line (`axis`, through `pivot`, its middle) in the model's own frame, as learnt (reverseLearn); false: not yet.
 [[nodiscard]] bool handleLine(int slot, glm::vec3& axis, glm::vec3& pivot);
 // Whether weapon slot `slot` may be held reversed (Key::RevGrip, with vr_revgrip on).

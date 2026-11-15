@@ -1740,7 +1740,7 @@ namespace
 // unturned (Held::canonical). The same steps as the drawn hands', at that pose.
 [[nodiscard]] glm::mat4 canonicalOwnGrip(int hand, int slot, qmodel_t* model, bool offset = true, float flip = 0.f);
 [[nodiscard]] glm::mat4 canonicalHotspotGrip(int hand, int otherSlot, qmodel_t* model, const weapons::Hotspot& spot,
-    bool offset = true);
+    bool offset = true, float flip = 0.f);
 } // namespace
 
 // The turn of a helping hand on the weapon in the other hand (`other`), from a hotspot's angles (as for the off hand
@@ -1763,8 +1763,47 @@ namespace
     {
         offsets += weaponAngleOffsets(weapons::fistSlot(), mirrored); // the hand's own, as the holding hand's
     }
-    // (Held reversed: the hand on its hotspot turned with it, the same hold on the turned weapon: the flip grip.)
-    return attachedTurn(holderRot, otherSlot, other == HAND_OFF, offsets, holder, holder >= 0 ? drawnFlip(holder) : 0.f);
+    // (Held reversed: the hand on its hotspot turned with it, the same hold on the turned weapon: the flip grip. Mirrored, flipgrip2:
+    // turned as the holding hand, as upright, knuckles out; its place mirrored along the handle, flipSpot.)
+    const float flip = holder >= 0 ? drawnFlip(holder) : 0.f;
+    return attachedTurn(holderRot, otherSlot, other == HAND_OFF, offsets, holder, flipMirrored(otherSlot, flip) ? 0.f : flip);
+}
+
+// The flip grip's two-handed hold, mirrored (flipgrip2; his note 2026-11-15: reversed, the other hand's hotspot was below the hand and
+// the hand on it had its knuckles towards him, the wrist bent past a half turn). Upright, the holding fist on the handle and the other
+// fist below it (towards the pommel), both thumbs towards the blade, knuckles out. Reversed the holding hand stays as it was (only the
+// weapon turns, half round about the fist's own middle: reverseTurn), so the blade now leaves the fist on the little finger's side and
+// the pommel is above. The other hand holds the same handle the same way the holding hand does (thumb up, now towards the pommel,
+// knuckles out): its turn relative to the holding hand is the upright one (h0); turned half round with the weapon (G h0), its thumb
+// pointed down and its knuckles in. Its fist keeps its place across the handle (the handle's line is the same line, through both
+// fists) and its place along it is mirrored about the holding fist: below by d upright, above by d reversed. The fist's middle is
+// its palm's (palmAt), the hand's point (the hotspot) off it; the point moves with the fist: by -2 ((palm - pivot) . a) a.
+bool flipSpot(int hand, int slot, qmodel_t* model, const weapons::Hotspot& h, glm::vec3& qUp, glm::vec3& delta)
+{
+    glm::vec3 axis, pivot;
+    if(!model || slot < 0 || !weapons::isGripType(h.type) || !handleLine(slot, axis, pivot))
+    {
+        return false;
+    }
+    const bool mirrored = hand == HAND_OFF;
+    const int helper = 1 - hand;
+    const glm::vec3 zero{0.f};
+    view::ViewEntity weapon;
+    const glm::vec3 wt = weaponTurn(zero, slot, mirrored);
+    place(weapon, model, zero, {-wt.x, wt.y, wt.z}, 0, mirrored);
+    qUp = glm::vec3{hotspotFrame(weapon.ent, mirrored) * glm::vec4{h.pos, 1.f}};
+    const bool cup = h.type == weapons::HotspotType::Cup;
+    const glm::vec3 palm = cup ? qUp : palmAt(helper, qUp, helpingTurn(zero, -1, helper, slot, false, h.angles), helper == HAND_OFF);
+    if(mirrored)
+    {
+        axis.y = -axis.y;
+        pivot.y = -pivot.y;
+    }
+    const glm::vec3 o = weaponAngleOffsets(slot, mirrored);
+    const glm::mat3 turn = anglesBasis(glm::vec3{-o.x, o.y, o.z});
+    const glm::vec3 a = glm::normalize(turn * axis);
+    delta = (-2.f * glm::dot(palm - turn * pivot, a)) * a;
+    return true;
 }
 
 namespace
@@ -1786,22 +1825,27 @@ glm::mat4 canonicalOwnGrip(int hand, int slot, qmodel_t* model, bool offset, flo
     return glm::inverse(rigPlacement(hand, pos, handRot, mirrored, nullptr)) * grasp::shapeToWorld(weapon.ent, mirrored);
 }
 
-glm::mat4 canonicalHotspotGrip(int hand, int otherSlot, qmodel_t* model, const weapons::Hotspot& spot, bool offset)
+// `flip`: the other hand holding it that much reversed: the mirrored hold's (flipSpot; vr_revgrip_2h_mirror), else as upright (the
+// hand turned with the weapon: the same hold on it).
+glm::mat4 canonicalHotspotGrip(int hand, int otherSlot, qmodel_t* model, const weapons::Hotspot& spot, bool offset, float flip)
 {
     const int other = 1 - hand;
     const bool mirrored = hand == HAND_OFF, otherMirrored = other == HAND_OFF;
     const glm::vec3 zero{0.f};
+    glm::vec3 qUp, delta;
+    const bool flipped = flipMirrored(otherSlot, flip) && flipSpot(other, otherSlot, model, spot, qUp, delta);
     view::ViewEntity weapon;
-    const glm::vec3 wt = weaponTurn(zero, otherSlot, otherMirrored);
-    place(weapon, model, zero, {-wt.x, wt.y, wt.z}, 0, otherMirrored);
+    const glm::vec3 wt = weaponTurn(zero, otherSlot, otherMirrored, flipped ? flip : 0.f);
+    place(weapon, model, flipped ? reverseShift(otherSlot, otherMirrored, flip, zero) : zero, {-wt.x, wt.y, wt.z}, 0, otherMirrored);
     const bool cup = spot.type == weapons::HotspotType::Cup;
     glm::vec3 handRot = helpingTurn(zero, -1, hand, otherSlot, cup, spot.angles);
-    const glm::vec3 point{hotspotFrame(weapon.ent, otherMirrored) * glm::vec4{spot.pos, 1.f}};
+    const glm::vec3 point = flipped ? qUp + delta * reverseEased(flip) + reverseTweak(otherSlot, otherMirrored, flip)
+                                    : glm::vec3{hotspotFrame(weapon.ent, otherMirrored) * glm::vec4{spot.pos, 1.f}};
     glm::vec3 pos = cup ? point - palmAt(hand, zero, handRot, mirrored) : point;
     if(offset)
     {
-        moveDrawnHand(hand, mirrored, attachedTurn(zero, otherSlot, otherMirrored, zero), spot.visualPos, spot.visualAngles,
-            otherMirrored, pos, handRot);
+        moveDrawnHand(hand, mirrored, attachedTurn(zero, otherSlot, otherMirrored, zero),
+            flipped ? flipVisualPos(otherSlot, flip, spot.visualPos) : spot.visualPos, spot.visualAngles, otherMirrored, pos, handRot);
     }
     return glm::inverse(rigPlacement(hand, pos, handRot, mirrored, nullptr)) * grasp::shapeToWorld(weapon.ent, otherMirrored);
 }
@@ -3001,7 +3045,8 @@ void steadyOther(const HandPose& hp, glm::vec3& pos, glm::vec3& handRot, bool& h
     // frame, about its palm; as for the off hand helping, mirrored for the main hand.
     if(heldSpot && hp.helps)
     {
-        moveDrawnHand(hand, mirrored, attachedTurn(s.rot[other], otherSlot, other == HAND_OFF, glm::vec3{0.f}, other, drawnFlip(other)),
+        const float flip = flipMirrored(otherSlot, drawnFlip(other)) ? 0.f : drawnFlip(other); // (mirrored: the holding hand's frame)
+        moveDrawnHand(hand, mirrored, attachedTurn(s.rot[other], otherSlot, other == HAND_OFF, glm::vec3{0.f}, other, flip),
             heldSpot->visualPos * gripBlend, heldSpot->visualAngles * gripBlend, other == HAND_OFF, pos, handRot);
     }
 }
@@ -3044,11 +3089,13 @@ void steadyOther(const HandPose& hp, glm::vec3& pos, glm::vec3& handRot, bool& h
                 handrig::usable(viewModel(handrig::modelName())))
             {
                 held.canonical = true;
-                held.canonicalInRig = canonicalHotspotGrip(hand, otherSlot, entities.weapon[other].ent.model, heldSpot->def);
+                held.canonicalInRig =
+                    canonicalHotspotGrip(hand, otherSlot, entities.weapon[other].ent.model, heldSpot->def, true, drawnFlip(other));
                 held.offset = heldSpot->def.visualPos != glm::vec3{0.f} || heldSpot->def.visualAngles != glm::vec3{0.f};
                 if(held.offset)
                 {
-                    held.fitInRig = canonicalHotspotGrip(hand, otherSlot, entities.weapon[other].ent.model, heldSpot->def, false);
+                    held.fitInRig =
+                        canonicalHotspotGrip(hand, otherSlot, entities.weapon[other].ent.model, heldSpot->def, false, drawnFlip(other));
                 }
             }
         }

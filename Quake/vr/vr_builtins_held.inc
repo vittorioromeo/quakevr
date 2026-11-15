@@ -368,6 +368,22 @@ void PF_weapondrawnpose()
         progs::returnVec(what == 49 ? rot : shift);
         return;
     }
+    if(what == 51 || what == 52)
+    {
+        // weapondrawnpose(player, hand, 51 / 52): this listen server's own `hand` as drawn last (view::drawnHandPose), world axes:
+        // 51 its forward (from the wrist to the knuckles), 52 its up (the back of the hand); '0 0 0' not drawn. Tests: QC
+        // vr_flipgrip_test.qc (the flip grip's helping hand, ROUND25.md "flipgrip2").
+        glm::vec3 pos{0.f}, rot{0.f};
+        if(!(sv.active && cls.state == ca_connected && view::drawnHandPose(hand, pos, rot)))
+        {
+            progs::returnVec(glm::vec3{0.f});
+            return;
+        }
+        glm::vec3 forward, right, up;
+        hands::angleVectors(rot, forward, right, up);
+        progs::returnVec(what == 51 ? forward : up);
+        return;
+    }
     if(what == 40)
     {
         // weapondrawnpose(player, hand, 40): this listen server's own `hand` (QC's) as drawn against the models
