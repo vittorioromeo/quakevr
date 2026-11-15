@@ -3588,3 +3588,18 @@ the same exact rules" as enemies; an option, on by default, single player and mu
 - Test `vr_pd_test 1` (Debug > Tests > Player Disarm): 10/10 (blast across the gun knocks it out at forced chance, lies
   on the floor with clip 5; blast across the body: no hit; enforcer laser: out; option off: nothing). agshot (vr_agrunt_test
   50) 10/0, vr_agrunt_test 200 33/0. Scene `player_disarm`. The melee path has no headless test (dirparry's held blows).
+
+## mpN B10b: one way out of a player's hand; rounds handed over (agent/mp, 2026-11-15)
+
+- Merged next's player disarm with B10's grab: VR_Player_Disarm(v, hand, taker, takerHand, dir, speed, why)
+  (vr_playerdisarm.qc) is the one way out of any player's hand: knocked out (VR_PD_Disarm: shots, projectiles, blows)
+  or taken into another's hand (the grab: vr_pdisarm.qc renamed vr_playerdisarm_grab.qc, VR_PDG_*). Cvars renamed
+  beside next's: vr_disarm_player* -> vr_player_disarm_grab 1 / _pull 1.5 / _reach 8 / _slip 15, the grab also gated by
+  vr_player_disarm; rows under Armed Grunts > Disarming: Players' Weapons. menu_paths.txt regenerated.
+- B10's open item (a round let go at a remote player's pouch not refunded) was the test's: vr_mock_hand_to nearest
+  <classname> reads the server's edicts (none on a remote client), so B's hand took a pair from his own pouch. New mock
+  verb nearestmodel <part> [<units>] (client entities). mp_disarm now hands over a shell, a nail magazine and a rocket
+  A->B (from the floor, into B's reserve by exactly A's loss) and a shell B->A (a listen host's own player).
+- Checks: vr_pd_test 10/0, mp_disarm 27/0 dedicated and --listen; mp_test.py suite 26 of 28
+  (mp_ground 14/1, mp_pickup 8/1: known grip flakes, then 15/0 and 9/0 alone), scenario_check 138/0, load_models_test
+  4/0, vr_run_check 15/0 (runenemies 17/0), Release ThinLTO build 0 warnings. Next: B8h (MP_PLAN).

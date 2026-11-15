@@ -1535,11 +1535,32 @@ should come from one system for every player), **done** (unified in B9).
   shots/melee" work expected on next should call it (it had not landed at this merge).
 - **Giving weapons**: a toss (an underhand swing let go at its top) lands by the other and his grip takes it (one code
   path with drops: `mp_pickup`). **Ammo**: a shell taken from A's pouch and let fall is taken up by B's hand (the
-  carry). **Open**: let go at B's own pouch it does not go back into B's reserve (metric `ammo_into_b_reserve` 0):
+  carry). **Open** (B10b: the test's, not the game's): let go at B's own pouch it does not go back into B's reserve (metric `ammo_into_b_reserve` 0):
   `VR_Reload_LetGo`'s AtPouch reads B's hand hotspot field, which his client seems not to send as the pouch while the
   hand carries a round (A's empty hand at his pouch does take a shell); magazines and rockets untested for the same reason.
 - **Holsters**: B's holsters as A draws them equal B's own (slot, model, within 1 unit) at the start, with a shotgun
   given in every slot (slots 2-5 drawn by default), one drawn out by hand, after his death and respawn.
+
+### B10b results: one way out of a player's hand; rounds handed over (2026-11-15, dev no-LTO build, loopback; `mp_disarm` 27/0 dedicated and 27/0 `--listen`, vr_pd_test 10/0; `mp_test.py suite` 26 of 28 pass: `mp_ground` 14/1 (the sword retake "None") and `mp_pickup` 8/1 (A's grip on the dropped shotgun), each then all pass alone; scenario_check 138/0, load_models_test 4/0, vr_run_check 15/0, Release (ThinLTO) build 0 warnings)
+
+- **Merged next's player disarm** (shots, projectiles, blows: `vr_playerdisarm.qc`) with B10's grab into one path:
+  `VR_Player_Disarm(v, hand, taker, takerHand, dir, speed, why)` (vr_playerdisarm.qc) takes the weapon out of any
+  player's hand, knocked out (taker world: the grip-lost drop, pushed along `dir`; next's `VR_PD_Disarm` adds its
+  sparks, ricochet and flash, then calls it) or taken into another player's hand (the grab, now
+  `vr_playerdisarm_grab.qc`, `VR_PDG_*`). The grab's cvars renamed beside next's: `vr_player_disarm_grab` 1 (and
+  `vr_player_disarm`, the master switch: off, no way disarms a player), `vr_player_disarm_pull` 1.5,
+  `vr_player_disarm_reach` 8, `vr_player_disarm_slip` 15; their rows moved under Armed Grunts > "Disarming: Players'
+  Weapons" with next's two. The victim gets the buzz and a line ("B takes your weapon!") either way.
+- **B10's open item was the test's**: `vr_mock_hand_to <hand> nearest <classname>` asks the server's edicts, which a
+  remote client has not: B's hand never went to the dropped shell, stayed at his pouch and took a pair of his own, so
+  the "takes up" check passed on the wrong round and the "return" looked broken. New `nearestmodel <part> [<units>]`
+  (the client's drawn entities; a remote client's too). The pouch path itself (VR_Reload_LetGo, VR_Reload_Refund) was
+  right: the same code for every player.
+- **Rounds handed over** (`mp_disarm`'s ammo part): a shell, a nail magazine (24 nails) and a rocket from A's pouch, let
+  fall, taken up by B from the floor (his reserve unchanged at the take) and let go of at his own pouch: his reserve up
+  by exactly what A's went down; then a shell B to A (the listen host's own player: the single player's case).
+  Not covered yet: "used by B" (a dropped magazine or rocket loaded into his own gun; his gun needs room first, a
+  magazine out or a rocket fired): next phase.
 
 ### For him (B10)
 
@@ -1613,4 +1634,4 @@ should come from one system for every player), **done** (unified in B9).
 - The interpolation buffer (B7b) leaves brush models and stepping monsters on NetQuake's lerp: the player's own entity
   is not delayed (no prediction until B8), and a lift he rides must stay in step with him.
 
-Next phase: B8h (B10 done but one open item: a round let go at a remote player's own pouch back into his reserve, the hand's pouch hotspot while carrying; magazines and rockets handed over checked with it) — B8h — climbing in his replay (the mantle's timed path from the state first, then the hang's pull from his own moves' hands: vr_climb.cpp hangPull/hangMove), the grapple's pull (the rope in the state, the reel in the moves), the hands' climb out of the water (vr_water_jump 0: a hand's grip and pull, the server's today); tests first: `mp_predict --part` grown (corrections under a unit); then the `mp_melee` "crowbar held level" flake if it shows.
+Next phase: B8h (B10b done; first, a small test: a magazine and a rocket A dropped loaded by B into his own gun, `mp_disarm`'s ammo part) — B8h — climbing in his replay (the mantle's timed path from the state first, then the hang's pull from his own moves' hands: vr_climb.cpp hangPull/hangMove), the grapple's pull (the rope in the state, the reel in the moves), the hands' climb out of the water (vr_water_jump 0: a hand's grip and pull, the server's today); tests first: `mp_predict --part` grown (corrections under a unit); then the `mp_melee` "crowbar held level" flake if it shows.
