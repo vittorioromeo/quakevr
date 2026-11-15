@@ -3743,3 +3743,20 @@ the same exact rules" as enemies; an option, on by default, single player and mu
 - MP: suite 27 of 29 (mp_climb 7/2 and mp_predict 23/1, both setup timeouts; 11/0 and 28/0 alone); `--listen` grab
   13/0, held 14/0, disarm 35/0, ground 15/0. scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0, Release
   (ThinLTO) 0 warnings. Next: B11b (vr_pmove for the host's own player).
+
+## mpN B11b part 1: the own player through the moves, behind vr_pmove_own (agent/mp, 2026-11-15)
+
+- **Bug (agent/mp only, own commit):** `netmove::clientUses()` compared the client socket's address with "LOCAL",
+  the loopback's server side; the client side is "localhost". Since B7 single player and a listen host's own client
+  sent QVR_CLC_MOVES, were walked move by move as a remote client and (B8) predicted themselves. Fixed: the loopback
+  sends clc_move again, single player walks through sv_phys.c as on next.
+- **`vr_pmove_own`** (default 0) walks this game's own player through vr_pmove (one move a frame from his clc_move and
+  VR block, `inputOf`); **`vr_pmove_trace`** prints `pmtrace:` lines each server frame. Both in Debug > Network.
+  `Misc/quakevr/mp/pmtrace_all.sh` (+ `pmtrace_sp.sh`, `pmtrace_cmp.py`) runs a scenario with 0 and 1 and compares.
+- Frame by frame (seeded, fixed frames): e1m1 walk/jump/crouch 380 frames identical then 0.0001 (float `dt` against
+  sv_phys.c's double `host_frametime`), lift 274 identical then 0.001 velocity, crawl 380/380 identical, magholster
+  time+walk 772/772 identical (magholster lines too), swimming a frame sooner entering water then the same velocities,
+  Quake's water jump out 3 frames sooner (each move's water level against the last frame's) and one 0.017-lower
+  landing not explained. MP_PLAN "B11b results, part 1".
+- B11a's magholster numbering: unseeded runs vary on one exe (24/26/27); seeded 24 always, both paths: closed.
+- With the default flipped to 1 for a build: prop_climb_test 12/12, mantle_height_test PASS, crawl_test 18/0.

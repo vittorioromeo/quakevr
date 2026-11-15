@@ -1399,7 +1399,7 @@ extern "C" void VR_PmoveTrace(edict_t* ent)
     {
         return;
     }
-    // (the server's time, the walk's state after the physics: two runs' lines compared one by one, scratch/b11b_cmp.py)
+    // (the server's time, the walk's state after the physics: two runs' lines compared one by one, Misc/quakevr/mp/pmtrace_cmp.py)
     Con_Printf("pmtrace: e=%d t=%.4f o=%.4f %.4f %.4f v=%.3f %.3f %.3f fl=%d wl=%d ge=%d m=%d\n", NUM_FOR_EDICT(ent),
         qcvm->time, ent->v.origin[0], ent->v.origin[1], ent->v.origin[2], ent->v.velocity[0], ent->v.velocity[1],
         ent->v.velocity[2], static_cast<int>(ent->v.flags), static_cast<int>(ent->v.waterlevel),
