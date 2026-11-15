@@ -2167,6 +2167,53 @@ Open (B12b):
 - **One stalled run**: B's link stopped mid-storm once (above). Not reproduced in 4 more runs; look at B's frame time
   and the server's sends to him (`vr_net_stats`) when it recurs.
 
+### B12c results: the stalled run (a button), the gib storms' fragments, a rate's starved records (2026-11-15, dev no-LTO build, loopback; `mp_armed` 18/0 in 4 runs of 4)
+
+**The stall was no network fault.** In the stalled run (`mp_armed_20261115_201930`) A and B both logged `mp_event: left`
+at the same millisecond, 2 s into the combat window; the server then printed "Run setup: a new game", removed both
+clients and loaded `start`. vrtesthall's NEW GAME wall button runs `campaign 1; map start` (a command button,
+`buttonEffect 3`), and `button_touch_any` let anything thrown at a button press it (`vr_button_throw`): a grunt's weapon
+or limb flung by a grenade's blast hit it hard enough. Host_ShutdownServer's `svc_disconnect` reached both clients
+(Host_EndGame prints only with `developer`), so the clients sent nothing more and the proxy went idle. Fixed in single
+player too (its own commit): a command button runs its command only when a player pressed it (his hand, his step,
+what he threw, his shot), never for a monster (`vr_monsters_press_buttons`) nor for a thing no player threw.
+`vr_systems_test 17` (vrtesthall): failed first (a monster and a flung weapon both pressed NEW GAME), now 1/0. The
+harness says why a link stopped (`B left the game`, the server's map loads) instead of only "fewer packets".
+
+**The gib storms.** Measured first (`vr_net_classes`, new: the server's snapshot entity entries by classname): in a storm
+the new entities' whole entries are small (5-33 KB of 90-165 KB in a window: the "burst's new entities", templates or
+baselines, would not pay); the flying fragments' updates are: `vr_smallgib` 31-53 KB and `vr_explosion_debris` 24-25
+KB of 157-165 KB (35-50%), 7.5-8.8 B an entry with the trend, every frame each. Then `vr_limb`, the grunts' weapons,
+their corpses (`(freed)`: things gone by the report).
+
+| Scenario | Result |
+|---|---|
+| `mp_armed` | B's link in combat with the poses in his snapshot: 29.4, 29.5, 33.0 and 29.4 KB/s in 4 runs (storms with 790-3270 fragment records waiting), under the 35 KB/s budget; before: 33.3-35.9 KB/s in 3 runs (B12b: 40-47 in heavy storms). New check: the fragments' bytes a datagram within their budget (72-104 B of 128). Under `vr_net_rate 12000` the nearest two humanoids' poses against the farthest two: 1.12-1.56 (wanted 1.06-1.25); before the fix 0.01 and 0.22 (1 and 5-10 entries for the nearest in 5 s). The check now counts only the humanoids alive at the window's end (`edict`'s health): one killed in it read as the rate's fault |
+| `vr_netsnap_selftest` | 13/0 (was 12): every record changed, the odd ones cosmetic with 30 bytes: every other record sent, the cosmetic ones within 30 B, their highest priority among them |
+| `vr_systems_test 17` | 1/0 (new; single player): above |
+
+What changed:
+
+- **The cosmetic fragments' budget** (`vr_net_cosmetic_bytes`, 128 B a datagram, 0 none; Debug > Reports > Network:
+  Fragments' Bytes): a remote client's snapshot carries at most that of `vr_smallgib` and `vr_explosion_debris`
+  entries (nothing touches them: no gameplay), chosen by the B12 priorities (near, ahead, waited longest); the others
+  wait as a rate's do (the base's record on both sides). 9.2 KB/s at most at 72 Hz however many fly. `mp_netsnap:`
+  adds their bytes (`cosmetic=`) and their waits (`cwaited=`).
+- **The client's places only from changed records** (`interpNote`): an unchanged record adds no sample, so a thing whose
+  update waited (a fragment's budget, a rate) is drawn between the places that came, not stopped a frame then jumped;
+  one unchanged longer than 4 frames rested, and sets off from its place a frame before its next (single player and
+  the loopback have no interpolation buffer: unchanged).
+- **A rate's starved records** (`encode`): a record larger than a frame's share of `vr_net_rate` never went while
+  smaller, lower ones took each datagram's room (the nearest humanoids' large poses). The highest priority now goes past
+  what the bucket holds when it fits the datagram and the bucket is not in debt; the next datagrams carry only what must
+  go until it is paid back (the rate held: 12.0 KB/s under 12000).
+- `vr_net_classes [reset]` (server): the snapshot entity entries' bytes, entries, whole ones and things by classname,
+  "mp_netclass:" lines; `mp_armed` notes it for each window.
+
+Not done: the poses by their fields and trend. With the fragments budgeted, combat is 29-33 KB/s of 35 and the poses'
+deltas are the largest kind (9.5-12.2 KB/s): the first step if the budget tightens or the storms grow. Not run here (the
+coordinator's): the full suite's flakes are listed in its results below.
+
 ## For him (B11b)
 
 **His answer (2026-11-16): on.** `vr_pmove_own` defaults to 1 since B11c part 2; 0 stays as the fallback (Debug >
@@ -2256,4 +2303,4 @@ QuakeC's PlayerPreThink parts. Exactly what would change:
 - The interpolation buffer (B7b) leaves brush models and stepping monsters on NetQuake's lerp: the player's own entity
   is not delayed (no prediction until B8), and a lift he rides must stay in step with him.
 
-Next phase: B12c -- `mp_armed`'s gib storms (the open items of B12b: the burst's new entities, the one stalled run), then the poses by their fields and trend if a budget still needs it; then B10's voice chat once the Opus and RNNoise sources are placed in the tree (a worker may not download them), else B11 (deathmatch and bots).
+Next phase: B12d -- the poses by their fields and trend (`mp_armed`'s largest kind in combat, 9.5-12.2 KB/s; only if a budget needs it), else B10's voice chat (approved 2026-11-15: Opus and RNNoise vendored from their official sources, version and sha256 recorded, BSD licences into CREDITS; needs a worker allowed to fetch them or the sources placed in the tree), then B11 (deathmatch and bots).

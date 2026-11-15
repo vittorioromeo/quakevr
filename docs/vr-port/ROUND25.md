@@ -3921,3 +3921,15 @@ His flat-screen notes (2026-11-16) and the coordinator's disarm-sound item.
   backing off), a fast resend at two acks of later chunks. `mp_retransmit` (new): 0.51 s and 0.22 s at 100 ms each way.
   `vr_net_reliable_test <entity> <bytes>` (server). Single player and the loopback unchanged.
 - Merge of next: the disarm sounds now play in the shared `VR_Player_Disarm` (shots, blows and another player's grab).
+
+## MP B12c: the stalled run was a button; the gib storms' fragments budgeted (agent/mp, 2026-11-15)
+
+- **Command buttons by players only** (`buttons.qc` button_fire; single player too): a `buttonEffect 3` button (a
+  console command: vrtesthall's NEW GAME `campaign 1; map start`, VR HUB) runs only when a player pressed it (hand,
+  step, a thing he threw, his shot), never for a monster or a thing no player threw. A blast-flung weapon pressed NEW
+  GAME in `mp_armed` and the server dropped both players (B12b's "stalled link"). `vr_systems_test 17` (vrtesthall).
+- **Fragments' budget** (`vr_net_cosmetic_bytes` 128 B a datagram; Debug > Reports > Network: Fragments' Bytes): small
+  gibs and explosion chunks to a remote client by priority within it; his client interpolates across the waits (a
+  place only from a changed record). `mp_armed` combat 29-33 KB/s with storms (was up to 47).
+- **Rate starvation fixed**: under `vr_net_rate` the highest priority may borrow from the bucket (a near humanoid's
+  large pose never went). `vr_net_classes` (server): entity bytes by classname. Details: MP_PLAN.md, "B12c results".
