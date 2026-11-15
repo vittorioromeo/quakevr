@@ -745,6 +745,14 @@ za::Vector<Item> pageDebugTests()
             .help("vr_flat_speed_fov_test (-flatscreenmode only, open level ground ahead): walks, runs (the view its own "
                   "field of view), slides (it widens), stands (it eases back), then strafe-jumps a bunny hop chain (it "
                   "widens) (flatspeedfov: lines, the measured speeds and fields of view, a verdict)."),
+        command("Flat Third-Person Camera Test", "vr_flat_tp_test")
+            .help("vr_flat_tp_test (-flatscreenmode only, e1m1's start, a gun in hand): off leaves the view as it was; on, in "
+                  "the open the camera is at its offsets; backed into a wall it is pulled in over the shoulder; a walk turning "
+                  "and strafing along the walls never has it in a wall or behind one; the shot lands on the crosshair's point; "
+                  "the sights go into first person and back, or stay over the shoulder (flattp: lines, a verdict)."),
+        command("Flat Third-Person Camera Status", "vr_flat_tp_status")
+            .help("vr_flat_tp_status: the third-person camera's settings, how far out it stands, its shoulder, and how much "
+                  "of each leg of its sweep is clear now."),
         command("Flat Speed FOV Status", "vr_flat_speed_fov_status")
             .help("vr_flat_speed_fov_status: the speed along the floor, the speed FOV's multiplier now and the speed's "
                   "own, the field of view drawn."),

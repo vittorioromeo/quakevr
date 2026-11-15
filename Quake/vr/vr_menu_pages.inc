@@ -217,6 +217,32 @@ void resetFlatKeys()
     };
 }
 
+// Locomotion > Desktop Screen Play > Third-Person Camera: the flat-screen over-the-shoulder camera (vr_flattp.cpp).
+[[nodiscard]] za::Vector<Item> pageFlatThirdPerson()
+{
+    return {
+        row(opt::vr_flat_tp),
+        action("Toggle Now", [] { Cbuf_AddText("vr_flat_tp_toggle\n"); })
+            .help("The third-person camera on or off now (vr_flat_tp_toggle: bind it to a key to switch while playing)."),
+        header("Where It Stands"),
+        row(opt::vr_flat_tp_back),
+        row(opt::vr_flat_tp_right),
+        row(opt::vr_flat_tp_up),
+        row(opt::vr_flat_tp_side),
+        row(opt::vr_flat_tp_auto_swap),
+        row(opt::vr_flat_tp_fov),
+        header("Walls"),
+        row(opt::vr_flat_tp_probe),
+        row(opt::vr_flat_tp_ease_out),
+        row(opt::vr_flat_tp_ease_side),
+        row(opt::vr_flat_tp_fade),
+        row(opt::vr_flat_tp_fade_min),
+        header("Aiming Down The Sights"),
+        row(opt::vr_flat_tp_aim),
+        row(opt::vr_flat_tp_aim_scale),
+    };
+}
+
 // Locomotion > Desktop Screen Play > Visor HUD Look: the flat-screen visor HUD's settings (vr_visor.cpp).
 [[nodiscard]] za::Vector<Item> pageVisorSettings()
 {
@@ -374,6 +400,9 @@ void resetFlatKeys()
         row(opt::vr_flat_mantle_time),
         row(opt::vr_flat_mantle_grunt_delay),
         row(opt::vr_flat_slide),
+        row(opt::vr_flat_tp),
+        open("Third-Person Camera", pageIndex(pageFlatThirdPerson))
+            .help("The over-the-shoulder camera's offsets, shoulder, field of view, walls and aiming."),
         row(opt::vr_flat_speed_fov),
         row(opt::vr_flat_speed_fov_max),
         row(opt::vr_flat_speed_fov_from),

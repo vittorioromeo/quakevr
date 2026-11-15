@@ -2972,6 +2972,33 @@ one-handed at the chest, the shotgun low at the belt; the off hand at the torch 
 along it) holds the weapon, the torch left on. Before 4/3 (the dagger, the chest and the belt cases at the torch);
 after 7/0. `mounted:9-10` (the two gun torso turns) 312 lit, 312 taken. Scenario `torch_otherweapon`.
 
+## thirdperson: flat play's over-the-shoulder camera (agent/thirdperson, 2026-11-15)
+
+His request: an optional over-the-shoulder third-person camera for flat play, off by default. `Quake/vr/vr_flattp.cpp`
+(new), hooked in `V_CalcRefdef` after the lean (`VR_FlatThirdPersonView`); FLATPLAY.md, "The third-person camera", has the
+research notes and the behaviour. Settings (archived): `vr_flat_tp` 0, `_back` 56, `_right` 16, `_up` 6, `_fov` 1.1,
+`_probe` 8, `_ease_out` 0.35, `_side` 0 (right), `_auto_swap` 1, `_ease_side` 0.2, `_aim` 0 (first person while sighted),
+`_aim_scale` 0.5, `_fade` 28, `_fade_min` 0.25; page Locomotion > Desktop Screen Play > Third-Person Camera.
+
+- Collision: a two-leg sweep (eye to shoulder, then back) with a five-line fat ray, in at once, out eased; a wall behind
+  leaves it over the shoulder (17 units off the eye backed into e1m1's start wall, not in the head). Auto shoulder swap
+  with hysteresis. The body, hands and weapons fade near the eye (view entities' alpha). No transparent occluders: the
+  BSP world has no per-surface fade in Ironwail's batched world passes; pulling in is the robust answer for walls.
+- Aim: `flatsight::crosshairPoint` takes the camera's ray from the eye's depth; the guns already aim from the muzzle at
+  that point, so shots land on the crosshair (0.00 units off at 1176 and 1148 units in the test). The ironsight's solve
+  stays on the eye (the gun comes to his face). Blocked muzzle: the visor crosshair already traces the real shot and moves
+  onto the obstruction.
+- Shared, not copied: the body is the existing avatar (drawn with its head from outside, `VR_AliasBonePoses`); the hands
+  stay on the body through `flatplay::viewIsHisOwn` (now also false while `flattp::away`), as for the orbit aid and the
+  chase view; the FOV through `flatsight::fov`; the fade through the invisibility ring's alpha pass.
+- Off: the hook returns at once (the test: the view unchanged on 10 of 10 frames, the FOV x1), so VR and flat play with
+  it off draw the same frames; nothing is networked.
+- Test: `vr_flat_tp_test` / `Misc/quakevr/flattp_test.sh <agent> [shots]` (e1m1, 9 checks): off, open (at the offsets
+  to 0.00), wall (pulled in), a 6 s walk turning and strafing along the walls (656 frames, none in or behind a wall),
+  aim, sights first person (camera in the eye) and back out, sights third person (drawn in to 32.8, FOV narrowed, the
+  shot on the point). `flattp: 9 passed, 0 failed`. Debug > Tests: the test and `vr_flat_tp_status`.
+- Not done: a dedicated flat key (the toggle command is bindable; the page has a Toggle Now button), camera lag/look-ahead
+  (would cost the aim's precision).
 
 ## base1115b: v1.1 full baseline on next, regressions triaged (agent/base1115, 2026-11-15)
 

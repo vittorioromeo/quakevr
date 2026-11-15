@@ -1,0 +1,8 @@
+# flat_thirdperson: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat play's over-the-shoulder
+# camera (FLATPLAY.md, "The third-person camera"; ROUND25.md, "thirdperson"): e1m1's start, its corridor and doorway ahead.
+title Flat third-person camera: e1m1's corridor and doorway
+hint The camera is over your right shoulder. Walk down the corridor and through the doorway, strafe into the walls, back into one: it pulls in at once and eases out, swaps shoulder at a wall on the right, fades your body when close. Shoot near and far walls: the shots land on the crosshair. Aim down the sights (right mouse): into first person and back; set Aiming Down The Sights to Stay Third Person to keep it over the shoulder.
+map e1m1
+god
+notarget
+cvar vr_flat_tp 1

@@ -53,6 +53,7 @@
 #include "vr_flataimsens.hpp"
 #include "vr_flatspeedfov.hpp"
 #include "vr_flatsweep.hpp"
+#include "vr_flattp.hpp"
 #include "vr_gfx.hpp"
 #include "vr_hands.hpp"
 #include "vr_handpose.hpp"
@@ -469,7 +470,7 @@ constexpr float eyeOffMax = 8.f; // vr_flat_eye_fwd / vr_flat_eye_up: the eye of
 // drawn weapon and the shot's crosshair can never be measuring from different cameras.
 [[nodiscard]] bool viewIsHisOwn(const hands::State& s)
 {
-    if(chase_active.value)
+    if(chase_active.value || flattp::away()) // (the third-person camera out: vr_flattp.cpp)
     {
         return false;
     }
@@ -2455,6 +2456,7 @@ void init()
     flathit::init();   // vr_flat_hit_probe, vr_flat_hit_test (vr_flathit.cpp)
     flatxhair::init(); // vr_flat_xhair_probe (vr_flatxhair.cpp)
     flatspeedfov::init(); // vr_flat_speed_fov_test, _status (vr_flatspeedfov.cpp)
+    flattp::init(); // vr_flat_tp_toggle, _status, _test (vr_flattp.cpp)
     flataimsens::init(); // vr_flat_aim_sens_test, _status (vr_flataimsens.cpp)
     flatleanpose::init(); // vr_flatleanpose_test (vr_flatleanpose.cpp)
     flatsight::init(); // vr_flat_aim, the ironsight (vr_flatsight.cpp): registered either way, so a headset run can be
@@ -2476,6 +2478,7 @@ void frame()
     {
         flatsight::frame(); // the ironsight's key edge, and the eases; it resets itself when the mode is off
         flatspeedfov::frame(on); // the speed FOV's ease (vr_flat_speed_fov); gone at once when the mode is off
+        flattp::frame(on); // the third-person camera's field of view, its test (vr_flat_tp; vr_flattp.cpp)
         flathit::frame();   // a hit's punch of the view: this frame's part of it into the aim, before the pose reads the look
     }
     if(on && !frozen)
