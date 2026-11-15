@@ -1867,7 +1867,7 @@ void(entity targ, entity attacker, float take, float healthBefore) VR_BulletTime
 
 // Monster `m` provoked by `by` (a hit, or something done to it with no damage: a hit on its worn tank, a try at its
 // weapon): it notices (vr_oblivious off) and turns on `by` (FoundTarget: its sight sound, its group woken) unless it is
-// already after it, `by` is its charmer, or it is its own kind (but grunts). A player with notarget too: it saw what was
+// already after it, `by` is its charmer or removed (VR_AG_Freed), or it is its own kind (but grunts). A player with notarget too: it saw what was
 // done to it. T_DamageDeal's reaction to the damage (the original's "get mad").
 void(entity m, entity by) VR_Provoke =
 {
@@ -1876,7 +1876,8 @@ void(entity m, entity by) VR_Provoke =
         return;
     }
     m.vr_oblivious = 0; // QVR: oblivious until hurt (vr_oblivious): it notices you now
-    if(m == by || by == m.enemy || m.charmer == by)
+    // (or `by` removed outright, a shot of its still in flight: nobody to turn on, its freed edict at the map's origin)
+    if(m == by || by == m.enemy || m.charmer == by || VR_AG_Freed(by))
     {
         return;
     }
