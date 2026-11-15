@@ -2939,3 +2939,38 @@ Test aid: `vr_test_give_flags` (impulse 149's weapon flags; 3072 with id 13 give
 one-handed at the chest, the shotgun low at the belt; the off hand at the torch takes it, at the weapon's grip (or 60%
 along it) holds the weapon, the torch left on. Before 4/3 (the dagger, the chest and the belt cases at the torch);
 after 7/0. `mounted:9-10` (the two gun torso turns) 312 lit, 312 taken. Scenario `torch_otherweapon`.
+
+
+## base1115b: v1.1 full baseline on next, regressions triaged (agent/base1115, 2026-11-15)
+
+- **Baseline** (origin/next efdd5f0fb merged in, with this branch's earlier fixes, 4 lanes, 139 min): kit
+  `scratch/refactor/runs/20261114-base1115b` (results.tsv, logs/, `.cmp1/.cmp2.txt`): 290 PASS, 15 FAIL, 1 TIMEOUT
+  (11-14 run: 289/15/1; 11-13: 286/18/1). Fixed since 11-14: secret_hits, ragdoll_guard, limb_wear (this branch's
+  earlier commits). The previous worker's alone-rerun (`scratch/bx_rerun3`) gave no usable rows (every one 0 s FAIL,
+  games exiting 0xC0000142 while the tree was being merged and rebuilt under it).
+- **New not-PASS vs 11-14**, each re-run alone twice: agrunt_24, agrunt_206 (deterministic, fixed here), ragdoll_climb
+  (1 of 2: the backlog's known variance), arena_6 6/2 vs 7/1 ("the map grows no faster than a wave clear's drops": it
+  failed on 11-13 too). agrunt_48 and agrunt_74 (new on 11-14) still fail, deterministic, bisected on next.
+- **agrunt 206** (a knight takes a gun with vr_agknight_ranged_pickup 1): 220fc2240's cached row kept
+  vr_am_takes_ranged from its fill, so a change of vr_agknight_ranged_pickup / Ranged Knights in play went unseen
+  until another kind's row came in. The knights' rows now say VR_AM_TAKES_KNIGHTS and VR_AM_Takes reads both settings
+  at each use. 14/1 -> 15/0.
+- **agrunt 24** (a forced parry disarms): 8cbc17f9f's timing share used the stale vr_drp_ag_timing (0 before any
+  directional parry) for a test's forced parry, so every forced parry's stagger, push and disarm went to nothing
+  ("timing x0.00"). A forced parry (vr_parry_test_force) gets no timing cut. 1/1 -> 2/0; agrunt 78 (the timing test)
+  48/0, parryinterrupt and parry_pose still pass. (parrybalance/test.py, not in the baseline, fails its `pose` case:
+  the real-pose "raised just before" parry is not read as well timed; forced cases pass; not looked into.)
+- **Open: agrunt 48** (an axe grunt facing you holding an axe closes in): first bad 35feef651, the agent/navtrail
+  merge (613a3861c, vr_nav_trail). It stays 210-258 away, 0 s inside 64; with `vr_nav_trail 0` 18/0. Looks like
+  the trail walk taking over while it can see you: an AI fix, not test drift.
+- **Open: agrunt 74** (downtug 16/21): first bad 749e048b3, the agent/promstir merge (948d2c328: his
+  vr_knockdown_stir_rate 12). Setting vr_knockdown_stir 0 in the test (as c951e75c7 did for the stagger test)
+  did not bring it back, so that change was dropped; needs a look at what the stir rate does to a downed grunt's tug.
+## mrlvents: the multi-rocket launcher's vents are real recesses too (agent/mrlvents, 2026-11-15)
+
+- **What:** the rocket launcher's alt model `v_multi2.mdl` (`v_multi2.blend`) had the same painted vents with no holes. Same cut as rlvents,
+  scripted (`scratch/mv_vents.py`, not committed): each fin's rear end face is rebuilt as a rim around an opening traced from the dark
+  texels of its own skin (inset 0.28 units, 8 vertices at most, rim UVs the affine map of the old face's), a recess 2.0 deep on top and
+  1.5 on the sides along +x (the fins are straight), walls and back on a dark vent texel; new vertices follow the face in every shot frame.
+  Exported with `blend_export.py`: 935 -> 1027 triangles, anchors ok, holes check 0 see-through, 0 flipped; normal map re-baked,
+  `fx_gfx_mask` rewritten. Scene `mrl_vents`; load_models_test 4/4. Blender before/after: kit `scratch/mrlvents_shots/`.
