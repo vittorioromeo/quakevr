@@ -42,7 +42,8 @@ vr_embed_test    2        vr_embed_test.qc                 the pictures' scene: 
 vr_embed_test    3        vr_embed_test.qc                 the save's scene: the same plus one in a live grunt
 vr_embed_test    4        vr_embed_test.qc                 after the load: each still stuck where it was
 vr_embed_test    40       vr_dagger_test.qc                the dagger: a swing, a stab (less deep than the sword's), thrown at a wall and a grunt
-vr_embed_test    47       vr_throwpoint_test.qc            his 2026-11-15: thrown swords and daggers settle point first in the air (good throws more often, not all; bad throws and axes unchanged)
+vr_embed_test    47       vr_throwpoint_test.qc            his 2026-11-15: thrown swords and daggers settle point first in the air (good and VR-style overhand throws point first, spun ones stay a spin, extremes steady all; axes unchanged)
+vr_embed_test    48       vr_airskewer_test.qc             his 2026-11-15: a gib tossed up skewered in the air by a fast thrust (not a slow push, not a swing across; a hanging one the same)
 vr_embed_test    41       vr_throwgib_test.qc              his 2026-11-12: a running throw blade first (sword, dagger) kills a grunt whole, the blade deep in the body; Quad gibs; handle first unchanged
 vr_embed_test    42       vr_revgrip_test.qc               the reverse grip (his 2026-11-13): caught blade down reversed, blade up upright, force grab upright, the eject button's flip over frames, holstered and drawn kept, a reversed downward stab sticks, the hand on its handle as held
 vr_embed_test    43       vr_revgrip_test.qc               the pictures' scene: the dagger before your eyes upright, then reversed

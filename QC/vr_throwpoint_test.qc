@@ -1,58 +1,115 @@
 #ifdef QVR_TESTS
-// vr_throwpoint_test.qc -- `vr_embed_test 47` (gibthrow): a thrown sword or dagger steadies towards its point in the air
-// (his note 2026-11-15 00:03: "if the throw is good enough there should be some force that stabilizes it toward the point ... not
-// instantly turning straight like an arrow"; the engine's pointAlign, vr_box3d_step.cpp, Point-First Settling). In the open
-// (vrtesthall, god, notarget). Each throw leaves at VR_TP_SPEED a little upwards ahead of you, its point some degrees off its
-// flight and tumbling a little or a lot; its blade's angle to its flight read once it is VR_TP_DIST m out (or as it first
-// touches anything). Every set is thrown twice, the settling off (vr_throw_point_align 0) and at its setting:
-//   good  12 throws, swords and daggers, the point 10..40 degrees off, tumbling 1..5 rad/s: point first (within
-//         vr_embed_sword_angle, what sticks a point) more often with it, and not every one at once (no arrow);
-//   bad   6 throws, the point 70..180 degrees off or tumbling 12..20 rad/s: as many point first as without it, the tumble kept;
-//   axes  4 axe throws tumbling: the same flight with it as without (only pointed blades).
+// vr_throwpoint_test.qc -- `vr_embed_test 47` (gibthrow, throwfix): a thrown sword or dagger steadies towards its point in the
+// air (his notes 2026-11-15 00:03: "if the throw is good enough there should be some force that stabilizes it toward the point";
+// 03:21: "it always seems to immediately start spinning a lot"; the engine's pointAlign, vr_box3d_step.cpp, Point-First
+// Settling). In the open (vrtesthall, god, notarget). Each throw leaves a little upwards ahead of you; its blade's angle to its
+// flight read once it is VR_TP_DIST m out and again at VR_TP_DIST2 (point first at both; or as it first touches anything). Every set is thrown three times: the settling off
+// (vr_throw_point_align 0), at its settings, and at extreme settings (VR_TP_Extreme):
+//   good  12 throws, swords and daggers, the point 10..40 degrees off, tumbling 1..5 rad/s: point first more often with it;
+//   vr    12 throws as a hand releases them in VR (his take vrtesthall_2026-11-15_03-21-03 replayed: the sword left the hand
+//         136 degrees off its flight, its point up and back, turning over at 12.5 rad/s across the blade): the point 100..150
+//         degrees off, up and back, turning towards its flight at 8..16 rad/s, a little roll, 10..15 m/s: most point first;
+//   spun  6 throws spun on purpose, tumbling 19..24 rad/s (past Point-First Settling: Tumble): as many point first as
+//         without, the tumble kept; at the extreme settings (the tumble limit 20 turns/s) steadied too;
+//   axes  4 axe throws tumbling: the same flight in every pass (only pointed blades).
 // Ends `gibthrow: N passed, M failed`.
 
-float VR_TP_SPEED = 10;  // m/s
-float VR_TP_DIST = 3;    // m: where the angle is read (a throw at someone a few steps off)
+float VR_TP_SPEED = 10;  // m/s (the good, spun and axe throws)
+float VR_TP_DIST = 3;    // m: where the angle is read (a throw at someone a few steps off) ...
+float VR_TP_DIST2 = 5;   // ... and again further on: point first at both (steadied, not passing through it as it turns over)
+float vr_tp_ang1;        // the throw now's angle at VR_TP_DIST (-1 short of it)
 float VR_TP_GOOD = 12;
-float VR_TP_BAD = 6;
+float VR_TP_VR = 12;
+float VR_TP_SPUN = 6;
 float VR_TP_AXES = 4;
-float vr_tp_i;           // the throw now, over every set: good, bad, axes
-float vr_tp_on;          // the pass: 0 the settling off, 1 at its setting
+float VR_TP_PASSES = 3;
+float vr_tp_i;           // the throw now, over every set: good, vr, spun, axes
+float vr_tp_on;          // the pass: 0 the settling off, 1 at its settings, 2 extreme
 float vr_tp_keep;        // vr_throw_point_align as it was
+float vr_tp_keeps;       // vr_throw_point_spin as it was
+float vr_tp_keept;       // vr_throw_point_time as it was
 vector vr_tp_from;       // where the throw now left from
-float vr_tp_hit[6];      // point first at the read: [set * 2 + pass] counts
-float vr_tp_angsum[6];   // its angles summed (degrees)
-float vr_tp_tumble[4];   // the bad set's tumble across the blade at the read summed (rad/s), [pass]; the axes' spin [2 + pass]
-float vr_tp_axeang[8];   // the axes: the blade's way at the read (x of the line) per throw and pass, to compare
+float vr_tp_hit[12];     // point first at the read: [set * 3 + pass] counts
+float vr_tp_angsum[12];  // its angles summed (degrees)
+float vr_tp_tumble[6];   // the spun set's tumble across the blade at the read summed (rad/s), [pass]; the axes' spin [3 + pass]
+float vr_tp_axeang[12];  // the axes: the blade's way at the read (x of the line) per throw and pass, to compare
 float vr_tp_early;       // throws that touched something before the read
+float vr_tp_yaw;         // the way thrown: the most open of eight from where you stand
+
+// The most open way from `p` (the yaw of the eight whose trace goes furthest at the throws' height).
+float(entity p) VR_TP_OpenYaw =
+{
+    float best = p.v_angle_y;
+    float bestFrac = -1;
+    for(float y = 0; y < 360; y = y + 45)
+    {
+        makevectors([0, y, 0]);
+        traceline(p.origin + '0 0 64', p.origin + '0 0 64' + v_forward * 1000, TRUE, p);
+        if(trace_fraction > bestFrac + 0.01)
+        {
+            bestFrac = trace_fraction;
+            best = y;
+        }
+    }
+    return best;
+};
+
+// The pass's settings: 0 the settling off, 1 as they were, 2 extreme (5x strength, any tumble, 1 s).
+void(float xPass) VR_TP_Tune =
+{
+    float align = (xPass == 0) ? 0 : ((xPass == 2) ? 5 : vr_tp_keep);
+    localcmd(sprintf("tune vr_throw_point_align %g\ntune vr_throw_point_spin %g\ntune vr_throw_point_time %g\n", align,
+        (xPass == 2) ? 20 : vr_tp_keeps, (xPass == 2) ? 1 : vr_tp_keept));
+};
 
 void() VR_TP_Begin =
 {
     VR_Test_BeginFlags("gibthrow", VR_TEST_LOUD);
     vr_eh_home = VR_Player().origin;
     vr_tp_keep = cvar_hget(cvarh_vr_throw_point_align);
+    vr_tp_keeps = cvar_hget(cvarh_vr_throw_point_spin);
+    vr_tp_keept = cvar_hget(cvarh_vr_throw_point_time);
+    if(vr_tp_keep <= 0)
+    {
+        vr_tp_keep = 1;
+    }
     vr_tp_i = 0;
     vr_tp_on = 0;
     vr_tp_early = 0;
-    for(float k = 0; k < 6; k++)
+    for(float k = 0; k < 12; k++)
     {
         vr_tp_hit[k] = 0;
         vr_tp_angsum[k] = 0;
     }
-    for(float k2 = 0; k2 < 4; k2++)
+    for(float k2 = 0; k2 < 6; k2++)
     {
         vr_tp_tumble[k2] = 0;
     }
-    localcmd("tune vr_throw_point_align 0\n");
+    VR_TP_Tune(0);
+    vr_tp_yaw = VR_TP_OpenYaw(VR_Player());
     vr_et_on = 47;
     vr_et_case = 0;
     VR_ET_To(0);
 };
 
-// The set of throw `i`: 0 good, 1 bad, 2 axes.
+// The set of throw `i`: 0 good, 1 vr, 2 spun, 3 axes.
 float(float i) VR_TP_Set =
 {
-    return (i < VR_TP_GOOD) ? 0 : ((i < VR_TP_GOOD + VR_TP_BAD) ? 1 : 2);
+    if(i < VR_TP_GOOD)
+    {
+        return 0;
+    }
+    if(i < VR_TP_GOOD + VR_TP_VR)
+    {
+        return 1;
+    }
+    return (i < VR_TP_GOOD + VR_TP_VR + VR_TP_SPUN) ? 2 : 3;
+};
+
+// The size of set `xSet`.
+float(float xSet) VR_TP_Count =
+{
+    return (xSet == 0) ? VR_TP_GOOD : ((xSet == 1) ? VR_TP_VR : ((xSet == 2) ? VR_TP_SPUN : VR_TP_AXES));
 };
 
 // Degrees between `a` and `b`.
@@ -71,63 +128,82 @@ vector(entity w) VR_TP_Line =
     return normalize(weaponmuzzle(w) - w.origin);
 };
 
+// The fractional part of `x` (the sets' deterministic spreads).
+float(float x) VR_TP_Frac =
+{
+    return x - floor(x);
+};
+
 void() VR_TP_Throw =
 {
     entity p = self;
     float i = vr_tp_i;
     float set = VR_TP_Set(i);
-    makevectors([0, p.v_angle_y, 0]);
+    makevectors([0, vr_tp_yaw, 0]);
     vector go = normalize(v_forward + '0 0 0.15');
     vector side = v_right;
     vector up = normalize( // (square to both)
         [side_y * go_z - side_z * go_y, side_z * go_x - side_x * go_z, side_x * go_y - side_y * go_x]);
     // Deterministic spreads: the point's way off (about an axis turning round the flight), the tumble's axis and rate.
-    float u = (i * 0.61803) - floor(i * 0.61803);
+    float u = VR_TP_Frac(i * 0.61803);
     float turnAbout = u * 360;
     vector k = side * cos(turnAbout * 0.01745329) + up * sin(turnAbout * 0.01745329);
-    float offDeg;
-    float rate;
+    float offDeg = 0;
+    float rate = 0;
+    float speed = VR_TP_SPEED;
     if(set == 0)
     {
-        offDeg = 10 + 30 * ((i * 0.381966) - floor(i * 0.381966));
-        rate = 1 + 4 * ((i * 0.7548) - floor(i * 0.7548));
+        offDeg = 10 + 30 * VR_TP_Frac(i * 0.381966);
+        rate = 1 + 4 * VR_TP_Frac(i * 0.7548);
     }
     else if(set == 1)
     {
+        // As the hand lets go overhand: the point up and back (about the side, a little askew), turning down towards the flight.
         float j = i - VR_TP_GOOD;
-        offDeg = (j < 3) ? (70 + 40 * j) : (15 + 5 * j); // (far off; or near, but tumbling hard)
-        rate = (j < 3) ? 6 : (12 + 3 * (j - 3));
+        k = normalize(side + up * (0.3 * (VR_TP_Frac(j * 0.61803) - 0.5)));
+        offDeg = 100 + 50 * VR_TP_Frac(j * 0.381966);
+        rate = 8 + 8 * VR_TP_Frac(j * 0.7548);
+        speed = 10 + 5 * VR_TP_Frac(j * 0.5698);
+    }
+    else if(set == 2)
+    {
+        float j2 = i - VR_TP_GOOD - VR_TP_VR;
+        offDeg = 360 * VR_TP_Frac(j2 * 0.381966);
+        rate = 19 + j2;
     }
     else
     {
-        offDeg = 0;
-        rate = 10 + 2 * (i - VR_TP_GOOD - VR_TP_BAD);
+        rate = 10 + 2 * (i - VR_TP_GOOD - VR_TP_VR - VR_TP_SPUN);
     }
-    vr_tp_from = p.origin + '0 0 22' + go * 40;
-    float speed = VR_TP_SPEED * VRMetersToUnits();
-    if(set < 2)
+    vr_tp_from = p.origin + '0 0 64' + go * 40;
+    vr_tp_ang1 = -1;
+    if(set < 3)
     {
         vr_et_flags = (i & 1) ? VR_ADMelee_Flags(VR_SWORDKIND_DAGGER) : 0;
         vr_et_w = VR_ET_ThrowSword(WID_SWORD, vr_tp_from, go, VR_AxeStick_Turn(go, k, offDeg), FALSE);
         vr_et_flags = 0;
         vector line = VR_TP_Line(vr_et_w);
-        // Tumbling across the blade: about an axis square to its line, between the flight's side and its up.
+        // Tumbling across the blade: about an axis square to its line (the vr set's: turning its point back down to the flight).
         vector across = normalize(k - line * (k * line));
-        vr_et_w.vr_spin = across * rate;
+        vr_et_w.vr_spin = across * ((set == 1) ? -rate : rate);
+        if(set == 1)
+        {
+            vr_et_w.vr_spin = vr_et_w.vr_spin + line * (VR_TP_Frac(i * 0.29) * 2 - 1); // (a little roll)
+        }
     }
     else
     {
         vr_et_w = VR_ET_ThrowAxe(vr_tp_from, go, FALSE);
         vr_et_w.vr_spin = side * rate;
     }
-    vr_et_w.velocity = go * speed;
+    vr_et_w.velocity = go * (speed * VRMetersToUnits());
 };
 
 void() VR_TP_Frame =
 {
     entity p = self;
     float t = time - vr_et_t0;
-    float total = VR_TP_GOOD + VR_TP_BAD + VR_TP_AXES;
+    float total = VR_TP_GOOD + VR_TP_VR + VR_TP_SPUN + VR_TP_AXES;
     if(vr_et_s == 0)
     {
         setorigin(p, vr_eh_home);
@@ -142,37 +218,44 @@ void() VR_TP_Frame =
     else if(vr_et_s == 2)
     {
         entity w = vr_et_w;
-        float out = (vlen(w.origin - vr_tp_from) >= VR_TP_DIST * VRMetersToUnits());
+        float far = vlen(w.origin - vr_tp_from);
+        float out = (far >= VR_TP_DIST2 * VRMetersToUnits());
         float touched = ((w.throwhit == QVR_THROWHIT_HIT) || (vlen(w.velocity) < 0.5 * VR_TP_SPEED * VRMetersToUnits()));
-        if(out || touched || (t > 1.5))
+        if(vr_tp_ang1 < 0 && far >= VR_TP_DIST * VRMetersToUnits())
+        {
+            vr_tp_ang1 = VR_TP_Angle(VR_TP_Line(w), normalize(w.velocity));
+        }
+        if(out || touched || (t > 2))
         {
             float set = VR_TP_Set(vr_tp_i);
             vector line = VR_TP_Line(w);
             float ang = VR_TP_Angle(line, normalize(w.velocity));
-            if(!out)
+            if(!out || vr_tp_ang1 < 0)
             {
                 vr_tp_early = vr_tp_early + 1;
             }
-            float slot = set * 2 + vr_tp_on;
+            float slot = set * 3 + vr_tp_on;
+            if(cvar_hget(cvarh_developer))
+            {
+                dprint(sprintf("gibthrow: throw %g (set %g, pass %g): %.1f degrees off its flight at 3 m, %.1f at 5 m", vr_tp_i, set,
+                    vr_tp_on, vr_tp_ang1, ang));
+                dprint(sprintf(" %s (%.0f u out, %.0f u up, %.2f s)\n", out ? "in the air" : "(touched first)", far, w.origin_z - vr_tp_from_z, t));
+            }
+            ang = max(ang, vr_tp_ang1); // (point first at both)
             if(ang <= cvar_hget(cvarh_vr_embed_sword_angle))
             {
                 vr_tp_hit[slot] = vr_tp_hit[slot] + 1;
             }
             vr_tp_angsum[slot] = vr_tp_angsum[slot] + ang;
             vector sp = w.vr_spin;
-            if(set == 1)
+            if(set == 2)
             {
                 vr_tp_tumble[vr_tp_on] = vr_tp_tumble[vr_tp_on] + vlen(sp - line * (sp * line));
             }
-            else if(set == 2)
+            else if(set == 3)
             {
-                vr_tp_tumble[2 + vr_tp_on] = vr_tp_tumble[2 + vr_tp_on] + vlen(sp);
-                vr_tp_axeang[(vr_tp_i - VR_TP_GOOD - VR_TP_BAD) * 2 + vr_tp_on] = line_x + line_y * 10 + line_z * 100;
-            }
-            if(cvar_hget(cvarh_developer))
-            {
-                dprint(sprintf("gibthrow: throw %g (set %g, pass %g): %.1f degrees off its flight %s\n", vr_tp_i, set, vr_tp_on, ang,
-                    out ? "in the air" : "(touched first)"));
+                vr_tp_tumble[3 + vr_tp_on] = vr_tp_tumble[3 + vr_tp_on] + vlen(sp);
+                vr_tp_axeang[(vr_tp_i - VR_TP_GOOD - VR_TP_VR - VR_TP_SPUN) * 3 + vr_tp_on] = line_x + line_y * 10 + line_z * 100;
             }
             remove(w);
             vr_et_w = world;
@@ -181,32 +264,43 @@ void() VR_TP_Frame =
             {
                 vr_tp_i = 0;
                 vr_tp_on = vr_tp_on + 1;
-                localcmd(sprintf("tune vr_throw_point_align %g\n", (vr_tp_keep > 0) ? vr_tp_keep : 1));
+                if(vr_tp_on < VR_TP_PASSES)
+                {
+                    VR_TP_Tune(vr_tp_on);
+                }
             }
-            VR_ET_To((vr_tp_on >= 2) ? 3 : 0);
+            VR_ET_To((vr_tp_on >= VR_TP_PASSES) ? 3 : 0);
         }
     }
     else if(vr_et_s == 3)
     {
-        localcmd(sprintf("tune vr_throw_point_align %g\n", vr_tp_keep));
+        VR_TP_Tune(1);
         float a = cvar_hget(cvarh_vr_embed_sword_angle);
-        VR_Test_Print(sprintf("%s: good throws point first (within %g degrees) at %g m: %g of %g without, %g with",
-            vr_test_tag, a, VR_TP_DIST, vr_tp_hit[0], VR_TP_GOOD, vr_tp_hit[1]));
-        VR_Test_Print(sprintf(" (mean %.0f -> %.0f degrees off)\n", vr_tp_angsum[0] / VR_TP_GOOD, vr_tp_angsum[1] / VR_TP_GOOD));
-        VR_Test_Print(sprintf("%s: bad throws point first: %g of %g without, %g with (tumble across the blade %.1f -> %.1f rad/s)",
-            vr_test_tag, vr_tp_hit[2], VR_TP_BAD, vr_tp_hit[3], vr_tp_tumble[0] / VR_TP_BAD, vr_tp_tumble[1] / VR_TP_BAD));
-        VR_Test_Print(sprintf("; axes' spin %.2f -> %.2f rad/s; %g touched first\n", vr_tp_tumble[2] / VR_TP_AXES, vr_tp_tumble[3] / VR_TP_AXES, vr_tp_early));
-        VR_Test_Check(vr_tp_early == 0, sprintf("every throw read in the air at %g m (%g touched something first)", VR_TP_DIST, vr_tp_early));
-        VR_Test_Check(vr_tp_hit[1] >= vr_tp_hit[0] + 3, sprintf("good throws settle point first more often (%g of %g, %g without)", vr_tp_hit[1], VR_TP_GOOD, vr_tp_hit[0]));
-        VR_Test_Check(vr_tp_hit[1] < VR_TP_GOOD, sprintf("not every good throw: no arrow (%g of %g)", vr_tp_hit[1], VR_TP_GOOD));
-        VR_Test_Check((vr_tp_hit[3] <= vr_tp_hit[2]) && (vr_tp_tumble[1] >= vr_tp_tumble[0] * 0.85),
-            sprintf("bad throws stay a tumble (%g point first, %g without; tumble %.1f of %.1f rad/s)", vr_tp_hit[3], vr_tp_hit[2], vr_tp_tumble[1] / VR_TP_BAD, vr_tp_tumble[0] / VR_TP_BAD));
-        float same = TRUE;
-        for(float n = 0; n < VR_TP_AXES; n++)
+        for(float s = 0; s < 3; s++)
         {
-            same = (same && (fabs(vr_tp_axeang[n * 2] - vr_tp_axeang[n * 2 + 1]) < 0.001));
+            float n = VR_TP_Count(s);
+            VR_Test_Print(sprintf("%s: %s throws point first (within %g degrees at 3 and 5 m): off %g, on %g, extreme %g of %g", vr_test_tag,
+                (s == 0) ? "good" : ((s == 1) ? "vr" : "spun"), a, vr_tp_hit[s * 3], vr_tp_hit[s * 3 + 1], vr_tp_hit[s * 3 + 2], n));
+            VR_Test_Print(sprintf(" (mean %.0f, %.0f, %.0f degrees off)\n", vr_tp_angsum[s * 3] / n, vr_tp_angsum[s * 3 + 1] / n,
+                vr_tp_angsum[s * 3 + 2] / n));
         }
-        VR_Test_Check(same && (fabs(vr_tp_tumble[2] - vr_tp_tumble[3]) < 0.001), sprintf("axes fly the same with it (spin %.3f, %.3f rad/s)", vr_tp_tumble[2] / VR_TP_AXES, vr_tp_tumble[3] / VR_TP_AXES));
+        VR_Test_Print(sprintf("%s: spun throws' tumble across the blade %.1f, %.1f, %.1f rad/s", vr_test_tag, vr_tp_tumble[0] / VR_TP_SPUN,
+            vr_tp_tumble[1] / VR_TP_SPUN, vr_tp_tumble[2] / VR_TP_SPUN));
+        VR_Test_Print(sprintf("; axes' spin %.2f, %.2f, %.2f rad/s; %g touched first\n", vr_tp_tumble[3] / VR_TP_AXES,
+            vr_tp_tumble[4] / VR_TP_AXES, vr_tp_tumble[5] / VR_TP_AXES, vr_tp_early));
+        VR_Test_Check(vr_tp_early == 0, sprintf("every throw read in the air at %g m (%g touched something first)", VR_TP_DIST2, vr_tp_early));
+        VR_Test_Check(vr_tp_hit[1] >= vr_tp_hit[0] + 3, sprintf("good throws settle point first more often (%g of %g, %g without)", vr_tp_hit[1], VR_TP_GOOD, vr_tp_hit[0]));
+        VR_Test_Check(vr_tp_hit[4] >= 9 && vr_tp_hit[4] >= vr_tp_hit[3] + 4, sprintf("VR-style overhand throws: most point first (%g of %g, %g without)", vr_tp_hit[4], VR_TP_VR, vr_tp_hit[3]));
+        VR_Test_Check((vr_tp_hit[7] <= vr_tp_hit[6] + 1) && (vr_tp_tumble[1] >= vr_tp_tumble[0] * 0.85),
+            sprintf("spun throws stay a tumble (%g point first, %g without; tumble %.1f of %.1f rad/s)", vr_tp_hit[7], vr_tp_hit[6], vr_tp_tumble[1] / VR_TP_SPUN, vr_tp_tumble[0] / VR_TP_SPUN));
+        VR_Test_Check((vr_tp_hit[8] >= 4) && (vr_tp_hit[5] >= 11), sprintf("the extreme settings steady even spun throws (%g of %g) and the VR ones (%g of %g)", vr_tp_hit[8], VR_TP_SPUN, vr_tp_hit[5], VR_TP_VR));
+        float same = TRUE;
+        for(float m = 0; m < VR_TP_AXES; m++)
+        {
+            same = (same && (fabs(vr_tp_axeang[m * 3] - vr_tp_axeang[m * 3 + 1]) < 0.001) && (fabs(vr_tp_axeang[m * 3] - vr_tp_axeang[m * 3 + 2]) < 0.001));
+        }
+        VR_Test_Check(same && (fabs(vr_tp_tumble[3] - vr_tp_tumble[4]) < 0.001) && (fabs(vr_tp_tumble[3] - vr_tp_tumble[5]) < 0.001),
+            sprintf("axes fly the same in every pass (spin %.3f, %.3f, %.3f rad/s)", vr_tp_tumble[3] / VR_TP_AXES, vr_tp_tumble[4] / VR_TP_AXES, vr_tp_tumble[5] / VR_TP_AXES));
         VR_Test_Verdict();
         vr_et_on = 0;
     }

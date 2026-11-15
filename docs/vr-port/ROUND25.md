@@ -3109,6 +3109,47 @@ thumb up but put the knuckles in. The right answer is neither: no turn at all re
 
 MRL (slot 14, v_multi2.mdl) now holds no offset keys of its own: it inherits the rocket launcher (slot 6) for the ammo screen (wpntxt_*), button (wpnbtn_*), finger/hand_*, grips (x/y/z/pitch/yaw, 2h_*), hotspot and muzzle; only id, inherit and its fx_* shot effects stay. His config had no vr_wofs values for either slot. 52 ticked lines retired from checklist.txt (those he spoke of at 03:xx kept); 19 scenes only they used moved out (kept any still named by code, docs, or other lines). No flat screenshot taken.
 
+## throwfix: thrown blades really come round point first; a thrown gib skewered in the air (agent/throwfix, 2026-11-15)
+
+His notes (vrtesthall_2026-11-15_03-19-26, _03-21-03): the point-first throw "doesn't seem to work at all ... it always seems to
+immediately start spinning a lot"; tweakables "that can go to extreme levels". A gib pulled off the blade and thrown can be hit
+and shot but not skewered again in the air.
+
+**Why nothing happened.** Replaying his take (`vr_motion_play` of the _03-21-03 replay, `vr_debug_box3d 1`: pointAlign now prints
+each pointed blade's flight every 0.05 s) the sword left the hand 136 degrees off its flight (its point up and back, as any
+overhand release has it) tumbling at 12.5 rad/s across the blade; his recorded releases show the controller at 10-22 rad/s. The
+gates (45 degrees, none past 1.5 turns/s = 9.4 rad/s) shut pointAlign out of every real throw; only near point-first, calm,
+synthetic throws were helped.
+
+**Now** (vr_box3d_step.cpp `pointAlign`): the gates are the release's (Slot `flightOff`, `flightTumble`) and wide: any angle
+(`vr_throw_point_angle` 180), the whole help up to half of `vr_throw_point_spin` (3 turns/s; none from it: a throw spun on purpose
+near Max Spin stays a spin). A damped spring turns the line to its flight: 400/s^2 per radian times Point-First Settling (about
+0.15 s to come round), damped critically (`vr_throw_point_damp` 1, new: the release's tumble across the blade taken out as it
+comes round; less swings past and back, more kills the spin first), at most 600 rad/s^2 times the strength, times speed (3-8 m/s)
+and a fade over `vr_throw_point_time` (0.5, was 0.3: the residual tumble gone before it lets go). spinAlign waits while it acts.
+Ranges to extremes: strength 0-5 (50), Time to 2 s (10), Angle to 180, Tumble to 10 turns/s (50), Spin Damping 0-3 (20).
+His replayed throw: 95 deg off at 0.04 s, 25 at 0.14, 10 at 0.19, 2 from 0.29 s on (tumble 0.4 rad/s left); before: 8 deg only
+in passing at 0.19 s, 55 at 0.29 and tumbling on at 11.4 rad/s.
+
+Test `vr_embed_test 47` (extended; `gibthrow: 6 passed, 0 failed`): thrown from higher (0 0 64) the most open of eight ways, read
+at 3 m and again at 5 m (point first at both: steadied, not passing through it as it turns over), three passes: off, default,
+extreme (strength 5, Tumble 20, Time 1). Point first (within vr_embed_sword_angle 35), off / default / extreme:
+- good (10-40 deg off, 1-5 rad/s): before 1 / 9 / 11 of 12, now 1 / 12 / 12;
+- VR-style overhand (100-150 deg off, point up and back, 8-16 rad/s towards the flight, a little roll, 10-15 m/s): before
+  1 / 1 / 11 of 12, now 1 / 12 / 12 (mean 79 -> 10 deg);
+- spun on purpose (19-24 rad/s): 0 / 0 / 6 of 6 (tumble kept 17.6 of 17.6 rad/s at default; 1.4 at extreme);
+- axes: identical in every pass (11.28 rad/s).
+
+**The gib in the air** (vr_skewer.qc `VR_Skewer_AirTarget`): a gib thrown hard is the thrower's for its throw (VR_Carry_Throw:
+owner), and VR_Blow_Strikable passes it, so the sweep never dealt the sword's blow on it (a blade-thrust touch defers to the
+blow: VR_Gib_Struck). Now the sweep also takes such a gib when the blade is driven along its line at it (VR_Skewer_Thrust,
+VR_Skewer_Can), and VR_Melee_Deal skewers it by the loose gib's rules (a stab, its line within vr_embed_stab_angle, by its tip,
+through it); a blow that doesn't skewer it leaves it be (no burst: as before). Skewered, its throw is over (owner, carry_thrown,
+vr_throw_self cleared). Test `vr_embed_test 48` (QC/vr_airskewer_test.qc, `airskewer: 4 passed, 0 failed`): the sword in the
+mock hand, a gib thrown hard (his) met near the top of its rise: a 5 m/s thrust puts it on, a 0.6 m/s push or a 5 m/s swing
+across doesn't, a hanging gib the same. Open: the test passes on the old code too (the gib's ownership seems to end before the
+thrust in the mock: its touch of the hand or its throw's grace); the case he hit is not reproduced headless, the fix covers the
+owned window. Case 3 (the hanging gib) failed once in five runs (the mock's thrust; seen on the old code too).
 ## pdisarm: the player disarmed by the armed humanoids' own rules (agent/pdisarm, 2026-11-15)
 
 His voice note (e1m1 2026-11-15 03:28): players get disarmed by precise shots and melee hits on their gun or hand, "using
