@@ -8411,6 +8411,7 @@ vr_stealth_light_force|2|Stealth AI Tests|Force the Light on You|Advanced VR Opt
 |1|Flat Keys|Shove|Advanced VR Options > Movement > Locomotion > Flat Keys > Shove
 |1|Flat Keys|Punch|Advanced VR Options > Movement > Locomotion > Flat Keys > Punch
 |1|Flat Keys|Reload|Advanced VR Options > Movement > Locomotion > Flat Keys > Reload
+|1|Flat Keys|Next Ammo Type|Advanced VR Options > Movement > Locomotion > Flat Keys > Next Ammo Type
 |1|Flat Keys|Drop|Advanced VR Options > Movement > Locomotion > Flat Keys > Drop
 |1|Flat Keys|Quick Grenade|Advanced VR Options > Movement > Locomotion > Flat Keys > Quick Grenade
 |1|Flat Keys|Bullet Time|Advanced VR Options > Movement > Locomotion > Flat Keys > Bullet Time

@@ -7320,6 +7320,9 @@ QVR_KEY(vr_flat_key_grab, "Force Grab", "The key that force-grabs what the view 
 QVR_KEY(vr_flat_key_shove, "Shove", "The key that shoves: an open hand pushed out in front of you.")
 QVR_KEY(vr_flat_key_punch, "Punch", "The key that punches with the right hand (the fire buttons punch too).")
 QVR_KEY(vr_flat_key_reload, "Reload", "The key that reloads every gun that has room in its clip.")
+QVR_KEY(vr_flat_key_ammo, "Next Ammo Type", "The key that switches the main hand's weapon to its other ammo (the rocket and "
+    "grenade launchers' multi-rockets and -grenades, the thunderbolt's...), as the headset's weapon button. Not with the toolgun "
+    "in hand.")
 QVR_KEY(vr_flat_key_drop, "Drop", "The key that lets go of what a hand holds (the off hand first).")
 QVR_KEY(vr_flat_key_grenade, "Quick Grenade", "The key that takes a grenade from the back pouch into a free hand.")
 QVR_KEY(vr_flat_key_bullettime, "Bullet Time", "The key that starts and stops bullet time.")
