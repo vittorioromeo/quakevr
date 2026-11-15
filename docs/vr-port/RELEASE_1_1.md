@@ -9,11 +9,11 @@ far are [RELEASE_TODO.md](RELEASE_TODO.md). Nothing was pushed, tagged or publis
 - [ ] **Your VR pass:** the in-game checklist (VR menu > Checklist: 71 items in 10 sections, flat-screen first; 50
   with a Test button). At least sections 4-10 (the headset's).
 - [ ] **Confirm the shipped defaults** (section 2 below): the Run Setup's (Style Unleashed, Gore My Settings, Armed
-  Humanoids and Smarter AI As Style, Shotgun and Axe, every mutator Off, Enemy Count 1x) and two Menu Look values your
-  config changes (Big Menu Highlight 1, shipped 2; Shortcut Group Gap 6, shipped 5): promote them or keep the shipped.
-  Also `vr_flat_chest_down` (shipped 0.3, yours 0; BACKLOG.md section 2).
-- [ ] **Release notes:** read `RELEASE_NOTES_1.1.md` (brought up to 11-14 in this audit), edit, delete its DRAFT
-  comment.
+  Humanoids and Smarter AI As Style, Shotgun and Axe, every mutator Off, Enemy Count 1x). (11-15, rcbase: the two Menu
+  Look values are promoted, Big Menu Highlight 1 and Shortcut Group Gap 6, in 4a349e2ee; `vr_flat_chest_down` is a
+  tunable shipped at 0, his value: both done.)
+- [ ] **Release notes:** read `RELEASE_NOTES_1.1.md` (brought up to 11-14 in this audit, 11-15 by rcbase), edit,
+  delete its DRAFT comment (`-Publish` refuses the notes until then, a prerelease too).
 - [ ] **The installer's settings page:** rows, order, labels (BACKLOG.md section 2).
 - [ ] **Installer UI:** `Misc\release\make_release.ps1 -Local -RunInstaller` (a fresh install, then an update over a
   1.0.1 install); start once from your own 1.0.1 or beta config; `-flatscreenmode` and play a map.

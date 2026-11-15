@@ -21,7 +21,6 @@ Installer: install into a fresh folder and pick Snap 45, Left-handed and Medium 
 [4. VR: body and gear]
 
 [5. VR: melee and embedded blades]
-Flip the dagger blade down (B or Y) and close your other hand on its two-handed hotspot: the hotspot is still shown (Show Hotspots) and you hold it two-handed, blade still down; tune that hand under Weapon Offsets > Hand > Reversed 2H Hand X..Roll if it looks off. {test:flipgrip}
 With a gib on your sword taken in your free hand, pull it off the tip (or tug it off): once off the blade the hand stays on the gib's surface where it held it, the gib no longer floating off the hand. {test:skewer_grip}
 Throw a sword or a dagger roughly point first at a grunt a few steps off: it steadies towards its point in the first few tenths of a second (not straight like an arrow) and sticks more often; a tumbling or badly aimed throw still tumbles, an axe flies as before. {test:throw_point}
 First set the dagger's Reversed X and Z back to 0 (Weapon Offsets > Hand > Reverse Grip): the flip now turns the blade about your fist's own middle, so flip the dagger and the knight's sword blade down (B or Y) and check the fist stays where it was on the handle with no per-sword tweaks, the thumb wrapped. {test:flipgrip}
@@ -39,7 +38,7 @@ A knight's sword or an ogre's chainsaw landing on your weapon held at the wrong 
 
 [8. VR: the hub]
 
-[9. VR: Survival Arena (Play > Survival Arena)]
+[9. VR: Survival Arena (Select Campaign > Arena Mode)]
 Play the arena a while: it feels good and each new wave starts without a hitch; note anything to improve. {test:arena_run}
 Survival Arena from wave 6 (Normal): grunts and enforcers bring the heavy revolver, burst rifle, laser rifle, the knights' swords, chainsaw, Mjolnir and the Super Axe, each first on one foe at its wave; their drops are yours to fire. {test:arena_newguns}
 Survival Arena with Arcane Dimensions' data: from wave 11 (Normal) the waves also bring AD's soldiers' guns, the Widowmaker, Shadow Axe and Plasma Gun, and AD's swords, hammer and mace.

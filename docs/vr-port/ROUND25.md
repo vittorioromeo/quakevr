@@ -3615,3 +3615,23 @@ the same exact rules" as enemies; an option, on by default, single player and mu
   way and its time (`bitMantle`). New scenario `mp_predictclimb` (`--part mantle`): 19 mantling states, corrections
   0.000 over 285, at rest where the server has him. QVR_NET_VERSION 25.
 - Checks: mp suite 28 of 29 (mp_ground's sword retake flake: the sword lands out of B's reach, seen on the old engine too), mp_predictclimb 8/0, mp_disarm 35/0 --listen, mantle_height_test PASS, prop_climb_test 12/0, scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0, Release ThinLTO 0 warnings. Next: B8i (the hang in the moves, the grapple's pull, the hands' climb out; MP_PLAN).
+## rcbase: 1.1 RC readiness, full baseline on next (agent/rcbase, 2026-11-15)
+
+- **Baseline** (`run_baseline.py --groups suite,agrunt,console,scripts --jobs 4`, next d137c1f7d, 104.6 min, runs/
+  20261115-rcbase): 295 PASS / 9 FAIL / 1 TIMEOUT of 305, against base1115b's 290/15/1 (with eval) and 11-14's 289/15/1.
+  No new failure: settings_page, agrunt 24, 48, 74, 206 and ragdoll_climb now pass; ragdoll_ragtest (flaky list) failed
+  once, then 1 of 2 alone (the `ledge` catch). Still failing, as in both earlier runs: vrtrailer, teleporters_chase,
+  agrunt 3, 16, 92 (2 of 2 alone: "two 6", torn away after 0.81 s), arena_6, arena_10 (timeout), rigstudio_posekeys,
+  ragdoll_stagger.
+- **agrunt 24 / 206:** pass in the baseline and 2 of 2 alone. **crate_grip_test.sh:** 2 of 3 (the failing run's
+  close_fit sampled 0 frames: the main hand held entity 271 and the off hand 283, two different props; a test-isolation
+  flake, not looked into further).
+- **`vr_embed_test 21`** (43/1, "a slow swing to the wall": burst 17.4 units on at 3.2 m/s, VR_Skewer_Impact): the
+  same on c94b2b300 (11-14, before every merge of the day), as in the 11-12 notes above: not a regression. After
+  merging throwfix: 21 43/1, 34 15/0, 47 6/0, 48 4/0.
+- **Builds:** dev 0 warnings; ReleaseLTO `-p:QvrReleaseVersion=1.1.0` 0 warnings (before and after throwfix).
+- **Release notes:** today's features added (grip flip, player disarm, parry timing, third-person camera, flat zoom
+  guns, ranger head, page resets, palm grab and torso torch, point-first throws and the air skewer); stale lines fixed
+  (Run Setup's Bloody Nightmare, AD's Experimental header). RELEASE_1_1.md: Menu Look and `vr_flat_chest_down` done.
+- **Defaults** since the audit (c94b2b300): 4 changed (his Menu Look pair, the ranger head's size and side), 25 new,
+  no debug or test switch on by default, no personal setting promoted.

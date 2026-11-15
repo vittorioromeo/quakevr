@@ -1,4 +1,4 @@
-<!-- DRAFT 2026-11-08 (release pass), brought up to 2026-11-14 (release audit: ROUND25.md): full 1.1.0 notes since 1.0.1, from the beta1-4 notes, ROUND23.md to ROUND25.md.
+<!-- DRAFT 2026-11-08 (release pass), brought up to 2026-11-14 (release audit: ROUND25.md) and 2026-11-15 (rcbase: grip flip, player disarm, parry timing, third-person camera, ranger head, page resets, Run Setup without Bloody Nightmare): full 1.1.0 notes since 1.0.1, from the beta1-4 notes, ROUND23.md to ROUND25.md.
 Edit, then pass with make_release.ps1 -Notes docs/vr-port/RELEASE_NOTES_1.1.md (the script appends the Files table).
 Delete this comment before publishing: -Publish refuses notes with the DRAFT marker. -->
 
@@ -16,7 +16,7 @@ Delete this comment before publishing: -Publish refuses notes with the DRAFT mar
 - **Arcane Dimensions, made for VR (experimental)**: AD's maps, monsters and rules played natively (Play > Official Campaigns). Its weapons are VR models: the two-handed Widowmaker Gatling, the Shadow Axe, the Plasma Gun, the crossbow, swords, hammer, mace and the death sergeant's flail, and AD's enemies drop what they carry.
 - **Survival Arena (new)**: Official Campaigns > Arena Mode (experimental, with its own short Run Setup), a purpose-built map of waves that grow with you: armed and armoured foes, boss waves with perks, supplies after each wave, banners under the ceiling with the wave, foes left, time and score. A wave editor lets you make and save your own wave lists.
 - **New weapons and sights**: the nail pistol, the heavy revolver and the flare gun are now in the game (beside ammo boxes and on crates), the grunts' burst rifle is made anew, and the guns have proper iron sights: the shotguns' sight housings, the super shotgun's notch, the nail pistol's glowing inserts, the lightning and plasma guns' sights. Recoil is procedural and per weapon, gunfire is punchier, and barrels glow with heat.
-- **Run Setup and mutators (new)**: every new game starts with a Run Setup screen: difficulty (Bloody Nightmare in any map), a Classic / Light / Unleashed style, the gore preset, your starting gun and melee weapon, and mutators: Melee Only, Glass Cannon, Ironman, Randomized Pickups, Randomized Enemies, Enemy Count, Ranged Knights, Wild Weaponry and Armored Foes. Saves remember their run, and Select Campaign and the Map Library have a Continue row for each autosaved run.
+- **Run Setup and mutators (new)**: every new game starts with a Run Setup screen: Start first, the difficulty (where a map has no skill halls), a Classic / Light / Unleashed style, the gore preset, your starting gun and melee weapon, and mutators: Melee Only, Glass Cannon, Ironman, Randomized Pickups, Randomized Enemies, Enemy Count, Ranged Knights, Wild Weaponry and Armored Foes. Saves remember their run, and Select Campaign and the Map Library have a Continue row for each autosaved run.
 - **Classic Quake**: one switch (the Classic style, or the hub's Classic Quake board) makes the mod as close to vanilla Quake as it gets: no reloading, plain grunts, Quake's look; press again and your settings come back.
 - **The dagger and the reverse grip**: a short blade that sticks a third as deep as a sword and throws point first; press B (Y) to turn a sword or the dagger blade down for stabbing down.
 - **Earned bullet time**: the meter fills from the damage you deal to living enemies.
@@ -37,7 +37,8 @@ These are in the build for testing. Expect bugs, and expect their balance and se
 
 - Every grunt and enforcer a map spawns is its armed version (Gameplay > Replace All Humanoids), in Quake, the mission packs and Arcane Dimensions; knights and death knights carry their blades and, rarely, guns. Combat > Armed Grunts sets the odds of each weapon tier, dual wielding and a gun with an axe.
 - Disarming: a physical tug-of-war with one or two hands (they hold on, headbutt, shove or fire at you while you pull), a deliberate strike on the weapon or the hand, a shot to the gun, or grabbing the weapon of a downed one. A dual wielder loses only the struck weapon.
-- Directional parry: the only parry now, for you and for them. A good parry meets the blow's line with yours, and turning your weapon into it at the last moment counts as well timed. Dog and fiend lunges are parried with a level weapon.
+- They can disarm you by the same rules: precise shots and blows on your gun or hand knock it out of your grip to the floor (Combat > Armed Grunts > Disarming: Your Weapon, on by default).
+- Directional parry: the only parry now, for you and for them. A parry that meets the blow's line with yours always blocks; turning your weapon into it at the last moment staggers the attacker far harder than an early or late one. Dog and fiend lunges are parried with a level weapon.
 - Worn backpacks on the ones carrying ranged weapons: lift them off a living enemy, rip them off in a hard pull, or loot them from the body. Replaced enemies never drop extra weapons, only what they hold and their pack.
 - Armour plates on some: helmets, cuirasses and limb plates that dent, crack and fall by the plate a shot meets.
 - Their melee keeps its spacing, their shots leave from each muzzle, their footsteps are heavy, and the held weapon follows the hand when they go ragdoll.
@@ -54,6 +55,7 @@ These are in the build for testing. Expect bugs, and expect their balance and se
 - Projectiles keep less of your motion: strafing no longer throws nails and rockets off your aim.
 - Close quarters brakes your momentum; weapon clash between your own two weapons; your two hands stay where they gripped on close two-handed holds.
 - Heavy weapons have weight: they lag, droop and kick in one hand; two hands steady them.
+- The reverse grip's flip turns about your fist and carries through everything: two-handed holds (mirrored), passing the blade between hands, drops, throws, and taking a reversed blade off a table or out of a body. A gib pulled off a blade stays in your hand; thrown swords and daggers come round point first; a gib you throw can be skewered in the air.
 - Monster Groups (Combat > Monster Groups) set every ragdoll trigger and action per group across Quake, the mission packs and mods.
 
 ## Weapons and reloading
@@ -69,6 +71,7 @@ These are in the build for testing. Expect bugs, and expect their balance and se
 - `-flatscreenmode` plays the full game without a headset: the hands and guns are drawn and simulated as in VR, posed per weapon (pistols, rifles, shoulder launchers held differently) and aimed at the crosshair from the muzzle.
 - Mouse: with one weapon, left click fires and right click aims down the sights (hold, or a toggle in Desktop Screen Play); dual wielding, each button fires one hand.
 - Keys: Q / E lean (also round corners and over the gun at a wall), 3 swaps hands, crouch at a run slides, X lies down, V melee, G drop, mouse 4 or R force grab, mouse 5 shove, Z bullet time, F7 the toolgun; hold jump while looking at a ledge in reach to mantle onto it.
+- An optional over-the-shoulder third-person camera (Desktop Screen Play > Third-Person Camera, off by default), and some guns (the nailgun, nail pistol, crossbow) zoom on right click instead of raising the sights.
 - Walls push the gun's muzzle up instead of through them; crouching eases; swimming and crouch speeds; hit feedback on screen; Vomit Mode on flat deaths.
 
 ## Body, holsters and movement
@@ -77,7 +80,8 @@ These are in the build for testing. Expect bugs, and expect their balance and se
 - Your legs fit your height, your gear fits your body, your feet step in time with your run, and your footsteps follow your speed.
 - Holster Setup by drag and drop; magnetic holsters; seated play with its own holster layout and a crouch toggle.
 - Climbing: mantles once your head clears the ledge, footholds on props.
-- Player Appearance: gloves in Quake's art style, a feminine body build, hand shape and voice, painted nails, ghost hands, and a Randomize button.
+- Player Appearance: gloves in Quake's art style, a feminine body build, hand shape and voice, painted nails, ghost hands, and a Randomize button. Your body wears the detailed ranger head (seen in mirrors, shadows and the third-person camera; Appearance > Ranger Head).
+- Closing a hand on a gun that rests on it takes it; a torch on your torso can be taken whatever the other hand holds.
 
 ## Gore, fire and water
 
@@ -95,7 +99,8 @@ These are in the build for testing. Expect bugs, and expect their balance and se
 - Your config now holds only what you changed, so new defaults reach you.
 - Create Bug Report zips your logs, crash reports and settings.
 - Menu Look (HUD and Menus): long pages fold into sections, a Search result opens with its row centred and glowing, choices such as Difficulty are rows of pictures, and the mouse wheel scrolls a page at a time.
-- Select Campaign shows each campaign with its Continue row; Arcane Dimensions sits under an Experimental header.
+- Select Campaign shows each campaign with its Continue row; Arcane Dimensions and Arena Mode sit with the campaigns, tagged experimental.
+- Reset This Page in every settings page's footer (press twice), the weapon and held-object offset pages too.
 - Map Library: Slipseer's maps beside Quaddicted's (a Source filter), screenshots for both, and a difficulty pick on Play.
 - Flat screen: every flat-play key can be bound from the menu (Desktop Screen Play > Flat Keys), and weapons drag between hands and holsters in the holster menu.
 
