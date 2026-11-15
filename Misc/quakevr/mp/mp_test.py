@@ -3612,8 +3612,9 @@ def predict_grapple(s, srv, a, b, eb):
     sv = org_of(status(srv), "mp_client", "slot", eb - 1)
     own = org_of(status(b), "mp_player", "self", 1)
     gap = dist(own, sv) if own and sv else 99.0
-    s.check("let go, on the floor at rest B stands where the server has him (within 1 unit)",
-            gap <= 1.0 and bool(sv) and abs(sv[2] - start[2]) <= 2.0,
+    # (the swing can drop him on the long ledge's top, 48 units up, 2 units from the spot: either floor)
+    s.check("let go, at rest on the floor (or the ledge's top) B stands where the server has him (within 1 unit)",
+            gap <= 1.0 and bool(sv) and min(abs(sv[2] - start[2]), abs(sv[2] - start[2] - 48.0)) <= 2.0,
             "B draws himself at %s, the server has him at %s (he started at %s)" % (own, sv, start))
     b.cmd("vr_mock_play; -attack; vr_mock_button main secondary 0; vr_mock_button main grip 0")
 

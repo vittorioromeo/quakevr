@@ -1756,6 +1756,54 @@ Open (B8j, the rest):
 - mp_predict's occasional lift-landing 1.354 correction: not looked at.
 - A hang from a brush model or prop, other players in his replay, getting up from lying at once: unchanged.
 
+### B8j results, part 4: the grapple's pull predicted (2026-11-15, dev no-LTO build, loopback; `mp_test.py suite` 28 of 29 pass: `mp_predictclimb` 27/1 (the grapple's at-rest check: the swing dropped him on the long ledge's top, 48 up, drawn where the server has him; the check now takes either floor) then 28/0 alone; scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0, Release (ThinLTO) build 0 warnings)
+
+| Scenario | Result |
+|---|---|
+| `mp_predictclimb --part grapple` (new) | On vrclimb B (150 ms each way) takes a grappling gun in his main hand (the test give, impulse 151), fires it up (the server steers the hook into the ceiling over him: `vr_grapple_test_aim`), reels with B for half a second (the server: `reel off after 0.67 s: rope 488 -> 144`, him 224 units up), hangs on the rope a second, lets go (the quick release, impulse 45) and falls: every correction 0.000 over 248 states (184 in the air), 133 of them with the rope in his moves (`grapple_max` 0.000); the hook's coming off is the server's (1 state, 51 units, eased in apart: `grapple_off_max`); on the floor at rest where the server has him. 10/0 |
+| the same, the rope left to QuakeC (`--permove-skip 2`) | 7/3: corrections up to 100.3 units (drawn offset 70.8): the test sees the rope unpredicted |
+| `--part waterclimb --permove-skip 1` (B8j part 3's check) | 7/2: with the climb left to QuakeC's frame a remote client does not climb out at all (no climb line; he sinks to the pool's floor): the test fails, on the climb's checks rather than its corrections (Open) |
+| single player | The reel through the builtin (vrclimb, the mock's gun up, B held 0.67 s): `reels you: 487 away ... closing 0 (reel 60) ... 373 away (reel 300) ... reel off: rope 488 -> 132`, the ramp and speed as QuakeC's |
+
+What changed:
+
+- **The rope's hold and reel are one function** (`pmove::grappleStep`, vr_pmove.cpp: QC VR_Grapple_Wind and
+  VR_Grapple_HoldPlayer for a hook in the world, transcribed: the reel's ramp (GH_RAMP), the stall, the brake as he
+  arrives, the hold on the rope's length less its path beyond the corner, swept and slid, the lift off the floor; the
+  taut's twang and jolt through the Body hook `grappleTaut`, QuakeC's VR_Grapple_Taut). Single player's (and the listen
+  host's own client's) VR_Grapple_ServiceAnchor calls it once a frame through QC's new builtin
+  `grapplehold(h, hand, at, beyond, reeling, shortest)` (B9's one path; HoldPlayer removed from QC); a remote client's
+  moves run it after each move's jump (where PlayerPreThink's grapple frame sits), on each move's B/Y
+  (`pmove::Input::reels`), on the server and in his replay.
+- ServiceAnchor leaves the hook to his moves when the engine says so (`.vr_movetakes` bit 1: walked move by move) and no
+  other hook took them this frame: `.vr_movegrapple` (the hook), `.vr_movegrapple_at` (the corner), `.vr_movegrapple_rope`
+  (the path beyond, the shortest, the reeling hands and the gun's hand). The moves write the hook's `.gh_len` and
+  `.gh_taut` back; the reel's ramp (`reelAge`) is kept on the moves' clock while the hook is the same.
+- The state carries the rope (the climb byte's bit 3, then 37 bytes: the corner, the path beyond, the length, the reel's
+  speed and age, the shortest, the payout, the drivers, the hand, the taut). `QVR_NET_VERSION` 30.
+  `vr_mp_predict_report`: `grapple`, `grapple_n` (states with it), `grapple_max` (their longest correction),
+  `grapple_off_n`, `grapple_off_max` (the hook's coming off, counted and eased apart as a climb's transition).
+- `vr_net_permove_skip` (Debug > Network: Moves Left to QuakeC; 0): hosting, the hands' climb out (1) or the grapple's
+  rope (2) left to QuakeC once a frame, as before their phases: `mp_test.py predictclimb --permove-skip N` checks a part
+  fails without its prediction. The water climb's QC gate reads `.vr_movetakes` bit 0.
+- Not the same as the server yet: the hook's coming off (the trigger let go after the grace, the quick release, the
+  overstretch's loosen: the server's, once a frame), the unreel's payout (its ramp, armed by a press in the air, and
+  the rope's lengthening: QuakeC's once a frame, the moves pay out at the frame's speed), the corner moving within a
+  frame (the rope wrapped round an edge: the frame's corner), a second hook holding him (QuakeC's, once a frame): eased
+  corrections, never a desync. Hanging from a ledge or mantling, his moves leave the rope alone (QuakeC's own frame held
+  him there too, before the climb's).
+
+Open (B8j, the rest):
+
+- **The water climb left to QuakeC's frame fails for a remote client** (`--permove-skip 1`: no climb at all). Its moves'
+  path (the default) climbs; the frame path is what single player and the listen host use and climbs there. Likely the
+  remote client's frame-level grip or hand velocity as QuakeC sees it (B8j part 2 hides a grip the moves take); not
+  looked at.
+- The grapple's let-go (the trigger's grace, the quick release) predicted: the move's trigger and impulse in the rope's
+  state; the unreel's payout in the moves.
+- mp_predict's occasional lift-landing 1.354 correction: not looked at.
+- A hang from a brush model or prop, other players in his replay, getting up from lying at once: unchanged.
+
 ## Decisions
 
 - Melee's lag compensation (B8c) wraps the queries (melee's sweep, a bash's find, a headbutt's target, a guard's check
@@ -1820,4 +1868,4 @@ Open (B8j, the rest):
 - The interpolation buffer (B7b) leaves brush models and stepping monsters on NetQuake's lerp: the player's own entity
   is not delayed (no prediction until B8), and a lift he rides must stay in step with him.
 
-Next phase: B8j part 4 -- the grapple's pull predicted (vr_grapple.qc's hook on the world: the rope's corner, length and reel in the state, HoldPlayer and Wind in the moves as one function single player's frame calls through a builtin; "B8j results, part 3", Open), with an `mp_predictclimb --part grapple` under a unit; then mp_predict's lift-landing 1.354 correction if cheap; then MP_PLAN's B11a (grab spots, hotspots and magazine presses for the host's own player through the same slot store) and B11b-c.
+Next phase: B11a -- grab spots, hotspots and magazine presses for the host's own player through the same slot store (the B9 review's #3; SP hash audits), after a short look at the water climb's frame path failing for a remote client (`mp_test.py predictclimb --part waterclimb --permove-skip 1`; "B8j results, part 4", Open) and mp_predict's lift-landing 1.354 correction if cheap; then B11b-c.

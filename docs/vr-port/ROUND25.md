@@ -3693,3 +3693,19 @@ the same exact rules" as enemies; an option, on by default, single player and mu
 - Results: suite 28 of 29 (mp_climb 10/1, A's mantle, then 11/0 alone), mp_predictclimb 23/0, scenario_check 138/0,
   load_models_test 4/0, vr_run_check 12/0, Release (ThinLTO) 0 warnings. Not done: the grapple's pull (next: B8j part 4, planned in MP_PLAN), mp_predict's lift-landing
   flake, B11a.
+
+## mpN B8j part 4: the grapple's pull predicted (agent/mp, 2026-11-15)
+
+- **One function for the rope's hold and reel** (MP_PLAN "B8j results, part 4"): QC VR_Grapple_Wind and
+  VR_Grapple_HoldPlayer (a hook in the world) moved into vr_pmove.cpp (`pmove::grappleStep`). Single player's
+  VR_Grapple_ServiceAnchor calls it once a frame through QC's new builtin `grapplehold`; a remote client's moves run
+  it after each move's jump on each move's B/Y, on the server and in his replay (`.vr_movegrapple`: the hook; the
+  corner, length, reel speed and ramp in the state). The twang stays QuakeC's (VR_Grapple_Taut). `QVR_NET_VERSION` 30.
+- `mp_predictclimb --part grapple` (new, vrclimb's ceiling): reeled up 224 units, hung, let go: every correction
+  0.000 over 248 states (133 with the rope); the hook's coming off is the server's (51 units, eased apart). 10/0.
+  With `--permove-skip 2` (the new debug `vr_net_permove_skip`, Debug > Network: Moves Left to QuakeC) 7/3,
+  corrections up to 100 units. The water climb's check (`--permove-skip 1`) fails too, but by not climbing at all:
+  the frame path fails for a remote client (open, MP_PLAN).
+- Single player: the reel through the builtin ramps 60 -> 300 u/s and reels 488 -> 132 in 0.67 s, as QuakeC's.
+- Results: suite 28 of 29 (mp_predictclimb 27/1: the grapple's at-rest check, the swing dropped him on the ledge's top, drawn where the server has him; fixed, then 28/0 alone), scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0, Release (ThinLTO) 0 warnings.
+- Not done: the let-go and the unreel predicted, mp_predict's lift-landing flake, B11a (next).
