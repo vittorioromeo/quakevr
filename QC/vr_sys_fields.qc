@@ -142,6 +142,13 @@
 .float vr_movewaterclimb; // ... or the hands' climb out (PlayerPreThink: bit 0 on, bits 1-2 the empty hands, as
                           // VR_WaterClimb_FreeHands; CheckWaterJump leaves it to the moves, MP_PLAN B8j part 3)
 .float vr_moveswim; // ... and so does the water's drag (WaterMove leaves it; the engine sets it each frame)
+.float vr_movetakes; // ... and what else his moves may take (the engine sets it each frame: bit 0 the hands' climb out of
+                     // the water, B8j part 3; bit 1 the grapple's rope, B8j part 4)
+.entity vr_movegrapple; // ... the hook whose rope his moves hold and reel him by this frame (VR_Grapple_ServiceAnchor
+                        // sets it, the engine clears it each frame; MP_PLAN B8j part 4) ...
+.vector vr_movegrapple_at; // ... its rope's first corner from him
+.vector vr_movegrapple_rope; // ... x its path beyond the corner, y the shortest, z the reeling hands (bit 0 the off hand,
+                             // 1 the main) plus 4 times (the gun's hand plus one)
 .float vr_stand; // the head's height over the floor, a share of the standing (calibrated) eye height (1 standing; 0 not known): the engine sets it from his move (VR_KdTrig_Tackle)
 .float handdrop;// a heavy weapon wrenched out of a hand (the engine's vr_weight_drop: VR_HANDDROP_*, weapons.qc)
 .float handsynth; // the hands whose motion in this move is synthesized, not for gestures (the engine's vr_handsource.cpp: VR_HANDSYNTH_*, VR_HandMotionTracked)

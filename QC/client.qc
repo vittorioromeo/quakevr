@@ -1921,7 +1921,7 @@ void() PlayerPreThink =
     self.vr_movewaterjump = (self.vr_moveswim && !VR_WaterJumpByHand());
     // (... or the hands' climb out: bit 0, the empty hands in bits 1-2; MP_PLAN B8j part 3)
     self.vr_movewaterclimb = 0;
-    if(self.vr_moveswim && VR_WaterJumpByHand())
+    if(self.vr_moveswim && VR_WaterJumpByHand() && (self.vr_movetakes & 1))
     {
         self.vr_movewaterclimb = 1 + 2 * VR_WaterClimb_FreeHands();
     }

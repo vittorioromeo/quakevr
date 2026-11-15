@@ -670,6 +670,16 @@ void PF_waterclimb()
         predict::waterClimbFrame(PROG_TO_EDICT(pr_global_struct->self), static_cast<int>(G_FLOAT(OFS_PARM0))));
 }
 
+// void grapplehold(entity h, float hand, vector at, float beyond, float reeling, float shortest): self held (and reeled)
+// by the rope of hook `h` for this frame (vr_pmove.cpp grappleStep, the code a remote client's moves run: MP_PLAN B8j
+// part 4): `at` its first corner from him, `beyond` its path past it, `reeling` B/Y held, `shortest` the rope's
+// shortest, `hand` the gun's (-1 a holster). h.gh_len and h.gh_taut written back (VR_Grapple_Taut told).
+void PF_grapplehold()
+{
+    predict::grappleFrame(PROG_TO_EDICT(pr_global_struct->self), G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)),
+        G_VECTOR(OFS_PARM2), G_FLOAT(OFS_PARM3), G_FLOAT(OFS_PARM4) != 0.f, G_FLOAT(OFS_PARM5));
+}
+
 // embedsay(text): a line on Embedded Blades' debug panel.
 void PF_embedsay()
 {

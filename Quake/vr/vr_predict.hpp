@@ -29,6 +29,11 @@ void serverReset(int slot);
 // builtin vr_waterclimb): pmove::waterClimbTry on `ent`'s hands now, `hands` those gripping and empty (bit 0 the off
 // hand, 1 the main) -> 1: lifted out (its hook told QuakeC), 0 not. One function with a remote client's moves (B9).
 int waterClimbFrame(edict_t* ent, int hands);
+// ... the grapple's rope holding him, once a frame (QC VR_Grapple_ServiceAnchor's builtin grapplehold): pmove::grappleStep
+// on `ent` for `hook` (its .gh_len, .gh_speed, .gh_reel, .gh_payout, .gh_taut read and its length and taut written back),
+// the corner `at` and the path beyond it, `reeling` (B/Y held), the rope's shortest; `hand` the gun's (-1 a holster).
+// One function with a remote client's moves (B9).
+void grappleFrame(edict_t* ent, edict_t* hook, int hand, const float* at, float beyond, bool reeling, float shortest);
 
 // Client.
 void parseState();  // QVR_SVC_PREDICT's body

@@ -88,6 +88,16 @@ QVR_FIELD(vr_movejump) // a remote client's jump runs in his moves (vr_predict.c
 QVR_FIELD(vr_moveswim) // ... and the water's drag (vr_predict.cpp): QC WaterMove leaves it (0 there: QC's)
 QVR_FIELD(vr_movewaterjump) // ... and Quake's jump out of the water (QC sets it: CheckWaterJump leaves it to the moves)
 QVR_FIELD(vr_movewaterclimb) // ... or the hands' climb out (QC sets it: bit 0 on, bits 1-2 the empty hands; B8j part 3)
+QVR_FIELD(vr_movetakes) // what else QC leaves to his moves (vr_predict.cpp sets it: bit 0 the hands' climb out, 1 the grapple's rope)
+QVR_FIELD(vr_movegrapple) // the hook whose rope his moves hold and reel him by this frame (QC VR_Grapple_ServiceAnchor; B8j part 4)
+QVR_FIELD(vr_movegrapple_at) // ... its rope's first corner from him
+QVR_FIELD(vr_movegrapple_rope) // ... x its path beyond the corner, y the shortest, z the reeling hands (bits 0-1) and the gun's hand plus one (bits 2-3)
+QVR_FIELD(gh_len) // a grappling hook's rope: its length (vr_grapple.qc; the moves' and grapplehold's, B8j part 4)
+QVR_FIELD(gh_speed) // ... the reel's full speed
+QVR_FIELD(gh_stamina_mult) // ... its stamina's share
+QVR_FIELD(gh_reel) // ... reeling since then (0: not)
+QVR_FIELD(gh_payout) // ... the unreel's speed now
+QVR_FIELD(gh_taut) // ... taut last frame
 QVR_FIELD(vr_stand) // the head's height, a share of his standing (calibrated) eye height (1 standing; vr_server.cpp): QC's shoulder charge
 QVR_FIELD(vr_posetime) // the client's poses' time (VrMove::poseClock): QC vr_melee.qc VR_Melee_Track
 QVR_FIELD(mainhand_hotspot)

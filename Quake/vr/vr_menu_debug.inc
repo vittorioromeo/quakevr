@@ -1178,6 +1178,10 @@ za::Vector<Item> pageDebugReports()
             .help("vr_net_permove: hosting, a remote player's walk runs move by move, each for his own frame's time, as his "
                   "prediction replays it. Off: once a server frame with his newest move, as NetQuake (his prediction is then "
                   "off by a move whenever two come in one frame)."),
+        slider("Network: Moves Left to QuakeC", vr_net_permove_skip, 0.f, 3.f, 1.f, "%.0f")
+            .help("vr_net_permove_skip: hosting, these of a remote player's moves run once a frame in QuakeC instead (1: the "
+                  "hands' climb out of the water; 2: the grapple's rope; 3: both), as before they were predicted: his "
+                  "prediction then corrects them. A test aid; 0 for play."),
         command("Network: Prediction Report", "vr_mp_predict_report")
             .help("vr_mp_predict_report: the server's states read, the moves replayed a frame, the corrections (all, and on "
                   "flat ground), the frames not predicted."),

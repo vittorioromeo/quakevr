@@ -72,8 +72,40 @@ struct ServerSlot
     vec3_t groundNormal{0.f, 0.f, 1.f};
     float groundAge{1e6f};
     float crawl[2]{0.f, 0.f}; // the crawl's own speed after the frame (physics::crawlState's)
+    pmove::Grapple grapple;   // the grapple's rope in his moves after the frame (B8j part 4; not on: none) ...
+    int grappleHook{0};       // ... its hook's edict (the reel's ramp goes on while it is the same)
 };
 ServerSlot serverSlots[MAX_SCOREBOARD];
+
+// The grapple's rope from QuakeC's fields: the hook's length, reel speed (the stamina's share), payout and taut; the
+// player's corner and path beyond, shortest, reeling hands and gun's hand (`rope`: x beyond, y shortest, z the drivers'
+// bits 0-1 and the hand plus one in bits 2-3), as VR_Grapple_ServiceAnchor left them for his moves (B8j part 4).
+void grappleOf(edict_t* hook, pmove::Grapple& g)
+{
+    const progs::FieldOffsets& f = progs::fields();
+    g.on = true;
+    g.len = progs::fieldFloatOr(hook, f.gh_len, 0.f);
+    g.speed = progs::fieldFloatOr(hook, f.gh_speed, 0.f) * progs::fieldFloatOr(hook, f.gh_stamina_mult, 1.f);
+    g.payout = progs::fieldFloatOr(hook, f.gh_payout, 0.f);
+    g.taut = progs::fieldFloatOr(hook, f.gh_taut, 0.f) != 0.f;
+}
+void grappleStore(edict_t* hook, const pmove::Grapple& g)
+{
+    progs::setFieldFloat(hook, progs::fields().gh_len, g.len);
+    progs::setFieldFloat(hook, progs::fields().gh_taut, g.taut ? 1.f : 0.f);
+}
+// The hook his moves hold him by this frame (QC's .vr_movegrapple), or null.
+[[nodiscard]] edict_t* moveGrappleHook(edict_t* ent)
+{
+    const int ofs = progs::fields().vr_movegrapple;
+    const int num = ofs >= 0 ? progs::fieldInt(ent, ofs) : 0;
+    if(num <= 0)
+    {
+        return nullptr;
+    }
+    edict_t* hook = PROG_TO_EDICT(num);
+    return hook && !hook->free ? hook : nullptr; // (num 0: the world, none)
+}
 
 [[nodiscard]] ServerSlot* slotOfEdict(const edict_t* ent)
 {
@@ -151,6 +183,13 @@ struct EdictBody final : pmove::Body
         climbedNow = true;
         store();
         progs::waterClimbed(ent, hand, top, rise); // (the feel, the print)
+        after();
+    }
+    edict_t* grappleHook{nullptr}; // (the hook whose rope holds him: B8j part 4)
+    void grappleTaut(int hand, float speed) override
+    {
+        store();
+        progs::grappleTaut(ent, grappleHook, hand, speed); // (the twang, the jolt)
         after();
     }
     bool metBsp(const trace_t& tr) override { return tr.ent && static_cast<int>(tr.ent->v.solid) == SOLID_BSP; }
@@ -299,6 +338,8 @@ struct ClientPredict
     pmove::Hang hang;           // hanging: the holds, the hands' last places, the owed at the state (B8i)
     climb::TakeRules take;      // the take's rules (not enabled: none) and press memory at the state (B8j part 2)
     climb::TakeMemory takeMem;
+    pmove::Grapple grapple;     // the grapple's rope in his moves at the state (B8j part 4; not on: none)
+    bool grappleOffNow{false};  // this state has the hook come off that the last one held him by (not predicted)
     bool transNow{false};       // this state begins a mantle the last one hung (the server's test: not predicted)
     vec3_t transError{0.f, 0.f, 0.f}; // the part of `error` that is such a transition's (eased in, apart)
     bool fresh{false};    // a new state since the last replay
@@ -330,7 +371,11 @@ struct ClientPredict
                                                  // brush model still moving; replayed moves a mover pushed him)
     int crawlN{0};                               // (states lying down: the lying box, B8g)
     int wclimbN{0};                              // (replays climbing him out of the water by hand: B8j part 3)
-    int mantleN{0};                              // (states mantling: B8h)
+    int grappleN{0};                             // (states with the grapple's rope in his moves: B8j part 4) ...
+    float grappleMax{0.f};                       // ... the longest correction of one
+    int grappleOffN{0};                          // (corrections at the hook's coming off) ...
+    float grappleOffMax{0.f};                    // ... the longest
+    int mantleN{0};                          // (states mantling: B8h)
     int hangN{0};                                // (states hanging, walked move by move: B8i) ...
     float hangZ0{0.f}, hangRise{0.f};            // ... the first one's height since the reset, the most above it
     int transN{0};                               // (corrections at a hang's mantle starting: B8i) ...
@@ -620,6 +665,7 @@ bool replay(vec3_t out, vec3_t before)
     b.crawl[1] = cp.crawl[1];
     b.mantle = cp.mantle;
     b.hang = cp.hang;
+    b.grapple = cp.grapple; // (the grapple's rope holds and reels him as on the server: B8j part 4)
     climb::TakeRules take = cp.take; // (his moves take holds as the server's do: B8j part 2)
     climb::TakeMemory takeMem = cp.takeMem;
     const za::U32 newest = netmove::clientNewest();
@@ -749,11 +795,20 @@ bool replay(vec3_t out, vec3_t before)
             {
                 Con_Printf("mp_predict_corr: c=%.2f s=%u seq=%u newest=%u bits=%d was=%.2f %.2f %.2f now=%.2f %.2f %.2f sv=%.2f %.2f %.2f vel=%.1f %.1f %.1f notes=%d%d%d\n", c, s, cp.seq, newest, cp.bits, was.org[0], was.org[1], was.org[2], now.org[0], now.org[1], now.org[2], cp.origin[0], cp.origin[1], cp.origin[2], cp.velocity[0], cp.velocity[1], cp.velocity[2], notes.wall ? 1 : 0, notes.stepped ? 1 : 0, notes.air ? 1 : 0);
             }
-            if(cp.transNow)
+            if(cp.transNow || cp.grappleOffNow)
             {
-                // (the hang's mantle begun by the server's test, once a frame: the replay hung on until it heard)
-                cp.transN++;
-                cp.transMax = q_max(cp.transMax, c);
+                // (the hang's mantle begun by the server's test, once a frame: the replay hung on until it heard; the
+                // grapple's hook come off, B8j part 4: the server's trigger, quick release or loosening)
+                if(cp.grappleOffNow)
+                {
+                    cp.grappleOffN++;
+                    cp.grappleOffMax = q_max(cp.grappleOffMax, c);
+                }
+                else
+                {
+                    cp.transN++;
+                    cp.transMax = q_max(cp.transMax, c);
+                }
                 if(c < snapAt)
                 {
                     for(int i = 0; i < 3; i++)
@@ -767,6 +822,10 @@ bool replay(vec3_t out, vec3_t before)
             cp.corrN++;
             cp.corrSum += c;
             cp.corrMax = q_max(cp.corrMax, c);
+            if(cp.grapple.on)
+            {
+                cp.grappleMax = q_max(cp.grappleMax, c); // (the grapple's rope in his moves: B8j part 4)
+            }
             const bool flat = !notes.wall && !notes.stepped && !notes.air && !notes.slope && (cp.bits & bitOnGround);
             if(flat)
             {
@@ -877,6 +936,8 @@ pmove::Input inputOf(const netmove::WireMove& m)
         in.head[i] = head[i];
     }
     in.buttons = m.vr.buttons;
+    in.reels = (m.vr.buttons & protocol::QVR_BUTTON_OFFHANDSECONDARY ? 1 : 0) |
+               (m.vr.buttons & protocol::QVR_BUTTON_MAINHANDSECONDARY ? 2 : 0); // (the grapple's reel, B8j part 4)
     return in;
 }
 
@@ -1001,6 +1062,20 @@ void parseState()
             *f = MSG_ReadFloat();
         }
     }
+    pmove::Grapple grapple; // (not on: no grapple block; B8j part 4)
+    if(climbBits & 8)
+    {
+        const int gb = MSG_ReadByte();
+        grapple.on = true;
+        grapple.drivers = gb & 3;
+        grapple.hand = ((gb >> 2) & 3) - 1;
+        grapple.taut = (gb & 16) != 0;
+        for(float* f : {&grapple.at[0], &grapple.at[1], &grapple.at[2], &grapple.beyond, &grapple.len, &grapple.speed,
+                &grapple.reelAge, &grapple.shortest, &grapple.payout})
+        {
+            *f = MSG_ReadFloat();
+        }
+    }
     pmove::Rules r;
     for(float* f : {&r.maxspeed, &r.stickScale, &r.accelerate, &r.friction, &r.stopspeed, &r.edgefriction, &r.gravity,
             &r.maxvelocity, &r.stepsize, &r.roomscaleScale, &r.jumpSpeed, &r.boxHeight, &r.feetZ, &r.waistZ, &r.eyeZ,
@@ -1032,7 +1107,7 @@ void parseState()
     }
     // (A snapshot parses its unchanged records again: the same state is not a new one.)
     if(cp.have && seq == cp.seq && bits == cp.bits && VectorCompare(o, cp.origin) && VectorCompare(v, cp.velocity) &&
-        crawl[0] == cp.crawl[0] && crawl[1] == cp.crawl[1] &&
+        crawl[0] == cp.crawl[0] && crawl[1] == cp.crawl[1] && grapple.len == cp.grapple.len &&
         memcmp(hang.owed, cp.hang.owed, sizeof(hang.owed)) == 0 &&
         memcmp(hang.grips[0].lastRel, cp.hang.grips[0].lastRel, sizeof(hang.grips[0].lastRel)) == 0 &&
         memcmp(hang.grips[1].lastRel, cp.hang.grips[1].lastRel, sizeof(hang.grips[1].lastRel)) == 0)
@@ -1057,6 +1132,9 @@ void parseState()
     cp.hang = hang;
     cp.take = take;
     cp.takeMem = takeMem;
+    cp.grappleOffNow = cp.grapple.on && !grapple.on; // (the hook come off: the server's, once a frame)
+    cp.grapple = grapple;
+    cp.grappleN += grapple.on ? 1 : 0;
     if(hang.on && (bits & bitWalked))
     {
         cp.hangZ0 = cp.hangN == 0 ? o[2] : cp.hangZ0;
@@ -1115,6 +1193,9 @@ void clientClear()
     cp.hangRise = keep.hangRise;
     cp.transN = keep.transN;
     cp.transMax = keep.transMax;
+    cp.wclimbN = keep.wclimbN;
+    cp.grappleN = keep.grappleN;
+    cp.grappleMax = keep.grappleMax;
 }
 
 void report()
@@ -1123,20 +1204,20 @@ void report()
                "corr_max=%.3f corr_mean=%.3f flat_n=%d flat_max=%.3f air_n=%d air_max=%.3f ride_n=%d err=%.3f "
                "err_max=%.3f maxspeed=%.1f box=%.1f jump=%.0f swim_n=%d swim_max=%.3f wj_n=%d land_moving=%d "
                "lift_max=%.3f pushed=%d lying=%d arms=%d crawl_n=%d mantle_n=%d hang_n=%d hang_rise=%.2f trans_n=%d trans_max=%.3f "
-               "wclimb=%d wclimb_n=%d seq=%u newest=%u\n",
+               "wclimb=%d wclimb_n=%d grapple=%d grapple_n=%d grapple_max=%.3f grapple_off_n=%d grapple_off_max=%.3f seq=%u newest=%u\n",
         vr_net_predict.value != 0.f && netmove::clientUses() ? 1 : 0, cp.bits & bitWalked ? 1 : 0, cp.states, cp.frames,
         cp.unpredicted, cp.unWalked, cp.frames > 0 ? static_cast<double>(cp.depthSum) / cp.frames : 0.0, cp.corrN, cp.corrMax,
         cp.corrN > 0 ? cp.corrSum / cp.corrN : 0.f, cp.flatN, cp.flatMax, cp.airN, cp.airMax, cp.rideN, VectorLength(cp.error),
         cp.errMax, cp.rules.maxspeed, cp.rules.boxHeight, cp.rules.jumpSpeed, cp.swimN, cp.swimMax, cp.wjN,
         cp.landMovingN, cp.liftMax, cp.pushN, cp.bits & bitLying ? 1 : 0, cp.rules.crawl ? 1 : 0, cp.crawlN, cp.mantleN, cp.hangN, cp.hangRise, cp.transN, cp.transMax,
-        cp.rules.waterClimb ? 1 + cp.rules.climbHands : 0, cp.wclimbN, cp.seq,
+        cp.rules.waterClimb ? 1 + cp.rules.climbHands : 0, cp.wclimbN, cp.grapple.on ? 1 : 0, cp.grappleN, cp.grappleMax, cp.grappleOffN, cp.grappleOffMax, cp.seq,
         netmove::clientNewest());
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(0), "vr_mp_predict_report") && !q_strcasecmp(Cmd_Argv(1), "reset"))
     {
         // (vr_mp_predict_report reset: the counts from here, a test's setup left out; the states read go on)
         cp.frames = cp.unpredicted = cp.unWalked = cp.corrN = cp.flatN = cp.airN = cp.rideN = 0;
-        cp.swimN = cp.wjN = cp.landMovingN = cp.pushN = cp.crawlN = cp.mantleN = cp.hangN = cp.wclimbN = 0;
-        cp.hangRise = cp.transMax = 0.f;
+        cp.swimN = cp.wjN = cp.landMovingN = cp.pushN = cp.crawlN = cp.mantleN = cp.hangN = cp.wclimbN = cp.grappleN = cp.grappleOffN = 0;
+        cp.hangRise = cp.transMax = cp.grappleMax = cp.grappleOffMax = 0.f;
         cp.transN = 0;
         cp.depthSum = 0;
         cp.corrMax = cp.corrSum = cp.flatMax = cp.airMax = cp.errMax = cp.swimMax = cp.liftMax = 0.f;
@@ -1188,6 +1269,37 @@ int waterClimbFrame(edict_t* ent, int hands)
     return 1;
 }
 
+void grappleFrame(edict_t* ent, edict_t* hook, int hand, const float* at, float beyond, bool reeling, float shortest)
+{
+    if(!ent || ent->free || !hook || hook->free)
+    {
+        return;
+    }
+    // One step of the frame (B9's one path: a remote client's moves run the same function each).
+    pmove::Grapple g;
+    grappleOf(hook, g);
+    g.hand = hand;
+    for(int i = 0; i < 3; i++)
+    {
+        g.at[i] = at[i];
+    }
+    g.beyond = beyond;
+    g.shortest = shortest;
+    g.reelAge = reeling ? static_cast<float>(qcvm->time) - progs::fieldFloatOr(hook, progs::fields().gh_reel, 0.f) : -1.f;
+    EdictBody b{ent};
+    b.grappleHook = hook;
+    pmove::grappleStep(b, g, reeling, pr_global_struct->frametime);
+    if(!b.removed)
+    {
+        b.store();
+        SV_LinkEdict(ent, false); // (QC's setorigin)
+    }
+    if(!hook->free)
+    {
+        grappleStore(hook, g);
+    }
+}
+
 } // namespace qvr::predict
 
 using namespace qvr;
@@ -1229,6 +1341,14 @@ extern "C" int VR_PredictThink(edict_t* ent)
     // (PlayerPreThink leaves his jump to his moves: lying down or AD's boots, QuakeC's; the field clears for the boots)
     progs::setFieldFloat(ent, progs::fields().vr_movejump, s->plain && !hull::isProne(ent) ? 1.f : 0.f);
     progs::setFieldFloat(ent, progs::fields().vr_moveswim, s->plain ? 1.f : 0.f); // (WaterMove leaves its drag to them)
+    // (what else QuakeC leaves to his moves: bit 0 the hands' climb out of the water, B8j part 3; bit 1 the grapple's
+    // rope, B8j part 4 -- vr_net_permove_skip's bits left to QuakeC, once a frame)
+    const int skip = static_cast<int>(vr_net_permove_skip.value);
+    progs::setFieldFloat(ent, progs::fields().vr_movetakes, s->plain ? static_cast<float>(3 & ~skip) : 0.f);
+    if(progs::fields().vr_movegrapple >= 0)
+    {
+        progs::fieldInt(ent, progs::fields().vr_movegrapple) = 0; // (VR_Grapple_ServiceAnchor sets it again)
+    }
     return s->plain ? 1 : 0;
 }
 
@@ -1272,6 +1392,34 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
     EdictBody b{ent};
     b.mantle = mantle;
     b.hang = hang;
+    // The grapple's rope (B8j part 4: QC VR_Grapple_ServiceAnchor left its hold and reel to his moves this frame).
+    edict_t* hook = moveGrappleHook(ent);
+    if(hook)
+    {
+        const int num = NUM_FOR_EDICT(hook);
+        const float age = num == s->grappleHook && s->grapple.on ? s->grapple.reelAge : -1.f;
+        s->grapple = pmove::Grapple{};
+        grappleOf(hook, s->grapple);
+        const glm::vec3 at = progs::fieldVec(ent, progs::fields().vr_movegrapple_at);
+        const glm::vec3 rope = progs::fieldVec(ent, progs::fields().vr_movegrapple_rope);
+        for(int i = 0; i < 3; i++)
+        {
+            s->grapple.at[i] = at[i];
+        }
+        s->grapple.beyond = rope.x;
+        s->grapple.shortest = rope.y;
+        s->grapple.drivers = static_cast<int>(rope.z) & 3;
+        s->grapple.hand = ((static_cast<int>(rope.z) >> 2) & 3) - 1;
+        s->grapple.reelAge = age;
+        s->grappleHook = num;
+        b.grapple = s->grapple;
+        b.grappleHook = hook;
+    }
+    else
+    {
+        s->grapple.on = false;
+        s->grappleHook = 0;
+    }
     pmove::HangSums hangSums;
     b.hangSums = hanging ? &hangSums : nullptr;
     VectorCopy(s->groundNormal, b.groundNormal);
@@ -1329,6 +1477,19 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
         if(took == 2)
         {
             break; // (a hold that moves: his frame's hang from the next frame, the rest of these moves its)
+        }
+    }
+    if(hook)
+    {
+        s->grapple = b.grapple;
+        if(!hook->free)
+        {
+            grappleStore(hook, b.grapple); // (the rope's length and taut after his moves: the hook's)
+        }
+        if(vr_mp_watch.value >= 2.f)
+        {
+            Con_Printf("mp_predict_grapple: slot=%d s=%u len=%.2f reel=%.3f taut=%d z=%.2f\n", slot,
+                netmove::serverLast(slot), b.grapple.len, b.grapple.reelAge, b.grapple.taut ? 1 : 0, b.origin[2]);
         }
     }
     if(!b.removed)
@@ -1403,7 +1564,8 @@ extern "C" void VR_WritePredict(sizebuf_t* msg, client_t* client)
     MSG_WriteByte(msg, protocol::svc_quakevr);
     MSG_WriteByte(msg, protocol::QVR_SVC_PREDICT);
     MSG_WriteShort(msg, bits | (mantling ? bitMantle : 0) | (hanging ? bitHang : 0) | (takes ? bitTake : 0));
-    MSG_WriteByte(msg, (r.waterClimb ? 1 : 0) | (r.climbHands << 1)); // (the hands' climb out in the moves: B8j part 3)
+    const bool grappled = s.walked && s.grapple.on; // (the grapple's rope in his moves: B8j part 4)
+    MSG_WriteByte(msg, (r.waterClimb ? 1 : 0) | (r.climbHands << 1) | (grappled ? 8 : 0)); // (the hands' climb out: B8j part 3)
     MSG_WriteLong(msg, static_cast<int>(netmove::serverLast(slot)));
     for(const float* p : {ent->v.origin, ent->v.velocity, static_cast<const float*>(s.groundNormal)})
     {
@@ -1482,6 +1644,16 @@ extern "C" void VR_WritePredict(sizebuf_t* msg, client_t* client)
         for(const float f : {takeMem.missAge[0], takeMem.missAge[1], take.noGrabLeft, take.airGrabTime, take.leniency,
                 take.leniencyAir, take.minHeight, take.propMinHeight, take.minsZ, take.maxsX, take.maxsY, take.mantleTime,
                 take.mantleHeight, take.mantleSlope})
+        {
+            MSG_WriteFloat(msg, f);
+        }
+    }
+    if(grappled)
+    {
+        // (B8j part 4: his replay holds and reels him as his moves do on the server, on these)
+        const pmove::Grapple& g = s.grapple;
+        MSG_WriteByte(msg, g.drivers | ((g.hand + 1) << 2) | (g.taut ? 16 : 0));
+        for(const float f : {g.at[0], g.at[1], g.at[2], g.beyond, g.len, g.speed, g.reelAge, g.shortest, g.payout})
         {
             MSG_WriteFloat(msg, f);
         }

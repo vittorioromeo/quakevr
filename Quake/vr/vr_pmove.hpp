@@ -35,6 +35,7 @@ struct Input
     int hotspots[2]{0, 0};           // the hands' hotspots (a holster's grip is not a hold)
     int buttons{0};                  // protocol::QVR_BUTTON_* (the hands tracked, the flashlight in a hand)
     float handVel[2][3]{};           // the hands' velocities, metres a second (VRGetEntHandVel: the water climb's pull)
+    int reels{0};                    // the hands whose B/Y is held (bit 0 the off hand, 1 the main: the grapple's reel)
 };
 
 // The server's rules a move runs by (the server's values, sent with each state: the client replays with them).
@@ -104,6 +105,34 @@ struct Mantle
 bool mantleStep(Mantle& m, float dt, float* out);
 
 struct Body; // (below)
+
+// The grappling hook's rope holding him (vr_grapple.qc, a hook in the world: GH_ANCHOR; B8j part 4), as a step sees it.
+// The corner and the rope's path beyond it are the frame's (QC VR_Grapple_RopeShape); the length, the reel's ramp and
+// the taut are each step's.
+struct Grapple
+{
+    bool on{false};
+    int hand{-1};          // the gun's hand (0 the off hand, 1 the main; -1 a holster): the taut's feel
+    int drivers{0};        // the hands whose B/Y reels it (bit 0 the off hand, 1 the main: QC VR_Grapple_ReelHeld)
+    float at[3]{0.f, 0.f, 0.f}; // the rope's first corner from his body (the hook, nothing in the way: gr_pa)
+    float beyond{0.f};     // the rope's path beyond that corner, to the hook (gr_ba)
+    float len{0.f};        // the rope's length (.gh_len)
+    float speed{0.f};      // the reel's full speed (.gh_speed times .gh_stamina_mult)
+    float reelAge{-1.f};   // reeling this long (seconds of steps: QC's time less .gh_reel; -1 not reeling)
+    float shortest{0.f};   // the rope's shortest (vr_grapple_min_length)
+    float payout{0.f};     // the unreel's speed (.gh_payout: the server's, once a frame)
+    bool taut{false};      // the rope was taut at the last step (.gh_taut)
+};
+// QC's GH_RAMP (seconds the reel takes to its speed, from a fifth), GH_STALL (units the rope may be shorter than he is
+// far), GH_BRAKE (units/s/s he slows at, arriving).
+inline constexpr float grappleRamp = 0.15f, grappleStall = 8.f, grappleBrake = 2500.f;
+// One step of `dt` (QC VR_Grapple_ServiceAnchor's Wind and HoldPlayer): reeling, the rope shortened at the reel's
+// ramped speed (never shorter than g.shortest, nor grappleStall shorter than he is far), braking as he arrives; then he
+// is held: never farther from the corner than the rope less its path beyond (put back on it, swept: a wall stops that,
+// the rest slid along it), no speed away from it, reeling no slower towards it than the reel (nor much faster); lifted
+// off the floor by a pull up. The rope's going taut tells Body::grappleTaut. Single player's frame (QC's builtin
+// grapplehold, once) and a remote client's moves (each, on the server and in his replay): one function.
+void grappleStep(Body& b, Grapple& g, bool reeling, float dt);
 
 // Hanging from holds (vr_climb.cpp, B8i): a hold, as a step sees it.
 struct HangGrip
@@ -201,6 +230,7 @@ struct Body
     bool mantledNow{false};                // the last move ended the mantle (he stands)
     Hang hang;                             // hanging: the move's hands run the hang's step (B8i)
     HangSums* hangSums{nullptr};           // ... adding to these (the server's frame part)
+    Grapple grapple;                       // a grappling hook's rope holds him: each walking move's step (B8j part 4)
 
     virtual ~Body() = default;
     // The map's contents at a point (SV_PointContents: the world's, a current as water).
@@ -237,6 +267,9 @@ struct Body
     // ... by hand `hand` (waterClimbTry; 1 the main hand): the top under it `top` over his feet, rising at `rise` (the
     // feel and the print: the server's QuakeC).
     virtual void waterClimbed(int /*hand*/, float /*top*/, float /*rise*/) {}
+    // The grapple's rope went taut (grappleStep), him going away from it at `speed` (QC VR_Grapple_Taut: the twang, the
+    // jolt in hand `hand`: the server's QuakeC).
+    virtual void grappleTaut(int /*hand*/, float /*speed*/) {}
 };
 
 // Walls and floors met during the last playerMove (a prediction's "flat ground": none but the floor, no step).

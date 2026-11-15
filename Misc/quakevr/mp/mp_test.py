@@ -51,8 +51,9 @@ Tests:
     predictclimb  (B8h, B8i, B8j) on vrclimb, B 150 ms behind each way hangs from the ledge, pulls himself up and lets
              go, then mantles onto it: the hang's steps, the mantle's test and the mantle run in his moves, his replay's
              corrections under a unit (the hold's take and the mantle's start too); at rest he is where the server has
-             him; a hold taken in the air (B8j part 2); the hands' climb out of the start map's pool (B8j part 3). --part
-             hang|mantle|airgrab|waterclimb: one alone.
+             him; a hold taken in the air (B8j part 2); the hands' climb out of the start map's pool (B8j part 3); the
+             grapple's reel and hang from vrclimb's ceiling (B8j part 4). --part hang|mantle|airgrab|waterclimb|grapple:
+             one alone.
     suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, version, avatar, avatarcal, body, prefs, grab,
              teleport, held, ground, campaign, campaign_listen, flow, download, pickup, forcegrab, melee, moves, climb,
              rules, cosmetics, flatbody, loss, predict, predictclimb, lagcomp, disarm.
@@ -3122,6 +3123,7 @@ PREDICT_LEGS = 4         # B walks there and back twice
 PREDICT_LEG_STATES = 72  # each leg: this many of the server's states read (about a second)
 PART, PART_REPEAT, PART_WATCH = "", 1, 1  # --part, --repeat, --watch (predict's segments alone)
 AMMO_PART = ""  # --part give|use: mp_disarm's rounds alone (handed over; loaded into B's gun)
+PERMOVE_SKIP = 0  # --permove-skip: the server's vr_net_permove_skip in predictclimb (a check that its parts fail unpredicted)
 
 
 def predict_report(inst):
@@ -3382,7 +3384,7 @@ def predict_climb(s):
                              first=lambda srv, a, ea: put_at(srv, a, ea, CLIMB_WATCH, CLIMB_WATCH_YAW))
     a.cmd("name A")
     b.cmd("name B")
-    srv.cmd("vr_mp_watch %d; vr_climb_debug 1" % PART_WATCH)
+    srv.cmd("vr_mp_watch %d; vr_climb_debug 1; vr_net_permove_skip %d" % (PART_WATCH, PERMOVE_SKIP))
     b.cmd("vr_mp_watch %d" % PART_WATCH)
     for k in range(PART_REPEAT if PART else 1):
         if PART:
@@ -3393,6 +3395,8 @@ def predict_climb(s):
             predict_mantle(s, srv, a, b, ea, eb)
         if PART in ("", "airgrab"):
             predict_airgrab(s, srv, a, b, ea, eb)
+        if PART in ("", "grapple"):
+            predict_grapple(s, srv, a, b, eb)  # (on vrclimb: before waterclimb's start map)
         if PART in ("", "waterclimb"):
             predict_waterclimb(s, srv, a, b, eb, first=k == 0)
 
@@ -3547,6 +3551,71 @@ def predict_waterclimb(s, srv, a, b, eb, first=True):
     s.check("out of the water at rest B stands where the server has him (within 1 unit)", gap <= 1.0,
             "B draws himself at %s, the server has him at %s" % (own, sv))
     b.cmd("vr_mock_play; -graboff; -grabmain; -jump; vr_mock_stick off 0 0")
+
+
+GRAPPLE_AT = (CLIMB_SPOT[0] - 8.0, CLIMB_SPOT[1], 500.0)  # (vrclimb's ceiling, 512, over the climb spot: a hook in the
+# world, GH_ANCHOR; the rope 476 units)
+GRAPPLE_RISE = 48.0  # units the reel lifts him at least (a second of it)
+
+
+def predict_grapple(s, srv, a, b, eb):
+    """MP_PLAN B8j part 4: the grapple's pull predicted. On vrclimb B (150 ms behind each way) takes a grappling gun in
+    his main hand, fires it (the server steers the hook into the ceiling over him: vr_grapple_test_aim), reels himself
+    up with B (vr_mock_button main secondary) for a second, hangs on the rope, lets the trigger go and falls: the rope's
+    hold and reel (pmove::grappleStep, the function single player's frame calls through QC's builtin grapplehold) run
+    in each move on the server and in his replay (the rope's corner, length, reel speed and ramp in the state, each
+    move's B/Y), so the pull and the hang are no correction (they were the rope's whole pull, a round trip late); on the
+    floor at rest he stands where the server has him. (On vrclimb as joined: a changelevel would spawn A and B on its
+    one start.)"""
+    srv.cmd("vr_grapple_debug 1; developer 1")
+    b.cmd("notarget; god; vr_mock_play; -graboff; -grabmain; -attack; vr_mock_button main secondary 0; vr_mock_hand head")
+    start = put_at(srv, b, eb, CLIMB_SPOT, 180)
+    b.quiet(r"mp_predict_corr: ", 1.0, 20, "B settled")
+    since, since_b = srv.mark(), b.mark()
+    b.cmd("vr_mock_hand main 0.15 1.3 -0.3 150 0 0")  # (the gun pointing up, 80 degrees: the server steers the hook)
+    grip_then_give(srv, b, "vr_mock_button main grip 1", impulse=150 + 1)  # (WID_GRAPPLE 1)
+    srv.cmd("vr_debug_carry 0")
+    since = srv.mark()
+    for _ in range(20):
+        b.cmd("+attack")
+        fired = wait_quietly(srv, r"grapple: hand 1 fires hook", 0.5, since, "the server's hook fired")
+        if fired:
+            break
+        b.cmd("-attack")
+    for _ in range(4):
+        srv.cmd("vr_grapple_test_aim %.0f %.0f %.0f" % GRAPPLE_AT)
+    bit = wait_quietly(srv, r"grapple: hook \S+ \(hand 1\) bit ", 5, since, "the hook's bite")
+    s.check("B's hook bit the ceiling over him (the server's: fired from his main hand, a hook in the world)",
+            bool(fired) and bool(bit), "%s; %s" % (fired[1].strip() if fired else "not fired",
+                                                 bit[1].strip() if bit else "no bite"))
+    if not bit:
+        b.cmd("-attack; vr_mock_play")
+        return
+    b.quiet(r"mp_predict_corr: ", 1.0, 20, "B settled on the hook")
+    pr = predict_segment(s, b, "reeled up by the grapple", "vr_mock_button main secondary 1", 36)
+    sv_up = org_of(status(srv), "mp_client", "slot", eb - 1)
+    pr = predict_segment(s, b, "hanging on the rope, let go", "", 72,
+                         ("vr_mock_button main secondary 0", "-attack; impulse 45", ""), reset=False)  # (45: the quick release)
+    s.metric("b_predict_grapple", pr)
+    reeled = wait_quietly(srv, r"grapple: hand 1 reel off after .* rope ", 1, since, "the server's reel")
+    s.check("B was reeled up (the server's rope in his moves: grapple_n 30 at least; the server had him %d units up at "
+            "least)" % GRAPPLE_RISE, int(pr.get("grapple_n", 0)) >= 30 and bool(sv_up) and
+            sv_up[2] - start[2] >= GRAPPLE_RISE,
+            "%s states with the rope; the server had him at %s (from %s); %s" % (
+                pr.get("grapple_n"), sv_up, start, reeled[1].strip() if reeled else "no reel line"))
+    predict_corr_check(s, "reeled up and hanging on the grapple's rope", pr)
+    s.check("B's corrections with the rope in his moves under 1.0 unit (grapple_max)",
+            int(pr.get("grapple_n", 0)) >= 30 and float(pr.get("grapple_max", 99)) < 1.0,
+            "%s such states, the longest %s units" % (pr.get("grapple_n"), pr.get("grapple_max")))
+    s.note("the hook's coming off (the server's quick release: not predicted, eased in apart): %s such states, the "
+           "longest %s units" % (pr.get("grapple_off_n"), pr.get("grapple_off_max")))
+    sv = org_of(status(srv), "mp_client", "slot", eb - 1)
+    own = org_of(status(b), "mp_player", "self", 1)
+    gap = dist(own, sv) if own and sv else 99.0
+    s.check("let go, on the floor at rest B stands where the server has him (within 1 unit)",
+            gap <= 1.0 and bool(sv) and abs(sv[2] - start[2]) <= 2.0,
+            "B draws himself at %s, the server has him at %s (he started at %s)" % (own, sv, start))
+    b.cmd("vr_mock_play; -attack; vr_mock_button main secondary 0; vr_mock_button main grip 0")
 
 
 def predict(s):
@@ -3770,13 +3839,17 @@ def main():
     ap.add_argument("--jitter", type=float, default=0.0, help="client B's delay varies by this much, ms")
     ap.add_argument("--loss", type=float, default=0.0, help="client B's game packet loss, 0..1, each way")
     ap.add_argument("--reset-autoexec", action="store_true", help="empty <base>/id1/autoexec.cfg first")
-    ap.add_argument("--part", default="", choices=["", "lift", "waterjump", "swim", "crawl", "hang", "mantle", "airgrab", "waterclimb", "give", "use"],
-                    help="predict: only this segment (traced with vr_mp_watch 1; --watch 2); predictclimb: hang, mantle, airgrab or waterclimb; disarm: give or use, the rounds alone")
+    ap.add_argument("--permove-skip", type=int, default=0,
+                    help="predictclimb: the server's vr_net_permove_skip (1 the hands' climb out, 2 the grapple: left to "
+                         "QuakeC once a frame; its part should then fail)")
+    ap.add_argument("--part", default="", choices=["", "lift", "waterjump", "swim", "crawl", "hang", "mantle", "airgrab", "waterclimb", "grapple", "give", "use"],
+                    help="predict: only this segment (traced with vr_mp_watch 1; --watch 2); predictclimb: hang, mantle, airgrab, waterclimb or grapple; disarm: give or use, the rounds alone")
     ap.add_argument("--repeat", type=int, default=1, help="predict --part: takes in one run (lift: one)")
     ap.add_argument("--watch", type=int, default=1, help="predict --part: vr_mp_watch on the server and B (3: corrections over 0.05 traced)")
     args = ap.parse_args()
-    global PART, PART_REPEAT, PART_WATCH, AMMO_PART
+    global PART, PART_REPEAT, PART_WATCH, AMMO_PART, PERMOVE_SKIP
     PART, PART_REPEAT, PART_WATCH = args.part, max(1, args.repeat), max(1, args.watch)
+    PERMOVE_SKIP = args.permove_skip
     AMMO_PART = args.part if args.part in ("give", "use") else ""
     autoexec = os.path.join(args.base, "id1", "autoexec.cfg")
     if args.reset_autoexec:

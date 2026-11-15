@@ -702,6 +702,88 @@ bool waterClimbTry(Body& b, const Input& in, const Rules& r)
     return waterClimbHand(b, in, r, 1) || waterClimbHand(b, in, r, 0);
 }
 
+void grappleStep(Body& b, Grapple& g, bool reeling, float dt)
+{
+    vec3_t toA;
+    VectorSubtract(g.at, b.origin, toA);
+    const float d = VectorLength(toA);
+    float speed = 0.f;
+    if(reeling)
+    {
+        // VR_Grapple_ReelSpeed and VR_Grapple_Wind (QC's d: the whole rope's way, round the corner).
+        g.reelAge = g.reelAge < 0.f ? 0.f : g.reelAge;
+        speed = g.speed * za::min(1.f, 0.2f + 0.8f * g.reelAge / grappleRamp);
+        const float dist = d + g.beyond;
+        float len = za::min(g.len, dist) - speed * dt;
+        len = za::max(len, dist - grappleStall);
+        g.len = za::max(za::min(g.len, za::max(g.shortest, len)), 0.f);
+        speed = za::min(speed, sqrtf(2.f * grappleBrake * za::max(0.f, dist - g.shortest)));
+        g.reelAge += dt;
+    }
+    else
+    {
+        g.reelAge = -1.f;
+        speed = g.payout > 0.f ? -g.payout : 0.f; // (paying out: he goes away no faster than the rope comes off)
+    }
+
+    // VR_Grapple_HoldPlayer, on the rope's length less its path beyond the corner.
+    const float hold = g.len - g.beyond;
+    if(reeling && d >= 1.f)
+    {
+        const float closing = DotProduct(b.velocity, toA) / d;
+        if(closing > speed + 20.f)
+        {
+            VectorMA(b.velocity, -(closing - speed) / d, toA, b.velocity);
+        }
+    }
+    if(d <= hold || d < 1.f)
+    {
+        g.taut = false;
+        return;
+    }
+    vec3_t n;
+    VectorScale(toA, 1.f / d, n);
+    const float along = DotProduct(b.velocity, n);
+    if(!g.taut)
+    {
+        b.grappleTaut(g.hand, -along + za::min(0.f, speed)); // (paying out: how much faster than the rope runs)
+    }
+    g.taut = true;
+
+    const float excess = d - hold;
+    vec3_t move, end;
+    VectorScale(n, excess, move);
+    VectorAdd(b.origin, move, end);
+    const trace_t tr = b.trace(b.origin, end);
+    if(!tr.startsolid && !tr.allsolid)
+    {
+        VectorCopy(tr.endpos, b.origin);
+        if(tr.fraction < 1.f)
+        {
+            // Against something (a ceiling's beam, a wall): the rest slid along it, as a body on a rope swings round.
+            vec3_t rest;
+            VectorScale(move, 1.f - tr.fraction, rest);
+            const float into = DotProduct(rest, tr.plane.normal);
+            VectorMA(rest, -into, tr.plane.normal, rest);
+            VectorAdd(b.origin, rest, end);
+            const trace_t slid = b.trace(b.origin, end);
+            if(!slid.startsolid && !slid.allsolid)
+            {
+                VectorCopy(slid.endpos, b.origin);
+            }
+        }
+    }
+    if(along < speed)
+    {
+        VectorMA(b.velocity, speed - along, n, b.velocity);
+    }
+    // Lifted: off the floor (Quake's walking would hold it there, with its friction).
+    if((speed > 0.f && n[2] > 0.1f) || excess * n[2] > 0.25f)
+    {
+        b.flags &= ~FL_ONGROUND;
+    }
+}
+
 bool crawlStickWant(float yaw, float forwardmove, float sidemove, float top, bool onGround, float* want)
 {
     const float rad = yaw * 0.01745329251994329576923690768489f; // (glm::radians')
@@ -1437,6 +1519,16 @@ void playerMove(Body& b, const Input& in, const Rules& r, MoveNotes* notes)
             {
                 notes->air = true;
             }
+        }
+    }
+    // QC VR_Grapple_PlayerFrame's rope (PlayerPreThink, after the jump; its .vr_movegrapple leaves the hold and the reel
+    // to the moves: B8j part 4), on the move's B/Y.
+    if(b.grapple.on)
+    {
+        grappleStep(b, b.grapple, (in.reels & b.grapple.drivers) != 0, in.dt);
+        if(notes && !(b.flags & FL_ONGROUND))
+        {
+            notes->air = true;
         }
     }
     checkVelocity(b, r);

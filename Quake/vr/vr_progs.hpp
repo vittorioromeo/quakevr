@@ -94,6 +94,7 @@ struct Bindings
     func_t Stamina_On{0};     // (staminaOn, staminaEffort: VR_Stamina_On, VR_Stamina_Effort)
     func_t Stamina_Effort{0};
     func_t WaterClimb_Climbed{0}; // a player climbed out of the water by hand (QC VR_WaterClimb_Climbed: the feel, the print)
+    func_t Grapple_Taut{0};       // a grapple's rope went taut holding a player (QC VR_Grapple_Taut: the twang, the jolt)
     // The monster grab's QC (vr_foegrab.cpp's callQc and head zone), resolved here, not by name per call.
     struct FoeGrab
     {
@@ -359,6 +360,9 @@ inline bool callQc(func_t fn, float a = 0.f, float b = 0.f, float c = 0.f)
 float staminaEffort(edict_t* p, float cost, const char* what);
 // `p` climbed out of the water by hand `hand` (pmove::waterClimbTry): QC VR_WaterClimb_Climbed(hand, top, rise), self `p`.
 void waterClimbed(edict_t* p, int hand, float top, float rise);
+// `p` held by hook `h`'s rope, gone taut as he went away from it at `speed` (pmove::grappleStep): QC
+// VR_Grapple_Taut(h, hand, speed), self `p`.
+void grappleTaut(edict_t* p, edict_t* h, int hand, float speed);
 
 // A QC global vector's value, by its name, from the loaded progs (the current VM's): false, `out` untouched, when there
 // is none. For the engine's reads of QC constants it must not copy (design review 10: vr_agpose.cpp's qcConstants[]).
