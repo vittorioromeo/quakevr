@@ -59,6 +59,22 @@ constexpr int watchedMost = MAX_SCOREBOARD + 1;
 Watched watched[watchedMost];
 bool joined = false; // signed on to a map (the last frame)
 
+// (B11) The game's score as this client last printed it: each scoreboard slot's name and frags ("mp_frags"), the
+// intermission and its own health ("mp_event: intermission", "died", "respawned").
+struct Score
+{
+    bool shown{false};
+    int frags{0};
+    char name[32]{};
+};
+struct ScoreWatch
+{
+    Score slots[MAX_SCOREBOARD];
+    int intermission{0};
+    bool alive{true};
+};
+ScoreWatch scoreWatch;
+
 // vr_mp_trace <ent> <frames>: each frame, another player's copy as this client drew it (his entity and both hands: B7's
 // mp_loss, their steps frame by frame), for that many frames, then "mp_trace: done".
 struct Trace
@@ -116,6 +132,41 @@ void pollInbox()
     return e.model && e.msgtime == cl.mtime[0];
 }
 
+// (B11) The scoreboard's changes (a player or bot named, his frags), the intermission's start and end and this
+// client's own deaths and respawns, as they happen: deathmatch's events for mp_dm.
+void watchScore()
+{
+    const int most = q_min(cl.maxclients, MAX_SCOREBOARD);
+    for(int i = 0; cl.scores && i < most; i++)
+    {
+        const scoreboard_t& sc = cl.scores[i];
+        Score& w = scoreWatch.slots[i];
+        const bool named = sc.name[0] != 0;
+        if(named == w.shown && (!named || (sc.frags == w.frags && strcmp(sc.name, w.name) == 0)))
+        {
+            continue;
+        }
+        w.shown = named;
+        w.frags = sc.frags;
+        q_strlcpy(w.name, sc.name, sizeof(w.name));
+        Con_Printf("mp_frags: t=%lld slot=%d named=%d name=\"%s\" frags=%d\n", wallMs(), i, named ? 1 : 0, sc.name,
+            sc.frags);
+    }
+    if(cl.intermission != scoreWatch.intermission)
+    {
+        scoreWatch.intermission = cl.intermission;
+        Con_Printf("mp_event: t=%lld intermission=%d\n", wallMs(), cl.intermission);
+    }
+    const bool alive = cl.stats[STAT_HEALTH] > 0;
+    if(alive != scoreWatch.alive)
+    {
+        scoreWatch.alive = alive;
+        const glm::vec3 org = cl.viewentity > 0 && cl.viewentity < cl.num_entities ? vec(cl_entities[cl.viewentity].origin)
+                                                                                    : glm::vec3{0.f};
+        Con_Printf("mp_event: t=%lld %s org=%.1f %.1f %.1f\n", wallMs(), alive ? "respawned" : "died", org.x, org.y, org.z);
+    }
+}
+
 void watchFrame()
 {
     const bool now = signedOn();
@@ -126,6 +177,7 @@ void watchFrame()
         {
             w = Watched{};
         }
+        scoreWatch = ScoreWatch{};
         if(now)
         {
             Con_Printf("mp_event: t=%lld joined map=%s self=%d maxclients=%d\n", wallMs(), cl.mapname, cl.viewentity,
@@ -140,6 +192,7 @@ void watchFrame()
     {
         return;
     }
+    watchScore();
     const float dist = q_max(qvr::vr_mp_watch_dist.value, 0.1f);
     const int most = q_min(cl.maxclients, watchedMost - 1);
     for(int i = 1; i <= most; i++)

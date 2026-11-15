@@ -66,10 +66,12 @@ Tests:
              the tone kept, the delay under 250 ms (+ the added lag); nearer louder, the radio full; his volume,
              muted; push-to-talk released, voice activation; the server's voice budget and B's rate cap hold
              his voice bytes; RNNoise on; no microphone. --lag/--jitter/--loss: B's link; --listen: A hosts.
+    dm       (B11) a dedicated deathmatch server on dm4 (fraglimit 3): A and B join at deathmatch starts; two FrikBot bots
+             added (impulse 100): four players listed at both, the bots move; A, idle, killed and respawned by his trigger; the fraglimit ends the match: the intermission at both, their scoreboards the same.
     suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, armed, retransmit, version, avatar, avatarcal, body, prefs, grab,
              teleport, held, ground, campaign, campaign_listen, flow, download, pickup, forcegrab, melee, moves, climb,
              rules, cosmetics, flatbody, loss, predict, predictclimb, lagcomp, disarm, voice, voice with B 50 ms (30 ms
-             jitter, 5% loss) away.
+             jitter, 5% loss) away, dm.
 
 The base folder is a Quake folder with id1 (and hipnotic, rogue, quakevr: -game as the kit's runs). Its
 id1/autoexec.cfg runs in every game: --reset-autoexec empties it first (the kit's test bases: a run's script).
@@ -4227,6 +4229,90 @@ def voice(s, listen=False, lag=0.0, jitter=0.0, loss=0.0):
     a.cmd("-vr_voicechat")
 
 
+DM_MAP = "dm4"          # (B11) a small deathmatch map with FrikBot's waypoints compiled in (QC/waypoints)
+DM_FRAGLIMIT = 3
+DM_TIMELIMIT = 8        # minutes: QC's own end of the match (a safety net: the fraglimit must end it first)
+DM_WAIT = 420           # s: the fraglimit reached within (a safety net)
+
+
+def frag_table(inst, since=0):
+    """A client's scoreboard from its mp_frags lines since `since`: slot -> (name, frags)."""
+    table = {}
+    for l in inst.lines[since:]:
+        if l.startswith("mp_frags:"):
+            f = fields(l)
+            name = l.split('name="', 1)[1].split('"', 1)[0]
+            if f["named"] == "1":
+                table[int(f["slot"])] = (name, int(f["frags"]))
+            else:
+                table.pop(int(f["slot"]), None)
+    return table
+
+
+def deathmatch(s):
+    """(B11) A dedicated deathmatch server (deathmatch 1, fraglimit 3) on dm4: A and B (B through the proxy) join at
+    deathmatch starts; A adds two FrikBot bots (impulse 100): both clients list four players, the bots move;
+    A, idle, is killed and his trigger respawns him; the bots' frags reach the fraglimit:
+    the intermission at both clients, their scoreboards the same."""
+    srv = s.server(dedicated=True)
+    srv.start()
+    srv.cmd("coop 0; deathmatch 1; fraglimit %d; timelimit %d; skill 1; map %s; vr_mp_status" % (
+        DM_FRAGLIMIT, DM_TIMELIMIT, DM_MAP))
+    srv.wait(r"mp_server: map=%s" % DM_MAP, 120, what="the server on %s" % DM_MAP)
+    a = s.client("A").start()
+    b = s.client("B", proxy=True).start()
+    a.cmd(s.connect_cmd(a))
+    b.cmd(s.connect_cmd(b))
+    _, ja = a.wait(r"mp_event: .*joined map=%s" % DM_MAP, 120, what="A joined %s" % DM_MAP)
+    _, jb = b.wait(r"mp_event: .*joined map=%s" % DM_MAP, 120, what="B joined %s" % DM_MAP)
+    ea, eb = int(fields(ja)["self"]), int(fields(jb)["self"])
+    _, sa = a.wait(r"mp_seen: .*self=1", 20, what="A seeing himself")
+    _, sb = b.wait(r"mp_seen: .*self=1", 20, what="B seeing himself")
+    oa, ob = sa.split("org=")[1].strip(), sb.split("org=")[1].strip()
+    s.check("A and B joined the deathmatch at two starts", ea != eb and oa != ob, "A (%d) at %s, B (%d) at %s" % (
+        ea, oa, eb, ob))
+
+    # two bots (FrikBot: impulse 100 on the server through A)
+    since_a, since_b = a.mark(), b.mark()
+    a.cmd("impulse 100")
+    a.wait(r"mp_frags: .*named=1", 10, since_a, "the first bot named at A")
+    since_a2 = a.mark()
+    a.cmd("impulse 100")
+    a.wait(r"mp_frags: .*named=1", 10, since_a2, "the second bot named at A")
+    b.wait(r"mp_frags: .*named=1", 10, since_b, "the bots named at B")
+    ta, tb = frag_table(a), frag_table(b)
+    bots = sorted(slot for slot in ta if slot not in (ea - 1, eb - 1))
+    s.check("both clients list four players (A, B, two bots)", len(ta) == 4 and len(tb) == 4 and len(bots) == 2,
+            "A: %s; B: %s" % (ta, tb))
+    moving = [wait_or_none(b, r"mp_move: .*ent=%d self=0" % (slot + 1), 30, since_b) for slot in bots]
+    s.check("the bots move (B sees each move off)", all(moving), "%s" % moving)
+
+    # A, idle, is killed by a bot (a real death: QC's ClientObituary, his killer's frag) and his trigger brings him back
+    # (PlayerDeathThink: the buttons up, then one down)
+    _, died = a.wait(r"mp_event: .* died", DM_WAIT, since_a, "A killed")
+    since_r = a.mark()
+    respawned = None
+    for _ in range(30):
+        a.cmd("vr_mock_button main trigger 1")
+        respawned = wait_or_none(a, r"mp_event: .* respawned", 0.5, since_r)
+        a.cmd("vr_mock_button main trigger 0")
+        respawned = respawned or wait_or_none(a, r"mp_event: .* respawned", 0.5, since_r)
+        if respawned:
+            break
+    s.check("A killed (by a bot), then his trigger respawns him", respawned is not None, "died at %s; respawned %s" % (
+        died.split("org=")[1], respawned.split("org=")[1] if respawned else "never"))
+
+    # the bots fight: the fraglimit ends the match
+    _, ia = a.wait(r"mp_event: .*intermission=[1-9]", DM_WAIT, since_a, "the intermission at A")
+    _, ib = b.wait(r"mp_event: .*intermission=[1-9]", DM_WAIT, since_b, "the intermission at B")
+    ta, tb = frag_table(a), frag_table(b)
+    top = max(f for _, f in ta.values()) if ta else 0
+    s.metric("dm_frags", {"A": ta, "B": tb})
+    s.check("the fraglimit (%d) reached: the intermission at A and B" % DM_FRAGLIMIT, top >= DM_FRAGLIMIT,
+            "A's scoreboard %s" % ta)
+    s.check("A's and B's scoreboards agree", ta == tb, "A %s; B %s" % (ta, tb))
+
+
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
     s = Session(args.exe, args.base, args.out, test, port=args.port)
     failure = None
@@ -4291,6 +4377,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             disarm(s)
         elif test == "mp_lagcomp":
             lagcomp(s)
+        elif test == "mp_dm":
+            deathmatch(s)
         elif test in ("mp_voice", "mp_voice_lossy"):
             voice(s, args.listen, lag, jitter, loss)
         else:
@@ -4319,7 +4407,7 @@ def print_bytes_table():
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "lagcomp", "disarm", "voice", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "lagcomp", "disarm", "voice", "dm", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -4354,7 +4442,7 @@ def main():
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "lagcomp", "disarm"):
+                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "lagcomp", "disarm", "dm"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)
@@ -4392,6 +4480,7 @@ def main():
         ok = run(args, "mp_disarm") and ok
         ok = run(args, "mp_voice") and ok
         ok = run(args, "mp_voice_lossy", 50, 30, 0.05) and ok
+        ok = run(args, "mp_dm") and ok
         # B's link per scenario (MP_PLAN B7: byte counts against mp_bandwidth's): what the next phases cut.
         print_bytes_table()
         print("mp_suite: %s" % ("passed" if ok else "FAILED"))
