@@ -3198,3 +3198,18 @@ the same exact rules" as enemies; an option, on by default, single player and mu
   (Run Setup's Bloody Nightmare, AD's Experimental header). RELEASE_1_1.md: Menu Look and `vr_flat_chest_down` done.
 - **Defaults** since the audit (c94b2b300): 4 changed (his Menu Look pair, the ranger head's size and side), 25 new,
   no debug or test switch on by default, no personal setting promoted.
+
+## 1.1 patch notes: PATCH_NOTES_1.1.md, and the RC's release text (branch agent/patchnotes11, 2026-11-16)
+
+- **docs/vr-port/PATCH_NOTES_1.1.md** (new, 463 lines, 290 bullets): 1.1 against 1.0/1.0.1, 14 highlights, then every
+  shipped change by area (combat and enemies, melee and throwing, weapons, gore/fire/water, movement and body, flat
+  screen, menus, campaigns and modes, graphics and performance, audio, tools, comfort, ~45 bug fixes, known issues).
+  Sources: the beta1-4 GitHub notes, RELEASE_NOTES_1.1.md, the section titles of ROUND22-25.md, FEATURES.md; menu labels
+  checked in vr_menu_rows.inc. Left out: internal work (tests, refactors, build), multiplayer and Quest, and fixes to
+  features new since beta 4 (folded into their feature lines). Not claimed: mimalloc (already in 1.0.1), Doom on the
+  wrist gadget (its code is in v1.0.1), the Linux build.
+- **RELEASE_NOTES_1.1.md**: DRAFT comment removed (make_release -Publish accepts it), a link to the patch notes on
+  next, a "Release candidate: please test" section (what to try, Options > Create Bug Report): drop that section for
+  the final 1.1.0. Stale known issues fixed: AD's sky flicker (fixed 10-27, e5f54c30e, the NaN fog) and the AD hub's
+  lower slipgates (ad_hub_test) moved to Fixes.
+- For the final 1.1: re-read PATCH_NOTES_1.1.md against what lands after the RC (add lines, drop the RC sentence).
