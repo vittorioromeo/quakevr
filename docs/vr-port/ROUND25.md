@@ -3691,3 +3691,13 @@ His flat-screen notes (2026-11-16) and the coordinator's disarm-sound item.
 - Quest preset: `vr_dynres_min` 0.55 / 0.5 / 0.5 (was 0.65 / 0.6 / 0.55): live-fight frames over 1.5 periods 7-17% ->
   5-7%; the scripted session's e1m2 period p95 27.3 -> 19.8 ms, e1m1 GPU p50 21.3 -> 19.6. The PC unchanged (the preset
   is ES/Android only). Details: QUEST_PLAN.md 6v.
+## trailertitles (agent/trailertitles)
+
+- `Misc/trailer/titles/`: the QVR Feature Title Fusion macro (Pirata One title, Cinzel subtitle, grimy red rule, soft
+  scrim; procedural blood-ink burn-in with drips and torch flicker, ember burn-out; Corner, Accent, Intensity,
+  In/Out/Hold, sizes, margins published), `install_titles.py` (template, per-user fonts, Workspace > Scripts
+  launcher), `titles.txt` + `apply_titles.py`, README. A section starts at the timeline marker named like it; each
+  title is its own small timeline nested on the "QVR Titles" track (the API can only insert titles on V1, rippling);
+  reruns update in place (`--dry-run`, `--rebuild`, `--check`).
+- Checked in Resolve Studio 21.1 (project "QVR Titles Preview"): two titles rendered at 1080p60, top-right and
+  bottom-left; a rerun reports "updated" for both, no duplicates. Not checked: 4K, IM Fell English.

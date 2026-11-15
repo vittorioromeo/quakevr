@@ -12,6 +12,9 @@ Tools to save editing time on gameplay footage:
 4. **Takes and clips** (in the game, through OBS): each recording a numbered take of a scene, rated keep / maybe /
    reject as you go; "clip that" from OBS's replay buffer; in and out marks. A session ends with a small, clean set of
    files.
+5. **Feature titles** (`Misc/trailer/titles/`, Resolve): the corner title (title, rule, subtitle) opening each section
+   of a feature trailer, animated procedurally in Fusion; the text lives in `titles.txt` and `apply_titles.py` places
+   it at the timeline's section markers. See its README.
 
 ## 1. Highlight markers
 
