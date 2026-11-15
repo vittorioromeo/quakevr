@@ -303,6 +303,10 @@ If you enjoy my work, please support the project on [Ko-fi](https://ko-fi.com/vi
 
 Talk about it on [Discord](https://discord.me/quakevr), and report bugs and ideas on the [GitHub issues page](https://github.com/vittorioromeo/quakevr/issues).
 
+## Coverage and pages elsewhere
+
+- [Quake VR: Unleashed on UnflatVR](https://unflatvr.com/game/pcvr/quake-vr-unleashed-vittorioromeo/)
+
 ## Credits and licence
 
 Quake VR: UNLEASHED is a project created by **Vittorio Romeo**. It builds on:
