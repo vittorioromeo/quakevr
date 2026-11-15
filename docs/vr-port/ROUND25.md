@@ -3677,3 +3677,17 @@ His flat-screen notes (2026-11-16) and the coordinator's disarm-sound item.
 - Cherry-picked 502d2e13c (agent/mp): command buttons (buttonEffect 3) are pressed only by a player or what he threw; `vr_systems_test 17` passes (needs `developer 1`, map vrtesthall). Other buttons are not buttonEffect 3, unaffected.
 - Scenes classic_drops and magthrow gave "Grunt Burst Rifle" (renamed "Burst Rifle" by flat1116): fixed, plus the comments in pose_*_guns. The saves keep the old netname (harmless). `scenario_check`: 141 run, 0 failed.
 - flattoolgun_test 11/0; `vr_run_armed_check` 13 PASS / 0 FAIL (run mutators set before `vr_run start`).
+
+## Quest C4o: foveation ruled out on our targets; the fight's GPU is its big lights (branch `agent/quest`, 2026-11-16)
+
+- `vr_gl_foveation` (QCOM on our eye targets, now the scene fbo too and every focal point set) has no effect on the
+  Quest 3 in any form (GPU, ovrgpuprofiler bins, eyeshots); foveated depth makes the eye framebuffers incomplete
+  (0x8BFF): now made again without foveation instead of a `Sys_Error`. `vr_gl_foveation_parts` (new, 1; Debug >
+  Profiling) for the experiment. Foveation needs the scene drawn into the swapchain (C5). `vr_xr_foveation` changed
+  mid-game crashes in `xrEndFrame` (open).
+- The ~400 ms frames and C4n's 20-500 ms CPU spikes were the unworn headset's session stopping and resuming: the perf
+  recorder marks session changes and `perf_report.py` reports them as `xr:session`. Live fights' CPU: p50 8 ms, over
+  budget in 4% of frames (not moved to jobs). The GPU spikes are big dynamic lights: ~+5 ms of world shading each at 0.65.
+- Quest preset: `vr_dynres_min` 0.55 / 0.5 / 0.5 (was 0.65 / 0.6 / 0.55): live-fight frames over 1.5 periods 7-17% ->
+  5-7%; the scripted session's e1m2 period p95 27.3 -> 19.8 ms, e1m1 GPU p50 21.3 -> 19.6. The PC unchanged (the preset
+  is ES/Android only). Details: QUEST_PLAN.md 6v.

@@ -1308,6 +1308,47 @@ the other cores; (6) the preset tuned from the numbers; (7, optional, off) Space
 - PC check (mock, e1m1, 400 frames): 400 rows, 397 with GPU times; the load's first frame (992 ms) and a decal frame
   found as CPU hitches; 0 warnings.
 
+## 6v. C4o: foveation ruled out on our targets; the hitches were the runtime's; the fight's GPU is its big lights (2026-11-16; adb, unworn)
+
+Method (`scratch/c4p_*`): A/Bs in one launch (`c4o_abrun.sh`); **live** fights (`c4p_fight.sh`: e1m1's hall, 5 grunts,
+2 dogs and an ogre, god mode, the preset as shipped, 600-900 frames a part) compared at equal dynamic-light counts
+(`c4p_abcorr.py`: each part's medians by the frame's `dlights`), since a live fight's parts differ in what happens;
+frozen fights (`sv_freezenonclients 1`, 0.9 fixed) for the rest; `ovrgpuprofiler -t` traces (`c4h_gpuprof.sh`).
+- **Foveation (step 1): no effect on any target of ours; dropped for C5.** `GL_QCOM_texture_foveated` on the eyes' scene
+  colours (now the scene fbo's too, and every focal point set: the driver gives a texture 2, and an unset one's density
+  could be full everywhere) takes (bits 3, offered 7, min density 0, no GL error) but changes nothing: GPU (frozen
+  fight) 14.27 / 14.34 / 14.29 ms (off, high, off), the world 11.78 / 11.74; R11F_G11F_B10F and RGB10_A2 alike; the bins
+  in `ovrgpuprofiler -t` the same (8 of 768x448) on or off; eyeshots the same. Foveating the depth/stencil too
+  (`vr_gl_foveation_parts`, new, Debug > Profiling: 1 colours, 2 + depth, 4 + OIT) makes every eye framebuffer
+  incomplete (0x8BFF), the composite one included: they are now made again without foveation (it was a `Sys_Error`).
+  So on the Quest 3's GLES the driver foveates only the runtime's swapchain images (6's research): the scene has to be
+  drawn into them (C5's multiview into the swapchain, which also needs the tone curve in the scene's shaders). And
+  **`vr_xr_foveation` changed mid-game crashes in `xrEndFrame`** (the runtime's GL; twice, with and without
+  `ovrgpuprofiler`'s layer): set at launch it worked (C4b); open.
+- **The ~400 ms once-a-map frame (step 2) is the runtime's**: each one follows the session stopping and resuming (the
+  unworn headset asleep and woken by `c4e_run.sh`'s wake-ups: `STOPPING, IDLE, READY, FOCUSED`), 0.1 s after `READY`
+  (e1m1 t=15 s of C4n's session); `vr_profile_hitch` shows `xr acquire` 433 ms, `input` 461 to 8,000 ms. The recorder
+  now marks session changes (`mark:xr session <state>`) and `perf_report.py` puts a hitch within 2 s of one under
+  `xr:session` (a live fight: 54 hitches, 4.0 s of its 9.3 s over budget). Also once a launch: its first focused frame,
+  736 ms (`world+brush` 563, 3D text 88, the gadget screen 42 ms): before play, left.
+- **The fight's CPU (step 3) is not the problem**: in live fights CPU work p50 8.0-8.4 ms, p95 13.3, over budget in 4%
+  of frames; `SV_Physics` caused 7 hitches (109 ms over budget in 26 s), view entities 2. C4n's 20-90 ms (and 532 ms)
+  spikes were the session's frames above. Not moved onto the job system: QuakeC is serial (determinism) and there is
+  little left to win; revisit with his recorded session.
+- **The fight's GPU spikes are big dynamic lights**: the world's GPU at scale 0.65 by the lights in the frame: 2 lights
+  6.7-7.0 ms, 3: 11.6-13.2, 4: ~16 (`r_dynamic 0`: 7.0 in the 3-light frames; the 2 always there cost 0.25). Not their
+  shadows (`vr_shadow_dlights 0` -1.2 ms in those frames; the shadow pass is the +90 draws), nor `vr_dlight_falloff`,
+  `vr_dlight_uncapped`, `vr_dlight_angle`, `vr_pbr`, `vr_specular`, `vr_dlight_models`, the enemies' muzzle flashes
+  (their light count unchanged): it is the world shader's light code over the pixels a big light (an explosion)
+  covers. The next GPU lever.
+- **Dynamic resolution (step 4)**: fights sit at the floor (`vr_dynres_log 2`: the eyes' GPU 9-15 ms mean at 0.65
+  against its 11.8 ms budget). Floor 0.55 against 0.65 (live fight, alternating): frames over 1.5 periods 4.6 / 6.7%
+  against 7.4-16.6%, the period's p95 20.7 / 21.3 against 22.1-27.6 ms, GPU p50 8.5 against 9.3-11.8, a 3-light
+  frame's world 9.5-10.0 against 12.2-13.2. **The preset's floor now 0.55 / 0.5 / 0.5** (was 0.65 / 0.6 / 0.55);
+  `vr_render_scale` 0.9 kept (e1m1's start holds 72 Hz at 0.9: GPU 11.7 ms). SpaceWarp (step 5): not started.
+- PC: gles_render_test, scenario_check, load_models_test, dev and LTO builds: see ROUND25's C4o section.
+- Left running for his check: e1m1, `+vr_quest_preset 0 +vr_perf_record 1` (this commit's APK).
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
@@ -1351,8 +1392,8 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C4o (after 6u) — fixed foveation on the target the eye's scene is really drawn into (the scene fbo's
-colour; the single-pass array's layers), A/B'd with `c4o_abrun.sh`; the ~400 ms once-a-map frame in an eye's CPU
-found (`vr_profile_hitch`) and moved to the load; the fight's CPU (`SV_Physics`, view entities) onto the other cores;
-then the preset tuned from `c4o_play.sh`'s sessions (and his own recorded session, `vr_perf_record`, when he can);
-SpaceWarp optional and off; no installs. Still open from before: e1m1's save error (a freed engine string), C5 (multiview into the swapchain), C2h (the world textures' memory under the ES profile), Adreno's wrong derivatives with the retro code out (NORETRO: -1.2 ms if ever made safe). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d).
+Next phase: C4p (after 6v) — the world shader's cost per dynamic light on Adreno (a big light ~+5 ms of the world at
+0.65: a cheaper light path under the ES profile, or capping what a light covers), A/B'd in live fights with
+`c4p_fight.sh` + `c4p_abcorr.py`; then foveation through the swapchain (C5: the scene drawn into the runtime's foveated
+images, the tone curve in the scene's shaders) and the `vr_xr_foveation` mid-game crash; his own recorded session
+(`vr_perf_record`) read with `perf_report.py` (now `xr:session` apart); SpaceWarp optional and off; no installs. Still open from before: e1m1's save error (a freed engine string), C5 (multiview into the swapchain), C2h (the world textures' memory under the ES profile), Adreno's wrong derivatives with the retro code out (NORETRO: -1.2 ms if ever made safe). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d).
