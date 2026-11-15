@@ -1222,6 +1222,14 @@ bool pointLine(edict_t* ent, glm::vec3& hand, glm::vec3& tip)
     return glm::distance(hand, tip) > 1.f;
 }
 
+float pointLeniency(edict_t* ent)
+{
+    qmodel_t* model = modelOf(ent);
+    const int slot = model ? weapons::slotForModel(model) : -1;
+    const float k = slot >= 0 ? weapons::value(slot, weapons::Key::ThrowPoint) : 1.f;
+    return k > 0.f ? k : 1.f;
+}
+
 bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const glm::vec3& spin, float dt)
 {
     const FieldOffsets& f = fields();
@@ -1851,7 +1859,19 @@ void serverFrame()
         glm::mat3 axes;
         if(!blade || !frameOf(host, static_cast<int>(fieldFloat(ent, f.vr_stick_kind)), fieldVec(ent, f.vr_stick_anchor), point, axes))
         {
-            return; // (gone, or its model can't say: QC drops it)
+            // (Gone, or its model can't say: QC drops it. A body whose triangle it is in is squashed in its pose (a grunt's gun
+            // gone from its hands as it dies, his note 2026-11-15: the blade left floating where the body was): since when,
+            // QC's VR_AxeStick_Think lets it fall.)
+            if(blade && f.vr_stick_lost >= 0 && fieldFloat(ent, f.vr_stick_lost) <= 0.f)
+            {
+                setFieldFloat(ent, f.vr_stick_lost, static_cast<float>(qcvm->time));
+                reason(ent, "what it is in can't say where it is now (its triangle squashed or gone): it falls");
+            }
+            return;
+        }
+        if(f.vr_stick_lost >= 0 && fieldFloat(ent, f.vr_stick_lost) > 0.f)
+        {
+            setFieldFloat(ent, f.vr_stick_lost, 0.f);
         }
         const glm::vec3 ang = fieldVec(ent, f.vr_stick_ang);
         const float a[3]{ang.x, ang.y, ang.z};

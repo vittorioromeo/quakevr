@@ -1285,6 +1285,11 @@ bool bladeGrip(int hand)
     return aimTransition[hand] > 0.f && grip[hand] == GRIP_BLADE;
 }
 
+bool heldOffHandle(int holding)
+{
+    return holding >= 0 && holding < 2 && (freeGrips[holding].on || bladeGrip(holding));
+}
+
 bool bladeGripHand(const hands::State& s, int hand, const glm::vec3& holderPos, const glm::vec3& holderRot, glm::vec3& pos,
     glm::vec3& rot)
 {

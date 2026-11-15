@@ -43,6 +43,7 @@ struct Hand
     float flip{0.f};
     bool mayReverse{false};  // view::heldMayReverse
     bool flippable{false};   // view::heldGripFlippable
+    bool flipBlocked{false}; // view::gripFlipBlocked (ROUND25.md "flipgate")
     int outOfEnt{0};         // the prop the other hand holds alone that this one is drawn held out of (view::heldOutOf; 0 none)
     glm::vec3 outOf{0.f};    // ... how far (world)
     // (B11c) How this hand takes the weapon its other hand carries off its handle (view::carriedGripChoice: -1 it may not

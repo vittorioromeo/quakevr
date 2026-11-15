@@ -343,6 +343,7 @@
 .float  vr_stick_shake;  // how near the tug is to tugging it out, 0..1 (vr_embedhold.qc; the engine shakes it)
 .float  vr_stick_freecheck; // when its handle was last checked for being in the body (the engine's)
 .float  vr_stick_freed;  // degrees its handle was turned out of the body, all told (the engine's)
+.float  vr_stick_lost;   // since when what it is in can't say where it is (the engine's; 0 it can): it falls (VR_AxeStick_Think)
 .float  vr_stick_sag;    // by its point, in the level: degrees it sags under its weight now (the engine's)
 .float  vr_stick_sagv;   // how fast (degrees a second; the engine's)
 .void(float xSpeed) vr_impact; // a rigid body hitting something (the world, a prop, a monster) at xSpeed m/s (at least

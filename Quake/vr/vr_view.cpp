@@ -831,6 +831,11 @@ bool view::heldGripFlippable(int hand)
     return hand >= 0 && hand <= 1 && reverseGripAllowed(weapons::heldSlot(hand));
 }
 
+bool view::gripFlipBlocked(int hand)
+{
+    return vr_revgrip_2h_gate.value != 0.f && heldGripFlippable(hand) && twohand::heldOffHandle(hand);
+}
+
 bool view::heldMayReverse(int hand)
 {
     return !flatplay::active() && heldGripFlippable(hand);

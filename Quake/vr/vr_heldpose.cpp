@@ -44,7 +44,8 @@ enum Flag : int
     flagAxes = 8,
     flagMayReverse = 16,
     flagFlippable = 32,
-    flagMag = 64
+    flagMag = 64,
+    flagFlipBlocked = 128
 };
 
 void put3(float* v, int at, const glm::vec3& p)
@@ -63,7 +64,7 @@ void encode(const Hand& h, float v[valueCount])
 {
     v[0] = static_cast<float>((h.drawn ? flagDrawn : 0) | (h.mirrored ? flagMirrored : 0) | (h.carrying ? flagCarrying : 0) |
                               (h.axesKnown ? flagAxes : 0) | (h.mayReverse ? flagMayReverse : 0) | (h.flippable ? flagFlippable : 0) |
-                              (h.mag ? flagMag : 0));
+                              (h.mag ? flagMag : 0) | (h.flipBlocked ? flagFlipBlocked : 0));
     v[1] = static_cast<float>(h.slot);
     v[2] = static_cast<float>(h.helpKind);
     v[3] = h.flip;
@@ -103,6 +104,7 @@ void encode(const Hand& h, float v[valueCount])
     h.mayReverse = (flags & flagMayReverse) != 0;
     h.flippable = (flags & flagFlippable) != 0;
     h.mag = (flags & flagMag) != 0;
+    h.flipBlocked = (flags & flagFlipBlocked) != 0;
     h.slot = static_cast<int>(v[1]);
     h.helpKind = static_cast<int>(v[2]);
     h.flip = v[3];
@@ -310,6 +312,7 @@ State state;
     h.axesKnown = view::heldWeaponAxes(hand, h.axesForward, h.axesUp, h.flip);
     h.mayReverse = view::heldMayReverse(hand);
     h.flippable = view::heldGripFlippable(hand);
+    h.flipBlocked = h.flippable && view::gripFlipBlocked(hand);
     const int other = held::heldAlone(1 - hand);
     if(other > 0)
     {
