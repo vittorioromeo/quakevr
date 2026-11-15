@@ -1916,6 +1916,10 @@ With `vr_pmove_own 1` built in as the default (then reverted): prop_climb_test 1
 close, knock, hang, off, lift, movelight, liftlight, lip: mantles, hangs, holds taken through the moves),
 mantle_height_test PASS (the same shallowest pulls, 0.30 m and 0.45 m), crawl_test 18/0.
 
+Tests (the default 0, after the fixes): `mp_test.py suite` 28 of 29 pass (mp_climb 10/1: A's mantle, its known suite
+flake; then 11/0 alone, twice); scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0, Release (ThinLTO)
+build 0 warnings.
+
 Open (B11b):
 
 - The default. Turning it on changes single player slightly (a frame entering water, last-bit rounding): the brief

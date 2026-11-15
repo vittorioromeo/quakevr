@@ -3761,3 +3761,6 @@ the same exact rules" as enemies; an option, on by default, single player and mu
   landing not explained. MP_PLAN "B11b results, part 1".
 - B11a's magholster numbering: unseeded runs vary on one exe (24/26/27); seeded 24 always, both paths: closed.
 - With the default flipped to 1 for a build: prop_climb_test 12/12, mantle_height_test PASS, crawl_test 18/0.
+- Default 0: MP suite 28 of 29 (mp_climb 10/1, A's mantle, then 11/0 alone twice), scenario_check 138/0,
+  load_models_test 4/0, vr_run_check 12/0, Release (ThinLTO) 0 warnings. Next: B11b part 2 (pmove's time in
+  double, the default; then monsters).
