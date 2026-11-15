@@ -1199,8 +1199,9 @@ void(float dist) ai_run =
     dist = VR_HitReact_Dist(dist); // VR: struck a moment ago: shorter steps (vr_hitreact.qc)
     movedist = dist;
     self.vr_melee_begun = 0; // VR: running again, its melee attack (if any) is over (combat.qc VR_Parry)
-// see if the enemy is dead
-   if(self.enemy.health <= 0 || (self.charmed && (self.charmer == self.enemy)))
+// see if the enemy is dead (QVR: or removed outright: a freed edict keeps its health and lies at the map's origin, and
+// a grunt hurt by a removed one's shot still in flight walked there for good: VR_AG_Freed; ROUND25.md "agrunt4874")
+   if(self.enemy.health <= 0 || VR_AG_Freed(self.enemy) || (self.charmed && (self.charmer == self.enemy)))
     {
         self.enemy = world;
 //MED 10/30/96 added charmed stuff
@@ -1210,7 +1211,7 @@ void(float dist) ai_run =
          return;
          }
     // FIXME: look all around for other targets
-        if(self.oldenemy.health > 0)
+        if(self.oldenemy.health > 0 && !VR_AG_Freed(self.oldenemy))
         {
             self.enemy = self.oldenemy;
             HuntTarget();
