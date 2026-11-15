@@ -896,6 +896,10 @@ QVR_WORLD_FS_LITE // QVR: the ES lite world's features compiled out of main (VR_
 "	// QVR: parallax occlusion mapping (vr_parallax) moves where the textures are read; their mip level is still\n"
 "	// the surface's (the moved coordinates jump where the height field hides itself)\n"
 "	vec2 puv = uv;\n"
+"#ifdef QVR_PROBE_WNOPF\n" // QVR: -glesdefine's probe (C4k): the coordinates no longer the input's own (a uniform's branch that never moves them)
+"	if (RetroInfo.w > 1e30)\n"
+"		puv = uv = uv + 1.0;\n"
+"#endif\n"
 "#ifndef QVR_PROBE_NORETRO\n" // QVR: -glesdefine's probe (C4e): no retro textures' start
 "	RetroBegin(in_retro.z, in_retro.xy, duvdx, duvdy, dpdx, dpdy, facing);\n" // QVR: retro textures (vr_retro.h; Retro 0: none); before the carved decals (their retro style's blocks)
 "#endif\n"
@@ -974,6 +978,16 @@ QVR_WORLD_FS_CARVE // QVR: the carved decals (vr/vr_decals.cpp): their craters m
 "		result = texture(Tex, QVR_WUV(uv));\n"
 "#endif\n"
 "	}\n" // QVR
+"#ifdef QVR_PROBE_WLOD\n" // QVR: -glesdefine's probe (C4k): the level from main()'s derivatives, read by textureLod
+"	{\n"
+"#ifdef QVR_PROBE_WLODFRESH\n" // (the derivatives taken again here)
+"		vec2 wts = vec2(textureSize(Tex, 0).xy), wdx = dFdx(in_uv) * wts, wdy = dFdy(in_uv) * wts;\n"
+"#else\n"
+"		vec2 wts = vec2(textureSize(Tex, 0).xy), wdx = duvdx * wts, wdy = duvdy * wts;\n"
+"#endif\n"
+"		result = textureLod(Tex, QVR_WUV(uv), max(0.5 * log2(max(dot(wdx, wdx), dot(wdy, wdy))), 0.0));\n"
+"	}\n"
+"#endif\n"
 "#ifdef QVR_PROBE_CUT1\n" // QVR: -glesdefine's probe (C4e): the world's fragment shader cut here
 "	out_fragcolor = result;\n"
 "	return;\n"
@@ -1814,7 +1828,11 @@ QVR_ALIAS_FS_LITE // QVR: the ES lite form's switches compiled out of main (GL_A
 "	return;\n"
 "#endif\n"
 "	vec2 uv = in_texcoord;\n"
+"#ifdef QVR_APLAIN_NOSKIN\n" // QVR: the models' plain form (QVR_ALIAS_FS_PLAIN)
+"	const bool gloveShell = false;\n"
+"#else\n"
 "	bool gloveShell = uv.x >= 1.5 && instances[in_instance].GloveShell.x > 0.0; // QVR: a glove's shell (its u 2 along)\n"
+"#endif\n"
 "	if (gloveShell)\n"
 "		uv.x -= 2.0;\n"
 "	vec3 dpdx = dFdx(in_pos), dpdy = dFdy(in_pos); // QVR: for the normal map (before any discard)\n"
@@ -1826,8 +1844,13 @@ QVR_ALIAS_FS_LITE // QVR: the ES lite form's switches compiled out of main (GL_A
 "		vec2 rl_size = vec2(textureSize(Tex, 0)) * (rl_r.w > 0.0 ? rl_r.w : 1.0);\n"
 "		RetroLightBegin(uv * rl_size, duvdx * rl_size, duvdy * rl_size, dpdx, dpdy, RetroLight[4]);\n"
 "	}\n"
+"#ifdef QVR_APLAIN_NOMORPH\n" // QVR: the models' plain form (QVR_ALIAS_FS_PLAIN)
+"	const vec3 morphSeam = vec3(0.0);\n"
+"	const bool morphShown = true;\n"
+"#else\n"
 "	vec3 morphSeam; // QVR\n"
 "	bool morphShown = Morph(morphSeam); // QVR: discarded at the end (after the derivatives)\n"
+"#endif\n"
 "#if MODE == " QS_STRINGIFY (ALIASSHADER_NOPERSP) "\n"
 // QVR: no half-texel shift back to the software renderer's texel corners (upstream's `uv -= 0.5 / size`): the skin is
 // read at the texel centres the mesh's ST put the vertices on (gl_mesh.c's + 0.5), as the standard path reads it. Quake VR's

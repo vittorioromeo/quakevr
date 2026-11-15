@@ -46,6 +46,7 @@ static float	entalpha; //johnfitz
 static qboolean	aliasdepth; // QVR: drawing the shadow maps' casters (R_DrawAliasModelsDepth)
 static qboolean	aliasxray; // QVR: drawing models' outlines through walls (R_DrawAliasModels_Xray)
 static int		aliasnear; // QVR: the batch's VR_AliasNearEye flags (1 depth clamp, 2 both sides)
+static int		aliasneeds; // QVR: the per-model features the batch's instances turn on (VR_AliasPlainNeeds: glprogs.alias_plain)
 // QVR: a shadow map's casters drawn once into all the light's faces they reach (R_DrawAliasModelsDepthLayered): the
 // faces of the entity being added (bit f: face f, its viewport f), NULL one face at a time (R_DrawAliasModelsDepth)
 static const unsigned char	*aliasfaces;
@@ -762,7 +763,11 @@ void R_FlushAliasInstances (qboolean showtris)
 	depthonly = aliasdepth && !alphatest && !translucent; // QVR: a shadow map's opaque casters: no fragment shader (holey skins keep theirs)
 	shadeprog = glprogs.alias[oit][mode][alphatest][poseverttype];
 	if (!translucent && !alphatest && !aliasdepth && !aliasxray && !showtris && glprogs.alias_opaque[mode][poseverttype] && VR_AliasOpaqueForm (ibuf.ent))
+	{
 		shadeprog = glprogs.alias_opaque[mode][poseverttype]; // QVR: no discard: hidden pixels rejected before shading on a tiler (vr_gl_alias_opaque)
+		if (glprogs.alias_plain[mode][poseverttype] && VR_AliasPlainUse (aliasneeds))
+			shadeprog = glprogs.alias_plain[mode][poseverttype]; // QVR: ... nor the features none of its instances has (vr_gl_alias_plain)
+	}
 	if (depthonly)
 		GL_UseProgram (layered ? glprogs.alias_depth_layered[poseverttype] : glprogs.alias_depth[poseverttype]);
 	else
@@ -1782,6 +1787,7 @@ cull:
 	{
 		ibuf.ent = e;
 		aliasnear = nearflags; // QVR
+		aliasneeds = 0; // QVR: (each instance's added at its end)
 	}
 
 	aliasinstfaces[ibuf.count] = facemask; // QVR: layered shadow casters: its faces (a posed one's: those its box reaches)
@@ -1922,6 +1928,7 @@ cull:
 instanced:
 	VR_TRACY_DETAIL (vr_tracy_render_zones, "alias motion", VR_TemporalAliasMotion (e, totalverts, mode == ALIAS_STANDARD, instance->motion)); // QVR: its previous frame's positions
 	instance->motion[2] = mode == ALIAS_STANDARD && VR_FlatModelFovEntity (e); // QVR: flatscreen play's model FOV
+	aliasneeds |= VR_AliasPlainNeeds (&instance->vr); // QVR: the plain form only if none of the batch needs what it leaves out (a portal's copy: the same)
 	if (mode == ALIAS_STANDARD)
 		VR_DebugAliasPose (e, paliashdr, lerpdata.pose1, lerpdata.pose2, lerpdata.blend, model_matrix); // QVR: vr_debug_pose_check
 	if (portal_split)

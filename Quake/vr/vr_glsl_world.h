@@ -702,7 +702,11 @@ QVR_PERMDECAL_FUNCTIONS \
 // that only main()'s calls are replaced.
 #define QVR_WORLD_FS_LITE \
 "#ifdef QVR_LITE_NORETRO\n" \
-"#define RetroBegin(a, b, c, d, e, f, g)\n" \
+"#if defined(QVR_PROBE_WANCHOR) && defined(QVR_WORLD_ARRAYS)\n" /* -glesdefine's probe (C4k): the derivatives consumed where RetroBegin took them, under a uniform's branch */ \
+"#define RetroBegin(a, b, c, d, e, f, g) Retro = 0; if (RetroInfo.w > 1e30) WLayer += (c).x + (d).y\n" \
+"#else\n" \
+"#define RetroBegin(a, b, c, d, e, f, g) Retro = 0\n" /* (set in main, not left to its global initializer: C4k, QUEST_PLAN.md 6r) */ \
+"#endif\n" \
 "#endif\n" \
 "#ifdef QVR_LITE_NORETROLIGHT\n" \
 "#define RetroLightBegin(a, b, c, d, e, f)\n" \

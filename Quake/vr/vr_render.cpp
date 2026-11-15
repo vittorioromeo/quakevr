@@ -296,6 +296,57 @@ extern "C" int VR_AliasOpaqueForm(const entity_t* e)
     return !ve || ve->morph == 0.f ? 1 : 0;
 }
 
+// C4k: the models' plain form (glprogs.alias_plain; QUEST_PLAN.md 6r): the per-model features an instance's data turns on,
+// as the bits of vr_gl_alias_plain_mask (gl_shaders.c GL_AliasPlainDefines; the shaders' QVR_ALIAS_FS_PLAIN): each the
+// switch the fragment shader tests for it.
+extern "C" int VR_AliasPlainNeeds(const vraliasinstance_t* vr)
+{
+    int needs = 0;
+    if(vr->skintone[3] > 0.f || vr->glove[3] > 0.f || vr->nails[3] > 0.f || vr->gloveshell[0] > 0.f || vr->skintint[3] > 0.f)
+    {
+        needs |= 1; // skin tone, gloves, nails, a glove's shell, a forearm's tint
+    }
+    if(vr->glow[0] != 0.f)
+    {
+        needs |= 2; // in_glow: hot blades and barrels, power-ups, force grab, the counter, the toolgun
+    }
+    if(fabsf(vr->wound[0]) >= 0.5f || (vr->gloveshell[3] > 0.5f && vr->gloveshell[2] > 0.f))
+    {
+        needs |= 4; // its wound mask, or the wet coat all over (WoundsAt)
+    }
+    if(vr->dent[1] >= 0.5f)
+    {
+        needs |= 8;
+    }
+    if(vr->stump[0] > 0.5f)
+    {
+        needs |= 16;
+    }
+    if(vr->ao[2] > 0.f)
+    {
+        needs |= 32; // its normal map's strength (bumpk)
+    }
+    if(vr->ambient[2][3] != 0.f)
+    {
+        needs |= 64; // in_morph
+    }
+    if(vr->surface[0] > 0.f || vr->surface[1] > 0.f)
+    {
+        needs |= 128; // rim light, reflections (ModelRimReflect)
+    }
+    return needs;
+}
+
+// r_alias.c: a batch whose instances need `needs` may be drawn by glprogs.alias_plain (2: every one, a probe).
+extern "C" int VR_AliasPlainUse(int needs)
+{
+    if(vr_gl_alias_plain.value == 0.f)
+    {
+        return 0;
+    }
+    return vr_gl_alias_plain.value >= 2.f || (needs & static_cast<int>(vr_gl_alias_plain_mask.value)) == 0 ? 1 : 0;
+}
+
 extern "C" int VR_AliasPlayerFirst(const entity_t* e)
 {
     // Your own models stand nearest the eye: drawn (opaque) before the world, the world's depth pre-pass and shading skip

@@ -411,6 +411,12 @@ extern "C" int VR_GLESWorldLite(void)
     {
         lite |= 256; // C4j: the models' programs take bits 1 and 32 (gl_shaders.c GL_AliasLiteDefines)
     }
+    if(vr_gl_alias_plain.value != 0.f)
+    {
+        // C4k: the models' plain form, its features from bit 9 (gl_shaders.c GL_AliasPlainDefines; vr_render.cpp
+        // VR_AliasPlainNeeds)
+        lite |= (static_cast<int>(vr_gl_alias_plain_mask.value) & 1023) << 9;
+    }
     if(vr_gl_world_lite.value < 2.f)
     {
         return lite;

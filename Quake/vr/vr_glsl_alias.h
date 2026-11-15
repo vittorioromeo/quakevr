@@ -1281,11 +1281,13 @@ QVR_DENT_FUNCTIONS \
 // bare forearms' ends tinted to the hand's skin (vr/vr_view.cpp skinTint): the arms' skin block's rows towards the wrist
 // (SkinTintRange) times SkinTint's colour, more and more of it, all of it at the wrist where the hand comes out
 #define QVR_ALIAS_FS_SKINTINT \
+"#ifndef QVR_APLAIN_NOSKIN\n" \
 "	{\n" \
 "		vec4 st = instances[in_instance].SkinTint, sr = instances[in_instance].SkinTintRange;\n" \
 "		if (st.w > 0.0 && in_texcoord.x < sr.x && in_texcoord.y < sr.w)\n" \
 "			result.rgb *= mix(vec3(1.0), st.rgb, st.w * smoothstep(sr.y, sr.z, in_texcoord.y));\n" \
-"	}\n"
+"	}\n" \
+"#endif\n"
 
 // The ES lite form (GL_AliasLiteDefines, C4j; QUEST_PLAN.md 6q): retro lighting (vr_retrolight 0: its frame data all
 // 0, so RetroLight[5].z 0) taken out of main() as constants, as the world's QVR_WORLD_FS_LITE; after every function.
@@ -1293,6 +1295,32 @@ QVR_DENT_FUNCTIONS \
 "#ifdef QVR_LITE_NORETROLIGHT\n" \
 "#define RetroLightBegin(a, b, c, d, e, f)\n" \
 "#define RetroLightModel(a, b, c)\n" \
+"#endif\n" \
+QVR_ALIAS_FS_PLAIN
+
+// The models' plain form (glprogs.alias_plain, C4k; QUEST_PLAN.md 6r): a batch whose every instance leaves a feature off
+// (vr_render.cpp VR_AliasPlainNeeds: its instance data's switch 0) is drawn by a program without that feature's code, as
+// the lite form does for the settings; Adreno pays for an untaken branch's registers. Each QVR_APLAIN_* one feature:
+// NOSKIN skin tone, gloves, nails, glove shells, forearm tint; NOGLOW hot blades and barrels, power-up and force grab
+// glows; NOWOUNDS painted wounds and the wet coat; NODENTS flesh dents; NOSTUMP stumps; NOBUMP the normal map; NOMORPH
+// morphs; NORIM rim light and reflections. Probes only (vr_gl_alias_plain_mask): NOAO the dynamic occlusion, NODLIGHTS
+// the dynamic lights.
+#define QVR_ALIAS_FS_PLAIN \
+"#ifdef QVR_APLAIN_NOSKIN\n" \
+"#define GloveSheen(b, c) vec3(0.0)\n" \
+"#define NailGloss(b, c, g) vec3(0.0)\n" \
+"#endif\n" \
+"#ifdef QVR_APLAIN_NOWOUNDS\n" \
+"#define WoundSheen(w, b) vec3(0.0)\n" \
+"#endif\n" \
+"#ifdef QVR_APLAIN_NORIM\n" \
+"#define ModelRimReflect(n, b, s, l) vec3(0.0)\n" \
+"#endif\n" \
+"#ifdef QVR_APLAIN_NOAO\n" \
+"#define DynamicAO(p, n, s, c, d) 1.0\n" \
+"#endif\n" \
+"#ifdef QVR_APLAIN_NODLIGHTS\n" \
+"#define ModelDynamicLights(n, b, s) ((s) = vec3(0.0), vec3(0.0))\n" \
 "#endif\n"
 
 // parallax occlusion mapping on the skin's heights (none in the ES lite form without parallax: every in_pdepth 0)
@@ -1315,13 +1343,18 @@ QVR_DENT_FUNCTIONS \
 
 // wounds, normal maps, occlusion, the model's light
 #define QVR_ALIAS_FS_LIGHT \
+"#ifdef QVR_APLAIN_NOWOUNDS\n" /* (the plain form: QVR_ALIAS_FS_PLAIN) */ \
+"	Wounds wounds = Wounds(0.0, 0.0, 0.0, result.rgb, 0.0, 0.0, vec3(0.0), vec2(0.0));\n" \
+"#else\n" \
 "	Wounds wounds = WoundsAt(uv, result.rgb); // QVR: wounds painted on the model (vr/vr_wounds.cpp)\n" \
+"#endif\n" \
 "	vec4 tone = instances[in_instance].SkinTone;\n" \
 "	vec4 glove = instances[in_instance].Glove;\n" \
 "	vec4 nails = instances[in_instance].Nails; // QVR: painted nails (vr_nails): the polish's colour, w 1 + its gloss (0 none)\n" \
 "	vec2 leatherSlope = vec2(0.0); // QVR: a glove's leather (GloveLeather): its relief, its cover, its sheen\n" \
 "	float leatherCover = 0.0, leatherGloss = 0.0;\n" \
 "	float nailCover = 0.0; // QVR: the polish's cover (for its smooth coat and gloss: NailGloss)\n" \
+"#ifndef QVR_APLAIN_NOSKIN\n" \
 "	if (tone.w > 0.0 || glove.w > 0.0 || nails.w > 0.0) // QVR: skin only (vr_skin_tone): the skin's share of the look toned, painted blood/char keep their colour,\n" \
 "	{ // their soft edges blending in (no untoned ring); gloves (vr_gloves) over it, the skin toned where they leave it bare\n" \
 "		float skinShare = (1.0 - wounds.burn) * (1.0 - wounds.blood * instances[in_instance].WoundSide.w);\n" \
@@ -1402,7 +1435,9 @@ QVR_DENT_FUNCTIONS \
 "		}\n" \
 "		wounds.look += skinShare * (mix(toned, leather, cover) - result.rgb);\n" \
 "	}\n" \
+"#endif\n" \
 "	result.rgb = wounds.look;\n" \
+"#ifndef QVR_APLAIN_NOSTUMP\n" \
 "	if (in_stump.w < 1.1) // QVR: a cut-off limb's stump (StumpFlesh): the cone closing it and round it, its edge ragged\n" \
 "	{\n" \
 "		vec3 sc = in_stump.xyz * 2.5;\n" \
@@ -1411,6 +1446,7 @@ QVR_DENT_FUNCTIONS \
 "		wounds.gloss = mix(wounds.gloss, 0.25, cover); // (wet, not glazed)\n" \
 "		wounds.flatten = max(wounds.flatten, cover);\n" \
 "	}\n" \
+"#endif\n" \
 "	if (wounds.wet > 0.0 && instances[in_instance].GloveShell.w < 1.5) // QVR: the wet coat (vr/vr_wounds.cpp wetCoat): all of the look a little darker,\n" \
 "	{ // evenly (not a fullbright texel's: unlit); w 2 (a brain chunk's own wetness: VR_AliasWetCoat) only shines\n" \
 "		float wetDark = 0.3 * min(wounds.wet, 2.0);\n" \
@@ -1420,7 +1456,11 @@ QVR_DENT_FUNCTIONS \
 "		result.rgb *= 1.0 - wetDark;\n" \
 "		wounds.flatten = max(wounds.flatten, 0.35 * min(wounds.wet, 1.0)); // the film fills the bumps a little\n" \
 "	}\n" \
+"#ifdef QVR_APLAIN_NODENTS\n" /* (the plain form) */ \
+"	Dented dent = Dented(0.0, 0.0, 0.0, 1e9, vec3(0.0));\n" \
+"#else\n" \
 "	Dented dent = DentsAt(); // QVR: flesh dents (vr/vr_dents.cpp): raw flesh in the crater, a bloody rim round it\n" \
+"#endif\n" \
 "	if (dent.cover + dent.rim > 0.0)\n" \
 "	{\n" \
 "		result.rgb = mix(result.rgb, vec3(0.3, 0.02, 0.02) * (0.7 + 0.6 * dot(result.rgb, vec3(0.3, 0.59, 0.11))), dent.rim * 0.85);\n" \
@@ -1438,7 +1478,11 @@ QVR_DENT_FUNCTIONS \
 "#endif\n" \
 "	// QVR: the normal bent by the skin's normal map (vr_normalmaps), for the model's own light and the dynamic lights\n" \
 "	vec3 n = normalize(in_nor);\n" \
+"#ifdef QVR_APLAIN_NOBUMP\n" \
+"	const float bumpk = 0.0;\n" \
+"#else\n" \
 "	float bumpk = instances[in_instance].AO.z; // QVR: its normal map's strength: a made one's LightTweak.w, an authored one's own (vr_normalmap_authored)\n" \
+"#endif\n" \
 "	vec3 bumped = bumpk > 0. && (in_bumplight.w > 0. || NumLights > 0u || instances[in_instance].Ambient[0].w > 0.) ? BumpedNormalK(NormalTex, uv, duvdx, duvdy, dpdx, dpdy, n, bumpk) : n;\n" \
 "	if (leatherCover > 0.) // QVR: a glove's leather: the skin's bumps (creases, nails) under it gone, its own relief instead:\n" \
 "	{ // its painted relief's normal map (vr_glove_relief; vr_render.cpp gloveHeightToNormals: one tap, mipmapped) and its grain\n" \
@@ -1496,6 +1540,7 @@ QVR_DENT_FUNCTIONS \
 "	vec3 glowing = fullbright + emissive;\n" \
 "	result.rgb += fullbright + glowing * (in_fbboost * (1.0 - max(glowing.r, max(glowing.g, glowing.b))));\n" \
 "	result.rgb += wounds.glow; // QVR: a fresh burn's embers\n" \
+"#ifndef QVR_APLAIN_NOGLOW\n" \
 "	if (in_glow > 3.5) // QVR: an incandescent blade (vr/vr_meleehud.cpp hotGlow): 4 + 2 x its colour (16 levels a channel: r + 16g + 256b) + its strength (0..2); the metal glows from within, its bright parts most and yellower\n" \
 "	{\n" \
 "		vec4 hb = instances[in_instance].HotBlade; // QVR: only the blade glows: a plane across it in the pose's space (vr/vr_hotblade.cpp bladePlane; zero: all of it)\n" \
@@ -1534,6 +1579,7 @@ QVR_DENT_FUNCTIONS \
 "		float glowStrength = in_glow > 1.5 ? in_glow - 2.0 : abs(in_glow);\n" \
 "		result.rgb += glowColor * glowStrength * (pow(rim, 2.0) * 1.1 + (in_glow > 0. ? 0.08 : 0.12));\n" \
 "	}\n" \
+"#endif\n" \
 "	result.rgb += morphSeam; // QVR: a morph's glowing seam\n" \
 "#ifndef QVR_ALIAS_OPAQUE\n" /* QVR: the opaque form (glprogs.alias_opaque, vr_gl_alias_opaque): no discard, so a tiler rejects hidden pixels before shading them (C4i) */ \
 "	if (!morphShown) // QVR: this model is not there yet (or any more) in a morph\n" \
