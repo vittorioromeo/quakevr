@@ -705,7 +705,7 @@ void view::prepareModels()
 {
     // VR or not: the view's own entities are set up and drawn whenever the map is Quake VR's (hands::update, and
     // VR_SetupViewEntities), flat mode (vr_enabled 0) too; it skipped them, and its first frame loaded them (90 ms, their
-    // md5 replacements too). As the view setup asks for them (setupBody, setupPauldrons, setupHolsters, setupGadget, the hands, the buttons).
+    // md5 replacements too). As the view setup asks for them (setupBody and its pauldrons, setupHolsters, setupGadget, the hands, the buttons).
     za::Vector<const char*> names{handrig::modelName(), "progs/vrgadget.mdl", "progs/vrgadget_strap.mdl", "progs/wpnbutton.mdl"};
     if(vr_body_mode.value >= 1.f)
     {
@@ -753,7 +753,7 @@ void view::prepareModels()
     {
         (void)Mod_ForName(name, false);
     }
-    // The body's armour shells ("<body>#armor", agarmor::playerArmorModel): setupPlates makes them as the body first shows,
+    // The body's armour shells ("<body>#armor", agarmor::playerArmorModel): view::drawBody makes them as the body first shows,
     // armour or not, and that was the first frame's `view body` (40-70 ms). The body setupBody draws: the bare forearms'
     // with the jointed hands, as vr_body_bracers 0 asks.
     if(vr_body_mode.value >= 1.f && vr_player_plates.value != 0.f)
@@ -5459,13 +5459,11 @@ extern "C" void VR_SetupViewEntities()
     }
     {
         QVR_PROFILE("view body");
-        setupBody(s);
-        setupPlates(); // the armour's plates on it (vr_player_plates)
+        setupBody(s); // (the armour's plates on it, vr_player_plates, and the pauldrons: view::drawBody)
     }
     {
-        QVR_PROFILE("view powerups pauldrons");
+        QVR_PROFILE("view powerups");
         powerupGlow(s); // the power-ups' glows and lights (Quad, pentagram, biosuit)
-        setupPauldrons();
     }
     {
         QVR_PROFILE("view gadget");

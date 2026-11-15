@@ -16,6 +16,7 @@
 namespace qvr::avatar
 {
 struct HandPose;
+struct Subject;
 }
 
 namespace qvr::view
@@ -531,7 +532,7 @@ void remoteHandPose(const ViewEntity& hand, avatar::HandPose& out);
 // The body model of a build (vr_body_build's; `bare`: its bare forearms', vr_body_bracers 0), falling back as your own body
 // does (the athletic build's): usable as the VR body, or nullptr.
 [[nodiscard]] qmodel_t* bodyModel(int build, bool bare);
-// The armour's plates on your body (vr_player_plates; vr_view_body.cpp setupPlates): `e`'s bones if it is one of their
+// The armour's plates on your body (vr_player_plates; vr_view_body.cpp drawBody): `e`'s bones if it is one of their
 // entities (0: not), the body's as this pass draws them, a hidden piece's collapsed, the helmet only where the head is
 // drawn (View: as VR_AliasBonePoses has the body; Shadow: as the shadow maps have it; Clone: its mirror image, with its head).
 enum class PlatePass : int
@@ -541,11 +542,51 @@ enum class PlatePass : int
     Clone,
 };
 [[nodiscard]] int plateBonePoses(const entity_t* e, const float** matrices, PlatePass pass);
-// Another player's plates (MP_PLAN B6c): the plates' model and the joints' leather over his `body` (posed this frame)
-// placed into `plate` and `bridge` for the server's word on him (`type` 1-3, `pieces`; not visible: none). No morph: a
-// piece comes and goes at once. Their bones (otherPlateBonePoses): his body's as drawn, by your plates' own code.
-void placeOtherPlates(const ViewEntity& body, int type, int pieces, ViewEntity& plate, ViewEntity& bridge);
-// Their bones (VR_AliasBonePoses' count; with `matrices`, made into `out`: agarmor::playerPlatesMostBones, or for the
+// One player's body as drawn (MP_PLAN.md, B11c): yours (vr_view_body.cpp, from the live rig) and every other player's
+// copy (vr_mpavatar.cpp, from his snapshots) through drawBody, on per-entity data. Its model (the build, bare forearms or
+// bracers, falling back as bodyModel), posed (avatar::pose; another's avatar::poseOther: his body's own motion), placed,
+// shaded, the armour's plates and their joints' leather on it, the pauldrons. What is the own view's alone comes in as
+// data: the legs (your vr_body_mode 3), the drawn view's ride (flat play's bob), the shading (your armour, wounds and
+// power-ups: showPlayerState), the plates' morphs (yours come in and go out over vr_player_plates_morph_time).
+struct BodyPlates
+{
+    static constexpr int maxMorphs = 4;
+    bool on{false}; // plates drawn at all (vr_player_plates: yours and how you see the others')
+    int type{0};    // the armour (1-3; 0 none) and its pieces worn (the server's word)
+    int pieces{0};
+    int coming{0};  // those still coming in (drawn by a morph, not settled)
+    int morphPieces[maxMorphs]{}; // each morph's pieces (0 none), armour and the alias shader's morph value
+    int morphType[maxMorphs]{};
+    float morphValue[maxMorphs]{};
+};
+struct BodyDraw
+{
+    bool shown{false};                      // false: none drawn (the entities below hidden)
+    int player{0};                          // his entity (yours: cl.viewentity)
+    const avatar::Subject* who{nullptr};    // his measures and motion; nullptr: this game's own player (the live ones)
+    hands::State s;                         // the head and hands it is posed from
+    const avatar::HandPose* poses{nullptr}; // the drawn hands' wrists, [HAND_OFF] and [HAND_MAIN]
+    int build{1};
+    bool bare{false};    // its bare forearms wanted (both its jointed hands drawn)
+    bool legs{true};     // with legs (seen from outside: always)
+    glm::vec3 ride{0.f}; // the whole body moved with the drawn view (flatplay::bodyRide)
+    void (*shade)(ViewEntity& ve, const hands::State& s){nullptr}; // its skin, tint, see-through (nullptr: plain)
+    BodyPlates plates;
+    PauldronLook pauldrons; // (its plates' fields: drawBody's)
+};
+struct BodyEntities
+{
+    ViewEntity* body{nullptr};
+    ViewEntity* plates{nullptr}; // [0] the settled pieces, then one per morph (numPlates in all)
+    int numPlates{0};
+    int* platePieces{nullptr};   // out: each plates entity's pieces drawn (0 none), or nullptr
+    ViewEntity* bridge{nullptr}; // the joints' leather
+    ViewEntity* cap{nullptr};    // the pauldrons, [0] left, [1] right
+    ViewEntity* arm{nullptr};
+};
+// The body model drawn (nullptr: none; everything in `out` hidden then).
+qmodel_t* drawBody(const BodyDraw& b, const BodyEntities& out);
+// Another player's plates' bones (VR_AliasBonePoses' count; with `matrices`, made into `out`: agarmor::playerPlatesMostBones, or for the
 // leather (`bridge`) playerBridgeMostBones, times 12 floats).
 [[nodiscard]] int otherPlateBonePoses(const entity_t& body, bool bridge, int pieces, float* out, const float** matrices);
 // vr_mp_avatars: "mp_plates_own: ent= type= pieces= skin= model=" (your plates as drawn).

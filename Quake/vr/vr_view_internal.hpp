@@ -374,7 +374,7 @@ struct Entities
     view::ViewEntity holsterFrontButton[HolsterCount]; // and the grappling guns' front buttons there
     view::ViewEntity worldFrontButton[maxWorldWeapons];
     view::ViewEntity body;
-    view::ViewEntity plate[plateEntities + 1]; // the armour's plates on it (vr_player_plates): the settled ones, then each morph (setupPlates), then the joints' leather
+    view::ViewEntity plate[plateEntities + 1]; // the armour's plates on it (vr_player_plates): the settled ones, then each morph (drawBody), then the joints' leather
     view::ViewEntity pauldron[2];    // per side of the body (0 left): the cap,
     view::ViewEntity pauldronArm[2]; // and the lames round the upper arm
     view::ViewEntity gadget;
@@ -1058,8 +1058,6 @@ inline ButtonState frontButtonStates[2];
 [[nodiscard]] glm::vec3 buttonFace(const view::ViewEntity& button);
 void setupBody(const hands::State& s);
 void dripBlood(const hands::State& s);
-void setupPlates();
-void setupPauldrons();
 void pressWeaponButtons(const hands::State& s);
 void setupButton(int hand);
 void setupFrontButton(int hand);

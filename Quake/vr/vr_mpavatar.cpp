@@ -520,34 +520,24 @@ constexpr int calHeight = 0, calArm = 2, calScale = 3, calBody = 12, calBuild = 
 void setupBody(int e, const Avatar& a, const glm::vec3& origin)
 {
     Drawn& d = drawn.of[e];
-    d.body.visible = false;
     d.bodyPosed = false;
-    for(int side = 0; side < 2; side++)
-    {
-        d.pauldron[side].visible = false;
-        d.pauldronArm[side].visible = false;
-    }
-    d.plate.visible = false;
-    d.plateBridge.visible = false;
     const Calibration* c = cal.has[e] ? &cal.of[e] : nullptr;
-    if(vr_mp_body.value == 0.f || !a.body.valid || (c && c->v[calBody] == 0) || !d.hand[0].visible || !d.hand[1].visible)
-    {
-        return;
-    }
+    view::BodyDraw b;
+    b.shown = vr_mp_body.value != 0.f && a.body.valid && !(c && c->v[calBody] == 0) && d.hand[0].visible && d.hand[1].visible;
+    b.player = e;
     avatar::Subject who;
-    int build = 1;
-    bool bare = false;
+    b.who = &who;
     if(c)
     {
         who.eyeHeight = static_cast<float>(c->v[calHeight]) / 1000.f;
         who.armLength = static_cast<float>(c->v[calArm]) / 1000.f;
         who.metresToUnits = units::perMetre * static_cast<float>(c->v[calScale]) / 1000.f;
-        build = c->v[calBuild];
-        bare = c->v[calBracers] == 0;
-        for(int b = 0; b < 2; b++)
+        b.build = c->v[calBuild];
+        b.bare = c->v[calBracers] == 0;
+        for(int k = 0; k < 2; k++)
         {
-            who.arms.measuredCm[b] = static_cast<float>(c->v[calUpper + b]) / 10.f;
-            who.arms.tweakCm[b] = static_cast<float>(c->v[calTweakUpper + b]) / 10.f;
+            who.arms.measuredCm[k] = static_cast<float>(c->v[calUpper + k]) / 10.f;
+            who.arms.tweakCm[k] = static_cast<float>(c->v[calTweakUpper + k]) / 10.f;
         }
         who.arms.shoulderOffset = glm::vec3{static_cast<float>(c->v[calShoulders]), static_cast<float>(c->v[calShoulders + 1]),
                                       static_cast<float>(c->v[calShoulders + 2])} /
@@ -581,7 +571,7 @@ void setupBody(int e, const Avatar& a, const glm::vec3& origin)
     }
     who.player = e;
 
-    hands::State s;
+    hands::State& s = b.s;
     s.valid = true;
     s.head = origin + a.head;
     s.headAngles = a.headAngles;
@@ -593,39 +583,24 @@ void setupBody(int e, const Avatar& a, const glm::vec3& origin)
     s.leanHold = a.body.leanHold;
     s.crouchRatio = s.headHeight > 0.f ? za::clamp(who.eyeHeight / s.headHeight - 1.f, 0.f, 1.f) : 0.f;
     avatar::HandPose poses[2];
-    view::remoteHandPose(d.hand[0], poses[HAND_OFF]);
-    view::remoteHandPose(d.hand[1], poses[HAND_MAIN]);
-    qmodel_t* model = view::bodyModel(build, bare);
-    if(!model)
+    if(b.shown)
     {
-        return;
+        view::remoteHandPose(d.hand[0], poses[HAND_OFF]);
+        view::remoteHandPose(d.hand[1], poses[HAND_MAIN]);
     }
-    const glm::vec3 at = avatar::poseOther(e, who, s, model, &d.body.ent, poses);
-    if(!avatar::otherSkeleton(e, d.skeleton))
-    {
-        return;
-    }
-    placeEntity(d.body, model, at, glm::vec3{0.f}, 0, 0, false);
-    d.bodyPosed = true;
-    d.handWrist[0] = poses[HAND_OFF].wrist;
-    d.handWrist[1] = poses[HAND_MAIN].wrist;
-    d.eyeHeight = who.eyeHeight;
-    d.seated = who.seated;
+    b.poses = poses;
     // His armour's plates (B6c): the server's word on him (QVR_SVC_ARMOR, as on you), drawn as yours are (your
-    // vr_player_plates: whether you see plates at all).
-    const bool plates = vr_player_plates.value != 0.f;
-    d.plateType = plates ? za::max(agarmor::clientState(e, 0), 0) : 0;
-    d.platePieces = d.plateType > 0 ? za::max(agarmor::clientState(e, 1), 0) : 0;
-    view::placeOtherPlates(d.body, d.plateType, d.platePieces, d.plate, d.plateBridge);
-    if((d.plate.visible || d.plateBridge.visible) && d.plateBones.empty())
-    {
-        d.plateBones.resize(agarmor::playerPlatesMostBones * 12, 0.f);
-        d.bridgeBones.resize(agarmor::playerBridgeMostBones * 12, 0.f);
-    }
+    // vr_player_plates: whether you see plates at all), without the morphs.
+    view::BodyPlates& p = b.plates;
+    p.on = vr_player_plates.value != 0.f;
+    p.type = p.on ? za::max(agarmor::clientState(e, 0), 0) : 0;
+    p.pieces = p.type > 0 ? za::max(agarmor::clientState(e, 1), 0) : 0;
+    d.plateType = p.type;
+    d.platePieces = p.pieces;
     // His pauldrons on it (his calibration's look; the armour the server says he wears), as yours are placed.
+    view::PauldronLook& look = b.pauldrons;
     if(c)
     {
-        view::PauldronLook look;
         look.on = c->v[calPauldrons] != 0;
         look.style = c->v[calPauldronStyle];
         look.size = static_cast<float>(c->v[calPauldronSize]) / 100.f;
@@ -633,11 +608,29 @@ void setupBody(int e, const Avatar& a, const glm::vec3& origin)
         look.offset = glm::vec3{static_cast<float>(c->v[calPauldronOffset]), static_cast<float>(c->v[calPauldronOffset + 1]),
                           static_cast<float>(c->v[calPauldronOffset + 2])} /
                       1000.f;
-        look.build = build;
-        look.armour = a.armour;
-        look.plates = d.plate.visible;
-        look.platePieces = static_cast<unsigned>(d.platePieces);
-        view::placePauldrons(d.body, look, e, d.pauldron, d.pauldronArm);
+    }
+    look.build = b.build;
+    look.armour = a.armour;
+    view::BodyEntities out;
+    out.body = &d.body;
+    out.plates = &d.plate;
+    out.numPlates = 1;
+    out.bridge = &d.plateBridge;
+    out.cap = d.pauldron;
+    out.arm = d.pauldronArm;
+    if(!view::drawBody(b, out) || !avatar::otherSkeleton(e, d.skeleton))
+    {
+        return;
+    }
+    d.bodyPosed = true;
+    d.handWrist[0] = poses[HAND_OFF].wrist;
+    d.handWrist[1] = poses[HAND_MAIN].wrist;
+    d.eyeHeight = who.eyeHeight;
+    d.seated = who.seated;
+    if((d.plate.visible || d.plateBridge.visible) && d.plateBones.empty())
+    {
+        d.plateBones.resize(agarmor::playerPlatesMostBones * 12, 0.f);
+        d.bridgeBones.resize(agarmor::playerBridgeMostBones * 12, 0.f);
     }
 }
 

@@ -17,60 +17,6 @@
 namespace view_detail
 {
 
-// The skinned body (vr_body_mode 2 and 3; 1, the old floating torso, is 2), its arms reaching the
-// drawn hands' wrists.
-void setupBody(const hands::State& s)
-{
-    const int mode = static_cast<int>(vr_body_mode.value);
-    entities.body.visible = false;
-    avatar::hide();
-    drawnBuild = 1;
-    drawnBare = false;
-
-    // Not while dead (the view lies on the floor) or at the end of a level.
-    const bool alive = cl.stats[STAT_HEALTH] > 0 && !cl.intermission;
-    if(mode >= 1 && alive)
-    {
-        // The build (vr_body_build): progs/vrbody_lean, vrbody (athletic), vrbody_brawny or vrbody_fem; their bare forearms'
-        // (vr_body_bracers 0) if both hands are the jointed hand they are fitted round.
-        const int build = avatar::bodyBuild();
-        qmodel_t* model = nullptr;
-        if(bareForearms() && rigHands[0].drawn && rigHands[1].drawn)
-        {
-            model = viewModel(bodyModelName(build, true));
-            drawnBare = avatar::usable(model);
-        }
-        if(!drawnBare)
-        {
-            model = viewModel(bodyModelName(build, false));
-        }
-        if(!avatar::usable(model))
-        {
-            model = viewModel("progs/vrbody.mdl");
-        }
-        if(avatar::usable(model))
-        {
-            drawnBuild = model == viewModel("progs/vrbody.mdl") ? 1 : build;
-            drawnBare = drawnBare && model == viewModel(bodyModelName(build, true));
-            const avatar::HandPose handPoses[2] = {drawnHand(s, 0), drawnHand(s, 1)};
-
-            view::ViewEntity& ve = entities.body;
-            // Flatscreen play: the body rides the drawn view's own move off the pose's eye (the walk's bob, a step's easing) as the
-            // drawn hands do (flatplay::drawnOffset), so the arms move with the hands. The whole body: its head height stays (taking
-            // the bob in the legs changed the crouch's depth, and crouched the shoulders moved 2.5 on the screen against 0.1), so the
-            // feet ride the bob too, a few units off the floor at most.
-            hands::State moved = s;
-            if(const glm::vec3 ride = flatplay::bodyRide(s); ride != glm::vec3{0.f})
-            {
-                moved.head += ride;
-            }
-            const glm::vec3 origin = avatar::pose(moved, model, &ve.ent, handPoses, mode >= 3);
-            place(ve, model, origin, glm::vec3{0.f}, 0, false);
-            showPlayerState(ve, s);
-        }
-    }
-}
-
 // vr_body_wrist_info: per hand, how big the drawn hand is against the body (metres of the modelled body a hand unit, along
 // the hand's x, y, z) and how far the body's posed wrist is from the hand's.
 void wristInfo_f()
@@ -215,18 +161,10 @@ void fillPlateSlots(int numSlots, const int* slotBone, const int* slotPiece, con
     }
 }
 
-void setupPlates()
+// Your plates' morphs as the server's word on you changes (what drawBody draws on your body: `out`).
+void platesNow(view::BodyPlates& out)
 {
     PlayerPlates& p = playerPlates;
-    for(view::ViewEntity& ve : entities.plate)
-    {
-        ve.visible = false;
-        ve.morph = 0.f;
-    }
-    for(int& x : p.entityPieces)
-    {
-        x = 0;
-    }
     const bool on = vr_player_plates.value != 0.f;
     int type = on ? za::max(agarmor::clientState(cl.viewentity, 0), 0) : 0;
     int pieces = on && type > 0 ? za::max(agarmor::clientState(cl.viewentity, 1), 0) : 0;
@@ -281,53 +219,72 @@ void setupPlates()
         coming |= m.in ? m.pieces : 0;
     }
 
-    // The shell made as the body first shows (a level's load, not a first pickup's hitch), armour or not.
-    const view::ViewEntity& body = entities.body;
-    qmodel_t* armor = on && body.visible ? agarmor::playerArmorModel(body.ent.model) : nullptr;
-    if(!armor)
-    {
-        return;
-    }
-    const auto show = [&](int i, int shown, int kind, float morph) {
-        view::ViewEntity& ve = entities.plate[i];
-        if(shown)
-        {
-            placeOnBody(ve, armor, body, kind, morph);
-            p.entityPieces[i] = shown;
-        }
-    };
-    show(0, pieces & ~coming, type, 0.f);
-    // (the joints' leather over the pieces worn, settled or coming: an entity of its own, its bones made once a frame)
-    if(qmodel_t* bridge = pieces ? agarmor::playerBridgeModel(body.ent.model) : nullptr)
-    {
-        placeOnBody(entities.plate[plateBridge], bridge, body, type, 0.f);
-        p.bridgePieces = pieces;
-    }
+    out.on = on;
+    out.type = type;
+    out.pieces = pieces;
+    out.coming = coming;
+    static_assert(view::BodyPlates::maxMorphs == plateEntities - 1);
     for(int i = 0; i + 1 < plateEntities; i++)
     {
         const PlateMorph& m = p.morphs[i];
         const float t = time > 0.f ? za::clamp(static_cast<float>((now - m.start) / static_cast<double>(time)), 1e-3f, 1.f) : 1.f;
-        show(i + 1, m.pieces, m.type, (m.in ? 1.f : -1.f) * (2.f + t)); // (the shader's kind 1, the seam amber: morphValue)
+        out.morphPieces[i] = m.pieces;
+        out.morphType[i] = m.type;
+        out.morphValue[i] = (m.in ? 1.f : -1.f) * (2.f + t); // (the shader's kind 1, the seam amber: morphValue)
     }
 }
 
-// The pauldrons (vr_body_pauldrons; make_pauldron.py), after the Quake ranger's: a cap over each
-// shoulder, carried by the clavicle and turning partly with the upper arm, and lames round the top
-// of the upper arm, which they follow. Both models are made in the bind pose's body space about the
-// left shoulder joint; the right side draws them mirrored.
-void setupPauldrons()
+// Your skinned body (vr_body_mode 2 and 3; 1, the old floating torso, is 2), its arms reaching the drawn hands' wrists,
+// the armour's plates on it (vr_player_plates) and the pauldrons (vr_body_pauldrons; make_pauldron.py, after the Quake
+// ranger's: a cap over each shoulder, carried by the clavicle and turning partly with the upper arm, and lames round the
+// top of the upper arm, which they follow): view::drawBody, as every other player's copy is drawn, from the live rig.
+void setupBody(const hands::State& s)
 {
-    view::PauldronLook look;
+    const int mode = static_cast<int>(vr_body_mode.value);
+    avatar::hide();
+    view::BodyDraw b;
+    platesNow(b.plates);
+    // Not while dead (the view lies on the floor) or at the end of a level.
+    const bool alive = cl.stats[STAT_HEALTH] > 0 && !cl.intermission;
+    b.shown = mode >= 1 && alive;
+    b.player = cl.viewentity;
+    b.s = s;
+    const avatar::HandPose handPoses[2] = {b.shown ? drawnHand(s, 0) : avatar::HandPose{}, b.shown ? drawnHand(s, 1) : avatar::HandPose{}};
+    b.poses = handPoses;
+    // The build (vr_body_build): progs/vrbody_lean, vrbody (athletic), vrbody_brawny or vrbody_fem; their bare forearms'
+    // (vr_body_bracers 0) if both hands are the jointed hand they are fitted round.
+    b.build = avatar::bodyBuild();
+    b.bare = bareForearms() && rigHands[0].drawn && rigHands[1].drawn;
+    b.legs = mode >= 3;
+    // Flatscreen play: the body rides the drawn view's own move off the pose's eye (the walk's bob, a step's easing) as the
+    // drawn hands do (flatplay::drawnOffset), so the arms move with the hands. The whole body: its head height stays (taking
+    // the bob in the legs changed the crouch's depth, and crouched the shoulders moved 2.5 on the screen against 0.1), so the
+    // feet ride the bob too, a few units off the floor at most.
+    b.ride = b.shown ? flatplay::bodyRide(s) : glm::vec3{0.f};
+    b.shade = showPlayerState;
+    view::PauldronLook& look = b.pauldrons;
     look.on = vr_body_pauldrons.value != 0.f;
     look.style = static_cast<int>(vr_body_pauldron_style.value);
     look.size = vr_body_pauldron_size.value;
     look.follow = vr_body_pauldron_follow.value;
     look.offset = {vr_body_pauldron_forward.value, vr_body_pauldron_out.value, vr_body_pauldron_up.value};
-    look.build = avatar::bodyBuild();
+    look.build = b.build;
     look.armour = armorWorn();
-    look.plates = vr_player_plates.value != 0.f;
-    look.platePieces = static_cast<unsigned>(playerPlates.pieces);
-    view::placePauldrons(entities.body, look, 0, entities.pauldron, entities.pauldronArm);
+    view::BodyEntities out;
+    out.body = &entities.body;
+    out.plates = entities.plate;
+    out.numPlates = plateEntities;
+    out.platePieces = playerPlates.entityPieces;
+    out.bridge = &entities.plate[plateBridge];
+    out.cap = entities.pauldron;
+    out.arm = entities.pauldronArm;
+    qmodel_t* model = view::drawBody(b, out);
+    drawnBuild = model && model != viewModel("progs/vrbody.mdl") ? b.build : 1;
+    drawnBare = model && b.bare && model == viewModel(bodyModelName(b.build, true));
+    if(entities.plate[plateBridge].visible)
+    {
+        playerPlates.bridgePieces = b.plates.pieces;
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -626,22 +583,80 @@ int plateBonePoses(const entity_t* e, const float** matrices, PlatePass pass)
     return numSlots;
 }
 
-void placeOtherPlates(const ViewEntity& body, int type, int pieces, ViewEntity& plate, ViewEntity& bridge)
+qmodel_t* drawBody(const BodyDraw& b, const BodyEntities& out)
 {
-    plate.visible = false;
-    bridge.visible = false;
-    if(type <= 0 || !pieces || !body.visible || !body.ent.model)
+    ViewEntity& body = *out.body;
+    body.visible = false;
+    for(int i = 0; i < out.numPlates; i++)
     {
-        return;
+        out.plates[i].visible = false;
+        out.plates[i].morph = 0.f;
+        if(out.platePieces)
+        {
+            out.platePieces[i] = 0;
+        }
     }
-    if(qmodel_t* armor = agarmor::playerArmorModel(body.ent.model))
+    out.bridge->visible = false;
+    qmodel_t* model = b.shown ? bodyModel(b.build, b.bare) : nullptr;
+    if(model)
     {
-        view_detail::placeOnBody(plate, armor, body, type, 0.f);
+        hands::State moved = b.s;
+        moved.head += b.ride;
+        const glm::vec3 origin = b.who ? avatar::poseOther(b.player, *b.who, moved, model, &body.ent, b.poses)
+                                       : avatar::pose(moved, model, &body.ent, b.poses, b.legs);
+        // (another's body posed: his skeleton kept)
+        if(avatar::Skeleton k; !b.who || avatar::otherSkeleton(b.player, k))
+        {
+            view_detail::place(body, model, origin, glm::vec3{0.f}, 0, false);
+            if(b.shade)
+            {
+                b.shade(body, b.s);
+            }
+            else
+            {
+                body.ent.skinnum = 0;
+                body.lightMultiply = false;
+                body.lightMod = glm::vec3{1.f};
+            }
+        }
+        else
+        {
+            model = nullptr;
+        }
     }
-    if(qmodel_t* leather = agarmor::playerBridgeModel(body.ent.model))
+
+    // The armour's plates (the shell made as the body first shows: a level's load, not a first pickup's hitch, armour or
+    // not), the settled pieces, the joints' leather over the pieces worn (settled or coming), each morph.
+    const BodyPlates& p = b.plates;
+    qmodel_t* armor = p.on && body.visible ? agarmor::playerArmorModel(model) : nullptr;
+    if(armor)
     {
-        view_detail::placeOnBody(bridge, leather, body, type, 0.f);
+        const auto show = [&](int i, int pieces, int type, float morph) {
+            if(pieces && i < out.numPlates)
+            {
+                view_detail::placeOnBody(out.plates[i], armor, body, type, morph);
+                if(out.platePieces)
+                {
+                    out.platePieces[i] = pieces;
+                }
+            }
+        };
+        show(0, p.pieces & ~p.coming, p.type, 0.f);
+        if(qmodel_t* bridge = p.pieces ? agarmor::playerBridgeModel(model) : nullptr)
+        {
+            view_detail::placeOnBody(*out.bridge, bridge, body, p.type, 0.f);
+        }
+        for(int i = 0; i < BodyPlates::maxMorphs; i++)
+        {
+            show(i + 1, p.morphPieces[i], p.morphType[i], p.morphValue[i]);
+        }
     }
+
+    PauldronLook look = b.pauldrons;
+    look.plates = p.on;
+    look.platePieces = static_cast<unsigned>(p.pieces);
+    placePauldrons(body, look, b.who ? b.player : 0, out.cap, out.arm);
+    return model;
 }
 
 int otherPlateBonePoses(const entity_t& body, bool bridge, int pieces, float* out, const float** matrices)
