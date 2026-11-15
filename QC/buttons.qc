@@ -96,6 +96,14 @@ float() button_campaign_unavailable =
 
 void() button_fire =
 {
+    // VR: a command button (buttonEffect 3: a console command, such as the test hall's NEW GAME "campaign 1; map start")
+    // only by a player: his hand, his step, what he threw, his shot; never a monster (vr_monsters_press_buttons) nor a
+    // thing no player threw (a weapon or limb a blast flung: mp_armed's gib storms pressed NEW GAME, the server went to
+    // start and both players were dropped; MP_PLAN.md B12c)
+    if(self.buttonEffect == 3 && !(self.enemy.flags & FL_CLIENT))
+    {
+        return;
+    }
     if(VR_AD_ButtonFire()) return; // AD support: preserve AD targets and states
 
     if(button_campaign_unavailable())
