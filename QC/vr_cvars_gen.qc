@@ -1696,6 +1696,7 @@ float cvarh_vr_reload_ssg_open_hit;
 float cvarh_vr_reload_ssg_pry;
 float cvarh_vr_reload_test;
 float cvarh_vr_reload_volume;
+float cvarh_vr_revgrip_blocked_pulse;
 float cvarh_vr_revgrip_flip_time;
 float cvarh_vr_revgrip_forcegrab;
 float cvarh_vr_revgrip_volume;
@@ -3795,6 +3796,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_reload_ssg_pry = VR_CVar_Make("vr_reload_ssg_pry");
     cvarh_vr_reload_test = VR_CVar_Make("vr_reload_test");
     cvarh_vr_reload_volume = VR_CVar_Make("vr_reload_volume");
+    cvarh_vr_revgrip_blocked_pulse = VR_CVar_Make("vr_revgrip_blocked_pulse");
     cvarh_vr_revgrip_flip_time = VR_CVar_Make("vr_revgrip_flip_time");
     cvarh_vr_revgrip_forcegrab = VR_CVar_Make("vr_revgrip_forcegrab");
     cvarh_vr_revgrip_volume = VR_CVar_Make("vr_revgrip_volume");

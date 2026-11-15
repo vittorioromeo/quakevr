@@ -3214,6 +3214,26 @@ the same exact rules" as enemies; an option, on by default, single player and mu
   lower slipgates (ad_hub_test) moved to Fixes.
 - For the final 1.1: re-read PATCH_NOTES_1.1.md against what lands after the RC (add lines, drop the RC sentence).
 
+## flipgate: a two-handed blade flips only with both hands on its handle (agent/flipgate, 2026-11-15)
+
+His notes (vrtesthall_2026-11-15_18-02-24, _18-03-10): the flipped 2H hold is fine now, but the dagger held near its tip by the
+other hand ("anywhere") and flipped sent that hand a long way; the sword held anywhere or by its blade (half-sword) ended right
+but stretched. His rule: held in two hands, the grip flips only when both hands are on the handle.
+- **The gate** (`view::gripFlipBlocked`, `twohand::heldOffHandle`: the holding hand's free grip on, or `bladeGrip`): the weapon may
+  flip but the other hand holds it off its handle. QC `weapondrawnpose(p, hand, 46)`'s z is now 1 may flip, -1 refused by the gate,
+  0 none; `VR_RevGrip_Flip` (the eject button's and the flat holster menu's FLIP GRIP alike) refuses on -1: the grip unchanged, no
+  sound, a light short pulse (`haptic(hand, 0, 0.03, 40, vr_revgrip_blocked_pulse)`). One hand, or the other on the 2H grip hotspot
+  (the handle), flips as before. Flat play goes through the same check (FLIP GRIP: impulses 84, 85).
+- **Tunables** (Debug > Tunables > Weapons > Reverse Grip): Two-Handed Flip (`vr_revgrip_2h_gate` 1 Handle Only, 0 Always: before),
+  Refused Flip Pulse (`vr_revgrip_blocked_pulse` 0.25, 0 none).
+- On the knight's sword the blade hotspot runs to the tip, so a hand on its blade away from the handle takes the blade grip (gated
+  as such); a free "anywhere" grip is the dagger's (no blade hotspot).
+- **Test** `vr_embed_test 45` (QC/vr_flipgate_test.qc, `flipgate: 25 passed, 0 failed`): dagger and knight's sword, one hand and
+  the 2H hotspot flip (46 z 1); the dagger held anywhere (weaponanygrip 2), the sword near the guard and on its blade hotspot:
+  46 z -1, the flip refused (counted, grip unchanged); case 8 the dagger anywhere with the gate 0: flips. Unchanged: flipgrip (44)
+  39/0, revgrip (42) 24/0. Seen: in the mock the knight's sword's 2H hold by the hotspot lets go after a flip (the mirrored
+  hotspot moves ~9 units past the still mock hand; the dagger's stays held); his VR note says the 2H flip feels fine.
+- To check in VR: the dagger held at the tip, the sword on its blade: B/Y does nothing but a light tap; on the handle: flips.
 ## flat1116: Burst Rifle name, toolgun gun+blade, gun-and-axe melee, flat B = next ammo, disarm sounds (agent/flat1116, 2026-11-16)
 
 His flat-screen notes (2026-11-16) and the coordinator's disarm-sound item.
