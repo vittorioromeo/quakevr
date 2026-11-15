@@ -3062,6 +3062,7 @@ vr_throw_point_align|2|Tunables|Point-First Settling|Advanced VR Options > Debug
 vr_throw_point_time|2|Tunables|Point-First Settling: Time|Advanced VR Options > Debug > Tunables > Point-First Settling: Time
 vr_throw_point_angle|2|Tunables|Point-First Settling: Angle|Advanced VR Options > Debug > Tunables > Point-First Settling: Angle
 vr_throw_point_spin|2|Tunables|Point-First Settling: Tumble|Advanced VR Options > Debug > Tunables > Point-First Settling: Tumble
+vr_throw_point_damp|2|Tunables|Point-First Settling: Spin Damping|Advanced VR Options > Debug > Tunables > Point-First Settling: Spin Damping
 vr_shot_push_pellet|2|Tunables|Pellet Push|Advanced VR Options > Debug > Tunables > Pellet Push
 vr_shot_push_nail|2|Tunables|Nail Push|Advanced VR Options > Debug > Tunables > Nail Push
 vr_shot_push_supernail|2|Tunables|Super Nail Push|Advanced VR Options > Debug > Tunables > Super Nail Push

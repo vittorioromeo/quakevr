@@ -20,6 +20,7 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sqrt.hpp"
 #include "vr_api.h"
 
 namespace box3d::detail
@@ -185,19 +186,23 @@ void spinAlign(Slot& s, float dt)
     b3Body_SetAngularVelocity(s.body, b3v(r * (axes[0] * c.x + axes[1] * c.y + axes[2] * c.z)));
 }
 
-// A pointed blade thrown (a sword, the dagger: axestick::pointLine) steadies towards its point in the air (his note
-// 2026-11-15 00:03: "if the throw is good enough there should be some force that stabilizes it toward the point ... over a
-// very short period ... not instantly turning straight like an arrow"): a damped turn of its blade's line towards its
-// flight, as the air and a well balanced throw do, only for vr_throw_point_time s after the throw (fading out over it), and
-// the more the nearer it already flies point first (none from vr_throw_point_angle off), the faster it goes and the less it
-// tumbles (none from vr_throw_point_spin turns a second across the blade). Its turn about its own length (a spiral) is left.
-// The turn is capped: a good throw comes round over a few tenths of a second, a tumble stays a tumble.
-constexpr float pointStiff = 150.f;    // 1/s^2: the turn's spring, per radian off (times the share)
-constexpr float pointDamp = 14.f;      // 1/s: its damping of the tumble across the blade (times the share)
-constexpr float pointMaxAccel = 90.f;  // rad/s^2: the most it turns the blade
+// A pointed blade thrown (a sword, the dagger: axestick::pointLine) steadies towards its point in the air (his notes
+// 2026-11-15 00:03: "if the throw is good enough there should be some force that stabilizes it toward the point"; 03:21: "it
+// always seems to immediately start spinning a lot ... give me tweakable values that can go to extreme levels"): a damped
+// spring turning its blade's line towards its flight, as a well thrown knife flies, for vr_throw_point_time s after the
+// throw (fading out over it). A hand lets a blade go turning over: replayed, his overhand throw left 136 degrees off its
+// flight (its point up and back) tumbling at 12.5 rad/s across the blade, so the gates are the release's and wide: any
+// angle (vr_throw_point_angle, 180), the whole help up to half of vr_throw_point_spin turns a second across the blade and
+// none from it (3: a spin given on purpose, near the hand's most, stays a spin). The spring (400/s^2 per radian at
+// Point-First Settling 1: about 0.15 s to come round) is damped critically (vr_throw_point_damp 1: the release's tumble
+// across the blade taken out as it comes round, no overshoot; less: it swings past and back; more: slower, the spin
+// killed first). Its turn about its own length (a spiral) is left; the Box3D spin alignment waits while it acts.
+constexpr float pointStiff = 400.f;    // 1/s^2: the spring, per radian off, at Point-First Settling 1 (times it)
+constexpr float pointMaxAccel = 600.f; // rad/s^2: the most it turns the blade at 1 (times it)
 constexpr float pointSpeedFrom = 3.f;  // m/s: no help slower ...
 constexpr float pointSpeedFull = 8.f;  // ... full help from here
-void pointAlign(Slot& s, edict_t* ent, float dt)
+// Returns its share of help this step (0: none; spinAlign then).
+float pointAlign(Slot& s, edict_t* ent, float dt)
 {
     const float strength = za::max(vr_throw_point_align.value, 0.f);
     const float window = vr_throw_point_time.value;
@@ -205,49 +210,60 @@ void pointAlign(Slot& s, edict_t* ent, float dt)
     s.flightAge += dt;
     if(strength <= 0.f || window <= 0.f || age >= window || dt <= 0.f)
     {
-        return;
+        return 0.f;
     }
     glm::vec3 hand, tip;
     if(!axestick::pointLine(ent, hand, tip))
     {
-        return;
+        return 0.f;
     }
     const glm::vec3 d = glm::normalize(tip - hand);
     const glm::vec3 v = glmv(b3Body_GetLinearVelocity(s.body)); // (m/s)
     const float speed = glm::length(v);
-    const float fast = za::clamp((speed - pointSpeedFrom) / (pointSpeedFull - pointSpeedFrom), 0.f, 1.f);
-    if(fast <= 0.f)
-    {
-        return;
-    }
-    const glm::vec3 way = v / speed;
+    const glm::vec3 way = speed > 1e-4f ? v / speed : d;
     const float off = za::atan2(glm::length(glm::cross(d, way)), glm::dot(d, way));
-    const float most = glm::radians(za::max(vr_throw_point_angle.value, 0.f));
     const glm::vec3 w = glmv(b3Body_GetAngularVelocity(s.body));
     const glm::vec3 across = w - d * glm::dot(w, d);
-    const float tumbleMost = za::max(vr_throw_point_spin.value, 0.f) * glm::two_pi<float>();
-    if(off >= most || tumbleMost <= 0.f)
+    if(age <= 0.f)
     {
-        return;
+        s.flightOff = off; // (the release's: the gates)
+        s.flightTumble = glm::length(across);
     }
-    const float near = 1.f - off / most;
-    const float calm = za::clamp(1.f - glm::length(across) / tumbleMost, 0.f, 1.f);
+    const float fast = za::clamp((speed - pointSpeedFrom) / (pointSpeedFull - pointSpeedFrom), 0.f, 1.f);
+    const float tumbleMost = za::max(vr_throw_point_spin.value, 0.f) * glm::two_pi<float>();
+    const float calm = tumbleMost > 0.f ? za::clamp((tumbleMost - s.flightTumble) / (0.5f * tumbleMost), 0.f, 1.f) : 0.f;
+    const bool aimed = glm::degrees(s.flightOff) <= za::max(vr_throw_point_angle.value, 0.f);
     const float fade = 1.f - (age / window) * (age / window);
-    const float share = strength * near * calm * fast * fade;
+    const float share = aimed ? calm * fast * fade : 0.f;
+    if(vr_debug_box3d.value != 0.f && (age <= 0.f || static_cast<int>(age * 20.f) != static_cast<int>((age + dt) * 20.f)))
+    {
+        Con_Printf("pointalign: %d age %.2f off %.0f deg across %.1f along %.1f rad/s speed %.1f m/s share %.2f\n",
+            NUM_FOR_EDICT(ent), age, glm::degrees(off), glm::length(across), glm::dot(w, d), speed, share);
+    }
     if(share <= 0.f)
     {
-        return;
+        return 0.f;
     }
+    // The way to turn: square to the line and its flight; flying (nearly) handle first, on with the tumble it has.
     glm::vec3 axis = glm::cross(d, way);
-    const float axisLen = glm::length(axis);
-    axis = axisLen > 1e-6f ? axis / axisLen : glm::vec3{0.f};
-    glm::vec3 accel = (axis * (pointStiff * off) - across * pointDamp) * share;
-    const float a = glm::length(accel);
-    if(a > pointMaxAccel)
+    float axisLen = glm::length(axis);
+    if(axisLen < 1e-3f)
     {
-        accel *= pointMaxAccel / a;
+        axis = across;
+        axisLen = glm::length(axis);
+    }
+    axis = axisLen > 1e-6f ? axis / axisLen : glm::vec3{0.f};
+    const float k = pointStiff * strength;
+    const float c = za::max(vr_throw_point_damp.value, 0.f) * 2.f * za::sqrt(k);
+    glm::vec3 accel = (axis * (k * off) - across * c) * share;
+    const float a = glm::length(accel);
+    const float most = pointMaxAccel * strength;
+    if(a > most)
+    {
+        accel *= most / a;
     }
     b3Body_SetAngularVelocity(s.body, b3v(w + accel * dt));
+    return share;
 }
 
 // Before the step, for each awake prop: the hit box along its flight, then the water (the old solver's waterStep,
@@ -334,8 +350,10 @@ void beforeStep(float dt)
             s.flight = !touching && !s.wet;
             if(s.flight)
             {
-                spinAlign(s, dt);
-                pointAlign(s, ent, dt);
+                if(pointAlign(s, ent, dt) <= 0.f) // (a pointed blade steadying: its spin is its)
+                {
+                    spinAlign(s, dt);
+                }
             }
         }
 

@@ -574,10 +574,11 @@ QVR_TUNABLE(vr_throw_restitution, "0.25")
 QVR_TUNABLE(vr_throw_friction, "0.5")
 QVR_TUNABLE(vr_throw_spin_max, "20") // rad/s
 QVR_TUNABLE(vr_throw_spin_align, "8")
-QVR_TUNABLE(vr_throw_point_align, "1") // a thrown sword or dagger settling point first (vr_box3d_step.cpp pointAlign); 0 off
-QVR_TUNABLE(vr_throw_point_time, "0.3") // s: how long after the throw it may
-QVR_TUNABLE(vr_throw_point_angle, "45") // degrees: its point at most this far off its flight to be helped
-QVR_TUNABLE(vr_throw_point_spin, "1.5") // turns/s: a tumble this fast or faster is left a tumble
+QVR_TUNABLE(vr_throw_point_align, "1") // a thrown sword or dagger settling point first (vr_box3d_step.cpp pointAlign): its spring's strength; 0 off
+QVR_TUNABLE(vr_throw_point_time, "0.5") // s: how long after the throw it may
+QVR_TUNABLE(vr_throw_point_angle, "180") // degrees: its point at most this far off its flight as it leaves the hand (180: any)
+QVR_TUNABLE(vr_throw_point_spin, "3") // turns/s across the blade as it leaves the hand: the whole help up to half this, none from it
+QVR_TUNABLE(vr_throw_point_damp, "1") // its damping of the tumble across the blade (1: critical, no overshoot)
 QVR_TUNABLE(vr_shot_push_pellet, "6") // N s, each shotgun and double shotgun pellet's push (monsters' too)
 QVR_TUNABLE(vr_shot_push_nail, "12") // N s, a nail's (the nailgun's, scrags', knights', enforcers' lasers)
 QVR_TUNABLE(vr_shot_push_supernail, "24") // N s, a super nailgun nail's
