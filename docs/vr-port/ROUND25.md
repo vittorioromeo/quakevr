@@ -3213,3 +3213,40 @@ the same exact rules" as enemies; an option, on by default, single player and mu
   the final 1.1.0. Stale known issues fixed: AD's sky flicker (fixed 10-27, e5f54c30e, the NaN fog) and the AD hub's
   lower slipgates (ad_hub_test) moved to Fixes.
 - For the final 1.1: re-read PATCH_NOTES_1.1.md against what lands after the RC (add lines, drop the RC sentence).
+
+## throwfix2: the dagger settles point first; thrown blades never gib; no floating blade (agent/throwfix2, 2026-11-15)
+
+His note (vrtesthall_2026-11-15_17-58-33): the sword's point-first throw is right, the dagger "much harder to throw point
+first ... still tumbles"; thrown swords and daggers gib what they hit; a javelin-thrown sword stayed floating in the air,
+embedded, over the body it killed.
+
+- **The dagger.** A light blade leaves the hand spinning faster: the throw's spin limit is by weight (vr_throw_table: the
+  knight's sword, 4 kg, 12.5 rad/s at most; the dagger, light, Max Spin's 20), and pointAlign's Tumble gate (3 turns/s:
+  full help up to 9.4 rad/s, none from 18.8) shut most dagger releases out. New weapons.txt key `throw_point` (this
+  pointed blade's leniency: times the Tumble limit and the spring's strength and its most; 1 by default, the swords
+  unchanged bit for bit; the dagger, slot 51, 2: full help up to 18.8 rad/s, about 0.1 s to come round). Per weapon, so
+  `vr_wofs_throw_point_NN` in the config. pointalign's debug line prints it (`x2.00`).
+- **No gibs** (combat.qc `VR_Gib_Overkill`): a thrown sword or dagger (weapons.txt `embed` 1) counts
+  `vr_gib_overkill_blade` (0) of its overkill whichever way it struck, not only blade first (`vr_throw_bladein`; a thrown
+  blade counted as "blades", all its overkill). Quad counts all as before; no Gore preset or run mutator touches overkill.
+  Blade first still counts in `vr_throw_bladein_count` (test 41). Damage unchanged. Measured (the old rule from the overkill
+  lines): at 28 m/s, the not-blade-first sword and dagger left a grunt at -157/-50 and a knight at -112 (gibbed: under -35,
+  -40): 5 of 12 such throws gibbed; now 0 of 18.
+- **The floating blade** (vr_axestick.cpp serverFrame, QC VR_AxeStick_Think): headless at 28 m/s the point-first sword
+  went into a grunt's gun; as it died its death frames squash the gun's triangles to a point (hitmodel::anchorFrame: no
+  frame), the engine stopped placing the blade and QC kept it stuck: it stayed where it struck while the body flew 3 m
+  back. Now the engine marks the blade (`.vr_stick_lost`, new field, the time it could not place it; 0 again once it can)
+  and QC lets it fall (VR_AxeStick_Fall: with the body's motion) after `VR_STICK_LOST_GRACE` (0.04 s). A blade in the
+  body's flesh stays with the corpse as before (knight, ogre: off the body at most 6.7 units over 2 s).
+- **Test** `vr_embed_test 47` (extended; `gibthrow: 12 passed, 0 failed`): a new "any way" set (16 throws, the point 60-170
+  degrees off, the dagger tumbling 14-20 rad/s at 12-20 m/s, the sword as its weight lets: 12.5 rad/s, 10-12 m/s), daggers
+  point first (35 degrees, at 3 and 5 m) off / on / extreme: with `throw_point` 1 0 / 5 / 8 of 8, now 0 / 8 / 8; swords
+  8 / 8 / 8 both; the spun daggers 0 -> 3 of 3 (spun swords stay a spin: 0, tumble 17.4 of 17.4 rad/s); the old sets
+  unchanged. Then QC/vr_throwdmg_test.qc: a grunt, a knight and an ogre (stock health) each hit by the sword and the dagger
+  at vr_throw_max_speed (28 m/s) point first, flat and handle first (pointAlign off for these): 0 gibbed, 12 of 18 killed,
+  most damage 122; point first 6 of 6 in the body; flat and handle first 12 blunt blows, none stuck; floating (the tip
+  over 24 units off the body as drawn, `modelanchor`, 4+ frames, or stuck in a body gone or gibbed): 0 (2 before the fix).
+  Tests 41 19/0, 34 15/0, 48 4/0, 40 24/0, 21 43/1 (the known slow-swing burst).
+- Scene `throw_hard` (a grunt, a knight, an ogre; the sword and the dagger).
+- Open: a blade in a body the engine models only by its box (`MonsterBox`: no Quake .mdl) still follows the box as the body
+  dies; a blade striking a gun sticks in it (a clang and a bounce would be truer). Not changed.

@@ -203,6 +203,7 @@ defaults
     w_mass "0"
     skewer_most "0"
     skewer_depth "1"
+    throw_point "1"
     w_com "0"
     w_len "0"
     w_stiff "1"
@@ -4781,6 +4782,7 @@ weapon 51
     embed "1"
     skewer_most "1" // one gib at a time on the short blade (his note 2026-11-13)
     skewer_depth "0.5" // and shallower: half the sword's 8 units from the tip
+    throw_point "2" // settles point first in the air more readily than the swords (his note 2026-11-15: it tumbled on)
     2h_fxd_hp "-1.5"
     2h_fxd_hr "0.0"
     2h_fxd_hy "0.0"

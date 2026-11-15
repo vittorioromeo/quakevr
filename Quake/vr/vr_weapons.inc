@@ -492,6 +492,10 @@ QVR_WEAPON_KEY(Embed, "embed")
 // skewer_depth, the share of vr_embed_skewer_depth this blade puts the first gib from its tip (1 by default).
 QVR_WEAPON_KEY(SkewerMost, "skewer_most")
 QVR_WEAPON_KEY(SkewerDepth, "skewer_depth")
+// Point-first settling in the air (vr_box3d_step.cpp pointAlign): throw_point, this pointed blade's leniency, times
+// Point-First Settling's strength and its Tumble limit (1 by default: the swords; the dagger more, his note 2026-11-15: a
+// short light blade leaves the hand tumbling faster).
+QVR_WEAPON_KEY(ThrowPoint, "throw_point")
 QVR_WEAPON_KEY(EmbedE1AX, "em_e1a_x")
 QVR_WEAPON_KEY(EmbedE1AY, "em_e1a_y")
 QVR_WEAPON_KEY(EmbedE1AZ, "em_e1a_z")

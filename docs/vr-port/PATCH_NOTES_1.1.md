@@ -149,6 +149,8 @@ old default move to the new one, and values you changed stay yours.
   about your fist and carries through two-handed holds (mirrored), passing between hands, drops, throws, and taking a
   reversed blade off a table or out of a body; catch a tossed dagger blade down and you hold it reversed.
 - Thrown swords and daggers come round point first; a blade thrown blade first sinks deep and kills whole.
+- The thrown dagger settles point first much more readily, however it leaves the hand.
+- Thrown swords and daggers hit hard but never gib, however fast or whichever way they strike (Quad still does).
 - One consistent throw for props and weapons.
 - Grab floating pickups out of the air, and catch things in mid-air.
 - Passing a weapon between hands eases across.
@@ -409,6 +411,8 @@ old default move to the new one, and values you changed stay yours.
 
 ### Bug fixes
 
+- A thrown blade stuck in an enemy that dies from the throw no longer stays floating in the air: it falls when it can't
+  stay with the body (a grunt's gun gone from its hands).
 - The Matriarch of Decay: the palace button no longer crashes the game.
 - The Sacrifice: its two vores no longer crash the game; the Rune no longer appears before the sacrifices.
 - Shub-Niggurath's teleporter takes you to the spiked ball again after loading a save.
