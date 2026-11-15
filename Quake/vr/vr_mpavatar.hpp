@@ -115,7 +115,8 @@ void serverReset(int slot);
 void serverWriteAll(sizebuf_t* msg);
 
 // vr_mp_avatars (Debug > Reports > Network: Player Avatars; the harness's mp_avatar): the avatars this client has and
-// draws, its own hands as drawn and, hosting, the server's view of each player and the avatars sent.
+// draws, its own hands as drawn and, hosting, the server's view of each player and the avatars sent ("vr_mp_avatars
+// hands": each player's hands, held and holstered weapons as drawn too, `mp_hands:` and `mp_hands_own:`).
 void init();
 
 } // namespace qvr::mpavatar

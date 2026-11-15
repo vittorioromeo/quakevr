@@ -163,7 +163,7 @@ void printSkeleton(const char* what, int e, const char* model, const avatar::Ske
 
 // One line per avatar (the harness's mp_avatar): head and hands in the world (from his entity's origin now), the main
 // hand's angles, the curls and thumbs, the weapons' models; then what was drawn of it last frame.
-void printAvatar(int e, const Avatar& a)
+void printAvatar(int e, const Avatar& a, bool hands)
 {
     const glm::vec3 origin = entityOrigin(e);
     Con_Printf("mp_avatar: ent=%d self=%d flat=%d", e, e == cl.viewentity ? 1 : 0, a.flat ? 1 : 0);
@@ -223,7 +223,10 @@ void printAvatar(int e, const Avatar& a)
     if(d.frame == host_framecount - 1 || d.frame == host_framecount)
     {
         const float* const skin[2] = {d.hand[0].visible ? d.skin[0] : nullptr, d.hand[1].visible ? d.skin[1] : nullptr};
-        view::printHands("mp_hands", e, d.hand, skin, d.weapon, d.holster, VrDrawnHolsters::count);
+        if(hands)
+        {
+            view::printHands("mp_hands", e, d.hand, skin, d.weapon, d.holster, VrDrawnHolsters::count);
+        }
         for(int part = 0; part < 3; part++)
         {
             const view::ViewEntity& ve = part < 2 ? d.hand[part] : d.body;
@@ -252,13 +255,15 @@ void printAvatar(int e, const Avatar& a)
 
 void avatars_f()
 {
+    // ("vr_mp_avatars hands": each player's hands, held and holstered weapons as drawn too, mp_hands and mp_hands_own)
+    const bool hands = Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "hands");
     if(cls.state == ca_connected && cl.viewentity > 0)
     {
         for(int e = 1; e <= MAX_SCOREBOARD; e++)
         {
             if(avatars[e].valid)
             {
-                printAvatar(e, avatars[e]);
+                printAvatar(e, avatars[e], hands);
             }
         }
         // This client's own hands as drawn (what the others should draw: the move's view::netHands).
@@ -278,7 +283,10 @@ void avatars_f()
         view::printOwnLooks(cl.viewentity);
         view::printOwnPauldrons(cl.viewentity);
         view::printOwnPlates(cl.viewentity);
-        view::printOwnHands(cl.viewentity);
+        if(hands)
+        {
+            view::printOwnHands(cl.viewentity);
+        }
         // His own holsters as drawn (what the others draw: the move's view::netHolsters).
         VrDrawnHolsters hs;
         view::netHolsters(hs);
