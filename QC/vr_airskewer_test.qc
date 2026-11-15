@@ -2,8 +2,8 @@
 // vr_airskewer_test.qc -- `vr_embed_test 48` (throwfix): a gib tossed up can be skewered in the air (his note
 // vrtesthall_2026-11-15_03-19-26: "if I unscrew a gib and then I throw it ... I'm able to hit it and shoot it and destroy it, but
 // it doesn't seem like I'm able to skewer it again while it's in the air ... as long as it's a direct forceful hit with the point
-// of the blade"). The sword in the main hand (the mock's), a gib thrown hard by the player back at the blade along its line (9
-// m/s: his own in its throw), a little upwards; at the top of its rise, 30 units past the blade's tip, the hand drives the blade:
+// of the blade"). The sword in the main hand (the mock's), a gib the player threw hard (his own in its throw: his blows passed
+// it), near the top of its rise just past the blade's tip; there the hand drives the blade at it:
 //   0  thrown, a fast thrust along the blade (5 m/s): on the blade;
 //   1  thrown, a slow push along it (0.6 m/s): not on it;
 //   2  thrown, a fast swing across it (5 m/s, the blade's side): not on it;
@@ -11,8 +11,8 @@
 // Ends `airskewer: N passed, M failed`.
 
 float VR_AS_CASES = 4;
-float VR_AS_THROW = 9;  // m/s: the gib thrown at the blade this fast (past VR_THROW_MISSILE_SPEED: a hard throw, his) ...
-float VR_AS_RISE = 3;   // ... and this fast upwards
+float VR_AS_THROW = 9;  // m/s: the gib thrown this fast (past VR_THROW_MISSILE_SPEED: a hard throw, his in its throw) ...
+float VR_AS_RISE = 20;  // ... met near the top of its rise: units still to rise
 float vr_as_owned;   // the thrown gib his as it flies (as his throw: VR_Blow_Strikable passed it)
 float vr_as_case;
 vector vr_as_rest;   // the main hand's place at the start (each case starts there)
@@ -50,17 +50,15 @@ entity(entity p, vector xAt, float xThrown) VR_AS_Gib =
     if(xThrown)
     {
         // As VR_Carry_Release lets it go from the other hand: loose, thrown hard (a missile, his own in its throw:
-        // VR_Carry_Throw), back along the blade's line towards it, a little upwards: the top of its rise at `xAt`.
+        // VR_Carry_Throw; a gib flying into the blade or his hands is no longer his, so the thrust must meet it first), then
+        // as such a throw is near the top of a lob: rising slowly to the top of its rise at `xAt`, VR_AS_RISE units under it.
         g.carry_player = p;
         VR_Carry_Loose(g);
-        vector wh = normalize([vr_as_way_x, vr_as_way_y, 0]);
-        float vh = VR_AS_THROW * VRMetersToUnits();
-        float vz = VR_AS_RISE * VRMetersToUnits();
-        VR_Carry_Throw(g, wh * -vh + '0 0 1' * vz);
-        float gs = (g.gravity > 0) ? g.gravity : 1;
-        float rise = vz / (cvar_hget(cvarh_sv_gravity) * gs); // (s to its top)
-        setorigin(g, g.origin + wh * (vh * rise) - '0 0 1' * (vz * rise * 0.5));
+        VR_Carry_Throw(g, '0 0 1' * (VR_AS_THROW * VRMetersToUnits()));
         VR_Gib_Released(g, vlen(g.velocity), cVR_OffHand);
+        float gs = (g.gravity > 0) ? g.gravity : 1;
+        setorigin(g, g.origin - '0 0 1' * VR_AS_RISE);
+        g.velocity = '0 0 1' * sqrt(2 * cvar_hget(cvarh_sv_gravity) * gs * VR_AS_RISE);
         vr_as_owned = (g.owner == p);
     }
     return g;
@@ -90,7 +88,7 @@ void() VR_AS_Frame =
         vr_as_way = normalize(b.mh_far - b.mh_grip);
         vr_as_side = normalize([vr_as_way_y, -vr_as_way_x, 0]);
         vr_as_tip = b.mh_far;
-        vector at = vr_as_tip + vr_as_way * ((vr_as_case == 3) ? 14 : 30) + ((vr_as_case == 2) ? vr_as_side * 18 : '0 0 0');
+        vector at = vr_as_tip + vr_as_way * 14 + ((vr_as_case == 2) ? vr_as_side * 18 : '0 0 0');
         vr_as_g = VR_AS_Gib(p, at, vr_as_case != 3);
         VR_ET_To(3);
     }
