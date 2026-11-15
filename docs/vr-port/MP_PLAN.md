@@ -1380,11 +1380,11 @@ Open (B8e):
 - A room-scale jump (standing up at once from a crouch) is his own move's bit: predicted as any jump.
 - The `mp_melee` flake ("crowbar held level", busy machine): not seen this session (29/0 in the suite); not looked into.
 
-### B8e results, part 1: swimming, the movers' motion (2026-11-15, dev no-LTO build, loopback; `mp_predict` 21/1)
+### B8e results, part 1: swimming, the movers' motion (2026-11-15, dev no-LTO build, loopback; `mp_test.py suite` 27 of 27 pass, `mp_predict` 22/0 (21/1 in 1 of 2 runs alone, below); scenario_check 150/0, load_models_test 4/0, vr_run_check 12/0, Release (ThinLTO) build 0 warnings)
 
 | Scenario | Result |
 |---|---|
-| `mp_predict` (grown) | 21/1. Swimming on e1m4 (deep water at 336 1300 388; stick forward, aside, the jump key's rise, back, the drift down): every correction 0.000 over 216 states, all 216 in deep water, drawn offset 0.000. The walk, jumps and crouch as B8d (0.000). A fall onto e1m1's lift as it rises (A on its other half starts it; B dropped 60 units over its top) and the ride up: on it, his place on it 0.025 at most over 153 states; the lift's own predicted place moved by up to 2.2 units a state (`lift_max`: which server frame a move runs in, eased in under him with him); FAILS on one correction of 12.7 units in the fall (open, below) |
+| `mp_predict` (grown) | 22/0 in the suite. Swimming on e1m4 (deep water at 336 1300 388; stick forward, aside, the jump key's rise, back, the drift down): every correction 0.000 over 216 states, all 216 in deep water, drawn offset 0.000. The walk, jumps and crouch as B8d (0.000). A fall onto e1m1's lift as it rises (A on its other half starts it; B dropped 60 units over its top) and the ride up: on it, his place on it 0.025 at most over 153 states; the lift's own predicted place moved by up to 2.2 units a state (`lift_max`: which server frame a move runs in, eased in under him with him); in the suite's run the whole drop and ride 0.031 at most (in the air 0.000); in 1 of 2 runs alone one correction of 12.7 units in the fall (open, below) |
 
 What changed (nothing of single player's or the listen host's own client's path: `.vr_moveswim` and `.vr_movejump` 0 there):
 
@@ -1394,7 +1394,7 @@ What changed (nothing of single player's or the listen host's own client's path:
 
 Open (B8f):
 
-- The drop onto the rising lift: one 12.7-unit correction early in his fall, his earlier replay landing him lower on the lift than the newer one (to find: the movers' list or the time to their stop at that state). Put over the lift before it moves, his fall starts it (QC's trigger): that correction no replay can foresee (5.6 units).
+- The drop onto the rising lift (1 run of 3): one 12.7-unit correction early in his fall, his earlier replay landing him lower on the lift than the newer one (to find: the movers' list or the time to their stop at that state). Put over the lift before it moves, his fall starts it (QC's trigger): that correction no replay can foresee (5.6 units).
 - A water jump out (CheckWaterJump's start and the carry) not tested yet: the harness needs a pool edge.
 - The lying box's crawl, climbing and the grapple: drawn as they come (not predicted).
 - The `mp_melee` flake: not run this session.
