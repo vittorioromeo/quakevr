@@ -293,6 +293,7 @@ void VR_OnEntitySpawned (edict_t *ent);	// ED_LoadFromFile, after an entity's sp
 int VR_Run_MonsterSpawning (edict_t *ent);	// ED_LoadFromFile, before a map's entity spawns: Randomized Enemies' swap, Enemy Count's copies of it (vr_runsetup.cpp)
 void VR_Run_MonsterRefused (edict_t *ent);	// ... a swapped-in kind's spawn left nothing: refused on the map (vr_runsetup.cpp)
 int VR_Run_MonsterCopy (edict_t *copy, edict_t *orig, int k);	// ... after the map: its copy k (its keys parsed again) placed beside it, 0: no room (vr_runsetup.cpp)
+void VR_Run_MonsterCopied (edict_t *copy, edict_t *orig);	// ... and spawned: its own box tested where it stands (vr_runsetup.cpp)
 void VR_Footsteps_Frame (void);		// SV_Physics, after the edicts: the enemies' footsteps (vr_footsteps.cpp)
 void VR_MonsterHealth_Frame (void);	// SV_Physics, after the edicts: Monster Health's cut on monsters seen first (vr_mgroups.cpp)
 int VR_AD_PelletsPass (const struct edict_s *mover, const struct edict_s *target); // AD support: projectile pellets pass one another
@@ -599,6 +600,7 @@ void VR_RunSetupLevel (const char *map);					// the Levels list (menu.c): the Ru
 void M_LevelStart (const char *map, int skill);				// menu.c: a fresh start of a map (skill -1: left as it is: the map's own halls choose), the Run Setup screen's Start
 void M_NewGameStart (void);								// menu.c: the new game itself (map start), the Run Setup screen's Start
 int VR_RunIronman (void);								// the run's Ironman is on (vr_runsetup.cpp): no saving, the menus' Save greyed, no autosaves
+int VR_ArenaNoSave (void);								// in Arena Mode (vrarena): no saving of any kind
 int VR_RunIronmanRefusesSave (void);					// Host_Savegame_f: 1 when Ironman refuses it (said on the console and the screen)
 void VR_Menu_Draw (void);								// M_Draw, m_vr
 // Several menu panels (vr_menu.cpp; MULTI_MENU.md): M_Draw draws the first panel's menu (the 2D layer's canvas) whichever

@@ -72,8 +72,11 @@ float(vector o, vector p, vector mn, vector mx) VR_RunEnemyCount_NewTrigger =
 
 // A copy of row `row` at `p` beside its monster's spot `o` (the map spawned; the copy not yet): reached from `o` in a
 // straight line, clear of the world, the map's entities and its monsters, in no trigger its monster is not in,
-// standing as its kind stands there.
-float(vector o, vector p, float row) VR_RunEnemyCount_Fits =
+// standing as its kind stands there. `bmn`..`bmx`: the box its spawn function will give it (its monster's own), clear
+// there too as the engine traces it (stuckgrunts: Quake's hulls (vr_mhull 0, Classic) meet a box narrower than its hull
+// as the hull laid from the box's corner, so id's grunt, dog, knight, zombie... (24 wide) stand in hull 1 shifted 4
+// units along x and y: two of e1m1's grunt copies at 3x stood in its walls by that much).
+float(vector o, vector p, float row, vector bmn, vector bmx) VR_RunEnemyCount_Fits =
 {
     vector mn = VR_RunEnemyRandom_Mins(row);
     vector mx = VR_RunEnemyRandom_Maxs(row);
@@ -83,6 +86,13 @@ float(vector o, vector p, float row) VR_RunEnemyCount_Fits =
     if(trace_fraction < 1 || trace_allsolid) return FALSE;
     tracebox(p + up, mn, mx, p + up, FALSE, self);
     if(trace_startsolid || trace_allsolid) return FALSE;
+    if(bmx_x > bmn_x && (bmn != mn || bmx != mx))
+    {
+        // (self not solid yet: the engine traces it with Quake's hull, as a Classic monster stands; a narrower width of
+        // vr_mhull's lies inside both boxes)
+        tracebox(p + up, bmn, bmx, p + up, FALSE, self);
+        if(trace_startsolid || trace_allsolid) return FALSE;
+    }
     if(VR_RunEnemyCount_Crowded(p, mx_x)) return FALSE;
     if(VR_RunEnemyCount_NewTrigger(o, p, mn, mx)) return FALSE;
     float here = pointcontents(p);
@@ -98,10 +108,11 @@ float(vector o, vector p, float row) VR_RunEnemyCount_Fits =
     return feet != CONTENT_LAVA && feet != CONTENT_SLIME;
 };
 
-// Copy k (self: the map's keys of its monster parsed again, the whole map spawned, it not yet; its kind its monster's):
+// Copy k (self: the map's keys of its monster parsed again, the whole map spawned, it not yet; its kind its monster's,
+// orig its monster):
 // a spot beside the monster found (rings of eight around it, a body's width and a gap apart, the second ring twice
 // that; k turns the ring, so two copies take different sides) and its death's targets dropped. FALSE: no room.
-float(float k) VR_RunEnemyCount_Place =
+float(float k, entity orig) VR_RunEnemyCount_Place =
 {
     float row = VR_MonsterKind_Row(self.classname);
     if(row < 0) return FALSE;
@@ -120,7 +131,7 @@ float(float k) VR_RunEnemyCount_Place =
             ang_y = a0 + i * 45 + (ring - 1) * 22.5;
             makevectors(ang);
             vector p = o + v_forward * step * ring;
-            if(VR_RunEnemyCount_Fits(o, p, row))
+            if(VR_RunEnemyCount_Fits(o, p, row, orig.mins, orig.maxs))
             {
                 self.origin = p;
                 self.vr_run_copy = k;
@@ -131,7 +142,26 @@ float(float k) VR_RunEnemyCount_Place =
             }
         }
     }
+    dprint(sprintf("Enemy Count: no room for copy %g of %s at %v\n", k, self.classname, o));
     return FALSE;
+};
+
+// The map's copies whose own box (their spawn function's) was in solid where they spawned: VR_Run_MonsterCopied's count,
+// vr_run_enemies_check's (none expected: VR_RunEnemyCount_Fits tests that box). The map's load only.
+nosave float vr_run_ec_spawnsolid;
+
+// The engine's ED_LoadFromFile, copy self (other: its monster) just spawned there: its own box, a unit up (as
+// walkmonster_start_go raises it), tested as SV_TestEntityPosition would (the world, BSP models, other bodies).
+void() VR_Run_MonsterCopied =
+{
+    if(self.solid == SOLID_NOT || self.size_x <= 0) return; // (AD's start later: their box set then)
+    tracebox(self.origin + '0 0 1', self.mins, self.maxs, self.origin + '0 0 1', FALSE, self);
+    if(trace_startsolid)
+    {
+        vr_run_ec_spawnsolid = vr_run_ec_spawnsolid + 1;
+        dprint(sprintf("Enemy Count: copy %g of %s spawned in solid at %v (its box %v %v, in %s)\n", self.vr_run_copy,
+                       self.classname, self.origin, self.mins, self.maxs, trace_ent.classname));
+    }
 };
 
 // The enemy mutators' check of the running map (VR_Run_EnemiesCheck): `count` copies of each map monster that may have
@@ -210,6 +240,9 @@ float(float xCount) VR_RunEnemyCount_Check =
         ok = FALSE;
         dprint(sprintf("vr_run_enemies_check: %g copies in solid (the map's swapped ones: %g)\n", stuckCopies, stuckSwapped));
     }
+    // (each logged as it spawned: "Enemy Count: copy ... spawned in solid")
+    if(vr_run_ec_spawnsolid > 0) ok = FALSE;
+    dprint(sprintf("vr_run_enemies_check: %g copies spawned in solid\n", vr_run_ec_spawnsolid));
     float want = copyable * min(2, xCount);
     if(xCount <= 0 ? copies != 0 : (copies > want || copies < want * 0.6))
     {

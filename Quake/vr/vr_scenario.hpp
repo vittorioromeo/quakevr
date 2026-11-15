@@ -41,12 +41,18 @@ void stop();
 
 // The test loading or running ("" none), and the last start's error ("" none).
 [[nodiscard]] const char* current();
+[[nodiscard]] bool active(); // a test running (its map in, its things placed; not loading)
 [[nodiscard]] const char* lastError();
 
 // Once a frame (vr_main.cpp): the placing once the map is in, the hint, vr_scenario runall's steps.
 void frame();
 // The server's world reset (vr_progs.cpp resetServerWorld): another map or a load ends the test (not its own load).
 void worldReset();
+// A run about to set its choices (the Run Setup's Start, a new game's mutators, a save's run: vr_runsetup.cpp): a test
+// running (not one loading its own map) ends first, its settings put back now, before the run's are set; else
+// worldReset's put-back at the map's spawn would set the scene's old values over the run's (presetlate: his
+// classic_drops scene, then Levels > E1M1 Classic, the first run with the old preset).
+void endBeforeRun();
 
 // vr_scenario [<id> | reset | stop | hint | list | validate | runall | where]: see vr_scenario.cpp's command_f.
 void command_f();

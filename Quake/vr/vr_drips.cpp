@@ -1633,6 +1633,12 @@ void registerCommands()
     Cmd_AddCommand("vr_drips_bleed_test", bleedTest_f);
 }
 
+float wetOf(const entity_t* e)
+{
+    const Wet* w = e ? find(e) : nullptr;
+    return w && w->wet > 0.f ? w->wet : 0.f;
+}
+
 } // namespace qvr::drips
 
 // SaveData_Fill: the wet things as the save's "// qvrwet" lines ("" none; valid until the next).

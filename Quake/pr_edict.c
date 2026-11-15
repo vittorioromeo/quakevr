@@ -1779,6 +1779,8 @@ void ED_LoadFromFile (const char *data)
 			continue;
 		}
 		ED_CallSpawn (copy, pending[k].func);
+		if (!copy->free)
+			VR_Run_MonsterCopied (copy, orig);
 	}
 	free (pending);
 

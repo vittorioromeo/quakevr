@@ -1485,12 +1485,12 @@ QVR_CVAR(vr_body_ranger_head_model, "1", CVAR_ARCHIVE) // which ranger head: 1 Q
 // The ranger's head on the body, placed live (vr_rangerhead.cpp; Appearance > Ranger Head): cm on the model and degrees,
 // about the bottom of his head (pitch nods down, yaw turns left, roll tilts right), his size, and the neck sunk into him.
 QVR_CVAR(vr_body_head_forward, "0", CVAR_ARCHIVE)     // cm forward (-10 to 10)
-QVR_CVAR(vr_body_head_side, "1.75", CVAR_ARCHIVE)        // cm to the right (-10 to 10)
+QVR_CVAR(vr_body_head_side, "0", CVAR_ARCHIVE)           // cm to the right (-10 to 10)
 QVR_CVAR(vr_body_head_up, "0", CVAR_ARCHIVE)          // cm up (-10 to 10)
 QVR_CVAR(vr_body_head_pitch, "0", CVAR_ARCHIVE)       // degrees, chin down (-45 to 45)
 QVR_CVAR(vr_body_head_yaw, "0", CVAR_ARCHIVE)         // degrees, turned left (-45 to 45)
 QVR_CVAR(vr_body_head_roll, "0", CVAR_ARCHIVE)        // degrees, tilted right (-45 to 45)
-QVR_CVAR(vr_body_head_size, "1.3", CVAR_ARCHIVE)      // times the first version's size (0.5 to 2)
+QVR_CVAR(vr_body_head_size, "1.25", CVAR_ARCHIVE)     // times the first version's size (0.5 to 2)
 QVR_CVAR(vr_body_head_sink, "9", CVAR_ARCHIVE)      // cm the head is lowered over the neck, the neck's top with it (0 to 12)
 QVR_CVAR(vr_skin_tone, "0", CVAR_ARCHIVE) // skin-only shader: -1 dark, 0 authored skin, +1 light
 QVR_CVAR(vr_gloves, "0", CVAR_ARCHIVE)                // gloves on the jointed hands: 0 none, 1 fingerless (the fingertips bare), 2 full; with bare forearms a cuff over the wrist (make_skin_masks.py's G, B)
@@ -3631,6 +3631,7 @@ QVR_CVAR(vr_debug_model_collide, "0", CVAR_NONE)      // 1: print each hand's pu
 QVR_CVAR(vr_debug_hand_offset, "0", CVAR_NONE)       // 3: also each fast frame's strike-pass test (vr_melee_world_pass_*: the far part's box, the body found); 1: print each hand drawn away from where it is tracked (0.01 units or more), and by what: the walls, the weight's spring, the models, a prop in the other hand, the body; 2: every frame (tests)
 QVR_CVAR(vr_test_give_wid, "-1", CVAR_NONE)           // impulse 149 (tests): that weapon id, loaded, in the main hand (any id: impulse 150 + id reaches 19)
 QVR_CVAR(vr_test_give_ad, "0", CVAR_NONE)            // impulse 149 (tests): 1 gives the AD soldiers' guns without AD's data too (their models made from the burst rifle's, as armed grunts hold them anywhere; flatfx_test.sh)
+QVR_CVAR(vr_test_give_flags, "0", CVAR_NONE)         // impulse 149 (tests): the weapon flags it gives with (3072 with id 13: the dagger; flash_grab_test.py otherweapon)
 QVR_CVAR(vr_test_spawn, "0", CVAR_NONE)               // impulse 241 (tests): what it puts ahead of you: 0..17 the firing range's dispenser monsters (0 grunt, 1 ogre, 2 zombie, 3 shambler, ...; 18 the Guardian, 19 the dragon, 20 the marksman ogre: tests only), 100 a health box, 101 a shells box, 102/103 an explosive box/a small one, 104 an explosive box that never blows up, 107-109 crates, 110 the rocks and bricks (a row of each), 111/112 a barrel upright/lying, 113 the silver key, 114 a long plank, 115 a brick (the leg sweep tests), 120..124 the climbing tests' crates square to you (a large one, two large stacked, a large one on its side, a small one on a large one, a small one)
 QVR_CVAR(vr_test_spawn_dist, "56", CVAR_NONE)         // and how far ahead (units)
 QVR_CVAR(vr_test_spawn_facing, "0", CVAR_NONE)        // the test spawners' monsters (impulse 241 and 244, vr_physics_spawn): 0 as each did (241 and 244 facing you, vr_physics_spawn its own angle), 1 facing you, 2 facing away (trailer shots), 3 their own angle (a map's 0), 4 its left side to you, 5 its right side to you

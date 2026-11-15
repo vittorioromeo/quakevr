@@ -177,6 +177,7 @@ bool ensureTexture();
 void washUnder(int layer, entity_t* e, float surface, float amount);
 void smearHand(int hand, int blots, float amount, bool theirs = true);
 void paint(int layer, entity_t* e, const za::Vector<Splat>& splats);
+void clearMask(int layer); // all of it, both sides, its blood not its own too (the tests)
 void bridgeOwnWound(entity_t* source, const za::Vector<Splat>& splats);
 [[nodiscard]] bool isGib(int num);
 [[nodiscard]] int maskCount();

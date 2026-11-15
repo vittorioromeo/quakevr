@@ -44,6 +44,10 @@ void frame(const glm::vec3& head);
 // (wounds Kind `kind`): a living monster's wound drips while it is hurt.
 void onWound(int num, const glm::vec3& org, int amount, int kind);
 
+// How wet `e` is (1 soaked .. 0 dry; 0 if not tracked): the wet coat's shine is derived from it each frame (wounds wetCoat),
+// so whatever sets the wetness (a load too) sets the shine.
+float wetOf(const entity_s* e);
+
 // A water or slime drop from `dropFrom` landing at `where` (normal `normal`), `color` its: specks (vr_drips_splash) and
 // a soft drip heard (vr_drips_volume).
 void landed(int liquid, const glm::vec3& where, const glm::vec3& normal, const glm::vec4& color);

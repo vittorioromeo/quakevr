@@ -543,6 +543,8 @@ const FullConfigChange fullConfigChanges[] = {
     {&vr_body_elbow_back, "0.25"},
     {&vr_body_elbow_hand, "0.4"},
     {&vr_body_elbow_lift, "4"},
+    {&vr_body_head_side, "1.75"},  // his head place of 2026-11-15 (the detailed head)
+    {&vr_body_head_size, "1.3"},   // the same
     {&vr_bodytrack_arm_fit, "1"},
     {&vr_deadzone_outer, "5"},
     {&vr_decap_head_size, "1.15"}, // beheading judged at the cut (2026-11-11; release audit 2026-11-14)

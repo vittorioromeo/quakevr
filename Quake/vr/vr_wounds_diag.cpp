@@ -17,6 +17,8 @@
 #include "vr_avatar.hpp"
 #include "vr_client.hpp"
 #include "vr_held.hpp"
+#include "vr_rangerhead.hpp"
+#include "vr_testkit.hpp"
 
 #include "Zancle/Algorithm/Copy.hpp"
 #include "Zancle/Algorithm/Remove.hpp"
@@ -582,6 +584,221 @@ void test_f()
     events.pushBack(ev);
 }
 
+namespace
+{
+
+constexpr float headWoundR = 1.5f;     // the test's wounds' radius (units)
+constexpr float headWoundNear = 1.5f;  // the blood on the head (mapped back onto it) its middle this near the point struck
+constexpr float headWoundReach = 5.f;  // ... and none of it farther than this (the splat's reach and its ragged edge)
+constexpr int headWoundTexel = 24;     // a texel this red (of 255) has blood
+
+// Your body's mask (both sides' layers: the most of each texel) read back, red only.
+void readOwnMask(int layer, za::Vector<byte>& out)
+{
+    const Mask& m = masks[static_cast<za::SizeT>(layer)];
+    out.clear();
+    out.resize(static_cast<za::SizeT>(m.w) * static_cast<za::SizeT>(m.h), 0);
+    za::Vector<byte> one(out.size(), 0);
+    int in[2], side[2];
+    const int n = layersOf(layer, in, side);
+    GLint previous = 0;
+    glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &previous);
+    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, fbo);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    for(int k = 0; k < n; k++)
+    {
+        attach(GL_READ_FRAMEBUFFER, in[k]);
+        glReadPixels(0, 0, m.w, m.h, GL_RED, GL_UNSIGNED_BYTE, one.data());
+        for(za::SizeT p = 0; p < out.size(); p++)
+        {
+            out[p] = za::max(out[p], one[p]);
+        }
+    }
+    glPixelStorei(GL_PACK_ALIGNMENT, 4);
+    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, static_cast<GLuint>(previous));
+}
+
+} // namespace
+
+// vr_body_head_wound_test [keep]: your body's head (the ranger's, either: vr_body_ranger_head) given a small wound at five points
+// of it as the mirror draws it (its front, left, right, back and crown: the head's triangle farthest that way), each painted
+// alone into your body's mask (as a blow's) and read back: the blood in the head's texels, mapped back onto the head as
+// posed, must be there (its middle within headWoundNear of the point, none farther than headWoundReach); and a wound on
+// the chest must leave the head's texels clean. Verdict "head_wound_test: N passed, M failed". Clears your body's mask
+// (keep: then the five head wounds painted on together, to look at in a mirror).
+void headWoundTest_f()
+{
+    testkit::Tally tally;
+    const auto expect = [&](bool ok, const char* what) { tally.check(ok, "head_wound_test", what); };
+    float lo[2], hi[2];
+    entity_t* own[3]{};
+    view::woundTargets(own);
+    za::Vector<glm::vec3> verts;
+    za::Vector<unsigned> tris;
+    za::Vector<unsigned char> parts;
+    za::Vector<glm::vec2> st;
+    const bool head = rangerhead::headBlock(lo, hi);
+    const bool posedOk = own[0] && avatar::posedEntity() == own[0] && avatar::posedMesh(verts, tris, parts, true, &st);
+    expect(head, "a ranger's head on the body");
+    expect(posedOk, "your body posed");
+    const int layer = head && posedOk ? acquire(own[0], true, true) : -1;
+    expect(layer >= 0, "your body's wound mask");
+    if(layer < 0)
+    {
+        tally.verdict("head_wound_test");
+        return;
+    }
+    const auto inBlock = [&](const glm::vec2& p) { return p.x >= lo[0] && p.x <= hi[0] && p.y >= lo[1] && p.y <= hi[1]; };
+    za::Vector<za::SizeT> headTris; // (the first index of each)
+    glm::vec3 centre{0.f};
+    for(za::SizeT t = 0; t + 2 < tris.size(); t += 3)
+    {
+        if(inBlock(st[tris[t]]) && inBlock(st[tris[t + 1]]) && inBlock(st[tris[t + 2]]))
+        {
+            headTris.pushBack(t);
+            centre += (verts[tris[t]] + verts[tris[t + 1]] + verts[tris[t + 2]]) / 3.f;
+        }
+    }
+    expect(headTris.size() >= 12, "the head's triangles in the head block");
+    if(headTris.empty())
+    {
+        tally.verdict("head_wound_test");
+        return;
+    }
+    centre /= static_cast<float>(headTris.size());
+    const Mask& m = masks[static_cast<za::SizeT>(layer)];
+    Con_Printf("head_wound_test: %d head triangles, the head's middle %.1f %.1f %.1f, the mask %d x %d\n", static_cast<int>(headTris.size()),
+        centre.x, centre.y, centre.z, m.w, m.h);
+
+    // The blood in the head's texels: its middle on the head as posed (by each texel's triangle there), how far its
+    // farthest is from `at`, and how many texels.
+    za::Vector<byte> red;
+    const auto headBlood = [&](const glm::vec3& at, glm::vec3& middle, float& farthest) {
+        readOwnMask(layer, red);
+        int count = 0;
+        double weight = 0.0;
+        glm::dvec3 sum{0.0};
+        farthest = 0.f;
+        for(int y = 0; y < m.h; y++)
+        {
+            for(int x = 0; x < m.w; x++)
+            {
+                const byte r = red[static_cast<za::SizeT>(y) * static_cast<za::SizeT>(m.w) + static_cast<za::SizeT>(x)];
+                const glm::vec2 p{(static_cast<float>(x) + 0.5f) / static_cast<float>(m.w), (static_cast<float>(y) + 0.5f) / static_cast<float>(m.h)};
+                if(r < headWoundTexel || !inBlock(p))
+                {
+                    continue;
+                }
+                for(const za::SizeT t : headTris)
+                {
+                    const glm::vec2 a = st[tris[t]], b = st[tris[t + 1]], c = st[tris[t + 2]];
+                    const float d = (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y);
+                    if(za::fabs(d) < 1e-12f)
+                    {
+                        continue;
+                    }
+                    const float w0 = ((b.y - c.y) * (p.x - c.x) + (c.x - b.x) * (p.y - c.y)) / d;
+                    const float w1 = ((c.y - a.y) * (p.x - c.x) + (a.x - c.x) * (p.y - c.y)) / d;
+                    const float w2 = 1.f - w0 - w1;
+                    if(w0 < -0.02f || w1 < -0.02f || w2 < -0.02f)
+                    {
+                        continue;
+                    }
+                    const glm::vec3 q = verts[tris[t]] * w0 + verts[tris[t + 1]] * w1 + verts[tris[t + 2]] * w2;
+                    sum += glm::dvec3{q} * static_cast<double>(r);
+                    weight += static_cast<double>(r);
+                    farthest = za::max(farthest, glm::distance(q, at));
+                    count++;
+                    break;
+                }
+            }
+        }
+        middle = weight > 0.0 ? glm::vec3{sum / weight} : glm::vec3{0.f};
+        return count;
+    };
+
+    const float yaw = glm::radians(own[0]->angles[YAW]);
+    const glm::vec3 fwd{za::cos(yaw), za::sin(yaw), 0.f};
+    const glm::vec3 left{-za::sin(yaw), za::cos(yaw), 0.f};
+    const glm::vec3 ways[5] = {fwd, left, -left, -fwd, glm::vec3{0.f, 0.f, 1.f}};
+    static constexpr const char* names[5] = {"front", "left", "right", "back", "crown"};
+    za::Vector<Splat> splats;
+    za::Vector<Splat> kept; // (the five, for "keep")
+    char what[160];
+    for(int w = 0; w < 5; w++)
+    {
+        za::SizeT best = headTris[0];
+        float bestOut = -1e30f;
+        for(const za::SizeT t : headTris)
+        {
+            const float out = glm::dot((verts[tris[t]] + verts[tris[t + 1]] + verts[tris[t + 2]]) / 3.f - centre, ways[w]);
+            if(out > bestOut)
+            {
+                bestOut = out;
+                best = t;
+            }
+        }
+        const glm::vec3 at = (verts[tris[best]] + verts[tris[best + 1]] + verts[tris[best + 2]]) / 3.f;
+        glm::vec3 n = glm::cross(verts[tris[best + 1]] - verts[tris[best]], verts[tris[best + 2]] - verts[tris[best]]);
+        n = glm::length(n) > 1e-6f ? glm::normalize(n) : ways[w];
+        n = glm::dot(n, at - centre) < 0.f ? -n : n;
+        clearMask(layer);
+        splats.clear();
+        splats.pushBack(woundSplat(at, headWoundR, n, -n, 1.f, headWoundR * 0.9f + 1.f, -0.25f, 0.f, paintBlood));
+        kept.pushBack(splats[0]);
+        paint(layer, own[0], splats);
+        end();
+        glm::vec3 middle;
+        float farthest = 0.f;
+        const int count = headBlood(at, middle, farthest);
+        const float off = glm::distance(middle, at);
+        Con_Printf("head_wound_test: %s at %.1f %.1f %.1f: %d texels of blood on the head, their middle %.2f from it, the farthest %.2f\n",
+            names[w], at.x, at.y, at.z, count, off, farthest);
+        q_snprintf(what, sizeof(what), "the %s wound on the head where it was struck (%d texels, %.2f off, farthest %.2f)", names[w], count, off, farthest);
+        expect(count > 0 && off <= headWoundNear && farthest <= headWoundReach, what);
+    }
+
+    // A wound on the chest (the body's triangle out of the head block nearest a point a head's height under the head's
+    // middle, ahead): no blood in the head's texels.
+    const glm::vec3 chestAim = centre - glm::vec3{0.f, 0.f, 14.f} + fwd * 4.f;
+    za::SizeT chest = 0;
+    float chestBest = 1e30f;
+    for(za::SizeT t = 0; t + 2 < tris.size(); t += 3)
+    {
+        const glm::vec3 c = (verts[tris[t]] + verts[tris[t + 1]] + verts[tris[t + 2]]) / 3.f;
+        if(!inBlock(st[tris[t]]) && glm::distance(c, chestAim) < chestBest)
+        {
+            chestBest = glm::distance(c, chestAim);
+            chest = t;
+        }
+    }
+    const glm::vec3 chestAt = (verts[tris[chest]] + verts[tris[chest + 1]] + verts[tris[chest + 2]]) / 3.f;
+    clearMask(layer);
+    splats.clear();
+    splats.pushBack(woundSplat(chestAt, 3.f, fwd, -fwd, 1.f, 3.7f, -0.25f, 0.f, paintBlood));
+    paint(layer, own[0], splats);
+    end();
+    glm::vec3 middle;
+    float farthest = 0.f;
+    const int onHead = headBlood(chestAt, middle, farthest);
+    int bodyCount = 0;
+    for(const byte r : red)
+    {
+        bodyCount += r >= headWoundTexel ? 1 : 0;
+    }
+    Con_Printf("head_wound_test: chest at %.1f %.1f %.1f: %d texels of blood, %d of them on the head\n", chestAt.x, chestAt.y,
+        chestAt.z, bodyCount, onHead);
+    expect(bodyCount > 0, "the chest's wound painted");
+    expect(onHead == 0, "the chest's wound leaves the head clean");
+    clearMask(layer);
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "keep")) // (to look at: the five head wounds left on, together)
+    {
+        paint(layer, own[0], kept);
+    }
+    end();
+    tally.verdict("head_wound_test");
+}
+
 // vr_wounds_dump: every mask in use written to <gamedir>/wounds/mask_<layer>_<model>.png (r blood, g char, b wetness,
 // heat as white), laid out as its skin.
 void dump_f()
@@ -668,6 +885,7 @@ void registerDiagCommands()
     Cmd_AddCommand("vr_gore_hands_info", handsInfo_f);
     Cmd_AddCommand("vr_gore_spatter_test", spatterTest_f);
     Cmd_AddCommand("vr_wounds_dump", dump_f);
+    Cmd_AddCommand("vr_body_head_wound_test", headWoundTest_f);
 }
 
 } // namespace qvr::wounds

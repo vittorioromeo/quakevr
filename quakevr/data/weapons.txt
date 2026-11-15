@@ -4814,13 +4814,24 @@ weapon 51
     // third of the way from the hand's middle to the tip) and its pommel's end behind the hand (bl_near), from
     // make_dagger.py's printout. Embedded by its point as the sword is (embed 1): the depth is a share of the blade's
     // length, so a third as deep. A light blade: 1.2 kg, 34 cm, balanced just ahead of the hand.
+    hs1_pitch "-6.90695"
+    hs1_roll "-3.05592"
+    hs1_x "-1.785095"
+    hs1_y "-2.161255"
+    hs1_yaw "8.52477"
+    hs1_z "-11.23747"
+    bl_org_x "-1.6193"
+    bl_org_y "-0.0506"
+    bl_org_z "-0.0207"
+    bl_spine "1"
+    bl_width "0.2816"
     embed "1"
     skewer_most "1" // one gib at a time on the short blade (his note 2026-11-13)
     skewer_depth "0.5" // and shallower: half the sword's 8 units from the tip
     2h_fxd_hp "-1.5"
     2h_fxd_hr "0.0"
     2h_fxd_hy "0.0"
-    2h_mode "2"
+    2h_mode "1"
     2h_pitch "70.017"
     2h_roll "0.0"
     2h_x "0.0"
@@ -4835,9 +4846,9 @@ weapon 51
     hide_hand "0.0"
     id "progs/v_dagger.mdl"
     muzzle_av "12.5665 0.0082 30.3419"
-    muzzle_x "0"
-    muzzle_y "0"
-    muzzle_z "0"
+    muzzle_x "0.3709"
+    muzzle_y "0.1079"
+    muzzle_z "0.3393"
     pitch "15.5"
     roll "0"
     scale "0.34"
@@ -4862,7 +4873,7 @@ weapon 51
     y "2.253"
     yaw "0.75"
     z "8.628"
-    hs1_type "0"
+    hs1_type "1"
     hs2_type "0"
     hol_hip_x "0.5"
     hol_hip_y "5"
@@ -4879,8 +4890,8 @@ weapon 51
     w_len "34"
     torch_clip "0"
     w_heft "0" // dagger
-    bl_from "0.331"
-    bl_near "0.321"
+    bl_from "0.05"
+    bl_near "0.6173"
     // The reverse grip, blade down (ROUND25.md "revgrip"): taken blade down, or flipped by its eject button.
     rev "1"
 }
