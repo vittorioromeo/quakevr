@@ -31,7 +31,7 @@ namespace
 {
 
 constexpr const char* kindNames[VR_PERF_KINDS] = {"shader", "shaderbin", "texture", "model", "lightmap", "sound", "map",
-    "save", "decal", "nav", "qc", "phys", "work"};
+    "save", "decal", "nav", "qc", "phys", "work", "mark"};
 
 // The scopes whose time is an event kind's (vr_profile.cpp's begin/end), the outermost of each kind counted.
 struct TaggedScope
@@ -458,6 +458,17 @@ void gpu(za::U64 serial, const double* phaseMs, double spanMs)
         r.gpuState = 2;
     }
     drain(0);
+}
+
+void init()
+{
+    Cmd_AddCommand("vr_perf_mark", [] {
+        VR_PerfEvent(VR_PERF_MARK, 0.0, Cmd_Argc() > 1 ? Cmd_Args() : "mark");
+        if(!on)
+        {
+            Con_Printf("vr_perf_mark: not recording (vr_perf_record 1)\n");
+        }
+    });
 }
 
 void xrFrame(int missed, double periodMs)

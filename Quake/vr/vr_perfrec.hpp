@@ -26,6 +26,9 @@ namespace qvr::perfrec
 // Recording (latched at each frame's end).
 extern bool on;
 
+// vr_perf_mark <label>: a mark in the frame's events (a script's A/B parts, a tester's moment).
+void init();
+
 // vr_profile.cpp: a named scope's event kind (its time summed into the frame's: "quakec", "box3d step", decal bakes...),
 // or -1; a tagged scope begun (true: the outermost of its kind open, to be timed) and ended (its time, ns).
 [[nodiscard]] int tagOf(const char* name);

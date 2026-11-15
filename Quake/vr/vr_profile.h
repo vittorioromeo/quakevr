@@ -83,6 +83,7 @@ enum
 	VR_PERF_QC,			// the QuakeC (the outermost calls, summed)
 	VR_PERF_PHYS,		// the Box3D steps
 	VR_PERF_WORK,		// other timed work (VR_TimeAdd's kinds)
+	VR_PERF_MARK,		// vr_perf_mark <label>: a script's or a tester's mark (an A/B's parts)
 	VR_PERF_KINDS
 };
 extern int vr_perf_recording;

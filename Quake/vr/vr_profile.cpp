@@ -1180,6 +1180,7 @@ void end()
 void init()
 {
     VR_TracyInit();
+    perfrec::init();
     nodes.clear();
     Node root;
     root.name = "frame";

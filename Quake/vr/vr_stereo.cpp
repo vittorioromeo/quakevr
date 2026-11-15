@@ -233,8 +233,10 @@ void foveateEye(const Fov& fov)
     {
         return;
     }
-    constexpr float gains[] = {0.f, 1.f, 1.5f, 2.f};
-    constexpr float areas[] = {0.f, 0.f, 0.5f, 1.f};
+    // (C4n: stronger than C4h's 1/1.5/2, which showed no change: the resolution's fall-off rate and the full-resolution
+    // area around the focal point, in the QCOM extension's units)
+    constexpr float gains[] = {0.f, 2.f, 4.f, 6.f};
+    constexpr float areas[] = {0.f, 0.5f, 0.25f, 0.1f};
     const int level = foveationLevel();
     const float l = za::tan(fov.left), r = za::tan(fov.right), u = za::tan(fov.up), d = za::tan(fov.down);
     foveationParams(eyeTargets.fb.composite.color_tex, 0, 0, -(r + l) / (r - l), -(u + d) / (u - d), gains[level],
@@ -1419,6 +1421,7 @@ extern "C" int VR_SceneAttachmentFoveation(const char* name)
 {
     // (the eyes' scene colours without MSAA: "composite colors", gl_rmain.c; QCOM_texture_foveated wants its bits set
     // before the storage)
+    // (C4n: the depth foveated too makes the framebuffer incomplete on the Quest 3, 0x8BFF: the colour alone)
     return stereo::creatingSceneTargets && stereo::creatingFoveated && !strcmp(name, "composite colors") ?
         stereo::foveationEnable : 0;
 }

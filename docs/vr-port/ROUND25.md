@@ -3668,3 +3668,7 @@ His flat-screen notes (2026-11-16) and the coordinator's disarm-sound item.
   texture/model/sound loads, runtime lightmaps, map loads, saves, decal bakes, navmesh job waits, QuakeC and Box3D,
   `VR_TimeAdd` work) to a CSV; `Misc/quakevr/quest/perf_report.py` ranks the hitches by cause and the passes by cost.
   Details: QUEST_PLAN.md 6u. The PC unchanged with it off (a flag's test a frame).
+- Scripted sessions on the unworn headset (fights, an autosave, a changelevel, demo1): the struggle is the GPU's
+  sustained cost (e1m1's fight 21 ms p50, demo1 22 ms, against 13.9), then fight CPU spikes and one ~400 ms frame a
+  map in an eye's CPU; mid-game shader compiles 1 (0.3 ms), uploads small. `vr_gl_foveation` still no effect: its
+  texture is not the one the scene is drawn into (6u). `vr_perf_mark <label>` new.

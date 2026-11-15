@@ -1273,7 +1273,38 @@ the other cores; (6) the preset tuned from the numbers; (7, optional, off) Space
 - **`Misc/quakevr/quest/perf_report.py <csv>`**: the frame's mean/p50/p95/p99, frames over budget (CPU, GPU), the
   hitches (over 1.5 display periods, or periods missed) ranked by cause (the frame's or the frame before's events when
   their time explains 30% of the excess, else the CPU's or the GPU's costliest phase, else the runtime), every event
-  kind's totals, the phases' means, the slowest seconds.
+  kind's totals, the phases' means, the slowest seconds. Frames over 2 s (the app paused: the unworn headset asleep)
+  are left out; `--map`, `--from-t/--to-t` select. `vr_perf_mark <label>` (new) marks a frame (an A/B's parts:
+  `scratch/c4o_abrun.sh`, split by `c4o_ab.py`).
+- **Scripted sessions** (unworn; `scratch/c4o_play.sh`: e1m1's start, a live fight of 5 grunts, 2 dogs and an ogre in
+  god mode, an autosave, `changelevel e1m2` and a fight there, `playdemo demo1` (e1m3), the preset as shipped; the
+  first run's player died before `god` took: the death menu's frames, discarded). The clean run (perf_..._223215):
+
+| map | FPS | period p50/p95 | CPU work p50 (over budget) | GPU span p50 (over budget) |
+|---|---|---|---|---|
+| e1m1 + fight | 33.5 | 23.8 / 37.9 | 12.1 (35%) | 21.3 (81%) |
+| e1m2 + fight | 33.9 | 14.8 / 27.3 | 9.5 (10%) | 11.1 (26%) |
+| e1m3 (demo1) | 25.6 | 23.6 / 49.4 | 3.3 (1%) | 22.0 (96%) |
+
+  **Hitch causes, ranked by the time over budget**: (1) the GPU over its budget, frame after frame (the world and brush
+  pass the costliest: 13-55 ms in the worst frames; e1m1 ~13k ms over budget, e1m3 ~21k): the sustained cost, not
+  spikes; (2) CPU spikes in a fight (`SV_Physics`, `view entities`: 20-90 ms; the CPU over budget in 35% of e1m1's
+  fight frames); (3) one ~400 ms frame a map inside an eye's CPU (`screen`/`eye L`, no recorded event: something made
+  lazily at a first draw, once a map: e1m1 t=15 s, e1m2 t=56, e1m3 t=142; to find with `vr_profile_hitch`); (4) loads
+  at a spawn (the knight's sounds 81 ms, models 80-200 ms in the demo; the fight's own spawns, not real play). **Shader
+  compiles mid-game: 1 in 4,500 frames (0.3 ms)**: the program cache already covers them (step 2 needs nothing more
+  than the recorder's event); texture uploads mid-game: small (124 ms over the whole session, the worst 51 ms at a load).
+  The body when in view costs a lot on the unworn headset (whose pose sees it): a run with `vr_body_mode 0` had the
+  e1m1 GPU at 15 ms against 28 (not a clean comparison: that run's death menu).
+- **Fixed foveation (step 4), not working yet**: `vr_gl_foveation` 0-3 in one launch (e1m1's start, 0.9 fixed, 240
+  frames each): GPU 11.72 / 11.75 / 11.77 / 11.68 / 11.76 / 11.70 ms (0, 3, 0, 2, 1, 0): no effect with stronger gains
+  (now 2/4/6, areas 0.5/0.25/0.1). The depth foveated too: the framebuffer incomplete (0x8BFF), reverted. **Why**:
+  the foveated texture is the "composite colors", but `R_SetupGL` draws the scene into `framebufs.scene.fbo` whenever
+  `GL_NeedsSceneEffects()` (and single-pass stereo draws into its own layered targets, `VR_StereoSingleEyeTargets`):
+  the scene's real target is not foveated. Next: foveate the target the eye's scene is drawn into (the scene fbo's colour,
+  or the single-pass array's layers per eye), then A/B again with `c4o_abrun.sh`.
+- At e1m1's start (0.9 fixed, the body as the headset's pose shows it) the frame holds 72 Hz: period 13.9 ms, GPU 11.7,
+  CPU 6.8: the struggle is in fights and busy maps (above).
 - PC check (mock, e1m1, 400 frames): 400 rows, 397 with GPU times; the load's first frame (992 ms) and a decal frame
   found as CPU hitches; 0 warnings.
 
@@ -1320,4 +1351,8 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C4n (after 6t) — his look in the headset (C4i-C4m's frame worn: e1m1 and a fight, the body looking down, the menu's sharpness, translucent water and particles under `r_oit 0`, wounded monsters under the plain form, a dynamic light's shadow), then the models' remaining fragment cost by the same one-launch method (`c4n_ab4.sh`): the tail (glows, the gate's see-through, fog, OIT/temporal output: 1.0 ms) and the light (1.4 ms: a plain form without the bumped-normal and occlusion code where no instance needs them), the eye's scene in one pass (a CPU mark of the world under ES); no installs. Still open from before: e1m1's save error (a freed engine string), C5 (multiview into the swapchain), C2h (the world textures' memory under the ES profile), Adreno's wrong derivatives with the retro code out (NORETRO: -1.2 ms if ever made safe). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d).
+Next phase: C4o (after 6u) — fixed foveation on the target the eye's scene is really drawn into (the scene fbo's
+colour; the single-pass array's layers), A/B'd with `c4o_abrun.sh`; the ~400 ms once-a-map frame in an eye's CPU
+found (`vr_profile_hitch`) and moved to the load; the fight's CPU (`SV_Physics`, view entities) onto the other cores;
+then the preset tuned from `c4o_play.sh`'s sessions (and his own recorded session, `vr_perf_record`, when he can);
+SpaceWarp optional and off; no installs. Still open from before: e1m1's save error (a freed engine string), C5 (multiview into the swapchain), C2h (the world textures' memory under the ES profile), Adreno's wrong derivatives with the retro code out (NORETRO: -1.2 ms if ever made safe). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d).

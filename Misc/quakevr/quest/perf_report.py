@@ -117,11 +117,21 @@ def main():
     ap.add_argument("--budget-ms", type=float, default=0.0, help="the frame budget (default: the runtime's period)")
     ap.add_argument("--top", type=int, default=12)
     ap.add_argument("--map", default="")
+    ap.add_argument("--paused-ms", type=float, default=2000.0, help="frames longer: the app paused, left out")
+    ap.add_argument("--from-t", type=float, default=0.0, help="frames from this time (s) on")
+    ap.add_argument("--to-t", type=float, default=1e9, help="frames up to this time (s)")
     a = ap.parse_args()
 
     header, rows, comments = read(a.csv)
     if a.map:
         rows = [r for r in rows if r.get("map") == a.map]
+    rows = [r for r in rows if a.from_t <= num(r["t"]) <= a.to_t]
+    # frames over 2 s: the app paused (the headset asleep or taken off, the system's menu), not drawing: left out
+    paused = [r for r in rows if num(r["period"]) > a.paused_ms]
+    rows = [r for r in rows if num(r["period"]) <= a.paused_ms]
+    if paused:
+        print("left out: %d frames over %.0f ms (the app paused: %s)" % (len(paused), a.paused_ms,
+              ", ".join("t=%.0fs %.0f ms" % (num(r["t"]), num(r["period"])) for r in paused[:6])))
     if not rows:
         print("no frames")
         return 1
