@@ -1148,3 +1148,83 @@ the other hand holds nothing (no weapon, prop, item or carried thing):
 place off the head and the stance's share; `vr_flatplay_status` prints a "two-handed stance" line. Tests:
 `Misc/quakevr/flatmelee2h_test.sh` (16 checks), `flatfg2h_test.sh`, `flatparry_test.sh`. Scene: `flat_melee2h`.
 Rows: Debug > Tunables > Flatscreen > Two-Handed Melee Stance.
+
+## The third-person camera
+
+His request (2026-11-15): "an optional over-the-shoulder third-person camera for the flat-screen version, OFF by default".
+`Quake/vr/vr_flattp.cpp`; **Third-Person Camera** (`vr_flat_tp`, 0) on Locomotion > Desktop Screen Play, its page
+**Third-Person Camera** under it; `vr_flat_tp_toggle` (bind it to a key) switches it while playing.
+
+**How third-person games do it (the research behind the choices).**
+
+- *Collision.* The camera is swept from a pivot (the head or a shoulder) to the spot it wants, with a sphere or box rather
+  than a line (Unreal's spring arm: `ProbeSize`, `ProbeChannel`; Unity Cinemachine's Third Person Follow and Deoccluder), and
+  pulled in to the first hit less the probe. The sweep usually goes in two legs, pivot to shoulder, then back, so a wall
+  behind leaves the camera over the shoulder rather than inside the head. The probe radius has to cover the near plane's
+  corners (half-width = near * tan(fov/2), so a probe a little larger than the near plane distance, times about 1.5 at
+  wide fields of view), or a camera that stops "just short" of a wall still cuts into it.
+- *Smoothing.* Asymmetric: in at once or very fast (a camera that eases in shows the inside of the wall for those frames),
+  out slowly (an ease-out time constant of a few tenths of a second), so walking past a pillar does not pump the camera.
+  Some games also lag the pivot (spring arm `CameraLag`), which costs aim precision; shooters keep it small or none.
+- *The player model near the camera.* Faded or dithered (screen-door transparency) when the camera comes within some
+  distance of it (Gears of War, The Last of Us, Fortnite), otherwise the back of the head fills the screen.
+- *Occluders.* Two answers. Pulling the camera in (above) is the robust one and is what shooters do for walls. Making the
+  occluder transparent, or cutting a hole around the player (a stencil or a screen-space dither around the character's
+  silhouette), is used for isometric and top-down cameras and for thin props and foliage, where pulling in would jump; it
+  needs per-surface material control and an occlusion test per object, and is easiest for separate meshes, not BSP walls.
+- *Shoulder swap.* Manual (a key) everywhere, automatic in some (the near side blocked by a wall and the other side clear:
+  the camera moves over the other shoulder, with hysteresis so it does not flick back and forth at a corner).
+- *Aim.* The crosshair is the camera's; the shot is the weapon's. Every modern shooter traces the camera's ray into the
+  world (starting at the player's depth, so nothing between the camera and the player is targeted), then fires from the
+  muzzle at that point (parallax correction). When the muzzle's line to the point is blocked (a corner the camera sees past),
+  the shot hits the obstruction and the reticle shows it: a blocked marker or the reticle moved to where the shot really
+  lands (The Division, Gears, Uncharted).
+- *Dead zones, look-ahead.* Third-person action games have a framing dead zone and lead the camera in the direction of
+  motion; shooters keep the character locked in frame so the crosshair stays steady. Not done here for the same reason.
+- *Inside the player near walls.* The two-leg sweep, the shoulder swap and the fade between them keep it out of the head;
+  with nothing left (backed into a corner), the camera ends in the eyes, a first-person view.
+
+**What it does.** The camera stands off his eye (the pivot: the flat view's own eye with its crouch, lean and nudges, the
+walk bob left out) in the look's frame: out to the shoulder by **Shoulder Offset** (`vr_flat_tp_right`, 16) and up by
+**Height Above Eyes** (`vr_flat_tp_up`, 6), then back by **Distance Behind** (`vr_flat_tp_back`, 56); it orbits his head as
+he looks up and down and looks the way he looks. **Shoulder** (`vr_flat_tp_side`: 0 right, 1 left). **Field Of View**
+(`vr_flat_tp_fov`, x1.1) while it is out (`flatsight::fov`, before the speed FOV's widening).
+
+**Walls.** Each leg is swept with a fat ray: five lines, the middle one and four **Wall Margin** (`vr_flat_tp_probe`, 8)
+off it, against the world and the brush models the client has (`worldtrace::world`: works hosting or joined), each run
+a margin past the leg's end; the camera stops a margin short of the first hit. A wall at the shoulder's side stops it short
+of the shoulder; one behind, over the shoulder. In at once, out over **Ease Back Out** (`vr_flat_tp_ease_out`, 0.35 s).
+A camera that would still stand in a wall or the sky's volume (a sliver between the lines) is halved back towards the eye.
+**Swap Shoulder At Walls** (`vr_flat_tp_auto_swap`, 1): the near shoulder's arm clear for less than half its length and
+the other's a quarter clearer, it moves over the other shoulder, back when its own is 0.9 clear again, over **Shoulder
+Swap Time** (`vr_flat_tp_ease_side`, 0.2 s). Nearer the eye than **Fade Body Nearer Than** (`vr_flat_tp_fade`, 28) the
+body, the hands and the weapons fade, to **Faded Body Opacity** (`vr_flat_tp_fade_min`, 0.25) at 8 units (the view
+entities' alpha, as the ring of shadows does: `VR_SetupViewEntities`). Transparent walls were not done: Ironwail draws the
+world's BSP in batched passes with no per-surface fade, and a cut-out around the player would need a stencil pass through
+the world, the water and the sky; pulling in is what shooters do for walls anyway.
+
+**The body** is the one the game already draws (the skinned avatar, `setupBody`): a view more than a head's length from
+the eyes draws it with its head (`VR_AliasBonePoses`), and with the camera out the view is not his own eyes
+(`flatplay::viewIsHisOwn` says no while `flattp::away`), so the hands and the gun stay on the body as he poses them, as the
+orbit aid shows. Other players see their own view; nothing is sent.
+
+**The aim.** The crosshair's point is what the camera's ray hits, from the eye's depth along it on
+(`flatsight::crosshairPoint`, `flattp::rayStart`); the guns point at it from their muzzles as they always do
+(`aimAtPoint`), so the shot lands on the crosshair at any range. A muzzle that can't reach that point (a corner the camera
+sees past) shoots into what is in its way, and the visor crosshair, which traces the shot itself, moves off the centre onto
+it: that is the blocked-muzzle indicator. The ironsight's solve stays on his own eye, so the gun comes up to his face as in
+first person.
+
+**Aiming down the sights** (**Aiming Down The Sights**, `vr_flat_tp_aim`): 0 (the default) the camera goes into his eyes
+over the ironsight's travel (`adsShare`, `vr_flat_aim_time`) and comes back out after, the field of view as in first person
+there; 1 it stays over the shoulder, its distance behind drawn in to **Sighted Distance** (`vr_flat_tp_aim_scale`, x0.5;
+the shoulder's offset kept so the head stays off the crosshair), with the sight's zoom, and the crosshair stays (no sight
+picture is seen from behind).
+
+Off (the default), outside flatscreen play, dead, in an intermission, with the fly camera or the orbit aid, nothing of it
+runs: the view leaves V_CalcRefdef's hook exactly as it came, the field of view is the same and no entity's alpha is
+touched. `vr_flat_tp_status` (Debug > Tests: Flat Third-Person Camera Status) prints the settings, the share of the arm,
+the shoulder and how much of each leg is clear. Test: `vr_flat_tp_test` (Debug > Tests; `bash Misc/quakevr/flattp_test.sh
+<agent> [shots]`): off as before, at the offsets in the open, pulled in backed into a wall, a 6 s walk turning and strafing
+round e1m1's start never with the camera in a wall or one between it and the eye, the shot on the crosshair's point
+(within 2 units plus 1% of the range, 6 px), both sight modes.

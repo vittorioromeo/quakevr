@@ -20,6 +20,9 @@ Flat-screen: in the holster menu (middle mouse), drag a weapon with the left but
 Flat-screen or VR: shotgun in the right hand, a spent flare gun in the left: swap hands, drop, holster, draw, reload and swap mid-reload in any order, pulling both triggers after each: an empty shotgun only clicks, a loaded one fires one shell, never "ERROR: weapon clip less than zero". {test:flat_clip_unpaid}
 Flat-screen: aim with the right mouse button with the shotgun: it comes up on its sights and the crosshair fades; with the nailgun or the rocket launcher the view zooms the same way but the gun stays where it is and the crosshair stays. Weapon Offsets > Sights > Flat-Screen Aim switches the held gun between Ironsight and Zoom, and Locomotion > Right Click Aim sets every gun at once. {test:flat_aim_zoom}
 Flat-screen: aiming down the shotgun's sights, open Weapon Offsets > Sights > Flat-Screen Aim and move Ironsight Forward, Right, Up and Pitch: the sighted gun moves on the screen as you change them, and your shots still land on the crosshair. {test:flat_aim_zoom}
+Flat-screen: turn on Locomotion > Desktop Screen Play > Third-Person Camera and walk the corridor and the doorway: the camera sits over your right shoulder with your whole body in view, pulls in at once when a wall comes behind it (never showing the inside of a wall), eases back out, and moves over the other shoulder at a wall on the right. {test:flat_thirdperson}
+Flat-screen: in third person, shoot at walls near and far, and at a corner your gun is behind: the shots land on the crosshair; behind the corner the crosshair moves onto what the muzzle hits.
+Flat-screen: in third person, aim down the sights with Aiming Down The Sights on First Person (the view goes smoothly into your eyes and back out on release) and on Stay Third Person (the camera draws in over the shoulder and zooms); back up close to a wall and your body fades instead of filling the screen.
 
 [2. Flat-screen: Run Setup, presets and mutators]
 Flat-screen or VR: Classic Quake: every gun kicks when it fires (recoil on, as in the other presets). {test:classic_drops}
@@ -49,6 +52,13 @@ Toss the dagger so it turns over and catch it blade down: you hold it reversed (
 Held blade down, stab the grunt from above: the blade sticks in, and your hand on its handle looks the same as holding it. {test:revgrip}
 Parry an ogre's and a sword grunt's swings with your sword held across their blade's way three ways: held there long before the swing (early), moved in just before the blow (on time), and moved in after the blow should have landed (late). All three parry with no damage; only the on-time one staggers them long and pushes them back hard, early and late ones barely make them flinch. {test:parrytime}
 Debug > Tunables > Combat > Directional Parry: Early/Late Stagger, Early Fade, Late Grace and Late Fade change how much an early or late parry still staggers and how quickly it falls off; the timing window is still Timing Window. {test:parrytime}
+Flip the dagger blade down (B or Y) and close your other hand on its two-handed hotspot: the hotspot is still shown (Show Hotspots) and you hold it two-handed, blade still down; tune that hand under Weapon Offsets > Hand > Reversed 2H Hand X..Roll if it looks off. {test:flipgrip}
+Hold the dagger reversed and drop it, then throw it: it lies and flies the way you held it, so you can catch it again in either grip. {test:flipgrip}
+Put the dagger on the crate and take it back palm up, then palm down: both times a real grip (upright or reversed, B flips it), never prop mode. {test:flipgrip}
+Hold the dagger by its hotspot with your other hand, let go with the main hand, turn the main hand for the other grip and grab the handle: it comes back in the grip your hand is turned for, blade where it was. {test:flipgrip}
+Stab the crate or the grunt with the sword, let go, and grab the handle the other way round: the hand drawn on the stuck handle follows your real hand (no twisted wrist), and it comes out in that grip. {test:flipgrip}
+With a gib on your sword taken in your free hand, pull it off the tip (or tug it off): once off the blade the hand stays on the gib's surface where it held it, the gib no longer floating off the hand. {test:skewer_grip}
+Throw a sword or a dagger roughly point first at a grunt a few steps off: it steadies towards its point in the first few tenths of a second (not straight like an arrow) and sticks more often; a tumbling or badly aimed throw still tumbles, an axe flies as before. {test:throw_point}
 
 [6. VR: weapons and grips]
 Pick up the dagger (in your main hand here, the knight's sword in the other to compare): the sword's clean steel, a third of its blade, a smaller guard and grip, sitting in your hand as the sword does. {test:dagger}
@@ -64,6 +74,7 @@ Flat-screen or VR: look down the rocket launcher from your hand: the three vents
 Let a gun go onto your other, open palm so it rests there, then close that hand: with your fist on its handle it is taken by the handle and fires; with the handle off your palm it is held where it lies, as a prop (it doesn't jump to the handle), and a hand closing a few centimetres off a gun takes nothing. {test:palmgrab}
 With the flashlight on your torso and the dagger in your right hand held near your chest, take the torch with your left hand: it comes every time; grip the dagger's new two-handed spot instead and you hold the dagger in both hands. {test:torch_otherweapon}
 Hold the super shotgun or the shotgun one-handed close to your chest or low at your belt and take the torso torch with the other hand: nothing stops it 20-30 cm from the gun any more; your hand on the gun's foregrip still takes the gun in both hands. {test:torch_otherweapon}
+Flat-screen or VR: switch the rocket launcher to its multi-rocket model and look down it from your hand: the three vents at the back of the front shroud (top fin, both side fins) are real holes now, black inside with walls and a back, like the rocket launcher's. {test:mrl_vents}
 
 [7. VR: physics, bodies and gore]
 With drips on, get something wet, then reload the same map (a restart, or a save of this level): no crash. {test:waterdrips}

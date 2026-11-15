@@ -1204,6 +1204,24 @@ void freeHandle(edict_t* ent, const Blade& blade, edict_t* host, const glm::vec3
 namespace qvr::axestick
 {
 
+bool pointLine(edict_t* ent, glm::vec3& hand, glm::vec3& tip)
+{
+    qmodel_t* model = modelOf(ent);
+    if(!model || model->type != mod_alias)
+    {
+        return false;
+    }
+    const Blade& blade = shapeOf(ent, model).blade;
+    if(blade.how != howPoint)
+    {
+        return false;
+    }
+    const glm::mat3 axes = held::axesFromAngles(ent->v.angles, false);
+    hand = vec(ent->v.origin) + axes * held::drawnModelPoint(ent, blade.hand);
+    tip = vec(ent->v.origin) + axes * held::drawnModelPoint(ent, blade.tip);
+    return glm::distance(hand, tip) > 1.f;
+}
+
 bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const glm::vec3& spin, float dt)
 {
     const FieldOffsets& f = fields();

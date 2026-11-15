@@ -35,6 +35,10 @@ void noteMove(const VrMove& move);
 // crosshair).
 void noteTracer(int hand, const glm::vec3& to);
 
+// Hand `hand`'s gun's last traced hit (where its shot stops) and how far its place on the view is off the crosshair's
+// centre (pixels at 1080 rows); false with no gun's crosshair shown for it (vr_flat_tp_test).
+[[nodiscard]] bool lastHit(int hand, glm::vec3& hit, float& offPx);
+
 // vr_flat_xhair_probe, vr_flat_xhair_turntest.
 void init();
 

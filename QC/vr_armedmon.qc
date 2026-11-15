@@ -54,7 +54,9 @@ string vr_am_pain2;
 float vr_am_loot_aid;       // its backpack with no reserve: this ammo (AID_*),
 float vr_am_loot_n;         // ... this many
 float vr_am_classes;        // the weapon classes it may hold (VR_AM_CLASSES_ALL: any; others: its fists)
-float vr_am_takes_ranged;   // it takes up ranged weapons lying about (VR_AM_Takes; else melee ones only, unless it spawned with a gun: .vr_ag_born_ranged)
+float vr_am_takes_ranged;   // it takes up ranged weapons lying about (VR_AM_Takes; else melee ones only, unless it spawned with a gun: .vr_ag_born_ranged);
+                            // VR_AM_TAKES_KNIGHTS: as the knights' settings say now (read at each use: the row is cached)
+float VR_AM_TAKES_KNIGHTS = 2;
 vector vr_am_fit_scale;     // the poses' body space (vr_armedgrunt_pose.qc, made on the grunt) to its: scaled,
 vector vr_am_fit_shift;     // ... then moved (its shoulders against the grunt's)
 vector vr_am_back_lo;       // its back's vertices (two, x y: their middle) low (the waist) and high (the shoulder blades):
@@ -128,7 +130,7 @@ void(float k) VR_AM_Row =
         vr_am_loot_aid = AID_SHELLS;
         vr_am_loot_n = 5; // (a grunt's: its worn pack's when its gun's spare rounds are spent)
         vr_am_classes = VR_AM_CLASSES_ALL;
-        vr_am_takes_ranged = (cvar_hget(cvarh_vr_agknight_ranged_pickup) || cvar_hget(cvarh_vr_run_rangedknights)); // (the knights' setting, Ranged Knights: 0, a blade)
+        vr_am_takes_ranged = VR_AM_TAKES_KNIGHTS; // (the knights' setting, Ranged Knights: 0, a blade)
         vr_am_back_lo = '105 106 0'; // (his back at the belt, x -5.3, z 11.8)
         vr_am_back_hi = '327 330 0'; // (... at the shoulder blades, x -4, z 20)
         vr_am_anchor = 74;
@@ -181,7 +183,7 @@ void(float k) VR_AM_Row =
         vr_am_loot_aid = AID_SHELLS;
         vr_am_loot_n = 5; // (a grunt's: its worn pack's when its gun's spare rounds are spent)
         vr_am_classes = VR_AM_CLASSES_ALL;
-        vr_am_takes_ranged = (cvar_hget(cvarh_vr_agknight_ranged_pickup) || cvar_hget(cvarh_vr_run_rangedknights)); // (0, the game's: a knight's a blade; Ranged Knights: 1)
+        vr_am_takes_ranged = VR_AM_TAKES_KNIGHTS; // (0, the game's: a knight's a blade; Ranged Knights: 1)
         vr_am_back_lo = '145 172 0'; // (his back at the belt, x -2, z 1.9)
         vr_am_back_hi = '180 320 0'; // (... at the shoulder blades, x -1.4, z 13.5)
         vr_am_anchor = 224;
@@ -392,7 +394,15 @@ float(entity g, float c) VR_AM_Holds =
 float(entity g, float wid) VR_AM_Takes =
 {
     float c = VR_AG_Class(wid);
-    return VR_AM_Holds(g, c) && (c == VR_AG_CLASS_MELEE || vr_am_takes_ranged || g.vr_ag_born_ranged);
+    if(!VR_AM_Holds(g, c))
+    {
+        return FALSE;
+    }
+    // (the knights' settings read now, not when the row was filled: the row stays cached while its kind is asked again,
+    // so a setting changed in play, or a test's, was missed until another kind's row came in; agrunt 206, 2026-11-15)
+    float ranged = vr_am_takes_ranged == VR_AM_TAKES_KNIGHTS
+        ? (cvar_hget(cvarh_vr_agknight_ranged_pickup) || cvar_hget(cvarh_vr_run_rangedknights)) : vr_am_takes_ranged;
+    return c == VR_AG_CLASS_MELEE || ranged || g.vr_ag_born_ranged;
 };
 
 string(entity g) VR_AM_Pain =
