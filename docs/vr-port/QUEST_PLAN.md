@@ -1116,6 +1116,54 @@ walking up to the eye), the frozen one by +-0.4.
 - Left running on the headset for his check: e1m1, `+vr_quest_preset 0` (29 rows: `r_oit 0` added), lite 2, the models'
   lite form; captured textured (`c4i_cap/c4j_final.png`).
 
+## 6r. C4k: the models' plain form; the fight's split; the lite world's derivative bug narrowed (2026-11-15; adb, unworn)
+
+Method (`scratch/c4k_*`): `c4k_ab.sh` (C4j's frozen fight: 13 monsters closed in, `sv_freezenonclients 1`, the body
+off, 0.9 fixed; each candidate between baselines in one launch), `c4k_wprobe.sh` (one `-glesdefine` probe a launch on
+the start and the frozen fight), `c4k_lights.sh` (cvar A/B of the room's lights), `c4k_fightcfg.py` + `c4i_cap.sh`
+(the frozen fight captured from the compositor). **Every test launch now passes `-noconfigwrite`** (`c4e_run.sh`,
+`c4i_cap.sh`): closing the console at the map's start saved the launch's `+vr_body_mode 0` into his config
+(`configFrame`), which is how it came back after C4i; `c4k_cfgcheck`/`c4k_q.cfg` read his settings without writing.
+- **His config**: `vr_body_mode` was 0 again and `vr_xr_unfocused` 0 (test leftovers); both set back to their defaults
+  (3, 1) with one `writeconfig`. The preset's rows (his `vr_quest_preset 0`) left as they are.
+- **The models' plain form** (`vr_gl_alias_plain`, -1: the ES profile only; `glprogs.alias_plain`): an opaque,
+  non-morphing batch none of whose instances turns on a per-model feature is drawn by the opaque form with that
+  feature's code compiled out (`QVR_ALIAS_FS_PLAIN`, `QVR_APLAIN_*`): skin tone, gloves, nails, glove shells and the
+  forearm tint (1), glows: hot blades and barrels, power-ups, force grab (2), wounds and the wet coat (4), dents (8),
+  stumps (16), the normal map (32), morphs (64), rim light and reflections (128). The CPU side: each instance's data
+  checked where the shader tests it (`vr_render.cpp VR_AliasPlainNeeds`), OR-ed over the batch (`r_alias.c
+  aliasneeds`); a batch with one wounded grunt keeps the full form. `vr_gl_alias_plain_mask` (255) chooses what it
+  leaves out; 256 (dynamic occlusion) and 512 (dynamic lights) are probes. Debug > Profiling rows. Frozen fight, one
+  launch: **plain off 19.8-19.9 ms GPU, on 17.9** (all monster batches qualified: forcing it on every opaque batch,
+  `vr_gl_alias_plain 2`, the same); also leaving out the occlusion or the dynamic lights: no further gain. e1m1's start
+  the same (12.4). Captured on and off: the monsters textured and lit alike (`c4i_cap/c4k_fplain.png`). Adreno's
+  preprocessor took `#define DentsAt()` (no parameters) as an object-like macro (a syntax error in all 18 programs;
+  a failed program then drew nothing, which looked like a 13 ms gain): the plain form uses `#ifdef`s at the call sites.
+- **The fight's split** (frozen fight, separate launches: the scene differs by +-2 ms between launches): the models
+  all of 4.5 ms (`r_drawentities 0`, plain on); their fragment shader a constant (`QVR_PROBE_ALIASCONST`) -5 ms;
+  the world cut before its lights' loop (`QVR_PROBE_CUT5`) -6.5 ms in the fight (-3.3 at the start), the texture alone
+  (`CUT1`) -7. The lights themselves cost little: `r_dynamic 0` -1.0 ms, `vr_shadow_dlights 0`, the torches', the
+  debris' and lava nails' lights 0: so the loop's cost is its code's presence (registers), not its lights.
+- **The lite world's flat walls (`QVR_LITE_NORETRO`)**, ruled out by captures (lite 2 + NORETRO + a probe each):
+  `Retro`'s global initializer (`Retro = 0` assigned in main: still flat); the texture read of a raw input
+  (`QVR_PROBE_WNOPF`, the coordinates moved through a uniform's branch: flat); where the derivatives are taken
+  (`QVR_PROBE_WANCHOR`, consumed where RetroBegin took them: flat); the implicit level (`QVR_PROBE_WLOD`, `textureLod`
+  at the level from main()'s `dFdx(uv)`: flat). `textureLod` at level 0 is right (C4j): main()'s `dFdx(uv)` is wrong in
+  that compile. `QVR_PROBE_WLODFRESH` (`dFdx(in_uv)` taken at the read) drew no world (unexplained). Lite 2 keeps the
+  retro code; NORETRO now assigns `Retro = 0`.
+- **One render pass an eye: not done.** The splits are the gather's compute (`R_FlushBModelCalls`, every flush) over
+  the GPU cull's output; making it CPU-side means a CPU mark of the world's surfaces and an index buffer built for
+  each eye, a rewrite of `r_world.c`'s flush sites (738, 999-1016, 1180, 1443) for ~0.25 ms a split.
+- **GPU a frame** (timer queries, 0.9 fixed unless said; the body off):
+
+| | e1m1 start | the fight frozen | the fight frozen, dynamic res. |
+|---|---|---|---|
+| C4j (lite 2, r_oit 0, models' lite form) | 12.3 | 26.9 (its launch) | 20.2 |
+| C4k, plain off (same launch) | 12.4 | 19.8-19.9 | |
+| C4k, plain on | 12.4 | 17.9 | 12.8 |
+
+- Left running for his check: e1m1, `+vr_quest_preset 0`, the plain form on (its default).
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
@@ -1159,4 +1207,4 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C4k (after 6q) — his look in the headset (C4i/C4j's frame worn: e1m1 and a fight, the body looking down, the menu's sharpness at `vr_menu_render_scale`, translucent water and particles under `r_oit 0`), then the fight's models (~5 ms of its GPU: a lighter models program, each per-instance gate's CPU side checked: wounds, dents, stumps, gloves, skin tone, `Surface`'s rim and reflections, `AO.z`'s bumps), the world's shading in the computer room (~22 ms of world+brush at 0.9 with the models), the eye's scene in one pass (a CPU cull and gather of the world under ES), why Adreno's derivatives break with `RetroBegin` compiled out (the retro bit back in lite 2); no installs. Still open from before: e1m1's save error (a freed engine string), C5 (multiview into the swapchain), C2h (the world textures' memory under the ES profile). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d).
+Next phase: C4l (after 6r) — his look in the headset (C4i-C4k's frame worn: e1m1 and a fight, the body looking down, the menu's sharpness at `vr_menu_render_scale`, translucent water and particles under `r_oit 0`, wounded and gibbed monsters under the plain form), then the world's lights' loop as code (its presence costs ~5 ms in the fight, its lights 1: a lighter loop, or a lite bit for the shadow code when no shadowed light is on), the models' remaining fragment cost (~5 ms: ambient, the texture's retro code), the lite world's broken `dFdx(uv)` without RetroBegin (6r's probes), the eye's scene in one pass (a CPU mark of the world under ES); no installs. Still open from before: e1m1's save error (a freed engine string), C5 (multiview into the swapchain), C2h (the world textures' memory under the ES profile). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d).

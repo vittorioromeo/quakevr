@@ -3506,3 +3506,20 @@ QUEST_PLAN.md section 6q has the runs. On the Quest 3 over adb, unworn:
 - Timings on a frozen fight (`sv_freezenonclients 1`): the moving one drifted +-8 ms between variants. GPU 0.9 fixed:
   e1m1 14.7 -> 12.3 ms, the fight ~33 -> 26.9; the models' shading is ~5 ms of the fight (next phase).
 - PC: gles_render_test 21/0, scenario_check 138/0, load_models_test 4/0, dev and LTO builds 0 warnings.
+
+## Quest C4k: the models' plain form, the fight split, the lite world's derivative bug narrowed (branch `agent/quest`, 2026-11-15)
+
+QUEST_PLAN.md section 6r has the runs. On the Quest 3 over adb, unworn:
+- **`vr_gl_alias_plain`** (-1: ES only; `vr_gl_alias_plain_mask` 255): an opaque batch whose instances turn none of
+  skin tone/gloves/nails, glows, wounds, dents, stumps, normal map, morph, rim light on is drawn by a program without
+  their code (`VR_AliasPlainNeeds` per instance, OR-ed per batch). Frozen fight GPU 19.9 -> 17.9 ms (0.9 fixed);
+  dynamic resolution 12.8. Captured: monsters textured and lit as before. Debug > Profiling rows.
+- **His headset config**: `vr_body_mode` 0 and `vr_xr_unfocused` 0 had come back from test launches (closing the console
+  at a map's start saves the launch's settings); set back to 3 and 1. Every test launch now passes `-noconfigwrite`.
+- The fight split: models 4.5 ms, their fragment shader ~5; the world's lights' loop ~6.5 ms of code presence (its lights
+  1 ms: `r_dynamic 0`; shadow, torch, debris lights 0).
+- The lite world's flat walls without RetroBegin: not the `Retro` initializer, not an input prefetch, not where the
+  derivatives are taken, not the implicit level: main()'s `dFdx(uv)` itself is wrong in that compile. Lite 2 keeps the
+  retro code.
+- One render pass an eye: not done (a CPU mark of the world under ES, a rewrite of the flushes, ~0.25 ms a split).
+- PC: gles_render_test 21/0, scenario_check PASS, load_models_test 4/0, dev and LTO builds 0 warnings.
