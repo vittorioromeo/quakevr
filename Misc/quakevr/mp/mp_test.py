@@ -1037,6 +1037,14 @@ def own_prefs(inst):
 GRIP_REPRESS_S = 0.25  # game seconds after a let-go before the harness presses a grip again (the QC's bounce: 0.125)
 
 
+def let_go_still(srv, inst, hand):
+    """`inst` lets go of `hand`'s grip once THROW_SETTLE_S of the server's game time has passed: a drop, not a throw (a
+    hand put in place by `vr_mock_hand` moves that fast in one frame: the mock's velocity for it, 21 m/s for 3 frames;
+    let go within the throw estimate's window, the weapon is thrown down at 10 m/s, bounces and slides away)."""
+    server_time_past(srv, server_time(srv) + THROW_SETTLE_S)
+    inst.cmd("vr_mock_button %s grip 0" % hand)
+
+
 def grip_then_give(srv, inst, grips, hand="main", impulse=154):
     """`grips` (the mock's grip buttons, its hands) on `inst`, then the test give of a shotgun (impulse 154: 150 + WID 4;
     170 + WID in the off hand) once the server has that hand's grip pressed. The give in the same frame as the press could
@@ -1123,7 +1131,7 @@ def grab(s):
     grip_then_give(srv, b, "vr_mock_hand main 0.1 0.25 -0.35 0 0 0; vr_mock_button main grip 1; vr_mock_button off grip 0")
     held = b_weapon_until(4)
     since = srv.mark()
-    b.cmd("vr_mock_button main grip 0")
+    let_go_still(srv, b, "main")
     seen = b_weapon_until(0)
     s.check("B's given shotgun in his gripping hand, then falls from it opened", held[-1] == 4 and seen[-1] == 0,
             "B's main weapon by report: %s, then %s" % (held, seen))
@@ -1480,7 +1488,7 @@ def ground(s):
     if not grips:
         raise StepFailed("the shotgun has no grip hotspot: %s" % own)
     gone_since = srv.mark()
-    b.cmd("vr_mock_button main grip 0")
+    let_go_still(srv, b, "main")
     seen = weapon_until(s, srv, eb, 0)
     s.check("B's shotgun falls from his opened hand", seen[-1] == 0, "B's main weapon by report: %s" % seen)
 
@@ -1492,7 +1500,8 @@ def ground(s):
         b.cmd(above)
         own_g = ground_report(b, "mp_drawn_own").get((eb, 1), {})
         sv_g = ground_report(srv, "mp_drawn_sv").get((eb, 1), {})
-        if own_g.get("gs", (0, -1))[0] > 0 and sv_g.get("gs") == own_g.get("gs"):
+        # (its ground spot at that hotspot: dropped still, the shotgun lies under the hand, whose view first finds another)
+        if own_g.get("gs", (0, -1))[0] > 0 and own_g["gs"][1] == grips[0] and sv_g.get("gs") == own_g.get("gs"):
             break
     s.note("B's own main hand: %s; the server's: %s" % (own_g, sv_g))
     s.check("B's view finds his empty main hand at the shotgun's grip hotspot %d" % grips[0],
@@ -1519,7 +1528,7 @@ def ground(s):
     s.check("B holds the given sword in his off hand (the server's report)", off[-1] == 13, "B's off weapon: %s" % off)
     nearest_before = ground_report(srv, "mp_drawn_sv").get((eb, 0), {}).get("rev", (0,))[0]
     gone_since = srv.mark()
-    b.cmd("vr_mock_button off grip 0")
+    let_go_still(srv, b, "off")
     own_r = sv_r = {}
     tried = []
     # (the hand's yaw turns the way its held blade would point: against the lying blade's way, reversed)
