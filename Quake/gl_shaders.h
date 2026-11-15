@@ -890,6 +890,25 @@ QVR_PARALLAX_DEPTH_OUT // QVR: pixel depth offset (vr_parallax_depth_write): PDO
 "#ifndef QVR_PROBE_NORETRO\n" // QVR: -glesdefine's probe (C4e): no retro textures' start
 "	RetroBegin(in_retro.z, in_retro.xy, duvdx, duvdy, dpdx, dpdy, facing);\n" // QVR: retro textures (vr_retro.h; Retro 0: none); before the carved decals (their retro style's blocks)
 "#endif\n"
+"#ifdef QVR_PROBE_RETRO\n" // QVR: -glesdefine's probe (C4f): red the pixel's retro set, green the call's, blue retro on (RetroInfo.x)
+"	out_fragcolor = vec4(Retro > 0 ? 1.0 : 0.0, in_retro.z > 0.0 ? 1.0 : 0.0, RetroInfo.x > 0.0 ? 1.0 : 0.0, 1.0);\n"
+"	return;\n"
+"#endif\n"
+"#ifdef QVR_PROBE_LUTI\n" // QVR: -glesdefine's probe (C4f): the palette table's index for the texture's colour (grey), red where it is over 255
+"	{\n"
+"		uint li = texelFetch(RetroLUT, ivec3(clamp(textureLod(Tex, QVR_WUV(uv), 0.0).rgb, 0.0, 1.0) * 127.0 + 0.5), 0).x;\n"
+"		out_fragcolor = li > 255u ? vec4(1.0, 0.0, 0.0, 1.0) : vec4(vec3(float(li) / 255.0), 1.0);\n"
+"		return;\n"
+"	}\n"
+"#endif\n"
+"#ifdef QVR_PROBE_UV\n" // QVR: -glesdefine's probe (C4f): the texture coordinates (red, green: their fractions), blue retro lighting on
+"	out_fragcolor = vec4(fract(in_uv), RetroLight[2].w > 0. ? 1.0 : 0.0, 1.0);\n"
+"	return;\n"
+"#endif\n"
+"#ifdef QVR_PROBE_LOD0\n" // QVR: -glesdefine's probe (C4f): the texture's top level, nothing else
+"	out_fragcolor = vec4(textureLod(Tex, QVR_WUV(uv), 0.0).rgb, 1.0);\n"
+"	return;\n"
+"#endif\n"
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_SOLID) "\n"
 "#ifdef QVR_PROBE_NOPARALLAX\n" // QVR: -glesdefine's probe (C4e): no parallax code
 "	bool parallax = false;\n" // (a carved decal sets it: its moved coordinates read with textureGrad)
@@ -974,6 +993,10 @@ QVR_WORLD_FS_DECALS // QVR: the decals on the world (vr/vr_decals.cpp)
 "	if (rl_lightmapped)\n" // QVR: retro lighting: the lightmap on its blocky grid (vr_retrolight.h)
 "		lmuv = RetroLightmapUV(lmuv, vec2(textureSize(LMTex, 0).xy) * 16.);\n"
 "	vec4 lm0 = textureLod(LMTex, lmuv, 0.);\n"
+"#ifdef QVR_PROBE_LM\n" // QVR: -glesdefine's probe (C4f): the lightmap's first style as read
+"	out_fragcolor = vec4(lm0.rgb, 1.0);\n"
+"	return;\n"
+"#endif\n"
 "	vec3 total_light;\n"
 "	if (in_styles.y < 0.) // single style fast path\n"
 "		total_light = in_styles.x * lm0.xyz;\n"

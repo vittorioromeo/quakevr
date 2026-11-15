@@ -705,6 +705,16 @@ void OpenXrBackend::logGlInterop()
     glGetIntegerv(GL_MAX_COMBINED_IMAGE_UNIFORMS, &images[1]);
     xrruntime::logLine(va("OpenXR: GL ES: %s; %s; fragment/combined image uniforms %d/%d\n",
         reinterpret_cast<const char*>(glGetString(GL_RENDERER)), text.cStr(), images[0], images[1]));
+    // The eyes' sRGB swapchain (GL_SRGB8_ALPHA8) takes the game's colours as they are, gamma-encoded already, as the PC's
+    // OpenGL does with GL_FRAMEBUFFER_SRGB off. OpenGL ES encodes every write to an sRGB image unless
+    // EXT_sRGB_write_control turns that off: encoded twice, the headset showed the game pale and bright (C4f).
+    // -glessrgbencode keeps the driver's encoding (the check).
+    if(extensions && strstr(extensions, "GL_EXT_sRGB_write_control") && !COM_CheckParm("-glessrgbencode"))
+    {
+        constexpr GLenum framebufferSrgb = 0x8DB9; // GL_FRAMEBUFFER_SRGB_EXT
+        glDisable(framebufferSrgb);
+        xrruntime::logLine("OpenXR: GL ES: sRGB writes as they are (EXT_sRGB_write_control; -glessrgbencode: encoded)\n");
+    }
 }
 #else
 void OpenXrBackend::logGlInterop()

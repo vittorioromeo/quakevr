@@ -182,7 +182,15 @@ void eyeshot(int eye, unsigned imageFbo, unsigned sceneFbo, int width, int heigh
     za::Vector<byte> pixels(texels * 3);
     GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, imageFbo);
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    while(glGetError() != GL_NO_ERROR)
+    {
+    }
     glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
+    if(const GLenum err = glGetError(); err != GL_NO_ERROR) // (the image unread: say why, not a black file alone)
+    {
+        Con_Printf("eyeshot: the image's read failed (OpenGL error 0x%X, framebuffer %u status 0x%X)\n", err, imageFbo,
+            GL_CheckFramebufferStatusFunc(GL_READ_FRAMEBUFFER));
+    }
     for(za::SizeT i = 0; i < texels * 3; i++)
     {
         pixels[i] = rgba[i / 3 * 4 + i % 3];

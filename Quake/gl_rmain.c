@@ -206,6 +206,14 @@ static GLuint GL_CreateFBO (GLenum target, const GLuint *colors, int numcolors, 
 	if (status != GL_FRAMEBUFFER_COMPLETE)
 		Sys_Error ("Failed to create %s (status code 0x%X)", name, status);
 
+	// QVR: its colours cleared once: OpenGL ES (the Quest) leaves a new texture as it was in memory, and what no
+	// frame writes (the lenses' hidden area) stays so; the bloom read it as huge or NaN colours (QUEST_PLAN.md C4f)
+	for (i = 0; i < numcolors; i++)
+	{
+		const GLfloat zero[4] = {0.f, 0.f, 0.f, 0.f};
+		GL_ClearBufferfvFunc (GL_COLOR, i, zero);
+	}
+
 	return fbo;
 }
 
