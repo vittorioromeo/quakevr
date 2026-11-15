@@ -3723,3 +3723,23 @@ the same exact rules" as enemies; an option, on by default, single player and mu
   the final 1.1.0. Stale known issues fixed: AD's sky flicker (fixed 10-27, e5f54c30e, the NaN fog) and the AD hub's
   lower slipgates (ad_hub_test) moved to Fixes.
 - For the final 1.1: re-read PATCH_NOTES_1.1.md against what lands after the RC (add lines, drop the RC sentence).
+## mpN B11a: the host's own held-weapon state through its slot (agent/mp, 2026-11-15)
+
+- origin/next merged (patch notes, release docs). The water climb left to QuakeC (`predictclimb --part waterclimb
+  --permove-skip 1`) climbs now; the test fails only as an unpredicted climb should (6/3): closed. mp_predict's lift
+  landing 1.354: `predict --part lift` 9/0 alone, not reproduced (still an occasional flake of the whole scenario).
+- **One path for the server's held-weapon readers** (MP_PLAN "B11a results"): `heldpose::publishOwn` (vr_heldpose.cpp)
+  runs before each server frame (new `VR_ServerFrameBegin`, host.c) and puts the host's own drawn weapon poses, ground
+  spots and holster presses into its slot, as a remote player's messages put his. The slot carries the view's world
+  places (`Hand::placed`: hotspots, the carried weapon, the reverse grip's hand turn and vr_revgrip), so single player
+  reads the same unrounded values from the same frame. The hotspot, grab spot, any-grip, carried pose, reverse grip,
+  held axes/flip, holster press, carry2h reach and Box3D drawn-hull readers ask `heldpose::slotHand` alone;
+  `isLocal`/`isRemote`/`remote` and grip's unused `Held::local` are gone. A hosting client no longer sends its own up.
+- Single player, old exe against new (same seeds, fixed frames): revgrip (vr_embed_test 42) 24/0, flipgrip (44) 39/0,
+  embed 24 (19/2 in both: embedfeel's arm-stretch cases, not this), gun_wall_test and crate_grip_test (10/0): the
+  filtered output identical line for line (crate: entity numbers aside). magholster_test time/walk: the same
+  behaviour and numbers, but the weapon's instance and edict numbers at the bind differ (old 25/280 twice and 24 or 23
+  in walk, new 23/276 twice), the flight 22.89-22.90 m in both: noted for B11b's trace comparison.
+- MP: suite 27 of 29 (mp_climb 7/2 and mp_predict 23/1, both setup timeouts; 11/0 and 28/0 alone); `--listen` grab
+  13/0, held 14/0, disarm 35/0, ground 15/0. scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0, Release
+  (ThinLTO) 0 warnings. Next: B11b (vr_pmove for the host's own player).

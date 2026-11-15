@@ -1493,7 +1493,7 @@ should come from one system for every player), **done** (unified in B9).
 |---|---|---|---|
 | 1 | `held::fistOf`, `grip::handFrameOf`, `gripfit::fit` (vr_held/vr_grip/vr_gripfit.cpp; readers: Box3D hands, ragdoll parts, foe grabs, physics touches, water pulls, carry, grips) | player 1 of a non-dedicated server: the client's live globals; else `svs.maxclients > 1`: his slot's (sent) | **done**: one per-slot store; the host's own client puts its hands into its slot as it measures them (`clientprefs::ownSlot`, `publishOwn`; at a slot reset too), a remote one's come in his messages; the loopback copies of the host's own no longer sent |
 | 2 | `clientprefs::value`/`forQc`, `PF_cvar_hget` | `svs.maxclients > 1` before a slot's preferences | **done**: the check dropped (a slot without preferences gives the game's own value: single player always) |
-| 3 | vr_heldpose.cpp (`isLocal`, `isRemote`, `grabSpot`, `reverseGrip`, `magPoll`, `remote`), vr_builtins_held.inc (weapon hotspot, any-grip, help kind: 5 sites), vr_carry2h.cpp:333, vr_box3d_hands.cpp:661, `grip::serverTake`'s `h.local` | the host's own player: the client's view asked live (hotspots, ground spot, reverse grip, magazine presses); others: their slot's drawn pose, spot, presses | **unify** (B11a, medium, 1 session): the host publishes its `heldpose::Hand`, ground spot and presses into its slot as #1; readers read the slot only. Three different "local" tests today (`sv.active && cls.state == ca_connected && num == 1`, `cls.state != ca_dedicated && slot == 0`, `num == 1 && cls.state != ca_dedicated`) become `clientprefs::ownSlot`. Care: the remote path turns hotspots through the player's hand fields (`toWorld`), the local one through the view: single player's numbers change unless published unquantized in the same frame; check with the SP hash audits |
+| 3 | vr_heldpose.cpp (`isLocal`, `isRemote`, `grabSpot`, `reverseGrip`, `magPoll`, `remote`), vr_builtins_held.inc (weapon hotspot, any-grip, help kind: 5 sites), vr_carry2h.cpp:333, vr_box3d_hands.cpp:661, `grip::serverTake`'s `h.local` | the host's own player: the client's view asked live (hotspots, ground spot, reverse grip, magazine presses); others: their slot's drawn pose, spot, presses | **unify** (B11a, medium, 1 session): the host publishes its `heldpose::Hand`, ground spot and presses into its slot as #1; readers read the slot only. Three different "local" tests today (`sv.active && cls.state == ca_connected && num == 1`, `cls.state != ca_dedicated && slot == 0`, `num == 1 && cls.state != ca_dedicated`) become `clientprefs::ownSlot`. Care: the remote path turns hotspots through the player's hand fields (`toWorld`), the local one through the view: single player's numbers change unless published unquantized in the same frame; check with the SP hash audits. **Done** (B11a: `heldpose::publishOwn` before each server frame, the view's world places carried in the slot: "B11a results") |
 | 4 | sv_user.c:437 `VR_PredictThink`, sv_phys.c:1377/1414 `VR_PredictWalks` (vr_predict.cpp) | a remote client's walk: his moves one by one through vr_pmove.cpp; the host's own player (and a flat or old client): SV_Physics + QC PlayerPreThink | **unify** (B11b, large, 2 sessions; highest value): vr_pmove for every player, the host's own included (behind a cvar first, SP traces compared frame by frame), so prediction, server and single player are one module; then monsters' step and swim through the same body code |
 | 5 | vr_mpavatar.cpp (remote bodies, `bonePoses`), vr_view_diag.cpp `remoteRigSkin`/`remoteHandSkin`, vr_avatar.cpp:1430 `otherDrawn` (`cl.maxclients <= 1`), :2392 | another player's body, hands, holsters, plates drawn from his avatar block; the own from the live rig (vr_view_body, vr_view_hands) | **unify** (B11c, large, 2 sessions): one routine draws any player entity from an avatar state (the own filled from the live rig, others from snapshots), the flat player's own body (third person, vr_flattp) from it too |
 | 6 | vr_teleport.cpp:72, vr_trace.cpp:159, vr_hull.cpp:5083 | no server edict for the own player (a remote client): the client's state (`cl.onground`, `cl.worldmodel`, the prediction's hulls) | **unify** (small): one "own player" accessor (on ground, in water, the world to trace) answering from the edict when hosting, from the prediction's state otherwise |
@@ -1804,6 +1804,59 @@ Open (B8j, the rest):
 - mp_predict's occasional lift-landing 1.354 correction: not looked at.
 - A hang from a brush model or prop, other players in his replay, getting up from lying at once: unchanged.
 
+### B11a results: the host's own held-weapon state through its slot (2026-11-15, dev no-LTO build, loopback)
+
+First, the two short looks the plan asked for:
+
+- **The water climb left to QuakeC's frame** (`mp_test.py predictclimb --part waterclimb --permove-skip 1`): it climbs
+  now (`waterjump: climbed out by hand 1, the top 34.3 above the feet, rising at 254`; the server has him on the edge's
+  top, 128). The test fails as it should with the climb unpredicted (6/3: `wclimb 0`, no climb in his replay,
+  corrections up to 57.7): the check sees a missing prediction. Part 4's "no climb at all" did not come back (part 4's
+  `.vr_movetakes` gate, or a flake of that run); closed.
+- **mp_predict's lift-landing 1.354**: `predict --part lift --watch 3` 9/0 (corrections at most 0.027, `lift_max` 2.06
+  eased): not reproduced alone; it stays an occasional flake of the whole scenario (Open, below).
+
+What changed (the B9 review's #3; one path, the readers no longer ask "is this the host's own player?"):
+
+- **`heldpose::publishOwn`** (vr_heldpose.cpp), called by the new `VR_ServerFrameBegin` (host.c, Host_ServerFrame
+  before the clients run, every tick): hosting (`clientprefs::ownSlot`), this game's own hands' `Hand` (measure()), its
+  ground spots (`twohand::groundSpotNow`, with vr_weapon_grab_hotspots/anywhere as before) and its holster presses
+  (`magholster::poll`) go into its slot, as a remote player's `vr_heldpose`/`vr_grabspot`/`vr_magpoll` put his; at a
+  reset of its slot too. Nothing while it is not connected. A hosting client no longer sends its own up (send()).
+- **`Hand::placed`**: the publisher's view drew them this frame, so the slot carries their world places too (the
+  hotspots `spotWorld`, the carried weapon's place, angles and tip, the hand's own turn and vr_revgrip for the reverse
+  grip). The readers take those when the slot has them, and place a remote player's (a round trip late) on the hand of
+  the move the server runs, as before. That keeps single player bit for bit: the same view values, unrounded, from the
+  same frame (the view draws after the server in a frame; QC read the last drawn either way).
+- Readers on the slot alone: `weaponhotspot`/`weaponhotspotinfo`, `weapongrabspot`, `weaponanygrip`,
+  `weapondrawnpose` 0..5 (the carried weapon), 43 (the reverse grip; no player given: the own slot), 44..46 (the held
+  weapon's axes, flip, may reverse, flippable), `magholsterpoll`, carry2h's held-out-of reach, Box3D's drawn weapon hull
+  (a placed slot not drawn yet: no body, as the local path; a remote one's not come: the muzzle capsule, as before).
+  `heldpose::isLocal`, `isRemote`, `remote` are gone (`slotHand`); grip's unused `Held::local` dropped. measure() now
+  fills the hold's kind, axes, flags and held-out-of whatever the drawn pose (a remote client sent zeros without one).
+- The three "local" tests the review named (`sv.active && cls.state == ca_connected && num == 1`, `cls.state !=
+  ca_dedicated && slot == 0`, `num == 1 && cls.state != ca_dedicated`) are gone from these readers; what is left is
+  the one transport decision, `clientprefs::ownSlot()`.
+- Still the host's view alone (not in #3, client-side drawing tools for tests and the armed humanoids): weapondrawnpose
+  21/22, 30..32, 39, 47 (the flip grip's choice), 49/50 (the leaving turn), 51/52 (the drawn hand).
+
+Tests: `mp_test.py suite` 27 of 29 pass (mp_climb 7/2: A never put at the ledge, the setup; mp_predict 23/1: timed
+out waiting for B's prediction put in the water, the setup), then 11/0 and 28/0 alone; `--listen`: grab 13/0, held
+14/0, disarm 35/0, ground 15/0 (the host's own hands now through its slot). Single player, the old exe against the new
+(same seeds, fixed frames, the filtered console output compared line by line): revgrip (vr_embed_test 42) 24/0,
+flipgrip (44) 39/0, embed 24 (19/2 in both: embedfeel's arm-stretch cases), gun_wall_test, crate_grip_test 10/0:
+identical (crate: entity numbers aside). magholster_test time/walk: the same steps and numbers, but the bound weapon's
+instance and edict numbers differ (old 25/280 in two runs, 24 or 23 in walk; new 23/276 in two runs; the flight home
+22.89-22.90 m in both): not explained (the old varies run to run too); watch it in B11b's frame-by-frame comparison.
+scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0, Release (ThinLTO) build 0 warnings.
+
+Open (B11a):
+
+- The magholster test's entity numbering difference above.
+- `PF_holsterpos` (the host's own holsters from its live rig, another's from `server::holsterPoint`) and the
+  weapondrawnpose kinds listed above still ask the host's view: not in the review's #3; B11c (one avatar state for
+  any player) is where they meet.
+
 ## Decisions
 
 - Melee's lag compensation (B8c) wraps the queries (melee's sweep, a bash's find, a headbutt's target, a guard's check
@@ -1868,4 +1921,4 @@ Open (B8j, the rest):
 - The interpolation buffer (B7b) leaves brush models and stepping monsters on NetQuake's lerp: the player's own entity
   is not delayed (no prediction until B8), and a lift he rides must stay in step with him.
 
-Next phase: B11a -- grab spots, hotspots and magazine presses for the host's own player through the same slot store (the B9 review's #3; SP hash audits), after a short look at the water climb's frame path failing for a remote client (`mp_test.py predictclimb --part waterclimb --permove-skip 1`; "B8j results, part 4", Open) and mp_predict's lift-landing 1.354 correction if cheap; then B11b-c.
+Next phase: B11b -- vr_pmove for the host's own player (the B9 review's #4: behind a cvar first, single player's traces compared frame by frame against SV_Physics + PlayerPreThink, then the default), then monsters' step and swim through the same body code; then B11c (one avatar routine for any player entity) and #6 (an own-player accessor).
