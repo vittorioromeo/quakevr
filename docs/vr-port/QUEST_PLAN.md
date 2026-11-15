@@ -1164,6 +1164,52 @@ the start and the frozen fight), `c4k_lights.sh` (cvar A/B of the room's lights)
 
 - Left running for his check: e1m1, `+vr_quest_preset 0`, the plain form on (its default).
 
+## 6s. C4l: the lights' loop's cost found in its shadow code; the lights' lite form (2026-11-15; adb, unworn)
+
+Method (`scratch/c4l_*`): `c4l_batch1.sh`/`c4l_batch2.sh` (one `-glesdefine` probe a launch, `c4k_wprobe.sh`: e1m1's
+start and C4j's frozen fight, 0.9 fixed, the body off), `c4l_ab.sh` (`vr_gl_lights_lite` 1/0 in one launch, then
+dynamic resolution), `c4l_caps.sh` (compositor captures), `c4l_pclite.sh` (the PC under `-glescompat`). Separate
+launches differ by up to +-2 ms (two baselines: the fight 20.4 and 22.1-24.1).
+- **The world's lights' loop by probe** (GPU ms a frame, start / frozen fight): baseline 12.3-12.9 / 20.4-24.1; the
+  loop compiled out (`QVR_PROBE_NOLOOP`, new) 9.7 / 16.1; a plain point-light loop (`SIMPLELOOP`) 10.3 / 14.5; the shader
+  cut before the loop (`CUT5`) 8.7 / 15.0-15.4; no shadow code (`NOSHADOW`: `LightShadow` returns the cone,
+  `MapLightShadow` 1) 12.1 / 17.4. The loop's lights cost little (C4k: `r_dynamic 0` -1 ms; `vr_shadow_dlights 0` 0 in
+  this launch too): **the cost is the shadow code's presence** (Adreno pays for code it never runs: registers and
+  size), not its work.
+- **Which shadow code** (each against a baseline of 22.1-23.0 in the fight): the portal lights' path
+  (`PortalLightPath`: a gate's matrix and its own shadow lookup; `QVR_PROBE_NOGATE`) **-3.7 ms**; the spot lights'
+  shadow (`QVR_PROBE_NOSPOTSHADOW`) -3.2; the spot's and the point light's shadow maps read by one filter's code instead
+  of two copies (`QVR_LITE_ONEFILTER`, the same result) -2.5; the map lights' shadows, DarkPlaces' falloff and the
+  shadow filter's other three kernels together (the first `vr_gl_lights_lite`, `c4l_ab.sh` l1): 0. The start: none
+  of these moves it (+-0.4).
+- **`vr_gl_lights_lite`** (1; with `vr_gl_world_lite` 2, ES only; `VR_GLESWorldLite` bits 19-25, `GL_LightsLiteDefines`):
+  the lights' loops (the world's; the models' with `vr_gl_alias_lite`) without the code the settings leave unused:
+  portal lights (`vr_portals` 0, the Low and Quest presets': `lightGates` makes none), map lights' shadows
+  (`vr_shadow_maplights` 0), DarkPlaces' falloff (`vr_dlight_falloff` 0), the shadow filter's kernel a constant
+  (`vr_shadow_filter`, retro lighting off); and always one filter's code for a spot's and a point light's shadow
+  (`DlightShadowMap`; `SpotShadow` split into `SpotShadowAt` and the filter, the PC's own code unchanged). Debug >
+  Profiling row. PC under `-glescompat`, the Quest preset: 0 shader errors, the eye the same bits with it on and off.
+- **Not measured on the headset yet**: its battery ran out at 11:05, mid-probe (the last, `NOGATE` + `ONEFILTER`
+  together, lost its fight), and it stayed offline past 13:00. The shipped form is the two measured parts together
+  (portal lights out -3.7, one filter -2.5: expected ~-5 to -6 ms of the fight's ~22, the start unchanged), unverified
+  together. Ready to run in one command once it is back: `bash scratch/c4l_batch3.sh` (installs the built APK; the
+  lite form's A/B with dynamic resolution, `c4l_ab.sh`; probes on top of it: the models' retro textures out,
+  `QVR_ALITE_NORETRO`, and the shadow code left, `NOSHADOW`; then `c4l_caps.sh`: the start and the fight captured
+  with it on and off, and the derivative probe below).
+- **The models' remaining ~5 ms**: not cut. Their lights' loop takes the one-filter form too (with `vr_gl_alias_lite`);
+  C4k's plain-mask probes (no occlusion, no dynamic lights) gained nothing, so the next suspect is their retro
+  textures' code (`RetroBegin` and two `RetroSample`s, kept as the world's are for the derivative bug): probe
+  `QVR_ALITE_NORETRO` built, its timing and capture in batch 3.
+- **The derivative bug** (`dFdx(uv)` wrong with `RetroBegin` compiled out): a cheap workaround built as a probe,
+  `QVR_PROBE_WIAO`: the coordinates' derivatives without `dFdx`, by `interpolateAtOffset` (ES 3.2 core: (uv at +1/4
+  pixel - uv at -1/4) x 2), the colour read by `textureGrad`. Compiles under the PC's `-glescompat` (0 shader errors);
+  its capture against plain NORETRO is in batch 3 (`l4l_wiao` vs `l4l_nore`). If textured, NORETRO (lite bit 64) can
+  come back with it, its timing deciding.
+- PC: gles_render_test 21/0, scenario_check 138/0, load_models_test 4/0, dev and LTO builds 0 warnings.
+- Not left running for his check (the headset off). The APK installed on it is batch 2's (`vr_gl_lights_lite` with
+  the filter, falloff and map-shadow bits, without the portal and one-filter bits); `build-android/apk/QuakeVR.apk`
+  is this commit's.
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
@@ -1207,4 +1253,4 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C4l (after 6r) — his look in the headset (C4i-C4k's frame worn: e1m1 and a fight, the body looking down, the menu's sharpness at `vr_menu_render_scale`, translucent water and particles under `r_oit 0`, wounded and gibbed monsters under the plain form), then the world's lights' loop as code (its presence costs ~5 ms in the fight, its lights 1: a lighter loop, or a lite bit for the shadow code when no shadowed light is on), the models' remaining fragment cost (~5 ms: ambient, the texture's retro code), the lite world's broken `dFdx(uv)` without RetroBegin (6r's probes), the eye's scene in one pass (a CPU mark of the world under ES); no installs. Still open from before: e1m1's save error (a freed engine string), C5 (multiview into the swapchain), C2h (the world textures' memory under the ES profile). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d).
+Next phase: C4m (after 6s) — first `bash scratch/c4l_batch3.sh` on the headset (C4l's lights' lite form measured and captured, the models' retro probe, the derivative workaround's capture), then his look in the headset (C4i-C4l's frame worn: e1m1 and a fight, the body looking down, the menu's sharpness, translucent water and particles under `r_oit 0`, wounded monsters under the plain form, a dynamic light's shadow under the one-filter form), the models' remaining fragment cost (~5 ms: their retro textures' code if the probe says so), NORETRO back with the `interpolateAtOffset` derivatives if their capture is textured, the shadow code still in the loop (spot shadows, `vr_shadow_dlights 1`), the eye's scene in one pass (a CPU mark of the world under ES); no installs. Still open from before: e1m1's save error (a freed engine string), C5 (multiview into the swapchain), C2h (the world textures' memory under the ES profile). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d).

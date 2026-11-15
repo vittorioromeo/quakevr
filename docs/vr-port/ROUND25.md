@@ -3523,3 +3523,20 @@ QUEST_PLAN.md section 6r has the runs. On the Quest 3 over adb, unworn:
   retro code.
 - One render pass an eye: not done (a CPU mark of the world under ES, a rewrite of the flushes, ~0.25 ms a split).
 - PC: gles_render_test 21/0, scenario_check PASS, load_models_test 4/0, dev and LTO builds 0 warnings.
+
+## Quest C4l: the lights' loop's cost is its shadow code; the lights' lite form (branch `agent/quest`, 2026-11-15)
+
+QUEST_PLAN.md section 6s has the runs. On the Quest 3 over adb, unworn, until its battery ran out at 11:05:
+- **The world's lights' loop** (frozen fight, GPU ms): ~22 with it, 16.1 compiled out, 14.5 as a plain point-light
+  loop, 17.4 without shadow code; its lights themselves ~1. The cost is the shadow code's presence: the portal lights'
+  path -3.7 ms, the spot shadows -3.2, a second copy of the shadow filter -2.5; the map lights' shadows, DarkPlaces'
+  falloff and the filter's other kernels 0. The start moves by none of them.
+- **`vr_gl_lights_lite`** (1; with `vr_gl_world_lite` 2, ES only): out of the lights' loops the code the settings
+  leave unused (portal lights under `vr_portals` 0, as the Low and Quest presets have; map light shadows; DarkPlaces
+  falloff; the other filter kernels), and a spot's and a point light's shadow read by one filter's code. Debug >
+  Profiling row. The two parts that matter measured apart, not yet together on the headset (`scratch/c4l_batch3.sh`
+  is ready: A/B, captures).
+- Built as probes, unmeasured: the models' retro textures out (`QVR_ALITE_NORETRO`), and the derivative bug's
+  workaround (`QVR_PROBE_WIAO`: the coordinates' derivatives by `interpolateAtOffset`, read by `textureGrad`).
+- PC: gles_render_test 21/0, the eye under `-glescompat` the same bits with the lite form on and off, scenario_check
+  138/0, load_models_test 4/0, dev and LTO builds 0 warnings.
