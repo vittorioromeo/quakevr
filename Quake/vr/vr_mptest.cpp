@@ -411,9 +411,11 @@ edict_t* slotPlayer(const char* command, int arg)
         Con_Printf("%s: %s\n", command, sv.active ? "no player in that slot" : "not hosting a game");
         return nullptr;
     }
-    if(deathmatch.value != 0.f)
+    // (B11: a dedicated server's own console may, as it may kick: its players can't send these commands; a listen
+    // host plays the match himself)
+    if(deathmatch.value != 0.f && !isDedicated)
     {
-        Con_Printf("%s: not in deathmatch\n", command);
+        Con_Printf("%s: not in deathmatch (but on a dedicated server)\n", command);
         return nullptr;
     }
     return svs.clients[slot].edict;
@@ -458,13 +460,14 @@ void gotoExit_f()
         nextMap(exit), player->v.origin[0], player->v.origin[1], player->v.origin[2]);
 }
 
-// vr_hurt <damage> [<slot>]: the player (hosting: the one in that slot) takes that much damage from the world (QC's
-// T_Damage, as a fall's): a real death, not `kill`'s respawn at once (Debug > Tests > Cheats; mp_flow's death).
+// vr_hurt <damage> [<slot>] [<attacker>]: the player (hosting: the one in that slot) takes that much damage from the
+// world (QC's T_Damage, as a fall's), or from entity number <attacker> (a player or a bot: his frag in deathmatch, mp_dm):
+// a real death, not `kill`'s respawn at once (Debug > Tests > Cheats; mp_flow's death).
 void hurt_f()
 {
     if(Cmd_Argc() < 2)
     {
-        Con_Printf("usage: vr_hurt <damage> [<slot>]\n");
+        Con_Printf("usage: vr_hurt <damage> [<slot>] [<attacker entity>]\n");
         return;
     }
     edict_t* player = slotPlayer("vr_hurt", 2);
@@ -473,6 +476,17 @@ void hurt_f()
         return;
     }
     const qvr::progs::ServerVm vm;
+    edict_t* attacker = qcvm->edicts;
+    if(Cmd_Argc() > 3)
+    {
+        const int n = Q_atoi(Cmd_Argv(3));
+        if(n <= 0 || n >= qcvm->num_edicts || EDICT_NUM(n)->free)
+        {
+            Con_Printf("vr_hurt: no entity %d\n", n);
+            return;
+        }
+        attacker = EDICT_NUM(n);
+    }
     const func_t fn = qvr::progs::findFunction("T_Damage");
     if(!fn)
     {
@@ -482,8 +496,8 @@ void hurt_f()
     pr_global_struct->time = qcvm->time;
     pr_global_struct->self = EDICT_TO_PROG(player);
     G_INT(OFS_PARM0) = EDICT_TO_PROG(player);
-    G_INT(OFS_PARM1) = EDICT_TO_PROG(qcvm->edicts);
-    G_INT(OFS_PARM2) = EDICT_TO_PROG(qcvm->edicts);
+    G_INT(OFS_PARM1) = EDICT_TO_PROG(attacker);
+    G_INT(OFS_PARM2) = EDICT_TO_PROG(attacker);
     G_FLOAT(OFS_PARM3) = static_cast<float>(Q_atof(Cmd_Argv(1)));
     PR_ExecuteProgram(fn);
     Con_Printf("vr_hurt: %s at %.0f health%s\n", PR_GetString(player->v.netname), player->v.health,

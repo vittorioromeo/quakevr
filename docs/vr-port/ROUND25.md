@@ -3960,3 +3960,17 @@ His flat-screen notes (2026-11-16) and the coordinator's disarm-sound item.
   reruns update in place (`--dry-run`, `--rebuild`, `--check`).
 - Checked in Resolve Studio 21.1 (project "QVR Titles Preview"): two titles rendered at 1080p60, top-right and
   bottom-left; a rerun reports "updated" for both, no duplicates. Not checked: 4K, IM Fell English.
+
+## MP B13: the join through reordering (selective acks); deathmatch with bots (agent/mp, 2026-11-16)
+
+- **A join through 30 ms jitter and 5% loss stalled in its signon** (keepalives only): NetQuake's receiver acked the
+  chunks it dropped (one that overtook a late one); with the acks reordered too, the dropped chunk's ack came after the
+  late one's and read as the next in order, so the server took serverinfo as delivered while the client still lacked
+  a chunk. Fixed with selective acks (`net_dgrm.c`): the receiver holds early chunks and acks only what it has; the
+  sender resends only the chunks not acked. Non-Quake VR peers keep a one-chunk window; the accept reply carries the
+  server's network version (`QVR_NET_VERSION` 34). A stale unreliable datagram no longer ends the frame's read.
+  `mp_retransmit` stages the stall deterministically (the old code: never delivered); `mp_voice_lossy` now joins under
+  its loss. Multiplayer only (the loopback is another driver). Details: MP_PLAN.md, "B13 results".
+- **Deathmatch with bots** (`mp_dm`, new): dm4, two FrikBot bots (impulse 100), a real death respawned by the trigger,
+  the fraglimit's intermission at both clients with the same scoreboard: it all worked unchanged. New client watch
+  lines `mp_frags`, `mp_event: intermission= / died / respawned` (`vr_mptest.cpp`).

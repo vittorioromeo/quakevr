@@ -211,7 +211,8 @@ player unchanged.
 | **B12** (was B9; the poses in the snapshot, the rate and its priorities done; the rest is B12b) | Compression and rate: entropy stage with trained tables, per-client rate, priority accumulator | byte budgets per scenario from section 2.3 (`mp_armed`) |
 | **B12b** (done: the entities by their fields and trend, the reliable window's resends; entropy measured, not needed) | The entities' field-level coding (the largest kind left in combat), the fast retransmit of the reliable window, then an entropy stage only if it pays against them | `mp_armed`'s combat budget lowered; a lost reliable chunk resent within a round trip |
 | **B10** | Proximity voice chat: capture, Opus, VAD, noise suppression, push-to-talk, a jitter buffer, voices placed by Steam Audio at the speaker's head; VR and flat; menu rows | `mp_voice` (a test tone from A heard at B, louder near, delay under 250 ms) |
-| **B11** | Deathmatch and bots: frags, respawns, DM item rules with VR weapons, FrikBot with VR-aware bodies | `mp_dm` (two clients and two bots, a fraglimit reached) |
+| **B11** (part 1 done in B13: `mp_dm`, bots, frags, respawn, the fraglimit; the rest is B11 part 2) | Deathmatch and bots: frags, respawns, DM item rules with VR weapons, FrikBot with VR-aware bodies | `mp_dm` (two clients and two bots, a fraglimit reached) |
+| **B11 part 2** | The rest of B11: deathmatch 1 and 2's item rules with VR weapons (a level weapon taken and respawned, or staying; `vr_item_objects`, force grab), the VR melee and armed systems between players and bots in deathmatch (a blade's hit, a disarm), bots' bodies and hands as the clients draw them, FrikBot's walk through the shared movement (`vr_pmove`), names in the harness | `mp_dm` grown |
 | **B12** | Determinism: Box3D, navmesh and pathfinding hashes equal across runs with several clients; the server-thread audit in multiplayer | hash scenarios |
 | **B13** | Polish and performance: ICE/NAT traversal (optional), server browser, latency HUD, CPU of many players | soak tests |
 
@@ -2289,6 +2290,35 @@ Tests:
 - Untested headless: a real microphone (and its device choice, vr_note_device) and the two spatial mixers playing the
   looping voice sound. Flat play has no default key: bind one to `+vr_voicechat`.
 
+### B13 results: the join through reordering (selective acks); B11 part 1, deathmatch with bots (2026-11-16, dev no-LTO build, loopback)
+
+- **The stall's root cause** (found with a trace of every chunk, ack and resend on both ends): NetQuake's receiver acks
+  every data packet but takes only the next one in order, so a chunk that overtook a late one was dropped and acked.
+  B2's window counted an ack only in order, assuming the ack of a dropped chunk always came before the late one's;
+  under jitter the acks reorder too: the late chunk's ack came first, then the dropped one's, which now read as next
+  in order. The server took serverinfo (12 chunks) as delivered while B held 6 of them; it waited for his `prespawn`,
+  he for chunk 6: only keepalives. Not the chunking, B12b's timings or B12's keepalive.
+- **The fix, selective acks** (`net_dgrm.c`): a Quake VR receiver holds the chunks that come before their turn (a
+  window's worth, every chunk in flight fits: `held` in the socket) and acks a chunk only once it has it; the sender
+  marks each chunk acked, moves on past the ones acked in order, and resends (at the timeout, or fast at two acks of
+  later chunks) only the ones not acked. A peer that is not Quake VR still acks the chunks it drops, so it gets a window
+  of one chunk (NetQuake's stop and wait, always safe): the server knows from the connect request's network version,
+  the client from the accept reply, which now carries the server's after the port (NetQuake clients read the port
+  alone). `QVR_NET_VERSION` 34. Also: a stale unreliable datagram no longer ends the read for the frame (NetQuake's
+  `break`): the acks and chunks behind it waited a frame each.
+- **Tests**: `mp_retransmit` stages the stall (the proxy holds a two-chunk message's first chunk back 60 ms and the
+  second's ack twice as long): the old window never delivered it nor the next message (7/1), now 8/0 (read in 0.27 s).
+  `mp_voice_lossy` joins through its 30 ms jitter and 5% loss (no longer turned on after the join); `coop --lag 50
+  --jitter 30 --loss 0.05` joined 4 of 4 (before: 1 of 3).
+- **B11 part 1, `mp_dm`** (new, 9/0): a dedicated deathmatch server (deathmatch 1, fraglimit 3, timelimit 8 as QC's
+  safety) on dm4; A and B (through the proxy) join at two deathmatch starts; A's `impulse 100` twice adds two FrikBot
+  bots: both clients list four players (`mp_frags`), each bot seen moving; A, idle, is killed by a bot and his trigger
+  respawns him (PlayerDeathThink); the bots reach the fraglimit (Bishop 3, Kryten 1): the intermission at both clients,
+  their scoreboards the same. Nothing needed fixing: deathmatch, FrikBot's client slots and the scoreboard work over
+  the network as they are. New client watch lines (`vr_mptest.cpp`): `mp_frags` (a scoreboard slot named, its frags),
+  `mp_event: intermission=`, `died`, `respawned`. `vr_hurt` refuses deathmatch (a cheat), so the death is a bot's.
+- Results: see "B13 suite" below.
+
 ## For him (B11b)
 
 **His answer (2026-11-16): on.** `vr_pmove_own` defaults to 1 since B11c part 2; 0 stays as the fallback (Debug >
@@ -2380,4 +2410,8 @@ QuakeC's PlayerPreThink parts. Exactly what would change:
 - The interpolation buffer (B7b) leaves brush models and stepping monsters on NetQuake's lerp: the player's own entity
   is not delayed (no prediction until B8), and a lift he rides must stay in step with him.
 
-Next phase: B12d -- the poses by their fields and trend (`mp_armed`'s largest kind in combat, 9.5-12.2 KB/s; only if a budget needs it), then B11 (deathmatch and bots). Voice chat (B10v) is in: its open items are his ears in VR (a real microphone and the spatial mixers, untested headless), a menu page of its own with per-player rows, and NetQuake's join stalling through heavy reordering (seen with 30 ms jitter and 5% loss: signon keepalives only).
+- The reliable window under reordering (B13) uses selective acks (the receiver holds early chunks and acks only what
+  it has) rather than NetQuake's receiver with the window shrunk: a 30 ms jitter reorders most of a window, and
+  go-back-N resent most of it each time. A peer that is not Quake VR keeps a one-chunk window (its acks are NetQuake's).
+
+Next phase: B11 part 2 -- deathmatch's item rules with VR weapons (taken and respawned, or staying), the VR melee and armed systems between players and bots, bots' bodies as the clients draw them, FrikBot's walk through the shared movement (`mp_dm` grown); B12d (the poses by their fields) only if a budget needs it. Voice chat's open items: his ears in VR (a real microphone, the spatial mixers) and a menu page of its own with per-player rows.

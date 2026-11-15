@@ -67,7 +67,7 @@ Tests:
              muted; push-to-talk released, voice activation; the server's voice budget and B's rate cap hold
              his voice bytes; RNNoise on; no microphone. --lag/--jitter/--loss: B's link; --listen: A hosts.
     dm       (B11) a dedicated deathmatch server on dm4 (fraglimit 3): A and B join at deathmatch starts; two FrikBot bots
-             added (impulse 100): four players listed at both, the bots move; A, idle, killed and respawned by his trigger; the fraglimit ends the match: the intermission at both, their scoreboards the same.
+             added (impulse 100): four players listed at both, the bots move; A killed by a bot (vr_hurt) and respawned by his trigger until the bot's frags reach it; the fraglimit ends the match: the intermission at both, their scoreboards the same.
     suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, armed, retransmit, version, avatar, avatarcal, body, prefs, grab,
              teleport, held, ground, campaign, campaign_listen, flow, download, pickup, forcegrab, melee, moves, climb,
              rules, cosmetics, flatbody, loss, predict, predictclimb, lagcomp, disarm, voice, voice with B 50 ms (30 ms
@@ -4232,7 +4232,6 @@ def voice(s, listen=False, lag=0.0, jitter=0.0, loss=0.0):
 DM_MAP = "dm4"          # (B11) a small deathmatch map with FrikBot's waypoints compiled in (QC/waypoints)
 DM_FRAGLIMIT = 3
 DM_TIMELIMIT = 8        # minutes: QC's own end of the match (a safety net: the fraglimit must end it first)
-DM_WAIT = 420           # s: the fraglimit reached within (a safety net)
 
 
 def frag_table(inst, since=0):
@@ -4252,7 +4251,8 @@ def frag_table(inst, since=0):
 def deathmatch(s):
     """(B11) A dedicated deathmatch server (deathmatch 1, fraglimit 3) on dm4: A and B (B through the proxy) join at
     deathmatch starts; A adds two FrikBot bots (impulse 100): both clients list four players, the bots move;
-    A, idle, is killed and his trigger respawns him; the bots' frags reach the fraglimit:
+    A is killed by a bot (the server's vr_hurt with the bot as attacker) and his trigger respawns him, until the
+    bot's frags reach the fraglimit:
     the intermission at both clients, their scoreboards the same."""
     srv = s.server(dedicated=True)
     srv.start()
@@ -4287,24 +4287,41 @@ def deathmatch(s):
     moving = [wait_or_none(b, r"mp_move: .*ent=%d self=0" % (slot + 1), 30, since_b) for slot in bots]
     s.check("the bots move (B sees each move off)", all(moving), "%s" % moving)
 
-    # A, idle, is killed by a bot (a real death: QC's ClientObituary, his killer's frag) and his trigger brings him back
-    # (PlayerDeathThink: the buttons up, then one down)
-    _, died = a.wait(r"mp_event: .* died", DM_WAIT, since_a, "A killed")
-    since_r = a.mark()
-    respawned = None
-    for _ in range(30):
-        a.cmd("vr_mock_button main trigger 1")
-        respawned = wait_or_none(a, r"mp_event: .* respawned", 0.5, since_r)
-        a.cmd("vr_mock_button main trigger 0")
-        respawned = respawned or wait_or_none(a, r"mp_event: .* respawned", 0.5, since_r)
-        if respawned:
+    # A is killed by the first bot (the server's vr_hurt with the bot as attacker: a real death, QC's ClientObituary
+    # giving the bot his frag) and his trigger brings him back (PlayerDeathThink: the buttons up, then one down), until
+    # the bot's frags (and any the bots score by themselves) reach the fraglimit: the intermission
+    killer = bots[0]
+    kills, respawns, first = 0, 0, None
+    for _ in range(DM_FRAGLIMIT + 2):
+        if a.find(r"mp_event: .*intermission=[1-9]", since_a):
             break
-    s.check("A killed (by a bot), then his trigger respawns him", respawned is not None, "died at %s; respawned %s" % (
-        died.split("org=")[1], respawned.split("org=")[1] if respawned else "never"))
+        since_k = a.mark()
+        srv.cmd("vr_hurt 1000 %d %d" % (ea - 1, killer + 1))
+        _, died = a.wait(r"mp_event: .* (died|intermission=[1-9])", 20, since_k, "A killed by the bot")
+        if "died" not in died:
+            break
+        kills += 1
+        first = first or died
+        if kills == 1:
+            credited = wait_or_none(b, r'mp_frags: .*slot=%d .*frags=[1-9]' % killer, 10, since_b)
+            s.check("A's death by the bot credits the bot a frag at B", credited is not None, "%s" % credited)
+        respawned = None
+        for _ in range(30):
+            if a.find(r"mp_event: .*intermission=[1-9]", since_k):
+                break
+            a.cmd("vr_mock_button main trigger 1")
+            respawned = wait_or_none(a, r"mp_event: .* respawned", 0.5, since_k)
+            a.cmd("vr_mock_button main trigger 0")
+            respawned = respawned or wait_or_none(a, r"mp_event: .* respawned", 0.5, since_k)
+            if respawned:
+                respawns += 1
+                break
+    s.check("A killed by the bot, then his trigger respawns him", kills >= 1 and respawns >= 1,
+            "%d deaths, %d respawns; the first at %s" % (kills, respawns, first.split("org=")[1] if first else "-"))
 
-    # the bots fight: the fraglimit ends the match
-    _, ia = a.wait(r"mp_event: .*intermission=[1-9]", DM_WAIT, since_a, "the intermission at A")
-    _, ib = b.wait(r"mp_event: .*intermission=[1-9]", DM_WAIT, since_b, "the intermission at B")
+    # the fraglimit ends the match
+    _, ia = a.wait(r"mp_event: .*intermission=[1-9]", 30, since_a, "the intermission at A")
+    _, ib = b.wait(r"mp_event: .*intermission=[1-9]", 30, since_b, "the intermission at B")
     ta, tb = frag_table(a), frag_table(b)
     top = max(f for _, f in ta.values()) if ta else 0
     s.metric("dm_frags", {"A": ta, "B": tb})
