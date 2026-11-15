@@ -287,13 +287,22 @@ void status_f()
             const qvr::netsnap::ServerCounts ns = qvr::netsnap::serverCounts(i);
             Con_Printf("mp_netsnap: slot=%d sent=%d full=%d delta=%d cut=%d bytes=%lld seq=%u acked=%u\n", i, ns.sent, ns.full,
                 ns.delta, ns.cut, ns.bytes, ns.seq, ns.acked);
-            Con_Printf("mp_client: slot=%d name=\"%s\" spawned=%d org=%.1f %.1f %.1f inv=%d,%d,%d,%d,%d,%d,%d,%d moves=%d "
+            // (then his main hand's gun's magazine: its weapon record's .wi_clip; B8h, rounds loaded by hand)
+            const qvr::progs::FieldOffsets& pf = qvr::progs::fields();
+            int clip = 0;
+            if(c.edict && pf.weaponinst >= 0 && pf.wi_clip >= 0)
+            {
+                const int ref = qvr::progs::fieldInt(c.edict, pf.weaponinst);
+                edict_t* inst = ref > 0 ? reinterpret_cast<edict_t*>(reinterpret_cast<byte*>(sv.qcvm.edicts) + ref) : nullptr;
+                clip = inst && !inst->free ? static_cast<int>(qvr::progs::fieldFloatOr(inst, pf.wi_clip, 0.f)) : 0;
+            }
+            Con_Printf("mp_client: slot=%d name=\"%s\" spawned=%d org=%.1f %.1f %.1f inv=%d,%d,%d,%d,%d,%d,%d,%d,%d moves=%d "
                        "merged=%d\n",
                 i, c.name, c.spawned ? 1 : 0, o[0], o[1], o[2], v ? static_cast<int>(v->health) : 0,
                 v ? static_cast<int>(v->armorvalue) : 0, v ? static_cast<int>(v->items) : 0,
                 v ? static_cast<int>(v->ammo_shells) : 0, v ? static_cast<int>(v->ammo_nails) : 0,
                 v ? static_cast<int>(v->ammo_rockets) : 0, v ? static_cast<int>(v->ammo_cells) : 0,
-                v ? static_cast<int>(v->weapon) : 0, c.edict ? qvr::mpavatar::movesByte(c.edict, false) : 0,
+                v ? static_cast<int>(v->weapon) : 0, clip, c.edict ? qvr::mpavatar::movesByte(c.edict, false) : 0,
                 qvr::server::mergedMoves(i));
         }
         Con_Printf("mp_server: map=%s spawned=%d time=%.3f\n", sv.name, spawned, sv.qcvm.time); // (time: the game's clock)

@@ -1585,7 +1585,7 @@ def ground(s):
     srv.cmd("vr_debug_carry 0; developer 0")
 
 
-INV_KEYS = ("health", "armor", "items", "shells", "nails", "rockets", "cells", "weapon")
+INV_KEYS = ("health", "armor", "items", "shells", "nails", "rockets", "cells", "weapon", "clip")  # (clip: the main hand's gun's)
 IT_ROCKET_LAUNCHER = 32
 
 
@@ -2217,6 +2217,10 @@ def disarm(s):
     srv, a, b, ea, eb = join(s)
     a.cmd("name A")
     b.cmd("name B")
+    if AMMO_PART:  # (--part give|use: the rounds alone)
+        srv.cmd("vr_debug_carry 2; developer 1")
+        ammo_give(s, srv, a, b, ea, eb)
+        return
     put_at(srv, b, eb, side_spot(srv, ea))
     put_at(srv, a, ea, OPEN_SPOT, 90)
     put_at(srv, b, eb, (OPEN_SPOT[0], OPEN_SPOT[1] + B10_GAP, OPEN_SPOT[2]), 270)
@@ -2322,25 +2326,72 @@ def ammo_give(s, srv, a, b, ea, eb):
     armed with a shotgun first."""
     for inst in (srv, a, b):
         inst.cmd("vr_reload_mode 3")
+    srv.cmd("developer 1; vr_reload_debug 1")
     for kind in AMMO_KINDS:
-        ammo_give_one(s, srv, a, b, ea, eb, kind[1] != 4, *kind)
-    ammo_give_one(s, srv, b, a, eb, ea, True, *AMMO_KINDS[0])
+        if AMMO_PART in ("", "give"):
+            ammo_give_one(s, srv, a, b, ea, eb, kind[1] != 4, *kind)
+    if AMMO_PART in ("", "give"):
+        ammo_give_one(s, srv, b, a, eb, ea, True, *AMMO_KINDS[0])
+    # Used by B (MP B8h): a magazine and a rocket A let fall loaded by B into his own gun (its room made first).
+    for kind in AMMO_KINDS[1:]:
+        if AMMO_PART in ("", "use"):
+            ammo_give_one(s, srv, a, b, ea, eb, True, *kind, use=True)
 
 
-def ammo_give_one(s, srv, a, b, ea, eb, arm, what, wid, give, key, classname, model):
-    """One round of kind `what` from `a`'s pouch to `b`'s (ammo_give); `arm`: `a` is given the weapon first."""
+def arm_with(s, srv, inst, ent, wid, give):
+    """`inst`'s main hand given weapon `wid` (WID 4 the shotgun, 6 the nailgun, 10 the rocket launcher) by its impulse,
+    `give` first (its ammo) -> the server's main weapon by report."""
+    if give:
+        inst.cmd(give)
+    inst.cmd("vr_mock_button main grip 1")
+    server_time_past(srv, server_time(srv) + THROW_SETTLE_S)
+    inst.cmd("impulse %d" % (150 + wid))
+    return weapon_until(s, srv, ent, wid, 15)
+
+
+def make_room(s, srv, inst, ent, wid, what):
+    """Room in `inst`'s main hand's gun for one more `what` (he faces north, the way open ahead): the nailgun's magazine
+    out by its button (it falls where he stands: done away from where the round he takes lies), the launcher fired level
+    until empty (the test impulses are single player's alone) -> True when the server has his gun's magazine empty."""
+    clip = lambda: inventories(srv)[0].get(ent - 1, {}).get("clip", -1)
+    since = srv.mark()
+    if wid == 6:
+        inst.cmd("vr_mock_button main secondary 1")
+        server_time_past(srv, server_time(srv) + 0.1)
+        inst.cmd("vr_mock_button main secondary 0")
+        # (QuakeC's hands: 1 the main, cVR_MainHand; 0 the off)
+        wait_quietly(srv, r"reload: .* out of the gun \(hand 1", 5, since, "%s's magazine out" % inst.name)
+        server_time_past(srv, server_time(srv) + 1.5)  # (it falls and settles away from him)
+    else:
+        inst.cmd("vr_mock_hand main 0.15 1.2 -0.40 70 0 0")  # (the mock's level gun: 70 degrees up from its rest)
+        for _ in range(4):  # (the launcher holds a few: one shot each, its refire time between)
+            if clip() <= 0:
+                break
+            inst.cmd("+attack")
+            server_time_past(srv, server_time(srv) + 0.1)
+            inst.cmd("-attack")
+            server_time_past(srv, server_time(srv) + 1.0)
+    left = clip()
+    s.note("%s's %s gun emptied: its magazine %d" % (inst.name, what, left))
+    return left == 0
+
+
+def ammo_give_one(s, srv, a, b, ea, eb, arm, what, wid, give, key, classname, model, use=False):
+    """One round of kind `what` from `a`'s pouch to `b`'s (ammo_give); `arm`: `a` is given the weapon first; `use`: `b`,
+    armed with the same gun with room for it, loads it into his gun instead (at its loading port, his off hand)."""
     an, bn = a.name, b.name
     a.cmd("vr_mock_play; vr_mock_button off grip 0")
     b.cmd("vr_mock_play; vr_mock_button main grip 0; vr_mock_button off grip 0")
-    put_at(srv, b, eb, side_spot(srv, ea))
+    put_at(srv, b, eb, side_spot(srv, ea), 90 if use else None)
+    roomy = True
+    if use:
+        armed = arm_with(s, srv, b, eb, wid, give)
+        roomy = armed[-1] == wid and make_room(s, srv, b, eb, wid, what)
+        s.check("use: %s holds the %s's gun with room for one (by report)" % (bn, what), roomy,
+                "%s's main weapon %s (its magazine emptied: the notes)" % (bn, armed))
     put_at(srv, a, ea, OPEN_SPOT, 90)
-    if arm:  # (WID 4 the shotgun, 6 the nailgun, 10 the rocket launcher)
-        if give:
-            a.cmd(give)
-        a.cmd("vr_mock_button main grip 1")
-        server_time_past(srv, server_time(srv) + THROW_SETTLE_S)
-        a.cmd("impulse %d" % (150 + wid))
-        weapon_until(s, srv, ea, wid, 15)
+    if arm:
+        arm_with(s, srv, a, ea, wid, give)
     inv0, _ = inventories(srv)
     have0 = inv0.get(ea - 1, {}).get(key, 0)
     server_time_past(srv, server_time(srv) + THROW_SETTLE_S)
@@ -2382,6 +2433,10 @@ def ammo_give_one(s, srv, a, b, ea, eb, arm, what, wid, give, key, classname, mo
             from_floor, "carry %s; %s's %s %s -> %s" % ("seen" if took else "not seen", bn, key, mine0,
                                                        inv_t.get(eb - 1, {}).get(key)))
     server_time_past(srv, server_time(srv) + THROW_SETTLE_S)
+    if use:
+        ammo_load(s, srv, b, eb, what, key, from_floor and roomy, inv_t.get(eb - 1, {}).get(key, 0))
+        b.cmd("vr_mock_button off grip 0; vr_mock_button main grip 0")
+        return
     b.cmd("vr_mock_hand_to off ammopouch")
     server_time_past(srv, server_time(srv) + THROW_SETTLE_S)
     b.cmd("vr_mock_button off grip 0")
@@ -2390,6 +2445,30 @@ def ammo_give_one(s, srv, a, b, ea, eb, arm, what, wid, give, key, classname, mo
     s.metric("ammo_into_%s_reserve_%s" % (bn.lower(), key), got)
     s.check("ammo: let go of at %s's own pouch, the %s goes into his reserve (as much as %s lost)" % (bn, what, an),
             from_floor and got == taken, "%s's %s %s -> %s (%s lost %s)" % (bn, key, mine0, inv2.get(eb - 1, {}).get(key), an, taken))
+
+
+def ammo_load(s, srv, b, eb, what, key, ready, mine0):
+    """`b`'s off hand, holding a round taken up from the floor, brought to his main hand's gun's loading port (as his
+    client draws it: a remote client's own view): seated or loaded (the server's reload log), his reserve unchanged."""
+    since = srv.mark()
+    loaded = None
+    if ready:
+        # (The gun held up as front_test's launcher, its muzzle 70 degrees up; the round in the off hand as it was taken
+        # up lying along his facing, turned as much: along the barrel, its butt to the muzzle.)
+        b.cmd("vr_mock_hand main 0.15 1.0 -0.40 140 0 0; vr_mock_hand off -0.15 1.0 -0.40 70 0 0")
+        server_time_past(srv, server_time(srv) + THROW_SETTLE_S)
+        for below in (6, 0, 0):
+            b.cmd("vr_mock_hand_to off lport %d" % below)
+            server_time_past(srv, server_time(srv) + 0.2)
+        loaded = wait_quietly(srv, r"reload: (.* seated \(hand 1|1 into the gun \(hand 1)", 5, since,
+                              "%s's %s into his gun" % (b.name, what))
+    inv, _ = inventories(srv)
+    mine = inv.get(eb - 1, {}).get(key, 0)
+    clip = inv.get(eb - 1, {}).get("clip", 0)
+    s.check("use: the %s taken up goes into %s's own gun at its port (its magazine no longer empty), his reserve "
+            "unchanged" % (what, b.name), loaded is not None and clip > 0 and mine == mine0,
+            "server: %s; his gun's magazine %d; %s's %s %s -> %s" % (loaded[1].strip() if loaded else None, clip, b.name,
+                                                                    key, mine0, mine))
 
 
 FACE_GAP = 40.0  # mp_melee: units between the two players, face to face (their boxes 8 apart: a punch's reach)
@@ -3026,6 +3105,7 @@ PREDICT_CORR_MOST = 1.0  # a correction on flat ground (the replay all on the fl
 PREDICT_LEGS = 4         # B walks there and back twice
 PREDICT_LEG_STATES = 72  # each leg: this many of the server's states read (about a second)
 PART, PART_REPEAT, PART_WATCH = "", 1, 1  # --part, --repeat, --watch (predict's segments alone)
+AMMO_PART = ""  # --part give|use: mp_disarm's rounds alone (handed over; loaded into B's gun)
 
 
 def predict_report(inst):
@@ -3460,13 +3540,14 @@ def main():
     ap.add_argument("--jitter", type=float, default=0.0, help="client B's delay varies by this much, ms")
     ap.add_argument("--loss", type=float, default=0.0, help="client B's game packet loss, 0..1, each way")
     ap.add_argument("--reset-autoexec", action="store_true", help="empty <base>/id1/autoexec.cfg first")
-    ap.add_argument("--part", default="", choices=["", "lift", "waterjump", "swim", "crawl"],
-                    help="predict: only this segment (traced with vr_mp_watch 1; --watch 2)")
+    ap.add_argument("--part", default="", choices=["", "lift", "waterjump", "swim", "crawl", "give", "use"],
+                    help="predict: only this segment (traced with vr_mp_watch 1; --watch 2); disarm: give or use, the rounds alone")
     ap.add_argument("--repeat", type=int, default=1, help="predict --part: takes in one run (lift: one)")
     ap.add_argument("--watch", type=int, default=1, help="predict --part: vr_mp_watch on the server and B (3: corrections over 0.05 traced)")
     args = ap.parse_args()
-    global PART, PART_REPEAT, PART_WATCH
+    global PART, PART_REPEAT, PART_WATCH, AMMO_PART
     PART, PART_REPEAT, PART_WATCH = args.part, max(1, args.repeat), max(1, args.watch)
+    AMMO_PART = args.part if args.part in ("give", "use") else ""
     autoexec = os.path.join(args.base, "id1", "autoexec.cfg")
     if args.reset_autoexec:
         with open(autoexec, "w", encoding="ascii") as f:
