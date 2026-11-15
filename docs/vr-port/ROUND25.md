@@ -2971,6 +2971,26 @@ Test aid: `vr_test_give_flags` (impulse 149's weapon flags; 3072 with id 13 give
 one-handed at the chest, the shotgun low at the belt; the off hand at the torch takes it, at the weapon's grip (or 60%
 along it) holds the weapon, the torch left on. Before 4/3 (the dagger, the chest and the belt cases at the torch);
 after 7/0. `mounted:9-10` (the two gun torso turns) 312 lit, 312 taken. Scenario `torch_otherweapon`.
+## agrunt4874: an axe grunt that never closed in; downtug's "lying still" (agent/agrunt4874, 2026-11-15)
+
+- **`vr_agrunt_test 48` (the axe grunt standing case: dist min 210, never within 64), a game fix.** Not the trail: the
+  axe grunt saw you (trail 0, never a marker as its goal). 0.25 s into its case it was hit by a laser still in flight
+  from the previous case's Laser Rifle grunt, which the test had removed meanwhile; grunts infight with grunts, so
+  VR_Provoke took the shooter's freed edict as its enemy. A freed edict keeps its health and lies at the map's origin,
+  so ai_run's "enemy dead?" never dropped it and the grunt walked to '0 0 0' for good. The navtrail merge only changed
+  which case left a laser in flight (the lanes' `vr_mock_fast 2; sv_random_seed 1`; it passed without them). Now
+  VR_Provoke never turns on a removed attacker, and ai_run drops a removed enemy (and won't go back to a removed
+  oldenemy) as a dead one (`VR_AG_Freed`, the existing helper). In play: a monster hurt by a shot whose shooter was
+  removed meanwhile (the toolgun, a killtarget, a corpse cleanup) no longer hunts the map's origin. 18 passed, 0 failed
+  (lanes' settings; was 17/1). Every monster's ai_run is the same code, so knights, ogres, dogs, fiends share the fix;
+  a monster that sees its enemy already chases it directly (VR_Stealth_LoseNow turns the trail off on any sighting).
+- **`vr_agrunt_test 74` (downtug 16/21), a test fix.** Phase 0 ("lying down") waited for its body under 10 u/s for 15
+  frames. At the promoted `vr_knockdown_stir_rate` 12 a live knockdown stirs all the while it lies, its body moving
+  12-27 u/s, so the lift-and-slam case never "lay still" before its get-up (no state) and the bar (80%: 16.8 of 21)
+  slipped by one. `vr_knockdown_stir 0` alone didn't restore it because the run's other cases shift with it (one
+  more "nothing" in the getting-up phase). Now lying down is its fall over: under 30 u/s (`VR_AGDT_STILL`) for 15
+  frames; the falls themselves run 44-310 u/s. 18/22 (lanes), 19/22 (default), 18/21 (stir 0). Left as before: the
+  getting-up phase's barrel-and-step-back try takes nothing in all four methods (also at stir rate 1).
 
 ## thirdperson: flat play's over-the-shoulder camera (agent/thirdperson, 2026-11-15)
 
