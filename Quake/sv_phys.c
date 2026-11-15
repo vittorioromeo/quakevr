@@ -1434,6 +1434,7 @@ postthink: // QVR
 		ent->forcewater = forceunderwater;
 		ent->sendforcewater = true;
 	}
+	VR_PmoveTrace (ent); // QVR: vr_pmove_trace (MP_PLAN B11b)
 }
 
 //============================================================================

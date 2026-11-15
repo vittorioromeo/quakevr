@@ -3,6 +3,7 @@
 #include "vr_predict.hpp"
 #include "vr_api.h"
 #include "vr_climb.hpp"
+#include "vr_clientprefs.hpp"
 #include "vr_server.hpp"
 #include "vr_cvars.hpp"
 #include "vr_hull.hpp"
@@ -117,10 +118,39 @@ void grappleStore(edict_t* hook, const pmove::Grapple& g)
     return num >= 0 && num < svs.maxclients && num < MAX_SCOREBOARD ? &serverSlots[num] : nullptr;
 }
 
-// A client whose moves can run one by one: a remote one (QVR_CLC_MOVES).
-[[nodiscard]] bool movesOneByOne(int slot)
+// A client whose moves come one by one: a remote one (QVR_CLC_MOVES; his datagrams carry the state, QVR_SVC_PREDICT).
+[[nodiscard]] bool remoteMoves(int slot)
 {
     return vr_net_permove.value != 0.f && slot >= 0 && slot < MAX_SCOREBOARD && netmove::serverSends(slot);
+}
+// This game's own player walked through the moves (vr_pmove_own, B11b): one move a frame, his clc_move's.
+[[nodiscard]] bool ownMoves(int slot)
+{
+    return vr_pmove_own.value != 0.f && slot >= 0 && slot == clientprefs::ownSlot();
+}
+// A client whose walk runs move by move: a remote one, or this game's own (vr_pmove_own).
+[[nodiscard]] bool movesOneByOne(int slot)
+{
+    return remoteMoves(slot) || ownMoves(slot);
+}
+
+// The own player's move this frame (ownMoves): his clc_move (host_client->cmd, read this frame) and his VR block (the
+// server's copy, server::clientMove) as a remote client's WireMove would carry them, for this server frame's time.
+[[nodiscard]] pmove::Input ownInput(edict_t* ent)
+{
+    netmove::WireMove m;
+    m.frameTime = static_cast<float>(host_frametime);
+    const usercmd_t& cmd = svs.clients[NUM_FOR_EDICT(ent) - 1].cmd;
+    m.viewAngles = glm::vec3{ent->v.v_angle[0], ent->v.v_angle[1], ent->v.v_angle[2]};
+    m.forward = static_cast<int>(cmd.forwardmove);
+    m.side = static_cast<int>(cmd.sidemove);
+    m.up = static_cast<int>(cmd.upmove);
+    m.buttons = (ent->v.button0 != 0.f ? 1 : 0) | (ent->v.button2 != 0.f ? 2 : 0);
+    if(const VrMove* vr = server::clientMove(ent))
+    {
+        m.vr = *vr;
+    }
+    return inputOf(m);
 }
 
 // The player's edict as a move sees him: the module's state copied in and out around every hook that runs QuakeC or
@@ -944,7 +974,7 @@ pmove::Input inputOf(const netmove::WireMove& m)
 void serverQueue(client_t* client, const netmove::WireMove& m)
 {
     const int slot = static_cast<int>(client - svs.clients);
-    if(!movesOneByOne(slot))
+    if(!remoteMoves(slot))
     {
         return;
     }
@@ -1337,6 +1367,11 @@ extern "C" int VR_PredictThink(edict_t* ent)
     if(s->plain)
     {
         computeRules(ent, s->rules);
+        if(ownMoves(slot))
+        {
+            s->n = 0; // (his one move: this frame's clc_move, for the frame's time)
+            s->queue[s->n++] = ownInput(ent);
+        }
     }
     // (PlayerPreThink leaves his jump to his moves: lying down or AD's boots, QuakeC's; the field clears for the boots)
     progs::setFieldFloat(ent, progs::fields().vr_movejump, s->plain && !hull::isProne(ent) ? 1.f : 0.f);
@@ -1357,6 +1392,18 @@ extern "C" int VR_PredictWalks(edict_t* ent)
     const ServerSlot* s = slotOfEdict(ent);
     return s && s->plain ? 1 : 0;
 }
+
+extern "C" void VR_PmoveTrace(edict_t* ent)
+{
+    if(vr_pmove_trace.value == 0.f || ent->free)
+    {
+        return;
+    }
+    // (the server's time, the walk's state after the physics: two runs' lines compared one by one, scratch/b11b_cmp.py)
+    Con_Printf("pmtrace: e=%d t=%.4f o=%.4f %.4f %.4f v=%.3f %.3f %.3f fl=%d wl=%d ge=%d m=%d\n", NUM_FOR_EDICT(ent),
+        qcvm->time, ent->v.origin[0], ent->v.origin[1], ent->v.origin[2], ent->v.velocity[0], ent->v.velocity[1],
+        ent->v.velocity[2], static_cast<int>(ent->v.flags), static_cast<int>(ent->v.waterlevel),
+        static_cast<int>(ent->v.groundentity), VR_PredictWalks(ent));}
 
 extern "C" void VR_PredictPhysics(edict_t* ent)
 {
@@ -1539,7 +1586,7 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
 extern "C" void VR_WritePredict(sizebuf_t* msg, client_t* client)
 {
     const int slot = static_cast<int>(client - svs.clients);
-    if(!movesOneByOne(slot) || !client->edict || msg->cursize + 700 > msg->maxsize)
+    if(!remoteMoves(slot) || !client->edict || msg->cursize + 700 > msg->maxsize)
     {
         return;
     }

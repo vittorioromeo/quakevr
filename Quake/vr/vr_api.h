@@ -413,6 +413,7 @@ void VR_PredictBeginRead (struct client_s *client);	// SV_RunClients, before his
 int VR_PredictThink (struct edict_s *ent);			// SV_ClientThink, alive: 1 if this frame's walk runs his moves one by one (no SV_AirMove)
 int VR_PredictWalks (struct edict_s *ent);			// SV_Physics_Client: this frame's walk runs his moves one by one
 void VR_PredictPhysics (struct edict_s *ent);		// SV_Physics_Client, walking: his queued moves through vr_pmove.cpp (gravity, the walk, the room-scale walk)
+void VR_PmoveTrace (struct edict_s *ent);			// SV_Physics_Client's end: vr_pmove_trace's line for this player (B11b)
 void VR_WritePredict (struct sizebuf_s *msg, struct client_s *client); // SV_SendClientDatagram, in the snapshot: QVR_SVC_PREDICT
 void VR_PredictRelink (int num, float *origin);		// CL_RelinkEntities, each entity placed: our own predicted, the lift we stand on at its newest
 int VR_FlatHudOn (void);						// Sbar_Draw, the modern status bar at hudstyle 1: 1 while flatscreen play draws its own layout (vr_flat_hud; vr_flathud.cpp)
