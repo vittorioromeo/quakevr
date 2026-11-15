@@ -3660,3 +3660,11 @@ His flat-screen notes (2026-11-16) and the coordinator's disarm-sound item.
   numbers (`make_disarm_sounds.py`'s header): StarNinjas `sword_clash.1` (0 ms attack, longest ring 0.8 s, ~6 kHz) and
   Kenney `error_003` (instant, 0.3 s, ~1.4 kHz); the Medieval pack's minute-long takes unused. CREDITS.md. vr_pd_test 1
   11/11 (sounds started for each disarm).
+
+## Quest C4n: the perf recorder for his played session (branch `agent/quest`, 2026-11-16)
+
+- `vr_perf_record` (0, not saved; Debug > Profiling > Perf Recorder): every frame's CPU, GPU (the profiler's timestamp
+  queries) and OpenXR times (display periods missed) and its events (shader compiles and binary-cache programs,
+  texture/model/sound loads, runtime lightmaps, map loads, saves, decal bakes, navmesh job waits, QuakeC and Box3D,
+  `VR_TimeAdd` work) to a CSV; `Misc/quakevr/quest/perf_report.py` ranks the hitches by cause and the passes by cost.
+  Details: QUEST_PLAN.md 6u. The PC unchanged with it off (a flag's test a frame).

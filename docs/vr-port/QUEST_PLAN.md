@@ -1253,6 +1253,30 @@ is black while the unworn headset sleeps) compared by pixel diff (`c4n_cmp.py`: 
   `-glescompat` compiles every new probe (0 shader errors).
 - Left running for his check: e1m1, `+vr_quest_preset 0` (this commit's APK).
 
+## 6u. C4n: performance in real play; step 1, the perf recorder (2026-11-16; adb, worn by him)
+
+His verdict (11-16): playable and looks OK; the problem is performance: frequent hitches and stretches where the game
+struggles. The plan he approved: (1) an on-device recorder, then his recorded session; (2) every program compiled at
+boot into the binary cache; (3) uploads off the frame; (4) fixed foveation through `XR_FB_foveation`; (5) more work on
+the other cores; (6) the preset tuned from the numbers; (7, optional, off) SpaceWarp.
+- **`vr_perf_record`** (new, 0, not saved; Debug > Profiling > Perf Recorder; `vr_perfrec.cpp`): 1 writes every frame
+  to `perf_<date>_<time>.csv` (Android: the app's internal `files/perf/`, read by `adb exec-out run-as
+  com.vittorioromeo.quakevr cat files/perf/<file>`; PC: `<game>/profile/perf/`), flushed a second at a time; 0 closes
+  it. A row: period, host, CPU work, the runtime's display period and the periods it missed (`xrWaitFrame`'s predicted
+  display times), dynamic resolution's scale, the GPU's span (first to last timestamp) and every always-on phase's CPU
+  and GPU time (the profiler's timestamp queries, read back late, never waited for; hitch frames' too now, kept out of
+  the profiler's sums), draw calls, dynamic lights alive, the main thread's heap events, and the frame's events with
+  their counts, ms and first names: programs compiled / read from the binary cache (`GL_CreateProgramFromSources`),
+  textures uploaded (`TexMgr_LoadImage32`), models (`Mod_LoadModel`), sounds (`S_LoadSound`), runtime lightmaps, map
+  load commands, saves, decal bakes (tagged profiler scopes), navmesh jobs landing (their waits), the QuakeC (the
+  outermost `quakec` scopes, now timed while recording too) and Box3D steps, and `VR_TimeAdd`'s work (`work`).
+- **`Misc/quakevr/quest/perf_report.py <csv>`**: the frame's mean/p50/p95/p99, frames over budget (CPU, GPU), the
+  hitches (over 1.5 display periods, or periods missed) ranked by cause (the frame's or the frame before's events when
+  their time explains 30% of the excess, else the CPU's or the GPU's costliest phase, else the runtime), every event
+  kind's totals, the phases' means, the slowest seconds.
+- PC check (mock, e1m1, 400 frames): 400 rows, 397 with GPU times; the load's first frame (992 ms) and a decal frame
+  found as CPU hitches; 0 warnings.
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
