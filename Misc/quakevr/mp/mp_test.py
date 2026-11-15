@@ -661,7 +661,8 @@ def cosmetics_b6c(s, srv, a, b, ea, eb):
     """MP_PLAN B6c: B's armour's plates on A's copy of his body: B given yellow armour (150: every piece), A draws the
     plates' model made over B's body model, in yellow, the pieces B's own body shows, posed on B's bones (its slots
     shown); no pauldron under a plate, as on B's own; B's armour worn down: A's copy sheds the pieces B's own does. A
-    looks at B: one image of B's holstered shotgun, pauldrons and plates as A draws them."""
+    looks at B: one image of B's holstered shotgun, pauldrons and plates as A draws them. B11c part 2: A's copy's plates
+    come in by their morph (A's vr_player_plates_morph_time, 2 s here) and settle, as B's own do."""
     srv.cmd("vr_player_plates 1")
     a.cmd("vr_player_plates 1")
     b.cmd("vr_player_plates 1; vr_body_pauldrons 1; vr_body_pauldron_style 2")
@@ -671,7 +672,21 @@ def cosmetics_b6c(s, srv, a, b, ea, eb):
     if head_a is not None and head_b is not None:
         face(s, a, b, head_a, head_b)
         s.note("screenshot (A sees B: holstered shotgun, steel pauldrons): %s" % a.screenshot("sees_B_cosmetics"))
+    # (B11c part 2: A's copy's plates come in by their morph, as B's own do; A's morph time at its longest, 2 s, so that a
+    # report or two sees it under way)
+    a.cmd("vr_player_plates_morph_time 2")
     b.cmd("give a 150")
+
+    def morphing(lines):
+        copy = plates_of(lines[0], "mp_plates").get(eb)
+        return copy is not None and copy["coming"][0] > 0
+
+    (la, lb), n = reports_until(s, [a, b], morphing, "A's copy of B's plates comes in by a morph")
+    copy = plates_of(la, "mp_plates")[eb]
+    s.check("B11c: A's copy's plates come in by their morph, as B's own do (a morph begun, its shader value coming in)",
+            copy["begun"][0] >= 1 and 2.0 < copy["morph"][0] <= 3.0 and copy["coming"][0] == copy["pieces"][0],
+            "begun %d, coming %d of %d, morph %.3f, after %d reports" % (copy["begun"][0], copy["coming"][0],
+                                                                          copy["pieces"][0], copy["morph"][0], n))
 
     def plated(want):
         def done(lines):
@@ -702,6 +717,16 @@ def cosmetics_b6c(s, srv, a, b, ea, eb):
             [0.0], repr(plates_of(la, "mp_plates_own").get(ea)))
     if head_a is not None and head_b is not None:
         s.note("screenshot (A sees B plated): %s" % a.screenshot("sees_B_plates"))
+
+    def settled(lines):
+        copy = plates_of(lines[0], "mp_plates").get(eb)
+        return copy is not None and copy["coming"][0] == 0 and copy["pieces"][0] == full
+    (la, lb), n = reports_until(s, [a, b], settled, "A's copy of B's plates settles", tries=200)
+    copy = plates_of(la, "mp_plates")[eb]
+    s.check("B11c: A's copy's plates settle (none coming, the settled entity drawn, the same morphs begun)",
+            copy["skin"] == [1.0] and copy["shown"][0] > 0, "begun %d, skin %r, %d of %d slots shown, after %d reports" % (
+                copy["begun"][0], copy["skin"], copy["shown"][0], copy["slots"][0], n))
+    a.cmd("vr_player_plates_morph_time 0.6")
 
     b.cmd("give a 101")
     (la, lb), n = reports_until(s, [a, b], plated(lambda p: bin(int(p)).count("1") < bin(full).count("1")),
