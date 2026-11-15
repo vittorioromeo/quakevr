@@ -1070,6 +1070,52 @@ the cfg echoes; the cfg needs `chmod 666` or `exec` fails), `c4i_caps.sh`, `c4i_
   the preset: untested).
 - His Quest config had `vr_body_mode 0` (a test's leftover: his PC config has the default 3): set back to 3.
 
+## 6q. C4j: the lite world's flat walls found (retro textures); its default 2; r_oit 0; the models' lite form; bloom checked (2026-11-15; adb, unworn)
+
+Method (`scratch/c4j_*`): captures from the compositor (`c4i_cap.sh`, now re-waking the headset and retrying an empty
+`screencap`: an unworn Quest 3 falls asleep mid-run and `screencap` then writes 0 bytes), `c4j_bisect.sh` (lite 1 plus
+`QVR_LITE_*` macros by `-glesdefine`; `LITE=2` with probes), `c4j_compose.py` (left eyes side by side). Timings:
+`c4j_ab4.sh`, **the fight frozen** (`sv_freezenonclients 1` once the 13 monsters closed in, the body off, 0.9 fixed,
+each candidate between two baselines): C4i's moving fight drifted by +-8 ms between variants (dogs biting, grunts
+walking up to the eye), the frozen one by +-0.4.
+- **The flat walls were the retro bit (64, `QVR_LITE_NORETRO`)**: lite 1 + NORETRO + NORETROLIGHT flat, + NORETROLIGHT
+  alone textured, NOBUMP + NOAO textured; under lite 2 the probe `QVR_PROBE_LOD0` (`textureLod` level 0) textured and
+  `QVR_PROBE_CUT1` (the colour read alone) flat: with `RetroBegin` compiled out Adreno's compiler (driver 0837) reads the
+  world's textures at their smallest mip, each wall its texture's average colour. `textureGrad` with main()'s own
+  derivatives the same (tried: still flat), so the derivatives of `uv` themselves come out wrong in that compile; not
+  chased further. **Lite 2 no longer sets the retro bit** (`vr_glsafe.cpp`; `-glesdefine QVR_LITE_NORETRO` still tries it);
+  captured twice textured. **`vr_gl_world_lite` default 2** (ES only; the PC's shaders never take it).
+- **Bloom after size changes: drawn** (`c4i_bloom.cfg`: bloom on, 0.8 then 0.9; the glow shows, no black view): C4i's
+  clamp fixed it. Bloom stays off in the preset (its cost).
+- **`r_oit 0` in the Quest preset** (all three levels): OIT's own target is a render pass more an eye. e1m1's start -0.65
+  ms, the frozen fight -0.6 to -1.0 (26.9 vs 27.5-28.3).
+- **The models' lite form** (`vr_gl_alias_lite` 1; ES only): the models' programs take the lite world's bits 1 (parallax:
+  `vr_parallax` or `vr_normalmaps` 0 gives every model a 0 depth, `VR_ParallaxDepth`) and 32 (retro lighting: its frame
+  data all 0) as `QVR_LITE_NOPARALLAX` / `QVR_LITE_NORETROLIGHT` (`GL_AliasLiteDefines`, `QVR_ALIAS_FS_LITE`). The fight
+  captured with it on and off: models textured and lit alike. Frozen fight: -0.2 to -0.5 ms (27.5 vs 28.2, 27.7).
+- **The models' shading is the fight's other big cost**: with their fragment shader a constant
+  (`-glesdefine QVR_PROBE_ALIASCONST`) the fight's GPU fell ~5 ms (20-21 vs 23-28, the moving fight; the start's the
+  same), and the `world+brush` scope fell with it (the models' work lands in its timer queries). The lite form's two
+  switches are a small part: the rest is per instance (wounds, dents, stumps, gloves, skin tone, rim and reflections by
+  `Surface`, the bumps by `AO.z`: an authored normal map may stay on with `vr_normalmaps 0`), so a lighter form needs
+  each gate's CPU side checked first.
+- **The CPU in the fight**: CPU busy 12.6 ms of a 19.7 ms frame with dynamic resolution (server 4.4: QuakeC 2.9; screen
+  6.1: the left eye 3.5, its models 0.9, view entities 1.1; `xrWaitFrame` 6.8 waiting): the 17-20 ms frames are the GPU's
+  (dynamic resolution at its 0.65 floor still 18-20 ms), not the CPU's.
+- **One render pass an eye: not done.** The splits are `R_FlushBModelCalls`' gather (compute between draws, every flush)
+  over the GPU cull's output (`r_world.c` 104/122): putting it on the CPU means a CPU cull of the world under ES. Its
+  size (~0.25 ms a split) is below the models' and the world's shading.
+- **GPU a frame** (timer queries; before = this phase's start: `vr_gl_world_lite 1`, `r_oit 1`, no models' lite form;
+  after = lite 2, `r_oit 0`, the models' lite form; the body off; e1m1's start 0.9 fixed in its own launches, +-0.6 ms):
+
+| | e1m1 start, 0.9 fixed | the fight frozen, 0.9 fixed | the fight frozen, dynamic res. |
+|---|---|---|---|
+| before | 14.7 | ~33 (lite 1: 32.6, + OIT and models' form ~0.5) | |
+| after | 12.3 | 26.9 | 20.2 (r_oit 1; frame 21.3 ms) |
+
+- Left running on the headset for his check: e1m1, `+vr_quest_preset 0` (29 rows: `r_oit 0` added), lite 2, the models'
+  lite form; captured textured (`c4i_cap/c4j_final.png`).
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
@@ -1113,11 +1159,4 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C4j (after 6p) — his look in the headset (C4i's frame worn: e1m1 and a fight, the body looking down, the
-menu's sharpness at `vr_menu_render_scale`), `vr_gl_world_lite 2`'s flat walls found and fixed (then its default, -4.6
-ms), then the fight's frame (the computer room's world ~12 ms at 0.9: the
-models' own lite program as the world's, the alias shader's switches compiled out; the CPU's 17 ms frames there), the
-eye's scene in one pass (the bound path's bmodel gather CPU-side under ES), `r_oit 0` in the preset (OIT's target
-switch), bloom's black view checked by `screencap` (`c4i_cap.sh`) after the clamp; no installs. Still open from before: e1m1's save error (a freed engine string), C5 (multiview into the
-swapchain), C2h (the world textures' memory under the ES profile). Waiting on his call: the Android Gradle Plugin
-download (section 7), the armed humanoids' CPU cost (section 6d).
+Next phase: C4k (after 6q) — his look in the headset (C4i/C4j's frame worn: e1m1 and a fight, the body looking down, the menu's sharpness at `vr_menu_render_scale`, translucent water and particles under `r_oit 0`), then the fight's models (~5 ms of its GPU: a lighter models program, each per-instance gate's CPU side checked: wounds, dents, stumps, gloves, skin tone, `Surface`'s rim and reflections, `AO.z`'s bumps), the world's shading in the computer room (~22 ms of world+brush at 0.9 with the models), the eye's scene in one pass (a CPU cull and gather of the world under ES), why Adreno's derivatives break with `RetroBegin` compiled out (the retro bit back in lite 2); no installs. Still open from before: e1m1's save error (a freed engine string), C5 (multiview into the swapchain), C2h (the world textures' memory under the ES profile). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d).

@@ -3493,3 +3493,16 @@ the same exact rules" as enemies; an option, on by default, single player and mu
   (Run Setup's Bloody Nightmare, AD's Experimental header). RELEASE_1_1.md: Menu Look and `vr_flat_chest_down` done.
 - **Defaults** since the audit (c94b2b300): 4 changed (his Menu Look pair, the ranger head's size and side), 25 new,
   no debug or test switch on by default, no personal setting promoted.
+
+## Quest C4j: the lite world's flat walls (retro textures), its default 2, r_oit 0, the models' lite form (branch `agent/quest`, 2026-11-15)
+
+QUEST_PLAN.md section 6q has the runs. On the Quest 3 over adb, unworn:
+- **`vr_gl_world_lite 2`'s flat walls**: compiling out retro textures (`RetroBegin`) made Adreno read every world texture
+  at its smallest mip (found by `-glesdefine` bisection and probes on `screencap` captures). Lite 2 no longer compiles
+  retro textures out; captured textured; **its default is now 2** (ES only).
+- **Bloom after a resolution change**: drawn (C4i's clamp fixed the black view).
+- **`r_oit 0` in the Quest preset** (-0.6 to -1 ms GPU); **`vr_gl_alias_lite`** (1, ES only: the models' programs without
+  parallax and retro lighting when the settings turn them off; -0.2 to -0.5 ms in the fight).
+- Timings on a frozen fight (`sv_freezenonclients 1`): the moving one drifted +-8 ms between variants. GPU 0.9 fixed:
+  e1m1 14.7 -> 12.3 ms, the fight ~33 -> 26.9; the models' shading is ~5 ms of the fight (next phase).
+- PC: gles_render_test 21/0, scenario_check 138/0, load_models_test 4/0, dev and LTO builds 0 warnings.
