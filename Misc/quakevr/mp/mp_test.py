@@ -48,9 +48,10 @@ Tests:
              shell, a nail magazine and a rocket from A's pouch let fall: B's hand takes each up and lets it go at his
              pouch (his reserve up by A's loss); a nail magazine and a rocket B loads into his own gun (B8h). --part
              give|use: the rounds alone.
-    predictclimb  (B8h, B8i) on vrclimb, B 150 ms behind each way hangs from the ledge, pulls himself up and lets go,
-             then mantles onto it: the hang's steps and the mantle run in his moves, his replay's corrections under a
-             unit; at rest he is where the server has him. --part hang|mantle: one alone.
+    predictclimb  (B8h, B8i, B8j) on vrclimb, B 150 ms behind each way hangs from the ledge, pulls himself up and lets
+             go, then mantles onto it: the hang's steps, the mantle's test and the mantle run in his moves, his replay's
+             corrections under a unit (the hold's take and the mantle's start too); at rest he is where the server has
+             him. --part hang|mantle: one alone.
     suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, version, avatar, avatarcal, body, prefs, grab,
              teleport, held, ground, campaign, campaign_listen, flow, download, pickup, forcegrab, melee, moves, climb,
              rules, cosmetics, flatbody, loss, predict, predictclimb, lagcomp, disarm.
@@ -3339,8 +3340,8 @@ def predict_mantle(s, srv, a, b, ea, eb):
     """MP_PLAN B8h: the mantle predicted. On vrclimb B takes the ledge with both hands, pulls himself down and pushes
     over the top (climb_plays.py's overtop, mp_climb's): the server's mantle runs in his moves (its way and time in the
     state: pmove::mantleStep, the code single player's mantle frame steps with), his replay carries him along it at each
-    move's time: his corrections stay under a unit, and on the top at rest he stands where the server has him. (The hang
-    before it is the server's still: drawn as it comes.)"""
+    move's time: his corrections stay under a unit, and on the top at rest he stands where the server has him. B8j: the
+    mantle's start too (its test in each move, pmove::hangMantle: the server's and his replay's), under a unit."""
     b.cmd("vr_mock_play; -graboff; -grabmain; vr_mock_hand head")
     start = put_at(srv, b, eb, CLIMB_SPOT, 0)
     b.quiet(r"mp_predict_corr: ", 1.0, 20, "B settled at the wall")
@@ -3407,8 +3408,9 @@ def predict_hang(s, srv, a, b, ea, eb):
     """MP_PLAN B8i: the hang predicted. On vrclimb B (150 ms behind each way) takes the ledge with both hands, pulls
     himself up, lets himself down a little, and lets go: each move's hands run the hang's pull and move on the server
     (vr_pmove.cpp's hangStep: the code single player's hanging frame runs) and in his replay (the holds, `owed` and the
-    slipping in the state); the reach, the owed's settling, the mantle's test and the stamina are the server's once a
-    frame. His corrections stay under a unit, and on the floor at rest he stands where the server has him."""
+    slipping in the state); the reach, the owed's settling and the stamina are the server's once a frame (the mantle's
+    test runs in each move: B8j). His corrections stay under a unit (the hold's take too), and on the floor at rest he
+    stands where the server has him."""
     b.cmd("vr_mock_play; -graboff; -grabmain; vr_mock_hand head")
     start = put_at(srv, b, eb, CLIMB_SPOT, 0)
     b.quiet(r"mp_predict_corr: ", 1.0, 20, "B settled at the wall")

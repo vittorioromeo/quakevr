@@ -3649,3 +3649,18 @@ the same exact rules" as enemies; an option, on by default, single player and mu
   the mantle's start (the server's searches) are counted apart (`trans_n`/`trans_max`; the mantle's start ~43 units).
 - Results: mp_test.py suite 28 of 29 pass: mp_disarm 6/1 (its gentle pull's setup: A's shotgun not yet in his hand at the server), then 35/0 twice alone; mp_ground 15/0 in the suite and 5 of 5 alone; scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0, prop_climb_test 12/0, Release (ThinLTO) build 0 warnings
 
+
+## mpN B8j part 1: the mantle's start predicted (agent/mp, 2026-11-15)
+
+- **The hang's mantle test runs after each hang step** (MP_PLAN "B8j results"): vr_climb.cpp's tryMantle and its room
+  search (findMantleLevel, findMantleSloped) moved to vr_pmove.cpp (`pmove::hangMantle`, `pmove::findMantle`, over the
+  Body's traces), one function for single player's hanging frame, a remote client's moves on the server and his replay.
+  The no-room search's cache is on the steps' clock and travels in the state with the ledge map's depths at five spots
+  (`QVR_NET_VERSION` 27). `mp_predictclimb`: the mantle's start 43.3 units -> 0.093; the hold's take (standing) 0.000;
+  both now checked (`trans_check`).
+- Single player: the test now runs right after the step, before the frame's part (kept within reach, the owed, the reach
+  check), which is skipped on the mantle's first frame; the cache dropped its box keys. mantle_height_test PASS (same
+  heads), prop_climb_test 13/0, slopes_test 6/6.
+- Results: suite 27 of 29 (mp_predict's lift landing 1.354 and mp_disarm's pouch shell: flakes away from climbing; alone
+  28/0 and 35/0), mp_predictclimb 14/0, scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0, Release (ThinLTO)
+  0 warnings. Next: B8j part 2 (a hold taken in the air, the grapple's pull, the hands' climb out where no ledge is).

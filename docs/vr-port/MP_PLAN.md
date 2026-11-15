@@ -1640,6 +1640,45 @@ Open (B8i, the rest):
 - A hang from a brush model or prop (the holds' motion in the replay), other players in his replay (B8g's), getting up from
   lying at once (B8g's): unchanged.
 
+### B8j results, part 1: the mantle's start predicted (2026-11-15, dev no-LTO build, loopback; `mp_test.py suite` 27 of 29 pass: `mp_predict` 27/1 (the drop onto the lift's landing, 1.354: a walk, no climb code; then 28/0 alone) and `mp_disarm` 34/1 (A's pouch taking the shell; then the toss 34/1 and 35/0 alone: flakes of its hand placement, no climb code); `mp_predictclimb` 14/0; scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0, Release (ThinLTO) build 0 warnings)
+
+| Scenario | Result |
+|---|---|
+| `mp_predictclimb` (grown: `trans_check`) | On vrclimb, B (150 ms each way): the hold's take (both hands, standing) and the hang's mantle start, the states the replay used to learn of a round trip late (`trans_n`, `trans_max`), now checked under a unit: the mantle's start 43.3 units before, 0.093 now (2 such states); the hold's take 0.000; every other correction 0.000 (355 states, 21 mantling), on the top at rest where the server has him. 14/0 |
+| single player's climbs | mantle_height_test PASS (the same heads over the top: 15.3-15.4 at Mantle Height 8, 20.0-20.1 at the default), prop_climb_test 13/0, slopes_test 6/6 (the sloped mantle and its no-room cases) |
+
+What changed:
+
+- **The mantle's test is one function run after each hang step** (`pmove::hangMantle`, `pmove::findMantle`, vr_pmove.cpp:
+  vr_climb.cpp's tryMantle, findMantleLevel and findMantleSloped moved there over `pmove::Body`'s traces, a new
+  `Body::traceWorld` for the floor test's MOVE_NOMONSTERS box): single player's hanging frame runs it right after its step
+  (before the frame's part, skipped on the frame the mantle begins: B9's one path; the same traces, the same numbers),
+  a remote client's moves on the server after each move's step (the moves after it carry him along the mantle;
+  `climb::hangMoved` then mantles the climb with the way and the time run), and his replay the same. The flat mantle's
+  search calls it too. `pmove::Input::headZ` (the head's height over the body, the integers sent) gives the head's height
+  over the top.
+- **The search that found no room is kept on the steps' clock** (`HangGrip::missed`, `missAge`, the body, hold and top
+  there: `mantleRetry` 0.15 s, `mantleRetryMove` 1 unit, as before less the box keys) and travels in the state: the replay
+  skips the searches the server skipped.
+- **The state's hang block** gains each grip's ledge way out, its pull down's start, the ledge map's depth at the five
+  spots along it (`pmove::mantleSides`: the replay needs no ledge map for the mantle) and its miss (when missed); the
+  box's sides and the mantle's rules (time, Mantle Height, slope). `QVR_NET_VERSION` 27.
+- Not the same as the server yet: what only the server's traces see (a monster, another player or a prop on the top: the
+  replay's world is the BSP's) can make the replay mantle where the server finds no room; the next state corrects it,
+  eased in (never a desync: each replay starts from the server's state).
+
+Open (B8j, the rest):
+
+- **A hold taken in the air** (a jump at a ledge, a fall past one): the take is the server's search (gripHold: the ledge
+  maps, the hand's leniency, the holsters and busy hands, the stamina), learnt a round trip late; standing, the take
+  moves nothing (0.000), in the air it is the fall since. Next: the ledge maps built from the client's world too
+  (vr_ledges.cpp reads sv.worldmodel) and gripHold's world part in the moves.
+- The grapple's pull (AD's hook, QC: the rope in the state, the reel in the moves) and the hands' climb out of the water
+  where no ledge is (QC VR_WaterClimb_HandPull's water jump: a ledge's hold already takes the climb's way, predicted now
+  but for the take): not started.
+- A hang from a brush model or prop (the holds' motion in the replay), other players in his replay (B8g's), getting up
+  from lying at once (B8g's): unchanged.
+
 ## Decisions
 
 - Melee's lag compensation (B8c) wraps the queries (melee's sweep, a bash's find, a headbutt's target, a guard's check
@@ -1704,4 +1743,4 @@ Open (B8i, the rest):
 - The interpolation buffer (B7b) leaves brush models and stepping monsters on NetQuake's lerp: the player's own entity
   is not delayed (no prediction until B8), and a lift he rides must stay in step with him.
 
-Next phase: B8j (B8i's hang predicted) -- the hang's transitions predicted (a hold's take and the mantle's start: the ledge search and mantle test in his replay, `trans_max` under a unit), then the grapple's pull (the rope in the state, the reel in the moves) and the hands' climb out of the water (vr_water_jump 0); tests first: `mp_predictclimb` grown, `mp_predict --part`; after it MP_PLAN's B11a-c unification (the B9 review's #3-#5).
+Next phase: B8j part 2 -- a hold taken in the air predicted (the ledge maps from the client's world, gripHold's world part in the moves; `mp_predictclimb` grown with a jump at the ledge, `trans_max` under a unit), the grapple's pull (the rope in the state, the reel in the moves) and the hands' climb out of the water where no ledge is (vr_water_jump 0); after it MP_PLAN's B11a-c unification (the B9 review's #3-#5).
