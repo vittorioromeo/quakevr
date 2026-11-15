@@ -440,9 +440,11 @@ extern "C" int VR_GLESWorldLite(void)
         {vr_ao_dynamic.value <= 0.f && vr_ao_brush.value <= 0.f, 8},
         {vr_water_caustics.value == 0.f, 16},
         {vr_retrolight.value == 0.f, 32},
-        // (64, retro textures, never: with RetroBegin compiled out Adreno's compiler (Quest 3, driver 0837) read every
-        // world texture at its smallest mip level, the walls flat in their average colours; textureGrad with main()'s
-        // derivatives the same, textureLod 0 right: C4j, QUEST_PLAN.md 6q. -glesdefine QVR_LITE_NORETRO still tries it.)
+        // (64, retro textures, never: with RetroBegin compiled out Adreno's compiler (Quest 3, driver 0837) can read every
+        // world texture at its smallest mip level, the walls flat in their average colours (C4j, QUEST_PLAN.md 6q). It
+        // depends on the rest of the shader: C4m's eyeshots had them textured with the lights' lite form on, flat with it
+        // off (6t), so it is no safe cut (-0.8 ms in a fight, -0.4 at the start). -glesdefine/vr_gles_define
+        // QVR_LITE_NORETRO, QVR_ALITE_NORETRO (the models') still try it.)
         {vr_detail.value == 0.f, 128},
     };
     for(const auto& m : more)
@@ -451,8 +453,9 @@ extern "C" int VR_GLESWorldLite(void)
     }
     if(vr_gl_lights_lite.value != 0.f)
     {
-        // C4l (QUEST_PLAN.md 6s): the dynamic lights' code the settings leave unused, out of the lights' loops (the
-        // world's loop's mere presence cost ~7 ms of the Quest 3's GPU in a fight, its lights ~1): 1 << 19 the map
+        // C4l (QUEST_PLAN.md 6s; off by default since C4m, 6t: measured in one launch it cost 0.6 ms of a fight, its
+        // parts' gains below were launch-to-launch variance): the dynamic lights' code the settings leave unused, out of
+        // the lights' loops: 1 << 19 the map
         // lights' shadows of moving things (vr_shadow_maplights 0: no light carries one), 1 << 20 DarkPlaces' falloff
         // (vr_dlight_falloff 0; the models' loop too), 1 << 21 the shadow filter's kernel as a constant (vr_shadow_filter
         // in bits 22-23), with retro lighting off (its hard shadows pick their own), 1 << 24 the portal lights' path
@@ -467,9 +470,9 @@ extern "C" int VR_GLESWorldLite(void)
         }
         if(vr_portals.value <= 0.f || vr_teleporters.value <= 0.f)
         {
-            lite |= 1 << 24; // the portal lights' path (vr_portals.cpp lightGates makes none): ~3.7 ms in the fight
+            lite |= 1 << 24; // the portal lights' path (vr_portals.cpp lightGates makes none): 0 in C4m's one launch
         }
-        lite |= 1 << 25; // a spot's and a point light's shadow map read by one filter's code (the same picture): ~2.5 ms
+        lite |= 1 << 25; // a spot's and a point light's shadow map read by one filter's code (the same picture): -0.3 ms (C4m)
         if(lite & 32)
         {
             const int filter = static_cast<int>(vr_shadow_filter.value);

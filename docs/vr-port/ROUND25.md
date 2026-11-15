@@ -3554,3 +3554,17 @@ QUEST_PLAN.md section 6s has the runs. On the Quest 3 over adb, unworn, until it
   the final 1.1.0. Stale known issues fixed: AD's sky flicker (fixed 10-27, e5f54c30e, the NaN fog) and the AD hub's
   lower slipgates (ad_hub_test) moved to Fixes.
 - For the final 1.1: re-read PATCH_NOTES_1.1.md against what lands after the RC (add lines, drop the RC sentence).
+## Quest C4m: probes in one launch; the lights' lite form off; NORETRO unsafe (branch `agent/quest`, 2026-11-15)
+
+QUEST_PLAN.md section 6t has the runs (Quest 3 over adb, unworn; GPU timer queries, the fight frozen).
+- **`vr_gles_define`** (new, empty; ES only, Debug's tunables): `-glesdefine`'s shader probes in a session, the shaders
+  made again when it changes. A/Bs now run in one launch, each variant between baselines (+-0.1 ms; separate launches
+  differ by up to 3 ms, which is what C4l's probe gains were).
+- **`vr_gl_lights_lite` now 0**: in one launch it cost +0.6 ms of the fight (three batches), the start 0, the pictures
+  the same. Its one useful part (one shadow filter) saves 0.3; the rest 0. The spot-shadow code left costs nothing.
+- **NORETRO stays off**: -1.2 ms (world and models), but its walls are flat (Adreno's wrong derivatives, C4j) with the
+  lights' lite form off and textured with it on: no safe cut. The `interpolateAtOffset` workaround costs +7.8 ms.
+- **The models' shader** split by early-return probes (`QVR_PROBE_AMIN`, `ALOOKEND`, `ALIGHTEND`, `ARIMEND`): the look
+  0, the light 1.4 ms, the sheens 0.4, the tail (glows, fog, output) 1.0; single parts of the light out gain nothing.
+- PC unchanged (the PC never takes the ES forms): gles_render_test 21/0, scenario_check 138/0, load_models_test 4/0,
+  dev and LTO builds 0 warnings.

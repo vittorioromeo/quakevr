@@ -1880,6 +1880,10 @@ QVR_ALIAS_FS_PARALLAX // QVR: parallax occlusion mapping on the skin's heights
 "	vec4 result = Retro > 0 ? RetroSample(Tex, uv, duvdx, duvdy, true) : textureGrad(Tex, uv, duvdx, duvdy);\n"
 "#endif\n"
 QVR_ALIAS_FS_SKINTINT // QVR: bare forearms' ends tinted to the hand's skin
+"#ifdef QVR_PROBE_AMIN\n" // QVR: vr_gles_define's probe (C4m): the models' floor, the skin times the vertex light
+"	out_fragcolor = vec4(result.rgb * in_color.rgb, 1.0);\n"
+"	return;\n"
+"#endif\n"
 "#if ALPHATEST\n"
 "	// QVR: alpha to coverage (vr_alpha_coverage with MSAA; opaque draws): the alpha sharpened to about a pixel's\n"
 "	// width round the cutoff gives the samples covered; without it, Quake's test\n"
@@ -1889,6 +1893,10 @@ QVR_ALIAS_FS_SKINTINT // QVR: bare forearms' ends tinted to the hand's skin
 "		discard;\n"
 "#endif\n"
 QVR_ALIAS_FS_LIGHT // QVR: wounds, normal maps, occlusion, the model's light
+"#ifdef QVR_PROBE_ALIGHTEND\n" // QVR: vr_gles_define's probe (C4m): the models' shader ended after their light
+"	out_fragcolor = vec4(result.rgb * light + spec, 1.0);\n"
+"	return;\n"
+"#endif\n"
 "#if ALPHATEST\n"
 "	result.rgb *= light;\n"
 "#else\n"
@@ -1899,6 +1907,10 @@ QVR_ALIAS_FS_LIGHT // QVR: wounds, normal maps, occlusion, the model's light
 "	result.rgb += GloveSheen(bumped, leatherGloss * leatherCover); // QVR: a glove's leather's soft sheen\n"
 "	result.rgb += NailGloss(bumped, nailCover, nails.w - 1.0); // QVR: painted nails' gloss (vr_nail_gloss)\n"
 "	result.rgb += ModelRimReflect(n, bumped, skin, result.a); // QVR: rim light and reflections (vr/vr_envmap.cpp)\n"
+"#ifdef QVR_PROBE_ARIMEND\n" // QVR: vr_gles_define's probe (C4m): the models' shader ended before its glows, fog and output
+"	out_fragcolor = vec4(result.rgb, 1.0);\n"
+"	return;\n"
+"#endif\n"
 "#if POSEVERTTYPE == 2 \n"
 "	result.a *= in_color.a;\n"
 "#else\n"

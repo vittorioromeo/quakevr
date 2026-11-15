@@ -1210,6 +1210,49 @@ launches differ by up to +-2 ms (two baselines: the fight 20.4 and 22.1-24.1).
   the filter, falloff and map-shadow bits, without the portal and one-filter bits); `build-android/apk/QuakeVR.apk`
   is this commit's.
 
+## 6t. C4m: everything in one launch; the lights' lite form off; NORETRO no safe cut; the models' cost split (2026-11-15; adb, unworn)
+
+Method (`scratch/c4n_*`): **`vr_gles_define`** (new, empty; the ES profile only): `"A,B"` adds `#define A 1` (and B) to
+every ES shader as `-glesdefine` does at launch, and a change makes the shaders again in the session
+(`VR_GLESDefineChanged`, `GL_WorldLiteCheck`). So a probe's A/B now runs **in one launch, each variant between
+baselines** (`c4n_ab*.sh`): the baselines of a launch agree to +-0.1 ms (fight 19.07-19.19 in batch 2), where separate
+launches differed by up to 3 ms, and the frozen fight itself differs between launches (18.2 to 21.5: where the monsters
+froze). Eyeshots (`c4n_eyes.sh`: `vr_eyeshot` several times in one launch, exported, pulled; the compositor's capture
+is black while the unworn headset sleeps) compared by pixel diff (`c4n_cmp.py`: two shots of one setting differ by
+0.3-1.5% of pixels > 16 levels). All at 0.9 fixed, the body off, `sv_freezenonclients 1`; 0 shader errors throughout.
+- **C4l's lights' lite form costs, not saves**: `vr_gl_lights_lite` 0 against 1 in one launch: the fight -0.6, -0.7,
+  -0.6 ms (batches 1, 2, 4), the start 0; with dynamic resolution -0.9. Its parts taken back out one at a time
+  (`QVR_PROBE_LLKEEP_*`, new): one filter +0.3 (the one part that helps), portal lights, map shadows, falloff, the
+  filter's kernel 0 each; all five at once -0.9 (as off). C4l's -3.7/-2.5/-3.2 came from separate launches: variance.
+  **Default now 0** (Quest only; the PC never took it). `QVR_PROBE_NOSHADOW` -0.3, `NOSPOTSHADOW` +0.1: the spot-shadow
+  code left in the loop costs nothing measurable; the shadow work is done.
+- **NORETRO is no safe cut**: the world's retro textures' code out (`QVR_LITE_NORETRO`) -0.8 ms in the fight, -0.4 at the
+  start; with the models' (`QVR_ALITE_NORETRO`, -0.9 alone) -1.2. Its eyeshots were textured with the lights' lite form
+  on (the same pixels as with the code in), but **flat with it off** (batch 3: the walls in their average colours, as C4j
+  saw: detail 0.93 -> 0.51), so Adreno's wrong derivatives depend on the rest of the shader: any settings change could
+  bring the flat walls back. Bit 64 stays never; the probes stay. The `interpolateAtOffset` workaround
+  (`QVR_PROBE_WIAO`) is textured but costs +5.4 at the start and +7.8 ms in the fight: dropped.
+- **The models' fragment shader** (C4k's plain form on; fight GPU ms against its baseline): a constant (`ALIASCONST`)
+  -3.0 to -3.5; drawn at all (`r_drawentities 0`) -5.9 to -6.8. Bisected by early returns (new probes, batch 4, base
+  21.5): the skin times the vertex light (`AMIN`) -2.9; ended after the look: skin, wounds, dents (`ALOOKEND`) -2.9, so
+  the look's code costs 0 in the plain form; ended after the light (`ALIGHTEND`: normals, occlusion, own light, dynamic
+  lights) -1.4, so **the light 1.4 ms**; before the glows, fog and output (`ARIMEND`) -1.0, so **the sheens 0.4 and the
+  tail (glows, the gate's see-through, fog, OIT/temporal output) 1.0 ms**. Single parts of the light out gain nothing
+  (the occlusion and dynamic lights by `vr_gl_alias_plain_mask` 256/512, the ambient `AAMB` -0.2, specular AA 0): its
+  cost is the code together (registers).
+- **GPU a frame, the final defaults** (one launch each; the fight's scene differs between launches):
+
+| | e1m1 start | the fight frozen | dynamic res. |
+|---|---|---|---|
+| batch 2 (C4l's default, lite lights on) | 11.4 | 19.1 | |
+| batch 2, lite lights off (now the default) | | 18.5 | |
+| batch 4 (final: lite lights off) | 11.4 | 21.5 (its scene) | 14.2 |
+| batch 4, lite lights on | 11.4 | 22.1 | |
+
+- PC: gles_render_test 21/0, scenario_check 138/0, load_models_test 4/0, dev and LTO builds 0 warnings; the PC's
+  `-glescompat` compiles every new probe (0 shader errors).
+- Left running for his check: e1m1, `+vr_quest_preset 0` (this commit's APK).
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
@@ -1253,4 +1296,4 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C4m (after 6s) — first `bash scratch/c4l_batch3.sh` on the headset (C4l's lights' lite form measured and captured, the models' retro probe, the derivative workaround's capture), then his look in the headset (C4i-C4l's frame worn: e1m1 and a fight, the body looking down, the menu's sharpness, translucent water and particles under `r_oit 0`, wounded monsters under the plain form, a dynamic light's shadow under the one-filter form), the models' remaining fragment cost (~5 ms: their retro textures' code if the probe says so), NORETRO back with the `interpolateAtOffset` derivatives if their capture is textured, the shadow code still in the loop (spot shadows, `vr_shadow_dlights 1`), the eye's scene in one pass (a CPU mark of the world under ES); no installs. Still open from before: e1m1's save error (a freed engine string), C5 (multiview into the swapchain), C2h (the world textures' memory under the ES profile). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d).
+Next phase: C4n (after 6t) — his look in the headset (C4i-C4m's frame worn: e1m1 and a fight, the body looking down, the menu's sharpness, translucent water and particles under `r_oit 0`, wounded monsters under the plain form, a dynamic light's shadow), then the models' remaining fragment cost by the same one-launch method (`c4n_ab4.sh`): the tail (glows, the gate's see-through, fog, OIT/temporal output: 1.0 ms) and the light (1.4 ms: a plain form without the bumped-normal and occlusion code where no instance needs them), the eye's scene in one pass (a CPU mark of the world under ES); no installs. Still open from before: e1m1's save error (a freed engine string), C5 (multiview into the swapchain), C2h (the world textures' memory under the ES profile), Adreno's wrong derivatives with the retro code out (NORETRO: -1.2 ms if ever made safe). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d).

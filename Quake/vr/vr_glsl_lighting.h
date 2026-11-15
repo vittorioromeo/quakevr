@@ -45,7 +45,16 @@
 // models lit on a par with the world (vr_model_light_parity). A light's six faces (+x -x +y -y +z -z; right and up below, forward
 // the axis) sit 3 x 2 from its origin in the atlas; depth is reversed, SHADOW_NEAR / distance
 // along the face's axis; each face has a border of SHADOW_BORDER texels for filtering.
+// QVR: vr_gles_define's probes (C4m; QUEST_PLAN.md 6t): one of the lights' lite form's parts (gl_shaders.c
+// GL_LightsLiteDefines) taken back out, in a session, to time each alone.
+#define QVR_LIGHTS_LITE_PROBES \
+"#ifdef QVR_PROBE_LLKEEP_ONEF\n#undef QVR_LITE_ONEFILTER\n#endif\n" \
+"#ifdef QVR_PROBE_LLKEEP_PORTAL\n#undef QVR_LITE_NOPORTALLIGHT\n#endif\n" \
+"#ifdef QVR_PROBE_LLKEEP_MAPSHADOW\n#undef QVR_LITE_NOMAPSHADOW\n#endif\n" \
+"#ifdef QVR_PROBE_LLKEEP_FALLOFF\n#undef QVR_LITE_NODLFALLOFF\n#endif\n" \
+"#ifdef QVR_PROBE_LLKEEP_FILT\n#undef QVR_LITE_SHADOWFILT\n#endif\n"
 #define SHADOW_FUNCTIONS \
+QVR_LIGHTS_LITE_PROBES \
 "layout(binding=4) uniform sampler2DShadow ShadowAtlas;\n"\
 "layout(binding=5) uniform sampler2DShadow ShadowStatic;\n"\
 "\n"\

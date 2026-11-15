@@ -1300,7 +1300,7 @@ QVR_DENT_FUNCTIONS \
 // The ES lite form (GL_AliasLiteDefines, C4j; QUEST_PLAN.md 6q): retro lighting (vr_retrolight 0: its frame data all
 // 0, so RetroLight[5].z 0) taken out of main() as constants, as the world's QVR_WORLD_FS_LITE; after every function.
 #define QVR_ALIAS_FS_LITE \
-"#ifdef QVR_ALITE_NORETRO\n" /* -glesdefine's probe (C4l): the models' retro textures' code out (vr_retro 0) */ \
+"#ifdef QVR_ALITE_NORETRO\n" /* -glesdefine's probe (C4l): the models' retro textures' code out (vr_retro 0; C4m: no safe cut, QUEST_PLAN.md 6t) */ \
 "#define RetroBegin(a, b, c, d, e, f, g) Retro = 0\n" \
 "#endif\n" \
 "#ifdef QVR_LITE_NORETROLIGHT\n" \
@@ -1487,6 +1487,10 @@ QVR_ALIAS_FS_PLAIN
 "#else\n" \
 "	vec3 emissive = result.rgb * (1.0 - result.a); // QVR: fullbright texels, unlit (ALPHABRIGHT skins keep them in the alpha)\n" \
 "#endif\n" \
+"#ifdef QVR_PROBE_ALOOKEND\n" /* vr_gles_define's probe (C4m): the models' shader ended after their look (skin, wounds, dents) */ \
+"	out_fragcolor = vec4(result.rgb * in_color.rgb, 1.0);\n" \
+"	return;\n" \
+"#endif\n" \
 "	// QVR: the normal bent by the skin's normal map (vr_normalmaps), for the model's own light and the dynamic lights\n" \
 "	vec3 n = normalize(in_nor);\n" \
 "#ifdef QVR_APLAIN_NOBUMP\n" \
@@ -1519,6 +1523,8 @@ QVR_ALIAS_FS_PLAIN
 "		bumped = DentBump(normalize(mix(bumped, n, dent.cover)), dent.grad, drdx, drdy, dpdx, dpdy);\n" \
 "#if ALPHATEST\n" \
 "	SpecularAA(0.0); // QVR: the normal map's spread only (no derivatives after the discard)\n" \
+"#elif defined(QVR_PROBE_ANOSPECAA)\n" /* vr_gles_define's probe (C4m) */ \
+"	SpecularAA(0.0);\n" \
 "#else\n" \
 "	SpecularAA(Parallax.w > 0. ? NormalSpread(bumped) : 0.0); // QVR: the sheen's lobe widened by the bumps and curves under the pixel (vr_specular_aa)\n" \
 "#endif\n" \
@@ -1530,7 +1536,11 @@ QVR_ALIAS_FS_PLAIN
 "	// centre, which can be past the triangle's edge, where in_vao runs on below 0: sqrt gave NaN, drawn white)\n" \
 "	float vao = clamp(in_vao, 0.0, 1.0);\n" \
 "	float occlusion = vao * DynamicAO(in_pos + EyePos, AONormal(n, in_bumplight.xyz), instances[in_instance].AO.x, in_coord, in_depth);\n" \
+"#ifdef QVR_PROBE_AAMB\n" /* vr_gles_define's probe (C4m): the model's own light the vertex light alone */ \
+"	vec3 own_light = in_color.rgb;\n" \
+"#else\n" \
 "	vec3 own_light = in_color.rgb * ModelBumpShade(n, bumped) * ModelAmbient(n, bumped) * occlusion; // QVR\n" \
+"#endif\n" \
 "	if (dent.depth > 0.0) // QVR: a dent's bowl shaded by the model's light whatever the bumps' share of it: its far wall lit, its near one dark\n" \
 "		own_light *= max(1.0 + 1.2 * dot(bumped - n * dot(bumped, n), in_bumplight.xyz * inversesqrt(max(dot(in_bumplight.xyz, in_bumplight.xyz), 1e-6))), 0.3);\n" \
 "	vec3 dyn_light = ModelDynamicLights(n, bumped, spec) * sqrt(vao); // QVR\n" \

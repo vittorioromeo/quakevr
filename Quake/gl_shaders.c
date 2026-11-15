@@ -958,7 +958,7 @@ static const char *GL_WorldLiteDefines (void)
 	return gl_world_lite_defines;
 }
 
-static char gl_alias_lite_defines[128]; // the models' share of them (GL_AliasLiteDefines)
+static char gl_alias_lite_defines[256]; // the models' share of them (GL_AliasLiteDefines)
 
 /*
 =============
