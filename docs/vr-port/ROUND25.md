@@ -3260,3 +3260,15 @@ Test aid: `vr_test_give_flags` (impulse 149's weapon flags; 3072 with id 13 give
 one-handed at the chest, the shotgun low at the belt; the off hand at the torch takes it, at the weapon's grip (or 60%
 along it) holds the weapon, the torch left on. Before 4/3 (the dagger, the chest and the belt cases at the torch);
 after 7/0. `mounted:9-10` (the two gun torso turns) 312 lit, 312 taken. Scenario `torch_otherweapon`.
+
+## mpN B8f (agent/mp): the drop onto a rising lift, Quake's water jump out predicted
+
+The drop's intermittent 12.7-unit correction: his replay carried only the lift he stood on, so a lift rising into him
+between two of his falling moves (his feet within its 2-unit step over its top) left him inside it: stuck there, no
+floor met, until the next state. The server's SV_PushMove pushes a box left inside a pusher's new place; the replay now
+does too (`moversAfter` in `vr_predict.cpp`). `mp_predict --part lift` failed 4 of 4 before (18.7-26 units), 3 of 3
+after (0.013-0.023). Quake's jump out of the water (QC CheckWaterJump's WaterJumpTry along his facing) now runs in each
+move for a remote client (`.vr_movewaterjump`, set in PlayerPreThink; the hands' climb out, vr_water_jump 0, stays the
+server's): on the start map's pool his corrections 0.000 (59.5 units before). `QVR_NET_VERSION` 23. `mp_test.py
+predict --part lift|waterjump|swim [--repeat N] [--watch 2]` runs one segment alone, traced. Single player and the
+listen host's own client untouched (the fields are 0 there). Details: MP_PLAN.md "B8f results".
