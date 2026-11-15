@@ -908,15 +908,19 @@ bool view::carriedReversedHandPoint(int hand, glm::vec3& point)
                                     handTurnOfWeapon(glm::vec3{-e.angles[0], e.angles[1], e.angles[2]}, slot, mirrored), point);
 }
 
-glm::vec3 view::leavingTurn(int hand, int slot, const glm::vec3& handRot, glm::vec3& shift)
+float view::leavingFlip(int hand)
 {
-    const float flip = slot >= 0 ? drawnFlip(hand) : 0.f;
+    return drawnFlip(hand);
+}
+
+glm::vec3 view::leavingTurn(int slot, bool mirrored, float flip, const glm::vec3& handRot, glm::vec3& shift)
+{
+    flip = slot >= 0 ? flip : 0.f;
     shift = glm::vec3{0.f};
     if(flip <= 0.f)
     {
         return handRot;
     }
-    const bool mirrored = hand == HAND_OFF;
     shift = reverseShift(slot, mirrored, flip, handRot);
     return uprightTurnOf(handRot, slot, mirrored, flip);
 }

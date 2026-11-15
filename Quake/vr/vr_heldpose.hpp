@@ -45,6 +45,13 @@ struct Hand
     bool flippable{false};   // view::heldGripFlippable
     int outOfEnt{0};         // the prop the other hand holds alone that this one is drawn held out of (view::heldOutOf; 0 none)
     glm::vec3 outOf{0.f};    // ... how far (world)
+    // (B11c) How this hand takes the weapon its other hand carries off its handle (view::carriedGripChoice: -1 it may not
+    // be held reversed, 0 upright, 1 reversed; the cosine of its blade's way), and the reverse grip's share it is drawn
+    // with as it leaves the hand (view::leavingFlip: a drop or throw keeps the way it was held).
+    int carriedGrip{-1};
+    float carriedGripCos{1.f};
+    float leaveFlip{0.f};
+    int leaveSlot{-1}; // (weapons::heldSlot: the weapon's Weapon Offsets slot as it leaves)
     // Placed where the view measuring it drew them this frame (world; this game's own player's: publishOwn). A remote
     // player's are not (they come a round trip late): the readers place them on the hand of the move the server runs.
     bool placed{false};
@@ -55,7 +62,21 @@ struct Hand
     glm::vec3 carriedTipWorld{0.f};
     glm::vec3 gripRot{0.f};          // the hand's own turn and vr_revgrip a loose weapon's reverse grip is judged by
     bool gripMayReverse{false};      // (view::reverseGripChoice's)
+    bool handKnown{false};           // the hand as drawn last (view::drawnHandPose): its forward and up (world)
+    glm::vec3 handForward{0.f};
+    glm::vec3 handUp{0.f};
 };
+
+// (B11c) Where a player's body has its holsters (body::Holster's order, world): this game's own player's placed by
+// publishOwn from its body now, a remote player's from his move (as his client drew them, on his entity now).
+struct Holsters
+{
+    bool placed{false}; // publishOwn's (else: his move's)
+    bool valid{false};
+    glm::vec3 at[6]{};
+};
+// Server, QC holsterpos: `player`'s holster `slot`'s place; false: not known (QC's own estimate then).
+[[nodiscard]] bool holsterPoint(edict_t* player, int slot, glm::vec3& out);
 
 // Server: `player`'s `hand` (0 off, 1 main) from his slot (his client's, or this game's own player's: publishOwn);
 // nullptr none come yet.

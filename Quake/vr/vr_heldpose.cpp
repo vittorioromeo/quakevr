@@ -5,6 +5,8 @@
 #include "vr_client.hpp"
 
 #include "vr_api.h"
+#include "vr_body.hpp"
+#include "vr_server.hpp"
 #include "vr_clientprefs.hpp"
 #include "vr_cvars.hpp"
 #include "vr_flatplay.hpp"
@@ -28,8 +30,8 @@ namespace
 {
 
 // "vr_heldpose <version> <hand> <valueCount values>" (encode's order); another version's or count's is ignored.
-constexpr int commandVersion = 2; // (2: flagMag, B6b)
-constexpr int valueCount = 62;
+constexpr int commandVersion = 3; // (2: flagMag, B6b; 3: the carried grip, the leaving flip and slot, B11c)
+constexpr int valueCount = 66;
 constexpr float step = 0.05f; // (units, and the directions' parts as much: a change smaller goes up with the next one)
 constexpr float most = 256.f; // (a value farther than this: not a hand's, the command ignored)
 constexpr double spotHold = 0.25; // s: a ground spot lost goes up this late (send; twohand::groundSpot's grace)
@@ -84,6 +86,10 @@ void encode(const Hand& h, float v[valueCount])
     put3(v, 55, h.axesUp);
     v[58] = static_cast<float>(h.outOfEnt);
     put3(v, 59, h.outOf);
+    v[62] = static_cast<float>(h.carriedGrip);
+    v[63] = h.carriedGripCos;
+    v[64] = h.leaveFlip;
+    v[65] = static_cast<float>(h.leaveSlot);
 }
 
 [[nodiscard]] Hand decode(const float v[valueCount])
@@ -124,6 +130,10 @@ void encode(const Hand& h, float v[valueCount])
     h.axesUp = get3(v, 55);
     h.outOfEnt = static_cast<int>(v[58]);
     h.outOf = get3(v, 59);
+    h.carriedGrip = static_cast<int>(v[62]);
+    h.carriedGripCos = v[63];
+    h.leaveFlip = v[64];
+    h.leaveSlot = static_cast<int>(v[65]);
     return h;
 }
 
@@ -148,6 +158,7 @@ struct State
     bool slotHas[MAX_SCOREBOARD][2]{};
     Spot slotSpot[MAX_SCOREBOARD][2];
     int slotMag[MAX_SCOREBOARD]{};
+    Holsters slotHolsters[MAX_SCOREBOARD]; // (this game's own: publishOwn's)
 };
 State state;
 
@@ -305,6 +316,9 @@ State state;
         h.outOf = view::heldOutOf(hand, other);
         h.outOfEnt = h.outOf != glm::vec3{0.f} ? other : 0;
     }
+    h.carriedGrip = view::carriedGripChoice(hand, h.carriedGripCos);
+    h.leaveFlip = view::leavingFlip(hand);
+    h.leaveSlot = weapons::heldSlot(hand);
     return h;
 }
 
@@ -581,6 +595,12 @@ void publishOwn()
         // (view::reverseGripChoice's: the hand's own turn, not its drawn one)
         h.gripRot = hands::current().rot[hand];
         h.gripMayReverse = vr_revgrip.value != 0.f && !flatplay::active();
+        glm::vec3 pos{0.f}, rot{0.f}, right{0.f};
+        h.handKnown = view::drawnHandPose(hand, pos, rot);
+        if(h.handKnown)
+        {
+            hands::angleVectors(rot, h.handForward, right, h.handUp);
+        }
         state.slot[own][hand] = h;
         if(vr_weapon_grab_hotspots.value || vr_weapon_grab_anywhere.value)
         {
@@ -591,6 +611,32 @@ void publishOwn()
     {
         state.slotMag[own] |= magholster::poll();
     }
+    // Its holsters where its body has them now (QC holsterpos).
+    Holsters& hs = state.slotHolsters[own];
+    hs = Holsters{};
+    hs.placed = cls.state == ca_connected;
+    hs.valid = hs.placed && hands::current().valid;
+    static_assert(body::HolsterCount == sizeof(hs.at) / sizeof(hs.at[0]));
+    for(int i = 0; i < body::HolsterCount && hs.valid; i++)
+    {
+        hs.at[i] = body::holsterPosition(hands::current(), static_cast<body::Holster>(i));
+    }
+}
+
+bool holsterPoint(edict_t* player, int slot, glm::vec3& out)
+{
+    const int s = playerSlot(player);
+    if(s >= 0 && s < MAX_SCOREBOARD && state.slotHolsters[s].placed)
+    {
+        const Holsters& hs = state.slotHolsters[s];
+        if(!hs.valid || slot < 0 || slot >= body::HolsterCount)
+        {
+            return false;
+        }
+        out = hs.at[slot];
+        return true;
+    }
+    return server::holsterPoint(player, slot, out);
 }
 
 void handPose(edict_t* player, int hand, glm::vec3& pos, glm::mat3& axes)
@@ -627,7 +673,7 @@ void send()
         bool moved = !state.wasSent[hand];
         for(int i = 0; i < valueCount && !moved; i++)
         {
-            moved = za::abs(v[i] - state.sent[hand][i]) > (i < 3 || i == 16 || i == 22 || i == 28 || i == 34 || i == 58 ? 0.f : step);
+            moved = za::abs(v[i] - state.sent[hand][i]) > (i < 3 || i == 16 || i == 22 || i == 28 || i == 34 || i == 58 || i == 62 || i == 65 ? 0.f : step);
         }
         if(!moved)
         {
@@ -707,6 +753,7 @@ void serverReset(int slot)
         state.slot[slot][0] = state.slot[slot][1] = Hand{};
         state.slotSpot[slot][0] = state.slotSpot[slot][1] = Spot{};
         state.slotMag[slot] = 0;
+        state.slotHolsters[slot] = Holsters{};
         if(slot == clientprefs::ownSlot())
         {
             publishOwn(); // (this game's own: at once, as clientprefs::publishOwn)
