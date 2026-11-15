@@ -742,6 +742,18 @@ void noteTracer(int hand, const glm::vec3& to)
     }
 }
 
+bool lastHit(int hand, glm::vec3& hit, float& offPx)
+{
+    if(hand < 0 || hand >= HAND_COUNT || !st.aim[hand].shown)
+    {
+        return false;
+    }
+    const Aim& a = st.aim[hand];
+    hit = a.hit;
+    offPx = glm::distance(a.raw, st.centre) * 1080.f / za::max(1.f, st.view.y);
+    return true;
+}
+
 void init()
 {
     Cmd_AddCommand("vr_flat_xhair_probe", probe_f);

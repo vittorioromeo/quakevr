@@ -58,6 +58,7 @@
 #include "vr_flatreload.hpp"
 #include "vr_flatswap.hpp"
 #include "vr_flatspeedfov.hpp"
+#include "vr_flattp.hpp"
 
 #include "vr_api.h"
 #include "vr_backend.hpp" // HAND_OFF / HAND_MAIN / HAND_COUNT
@@ -534,6 +535,12 @@ struct Sighted
 {
     glm::vec3 org, dir;
     flatplay::crosshairRay(s, aim, org, dir);
+    // The third-person camera out (vr_flat_tp): what its own ray hits, from his eye's depth on -- the middle of the screen
+    // is the camera's. The guns point at that point from their muzzles as ever, so the shots go where the crosshair is.
+    if(flattp::on())
+    {
+        org = flattp::rayStart(s.head + flatplay::eyeNudge(aim), aim, dir);
+    }
     const glm::vec3 end = org + dir * aimFar;
     CrossMemo& m = crossMemo;
     if(m.armed && m.valid && !memcmp(&m.org, &org, sizeof(org)) && !memcmp(&m.end, &end, sizeof(end)))
@@ -2199,7 +2206,8 @@ float drawnSight(int h, glm::vec3& hand, glm::mat3& turn)
 
 float crosshairFade()
 {
-    return flatplay::active() ? 1.f - geom::smooth01(posedT()) : 1.f;
+    // (Sighted with the third-person camera kept out, vr_flat_tp_aim 1: no sight picture is seen from behind, so it stays.)
+    return flatplay::active() && !(flattp::on() && vr_flat_tp_aim.value != 0.f) ? 1.f - geom::smooth01(posedT()) : 1.f;
 }
 
 void keepRecoil(glm::vec3& pos, glm::vec3& angles)
@@ -2452,7 +2460,8 @@ float fov(float basefov)
     // is never taken under 20 degrees, where the engine's own view stops making sense.
     st.baseFov = basefov;
     const float narrow = fovNarrowNow();
-    const float sighted = narrow > 0.f ? za::max(minFov, basefov - narrow) : basefov;
+    float sighted = narrow > 0.f ? za::max(minFov, basefov - narrow) : basefov;
+    sighted *= flattp::fovScale(); // (the third-person camera's own, vr_flat_tp_fov; 1 when it is not out)
     // Then the speed FOV's widening (vr_flat_speed_fov), which the ironsight wins over: it goes as the travel comes.
     return flatplay::active() ? flatspeedfov::widen(sighted, adsShare()) : sighted;
 }
