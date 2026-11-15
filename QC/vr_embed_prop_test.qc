@@ -18,6 +18,8 @@ vector vr_eq_dir0;   // ... the blade's way as the wrist began to turn
 float  vr_eq_turned; // ... degrees the wrist has turned so far
 float  vr_eq_off;    // the gib: units off the blade's line the other hand tries its grip from
 float  vr_eq_tries;  // ... grips tried
+vector vr_eq_hold;   // ... the hold in the gib's frame on the blade (skewerhold), to compare once pulled off it
+vector vr_eq_turn;   // ... the hand's turn in it there
 
 void() VR_EQ_Begin =
 {
@@ -251,6 +253,48 @@ void() VR_EQ_Gib =
         float drawnOff = cvar_hget(cvarh_vr_embed_probe_gib);
         VR_Test_Print(sprintf("%s: as it took hold the drawn hand snapped %.1f cm onto the gib's surface; drawn there since, %.2f cm off at most\n", vr_test_tag, snap, drawnOff));
         VR_Test_Check(snap >= 0 && snap < 6 && drawnOff >= 0 && drawnOff < 0.25, sprintf("the drawn hand snaps onto the gib's surface (%.1f cm, under 6; 9.3 onto the ball before) and stays there (%.2f cm off)", snap, drawnOff));
+        // Then pulled off the tip with that hand (his note 2026-11-15 00:03: off the blade the drawn hand was off the gib): the hold,
+        // in the gib's own frame, as the drawn hand had it on the blade (skewerDrawnHand's pin: the hold, the hand's turn as it took).
+        vr_eq_hold = g.vr_skewer_gripl;
+        vr_eq_turn = g.vr_skewer_gript;
+        VR_Skewer_Line(g);
+        vr_ets_hb = -((VRGetHandPos(h) - vr_skewer_tip) * vr_skewer_way); // (from where the hand is: no jump, which reads as a tug)
+        vr_ets_ho = -vr_eq_off;
+        VR_ET_To(31);
+    }
+    else if(vr_et_s == 31)
+    {
+        if(g.carry_player == p)
+        {
+            VR_ET_To(32);
+        }
+        else if(t > 4 || g.vr_skewer_p != p)
+        {
+            VR_Test_Check(FALSE, sprintf("pulled along the blade past its tip, the hand has it (on the blade %g, gripped %g, carried %g)", g.vr_skewer_p == p, g.vr_skewer_grip, g.carry_player == p));
+            localcmd("-graboff\n");
+            VR_ET_To(40);
+        }
+        else
+        {
+            VR_ETS_OffHandStep(g, -(VR_Skewer_Radius(g) + 12), vr_ets_ho);
+        }
+    }
+    else if(vr_et_s == 32 && t > 0.03) // (a frame or two in the hand: before a gib that has lain about this long fades)
+    {
+        // Held as a carried prop: the hand is drawn at its controller (vr_held.cpp draws the gib at the server's place in it).
+        vector now = skewerhold(g, VRGetHandPos(h), VRGetEntHandRot(p, h), 0);
+        makevectors(skewerhold(g, '0 0 0', VRGetEntHandRot(p, h), 1));
+        vector f1 = v_forward;
+        vector u1 = v_up;
+        makevectors(vr_eq_turn);
+        float turned = max(vlen(f1 - v_forward), vlen(u1 - v_up)) * 57.3; // (the chord: degrees, near enough when small)
+        makevectors(VRGetEntHandRot(p, h));
+        float gap = vlen(carryfit(g, VRGetHandPos(h), h == cVR_MainHand ? v_right * -1 : v_right));
+        float off = vlen(now - vr_eq_hold) * (100 / VRMetersToUnits());
+        VR_Test_Print(sprintf("%s: off the blade, in the hand: the hand %.2f cm from its hold on the gib's surface on the blade, the fit asks %.2f units more, its turn on the gib %.1f degrees from the hold's\n",
+            vr_test_tag, off, gap, turned));
+        VR_Test_Check(off < 0.5 && gap < 0.3 && turned < 2, sprintf("pulled off the blade, the hand stays on the gib's surface where it held it (%.2f cm off, under 0.5; the fit %.2f units; turned %.1f degrees)",
+            off, gap, turned));
         localcmd("-graboff\n");
         VR_ET_To(40);
     }
