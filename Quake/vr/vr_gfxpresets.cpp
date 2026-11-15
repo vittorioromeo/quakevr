@@ -134,6 +134,7 @@ constexpr presetcore::Row questRows[] = {
     {&vr_upscale,                     {"0",      "0",      "0"}},     // bilinear: no full-size pass
     {&vid_fsaa,                       {"0",      "0",      "0"}},     // off: 2x cost the Quest 3 ~100 ms a frame (C4e: e1m1 138 -> 41 ms; the float scene's MSAA resolved through memory, not on chip)
     {&vr_taa,                         {"0",      "0",      "0"}},     // its history reads and writes: bandwidth
+    {&r_oit,                          {"0",      "0",      "0"}},     // translucent things sorted, not order-independent: OIT's own target is a render pass more an eye (-0.6 to -0.9 ms of the Quest 3's GPU, C4j)
     // Shadows: one shadowed dynamic light, the atlas a quarter of Low's (16 MB of depth instead of 64)
     {&vr_shadow_dlights,              {"1",      "1",      "0"}},
     {&vr_shadow_dlight_size,          {"256",    "256",    "256"}},

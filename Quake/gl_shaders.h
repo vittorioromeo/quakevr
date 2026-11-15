@@ -1805,6 +1805,7 @@ QVR_TEMPORAL_FS_OUTPUT
 "\n"
 QVR_ALIAS_FS_FUNCTIONS // QVR: per-pixel lights, normal maps, ambient, wounds, morphs
 QVR_BEHIND_SHOWN_GATE_ALIAS // QVR: see-through models behind a teleporter shown in this view (QVR_ALIAS_FS_GLOW)
+QVR_ALIAS_FS_LITE // QVR: the ES lite form's switches compiled out of main (GL_AliasLiteDefines; QUEST_PLAN.md 6q)
 "void main()\n"
 "{\n"
 "	QVR_TEMPORAL_WRITE(0.0); // QVR: first (before any early return)\n"

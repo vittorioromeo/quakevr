@@ -934,6 +934,30 @@ static const char *GL_WorldLiteDefines (void)
 	return gl_world_lite_defines;
 }
 
+static char gl_alias_lite_defines[64]; // the models' share of them (GL_AliasLiteDefines)
+
+/*
+=============
+GL_AliasLiteDefines -- QVR
+
+The models' programs' lite form (C4j; QUEST_PLAN.md 6q): of the world's switches, the two whose code the models' shader
+has and whose settings turn it off for every model: parallax mapping (bit 1: vr_parallax or vr_normalmaps 0, as
+VR_ParallaxDepth gives every model 0) and retro lighting (bit 32: vr_retrolight 0, its frame data all 0); bit 256:
+vr_gl_alias_lite on.
+=============
+*/
+static const char *GL_AliasLiteDefines (void)
+{
+	gl_alias_lite_defines[0] = 0;
+	if (!(gl_world_lite & 256)) // vr_gl_alias_lite 0
+		return gl_alias_lite_defines;
+	if (gl_world_lite & 1)
+		q_strlcat (gl_alias_lite_defines, gl_world_lite_names[0], sizeof (gl_alias_lite_defines));
+	if (gl_world_lite & 32)
+		q_strlcat (gl_alias_lite_defines, gl_world_lite_names[5], sizeof (gl_alias_lite_defines));
+	return gl_alias_lite_defines;
+}
+
 /*
 =============
 GL_WorldLiteCheck -- QVR
@@ -1000,12 +1024,12 @@ static void GL_CreateShadersAll (void)
 			for (alphatest = 0; alphatest < 2; alphatest++)
 				for (poseverttype = 0; poseverttype < 3; poseverttype++) 
 					glprogs.alias[oit][mode][alphatest][poseverttype] =
-					GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias|OIT %d; MODE %d; ALPHATEST %d; POSEVERTTYPE %d", oit, mode, alphatest, poseverttype);
+					GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias|OIT %d; MODE %d; ALPHATEST %d; POSEVERTTYPE %d%s", oit, mode, alphatest, poseverttype, GL_AliasLiteDefines ()); // QVR: the ES lite form
 	if (VR_GLESForm (VR_GLES_FORM_GLSL)) // QVR: the opaque models' form without discard (vr_gl_alias_opaque: a tiler's early depth rejection; QUEST_PLAN.md 6p)
 		for (mode = 0; mode < 3; mode++)
 			for (poseverttype = 0; poseverttype < 3; poseverttype++)
 				glprogs.alias_opaque[mode][poseverttype] =
-					GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias opaque|OIT 0; MODE %d; ALPHATEST 0; POSEVERTTYPE %d; QVR_ALIAS_OPAQUE 1", mode, poseverttype);
+					GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias opaque|OIT 0; MODE %d; ALPHATEST 0; POSEVERTTYPE %d; QVR_ALIAS_OPAQUE 1%s", mode, poseverttype, GL_AliasLiteDefines ());
 	for (poseverttype = 0; poseverttype < 3; poseverttype++) // QVR; MODE 0 (standard) in these: an undefined name in #if is an error in GLSL (strict drivers)
 		glprogs.alias_depth[poseverttype] = GL_CreateProgram (alias_vertex_shader, NULL, "alias depth|MODE 0; POSEVERTTYPE %d", poseverttype);
 	for (poseverttype = 0; poseverttype < 3; poseverttype++) // QVR: into all their faces at once (vr/vr_lighting.cpp)

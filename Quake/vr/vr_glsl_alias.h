@@ -1287,8 +1287,17 @@ QVR_DENT_FUNCTIONS \
 "			result.rgb *= mix(vec3(1.0), st.rgb, st.w * smoothstep(sr.y, sr.z, in_texcoord.y));\n" \
 "	}\n"
 
-// parallax occlusion mapping on the skin's heights
+// The ES lite form (GL_AliasLiteDefines, C4j; QUEST_PLAN.md 6q): retro lighting (vr_retrolight 0: its frame data all
+// 0, so RetroLight[5].z 0) taken out of main() as constants, as the world's QVR_WORLD_FS_LITE; after every function.
+#define QVR_ALIAS_FS_LITE \
+"#ifdef QVR_LITE_NORETROLIGHT\n" \
+"#define RetroLightBegin(a, b, c, d, e, f)\n" \
+"#define RetroLightModel(a, b, c)\n" \
+"#endif\n"
+
+// parallax occlusion mapping on the skin's heights (none in the ES lite form without parallax: every in_pdepth 0)
 #define QVR_ALIAS_FS_PARALLAX \
+"#ifndef QVR_LITE_NOPARALLAX\n" \
 "	// QVR: parallax occlusion mapping (vr_parallax_models) on the skin's heights, in the triangle's own frame, with\n" \
 "	// fewer steps than the world's; read with the surface's mip level (the moved coordinates jump at occlusions)\n" \
 "	if (in_pdepth != 0.) // < 0: an authored map's heights (real steep relief: all the world's steps)\n" \
@@ -1301,7 +1310,8 @@ QVR_DENT_FUNCTIONS \
 "		float pdepth = abs(in_pdepth) * (in_pdepth < 0. ? smoothstep(0.5, 0.8, -dot(normalize(in_pos), n)) : smoothstep(0.34, 0.64, -dot(normalize(in_pos), n)));\n" \
 "		if (pdepth > 0.)\n" \
 "			uv = ParallaxUV(NormalTex, uv, duvdx, duvdy, dpdx, dpdy, n, in_pos, pdepth, in_pdepth < 0. ? max(Parallax.z, 8.0) : max(Parallax.z * 0.5, 4.0), vec4(0.));\n" \
-"	}\n"
+"	}\n" \
+"#endif\n"
 
 // wounds, normal maps, occlusion, the model's light
 #define QVR_ALIAS_FS_LIGHT \
