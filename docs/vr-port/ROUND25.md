@@ -2860,3 +2860,36 @@ His flat report: a Run Setup Style (Classic, then Unleashed) took effect only wh
 ## wetglint (agent/wetglint)
 
 His report: after quickload the dripping came back but the wet glint did not. The shine (the alias shader wet coat, `wounds::wetCoat`) read `Mask::wetLeft` / `handWetLeft`, set only by a liquid wound event (the rising edge); a load restoring vr_drips wetness never set them. Fix, no new state: `wetCoat` takes its seconds-left from `drips::wetOf(e)` (drips wetness times dryTime, max with the old values); a thing with no wet mask (a loaded game) shines all over. `Misc/quakevr/saveload_test.sh` checks `vr_wounds_info` `wet: coat`: each coat shining before the save shines after (flat 5, VR 5). BACKLOG: flat 2H melee pose item added.
+
+## gibthrow: the hand stays on a gib pulled off the blade; thrown blades settle point first (branch agent/gibthrow, 2026-11-15)
+
+His notes (vrtesthall_2026-11-15_00-03-02, _00-03-51): pulled off the sword with the hand that held it, the gib was drawn off
+the hand ("it seems like the gib is floating"); thrown swords and daggers should steady towards their point in the air, "not
+instantly turning straight like an arrow ... not perfect or unbelievable".
+
+**The gib.** On the blade the hand is drawn at its hold (`.vr_skewer_gripd`, the carried props' fit, turning with the gib:
+skewerDrawnHand's pin). At the take (`VR_Skewer_Take`) the gib was moved by that world offset as taken (stale once the gib had
+turned with the blade), then fitted twice more as any prop taken: `carryfit` (VR_Carry_FitToHand) and the grip fit
+(vr_gripfit.hpp), whose Box3D hulls are wider than a gib as drawn and pushed it 2 units off the fist. Now the hold is also kept
+in the gib's own frame as it takes hold (`.vr_skewer_gripl`, `.vr_skewer_gript`: new builtin `skewerhold`), and the take turns
+and places the gib so that the hand has it there, its turn on it as then (`skewerplace`), with neither fit after it
+(`vr_carry_asheld` round VR_Carry_Start; `carrygrip`'s optional 7th argument `asheld`, grip::serverTake's `fit`). Measured
+(`vr_embed_test 34`, a new step: the other hand slides the gib off the tip): off the blade the hand was 4.46 cm from its hold,
+2.30 units off the surface (the fit's gap) and turned 27.7 degrees on it; now 0.03 cm, 0.01 units, 0.0 degrees. 15 of 15.
+(The test's own gib, made seconds before, fades about 0.15 s after it is taken: its old think restored; the step reads at once.)
+
+**Point first.** `pointAlign` (vr_box3d_step.cpp, after spinAlign while the throw is in the air): a pointed blade (weapons.txt
+`embed` 1: the swords and the dagger; `axestick::pointLine` gives its line, whatever vr_embed is) gets a damped turn of its
+line towards its flight: an angular acceleration of 150 rad/s^2 per radian off, damping 14/s of the tumble across the blade
+(its spiral about its length kept), at most 90 rad/s^2, all times a share: Point-First Settling (`vr_throw_point_align`, 1)
+x how near point first it flies (1 at 0, 0 at `vr_throw_point_angle`, 45 degrees) x how calm (0 from `vr_throw_point_spin`,
+1.5 turns/s, across the blade) x speed (0 under 3 m/s, 1 from 8) x a fade over `vr_throw_point_time` (0.3 s) after the
+throw. VR and flat throws alike (any thrown weapon's Box3D flight). Tunables rows after Spin Alignment (Debug > Tunables);
+menu_paths.txt regenerated.
+Test `vr_embed_test 47` (QC/vr_throwpoint_test.qc; `map vrtesthall;wait30;god;notarget;vr_embed_test 47`): 22 throws at
+10 m/s, the blade's angle to its flight read 3 m out, each set thrown with the settling off and on: good throws (point 10-40
+degrees off, tumbling 1-5 rad/s) point first (within vr_embed_sword_angle, 35) 1 of 12 without, 9 of 12 with; bad throws
+(70-150 degrees off, or tumbling 12-18 rad/s) 0 of 6 either way, their tumble 9.4 rad/s both; axes identical. 5 of 5.
+
+Open: his feel of the strength in VR (Point-First Settling and its window are the knobs); a gib torn off by the main hand's
+own throw is unchanged.
