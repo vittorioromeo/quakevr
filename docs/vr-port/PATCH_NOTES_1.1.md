@@ -458,6 +458,7 @@ old default move to the new one, and values you changed stay yours.
 - A QuakeC string search that always reported a match (affects mods).
 - Physics engine updated with upstream fixes.
 - The grunts' burst rifle is named "Burst Rifle" everywhere (it was "grunt's shotgun" in the holster menu).
+- Test hall: command buttons (NEW GAME, VR HUB) are pressed only by you and what you threw; a monster or a blast-flung weapon no longer restarts the game.
 - The toolgun's Armed Humanoid page can pair a gun with an axe, dagger or other one-handed blade, as the armed
   replacements do.
 - Grunts holding a gun and an axe hurt you and can knock your weapon out again when you hold a weapon in front of you

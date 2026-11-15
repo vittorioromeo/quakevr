@@ -3305,3 +3305,9 @@ His flat-screen notes (2026-11-16) and the coordinator's disarm-sound item.
   numbers (`make_disarm_sounds.py`'s header): StarNinjas `sword_clash.1` (0 ms attack, longest ring 0.8 s, ~6 kHz) and
   Kenney `error_003` (instant, 0.3 s, ~1.4 kHz); the Medieval pack's minute-long takes unused. CREDITS.md. vr_pd_test 1
   11/11 (sounds started for each disarm).
+
+## btnfix (agent/btnfix)
+
+- Cherry-picked 502d2e13c (agent/mp): command buttons (buttonEffect 3) are pressed only by a player or what he threw; `vr_systems_test 17` passes (needs `developer 1`, map vrtesthall). Other buttons are not buttonEffect 3, unaffected.
+- Scenes classic_drops and magthrow gave "Grunt Burst Rifle" (renamed "Burst Rifle" by flat1116): fixed, plus the comments in pose_*_guns. The saves keep the old netname (harmless). `scenario_check`: 141 run, 0 failed.
+- flattoolgun_test 11/0; `vr_run_armed_check` 13 PASS / 0 FAIL (run mutators set before `vr_run start`).
