@@ -255,12 +255,14 @@ ARMED_B = (-200.0, HALL_START_Y, HALL_Z)
 ARMED_IDLE_BUDGET = 10 * 1024
 ARMED_COMBAT_BUDGET = 35 * 1024
 ARMED_RATE = 12000       # B's vr_net_rate in combat, B/s: well under what the six cost him (about 32 KB/s)
+ARMED_ENT_MEAN = 8.0     # B12b: an entity's changed update by its fields, B (head included; byte by byte it was ~10.5)
 RATE_SLACK = 1.15        # the link down under his rate within this (a datagram's burst, the reliable)
 
 
 def net_window(s, srv, b, label, packets=IDLE_PACKETS):
     """B's link down over `packets` datagrams, with what he read by kind over it (vr_net_bytes reset .. poses) ->
-    (proxy window, kinds in B/s, [(dist, entries) of each armed humanoid's pose], the server's mp_netsnap for B)."""
+    (proxy window, kinds in B/s, [(dist, entries) of each armed humanoid's pose], the server's mp_netsnap for B, the
+    snapshot's entity entries by op [(count, bytes) gone, whole, byte by byte, by fields]: B12b's)."""
     proxy = b.proxy
     since = b.mark()
     b.cmd("vr_net_bytes reset")
@@ -277,11 +279,14 @@ def net_window(s, srv, b, label, packets=IDLE_PACKETS):
     prio = [(float(fields(l)["dist"]), int(fields(l)["entries"])) for l in b.lines[since:]
             if l.startswith("mp_netprio: ent=")]
     kinds = kind_rates(fields(line), w["down"]["bytes_s"])
-    s.metric("armed_%s" % label, {"link": w, "kinds": kinds, "prio": prio})
+    ops = [tuple(int(x) for x in p.split("/")) for p in fields(line).get("ent_ops", "0/0,0/0,0/0,0/0").split(",")]
+    s.metric("armed_%s" % label, {"link": w, "kinds": kinds, "prio": prio, "ent_ops": ops})
     s.note("%s: down %d B/s (mean %d B, %s pkts/s); by kind: %s; poses (dist, entries): %s" % (
         label, w["down"]["bytes_s"], w["down"]["mean_B"], w["down"]["pkts_s"], format_kinds(kinds),
         " ".join("%.0f:%d" % p for p in sorted(prio))))
-    return w, kinds, sorted(prio), snap_status(srv, b.ent)
+    s.note("%s: the snapshot's entity entries (count/bytes): gone %d/%d, whole %d/%d, byte by byte %d/%d, by fields %d/%d"
+           % ((label,) + tuple(v for op in ops for v in op)))
+    return w, kinds, sorted(prio), snap_status(srv, b.ent), ops
 
 
 def armed(s):
@@ -333,7 +338,7 @@ def armed(s):
     for _ in range(60):  # (his preference up: the server's report of his rate)
         if int(snap_status(srv, eb).get("rate", 0)) == ARMED_RATE:
             break
-    w, kinds, prio, sn = net_window(s, srv, b, "rate%d" % ARMED_RATE)
+    w, kinds, prio, sn, _ = net_window(s, srv, b, "rate%d" % ARMED_RATE)
     b.cmd("vr_net_rate 0")
     down = w["down"]["bytes_s"]
     s.check("under vr_net_rate %d: the server holds him to it" % ARMED_RATE, sn and int(sn["rate"]) == ARMED_RATE and
@@ -349,6 +354,15 @@ def armed(s):
             len(prio) >= 4 and sum(near) > 1.2 * sum(far), "nearest two %s, farthest two %s (of %s)" % (near, far, prio))
     cs = client_snap_status(b)
     s.check("under it: none undecodable", cs and int(cs["undecodable"]) == 0, "%s" % cs)
+
+    # (B12b) the moving things' updates by their fields: most changed entries so, each a few bytes (byte by byte: ~10.5)
+    ops = out[("combat", 1)][4]
+    changed = ops[2][0] + ops[3][0]
+    mean = (ops[2][1] + ops[3][1]) / changed if changed else 0
+    s.check("combat: the entities' changed updates go by their fields, %g B each at most" % ARMED_ENT_MEAN,
+            changed > 0 and ops[3][0] >= 0.8 * changed and mean <= ARMED_ENT_MEAN,
+            "%d of %d by fields, %.1f B each (byte by byte %d/%d, by fields %d/%d)" % (
+                ops[3][0], changed, mean, ops[2][0], ops[2][1], ops[3][0], ops[3][1]))
 
     for mode, budget in (("idle", ARMED_IDLE_BUDGET), ("combat", ARMED_COMBAT_BUDGET)):
         before, kb = out[(mode, 0)][0]["down"]["bytes_s"], out[(mode, 0)][1]

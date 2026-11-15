@@ -10,7 +10,8 @@
 //   [byte svc_quakevr][byte QVR_SVC_SNAPSHOT][varint seq][varint seq - base, 0 none][varint body bytes] then each record
 //   that differs from the base's, by key: [varint (key - previous key) << 2 | op] (the first key's previous -1); op 0
 //   gone, 1 whole ([varint length][bytes]), 2 the base's changed (its length; [a byte a 8 groups of 8 bytes: any changed]
-//   [a byte each changed group: its changed bytes][those bytes]).
+//   [a byte each changed group: its changed bytes][those bytes]), 3 an entity's update by its fields against the base's
+//   (B12b, vr_netsnap.cpp fieldsEncode: its changed fields' mask, each one's change; sent only when it decodes exactly).
 //
 // The armed humanoids' poses in its sight (QVR_SVC_ARMPOSE, poseKey + the humanoid) are records too (B12): one sent this
 // frame is in the set, one skipped (the pose's level of detail) is gone, so the client parses the same poses NetQuake's
@@ -70,10 +71,11 @@ struct Snapshot
 // Past the budget (`soft`, a rate's, when given: the infinite priorities to `budget`): with `prio` (one a `cur` record),
 // the gone entries and the highest priorities that fit go (B12's rate), else in key order until one does not fit;
 // `unsent` (one a `cur` record, zeroed by the caller) marks the changed or new records that waited.
-int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budget, Snapshot& sent, const float* prio = nullptr,
-    za::U8* unsent = nullptr, int soft = -1);
+// `pflags`: the protocol's flags (its coordinates' and angles' sizes: an entity's update by its fields, B12b).
+int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budget, Snapshot& sent, unsigned pflags,
+    const float* prio = nullptr, za::U8* unsent = nullptr, int soft = -1);
 // `tally` (keyClasses counts, or nullptr): each entry's bytes added by its key's class (keyClass).
-[[nodiscard]] bool decode(const Snapshot* base, int bodyLen, Snapshot& out, long long* tally = nullptr);
+[[nodiscard]] bool decode(const Snapshot* base, int bodyLen, Snapshot& out, unsigned pflags, long long* tally = nullptr);
 inline constexpr int keyClasses = 5; // 0 the player state, 1 an entity, 2 an avatar, 3 the walk's state, 4 a pose
 [[nodiscard]] constexpr int keyClass(int key)
 {

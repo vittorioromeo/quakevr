@@ -178,6 +178,371 @@ void addFrom(Snapshot& to, const Snapshot& from, const Record& r)
     to.add(r.key, from.data(r), r.len);
 }
 
+// ---- B12b: an entity's update by its fields ---------------------------------------------------------------------------
+//
+// NetQuake's entity update (sv_main.c SV_WriteEntitiesToClient: its bits, its number, then each field its bits name, then
+// Quake VR's own, vr_server.cpp VR_WriteEntityUpdate) changes its layout whenever a field comes or goes, and a moving
+// thing's fields change every frame: byte by byte, against the base, a grunt's update cost about 10 B a frame. By its
+// fields (opFields): [varint the changed fields' mask (fieldOrder: the ones that change most first; then the tail's, the
+// bits')][varint the bits xor the base's, if changed][each changed field: zigzag varint its change modulo its size][the
+// tail (what follows the last field), if changed: varint (length << 1 | delta), then bytesDelta of the base's or its
+// bytes]. A field the base lacks counts from 0. Lossless whatever the bytes mean: the server only sends it when the
+// client's decoding of it gives back the update exactly (fieldsVerify), else byte by byte or whole as before.
+
+constexpr int opFields = 3;
+constexpr int wireFields = 16; // model, frame, colormap, skin, effects, origin1, angle1, origin2, angle2, origin3, angle3,
+                               // alpha, scale, frame2, model2, lerpfinish: their order in the update
+constexpr int wireBit[wireFields] = {U_MODEL, U_FRAME, U_COLORMAP, U_SKIN, U_EFFECTS, U_ORIGIN1, U_ANGLE1, U_ORIGIN2,
+    U_ANGLE2, U_ORIGIN3, U_ANGLE3, U_ALPHA, U_SCALE, U_FRAME2, U_MODEL2, U_LERPFINISH};
+constexpr int fieldOrder[wireFields] = {15, 1, 5, 7, 9, 8, 6, 10, 0, 2, 3, 4, 11, 12, 13, 14}; // mask bit -> field
+constexpr za::U32 maskTail = 1u << wireFields, maskBits = 1u << (wireFields + 1);
+constexpr int fieldsMost = maxDeltaLen + 64; // an update's bytes at most (a longer one: not by its fields)
+
+struct EntFields
+{
+    za::U32 bits{0};
+    int num{0};
+    za::U32 v[wireFields]{}; // each present field's bytes as a little-endian number (absent: 0)
+    const za::U8* tail{nullptr};
+    int tailLen{0};
+};
+
+[[nodiscard]] int fieldSize(int f, unsigned pflags)
+{
+    const bool coord = f == 5 || f == 7 || f == 9, angle = f == 6 || f == 8 || f == 10;
+    if(coord)
+    {
+        return (pflags & (PRFL_FLOATCOORD | PRFL_INT32COORD)) ? 4 : (pflags & PRFL_24BITCOORD) ? 3 : 2;
+    }
+    if(angle)
+    {
+        return (pflags & PRFL_FLOATANGLE) ? 4 : (pflags & PRFL_SHORTANGLE) ? 2 : 1;
+    }
+    return 1;
+}
+
+// An update's bytes into its fields: false when they are not one (too short).
+[[nodiscard]] bool parseFields(const za::U8* d, int len, unsigned pflags, EntFields& e)
+{
+    int at = 0;
+    const auto take = [&](int n, za::U32& out) {
+        if(at + n > len)
+        {
+            return false;
+        }
+        out = 0;
+        for(int k = 0; k < n; k++)
+        {
+            out |= static_cast<za::U32>(d[at + k]) << (8 * k);
+        }
+        at += n;
+        return true;
+    };
+    za::U32 b = 0;
+    if(!take(1, e.bits) || !(e.bits & U_SIGNAL))
+    {
+        return false;
+    }
+    if((e.bits & U_MOREBITS) && !(take(1, b) && ((e.bits |= b << 8), true)))
+    {
+        return false;
+    }
+    if((e.bits & U_EXTEND1) && !(take(1, b) && ((e.bits |= b << 16), true)))
+    {
+        return false;
+    }
+    if((e.bits & U_EXTEND2) && !(take(1, b) && ((e.bits |= b << 24), true)))
+    {
+        return false;
+    }
+    za::U32 num = 0;
+    if(!take((e.bits & U_LONGENTITY) ? 2 : 1, num))
+    {
+        return false;
+    }
+    e.num = static_cast<int>(num);
+    for(int f = 0; f < wireFields; f++)
+    {
+        e.v[f] = 0;
+        if((e.bits & static_cast<za::U32>(wireBit[f])) && !take(fieldSize(f, pflags), e.v[f]))
+        {
+            return false;
+        }
+    }
+    e.tail = d + at;
+    e.tailLen = len - at;
+    return true;
+}
+
+// The fields back into an update's bytes (at most `most`): its length, -1 when it does not fit.
+[[nodiscard]] int writeFields(const EntFields& e, unsigned pflags, za::U8* out, int most)
+{
+    int at = 0;
+    const auto put = [&](za::U32 v, int n) {
+        for(int k = 0; k < n && at < most; k++)
+        {
+            out[at++] = static_cast<za::U8>(v >> (8 * k));
+        }
+    };
+    put(e.bits, 1);
+    if(e.bits & U_MOREBITS)
+    {
+        put(e.bits >> 8, 1);
+    }
+    if(e.bits & U_EXTEND1)
+    {
+        put(e.bits >> 16, 1);
+    }
+    if(e.bits & U_EXTEND2)
+    {
+        put(e.bits >> 24, 1);
+    }
+    put(static_cast<za::U32>(e.num), (e.bits & U_LONGENTITY) ? 2 : 1);
+    for(int f = 0; f < wireFields; f++)
+    {
+        if(e.bits & static_cast<za::U32>(wireBit[f]))
+        {
+            put(e.v[f], fieldSize(f, pflags));
+        }
+    }
+    if(at + e.tailLen > most)
+    {
+        return -1;
+    }
+    memcpy(out + at, e.tail, static_cast<size_t>(e.tailLen));
+    return at + e.tailLen;
+}
+
+int putVarint(za::U8* out, za::U32 v)
+{
+    int n = 0;
+    for(; v >= 0x80u; v >>= 7)
+    {
+        out[n++] = static_cast<za::U8>(v | 0x80u);
+    }
+    out[n++] = static_cast<za::U8>(v);
+    return n;
+}
+
+[[nodiscard]] bool getVarint(const za::U8* d, int len, int& at, za::U32& v)
+{
+    v = 0;
+    for(int shift = 0; shift < 35; shift += 7)
+    {
+        if(at >= len)
+        {
+            return false;
+        }
+        const za::U8 b = d[at++];
+        v |= static_cast<za::U32>(b & 0x7f) << shift;
+        if(!(b & 0x80))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+// A field's change modulo its size (`n` bytes), zigzagged: small either way.
+[[nodiscard]] za::U32 fieldChange(za::U32 base, za::U32 cur, int n)
+{
+    const za::U32 mask = n >= 4 ? 0xFFFFFFFFu : (1u << (8 * n)) - 1u;
+    const za::U32 d = (cur - base) & mask;
+    const za::U32 half = n >= 4 ? 0x80000000u : 1u << (8 * n - 1);
+    const za::I64 s = d >= half ? static_cast<za::I64>(d) - static_cast<za::I64>(mask) - 1 : static_cast<za::I64>(d);
+    return static_cast<za::U32>(s >= 0 ? s * 2 : -s * 2 - 1);
+}
+
+[[nodiscard]] za::U32 fieldApply(za::U32 base, za::U32 zig, int n)
+{
+    const za::U32 mask = n >= 4 ? 0xFFFFFFFFu : (1u << (8 * n)) - 1u;
+    const za::I64 s = (zig & 1u) ? -static_cast<za::I64>(zig >> 1) - 1 : static_cast<za::I64>(zig >> 1);
+    return (base + static_cast<za::U32>(s)) & mask;
+}
+
+za::U8 fieldsBuf[fieldsMost];   // (an encoding by fields: encode's)
+za::U8 fieldsCheck[fieldsMost]; // (... its decoding: fieldsVerify's, decode's)
+
+// `cur` (an entity's update) by its fields against `base`'s into `out` (at most fieldsMost): its size, -1 when not.
+[[nodiscard]] int fieldsEncode(const za::U8* base, int baseLen, const za::U8* cur, int curLen, unsigned pflags, za::U8* out)
+{
+    EntFields b, c;
+    if(curLen > maxDeltaLen || !parseFields(base, baseLen, pflags, b) || !parseFields(cur, curLen, pflags, c) || b.num != c.num)
+    {
+        return -1;
+    }
+    za::U32 mask = 0;
+    za::U32 zig[wireFields]{};
+    for(int m = 0; m < wireFields; m++)
+    {
+        const int f = fieldOrder[m];
+        if(!(c.bits & static_cast<za::U32>(wireBit[f])))
+        {
+            continue;
+        }
+        zig[m] = fieldChange(b.v[f], c.v[f], fieldSize(f, pflags));
+        mask |= zig[m] != 0 ? 1u << m : 0u;
+    }
+    const bool tailSame = b.tailLen == c.tailLen && memcmp(b.tail, c.tail, static_cast<size_t>(c.tailLen)) == 0;
+    mask |= tailSame ? 0u : maskTail;
+    mask |= b.bits != c.bits ? maskBits : 0u;
+    int at = putVarint(out, mask);
+    if(mask & maskBits)
+    {
+        at += putVarint(out + at, b.bits ^ c.bits);
+    }
+    for(int m = 0; m < wireFields; m++)
+    {
+        if(mask & (1u << m))
+        {
+            at += putVarint(out + at, zig[m]);
+        }
+    }
+    if(!tailSame)
+    {
+        const bool delta = b.tailLen == c.tailLen && bytesDelta(nullptr, b.tail, c.tail, c.tailLen) < c.tailLen;
+        at += putVarint(out + at, static_cast<za::U32>(c.tailLen) << 1 | (delta ? 1u : 0u));
+        if(delta)
+        {
+            za::U8 tmp[maxDeltaLen + maxDeltaLen / 8 + maxDeltaLen / 64]{};
+            sizebuf_t sb{};
+            sb.data = tmp;
+            sb.maxsize = static_cast<int>(sizeof(tmp));
+            bytesDelta(&sb, b.tail, c.tail, c.tailLen);
+            if(at + sb.cursize > fieldsMost)
+            {
+                return -1;
+            }
+            memcpy(out + at, tmp, static_cast<size_t>(sb.cursize));
+            at += sb.cursize;
+        }
+        else
+        {
+            if(at + c.tailLen > fieldsMost)
+            {
+                return -1;
+            }
+            memcpy(out + at, c.tail, static_cast<size_t>(c.tailLen));
+            at += c.tailLen;
+        }
+    }
+    return at;
+}
+
+// fieldsEncode's (`d`, at most `len` bytes) against `base` into `out` (fieldsMost): the update's length, -1 when malformed;
+// `used`: the bytes read.
+[[nodiscard]] int fieldsDecode(const za::U8* base, int baseLen, const za::U8* d, int len, unsigned pflags, za::U8* out, int& used)
+{
+    EntFields e;
+    if(!parseFields(base, baseLen, pflags, e))
+    {
+        return -1;
+    }
+    int at = 0;
+    za::U32 mask = 0, x = 0;
+    if(!getVarint(d, len, at, mask) || mask >= (maskBits << 1))
+    {
+        return -1;
+    }
+    if((mask & maskBits) && !(getVarint(d, len, at, x) && ((e.bits ^= x), true)))
+    {
+        return -1;
+    }
+    if(!(e.bits & U_SIGNAL))
+    {
+        return -1;
+    }
+    za::U32 old[wireFields];
+    memcpy(old, e.v, sizeof(old));
+    for(int m = 0; m < wireFields; m++)
+    {
+        const int f = fieldOrder[m];
+        const bool present = (e.bits & static_cast<za::U32>(wireBit[f])) != 0;
+        e.v[f] = present ? old[f] : 0;
+        if(!(mask & (1u << m)))
+        {
+            continue;
+        }
+        za::U32 zig = 0;
+        if(!present || !getVarint(d, len, at, zig))
+        {
+            return -1;
+        }
+        e.v[f] = fieldApply(old[f], zig, fieldSize(f, pflags));
+    }
+    za::U8 tail[maxDeltaLen];
+    if(mask & maskTail)
+    {
+        za::U32 head = 0;
+        if(!getVarint(d, len, at, head) || (head >> 1) > static_cast<za::U32>(maxDeltaLen))
+        {
+            return -1;
+        }
+        const int tl = static_cast<int>(head >> 1);
+        if(head & 1u)
+        {
+            if(tl != e.tailLen)
+            {
+                return -1;
+            }
+            memcpy(tail, e.tail, static_cast<size_t>(tl));
+            // (bytesDelta's layout, read from `d`)
+            const int groups = (tl + 7) / 8, tops = (groups + 7) / 8;
+            if(at + tops > len)
+            {
+                return -1;
+            }
+            const za::U8* top = d + at;
+            at += tops;
+            for(int g = 0; g < groups; g++)
+            {
+                if(!(top[g / 8] & (1 << (g % 8))))
+                {
+                    continue;
+                }
+                if(at >= len)
+                {
+                    return -1;
+                }
+                const int gm = d[at++];
+                for(int k = 0; k < 8; k++)
+                {
+                    if(!(gm & (1 << k)))
+                    {
+                        continue;
+                    }
+                    if(g * 8 + k >= tl || at >= len)
+                    {
+                        return -1;
+                    }
+                    tail[g * 8 + k] = d[at++];
+                }
+            }
+        }
+        else
+        {
+            if(at + tl > len)
+            {
+                return -1;
+            }
+            memcpy(tail, d + at, static_cast<size_t>(tl));
+            at += tl;
+        }
+        e.tail = tail;
+        e.tailLen = tl;
+    }
+    used = at;
+    return writeFields(e, pflags, out, fieldsMost);
+}
+
+// fieldsEncode's `size` bytes in fieldsBuf decode against `base` to `cur` exactly (else it is not sent: B12b's safety).
+[[nodiscard]] bool fieldsVerify(const za::U8* base, int baseLen, const za::U8* cur, int curLen, int size, unsigned pflags)
+{
+    int used = 0;
+    const int n = fieldsDecode(base, baseLen, fieldsBuf, size, pflags, fieldsCheck, used);
+    return n == curLen && used == size && memcmp(fieldsCheck, cur, static_cast<size_t>(n)) == 0;
+}
+
 } // namespace
 
 namespace
@@ -195,11 +560,12 @@ za::Vector<za::I32> byPrio;  // (... the entries in priority order)
 constexpr int headMost = 3;  // an entry's head: a key's step under 2^19
 za::Vector<int> poseEntries; // the client: the pose entries read of each entity (vr_net_bytes poses; the rate's priorities)
 za::Vector<float> poseDists; // ... and the sum of its distances from us at each (their mean: where it was meanwhile)
+long long entOps[4][2]{};    // the client: the entities' entries read by op (gone, whole, delta, fields): count, bytes
 
 } // namespace
 
-int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budget, Snapshot& sent, const float* prio,
-    za::U8* unsent, int soft)
+int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budget, Snapshot& sent, unsigned pflags,
+    const float* prio, za::U8* unsent, int soft)
 {
     sent.records.clear();
     sent.bytes.clear();
@@ -238,8 +604,14 @@ int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budge
             const int wholeSize = varintSize(static_cast<za::U32>(c->len)) + c->len;
             const int deltaSize = b->len == c->len && c->len <= maxDeltaLen ? bytesDelta(nullptr, base->data(*b), cur.data(*c), c->len)
                                                                             : wholeSize + 1;
-            e = deltaSize < wholeSize ? Entry{c->key, opDelta, deltaSize, static_cast<za::I32>(ci - 1)}
-                                      : Entry{c->key, opWhole, wholeSize, static_cast<za::I32>(ci - 1)};
+            // (an entity's update: by its fields too, when its decoding gives it back exactly; the smallest goes)
+            int fieldsSize = keyClass(c->key) == 1 ? fieldsEncode(base->data(*b), b->len, cur.data(*c), c->len, pflags, fieldsBuf) : -1;
+            fieldsSize = fieldsSize >= 0 && fieldsVerify(base->data(*b), b->len, cur.data(*c), c->len, fieldsSize, pflags) ? fieldsSize
+                                                                                                                      : wholeSize + 1;
+            const int ci1 = static_cast<za::I32>(ci - 1);
+            e = fieldsSize < deltaSize && fieldsSize < wholeSize ? Entry{c->key, opFields, fieldsSize, ci1}
+                : deltaSize < wholeSize                          ? Entry{c->key, opDelta, deltaSize, ci1}
+                                                                 : Entry{c->key, opWhole, wholeSize, ci1};
         }
         e.prio = e.ci < 0 ? INFINITY : prio ? prio[e.ci] : 0.f;
         need += headMost + e.size;
@@ -313,6 +685,11 @@ int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budge
         {
             bytesDelta(body, base->data(*b), cur.data(*c), c->len);
         }
+        else if(e.op == opFields)
+        {
+            const int n = fieldsEncode(base->data(*b), b->len, cur.data(*c), c->len, pflags, fieldsBuf);
+            SZ_Write(body, fieldsBuf, n); // (the size the first pass measured and checked)
+        }
         else if(e.op == opWhole)
         {
             netmove::writeVarint(body, static_cast<za::U32>(c->len));
@@ -332,7 +709,7 @@ int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budge
     return written;
 }
 
-bool decode(const Snapshot* base, int bodyLen, Snapshot& out, long long* tally)
+bool decode(const Snapshot* base, int bodyLen, Snapshot& out, unsigned pflags, long long* tally)
 {
     out.records.clear();
     out.bytes.clear();
@@ -344,14 +721,14 @@ bool decode(const Snapshot* base, int bodyLen, Snapshot& out, long long* tally)
     za::SizeT bi = 0;
     const za::SizeT bn = base ? base->records.size() : 0;
     int prevKey = -1;
-    int tallyClass = 0, tallyAt = msg_readcount;
+    int tallyClass = 0, tallyAt = msg_readcount, tallyOp = -1;
     while(msg_readcount < end)
     {
         // (a key's step is at most the last key + 1, from none: the predict record alone in a delta was refused
         // under a limit of 2 x avatarKey -- mp_loss's undecodable snapshots, B8b)
         const int entryAt = msg_readcount;
         za::U32 head;
-        if(!netmove::readVarint(head) || (head >> 2) == 0 || (head & 3u) > static_cast<za::U32>(opDelta) ||
+        if(!netmove::readVarint(head) || (head >> 2) == 0 ||
             (head >> 2) > static_cast<za::U32>(keyLimit) || prevKey + static_cast<int>(head >> 2) >= keyLimit)
         {
             return false;
@@ -362,7 +739,13 @@ bool decode(const Snapshot* base, int bodyLen, Snapshot& out, long long* tally)
         if(tally)
         {
             tally[tallyClass] += entryAt - tallyAt; // (the entry before: its bytes to its class)
+            if(tallyClass == 1 && tallyOp >= 0)
+            {
+                entOps[tallyOp][0]++;
+                entOps[tallyOp][1] += entryAt - tallyAt;
+            }
             tallyClass = keyClass(key);
+            tallyOp = static_cast<int>(head & 3u);
             tallyAt = entryAt;
             const int e = key - poseKey;
             if(op != opGone && e >= 0 && e < 65536)
@@ -411,6 +794,19 @@ bool decode(const Snapshot* base, int bodyLen, Snapshot& out, long long* tally)
         {
             return false;
         }
+        if(op == opFields)
+        {
+            int used = 0;
+            const int n = fieldsDecode(base->data(*b), b->len, net_message.data + msg_readcount, end - msg_readcount, pflags,
+                fieldsCheck, used);
+            if(n < 0)
+            {
+                return false;
+            }
+            out.add(key, fieldsCheck, n);
+            msg_readcount += used;
+            continue;
+        }
         const za::I32 at = static_cast<za::I32>(out.bytes.size());
         addFrom(out, *base, *b);
         if(!readBytesDelta(out.bytes.data() + at, b->len, end))
@@ -425,6 +821,11 @@ bool decode(const Snapshot* base, int bodyLen, Snapshot& out, long long* tally)
     if(tally)
     {
         tally[tallyClass] += msg_readcount - tallyAt;
+        if(tallyClass == 1 && tallyOp >= 0)
+        {
+            entOps[tallyOp][0]++;
+            entOps[tallyOp][1] += msg_readcount - tallyAt;
+        }
     }
     return msg_readcount == end && !msg_badread;
 }
@@ -654,7 +1055,7 @@ void serverEnd(sizebuf_t* msg)
         bl.prio[i] = keyClass(key) == 0 || keyClass(key) == 3 ? INFINITY
                                                               : weightOf(key, eye, fwd) * (1.f + (wi >= 0 ? s->waits[static_cast<za::SizeT>(wi)] : 0));
     }
-    encode(base, bl.cur, &body, room, sent, bl.prio.data(), bl.unsent.data(), za::min(budget, room));
+    encode(base, bl.cur, &body, room, sent, sv.protocolflags, bl.prio.data(), bl.unsent.data(), za::min(budget, room));
     int waited = 0;
     for(za::SizeT i = 0; i < n; i++)
     {
@@ -915,7 +1316,7 @@ void parse()
         ok = seq > dist && base->seq == seq - dist;
     }
     Snapshot& out = c.snaps[seq % ring];
-    ok = ok && decode(base, static_cast<int>(len), out, byteCounts.snap);
+    ok = ok && decode(base, static_cast<int>(len), out, cl.protocolflags, byteCounts.snap);
     msg_readcount = bodyStart + static_cast<int>(len);
     msg_badread = false;
     if(!ok)
@@ -994,11 +1395,13 @@ void noteCommand(int at)
 void bytesReset()
 {
     byteCounts = ByteCounts{};
+    memset(entOps, 0, sizeof(entOps));
 }
 
 // "mp_netbytes:" the bytes read since the connection (or `vr_net_bytes reset`): reliable and unreliable, the unreliable
 // by kind (the snapshot's entries by class: its player state, entities, avatars, walk state, poses; its header; the
-// poses, avatars and entities outside it; sounds, temp entities, the rest), then the three biggest of the rest.
+// poses, avatars and entities outside it; sounds, temp entities, the rest), then the three biggest of the rest, then the
+// snapshot's entity entries by op (ent_ops: gone, whole, byte by byte, by fields; each count/bytes).
 void bytesReport()
 {
     const ByteCounts& b = byteCounts;
@@ -1041,10 +1444,11 @@ void bytesReport()
     }
     Con_Printf("mp_netbytes: messages=%lld reliable=%lld unreliable=%lld snap=%lld snap_cd=%lld snap_ent=%lld snap_av=%lld "
                "snap_pred=%lld snap_pose=%lld snap_hdr=%lld pose=%lld avatar=%lld ent=%lld cd=%lld sound=%lld tent=%lld "
-               "rest=%lld top=%s%d:%lld,%s%d:%lld,%s%d:%lld\n",
+               "rest=%lld top=%s%d:%lld,%s%d:%lld,%s%d:%lld ent_ops=%lld/%lld,%lld/%lld,%lld/%lld,%lld/%lld\n",
         b.messages, b.reliable, b.unreliable, snap, b.snap[0], b.snap[1], b.snap[2], b.snap[3], b.snap[4],
         snap - snapEntries, pose, avatar, ent, cd, sound, tent, rest, top[0] >= 256 ? "q" : "", top[0] & 255, topN[0],
-        top[1] >= 256 ? "q" : "", top[1] & 255, topN[1], top[2] >= 256 ? "q" : "", top[2] & 255, topN[2]);
+        top[1] >= 256 ? "q" : "", top[1] & 255, topN[1], top[2] >= 256 ? "q" : "", top[2] & 255, topN[2], entOps[0][0], entOps[0][1],
+        entOps[1][0], entOps[1][1], entOps[2][0], entOps[2][1], entOps[3][0], entOps[3][1]);
 }
 
 bool interpActive()
@@ -1192,6 +1596,54 @@ struct SelftestScratch
     byte data[4096];
 };
 SelftestScratch selftestScratch;
+constexpr unsigned selftestFlags = PRFL_INT32COORD | PRFL_SHORTANGLE; // (Quake VR's server: PROTOCOL_RMQ's)
+
+// B12b: an entity's update as sv_main.c writes it (Quake VR's flags) into `out`: its length. `tail` bytes of Quake VR's
+// own after it (from `seed`).
+int entityUpdate(za::U8* out, int bits, int num, const float* o, const float* a, int frame, int lerp, int tail, int seed)
+{
+    sizebuf_t sb{};
+    sb.data = out;
+    sb.maxsize = 128;
+    bits |= num >= 256 ? U_LONGENTITY : 0;
+    bits |= bits >= 65536 ? U_EXTEND1 : 0;
+    bits |= bits >= 256 ? U_MOREBITS : 0;
+    MSG_WriteByte(&sb, (bits & 0xFF) | U_SIGNAL);
+    if(bits & U_MOREBITS)
+    {
+        MSG_WriteByte(&sb, (bits >> 8) & 0xFF);
+    }
+    if(bits & U_EXTEND1)
+    {
+        MSG_WriteByte(&sb, (bits >> 16) & 0xFF);
+    }
+    (bits & U_LONGENTITY) ? MSG_WriteShort(&sb, num) : MSG_WriteByte(&sb, num);
+    if(bits & U_FRAME)
+    {
+        MSG_WriteByte(&sb, frame);
+    }
+    const int ob[3] = {U_ORIGIN1, U_ORIGIN2, U_ORIGIN3}, ab[3] = {U_ANGLE1, U_ANGLE2, U_ANGLE3};
+    for(int i = 0; i < 3; i++)
+    {
+        if(bits & ob[i])
+        {
+            MSG_WriteCoord(&sb, o[i], selftestFlags);
+        }
+        if(bits & ab[i])
+        {
+            MSG_WriteAngle(&sb, a[i], selftestFlags);
+        }
+    }
+    if(bits & U_LERPFINISH)
+    {
+        MSG_WriteByte(&sb, lerp);
+    }
+    for(int k = 0; k < tail; k++)
+    {
+        MSG_WriteByte(&sb, (seed * 13 + k * 5) & 0xFF);
+    }
+    return sb.cursize;
+}
 
 // A snapshot of `n` records (keys 0, 1, 3, 5...), record i `len` bytes from `seed`.
 void fillSnapshot(Snapshot& s, int n, int len, int seed)
@@ -1235,11 +1687,11 @@ void fillSnapshot(Snapshot& s, int n, int len, int seed)
     sizebuf_t buf{};
     buf.data = t.data;
     buf.maxsize = sizeof(t.data);
-    encode(base, cur, &buf, budget, t.sent);
+    encode(base, cur, &buf, budget, t.sent, selftestFlags);
     bytes = buf.cursize;
     net_message = buf;
     MSG_BeginReading();
-    return decode(base, buf.cursize, t.read) && sameSnapshot(t.read, t.sent);
+    return decode(base, buf.cursize, t.read, selftestFlags) && sameSnapshot(t.read, t.sent);
 }
 
 } // namespace
@@ -1328,11 +1780,11 @@ void selftest_f()
         sizebuf_t buf{};
         buf.data = t.data;
         buf.maxsize = sizeof(t.data);
-        encode(&t.base, t.cur, &buf, 4096, t.sent, prio, unsent, 40);
+        encode(&t.base, t.cur, &buf, 4096, t.sent, selftestFlags, prio, unsent, 40);
         const int bytes = buf.cursize;
         net_message = buf;
         MSG_BeginReading();
-        bool rateOk = n <= 64 && decode(&t.base, buf.cursize, t.read) && sameSnapshot(t.read, t.sent);
+        bool rateOk = n <= 64 && decode(&t.base, buf.cursize, t.read, selftestFlags) && sameSnapshot(t.read, t.sent);
         int waited = 0;
         for(za::SizeT i = 0; i < n && i < 64; i++)
         {
@@ -1343,6 +1795,45 @@ void selftest_f()
                  memcmp(t.sent.data(t.sent.records[29]), t.base.data(t.base.records[29]), 4) == 0;
         check(rateOk, va("a rate's budget of 40 bytes: the player state and the highest priority sent, %d of %d waited (%d bytes)",
                            waited, static_cast<int>(n), bytes));
+    }
+    {
+        // B12b: entity updates by their fields. A grunt (300: a long number) and its weapon (301) stepping: origins,
+        // yaw, frame and lerp changed, the weapon's tail not; then the grunt's layout changed (its pitch now sent, its
+        // lerp not): read back the same, in fewer bytes than byte by byte (the delta of the same, measured by encode)
+        za::U8 u[4][128];
+        const float o0[3] = {-260.f, 62.f, 24.f}, o1[3] = {-252.5f, 66.f, 24.f}, a0[3] = {0.f, 90.f, 0.f}, a1[3] = {0.f, 97.f, 0.f};
+        const float wa0[3] = {10.f, 90.f, 5.f}, wa1[3] = {12.f, 96.f, 4.f};
+        const int gb = U_ORIGIN1 | U_ORIGIN2 | U_ORIGIN3 | U_ANGLE2 | U_FRAME | U_STEP | U_LERPFINISH;
+        const int wb = U_ORIGIN1 | U_ORIGIN2 | U_ORIGIN3 | U_ANGLE1 | U_ANGLE2 | U_ANGLE3;
+        const int g0 = entityUpdate(u[0], gb, 300, o0, a0, 12, 25, 0, 0);
+        const int w0 = entityUpdate(u[1], wb, 301, o0, wa0, 0, 0, 6, 1);
+        const int g1 = entityUpdate(u[2], gb, 300, o1, a1, 13, 21, 0, 0);
+        const int w1 = entityUpdate(u[3], wb, 301, o1, wa1, 0, 0, 6, 1);
+        t.base.clear();
+        t.base.add(300, u[0], g0);
+        t.base.add(301, u[1], w0);
+        t.cur.clear();
+        t.cur.add(300, u[2], g1);
+        t.cur.add(301, u[3], w1);
+        int fieldBytes = 0, byteBytes = 0;
+        bool ok = roundTrip(&t.base, t.cur, 4096, fieldBytes) && sameSnapshot(t.read, t.cur);
+        byteBytes = 2 * 2 + bytesDelta(nullptr, u[0], u[2], g0) + bytesDelta(nullptr, u[1], u[3], w0);
+        check(ok && fieldBytes < byteBytes,
+            va("a grunt and its weapon stepping, by their fields: read back the same in %d bytes (byte by byte: %d)", fieldBytes,
+                byteBytes));
+        const int g2 = entityUpdate(u[2], (gb | U_ANGLE1) & ~U_LERPFINISH, 300, o1, a1, 13, 0, 0, 0);
+        t.cur.clear();
+        t.cur.add(300, u[2], g2);
+        t.cur.add(301, u[3], w1);
+        int layoutBytes = 0;
+        ok = roundTrip(&t.base, t.cur, 4096, layoutBytes) && sameSnapshot(t.read, t.cur);
+        check(ok && layoutBytes < g2 + w1, va("the grunt's fields changed (a pitch sent, no lerp): read back the same in %d bytes "
+                                              "(whole: %d)", layoutBytes, g2 + w1 + 4));
+        // not an update (a record of an entity's key that is no update: no U_SIGNAL) and a truncated one: byte by byte
+        t.cur.bytes[t.cur.records[0].at] = 0x01;
+        int oddBytes = 0;
+        ok = roundTrip(&t.base, t.cur, 4096, oddBytes) && sameSnapshot(t.read, t.cur);
+        check(ok, va("a record that is no update: read back the same (%d bytes)", oddBytes));
     }
     net_message = savedMsg;
     msg_readcount = savedCount;
