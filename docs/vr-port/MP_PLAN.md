@@ -2214,6 +2214,65 @@ Not done: the poses by their fields and trend. With the fragments budgeted, comb
 deltas are the largest kind (9.5-12.2 KB/s): the first step if the budget tightens or the storms grow. Not run here (the
 coordinator's): the full suite's flakes are listed in its results below.
 
+### B10v results: proximity voice chat, Opus and RNNoise (2026-11-15, dev no-LTO build, loopback)
+
+(The phase table's voice row, "B10"; "v" keeps it apart from B10's player-to-player features.)
+
+- **Vendored** (his approval, 2026-11-15): Opus 1.6.1 (the official release tarball, SHA-256 `6ffcb593...572411a1`,
+  matching xiph's SHA256SUMS.txt) as its float build without the optional DNN parts or SIMD, and RNNoise 0.2 (the
+  GitHub release's tarball, `90fce4b0...2b11c0d37`, its model built in: no separate download), under
+  `Quake/vr/external/opus` and `rnnoise` (unchanged sources, a README each with the version, hash and what was kept;
+  BSD-3 licences in CREDITS.md and shipped as `licenses/opus.txt`, `licenses/rnnoise.txt`). Static libraries always
+  optimised: `opus.vcxproj`, `rnnoise.vcxproj` (in the solution), `vr.cmake` (`qvr_opus`, `qvr_rnnoise`), `vr.mk`.
+  RNNoise's release lacks the `os_support.h` its plain-C and NEON paths include: Opus's is on its include path. The
+  Quest: all 147 sources compiled with the NDK's clang for arm64 (NEON) and a program calling both linked
+  (`scratch/voice_android.sh`; agent/quest's CMake takes them from vr.cmake).
+- **Sending** (`vr_voicechat.cpp`): in a multiplayer game with `vr_voicechat` 1 (default), the microphone Voice Notes
+  uses (`vr_note_device`, opened on a worker, 48 kHz mono; never with `-nomic`, which the harness passes), RNNoise in
+  10 ms blocks (`vr_voicechat_denoise` 1; its voice probability is the voice activation's, `vr_voicechat_vad` 0.6),
+  Opus VoIP at `vr_voicechat_bitrate` 24000 in 20 ms frames, in-band FEC at 10% expected loss. Push-to-talk
+  (`vr_voicechat_mode` 0, default): `+vr_voicechat`, or the off hand's upper button at the mouth when Voice Notes are off
+  (with them on, that gesture stays the notes'); voice activation (1): a frame before the voice's onset and 0.4 s after
+  it. A talk spurt's first frame is flagged and its end sent as an empty marker. Frames go after the move
+  (`QVR_CLC_VOICE` 17), each in two datagrams (this and the next): NetQuake drops an unreliable datagram that arrives
+  after a newer one. The host's own player goes the same way, through his loopback client (B9's rule).
+- **Relaying** (`vr_voicerelay.cpp`): the server keeps each speaker's last 16 frames (newer sequence numbers only: the
+  copies dropped; at most 60 a second taken) and writes the others' into each client's datagram before his snapshot
+  (`QVR_SVC_VOICE` 48), new frames first, then the last datagram's again while his budget lasts:
+  `vr_net_voice_bytes` 8000 B/s, at most half his `vr_net_rate`, a quarter of the datagram; frames waiting over 0.3 s
+  are dropped. `QVR_NET_VERSION` 33. `vr_voicechat_relay` (server) prints each slot's counts.
+- **Receiving**: per speaker, a jitter buffer of 32 frames by sequence number; a spurt starts after 40 ms + 3 x the
+  measured jitter (RFC 3550's, at most 200 ms); a frame missing at its turn is recovered from the next one's FEC, else
+  concealed (Opus PLC, at most 8 in a row); a frame that comes late adds 20 ms of concealment (the delay raised, at most
+  to 200 ms); copies are counted, not played. Decoded 40 ms ahead of the mix's read position into a 2 s looping sound
+  (`qvr_voicechat/<slot>`, made in memory, 16-bit at the mix's rate) started on the speaker's entity and moved to his
+  head each frame (his avatar's head): Quake's and Steam Audio's spatialisers both place it, attenuated by
+  `vr_voicechat_attenuation` 0.5 (silent at 2000 units); `vr_voicechat_radio` 1 full volume anywhere. Without sound
+  (-nosound) the same play-out runs on the clock (the tests' path). `vr_voicechat_volume`, per player
+  `vr_voicechat_player_volume <n|name> <0-4>`, `vr_voicechat_mute <n|name> [0|1]` (by name: a new player in his slot
+  starts unmuted), `vr_voicechat_players`. `((o))` floats over a talking player's head and `TALKING` sits low in your
+  view while you send (`vr_voicechat_indicator`).
+- **Single player**: nothing runs (no capture or sends without `cl.maxclients > 1`); the only shared change is
+  `voicenotes::deviceBusy()` (the meter waits while voice chat's microphone opens: SDL opens one device at a time).
+- **Menu**: Debug > Reports, the Network rows: Voice Chat, Voice Activation, its threshold, Noise Suppression,
+  Microphone Gain, Volume, Fade With Distance, Radio, Talking Indicator, Players, Report, Self-Test, Voice Budget.
+
+Tests:
+- `vr_voicechat_selftest` 13/0: Opus loopback of a voiced-like signal (180 Hz and harmonics, vibrato, syllables) at
+  22.4 kbit/s, 26-80 bytes a frame, SNR 9.2 dB (bound 6: SILK codes the spectrum, not the waveform), an encode 0.08 ms;
+  a lost frame from the next one's FEC at 10.1 dB; five concealed frames bounded; RNNoise: white noise down 80 dB, its
+  voice probability on it 0.00, a block 0.09 ms; the jitter buffer: 100 frames in swapped pairs, 10 lost: 90 played,
+  10 recovered, none late, the spurt ended at its marker.
+- `mp_test.py voice` (a 440 Hz tone in place of A's microphone, `vr_voicechat_test_tone`): 20/0 dedicated, 19/0
+  `--listen` (A hosts). First frame heard at B 109-131 ms after A captured it (bound 250); 152 of 153 frames played,
+  none late; the tone's share 1.000 at 440.0 Hz; gain 0.952 at 96 units, 0.649 at 702, 1.000 with the radio; his
+  volume 0.5 -> 0.488; muted: frames come, none played; B's voice bytes 6.0 KB/s (a frame and its copy) under 8000,
+  1.55 KB/s under a 1500 budget (frames dropped), 3.99 KB/s under `vr_net_rate` 8000 (half: 4000); push-to-talk released
+  ends the spurt; voice activation sends the loud tone and stops on silence; RNNoise on: frames flow; no microphone:
+  told, nothing opened, not sending. With B 50 ms away, 30 ms jitter and 5% loss each way (`mp_voice_lossy`, the jitter
+  and loss from after his join): 196 ms, 132 played, 17 recovered by FEC, 4 concealed of 153, none late, the tone's share
+  0.69 (before the copies: 61 of 153 lost to NetQuake's overtaken-datagram drop).
+
 ## For him (B11b)
 
 **His answer (2026-11-16): on.** `vr_pmove_own` defaults to 1 since B11c part 2; 0 stays as the fallback (Debug >
@@ -2284,6 +2343,8 @@ QuakeC's PlayerPreThink parts. Exactly what would change:
   (QuakeWorld's `qport` is the full answer: B7, with the snapshot protocol).
 - Voice chat (B10) may vendor Opus and RNNoise (his approval, 2026-11-15: official sources, version and sha256
   recorded, their BSD licences in CREDITS).
+- Voice chat's push-to-talk gesture (B10v) is the Voice Notes' (the off hand's upper button at the mouth) only while
+  Voice Notes are off: his notes keep it. No key is bound to `+vr_voicechat` by default.
 - Another player's climbing (B5c) is sent as his server-side holds (the lip and the face's way), not his feet: each
   client poses his feet as it poses its own (its footholds, or hanging), one code path, 7 bytes a holding hand.
 - Other players' bodies (B2d) are posed by the local body's own code with its per-frame state swapped per player, rather
@@ -2303,4 +2364,4 @@ QuakeC's PlayerPreThink parts. Exactly what would change:
 - The interpolation buffer (B7b) leaves brush models and stepping monsters on NetQuake's lerp: the player's own entity
   is not delayed (no prediction until B8), and a lift he rides must stay in step with him.
 
-Next phase: B12d -- the poses by their fields and trend (`mp_armed`'s largest kind in combat, 9.5-12.2 KB/s; only if a budget needs it), else B10's voice chat (approved 2026-11-15: Opus and RNNoise vendored from their official sources, version and sha256 recorded, BSD licences into CREDITS; needs a worker allowed to fetch them or the sources placed in the tree), then B11 (deathmatch and bots).
+Next phase: B12d -- the poses by their fields and trend (`mp_armed`'s largest kind in combat, 9.5-12.2 KB/s; only if a budget needs it), then B11 (deathmatch and bots). Voice chat (B10v) is in: its open items are his ears in VR (a real microphone and the spatial mixers, untested headless), a menu page of its own with per-player rows, and NetQuake's join stalling through heavy reordering (seen with 30 ms jitter and 5% loss: signon keepalives only).

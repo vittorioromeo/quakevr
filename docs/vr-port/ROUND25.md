@@ -3933,3 +3933,14 @@ His flat-screen notes (2026-11-16) and the coordinator's disarm-sound item.
   place only from a changed record). `mp_armed` combat 29-33 KB/s with storms (was up to 47).
 - **Rate starvation fixed**: under `vr_net_rate` the highest priority may borrow from the bucket (a near humanoid's
   large pose never went). `vr_net_classes` (server): entity bytes by classname. Details: MP_PLAN.md, "B12c results".
+
+## Voice chat in multiplayer (agent/mp, B10v)
+
+- **Proximity voice chat** in multiplayer games (`vr_voicechat` 1): the Voice Notes microphone, RNNoise's noise
+  suppression, Opus at 24 kbit/s in 20 ms frames, push-to-talk (`+vr_voicechat`, or the off hand's upper button at the
+  mouth with Voice Notes off) or voice activation (`vr_voicechat_mode` 1). Voices play at each player's head (attenuated;
+  `vr_voicechat_radio` full volume), with a jitter buffer, FEC and concealment; per-player volume and mute
+  (`vr_voicechat_player_volume`, `vr_voicechat_mute`, `vr_voicechat_players`); `((o))` over a talking player.
+- **Server**: each client's voice within `vr_net_voice_bytes` (8000 B/s, at most half his `vr_net_rate`).
+- **Libraries**: Opus 1.6.1 and RNNoise 0.2 vendored from their official releases (Quake/vr/external, CREDITS.md,
+  `licenses/` in the package). Single player runs none of it. Details and numbers: MP_PLAN.md, "B10v results".

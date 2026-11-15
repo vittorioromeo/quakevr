@@ -301,7 +301,9 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
     </ProjectReference>
   </ItemGroup>
   <!-- Opus and RNNoise (Quake/vr/external/opus/README.md, rnnoise/README.md): voice chat's codec and noise suppressor,
-       static libraries always optimised (opus.vcxproj, rnnoise.vcxproj). -->
+       static libraries always optimised (opus.vcxproj, rnnoise.vcxproj). The music's libopus-0.dll stays, loaded by
+       libopusfile-0.dll: ironwail.vcxproj no longer links its import library (nothing of the engine's calls it; its
+       symbols and these clashed under ThinLTO). -->
   <ItemGroup>
     <ProjectReference Include="opus.vcxproj">
       <Project>{AE396E8A-EB43-482D-B8EE-5392D3561319}</Project>
