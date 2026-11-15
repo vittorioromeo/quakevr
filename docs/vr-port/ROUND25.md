@@ -3311,3 +3311,14 @@ His flat-screen notes (2026-11-16) and the coordinator's disarm-sound item.
 - Cherry-picked 502d2e13c (agent/mp): command buttons (buttonEffect 3) are pressed only by a player or what he threw; `vr_systems_test 17` passes (needs `developer 1`, map vrtesthall). Other buttons are not buttonEffect 3, unaffected.
 - Scenes classic_drops and magthrow gave "Grunt Burst Rifle" (renamed "Burst Rifle" by flat1116): fixed, plus the comments in pose_*_guns. The saves keep the old netname (harmless). `scenario_check`: 141 run, 0 failed.
 - flattoolgun_test 11/0; `vr_run_armed_check` 13 PASS / 0 FAIL (run mutators set before `vr_run start`).
+
+## trailertitles (agent/trailertitles)
+
+- `Misc/trailer/titles/`: the QVR Feature Title Fusion macro (Pirata One title, Cinzel subtitle, grimy red rule, soft
+  scrim; procedural blood-ink burn-in with drips and torch flicker, ember burn-out; Corner, Accent, Intensity,
+  In/Out/Hold, sizes, margins published), `install_titles.py` (template, per-user fonts, Workspace > Scripts
+  launcher), `titles.txt` + `apply_titles.py`, README. A section starts at the timeline marker named like it; each
+  title is its own small timeline nested on the "QVR Titles" track (the API can only insert titles on V1, rippling);
+  reruns update in place (`--dry-run`, `--rebuild`, `--check`).
+- Checked in Resolve Studio 21.1 (project "QVR Titles Preview"): two titles rendered at 1080p60, top-right and
+  bottom-left; a rerun reports "updated" for both, no duplicates. Not checked: 4K, IM Fell English.
