@@ -279,6 +279,12 @@ void CL_KeepaliveMessage (void)
 		return;
 	lastmsg = time;
 
+	// QVR: not while a reliable message is in flight (it keeps the connection alive itself): a send then restarted the
+	// reliable window past the unacked chunks (net_dgrm.c sendChunkBase), and the resend's offsets wrapped (a crash of a
+	// lagged client loading a big map: mp_predictclimb, MP_PLAN B12)
+	if (!NET_CanSendMessage (cls.netcon))
+		return;
+
 // write out a nop
 	Con_Printf ("--> client to server keepalive\n");
 
