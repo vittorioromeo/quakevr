@@ -130,7 +130,7 @@ constexpr presetcore::Row questRows[] = {
     // The eyes' pixels: the GPU's biggest lever (every pass scales with it)
     {&vr_render_scale,                {"0.9",    "0.75",   "0.65"}},
     {&vr_dynres,                      {"1",      "1",      "1"}},
-    {&vr_dynres_min,                  {"0.65",   "0.6",    "0.55"}},
+    {&vr_dynres_min,                  {"0.55",   "0.5",    "0.5"}},   // fights sit at the floor (C4o: 0.65 -> 0.55, frames over 1.5 periods 7-17% -> 5-7%, a big light's world -2.5 ms)
     {&vr_upscale,                     {"0",      "0",      "0"}},     // bilinear: no full-size pass
     {&vid_fsaa,                       {"0",      "0",      "0"}},     // off: 2x cost the Quest 3 ~100 ms a frame (C4e: e1m1 138 -> 41 ms; the float scene's MSAA resolved through memory, not on chip)
     {&vr_taa,                         {"0",      "0",      "0"}},     // its history reads and writes: bandwidth
