@@ -38,7 +38,7 @@ spawnarmed monster_vr_enforcer 4 0 180 0
 spawnarmed monster_vr_enforcer 5 0 180 56
 # Widowmaker (AD)
 spawnarmed monster_vr_enforcer 102 0 180 112
-# Grunt's Shotgun
+# Burst Rifle
 spawnarmed monster_vr_enforcer 15 0 180 168
 # Enforcer's Laser Rifle
 spawnarmed monster_vr_enforcer 16 0 180 224

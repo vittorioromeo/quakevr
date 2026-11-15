@@ -1501,6 +1501,7 @@ float cvarh_vr_pickup_scale;
 float cvarh_vr_pickup_test;
 float cvarh_vr_player_disarm;
 float cvarh_vr_player_disarm_chance;
+float cvarh_vr_player_disarm_sound;
 float cvarh_vr_player_plates;
 float cvarh_vr_player_plates_morph_time;
 float cvarh_vr_poise_chances;
@@ -3600,6 +3601,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_pickup_test = VR_CVar_Make("vr_pickup_test");
     cvarh_vr_player_disarm = VR_CVar_Make("vr_player_disarm");
     cvarh_vr_player_disarm_chance = VR_CVar_Make("vr_player_disarm_chance");
+    cvarh_vr_player_disarm_sound = VR_CVar_Make("vr_player_disarm_sound");
     cvarh_vr_player_plates = VR_CVar_Make("vr_player_plates");
     cvarh_vr_player_plates_morph_time = VR_CVar_Make("vr_player_plates_morph_time");
     cvarh_vr_poise_chances = VR_CVar_Make("vr_poise_chances");

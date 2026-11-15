@@ -203,6 +203,7 @@ void resetFlatKeys()
         row(opt::vr_flat_key_shove),
         row(opt::vr_flat_key_punch),
         row(opt::vr_flat_key_reload),
+        row(opt::vr_flat_key_ammo),
         row(opt::vr_flat_key_drop),
         row(opt::vr_flat_key_grenade),
         row(opt::vr_flat_key_bullettime),
