@@ -18,6 +18,8 @@ namespace qvr::pmove
 struct Mantle;
 struct Hang;
 struct HangSums;
+struct Body;
+struct Input;
 }
 
 namespace qvr::climb
@@ -83,6 +85,45 @@ void mantleMoved(edict_t* ent, const pmove::Mantle& m, bool done);
 // climb mantles (or stands, at its end); else the frame's part, single player's too: kept within reach, the owed
 // settled, the reach checked (out of reach: he falls), the no-room buzz, the stamina.
 void hangMoved(edict_t* ent, const pmove::Hang& h, const pmove::HangSums& s, const pmove::Mantle& m);
+
+// The take of a hold (MP B8j part 2): a pressed grip looking for one, run by single player's frame and by a remote
+// client's moves one by one (the server's, VR_PredictPhysics, and his replay's: one code path, the same numbers where
+// the two see the same world).
+// What the press remembers: pressed at the last move (a press's edge takes), and how long ago a press in the air found
+// no hold (it keeps looking while it stays pressed, vr_climb_air_grab_time; -1: none).
+struct TakeMemory
+{
+    bool pressedLast[2]{false, false};
+    float missAge[2]{-1.f, -1.f};
+};
+// What else decides a take: the server's, once a frame (and with a remote client's state, for his replay).
+struct TakeRules
+{
+    bool enabled{false};             // climbing on, a walking player alive (the hands tracked: each move's own)
+    bool tired{false};               // too little stamina for a new hang (a hand joining the other is let)
+    bool busy[2]{false, false};      // the hand holds something (a weapon, a carried object, a force grab)
+    unsigned holster[2]{0u, 0u};     // the hotspots where a holster wins over a hold (a bit each): standing, hanging
+    float noGrabLeft{0.f};           // seconds before a new hold may be taken (after letting go, or a mantle's end)
+    float airGrabTime{0.f};          // vr_climb_air_grab_time
+    float leniency{0.f}, leniencyAir{0.f}; // the search's radius round the hand (units): on the ground, in the air
+    float minHeight{0.f}, propMinHeight{0.f}; // vr_climb_min_height, vr_climb_prop_min_height
+    // The hang's box and the mantle's rules (pmove::Hang's: a hold taken in a move hangs the next moves).
+    float minsZ{-24.f}, maxsX{16.f}, maxsY{16.f}, mantleTime{0.f}, mantleHeight{0.f}, mantleSlope{0.f};
+};
+// The regrab delay (seconds without new holds after letting go of everything or a mantle's end).
+inline constexpr float regrabDelay = 0.4f;
+// Server: whether `ent`'s holds are taken in his moves (a remote client's moves one by one: VR_PredictWalks; not while
+// a hold that moves runs his frame's hang).
+[[nodiscard]] bool takesInMoves(edict_t* ent);
+// Server: `ent`'s take rules now and its press memory -> false: no climber.
+bool takeState(edict_t* ent, TakeRules& r, TakeMemory& m);
+// Server: one of `ent`'s moves' takes, after its step (`b` the body the move left, stored in the edict; `in` the move;
+// `r` the frame's rules, its noGrabLeft counted down) -> 0 none; 1 a hold on the world taken (b.hang: the next moves
+// hang); 2 a hold that moves taken (his frame's hang from the next frame: the frame's moves stop here).
+int moveTake(edict_t* ent, pmove::Body& b, TakeRules& r, const pmove::Input& in);
+// Client (a remote client's replay, MP B8j part 2): the same take on the world alone, his replayed body `b` (a hold
+// taken: b.hang), `m` and `r` the state's, kept through the moves.
+void replayTake(pmove::Body& b, TakeMemory& m, TakeRules& r, const pmove::Input& in);
 
 // Server: the player's holds as stats (STAT_QVR_CLIMB*), for the drawn hands.
 void calcStats(edict_t* ent, int* statsi);

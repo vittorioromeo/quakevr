@@ -3375,7 +3375,8 @@ def trans_check(s, what, pr):
 
 def predict_climb(s):
     """MP_PLAN B8h: climbing predicted, on vrclimb (one start: A moved off it before B joins), B 150 ms behind the
-    server each way: the mantle (predict_mantle). `--part mantle`: it alone, `--repeat` times."""
+    server each way: the hang (predict_hang), the mantle (predict_mantle), a hold taken in the air (predict_airgrab,
+    B8j part 2). `--part hang|mantle|airgrab`: one alone, `--repeat` times."""
     srv, a, b, ea, eb = join(s, lag=PREDICT_LAG, level="vrclimb",
                              first=lambda srv, a, ea: put_at(srv, a, ea, CLIMB_WATCH, CLIMB_WATCH_YAW))
     a.cmd("name A")
@@ -3389,6 +3390,8 @@ def predict_climb(s):
             predict_hang(s, srv, a, b, ea, eb)
         if PART in ("", "mantle"):
             predict_mantle(s, srv, a, b, ea, eb)
+        if PART in ("", "airgrab"):
+            predict_airgrab(s, srv, a, b, ea, eb)
 
 
 def hang_pull_play():
@@ -3434,6 +3437,56 @@ def predict_hang(s, srv, a, b, ea, eb):
     gap = dist(own, sv) if own and sv else 99.0
     s.check("let go, on the floor at rest B stands where the server has him (within 1 unit)",
             gap <= 1.0 and bool(sv) and abs(sv[2] - start[2]) <= 2.0,
+            "B draws himself at %s, the server has him at %s (he started at %s)" % (own, sv, start))
+    b.cmd("vr_mock_play; -graboff; -grabmain")
+
+
+AIRGRAB_Y, AIRGRAB_FWD = HOLD_Y - 0.55, -0.52  # (under the lip standing, in front of the face: passed on the way up, the
+# feet still vr_climb_min_height under the top)
+
+
+def airgrab_play():
+    """A jump at vrclimb's ledge, both hands held under its lip in front of the face, the grips pressed on the way up
+    (no hold there yet: the press keeps looking in the air, vr_climb_air_grab_time) and taken as the hands pass the lip;
+    held still, let go at 3 s (he falls to the floor)."""
+    lines = list(CLIMB_LEAN)
+    for h, x in (("off", -0.12), ("main", 0.12)):
+        at = "%s %.2f %.3f %.2f 70 0 0" % (h, x, AIRGRAB_Y, AIRGRAB_FWD)
+        lines += ["0.000 %s %.2f 1.1 -0.2 70 0 0" % (h, x * 2), "0.600 " + at, "4.000 " + at]
+    return lines + ["1.000 cmd +jump", "1.020 cmd +graboff", "1.020 cmd +grabmain", "1.100 cmd -jump",
+                    "3.000 cmd -graboff", "3.000 cmd -grabmain"]
+
+
+def predict_airgrab(s, srv, a, b, ea, eb):
+    """MP_PLAN B8j part 2: a hold taken in the air predicted. On vrclimb B (150 ms behind each way) jumps at the ledge,
+    his grips pressed on the way up under the lip, and takes it as his hands pass it: the take runs in each move on the
+    server (climb::moveTake: the hold search, the press's memory, the take's rules) and in his replay (climb::replayTake:
+    the same search on the world's ledge map, built from his own BSP), so the take's state is no correction (`trans_max`
+    under a unit, where it was the fall since, a round trip's); then he hangs, lets go and falls."""
+    b.cmd("vr_mock_play; -graboff; -grabmain; vr_mock_hand head")
+    start = put_at(srv, b, eb, CLIMB_SPOT, 0)
+    b.quiet(r"mp_predict_corr: ", 1.0, 20, "B settled at the wall")
+    since, since_b = srv.mark(), b.mark()
+    b.cmd("vr_mp_predict_report reset")
+    play(s, b, "airgrab", airgrab_play())
+    pr = predict_segment(s, b, "taking the ledge in the air", "", 72, ("", "", "", "", ""), reset=False)
+    s.metric("b_predict_airgrab", pr)
+    held = wait_quietly(srv, r"climb: .* hand holds at .* from \(", 1, since, "the server's hold")
+    m = re.search(r"from \(([-\d.]+) ([-\d.]+) ([-\d.]+)\)", held[1]) if held else None
+    took_z = float(m.group(3)) if m else None
+    s.check("B took the ledge in the air (the server's hold taken with his body off the floor: 4 units up at least)",
+            took_z is not None and took_z >= CLIMB_SPOT[2] + 4.0,
+            "%s (he stood at %s)" % (held[1].strip() if held else "no hold line", start))
+    replayed = wait_quietly(b, r"mp_predict_take: replay", 1, since_b, "B's replay's take")
+    s.check("B's replay took it too (climb::replayTake on his own ledge map)", bool(replayed),
+            replayed[1].strip() if replayed else "no take in his replay")
+    predict_corr_check(s, "taking the ledge in the air", pr)
+    trans_check(s, "the hold's take in the air", pr)
+    sv = org_of(status(srv), "mp_client", "slot", eb - 1)
+    own = org_of(status(b), "mp_player", "self", 1)
+    gap = dist(own, sv) if own and sv else 99.0
+    s.check("let go, on the floor at rest B stands where the server has him (within 1 unit)",
+            gap <= 1.0 and bool(sv) and abs(sv[2] - CLIMB_SPOT[2]) <= 2.0,
             "B draws himself at %s, the server has him at %s (he started at %s)" % (own, sv, start))
     b.cmd("vr_mock_play; -graboff; -grabmain")
 
@@ -3659,8 +3712,8 @@ def main():
     ap.add_argument("--jitter", type=float, default=0.0, help="client B's delay varies by this much, ms")
     ap.add_argument("--loss", type=float, default=0.0, help="client B's game packet loss, 0..1, each way")
     ap.add_argument("--reset-autoexec", action="store_true", help="empty <base>/id1/autoexec.cfg first")
-    ap.add_argument("--part", default="", choices=["", "lift", "waterjump", "swim", "crawl", "hang", "mantle", "give", "use"],
-                    help="predict: only this segment (traced with vr_mp_watch 1; --watch 2); predictclimb: hang or mantle; disarm: give or use, the rounds alone")
+    ap.add_argument("--part", default="", choices=["", "lift", "waterjump", "swim", "crawl", "hang", "mantle", "airgrab", "give", "use"],
+                    help="predict: only this segment (traced with vr_mp_watch 1; --watch 2); predictclimb: hang, mantle or airgrab; disarm: give or use, the rounds alone")
     ap.add_argument("--repeat", type=int, default=1, help="predict --part: takes in one run (lift: one)")
     ap.add_argument("--watch", type=int, default=1, help="predict --part: vr_mp_watch on the server and B (3: corrections over 0.05 traced)")
     args = ap.parse_args()

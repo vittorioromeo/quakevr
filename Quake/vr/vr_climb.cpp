@@ -195,7 +195,7 @@ constexpr int HS_GRENADE_POUCH = 11;
 constexpr int HS_AMMO_POUCH = 12;
 
 using ledges::holdInset;              // the hold (the palm's middle) is this far behind the lip (vr_ledges.hpp)
-constexpr float regrabDelay = 0.4f;   // seconds without new holds after letting go of everything or mantling
+using qvr::climb::regrabDelay;      // seconds without new holds after letting go of everything or mantling (vr_climb.hpp)
 // (The body follows the hands at pmove::hangMaxSpeed units a second at most, and stays within pmove::hangMaxReach
 // units, horizontally, of each hold: vr_pmove.hpp, the hang's steps.)
 // (A mantle's pull down, its search's retry and the top it stands on: pmove::mantlePull, mantleRetry, minFooting.)
@@ -241,6 +241,27 @@ int traceCount = 0;
 [[nodiscard]] trace_t traceLine(const glm::vec3& start, const glm::vec3& end, edict_t* pass)
 {
     return traceBox(start, glm::vec3{0.f}, glm::vec3{0.f}, end, MOVE_NOMONSTERS, pass);
+}
+
+// Who looks for a hold (findHold; MP B8j part 2): the server's player (`player`: the world, the brush models and props
+// round the hand, the ladders; his edict's lines) or a remote client's replay (`body`: the world alone, its own lines:
+// the world's hull 0 and the brush models, as MOVE_NOMONSTERS), the body at `origin`, its feet at `feet`.
+struct Seeker
+{
+    edict_t* player{nullptr};
+    pmove::Body* body{nullptr};
+    glm::vec3 origin{0.f};
+    float feet{0.f};
+
+    [[nodiscard]] trace_t line(const glm::vec3& a, const glm::vec3& b) const
+    {
+        return player ? traceLine(a, b, player) : body->line(&a.x, &b.x);
+    }
+};
+
+[[nodiscard]] Seeker seekerOf(edict_t* ent)
+{
+    return Seeker{ent, nullptr, vec(ent->v.origin), ent->v.origin[2] + ent->v.mins[2]};
 }
 
 // The player's box swept from `start` to `end`.
@@ -389,9 +410,9 @@ struct Candidate
     }
 };
 
-[[nodiscard]] glm::vec2 towardsBody(edict_t* player, const glm::vec3& hand)
+[[nodiscard]] glm::vec2 towardsBody(const Seeker& s, const glm::vec3& hand)
 {
-    const glm::vec2 d{player->v.origin[0] - hand.x, player->v.origin[1] - hand.y};
+    const glm::vec2 d{s.origin.x - hand.x, s.origin.y - hand.y};
     return glm::length(d) >= 1.f ? glm::normalize(d) : glm::vec2{0.f};
 }
 
@@ -458,10 +479,11 @@ struct LenientStats
 
 // The ledges the hand at `hand` is within `radius` of being at (see the top of the file), in the world and the brush
 // models round it (`movers`: those, SOLID_BSP, their boxes near).
-void gather(edict_t* player, const glm::vec3& hand, float radius, za::Vector<Candidate>& out, za::Vector<edict_t*>& movers,
+void gather(const Seeker& s, const glm::vec3& hand, float radius, za::Vector<Candidate>& out, za::Vector<edict_t*>& movers,
     LenientStats& st)
 {
-    const glm::vec2 toBody = towardsBody(player, hand);
+    edict_t* const player = s.player;
+    const glm::vec2 toBody = towardsBody(s, hand);
     const Touch k = touch();
     const glm::vec3 reach{radius + za::max(k.in, k.sink) + 1.f}; // the furthest a hand at a ledge is from its lip
     const glm::vec3 lo = hand - reach, hi = hand + reach;
@@ -479,9 +501,13 @@ void gather(edict_t* player, const glm::vec3& hand, float radius, za::Vector<Can
             }
         }
     };
-    if(const ledges::Map* world = ledges::of(sv.worldmodel))
+    if(const ledges::Map* world = ledges::world())
     {
         from(*world, nullptr, glm::vec3{0.f});
+    }
+    if(!player)
+    {
+        return; // (a replay's: the world alone)
     }
     za::Vector<edict_t*>& list = scratch.areaEdicts;
     list.resize(static_cast<size_t>(za::max(1, qcvm->num_edicts)));
@@ -549,7 +575,7 @@ enum class Check
 //   over the lip (a hand under the lip reaches up past it; no fence between it and the face);
 // - a lenient hold: in sight of the hand (a line from it, or from the head for a hand inside a wall, to just over the
 //   lip: no grabbing through a wall).
-[[nodiscard]] Check check(edict_t* player, const Candidate& c, const glm::vec3& at, bool lenient, const glm::vec3& hand,
+[[nodiscard]] Check check(const Seeker& s, const Candidate& c, const glm::vec3& at, bool lenient, const glm::vec3& hand,
     const glm::vec3& headPos, const za::Vector<edict_t*>& movers)
 {
     const ledges::Edge& e = c.ledge();
@@ -558,7 +584,7 @@ enum class Check
     const float top = c.place.top + c.offset.z;
     // (A prop's ledge: the props' shapes too, its own among them: another prop on it, under the lip, in the way.)
     const auto clear = [&](const glm::vec3& a, const glm::vec3& b) {
-        const trace_t t = traceLine(a, b, player);
+        const trace_t t = s.line(a, b);
         return t.fraction >= 1.f && !t.startsolid && !(c.prop && box3d::climbRay(a, b));
     };
     const glm::vec3 onTop{hold.x, hold.y, top + 2.f};
@@ -595,7 +621,7 @@ enum class Check
     }
     if(lenient)
     {
-        const bool handInWall = traceLine(hand, hand, player).startsolid;
+        const bool handInWall = s.line(hand, hand).startsolid;
         const glm::vec3 lip = glm::vec3{hold.x, hold.y, top + 1.f} + e.out * (ledges::holdInset + 1.f);
         if(!clear(handInWall ? headPos : hand, lip))
         {
@@ -803,7 +829,7 @@ constexpr float ladderRungDepth = 32.f;
     const int ofs = progs::fields().vr_climb_ladder;
     if(ofs < 0 || vr_climb_ladders.value == 0.f) { return za::nullOpt; }
     const Touch k = touch();
-    const glm::vec2 toBody = towardsBody(player, hand);
+    const glm::vec2 toBody = towardsBody(seekerOf(player), hand);
     const glm::vec3 out{toBody.x, toBody.y, 0.f}, up{0.f, 0.f, 1.f};
     for(int i = 1; i < qcvm->num_edicts; ++i)
     {
@@ -846,18 +872,18 @@ constexpr float ladderRungDepth = 32.f;
     return za::nullOpt;
 }
 
-[[nodiscard]] za::Optional<Ledge> findHold(edict_t* player, const glm::vec3& hand, const glm::vec3& vel,
+[[nodiscard]] za::Optional<Ledge> findHold(const Seeker& s, const glm::vec3& hand, const glm::vec3& vel,
     const glm::vec3& headPos, float radius, float propLow, bool& lenient, LenientStats* stats = nullptr)
 {
-    if(ladderDisabled(hand)) { return za::nullOpt; } // AD support
+    if(s.player && ladderDisabled(hand)) { return za::nullOpt; } // AD support (the server's)
     LenientStats st;
     lenient = false;
     za::Vector<Candidate>& found = scratch.found;
     za::Vector<edict_t*>& movers = scratch.movers;
     found.clear();
     movers.clear();
-    gather(player, hand, radius, found, movers, st);
-    const float feet = player->v.origin[2] + player->v.mins[2];
+    gather(s, hand, radius, found, movers, st);
+    const float feet = s.feet;
     const float lowest = feet + vr_climb_min_height.value;
     const auto finish = [&](const Candidate* c) -> za::Optional<Ledge> {
         if(stats)
@@ -887,12 +913,15 @@ constexpr float ladderRungDepth = 32.f;
             st.low++;
             continue; // too low for a hold (Lowest Ledge)
         }
-        if(check(player, *c, hand, false, hand, headPos, movers) == Check::ok)
+        if(check(s, *c, hand, false, hand, headPos, movers) == Check::ok)
         {
             return finish(c);
         }
     }
-    if(const za::Optional<Ledge> rung = ladderHold(player, hand, lowest)) { return rung; } // AD support: actual solid only
+    if(s.player)
+    {
+        if(const za::Optional<Ledge> rung = ladderHold(s.player, hand, lowest)) { return rung; } // AD support: actual solid only
+    }
     if(radius <= 0.f)
     {
         return finish(nullptr);
@@ -903,7 +932,7 @@ constexpr float ladderRungDepth = 32.f;
     glm::vec3 reach = glm::length(vel) > movingHand ? vel : hand - headPos;
     reach = glm::length(reach) > 1e-3f ? glm::normalize(reach) : glm::vec3{0.f};
     const glm::vec2 side{hand.x - headPos.x, hand.y - headPos.y}; // the hand's side of the head
-    const glm::vec2 toBody = towardsBody(player, hand);
+    const glm::vec2 toBody = towardsBody(s, hand);
     // A lenient hold is at most the leniency plus this from the hand: the furthest the hold is from a hand at the ledge
     // (in over the top as far as it reaches, or in front of its face, and under the lip as far as touching reaches).
     const Touch k = touch();
@@ -960,7 +989,7 @@ constexpr float ladderRungDepth = 32.f;
     za::stableSort(scored.begin(), scored.end(), [](const Scored& a, const Scored& b) { return a.score < b.score; });
     for(const Scored& sc : scored)
     {
-        switch(check(player, sc.c, sc.at, true, hand, headPos, movers))
+        switch(check(s, sc.c, sc.at, true, hand, headPos, movers))
         {
         case Check::ok: lenient = true; return finish(&sc.c);
         case Check::covered: st.covered++; break;
@@ -999,15 +1028,14 @@ constexpr float ladderRungDepth = 32.f;
 // rung's underside, its point a hand's height below it). A hold either point is at comes first (the drawn hand's
 // before the controller's), then the drawn hand's lenient one, then the controller's. `tracked`: found from the
 // controller's point.
-[[nodiscard]] za::Optional<Ledge> gripHold(edict_t* ent, const VrMove& move, int h, bool hanging, bool& lenient, bool& tracked,
-    LenientStats* st)
+// (`radius` the leniency's, `propLow` propLowest's: the take's rules, climb::TakeRules.)
+[[nodiscard]] za::Optional<Ledge> gripHold(const Seeker& s, const VrMove& move, int h, float radius, float propLow, bool& lenient,
+    bool& tracked, LenientStats* st)
 {
     constexpr float maxHeldOut = 64.f; // units: a controller's point further from the drawn hand is not believed
     const VrHandMove& m = move.hands[h];
-    const float radius = leniencyUnits(midAir(ent, hanging));
     tracked = false;
-    const float propLow = propLowest(ent, hanging);
-    za::Optional<Ledge> drawn = findHold(ent, m.pos, m.throwVel, move.headPos, radius, propLow, lenient, st);
+    za::Optional<Ledge> drawn = findHold(s, m.pos, m.throwVel, move.headPos, radius, propLow, lenient, st);
     const float heldOut = glm::distance(m.tracked, m.pos);
     if((drawn && !lenient) || heldOut < 0.25f || heldOut > maxHeldOut)
     {
@@ -1015,7 +1043,7 @@ constexpr float ladderRungDepth = 32.f;
     }
     bool trackedLenient = false;
     LenientStats st2;
-    za::Optional<Ledge> own = findHold(ent, m.tracked, m.throwVel, move.headPos, radius, propLow, trackedLenient, &st2);
+    za::Optional<Ledge> own = findHold(s, m.tracked, m.throwVel, move.headPos, radius, propLow, trackedLenient, &st2);
     if(st)
     {
         st->points += st2.points;
@@ -1105,8 +1133,7 @@ struct Climber
     glm::vec3 mantleShift{0.f}; // (how far it has moved since)
     double noGrabUntil{0.0};
     double lastTime{-1.0};
-    bool pressedLastFrame[2]{false, false};
-    double missedAt[2]{-1.0, -1.0}; // a grip pressed at no hold, when: in the air it keeps looking (vr_climb_air_grab_time)
+    climb::TakeMemory take; // the grips' presses: the last move's, a press in the air at no hold (MP B8j part 2)
     glm::vec3 lastOrigin{0.f}; // where the climb put the body (moved otherwise: let go)
     glm::vec3 owed{0.f};       // the pull the body couldn't make (made up first by a pull the other way)
     bool noRoom{false};        // pulling over the top of a ledge with no room to mantle (felt once)
@@ -1953,17 +1980,25 @@ float holdLedge(Grip& g, const Ledge& found)
     return propMass;
 }
 
+// Grip `g` taking hold of `ledge` with hand `h` of `move`, the body at `origin` (the hand's place relative to it, the
+// ledge's): the server's grips and a remote client's replay (MP B8j part 2) the same -> the prop's mass (holdLedge).
+float gripTaken(Grip& g, const Ledge& ledge, const VrMove& move, int h, const glm::vec3& origin)
+{
+    g.active = true;
+    g.relAtGrab = g.lastRel = move.hands[h].pos - origin;
+    g.grabOffset = move.hands[h].pos - ledge.hold;
+    return holdLedge(g, ledge);
+}
+
+// (`retryAge`: a press in the air at no hold this long before; negative: none.)
 void takeHold(edict_t* ent, Climber& c, const VrMove* move, int h, const za::Optional<Ledge>& ledge, bool hanging,
-    const char* how, bool retry, double time)
+    const char* how, float retryAge)
 {
     Grip& g = c.grips[h];
     const glm::vec3 hand = move->hands[h].pos;
-    g.active = true;
     g.owned = true;
     g.serial++;
-    g.relAtGrab = g.lastRel = handRel(ent, *move, h);
-    g.grabOffset = hand - ledge->hold;
-    const float propMass = holdLedge(g, *ledge);
+    const float propMass = gripTaken(g, *ledge, *move, h, vec(ent->v.origin));
     g.allowed = za::max(armReach(), glm::distance(ledge->hold, shoulderOf(*move, h)));
     if(!hanging)
     {
@@ -1980,7 +2015,7 @@ void takeHold(edict_t* ent, Climber& c, const VrMove* move, int h, const za::Opt
         Con_Printf("climb: %s hand holds at %.1f%s (out %.2f %.2f; hand %.1f %.1f %.1f, hold %.1f %.1f %.1f) from (%.1f %.1f %.1f)%s%s%s%s\n",
             handName(h), ledge->top, !g.prop && g.light ? ", light" : "", ledge->out.x, ledge->out.y, hand.x, hand.y, hand.z, ledge->hold.x, ledge->hold.y,
             ledge->hold.z, ent->v.origin[0], ent->v.origin[1], ent->v.origin[2], hanging ? ", both hands" : "", how,
-            retry ? va(", pressed %.0f ms before, in the air", (time - c.missedAt[h]) * 1000.0) : "",
+            retryAge >= 0.f ? va(", pressed %.0f ms before, in the air", static_cast<double>(retryAge) * 1000.0) : "",
             g.prop ? va(", prop %d (%s, %.0f kg)", g.entNum, g.light ? "light" : "heavy", propMass) : "");
     }
     if(vr_climb_debug.value >= 2.f)
@@ -1990,23 +2025,189 @@ void takeHold(edict_t* ent, Climber& c, const VrMove* move, int h, const za::Opt
     }
 }
 
-// A hand's grip this frame: letting go, refused, or taking hold.
-void gripHand(edict_t* ent, Climber& c, const VrMove* move, bool enabled, double time, int h)
+// A hold's take (MP B8j part 2): one hand's pressed grip looking for a hold, for one move (or single player's frame) --
+// what came of it.
+enum class Take : za::U8
+{
+    none,    // not looking (not pressed, holding, mantling, climbing off ...)
+    refused, // too soon, at a holster, the hand not empty
+    tired,   // too little stamina for a new hang
+    missed,  // no hold where the hand is
+    found,   // `ledge`
+};
+struct TakeTry
+{
+    Take what{Take::none};
+    bool edge{false};      // the press began this move
+    bool retry{false};     // a press in the air at no hold, still looking ...
+    float retryAge{-1.f};  // ... since this long
+    bool atHolster{false}; // (refused: why)
+    bool lenient{false}, tracked{false}; // (found: how)
+    LenientStats st;
+    za::Optional<Ledge> ledge;
+};
+
+// The take of hand `h` of `move` (its places the body's at s.origin) over `dt`, on the rules `r` and the press memory
+// `mem`; `active` its grip holds, `otherActive` the other's, `mantling`, `air` (a walking player off the ground, not
+// swimming), `grounded` (on the ground). Single player's frame, a remote client's moves on the server and in his
+// replay (`s` the world alone there): one function.
+//
+// A grip pressed in the air at no hold keeps looking while it stays pressed and the player is in the air (not holding
+// on with the other hand), for vr_climb_air_grab_time seconds: a ledge jumped at is in the hand's reach for a frame or
+// three as it passes the lip on the way up and again on the way down (the hand's point in front of the face: the line
+// from the chest holds it off the top); a press anywhere in the jump takes it as it comes.
+[[nodiscard]] TakeTry takeTry(climb::TakeMemory& mem, const climb::TakeRules& r, const Seeker& s, const VrMove& move, int h,
+    float dt, bool active, bool otherActive, bool mantling, bool air, bool grounded)
+{
+    TakeTry t;
+    const bool pressed = (move.vrBits0 & grabBit[h]) != 0;
+    t.edge = pressed && !mem.pressedLast[h];
+    mem.pressedLast[h] = pressed;
+    const bool inAir = air && !otherActive; // (midAir's)
+    if(mem.missAge[h] >= 0.f)
+    {
+        mem.missAge[h] += dt;
+    }
+    if(!pressed || t.edge || active || !inAir || mem.missAge[h] > r.airGrabTime)
+    {
+        mem.missAge[h] = -1.f;
+    }
+    t.retry = mem.missAge[h] >= 0.f;
+    t.retryAge = mem.missAge[h];
+    const bool tracked = (move.buttons & protocol::QVR_BUTTON_HANDSTRACKED) != 0;
+    if(!r.enabled || !tracked || !(t.edge || t.retry) || active || mantling)
+    {
+        return t;
+    }
+    const bool hanging = otherActive;
+    const int hotspot = move.hotspots[h];
+    t.atHolster = hotspot >= 32 || ((r.holster[hanging ? 1 : 0] >> hotspot) & 1u) != 0u;
+    if(r.noGrabLeft > 0.f || t.atHolster || r.busy[h] || (move.buttons & busyButton[h]))
+    {
+        t.what = Take::refused;
+        return t;
+    }
+    if(!hanging && r.tired)
+    {
+        mem.missAge[h] = -1.f; // (refused: no buzz again while the grip stays pressed)
+        t.what = Take::tired;
+        return t;
+    }
+    const float radius = inAir ? r.leniencyAir : r.leniency;
+    const float propLow = s.feet + (grounded && !hanging ? za::max(r.minHeight, r.propMinHeight) : r.minHeight); // (propLowest's)
+    t.ledge = gripHold(s, move, h, radius, propLow, t.lenient, t.tracked, &t.st);
+    if(!t.ledge)
+    {
+        if(t.edge)
+        {
+            mem.missAge[h] = 0.f; // (in the air: it keeps looking)
+        }
+        t.what = Take::missed;
+        return t;
+    }
+    t.what = Take::found;
+    return t;
+}
+
+// The take's rules for `ent` now (the server's, once a frame: single player's frame, a remote client's moves and the
+// state his replay runs on).
+[[nodiscard]] climb::TakeRules takeRules(edict_t* ent, const Climber& c, double time)
+{
+    climb::TakeRules r;
+    r.enabled = vr_climb.value != 0.f && static_cast<int>(ent->v.movetype) == MOVETYPE_WALK && ent->v.health > 0.f;
+    r.tired = tooTired(ent);
+    for(int h = 0; h < 2; h++)
+    {
+        r.busy[h] = handBusy(ent, nullptr, h) != nullptr;
+    }
+    for(int k = 0; k < 2; k++)
+    {
+        for(int hotspot = 0; hotspot < 32; hotspot++)
+        {
+            r.holster[k] |= holsterWins(ent, hotspot, k == 1) ? 1u << hotspot : 0u;
+        }
+    }
+    r.noGrabLeft = za::max(0.f, static_cast<float>(c.noGrabUntil - time)); // (0: none, an idle state unchanged)
+    r.airGrabTime = vr_climb_air_grab_time.value;
+    r.leniency = leniencyUnits(false);
+    r.leniencyAir = leniencyUnits(true);
+    r.minHeight = vr_climb_min_height.value;
+    r.propMinHeight = vr_climb_prop_min_height.value;
+    pmove::Hang box;
+    hangBox(ent, box);
+    r.minsZ = box.minsZ;
+    r.maxsX = box.maxsXY[0];
+    r.maxsY = box.maxsXY[1];
+    r.mantleTime = box.mantleTime;
+    r.mantleHeight = box.mantleHeight;
+    r.mantleSlope = box.mantleSlope;
+    return r;
+}
+
+// What the server does with a take (single player's frame, a remote client's move): the prints and buzzes of a refusal,
+// the hold taken -> true: taken.
+bool takeDone(edict_t* ent, Climber& c, const VrMove& move, int h, const TakeTry& t, double time, int traces0, double t0)
+{
+    const bool hanging = c.grips[1 - h].active;
+    switch(t.what)
+    {
+    case Take::none:
+        return false;
+    case Take::refused:
+        if(debug() && t.edge)
+        {
+            const char* busy = handBusy(ent, &move, h);
+            Con_Printf("climb: %s hand grips: %s%s\n", handName(h),
+                time < c.noGrabUntil ? "too soon" : t.atHolster ? "at a holster" : "not empty: ",
+                time < c.noGrabUntil || t.atHolster || !busy ? "" : busy);
+        }
+        return false;
+    case Take::tired:
+        // Too little stamina left to hang (parries, shoves, blows, the last hang): no new hang until more comes back
+        // (a hand joining the other on a hold is let: two hands tire less). A soft buzz says why; the gadget shows it.
+        if(!(time - c.tiredAt < 0.5))
+        {
+            c.tiredAt = time;
+            server::sendHaptic(ent, h, 0.f, 0.15f, 30.f, 0.4f * staminaWarn());
+        }
+        if(debug())
+        {
+            Con_Printf("climb: %s hand grips: too tired (%.1f stamina left)\n", handName(h), progs::staminaLeft(ent));
+        }
+        return false;
+    case Take::missed:
+    case Take::found:
+        break;
+    }
+    if(debug() && vr_climb_debug.value >= 3.f && (t.edge || t.ledge))
+    {
+        Con_Printf("climb: hold search: %d ledges looked at, %d traces in %.4f ms\n", t.st.points, traceCount - traces0,
+            (Sys_DoubleTime() - t0) * 1000.0);
+    }
+    const glm::vec3 hand = move.hands[h].pos;
+    if(!t.ledge)
+    {
+        if(debug() && t.edge)
+        {
+            const glm::vec3 own = move.hands[h].tracked;
+            Con_Printf("climb: %s hand at (%.1f %.1f %.1f): no hold (the controller at %.1f %.1f %.1f)\n", handName(h), hand.x,
+                hand.y, hand.z, own.x, own.y, own.z);
+        }
+        return false;
+    }
+    const char* how = t.lenient ? (t.tracked ? ", lenient, from the controller" : ", lenient")
+                      : t.tracked ? ", from the controller"
+                                  : "";
+    takeHold(ent, c, &move, h, t.ledge, hanging, how, t.retry ? t.retryAge : -1.f);
+    return true;
+}
+
+// A hand's grip this frame: letting go; then (unless a remote client's moves take, `inMoves`: climb::moveTake) refused
+// or taking hold, the frame as one move.
+void gripHand(edict_t* ent, Climber& c, const VrMove* move, bool enabled, double time, int h, bool inMoves)
 {
     Grip& g = c.grips[h];
     const bool pressed = move && (move->vrBits0 & grabBit[h]);
-    const bool pressEdge = pressed && !c.pressedLastFrame[h];
-    c.pressedLastFrame[h] = pressed;
-    // A grip pressed in the air at no hold keeps looking while it stays pressed and the player is in the air (not
-    // holding on with the other hand), for vr_climb_air_grab_time seconds: a ledge jumped at is in the hand's reach
-    // for a frame or three as it passes the lip on the way up and again on the way down (the hand's point in front of
-    // the face: the line from the chest holds it off the top); a press anywhere in the jump takes it as it comes.
-    if(!pressed || pressEdge || g.active || !midAir(ent, c.grips[1 - h].active) ||
-        time - c.missedAt[h] > static_cast<double>(vr_climb_air_grab_time.value))
-    {
-        c.missedAt[h] = -1.0;
-    }
-    const bool retry = c.missedAt[h] >= 0.0;
     g.ownedLastFrame = g.owned;
     if(!pressed)
     {
@@ -2023,71 +2224,46 @@ void gripHand(edict_t* ent, Climber& c, const VrMove* move, bool enabled, double
         }
     }
 
-    if(!enabled || !(pressEdge || retry) || g.active || c.phase == Phase::Mantling)
+    if(inMoves)
     {
         return;
     }
-    const bool hanging = c.grips[1 - h].active;
-    const int hotspot = move->hotspots[h];
-    const bool atHolster = holsterWins(ent, hotspot, hanging);
-    const char* busy = handBusy(ent, move, h);
-    if(time < c.noGrabUntil || atHolster || busy)
+    if(!move)
     {
-        if(debug() && pressEdge)
-        {
-            Con_Printf("climb: %s hand grips: %s%s\n", handName(h),
-                time < c.noGrabUntil ? "too soon" : atHolster ? "at a holster" : "not empty: ",
-                time < c.noGrabUntil || atHolster ? "" : busy);
-        }
+        c.take.pressedLast[h] = false;
+        c.take.missAge[h] = -1.f;
         return;
     }
-    if(!hanging && tooTired(ent))
-    {
-        c.missedAt[h] = -1.0; // (refused: no buzz again while the grip stays pressed)
-        // Too little stamina left to hang (parries, shoves, blows, the last hang): no new hang until more comes back
-        // (a hand joining the other on a hold is let: two hands tire less). A soft buzz says why; the gadget shows it.
-        if(!(time - c.tiredAt < 0.5))
-        {
-            c.tiredAt = time;
-            server::sendHaptic(ent, h, 0.f, 0.15f, 30.f, 0.4f * staminaWarn());
-        }
-        if(debug())
-        {
-            Con_Printf("climb: %s hand grips: too tired (%.1f stamina left)\n", handName(h), progs::staminaLeft(ent));
-        }
-        return;
-    }
-
-    const glm::vec3 hand = move->hands[h].pos;
+    climb::TakeRules r = takeRules(ent, c, time);
+    r.enabled = r.enabled && enabled;
     const double t0 = Sys_DoubleTime();
-    LenientStats st;
     const int traces0 = traceCount;
-    bool lenient = false, fromTracked = false;
-    const za::Optional<Ledge> ledge = gripHold(ent, *move, h, hanging, lenient, fromTracked, &st);
-    if(debug() && vr_climb_debug.value >= 3.f && (pressEdge || ledge))
-    {
-        Con_Printf("climb: hold search: %d ledges looked at, %d traces in %.4f ms\n", st.points, traceCount - traces0,
-            (Sys_DoubleTime() - t0) * 1000.0);
-    }
-    const char* how = lenient ? (fromTracked ? ", lenient, from the controller" : ", lenient")
-                      : fromTracked ? ", from the controller"
-                                    : "";
-    if(!ledge)
-    {
-        if(pressEdge)
-        {
-            c.missedAt[h] = time; // (in the air: it keeps looking)
-        }
-        if(debug() && pressEdge)
-        {
-            const glm::vec3 own = move->hands[h].tracked;
-            Con_Printf("climb: %s hand at (%.1f %.1f %.1f): no hold (the controller at %.1f %.1f %.1f)\n", handName(h), hand.x,
-                hand.y, hand.z, own.x, own.y, own.z);
-        }
-        return;
-    }
+    const bool air = static_cast<int>(ent->v.movetype) == MOVETYPE_WALK && !(static_cast<int>(ent->v.flags) & FL_ONGROUND) &&
+                     ent->v.waterlevel < 2.f;
+    const TakeTry t = takeTry(c.take, r, seekerOf(ent), *move, h, static_cast<float>(host_frametime), g.active,
+        c.grips[1 - h].active, c.phase == Phase::Mantling, air, (static_cast<int>(ent->v.flags) & FL_ONGROUND) != 0);
+    (void)takeDone(ent, c, *move, h, t, time, traces0, t0);
+}
 
-    takeHold(ent, c, move, h, ledge, hanging, how, retry, time);
+// A move's hands as the take sees them (MP B8j part 2): its places relative to the body (the integers sent) put at the
+// body's `origin`, as the server and the replay each have it.
+[[nodiscard]] VrMove takeMove(const pmove::Input& in, const float* origin)
+{
+    VrMove m;
+    const glm::vec3 o{origin[0], origin[1], origin[2]};
+    m.origin = o;
+    for(int h = 0; h < 2; h++)
+    {
+        m.hands[h].pos = o + glm::vec3{in.hands[h][0], in.hands[h][1], in.hands[h][2]};
+        m.hands[h].tracked = o + glm::vec3{in.tracked[h][0], in.tracked[h][1], in.tracked[h][2]};
+        m.hands[h].throwVel = glm::vec3{in.throwVel[h][0], in.throwVel[h][1], in.throwVel[h][2]};
+        m.hotspots[h] = static_cast<za::U8>(in.hotspots[h]);
+        m.vrBits0 = static_cast<za::U16>(m.vrBits0 | ((in.grabs & (1 << h)) ? grabBit[h] : 0));
+    }
+    m.headPos = o + glm::vec3{in.head[0], in.head[1], in.head[2]};
+    m.headAngles = glm::vec3{in.steer[0], in.steer[1], in.steer[2]};
+    m.buttons = static_cast<za::U8>(in.buttons);
+    return m;
 }
 
 // Let go of everything: the fall, flung by the hands' release.
@@ -2275,10 +2451,11 @@ static void climbPreThink(edict_t* ent)
     letGoIfForced(ent, c, enabled, knockedOff);
 
     const bool held[2] = {c.grips[0].active, c.grips[1].active};
+    const bool inMoves = climb::takesInMoves(ent); // (a remote client's moves take, one by one: climb::moveTake)
     followProps(ent, c);
     for(int h = 0; h < 2; h++)
     {
-        gripHand(ent, c, move, enabled, time, h);
+        gripHand(ent, c, move, enabled, time, h, inMoves);
     }
 
     // The phase the grips make now: a hand took hold, or the last let go (the fall, flung by the hands' release).
@@ -2818,7 +2995,7 @@ void flatMantle(edict_t* ent, Climber& c, const VrMove* move, double time)
     for(float z = highest; z > lowest - radius; z -= radius)
     {
         bool lenient = false;
-        const za::Optional<Ledge> l = findHold(ent, glm::vec3{column.x, column.y, z}, glm::vec3{0.f}, eye, radius, propLow, lenient);
+        const za::Optional<Ledge> l = findHold(seekerOf(ent), glm::vec3{column.x, column.y, z}, glm::vec3{0.f}, eye, radius, propLow, lenient);
         if(l && l->top <= highest && l->top >= lowest && glm::dot(l->out, fwd) < -0.5f && (!best || l->top > best->top))
         {
             best = l;
@@ -3134,7 +3311,7 @@ void try_f()
     const double t0 = Sys_DoubleTime();
     const Climber* climber = climberOf(ent);
     const bool airborne = midAir(ent, climber && climber->hanging());
-    const za::Optional<Ledge> l = findHold(ent, hand, vel, head, leniencyUnits(airborne),
+    const za::Optional<Ledge> l = findHold(seekerOf(ent), hand, vel, head, leniencyUnits(airborne),
         propLowest(ent, climber && climber->hanging()), lenient, &st);
     const double ms = (Sys_DoubleTime() - t0) * 1000.0;
     if(l)
@@ -3317,6 +3494,111 @@ void qvr::climb::hangMoved(edict_t* ent, const pmove::Hang& h, const pmove::Hang
     }
     hang.noRoom = h.noRoom;
     hangFramePart(hang);
+}
+
+bool qvr::climb::takesInMoves(edict_t* ent)
+{
+    const Climber* c = climberOf(ent);
+    return c && VR_PredictWalks(ent) && !(c->hanging() && !holdsStill(*c));
+}
+
+bool qvr::climb::takeState(edict_t* ent, TakeRules& r, TakeMemory& m)
+{
+    const Climber* c = climberOf(ent);
+    if(!c)
+    {
+        return false;
+    }
+    r = takeRules(ent, *c, qcvm->time);
+    m = c->take;
+    return true;
+}
+
+int qvr::climb::moveTake(edict_t* ent, pmove::Body& b, TakeRules& r, const pmove::Input& in)
+{
+    Climber* cp = climberOf(ent);
+    if(!cp)
+    {
+        return 0;
+    }
+    Climber& c = *cp;
+    r.noGrabLeft -= in.dt;
+    const VrMove move = takeMove(in, b.origin);
+    const Seeker s{ent, nullptr, vec(b.origin), b.origin[2] + ent->v.mins[2]};
+    const bool air = !(b.flags & FL_ONGROUND) && b.waterLevel < 2;
+    // (a hang the moves let go of whose climber has not yet: its frame's let-go next frame, then the regrab delay)
+    const bool blocked = b.mantle.on || c.phase == Phase::Mantling || (c.phase != Phase::Free && !b.hang.on);
+    int took = 0;
+    for(int h = 0; h < 2; h++)
+    {
+        const bool active = b.hang.on && b.hang.grips[h].active;
+        const bool otherActive = b.hang.on && b.hang.grips[1 - h].active;
+        const double t0 = Sys_DoubleTime();
+        const int traces0 = traceCount;
+        const TakeTry t = takeTry(c.take, r, s, move, h, in.dt, active, otherActive, blocked, air, (b.flags & FL_ONGROUND) != 0);
+        if(t.what == Take::found && c.grips[1 - h].active != otherActive)
+        {
+            continue; // (the other hand let go in a move, its climber's grip not yet: a rare re-press, the next frame's)
+        }
+        if(!takeDone(ent, c, move, h, t, qcvm->time, traces0, t0))
+        {
+            continue;
+        }
+        if(c.phase == Phase::Free)
+        {
+            transition(ent, c, Phase::Hanging, Why::Took);
+        }
+        if(holdsStill(c))
+        {
+            if(!b.hang.on)
+            {
+                b.hang = hangState(ent, c); // (the next moves hang from it)
+            }
+            else
+            {
+                hangGripOf(c.grips[h], b.hang.grips[h]); // (the other hand joins the hang the moves run)
+            }
+            took = 1;
+        }
+        else
+        {
+            return 2;
+        }
+    }
+    return took;
+}
+
+void qvr::climb::replayTake(pmove::Body& b, TakeMemory& m, TakeRules& r, const pmove::Input& in)
+{
+    r.noGrabLeft -= in.dt;
+    const VrMove move = takeMove(in, b.origin);
+    const Seeker s{nullptr, &b, vec(b.origin), b.origin[2] + r.minsZ};
+    const bool air = !(b.flags & FL_ONGROUND) && b.waterLevel < 2;
+    for(int h = 0; h < 2; h++)
+    {
+        const bool active = b.hang.on && b.hang.grips[h].active;
+        const bool otherActive = b.hang.on && b.hang.grips[1 - h].active;
+        const TakeTry t = takeTry(m, r, s, move, h, in.dt, active, otherActive, b.mantle.on, air, (b.flags & FL_ONGROUND) != 0);
+        if(t.what != Take::found)
+        {
+            continue;
+        }
+        // The server's takeHold and hangState, on the world alone (moveTake: the same numbers).
+        Grip g;
+        (void)gripTaken(g, *t.ledge, move, h, vec(b.origin));
+        if(!b.hang.on)
+        {
+            b.hang = pmove::Hang{};
+            b.hang.on = true;
+            b.hang.minsZ = r.minsZ;
+            b.hang.maxsXY[0] = r.maxsX;
+            b.hang.maxsXY[1] = r.maxsY;
+            b.hang.mantleTime = r.mantleTime;
+            b.hang.mantleHeight = za::clamp(r.mantleHeight, 0.f, 40.f);
+            b.hang.mantleSlope = za::clamp(r.mantleSlope, 0.f, 60.f);
+        }
+        hangGripOf(g, b.hang.grips[h]);
+    }
 }
 
 void qvr::climb::reset()

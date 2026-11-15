@@ -52,6 +52,7 @@ enum StateBits
     bitLying = 8192,          // the lying box (hull::hasLyingBox: its height is the rules' box)
     bitMantle = 64,           // mantling: the mantle's way and time follow (B8h: his moves carry him along it)
     bitHang = 16384,          // hanging: the holds, the hands' last places, the owed follow (B8i: his moves' hands pull)
+    bitTake = 32768,          // climbing on: the take's rules and press memory follow (B8j part 2: his moves take holds)
 };
 
 constexpr float jumpSpeed = 270.f; // QC PlayerJump's
@@ -287,6 +288,8 @@ struct ClientPredict
     float crawl[2]{0.f, 0.f};   // the crawl's own speed (lying down: B8g)
     pmove::Mantle mantle;       // mantling: its way and time at the state (B8h)
     pmove::Hang hang;           // hanging: the holds, the hands' last places, the owed at the state (B8i)
+    climb::TakeRules take;      // the take's rules (not enabled: none) and press memory at the state (B8j part 2)
+    climb::TakeMemory takeMem;
     bool transNow{false};       // this state begins a mantle the last one hung (the server's test: not predicted)
     vec3_t transError{0.f, 0.f, 0.f}; // the part of `error` that is such a transition's (eased in, apart)
     bool fresh{false};    // a new state since the last replay
@@ -605,6 +608,8 @@ bool replay(vec3_t out, vec3_t before)
     b.crawl[1] = cp.crawl[1];
     b.mantle = cp.mantle;
     b.hang = cp.hang;
+    climb::TakeRules take = cp.take; // (his moves take holds as the server's do: B8j part 2)
+    climb::TakeMemory takeMem = cp.takeMem;
     const za::U32 newest = netmove::clientNewest();
     if(newest < cp.seq || newest - cp.seq >= static_cast<za::U32>(pastRing))
     {
@@ -632,7 +637,21 @@ bool replay(vec3_t out, vec3_t before)
         b.jumpedNow = false;
         const pmove::Input in = inputOf(m);
         const bool inAir = !(b.flags & FL_ONGROUND);
+        const bool hangWas = b.hang.on;
         pmove::playerMove(b, in, cp.rules, &notes);
+        if(take.enabled)
+        {
+            if((hangWas && !b.hang.on && !b.mantle.on) || b.mantledNow)
+            {
+                take.noGrabLeft = climb::regrabDelay; // (the server's climb lets go, or the mantle ends: its regrab delay)
+            }
+            const bool hangBefore = b.hang.on;
+            climb::replayTake(b, takeMem, take, in);
+            if(b.hang.on && !hangBefore && cp.fresh && vr_mp_watch.value != 0.f)
+            {
+                Con_Printf("mp_predict_take: replay s=%u seq=%u z=%.2f\n", s, cp.seq, b.origin[2]);
+            }
+        }
         // The lift under him goes on after his move, carrying him; one moving into him pushes him.
         vec3_t liftAt;
         b.pushedNow = false;
@@ -820,6 +839,22 @@ pmove::Input inputOf(const netmove::WireMove& m)
     }
     in.grabs = ((m.vr.vrBits0 & (1 << 1)) ? 1 : 0) | ((m.vr.vrBits0 & (1 << 3)) ? 2 : 0); // (vr_climb.cpp's grabBit)
     in.headZ = m.vr.headPos.z - m.vr.origin.z; // (as the hands: the integers sent)
+    for(int h = 0; h < 2; h++) // (a hold's take, B8j part 2: the same numbers on the server and in his replay)
+    {
+        const glm::vec3 tracked = m.vr.hands[h].tracked - m.vr.origin;
+        for(int i = 0; i < 3; i++)
+        {
+            in.tracked[h][i] = tracked[i];
+            in.throwVel[h][i] = m.vr.hands[h].throwVel[i];
+        }
+        in.hotspots[h] = m.vr.hotspots[h];
+    }
+    const glm::vec3 head = m.vr.headPos - m.vr.origin;
+    for(int i = 0; i < 3; i++)
+    {
+        in.head[i] = head[i];
+    }
+    in.buttons = m.vr.buttons;
     return in;
 }
 
@@ -923,6 +958,26 @@ void parseState()
             *f = MSG_ReadFloat();
         }
     }
+    climb::TakeRules take; // (not enabled: no take block)
+    climb::TakeMemory takeMem;
+    if(bits & bitTake)
+    {
+        const int tb = MSG_ReadByte();
+        take.enabled = true;
+        takeMem.pressedLast[0] = (tb & 1) != 0;
+        takeMem.pressedLast[1] = (tb & 2) != 0;
+        take.tired = (tb & 4) != 0;
+        take.busy[0] = (tb & 8) != 0;
+        take.busy[1] = (tb & 16) != 0;
+        take.holster[0] = static_cast<unsigned>(MSG_ReadLong());
+        take.holster[1] = static_cast<unsigned>(MSG_ReadLong());
+        for(float* f : {&takeMem.missAge[0], &takeMem.missAge[1], &take.noGrabLeft, &take.airGrabTime, &take.leniency,
+                &take.leniencyAir, &take.minHeight, &take.propMinHeight, &take.minsZ, &take.maxsX, &take.maxsY,
+                &take.mantleTime, &take.mantleHeight, &take.mantleSlope})
+        {
+            *f = MSG_ReadFloat();
+        }
+    }
     pmove::Rules r;
     for(float* f : {&r.maxspeed, &r.stickScale, &r.accelerate, &r.friction, &r.stopspeed, &r.edgefriction, &r.gravity,
             &r.maxvelocity, &r.stepsize, &r.roomscaleScale, &r.jumpSpeed, &r.boxHeight, &r.feetZ, &r.waistZ, &r.eyeZ,
@@ -975,6 +1030,8 @@ void parseState()
     // (a hold taken, or the hang's mantle begun: the server's searches, once a frame: the replay learns of them now)
     cp.transNow = (mantle.on && cp.hang.on) || (hang.on && !cp.hang.on);
     cp.hang = hang;
+    cp.take = take;
+    cp.takeMem = takeMem;
     if(hang.on && (bits & bitWalked))
     {
         cp.hangZ0 = cp.hangN == 0 ? o[2] : cp.hangZ0;
@@ -1128,7 +1185,10 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
     pmove::Mantle mantle;
     const bool mantling = climb::mantlePath(ent, mantle); // (B8h: the mantle's way, run by his moves)
     pmove::Hang hang;
-    const bool hanging = !mantling && climb::hangPath(ent, hang); // (B8i: the hang's steps, run by his moves' hands)
+    bool hanging = !mantling && climb::hangPath(ent, hang); // (B8i: the hang's steps, run by his moves' hands)
+    climb::TakeRules take;     // (B8j part 2: a hold taken in a move, the moves after it hang)
+    climb::TakeMemory takeMem;
+    const bool takes = climb::takesInMoves(ent) && climb::takeState(ent, take, takeMem);
     if(!mantling && !hanging)
     {
         SV_CheckStuck(ent); // (not on the mantle's way nor hanging: single player's climb frames do not either)
@@ -1166,12 +1226,32 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
         s->credit -= in.dt;
         b.jumpedNow = false;
         pmove::playerMove(b, in, r);
+        int took = 0;
+        if(takes && !b.removed)
+        {
+            b.store(); // (the take's search and its hold read his edict: where this move left him)
+            took = climb::moveTake(ent, b, take, in);
+            if(took == 1 && !hanging)
+            {
+                hanging = true; // (the moves after it hang; the frame's part after them: climb::hangMoved)
+                b.hangSums = &hangSums;
+            }
+        }
         if((b.jumpedNow || held || vr_mp_watch.value >= 2.f) && vr_mp_watch.value != 0.f)
         {
             Con_Printf("mp_predict_sv: slot=%d s=%u%s%s y=%.2f z=%.2f vz=%.1f fl=%d dt=%.4f box=%.1f ge=%d k=%d/%d\n", slot,
                 netmove::serverLast(slot) - (s->n - 1 - k), b.jumpedNow ? " jumped" : "", held ? " held" : "",
                 b.origin[1], b.origin[2], b.velocity[2], b.flags, in.dt, hull::crouchedHeight(ent),
                 ent->v.groundentity, k, s->n);
+        }
+        if(took != 0 && vr_mp_watch.value != 0.f)
+        {
+            Con_Printf("mp_predict_take: slot=%d s=%u z=%.2f hang=%d\n", slot, netmove::serverLast(slot) - (s->n - 1 - k),
+                b.origin[2], b.hang.on ? 1 : 0);
+        }
+        if(took == 2)
+        {
+            break; // (a hold that moves: his frame's hang from the next frame, the rest of these moves its)
         }
     }
     if(!b.removed)
@@ -1221,7 +1301,7 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
 extern "C" void VR_WritePredict(sizebuf_t* msg, client_t* client)
 {
     const int slot = static_cast<int>(client - svs.clients);
-    if(!movesOneByOne(slot) || !client->edict || msg->cursize + 600 > msg->maxsize)
+    if(!movesOneByOne(slot) || !client->edict || msg->cursize + 700 > msg->maxsize)
     {
         return;
     }
@@ -1239,10 +1319,13 @@ extern "C" void VR_WritePredict(sizebuf_t* msg, client_t* client)
     const bool mantling = climb::mantlePath(const_cast<edict_t*>(ent), mantle);
     pmove::Hang hang;
     const bool hanging = !mantling && s.walked && climb::hangPath(const_cast<edict_t*>(ent), hang);
+    climb::TakeRules take;
+    climb::TakeMemory takeMem;
+    const bool takes = !mantling && s.walked && climb::takeState(const_cast<edict_t*>(ent), take, takeMem) && take.enabled;
     const int at = msg->cursize;
     MSG_WriteByte(msg, protocol::svc_quakevr);
     MSG_WriteByte(msg, protocol::QVR_SVC_PREDICT);
-    MSG_WriteShort(msg, bits | (mantling ? bitMantle : 0) | (hanging ? bitHang : 0));
+    MSG_WriteShort(msg, bits | (mantling ? bitMantle : 0) | (hanging ? bitHang : 0) | (takes ? bitTake : 0));
     MSG_WriteLong(msg, static_cast<int>(netmove::serverLast(slot)));
     for(const float* p : {ent->v.origin, ent->v.velocity, static_cast<const float*>(s.groundNormal)})
     {
@@ -1307,6 +1390,20 @@ extern "C" void VR_WritePredict(sizebuf_t* msg, client_t* client)
             MSG_WriteFloat(msg, hang.owed[i]);
         }
         for(const float f : {hang.minsZ, hang.maxsXY[0], hang.maxsXY[1], hang.mantleTime, hang.mantleHeight, hang.mantleSlope})
+        {
+            MSG_WriteFloat(msg, f);
+        }
+    }
+    if(takes)
+    {
+        // (B8j part 2: his replay takes holds as his moves do on the server, on these)
+        MSG_WriteByte(msg, (takeMem.pressedLast[0] ? 1 : 0) | (takeMem.pressedLast[1] ? 2 : 0) | (take.tired ? 4 : 0) |
+                               (take.busy[0] ? 8 : 0) | (take.busy[1] ? 16 : 0));
+        MSG_WriteLong(msg, static_cast<int>(take.holster[0]));
+        MSG_WriteLong(msg, static_cast<int>(take.holster[1]));
+        for(const float f : {takeMem.missAge[0], takeMem.missAge[1], take.noGrabLeft, take.airGrabTime, take.leniency,
+                take.leniencyAir, take.minHeight, take.propMinHeight, take.minsZ, take.maxsX, take.maxsY, take.mantleTime,
+                take.mantleHeight, take.mantleSlope})
         {
             MSG_WriteFloat(msg, f);
         }

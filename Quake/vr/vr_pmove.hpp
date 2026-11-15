@@ -28,6 +28,12 @@ struct Input
     float hands[2][3]{};             // the hands relative to the body (hanging: the hang's pull, B8i)
     int grabs{3};                    // the grips held (bit 0 the off hand, 1 the main: a let-go ends its hold)
     float headZ{0.f};                // the head's height over the body (hanging: the mantle's test, B8j)
+    // A hold's take (vr_climb.cpp, B8j part 2: climb::moveTake, climb::replayTake), relative to the body as the hands:
+    float tracked[2][3]{};           // the controllers' own points
+    float throwVel[2][3]{};          // the hands' throw velocities (the search's reach towards)
+    float head[3]{};                 // the head
+    int hotspots[2]{0, 0};           // the hands' hotspots (a holster's grip is not a hold)
+    int buttons{0};                  // protocol::QVR_BUTTON_* (the hands tracked, the flashlight in a hand)
 };
 
 // The server's rules a move runs by (the server's values, sent with each state: the client replays with them).
