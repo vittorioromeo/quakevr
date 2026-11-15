@@ -206,7 +206,7 @@ static GLuint GL_CreateFBO (GLenum target, const GLuint *colors, int numcolors, 
 		GL_FramebufferTexture2DFunc (GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, target, stencil, 0);
 
 	status = GL_CheckFramebufferStatusFunc (GL_FRAMEBUFFER);
-	if (status != GL_FRAMEBUFFER_COMPLETE)
+	if (status != GL_FRAMEBUFFER_COMPLETE && !VR_SceneFoveationIncomplete (status, name)) // QVR: foveated eye targets made again without it
 		Sys_Error ("Failed to create %s (status code 0x%X)", name, status);
 
 	return fbo;

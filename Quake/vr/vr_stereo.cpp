@@ -74,6 +74,7 @@ struct SceneTargets
     unsigned depth = 0;  // their depth/stencil format (vr_depth_float)
     unsigned generation = 0; // bumped each time they are made (single-pass stereo's framebuffers follow)
     bool foveated = false;   // their scene colour foveated (vr_gl_foveation)
+    int foveatedParts = 0;   // which of their attachments (vr_gl_foveation_parts)
 };
 SceneTargets eyeTargets;
 // vr_eye_targets_split: the right eye's own targets, swapped into eyeTargets while it is drawn (QUEST_PLAN.md 6o).
@@ -96,6 +97,8 @@ unsigned creatingDepth = 0;
 bool flatFloatDepth = false; // the window's targets were made with the eyes' float depth for flatscreen play (VR_SceneDepthFormat)
 float creatingFsaa = 0.f;
 bool creatingFoveated = false; // VR_SceneAttachmentFoveation: the eyes' scene colour foveated
+int creatingFoveatedParts = 0;  // and which attachments (vr_gl_foveation_parts)
+GLenum foveationIncomplete = 0; // VR_SceneFoveationIncomplete: a foveated eye framebuffer's status while they are made
 GLuint targetFbo = 0;
 
 // vr_render_scale: the eyes are rendered at the scaled size, post-processed into this texture of
@@ -140,6 +143,16 @@ using FoveationParamsFn = void(APIENTRY*)(GLuint texture, GLuint layer, GLuint f
     GLfloat gainX, GLfloat gainY, GLfloat foveaArea);
 FoveationParamsFn foveationParams = nullptr;
 bool foveationLooked = false; // the extension looked up (once a context: the eyes' targets live with it)
+GLint foveationPoints = 1;    // the focal points the driver gives a foveated texture (each one set: an unset one's
+                              // density may be full everywhere, the densest point winning)
+unsigned foveationRefused = 0; // the vr_gl_foveation_parts the driver refused (an incomplete framebuffer), a bit each
+
+// vr_gl_foveation_parts: which of the eyes' attachments are foveated (1 the scene colours, 2 their depth/stencil, 4 the
+// OIT targets); the colours always.
+[[nodiscard]] int foveationParts()
+{
+    return (za::clamp(static_cast<int>(vr_gl_foveation_parts.value), 0, 7) | 1);
+}
 
 [[nodiscard]] int foveationLevel()
 {
@@ -151,14 +164,24 @@ bool foveationLooked = false; // the extension looked up (once a context: the ey
             foveationParams = reinterpret_cast<FoveationParamsFn>(SDL_GL_GetProcAddress("glTextureFoveationParametersQCOM"));
         }
     }
-    return foveationParams ? za::clamp(static_cast<int>(vr_gl_foveation.value), 0, 3) : 0;
+    const bool refused = (foveationRefused & (1u << foveationParts())) != 0;
+    return foveationParams && !refused ? za::clamp(static_cast<int>(vr_gl_foveation.value), 0, 3) : 0;
+}
+
+// The eye's foveated attachments (t.foveatedParts), for their parameters.
+[[nodiscard]] za::Array<GLuint, 6> foveatedTextures(const SceneTargets& t)
+{
+    const int p = t.foveatedParts;
+    return {t.fb.composite.color_tex, t.fb.scene.color_tex, (p & 2) ? t.fb.composite.depth_stencil_tex : 0u,
+        (p & 2) ? t.fb.scene.depth_stencil_tex : 0u, (p & 4) ? t.fb.oit.accum_tex : 0u, (p & 4) ? t.fb.oit.revealage_tex : 0u};
 }
 
 // Whether `t` is already made for this size, MSAA and format (and foveation: its bits can't be taken off a texture).
 [[nodiscard]] bool sceneTargetsFit(const SceneTargets& t, int width, int height, float fsaa, bool foveate = false)
 {
     return t.width == width && t.height == height && t.fsaa == fsaa && t.format == tonemap::sceneFormat() &&
-           t.depth == sceneDepthFormat() && t.foveated == (foveate && fsaa < 2.f && foveationLevel() > 0);
+           t.depth == sceneDepthFormat() && t.foveated == (foveate && fsaa < 2.f && foveationLevel() > 0) &&
+           (!t.foveated || t.foveatedParts == foveationParts());
 }
 
 void ensureSceneTargets(SceneTargets& t, int width, int height, float fsaa, bool foveate = false)
@@ -172,6 +195,7 @@ void ensureSceneTargets(SceneTargets& t, int width, int height, float fsaa, bool
     t.format = format;
     t.depth = sceneDepthFormat();
     t.foveated = foveate && fsaa < 2.f && foveationLevel() > 0;
+    t.foveatedParts = t.foveated ? foveationParts() : 0;
 
     const glframebufs_t windowFramebufs = framebufs;
     const int windowWidth = vid.width;
@@ -190,6 +214,8 @@ void ensureSceneTargets(SceneTargets& t, int width, int height, float fsaa, bool
     creatingDepth = t.depth;
     creatingFsaa = fsaa;
     creatingFoveated = t.foveated;
+    creatingFoveatedParts = t.foveatedParts;
+    foveationIncomplete = 0;
     GL_CreateFrameBuffers();
     creatingSceneTargets = false;
     creatingFoveated = false;
@@ -208,12 +234,30 @@ void ensureSceneTargets(SceneTargets& t, int width, int height, float fsaa, bool
         // (the scene's colours, drawn into without MSAA: t.foveated asks for none; their bits set before their storage
         // by VR_SceneAttachmentFoveation, never cleared: the targets are made anew when it is turned off)
         GL_BindFramebufferFunc(GL_FRAMEBUFFER, t.fb.composite.fbo);
-        const GLenum status = GL_CheckFramebufferStatusFunc(GL_FRAMEBUFFER);
+        const GLenum status = foveationIncomplete ? foveationIncomplete : GL_CheckFramebufferStatusFunc(GL_FRAMEBUFFER);
         GL_BindFramebufferFunc(GL_FRAMEBUFFER, 0);
+        foveationIncomplete = 0;
         if(status != GL_FRAMEBUFFER_COMPLETE)
         {
-            Con_Printf("VR: the eyes' foveated scene framebuffer is incomplete (0x%x): no foveation\n", status);
-            foveationParams = nullptr; // (made anew without it next frame)
+            Con_Printf("VR: the eyes' foveated scene framebuffer is incomplete (0x%x, parts %d): no foveation\n", status,
+                t.foveatedParts);
+            foveationRefused |= 1u << t.foveatedParts; // (made anew without it next frame)
+        }
+        else
+        {
+            // (C4o: what the driver kept: the bits set, the features it offers, its focal points)
+            GLint bits = 0, offered = 0, points = 0;
+            GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, t.fb.composite.color_tex);
+            glGetTexParameteriv(GL_TEXTURE_2D, 0x8BFB, &bits);    // GL_TEXTURE_FOVEATED_FEATURE_BITS_QCOM
+            glGetTexParameteriv(GL_TEXTURE_2D, 0x8BFD, &offered); // GL_TEXTURE_FOVEATED_FEATURE_QUERY_QCOM
+            glGetTexParameteriv(GL_TEXTURE_2D, 0x8BFE, &points);  // GL_TEXTURE_FOVEATED_NUM_FOCAL_POINTS_QUERY_QCOM
+            GLfloat minDensity = -1.f;
+            glGetTexParameterfv(GL_TEXTURE_2D, 0x8BFC, &minDensity); // GL_TEXTURE_FOVEATED_MIN_PIXEL_DENSITY_QCOM
+            GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, 0);
+            Con_Printf("VR: the eyes' scene foveated (%d x %d, parts %d, format 0x%x): bits %d, offered %d, focal points %d, "
+                       "min density %.3f, error 0x%x\n",
+                width, height, t.foveatedParts, format, bits, offered, points, minDensity, glGetError());
+            foveationPoints = za::clamp(points, 1, 4);
         }
     }
 
@@ -229,7 +273,7 @@ void ensureSceneTargets(SceneTargets& t, int width, int height, float fsaa, bool
 // a point d away (in the image's -1..1) is 1 / (gain^2 d^2 - area): full within sqrt(1 + area) / gain of it.
 void foveateEye(const Fov& fov)
 {
-    if(!eyeTargets.foveated)
+    if(!eyeTargets.foveated || foveationLevel() == 0) // (none: the targets made again without it, an incomplete framebuffer)
     {
         return;
     }
@@ -239,8 +283,14 @@ void foveateEye(const Fov& fov)
     constexpr float areas[] = {0.f, 0.5f, 0.25f, 0.1f};
     const int level = foveationLevel();
     const float l = za::tan(fov.left), r = za::tan(fov.right), u = za::tan(fov.up), d = za::tan(fov.down);
-    foveationParams(eyeTargets.fb.composite.color_tex, 0, 0, -(r + l) / (r - l), -(u + d) / (u - d), gains[level],
-        gains[level], areas[level]);
+    for(const GLuint texture : foveatedTextures(eyeTargets))
+    {
+        for(GLint point = 0; texture && point < foveationPoints; point++)
+        {
+            foveationParams(texture, 0, static_cast<GLuint>(point), -(r + l) / (r - l), -(u + d) / (u - d), gains[level],
+                gains[level], areas[level]);
+        }
+    }
 }
 
 void releaseSceneTargets(SceneTargets& t)
@@ -1422,8 +1472,30 @@ extern "C" int VR_SceneAttachmentFoveation(const char* name)
     // (the eyes' scene colours without MSAA: "composite colors", gl_rmain.c; QCOM_texture_foveated wants its bits set
     // before the storage)
     // (C4n: the depth foveated too makes the framebuffer incomplete on the Quest 3, 0x8BFF: the colour alone)
-    return stereo::creatingSceneTargets && stereo::creatingFoveated && !strcmp(name, "composite colors") ?
-        stereo::foveationEnable : 0;
+    // (C4o: the scene fbo's colour too: the eye's scene is drawn there with scene effects, the blood's or the water's;
+    // their depth and the OIT targets by vr_gl_foveation_parts)
+    if(!stereo::creatingSceneTargets || !stereo::creatingFoveated)
+    {
+        return 0;
+    }
+    const int parts = stereo::creatingFoveatedParts;
+    const bool colour = !strcmp(name, "composite colors") || !strcmp(name, "scene colors");
+    const bool depth = !strcmp(name, "composite depth/stencil") || !strcmp(name, "scene depth/stencil");
+    const bool oit = !strcmp(name, "oit accum") || !strcmp(name, "oit revealage");
+    return colour || (depth && (parts & 2)) || (oit && (parts & 4)) ? stereo::foveationEnable : 0;
+}
+
+extern "C" int VR_SceneFoveationIncomplete(unsigned status, const char* name)
+{
+    // (GL_CreateFBO: a foveated eye framebuffer the driver won't take, 0x8BFF GL_FRAMEBUFFER_INCOMPLETE_FOVEATION_QCOM:
+    // kept for ensureSceneTargets, which makes them again without foveation, instead of an error)
+    if(!stereo::creatingSceneTargets || !stereo::creatingFoveated)
+    {
+        return 0;
+    }
+    Con_Printf("VR: %s incomplete with foveation (0x%x, parts %d)\n", name, status, stereo::creatingFoveatedParts);
+    stereo::foveationIncomplete = status;
+    return 1;
 }
 
 extern "C" unsigned VR_SceneColorFormat(unsigned format)

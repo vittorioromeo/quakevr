@@ -490,6 +490,11 @@ za::Vector<Item> pageDebugProfiling()
         row(opt::vr_profile_csv),
         row(opt::vr_profile_hitch),
         row(opt::vr_profile_slow_ms),
+        command("Foveate Scene Colours Only", "vr_gl_foveation_parts 1")
+            .help("vr_gl_foveation_parts 1: Scene Foveation (the Quest's GPU) on the eyes' scene colours only."),
+        command("Foveate Scene Colours and Depth", "vr_gl_foveation_parts 3")
+            .help("vr_gl_foveation_parts 3: Scene Foveation on the eyes' colours and their depth/stencil (and 7: the "
+                  "order-independent transparency targets too). A framebuffer the driver won't take turns it off."),
         command("List the Frame's Render Passes", "vr_gl_passes 1")
             .help("vr_gl_passes 1: the next frame's framebuffer binds in the console, in order, each with the draws made "
                   "into it and the profiler's scope at the bind (Profiling on for the names). On a tiled GPU (the Quest) "

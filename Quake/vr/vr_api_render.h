@@ -413,6 +413,7 @@ void VR_SkinEdgesModel(const char* model, int holey, int width, int height, cons
 unsigned char* VR_SkinEdgeFill(const char* name, unsigned char* data, int width, int height, int bpp);
 
 // The eyes' tone curve, grade and dither (vr_tonemap.cpp; see vr_tonemap.h).
+int VR_SceneFoveationIncomplete (unsigned status, const char *name);	// GL_CreateFBO: 1 when a foveated eye framebuffer is incomplete (made again without foveation), else 0
 int VR_SceneAttachmentFoveation (const char *name);	// GL_CreateFBOAttachment: the QCOM foveation bits to set before the storage (the eyes' scene, vr_gl_foveation), or 0
 unsigned VR_SceneColorFormat (unsigned format);	// GL_CreateFrameBuffers: the scene's colour format (the eyes' float one with vr_tonemap)
 unsigned VR_SceneDepthFormat (unsigned format);	// GL_CreateFrameBuffers: the scene's depth/stencil format (the eyes' float one: vr_depth_float; flatscreen play's too)
