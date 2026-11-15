@@ -162,10 +162,18 @@ def main():
 
     # ---- the hitches by cause ----
     hitches = []
+    session_t, session_state = -1e9, ""
     for i, r in enumerate(rows):
         p = num(r["period"])
+        marks = [e for e in r.get("events", "").split("|") if e.startswith("mark:xr session")]
+        if marks:
+            session_t, session_state = num(r["t"]), marks[-1].split(":")[1][len("xr session "):]
         if p > 1.5 * budget or num(r["xr_missed"]) > 0:
             cause, detail = frame_cause(r, rows[i - 1] if i else None, budget)
+            if num(r["t"]) - session_t < 2.0:
+                # the runtime's session changed in the last 2 s (the unworn headset asleep and woken, its menu):
+                # the runtime's frames (swapchain acquire, input), not the game's
+                cause, detail = "xr:session", "%s %.2f s before; %s" % (session_state, num(r["t"]) - session_t, detail)
             hitches.append((p - budget, cause, detail, r))
     by = defaultdict(lambda: [0, 0.0, 0.0, None])
     for excess, cause, detail, r in hitches:
