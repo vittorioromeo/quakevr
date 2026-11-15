@@ -5080,9 +5080,10 @@ int playerBoxFits(qmodel_t* world, const glm::vec3& start, const glm::vec3& end)
 bool clientPlayerTrace(qmodel_t* world, qmodel_t* model, float width, float height, const float* start, const float* end,
     trace_t& trace)
 {
-    if((width <= 0.f && height <= 0.f) || sv.active || !world || !model || model->type != mod_brush || model->numnodes <= 0)
+    if((width <= 0.f && height <= 0.f) || progs::ownSource() != progs::OwnSource::Client || !world || !model ||
+        model->type != mod_brush || model->numnodes <= 0)
     {
-        return false; // (a server here keeps its own map's brushes: never a remote client's prediction)
+        return false; // (a server here keeps its own map's brushes: only a remote client's own player is predicted)
     }
     const Brushes* b = worldBrushes(world);
     if(!b)

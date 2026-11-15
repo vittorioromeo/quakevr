@@ -154,9 +154,9 @@ trace_t clientMove(const glm::vec3& start, const glm::vec3& mins, const glm::vec
 za::Optional<trace_t> move(
     const glm::vec3& start, const glm::vec3& mins, const glm::vec3& maxs, const glm::vec3& end, int type, int pass)
 {
-    if(!progs::localPlayer())
+    if(const progs::OwnSource own = progs::ownSource(); own != progs::OwnSource::Edict)
     {
-        if(sv.active || !cl.worldmodel || cls.state != ca_connected || cls.demoplayback)
+        if(own == progs::OwnSource::None || cls.demoplayback)
         {
             return za::nullOpt; // (hosting with nobody in slot 0 yet, no map, or a demo: as before)
         }

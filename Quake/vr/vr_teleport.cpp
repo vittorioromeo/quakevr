@@ -65,11 +65,7 @@ void teleportUp_f()
     {
         return false;
     }
-    if(const edict_t* p = progs::localPlayer())
-    {
-        return (static_cast<int>(p->v.flags) & FL_ONGROUND) != 0 && p->v.waterlevel < 2.f;
-    }
-    return !sv.active && cls.state == ca_connected && cl.onground && !cl.inwater;
+    return progs::ownStanding();
 }
 
 [[nodiscard]] bool trace(const hands::State& s, int hand)

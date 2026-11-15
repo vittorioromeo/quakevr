@@ -270,6 +270,40 @@ struct ServerVm
     return sv.active && svs.maxclients >= 1 && svs.clients[0].active ? svs.clients[0].edict : nullptr;
 }
 
+// The own player as the client-side code asks after him (MP_PLAN.md, B9 review #6): one answer whoever runs him. Edict:
+// this game hosts him (localPlayer); Client: a remote client, what the client has of him (the prediction's ground and
+// water, its own map's brushes to trace against); None: neither (hosting with nobody in slot 0 yet, not connected, no map).
+enum class OwnSource : int
+{
+    None,
+    Edict,
+    Client
+};
+[[nodiscard]] inline OwnSource ownSource()
+{
+    if(localPlayer())
+    {
+        return OwnSource::Edict;
+    }
+    return !sv.active && cls.state == ca_connected && cl.worldmodel ? OwnSource::Client : OwnSource::None;
+}
+
+// The own player on the ground and not swimming (his waterlevel under 2; ownSource's answer).
+[[nodiscard]] inline bool ownStanding()
+{
+    switch(ownSource())
+    {
+        case OwnSource::Edict:
+        {
+            const edict_t* p = localPlayer();
+            return (static_cast<int>(p->v.flags) & FL_ONGROUND) != 0 && p->v.waterlevel < 2.f;
+        }
+        case OwnSource::Client: return cl.onground && !cl.inwater;
+        case OwnSource::None: break;
+    }
+    return false;
+}
+
 // The local server's first player slot, client 0's edict (edict 1), whether or not a client is in it yet; null when
 // not hosting. After an `if(!sv.active) return;` guard (svs.maxclients is always at least 1) it is the old
 // `EDICT_NUM(1)` with the server's VM current, and `svs.clients[0].edict`. Any current VM.
