@@ -127,6 +127,8 @@ CCREP_RULE_INFO
 #define CCREP_PLAYER_INFO	0x84
 #define CCREP_RULE_INFO		0x85
 
+#define NET_RELIABLE_WINDOW	16 // QVR: reliable chunks in flight at most (net_dgrm.c)
+
 typedef struct qsocket_s
 {
 	struct qsocket_s	*next;
@@ -146,6 +148,15 @@ typedef struct qsocket_s
 	unsigned int	ackSequence;
 	unsigned int	sendSequence;
 	unsigned int	sendChunkBase;	// QVR: the sequence of the reliable message's first chunk (net_dgrm.c)
+	// QVR: the reliable window's resends (net_dgrm.c, MP_PLAN.md B12b): each chunk in flight's last send (by its sequence
+	// modulo the window) and whether it was a resend; the chunks' smoothed round trip (0: none measured yet); the acks of
+	// later chunks since the last in order (a lost chunk's sign); timeouts in a row; a fast resend since the last in order
+	double		chunkSentTime[NET_RELIABLE_WINDOW];
+	qboolean	chunkResent[NET_RELIABLE_WINDOW];
+	double		reliableRtt;
+	int		aheadAcks;
+	int		resendBackoff;
+	qboolean	fastResent;
 	int		qvrNetVersion;	// QVR: the peer's Quake VR network version from its connect request (0: none; net_dgrm.c)
 	char		qvrName[32];	// QVR: the player's name from its connect request ("": none): a loaded coop game's slot by it
 	unsigned int	unreliableSendSequence;

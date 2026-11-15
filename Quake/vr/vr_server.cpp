@@ -875,6 +875,35 @@ struct NetStat
 };
 NetStat netStats[MAX_SCOREBOARD];
 
+// vr_net_reliable_test <entity> <bytes>: a reliable message of about that many bytes to that player's client (nops, then
+// "mp_reliable: <bytes> bytes" printed there when it arrives): the reliable window's resends measured (mp_test.py
+// retransmit, B12b).
+void netReliableTest_f()
+{
+    if(!sv.active || Cmd_Argc() < 3)
+    {
+        Con_Printf("vr_net_reliable_test <player entity> <bytes>: a reliable message of that size to his client\n");
+        return;
+    }
+    const int e = atoi(Cmd_Argv(1));
+    client_t* const c = e >= 1 && e <= svs.maxclients ? &svs.clients[e - 1] : nullptr;
+    if(!c || !c->active)
+    {
+        Con_Printf("vr_net_reliable_test: no player %d\n", e);
+        return;
+    }
+    const char* const mark = va("mp_reliable: %d bytes\n", atoi(Cmd_Argv(2)));
+    const int room = c->message.maxsize - c->message.cursize - static_cast<int>(strlen(mark)) - 2;
+    const int n = za::max(0, za::min(atoi(Cmd_Argv(2)), room));
+    for(int i = 0; i < n; i++)
+    {
+        MSG_WriteByte(&c->message, svc_nop);
+    }
+    MSG_WriteByte(&c->message, svc_print);
+    MSG_WriteString(&c->message, mark);
+    Con_Printf("vr_net_reliable_test: %d bytes to player %d\n", n, e);
+}
+
 void netStats_f()
 {
     if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "reset"))
@@ -2108,6 +2137,7 @@ void init()
 {
     Cmd_AddCommand("vr_dumpplayer", dumpPlayer_f);
     Cmd_AddCommand("vr_net_stats", netStats_f);
+    Cmd_AddCommand("vr_net_reliable_test", netReliableTest_f);
     climb::init();
     foegrab::init();
     legsweep::init();

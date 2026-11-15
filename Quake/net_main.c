@@ -121,6 +121,10 @@ qsocket_t *NET_NewQSocket (void)
 	sock->ackSequence = 0;
 	sock->sendSequence = 0;
 	sock->sendChunkBase = 0; // QVR
+	sock->reliableRtt = 0; // QVR (net_dgrm.c: the reliable window's resends)
+	sock->aheadAcks = 0;
+	sock->resendBackoff = 0;
+	sock->fastResent = false;
 	sock->qvrNetVersion = 0; // QVR
 	sock->qvrName[0] = 0; // QVR
 	sock->unreliableSendSequence = 0;

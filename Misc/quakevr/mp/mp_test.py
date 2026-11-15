@@ -10,6 +10,9 @@ Tests:
              --lag/--jitter/--loss put client B behind a proxy (mp_proxy.py); the bounds grow by the lag it adds.
     bandwidth  both idle on e1m1: B's link down under 25 KB/s (armed humanoids' poses only of those in sight), with
              vr_net_cullposes 0 measured too; no packet down over 1408 B (reliable chunks at most 1200 B).
+    retransmit  (B12b) the reliable window's resends, B 100 ms away: a one-chunk message's lost chunk resent at its
+             timeout (twice the measured round trip, under 0.75 s; NetQuake's: 1 s), a five-chunk one's lost first chunk
+             at the later ones' acks (under 1.5 round trips); both arrive.
     armed    (B12) six armed humanoids ahead of B in vrtesthall, idle and in combat: B's link down by kind (vr_net_bytes)
              with their poses outside his snapshot (vr_net_snapposes 0) and in it, under the budgets; under vr_net_rate
              6000: his link within it, a snapshot every datagram, the nearest poses more often than the farthest.
@@ -57,7 +60,7 @@ Tests:
              him; a hold taken in the air (B8j part 2); the hands' climb out of the start map's pool (B8j part 3); the
              grapple's reel and hang from vrclimb's ceiling (B8j part 4). --part hang|mantle|airgrab|waterclimb|grapple:
              one alone.
-    suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, version, avatar, avatarcal, body, prefs, grab,
+    suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, armed, retransmit, version, avatar, avatarcal, body, prefs, grab,
              teleport, held, ground, campaign, campaign_listen, flow, download, pickup, forcegrab, melee, moves, climb,
              rules, cosmetics, flatbody, loss, predict, predictclimb, lagcomp, disarm.
 
@@ -287,6 +290,43 @@ def net_window(s, srv, b, label, packets=IDLE_PACKETS):
     s.note("%s: the snapshot's entity entries (count/bytes): gone %d/%d, whole %d/%d, byte by byte %d/%d, by fields %d/%d"
            % ((label,) + tuple(v for op in ops for v in op)))
     return w, kinds, sorted(prio), snap_status(srv, b.ent), ops
+
+
+RETRANSMIT_LAG = 100     # ms each way: B's link in mp_retransmit (a round trip of 0.2 s)
+RETRANSMIT_TIMEOUT = 0.75 # s: a lost lone chunk resent within (twice the round trip and 50 ms, 0.45-0.5 s; NetQuake's: 1 s)
+RETRANSMIT_FAST = 1.5     # round trips: a lost chunk with later ones in flight resent within (at their acks)
+
+
+def retransmit(s):
+    """(B12b) The reliable window's resends, B 100 ms away each way: a one-chunk reliable message down (300 B) with its
+    chunk dropped is resent at its timeout (twice the round trip measured and a little, under 0.75 s; NetQuake's was a
+    second); a five-chunk one (5000 B) with its first chunk dropped is resent at the acks of the later ones (under 1.5
+    round trips); both arrive whole."""
+    lag = RETRANSMIT_LAG
+    srv, a, b, ea, eb = join(s, lag=lag)
+    rtt = 2 * lag / 1000.0
+    proxy = b.proxy
+    for _ in range(4):  # (a few reliable messages: the server measures the round trip)
+        since = b.mark()
+        srv.cmd("vr_net_reliable_test %d 100" % eb)
+        b.wait(r"mp_reliable: 100 bytes", 10, since)
+    for label, size, least, most in (("a lone chunk", 300, 0, RETRANSMIT_TIMEOUT),
+                                     ("the first of five chunks", 5000, 1200, RETRANSMIT_FAST * rtt)):
+        proxy.drop_reliable_down(1, least)
+        since = b.mark()
+        t0 = time.monotonic()
+        srv.cmd("vr_net_reliable_test %d %d" % (eb, size))
+        b.wait(r"mp_reliable: %d bytes" % size, 10, since, what="B's %d B reliable message" % size)
+        took = time.monotonic() - t0
+        after = list(proxy.resent_after.values())
+        s.check("%s dropped (%d B message): resent within %.2f s, the message whole" % (label, size, most),
+                len(after) == 1 and after[0] <= most,
+                "resent %s s after the drop; the message read %.2f s after the command" % (
+                    ", ".join("%.3f" % x for x in after) or "never", took))
+    since = srv.mark()
+    srv.cmd("net_stats")
+    _, line = srv.wait(r"windows resent: fast", 10, since)
+    s.note("server: %s" % " ".join(l.strip() for l in srv.lines[since:] if l.startswith("windows resent")))
 
 
 def armed(s):
@@ -3926,6 +3966,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             bandwidth(s)
         elif test == "mp_armed":
             armed(s)
+        elif test == "mp_retransmit":
+            retransmit(s)
         elif test == "mp_version":
             version(s)
         elif test == "mp_avatarcal":
@@ -4006,7 +4048,7 @@ def print_bytes_table():
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "lagcomp", "disarm", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "lagcomp", "disarm", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -4040,7 +4082,7 @@ def main():
                 sys.exit(2)
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
-    elif args.test in ("bandwidth", "armed", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
+    elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
                        "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "lagcomp", "disarm"):
         ok = run(args, "mp_" + args.test)
     else:
@@ -4048,6 +4090,7 @@ def main():
         ok = run(args, "mp_coop_lag", 150, 0, 0.02) and ok
         ok = run(args, "mp_bandwidth") and ok
         ok = run(args, "mp_armed") and ok
+        ok = run(args, "mp_retransmit") and ok
         ok = run(args, "mp_version") and ok
         ok = run(args, "mp_avatar") and ok
         ok = run(args, "mp_avatarcal") and ok

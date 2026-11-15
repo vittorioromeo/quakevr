@@ -39,6 +39,8 @@ static int net_landriverlevel;
 /* statistic counters */
 static int packetsSent = 0;
 static int packetsReSent = 0;
+static int packetsTimedReSent = 0; // QVR: windows resent at their timeout (B12b)
+static int packetsFastReSent = 0; // QVR: ... at acks of later chunks (B12b)
 static int packetsReceived = 0;
 static int receivedDuplicateCount = 0;
 static int shortPacketCount = 0;
@@ -136,8 +138,18 @@ static void NET_Ban_f (void)
 // round trip a chunk). The receiver is NetQuake's, unchanged: it acks every data packet and takes only the next one in
 // order, so an ack counts only in order (one for a later chunk is for a packet it dropped), and a timeout sends every
 // chunk in flight again (docs/vr-port/MP_PLAN.md, B2).
+//
+// Resends (B12b): NetQuake's timeout was a fixed second. It is now twice the chunks' smoothed round trip (Karn's: a
+// resent chunk's ack not measured) plus DGRM_RESEND_MARGIN, at least DGRM_RESEND_LEAST, doubling with each timeout in a
+// row (a peer not reading, a map loading: never more often than NetQuake's backstop allows) up to DGRM_RESEND_MOST. And
+// fast: DGRM_FAST_ACKS acks of later chunks (the receiver got them, so the one before was lost) send the window again
+// at once, once until the next ack in order.
 #define DGRM_RELIABLE_CHUNK		1200
-#define DGRM_RELIABLE_WINDOW	16
+#define DGRM_RELIABLE_WINDOW	NET_RELIABLE_WINDOW
+#define DGRM_RESEND_LEAST		0.15
+#define DGRM_RESEND_MOST		1.0
+#define DGRM_RESEND_MARGIN		0.05
+#define DGRM_FAST_ACKS			2
 
 static unsigned int ReliableChunks (const qsocket_t *sock)
 {
@@ -160,7 +172,21 @@ static int SendReliableChunk (qsocket_t *sock, unsigned int sequence)
 		return -1;
 
 	sock->lastSendTime = net_time;
+	sock->chunkResent[sequence % DGRM_RELIABLE_WINDOW] = sequence != sock->sendSequence; // (a first send: the newest)
+	sock->chunkSentTime[sequence % DGRM_RELIABLE_WINDOW] = net_time;
 	return 1;
+}
+
+// the resend timeout (B12b: above)
+static double ResendTimeout (const qsocket_t *sock)
+{
+	double	t;
+
+	if (sock->reliableRtt <= 0)
+		return DGRM_RESEND_MOST; // (nothing measured yet: NetQuake's)
+	t = q_max (DGRM_RESEND_LEAST, 2 * sock->reliableRtt + DGRM_RESEND_MARGIN);
+	t *= (double) (1 << q_min (sock->resendBackoff, 4));
+	return q_min (t, DGRM_RESEND_MOST);
 }
 
 // the chunks not sent yet that the window has room for
@@ -270,8 +296,12 @@ int	Datagram_GetMessage (qsocket_t *sock)
 	unsigned int	count;
 
 	if (!sock->canSend)
-		if ((net_time - sock->lastSendTime) > 1.0)
+		if ((net_time - sock->lastSendTime) > ResendTimeout (sock)) // QVR: (B12b; NetQuake's: a second)
+		{
 			ReSendMessage (sock);
+			sock->resendBackoff++;
+			packetsTimedReSent++;
+		}
 
 	while (1)
 	{
@@ -345,9 +375,26 @@ int	Datagram_GetMessage (qsocket_t *sock)
 			// before it; one already acked: a duplicate)
 			if (sequence != sock->ackSequence || sock->ackSequence == sock->sendSequence)
 			{
+				// QVR: (B12b) a later chunk's, in flight: the receiver has it, so one before it was lost (or is late):
+				// enough of them, the window again at once (once until the next in order)
+				if ((int) (sequence - sock->ackSequence) > 0 && (int) (sequence - sock->sendSequence) < 0 &&
+					++sock->aheadAcks >= DGRM_FAST_ACKS && !sock->fastResent)
+				{
+					ReSendMessage (sock);
+					sock->fastResent = true;
+					packetsFastReSent++;
+				}
 				Con_DPrintf("Stale ACK received\n");
 				continue;
 			}
+			if (!sock->chunkResent[sequence % DGRM_RELIABLE_WINDOW]) // QVR: (B12b) its round trip (Karn's: a first send's)
+			{
+				double rtt = net_time - sock->chunkSentTime[sequence % DGRM_RELIABLE_WINDOW];
+				sock->reliableRtt = sock->reliableRtt > 0 ? 0.875 * sock->reliableRtt + 0.125 * rtt : rtt;
+			}
+			sock->aheadAcks = 0;
+			sock->resendBackoff = 0;
+			sock->fastResent = false;
 			sock->ackSequence++;
 			if (sock->ackSequence - sock->sendChunkBase >= ReliableChunks (sock))
 			{
@@ -419,6 +466,8 @@ static void NET_Stats_f (void)
 		Con_Printf("reliable messages received = %i\n", messagesReceived);
 		Con_Printf("packetsSent                = %i\n", packetsSent);
 		Con_Printf("packetsReSent              = %i\n", packetsReSent);
+		Con_Printf("windows resent: timeout    = %i\n", packetsTimedReSent); // QVR (B12b)
+		Con_Printf("windows resent: fast       = %i\n", packetsFastReSent);
 		Con_Printf("packetsReceived            = %i\n", packetsReceived);
 		Con_Printf("receivedDuplicateCount     = %i\n", receivedDuplicateCount);
 		Con_Printf("shortPacketCount           = %i\n", shortPacketCount);

@@ -23,8 +23,13 @@ import threading
 import time
 
 NETFLAG_CTL = 0x80000000
+NETFLAG_DATA = 0x00010000  # a reliable message's chunk (net_dgrm.c)
 CCREP_ACCEPT = 0x81
 HOST = "127.0.0.1"
+
+
+def control_or_short(pkt):
+    return len(pkt) < 8 or is_control(pkt)
 
 
 def is_control(pkt):
@@ -53,12 +58,42 @@ class Proxy:
         self.stats = {"up": [0, 0, 0, 0], "down": [0, 0, 0, 0]}  # packets, bytes, dropped, largest
         self.first = None
         self.last = None
+        # (B12b) reliable chunks down to drop (drop_reliable_down): how many more; each dropped one's sequence and time,
+        # and the delay until the server sent it again
+        self.drop_reliable = 0
+        self.drop_least = 0
+        self.dropped = {}  # sequence -> time dropped
+        self.resent_after = {}  # sequence -> s
 
     def delay(self):
         return max(0.0, self.lag + (self.rng.uniform(-self.jitter, self.jitter) if self.jitter > 0 else 0.0))
 
+    def drop_reliable_down(self, n=1, least=0):
+        """Drop the next `n` reliable chunks down of `least` bytes or more (B12b's resend timings: resent_after)."""
+        self.dropped.clear()
+        self.resent_after.clear()
+        self.drop_least = least
+        self.drop_reliable = n
+
+    def reliable_down(self, pkt):
+        """A chunk of a reliable message down: dropped if armed; its resend after a drop timed. True: drop it."""
+        if control_or_short(pkt) or not (int.from_bytes(pkt[0:4], "big") & NETFLAG_DATA):
+            return False
+        seq = int.from_bytes(pkt[4:8], "big")
+        now = time.monotonic()
+        if seq in self.dropped and seq not in self.resent_after:
+            self.resent_after[seq] = now - self.dropped[seq]
+        if self.drop_reliable > 0 and seq not in self.dropped and len(pkt) >= self.drop_least:
+            self.drop_reliable -= 1
+            self.dropped[seq] = now
+            return True
+        return False
+
     def schedule(self, sock, addr, pkt, direction, control):
         st = self.stats[direction]
+        if direction == "down" and self.reliable_down(pkt):
+            st[2] += 1
+            return
         if not control and self.loss > 0 and self.rng.random() < self.loss:
             st[2] += 1
             return
