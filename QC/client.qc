@@ -2192,6 +2192,7 @@ Called every frame after physics are run
 void() PlayerPostThink =
 {
     VR_PP_Frame(self); // QVR: the armour's plates follow what is left of it (vr_playerplates.qc; bots too)
+    VR_PD_Frame(self); // QVR: shots and projectiles on your weapons: knocked out? (vr_playerdisarm.qc)
 
     // FRIKBOT
     if(BotPostFrame())

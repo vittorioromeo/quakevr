@@ -1030,6 +1030,8 @@ vr_agrunt_shotdisarm_proj_chance|1|Armed Grunts|Projectile: Chance|Advanced VR O
 vr_agrunt_shotdisarm_proj_ref|1|Armed Grunts|Projectile: Reference Damage|Advanced VR Options > Combat > Armed Grunts > Projectile: Reference Damage
 vr_agrunt_shotdisarm_proj_near|1|Armed Grunts|Projectile: Near Miss|Advanced VR Options > Combat > Armed Grunts > Projectile: Near Miss
 vr_agrunt_shotdisarm_proj_max|1|Armed Grunts|Projectile: Most Chance|Advanced VR Options > Combat > Armed Grunts > Projectile: Most Chance
+vr_player_disarm|1|Armed Grunts|You Can Be Disarmed|Advanced VR Options > Combat > Armed Grunts > You Can Be Disarmed
+vr_player_disarm_chance|1|Armed Grunts|Your Disarm Chance|Advanced VR Options > Combat > Armed Grunts > Your Disarm Chance
 vr_agrunt_ik|1|Armed Grunts|Hands on the Grips|Advanced VR Options > Combat > Armed Grunts > Hands on the Grips
 vr_agrunt_w_fists|1|Armed Grunts|Fists|Advanced VR Options > Combat > Armed Grunts > Fists
 vr_agrunt_w_axe|1|Armed Grunts|Axe|Advanced VR Options > Combat > Armed Grunts > Axe
@@ -5581,6 +5583,7 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Enemy Footsteps Walkabout|Advanced VR Options > Debug > Tests > Enemy Footsteps Walkabout
 |2|Debug - Tests|Shoot Yourself: Aimed|Advanced VR Options > Debug > Tests > Shoot Yourself: Aimed
 |2|Debug - Tests|Shoot Yourself: Ordinary Firing|Advanced VR Options > Debug > Tests > Shoot Yourself: Ordinary Firing
+|2|Debug - Tests|Player Disarm: Shots on Your Gun|Advanced VR Options > Debug > Tests > Player Disarm: Shots on Your Gun
 |2|Debug - Tests|Projectiles Keep Your Motion|Advanced VR Options > Debug > Tests > Projectiles Keep Your Motion
 |2|Debug - Tests|Grenade Fuses|Advanced VR Options > Debug > Tests > Grenade Fuses
 |2|Debug - Tests|Projectiles: Flat Turn|Advanced VR Options > Debug > Tests > Projectiles: Flat Turn

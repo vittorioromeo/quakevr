@@ -2988,6 +2988,8 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
     vector oldUp = v_up;
 
     float hand = -1;
+    float pdHand = -1; // a blow that landed on your weapon (VR_PD_Blow): its hand, its gap
+    float pdGap = 999;
     // The directional parry (vr_dirparry.qc): a blow with a line (an armed humanoid's melee weapon swung at you, a monster's
     // own blow its frames give one for) is parried only by a weapon held across its way, where they meet. Other blows
     // (a bite, a leap, a punch: no way to be across) by the guard. An armed humanoid's swing stopped already: nothing lands;
@@ -3016,6 +3018,8 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
     else if(drp)
     {
         hand = VR_DRP_Blow(targ, attacker, damage);
+        pdHand = hand < 0 ? vr_drp_hand : -1; // (landed: its reading's weapon met, not across: vr_playerdisarm.qc)
+        pdGap = vr_drp_gap;
         if(vr_drp_deferred)
         {
             v_forward = oldForward;
@@ -3250,6 +3254,10 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
     else if(drp && !armsCrossed && vr_drp_cut > 0)
     {
         damage = damage * (1 - min(1, vr_drp_cut)); // (a partial directional parry: vr_dirparry_partial)
+    }
+    if(hand < 0 && !armsCrossed && pdHand >= 0)
+    {
+        VR_PD_Blow(targ, attacker, pdHand, damage, pdGap); // VR: landed on your weapon, not across: knocked out? (vr_playerdisarm.qc)
     }
 
     if(vr_parried)
