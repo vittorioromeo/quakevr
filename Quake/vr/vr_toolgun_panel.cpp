@@ -1104,6 +1104,10 @@ void armedPage(Ui& ui)
             {
                 q_strlcpy(note, "Unarmed: it fights with its fists.", sizeof(note));
             }
+            else if(pairs && code2 > 0 && !melee && (toolgun::armed::fits(kind, code2) >> 2) == VR_AG_CLASS_MELEE)
+            {
+                q_strlcpy(note, "A gun and a blade: it shoots, and swings the blade up close or with the gun spent.", sizeof(note));
+            }
             else if(pairs && code2 > 0 && melee)
             {
                 q_strlcpy(note, "Dual wielding: it swings them in turn, now and then both at once.", sizeof(note));
@@ -1115,7 +1119,7 @@ void armedPage(Ui& ui)
             else if(pairs)
             {
                 q_strlcpy(note, melee ? "One-handed: a second one-handed weapon can go in its left hand." :
-                                        "A gun: a second gun can go in its left hand (dual wielding).", sizeof(note));
+                                        "A gun: a second gun, or a one-handed blade, can go in its left hand.", sizeof(note));
             }
             else
             {

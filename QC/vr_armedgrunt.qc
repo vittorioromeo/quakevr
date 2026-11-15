@@ -3388,7 +3388,8 @@ grenade launcher, 22 plasma rifle, 23 defender's shotgun, 25 centurion's plasma 
 sword, 119 justice knight's, 120 judicator's; with Rogue's data 117 Phantom sword; any campaign 104 the death knight's
 sword (13 with its secondary flag); -1 its fists; 0 or unset: one from
 the pool). "weaponflags": that weapon's flags. "weapon2", "weaponflags2": a second weapon in its left hand (both
-one-handed: 2 axe, 13 sword, 17 crowbar, 101 Shadow Axe, 111..114 and 117..120 AD's swords; else one weapon).
+one-handed: 2 axe, 13 sword, 17 crowbar, 101 Shadow Axe, 111..114 and 117..120 AD's swords; two guns not too big; a gun
+and a one-handed blade, fought as the replacements' gun and axe; else one weapon).
 */
 void() monster_vr_grunt = { VR_AM_Spawn(VR_AM_GRUNT); };
 
@@ -3556,6 +3557,13 @@ void(float want, float flags, entity inst, float want2, float flags2) VR_AM_ArmA
             inst2 = WeaponInst_New(0);
             inst2.wi_adup = vr_ag_dec_up;
             inst2.wi_clip = VR_AG_ClipOf(vr_ag_dec_wid, inst2); // (the Plasma Gun's, the Widowmaker's: full)
+        }
+        if(self.vr_ag_prop && VR_AG_DualGun(self.vr_ag_wid, self.vr_ag_wflags) &&
+           VR_AG_OneHanded(vr_ag_dec_wid, flags2 | vr_ag_dec_flags))
+        {
+            // A gun and a one-handed blade from the keys (the toolgun's Armed Humanoid page, a map's "weapon2"): the
+            // replacements' gun and axe (vr_agrunt_repl_gunaxe), fought the same way (VR_AGR_GunAxe).
+            self.vr_ag_gunaxe = 1;
         }
         if(!VR_AG_ArmLeft(self, vr_ag_dec_wid, flags2 | vr_ag_dec_flags, inst2))
         {

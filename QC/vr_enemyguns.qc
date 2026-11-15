@@ -64,7 +64,7 @@ string(float xWid) VR_EnemyGun_Name =
     }
     if(xWid == WID_GRUNTGUN)
     {
-        return "grunt's burst rifle"; // (always, in your hands: VR_EnemyGun_Attack)
+        return "Burst Rifle"; // (always, in your hands: VR_EnemyGun_Attack)
     }
     return "enforcer's rifle";
 };

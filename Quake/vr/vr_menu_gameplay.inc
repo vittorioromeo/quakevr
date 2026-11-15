@@ -900,7 +900,7 @@ void ikStretchReset()
         weight("Grenade Launcher", vr_agrunt_w_gl),
         weight("Rocket Launcher", vr_agrunt_w_rl),
         weight("Thunderbolt", vr_agrunt_w_lg),
-        weight("Grunt's Burst Rifle", vr_agrunt_w_gruntgun),
+        weight("Burst Rifle", vr_agrunt_w_gruntgun),
         weight("Enforcer's Laser Rifle", vr_agrunt_w_enfrifle),
         weight("Mission Packs' (Each)", vr_agrunt_w_packs),
         header("The Pool: Arcane Dimensions (With Its Data)"),

@@ -1465,7 +1465,7 @@ QVR_SLIDER(vr_dagger_damage, "Dagger", 0.1f, 2.f, 0.05f, "%.2fx sword", ext(),
 QVR_SLIDER(vr_sword_damage_mult, "Knight's Sword", 0.5f, 3.f, 0.05f, "%.2fx 20", ext(),
     "Knights and hell knights always drop their sword: a swing's damage, times 20 (1.5: 30), before its "
     "speed and weight; the hell knight's sword 25% more.")
-QVR_SLIDER(vr_gruntgun_damage, "Grunt's Burst Rifle", 1.f, 30.f, 1.f, "%.0f a round", ext(),
+QVR_SLIDER(vr_gruntgun_damage, "Burst Rifle", 1.f, 30.f, 1.f, "%.0f a round", ext(),
     "Grunts always drop their gun: a trigger pull fires a 3-round burst, each round this much damage (a "
     "head more; a grunt has 30 health). Burst Rifles off: the Shotgun's pellets.")
 
