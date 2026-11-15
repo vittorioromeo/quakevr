@@ -1789,21 +1789,30 @@ float(float xHand) VR_WaterClimb_HandPull =
     return TRUE;
 };
 
+// Off (vr_water_jump 0), a player climbs out with the hands: only while climbing is on (else there would be no way
+// out of a pool whose sides are higher than a stroke lifts him). A flat-screen player has no hands to climb with:
+// Quake's own jump out lifts him, whatever the setting (docs/vr-port/FLATPLAY.md, "Swimming"). TRUE: the hands'.
+float() VR_WaterJumpByHand =
+{
+    return self.ishuman && !VR_FlatPlay(self) && !cvar_hget(cvarh_vr_water_jump) && cvar_hget(cvarh_vr_climb);
+};
+
 void() CheckWaterJump =
 {
 // check for a jump-out-of-water
     makevectors(self.angles);
     v_forward_z = 0;
-    // Off (vr_water_jump 0), a player climbs out with the hands: only while climbing is on (else there would be no
-    // way out of a pool whose sides are higher than a stroke lifts him). A flat-screen player has no hands to climb
-    // with: Quake's own jump out lifts him, whatever the setting (docs/vr-port/FLATPLAY.md, "Swimming").
-    if(self.ishuman && !VR_FlatPlay(self) && !cvar_hget(cvarh_vr_water_jump) && cvar_hget(cvarh_vr_climb))
+    if(VR_WaterJumpByHand())
     {
         if(!VR_WaterClimb_HandPull(cVR_MainHand))
         {
             VR_WaterClimb_HandPull(cVR_OffHand);
         }
         return;
+    }
+    if(self.vr_movewaterjump)
+    {
+        return; // (a remote client's moves try it, each: MP_PLAN B8f)
     }
     WaterJumpTry(v_forward);
 };
@@ -1933,6 +1942,8 @@ void() PlayerPreThink =
     CheckMOTD();
     CheckRules();
     WaterMove();
+    // (a remote client's moves run Quake's jump out each, his prediction with them: MP_PLAN B8f)
+    self.vr_movewaterjump = (self.vr_moveswim && !VR_WaterJumpByHand());
 
     //JIM
     //WETSUIT

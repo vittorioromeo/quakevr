@@ -2842,6 +2842,9 @@ LIFT_A = (-584.0, 2656.0, -94.0)
 LIFT_DROP = (-504.0, 2656.0, LIFT_TOP + 60.0)
 # e1m4's deep water (hull 0's contents: water 48 units round him, 60 over and under; scratch b8e_water2.py): swimming
 SWIM_SPOT = (336.0, 1300.0, 388.0)
+# the start map's pool (deep: he sinks), at its surface 16 units east of a ledge on its west edge (scratch b8f_ledge3.py)
+WATERJUMP_SPOT = (1313.0, 1681.0, 86.0)
+WATERJUMP_YAW = 180
 
 
 def predict_moves(s, srv, a, b, ea, eb):
@@ -2926,6 +2929,40 @@ def predict_swim(s, srv, a, b, eb):
     b.cmd("notarget; god")
 
 
+def predict_waterjump(s, srv, a, b, eb, first=True):
+    """MP_PLAN B8f: Quake's jump out of the water predicted (QC CheckWaterJump's WaterJumpTry run in each move: solid
+    at the waist ahead, open at the eyes; then SV_WaterJump's carry over the edge). On the start map's pool (its low
+    edge: flatmove_test.sh's), B swims at the edge with the server on Quake's jump out (vr_water_jump 1; 0 is the
+    hands' climb out, the server's): he is lifted out onto dry ground, and his corrections stay under a unit."""
+    if first:
+        since_a, since_b = a.mark(), b.mark()
+        srv.cmd("changelevel start; vr_water_jump 1")
+        a.wait(r"mp_event: .*joined map=start", 120, since_a, "A on start")
+        b.wait(r"mp_event: .*joined map=start", 120, since_b, "B on start")
+    b.cmd("notarget; god")
+    put_at(srv, b, eb, WATERJUMP_SPOT, WATERJUMP_YAW)
+    # (he sinks: swimming at once, the jump key held to keep him up, from his prediction's snap to the spot on -- the teleport's correction left out)
+    own = None
+    for _ in range(100):
+        own = org_of(status(b), "mp_player", "self", 1)
+        if own and math.hypot(own[0] - WATERJUMP_SPOT[0], own[1] - WATERJUMP_SPOT[1]) <= 4:
+            break
+    else:
+        raise StepFailed("B's prediction never put in the pool (he draws himself at %s)" % own)
+    pr = predict_segment(s, b, "jumping out of the water", "+jump; vr_mock_stick off 0 1", 36,
+                         ("", "", "-jump; vr_mock_stick off 0 0", ""))
+    s.metric("b_predict_waterjump", pr)
+    sv = org_of(status(srv), "mp_client", "slot", eb - 1)
+    s.check("B jumped out of the water (states in the water jump: 5 at least; the server has him on the edge's top)",
+            int(pr.get("wj_n", 0)) >= 5 and bool(sv) and sv[2] >= WATERJUMP_SPOT[2] + 24.0,
+            "%s states, the server has him at %s" % (pr.get("wj_n"), sv))
+    predict_corr_check(s, "jumping out of the water", pr)
+    own = org_of(status(b), "mp_player", "self", 1)
+    gap = dist(own, sv) if own and sv else 99.0
+    s.check("out of the water at rest B stands where the server has him (within 1 unit)", gap <= 1.0,
+            "B draws himself at %s, the server has him at %s" % (own, sv))
+
+
 def predict(s):
     """MP_PLAN B8: B, 150 ms behind the server each way, predicts his own walking. His moves run on the server one by
     one for their own frame's time (vr_pmove.cpp, the code his client runs too); the server's state after the newest
@@ -2992,6 +3029,7 @@ def predict(s):
     b.quiet(r"mp_predict_corr: ", 1.0, 20, "B predicted again")
     predict_moves(s, srv, a, b, ea, eb)
     predict_swim(s, srv, a, b, eb)
+    predict_waterjump(s, srv, a, b, eb)
 
 
 

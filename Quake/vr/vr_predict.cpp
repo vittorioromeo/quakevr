@@ -45,6 +45,7 @@ enum StateBits
     bitHullBrushModels = 256, // the narrowed box meets brush models too (vr_hull_brushmodels)
     bitEdgeProbe = 512,       // the ledge test from the narrowed box's edge (vr_hull_edge_probe)
     bitJumpReleased = 1024,   // FL_JUMPRELEASED (the jump key let go since his last jump)
+    bitWaterJumpOut = 2048,   // Quake's jump out of the water in the moves (B8f: QC's .vr_movewaterjump)
 };
 
 constexpr float jumpSpeed = 270.f; // QC PlayerJump's
@@ -122,6 +123,15 @@ struct EdictBody final : pmove::Body
     {
         store();
         return SV_Move(const_cast<float*>(start), ent->v.mins, ent->v.maxs, const_cast<float*>(end), MOVE_NORMAL, ent);
+    }
+    trace_t line(const float* start, const float* end) override
+    {
+        return SV_Move(const_cast<float*>(start), vec3_origin, vec3_origin, const_cast<float*>(end), MOVE_NOMONSTERS, ent);
+    }
+    void waterJumped(const float* movedir) override
+    {
+        VectorCopy(movedir, ent->v.movedir);
+        ent->v.teleport_time = teleportSeen = static_cast<float>(qcvm->time) + holdLeft;
     }
     bool metBsp(const trace_t& tr) override { return tr.ent && static_cast<int>(tr.ent->v.solid) == SOLID_BSP; }
     bool overDropoff(const float* vel, float speed) override
@@ -224,6 +234,7 @@ void computeRules(edict_t* ent, pmove::Rules& r)
     r.nostep = sv_nostep.value != 0.f;
     r.roomscaleOn = hull::heightHold(ent) == 0;
     r.boxHeight = hull::crouchedHeight(ent);
+    r.maxsZ = ent->v.maxs[2];
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -449,6 +460,41 @@ struct ClientBody final : pmove::Body
         return best;
     }
     bool metBsp(const trace_t&) override { return true; }
+    trace_t line(const float* start, const float* end) override
+    {
+        // (the world's hull 0, then the brush models where they will be: MOVE_NOMONSTERS)
+        trace_t best;
+        memset(&best, 0, sizeof(best));
+        best.fraction = 1.f;
+        best.allsolid = true;
+        VectorCopy(end, best.endpos);
+        hull_t* hull = &cl.worldmodel->hulls[0];
+        SV_RecursiveHullCheck(hull, hull->firstclipnode, 0.f, 1.f, const_cast<float*>(start), const_cast<float*>(end), &best);
+        for(int k = 1; k < cl.num_entities; k++)
+        {
+            if(!brushMover(cl_entities[k]))
+            {
+                continue;
+            }
+            vec3_t at, s, t;
+            moverAt(k, moveTime, at);
+            VectorSubtract(start, at, s);
+            VectorSubtract(end, at, t);
+            trace_t tr;
+            memset(&tr, 0, sizeof(tr));
+            tr.fraction = 1.f;
+            tr.allsolid = true;
+            VectorCopy(t, tr.endpos);
+            hull_t* h = &cl_entities[k].model->hulls[0];
+            SV_RecursiveHullCheck(h, h->firstclipnode, 0.f, 1.f, s, t, &tr);
+            if(tr.allsolid || tr.startsolid || tr.fraction < best.fraction)
+            {
+                VectorAdd(tr.endpos, at, tr.endpos);
+                best = tr;
+            }
+        }
+        return best;
+    }
     bool overDropoff(const float* vel, float speed) override
     {
         // (VR_HullOverDropoff: a point at the box's leading edge, its feet, finds no floor within 34 units; with
@@ -764,7 +810,7 @@ void parseState()
     pmove::Rules r;
     for(float* f : {&r.maxspeed, &r.stickScale, &r.accelerate, &r.friction, &r.stopspeed, &r.edgefriction, &r.gravity,
             &r.maxvelocity, &r.stepsize, &r.roomscaleScale, &r.jumpSpeed, &r.boxHeight, &r.feetZ, &r.waistZ, &r.eyeZ,
-            &r.shallowStick, &r.wadeStick, &r.swimStick, &r.swimMax, &r.glide, &r.swimMost})
+            &r.shallowStick, &r.wadeStick, &r.swimStick, &r.swimMax, &r.glide, &r.swimMost, &r.maxsZ})
     {
         *f = MSG_ReadFloat();
     }
@@ -797,6 +843,7 @@ void parseState()
     r.slopeWalk = (bits & bitSlopeWalk) != 0;
     r.nostep = (bits & bitNoStep) != 0;
     r.waterDrag = (bits & bitWaterDrag) != 0;
+    r.waterJumpOut = (bits & bitWaterJumpOut) != 0;
     r.roomscaleOn = (bits & bitRoomscale) != 0;
     cp.landing = cp.have && !(cp.bits & bitOnGround) && (bits & bitOnGround);
     cp.have = true;
@@ -891,6 +938,7 @@ extern "C" void VR_PredictBeginRead(client_t* client)
         {
             progs::setFieldFloat(client->edict, progs::fields().vr_movejump, 0.f); // (QuakeC's jump until it does)
             progs::setFieldFloat(client->edict, progs::fields().vr_moveswim, 0.f);
+            progs::setFieldFloat(client->edict, progs::fields().vr_movewaterjump, 0.f);
         }
     }
 }
@@ -931,6 +979,7 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
     pmove::Rules& r = s->rules;
     SV_CheckWater(ent); // (the frame's, for QuakeC and the water's effects; each move finds its own)
     r.jumpSpeed = progs::fieldFloatOr(ent, progs::fields().vr_movejump, 0.f) != 0.f ? jumpSpeed : 0.f;
+    r.waterJumpOut = progs::fieldFloatOr(ent, progs::fields().vr_movewaterjump, 0.f) != 0.f; // (PlayerPreThink's)
     SV_CheckStuck(ent);
 
     EdictBody b{ent};
@@ -996,7 +1045,7 @@ extern "C" void VR_WritePredict(sizebuf_t* msg, client_t* client)
                      (flags & FL_WATERJUMP ? bitWaterJump : 0) | (r.slopeWalk ? bitSlopeWalk : 0) |
                      (r.nostep ? bitNoStep : 0) | (r.waterDrag ? bitWaterDrag : 0) | (r.roomscaleOn ? bitRoomscale : 0) | (vr_hull_brushmodels.value != 0.f ? bitHullBrushModels : 0) |
                      (vr_hull_edge_probe.value != 0.f ? bitEdgeProbe : 0) |
-                     (flags & FL_JUMPRELEASED ? bitJumpReleased : 0);
+                     (flags & FL_JUMPRELEASED ? bitJumpReleased : 0) | (r.waterJumpOut ? bitWaterJumpOut : 0);
     const int at = msg->cursize;
     MSG_WriteByte(msg, protocol::svc_quakevr);
     MSG_WriteByte(msg, protocol::QVR_SVC_PREDICT);
@@ -1015,7 +1064,7 @@ extern "C" void VR_WritePredict(sizebuf_t* msg, client_t* client)
     MSG_WriteFloat(msg, ent->v.movedir[1]);
     for(const float f : {r.maxspeed, r.stickScale, r.accelerate, r.friction, r.stopspeed, r.edgefriction, r.gravity,
             r.maxvelocity, r.stepsize, r.roomscaleScale, r.jumpSpeed, r.boxHeight, r.feetZ, r.waistZ, r.eyeZ,
-            r.shallowStick, r.wadeStick, r.swimStick, r.swimMax, r.glide, r.swimMost})
+            r.shallowStick, r.wadeStick, r.swimStick, r.swimMax, r.glide, r.swimMost, r.maxsZ})
     {
         MSG_WriteFloat(msg, f);
     }

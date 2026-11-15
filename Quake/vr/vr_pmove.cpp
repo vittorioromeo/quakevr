@@ -600,6 +600,38 @@ void checkWater(Body& b, const Rules& r)
     }
 }
 
+// QC WaterJumpTry along his facing (CheckWaterJump's makevectors(self.angles), level: the move's aim, its pitch a third,
+// as SV_ClientThink sets the angles): solid at the waist within 24 units ahead, open at the eyes -> lifted out
+// (FL_WATERJUMP, 225 up, pushed over the edge by .movedir until out of the water or 2 seconds on).
+void waterJumpTry(Body& b, const Input& in, const Rules& r)
+{
+    const float pitch = DEG2RAD(-in.view[PITCH] / 3.f), yaw = DEG2RAD(in.view[YAW]);
+    const float fwd[2] = {cosf(pitch) * cosf(yaw), cosf(pitch) * sinf(yaw)};
+    vec3_t start{b.origin[0], b.origin[1], b.origin[2] + 8.f}, end;
+    end[0] = start[0] + fwd[0] * 24.f;
+    end[1] = start[1] + fwd[1] * 24.f;
+    end[2] = start[2];
+    const trace_t waist = b.line(start, end);
+    if(waist.fraction >= 1.f)
+    {
+        return;
+    }
+    start[2] += r.maxsZ - 8.f;
+    end[2] = start[2];
+    vec3_t movedir;
+    VectorScale(waist.plane.normal, -50.f, movedir);
+    b.jumpDir[0] = movedir[0];
+    b.jumpDir[1] = movedir[1];
+    if(b.line(start, end).fraction < 1.f)
+    {
+        return;
+    }
+    b.flags = (b.flags | FL_WATERJUMP) & ~FL_JUMPRELEASED;
+    b.velocity[2] = 225.f;
+    b.holdLeft = 2.f; // (.teleport_time: the safety net)
+    b.waterJumped(movedir);
+}
+
 void playerMove(Body& b, const Input& in, const Rules& r, MoveNotes* notes)
 {
     const bool onground = (b.flags & FL_ONGROUND) != 0;
@@ -640,6 +672,15 @@ void playerMove(Body& b, const Input& in, const Rules& r, MoveNotes* notes)
         for(int i = 0; i < 3; i++)
         {
             b.velocity[i] -= k * b.velocity[i];
+        }
+    }
+    // QC CheckWaterJump (PlayerPreThink, after WaterMove; its .vr_movewaterjump leaves it to the moves), waist deep.
+    if(r.waterJumpOut && b.waterLevel == 2 && !(b.flags & FL_WATERJUMP))
+    {
+        waterJumpTry(b, in, r);
+        if(notes && (b.flags & FL_WATERJUMP))
+        {
+            notes->swim = true;
         }
     }
     if(r.jumpSpeed > 0.f)

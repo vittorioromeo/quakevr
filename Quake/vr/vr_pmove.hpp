@@ -42,6 +42,7 @@ struct Rules
     bool roomscaleOn{true};      // the room-scale walk moves him (not held under a low ceiling: vr_lowceil)
     float jumpSpeed{0.f};        // QC PlayerJump's, run in each move (270); 0: QuakeC jumps (once a server frame)
     float boxHeight{0.f};        // his box's height over his feet crouched (hull::crouchedHeight; 0: standing)
+    float maxsZ{32.f};           // his box's top over his origin (.maxs_z: WaterJumpTry's eye line)
 
     // The water (B8e), each move's level found from where he is (SV_CheckWater's three points, over his origin).
     float feetZ{-23.f}, waistZ{4.f}, eyeZ{22.f};
@@ -52,6 +53,8 @@ struct Rules
     float glide{0.f};            // VR_AfterWaterMove's glide off the bottom (vr_swim_glide; 0: not a swimmer)
     float swimMost{-1.f};        // ... its speed at most (vr_swim_max_speed; -1: no cap, not a swimmer)
     bool waterDrag{false};       // QC WaterMove's drag runs in each move (its .vr_moveswim), not once a server frame
+    bool waterJumpOut{false};    // QC CheckWaterJump's jump out (WaterJumpTry along his facing) runs in each move
+                                 // (its .vr_movewaterjump: Quake's jump out, not the hands' climb out), not once a frame
 };
 
 // The player as a move sees him. The hooks default to a client's world (BSP models only, nothing touched).
@@ -73,6 +76,8 @@ struct Body
     [[nodiscard]] virtual trace_t trace(const float* start, const float* end) = 0;
     // Whether what the trace met is a BSP model (the world, a door) -- floors of others stand only through standsOn.
     [[nodiscard]] virtual bool metBsp(const trace_t& tr) = 0;
+    // A line from start to end against the world and the brush models (traceline's MOVE_NOMONSTERS).
+    [[nodiscard]] virtual trace_t line(const float* start, const float* end) = 0;
     // SV_UserFriction's ledge test: the floor drops away ahead.
     [[nodiscard]] virtual bool overDropoff(const float* vel, float speed) = 0;
     // A walkable floor that is not a BSP model (a solid prop: VR_StandsOn).
@@ -91,6 +96,9 @@ struct Body
     virtual void closeQuarters(float*) {}
     // He jumped (PlayerJump's sound, its .button2 cleared: the server's).
     virtual void jumped() {}
+    // He jumped out of the water (WaterJumpTry: `movedir` its push over the edge; .movedir and .teleport_time, the
+    // server's).
+    virtual void waterJumped(const float* /*movedir*/) {}
 };
 
 // Walls and floors met during the last playerMove (a prediction's "flat ground": none but the floor, no step).

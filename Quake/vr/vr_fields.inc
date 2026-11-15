@@ -86,6 +86,7 @@ QVR_FIELD(handsynth)
 QVR_FIELD(vr_prone) // the player lies down (vr_prone: vr_hull.cpp isProne; vr_server.cpp): QC PlayerJump does nothing
 QVR_FIELD(vr_movejump) // a remote client's jump runs in his moves (vr_predict.cpp): QC PlayerPreThink leaves it (0 there: QC's)
 QVR_FIELD(vr_moveswim) // ... and the water's drag (vr_predict.cpp): QC WaterMove leaves it (0 there: QC's)
+QVR_FIELD(vr_movewaterjump) // ... and Quake's jump out of the water (QC sets it: CheckWaterJump leaves it to the moves)
 QVR_FIELD(vr_stand) // the head's height, a share of his standing (calibrated) eye height (1 standing; vr_server.cpp): QC's shoulder charge
 QVR_FIELD(vr_posetime) // the client's poses' time (VrMove::poseClock): QC vr_melee.qc VR_Melee_Track
 QVR_FIELD(mainhand_hotspot)
