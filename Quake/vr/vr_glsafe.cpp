@@ -26,6 +26,7 @@
 #include "vr_strings.hpp"
 #include "vr_testkit.hpp"
 
+#include <cctype>
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
@@ -697,6 +698,31 @@ void appendMemberCopies(za::String& out, const GlslStruct& st, const za::String&
     out += s + copied;
     return out;
 }
+// The source with the `centroid` qualifier dropped (the word as a whole, before an `in`/`out`). C4g: Adreno (Quest 3,
+// driver 0837.0.9) interpolates the world's other inputs wrong once its centroid lightmap coordinates are read (the
+// texture coordinates garbage: the world's textures stretched and crawling). Without MSAA (the Quest preset's) centroid
+// and centre sampling are the same; with it, a lightmap can bleed a little at a polygon's edge.
+[[nodiscard]] za::String dropCentroid(const char* s)
+{
+    constexpr const char word[] = "centroid";
+    constexpr size_t wordLen = sizeof(word) - 1;
+    za::String out;
+    size_t copied = 0;
+    for(const char* p = strstr(s, word); p; p = strstr(p + wordLen, word))
+    {
+        const size_t at = static_cast<size_t>(p - s);
+        const bool startsWord = at == 0 || !(isalnum(static_cast<unsigned char>(s[at - 1])) || s[at - 1] == '_');
+        const char after = s[at + wordLen];
+        if(!startsWord || !(after == ' ' || after == '\t'))
+        {
+            continue;
+        }
+        out += za::String{s + copied, static_cast<za::SizeT>(at - copied)};
+        copied = at + wordLen + 1; // (and its blank)
+    }
+    out += s + copied;
+    return out;
+}
 // The ES 3.2 form of a shader's strings: the text VR_GLShaderSource gives the driver under VR_GLES_FORM_GLSL.
 [[nodiscard]] za::String esShaderText(int count, const char* const* strings)
 {
@@ -704,6 +730,10 @@ void appendMemberCopies(za::String& out, const GlslStruct& st, const za::String&
     for(int k = 0; k < count; k++)
     {
         whole += strings[k];
+    }
+    if(!COM_CheckParm("-glescentroid")) // (-glescentroid: kept, as the PC's: a driver update's check)
+    {
+        whole = dropCentroid(whole.cStr());
     }
     const za::String joined = COM_CheckParm("-glesstructcopy") ? whole : expandStructCopies(whole.cStr()); // (-glesstructcopy: the copies left whole, as the PC's)
     const char* s = joined.cStr();
@@ -975,6 +1005,14 @@ void glesReport_f()
     Con_Printf("  bindless %d, multi-bind %d, clip control %d, layered casters %d, buffer storage %d, NV foveation %s\n",
         gl_bindless_able ? 1 : 0, gl_multi_bind_able ? 1 : 0, gl_clipcontrol_able ? 1 : 0, gl_viewport_layer_able,
         gl_buffer_storage_able ? 1 : 0, VR_GLESForm(VR_GLES_FORM_FOVEATION) ? "off" : "when the GPU has it");
+    // the interface limits (C4g: the world's ~30 vertex outputs against Adreno's)
+    GLint vout = 0, fin = 0, vvec = 0, vcomp = 0;
+    glGetIntegerv(GL_MAX_VERTEX_OUTPUT_COMPONENTS, &vout);
+    glGetIntegerv(GL_MAX_FRAGMENT_INPUT_COMPONENTS, &fin);
+    glGetIntegerv(GL_MAX_VARYING_VECTORS, &vvec);
+    glGetIntegerv(GL_MAX_VARYING_COMPONENTS, &vcomp);
+    Con_Printf("  limits: vertex output components %d, fragment input components %d, varying vectors %d (components %d)\n",
+        vout, fin, vvec, vcomp);
     Con_Printf("ES forms taken under -glescompat:\n");
     for(const EsPending& p : esDone)
     {

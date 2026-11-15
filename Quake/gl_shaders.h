@@ -649,7 +649,11 @@ QVR_TEMPORAL_VS_OUTPUT
 "#else\n"
 "	layout(location=3) out vec2 out_uv;\n"
 "#endif\n"
+"#ifdef QVR_PROBE_NOCENTROID\n" // QVR: -glesdefine's probe (C4g): the lightmap coordinates not centroid
+"layout(location=4) out vec2 out_lmuv;\n"
+"#else\n"
 "layout(location=4) centroid out vec2 out_lmuv;\n"
+"#endif\n"
 "layout(location=5) out float out_depth;\n"
 "#ifdef QVR_NOPERSP_W // QVR: ES without NV_shader_noperspective_interpolation: w-multiplied (vr/vr_glsafe.cpp esHeader)\n"
 "layout(location=6) out vec2 out_coord;\n"
@@ -822,7 +826,11 @@ LIQUID_FUNCTIONS // QVR
 "#else\n"
 "	layout(location=3) in vec2 in_uv;\n"
 "#endif\n"
+"#ifdef QVR_PROBE_NOCENTROID\n" // QVR: -glesdefine's probe (C4g)
+"layout(location=4) in vec2 in_lmuv;\n"
+"#else\n"
 "layout(location=4) centroid in vec2 in_lmuv;\n"
+"#endif\n"
 "layout(location=5) in float in_depth;\n"
 "#ifdef QVR_NOPERSP_W // QVR: ES without NV_shader_noperspective_interpolation: w-multiplied (vr/vr_glsafe.cpp esHeader)\n"
 "layout(location=6) in vec2 in_coord_w;\n"
@@ -1024,6 +1032,12 @@ QVR_WORLD_FS_DECALS // QVR: the decals on the world (vr/vr_decals.cpp)
 "	out_fragcolor = vec4(result.rgb * total_light * 2.0, 1.0);\n"
 "	return;\n"
 "#endif\n"
+"#ifdef QVR_PROBE_CUT3T\n" // QVR: -glesdefine's probe (C4g): the texture alone at CUT3, the light kept live
+"	out_fragcolor = vec4(result.rgb, 1.0);\n"
+"	if (total_light.r == 12345.678)\n"
+"		out_fragcolor.rgb = total_light;\n"
+"	return;\n"
+"#endif\n"
 "\n"
 QVR_WORLD_FS_LIGHT // QVR: light contrast, normal maps in the baked light, specular
 "	vec3 dynamic_light = vec3(0.);\n" // QVR: out here, for retro lighting's levels after the lights
@@ -1146,6 +1160,14 @@ QVR_WORLD_FS_ALPHA // QVR: alpha to coverage; the liquid's alpha and refraction
 "	out_fragcolor.rgb = floor(out_fragcolor.rgb * 255. + 0.5) * (1./255.);\n"
 "#elif DITHER == 0\n"
 "	out_fragcolor.rgb += SUPPRESS_BANDING() * ScreenDither;\n"
+"#endif\n"
+"#ifdef QVR_PROBE_UVLATE\n" // QVR: -glesdefine's probe (C4g): the texture coordinates' fractions, the whole shader kept live
+"	{\n"
+"		vec4 keep = out_fragcolor;\n" // (kept live by a test no colour passes: a NaN fails it too)
+"		out_fragcolor = vec4(fract(in_uv), fract(in_lmuv.x * 64.0), 1.0);\n"
+"		if (keep.r == 12345.678)\n"
+"			out_fragcolor = keep;\n"
+"	}\n"
 "#endif\n"
 "#if QVR_PDO\n"
 "	if (Parallax2.w > 1.5) // QVR: vr_parallax_debug 1: red how deep below the surface its depth was written, of the full depth; green how high over it (ParallaxPlane); blue the surface's own (no hit)\n"

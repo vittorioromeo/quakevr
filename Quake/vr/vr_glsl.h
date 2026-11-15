@@ -294,7 +294,7 @@ QVR_BEHIND_SHOWN_GATE \
 "};\n"
 
 // The vertex's clip position a frame ago (0: it does not move by itself; the camera's motion comes from the depth).
-#define QVR_TEMPORAL_VS_OUTPUT "layout(location=29) out vec4 out_prevclip;\n"
+#define QVR_TEMPORAL_VS_OUTPUT "layout(location=23) out vec4 out_prevclip;\n"
 
 // The motion target (colour attachment 1, written while VR_TemporalMotionWrites has it on): xy uv a frame ago minus uv
 // now (unjittered), z the depth, w the eye's stamp (-1: the camera's motion; + 0.5: a liquid, its warp animated).
@@ -302,7 +302,7 @@ QVR_BEHIND_SHOWN_GATE \
 #define QVR_TEMPORAL_FS_OUTPUT \
 "#if !OIT && !defined(QVR_MULTIVIEW)\n" \
 "layout(location=1) out vec4 out_motion;\n" \
-"layout(location=29) in vec4 in_prevclip;\n" \
+"layout(location=23) in vec4 in_prevclip;\n" \
 "#define QVR_TEMPORAL_WRITE(liquid) out_motion = in_prevclip.w == 0.0 ? vec4(0.0, 0.0, 0.0, -1.0) : vec4(in_prevclip.xy / in_prevclip.w * 0.5 + 0.5 - (gl_FragCoord.xy * TemporalSize.xy - TemporalJitter.xy), gl_FragCoord.z, TemporalJitter.z + (liquid))\n" \
 "#else\n" \
 "#define QVR_TEMPORAL_WRITE(liquid)\n" \
