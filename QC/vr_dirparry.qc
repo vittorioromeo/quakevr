@@ -85,6 +85,8 @@ vector vr_drp_sweep;    // ... its way there (unit)
 float vr_drp_evals;     // readings (the tests)
 float vr_drp_parries;   // directional parries (the tests)
 float vr_drp_early;     // ... of them met before its blow
+float vr_drp_held_n;    // an armed one's blows held back (VR_DRP_Blow) so far (vr_pd_test 2),
+float vr_drp_held_done; // ... of them let go, parried or dropped (VR_DRP_Frame): the rest still held
 float vr_drp_fx_n;      // sparks thrown (the tests)
 vector vr_drp_fx_at;    // ... where the last were
 vector vr_drp_na;       // the last reading's blade line now (the tests' reference swings)
@@ -634,6 +636,11 @@ void(entity g, entity w) VR_DRP_Frame =
                pl && (pl.flags & FL_CLIENT) && pl.health > 0 && VRHandsTracked(pl);
     if(!live)
     {
+        if(g.vr_drp_pend > 0)
+        {
+            vr_drp_held_done = vr_drp_held_done + 1; // (dropped: an end too)
+            dprint(sprintf("dirparry: %s's held blow dropped: its swing cut short\n", g.classname));
+        }
         w.vr_drp_t0 = 0;
         g.vr_drp_pend = 0; // (its swing cut short: a held blow dropped)
         return;
@@ -674,12 +681,17 @@ void(entity g, entity w) VR_DRP_Frame =
             vr_drp_early = vr_drp_early + 1;
             g.vr_ag_act_hit = 1; // (no blow from this swing)
             g.vr_ag_act_hitl = 1;
+            if(pending)
+            {
+                vr_drp_held_done = vr_drp_held_done + 1; // (a held blow parried)
+            }
             g.vr_drp_pend = 0;
         }
     }
     if(pending && g.vr_drp_pend > 0 && time >= g.vr_drp_pend_until)
     {
         // Its blow held back met no weapon of yours across its way in the window: it lands now.
+        vr_drp_held_done = vr_drp_held_done + 1;
         float hurt = g.vr_drp_pend;
         g.vr_drp_pend = 0;
         vr_drp_release = TRUE;
@@ -880,6 +892,10 @@ float(entity pl, entity g, float damage) VR_DRP_Blow =
             {
                 // (its blow's own moment: when its blade gets to your weapon's place, read along its way now)
                 g.vr_drp_pend_at = time + min(window, max(0, vr_drp_tau));
+            }
+            if(!baked && g.vr_drp_pend <= 0)
+            {
+                vr_drp_held_n = vr_drp_held_n + 1; // (an armed one's: let go, parried or dropped by VR_DRP_Frame)
             }
             g.vr_drp_pend = max(g.vr_drp_pend, damage);
             g.vr_drp_pend_until = time + window;

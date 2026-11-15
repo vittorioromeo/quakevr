@@ -158,7 +158,7 @@ constexpr Spawnable spawnables[] = {
     {"Weapons", "Grenade Launcher", "func_weapon_grabbable", "progs/v_rock.mdl", 8.f, "weapon", 8.f, 0, false},
     {"Weapons", "Rocket Launcher", "func_weapon_grabbable", "progs/v_rock2.mdl", 8.f, "weapon", 10.f, 0, false},
     {"Weapons", "Thunderbolt", "func_weapon_grabbable", "progs/v_light.mdl", 8.f, "weapon", 11.f, 0, false},
-    {"Weapons", "Grunt Burst Rifle", "weapon_gruntgun", "progs/v_gruntgun.mdl", 8.f, nullptr, 0.f, 0, false},
+    {"Weapons", "Burst Rifle", "weapon_gruntgun", "progs/v_gruntgun.mdl", 8.f, nullptr, 0.f, 0, false},
     {"Weapons", "Enforcer's Rifle", "weapon_enfrifle", "progs/v_enfrifle.mdl", 8.f, nullptr, 0.f, 0, false},
     {"Weapons", "Chainsaw", "weapon_chainsaw", "progs/v_chainsaw.mdl", 8.f, nullptr, 0.f, 0, false},
     {"Weapons", "Toolgun", "func_weapon_grabbable", "progs/v_toolgun.mdl", 8.f, "weapon", 19.f, 0, false},
@@ -647,11 +647,13 @@ void armedRefresh()
     return (armedFits(kind, code) & 2) != 0;
 }
 
-// The two held one in each hand (QC VR_AM_UiPairs, VR_AG_Pairs): both pair, both melee or both guns.
+// The two held one in each hand (QC VR_AM_UiPairs, VR_AG_PairsFor): both pair, and both melee, both guns, or a gun in
+// the right hand and a one-handed blade in the left (a gun and an axe: QC vr_ag_gunaxe, as the replacements' own).
 [[nodiscard]] bool armedPairs(int kind, int code, int code2)
 {
     const int f1 = armedFits(kind, code), f2 = armedFits(kind, code2);
-    return code > 0 && code2 > 0 && (f1 & 2) && (f2 & 2) && ((f1 >> 2) == VR_AG_CLASS_MELEE) == ((f2 >> 2) == VR_AG_CLASS_MELEE);
+    const bool m1 = (f1 >> 2) == VR_AG_CLASS_MELEE, m2 = (f2 >> 2) == VR_AG_CLASS_MELEE;
+    return code > 0 && code2 > 0 && (f1 & 2) && (f2 & 2) && (m1 == m2 || (!m1 && m2));
 }
 
 [[nodiscard]] const char* armedCodeName(int code)
@@ -2167,6 +2169,81 @@ void armedArmourTest_f()
     qvr::testkit::verdict("toolgun armour test", passed, failed);
 }
 
+// vr_toolgun_armed_pair_test: the Armed Humanoid page's two hands (armedPairs: its Left Hand list) and what the spawn tool
+// makes of them (spawnChoice): a grunt with a gun and an axe or a dagger (the replacements' gun and axe: QC vr_ag_gunaxe),
+// two guns, two blades; never a blade then a gun, nor a big gun with a blade. Ends on "toolgun pair test: N passed, M failed".
+void armedPairTest_f()
+{
+    int passed = 0, failed = 0;
+    const auto verdict = [&](bool ok, const char* what) {
+        Con_Printf("toolgun pair test: %s: %s\n", ok ? "PASS" : "FAIL", what);
+        (ok ? passed : failed)++;
+    };
+    armedRefresh();
+    const progs::FieldOffsets& f = fields();
+    if(!sv.active || svs.maxclients < 1 || !armedCat.valid || armedCat.kindCount < 1 || f.vr_ag_wid < 0 || f.vr_ag_wid2 < 0 ||
+        f.vr_ag_gunaxe < 0)
+    {
+        verdict(false, "a game with the armed monsters' table and the armed grunts' fields");
+        qvr::testkit::verdict("toolgun pair test", passed, failed);
+        return;
+    }
+    glm::vec3 at{0.f}, angles{0.f};
+    {
+        const progs::ServerVm vm;
+        const edict_t* player = progs::playerEdict();
+        const float yaw = glm::radians(player->v.angles[1]);
+        at = glm::vec3{player->v.origin[0] + za::cos(yaw) * 128.f, player->v.origin[1] + za::sin(yaw) * 128.f, player->v.origin[2] + 1.f};
+        angles = glm::vec3{0.f, player->v.angles[1] + 180.f, 0.f};
+    }
+    struct Case
+    {
+        int code, code2;
+        bool pairs, gunAxe;
+        const char* what;
+    };
+    // (WID_SHOTGUN 4, WID_NAILGUN 6, WID_ROCKET_LAUNCHER 10, WID_AXE 2, WID_CROWBAR 17, the dagger 105, WID_GRUNTGUN 15)
+    constexpr Case cases[] = {
+        {4, 2, true, true, "shotgun + axe: a gun and an axe"},
+        {15, 2, true, true, "Burst Rifle + axe: a gun and an axe"},
+        {4, 105, true, true, "shotgun + dagger: a gun and a dagger"},
+        {4, 6, true, false, "shotgun + nailgun: two guns"},
+        {2, 17, true, false, "axe + crowbar: two blades"},
+        {2, 4, false, false, "axe + shotgun: not offered (the gun goes in the right hand)"},
+        {10, 2, false, false, "rocket launcher + axe: not offered (too big for one hand)"},
+    };
+    Cvar_SetValueQuick(&vr_toolgun_armed_kind, 0.f); // (the grunt)
+    for(const Case& c : cases)
+    {
+        const bool offered = armedPairs(0, c.code, c.code2);
+        char what[200];
+        q_snprintf(what, sizeof(what), "%s: offered %d", c.what, offered);
+        if(!offered || !c.pairs)
+        {
+            verdict(offered == c.pairs, what);
+            continue;
+        }
+        Cvar_SetValueQuick(&vr_toolgun_armed_weapon, static_cast<float>(c.code));
+        Cvar_SetValueQuick(&vr_toolgun_armed_weapon2, static_cast<float>(c.code2));
+        toolgun::armed::choose();
+        edict_t* e = spawnChoice(tg.sel, at, angles);
+        const progs::ServerVm vm;
+        const int wid = e ? static_cast<int>(progs::fieldFloat(e, f.vr_ag_wid)) : -9;
+        const int wid2 = e ? static_cast<int>(progs::fieldFloat(e, f.vr_ag_wid2)) : -9;
+        const bool gunAxe = e && progs::fieldFloat(e, f.vr_ag_gunaxe) != 0.f;
+        const size_t n = strlen(what);
+        q_snprintf(what + n, sizeof(what) - n, ", spawned %s holding %d and %d, gun and axe %d", e ? "one" : "none", wid, wid2,
+            gunAxe);
+        verdict(e && wid > 0 && wid2 > 0 && wid != wid2 && gunAxe == c.gunAxe && tg.sel.value2 == static_cast<float>(c.code2), what);
+        if(e)
+        {
+            removeTarget(NUM_FOR_EDICT(e), true);
+        }
+    }
+    armedDefaults();
+    qvr::testkit::verdict("toolgun pair test", passed, failed);
+}
+
 // vr_toolgun_menu: the panel opened or closed (as B/Y).
 void menu_f()
 {
@@ -2314,6 +2391,7 @@ void qvr::toolgun::registerCommands()
     Cmd_AddCommand("vr_toolgun_select", select_f);
     Cmd_AddCommand("vr_toolgun_select_armed", selectArmed_f);
     Cmd_AddCommand("vr_toolgun_armed_list", armedList_f);
+    Cmd_AddCommand("vr_toolgun_armed_pair_test", armedPairTest_f);
     Cmd_AddCommand("vr_toolgun_pick", pick_f);
     Cmd_AddCommand("vr_toolgun_reset", reset_f);
     Cmd_AddCommand("vr_toolgun_armed_reset", armedReset_f);

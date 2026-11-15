@@ -37,7 +37,7 @@ namespace
 // The QC's weapon ids (QC vr_defs.qc WID_*), named.
 constexpr const char* weaponNames[] = {"fists", "grapple", "axe", "Mjolnir", "shotgun", "super shotgun", "nailgun",
     "super nailgun", "grenade launcher", "proximity gun", "rocket launcher", "lightning gun", "laser cannon", "sword",
-    "chainsaw", "grunt's shotgun", "enforcer's rifle", "crowbar", "super axe", "toolgun", "AD rocket launcher",
+    "chainsaw", "Burst Rifle", "enforcer's rifle", "crowbar", "super axe", "toolgun", "AD rocket launcher",
     "AD grenade launcher", "AD plasma rifle", "AD defender's shotgun", "AD eliminator", "AD centurion's plasma gun",
     "AD flamethrower", "AD fumigator", "AD crossbow", "nail pistol", "flare gun", "revolver"};
 static_assert(za::getArraySize(weaponNames) == WID_LAST + 1, "a name for each weapon id (vr_weapon_ids.h)");

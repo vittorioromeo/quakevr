@@ -124,6 +124,8 @@ void(entity p) VR_PDT_Run =
         VR_Test_Check(vr_pd_disarms == vr_pdt_dis0 + 1 && vr_pd_last_hand == cVR_MainHand,
             sprintf("a blast across the gun: knocked out of the main hand (%g)", vr_pd_disarms - vr_pdt_dis0));
         VR_Test_Check(VRIsHandWeaponless(p, cVR_MainHand), "the main hand empty");
+        VR_Test_Check(vr_pd_sounds == vr_pd_disarms, sprintf("its sounds started (the clang, the sting): %g of %g disarms",
+            vr_pd_sounds, vr_pd_disarms));
         vr_pdt_drop = vr_wpn_dropped;
         VR_Test_Check(vr_pdt_drop != world && vr_pdt_drop.classname == "thrown_weapon" && vr_pdt_drop.weapon == WID_SHOTGUN &&
             vr_pdt_drop.handtouch == wpnthrow_handtouch,
@@ -214,6 +216,123 @@ void(entity p) VR_PDT_Run =
     }
 };
 
+// `vr_pd_test 2`: melee on you holding the shotgun out (VR_PDT_POSE; flat-screen play: its own hold), up close: case 0 a
+// grunt with a gun and an axe (the toolgun's pair: VR_AM_ArmAll's vr_ag_gunaxe), its axe in its left hand; case 1 an
+// axe-only grunt. Each fights until 4 blows: every blow held back for your weapon near its way ends (let go, parried or
+// dropped: its gun and axe's never did, his flat-screen note of 2026-11-16: no damage, never disarmed), the blows that
+// land hurt you, and each roll on your weapon (vr_agrunt_vol_blow 40: the meeting's reach grown, chance certain) knocks
+// it out (given back at once).
+float vr_pdt_case;
+float vr_pdt_h0;      // vr_drp_held_n at the case's start,
+float vr_pdt_hd0;     // vr_drp_held_done,
+float vr_pdt_pr0;     // vr_drp_parries,
+float vr_pdt_rolls0;  // vr_pd_rolls,
+float vr_pdt_strikes0; // its blows
+float vr_pdt_hurt;    // the damage you took
+float vr_pdt_volblow; // vr_agrunt_vol_blow before the test
+entity vr_pdt_g;      // the case's grunt
+
+entity(float wid, float wid2) VR_PDT_Grunt =
+{
+    entity p = VR_Player();
+    makevectors(p.angles);
+    vector fw = v_forward;
+    fw_z = 0;
+    fw = normalize(fw);
+    traceline(p.origin, p.origin + fw * 70, TRUE, p);
+    vector at = trace_endpos - fw * 16;
+    entity oldself = self;
+    self = spawn();
+    setorigin(self, at);
+    self.angles_y = vectoyaw(p.origin - at);
+    self.weapon = wid;
+    self.weapon2 = wid2;
+    VR_AM_Spawn(VR_AM_GRUNT);
+    entity g = self;
+    if(g.think == walkmonster_start_go)
+    {
+        walkmonster_start_go();
+    }
+    g.enemy = p;
+    FoundTarget();
+    self = oldself;
+    return g;
+};
+
+void(entity p) VR_PDT_Melee =
+{
+    vr_pdt_n = vr_pdt_n + 1;
+    if(vr_pdt_s == 0)
+    {
+        VR_PDT_Arm(p);
+        p.health = 1000;
+        vr_pdt_hurt = 0;
+        vr_pdt_g = VR_PDT_Grunt(vr_pdt_case == 0 ? WID_SHOTGUN : WID_AXE, vr_pdt_case == 0 ? WID_AXE : 0);
+        vr_pdt_h0 = vr_drp_held_n;
+        vr_pdt_hd0 = vr_drp_held_done;
+        vr_pdt_pr0 = vr_drp_parries;
+        vr_pdt_rolls0 = vr_pd_rolls;
+        vr_pdt_strikes0 = vr_pdt_g.vr_ag_strikes;
+        VR_Test_Check(vr_pdt_case == 1 || (vr_pdt_g.vr_ag_gunaxe && vr_pdt_g.vr_ag_wid == WID_SHOTGUN && vr_pdt_g.vr_ag_wid2 == WID_AXE),
+            sprintf("case %g: spawned holding %g and %g (gun and axe %g)", vr_pdt_case, vr_pdt_g.vr_ag_wid, vr_pdt_g.vr_ag_wid2,
+            vr_pdt_g.vr_ag_gunaxe));
+        VR_PDT_To(1, 0);
+        return;
+    }
+    // (fighting: you kept alive and armed; the damage summed)
+    if(p.health < 1000)
+    {
+        vr_pdt_hurt = vr_pdt_hurt + 1000 - p.health;
+        p.health = 1000;
+    }
+    if(VRIsHandWeaponless(p, cVR_MainHand))
+    {
+        if(vr_wpn_dropped != world)
+        {
+            remove(vr_wpn_dropped);
+            vr_wpn_dropped = world;
+        }
+        VRGiveEntWeapon(p, cVR_MainHand, WID_SHOTGUN, 0, VR_PDT_CLIP);
+        W_SetCurrentAmmoFor(cVR_MainHand);
+        VR_Scene_HoldGiven(p, cVR_MainHand);
+    }
+    entity g = vr_pdt_g;
+    g.health = max(g.health, 500); // (your parries' staggers never kill it)
+    float blows = g.vr_ag_strikes - vr_pdt_strikes0;
+    if(blows < 4 || g.vr_drp_pend > 0)
+    {
+        return;
+    }
+    float held = vr_drp_held_n - vr_pdt_h0;
+    float ended = vr_drp_held_done - vr_pdt_hd0;
+    float rolls = vr_pd_rolls - vr_pdt_rolls0;
+    float dis = vr_pd_disarms - vr_pdt_dis0;
+    string what = vr_pdt_case == 0 ? "gun and axe" : "axe only";
+    VR_Test_Check(held == ended, sprintf("%s: %g blows; every one held back for your weapon near its way ended (%g of %g)", what,
+        blows, ended, held));
+    VR_Test_Check(vr_pdt_hurt > 0, sprintf("%s: the blows that landed hurt you (%g damage; %g parried)", what, vr_pdt_hurt,
+        vr_drp_parries - vr_pdt_pr0));
+    VR_Test_Check(rolls > 0 && dis == rolls, sprintf("%s: blows landing on your weapon rolled to disarm you (%g), each knocked "
+        "it out at a certain chance (%g)", what, rolls, dis));
+    remove(g.vr_ag_prop);
+    if(g.vr_ag_prop2)
+    {
+        remove(g.vr_ag_prop2);
+    }
+    remove(g);
+    vr_pdt_g = world;
+    vr_pdt_case = vr_pdt_case + 1;
+    if(vr_pdt_case < 2)
+    {
+        VR_PDT_To(0, VR_PDT_POSE_FRAMES);
+        return;
+    }
+    cvar_set("vr_agrunt_vol_blow", ftos(vr_pdt_volblow));
+    VR_PDT_End();
+};
+
+float() VR_PDT_IsMelee = { return vr_pdt_on > 1; }; // (the melee test: vr_pd_test 2)
+
 void() VR_PlayerDisarmTest_Frame =
 {
     float ask = cvar_hget(cvarh_vr_pd_test);
@@ -235,21 +354,35 @@ void() VR_PlayerDisarmTest_Frame =
         cvar_set("vr_player_disarm_chance", "100"); // (certain)
         localcmd(sprintf("%s\n", VR_PDT_POSE));
         VR_PDT_To(0, VR_PDT_POSE_FRAMES);
+        vr_pdt_case = 0;
+        vr_pdt_volblow = cvar_hget(cvarh_vr_agrunt_vol_blow);
+        if(VR_PDT_IsMelee())
+        {
+            cvar_set("vr_agrunt_vol_blow", "40");
+        }
     }
     if(vr_pdt_wait > 0)
     {
         vr_pdt_wait = vr_pdt_wait - 1;
         return;
     }
-    if(time - vr_pdt_t0 > VR_PDT_GIVEUP)
+    if(time - vr_pdt_t0 > (VR_PDT_IsMelee() ? 25 : VR_PDT_GIVEUP)) // (test 2: four blows, each a swing's while)
     {
-        VR_Test_Check(FALSE, sprintf("timed out: state %g", vr_pdt_s));
+        VR_Test_Check(FALSE, sprintf("timed out: state %g, case %g%s", vr_pdt_s, vr_pdt_case, !vr_pdt_g ? "" :
+            sprintf(" (blows %g, held %g, ended %g, pending %g, act %g, its weapon %g, %.0f away)",
+            vr_pdt_g.vr_ag_strikes - vr_pdt_strikes0, vr_drp_held_n - vr_pdt_h0, vr_drp_held_done - vr_pdt_hd0,
+            vr_pdt_g.vr_drp_pend, vr_pdt_g.vr_ag_act, vr_pdt_g.vr_ag_wid, vlen(vr_pdt_g.origin - VR_Player().origin))));
+        if(VR_PDT_IsMelee())
+        {
+            cvar_set("vr_agrunt_vol_blow", ftos(vr_pdt_volblow));
+        }
         VR_PDT_End();
         return;
     }
     entity oldSelf = self;
     self = p; // (the hands' getters read self)
     if(ask == 1) { VR_PDT_Run(p); }
+    else if(ask == 2) { VR_PDT_Melee(p); }
     else { VR_PDT_End(); }
     self = oldSelf;
 };

@@ -40,7 +40,7 @@ za::Vector<Item> pageSpawnWeapons()
         command("Dagger", "vr_physics_spawn weapon_dagger reach")
             .help("Quake VR's dagger lying ready to be picked up: the knight's sword's kind, a third of its blade (weapon_dagger)."),
         command("Ogre's Chainsaw", "vr_physics_spawn weapon_chainsaw reach"),
-        command("Grunt Burst Rifle", "vr_physics_spawn weapon_gruntgun reach")
+        command("Burst Rifle", "vr_physics_spawn weapon_gruntgun reach")
             .help("The grunt's 3-round burst rifle lying ready to be picked up, its magazine full (weapon_gruntgun)."),
         command("Enforcer's Rifle", "vr_physics_spawn weapon_enfrifle reach")
             .help("The enforcer's laser rifle lying ready to be picked up, its cell full (weapon_enfrifle)."),
@@ -674,6 +674,13 @@ za::Vector<Item> pageDebugTests()
             .help("vr_pd_test 1 (God mode off): the shotgun in your main hand, a grunt's blast across it knocks it out "
                   "(chance forced certain): it drops to the floor with its clip; a blast across your body, an enforcer's "
                   "laser across the gun (knocked out), the option off (never). In a headset, hold your gun out ahead."),
+        command("Player Disarm: Melee on Your Gun", "developer 1; vr_pd_test 2")
+            .help("vr_pd_test 2 (God mode off): a grunt with a gun and an axe, then one with an axe alone, swing at you "
+                  "holding the shotgun out, 4 blows each: every blow held back for your weapon near its way ends, the "
+                  "landed ones hurt, and each roll on your weapon knocks it out (given back). Hold your gun out ahead."),
+        command("Toolgun: Armed Humanoid Pairs", "developer 1; vr_toolgun_armed_pair_test")
+            .help("vr_toolgun_armed_pair_test: the Armed Humanoid page's Left Hand choices and what the spawn tool makes "
+                  "of them: a gun and an axe or a dagger, two guns, two blades; never a blade then a gun."),
         command("Projectiles Keep Your Motion", "developer 1; vr_projinherit_test 1")
             .help("vr_projinherit_test 1: fired strafing at 320 u/s, a nail and a rocket fly off the aim by their strafe share only, running along the aim adds their along share, a grenade keeps "
                   "its share of the strafe (Weapons > Aiming > Projectiles Keep Your Motion); then the main hand swung, "

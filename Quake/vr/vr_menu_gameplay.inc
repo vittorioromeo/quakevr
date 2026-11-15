@@ -886,6 +886,7 @@ void ikStretchReset()
         row(opt::vr_player_disarm_pull),
         row(opt::vr_player_disarm_reach),
         row(opt::vr_player_disarm_slip),
+        row(opt::vr_player_disarm_sound),
         header("Their Hands"),
         row(opt::vr_agrunt_ik),
         open("Grip Editor", pageIndex(pageArmedGrips))
@@ -904,7 +905,7 @@ void ikStretchReset()
         weight("Grenade Launcher", vr_agrunt_w_gl),
         weight("Rocket Launcher", vr_agrunt_w_rl),
         weight("Thunderbolt", vr_agrunt_w_lg),
-        weight("Grunt's Burst Rifle", vr_agrunt_w_gruntgun),
+        weight("Burst Rifle", vr_agrunt_w_gruntgun),
         weight("Enforcer's Laser Rifle", vr_agrunt_w_enfrifle),
         weight("Mission Packs' (Each)", vr_agrunt_w_packs),
         header("The Pool: Arcane Dimensions (With Its Data)"),
