@@ -489,6 +489,10 @@ za::Vector<Item> pageDebugProfiling()
         row(opt::vr_profile_csv),
         row(opt::vr_profile_hitch),
         row(opt::vr_profile_slow_ms),
+        command("List the Frame's Render Passes", "vr_gl_passes 1")
+            .help("vr_gl_passes 1: the next frame's framebuffer binds in the console, in order, each with the draws made "
+                  "into it and the profiler's scope at the bind (Profiling on for the names). On a tiled GPU (the Quest) "
+                  "each switch stores the tiles to memory and may read them back: fewer is cheaper."),
         command("Capture Frame (RenderDoc)", "vr_renderdoc_capture")
             .help("vr_renderdoc_capture: a RenderDoc capture of the next frame (both eyes: the desktop window's present ends "
                   "the frame), after the delay below; the console and a message show the file's path. Only when the game "

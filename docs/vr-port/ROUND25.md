@@ -3322,3 +3322,18 @@ QUEST_PLAN.md section 6n has the runs. On the Quest 3 over adb, the headset unwo
 ## mrlfix + clretire1116 (agent/mrlfix)
 
 MRL (slot 14, v_multi2.mdl) now holds no offset keys of its own: it inherits the rocket launcher (slot 6) for the ammo screen (wpntxt_*), button (wpnbtn_*), finger/hand_*, grips (x/y/z/pitch/yaw, 2h_*), hotspot and muzzle; only id, inherit and its fx_* shot effects stay. His config had no vr_wofs values for either slot. 52 ticked lines retired from checklist.txt (those he spoke of at 03:xx kept); 19 scenes only they used moved out (kept any still named by code, docs, or other lines). No flat screenshot taken.
+
+## Quest C4h: the frame outside the world's shading; the avatar's 10 ms (branch `agent/quest`, 2026-11-15)
+
+QUEST_PLAN.md section 6o has the runs. On the Quest 3 over adb, the headset unworn, e1m1's start:
+- **The window's mirror** was still drawn on Android although the immersive app shows no window: 3.4 ms of GPU a
+  frame. `VR_NoWindow` now turns the window's view off (no mirror, no window HUD or canvas over it).
+- **The "11 ms in the right eye's scene setup"** of most launches was the avatar's fragment shading: the unworn
+  headset's pose put the right eye inside the stretched body, all hidden behind the world yet shaded in full (also
+  when drawn after the world: Adreno does no early depth rejection for the alias programs). Worn: check the body.
+- **Cuts**: `vr_gl_invalidate` (-1: ES; depth after the scene, the image before the post-process), `vr_tonemap 2` in
+  the Quest preset (32-bit float scene: -1.4 ms, the same image). Made and left off: `vr_eye_targets_split` (no gain),
+  `vr_gl_foveation` (QCOM foveation on our scene: no effect yet).
+- **Tools**: `vr_gl_passes 1` (Debug > Profiling, List the Frame's Render Passes), `-glesdefine QVR_PROBE_ALIASCONST`,
+  `ovrgpuprofiler` (built into the Quest: per-pass binning/direct mode, loads, stores; `scratch/c4h_gpuprof.sh`).
+- GPU a frame: before 21.0 ms (0.9 fixed); now 17.6 (0.9 fixed), 11.4 with the preset's dynamic resolution: the frame at 72 Hz (13.89 ms). PC: gles_render_test 21/0, scenario_check 137/0, load_models_test 4/0.

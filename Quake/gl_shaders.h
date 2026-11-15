@@ -1807,7 +1807,7 @@ QVR_BEHIND_SHOWN_GATE_ALIAS // QVR: see-through models behind a teleporter shown
 "void main()\n"
 "{\n"
 "	QVR_TEMPORAL_WRITE(0.0); // QVR: first (before any early return)\n"
-"#ifdef QVR_PROBE_FSCONST\n" // QVR: -glesdefine's probe (vr/vr_glsafe.cpp): a constant magenta
+"#if defined(QVR_PROBE_FSCONST) || defined(QVR_PROBE_ALIASCONST)\n" // QVR: -glesdefine's probe (vr/vr_glsafe.cpp): a constant magenta (ALIASCONST: the models' alone, C4h)
 "	out_fragcolor = vec4(1.0, 0.0, 1.0, 1.0);\n"
 "	return;\n"
 "#endif\n"

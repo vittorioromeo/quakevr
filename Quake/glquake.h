@@ -195,6 +195,7 @@ extern	const char	*gl_version;
 	x(void,			FramebufferTexture2D, (GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level))\
 	x(GLenum,		CheckFramebufferStatus, (GLenum target))\
 	x(void,			BlitFramebuffer, (GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter))\
+	x(void,			InvalidateFramebuffer, (GLenum target, GLsizei numAttachments, const GLenum *attachments)) /* QVR: GL 4.3, ES 3.0: a tiler's stores cut (vr_gl_invalidate) */\
 	x(void,			DrawBuffers, (GLsizei n, const GLenum *bufs))\
 	x(void,			ClearDepthf, (GLfloat d)) /* QVR: the float forms, ES's only ones (QUEST_PLAN.md) */\
 	x(void,			DepthRangef, (GLfloat n, GLfloat f))\

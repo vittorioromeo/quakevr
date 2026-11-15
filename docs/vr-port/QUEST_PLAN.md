@@ -967,6 +967,56 @@ Method: `scratch/c4g_seq.sh` (C4f's, `MAP=` for another map), `c4g_probes.sh` (o
   (`FSCONST`) 11.3: so ~11 ms is not the world's shading (the eyes' post chain, models, clears) and ~7 ms is.
 - Not reached: MSAA on chip (the preset has none), dynamic resolution's floor (0.65), the bloom fault, bullet time.
 
+## 6o. C4h: the frame outside the world's shading; the avatar's 10 ms; ovrgpuprofiler (2026-11-15; adb, unworn)
+
+Method (`scratch/c4h_*`): `c4h_ab.sh` (one launch, variants in a cfg, `vr_profile_gpu 1`) with the GPU's clock and busy
+share sampled from `/sys/class/kgsl/kgsl-3d0` alongside (`c4h_sampler.sh`, `c4h_sum.py`: the timer queries checked
+against the busy share); eye images by `c4h_seq.sh` (`PREWAIT=700`: the first frames are not the eyes'; `EYE=R`);
+**`ovrgpuprofiler`** (the Quest's own, `/system_ext/bin`, no install: `-e com.vittorioromeo.quakevr` once, then `-t`
+for a render stage trace of every surface: its size, bits, binning or direct mode, bins, loads and stores;
+`c4h_gpuprof.sh`; `-d` turns it off again). e1m1's start, `+vr_quest_preset 0 +vr_dynres 0 +vr_render_scale 0.9`.
+- **Two regimes by launch, 29 ms or ~18 ms**: the timer queries put ~11 ms in the right eye's "scene setup" in most
+  launches. Not the clear (`gl_clear 0`, the depth format, the hidden-area mask: the same), not the GPU clock (640 MHz
+  both, busy 97%). It follows `r_drawentities`, then **`vr_body_mode 0`** (2 the same; `r_lerpmodels`,
+  `vr_alias_cull_posed`, `vr_alias_player_first`: the same) and goes with `-glesdefine QVR_PROBE_ALIASCONST` (new: the
+  models' fragment shader a constant): **the avatar's fragment shading, ~10 ms, in the right eye only, unseen**
+  (`r_drawworld 0`: the body fills the right eye; with the world it is all behind it). The unworn headset's pose
+  (lying, the controllers elsewhere) puts the right eye inside the stretched avatar. A test artefact for the cost, but
+  it shows that **a model's hidden pixels are shaded in full on Adreno even when drawn after the world** (first0 kept the
+  10 ms): early depth rejection does not happen for the alias programs (their `discard`s: alpha test, morph, gates?).
+  Measured with `vr_body_mode 0` from then on. Worn, check the body looking down.
+- **The split by A/B** (body off, GPU ms a frame, both eyes): 17.9 in all; the window's mirror **+3.4** (the immersive
+  app's window is never shown); the world 13.4 of it (`r_drawworld 0`: 3.9 left); the 64-bit float scene vs 32-bit
+  (`vr_tonemap 2`) **+1.4**; invalidation of the depth after the scene and of the image before the post-process -0.1 to
+  -0.5; particles, the mask, grade, dither, retro textures (in-launch), the shadow, dynamic lights: ~0.
+- **The passes** (`ovrgpuprofiler -t`; `vr_gl_passes 1`, new, Debug > Profiling: the frame's framebuffer binds with
+  their draws and scopes): each eye is ~7 surfaces at 1512x1584 (64-bit colour, D32F+S8, 12 bins of 576x416): the
+  scene's first part (0.73 ms, loads depth), a direct-mode one (0.28), the world's (5.4: its shading, LoadColor and
+  LoadDepthStencil 0.22 ms), small ones, an 8-bit target with the scene's depth (one draw in "translucent", direct mode: fbo 17/22 in
+  `vr_gl_passes`, then back to the scene: a store and a load), the translucent and
+  post part (1.3, 17 bins). Splits without a framebuffer change come from compute between draws (GLAsyncCompute: the
+  world's GPU cull, the light clusters) and each costs a depth load and store (~0.25 ms). The window's (4128x2208)
+  passes are now empty (0.01 ms).
+- **Cuts made** (all ES-only or Android-only; the PC unchanged):
+  - **The mirror off under `VR_NoWindow`** (`vr_window.cpp`: the view Off; `vr_panel.cpp`: no window HUD or canvas
+    over it): -3.4 ms.
+  - **`vr_gl_invalidate`** (-1: ES; `glInvalidateFramebuffer` now in the GL list): the eye's depth and stencil after its
+    scene, the eye image's colours before the post-process (when it writes it whole).
+  - **`vr_tonemap 2` in the Quest preset** (R11F_G11F_B10F): -1.4 ms, eye images the same (0.24% of pixels differ,
+    the noise between two shots 0.16%).
+  - **`vr_eye_targets_split`** (default 0): the right eye's own scene targets (made for the 11 ms, which was the
+    avatar): no gain measured, left off (one more set of targets in memory).
+  - **`vr_gl_foveation`** (0; experimental): `GL_QCOM_texture_foveated` on the eyes' scene colour (bits before the
+    storage, `VR_SceneAttachmentFoveation`; per eye the projection's centre as focal point): **no effect** (the bins
+    stay 576x416, the GPU the same, the image the same): open (the driver may want the depth foveated too, or a
+    different format than RGBA16F/R11G11B10F).
+- **Results** (GPU a frame, e1m1's start): before (C4g's APK, 0.9 fixed): 21.0 with the body behind (29.2 with it in
+  the eye); now 0.9 fixed: 17.6 with the body behind (16.5 without it); the preset as shipped (dynamic resolution on): **11.4 ms, the frame at 13.89 ms (72 Hz)**; eye images as C4g's.
+- Next levers, by size: the world's shading (5.4 ms an eye: foveation working, or the world shader's cost on Adreno);
+  the passes split by compute in the eye's scene (each ~0.25 ms of depth load/store: run the world's cull and the
+  light clusters for both eyes before the first eye's scene); the alias programs without `discard` for opaque models
+  (early depth rejection); MSAA on chip (`EXT_multisampled_render_to_texture`, only if he wants MSAA back).
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
@@ -1010,11 +1060,11 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C4h (after 6n) — his look in the headset with the centroid fix (the world's and the ammo boxes' textures
-sharp and steady? water see-through? the menu panel's sharpness), then the frame to 72 Hz at `vr_quest_preset 0`
-(GPU ~18 ms now: the ~11 ms outside the world's shading first: a GPU split of the eyes' post chain, models and
-clears by A/B; retro textures' cost on Adreno (1.8 ms); MSAA on chip only if he wants MSAA back; dynamic resolution's
-floor), the bloom chain's fault on Adreno (its levels step by step with `vr_eyeshot 2`), bullet time's black view;
-no installs. Still open from before: e1m1's save error (a freed engine string), C5 (multiview into the swapchain),
-C2h (the world textures' memory under the ES profile). Waiting on his call: the Android Gradle Plugin download
-(section 7), the armed humanoids' CPU cost (section 6d).
+Next phase: C4i (after 6o) — his look in the headset (C4g's centroid fix: textures sharp and steady, water
+see-through; C4h's frame: the GPU with his body looking down, worn; the menu panel's sharpness), then the world's
+shading on Adreno (5.4 ms an eye: QCOM foveation made to work, or the world shader cut), the eye's scene in one pass
+(the cull and light clusters' compute for both eyes before the first scene; the 8-bit target's switch), the alias
+programs without `discard` for opaque models (hidden pixels shaded in full), the bloom chain's fault, bullet time's
+black view; no installs. Still open from before: e1m1's save error (a freed engine string), C5 (multiview into the
+swapchain), C2h (the world textures' memory under the ES profile). Waiting on his call: the Android Gradle Plugin
+download (section 7), the armed humanoids' CPU cost (section 6d).

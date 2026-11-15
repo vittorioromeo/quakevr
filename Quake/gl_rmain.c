@@ -162,6 +162,9 @@ static GLuint GL_CreateFBOAttachment (GLenum format, int samples, GLenum filter,
 	}
 	else
 	{
+		int foveation = VR_SceneAttachmentFoveation (name); // QVR: the eyes' scene foveated (vr_gl_foveation), before its storage
+		if (foveation)
+			glTexParameteri (target, 0x8BFB, foveation); // GL_TEXTURE_FOVEATED_FEATURE_BITS_QCOM
 		GL_TexStorage2DFunc (target, 1, format, vid.width, vid.height);
 		glTexParameteri (target, GL_TEXTURE_MAG_FILTER, filter);
 		glTexParameteri (target, GL_TEXTURE_MIN_FILTER, filter);

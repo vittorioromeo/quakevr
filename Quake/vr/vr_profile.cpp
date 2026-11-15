@@ -1159,13 +1159,55 @@ using namespace qvr;
 namespace
 {
 unsigned gpuFrameCount = 0; // VR_ProfileFrame's frames: the GPU is timed on one in vr_profile_gpu
+
+// vr_gl_passes (Debug > Profiling): one frame's draw framebuffer binds in order, each with the draws made into it and
+// the profiler's innermost scope at the bind (vr_profile on): a tiler's render passes (each switch stores the tiles
+// and may load them again: QUEST_PLAN.md 6o).
+struct PassBind
+{
+    unsigned fbo;
+    int draws0;
+    const char* scope;
+};
+za::Vector<PassBind> passBinds;
+
+void printPasses()
+{
+    Con_Printf("vr_gl_passes: %d draw framebuffer binds in the frame (fbo, draws into it, the scope at the bind)\n",
+        static_cast<int>(passBinds.size()));
+    for(za::SizeT i = 0; i < passBinds.size(); i++)
+    {
+        const PassBind& b = passBinds[i];
+        const int end = i + 1 < passBinds.size() ? passBinds[i + 1].draws0 : vr_profcounts.drawcalls;
+        Con_Printf("  %3d fbo %3u %5d draws  %s\n", static_cast<int>(i), b.fbo, end - b.draws0, b.scope ? b.scope : "-");
+    }
+}
 } // namespace
+
+extern "C" int vr_glpass_trace = 0;
+
+extern "C" void VR_GLPassBind(unsigned fbo)
+{
+    using namespace qvr::profile;
+    passBinds.pushBack({fbo, vr_profcounts.drawcalls, stack.empty() ? nullptr : nodes[stack.back().node].name});
+}
 
 extern "C" void VR_ProfileFrame()
 {
     VR_TracyFrame();
     glMarkerFrame();
     using namespace qvr::profile;
+    if(vr_glpass_trace)
+    {
+        printPasses(); // (before the frame's draw count is reset)
+        vr_glpass_trace = 0;
+    }
+    else if(vr_gl_passes.value != 0.f)
+    {
+        Cvar_SetValueQuick(&vr_gl_passes, 0.f);
+        passBinds.clear();
+        vr_glpass_trace = 1;
+    }
     if(nodes.empty() || cls.state == ca_dedicated)
     {
         return;

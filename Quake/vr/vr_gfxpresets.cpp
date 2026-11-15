@@ -142,6 +142,7 @@ constexpr presetcore::Row questRows[] = {
     {&vr_shadow_distance,             {"768",    "640",    "512"}},
     // Post-processing: bloom's chain of half-size passes off at 90 Hz and on the Quest 2 (the tone curve kept: the look)
     {&vr_bloom,                       {"0",      "0",      "0"}},     // off: the Quest 3 showed its chain as squares (C4f)
+    {&vr_tonemap,                     {"2",      "2",      "2"}},     // the float scene in 32 bits (R11F_G11F_B10F), not 64: -1.4 ms of the Quest 3's GPU, the same picture (C4h)
     {&vr_heat_haze,                   {"0",      "0",      "0"}},
     {&vr_water_reflections,           {"0",      "0",      "0"}},     // (the envmap)
     {&vr_rim_light,                   {"0",      "0",      "0"}},     // (the envmap)

@@ -112,6 +112,8 @@ static GLuint gl_drawframebuffer, gl_readframebuffer;
 
 static void APIENTRY GL_ShadowBindFramebuffer (GLenum target, GLuint framebuffer)
 {
+	if (vr_glpass_trace && target != GL_READ_FRAMEBUFFER && framebuffer != gl_drawframebuffer)
+		VR_GLPassBind (framebuffer); // QVR: vr_gl_passes (vr/vr_profile.cpp)
 	if (target != GL_READ_FRAMEBUFFER)
 		gl_drawframebuffer = framebuffer;
 	if (target != GL_DRAW_FRAMEBUFFER)

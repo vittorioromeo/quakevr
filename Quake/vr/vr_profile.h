@@ -34,6 +34,8 @@ void VR_ProfileFrameEnd (void);				// end of _Host_Frame: what follows (the fram
 void VR_ProfileBegin (const char *name);	// a CPU scope
 void VR_ProfileBeginGPU (const char *name);	// a CPU and GPU scope (the main thread, with the GL context)
 void VR_ProfileEnd (void);					// ends the innermost scope
+extern int vr_glpass_trace;					// vr_gl_passes: this frame's draw framebuffer binds are being noted
+void VR_GLPassBind (unsigned fbo);			// gl_vidsdl.c's bind shadow, while vr_glpass_trace: a draw framebuffer bound
 
 // GL debug groups (vr_gl_markers, latched at each frame's start into vr_gl_markers_on): every GPU scope is also one,
 // named as its profile scope; these open one alone (the main thread; balanced as scopes, each pops what its begin
