@@ -3779,3 +3779,16 @@ the same exact rules" as enemies; an option, on by default, single player and mu
 - Monsters through the module: not done, not clean (sv_move.c's discrete steps; only the fall's SV_FlyMove would be
   shared). vr_pmove_own stays 0; MP_PLAN "For him (B11b)" says exactly what 1 changes (the hands' strokes and crawl
   pulls one frame later; nothing traced).
+
+## mpN B11c part 1: one body routine for every player; the own-player accessor (agent/mp, 2026-11-15)
+
+- `view::drawBody` (vr_view_body.cpp) draws your body and every other player's copy: model, pose, place, shading, the
+  armour's plates and leather, the pauldrons, on per-entity data (`BodyDraw`); your legs, flat play's ride, your shading
+  and your plates' morphs are data, not a separate path. `setupPlates`/`setupPauldrons`/`placeOtherPlates` are gone.
+- `progs::ownSource`/`ownStanding` (vr_progs.hpp): the teleport's standing rule, the world trace and the prediction's brush
+  trace ask one accessor for the own player.
+- QC `holsterpos`, weapondrawnpose 47, 49/50, 51/52 read the player's slot (heldpose); a remote player's carried grip and
+  leaving flip go up (`vr_heldpose` v3): his flip grip and his reversed weapon's drop work as the host's do.
+- Single player identical (seeded body numbers equal, strips within run noise; revgrip 24/0, flipgrip 39/0, magholster's
+  147 holsterpos reads equal to the old ones). MP suite 29/31 (both flakes pass alone), scenario_check 138/0,
+  load_models_test 4/0, vr_run_check 12/0, Release build 0 warnings. Left: the hands and weapons (MP_PLAN, B11c part 2).

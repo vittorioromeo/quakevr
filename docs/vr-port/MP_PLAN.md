@@ -1495,8 +1495,8 @@ should come from one system for every player), **done** (unified in B9).
 | 2 | `clientprefs::value`/`forQc`, `PF_cvar_hget` | `svs.maxclients > 1` before a slot's preferences | **done**: the check dropped (a slot without preferences gives the game's own value: single player always) |
 | 3 | vr_heldpose.cpp (`isLocal`, `isRemote`, `grabSpot`, `reverseGrip`, `magPoll`, `remote`), vr_builtins_held.inc (weapon hotspot, any-grip, help kind: 5 sites), vr_carry2h.cpp:333, vr_box3d_hands.cpp:661, `grip::serverTake`'s `h.local` | the host's own player: the client's view asked live (hotspots, ground spot, reverse grip, magazine presses); others: their slot's drawn pose, spot, presses | **unify** (B11a, medium, 1 session): the host publishes its `heldpose::Hand`, ground spot and presses into its slot as #1; readers read the slot only. Three different "local" tests today (`sv.active && cls.state == ca_connected && num == 1`, `cls.state != ca_dedicated && slot == 0`, `num == 1 && cls.state != ca_dedicated`) become `clientprefs::ownSlot`. Care: the remote path turns hotspots through the player's hand fields (`toWorld`), the local one through the view: single player's numbers change unless published unquantized in the same frame; check with the SP hash audits. **Done** (B11a: `heldpose::publishOwn` before each server frame, the view's world places carried in the slot: "B11a results") |
 | 4 | sv_user.c:437 `VR_PredictThink`, sv_phys.c:1377/1414 `VR_PredictWalks` (vr_predict.cpp) | a remote client's walk: his moves one by one through vr_pmove.cpp; the host's own player (and a flat or old client): SV_Physics + QC PlayerPreThink | **unify** (B11b, large, 2 sessions; highest value): vr_pmove for every player, the host's own included (behind a cvar first, SP traces compared frame by frame), so prediction, server and single player are one module; then monsters' step and swim through the same body code. **Done** (B11b parts 1-2: `vr_pmove_own`, default 0 (his call, "For him (B11b)"); with 1, single player's traced walk, jump, crouch, lift, swim, water jump and crawl are frame-identical; monsters kept: not clean, "B11b results, part 2") |
-| 5 | vr_mpavatar.cpp (remote bodies, `bonePoses`), vr_view_diag.cpp `remoteRigSkin`/`remoteHandSkin`, vr_avatar.cpp:1430 `otherDrawn` (`cl.maxclients <= 1`), :2392 | another player's body, hands, holsters, plates drawn from his avatar block; the own from the live rig (vr_view_body, vr_view_hands) | **unify** (B11c, large, 2 sessions): one routine draws any player entity from an avatar state (the own filled from the live rig, others from snapshots), the flat player's own body (third person, vr_flattp) from it too |
-| 6 | vr_teleport.cpp:72, vr_trace.cpp:159, vr_hull.cpp:5083 | no server edict for the own player (a remote client): the client's state (`cl.onground`, `cl.worldmodel`, the prediction's hulls) | **unify** (small): one "own player" accessor (on ground, in water, the world to trace) answering from the edict when hosting, from the prediction's state otherwise |
+| 5 | vr_mpavatar.cpp (remote bodies, `bonePoses`), vr_view_diag.cpp `remoteRigSkin`/`remoteHandSkin`, vr_avatar.cpp:1430 `otherDrawn` (`cl.maxclients <= 1`), :2392 | another player's body, hands, holsters, plates drawn from his avatar block; the own from the live rig (vr_view_body, vr_view_hands) | **unify** (B11c, large, 2 sessions): one routine draws any player entity from an avatar state (the own filled from the live rig, others from snapshots), the flat player's own body (third person, vr_flattp) from it too. **Part 1 done** (B11c: the body, its plates and pauldrons through `view::drawBody` for yours and every copy; the hands, held and holstered weapons left: part 2) |
+| 6 | vr_teleport.cpp:72, vr_trace.cpp:159, vr_hull.cpp:5083 | no server edict for the own player (a remote client): the client's state (`cl.onground`, `cl.worldmodel`, the prediction's hulls) | **unify** (small): one "own player" accessor (on ground, in water, the world to trace) answering from the edict when hosting, from the prediction's state otherwise. **Done** (B11c: `progs::ownSource`, `ownStanding`) |
 | 7 | vr_predict.cpp:750/1155, vr_netsnap.cpp:736/774 | only `cl.viewentity` predicted; others interpolated, the own not delayed | keep (network: latency hiding is the owner's alone) |
 | 8 | vr_lagcomp.cpp:245/291/296, pr_cmds.c:754 | rewind only with remote clients (`anyRemote`), per shooter | keep (network: the host's own latency is 0, the rewind an identity) |
 | 9 | vr_netmove.cpp:441, sv_user.c:683, net_dgrm.c:978, vr_client.cpp:553 (hands/body in the move only with `cl.maxclients > 1`), vr_server.cpp:565/1563/1601, vr_mpavatar.cpp:672/772, vr_mpdownload.cpp, every `cmd_source != src_client \|\| !sv.active \|\| !host_client` guard (clientprefs, heldpose, mpavatar, lagcomp) | the QVR protocol, moves, version, bandwidth, string commands' guards | keep (transport) |
@@ -1984,6 +1984,39 @@ time widened to double rounds the same)); the run before the fix 27 of 29 (mp_gr
 water jump out: fixed, then 28/0 twice); scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0, Release
 (ThinLTO) build 0 warnings.
 
+### B11c results, part 1: one body routine; the own-player accessor; B11a's leftovers (2026-11-15, dev no-LTO build, loopback)
+
+- **One routine draws any player's body** (`view::drawBody`, vr_view_body.cpp; `BodyDraw`/`BodyEntities`, vr_view.hpp):
+  the model (build, bare forearms or bracers, the fallbacks), the pose (`avatar::pose` for this game's own, whose motion
+  state is the avatar module's live one; `avatar::poseOther` for a copy), the placement, the shading, the armour's
+  plates and their joints' leather, the pauldrons. Per-entity data in: yours filled from the live rig and your settings
+  (`setupBody`), another's from his avatar and calibration (vr_mpavatar.cpp `setupBody`). The own view's specifics are
+  data: legs (vr_body_mode 3; a copy always), the drawn view's ride (flat play's bob), the shading (`showPlayerState`:
+  your armour skin, wounds, power-ups; a copy plain), the plates' morphs (yours dissolve in and out; a copy has none
+  yet: the same fields would give his too). `placeOtherPlates` and the separate `setupPlates`/`setupPauldrons` passes
+  are gone; a copy's pauldrons now follow your vr_player_plates as yours do (before: whether his plate entity showed).
+- **#6, the own-player accessor** (vr_progs.hpp): `progs::ownSource()` (Edict: this game hosts him; Client: a remote
+  client's own, from the prediction and the client's map; None) and `ownStanding()`; the teleport's standing rule, the
+  world trace (vr_trace.cpp) and the prediction's brush trace (vr_hull.cpp) ask it instead of their own
+  `sv.active`/`cls.state` tests.
+- **B11a's leftovers**: QC `holsterpos` reads the player's slot (`heldpose::holsterPoint`: this game's own placed by
+  `publishOwn` from its body now, a remote player's from his move); weapondrawnpose 47 (the flip grip's choice), 49/50
+  (the leaving turn: now `view::leavingTurn(slot, mirrored, flip, ...)` on the server's hand) and 51/52 (the drawn hand)
+  from the slot's `Hand`. The carried grip, the leaving flip and its slot go up with a remote player's drawn pose
+  (`vr_heldpose` version 3, 66 values), so his flip grip and his reversed weapon's drop now work as the host's do; 51/52
+  (tests only) are the host's placed values, not sent. Kept, by verdict: 21/22, 30-32, 39 (armed humanoids' and
+  ragdolls' weapons and arms as this machine's view drew them: monsters, not player state; a dedicated server answers
+  '0 0 0' and QuakeC keeps its estimate).
+- **Single player identical**: seeded e1m1 with your body, red plates and pauldrons (`vr_mp_avatars`' own body skeleton,
+  looks, pauldrons, plates and holsters, from the eyes, a camera off the head and flat third person): every number
+  equal before and after; the eyeshot and flat strips 4 and 62 pixels apart by at most 8 levels (run noise). The
+  builtins checked in place against the old reads (a temporary comparison, removed): revgrip (vr_embed_test 42) 24/0,
+  flipgrip (44) 39/0 (47: 1 read, 49: 2, 51/52: 8, all equal), magholster_test (147 holsterpos reads, all equal).
+- MP: mp_body 12/0, mp_cosmetics 20/0 (twice), mp_flatbody 6/0, mp_held 14/0, mp_disarm 35/0. `mp_test.py suite` 29 of 31
+  pass: mp_predictclimb 24/4 (B's mantle: 1 mantling state; the grapple's corrections 1.8) then 28/0 alone, mp_disarm
+  34/1 twice (the magazine into B's gun, then the shell at his pouch: the known hand-placement flakes) then 35/0 alone.
+  scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0, Release (ThinLTO) build 0 warnings.
+
 ## For him (B11b)
 
 `vr_pmove_own` stays 0 (Debug > Network, "Movement: Own Walk Through Moves"). If it were 1, single player would walk
@@ -2067,4 +2100,4 @@ QuakeC's PlayerPreThink parts. Exactly what would change:
 - The interpolation buffer (B7b) leaves brush models and stepping monsters on NetQuake's lerp: the player's own entity
   is not delayed (no prediction until B8), and a lift he rides must stay in step with him.
 
-Next phase: B11c -- one avatar routine for any player entity; then #6 (an own-player accessor).
+Next phase: B11c part 2 -- the hands, held weapons and holstered weapons of any player entity through one routine (as part 1's body: yours placed from the live rig's drawn state, the copies from their snapshots; the copies' plates morphing as yours through BodyPlates).
