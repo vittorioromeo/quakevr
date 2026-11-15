@@ -69,7 +69,8 @@ VR_CXXFLAGS += -I$(OPUS_DIR)/include -I$(RNNOISE_DIR)/include
 OPUS_CFLAGS = $(filter-out -std=% -O% -g -W%,$(CFLAGS)) -O2 -DNDEBUG -w -DOPUS_BUILD -DUSE_ALLOCA -DHAVE_ALLOCA_H \
 	-DHAVE_LRINT -DHAVE_LRINTF -I$(OPUS_DIR)/include -I$(OPUS_DIR)/src -I$(OPUS_DIR)/celt -I$(OPUS_DIR)/silk \
 	-I$(OPUS_DIR)/silk/float
-RNNOISE_CFLAGS = $(filter-out -std=% -O% -g -W%,$(CFLAGS)) -O2 -DNDEBUG -w -I$(RNNOISE_DIR)/include -I$(RNNOISE_DIR)/src
+RNNOISE_CFLAGS = $(filter-out -std=% -O% -g -W%,$(CFLAGS)) -O2 -DNDEBUG -w -I$(RNNOISE_DIR)/include -I$(RNNOISE_DIR)/src \
+	-I$(OPUS_DIR)/celt -I$(OPUS_DIR)/include
 
 QVR_CLEAN = vr/*.o vr/*.d $(ZANCLEOBJS) $(ZANCLEOBJS:%.o=%.d) $(RECASTOBJS) $(RECASTOBJS:%.o=%.d) $(VOICEOBJS) \
 	$(VOICEOBJS:%.o=%.d)

@@ -4019,7 +4019,7 @@ def lagcomp(s):
 
 VOICE_HZ = 440              # A's test tone (vr_voicechat_test_tone: in place of his microphone)
 VOICE_DELAY_MS = 250        # A's tone captured -> heard at B (the capture's frame, the server, B's jitter delay and lead)
-VOICE_BUDGET = 6000         # vr_net_voice_bytes' default, B/s
+VOICE_BUDGET = 8000         # vr_net_voice_bytes' default, B/s (a frame and its copy in the next datagram: ~6.8 KB/s)
 VOICE_LOW_BUDGET = 1500     # the server's budget cut to this: B's voice bytes held to it, frames dropped
 VOICE_RATE = 8000           # B's vr_net_rate: his voice budget half of it (4000 B/s), still over A's ~3.3 KB/s
 VOICE_SLACK = 1.2           # a budget's bucket burst and the measuring window's edges
@@ -4083,7 +4083,10 @@ def voice(s, listen=False, lag=0.0, jitter=0.0, loss=0.0):
     radio full); muted and his volume; push-to-talk released ends it, voice activation starts and stops it; the server's
     voice budget and B's rate cap hold his voice bytes; noise suppression on keeps it flowing; a press without a
     microphone breaks nothing."""
-    srv, a, b, ea, eb = join(s, listen=listen, lag=lag, jitter=jitter, loss=loss)
+    # (B joins with the lag alone; the jitter and loss start once he is in: a join through 30 ms of reordering and 5%
+    # loss can stall in its signon, keepalives only -- NetQuake's reliable stream, not the voice's)
+    srv, a, b, ea, eb = join(s, listen=listen, lag=lag)
+    b.proxy.jitter, b.proxy.loss = jitter / 1000.0, loss
     sa = ea - 1
     bound = VOICE_DELAY_MS + lag + jitter
     since_a, since_b = a.mark(), b.mark()
@@ -4109,8 +4112,10 @@ def voice(s, listen=False, lag=0.0, jitter=0.0, loss=0.0):
                 sent, out, sp["played"], sp["recovered"], sp["concealed"], sp["late"], sp["skipped"], sp["jitter_ms"]))
     share_min = 0.5 if loss > 0 else 0.8
     s.check("the tone heard at B (%d Hz, its share of the power over %.1f)" % (VOICE_HZ, share_min),
-            float(sp["tone"]) > share_min and abs(float(sp["freq"]) - VOICE_HZ) < 10,
-            "share %s, %s Hz, rms %s" % (sp["tone"], sp["freq"], sp["rms"]))
+            # (its zero crossings: a concealed frame's glitches add a few)
+            float(sp["tone"]) > share_min and abs(float(sp["freq"]) - VOICE_HZ) < (25 if loss > 0 else 10),
+            "share %s, %s Hz, rms %s; %s copies, %s frames of delay added for late ones" % (
+                sp["tone"], sp["freq"], sp["rms"], sp["dups"], sp["stretched"]))
     if loss > 0:
         s.check("B's losses recovered (Opus FEC) or concealed", int(sp["recovered"]) + int(sp["concealed"]) > 0,
                 "%s recovered, %s concealed" % (sp["recovered"], sp["concealed"]))

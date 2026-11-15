@@ -114,6 +114,8 @@ struct Capture
     int hang = 0;
     za::U16 seq = 0;
     OutFrame out[outQueue];
+    OutFrame again[maxFramesPerMessage]; // the last datagram's new frames, sent once more
+    int againCount = 0;
     int outHead = 0, outCount = 0; // (a ring: the oldest at outHead)
     double toneLast = -1.0;
     double tonePhase = 0.0;
@@ -144,6 +146,11 @@ struct Speaker
     bool playing = false;
     za::U16 nextSeq = 0;
     int concealRun = 0;
+    // the frames given out by sequence number: 1 from their own data, 2 recovered or concealed (a copy of the first: a
+    // duplicate; of the second: late)
+    za::U16 doneSeq[jitterSlots]{};
+    za::U8 doneHow[jitterSlots]{};
+    int stretch = 0, stretches = 0; // frames of concealment to put in before the next (a late frame: the delay up)
     double lastArrival = -1.0;
     double prevTransit = 0.0;
     double jitter = 0.0;   // s, RFC 3550's estimate
@@ -170,9 +177,17 @@ struct Speaker
     long long historyCount = 0;
     // counts
     long long received = 0, played = 0, concealed = 0, recovered = 0, late = 0, overflow = 0, skipped = 0, underruns = 0,
-              restarts = 0, spurts = 0;
+              restarts = 0, spurts = 0, dups = 0, stretched = 0;
 };
 Speaker speakers[MAX_SCOREBOARD];
+
+// Sequence `seq` given out (`how`: 1 its own data, 2 recovered or concealed), the next one due.
+void advance(Speaker& sp, za::U8 how)
+{
+    sp.doneSeq[sp.nextSeq % jitterSlots] = sp.nextSeq;
+    sp.doneHow[sp.nextSeq % jitterSlots] = how;
+    sp.nextSeq++;
+}
 bool clockOnly = false; // (the self-test: the play-out on the clock, no sound)
 
 // (scratch: the frame's decoded samples, a captured block's)
@@ -711,7 +726,7 @@ void decodeNext(Speaker& sp, int slot)
         {
             sp.playing = false; // (the end marker)
             emit(sp, pcm, true);
-            sp.nextSeq++;
+            advance(sp, 1);
             return;
         }
         const int n = opus_decode_float(sp.dec, s.data, s.len, pcm, frameSamples, 0);
@@ -726,7 +741,7 @@ void decodeNext(Speaker& sp, int slot)
             Con_Printf("mp_voice_rx: t=%lld slot=%d seq=%d ahead_ms=%.0f\n", wallMs() + static_cast<long long>(ahead * 1000.0),
                 slot, static_cast<int>(sp.nextSeq), ahead * 1000.0);
         }
-        sp.nextSeq++;
+        advance(sp, 1);
         return;
     }
     // (lost or late: a newer frame here?)
@@ -757,7 +772,7 @@ void decodeNext(Speaker& sp, int slot)
         emit(sp, pcm, true);
         return;
     }
-    sp.nextSeq++;
+    advance(sp, 2);
 }
 
 // A speaker's output kept `lead` ahead of its reader.
@@ -795,14 +810,22 @@ void pump(Speaker& sp, int slot)
         if(s.has && s.seq == sp.nextSeq && s.len > 0)
         {
             s.has = false;
-            sp.nextSeq++;
+            advance(sp, 2);
             sp.skipped++;
         }
     }
     const float* none = scratch.pcm;
     while(sp.written < r + lead * rate)
     {
-        if(sp.playing && sp.written >= sp.startAt)
+        if(sp.playing && sp.written >= sp.startAt && sp.stretch > 0)
+        {
+            // (a frame came late: 20 ms of concealment put in, the delay up by as much)
+            const int n = opus_decode_float(sp.dec, nullptr, 0, scratch.pcm, frameSamples, 0);
+            emit(sp, scratch.pcm, n != frameSamples);
+            sp.stretch--;
+            sp.stretched++;
+        }
+        else if(sp.playing && sp.written >= sp.startAt)
         {
             decodeNext(sp, slot);
         }
@@ -847,8 +870,13 @@ void resetSpeaker(Speaker& sp, int slot, bool keepSettings)
     sp.lastHeard = -1.0;
     sp.firstSaid = false;
     sp.received = sp.played = sp.concealed = sp.recovered = sp.late = sp.overflow = sp.skipped = sp.underruns = 0;
-    sp.restarts = sp.spurts = 0;
+    sp.restarts = sp.spurts = sp.dups = sp.stretched = 0;
     sp.historyCount = 0;
+    sp.stretch = sp.stretches = 0;
+    for(za::U8& h : sp.doneHow)
+    {
+        h = 0;
+    }
     if(sp.dec)
     {
         opus_decoder_ctl(sp.dec, OPUS_RESET_STATE);
@@ -897,17 +925,28 @@ void receive(int slot, za::U16 seq, za::U8 flags, const za::U8* data, int len)
             return;
         }
     }
+    JitterSlot& s = sp.jb[seq % jitterSlots];
+    const bool given = sp.doneHow[seq % jitterSlots] != 0 && sp.doneSeq[seq % jitterSlots] == seq;
+    if((s.has && s.seq == seq) || (given && sp.doneHow[seq % jitterSlots] == 1))
+    {
+        sp.dups++; // (each frame comes twice: its next datagram's copy)
+        return;
+    }
     if(sp.playing && seqDiff(seq, sp.nextSeq) < 0)
     {
-        // (an earlier frame of the spurt before its decoding began: from it; else too late)
+        // (an earlier frame of the spurt before its decoding began: from it; else too late, the delay raised)
         if(sp.written >= sp.startAt || seqDiff(seq, sp.nextSeq) <= -jitterSlots / 2)
         {
             sp.late++;
+            if(given && sp.stretches + sp.stretch < static_cast<int>((jitterMax - jitterMin) / frameSeconds))
+            {
+                sp.stretch++;
+                sp.stretches++;
+            }
             return;
         }
         sp.nextSeq = seq;
     }
-    JitterSlot& s = sp.jb[seq % jitterSlots];
     if(s.has && s.seq != seq && (!sp.playing || seqDiff(s.seq, sp.nextSeq) >= 0))
     {
         sp.overflow++;
@@ -934,6 +973,7 @@ void receive(int slot, za::U16 seq, za::U8 flags, const za::U8* data, int len)
         sp.playing = true;
         sp.nextSeq = seq;
         sp.concealRun = 0;
+        sp.stretch = sp.stretches = 0;
         sp.spurts++;
         opus_decoder_ctl(sp.dec, OPUS_RESET_STATE);
         // (frames of this spurt before it, already here: from the oldest)
@@ -1124,10 +1164,10 @@ void report_f()
         }
         const float dist = glm::distance(eye, headOf(slot + 1));
         Con_Printf("mp_voice: slot=%d ent=%d received=%lld played=%lld concealed=%lld recovered=%lld late=%lld overflow=%lld "
-                   "skipped=%lld underruns=%lld restarts=%lld spurts=%lld jitter_ms=%.1f talking=%d muted=%d dist=%.0f "
+                   "skipped=%lld underruns=%lld restarts=%lld spurts=%lld dups=%lld stretched=%lld jitter_ms=%.1f talking=%d muted=%d dist=%.0f "
                    "gain=%.3f tone=%.3f freq=%.1f rms=%.4f sound=%d\n",
             slot, slot + 1, sp.received, sp.played, sp.concealed, sp.recovered, sp.late, sp.overflow, sp.skipped, sp.underruns,
-            sp.restarts, sp.spurts, sp.jitter * 1000.0, talking(slot) ? 1 : 0, sp.muted ? 1 : 0, dist,
+            sp.restarts, sp.spurts, sp.dups, sp.stretched, sp.jitter * 1000.0, talking(slot) ? 1 : 0, sp.muted ? 1 : 0, dist,
             distanceGain(dist, attenuation()) * za::clamp(vr_voicechat_volume.value * sp.volume, 0.f, 4.f), share, freq, rms,
             channelOf(const_cast<Speaker&>(sp), slot + 1) ? 1 : 0);
     }
@@ -1142,7 +1182,7 @@ void resetCounts_f()
     {
         Speaker& sp = speakers[slot];
         sp.received = sp.played = sp.concealed = sp.recovered = sp.late = sp.overflow = sp.skipped = sp.underruns = 0;
-        sp.restarts = sp.spurts = 0;
+        sp.restarts = sp.spurts = sp.dups = sp.stretched = 0;
         sp.firstSaid = false;
     }
     Con_Printf("mp_voice: reset\n");
@@ -1434,37 +1474,50 @@ void writeClient(sizebuf_t* buf)
 {
     if(!active() || cls.signon != SIGNONS)
     {
+        cap.againCount = 0;
         return;
     }
-    while(cap.outCount > 0)
+    // [QVR_CLC_VOICE][byte count] x ([short seq][byte flags][byte len][len bytes]): the last datagram's frames again
+    // (NetQuake drops a datagram that comes after a newer one: a frame in two survives most reordering and a loss),
+    // then the new ones
+    int bytes = 2, again = 0, fresh = 0;
+    for(; again < cap.againCount && buf->cursize + bytes + 4 + cap.again[again].len <= buf->maxsize; again++)
     {
-        // [QVR_CLC_VOICE][byte count] x ([short seq][byte flags][byte len][len bytes])
-        int count = 0, bytes = 2;
-        for(; count < cap.outCount && count < maxFramesPerMessage; count++)
+        bytes += 4 + cap.again[again].len;
+    }
+    for(; fresh < cap.outCount && again + fresh < maxFramesPerMessage; fresh++)
+    {
+        const OutFrame& f = cap.out[(cap.outHead + fresh) % outQueue];
+        if(buf->cursize + bytes + 4 + f.len > buf->maxsize)
         {
-            const OutFrame& f = cap.out[(cap.outHead + count) % outQueue];
-            if(buf->cursize + bytes + 4 + f.len > buf->maxsize)
-            {
-                break;
-            }
-            bytes += 4 + f.len;
+            break;
         }
-        if(count == 0)
-        {
-            return;
-        }
-        MSG_WriteByte(buf, QVR_CLC_VOICE);
-        MSG_WriteByte(buf, count);
-        for(int i = 0; i < count; i++)
-        {
-            const OutFrame& f = cap.out[cap.outHead];
-            MSG_WriteShort(buf, f.seq);
-            MSG_WriteByte(buf, f.flags);
-            MSG_WriteByte(buf, f.len);
-            SZ_Write(buf, f.data, f.len);
-            cap.outHead = (cap.outHead + 1) % outQueue;
-            cap.outCount--;
-        }
+        bytes += 4 + f.len;
+    }
+    if(again + fresh == 0)
+    {
+        cap.againCount = 0;
+        return;
+    }
+    MSG_WriteByte(buf, QVR_CLC_VOICE);
+    MSG_WriteByte(buf, again + fresh);
+    const auto write = [&](const OutFrame& f) {
+        MSG_WriteShort(buf, f.seq);
+        MSG_WriteByte(buf, f.flags);
+        MSG_WriteByte(buf, f.len);
+        SZ_Write(buf, f.data, f.len);
+    };
+    for(int i = 0; i < again; i++)
+    {
+        write(cap.again[i]);
+    }
+    cap.againCount = 0;
+    for(int i = 0; i < fresh; i++)
+    {
+        write(cap.out[cap.outHead]);
+        cap.again[cap.againCount++] = cap.out[cap.outHead];
+        cap.outHead = (cap.outHead + 1) % outQueue;
+        cap.outCount--;
     }
 }
 

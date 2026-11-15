@@ -11,7 +11,7 @@ Xiph.Org's speech and audio codec, BSD-3-Clause (`COPYING`; contributors in `AUT
   Not vendored: `dnn` (the optional deep PLC, DRED and OSCE, off by default), the x86/ARM/MIPS SIMD and run-time CPU
   dispatch, the fixed-point build, the demos, tests, docs and build scripts. No local changes: the files are upstream's.
 
-Used by `Quake/vr/vr_voice.cpp` (voice chat, docs/vr-port/MP_PLAN.md, B10v): 48 kHz mono, 20 ms frames, VoIP mode.
+Used by `Quake/vr/vr_voicechat.cpp` (voice chat, docs/vr-port/MP_PLAN.md, B10v): 48 kHz mono, 20 ms frames, VoIP mode.
 Built as its own static library, always optimised (NDEBUG), Debug builds too, warnings off, with `OPUS_BUILD`,
 `USE_ALLOCA`, `HAVE_LRINT`, `HAVE_LRINTF` (and `HAVE_ALLOCA_H` off Windows; no `config.h`):
 `Windows/VisualStudio/opus.vcxproj` (in the solution, referenced by `quakevr.props`), `Quake/vr/vr.cmake` (`qvr_opus`,

@@ -10,10 +10,11 @@ Jean-Marc Valin's recurrent-network noise suppressor (Xiph.Org, Mozilla, Amazon)
   `parse_lpcnet_weights.c`, `rnnoise_tables.c`, and `rnnoise_data.c`: the model's weights, 4.9 MB of C, part of the
   release: no separate model download) and the headers of `src` and `src/x86` (`vec.h` includes them; SSE2 or NEON
   inlines are chosen at compile time); `COPYING`, `AUTHORS`. Not vendored: `src/x86`'s sources (the SSE4.1/AVX2
-  variants behind its run-time dispatch), the examples, training scripts, `dump_features.c`, `write_weights.c`, the build scripts. No
-  local changes: the files are upstream's.
+  variants behind its run-time dispatch), the examples, training scripts, `dump_features.c`, `write_weights.c`, the build
+  scripts. No local changes: the files are upstream's. Its `os_support.h` (the `OPUS_CLEAR` its plain-C and NEON
+  `vec.h` paths use) is not in the release: Opus's (`opus/celt`, `opus/include`) is on its include path after its own folders.
 
-Used by `Quake/vr/vr_voice.cpp` (voice chat, docs/vr-port/MP_PLAN.md, B10v): 48 kHz mono, 10 ms frames, before the
+Used by `Quake/vr/vr_voicechat.cpp` (voice chat, docs/vr-port/MP_PLAN.md, B10v): 48 kHz mono, 10 ms frames, before the
 Opus encoder. Its function names are its own (`rnn_*`, `rnnoise_*`; its FFT and LPC are prefixed copies of Opus's), so
 it links beside Opus. Built as its own static library, always optimised (NDEBUG), Debug builds too, warnings off:
 `Windows/VisualStudio/rnnoise.vcxproj` (in the solution, referenced by `quakevr.props`), `Quake/vr/vr.cmake`

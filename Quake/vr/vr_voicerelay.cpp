@@ -39,11 +39,14 @@ struct RelaySlot
     RelayFrame ring[relayRing];
     long long written = 0;            // frames taken from him (ring index = written % relayRing)
     double inTokens = 0.0, inFilledAt = -1.0;
+    bool haveLast = false;
+    za::U16 lastSeq = 0;              // the newest frame taken (its copies, and older ones, not again)
     // as a listener: the next of each speaker's frames to send him, his budget
     long long next[MAX_SCOREBOARD]{};
+    long long againFrom[MAX_SCOREBOARD]{}, againTo[MAX_SCOREBOARD]{}; // the last datagram's, once more
     double tokens = 0.0, filledAt = -1.0;
     // counts
-    long long in = 0, inDropped = 0, out = 0, outBytes = 0, outDropped = 0;
+    long long in = 0, inDropped = 0, inCopies = 0, out = 0, outBytes = 0, outDropped = 0, outAgain = 0;
 };
 RelaySlot relay[MAX_SCOREBOARD];
 
@@ -96,12 +99,19 @@ bool serverRead(client_s* client)
         {
             continue;
         }
+        if(r->haveLast && static_cast<za::I16>(static_cast<za::U16>(seq - r->lastSeq)) <= 0)
+        {
+            r->inCopies++; // (the copy his next datagram carries, or one overtaken)
+            continue;
+        }
         if(r->inTokens < 1.0)
         {
             r->inDropped++;
             continue;
         }
         r->inTokens -= 1.0;
+        r->haveLast = true;
+        r->lastSeq = seq;
         RelayFrame& f = r->ring[r->written % relayRing];
         f.seq = seq;
         f.flags = flags;
@@ -145,7 +155,7 @@ void serverWrite(sizebuf_t* msg, client_s* client)
         long long& next = l.next[s];
         if(s == to || !svs.clients[s].active)
         {
-            next = sp.written;
+            next = l.againFrom[s] = l.againTo[s] = sp.written;
             continue;
         }
         // (frames gone round the ring, or too old: dropped for him)
@@ -159,13 +169,18 @@ void serverWrite(sizebuf_t* msg, client_s* client)
             l.outDropped++;
             next++;
         }
-        if(next >= sp.written)
+        // [svc_quakevr][QVR_SVC_VOICE][byte slot][byte count] x ([short seq][byte flags][byte len][len bytes]): the new
+        // frames first, then (budget left) the last datagram's again: NetQuake drops a datagram that comes after a newer
+        // one, so a frame in two survives most reordering and a loss
+        long long& from = l.againFrom[s];
+        long long& until = l.againTo[s];
+        from = za::max(from, za::max(sp.written - relayRing, 0LL));
+        while(from < until && now - sp.ring[from % relayRing].at > maxAge)
         {
-            continue;
+            from++;
         }
-        // [svc_quakevr][QVR_SVC_VOICE][byte slot][byte count] x ([short seq][byte flags][byte len][len bytes])
-        int count = 0, bytes = 4;
-        for(long long k = next; k < sp.written && count < maxFramesPerMessage; k++, count++)
+        int fresh = 0, again = 0, bytes = 4;
+        for(long long k = next; k < sp.written && fresh < maxFramesPerMessage; k++, fresh++)
         {
             const int add = 4 + sp.ring[k % relayRing].len;
             if(used + bytes + add > room || bytes + add > l.tokens)
@@ -174,25 +189,44 @@ void serverWrite(sizebuf_t* msg, client_s* client)
             }
             bytes += add;
         }
-        if(count == 0)
+        for(long long k = from; k < until && fresh + again < maxFramesPerMessage; k++, again++)
+        {
+            const int add = 4 + sp.ring[k % relayRing].len;
+            if(used + bytes + add > room || bytes + add > l.tokens)
+            {
+                break;
+            }
+            bytes += add;
+        }
+        if(fresh + again == 0)
         {
             continue;
         }
         MSG_WriteByte(msg, protocol::svc_quakevr);
         MSG_WriteByte(msg, protocol::QVR_SVC_VOICE);
         MSG_WriteByte(msg, s);
-        MSG_WriteByte(msg, count);
-        for(int i = 0; i < count; i++, next++)
-        {
-            const RelayFrame& f = sp.ring[next % relayRing];
+        MSG_WriteByte(msg, fresh + again);
+        const auto write = [&](const RelayFrame& f) {
             MSG_WriteShort(msg, f.seq);
             MSG_WriteByte(msg, f.flags);
             MSG_WriteByte(msg, f.len);
             SZ_Write(msg, f.data, f.len);
+        };
+        for(int i = 0; i < again; i++)
+        {
+            write(sp.ring[(from + i) % relayRing]);
         }
+        for(int i = 0; i < fresh; i++)
+        {
+            write(sp.ring[(next + i) % relayRing]);
+        }
+        from = next;
+        until = next + fresh;
+        next += fresh;
         used += bytes;
         l.tokens -= bytes;
-        l.out += count;
+        l.out += fresh;
+        l.outAgain += again;
         l.outBytes += bytes;
     }
 }
@@ -208,7 +242,7 @@ void serverReset(int slot)
     relay[slot].written = keep;
     for(int s = 0; s < MAX_SCOREBOARD; s++)
     {
-        relay[slot].next[s] = relay[s].written;
+        relay[slot].next[s] = relay[slot].againFrom[s] = relay[slot].againTo[s] = relay[s].written;
     }
 }
 
@@ -221,8 +255,8 @@ void serverReport()
         {
             continue;
         }
-        Con_Printf("mp_voice_relay: slot=%d in=%lld in_dropped=%lld out=%lld out_bytes=%lld out_dropped=%lld\n", s, r.in,
-            r.inDropped, r.out, r.outBytes, r.outDropped);
+        Con_Printf("mp_voice_relay: slot=%d in=%lld in_dropped=%lld in_copies=%lld out=%lld out_again=%lld out_bytes=%lld "
+                   "out_dropped=%lld\n", s, r.in, r.inDropped, r.inCopies, r.out, r.outAgain, r.outBytes, r.outDropped);
     }
     Con_Printf("mp_voice_relay: done\n");
 }
