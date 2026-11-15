@@ -24,6 +24,7 @@
 #include "vr_engine.hpp"
 #include "vr_geom.hpp"
 #include "vr_protocol.hpp"
+#include "vr_toolgun.hpp"
 
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -71,6 +72,7 @@ struct ReloadState
     Trip trip[2];
     OpenPose openPose[2];
     bool keyDown{false};   // R, last frame
+    bool ammoDown{false};  // B (vr_flat_key_ammo), last frame
     int presses{0};
     double lastTime{-1e9};
 };
@@ -189,6 +191,20 @@ void frame(bool on)
         }
     }
     rs.keyDown = down;
+
+    // B: the main hand's weapon to its other ammo (impulse 43: the headset's weapon button, QC VR_Impulse_WeaponButton;
+    // a weapon without one: nothing). Not with the toolgun in hand: B is its adjust key there (vr_flat_key_toolgun_adjust).
+    const int ka = vr_flat_key_ammo.string[0] ? Key_StringToKeynum(vr_flat_key_ammo.string) : -1;
+    const bool ammoDown = key_dest == key_game && ka > 0 && ka < MAX_KEYS && keydown[ka] != 0;
+    if(ammoDown && !rs.ammoDown && toolgun::heldHand() != HAND_MAIN)
+    {
+        Cbuf_InsertText("impulse 43\n");
+        if(vr_flat_reload_debug.value)
+        {
+            Con_Printf("flatreload: %s: next ammo type\n", vr_flat_key_ammo.string);
+        }
+    }
+    rs.ammoDown = ammoDown;
 
     const int bits = cl.stats[protocol::STAT_QVR_FLATRELOAD];
     for(int h : {HAND_OFF, HAND_MAIN})

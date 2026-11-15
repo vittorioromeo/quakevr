@@ -4561,6 +4561,8 @@ void(float xHand) ToggleSecondaryAmmo =
 
     VRSetWeaponFlags(xHand, VRGetWeaponFlags(xHand) ^ QVR_WPNFLAG_USE_SECONDARY_AMMO);
     W_SetCurrentAmmoFor(xHand);
+    dprint(sprintf("ammo: hand %g, %s: %s ammo\n", xHand, WeaponIdToWeaponName(weapon),
+        (VRGetWeaponFlags(xHand) & QVR_WPNFLAG_USE_SECONDARY_AMMO) ? "its other" : "its own")); // (flat_ammo_key_test.sh)
 }
 
 #ifdef QVR_TESTS

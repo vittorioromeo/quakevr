@@ -229,16 +229,19 @@ float pointAlign(Slot& s, edict_t* ent, float dt)
         s.flightOff = off; // (the release's: the gates)
         s.flightTumble = glm::length(across);
     }
+    // This blade's leniency (weapons.txt throw_point: the dagger's, a short light blade leaving the hand tumbling faster,
+    // more; his note 2026-11-15): its tumble limit and its spring's strength times it.
+    const float lenient = axestick::pointLeniency(ent);
     const float fast = za::clamp((speed - pointSpeedFrom) / (pointSpeedFull - pointSpeedFrom), 0.f, 1.f);
-    const float tumbleMost = za::max(vr_throw_point_spin.value, 0.f) * glm::two_pi<float>();
+    const float tumbleMost = za::max(vr_throw_point_spin.value, 0.f) * glm::two_pi<float>() * lenient;
     const float calm = tumbleMost > 0.f ? za::clamp((tumbleMost - s.flightTumble) / (0.5f * tumbleMost), 0.f, 1.f) : 0.f;
     const bool aimed = glm::degrees(s.flightOff) <= za::max(vr_throw_point_angle.value, 0.f);
     const float fade = 1.f - (age / window) * (age / window);
     const float share = aimed ? calm * fast * fade : 0.f;
     if(vr_debug_box3d.value != 0.f && (age <= 0.f || static_cast<int>(age * 20.f) != static_cast<int>((age + dt) * 20.f)))
     {
-        Con_Printf("pointalign: %d age %.2f off %.0f deg across %.1f along %.1f rad/s speed %.1f m/s share %.2f\n",
-            NUM_FOR_EDICT(ent), age, glm::degrees(off), glm::length(across), glm::dot(w, d), speed, share);
+        Con_Printf("pointalign: %d age %.2f off %.0f deg across %.1f along %.1f rad/s speed %.1f m/s share %.2f (x%.2f)\n",
+            NUM_FOR_EDICT(ent), age, glm::degrees(off), glm::length(across), glm::dot(w, d), speed, share, lenient);
     }
     if(share <= 0.f)
     {
@@ -253,11 +256,11 @@ float pointAlign(Slot& s, edict_t* ent, float dt)
         axisLen = glm::length(axis);
     }
     axis = axisLen > 1e-6f ? axis / axisLen : glm::vec3{0.f};
-    const float k = pointStiff * strength;
+    const float k = pointStiff * strength * lenient;
     const float c = za::max(vr_throw_point_damp.value, 0.f) * 2.f * za::sqrt(k);
     glm::vec3 accel = (axis * (k * off) - across * c) * share;
     const float a = glm::length(accel);
-    const float most = pointMaxAccel * strength;
+    const float most = pointMaxAccel * strength * lenient;
     if(a > most)
     {
         accel *= most / a;

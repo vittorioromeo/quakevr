@@ -2251,6 +2251,13 @@ void(entity g, entity p) VR_AGP_Pose =
             VR_DRP_Frame(g, pL);
         }
     }
+    else if(pL && !vr_agp_quiet && g.vr_ag_prop == pL && VR_AG_Class(pL.weapon) == VR_AG_CLASS_MELEE)
+    {
+        // A gun and an axe (vr_ag_gunaxe): the gun in the right hand, the axe it swings in the left. Its swing read and
+        // its held-back blow let go here too (a blow held back for your weapon near its way was never dealt nor parried:
+        // no damage, no disarm; his flat-screen note of 2026-11-16).
+        VR_DRP_Frame(g, pL);
+    }
     if(c == VR_AG_CLASS_FISTS)
     {
         VR_AGP_Fists(g, handL);

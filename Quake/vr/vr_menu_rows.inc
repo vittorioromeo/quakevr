@@ -1384,6 +1384,9 @@ QVR_TOGGLE(vr_player_disarm, "You Can Be Disarmed",
     "same rules as yours on an armed grunt's: shots add up and roll, a projectile rolls once, a blow landing on your "
     "weapon (not a parry) knocks it out. It drops where you can pick it up again, its ammo kept. Fists and empty hands "
     "never. In multiplayer, other players' too (vr_player_disarm).")
+QVR_SLIDER(vr_player_disarm_sound, "Your Disarm Sound", 0.f, 1.f, 0.05f, "%.2f", ext(),
+    "Your weapon knocked out of your hand: the volume of its clang (at the weapon, for everyone near) and of the short "
+    "alert only you hear (0: silent) (vr_player_disarm_sound).")
 QVR_SLIDER(vr_player_disarm_chance, "Your Disarm Chance", 0.f, 2.f, 0.05f, "%.2fx", ext(0.f, 10.f),
     "Times the armed grunts' chance when it is your weapon that is hit (1: the same exact rules; at most certain; "
     "0: never) (vr_player_disarm_chance).")
@@ -1465,7 +1468,7 @@ QVR_SLIDER(vr_dagger_damage, "Dagger", 0.1f, 2.f, 0.05f, "%.2fx sword", ext(),
 QVR_SLIDER(vr_sword_damage_mult, "Knight's Sword", 0.5f, 3.f, 0.05f, "%.2fx 20", ext(),
     "Knights and hell knights always drop their sword: a swing's damage, times 20 (1.5: 30), before its "
     "speed and weight; the hell knight's sword 25% more.")
-QVR_SLIDER(vr_gruntgun_damage, "Grunt's Burst Rifle", 1.f, 30.f, 1.f, "%.0f a round", ext(),
+QVR_SLIDER(vr_gruntgun_damage, "Burst Rifle", 1.f, 30.f, 1.f, "%.0f a round", ext(),
     "Grunts always drop their gun: a trigger pull fires a 3-round burst, each round this much damage (a "
     "head more; a grunt has 30 health). Burst Rifles off: the Shotgun's pellets.")
 
@@ -7324,6 +7327,9 @@ QVR_KEY(vr_flat_key_grab, "Force Grab", "The key that force-grabs what the view 
 QVR_KEY(vr_flat_key_shove, "Shove", "The key that shoves: an open hand pushed out in front of you.")
 QVR_KEY(vr_flat_key_punch, "Punch", "The key that punches with the right hand (the fire buttons punch too).")
 QVR_KEY(vr_flat_key_reload, "Reload", "The key that reloads every gun that has room in its clip.")
+QVR_KEY(vr_flat_key_ammo, "Next Ammo Type", "The key that switches the main hand's weapon to its other ammo (the rocket and "
+    "grenade launchers' multi-rockets and -grenades, the thunderbolt's...), as the headset's weapon button. Not with the toolgun "
+    "in hand.")
 QVR_KEY(vr_flat_key_drop, "Drop", "The key that lets go of what a hand holds (the off hand first).")
 QVR_KEY(vr_flat_key_grenade, "Quick Grenade", "The key that takes a grenade from the back pouch into a free hand.")
 QVR_KEY(vr_flat_key_bullettime, "Bullet Time", "The key that starts and stops bullet time.")

@@ -381,7 +381,7 @@ float(float a, float b, float c) VR_Classic_DropCheck =
         sprintf("vr_grunt_burst 0: a burst rifle's clip is rounds, a multiple of 3 (%g)", clip));
     VR_Test_Check(left == VR_BURST_ROUNDS - 1 && after == clip - 1,
         sprintf("vr_grunt_burst 0: a pull begins a burst (%g more to come, %g of %g left), not a shotgun's shot", left, after, clip));
-    VR_Test_Check(VR_EnemyGun_Name(WID_GRUNTGUN) == "grunt's burst rifle", "it is named the burst rifle");
+    VR_Test_Check(VR_EnemyGun_Name(WID_GRUNTGUN) == "Burst Rifle", "it is named the burst rifle");
     return vr_test_fail * 1000 + vr_test_pass;
 };
 #endif

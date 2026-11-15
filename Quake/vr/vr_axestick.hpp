@@ -42,6 +42,10 @@ void say(const char* fmt, ...);
 // (world). False: not a pointed blade (an axe, any other weapon or thing). Whatever vr_embed is (its flight: pointAlign).
 [[nodiscard]] bool pointLine(edict_t* ent, glm::vec3& hand, glm::vec3& tip);
 
+// Its weapons.txt `throw_point` (pointAlign's leniency for this blade: times its strength and its tumble limit; 1 the
+// swords', the dagger's more; unset or 0: 1).
+[[nodiscard]] float pointLeniency(edict_t* ent);
+
 // Embedded blades, stage 2 (QC/vr_embedhold.qc): the blade `ent` (a thrown weapon just made, at rest) a hand's blow has just
 // put into the body `host` at `at`, going at `vel` (units/s). Set where the hand's weapon is drawn (`hand`; a player not the
 // local one: where QC put it), its checks made (an axe's edge first, not its side; a plate: its spark): stuck, by its point

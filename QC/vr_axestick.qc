@@ -21,6 +21,7 @@ float AXESTICK_MODEL = 3;       // a monster's model
 float AXESTICK_MONSTERBOX = 4;  // a monster's box
 float AXESTICK_OUT = -1;        // it came out: it never sticks again
 float AXESTICK_BLEED_TICK = 0.5; // seconds between two bleedings
+float VR_STICK_LOST_GRACE = 0.04; // s its place on the body may be lost (a pose passing through) before it falls
 float AXESTICK_POINT = 1;       // .vr_stick_embed: by its point (weapons.txt embed)
 float AXESTICK_EDGE = 2;        // by its edge
 
@@ -135,6 +136,7 @@ void(float xKind, float xSpeed) VR_AxeStick_Stuck =
 {
     // (As it was before its blow: one that gibs it changes it, and the blade mustn't stay floating where the body was.)
     self.vr_stick_model = other.modelindex;
+    self.vr_stick_lost = 0;
     self.vr_stick_bone = (xKind == AXESTICK_MODEL || xKind == AXESTICK_MONSTERBOX) ? ragdolllimb(other, self.vr_stick_at) : -1;
     // In an arm or a leg (a limb not the head's): loose on it; in the torso, the pelvis, the head: rigid.
     self.vr_stick_loose = VR_AxeStick_LooseIn(other, self.vr_stick_bone);
@@ -334,8 +336,11 @@ void() VR_AxeStick_Think =
     // (vr_embed: it stays in a dead body until the model it is in changes or goes: gibbed, removed; or the part it is in is cut
     // off, whatever cut it.)
     // (A crate broken, its boards flung: it falls at once, not with the crate's removal a moment on; held, into the hand.)
+    // (Or the place it went into can't be found on the body now, a while: its triangle squashed in the pose, the engine's
+    // vr_stick_lost; a grunt's gun gone from its hands as it died, his note 2026-11-15: the blade was left floating.)
     if(!VR_AxeStick_On(self) ||
        (h != world && (h.modelindex != self.vr_stick_model || h.model == string_null)) ||
+       ((self.vr_stick_lost > 0) && (time - self.vr_stick_lost >= VR_STICK_LOST_GRACE)) ||
        (self.vr_stick_kind == AXESTICK_PROP && h.classname == "vr_crate_broken") ||
        (cvar_hget(cvarh_vr_embed) && VR_AxeStick_InMonster(self) && VR_AxeStick_BoneCut(h, self.vr_stick_bone)) ||
        (!cvar_hget(cvarh_vr_embed) && VR_AxeStick_InMonster(self) && (h.health <= 0 || h.solid == SOLID_NOT)))

@@ -395,7 +395,7 @@ QVR_TUNABLE(vr_gib_throw_damage, "4") // and of a gib or head
 QVR_TUNABLE(vr_gib_health, "12") // the damage that destroys a gib (a head takes half as much again)
 QVR_TUNABLE(vr_gib_overkill_melee, "0.5") // the share of a hand's blow's overkill (damage past its health) that counts towards gibbing a monster; Quad's all of it (QC combat.qc VR_Gib_Overkill; 1 before his note 2026-11-02)
 QVR_TUNABLE(vr_gib_overkill_prop, "0.1") // and of a thrown, flung or fallen prop's (a limb or head it hit still pops; 1 before his note 2026-11-02)
-QVR_TUNABLE(vr_gib_overkill_blade, "0") // and of a blade thrown blade first (point or edge in: it kills whole, the blade left in the body; 1 before his note 2026-11-12)
+QVR_TUNABLE(vr_gib_overkill_blade, "0") // and of a blade thrown blade first (point or edge in: it kills whole, the blade left in the body; 1 before his note 2026-11-12), and of a thrown sword or dagger any way (his note 2026-11-15)
 QVR_TUNABLE(vr_gib_splat_speed, "250") // units/s a thrown gib or head must hit a wall or a monster at to burst
 QVR_TUNABLE(vr_gib_splat_throw, "7") // m/s of the throwing hand from which a thrown gib or head bursts on a wall instead of sticking, however heavy; 0 off
 QVR_TUNABLE(vr_gib_burst_speed, "5") // m/s: a hand's or weapon's hit on a gib, or one held and smashed into something, this fast (relative) bursts it; from half as fast it wears it (and bounces off the hand)
@@ -2512,4 +2512,6 @@ QVR_TUNABLE(vr_menu_render_scale, "-1") // while a menu is open, the eyes drawn 
 QVR_TUNABLE(vr_gl_foveation, "0") // fixed foveated rendering of the eyes' scene on the Quest (GL_QCOM_texture_foveated on our own scene targets; vr_stereo.cpp foveateEye; QUEST_PLAN.md 6o): the tiles away from each eye's centre drawn at a lower resolution: 0 off, 1 low, 2 medium, 3 high; nothing without the extension (the PC). Experimental: no effect measured on the Quest 3 yet (ovrgpuprofiler shows the bins unscaled)
 QVR_TUNABLE(vr_revgrip_pivot, "1") // ... 1: the blade turns half round about the fist's own middle on its handle (abreast of the drawn hand's palm; ROUND25.md "flipgrip2"); 0: about the handle's middle (before)
 QVR_TUNABLE(vr_revgrip_pivot_shift, "0.35") // ... units: that pivot this far from the palm's middle along the handle towards the blade (the fist's middle: the drawn hand's, the same for every weapon; his dagger's Reversed Z 1.1, 2026-11-15)
+QVR_TUNABLE(vr_revgrip_2h_gate, "1") // ... 1: a sword or dagger held in two hands flips (its eject button, the flat FLIP GRIP) only with the other hand on its two-handed grip hotspot (the handle), not anywhere on it or on its blade (his note 2026-11-15; ROUND25.md "flipgate"); 0: always (before)
+QVR_TUNABLE(vr_revgrip_blocked_pulse, "0.25") // ... a refused flip's pulse in the pressing hand (0..1; 0 none)
 QVR_TUNABLE(vr_revgrip_2h_mirror, "1") // ... held reversed, the other hand on its grip hotspot: 1 holds it as it did upright, turned as the holding hand (knuckles out), its place mirrored along the handle (above the hand, blade down; ROUND25.md "flipgrip2"); 0: turned half round with the blade (before)
