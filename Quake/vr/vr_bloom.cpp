@@ -83,7 +83,7 @@ void main()
     float x = clamp((bright - Params.x) / max(1.0 - Params.x, 1e-3), 0.0, 1.0);
     float saturation = (bright - min(c.r, min(c.g, c.b))) / max(bright, 1e-3);
     float weight = mix(Weights.x, Weights.y, smoothstep(0.15, 0.6, saturation));
-    Out = vec4(c * (x * x * 4.0 * weight), 1.0);
+    Out = vec4(clamp(c * (x * x * 4.0 * weight), 0.0, 1e4), 1.0); // (clamped: no NaN or Inf goes down the chain, C4i)
 }
 )";
 
@@ -100,7 +100,7 @@ void main()
     vec3 c = texture(Source, uv).rgb * 4.0;
     c += texture(Source, uv + vec2(-o.x, -o.y)).rgb + texture(Source, uv + vec2(o.x, -o.y)).rgb +
          texture(Source, uv + vec2(-o.x, o.y)).rgb + texture(Source, uv + vec2(o.x, o.y)).rgb;
-    Out = vec4(c * 0.125, 1.0);
+    Out = vec4(clamp(c * 0.125, 0.0, 1e4), 1.0);
 }
 )";
 
@@ -144,7 +144,7 @@ void main()
     {
         c *= Extra.y / (1.0 + Extra.z * texelFetch(Mean, ivec2(0), 0).r);
     }
-    Out = vec4(c, 1.0);
+    Out = vec4(clamp(c, 0.0, 1e4), 1.0);
 }
 )";
 
@@ -162,7 +162,7 @@ void main()
             vec3 s = texture(Source, (vec2(x, y) + 0.5) * 0.125).rgb;
             sum += max(s.r, max(s.g, s.b));
         }
-    Out = vec4(sum * (1.0 / 64.0), 0.0, 0.0, 1.0);
+    Out = vec4(clamp(sum * (1.0 / 64.0), 0.0, 1e4), 0.0, 0.0, 1.0);
 }
 )";
 

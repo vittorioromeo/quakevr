@@ -1017,6 +1017,59 @@ for a render stage trace of every surface: its size, bits, binning or direct mod
   light clusters for both eyes before the first eye's scene); the alias programs without `discard` for opaque models
   (early depth rejection); MSAA on chip (`EXT_multisampled_render_to_texture`, only if he wants MSAA back).
 
+## 6p. C4i: the world's shading cut by a third, opaque models, a fight measured; the compositor's picture (2026-11-15; adb, unworn)
+
+Method (`scratch/c4i_*`): `c4i_ab.sh` (one launch: e1m1's start, then **a fight**: `setpos` into the computer room,
+god mode, skill 2, 6 grunts and 3 dogs spawned beside the map's 4 grunts: their fire, muzzle flashes, blood; each at 0.9
+fixed and with dynamic resolution, the body on and off), `c4i_probes.sh` (the world shader cut per stage, one launch a
+probe), `c4i_fsplit.sh` (the fight split by A/B). **`adb shell screencap -p` reads the compositor's final picture**
+(4128x2208, both eyes, after our swapchain: what the headset shows; no install): `c4i_cap.sh` (waits for a `C4I` marker
+the cfg echoes; the cfg needs `chmod 666` or `exec` fails), `c4i_caps.sh`, `c4i_compose.py`.
+- **The world's cost by stage** (0.9 fixed, body off, world+brush both eyes, ms): constant colour 2.6; the texture 4.3;
+  + decals 5.2; + lightmap 6.3; + `QVR_WORLD_FS_LIGHT` (contrast, normal maps, deluxe, AO, caustics, cap) 8.8; + the
+  lights' loop 9.6; the whole shader 12.8. His settings have retro textures, retro lighting, normal maps, dynamic AO,
+  caustics and detail textures all **off** (uniforms): their code alone cost ~4.6 ms.
+- **Lite world, all switches** (`vr_gl_world_lite` 2; **the default stays 1**, C4g's, 0 the whole shader): the world's main()
+  takes each switch the settings turn off as a constant (`QVR_WORLD_FS_LITE`: `QVR_LITE_NOBUMP`, `_NOAO`, `_NOCAUSTICS`,
+  `_NORETROLIGHT`, `_NORETRO`, `_NODETAIL`), the programs remade when one changes (`GL_WorldLiteCheck`). One launch:
+  world+brush **12.9 -> 8.2 ms**. The PC's `-glescompat` compiles it (gles_render_test 21/0, but its scene keeps those
+  features on, so the lite form is not compared there); the PC's own GLSL untouched. **But** the headset's captures
+  under 2 (bullet time, the menu open) showed the walls flat, untextured, and 0 textured (`c4i_cap/k4.png`, `k3.png`,
+  `k5.png`; the one capture of 2 alone failed to pull): unverified, hence default 1. First thing next phase: capture 2
+  against 1 (`c4i_caps3.sh`), find the macro at fault (one `QVR_LITE_*` at a time by `-glesdefine`), then default 2.
+- **Opaque models without `discard`** (`glprogs.alias_opaque`, made under the ES profile only; `vr_gl_alias_opaque` -1):
+  an opaque, solid, non-morphing model's draw uses a form of the models' program with the morph and gate discards
+  compiled out (a morphing entity never shares its batch), so Adreno rejects its hidden pixels before shading. With the
+  eye near the body: 17.7 ms off, 16.8 on (body off 16.6). Left as it was: the player's models drawn before the world
+  (`vr_alias_player_first`): shaded in full only when the eye is inside the body and the world in front (the unworn pose).
+- **Permanent decals' bakes under a scissor** (`vr_permdecals.cpp scissorOf`): each (level, layer) of the atlas a bake
+  touches was a render pass loading and storing the whole layer on a tiler (the fight's "permdecal clears" scope); now
+  only the bins the slots cover (the same picture; also on the PC). Not measured apart.
+- **Menu sharpness**: the panel is drawn into the eyes at the eye's scale (dynamic resolution's 0.65 blurs it).
+  `vr_menu_render_scale` (-1: 1 under the ES profile, none on the PC): while a menu is open the eyes are drawn at least
+  at that scale; dynamic resolution waits meanwhile. The capture with the menu open reads clearly.
+- **Bloom (`vr_bloom 1`) after size changes: the whole view black** in the compositor's picture (the HUD alone drawn),
+  the first readable proof (C4f only had squares in `vr_eyeshot 2`). Every bloom pass's output now clamped to 0..1e4 (no
+  NaN or Inf goes down the chain); its capture afterwards failed to pull: unchecked. Bloom stays off in the preset.
+- **Bullet time with bloom off: drawn**, desaturated and tinted in the compositor's picture (`c4i_cap/k4.png`): the black
+  view was bloom's.
+- **GPU a frame** (the timer queries; before = C4h's code: `vr_gl_world_lite 1 vr_gl_alias_opaque 0`; after = lite 2
+  and the opaque models, so the "after" world is the unverified lite form; same launch set-up; the GPU's clock
+  560-640 MHz, so +-1 ms):
+
+| | e1m1 start, 0.9 fixed | start, dynamic res. | fight, 0.9 fixed | fight, dynamic res. |
+|---|---|---|---|---|
+| before | 14.7 | 15.7 (frame 29.5 ms) | 30.6-39.0 | 18.5 (frame 20.5 ms) |
+| after | 11.3 | 12.3 (frame 14.8 ms) | 24.4-25.2 | 14.9 (frame 17.1 ms) |
+
+- **The fight** is the next limit: the computer room's world is ~12-13 ms of world+brush at 0.9 (the start's 6), its
+  dynamic lights ~2 ms (`r_dynamic 0`), particles and decals small; dynamic resolution holds 14.9 ms GPU but frames come
+  17 ms apart.
+- Not done: one render pass an eye (the splits come from the world's GPU-driven gather, `R_FlushBModelCalls`' compute,
+  between draws; making it CPU-side under ES is the lever, ~0.25 ms a split); OIT's framebuffer switch (`r_oit 0` in
+  the preset: untested).
+- His Quest config had `vr_body_mode 0` (a test's leftover: his PC config has the default 3): set back to 3.
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
@@ -1060,11 +1113,11 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C4i (after 6o) — his look in the headset (C4g's centroid fix: textures sharp and steady, water
-see-through; C4h's frame: the GPU with his body looking down, worn; the menu panel's sharpness), then the world's
-shading on Adreno (5.4 ms an eye: QCOM foveation made to work, or the world shader cut), the eye's scene in one pass
-(the cull and light clusters' compute for both eyes before the first scene; the 8-bit target's switch), the alias
-programs without `discard` for opaque models (hidden pixels shaded in full), the bloom chain's fault, bullet time's
-black view; no installs. Still open from before: e1m1's save error (a freed engine string), C5 (multiview into the
+Next phase: C4j (after 6p) — his look in the headset (C4i's frame worn: e1m1 and a fight, the body looking down, the
+menu's sharpness at `vr_menu_render_scale`), `vr_gl_world_lite 2`'s flat walls found and fixed (then its default, -4.6
+ms), then the fight's frame (the computer room's world ~12 ms at 0.9: the
+models' own lite program as the world's, the alias shader's switches compiled out; the CPU's 17 ms frames there), the
+eye's scene in one pass (the bound path's bmodel gather CPU-side under ES), `r_oit 0` in the preset (OIT's target
+switch), bloom's black view checked by `screencap` (`c4i_cap.sh`) after the clamp; no installs. Still open from before: e1m1's save error (a freed engine string), C5 (multiview into the
 swapchain), C2h (the world textures' memory under the ES profile). Waiting on his call: the Android Gradle Plugin
 download (section 7), the armed humanoids' CPU cost (section 6d).

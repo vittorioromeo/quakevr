@@ -3337,3 +3337,19 @@ QUEST_PLAN.md section 6o has the runs. On the Quest 3 over adb, the headset unwo
 - **Tools**: `vr_gl_passes 1` (Debug > Profiling, List the Frame's Render Passes), `-glesdefine QVR_PROBE_ALIASCONST`,
   `ovrgpuprofiler` (built into the Quest: per-pass binning/direct mode, loads, stores; `scratch/c4h_gpuprof.sh`).
 - GPU a frame: before 21.0 ms (0.9 fixed); now 17.6 (0.9 fixed), 11.4 with the preset's dynamic resolution: the frame at 72 Hz (13.89 ms). PC: gles_render_test 21/0, scenario_check 137/0, load_models_test 4/0.
+
+## Quest C4i: the world's dead features, opaque models, a fight measured; the compositor's picture (branch `agent/quest`, 2026-11-15)
+
+QUEST_PLAN.md section 6p has the runs. On the Quest 3 over adb, unworn:
+- **`adb shell screencap`** reads the compositor's final picture (both eyes, what the headset shows): `scratch/c4i_cap.sh`.
+- **Opaque models without `discard`** (`vr_gl_alias_opaque`, -1: the ES profile only): a tiler rejects their hidden
+  pixels before shading them.
+- **`vr_gl_world_lite` 2**: every world feature his settings turn off (normal maps, dynamic AO, caustics, retro
+  lighting, retro textures, detail) compiled out: world 12.9 -> 8.2 ms; the captures under it looked untextured, so the
+  default stays 1 (C4g's) until checked.
+- **Permanent decals' bakes under a scissor** (a tiler stored whole atlas layers for a few quads); **bloom passes
+  clamped** (its black view after a resize, now seen in the compositor's picture; unchecked after);
+  **`vr_menu_render_scale`** (-1: 1 on the Quest) keeps the menu sharp under dynamic resolution. Bullet time with bloom
+  off: drawn (the black view was bloom's).
+- GPU (before -> after, lite 2): e1m1 0.9 fixed 14.7 -> 11.3 ms, dynamic 15.7 -> 12.3 (72 Hz); a fight of 13 monsters
+  0.9 fixed 31-39 -> 24-25, dynamic 18.5 -> 14.9. PC: gles_render_test 21/0, scenario_check 137/0, load_models_test 4/0.
