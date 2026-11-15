@@ -196,8 +196,8 @@ constexpr int HS_AMMO_POUCH = 12;
 
 using ledges::holdInset;              // the hold (the palm's middle) is this far behind the lip (vr_ledges.hpp)
 constexpr float regrabDelay = 0.4f;   // seconds without new holds after letting go of everything or mantling
-constexpr float maxHangSpeed = 500.f; // units / second the body follows the hands at
-constexpr float maxHangReach = 48.f;  // the body stays this close (horizontally) to each hold
+// (The body follows the hands at pmove::hangMaxSpeed units a second at most, and stays within pmove::hangMaxReach
+// units, horizontally, of each hold: vr_pmove.hpp, the hang's steps.)
 constexpr float mantlePull = 8.f;     // units a hand must have pulled down before a mantle
 constexpr float mantleTime = 0.3f;    // seconds the mantle takes
 constexpr float flingMax = 200.f;     // units / second the release flings at most,
@@ -1615,97 +1615,46 @@ void slideHold(Grip& g, const glm::vec3& tracked, const glm::vec3& shoulder, flo
     return findMantleLevel(ent, g, mid, to) || findMantleSloped(ent, g, mid, to);
 }
 
-// The player's box from `origin` towards `target`, sliding along what it meets (Quake's clip against up to 4 planes,
-// along the crease of two): a move partly into the face under a ledge still makes its part along the face.
-[[nodiscard]] glm::vec3 slideBody(edict_t* ent, const glm::vec3& origin, const glm::vec3& target)
+// The player's edict as the hang's steps see it (pmove::hangStep, pmove::moveBody: single player's frame and a remote
+// client's moves run the same code, MP B8i): his box against the world and entities (SV_Move's MOVE_NORMAL).
+struct ClimbBody final : pmove::Body
 {
-    const glm::vec3 wanted = target - origin;
-    glm::vec3 pos = origin, delta = wanted;
-    glm::vec3 planes[4];
-    int count = 0;
-    for(int bump = 0; bump < 4 && glm::dot(delta, delta) > 1e-8f; bump++)
+    edict_t* ent;
+
+    explicit ClimbBody(edict_t* e) : ent{e}
     {
-        const trace_t tr = tracePlayer(ent, pos, pos + delta);
-        if(tr.allsolid)
-        {
-            break;
-        }
-        pos = vec(tr.endpos);
-        if(tr.fraction >= 1.f)
-        {
-            break;
-        }
-        const glm::vec3 rest = delta * (1.f - tr.fraction);
-        planes[count++] = vec(tr.plane.normal);
-        // The rest of the move, off every plane met (along their crease for two); none that turns back.
-        delta = glm::vec3{0.f};
-        for(int i = 0; i < count; i++)
-        {
-            glm::vec3 d = rest - planes[i] * za::min(0.f, glm::dot(rest, planes[i]));
-            bool clear = true;
-            for(int j = 0; j < count; j++)
-            {
-                clear = clear && (j == i || glm::dot(d, planes[j]) >= -1e-4f);
-            }
-            if(clear)
-            {
-                delta = d;
-                break;
-            }
-        }
-        if(delta == glm::vec3{0.f} && count >= 2)
-        {
-            const glm::vec3 crease = glm::cross(planes[count - 2], planes[count - 1]);
-            if(const float l = glm::length(crease); l > 1e-4f)
-            {
-                delta = crease / l * glm::dot(rest, crease / l);
-            }
-        }
-        if(glm::dot(delta, wanted) <= 0.f || count == 4)
-        {
-            break;
-        }
+        VectorCopy(ent->v.origin, origin);
+        VectorCopy(ent->v.velocity, velocity);
+        flags = static_cast<int>(ent->v.flags);
     }
-    return pos;
-}
+    void store()
+    {
+        VectorCopy(origin, ent->v.origin);
+        VectorCopy(velocity, ent->v.velocity);
+        ent->v.flags = static_cast<float>(flags);
+    }
+    int contents(const float* p) override { return SV_PointContents(const_cast<float*>(p)); }
+    trace_t trace(const float* start, const float* end) override
+    {
+        return tracePlayer(ent, glm::vec3{start[0], start[1], start[2]}, glm::vec3{end[0], end[1], end[2]});
+    }
+    bool metBsp(const trace_t& tr) override { return tr.ent && static_cast<int>(tr.ent->v.solid) == SOLID_BSP; }
+    trace_t line(const float* start, const float* end) override
+    {
+        return traceLine(glm::vec3{start[0], start[1], start[2]}, glm::vec3{end[0], end[1], end[2]}, ent);
+    }
+    bool overDropoff(const float*, float) override { return false; }
+};
 
 // Moves the body towards `target` through the world: the whole way, else the nearest to it of: sliding along what
 // blocks it (the face under a ledge: a shimmy pressed against it, pulled partly into it, still moves along it), up/down
-// then across, across then up/down (round a ledge's lip).
+// then across, across then up/down (round a ledge's lip). (pmove::moveBody: the hang's steps' own.)
 void moveBody(edict_t* ent, const glm::vec3& target)
 {
-    const glm::vec3 origin = vec(ent->v.origin);
-    trace_t tr = tracePlayer(ent, origin, target);
-    if(tr.allsolid)
-    {
-        return;
-    }
-    glm::vec3 best = vec(tr.endpos);
-    if(tr.fraction < 1.f)
-    {
-        const glm::vec3 vertical{origin.x, origin.y, target.z};
-        const glm::vec3 horizontal{target.x, target.y, origin.z};
-        for(const glm::vec3& corner : {vertical, horizontal})
-        {
-            const trace_t a = tracePlayer(ent, origin, corner);
-            if(a.allsolid)
-            {
-                continue;
-            }
-            const trace_t b = tracePlayer(ent, vec(a.endpos), target);
-            const glm::vec3 end = b.allsolid ? vec(a.endpos) : vec(b.endpos);
-            if(glm::distance(end, target) < glm::distance(best, target))
-            {
-                best = end;
-            }
-        }
-        if(const glm::vec3 slid = slideBody(ent, origin, target);
-            glm::distance(slid, target) < glm::distance(best, target) - 1e-4f)
-        {
-            best = slid;
-        }
-    }
-    setVec(ent->v.origin, best);
+    ClimbBody b{ent};
+    const vec3_t to{target.x, target.y, target.z};
+    pmove::moveBody(b, to);
+    VectorCopy(b.origin, ent->v.origin);
 }
 
 const char* handName(int h)
@@ -1752,7 +1701,7 @@ void traceFrame(edict_t* ent, const Climber& c, const VrMove* move, const char* 
 // you sink to straight arms, and they slip off that many seconds later. No hang starts with less left than a second's
 // hang from one hand.
 
-constexpr float slipSink = 8.f; // units a second an exhausted body sinks, slipping (to straight arms: the reach stops it)
+// (An exhausted body sinks, slipping, pmove::hangSlipSink units a second: to straight arms, the reach stops it.)
 
 [[nodiscard]] bool staminaOn(edict_t* ent)
 {
@@ -2562,13 +2511,11 @@ struct Hang
     const VrMove* move;
     double time;
     glm::vec3 rel[2]; // the hands relative to the body, before the body moves
-    glm::vec3 carry{0.f};
     float weight[2]{0.f, 0.f};
     float weights = 0.f;
     float top = -1e9f;
     int count = 0;
     glm::vec3 wanted{0.f};
-    glm::vec3 move3{0.f};
     glm::vec3 meant{0.f};
     glm::vec3 origin{0.f};
     glm::vec3 shoulder[2];
@@ -2639,117 +2586,76 @@ void mantleStep(edict_t* ent, Climber& c)
     mantleEnd(ent, c, m, done, onto);
 }
 
-// The pull, the carry, what is owed, and what the body would do unhindered.
-void hangPull(Hang& hang)
+// The hang's state for pmove::hangStep: the holds now, each hand's last place relative to the body, the owed, slipping.
+pmove::Hang hangState(const edict_t* ent, const Climber& c)
 {
-    Climber& c = hang.c;
-    const glm::vec3 (&rel)[2] = hang.rel;
-    glm::vec3& carry = hang.carry;
-    float (&weight)[2] = hang.weight;
-    float& weights = hang.weights;
-    float& top = hang.top;
-    int& count = hang.count;
-    glm::vec3& wanted = hang.wanted;
-    glm::vec3& move3 = hang.move3;
-    glm::vec3& meant = hang.meant;
-    glm::vec3 pull{0.f};
-    int carriers = 0; // the holds averaged into the carry: a light prop's doesn't count (one hand on a moving heavy prop,
-                      // one on a light crate: the heavy prop's whole carry, not half; a pusher's is SV_PushMove's)
-    for(int h = 0; h < 2; h++)
+    pmove::Hang h;
+    h.on = c.phase == Phase::Hanging || c.phase == Phase::Slipping;
+    h.slipping = c.phase == Phase::Slipping;
+    for(int k = 0; k < 2; k++)
     {
-        const Grip& g = c.grips[h];
-        if(!g.active)
-        {
-            continue;
-        }
-        const glm::vec3 moved = rel[h] - g.lastRel;
-        const float w = glm::length(moved);
-        if(ZA_ISFINITE(w))
-        {
-            pull += moved * w;
-            weights += w;
-            weight[h] = w;
-        }
-        if(!g.light)
-        {
-            carry += holdNow(g) - g.lastHold; // (a light prop's hold doesn't carry the body: it is pulled towards it)
-            carriers++;
-        }
-        top = za::max(top, topNow(g));
-        count++;
+        const Grip& g = c.grips[k];
+        pmove::HangGrip& hg = h.grips[k];
+        hg.active = g.active;
+        hg.light = g.light;
+        setVec(hg.hold, holdNow(g));
+        setVec(hg.lastRel, g.lastRel);
+        hg.top = topNow(g);
     }
-    if(carriers > 0)
-    {
-        carry /= static_cast<float>(carriers);
-    }
-    const glm::vec3 pulled = weights > 1e-6f ? -pull / weights : glm::vec3{0.f};
-    wanted = carry + pulled;
-
-    // What the body owes (earlier pulls it couldn't make) is made up first by a pull the other way; it never moves the
-    // body by itself.
-    move3 = pulled;
-    if(const float owed = glm::length(c.owed); owed > 1e-6f)
-    {
-        const glm::vec3 dir = c.owed / owed;
-        if(const float s = glm::dot(move3, dir); s < 0.f)
-        {
-            const float used = za::min(-s, owed);
-            move3 += dir * used;
-            c.owed -= dir * used;
-        }
-    }
-    if(c.phase == Phase::Slipping)
-    {
-        // No stamina left, slipping: the arms can't pull the body up; it sinks (to straight arms: the reach below).
-        move3.z = za::min(move3.z, 0.f) - slipSink * static_cast<float>(host_frametime);
-    }
-    meant = carry + move3; // what the body would do unhindered
+    setVec(h.owed, c.owed);
+    h.minsZ = ent->v.mins[2];
+    return h;
 }
 
-// The limits, then the move.
-void hangMove(Hang& hang)
+// The holds' own motion since the last frame (a moving brush model carries the body; a light prop's hold doesn't: it is
+// pulled towards it), averaged over the holds that carry.
+[[nodiscard]] glm::vec3 holdsCarry(const Climber& c)
 {
-    edict_t* const ent = hang.ent;
-    const Climber& c = hang.c;
-    const glm::vec3& carry = hang.carry;
-    const glm::vec3& move3 = hang.move3;
-    const float top = hang.top;
-    glm::vec3& origin = hang.origin;
-    // The limits, each stopping the body only from going further past it: the feet no higher than the highest hold
-    // (the mantle does that), the body within 48 units (horizontally) of each hold.
-    origin = vec(ent->v.origin);
-    glm::vec3 target = origin + carry + move3;
-    const float highest = top - ent->v.mins[2] + 2.f;
-    if(target.z > highest)
+    glm::vec3 carry{0.f};
+    int carriers = 0; // (one hand on a moving heavy prop, one on a light crate: the heavy prop's whole carry, not half;
+                      // a pusher's is SV_PushMove's)
+    for(const Grip& g : c.grips)
     {
-        target.z = za::max(highest, za::min(target.z, origin.z));
-    }
-    for(int pass = 0; pass < 2; pass++)
-    {
-        for(const Grip& g : c.grips)
+        if(g.active && !g.light)
         {
-            if(!g.active)
-            {
-                continue;
-            }
-            const glm::vec3 hold = holdNow(g);
-            glm::vec2 fromHold{target.x - hold.x, target.y - hold.y};
-            const float reach = za::max(maxHangReach, glm::length(glm::vec2{origin.x - hold.x, origin.y - hold.y}));
-            if(glm::length(fromHold) > reach)
-            {
-                fromHold *= reach / glm::length(fromHold);
-                target.x = hold.x + fromHold.x;
-                target.y = hold.y + fromHold.y;
-            }
+            carry += holdNow(g) - g.lastHold;
+            carriers++;
         }
     }
-    glm::vec3 step = target - origin;
-    const float maxStep = maxHangSpeed * static_cast<float>(host_frametime);
-    if(glm::length(step) > maxStep)
+    return carriers > 0 ? carry / static_cast<float>(carriers) : carry;
+}
+
+// After the steps (pmove::hangStep): the owed and the hands' last places back into the climber, the steps' sums into
+// `hang` for the frame's part (the reach, the owed settled, the mantle's test).
+void hangStepped(Climber& c, const pmove::Hang& h, const pmove::HangSums& s, Hang& hang)
+{
+    c.owed = vec(h.owed);
+    for(int k = 0; k < 2; k++)
     {
-        step *= maxStep / glm::length(step);
+        c.grips[k].lastRel = vec(h.grips[k].lastRel);
+        hang.weight[k] = s.weight[k];
     }
-    moveBody(ent, origin + step);
+    hang.origin = vec(s.origin);
+    hang.meant = vec(s.meant);
+    hang.wanted = vec(s.wanted);
+    hang.weights = s.weights;
+    hang.top = s.top;
+    hang.count = s.count;
+}
+
+// The pull, the carry, what is owed, the limits, the move: one step of the frame's time (pmove::hangStep, a remote
+// client's moves' own step: MP B8i).
+void hangSteps(Hang& hang)
+{
+    pmove::Hang h = hangState(hang.ent, hang.c);
+    const glm::vec3 carry = holdsCarry(hang.c);
+    const vec3_t carried{carry.x, carry.y, carry.z};
+    const float rel[2][3] = {{hang.rel[0].x, hang.rel[0].y, hang.rel[0].z}, {hang.rel[1].x, hang.rel[1].y, hang.rel[1].z}};
+    pmove::HangSums sums;
+    ClimbBody b{hang.ent};
+    pmove::hangStep(b, h, rel, carried, static_cast<float>(host_frametime), &sums);
+    b.store();
+    hangStepped(hang.c, h, sums, hang);
 }
 
 // Kept within an arm's reach of the pulling holds; under an overhang, the arms stretch.
@@ -3160,6 +3066,45 @@ void flatMantle(edict_t* ent, Climber& c, const VrMove* move, double time)
 namespace
 {
 // A hanging (or slipping) frame: the body moved by the holding hands; out of reach, the fall; the mantle; the stamina.
+// The hang's once-a-frame part after its steps (single player's one, a remote client's moves': MP B8i): kept within
+// reach, the owed settled, the reach checked, the mantle's test, the stamina.
+void hangFramePart(Hang& hang)
+{
+    edict_t* const ent = hang.ent;
+    Climber& c = hang.c;
+    keepWithinReach(hang);
+    settleOwed(hang);
+    reachCheck(hang);
+    if(!c.hanging())
+    {
+        // Let go of everything (out of reach): fall.
+        transition(ent, c, Phase::Free, Why::OutOfReach);
+        return;
+    }
+
+    tryMantle(hang);
+
+    hangStamina(ent, c, hang.time);
+    if(c.draining && fields().vr_climb_drain >= 0)
+    {
+        fieldFloat(ent, fields().vr_climb_drain) = 1.f;
+    }
+}
+
+// Every hold on the world: still between frames (a hold on a brush model or prop moves with it: the frame's hang its
+// own, not a remote client's moves').
+[[nodiscard]] bool holdsStill(const Climber& c)
+{
+    for(const Grip& g : c.grips)
+    {
+        if(g.active && (g.prop || g.entNum > 0))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 int hangFrame(edict_t* ent, Climber& c, double time)
 {
     server::rebaseHands(ent);
@@ -3173,27 +3118,8 @@ int hangFrame(edict_t* ent, Climber& c, double time)
     // The pull: what the holding hands moved relative to the body since the last frame, the other way, each weighted
     // by how far it moved; and the holds' own motion (a moving brush model carries the body).
     Hang hang{ent, c, move, time, {handRel(ent, *move, 0), handRel(ent, *move, 1)}};
-    hangPull(hang);
-
-    hangMove(hang);
-
-    keepWithinReach(hang);
-    settleOwed(hang);
-    reachCheck(hang);
-    if(!c.hanging())
-    {
-        // Let go of everything (out of reach): fall.
-        transition(ent, c, Phase::Free, Why::OutOfReach);
-        return 1;
-    }
-
-    tryMantle(hang);
-
-    hangStamina(ent, c, time);
-    if(c.draining && fields().vr_climb_drain >= 0)
-    {
-        fieldFloat(ent, fields().vr_climb_drain) = 1.f;
-    }
+    hangSteps(hang);
+    hangFramePart(hang);
     return 1;
 }
 } // namespace
@@ -3206,9 +3132,10 @@ extern "C" int VR_ClientClimb(edict_t* ent)
         return 0;
     }
     Climber& c = *cp;
-    if(c.phase == Phase::Mantling && VR_PredictWalks(ent))
+    if((c.phase == Phase::Mantling || (c.hanging() && c.phase != Phase::Free && holdsStill(c))) && VR_PredictWalks(ent))
     {
-        return 0; // (a remote client's moves run the mantle, one by one: the walk's think, then VR_PredictPhysics; MP B8h)
+        return 0; // (a remote client's moves run the mantle and the hang, one by one: the walk's think, then
+                  // VR_PredictPhysics; MP B8h, B8i)
     }
     if(!SV_RunThink(ent))
     {
@@ -3541,6 +3468,41 @@ void qvr::climb::mantleMoved(edict_t* ent, const pmove::Mantle& m, bool done)
     edict_t* onto = nullptr;
     mantleWay(*c, onto); // (what it goes onto: the same frame's)
     mantleEnd(ent, *c, m, done, onto);
+}
+
+bool qvr::climb::hangPath(edict_t* ent, pmove::Hang& h)
+{
+    Climber* c = climberOf(ent);
+    if(!c || (c->phase != Phase::Hanging && c->phase != Phase::Slipping) || !c->hanging() || !holdsStill(*c))
+    {
+        return false;
+    }
+    h = hangState(ent, *c);
+    return true;
+}
+
+void qvr::climb::hangMoved(edict_t* ent, const pmove::Hang& h, const pmove::HangSums& s)
+{
+    Climber* cp = climberOf(ent);
+    if(!cp || (cp->phase != Phase::Hanging && cp->phase != Phase::Slipping))
+    {
+        return;
+    }
+    Climber& c = *cp;
+    const VrMove* move = server::clientMove(ent);
+    if(!move)
+    {
+        transition(ent, c, Phase::Free, Why::NoMove);
+        return;
+    }
+    // (the hands as the newest move ran them: each grip's last place relative to the body)
+    Hang hang{ent, c, move, qcvm->time, {vec(h.grips[0].lastRel), vec(h.grips[1].lastRel)}};
+    hangStepped(c, h, s, hang);
+    if(s.steps == 0)
+    {
+        hang.origin = vec(ent->v.origin); // (no moves this frame: nothing moved)
+    }
+    hangFramePart(hang);
 }
 
 void qvr::climb::reset()

@@ -25,6 +25,8 @@ struct Input
     vec3_t view{0.f, 0.f, 0.f};      // the aim (Quake's wall friction)
     vec3_t roomscale{0.f, 0.f, 0.f}; // the room-scale walk, units a second (its x, y)
     bool jump{false};                // the jump key held (clc_move's bit 2)
+    float hands[2][3]{};             // the hands relative to the body (hanging: the hang's pull, B8i)
+    int grabs{3};                    // the grips held (bit 0 the off hand, 1 the main: a let-go ends its hold)
 };
 
 // The server's rules a move runs by (the server's values, sent with each state: the client replays with them).
@@ -88,6 +90,54 @@ struct Mantle
 // One step of `dt` along it: its place at its new time (`out`) -- true when it reached its end.
 bool mantleStep(Mantle& m, float dt, float* out);
 
+struct Body; // (below)
+
+// Hanging from holds (vr_climb.cpp, B8i): a hold, as a step sees it.
+struct HangGrip
+{
+    bool active{false};
+    bool light{false};               // on a light prop: pulled towards it, it does not carry the body
+    float hold[3]{0.f, 0.f, 0.f};    // where the hand holds now (world)
+    float lastRel[3]{0.f, 0.f, 0.f}; // the hand relative to the body at the last step
+    float top{0.f};                  // the ledge's top at the hold now
+};
+// The hang's state a step runs on: the holds, what the body owes (earlier pulls into the face it couldn't make: made
+// up first by a pull the other way), slipping (no stamina: it sinks).
+struct Hang
+{
+    bool on{false};
+    bool slipping{false};
+    HangGrip grips[2];
+    float owed[3]{0.f, 0.f, 0.f};
+    float minsZ{-24.f}; // the box's bottom below the origin (the feet's limit: no higher than the highest hold)
+};
+// A step's (or a frame's steps') sums, for the server's once-a-frame part (vr_climb.cpp: the reach, the owed settled,
+// the trace): the origin before the first step, the moves meant and wanted, the hands' pull weights, the highest top.
+struct HangSums
+{
+    int steps{0};
+    float origin[3]{0.f, 0.f, 0.f};
+    float meant[3]{0.f, 0.f, 0.f};  // what the body would have done unhindered (the carry and the pull, owed made up)
+    float wanted[3]{0.f, 0.f, 0.f}; // the carry and the pull as asked
+    float weights{0.f};
+    float weight[2]{0.f, 0.f};
+    float top{-1e9f};
+    int count{0};
+};
+// The hang's constants (vr_climb.cpp's, the top of that file).
+inline constexpr float hangMaxReach = 48.f;  // the body stays this close (horizontally) to each hold
+inline constexpr float hangMaxSpeed = 500.f; // units / second the body follows the hands at
+inline constexpr float hangSlipSink = 8.f;   // units a second an exhausted body sinks, slipping
+// One step of `dt`: the pull (what the holding hands moved relative to the body since the last step, `rel` now, the
+// other way, each weighted by how far it moved), `carry` (the holds' own motion since: a brush model's), the owed made
+// up, the slip's sink; the limits (the feet no higher than the highest hold, the body within hangMaxReach of each hold,
+// hangMaxSpeed); the body moved there (moveBody). Each grip's lastRel becomes `rel`. Single player's hanging frame (one
+// step of the frame's time) and a remote client's moves (the server's and his replay's).
+void hangStep(Body& b, Hang& h, const float (*rel)[3], const float* carry, float dt, HangSums* sums);
+// The body's box moved towards `target`: straight, else round the corner (vertical first or horizontal first) or slid
+// along what it meets, whichever ends nearest (vr_climb.cpp's moveBody).
+void moveBody(Body& b, const float* target);
+
 // The player as a move sees him. The hooks default to a client's world (BSP models only, nothing touched).
 struct Body
 {
@@ -102,6 +152,8 @@ struct Body
     float crawl[2]{0.f, 0.f};              // the crawl's own speed along the floor (lying down: Rules::crawl)
     Mantle mantle;                         // mantling: the move carries him along it (B8h)
     bool mantledNow{false};                // the last move ended the mantle (he stands)
+    Hang hang;                             // hanging: the move's hands run the hang's step (B8i)
+    HangSums* hangSums{nullptr};           // ... adding to these (the server's frame part)
 
     virtual ~Body() = default;
     // The map's contents at a point (SV_PointContents: the world's, a current as water).

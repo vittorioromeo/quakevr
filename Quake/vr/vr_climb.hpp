@@ -16,6 +16,8 @@ struct State;
 namespace qvr::pmove
 {
 struct Mantle;
+struct Hang;
+struct HangSums;
 }
 
 namespace qvr::climb
@@ -72,6 +74,14 @@ void reset();
 // Server: `ent`'s mantle after a frame or his moves ran it (pmove::mantleStep, his place set): its time kept; `done`,
 // at its end: he stands (on a brush model or prop: on it), the climb lets go.
 void mantleMoved(edict_t* ent, const pmove::Mantle& m, bool done);
+// Server: `ent` hanging with every hold on the world (still: a hold on a brush model or prop moves with it, the frame's
+// hang its own): its state for pmove::hangStep (the holds, each hand's last place relative to the body, the owed,
+// slipping) -> true; false: not hanging so. A remote client's moves run its steps (MP B8i).
+[[nodiscard]] bool hangPath(edict_t* ent, pmove::Hang& h);
+// Server: after his moves ran the hang's steps (`h`, their sums `s`; his place set): the owed and the hands' last places
+// kept, then the frame's part, single player's too: kept within reach, the owed settled, the reach checked (out of reach:
+// he falls), the mantle's test, the stamina.
+void hangMoved(edict_t* ent, const pmove::Hang& h, const pmove::HangSums& s);
 
 // Server: the player's holds as stats (STAT_QVR_CLIMB*), for the drawn hands.
 void calcStats(edict_t* ent, int* statsi);

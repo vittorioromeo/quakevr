@@ -3,6 +3,7 @@
 #include "vr_predict.hpp"
 #include "vr_api.h"
 #include "vr_climb.hpp"
+#include "vr_server.hpp"
 #include "vr_cvars.hpp"
 #include "vr_hull.hpp"
 #include "vr_netsnap.hpp"
@@ -50,6 +51,7 @@ enum StateBits
     bitCrawl = 4096,          // lying down, crawling with his arms: the stick's share of the crawl in the moves (B8g)
     bitLying = 8192,          // the lying box (hull::hasLyingBox: its height is the rules' box)
     bitMantle = 64,           // mantling: the mantle's way and time follow (B8h: his moves carry him along it)
+    bitHang = 16384,          // hanging: the holds, the hands' last places, the owed follow (B8i: his moves' hands pull)
 };
 
 constexpr float jumpSpeed = 270.f; // QC PlayerJump's
@@ -280,6 +282,9 @@ struct ClientPredict
     float jumpDir[2]{0.f, 0.f}; // .movedir's x, y (a water jump's push)
     float crawl[2]{0.f, 0.f};   // the crawl's own speed (lying down: B8g)
     pmove::Mantle mantle;       // mantling: its way and time at the state (B8h)
+    pmove::Hang hang;           // hanging: the holds, the hands' last places, the owed at the state (B8i)
+    bool transNow{false};       // this state begins a mantle the last one hung (the server's test: not predicted)
+    vec3_t transError{0.f, 0.f, 0.f}; // the part of `error` that is such a transition's (eased in, apart)
     bool fresh{false};    // a new state since the last replay
 
     // The replay.
@@ -309,6 +314,10 @@ struct ClientPredict
                                                  // brush model still moving; replayed moves a mover pushed him)
     int crawlN{0};                               // (states lying down: the lying box, B8g)
     int mantleN{0};                              // (states mantling: B8h)
+    int hangN{0};                                // (states hanging, walked move by move: B8i) ...
+    float hangZ0{0.f}, hangRise{0.f};            // ... the first one's height since the reset, the most above it
+    int transN{0};                               // (corrections at a hang's mantle starting: B8i) ...
+    float transMax{0.f};                         // ... the longest
     float swimMax{0.f}, liftMax{0.f}; // (liftMax: the lift's own predicted place moved under him, a state)
     float corrMax{0.f}, corrSum{0.f}, flatMax{0.f}, airMax{0.f}, errMax{0.f};
 
@@ -591,6 +600,7 @@ bool replay(vec3_t out, vec3_t before)
     b.crawl[0] = cp.crawl[0];
     b.crawl[1] = cp.crawl[1];
     b.mantle = cp.mantle;
+    b.hang = cp.hang;
     const za::U32 newest = netmove::clientNewest();
     if(newest < cp.seq || newest - cp.seq >= static_cast<za::U32>(pastRing))
     {
@@ -695,6 +705,21 @@ bool replay(vec3_t out, vec3_t before)
             {
                 Con_Printf("mp_predict_corr: c=%.2f s=%u seq=%u newest=%u bits=%d was=%.2f %.2f %.2f now=%.2f %.2f %.2f sv=%.2f %.2f %.2f vel=%.1f %.1f %.1f notes=%d%d%d\n", c, s, cp.seq, newest, cp.bits, was.org[0], was.org[1], was.org[2], now.org[0], now.org[1], now.org[2], cp.origin[0], cp.origin[1], cp.origin[2], cp.velocity[0], cp.velocity[1], cp.velocity[2], notes.wall ? 1 : 0, notes.stepped ? 1 : 0, notes.air ? 1 : 0);
             }
+            if(cp.transNow)
+            {
+                // (the hang's mantle begun by the server's test, once a frame: the replay hung on until it heard)
+                cp.transN++;
+                cp.transMax = q_max(cp.transMax, c);
+                if(c < snapAt)
+                {
+                    for(int i = 0; i < 3; i++)
+                    {
+                        cp.error[i] += was.org[i] - now.org[i];
+                        cp.transError[i] += was.org[i] - now.org[i];
+                    }
+                }
+                break;
+            }
             cp.corrN++;
             cp.corrSum += c;
             cp.corrMax = q_max(cp.corrMax, c);
@@ -721,6 +746,7 @@ bool replay(vec3_t out, vec3_t before)
             {
                 VectorCopy(vec3_origin, cp.error);
                 VectorCopy(vec3_origin, cp.liftError);
+                VectorCopy(vec3_origin, cp.transError);
             }
             else
             {
@@ -733,6 +759,7 @@ bool replay(vec3_t out, vec3_t before)
             break;
         }
         cp.fresh = false;
+        cp.transNow = false;
     }
     memcpy(cp.past, cp.cur, sizeof(cp.past));
     return true;
@@ -780,6 +807,14 @@ pmove::Input inputOf(const netmove::WireMove& m)
         in.roomscale[i] = m.vr.roomscaleMove[i];
     }
     in.jump = (m.buttons & 2) != 0;
+    for(int h = 0; h < 2; h++)
+    {
+        const glm::vec3 rel = m.vr.hands[h].pos - m.vr.origin; // (the integers sent: the server's exactly)
+        in.hands[h][0] = rel.x;
+        in.hands[h][1] = rel.y;
+        in.hands[h][2] = rel.z;
+    }
+    in.grabs = ((m.vr.vrBits0 & (1 << 1)) ? 1 : 0) | ((m.vr.vrBits0 & (1 << 3)) ? 2 : 0); // (vr_climb.cpp's grabBit)
     return in;
 }
 
@@ -841,6 +876,32 @@ void parseState()
         mantle.at = MSG_ReadFloat();
         mantle.time = MSG_ReadFloat();
     }
+    pmove::Hang hang;
+    if(bits & bitHang)
+    {
+        hang.on = true;
+        const int hb = MSG_ReadByte();
+        hang.slipping = (hb & 16) != 0;
+        for(int k = 0; k < 2; k++)
+        {
+            pmove::HangGrip& g = hang.grips[k];
+            g.active = (hb & (1 << (k * 2))) != 0;
+            g.light = (hb & (2 << (k * 2))) != 0;
+            for(float* v : {g.hold, g.lastRel})
+            {
+                for(int i = 0; i < 3; i++)
+                {
+                    v[i] = MSG_ReadFloat();
+                }
+            }
+            g.top = MSG_ReadFloat();
+        }
+        for(int i = 0; i < 3; i++)
+        {
+            hang.owed[i] = MSG_ReadFloat();
+        }
+        hang.minsZ = MSG_ReadFloat();
+    }
     pmove::Rules r;
     for(float* f : {&r.maxspeed, &r.stickScale, &r.accelerate, &r.friction, &r.stopspeed, &r.edgefriction, &r.gravity,
             &r.maxvelocity, &r.stepsize, &r.roomscaleScale, &r.jumpSpeed, &r.boxHeight, &r.feetZ, &r.waistZ, &r.eyeZ,
@@ -872,7 +933,10 @@ void parseState()
     }
     // (A snapshot parses its unchanged records again: the same state is not a new one.)
     if(cp.have && seq == cp.seq && bits == cp.bits && VectorCompare(o, cp.origin) && VectorCompare(v, cp.velocity) &&
-        crawl[0] == cp.crawl[0] && crawl[1] == cp.crawl[1])
+        crawl[0] == cp.crawl[0] && crawl[1] == cp.crawl[1] &&
+        memcmp(hang.owed, cp.hang.owed, sizeof(hang.owed)) == 0 &&
+        memcmp(hang.grips[0].lastRel, cp.hang.grips[0].lastRel, sizeof(hang.grips[0].lastRel)) == 0 &&
+        memcmp(hang.grips[1].lastRel, cp.hang.grips[1].lastRel, sizeof(hang.grips[1].lastRel)) == 0)
     {
         return;
     }
@@ -887,6 +951,15 @@ void parseState()
     cp.crawl[1] = crawl[1];
     cp.mantle = mantle;
     cp.mantleN += mantle.on ? 1 : 0;
+    // (a hold taken, or the hang's mantle begun: the server's searches, once a frame: the replay learns of them now)
+    cp.transNow = (mantle.on && cp.hang.on) || (hang.on && !cp.hang.on);
+    cp.hang = hang;
+    if(hang.on && (bits & bitWalked))
+    {
+        cp.hangZ0 = cp.hangN == 0 ? o[2] : cp.hangZ0;
+        cp.hangN++;
+        cp.hangRise = q_max(cp.hangRise, o[2] - cp.hangZ0);
+    }
     cp.holdLeft = q_max(static_cast<float>(teleportTime - cl.mtime[0]), -1.f);
     cp.jumpDir[0] = jumpDir[0];
     cp.jumpDir[1] = jumpDir[1];
@@ -934,6 +1007,11 @@ void clientClear()
     cp.pushN = keep.pushN;
     cp.crawlN = keep.crawlN;
     cp.mantleN = keep.mantleN;
+    cp.hangN = keep.hangN;
+    cp.hangZ0 = keep.hangZ0;
+    cp.hangRise = keep.hangRise;
+    cp.transN = keep.transN;
+    cp.transMax = keep.transMax;
 }
 
 void report()
@@ -941,18 +1019,20 @@ void report()
     Con_Printf("mp_predict: on=%d plain=%d states=%d frames=%d unpredicted=%d unwalked=%d depth_mean=%.1f corr_n=%d "
                "corr_max=%.3f corr_mean=%.3f flat_n=%d flat_max=%.3f air_n=%d air_max=%.3f ride_n=%d err=%.3f "
                "err_max=%.3f maxspeed=%.1f box=%.1f jump=%.0f swim_n=%d swim_max=%.3f wj_n=%d land_moving=%d "
-               "lift_max=%.3f pushed=%d lying=%d arms=%d crawl_n=%d mantle_n=%d seq=%u newest=%u\n",
+               "lift_max=%.3f pushed=%d lying=%d arms=%d crawl_n=%d mantle_n=%d hang_n=%d hang_rise=%.2f trans_n=%d trans_max=%.3f seq=%u newest=%u\n",
         vr_net_predict.value != 0.f && netmove::clientUses() ? 1 : 0, cp.bits & bitWalked ? 1 : 0, cp.states, cp.frames,
         cp.unpredicted, cp.unWalked, cp.frames > 0 ? static_cast<double>(cp.depthSum) / cp.frames : 0.0, cp.corrN, cp.corrMax,
         cp.corrN > 0 ? cp.corrSum / cp.corrN : 0.f, cp.flatN, cp.flatMax, cp.airN, cp.airMax, cp.rideN, VectorLength(cp.error),
         cp.errMax, cp.rules.maxspeed, cp.rules.boxHeight, cp.rules.jumpSpeed, cp.swimN, cp.swimMax, cp.wjN,
-        cp.landMovingN, cp.liftMax, cp.pushN, cp.bits & bitLying ? 1 : 0, cp.rules.crawl ? 1 : 0, cp.crawlN, cp.mantleN, cp.seq,
+        cp.landMovingN, cp.liftMax, cp.pushN, cp.bits & bitLying ? 1 : 0, cp.rules.crawl ? 1 : 0, cp.crawlN, cp.mantleN, cp.hangN, cp.hangRise, cp.transN, cp.transMax, cp.seq,
         netmove::clientNewest());
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(0), "vr_mp_predict_report") && !q_strcasecmp(Cmd_Argv(1), "reset"))
     {
         // (vr_mp_predict_report reset: the counts from here, a test's setup left out; the states read go on)
         cp.frames = cp.unpredicted = cp.unWalked = cp.corrN = cp.flatN = cp.airN = cp.rideN = 0;
-        cp.swimN = cp.wjN = cp.landMovingN = cp.pushN = cp.crawlN = cp.mantleN = 0;
+        cp.swimN = cp.wjN = cp.landMovingN = cp.pushN = cp.crawlN = cp.mantleN = cp.hangN = 0;
+        cp.hangRise = cp.transMax = 0.f;
+        cp.transN = 0;
         cp.depthSum = 0;
         cp.corrMax = cp.corrSum = cp.flatMax = cp.airMax = cp.errMax = cp.swimMax = cp.liftMax = 0.f;
     }
@@ -1026,13 +1106,22 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
     r.waterJumpOut = progs::fieldFloatOr(ent, progs::fields().vr_movewaterjump, 0.f) != 0.f; // (PlayerPreThink's)
     pmove::Mantle mantle;
     const bool mantling = climb::mantlePath(ent, mantle); // (B8h: the mantle's way, run by his moves)
-    if(!mantling)
+    pmove::Hang hang;
+    const bool hanging = !mantling && climb::hangPath(ent, hang); // (B8i: the hang's steps, run by his moves' hands)
+    if(!mantling && !hanging)
     {
-        SV_CheckStuck(ent); // (not on the mantle's way: single player's mantle frame does not either)
+        SV_CheckStuck(ent); // (not on the mantle's way nor hanging: single player's climb frames do not either)
+    }
+    if(hanging)
+    {
+        server::rebaseHands(ent); // (the newest move's hands from where he is before the moves: the frame's part's)
     }
 
     EdictBody b{ent};
     b.mantle = mantle;
+    b.hang = hang;
+    pmove::HangSums hangSums;
+    b.hangSums = hanging ? &hangSums : nullptr;
     VectorCopy(s->groundNormal, b.groundNormal);
     b.groundAge = s->groundAge;
     float* crawl = r.crawl ? physics::crawlState(ent) : nullptr; // (the crawl's own speed: his moves carry it)
@@ -1071,7 +1160,11 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
         {
             climb::mantleMoved(ent, b.mantle, !b.mantle.on); // (its time kept; at its end he stands, the climb lets go)
         }
-        if(b.waterLevel >= 2 && !(b.flags & FL_WATERJUMP) && s->n > 0 && !mantling)
+        if(hanging)
+        {
+            climb::hangMoved(ent, b.hang, hangSums); // (the frame's part: the reach, the owed, the mantle's test, stamina)
+        }
+        if(b.waterLevel >= 2 && !(b.flags & FL_WATERJUMP) && s->n > 0 && !mantling && !hanging)
         {
             // The hands' strokes (VR_AfterWaterMove's, less the glide the moves ran), once a frame on the newest move's
             // stick: the server's alone (his replay corrects to them, eased in).
@@ -1082,7 +1175,7 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
         {
             crawl[0] = b.crawl[0];
             crawl[1] = b.crawl[1];
-            if(b.waterLevel < 2 && s->n > 0 && !mantling)
+            if(b.waterLevel < 2 && s->n > 0 && !mantling && !hanging)
             {
                 // The hands' pulls (VR_AfterCrawlMove's, the stick's want with them), once a frame on the newest move's
                 // stick: the server's alone (his replay corrects to them, eased in).
@@ -1107,7 +1200,7 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
 extern "C" void VR_WritePredict(sizebuf_t* msg, client_t* client)
 {
     const int slot = static_cast<int>(client - svs.clients);
-    if(!movesOneByOne(slot) || !client->edict || msg->cursize + 320 > msg->maxsize)
+    if(!movesOneByOne(slot) || !client->edict || msg->cursize + 400 > msg->maxsize)
     {
         return;
     }
@@ -1123,10 +1216,12 @@ extern "C" void VR_WritePredict(sizebuf_t* msg, client_t* client)
                      (r.crawl ? bitCrawl : 0) | (hull::hasLyingBox(ent) ? bitLying : 0);
     pmove::Mantle mantle;
     const bool mantling = climb::mantlePath(const_cast<edict_t*>(ent), mantle);
+    pmove::Hang hang;
+    const bool hanging = !mantling && s.walked && climb::hangPath(const_cast<edict_t*>(ent), hang);
     const int at = msg->cursize;
     MSG_WriteByte(msg, protocol::svc_quakevr);
     MSG_WriteByte(msg, protocol::QVR_SVC_PREDICT);
-    MSG_WriteShort(msg, bits | (mantling ? bitMantle : 0));
+    MSG_WriteShort(msg, bits | (mantling ? bitMantle : 0) | (hanging ? bitHang : 0));
     MSG_WriteLong(msg, static_cast<int>(netmove::serverLast(slot)));
     for(const float* p : {ent->v.origin, ent->v.velocity, static_cast<const float*>(s.groundNormal)})
     {
@@ -1152,6 +1247,31 @@ extern "C" void VR_WritePredict(sizebuf_t* msg, client_t* client)
         }
         MSG_WriteFloat(msg, mantle.at);
         MSG_WriteFloat(msg, mantle.time);
+    }
+    if(hanging)
+    {
+        int hb = hang.slipping ? 16 : 0;
+        for(int k = 0; k < 2; k++)
+        {
+            hb |= (hang.grips[k].active ? 1 << (k * 2) : 0) | (hang.grips[k].light ? 2 << (k * 2) : 0);
+        }
+        MSG_WriteByte(msg, hb);
+        for(const pmove::HangGrip& g : hang.grips)
+        {
+            for(const float* v : {g.hold, g.lastRel})
+            {
+                for(int i = 0; i < 3; i++)
+                {
+                    MSG_WriteFloat(msg, v[i]);
+                }
+            }
+            MSG_WriteFloat(msg, g.top);
+        }
+        for(int i = 0; i < 3; i++)
+        {
+            MSG_WriteFloat(msg, hang.owed[i]);
+        }
+        MSG_WriteFloat(msg, hang.minsZ);
     }
     for(const float f : {r.maxspeed, r.stickScale, r.accelerate, r.friction, r.stopspeed, r.edgefriction, r.gravity,
             r.maxvelocity, r.stepsize, r.roomscaleScale, r.jumpSpeed, r.boxHeight, r.feetZ, r.waistZ, r.eyeZ,
@@ -1238,6 +1358,7 @@ extern "C" void VR_PredictRelink(int num, float* origin)
             cp.unWalked += cp.have && !(cp.bits & bitWalked) ? 1 : 0; // (the server's frame not run move by move)
         }
         VectorCopy(vec3_origin, cp.error);
+        VectorCopy(vec3_origin, cp.transError);
         cp.ridden = 0;
         for(Past& p : cp.past)
         {
@@ -1256,8 +1377,10 @@ extern "C" void VR_PredictRelink(int num, float* origin)
     const float k = expf(-static_cast<float>(since) / easeTime);
     VectorScale(cp.error, k, cp.error);
     VectorScale(cp.liftError, cp.ridden > 0 ? k : 0.f, cp.liftError);
-    vec3_t own; // (his offset on what he stands on)
+    VectorScale(cp.transError, k, cp.transError);
+    vec3_t own; // (his offset on what he stands on, less a mantle's start: the transition's, counted apart)
     VectorSubtract(cp.error, cp.liftError, own);
+    VectorSubtract(own, cp.transError, own);
     cp.errMax = q_max(cp.errMax, VectorLength(own));
     for(int i = 0; i < 3; i++)
     {

@@ -3,6 +3,8 @@
 
 #include "vr_pmove.hpp"
 
+#include <glm/glm.hpp>
+
 #include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -712,6 +714,230 @@ void crawlMove(Body& b, const Input& in, const Rules& r, bool onground)
     crawlStep(b.crawl, want, pulling, r.crawlFriction, za::max(0.f, r.crawlMost), in.dt, onground, b.velocity);
 }
 
+namespace
+{
+
+[[nodiscard]] glm::vec3 gv(const float* v)
+{
+    return glm::vec3{v[0], v[1], v[2]};
+}
+
+void sv(float* out, const glm::vec3& v)
+{
+    out[0] = v.x;
+    out[1] = v.y;
+    out[2] = v.z;
+}
+
+[[nodiscard]] trace_t traceBody(Body& b, const glm::vec3& start, const glm::vec3& end)
+{
+    vec3_t s{start.x, start.y, start.z}, e{end.x, end.y, end.z};
+    return b.trace(s, e);
+}
+
+// Slides the body from `origin` towards `target` along what it meets (up to 4 planes: off each, along the crease of
+// two; never back against the wanted move) -> where it ends.
+[[nodiscard]] glm::vec3 slideBody(Body& b, const glm::vec3& origin, const glm::vec3& target)
+{
+    const glm::vec3 wanted = target - origin;
+    glm::vec3 pos = origin, delta = wanted;
+    glm::vec3 planes[4];
+    int count = 0;
+    for(int bump = 0; bump < 4 && glm::dot(delta, delta) > 1e-8f; bump++)
+    {
+        const trace_t tr = traceBody(b, pos, pos + delta);
+        if(tr.allsolid)
+        {
+            break;
+        }
+        pos = gv(tr.endpos);
+        if(tr.fraction >= 1.f)
+        {
+            break;
+        }
+        const glm::vec3 rest = delta * (1.f - tr.fraction);
+        planes[count++] = gv(tr.plane.normal);
+        // The rest of the move, off every plane met (along their crease for two); none that turns back.
+        delta = glm::vec3{0.f};
+        for(int i = 0; i < count; i++)
+        {
+            glm::vec3 d = rest - planes[i] * za::min(0.f, glm::dot(rest, planes[i]));
+            bool clear = true;
+            for(int j = 0; j < count; j++)
+            {
+                clear = clear && (j == i || glm::dot(d, planes[j]) >= -1e-4f);
+            }
+            if(clear)
+            {
+                delta = d;
+                break;
+            }
+        }
+        if(delta == glm::vec3{0.f} && count >= 2)
+        {
+            const glm::vec3 crease = glm::cross(planes[count - 2], planes[count - 1]);
+            if(const float l = glm::length(crease); l > 1e-4f)
+            {
+                delta = crease / l * glm::dot(rest, crease / l);
+            }
+        }
+        if(glm::dot(delta, wanted) <= 0.f || count == 4)
+        {
+            break;
+        }
+    }
+    return pos;
+}
+
+} // namespace
+
+void moveBody(Body& b, const float* targetIn)
+{
+    const glm::vec3 origin = gv(b.origin), target = gv(targetIn);
+    trace_t tr = traceBody(b, origin, target);
+    if(tr.allsolid)
+    {
+        return;
+    }
+    glm::vec3 best = gv(tr.endpos);
+    if(tr.fraction < 1.f)
+    {
+        const glm::vec3 vertical{origin.x, origin.y, target.z};
+        const glm::vec3 horizontal{target.x, target.y, origin.z};
+        for(const glm::vec3& corner : {vertical, horizontal})
+        {
+            const trace_t a = traceBody(b, origin, corner);
+            if(a.allsolid)
+            {
+                continue;
+            }
+            const trace_t c = traceBody(b, gv(a.endpos), target);
+            const glm::vec3 end = c.allsolid ? gv(a.endpos) : gv(c.endpos);
+            if(glm::distance(end, target) < glm::distance(best, target))
+            {
+                best = end;
+            }
+        }
+        if(const glm::vec3 slid = slideBody(b, origin, target); glm::distance(slid, target) < glm::distance(best, target) - 1e-4f)
+        {
+            best = slid;
+        }
+    }
+    sv(b.origin, best);
+}
+
+void hangStep(Body& b, Hang& h, const float (*rel)[3], const float* carryIn, float dt, HangSums* sums)
+{
+    // The pull: each holding hand's motion relative to the body since the last step, the other way, weighted by how
+    // far it moved; the holds' own motion carries the body.
+    const glm::vec3 carry = carryIn ? gv(carryIn) : glm::vec3{0.f};
+    glm::vec3 pull{0.f};
+    float weights = 0.f, weight[2]{0.f, 0.f}, top = -1e9f;
+    int count = 0;
+    for(int k = 0; k < 2; k++)
+    {
+        const HangGrip& g = h.grips[k];
+        if(!g.active)
+        {
+            continue;
+        }
+        const glm::vec3 moved = gv(rel[k]) - gv(g.lastRel);
+        const float w = glm::length(moved);
+        if(ZA_ISFINITE(w))
+        {
+            pull += moved * w;
+            weights += w;
+            weight[k] = w;
+        }
+        top = za::max(top, g.top);
+        count++;
+    }
+    const glm::vec3 pulled = weights > 1e-6f ? -pull / weights : glm::vec3{0.f};
+    const glm::vec3 wanted = carry + pulled;
+
+    // What the body owes (earlier pulls it couldn't make) is made up first by a pull the other way; it never moves the
+    // body by itself.
+    glm::vec3 move3 = pulled;
+    glm::vec3 owedNow = gv(h.owed);
+    if(const float owed = glm::length(owedNow); owed > 1e-6f)
+    {
+        const glm::vec3 dir = owedNow / owed;
+        if(const float s = glm::dot(move3, dir); s < 0.f)
+        {
+            const float used = za::min(-s, owed);
+            move3 += dir * used;
+            owedNow -= dir * used;
+        }
+    }
+    sv(h.owed, owedNow);
+    if(h.slipping)
+    {
+        // No stamina left, slipping: the arms can't pull the body up; it sinks (to straight arms: the server's reach).
+        move3.z = za::min(move3.z, 0.f) - hangSlipSink * dt;
+    }
+    const glm::vec3 meant = carry + move3; // what the body would do unhindered
+
+    // The limits, each stopping the body only from going further past it: the feet no higher than the highest hold
+    // (the mantle does that), the body within hangMaxReach (horizontally) of each hold.
+    const glm::vec3 origin = gv(b.origin);
+    glm::vec3 target = origin + carry + move3;
+    const float highest = top - h.minsZ + 2.f;
+    if(target.z > highest)
+    {
+        target.z = za::max(highest, za::min(target.z, origin.z));
+    }
+    for(int pass = 0; pass < 2; pass++)
+    {
+        for(const HangGrip& g : h.grips)
+        {
+            if(!g.active)
+            {
+                continue;
+            }
+            const glm::vec3 hold = gv(g.hold);
+            glm::vec2 fromHold{target.x - hold.x, target.y - hold.y};
+            const float reach = za::max(hangMaxReach, glm::length(glm::vec2{origin.x - hold.x, origin.y - hold.y}));
+            if(glm::length(fromHold) > reach)
+            {
+                fromHold *= reach / glm::length(fromHold);
+                target.x = hold.x + fromHold.x;
+                target.y = hold.y + fromHold.y;
+            }
+        }
+    }
+    glm::vec3 step = target - origin;
+    const float maxStep = hangMaxSpeed * dt;
+    if(glm::length(step) > maxStep)
+    {
+        step *= maxStep / glm::length(step);
+    }
+    vec3_t to;
+    sv(to, origin + step);
+    moveBody(b, to);
+    VectorCopy(vec3_origin, b.velocity);
+    b.flags &= ~FL_ONGROUND;
+    for(int k = 0; k < 2; k++)
+    {
+        VectorCopy(rel[k], h.grips[k].lastRel);
+    }
+
+    if(sums)
+    {
+        if(sums->steps == 0)
+        {
+            sv(sums->origin, origin);
+        }
+        sums->steps++;
+        sv(sums->meant, gv(sums->meant) + meant);
+        sv(sums->wanted, gv(sums->wanted) + wanted);
+        sums->weights += weights;
+        sums->weight[0] += weight[0];
+        sums->weight[1] += weight[1];
+        sums->top = za::max(sums->top, top);
+        sums->count = count;
+    }
+}
+
 bool mantleStep(Mantle& m, float dt, float* out)
 {
     m.at += dt;
@@ -736,6 +962,29 @@ bool mantleStep(Mantle& m, float dt, float* out)
 void playerMove(Body& b, const Input& in, const Rules& r, MoveNotes* notes)
 {
     b.mantledNow = false;
+    if(b.hang.on)
+    {
+        // A grip let go lets go of its hold (the server's climb at the frame of that move: VR_ClimbPreThink); none
+        // left, he falls: this move walks.
+        bool any = false;
+        for(int k = 0; k < 2; k++)
+        {
+            b.hang.grips[k].active = b.hang.grips[k].active && (in.grabs & (1 << k)) != 0;
+            any = any || b.hang.grips[k].active;
+        }
+        b.hang.on = any;
+    }
+    if(b.hang.on)
+    {
+        // Hanging (vr_climb.cpp's holds): the move's hands pull the body, nothing else (B8i; the reach, the owed's
+        // settling, the mantle's test and the stamina are the server's, once a frame: climb::hangMoved).
+        if(notes)
+        {
+            notes->air = true;
+        }
+        hangStep(b, b.hang, in.hands, nullptr, in.dt, b.hangSums);
+        return;
+    }
     if(b.mantle.on)
     {
         // Mantling (vr_climb.cpp's way up and over): carried along it at the move's time, nothing else; at its end he

@@ -3355,6 +3355,8 @@ def predict_mantle(s, srv, a, b, ea, eb):
             "%s mantling states, the server has him at %s (from %s); %s" % (
                 pr.get("mantle_n"), sv, start, mantled[1].strip() if mantled else "no mantle line"))
     predict_corr_check(s, "mantling", pr)
+    s.note("the mantle's start (the server's test, once a frame: not predicted; eased in, counted apart): %s corrections, "
+           "the longest %s units" % (pr.get("trans_n"), pr.get("trans_max")))
     own = org_of(status(b), "mp_player", "self", 1)
     gap = dist(own, sv) if own and sv else 99.0
     s.check("on the top at rest B stands where the server has him (within 1 unit)", gap <= 1.0,
@@ -3374,8 +3376,55 @@ def predict_climb(s):
     for k in range(PART_REPEAT if PART else 1):
         if PART:
             s.note("--part %s, take %d" % (PART, k + 1))
+        if PART in ("", "hang"):
+            predict_hang(s, srv, a, b, ea, eb)
         if PART in ("", "mantle"):
             predict_mantle(s, srv, a, b, ea, eb)
+
+
+def hang_pull_play():
+    """Both hands onto vrclimb's ledge, pulled down 0.25 m (the body up: no mantle), held, let up again 0.15 m (the body
+    down), held, let go at 4.5 s (he falls to the floor)."""
+    lines = list(CLIMB_LEAN)  # (overtop_play's lean and hand turn: its hold is taken)
+    for h, x in (("off", -0.12), ("main", 0.12)):
+        at = "%s %.2f %.3f %.2f 70 0 0" % (h, x, HOLD_Y, HOLD_FWD)
+        down = "%s %.2f %.3f %.2f 70 0 0" % (h, x, HOLD_Y - 0.25, HOLD_FWD)
+        half = "%s %.2f %.3f %.2f 70 0 0" % (h, x, HOLD_Y - 0.10, HOLD_FWD)
+        lines += ["0.000 %s %.2f 1.1 -0.2 70 0 0" % (h, x * 2), "0.600 " + at, "1.000 " + at, "2.000 " + down,
+                  "2.600 " + down, "3.400 " + half, "6.000 " + half]
+    return lines + ["0.700 cmd +graboff", "0.750 cmd +grabmain", "4.500 cmd -graboff", "4.500 cmd -grabmain"]
+
+
+def predict_hang(s, srv, a, b, ea, eb):
+    """MP_PLAN B8i: the hang predicted. On vrclimb B (150 ms behind each way) takes the ledge with both hands, pulls
+    himself up, lets himself down a little, and lets go: each move's hands run the hang's pull and move on the server
+    (vr_pmove.cpp's hangStep: the code single player's hanging frame runs) and in his replay (the holds, `owed` and the
+    slipping in the state); the reach, the owed's settling, the mantle's test and the stamina are the server's once a
+    frame. His corrections stay under a unit, and on the floor at rest he stands where the server has him."""
+    b.cmd("vr_mock_play; -graboff; -grabmain; vr_mock_hand head")
+    start = put_at(srv, b, eb, CLIMB_SPOT, 0)
+    b.quiet(r"mp_predict_corr: ", 1.0, 20, "B settled at the wall")
+    since = srv.mark()
+    b.cmd("vr_mp_predict_report reset")
+    play(s, b, "hangpull", hang_pull_play())
+    pr = predict_segment(s, b, "hanging from the ledge", "", 72, ("", "", "", "", ""), reset=False)
+    s.metric("b_predict_hang", pr)
+    held = wait_quietly(srv, r"climb: .*(takes hold|holds)", 1, since, "the server's hold")
+    mantled = wait_quietly(srv, r"climb: .*mantle", 1, since, "a mantle (none wanted)")
+    s.check("B hung from the ledge (states hanging walked move by move: 60 at least; no mantle)",
+            int(pr.get("hang_n", 0)) >= 60 and not mantled,
+            "%s hanging states (rose %s units at most); %s; %s" % (pr.get("hang_n"), pr.get("hang_rise"),
+                held[1].strip() if held else "no hold line", mantled[1].strip() if mantled else "no mantle"))
+    s.check("B's body rose hanging, as his pull asked (8 units at least over where he took hold: the pull 0.25 m)",
+            float(pr.get("hang_rise", 0)) >= 8.0, "%s" % pr.get("hang_rise"))
+    predict_corr_check(s, "hanging", pr)
+    sv = org_of(status(srv), "mp_client", "slot", eb - 1)
+    own = org_of(status(b), "mp_player", "self", 1)
+    gap = dist(own, sv) if own and sv else 99.0
+    s.check("let go, on the floor at rest B stands where the server has him (within 1 unit)",
+            gap <= 1.0 and bool(sv) and abs(sv[2] - start[2]) <= 2.0,
+            "B draws himself at %s, the server has him at %s (he started at %s)" % (own, sv, start))
+    b.cmd("vr_mock_play; -graboff; -grabmain")
 
 
 def predict(s):
@@ -3599,8 +3648,8 @@ def main():
     ap.add_argument("--jitter", type=float, default=0.0, help="client B's delay varies by this much, ms")
     ap.add_argument("--loss", type=float, default=0.0, help="client B's game packet loss, 0..1, each way")
     ap.add_argument("--reset-autoexec", action="store_true", help="empty <base>/id1/autoexec.cfg first")
-    ap.add_argument("--part", default="", choices=["", "lift", "waterjump", "swim", "crawl", "mantle", "give", "use"],
-                    help="predict: only this segment (traced with vr_mp_watch 1; --watch 2); predictclimb: mantle; disarm: give or use, the rounds alone")
+    ap.add_argument("--part", default="", choices=["", "lift", "waterjump", "swim", "crawl", "hang", "mantle", "give", "use"],
+                    help="predict: only this segment (traced with vr_mp_watch 1; --watch 2); predictclimb: hang or mantle; disarm: give or use, the rounds alone")
     ap.add_argument("--repeat", type=int, default=1, help="predict --part: takes in one run (lift: one)")
     ap.add_argument("--watch", type=int, default=1, help="predict --part: vr_mp_watch on the server and B (3: corrections over 0.05 traced)")
     args = ap.parse_args()
