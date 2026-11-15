@@ -55,7 +55,7 @@ These are in the build for testing. Expect bugs, and expect their balance and se
 - Projectiles keep less of your motion: strafing no longer throws nails and rockets off your aim.
 - Close quarters brakes your momentum; weapon clash between your own two weapons; your two hands stay where they gripped on close two-handed holds.
 - Heavy weapons have weight: they lag, droop and kick in one hand; two hands steady them.
-- The reverse grip's flip turns about your fist and carries through everything: two-handed holds (mirrored), passing the blade between hands, drops, throws, and taking a reversed blade off a table or out of a body. A gib pulled off a blade stays in your hand; thrown blades settle point first.
+- The reverse grip's flip turns about your fist and carries through everything: two-handed holds (mirrored), passing the blade between hands, drops, throws, and taking a reversed blade off a table or out of a body. A gib pulled off a blade stays in your hand; thrown swords and daggers come round point first; a gib you throw can be skewered in the air.
 - Monster Groups (Combat > Monster Groups) set every ragdoll trigger and action per group across Quake, the mission packs and mods.
 
 ## Weapons and reloading
