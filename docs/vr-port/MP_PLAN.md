@@ -203,7 +203,8 @@ player unchanged.
 | **B8d** (the jump, the crouched box and a lift rider done; the rest is B8e) | The prediction's moves: the jump (QC's PlayerPreThink jump in vr_pmove.cpp, stamina), swimming, the crouched and lying boxes, climbing and the grapple; a lift rider | `mp_predict` grown (a jump, a swim, a crouch, a lift: corrections under a unit) |
 | **B8e** (swimming, the water jump's carry and the movers' motion done; the rest is B8f) | The rest of the prediction's moves: swimming and water jumps, the lying box (the crawl), climbing, the grapple, a fall onto a moving lift (the movers' motion in the replay) | `mp_predict` grown (a swim on e1m4, a crawl, a climb, a grapple pull, a drop onto e1m1's lift as it rises) |
 | **B8f** (the drop onto a rising lift and Quake's water jump out done; the rest is B8g) | The drop onto a rising lift's one correction (12.7 units, below), a water jump out tested, the lying box's crawl (the stick's share in the moves), climbing and the grapple (drawn as they come today) | `mp_predict` grown (the drop under a unit, a water jump, a crawl, a climb, a grapple pull) |
-| **B8g** | The lying box's crawl (the stick's share in the moves), climbing and the grapple; the hands' climb out of the water (vr_water_jump 0) | `mp_predict` grown (a crawl, a climb, a grapple pull, a hand's climb out: corrections under a unit) |
+| **B8g** (the lying box's crawl done; the rest is B8h) | The lying box's crawl (the stick's share in the moves), climbing and the grapple; the hands' climb out of the water (vr_water_jump 0) | `mp_predict` grown (a crawl, a climb, a grapple pull, a hand's climb out: corrections under a unit) |
+| **B8h** | Climbing in his replay (the mantle's timed path first, then the hang's pull from his own moves' hands), the grapple's pull, the hands' climb out of the water | `mp_predict` grown (a mantle, a hang and pull up, a grapple pull, a hand's climb out: corrections under a unit) |
 | **B9** | Compression and rate: entropy stage with trained tables, per-client rate, priority accumulator | byte budgets per scenario from section 2.3 |
 | **B10** | Proximity voice chat: capture, Opus, VAD, noise suppression, push-to-talk, a jitter buffer, voices placed by Steam Audio at the speaker's head; VR and flat; menu rows | `mp_voice` (a test tone from A heard at B, louder near, delay under 250 ms) |
 | **B11** | Deathmatch and bots: frags, respawns, DM item rules with VR weapons, FrikBot with VR-aware bodies | `mp_dm` (two clients and two bots, a fraglimit reached) |
@@ -1437,6 +1438,44 @@ Open (B8g):
   VR_WaterClimb_HandPull): the server's, once a frame: its start is a correction (eased in; a large one snaps).
 - The `mp_melee` flake: 29/0 in this suite.
 
+### B8g results, part 1: the lying box's crawl (2026-11-15, dev no-LTO build, loopback; `mp_test.py suite` 26 of 27 pass: `mp_pickup` 8/1 (A's grip on the dropped shotgun, busy machine) then 9/0 alone; `mp_predict` 28/0, `mp_melee` 29/0 (the "crowbar held level" flake not seen); scenario_check 155/0, load_models_test 4/0, vr_run_check 12/0, crawl_test 18/0, Release (ThinLTO) build 0 warnings)
+
+| Scenario | Result |
+|---|---|
+| `mp_predict` (grown) | Crawling lying down on e1m1's open floor (B's head at 0.4 m: the lying box, 16 tall; the stick forward, aside, back, let go): every correction 0.000 over 356-360 states in 5 takes alone (`--part crawl`), all walked move by move, his arms' crawl on (the stick's share 24 u/s, the glide after it), drawn offset 0.000; at rest he lies where the server has him. Before, a lying frame was never walked move by move (drawn as it came). Two takes' 0.12-0.20 a state were B crawling back into A (other players are not in his replay, below): the test crawls aside away from him |
+
+What changed (nothing of single player's or the listen host's own client's path: `VR_AfterCrawlMove` keeps its math,
+moved into shared functions):
+
+- **Lying frames walked move by move** (`vr_predict.cpp` VR_PredictThink): the lying box was already the rules' box
+  (`hull::crouchedHeight`, its waist for the water's level `VR_HullWaistZ`, the crawl's top speed in `VR_CrouchSpeedMax`).
+- **The stick's share of the arms' crawl in each move** (`vr_pmove.cpp` `crawlMove`): VR_AfterCrawlMove's stick want
+  (`pmove::crawlStickWant`: where it points along the floor at the stick's share of the crawl's top) and the crawl's
+  speed step (`pmove::crawlStep`: reached at `crawlGrip`, never braking, the glide out between pulls, the cap, the
+  player's velocity along it kept up on the ground) after the air move; single player's VR_AfterCrawlMove now calls the
+  same two functions. The crawl's own speed is the state's (`Body::crawl`, the server's `Crawler::vel`), started afresh
+  as VR_AfterCrawlMove's (`physics::crawlState`). The rules carry whether he crawls with his arms (lying down, tracked
+  hands, not held under a low ceiling), its top, glide and cap.
+- **The hands' pulls stay the server's**, once a frame after the moves (`physics::crawlHands`: the hands' want and the
+  newest move's stick, no glide), as the swim's strokes: his replay corrects to them, eased in.
+- `QVR_NET_VERSION` 24. `vr_mp_predict_report`: `lying`, `arms`, `crawl_n`. `vr_mp_watch 3` (`mp_test.py predict --part
+  X --watch 3`): every correction over 0.05 traced (1 before).
+
+Open (B8h):
+
+- Climbing (vr_climb.cpp, 3,700 lines, the server's): a hanging or mantling frame is not walked (drawn as it comes).
+  Next: the mantle first (a timed path from its start: `mantleFrom`/`Mid`/`To`, its start and shift, the state's; the
+  replay places him on it at each move's time), then the hang's pull (hangPull's hand motion relative to the body,
+  weighted, from his own moves' hands; hangMove's limits; the grips, `owed` and reach the state's).
+- The grapple's pull (vr_grapple.qc, 3,200 lines of QuakeC: the reel along the rope, the swing): the server's velocity
+  once a frame, his replay corrects to it. To predict it the rope (the hook's point, its length, the reel's speed) goes
+  in the state and the reel's rule into the moves.
+- The hands' climb out of the water (QC VR_WaterClimb_HandPull): the server's, its start a correction.
+- Other players are not in his replay (BSP models only): walking or crawling into one, the server stops him and his
+  replay does not (0.1-0.2 units a state at a crawl).
+- Getting up from lying at once (the mock's head jumps from 0.4 m to standing) is a room-scale leap (QuakeC's): one
+  correction (43 units), as a crouch's.
+
 ## Decisions
 
 - Melee's lag compensation (B8c) wraps the queries (melee's sweep, a bash's find, a headbutt's target, a guard's check
@@ -1501,4 +1540,4 @@ Open (B8g):
 - The interpolation buffer (B7b) leaves brush models and stepping monsters on NetQuake's lerp: the player's own entity
   is not delayed (no prediction until B8), and a lift he rides must stay in step with him.
 
-Next phase: B8g — the rest of the prediction's moves: the lying box's crawl (the stick's share in vr_pmove.cpp), climbing (a hang and pull up from his replay), the grapple's pull, the hands' climb out of the water (vr_water_jump 0: a hand's grip and pull, the server's today); tests first: `mp_predict --part` grown (corrections under a unit); then the `mp_melee` "crowbar held level" flake if it shows.
+Next phase: B8h — climbing in his replay (the mantle's timed path from the state first, then the hang's pull from his own moves' hands: vr_climb.cpp hangPull/hangMove), the grapple's pull (the rope in the state, the reel in the moves), the hands' climb out of the water (vr_water_jump 0: a hand's grip and pull, the server's today); tests first: `mp_predict --part` grown (corrections under a unit); then the `mp_melee` "crowbar held level" flake if it shows.

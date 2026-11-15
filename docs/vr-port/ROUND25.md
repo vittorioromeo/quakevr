@@ -3384,3 +3384,14 @@ listen host's own client untouched (the fields are 0 there). Details: MP_PLAN.md
   1.5 on the sides along +x (the fins are straight), walls and back on a dark vent texel; new vertices follow the face in every shot frame.
   Exported with `blend_export.py`: 935 -> 1027 triangles, anchors ok, holes check 0 see-through, 0 flipped; normal map re-baked,
   `fx_gfx_mask` rewritten. Scene `mrl_vents`; load_models_test 4/4. Blender before/after: kit `scratch/mrlvents_shots/`.
+
+## mpN B8g (agent/mp): the lying box's crawl predicted
+
+A remote client lying down is now walked move by move (the lying box was already his rules' box) and the stick's share of
+the arms' crawl runs in each move: VR_AfterCrawlMove's stick want and crawl step moved into `pmove::crawlStickWant` and
+`pmove::crawlStep` (`vr_pmove.cpp`), which single player's VR_AfterCrawlMove calls too (same math; crawl_test 18/0).
+The crawl's own speed is part of the predicted state; the hands' pulls stay the server's, once a frame after the moves
+(`physics::crawlHands`), corrected in his replay as the swim's strokes. `mp_predict --part crawl`: corrections 0.000 over
+356-360 states in 5 takes (before, no lying frame was predicted). `QVR_NET_VERSION` 24; `vr_mp_watch 3` traces every
+correction over 0.05. Climbing, the grapple's pull and the hands' climb out of the water are B8h (MP_PLAN.md "B8g
+results").
