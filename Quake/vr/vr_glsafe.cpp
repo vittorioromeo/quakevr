@@ -387,6 +387,28 @@ extern "C" int VR_GLESForm(int form)
     return glsafe.esCompat && !(glsafe.esKeep & static_cast<unsigned>(form)) ? 1 : 0;
 }
 
+// C4g: the world programs' lite form under the ES profile: the parts of the world's fragment shader the settings turn
+// off compiled out (Adreno pays for their mere presence: QUEST_PLAN.md 6n, e1m1 GPU 18.7 -> 15.7 ms a frame).
+// Bits: 1 no parallax mapping (vr_parallax or vr_normalmaps 0), 2 no carved decals (vr_decal_carve
+// 0). The programs are made again when this changes (GL_WorldLiteCheck). -glesfull: never (the whole shader, as the PC's).
+extern "C" int VR_GLESWorldLite(void)
+{
+    if(!VR_GLESForm(VR_GLES_FORM_GLSL) || COM_CheckParm("-glesfull"))
+    {
+        return 0;
+    }
+    int lite = 0;
+    if(vr_parallax.value == 0.f || vr_normalmaps.value == 0.f)
+    {
+        lite |= 1;
+    }
+    if(vr_decal_carve.value == 0.f)
+    {
+        lite |= 2;
+    }
+    return lite;
+}
+
 namespace
 {
 using DrawElementsIndirectFn = void(APIENTRY*)(GLenum, GLenum, const void*);

@@ -2283,6 +2283,7 @@ void SCR_UpdateScreen (void)
 		return;
 	}
 
+	GL_WorldLiteCheck (); // QVR: the ES lite world's programs made again if a setting changed what they leave out
 
 	GL_BeginRendering (&glx, &gly, &glwidth, &glheight);
 

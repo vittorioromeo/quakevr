@@ -59,6 +59,7 @@ static qboolean gl_multiview_unprepared; // a ported program made since GL_Multi
 #endif
 static qboolean gl_multiview_async; // GL_CreateShader, GL_CreateProgramFromShaders: a twin not waited for
 static int gl_multiview_pending; // twins compiling in the background (GL_MultiviewPending)
+static int gl_world_lite; // QVR: the world programs' lite form they were made with (VR_GLESWorldLite; GL_WorldLiteCheck)
 qboolean gl_multiview_draw; // GL_UseProgram: the multiview pass draws (twins)
 static int gl_arrays_compile; // QVR: GL_WorldArraysProgram's twin compiling (1; a failure reported, not fatal: 2)
 static qboolean gl_arrays_merge_tried; // QVR: GL_WorldArraysMergeProgram's made (or failed to be)
@@ -909,9 +910,50 @@ void GL_CreateShaders (void)
 		VR_ProgCacheEnd (); // (the pack written when a program was made)
 }
 
+/*
+=============
+GL_WorldLiteDefines -- QVR
+
+The world programs' extra defines for their lite form under the ES profile (gl_world_lite: VR_GLESWorldLite's bits).
+=============
+*/
+static const char *const gl_world_lite_defines[4] =
+{
+	"",
+	"; QVR_LITE_NOPARALLAX 1",
+	"; QVR_LITE_NOCARVE 1",
+	"; QVR_LITE_NOPARALLAX 1; QVR_LITE_NOCARVE 1",
+};
+
+static const char *GL_WorldLiteDefines (void)
+{
+	return gl_world_lite_defines[gl_world_lite & 3];
+}
+
+/*
+=============
+GL_WorldLiteCheck -- QVR
+
+Once a frame, before anything draws: the shaders made again when the world programs' lite form no longer fits the
+settings (a feature it compiled out turned on, or one turned off: QUEST_PLAN.md 6n). The program cache gives back the
+ones made before. Never on the PC's own GLSL (VR_GLESWorldLite 0 there).
+=============
+*/
+void GL_WorldLiteCheck (void)
+{
+	int lite = VR_GLESWorldLite ();
+	if (lite == gl_world_lite || !gl_num_programs)
+		return;
+	Con_DPrintf ("world programs' lite form %d -> %d: shaders made again\n", gl_world_lite, lite);
+	GL_DeleteShaders ();
+	GL_CreateShaders ();
+}
+
 static void GL_CreateShadersAll (void)
 {
 	int palettize, dither, mode, alphatest, warp, oit;
+
+	gl_world_lite = VR_GLESWorldLite (); // QVR
 
 	glprogs.gui = GL_CreateProgram (gui_vertex_shader, gui_fragment_shader, "gui");
 	glprogs.viewblend = GL_CreateProgram (viewblend_vertex_shader, viewblend_fragment_shader, "viewblend");
@@ -926,8 +968,8 @@ static void GL_CreateShadersAll (void)
 	for (oit = 0; oit < 2; oit++)
 		for (dither = 0; dither < 3; dither++)
 			for (mode = 0; mode < 3; mode++)
-				glprogs.world[oit][dither][mode] = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world|OIT %d; DITHER %d; MODE %d%s", oit, dither, mode,
-					mode == WORLDSHADER_SOLID ? "; NO_DECAL_RETRO 1" : ""); // QVR: the decals' retro textures' code: GL_WorldDecalRetroProgram's
+				glprogs.world[oit][dither][mode] = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world|OIT %d; DITHER %d; MODE %d%s%s", oit, dither, mode,
+					mode == WORLDSHADER_SOLID ? "; NO_DECAL_RETRO 1" : "", GL_WorldLiteDefines ()); // QVR: the decals' retro textures' code: GL_WorldDecalRetroProgram's; the ES lite form
 	for (dither = 0; dither < 3; dither++) // QVR: the opaque world writing its parallax hits' depth (vr_parallax_depth_write)
 		glprogs.world_pdo[dither] = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world pdo|OIT 0; DITHER %d; MODE %d; PDO 1; NO_DECAL_RETRO 1", dither, WORLDSHADER_SOLID);
 
@@ -992,7 +1034,7 @@ GLuint GL_WorldDecalRetroProgram (int oit, int dither, qboolean pdo)
 		if (pdo)
 			*program = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world pdo decal retro|OIT 0; DITHER %d; MODE %d; PDO 1", dither, WORLDSHADER_SOLID);
 		else
-			*program = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world decal retro|OIT %d; DITHER %d; MODE %d", oit, dither, WORLDSHADER_SOLID);
+			*program = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world decal retro|OIT %d; DITHER %d; MODE %d%s", oit, dither, WORLDSHADER_SOLID, GL_WorldLiteDefines ());
 	}
 	return *program;
 }

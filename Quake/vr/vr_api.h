@@ -274,6 +274,7 @@ enum
 	VR_GLES_FORM_VIEWS = 1 << 2		// no texture views (single-pass stereo's eye targets, the envmap's mipmaps)
 };
 int VR_GLESForm (int form);	// nonzero: -glescompat takes the ES form of `form` (VR_GLES_FORM_*) this run
+int VR_GLESWorldLite (void);	// vr_glsafe.cpp: the world programs' lite form under the ES profile (bits: 1 no parallax, 2 no carved decals; 0 the whole)
 void VR_GLStep (const char *fmt, ...) FUNC_PRINTF(1,2);	// a breadcrumb, before the GL call it names: the crash report's last steps; gl_startup.log while the game starts
 int VR_GLRecentSteps (char *out, int outSize, int count);	// vr_crash.cpp: the last `count` breadcrumbs, a line each; how many
 // Every run's logs (vr_runlogs.cpp): <game folder>/logs/<date>_<time>/, the last 5 runs kept; the bug report.

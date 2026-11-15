@@ -654,6 +654,7 @@ extern glprogs_t glprogs;
 void GL_UseProgram (GLuint program);
 void GL_ClearCachedProgram (void);
 void GL_CreateShaders (void);
+void GL_WorldLiteCheck (void); // QVR: the shaders made again when the ES lite world no longer fits the settings
 void GL_DeleteShaders (void);
 GLuint GL_WorldDecalRetroProgram (int oit, int dither, qboolean pdo); // QVR
 GLuint GL_WorldArraysProgram (GLuint program, qboolean *depthonly); // QVR: the world's textures in arrays (vr/vr_worldarrays.cpp)

@@ -918,7 +918,7 @@ QVR_PARALLAX_DEPTH_OUT // QVR: pixel depth offset (vr_parallax_depth_write): PDO
 "	return;\n"
 "#endif\n"
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_SOLID) "\n"
-"#ifdef QVR_PROBE_NOPARALLAX\n" // QVR: -glesdefine's probe (C4e): no parallax code
+"#if defined(QVR_PROBE_NOPARALLAX) || defined(QVR_LITE_NOPARALLAX)\n" // QVR: -glesdefine's probe (C4e); the ES lite world (C4g: VR_GLESWorldLite): no parallax code
 "	bool parallax = false;\n" // (a carved decal sets it: its moved coordinates read with textureGrad)
 "#else\n"
 "	bool parallax = in_pdepth > 0.; // the instance's depth: the world's, an item box's (vr_parallax_items)\n"
@@ -930,7 +930,7 @@ QVR_PARALLAX_DEPTH_OUT // QVR: pixel depth offset (vr_parallax_depth_write): PDO
 "	if (ParallaxDist != 0. && Parallax2.w > 0.) // QVR: the hit's depth (bounded by the pre-pass's: glprogs.world_depth_pdo; nearer: raised)\n"
 "		gl_FragDepth = ParallaxFragDepth(ViewProj, in_pos, normalize(in_pos - EyePos), ParallaxDist, (in_flags & CF_USE_POLYGON_OFFSET) != 0u);\n"
 "#endif\n"
-"#ifdef QVR_PROBE_NOCARVE\n" // QVR: -glesdefine's probe (C4e): no carved decals' code
+"#if defined(QVR_PROBE_NOCARVE) || defined(QVR_LITE_NOCARVE)\n" // QVR: -glesdefine's probe (C4e); the ES lite world (C4g): no carved decals' code
 "	const bool carve_on = false;\n"
 "	const vec3 carve_bend = vec3(0.), carve_light = vec3(0.);\n"
 "	const float carve_dark = 1.;\n"
