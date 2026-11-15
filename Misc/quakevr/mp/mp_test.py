@@ -2778,7 +2778,7 @@ PREDICT_MOVES_MOST = 2   # B's own move shows this many moves (client ticks) aft
 PREDICT_CORR_MOST = 1.0  # a correction on flat ground (the replay all on the floor, no wall) at most, units
 PREDICT_LEGS = 4         # B walks there and back twice
 PREDICT_LEG_STATES = 72  # each leg: this many of the server's states read (about a second)
-PART, PART_REPEAT, PART_WATCH = "", 1, False  # --part, --repeat, --watch (predict's segments alone)
+PART, PART_REPEAT, PART_WATCH = "", 1, 1  # --part, --repeat, --watch (predict's segments alone)
 
 
 def predict_report(inst):
@@ -2907,6 +2907,37 @@ def predict_lift(s, srv, a, b, ea, eb):
     b.cmd("notarget; god")
 
 
+def predict_crawl(s, srv, a, b, eb):
+    """MP_PLAN B8g: the lying box's crawl predicted. On e1m1's open floor B lies down (his head low: the lying box)
+    and crawls with the stick, forward, aside and back (its share of the crawl run in each move: VR_AfterCrawlMove's
+    crawl speed, glide and cap, the lying box's rules; the hands' pulls stay the server's): his corrections stay under a
+    unit, and he got somewhere."""
+    put_at(srv, b, eb, OPEN_SPOT, 90)
+    b.quiet(r"mp_predict_corr: ", 1.0, 20, "B settled at his spot")
+    b.cmd("vr_mock_hand head 0 %.2f 0" % PRONE_HEAD)
+    predict_until(s, b, "lying", 1, "B lying down (the lying box in his state)")
+    predict_until(s, b, "states", int(predict_report(b).get("states", 0)) + 36, "B lay down")
+    start = org_of(status(srv), "mp_client", "slot", eb - 1)
+    # (aside to the west, away from A at 528 -296: other players are not in his replay -- crawling back into A, the
+    # server stopped him and his replay did not, 0.1-0.2 units a state)
+    pr = predict_segment(s, b, "crawling", "", 72, ("vr_mock_stick off 0 1", "vr_mock_stick off -1 0",
+                                                    "vr_mock_stick off 0 -1", "vr_mock_stick off 0 0", ""))
+    s.metric("b_predict_crawl", pr)
+    sv = org_of(status(srv), "mp_client", "slot", eb - 1)
+    s.check("B crawled lying down (states lying walked move by move: 250 at least, his arms' crawl on; the server "
+            "moved him 10 units at least)", int(pr.get("crawl_n", 0)) >= 250 and int(pr.get("unwalked", 1)) == 0 and
+            int(pr.get("arms", 0)) == 1 and bool(start) and bool(sv) and dist(start, sv) >= 10.0,
+            "%s lying states, %s unwalked, arms %s, from %s to %s" % (pr.get("crawl_n"), pr.get("unwalked"),
+                                                                       pr.get("arms"), start, sv))
+    predict_corr_check(s, "crawling", pr)
+    own = org_of(status(b), "mp_player", "self", 1)
+    gap = dist(own, sv) if own and sv else 99.0
+    s.check("lying at rest B is where the server has him (within 1 unit)", gap <= 1.0,
+            "B draws himself at %s, the server has him at %s" % (own, sv))
+    b.cmd("vr_mock_hand head")
+    predict_until(s, b, "states", int(predict_report(b).get("states", 0)) + 72, "B got up")
+
+
 def predict_swim(s, srv, a, b, eb):
     """MP_PLAN B8e: swimming predicted. On e1m4, B in its deep water swims with the stick (SV_WaterMove, the swim's
     stick scale, glide and cap, QC WaterMove's drag, the jump key's rise, the drift down: each move's water level his
@@ -2972,8 +3003,8 @@ def predict(s):
     srv, a, b, ea, eb = join(s, lag=PREDICT_LAG)
     if PART:
         # (--part: one of its segments alone, `--repeat` times: a flake's cause traced, vr_mp_watch 2)
-        srv.cmd("vr_mp_watch %d" % (2 if PART_WATCH else 1))
-        b.cmd("vr_mp_watch %d" % (2 if PART_WATCH else 1))
+        srv.cmd("vr_mp_watch %d" % PART_WATCH)
+        b.cmd("vr_mp_watch %d" % PART_WATCH)
         for k in range(PART_REPEAT):
             s.note("--part %s, take %d" % (PART, k + 1))
             if PART == "lift":
@@ -2983,6 +3014,8 @@ def predict(s):
                 predict_waterjump(s, srv, a, b, eb, first=k == 0)
             elif PART == "swim":
                 predict_swim(s, srv, a, b, eb)
+            elif PART == "crawl":
+                predict_crawl(s, srv, a, b, eb)
         return
     put_at(srv, b, eb, OPEN_SPOT, 90)
     b.quiet(r"mp_predict_corr: ", 1.0, 20, "B settled at his spot")
@@ -3028,6 +3061,7 @@ def predict(s):
             frames0 > PREDICT_MOVES_MOST + 5, "%d moves, %d ms" % (frames0, ms0))
     b.quiet(r"mp_predict_corr: ", 1.0, 20, "B predicted again")
     predict_moves(s, srv, a, b, ea, eb)
+    predict_crawl(s, srv, a, b, eb)
     predict_swim(s, srv, a, b, eb)
     predict_waterjump(s, srv, a, b, eb)
 
@@ -3177,13 +3211,13 @@ def main():
     ap.add_argument("--jitter", type=float, default=0.0, help="client B's delay varies by this much, ms")
     ap.add_argument("--loss", type=float, default=0.0, help="client B's game packet loss, 0..1, each way")
     ap.add_argument("--reset-autoexec", action="store_true", help="empty <base>/id1/autoexec.cfg first")
-    ap.add_argument("--part", default="", choices=["", "lift", "waterjump", "swim"],
+    ap.add_argument("--part", default="", choices=["", "lift", "waterjump", "swim", "crawl"],
                     help="predict: only this segment (traced with vr_mp_watch 1; --watch 2)")
     ap.add_argument("--repeat", type=int, default=1, help="predict --part: takes in one run (lift: one)")
-    ap.add_argument("--watch", type=int, default=1, help="predict --part: vr_mp_watch on the server and B")
+    ap.add_argument("--watch", type=int, default=1, help="predict --part: vr_mp_watch on the server and B (3: corrections over 0.05 traced)")
     args = ap.parse_args()
     global PART, PART_REPEAT, PART_WATCH
-    PART, PART_REPEAT, PART_WATCH = args.part, max(1, args.repeat), args.watch >= 2
+    PART, PART_REPEAT, PART_WATCH = args.part, max(1, args.repeat), max(1, args.watch)
     autoexec = os.path.join(args.base, "id1", "autoexec.cfg")
     if args.reset_autoexec:
         with open(autoexec, "w", encoding="ascii") as f:

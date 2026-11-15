@@ -3,6 +3,11 @@
 
 #include "vr_pmove.hpp"
 
+#include "Zancle/Base/IsFinite.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
+
 #include <math.h>
 
 namespace qvr::pmove
@@ -632,6 +637,81 @@ void waterJumpTry(Body& b, const Input& in, const Rules& r)
     b.waterJumped(movedir);
 }
 
+bool crawlStickWant(float yaw, float forwardmove, float sidemove, float top, bool onGround, float* want)
+{
+    const float rad = yaw * 0.01745329251994329576923690768489f; // (glm::radians')
+    const float look[2] = {za::cos(rad), za::sin(rad)};
+    const float right[2] = {za::sin(rad), -za::cos(rad)};
+    const float wish[2] = {look[0] * forwardmove + right[0] * sidemove, look[1] * forwardmove + right[1] * sidemove};
+    const float wishLen = sqrtf(wish[0] * wish[0] + wish[1] * wish[1]);
+    if(!onGround || !(wishLen > 1.f) || !(top > 0.f))
+    {
+        return false;
+    }
+    const float k = za::min(wishLen, top) / wishLen;
+    want[0] += wish[0] * k;
+    want[1] += wish[1] * k;
+    return true;
+}
+
+bool crawlStep(float* crawl, const float* want, bool pulling, float friction, float most, float dt, bool onGround,
+    float* velocity)
+{
+    const float wantLen = sqrtf(want[0] * want[0] + want[1] * want[1]);
+    if(!pulling)
+    {
+        const float keep = za::max(0.f, 1.f - za::max(0.f, friction) * dt);
+        crawl[0] *= keep;
+        crawl[1] *= keep;
+    }
+    else if(wantLen > 0.f)
+    {
+        const float way[2] = {want[0] / wantLen, want[1] / wantLen};
+        const float along = crawl[0] * way[0] + crawl[1] * way[1];
+        if(along < wantLen)
+        {
+            const float k = (wantLen - along) * za::min(1.f, dt * crawlGrip);
+            crawl[0] += way[0] * k;
+            crawl[1] += way[1] * k;
+        }
+    }
+    const float len = sqrtf(crawl[0] * crawl[0] + crawl[1] * crawl[1]);
+    if(!ZA_ISFINITE(len))
+    {
+        crawl[0] = crawl[1] = 0.f;
+        return false;
+    }
+    if(len > most)
+    {
+        crawl[0] *= most / len;
+        crawl[1] *= most / len;
+    }
+    // On the ground: the player's speed along the crawl kept up to it (the floor's friction took some since).
+    const float speed = sqrtf(crawl[0] * crawl[0] + crawl[1] * crawl[1]);
+    if(!onGround || speed < 0.01f)
+    {
+        return true;
+    }
+    const float way[2] = {crawl[0] / speed, crawl[1] / speed};
+    const float along = velocity[0] * way[0] + velocity[1] * way[1];
+    if(along < speed)
+    {
+        velocity[0] += way[0] * (speed - along);
+        velocity[1] += way[1] * (speed - along);
+    }
+    return true;
+}
+
+// VR_AfterCrawlMove's stick share (after SV_AirMove, walking): the stick, its share of the crawl's top, feeds the crawl
+// as a pull does; between pulls it glides out. The hands' pulls are the server's, once a frame (physics::crawlHands).
+void crawlMove(Body& b, const Input& in, const Rules& r, bool onground)
+{
+    const float scale = r.stickScale * (b.waterLevel >= 1 ? r.shallowStick : 1.f); // (the stick as SV_AirMove got it)
+    float want[2] = {0.f, 0.f};
+    const bool pulling = crawlStickWant(in.steer[YAW], in.forward * scale, in.side * scale, r.crawlTop, onground, want);
+    crawlStep(b.crawl, want, pulling, r.crawlFriction, za::max(0.f, r.crawlMost), in.dt, onground, b.velocity);
+}
+
 void playerMove(Body& b, const Input& in, const Rules& r, MoveNotes* notes)
 {
     const bool onground = (b.flags & FL_ONGROUND) != 0;
@@ -660,6 +740,14 @@ void playerMove(Body& b, const Input& in, const Rules& r, MoveNotes* notes)
     else
     {
         airMove(b, in, r, onground);
+        if(r.crawl)
+        {
+            crawlMove(b, in, r, onground);
+        }
+    }
+    if(!r.crawl)
+    {
+        b.crawl[0] = b.crawl[1] = 0.f; // (VR_AfterCrawlMove's reset: not crawling now)
     }
     if(notes && (b.waterLevel >= 2 || (b.flags & FL_WATERJUMP)))
     {

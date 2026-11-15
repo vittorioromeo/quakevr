@@ -46,6 +46,8 @@ enum StateBits
     bitEdgeProbe = 512,       // the ledge test from the narrowed box's edge (vr_hull_edge_probe)
     bitJumpReleased = 1024,   // FL_JUMPRELEASED (the jump key let go since his last jump)
     bitWaterJumpOut = 2048,   // Quake's jump out of the water in the moves (B8f: QC's .vr_movewaterjump)
+    bitCrawl = 4096,          // lying down, crawling with his arms: the stick's share of the crawl in the moves (B8g)
+    bitLying = 8192,          // the lying box (hull::hasLyingBox: its height is the rules' box)
 };
 
 constexpr float jumpSpeed = 270.f; // QC PlayerJump's
@@ -64,6 +66,7 @@ struct ServerSlot
     pmove::Rules rules;
     vec3_t groundNormal{0.f, 0.f, 1.f};
     float groundAge{1e6f};
+    float crawl[2]{0.f, 0.f}; // the crawl's own speed after the frame (physics::crawlState's)
 };
 ServerSlot serverSlots[MAX_SCOREBOARD];
 
@@ -235,6 +238,11 @@ void computeRules(edict_t* ent, pmove::Rules& r)
     r.roomscaleOn = hull::heightHold(ent) == 0;
     r.boxHeight = hull::crouchedHeight(ent);
     r.maxsZ = ent->v.maxs[2];
+    // Lying down, crawling with his arms (B8g): the stick's share of the crawl in each move (VR_AfterCrawlMove's).
+    r.crawl = physics::crawlState(ent) != nullptr;
+    r.crawlTop = r.crawl ? physics::crawlTop(ent) : 0.f;
+    r.crawlFriction = vr_prone_crawl_friction.value;
+    r.crawlMost = vr_prone_crawl_max_speed.value;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -268,6 +276,7 @@ struct ClientPredict
     int numMovers{0};
     float holdLeft{0.f};  // .teleport_time less the message's time
     float jumpDir[2]{0.f, 0.f}; // .movedir's x, y (a water jump's push)
+    float crawl[2]{0.f, 0.f};   // the crawl's own speed (lying down: B8g)
     bool fresh{false};    // a new state since the last replay
 
     // The replay.
@@ -295,6 +304,7 @@ struct ClientPredict
     int corrN{0}, flatN{0}, airN{0}, rideN{0}; // (rideN: states a lift under him moved since the last)
     int swimN{0}, wjN{0}, landMovingN{0}, pushN{0}; // (states swimming, in a water jump; replays landing him on a
                                                  // brush model still moving; replayed moves a mover pushed him)
+    int crawlN{0};                               // (states lying down: the lying box, B8g)
     float swimMax{0.f}, liftMax{0.f}; // (liftMax: the lift's own predicted place moved under him, a state)
     float corrMax{0.f}, corrSum{0.f}, flatMax{0.f}, airMax{0.f}, errMax{0.f};
 
@@ -574,6 +584,8 @@ bool replay(vec3_t out, vec3_t before)
     b.holdLeft = cp.holdLeft;
     b.jumpDir[0] = cp.jumpDir[0];
     b.jumpDir[1] = cp.jumpDir[1];
+    b.crawl[0] = cp.crawl[0];
+    b.crawl[1] = cp.crawl[1];
     const za::U32 newest = netmove::clientNewest();
     if(newest < cp.seq || newest - cp.seq >= static_cast<za::U32>(pastRing))
     {
@@ -583,6 +595,7 @@ bool replay(vec3_t out, vec3_t before)
     {
         pmove::checkWater(b, cp.rules);
         cp.swimN += b.waterLevel >= 2 ? 1 : 0;
+        cp.crawlN += cp.bits & bitLying ? 1 : 0;
     }
     pmove::MoveNotes notes;
     netmove::WireMove m;
@@ -673,7 +686,7 @@ bool replay(vec3_t out, vec3_t before)
                 rel[i] = was.org[i] - now.org[i] - lift[i];
             }
             const float c = VectorLength(rel);
-            if(c > 1.f && vr_mp_watch.value != 0.f)
+            if(c > (vr_mp_watch.value >= 3.f ? 0.05f : 1.f) && vr_mp_watch.value != 0.f)
             {
                 Con_Printf("mp_predict_corr: c=%.2f s=%u seq=%u newest=%u bits=%d was=%.2f %.2f %.2f now=%.2f %.2f %.2f sv=%.2f %.2f %.2f vel=%.1f %.1f %.1f notes=%d%d%d\n", c, s, cp.seq, newest, cp.bits, was.org[0], was.org[1], was.org[2], now.org[0], now.org[1], now.org[2], cp.origin[0], cp.origin[1], cp.origin[2], cp.velocity[0], cp.velocity[1], cp.velocity[2], notes.wall ? 1 : 0, notes.stepped ? 1 : 0, notes.air ? 1 : 0);
             }
@@ -806,10 +819,14 @@ void parseState()
     float jumpDir[2];
     jumpDir[0] = MSG_ReadFloat();
     jumpDir[1] = MSG_ReadFloat();
+    float crawl[2];
+    crawl[0] = MSG_ReadFloat();
+    crawl[1] = MSG_ReadFloat();
     pmove::Rules r;
     for(float* f : {&r.maxspeed, &r.stickScale, &r.accelerate, &r.friction, &r.stopspeed, &r.edgefriction, &r.gravity,
             &r.maxvelocity, &r.stepsize, &r.roomscaleScale, &r.jumpSpeed, &r.boxHeight, &r.feetZ, &r.waistZ, &r.eyeZ,
-            &r.shallowStick, &r.wadeStick, &r.swimStick, &r.swimMax, &r.glide, &r.swimMost, &r.maxsZ})
+            &r.shallowStick, &r.wadeStick, &r.swimStick, &r.swimMax, &r.glide, &r.swimMost, &r.maxsZ, &r.crawlTop,
+            &r.crawlFriction, &r.crawlMost})
     {
         *f = MSG_ReadFloat();
     }
@@ -835,7 +852,8 @@ void parseState()
         return; // (an older one: the snapshot's base kept past the room)
     }
     // (A snapshot parses its unchanged records again: the same state is not a new one.)
-    if(cp.have && seq == cp.seq && bits == cp.bits && VectorCompare(o, cp.origin) && VectorCompare(v, cp.velocity))
+    if(cp.have && seq == cp.seq && bits == cp.bits && VectorCompare(o, cp.origin) && VectorCompare(v, cp.velocity) &&
+        crawl[0] == cp.crawl[0] && crawl[1] == cp.crawl[1])
     {
         return;
     }
@@ -844,7 +862,10 @@ void parseState()
     r.waterDrag = (bits & bitWaterDrag) != 0;
     r.waterJumpOut = (bits & bitWaterJumpOut) != 0;
     r.roomscaleOn = (bits & bitRoomscale) != 0;
+    r.crawl = (bits & bitCrawl) != 0;
     cp.have = true;
+    cp.crawl[0] = crawl[0];
+    cp.crawl[1] = crawl[1];
     cp.holdLeft = q_max(static_cast<float>(teleportTime - cl.mtime[0]), -1.f);
     cp.jumpDir[0] = jumpDir[0];
     cp.jumpDir[1] = jumpDir[1];
@@ -890,6 +911,7 @@ void clientClear()
     cp.wjN = keep.wjN;
     cp.landMovingN = keep.landMovingN;
     cp.pushN = keep.pushN;
+    cp.crawlN = keep.crawlN;
 }
 
 void report()
@@ -897,17 +919,18 @@ void report()
     Con_Printf("mp_predict: on=%d plain=%d states=%d frames=%d unpredicted=%d unwalked=%d depth_mean=%.1f corr_n=%d "
                "corr_max=%.3f corr_mean=%.3f flat_n=%d flat_max=%.3f air_n=%d air_max=%.3f ride_n=%d err=%.3f "
                "err_max=%.3f maxspeed=%.1f box=%.1f jump=%.0f swim_n=%d swim_max=%.3f wj_n=%d land_moving=%d "
-               "lift_max=%.3f pushed=%d seq=%u newest=%u\n",
+               "lift_max=%.3f pushed=%d lying=%d arms=%d crawl_n=%d seq=%u newest=%u\n",
         vr_net_predict.value != 0.f && netmove::clientUses() ? 1 : 0, cp.bits & bitWalked ? 1 : 0, cp.states, cp.frames,
         cp.unpredicted, cp.unWalked, cp.frames > 0 ? static_cast<double>(cp.depthSum) / cp.frames : 0.0, cp.corrN, cp.corrMax,
         cp.corrN > 0 ? cp.corrSum / cp.corrN : 0.f, cp.flatN, cp.flatMax, cp.airN, cp.airMax, cp.rideN, VectorLength(cp.error),
         cp.errMax, cp.rules.maxspeed, cp.rules.boxHeight, cp.rules.jumpSpeed, cp.swimN, cp.swimMax, cp.wjN,
-        cp.landMovingN, cp.liftMax, cp.pushN, cp.seq, netmove::clientNewest());
+        cp.landMovingN, cp.liftMax, cp.pushN, cp.bits & bitLying ? 1 : 0, cp.rules.crawl ? 1 : 0, cp.crawlN, cp.seq,
+        netmove::clientNewest());
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(0), "vr_mp_predict_report") && !q_strcasecmp(Cmd_Argv(1), "reset"))
     {
         // (vr_mp_predict_report reset: the counts from here, a test's setup left out; the states read go on)
         cp.frames = cp.unpredicted = cp.unWalked = cp.corrN = cp.flatN = cp.airN = cp.rideN = 0;
-        cp.swimN = cp.wjN = cp.landMovingN = cp.pushN = 0;
+        cp.swimN = cp.wjN = cp.landMovingN = cp.pushN = cp.crawlN = 0;
         cp.depthSum = 0;
         cp.corrMax = cp.corrSum = cp.flatMax = cp.airMax = cp.errMax = cp.swimMax = cp.liftMax = 0.f;
     }
@@ -949,8 +972,9 @@ extern "C" int VR_PredictThink(edict_t* ent)
         return 0;
     }
     const int slot = static_cast<int>(s - serverSlots);
+    // (lying down too, B8g: the lying box is the rules' box, the stick's share of the crawl the moves')
     s->plain = movesOneByOne(slot) && static_cast<int>(ent->v.movetype) == MOVETYPE_WALK && ent->v.health > 0.f &&
-               !hull::hasLyingBox(ent) && !hull::isFlat(ent);
+               !hull::isFlat(ent);
     if(s->plain)
     {
         computeRules(ent, s->rules);
@@ -983,6 +1007,12 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
     EdictBody b{ent};
     VectorCopy(s->groundNormal, b.groundNormal);
     b.groundAge = s->groundAge;
+    float* crawl = r.crawl ? physics::crawlState(ent) : nullptr; // (the crawl's own speed: his moves carry it)
+    if(crawl)
+    {
+        b.crawl[0] = crawl[0];
+        b.crawl[1] = crawl[1];
+    }
     s->credit = q_min(s->credit + static_cast<float>(host_frametime) * creditRate, creditMost);
     const int slot = static_cast<int>(s - serverSlots);
     pmove::Input newest;
@@ -1016,8 +1046,22 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
             const float scale = r.stickScale * (b.waterLevel >= 3 || !(b.flags & FL_ONGROUND) ? r.swimStick : r.wadeStick);
             physics::swimStrokes(ent, newest.forward * scale, newest.side * scale, newest.up * scale);
         }
+        if(crawl)
+        {
+            crawl[0] = b.crawl[0];
+            crawl[1] = b.crawl[1];
+            if(b.waterLevel < 2 && s->n > 0)
+            {
+                // The hands' pulls (VR_AfterCrawlMove's, the stick's want with them), once a frame on the newest move's
+                // stick: the server's alone (his replay corrects to them, eased in).
+                const float scale = r.stickScale * (b.waterLevel >= 1 ? r.shallowStick : 1.f);
+                physics::crawlHands(ent, newest.forward * scale, newest.side * scale);
+            }
+        }
         VR_FindRadius_Dirty(ent);
     }
+    s->crawl[0] = crawl ? crawl[0] : 0.f;
+    s->crawl[1] = crawl ? crawl[1] : 0.f;
     VectorCopy(b.groundNormal, s->groundNormal);
     s->groundAge = b.groundAge;
     s->n = 0;
@@ -1031,7 +1075,7 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
 extern "C" void VR_WritePredict(sizebuf_t* msg, client_t* client)
 {
     const int slot = static_cast<int>(client - svs.clients);
-    if(!movesOneByOne(slot) || !client->edict || msg->cursize + 300 > msg->maxsize)
+    if(!movesOneByOne(slot) || !client->edict || msg->cursize + 320 > msg->maxsize)
     {
         return;
     }
@@ -1043,7 +1087,8 @@ extern "C" void VR_WritePredict(sizebuf_t* msg, client_t* client)
                      (flags & FL_WATERJUMP ? bitWaterJump : 0) | (r.slopeWalk ? bitSlopeWalk : 0) |
                      (r.nostep ? bitNoStep : 0) | (r.waterDrag ? bitWaterDrag : 0) | (r.roomscaleOn ? bitRoomscale : 0) | (vr_hull_brushmodels.value != 0.f ? bitHullBrushModels : 0) |
                      (vr_hull_edge_probe.value != 0.f ? bitEdgeProbe : 0) |
-                     (flags & FL_JUMPRELEASED ? bitJumpReleased : 0) | (r.waterJumpOut ? bitWaterJumpOut : 0);
+                     (flags & FL_JUMPRELEASED ? bitJumpReleased : 0) | (r.waterJumpOut ? bitWaterJumpOut : 0) |
+                     (r.crawl ? bitCrawl : 0) | (hull::hasLyingBox(ent) ? bitLying : 0);
     const int at = msg->cursize;
     MSG_WriteByte(msg, protocol::svc_quakevr);
     MSG_WriteByte(msg, protocol::QVR_SVC_PREDICT);
@@ -1060,9 +1105,12 @@ extern "C" void VR_WritePredict(sizebuf_t* msg, client_t* client)
     MSG_WriteFloat(msg, ent->v.teleport_time); // (its time left read against the message's time: an idle record stays)
     MSG_WriteFloat(msg, ent->v.movedir[0]);
     MSG_WriteFloat(msg, ent->v.movedir[1]);
+    MSG_WriteFloat(msg, s.crawl[0]);
+    MSG_WriteFloat(msg, s.crawl[1]);
     for(const float f : {r.maxspeed, r.stickScale, r.accelerate, r.friction, r.stopspeed, r.edgefriction, r.gravity,
             r.maxvelocity, r.stepsize, r.roomscaleScale, r.jumpSpeed, r.boxHeight, r.feetZ, r.waistZ, r.eyeZ,
-            r.shallowStick, r.wadeStick, r.swimStick, r.swimMax, r.glide, r.swimMost, r.maxsZ})
+            r.shallowStick, r.wadeStick, r.swimStick, r.swimMax, r.glide, r.swimMost, r.maxsZ, r.crawlTop,
+            r.crawlFriction, r.crawlMost})
     {
         MSG_WriteFloat(msg, f);
     }

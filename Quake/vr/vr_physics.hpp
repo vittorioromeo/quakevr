@@ -96,6 +96,14 @@ void waterSplash(const glm::vec3& at, const glm::vec3& dir, float strength, Spla
 // Lying down, the stick's share of the crawl (hull::crouchSpeedMax): vr_prone_stick_scale for a VR player crawling with
 // his arms (vr_prone_crawl; vr_physics_water.cpp), 1 for the rest.
 [[nodiscard]] float crawlStickScale(edict_t* ent);
+// ... the stick's crawl speed at most (sv_maxspeed, vr_prone_speed_scale, crawlStickScale).
+[[nodiscard]] float crawlTop(edict_t* ent);
+// A remote client's frame walked move by move (vr_predict.cpp, MP_PLAN B8g): the crawl's own speed along the floor (x,
+// y) his moves carry and change (the stick's share: pmove's crawl), started afresh as VR_AfterCrawlMove's; nullptr when
+// he does not crawl with his arms now. Then, after the moves, once a frame, the hands' pulls (the server's alone: his
+// replay corrects to them), on the newest move's stick.
+[[nodiscard]] float* crawlState(edict_t* ent);
+void crawlHands(edict_t* ent, float forwardmove, float sidemove);
 
 // A remote client's swim run move by move (vr_pmove.cpp, MP_PLAN B8e): VR_WaterStickScale's three scales (shallow,
 // wading, swimming), VR_AfterWaterMove's glide and speed cap (-1: none) for this frame; all 1, 0 and -1 for one who is

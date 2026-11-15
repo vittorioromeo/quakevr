@@ -55,7 +55,26 @@ struct Rules
     bool waterDrag{false};       // QC WaterMove's drag runs in each move (its .vr_moveswim), not once a server frame
     bool waterJumpOut{false};    // QC CheckWaterJump's jump out (WaterJumpTry along his facing) runs in each move
                                  // (its .vr_movewaterjump: Quake's jump out, not the hands' climb out), not once a frame
+    bool crawl{false};           // lying down, crawling with his arms (VR_AfterCrawlMove: vr_prone_crawl, tracked hands)
+    float crawlTop{0.f};         // ... the stick's crawl speed at most (sv_maxspeed, vr_prone_speed_scale, _stick_scale)
+    float crawlFriction{3.f};    // ... its glide out between pulls (vr_prone_crawl_friction, per second)
+    float crawlMost{120.f};      // ... its speed at most (vr_prone_crawl_max_speed)
 };
+
+// VR_AfterCrawlMove's crawl (vr_physics_water.cpp; ROUND24.md, "Crawling with the arms"): how quickly, per second, the
+// crawl's own speed reaches what a pull asks (a hand gripping the floor: a few frames).
+inline constexpr float crawlGrip = 15.f;
+
+// The crawl's own speed along the floor (`crawl`, x and y) after one step of `dt`: what the pulls ask (`want`, the
+// stick's and the hands') reached quickly, never braking it along the pull; gliding out between pulls (`pulling` false)
+// by `friction`; at most `most`. Then, on the ground, the player's `velocity` along it kept up to it (the floor's
+// friction took some). False: not finite (the crawl stopped, the velocity left). One function for single player's
+// frame and a remote client's moves.
+bool crawlStep(float* crawl, const float* want, bool pulling, float friction, float most, float dt, bool onGround,
+    float* velocity);
+// The stick's share of the crawl's pull: where it points along the floor (`yaw`, degrees: the move's steering), at
+// most `top`, added to `want` -- true if it pulls (on the ground, more than 1 unit asked).
+bool crawlStickWant(float yaw, float forwardmove, float sidemove, float top, bool onGround, float* want);
 
 // The player as a move sees him. The hooks default to a client's world (BSP models only, nothing touched).
 struct Body
@@ -68,6 +87,7 @@ struct Body
     float holdLeft{0.f};                   // .teleport_time less the time: moving back held, a water jump's end
     float jumpDir[2]{0.f, 0.f};            // a water jump's push over the edge (.movedir's x, y)
     int waterLevel{0}, waterType{CONTENTS_EMPTY}; // (each move's, found at its start)
+    float crawl[2]{0.f, 0.f};              // the crawl's own speed along the floor (lying down: Rules::crawl)
 
     virtual ~Body() = default;
     // The map's contents at a point (SV_PointContents: the world's, a current as water).
