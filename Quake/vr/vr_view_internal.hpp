@@ -641,11 +641,24 @@ inline view::DrawnWeapon drawnWeapons[2];
 // change): called by whatever has the model at hand (the held weapon, a blade in a body, one to be taken).
 void reverseLearn(const qmodel_t* model, int slot);
 [[nodiscard]] glm::vec3 reverseShift(int slot, bool mirrored, float flip, const glm::vec3& rot);
+// Its handle's line (`axis`, through `pivot`, its middle) in the model's own frame, as learnt (reverseLearn); false: not yet.
+[[nodiscard]] bool handleLine(int slot, glm::vec3& axis, glm::vec3& pivot);
 // Whether weapon slot `slot` may be held reversed (Key::RevGrip, with vr_revgrip on).
 [[nodiscard]] bool reverseGripAllowed(int slot);
 // Hand `hand`'s weapon's share of the reverse grip as drawn this frame (0..1): the server's QVR_WPNFLAG_REVGRIP, turned to over
 // vr_revgrip_flip_time as it changes on the same weapon (the eject button), at once for a weapon new in the hand.
 [[nodiscard]] float gripFlip(int hand);
+// The same for the weapon as drawn in the hand: 0 for a weapon it carries off its handle (drawn as the hand that let it go held
+// it: twohand::carriedWeapon), which is drawn upright from that hand's pose (setupWeapon).
+[[nodiscard]] float drawnFlip(int hand);
+// The flip grip (ROUND25.md, "flipgrip"): the angles `rot` of a hand holding a weapon of `slot` `flip` reversed turned into those
+// of a hand that holds it upright as it is drawn (rot Rev): what the weapon's pose is as it leaves that hand (a drop, a throw, the
+// hand-off's carry), so that the blade keeps its way. `rot` itself at 0.
+[[nodiscard]] glm::vec3 uprightTurnOf(const glm::vec3& rot, int slot, bool mirrored, float flip);
+// Where the point of a hand holding the weapon `model` (slot `slot`, lying at `origin`) reversed is, its upright holder's angles
+// being `upright` (a weapon lying about's own, the pitch as a view's; a drawn weapon's handTurnOfWeapon): the reverse grip's handle
+// (its butt where the guard was). False for a weapon that may not be held reversed.
+[[nodiscard]] bool reversedHandPoint(const qmodel_t* model, int slot, bool mirrored, const glm::vec3& origin, const glm::vec3& upright, glm::vec3& point);
 // A blade in a body held by its handle (STAT_QVR_EMBED*: the edict * 4 + reversed * 2 + by its handle; vr_axestick.cpp calcStats).
 [[nodiscard]] inline int embedStatEnt(int stat)
 {
@@ -668,7 +681,11 @@ void reverseLearn(const qmodel_t* model, int slot);
 // angles the hand had before its Hand and Weapon Together turn (hands::State::wholeTurn), then turned rigidly by it (the
 // weapon's own offsets are Euler angles added to the hand's: turned by them, it would turn a little otherwise).
 inline glm::mat3 wholeTurn[2]{glm::mat3{1.f}, glm::mat3{1.f}};
-[[nodiscard]] glm::vec3 attachedTurn(const glm::vec3& rot, int slot, bool mirrored, const glm::vec3& handAt0, int holder = -1);
+// `flip`: the weapon held that much reversed (gripFlip): a hand on it (a helping hand on its hotspot) turned with it, round its
+// upright pose's `handAt0` (the flip grip: the same hotspot's hold, the half turn worked out). 0 for the holding hand itself (it
+// stays on its controller: only its weapon turns).
+[[nodiscard]] glm::vec3 attachedTurn(const glm::vec3& rot, int slot, bool mirrored, const glm::vec3& handAt0, int holder = -1,
+    float flip = 0.f);
 [[nodiscard]] glm::mat4 animationMotion(const view::ViewEntity& ve, const glm::vec3& at);
 // What the hand on the hotspot `spot` of that weapon follows: animationMotion's, the identity for a still grip (frame 0 assumed).
 [[nodiscard]] glm::mat4 gripMotion(const view::ViewEntity& ve, const weapons::Hotspot& spot, const glm::vec3& at);

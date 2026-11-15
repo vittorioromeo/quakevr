@@ -662,6 +662,18 @@ void reverseLearn(const qmodel_t* model, int slot)
         g.axis.x, g.axis.y, g.axis.z, g.pivot.x, g.pivot.y, g.pivot.z, glm::dot(butt - g.pivot, g.axis), glm::dot(muzzle - g.pivot, g.axis));
 }
 
+bool handleLine(int slot, glm::vec3& axis, glm::vec3& pivot)
+{
+    const ReverseGeometry* g = reverseGeometryOf(slot);
+    if(!g)
+    {
+        return false;
+    }
+    axis = g->axis;
+    pivot = g->pivot;
+    return true;
+}
+
 [[nodiscard]] glm::mat3 reverseTurn(int slot, bool mirrored, float flip)
 {
     if(flip <= 0.f || slot < 0)
@@ -761,6 +773,29 @@ void gripFlipStep(int hand, const qmodel_t* model, int slot)
     return hand >= 0 && hand <= 1 && gripFlips[hand].model ? gripFlips[hand].flip : 0.f;
 }
 
+[[nodiscard]] float drawnFlip(int hand)
+{
+    return hand >= 0 && hand <= 1 && !weaponCarried[hand] ? gripFlip(hand) : 0.f;
+}
+
+[[nodiscard]] glm::vec3 uprightTurnOf(const glm::vec3& rot, int slot, bool mirrored, float flip)
+{
+    return flip > 0.f ? basisAngles(anglesBasis(rot) * reverseTurn(slot, mirrored, flip)) : rot;
+}
+
+bool reversedHandPoint(const qmodel_t* model, int slot, bool mirrored, const glm::vec3& origin, const glm::vec3& upright, glm::vec3& point)
+{
+    if(!model || !reverseGripAllowed(slot))
+    {
+        return false;
+    }
+    reverseLearn(model, slot);
+    // The hand holding it reversed: R1 Rev = R0 (its upright hand's turn), its point the weapon's origin less the reverse grip's move.
+    const glm::vec3 r1 = basisAngles(anglesBasis(upright) * glm::transpose(reverseTurn(slot, mirrored, 1.f)));
+    point = origin - reverseShift(slot, mirrored, 1.f, r1);
+    return true;
+}
+
 // weaponTurn undone: the holding hand's angles for a weapon turned `wt` (as the hands' angles: its entity's, the pitch negated). The
 // one way a hand is put on a weapon's handle from the weapon's pose: a floating pose's (holdFloating), a blade left in a body or a
 // crate (embedHandleHand: it took the offsets off the blade's Euler angles, which only agrees with weaponTurn for a blade lying
@@ -786,9 +821,10 @@ namespace
 }
 } // namespace
 
-[[nodiscard]] glm::vec3 attachedTurn(const glm::vec3& rot, int slot, bool mirrored, const glm::vec3& handAt0, int holder)
+[[nodiscard]] glm::vec3 attachedTurn(const glm::vec3& rot, int slot, bool mirrored, const glm::vec3& handAt0, int holder, float flip)
 {
-    const glm::mat3 w = anglesBasis(holder >= 0 ? heldWeaponTurn(rot, holder, slot, mirrored) : weaponTurn(rot, slot, mirrored));
+    const glm::mat3 w =
+        anglesBasis(holder >= 0 ? heldWeaponTurn(rot, holder, slot, mirrored, flip) : weaponTurn(rot, slot, mirrored, flip));
     const glm::mat3 w0 = anglesBasis(weaponTurn(glm::vec3{0.f}, slot, mirrored));
     return basisAngles(w * glm::transpose(w0) * anglesBasis(handAt0));
 }
@@ -1138,14 +1174,19 @@ void placeHotspots(const WeaponFrame& wf, const glm::mat4& hsFrame, float ssgOpe
     view::ViewEntity& ve = wf.ve;
     const int slot = wf.slot;
     const twohand::HeldAs& held = wf.held;
-    // (Held reversed, blade down: no grip for the other hand on it, the two-handed hold's aim is the normal grip's.)
-    const bool reversed = !wf.carried && gripFlip(hand) > 0.f;
+    // Held reversed, blade down (the flip grip, his note 2026-11-14: "I want to be able to still hold it two-handed even if the dagger
+    // is flipped"): the same hotspots, on the weapon as drawn (hsFrame: turned with it), the hand on one turned with it too
+    // (helpingTurn), plus the reversed hold's Held Hand tweak (Key::RevHelp*: drawn only).
+    const float flip = wf.carried || !model || slot < 0 ? 0.f : gripFlip(hand);
+    const glm::vec3 revPos = flip > 0.f ? weapons::vec(slot, Key::RevHelpX, Key::RevHelpY, Key::RevHelpZ) * flip : glm::vec3{0.f};
+    const glm::vec3 revAngles =
+        flip > 0.f ? weapons::vec(slot, Key::RevHelpPitch, Key::RevHelpYaw, Key::RevHelpRoll) * flip : glm::vec3{0.f};
     for(int i = 0; i < weapons::maxHotspots; i++)
     {
-        const weapons::Hotspot h = model && slot >= 0 && !reversed ? weapons::hotspot(slot, i) : weapons::Hotspot{};
+        const weapons::Hotspot h = model && slot >= 0 ? weapons::hotspot(slot, i) : weapons::Hotspot{};
         WorldHotspot& w = worldHotspots[hand][i];
-        w = WorldHotspot{h.type, glm::vec3{0.f}, glm::vec3{0.f}, h.bias, 0.f, h.angles, h.style, h.overlap, h.visualPos,
-            h.visualAngles, h};
+        w = WorldHotspot{h.type, glm::vec3{0.f}, glm::vec3{0.f}, h.bias, 0.f, h.angles, h.style, h.overlap, h.visualPos + revPos,
+            h.visualAngles + revAngles, h};
         if(weapons::isGripType(h.type))
         {
             w.pos = w.end = glm::vec3{hsFrame * glm::vec4{h.pos, 1.f}};
@@ -1263,7 +1304,10 @@ void placeCarried(const WeaponFrame& wf)
     if(carried && model && slot >= 0)
     {
         // Where the hand that takes it back closes: its handle.
-        twohand::setCarriedHandle(hand, glm::vec3{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]});
+        // (A sword or dagger: its reversed hand point too, taken back either way: the flip grip.)
+        glm::vec3 reversed;
+        const bool flips = view::carriedReversedHandPoint(hand, reversed);
+        twohand::setCarriedHandle(hand, glm::vec3{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]}, flips ? &reversed : nullptr);
         // Its tip, as drawn (view::carriedWeaponPose: the melee's line).
         carriedTip[hand] = view::anchorPosition(ve, weapons::anchor(slot, Key::MuzzleAnchor),
             weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
@@ -1463,6 +1507,14 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
             drawnAs[hand] = held;
             embedEaseWeapon(hand, prePos, preTurn, held.pos, anglesBasis(wt));
         }
+    }
+
+    // Held reversed: what follows the weapon as drawn (the hand-off's carry by the other hand, a hand holding it anywhere) has the
+    // angles of a hand holding it upright as it is drawn (rot Rev: uprightTurnOf), so a blade the other hand takes keeps its way (the
+    // flip grip; it was drawn upright again as the other hand carried it, the reverse grip being this hand's).
+    if(flip > 0.f)
+    {
+        drawnAs[hand].rot = uprightTurnOf(drawnAs[hand].rot, slot, mirrored, flip);
     }
 
     // A spent enemy rifle crackling in the hand shakes (vr_shock.cpp gunShake; vr_enemygun_spent_shake): a small jitter

@@ -30,6 +30,11 @@ void apply(hands::State& s);
 
 // Whether the weapon `hand` holds may not be held in two hands (its Two-Handed: Not Allowed).
 [[nodiscard]] bool forbidden(int hand);
+// Whether the weapon `hand` holds is held in two hands as a sword (Two-Handed: Sword: the other hand below, or on the blade).
+[[nodiscard]] bool swordHeld(int hand);
+// Whether the empty `hand` is on the other hand's weapon where gripping holds it anywhere (vr_weapon_grab_anywhere; the
+// view's candidate this frame: setFreeCandidate).
+[[nodiscard]] bool onOtherWeapon(int hand);
 
 // Whether the weapon in `holding` may be flick-reloaded (vr_flick.cpp): held in that hand alone, or the other hand holds
 // it by a cup only (not its barrel, a foregrip or anywhere on it), and not carried off its handle.
@@ -94,7 +99,9 @@ struct HeldAs
 // it is carried at.)
 void recordHelp(const hands::State& s, int hand, const glm::vec3& drawnPos, const glm::vec3& drawnRot,
     const glm::vec3& holderPos, const glm::vec3& holderRot, bool holderMirrored);
-void setCarriedHandle(int hand, const glm::vec3& pos);
+// `reversed`: a sword or dagger's other handle point, a hand holding it reversed (the flip grip: view::carriedReversedHandPoint):
+// taken back there too.
+void setCarriedHandle(int hand, const glm::vec3& pos, const glm::vec3* reversed = nullptr);
 
 // After the hotspots: the empty hand at the handle of the gun the other hand carries is at
 // HS_CARRIED_GRIP (grabbing there takes the gun back); one on the other gun's magazine (hands::State::onMagazine) at

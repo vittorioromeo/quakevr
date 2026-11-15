@@ -68,6 +68,19 @@ float(entity e) VR_Limb_Allowed =
     return ragdolllimbs(e, 0) != 0;
 };
 
+// Whether hits wear `e`'s pieces (a ragdolled corpse: VR_Limb_CorpseWear, VR_Limb_WearPellet): VR_Limb_Allowed, or
+// every limb already off and its head still on (ragdolllimbs 0 counts no head: its head never wore off, every blow
+// went to the whole body; limb_wear's test 45, 2026-11-14).
+float(entity e) VR_Limb_WearAllowed =
+{
+    if(VR_Limb_Allowed(e))
+    {
+        return TRUE;
+    }
+    return cvar_hget(cvarh_vr_limbs) && !e.vr_gib && (e.flags & FL_MONSTER) && isragdoll(e) && !e.vr_headless &&
+           (ragdolllimbs(e, 2) != 0) && (ragdolllimbs(e, 3) >= 0);
+};
+
 // The limb a hit at `xAt` on `e` strikes: its joint; -1 none (the torso, the head: Decapitation's, no rig).
 float(entity e, vector xAt) VR_Limb_At =
 {
@@ -551,7 +564,7 @@ float(entity targ, vector xAt) VR_Limb_WearPiece =
 // A hitscan blast's pellet at `e` at `xAt` (VR_Decap_Pellet): counted on the piece it strikes, if `e` is a corpse.
 void(entity e, vector xAt) VR_Limb_WearPellet =
 {
-    if(!vr_sgib_blast || e.health > 0 || !isragdoll(e) || !VR_Limb_Allowed(e))
+    if(!vr_sgib_blast || e.health > 0 || !isragdoll(e) || !VR_Limb_WearAllowed(e))
     {
         return;
     }
@@ -615,7 +628,7 @@ float(entity targ, entity attacker, float xPiece, float xDamage, vector xVel, fl
 // its pop roll): its head's and limbs' shares worn into them. The damage left for the whole body returned.
 float(entity targ, entity inflictor, entity attacker, float damage, float kind) VR_Limb_CorpseWear =
 {
-    if(!VR_Limb_Allowed(targ) || !cvar_hget(cvarh_vr_limbs_corpses) || !isragdoll(targ) || damage <= 0 ||
+    if(!VR_Limb_WearAllowed(targ) || !cvar_hget(cvarh_vr_limbs_corpses) || !isragdoll(targ) || damage <= 0 ||
        kind == QVR_CDMG_EXPLOSIONS || kind == QVR_CDMG_FIRE || hit_kind == QVR_HITKIND_SPLASH ||
        hit_kind == QVR_HITKIND_BLEED)
     {

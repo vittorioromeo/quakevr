@@ -51,6 +51,7 @@
 #include "vr_main.hpp"
 #include "vr_protocol.hpp"
 #include "vr_units.hpp"
+#include "vr_view.hpp"
 #include "vr_weapons.hpp"
 #include "vr_geom.hpp"
 #include "vr_weapon_ids.h"
@@ -151,6 +152,7 @@ bool carryPoseValid[2]{false, false};
 HelpRecord carryPose[2];
 bool handleValid[2]{false, false};
 glm::vec3 handle[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+glm::vec3 handleReversed[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // (the flip grip: a hand taking it back reversed; `handle` when none)
 
 // Per empty hand: the weapon lying about it is near a hotspot of (vr_weapon_grab_hotspots), and how it would carry it by
 // that hotspot (a help record, as if the other hand had held it and let go).
@@ -297,8 +299,9 @@ void reportLetGo(int holding, const char* why, float value, float limit, float s
         d.y = -d.y;
     }
 
-    // (The weapon's angle offsets composed with the hand's turn, as view::weaponTurn: rigid with the hand when rolled.)
-    const glm::mat3 b = hands::basisOf(rot) * hands::basisOf(glm::vec3{-o.x, o.y, o.z});
+    // (The weapon's angle offsets composed with the hand's turn, as view::weaponTurn: rigid with the hand when rolled. Held reversed,
+    // the reverse grip's turn between them: the blade line the hands hold it by is the drawn blade's, the flip grip's.)
+    const glm::mat3 b = hands::basisOf(rot) * view::heldReverseTurn(slot, hand) * hands::basisOf(glm::vec3{-o.x, o.y, o.z});
     const glm::vec3 wt = hands::anglesFromVectors(glm::normalize(b[0]), glm::normalize(b[2]));
     float m[16];
     vec3_t origin{0.f, 0.f, 0.f};
@@ -865,6 +868,7 @@ void aimCup(hands::State& s, int holding, int slot, float t, const glm::vec3& ho
 
 // The other hand on a weapon `holding` carries off its handle (defined after carriedPose).
 void applyCarried(hands::State& s, int holding, int helping);
+void applyFixed(hands::State& s, const glm::vec3 (&originalRots)[2], int holding, int helping, int mode, int slot, bool holdingWeapon);
 
 void applyHotspots(hands::State& s, const glm::vec3 (&originalRots)[2], int holding, int helping, int mode)
 {
@@ -873,9 +877,31 @@ void applyHotspots(hands::State& s, const glm::vec3 (&originalRots)[2], int hold
 
     if(holdingWeapon && static_cast<int>(weapons::value(slot, Key::TwoHMode)) == WPN_2H_SWORD)
     {
-        applySword(s, originalRots, holding, helping, slot);
+        applySword(s, originalRots, holding, helping, slot); // (held reversed: its blade line turned with it, bladeDirection)
         return;
     }
+    // Held reversed (the flip grip, his note 2026-11-14: "I want to be able to still hold it two-handed even if the dagger is
+    // flipped"): the hold worked out for the hand that would hold it upright as it is drawn (rot Rev: its grip hotspot where the
+    // upright hold has it, the same aim and the same reach), then turned back into the holding hand's (Rev undone).
+    const glm::mat3 rev = holdingWeapon ? view::heldReverseTurn(slot, holding) : glm::mat3{1.f};
+    if(rev == glm::mat3{1.f})
+    {
+        applyFixed(s, originalRots, holding, helping, mode, slot, holdingWeapon);
+        return;
+    }
+    const auto turned = [](const glm::vec3& rot, const glm::mat3& by) {
+        const glm::mat3 b = hands::basisOf(rot) * by;
+        return hands::anglesFromVectors(glm::normalize(b[0]), glm::normalize(b[2]));
+    };
+    glm::vec3 rots[2] = {originalRots[0], originalRots[1]};
+    rots[holding] = turned(rots[holding], rev);
+    s.rot[holding] = turned(s.rot[holding], rev);
+    applyFixed(s, rots, holding, helping, mode, slot, holdingWeapon);
+    s.rot[holding] = turned(s.rot[holding], glm::transpose(rev));
+}
+
+void applyFixed(hands::State& s, const glm::vec3 (&originalRots)[2], int holding, int helping, int mode, int slot, bool holdingWeapon)
+{
 
     // Not a sword: no blade grip (bladeGrip would draw the helping hand along the whole weapon).
     grip[holding] = GRIP_FOREGRIP;
@@ -1227,6 +1253,17 @@ bool forbidden(int hand)
     return twoHandsForbidden(weapons::heldSlot(hand));
 }
 
+bool swordHeld(int hand)
+{
+    const int slot = weapons::heldSlot(hand);
+    return slot >= 0 && weaponId(hand) != widFist && static_cast<int>(weapons::value(slot, Key::TwoHMode)) == WPN_2H_SWORD;
+}
+
+bool onOtherWeapon(int hand)
+{
+    return vr_weapon_grab_anywhere.value != 0.f && hand >= 0 && hand < 2 && freeCandidate[hand];
+}
+
 bool flickAllowed(int holding)
 {
     // One-handed always; with the other hand on it, only by a cup (a two-handed pistol grip, round the holding hand's
@@ -1571,10 +1608,11 @@ float support(int hand)
     return za::max(aimTransition[hand], freeGrips[hand].t);
 }
 
-void setCarriedHandle(int hand, const glm::vec3& pos)
+void setCarriedHandle(int hand, const glm::vec3& pos, const glm::vec3* reversed)
 {
     handleValid[hand] = true;
     handle[hand] = pos;
+    handleReversed[hand] = reversed ? *reversed : pos;
 }
 
 void recordGroundSpot(int hand, int entity, int index, const glm::vec3& trackedPos, const glm::vec3& trackedRot,
@@ -1623,7 +1661,7 @@ void updateHotspots(hands::State& s)
     {
         const int other = 1 - hand;
         if(held::handEmpty(hand) && carrying(other) && handleValid[other] &&
-            glm::distance(s.pos[hand], handle[other]) < carriedGripRadius)
+            za::min(glm::distance(s.pos[hand], handle[other]), glm::distance(s.pos[hand], handleReversed[other])) < carriedGripRadius)
         {
             s.hotspot[hand] = body::HS_CARRIED_GRIP;
         }

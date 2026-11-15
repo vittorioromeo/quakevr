@@ -2893,3 +2893,116 @@ degrees off, tumbling 1-5 rad/s) point first (within vr_embed_sword_angle, 35) 1
 
 Open: his feel of the strength in VR (Point-First Settling and its window are the knobs); a gib torn off by the main hand's
 own throw is unchanged.
+
+## flipgrip: the blade's grip flip seamless everywhere (agent/flipgrip, 2026-11-15)
+
+His notes (VR, 2026-11-14/15): flipped (reversed) dagger loses its two-handed hotspot; the re-grab from the other hand keeps the
+old grip; a reversed dagger dropped or thrown leaves the hand flipped; taken off a table reversed it was mostly a prop; grabbed
+in a body the other way round the drawn hand on the handle was twisted.
+
+**One root.** The reverse grip lived only as the holding hand's turn (`reverseTurn` between the hand and the weapon, the flag a
+hand state): everything that takes the weapon's pose from the hand (the prop's angles on a drop or throw: the hand's; the other
+hand's carry: drawn upright from the holder's pose; the 2H aim and blade line; the helping hand on a hotspot; the "at its handle"
+of a grab: the origin, where only the upright hand stands) lost it or applied the upright grip. Now the blade's own pose goes
+through every transition, and every grab chooses by the blade's way:
+- **Out of the hand** (notes 3, 5): `view::leavingTurn` (QC `weapondrawnpose` 49 angles, 50 the origin's move;
+  `DropWeaponInHandScaled`): a reversed weapon leaves at `rot Rev` (`uprightTurnOf`) and the reverse grip's shift: the prop lies
+  and flies as it was drawn (blade cos 0.999 to the held line). The hand-off: `drawnAs[hand].rot` is the upright-equivalent turn
+  while reversed, so the other hand's carry (and a hand holding it anywhere) keeps the blade's way (cos 1.00).
+- **Into the hand** (notes 2, 4): `VR_RevGrip_TakeCarried` (QC; `weapondrawnpose` 47, `view::carriedGripChoice`) chooses as the
+  hand takes the carried weapon back (`VRTakeCarriedWeapon`); the choice uses the hand's own turn (`rot`, not the drawn one: an
+  empty hand on the carried weapon is drawn on it). The reversed hand point (`reversedHandPoint`: the hand holding it reversed,
+  the weapon's origin less the reverse shift; QC `weapondrawnpose` 48 for tests) counts as its handle in the server's grab
+  (`vr_physics.cpp weaponHandleDistance`: the handle leniency, not "anywhere"), the view's ground spots and the carried
+  weapon's take-back (`setCarriedHandle`'s reversed point, HS_CARRIED_GRIP; the free-grip candidate). The dagger's reversed
+  hand point is 4.3 units off its origin, inside `vr_weapon_grab_anywhere_min` only just: a hand a little further was a prop.
+  Force grab: `vr_revgrip_forcegrab` 0 (his note 1, upright; test 42 case 3 unchanged), 1 by the blade (Debug > Tunables >
+  Weapons > Reverse Grip > Force Grab Catch).
+- **Two-handed while reversed** (note 1; choice: the automatic one): the hotspots stay (`placeHotspots`, on the drawn frame:
+  turned with the blade); the helping hand turned with the weapon (`attachedTurn`'s `flip`, `helpingTurn`, the held hotspot's
+  offset); a fixed (gun-style) 2H hold worked out for the upright-equivalent hand and turned back (`applyHotspots` ->
+  `applyFixed` in that frame); the sword-style hold's blade line flips (`bladeDirection` with `view::heldReverseTurn`). Optional
+  tweak only while reversed: Weapon Offsets > Hand > Reversed 2H Hand X/Y/Z, Pitch/Yaw/Roll (`rev_2h_vx`.. `rev_2h_vroll`, 0:
+  added to the held hotspot's Held Hand offset).
+- **The embedded handle** (note 6): the grip was right, but the hand's roll about the handle was the blade's as it went in,
+  up to half a turn from the real hand's (palm up/down): `embedHandleRoll` draws the hand half round the handle's line when
+  that is nearer its controller (swords and the dagger: two edges alike), chosen once per hold. Probe `vr_embed_probe_hctl`
+  (degrees, the hand on a handle against its controller).
+- **Decision:** his dagger 2H hotspot promoted to the defaults (weapons.txt slot 51: `2h_mode` 1, `hs1` his place and turn;
+  was one-handed, no hotspots): he holds it two-handed and asked for it to keep working flipped.
+
+Test `vr_embed_test 44` (QC/vr_flipgrip_test.qc, `flipgrip: 21 passed, 0 failed`): the hotspot upright and reversed (moved with
+the blade), 2H held both ways (reversed: blade still down, cos -0.96); handed off upright (carried, cos 1.00), taken back by the
+hand turned for the other grip: reversed, blade where it was (cos 0.96); reversed and let go of: the prop's line cos 0.999; off a
+table reversed (4.3 units from the origin) and upright: by the handle, the right grip; stuck upright, taken reversed: held in the
+body, reversed, the drawn hand 17-55 degrees from the mock hand (under 95: the mock's roll is free; never twisted past a quarter
+turn; case 6: the grunt held still and unharmed after the stick, the blade checked still stuck, the take tried at three points; when the mock hand is kept out of the grunt's body short of the handle (about 1 run in 5, 6-10 units) the case reports SKIP, not FAIL: never a fall-out, the sword stays stuck; 5 runs in a row clean). Unchanged: revgrip (42) 24/0, embedgrip (33) 15/0, propblade (34) 14/0, embeddagger (40) 24/0, palmgrab (pickup 17) 5/0.
+To check in VR: the reversed 2H hand's look (the tweak rows), the drop/throw in reverse, the table pickup both ways, the
+embedded handle grabbed palm up and down.
+## torchgrab: the torso's torch taken whatever the other hand holds (agent/torchgrab, 2026-11-15)
+
+His notes (start_2026-11-14_23-38-09, _23-38-55, vrtesthall_2026-11-15_00-09-43, _00-10-19, _00-11-08): with the torch
+on the torso and the dagger in the right hand, the left hand could not take the torch at all (fine once he gave the
+dagger a two-handed hotspot); with the super shotgun held one-handed, sometimes not even 30 cm from the gun.
+
+Two rules in `gameGripWins` (vr_flashlight.cpp: whether the game's grip wins over the torch for a hand at it):
+- **The two-handed hotspot alone won.** `body::hotspot` says HS_OFFHAND_2H_GRAB whenever the hands are 5-25 units
+  apart, whatever the other hand holds. For a weapon with no fitted grip (`!s.grip2HValid`) the game's grip won there,
+  even for one that may never be held in two hands: the dagger (slot 52, Two-Handed: Not Allowed) won anywhere 5-25
+  units from the right hand, which is where the chest torch is.
+- **The weapon's line ran from 30 cm behind the hand** (`otherWeaponNear`, for a sword's pommel): any gun held
+  one-handed at the chest or low at the belt, pointing away from the torch, covered it (within 12 cm of that line).
+  Not the holsters or the clip-on zone (the "cap"): those were already nearest-wins.
+
+Now `otherWeaponNear` asks the game's own rules (vr_twohand.cpp), and the nearest wins: the fist on the weapon's surface
+where gripping holds it anywhere (`twohand::onOtherWeapon`, the view's free-grip candidate); its fitted grip
+(`s.grip2H`, within 8 units less its bias, and nearer than the torch's axis); a weapon with no fitted grip, or a sword
+(`twohand::swordHeld`: its blade), within 12 cm of its line from the hand to the muzzle or tip and nearer than the
+torch's axis. A weapon the other hand may not hold (`twohand::forbidden`) wins by its surface only. The 2H hotspot case
+itself never wins any more.
+
+His dagger tuning promoted (weapons.txt slot 52, `weapons_data.py promote`): `2h_mode` 2 -> 1 and its hs1 grip
+(type 1, x -1.785095, y -2.161255, z -11.23747, pitch -6.90695, yaw 8.52477, roll -3.05592). Not promoted (not
+asked): his `bl_from/near/org_x/org_y/org_z/spine/width_52` and `muzzle_x/y/z_52`, none of them defaults yet.
+
+Test aid: `vr_test_give_flags` (impulse 149's weapon flags; 3072 with id 13 gives the dagger). The probe prints
+`helping` per hand and the main weapon's grip and muzzle. Test: `flash_grab_test.py <agent> otherweapon` (verdict line
+`otherweapon: N passed, M failed`): the dagger without its grip (the old defaults) and with it, the super shotgun
+one-handed at the chest, the shotgun low at the belt; the off hand at the torch takes it, at the weapon's grip (or 60%
+along it) holds the weapon, the torch left on. Before 4/3 (the dagger, the chest and the belt cases at the torch);
+after 7/0. `mounted:9-10` (the two gun torso turns) 312 lit, 312 taken. Scenario `torch_otherweapon`.
+
+
+## base1115b: v1.1 full baseline on next, regressions triaged (agent/base1115, 2026-11-15)
+
+- **Baseline** (origin/next efdd5f0fb merged in, with this branch's earlier fixes, 4 lanes, 139 min): kit
+  `scratch/refactor/runs/20261114-base1115b` (results.tsv, logs/, `.cmp1/.cmp2.txt`): 290 PASS, 15 FAIL, 1 TIMEOUT
+  (11-14 run: 289/15/1; 11-13: 286/18/1). Fixed since 11-14: secret_hits, ragdoll_guard, limb_wear (this branch's
+  earlier commits). The previous worker's alone-rerun (`scratch/bx_rerun3`) gave no usable rows (every one 0 s FAIL,
+  games exiting 0xC0000142 while the tree was being merged and rebuilt under it).
+- **New not-PASS vs 11-14**, each re-run alone twice: agrunt_24, agrunt_206 (deterministic, fixed here), ragdoll_climb
+  (1 of 2: the backlog's known variance), arena_6 6/2 vs 7/1 ("the map grows no faster than a wave clear's drops": it
+  failed on 11-13 too). agrunt_48 and agrunt_74 (new on 11-14) still fail, deterministic, bisected on next.
+- **agrunt 206** (a knight takes a gun with vr_agknight_ranged_pickup 1): 220fc2240's cached row kept
+  vr_am_takes_ranged from its fill, so a change of vr_agknight_ranged_pickup / Ranged Knights in play went unseen
+  until another kind's row came in. The knights' rows now say VR_AM_TAKES_KNIGHTS and VR_AM_Takes reads both settings
+  at each use. 14/1 -> 15/0.
+- **agrunt 24** (a forced parry disarms): 8cbc17f9f's timing share used the stale vr_drp_ag_timing (0 before any
+  directional parry) for a test's forced parry, so every forced parry's stagger, push and disarm went to nothing
+  ("timing x0.00"). A forced parry (vr_parry_test_force) gets no timing cut. 1/1 -> 2/0; agrunt 78 (the timing test)
+  48/0, parryinterrupt and parry_pose still pass. (parrybalance/test.py, not in the baseline, fails its `pose` case:
+  the real-pose "raised just before" parry is not read as well timed; forced cases pass; not looked into.)
+- **Open: agrunt 48** (an axe grunt facing you holding an axe closes in): first bad 35feef651, the agent/navtrail
+  merge (613a3861c, vr_nav_trail). It stays 210-258 away, 0 s inside 64; with `vr_nav_trail 0` 18/0. Looks like
+  the trail walk taking over while it can see you: an AI fix, not test drift.
+- **Open: agrunt 74** (downtug 16/21): first bad 749e048b3, the agent/promstir merge (948d2c328: his
+  vr_knockdown_stir_rate 12). Setting vr_knockdown_stir 0 in the test (as c951e75c7 did for the stagger test)
+  did not bring it back, so that change was dropped; needs a look at what the stir rate does to a downed grunt's tug.
+## mrlvents: the multi-rocket launcher's vents are real recesses too (agent/mrlvents, 2026-11-15)
+
+- **What:** the rocket launcher's alt model `v_multi2.mdl` (`v_multi2.blend`) had the same painted vents with no holes. Same cut as rlvents,
+  scripted (`scratch/mv_vents.py`, not committed): each fin's rear end face is rebuilt as a rim around an opening traced from the dark
+  texels of its own skin (inset 0.28 units, 8 vertices at most, rim UVs the affine map of the old face's), a recess 2.0 deep on top and
+  1.5 on the sides along +x (the fins are straight), walls and back on a dark vent texel; new vertices follow the face in every shot frame.
+  Exported with `blend_export.py`: 935 -> 1027 triangles, anchors ok, holes check 0 see-through, 0 flipped; normal map re-baked,
+  `fx_gfx_mask` rewritten. Scene `mrl_vents`; load_models_test 4/4. Blender before/after: kit `scratch/mrlvents_shots/`.
