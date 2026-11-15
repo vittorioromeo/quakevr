@@ -2496,3 +2496,6 @@ QVR_TUNABLE(vr_revgrip, "1") // 1: a sword or dagger (Weapon Offsets' Reverse Gr
 QVR_TUNABLE(vr_revgrip_flip_time, "0.18") // ... s: the eject button's flip of the grip turns the blade half round over this long (vr_view_weapon.cpp gripFlip; 0: at once)
 QVR_TUNABLE(vr_revgrip_forcegrab, "0") // ... 0: a force grab's catch takes a sword or dagger upright (his note 2026-11-13); 1: as any grab, by its blade's way in the hand (the flip grip, ROUND25.md "flipgrip")
 QVR_TUNABLE(vr_revgrip_volume, "0.7") // ... the flip's sound's volume (0..1: the hand closing on a handle, vr/phys/grab_metal*.wav; 0 silent)
+QVR_TUNABLE(vr_revgrip_pivot, "1") // ... 1: the blade turns half round about the fist's own middle on its handle (abreast of the drawn hand's palm; ROUND25.md "flipgrip2"); 0: about the handle's middle (before)
+QVR_TUNABLE(vr_revgrip_pivot_shift, "0.35") // ... units: that pivot this far from the palm's middle along the handle towards the blade (the fist's middle: the drawn hand's, the same for every weapon; his dagger's Reversed Z 1.1, 2026-11-15)
+QVR_TUNABLE(vr_revgrip_2h_mirror, "1") // ... held reversed, the other hand on its grip hotspot: 1 holds it as it did upright, turned as the holding hand (knuckles out), its place mirrored along the handle (above the hand, blade down; ROUND25.md "flipgrip2"); 0: turned half round with the blade (before)
