@@ -1977,6 +1977,13 @@ FL_SWIM; only its fall (SV_Physics_Step: gravity, SV_FlyMove with SV_Impact's to
 shareable piece would be flyMove behind a Body adapter built for every falling monster every frame: more code on a hot
 path for no behaviour gain, with its own touch and contents differences to prove identical. Kept as it is.
 
+Tests (the default 0): `mp_test.py suite` 27 of 29 with the fix (mp_climb 10/1: A's mantle, its known suite flake, then
+11/0 alone; mp_predictclimb 26/2: a mantle's states and the grapple's 1.157-unit correction, then 26/2 (the grapple
+1.157) and 28/0 alone: dry-land timing flakes, no water involved and the remote moves' arithmetic unchanged (a float
+time widened to double rounds the same)); the run before the fix 27 of 29 (mp_ground's known sword retake, mp_predict's
+water jump out: fixed, then 28/0 twice); scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0, Release
+(ThinLTO) build 0 warnings.
+
 ## For him (B11b)
 
 `vr_pmove_own` stays 0 (Debug > Network, "Movement: Own Walk Through Moves"). If it were 1, single player would walk
