@@ -9,6 +9,7 @@
 #include "vr_agarmor.hpp"
 #include "vr_arenaxray.hpp"
 #include "vr_box3d.hpp"
+#include "vr_heldpose.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_limbmodel.hpp"
 #include "vr_hull.hpp"
@@ -1628,6 +1629,13 @@ void writeAvatars()
 }
 
 } // namespace
+
+extern "C" void VR_ServerFrameBegin()
+{
+    // This game's own player's drawn weapon poses, ground spots and holster presses into his slot, as a remote player's
+    // messages put his: the server's readers ask the slot alone (MP_PLAN B11a).
+    qvr::heldpose::publishOwn();
+}
 
 extern "C" void VR_ServerFrameEnd()
 {

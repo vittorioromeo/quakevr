@@ -641,24 +641,10 @@ namespace
     const int modelOfs = f.weaponmodel2;
     const char* name = h ? PR_GetString(player->v.weaponmodel)
                          : (modelOfs >= 0 ? PR_GetString(fieldInt(player, modelOfs)) : "");
-    if(i == 1 && cls.state == ca_connected) // the local player: the weapon as drawn
-    {
-        const view::DrawnWeapon& d = view::drawnWeapon(h);
-        if(!d.model || vr_gametime - d.when > 0.5 || strcmp(d.model->name, name) != 0)
-        {
-            return key; // (not drawn yet)
-        }
-        key.what = Key::Weapon;
-        key.model = d.model;
-        key.mirrored = d.mirrored;
-        key.mag = vr_reload_mag_collide.value ? d.mag : nullptr;
-        key.generation = shapeGeneration;
-        inHand = d.inHand;
-        return key;
-    }
-    // Another player's: the weapon as his client drew it in his hand (vr_heldpose.hpp; MP_PLAN.md B3e), its model the
-    // server's of the same name.
-    if(const heldpose::Hand* r = heldpose::remote(player, h); r && r->drawn && name && *name && r->slot == weapons::slotForName(name))
+    // The weapon as the player's view drew it in his hand (his slot's: this game's own player's view this frame, another's
+    // as his client drew it; vr_heldpose.hpp, MP_PLAN.md B3e and B11a), its model the server's of the same name.
+    const heldpose::Hand* r = heldpose::slotHand(player, h);
+    if(r && r->drawn && name && *name && r->slot == weapons::slotForName(name))
     {
         const qmodel_t* model = nullptr;
         for(int m = 1; m < MAX_MODELS && sv.model_precache[m]; m++)
@@ -680,6 +666,10 @@ namespace
             inHand = r->inHand;
             return key;
         }
+    }
+    if(r && r->placed)
+    {
+        return key; // (a view drawing it this frame has not drawn it yet: none; a remote player's pose not come: a capsule)
     }
     const int muzzleOfs = progs::handFields(h).muzzle;
     const glm::vec3 muzzle = muzzleOfs >= 0 ? fieldVec(player, muzzleOfs) : point;

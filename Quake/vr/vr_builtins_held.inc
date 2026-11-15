@@ -38,19 +38,24 @@ void PF_animevent()
 // draws them this frame. vector(entity player, float hand, float index) weaponhotspot: hotspot `index` (0..3) of the
 // weapon in `hand` (cVR_MainHand, cVR_OffHand): a grip's point, a blade grip's middle, in the world ('0 0 0' if none);
 // float(entity player, float hand, float index, float what) weaponhotspotinfo: its type (what 0: 0 none, 1 grip,
-// 2 blade), bias in units (1), a blade's share of the way from the hand to the tip (2). The local player's (the
-// server's first client) as its view draws it; another player's as his client drew it, on his hand now (vr_heldpose.hpp).
+// 2 blade), bias in units (1), a blade's share of the way from the hand to the tip (2). From the player's slot
+// (vr_heldpose.hpp): this game's own player's where his view drew them this frame, another's as his client drew them,
+// on his hand now.
 [[nodiscard]] view::WeaponHotspot playerHotspot()
 {
     edict_t* player = G_EDICT(OFS_PARM0);
     const int hand = static_cast<int>(G_FLOAT(OFS_PARM1)) == 0 ? 0 : 1;
     const int index = static_cast<int>(G_FLOAT(OFS_PARM2));
-    if(sv.active && cls.state == ca_connected && NUM_FOR_EDICT(player) == 1)
+    const heldpose::Hand* r = heldpose::slotHand(player, hand);
+    if(!r || index < 0 || index >= heldpose::maxSpots)
     {
-        return view::weaponHotspot(hand, index);
+        return {};
     }
-    const heldpose::Hand* r = heldpose::remote(player, hand);
-    if(!r || index < 0 || index >= heldpose::maxSpots || r->spotType[index] == 0)
+    if(r->placed)
+    {
+        return {r->spotType[index], r->spotWorld[index], r->spotBias[index], r->spotShare[index]};
+    }
+    if(r->spotType[index] == 0)
     {
         return {};
     }
@@ -173,9 +178,8 @@ void PF_weaponanygrip()
 {
     edict_t* player = G_EDICT(OFS_PARM0);
     const int hand = static_cast<int>(G_FLOAT(OFS_PARM1)) == 0 ? 0 : 1;
-    const bool local = sv.active && cls.state == ca_connected && NUM_FOR_EDICT(player) == 1;
-    const heldpose::Hand* r = local ? nullptr : heldpose::remote(player, hand); // (another player's: B3e)
-    G_FLOAT(OFS_RETURN) = local ? static_cast<float>(twohand::helpKind(hand)) : r ? static_cast<float>(r->helpKind) : 0.f;
+    const heldpose::Hand* r = heldpose::slotHand(player, hand); // (every player's from his slot: B11a)
+    G_FLOAT(OFS_RETURN) = r ? static_cast<float>(r->helpKind) : 0.f;
 }
 
 // vector(entity player, float hand, float what) weapondrawnpose: the weapon `player`'s `hand` carries off its handle (the
@@ -316,37 +320,18 @@ void PF_weapondrawnpose()
     {
         // weapondrawnpose(player, hand, 44 / 45): this listen server's own `hand`'s weapon as drawn last, in the hand's frame
         // (tests: QC vr_revgrip_test.qc): 44 its forward axis, 45 its up axis; '0 0 0' none. (view::heldWeaponAxes)
-        glm::vec3 forward{0.f}, up{0.f};
-        float flip = 0.f;
-        bool drawn = false;
-        if(const heldpose::Hand* r = heldpose::remote(player, hand)) // (another player's, as his client drew it: B3e)
-        {
-            drawn = r->axesKnown;
-            forward = r->axesForward;
-            up = r->axesUp;
-        }
-        else
-        {
-            drawn = sv.active && cls.state == ca_connected && view::heldWeaponAxes(hand, forward, up, flip);
-        }
-        progs::returnVec(!drawn ? glm::vec3{0.f} : what == 44 ? forward : up);
+        const heldpose::Hand* r = heldpose::slotHand(player, hand); // (every player's from his slot: B11a)
+        progs::returnVec(!r || !r->axesKnown ? glm::vec3{0.f} : what == 44 ? r->axesForward : r->axesUp);
         return;
     }
     if(what == 46)
     {
         // weapondrawnpose(player, hand, 46): '<its share of the reverse grip as drawn (0..1: tests)> <1: the weapon held may be
         // held reversed (QC VR_RevGrip_HandFrame: its eject button flips it)> 0'.
-        glm::vec3 forward{0.f}, up{0.f};
-        float flip = 0.f;
-        if(const heldpose::Hand* r = heldpose::remote(player, hand)) // (another player's, as his client drew it: B3e)
-        {
-            progs::returnVec({r->flip, r->mayReverse ? 1.f : 0.f, r->flippable ? 1.f : 0.f});
-            return;
-        }
-        const bool local = sv.active && cls.state == ca_connected;
-        (void)(local && view::heldWeaponAxes(hand, forward, up, flip));
-        // (z: 1 in flat play too, the flat holster menu's FLIP GRIP button's: view::heldGripFlippable)
-        progs::returnVec({flip, local && view::heldMayReverse(hand) ? 1.f : 0.f, local && view::heldGripFlippable(hand) ? 1.f : 0.f});
+        // (z: 1 in flat play too, the flat holster menu's FLIP GRIP button's: view::heldGripFlippable; every player's from
+        // his slot: B11a)
+        const heldpose::Hand* r = heldpose::slotHand(player, hand);
+        progs::returnVec(r ? glm::vec3{r->flip, r->mayReverse ? 1.f : 0.f, r->flippable ? 1.f : 0.f} : glm::vec3{0.f});
         return;
     }
     if(what == 47)
@@ -571,17 +556,23 @@ void PF_weapondrawnpose()
         G_VECTOR(OFS_RETURN)[1] = G_VECTOR(OFS_RETURN)[2] = 0.f;
         return;
     }
-    const bool local = sv.active && cls.state == ca_connected && NUM_FOR_EDICT(player) == 1;
     glm::vec3 pos{0.f}, rot{0.f}, tip{0.f};
-    bool mirrored = false;
-    bool known = local && twohand::carrying(hand) && view::carriedWeaponPose(hand, pos, rot, mirrored, tip);
-    if(known && (what == 4 || what == 5))
+    bool known = false;
+    const heldpose::Hand* r = heldpose::slotHand(player, hand); // (every player's from his slot: B11a)
+    if(r && r->placed)
     {
-        known = view::carriedWeaponInHand(hand, pos, tip);
-        rot = what == 4 ? pos : tip;
+        // This game's own player's, where his view drew it this frame.
+        known = r->carriedKnown;
+        pos = r->carriedPos;
+        rot = r->carriedRot;
+        tip = r->carriedTipWorld;
+        if(known && (what == 4 || what == 5))
+        {
+            known = r->carrying;
+            rot = what == 4 ? r->carriedHandle : r->carriedTip;
+        }
     }
-    const heldpose::Hand* r = local ? nullptr : heldpose::remote(player, hand);
-    if(r && r->carrying)
+    else if(r && r->carrying)
     {
         // Another player's, as his client drew it (B3e): its handle and tip in his hand's frame (forward, right, up) on
         // the hand of the move the server runs, as QC places them (VR_Melee_FreeLine); its axes turned with the hand.

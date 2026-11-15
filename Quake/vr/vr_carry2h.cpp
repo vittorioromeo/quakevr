@@ -326,15 +326,11 @@ glm::vec3 serverPlace(edict_t* ent, edict_t* player, bool grab)
         glm::vec3 reach[2]{glm::vec3{0.f}, glm::vec3{0.f}};
         if(grab)
         {
-            const bool local = cls.state != ca_dedicated && NUM_FOR_EDICT(player) == 1;
             const int first = grip::serverHand(num);
             for(int h = 0; h < 2; h++)
             {
-                const heldpose::Hand* r = local ? nullptr : heldpose::remote(player, h);
-                const glm::vec3 out = h == first ? glm::vec3{0.f}
-                                      : local    ? view::heldOutOf(h, num)
-                                      : r && r->outOfEnt == num ? r->outOf
-                                                                : glm::vec3{0.f};
+                const heldpose::Hand* r = heldpose::slotHand(player, h); // (every player's from his slot: B11a)
+                const glm::vec3 out = h != first && r && r->outOfEnt == num ? r->outOf : glm::vec3{0.f};
                 if(out == glm::vec3{0.f})
                 {
                     continue;

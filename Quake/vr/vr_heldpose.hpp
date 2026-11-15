@@ -4,10 +4,12 @@
 // weaponhotspot, weaponanygrip, weapondrawnpose 0..5 and 44..46; vr_box3d_hands.cpp's weapon hull; vr_carry2h.cpp's
 // reach offset).
 //
-// This game's own player (single player, a listen server's host) reads his view directly, as before. Every other
-// player's client measures the same in his hand's frame (relative to the move's handpos along the axes of its handrot:
+// Every player's comes from his slot (MP_PLAN B11a: one path for single player and multiplayer). A remote player's
+// client measures it in his hand's frame (relative to the move's handpos along the axes of its handrot:
 // held::axesFromAngles(..., true), forward, left, up) and sends it up when it changes ("vr_heldpose", reliable, at most
-// every vr_net_avatarcal_interval a hand); the server places it on the hand of the move it runs.
+// every vr_net_avatarcal_interval a hand); the server places it on the hand of the move it runs. This game's own player
+// (single player, a listen server's host) puts his into his slot before each server frame (publishOwn), with the places
+// his view drew this frame (Hand::placed: the readers use those rather than placing it on the move's hand).
 
 #pragma once
 
@@ -43,14 +45,21 @@ struct Hand
     bool flippable{false};   // view::heldGripFlippable
     int outOfEnt{0};         // the prop the other hand holds alone that this one is drawn held out of (view::heldOutOf; 0 none)
     glm::vec3 outOf{0.f};    // ... how far (world)
+    // Placed where the view measuring it drew them this frame (world; this game's own player's: publishOwn). A remote
+    // player's are not (they come a round trip late): the readers place them on the hand of the move the server runs.
+    bool placed{false};
+    glm::vec3 spotWorld[maxSpots]{}; // the hotspots (view::weaponHotspot)
+    bool carriedKnown{false};        // the weapon carried off its handle: view::carriedWeaponPose's place, angles, tip
+    glm::vec3 carriedPos{0.f};
+    glm::vec3 carriedRot{0.f};
+    glm::vec3 carriedTipWorld{0.f};
+    glm::vec3 gripRot{0.f};          // the hand's own turn and vr_revgrip a loose weapon's reverse grip is judged by
+    bool gripMayReverse{false};      // (view::reverseGripChoice's)
 };
 
-// This game's own drawn player: player 1 of single player or a listen server (its view draws him).
-[[nodiscard]] bool isLocal(const edict_t* player);
-
-// Server: `player`'s `hand` (0 off, 1 main) as his client sent it; nullptr for this game's own player (ask the view),
-// single player, or none come yet.
-[[nodiscard]] const Hand* remote(const edict_t* player, int hand);
+// Server: `player`'s `hand` (0 off, 1 main) from his slot (his client's, or this game's own player's: publishOwn);
+// nullptr none come yet.
+[[nodiscard]] const Hand* slotHand(const edict_t* player, int hand);
 
 // Server: `player`'s `hand` as the move the server runs has it: its place and axes (forward, left, up).
 void handPose(edict_t* player, int hand, glm::vec3& pos, glm::mat3& axes);
@@ -63,18 +72,21 @@ void handPose(edict_t* player, int hand, glm::vec3& pos, glm::mat3& axes);
 // "vr_magpoll <bits>" when magholster::poll has some); the reverse grip's choice is the server's, by his move's hand and his
 // own vr_revgrip (a preference) and flat-screen play.
 
-// Server: another player than this game's own (multiplayer; the client sends his own).
-[[nodiscard]] bool isRemote(const edict_t* player);
 // Server, QC weapongrabspot: the hotspot (index + 1; 0 none: its handle) by which `player`'s empty `hand` takes `weapon`.
 [[nodiscard]] int grabSpot(edict_t* player, int hand, const edict_t* weapon);
 // Server, QC weapondrawnpose(weapon, hand, 43, player): how `player`'s `hand` takes the loose `weapon` now (-1 it may not be
-// held reversed, 0 upright, 1 reversed; view::reverseGripChoice); `cosine` its blade's way's.
+// held reversed, 0 upright, 1 reversed; view::reverseGripChoiceAt); `cosine` its blade's way's. `player` nullptr: this
+// game's own.
 [[nodiscard]] int reverseGrip(edict_t* player, int hand, const edict_t* weapon, float& cosine);
 // Server, QC magholsterpoll: what `player` asked since the last call, taken (magholster::poll's bits).
 [[nodiscard]] int magPoll(const edict_t* player);
 
 // Client: each hand's drawn pose up when it changed (from clientprefs::send); the ground spots and holster presses (B3f).
+// Hosting, nothing: publishOwn puts them into its own slot.
 void send();
+// Hosting (clientprefs::ownSlot), before each server frame: this game's own hands' drawn poses (placed), ground spots and
+// holster presses into its slot, as a remote player's messages put his (none while it is not connected).
+void publishOwn();
 // Client: a new connection: they go up again.
 void clientClear();
 // Server: the slot's player left or a new one came.

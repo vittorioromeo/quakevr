@@ -1485,6 +1485,8 @@ void Host_ServerFrame (void)
 // check for new clients
 	SV_CheckForNewClients ();
 
+	VR_ServerFrameBegin (); // QVR: this game's own player's view state into his slot (MP_PLAN B11a)
+
 // read client messages
 	VR_ProfileBegin ("run clients"); // QVR: profile
 	{

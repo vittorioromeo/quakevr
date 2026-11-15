@@ -335,7 +335,6 @@ struct Held
     const qmodel_t* model{nullptr};
     int hand{0};
     bool left{false};
-    bool local{false};
     HandFrame frame;
     Prop prop;
     Place taken;
@@ -470,7 +469,6 @@ glm::vec3 serverTake(edict_t* e, edict_t* player, int hand, bool left, const flo
     h.model = model;
     h.hand = hand;
     h.left = left;
-    h.local = cls.state != ca_dedicated && player && NUM_FOR_EDICT(player) == 1;
     h.frame = handFrameOf(player, hand, left); // (each player's own: B3d)
     h.prop.brush = model && model->type == mod_brush;
     h.prop.slot = model ? props::slotForModel(model) : -1;

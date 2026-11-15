@@ -7,6 +7,7 @@
 #include "vr_api.h"
 #include "vr_clientprefs.hpp"
 #include "vr_cvars.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_hands.hpp"
 #include "vr_held.hpp"
 #include "vr_magholster.hpp"
@@ -231,7 +232,15 @@ State state;
     bool havePose = false;
     const view::DrawnWeapon& d = view::drawnWeapon(hand);
     glm::vec3 origin, angles;
-    if(d.model && vr_gametime - d.when <= 0.5 && view::drawnWeaponPlace(hand, d.model, origin, angles))
+    if(d.model && vr_gametime - d.when <= 0.5)
+    {
+        h.drawn = true;
+        h.mirrored = d.mirrored;
+        h.mag = d.mag != nullptr;
+        h.slot = weapons::slotForModel(d.model);
+        h.inHand = d.inHand;
+    }
+    if(h.drawn && view::drawnWeaponPlace(hand, d.model, origin, angles))
     {
         float m[16];
         vec3_t o, a;
@@ -254,11 +263,6 @@ State state;
         // entity less that place is not the hand. Its hotspots go into the tracked hand's frame below, the frame the
         // carry places it in: B3f, the server's carried hotspots 1.4 units off before.)
         havePose = !twohand::carrying(hand);
-        h.drawn = true;
-        h.mirrored = d.mirrored;
-        h.mag = d.mag != nullptr;
-        h.slot = weapons::slotForModel(d.model);
-        h.inHand = d.inHand;
     }
     const hands::State& s = hands::current();
     if(!havePose && s.valid)
@@ -267,31 +271,31 @@ State state;
         handPoseDrawn[3] = glm::vec4{s.pos[hand], 1.f};
         havePose = true;
     }
-    if(!havePose)
+    if(havePose)
     {
-        return h;
-    }
-    const glm::mat4 toHand = glm::inverse(handPoseDrawn);
-    for(int i = 0; i < maxSpots; i++)
-    {
-        const view::WeaponHotspot w = view::weaponHotspot(hand, i);
-        if(w.type != 0)
+        const glm::mat4 toHand = glm::inverse(handPoseDrawn);
+        for(int i = 0; i < maxSpots; i++)
         {
-            h.spotType[i] = w.type;
-            h.spotPos[i] = glm::vec3{toHand * glm::vec4{w.pos, 1.f}};
-            h.spotBias[i] = w.bias;
-            h.spotShare[i] = w.share;
+            const view::WeaponHotspot w = view::weaponHotspot(hand, i);
+            if(w.type != 0)
+            {
+                h.spotType[i] = w.type;
+                h.spotPos[i] = glm::vec3{toHand * glm::vec4{w.pos, 1.f}};
+                h.spotBias[i] = w.bias;
+                h.spotShare[i] = w.share;
+            }
+        }
+        glm::vec3 pos, rot, tip;
+        bool mirrored = false;
+        if(twohand::carrying(hand) && view::carriedWeaponPose(hand, pos, rot, mirrored, tip) &&
+            view::carriedWeaponInHand(hand, h.carriedHandle, h.carriedTip))
+        {
+            h.carrying = true;
+            h.carriedAxes = glm::mat3{toHand} * held::axesFromAngles(&rot[0], true);
         }
     }
+    // (what is not placed on the hand: whatever the pose)
     h.helpKind = twohand::helpKind(hand);
-    glm::vec3 pos, rot, tip;
-    bool mirrored = false;
-    if(twohand::carrying(hand) && view::carriedWeaponPose(hand, pos, rot, mirrored, tip) &&
-        view::carriedWeaponInHand(hand, h.carriedHandle, h.carriedTip))
-    {
-        h.carrying = true;
-        h.carriedAxes = glm::mat3{toHand} * held::axesFromAngles(&rot[0], true);
-    }
     h.axesKnown = view::heldWeaponAxes(hand, h.axesForward, h.axesUp, h.flip);
     h.mayReverse = view::heldMayReverse(hand);
     h.flippable = view::heldGripFlippable(hand);
@@ -439,16 +443,12 @@ void mpDrawn_f()
         edict_t* player = edictOf(slot + 1);
         for(int hand = 0; hand < 2 && player; hand++)
         {
-            const Hand* r = remote(player, hand);
-            if(!r && !isRemote(player))
-            {
-                continue;
-            }
+            const Hand* r = slotHand(player, hand);
             const Hand h = r ? *r : Hand{};
             glm::vec3 spots[maxSpots];
             for(int i = 0; i < maxSpots; i++)
             {
-                spots[i] = toWorld(player, hand, h.spotPos[i]);
+                spots[i] = h.placed ? h.spotWorld[i] : toWorld(player, hand, h.spotPos[i]);
             }
             printHand("mp_drawn_sv", slot + 1, hand, h, spots);
             glm::vec3 at;
@@ -472,85 +472,125 @@ void mpDrawn_f()
 
 } // namespace
 
-bool isLocal(const edict_t* player)
-{
-    return cls.state != ca_dedicated && slotOf(player) == 0;
-}
-
-bool isRemote(const edict_t* player)
+// `player`'s slot (a client's: under svs.maxclients), else -1.
+[[nodiscard]] int playerSlot(const edict_t* player)
 {
     const int slot = slotOf(player);
-    return svs.maxclients > 1 && slot >= 0 && slot < MAX_SCOREBOARD && slot < svs.maxclients && !isLocal(player);
+    return slot >= 0 && slot < MAX_SCOREBOARD && slot < svs.maxclients ? slot : -1;
 }
 
 int grabSpot(edict_t* player, int hand, const edict_t* weapon)
 {
     const int num = numOf(weapon);
-    if(hand != 0 && hand != 1)
+    const int slot = playerSlot(player);
+    if((hand != 0 && hand != 1) || slot < 0)
     {
         return 0;
     }
-    if(isRemote(player))
+    const Spot& s = state.slotSpot[slot][hand];
+    if(vr_debug_carry.value >= 2.f)
     {
-        const Spot& s = state.slotSpot[slotOf(player)][hand];
-        if(vr_debug_carry.value >= 2.f)
-        {
-            Con_Printf("grabspot: player %d's %s hand, weapon %d: his client's spot %d %d\n", slotOf(player) + 1,
-                hand == 0 ? "off" : "main", num, s.entity, s.index);
-        }
-        return num > 0 && s.entity == num && s.index >= 0 ? s.index + 1 : 0;
+        Con_Printf("grabspot: player %d's %s hand, weapon %d: his client's spot %d %d\n", slot + 1, hand == 0 ? "off" : "main",
+            num, s.entity, s.index);
     }
-    const bool local = sv.active && cls.state == ca_connected && numOf(player) == 1;
-    return local && (vr_weapon_grab_hotspots.value || vr_weapon_grab_anywhere.value) ? twohand::groundSpot(hand, num) : 0;
+    return num > 0 && s.entity == num && s.index >= 0 ? s.index + 1 : 0;
 }
 
 int reverseGrip(edict_t* player, int hand, const edict_t* weapon, float& cosine)
 {
     cosine = 1.f;
-    if(!weapon || (hand != 0 && hand != 1))
+    const int slot = player ? playerSlot(player) : clientprefs::ownSlot();
+    if(!weapon || (hand != 0 && hand != 1) || slot < 0 || slot >= MAX_SCOREBOARD)
     {
         return -1;
     }
     const entity_t ent = weaponEntity(weapon);
-    if(player && isRemote(player))
+    if(state.slotHas[slot][hand] && state.slot[slot][hand].placed)
     {
-        // His move's hand (the angles his client drew it at), his own vr_revgrip, his flat-screen play.
-        const progs::HandFields& f = progs::handFields(hand);
-        const glm::vec3 rot = f.rot >= 0 ? progs::fieldVec(player, f.rot) : glm::vec3{player->v.angles[0], player->v.angles[1], 0.f};
-        const bool flat = progs::fieldFloatOr(player, progs::fields().vr_flatscreen, 0.f) != 0.f;
-        const cvar_t* var = tunableFind("vr_revgrip");
-        const float revgrip = clientprefs::value(clientprefs::indexOf(var), var, player);
-        return view::reverseGripChoiceAt(ent, hand, rot, revgrip != 0.f && !flat, cosine);
+        // The hand's own turn and vr_revgrip as the view measuring it had them this frame (this game's own player).
+        const Hand& h = state.slot[slot][hand];
+        return view::reverseGripChoiceAt(ent, hand, h.gripRot, h.gripMayReverse, cosine);
     }
-    return sv.active && cls.state == ca_connected ? view::reverseGripChoice(ent, hand, cosine) : -1;
+    if(!player)
+    {
+        return -1;
+    }
+    // His move's hand (the angles his client drew it at), his own vr_revgrip, his flat-screen play.
+    const progs::HandFields& f = progs::handFields(hand);
+    const glm::vec3 rot = f.rot >= 0 ? progs::fieldVec(player, f.rot) : glm::vec3{player->v.angles[0], player->v.angles[1], 0.f};
+    const bool flat = progs::fieldFloatOr(player, progs::fields().vr_flatscreen, 0.f) != 0.f;
+    const cvar_t* var = tunableFind("vr_revgrip");
+    const float revgrip = clientprefs::value(clientprefs::indexOf(var), var, player);
+    return view::reverseGripChoiceAt(ent, hand, rot, revgrip != 0.f && !flat, cosine);
 }
 
 int magPoll(const edict_t* player)
 {
-    if(isRemote(player))
+    const int slot = playerSlot(player);
+    if(slot < 0)
     {
-        const int slot = slotOf(player);
-        const int bits = state.slotMag[slot];
-        state.slotMag[slot] = 0;
-        if(bits && developer.value)
-        {
-            Con_Printf("magholster: player %d asked %d\n", slot + 1, bits);
-        }
-        return bits;
+        return 0;
     }
-    const bool local = sv.active && cls.state == ca_connected && numOf(player) == 1;
-    return local ? magholster::poll() : 0;
+    const int bits = state.slotMag[slot];
+    state.slotMag[slot] = 0;
+    if(bits && developer.value)
+    {
+        Con_Printf("magholster: player %d asked %d\n", slot + 1, bits);
+    }
+    return bits;
 }
 
-const Hand* remote(const edict_t* player, int hand)
+const Hand* slotHand(const edict_t* player, int hand)
 {
-    const int slot = slotOf(player);
-    if(svs.maxclients <= 1 || slot < 0 || slot >= MAX_SCOREBOARD || (hand != 0 && hand != 1) || isLocal(player) ||
-        !state.slotHas[slot][hand])
+    const int slot = playerSlot(player);
+    return slot >= 0 && (hand == 0 || hand == 1) && state.slotHas[slot][hand] ? &state.slot[slot][hand] : nullptr;
+}
+
+void publishOwn()
+{
+    const int own = clientprefs::ownSlot();
+    if(own < 0 || own >= MAX_SCOREBOARD)
     {
-        return nullptr;
+        return;
     }
-    return &state.slot[slot][hand];
+    for(int hand = 0; hand < 2; hand++)
+    {
+        state.slotHas[own][hand] = cls.state == ca_connected;
+        state.slotSpot[own][hand] = Spot{};
+        if(!state.slotHas[own][hand])
+        {
+            state.slot[own][hand] = Hand{};
+            continue;
+        }
+        Hand h = measure(hand);
+        h.placed = true;
+        for(int i = 0; i < maxSpots; i++)
+        {
+            const view::WeaponHotspot w = view::weaponHotspot(hand, i);
+            h.spotType[i] = w.type;
+            h.spotWorld[i] = w.pos;
+            h.spotBias[i] = w.bias;
+            h.spotShare[i] = w.share;
+        }
+        bool mirrored = false;
+        h.carriedKnown = twohand::carrying(hand) && view::carriedWeaponPose(hand, h.carriedPos, h.carriedRot, mirrored, h.carriedTipWorld);
+        glm::vec3 handle{0.f}, tip{0.f};
+        h.carrying = h.carriedKnown && view::carriedWeaponInHand(hand, handle, tip);
+        h.carriedHandle = handle;
+        h.carriedTip = tip;
+        // (view::reverseGripChoice's: the hand's own turn, not its drawn one)
+        h.gripRot = hands::current().rot[hand];
+        h.gripMayReverse = vr_revgrip.value != 0.f && !flatplay::active();
+        state.slot[own][hand] = h;
+        if(vr_weapon_grab_hotspots.value || vr_weapon_grab_anywhere.value)
+        {
+            twohand::groundSpotNow(hand, state.slotSpot[own][hand].entity, state.slotSpot[own][hand].index);
+        }
+    }
+    if(cls.state == ca_connected)
+    {
+        state.slotMag[own] |= magholster::poll();
+    }
 }
 
 void handPose(edict_t* player, int hand, glm::vec3& pos, glm::mat3& axes)
@@ -571,6 +611,10 @@ glm::vec3 toWorld(edict_t* player, int hand, const glm::vec3& local)
 
 void send()
 {
+    if(clientprefs::ownSlot() >= 0)
+    {
+        return; // (hosting: publishOwn puts this game's own into its slot)
+    }
     const double now = realtime;
     for(int hand = 0; hand < 2; hand++)
     {
@@ -604,10 +648,6 @@ void send()
         memcpy(state.sent[hand], v, sizeof(v));
         state.wasSent[hand] = true;
         state.nextSend[hand] = now + static_cast<double>(za::max(vr_net_avatarcal_interval.value, 0.f));
-    }
-    if(sv.active)
-    {
-        return; // (hosting: the server asks this game's own view and holsters)
     }
     // B3f: the ground spot of each empty hand when it changed, the holster presses when there are some (only with room in
     // the reliable buffer: else the next frame).
@@ -667,6 +707,10 @@ void serverReset(int slot)
         state.slot[slot][0] = state.slot[slot][1] = Hand{};
         state.slotSpot[slot][0] = state.slotSpot[slot][1] = Spot{};
         state.slotMag[slot] = 0;
+        if(slot == clientprefs::ownSlot())
+        {
+            publishOwn(); // (this game's own: at once, as clientprefs::publishOwn)
+        }
     }
 }
 
