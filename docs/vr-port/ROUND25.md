@@ -3247,7 +3247,8 @@ embedded, over the body it killed.
   most damage 122; point first 6 of 6 in the body; flat and handle first 12 blunt blows, none stuck; floating (the tip
   over 24 units off the body as drawn, `modelanchor`, 4+ frames, or stuck in a body gone or gibbed): 0 (2 before the fix).
   Tests 41 19/0, 34 15/0, 48 4/0, 40 24/0, 21 43/1 (the known slow-swing burst).
-- Scene `throw_hard` (a grunt, a knight, an ogre; the sword and the dagger).
+- Scene `throw_hard` (a grunt, a knight, an ogre; the sword and the dagger). Builds: dev and ReleaseLTO
+  `-p:QvrReleaseVersion=1.1.0` 0 warnings (after merging next; test 47 12/0 again).
 - Open: a blade in a body the engine models only by its box (`MonsterBox`: no Quake .mdl) still follows the box as the body
   dies; a blade striking a gun sticks in it (a clang and a bounce would be truer). Not changed.
 ## flipgate: a two-handed blade flips only with both hands on its handle (agent/flipgate, 2026-11-15)
