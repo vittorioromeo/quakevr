@@ -546,6 +546,20 @@ za::Vector<Item> pageWofsHand()
                 s("Reversed Thumb Curl", Key::RevThumbBias, -1.f, 1.f, 0.02f, "%+.2f")
                     .help("Held reversed: closes (+) or opens (-) the thumb on top of the Fingers page's Thumb.")
             );
+            // The flip grip (ROUND25.md "flipgrip"): the second hand on the reversed weapon's hotspot, drawn.
+            const char* helpHelp = "Held reversed: your other hand on its two-handed hotspot holds it as on the upright weapon, turned "
+                                   "with it. This moves that hand as drawn on top (units, as the hotspot's Held Hand X/Y/Z), only "
+                                   "while reversed.";
+            const char* helpTurn = "Held reversed: turns your other hand on its two-handed hotspot as drawn (degrees, as the "
+                                   "hotspot's Held Hand Pitch/Yaw/Roll), only while reversed.";
+            list.pushBackMultiple(
+                s("Reversed 2H Hand X", Key::RevHelpX, -10.f, 10.f, 0.1f, "%+.1f").extend().help(helpHelp),
+                s("Reversed 2H Hand Y", Key::RevHelpY, -10.f, 10.f, 0.1f, "%+.1f").extend().help(helpHelp),
+                s("Reversed 2H Hand Z", Key::RevHelpZ, -10.f, 10.f, 0.1f, "%+.1f").extend().help(helpHelp),
+                s("Reversed 2H Hand Pitch", Key::RevHelpPitch, -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f).help(helpTurn),
+                s("Reversed 2H Hand Yaw", Key::RevHelpYaw, -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f).help(helpTurn),
+                s("Reversed 2H Hand Roll", Key::RevHelpRoll, -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f).help(helpTurn)
+            );
         }
     }
     return list;

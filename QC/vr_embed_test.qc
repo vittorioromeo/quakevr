@@ -4511,6 +4511,11 @@ void() VR_Embed_TestFrame =
             vr_rg_scene = TRUE;
             VR_RG_Begin(); // (the reverse grip's pictures: vr_revgrip_test.qc)
         }
+        if(ask == 44)
+        {
+            vr_rg_scene = FALSE;
+            VR_FG_Begin(); // (the flip grip: vr_flipgrip_test.qc)
+        }
         if(ask == 1)
         {
             VR_Test_BeginFlags("embedtest", VR_TEST_LOUD);
@@ -4739,6 +4744,10 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
     else if(vr_et_on == 42)
     {
         VR_RG_Frame(); // (the reverse grip: vr_revgrip_test.qc)
+    }
+    else if(vr_et_on == 44)
+    {
+        VR_FG_Frame(); // (the flip grip: vr_flipgrip_test.qc)
     }
     else if(vr_et_on == 7)
     {
