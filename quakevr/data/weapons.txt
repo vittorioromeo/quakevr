@@ -4809,8 +4809,8 @@ weapon 51
     // The dagger (QC VR_SWORDKIND_DAGGER: the knight's sword, WID_SWORD, of its kind; Misc/quakevr/make_dagger.py, then
     // its .blend): the knight's sword's model made short, laid where the sword is (the same scale_origin, the same grip
     // and hand anchor), so the sword's settings (slot 18) hold it the same way. Its tip (muzzle_av) and the blade's root
-    // (wpnbtn_av, wpntxt_av) are the dagger's; one-handed (2h_mode 2: no helping hand, no hotspots: its grip is one
-    // hand's room and its blade too short for a half-sword grip); its blade from the guard (bl_from: the guard's top a
+    // (wpnbtn_av, wpntxt_av) are the dagger's; two-handed by one grip hotspot (his own, 2026-11-14: 2h_mode 1, hs1; held reversed it turns with
+    // the blade: ROUND25.md "flipgrip"; no half-sword grip, its blade too short); its blade from the guard (bl_from: the guard's top a
     // third of the way from the hand's middle to the tip) and its pommel's end behind the hand (bl_near), from
     // make_dagger.py's printout. Embedded by its point as the sword is (embed 1): the depth is a share of the blade's
     // length, so a third as deep. A light blade: 1.2 kg, 34 cm, balanced just ahead of the hand.
@@ -4820,7 +4820,7 @@ weapon 51
     2h_fxd_hp "-1.5"
     2h_fxd_hr "0.0"
     2h_fxd_hy "0.0"
-    2h_mode "2"
+    2h_mode "1"
     2h_pitch "70.017"
     2h_roll "0.0"
     2h_x "0.0"
@@ -4862,7 +4862,13 @@ weapon 51
     y "2.253"
     yaw "0.75"
     z "8.628"
-    hs1_type "0"
+    hs1_type "1"
+    hs1_x "-1.785"
+    hs1_y "-2.161"
+    hs1_z "-11.237"
+    hs1_pitch "-6.907"
+    hs1_yaw "8.525"
+    hs1_roll "-3.056"
     hs2_type "0"
     hol_hip_x "0.5"
     hol_hip_y "5"

@@ -2798,3 +2798,50 @@ self-driven across the load by saved globals): `vr_scenario waterdrips`, once pl
 ## wetglint (agent/wetglint)
 
 His report: after quickload the dripping came back but the wet glint did not. The shine (the alias shader wet coat, `wounds::wetCoat`) read `Mask::wetLeft` / `handWetLeft`, set only by a liquid wound event (the rising edge); a load restoring vr_drips wetness never set them. Fix, no new state: `wetCoat` takes its seconds-left from `drips::wetOf(e)` (drips wetness times dryTime, max with the old values); a thing with no wet mask (a loaded game) shines all over. `Misc/quakevr/saveload_test.sh` checks `vr_wounds_info` `wet: coat`: each coat shining before the save shines after (flat 5, VR 5). BACKLOG: flat 2H melee pose item added.
+
+
+## flipgrip: the blade's grip flip seamless everywhere (agent/flipgrip, 2026-11-15)
+
+His notes (VR, 2026-11-14/15): flipped (reversed) dagger loses its two-handed hotspot; the re-grab from the other hand keeps the
+old grip; a reversed dagger dropped or thrown leaves the hand flipped; taken off a table reversed it was mostly a prop; grabbed
+in a body the other way round the drawn hand on the handle was twisted.
+
+**One root.** The reverse grip lived only as the holding hand's turn (`reverseTurn` between the hand and the weapon, the flag a
+hand state): everything that takes the weapon's pose from the hand (the prop's angles on a drop or throw: the hand's; the other
+hand's carry: drawn upright from the holder's pose; the 2H aim and blade line; the helping hand on a hotspot; the "at its handle"
+of a grab: the origin, where only the upright hand stands) lost it or applied the upright grip. Now the blade's own pose goes
+through every transition, and every grab chooses by the blade's way:
+- **Out of the hand** (notes 3, 5): `view::leavingTurn` (QC `weapondrawnpose` 49 angles, 50 the origin's move;
+  `DropWeaponInHandScaled`): a reversed weapon leaves at `rot Rev` (`uprightTurnOf`) and the reverse grip's shift: the prop lies
+  and flies as it was drawn (blade cos 0.999 to the held line). The hand-off: `drawnAs[hand].rot` is the upright-equivalent turn
+  while reversed, so the other hand's carry (and a hand holding it anywhere) keeps the blade's way (cos 1.00).
+- **Into the hand** (notes 2, 4): `VR_RevGrip_TakeCarried` (QC; `weapondrawnpose` 47, `view::carriedGripChoice`) chooses as the
+  hand takes the carried weapon back (`VRTakeCarriedWeapon`); the choice uses the hand's own turn (`rot`, not the drawn one: an
+  empty hand on the carried weapon is drawn on it). The reversed hand point (`reversedHandPoint`: the hand holding it reversed,
+  the weapon's origin less the reverse shift; QC `weapondrawnpose` 48 for tests) counts as its handle in the server's grab
+  (`vr_physics.cpp weaponHandleDistance`: the handle leniency, not "anywhere"), the view's ground spots and the carried
+  weapon's take-back (`setCarriedHandle`'s reversed point, HS_CARRIED_GRIP; the free-grip candidate). The dagger's reversed
+  hand point is 4.3 units off its origin, inside `vr_weapon_grab_anywhere_min` only just: a hand a little further was a prop.
+  Force grab: `vr_revgrip_forcegrab` 0 (his note 1, upright; test 42 case 3 unchanged), 1 by the blade (Debug > Tunables >
+  Weapons > Reverse Grip > Force Grab Catch).
+- **Two-handed while reversed** (note 1; choice: the automatic one): the hotspots stay (`placeHotspots`, on the drawn frame:
+  turned with the blade); the helping hand turned with the weapon (`attachedTurn`'s `flip`, `helpingTurn`, the held hotspot's
+  offset); a fixed (gun-style) 2H hold worked out for the upright-equivalent hand and turned back (`applyHotspots` ->
+  `applyFixed` in that frame); the sword-style hold's blade line flips (`bladeDirection` with `view::heldReverseTurn`). Optional
+  tweak only while reversed: Weapon Offsets > Hand > Reversed 2H Hand X/Y/Z, Pitch/Yaw/Roll (`rev_2h_vx`.. `rev_2h_vroll`, 0:
+  added to the held hotspot's Held Hand offset).
+- **The embedded handle** (note 6): the grip was right, but the hand's roll about the handle was the blade's as it went in,
+  up to half a turn from the real hand's (palm up/down): `embedHandleRoll` draws the hand half round the handle's line when
+  that is nearer its controller (swords and the dagger: two edges alike), chosen once per hold. Probe `vr_embed_probe_hctl`
+  (degrees, the hand on a handle against its controller).
+- **Decision:** his dagger 2H hotspot promoted to the defaults (weapons.txt slot 51: `2h_mode` 1, `hs1` his place and turn;
+  was one-handed, no hotspots): he holds it two-handed and asked for it to keep working flipped.
+
+Test `vr_embed_test 44` (QC/vr_flipgrip_test.qc, `flipgrip: 21 passed, 0 failed`): the hotspot upright and reversed (moved with
+the blade), 2H held both ways (reversed: blade still down, cos -0.96); handed off upright (carried, cos 1.00), taken back by the
+hand turned for the other grip: reversed, blade where it was (cos 0.96); reversed and let go of: the prop's line cos 0.999; off a
+table reversed (4.3 units from the origin) and upright: by the handle, the right grip; stuck upright, taken reversed: held in the
+body, reversed, the drawn hand 17-55 degrees from the mock hand (under 95: the mock's roll is free; never twisted past a quarter
+turn). Unchanged: revgrip (42) 24/0, embedgrip (33) 15/0, propblade (34) 14/0, embeddagger (40) 24/0, palmgrab (pickup 17) 5/0.
+To check in VR: the reversed 2H hand's look (the tweak rows), the drop/throw in reverse, the table pickup both ways, the
+embedded handle grabbed palm up and down.

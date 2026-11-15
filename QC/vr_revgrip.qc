@@ -14,6 +14,12 @@
 //      (vr_revgrip_volume) and a pulse (VR_RevGrip_HandFrame); nothing else for a blade.
 // A blade come out of a body into the hand that held it by its handle keeps the grip it was held by (revgripKeep:
 // VR_Embed_Free); a fresh grip on a stuck blade's handle chooses (VR_RevGrip_Embed).
+// The flip grip (ROUND25.md, "flipgrip"; his notes 2026-11-14): the grip is the blade's way in the hand, through every way out
+// of and into one. Let go of (dropped, thrown), the weapon keeps the way it was drawn (DropWeaponInHandScaled: the engine's
+// weapondrawnpose 49, 50 bake the reverse grip's turn into the prop's angles); the other hand's carry keeps it too (the engine
+// draws it so); every grab chooses by the blade's way: one lying about or in the air (VR_RevGrip_OnTake), one stuck in a body
+// or a crate (VR_RevGrip_Embed), the one the other hand carries taken back (VR_RevGrip_TakeCarried: weapondrawnpose 47), a
+// force grab's catch with vr_revgrip_forcegrab 1 (0, the default: upright, note 1).
 
 float revgripKeep; // TRUE while a blade comes back into the hand that held it (VR_Embed_Free): its own grip kept
 .float vr_revgrip_sec; // bits, 1 the off hand, 2 the main: its eject button held last frame
@@ -25,7 +31,7 @@ float(entity ent, entity p, float xHand, float xFlags, float xUpright) VR_RevGri
 {
     float own = xFlags & QVR_WPNFLAG_REVGRIP;
     float flags = xFlags - own;
-    if(xUpright || (xFlags & QVR_WPNFLAG_FOREGRIP_CARRIED))
+    if((xUpright && !cvar_hget(cvarh_vr_revgrip_forcegrab)) || (xFlags & QVR_WPNFLAG_FOREGRIP_CARRIED))
     {
         return flags;
     }
@@ -50,6 +56,24 @@ void(entity e, entity p, float xHand) VR_RevGrip_Embed =
         return;
     }
     e.weaponflags = VR_RevGrip_OnTake(e, p, xHand, e.weaponflags, FALSE);
+};
+
+// The flags `xFlags` of the weapon `p`'s other hand carries off its handle, taken back by `xHand` by its handle (VRTakeCarriedWeapon):
+// upright or reversed by the blade's way in `xHand` as it closes (the engine's weapondrawnpose 47: the carried weapon as drawn); its
+// own grip when the engine can't tell (another player's).
+float(entity p, float xHand, float xFlags) VR_RevGrip_TakeCarried =
+{
+    vector c = weapondrawnpose(p, xHand, 47);
+    if(!c_y)
+    {
+        return xFlags;
+    }
+    if(cvar_hget(cvarh_developer))
+    {
+        dprint(sprintf("revgrip: the carried weapon taken back %s (blade to the thumb's side: cos %.2f)\n", c_x ? "reversed" : "upright", c_z));
+    }
+    float flags = xFlags - (xFlags & QVR_WPNFLAG_REVGRIP);
+    return c_x ? flags | QVR_WPNFLAG_REVGRIP : flags;
 };
 
 void(float xHand) VR_RevGrip_Flip;

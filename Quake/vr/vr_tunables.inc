@@ -2490,4 +2490,5 @@ QVR_TUNABLE(vr_nav_build_frames, "18") // determinism: a size class's navmesh bu
 QVR_TUNABLE(vr_nav_build_frames_tris, "10000") // ... plus one frame per this many of the map's navmesh triangles (a pure function of the map: deterministic; ad_tears' 1.15 M: 133 frames, E1M1 ~19); 0: vr_nav_build_frames alone
 QVR_TUNABLE(vr_revgrip, "1") // 1: a sword or dagger (Weapon Offsets' Reverse Grip on) is taken blade down when its blade points to the little finger's side, and its eject button flips the grip (ROUND25.md "revgrip"; QC VR_RevGrip_*); 0: always the normal grip
 QVR_TUNABLE(vr_revgrip_flip_time, "0.18") // ... s: the eject button's flip of the grip turns the blade half round over this long (vr_view_weapon.cpp gripFlip; 0: at once)
+QVR_TUNABLE(vr_revgrip_forcegrab, "0") // ... 0: a force grab's catch takes a sword or dagger upright (his note 2026-11-13); 1: as any grab, by its blade's way in the hand (the flip grip, ROUND25.md "flipgrip")
 QVR_TUNABLE(vr_revgrip_volume, "0.7") // ... the flip's sound's volume (0..1: the hand closing on a handle, vr/phys/grab_metal*.wav; 0 silent)

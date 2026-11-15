@@ -4760,6 +4760,7 @@ vr_nav_build_frames|2|Tunables|Navmesh: New Size Landing Frame|Advanced VR Optio
 vr_nav_build_frames_tris|2|Tunables|Navmesh: Landing Frame per Triangles|Advanced VR Options > Debug > Tunables > Navmesh: Landing Frame per Triangles
 vr_revgrip|2|Tunables|Reverse Grip|Advanced VR Options > Debug > Tunables > Reverse Grip
 vr_revgrip_flip_time|2|Tunables|Flip Time|Advanced VR Options > Debug > Tunables > Flip Time
+vr_revgrip_forcegrab|2|Tunables|Force Grab Catch|Advanced VR Options > Debug > Tunables > Force Grab Catch
 vr_revgrip_volume|2|Tunables|Flip Sound Volume|Advanced VR Options > Debug > Tunables > Flip Sound Volume
 |2|Tunables|Reset This Page|Advanced VR Options > Debug > Tunables > Reset This Page
 @page|2|Debug - Cheats and Recording||Advanced VR Options > Debug > Cheats and Recording
