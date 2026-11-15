@@ -1686,7 +1686,7 @@ weapon 14
     fx_kick_cm "23.4"
     fx_rise_deg "10.125"
     fx_return_s "0.265"
-    fx_gfx_mask "935:YAAGS4___fGY-_hH-h-BAAAAAAAAAAAAAAAAAAAAAAAA4_HAAe4________________________f-___f-_________________________________BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    fx_gfx_mask "1027:YAwQC____zM__wD_Q_AAAAAAAAAAAAAAAAAAAAAAAAA8_DAAP8________________________P____P__________________________________AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 }
 
 // slot 15: progs/v_light_plasma.mdl (vr_wofs_*_16)
