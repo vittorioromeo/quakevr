@@ -12,7 +12,9 @@ Tests:
              vr_net_cullposes 0 measured too; no packet down over 1408 B (reliable chunks at most 1200 B).
     retransmit  (B12b) the reliable window's resends, B 100 ms away: a one-chunk message's lost chunk resent at its
              timeout (twice the measured round trip, under 0.75 s; NetQuake's: 1 s), a five-chunk one's lost first chunk
-             at the later ones' acks (under 1.5 round trips); both arrive.
+             at the later ones' acks (under 1.5 round trips); both arrive. (B13) A two-chunk one's first chunk overtaken
+             by the second, whose ack reaches the server after the first's: the message and the next one arrive
+             (NetQuake's receiver dropped the overtaking chunk but acked it: the window stalled).
     armed    (B12) six armed humanoids ahead of B in vrtesthall, idle and in combat: B's link down by kind (vr_net_bytes)
              with their poses outside his snapshot (vr_net_snapposes 0) and in it, under the budgets; under vr_net_rate
              6000: his link within it, a snapshot every datagram, the nearest poses more often than the farthest.
@@ -313,6 +315,17 @@ def net_window(s, srv, b, label, packets=IDLE_PACKETS):
 RETRANSMIT_LAG = 100     # ms each way: B's link in mp_retransmit (a round trip of 0.2 s)
 RETRANSMIT_TIMEOUT = 0.75 # s: a lost lone chunk resent within (twice the round trip and 50 ms, 0.45-0.5 s; NetQuake's: 1 s)
 RETRANSMIT_FAST = 1.5     # round trips: a lost chunk with later ones in flight resent within (at their acks)
+REORDER_SIZE = 2000       # B (B13): two chunks, the first overtaken by the second
+REORDER_EXTRA = 0.06      # s: the first chunk held back (the second's ack twice as long)
+REORDER_MOST = 3.0        # s: the message (then the next) read within (NetQuake's window: never)
+
+
+def wait_or_none(inst, pattern, timeout, after):
+    """inst.wait's line, or None when it times out (a check's own failure, the scenario going on)."""
+    try:
+        return inst.wait(pattern, timeout, after)[1]
+    except StepFailed:
+        return None
 
 
 def retransmit(s):
@@ -341,6 +354,22 @@ def retransmit(s):
                 len(after) == 1 and after[0] <= most,
                 "resent %s s after the drop; the message read %.2f s after the command" % (
                     ", ".join("%.3f" % x for x in after) or "never", took))
+    # (B13) the reordering that stalled NetQuake's window: a two-chunk message's first chunk overtaken by the second,
+    # whose ack reaches the server after the first's (the receiver used to drop the second and ack it)
+    proxy.reorder_reliable_down(1200, REORDER_EXTRA)
+    since = b.mark()
+    t0 = time.monotonic()
+    srv.cmd("vr_net_reliable_test %d %d" % (eb, REORDER_SIZE))
+    got = wait_or_none(b, r"mp_reliable: %d bytes" % REORDER_SIZE, REORDER_MOST, since)
+    took = time.monotonic() - t0
+    since = b.mark()
+    srv.cmd("vr_net_reliable_test %d 100" % eb)
+    after = wait_or_none(b, r"mp_reliable: 100 bytes", REORDER_MOST, since)
+    s.check("a chunk overtaken, its ack after the first's (%d B message): the message whole within %.1f s, the next "
+            "one too" % (REORDER_SIZE, REORDER_MOST),
+            proxy.reordered["held"] and proxy.reordered["ack_late"] and got is not None and after is not None,
+            "staged %s; the message %s; the next %s" % (proxy.reordered, "read after %.2f s" % took if got else "never read",
+                                                       "read" if after else "never read"))
     since = srv.mark()
     srv.cmd("net_stats")
     _, line = srv.wait(r"windows resent: fast", 10, since)
@@ -4083,10 +4112,9 @@ def voice(s, listen=False, lag=0.0, jitter=0.0, loss=0.0):
     radio full); muted and his volume; push-to-talk released ends it, voice activation starts and stops it; the server's
     voice budget and B's rate cap hold his voice bytes; noise suppression on keeps it flowing; a press without a
     microphone breaks nothing."""
-    # (B joins with the lag alone; the jitter and loss start once he is in: a join through 30 ms of reordering and 5%
-    # loss can stall in its signon, keepalives only -- NetQuake's reliable stream, not the voice's)
-    srv, a, b, ea, eb = join(s, listen=listen, lag=lag)
-    b.proxy.jitter, b.proxy.loss = jitter / 1000.0, loss
+    # (B joins through the jitter and loss: B13's selective acks; before them a join through 30 ms of reordering and 5%
+    # loss could stall in its signon)
+    srv, a, b, ea, eb = join(s, listen=listen, lag=lag, jitter=jitter, loss=loss)
     sa = ea - 1
     bound = VOICE_DELAY_MS + lag + jitter
     since_a, since_b = a.mark(), b.mark()

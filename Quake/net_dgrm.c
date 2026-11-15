@@ -135,16 +135,23 @@ static void NET_Ban_f (void)
 // QVR: a reliable message goes out in chunks of at most DGRM_RELIABLE_CHUNK bytes (each its own UDP datagram, small
 // enough never to be IP-fragmented: NetQuake sent up to MAX_DATAGRAM, 64000 B, one lost fragment losing it all and some
 // routers dropping fragments), with up to DGRM_RELIABLE_WINDOW chunks in flight (NetQuake waited for each chunk's ack: a
-// round trip a chunk). The receiver is NetQuake's, unchanged: it acks every data packet and takes only the next one in
-// order, so an ack counts only in order (one for a later chunk is for a packet it dropped), and a timeout sends every
-// chunk in flight again (docs/vr-port/MP_PLAN.md, B2).
+// round trip a chunk) (docs/vr-port/MP_PLAN.md, B2).
+//
+// Selective acks (B13): NetQuake's receiver acked every data packet but took only the next one in order, so the ack of
+// a chunk it dropped (one that overtook a late one) read as delivered once the late one's ack came first: under
+// reordering the sender called a message done that the receiver never completed, and the connection stalled (a join
+// through 30 ms of jitter: signon keepalives only). A Quake VR receiver now holds the chunks that come before their
+// turn (a window's worth: every chunk in flight fits) and acks a chunk only once it has it; the sender marks each chunk
+// acked, moves on past the ones acked in order and resends only the ones not acked. A peer that is not Quake VR (no
+// network version in its connect request or accept reply) still acks the chunks it drops: it gets a window of one
+// chunk, NetQuake's stop and wait, where an ack is always for the chunk in flight.
 //
 // Resends (B12b): NetQuake's timeout was a fixed second. It is now twice the chunks' smoothed round trip (Karn's: a
 // resent chunk's ack not measured) plus DGRM_RESEND_MARGIN, at least DGRM_RESEND_LEAST, doubling with each timeout in a
 // row (a peer not reading, a map loading: never more often than NetQuake's backstop allows) up to DGRM_RESEND_MOST. And
-// fast: DGRM_FAST_ACKS acks of later chunks (the receiver got them, so the one before was lost) send the window again
-// at once, once until the next ack in order.
-#define DGRM_RELIABLE_CHUNK		1200
+// fast: DGRM_FAST_ACKS acks of later chunks (the receiver has them, so one before was lost) send the chunks not acked
+// before them again at once, once until the next ack in order.
+#define DGRM_RELIABLE_CHUNK		NET_RELIABLE_CHUNK
 #define DGRM_RELIABLE_WINDOW	NET_RELIABLE_WINDOW
 #define DGRM_RESEND_LEAST		0.15
 #define DGRM_RESEND_MOST		1.0
@@ -154,6 +161,12 @@ static void NET_Ban_f (void)
 static unsigned int ReliableChunks (const qsocket_t *sock)
 {
 	return ((unsigned int) sock->sendMessageLength + DGRM_RELIABLE_CHUNK - 1) / DGRM_RELIABLE_CHUNK;
+}
+
+// the chunks in flight at most: a Quake VR peer's window, else NetQuake's one (selective acks, above)
+static unsigned int ReliableWindow (const qsocket_t *sock)
+{
+	return sock->qvrNetVersion ? DGRM_RELIABLE_WINDOW : 1;
 }
 
 // the chunk with this sequence (sendChunkBase is the first's)
@@ -197,7 +210,7 @@ static int SendMessageNext (qsocket_t *sock)
 	sock->sendNext = false;
 	if (sock->canSend)
 		return 1; // (all of it acked: nothing in flight)
-	while ((int) (end - sock->sendSequence) > 0 && sock->sendSequence - sock->ackSequence < DGRM_RELIABLE_WINDOW)
+	while ((int) (end - sock->sendSequence) > 0 && sock->sendSequence - sock->ackSequence < ReliableWindow (sock))
 	{
 		if (SendReliableChunk (sock, sock->sendSequence) == -1)
 			return -1;
@@ -207,20 +220,23 @@ static int SendMessageNext (qsocket_t *sock)
 	return 1;
 }
 
-// every chunk in flight again (go back N: the receiver dropped the ones after a lost one)
-static int ReSendMessage (qsocket_t *sock)
+// the chunks in flight before `upTo` not acked yet, again (B13: the receiver holds the ones acked)
+static int ReSendMessage (qsocket_t *sock, unsigned int upTo)
 {
 	unsigned int	sequence;
 
 	sock->sendNext = false;
-	for (sequence = sock->ackSequence; sequence != sock->sendSequence; sequence++)
+	for (sequence = sock->ackSequence; sequence != upTo; sequence++)
 	{
+		if (sock->chunkAcked[sequence % DGRM_RELIABLE_WINDOW])
+			continue;
 		if (SendReliableChunk (sock, sequence) == -1)
 			return -1;
 		packetsReSent++;
 	}
 	return 1;
 }
+
 
 
 int Datagram_SendMessage (qsocket_t *sock, sizebuf_t *data)
@@ -286,6 +302,55 @@ int Datagram_SendUnreliableMessage (qsocket_t *sock, sizebuf_t *data)
 }
 
 
+// QVR: (B13) the next reliable chunk in order taken into the message: 1 the message is whole (in net_message), -1 it
+// overflows (a broken peer)
+static int TakeChunk (qsocket_t *sock, const byte *data, unsigned int length, qboolean eom)
+{
+	sock->receiveSequence++;
+	if ((unsigned int) sock->receiveMessageLength + length > NET_MAXMESSAGE)
+	{
+		Con_Printf ("Reliable message too long\n");
+		sock->receiveMessageLength = 0;
+		return -1;
+	}
+	if (eom)
+	{
+		SZ_Clear (&net_message);
+		SZ_Write (&net_message, sock->receiveMessage, sock->receiveMessageLength);
+		SZ_Write (&net_message, data, length);
+		sock->receiveMessageLength = 0;
+		return 1;
+	}
+	Q_memcpy (sock->receiveMessage + sock->receiveMessageLength, data, length);
+	sock->receiveMessageLength += length;
+	return 0;
+}
+
+// QVR: (B13) the held chunks next in order taken (selective acks, above): as TakeChunk
+static int TakeHeldChunks (qsocket_t *sock)
+{
+	int	slot, length, ret;
+
+	for (;;)
+	{
+		slot = sock->receiveSequence % DGRM_RELIABLE_WINDOW;
+		length = sock->heldLength[slot];
+		if (length <= 0)
+			return 0;
+		sock->heldLength[slot] = 0;
+		ret = TakeChunk (sock, sock->held[slot], (unsigned int) length, sock->heldEom[slot]);
+		if (ret)
+			return ret;
+	}
+}
+
+static void SendAck (qsocket_t *sock, unsigned int sequence, struct qsockaddr *to)
+{
+	packetBuffer.length = BigLong(NET_HEADERSIZE | NETFLAG_ACK);
+	packetBuffer.sequence = BigLong(sequence);
+	sfunc.Write (sock->socket, (byte *)&packetBuffer, NET_HEADERSIZE, to);
+}
+
 int	Datagram_GetMessage (qsocket_t *sock)
 {
 	unsigned int	length;
@@ -294,14 +359,20 @@ int	Datagram_GetMessage (qsocket_t *sock)
 	struct qsockaddr readaddr;
 	unsigned int	sequence;
 	unsigned int	count;
+	unsigned int	slot;
 
 	if (!sock->canSend)
 		if ((net_time - sock->lastSendTime) > ResendTimeout (sock)) // QVR: (B12b; NetQuake's: a second)
 		{
-			ReSendMessage (sock);
+			ReSendMessage (sock, sock->sendSequence);
 			sock->resendBackoff++;
 			packetsTimedReSent++;
 		}
+
+	// QVR: (B13) chunks held behind a message that was whole on the last read
+	ret = TakeHeldChunks (sock);
+	if (ret)
+		return ret;
 
 	while (1)
 	{
@@ -348,9 +419,10 @@ int	Datagram_GetMessage (qsocket_t *sock)
 		{
 			if (sequence < sock->unreliableReceiveSequence)
 			{
+				// QVR: (B13) skipped, the reading goes on (NetQuake stopped reading for the frame at one: under
+				// reordering the acks and chunks behind it waited a frame each)
 				Con_DPrintf("Got a stale datagram\n");
-				ret = 0;
-				break;
+				continue;
 			}
 			if (sequence != sock->unreliableReceiveSequence)
 			{
@@ -371,31 +443,40 @@ int	Datagram_GetMessage (qsocket_t *sock)
 
 		if (flags & NETFLAG_ACK)
 		{
-			// QVR: the next chunk in order only (one in flight after it: the receiver dropped that, a lost one
-			// before it; one already acked: a duplicate)
-			if (sequence != sock->ackSequence || sock->ackSequence == sock->sendSequence)
+			// QVR: (B13) a chunk in flight not acked yet: the receiver has it (selective acks, above)
+			slot = sequence % DGRM_RELIABLE_WINDOW;
+			if ((int) (sequence - sock->ackSequence) < 0 || (int) (sequence - sock->sendSequence) >= 0 ||
+				sock->chunkAcked[slot])
 			{
-				// QVR: (B12b) a later chunk's, in flight: the receiver has it, so one before it was lost (or is late):
-				// enough of them, the window again at once (once until the next in order)
-				if ((int) (sequence - sock->ackSequence) > 0 && (int) (sequence - sock->sendSequence) < 0 &&
-					++sock->aheadAcks >= DGRM_FAST_ACKS && !sock->fastResent)
-				{
-					ReSendMessage (sock);
-					sock->fastResent = true;
-					packetsFastReSent++;
-				}
 				Con_DPrintf("Stale ACK received\n");
 				continue;
 			}
-			if (!sock->chunkResent[sequence % DGRM_RELIABLE_WINDOW]) // QVR: (B12b) its round trip (Karn's: a first send's)
+			sock->chunkAcked[slot] = true;
+			if (!sock->chunkResent[slot]) // QVR: (B12b) its round trip (Karn's: a first send's)
 			{
-				double rtt = net_time - sock->chunkSentTime[sequence % DGRM_RELIABLE_WINDOW];
+				double rtt = net_time - sock->chunkSentTime[slot];
 				sock->reliableRtt = sock->reliableRtt > 0 ? 0.875 * sock->reliableRtt + 0.125 * rtt : rtt;
+			}
+			if (sequence != sock->ackSequence)
+			{
+				// QVR: (B12b) a later chunk's: one before it was lost (or is late): enough of them, the ones before it
+				// not acked again at once (once until the next in order)
+				if (++sock->aheadAcks >= DGRM_FAST_ACKS && !sock->fastResent)
+				{
+					ReSendMessage (sock, sequence);
+					sock->fastResent = true;
+					packetsFastReSent++;
+				}
+				continue;
+			}
+			while (sock->ackSequence != sock->sendSequence && sock->chunkAcked[sock->ackSequence % DGRM_RELIABLE_WINDOW])
+			{
+				sock->chunkAcked[sock->ackSequence % DGRM_RELIABLE_WINDOW] = false;
+				sock->ackSequence++;
 			}
 			sock->aheadAcks = 0;
 			sock->resendBackoff = 0;
 			sock->fastResent = false;
-			sock->ackSequence++;
 			if (sock->ackSequence - sock->sendChunkBase >= ReliableChunks (sock))
 			{
 				sock->sendMessageLength = 0;
@@ -409,32 +490,41 @@ int	Datagram_GetMessage (qsocket_t *sock)
 
 		if (flags & NETFLAG_DATA)
 		{
-			packetBuffer.length = BigLong(NET_HEADERSIZE | NETFLAG_ACK);
-			packetBuffer.sequence = BigLong(sequence);
-			sfunc.Write (sock->socket, (byte *)&packetBuffer, NET_HEADERSIZE, &readaddr);
+			length -= NET_HEADERSIZE;
 
-			if (sequence != sock->receiveSequence)
+			if ((int) (sequence - sock->receiveSequence) < 0)
 			{
+				SendAck (sock, sequence, &readaddr); // (taken: its ack was lost, or is late)
 				receivedDuplicateCount++;
 				continue;
 			}
-			sock->receiveSequence++;
-
-			length -= NET_HEADERSIZE;
-
-			if (flags & NETFLAG_EOM)
+			if (sequence != sock->receiveSequence)
 			{
-				SZ_Clear(&net_message);
-				SZ_Write(&net_message, sock->receiveMessage, sock->receiveMessageLength);
-				SZ_Write(&net_message, packetBuffer.data, length);
-				sock->receiveMessageLength = 0;
-
-				ret = 1;
-				break;
+				// QVR: (B13) a chunk before its turn: held, and acked only then (selective acks, above); a peer that is
+				// not Quake VR: NetQuake's (acked, dropped)
+				slot = sequence % DGRM_RELIABLE_WINDOW;
+				if (!sock->qvrNetVersion)
+					SendAck (sock, sequence, &readaddr);
+				else if (sequence - sock->receiveSequence < DGRM_RELIABLE_WINDOW && length > 0 && length <= DGRM_RELIABLE_CHUNK)
+				{
+					if (sock->heldLength[slot] <= 0)
+					{
+						Q_memcpy (sock->held[slot], packetBuffer.data, length);
+						sock->heldLength[slot] = (int) length;
+						sock->heldEom[slot] = (flags & NETFLAG_EOM) != 0;
+					}
+					SendAck (sock, sequence, &readaddr);
+				}
+				receivedDuplicateCount++;
+				continue;
 			}
 
-			Q_memcpy(sock->receiveMessage + sock->receiveMessageLength, packetBuffer.data, length);
-			sock->receiveMessageLength += length;
+			SendAck (sock, sequence, &readaddr);
+			ret = TakeChunk (sock, packetBuffer.data, length, (flags & NETFLAG_EOM) != 0);
+			if (!ret)
+				ret = TakeHeldChunks (sock);
+			if (ret)
+				break;
 			continue;
 		}
 	}
@@ -1091,6 +1181,7 @@ static qsocket_t *_Datagram_CheckNewConnections (void)
 				MSG_WriteByte(&net_message, CCREP_ACCEPT);
 				dfunc.GetSocketAddr(s->socket, &newaddr);
 				MSG_WriteLong(&net_message, dfunc.GetSocketPort(&newaddr));
+				MSG_WriteLong(&net_message, QVR_NET_VERSION); // QVR: (B13)
 				*((int *)net_message.data) = BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
 				dfunc.Write (acceptsock, net_message.data, net_message.cursize, &clientaddr);
 				SZ_Clear(&net_message);
@@ -1149,6 +1240,7 @@ static qsocket_t *_Datagram_CheckNewConnections (void)
 	MSG_WriteByte(&net_message, CCREP_ACCEPT);
 	dfunc.GetSocketAddr(newsock, &newaddr);
 	MSG_WriteLong(&net_message, dfunc.GetSocketPort(&newaddr));
+	MSG_WriteLong(&net_message, QVR_NET_VERSION); // QVR: (B13) a Quake VR server's network layer (selective acks)
 //	MSG_WriteString(&net_message, dfunc.AddrToString(&newaddr));
 	*((int *)net_message.data) = BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
 	dfunc.Write (acceptsock, net_message.data, net_message.cursize, &clientaddr);
@@ -1425,6 +1517,9 @@ static qsocket_t *_Datagram_Connect (const char *host)
 	{
 		Q_memcpy(&sock->addr, &sendaddr, sizeof(struct qsockaddr));
 		dfunc.SetSocketPort (&sock->addr, MSG_ReadLong());
+		// QVR: (B13) a Quake VR server's network version after the port (selective acks: net_dgrm.c), none from NetQuake's
+		if (msg_readcount + 4 <= net_message.cursize)
+			sock->qvrNetVersion = MSG_ReadLong();
 	}
 	else
 	{

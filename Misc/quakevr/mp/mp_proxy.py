@@ -24,6 +24,7 @@ import time
 
 NETFLAG_CTL = 0x80000000
 NETFLAG_DATA = 0x00010000  # a reliable message's chunk (net_dgrm.c)
+NETFLAG_ACK = 0x00020000   # its ack
 CCREP_ACCEPT = 0x81
 HOST = "127.0.0.1"
 
@@ -64,6 +65,12 @@ class Proxy:
         self.drop_least = 0
         self.dropped = {}  # sequence -> time dropped
         self.resent_after = {}  # sequence -> s
+        # (B13) a reordering to stage (reorder_reliable_down): the chunk down held back, the next one's sequence and
+        # the delays; whether each was done
+        self.reorder_least = None
+        self.reorder_extra = 0.0
+        self.reorder_next = None
+        self.reordered = {"held": False, "ack_late": False}
 
     def delay(self):
         return max(0.0, self.lag + (self.rng.uniform(-self.jitter, self.jitter) if self.jitter > 0 else 0.0))
@@ -74,6 +81,32 @@ class Proxy:
         self.resent_after.clear()
         self.drop_least = least
         self.drop_reliable = n
+
+    def reorder_reliable_down(self, least, extra_s):
+        """(B13) Stage the reordering that stalled NetQuake's window: the next reliable chunk down of `least` bytes or
+        more is held back `extra_s`, so the chunk after it overtakes it; that later chunk's ack up is held back twice
+        as long, so it reaches the server after the first chunk's ack (NetQuake's receiver dropped the overtaking
+        chunk but acked it: the server then took the message as delivered)."""
+        self.reorder_least = least
+        self.reorder_extra = extra_s
+        self.reorder_next = None
+        self.reordered = {"held": False, "ack_late": False}
+
+    def reorder_extra_delay(self, pkt, direction):
+        """The extra delay of a packet staged by reorder_reliable_down (0: none)."""
+        if control_or_short(pkt):
+            return 0.0
+        flags, seq = int.from_bytes(pkt[0:4], "big"), int.from_bytes(pkt[4:8], "big")
+        if direction == "down" and flags & NETFLAG_DATA and self.reorder_least is not None and len(pkt) >= self.reorder_least:
+            self.reorder_least = None
+            self.reorder_next = seq + 1
+            self.reordered["held"] = True
+            return self.reorder_extra
+        if direction == "up" and flags & NETFLAG_ACK and self.reorder_next is not None and seq == self.reorder_next:
+            self.reorder_next = None
+            self.reordered["ack_late"] = True
+            return 2 * self.reorder_extra
+        return 0.0
 
     def reliable_down(self, pkt):
         """A chunk of a reliable message down: dropped if armed; its resend after a drop timed. True: drop it."""
@@ -104,7 +137,8 @@ class Proxy:
         self.first = self.first if self.first is not None else now
         self.last = now
         self.seq += 1
-        heapq.heappush(self.queue, (now + self.delay(), self.seq, sock, addr, pkt))
+        extra = self.reorder_extra_delay(pkt, direction)
+        heapq.heappush(self.queue, (now + self.delay() + extra, self.seq, sock, addr, pkt))
 
     def from_client(self, pkt, addr):
         self.client = addr

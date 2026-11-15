@@ -128,6 +128,7 @@ CCREP_RULE_INFO
 #define CCREP_RULE_INFO		0x85
 
 #define NET_RELIABLE_WINDOW	16 // QVR: reliable chunks in flight at most (net_dgrm.c)
+#define NET_RELIABLE_CHUNK	1200 // QVR: a reliable chunk's bytes at most (net_dgrm.c)
 
 typedef struct qsocket_s
 {
@@ -153,6 +154,7 @@ typedef struct qsocket_s
 	// later chunks since the last in order (a lost chunk's sign); timeouts in a row; a fast resend since the last in order
 	double		chunkSentTime[NET_RELIABLE_WINDOW];
 	qboolean	chunkResent[NET_RELIABLE_WINDOW];
+	qboolean	chunkAcked[NET_RELIABLE_WINDOW];	// QVR: (B13) acked out of order: the receiver holds it (net_dgrm.c)
 	double		reliableRtt;
 	int		aheadAcks;
 	int		resendBackoff;
@@ -167,6 +169,11 @@ typedef struct qsocket_s
 	unsigned int	unreliableReceiveSequence;
 	int		receiveMessageLength;
 	byte		receiveMessage [NET_MAXMESSAGE];
+	// QVR: (B13) the chunks after the next one in order that came first, held until it comes (by their sequence modulo
+	// the window; length 0: none held): a Quake VR peer's window survives reordering (net_dgrm.c)
+	int		heldLength[NET_RELIABLE_WINDOW];
+	qboolean	heldEom[NET_RELIABLE_WINDOW];
+	byte		held[NET_RELIABLE_WINDOW][NET_RELIABLE_CHUNK];
 
 	struct qsockaddr	addr;
 	char		address[NET_NAMELEN];

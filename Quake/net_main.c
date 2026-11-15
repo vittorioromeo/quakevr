@@ -132,6 +132,8 @@ qsocket_t *NET_NewQSocket (void)
 	sock->receiveSequence = 0;
 	sock->unreliableReceiveSequence = 0;
 	sock->receiveMessageLength = 0;
+	memset (sock->chunkAcked, 0, sizeof (sock->chunkAcked)); // QVR (B13)
+	memset (sock->heldLength, 0, sizeof (sock->heldLength));
 
 	return sock;
 }
