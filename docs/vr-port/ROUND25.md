@@ -3177,3 +3177,24 @@ the same exact rules" as enemies; an option, on by default, single player and mu
 - Test `vr_pd_test 1` (Debug > Tests > Player Disarm): 10/10 (blast across the gun knocks it out at forced chance, lies
   on the floor with clip 5; blast across the body: no hit; enforcer laser: out; option off: nothing). agshot (vr_agrunt_test
   50) 10/0, vr_agrunt_test 200 33/0. Scene `player_disarm`. The melee path has no headless test (dirparry's held blows).
+
+## rcbase: 1.1 RC readiness, full baseline on next (agent/rcbase, 2026-11-15)
+
+- **Baseline** (`run_baseline.py --groups suite,agrunt,console,scripts --jobs 4`, next d137c1f7d, 104.6 min, runs/
+  20261115-rcbase): 295 PASS / 9 FAIL / 1 TIMEOUT of 305, against base1115b's 290/15/1 (with eval) and 11-14's 289/15/1.
+  No new failure: settings_page, agrunt 24, 48, 74, 206 and ragdoll_climb now pass; ragdoll_ragtest (flaky list) failed
+  once, then 1 of 2 alone (the `ledge` catch). Still failing, as in both earlier runs: vrtrailer, teleporters_chase,
+  agrunt 3, 16, 92 (2 of 2 alone: "two 6", torn away after 0.81 s), arena_6, arena_10 (timeout), rigstudio_posekeys,
+  ragdoll_stagger.
+- **agrunt 24 / 206:** pass in the baseline and 2 of 2 alone. **crate_grip_test.sh:** 2 of 3 (the failing run's
+  close_fit sampled 0 frames: the main hand held entity 271 and the off hand 283, two different props; a test-isolation
+  flake, not looked into further).
+- **`vr_embed_test 21`** (43/1, "a slow swing to the wall": burst 17.4 units on at 3.2 m/s, VR_Skewer_Impact): the
+  same on c94b2b300 (11-14, before every merge of the day), as in the 11-12 notes above: not a regression. After
+  merging throwfix: 21 43/1, 34 15/0, 47 6/0, 48 4/0.
+- **Builds:** dev 0 warnings; ReleaseLTO `-p:QvrReleaseVersion=1.1.0` 0 warnings (before and after throwfix).
+- **Release notes:** today's features added (grip flip, player disarm, parry timing, third-person camera, flat zoom
+  guns, ranger head, page resets, palm grab and torso torch, point-first throws and the air skewer); stale lines fixed
+  (Run Setup's Bloody Nightmare, AD's Experimental header). RELEASE_1_1.md: Menu Look and `vr_flat_chest_down` done.
+- **Defaults** since the audit (c94b2b300): 4 changed (his Menu Look pair, the ranger head's size and side), 25 new,
+  no debug or test switch on by default, no personal setting promoted.
