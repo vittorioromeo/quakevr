@@ -3806,3 +3806,15 @@ the same exact rules" as enemies; an option, on by default, single player and mu
   39/0, magholster unchanged, handroll 17/0, flathands 76/0, screenhands 4/0).
 - MP suite 29/30 (mp_climb's setup flake, 11/0 alone), scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0,
   Release build 0 warnings. Details: MP_PLAN "B11c results, part 2".
+
+## MP B12: the armed humanoids' poses in the snapshot, a rate (agent/mp, 2026-11-15)
+
+- Multiplayer only (single player and the listen host's own view unchanged: the loopback gets NetQuake's datagram).
+  The armed humanoids' poses in a remote player's sight go in his delta snapshot (`vr_net_snapposes` 1): six armed
+  grunts in sight cost B 6.2 KB/s idle (was 46.3) and 22.9 KB/s in combat (was 50.5). `vr_net_rate` (B/s, 0 none; his
+  preference; Debug > Reports > Network: Rate Cap) caps what the server sends him: his own state first, then the
+  nearest and those ahead, each one's wait adding to its priority. `vr_net_bytes`: what a client read, by kind.
+- Fixed (multiplayer only): a client's keepalive during a long map load no longer sends while a reliable chunk is in
+  flight (it crashed a lagged client in the chunked resend).
+- Tests: `mp_test.py armed` (new, 16/0), the MP suite 27 of 30 with each failure passing alone (one the crash fixed);
+  scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0, Release build 0 warnings. Details: MP_PLAN "B12 results".

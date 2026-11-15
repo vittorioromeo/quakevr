@@ -208,7 +208,8 @@ player unchanged.
 | **B8i** | The hang in his moves (each move's hands for hangPull/hangMove; the grips, `owed` and the phase in the state), the grapple's pull, the hands' climb out of the water | `mp_predictclimb --part hang` (a hang and pull up: corrections under a unit), `mp_predict` grown (a grapple pull, a hand's climb out) |
 | **B9** (the review done; #1-#2 unified; the rest B11a-c) | Code quality: one code path for single player and multiplayer (section "B9 review") | the MP suite, SP regressions identical |
 | **B11a-c** (done: B11a, B11b parts 1-2, B11c parts 1-2) | The rest of the B9 review: heldpose's own-player view asks into the slot store; vr_pmove for every player (then monsters); one avatar routine for any player entity | SP hash audits + MP suite |
-| **B12** (was B9) | Compression and rate: entropy stage with trained tables, per-client rate, priority accumulator | byte budgets per scenario from section 2.3 |
+| **B12** (was B9; the poses in the snapshot, the rate and its priorities done; the rest is B12b) | Compression and rate: entropy stage with trained tables, per-client rate, priority accumulator | byte budgets per scenario from section 2.3 (`mp_armed`) |
+| **B12b** | The entities' field-level coding (the largest kind left in combat), the fast retransmit of the reliable window, then an entropy stage only if it pays against them | `mp_armed`'s combat budget lowered; a lost reliable chunk resent within a round trip |
 | **B10** | Proximity voice chat: capture, Opus, VAD, noise suppression, push-to-talk, a jitter buffer, voices placed by Steam Audio at the speaker's head; VR and flat; menu rows | `mp_voice` (a test tone from A heard at B, louder near, delay under 250 ms) |
 | **B11** | Deathmatch and bots: frags, respawns, DM item rules with VR weapons, FrikBot with VR-aware bodies | `mp_dm` (two clients and two bots, a fraglimit reached) |
 | **B12** | Determinism: Box3D, navmesh and pathfinding hashes equal across runs with several clients; the server-thread audit in multiplayer | hash scenarios |
@@ -2058,6 +2059,51 @@ water jump out: fixed, then 28/0 twice); scenario_check 138/0, load_models_test 
   wounds sent). The copies' ViewEntities are still found by their own lookups (mpavatar::find, bonePoses, lookOf) beside
   yours (view::find): one registry for every player's view entities would fold them, a small follow-up.
 
+### B12 results: the poses in the snapshot, a rate and its priorities (2026-11-15, dev no-LTO build, loopback; `mp_armed` 16/0)
+
+First the measurement (`vr_net_bytes`, new: what a client read, by kind; the harness prints it per scenario beside the
+proxy's totals, and `suite` ends with the table). B's link down before this phase (B11b's suite, B/s): coop 19.3 K,
+campaign 24.7 K, flow 29.8 K, melee 10.9 K, bandwidth 40.1 K (its cull 0 window included). The kinds showed the armed
+humanoids' poses (`QVR_SVC_ARMPOSE`, whole every frame after the broadcast) as the largest by far wherever one was in
+sight: `mp_armed` (new, below), six armed grunts in sight, idle: poses 37-42 KB/s of 46-47 KB/s; in combat 37-41 KB/s of
+50-56 KB/s, entity updates 9-14 KB/s next. Up stays where B7 put it (2-13 KB/s by scenario).
+
+| Scenario | Result |
+|---|---|
+| `mp_armed` (new) | Six armed grunts ahead of B in vrtesthall (`vr_physics_spawn monster_vr_grunt`). Idle: B's link down 46.3 KB/s with their poses outside his snapshot (`vr_net_snapposes 0`, as before) -> 6.2 KB/s in it (poses 37.1 -> 0.9 KB/s); in combat 50.5 -> 22.9 KB/s (poses 36.8 -> 9.4 KB/s); budgets 10 and 35 KB/s (section 2.3). Under `vr_net_rate 12000` in combat: his link 12.0 KB/s, a snapshot in every datagram, the nearest two grunts' poses 137 and 109 entries in 5 s against the farthest two's 54 and 44; none undecodable. Failed first: no poses in the snapshot, no rate |
+| `vr_netsnap_selftest` | 8/0 (was 6): a pose record new then changed by a byte (6 B); a rate's budget of 40 B: the player state and the highest priority sent, 37 of 43 waited, read back as the server keeps them |
+
+What changed:
+
+- **The poses in the snapshot** (`vr_server.cpp` VR_SnapEnd, `vr_net_snapposes` 1): each pose of an armed humanoid in
+  a remote client's sight is a record (`netsnap::poseKey` + its entity; a frame's poses of one entity together),
+  delta-coded against the one he acknowledged like the rest; a pose skipped this frame (its level of detail) is gone,
+  so the client parses exactly the poses NetQuake's datagram would have carried, before the broadcast instead of after
+  it (the poses' parser only stores them). The loopback client and single player get them as before.
+- **The broadcast's room first**: the snapshot's budget leaves the frame's broadcast (sounds, temp entities) room, at
+  most half the datagram, so events still go before poses as when the poses came last.
+- **A rate** (`vr_net_rate`, B/s, 0 none; a per-player preference up with the others, `QVR_NET_VERSION` 31; Debug >
+  Reports > Network: Rate Cap): the server fills a bucket at his rate (at most 0.1 s of it, a datagram at least) and
+  charges each datagram whole; his snapshot's body gets what the bucket holds after what is written and the broadcast.
+- **The priority accumulator** (`netsnap::encode`): when the changed records do not all fit (his rate, or a full
+  datagram), his own state (player state, walk) and gone entries go first, then the highest priorities that fit; a
+  record's priority is its weight (256 / (256 + distance), twice ahead of his view, twice another player's avatar) times
+  1 + the frames it has waited; one that waits stays as the base's on both sides. Without a cap and with room, nothing
+  changes.
+- `vr_net_bytes [reset|poses]` (client): bytes read, reliable and unreliable, the unreliable by kind (the snapshot's
+  entries by class and its header; poses, avatars, entities outside it; sounds, temp entities; the three biggest of the
+  rest), `poses`: each armed humanoid's pose entries and mean distance. `mp_netsnap:` adds the rate, the records that
+  waited and the snapshots with any.
+
+Final checks: `mp_test.py suite` 27 of 30 pass: `mp_climb` 10/1 (A's mantle setup: no hold taken, its known flake; 11/0 alone), `mp_disarm` 33/2 (the rocket into B's port, "None": its hand placement; 35/0 alone), `mp_predictclimb` 2/2: B crashed joining (below; 28/0 twice alone, once with the fix; `mp_climb` 11/0 with it too); scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0 (run B `3 1 0 1 0`), vr_netsnap_selftest 8/0, vr_netmove_selftest 5/0, the dev build and the Release (ThinLTO) build 0 warnings.
+
+Found and fixed (multiplayer only, its own commit): `CL_KeepaliveMessage` sent its nop during a long map load without `NET_CanSendMessage`; with B2's chunked reliable window a send while a chunk was in flight restarted `sendChunkBase` past the unacked chunks and the 1 s resend's offsets wrapped (a Q_memcpy crash of B, 150 ms behind, loading vrclimb: 2 runs of 3). The keepalive now waits while a reliable message is in flight (that keeps the connection alive itself).
+
+Not done (measured, left for B12b): an entropy stage. With the poses in, what is left down in combat is entity updates
+(8.4 KB/s: NetQuake's variable-length updates of moving grunts and their weapons, whole whenever their bits change) and
+the poses' deltas (9.4 KB/s); the rest (time, move acknowledgements, prediction, header) about 4 KB/s. Field-level
+coding of the entities comes before an entropy stage; the fast retransmit of the reliable window is still open.
+
 ## For him (B11b)
 
 **His answer (2026-11-16): on.** `vr_pmove_own` defaults to 1 since B11c part 2; 0 stays as the fallback (Debug >
@@ -2147,4 +2193,4 @@ QuakeC's PlayerPreThink parts. Exactly what would change:
 - The interpolation buffer (B7b) leaves brush models and stepping monsters on NetQuake's lerp: the player's own entity
   is not delayed (no prediction until B8), and a lift he rides must stay in step with him.
 
-Next phase: B12 (was B9) -- compression and rate: the fast retransmit of the reliable window, an entropy stage with trained tables for the snapshots and moves, a per-client rate and a priority accumulator, measured against section 2.3's byte budgets per scenario (B10's voice chat after it: his approval stands, but vendoring Opus and RNNoise is a download from their official sources, which a worker may not make; the coordinator or he places the sources first).
+Next phase: B12b -- the rest of compression: the entities' field-level coding (NetQuake's updates of moving grunts and their weapons, whole whenever their bits change: 8.4 KB/s of `mp_armed`'s 22.9 in combat), the fast retransmit of the reliable window, then an entropy stage only if it still pays, against `mp_armed`'s budgets (B10's voice chat after it: his approval stands, but vendoring Opus and RNNoise is a download from their official sources, which a worker may not make; the coordinator or he places the sources first).
