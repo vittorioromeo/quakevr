@@ -2378,6 +2378,7 @@ void(float shotcount, vector dir, vector spread, vector src, float xRange, float
         {
             VR_Crate_MonsterShot(src, src + direction*xRange); // a crate held up in the way
         }
+        VR_PD_Shot(self, shotFrom, trace_endpos, shotDir, vr_pellet_damage ? vr_pellet_damage : 4, QVR_AGS_PELLET); // a player's weapon on its way: disarmed? (vr_playerdisarm.qc)
         VR_ShotPush(trace_ent, shotFrom, trace_endpos, shotDir, QVR_SHOTPUSH_PELLET, 1); // the prop it hits or goes through
         VR_Gib_TraceHeld(src, src + direction*xRange);               // and one held in the other hand
         VR_WaterShotSplash(shotFrom, trace_endpos);                   // a splash where it goes into water
@@ -2804,6 +2805,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
     VR_ShotPush(trace_ent, p1, trace_endpos, p2 - p1, QVR_SHOTPUSH_LIGHTNING, damage / 30);
     VR_Gib_TraceHeld(p1, p2);              // and one held in the other hand
     VR_AGS_Shot(from, p1, trace_endpos, p2 - p1, damage, QVR_AGS_LIGHTNING); // VR: through a held weapon or its hand (vr_armedgrunt_shot.qc)
+    VR_PD_Shot(from, p1, trace_endpos, p2 - p1, damage, QVR_AGS_LIGHTNING); // ... or a player's (vr_playerdisarm.qc)
 //JIM
     if(trace_ent.takedamage && !trace_ent.wetsuit_finished)
     {

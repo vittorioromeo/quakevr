@@ -879,6 +879,9 @@ void ikStretchReset()
         row(opt::vr_agrunt_shotdisarm_proj_ref),
         row(opt::vr_agrunt_shotdisarm_proj_near),
         row(opt::vr_agrunt_shotdisarm_proj_max),
+        header("Disarming: Your Weapon"),
+        row(opt::vr_player_disarm),
+        row(opt::vr_player_disarm_chance),
         header("Their Hands"),
         row(opt::vr_agrunt_ik),
         open("Grip Editor", pageIndex(pageArmedGrips))

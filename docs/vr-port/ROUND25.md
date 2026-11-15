@@ -3108,3 +3108,31 @@ thumb up but put the knuckles in. The right answer is neither: no turn at all re
 ## mrlfix + clretire1116 (agent/mrlfix)
 
 MRL (slot 14, v_multi2.mdl) now holds no offset keys of its own: it inherits the rocket launcher (slot 6) for the ammo screen (wpntxt_*), button (wpnbtn_*), finger/hand_*, grips (x/y/z/pitch/yaw, 2h_*), hotspot and muzzle; only id, inherit and its fx_* shot effects stay. His config had no vr_wofs values for either slot. 52 ticked lines retired from checklist.txt (those he spoke of at 03:xx kept); 19 scenes only they used moved out (kept any still named by code, docs, or other lines). No flat screenshot taken.
+
+## pdisarm: the player disarmed by the armed humanoids' own rules (agent/pdisarm, 2026-11-15)
+
+His voice note (e1m1 2026-11-15 03:28): players get disarmed by precise shots and melee hits on their gun or hand, "using
+the same exact rules" as enemies; an option, on by default, single player and multiplayer.
+
+- One rule (`QC/vr_armedgrunt_shot.qc`): `VR_Disarm_Add` (the adding up over `vr_agrunt_shotdisarm_window`, the threshold
+  `_damage`, the cooldown), `VR_Disarm_Roll` (`_chance` + `_chance_scale` per threshold past, at most 0.95, times a
+  scale) and `VR_Disarm_ProjChance` (a projectile's one roll: `_proj_*`), on any holder entity. The armed humanoids'
+  `VR_AGS_Add`, `VR_AGS_Frame` and `VR_AGS_ProjRoll` now call them (same random() order: agshot unchanged).
+- The player's side (`QC/vr_playerdisarm.qc`): each hand of each player a holder (`vr_pd_hand` entity, spawned at its
+  first hit). Volumes: the held weapon's line as the melee and parry lay it out (`VR_Parry_WeaponLine`, so fists and
+  empty hands never count) with `VR_AGS_W_RADIUS` + `vr_agrunt_vol_shot_weapon`, the hand as a sphere with
+  `VR_AGS_H_RADIUS` + `vr_agrunt_vol_shot_hand`; `vr_agrunt_shotdisarm_parts`, `_near`, `_weapon_w`, `_hand_w` as for
+  them. Hooks: `FireBulletsImpl` and `LightningDamage` (`VR_PD_Shot`: anyone's shot but the player's own, so agent/mp gets
+  PvP as is), `PlayerPostThink` (`VR_PD_Frame`: projectiles within a frame back/ahead: nails, rockets, grenades,
+  enforcer lasers, ogre grenades, vore balls, zombie gibs; then the rolls due), `VR_Parry` (`VR_PD_Blow`: a blow with a
+  line that lands, i.e. no directional parry, guard or crossed arms, meeting the weapon within the parry contact distance
+  + `vr_agrunt_vol_blow` with at least `vr_agrunt_disarm_damage`: the armed humanoids' blow rule, certain at chance 1).
+  The shot itself is not stopped by your weapon (no blocking added): your body takes it as before.
+- Knocked out: `DropWeaponInHandScaled` at `vr_weight_drop_velocity` (the grip-lost drop: a `thrown_weapon` with its
+  record, clip and ammo kept, pickable), pushed along the shots' way (`vr_wpn_dropped`, new global); sparks, a ricochet,
+  a buzz on that hand, `bf` flash, a line.
+- Cvars: `vr_player_disarm` 1, `vr_player_disarm_chance` 1 (times the chance, at most certain; 0 never): Advanced VR
+  Options > Combat > Armed Grunts > Disarming: Your Weapon. Debug: `vr_agrunt_shotdisarm_debug 1` prints `playerdisarm:`.
+- Test `vr_pd_test 1` (Debug > Tests > Player Disarm): 10/10 (blast across the gun knocks it out at forced chance, lies
+  on the floor with clip 5; blast across the body: no hit; enforcer laser: out; option off: nothing). agshot (vr_agrunt_test
+  50) 10/0, vr_agrunt_test 200 33/0. Scene `player_disarm`. The melee path has no headless test (dirparry's held blows).
