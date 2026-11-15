@@ -97,4 +97,12 @@ void waterSplash(const glm::vec3& at, const glm::vec3& dir, float strength, Spla
 // his arms (vr_prone_crawl; vr_physics_water.cpp), 1 for the rest.
 [[nodiscard]] float crawlStickScale(edict_t* ent);
 
+// A remote client's swim run move by move (vr_pmove.cpp, MP_PLAN B8e): VR_WaterStickScale's three scales (shallow,
+// wading, swimming), VR_AfterWaterMove's glide and speed cap (-1: none) for this frame; all 1, 0 and -1 for one who is
+// no swimmer (vr_swim off, hands untracked).
+void swimRules(edict_t* ent, float& shallow, float& wade, float& swim, float& glide, float& most);
+
+// VR_AfterWaterMove's strokes alone (the glide and the stick's swim ran in his moves): once a server frame after them.
+void swimStrokes(edict_t* ent, float forwardmove, float sidemove, float upmove);
+
 } // namespace qvr::physics

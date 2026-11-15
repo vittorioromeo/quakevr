@@ -878,7 +878,40 @@ namespace
 }
 } // namespace
 
+void qvr::physics::swimRules(edict_t* ent, float& shallow, float& wade, float& swim, float& glide, float& most)
+{
+    shallow = wade = swim = 1.f;
+    glide = 0.f;
+    most = -1.f;
+    if(!swimmer(ent))
+    {
+        return;
+    }
+    shallow = CLAMP(0.f, vr_swim_shallow_speed.value, 1.f);
+    wade = CLAMP(0.f, vr_swim_wade_speed.value, 1.f);
+    swim = CLAMP(0.f, vr_swim_stick_speed.value, 1.f);
+    glide = CLAMP(0.f, vr_swim_glide.value, 1.f);
+    most = za::max(0.f, vr_swim_max_speed.value);
+}
+
+namespace
+{
+void afterWaterMove(edict_t* ent, float forwardmove, float sidemove, float upmove, bool glideHere);
+} // namespace
+
 extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemove, float upmove)
+{
+    afterWaterMove(ent, forwardmove, sidemove, upmove, true);
+}
+
+void qvr::physics::swimStrokes(edict_t* ent, float forwardmove, float sidemove, float upmove)
+{
+    afterWaterMove(ent, forwardmove, sidemove, upmove, false);
+}
+
+namespace
+{
+void afterWaterMove(edict_t* ent, float forwardmove, float sidemove, float upmove, bool glideHere)
 {
     QVR_PROFILE("vr swim");
     const VrMove* move = swimmer(ent);
@@ -915,7 +948,7 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
 
     // The glide: SV_WaterMove's friction took dt * sv_friction of the speed; give part of it back.
     const float glide = CLAMP(0.f, vr_swim_glide.value, 1.f);
-    if(glide > 0.f && !(static_cast<int>(ent->v.flags) & FL_ONGROUND))
+    if(glideHere && glide > 0.f && !(static_cast<int>(ent->v.flags) & FL_ONGROUND))
     {
         const float lost = dt * sv_friction.value;
         if(lost > 0.f && lost < 0.9f)
@@ -1075,6 +1108,7 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
     ent->v.velocity[1] = vel.y;
     ent->v.velocity[2] = vel.z;
 }
+} // namespace
 
 // ----------------------------------------------------------------------------
 // Crawling with the arms (vr_prone_crawl; ROUND24.md, "Crawling with the arms")

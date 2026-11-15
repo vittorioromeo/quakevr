@@ -3193,3 +3193,12 @@ His flat report: a Run Setup Style (Classic, then Unleashed) took effect only wh
 ## wetglint (agent/wetglint)
 
 His report: after quickload the dripping came back but the wet glint did not. The shine (the alias shader wet coat, `wounds::wetCoat`) read `Mask::wetLeft` / `handWetLeft`, set only by a liquid wound event (the rising edge); a load restoring vr_drips wetness never set them. Fix, no new state: `wetCoat` takes its seconds-left from `drips::wetOf(e)` (drips wetness times dryTime, max with the old values); a thing with no wet mask (a loaded game) shines all over. `Misc/quakevr/saveload_test.sh` checks `vr_wounds_info` `wet: coat`: each coat shining before the save shines after (flat 5, VR 5). BACKLOG: flat 2H melee pose item added.
+
+## mpN B8e (agent/mp): swimming and the movers' motion predicted
+
+A remote client's swim now runs move by move through `vr_pmove.cpp` (each move's own water level; SV_WaterJump's carry,
+SV_WaterMove with the VR stick scales, glide and cap; QC WaterMove's drag and the swim rise via `.vr_moveswim` /
+`.vr_movejump`); the hands' strokes stay the server's, once a frame. The state carries the movers near him in motion
+(velocity, time to their stop): his replay meets a lift where it will be and rides it. `mp_predict` 21/1: swimming on
+e1m4 0.000 over 216 states; on the rising lift 0.025 (his place on it); one 12.7-unit correction in the drop onto it
+(open, B8f). `QVR_NET_VERSION` 22. Single player untouched (the fields are 0 there). Details: MP_PLAN.md "B8e results".

@@ -1554,7 +1554,11 @@ void() PlayerJump =
 
     if(self.waterlevel >= 2)
     {
-        if(self.watertype == CONTENT_WATER)
+        if(self.vr_movejump)
+        {
+            // (a remote client's moves rise in each, the engine's: MP_PLAN B8e; the sound is ours)
+        }
+        else if(self.watertype == CONTENT_WATER)
             self.velocity_z = 100;
         else if(self.watertype == CONTENT_SLIME)
             self.velocity_z = 80;
@@ -1706,7 +1710,7 @@ void() WaterMove =
         self.dmgtime = 0;
     }
 
-    if(! (self.flags & FL_WATERJUMP))
+    if(!(self.flags & FL_WATERJUMP) && !self.vr_moveswim) // (a remote client's moves drag in each: MP_PLAN B8e)
         self.velocity = self.velocity - 0.8*self.waterlevel*frametime*self.velocity;
 };
 
@@ -1955,7 +1959,10 @@ void() PlayerPreThink =
     if(self.vr_movejump)
     {
         // A remote client's walk runs move by move (MP_PLAN B8d): the engine jumps as PlayerJump does, in the move whose
-        // key pressed it (vr_pmove.cpp), so his own prediction jumps with it; the key's release is its too.
+        // key pressed it (vr_pmove.cpp), so his own prediction jumps with it; the key's release is its too. Swimming,
+        // the rise is the engine's too: PlayerJump plays its sound.
+        if(self.button2 && self.waterlevel >= 2)
+            PlayerJump();
     }
     else if(self.button2)
     {

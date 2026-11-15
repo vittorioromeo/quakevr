@@ -99,9 +99,10 @@ void airMove(Body& b, const Input& in, const Rules& r, bool onground)
     steer[PITCH] = steer[ROLL] = 0.f;
     AngleVectors(steer, forward, right, up);
 
-    float fmove = in.forward * r.stickScale;
-    const float smove = in.side * r.stickScale;
-    if(fmove < 0.f && b.backHeld())
+    const float scale = r.stickScale * (b.waterLevel >= 1 ? r.shallowStick : 1.f); // (VR_WaterStickScale, not swimming)
+    float fmove = in.forward * scale;
+    const float smove = in.side * scale;
+    if(fmove < 0.f && b.holdLeft > 0.f)
     {
         fmove = 0.f;
     }
@@ -132,6 +133,89 @@ void airMove(Body& b, const Input& in, const Rules& r, bool onground)
     else
     {
         airAccelerate(b, wishspeed, wishvel, r, in.dt);
+    }
+}
+
+// SV_WaterMove for a swimming player (the head's full angles steer), the stick scaled as VR_WaterStickScale swimming,
+// then VR_AfterWaterMove's glide off the bottom and its speed's cap (its strokes, the hands', are the server's).
+void swimMove(Body& b, const Input& in, const Rules& r, bool onground)
+{
+    vec3_t steer, forward, right, up;
+    VectorCopy(in.steer, steer);
+    AngleVectors(steer, forward, right, up);
+
+    const float scale = r.stickScale * (b.waterLevel >= 3 || !onground ? r.swimStick : r.wadeStick);
+    const float fmove = in.forward * scale, smove = in.side * scale, umove = in.up * scale;
+    vec3_t wishvel;
+    for(int i = 0; i < 3; i++)
+    {
+        wishvel[i] = forward[i] * fmove + right[i] * smove;
+    }
+    if(!fmove && !smove && !umove)
+    {
+        wishvel[2] -= 60.f; // (drift towards the bottom)
+    }
+    else
+    {
+        wishvel[2] += umove;
+    }
+    float wishspeed = VectorLength(wishvel);
+    if(wishspeed > r.swimMax)
+    {
+        VectorScale(wishvel, r.swimMax / wishspeed, wishvel);
+        wishspeed = r.swimMax;
+    }
+    wishspeed *= 0.7f;
+
+    // (water friction)
+    float* vel = b.velocity;
+    const float speed = VectorLength(vel);
+    float newspeed = 0.f;
+    if(speed)
+    {
+        newspeed = speed - in.dt * speed * r.friction;
+        if(newspeed < 0.f)
+        {
+            newspeed = 0.f;
+        }
+        VectorScale(vel, newspeed / speed, vel);
+    }
+
+    // (water acceleration)
+    if(wishspeed)
+    {
+        const float addspeed = wishspeed - newspeed;
+        if(addspeed > 0.f)
+        {
+            VectorNormalize(wishvel);
+            float accelspeed = r.accelerate * wishspeed * in.dt;
+            if(accelspeed > addspeed)
+            {
+                accelspeed = addspeed;
+            }
+            for(int i = 0; i < 3; i++)
+            {
+                vel[i] += accelspeed * wishvel[i];
+            }
+        }
+    }
+
+    // VR_AfterWaterMove's glide: part of the friction just taken given back off the bottom; then its cap.
+    if(r.glide > 0.f && !onground)
+    {
+        const float lost = in.dt * r.friction;
+        if(lost > 0.f && lost < 0.9f)
+        {
+            VectorScale(vel, (1.f - lost * (1.f - r.glide)) / (1.f - lost), vel);
+        }
+    }
+    if(r.swimMost >= 0.f)
+    {
+        const float len = VectorLength(vel);
+        if(len > r.swimMost && len > 0.f)
+        {
+            VectorScale(vel, r.swimMost / len, vel);
+        }
     }
 }
 
@@ -419,7 +503,7 @@ void walkMove(Body& b, const Input& in, const Rules& r, float dt, MoveNotes* not
     {
         return;
     }
-    if(!oldonground && !r.wading)
+    if(!oldonground && b.waterLevel == 0)
     {
         return; // (no stairs up while jumping)
     }
@@ -491,6 +575,31 @@ void walkMove(Body& b, const Input& in, const Rules& r, float dt, MoveNotes* not
     }
 }
 
+void checkWater(Body& b, const Rules& r)
+{
+    vec3_t p{b.origin[0], b.origin[1], b.origin[2] + r.feetZ};
+    b.waterLevel = 0;
+    b.waterType = CONTENTS_EMPTY;
+    int cont = b.contents(p);
+    if(cont > CONTENTS_WATER)
+    {
+        return;
+    }
+    b.waterType = cont;
+    b.waterLevel = 1;
+    p[2] = b.origin[2] + r.waistZ;
+    if(b.contents(p) > CONTENTS_WATER)
+    {
+        return;
+    }
+    b.waterLevel = 2;
+    p[2] = b.origin[2] + r.eyeZ;
+    if(b.contents(p) <= CONTENTS_WATER)
+    {
+        b.waterLevel = 3;
+    }
+}
+
 void playerMove(Body& b, const Input& in, const Rules& r, MoveNotes* notes)
 {
     const bool onground = (b.flags & FL_ONGROUND) != 0;
@@ -498,15 +607,57 @@ void playerMove(Body& b, const Input& in, const Rules& r, MoveNotes* notes)
     {
         notes->air = true;
     }
-    airMove(b, in, r, onground);
+    // SV_ClientThink: the water jump, the swim or the walk, by the level where the move starts (a server frame's
+    // SV_CheckWater, each move's here: his replay finds it as the server does).
+    checkWater(b, r);
+    if(b.flags & FL_WATERJUMP)
+    {
+        // SV_WaterJump: carried over the edge until out of the water or its time is up (gravity off meanwhile).
+        if(b.holdLeft < 0.f || !b.waterLevel)
+        {
+            b.flags &= ~FL_WATERJUMP;
+            b.holdLeft = 0.f;
+        }
+        b.velocity[0] = b.jumpDir[0];
+        b.velocity[1] = b.jumpDir[1];
+    }
+    else if(b.waterLevel >= 2)
+    {
+        swimMove(b, in, r, onground);
+    }
+    else
+    {
+        airMove(b, in, r, onground);
+    }
+    if(notes && (b.waterLevel >= 2 || (b.flags & FL_WATERJUMP)))
+    {
+        notes->swim = true;
+    }
+    // QC WaterMove's drag (PlayerPreThink, after SV_ClientThink's move), in water and not jumping out of it.
+    if(r.waterDrag && b.waterLevel && !(b.flags & FL_WATERJUMP))
+    {
+        const float k = 0.8f * static_cast<float>(b.waterLevel) * in.dt;
+        for(int i = 0; i < 3; i++)
+        {
+            b.velocity[i] -= k * b.velocity[i];
+        }
+    }
     if(r.jumpSpeed > 0.f)
     {
         // QC PlayerPreThink's jump (PlayerJump; after SV_ClientThink's air move, before the physics, as a server frame
-        // runs them), in the move whose key pressed it. The rules' cases it leaves to QuakeC (deep water, a water jump,
-        // lying down, AD's boots) are moves not run here, or jumpSpeed 0.
+        // runs them), in the move whose key pressed it. Swimming, the key rises (PlayerJump's water branch); a water
+        // jump out (QC's CheckWaterJump, once a server frame) is the state's. The rules' cases left to QuakeC (lying
+        // down, AD's boots) are jumpSpeed 0.
         if(!in.jump)
         {
             b.flags |= FL_JUMPRELEASED;
+        }
+        else if(b.flags & FL_WATERJUMP)
+        {
+        }
+        else if(b.waterLevel >= 2)
+        {
+            b.velocity[2] = b.waterType == CONTENTS_WATER ? 100.f : b.waterType == CONTENTS_SLIME ? 80.f : 50.f;
         }
         else if((b.flags & FL_ONGROUND) && (b.flags & FL_JUMPRELEASED))
         {
@@ -520,7 +671,7 @@ void playerMove(Body& b, const Input& in, const Rules& r, MoveNotes* notes)
         }
     }
     checkVelocity(b, r);
-    if(r.gravityOn)
+    if(b.waterLevel < 2 && !(b.flags & FL_WATERJUMP))
     {
         gravity(b, r, in.dt);
     }
@@ -545,6 +696,7 @@ void playerMove(Body& b, const Input& in, const Rules& r, MoveNotes* notes)
         VectorCopy(oldvel, b.velocity);
     }
     b.groundAge += in.dt;
+    b.holdLeft -= in.dt;
 }
 
 } // namespace qvr::pmove

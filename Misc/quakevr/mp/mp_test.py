@@ -2834,11 +2834,16 @@ def predict_corr_check(s, what, pr, least=20):
 
 
 # e1m1's lift (func_plat *7, at the bottom until a player stands on it: 150 units up at 150 u/s, held up while he stays)
-LIFT_SPOT = (-544.0, 2656.0, -94.0)  # over its middle at the bottom (its top -119): a unit over it (no fall onto it moving)
 LIFT_TOP = 31.0 + 24.0               # his origin on it at the top
+# A on its one half at the bottom (its top -119) starts it; B over its other half, 60 units over his place on it at
+# the top, falls onto it as it rises (B8e: a fall onto a moving lift)
+LIFT_A = (-584.0, 2656.0, -94.0)
+LIFT_DROP = (-504.0, 2656.0, LIFT_TOP + 60.0)
+# e1m4's deep water (hull 0's contents: water 48 units round him, 60 over and under; scratch b8e_water2.py): swimming
+SWIM_SPOT = (336.0, 1300.0, 388.0)
 
 
-def predict_moves(s, srv, b, eb):
+def predict_moves(s, srv, a, b, ea, eb):
     """MP_PLAN B8d: the prediction's moves. A jump (QC's PlayerJump, run in the move whose key pressed it: his own jump
     shows at his press, and the air's corrections stay under a unit), a crouched walk (the crouched box's rules), and a
     ride on e1m1's lift (the lift he stands on carries him between the server's states: no correction, no offset)."""
@@ -2864,30 +2869,54 @@ def predict_moves(s, srv, b, eb):
             "maxspeed %s" % pr.get("maxspeed"))
     predict_corr_check(s, "walking crouched", pr)
     b.cmd("vr_mock_hand head")
-    # (standing up at once is a head's leap: a room-scale jump, his own; landed here, not on the lift as it starts up --
-    # a fall onto a moving lift is a correction: his replay meets it where it is, not where it will be)
+    # (standing up at once is a head's leap: a room-scale jump, his own)
     predict_until(s, b, "states", int(predict_report(b).get("states", 0)) + 72, "B stood up")
     b.cmd("notarget; god")
+    a.cmd("notarget; god")
+    # A on the lift at its bottom starts it up; B put over its other half falls onto it as it rises (counted from his
+    # prediction's snap to the spot on: his replay meets the lift where it will be, B8e, and it carries him up). (Put
+    # over it before it moves, his fall would start it: its start is the server's, a correction no replay can foresee.)
+    put_at(srv, a, ea, LIFT_A, 90)
     since = b.mark()
-    put_at(srv, b, eb, LIFT_SPOT, 90)
-    # (counted from his prediction's snap to the spot on: the lift starts up as he arrives, a second's ride)
+    put_at(srv, b, eb, LIFT_DROP, 90)
     b.wait(r"mp_predict_corr: c=\d{3,}", 20, since, "B's prediction put over the lift")
     b.cmd("vr_mp_predict_report reset")
-    low = org_of(status(srv), "mp_client", "slot", eb - 1)
-    s.check("B's prediction counted from low on the lift (the ride ahead)", bool(low) and low[2] < LIFT_TOP - 40,
-            "the server has him at %s" % (low,))
-    pr = predict_segment(s, b, "riding the lift", "", 36, ("", "", "", "vr_mock_stick off 0.3 0", "vr_mock_stick off 0 0"),
-                         reset=False)
+    pr = predict_segment(s, b, "falling onto the lift and riding it", "", 36,
+                         ("", "", "", "vr_mock_stick off 0.3 0", "vr_mock_stick off 0 0"), reset=False)
     s.metric("b_predict_lift", pr)
+    s.check("B fell onto the lift while it rose (a landing on it moving)", int(pr.get("land_moving", 0)) >= 1,
+            "%s landings" % pr.get("land_moving"))
     sv = org_of(status(srv), "mp_client", "slot", eb - 1)
     s.check("B rode the lift up (the server has him at its top; states the lift under him moved: 12 at least)",
             bool(sv) and abs(sv[2] - LIFT_TOP) < 2.0 and int(pr.get("ride_n", 0)) >= 12,
             "%s, %s states" % (sv, pr.get("ride_n")))
-    predict_corr_check(s, "riding the lift", pr)
+    predict_corr_check(s, "falling onto the lift and riding it", pr)
     own = org_of(status(b), "mp_player", "self", 1)
     gap = dist(own, sv) if own and sv else 99.0
     s.check("on the lift at rest B stands where the server has him (within 1 unit)", gap <= 1.0,
             "B draws himself at %s, the server has him at %s" % (own, sv))
+    b.cmd("notarget; god")
+
+
+def predict_swim(s, srv, a, b, eb):
+    """MP_PLAN B8e: swimming predicted. On e1m4, B in its deep water swims with the stick (SV_WaterMove, the swim's
+    stick scale, glide and cap, QC WaterMove's drag, the jump key's rise, the drift down: each move's water level his
+    replay finds as the server does): his corrections stay under a unit."""
+    since_a, since_b = a.mark(), b.mark()
+    srv.cmd("changelevel e1m4")
+    a.wait(r"mp_event: .*joined map=e1m4", 120, since_a, "A on e1m4")
+    b.wait(r"mp_event: .*joined map=e1m4", 120, since_b, "B on e1m4")
+    b.cmd("notarget; god")  # (his breath runs out under water: no drowning)
+    since = b.mark()
+    put_at(srv, b, eb, SWIM_SPOT, 90)
+    b.wait(r"mp_predict_corr: c=\d{3,}", 20, since, "B's prediction put in the water")
+    b.quiet(r"mp_predict_corr: ", 1.0, 20, "B settled in the water")
+    pr = predict_segment(s, b, "swimming", "", 36,
+                         ("vr_mock_stick off 0 0.6", "vr_mock_stick off 0.6 0", "+jump",
+                          "-jump; vr_mock_stick off 0 -0.6", "vr_mock_stick off 0 0", ""))
+    s.metric("b_predict_swim", pr)
+    s.check("B swam (states in deep water: 150 at least)", int(pr.get("swim_n", 0)) >= 150, "%s" % pr.get("swim_n"))
+    predict_corr_check(s, "swimming", pr)
     b.cmd("notarget; god")
 
 
@@ -2941,7 +2970,8 @@ def predict(s):
     s.check("without prediction his own move takes the round trip (the test tells them apart)",
             frames0 > PREDICT_MOVES_MOST + 5, "%d moves, %d ms" % (frames0, ms0))
     b.quiet(r"mp_predict_corr: ", 1.0, 20, "B predicted again")
-    predict_moves(s, srv, b, eb)
+    predict_moves(s, srv, a, b, ea, eb)
+    predict_swim(s, srv, a, b, eb)
 
 
 
