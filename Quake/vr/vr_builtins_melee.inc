@@ -661,6 +661,15 @@ void PF_watersplash()
         static_cast<physics::SplashSound>(CLAMP(0, static_cast<int>(G_FLOAT(OFS_PARM3)), 2)));
 }
 
+// float waterclimb(float hands): self climbs out of the water by hand now if he can (vr_pmove.cpp waterClimbTry, the
+// code a remote client's moves run: MP_PLAN B8j part 3); `hands` those gripping and empty (bit 0 the off hand, 1 the
+// main). 1: lifted out (QC VR_WaterClimb_Climbed told), 0 not.
+void PF_waterclimb()
+{
+    G_FLOAT(OFS_RETURN) = static_cast<float>(
+        predict::waterClimbFrame(PROG_TO_EDICT(pr_global_struct->self), static_cast<int>(G_FLOAT(OFS_PARM0))));
+}
+
 // embedsay(text): a line on Embedded Blades' debug panel.
 void PF_embedsay()
 {

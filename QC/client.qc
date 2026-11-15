@@ -1744,49 +1744,22 @@ float(vector xDir) WaterJumpTry =
 };
 
 // Climbing out of the water by hand (vr_water_jump 0, vr_climb on): an empty hand gripping on the edge, the
-// ground right under it, pulled down (VR_WATERCLIMB_PULL m/s) lifts the player out as Quake's jump out would, over
-// the edge towards that hand. A bank no ledge of the ledge map is on (a slope, a step: vr_ledges.cpp) climbs so;
-// a ledge's hold takes the climbing's own way (vr_climb.cpp: hang, pull up, mantle).
-float VR_WATERCLIMB_PULL = 0.3;
-float(float xHand) VR_WaterClimb_HandPull =
+// ground right under it, pulled down (0.3 m/s or faster) lifts the player out as Quake's jump out would, over the
+// edge towards that hand, high enough to clear the top under it. A bank no ledge of the ledge map is on (a slope, a
+// step: vr_ledges.cpp) climbs so; a ledge's hold takes the climbing's own way (vr_climb.cpp: hang, pull up, mantle).
+// The engine's (vr_pmove.cpp waterClimbTry: one function with a remote client's moves, MP_PLAN B8j part 3): the hands
+// that may climb (empty: bit 0 the off hand, 1 the main) are QuakeC's.
+float() VR_WaterClimb_FreeHands =
 {
-    vector vel = VRGetEntHandVel(self, xHand);
-    if(!VR_HandGrabUtil_IsHandGrabbing(self, xHand) || !VR_Hand_Free(self, xHand, VR_HANDFREE_BUSY | VR_HANDFREE_LOCKED) ||
-       vel_z > -VR_WATERCLIMB_PULL)
-    {
-        return FALSE;
-    }
-    vector p = VRGetEntHandPos(self, xHand);
-    vector d = p - self.origin;
-    d_z = 0;
-    if(vlen(d) < 8)
-    {
-        return FALSE; // a hand by the body
-    }
-    traceline(p + '0 0 4', p - '0 0 16', TRUE, self);
-    if(trace_fraction == 1 || trace_startsolid || trace_plane_normal_z < 0.7)
-    {
-        return FALSE; // no ground under the hand (a top that could be stood on) to push on
-    }
-    float top = trace_endpos_z;
-    d = normalize(d);
-    if(!WaterJumpTry(d))
-    {
-        return FALSE;
-    }
-    // Lifted high enough to clear the top under the hand (Quake's 225 units/s rise reaches about 31 units: a bank's
-    // top higher than the waist is not climbed so), and carried over the edge a little faster than Quake's.
-    float g = cvar_hget(cvarh_sv_gravity) * (self.gravity ? self.gravity : 1);
-    float rise = top - (self.origin_z + self.mins_z) + 6;
-    if(rise > 0 && g > 0)
-    {
-        self.velocity_z = max(225, sqrt(2 * g * rise));
-    }
-    self.movedir = self.movedir * 1.6; // (Quake's: away from the edge's face, 50 units/s)
-    dprint(sprintf("waterjump: climbed out by hand %g, the top %.1f above the feet, rising at %.0f\n", xHand, rise - 6,
-        self.velocity_z));
+    return (VR_Hand_Free(self, cVR_OffHand, VR_HANDFREE_BUSY | VR_HANDFREE_LOCKED) ? 1 : 0) |
+           (VR_Hand_Free(self, cVR_MainHand, VR_HANDFREE_BUSY | VR_HANDFREE_LOCKED) ? 2 : 0);
+};
+
+// ... the engine's climb lifted self out by hand `xHand`: the top under it `xTop` over the feet, rising at `xRise`.
+void(float xHand, float xTop, float xRise) VR_WaterClimb_Climbed =
+{
+    dprint(sprintf("waterjump: climbed out by hand %g, the top %.1f above the feet, rising at %.0f\n", xHand, xTop, xRise));
     VRItemPickupHaptic(self);
-    return TRUE;
 };
 
 // Off (vr_water_jump 0), a player climbs out with the hands: only while climbing is on (else there would be no way
@@ -1804,9 +1777,11 @@ void() CheckWaterJump =
     v_forward_z = 0;
     if(VR_WaterJumpByHand())
     {
-        if(!VR_WaterClimb_HandPull(cVR_MainHand))
+        if(!self.vr_movewaterclimb) // (a remote client's moves try it, each: MP_PLAN B8j part 3)
         {
-            VR_WaterClimb_HandPull(cVR_OffHand);
+            float grips = (VR_HandGrabUtil_IsHandGrabbing(self, cVR_OffHand) ? 1 : 0) |
+                          (VR_HandGrabUtil_IsHandGrabbing(self, cVR_MainHand) ? 2 : 0);
+            waterclimb(grips & VR_WaterClimb_FreeHands());
         }
         return;
     }
@@ -1944,6 +1919,12 @@ void() PlayerPreThink =
     WaterMove();
     // (a remote client's moves run Quake's jump out each, his prediction with them: MP_PLAN B8f)
     self.vr_movewaterjump = (self.vr_moveswim && !VR_WaterJumpByHand());
+    // (... or the hands' climb out: bit 0, the empty hands in bits 1-2; MP_PLAN B8j part 3)
+    self.vr_movewaterclimb = 0;
+    if(self.vr_moveswim && VR_WaterJumpByHand())
+    {
+        self.vr_movewaterclimb = 1 + 2 * VR_WaterClimb_FreeHands();
+    }
 
     //JIM
     //WETSUIT

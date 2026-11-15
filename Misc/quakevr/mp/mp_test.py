@@ -51,7 +51,8 @@ Tests:
     predictclimb  (B8h, B8i, B8j) on vrclimb, B 150 ms behind each way hangs from the ledge, pulls himself up and lets
              go, then mantles onto it: the hang's steps, the mantle's test and the mantle run in his moves, his replay's
              corrections under a unit (the hold's take and the mantle's start too); at rest he is where the server has
-             him. --part hang|mantle: one alone.
+             him; a hold taken in the air (B8j part 2); the hands' climb out of the start map's pool (B8j part 3). --part
+             hang|mantle|airgrab|waterclimb: one alone.
     suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, version, avatar, avatarcal, body, prefs, grab,
              teleport, held, ground, campaign, campaign_listen, flow, download, pickup, forcegrab, melee, moves, climb,
              rules, cosmetics, flatbody, loss, predict, predictclimb, lagcomp, disarm.
@@ -3392,6 +3393,8 @@ def predict_climb(s):
             predict_mantle(s, srv, a, b, ea, eb)
         if PART in ("", "airgrab"):
             predict_airgrab(s, srv, a, b, ea, eb)
+        if PART in ("", "waterclimb"):
+            predict_waterclimb(s, srv, a, b, eb, first=k == 0)
 
 
 def hang_pull_play():
@@ -3489,6 +3492,61 @@ def predict_airgrab(s, srv, a, b, ea, eb):
             gap <= 1.0 and bool(sv) and abs(sv[2] - CLIMB_SPOT[2]) <= 2.0,
             "B draws himself at %s, the server has him at %s (he started at %s)" % (own, sv, start))
     b.cmd("vr_mock_play; -graboff; -grabmain")
+
+
+def waterclimb_play():
+    """At the start map's pool, swimming west to its edge (the stick forward, the jump key held at the surface), the
+    main hand raised over the edge's top 0.4 m ahead and gripping at 2.5 s, pulled down 0.9 m in a second (0.9 m/s:
+    the climb wants 0.3) -- lifted out as the hand passes over the top; let go, the stick let go at 3.6 s."""
+    hand = "main 0.15 %.2f -0.40 70 0 0"
+    return ["0.000 head 0 1.646 0", "0.000 off -0.30 1.1 -0.2 70 0 0", "0.000 " + hand % 1.5, "2.500 " + hand % 1.5,
+            "3.500 " + hand % 0.6, "6.000 " + hand % 0.6, "0.000 cmd +jump", "0.000 cmd vr_mock_stick off 0 1",
+            "2.500 cmd +grabmain", "3.600 cmd -grabmain", "3.600 cmd -jump", "3.600 cmd vr_mock_stick off 0 0"]
+
+
+def predict_waterclimb(s, srv, a, b, eb, first=True):
+    """MP_PLAN B8j part 3: the hands' climb out of the water predicted (VR's default, vr_water_jump 0; climbing on).
+    On the start map's pool B swims to its west edge (no ledge of the ledge map there: a bank the climb's hold does not
+    take), grips over the top and pulls his hand down: the climb (pmove::waterClimbTry, the function single player's
+    frame calls through QC's builtin) runs in each move on the server and in his replay (the empty hands in the
+    state), so the lift out is no correction (it was the water jump's whole rise, a round trip late); out on the top
+    at rest he stands where the server has him."""
+    if first:
+        since_a, since_b = a.mark(), b.mark()
+        srv.cmd("changelevel start; vr_water_jump 0; developer 1")
+        a.wait(r"mp_event: .*joined map=start", 120, since_a, "A on start")
+        b.wait(r"mp_event: .*joined map=start", 120, since_b, "B on start")
+    b.cmd("notarget; god; vr_mock_play; -graboff; -grabmain; vr_mock_hand head")
+    put_at(srv, b, eb, WATERJUMP_SPOT, WATERJUMP_YAW)
+    own = None
+    for _ in range(100):
+        own = org_of(status(b), "mp_player", "self", 1)
+        if own and math.hypot(own[0] - WATERJUMP_SPOT[0], own[1] - WATERJUMP_SPOT[1]) <= 4:
+            break
+    else:
+        raise StepFailed("B's prediction never put in the pool (he draws himself at %s)" % own)
+    since, since_b = srv.mark(), b.mark()
+    b.cmd("vr_mp_predict_report reset")
+    play(s, b, "waterclimb", waterclimb_play())
+    pr = predict_segment(s, b, "climbing out of the water by hand", "", 72, ("", "", "", "", "", "", ""), reset=False)
+    s.metric("b_predict_waterclimb", pr)
+    climbed = wait_quietly(srv, r"waterjump: climbed out by hand", 1, since, "the server's climb out")
+    sv = org_of(status(srv), "mp_client", "slot", eb - 1)
+    s.check("B climbed out of the water by hand (the server's climb; his moves' rules carry it: wclimb on; the server "
+            "has him on the edge's top)", bool(climbed) and int(pr.get("wclimb", 0)) >= 1 and bool(sv) and
+            sv[2] >= WATERJUMP_SPOT[2] + 24.0,
+            "%s; wclimb %s; the server has him at %s" % (climbed[1].strip() if climbed else "no climb line",
+                                                       pr.get("wclimb"), sv))
+    replayed = wait_quietly(b, r"mp_predict_wclimb: replay", 1, since_b, "B's replay's climb out")
+    s.check("B's replay climbed him out too (pmove::waterClimbTry in his moves)",
+            bool(replayed) and int(pr.get("wclimb_n", 0)) >= 1,
+            "%s (%s replays)" % (replayed[1].strip() if replayed else "no climb in his replay", pr.get("wclimb_n")))
+    predict_corr_check(s, "climbing out of the water by hand", pr)
+    own = org_of(status(b), "mp_player", "self", 1)
+    gap = dist(own, sv) if own and sv else 99.0
+    s.check("out of the water at rest B stands where the server has him (within 1 unit)", gap <= 1.0,
+            "B draws himself at %s, the server has him at %s" % (own, sv))
+    b.cmd("vr_mock_play; -graboff; -grabmain; -jump; vr_mock_stick off 0 0")
 
 
 def predict(s):
@@ -3712,8 +3770,8 @@ def main():
     ap.add_argument("--jitter", type=float, default=0.0, help="client B's delay varies by this much, ms")
     ap.add_argument("--loss", type=float, default=0.0, help="client B's game packet loss, 0..1, each way")
     ap.add_argument("--reset-autoexec", action="store_true", help="empty <base>/id1/autoexec.cfg first")
-    ap.add_argument("--part", default="", choices=["", "lift", "waterjump", "swim", "crawl", "hang", "mantle", "airgrab", "give", "use"],
-                    help="predict: only this segment (traced with vr_mp_watch 1; --watch 2); predictclimb: hang, mantle or airgrab; disarm: give or use, the rounds alone")
+    ap.add_argument("--part", default="", choices=["", "lift", "waterjump", "swim", "crawl", "hang", "mantle", "airgrab", "waterclimb", "give", "use"],
+                    help="predict: only this segment (traced with vr_mp_watch 1; --watch 2); predictclimb: hang, mantle, airgrab or waterclimb; disarm: give or use, the rounds alone")
     ap.add_argument("--repeat", type=int, default=1, help="predict --part: takes in one run (lift: one)")
     ap.add_argument("--watch", type=int, default=1, help="predict --part: vr_mp_watch on the server and B (3: corrections over 0.05 traced)")
     args = ap.parse_args()

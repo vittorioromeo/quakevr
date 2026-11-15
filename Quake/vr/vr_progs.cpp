@@ -305,6 +305,25 @@ float staminaEffort(edict_t* p, float cost, const char* what)
     return za::clamp(out, 0.f, 1.f);
 }
 
+void waterClimbed(edict_t* p, int hand, float top, float rise)
+{
+    const func_t fn = bindings().WaterClimb_Climbed;
+    if(!fn || !p)
+    {
+        return;
+    }
+    const int self = pr_global_struct->self;
+    const float parm[3]{G_FLOAT(OFS_PARM0), G_FLOAT(OFS_PARM1), G_FLOAT(OFS_PARM2)};
+    pr_global_struct->time = qcvm->time;
+    pr_global_struct->self = EDICT_TO_PROG(p);
+    G_FLOAT(OFS_PARM0) = static_cast<float>(hand);
+    G_FLOAT(OFS_PARM1) = top;
+    G_FLOAT(OFS_PARM2) = rise;
+    PR_ExecuteProgram(fn);
+    pr_global_struct->self = self;
+    G_FLOAT(OFS_PARM0) = parm[0], G_FLOAT(OFS_PARM1) = parm[1], G_FLOAT(OFS_PARM2) = parm[2];
+}
+
 float* clientExtParms(int client)
 {
     return clientExtSpawnParms(client);
@@ -455,6 +474,7 @@ extern "C" void VR_OnProgsLoaded()
         b.Stamina_Left = findFunction("VR_Stamina_Left");
         b.Stamina_On = findFunction("VR_Stamina_On");
         b.Stamina_Effort = findFunction("VR_Stamina_Effort");
+        b.WaterClimb_Climbed = findFunction("VR_WaterClimb_Climbed");
         b.foegrab.HeadZone = findFunction("VR_FoeGrab_HeadZone");
         b.foegrab.HeadLeft = findFunction("VR_FoeGrab_HeadLeft");
         b.foegrab.Released = findFunction("VR_FoeGrab_Released");

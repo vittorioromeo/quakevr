@@ -34,6 +34,7 @@ struct Input
     float head[3]{};                 // the head
     int hotspots[2]{0, 0};           // the hands' hotspots (a holster's grip is not a hold)
     int buttons{0};                  // protocol::QVR_BUTTON_* (the hands tracked, the flashlight in a hand)
+    float handVel[2][3]{};           // the hands' velocities, metres a second (VRGetEntHandVel: the water climb's pull)
 };
 
 // The server's rules a move runs by (the server's values, sent with each state: the client replays with them).
@@ -64,6 +65,10 @@ struct Rules
     bool waterDrag{false};       // QC WaterMove's drag runs in each move (its .vr_moveswim), not once a server frame
     bool waterJumpOut{false};    // QC CheckWaterJump's jump out (WaterJumpTry along his facing) runs in each move
                                  // (its .vr_movewaterjump: Quake's jump out, not the hands' climb out), not once a frame
+    bool waterClimb{false};      // the hands' climb out of the water (waterClimbTry: vr_water_jump 0) runs in each move
+                                 // (its .vr_movewaterclimb), not once a frame
+    int climbHands{0};           // ... the hands that may climb (empty: bit 0 the off hand, 1 the main), the frame's
+    float minsZ{-24.f};          // his box's bottom under his origin (.mins_z: the climb's rise over the top)
     bool crawl{false};           // lying down, crawling with his arms (VR_AfterCrawlMove: vr_prone_crawl, tracked hands)
     float crawlTop{0.f};         // ... the stick's crawl speed at most (sv_maxspeed, vr_prone_speed_scale, _stick_scale)
     float crawlFriction{3.f};    // ... its glide out between pulls (vr_prone_crawl_friction, per second)
@@ -229,6 +234,9 @@ struct Body
     // He jumped out of the water (WaterJumpTry: `movedir` its push over the edge; .movedir and .teleport_time, the
     // server's).
     virtual void waterJumped(const float* /*movedir*/) {}
+    // ... by hand `hand` (waterClimbTry; 1 the main hand): the top under it `top` over his feet, rising at `rise` (the
+    // feel and the print: the server's QuakeC).
+    virtual void waterClimbed(int /*hand*/, float /*top*/, float /*rise*/) {}
 };
 
 // Walls and floors met during the last playerMove (a prediction's "flat ground": none but the floor, no step).
@@ -247,6 +255,15 @@ void playerMove(Body& b, const Input& in, const Rules& r, MoveNotes* notes = nul
 
 // SV_CheckWater's level (0-3) and type at the body's origin, as each move finds them (b.waterLevel, b.waterType).
 void checkWater(Body& b, const Rules& r);
+
+// Climbing out of the water by hand (vr_water_jump 0, climbing on; ROUND21.md): a hand of r.climbHands gripping
+// (in.grabs) with ground right under it (a top that could be stood on), pulled down at waterClimbPull or faster
+// (in.handVel), lifts him as Quake's jump out would, over the edge towards that hand, high enough to clear that top; the
+// main hand tried first. True: lifted (FL_WATERJUMP, .movedir; the hooks waterJumped and waterClimbed told). Single
+// player's frame (QC CheckWaterJump's builtin vr_waterclimb, once) and a remote client's moves (each, on the server and
+// in his replay): one function.
+inline constexpr float waterClimbPull = 0.3f; // metres a second (QC's VR_WATERCLIMB_PULL)
+bool waterClimbTry(Body& b, const Input& in, const Rules& r);
 
 // The pieces (each as sv_user.c / sv_phys.c, the move's dt for host_frametime).
 int clipVelocity(const float* in, const float* normal, float* out, float overbounce);

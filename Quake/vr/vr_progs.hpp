@@ -93,6 +93,7 @@ struct Bindings
     func_t Stamina_Left{0};
     func_t Stamina_On{0};     // (staminaOn, staminaEffort: VR_Stamina_On, VR_Stamina_Effort)
     func_t Stamina_Effort{0};
+    func_t WaterClimb_Climbed{0}; // a player climbed out of the water by hand (QC VR_WaterClimb_Climbed: the feel, the print)
     // The monster grab's QC (vr_foegrab.cpp's callQc and head zone), resolved here, not by name per call.
     struct FoeGrab
     {
@@ -356,6 +357,8 @@ inline bool callQc(func_t fn, float a = 0.f, float b = 0.f, float c = 0.f)
 // back from now, the tiring breath as it goes low; `what` names it in the trace): the share of the cost paid, 0..1 (1
 // without the QC's). The caller's self, parameters and return are kept.
 float staminaEffort(edict_t* p, float cost, const char* what);
+// `p` climbed out of the water by hand `hand` (pmove::waterClimbTry): QC VR_WaterClimb_Climbed(hand, top, rise), self `p`.
+void waterClimbed(edict_t* p, int hand, float top, float rise);
 
 // A QC global vector's value, by its name, from the loaded progs (the current VM's): false, `out` untouched, when there
 // is none. For the engine's reads of QC constants it must not copy (design review 10: vr_agpose.cpp's qcConstants[]).

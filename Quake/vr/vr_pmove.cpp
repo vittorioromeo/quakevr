@@ -615,33 +615,91 @@ void checkWater(Body& b, const Rules& r)
 // QC WaterJumpTry along his facing (CheckWaterJump's makevectors(self.angles), level: the move's aim, its pitch a third,
 // as SV_ClientThink sets the angles): solid at the waist within 24 units ahead, open at the eyes -> lifted out
 // (FL_WATERJUMP, 225 up, pushed over the edge by .movedir until out of the water or 2 seconds on).
-void waterJumpTry(Body& b, const Input& in, const Rules& r)
+// QC WaterJumpTry along the level `dir` (x, y): true, lifted out (`movedir` its push over the edge: the caller tells
+// the hook).
+bool waterJumpAlong(Body& b, const float* dir, const Rules& r, float* movedir)
 {
-    const float pitch = DEG2RAD(-in.view[PITCH] / 3.f), yaw = DEG2RAD(in.view[YAW]);
-    const float fwd[2] = {cosf(pitch) * cosf(yaw), cosf(pitch) * sinf(yaw)};
     vec3_t start{b.origin[0], b.origin[1], b.origin[2] + 8.f}, end;
-    end[0] = start[0] + fwd[0] * 24.f;
-    end[1] = start[1] + fwd[1] * 24.f;
+    end[0] = start[0] + dir[0] * 24.f;
+    end[1] = start[1] + dir[1] * 24.f;
     end[2] = start[2];
     const trace_t waist = b.line(start, end);
     if(waist.fraction >= 1.f)
     {
-        return;
+        return false;
     }
     start[2] += r.maxsZ - 8.f;
     end[2] = start[2];
-    vec3_t movedir;
     VectorScale(waist.plane.normal, -50.f, movedir);
     b.jumpDir[0] = movedir[0];
     b.jumpDir[1] = movedir[1];
     if(b.line(start, end).fraction < 1.f)
     {
-        return;
+        return false;
     }
     b.flags = (b.flags | FL_WATERJUMP) & ~FL_JUMPRELEASED;
     b.velocity[2] = 225.f;
     b.holdLeft = 2.f; // (.teleport_time: the safety net)
+    return true;
+}
+
+void waterJumpTry(Body& b, const Input& in, const Rules& r)
+{
+    const float pitch = DEG2RAD(-in.view[PITCH] / 3.f), yaw = DEG2RAD(in.view[YAW]);
+    const float fwd[2] = {cosf(pitch) * cosf(yaw), cosf(pitch) * sinf(yaw)};
+    vec3_t movedir;
+    if(waterJumpAlong(b, fwd, r, movedir))
+    {
+        b.waterJumped(movedir);
+    }
+}
+
+// One hand's try (QC VR_WaterClimb_HandPull, moved here: MP_PLAN B8j part 3).
+bool waterClimbHand(Body& b, const Input& in, const Rules& r, int h)
+{
+    if(!(r.climbHands & (1 << h)) || !(in.grabs & (1 << h)) || !(in.handVel[h][2] <= -waterClimbPull))
+    {
+        return false;
+    }
+    float d[2] = {in.hands[h][0], in.hands[h][1]};
+    const float len = sqrtf(d[0] * d[0] + d[1] * d[1]);
+    if(!(len >= 8.f))
+    {
+        return false; // a hand by the body
+    }
+    const vec3_t p{b.origin[0] + in.hands[h][0], b.origin[1] + in.hands[h][1], b.origin[2] + in.hands[h][2]};
+    const vec3_t from{p[0], p[1], p[2] + 4.f}, to{p[0], p[1], p[2] - 16.f};
+    const trace_t under = b.line(from, to);
+    if(under.fraction >= 1.f || under.startsolid || under.plane.normal[2] < 0.7f)
+    {
+        return false; // no ground under the hand (a top that could be stood on) to push on
+    }
+    const float top = under.endpos[2];
+    d[0] /= len;
+    d[1] /= len;
+    vec3_t movedir;
+    if(!waterJumpAlong(b, d, r, movedir))
+    {
+        return false;
+    }
+    // Lifted high enough to clear the top under the hand (Quake's 225 units/s rise reaches about 31 units: a bank's top
+    // higher than the waist is not climbed so), and carried over the edge a little faster than Quake's.
+    const float rise = top - (b.origin[2] + r.minsZ) + 6.f;
+    if(rise > 0.f && r.gravity > 0.f)
+    {
+        b.velocity[2] = za::max(225.f, sqrtf(2.f * r.gravity * rise));
+    }
+    VectorScale(movedir, 1.6f, movedir); // (Quake's: away from the edge's face, 50 units/s)
+    b.jumpDir[0] = movedir[0];
+    b.jumpDir[1] = movedir[1];
     b.waterJumped(movedir);
+    b.waterClimbed(h, rise - 6.f, b.velocity[2]);
+    return true;
+}
+
+bool waterClimbTry(Body& b, const Input& in, const Rules& r)
+{
+    return waterClimbHand(b, in, r, 1) || waterClimbHand(b, in, r, 0);
 }
 
 bool crawlStickWant(float yaw, float forwardmove, float sidemove, float top, bool onGround, float* want)
@@ -1346,6 +1404,12 @@ void playerMove(Body& b, const Input& in, const Rules& r, MoveNotes* notes)
         {
             notes->swim = true;
         }
+    }
+    // ... or the hands' climb out (its .vr_movewaterclimb: vr_water_jump 0, climbing on; B8j part 3), waist deep (in a
+    // water jump too, as QC's CheckWaterJump: a hand still pulling down lifts him again).
+    if(r.waterClimb && b.waterLevel == 2 && waterClimbTry(b, in, r) && notes)
+    {
+        notes->swim = true;
     }
     if(r.jumpSpeed > 0.f)
     {

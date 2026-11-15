@@ -826,6 +826,7 @@ entity(entity start, .float fld, float flags, vector eye, float range, float min
 float(float particles) propthink = #0;
 vector(vector start, vector end) liquidentry = #0;
 void(vector org, vector dir, float strength, float snd) watersplash = #0;
+float(float hands) waterclimb = #0; // QVR: self climbs out of the water by hand now if he can (vr_pmove.cpp waterClimbTry): hands gripping and empty, bit 0 the off hand, 1 the main; 1 lifted out (VR_WaterClimb_Climbed told)
 float QVR_SPLASH_SILENT = 0; // the caller plays its own sound
 float QVR_SPLASH_SHOT = 1;   // a small plip
 float QVR_SPLASH_THING = 2;  // a splash, small or big by strength

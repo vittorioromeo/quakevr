@@ -7,6 +7,7 @@
 #include "vr_arenawaves.hpp"
 #include "vr_progs.hpp"
 #include "vr_playersteps.hpp"
+#include "vr_predict.hpp"
 #include "vr_bloodstream.hpp"
 #include "vr_brushes.hpp"
 #include "vr_goresound.hpp"
@@ -1055,6 +1056,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"findflagsinview", PF_findflagsinview},
     {"liquidentry", PF_liquidentry},
     {"watersplash", PF_watersplash},
+    {"waterclimb", PF_waterclimb},
     {"fileexists", PF_fileexists},
     {"campaignmusic", PF_campaignmusic},
     {"highlighting", PF_highlighting},

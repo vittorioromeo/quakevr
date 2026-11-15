@@ -25,6 +25,10 @@ namespace qvr::predict
 // Server.
 void serverQueue(client_t* client, const netmove::WireMove& m); // a move just run (applyNetMove)
 void serverReset(int slot);
+// Single player's (and a listen host's own client's) climb out of the water by hand, once a frame (QC CheckWaterJump's
+// builtin vr_waterclimb): pmove::waterClimbTry on `ent`'s hands now, `hands` those gripping and empty (bit 0 the off
+// hand, 1 the main) -> 1: lifted out (its hook told QuakeC), 0 not. One function with a remote client's moves (B9).
+int waterClimbFrame(edict_t* ent, int hands);
 
 // Client.
 void parseState();  // QVR_SVC_PREDICT's body

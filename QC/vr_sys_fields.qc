@@ -139,6 +139,8 @@
 .float vr_movejump; // a remote client's walk runs move by move (the engine sets it each frame, vr_predict.cpp): his jump is the engine's, in the move whose key pressed it (PlayerPreThink leaves it; 0 again for AD's boots)
 .float vr_movewaterjump; // ... and Quake's jump out of the water (PlayerPreThink sets it each frame for such a client
                         // on Quake's jump out, not the hands' climb: CheckWaterJump leaves it to the moves, MP_PLAN B8f)
+.float vr_movewaterclimb; // ... or the hands' climb out (PlayerPreThink: bit 0 on, bits 1-2 the empty hands, as
+                          // VR_WaterClimb_FreeHands; CheckWaterJump leaves it to the moves, MP_PLAN B8j part 3)
 .float vr_moveswim; // ... and so does the water's drag (WaterMove leaves it; the engine sets it each frame)
 .float vr_stand; // the head's height over the floor, a share of the standing (calibrated) eye height (1 standing; 0 not known): the engine sets it from his move (VR_KdTrig_Tackle)
 .float handdrop;// a heavy weapon wrenched out of a hand (the engine's vr_weight_drop: VR_HANDDROP_*, weapons.qc)
