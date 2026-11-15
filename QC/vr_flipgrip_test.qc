@@ -26,6 +26,7 @@ vector vr_fg_hp;    // case 2: the carried dagger's handle
 vector vr_fg_bl;    // ... and its blade's line
 vector vr_fg_aim;   // the main hand's aim being nudged (VR_FG_MainTakes)
 float vr_fg_nudges;
+float vr_fg_retried; // case 6: the take tried again once
 
 float() VR_FG_Grip = { return VRGetEntWeaponFlags(self, cVR_MainHand); };
 
@@ -377,7 +378,7 @@ void() VR_FG_Frame =
         {
             vr_eh_flags = 0;
             vr_eh_down = 1.2;
-            if(VR_EH_Blow(WID_SWORD, 6, 0, FALSE, t))
+            if(VR_EH_Blow(WID_SWORD, 9, 0, FALSE, t)) // (9 m/s: deep enough to stay in once let go of)
             {
                 vr_eh_down = 0;
                 entity w = VR_EH_Blade();
@@ -404,6 +405,14 @@ void() VR_FG_Frame =
         }
         else if(vr_et_s >= 20 && vr_et_s < 40 && VR_FG_MainTakes(20, t, VRGetHandPos(h) - v_right * 30, weapondrawnpose(vr_fg_d, h, 48), vr_fg_line * -1, 0))
         {
+            if(VR_EH_Blade() != vr_fg_d && !vr_fg_retried && VR_AxeStick_IsStuck(vr_fg_d))
+            {
+                // (Once more if the closing missed: the grunt's body settles under the blade, a low-impact run's late frames.)
+                vr_fg_retried = 1;
+                VR_Test_Print("flipgrip: the hand missed the stuck handle: once more\n");
+                VR_ET_To(20);
+                return;
+            }
             VR_Test_Check(VR_EH_Blade() == vr_fg_d, "the hand turned for the other grip closes on the stuck sword's handle: held in the body");
             VR_Test_Check((vr_fg_d.weaponflags & QVR_WPNFLAG_REVGRIP) != 0, "... reversed");
             VR_ET_To(40);

@@ -2904,7 +2904,7 @@ the blade), 2H held both ways (reversed: blade still down, cos -0.96); handed of
 hand turned for the other grip: reversed, blade where it was (cos 0.96); reversed and let go of: the prop's line cos 0.999; off a
 table reversed (4.3 units from the origin) and upright: by the handle, the right grip; stuck upright, taken reversed: held in the
 body, reversed, the drawn hand 17-55 degrees from the mock hand (under 95: the mock's roll is free; never twisted past a quarter
-turn). Unchanged: revgrip (42) 24/0, embedgrip (33) 15/0, propblade (34) 14/0, embeddagger (40) 24/0, palmgrab (pickup 17) 5/0.
+turn; case 6 is flaky here: 2 of 4 runs after the merge, the stuck sword had come out of the grunt before the regrab, a test-scene matter, the other checks steady). Unchanged: revgrip (42) 24/0, embedgrip (33) 15/0, propblade (34) 14/0, embeddagger (40) 24/0, palmgrab (pickup 17) 5/0.
 To check in VR: the reversed 2H hand's look (the tweak rows), the drop/throw in reverse, the table pickup both ways, the
 embedded handle grabbed palm up and down.
 ## torchgrab: the torso's torch taken whatever the other hand holds (agent/torchgrab, 2026-11-15)
