@@ -3455,3 +3455,6 @@ than one client?" (9 such branches gone), and no longer sends its own rig to its
 `prefs`, `grab --listen`, `held --listen`, `rules` pass; scenario_check 156/0, load_models_test 4/0,
 crate_grip_test 10/0 twice (9/1 once, not reproduced). Left (MP_PLAN B11a-c): heldpose's own-player view asks, vr_pmove
 for the host's own player, one avatar routine for any player entity.
+## mrlfix + clretire1116 (agent/mrlfix)
+
+MRL (slot 14, v_multi2.mdl) now holds no offset keys of its own: it inherits the rocket launcher (slot 6) for the ammo screen (wpntxt_*), button (wpnbtn_*), finger/hand_*, grips (x/y/z/pitch/yaw, 2h_*), hotspot and muzzle; only id, inherit and its fx_* shot effects stay. His config had no vr_wofs values for either slot. 52 ticked lines retired from checklist.txt (those he spoke of at 03:xx kept); 19 scenes only they used moved out (kept any still named by code, docs, or other lines). No flat screenshot taken.
