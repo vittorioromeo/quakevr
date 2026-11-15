@@ -19,6 +19,12 @@ struct HandPose;
 struct Subject;
 }
 
+namespace qvr::handrig
+{
+struct Pose;
+struct Posed;
+} // namespace qvr::handrig
+
 namespace qvr::view
 {
 
@@ -526,9 +532,52 @@ void placePauldrons(const ViewEntity& body, const PauldronLook& look, int player
 // vr_mp_avatars: "<what>: ent= side= skin= scale= at=" for each cap drawn; yours as "mp_pauldron_own".
 void printPauldrons(const char* what, int ent, const ViewEntity cap[2]);
 void printOwnPauldrons(int ent);
-// Another player's jointed hand `h` (his hand `hand`: its fingers' places as your settings put them): posed and skinned
-// into `out` (handrig::skin's matrices). The rig's model, or nullptr: no jointed hand to draw.
-qmodel_t* remoteHandSkin(int hand, const VrDrawnHand& h, float* out);
+// One player's jointed hands, held weapons and holstered weapons as drawn (MP_PLAN.md, B11c part 2): yours and every other
+// player's copy through the same routines on per-entity data. drawHand: a jointed hand, its fingers posed, skinned and the
+// rig placed; drawGear: a weapon in a hand or a holster, placed with its frame and skin. Yours at the end of the live rig's
+// solve (setupRigHand, setupWeapon, setupHolsters): what is the own view's alone (the grasp and the palm's fit, a gun's
+// kick, shake and turns, the holsters' places on your body) stays there and comes in as the place, the pose and the skin.
+// Another's through drawHands, from his snapshot (his hands, weapons and holsters as his client drew them: VrDrawnHand,
+// VrDrawnHolsters, from his entity as drawn here).
+struct HandDraw
+{
+    bool shown{false};        // false: its entity hidden (posed all the same)
+    glm::vec3 origin{0.f};    // the rig entity's place and angles (entity_t's)
+    glm::vec3 angles{0.f};
+    bool mirrored{false};     // the off hand: the right hand's rig mirrored
+    int skin{0};              // its skin (yours: a wound's blood level)
+    handrig::Pose* pose{nullptr};   // its fingers' shifts, curls and thumb
+    handrig::Posed* posed{nullptr}; // out: posed
+    float* bones{nullptr};          // out: the skinning matrices (handrig::data::numJoints * 12 floats)
+};
+// The rig's model drawn (nullptr: no jointed hand; `ve` hidden then).
+qmodel_t* drawHand(const HandDraw& h, ViewEntity& ve);
+struct GearDraw
+{
+    qmodel_t* model{nullptr}; // nullptr: none (its entity hidden)
+    glm::vec3 origin{0.f};
+    glm::vec3 angles{0.f};    // entity_t's
+    int frame{0};
+    int skin{0};
+    bool mirrored{false};     // a right-handed model drawn left-handed
+};
+void drawGear(const GearDraw& g, ViewEntity& ve);
+// Another player's whole set from his snapshot: `hands` ([0] off, [1] main) and `holsters`, their places from `origin`
+// (his entity as drawn); his fingers shaped by your rig's settings (rigShifts).
+struct HandsDraw
+{
+    glm::vec3 origin{0.f};
+    const VrDrawnHand* hands{nullptr};
+    const VrDrawnHolsters* holsters{nullptr};
+};
+struct HandsEntities
+{
+    ViewEntity* hand{nullptr};   // [2]
+    ViewEntity* weapon{nullptr}; // [2]
+    ViewEntity* holster{nullptr}; // [VrDrawnHolsters::count]
+    float* bones[2]{nullptr, nullptr}; // each hand's skinning matrices (out)
+};
+void drawHands(const HandsDraw& in, const HandsEntities& out);
 // Another player's drawn jointed hand (its entity, placed by vr_mpavatar.cpp): its wrist and orientation as your own drawn
 // hands' are taken for your body's arms (his body's arms reach it).
 void remoteHandPose(const ViewEntity& hand, avatar::HandPose& out);
@@ -562,6 +611,25 @@ struct BodyPlates
     int morphType[maxMorphs]{};
     float morphValue[maxMorphs]{};
 };
+// One player's plates' morphs (BodyPlates' coming and morph fields) as the server's word on him changes, over your
+// vr_player_plates_morph_time: a piece gained comes in, another armour's pieces go out where the new one's come in, a piece
+// lost goes at once (its debris flies from QC). Yours (vr_view_body.cpp) and each other player's copy (vr_mpavatar.cpp),
+// a state each; `resync` (a new level, a load, his copy first drawn): the next word taken as it comes, for a second.
+struct PlateMorphs
+{
+    struct Morph
+    {
+        int pieces{0}, type{0}; // (0 pieces: a free one)
+        double start{0.0};
+        bool in{true};
+    };
+    int type{0}, pieces{0}; // the server's word as of the last frame
+    Morph morphs[BodyPlates::maxMorphs];
+    bool resync{true};
+    double settleUntil{0.0};
+    int begun{0}; // morphs begun so far (the tests)
+};
+void morphPlates(PlateMorphs& m, bool on, int type, int pieces, double now, BodyPlates& out);
 struct BodyDraw
 {
     bool shown{false};                      // false: none drawn (the entities below hidden)

@@ -928,7 +928,7 @@ struct PosedSpheresCache
 };
 mem::Cache<PosedSpheresCache> posedSpheresMemo{"view posed spheres", mem::GameDirChange | mem::ModelReload};
 
-// remoteRigSkin's pose (another player's hand: no state kept between hands, only the scratch).
+// drawHands' pose (another player's hand: no state kept between hands, only the scratch).
 struct RemoteRig
 {
     handrig::Pose pose;
@@ -936,27 +936,92 @@ struct RemoteRig
 };
 RemoteRig remoteRig;
 } // namespace
+} // namespace view_detail
 
-bool remoteRigSkin(qmodel_t* model, int hand, const VrDrawnHand& h, float* out)
+qmodel_t* view::drawHand(const HandDraw& h, ViewEntity& ve)
 {
-    if(!(h.flags & VrDrawnHand::handBit) || !handrig::usable(model))
+    qmodel_t* const model = view_detail::viewModel(handrig::modelName());
+    if(!handrig::usable(model) || !h.pose || !h.posed || !h.bones)
     {
-        return false;
+        ve.visible = false;
+        return nullptr;
     }
-    handrig::Pose& pose = remoteRig.pose;
-    rigShifts(model, hand, pose);
-    for(int f = 0; f < VrDrawnHand::fingers; f++)
-    {
-        for(int j = 0; j < VrDrawnHand::joints; j++)
-        {
-            pose.curl[f][j] = h.curl[f][j];
-        }
-    }
-    pose.metacarpal = h.thumb;
-    handrig::pose(pose, remoteRig.posed);
-    handrig::skin(remoteRig.posed, out);
-    return true;
+    view_detail::place(ve, model, h.origin, h.angles, 0, h.mirrored);
+    ve.ent.skinnum = h.skin;
+    ve.visible = h.shown;
+    handrig::pose(*h.pose, *h.posed);
+    handrig::skin(*h.posed, h.bones);
+    return model;
 }
+
+void view::drawGear(const GearDraw& g, ViewEntity& ve)
+{
+    view_detail::place(ve, g.model, g.origin, g.angles, g.frame, g.mirrored);
+    ve.ent.skinnum = g.skin;
+}
+
+void view::drawHands(const HandsDraw& in, const HandsEntities& out)
+{
+    // A weapon named by the server's model index, as he drew it (nothing: not one the server precached, or not a model).
+    const auto gear = [](int model, const glm::vec3& origin, const glm::vec3& angles, int frame, int skin, bool mirrored) {
+        GearDraw g;
+        qmodel_t* m = model > 0 && model < MAX_MODELS ? cl.model_precache[model] : nullptr;
+        if(m && m->type == mod_alias)
+        {
+            g.model = m;
+            g.origin = origin;
+            g.angles = angles;
+            g.frame = za::min(frame, m->numframes - 1);
+            g.skin = skin;
+            g.mirrored = mirrored;
+        }
+        return g;
+    };
+    qmodel_t* const rig = view_detail::viewModel(handrig::modelName());
+    for(int side = 0; side < 2; side++)
+    {
+        const VrDrawnHand& h = in.hands[side];
+        out.hand[side].visible = false;
+        if((h.flags & VrDrawnHand::handBit) && handrig::usable(rig))
+        {
+            view_detail::RemoteRig& r = view_detail::remoteRig;
+            view_detail::rigShifts(rig, side, r.pose);
+            for(int f = 0; f < VrDrawnHand::fingers; f++)
+            {
+                for(int j = 0; j < VrDrawnHand::joints; j++)
+                {
+                    r.pose.curl[f][j] = h.curl[f][j];
+                }
+            }
+            r.pose.metacarpal = h.thumb;
+            HandDraw hd;
+            hd.shown = true;
+            hd.origin = in.origin + h.handOrigin;
+            hd.angles = h.handAngles;
+            hd.mirrored = (h.flags & VrDrawnHand::handMirrorBit) != 0;
+            hd.pose = &r.pose;
+            hd.posed = &r.posed;
+            hd.bones = out.bones[side];
+            (void)drawHand(hd, out.hand[side]);
+        }
+        const bool held = (h.flags & VrDrawnHand::weaponBit) != 0;
+        drawGear(gear(held ? h.weaponModel : 0, in.origin + h.weaponOrigin, h.weaponAngles, h.weaponFrame, h.weaponSkin,
+                     (h.flags & VrDrawnHand::weaponMirrorBit) != 0),
+            out.weapon[side]);
+    }
+    // His holstered weapons where he drew them (his holsters' places, their seated layout, his Holstered poses: B6b).
+    const VrDrawnHolsters& hs = *in.holsters;
+    for(int i = 0; i < VrDrawnHolsters::count; i++)
+    {
+        const bool kept = hs.valid && (hs.weapons & (1 << i));
+        drawGear(gear(kept ? hs.model[i] : 0, in.origin + hs.origin[i], hs.angles[i], hs.frame[i], hs.skin[i],
+                     (hs.mirrored & (1 << i)) != 0),
+            out.holster[i]);
+    }
+}
+
+namespace view_detail
+{
 
 // The empty hand at the controller's pose (setupHand's: turned by the fist's angle offsets), open (`fist` false) or closed
 // as a full press of the grip, trigger and thumb draws it (every finger curled), as the grasp's spheres, in the hand's
@@ -1694,8 +1759,6 @@ void setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
                                                    : glm::quat{1.f, 0.f, 0.f, 0.f};
     rh.thumb = glm::normalize(glm::slerp(rh.thumb, thumbTarget, follow));
     rh.pose.metacarpal = rh.thumb;
-    handrig::pose(rh.pose, rh.posed);
-    handrig::skin(rh.posed, rh.skin.data());
 
     // The weapon's firing animation moves the hand (and so the arm) with it.
     if(motion != glm::mat4{1.f})
@@ -1712,6 +1775,18 @@ void setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
         ve.ent.angles[2] = a.z;
         rh.rigToWorld = motion * rh.rigToWorld;
     }
+    // Posed, skinned and placed as every player's jointed hand is (view::drawHand), where the solve put it; wounds painted
+    // instead (vr_wounds.cpp), or the wound skins washed and a gib's blood (wounds::skinLevel).
+    view::HandDraw hd;
+    hd.shown = !hide;
+    hd.origin = vec3Of(ve.ent.origin);
+    hd.angles = vec3Of(ve.ent.angles);
+    hd.mirrored = mirrored;
+    hd.skin = wounds::replacesSkins() ? 0 : wounds::skinLevel(hand, damageLevel(), ve.ent.origin);
+    hd.pose = &rh.pose;
+    hd.posed = &rh.posed;
+    hd.bones = rh.skin.data();
+    (void)view::drawHand(hd, ve);
     if(vr_debug_hand_bones.value)
     {
         float m[16];
@@ -1720,9 +1795,6 @@ void setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
     }
     traceGrasp(hand, rh, ve, motion);
     ve.zeroBlend = 0.f;
-    // wounds painted instead (vr_wounds.cpp); the wound skins washed and a gib's blood (wounds::skinLevel)
-    ve.ent.skinnum = wounds::replacesSkins() ? 0 : wounds::skinLevel(hand, damageLevel(), ve.ent.origin);
-    ve.visible = !hide;
     rh.drawn = ve.visible;
     noteIndexTip(hand, rh);
 }

@@ -74,13 +74,18 @@ struct Drawn
     view::ViewEntity pauldron[2];
     view::ViewEntity pauldronArm[2];
     // His armour's plates and their joints' leather on his body (B6c: the server's word on him), their pieces, their bones
-    // (made as they are drawn: view::otherPlateBonePoses; sized when first shown).
-    view::ViewEntity plate;
+    // (made as they are drawn: view::otherPlateBonePoses; sized when first shown); their morphs as yours (B11c part 2:
+    // view::morphPlates, his state; the settled pieces, then each morph's).
+    static constexpr int plateCount = 1 + view::BodyPlates::maxMorphs;
+    view::ViewEntity plate[plateCount];
     view::ViewEntity plateBridge;
     int plateType{0};
-    int platePieces{0};
+    int platePieces{0};               // all he wears (the leather's)
+    int entityPieces[plateCount]{};   // each plates entity's
+    view::PlateMorphs morph;
+    int plateReport{-1};              // the plates entity the report reads (the settled ones, else the first coming in)
     int plateSlots{0}, plateShown{0}; // as last drawn (the report's)
-    za::Vector<float> plateBones;
+    za::Vector<float> plateBones[plateCount];
     za::Vector<float> bridgeBones;
 };
 struct DrawnAll
@@ -92,6 +97,8 @@ DrawnAll drawn;
 
 // How long an avatar is drawn after its last message (an unchanged one comes every vr_net_avatar_keyframe frames).
 constexpr double staleAfter = 1.0;
+// Frames undrawn after which his copy counts as first drawn again (his plates' morphs: resync).
+constexpr int freshAfterFrames = 36;
 
 glm::vec3 readEighths()
 {
@@ -182,12 +189,23 @@ void printAvatar(int e, const Avatar& a)
         Con_Printf(" eyeheight=%.3f yaw=%.1f moves=%d pitch=%.1f lying=%.2f climb=%.2f seated=%d\n", d.eyeHeight, a.body.yaw,
             a.moves, pitch, lying, climbWeight, d.seated ? 1 : 0);
         view::printPauldrons("mp_pauldron", e, d.pauldron);
-        if(d.plate.visible && d.plate.ent.model && !d.plateBones.empty())
+        if(const view::ViewEntity* plate = d.plateReport >= 0 ? &d.plate[d.plateReport] : nullptr;
+            plate && plate->visible && plate->ent.model && !d.plateBones[d.plateReport].empty())
         {
-            // His plates as last drawn: their bone slots, and how many his body's bones showed (a hidden piece's collapsed).
-            Con_Printf("mp_plates: ent=%d type=%d pieces=%d skin=%d slots=%d shown=%d leather=%d model=%s\n", e, d.plateType,
-                d.platePieces, d.plate.ent.skinnum, d.plateSlots, d.plateShown, d.plateBridge.visible ? 1 : 0,
-                d.plate.ent.model->name);
+            // His plates as last drawn: their bone slots, and how many his body's bones showed (a hidden piece's collapsed);
+            // their morphs (begun so far, the pieces coming in, the newest coming in's shader value).
+            int coming = 0;
+            float morph = 0.f;
+            for(int i = 1; i < Drawn::plateCount; i++)
+            {
+                const bool in = d.plate[i].visible && d.plate[i].morph > 0.f;
+                coming |= in ? d.entityPieces[i] : 0;
+                morph = in ? za::max(morph, d.plate[i].morph) : morph;
+            }
+            Con_Printf("mp_plates: ent=%d type=%d pieces=%d skin=%d slots=%d shown=%d leather=%d begun=%d coming=%d morph=%.3f "
+                       "model=%s\n",
+                e, d.plateType, d.platePieces, plate->ent.skinnum, d.plateSlots, d.plateShown, d.plateBridge.visible ? 1 : 0,
+                d.morph.begun, coming, morph, plate->ent.model->name);
         }
     }
     if(d.frame == host_framecount - 1 || d.frame == host_framecount)
@@ -329,31 +347,6 @@ void avatars_f()
     Con_Printf("mp_avatars: done\n");
 }
 
-void placeEntity(view::ViewEntity& ve, qmodel_t* model, const glm::vec3& origin, const glm::vec3& angles, int frame, int skin,
-    bool mirrored)
-{
-    entity_t& e = ve.ent;
-    if(model != ve.lastModel)
-    {
-        e.lerpflags |= LERP_RESETANIM;
-        ve.lastModel = model;
-    }
-    e.model = model;
-    e.frame = frame;
-    e.skinnum = skin;
-    e.colormap = vid.colormap;
-    e.scale = ENTSCALE_DEFAULT;
-    e.alpha = ENTALPHA_DEFAULT;
-    for(int i = 0; i < 3; i++)
-    {
-        e.origin[i] = origin[i];
-        e.angles[i] = angles[i];
-    }
-    ve.mirrored = mirrored;
-    ve.scale = glm::vec3{1.f};
-    ve.visible = model != nullptr;
-}
-
 void add(view::ViewEntity& ve)
 {
     if(ve.visible && ve.ent.model && cl_numvisedicts < MAX_VISEDICTS)
@@ -372,40 +365,18 @@ void setup(int e, const Avatar& a)
     glm::vec3 origin, angles;
     render::drawnPlace(cl_entities[e], origin, angles);
     d.placedAt = origin;
-    for(int side = 0; side < 2; side++)
-    {
-        const VrDrawnHand& h = a.hands[side];
-        d.hand[side].visible = false;
-        d.weapon[side].visible = false;
-        if(qmodel_t* rig = view::remoteHandSkin(side, h, d.skin[side]))
-        {
-            placeEntity(d.hand[side], rig, origin + h.handOrigin, h.handAngles, 0, 0, (h.flags & VrDrawnHand::handMirrorBit) != 0);
-        }
-        if((h.flags & VrDrawnHand::weaponBit) && h.weaponModel > 0 && h.weaponModel < MAX_MODELS)
-        {
-            qmodel_t* model = cl.model_precache[h.weaponModel];
-            if(model && model->type == mod_alias)
-            {
-                placeEntity(d.weapon[side], model, origin + h.weaponOrigin, h.weaponAngles,
-                    za::min(static_cast<int>(h.weaponFrame), model->numframes - 1), h.weaponSkin,
-                    (h.flags & VrDrawnHand::weaponMirrorBit) != 0);
-            }
-        }
-    }
-    // His holstered weapons where he drew them (his holsters' places, their seated layout, his Holstered poses: B6b).
-    const VrDrawnHolsters& hs = a.holsters;
-    for(int i = 0; i < VrDrawnHolsters::count; i++)
-    {
-        d.holster[i].visible = false;
-        qmodel_t* model = hs.valid && (hs.weapons & (1 << i)) && hs.model[i] > 0 && hs.model[i] < MAX_MODELS
-                              ? cl.model_precache[hs.model[i]]
-                              : nullptr;
-        if(model && model->type == mod_alias)
-        {
-            placeEntity(d.holster[i], model, origin + hs.origin[i], hs.angles[i], za::min(static_cast<int>(hs.frame[i]),
-                model->numframes - 1), hs.skin[i], (hs.mirrored & (1 << i)) != 0);
-        }
-    }
+    // His hands, held and holstered weapons as his client drew them, by the routines that draw yours (view::drawHands).
+    view::HandsDraw in;
+    in.origin = origin;
+    in.hands = a.hands;
+    in.holsters = &a.holsters;
+    view::HandsEntities out;
+    out.hand = d.hand;
+    out.weapon = d.weapon;
+    out.holster = d.holster;
+    out.bones[0] = d.skin[0];
+    out.bones[1] = d.skin[1];
+    view::drawHands(in, out);
     setupBody(e, a, origin);
 }
 
@@ -429,8 +400,8 @@ void setup(int e, const Avatar& a)
     return nullptr;
 }
 
-// The avatar whose plates (or their joints' leather) `e` is (B6c), or nullptr.
-[[nodiscard]] Drawn* platesOf(const entity_t* e)
+// The avatar whose plates (or their joints' leather) `e` is (B6c), or nullptr; `index` its plates entity (-1 the leather).
+[[nodiscard]] Drawn* platesOf(const entity_t* e, int& index)
 {
     const auto* first = reinterpret_cast<const unsigned char*>(&drawn.of[0]);
     const auto* p = reinterpret_cast<const unsigned char*>(e);
@@ -439,7 +410,14 @@ void setup(int e, const Avatar& a)
         return nullptr;
     }
     Drawn& d = drawn.of[(p - first) / sizeof(Drawn)];
-    return e == &d.plate.ent || e == &d.plateBridge.ent ? &d : nullptr;
+    for(index = -1; index < Drawn::plateCount; index++)
+    {
+        if(e == (index < 0 ? &d.plateBridge.ent : &d.plate[index].ent))
+        {
+            return &d;
+        }
+    }
+    return nullptr;
 }
 
 // The calibration's fields (vr_mpavatar.hpp, Calibration): each from its cvar, times `scale`, rounded, clamped to
@@ -593,11 +571,13 @@ void setupBody(int e, const Avatar& a, const glm::vec3& origin)
     }
     b.poses = poses;
     // His armour's plates (B6c): the server's word on him (QVR_SVC_ARMOR, as on you), drawn as yours are (your
-    // vr_player_plates: whether you see plates at all), without the morphs.
+    // vr_player_plates: whether you see plates at all), coming in and going out by their morphs as yours do (B11c part 2:
+    // his own morphs' state; taken as they come when his copy is first drawn).
     view::BodyPlates& p = b.plates;
-    p.on = vr_player_plates.value != 0.f;
-    p.type = p.on ? za::max(agarmor::clientState(e, 0), 0) : 0;
-    p.pieces = p.type > 0 ? za::max(agarmor::clientState(e, 1), 0) : 0;
+    const bool on = vr_player_plates.value != 0.f;
+    const int type = on ? za::max(agarmor::clientState(e, 0), 0) : 0;
+    const int pieces = type > 0 ? za::max(agarmor::clientState(e, 1), 0) : 0;
+    view::morphPlates(d.morph, on, type, pieces, vr_gametime, p);
     d.plateType = p.type;
     d.platePieces = p.pieces;
     // His pauldrons on it (his calibration's look; the armour the server says he wears), as yours are placed.
@@ -616,11 +596,13 @@ void setupBody(int e, const Avatar& a, const glm::vec3& origin)
     look.armour = a.armour;
     view::BodyEntities out;
     out.body = &d.body;
-    out.plates = &d.plate;
-    out.numPlates = 1;
+    out.plates = d.plate;
+    out.numPlates = Drawn::plateCount;
+    out.platePieces = d.entityPieces;
     out.bridge = &d.plateBridge;
     out.cap = d.pauldron;
     out.arm = d.pauldronArm;
+    d.plateReport = -1;
     if(!view::drawBody(b, out) || !avatar::otherSkeleton(e, d.skeleton))
     {
         return;
@@ -630,9 +612,16 @@ void setupBody(int e, const Avatar& a, const glm::vec3& origin)
     d.handWrist[1] = poses[HAND_MAIN].wrist;
     d.eyeHeight = who.eyeHeight;
     d.seated = who.seated;
-    if((d.plate.visible || d.plateBridge.visible) && d.plateBones.empty())
+    for(int i = Drawn::plateCount - 1; i >= 0; i--)
     {
-        d.plateBones.resize(agarmor::playerPlatesMostBones * 12, 0.f);
+        d.plateReport = d.plate[i].visible ? i : d.plateReport;
+        if((d.plate[i].visible || d.plateBridge.visible) && d.plateBones[i].empty())
+        {
+            d.plateBones[i].resize(agarmor::playerPlatesMostBones * 12, 0.f);
+        }
+    }
+    if(d.plateBridge.visible && d.bridgeBones.empty())
+    {
         d.bridgeBones.resize(agarmor::playerBridgeMostBones * 12, 0.f);
     }
 }
@@ -1103,8 +1092,12 @@ void addEntities()
         {
             continue;
         }
-        setup(e, blendedOf(e));
         Drawn& d = drawn.of[e];
+        if(d.frame < 0 || host_framecount - d.frame > freshAfterFrames)
+        {
+            d.morph.resync = true; // (his copy first drawn, or again: his plates as they are, no morph)
+        }
+        setup(e, blendedOf(e));
         for(int side = 0; side < 2; side++)
         {
             add(d.weapon[side]);
@@ -1116,7 +1109,10 @@ void addEntities()
         {
             add(ve);
         }
-        add(d.plate);
+        for(view::ViewEntity& ve : d.plate)
+        {
+            add(ve);
+        }
         add(d.plateBridge);
         if(d.body.visible && d.body.ent.model)
         {
@@ -1183,19 +1179,21 @@ int lookOf(const entity_t* e, view::SkinLook& look)
 
 const entity_t* plateBody(const entity_t* e)
 {
-    const Drawn* p = platesOf(e);
+    int index = 0;
+    const Drawn* p = platesOf(e, index);
     return p ? &p->body.ent : nullptr;
 }
 
 int bonePoses(const entity_t* e, const float** matrices)
 {
-    if(Drawn* p = platesOf(e); p && !p->plateBones.empty())
+    int index = 0;
+    if(Drawn* p = platesOf(e, index); p && !(index < 0 ? p->bridgeBones : p->plateBones[index]).empty())
     {
-        // His plates or their leather: his body's bones as drawn (B6c), by your plates' own code.
-        const bool bridge = e == &p->plateBridge.ent;
-        const int n = view::otherPlateBonePoses(p->body.ent, bridge, p->platePieces,
-            bridge ? p->bridgeBones.data() : p->plateBones.data(), matrices);
-        if(!bridge && matrices && *matrices)
+        // His plates (settled, or a morph's) or their leather: his body's bones as drawn (B6c), by your plates' own code.
+        const bool bridge = index < 0;
+        const int n = view::otherPlateBonePoses(p->body.ent, bridge, bridge ? p->platePieces : p->entityPieces[index],
+            bridge ? p->bridgeBones.data() : p->plateBones[index].data(), matrices);
+        if(index == p->plateReport && matrices && *matrices)
         {
             // (the report's: the slots drawn, and those his body's bones showed)
             p->plateSlots = n;
@@ -1226,37 +1224,33 @@ int bonePoses(const entity_t* e, const float** matrices)
     return handrig::data::numJoints;
 }
 
-bool mirrored(const entity_t* e)
+const view::ViewEntity* find(const entity_t* e)
 {
-    int side = 0;
-    bool hand = false;
-    if(const Drawn* d = drawnOf(e, side, hand))
-    {
-        return hand ? d->hand[side].mirrored : d->weapon[side].mirrored;
-    }
-    // (his holstered weapons, his pauldrons: B6b)
     const auto* first = reinterpret_cast<const unsigned char*>(&drawn.of[0]);
     const auto* p = reinterpret_cast<const unsigned char*>(e);
     if(p < first || p >= first + sizeof(drawn.of))
     {
-        return false;
+        return nullptr;
     }
-    const Drawn& o = drawn.of[(p - first) / sizeof(Drawn)];
-    for(const view::ViewEntity& ve : o.holster)
-    {
-        if(e == &ve.ent)
+    const Drawn& d = drawn.of[(p - first) / sizeof(Drawn)];
+    const auto in = [e](const view::ViewEntity* ves, int n) -> const view::ViewEntity* {
+        for(int i = 0; i < n; i++)
         {
-            return ve.mirrored;
+            if(e == &ves[i].ent)
+            {
+                return &ves[i];
+            }
         }
-    }
-    for(int s = 0; s < 2; s++)
-    {
-        if(e == &o.pauldron[s].ent || e == &o.pauldronArm[s].ent)
-        {
-            return o.pauldron[s].mirrored || o.pauldronArm[s].mirrored;
-        }
-    }
-    return false;
+        return nullptr;
+    };
+    const view::ViewEntity* found = in(d.hand, 2);
+    found = found ? found : in(d.weapon, 2);
+    found = found ? found : in(d.holster, VrDrawnHolsters::count);
+    found = found ? found : in(d.pauldron, 2);
+    found = found ? found : in(d.pauldronArm, 2);
+    found = found ? found : in(d.plate, Drawn::plateCount);
+    found = found ? found : in(&d.plateBridge, 1);
+    return found ? found : in(&d.body, 1);
 }
 
 int gearByte(const edict_t* ent)
@@ -1270,6 +1264,10 @@ void clear()
     for(Avatar& a : avatars)
     {
         a = Avatar{};
+    }
+    for(Drawn& d : drawn.of)
+    {
+        d.morph = view::PlateMorphs{}; // (his plates as they come on the new server)
     }
     for(Avatar& a : previousAvatars)
     {

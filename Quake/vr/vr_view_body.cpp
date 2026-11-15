@@ -94,21 +94,13 @@ void dripBlood(const hands::State& s)
 namespace
 {
 
-struct PlateMorph
-{
-    int pieces{0}, type{0}; // (0 pieces: a free one)
-    double start{0.0};
-    bool in{true};
-};
+using PlateMorph = view::PlateMorphs::Morph;
+static_assert(view::BodyPlates::maxMorphs == plateEntities - 1);
 
-struct PlayerPlates
+// Your plates: their morphs' state (view::morphPlates; resync: a new level or a load) and what the tests read.
+struct PlayerPlates : view::PlateMorphs
 {
-    int type{0}, pieces{0}; // the server's word as of the last frame
-    PlateMorph morphs[plateEntities - 1];
     int entityPieces[plateEntities]{}; // each of entities.plate's pieces this frame
-    bool resync{true};                 // a new level or a load: the next word taken as it comes
-    double settleUntil{0.0};           // (and its first words, a frame or two apart)
-    int begun{0};                      // morphs begun so far (the tests)
     int drawnFrame{-1};
     int fromEyes{0}, withHead{0}, fromEyesLast{0}, withHeadLast{0}; // the pieces the views drew this frame, the last (the tests)
     int clone{0}, cloneLast{0}; // the pieces the body's mirror image drew (PlatePass::Clone) this frame, the last (the tests)
@@ -117,19 +109,19 @@ struct PlayerPlates
 PlayerPlates playerPlates;
 float platesBones[plateEntities][128 * 12]{}; // (agarmor's maxSlots)
 
-void beginPlateMorph(int pieces, int type, bool in, double now)
+void beginPlateMorph(view::PlateMorphs& p, int pieces, int type, bool in, double now)
 {
     if(!pieces)
     {
         return;
     }
-    PlateMorph* slot = &playerPlates.morphs[0];
-    for(PlateMorph& m : playerPlates.morphs)
+    PlateMorph* slot = &p.morphs[0];
+    for(PlateMorph& m : p.morphs)
     {
         slot = !slot->pieces ? slot : !m.pieces || m.start < slot->start ? &m : slot; // (a free one, else the oldest ends now)
     }
     *slot = PlateMorph{pieces, type, now, in};
-    playerPlates.begun++;
+    p.begun++;
 }
 
 } // namespace
@@ -175,63 +167,7 @@ void platesNow(view::BodyPlates& out)
         type = studioType;
         pieces = studioPieces;
     }
-    const double now = vr_gametime;
-    const float time = vr_player_plates_morph_time.value;
-
-    if(p.resync)
-    {
-        p.resync = false;
-        p.settleUntil = now + 1.0;
-    }
-    if(now < p.settleUntil || time <= 0.f || !on)
-    {
-        for(PlateMorph& m : p.morphs)
-        {
-            m.pieces = 0;
-        }
-    }
-    else if(type != p.type && p.type > 0 && type > 0)
-    {
-        // Another armour: the old colour's pieces out where the new one's come in (their noise the same: nothing shows twice).
-        for(PlateMorph& m : p.morphs)
-        {
-            m.pieces = 0;
-        }
-        beginPlateMorph(p.pieces, p.type, false, now);
-        beginPlateMorph(pieces, type, true, now);
-    }
-    else
-    {
-        for(PlateMorph& m : p.morphs)
-        {
-            m.pieces &= m.in ? pieces : m.pieces; // (one lost while it came in: gone)
-        }
-        beginPlateMorph(pieces & ~p.pieces, type, true, now);
-    }
-    p.type = type;
-    p.pieces = pieces;
-
-    int coming = 0;
-    for(PlateMorph& m : p.morphs)
-    {
-        const double t = time > 0.f ? (now - m.start) / static_cast<double>(time) : 1.0;
-        m.pieces = t >= 1.0 || t < 0.0 ? 0 : m.pieces;
-        coming |= m.in ? m.pieces : 0;
-    }
-
-    out.on = on;
-    out.type = type;
-    out.pieces = pieces;
-    out.coming = coming;
-    static_assert(view::BodyPlates::maxMorphs == plateEntities - 1);
-    for(int i = 0; i + 1 < plateEntities; i++)
-    {
-        const PlateMorph& m = p.morphs[i];
-        const float t = time > 0.f ? za::clamp(static_cast<float>((now - m.start) / static_cast<double>(time)), 1e-3f, 1.f) : 1.f;
-        out.morphPieces[i] = m.pieces;
-        out.morphType[i] = m.type;
-        out.morphValue[i] = (m.in ? 1.f : -1.f) * (2.f + t); // (the shader's kind 1, the seam amber: morphValue)
-    }
+    view::morphPlates(p, on, type, pieces, vr_gametime, out);
 }
 
 // Your skinned body (vr_body_mode 2 and 3; 1, the old floating torso, is 2), its arms reaching the drawn hands' wrists,
@@ -435,6 +371,66 @@ void setupFrontButton(int hand)
 
 namespace qvr::view
 {
+
+void morphPlates(PlateMorphs& p, bool on, int type, int pieces, double now, BodyPlates& out)
+{
+    using view_detail::beginPlateMorph;
+    using view_detail::PlateMorph;
+    const float time = vr_player_plates_morph_time.value;
+    if(p.resync)
+    {
+        p.resync = false;
+        p.settleUntil = now + 1.0;
+    }
+    if(now < p.settleUntil || time <= 0.f || !on)
+    {
+        for(PlateMorph& m : p.morphs)
+        {
+            m.pieces = 0;
+        }
+    }
+    else if(type != p.type && p.type > 0 && type > 0)
+    {
+        // Another armour: the old colour's pieces out where the new one's come in (their noise the same: nothing shows twice).
+        for(PlateMorph& m : p.morphs)
+        {
+            m.pieces = 0;
+        }
+        beginPlateMorph(p, p.pieces, p.type, false, now);
+        beginPlateMorph(p, pieces, type, true, now);
+    }
+    else
+    {
+        for(PlateMorph& m : p.morphs)
+        {
+            m.pieces &= m.in ? pieces : m.pieces; // (one lost while it came in: gone)
+        }
+        beginPlateMorph(p, pieces & ~p.pieces, type, true, now);
+    }
+    p.type = type;
+    p.pieces = pieces;
+
+    int coming = 0;
+    for(PlateMorph& m : p.morphs)
+    {
+        const double t = time > 0.f ? (now - m.start) / static_cast<double>(time) : 1.0;
+        m.pieces = t >= 1.0 || t < 0.0 ? 0 : m.pieces;
+        coming |= m.in ? m.pieces : 0;
+    }
+
+    out.on = on;
+    out.type = type;
+    out.pieces = pieces;
+    out.coming = coming;
+    for(int i = 0; i < BodyPlates::maxMorphs; i++)
+    {
+        const PlateMorph& m = p.morphs[i];
+        const float t = time > 0.f ? za::clamp(static_cast<float>((now - m.start) / static_cast<double>(time)), 1e-3f, 1.f) : 1.f;
+        out.morphPieces[i] = m.pieces;
+        out.morphType[i] = m.type;
+        out.morphValue[i] = (m.in ? 1.f : -1.f) * (2.f + t); // (the shader's kind 1, the seam amber: morphValue)
+    }
+}
 
 void placePauldrons(const ViewEntity& body, const PauldronLook& look, int player, ViewEntity cap[2], ViewEntity arm[2])
 {
@@ -699,8 +695,14 @@ void printOwnPlates(int ent)
         shown = entities.plate[i].visible ? &entities.plate[i] : shown;
     }
     const view::ViewEntity& plate = *shown;
-    Con_Printf("mp_plates_own: ent=%d type=%d pieces=%d skin=%d model=%s\n", ent, playerPlates.type, playerPlates.pieces,
-        plate.visible ? plate.ent.skinnum : -1, plate.visible && plate.ent.model ? plate.ent.model->name : "-");
+    int coming = 0;
+    for(const PlateMorph& m : playerPlates.morphs)
+    {
+        coming |= m.in ? m.pieces : 0;
+    }
+    Con_Printf("mp_plates_own: ent=%d type=%d pieces=%d skin=%d begun=%d coming=%d model=%s\n", ent, playerPlates.type,
+        playerPlates.pieces, plate.visible ? plate.ent.skinnum : -1, playerPlates.begun, coming,
+        plate.visible && plate.ent.model ? plate.ent.model->name : "-");
 }
 
 void platesResync()

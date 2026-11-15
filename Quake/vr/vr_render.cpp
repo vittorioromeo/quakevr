@@ -235,7 +235,8 @@ void entityMatrix(const entity_t& e, bool mirrored, int scale, const glm::vec3& 
 extern "C" int VR_AliasMirrored(const entity_t* e)
 {
     const view::ViewEntity* ve = view::find(e);
-    return ve ? ve->mirrored : mpavatar::mirrored(e); // (or another player's hand or weapon: vr_mpavatar.cpp)
+    const view::ViewEntity* copy = ve ? nullptr : mpavatar::find(e); // (or another player's: vr_mpavatar.cpp)
+    return ve ? ve->mirrored : copy && copy->mirrored;
 }
 
 extern "C" int VR_AliasTwoSided(const entity_t* e)
@@ -711,7 +712,8 @@ extern "C" void VR_AliasFlameRefs(const void* aliashdr, unsigned short* refs)
 // its edge's colour 2 * kind + its progress) and the model's scale (quantised steps to units).
 extern "C" void VR_AliasMorph(const entity_t* e, const void* aliashdr, float ambient[24])
 {
-    const view::ViewEntity* ve = view::find(e);
+    const view::ViewEntity* own = view::find(e);
+    const view::ViewEntity* ve = own ? own : mpavatar::find(e); // (another player's plates' morphs too: vr_mpavatar.cpp)
     const aliashdr_t* hdr = static_cast<const aliashdr_t*>(aliashdr);
     // (the player's armour plates too, skeletal, their noise in their rest pose: Entities::plate, vr_view_body.cpp)
     if(!ve || ve->morph == 0.f || (hdr->poseverttype != aliashdr_t::PV_QUAKE1 && hdr->poseverttype != aliashdr_t::PV_IQM))

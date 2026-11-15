@@ -12,6 +12,7 @@
 namespace qvr::view
 {
 struct SkinLook;
+struct ViewEntity;
 }
 
 namespace qvr::mpavatar
@@ -73,8 +74,9 @@ void addEntities();
 [[nodiscard]] int bonePoses(const entity_t* e, const float** matrices);
 // The body an avatar's plates (or their leather) are drawn on (avatar::modelScale: his body's scale), or nullptr.
 [[nodiscard]] const entity_t* plateBody(const entity_t* e);
-// VR_AliasMirrored: an avatar's entity drawn mirrored (an off hand, a left-handed weapon).
-[[nodiscard]] bool mirrored(const entity_t* e);
+// The view entity `e` is of another player's copy (his hands, weapons, holsters, body, pauldrons, plates), or nullptr:
+// what the alias renderer asks of yours by view::find (mirrored, a plate's morph: VR_AliasMirrored, VR_AliasMorph).
+[[nodiscard]] const view::ViewEntity* find(const entity_t* e);
 
 // Another player's hand or body (an avatar's: 1 a hand, 2 the body; else 0): his look, from his calibration (B6: his
 // skin tone, gloves and nails as he set them; none received yet: 0, drawn bare).

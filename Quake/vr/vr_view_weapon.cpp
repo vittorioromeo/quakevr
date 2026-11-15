@@ -1646,10 +1646,17 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
         drawnPos += k * glm::vec3{std::sin(t * 97.f), std::sin(t * 113.f + 1.3f), std::sin(t * 89.f + 2.1f)};
         drawnAngles += 4.f * k * glm::vec3{std::sin(t * 71.f + 0.7f), std::sin(t * 83.f + 2.9f), std::sin(t * 101.f + 4.2f)};
     }
-    place(ve, model, drawnPos, drawnAngles, frame, mirrored);
+    // Placed as every player's held weapon is (view::drawGear); the flare gun's barrels fired: its skin by its clip
+    // (floating, a pose's: loaded).
+    view::GearDraw g;
+    g.model = model;
+    g.origin = drawnPos;
+    g.angles = drawnAngles;
+    g.frame = frame;
+    g.skin = weapons::drawnSkin(model, floating ? -1 : cl.stats[hand == HAND_MAIN ? STAT_QVR_WEAPONCLIP : STAT_QVR_WEAPONCLIP2]);
+    g.mirrored = mirrored;
+    view::drawGear(g, ve);
     qvr::nailslide::step(hand, model, frame); // (the nail pistol's slide: drawn back and home, vr_nailslide.cpp)
-    // (The flare gun's barrels fired: its skin by its clip; floating, a pose's: loaded.)
-    ve.ent.skinnum = weapons::drawnSkin(model, floating ? -1 : cl.stats[hand == HAND_MAIN ? STAT_QVR_WEAPONCLIP : STAT_QVR_WEAPONCLIP2]);
     if(!floating)
     {
         recordDrawnWeapon(s, hand); // (for its body in Box3D)

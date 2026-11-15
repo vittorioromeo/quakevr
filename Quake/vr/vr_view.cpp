@@ -2020,8 +2020,15 @@ void setupHolsters(const hands::State& s, bool queueTexts)
         const int holsteredFrame = holsteredGrappleOut(model, pose.weaponPos)                                         ? 2
                                    : nailslide::holsterLocked(model, clip, holsterStat(h, protocol::STAT_QVR_HOLSTERWEAPONFLAGS0)) ? 1
                                                                                                                        : 0;
-        place(ve, model, pose.weaponPos, pose.weaponAngles, holsteredFrame, mirrored);
-        ve.ent.skinnum = weapons::drawnSkin(model, clip); // (the flare gun's barrels fired)
+        // Placed as every player's holstered weapon is (view::drawGear); the flare gun's barrels fired.
+        view::GearDraw g;
+        g.model = model;
+        g.origin = pose.weaponPos;
+        g.angles = pose.weaponAngles;
+        g.frame = holsteredFrame;
+        g.skin = weapons::drawnSkin(model, clip);
+        g.mirrored = mirrored;
+        view::drawGear(g, ve);
         highlight(ve, hover || holstersetup::highlighted(static_cast<int>(bodyHolster[h])));
         // Just holstered: eased from the hand into the holster (vr_drawblend.cpp).
         drawblend::holster(s, stat, model ? &ve.ent : nullptr, !previewHere && !posedHere);

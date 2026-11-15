@@ -270,12 +270,6 @@ void netHands(VrDrawnHand out[2])
     }
 }
 
-qmodel_t* remoteHandSkin(int hand, const VrDrawnHand& h, float* out)
-{
-    qmodel_t* const model = viewModel(handrig::modelName());
-    return remoteRigSkin(model, hand, h, out) ? model : nullptr;
-}
-
 void remoteHandPose(const ViewEntity& hand, avatar::HandPose& out)
 {
     out = handPoseOf(hand, true);

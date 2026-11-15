@@ -887,8 +887,6 @@ inline RigHand rigHands[2];
 inline glm::vec3 weaponPressed[2]{glm::vec3{0.f}, glm::vec3{0.f}};
 [[nodiscard]] grasp::Settings graspSettings(const Held& held, float rigUnit);
 glm::mat4 rigPlacement(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool mirrored, view::ViewEntity* ve);
-// view::remoteHandSkin's pose and skin (the fingers' shifts from the settings of `hand`). False: no jointed hand.
-bool remoteRigSkin(qmodel_t* model, int hand, const VrDrawnHand& h, float* out);
 bool emptyHandSpheres(const hands::State& s, int hand, bool fist, za::Vector<glm::vec4>& out);
 void updateFist(const hands::State& s, int hand);
 void wristInfo_f();
