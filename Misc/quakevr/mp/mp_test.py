@@ -2778,6 +2778,7 @@ PREDICT_MOVES_MOST = 2   # B's own move shows this many moves (client ticks) aft
 PREDICT_CORR_MOST = 1.0  # a correction on flat ground (the replay all on the floor, no wall) at most, units
 PREDICT_LEGS = 4         # B walks there and back twice
 PREDICT_LEG_STATES = 72  # each leg: this many of the server's states read (about a second)
+PART, PART_REPEAT, PART_WATCH = "", 1, False  # --part, --repeat, --watch (predict's segments alone)
 
 
 def predict_report(inst):
@@ -2871,6 +2872,11 @@ def predict_moves(s, srv, a, b, ea, eb):
     b.cmd("vr_mock_hand head")
     # (standing up at once is a head's leap: a room-scale jump, his own)
     predict_until(s, b, "states", int(predict_report(b).get("states", 0)) + 72, "B stood up")
+    predict_lift(s, srv, a, b, ea, eb)
+
+
+def predict_lift(s, srv, a, b, ea, eb):
+    """MP_PLAN B8e/B8f: B falls onto e1m1's lift as it rises and rides it up: his corrections stay under a unit."""
     b.cmd("notarget; god")
     a.cmd("notarget; god")
     # A on the lift at its bottom starts it up; B put over its other half falls onto it as it rises (counted from his
@@ -2927,6 +2933,20 @@ def predict(s):
     move shows at the frame of his press (without prediction: a round trip, about 22 frames); walking there and back on
     e1m1's flat floor, each new state moves his prediction by under a unit; at rest he stands where the server has him."""
     srv, a, b, ea, eb = join(s, lag=PREDICT_LAG)
+    if PART:
+        # (--part: one of its segments alone, `--repeat` times: a flake's cause traced, vr_mp_watch 2)
+        srv.cmd("vr_mp_watch %d" % (2 if PART_WATCH else 1))
+        b.cmd("vr_mp_watch %d" % (2 if PART_WATCH else 1))
+        for k in range(PART_REPEAT):
+            s.note("--part %s, take %d" % (PART, k + 1))
+            if PART == "lift":
+                predict_lift(s, srv, a, b, ea, eb)  # (once a run: the lift is at its top after it)
+                break
+            elif PART == "waterjump":
+                predict_waterjump(s, srv, a, b, eb, first=k == 0)
+            elif PART == "swim":
+                predict_swim(s, srv, a, b, eb)
+        return
     put_at(srv, b, eb, OPEN_SPOT, 90)
     b.quiet(r"mp_predict_corr: ", 1.0, 20, "B settled at his spot")
     b.cmd("vr_mp_predict_report reset")  # (the counts from here: put_at's setpos is a teleport)
@@ -3119,7 +3139,13 @@ def main():
     ap.add_argument("--jitter", type=float, default=0.0, help="client B's delay varies by this much, ms")
     ap.add_argument("--loss", type=float, default=0.0, help="client B's game packet loss, 0..1, each way")
     ap.add_argument("--reset-autoexec", action="store_true", help="empty <base>/id1/autoexec.cfg first")
+    ap.add_argument("--part", default="", choices=["", "lift", "waterjump", "swim"],
+                    help="predict: only this segment (traced with vr_mp_watch 1; --watch 2)")
+    ap.add_argument("--repeat", type=int, default=1, help="predict --part: takes in one run (lift: one)")
+    ap.add_argument("--watch", type=int, default=1, help="predict --part: vr_mp_watch on the server and B")
     args = ap.parse_args()
+    global PART, PART_REPEAT, PART_WATCH
+    PART, PART_REPEAT, PART_WATCH = args.part, max(1, args.repeat), args.watch >= 2
     autoexec = os.path.join(args.base, "id1", "autoexec.cfg")
     if args.reset_autoexec:
         with open(autoexec, "w", encoding="ascii") as f:
