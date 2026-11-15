@@ -3356,13 +3356,20 @@ def predict_mantle(s, srv, a, b, ea, eb):
             "%s mantling states, the server has him at %s (from %s); %s" % (
                 pr.get("mantle_n"), sv, start, mantled[1].strip() if mantled else "no mantle line"))
     predict_corr_check(s, "mantling", pr)
-    s.note("the mantle's start (the server's test, once a frame: not predicted; eased in, counted apart): %s corrections, "
-           "the longest %s units" % (pr.get("trans_n"), pr.get("trans_max")))
+    trans_check(s, "the mantle's start (B8j: the test in each move, pmove::hangMantle, his replay's too) and the hold's take", pr)
     own = org_of(status(b), "mp_player", "self", 1)
     gap = dist(own, sv) if own and sv else 99.0
     s.check("on the top at rest B stands where the server has him (within 1 unit)", gap <= 1.0,
             "B draws himself at %s, the server has him at %s" % (own, sv))
     b.cmd("vr_mock_play; -graboff; -grabmain")
+
+
+def trans_check(s, what, pr):
+    """MP_PLAN B8j: a climb's transitions (a hold taken, the hang's mantle begun: `trans_n`, `trans_max`, counted apart
+    from the other corrections) predicted: each such state's correction under a unit."""
+    s.check("B's corrections at %s under 1.0 unit" % what,
+            int(pr.get("trans_n", 0)) >= 1 and float(pr.get("trans_max", 99)) < 1.0,
+            "%s such states, the longest %s units" % (pr.get("trans_n"), pr.get("trans_max")))
 
 
 def predict_climb(s):
@@ -3419,6 +3426,7 @@ def predict_hang(s, srv, a, b, ea, eb):
     s.check("B's body rose hanging, as his pull asked (8 units at least over where he took hold: the pull 0.25 m)",
             float(pr.get("hang_rise", 0)) >= 8.0, "%s" % pr.get("hang_rise"))
     predict_corr_check(s, "hanging", pr)
+    trans_check(s, "the hold's take", pr)
     sv = org_of(status(srv), "mp_client", "slot", eb - 1)
     own = org_of(status(b), "mp_player", "self", 1)
     gap = dist(own, sv) if own and sv else 99.0

@@ -5,10 +5,15 @@
 
 #include <glm/glm.hpp>
 
+#include "vr_ledges.hpp"
+
 #include "Zancle/Base/IsFinite.hpp"
+#include "Zancle/Math/Acos.hpp"
+#include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Tan.hpp"
 
 #include <math.h>
 
@@ -938,6 +943,282 @@ void hangStep(Body& b, Hang& h, const float (*rel)[3], const float* carryIn, flo
     }
 }
 
+namespace
+{
+
+[[nodiscard]] trace_t lineBody(Body& b, const glm::vec3& start, const glm::vec3& end)
+{
+    vec3_t s{start.x, start.y, start.z}, e{end.x, end.y, end.z};
+    return b.line(s, e);
+}
+
+[[nodiscard]] trace_t worldBody(Body& b, const glm::vec3& start, const glm::vec3& end)
+{
+    vec3_t s{start.x, start.y, start.z}, e{end.x, end.y, end.z};
+    return b.traceWorld(s, e);
+}
+
+// The top under a point minFooting in from the box's sides, standing at `at` (not just its very edge: a box touching the
+// far side of a narrow wall's top stood on nothing; the box traces are the hull's whole size).
+[[nodiscard]] bool footing(Body& b, const Hang& h, const glm::vec3& at)
+{
+    for(int i = -1; i <= 1; i++)
+    {
+        for(int j = -1; j <= 1; j++)
+        {
+            const glm::vec3 p = at + glm::vec3{static_cast<float>(i) * (h.maxsXY[0] - minFooting),
+                                         static_cast<float>(j) * (h.maxsXY[1] - minFooting), h.minsZ + 0.5f};
+            const trace_t down = lineBody(b, p, p - glm::vec3{0.f, 0.f, 8.5f});
+            if(!down.startsolid && down.fraction < 1.f)
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+// The mantle onto a level top (vr_climb.cpp's notes before findMantle): spots 20, 28 and 36 units in from the lip, at
+// mantleSides along it, each reached straight up (or from a little further out: a body pressed against the face, under a
+// trim on its lip) and over; the ledge map's depth (`g.depth`) tells a spot over the top (it stands there: the sweep over
+// finds anything in the way); a narrow top's middle last.
+[[nodiscard]] bool findMantleLevel(Body& b, const Hang& h, const HangGrip& g, glm::vec3& mid, glm::vec3& to)
+{
+    const glm::vec3 origin = gv(b.origin);
+    const float z = g.top - h.minsZ + 1.f;
+    if(z < origin.z)
+    {
+        return false;
+    }
+    const glm::vec3 out{g.out[0], g.out[1], 0.f};
+    const glm::vec3 along{-out.y, out.x, 0.f};
+    const glm::vec3 lip = gv(g.hold) + out * ledges::holdInset;
+    constexpr int sideCount = static_cast<int>(sizeof(mantleSides) / sizeof(mantleSides[0]));
+    int upState[sideCount] = {}; // 0: not swept yet, 1: clear (to upMid), -1: blocked
+    glm::vec3 upMid[sideCount];
+    const auto up = [&](int s) {
+        if(upState[s] == 0)
+        {
+            upState[s] = -1;
+            for(const float back : {0.f, 2.f, 4.f})
+            {
+                const glm::vec3 m = glm::vec3{origin.x, origin.y, z} + along * mantleSides[s] + out * back;
+                if(traceBody(b, origin, m).fraction >= 1.f)
+                {
+                    upState[s] = 1;
+                    upMid[s] = m;
+                    break;
+                }
+            }
+        }
+        return upState[s] > 0;
+    };
+    const auto fits = [&](int s, float in) {
+        if(!up(s))
+        {
+            return false;
+        }
+        mid = upMid[s];
+        to = glm::vec3{lip.x, lip.y, z} - out * in + along * mantleSides[s];
+        if(const float depth = g.depth[s]; !(depth >= 0.f && in <= depth - 0.5f))
+        {
+            if(traceBody(b, to, to).startsolid)
+            {
+                return false;
+            }
+            if(worldBody(b, to, to - glm::vec3{0.f, 0.f, 8.f}).fraction >= 1.f)
+            {
+                return false; // nothing to stand on
+            }
+            if(!footing(b, h, to))
+            {
+                return false;
+            }
+        }
+        return traceBody(b, mid, to).fraction >= 1.f;
+    };
+    for(int s = 0; s < sideCount; s++)
+    {
+        for(const float k : {20.f, 28.f, 36.f})
+        {
+            if(fits(s, k + ledges::holdInset))
+            {
+                return true;
+            }
+        }
+    }
+    bool anyUp = false;
+    for(int s = 0; s < sideCount; s++)
+    {
+        anyUp = anyUp || upState[s] > 0;
+    }
+    // A narrow top (at least minFooting deep): from over its middle outwards, the box's middle still over it (not
+    // standing on its edge over the drop: a rung against a wall is no place to stand).
+    const float depth = za::max(0.f, g.depth[0]);
+    if(!anyUp || depth < minFooting)
+    {
+        return false;
+    }
+    for(int s = 0; s < sideCount; s++)
+    {
+        if(upState[s] < 0)
+        {
+            continue;
+        }
+        for(float in = za::min(0.5f * depth, 22.f); in >= 0.5f; in -= 2.f)
+        {
+            if(fits(s, in))
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+// The mantle onto a sloping top (vr_climb.cpp's notes before findMantle, vr_climb_mantle_slope): for each spot the box
+// let down onto the top from as high as the slope could rise under it to as low as it could fall; it must land on
+// something no steeper, on more than its edge, with room; the way straight up to the higher of the lip's height and the
+// spot's (or from a little further out), then over.
+[[nodiscard]] bool findMantleSloped(Body& b, const Hang& h, const HangGrip& g, glm::vec3& mid, glm::vec3& to)
+{
+    const float slope = h.mantleSlope;
+    if(slope <= 0.f)
+    {
+        return false;
+    }
+    const glm::vec3 origin = gv(b.origin);
+    const float z = g.top - h.minsZ + 1.f;
+    if(z < origin.z)
+    {
+        return false;
+    }
+    const float minNormalZ = za::cos(glm::radians(slope)) - 1e-3f;
+    const float tanSlope = za::tan(glm::radians(slope));
+    const glm::vec3 out{g.out[0], g.out[1], 0.f};
+    const glm::vec3 along{-out.y, out.x, 0.f};
+    const glm::vec3 lip = gv(g.hold) + out * ledges::holdInset;
+    for(const float side : mantleSides)
+    {
+        for(const float k : {20.f, 28.f, 36.f})
+        {
+            const float in = k + ledges::holdInset;
+            const glm::vec3 spot = glm::vec3{lip.x, lip.y, z} - out * in + along * side;
+            const float rise = za::min(48.f, (in + h.maxsXY[0]) * tanSlope) + 1.f;
+            const glm::vec3 high = spot + glm::vec3{0.f, 0.f, rise};
+            if(traceBody(b, high, high).startsolid)
+            {
+                continue; // in a wall or under a ceiling even there
+            }
+            const trace_t down = traceBody(b, high, spot - glm::vec3{0.f, 0.f, rise});
+            if(down.startsolid || down.allsolid || down.fraction >= 1.f || down.plane.normal[2] < minNormalZ)
+            {
+                continue; // nothing to stand on, or too steep (a wall's edge, a ramp)
+            }
+            const glm::vec3 land = gv(down.endpos);
+            if(!footing(b, h, land))
+            {
+                continue;
+            }
+            const float overZ = za::max(z, land.z);
+            to = glm::vec3{land.x, land.y, overZ};
+            for(const float back : {0.f, 2.f, 4.f})
+            {
+                const glm::vec3 m = glm::vec3{origin.x, origin.y, overZ} + along * side + out * back;
+                if(traceBody(b, origin, m).fraction >= 1.f && traceBody(b, m, to).fraction >= 1.f)
+                {
+                    mid = m;
+                    if(h.verbose)
+                    {
+                        Con_Printf("climb: sloped mantle spot %.0f in, %+.0f along: the top %+.1f from the lip's, its slope "
+                                   "%.0f deg\n", in, side, land.z - z,
+                            glm::degrees(za::acos(za::clamp(down.plane.normal[2], -1.f, 1.f))));
+                    }
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+} // namespace
+
+bool findMantle(Body& b, const Hang& h, int k, float* mid, float* to)
+{
+    const HangGrip& g = h.grips[k];
+    glm::vec3 m{0.f}, t{0.f};
+    if(!findMantleLevel(b, h, g, m, t) && !findMantleSloped(b, h, g, m, t))
+    {
+        return false;
+    }
+    sv(mid, m);
+    sv(to, t);
+    return true;
+}
+
+bool hangMantle(Body& b, Hang& h, const float (*rel)[3], float headZ, float dt, Mantle& m)
+{
+    h.mantleHand = -1;
+    bool noRoom = false;
+    for(int k = 0; k < 2; k++)
+    {
+        HangGrip& g = h.grips[k];
+        g.missAge += g.missed ? dt : 0.f;
+    }
+    if(h.mantleTime <= 0.f || h.slipping)
+    {
+        h.noRoom = false;
+        return false;
+    }
+    const glm::vec3 now = gv(b.origin);
+    for(int k = 0; k < 2; k++)
+    {
+        HangGrip& g = h.grips[k];
+        if(!g.active)
+        {
+            continue;
+        }
+        // (The head's height over the top: under it, he can lean up and down over the ledge without mantling.)
+        const float pulledDown = g.relAtGrabZ - rel[k][2];
+        const float headAbove = headZ + now.z - g.top;
+        if(pulledDown < mantlePull || headAbove < h.mantleHeight)
+        {
+            continue;
+        }
+        // No room found here lately, the body and the hold where they were: none yet.
+        if(g.missed && g.missAge < mantleRetry && glm::distance(now, gv(g.missOrigin)) <= mantleRetryMove &&
+            VectorCompare(g.hold, g.missHold) && g.top == g.missTop)
+        {
+            noRoom = true;
+            continue;
+        }
+        vec3_t mid, to;
+        g.missed = !findMantle(b, h, k, mid, to);
+        if(g.missed)
+        {
+            g.missAge = 0.f;
+            sv(g.missOrigin, now);
+            VectorCopy(g.hold, g.missHold);
+            g.missTop = g.top;
+            noRoom = true;
+            continue;
+        }
+        m = Mantle{};
+        m.on = true;
+        VectorCopy(b.origin, m.from);
+        VectorCopy(mid, m.mid);
+        VectorCopy(to, m.to);
+        m.time = h.mantleTime;
+        m.headAbove = headAbove;
+        h.mantleHand = k;
+        h.noRoom = false;
+        return true;
+    }
+    h.noRoom = noRoom;
+    return false;
+}
+
 bool mantleStep(Mantle& m, float dt, float* out)
 {
     m.at += dt;
@@ -976,13 +1257,18 @@ void playerMove(Body& b, const Input& in, const Rules& r, MoveNotes* notes)
     }
     if(b.hang.on)
     {
-        // Hanging (vr_climb.cpp's holds): the move's hands pull the body, nothing else (B8i; the reach, the owed's
-        // settling, the mantle's test and the stamina are the server's, once a frame: climb::hangMoved).
+        // Hanging (vr_climb.cpp's holds): the move's hands pull the body (B8i), then the mantle's test (B8j: begun, the
+        // next moves carry him along it); the reach, the owed's settling and the stamina are the server's, once a
+        // frame: climb::hangMoved.
         if(notes)
         {
             notes->air = true;
         }
         hangStep(b, b.hang, in.hands, nullptr, in.dt, b.hangSums);
+        if(hangMantle(b, b.hang, in.hands, in.headZ, in.dt, b.mantle))
+        {
+            b.hang.on = false;
+        }
         return;
     }
     if(b.mantle.on)

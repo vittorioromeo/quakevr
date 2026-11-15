@@ -78,10 +78,11 @@ void mantleMoved(edict_t* ent, const pmove::Mantle& m, bool done);
 // hang its own): its state for pmove::hangStep (the holds, each hand's last place relative to the body, the owed,
 // slipping) -> true; false: not hanging so. A remote client's moves run its steps (MP B8i).
 [[nodiscard]] bool hangPath(edict_t* ent, pmove::Hang& h);
-// Server: after his moves ran the hang's steps (`h`, their sums `s`; his place set): the owed and the hands' last places
-// kept, then the frame's part, single player's too: kept within reach, the owed settled, the reach checked (out of reach:
-// he falls), the mantle's test, the stamina.
-void hangMoved(edict_t* ent, const pmove::Hang& h, const pmove::HangSums& s);
+// Server: after his moves ran the hang's steps (`h`, their sums `s`; his place set): the owed, the hands' last places and
+// the mantle's search kept; a move's mantle test began the mantle (h.mantleHand; `m` its way and time run since): the
+// climb mantles (or stands, at its end); else the frame's part, single player's too: kept within reach, the owed
+// settled, the reach checked (out of reach: he falls), the no-room buzz, the stamina.
+void hangMoved(edict_t* ent, const pmove::Hang& h, const pmove::HangSums& s, const pmove::Mantle& m);
 
 // Server: the player's holds as stats (STAT_QVR_CLIMB*), for the drawn hands.
 void calcStats(edict_t* ent, int* statsi);

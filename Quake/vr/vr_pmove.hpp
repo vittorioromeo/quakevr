@@ -27,6 +27,7 @@ struct Input
     bool jump{false};                // the jump key held (clc_move's bit 2)
     float hands[2][3]{};             // the hands relative to the body (hanging: the hang's pull, B8i)
     int grabs{3};                    // the grips held (bit 0 the off hand, 1 the main: a let-go ends its hold)
+    float headZ{0.f};                // the head's height over the body (hanging: the mantle's test, B8j)
 };
 
 // The server's rules a move runs by (the server's values, sent with each state: the client replays with them).
@@ -86,6 +87,7 @@ struct Mantle
     bool on{false};
     float from[3]{0.f, 0.f, 0.f}, mid[3]{0.f, 0.f, 0.f}, to[3]{0.f, 0.f, 0.f};
     float at{0.f}, time{0.f};
+    float headAbove{0.f}; // (the hang's test: the head's height over the top as it began, the climb's print)
 };
 // One step of `dt` along it: its place at its new time (`out`) -- true when it reached its end.
 bool mantleStep(Mantle& m, float dt, float* out);
@@ -100,6 +102,14 @@ struct HangGrip
     float hold[3]{0.f, 0.f, 0.f};    // where the hand holds now (world)
     float lastRel[3]{0.f, 0.f, 0.f}; // the hand relative to the body at the last step
     float top{0.f};                  // the ledge's top at the hold now
+    // The mantle's test (B8j): the ledge, the pull down, the last search that found no room.
+    float out[2]{0.f, 0.f};          // the ledge's way out from the face (level)
+    float relAtGrabZ{0.f};           // the hand's height relative to the body when it took hold
+    float depth[5]{-1.f, -1.f, -1.f, -1.f, -1.f}; // the top's depth from the lip in at mantleSides along it (-1: not known)
+    bool missed{false};              // the last search found no room ...
+    float missAge{0.f};              // ... this long ago (seconds of steps) ...
+    float missOrigin[3]{0.f, 0.f, 0.f}, missHold[3]{0.f, 0.f, 0.f}; // ... the body and the hold there ...
+    float missTop{0.f};              // ... and the top
 };
 // The hang's state a step runs on: the holds, what the body owes (earlier pulls into the face it couldn't make: made
 // up first by a pull the other way), slipping (no stamina: it sinks).
@@ -110,7 +120,24 @@ struct Hang
     HangGrip grips[2];
     float owed[3]{0.f, 0.f, 0.f};
     float minsZ{-24.f}; // the box's bottom below the origin (the feet's limit: no higher than the highest hold)
+    // The mantle's test after each step (B8j; the server's rules): 0 mantleTime, none.
+    float maxsXY[2]{16.f, 16.f}; // the box's sides (the footing on the top)
+    float mantleTime{0.f};       // the mantle's duration
+    float mantleHeight{0.f};     // the head this far over the top at least (vr_climb_mantle_height, 0-40)
+    float mantleSlope{0.f};      // a sloping top up to this steep (vr_climb_mantle_slope, 0-60 degrees; 0: level only)
+    bool verbose{false};         // the search's prints (vr_climb_debug)
+    bool noRoom{false};          // (out) the last test pulled for a mantle and found no room
+    int mantleHand{-1};          // (out) the hand whose hold the mantle began from
 };
+// The mantle's test (vr_climb.cpp, B8j): a hand that pulled down this far from where it took hold ...
+inline constexpr float mantlePull = 8.f;
+// ... a search that found no room holds this long (the body and the hold still) ...
+inline constexpr float mantleRetry = 0.15f;
+// ... unless the body moved this far; the spots along the edge it tries (the depths a HangGrip carries), and the top
+// the box must stand on (from the lip in), units.
+inline constexpr float mantleRetryMove = 1.f;
+inline constexpr float mantleSides[5] = {0.f, 8.f, -8.f, 16.f, -16.f};
+inline constexpr float minFooting = 3.f;
 // A step's (or a frame's steps') sums, for the server's once-a-frame part (vr_climb.cpp: the reach, the owed settled,
 // the trace): the origin before the first step, the moves meant and wanted, the hands' pull weights, the highest top.
 struct HangSums
@@ -137,6 +164,15 @@ void hangStep(Body& b, Hang& h, const float (*rel)[3], const float* carry, float
 // The body's box moved towards `target`: straight, else round the corner (vertical first or horizontal first) or slid
 // along what it meets, whichever ends nearest (vr_climb.cpp's moveBody).
 void moveBody(Body& b, const float* target);
+// The mantle's way from hold `k` (vr_climb.cpp's findMantle: a level top, else a sloping one): straight up from the
+// body to `mid` over the top, over to `to` standing on it, with room -- false: none.
+[[nodiscard]] bool findMantle(Body& b, const Hang& h, int k, float* mid, float* to);
+// The mantle's test after a step (`rel` the hands relative to the body, `headZ` the head's height over it): a holding
+// hand pulled down mantlePull from where it took hold, the head mantleHeight over its top, not slipping, and a way
+// (findMantle; a search that found no room kept mantleRetry) -> the mantle begun from the body's place (`m`, its time 0;
+// h.mantleHand its hand). h.noRoom: pulled for one, no room. Single player's hanging frame and a remote client's moves
+// (the server's and his replay's).
+bool hangMantle(Body& b, Hang& h, const float (*rel)[3], float headZ, float dt, Mantle& m);
 
 // The player as a move sees him. The hooks default to a client's world (BSP models only, nothing touched).
 struct Body
@@ -164,6 +200,8 @@ struct Body
     [[nodiscard]] virtual bool metBsp(const trace_t& tr) = 0;
     // A line from start to end against the world and the brush models (traceline's MOVE_NOMONSTERS).
     [[nodiscard]] virtual trace_t line(const float* start, const float* end) = 0;
+    // His box against the world and the brush models only (SV_Move's MOVE_NOMONSTERS: the mantle's floor test).
+    [[nodiscard]] virtual trace_t traceWorld(const float* start, const float* end) { return trace(start, end); }
     // SV_UserFriction's ledge test: the floor drops away ahead.
     [[nodiscard]] virtual bool overDropoff(const float* vel, float speed) = 0;
     // A walkable floor that is not a BSP model (a solid prop: VR_StandsOn).

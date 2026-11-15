@@ -135,6 +135,10 @@ struct EdictBody final : pmove::Body
     {
         return SV_Move(const_cast<float*>(start), vec3_origin, vec3_origin, const_cast<float*>(end), MOVE_NOMONSTERS, ent);
     }
+    trace_t traceWorld(const float* start, const float* end) override
+    {
+        return SV_Move(const_cast<float*>(start), ent->v.mins, ent->v.maxs, const_cast<float*>(end), MOVE_NOMONSTERS, ent);
+    }
     void waterJumped(const float* movedir) override
     {
         VectorCopy(movedir, ent->v.movedir);
@@ -815,6 +819,7 @@ pmove::Input inputOf(const netmove::WireMove& m)
         in.hands[h][2] = rel.z;
     }
     in.grabs = ((m.vr.vrBits0 & (1 << 1)) ? 1 : 0) | ((m.vr.vrBits0 & (1 << 3)) ? 2 : 0); // (vr_climb.cpp's grabBit)
+    in.headZ = m.vr.headPos.z - m.vr.origin.z; // (as the hands: the integers sent)
     return in;
 }
 
@@ -887,6 +892,7 @@ void parseState()
             pmove::HangGrip& g = hang.grips[k];
             g.active = (hb & (1 << (k * 2))) != 0;
             g.light = (hb & (2 << (k * 2))) != 0;
+            g.missed = (hb & (32 << k)) != 0;
             for(float* v : {g.hold, g.lastRel})
             {
                 for(int i = 0; i < 3; i++)
@@ -895,12 +901,27 @@ void parseState()
                 }
             }
             g.top = MSG_ReadFloat();
+            for(float* f : {&g.out[0], &g.out[1], &g.relAtGrabZ, &g.depth[0], &g.depth[1], &g.depth[2], &g.depth[3], &g.depth[4]})
+            {
+                *f = MSG_ReadFloat();
+            }
+            if(g.missed)
+            {
+                for(float* f : {&g.missAge, &g.missOrigin[0], &g.missOrigin[1], &g.missOrigin[2], &g.missHold[0],
+                        &g.missHold[1], &g.missHold[2], &g.missTop})
+                {
+                    *f = MSG_ReadFloat();
+                }
+            }
         }
         for(int i = 0; i < 3; i++)
         {
             hang.owed[i] = MSG_ReadFloat();
         }
-        hang.minsZ = MSG_ReadFloat();
+        for(float* f : {&hang.minsZ, &hang.maxsXY[0], &hang.maxsXY[1], &hang.mantleTime, &hang.mantleHeight, &hang.mantleSlope})
+        {
+            *f = MSG_ReadFloat();
+        }
     }
     pmove::Rules r;
     for(float* f : {&r.maxspeed, &r.stickScale, &r.accelerate, &r.friction, &r.stopspeed, &r.edgefriction, &r.gravity,
@@ -1162,7 +1183,7 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
         }
         if(hanging)
         {
-            climb::hangMoved(ent, b.hang, hangSums); // (the frame's part: the reach, the owed, the mantle's test, stamina)
+            climb::hangMoved(ent, b.hang, hangSums, b.mantle); // (the mantle begun by a move, else the frame's part)
         }
         if(b.waterLevel >= 2 && !(b.flags & FL_WATERJUMP) && s->n > 0 && !mantling && !hanging)
         {
@@ -1200,7 +1221,7 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
 extern "C" void VR_WritePredict(sizebuf_t* msg, client_t* client)
 {
     const int slot = static_cast<int>(client - svs.clients);
-    if(!movesOneByOne(slot) || !client->edict || msg->cursize + 400 > msg->maxsize)
+    if(!movesOneByOne(slot) || !client->edict || msg->cursize + 600 > msg->maxsize)
     {
         return;
     }
@@ -1253,7 +1274,8 @@ extern "C" void VR_WritePredict(sizebuf_t* msg, client_t* client)
         int hb = hang.slipping ? 16 : 0;
         for(int k = 0; k < 2; k++)
         {
-            hb |= (hang.grips[k].active ? 1 << (k * 2) : 0) | (hang.grips[k].light ? 2 << (k * 2) : 0);
+            hb |= (hang.grips[k].active ? 1 << (k * 2) : 0) | (hang.grips[k].light ? 2 << (k * 2) : 0) |
+                  (hang.grips[k].missed ? 32 << k : 0);
         }
         MSG_WriteByte(msg, hb);
         for(const pmove::HangGrip& g : hang.grips)
@@ -1266,12 +1288,28 @@ extern "C" void VR_WritePredict(sizebuf_t* msg, client_t* client)
                 }
             }
             MSG_WriteFloat(msg, g.top);
+            // (the mantle's test, B8j: the ledge, the pull down's start, the depths; the search that found no room)
+            for(const float f : {g.out[0], g.out[1], g.relAtGrabZ, g.depth[0], g.depth[1], g.depth[2], g.depth[3], g.depth[4]})
+            {
+                MSG_WriteFloat(msg, f);
+            }
+            if(g.missed)
+            {
+                for(const float f : {g.missAge, g.missOrigin[0], g.missOrigin[1], g.missOrigin[2], g.missHold[0],
+                        g.missHold[1], g.missHold[2], g.missTop})
+                {
+                    MSG_WriteFloat(msg, f);
+                }
+            }
         }
         for(int i = 0; i < 3; i++)
         {
             MSG_WriteFloat(msg, hang.owed[i]);
         }
-        MSG_WriteFloat(msg, hang.minsZ);
+        for(const float f : {hang.minsZ, hang.maxsXY[0], hang.maxsXY[1], hang.mantleTime, hang.mantleHeight, hang.mantleSlope})
+        {
+            MSG_WriteFloat(msg, f);
+        }
     }
     for(const float f : {r.maxspeed, r.stickScale, r.accelerate, r.friction, r.stopspeed, r.edgefriction, r.gravity,
             r.maxvelocity, r.stepsize, r.roomscaleScale, r.jumpSpeed, r.boxHeight, r.feetZ, r.waistZ, r.eyeZ,

@@ -198,7 +198,7 @@ using ledges::holdInset;              // the hold (the palm's middle) is this fa
 constexpr float regrabDelay = 0.4f;   // seconds without new holds after letting go of everything or mantling
 // (The body follows the hands at pmove::hangMaxSpeed units a second at most, and stays within pmove::hangMaxReach
 // units, horizontally, of each hold: vr_pmove.hpp, the hang's steps.)
-constexpr float mantlePull = 8.f;     // units a hand must have pulled down before a mantle
+// (A mantle's pull down, its search's retry and the top it stands on: pmove::mantlePull, mantleRetry, minFooting.)
 constexpr float mantleTime = 0.3f;    // seconds the mantle takes
 constexpr float flingMax = 200.f;     // units / second the release flings at most,
 constexpr float flingMaxUp = 150.f;   // and upwards
@@ -215,9 +215,6 @@ constexpr float reachSlack = 0.05f;    // and a little more (the estimate's erro
 constexpr float passiveShare = 0.25f;  // a holding hand moving less than this share of the pull doesn't hold the body back
 constexpr float passiveSlack = 2.f;    // units: such a hand's hold that far past its reach lets go,
 constexpr float brokenSlack = 4.f;     // and any hold this far past it (the body couldn't be kept within reach)
-constexpr float minFooting = 3.f;      // units of a ledge's top (from the lip in) the box must stand on to mantle onto it
-constexpr double mantleRetry = 0.15;   // seconds a search for the mantle that found no room holds (the body and hold still),
-constexpr float mantleRetryMove = 1.f; // unless the body moved this far
 
 using geom::vec;
 
@@ -1052,10 +1049,10 @@ struct Grip
     int mapForgets{-1};        // ledges::forgets then (changed: a runtime brush's map dropped, maybe this one)
     za::U32 mapSerial{0};      // and the map's Map::serial (ledges::alive)
     // The mantle's search (findMantle), kept for the hold: the last search that found no room (not searched again, the
-    // body hanging still, until `mantleRetry`).
+    // body hanging still, until pmove::mantleRetry; the hang's steps' clock: pmove::hangMantle).
     bool missed{false};
-    double missTime{0.0};
-    glm::vec3 missOrigin{0.f}, missHold{0.f}, missMins{0.f}, missMaxs{0.f};
+    float missAge{0.f};
+    glm::vec3 missOrigin{0.f}, missHold{0.f};
     float missTop{0.f};
     // A prop's hold (see "Holds on props"): moved as the prop lies each frame (followProps). `hold`, `ledge` (its top, its
     // way out) and the ledge (propMap) are where they are now.
@@ -1396,224 +1393,8 @@ void slideHold(Grip& g, const glm::vec3& tracked, const glm::vec3& shoulder, flo
 // top: then the box stands on it (the floor and footing below need no traces), and one sweep over from the top of the
 // way up (shared by the spots on that side) is all it takes. Elsewhere (a spot past the ledge's end, or in further
 // than the top goes, where the box may still stand on its back part) the traces as before.
-[[nodiscard]] bool findMantleLevel(edict_t* ent, Grip& g, glm::vec3& mid, glm::vec3& to)
-{
-    const glm::vec3 origin = vec(ent->v.origin);
-    const glm::vec3 hold = holdNow(g);
-    const float z = topNow(g) - ent->v.mins[2] + 1.f;
-    if(z < origin.z)
-    {
-        return false;
-    }
-    const glm::vec3 along{-g.ledge.out.y, g.ledge.out.x, 0.f};
-    const glm::vec3 lip = hold + g.ledge.out * holdInset;
-    constexpr float sides[] = {0.f, 8.f, -8.f, 16.f, -16.f};
-    constexpr int sideCount = static_cast<int>(za::getArraySize(sides));
-    // Straight up to over the top, `side` along the edge; else from a little further out (a body pressed against the
-    // face, under a trim on its lip). The same for every spot in from the lip: swept once a side.
-    int upState[sideCount] = {}; // 0: not swept yet, 1: clear (to upMid), -1: blocked
-    glm::vec3 upMid[sideCount];
-    const auto up = [&](int s) {
-        if(upState[s] == 0)
-        {
-            upState[s] = -1;
-            for(const float back : {0.f, 2.f, 4.f})
-            {
-                const glm::vec3 m = glm::vec3{origin.x, origin.y, z} + along * sides[s] + g.ledge.out * back;
-                if(tracePlayer(ent, origin, m).fraction >= 1.f)
-                {
-                    upState[s] = 1;
-                    upMid[s] = m;
-                    break;
-                }
-            }
-        }
-        return upState[s] > 0;
-    };
-    // The spot `in` units in from the lip, `sides[s]` along it.
-    const auto fits = [&](int s, float in) {
-        if(!up(s))
-        {
-            return false;
-        }
-        mid = upMid[s];
-        const float side = sides[s];
-        to = glm::vec3{lip.x, lip.y, z} - g.ledge.out * in + along * side;
-        // Over the top (the ledge map): it stands there; the sweep over (below) finds anything in the way or in the
-        // spot.
-        if(const float depth = depthAt(g, side); !(depth >= 0.f && in <= depth - 0.5f))
-        {
-            if(tracePlayer(ent, to, to).startsolid)
-            {
-                return false;
-            }
-            if(traceBox(to, vec(ent->v.mins), vec(ent->v.maxs), to - glm::vec3{0.f, 0.f, 8.f}, MOVE_NOMONSTERS, ent).fraction >= 1.f)
-            {
-                return false; // nothing to stand on
-            }
-            // and not just its very edge (a box touching the far side of a narrow wall's top stood on nothing): the
-            // top under a point `minFooting` in from the box's sides, at least (the box traces are the hull's whole
-            // size).
-            bool footing = false;
-            for(int i = -1; i <= 1 && !footing; i++)
-            {
-                for(int j = -1; j <= 1 && !footing; j++)
-                {
-                    const glm::vec3 p = to + glm::vec3{i * (ent->v.maxs[0] - minFooting), j * (ent->v.maxs[1] - minFooting),
-                                                 ent->v.mins[2] + 0.5f};
-                    const trace_t down = traceLine(p, p - glm::vec3{0.f, 0.f, 8.5f}, ent);
-                    footing = !down.startsolid && down.fraction < 1.f;
-                }
-            }
-            if(!footing)
-            {
-                return false;
-            }
-        }
-        return tracePlayer(ent, mid, to).fraction >= 1.f;
-    };
-    for(int s = 0; s < sideCount; s++)
-    {
-        for(const float k : {20.f, 28.f, 36.f})
-        {
-            if(fits(s, k + holdInset))
-            {
-                return true;
-            }
-        }
-    }
-    // Every side swept above: none clear, no spot (the narrow top's either).
-    bool anyUp = false;
-    for(int s = 0; s < sideCount; s++)
-    {
-        anyUp = anyUp || upState[s] > 0;
-    }
-    if(vr_climb_debug.value >= 4.f)
-    {
-        const glm::vec3 spot = glm::vec3{lip.x, lip.y, z} - g.ledge.out * (20.f + holdInset);
-        const trace_t up = tracePlayer(ent, origin, glm::vec3{origin.x, origin.y, z});
-        const trace_t over = tracePlayer(ent, upState[0] > 0 ? upMid[0] : glm::vec3{origin.x, origin.y, z}, spot);
-        Con_Printf("climbcost mantle: the way up %s (%.2f of the way%s, entity %d; sides %d %d %d %d %d), the top %.1f deep; "
-                   "over to the first spot %s (%.2f of the way, entity %d)\n", upState[0] > 0 ? "clear" : "blocked",
-            up.fraction, up.startsolid ? ", started in solid" : "", up.ent ? NUM_FOR_EDICT(up.ent) : -1, upState[0],
-            upState[1], upState[2], upState[3], upState[4], depthAt(g, 0.f), over.fraction >= 1.f ? "clear" : "blocked",
-            over.fraction, over.ent ? NUM_FOR_EDICT(over.ent) : -1);
-    }
-    if(!anyUp)
-    {
-        return false;
-    }
-    // A narrow top (at least `minFooting` deep): from over its middle outwards, the box's middle still over it (not
-    // standing on its edge over the drop: a rung against a wall is no place to stand).
-    const float depth = za::max(0.f, depthAt(g, 0.f));
-    if(depth < minFooting)
-    {
-        return false;
-    }
-    for(int s = 0; s < sideCount; s++)
-    {
-        if(upState[s] < 0)
-        {
-            continue;
-        }
-        for(float in = za::min(0.5f * depth, 22.f); in >= 0.5f; in -= 2.f)
-        {
-            if(fits(s, in))
-            {
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
-// The mantle onto a sloping top (vr_climb_mantle_slope; voice notes e5start 17:12, plaw01 17:07: the little ledge
-// by the hard teleporter in DOPA's start map rises 4 units in its first 16 and findMantleLevel's box, at the lip's
-// height, sat in it). Tried only when findMantleLevel finds nothing. For each spot (22 to 38 units in, the same sides
-// along the edge), the box is let down onto the top from as high as a slope of vr_climb_mantle_slope could rise under
-// it (to its far side) to as low as it could fall: it must land on something no steeper than that (a wall's edge, a
-// steep ramp, nothing at all: no spot), on more than its edge (the footing as findMantleLevel's), with room for it
-// there. The way: straight up to the higher of the lip's height and the spot's (or up from a little further out), then
-// over; a ceiling or a wall in either is no way. A spot lower than the lip (a top falling away) is reached over at the
-// lip's height and dropped onto, as a level top's beyond the drop is.
-[[nodiscard]] bool findMantleSloped(edict_t* ent, Grip& g, glm::vec3& mid, glm::vec3& to)
-{
-    const float slope = za::clamp(vr_climb_mantle_slope.value, 0.f, 60.f);
-    if(slope <= 0.f)
-    {
-        return false;
-    }
-    const glm::vec3 origin = vec(ent->v.origin);
-    const glm::vec3 mins = vec(ent->v.mins), maxs = vec(ent->v.maxs);
-    const float z = topNow(g) - mins.z + 1.f;
-    if(z < origin.z)
-    {
-        return false;
-    }
-    const float minNormalZ = za::cos(glm::radians(slope)) - 1e-3f;
-    const float tanSlope = za::tan(glm::radians(slope));
-    const glm::vec3 along{-g.ledge.out.y, g.ledge.out.x, 0.f};
-    const glm::vec3 lip = holdNow(g) + g.ledge.out * holdInset;
-    constexpr float sides[] = {0.f, 8.f, -8.f, 16.f, -16.f};
-    for(const float side : sides)
-    {
-        for(const float k : {20.f, 28.f, 36.f})
-        {
-            const float in = k + holdInset;
-            const glm::vec3 spot = glm::vec3{lip.x, lip.y, z} - g.ledge.out * in + along * side;
-            // As high and as low as the slope could take the top under the box (its far side `maxs.x` further in).
-            const float rise = za::min(48.f, (in + maxs.x) * tanSlope) + 1.f;
-            const glm::vec3 high = spot + glm::vec3{0.f, 0.f, rise};
-            if(tracePlayer(ent, high, high).startsolid)
-            {
-                continue; // in a wall or under a ceiling even there
-            }
-            const trace_t down = tracePlayer(ent, high, spot - glm::vec3{0.f, 0.f, rise});
-            if(down.startsolid || down.allsolid || down.fraction >= 1.f || down.plane.normal[2] < minNormalZ)
-            {
-                continue; // nothing to stand on, or too steep (a wall's edge, a ramp)
-            }
-            const glm::vec3 land = vec(down.endpos);
-            bool footing = false;
-            for(int i = -1; i <= 1 && !footing; i++)
-            {
-                for(int j = -1; j <= 1 && !footing; j++)
-                {
-                    const glm::vec3 p = land + glm::vec3{i * (maxs.x - minFooting), j * (maxs.y - minFooting), mins.z + 0.5f};
-                    const trace_t foot = traceLine(p, p - glm::vec3{0.f, 0.f, 8.5f}, ent);
-                    footing = !foot.startsolid && foot.fraction < 1.f;
-                }
-            }
-            if(!footing)
-            {
-                continue;
-            }
-            const float overZ = za::max(z, land.z);
-            to = glm::vec3{land.x, land.y, overZ};
-            for(const float back : {0.f, 2.f, 4.f})
-            {
-                const glm::vec3 m = glm::vec3{origin.x, origin.y, overZ} + along * side + g.ledge.out * back;
-                if(tracePlayer(ent, origin, m).fraction >= 1.f && tracePlayer(ent, m, to).fraction >= 1.f)
-                {
-                    mid = m;
-                    if(debug())
-                    {
-                        Con_Printf("climb: sloped mantle spot %.0f in, %+.0f along: the top %+.1f from the lip's, its slope "
-                                   "%.0f deg\n", in, side, land.z - z, glm::degrees(za::acos(za::clamp(down.plane.normal[2], -1.f, 1.f))));
-                    }
-                    return true;
-                }
-            }
-        }
-    }
-    return false;
-}
-
-// The mantle (see findMantleLevel), onto a sloping top too (findMantleSloped).
-[[nodiscard]] bool findMantle(edict_t* ent, Grip& g, glm::vec3& mid, glm::vec3& to)
-{
-    return findMantleLevel(ent, g, mid, to) || findMantleSloped(ent, g, mid, to);
-}
+// (vr_pmove.cpp's findMantle, on the hang's state: the steps' test and the flat mantle's search run the same; the
+// ledge map's depths at pmove::mantleSides come in the hang's state, hangGripOf.)
 
 // The player's edict as the hang's steps see it (pmove::hangStep, pmove::moveBody: single player's frame and a remote
 // client's moves run the same code, MP B8i): his box against the world and entities (SV_Move's MOVE_NORMAL).
@@ -1643,8 +1424,65 @@ struct ClimbBody final : pmove::Body
     {
         return traceLine(glm::vec3{start[0], start[1], start[2]}, glm::vec3{end[0], end[1], end[2]}, ent);
     }
+    trace_t traceWorld(const float* start, const float* end) override
+    {
+        return traceBox(glm::vec3{start[0], start[1], start[2]}, vec(ent->v.mins), vec(ent->v.maxs),
+            glm::vec3{end[0], end[1], end[2]}, MOVE_NOMONSTERS, ent);
+    }
     bool overDropoff(const float*, float) override { return false; }
 };
+
+// Grip `g` as the hang's steps see it (pmove::HangGrip): the hold now, the hand's last place, the ledge's way out and
+// its depths along it, the pull down's start, the mantle's last search that found no room.
+void hangGripOf(const Grip& g, pmove::HangGrip& hg)
+{
+    hg.active = g.active;
+    hg.light = g.light;
+    setVec(hg.hold, holdNow(g));
+    setVec(hg.lastRel, g.lastRel);
+    hg.top = topNow(g);
+    hg.out[0] = g.ledge.out.x;
+    hg.out[1] = g.ledge.out.y;
+    hg.relAtGrabZ = g.relAtGrab.z;
+    for(int s = 0; s < 5; s++)
+    {
+        hg.depth[s] = depthAt(g, pmove::mantleSides[s]);
+    }
+    hg.missed = g.missed;
+    hg.missAge = g.missAge;
+    setVec(hg.missOrigin, g.missOrigin);
+    setVec(hg.missHold, g.missHold);
+    hg.missTop = g.missTop;
+}
+
+// The body's box and the mantle's rules, for the hang's steps.
+void hangBox(const edict_t* ent, pmove::Hang& h)
+{
+    h.minsZ = ent->v.mins[2];
+    h.maxsXY[0] = ent->v.maxs[0];
+    h.maxsXY[1] = ent->v.maxs[1];
+    h.mantleTime = mantleTime;
+    h.mantleHeight = za::clamp(vr_climb_mantle_height.value, 0.f, 40.f);
+    h.mantleSlope = za::clamp(vr_climb_mantle_slope.value, 0.f, 60.f);
+    h.verbose = debug();
+}
+
+// The mantle's way from grip `g` (pmove::findMantle: the steps' own search), the body where the edict is.
+[[nodiscard]] bool findMantle(edict_t* ent, const Grip& g, glm::vec3& mid, glm::vec3& to)
+{
+    pmove::Hang h;
+    hangGripOf(g, h.grips[0]);
+    hangBox(ent, h);
+    ClimbBody b{ent};
+    vec3_t m, t;
+    if(!pmove::findMantle(b, h, 0, m, t))
+    {
+        return false;
+    }
+    mid = vec(m);
+    to = vec(t);
+    return true;
+}
 
 // Moves the body towards `target` through the world: the whole way, else the nearest to it of: sliding along what
 // blocks it (the face under a ledge: a shimmy pressed against it, pulled partly into it, still moves along it), up/down
@@ -2521,6 +2359,7 @@ struct Hang
     glm::vec3 shoulder[2];
     bool driving[2]{false, false};
     glm::vec3 done{0.f};
+    bool noRoom{false}; // the steps' mantle test pulled for one, no room (pmove::Hang::noRoom)
 };
 
 // The mantle's way now, for pmove::mantleStep (one step for single player's frame and a remote client's moves, MP B8h).
@@ -2594,16 +2433,10 @@ pmove::Hang hangState(const edict_t* ent, const Climber& c)
     h.slipping = c.phase == Phase::Slipping;
     for(int k = 0; k < 2; k++)
     {
-        const Grip& g = c.grips[k];
-        pmove::HangGrip& hg = h.grips[k];
-        hg.active = g.active;
-        hg.light = g.light;
-        setVec(hg.hold, holdNow(g));
-        setVec(hg.lastRel, g.lastRel);
-        hg.top = topNow(g);
+        hangGripOf(c.grips[k], h.grips[k]);
     }
     setVec(h.owed, c.owed);
-    h.minsZ = ent->v.mins[2];
+    hangBox(ent, h);
     return h;
 }
 
@@ -2632,7 +2465,14 @@ void hangStepped(Climber& c, const pmove::Hang& h, const pmove::HangSums& s, Han
     c.owed = vec(h.owed);
     for(int k = 0; k < 2; k++)
     {
-        c.grips[k].lastRel = vec(h.grips[k].lastRel);
+        Grip& g = c.grips[k];
+        const pmove::HangGrip& hg = h.grips[k];
+        g.lastRel = vec(hg.lastRel);
+        g.missed = hg.missed;
+        g.missAge = hg.missAge;
+        g.missOrigin = vec(hg.missOrigin);
+        g.missHold = vec(hg.missHold);
+        g.missTop = hg.missTop;
         hang.weight[k] = s.weight[k];
     }
     hang.origin = vec(s.origin);
@@ -2643,19 +2483,35 @@ void hangStepped(Climber& c, const pmove::Hang& h, const pmove::HangSums& s, Han
     hang.count = s.count;
 }
 
-// The pull, the carry, what is owed, the limits, the move: one step of the frame's time (pmove::hangStep, a remote
-// client's moves' own step: MP B8i).
-void hangSteps(Hang& hang)
+void beginMantle(edict_t* ent, Climber& c, int k, const pmove::Mantle& m); // (below)
+void noRoomBuzz(edict_t* ent, Climber& c, bool noRoom);                     // (below)
+
+// The pull, the carry, what is owed, the limits, the move, then the mantle's test: one step of the frame's time
+// (pmove::hangStep and pmove::hangMantle, a remote client's moves' own: MP B8i, B8j) -- true: the mantle began.
+bool hangSteps(Hang& hang)
 {
     pmove::Hang h = hangState(hang.ent, hang.c);
     const glm::vec3 carry = holdsCarry(hang.c);
     const vec3_t carried{carry.x, carry.y, carry.z};
     const float rel[2][3] = {{hang.rel[0].x, hang.rel[0].y, hang.rel[0].z}, {hang.rel[1].x, hang.rel[1].y, hang.rel[1].z}};
+    const float headZ = hang.move->headPos.z - hang.ent->v.origin[2]; // (the head over the body before the step)
+    const float dt = static_cast<float>(host_frametime);
     pmove::HangSums sums;
     ClimbBody b{hang.ent};
-    pmove::hangStep(b, h, rel, carried, static_cast<float>(host_frametime), &sums);
+    pmove::hangStep(b, h, rel, carried, dt, &sums);
+    pmove::Mantle m;
+    const bool mantles = pmove::hangMantle(b, h, rel, headZ, dt, m);
     b.store();
     hangStepped(hang.c, h, sums, hang);
+    if(mantles)
+    {
+        beginMantle(hang.ent, hang.c, h.mantleHand, m);
+    }
+    else
+    {
+        hang.noRoom = h.noRoom;
+    }
+    return mantles;
 }
 
 // Kept within an arm's reach of the pulling holds; under an overhang, the arms stretch.
@@ -2827,14 +2683,13 @@ void reachCheck(Hang& hang)
     }
 }
 
-// The mantle begins (tryMantle): its way from here up to `mid` and over to `to`, following the hold's brush model or
-// prop.
-void startMantle(edict_t* ent, Climber& c, const Grip& g, const glm::vec3& mid, const glm::vec3& to, float headAbove,
-    double time)
+// The mantle begins (the hang's steps' test, the flat mantle): its way from `from` up to `mid` and over to `to`,
+// following the hold's brush model or prop.
+void startMantle(edict_t* ent, Climber& c, const Grip& g, const glm::vec3& from, const glm::vec3& mid,
+    const glm::vec3& to, float headAbove)
 {
-    (void)time;
     c.mantleAt = 0.f;
-    c.mantleFrom = vec(ent->v.origin);
+    c.mantleFrom = from;
     c.mantleMid = mid;
     c.mantleTo = to;
     c.mantleEnt = g.entNum;
@@ -2856,89 +2711,33 @@ void startMantle(edict_t* ent, Climber& c, const Grip& g, const glm::vec3& mid, 
     }
 }
 
-// The mantle: pulled down, the head over the ledge, and room on top.
-void tryMantle(Hang& hang)
+// The mantle begun by the hang's steps' test (pmove::hangMantle) from hand `k`'s hold: its way as the test found it.
+void beginMantle(edict_t* ent, Climber& c, int k, const pmove::Mantle& m)
 {
-    edict_t* const ent = hang.ent;
-    Climber& c = hang.c;
-    const VrMove* const move = hang.move;
-    const glm::vec3 (&rel)[2] = hang.rel;
-    const glm::vec3& origin = hang.origin;
-    const double time = hang.time;
-    const float headZ = move->headPos.z;
-    bool noRoom = false;
-    for(int h = 0; h < 2; h++)
+    const Grip& g = c.grips[k & 1];
+    startMantle(ent, c, g, vec(m.from), vec(m.mid), vec(m.to), m.headAbove);
+}
+
+// No room on top: a soft buzz as the pull over the top starts (the body stays on the face: the pull into it is owed, so
+// the push over the top doesn't push it back off).
+void noRoomBuzz(edict_t* ent, Climber& c, bool noRoom)
+{
+    if(noRoom && !c.noRoom)
     {
-        Grip& g = c.grips[h];
-        if(!g.active)
+        for(int h = 0; h < 2; h++)
         {
-            continue;
-        }
-        const float pulledDown = g.relAtGrab.z - rel[h].z;
-        const float headAbove = headZ + (ent->v.origin[2] - origin.z) - topNow(g);
-        // (The head's height over the top: under it, he can lean up and down over the ledge without mantling.)
-        if(pulledDown < mantlePull || headAbove < za::clamp(vr_climb_mantle_height.value, 0.f, 40.f) || c.phase == Phase::Slipping)
-        {
-            continue;
-        }
-        // No room found here last time, the body and the hold where they were: none yet (searched again after
-        // `mantleRetry`, or once either moves; see findMantle).
-        const glm::vec3 now = vec(ent->v.origin), holdAt = holdNow(g);
-        if(g.missed && time - g.missTime < mantleRetry && glm::distance(now, g.missOrigin) <= mantleRetryMove &&
-            holdAt == g.missHold && topNow(g) == g.missTop && vec(ent->v.mins) == g.missMins && vec(ent->v.maxs) == g.missMaxs)
-        {
-            if(vr_climb_debug.value >= 4.f)
+            if(c.grips[h].active)
             {
-                Con_Printf("climbcost mantle %s: no room (searched %.3f s ago)\n", handName(h), time - g.missTime);
+                server::sendHaptic(ent, h, 0.f, 0.12f, 40.f, 0.25f);
             }
-            noRoom = true;
-            continue;
         }
-        glm::vec3 mid, to;
-        const double t0 = Sys_DoubleTime();
-        const int traces0 = traceCount;
-        const bool found = findMantle(ent, g, mid, to);
-        if(vr_climb_debug.value >= 4.f)
+        if(debug())
         {
-            Con_Printf("climbcost mantle %s: %d traces, %.4f ms\n", handName(h), traceCount - traces0,
-                (Sys_DoubleTime() - t0) * 1000.0);
+            Con_Printf("climb: no room to mantle at (%.1f %.1f %.1f)\n", ent->v.origin[0], ent->v.origin[1],
+                ent->v.origin[2]);
         }
-        g.missed = !found;
-        if(!found)
-        {
-            g.missTime = time;
-            g.missOrigin = now;
-            g.missHold = holdAt;
-            g.missTop = topNow(g);
-            g.missMins = vec(ent->v.mins);
-            g.missMaxs = vec(ent->v.maxs);
-            noRoom = true;
-            continue;
-        }
-        startMantle(ent, c, g, mid, to, headAbove, time);
-        break;
     }
-    if(c.phase != Phase::Mantling)
-    {
-        // No room on top: a soft buzz as the pull over the top starts (the body stays on the face: the pull into it
-        // is owed, so the push over the top doesn't push it back off).
-        if(noRoom && !c.noRoom)
-        {
-            for(int h = 0; h < 2; h++)
-            {
-                if(c.grips[h].active)
-                {
-                    server::sendHaptic(ent, h, 0.f, 0.12f, 40.f, 0.25f);
-                }
-            }
-            if(debug())
-            {
-                Con_Printf("climb: no room to mantle at (%.1f %.1f %.1f)\n", ent->v.origin[0], ent->v.origin[1],
-                    ent->v.origin[2]);
-            }
-        }
-        c.noRoom = noRoom;
-    }
+    c.noRoom = noRoom;
 }
 
 // The flat mantle's hands (his notes 2026-11-08): each empty hand on the ledge as the mantle starts, as a headset's hands
@@ -3058,16 +2857,17 @@ void flatMantle(edict_t* ent, Climber& c, const VrMove* move, double time)
     c.gruntAt = gruntAt > time ? gruntAt : -1.0;
     c.flatJumpAt = -1.0;
     c.flatMantles++;
-    startMantle(ent, c, g, mid, to, eye.z - best->top, time);
+    startMantle(ent, c, g, vec(ent->v.origin), mid, to, eye.z - best->top);
     flatMantleHands(ent, c, move, g);
 }
 } // namespace
 
 namespace
 {
-// A hanging (or slipping) frame: the body moved by the holding hands; out of reach, the fall; the mantle; the stamina.
-// The hang's once-a-frame part after its steps (single player's one, a remote client's moves': MP B8i): kept within
-// reach, the owed settled, the reach checked, the mantle's test, the stamina.
+// A hanging (or slipping) frame: the body moved by the holding hands, the mantle's test (the steps'); out of reach, the
+// fall; the stamina. The hang's once-a-frame part after its steps (single player's one, a remote client's moves': MP
+// B8i), unless they began the mantle: kept within reach, the owed settled, the reach checked, the no-room buzz, the
+// stamina.
 void hangFramePart(Hang& hang)
 {
     edict_t* const ent = hang.ent;
@@ -3082,7 +2882,7 @@ void hangFramePart(Hang& hang)
         return;
     }
 
-    tryMantle(hang);
+    noRoomBuzz(ent, c, hang.noRoom);
 
     hangStamina(ent, c, hang.time);
     if(c.draining && fields().vr_climb_drain >= 0)
@@ -3118,8 +2918,10 @@ int hangFrame(edict_t* ent, Climber& c, double time)
     // The pull: what the holding hands moved relative to the body since the last frame, the other way, each weighted
     // by how far it moved; and the holds' own motion (a moving brush model carries the body).
     Hang hang{ent, c, move, time, {handRel(ent, *move, 0), handRel(ent, *move, 1)}};
-    hangSteps(hang);
-    hangFramePart(hang);
+    if(!hangSteps(hang))
+    {
+        hangFramePart(hang);
+    }
     return 1;
 }
 } // namespace
@@ -3481,7 +3283,7 @@ bool qvr::climb::hangPath(edict_t* ent, pmove::Hang& h)
     return true;
 }
 
-void qvr::climb::hangMoved(edict_t* ent, const pmove::Hang& h, const pmove::HangSums& s)
+void qvr::climb::hangMoved(edict_t* ent, const pmove::Hang& h, const pmove::HangSums& s, const pmove::Mantle& m)
 {
     Climber* cp = climberOf(ent);
     if(!cp || (cp->phase != Phase::Hanging && cp->phase != Phase::Slipping))
@@ -3498,10 +3300,22 @@ void qvr::climb::hangMoved(edict_t* ent, const pmove::Hang& h, const pmove::Hang
     // (the hands as the newest move ran them: each grip's last place relative to the body)
     Hang hang{ent, c, move, qcvm->time, {vec(h.grips[0].lastRel), vec(h.grips[1].lastRel)}};
     hangStepped(c, h, s, hang);
+    if(h.mantleHand >= 0)
+    {
+        // A move's test began the mantle (B8j): the moves after it carried him along it (`m`: its time run, ended or not).
+        beginMantle(ent, c, h.mantleHand, m);
+        c.mantleAt = m.at;
+        if(!m.on)
+        {
+            mantleEnd(ent, c, m, true, nullptr);
+        }
+        return;
+    }
     if(s.steps == 0)
     {
         hang.origin = vec(ent->v.origin); // (no moves this frame: nothing moved)
     }
+    hang.noRoom = h.noRoom;
     hangFramePart(hang);
 }
 
