@@ -670,6 +670,10 @@ za::Vector<Item> pageDebugTests()
         command("Shoot Yourself: Ordinary Firing", "developer 1; vr_selfshot_test 2")
             .help("vr_selfshot_test 2: both hands fire a blast, a nail and a bolt's line from nine ordinary poses (dual, "
                   "arms crossed, cupped, pointing down, kicked up, from the hip, turned): none may hit you."),
+        command("Player Disarm: Shots on Your Gun", "developer 1; vr_pd_test 1")
+            .help("vr_pd_test 1 (God mode off): the shotgun in your main hand, a grunt's blast across it knocks it out "
+                  "(chance forced certain): it drops to the floor with its clip; a blast across your body, an enforcer's "
+                  "laser across the gun (knocked out), the option off (never). In a headset, hold your gun out ahead."),
         command("Projectiles Keep Your Motion", "developer 1; vr_projinherit_test 1")
             .help("vr_projinherit_test 1: fired strafing at 320 u/s, a nail and a rocket fly off the aim by their strafe share only, running along the aim adds their along share, a grenade keeps "
                   "its share of the strafe (Weapons > Aiming > Projectiles Keep Your Motion); then the main hand swung, "
