@@ -3036,6 +3036,32 @@ QUEST_PLAN.md section 6l has the numbers. e1m1's start over adb, the headset unw
 - **Frame:** 424 ms -> 25.6 ms (39 FPS); without the world 14.1 ms (72 Hz). `vr_profile_slow_ms` (Debug > Profiling,
   250 as before) keeps slow frames in the profiler's averages.
 - **Checks:** gles_render_test 21/0, scenario_check 150/0, load_models_test 4/0; dev and LTO builds 0 warnings.
+## stuckgrunts: Enemy Count's copies placed with the box they stand with (agent/stuckgrunts, 2026-11-15)
+
+- Found by presetlate: Classic + 3x Enemy Count on e1m1 left two grunt copies in solid. Reproduced headless every time
+  (`vr_runpick_style 1; vr_runpick_enemycount 2; vr_run start; map e1m1; wait60; vr_run_enemies_check 2 0`): copies at
+  (-2.8 623.9 24) and (876.6 2622.6 -72), in worldspawn; by wait90 the first had been pushed out 4 units (so a wait90
+  check passed: why the round's earlier runs missed it).
+- Cause: id's grunt, dog, knight, zombie, tarbaby and scrag have 24-wide boxes (`setsize '-12 -12 -24'`). Quake's hull
+  selection lays hull 1 (32 wide) from a narrower box's corner, so with `vr_mhull 0` (Classic) such a monster stands in
+  hull 1 shifted 4 units along +x and +y. `VR_RunEnemyCount_Fits` tested the kind's centred 32-wide box only
+  (Unleashed's `vr_mhull` centres a narrow width inside it, so only Classic showed it).
+- Fix (`vr_run_enemycount.qc`): `Fits` also traces the box the copy's spawn function will give it (its monster's own
+  mins/maxs) at the spot, as the engine traces it (the copy not solid yet: Quake's hull, the shift included); no fit:
+  the next spot of the rings, else no copy, now logged (developer 1: "Enemy Count: no room for copy k of X at o").
+  e1m1 still gets 45 copies of 23 monsters at 3x.
+- Check: the engine calls QC `VR_Run_MonsterCopied` (pr_edict.c, `vr_runsetup.cpp`) after each copy's spawn function:
+  its own box a unit up, tested as SV_TestEntityPosition would (world, BSP models, bodies); in solid: logged ("Enemy
+  Count: copy k of X spawned in solid at ...") and counted; `vr_run_enemies_check` fails on any. Without the fix it
+  reported e1m1's two copies; with it 0.
+- Sweep (one run, skill 1, wait60 checks): e1m1, e1m2, e2m1, e4m1, each a baseline then Classic 3x, Unleashed 3x, Light
+  2x, Unleashed 3x + Anything Goes: runenemies 76/0, no copy in solid as it spawned or at the check anywhere. Script:
+  per map `vr_runpick_enemycount 0; vr_runpick_enemyrandom 0; vr_run start; map M; wait60; vr_run_enemies_check 0 0`,
+  then per case `vr_runpick_style S; vr_runpick_enemycount C; vr_runpick_enemyrandom R; vr_run start; map M; wait60;
+  vr_run_enemies_check C R`; at the end `vr_run_enemies_check verdict` (`-QuitOn "runenemies: [0-9]+ passed"`).
+- Scenario `run_enemycount_classic` (Enemy Count 3x with `vr_mhull 0`, plain grunts, Quake's AI, on e1m1).
+- Not changed: one of e4m1's own monsters is in solid by the check's test with Classic (the same shifted hull, where the
+  mapper put it; the check allows the map's own).
 ## presetlate (2026-11-15)
 
 His flat report: a Run Setup Style (Classic, then Unleashed) took effect only when the run was started a second time.
@@ -3088,3 +3114,148 @@ QUEST_PLAN.md section 6m has the runs. On the Quest 3 over adb, the headset unwo
 - **Tools:** world probes `QVR_PROBE_LOD0/LM/UV/RETRO/LUTI` (`-glesdefine`); `eyeshot:` logs a failed read. The
   swapchain image reads back as zeros on the Quest: use `vr_eyeshot 2`.
 - **Not reached:** the frame time (the unworn headset holds frames), the lite ES world shader, MSAA on chip.
+## gibthrow: the hand stays on a gib pulled off the blade; thrown blades settle point first (branch agent/gibthrow, 2026-11-15)
+
+His notes (vrtesthall_2026-11-15_00-03-02, _00-03-51): pulled off the sword with the hand that held it, the gib was drawn off
+the hand ("it seems like the gib is floating"); thrown swords and daggers should steady towards their point in the air, "not
+instantly turning straight like an arrow ... not perfect or unbelievable".
+
+**The gib.** On the blade the hand is drawn at its hold (`.vr_skewer_gripd`, the carried props' fit, turning with the gib:
+skewerDrawnHand's pin). At the take (`VR_Skewer_Take`) the gib was moved by that world offset as taken (stale once the gib had
+turned with the blade), then fitted twice more as any prop taken: `carryfit` (VR_Carry_FitToHand) and the grip fit
+(vr_gripfit.hpp), whose Box3D hulls are wider than a gib as drawn and pushed it 2 units off the fist. Now the hold is also kept
+in the gib's own frame as it takes hold (`.vr_skewer_gripl`, `.vr_skewer_gript`: new builtin `skewerhold`), and the take turns
+and places the gib so that the hand has it there, its turn on it as then (`skewerplace`), with neither fit after it
+(`vr_carry_asheld` round VR_Carry_Start; `carrygrip`'s optional 7th argument `asheld`, grip::serverTake's `fit`). Measured
+(`vr_embed_test 34`, a new step: the other hand slides the gib off the tip): off the blade the hand was 4.46 cm from its hold,
+2.30 units off the surface (the fit's gap) and turned 27.7 degrees on it; now 0.03 cm, 0.01 units, 0.0 degrees. 15 of 15.
+(The test's own gib, made seconds before, fades about 0.15 s after it is taken: its old think restored; the step reads at once.)
+
+**Point first.** `pointAlign` (vr_box3d_step.cpp, after spinAlign while the throw is in the air): a pointed blade (weapons.txt
+`embed` 1: the swords and the dagger; `axestick::pointLine` gives its line, whatever vr_embed is) gets a damped turn of its
+line towards its flight: an angular acceleration of 150 rad/s^2 per radian off, damping 14/s of the tumble across the blade
+(its spiral about its length kept), at most 90 rad/s^2, all times a share: Point-First Settling (`vr_throw_point_align`, 1)
+x how near point first it flies (1 at 0, 0 at `vr_throw_point_angle`, 45 degrees) x how calm (0 from `vr_throw_point_spin`,
+1.5 turns/s, across the blade) x speed (0 under 3 m/s, 1 from 8) x a fade over `vr_throw_point_time` (0.3 s) after the
+throw. VR and flat throws alike (any thrown weapon's Box3D flight). Tunables rows after Spin Alignment (Debug > Tunables);
+menu_paths.txt regenerated.
+Test `vr_embed_test 47` (QC/vr_throwpoint_test.qc; `map vrtesthall;wait30;god;notarget;vr_embed_test 47`): 22 throws at
+10 m/s, the blade's angle to its flight read 3 m out, each set thrown with the settling off and on: good throws (point 10-40
+degrees off, tumbling 1-5 rad/s) point first (within vr_embed_sword_angle, 35) 1 of 12 without, 9 of 12 with; bad throws
+(70-150 degrees off, or tumbling 12-18 rad/s) 0 of 6 either way, their tumble 9.4 rad/s both; axes identical. 5 of 5.
+
+Open: his feel of the strength in VR (Point-First Settling and its window are the knobs); a gib torn off by the main hand's
+own throw is unchanged.
+
+## flipgrip: the blade's grip flip seamless everywhere (agent/flipgrip, 2026-11-15)
+
+His notes (VR, 2026-11-14/15): flipped (reversed) dagger loses its two-handed hotspot; the re-grab from the other hand keeps the
+old grip; a reversed dagger dropped or thrown leaves the hand flipped; taken off a table reversed it was mostly a prop; grabbed
+in a body the other way round the drawn hand on the handle was twisted.
+
+**One root.** The reverse grip lived only as the holding hand's turn (`reverseTurn` between the hand and the weapon, the flag a
+hand state): everything that takes the weapon's pose from the hand (the prop's angles on a drop or throw: the hand's; the other
+hand's carry: drawn upright from the holder's pose; the 2H aim and blade line; the helping hand on a hotspot; the "at its handle"
+of a grab: the origin, where only the upright hand stands) lost it or applied the upright grip. Now the blade's own pose goes
+through every transition, and every grab chooses by the blade's way:
+- **Out of the hand** (notes 3, 5): `view::leavingTurn` (QC `weapondrawnpose` 49 angles, 50 the origin's move;
+  `DropWeaponInHandScaled`): a reversed weapon leaves at `rot Rev` (`uprightTurnOf`) and the reverse grip's shift: the prop lies
+  and flies as it was drawn (blade cos 0.999 to the held line). The hand-off: `drawnAs[hand].rot` is the upright-equivalent turn
+  while reversed, so the other hand's carry (and a hand holding it anywhere) keeps the blade's way (cos 1.00).
+- **Into the hand** (notes 2, 4): `VR_RevGrip_TakeCarried` (QC; `weapondrawnpose` 47, `view::carriedGripChoice`) chooses as the
+  hand takes the carried weapon back (`VRTakeCarriedWeapon`); the choice uses the hand's own turn (`rot`, not the drawn one: an
+  empty hand on the carried weapon is drawn on it). The reversed hand point (`reversedHandPoint`: the hand holding it reversed,
+  the weapon's origin less the reverse shift; QC `weapondrawnpose` 48 for tests) counts as its handle in the server's grab
+  (`vr_physics.cpp weaponHandleDistance`: the handle leniency, not "anywhere"), the view's ground spots and the carried
+  weapon's take-back (`setCarriedHandle`'s reversed point, HS_CARRIED_GRIP; the free-grip candidate). The dagger's reversed
+  hand point is 4.3 units off its origin, inside `vr_weapon_grab_anywhere_min` only just: a hand a little further was a prop.
+  Force grab: `vr_revgrip_forcegrab` 0 (his note 1, upright; test 42 case 3 unchanged), 1 by the blade (Debug > Tunables >
+  Weapons > Reverse Grip > Force Grab Catch).
+- **Two-handed while reversed** (note 1; choice: the automatic one): the hotspots stay (`placeHotspots`, on the drawn frame:
+  turned with the blade); the helping hand turned with the weapon (`attachedTurn`'s `flip`, `helpingTurn`, the held hotspot's
+  offset); a fixed (gun-style) 2H hold worked out for the upright-equivalent hand and turned back (`applyHotspots` ->
+  `applyFixed` in that frame); the sword-style hold's blade line flips (`bladeDirection` with `view::heldReverseTurn`). Optional
+  tweak only while reversed: Weapon Offsets > Hand > Reversed 2H Hand X/Y/Z, Pitch/Yaw/Roll (`rev_2h_vx`.. `rev_2h_vroll`, 0:
+  added to the held hotspot's Held Hand offset).
+- **The embedded handle** (note 6): the grip was right, but the hand's roll about the handle was the blade's as it went in,
+  up to half a turn from the real hand's (palm up/down): `embedHandleRoll` draws the hand half round the handle's line when
+  that is nearer its controller (swords and the dagger: two edges alike), chosen once per hold. Probe `vr_embed_probe_hctl`
+  (degrees, the hand on a handle against its controller).
+- **Decision:** his dagger 2H hotspot promoted to the defaults (weapons.txt slot 51: `2h_mode` 1, `hs1` his place and turn;
+  was one-handed, no hotspots): he holds it two-handed and asked for it to keep working flipped.
+
+Test `vr_embed_test 44` (QC/vr_flipgrip_test.qc, `flipgrip: 21 passed, 0 failed`): the hotspot upright and reversed (moved with
+the blade), 2H held both ways (reversed: blade still down, cos -0.96); handed off upright (carried, cos 1.00), taken back by the
+hand turned for the other grip: reversed, blade where it was (cos 0.96); reversed and let go of: the prop's line cos 0.999; off a
+table reversed (4.3 units from the origin) and upright: by the handle, the right grip; stuck upright, taken reversed: held in the
+body, reversed, the drawn hand 17-55 degrees from the mock hand (under 95: the mock's roll is free; never twisted past a quarter
+turn; case 6: the grunt held still and unharmed after the stick, the blade checked still stuck, the take tried at three points; when the mock hand is kept out of the grunt's body short of the handle (about 1 run in 5, 6-10 units) the case reports SKIP, not FAIL: never a fall-out, the sword stays stuck; 5 runs in a row clean). Unchanged: revgrip (42) 24/0, embedgrip (33) 15/0, propblade (34) 14/0, embeddagger (40) 24/0, palmgrab (pickup 17) 5/0.
+To check in VR: the reversed 2H hand's look (the tweak rows), the drop/throw in reverse, the table pickup both ways, the
+embedded handle grabbed palm up and down.
+## torchgrab: the torso's torch taken whatever the other hand holds (agent/torchgrab, 2026-11-15)
+
+His notes (start_2026-11-14_23-38-09, _23-38-55, vrtesthall_2026-11-15_00-09-43, _00-10-19, _00-11-08): with the torch
+on the torso and the dagger in the right hand, the left hand could not take the torch at all (fine once he gave the
+dagger a two-handed hotspot); with the super shotgun held one-handed, sometimes not even 30 cm from the gun.
+
+Two rules in `gameGripWins` (vr_flashlight.cpp: whether the game's grip wins over the torch for a hand at it):
+- **The two-handed hotspot alone won.** `body::hotspot` says HS_OFFHAND_2H_GRAB whenever the hands are 5-25 units
+  apart, whatever the other hand holds. For a weapon with no fitted grip (`!s.grip2HValid`) the game's grip won there,
+  even for one that may never be held in two hands: the dagger (slot 52, Two-Handed: Not Allowed) won anywhere 5-25
+  units from the right hand, which is where the chest torch is.
+- **The weapon's line ran from 30 cm behind the hand** (`otherWeaponNear`, for a sword's pommel): any gun held
+  one-handed at the chest or low at the belt, pointing away from the torch, covered it (within 12 cm of that line).
+  Not the holsters or the clip-on zone (the "cap"): those were already nearest-wins.
+
+Now `otherWeaponNear` asks the game's own rules (vr_twohand.cpp), and the nearest wins: the fist on the weapon's surface
+where gripping holds it anywhere (`twohand::onOtherWeapon`, the view's free-grip candidate); its fitted grip
+(`s.grip2H`, within 8 units less its bias, and nearer than the torch's axis); a weapon with no fitted grip, or a sword
+(`twohand::swordHeld`: its blade), within 12 cm of its line from the hand to the muzzle or tip and nearer than the
+torch's axis. A weapon the other hand may not hold (`twohand::forbidden`) wins by its surface only. The 2H hotspot case
+itself never wins any more.
+
+His dagger tuning promoted (weapons.txt slot 52, `weapons_data.py promote`): `2h_mode` 2 -> 1 and its hs1 grip
+(type 1, x -1.785095, y -2.161255, z -11.23747, pitch -6.90695, yaw 8.52477, roll -3.05592). Not promoted (not
+asked): his `bl_from/near/org_x/org_y/org_z/spine/width_52` and `muzzle_x/y/z_52`, none of them defaults yet.
+
+Test aid: `vr_test_give_flags` (impulse 149's weapon flags; 3072 with id 13 gives the dagger). The probe prints
+`helping` per hand and the main weapon's grip and muzzle. Test: `flash_grab_test.py <agent> otherweapon` (verdict line
+`otherweapon: N passed, M failed`): the dagger without its grip (the old defaults) and with it, the super shotgun
+one-handed at the chest, the shotgun low at the belt; the off hand at the torch takes it, at the weapon's grip (or 60%
+along it) holds the weapon, the torch left on. Before 4/3 (the dagger, the chest and the belt cases at the torch);
+after 7/0. `mounted:9-10` (the two gun torso turns) 312 lit, 312 taken. Scenario `torch_otherweapon`.
+
+
+## base1115b: v1.1 full baseline on next, regressions triaged (agent/base1115, 2026-11-15)
+
+- **Baseline** (origin/next efdd5f0fb merged in, with this branch's earlier fixes, 4 lanes, 139 min): kit
+  `scratch/refactor/runs/20261114-base1115b` (results.tsv, logs/, `.cmp1/.cmp2.txt`): 290 PASS, 15 FAIL, 1 TIMEOUT
+  (11-14 run: 289/15/1; 11-13: 286/18/1). Fixed since 11-14: secret_hits, ragdoll_guard, limb_wear (this branch's
+  earlier commits). The previous worker's alone-rerun (`scratch/bx_rerun3`) gave no usable rows (every one 0 s FAIL,
+  games exiting 0xC0000142 while the tree was being merged and rebuilt under it).
+- **New not-PASS vs 11-14**, each re-run alone twice: agrunt_24, agrunt_206 (deterministic, fixed here), ragdoll_climb
+  (1 of 2: the backlog's known variance), arena_6 6/2 vs 7/1 ("the map grows no faster than a wave clear's drops": it
+  failed on 11-13 too). agrunt_48 and agrunt_74 (new on 11-14) still fail, deterministic, bisected on next.
+- **agrunt 206** (a knight takes a gun with vr_agknight_ranged_pickup 1): 220fc2240's cached row kept
+  vr_am_takes_ranged from its fill, so a change of vr_agknight_ranged_pickup / Ranged Knights in play went unseen
+  until another kind's row came in. The knights' rows now say VR_AM_TAKES_KNIGHTS and VR_AM_Takes reads both settings
+  at each use. 14/1 -> 15/0.
+- **agrunt 24** (a forced parry disarms): 8cbc17f9f's timing share used the stale vr_drp_ag_timing (0 before any
+  directional parry) for a test's forced parry, so every forced parry's stagger, push and disarm went to nothing
+  ("timing x0.00"). A forced parry (vr_parry_test_force) gets no timing cut. 1/1 -> 2/0; agrunt 78 (the timing test)
+  48/0, parryinterrupt and parry_pose still pass. (parrybalance/test.py, not in the baseline, fails its `pose` case:
+  the real-pose "raised just before" parry is not read as well timed; forced cases pass; not looked into.)
+- **Open: agrunt 48** (an axe grunt facing you holding an axe closes in): first bad 35feef651, the agent/navtrail
+  merge (613a3861c, vr_nav_trail). It stays 210-258 away, 0 s inside 64; with `vr_nav_trail 0` 18/0. Looks like
+  the trail walk taking over while it can see you: an AI fix, not test drift.
+- **Open: agrunt 74** (downtug 16/21): first bad 749e048b3, the agent/promstir merge (948d2c328: his
+  vr_knockdown_stir_rate 12). Setting vr_knockdown_stir 0 in the test (as c951e75c7 did for the stagger test)
+  did not bring it back, so that change was dropped; needs a look at what the stir rate does to a downed grunt's tug.
+## mrlvents: the multi-rocket launcher's vents are real recesses too (agent/mrlvents, 2026-11-15)
+
+- **What:** the rocket launcher's alt model `v_multi2.mdl` (`v_multi2.blend`) had the same painted vents with no holes. Same cut as rlvents,
+  scripted (`scratch/mv_vents.py`, not committed): each fin's rear end face is rebuilt as a rim around an opening traced from the dark
+  texels of its own skin (inset 0.28 units, 8 vertices at most, rim UVs the affine map of the old face's), a recess 2.0 deep on top and
+  1.5 on the sides along +x (the fins are straight), walls and back on a dark vent texel; new vertices follow the face in every shot frame.
+  Exported with `blend_export.py`: 935 -> 1027 triangles, anchors ok, holes check 0 see-through, 0 flipped; normal map re-baked,
+  `fx_gfx_mask` rewritten. Scene `mrl_vents`; load_models_test 4/4. Blender before/after: kit `scratch/mrlvents_shots/`.

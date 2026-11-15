@@ -1,0 +1,8 @@
+# mrl_vents: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The rocket launcher's multi-rocket
+# model (v_multi2.blend) with its three fin vents cut as real recesses, as the rocket launcher's (docs/vr-port/ROUND25.md, "mrlvents").
+title The multi-rocket launcher's hollow vents
+hint Hold the rocket launcher and press its button for the multi-rocket model, then look down it from your hand: the three vents at the back of the front shroud (the top fin, one on each side fin) are real holes now, black inside with walls and a back, like the rocket launcher's.
+map vrtesthall
+god
+notarget
+give "Rocket Launcher" main

@@ -38,6 +38,10 @@ void debugDraw(const glm::vec3& eye, const glm::vec3& headAngles);
 // A line on its panel, for a few seconds (vr_debug_embed on).
 void say(const char* fmt, ...);
 
+// A pointed blade's (weapons.txt embed 1: the swords, the dagger) line as `ent` is drawn now, its hand's end and its tip
+// (world). False: not a pointed blade (an axe, any other weapon or thing). Whatever vr_embed is (its flight: pointAlign).
+[[nodiscard]] bool pointLine(edict_t* ent, glm::vec3& hand, glm::vec3& tip);
+
 // Embedded blades, stage 2 (QC/vr_embedhold.qc): the blade `ent` (a thrown weapon just made, at rest) a hand's blow has just
 // put into the body `host` at `at`, going at `vel` (units/s). Set where the hand's weapon is drawn (`hand`; a player not the
 // local one: where QC put it), its checks made (an axe's edge first, not its side; a plate: its spark): stuck, by its point

@@ -1763,7 +1763,8 @@ namespace
     {
         offsets += weaponAngleOffsets(weapons::fistSlot(), mirrored); // the hand's own, as the holding hand's
     }
-    return attachedTurn(holderRot, otherSlot, other == HAND_OFF, offsets, holder);
+    // (Held reversed: the hand on its hotspot turned with it, the same hold on the turned weapon: the flip grip.)
+    return attachedTurn(holderRot, otherSlot, other == HAND_OFF, offsets, holder, holder >= 0 ? drawnFlip(holder) : 0.f);
 }
 
 namespace
@@ -1991,7 +1992,13 @@ void updateGroundSpots(const hands::State& s)
             }
             const int slot = weapons::slotForModel(e->model);
             const glm::vec3 origin{e->origin[0], e->origin[1], e->origin[2]};
-            const float handle = glm::distance(at, origin);
+            float handle = glm::distance(at, origin);
+            // (A sword or dagger: its handle the other way round too, a hand taking it reversed: the flip grip, as the server's
+            // vr_physics.cpp weaponHandleDistance.)
+            if(glm::vec3 reversed; view::looseReversedHandPoint(*e, reversed))
+            {
+                handle = za::min(handle, glm::distance(at, reversed));
+            }
             if(slot < 0 || slot == weapons::fistSlot() || handle > 64.f)
             {
                 continue;
@@ -2125,7 +2132,11 @@ void updateFreeSpots(const hands::State& s)
             !isHandModel(w.ent.model))
         {
             const glm::vec3 at = s.pos[hand];
-            const float handle = glm::distance(at, drawnAs[other].pos);
+            float handle = glm::distance(at, drawnAs[other].pos);
+            if(glm::vec3 reversed; weaponCarried[other] && view::carriedReversedHandPoint(other, reversed))
+            {
+                handle = za::min(handle, glm::distance(at, reversed)); // (taken back reversed there: the flip grip)
+            }
             float nearestSpot = 1e30f;
             if(!weaponCarried[other])
             {
@@ -2266,6 +2277,8 @@ struct EmbedPin
     int ent{0};          // the blade's edict (0: none)
     bool byHandle{false};
     bool reversed{false}; // held by its handle in the reverse grip (blade down: the server's QVR_WPNFLAG_REVGRIP on it)
+    bool rollChosen{false}; // by its handle: the hand's turn about the handle chosen (embedHandleRoll), once a hold
+    bool rolled{false};     // ... the hand drawn half round the handle from the grip's own pose (nearer the controller)
     int spot{-1};        // not by its handle: the weapon's grip hotspot it is drawn on (its two-handed place), -1 none
     float weight{0.f};
     double last{-1.0};
@@ -2314,6 +2327,7 @@ struct EmbedProbe
     int heldSlot[2]{-1, -1};
     float handleOff{-1.f};  // ... and on a blade's handle: cm the most the hand is from that place on it
     float handleTurn{-1.f}; // ... and degrees the most it is turned from it
+    float handleCtl{-1.f};  // degrees the most a hand wholly on a blade's handle is drawn turned from its controller (the flip grip)
 };
 EmbedProbe embedProbe;
 
@@ -2347,6 +2361,7 @@ void embedProbeWrite()
     Cvar_SetValueQuick(&vr_embed_probe_eased, static_cast<float>(embedProbe.eased));
     Cvar_SetValueQuick(&vr_embed_probe_hoff, embedProbe.handleOff);
     Cvar_SetValueQuick(&vr_embed_probe_hturn, embedProbe.handleTurn);
+    Cvar_SetValueQuick(&vr_embed_probe_hctl, embedProbe.handleCtl);
 }
 
 [[nodiscard]] bool embedPinUsable(const EmbedPin& pin)
@@ -2363,6 +2378,39 @@ void embedHandleHand(const entity_t& e, bool mirrored, bool reversed, glm::vec3&
     const float flip = reversed && reverseGripAllowed(slot) ? 1.f : 0.f;
     onRot = handTurnOfWeapon(glm::vec3{-e.angles[0], e.angles[1], e.angles[2]}, slot, mirrored, flip);
     onPos = glm::vec3{e.origin[0], e.origin[1], e.origin[2]} - reverseShift(slot, mirrored, flip, onRot);
+}
+
+// The flip grip (his note 2026-11-14: grabbed the other way round from how it went in, "the hand drawn on the handle of the embedded
+// blade will be in a very weird and twisted position, like it has been rotated more than 180 or 360 degrees"): a sword's or a
+// dagger's handle held either way about its own line (its two edges alike) is the same grip. The hand on it drawn half round the
+// handle's line from the grip's pose when that is nearer its controller's turn (a palm up or down on it: the grip chose upright or
+// reversed by the blade's way, but the hand's roll about the handle was the blade's as it went in, up to half a turn from the
+// real hand's), chosen once as the hold begins. As it comes out the weapon is drawn on the controller anyway.
+void embedHandleRoll(EmbedPin& pin, const entity_t& e, const glm::vec3& ctlRot, glm::vec3& onPos, glm::vec3& onRot)
+{
+    const int slot = weapons::slotForModel(e.model);
+    glm::vec3 axis, pivot;
+    if(!reverseGripAllowed(slot) || !handleLine(slot, axis, pivot))
+    {
+        return;
+    }
+    const glm::mat3 turn = entityTurn(e);
+    const glm::vec3 c = glm::vec3{e.origin[0], e.origin[1], e.origin[2]} + turn * pivot;
+    const glm::mat3 half = glm::mat3_cast(glm::angleAxis(glm::radians(180.f), glm::normalize(turn * axis)));
+    const glm::vec3 rolledRot = basisAngles(half * anglesBasis(onRot));
+    if(!pin.rollChosen)
+    {
+        const glm::mat3 ctl = glm::transpose(anglesBasis(ctlRot));
+        const float straight = za::fabs(glm::normalize(glm::quat_cast(anglesBasis(onRot) * ctl)).w);
+        const float round = za::fabs(glm::normalize(glm::quat_cast(anglesBasis(rolledRot) * ctl)).w);
+        pin.rolled = round > straight; // (the larger |w|: the smaller turn)
+        pin.rollChosen = true;
+    }
+    if(pin.rolled)
+    {
+        onPos = c + half * (onPos - c);
+        onRot = rolledRot;
+    }
 }
 
 // The grip hotspot of the blade `e` nearest `at` (its two-handed place: every bladed weapon has one), -1 none.
@@ -2403,6 +2451,7 @@ void embedDrawnHand(const hands::State& s, int hand, bool mirrored, glm::vec3& p
     if(pin.byHandle)
     {
         embedHandleHand(e, mirrored, pin.reversed, onPos, onRot);
+        embedHandleRoll(pin, e, rot, onPos, onRot);
     }
     else if(glm::vec3 spotPos, spotRot; pin.spot >= 0 &&
             groundSpotPose(e, weapons::slotForModel(e.model), weapons::hotspot(weapons::slotForModel(e.model), pin.spot), hand, s.pos[hand],
@@ -2428,6 +2477,12 @@ void embedDrawnHand(const hands::State& s, int hand, bool mirrored, glm::vec3& p
     {
         Con_Printf("embedpin: hand %d on %d (by its handle %d, spot %d), weight %.2f: from %.1f %.1f %.1f rot %.1f %.1f %.1f to %.1f %.1f %.1f rot %.1f %.1f %.1f\n", hand, pin.ent,
             pin.byHandle ? 1 : 0, pin.spot, pin.weight, pos.x, pos.y, pos.z, rot.x, rot.y, rot.z, onPos.x, onPos.y, onPos.z, onRot.x, onRot.y, onRot.z);
+    }
+    if(pin.byHandle && pin.weight >= 1.f)
+    {
+        // (vr_embed_probe: the hand drawn on the handle against its controller: either grip, as the hand holds it.)
+        const glm::quat q = glm::normalize(glm::quat_cast(anglesBasis(onRot) * glm::transpose(anglesBasis(rot))));
+        embedProbe.handleCtl = za::max(embedProbe.handleCtl, glm::degrees(2.f * std::acos(za::min(1.f, za::fabs(q.w)))));
     }
     pin.lastCtlPos = pos;
     pin.lastCtlRot = rot;
@@ -2461,6 +2516,7 @@ void embedPinStep(const hands::State& s, int hand)
     {
         pin.ent = embedStatEnt(stat);
         pin.byHandle = embedStatHandle(stat);
+        pin.rollChosen = false;
         pin.spot = -1;
         pin.release = 0.f;
         if(embedPinUsable(pin))
@@ -2945,7 +3001,7 @@ void steadyOther(const HandPose& hp, glm::vec3& pos, glm::vec3& handRot, bool& h
     // frame, about its palm; as for the off hand helping, mirrored for the main hand.
     if(heldSpot && hp.helps)
     {
-        moveDrawnHand(hand, mirrored, attachedTurn(s.rot[other], otherSlot, other == HAND_OFF, glm::vec3{0.f}, other),
+        moveDrawnHand(hand, mirrored, attachedTurn(s.rot[other], otherSlot, other == HAND_OFF, glm::vec3{0.f}, other, drawnFlip(other)),
             heldSpot->visualPos * gripBlend, heldSpot->visualAngles * gripBlend, other == HAND_OFF, pos, handRot);
     }
 }

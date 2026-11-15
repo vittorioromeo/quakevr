@@ -574,6 +574,10 @@ QVR_TUNABLE(vr_throw_restitution, "0.25")
 QVR_TUNABLE(vr_throw_friction, "0.5")
 QVR_TUNABLE(vr_throw_spin_max, "20") // rad/s
 QVR_TUNABLE(vr_throw_spin_align, "8")
+QVR_TUNABLE(vr_throw_point_align, "1") // a thrown sword or dagger settling point first (vr_box3d_step.cpp pointAlign); 0 off
+QVR_TUNABLE(vr_throw_point_time, "0.3") // s: how long after the throw it may
+QVR_TUNABLE(vr_throw_point_angle, "45") // degrees: its point at most this far off its flight to be helped
+QVR_TUNABLE(vr_throw_point_spin, "1.5") // turns/s: a tumble this fast or faster is left a tumble
 QVR_TUNABLE(vr_shot_push_pellet, "6") // N s, each shotgun and double shotgun pellet's push (monsters' too)
 QVR_TUNABLE(vr_shot_push_nail, "12") // N s, a nail's (the nailgun's, scrags', knights', enforcers' lasers)
 QVR_TUNABLE(vr_shot_push_supernail, "24") // N s, a super nailgun nail's
@@ -2490,6 +2494,7 @@ QVR_TUNABLE(vr_nav_build_frames, "18") // determinism: a size class's navmesh bu
 QVR_TUNABLE(vr_nav_build_frames_tris, "10000") // ... plus one frame per this many of the map's navmesh triangles (a pure function of the map: deterministic; ad_tears' 1.15 M: 133 frames, E1M1 ~19); 0: vr_nav_build_frames alone
 QVR_TUNABLE(vr_revgrip, "1") // 1: a sword or dagger (Weapon Offsets' Reverse Grip on) is taken blade down when its blade points to the little finger's side, and its eject button flips the grip (ROUND25.md "revgrip"; QC VR_RevGrip_*); 0: always the normal grip
 QVR_TUNABLE(vr_revgrip_flip_time, "0.18") // ... s: the eject button's flip of the grip turns the blade half round over this long (vr_view_weapon.cpp gripFlip; 0: at once)
+QVR_TUNABLE(vr_revgrip_forcegrab, "0") // ... 0: a force grab's catch takes a sword or dagger upright (his note 2026-11-13); 1: as any grab, by its blade's way in the hand (the flip grip, ROUND25.md "flipgrip")
 QVR_TUNABLE(vr_revgrip_volume, "0.7") // ... the flip's sound's volume (0..1: the hand closing on a handle, vr/phys/grab_metal*.wav; 0 silent)
 QVR_TUNABLE(vr_world_texarrays, "1") // the bound path (no bindless textures: the Quest) draws the world's textures from arrays, a draw a set of textures alike (vr_worldarrays.cpp; QUEST_PLAN.md C2f): 0 off (a draw a texture), 1 under the ES profile (-glescompat, Android), 2 on any bound path
 QVR_TUNABLE(vr_eye_subimage, "1") // the eyes drawn smaller than the runtime's images (vr_render_scale, dynamic resolution) and resampled bilinearly (vr_upscale 0): the post-process writes into a part of the image and the compositor scales it, no resample pass (vr_stereo.cpp; QUEST_PLAN.md C2g): 0 off, 1 under the ES profile (-glescompat, Android), 2 always

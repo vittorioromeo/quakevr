@@ -83,7 +83,7 @@ float(float k) VR_Run_MonsterCopy =
         VR_RunEnemyRandom_Become(orig.vr_run_kind, orig.vr_run_kindflags); // (its monster's swap, on the same keys)
     }
     self.vr_run_kind = self.classname;
-    return VR_RunEnemyCount_Place(k);
+    return VR_RunEnemyCount_Place(k, orig);
 };
 
 // The engine's `vr_run_enemies_check <enemycount> <enemyrandom>` (vr_runsetup.cpp; the enemy mutators' test): the
