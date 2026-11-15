@@ -436,6 +436,8 @@ static GLuint GL_CreateProgramFromSources (int count, const GLchar **sources, co
 		const char *emptysource = "void main() {}\n";
 		unsigned long long key = 0;
 		GLuint program = 0;
+		const double perft0 = vr_perf_recording ? Sys_DoubleTime () : 0.0; // QVR: the perf recorder (a mid-game compile is a hitch)
+		qboolean compiled = false;
 		if (gl_progcache_on && !gl_multiview_compile && !gl_arrays_compile && !gl_multiview_async) // QVR: the program cache
 		{
 			for (i = 0; i < count; i++)
@@ -456,7 +458,10 @@ static GLuint GL_CreateProgramFromSources (int count, const GLchar **sources, co
 			gl_progcache_key = key;
 			program = GL_CreateProgramFromShaders (shaders, realcount, name);
 			gl_progcache_key = 0;
+			compiled = true;
 		}
+		if (vr_perf_recording)
+			VR_PerfEvent (compiled ? VR_PERF_SHADER : VR_PERF_SHADERBIN, (Sys_DoubleTime () - perft0) * 1000.0, name);
 		if (count == 2 && !gl_multiview_compile && gl_num_progsources < (int) countof (gl_progsources))
 		{
 			glprogsource_t *src = &gl_progsources[gl_num_progsources++];

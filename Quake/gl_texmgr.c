@@ -1710,6 +1710,8 @@ static void TexMgr_Upload32 (gltexture_t *glt, unsigned *data, double t0)
 	// set filter modes
 	TexMgr_SetFilterModes (glt);
 	VR_TimeAdd ("textures processed and uploaded (all)", Sys_DoubleTime () - t0); // QVR
+	if (vr_perf_recording) // QVR: the perf recorder (a mid-game upload is a hitch's cause)
+		VR_PerfEvent (VR_PERF_TEXTURE, (Sys_DoubleTime () - t0) * 1000.0, glt->name);
 }
 
 /*

@@ -485,6 +485,7 @@ za::Vector<Item> pageDebugProfiling()
 {
     return {
         header("Profiling"),
+        row(opt::vr_perf_record),
         row(opt::vr_profile_overlay),
         row(opt::vr_profile_csv),
         row(opt::vr_profile_hitch),

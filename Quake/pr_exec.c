@@ -626,7 +626,7 @@ void PR_ExecuteProgram (func_t fnum)
 		VR_BroadcastQCRun ();
 	if (qcvm->depth == 0) // QVR: vr_qcprofile
 		QCProf_Latch ();
-	if (vr_profile_on && !vr_profile_inqc) // QVR: profile (the rest in PR_ExecuteProgramRun)
+	if ((vr_profile_on || vr_perf_recording) && !vr_profile_inqc) // QVR: profile, the perf recorder (the rest in PR_ExecuteProgramRun)
 	{
 		vr_profile_inqc = 1;
 		VR_ProfileBegin ("quakec");

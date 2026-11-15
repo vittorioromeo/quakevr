@@ -17,6 +17,7 @@
 #include "vr_cvars.hpp"
 #include "vr_main.hpp"
 #include "vr_dynres.hpp"
+#include "vr_perfrec.hpp"
 
 #include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Algorithm/Find.hpp"
@@ -258,13 +259,20 @@ constexpr PhaseInfo phaseInfo[PhaseCount] = {{"xr wait", false}, {"xrWaitFrame",
     {"env cube", true}, {"bloom", true}, {"postprocess", true}, {"upscale", true}, {"ui", true}, {"hidden area", true},
     {"mirror", true}, {"spectator", true}, {"window view", true}, {"3D", true}};
 
-ankerl::unordered_dense::map<const void*, int> phaseOfName; // a name literal's address -> its phase, or -1
+// A scope name's phase (-1: none) and its perf recorder event kind (vr_perfrec.hpp's tagOf; -1: none).
+struct PhaseTag
+{
+    int phase;
+    int tag;
+};
+ankerl::unordered_dense::map<const void*, PhaseTag> phaseOfName; // a name literal's address -> its phase and tag
 
 struct PhaseOpen
 {
     int phase; // -1: not a phase
     za::I64 start;
     int gpuRec; // -1: none
+    int tag;    // the perf recorder's event kind timed by it (the outermost of its kind), or -1
 };
 za::Vector<PhaseOpen> phaseStack;
 int phaseGpuOpen = 0; // GPU records begun and not ended: each keeps room for its end
@@ -289,6 +297,7 @@ struct PhaseGpuSlot
     PhaseGpuRec recs[phaseGpuQueries / 2]{};
     int recCount{0};
     bool pending{false};
+    bool kept{false};          // its frame in the sums (no hitch); else read back for the perf recorder alone
     int sample{-1};            // its frame's place in the history (frameSample), if kept there,
     za::U64 serial{0};   // and that frame's serial (the place may have been reused since)
 };
@@ -306,16 +315,16 @@ bool phaseGpuMade = false;
 struct PhaseCacheEntry
 {
     const char* name;
-    int phase;
+    PhaseTag phaseTag;
 };
 PhaseCacheEntry phaseCache[256]{};
 
-[[nodiscard]] int phaseOf(const char* name)
+[[nodiscard]] PhaseTag phaseOf(const char* name)
 {
     PhaseCacheEntry& cached = phaseCache[(reinterpret_cast<za::UIntPtrT>(name) * 0x9E3779B97F4A7C15ull) >> 56];
     if(cached.name == name)
     {
-        return cached.phase;
+        return cached.phaseTag;
     }
     const auto it = phaseOfName.find(name);
     if(it != phaseOfName.end())
@@ -323,26 +332,31 @@ PhaseCacheEntry phaseCache[256]{};
         cached = {name, it->second};
         return it->second;
     }
-    int phase = -1;
+    PhaseTag pt{-1, perfrec::tagOf(name)};
     for(int i = 0; i < PhaseCount; i++)
     {
         if(ZA_STRCMP(phaseInfo[i].name, name) == 0)
         {
-            phase = i;
+            pt.phase = i;
             break;
         }
     }
-    phaseOfName.emplace(name, phase);
-    cached = {name, phase};
-    return phase;
+    phaseOfName.emplace(name, pt);
+    cached = {name, pt};
+    return pt;
 }
 
 void beginPhase(const char* name, bool gpu)
 {
-    PhaseOpen o{phaseOf(name), 0, -1};
-    if(o.phase >= 0)
+    const PhaseTag pt = phaseOf(name);
+    PhaseOpen o{pt.phase, 0, -1, pt.tag >= 0 && perfrec::scopeBegin(pt.tag) ? pt.tag : -1};
+    if(o.tag >= 0)
     {
         o.start = za::Clock::nowNanoseconds();
+    }
+    if(o.phase >= 0)
+    {
+        o.start = o.start ? o.start : za::Clock::nowNanoseconds();
         PhaseGpuSlot& s = phaseSlots[phaseSlot];
         if(gpu && phaseInfo[o.phase].gpu && phaseGpuMade && s.used + 2 + phaseGpuOpen <= phaseGpuQueries)
         {
@@ -363,6 +377,10 @@ void endPhase()
     }
     const PhaseOpen o = phaseStack.back();
     phaseStack.popBack();
+    if(o.tag >= 0)
+    {
+        perfrec::scopeEnd(o.tag, za::Clock::nowNanoseconds() - o.start);
+    }
     if(o.phase < 0)
     {
         return;
@@ -396,6 +414,7 @@ bool resolvePhases(PhaseGpuSlot& s)
     }
     double eyes = 0.0;
     double frameMs[PhaseCount]{}; // (vr_bench)
+    GLuint64 first = ~GLuint64{0}, last = 0; // (the perf recorder's GPU span)
     for(int i = 0; i < s.recCount; i++)
     {
         const PhaseGpuRec& r = s.recs[i];
@@ -407,9 +426,23 @@ bool resolvePhases(PhaseGpuSlot& s)
         GL_GetQueryObjectui64vFunc(s.queries[r.begin], GL_QUERY_RESULT, &b);
         GL_GetQueryObjectui64vFunc(s.queries[r.end], GL_QUERY_RESULT, &e);
         const double ms = e > b ? static_cast<double>(e - b) / 1e6 : 0.0;
-        phaseSums.gpuMs[r.phase] += ms;
         frameMs[r.phase] += ms;
         eyes += r.phase == EyeL || r.phase == EyeR ? ms : 0.0;
+        first = b < first ? b : first;
+        last = e > last ? e : last;
+    }
+    if(perfrec::on)
+    {
+        perfrec::gpu(s.serial, frameMs, last > first ? static_cast<double>(last - first) / 1e6 : 0.0);
+    }
+    s.pending = false;
+    if(!s.kept)
+    {
+        return true; // (a hitch's: the perf recorder's alone)
+    }
+    for(int i = 0; i < PhaseCount; i++)
+    {
+        phaseSums.gpuMs[i] += frameMs[i];
     }
     ++phaseSums.gpuFrames;
     if(bench::recording)
@@ -470,8 +503,18 @@ void endPhaseFrame(za::I64 now, za::I64 start, za::I64 end)
                 static_cast<double>(za::max<za::I64>(0, end - start - waits)) / 1e6, phaseFrameNs);
         }
     }
+    const bool record = start > 0 && (perfrec::on || vr_perf_record.value != 0.f);
+    s.pending = (keep || (record && perfrec::on)) && s.recCount > 0;
+    s.kept = keep;
+    if(record) // (also begins or ends its file)
+    {
+        const za::I64 waits = phaseFrameNs[XrWait] + phaseFrameNs[XrAcquire] + phaseFrameNs[XrRelease] +
+                              phaseFrameNs[XrSubmit] + phaseFrameNs[Swap];
+        perfrec::frame(frameSerial, static_cast<double>(start) / 1e9, period, static_cast<double>(end - start) / 1e6,
+            static_cast<double>(za::max<za::I64>(0, end - start - waits)) / 1e6, phaseFrameNs, vr_profcounts.drawcalls,
+            s.pending);
+    }
     za::fill(phaseFrameNs, za::I64{0});
-    s.pending = keep && s.recCount > 0;
 
     if(!phaseGpuMade && GL_QueryCounterFunc && GL_GetQueryObjectui64vFunc && GL_GetQueryObjectivFunc &&
         GL_GenQueriesFunc)
@@ -494,7 +537,8 @@ void endPhaseFrame(za::I64 now, za::I64 start, za::I64 end)
     if(next.pending)
     {
         next.pending = false; // not done after this many frames: dropped, not waited for
-        ++phaseSums.gpuDropped;
+        phaseSums.gpuDropped += next.kept ? 1 : 0;
+        perfrec::gpu(next.serial, nullptr, 0.0);
     }
     next.used = 0;
     next.recCount = 0;

@@ -65,6 +65,29 @@ typedef struct
 } vr_profcounts_t;
 extern vr_profcounts_t vr_profcounts;
 
+// The perf recorder (vr/vr_perfrec.hpp, vr_perf_record): the events of a frame that may make it a hitch, each with its
+// time (ms) and a name (copied; may be NULL). vr_perf_recording: latched at each frame's end; the call sites test it
+// before timing anything, so with the recorder off an event costs a load and a branch.
+enum
+{
+	VR_PERF_SHADER,		// a program compiled and linked (no binary in the program cache)
+	VR_PERF_SHADERBIN,	// a program made from its binary (the program cache)
+	VR_PERF_TEXTURE,	// a texture processed and uploaded
+	VR_PERF_MODEL,		// a model loaded
+	VR_PERF_LIGHTMAP,	// a runtime brush's lightmap uploaded
+	VR_PERF_SOUND,		// a sound loaded
+	VR_PERF_MAP,		// a map's load (its command)
+	VR_PERF_SAVE,		// a save written
+	VR_PERF_DECAL,		// decal bakes (the permanent layer's, its atlas grown)
+	VR_PERF_NAV,		// a navmesh job landing (and the wait for it)
+	VR_PERF_QC,			// the QuakeC (the outermost calls, summed)
+	VR_PERF_PHYS,		// the Box3D steps
+	VR_PERF_WORK,		// other timed work (VR_TimeAdd's kinds)
+	VR_PERF_KINDS
+};
+extern int vr_perf_recording;
+void VR_PerfEvent (int kind, double ms, const char *name);
+
 #ifdef __cplusplus
 }
 #endif
