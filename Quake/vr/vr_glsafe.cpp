@@ -423,7 +423,9 @@ extern "C" int VR_GLESWorldLite(void)
         {vr_ao_dynamic.value <= 0.f && vr_ao_brush.value <= 0.f, 8},
         {vr_water_caustics.value == 0.f, 16},
         {vr_retrolight.value == 0.f, 32},
-        {vr_retro.value == 0.f, 64},
+        // (64, retro textures, never: with RetroBegin compiled out Adreno's compiler (Quest 3, driver 0837) read every
+        // world texture at its smallest mip level, the walls flat in their average colours; textureGrad with main()'s
+        // derivatives the same, textureLod 0 right: C4j, QUEST_PLAN.md 6q. -glesdefine QVR_LITE_NORETRO still tries it.)
         {vr_detail.value == 0.f, 128},
     };
     for(const auto& m : more)
