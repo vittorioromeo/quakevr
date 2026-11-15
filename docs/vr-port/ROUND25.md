@@ -3223,7 +3223,7 @@ but stretched. His rule: held in two hands, the grip flips only when both hands 
   flip but the other hand holds it off its handle. QC `weapondrawnpose(p, hand, 46)`'s z is now 1 may flip, -1 refused by the gate,
   0 none; `VR_RevGrip_Flip` (the eject button's and the flat holster menu's FLIP GRIP alike) refuses on -1: the grip unchanged, no
   sound, a light short pulse (`haptic(hand, 0, 0.03, 40, vr_revgrip_blocked_pulse)`). One hand, or the other on the 2H grip hotspot
-  (the handle), flips as before. Flat play: its stance puts the free hand on the hotspot, so it flips as before.
+  (the handle), flips as before. Flat play goes through the same check (FLIP GRIP: impulses 84, 85).
 - **Tunables** (Debug > Tunables > Weapons > Reverse Grip): Two-Handed Flip (`vr_revgrip_2h_gate` 1 Handle Only, 0 Always: before),
   Refused Flip Pulse (`vr_revgrip_blocked_pulse` 0.25, 0 none).
 - On the knight's sword the blade hotspot runs to the tip, so a hand on its blade away from the handle takes the blade grip (gated
