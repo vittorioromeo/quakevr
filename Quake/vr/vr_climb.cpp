@@ -3522,7 +3522,7 @@ int qvr::climb::moveTake(edict_t* ent, pmove::Body& b, TakeRules& r, const pmove
         return 0;
     }
     Climber& c = *cp;
-    r.noGrabLeft -= in.dt;
+    r.noGrabLeft -= static_cast<float>(in.dt); // (the float frame time, as before B11b part 2)
     const VrMove move = takeMove(in, b.origin);
     const Seeker s{ent, nullptr, vec(b.origin), b.origin[2] + ent->v.mins[2]};
     const bool air = !(b.flags & FL_ONGROUND) && b.waterLevel < 2;
@@ -3535,7 +3535,7 @@ int qvr::climb::moveTake(edict_t* ent, pmove::Body& b, TakeRules& r, const pmove
         const bool otherActive = b.hang.on && b.hang.grips[1 - h].active;
         const double t0 = Sys_DoubleTime();
         const int traces0 = traceCount;
-        const TakeTry t = takeTry(c.take, r, s, move, h, in.dt, active, otherActive, blocked, air, (b.flags & FL_ONGROUND) != 0);
+        const TakeTry t = takeTry(c.take, r, s, move, h, static_cast<float>(in.dt), active, otherActive, blocked, air, (b.flags & FL_ONGROUND) != 0);
         if(t.what == Take::found && c.grips[1 - h].active != otherActive)
         {
             continue; // (the other hand let go in a move, its climber's grip not yet: a rare re-press, the next frame's)
@@ -3570,7 +3570,7 @@ int qvr::climb::moveTake(edict_t* ent, pmove::Body& b, TakeRules& r, const pmove
 
 void qvr::climb::replayTake(pmove::Body& b, TakeMemory& m, TakeRules& r, const pmove::Input& in)
 {
-    r.noGrabLeft -= in.dt;
+    r.noGrabLeft -= static_cast<float>(in.dt); // (the float frame time, as before B11b part 2)
     const VrMove move = takeMove(in, b.origin);
     const Seeker s{nullptr, &b, vec(b.origin), b.origin[2] + r.minsZ};
     const bool air = !(b.flags & FL_ONGROUND) && b.waterLevel < 2;
@@ -3578,7 +3578,7 @@ void qvr::climb::replayTake(pmove::Body& b, TakeMemory& m, TakeRules& r, const p
     {
         const bool active = b.hang.on && b.hang.grips[h].active;
         const bool otherActive = b.hang.on && b.hang.grips[1 - h].active;
-        const TakeTry t = takeTry(m, r, s, move, h, in.dt, active, otherActive, b.mantle.on, air, (b.flags & FL_ONGROUND) != 0);
+        const TakeTry t = takeTry(m, r, s, move, h, static_cast<float>(in.dt), active, otherActive, b.mantle.on, air, (b.flags & FL_ONGROUND) != 0);
         if(t.what != Take::found)
         {
             continue;

@@ -3764,3 +3764,18 @@ the same exact rules" as enemies; an option, on by default, single player and mu
 - Default 0: MP suite 28 of 29 (mp_climb 10/1, A's mantle, then 11/0 alone twice), scenario_check 138/0,
   load_models_test 4/0, vr_run_check 12/0, Release (ThinLTO) 0 warnings. Next: B11b part 2 (pmove's time in
   double, the default; then monsters).
+
+## mpN B11b part 2: the own player's moves frame-identical to single player (agent/mp, 2026-11-15)
+
+- vr_pmove's move time is a double (`Input::dt`): sv_user.c/sv_phys.c's pieces round as with `host_frametime`; the VR
+  pieces and QuakeC's drag keep their float frame time; SV_FlyMove's time stays float.
+- Water level: single player's order kept (SV_ClientThink and PlayerPreThink go by the last frame's level, gravity and
+  SV_WalkMove by this frame's SV_CheckWater). Each move now does the same (`checkWater` moved after the think part,
+  before gravity); the last move's level/type are state: the server's slot keeps them (continuity by the server's
+  clock: host_framecount gave mp_predict's water jump a 6-unit correction on a dedicated server), QVR_SVC_PREDICT's
+  climb byte carries them (bits 4-7) for the replay.
+- `pmtrace_all.sh` (+ a scripted `walk` scenario): walk/jump/crouch 463, lift 330, swim 345, water jump out 181,
+  crawl 380 frames: all identical with vr_pmove_own 1 against 0. The 0.017 landing was the early jump out's: closed.
+- Monsters through the module: not done, not clean (sv_move.c's discrete steps; only the fall's SV_FlyMove would be
+  shared). vr_pmove_own stays 0; MP_PLAN "For him (B11b)" says exactly what 1 changes (the hands' strokes and crawl
+  pulls one frame later; nothing traced).

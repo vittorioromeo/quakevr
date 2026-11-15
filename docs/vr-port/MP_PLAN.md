@@ -1494,7 +1494,7 @@ should come from one system for every player), **done** (unified in B9).
 | 1 | `held::fistOf`, `grip::handFrameOf`, `gripfit::fit` (vr_held/vr_grip/vr_gripfit.cpp; readers: Box3D hands, ragdoll parts, foe grabs, physics touches, water pulls, carry, grips) | player 1 of a non-dedicated server: the client's live globals; else `svs.maxclients > 1`: his slot's (sent) | **done**: one per-slot store; the host's own client puts its hands into its slot as it measures them (`clientprefs::ownSlot`, `publishOwn`; at a slot reset too), a remote one's come in his messages; the loopback copies of the host's own no longer sent |
 | 2 | `clientprefs::value`/`forQc`, `PF_cvar_hget` | `svs.maxclients > 1` before a slot's preferences | **done**: the check dropped (a slot without preferences gives the game's own value: single player always) |
 | 3 | vr_heldpose.cpp (`isLocal`, `isRemote`, `grabSpot`, `reverseGrip`, `magPoll`, `remote`), vr_builtins_held.inc (weapon hotspot, any-grip, help kind: 5 sites), vr_carry2h.cpp:333, vr_box3d_hands.cpp:661, `grip::serverTake`'s `h.local` | the host's own player: the client's view asked live (hotspots, ground spot, reverse grip, magazine presses); others: their slot's drawn pose, spot, presses | **unify** (B11a, medium, 1 session): the host publishes its `heldpose::Hand`, ground spot and presses into its slot as #1; readers read the slot only. Three different "local" tests today (`sv.active && cls.state == ca_connected && num == 1`, `cls.state != ca_dedicated && slot == 0`, `num == 1 && cls.state != ca_dedicated`) become `clientprefs::ownSlot`. Care: the remote path turns hotspots through the player's hand fields (`toWorld`), the local one through the view: single player's numbers change unless published unquantized in the same frame; check with the SP hash audits. **Done** (B11a: `heldpose::publishOwn` before each server frame, the view's world places carried in the slot: "B11a results") |
-| 4 | sv_user.c:437 `VR_PredictThink`, sv_phys.c:1377/1414 `VR_PredictWalks` (vr_predict.cpp) | a remote client's walk: his moves one by one through vr_pmove.cpp; the host's own player (and a flat or old client): SV_Physics + QC PlayerPreThink | **unify** (B11b, large, 2 sessions; highest value): vr_pmove for every player, the host's own included (behind a cvar first, SP traces compared frame by frame), so prediction, server and single player are one module; then monsters' step and swim through the same body code. **Part 1 done** (B11b: `vr_pmove_own`, default 0; the frame-by-frame comparison in "B11b results") |
+| 4 | sv_user.c:437 `VR_PredictThink`, sv_phys.c:1377/1414 `VR_PredictWalks` (vr_predict.cpp) | a remote client's walk: his moves one by one through vr_pmove.cpp; the host's own player (and a flat or old client): SV_Physics + QC PlayerPreThink | **unify** (B11b, large, 2 sessions; highest value): vr_pmove for every player, the host's own included (behind a cvar first, SP traces compared frame by frame), so prediction, server and single player are one module; then monsters' step and swim through the same body code. **Done** (B11b parts 1-2: `vr_pmove_own`, default 0 (his call, "For him (B11b)"); with 1, single player's traced walk, jump, crouch, lift, swim, water jump and crawl are frame-identical; monsters kept: not clean, "B11b results, part 2") |
 | 5 | vr_mpavatar.cpp (remote bodies, `bonePoses`), vr_view_diag.cpp `remoteRigSkin`/`remoteHandSkin`, vr_avatar.cpp:1430 `otherDrawn` (`cl.maxclients <= 1`), :2392 | another player's body, hands, holsters, plates drawn from his avatar block; the own from the live rig (vr_view_body, vr_view_hands) | **unify** (B11c, large, 2 sessions): one routine draws any player entity from an avatar state (the own filled from the live rig, others from snapshots), the flat player's own body (third person, vr_flattp) from it too |
 | 6 | vr_teleport.cpp:72, vr_trace.cpp:159, vr_hull.cpp:5083 | no server edict for the own player (a remote client): the client's state (`cl.onground`, `cl.worldmodel`, the prediction's hulls) | **unify** (small): one "own player" accessor (on ground, in water, the world to trace) answering from the edict when hosting, from the prediction's state otherwise |
 | 7 | vr_predict.cpp:750/1155, vr_netsnap.cpp:736/774 | only `cl.viewentity` predicted; others interpolated, the own not delayed | keep (network: latency hiding is the owner's alone) |
@@ -1928,6 +1928,74 @@ Open (B11b):
 - The 0.017 landing above.
 - Monsters' step and swim through the same body code: not started.
 
+(All three closed in part 2, below.)
+
+### B11b results, part 2: the own player frame-identical (2026-11-15, dev no-LTO build, loopback)
+
+What changed (vr_pmove.cpp/.hpp, vr_predict.cpp):
+
+- **The move's time is a double** (`pmove::Input::dt`). The pieces of sv_user.c and sv_phys.c that multiply by
+  `host_frametime` (friction, acceleration, the air and water moves, gravity, SV_WalkMove's step down) compute in double
+  and round to float where theirs do; SV_FlyMove's time stays a float as its parameter is; the VR pieces (the crawl, the
+  hang, the mantle, the grapple, the swim's glide) and QuakeC's WaterMove drag keep their float frame time
+  (`static_cast<float>(host_frametime)`, QuakeC's `frametime`). The own player's move takes `host_frametime` itself; a
+  remote client's its float `frameTime` widened, the same on the server and in his replay.
+- **The water's level: single player's frame order kept.** SV_ClientThink (walk or swim, the stick's water scales) and
+  QC PlayerPreThink (WaterMove's drag, CheckWaterJump, PlayerJump's swim branch) run before SV_Physics_Client's
+  SV_CheckWater, so they go by the level the last frame found; gravity and SV_WalkMove by this frame's. Each move now
+  does the same: its walk or swim, drag, jump out and swim-jump go by the last move's level, then `checkWater` (after
+  SV_CheckVelocity, as SV_Physics_Client) finds its own for gravity and the walk. Decided for single player's: Quake's
+  order is what every map and mod was tuned with, the difference is one frame, and the moves' "level where he is now"
+  was not clearly more correct, only different. So the moves changed, single player did not.
+  The last move's level and type are now part of a move's state: the server keeps them per slot
+  (`ServerSlot::waterLevel`, the edict's when the last server frame was not walked by moves: told by the server's
+  clock, `waterNext`, not host_framecount, which a dedicated server's frames skip or double: with the frame count,
+  mp_predict's water jump out had one 6-unit correction in 2 runs of 2) and QVR_SVC_PREDICT carries them
+  (the climb byte's bits 4-5 the level, 6-7 the type: none, water, slime, lava), so a remote client's replay starts its
+  first move with the server's. The server's once-a-frame strokes and crawl pulls go by the level the last move's swim
+  went by (`Body::thinkLevel`).
+- `pmtrace_all.sh walk`: the e1m1 walk scenario (forward, two jumps, strafe, back, a crouched walk at 240, strafe),
+  scripted in the file now.
+
+The frame-by-frame comparison (single player, `sv_random_seed 1`, fixed frames, vr_pmove_own 0 against 1,
+`bash Misc/quakevr/mp/pmtrace_all.sh`):
+
+| Scenario | Frames | Part 1 | Part 2 |
+|---|---|---|---|
+| e1m1 walk: forward, jumps, strafe, back, crouched walk | 463 | 0.0001 apart from the crouched walk | identical |
+| e1m1 lift (func_plat ride, walk off) | 330 | velocity 0.001 apart after 274 | identical |
+| e1m4 deep water, swimming (stick, jump up) | 345 | a frame apart entering the water | identical |
+| start's pool: Quake's water jump out | 181 | out 3 frames sooner, a landing 0.017 lower | identical |
+| e1m1 crawl lying down | 380 | identical | identical |
+
+**The 0.017 landing:** a consequence of the jump out 3 frames sooner (a different arc onto the bank, so a different
+landing slide); with the jump out on single player's frame the whole run is identical, the landing included. Closed.
+
+**Monsters through the same body code: not done (B9's rule, not clean).** A monster's walk is sv_move.c's
+SV_movestep (a discrete step tried and stepped down, no velocity, friction or acceleration) and its swim the same with
+FL_SWIM; only its fall (SV_Physics_Step: gravity, SV_FlyMove with SV_Impact's touches) resembles the player's. The one
+shareable piece would be flyMove behind a Body adapter built for every falling monster every frame: more code on a hot
+path for no behaviour gain, with its own touch and contents differences to prove identical. Kept as it is.
+
+## For him (B11b)
+
+`vr_pmove_own` stays 0 (Debug > Network, "Movement: Own Walk Through Moves"). If it were 1, single player would walk
+through vr_pmove.cpp (the module a remote client's moves and his prediction run) instead of sv_phys.c's SV_WalkMove and
+QuakeC's PlayerPreThink parts. Exactly what would change:
+
+- **Nothing traced:** walk, jumps, crouched walk, a lift, swimming, Quake's water jump out and the crawl are identical
+  frame by frame (origin to 0.0001, velocity to 0.001, flags, water level, ground entity); with 1 built in as the
+  default in part 1, prop_climb_test 12/12, mantle_height_test and crawl_test passed (mantles, hangs, holds taken).
+- **The hands' swim strokes and crawl pulls** (tracked hands, not the stick) push once a frame after the move instead
+  of in SV_ClientThink before it: a stroke's push reaches the walk one frame (about 11-14 ms) later. Not visible in a
+  trace without tracked hand motion; the only behaviour change known.
+- **The room-scale walk** goes through the moves' copy of VR_ClientRoomscaleMove: same code shape, not traced (the mock
+  headset does not walk in the room).
+- **Flat-screen play is unaffected** (a flat player never walks through the moves).
+- What 1 would buy: one walk code for single player, a listen host, a dedicated server's clients and prediction (a fix
+  in one is in all). What it costs: the strokes' frame above, and single player then depends on the moves' module
+  staying exact (pmtrace_all.sh is the check).
+
 ## Decisions
 
 - Melee's lag compensation (B8c) wraps the queries (melee's sweep, a bash's find, a headbutt's target, a guard's check
@@ -1992,4 +2060,4 @@ Open (B11b):
 - The interpolation buffer (B7b) leaves brush models and stepping monsters on NetQuake's lerp: the player's own entity
   is not delayed (no prediction until B8), and a lift he rides must stay in step with him.
 
-Next phase: B11b part 2 -- vr_pmove's time in double (sv_phys.c's host_frametime: the walk and lift bit for bit), the water-level frame and the 0.017 landing looked at, then vr_pmove_own's default (his call if single player changes at all); then monsters' step and swim through the same body code; then B11c (one avatar routine for any player entity) and #6 (an own-player accessor).
+Next phase: B11c -- one avatar routine for any player entity; then #6 (an own-player accessor).
