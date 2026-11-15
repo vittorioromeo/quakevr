@@ -205,7 +205,9 @@ player unchanged.
 | **B8f** (the drop onto a rising lift and Quake's water jump out done; the rest is B8g) | The drop onto a rising lift's one correction (12.7 units, below), a water jump out tested, the lying box's crawl (the stick's share in the moves), climbing and the grapple (drawn as they come today) | `mp_predict` grown (the drop under a unit, a water jump, a crawl, a climb, a grapple pull) |
 | **B8g** (the lying box's crawl done; the rest is B8h) | The lying box's crawl (the stick's share in the moves), climbing and the grapple; the hands' climb out of the water (vr_water_jump 0) | `mp_predict` grown (a crawl, a climb, a grapple pull, a hand's climb out: corrections under a unit) |
 | **B8h** | Climbing in his replay (the mantle's timed path first, then the hang's pull from his own moves' hands), the grapple's pull, the hands' climb out of the water | `mp_predict` grown (a mantle, a hang and pull up, a grapple pull, a hand's climb out: corrections under a unit) |
-| **B9** | Compression and rate: entropy stage with trained tables, per-client rate, priority accumulator | byte budgets per scenario from section 2.3 |
+| **B9** (the review done; #1-#2 unified; the rest B11a-c) | Code quality: one code path for single player and multiplayer (section "B9 review") | the MP suite, SP regressions identical |
+| **B11a-c** | The rest of the B9 review: heldpose's own-player view asks into the slot store; vr_pmove for every player (then monsters); one avatar routine for any player entity | SP hash audits + MP suite |
+| **B12** (was B9) | Compression and rate: entropy stage with trained tables, per-client rate, priority accumulator | byte budgets per scenario from section 2.3 |
 | **B10** | Proximity voice chat: capture, Opus, VAD, noise suppression, push-to-talk, a jitter buffer, voices placed by Steam Audio at the speaker's head; VR and flat; menu rows | `mp_voice` (a test tone from A heard at B, louder near, delay under 250 ms) |
 | **B11** | Deathmatch and bots: frags, respawns, DM item rules with VR weapons, FrikBot with VR-aware bodies | `mp_dm` (two clients and two bots, a fraglimit reached) |
 | **B12** | Determinism: Box3D, navmesh and pathfinding hashes equal across runs with several clients; the server-thread audit in multiplayer | hash scenarios |
@@ -1476,6 +1478,50 @@ Open (B8h):
 - Getting up from lying at once (the mock's head jumps from 0.4 m to standing) is a room-scale leap (QuakeC's): one
   correction (43 units), as a crouch's.
 
+### B9 review: one code path for single player and multiplayer (2026-11-15)
+
+His note (2026-11-15): instead of "if single player do this, if multiplayer do that", every player (and entity) down
+the same code paths. Method: `git diff origin/next...agent/mp` (134 files, +18.3k lines), every added condition on
+`svs.maxclients`/`cl.maxclients`, `sv.active`/`cls.state`, `deathmatch`/`coop`, `cl.viewentity`, "local"/"remote"
+players (a scan of the added lines: 117 conditions outside the test module `vr_mptest.cpp`, bounds checks included),
+grouped by system. Verdicts:
+**keep** (network-only: transport, acks, deltas, latency, game rules Quake itself has), **unify** (the same behaviour
+should come from one system for every player), **done** (unified in B9).
+
+| # | Where | What branches | Verdict |
+|---|---|---|---|
+| 1 | `held::fistOf`, `grip::handFrameOf`, `gripfit::fit` (vr_held/vr_grip/vr_gripfit.cpp; readers: Box3D hands, ragdoll parts, foe grabs, physics touches, water pulls, carry, grips) | player 1 of a non-dedicated server: the client's live globals; else `svs.maxclients > 1`: his slot's (sent) | **done**: one per-slot store; the host's own client puts its hands into its slot as it measures them (`clientprefs::ownSlot`, `publishOwn`; at a slot reset too), a remote one's come in his messages; the loopback copies of the host's own no longer sent |
+| 2 | `clientprefs::value`/`forQc`, `PF_cvar_hget` | `svs.maxclients > 1` before a slot's preferences | **done**: the check dropped (a slot without preferences gives the game's own value: single player always) |
+| 3 | vr_heldpose.cpp (`isLocal`, `isRemote`, `grabSpot`, `reverseGrip`, `magPoll`, `remote`), vr_builtins_held.inc (weapon hotspot, any-grip, help kind: 5 sites), vr_carry2h.cpp:333, vr_box3d_hands.cpp:661, `grip::serverTake`'s `h.local` | the host's own player: the client's view asked live (hotspots, ground spot, reverse grip, magazine presses); others: their slot's drawn pose, spot, presses | **unify** (B11a, medium, 1 session): the host publishes its `heldpose::Hand`, ground spot and presses into its slot as #1; readers read the slot only. Three different "local" tests today (`sv.active && cls.state == ca_connected && num == 1`, `cls.state != ca_dedicated && slot == 0`, `num == 1 && cls.state != ca_dedicated`) become `clientprefs::ownSlot`. Care: the remote path turns hotspots through the player's hand fields (`toWorld`), the local one through the view: single player's numbers change unless published unquantized in the same frame; check with the SP hash audits |
+| 4 | sv_user.c:437 `VR_PredictThink`, sv_phys.c:1377/1414 `VR_PredictWalks` (vr_predict.cpp) | a remote client's walk: his moves one by one through vr_pmove.cpp; the host's own player (and a flat or old client): SV_Physics + QC PlayerPreThink | **unify** (B11b, large, 2 sessions; highest value): vr_pmove for every player, the host's own included (behind a cvar first, SP traces compared frame by frame), so prediction, server and single player are one module; then monsters' step and swim through the same body code |
+| 5 | vr_mpavatar.cpp (remote bodies, `bonePoses`), vr_view_diag.cpp `remoteRigSkin`/`remoteHandSkin`, vr_avatar.cpp:1430 `otherDrawn` (`cl.maxclients <= 1`), :2392 | another player's body, hands, holsters, plates drawn from his avatar block; the own from the live rig (vr_view_body, vr_view_hands) | **unify** (B11c, large, 2 sessions): one routine draws any player entity from an avatar state (the own filled from the live rig, others from snapshots), the flat player's own body (third person, vr_flattp) from it too |
+| 6 | vr_teleport.cpp:72, vr_trace.cpp:159, vr_hull.cpp:5083 | no server edict for the own player (a remote client): the client's state (`cl.onground`, `cl.worldmodel`, the prediction's hulls) | **unify** (small): one "own player" accessor (on ground, in water, the world to trace) answering from the edict when hosting, from the prediction's state otherwise |
+| 7 | vr_predict.cpp:750/1155, vr_netsnap.cpp:736/774 | only `cl.viewentity` predicted; others interpolated, the own not delayed | keep (network: latency hiding is the owner's alone) |
+| 8 | vr_lagcomp.cpp:245/291/296, pr_cmds.c:754 | rewind only with remote clients (`anyRemote`), per shooter | keep (network: the host's own latency is 0, the rewind an identity) |
+| 9 | vr_netmove.cpp:441, sv_user.c:683, net_dgrm.c:978, vr_client.cpp:553 (hands/body in the move only with `cl.maxclients > 1`), vr_server.cpp:565/1563/1601, vr_mpavatar.cpp:672/772, vr_mpdownload.cpp, every `cmd_source != src_client \|\| !sv.active \|\| !host_client` guard (clientprefs, heldpose, mpavatar, lagcomp) | the QVR protocol, moves, version, bandwidth, string commands' guards | keep (transport) |
+| 10 | vr_serverrules.cpp (`remote`, `shadowed`, `svs.maxclients <= 1`) | a remote client's own settings shadowed by the server's rules | keep (network: whose settings govern) |
+| 11 | host.c:786/1225/1296, host_cmd.c (save/load, `coopclients`), menu.c:2212, vr_menuui.cpp:805, vr_coopsave.cpp, vr_progs.cpp:932 | coop saves and autosaves, Quake's "no deathmatch saves", a dropped coop slot pauses | keep (game rules; versioned format) |
+| 12 | QC combat.qc:3412 (player vs player damage in coop/deathmatch), weapons.qc:4677/4736 (test impulses off in deathmatch/coop) | game rules, cheat gating | keep |
+| 13 | QC client.qc:1713 | (the comment names a remote client; the condition is every player's) | already one path |
+| 14 | vr_backend_mock.cpp:563, vr_mptest.cpp, the `vr_mp_*` report commands (`mp_drawn_own`/`mp_drawn_sv`, `mp_prefs_own`/`mp_prefs_sv`) | tests and reports | keep |
+
+### B9 results (2026-11-15, dev no-LTO build, loopback)
+
+- **Done**: #1 and #2. The server-side readers of a player's client-owned hand state and preferences no longer ask
+  "is this the host's own player?" or "is this multiplayer?": 9 player-kind branches in readers (3 `num == 1 &&
+  cls.state != ca_dedicated`, 3 `svs.maxclients > 1` before the slot stores, 3 in the preference reads) become 0. What
+  remains is one transport decision, `clientprefs::ownSlot()` (the host's own hands go into its slot directly, a
+  remote player's by message), used by the three setters, a slot's reset and `send` (the host no longer sends its own
+  rig and frames to itself over the loopback). The scan: 117 condition lines before, 114 after (bounds checks
+  included). Single player: the same values (the slot holds exactly what the setters were given, refreshed at the
+  slot's reset), same functions.
+- Tests: after #1 `mp_test.py suite` 27 of 27 (merge of origin/next included); after #2 `prefs`, `grab --listen`,
+  `held --listen`, `rules`, scenario_check and load_models_test (numbers in ROUND25's "mpN B9").
+- **Left to unify** (the table): #3 heldpose's own-player view asks (B11a, medium, 1 session), #4 vr_pmove for the
+  host's own player and then monsters (B11b, large, 2 sessions; the biggest win: prediction, server and single player
+  one movement module), #5 one avatar routine for any player entity (B11c, large, 2 sessions), #6 an own-player
+  accessor for the client-side fallbacks (small). Fast retransmit and compression stay later (the old B9 row: B12).
+
 ## Decisions
 
 - Melee's lag compensation (B8c) wraps the queries (melee's sweep, a bash's find, a headbutt's target, a guard's check
@@ -1540,4 +1586,4 @@ Open (B8h):
 - The interpolation buffer (B7b) leaves brush models and stepping monsters on NetQuake's lerp: the player's own entity
   is not delayed (no prediction until B8), and a lift he rides must stay in step with him.
 
-Next phase: B8h — climbing in his replay (the mantle's timed path from the state first, then the hang's pull from his own moves' hands: vr_climb.cpp hangPull/hangMove), the grapple's pull (the rope in the state, the reel in the moves), the hands' climb out of the water (vr_water_jump 0: a hand's grip and pull, the server's today); tests first: `mp_predict --part` grown (corrections under a unit); then the `mp_melee` "crowbar held level" flake if it shows.
+Next phase: B10 — his features (kit scratch/OVERNIGHT_1115.md): disarm another player by grabbing his weapon on its model and pulling (no tug of war); give weapons and ammo (drop/throw guns, magazines, shells: others take and use them); holster contents synced and visible (check B6b); small interactions that fit; new code through the B9 slot store (no own/remote branches in readers). Then B8h — climbing in his replay (the mantle's timed path from the state first, then the hang's pull from his own moves' hands: vr_climb.cpp hangPull/hangMove), the grapple's pull (the rope in the state, the reel in the moves), the hands' climb out of the water (vr_water_jump 0: a hand's grip and pull, the server's today); tests first: `mp_predict --part` grown (corrections under a unit); then the `mp_melee` "crowbar held level" flake if it shows.

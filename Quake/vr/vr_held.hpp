@@ -198,8 +198,8 @@ void fistInWorld(int hand, const glm::vec3& pos, const glm::vec3& angles, za::Ve
 // The fist of `hand` (setFist's: the hand's frame, world units; empty: not known).
 [[nodiscard]] const za::Vector<glm::vec4>& fist(int hand);
 
-// Server: `player`'s fist of `hand` (MP_PLAN.md, B3): the local one (fist) for this game's own player (player 1 of a
-// listen server or single player), else the one his client sent (setPlayerFist; multiplayer); empty: not known.
+// Server: `player`'s fist of `hand` (MP_PLAN.md, B3) from his slot (setPlayerFist): a remote player's as his client sent
+// it, this game's own player's put there by setFist while it hosts (B9); empty: not known.
 [[nodiscard]] const za::Vector<glm::vec4>& fistOf(const edict_t* player, int hand);
 
 // fistInWorld with `player`'s fist (fistOf).

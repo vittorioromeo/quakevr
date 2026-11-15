@@ -30,8 +30,15 @@ void send();
 // Client: a new connection: they go up again.
 void clientClear();
 
-// Server: the slot's player left or a new one came: his preferences forgotten.
+// Server: the slot's player left or a new one came: his preferences forgotten (this game's own slot: its hands again).
 void serverReset(int slot);
+
+// One store for every player's hands (B9): the server reads each player's fists, palm frames and grip fit rigs from his
+// slot (held::fistOf, grip::handFrameOf, gripfit::fit), the same code for all of them. A remote player's arrive in his
+// messages (send); this game's own, while it hosts (single player, a listen server), go into its slot directly as they
+// are measured (held::setFist, grip::setHandFrame, gripfit::setHandRig): ownSlot() is that slot, -1 when not hosting.
+[[nodiscard]] int ownSlot();
+void publishOwn(int hand); // (all three of the hand's into ownSlot(): at a reset of it)
 
 // vr_mp_prefs, the "vr_prefs" client command.
 void init();

@@ -3442,3 +3442,16 @@ The crawl's own speed is part of the predicted state; the hands' pulls stay the 
 356-360 states in 5 takes (before, no lying frame was predicted). `QVR_NET_VERSION` 24; `vr_mp_watch 3` traces every
 correction over 0.05. Climbing, the grapple's pull and the hands' climb out of the water are B8h (MP_PLAN.md "B8g
 results").
+
+## mpN B9 (agent/mp): one code path for single player and multiplayer
+
+origin/next merged (clean). The whole branch reviewed for single player / multiplayer / own / remote branches: the
+list with verdicts is MP_PLAN.md "B9 review" (14 groups: keep the transport, latency, rules and save ones; unify the
+rest). Unified now: the server reads every player's fists, palm frames and grip fit rigs (`held::fistOf`,
+`grip::handFrameOf`, `gripfit::fit`) and per-player preferences (`clientprefs::value`/`forQc`, `PF_cvar_hget`) from his
+slot, the host's own included: the host's client puts its own hands into its slot as it measures them
+(`clientprefs::ownSlot`, `publishOwn`) instead of the readers asking "player 1 of a non-dedicated server?" and "more
+than one client?" (9 such branches gone), and no longer sends its own rig to itself. Tests: MP suite 27/27; then
+`prefs`, `grab --listen`, `held --listen`, `rules` pass; scenario_check 156/0, load_models_test 4/0,
+crate_grip_test 10/0 twice (9/1 once, not reproduced). Left (MP_PLAN B11a-c): heldpose's own-player view asks, vr_pmove
+for the host's own player, one avatar routine for any player entity.

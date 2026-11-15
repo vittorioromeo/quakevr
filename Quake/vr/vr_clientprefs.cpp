@@ -535,7 +535,7 @@ int indexOf(const cvar_t* var)
 
 float value(int pref, const cvar_t* var, const edict_t* player)
 {
-    if(pref >= 0 && pref < prefCount && player && svs.maxclients > 1 && sv.active && qcvm == &sv.qcvm)
+    if(pref >= 0 && pref < prefCount && player && sv.active && qcvm == &sv.qcvm) // (a slot without them: the own)
     {
         const int slot = slotWithPrefs(static_cast<int>(((const byte*)player - (const byte*)qcvm->edicts) / qcvm->edict_size));
         if(slot >= 0)
@@ -548,7 +548,7 @@ float value(int pref, const cvar_t* var, const edict_t* player)
 
 float forQc(int pref, const cvar_t* var)
 {
-    if(pref >= 0 && pref < prefCount && svs.maxclients > 1 && sv.active && qcvm == &sv.qcvm)
+    if(pref >= 0 && pref < prefCount && sv.active && qcvm == &sv.qcvm)
     {
         for(const int e : {pr_global_struct->self, pr_global_struct->other})
         {
@@ -576,8 +576,11 @@ void send()
         now[i] = ownValue(i);
         changed = changed || now[i] != state.lastSent[i];
     }
-    sendRig();
-    sendFrame();
+    if(ownSlot() < 0) // (hosting: its own hands are in its slot already, publishOwn)
+    {
+        sendRig();
+        sendFrame();
+    }
     heldpose::send(); // (the held weapon's drawn pose: vr_heldpose.cpp)
     if(!changed || (state.sent && realtime < state.nextSend))
     {
@@ -621,6 +624,27 @@ void serverReset(int slot)
         gripfit::setPlayerRig(slot, 0, {});
         gripfit::setPlayerRig(slot, 1, {});
         heldpose::serverReset(slot);
+        if(slot == ownSlot())
+        {
+            publishOwn(0);
+            publishOwn(1);
+        }
+    }
+}
+
+int ownSlot()
+{
+    return sv.active && cls.state != ca_dedicated ? 0 : -1;
+}
+
+void publishOwn(int hand)
+{
+    const int slot = ownSlot();
+    if(slot >= 0 && (hand == 0 || hand == 1))
+    {
+        held::setPlayerFist(slot, hand, held::fist(hand));
+        grip::setPlayerFrame(slot, hand, grip::ownFrame(hand));
+        gripfit::setPlayerRig(slot, hand, gripfit::ownRig(hand));
     }
 }
 

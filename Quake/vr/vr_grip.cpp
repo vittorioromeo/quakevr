@@ -1,6 +1,7 @@
 // vr_grip.cpp -- see vr_grip.hpp.
 
 #include "vr_grip.hpp"
+#include "vr_clientprefs.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "vr_gripfit.hpp"
@@ -204,7 +205,16 @@ void setHandFrame(int hand, const HandFrame& f)
     if(hand == 0 || hand == 1)
     {
         frames[hand] = f;
+        if(const int own = clientprefs::ownSlot(); own >= 0)
+        {
+            setPlayerFrame(own, hand, f); // (hosting: into its own player's slot, as a remote player's message does)
+        }
     }
+}
+
+HandFrame ownFrame(int hand)
+{
+    return hand == 0 || hand == 1 ? frames[hand] : HandFrame{};
 }
 
 HandFrame handFrame(int hand, bool left, bool local)
@@ -222,13 +232,9 @@ HandFrame handFrameOf(const edict_t* player, int hand, bool left)
     {
         return defaultFrame(left);
     }
-    const int num = static_cast<int>(((const byte*)player - (const byte*)sv.qcvm.edicts) / sv.qcvm.edict_size);
-    if(num == 1 && cls.state != ca_dedicated)
-    {
-        return handFrame(hand, left, true); // (this game's own player: its hands as drawn here)
-    }
-    const int slot = num - 1;
-    if(svs.maxclients > 1 && slot >= 0 && slot < MAX_SCOREBOARD && playerFrames[slot][hand].measured)
+    // (every player's from his slot, this game's own too: clientprefs::ownSlot)
+    const int slot = static_cast<int>(((const byte*)player - (const byte*)sv.qcvm.edicts) / sv.qcvm.edict_size) - 1;
+    if(slot >= 0 && slot < svs.maxclients && slot < MAX_SCOREBOARD && playerFrames[slot][hand].measured)
     {
         return playerFrames[slot][hand];
     }

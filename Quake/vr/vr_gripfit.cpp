@@ -2,6 +2,7 @@
 
 #include "vr_gripfit.hpp"
 #include "vr_box3d.hpp"
+#include "vr_clientprefs.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "vr_handfit.hpp"
@@ -455,6 +456,10 @@ void setHandRig(int hand, const glm::mat4* rigToHand, const handrig::Pose& pose)
         (void)rigPointsNow(); // (made with the rig, not at a grab)
         h.pose = pose;
     }
+    if(const int own = clientprefs::ownSlot(); own >= 0)
+    {
+        setPlayerRig(own, hand, ownRig(hand)); // (hosting: into its own player's slot, as a remote player's message does)
+    }
 }
 
 static_assert(rigFingers == handrig::FingerCount);
@@ -505,14 +510,11 @@ bool fit(int num, int hand, int player, bool twoHand, const glm::mat3& handToPro
     {
         return false;
     }
-    // This game's own player's rig as drawn here; another's as his client sent it (B3f).
+    // The player's rig as his client measured it, from his slot: a remote player's sent (B3f), this game's own put there
+    // directly (setHandRig, B9). (Only the fingers' shifts of its pose matter here: the curls are the fit's.)
     HandRig other;
     const HandRig* rig = nullptr;
-    if(cls.state != ca_dedicated && player == 1)
-    {
-        rig = handRigs[hand].valid ? &handRigs[hand] : nullptr;
-    }
-    else if(svs.maxclients > 1 && player >= 1 && player <= MAX_SCOREBOARD && playerRigs[player - 1][hand].valid)
+    if(player >= 1 && player <= svs.maxclients && player <= MAX_SCOREBOARD && playerRigs[player - 1][hand].valid)
     {
         const PlayerRig& p = playerRigs[player - 1][hand];
         other.valid = true;

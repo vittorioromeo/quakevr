@@ -534,13 +534,13 @@ void PF_cvar_hmake()
     G_FLOAT(OFS_RETURN) = static_cast<float>(cvarHandles.size() - 1);
 }
 
-// A per-player preference (vr_clientprefs.hpp) in multiplayer: the value of the player the QC runs for (`self`, else
-// `other`), the server's when neither is a player or his have not come.
+// A per-player preference (vr_clientprefs.hpp): the value of the player the QC runs for (`self`, else `other`), the
+// server's own when neither is a player or his have not come (single player: always the game's own, no slot has any).
 void PF_cvar_hget()
 {
     const int i = static_cast<int>(G_FLOAT(OFS_PARM0));
     const cvar_t* var = cvarFromHandle(G_FLOAT(OFS_PARM0));
-    if(var && svs.maxclients > 1 && cvarPrefs[i] >= 0)
+    if(var && cvarPrefs[i] >= 0)
     {
         G_FLOAT(OFS_RETURN) = clientprefs::forQc(cvarPrefs[i], var);
         return;

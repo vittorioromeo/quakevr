@@ -6,6 +6,7 @@
 #include "vr_box3d.hpp"
 #include "vr_climb.hpp"
 #include "vr_carry2h.hpp"
+#include "vr_clientprefs.hpp"
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
@@ -1234,6 +1235,10 @@ void setFist(int hand, const za::Vector<glm::vec4>& spheres)
     if(hand >= 0 && hand < 2)
     {
         fists[hand] = spheres;
+        if(const int own = clientprefs::ownSlot(); own >= 0)
+        {
+            setPlayerFist(own, hand, spheres); // (hosting: into its own player's slot, as a remote player's message does)
+        }
     }
 }
 
@@ -1248,13 +1253,9 @@ const za::Vector<glm::vec4>& fistOf(const edict_t* player, int hand)
     {
         return noFist;
     }
-    const int num = static_cast<int>(((const byte*)player - (const byte*)sv.qcvm.edicts) / sv.qcvm.edict_size);
-    if(num == 1 && cls.state != ca_dedicated)
-    {
-        return fists[hand]; // (this game's own player: its hands)
-    }
-    const int slot = num - 1;
-    return svs.maxclients > 1 && slot >= 0 && slot < MAX_SCOREBOARD ? playerFists[slot][hand] : noFist;
+    // (every player's from his slot, this game's own too: clientprefs::ownSlot)
+    const int slot = static_cast<int>(((const byte*)player - (const byte*)sv.qcvm.edicts) / sv.qcvm.edict_size) - 1;
+    return slot >= 0 && slot < svs.maxclients && slot < MAX_SCOREBOARD ? playerFists[slot][hand] : noFist;
 }
 
 void setPlayerFist(int slot, int hand, const za::Vector<glm::vec4>& spheres)

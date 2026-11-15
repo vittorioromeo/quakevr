@@ -60,12 +60,14 @@ struct HandFrame
     float channelRadius{0.f};
 };
 
-// Client side, every frame: `hand`'s (0 off, 1 main) frame, measured (or not: `f.measured` false).
+// Client side, every frame: `hand`'s (0 off, 1 main) frame, measured (or not: `f.measured` false). Hosting, it goes into
+// its own player's slot too (setPlayerFrame, clientprefs::ownSlot). ownFrame: the last one set.
 void setHandFrame(int hand, const HandFrame& f);
+[[nodiscard]] HandFrame ownFrame(int hand);
 // The local player's measured frame of `hand`, or the default hand's (mirrored for the off hand when `left`).
 [[nodiscard]] HandFrame handFrame(int hand, bool left, bool local);
-// Server: `player`'s frame of `hand`: this game's own player's measured one (single player, a listen host's), another
-// player's as his client measured it (setPlayerFrame: the rig up, B3d), else the default hand's (mirrored when `left`).
+// Server: `player`'s frame of `hand` as his client measured it (setPlayerFrame: a remote player's rig up, B3d; this
+// game's own player's directly, B9), else the default hand's (mirrored when `left`).
 [[nodiscard]] HandFrame handFrameOf(const edict_t* player, int hand, bool left);
 // Server: client slot `slot`'s measured frame of `hand` (vr_clientprefs.cpp's "vr_rigframe"; `f.measured` false: none).
 void setPlayerFrame(int slot, int hand, const HandFrame& f);
