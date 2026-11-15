@@ -1030,6 +1030,8 @@ vr_agrunt_shotdisarm_proj_chance|1|Armed Grunts|Projectile: Chance|Advanced VR O
 vr_agrunt_shotdisarm_proj_ref|1|Armed Grunts|Projectile: Reference Damage|Advanced VR Options > Combat > Armed Grunts > Projectile: Reference Damage
 vr_agrunt_shotdisarm_proj_near|1|Armed Grunts|Projectile: Near Miss|Advanced VR Options > Combat > Armed Grunts > Projectile: Near Miss
 vr_agrunt_shotdisarm_proj_max|1|Armed Grunts|Projectile: Most Chance|Advanced VR Options > Combat > Armed Grunts > Projectile: Most Chance
+vr_player_disarm|1|Armed Grunts|You Can Be Disarmed|Advanced VR Options > Combat > Armed Grunts > You Can Be Disarmed
+vr_player_disarm_chance|1|Armed Grunts|Your Disarm Chance|Advanced VR Options > Combat > Armed Grunts > Your Disarm Chance
 vr_agrunt_ik|1|Armed Grunts|Hands on the Grips|Advanced VR Options > Combat > Armed Grunts > Hands on the Grips
 vr_agrunt_w_fists|1|Armed Grunts|Fists|Advanced VR Options > Combat > Armed Grunts > Fists
 vr_agrunt_w_axe|1|Armed Grunts|Axe|Advanced VR Options > Combat > Armed Grunts > Axe
@@ -3062,6 +3064,7 @@ vr_throw_point_align|2|Tunables|Point-First Settling|Advanced VR Options > Debug
 vr_throw_point_time|2|Tunables|Point-First Settling: Time|Advanced VR Options > Debug > Tunables > Point-First Settling: Time
 vr_throw_point_angle|2|Tunables|Point-First Settling: Angle|Advanced VR Options > Debug > Tunables > Point-First Settling: Angle
 vr_throw_point_spin|2|Tunables|Point-First Settling: Tumble|Advanced VR Options > Debug > Tunables > Point-First Settling: Tumble
+vr_throw_point_damp|2|Tunables|Point-First Settling: Spin Damping|Advanced VR Options > Debug > Tunables > Point-First Settling: Spin Damping
 vr_shot_push_pellet|2|Tunables|Pellet Push|Advanced VR Options > Debug > Tunables > Pellet Push
 vr_shot_push_nail|2|Tunables|Nail Push|Advanced VR Options > Debug > Tunables > Nail Push
 vr_shot_push_supernail|2|Tunables|Super Nail Push|Advanced VR Options > Debug > Tunables > Super Nail Push
@@ -4767,6 +4770,9 @@ vr_revgrip|2|Tunables|Reverse Grip|Advanced VR Options > Debug > Tunables > Reve
 vr_revgrip_flip_time|2|Tunables|Flip Time|Advanced VR Options > Debug > Tunables > Flip Time
 vr_revgrip_forcegrab|2|Tunables|Force Grab Catch|Advanced VR Options > Debug > Tunables > Force Grab Catch
 vr_revgrip_volume|2|Tunables|Flip Sound Volume|Advanced VR Options > Debug > Tunables > Flip Sound Volume
+vr_revgrip_pivot|2|Tunables|Flip Pivot|Advanced VR Options > Debug > Tunables > Flip Pivot
+vr_revgrip_pivot_shift|2|Tunables|Flip Pivot Shift|Advanced VR Options > Debug > Tunables > Flip Pivot Shift
+vr_revgrip_2h_mirror|2|Tunables|Reversed Two-Handed Hand|Advanced VR Options > Debug > Tunables > Reversed Two-Handed Hand
 |2|Tunables|Reset This Page|Advanced VR Options > Debug > Tunables > Reset This Page
 @page|2|Debug - Cheats and Recording||Advanced VR Options > Debug > Cheats and Recording
 |2|Debug - Cheats and Recording|God Mode|Advanced VR Options > Debug > Cheats and Recording > God Mode
@@ -5581,6 +5587,7 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Enemy Footsteps Walkabout|Advanced VR Options > Debug > Tests > Enemy Footsteps Walkabout
 |2|Debug - Tests|Shoot Yourself: Aimed|Advanced VR Options > Debug > Tests > Shoot Yourself: Aimed
 |2|Debug - Tests|Shoot Yourself: Ordinary Firing|Advanced VR Options > Debug > Tests > Shoot Yourself: Ordinary Firing
+|2|Debug - Tests|Player Disarm: Shots on Your Gun|Advanced VR Options > Debug > Tests > Player Disarm: Shots on Your Gun
 |2|Debug - Tests|Projectiles Keep Your Motion|Advanced VR Options > Debug > Tests > Projectiles Keep Your Motion
 |2|Debug - Tests|Grenade Fuses|Advanced VR Options > Debug > Tests > Grenade Fuses
 |2|Debug - Tests|Projectiles: Flat Turn|Advanced VR Options > Debug > Tests > Projectiles: Flat Turn

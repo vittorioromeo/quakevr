@@ -2687,7 +2687,10 @@ QVR_CVAR(vr_agrunt_shotdisarm_proj_chance, "0.2", CVAR_ARCHIVE) // ... the chanc
 QVR_CVAR(vr_agrunt_shotdisarm_proj_ref, "9", CVAR_ARCHIVE)     // ... the damage that chance is for (a nail's): more damage, more chance
 QVR_CVAR(vr_agrunt_shotdisarm_proj_near, "4", CVAR_ARCHIVE)    // ... units past the weapon or hand a miss still rolls, its chance down to 0 there
 QVR_CVAR(vr_agrunt_shotdisarm_proj_max, "0.8", CVAR_ARCHIVE)   // ... the most one projectile's chance (a rocket's direct hit)
-QVR_CVAR(vr_agrunt_shotdisarm_debug, "0", CVAR_NONE)           // 1: prints each shot's part (weapon/hand/body), the damage adding up, the roll; 2: also shows the hit volumes (sparks)
+QVR_CVAR(vr_player_disarm, "1", CVAR_ARCHIVE)                 // 1: enemies' shots and blows on your held weapon or its hand knock it out by the armed grunts' rules (vr_playerdisarm.qc; multiplayer: other players' too)
+QVR_CVAR(vr_player_disarm_chance, "1", CVAR_ARCHIVE)          // times the armed grunts' chance for your weapon (1 the same; at most certain; 0 never)
+QVR_CVAR(vr_pd_test, "0", CVAR_NONE)                          // the player disarm's test (QC vr_playerdisarm_test.qc; Debug > Tests > Player Disarm): 1 shots at your gun and body, the option off
+QVR_CVAR(vr_agrunt_shotdisarm_debug, "0", CVAR_NONE)          // 1: prints each shot's part (weapon/hand/body), the damage adding up, the roll; 2: also shows the hit volumes (sparks)
 QVR_CVAR(vr_agrunt_fall_drop, "1", CVAR_ARCHIVE)  // 1: knocked down (on the floor, not a stagger) it drops its weapon beside it, and takes it back when it gets up
 QVR_CVAR(vr_agrunt_fall_keep, "1", CVAR_ARCHIVE)  // 1: a gentle fall (a shove's backpedal to the floor) keeps the weapon in its hand, yours for a grab or a blow while it's down; a violent one drops it (below)
 QVR_CVAR(vr_agrunt_fall_keep_impact, "12", CVAR_ARCHIVE)   // m/s: down, it lets go only as its body, having kept up speed a moment (vr_agrunt_fall_impact_speed, _time), loses this much on a floor or wall it flew into (over vr_agrunt_fall_impact_window; thrown or banged by your hands too): a small push, a topple or a swing in the air keeps it (0: never)

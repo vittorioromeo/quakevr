@@ -624,12 +624,36 @@ struct ReverseGeometry
     unsigned generation{0};
     glm::vec3 axis{1.f, 0.f, 0.f};
     glm::vec3 pivot{0.f};
+    glm::vec3 middle{0.f}; // the handle's middle (the pivot before flipgrip2; vr_revgrip_pivot 0)
+    float mode{-1.f};      // vr_revgrip_pivot it was learnt with
+    float shift{0.f};      // ... and vr_revgrip_pivot_shift
+    bool palm{false};      // the pivot is the drawn hand's (the jointed hand was there to learn it from)
+    bool rig{false};       // learnt with the jointed hand there (vr_revgrip_pivot 1)
 };
 ReverseGeometry reverseGeometry[weapons::numSlots];
 
 [[nodiscard]] const ReverseGeometry* reverseGeometryOf(int slot)
 {
     return slot >= 0 && slot < weapons::numSlots && reverseGeometry[slot].model ? &reverseGeometry[slot] : nullptr;
+}
+
+// The middle of the palm of the jointed hand holding slot `slot`'s weapon upright (the main hand, as canonicalOwnGrip poses it: its
+// controller at the origin unturned, its Hand Only offset), in the weapon's own frame (x forward, y left, z up, off its origin);
+// false without the jointed hand.
+[[nodiscard]] bool palmOnWeapon(int slot, glm::vec3& palm)
+{
+    if(!handrig::usable(viewModel(handrig::modelName())))
+    {
+        return false;
+    }
+    const glm::vec3 zero{0.f};
+    glm::vec3 pos{0.f};
+    glm::vec3 handRot = attachedTurn(zero, slot, false, weaponAngleOffsets(weapons::fistSlot(), false));
+    moveDrawnHand(HAND_MAIN, false, attachedTurn(zero, slot, false, zero), weapons::vec(slot, Key::HandOnlyX, Key::HandOnlyY, Key::HandOnlyZ),
+        weapons::vec(slot, Key::HandOnlyPitch, Key::HandOnlyYaw, Key::HandOnlyRoll), false, pos, handRot);
+    const glm::vec3 o = weaponAngleOffsets(slot, false);
+    palm = glm::transpose(anglesBasis(glm::vec3{-o.x, o.y, o.z})) * palmAt(HAND_MAIN, pos, handRot, false);
+    return true;
 }
 } // namespace
 
@@ -640,11 +664,18 @@ void reverseLearn(const qmodel_t* model, int slot)
         return;
     }
     ReverseGeometry& g = reverseGeometry[slot];
-    if(g.model == model && g.generation == weapons::settingsGeneration())
+    const bool byPalm = vr_revgrip_pivot.value != 0.f;
+    const bool rig = byPalm && handrig::usable(viewModel(handrig::modelName()));
+    // (Again once the jointed hand is there, if it was not: the palm's pivot.)
+    if(g.model == model && g.generation == weapons::settingsGeneration() && g.mode == vr_revgrip_pivot.value &&
+        g.shift == vr_revgrip_pivot_shift.value && (g.rig || !rig))
     {
         return;
     }
     g = ReverseGeometry{model, weapons::settingsGeneration()};
+    g.mode = vr_revgrip_pivot.value;
+    g.shift = vr_revgrip_pivot_shift.value;
+    g.rig = rig;
     glm::vec3 muzzle, butt, second;
     int type = 0;
     if(view::weaponLocalGeometry(const_cast<qmodel_t*>(model), muzzle, butt, second, type) && glm::distance(muzzle, butt) > 1e-3f)
@@ -656,10 +687,47 @@ void reverseLearn(const qmodel_t* model, int slot)
         const glm::vec3 nearest = butt - g.axis * glm::dot(butt, g.axis);
         const float from = weapons::value(slot, Key::BladeFrom);
         const float guard = (from > 0.f ? from : 0.15f) * glm::dot(muzzle - nearest, g.axis);
-        g.pivot = nearest + g.axis * (0.5f * (glm::dot(butt - nearest, g.axis) + guard));
+        g.pivot = g.middle = nearest + g.axis * (0.5f * (glm::dot(butt - nearest, g.axis) + guard));
+        // flipgrip2 (his note 2026-11-15: the dagger "a little bit off" reversed until he moved it, Reversed X -0.15, Z +1.1): the
+        // half turn about the fist's own middle on the handle (the point of the handle's line abreast of the drawn hand's palm),
+        // not the handle's: the fist stays where it is on the handle, the guard as far from it on the little finger's side as it was
+        // on the thumb's. About the handle's middle a fist off it by d along the handle took the weapon 2d along its line.
+        glm::vec3 palm;
+        if(rig && palmOnWeapon(slot, palm))
+        {
+            g.pivot = nearest + g.axis * (glm::dot(palm - nearest, g.axis) + vr_revgrip_pivot_shift.value);
+            g.palm = true;
+        }
     }
-    Con_DPrintf("revgrip: slot %d's handle line (%.2f %.2f %.2f), pivot (%.2f %.2f %.2f), its butt %.2f and tip %.2f along it\n", slot,
-        g.axis.x, g.axis.y, g.axis.z, g.pivot.x, g.pivot.y, g.pivot.z, glm::dot(butt - g.pivot, g.axis), glm::dot(muzzle - g.pivot, g.axis));
+    Con_DPrintf("revgrip: slot %d's handle line (%.2f %.2f %.2f), pivot (%.2f %.2f %.2f)%s, %.2f from its middle; its butt %.2f and "
+                "tip %.2f along it\n",
+        slot, g.axis.x, g.axis.y, g.axis.z, g.pivot.x, g.pivot.y, g.pivot.z, g.palm ? " (the palm's)" : "",
+        glm::dot(g.pivot - g.middle, g.axis), glm::dot(butt - g.pivot, g.axis), glm::dot(muzzle - g.pivot, g.axis));
+    if(g.palm && developer.value)
+    {
+        // What the palm's pivot does as the Reversed X/Y/Z did (the main hand's frame: x forward, y left, z up).
+        const glm::vec3 o = weaponAngleOffsets(slot, false);
+        const glm::mat3 O = anglesBasis(glm::vec3{-o.x, o.y, o.z});
+        const glm::vec3 d = O * (g.pivot - g.middle);
+        const glm::vec3 as = d - reverseTurn(slot, false, 1.f) * d;
+        Con_DPrintf("revgrip: slot %d: the palm's pivot moves the reversed weapon by (%.2f %.2f %.2f) in the hand's frame; the handle "
+                    "(%.2f %.2f %.2f) there\n",
+            slot, as.x, as.y, as.z, (O * g.axis).x, (O * g.axis).y, (O * g.axis).z);
+        entity_t e{};
+        e.model = const_cast<qmodel_t*>(model);
+        e.scale = ENTSCALE_DEFAULT;
+        const glm::mat4 hs = hotspotFrame(e, false);
+        for(int i = 0; i < weapons::maxHotspots; i++)
+        {
+            if(const weapons::Hotspot h = weapons::hotspot(slot, i); weapons::isGripType(h.type))
+            {
+                const glm::vec3 p = glm::vec3{hs * glm::vec4{h.pos, 1.f}} - g.pivot;
+                const float along = glm::dot(p, g.axis);
+                Con_DPrintf("revgrip: slot %d's hotspot %d: %.2f along the handle from the pivot, %.2f off it\n", slot, i + 1, along,
+                    glm::length(p - g.axis * along));
+            }
+        }
+    }
 }
 
 bool handleLine(int slot, glm::vec3& axis, glm::vec3& pivot)
@@ -701,18 +769,33 @@ bool handleLine(int slot, glm::vec3& axis, glm::vec3& pivot)
     return anglesBasis(glm::vec3{-a.x, a.y, a.z}) * spin;
 }
 
+[[nodiscard]] float reverseEased(float flip)
+{
+    const float k = za::clamp(flip, 0.f, 1.f);
+    return k * k * (3.f - 2.f * k);
+}
+
+[[nodiscard]] glm::vec3 reverseTweak(int slot, bool mirrored, float flip)
+{
+    if(flip <= 0.f || slot < 0)
+    {
+        return glm::vec3{0.f};
+    }
+    glm::vec3 p = weapons::vec(slot, Key::RevX, Key::RevY, Key::RevZ) * reverseEased(flip);
+    if(mirrored)
+    {
+        p.y = -p.y;
+    }
+    return p;
+}
+
 [[nodiscard]] glm::vec3 reverseShift(int slot, bool mirrored, float flip, const glm::vec3& rot)
 {
     if(flip <= 0.f || slot < 0)
     {
         return glm::vec3{0.f};
     }
-    const float k = za::min(flip, 1.f);
-    glm::vec3 p = weapons::vec(slot, Key::RevX, Key::RevY, Key::RevZ) * (k * k * (3.f - 2.f * k));
-    if(mirrored)
-    {
-        p.y = -p.y;
-    }
+    glm::vec3 p = reverseTweak(slot, mirrored, flip);
     // Turned about the handle's pivot, not the hand's point (the weapon's origin): the origin moves by (I - G) C, C the pivot in the
     // hand's frame (the weapon's angle offsets lay it there).
     if(const ReverseGeometry* g = reverseGeometryOf(slot))
@@ -723,6 +806,23 @@ bool handleLine(int slot, glm::vec3& axis, glm::vec3& pivot)
         p += c - reverseTurn(slot, mirrored, flip) * c;
     }
     return anglesBasis(rot) * p; // (the hand's forward, left, up)
+}
+
+[[nodiscard]] bool flipMirrored(int slot, float flip)
+{
+    return flip > 0.f && slot >= 0 && vr_revgrip_2h_mirror.value != 0.f && reverseGeometryOf(slot) != nullptr;
+}
+
+[[nodiscard]] glm::vec3 flipVisualPos(int slot, float flip, const glm::vec3& p)
+{
+    const ReverseGeometry* g = reverseGeometryOf(slot);
+    if(!flipMirrored(slot, flip) || !g || p == glm::vec3{0.f})
+    {
+        return p;
+    }
+    const glm::vec3 o = weaponAngleOffsets(slot, false);
+    const glm::vec3 a = glm::normalize(anglesBasis(glm::vec3{-o.x, o.y, o.z}) * g->axis);
+    return p - (2.f * reverseEased(flip) * glm::dot(p, a)) * a;
 }
 
 [[nodiscard]] bool reverseGripAllowed(int slot)
@@ -1181,13 +1281,32 @@ void placeHotspots(const WeaponFrame& wf, const glm::mat4& hsFrame, float ssgOpe
     const glm::vec3 revPos = flip > 0.f ? weapons::vec(slot, Key::RevHelpX, Key::RevHelpY, Key::RevHelpZ) * flip : glm::vec3{0.f};
     const glm::vec3 revAngles =
         flip > 0.f ? weapons::vec(slot, Key::RevHelpPitch, Key::RevHelpYaw, Key::RevHelpRoll) * flip : glm::vec3{0.f};
+    // Mirrored (flipgrip2, vr_revgrip_2h_mirror): a grip's point where the other hand's fist is mirrored along the handle about the
+    // holding fist (flipSpot), in the holding hand's frame from its controller (held.pos less the reverse grip's move), moved with
+    // the weapon's Reversed X/Y/Z; its Held Hand move's part along the handle mirrored too.
+    const bool mirror = flipMirrored(slot, flip);
+    const glm::mat3 handTurn = anglesBasis(held.rot);
+    const glm::vec3 handPoint = held.pos - reverseShift(slot, wf.mirrored, flip, held.rot);
+    const glm::vec3 tweak = reverseTweak(slot, wf.mirrored, flip);
+    FlipHold& fh = flipHolds[hand];
+    fh = FlipHold{};
     for(int i = 0; i < weapons::maxHotspots; i++)
     {
         const weapons::Hotspot h = model && slot >= 0 ? weapons::hotspot(slot, i) : weapons::Hotspot{};
         WorldHotspot& w = worldHotspots[hand][i];
-        w = WorldHotspot{h.type, glm::vec3{0.f}, glm::vec3{0.f}, h.bias, 0.f, h.angles, h.style, h.overlap, h.visualPos + revPos,
-            h.visualAngles + revAngles, h};
-        if(weapons::isGripType(h.type))
+        w = WorldHotspot{h.type, glm::vec3{0.f}, glm::vec3{0.f}, h.bias, 0.f, h.angles, h.style, h.overlap,
+            (mirror ? flipVisualPos(slot, flip, h.visualPos) : h.visualPos) + revPos, h.visualAngles + revAngles, h};
+        glm::vec3 qUp, delta;
+        if(mirror && flipSpot(hand, slot, model, h, qUp, delta))
+        {
+            const glm::vec3 q = qUp + delta * reverseEased(flip) + tweak;
+            w.pos = w.end = handPoint + handTurn * q;
+            if(!fh.valid && h.type != weapons::HotspotType::Cup)
+            {
+                fh = FlipHold{true, qUp, q};
+            }
+        }
+        else if(weapons::isGripType(h.type))
         {
             w.pos = w.end = glm::vec3{hsFrame * glm::vec4{h.pos, 1.f}};
             // The super shotgun open: its fore-end (where the other hand holds it) turned down with the barrels.

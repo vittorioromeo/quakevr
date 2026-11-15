@@ -280,7 +280,8 @@ void reportLetGo(int holding, const char* why, float value, float limit, float s
 // The world direction of a sword's blade held at `rot` in `hand`, as the view draws the weapon
 // (vr_view.cpp setupWeapon: the hand's turn composed with the weapon's angles, the pitch negated for alias
 // models, mirrored in the off hand).
-[[nodiscard]] glm::vec3 bladeDirection(int slot, int hand, const glm::vec3& rot)
+// `foregrip`: for the hold by the grip below the hand (held reversed and mirrored, its line turned by view::twoHandTurn).
+[[nodiscard]] glm::vec3 bladeDirection(int slot, int hand, const glm::vec3& rot, bool foregrip = false)
 {
     const bool mirrored = hand == HAND_OFF;
     glm::vec3 o = weapons::vec(slot, Key::Pitch, Key::Yaw, Key::Roll);
@@ -301,7 +302,8 @@ void reportLetGo(int holding, const char* why, float value, float limit, float s
 
     // (The weapon's angle offsets composed with the hand's turn, as view::weaponTurn: rigid with the hand when rolled. Held reversed,
     // the reverse grip's turn between them: the blade line the hands hold it by is the drawn blade's, the flip grip's.)
-    const glm::mat3 b = hands::basisOf(rot) * view::heldReverseTurn(slot, hand) * hands::basisOf(glm::vec3{-o.x, o.y, o.z});
+    const glm::mat3 turn = foregrip ? view::twoHandTurn(slot, hand) : view::heldReverseTurn(slot, hand);
+    const glm::mat3 b = hands::basisOf(rot) * turn * hands::basisOf(glm::vec3{-o.x, o.y, o.z});
     const glm::vec3 wt = hands::anglesFromVectors(glm::normalize(b[0]), glm::normalize(b[2]));
     float m[16];
     vec3_t origin{0.f, 0.f, 0.f};
@@ -355,7 +357,6 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     }
     helpingPos += hands::redirect(off, originalRots[holding]);
 
-    const glm::vec3 blade = bladeDirection(slot, holding, originalRots[holding]);
     // (An empty hand: no weapon, and not carrying a box either: held::handEmpty.)
     const bool wasHeld = shouldAim[holding];
     // (Flatscreen: let go as a gun's grip is, flatLetsGo; not at a wall, below.)
@@ -440,6 +441,8 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
         }
     }
 
+    const bool foregrip = grip[holding] != GRIP_BLADE; // (held reversed and mirrored: the grip's line, twoHandTurn)
+    const glm::vec3 blade = bladeDirection(slot, holding, originalRots[holding], foregrip);
     const glm::vec3 line = grip[holding] == GRIP_BLADE ? safeNormalize(s.pos[helping] - holdingPos) // hilt to tip
                                                        : safeNormalize(holdingPos - helpingPos);    // pommel to blade
     // The blade grip is on the blade already: the wrist may point it anywhere.
@@ -486,7 +489,7 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     glm::vec3 rot = originalRots[holding];
     for(int pass = 0; pass < 3; pass++)
     {
-        rot = turnAngles(rot, bladeDirection(slot, holding, rot), target);
+        rot = turnAngles(rot, bladeDirection(slot, holding, rot, foregrip), target);
     }
     s.rot[holding] = rot;
 }
@@ -883,7 +886,8 @@ void applyHotspots(hands::State& s, const glm::vec3 (&originalRots)[2], int hold
     // Held reversed (the flip grip, his note 2026-11-14: "I want to be able to still hold it two-handed even if the dagger is
     // flipped"): the hold worked out for the hand that would hold it upright as it is drawn (rot Rev: its grip hotspot where the
     // upright hold has it, the same aim and the same reach), then turned back into the holding hand's (Rev undone).
-    const glm::mat3 rev = holdingWeapon ? view::heldReverseTurn(slot, holding) : glm::mat3{1.f};
+    // (Mirrored, flipgrip2: the turn that takes the upright hold's line to the mirrored grip's, view::twoHandTurn.)
+    const glm::mat3 rev = holdingWeapon ? view::twoHandTurn(slot, holding) : glm::mat3{1.f};
     if(rev == glm::mat3{1.f})
     {
         applyFixed(s, originalRots, holding, helping, mode, slot, holdingWeapon);

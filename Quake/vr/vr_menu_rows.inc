@@ -1379,6 +1379,14 @@ QVR_SLIDER(vr_agrunt_shotdisarm_proj_near, "Projectile: Near Miss", 0.f, 12.f, 0
     "(vr_agrunt_shotdisarm_proj_near).")
 QVR_SLIDER(vr_agrunt_shotdisarm_proj_max, "Projectile: Most Chance", 0.f, 1.f, 0.05f, "%.2f", ext(0.f, 1.f),
     "One projectile's chance at most: a rocket's direct hit (vr_agrunt_shotdisarm_proj_max).")
+QVR_TOGGLE(vr_player_disarm, "You Can Be Disarmed",
+    "Enemies' shots and blows on the weapon you hold, or the hand holding it, can knock it out of your hand by the "
+    "same rules as yours on an armed grunt's: shots add up and roll, a projectile rolls once, a blow landing on your "
+    "weapon (not a parry) knocks it out. It drops where you can pick it up again, its ammo kept. Fists and empty hands "
+    "never. In multiplayer, other players' too (vr_player_disarm).")
+QVR_SLIDER(vr_player_disarm_chance, "Your Disarm Chance", 0.f, 2.f, 0.05f, "%.2fx", ext(0.f, 10.f),
+    "Times the armed grunts' chance when it is your weapon that is hit (1: the same exact rules; at most certain; "
+    "0: never) (vr_player_disarm_chance).")
 QVR_TOGGLE(vr_agrunt_ik, "Hands on the Grips",
     "Its arms are posed so its hand holds the weapon's grip and its other hand the second grip of a "
     "two-handed weapon, or hangs free beside a one-handed one; melee swings carry the arm "

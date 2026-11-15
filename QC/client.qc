@@ -2192,6 +2192,7 @@ Called every frame after physics are run
 void() PlayerPostThink =
 {
     VR_PP_Frame(self); // QVR: the armour's plates follow what is left of it (vr_playerplates.qc; bots too)
+    VR_PD_Frame(self); // QVR: shots and projectiles on your weapons: knocked out? (vr_playerdisarm.qc)
 
     // FRIKBOT
     if(BotPostFrame())
@@ -2866,7 +2867,9 @@ void(float xHand) VR_Melee_Deal =
     {
         // A loose gib or head (vr_melee.qc sweeps them since round 21's melee fixes): a stab skewers it, else it bursts as a
         // held one does.
-        if(!VR_Skewer_Blow(xHand, b, b.mh_c_ent, b.mh_c_pos, b.mh_c_dir, b.mh_speed, b.mh_kind))
+        // (A gib you threw, struck only to be skewered, VR_Skewer_AirTarget: not burst by a stab that doesn't.)
+        if(!VR_Skewer_Blow(xHand, b, b.mh_c_ent, b.mh_c_pos, b.mh_c_dir, b.mh_speed, b.mh_kind) &&
+           (VR_Blow_Strikable(b.mh_c_ent) || VR_SmallGib_BlowBursts(b.mh_c_ent)))
         {
             VR_Gib_Blow(xHand, b.mh_c_ent, b.mh_speed, b.mh_c_pos, b.mh_c_dir);
         }

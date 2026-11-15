@@ -178,6 +178,7 @@ qc-hit-fx QC/vr_ad_enemyguns.qc 2  # left: not a hit's material effect (a button
 qc-hit-fx QC/vr_agarmor.qc 2  # left: not a hit's material effect (a button's, a muzzle's, gore's own counts, a crate breaking, armour's plate, a parry)
 qc-hit-fx QC/vr_armedgrunt_parry.qc 1  # left: not a hit's material effect (a button's, a muzzle's, gore's own counts, a crate breaking, armour's plate, a parry)
 qc-hit-fx QC/vr_armedgrunt_shot.qc 4  # left: not a hit's material effect (a button's, a muzzle's, gore's own counts, a crate breaking, armour's plate, a parry)
+qc-hit-fx QC/vr_playerdisarm.qc 2  # the same struck-weapon and knocked-out sparks as vr_armedgrunt_shot.qc's (the player's side of one rule)
 qc-hit-fx QC/vr_carry.qc 4  # left: not a hit's material effect (a button's, a muzzle's, gore's own counts, a crate breaking, armour's plate, a parry)
 qc-hit-fx QC/vr_crates.qc 2  # left: not a hit's material effect (a button's, a muzzle's, gore's own counts, a crate breaking, armour's plate, a parry)
 qc-hit-fx QC/vr_crowbar.qc 1  # left: not a hit's material effect (a button's, a muzzle's, gore's own counts, a crate breaking, armour's plate, a parry)

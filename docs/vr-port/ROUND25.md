@@ -3319,6 +3319,57 @@ QUEST_PLAN.md section 6n has the runs. On the Quest 3 over adb, the headset unwo
 - **Tools:** probes `QVR_PROBE_CUT3T`, `UVLATE`, `NOCENTROID`; `vr_gles_report` prints the interface limits.
 - PC unchanged: gles_render_test 21/0, scenario_check 155/0, load_models_test 4/0.
 
+## flipgrip2: the flip's pivot is the fist; the reversed two-handed hold mirrored (agent/flipgrip2, 2026-11-15)
+
+His note (vrtesthall_2026-11-15_03-14-49): the flip "much better", but the dagger needed tweaks (his config: `rev_x_52` -0.15,
+`rev_z_52` 1.1, `rev_thumb_top_52` 0, `rev_thumb_bias_52` -1; his `hs1_*_52` equal the shipped ones); and the flipped two-handed
+hold was wrong: the hotspot below the main hand (expected above), the other hand's knuckles towards him, the wrist bent past 180.
+
+**On paper.** Frames in the holding (main) hand: `a` the handle's line (pommel to blade, upright), `n` the palm's normal made square
+to it, `R` the hand's turn, `O` the weapon's angle offsets. Reversed, the hand stays on its controller and only the weapon turns:
+`G`, half round about `n` through a pivot `c` on the handle (`reverseTurn`), so the weapon is `R G O` and the handle is the same
+line through the fist. Two-handed upright: the main fist on the handle, the other fist below it at `-d a` from it, both thumbs
+towards the blade, knuckles out; the other hand's turn relative to the main hand is `h0`. Flipped in a real hand: the main hand
+is unchanged and the blade leaves it on the little finger's side; the pommel is up; the other hand holds the same handle the way
+the main hand does: thumb up (now towards the pommel), knuckles out, so its turn relative to the main hand is still `h0`, and its
+fist is at `+d a`: the positions swap along the handle (a reflection along `a` about the main fist), nothing across it. What the
+code did (flipgrip): the other hand carried rigidly with the weapon, `R G h0` and its point `c + G (p - c)`: `G` sends `a` to
+`-a` and the knuckle direction (across the handle, square to `n`) to its opposite: thumb down, knuckles in (his "towards the
+player", the wrist past a half turn), and the point's offset across the handle flipped too: the dagger's hotspot point is 2 units
+off the handle (it is the hand's point, not its fist), so it went 4 units across, to below and in front (measured: 3.9 below,
+3.7 along the blade's side). Pitch 180 on the hand (his guess) is `G` again (about `n`); the wrist-to-knuckle axis would keep the
+thumb up but put the knuckles in. The right answer is neither: no turn at all relative to the main hand, a move along the handle.
+- **The other hand** (`flipSpot`, vr_view_hands.cpp; `vr_revgrip_2h_mirror` 1): turned `R h0` (`helpingTurn` without the flip; its
+  Held Hand move in the main hand's frame, its part along the handle mirrored: `flipVisualPos`); its point `q_up + delta` in the main
+  hand's frame, `delta = -2 ((palm_up - c) . a) a` (the fist's middle is its palm's, `palmAt`; the point moves with the fist), plus
+  the weapon's Reversed X/Y/Z. The hotspot (`placeHotspots`), the grab (the same world hotspot) and the fitted fingers
+  (`canonicalHotspotGrip` with the flip: the reversed weapon against the mirrored hand) all use it.
+- **The aim** (`view::twoHandTurn`): the 2H solves (the fixed hold's `applyHotspots`, the sword hold's `bladeDirection` for its grip
+  below the hand; the half-sword blade grip keeps `G`) worked out for the hand turned by `Q = (least turn from G q_up to q_now) G`
+  instead of `G`: the upright hold's line onto the mirrored grip's, so taking hold turns the blade exactly as upright does
+  (test: cos to the one-handed line 1.00 both ways).
+- **The pivot** (`reverseLearn`; `vr_revgrip_pivot` 1, `vr_revgrip_pivot_shift` 0.35): why the dagger felt off. The half turn was about
+  the handle's middle (butt to an estimated guard); a fist off that middle by `e` along the handle slid `2e` along it when flipped
+  (the guard's estimate, Blade From or 0.15 of the length, is a guess for the swords too). Now about the fist's own middle: the point
+  of the handle's line abreast of the drawn hand's palm (`palmOnWeapon`: the main hand posed as `canonicalOwnGrip`), 0.35 units towards
+  the blade (the palm's centre sits a little below the fist's middle; one constant of the hand, the same for every weapon). Dagger:
+  the reversed weapon moves (-0.03 0.01 1.09) in the hand's frame against before: his (-0.15 0 1.1) made by the model (the 0.15
+  forward, 3 mm, left out). Knight's sword: (-0.05 0 -0.22). Learnt again once the jointed hand is there.
+- **His tweaks:** `rev_x`/`rev_z` unnecessary (he must set his dagger's back to 0, else they add on top: the checklist line says so);
+  the thumb is a hand-pose preference, not geometry: `rev_thumb_top` 0 (wrapped) and `rev_thumb_bias` -1 promoted to the defaults
+  block of weapons.txt (every reversed blade). `rev_2h_v*` stay as an optional tweak (0).
+- **Tunables** (Debug > Tunables > Weapons > Reverse Grip): Flip Pivot (`vr_revgrip_pivot` 1 the fist, 0 the handle's middle),
+  Flip Pivot Shift (`vr_revgrip_pivot_shift` 0.35 units), Reversed Two-Handed Hand (`vr_revgrip_2h_mirror` 1 as the holding hand,
+  0 turned with the blade). QC `weapondrawnpose(p, hand, 51 / 52)`: the drawn hand's forward and up (tests).
+- **Tests:** `vr_embed_test 44` extended (cases 7, 8: the knight's sword upright then reversed, held two-handed, no tweaks; checks in
+  1 and 8: the grip hotspot on the pommel's side of the main hand, above it with the blade down (dagger 2.5-3.1 up, sword 4.2-5.1
+  up); the other hand turned as upright against the main hand (0.0 degrees; 180.0 before), knuckles away from you (forward . yours
+  0.97 / 0.99; -0.97 before), the wrist no more bent than upright; the hold's turn of the blade as upright). With both new
+  tunables at 0 (the old way): 6 failed, as his note says. Now `flipgrip: 39 passed, 0 failed` (35 with case 6's SKIP). Unchanged:
+  revgrip (42) 24/0, embedgrip (33) 15/0, propblade (34) 15/0, embeddagger (40) 24/0, palmgrab (pickup 17) 5/0.
+- To check in VR: reset the dagger's Reversed X/Z, flip the dagger and the knight's sword (the fist stays on the handle, no tweak);
+  flipped, the other hand on the hotspot above the main hand: thumb up, knuckles out, a natural wrist.
+
 ## mrlfix + clretire1116 (agent/mrlfix)
 
 MRL (slot 14, v_multi2.mdl) now holds no offset keys of its own: it inherits the rocket launcher (slot 6) for the ammo screen (wpntxt_*), button (wpnbtn_*), finger/hand_*, grips (x/y/z/pitch/yaw, 2h_*), hotspot and muzzle; only id, inherit and its fx_* shot effects stay. His config had no vr_wofs values for either slot. 52 ticked lines retired from checklist.txt (those he spoke of at 03:xx kept); 19 scenes only they used moved out (kept any still named by code, docs, or other lines). No flat screenshot taken.
@@ -3353,3 +3404,92 @@ QUEST_PLAN.md section 6p has the runs. On the Quest 3 over adb, unworn:
   off: drawn (the black view was bloom's).
 - GPU (before -> after, lite 2): e1m1 0.9 fixed 14.7 -> 11.3 ms, dynamic 15.7 -> 12.3 (72 Hz); a fight of 13 monsters
   0.9 fixed 31-39 -> 24-25, dynamic 18.5 -> 14.9. PC: gles_render_test 21/0, scenario_check 137/0, load_models_test 4/0.
+## throwfix: thrown blades really come round point first; a thrown gib skewered in the air (agent/throwfix, 2026-11-15)
+
+His notes (vrtesthall_2026-11-15_03-19-26, _03-21-03): the point-first throw "doesn't seem to work at all ... it always seems to
+immediately start spinning a lot"; tweakables "that can go to extreme levels". A gib pulled off the blade and thrown can be hit
+and shot but not skewered again in the air.
+
+**Why nothing happened.** Replaying his take (`vr_motion_play` of the _03-21-03 replay, `vr_debug_box3d 1`: pointAlign now prints
+each pointed blade's flight every 0.05 s) the sword left the hand 136 degrees off its flight (its point up and back, as any
+overhand release has it) tumbling at 12.5 rad/s across the blade; his recorded releases show the controller at 10-22 rad/s. The
+gates (45 degrees, none past 1.5 turns/s = 9.4 rad/s) shut pointAlign out of every real throw; only near point-first, calm,
+synthetic throws were helped.
+
+**Now** (vr_box3d_step.cpp `pointAlign`): the gates are the release's (Slot `flightOff`, `flightTumble`) and wide: any angle
+(`vr_throw_point_angle` 180), the whole help up to half of `vr_throw_point_spin` (3 turns/s; none from it: a throw spun on purpose
+near Max Spin stays a spin). A damped spring turns the line to its flight: 400/s^2 per radian times Point-First Settling (about
+0.15 s to come round), damped critically (`vr_throw_point_damp` 1, new: the release's tumble across the blade taken out as it
+comes round; less swings past and back, more kills the spin first), at most 600 rad/s^2 times the strength, times speed (3-8 m/s)
+and a fade over `vr_throw_point_time` (0.5, was 0.3: the residual tumble gone before it lets go). spinAlign waits while it acts.
+Ranges to extremes: strength 0-5 (50), Time to 2 s (10), Angle to 180, Tumble to 10 turns/s (50), Spin Damping 0-3 (20).
+His replayed throw: 95 deg off at 0.04 s, 25 at 0.14, 10 at 0.19, 2 from 0.29 s on (tumble 0.4 rad/s left); before: 8 deg only
+in passing at 0.19 s, 55 at 0.29 and tumbling on at 11.4 rad/s.
+
+Test `vr_embed_test 47` (extended; `gibthrow: 6 passed, 0 failed`): thrown from higher (0 0 64) the most open of eight ways, read
+at 3 m and again at 5 m (point first at both: steadied, not passing through it as it turns over), three passes: off, default,
+extreme (strength 5, Tumble 20, Time 1). Point first (within vr_embed_sword_angle 35), off / default / extreme:
+- good (10-40 deg off, 1-5 rad/s): before 1 / 9 / 11 of 12, now 1 / 12 / 12;
+- VR-style overhand (100-150 deg off, point up and back, 8-16 rad/s towards the flight, a little roll, 10-15 m/s): before
+  1 / 1 / 11 of 12, now 1 / 12 / 12 (mean 79 -> 10 deg);
+- spun on purpose (19-24 rad/s): 0 / 0 / 6 of 6 (tumble kept 17.6 of 17.6 rad/s at default; 1.4 at extreme);
+- axes: identical in every pass (11.28 rad/s).
+
+**The gib in the air** (vr_skewer.qc `VR_Skewer_AirTarget`): a gib thrown hard is the thrower's for its throw (VR_Carry_Throw:
+owner), and VR_Blow_Strikable passes it, so the sweep never dealt the sword's blow on it (a blade-thrust touch defers to the
+blow: VR_Gib_Struck). Now the sweep also takes such a gib when the blade is driven along its line at it (VR_Skewer_Thrust,
+VR_Skewer_Can), and VR_Melee_Deal skewers it by the loose gib's rules (a stab, its line within vr_embed_stab_angle, by its tip,
+through it); a blow that doesn't skewer it leaves it be (no burst: as before). Skewered, its throw is over (owner, carry_thrown,
+vr_throw_self cleared). Test `vr_embed_test 48` (QC/vr_airskewer_test.qc, `airskewer: 4 passed, 0 failed`): the sword in the
+mock hand, a gib thrown hard (his) met near the top of its rise: a 5 m/s thrust puts it on, a 0.6 m/s push or a 5 m/s swing
+across doesn't, a hanging gib the same. Open: the test passes on the old code too (the gib's ownership seems to end before the
+thrust in the mock: its touch of the hand or its throw's grace); the case he hit is not reproduced headless, the fix covers the
+owned window. Case 3 (the hanging gib) failed once in five runs (the mock's thrust; seen on the old code too).
+## pdisarm: the player disarmed by the armed humanoids' own rules (agent/pdisarm, 2026-11-15)
+
+His voice note (e1m1 2026-11-15 03:28): players get disarmed by precise shots and melee hits on their gun or hand, "using
+the same exact rules" as enemies; an option, on by default, single player and multiplayer.
+
+- One rule (`QC/vr_armedgrunt_shot.qc`): `VR_Disarm_Add` (the adding up over `vr_agrunt_shotdisarm_window`, the threshold
+  `_damage`, the cooldown), `VR_Disarm_Roll` (`_chance` + `_chance_scale` per threshold past, at most 0.95, times a
+  scale) and `VR_Disarm_ProjChance` (a projectile's one roll: `_proj_*`), on any holder entity. The armed humanoids'
+  `VR_AGS_Add`, `VR_AGS_Frame` and `VR_AGS_ProjRoll` now call them (same random() order: agshot unchanged).
+- The player's side (`QC/vr_playerdisarm.qc`): each hand of each player a holder (`vr_pd_hand` entity, spawned at its
+  first hit). Volumes: the held weapon's line as the melee and parry lay it out (`VR_Parry_WeaponLine`, so fists and
+  empty hands never count) with `VR_AGS_W_RADIUS` + `vr_agrunt_vol_shot_weapon`, the hand as a sphere with
+  `VR_AGS_H_RADIUS` + `vr_agrunt_vol_shot_hand`; `vr_agrunt_shotdisarm_parts`, `_near`, `_weapon_w`, `_hand_w` as for
+  them. Hooks: `FireBulletsImpl` and `LightningDamage` (`VR_PD_Shot`: anyone's shot but the player's own, so agent/mp gets
+  PvP as is), `PlayerPostThink` (`VR_PD_Frame`: projectiles within a frame back/ahead: nails, rockets, grenades,
+  enforcer lasers, ogre grenades, vore balls, zombie gibs; then the rolls due), `VR_Parry` (`VR_PD_Blow`: a blow with a
+  line that lands, i.e. no directional parry, guard or crossed arms, meeting the weapon within the parry contact distance
+  + `vr_agrunt_vol_blow` with at least `vr_agrunt_disarm_damage`: the armed humanoids' blow rule, certain at chance 1).
+  The shot itself is not stopped by your weapon (no blocking added): your body takes it as before.
+- Knocked out: `DropWeaponInHandScaled` at `vr_weight_drop_velocity` (the grip-lost drop: a `thrown_weapon` with its
+  record, clip and ammo kept, pickable), pushed along the shots' way (`vr_wpn_dropped`, new global); sparks, a ricochet,
+  a buzz on that hand, `bf` flash, a line.
+- Cvars: `vr_player_disarm` 1, `vr_player_disarm_chance` 1 (times the chance, at most certain; 0 never): Advanced VR
+  Options > Combat > Armed Grunts > Disarming: Your Weapon. Debug: `vr_agrunt_shotdisarm_debug 1` prints `playerdisarm:`.
+- Test `vr_pd_test 1` (Debug > Tests > Player Disarm): 10/10 (blast across the gun knocks it out at forced chance, lies
+  on the floor with clip 5; blast across the body: no hit; enforcer laser: out; option off: nothing). agshot (vr_agrunt_test
+  50) 10/0, vr_agrunt_test 200 33/0. Scene `player_disarm`. The melee path has no headless test (dirparry's held blows).
+
+## rcbase: 1.1 RC readiness, full baseline on next (agent/rcbase, 2026-11-15)
+
+- **Baseline** (`run_baseline.py --groups suite,agrunt,console,scripts --jobs 4`, next d137c1f7d, 104.6 min, runs/
+  20261115-rcbase): 295 PASS / 9 FAIL / 1 TIMEOUT of 305, against base1115b's 290/15/1 (with eval) and 11-14's 289/15/1.
+  No new failure: settings_page, agrunt 24, 48, 74, 206 and ragdoll_climb now pass; ragdoll_ragtest (flaky list) failed
+  once, then 1 of 2 alone (the `ledge` catch). Still failing, as in both earlier runs: vrtrailer, teleporters_chase,
+  agrunt 3, 16, 92 (2 of 2 alone: "two 6", torn away after 0.81 s), arena_6, arena_10 (timeout), rigstudio_posekeys,
+  ragdoll_stagger.
+- **agrunt 24 / 206:** pass in the baseline and 2 of 2 alone. **crate_grip_test.sh:** 2 of 3 (the failing run's
+  close_fit sampled 0 frames: the main hand held entity 271 and the off hand 283, two different props; a test-isolation
+  flake, not looked into further).
+- **`vr_embed_test 21`** (43/1, "a slow swing to the wall": burst 17.4 units on at 3.2 m/s, VR_Skewer_Impact): the
+  same on c94b2b300 (11-14, before every merge of the day), as in the 11-12 notes above: not a regression. After
+  merging throwfix: 21 43/1, 34 15/0, 47 6/0, 48 4/0.
+- **Builds:** dev 0 warnings; ReleaseLTO `-p:QvrReleaseVersion=1.1.0` 0 warnings (before and after throwfix).
+- **Release notes:** today's features added (grip flip, player disarm, parry timing, third-person camera, flat zoom
+  guns, ranger head, page resets, palm grab and torso torch, point-first throws and the air skewer); stale lines fixed
+  (Run Setup's Bloody Nightmare, AD's Experimental header). RELEASE_1_1.md: Menu Look and `vr_flat_chest_down` done.
+- **Defaults** since the audit (c94b2b300): 4 changed (his Menu Look pair, the ranger head's size and side), 25 new,
+  no debug or test switch on by default, no personal setting promoted.

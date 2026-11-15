@@ -574,10 +574,11 @@ QVR_TUNABLE(vr_throw_restitution, "0.25")
 QVR_TUNABLE(vr_throw_friction, "0.5")
 QVR_TUNABLE(vr_throw_spin_max, "20") // rad/s
 QVR_TUNABLE(vr_throw_spin_align, "8")
-QVR_TUNABLE(vr_throw_point_align, "1") // a thrown sword or dagger settling point first (vr_box3d_step.cpp pointAlign); 0 off
-QVR_TUNABLE(vr_throw_point_time, "0.3") // s: how long after the throw it may
-QVR_TUNABLE(vr_throw_point_angle, "45") // degrees: its point at most this far off its flight to be helped
-QVR_TUNABLE(vr_throw_point_spin, "1.5") // turns/s: a tumble this fast or faster is left a tumble
+QVR_TUNABLE(vr_throw_point_align, "1") // a thrown sword or dagger settling point first (vr_box3d_step.cpp pointAlign): its spring's strength; 0 off
+QVR_TUNABLE(vr_throw_point_time, "0.5") // s: how long after the throw it may
+QVR_TUNABLE(vr_throw_point_angle, "180") // degrees: its point at most this far off its flight as it leaves the hand (180: any)
+QVR_TUNABLE(vr_throw_point_spin, "3") // turns/s across the blade as it leaves the hand: the whole help up to half this, none from it
+QVR_TUNABLE(vr_throw_point_damp, "1") // its damping of the tumble across the blade (1: critical, no overshoot)
 QVR_TUNABLE(vr_shot_push_pellet, "6") // N s, each shotgun and double shotgun pellet's push (monsters' too)
 QVR_TUNABLE(vr_shot_push_nail, "12") // N s, a nail's (the nailgun's, scrags', knights', enforcers' lasers)
 QVR_TUNABLE(vr_shot_push_supernail, "24") // N s, a super nailgun nail's
@@ -2504,3 +2505,6 @@ QVR_TUNABLE(vr_gl_alias_opaque, "-1") // opaque models (not translucent, not hol
 QVR_TUNABLE(vr_gl_world_lite, "1") // (2 measured -4.6 ms of world on e1m1 but the headset captures under it looked untextured: unverified, default 1 until checked; QUEST_PLAN.md 6p) the ES profile's lite world programs (vr_glsafe.cpp VR_GLESWorldLite; QUEST_PLAN.md 6n, 6p): what the settings turn off compiled out of the world's shader: 0 nothing (the whole shader, as -glesfull), 1 parallax and carved decals (C4g), 2 also normal maps, dynamic AO, caustics, retro lighting, retro textures and detail textures (C4i). The PC's own shaders never
 QVR_TUNABLE(vr_menu_render_scale, "-1") // while a menu is open, the eyes drawn at least at this render scale (vr_dynres.cpp menuFloor; QUEST_PLAN.md 6p): its panel, drawn into the eyes, as sharp as the headset shows it; dynamic resolution waits meanwhile. 0 no floor; -1 1 under the ES profile (the Quest), none on the PC
 QVR_TUNABLE(vr_gl_foveation, "0") // fixed foveated rendering of the eyes' scene on the Quest (GL_QCOM_texture_foveated on our own scene targets; vr_stereo.cpp foveateEye; QUEST_PLAN.md 6o): the tiles away from each eye's centre drawn at a lower resolution: 0 off, 1 low, 2 medium, 3 high; nothing without the extension (the PC). Experimental: no effect measured on the Quest 3 yet (ovrgpuprofiler shows the bins unscaled)
+QVR_TUNABLE(vr_revgrip_pivot, "1") // ... 1: the blade turns half round about the fist's own middle on its handle (abreast of the drawn hand's palm; ROUND25.md "flipgrip2"); 0: about the handle's middle (before)
+QVR_TUNABLE(vr_revgrip_pivot_shift, "0.35") // ... units: that pivot this far from the palm's middle along the handle towards the blade (the fist's middle: the drawn hand's, the same for every weapon; his dagger's Reversed Z 1.1, 2026-11-15)
+QVR_TUNABLE(vr_revgrip_2h_mirror, "1") // ... held reversed, the other hand on its grip hotspot: 1 holds it as it did upright, turned as the holding hand (knuckles out), its place mirrored along the handle (above the hand, blade down; ROUND25.md "flipgrip2"); 0: turned half round with the blade (before)

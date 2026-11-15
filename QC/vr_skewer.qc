@@ -855,6 +855,16 @@ float(float xHand, entity b, entity e) VR_Skewer_SweepPasses =
     return e.vr_gib && VR_Skewer_Can(self, xHand, e) && VR_Skewer_Thrust(self, xHand) && !VR_Skewer_Through(b, e);
 };
 
+// A gib the player threw, still in its throw (thrown hard it is his, VR_Carry_Throw: VR_Blow_Strikable passes it, his blows never
+// met it): a blade of `xHand` of self driven along its line at it is a blow still (VR_Melee_Sweep), to skewer it in the air by the
+// loose gib's rules (VR_Skewer_Blow; his note vrtesthall_2026-11-15_03-19-26: "skewer it again while it's in the air ... a direct
+// forceful hit with the point of the blade"). Any other blow passes it as before, and a stab that doesn't skewer it leaves it be.
+float(float xHand, entity e) VR_Skewer_AirTarget =
+{
+    return e.vr_gib && e.owner == self && e.carry_player == world && e.solid == SOLID_NOT_BUT_TOUCHABLE && e.takedamage &&
+           VR_Skewer_Can(self, xHand, e) && VR_Skewer_Thrust(self, xHand);
+};
+
 // The blow of `xHand` of self on the loose gib `g` (VR_Melee_Deal). TRUE: a stab that put it on the blade (no other blow).
 float(float xHand, entity b, entity g, vector xAt, vector xDir, float xSpeed, float xKind) VR_Skewer_Blow =
 {
@@ -894,6 +904,9 @@ float(float xHand, entity b, entity g, vector xAt, vector xDir, float xSpeed, fl
     g.avelocity = '0 0 0';
     g.vr_spin = '0 0 0';
     g.vr_gib_flight = 0;
+    g.owner = world; // (skewered in the air: its throw is over, VR_Skewer_AirTarget)
+    g.carry_thrown = 0;
+    g.vr_throw_self = 0;
     g.flags = g.flags - (g.flags & (FL_FORCEGRABBABLE | FL_ONGROUND));
     // Its turn as it is now, in the hand's frame.
     vector a = g.angles;

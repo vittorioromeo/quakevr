@@ -185,6 +185,82 @@ void(entity g, entity p) VR_AGS_HandLine =
     vr_ags_hb = vlen(d) > 1 ? vr_ag_df_o + normalize(d) * min(VR_AGS_FOREARM, vlen(d)) : vr_ag_df_o;
 };
 
+// ----------------------------------------------------------------------------
+// The disarm rule itself, for any holder: an armed humanoid's held weapon (below) or a player's hand
+// (vr_playerdisarm.qc: monsters' shots and blows on your weapon; other players' in multiplayer). The holder `h` keeps
+// the adding up (vr_ags_acc, _start, _dir, _cool, _pend). `scale`: times the chance (1: the armed humanoids' own;
+// another: at most certain, vr_player_disarm_chance).
+// ----------------------------------------------------------------------------
+float vr_disarm_chance; // VR_Disarm_Roll's: its chance,
+float vr_disarm_r;      // ... what it rolled,
+float vr_disarm_acc;    // ... the damage it was for,
+vector vr_disarm_dir;   // ... the shots' way (their damage's weighted sum)
+
+// `amount` more on holder `h`, going `dir`: over vr_agrunt_shotdisarm_window s from the first hit; reaching
+// vr_agrunt_shotdisarm_damage, a roll is due (vr_ags_pend). FALSE: cooling down after a failed roll (nothing added).
+float(entity h, float amount, vector dir) VR_Disarm_Add =
+{
+    if(time < h.vr_ags_cool)
+    {
+        return FALSE;
+    }
+    if(h.vr_ags_acc <= 0 || time - h.vr_ags_start > cvar_hget(cvarh_vr_agrunt_shotdisarm_window))
+    {
+        h.vr_ags_acc = 0;
+        h.vr_ags_start = time;
+        h.vr_ags_dir = '0 0 0';
+    }
+    h.vr_ags_acc = h.vr_ags_acc + amount;
+    h.vr_ags_dir = h.vr_ags_dir + normalize(dir) * amount;
+    if(h.vr_ags_acc >= max(0.01, cvar_hget(cvarh_vr_agrunt_shotdisarm_damage)))
+    {
+        h.vr_ags_pend = TRUE;
+    }
+    return TRUE;
+};
+
+// Holder `h`'s due roll: vr_agrunt_shotdisarm_chance plus _chance_scale for each threshold past it (at most 0.95), times
+// `scale`. TRUE: won (knocked out); lost: no hits add up for vr_agrunt_shotdisarm_cooldown s. Starts over either way.
+float(entity h, float scale) VR_Disarm_Roll =
+{
+    h.vr_ags_pend = FALSE;
+    float need = max(0.01, cvar_hget(cvarh_vr_agrunt_shotdisarm_damage));
+    float acc = h.vr_ags_acc;
+    float chance = cvar_hget(cvarh_vr_agrunt_shotdisarm_chance) +
+        cvar_hget(cvarh_vr_agrunt_shotdisarm_chance_scale) * (acc / need - 1);
+    chance = min(VR_AGS_MAX_CHANCE, max(0, chance));
+    if(scale != 1)
+    {
+        chance = min(1, max(0, chance * scale));
+    }
+    vr_disarm_chance = chance;
+    vr_disarm_r = random();
+    vr_disarm_acc = acc;
+    vr_disarm_dir = h.vr_ags_dir;
+    h.vr_ags_acc = 0;
+    if(vr_disarm_r >= chance)
+    {
+        h.vr_ags_cool = time + max(0, cvar_hget(cvarh_vr_agrunt_shotdisarm_cooldown));
+        return FALSE;
+    }
+    return TRUE;
+};
+
+// A projectile's own roll's chance (vr_agrunt_shotdisarm_proj): min(_proj_max, _proj_chance x `dmg` / _proj_ref x its
+// kind's weight) x `best` (its part's weight x how near), times `scale` (as VR_Disarm_Roll's).
+float(float dmg, float kind, float best, float scale) VR_Disarm_ProjChance =
+{
+    float ref = max(0.01, cvar_hget(cvarh_vr_agrunt_shotdisarm_proj_ref));
+    float most = min(1, max(0, cvar_hget(cvarh_vr_agrunt_shotdisarm_proj_max)));
+    float chance = min(most, cvar_hget(cvarh_vr_agrunt_shotdisarm_proj_chance) * dmg / ref * VR_AGS_KindWeight(kind)) * best;
+    chance = min(most, max(0, chance));
+    if(scale != 1)
+    {
+        chance = min(1, max(0, chance * scale));
+    }
+    return chance;
+};
+
 float vr_ags_hs; // VR_AGS_HullGap's: the path's share where it meets the volume (or comes nearest)
 
 // The disarm volumes (vr_disarmhull.cpp; one query for shots, strikes and blows): the gap between the path a..b (a point:
@@ -287,30 +363,18 @@ void(entity p, float amount, vector dir, float part, vector at, float kind, enti
     {
         VR_DV_Mark(p, at, VR_DV_SHOT, sprintf("%s: %.1f", what, amount));
     }
-    if(time < p.vr_ags_cool)
+    if(!VR_Disarm_Add(p, amount, dir))
     {
         VR_AGS_Log(sprintf("%s: %.1f, cooling down (%.2f s)", what, amount, p.vr_ags_cool - time));
         return;
     }
-    if(p.vr_ags_acc <= 0 || time - p.vr_ags_start > cvar_hget(cvarh_vr_agrunt_shotdisarm_window))
-    {
-        p.vr_ags_acc = 0;
-        p.vr_ags_start = time;
-        p.vr_ags_dir = '0 0 0';
-    }
-    p.vr_ags_acc = p.vr_ags_acc + amount;
-    p.vr_ags_dir = p.vr_ags_dir + normalize(dir) * amount;
     if(part == 1) { vr_ags_hits_w = vr_ags_hits_w + 1; } else { vr_ags_hits_h = vr_ags_hits_h + 1; }
     if(part == 1 && kind != QVR_AGS_SPLASH)
     {
         particle2(at, '0 0 20', QVR_PARTICLE_PRESET_SPARKS, 2); // (metal struck)
     }
-    float need = max(0.01, cvar_hget(cvarh_vr_agrunt_shotdisarm_damage));
-    if(p.vr_ags_acc >= need)
-    {
-        p.vr_ags_pend = TRUE;
-    }
-    VR_AGS_Log(sprintf("%s: %.1f, %.1f of %g in %.2f s", what, amount, p.vr_ags_acc, need, time - p.vr_ags_start));
+    VR_AGS_Log(sprintf("%s: %.1f, %.1f of %g in %.2f s", what, amount, p.vr_ags_acc,
+        max(0.01, cvar_hget(cvarh_vr_agrunt_shotdisarm_damage)), time - p.vr_ags_start));
 };
 
 // Whether a pellet's or nail's way a..b (b where it struck, on `xEnd`; or `xBody` along a..b its holder's body first,
@@ -542,10 +606,7 @@ void(entity g, entity p, entity e, float kind, vector a, vector b) VR_AGS_ProjRo
     }
     e.vr_ags_by = p;
     float dmg = VR_AGS_ProjDamage(e, kind);
-    float ref = max(0.01, cvar_hget(cvarh_vr_agrunt_shotdisarm_proj_ref));
-    float most = min(1, max(0, cvar_hget(cvarh_vr_agrunt_shotdisarm_proj_max)));
-    float chance = min(most, cvar_hget(cvarh_vr_agrunt_shotdisarm_proj_chance) * dmg / ref * VR_AGS_KindWeight(kind)) * best;
-    chance = min(most, max(0, chance));
+    float chance = VR_Disarm_ProjChance(dmg, kind, best, 1);
     float r = random();
     vr_ags_rolls = vr_ags_rolls + 1;
     vr_ags_last_chance = chance;
@@ -679,20 +740,15 @@ float(entity g, entity p) VR_AGS_Frame =
     {
         return FALSE;
     }
-    p.vr_ags_pend = FALSE;
-    float need = max(0.01, cvar_hget(cvarh_vr_agrunt_shotdisarm_damage));
-    float acc = p.vr_ags_acc;
-    float chance = cvar_hget(cvarh_vr_agrunt_shotdisarm_chance) +
-        cvar_hget(cvarh_vr_agrunt_shotdisarm_chance_scale) * (acc / need - 1);
-    chance = min(VR_AGS_MAX_CHANCE, max(0, chance));
-    float r = random();
-    vector dir = p.vr_ags_dir;
-    p.vr_ags_acc = 0;
+    float won = VR_Disarm_Roll(p, 1);
+    float acc = vr_disarm_acc;
+    float chance = vr_disarm_chance;
+    float r = vr_disarm_r;
+    vector dir = vr_disarm_dir;
     vr_ags_rolls = vr_ags_rolls + 1;
     vr_ags_last_acc = acc;
-    if(r >= chance)
+    if(!won)
     {
-        p.vr_ags_cool = time + max(0, cvar_hget(cvarh_vr_agrunt_shotdisarm_cooldown));
         VR_AGS_Log(sprintf("roll on %s: %.1f damage, chance %.2f, rolled %.2f: holds on", p.netname, acc, chance, r));
         VR_AG_DisarmTry(g, p.vr_ags_shooter, VR_AG_TRY_HELD);
         return FALSE;
