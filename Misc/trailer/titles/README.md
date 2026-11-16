@@ -21,6 +21,7 @@ animation follows; nothing is keyframed.
 | `install_titles.py` | installs both, the fonts (current user, no admin) and a Workspace > Scripts launcher |
 | `titles.txt` | the intro and the sections: title, subtitle, corner, length |
 | `apply_titles.py` | puts / updates the intro and a title at every section's marker on the current timeline |
+| `bake_variants.py` | bakes a list of title variants to clips, a contact sheet and a reel (see "Variants") |
 | `fonts/` | DpQuake (Dead Pete's Quake font; free to distribute, always with its `dpquake.txt`), Cinzel, Pirata One (the previous title face), IM Fell English (alternative subtitle face), the last three with their SIL OFL licences |
 
 Written and checked against DaVinci Resolve Studio 21.1.
@@ -62,6 +63,18 @@ Written and checked against DaVinci Resolve Studio 21.1.
 Why nested timelines: Resolve's scripting can only *insert* a title at the playhead on the destination track (V1,
 rippling everything after it), while it can *place* a media pool item on any track at any frame. A section's own
 timeline is such an item, so the trailer's clips are never touched.
+
+## Variants
+
+To pick between wordings, `python Misc/trailer/titles/bake_variants.py variants.txt --out "<folder>"
+--project "QVR Titles Preview"` bakes each one to its own ProRes 4444 clip with alpha, `<section>_v<n> - <title>.mov`
+(a clip already there is kept). variants.txt: one a line, `section | n | title | subtitle` (" / " is the subtitle's
+line break; an optional 5th column takes titles.txt keys, `seconds=4.5 corner=bl`), with the template's defaults
+otherwise. The titles are made and rendered as apply_titles does (one render batch), at the open timeline's frame size
+and rate (`--size`, `--fps`), in `--project` (the open project is saved first and reopened at the end); their
+timelines are removed afterwards. With ffmpeg on the PATH it adds `contact sheet.png` (a hold frame of each,
+`--still` 4 s in, over dark grey, labelled) and `all variants.mp4` (all of them one after another, 1080p).
+`--only <regex>` picks some, `--check` only lists them.
 
 ## The Q (and the other logo glyphs)
 
