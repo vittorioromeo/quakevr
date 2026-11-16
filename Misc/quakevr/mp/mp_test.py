@@ -4317,7 +4317,7 @@ def deathmatch(s):
     fails = [l for l in a.lines[since_t:] if l.startswith("dmtest: FAIL")]
     s.check("the deathmatch rules' test (items, PvP and PvE disarms with a bot) passes", " 0 failed" in verdict,
             "%s %s" % (verdict.strip(), fails))
-    told = a.find(r"Your weapon is knocked out of your hand", since_t)
+    told = wait_or_none(a, r"Your weapon is knocked out of your hand", 10, since_t)
     s.check("A is told his weapon was knocked out (the bot's shot)", told is not None, "%s" % (told,))
 
     # (seen by A or by B: B's start may see neither bot for a while, out of his sight)

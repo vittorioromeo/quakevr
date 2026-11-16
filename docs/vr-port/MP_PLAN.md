@@ -2358,6 +2358,40 @@ Tests:
   scenario_check PASS (141 scenes), load_models_test 4/0, vr_run_check 12/0, the dev and Release (ThinLTO) builds 0
   warnings.
 
+### B11 part 3 results, part 1: origin/next merged; bots' hands apart; the grab on a bot's gun (2026-11-16, dev no-LTO build, loopback; `mp_dm` 12/0, dmtest 22/0)
+
+- **origin/next merged** (22 commits: the teleporters' self view, looping sounds, wet shine, trailer titles, the
+  installer): one conflict, `vr_server.cpp init` (both commands kept: `vr_net_reliable_test`, `vr_snd_loops`). After
+  it, B11 part 2's suite flakes alone: `mp_loss` 15/0, `mp_lagcomp` 11/0.
+- **mp_dm's frag credit** (the test's): its first kill's check wanted a bot's frags at 1 or more at B; the bots' own
+  suicides had put Servo at -2, and A's death took it to -1 (11/1 once). Now a frag up from the bot's count before
+  (`dm_frag_gained`).
+- **Bots' hands apart** (`bot_setvrfields`, FrikBot): both hands sat at one point in front of its chest; now the main
+  hand 7 units to its right, the off hand 7 to its left, each weapon along its aim from there (the shots' start, the
+  disarms' and the grab's lines of its guns). Single player's Melee Only bots test (`vr_pickup_test 15`) 13/0.
+- **The grab on a bot's gun** (`vr_dm_test 1` grown, 22/0): the bot held 40 units in front of the human for a second
+  (the lag compensation's past places of it there too), his empty main hand closed at the middle of its gun's line:
+  a running bot's (320 u/s) is too fast to take hold of (the grab's 1.25 m/s is against the other's body too: a hand
+  must keep up with a running player's gun); a still one's is taken hold of, and the pull away from it (past
+  `vr_player_disarm_pull`) puts the bot's gun in his hand. Same code as between two humans: nothing needed fixing.
+  The test keeps the human and the bot alive while it runs (the bots' own fight killed him between the hold and the
+  pull once), takes whichever gun the bot holds (its own Super Nailgun often) and waits for the human's own hand to
+  empty on the bot's shot (the disarms' count also counted a bot's late roll); the harness now waits for A's "knocked
+  out" line instead of looking once. mp_dm 12/0 in 3 of 3 runs after that.
+- **The checks**: `mp_test.py suite` (34 scenarios): 31 pass; `mp_flow` 15/1 and `mp_climb` 7/2 (A's mantle setup,
+  its known flake) pass alone (16/0, 11/0); `mp_dm` 11/1 (the pull, fixed above). scenario_check PASS (142 scenes),
+  load_models_test 4/0, vr_run_check 12/0, vr_pickup_test 15 13/0, the dev and Release (ThinLTO) builds 0 warnings.
+- **Not done, part 2 of B11 part 3: bots' bodies.** A bot has no moves, so no avatar: the clients draw its player model
+  (its own gun in the model's hands). The avatar needs the hands as drawn (`VrDrawnHand`: the jointed hand's place
+  on the gun's grip, its curls, the weapon's place by its Weapon Offsets), which only the client's own drawing makes
+  today (`view::setupWeapon`, `setupHand`: the local player's `hands::State`, its view entities). The way: the server
+  sends a bot's controller poses (QC's `handpos`/`handrot`, apart now) and its weapons in the avatar with a "solve
+  here" flag, and the receiving client runs the same weapon and hand placement for it (`setupWeapon`/`setupHand`
+  taking a subject: a State and entities of their own instead of the local player's), then poses its body as any
+  other avatar's. One code path for your hands and a bot's; a sizeable refactor of the view's hands, so its own step.
+- **Not done**: FrikBot's walk through `vr_pmove` (its stick as an Input), parry against a bot's blows (FrikBot's axe
+  is the player's `W_FireAxe` trace, not a VR swing the parry sees).
+
 ## For him (B11b)
 
 **His answer (2026-11-16): on.** `vr_pmove_own` defaults to 1 since B11c part 2; 0 stays as the fallback (Debug >
@@ -2460,4 +2494,4 @@ QuakeC's PlayerPreThink parts. Exactly what would change:
   it has) rather than NetQuake's receiver with the window shrunk: a 30 ms jitter reorders most of a window, and
   go-back-N resent most of it each time. A peer that is not Quake VR keeps a one-chunk window (its acks are NetQuake's).
 
-Next phase: B11 part 3 -- bots' bodies as the clients draw them (a bot's avatar block made on the server from its edict, its hands placed apart), FrikBot's walk through the shared movement (vr_pmove, its stick as an Input), parry and the grab disarm between players and bots (`mp_dm` grown); B12d (the poses by their fields) only if a budget needs it. Voice chat's open items: his ears in VR (a real microphone, the spatial mixers) and a menu page of its own with per-player rows.
+Next phase: B11 part 3, part 2 -- bots' bodies as the clients draw them (the server sends a bot's controller poses and weapons in its avatar, "solve here"; the client's `setupWeapon`/`setupHand` take a subject so a bot's hands and guns are placed by the code that places yours; see "B11 part 3 results, part 1"), then FrikBot's walk through the shared movement (vr_pmove, its stick as an Input) and parry against a bot's blows (`mp_dm` grown); B12d (the poses by their fields) only if a budget needs it. Voice chat's open items: his ears in VR (a real microphone, the spatial mixers) and a menu page of its own with per-player rows.

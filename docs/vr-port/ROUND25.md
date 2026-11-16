@@ -4101,3 +4101,12 @@ The 1.1 readiness audit's baseline regressions. Both were the tests, not the gam
 - **teleporters_chase 5/1**: the same case fails the same way in the 11-14 baseline ("chase dog at framed_sill32:
   never reached the north room", seed 3), which is older than the one-way teleporter change (vr1116b). It is not
   related to that change. Not touched.
+
+## MP B11 part 3, part 1: bots' hands apart; the grab on a bot's gun (agent/mp, 2026-11-16)
+
+- **Bots' hands apart** (FrikBot `bot_setvrfields`): the main hand on the bot's right, the off hand on its left (both
+  sat at one point): its shots' start and the disarm and grab lines of its guns. Melee Only bots (`vr_pickup_test 15`)
+  13/0.
+- **`vr_dm_test 1`** grows the grab: a running bot's gun is too fast to take hold of; a still one's is held and pulled
+  away into the human's hand. 22/0; `mp_dm` 12/0 (its frag credit check now counts a frag up from a bot's suicides).
+- Bots' bodies (their avatars, drawn as a player's) are the next step: MP_PLAN.md, "B11 part 3 results, part 1".

@@ -50,6 +50,14 @@ void() VR_DMT_End =
     cvar_set("vr_player_disarm", ftos(vr_dmt_pve));
     cvar_set("vr_player_disarm_pvp", ftos(vr_dmt_pvp));
     deathmatch = vr_dmt_dm;
+    if(vr_dmt_human && vr_dmt_human.takedamage == DAMAGE_NO)
+    {
+        vr_dmt_human.takedamage = DAMAGE_AIM;
+    }
+    if(vr_dmt_bot && vr_dmt_bot.takedamage == DAMAGE_NO)
+    {
+        vr_dmt_bot.takedamage = DAMAGE_AIM;
+    }
     if(vr_dmt_foe)
     {
         remove(vr_dmt_foe);
@@ -154,6 +162,10 @@ void(float ask) VR_DMT_Run =
             VR_DMT_End();
             return;
         }
+        // (the two kept alive while it runs: the bots' own fight killed the human between the grab's hold and its pull
+        // once; a living player's takedamage is DAMAGE_AIM, put back at the end)
+        vr_dmt_human.takedamage = DAMAGE_NO;
+        vr_dmt_bot.takedamage = DAMAGE_NO;
         vr_dmt_wid = vr_dmt_item.weapon;
         vr_dmt_solid = vr_dmt_item.solid;
         cvar_set("vr_player_disarm_chance", "100"); // (certain)
@@ -288,7 +300,8 @@ void(float ask) VR_DMT_Run =
     }
     if(vr_dmt_s == 7)
     {
-        if(vr_pd_disarms == vr_dmt_dis0)
+        // (his own hand emptied: the disarms' count also counts a bot's from the cases before, its roll a frame late)
+        if(vr_pd_disarms == vr_dmt_dis0 || !VRIsHandWeaponless(vr_dmt_human, cVR_MainHand))
         {
             if(vr_dmt_n > VR_DMT_GIVEUP)
             {
@@ -348,19 +361,28 @@ void(float ask) VR_DMT_Run =
         float held = onLine && VR_PDG_Try(him, cVR_MainHand);
         VR_Test_Check(held && him.vr_pdg_of == bot, sprintf("the human's hand takes hold of the still bot's gun (%s)",
             him.vr_pdg_of.netname));
+        vector wasBody = him.velocity;
+        float slips = vr_pdg_slips;
+        float gun = VRGetEntWeapon(bot, cVR_MainHand); // (the bot's chosen gun, or the shotgun VR_DMT_Arm gave it)
+        string endedBy = "";
         if(held)
         {
             him.vr_pdg_since = time - 0.1; // (held a moment)
             vector away = normalize(mid - chest);
             him.handpos = mid + away;
-            him.handvel = away * (cvar_hget(cvarh_vr_player_disarm_pull) + 1); // (m/s)
+            him.handvel = away * (cvar_hget(cvarh_vr_player_disarm_pull) + 1); // (m/s; his body still: the hand's pull)
+            him.velocity = '0 0 0';
             VR_PDG_Hold(him);
+            endedBy = sprintf("health %g, takes +%g, slips +%g, peak %.2f m/s, his body was at %.0f u/s, released %.2f s ago",
+                him.health, vr_pdg_takes - takes, vr_pdg_slips - slips, him.vr_pdg_peak, vlen(wasBody),
+                time - VR_HandGrabUtil_Impl_GetLastReleaseTime(him, cVR_MainHand));
         }
         him.handpos = wasPos;
         him.handvel = wasVel;
-        VR_Test_Check(vr_pdg_takes == takes + 1 && VRGetEntWeapon(him, cVR_MainHand) == WID_SHOTGUN &&
-            VRIsHandWeaponless(bot, cVR_MainHand), sprintf("pulled away: the bot's shotgun in the human's hand (%s)",
-            WeaponIdToWeaponName(VRGetEntWeapon(him, cVR_MainHand))));
+        him.velocity = wasBody;
+        VR_Test_Check(vr_pdg_takes == takes + 1 && VRGetEntWeapon(him, cVR_MainHand) == gun &&
+            VRIsHandWeaponless(bot, cVR_MainHand), sprintf("pulled away: the bot's %s in the human's hand (%s; %s)",
+            WeaponIdToWeaponName(gun), WeaponIdToWeaponName(VRGetEntWeapon(him, cVR_MainHand)), endedBy));
         VR_DMT_End();
     }
 };
