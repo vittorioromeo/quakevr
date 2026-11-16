@@ -36,6 +36,10 @@ Tests:
              hand (his own trace: valid) and lets go: the server moves him there, A sees him there.
     held     the held weapon's drawn pose up: B holds a shotgun still; the server places its hotspots where B's view
              draws them; B's off hand takes its grip hotspot: the server's two-handed hold of it is B's own.
+    rejoin   (B15) in and out of a coop game in progress: C joins after the world changed and has B's world (each
+             entity at rest, the precaches, statics, light styles); B leaves and joins again: his slot and things
+             (vr_mp_rejoin_keep), a suicide gives his level-start ones; B's game killed comes back on another port:
+             his ghost closed at once, his slot and things; the server quits: C is told, still running.
     download a dedicated server on a Map Library package's map: A (it installed) mounts it and joins; B (lacking it) is
              told with vr_mp_download 0, and with 1 installs it through the map installer (a local index and mirror)
              and joins.
@@ -81,7 +85,7 @@ Tests:
     lockstep_throw (B14e) the same on e1m1 with props thrown: B's shotgun from his main hand, A's axe from his
              off hand, given into a gripping hand and swung up hard as it lets go; held at 36, 72, 144, 216, 432.
     suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, armed, retransmit, version, avatar, avatarcal, body, prefs, grab,
-             teleport, held, ground, campaign, campaign_listen, flow, download, pickup, forcegrab, melee, moves, climb,
+             teleport, held, ground, campaign, campaign_listen, flow, rejoin, download, pickup, forcegrab, melee, moves, climb,
              rules, cosmetics, flatbody, loss, predict, predictclimb, lagcomp, disarm, voice, voice with B 50 ms (30 ms
              jitter, 5% loss) away, dm, lockstep, lockstep_throw.
 
@@ -2256,6 +2260,159 @@ def flow(s):
             "respawned %s; start %s (differ: %s)" % (back.get(sb), start.get(sb), diff))
     own = own_status(b)
     s.check("B's client sees himself alive again", int(own.get("health", "0")) > 0, "health %s" % own.get("health"))
+
+
+WENT = re.compile(r"mp_went: n=(\d+) m=(\S+) f=(-?\d+) sk=(-?\d+) o=(\S+) (\S+) (\S+)")
+# (shells apart: a shotgun's magazine filled from them at a fresh spawn can come back in the reserve as well, MP_PLAN
+# B15 open item; checked not fewer)
+REJOIN_KEYS = ("health", "armor", "items", "nails", "rockets", "cells", "weapon")
+
+
+def world_of(inst):
+    """inst's world as its messages built it (vr_mp_world) -> ({entity: (model, frame, skin, (x, y, z))}, summary)."""
+    since = inst.mark()
+    inst.cmd("vr_mp_world")
+    n, last = inst.wait(r"mp_world: ", 10, since, "%s's world" % inst.name)
+    ents = {}
+    for l in inst.lines[since:n]:
+        m = WENT.match(l)
+        if m:
+            ents[int(m.group(1))] = (m.group(2), int(m.group(3)), int(m.group(4)), tuple(float(m.group(k)) for k in (5, 6, 7)))
+    return ents, fields(last)
+
+
+def names_until(srv, want, tries=60):
+    """The server's players by name (vr_mp_status's mp_client lines) until each of `want` is in -> {name: [slots]}."""
+    got = {}
+    for _ in range(tries):
+        got = {}
+        for l in status(srv):
+            if l.startswith("mp_client: "):
+                f = fields(l)
+                got.setdefault(f.get("name", ""), []).append(int(f["slot"]))
+        if all(w in got for w in want):
+            break
+    return got
+
+
+def rejoin(s):
+    """(B15) In and out of a coop game in progress, on a dedicated server. The world changed (A's shotgun let fall on the
+    floor, B given weapons and ammo and hurt), C joins: his world (each entity at rest in B's, its model, frame, skin
+    and place; the precaches, static entities and light styles) is B's, who was there from the start. B leaves
+    (disconnect) and joins again by his name: his old slot, with what he had (vr_mp_rejoin_keep); his suicide respawns
+    him with his level-start things, not those. B's game crashes (killed) and comes back on another port: the server
+    takes the same name from the same address, silent, as him back (his ghost closed at once, not after
+    net_messagetimeout), his slot and things again. The server quits: C is told and is back out, still running."""
+    srv, a, b, ea, eb = join(s)
+    sa, sb = ea - 1, eb - 1
+    a.cmd("name A")
+    b.cmd("name B")
+    names_until(srv, ("A", "B"))
+
+    # The world changed before C comes: A's shotgun lying on the floor, B's gifts, B hurt (health 70)
+    put_at(srv, a, ea, OPEN_SPOT, 90)
+    grip_then_give(srv, a, "vr_mock_hand main 0.1 0.25 -0.35 0 0 0; vr_mock_button main grip 1; vr_mock_button off grip 0")
+    weapon_until(s, srv, ea, 4)
+    let_go_still(srv, a, "main")
+    gun, spot = lying(srv, ea)
+    srv.cmd("vr_debug_carry 0; developer 0")
+    b.cmd("give 3; give 5; give s 44; give n 77")
+    srv.cmd("vr_hurt 30 %d" % sb)
+    inv, _ = inventories_until(srv, lambda inv, m: inv.get(sb, {}).get("nails") == 77 and
+                               inv[sb].get("health") == 70 and sa in inv)
+    s.note("the shotgun (entity %d) lies at %s; before: A %s, B %s" % (gun, spot, inv.get(sa), inv.get(sb)))
+
+    # C joins the game in progress: at the coop start A left, beside B's (A between them, by the gun)
+    c = s.client("C").start()
+    c.cmd("name C; " + s.connect_cmd(c))
+    _, jc = c.wait(r"mp_event: .*joined map=e1m1", 120, what="C joined e1m1")
+    c.wait(r"mp_seen: .*ent=%d self=0" % eb, 20, what="C seeing B")
+    wb1, sumb = world_of(b)
+    wc, sumc = world_of(c)
+    wb2, _ = world_of(b)
+    rest = {n: e for n, e in wb1.items() if n in wb2 and wb2[n][:3] == e[:3] and
+            max(abs(p - q) for p, q in zip(wb2[n][3], e[3])) < 0.5}
+    differ, missing = [], []
+    for n, e in sorted(rest.items()):
+        o = wc.get(n)
+        if o is None:
+            missing.append((n, e[0]))
+        elif o[:3] != e[:3] or max(abs(p - q) for p, q in zip(o[3], e[3])) > 1.0:
+            differ.append((n, e, o))
+    s.note("B's world: %d entities (%d at rest), C's %d; B %s; C %s" % (len(wb1), len(rest), len(wc), sumb, sumc))
+    s.check("C, joining a game in progress, has every entity at rest in B's view as B has it (model, frame, skin, "
+            "place within a unit)", len(rest) >= 3 and not differ and not missing,
+            "%d at rest; differ %s; missing %s" % (len(rest), differ[:4], missing[:6]))
+    s.check("C has the shotgun A let fall where B has it", gun in wc and gun in wb1 and wc[gun][0] == wb1[gun][0] and
+            max(abs(p - q) for p, q in zip(wc[gun][3], wb1[gun][3])) <= 1.0,
+            "B %s; C %s" % (wb1.get(gun), wc.get(gun)))
+    s.check("C's precaches, static entities and light styles are B's",
+            all(sumb.get(k) == sumc.get(k) for k in ("models", "sounds", "statics", "styles")),
+            "B %s; C %s" % (sumb, sumc))
+
+    # B leaves and joins again by his name: his slot, his things
+    since_srv, since_b = srv.mark(), b.mark()
+    b.cmd("disconnect")
+    left = wait_quietly(srv, r"coop: B left", 20, since_srv, "the server keeping B's things")
+    b.cmd("name B; " + s.connect_cmd(b))
+    _, jb = b.wait(r"mp_event: .*joined map=e1m1", 120, since_b, "B back on e1m1")
+    back = wait_quietly(srv, r"coop: B is back", 20, since_srv, "B given his things back")
+    now, _ = inventories_until(srv, lambda inv, m: sb in inv and inv[sb].get("nails") == 77, 30)
+    diff = carried(inv.get(sb, {}), now.get(sb, {}), REJOIN_KEYS, change=False)
+    s.check("B, back after leaving, is in his old slot with what he had (weapons, ammo, health 70)",
+            left is not None and back is not None and int(fields(jb)["self"]) == eb and not diff and
+            now.get(sb, {}).get("shells", 0) >= inv.get(sb, {}).get("shells", 0),
+            "self %s (was %d); before %s; now %s (differ %s)" % (fields(jb).get("self"), eb, inv.get(sb),
+                                                                 now.get(sb), diff))
+    since_b = b.mark()
+    b.cmd("kill")
+    b.wait(r"suicides", 10, since_b, "B's suicide")
+    fresh, _ = inventories_until(srv, lambda inv, m: sb in inv and inv[sb].get("nails") == 0 and inv[sb].get("health", 0) > 0, 20)
+    s.check("B's suicide respawns him with his level-start things (a new player's on e1m1), not those he came back with",
+            fresh.get(sb, {}).get("nails") == 0 and fresh[sb].get("health") == 100 and not fresh[sb]["items"] & 2,
+            "%s" % fresh.get(sb))
+
+    # B's game crashes (killed behind his proxy: his old connection silent, no port unreachable to the server); he comes
+    # back from another port, by the same name, with what he had (given again after his suicide)
+    b.cmd("give 7; give r 9")
+    inv_b, _ = inventories_until(srv, lambda inv, m: sb in inv and inv[sb].get("rockets") == 9)
+    b.proc.kill()
+    b.proc.wait()
+    killed = time.monotonic()
+    s.instances.remove(b)
+    s.note("B's game killed (a crash): his old connection silent from now")
+    b2 = s.client("B2").start()
+    since = b2.mark()
+    b2.cmd("vr_mp_status")
+    b2.wait(r"mp_status: ", 120, since, "B's game started again")
+    # (the server takes a connection silent over 3 s of real time as a crashed game's: QVR_GHOST_SILENCE, a real-time
+    # threshold; B's game restarting takes longer, this only makes sure)
+    time.sleep(max(0.0, 3.5 - (time.monotonic() - killed)))
+    since_srv = srv.mark()
+    b2.cmd("name B; " + s.connect_cmd(b2))
+    _, jb = b2.wait(r"mp_event: .*joined map=e1m1", 120, what="B back on e1m1")
+    ghost = wait_quietly(srv, r"B back from .* the old one closed", 10, since_srv, "B's ghost closed")
+    back = wait_quietly(srv, r"coop: B is back", 10, since_srv, "B given his things back")
+    now, _ = inventories_until(srv, lambda inv, m: sb in inv and inv[sb].get("rockets") == 9, 30)
+    diff = carried(inv_b.get(sb, {}), now.get(sb, {}), REJOIN_KEYS, change=False)
+    s.check("B, back from a crash on another port, takes his own slot at once (his silent old connection closed)",
+            ghost is not None and int(fields(jb)["self"]) == eb,
+            "%s; self %s (was %d)" % (ghost[1].strip() if ghost else "no 'back from' line", fields(jb).get("self"), eb))
+    s.check("B, back from his crash, has what he had", back is not None and not diff and
+            now.get(sb, {}).get("shells", 0) >= inv_b.get(sb, {}).get("shells", 0),
+            "before %s; now %s (differ %s)" % (inv_b.get(sb), now.get(sb), diff))
+    players = names_until(srv, ("A", "B", "C"))
+    s.check("no ghost: A, B and C each in one slot", all(len(players.get(n, [])) == 1 for n in ("A", "B", "C")),
+            "%s" % players)
+
+    # The server quits: C is told, out of the game, his own still running
+    since_c = c.mark()
+    srv.cmd("quit")
+    told = wait_quietly(c, r"mp_event: .* left", 30, since_c, "C told the server quit")
+    own = own_status(c)
+    s.check("the server quits: C is told and is out of the game, his game still running",
+            told is not None and own.get("connected") == "0" and c.proc.poll() is None,
+            "%s; connected %s" % (told[1].strip() if told else "not told", own.get("connected")))
 
 
 DL_TITLE = "QVR MP Download"
@@ -5213,6 +5370,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             campaign_listen(s)
         elif test == "mp_flow":
             flow(s)
+        elif test == "mp_rejoin":
+            rejoin(s)
         elif test == "mp_download":
             download(s)
         elif test == "mp_pickup":
@@ -5287,7 +5446,7 @@ def print_bytes_table():
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "soak", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "soak", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -5325,7 +5484,7 @@ def main():
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "soak"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "soak"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)
@@ -5347,6 +5506,7 @@ def main():
         ok = run(args, "mp_campaign") and ok
         ok = run(args, "mp_campaign_listen") and ok
         ok = run(args, "mp_flow") and ok
+        ok = run(args, "mp_rejoin") and ok
         ok = run(args, "mp_download") and ok
         ok = run(args, "mp_pickup") and ok
         ok = run(args, "mp_forcegrab") and ok

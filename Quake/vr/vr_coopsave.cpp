@@ -15,6 +15,8 @@
 // A single player save (no `qvr_coop` line) loads as before: slot 0's edict is the loaded player's for as long as the
 // loaded level lasts.
 
+#include "vr_api.h"
+#include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_progs.hpp"
 
@@ -49,6 +51,40 @@ Load load;
 
 // The lines a save writes (valid until the next save's fill: SaveData_Fill waits for the last save written).
 za::String saveText;
+
+// (B15) A player who left a game in progress (his game quit, crashed or lost its link): what he had, given back when
+// a player of his name joins the same game again (vr_mp_rejoin_keep). Kept through level changes (what he had is what
+// a level change carries: QC's SetChangeParms), forgotten when the server shuts down (a new game, a load).
+struct Leaver
+{
+    bool used{false};
+    char name[32]{};
+    int slot{-1};                                    // the slot he left (his again if it is free)
+    float startParms[NUM_SPAWN_PARMS]{};             // his level-start parms (a coop respawn's: setspawnparms)
+    float startExt[qvr::progs::numExtSpawnParms]{};
+    float nowParms[NUM_SPAWN_PARMS]{};               // SetChangeParms as he left: his weapons, ammo, health, armour
+    float nowExt[qvr::progs::numExtSpawnParms]{};
+};
+Leaver leavers[MAX_SCOREBOARD];
+int rejoining[MAX_SCOREBOARD]; // a slot's player back as a leaver: his leavers[] index + 1 until he spawns (0: none)
+
+[[nodiscard]] bool keepsLeavers()
+{
+    return sv.active && svs.maxclients > 1 && deathmatch.value == 0.f && qvr::vr_mp_rejoin_keep.value != 0.f &&
+           qvr::progs::bindings().isVrProgs;
+}
+
+[[nodiscard]] int leaverNamed(const char* name)
+{
+    for(int i = 0; i < MAX_SCOREBOARD; i++)
+    {
+        if(leavers[i].used && name && *name && !strcmp(leavers[i].name, name))
+        {
+            return i;
+        }
+    }
+    return -1;
+}
 
 void appendFloat(za::String& out, float v)
 {
@@ -269,9 +305,16 @@ extern "C" int VR_CoopSlotSpawned(int slot)
 
 extern "C" int VR_CoopPickSlot(const char* name)
 {
-    if(!sv.loadgame || !load.coopLoaded || !svs.clients)
+    if(!svs.clients)
     {
-        return -1; // (the first free slot, as ever)
+        return -1;
+    }
+    if(!sv.loadgame || !load.coopLoaded)
+    {
+        // (B15) a player back in a game he left: his old slot if it is free (his entity number and colours again)
+        const int k = keepsLeavers() ? leaverNamed(name) : -1;
+        const int slot = k >= 0 ? leavers[k].slot : -1;
+        return slot >= 0 && slot < svs.maxclients && !svs.clients[slot].active ? slot : -1; // (-1: the first free)
     }
     const int slots = za::min(svs.maxclients, MAX_SCOREBOARD);
     // His saved player, by the name his connect request carried (net_dgrm.c), in whichever slot it was saved in.
@@ -295,4 +338,103 @@ extern "C" int VR_CoopPickSlot(const char* name)
         }
     }
     return -1;
+}
+
+extern "C" void VR_CoopNoteLeave(int slot)
+{
+    if(!keepsLeavers() || slot < 0 || slot >= svs.maxclients || slot >= MAX_SCOREBOARD)
+    {
+        return;
+    }
+    client_t& c = svs.clients[slot];
+    if(!c.active || !c.spawned || !c.edict || !c.name[0] || !strcmp(c.name, "unconnected"))
+    {
+        return;
+    }
+    int k = leaverNamed(c.name);
+    for(int i = 0; i < MAX_SCOREBOARD && k < 0; i++)
+    {
+        k = leavers[i].used ? -1 : i;
+    }
+    if(k < 0)
+    {
+        return;
+    }
+    Leaver& l = leavers[k];
+    l = Leaver{};
+    l.used = true;
+    l.slot = slot;
+    q_strlcpy(l.name, c.name, sizeof(l.name));
+    memcpy(l.startParms, c.spawn_parms, sizeof(l.startParms));
+    float* ext = qvr::progs::clientExtParms(slot);
+    memcpy(l.startExt, ext, sizeof(l.startExt));
+
+    // What he has now, as a level change carries it (QC's SetChangeParms on his player; dead: a new player's).
+    const qvr::progs::ServerVm vm;
+    const int self = pr_global_struct->self;
+    pr_global_struct->time = qcvm->time;
+    pr_global_struct->self = EDICT_TO_PROG(c.edict);
+    PR_ExecuteProgram(pr_global_struct->SetChangeParms);
+    pr_global_struct->self = self;
+    for(int j = 0; j < NUM_SPAWN_PARMS; j++)
+    {
+        l.nowParms[j] = (&pr_global_struct->parm1)[j];
+    }
+    VR_StoreSpawnParms(slot); // (the globals parm17.. into his slot's store, read back here, then his own again)
+    memcpy(l.nowExt, ext, sizeof(l.nowExt));
+    memcpy(ext, l.startExt, sizeof(l.startExt));
+    Con_Printf("coop: %s left; what he had is kept for his return (health %g, items %d)\n", l.name,
+        static_cast<double>(l.nowParms[1]), static_cast<int>(l.nowParms[0]));
+}
+
+extern "C" void VR_CoopRejoinParms(int slot, const char* name)
+{
+    if(slot < 0 || slot >= MAX_SCOREBOARD)
+    {
+        return;
+    }
+    rejoining[slot] = 0;
+    const int k = keepsLeavers() && !sv.loadgame ? leaverNamed(name) : -1;
+    if(k < 0)
+    {
+        return;
+    }
+    // His level-start parms for a respawn (setspawnparms); what he had goes to his spawn (VR_CoopRejoinSpawn).
+    memcpy(svs.clients[slot].spawn_parms, leavers[k].startParms, sizeof(leavers[k].startParms));
+    memcpy(qvr::progs::clientExtParms(slot), leavers[k].startExt, sizeof(leavers[k].startExt));
+    rejoining[slot] = k + 1;
+}
+
+extern "C" void VR_CoopRejoinSpawn(int slot)
+{
+    if(slot < 0 || slot >= MAX_SCOREBOARD || !rejoining[slot])
+    {
+        return;
+    }
+    Leaver& l = leavers[rejoining[slot] - 1];
+    rejoining[slot] = 0;
+    if(!l.used)
+    {
+        return;
+    }
+    for(int j = 0; j < NUM_SPAWN_PARMS; j++)
+    {
+        (&pr_global_struct->parm1)[j] = l.nowParms[j];
+    }
+    float* ext = qvr::progs::clientExtParms(slot);
+    memcpy(ext, l.nowExt, sizeof(l.nowExt));
+    VR_RestoreSpawnParms(slot); // (parm17.. from his slot's store into the globals)
+    memcpy(ext, l.startExt, sizeof(l.startExt));
+    Con_Printf("coop: %s is back with what he had when he left (health %g, items %d)\n", l.name,
+        static_cast<double>(l.nowParms[1]), static_cast<int>(l.nowParms[0]));
+    l = Leaver{};
+}
+
+extern "C" void VR_CoopForgetLeavers(void)
+{
+    for(int i = 0; i < MAX_SCOREBOARD; i++)
+    {
+        leavers[i] = Leaver{};
+        rejoining[i] = 0;
+    }
 }

@@ -1160,6 +1160,10 @@ za::Vector<Item> pageDebugReports()
             .help("vr_mp_download: joining a server whose map is a Map Library package you lack, it is installed as the "
                   "Map Library's Install does (your own index, its mirrors and checks: the server names only the package), "
                   "then you join again. Off: you are told what to install, and stay out."),
+        toggle("Network: Keep a Leaver's Things", vr_mp_rejoin_keep)
+            .help("vr_mp_rejoin_keep: hosting a coop game, a player who leaves (quits, crashes or loses his link) and "
+                  "joins again by the same name gets back his weapons, ammo, health and armour, in his old slot, until the "
+                  "game ends. Off: he comes back as a new player."),
         toggle("Network: Draw Player Hands", vr_mp_avatar_draw)
             .help("vr_mp_avatar_draw: the other players' hands (their fingers too) and held weapons drawn where their own "
                   "games drew them; off: not drawn."),

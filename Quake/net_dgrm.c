@@ -968,6 +968,10 @@ void Datagram_Listen (qboolean state)
 }
 
 
+// QVR: (B15) seconds without a message from a connection after which a connect request of the same name from its
+// address on another port is that player back from a crash (his game sends moves every frame while it runs)
+#define QVR_GHOST_SILENCE 3.0
+
 static qsocket_t *_Datagram_CheckNewConnections (void)
 {
 	struct qsockaddr clientaddr;
@@ -1176,7 +1180,17 @@ static qsocket_t *_Datagram_CheckNewConnections (void)
 		// QVR: the same address and port only (ret 0). NetQuake took any client from the same IP (ret 1: another
 		// port) as this one back from a crash and closed this one: a second player behind the same router (or a
 		// second game on this machine, the multiplayer harness) kicked the first (docs/vr-port/MP_PLAN.md). One back
-		// from a crash on a new port leaves his old slot to time out instead.
+		// from a crash on a new port leaves his old slot to time out instead -- unless (B15) the request names the same
+		// player (his connect request's name) and his old connection has been silent a while (a game in play sends 72
+		// moves a second): that is him back, and his old connection is closed as below (his things kept for him by
+		// name: vr/vr_coopsave.cpp).
+		if (ret == 1 && qvrName[0] && !Q_strcmp (qvrName, s->qvrName) && net_time - s->lastMessageTime > QVR_GHOST_SILENCE)
+		{
+			Con_Printf ("%s back from %s (his old connection silent %.1f s): the old one closed\n", qvrName,
+				dfunc.AddrToString (&clientaddr), net_time - s->lastMessageTime);
+			NET_Close (s);
+			return NULL;
+		}
 		if (ret == 0)
 		{
 			// is this a duplicate connection reqeust?

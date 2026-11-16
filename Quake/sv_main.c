@@ -601,6 +601,9 @@ void SV_ConnectClient (int clientnum)
 		for (i=0 ; i<NUM_SPAWN_PARMS ; i++)
 			client->spawn_parms[i] = (&pr_global_struct->parm1)[i];
 		VR_StoreSpawnParms (clientnum); // QVR
+		// QVR: (B15) a player back in a coop game he left, by his name: his level-start parms (vr/vr_coopsave.cpp)
+		VR_CoopRejoinParms (clientnum, Q_strcmp (NET_QSocketGetAddressString (netconnection), "LOCAL") == 0 ? cl_name.string
+			: NET_QSocketGetQvrName (netconnection));
 	}
 
 	SV_SendServerinfo (client);

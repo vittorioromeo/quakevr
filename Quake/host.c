@@ -745,6 +745,8 @@ void SV_DropClient (qboolean crash)
 	int		i;
 	client_t *client;
 
+	VR_CoopNoteLeave (host_client - svs.clients); // QVR: (B15) what he has, for his return (a game in progress only)
+
 	if (!crash)
 	{
 		// send any final messages (don't check for errors)
@@ -823,6 +825,7 @@ void Host_ShutdownServer(qboolean crash)
 
 	VR_OnShutdownServer (); // QVR: the pool's jobs that read the world joined (a game switch frees the models next)
 	sv.active = false;
+	VR_CoopForgetLeavers (); // QVR: (B15) the game ends: no player's return to keep things for
 
 // stop all client sounds immediately
 	if (cls.state == ca_connected)

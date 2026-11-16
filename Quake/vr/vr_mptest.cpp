@@ -448,6 +448,50 @@ void status_f()
     }
 }
 
+// (B15) vr_mp_world: this client's world as the server's messages built it, for comparing two clients' (a player joining
+// a game in progress sees what those there from its start see): each entity after the players' in the last message
+// ("mp_went: n= m= f= sk= o="), then the precaches, static entities and light styles ("mp_world: ...").
+void world_f()
+{
+    if(!signedOn())
+    {
+        Con_Printf("mp_world: not connected\n");
+        return;
+    }
+    int ents = 0;
+    for(int i = cl.maxclients + 1; i < cl.num_entities; i++)
+    {
+        const entity_t& e = cl_entities[i];
+        if(!e.model || !inMessage(e))
+        {
+            continue;
+        }
+        ents++;
+        Con_Printf("mp_went: n=%d m=%s f=%d sk=%d o=%.1f %.1f %.1f\n", i, e.model->name, e.frame, e.skinnum, e.origin[0],
+            e.origin[1], e.origin[2]);
+    }
+    int models = 0, sounds = 0;
+    for(int i = 1; i < MAX_MODELS && cl.model_precache[i]; i++)
+    {
+        models++;
+    }
+    for(int i = 1; i < MAX_SOUNDS && cl.sound_precache[i]; i++)
+    {
+        sounds++;
+    }
+    za::U32 styles = 2166136261u; // (FNV-1a over every light style's string)
+    for(int i = 0; i < MAX_LIGHTSTYLES; i++)
+    {
+        for(const char* p = cl_lightstyle[i].map; *p; ++p)
+        {
+            styles = (styles ^ static_cast<za::U8>(*p)) * 16777619u;
+        }
+        styles = (styles ^ 0xffu) * 16777619u;
+    }
+    Con_Printf("mp_world: ents=%d models=%d sounds=%d statics=%d styles=%08x\n", ents, models, sounds, cl.num_statics,
+        static_cast<unsigned>(styles));
+}
+
 // The player a host's debug command acts on: the client in slot Cmd_Argv(`arg`) (0, or none given: the first), in the
 // game and alive; null (said why) otherwise.
 edict_t* slotPlayer(const char* command, int arg)
@@ -789,6 +833,7 @@ extern "C" void VR_MpTestInit(void)
     Cmd_AddCommand("vr_mp_after", after_f); // (B13)
     Cmd_AddCommand("vr_mp_edicts", edicts_f); // (B13)
     Cmd_AddCommand("vr_mp_status", status_f);
+    Cmd_AddCommand("vr_mp_world", world_f); // (B15)
     Cmd_AddCommand("vr_mp_trace", trace_f);
     Cmd_AddCommand("vr_mp_lockstep_status", lockstepStatus_f);
     qvr::netmove::init(); // vr_netmove_selftest

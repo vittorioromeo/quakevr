@@ -3377,6 +3377,7 @@ static void Host_Spawn_f (void)
 		for (i=0 ; i< NUM_SPAWN_PARMS ; i++)
 			(&pr_global_struct->parm1)[i] = host_client->spawn_parms[i];
 		VR_RestoreSpawnParms (host_client - svs.clients); // QVR
+		VR_CoopRejoinSpawn (host_client - svs.clients); // QVR: (B15) one back in a game he left: what he had then
 		// call the spawn function
 		pr_global_struct->time = qcvm->time;
 		pr_global_struct->self = EDICT_TO_PROG(sv_player);
