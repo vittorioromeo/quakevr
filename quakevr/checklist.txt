@@ -18,6 +18,10 @@ In start, stand just in front of where the hub's teleporter back to the start co
 Flat-screen or VR: on e1m1, by the four buttons' door, the grunts on the bridge over the slime and their bodies have no wet shine; e1m2's monsters and bodies near water only shine if they were in it.
 Flat-screen or VR: fight a knight with a chainsaw and disarm it, shove it down, kill it or gib it: its engine sound always stops (a dropped running one stalls after a few seconds).
 Shoot your own forearm with the flare gun: you catch fire, as an enemy would.
+Let grunts shoot at your held gun and enemies hit it with default settings: it is never knocked out of your hand (You Can Be Disarmed is now off by default); turn it on in Combat > Armed Grunts and it is knocked out as before.
+Throw the dagger a few times, then set Debug > Tunables > Dagger Settling: Strength to 0 and throw it again: the dagger no longer comes round point first while a thrown sword still does; back at 1 both are as before.
+Turn on Ghost Hands, hold a heavy gun off your controller so a ghost shows, then start an OBS recording from the menu: the ghost hands, tips and wrist messages disappear while it records and come back when it stops; with Graphics > Recording > No Ghost Hands While Recording off the ghost stays.
+Spawn an armed knight with two melee weapons: its idle, ready, run and dual strike poses and its grip are the ones you set in the Pose Studio, now the defaults.
 
 [1. Flat-screen: weapons and hands]
 Flat-screen: turn on Locomotion > Desktop Screen Play > Third-Person Camera and walk the corridor and the doorway: the camera sits over your right shoulder with your whole body in view, pulls in at once when a wall comes behind it (never showing the inside of a wall), eases back out, and moves over the other shoulder at a wall on the right. {test:flat_thirdperson}

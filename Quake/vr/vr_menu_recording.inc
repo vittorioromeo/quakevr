@@ -25,6 +25,10 @@
         command("Connect to OBS Now", "vr_obs_connect")
             .help("vr_obs_connect: asks OBS now rather than at the next try (every 5 s while a menu is open); after "
                   "turning on OBS's WebSocket server or setting vr_obs_password."),
+        header("Clean Recording (While OBS Records)"),
+        row(opt::vr_obsrec_ghost_hands),
+        row(opt::vr_obsrec_debug),
+        row(opt::vr_obsrec_messages),
         header("Takes and Clips"),
         toggle("Takes", "vr_takes")
             .help("vr_takes: each OBS recording is a take, renamed <date>_<scene>_t<NN>_<rating> in OBS's folder and rated "

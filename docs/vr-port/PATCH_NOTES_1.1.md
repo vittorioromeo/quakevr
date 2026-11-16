@@ -17,7 +17,7 @@ old default move to the new one, and values you changed stay yours.
 - **Armed enemies, on by default.** Grunts, enforcers, knights and death knights carry real weapons, yours included,
   and use them with the player weapons' own code. Disarm them in a physical tug-of-war, by striking the weapon or the
   hand, or by shooting the gun out of their grip, then turn it on them. They parry, keep their distance, mind their
-  friends, dual-wield, wear backpacks you can loot, and can disarm you too.
+  friends, dual-wield and wear backpacks you can loot; they can disarm you too (an option, off by default for now).
 - **Euphoria-style active ragdolls.** Enemies stagger and keep their balance on bent knees, topple on stairs, ledges and
   from heavy blows, grab ledges and scramble back up, and stir when knocked down. Shove, lift, throw, sweep, drag them
   by the ankles, or land on them from a height.
@@ -67,7 +67,7 @@ old default move to the new one, and values you changed stay yours.
 - A dual wielder loses only the struck weapon; a disarm attempt wakes and staggers its target.
 - Disarmed enemies kneel to pick a lost weapon back up, and one holding a weapon that pairs picks up a second.
 - They can disarm you by the same rules: precise shots and blows on your gun or hand knock it to the floor (Combat >
-  Armed Grunts > Disarming: Your Weapon, on by default).
+  Armed Grunts > Disarming: Your Weapon > You Can Be Disarmed; off by default in 1.1 while it is tuned).
 - They parry your blows with their weapon, with preventive and wind-up parries, and their strikes use the whole body.
 - Blade on blade: weapons that meet clash and stop each other.
 - They keep a fighting distance and their melee spacing, shove you when you are up close, lean into strafes, avoid
@@ -401,7 +401,8 @@ old default move to the new one, and values you changed stay yours.
 - Creator tools (flat screen or developer): the Rig Studio, Pose Studio and Grip Editor, the Weapon Studio, the Armour
   Studio, the Ragdoll Tool (`-ragtool`), the animation recorder and the Blade Shape editor.
 - Recording: takes and clips for trailers, and a DaVinci Resolve title kit (embossed metal feature titles with blood
-  drips and soft drop shadows).
+  drips and soft drop shadows). While OBS records, Ghost Hands, debug markers and tips are left out
+  (Graphics > Recording > Clean Recording).
 - Voice notes with context and an instant replay, and an in-game Checklist with Test buttons, for testers.
 - Every model's source is a Blender file in the repository, with an add-on that exports on save.
 
