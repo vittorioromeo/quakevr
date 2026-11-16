@@ -2912,6 +2912,12 @@ static const char *SaveData_KnownString (int i, qboolean warn)
 	uintptr_t u = (uintptr_t) str;
 	if (!PR_IsValidString (str))
 		return NULL;
+#if defined(__aarch64__) || defined(_M_ARM64)
+	// arm64's top byte is ignored by its loads (TBI) and Android's malloc keeps a tag there (0xb4...: heap tagging,
+	// scudo): every malloc'd engine string looked bad, and the Quest's saves failed ("a freed engine string": C4r,
+	// QUEST_PLAN.md 6x)
+	u &= ((uintptr_t) 1 << 56) - 1;
+#endif
 	if (u < 0x10000 || (uint64_t) u >> 48)
 	{
 		if (warn)
