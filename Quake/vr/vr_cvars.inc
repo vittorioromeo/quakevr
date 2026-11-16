@@ -4323,6 +4323,10 @@ QVR_CVAR(vr_flat_lean, "1", CVAR_ARCHIVE)             // flatscreen play: Q / E 
 QVR_CVAR(vr_flat_lean_toggle, "0", CVAR_ARCHIVE)        // the lean keys: 0 lean while held; 1 a press leans, the next press of the same key (or the other's) stands straight
 QVR_CVAR(vr_flat_lean_mouse, "1", CVAR_ARCHIVE)         // flatscreen play: 1 the mouse (and the stick, the gyro) turn the view along the screen as it is rolled -- leant, strafing, hit -- straight up is up the tilted screen; 0 Quake's yaw and pitch, the roll ignored (vr_flatmove.cpp VR_FlatLookTurn)
 QVR_CVAR(vr_flat_slide, "1", CVAR_ARCHIVE)              // flatscreen play: crouching while running faster than vr_flat_slide_min slides (vr_flat_slide_*; vr_flatmove.cpp); 0 off
+QVR_CVAR(vr_slide, "0", CVAR_ARCHIVE)                   // experimental: a headset slides too, the turning stick pulled straight down while running faster than vr_flat_slide_min (the flat slide's own: vr_flat_slide_*; vr_slide.cpp); 0 off (the stick's down is +movedown as ever)
+QVR_CVAR(vr_slide_stick_threshold, "0.85", CVAR_ARCHIVE) // vr_slide: how far down the turning stick must be pulled (0.5..0.99 of its reach), from the middle
+QVR_CVAR(vr_slide_stick_angle, "20", CVAR_ARCHIVE)      // vr_slide: within this many degrees of straight down (5..45; a turn swept round to it never counts)
+QVR_CVAR(vr_slide_body, "1", CVAR_ARCHIVE)              // vr_slide: the drawn body takes the flat slide's pose (the trunk leant back, the legs out in front); 0 none
 QVR_CVAR(vr_flat_speed_fov, "1", CVAR_ARCHIVE)          // flatscreen play: faster than the run along the floor (a slide, a bunny hop chain) the view widens, eased (vr_flat_speed_fov_*; vr_flatspeedfov.cpp); 0 off
 QVR_CVAR(vr_flat_speed_fov_max, "1.2", CVAR_ARCHIVE)    // the speed FOV: the field of view times this at vr_flat_speed_fov_top and faster (1..1.5)
 QVR_CVAR(vr_flat_speed_fov_from, "340", CVAR_ARCHIVE)   // the speed FOV: none up to this speed along the floor (units/s; 320: the run, sv_maxspeed)
@@ -4357,6 +4361,7 @@ QVR_CVAR(vr_flat_mantle_look, "25", CVAR_ARCHIVE)       // flatscreen mantle: de
 QVR_CVAR(vr_flat_mantle_look_max, "90", CVAR_ARCHIVE)   // flatscreen mantle: degrees, the most the view may look up (over it: no mantle; 90 his, 2026-11-08, from 80)
 QVR_CVAR(vr_flat_mantle_grunt_delay, "0.35", CVAR_ARCHIVE) // flatscreen mantle: seconds after the jump left the ground before the mantle's grunt (vr_climb_mantle_grunt) plays, so the jump's own grunt has ended and it is heard (0..1; 0: as the mantle starts)
 QVR_CVAR(vr_flat_mantle_time, "1", CVAR_ARCHIVE)        // flatscreen mantle: seconds after the jump left the ground that a ledge may still be mantled (the jump key held all along)
+QVR_CVAR(vr_flat_ladder, "1", CVAR_ARCHIVE)             // flatscreen play: 1 ledge ladders (vr_climb.cpp flatLadder; needs vr_climb): walking forward into a stack of graspable ledges (rungs) takes hold of them, as a headset's hands do; forward climbs hand over hand (looking down or back: down), jump pushes off, the top mantles over; 0 off (tuning: vr_flat_ladder_speed, _look_down, _push, _reach)
 QVR_CVAR(vr_flat_hud, "1", CVAR_ARCHIVE)               // the status bar at hudstyle 1 (vr_flathud.cpp): 1 flatscreen play's own (portrait and health over the ammo bar in the middle, each hand's ammo at its own bottom corner, the bullet time bar); 0 Ironwail's
 // The visor HUD (vr_visor.cpp; ROUND24.md, "Flat-screen visor HUD"): flatscreen play's HUD as a helmet's visor, the wrist
 // gadget's screens in small 3D panels near the view's corners.

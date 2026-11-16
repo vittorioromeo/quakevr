@@ -24,6 +24,19 @@ namespace qvr::worldtrace
 [[nodiscard]] za::Optional<trace_t> move(
     const glm::vec3& start, const glm::vec3& mins, const glm::vec3& maxs, const glm::vec3& end, int type, int pass = 0);
 
+// A line as the shots go (QC's MOVE_PORTALS tracelines, one crossing for both: vr_portals.cpp crossGates): a point
+// from `start` towards `end` (`type` as move's, the local player passed), on through the teleporters it crosses, with
+// vr_portals_walk on. `seen`: where it stops as seen from `start`, on the line at the share of its length it went (past a
+// gate: where the view through the gate shows what it hit; what flatscreen's guns aim at); `at`: where that is in the
+// world (the far room's). Neither crossing a gate: both endPos, as move gives. Nothing when not hosting.
+struct ShotStop
+{
+    glm::vec3 seen{0.f};
+    glm::vec3 at{0.f};
+    int gates = 0; // the gates it went through
+};
+[[nodiscard]] za::Optional<ShotStop> shotLine(const glm::vec3& start, const glm::vec3& end, int type);
+
 // A line through the world's geometry and, with `brushEntities`, the moving brush models the
 // client has (lifts, doors, platforms; not rotated), from the client's own data: works without
 // the local server; with `ownFiles` also those whose models are files of their own (a func_wall of

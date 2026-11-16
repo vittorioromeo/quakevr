@@ -5,7 +5,7 @@
 // vr_box3d_internal.hpp.
 
 #include "vr_box3d_internal.hpp"
-#include "vr_flatmove.hpp"
+#include "vr_slide.hpp"
 #include "vr_geom.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
@@ -893,7 +893,7 @@ extern "C" void VR_PlayerBumps(edict_t* ent, edict_t* other, const float* normal
     // Sliding (flat-screen play): pushed on along his slide's way, turned vr_flat_slide_prop_side degrees to the side its
     // middle is off his line (dead ahead: to his right), at his level speed (shoveBumped).
     const glm::vec3 level{ent->v.velocity[0], ent->v.velocity[1], 0.f};
-    const bool slide = qvr::flatmove::slideOnServer(ent) && vr_flat_slide_prop_push.value > 0.f && glm::length(level) > 1.f;
+    const bool slide = qvr::slide::onServer(ent) && vr_flat_slide_prop_push.value > 0.f && glm::length(level) > 1.f;
     if(slide)
     {
         const glm::vec3 run = glm::normalize(level);

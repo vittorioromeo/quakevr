@@ -5,6 +5,7 @@
 #include "vr_climb.hpp"
 #include "vr_clientprefs.hpp"
 #include "vr_server.hpp"
+#include "vr_slide.hpp"
 #include "vr_cvars.hpp"
 #include "vr_hull.hpp"
 #include "vr_netsnap.hpp"
@@ -1422,7 +1423,7 @@ extern "C" int VR_PredictThink(edict_t* ent)
     const int slot = static_cast<int>(s - serverSlots);
     // (lying down too, B8g: the lying box is the rules' box, the stick's share of the crawl the moves')
     s->plain = movesOneByOne(slot) && static_cast<int>(ent->v.movetype) == MOVETYPE_WALK && ent->v.health > 0.f &&
-               !hull::isFlat(ent);
+               !hull::isFlat(ent) && !slide::headsetEngaged(ent); // (a headset's slide: SV_AirMove's, vr_slide.cpp)
     if(s->plain)
     {
         computeRules(ent, s->rules);

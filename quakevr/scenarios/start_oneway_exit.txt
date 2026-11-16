@@ -1,7 +1,0 @@
-# start_oneway_exit: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". start's one-way exit: the hub's teleporter back to the start comes out on a plane at y 280 in front of the start (no gate there). Leaning back across it once drew the eye from the hub's gate (you saw yourself in it) and cut the hands (Misc/quakevr/teleporters/selfview_test.sh, ROUND25.md "One-way teleporter exits").
-title start's one-way teleporter exit: hands stay, no self view
-hint You stand just in front of where the hub's teleporter back to the start comes out. Lean back and reach behind you, across that line: your hands stay whole and the view stays here; you never see yourself in a teleporter.
-map start
-start 544 288 24 90
-god
-notarget

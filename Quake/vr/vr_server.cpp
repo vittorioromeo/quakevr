@@ -39,6 +39,7 @@
 #include "vr_testkit.hpp"
 #include "vr_tips.hpp"
 #include "vr_worldtext.hpp"
+#include "vr_slide.hpp"
 
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/Memcmp.hpp"
@@ -1351,6 +1352,8 @@ void applyVrMove(client_t* client, const VrMove& move)
     // asked as before, with his own head deciding (true).
     const bool flat = (move.vrBits0 & protocol::moveFlatplayBit) != 0;
     const bool flatCrouch = flat && (move.vrBits0 & protocol::moveFlatCrouchBit) != 0;
+    // A headset client's bit 14 is its slide gesture (vr_slide: protocol::moveSlideBit; the shared slide, vr_slide.cpp).
+    slide::setHeadsetInput(ent, !flat && (move.vrBits0 & protocol::moveSlideBit) != 0);
     // A remote client's head over his feet as his own client had it (from the origin he placed it from: his prediction,
     // a round trip ahead of this server's -- a jump's rise read as a crouch, a shorter box in the air than his replay's:
     // B8d). The loopback's and single player's are the server's own origin: as before.

@@ -7,30 +7,20 @@
 # Lines are only for something new or changed you can see or feel: one line per flow, never "works as before". History of the sorts: git log of this file and docs/vr-port/CHECKLIST_REORG.md (latest: 2026-11-14 release audit, 94 lines down to 68, 71 with three from a later ship: the [New] section sorted, near-duplicates merged, every line cut to what to do and what to see, 3 new scenes; 2026-11-15: 17 ticked lines retired, the [New] section sorted). Misc/quakevr/checklist_tests_check.py checks every tag's scene file and the format (no "(agent/", "Test:", scratch or qvr-agents paths, .sh names; sections in order).
 
 [New: not yet sorted]
-Flat-screen or VR: open the holster menu (middle mouse in flat) holding a grunt's dropped gun: it is named Burst Rifle.
-Toolgun > Spawn > Monsters > Armed Humanoid: a shotgun in the Right Hand, an axe or dagger in the Left; it fires the gun, then takes to the blade up close.
-Flat-screen or VR: let a grunt with a gun and an axe walk up to you while you hold a weapon in front: its unparried axe blows hurt and can knock your weapon out; a parry across a blow blocks it. {test:agrunt_gunaxe_melee}
 Flat-screen: press B with the rocket launcher, grenade launcher or thunderbolt: it switches to its other ammo; B again switches back. {test:flat_ammo_key}
-Get your weapon knocked out of your hand by a grunt's shot or blow: a metal clang where it flies and a short alert only you hear, with a buzz on that controller. {test:agrunt_gunaxe_melee}
-Test hall: grenades near the NEW GAME / VR HUB buttons no longer restart the game; only your hand, your step or what you threw presses them.
 Installer: the desktop now also gets a "Quake VR Unleashed (Flat Screen)" shortcut (own checkbox on the options page, on by default; check the Start menu, desktop and an uninstall).
-In start, stand just in front of where the hub's teleporter back to the start comes out, then lean back and reach behind you across that line: your hands stay whole and you never see yourself in a teleporter. {test:start_oneway_exit}
-Flat-screen or VR: on e1m1, by the four buttons' door, the grunts on the bridge over the slime and their bodies have no wet shine; e1m2's monsters and bodies near water only shine if they were in it.
-Flat-screen or VR: fight a knight with a chainsaw and disarm it, shove it down, kill it or gib it: its engine sound always stops (a dropped running one stalls after a few seconds).
-Shoot your own forearm with the flare gun: you catch fire, as an enemy would.
 Let grunts shoot at your held gun and enemies hit it with default settings: it is never knocked out of your hand (You Can Be Disarmed is now off by default); turn it on in Combat > Armed Grunts and it is knocked out as before.
 Throw the dagger a few times, then set Debug > Tunables > Dagger Settling: Strength to 0 and throw it again: the dagger no longer comes round point first while a thrown sword still does; back at 1 both are as before.
 Turn on Ghost Hands, hold a heavy gun off your controller so a ghost shows, then start an OBS recording from the menu: the ghost hands, tips and wrist messages disappear while it records and come back when it stops; with Graphics > Recording > No Ghost Hands While Recording off the ghost stays.
-Spawn an armed knight with two melee weapons: its idle, ready, run and dual strike poses and its grip are the ones you set in the Pose Studio, now the defaults.
-Trailer intro title: watch qvr-kit\scratch\trailerintro_shots\qvr_intro_1080p60.mp4; is the blood juicy enough and does the custom Q read as DpQuake?
-Flat-screen or VR: play a level with sound and listen to jumps, gunfire and music: clean, with no hiss, static or crackle under them (the console no longer says "loading all sounds as 8bit").
 On the Quest Pro via Virtual Desktop with eye tracking forwarded to the PC: turn on Eye-Tracked Foveation (VR Settings, Graphics), restart VR and set vr_foveated_debug 1: the sharp area follows your eyes, and the log says eye tracking is on.
-Trailer titles: --bake, plain rerun keeps them baked, --unbake restores live; Draft toggle looks flat
+Trailer titles: intro holds ~3 s with all lines; feature subtitle comes ~1 s after the title; --bake, plain rerun keeps them baked, --unbake restores live
+Flat-screen: walk forward into the tutorial's rung ladder (lesson 3): your hands take the rungs and you climb hand over hand at a steady pace, and climb over the top onto the platform. {test:flat_ladder}
+Flat-screen: on the tutorial ladder's top, back off the edge facing away from the drop: you are lowered onto the rungs; hold back (or forward while looking down) to climb down to the floor, and jump on the ladder to push off it. {test:flat_ladder}
+Flat-screen: walking into plain walls, single ledges and stairs never starts a ladder climb, and the jump mantle still works as before. {test:flat_ladder}
+Sliding (VR, experimental; VR Settings > Locomotion): while running, pull the turning stick firmly straight down: you slide as on the desktop screen (faster at first, slowing to a stop; let go to stop, jump to keep the speed), with the slide's scrape and your drawn legs out in front. Check snap and smooth turns never slide, and that the pull feels neither too stiff nor too loose (Slide Stick Pull and Angle). {test:vr_slide}
+Flat-screen: hip-fire (no right button) at a grunt seen through a see-through teleporter, from well back and from right in front of the gate: the shots hit what the crosshair is on beyond it, as they do with the sights up. {test:flat_gate_hipfire}
 
 [1. Flat-screen: weapons and hands]
-Flat-screen: turn on Locomotion > Desktop Screen Play > Third-Person Camera and walk the corridor and the doorway: the camera sits over your right shoulder with your whole body in view, pulls in at once when a wall comes behind it (never showing the inside of a wall), eases back out, and moves over the other shoulder at a wall on the right. {test:flat_thirdperson}
-Flat-screen: in third person, shoot at walls near and far, and at a corner your gun is behind: the shots land on the crosshair; behind the corner the crosshair moves onto what the muzzle hits.
-Flat-screen: in third person, aim down the sights with Aiming Down The Sights on First Person (the view goes smoothly into your eyes and back out on release) and on Stay Third Person (the camera draws in over the shoulder and zooms); back up close to a wall and your body fades instead of filling the screen.
 
 [2. Flat-screen: Run Setup, presets and mutators]
 
@@ -40,25 +30,10 @@ Installer: install into a fresh folder and pick Snap 45, Left-handed and Medium 
 [4. VR: body and gear]
 
 [5. VR: melee and embedded blades]
-With a gib on your sword taken in your free hand, pull it off the tip (or tug it off): once off the blade the hand stays on the gib's surface where it held it, the gib no longer floating off the hand. {test:skewer_grip}
-Throw a sword or a dagger roughly point first at a grunt a few steps off: it steadies towards its point in the first few tenths of a second (not straight like an arrow) and sticks more often; a tumbling or badly aimed throw still tumbles, an axe flies as before. {test:throw_point}
-First set the dagger's Reversed X and Z back to 0 (Weapon Offsets > Hand > Reverse Grip): the flip now turns the blade about your fist's own middle, so flip the dagger and the knight's sword blade down (B or Y) and check the fist stays where it was on the handle with no per-sword tweaks, the thumb wrapped. {test:flipgrip}
-Flip the dagger blade down and close your other hand on its two-handed hotspot: the hotspot is now above your main hand, and the other hand holds the handle like the main hand does (thumb up, knuckles away from you, wrist straight); try the knight's sword the same way. {test:flipgrip}
-Throw a sword or a dagger overhand at a grunt a few steps off, any way you like (javelin, reverse grip, with or without a wrist flick): it comes round to its point within about a fifth of a second and flies point first; a hard deliberate spin still spins. If it is too much or too little, Debug > Tunables > Point-First Settling (strength, Time, Tumble, Spin Damping) go to extremes. {test:throw_point}
-Pull a gib off the sword, toss it up and stab it with the sword's point as it flies: it goes back on the blade; a slow push or a swing across does not put it on. {test:throw_point}
 Hold the dagger in your main hand and grab it near the tip with your other hand, then press B (Y): the grip no longer flips (just a light tap in the hand); do the same with the knight's sword held anywhere on it or by its blade (half-sword), then put the other hand on the handle's two-handed hotspot or let go of it with that hand: now it flips. {test:flipgrip}
-Throw the dagger any way (overhand, a wrist flick, sideways): it settles point first in the air about as readily as the sword, quicker than before; the sword feels the same as before. {test:throw_point}
 Throw the sword and the dagger as hard as you can at a grunt, a knight and an ogre, point first and any other way: nothing is gibbed; point first the blade stays in the body, flat or handle first it strikes as a blunt blow. {test:throw_hard}
-Kill a grunt with a hard point-first javelin throw of the sword: the blade goes down with the body, or falls to the floor if it was in the grunt's gun; it never stays floating in the air where the body stood. {test:throw_hard}
 
 [6. VR: weapons and grips]
-Flat-screen or VR: switch the rocket launcher to its multi-rocket model and look down it from your hand: the three vents at the back of the front shroud (top fin, both side fins) are real holes now, black inside with walls and a back, like the rocket launcher's. {test:mrl_vents}
-Flat-screen or VR: hold the rocket launcher in its multi-rocket model and the normal one, one after the other: the ammo screen on the finger, the grips and the muzzle sit in the same places on both. {test:mrl_vents}
-Hold your gun out towards shooting grunts or an enforcer: shots that hit the gun or your gun hand now and then knock it out of your hand (sparks, ricochet, buzz, flash); it drops to the floor with its ammo and you can pick it up again. Shots on your body never disarm you, fists never. {test:player_disarm}
-A knight's sword or an ogre's chainsaw landing on your weapon held at the wrong angle (not a parry) knocks it out of your hand; a proper parry never does. Combat > Armed Grunts, Disarming: Your Weapon turns it off or scales the chance.
-Hold the nailgun and switch it to lava nails: the lava model has the same bevelled bezel, round fasteners and ammo screen as the default one. {test:nail_alt_housing}
-Hold the super nailgun and switch it to lava nails: the lava model has the same riveted wedge and tilted ammo screen as the default one. {test:nail2_alt_housing}
-Hold the Thunderbolt and switch it to plasma: the plasma model has the same bronze plate, trapezoid window and rivets as the default one. {test:light_alt_housing}
 
 [7. VR: physics, bodies and gore]
 

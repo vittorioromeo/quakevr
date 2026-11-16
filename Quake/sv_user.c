@@ -378,8 +378,8 @@ void SV_AirMove (void)
 	{	// noclip
 		VectorCopy (wishvel, velocity);
 	}
-	else if (VR_FlatSlideMove (sv_player, onground != 0, wishdir, wishspeed, velocity))
-	{	// QVR: a flat-screen player's slide (vr/vr_flatmove.cpp): its own friction and slope, no walk
+	else if (VR_SlideMove (sv_player, onground != 0, wishdir, wishspeed, velocity))
+	{	// QVR: a slide (vr/vr_slide.cpp; flatscreen or vr_slide): its own friction and slope, no walk
 	}
 	else if ( onground )
 	{

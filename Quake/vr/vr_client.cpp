@@ -83,6 +83,7 @@
 #include "vr_melee_shared.h"
 #include "vr_toolgun.hpp"
 #include "vr_geom.hpp"
+#include "vr_slide.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
@@ -402,6 +403,8 @@ void setVrBits(VrMove& move, const hands::State& hs)
     set(teleport::update(hs, move.teleportTarget), VRBITS0_TELEPORTING);
     set(flatplay::active(), VRBITS0_FLATPLAY);
     set(flatplay::crouchHeld(), VRBITS0_FLATCROUCH); // (the key: let go, the server tries standing at once)
+    // (A headset: the same bit is its slide gesture, vr_slide: protocol::moveSlideBit; vr_input.cpp, vr_slide.cpp.)
+    set(!flatplay::active() && vr_slide.value != 0.f && slide::gestureHeld(), VRBITS0_FLATCROUCH);
     move.vrBits0 = static_cast<za::U16>(bits);
 }
 

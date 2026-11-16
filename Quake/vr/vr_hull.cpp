@@ -9,7 +9,7 @@
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "vr_files.hpp"
-#include "vr_flatmove.hpp"
+#include "vr_slide.hpp"
 #include "vr_jobs.hpp"
 #include "vr_mem.hpp"
 #include "vr_physics.hpp"
@@ -5137,7 +5137,10 @@ void updateCrouchBox(edict_t* ent, const glm::vec3& head, bool flatscreenCrouch)
         prone = false;
         return;
     }
-    const float eye = head.z - (ent->v.origin[2] + ent->v.mins[2]);
+    // A headset player's slide (vr_slide; vr_slide.cpp): his box the flat slide's crouched one -- his eyes taken as the
+    // flat slide's (slideEye) while it is on, his own head as it is; after it, up as his head asks (as from a crouch).
+    const float headEye = head.z - (ent->v.origin[2] + ent->v.mins[2]);
+    const float eye = !flatscreen && slide::headsetOnServer(ent) ? za::min(headEye, slide::slideEye()) : headEye;
     // Lying down (vr_prone): his eyes under vr_prone_eye over his feet -- a headset player lying down for real, a
     // flat-screen one whose prone key (vr_flatplay.cpp) puts his eyes down there, his crouch held meanwhile -- give the
     // proneHeight box at once (its own slot, prone; a lower box fits wherever his has). Up again: his eyes 2 units over
@@ -5162,7 +5165,7 @@ void updateCrouchBox(edict_t* ent, const glm::vec3& head, bool flatscreenCrouch)
     // limit for a frame -- it lay him down and ended the slide on the first step. Nor off a ledge mid-slide: no lying
     // down until the slide is over, his bug of 2026-11-10.)
     else if(proneOn() && eye < proneEyeLimit(sv.worldmodel) && (!flatscreen || flatscreenCrouch) && ent->v.waterlevel < 2 &&
-            !(flatscreen && flatmove::slideOnServer(ent)))
+            !slide::onServer(ent))
     {
         prone = true;
         float levels[maxCrouchLevels];

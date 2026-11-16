@@ -183,13 +183,19 @@ TurnTest turn;
     return at;
 }
 
-// Where the shot stops (QC FireBullets: from the back point, 2048 past the muzzle; monsters' models, gibs and heads).
-[[nodiscard]] glm::vec3 shotHit(const ShotLine& s)
+// Where the shot stops (QC FireBullets: from the back point, 2048 past the muzzle; monsters' models, gibs and heads; on
+// through the teleporters it crosses), as seen from here: through a gate, where the view through it shows it.
+[[nodiscard]] worldtrace::ShotStop shotStop(const ShotLine& s)
 {
     const glm::vec3 src = backPoint(s);
     const glm::vec3 end = src + s.dir * (shotRange + glm::distance(s.muzzle, src));
-    const auto tr = worldtrace::move(src, glm::vec3{0.f}, glm::vec3{0.f}, end, MOVE_NORMAL | MOVE_HITGIBS | MOVE_HITMODEL);
-    return tr ? worldtrace::endPos(*tr) : end;
+    const auto stop = worldtrace::shotLine(src, end, MOVE_NORMAL | MOVE_HITGIBS | MOVE_HITMODEL);
+    return stop ? *stop : worldtrace::ShotStop{end, end, 0};
+}
+
+[[nodiscard]] glm::vec3 shotHit(const ShotLine& s)
+{
+    return shotStop(s).seen;
 }
 
 // A world point on the view (pixels from its top left); false behind the eye.
@@ -669,6 +675,20 @@ void probe_f()
         }
         Con_Printf("flatxhair: %s raw %.1f %.1f off %.1f hit %.1f %.1f %.1f\n", name, a.raw.x, a.raw.y,
             glm::distance(a.raw, st.centre), a.hit.x, a.hit.y, a.hit.z);
+        // Through teleporters (vr_portals_walk): where the shot as sent lands in the world, against what the middle of the
+        // screen is on (its ray on through the gates as the shots go), the far room's places both.
+        if(st.shot[k].valid)
+        {
+            glm::vec3 org, dir;
+            flatplay::crosshairRay(hands::current(), geom::vec(cl.viewangles), org, dir);
+            const auto centre = worldtrace::shotLine(org, org + dir * shotRange, MOVE_NORMAL | MOVE_HITGIBS | MOVE_HITMODEL);
+            const worldtrace::ShotStop shot = shotStop(st.shot[k]);
+            if(centre)
+            {
+                Con_Printf("flatxhair: %s gates shot %d centre %d lands %.1f %.1f %.1f apart %.2f\n", name, shot.gates,
+                    centre->gates, shot.at.x, shot.at.y, shot.at.z, glm::distance(shot.at, centre->at));
+            }
+        }
         Pellets& p = st.pellets[k];
         if(p.count > 0)
         {

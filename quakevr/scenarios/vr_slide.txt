@@ -1,0 +1,8 @@
+# vr_slide: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Sliding in VR (experimental): run down the hall's long stretch and pull the turning stick straight down
+map vrtesthall
+start 0 -288 25 90
+god
+notarget
+cvar vr_slide 1
+hint Sliding (VR) is on for this test. Run ahead, then pull the turning stick firmly straight down: you slide, faster at first, slowing to a stop about 400 units on (let go to stop sooner; jump to keep the speed). Snap or smooth turns, or a pull well off straight down, never slide.

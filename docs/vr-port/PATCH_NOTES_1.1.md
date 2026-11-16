@@ -253,6 +253,8 @@ old default move to the new one, and values you changed stay yours.
 - Pickups: bigger zones for ammo, health and backpacks, a cue when you are full, optional auto-collect into the palm,
   and soft light pillars over weapons and magazines lying about.
 - Smooth + Teleport: walk with one stick and teleport with the other.
+- Sliding in VR (experimental, off by default): while running, pull the turning stick straight down to slide, the
+  same slide as on the desktop screen (VR Settings > Locomotion > Sliding).
 - Your hand gives when you press on a braced prop, and hands rest on props instead of sinking in.
 - Player Appearance: gloves (fingerless or full, any colour, worn leather, or in Quake's art style), skin tone, a
   feminine body build, hand shape and voice, painted nails, Ghost Hands, and a Randomize button.
@@ -274,6 +276,9 @@ old default move to the new one, and values you changed stay yours.
 - Keys: Q / E lean (round corners and over the gun at a wall), 3 swaps hands, crouch at a run slides, X lies down,
   V melee, G drops, mouse 4 or R force grabs, mouse 5 shoves, Z bullet time, F7 the toolgun, the middle button the
   holster menu; hold jump at a ledge to mantle onto it.
+- Ladders made of rungs or stacked ledges (like the tutorial's) climb on a flat screen: walk into one and the hands take
+  its rungs hand over hand; forward climbs (looking down, or back: down), jump pushes off, and you climb over the top or
+  back off it onto the ladder (Desktop Screen Play > Ladders).
 - Every flat-play key can be bound from the menu (Desktop Screen Play > Flat Keys).
 - Flat reloading with the guns' own parts, a quick grenade, the drop key and the hand swap.
 - Melee: punches, shoves and overhead swings at the crosshair; a two-handed stance with an empty off hand; the right
@@ -476,6 +481,8 @@ old default move to the new one, and values you changed stay yours.
   the Flat Keys page.
 - One-way teleporters (start's and id's maps): leaning back across where one comes out no longer hides your hands or
   shows you yourself in the teleporter you came through.
+- Flat-screen: hip fire through a see-through teleporter hits what the crosshair is on beyond it (the guns aimed at
+  the teleporter's surface, and the shot went off once through).
 - Many smaller fixes and cleanups.
 
 ### Known issues

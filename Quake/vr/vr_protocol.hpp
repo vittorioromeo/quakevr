@@ -102,6 +102,9 @@ inline constexpr int moveFlatplayBit = 1 << 15;
 // server asks this and not its own keys, per client (vr_server.cpp). A client that never sets it (a headset's, an older
 // build's) reads as not crouching by this; QC's bit 14 is the server's own (QVR_VRBITS0_HANDSTRACKED).
 inline constexpr int moveFlatCrouchBit = 1 << 14;
+// The same bit from a headset client (no moveFlatplayBit): its slide gesture held (vr_slide: the turning stick pulled
+// straight down; vr_slide.cpp). Sent only with vr_slide on: an older build's, or vr_slide 0, never slides.
+inline constexpr int moveSlideBit = moveFlatCrouchBit;
 
 // VR stats (cl.stats / cl.statsf indices).
 enum Stat : int
