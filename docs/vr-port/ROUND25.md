@@ -3334,3 +3334,12 @@ His flat-screen notes (2026-11-16) and the coordinator's disarm-sound item.
   non-ASCII character through a StyledTextCLS modifier (TitleCLS), by exporting the item's comp, writing the styling
   array and importing it back (scripting can't set a StyledText). install_titles skips identical installed fonts
   (an installed font in use can't be overwritten). Checked: two titles at 1080p60, a 4K section render, "Quad Damage".
+- Follow-up (agent/trailertitles3), his feedback: blood behind the text, subtle drop shadows. MergeBlood now sits under
+  MergeTitle (order: scrim, title shadow, glow, ink, blood, metal, rule, subtitle shadow, subtitle). The blood coat
+  moved off the strokes (it would be hidden): BloodCov covers the glyph plus a band hanging 11 px below its lower edges
+  and noise patches seeping 5 px around it, so the relief and glints show on the visible rim; drips unchanged. The
+  title's drop shadow (already there, fixed 0.85 / 9 px / ~5 px) is driven by new inputs Shadow Opacity 0.8, Shadow
+  Softness 9 and Shadow Offset 6 (px at 1080p, down-right) and follows the in/out blur; the subtitle gets its own
+  (SubAlpha/SubShadowFill/Shift/Blur, MergeSubShadow under SubMask) at half softness and offset. Checked: the two-title
+  preview re-rendered (contact sheet, closeups); shadows measured against the trailertitles2 render (subtitle box 2.9%
+  of pixels darker by >3 levels, 0.1% lighter).
