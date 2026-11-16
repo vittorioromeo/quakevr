@@ -1432,8 +1432,9 @@ void relightCommand()
 // The page's game choices (vr_relight_batch_game).
 constexpr const char* batchGames[] = {"", "id1", "hipnotic", "rogue", "dopa", "mg1", "mg3"};
 
-// vr_relight_batch [map|episode [eN]|game [folder]|library|everything | <map> <map>...] [-force] [-list] [-own]: the
-// page's choice (vr_relight_batch_set ...) without a set named. An episode, a game, the Library or everything passes
+// vr_relight_batch [map|episode [eN]|game [folder]|library|everything|official | <map> <map>...] [-force] [-list] [-own]:
+// the page's choice (vr_relight_batch_set ...) without a set named; official: the installer's (maps::Set::Official: the
+// stock game's and the official packs', not the Library's nor AD's). An episode, a game, the Library or everything passes
 // over Quake VR's own maps (maps::Source::prelit: they ship lit as they are meant to be, and vrstart's light takes
 // half an hour) unless -own; the map in play, maps named and vr_relight (Relight This Map) relight them.
 void batchCommand()
@@ -1466,7 +1467,7 @@ void batchCommand()
         maps::Set set;
     };
     static constexpr Named sets[] = {{"map", maps::Set::Map}, {"episode", maps::Set::Episode}, {"game", maps::Set::Game},
-        {"library", maps::Set::Library}, {"everything", maps::Set::Everything}};
+        {"library", maps::Set::Library}, {"everything", maps::Set::Everything}, {"official", maps::Set::Official}};
     char current[MAX_QPATH];
     if(!currentMap(current, sizeof(current)))
     {
@@ -1848,9 +1849,10 @@ bool firstStart()
             marker.cStr());
         return false;
     }
-    Con_Printf("Relight: a first start after the installer: every map relit, except those relit with these settings "
-               "already and Quake VR's own, lit as they ship (vr_relight_batch everything)\n");
-    Cbuf_InsertText("vr_relight_batch everything\n");
+    Con_Printf("Relight: a first start after the installer: the stock game's and the official packs' maps relit, except "
+               "those relit with these settings already and Quake VR's own, lit as they ship (vr_relight_batch official; "
+               "the Map Library's and Arcane Dimensions' maps: Graphics > Relighting)\n");
+    Cbuf_InsertText("vr_relight_batch official\n");
     return true;
 }
 

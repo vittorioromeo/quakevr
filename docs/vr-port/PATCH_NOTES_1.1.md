@@ -329,7 +329,9 @@ old default move to the new one, and values you changed stay yours.
   settings; every run keeps its logs.
 - The installer offers a settings page after installing, and an optional Arcane Dimensions download.
 - Installer: a found Arcane Dimensions shows "ready (experimental)" (another release than 1.80 patch 1 says it isn't
-  played); the relight lights the biggest maps first, so it no longer ends waiting on one big map.
+  played); the relight lights the biggest maps first, so it no longer ends waiting on one big map, and relights only
+  Quake's and the official mission packs' maps (Map Library and Arcane Dimensions maps: in the game, Graphics >
+  Relighting).
 
 ### Campaigns, maps and modes
 

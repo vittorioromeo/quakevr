@@ -461,7 +461,7 @@ void frame()
         case Step::Relight:
         {
             line("step relight");
-            Cbuf_AddText("vr_relight_batch everything\n");
+            Cbuf_AddText("vr_relight_batch official\n"); // (not the Map Library's nor AD's maps: maps::Set::Official)
             run.frames = 0;
             run.nextProgress = 0.0;
             run.step = Step::RelightWait;

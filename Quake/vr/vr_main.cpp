@@ -432,7 +432,7 @@ void VR_StartGame_f()
     startGameCommands();
     // The installer's marker in the game folder (vr_relight.cpp), whichever way the game was started (its Play, a
     // shortcut, Steam): inserted last, so it runs first, before the hub or the map loads, as the installer's old
-    // +vr_relight_batch everything did.
+    // +vr_relight_batch everything did (now vr_relight_batch official: not the Library's nor AD's maps).
     qvr::relight::firstStart();
 }
 
