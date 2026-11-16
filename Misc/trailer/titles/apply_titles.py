@@ -40,13 +40,16 @@ PREFIX = "QVR - "                        # section timelines' names
 FALLBACK_FONT = ("Cinzel", "Bold")       # draws the title characters DpQuake maps to logos (Q, q, ~, ...)
 CORNERS = {"top-right": 0, "top-left": 1, "bottom-left": 2, "bottom-right": 3,
            "tr": 0, "tl": 1, "bl": 2, "br": 3}
-DEFAULTS = {"corner": "top-right", "seconds": "4.5", "wrap": "40", "in": "", "out": "", "intensity": ""}
+DEFAULTS = {"corner": "top-right", "seconds": "6", "wrap": "40", "in": "", "out": "", "intensity": "", "subdelay": "1"}
 KEYS = set(DEFAULTS) | {"subtitle", "marker"}
 INTRO_TEMPLATE = "QVR Intro Title"
 INTRO = "intro"                          # the [Intro] block's header (case ignored) and default marker name
-INTRO_DEFAULTS = {"line1": "Quake VR", "line2": "UNLEASHED", "line3": "v1.1 Release Trailer", "seconds": "5",
-                  "marker": "Intro", "out": "", "intensity": "", "blood": "", "backdrop": ""}
+# the intro's seconds: by default its lines' in (1.97 s), the hold and the out
+INTRO_DEFAULTS = {"line1": "Quake VR", "line2": "UNLEASHED", "line3": "v1.1 Release Trailer", "seconds": "",
+                  "hold": "3", "marker": "Intro", "out": "", "intensity": "", "blood": "", "backdrop": ""}
 INTRO_KEYS = set(INTRO_DEFAULTS)
+CLIP_SECONDS = 10      # a section timeline's title clip (longer when its seconds ask for more): Resolve's standard
+                       # generator duration (5 s) was too short for the holds
 # the intro's timing inputs (frames) and their template defaults, made for 60 fps: scaled on other frame rates
 INTRO_TIMING = {"L1Start": 0, "L1In": 46, "L2Start": 34, "L2In": 44, "RuleStart": 66, "RuleIn": 26, "L3Start": 84,
                 "L3In": 34, "SweepStart": 24, "SweepFrames": 110, "OutFrames": 36}
@@ -107,6 +110,12 @@ def parse_intro(s):
     sec = dict(INTRO_DEFAULTS)
     sec.update(s)
     sec["key"] = sec["marker"].strip() or INTRO_DEFAULTS["marker"]
+    if not sec["seconds"]:   # every line in, the hold, the out (the template's timings, in seconds at any rate)
+        t = INTRO_TIMING
+        all_in = max(t["L1Start"] + t["L1In"], t["L2Start"] + t["L2In"], t["RuleStart"] + t["RuleIn"],
+                     t["L3Start"] + t["L3In"]) / 60
+        out = float(sec["out"]) if sec["out"] else t["OutFrames"] / 60
+        sec["seconds"] = "%g" % round(all_in + float(sec["hold"] or 0) + out, 3)
     # DpQuake draws Q, q and ~ (and codes past ASCII) as id's logos: the template draws a leading Q itself, any other
     # one would show a logo
     bad = [ch for ch in sec["line1"][1:] if ch in "Qq~" or ord(ch) > 126]
@@ -246,9 +255,14 @@ def set_title(tool, sec, fps, frames, item=None):
         tool.SetInput("InFrames", max(1, round(float(sec["in"]) * fps)))
     if sec["out"]:
         tool.SetInput("OutFrames", max(1, round(float(sec["out"]) * fps)))
-    tin = tool.GetInput("InFrames") or 40
-    tout = tool.GetInput("OutFrames") or 26
-    tool.SetInput("HoldFrames", max(1, frames - int(tin) - int(tout)))
+    tin = int(tool.GetInput("InFrames") or 40)
+    tout = int(tool.GetInput("OutFrames") or 26)
+    delay = max(0, round(float(sec["subdelay"] or 0) * fps))   # after the title is in
+    tool.SetInput("SubDelay", delay)
+    tool.SetInput("HoldFrames", max(1, frames - tin - tout))
+    if sec["subtitle_text"] and frames - tout - (2 * tin + delay) < 1.5 * fps:
+        print("  %-28s the subtitle is fully on screen for only %.1f s: more seconds: or less subdelay:"
+              % (sec["title"][:28], max(0, frames - tout - 2 * tin - delay) / fps))
     # last: it re-imports the comp (with everything set above), so `tool` is stale afterwards
     if item is not None and not set_glyph_fallback(item, sec["title"]) and fallback_runs(sec["title"]):
         print("  %-28s Q and other logo glyphs not replaced: run with --rebuild" % sec["title"][:28])
@@ -270,6 +284,8 @@ def set_intro(tool, sec, fps, frames, clip_frames):
     if sec["out"]:
         tool.SetInput("OutFrames", max(1, round(float(sec["out"]) * fps)))
     tout = int(tool.GetInput("OutFrames") or 36)
+    if tool.GetInput("HoldFrames") is not None:     # (titles made before the hold input: --rebuild)
+        tool.SetInput("HoldFrames", max(0, round(float(sec["hold"] or 0) * fps)))
     # the out ends with the placed (possibly trimmed) clip; 0 = the title clip's own end
     tool.SetInput("OutAt", 0 if frames >= clip_frames else max(1, frames - tout))
 
@@ -420,7 +436,8 @@ def import_bake(mp, folder, path, st, frames, sec):
     return clips[0]
 
 
-def make_section_timeline(project, mp, folder, name, main, template=TEMPLATE):
+def make_section_timeline(project, mp, folder, name, main, template, frames):
+    """The section's own timeline holding one title clip of CLIP_SECONDS (or `frames`, when longer)."""
     mp.SetCurrentFolder(folder)
     st = mp.CreateEmptyTimeline(name)
     if st is None:
@@ -430,8 +447,12 @@ def make_section_timeline(project, mp, folder, name, main, template=TEMPLATE):
         st.SetSetting(k, main.GetSetting(k))
     project.SetCurrentTimeline(st)
     st.SetCurrentTimecode(st.GetStartTimecode())
+    # a title inserted between the timeline's In and Out marks takes their length (else Resolve's standard generator
+    # duration, 5 s); the marks count from the timeline's start
+    st.SetMarkInOut(0, max(frames, round(CLIP_SECONDS * float(main.GetSetting("timelineFrameRate")))) - 1)
     if not st.InsertFusionTitleIntoTimeline(template):
         raise RuntimeError("could not insert the %r title: is it installed (install_titles.py)?" % template)
+    st.ClearMarkInOut()
     project.SetCurrentTimeline(main)
     return st
 
@@ -489,7 +510,8 @@ def apply(resolve, sections, track_name, dry, rebuild=False, mode=None, bake_dir
                     st = None
         if not dry:
             if st is None:
-                st = make_section_timeline(project, mp, folder, name, main, INTRO_TEMPLATE if intro else TEMPLATE)
+                st = make_section_timeline(project, mp, folder, name, main, INTRO_TEMPLATE if intro else TEMPLATE,
+                                           frames)
                 action.append("new")
             # timeline names are unique in a project: another trailer timeline's section of the same name shares
             # this one; its frame size follows the current trailer (the title scales with the frame)
@@ -508,8 +530,8 @@ def apply(resolve, sections, track_name, dry, rebuild=False, mode=None, bake_dir
                 continue
             inner_len = int(inner[0].GetDuration())
             if frames > inner_len:
-                print("  %-28s %s s is longer than the title clip (%d frames): shortened"
-                      % (sec["title"][:28], sec["seconds"], inner_len))
+                print("  %-28s %s s is longer than the title clip (%d frames): shortened (--rebuild makes a "
+                      "longer one)" % (sec["title"][:28], sec["seconds"], inner_len))
                 frames = inner_len
             if draft is not None and tool.GetInput("Draft") is not None:
                 tool.SetInput("Draft", draft)
