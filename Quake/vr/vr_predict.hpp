@@ -48,5 +48,8 @@ void parseState();  // QVR_SVC_PREDICT's body
 void clientClear(); // a new connection or map
 void init();        // vr_mp_predict_report, vr_mp_predict_probe
 void report();      // "mp_predict: ..." (vr_mp_status, vr_mp_predict_report)
+// (B13) The corrections of half a unit or more since the game started and the sum of their lengths in units (the net
+// HUD's, never reset).
+void correctionTotals(za::U64& n, double& sum);
 
 } // namespace qvr::predict

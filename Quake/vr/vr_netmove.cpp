@@ -304,6 +304,9 @@ struct ClientState
     za::U32 first{0};   // the first move sent since clientClear (0: none yet)
     za::U32 seqs[ring]{};
     Quant moves[ring];
+    double sentAt[ring]{}; // (B13) each move's send (Sys_DoubleTime): its acknowledgement's round trip, the net HUD's ping
+    double rtt{0.0};       // ... smoothed (0: none measured on this connection yet)
+    double rttLast{0.0};   // ... the newest
 };
 ClientState clientState;
 
@@ -461,6 +464,7 @@ void writeMoves(sizebuf_t* buf, const WireMove& m, bool record)
     const int at = static_cast<int>(seq % ring);
     quantize(m, c.moves[at]);
     c.seqs[at] = seq;
+    c.sentAt[at] = Sys_DoubleTime();
     const za::U32 base = c.acked;
     const bool haveBase = base > 0 && base < seq && seq - base < static_cast<za::U32>(ring) && c.seqs[base % ring] == base;
     za::U32 first = seq > static_cast<za::U32>(repeats) ? seq - repeats : 1;
@@ -493,6 +497,12 @@ void parseAck()
     if(seq < c.nextSeq && seq > c.acked)
     {
         c.acked = seq;
+        if(c.seqs[seq % ring] == seq)
+        {
+            // (B13) the move's round trip: the way there, the server's frame that ran it, the datagram back
+            c.rttLast = za::max(0.0, Sys_DoubleTime() - c.sentAt[seq % ring]);
+            c.rtt = c.rtt > 0.0 ? 0.875 * c.rtt + 0.125 * c.rttLast : c.rttLast;
+        }
     }
 }
 
@@ -501,7 +511,17 @@ void clientClear()
     ClientState& c = clientState;
     c.acked = 0;
     c.first = 0;
+    c.rtt = c.rttLast = 0.0;
     memset(c.seqs, 0, sizeof(c.seqs));
+}
+
+double clientRoundTrip(double* newest)
+{
+    if(newest)
+    {
+        *newest = clientState.rttLast;
+    }
+    return clientState.rtt;
 }
 
 za::U32 clientNewest()

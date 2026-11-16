@@ -4804,6 +4804,284 @@ def deathmatch(s):
     s.check("A's and B's scoreboards agree", ta == tb, "A %s; B %s" % (ta, tb))
 
 
+# ---- B13: the server browser, the net HUD, the soak ----
+def browser_rows(inst, since):
+    """vr_mp_browse's rows printed from `since` on (up to its mp_browser_done line) -> [dict] (name: the rest of the line)."""
+    rows = []
+    for l in inst.lines[since:]:
+        if l.startswith("mp_browser_done:"):
+            break
+        if l.startswith("mp_browser: row="):
+            head, name = l.rstrip().split(" name=", 1)
+            f = fields(head)
+            f["name"] = name
+            rows.append(f)
+    return rows
+
+
+def browse(inst, what):
+    """A search (vr_mp_browse) -> its rows, the done line's fields."""
+    since = inst.mark()
+    inst.cmd("vr_mp_browse")
+    _, done = inst.wait(r"mp_browser_done: ", 15, since, what)
+    return browser_rows(inst, since), fields(done)
+
+
+def row_of(rows, address):
+    return next((r for r in rows if r["address"] == address), None)
+
+
+def browser(s):
+    """(B13) The server browser (vr_serverbrowser.cpp): a dedicated server on this PC is a favourite of A's: A's search
+    asks it by its address (NetQuake's search left out a server at its own address): its row has its name, map,
+    players and a ping; a favourite with no server shows no reply. A joins from the row (vr_mp_browse join: the menu's
+    Enter): the server is first in his recent list; searched again while in, it counts him. The favourite taken off and
+    the recent one forgotten: neither is listed. A screenshot of the page (menu_servers)."""
+    srv = s.server(dedicated=True)
+    srv.start()
+    srv.cmd('hostname "Browse Test"; coop 1; deathmatch 0; skill 1; map e1m1; vr_mp_status')
+    srv.wait(r"mp_server: map=e1m1", 120, what="the server on e1m1")
+    a = s.client("A").start()
+    here = "127.0.0.1:%d" % s.port
+    dead = "127.0.0.1:%d" % s.take_port()  # (no server there)
+    since = a.mark()
+    a.cmd('vr_mp_recent ""; vr_mp_favourites ""; vr_mp_favourite %s; vr_mp_favourite %s' % (here, dead))
+    _, on = a.wait(r"mp_browser: favourite %s on" % re.escape(dead), 60, since, "the favourites set")
+    rows, done = browse(a, "A's first search")
+    r, d = row_of(rows, here), row_of(rows, dead)
+    s.check("the server on this PC answers A's search (a favourite, asked by its address)",
+            r is not None and r["answered"] == "1" and r["favourite"] == "1" and r["name"] == "Browse Test" and
+            r["map"] == "e1m1" and r["users"] == "0" and r["max"] == "4" and r["version"] == "3", "%s" % r)
+    ping = int(r["ping"]) if r else -1
+    s.metric("browser_ping_ms", ping)
+    s.check("its ping is the reply's round trip (0..60 ms on this PC: the server's frame, the client's)",
+            0 <= ping <= 60 * s.time_scale, "%d ms" % ping)
+    s.check("the favourite without a server is listed, no reply", d is not None and d["answered"] == "0",
+            "%s; done: %s" % (d, done))
+    s.check("the favourites come first in their order", [x["address"] for x in rows[:2]] == [here, dead],
+            "%s" % [x["address"] for x in rows])
+
+    # joined from its row (the menu's Enter)
+    since = a.mark()
+    a.cmd("vr_mp_browse join %d" % rows.index(r))
+    a.wait(r"mp_event: .*joined map=e1m1", 120, since, "A joined from the browser")
+    since = a.mark()
+    a.cmd("vr_mp_favourite")
+    _, recent = a.wait(r"mp_recent: ", 10, since, "A's lists")
+    s.check("the server joined is first in A's recent list", recent.split("mp_recent: ", 1)[1].strip().split(";")[0] == here,
+            recent.strip())
+    rows, _ = browse(a, "A's search while in")
+    r = row_of(rows, here)
+    s.check("searched again while A is in, the server counts him; the row is a favourite and recent",
+            r is not None and r["users"] == "1" and r["favourite"] == "1" and r["recent"] == "1", "%s" % r)
+
+    # the page itself (one screenshot), then the lists emptied through the rows (the menu's F and Del)
+    since = a.mark()
+    a.cmd("disconnect; menu_servers; vr_mp_browse")
+    a.wait(r"mp_browser_done: ", 15, since, "the page's search")
+    s.note("screenshot (the server browser): %s" % a.screenshot("browser"))
+    a.cmd("toggleconsole")
+    rows, _ = browse(a, "A's search after leaving")
+    since = a.mark()
+    a.cmd("vr_mp_browse favourite %d" % rows.index(row_of(rows, here)))
+    a.wait(r"mp_browser: favourite %s off" % re.escape(here), 10, since, "the favourite taken off")
+    rows, _ = browse(a, "A's search after the favourite went")
+    r = row_of(rows, here)
+    s.check("taken off the favourites, the server stays as a recent one", r is not None and r["favourite"] == "0" and
+            r["recent"] == "1", "%s" % r)
+    since = a.mark()
+    a.cmd("vr_mp_browse forget %d" % rows.index(r))
+    a.wait(r"mp_browser: forgot %s" % re.escape(here), 10, since, "the recent one forgotten")
+    rows, _ = browse(a, "A's last search")
+    s.check("forgotten, it is not listed (no LAN broadcast reaches a server bound to 127.0.0.1)",
+            row_of(rows, here) is None and [x["address"] for x in rows] == [dead], "%s" % [x["address"] for x in rows])
+
+
+NETHUD_LAG_MS = 50
+NETHUD_LOSS = 0.05
+
+
+def nethud_report(inst, windows, what):
+    since = inst.mark()
+    inst.cmd("vr_net_hud_report %d" % windows)
+    _, line = inst.wait(r"mp_nethud: ", 30, since, what)
+    f = fields(line.split(" line0=")[0])
+    f["line0"] = line.split('line0="', 1)[1].split('"', 1)[0]
+    f["line1"] = line.split('line1="', 1)[1].split('"', 1)[0]
+    return f
+
+
+def nethud(s):
+    """(B13) The net HUD (vr_net_hud, vr_nethud.cpp): A joins directly, B through a proxy 50 ms each way losing 5% of
+    the packets; over three one-second windows B's HUD shows a ping of his moves' round trip (100 ms and the frames
+    between), the datagrams lost (a few %), the bytes each way; A's a few ms and no loss. B walks (the mock's stick):
+    his corrections a second are shown (a metric). The lines drawn: a screenshot of B's."""
+    srv = s.server(dedicated=True)
+    srv.start()
+    srv.cmd("coop 1; deathmatch 0; skill 1; map e1m1; vr_mp_status")
+    srv.wait(r"mp_server: map=e1m1", 120, what="the server on e1m1")
+    a = s.client("A").start()
+    b = s.client("B", lag_ms=NETHUD_LAG_MS, loss=NETHUD_LOSS).start()
+    a.cmd(s.connect_cmd(a))
+    b.cmd(s.connect_cmd(b))
+    a.wait(r"mp_event: .*joined map=e1m1", 120, what="A joined")
+    b.wait(r"mp_event: .*joined map=e1m1", 120, what="B joined")
+    a.cmd("vr_net_hud 1")
+    b.cmd("vr_net_hud 2")
+    fa = nethud_report(a, 3, "A's net HUD over 3 s")
+    fb = nethud_report(b, 3, "B's net HUD over 3 s")
+    for k in ("ping", "loss", "in", "out", "resent", "fix_rate"):
+        s.metric("nethud_a_" + k, float(fa[k]))
+        s.metric("nethud_b_" + k, float(fb[k]))
+    rtt = 2 * NETHUD_LAG_MS
+    s.check("B's HUD: a whole window, his moves' round trip as the ping", fb["window"] == "1" and fb["predicts"] == "1"
+            and rtt <= int(fb["ping"]) <= rtt + 60 * s.time_scale, "ping %s ms (last %s; the link's %d)" % (
+                fb["ping"], fb["ping_last"], rtt))
+    s.check("B's HUD: the datagrams lost (5% each way: 1-12% of the server's)", 1.0 <= float(fb["loss"]) <= 12.0,
+            "%s%%" % fb["loss"])
+    s.check("B's HUD: the bytes each way", float(fb["in"]) > 0.5 and float(fb["out"]) > 0.5, "in %s out %s KB/s" % (
+        fb["in"], fb["out"]))
+    s.check("A's HUD: a few ms, nothing lost", fa["window"] == "1" and int(fa["ping"]) <= 40 * s.time_scale and
+            float(fa["loss"]) == 0.0, "ping %s ms, loss %s%%" % (fa["ping"], fa["loss"]))
+    s.check("the lines drawn: one at A (vr_net_hud 1), B's two", fa["line0"].startswith("ping") and
+            fb["line1"].startswith("in "), "A: '%s'; B: '%s' / '%s'" % (fa["line0"], fb["line0"], fb["line1"]))
+    # B walks: his corrections a second (a metric: the moves' replay is exact on flat ground, so mostly none)
+    b.cmd("vr_mock_stick off 0 1")
+    fw = nethud_report(b, 2, "B's net HUD walking")
+    b.cmd("vr_mock_stick off 0 0")
+    s.metric("nethud_b_walk_fix_rate", float(fw["fix_rate"]))
+    s.metric("nethud_b_walk_fix_mean", float(fw["fix_mean"]))
+    s.note("B walking: %s / %s" % (fw["line0"], fw["line1"]))
+    s.note("screenshot (B's net HUD): %s" % b.screenshot("nethud"))
+
+
+SOAK_MAP = "dm3"   # (dm4's few starts: 16 players telefrag each other at their respawns)
+SOAK_BOTS = 14     # A, B and 14 FrikBot bots: 16 players (MAX_SCOREBOARD)
+SOAK_SECONDS = 10  # the window: the server's game time (vr_mp_after)
+SOAK_FRAGS = 5     # at least this many frags scored in it (the bots fight)
+
+
+def cpu_seconds(inst):
+    """A game's CPU time so far (user and kernel, GetProcessTimes) in seconds."""
+    import ctypes
+    from ctypes import wintypes
+    c, e, k, u = (wintypes.FILETIME() for _ in range(4))
+    ctypes.windll.kernel32.GetProcessTimes(wintypes.HANDLE(int(inst.proc._handle)), ctypes.byref(c), ctypes.byref(e),
+                                           ctypes.byref(k), ctypes.byref(u))
+    return sum((t.dwHighDateTime << 32 | t.dwLowDateTime) for t in (k, u)) / 1e7
+
+
+def profile_lines(inst, seconds, what):
+    """vr_profile_report over the last `seconds` -> its lines (the frame's zones, quakec's top functions)."""
+    since = inst.mark()
+    inst.cmd("vr_profile_report %.1f" % seconds)
+    _, line = inst.wait(r"^views \(the rest is shared\)|vr_profile_report: no", 20, since, what)
+    if line.startswith("views"):
+        inst.wait(r"traces and builtins|GPU: \d+ frames|no GPU times", 10, since, what)
+    inst.mark()
+    return [l.rstrip() for l in inst.lines[since:] if l.strip()]
+
+
+def soak(s):
+    """(B13) The CPU of many players: a dedicated deathmatch server (no frag or time limit) on dm3 with A, B (through a
+    proxy: his link counted) and 14 FrikBot bots: 16 players. Once all are listed, a window of 10 s of the server's game
+    time (vr_mp_after): each game's CPU a second of wall clock (its process times), its vr_profile report (the frame's
+    zones; quakec's top functions; profile_<game>.txt), the server's edicts and Box3D bodies (vr_mp_edicts), B's link
+    down, both net HUDs. Checks: 16 players at both clients, frags scored, the edicts bounded, nobody dropped. The CPU,
+    the server's pace and B's link are metrics (not timings when
+    the author's game runs: low impact)."""
+    srv = s.server(dedicated=True, maxplayers=16)
+    srv.start()
+    srv.cmd("vr_mp_watch 0; coop 0; deathmatch 1; fraglimit 0; timelimit 0; skill 1; map %s; vr_mp_status" % SOAK_MAP)
+    srv.wait(r"mp_server: map=%s" % SOAK_MAP, 120, what="the server on %s" % SOAK_MAP)
+    a = s.client("A").start()
+    b = s.client("B", proxy=True).start()
+    a.cmd(s.connect_cmd(a))
+    b.cmd(s.connect_cmd(b))
+    a.wait(r"mp_event: .*joined map=%s" % SOAK_MAP, 120, what="A joined")
+    b.wait(r"mp_event: .*joined map=%s" % SOAK_MAP, 120, what="B joined")
+    for i in range(SOAK_BOTS):
+        since = a.mark()
+        a.cmd("impulse 100")
+        while len(frag_table(a)) < 3 + i:  # (a bot's own line: frags lines repeat the named ones)
+            a.wait(r"mp_frags: .*named=1", 15, a.mark(), "bot %d named at A" % (i + 1))
+    for inst, what in ((a, "A"), (b, "B")):
+        while len(frag_table(inst)) < 2 + SOAK_BOTS:
+            inst.wait(r"mp_frags: .*named=1", 15, inst.mark(), "the bots named at %s" % what)
+        s.check("16 players listed at %s" % what, len(frag_table(inst)) == 2 + SOAK_BOTS)
+
+    since = srv.mark()
+    srv.cmd("vr_mp_edicts")
+    _, ed0 = srv.wait(r"mp_edicts: ", 30, since, "the server's edicts")
+    s.note("server edicts, the bots in: %s" % ed0.strip())
+
+    # the window: SOAK_SECONDS of the server's game time
+    for inst in (srv, a, b):
+        inst.cmd("vr_profile 1; vr_profile_gpu 0")
+    a.cmd("vr_net_hud 1")
+    b.cmd("vr_net_hud 2")
+    t0 = time.monotonic()
+    cpu0 = {i.name: cpu_seconds(i) for i in (srv, a, b)}
+    p0 = b.proxy.snapshot()
+    a.mark()  # (its lines read up to now: the frags so far)
+    start = sum(f for _, f in frag_table(a).values())
+    since = srv.mark()
+    srv.cmd("vr_mp_after %g soak_window_done" % SOAK_SECONDS)
+    srv.wait(r"mp_after: .*soak_window_done", 600, since, "the soak's %g s of the server's game time" % SOAK_SECONDS)
+    span = time.monotonic() - t0
+    since2 = srv.mark()
+    srv.cmd("vr_mp_edicts")
+    _, ed1 = srv.wait(r"mp_edicts: ", 30, since2, "the server's edicts")
+    _, bx = srv.wait(r"mp_box3d: ", 30, since2, "the server's Box3D bodies")
+    s.note("server edicts, the window's end: %s" % ed1.strip())
+    s.note("server Box3D, the window's end: %s" % bx.strip())
+    used0, used1 = int(fields(ed0)["used"]), int(fields(ed1)["used"])
+    s.metric("soak_edicts", used1)
+    s.metric("soak_box3d_bodies", int(fields(bx)["bodies"]))
+    s.metric("soak_box3d_awake", int(fields(bx)["awake"]))
+    # (B13: a telefrag storm at the starts once dropped two weapons a death until ED_Alloc ran out of its 16384)
+    s.check("the server's edicts stay bounded (under 2048 after the window)", used1 < 2048, "%d -> %d" % (used0, used1))
+    a.mark()
+    scored = sum(f for _, f in frag_table(a).values()) - start
+    p1 = b.proxy.snapshot()
+    cpu = {i.name: (cpu_seconds(i) - cpu0[i.name]) / span for i in (srv, a, b)}
+    s.check("the players scored frags in the window (the bots fight)", scored >= SOAK_FRAGS, "%d in %.1f s" % (
+        scored, span))
+    s.metric("soak_frags", scored)
+    for name, c in cpu.items():
+        s.metric("soak_cpu_%s" % name, round(c, 3))
+    s.note("CPU a second of wall clock over %.1f s: server %.2f, A %.2f, B %.2f%s" % (
+        span, cpu["server"], cpu["A"], cpu["B"], " (low impact: idle priority)" if s.low_impact else ""))
+    w = b.proxy.window(p0, p1)
+    s.metric("soak_b_down_bytes_s", w["down"]["bytes_s"])
+    # (B13: B's link and the server's pace are metrics, not checks yet -- 16 players cost ~40-65 KB/s down and the server
+    # ran at 0.7-0.75 of real time on a dev build: MP_PLAN's next phase, B13b)
+    s.note("B's link down: %s" % w["down"])
+    s.metric("soak_server_realtime_ratio", round(SOAK_SECONDS / span, 3))
+    s.note("the server's %g s of game time took %.1f s of wall clock (%.2f of real time)" % (SOAK_SECONDS, span,
+                                                                                          SOAK_SECONDS / span))
+    hitches = [l.strip() for l in srv.lines[since:] if l.startswith("vr_profile: hitch")]
+    s.note("server hitches: %d; the last: %s" % (len(hitches), hitches[-1] if hitches else "-"))
+    telefrags = sum(1 for l in a.lines if "was telefragged by" in l)
+    s.metric("soak_telefrags", telefrags)
+    s.note("telefrags seen at A (the bots in and the window): %d" % telefrags)
+    reports = {}
+    for inst in (srv, a, b):
+        lines = profile_lines(inst, min(span, 30.0), "%s's profile" % inst.name)
+        reports[inst.name] = lines
+        with open(os.path.join(s.out, "profile_%s.txt" % inst.name), "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+        head = [l for l in lines if l.startswith("vr_profile_report:") or l.startswith("frame ")]
+        s.note("%s: %s" % (inst.name, " | ".join(head)))
+    for inst, what in ((a, "A"), (b, "B")):
+        f = nethud_report(inst, 1, "%s's net HUD" % what)
+        s.note("%s's net HUD: %s / %s" % (what, f["line0"], f["line1"]))
+        s.metric("soak_%s_ping" % what, int(f["ping"]))
+    left = [l for inst in (a, b) for l in inst.lines if l.startswith("mp_event:") and l.rstrip().endswith(" left")]
+    s.check("nobody left the game", not left, "%s" % left)
+# ---- (B13's end) ----
+
+
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
     s = Session(args.exe, args.base, args.out, test, port=args.port)
     failure = None
@@ -4874,6 +5152,12 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             lockstep(s)
         elif test == "mp_lockstep_dm":
             lockstep_dm(s)
+        elif test == "mp_browser":
+            browser(s)
+        elif test == "mp_nethud":
+            nethud(s)
+        elif test == "mp_soak":
+            soak(s)
         elif test == "mp_lockstep_throw":
             lockstep_throw(s)
         elif test == "mp_dm":
@@ -4906,7 +5190,7 @@ def print_bytes_table():
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "soak", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -4943,7 +5227,7 @@ def main():
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw"):
+                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "soak"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)
@@ -4986,6 +5270,8 @@ def main():
         ok = run(args, "mp_lockstep") and ok
         ok = run(args, "mp_lockstep_dm") and ok
         ok = run(args, "mp_lockstep_throw") and ok
+        ok = run(args, "mp_browser") and ok
+        ok = run(args, "mp_nethud") and ok
         # B's link per scenario (MP_PLAN B7: byte counts against mp_bandwidth's): what the next phases cut.
         print_bytes_table()
         print("mp_suite: %s" % ("passed" if ok else "FAILED"))

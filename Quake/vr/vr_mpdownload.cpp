@@ -13,6 +13,7 @@
 #include "vr_mapindex.hpp"
 #include "vr_mapinstall.hpp"
 #include "vr_protocol.hpp"
+#include "vr_serverbrowser.hpp"
 
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
@@ -234,6 +235,7 @@ extern "C" void VR_MpNoteConnect(const char* host)
     if(host && *host && q_strcasecmp(host, "local"))
     {
         mpdownload::lastAddress = za::String{host};
+        browser::noteConnected(host); // (B13) first in the server browser's recent list
     }
 }
 

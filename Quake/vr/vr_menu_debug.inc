@@ -1147,6 +1147,15 @@ za::Vector<Item> pageDebugReports()
         command("Network: Player Preferences", "vr_mp_prefs")
             .help("vr_mp_prefs: your per-player preferences (grip, reload and holster modes, gun angles...) that differ "
                   "from the defaults and, hosting, each player's as the server judges him by (those unlike the server's own)."),
+        cycle("Network: Net HUD", vr_net_hud, {{0.f, "Off"}, {1.f, "Ping, Loss"}, {2.f, "And Bytes"}})
+            .help("vr_net_hud: while joined to a remote server, the top right shows your ping (your moves' round trip), "
+                  "the server's datagrams lost and your walk's corrections a second; And Bytes adds the bytes each way and "
+                  "the reliable resends."),
+        command("Network: Server Browser", "menu_servers")
+            .help("menu_servers: the server browser (Multiplayer > Join Game > Server Browser): your favourite servers, the "
+                  "ones you joined last and the LAN's, with their players and pings."),
+        command("Network: Edicts in Use", "vr_mp_edicts")
+            .help("vr_mp_edicts: hosting, the edicts in use and the commonest classnames: what piles up in a long game."),
         toggle("Network: Install the Server's Map", vr_mp_download)
             .help("vr_mp_download: joining a server whose map is a Map Library package you lack, it is installed as the "
                   "Map Library's Install does (your own index, its mirrors and checks: the server names only the package), "

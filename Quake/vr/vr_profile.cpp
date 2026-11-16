@@ -1153,9 +1153,9 @@ extern "C" void VR_ProfileFrame()
     VR_TracyFrame();
     glMarkerFrame();
     using namespace qvr::profile;
-    if(nodes.empty() || cls.state == ca_dedicated)
+    if(nodes.empty())
     {
-        return;
+        return; // (B13: a dedicated server's frames too -- the CPU of many players; no GL there: gpuOk stays false)
     }
     const za::I64 now = za::Clock::nowNanoseconds();
     endPhaseFrame(now, frameStart, frameEnded ? frameEnd : now);
@@ -1166,6 +1166,10 @@ extern "C" void VR_ProfileFrame()
     if(cl.mapname[0])
     {
         mapName = cl.mapname;
+    }
+    else if(cls.state == ca_dedicated && sv.active)
+    {
+        mapName = sv.name; // (B13: a dedicated server's)
     }
 
     if(active)

@@ -159,6 +159,13 @@ typedef struct qsocket_s
 	int		aheadAcks;
 	int		resendBackoff;
 	qboolean	fastResent;
+	// QVR: (B13) the link's counts for the net HUD (vr_nethud.cpp): unreliable datagrams read in order and the ones
+	// their sequence skipped (lost, or late), reliable chunks sent again, the packets' bytes each way
+	unsigned int	qvrUnreliableRead;
+	unsigned int	qvrUnreliableSkipped;
+	unsigned int	qvrResent;
+	unsigned int	qvrBytesIn;
+	unsigned int	qvrBytesOut;
 	int		qvrNetVersion;	// QVR: the peer's Quake VR network version from its connect request (0: none; net_dgrm.c)
 	char		qvrName[32];	// QVR: the player's name from its connect request ("": none): a loaded coop game's slot by it
 	unsigned int	unreliableSendSequence;
@@ -249,15 +256,17 @@ void NET_FreeQSocket(qsocket_t *);
 double SetNetTime(void);
 
 
-#define HOSTCACHESIZE	8
+#define HOSTCACHESIZE	32 // QVR: (B13) 8 before: the server browser's favourites and recent servers too
 
 typedef struct
 {
 	char	name[16];
 	char	map[16];
-	char	cname[32];
+	char	cname[64]; // QVR: 32 before: a favourite's address as he wrote it (a host name and port)
 	int		users;
 	int		maxusers;
+	int		ping;	// QVR: (B13) the reply's round trip in ms (the server browser's)
+	int		version;	// QVR: (B13) its NetQuake protocol version (NET_PROTOCOL_VERSION: joinable)
 	int		driver;
 	int		ldriver;
 	struct qsockaddr addr;

@@ -999,6 +999,43 @@ SelectSpawnPoint
 Returns the entity to spawn at
 ============
 */
+// VR (B13, MP_PLAN): a deathmatch start a living player (not `self`) stands within 64 units of: a spawn there would
+// telefrag him (spawn_tdeath's box reaches 49 units out on each axis). Stock Quake counted any "player" within 32 -- the
+// dead ones too, and not one 33-49 units away, whom the spawn then telefragged: with 16 players on a map's 6 starts the
+// bots' instant respawns telefragged each other hundreds of times a second (mp_soak), every death dropping weapons until
+// the server ran out of edicts.
+float(entity spot) VR_DMSpotBlocked =
+{
+    entity thing = findradius(spot.origin, 64);
+    while(thing)
+    {
+        if(thing.classname == "player" && thing != self && thing.health > 0 && thing.deadflag == DEAD_NO)
+            return TRUE;
+        thing = thing.chain;
+    }
+    return FALSE;
+};
+
+.float vr_spawn_wait; // VR (B13): a deathmatch respawn waiting for a clear start: the time it gives up waiting (0: none)
+float VR_DM_SPAWN_WAIT = 2;
+
+// VR (B13): whether a deathmatch start is clear now (VR_DMSpotBlocked); CTF's team starts are not counted (no wait there).
+float() VR_DMSpotClear =
+{
+    if(teamplay >= TEAM_CTF)
+        return TRUE;
+    entity spot = find(world, classname, "info_player_deathmatch");
+    if(!spot)
+        return TRUE;
+    while(spot)
+    {
+        if(!VR_DMSpotBlocked(spot))
+            return TRUE;
+        spot = find(spot, classname, "info_player_deathmatch");
+    }
+    return FALSE;
+};
+
 entity() SelectSpawnPoint =
 {
     entity spot;
@@ -1087,15 +1124,7 @@ entity() SelectSpawnPoint =
                     return startspot;
                 }
 
-                pcount = 0;
-                thing = findradius(spot.origin, 32);
-
-                while(thing)
-                {
-                    if(thing.classname == "player")
-                        pcount = pcount + 1;
-                    thing = thing.chain;
-                }
+                pcount = VR_DMSpotBlocked(spot); // VR (B13): a living player near it (stock: any player within 32)
 
                 if(pcount == 0)
                 {
@@ -1164,6 +1193,7 @@ void() PutClientInServer =
 
     VR_Head_StopFlies(self); // QVR: flies round a gibbed player's head don't follow it back to life
     self.vr_deathdoll_body = world; // QVR: alive again, his ragdoll body only a body (vr_deathdoll.qc); the others see him
+    self.vr_spawn_wait = 0; // QVR: (B13) no deathmatch respawn waiting
 
     self.classname = "player";
     self.health = 100;
@@ -1526,8 +1556,8 @@ void() PlayerDeathThink =
         return;
     }
 
-// wait for any button down
-    if(!self.button2 && !self.button1 && !self.button0)
+// wait for any button down (VR: B13, or a respawn already asked for, waiting for a clear start: below)
+    if(!self.button2 && !self.button1 && !self.button0 && !self.vr_spawn_wait)
         return;
 
     self.button0 = 0;
@@ -1543,6 +1573,16 @@ void() PlayerDeathThink =
     }
     // MG1 Horde (official client.qc): the same release-then-press gate, then a team wipe restarts the arena.
     if(MGH_Active()) { MGH_DeathThink(); return; }
+    // VR (B13): in deathmatch, every start with a living player at it: he waits for one to clear (his next press tries
+    // again), at most VR_DM_SPAWN_WAIT seconds from his first try; then he spawns as stock Quake did (a telefrag)
+    if(deathmatch && !VR_DMSpotClear())
+    {
+        if(!self.vr_spawn_wait)
+            self.vr_spawn_wait = time + VR_DM_SPAWN_WAIT;
+        if(time < self.vr_spawn_wait)
+            return;
+    }
+    self.vr_spawn_wait = 0;
     respawn();
 };
 

@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "vr/vr_tracy.h"
+#include "vr/vr_api.h" // QVR: VR_BrowserSearchDone
 #include "q_stdinc.h"
 #include "arch_def.h"
 #include "net_sys.h"
@@ -127,6 +128,8 @@ qsocket_t *NET_NewQSocket (void)
 	sock->fastResent = false;
 	sock->qvrNetVersion = 0; // QVR
 	sock->qvrName[0] = 0; // QVR
+	sock->qvrUnreliableRead = sock->qvrUnreliableSkipped = sock->qvrResent = 0; // QVR: (B13) the net HUD's
+	sock->qvrBytesIn = sock->qvrBytesOut = 0;
 	sock->unreliableSendSequence = 0;
 	sock->sendMessageLength = 0;
 	sock->receiveSequence = 0;
@@ -320,7 +323,7 @@ void NET_Slist_f (void)
 	slistStartTime = Sys_DoubleTime();
 
 	SchedulePollProcedure(&slistSendProcedure, 0.0);
-	SchedulePollProcedure(&slistPollProcedure, 0.1);
+	SchedulePollProcedure(&slistPollProcedure, 0.0); // QVR: (B13) from the next frame on (0.1 s before: the pings)
 
 	hostCacheCount = 0;
 }
@@ -379,6 +382,34 @@ const char *NET_SlistPrintServerName (int idx)
 }
 
 
+// QVR: (B13) the server browser's (net.h)
+int NET_SlistEntry (int n, const char **name, const char **map, const char **address, int *users, int *maxusers,
+					int *ping, int *version)
+{
+	if (n < 0 || n >= hostCacheCount)
+		return 0;
+	*name = hostcache[n].name;
+	*map = hostcache[n].map;
+	*address = hostcache[n].cname;
+	*users = hostcache[n].users;
+	*maxusers = hostcache[n].maxusers;
+	*ping = hostcache[n].ping;
+	*version = hostcache[n].version;
+	return 1;
+}
+
+// QVR: (B13) the net HUD's (net.h)
+void NET_QvrLinkCounts (struct qsocket_s *sock, unsigned int counts[5], double *reliableRtt)
+{
+	counts[0] = sock->qvrUnreliableRead;
+	counts[1] = sock->qvrUnreliableSkipped;
+	counts[2] = sock->qvrResent;
+	counts[3] = sock->qvrBytesIn;
+	counts[4] = sock->qvrBytesOut;
+	*reliableRtt = sock->reliableRtt;
+}
+
+
 static void Slist_Send (void *unused)
 {
 	for (net_driverlevel = 0; net_driverlevel < net_numdrivers; net_driverlevel++)
@@ -411,7 +442,9 @@ static void Slist_Poll (void *unused)
 
 	if ((Sys_DoubleTime() - slistStartTime) < 1.5)
 	{
-		SchedulePollProcedure(&slistPollProcedure, 0.1);
+		// QVR: (B13) read at every frame's poll (0.1 s apart before): the server browser's pings are the replies'
+		// round trips (vr_serverbrowser.cpp)
+		SchedulePollProcedure(&slistPollProcedure, 0.0);
 		return;
 	}
 
@@ -420,6 +453,7 @@ static void Slist_Poll (void *unused)
 	slistInProgress = false;
 	slistSilent = false;
 	slistLocal = true;
+	VR_BrowserSearchDone (); // QVR: (B13) its rows printed if asked (vr_mp_browse)
 }
 
 

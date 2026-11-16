@@ -184,6 +184,9 @@ static int SendReliableChunk (qsocket_t *sock, unsigned int sequence)
 	if (sfunc.Write (sock->socket, (byte *)&packetBuffer, packetLen, &sock->addr) == -1)
 		return -1;
 
+	sock->qvrBytesOut += packetLen; // QVR: (B13) the net HUD's
+	if (sequence != sock->sendSequence)
+		sock->qvrResent++;
 	sock->lastSendTime = net_time;
 	sock->chunkResent[sequence % DGRM_RELIABLE_WINDOW] = sequence != sock->sendSequence; // (a first send: the newest)
 	sock->chunkSentTime[sequence % DGRM_RELIABLE_WINDOW] = net_time;
@@ -297,6 +300,7 @@ int Datagram_SendUnreliableMessage (qsocket_t *sock, sizebuf_t *data)
 	if (sfunc.Write (sock->socket, (byte *)&packetBuffer, packetLen, &sock->addr) == -1)
 		return -1;
 
+	sock->qvrBytesOut += packetLen; // QVR: (B13) the net HUD's
 	packetsSent++;
 	return 1;
 }
@@ -349,6 +353,7 @@ static void SendAck (qsocket_t *sock, unsigned int sequence, struct qsockaddr *t
 	packetBuffer.length = BigLong(NET_HEADERSIZE | NETFLAG_ACK);
 	packetBuffer.sequence = BigLong(sequence);
 	sfunc.Write (sock->socket, (byte *)&packetBuffer, NET_HEADERSIZE, to);
+	sock->qvrBytesOut += NET_HEADERSIZE; // QVR: (B13) the net HUD's
 }
 
 int	Datagram_GetMessage (qsocket_t *sock)
@@ -414,6 +419,7 @@ int	Datagram_GetMessage (qsocket_t *sock)
 
 		sequence = BigLong(packetBuffer.sequence);
 		packetsReceived++;
+		sock->qvrBytesIn += length; // QVR: (B13) the net HUD's
 
 		if (flags & NETFLAG_UNRELIABLE)
 		{
@@ -428,9 +434,11 @@ int	Datagram_GetMessage (qsocket_t *sock)
 			{
 				count = sequence - sock->unreliableReceiveSequence;
 				droppedDatagrams += count;
+				sock->qvrUnreliableSkipped += count; // QVR: (B13) the net HUD's loss
 				Con_DPrintf("Dropped %u datagram(s)\n", count);
 			}
 			sock->unreliableReceiveSequence = sequence + 1;
+			sock->qvrUnreliableRead++;
 
 			length -= NET_HEADERSIZE;
 
@@ -1265,6 +1273,18 @@ qsocket_t *Datagram_CheckNewConnections (void)
 }
 
 
+// QVR: (B13) the server browser's addresses (its favourites and recent servers, vr_serverbrowser.cpp), asked one by one
+// besides the broadcast: their resolved addresses (a reply from one of them is listed under the address he wrote), and
+// the last query's time (a reply's round trip: its ping); each LAN driver's own
+typedef struct
+{
+	struct qsockaddr	addr[HOSTCACHESIZE];
+	int		index[HOSTCACHESIZE];	// (its VR_BrowserAddress index)
+	int		count;
+	double	sentTime;
+} slistasked_t;
+static slistasked_t	slistAskedBy[MAX_NET_DRIVERS];
+
 static void _Datagram_SearchForHosts (qboolean xmit)
 {
 	int		ret;
@@ -1272,7 +1292,10 @@ static void _Datagram_SearchForHosts (qboolean xmit)
 	int		i;
 	struct qsockaddr readaddr;
 	struct qsockaddr myaddr;
+	struct qsockaddr fromaddr;
 	int		control;
+	int		asked;
+	slistasked_t	*sa = &slistAskedBy[net_landriverlevel];
 
 	dfunc.GetSocketAddr (dfunc.controlSock, &myaddr);
 	if (xmit)
@@ -1285,6 +1308,20 @@ static void _Datagram_SearchForHosts (qboolean xmit)
 		MSG_WriteByte(&net_message, NET_PROTOCOL_VERSION);
 		*((int *)net_message.data) = BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
 		dfunc.Broadcast(dfunc.controlSock, net_message.data, net_message.cursize);
+		// QVR: (B13) the browser's addresses (a host name is looked up here: as connect's, it may block a moment)
+		sa->count = 0;
+		asked = VR_BrowserAddressCount ();
+		for (i = 0; i < asked && sa->count < HOSTCACHESIZE; i++)
+		{
+			struct qsockaddr *to = &sa->addr[sa->count];
+			if (dfunc.GetAddrFromName (VR_BrowserAddress (i), to) == -1)
+				continue;
+			if (dfunc.GetSocketPort (to) == 0)
+				dfunc.SetSocketPort (to, net_hostport);
+			dfunc.Write (dfunc.controlSock, net_message.data, net_message.cursize, to);
+			sa->index[sa->count++] = i;
+		}
+		sa->sentTime = Sys_DoubleTime ();
 		SZ_Clear(&net_message);
 	}
 
@@ -1295,8 +1332,12 @@ static void _Datagram_SearchForHosts (qboolean xmit)
 		net_message.cursize = ret;
 
 		// don't answer our own query
-		if (dfunc.AddrCompare(&readaddr, &myaddr) >= 0)
+		// QVR: (B13) only this game's own server's (its accept socket's port); NetQuake left out every server on the
+		// same machine (any reply from its address): another game's server on this PC is listed
+		if (dfunc.AddrCompare(&readaddr, &myaddr) == 0 ||
+			(dfunc.AddrCompare(&readaddr, &myaddr) > 0 && sv.active && dfunc.GetSocketPort (&readaddr) == net_hostport))
 			continue;
+		fromaddr = readaddr;
 
 		// is the cache full?
 		if (hostCacheCount == HOSTCACHESIZE)
@@ -1315,7 +1356,16 @@ static void _Datagram_SearchForHosts (qboolean xmit)
 		if (MSG_ReadByte() != CCREP_SERVER_INFO)
 			continue;
 
-		dfunc.GetAddrFromName(MSG_ReadString(), &readaddr);
+		// QVR: (B13) listed at the address the reply came from (NetQuake: the one the server wrote in it, its own idea
+		// of its address: its LAN's behind a router, 0.0.0.0's stand-in on a server bound to every interface); one the
+		// browser asked by its address, under the address he wrote
+		MSG_ReadString();
+		readaddr = fromaddr;
+		for (asked = 0; asked < sa->count; asked++)
+		{
+			if (dfunc.AddrCompare(&fromaddr, &sa->addr[asked]) == 0)
+				break;
+		}
 		// search the cache for this server
 		for (n = 0; n < hostCacheCount; n++)
 		{
@@ -1329,11 +1379,13 @@ static void _Datagram_SearchForHosts (qboolean xmit)
 
 		// add it
 		hostCacheCount++;
-		Q_strcpy(hostcache[n].name, MSG_ReadString());
-		Q_strcpy(hostcache[n].map, MSG_ReadString());
+		q_strlcpy(hostcache[n].name, MSG_ReadString(), sizeof(hostcache[n].name)); // QVR: (B13) bounded (a remote server's)
+		q_strlcpy(hostcache[n].map, MSG_ReadString(), sizeof(hostcache[n].map));
 		hostcache[n].users = MSG_ReadByte();
 		hostcache[n].maxusers = MSG_ReadByte();
-		if (MSG_ReadByte() != NET_PROTOCOL_VERSION)
+		hostcache[n].version = MSG_ReadByte(); // QVR: (B13) kept: the browser says why it cannot be joined
+		hostcache[n].ping = (int) ((Sys_DoubleTime () - sa->sentTime) * 1000.0 + 0.5);
+		if (hostcache[n].version != NET_PROTOCOL_VERSION)
 		{
 			Q_strcpy(hostcache[n].cname, hostcache[n].name);
 			hostcache[n].cname[14] = 0;
@@ -1343,7 +1395,10 @@ static void _Datagram_SearchForHosts (qboolean xmit)
 		Q_memcpy(&hostcache[n].addr, &readaddr, sizeof(struct qsockaddr));
 		hostcache[n].driver = net_driverlevel;
 		hostcache[n].ldriver = net_landriverlevel;
-		Q_strcpy(hostcache[n].cname, dfunc.AddrToString(&readaddr));
+		if (asked < sa->count && *VR_BrowserAddress (sa->index[asked]))
+			q_strlcpy(hostcache[n].cname, VR_BrowserAddress (sa->index[asked]), sizeof(hostcache[n].cname));
+		else
+			q_strlcpy(hostcache[n].cname, dfunc.AddrToString(&readaddr), sizeof(hostcache[n].cname));
 
 		// check for a name conflict
 		for (i = 0; i < hostCacheCount; i++)

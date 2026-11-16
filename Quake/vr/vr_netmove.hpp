@@ -64,6 +64,8 @@ void writeMoves(sizebuf_t* buf, const WireMove& m, bool record);
 // QVR_SVC_MOVEACK's body; a new connection's or map's state (VR_OnClientClearState).
 void parseAck();
 void clientClear();
+// (B13) The moves' acknowledgements' round trip in seconds, smoothed (0: none yet on this connection); `newest`: the last.
+[[nodiscard]] double clientRoundTrip(double* newest = nullptr);
 // The newest move sent (0: none yet) and a sent move by number, as the server reads it (false: gone from the ring).
 [[nodiscard]] za::U32 clientNewest();
 [[nodiscard]] bool clientMoveAt(za::U32 seq, WireMove& m);

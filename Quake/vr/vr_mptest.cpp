@@ -21,6 +21,7 @@
 
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_box3d.hpp"
 #include "vr_geom.hpp"
 #include "vr_mpavatar.hpp"
 #include "vr_netmove.hpp"
@@ -28,12 +29,15 @@
 #include "vr_netsnap.hpp"
 #include "vr_progs.hpp"
 #include "vr_clientprefs.hpp"
+#include "vr_nethud.hpp"
+#include "vr_serverbrowser.hpp"
 #include "vr_server.hpp"
 #include "vr_teleport.hpp"
 #include "vr_trace.hpp"
 #include "vr_lagcomp.hpp"
 
 #include "Zancle/Chrono/Time.hpp"
+#include "Zancle/Container/Vector.hpp"
 #include "Zancle/Concurrency/Thread.hpp"
 
 #include <chrono>
@@ -271,6 +275,28 @@ void watchFrame()
     }
 }
 
+// (B13) vr_mp_after <seconds> <label>: "mp_after: t=<ms> <label>" once the server's game time has gone that far (the
+// soak's window: a counted stretch of the server's frames, whatever their wall-clock pace).
+struct After
+{
+    bool pending{false};
+    double at{0.0};
+    char label[64]{};
+};
+After after;
+
+void after_f()
+{
+    if(Cmd_Argc() < 3 || !sv.active)
+    {
+        Con_Printf("vr_mp_after <seconds> <label>: a server's\n");
+        return;
+    }
+    after.pending = true;
+    after.at = sv.qcvm.time + Q_atof(Cmd_Argv(1));
+    q_strlcpy(after.label, Cmd_Argv(2), sizeof(after.label));
+}
+
 void mark_f()
 {
     const char* label = Cmd_Argc() > 1 ? Cmd_Args() : "";
@@ -482,6 +508,79 @@ void gotoExit_f()
         nextMap(exit), player->v.origin[0], player->v.origin[1], player->v.origin[2]);
 }
 
+// (B13) vr_mp_edicts: the server's edicts in use and the most common classnames ("mp_edicts: used=N of M top: class=n
+// ..."): what piles up in a long game (mp_soak).
+void edicts_f()
+{
+    if(!sv.active)
+    {
+        return;
+    }
+    const qvr::progs::ServerVm vm;
+    constexpr int maxKinds = 256;
+    struct Kind
+    {
+        const char* name;
+        int n;
+    };
+    za::Vector<Kind> kinds;
+    int used = 0;
+    for(int i = 1; i < qcvm->num_edicts; i++)
+    {
+        const edict_t* e = EDICT_NUM(i);
+        if(e->free)
+        {
+            continue;
+        }
+        used++;
+        const char* name = PR_GetString(e->v.classname);
+        Kind* k = nullptr;
+        for(Kind& c : kinds)
+        {
+            if(!strcmp(c.name, name))
+            {
+                k = &c;
+                break;
+            }
+        }
+        if(k)
+        {
+            k->n++;
+        }
+        else if(static_cast<int>(kinds.size()) < maxKinds)
+        {
+            kinds.pushBack(Kind{name, 1});
+        }
+    }
+    Con_Printf("mp_edicts: used=%d of %d top:", used, qcvm->max_edicts);
+    for(int shown = 0; shown < 12; shown++)
+    {
+        Kind* best = nullptr;
+        for(Kind& c : kinds)
+        {
+            if(c.n > 0 && (!best || c.n > best->n))
+            {
+                best = &c;
+            }
+        }
+        if(!best)
+        {
+            break;
+        }
+        Con_Printf(" %s=%d", best->name[0] ? best->name : "(none)", best->n);
+        best->n = -best->n;
+    }
+    Con_Printf("\n");
+    int bodies = 0, awake = 0, contacts = 0;
+    qvr::box3d::profileCounts(bodies, awake, contacts);
+    qvr::box3d::AwakeKinds k;
+    qvr::box3d::profileAwakeKinds(k);
+    Con_Printf("mp_box3d: bodies=%d awake=%d contacts=%d ragdolls_living=%d ragdolls_dead=%d rag_living_awake=%d "
+               "rag_dead_awake=%d gibs_awake=%d props_awake=%d other_awake=%d\n",
+        bodies, awake, contacts, k.ragdollsLiving, k.ragdollsDead, k.ragLivingAwake, k.ragDeadAwake, k.gibsAwake,
+        k.propsAwake, k.otherAwake);
+}
+
 // vr_hurt <damage> [<slot>] [<attacker>]: the player (hosting: the one in that slot) takes that much damage from the
 // world (QC's T_Damage, as a fall's), or from entity number <attacker> (a player or a bot: his frag in deathmatch, mp_dm):
 // a real death, not `kill`'s respawn at once (Debug > Tests > Cheats; mp_flow's death).
@@ -686,6 +785,8 @@ extern "C" void VR_MpTestInit(void)
         inbox.on = true; // (from its start: the harness makes it empty before the game starts, then writes at once)
     }
     Cmd_AddCommand("vr_mp_mark", mark_f);
+    Cmd_AddCommand("vr_mp_after", after_f); // (B13)
+    Cmd_AddCommand("vr_mp_edicts", edicts_f); // (B13)
     Cmd_AddCommand("vr_mp_status", status_f);
     Cmd_AddCommand("vr_mp_trace", trace_f);
     Cmd_AddCommand("vr_mp_lockstep_status", lockstepStatus_f);
@@ -697,6 +798,8 @@ extern "C" void VR_MpTestInit(void)
     Cmd_AddCommand("vr_hurt", hurt_f);
     qvr::mpavatar::init(); // vr_mp_avatars
     qvr::clientprefs::init(); // vr_mp_prefs, the "vr_prefs" client command
+    qvr::browser::init();     // (B13) vr_mp_browse, vr_mp_favourite
+    qvr::nethud::init();      // (B13) vr_net_hud_report
 }
 
 extern "C" void VR_MpTestFrame(void)
@@ -704,6 +807,11 @@ extern "C" void VR_MpTestFrame(void)
     if(inbox.on)
     {
         pollInbox();
+    }
+    if(after.pending && sv.active && sv.qcvm.time >= after.at)
+    {
+        after.pending = false;
+        Con_Printf("mp_after: t=%lld %s sv_time=%.3f\n", wallMs(), after.label, sv.qcvm.time);
     }
     if(!isDedicated)
     {

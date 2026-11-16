@@ -89,6 +89,22 @@ int VR_LockstepReadsMore (void);
 int VR_LockstepSkipsDatagram (int slot);
 void VR_MpNoteConnect (const char *host);	// CL_EstablishConnection: the address a client that leaves for the server's map package joins again (vr_mpdownload.cpp)
 void VR_MpWritePackage (struct sizebuf_s *msg);	// SV_SendServerinfo, to a remote client: QVR_SVC_PACKAGE, the server's map package (vr_mpdownload.cpp)
+// (B13) The server browser (vr_serverbrowser.cpp; menu.c's server list, Multiplayer > Join Game > Server Browser): the
+// LAN's servers (NetQuake's slist broadcast) with the favourites and recent servers (vr_mp_favourites, vr_mp_recent),
+// those asked by their address in the same search (net_dgrm.c). Rows: favourites, then recent, then the LAN's others.
+int VR_BrowserAddressCount (void);	// net_dgrm.c: the addresses asked besides the broadcast ...
+const char *VR_BrowserAddress (int i);	// ... each ("" out of range)
+void VR_BrowserSearchDone (void);	// net_main.c: the search ended (its rows printed when vr_mp_browse asked)
+void VR_BrowserRefresh (void);		// a new search
+int VR_BrowserSearching (void);
+int VR_BrowserCount (void);		// the rows (built again from the search's replies and the lists)
+const char *VR_BrowserRowText (int row);	// its 35 columns: name, map, players, ping (or its address, "no reply")
+int VR_BrowserRowFavourite (int row);
+int VR_BrowserRowRecent (int row);
+void VR_BrowserToggleFavourite (int row);
+void VR_BrowserForget (int row);	// off the recent list
+void VR_BrowserJoin (int row);		// connect to its address
+const char *VR_NetHudLine (int line);	// (B13) the net HUD's line (vr_net_hud; NULL: none; vr_nethud.cpp): gl_screen.c
 int VR_IsActive (void);		// nonzero while vr_enabled is set and a backend session is running: the
 							// runtime paces frames (no frame cap, no sleeping when unfocused)
 int VR_Unpaced (void);		// nonzero while the mock headset runs frames unpaced (vr_mock_fast, the game's clock

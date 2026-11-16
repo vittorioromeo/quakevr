@@ -6903,7 +6903,7 @@ void M_LanConfig_Draw (void)
 
 	if (JoiningGame)
 	{
-		M_Print (basex, lanConfig_cursor_table[1], "Search for local games...");
+		M_Print (basex, lanConfig_cursor_table[1], "Server browser..."); // QVR: (B13) "Search for local games..."
 		M_Print (basex, 108, "Join game at:");
 		M_DrawTextBox (basex+8, lanConfig_cursor_table[2]-8, 22, 1);
 		M_Print (basex+16, lanConfig_cursor_table[2], lanConfig_joinname);
@@ -7532,58 +7532,18 @@ void M_GameOptions_Mousemove (float cx, float cy)
 
 //=============================================================================
 /* SEARCH MENU */
-
-qboolean	searchComplete = false;
-double		searchCompleteTime;
+// QVR: (B13) the search runs on the server browser's page (its rows fill in as the replies come): m_search goes there
 
 void M_Menu_Search_f (void)
 {
-	IN_DeactivateForMenu();
-	key_dest = key_menu;
-	m_state = m_search;
-	m_entersound = false;
-	slistSilent = true;
-	slistLocal = false;
-	searchComplete = false;
-	NET_Slist_f();
-
+	VR_BrowserRefresh ();
+	M_Menu_ServerList_f ();
 }
 
 
 void M_Search_Draw (void)
 {
-	qpic_t	*p;
-	int x;
-
-	p = Draw_CachePic ("gfx/p_multi.lmp");
-	M_DrawPic ( (320-p->width)/2, 4, p);
-	x = (320/2) - ((12*8)/2) + 4;
-	M_DrawTextBox (x-8, 32, 12, 1);
-	M_Print (x, 40, "Searching...");
-
-	if(slistInProgress)
-	{
-		NET_Poll();
-		return;
-	}
-
-	if (! searchComplete)
-	{
-		searchComplete = true;
-		searchCompleteTime = realtime;
-	}
-
-	if (hostCacheCount)
-	{
-		M_Menu_ServerList_f ();
-		return;
-	}
-
-	M_PrintWhite ((320/2) - ((22*8)/2), 64, "No Quake servers found");
-	if ((realtime - searchCompleteTime) < 3.0)
-		return;
-
-	M_Menu_LanConfig_f ();
+	M_Menu_ServerList_f ();
 }
 
 
@@ -7593,9 +7553,22 @@ void M_Search_Key (int key)
 
 //=============================================================================
 /* SLIST MENU */
+// QVR: (B13) the server browser (vr/vr_serverbrowser.cpp): the favourite servers (a star), the recent ones and the LAN's,
+// a row each (name, map, players, ping; a listed one that did not answer: its address, "no reply"); the last row
+// searches again. Enter (A, a click) joins; Y or F, or a click on the star's column, makes it a favourite or not; Del
+// forgets a recent one; X or Space searches again. NetQuake's: the LAN's servers found, Enter joined.
 
-int		slist_cursor;
-qboolean slist_sorted;
+#define SLIST_TOP		40
+#define SLIST_VIEW		13
+#define SLIST_STAR_X	16	// the favourite's star; the rows' text from SLIST_STAR_X + 8
+
+static menulist_t	slist_list;
+static int			slist_mouse_x;
+
+static int M_ServerList_Count (void)
+{
+	return VR_BrowserCount () + 1; // (the last row: Search Again)
+}
 
 void M_Menu_ServerList_f (void)
 {
@@ -7603,37 +7576,61 @@ void M_Menu_ServerList_f (void)
 	key_dest = key_menu;
 	m_state = m_slist;
 	m_entersound = true;
-	slist_cursor = 0;
 	m_return_onerror = false;
 	m_return_reason[0] = 0;
-	slist_sorted = false;
+	slist_list.cursor = 0;
+	slist_list.scroll = 0;
+	slist_list.viewsize = SLIST_VIEW;
+	slist_list.numitems = M_ServerList_Count ();
+	slist_list.isactive_fn = NULL;
 }
 
 
 void M_ServerList_Draw (void)
 {
-	int	n;
+	int		i, first, count, row, y;
 	qpic_t	*p;
 
-	if (!slist_sorted)
-	{
-		slist_sorted = true;
-		NET_SlistSort ();
-	}
+	slist_list.numitems = M_ServerList_Count ();
+	if (slist_list.cursor >= slist_list.numitems)
+		slist_list.cursor = slist_list.numitems - 1;
+	M_List_Rescroll (&slist_list);
 
 	p = Draw_CachePic ("gfx/p_multi.lmp");
 	M_DrawPic ( (320-p->width)/2, 4, p);
-	for (n = 0; n < hostCacheCount; n++)
-		M_Print (16, 32 + 8*n, NET_SlistPrintServer (n));
-	M_DrawArrowCursor (0, 32 + slist_cursor*8);
+	M_PrintWhite (SLIST_STAR_X + 8, SLIST_TOP - 10, "Server         Map      Plyrs Ping");
 
+	M_List_GetVisibleRange (&slist_list, &first, &count);
+	for (i = 0; i < count; i++)
+	{
+		row = first + i;
+		y = SLIST_TOP + i * 8;
+		if (row == slist_list.numitems - 1)
+			M_Print (SLIST_STAR_X + 8, y, VR_BrowserSearching () ? "Searching..." : "Search again");
+		else
+		{
+			if (VR_BrowserRowFavourite (row))
+				M_PrintWhite (SLIST_STAR_X, y, "*");
+			M_Print (SLIST_STAR_X + 8, y, VR_BrowserRowText (row));
+		}
+	}
+	M_List_DrawScrollbar (&slist_list, 316, SLIST_TOP);
+	M_DrawArrowCursor (0, SLIST_TOP + (slist_list.cursor - first) * 8);
+
+	y = SLIST_TOP + SLIST_VIEW * 8 + 4;
+	M_Print (8, y, va ("%s join  %s favourite  %s search",
+		Key_KeynumToFriendlyString (K_ABUTTON), Key_KeynumToFriendlyString (K_YBUTTON),
+		Key_KeynumToFriendlyString (K_XBUTTON)));
 	if (*m_return_reason)
-		M_PrintWhite (16, 148, m_return_reason);
+		M_PrintWhite (8, y + 12, m_return_reason);
 }
 
 
 void M_ServerList_Key (int k)
 {
+	int			row = slist_list.cursor;
+	qboolean	searchRow = row >= slist_list.numitems - 1;
+
 	switch (k)
 	{
 	case K_ESCAPE:
@@ -7644,40 +7641,56 @@ void M_ServerList_Key (int k)
 		break;
 
 	case K_SPACE:
-		M_Menu_Search_f ();
+	case K_XBUTTON:
+		M_ThrottledSound ("misc/menu2.wav");
+		VR_BrowserRefresh ();
 		break;
 
-	case K_UPARROW:
-	case K_LEFTARROW:
-		M_ThrottledSound ("misc/menu1.wav");
-		slist_cursor--;
-		if (slist_cursor < 0)
-			slist_cursor = hostCacheCount - 1;
+	case 'f':
+	case 'F':
+	case K_YBUTTON:
+		if (searchRow)
+			break;
+		M_ThrottledSound ("misc/menu3.wav");
+		VR_BrowserToggleFavourite (row);
 		break;
 
-	case K_DOWNARROW:
-	case K_RIGHTARROW:
-		M_ThrottledSound ("misc/menu1.wav");
-		slist_cursor++;
-		if (slist_cursor >= hostCacheCount)
-			slist_cursor = 0;
+	case K_DEL:
+	case K_KP_DEL:
+	case K_BACKSPACE:
+		if (searchRow || !VR_BrowserRowRecent (row))
+			break;
+		M_ThrottledSound ("misc/menu3.wav");
+		VR_BrowserForget (row);
 		break;
 
 	case K_ENTER:
 	case K_KP_ENTER:
 	case K_ABUTTON:
 	case K_MOUSE1:
+		if (searchRow)
+		{
+			M_ThrottledSound ("misc/menu2.wav");
+			VR_BrowserRefresh ();
+			break;
+		}
+		if (k == K_MOUSE1 && slist_mouse_x < SLIST_STAR_X + 8)
+		{
+			M_ThrottledSound ("misc/menu3.wav");
+			VR_BrowserToggleFavourite (row);
+			break;
+		}
 		M_ThrottledSound ("misc/menu2.wav");
 		m_return_state = m_state;
 		m_return_onerror = true;
-		slist_sorted = false;
 		IN_Activate();
 		key_dest = key_game;
 		m_state = m_none;
-		Cbuf_AddText ( va ("connect \"%s\"\n", NET_SlistPrintServerName(slist_cursor)) );
+		VR_BrowserJoin (row);
 		break;
 
 	default:
+		M_List_Key (&slist_list, k); // (the arrows, the pages, the wheel)
 		break;
 	}
 
@@ -7686,9 +7699,10 @@ void M_ServerList_Key (int k)
 
 void M_ServerList_Mousemove (float cx, float cy)
 {
-	int prev = slist_cursor;
-	M_UpdateCursor (cy, 32, 8, hostCacheCount, &slist_cursor);
-	if (slist_cursor != prev)
+	int prev = slist_list.cursor;
+	slist_mouse_x = (int) cx;
+	M_List_Mousemove (&slist_list, (int) cy - SLIST_TOP);
+	if (slist_list.cursor != prev)
 		M_MouseSound ("misc/menu1.wav");
 }
 
@@ -8409,6 +8423,7 @@ void M_Init (void)
 	Cmd_AddCommand ("menu_credits", M_Menu_Credits_f); // needed by the 2021 re-release
 	Cmd_AddCommand ("menu_mods", M_Menu_Mods_f);
 	Cmd_AddCommand ("menu_maps", M_Menu_Maps_f);
+	Cmd_AddCommand ("menu_servers", M_Menu_Search_f); // QVR: (B13) the server browser, searching
 
 	Cvar_RegisterVariable (&ui_mouse);
 	Cvar_SetCallback (&ui_mouse, UI_Mouse_f);

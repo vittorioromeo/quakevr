@@ -524,6 +524,16 @@ struct ClientPredict
 };
 ClientPredict cp;
 
+// (B13) The corrections since the game started and their lengths' sum (never reset: the net HUD's rate over its window);
+// only those of half a unit or more (a state's replay off by less is not seen: most states' are 0 to a few hundredths)
+constexpr float hudCorrectionMin = 0.5f;
+struct CorrectionTotals
+{
+    za::U64 n{0};
+    double sum{0.0};
+};
+CorrectionTotals corrTotals;
+
 // A brush model of the map (a door, a lift) in the newest message, unturned: a move meets it there.
 [[nodiscard]] bool brushMover(const entity_t& e)
 {
@@ -1001,6 +1011,11 @@ bool replay(vec3_t out, vec3_t before)
             }
             cp.corrN++;
             cp.corrSum += c;
+            if(c >= hudCorrectionMin)
+            {
+                corrTotals.n++;
+                corrTotals.sum += c;
+            }
             cp.corrMax = q_max(cp.corrMax, c);
             if(cp.grapple.on)
             {
@@ -1421,6 +1436,12 @@ void clientClear()
     cp.wclimbN = keep.wclimbN;
     cp.grappleN = keep.grappleN;
     cp.grappleMax = keep.grappleMax;
+}
+
+void correctionTotals(za::U64& n, double& sum)
+{
+    n = corrTotals.n;
+    sum = corrTotals.sum;
 }
 
 void report()

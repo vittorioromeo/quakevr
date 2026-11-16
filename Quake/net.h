@@ -103,6 +103,12 @@ void	NET_Slist_f (void);
 void	NET_SlistSort (void);
 const char *NET_SlistPrintServer (int n);
 const char *NET_SlistPrintServerName (int n);
+// QVR: (B13) a search's reply (the server browser's, vr_serverbrowser.cpp): 0 out of range
+int NET_SlistEntry (int n, const char **name, const char **map, const char **address, int *users, int *maxusers,
+					int *ping, int *version);
+// QVR: (B13) a connection's counts (the net HUD's, vr_nethud.cpp; qsocket_t's): unreliable datagrams read and skipped,
+// reliable chunks resent, bytes in and out; its reliable chunks' smoothed round trip in seconds (0: none yet)
+void NET_QvrLinkCounts (struct qsocket_s *sock, unsigned int counts[5], double *reliableRtt);
 
 
 /* FIXME: driver related, but public:
