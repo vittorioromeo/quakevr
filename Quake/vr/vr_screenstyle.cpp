@@ -106,6 +106,22 @@ constexpr Entry table[] = {
             .box = 0.f,
             .housing = true,
             .opening = {22.f, 11.f}}},
+    // The nailgun's lava-nail model (v_lava.blend: v_nail's mesh, the same housing by the same script, its texels found
+    // on v_lava's own skin): "nail"'s numbers, weapons.txt slot 11's place slot 3's.
+    {"lava",
+        {.radius = -4.4f,
+            .bevel = 1.6f,
+            .vignette = 0.4f,
+            .sheen = 0.6f,
+            .soft = 0.55f,
+            .glass = 0.13f,
+            .tint = {0.9f, 1.f, 0.9f},
+            .crt = 0.4f,
+            .size = 1.f,
+            .offset = {0.0132f, -0.0024f, 0.0014f},
+            .box = 0.f,
+            .housing = true,
+            .opening = {22.f, 11.f}}},
     // The super nailgun: a riveted bezel in the long, low rear slope of a wedge on the receiver's top, at its back end
     // (v_nail2.blend, Misc/quakevr/make_screen_housing_nail2.py, which reads this entry's opening, radius and offset);
     // the back of the gun round the hand is free. In window heights h: the window 1.6h x 1h (h 28.56 font pixels),
@@ -126,14 +142,47 @@ constexpr Entry table[] = {
             .box = 0.f,
             .housing = true,
             .opening = {23.02f, 14.28f}}},
+    // The super nailgun's lava-nail model (v_lava2.blend: the same wedge by the same script on its own grid, its texels
+    // found on v_lava2's own skin): "nail2"'s numbers, the glass at slot 12's place (slot 4's wpntxt values).
+    {"lava2",
+        {.radius = -7.2f,
+            .bevel = 1.6f,
+            .vignette = 0.45f,
+            .sheen = 0.6f,
+            .soft = 0.55f,
+            .glass = 0.1f,
+            .tint = {0.9f, 1.f, 0.9f},
+            .crt = 0.4f,
+            .size = 1.f,
+            .offset = {0.0253f, -0.0028f, 0.0135f},
+            .box = 0.f,
+            .housing = true,
+            .opening = {23.02f, 14.28f}}},
     // The lightning gun: a flat bronze plate over the receiver's whole upright rear face under the rear sight (its
     // trapezoid), the window a trapezoid too (`taper`: its top 0.73 of its bottom), chamfered, sunk into the plate, two
     // rivets each side between them (v_light.blend, Misc/quakevr/make_screen_housing_light.py reads `opening`, `taper`,
     // `radius`, `size` and `offset` from here and snaps them to the model's grid). The glass upright, 0.06 window heights
     // behind the plate's front: the offset moves it from weapons.txt's place (model -2.964 -0.218 9.762) to the
     // window's (2.551 model units a world unit). Smaller digits (size): two lines fit the window's narrower top.
-    // v_light_plasma.mdl (stem "light_plasma") has no housing: the default.
+    // Its plasma model v_light_plasma.mdl (stem "light_plasma", next) takes the same housing.
     {"light",
+        {.radius = -4.71f,
+            .bevel = 1.6f,
+            .vignette = 0.4f,
+            .sheen = 0.6f,
+            .soft = 0.55f,
+            .glass = 0.13f,
+            .tint = {0.9f, 1.f, 0.9f},
+            .crt = 0.4f,
+            .size = 0.8f,
+            .offset = {-0.0184f, 0.002f, -0.0742f},
+            .box = 0.f,
+            .housing = true,
+            .opening = {31.15f, 15.68f},
+            .taper = 0.7308f}},
+    // The Thunderbolt's plasma model (v_light_plasma.blend: v_light's mesh, the same plate by the same script, its skin
+    // holding v_light's texels where the plate takes them): "light"'s numbers, slot 15's place slot 7's.
+    {"light_plasma",
         {.radius = -4.71f,
             .bevel = 1.6f,
             .vignette = 0.4f,

@@ -1240,7 +1240,7 @@ void overlay()
 {
     const int mode = vr_profile_overlay.value != 0.f ? static_cast<int>(vr_profile_overlay.value)
                                                      : (vr_profile.value >= 2.f ? 1 : 0);
-    if(!active || mode == 0 || panelText.empty())
+    if(!active || mode == 0 || panelText.empty() || obs::hides(obs::Hide::Debug)) // (OBS recording: vr_obsrec_debug)
     {
         panelPlaced = false;
         return;

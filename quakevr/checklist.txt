@@ -15,6 +15,14 @@ Get your weapon knocked out of your hand by a grunt's shot or blow: a metal clan
 Test hall: grenades near the NEW GAME / VR HUB buttons no longer restart the game; only your hand, your step or what you threw presses them.
 Installer: the desktop now also gets a "Quake VR Unleashed (Flat Screen)" shortcut (own checkbox on the options page, on by default; check the Start menu, desktop and an uninstall).
 In start, stand just in front of where the hub's teleporter back to the start comes out, then lean back and reach behind you across that line: your hands stay whole and you never see yourself in a teleporter. {test:start_oneway_exit}
+Flat-screen or VR: on e1m1, by the four buttons' door, the grunts on the bridge over the slime and their bodies have no wet shine; e1m2's monsters and bodies near water only shine if they were in it.
+Flat-screen or VR: fight a knight with a chainsaw and disarm it, shove it down, kill it or gib it: its engine sound always stops (a dropped running one stalls after a few seconds).
+Shoot your own forearm with the flare gun: you catch fire, as an enemy would.
+Let grunts shoot at your held gun and enemies hit it with default settings: it is never knocked out of your hand (You Can Be Disarmed is now off by default); turn it on in Combat > Armed Grunts and it is knocked out as before.
+Throw the dagger a few times, then set Debug > Tunables > Dagger Settling: Strength to 0 and throw it again: the dagger no longer comes round point first while a thrown sword still does; back at 1 both are as before.
+Turn on Ghost Hands, hold a heavy gun off your controller so a ghost shows, then start an OBS recording from the menu: the ghost hands, tips and wrist messages disappear while it records and come back when it stops; with Graphics > Recording > No Ghost Hands While Recording off the ghost stays.
+Spawn an armed knight with two melee weapons: its idle, ready, run and dual strike poses and its grip are the ones you set in the Pose Studio, now the defaults.
+Trailer intro title: watch qvr-kit\scratch\trailerintro_shots\qvr_intro_1080p60.mp4; is the blood juicy enough and does the custom Q read as DpQuake?
 
 [1. Flat-screen: weapons and hands]
 Flat-screen: turn on Locomotion > Desktop Screen Play > Third-Person Camera and walk the corridor and the doorway: the camera sits over your right shoulder with your whole body in view, pulls in at once when a wall comes behind it (never showing the inside of a wall), eases back out, and moves over the other shoulder at a wall on the right. {test:flat_thirdperson}
@@ -45,6 +53,9 @@ Flat-screen or VR: switch the rocket launcher to its multi-rocket model and look
 Flat-screen or VR: hold the rocket launcher in its multi-rocket model and the normal one, one after the other: the ammo screen on the finger, the grips and the muzzle sit in the same places on both. {test:mrl_vents}
 Hold your gun out towards shooting grunts or an enforcer: shots that hit the gun or your gun hand now and then knock it out of your hand (sparks, ricochet, buzz, flash); it drops to the floor with its ammo and you can pick it up again. Shots on your body never disarm you, fists never. {test:player_disarm}
 A knight's sword or an ogre's chainsaw landing on your weapon held at the wrong angle (not a parry) knocks it out of your hand; a proper parry never does. Combat > Armed Grunts, Disarming: Your Weapon turns it off or scales the chance.
+Hold the nailgun and switch it to lava nails: the lava model has the same bevelled bezel, round fasteners and ammo screen as the default one. {test:nail_alt_housing}
+Hold the super nailgun and switch it to lava nails: the lava model has the same riveted wedge and tilted ammo screen as the default one. {test:nail2_alt_housing}
+Hold the Thunderbolt and switch it to plasma: the plasma model has the same bronze plate, trapezoid window and rivets as the default one. {test:light_alt_housing}
 
 [7. VR: physics, bodies and gore]
 

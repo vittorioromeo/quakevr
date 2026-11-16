@@ -1,0 +1,10 @@
+# light_alt_housing: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The Thunderbolt's plasma
+# model (v_light_plasma.mdl) has the default model's ammo screen housing (make_screen_housing_light.py): the Thunderbolt
+# in the right hand, its button switches it to plasma and back.
+title Thunderbolt ammo screen housing on the plasma model
+map vrtesthall
+god
+notarget
+cmd impulse 9
+give "Thunderbolt" main
+hint The right hand holds a Thunderbolt: its ammo screen in a bronze plate on the rear face, a trapezoid window with two rivets each side. Press its button (flat screen: B) for plasma: the model changes, the plate, the rivets and the digits stay the same. Press it again to compare.

@@ -3323,6 +3323,99 @@ His flat-screen notes (2026-11-16) and the coordinator's disarm-sound item.
 - Checked in Resolve Studio 21.1 (project "QVR Titles Preview"): two titles rendered at 1080p60, top-right and
   bottom-left; a rerun reports "updated" for both, no duplicates. Not checked: 4K, IM Fell English.
 
+## vr1116c: the alternate-ammo models get the ammo screen housing (agent/vr1116c, 2026-11-16)
+
+His notes (vrfiringrange_2026-11-16_00-26..00-29): the plasma Thunderbolt (`v_light_plasma.mdl`), the lava nailgun
+(`v_lava.mdl`) and the lava super nailgun (`v_lava2.mdl`) still had the old geometry, no enclosure, and the old screen.
+- **Models:** the default models' housing scripts now also run on the alternate .blends: each picks its gun from the
+  mesh's name (`GUNS` in `make_screen_housing_light.py`, `_nail.py`, `_nail2.py`: stem, slot, and for the lava models
+  their own skin's texel places, found by colour, least RMS, since their panels sit elsewhere on the skin; v_lava2 its
+  own ridge/glass reference as its mesh differs within a grid step). Same plate/bezel/wedge, rivets and fasteners.
+  Normal maps re-baked, `fx_gfx_mask` rewritten (slots 11, 12, 15).
+- **Screens:** `vr_screenstyle.cpp` entries `lava`, `lava2`, `light_plasma` with their base's numbers (opening, radius,
+  taper, size, look) and offsets measured on each model. weapons.txt slot 12 (v_lava2) takes slot 4's glass place and
+  tilt (wpntxt_pitch 70.5, x -3.4, z 4.13); slots 11 and 15 already matched 3 and 7; fonts inherit (`inherit`).
+  `vr_wofs_version` 78: `takeLavaSngHousing78` resets a config still holding slot 12's old upright glass. His config has
+  no wpntxt tweaks for these slots.
+- Checked: check_mdl_holes ok on all three (0 see-through, 0 flipped in sight, cracks none wider than 0.01; same as their
+  bases); load_models_test 4/0; scenario_check 144/0 (new scenes `nail_alt_housing`, `nail2_alt_housing`,
+  `light_alt_housing`: the gun, B switches the model). Flat shots default vs alternate, hand view and screen close-up:
+  kit `scratch/vr1116c_shots/`. Dev and ReleaseLTO (1.1.0) builds 0 warnings.
+- Backlog: one model per gun with attachments/parts/skins instead of per-ammo models (his words, BACKLOG.md section 8).
+## Player disarm off; the dagger's own settling; clean recording; his tuning promoted (branch agent/vr1116d, 2026-11-16)
+
+- **Player disarm off by default for 1.1** (his note vrragtriggers 00:33): `vr_player_disarm` 0 (the feature, its
+  chance and sounds stay; the menu row says it is still being tuned). BACKLOG.md 6 holds his notes (unpredictable, some
+  melee and all punches never disarm; PvE on once polished; multiplayer: PvE and PvP settings, PvP on by default).
+  PATCH_NOTES / RELEASE_NOTES no longer say "on by default" nor list "get disarmed" among the highlights. `vr_pd_test 1`
+  now restores the value it found and resets the cvar for its last case: 12/12 (new check "defaults to 0", off: 0 hits,
+  0 disarms; forced on: as before).
+- **The dagger's own point-first settling** (vrtesthall 00:38): Debug > Tunables > Dagger Settling: Strength, Time,
+  Angle, Tumble, Spin Damping (`vr_throw_point_dagger_align/_time/_angle/_spin/_damp`, all 1), multipliers on the
+  swords' Point-First Settling rows for a blade more lenient than the swords (weapons.txt `throw_point` above 1: the
+  dagger, 2), on top of its throw_point. 1 everywhere: unchanged (pointAlign, vr_box3d_step.cpp; it now reads the
+  blade's leniency before its strength and window, early-out at the longer window). `vr_embed_test 47`: 12/12 at
+  defaults; with Dagger Settling: Strength 0 the daggers' "any way" set falls to 0 of 8 point first, swords stay 8 of 8.
+  BACKLOG.md 8: refine the dagger's flight next patch.
+- **Clean recording** (vrtesthall 00:40): Graphics > Recording > Clean Recording (While OBS Records), all on, archived:
+  `vr_obsrec_ghost_hands` (no Ghost Hands), `vr_obsrec_debug` (no weapon hotspot marks, no profiler panel),
+  `vr_obsrec_messages` (Recording Mode by itself: no tips, wrist messages, head-locked text: `qvr::recordingClean`). In
+  the headset too. `obs::hides(Hide)` (vr_obs.cpp, declared in vr_cvars.hpp) is true while `obs::recording()` (OBS or
+  its mock) or the test aid `vr_obsrec_as_if` (Debug > Reports, not saved). Left alone on purpose: the toolgun panel
+  (hiding it in the headset would leave a take unworkable), voice notes' indicator (notes are taken during takes), menus
+  and the wrist gadget's own display. Test `Misc/quakevr/obsrec_test.sh` (`vr_obsrec_test start|hidden|end`): 7/7
+  (recording: ghost 0.350 measured, 0.000 drawn over 60 frames; option off: 0.350 drawn; defaults on; not recording:
+  nothing hidden).
+- **His tuning promoted** (vrtesthall 00:48; his ironwail.cfg, proposed_defaults/2026-11-16_00-48-54.cfg and
+  agrunt_poses_2026-11-16_00-46-19.txt, read only): `pose_defaults.py --write`: the knight's two-melee-weapon keys
+  (205000 Idle, 205010 Ready, 205020 Run, 205190-205192 Dual Strike) and the knight's every-weapon Main grip (0.50 0.50
+  2.00 0 50 0 -> 1.52 0.69 1.37 -7.7 49.4 5.4); the Done file's IK stretch rows dropped (his vr_agrunt_ik_stretch is
+  empty: they only copied inherited values). `weapons_data.py promote`: 13 values (dagger hs1_y/z, wpntxt scale/x/z;
+  slot 5 wpntxt_x; fsight_mode 1 (zoom) on slots 27-32 and 35). Cvars: `vr_agrunt_repl_dual` 0.15 -> 0.1,
+  `vr_ammo_pouch_armor_x` 0 -> 1.25, `vr_flashlight_armor_forward` 0 -> 0.03 (both shipped at 0 "not measured").
+  tunables.cfg: nothing off its defaults. Skipped as personal: window/spectator (vr_window_view, vr_spectator_fov,
+  _scale), vr_foveated, vr_flat_taa, vr_flat_tp_fov 1 (a view/comfort choice), Arms (gloves, nails), ghost hands,
+  vr_notes, vr_show_controller_off_own, vr_gore_dents 0 (a gore preference), vr_autosave_list_all, toolgun, rig studio
+  and takes keys, calibration/comfort/handedness, run state and picks, skill, engine video/audio/input, editor state
+  (grip editor, Armour Studio, not archived), map-set cvars (vr_gameplayfix_*, vr_pickup_scale), vr_prop_id_72-74 (held
+  slots with no tuning off defaults). Checked by a default-config run: each promoted value prints as its default.
+- Build fix: the tree's `build/qvr_checks/qvr_checks.exe` exited 3 with no output (left over from the deleted build
+  folders, not rebuilt as no source was newer): rebuilt with `-t:Rebuild`; the kit's build then passes.
+## vr1116a: wet shine on the never wet, looping sounds that never stopped, your own flare (branch agent/vr1116a, 2026-11-16)
+
+His notes e1m1_2026-11-16_00-59-25, _01-00-01, e1m2_2026-11-16_01-02-28, vrtesthall_2026-11-16_00-47-47, _00-40-33.
+
+**Wet shine.** Not the wetglint change itself: the drips (vr_drips.cpp `scan`) take a model's box from its frames' bounds,
+and its bottom (`lo.z + 1`) was tested against the world's leaves only. e1m1's bridge over the slime (the grunts by the
+four buttons' door, entities 113 and 118) and e1m2's lifts and bridges over water: the box's bottom lies under the floor,
+inside the bridge's brush, in the slime leaf below it, so the grunts were "in slime up to 16" for ever (soaked every
+scan, never drying; the corpse kept it). Now `groundBox`: over a liquid by the leaves, the bottom is brought up to the floor
+a line from the box's middle meets (`worldtrace::world`: the world and the moving brush models); only things over a liquid
+pay for the trace. Keyed values checked: drips' records are keyed by the cl_entities slot and were forgotten only when the
+slot went unsent (a slot freed and reused within a scan kept them): now also forgotten on the server's removal (wounds'
+KindClear, as the wound masks and dents already were: `drips::forget`). The save's "// qvrwet" lines are matched by edict
+number at the load, which a load restores as saved: right. The wound masks' `wetLeft` decays and is freed with the mask.
+Test `vr_v1116_test 2` (e1m1, `setpos 835 1910 -380`): the grunts killed where they stand (their own blow: no push off
+the bridge), `vr_drips_check` (new; Debug > Tests > Wet Check) 2 s on and again after a save and load: before the fix
+113 and 118 were wet standing; now 1 passed + 1 passed. e1m2 by the ogre's spot: nothing wet.
+
+**Looping sounds.** A loop (a sample with a cue point) plays on its entity's channel until another sound replaces it. The
+server now keeps which entity channels play a loop (vr_server.cpp `VR_SoundLoopNote`, the loop flag read once a map from
+the wav's cue chunk, GetWavinfo): a sound that replaces a loop (misc/null.wav, the stall) goes with the reliable messages
+(a broadcast's sounds are dropped when it is full, as in a big fight: then the knight's idle played on with nothing to
+end it), and an edict freed with a loop still on it has the loop stopped, reliably (`VR_SoundLoopsFreed` from ED_Free:
+the knight's chainsaw removed with its gibbed or freed holder, a flamethrower's tank, a flare, a burning body's fire,
+whatever removes it). QC: the freed-holder path silenced its chainsaw too, and a drop resets the knight's saw sound state
+(taken up again, its idle plays afresh). `vr_snd_loops` lists the loops playing. Test `vr_v1116_test 1` (vrtesthall;
+Debug > Tests > Looping Sounds): a chainsaw knight disarmed, killed, gibbed, shoved then killed, removed: one loop while
+it idles, none `vr_chainsaw_drop_run` + 1.5 s after each: sawloops 10 passed, 0 failed.
+
+**Your own flare.** `VR_Burn_Ignite` refused any victim who was the attacker; now it allows the self-hit being dealt
+(`VR_SelfShot_Live`: your flare, a lava nail into your own body or arms). The self-hit path otherwise matches the enemy
+path: T_Damage (armour, the plate, Quad; vr_selfshot_damage for vr_damage_self), the wound at the point, blood, the
+knockback from the missile, the hand's buzz. Melee-only differences (push, motion credit, Quad sound) don't apply to shots;
+disarm hooks excluded per the brief. `vr_selfshot_test 1` gains a flare at the off forearm: struck, damage, buzz, wound,
+on fire: 34 passed, 0 failed (29 before).
 ## One-way teleporter exits: hands stay, no self view (agent/vr1116b, 2026-11-16)
 
 Note start_2026-11-16_00-54-53: at start's exit by the start (the hub's teleporter back, side 3: its exit plane y 280,
@@ -3412,3 +3505,48 @@ normal +y, no gate there), crossing that plane hid his hands and showed him hims
   and calibrated). Then `vr_foveated_gaze 1`, restart VR, check the log line, and `vr_foveated_debug 1` shows the
   yellow/red rates following the eyes. With gaze on, Aggressive (or `vr_foveated_inner 15`, `_outer 30`) should still
   look sharp where he looks.
+## trailerintro: full-screen intro title (agent/trailerintro, 2026-11-16)
+
+- `Misc/trailer/titles/QVR Intro Title.setting` (generated by `make_intro_title.py`, 85 tools): centred, full frame.
+  "Quake VR" in DpQuake as lit metal (the feature titles' relief, grime, light sweep); a leading Q is DpQuake's O plus
+  a blade tail built in the macro (L1Lead measures the O, L1Tail draws the tail), never the logo glyph. "UNLEASHED" in
+  Cinzel Black, wide tracking, made of blood: a dark mould, blood flooding in from the top with a splash and a jolt,
+  splatter, wet relief and glints, drips lengthening and a pool spreading on the rule. A tapered metal rule slices out
+  from the centre (sparks at its fronts); "v1.1 Release Trailer" in Cinzel settles in; all burn away into a red blur
+  at the end. Transparent with a soft scrim by default; Dark Backdrop toggle. ~40 published inputs (README).
+- `install_titles.py` installs both templates; `apply_titles.py` takes an `[Intro]` block (line1-3, seconds, out,
+  blood, intensity, backdrop, marker), placed at the marker "Intro" or the timeline's start as "QVR - Intro"; refuses
+  logo glyphs past a leading Q in line 1; scales the 60 fps frame timings on other frame rates; sets Out Start when
+  the placed clip is shorter than the title clip.
+- Checked in "QVR Titles Preview": 1080p60 render of the whole 5 s title, stills through in/hold/out, a 4K still, and
+  apply_titles end to end (start-of-timeline placement, a rerun only updates, an added Intro marker moves it).
+  Shots: `qvr-kit/scratch/trailerintro_shots/`.
+## arenafix: the audit's arena_6 and arena_10 (agent/arenafix, 2026-11-16)
+
+The 1.1 readiness audit's baseline regressions. Both were the tests, not the game; both already failed in the
+2026-11-14 and 11-15 baselines (so older than the RC). Only `QC/vr_arena_test.qc` changed.
+
+- **arena_10 (timeout).** `VR_AT10_Tables` ran 36 cells of 400 armour rolls and 120 plans in one QC call; past 16
+  million statements that is a runaway loop error (Host_Error). The test never printed a verdict and the run waited
+  for its timeout. The armed-humanoid and mutator work of 11-13 made the rolls and plans slightly more expensive,
+  which was enough. In real play a plan runs once per wave and stays far below the limit. Fix: the tables run in
+  parts, one per frame (`vr_at10_part`: the gates, then one part per skill with its rolls and plans, then the rest),
+  and the live wave-5 check follows. Result: 160 passed, 0 failed, the same as the 10-30 baseline.
+- **arena_6 (6/2), "no broken guns".** The audit's runner runs it undrawn (`vr_mock_fast 2`). That run plays out
+  differently, and one of the axes a foe dropped stuck in a wall (`vr_embed`, on since 11-08). A stuck blade has no
+  rigid body while it is stuck, and the scan counted that as "no rigid body". Stuck blades (`VR_AxeStick_IsStuck`)
+  are now skipped in that check.
+- **arena_6, "the map grows no faster than a wave clear's drops".** Test 6 is the only arena test besides 42 that
+  follows the run's director, so since 11-11 it soaks the budget director. Its later waves are bigger, so more gibs,
+  limbs, debris and live foes are in the count at each wave's start. The mock player's hands also swap guns that land
+  at its feet, and each swap leaves its own gun on the floor. The arena's gun cap never counts a gun a player dropped
+  (`vr_monster_drop` 0). That is by design, and so is keeping stuck blades. The floor went 191 -> 214 (limit 13). The
+  per-class counts at each window's wave starts showed no class growing steadily except these guns. Fix:
+  `VR_AT6_Passing` leaves out of the count the things that go away by themselves, the live foes, the player's own
+  guns and stuck blades (with their records). Each wave in the windows prints its count. Result: undrawn 119 -> 123,
+  drawn 119 -> 121; 8 passed, 0 failed both ways (the soak's longest wave was 224-233 s, under AR_STALL 300).
+- **ragdoll_stagger 54/3** (was 52/5): this is the known open item (BACKLOG section 1, "ragdoll_stagger: what is
+  left"), and it is slightly better than before. Not touched.
+- **teleporters_chase 5/1**: the same case fails the same way in the 11-14 baseline ("chase dog at framed_sill32:
+  never reached the north room", seed 3), which is older than the one-way teleporter change (vr1116b). It is not
+  related to that change. Not touched.

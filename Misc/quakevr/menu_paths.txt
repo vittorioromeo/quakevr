@@ -712,6 +712,9 @@ vr_mirror_hz|1|Recording|Window Frame Rate|Advanced VR Options > Body and Displa
 vr_obs|1|Recording|OBS Recording Control|Advanced VR Options > Body and Display > Recording (Window View) > OBS Recording Control
 |1|Recording|Start or Stop Recording|Advanced VR Options > Body and Display > Recording (Window View) > Start or Stop Recording
 |1|Recording|Connect to OBS Now|Advanced VR Options > Body and Display > Recording (Window View) > Connect to OBS Now
+vr_obsrec_ghost_hands|1|Recording|No Ghost Hands While Recording|Advanced VR Options > Body and Display > Recording (Window View) > No Ghost Hands While Recording
+vr_obsrec_debug|1|Recording|No Debug Markers While Recording|Advanced VR Options > Body and Display > Recording (Window View) > No Debug Markers While Recording
+vr_obsrec_messages|1|Recording|Recording Mode While Recording|Advanced VR Options > Body and Display > Recording (Window View) > Recording Mode While Recording
 vr_takes|1|Recording|Takes|Advanced VR Options > Body and Display > Recording (Window View) > Takes
 |1|Recording|Start or Stop a Take|Advanced VR Options > Body and Display > Recording (Window View) > Start or Stop a Take
 |1|Recording|Clip That|Advanced VR Options > Body and Display > Recording (Window View) > Clip That
@@ -3066,6 +3069,11 @@ vr_throw_point_time|2|Tunables|Point-First Settling: Time|Advanced VR Options > 
 vr_throw_point_angle|2|Tunables|Point-First Settling: Angle|Advanced VR Options > Debug > Tunables > Point-First Settling: Angle
 vr_throw_point_spin|2|Tunables|Point-First Settling: Tumble|Advanced VR Options > Debug > Tunables > Point-First Settling: Tumble
 vr_throw_point_damp|2|Tunables|Point-First Settling: Spin Damping|Advanced VR Options > Debug > Tunables > Point-First Settling: Spin Damping
+vr_throw_point_dagger_align|2|Tunables|Dagger Settling: Strength|Advanced VR Options > Debug > Tunables > Dagger Settling: Strength
+vr_throw_point_dagger_time|2|Tunables|Dagger Settling: Time|Advanced VR Options > Debug > Tunables > Dagger Settling: Time
+vr_throw_point_dagger_angle|2|Tunables|Dagger Settling: Angle|Advanced VR Options > Debug > Tunables > Dagger Settling: Angle
+vr_throw_point_dagger_spin|2|Tunables|Dagger Settling: Tumble|Advanced VR Options > Debug > Tunables > Dagger Settling: Tumble
+vr_throw_point_dagger_damp|2|Tunables|Dagger Settling: Spin Damping|Advanced VR Options > Debug > Tunables > Dagger Settling: Spin Damping
 vr_shot_push_pellet|2|Tunables|Pellet Push|Advanced VR Options > Debug > Tunables > Pellet Push
 vr_shot_push_nail|2|Tunables|Nail Push|Advanced VR Options > Debug > Tunables > Nail Push
 vr_shot_push_supernail|2|Tunables|Super Nail Push|Advanced VR Options > Debug > Tunables > Super Nail Push
@@ -5302,6 +5310,7 @@ vr_menu_link_dryrun|2|Debug - Reports|Menu Links: Print, Do Not Open|Advanced VR
 |2|Debug - Reports|Update Check: Status|Advanced VR Options > Debug > Reports > Update Check: Status
 |2|Debug - Reports|OBS: Status|Advanced VR Options > Debug > Reports > OBS: Status
 vr_obs_process_check|2|Debug - Reports|OBS: Process Check|Advanced VR Options > Debug > Reports > OBS: Process Check
+vr_obsrec_as_if|2|Debug - Reports|Clean Recording: Act As If OBS Records|Advanced VR Options > Debug > Reports > Clean Recording: Act As If OBS Records
 |2|Debug - Reports|Main Menu Lettering|Advanced VR Options > Debug > Reports > Main Menu Lettering
 |2|Debug - Reports|Reset This Page|Advanced VR Options > Debug > Reports > Reset This Page
 @page|2|Debug - Tools||Advanced VR Options > Debug > Tools

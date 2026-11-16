@@ -1,7 +1,7 @@
 # Quake VR 1.1 trailer: the feature sections, in order. apply_titles.py puts each title at the timeline marker
 # named like the section (its "marker:" if given, else its title; case ignored).
 #
-# [Title]              the big line (Pirata One)
+# [Title]              the big line (DpQuake, the Quake font)
 # subtitle: ...        the small line (Cinzel); "|" breaks the line, else it wraps at "wrap:" characters
 # corner: ...          top-right (default), top-left, bottom-left, bottom-right
 # marker: ...          the timeline marker's name, when it is not the title
@@ -10,9 +10,23 @@
 # intensity: ...       0 to 2: how much blood, flicker and smear (default 1)
 #
 # Lines before the first [Title] set the defaults for all sections.
+#
+# [Intro]              the full-screen intro title (QVR Intro Title), at the marker named "Intro" (or its "marker:"),
+#                      else at the timeline's start. Its own keys (the defaults above don't apply to it):
+# line1: / line2: / line3:  the three lines (default Quake VR / UNLEASHED / v1.1 Release Trailer); in line1 only a
+#                      leading Q is allowed (the Quake font draws Q as the Quake logo: the template draws its own Q)
+# seconds: ...         on screen, in and out included (default 5, at most the title clip's length, 5 s)
+# out: ...             the out's length in seconds (default 0.6)
+# blood: ...           0 to 2 (default 1; 0 = clean letters)    intensity: ...  0 to 2 (flicker, shake, glow)
+# backdrop: on / off   a dark full-frame backdrop (default off: transparent, over the footage)
 
 corner: top-right
 seconds: 4.5
+
+[Intro]
+line1: Quake VR
+line2: UNLEASHED
+line3: v1.1 Release Trailer
 
 [Stabbing & Impaling]
 marker: stab
