@@ -279,6 +279,25 @@ Wet* addSaved(const entity_t* e, int num, What what, int hand)
     return hi.z > lo.z;
 }
 
+// Its box's bottom over a liquid by the world's leaves: brought up to the floor between its middle and that bottom, if any
+// (a model's frames reach under its feet: a grunt on e1m1's bridge over the slime, a lift over water, had its bottom in
+// the liquid under the bridge's brush, soaked for ever though never in it; his notes e1m1_2026-11-16_00-59-25,
+// e1m2_2026-11-16_01-02-28). The world's floors and the moving brush models (worldtrace::world). Only over a liquid: the
+// trace is for the few things there.
+void groundBox(glm::vec3& lo, const glm::vec3& hi)
+{
+    const glm::vec3 mid{0.5f * (lo.x + hi.x), 0.5f * (lo.y + hi.y), 0.5f * (lo.z + hi.z)};
+    if(liquidAt({mid.x, mid.y, lo.z + 1.f}) == 0)
+    {
+        return;
+    }
+    const trace_t tr = worldtrace::world(mid, {mid.x, mid.y, lo.z});
+    if(!tr.startsolid && !tr.allsolid && tr.fraction < 1.f)
+    {
+        lo.z = za::min(worldtrace::endPos(tr).z, hi.z - 1.f);
+    }
+}
+
 // In a liquid at its box's bottom: soaked, the waterline found (the top's, or the surface between, to a unit).
 // `kind` the bottom's liquidAt (1 water, 2 slime, -1 lava).
 void soak(Wet& w, int kind, const glm::vec3& lo, const glm::vec3& hi)
@@ -351,6 +370,7 @@ void scan(float dt)
         {
             continue;
         }
+        groundBox(lo, hi);
         Wet* w = find(&e);
         if(!w)
         {
@@ -1255,6 +1275,36 @@ void bleedTest_f()
 
 // ---- Commands -----------------------------------------------------------------------------------
 
+// vr_drips_check <name> [most] [model]: PASS when no more than `most` (0) things (models, not your own; with `model`
+// only those whose model's name has it) are wet: the things a
+// test never let near a liquid (vr_v1116_test 2: the e1m1 bridge's grunts, killed, through a save and a load). Its
+// verdict line "<name>: N passed, M failed".
+void check_f()
+{
+    const char* const name = Cmd_Argc() > 1 ? Cmd_Argv(1) : "dripscheck";
+    const int most = Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) : 0;
+    const char* const only = Cmd_Argc() > 3 ? Cmd_Argv(3) : ""; // (only the models whose name has it: the test's monsters)
+    int n = 0;
+    for(const Wet& w : wets)
+    {
+        if(w.what == What::Thing && w.wet > 0.f && (!*only || (w.ent->model && strstr(w.ent->model->name, only))))
+        {
+            n++;
+            const entity_t& e = *w.ent;
+            Con_Printf("%s: entity %d (%s) wet %.2f, waterline %.0f, at %.0f %.0f %.0f, box bottom %.0f%s\n", name, w.num,
+                e.model ? e.model->name : "", static_cast<double>(w.wet), static_cast<double>(w.waterline),
+                static_cast<double>(e.origin[0]), static_cast<double>(e.origin[1]), static_cast<double>(e.origin[2]),
+                static_cast<double>(w.lo.z), cl.time - w.lastIn < inGrace ? " (in it)" : "");
+        }
+    }
+    testkit::Tally t;
+    if(!t.check(n <= most))
+    {
+        Con_Printf("%s: FAIL %d things wet (at most %d)\n", name, n, most);
+    }
+    t.verdict(name);
+}
+
 void info_f()
 {
     Con_Printf("drips (vr_drips %d, wounded %s): %d wet, %d wounded; drops: %d blood, %d water, %d slime; landed: %d "
@@ -1628,6 +1678,7 @@ void onLoadGame()
 void registerCommands()
 {
     Cmd_AddCommand("vr_drips_info", info_f);
+    Cmd_AddCommand("vr_drips_check", check_f);
     Cmd_AddCommand("vr_drips_soak", soak_f);
     Cmd_AddCommand("vr_drips_test", test_f);
     Cmd_AddCommand("vr_drips_bleed_test", bleedTest_f);
@@ -1637,6 +1688,11 @@ float wetOf(const entity_t* e)
 {
     const Wet* w = e ? find(e) : nullptr;
     return w && w->wet > 0.f ? w->wet : 0.f;
+}
+
+void forget(const entity_t* e)
+{
+    za::vectorEraseIf(wets, [e](const Wet& w) { return w.what == What::Thing && w.ent == e; });
 }
 
 } // namespace qvr::drips

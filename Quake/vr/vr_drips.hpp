@@ -48,6 +48,9 @@ void onWound(int num, const glm::vec3& org, int amount, int kind);
 // so whatever sets the wetness (a load too) sets the shine.
 float wetOf(const entity_s* e);
 
+// `e` removed on the server (wounds' KindClear): its wetness forgotten (a new thing in the slot starts dry).
+void forget(const entity_s* e);
+
 // A water or slime drop from `dropFrom` landing at `where` (normal `normal`), `color` its: specks (vr_drips_splash) and
 // a soft drip heard (vr_drips_volume).
 void landed(int liquid, const glm::vec3& where, const glm::vec3& normal, const glm::vec4& color);
