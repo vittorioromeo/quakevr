@@ -479,6 +479,26 @@ void init()
         }
     });
     Cmd_AddCommand("vr_test_dlights", testDlights_f);
+    // C4u (QUEST_PLAN.md 6za): the live dynamic lights, to tell whose lights a scene pays for (a negative key is the VR
+    // code's: vr_emissive.cpp's kinds, the hands' screens, the flashlight; 0 an effect's; a positive one an entity's).
+    Cmd_AddCommand("vr_dlights_list", [] {
+        int n = 0;
+        for(const dlight_t& d : cl_dlights)
+        {
+            if(d.die < cl.time || d.radius <= 0.f)
+            {
+                continue;
+            }
+            vec3_t to;
+            VectorSubtract(d.origin, r_refdef.vieworg, to);
+            Con_Printf("vr_dlights_list: key %d (-0x%x) radius %.0f distance %.0f colour %.2f %.2f %.2f\n", d.key,
+                static_cast<unsigned>(-d.key), static_cast<double>(d.radius),
+                static_cast<double>(VectorLength(to)), static_cast<double>(d.color[0]),
+                static_cast<double>(d.color[1]), static_cast<double>(d.color[2]));
+            n++;
+        }
+        Con_Printf("vr_dlights_list: %d live\n", n);
+    });
 }
 
 // C4p (QUEST_PLAN.md 6w): lasting dynamic lights as big as an explosion's, in a row before the eyes, so the cost of

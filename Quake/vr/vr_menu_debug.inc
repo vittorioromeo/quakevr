@@ -504,6 +504,9 @@ za::Vector<Item> pageDebugProfiling()
                   "ahead: the cost of big lights on a still scene (vr_test_dlights <count> <radius> <distance>; 0 removes "
                   "them)."),
         command("Remove the Test Lights", "vr_test_dlights 0").help("vr_test_dlights 0: removes the test lights."),
+        command("List the Dynamic Lights", "vr_dlights_list")
+            .help("vr_dlights_list: every live dynamic light in the console: its key (who made it), radius, distance from "
+                  "the view and colour (QUEST_PLAN.md 6za: which lights a scene's GPU time pays for)."),
         command("List the Frame's Render Passes", "vr_gl_passes 1")
             .help("vr_gl_passes 1: the next frame's framebuffer binds in the console, in order, each with the draws made "
                   "into it and the profiler's scope at the bind (Profiling on for the names). On a tiled GPU (the Quest) "
