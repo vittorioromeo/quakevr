@@ -169,6 +169,7 @@ public sealed class MainViewModel : ObservableObject
     AdOutcome? _adOutcome;
     bool _relight = true;
     bool _desktopShortcut = true;
+    bool _desktopFlatShortcut = true;
     bool _startMenuShortcuts = true;
     bool _flatShortcut = true;
     bool _logShortcut = true;
@@ -757,6 +758,7 @@ public sealed class MainViewModel : ObservableObject
                     Desktop = existing.Choices.DesktopShortcut,
                     StartMenu = existing.Choices.StartMenuShortcuts,
                     Flat = existing.Choices.FlatShortcut,
+                    DesktopFlat = existing.Choices.DesktopFlatShortcut,
                     Log = existing.Choices.LogShortcut,
                     DesktopDir = _options.ShortcutsDir is { } sd ? Path.Combine(sd, "Desktop") : _probe.GetFolder(KnownFolder.Desktop),
                     StartMenuDir = _options.ShortcutsDir is { } sm ? Path.Combine(sm, "Programs") : _probe.GetFolder(KnownFolder.StartMenuPrograms),
@@ -1155,6 +1157,7 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>The Update screen's box: an install without AD in its folder, and no copy of 1.80 patch 1 found.</summary>
     public bool ShowAddAd => _existing is { } e && !e.Files.Any(f => f.Component == Components.ArcaneDimensions) && !AdFoundUsable;
     public bool DesktopShortcut { get => _desktopShortcut; set => Set(ref _desktopShortcut, value); }
+    public bool DesktopFlatShortcut { get => _desktopFlatShortcut; set => Set(ref _desktopFlatShortcut, value); }
     public bool StartMenuShortcuts { get => _startMenuShortcuts; set => Set(ref _startMenuShortcuts, value); }
     public bool FlatShortcut { get => _flatShortcut; set => Set(ref _flatShortcut, value); }
     public bool LogShortcut { get => _logShortcut; set => Set(ref _logShortcut, value); }
@@ -1480,6 +1483,7 @@ public sealed class MainViewModel : ObservableObject
                     Desktop = DesktopShortcut,
                     StartMenu = StartMenuShortcuts,
                     Flat = FlatShortcut,
+                    DesktopFlat = DesktopFlatShortcut,
                     Log = LogShortcut,
                     DesktopDir = _options.ShortcutsDir is { } sd ? Path.Combine(sd, "Desktop") : _probe.GetFolder(KnownFolder.Desktop),
                     StartMenuDir = _options.ShortcutsDir is { } sm ? Path.Combine(sm, "Programs") : _probe.GetFolder(KnownFolder.StartMenuPrograms),
