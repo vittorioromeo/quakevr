@@ -3322,3 +3322,15 @@ His flat-screen notes (2026-11-16) and the coordinator's disarm-sound item.
   reruns update in place (`--dry-run`, `--rebuild`, `--check`).
 - Checked in Resolve Studio 21.1 (project "QVR Titles Preview"): two titles rendered at 1080p60, top-right and
   bottom-left; a rerun reports "updated" for both, no duplicates. Not checked: 4K, IM Fell English.
+- Follow-up (agent/trailertitles2): title in DpQuake (Dead Pete's Quake font, shipped with its required
+  `dpquake.txt`), lit as embossed metal: the glyph alpha is blurred into a height map and shaded by two Fusion Custom
+  tools (normals from the height gradient; a fixed top-left key light plus a point light sweeping across the title,
+  Blinn-Phong highlights; bronze tint, grime in the cavities, rust patches), dark outline and drop shadow. Blood: a
+  coat on the strokes' lower edges and drips (one-sided directional smears of the glyphs, per-column hashed) that
+  lengthen through the hold, with its own relief lit by the same lights (wet glints, slow glisten). New inputs: Blood,
+  Metal Tint, Relief Depth, Light Sweep, Sweep Direction / Start / Length, Title Tracking (Title Colour is gone: the
+  metal tint replaces it). Lighting and blood run on a crop around the title (0.25 s/frame at 1080p; the full-frame
+  first try was 1.5 s). DpQuake draws Q/q as the Quake logo: apply_titles sets Cinzel Bold on every Q, q, ~ and
+  non-ASCII character through a StyledTextCLS modifier (TitleCLS), by exporting the item's comp, writing the styling
+  array and importing it back (scripting can't set a StyledText). install_titles skips identical installed fonts
+  (an installed font in use can't be overwritten). Checked: two titles at 1080p60, a 4K section render, "Quad Damage".

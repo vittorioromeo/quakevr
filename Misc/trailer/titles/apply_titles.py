@@ -18,12 +18,14 @@ import argparse
 import os
 import re
 import sys
+import tempfile
 import textwrap
 
 TEMPLATE = "QVR Feature Title"           # the Fusion title's name in Effects > Titles
 TRACK_NAME = "QVR Titles"
 BIN_NAME = "QVR Titles"
 PREFIX = "QVR - "                        # section timelines' names
+FALLBACK_FONT = ("Cinzel", "Bold")       # draws the title characters DpQuake maps to logos (Q, q, ~, ...)
 CORNERS = {"top-right": 0, "top-left": 1, "bottom-left": 2, "bottom-right": 3,
            "tr": 0, "tl": 1, "bl": 2, "br": 3}
 DEFAULTS = {"corner": "top-right", "seconds": "4.5", "wrap": "40", "in": "", "out": "", "intensity": ""}
@@ -134,7 +136,60 @@ def title_tool(item):
     return None
 
 
-def set_title(tool, sec, fps, frames):
+def fallback_runs(text):
+    """[(start, end)] of the characters the title font must not draw: DpQuake maps Q and q (and ~ and the codes past
+    ASCII) to id Software's logos, never shown in our titles. They are drawn in FALLBACK_FONT instead."""
+    runs = []
+    for i, ch in enumerate(text):
+        if ch in "Qq~" or ord(ch) > 126:
+            if runs and runs[-1][1] == i:
+                runs[-1] = (runs[-1][0], i + 1)
+            else:
+                runs.append((i, i + 1))
+    return runs
+
+
+def block_end(s, i):
+    """Index just past the '}' closing the first '{' at or after i (no braces inside strings here)."""
+    depth, j = 0, s.index("{", i)
+    while True:
+        depth += {"{": 1, "}": -1}.get(s[j], 0)
+        j += 1
+        if depth == 0:
+            return j
+
+
+def set_glyph_fallback(item, text):
+    """FALLBACK_FONT for fallback_runs(text) through the macro's TitleCLS (a Text+ character-level styling modifier).
+    Scripting can't set a styling value, so the item's comp is exported, given the styling as text and imported back.
+    -> False when the comp has no TitleCLS (made with an older template: --rebuild)."""
+    ents = ", ".join('{ 100, %d, %d, String = "%s" }, { 109, %d, %d, String = "%s" }'
+                     % (a, b, FALLBACK_FONT[0], a, b, FALLBACK_FONT[1]) for a, b in fallback_runs(text))
+    path = os.path.join(tempfile.gettempdir(), "qvr_apply_titles.comp")
+    if not item.ExportFusionComp(path, 1):
+        return False
+    with open(path, encoding="utf-8") as f:
+        s = f.read()
+    at = s.find("TitleCLS = StyledTextCLS {")
+    if at < 0:
+        return False
+    new = 'CharacterLevelStyling = Input { Value = StyledText { Array = { %s }, Value = "" }, }' % ents
+    i = s.find("CharacterLevelStyling = Input {", at)
+    if 0 <= i < block_end(s, at):
+        j = block_end(s, i)
+        if s[i:j] == new:
+            return True
+    else:  # an empty styling isn't saved: add the input at the top of the modifier's inputs
+        if not ents:
+            return True
+        i = j = s.index("Inputs = {", at) + len("Inputs = {")
+        new = "\n" + new + ","
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(s[:i] + new + s[j:])
+    return bool(item.ImportFusionComp(path))
+
+
+def set_title(tool, sec, fps, frames, item=None):
     tool.SetInput("Title", sec["title"])
     tool.SetInput("Subtitle", sec["subtitle_text"])
     tool.SetInput("Corner", sec["corner_index"])
@@ -147,6 +202,9 @@ def set_title(tool, sec, fps, frames):
     tin = tool.GetInput("InFrames") or 40
     tout = tool.GetInput("OutFrames") or 26
     tool.SetInput("HoldFrames", max(1, frames - int(tin) - int(tout)))
+    # last: it re-imports the comp (with everything set above), so `tool` is stale afterwards
+    if item is not None and not set_glyph_fallback(item, sec["title"]) and fallback_runs(sec["title"]):
+        print("  %-28s Q and other logo glyphs not replaced: run with --rebuild" % sec["title"][:28])
 
 
 def make_section_timeline(project, mp, folder, name, main):
@@ -220,7 +278,7 @@ def apply(resolve, sections, track_name, dry, rebuild=False):
                 print("  %-28s %s s is longer than the title clip (%d frames): shortened"
                       % (sec["title"][:28], sec["seconds"], inner_len))
                 frames = inner_len
-            set_title(tool, sec, fps, frames)
+            set_title(tool, sec, fps, frames, inner[0])
         old = placed.get(name)
         if old is not None and int(old.GetStart()) == at and int(old.GetDuration()) == frames:
             action.append("updated")
