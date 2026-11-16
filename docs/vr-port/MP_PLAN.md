@@ -2711,6 +2711,17 @@ QuakeC's PlayerPreThink parts. Exactly what would change:
   mp_predict's stairs under the lockstep (`--tracelog` on the move it names) when it shows again.
 - **Bots grab and punch** (B11): not started (not small: a bot's hand targets, grip timing and the punch's swing in
   bot_setvrfields; B11 part 3's notes).
-- Checks: see the commit's results line below.
+- **Client-reported fields** (open): a client's moves carry values it computes from its own drawing -- the ammo pouch
+  (its body's pose, eased over its frames since the load), the light on him (`stl_light`: lightmaps and dynamic lights
+  at its clock) -- and on a busy machine those differed between runs (in the suite: `ammopouchpos`, `stl_light`). The
+  check compares every edict field but those (`LOCK_CLIENT_FIELDS`, listed when they differ). Once also the melee
+  history (`mh_hdt`, `mh_hi`) from step 360 on, after the pose clock's fix had passed four runs: open (a hand's history
+  fed by something else of the client's own; logging VR_Melee_Track's inputs is the next step).
+- Checks: `mp_test.py suite` (36 scenarios) 34 pass: `mp_lockstep` 14/4 (the fields above, before the client-reported
+  ones were set apart; then 15/2 alone: `mh_hdt` at steps 360 and 720) and `mp_dm` 14/1 (A's intermission not within
+  30 s; again 14/1 alone: not yet checked against the build before B14b, whose suite passed it; with the lockstep's
+  cvars 0 every hook returns at once). The lockstep alone 17/0, 17/0, 19/0 earlier. The dev and the Release (ThinLTO)
+  builds 0 warnings. Single player checks (scenario_check, load_models_test, vr_run_check) not run this phase.
 
-Next phase: B14c -- lockstep hash scenarios for deathmatch with FrikBot bots (dm4: their random() on the server's stream, their navigation) and props thrown by players (Box3D under a client's hand); the step's ulp under the lockstep on mp_predict's stairs; B11's open items (bots never grab, a bot's fists never punch); B10v's VR checks are his (a real microphone, the spatial mixers).
+Next phase: B14c -- mp_dm's intermission timeout (B14b's suite and alone: bisect against 76e305078 first); the lockstep's
+open fields (mh_hdt; the client-reported ammo pouch and light); the SP checks B14b skipped; lockstep hash scenarios for deathmatch with FrikBot bots (dm4: their random() on the server's stream, their navigation) and props thrown by players (Box3D under a client's hand); the step's ulp under the lockstep on mp_predict's stairs; B11's open items (bots never grab, a bot's fists never punch); B10v's VR checks are his (a real microphone, the spatial mixers).
