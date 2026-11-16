@@ -4202,3 +4202,17 @@ His timing notes (extra scope):
 - Headset, e1m1's frozen fight lifted into the unworn headset's downward view (0.55): GPU 4.81 -> 4.00 ms, draws 219 ->
   149 (the models' share 2.2 -> 1.4 ms); e1m2's start 192 -> 180 draws. PC eyes 0.000% over 8 for each switch.
 - PC: dev build 0 warnings; gles_render_test 21/0; load_models_test 4/0; scenario_check PASS (138 run; a first run failed bench_crowd_ad's placement once, the rerun passed). Details: QUEST_PLAN.md 6zc.
+
+## Quest C4x: the gore form of the models' shader; the live fight measured (branch `agent/quest`, 2026-11-16)
+
+- `vr_gl_alias_gore` (tunable, default 1; ES only, Debug > Tunables): a solid model batch that needs only wounds (or
+  the wet coat) and dents among the plain form's features is drawn by the plain form keeping those
+  (`glprogs.alias_gore`), not the whole shader: in a live fight the grunts, their guns and packs, the dogs and your
+  hands all bleed, so they had all left the plain form. e1m1's live fight on the Quest 3: GPU 12.9 -> 11.8 ms.
+- The models' programs compile the dynamic occlusion out when the settings leave no occluder (`QVR_ALITE_NOAO`, as the
+  world's lite bit 8): the same picture, no measurable gain.
+- `vr_gl_passes` gives each alias batch's program, its feature bits and triangles.
+- The frozen, lifted fight of C4w was not the session's: the live fight costs the models ~8.5 ms of GPU at the floor
+  scale (blood: the whole shader; near monsters filling the view). Scripted session: e1m1 period / GPU 16.1 / 14.5 ->
+  14.3 / 10.7 ms (its unlit share moved with the unworn controllers), e1m2 14.0 / 9.6, the demo unchanged.
+- PC: dev build 0 warnings; gles_render_test 21/0; scenario_check PASS; load_models_test 4/0. Details: QUEST_PLAN.md 6zd.

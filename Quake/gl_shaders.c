@@ -972,7 +972,7 @@ static const char *GL_WorldLiteDefines (void)
 	return gl_world_lite_defines;
 }
 
-static char gl_alias_lite_defines[256]; // the models' share of them (GL_AliasLiteDefines)
+static char gl_alias_lite_defines[320]; // the models' share of them (GL_AliasLiteDefines)
 
 /*
 =============
@@ -981,7 +981,9 @@ GL_AliasLiteDefines -- QVR
 The models' programs' lite form (C4j; QUEST_PLAN.md 6q): of the world's switches, the two whose code the models' shader
 has and whose settings turn it off for every model: parallax mapping (bit 1: vr_parallax or vr_normalmaps 0, as
 VR_ParallaxDepth gives every model 0) and retro lighting (bit 32: vr_retrolight 0, its frame data all 0); bit 256:
-vr_gl_alias_lite on.
+vr_gl_alias_lite on. C4x (QUEST_PLAN.md 6zd): bit 8, the dynamic occlusion (vr_ao_dynamic and vr_ao_brush 0: no
+occluder, vr_ao.cpp build), out of the models' programs too (QVR_ALITE_NOAO), as out of the world's: the same picture
+(DynamicAO gives 1 without occluders); its gain on the Quest 3 under the launch-to-launch noise (~0.1 ms).
 =============
 */
 static const char *GL_AliasLiteDefines (void)
@@ -991,6 +993,8 @@ static const char *GL_AliasLiteDefines (void)
 		return gl_alias_lite_defines;
 	if (gl_world_lite & 1)
 		q_strlcat (gl_alias_lite_defines, gl_world_lite_names[0], sizeof (gl_alias_lite_defines));
+	if (gl_world_lite & 8)
+		q_strlcat (gl_alias_lite_defines, "; QVR_ALITE_NOAO 1", sizeof (gl_alias_lite_defines));
 	if (gl_world_lite & 32)
 		q_strlcat (gl_alias_lite_defines, gl_world_lite_names[5], sizeof (gl_alias_lite_defines));
 	GL_LightsLiteDefines (gl_alias_lite_defines, sizeof (gl_alias_lite_defines), false);
@@ -1009,12 +1013,12 @@ static char gl_alias_plain_defines[320]; // GL_AliasPlainDefines
 GL_AliasPlainDefines -- QVR
 
 The models' plain form (glprogs.alias_plain, C4k; QUEST_PLAN.md 6r): the features it compiles out (gl_world_lite's bits
-from 9 up: VR_GLESWorldLite, vr_gl_alias_plain_mask).
+from 9 up: VR_GLESWorldLite, vr_gl_alias_plain_mask), but those of `keep` (the gore form's: VR_ALIAS_GORE_NEEDS).
 =============
 */
-static const char *GL_AliasPlainDefines (void)
+static const char *GL_AliasPlainDefines (int keep)
 {
-	int i, mask = gl_world_lite >> 9;
+	int i, mask = (gl_world_lite >> 9) & ~keep;
 	gl_alias_plain_defines[0] = 0;
 	for (i = 0; i < (int)countof (gl_alias_plain_names); i++)
 		if (mask & (1 << i))
@@ -1105,7 +1109,12 @@ static void GL_CreateShadersAll (void)
 		for (mode = 0; mode < 3; mode++)
 			for (poseverttype = 0; poseverttype < 3; poseverttype++)
 				glprogs.alias_plain[mode][poseverttype] =
-					GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias plain|OIT 0; MODE %d; ALPHATEST 0; POSEVERTTYPE %d; QVR_ALIAS_OPAQUE 1%s%s", mode, poseverttype, GL_AliasLiteDefines (), GL_AliasPlainDefines ());
+					GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias plain|OIT 0; MODE %d; ALPHATEST 0; POSEVERTTYPE %d; QVR_ALIAS_OPAQUE 1%s%s", mode, poseverttype, GL_AliasLiteDefines (), GL_AliasPlainDefines (0));
+	if (VR_GLESForm (VR_GLES_FORM_GLSL) && (gl_world_lite >> 9)) // QVR: ... the gore form, keeping the wounds and dents (vr_gl_alias_gore; C4x, QUEST_PLAN.md 6zd)
+		for (mode = 0; mode < 3; mode++)
+			for (poseverttype = 0; poseverttype < 3; poseverttype++)
+				glprogs.alias_gore[mode][poseverttype] =
+					GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias gore|OIT 0; MODE %d; ALPHATEST 0; POSEVERTTYPE %d; QVR_ALIAS_OPAQUE 1%s%s", mode, poseverttype, GL_AliasLiteDefines (), GL_AliasPlainDefines (VR_ALIAS_GORE_NEEDS));
 	for (poseverttype = 0; poseverttype < 3; poseverttype++) // QVR; MODE 0 (standard) in these: an undefined name in #if is an error in GLSL (strict drivers)
 		glprogs.alias_depth[poseverttype] = GL_CreateProgram (alias_vertex_shader, NULL, "alias depth|MODE 0; POSEVERTTYPE %d", poseverttype);
 	for (poseverttype = 0; poseverttype < 3; poseverttype++) // QVR: into all their faces at once (vr/vr_lighting.cpp)

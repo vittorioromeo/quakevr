@@ -775,6 +775,8 @@ void R_FlushAliasInstances (qboolean showtris)
 		shadeprog = glprogs.alias_opaque[mode][poseverttype]; // QVR: no discard: hidden pixels rejected before shading on a tiler (vr_gl_alias_opaque)
 		if (glprogs.alias_plain[mode][poseverttype] && VR_AliasPlainUse (aliasneeds))
 			shadeprog = glprogs.alias_plain[mode][poseverttype]; // QVR: ... nor the features none of its instances has (vr_gl_alias_plain)
+		else if (glprogs.alias_gore[mode][poseverttype] && VR_AliasGoreUse (aliasneeds))
+			shadeprog = glprogs.alias_gore[mode][poseverttype]; // QVR: ... or all but the wounds and dents (vr_gl_alias_gore)
 	}
 	if (depthonly)
 		GL_UseProgram (layered ? glprogs.alias_depth_layered[poseverttype] : glprogs.alias_depth[poseverttype]);
@@ -1069,7 +1071,13 @@ void R_FlushAliasInstances (qboolean showtris)
 
 	glDisable (GL_CLIP_DISTANCE1);
 	if (vr_glpass_trace) // QVR
-		VR_GLAliasBatch (model->name, ibuf.count, draws0, aliasdepth, ibuf.ent >= cl_entities && ibuf.ent < cl_entities + cl_max_edicts ? (int)(ibuf.ent - cl_entities) : -1, ibuf.ent->skinnum);
+	{
+		int tris = 0;
+		for (hdr = mainhdr; hdr; hdr = Mod_NextSurface (hdr))
+			tris += hdr->numindexes / 3;
+		VR_GLAliasBatch (model->name, ibuf.count, draws0, aliasdepth, ibuf.ent >= cl_entities && ibuf.ent < cl_entities + cl_max_edicts ? (int)(ibuf.ent - cl_entities) : -1, ibuf.ent->skinnum,
+			depthonly ? 0 : shadeprog == glprogs.alias_plain[mode][poseverttype] ? 3 : shadeprog == glprogs.alias_gore[mode][poseverttype] ? 4 : shadeprog == glprogs.alias_opaque[mode][poseverttype] ? 2 : 1, aliasneeds, tris);
+	}
 	ibuf.count = 0;
 	GL_EndGroup ();
 }

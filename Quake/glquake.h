@@ -640,6 +640,7 @@ typedef struct glprogs_s {
 	GLuint		alias[2][3][2][3];	// [OIT][mode:standard/dithered/noperspective][alpha test][poseverttype]
 	GLuint		alias_opaque[3][3];	// QVR: [mode][poseverttype] alias[0][mode][0][poseverttype] without discard (vr_gl_alias_opaque; the ES profile only, else 0)
 	GLuint		alias_plain[3][3];	// QVR: [mode][poseverttype] alias_opaque without the per-model features no instance of a batch has (vr_gl_alias_plain; the ES profile only, else 0)
+	GLuint		alias_gore[3][3];	// QVR: [mode][poseverttype] alias_plain keeping the wounds and dents (vr_gl_alias_gore, C4x; the ES profile only, else 0)
 	GLuint		alias_depth[3];		// QVR: [poseverttype] the shadow maps' casters: depth only (no fragment shader)
 	GLuint		alias_depth_layered[3];	// QVR: [poseverttype] the same, drawn into all their faces at once (gl_viewport_layer_able; 0 without)
 	GLuint		woundpaint[3];		// QVR: [poseverttype] a model drawn into its wound mask (vr/vr_wounds.cpp)

@@ -357,6 +357,19 @@ extern "C" int VR_AliasPlainUse(int needs)
     return vr_gl_alias_plain.value >= 2.f || (needs & static_cast<int>(vr_gl_alias_plain_mask.value)) == 0 ? 1 : 0;
 }
 
+// C4x (QUEST_PLAN.md 6zd): r_alias.c: a batch the plain form can't draw may be drawn by its gore form
+// (glprogs.alias_gore) when it needs only the wounds (or the wet coat) and dents it keeps: in a live fight the monsters,
+// their guns and packs (blood on them) and your hands needed the whole shader (e1m1's live fight -0.7 ms on the Quest 3).
+extern "C" int VR_AliasGoreUse(int needs)
+{
+    if(vr_gl_alias_plain.value == 0.f || vr_gl_alias_gore.value == 0.f)
+    {
+        return 0;
+    }
+    constexpr int goreKeeps = 4 | 8; // as vr_api.h VR_ALIAS_GORE_NEEDS (gl_shaders.c's gore programs)
+    return (needs & static_cast<int>(vr_gl_alias_plain_mask.value) & ~goreKeeps) == 0 ? 1 : 0;
+}
+
 extern "C" int VR_AliasPlayerFirst(const entity_t* e)
 {
     // Your own models stand nearest the eye: drawn (opaque) before the world, the world's depth pre-pass and shading skip

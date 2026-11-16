@@ -1590,6 +1590,40 @@ draws, entity, skin).
 - Left at 1: `vr_rig_lights_world` (his look call).
 - PC: dev build 0 warnings; gles_render_test 21/0; load_models_test 4/0; scenario_check PASS (138 run; a first run lost bench_crowd_ad's placed things once, the rerun passed).
 
+## 6zd. C4x: the live fight's models were the whole shader (blood); the gore form; the frozen fight was not the session's (2026-11-16; adb, unworn)
+
+Method (`scratch/c4x_*`): `c4x_fight.sh` (C4w's frozen fight with the ogre, not lifted, the body on: the session's own
+view), `c4x_live.sh` (the same fight live: god mode, the monsters attacking, the ogre's grenades; `c4u_ab.sh`
+interleaved), `c4x_trace.py` (a live frame's alias batches on the headset), `c4x_rounds.sh` (an A/B's rounds unpooled),
+`c4x_buckets.py` (a session CSV's map in time buckets), `c4x_pcgore1.sh` (PC `-glescompat`: one launch, the switch off,
+on, off, eyes compared). **`vr_gl_passes`** now gives each alias batch's program (full, opaque, plain, gore), its
+instances' feature bits (`VR_AliasPlainNeeds`) and its triangles.
+- **The frozen lifted fight's models** (C4w's ~1.1-1.4 ms): every monster already drawn by the plain form, 700-1000
+  triangles each (the grunts' rig 694, the armour 2104, a dog 1028): not vertex-bound. The probes moved less than the
+  launch-to-launch noise (~0.3 ms; rounds within a launch drift ~0.3 with the scene): no LOD worth making there. A
+  first reading of the dynamic occlusion's untaken code (0.73 ms) did not repeat. The Quest preset has `vr_ao_dynamic`
+  and `vr_ao_brush` 0, so the models' programs now compile `DynamicAO` out as the world's do (`QVR_ALITE_NOAO`, lite bit
+  8; exact: no occluder means 1): no measurable gain, kept as a free cut.
+- **The session's e1m1 was not that scene**: its fight sat at the dynres floor (0.55) at 15-19 ms of GPU. The same
+  fight frozen as the session sees it (not lifted, the body on): 6.3 ms (entities 2.8, the body 0.3, view models 0.4,
+  lights 0.4). Live: **12.7 ms, entities ~8.5** (`r_drawentities 0` 4.2; `r_dynamic 0` -1.6; `r_particles 0` -1.2).
+  The live trace: the grunts, their guns and packs, the dogs and your hands and guns needed the wounds (bit 4: a
+  wound mask or the wet coat) or dents (8), so they fell off the plain form to the whole shader (`vr_gl_alias_plain
+  2`, every solid model plain, was -1.8 ms; the plain form keeping wounds and dents -0.7).
+- **The gore form** (`vr_gl_alias_gore`, tunable, default 1; ES only, as the plain form: Debug > Tunables): a solid
+  batch the plain form can't draw that needs only wounds and dents among its features is drawn by
+  `glprogs.alias_gore` (the plain form's defines minus `VR_ALIAS_GORE_NEEDS`; r_alias.c, vr_render.cpp
+  `VR_AliasGoreUse`). Your body (skin tone) keeps the whole shader. **Live fight, 6 rounds: GPU 12.90 -> 11.76 ms**,
+  period 15.1 -> 14.8. PC `-glescompat` one launch, off/on/off: on 0.016% over 8 against off, the frozen scene's own
+  drift 0.015% (the hands drawn by it).
+- **The scripted session** (eye-pass frames, period / GPU ms, against C4v's): e1m1 **14.3 / 10.7** (16.1 / 14.5; unlit
+  55% against 24%: the unworn controllers' small lights decide that share, so part of it is where they lay); e1m2
+  14.0 / 9.6 (14.1 / 10.0); the demo (e1m3) 14.0 / 6.1 (14.0 / 6.1). e1m1's fight still sits at the 0.55 floor at
+  10-12 ms of GPU, its period 14-15.
+- Tried and dropped (`scratch/c4x_vertexao.patch`): the dynamic occlusion worked out at the models' vertices; moot while
+  the Quest preset has it off.
+- PC: dev build 0 warnings; gles_render_test 21/0; scenario_check PASS (138 run, 0 failed); load_models_test 4/0.
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
@@ -1633,4 +1667,4 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C4x (after 6zc) — no installs, the headset needed: the fight's remaining model cost (~1.4 ms for 9 monsters at 0.55: a cheaper form at a distance, the grunts' vertex work on the authored rig, their shadows' and weapons' share), his look call on `vr_rig_lights_world 0` for the Quest preset (~0.3 ms, e1m1's walk mostly unlit); SpaceWarp optional and off. Still open from before: C2h (the world textures' memory under the ES profile), Adreno's wrong derivatives with the retro code out (NORETRO). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d), shadowless dynamic lights on the Quest (6w).
+Next phase: C4y (after 6zd) — no installs, the headset needed: e1m1's live fight still at the dynres floor (0.55, 10-12 ms of GPU): its models with every one drawn plain still ~3.7 ms over none (near monsters filling the view: fill, not vertices; the body with skin tone on the whole shader), its lights ~1.6 ms and particles ~1.2 (measure with `c4x_live.sh`, interleaved, 6 rounds: a live fight's rounds drift); his look call on `vr_rig_lights_world 0` for the Quest preset (~0.3 ms, e1m1's walk mostly unlit); SpaceWarp optional and off. Still open from before: C2h (the world textures' memory under the ES profile), Adreno's wrong derivatives with the retro code out (NORETRO). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d), shadowless dynamic lights on the Quest (6w).

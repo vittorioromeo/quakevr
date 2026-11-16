@@ -1353,7 +1353,7 @@ QVR_ALIAS_FS_PLAIN
 "#ifdef QVR_APLAIN_NORIM\n" \
 "#define ModelRimReflect(n, b, s, l) vec3(0.0)\n" \
 "#endif\n" \
-"#ifdef QVR_APLAIN_NOAO\n" \
+"#if defined(QVR_APLAIN_NOAO) || defined(QVR_ALITE_NOAO)\n" /* (C4x: the lite form's when the settings leave no occluder) */ \
 "#define DynamicAO(p, n, s, c, d) 1.0\n" \
 "#endif\n" \
 "#ifdef QVR_APLAIN_NODLIGHTS\n" \
