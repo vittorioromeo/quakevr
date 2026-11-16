@@ -2314,7 +2314,10 @@ Push-to-Talk key (vr_mock_key CAPSLOCK) held: heard at B, let go: not sent. vr_m
 menu_paths.txt regenerated. Merge of origin/next: flat ladders kept on the moves' climb (findHold's Seeker, the mantle's
 pmove step, the flat ladder's mount at its end), and a headset's slide (vr_slide, experimental) walks through SV_AirMove
 while its input is held or it slides (`slide::headsetEngaged`; vr_pmove_own skipped it: vrslide_test 1/0 again;
-flatladder_test 2/0, flatslide_test 26/0).
+flatladder_test 2/0, flatslide_test 26/0). `mp_test.py suite` (34 scenarios): 32 pass; `mp_armed` 17/1 (a snapshot in
+every datagram under the cap: 304 of 360) and `mp_dm` 13/3 (the bot's shot, the parry, the fraglimit) pass alone (18/0,
+16/0). scenario_check 138/0, load_models_test 4/0, vr_run_check 12/0 (run B: `vr_run startgun 3` with Melee Only,
+`scratch/b10v2_runcheck.sh`), the dev and the Release (ThinLTO) builds 0 warnings.
 
 ### For him (B10v part 2)
 
