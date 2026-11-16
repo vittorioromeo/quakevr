@@ -16,6 +16,7 @@
 #include "vr_protocol.hpp"
 #include "vr_server.hpp"
 #include "vr_stereo.hpp"
+#include "vr_testkit.hpp"
 #include "vr_view.hpp"
 #include "vr_geom.hpp"
 #include "vr_portals_internal.hpp"
@@ -1222,7 +1223,8 @@ extern "C" void VR_PortalAddPVS(byte* pvs, const float org[3])
             add(sd.dest);
             seen.pushBack(static_cast<int>(&sd - portals::sides.data()));
         }
-        if(glm::distance(sd.to, o) < portals::kRange && straddles(portals::reverseSide(sd)))
+        // (Only an exit that is a gate's face: an eye is drawn from the entrance through no other, eyeThrough.)
+        if(sd.paired && glm::distance(sd.to, o) < portals::kRange && straddles(portals::reverseSide(sd)))
         {
             const glm::vec3 c = (sd.mins + sd.maxs) * 0.5f;
             add(c - sd.normal * (glm::dot(sd.normal, c) - sd.dist) + sd.normal * 8.f); // just in front of the entry
@@ -1495,6 +1497,7 @@ void lightViews_f()
 }
 
 void reachTest_f();
+void selfViewTest_f();
 void stuck_f();
 void walkTest_f();
 void rebuild_f() { if(sv.active) { build(); } }
@@ -1508,6 +1511,7 @@ void registerCommands()
     Cmd_AddCommand("vr_portals_shot", shot_f);
     Cmd_AddCommand("vr_portals_pulltest", pullTest_f);
     Cmd_AddCommand("vr_portals_reachtest", reachTest_f);
+    Cmd_AddCommand("vr_portals_selfview_test", selfViewTest_f);
     Cmd_AddCommand("vr_portals_stuck", stuck_f);
     Cmd_AddCommand("vr_portals_walktest", walkTest_f);
 }
@@ -1721,6 +1725,16 @@ namespace
 int splitLogFrame = -1;
 za::Vector<int> splitLogged; // the entities logged this frame (vr_portals_debug_split)
 
+// vr_portals_selfview_test: from its "start" to its "end", the eyes drawn (eyeThrough's calls), those drawn from another
+// room, and the player's own models (hands, guns, what they hold) drawn (VR_PortalAlias) and drawn cut by a gate.
+struct SelfViewWatch
+{
+    bool on = false;
+    int views = 0, carried = 0, ownDrawn = 0, ownCut = 0;
+};
+SelfViewWatch selfView;
+testkit::Tally selfViewTally;
+
 // vr_portals_debug_split: once a frame (the first view drawing it), an entity drawn cut by a gate, and the watched one
 // (the main hand's held object, or an entity's number) also when not cut.
 void logSplit(const entity_t* e, const Side* picked, const glm::vec3& centre, const glm::vec3 (&corners)[8])
@@ -1807,7 +1821,9 @@ extern "C" int VR_PortalAlias(const entity_t* e, const float boundsMatrix[16], c
         for(int reverse = 0; reverse < 2; reverse++)
         {
             const Side sd = reverse ? reverseSide(entry) : entry;
-            if(reverse && !entry.paired && !own && !movingOut(e, sd)) { continue; }
+            // An exit in the open (an id map's one-way gate) is never an aperture to the player's own models: they are
+            // drawn where his hands are, in his room, whichever way they move (2026-11-16, start: hands cut at its exit).
+            if(reverse && !entry.paired && (own || !movingOut(e, sd))) { continue; }
             float lo = 1e9f, hi = -1e9f;
             for(const glm::vec3& p : corners)
             {
@@ -1850,6 +1866,11 @@ extern "C" int VR_PortalAlias(const entity_t* e, const float boundsMatrix[16], c
         }
     }
     logSplit(e, found ? &picked : nullptr, centre, corners);
+    if(selfView.on && own)
+    {
+        selfView.ownDrawn++;
+        selfView.ownCut += found ? 1 : 0;
+    }
     if(!found) { return 0; }
     glm::mat4 transport{picked.turn};
     transport[3] = glm::vec4{picked.to - picked.turn * picked.from, 1.f};
@@ -2019,7 +2040,11 @@ bool eyeThrough(const glm::vec3& body, glm::vec3& eye, glm::vec3& angles)
         if(!triggerActive(trig) || (static_cast<int>(trig->v.spawnflags) & 1)) { continue; }
         for(int back = 0; back < 2; back++)
         {
-            // Forward: the eye in ahead of the body. Back (the exit's face): the body carried, the eye still behind.
+            // Forward: the eye in ahead of the body. Back (the exit's face): the body carried, the eye still behind -
+            // only where the exit is a gate's face (paired): an exit in the open (an id map's one-way gate) has nothing
+            // behind it but its own room, and a head leant back across it was drawn from the entrance, the player seeing
+            // himself in that gate and not his hands (2026-11-16, start's exit by the start).
+            if(back && !entry.paired) { continue; }
             const Side sd = back ? reverseSide(entry) : entry;
             const float a = glm::dot(sd.normal, body) - sd.dist;
             const float b = glm::dot(sd.normal, eye) - sd.dist;
@@ -2031,10 +2056,93 @@ bool eyeThrough(const glm::vec3& body, glm::vec3& eye, glm::vec3& angles)
             found = true;
         }
     }
+    if(selfView.on)
+    {
+        selfView.views++;
+        selfView.carried += found ? 1 : 0;
+    }
     if(!found) { return false; }
     eye = carried(through, eye);
     angles.y = anglemod(angles.y + through.yaw);
     return true;
+}
+
+// vr_portals_selfview_test start | end (Misc/quakevr/teleporters/selfview_test.sh): an eye at a gate's exit is drawn
+// from another room only through a paired exit (a gate's own face), and the player's own models are never cut by an exit
+// in the open (an id map's one-way gate). "end" checks each side's exit with a body 6 units in front of it and an eye
+// 6 behind (eyeThrough: carried for a paired side, not for an unpaired one), that the eye now straddles an unpaired exit
+// over its opening (the live set-up), and from "start" on: eyes drawn, none from another room, own models drawn, none
+// cut. "sides": the sides' exits alone (any map). Prints "vr_portals_selfview_test: N passed, M failed".
+void selfViewTest_f()
+{
+    constexpr const char* name = "vr_portals_selfview_test";
+    const char* step = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
+    if(!strcmp(step, "start"))
+    {
+        selfViewTally.reset();
+        selfView = SelfViewWatch{};
+        selfView.on = true;
+        return;
+    }
+    const bool sidesOnly = !strcmp(step, "sides");
+    if(strcmp(step, "end") && !sidesOnly)
+    {
+        Con_Printf("%s start | end | sides\n", name);
+        return;
+    }
+    if(sidesOnly) { selfViewTally.reset(); }
+    const SelfViewWatch live = selfView;
+    selfView.on = false;
+    if(!sv.active || !walkOn())
+    {
+        selfViewTally.check(false, name, "no map, or vr_portals_walk off");
+        selfViewTally.verdict(name);
+        return;
+    }
+    if(!current()) { build(); }
+    for(int i = 0; i < static_cast<int>(sides.size()); i++)
+    {
+        const Side entry = sides[static_cast<za::SizeT>(i)];
+        const Side exit = reverseSide(entry);
+        const glm::vec3 mid = (exit.mins + exit.maxs) * 0.5f;
+        glm::vec3 eye = mid - exit.normal * 6.f, angles{0.f};
+        const bool through = eyeThrough(mid + exit.normal * 6.f, eye, angles);
+        bool open = false;
+        {
+            progs::ServerVm serverVm;
+            const edict_t* trig = EDICT_NUM(entry.trigger);
+            open = triggerActive(trig) && !(static_cast<int>(trig->v.spawnflags) & 1);
+        }
+        Con_Printf("%s: side %d (%s) exit at %.0f %.0f %.0f: eye behind it %s\n", name, i,
+            entry.paired ? "paired" : "unpaired", mid.x, mid.y, mid.z, through ? "drawn from the entrance" : "drawn here");
+        selfViewTally.check(through == (entry.paired && open), name,
+            va("side %d: an eye behind its exit %s", i, through ? "drawn from the entrance" : "not carried"));
+    }
+    if(sidesOnly)
+    {
+        selfViewTally.verdict(name);
+        return;
+    }
+    const hands::State& hs = hands::current();
+    int straddled = -1;
+    for(int i = 0; hs.valid && i < static_cast<int>(sides.size()); i++)
+    {
+        const Side& entry = sides[static_cast<za::SizeT>(i)];
+        if(entry.paired) { continue; }
+        const Side exit = reverseSide(entry);
+        const float a = glm::dot(exit.normal, hs.playerOrigin) - exit.dist, b = glm::dot(exit.normal, hs.head) - exit.dist;
+        if(a < 0.f || b >= 0.f || !onGate(exit, hs.head - exit.normal * b, 1.f)) { continue; }
+        straddled = i;
+        Con_Printf("%s: the body %.1f units in front of side %d's exit, the eye %.1f behind it\n", name, a, i, -b);
+    }
+    Con_Printf("%s: since start: %d eyes drawn, %d from another room; own models drawn %d times, %d cut by a gate\n", name,
+        live.views, live.carried, live.ownDrawn, live.ownCut);
+    selfViewTally.check(straddled >= 0, name, "the eye straddles no one-way exit (the set-up)");
+    selfViewTally.check(live.views > 0, name, "no eye drawn");
+    selfViewTally.check(live.carried == 0, name, "an eye drawn from another room (yourself seen in the gate)");
+    selfViewTally.check(live.ownDrawn > 0, name, "own models (hands) not drawn");
+    selfViewTally.check(live.ownCut == 0, name, "own models (hands) cut by a gate");
+    selfViewTally.verdict(name);
 }
 
 void reachTest_f()

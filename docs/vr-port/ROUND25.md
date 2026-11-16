@@ -3362,3 +3362,53 @@ His flat-screen notes (2026-11-16) and the coordinator's disarm-sound item.
   slots with no tuning off defaults). Checked by a default-config run: each promoted value prints as its default.
 - Build fix: the tree's `build/qvr_checks/qvr_checks.exe` exited 3 with no output (left over from the deleted build
   folders, not rebuilt as no source was newer): rebuilt with `-t:Rebuild`; the kit's build then passes.
+## One-way teleporter exits: hands stay, no self view (agent/vr1116b, 2026-11-16)
+
+Note start_2026-11-16_00-54-53: at start's exit by the start (the hub's teleporter back, side 3: its exit plane y 280,
+normal +y, no gate there), crossing that plane hid his hands and showed him himself in a teleporter.
+- Cause: an unpaired side's exit (`reverseSide`, a plane in the open) was still an aperture for two client-side things.
+  `eyeThrough`'s "back" case (body in front of an exit, eye behind it: meant for the frame after a carry, eye still
+  behind a paired gate's face) drew the eye from the entrance in the hub: looking through that gate he saw the start
+  room and his own body, his hands not drawn there. And `VR_PortalAlias` let the player's own models (hands, guns, held
+  things) be cut by an unpaired exit (the 10-07 change exempted `own` from its "only what moves out" rule): the part
+  behind the plane was drawn back at the hub.
+- Fix (vr_portals.cpp): `eyeThrough` takes the back case only for a paired side; `VR_PortalAlias` never cuts own models
+  at an unpaired exit; `VR_PortalAddPVS` sends the entrance's room for an exit straddle only for a paired side. Paired
+  gates (vrteleporters, two-way custom maps) are unchanged; entrances unchanged.
+- `vr_portals_selfview_test start | end | sides` (Debug > Teleporters, "Check Teleporter Exits (Test)" runs `sides`):
+  each side's exit with a body 6 units in front and an eye 6 behind (carried only if paired and open); `end` also checks
+  the live set-up (eye straddles a one-way exit) and, since `start`, eyes drawn / from another room, own models drawn /
+  cut. `Misc/quakevr/teleporters/selfview_test.sh <agent>`: start, body 8 in front of the exit, head 0.35 m back tilted
+  up (eye 3.0 behind the plane, body 4.8 in front), hands on the plane: 11 passed, 0 failed; without the fix 3/8 (120 of
+  120 eyes drawn from the hub, 4320 own-model draws cut).
+- Sweep (`sides`): start, e1m2, e1m3, e1m5, e1m7, e2m3, e2m6, e3m2, e3m6, e4m3, e4m7, dm2, dm5 all pass (all unpaired);
+  vrteleporters 32/0 (35 paired sides carried as before); AD: ad_azad 3/0, AD's start, ad_tears, ad_magna no recognised
+  sides. turned_exit_test 2/0; teleporter_cross_test cases as its header expects.
+- Checklist Test scene `start_oneway_exit` (start 544 288 24, yaw 90).
+- Follow-up (agent/trailertitles2): title in DpQuake (Dead Pete's Quake font, shipped with its required
+  `dpquake.txt`), lit as embossed metal: the glyph alpha is blurred into a height map and shaded by two Fusion Custom
+  tools (normals from the height gradient; a fixed top-left key light plus a point light sweeping across the title,
+  Blinn-Phong highlights; bronze tint, grime in the cavities, rust patches), dark outline and drop shadow. Blood: a
+  coat on the strokes' lower edges and drips (one-sided directional smears of the glyphs, per-column hashed) that
+  lengthen through the hold, with its own relief lit by the same lights (wet glints, slow glisten). New inputs: Blood,
+  Metal Tint, Relief Depth, Light Sweep, Sweep Direction / Start / Length, Title Tracking (Title Colour is gone: the
+  metal tint replaces it). Lighting and blood run on a crop around the title (0.25 s/frame at 1080p; the full-frame
+  first try was 1.5 s). DpQuake draws Q/q as the Quake logo: apply_titles sets Cinzel Bold on every Q, q, ~ and
+  non-ASCII character through a StyledTextCLS modifier (TitleCLS), by exporting the item's comp, writing the styling
+  array and importing it back (scripting can't set a StyledText). install_titles skips identical installed fonts
+  (an installed font in use can't be overwritten). Checked: two titles at 1080p60, a 4K section render, "Quad Damage".
+
+## Installer: desktop flat-screen shortcut (flatshortcut, 2026-11-16)
+
+- `ShortcutOptions.DesktopFlat` (default on) adds "Quake VR Unleashed (Flat Screen)" to the desktop; the options page has a checkbox "Desktop shortcut for flat-screen play" (disabled when the desktop shortcut is off); recorded as `InstallChoices.DesktopFlatShortcut`.
+- Old records lack the field and read false: updates keep their old behaviour; fresh installs get it. The Start menu's flat shortcut is unchanged; with the Start menu off, the desktop one is the only flat one (no duplicate path).
+- Self-tests extended (41/41): planner counts, fresh install, off, update, uninstall, old record.
+- Follow-up (agent/trailertitles3), his feedback: blood behind the text, subtle drop shadows. MergeBlood now sits under
+  MergeTitle (order: scrim, title shadow, glow, ink, blood, metal, rule, subtitle shadow, subtitle). The blood coat
+  moved off the strokes (it would be hidden): BloodCov covers the glyph plus a band hanging 11 px below its lower edges
+  and noise patches seeping 5 px around it, so the relief and glints show on the visible rim; drips unchanged. The
+  title's drop shadow (already there, fixed 0.85 / 9 px / ~5 px) is driven by new inputs Shadow Opacity 0.8, Shadow
+  Softness 9 and Shadow Offset 6 (px at 1080p, down-right) and follows the in/out blur; the subtitle gets its own
+  (SubAlpha/SubShadowFill/Shift/Blur, MergeSubShadow under SubMask) at half softness and offset. Checked: the two-title
+  preview re-rendered (contact sheet, closeups); shadows measured against the trailertitles2 render (subtitle box 2.9%
+  of pixels darker by >3 levels, 0.1% lighter).

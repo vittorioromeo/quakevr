@@ -30,6 +30,8 @@ public sealed class InstallChoices
     public bool DesktopShortcut { get; set; }
     public bool StartMenuShortcuts { get; set; }
     public bool FlatShortcut { get; set; }
+    /// <summary>The flat-screen shortcut on the desktop (1.1); records of older installs lack it: false, their behaviour kept.</summary>
+    public bool DesktopFlatShortcut { get; set; }
     public bool LogShortcut { get; set; }
     /// <summary>Arcane Dimensions installed by Setup in the install's ad folder (a copy found elsewhere is not recorded).</summary>
     public bool ArcaneDimensions { get; set; }
