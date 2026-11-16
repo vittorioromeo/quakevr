@@ -16,6 +16,7 @@ Sliding (VR, experimental; VR Settings > Locomotion): while running, pull the tu
 Flat-screen: hip-fire (no right button) at a grunt seen through a see-through teleporter, from well back and from right in front of the gate: the shots hit what the crosshair is on beyond it, as they do with the sights up. {test:flat_gate_hipfire}
 Run the installer with Arcane Dimensions 1.80 patch 1 in your Quake folder: the expansions list shows Arcane Dimensions as "ready (experimental)" with a check mark; an older AD copy shows a warning saying only 1.80 patch 1 is played.
 Install with the relight on and watch Relighting the maps: the big maps go first and the bar ends on small ones; note the total time in the log, and whether Skip still stops it at once.
+Installer: relighting covers Quake and the mission packs only (Map Library and Arcane Dimensions keep their own lighting; Graphics > Relighting relights them on demand)
 
 [1. Flat-screen: weapons and hands]
 
