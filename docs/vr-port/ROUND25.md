@@ -3974,3 +3974,15 @@ His flat-screen notes (2026-11-16) and the coordinator's disarm-sound item.
 - **Deathmatch with bots** (`mp_dm`, new): dm4, two FrikBot bots (impulse 100), a real death respawned by the trigger,
   the fraglimit's intermission at both clients with the same scoreboard: it all worked unchanged. New client watch
   lines `mp_frags`, `mp_event: intermission= / died / respawned` (`vr_mptest.cpp`).
+
+## MP B11 part 2: deathmatch's item rules; player disarm PvE/PvP (agent/mp, 2026-11-16)
+
+- **Player disarm is two settings** (his call): `vr_player_disarm` (PvE, enemies) defaults to 0 until polished;
+  `vr_player_disarm_pvp` (PvP: other players and bots, shots, blows and the grab) defaults to 1. One path; who did it
+  decides (`VR_PD_ByOn`). Rows: Armed Grunts > "Enemies Can Disarm You", "Players Can Disarm Each Other".
+- **`vr_dm_test 1`** (`vr_dmrules_test.qc`, run by `mp_dm` on a deathmatch server with a bot; Debug > Tests): weapon
+  pickups taken and back (dm 1) or staying (dm 2), the bot's let-go weapon removed after 10 s, PvP/PvE disarms between a
+  human and a bot with their sounds. Deathmatch's item rules needed no fix.
+- **Dedicated server**: the client's cvars its QC reads (`r_wateralpha`, `v_i*_level`) are registered at their defaults
+  (they were unknown handles, and every QC test on a dedicated server failed on them).
+- Details and what is left (bots' bodies, FrikBot through vr_pmove, parry with bots): MP_PLAN.md, "B11 part 2 results".

@@ -2325,6 +2325,39 @@ Tests:
   of 1000 ms) pass alone (28/0, 11/0), `mp_dm` as above. scenario_check PASS (141 scenes), load_models_test 4/0,
   vr_run_check 12/0, the dev and the Release (ThinLTO) builds 0 warnings.
 
+### B11 part 2 results, part 1: deathmatch's item rules, player disarm PvE/PvP with bots (2026-11-16, dev no-LTO build, loopback; `mp_dm` 12/0)
+
+- **Player disarm split** (his call, 2026-11-16): `vr_player_disarm` (PvE: enemies' shots and blows) now defaults to
+  **0**; new `vr_player_disarm_pvp` (PvP: another player's or a bot's shots, blows and grab) defaults to **1**. One path
+  (`VR_Player_Disarm`); `VR_PD_ByOn(by)` decides by who did it (a client, a bot included: PvP; a monster, anything else:
+  PvE): `VR_PD_Shot` (the shooter), the projectiles (their owner), `VR_PD_Blow` (the blower), the grab (PvP's). Menu rows:
+  Armed Grunts > "Enemies Can Disarm You", "Players Can Disarm Each Other" (menu_paths.txt regenerated). vr_pd_test 1 and
+  2 (PvE, which they turn on) 11/0 and 8/0.
+- **`vr_dm_test 1`** (new, `vr_dmrules_test.qc`, run by `mp_dm` on its dedicated server; also Debug > Tests): a weapon
+  pickup a bot touches (the engine's body touch, the fake hand) is its, gone, back in its 30 s as it was placed
+  (the wait pulled forward); the weapon the bot's hand let go of for it is a thrown weapon removed in deathmatch after 10 s;
+  in deathmatch 2 the pickup stays and the bot having it does not take it again (no ammo twice); A's shot across a bot's
+  held weapon knocks it out with the disarm sounds (PvP); PvP off: nothing; a monster's shot: nothing with PvE off (the
+  default), counted with it on; a bot's shot across A's weapon knocks it out ("Your weapon is knocked out of your hand!"
+  at A's client). 17/0. Nothing in deathmatch's item rules needed fixing.
+- **Fixed (dedicated server only)**: its QC asked for the client's own cvars (`r_wateralpha`, `v_i*_level`), which a
+  dedicated server never registers: unknown handles (read as 0) and every QC test there failing on them. Registered at
+  their defaults when the QC asks (`vr_builtins.cpp dedicatedClientCvar`).
+- **mp_dm's flakes fixed** (the test's): B's start often sees neither bot (the move is now seen by A or B); two bots on
+  dm4 can reach fraglimit 3 by themselves in under a minute (the rules' test runs first); A killed by a bot's own shot
+  just before the scenario's `vr_hurt` waited for a second death (that death now counts).
+- **Not done (next part)**: parry between a player and a bot (a bot's blows are FrikBot's, not VR swings), the grab
+  disarm with a bot (bots never grab; a player's grab on a bot's weapon is the same code as on a player's, untested with
+  a moving bot), bots' bodies through the shared avatar routine (the server would make a bot's avatar block from its
+  edict: head, body yaw, its two hand fields, its weapon; bots' hands both sit at one point today, `bot_setvrfields`),
+  FrikBot's walk through `vr_pmove` (FrikBot runs its own copy of Quake's physics in QC with a `phys_obj`; the moves'
+  module would take its stick as an Input instead).
+- **The checks** (before the merge of origin/next): `mp_test.py suite` (34 scenarios): 32 pass; `mp_loss` 13/2 (A's
+  body and hands jump at 10% loss: its known busy-machine check, other agents' runs going) and `mp_lagcomp` 9/2 (a view
+  time of 775 ms, its known suite flake); both re-run alone after the merge (below). `mp_dm` 12/0 (dmtest 17/0).
+  scenario_check PASS (141 scenes), load_models_test 4/0, vr_run_check 12/0, the dev and Release (ThinLTO) builds 0
+  warnings.
+
 ## For him (B11b)
 
 **His answer (2026-11-16): on.** `vr_pmove_own` defaults to 1 since B11c part 2; 0 stays as the fallback (Debug >
@@ -2427,4 +2460,4 @@ QuakeC's PlayerPreThink parts. Exactly what would change:
   it has) rather than NetQuake's receiver with the window shrunk: a 30 ms jitter reorders most of a window, and
   go-back-N resent most of it each time. A peer that is not Quake VR keeps a one-chunk window (its acks are NetQuake's).
 
-Next phase: B11 part 2 -- deathmatch's item rules with VR weapons (taken and respawned, or staying), the VR melee and armed systems between players and bots, bots' bodies as the clients draw them, FrikBot's walk through the shared movement (`mp_dm` grown); B12d (the poses by their fields) only if a budget needs it. Voice chat's open items: his ears in VR (a real microphone, the spatial mixers) and a menu page of its own with per-player rows.
+Next phase: B11 part 3 -- bots' bodies as the clients draw them (a bot's avatar block made on the server from its edict, its hands placed apart), FrikBot's walk through the shared movement (vr_pmove, its stick as an Input), parry and the grab disarm between players and bots (`mp_dm` grown); B12d (the poses by their fields) only if a budget needs it. Voice chat's open items: his ears in VR (a real microphone, the spatial mixers) and a menu page of its own with per-player rows.
