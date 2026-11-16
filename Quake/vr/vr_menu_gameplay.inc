@@ -881,6 +881,7 @@ void ikStretchReset()
         row(opt::vr_agrunt_shotdisarm_proj_max),
         header("Disarming: Players' Weapons"),
         row(opt::vr_player_disarm),
+        row(opt::vr_player_disarm_pvp),
         row(opt::vr_player_disarm_chance),
         row(opt::vr_player_disarm_grab),
         row(opt::vr_player_disarm_pull),

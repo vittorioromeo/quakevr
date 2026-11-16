@@ -2416,6 +2416,13 @@ QuakeC's PlayerPreThink parts. Exactly what would change:
 - The interpolation buffer (B7b) leaves brush models and stepping monsters on NetQuake's lerp: the player's own entity
   is not delayed (no prediction until B8), and a lift he rides must stay in step with him.
 
+- Player disarm is two settings (his call, 2026-11-16; B11 part 2): `vr_player_disarm` is PvE (enemies' shots and blows
+  on your weapon), **off** by default until it is polished (single player and multiplayer); `vr_player_disarm_pvp` is PvP
+  (another player's or a bot's shots, blows and grab), **on** by default. One path (`VR_Player_Disarm`) for both; what
+  decides is who did it (`VR_PD_ByOn(by)`: a client, bots included, is PvP; anything else PvE). The grab's settings are
+  PvP's. Menu: Armed Grunts > "Disarming: Players' Weapons", "Enemies Can Disarm You" and "Players Can Disarm Each
+  Other". When next's own PvE default change lands, keep these names.
+
 - The reliable window under reordering (B13) uses selective acks (the receiver holds early chunks and acks only what
   it has) rather than NetQuake's receiver with the window shrunk: a 30 ms jitter reorders most of a window, and
   go-back-N resent most of it each time. A peer that is not Quake VR keeps a one-chunk window (its acks are NetQuake's).

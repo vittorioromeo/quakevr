@@ -4284,8 +4284,25 @@ def deathmatch(s):
     bots = sorted(slot for slot in ta if slot not in (ea - 1, eb - 1))
     s.check("both clients list four players (A, B, two bots)", len(ta) == 4 and len(tb) == 4 and len(bots) == 2,
             "A: %s; B: %s" % (ta, tb))
-    moving = [wait_or_none(b, r"mp_move: .*ent=%d self=0" % (slot + 1), 30, since_b) for slot in bots]
-    s.check("the bots move (B sees each move off)", all(moving), "%s" % moving)
+    # (B11 part 2) deathmatch's rules with VR weapons and bots, the server's QC test (vr_dmrules_test.qc): a weapon
+    # pickup taken and back (dm 1) or staying (dm 2), the bot's let-go weapon removed; disarms between A and a bot (PvP on,
+    # PvP off, PvE off by default); the bot's shot knocks A's weapon out: his line at his client. At once (two bots on dm4
+    # may reach the fraglimit by themselves in under a minute)
+    since_t, since_ts = a.mark(), srv.mark()
+    srv.cmd("vr_dm_test 1")
+    _, verdict = srv.wait(r"dmtest: \d+ passed, \d+ failed", 60, since_ts, "the deathmatch rules' test's verdict")
+    a.wait(r"dmtest: ", 5, since_t, "its lines at A") # (its checks broadcast; the verdict echoed on the server's console)
+    a.mark()
+    fails = [l for l in a.lines[since_t:] if l.startswith("dmtest: FAIL")]
+    s.check("the deathmatch rules' test (items, PvP and PvE disarms with a bot) passes", " 0 failed" in verdict,
+            "%s %s" % (verdict.strip(), fails))
+    told = a.find(r"Your weapon is knocked out of your hand", since_t)
+    s.check("A is told his weapon was knocked out (the bot's shot)", told is not None, "%s" % (told,))
+
+    # (seen by A or by B: B's start may see neither bot for a while, out of his sight)
+    moving = [wait_or_none(a, r"mp_move: .*ent=%d self=0" % (slot + 1), 30, since_a) or
+              wait_or_none(b, r"mp_move: .*ent=%d self=0" % (slot + 1), 5, since_b) for slot in bots]
+    s.check("the bots move (A or B sees each move off)", all(moving), "%s" % moving)
 
     # A is killed by the first bot (the server's vr_hurt with the bot as attacker: a real death, QC's ClientObituary
     # giving the bot his frag) and his trigger brings him back (PlayerDeathThink: the buttons up, then one down), until
@@ -4296,14 +4313,19 @@ def deathmatch(s):
         if a.find(r"mp_event: .*intermission=[1-9]", since_a):
             break
         since_k = a.mark()
-        srv.cmd("vr_hurt 1000 %d %d" % (ea - 1, killer + 1))
+        # (A already dead, killed by a bot's own shot and not yet respawned: that death is this round's)
+        events = [i for i in range(since_a, since_k) if re.search(r"mp_event: .* (died|respawned)", a.lines[i])]
+        if events and " died" in a.lines[events[-1]]:
+            since_k = events[-1]
+        else:
+            srv.cmd("vr_hurt 1000 %d %d" % (ea - 1, killer + 1))
         _, died = a.wait(r"mp_event: .* (died|intermission=[1-9])", 20, since_k, "A killed by the bot")
         if "died" not in died:
             break
         kills += 1
         first = first or died
         if kills == 1:
-            credited = wait_or_none(b, r'mp_frags: .*slot=%d .*frags=[1-9]' % killer, 10, since_b)
+            credited = wait_or_none(b, r'mp_frags: .*slot=(%d|%d) .*frags=[1-9]' % (bots[0], bots[1]), 10, since_b)
             s.check("A's death by the bot credits the bot a frag at B", credited is not None, "%s" % credited)
         respawned = None
         for _ in range(30):

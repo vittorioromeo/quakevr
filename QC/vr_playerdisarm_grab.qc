@@ -3,7 +3,7 @@
 // grab (not too fast: vr_agrunt_grab_speed), then pull it away from him hard enough (vr_player_disarm_pull) while the
 // grip holds: it is yours, in that hand. No tug of war, no ragdoll: a pull too gentle lets the hand slip off it
 // (vr_player_disarm_slip). Every player the same way (a listen host's own, a remote one: lag compensated, where the
-// taker saw the other's hands). On with vr_player_disarm (the player can be disarmed at all) and vr_player_disarm_grab;
+// taker saw the other's hands). On with vr_player_disarm_pvp (players disarm each other) and vr_player_disarm_grab;
 // the weapon leaves his hand by the one way out of a player's hand, vr_playerdisarm.qc VR_Player_Disarm, as a shot's.
 
 .entity vr_pdg_of;   // the player whose weapon this player's hand holds (world: none)
@@ -161,7 +161,7 @@ void(entity pl) VR_PDG_Hold =
 // Each player's frame (PlayerPostThink).
 void(entity pl) VR_PDG_Frame =
 {
-    if(!cvar_hget(cvarh_vr_player_disarm) || !cvar_hget(cvarh_vr_player_disarm_grab) || !(pl.flags & FL_CLIENT))
+    if(!cvar_hget(cvarh_vr_player_disarm_pvp) || !cvar_hget(cvarh_vr_player_disarm_grab) || !(pl.flags & FL_CLIENT))
     {
         pl.vr_pdg_of = world;
         return;

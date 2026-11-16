@@ -674,6 +674,11 @@ za::Vector<Item> pageDebugTests()
             .help("vr_pd_test 1 (God mode off): the shotgun in your main hand, a grunt's blast across it knocks it out "
                   "(chance forced certain): it drops to the floor with its clip; a blast across your body, an enforcer's "
                   "laser across the gun (knocked out), the option off (never). In a headset, hold your gun out ahead."),
+        command("Deathmatch Rules: Weapons and Bots", "developer 1; vr_dm_test 1")
+            .help("vr_dm_test 1, in a deathmatch with a bot (impulse 100): a weapon pickup the bot touches is gone and back "
+                  "after its wait (deathmatch 1) or stays (deathmatch 2), the bot's let-go weapon removed; your shot "
+                  "across the bot's weapon knocks it out (PvP), a monster's only with Enemies Can Disarm You, the bot's "
+                  "across yours knocks yours out."),
         command("Player Disarm: Melee on Your Gun", "developer 1; vr_pd_test 2")
             .help("vr_pd_test 2 (God mode off): a grunt with a gun and an axe, then one with an axe alone, swing at you "
                   "holding the shotgun out, 4 blows each: every blow held back for your weapon near its way ends, the "

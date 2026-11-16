@@ -47,11 +47,25 @@ void(string s) VR_PD_Log =
     }
 };
 
-// Whether `pl` can be disarmed now.
-float(entity pl) VR_PD_On =
+// Whether what `by` does may disarm a player (his call, 2026-11-16): another player's (a bot's too) shots, blows and grabs
+// by vr_player_disarm_pvp (PvP, on by default), anything else's (a monster's, the world's) by vr_player_disarm (PvE, off by
+// default until it is polished).
+float(entity by) VR_PD_ByOn =
 {
-    return cvar_hget(cvarh_vr_player_disarm) && (pl.flags & FL_CLIENT) && pl.health > 0 &&
-        cvar_hget(cvarh_vr_player_disarm_chance) > 0;
+    return (by.flags & FL_CLIENT) ? cvar_hget(cvarh_vr_player_disarm_pvp) : cvar_hget(cvarh_vr_player_disarm);
+};
+
+// Whether `pl` can be disarmed now by anyone.
+float(entity pl) VR_PD_Can =
+{
+    return (cvar_hget(cvarh_vr_player_disarm) || cvar_hget(cvarh_vr_player_disarm_pvp)) && (pl.flags & FL_CLIENT) &&
+        pl.health > 0 && cvar_hget(cvarh_vr_player_disarm_chance) > 0;
+};
+
+// Whether `pl` can be disarmed now by `by`.
+float(entity pl, entity by) VR_PD_On =
+{
+    return VR_PD_ByOn(by) && VR_PD_Can(pl);
 };
 
 // `pl`'s hand `h`'s holder of the adding up.
@@ -222,7 +236,7 @@ void(entity pl, float h, vector dir, float speed, string why) VR_PD_Disarm =
 
 void(entity xFrom, vector xA, vector xB, vector xDir, float xDamage, float xKind) VR_PD_Shot =
 {
-    if(!cvar_hget(cvarh_vr_player_disarm))
+    if(!VR_PD_ByOn(xFrom))
     {
         return;
     }
@@ -237,7 +251,7 @@ void(entity xFrom, vector xA, vector xB, vector xDir, float xDamage, float xKind
     float near = max(0, cvar_hget(cvarh_vr_agrunt_shotdisarm_near));
     for(entity pl = VR_Player(); pl; pl = VR_NextPlayer(pl))
     {
-        if(pl != xFrom && VR_PD_On(pl) && VR_AGS_Closest(xA, xB, pl.origin, pl.origin) < 128)
+        if(pl != xFrom && VR_PD_On(pl, xFrom) && VR_AGS_Closest(xA, xB, pl.origin, pl.origin) < 128)
         {
             // Stopped on its box or body: the hands just behind that point still on its way.
             vector b = (tf < 1 && te == pl) ? xB + normalize(xDir) * 24 : xB;
@@ -308,7 +322,7 @@ void(entity pl) VR_PD_Projectiles =
     {
         entity next = e.chain;
         float kind = VR_PD_ProjKind(e, pl);
-        if(kind >= 0)
+        if(kind >= 0 && VR_PD_ByOn(e.owner)) // (a player's projectile: PvP; a monster's: PvE)
         {
             vector a = e.origin - e.velocity * frametime;
             vector b = e.origin + e.velocity * frametime;
@@ -351,7 +365,7 @@ void(entity pl) VR_PD_Projectiles =
 void(entity pl) VR_PD_Frame =
 {
     entity st;
-    if(!VR_PD_On(pl))
+    if(!VR_PD_Can(pl))
     {
         if(pl.vr_pd_main) { pl.vr_pd_main.vr_ags_pend = FALSE; pl.vr_pd_main.vr_pd_projwon = FALSE; }
         if(pl.vr_pd_off) { pl.vr_pd_off.vr_ags_pend = FALSE; pl.vr_pd_off.vr_pd_projwon = FALSE; }
@@ -395,7 +409,7 @@ void(entity pl) VR_PD_Frame =
 
 void(entity pl, entity by, float h, float damage, float gap) VR_PD_Blow =
 {
-    if(!VR_PD_On(pl) || h < 0 || VRIsHandWeaponless(pl, h))
+    if(!VR_PD_On(pl, by) || h < 0 || VRIsHandWeaponless(pl, h))
     {
         return;
     }

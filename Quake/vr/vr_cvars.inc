@@ -2704,14 +2704,16 @@ QVR_CVAR(vr_agrunt_shotdisarm_proj_chance, "0.2", CVAR_ARCHIVE) // ... the chanc
 QVR_CVAR(vr_agrunt_shotdisarm_proj_ref, "9", CVAR_ARCHIVE)     // ... the damage that chance is for (a nail's): more damage, more chance
 QVR_CVAR(vr_agrunt_shotdisarm_proj_near, "4", CVAR_ARCHIVE)    // ... units past the weapon or hand a miss still rolls, its chance down to 0 there
 QVR_CVAR(vr_agrunt_shotdisarm_proj_max, "0.8", CVAR_ARCHIVE)   // ... the most one projectile's chance (a rocket's direct hit)
-QVR_CVAR(vr_player_disarm, "1", CVAR_ARCHIVE)                 // 1: enemies' shots and blows on your held weapon or its hand knock it out by the armed grunts' rules (vr_playerdisarm.qc; multiplayer: other players' too)
+QVR_CVAR(vr_player_disarm, "0", CVAR_ARCHIVE)                 // 1 (PvE): enemies' shots and blows on your held weapon or its hand knock it out by the armed grunts' rules (vr_playerdisarm.qc); 0 until it is polished (his call, 2026-11-16)
+QVR_CVAR(vr_player_disarm_pvp, "1", CVAR_ARCHIVE)             // 1 (PvP, multiplayer): other players' (bots' too) shots, blows and grabs disarm you by the same rules (vr_playerdisarm.qc, vr_playerdisarm_grab.qc)
 QVR_CVAR(vr_player_disarm_sound, "1", CVAR_ARCHIVE)           // your weapon knocked out: its sounds' volume (the clang at the weapon for everyone near, vr/disarm_clang.wav; the alert to you alone, vr/disarm_sting.wav; 0 silent; QC VR_PD_Disarm)
 QVR_CVAR(vr_player_disarm_chance, "1", CVAR_ARCHIVE)          // times the armed grunts' chance for your weapon (1 the same; at most certain; 0 never)
-QVR_CVAR(vr_player_disarm_grab, "1", CVAR_ARCHIVE)            // 1 (and vr_player_disarm): an empty hand closed on another player's held weapon (as drawn, not too fast: vr_agrunt_grab_speed) and pulled away from him hard enough takes it into that hand (QC vr_playerdisarm_grab.qc)
+QVR_CVAR(vr_player_disarm_grab, "1", CVAR_ARCHIVE)            // 1 (and vr_player_disarm_pvp):an empty hand closed on another player's held weapon (as drawn, not too fast: vr_agrunt_grab_speed) and pulled away from him hard enough takes it into that hand (QC vr_playerdisarm_grab.qc)
 QVR_CVAR(vr_player_disarm_pull, "1.5", CVAR_ARCHIVE)     // m/s: ... the pull's least speed away from him (your hand against his)
 QVR_CVAR(vr_player_disarm_reach, "8", CVAR_ARCHIVE)      // cm: ... the hand at most this far from his weapon's drawn line or a hotspot of it as it closes
 QVR_CVAR(vr_player_disarm_slip, "15", CVAR_ARCHIVE)      // cm: ... a pull too gentle: the hand slips off once this far from his weapon
-QVR_CVAR(vr_pd_test, "0", CVAR_NONE)                          // the player disarm's test (QC vr_playerdisarm_test.qc; Debug > Tests > Player Disarm): 1 shots at your gun and body, the option off
+QVR_CVAR(vr_dm_test, "0", CVAR_NONE)                          // deathmatch's rules' test on a deathmatch server with a human and a bot (QC vr_dmrules_test.qc; Debug > Tests > Deathmatch Rules; mp_test.py dm)
+QVR_CVAR(vr_pd_test, "0", CVAR_NONE)                        // the player disarm's test (QC vr_playerdisarm_test.qc; Debug > Tests > Player Disarm): 1 shots at your gun and body, the option off
 QVR_CVAR(vr_agrunt_shotdisarm_debug, "0", CVAR_NONE)          // 1: prints each shot's part (weapon/hand/body), the damage adding up, the roll; 2: also shows the hit volumes (sparks)
 QVR_CVAR(vr_agrunt_fall_drop, "1", CVAR_ARCHIVE)  // 1: knocked down (on the floor, not a stagger) it drops its weapon beside it, and takes it back when it gets up
 QVR_CVAR(vr_agrunt_fall_keep, "1", CVAR_ARCHIVE)  // 1: a gentle fall (a shove's backpedal to the floor) keeps the weapon in its hand, yours for a grab or a blow while it's down; a violent one drops it (below)
