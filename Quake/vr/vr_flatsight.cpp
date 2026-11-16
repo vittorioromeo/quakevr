@@ -522,12 +522,16 @@ struct Sighted
 }
 
 // A line from `a` towards `b`, as a shot's goes (QC FireBulletsImpl: monsters' models, gibs and heads; him and what he owns
-// left out): where it first stops. `b` when it stops nowhere, or with no world to trace (not hosting).
+// left out; on through the teleporters it crosses): where it first stops, as seen from `a`. Through a gate that is past
+// the gate's face, where the view through it shows what the line hit (worldtrace::shotLine's `seen`): a gun pointed at it
+// sends its shot across the gate onto that thing, as the view's crosshair is on it (his note 2026-11-16: aimed at the
+// gate's face, a hip shot turned by the gate went off what the crosshair was on). `b` when it stops nowhere, or with no
+// world to trace (not hosting).
 [[nodiscard]] glm::vec3 lineStop(const glm::vec3& a, const glm::vec3& b)
 {
     QVR_TRACY_SCOPE(zoneLineStop, "flatsight: line stop");
-    const auto tr = worldtrace::move(a, glm::vec3{0.f}, glm::vec3{0.f}, b, MOVE_NORMAL | MOVE_HITGIBS | MOVE_HITMODEL);
-    return tr ? worldtrace::endPos(*tr) : b;
+    const auto stop = worldtrace::shotLine(a, b, MOVE_NORMAL | MOVE_HITGIBS | MOVE_HITMODEL);
+    return stop ? stop->seen : b;
 }
 
 // What the crosshair is on: the ray through the middle of the screen, stopped.

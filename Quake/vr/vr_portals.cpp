@@ -1541,6 +1541,13 @@ glm::vec3 traceExit[kMaxTraceCrossings];
 glm::mat3 traceTurn{1.f};
 
 } // namespace
+
+// The crossing itself, one loop for QC's MOVE_PORTALS tracelines (VR_PortalTrace: their crossings kept for portal_entry,
+// portal_exit and portal_turn) and the client's aim (shotLine): `result` is the line's SV_Move from s to e, on through the
+// gates it crosses; each crossing's entry, exit (kMaxTraceCrossings each) and the turn put into `turn`. The gates crossed.
+int crossGates(glm::vec3 s, glm::vec3 e, int type, edict_t* passedict, trace_t& result, glm::vec3* entry, glm::vec3* exit,
+    glm::mat3& turn);
+
 } // namespace qvr::portals
 
 extern "C" void VR_PortalTraceBegin(void)
@@ -1561,9 +1568,8 @@ extern "C" void VR_PortalTrace(const float start[3], const float end[3], int typ
     {
         build();
     }
-    glm::vec3 s = vec(start), e = vec(end);
-    const float total = glm::distance(s, e);
-    if(sides.empty() || total < 1.f)
+    const glm::vec3 s = vec(start), e = vec(end);
+    if(sides.empty() || glm::distance(s, e) < 1.f)
     {
         return;
     }
@@ -1580,6 +1586,17 @@ extern "C" void VR_PortalTrace(const float start[3], const float end[3], int typ
             *trace = SV_Move(const_cast<float*>(start), vec3_origin, vec3_origin, const_cast<float*>(end), type, passedict);
         }
     }
+    traceCrossings = crossGates(s, e, type, passedict, *trace, traceEntry, traceExit, traceTurn);
+}
+
+namespace qvr::portals
+{
+int crossGates(glm::vec3 s, glm::vec3 e, int type, edict_t* passedict, trace_t& result, glm::vec3* entry, glm::vec3* exit,
+    glm::mat3& turn)
+{
+    trace_t* trace = &result;
+    const float total = glm::distance(s, e);
+    int crossings = 0;
     float before = 0.f; // the length gone before the current part
     for(int n = 0; n < kMaxTraceCrossings; n++)
     {
@@ -1626,10 +1643,10 @@ extern "C" void VR_PortalTrace(const float start[3], const float end[3], int typ
         const glm::vec3 dir = hit->turn * glm::normalize(e - s);
         const glm::vec3 from = carried(*hit, at) + dir * 0.5f;
         const glm::vec3 to = carried(*hit, e);
-        traceEntry[n] = at;
-        traceExit[n] = from;
-        traceTurn = hit->turn * traceTurn;
-        traceCrossings = n + 1;
+        entry[n] = at;
+        exit[n] = from;
+        turn = hit->turn * turn;
+        crossings = n + 1;
         before += bestT * len;
         s = from;
         e = to;
@@ -1637,10 +1654,44 @@ extern "C" void VR_PortalTrace(const float start[3], const float end[3], int typ
         // Out of the gate it meets the shooter too (MOVE_HITPASS): your shot at your own image hits you.
         *trace = SV_Move(a, vec3_origin, vec3_origin, b, type | MOVE_HITPASS, passedict);
     }
-    if(traceCrossings)
+    if(crossings)
     {
         trace->fraction = za::min((before + trace->fraction * glm::distance(s, e)) / total, 1.f);
     }
+    return crossings;
+}
+
+} // namespace qvr::portals
+
+// (vr_trace.hpp. QC's own tracelines' crossings, portal_entry and the rest, are left as they were.)
+za::Optional<qvr::worldtrace::ShotStop> qvr::worldtrace::shotLine(const glm::vec3& start, const glm::vec3& end, int type)
+{
+    using namespace qvr::portals;
+    edict_t* const player = progs::localPlayer();
+    if(!player)
+    {
+        return za::nullOpt;
+    }
+    progs::ServerVm serverVm;
+    vec3_t a{start.x, start.y, start.z}, b{end.x, end.y, end.z};
+    trace_t tr = SV_Move(a, vec3_origin, vec3_origin, b, type, player);
+    ShotStop stop;
+    if(walkOn())
+    {
+        if(!current())
+        {
+            build();
+        }
+        if(!sides.empty() && glm::distance(start, end) >= 1.f)
+        {
+            glm::vec3 entry[kMaxTraceCrossings], exit[kMaxTraceCrossings];
+            glm::mat3 turn{1.f};
+            stop.gates = crossGates(start, end, type, player, tr, entry, exit, turn);
+        }
+    }
+    stop.at = endPos(tr);
+    stop.seen = stop.gates ? glm::mix(start, end, tr.fraction) : stop.at;
+    return za::makeOptional(stop);
 }
 
 // QuakeC (portal_from_image): whether the last MOVE_PORTALS traceline began at a player's image, his muzzle held

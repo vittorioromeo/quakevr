@@ -481,6 +481,8 @@ old default move to the new one, and values you changed stay yours.
   the Flat Keys page.
 - One-way teleporters (start's and id's maps): leaning back across where one comes out no longer hides your hands or
   shows you yourself in the teleporter you came through.
+- Flat-screen: hip fire through a see-through teleporter hits what the crosshair is on beyond it (the guns aimed at
+  the teleporter's surface, and the shot went off once through).
 - Many smaller fixes and cleanups.
 
 ### Known issues
