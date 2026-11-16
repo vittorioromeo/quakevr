@@ -355,6 +355,13 @@ private:
     XrView views[2]{{XR_TYPE_VIEW}, {XR_TYPE_VIEW}};
     XrViewConfigurationView configViews[2]{{XR_TYPE_VIEW_CONFIGURATION_VIEW}, {XR_TYPE_VIEW_CONFIGURATION_VIEW}};
     bool visibilityMaskExtension{false}; // XR_KHR_visibility_mask enabled
+    // Eye tracking (vr_foveated_gaze): XR_EXT_eye_gaze_interaction offered, enabled (asked for, and the system has it),
+    // its pose action and space (FrameState::gaze).
+    bool eyeGazeOffered{false};
+    bool eyeGazeExtension{false};
+    XrAction gazeAction{XR_NULL_HANDLE};
+    XrSpace gazeSpace{XR_NULL_HANDLE};
+    [[nodiscard]] Pose locateGaze(XrTime time) const;
     // The vendors' controller profiles (vr_xr_vendor_profiles), each enabled when the runtime offers its extension:
     // suggestBindings gives each its buttons, the menu button among them.
     enum VendorProfile

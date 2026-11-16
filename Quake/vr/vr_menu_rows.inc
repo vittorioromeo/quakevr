@@ -4676,6 +4676,9 @@ QVR_CYCLE(vr_foveated, "Foveated Rendering",
     "Draws the edges of the view, which the lenses blur anyway, in less detail: faster. NVIDIA graphics "
     "cards only.",
     {0.f, "Off"}, {1.f, "Conservative"}, {2.f, "Balanced"}, {3.f, "Aggressive"})
+QVR_TOGGLE(vr_foveated_gaze, "Eye-Tracked Foveation",
+    "With an eye-tracking headset (Quest Pro via Virtual Desktop with eye tracking shared to the PC, Varjo...): "
+    "the sharp middle of Foveated Rendering follows your eyes. Takes effect at the next VR start.")
 
 // vr_menu_settings.inc: pageVrsGraphics
 QVR_TOGGLE_BYNAME(vr_taa, "Temporal Antialiasing (TAA)",

@@ -245,7 +245,9 @@ namespace
 // 76: the grenade launcher's ammo screen housings (slots 5, 13): the glass leans with the plate (takeGlHousing76).
 // 77: the multi-rocket model's ammo screen housing (slot 14): the glass at the rocket launcher's lean
 // (takeMultiRocketHousing77).
-constexpr int settingsVersion = 77;
+// 78: the lava super nailgun's ammo screen housing (slot 12): the glass in the wedge, slot 4's place
+// (takeLavaSngHousing78).
+constexpr int settingsVersion = 78;
 
 // The AD melee weapons' tips (slots 40-44) before 49.
 constexpr const char* oldAdMeleeTips[] = {"41.5783 -0.0077 82.5216", "35.5648 -0.2178 93.7809",
@@ -1095,6 +1097,23 @@ void takeMultiRocketHousing77()
     }
 }
 
+// 78: the super nailgun's lava-nail model's ammo screen housing (make_screen_housing_nail2.py on v_lava2, slot 12): its
+// glass in the wedge as the super nailgun's (slot 4's place and tilt); a config still holding the old upright glass
+// takes it.
+void takeLavaSngHousing78()
+{
+    constexpr OldValue old[] = {
+        {12, Key::WpnTextPitch, 0.f}, {12, Key::WpnTextX, -4.2f}, {12, Key::WpnTextZ, 3.f}};
+    for(const OldValue& o : old)
+    {
+        cvar_t& var = cvarAt(o.slot, o.key);
+        if(fabsf(var.value - o.value) < 1e-3f)
+        {
+            Cvar_SetQuick(&var, var.default_string);
+        }
+    }
+}
+
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
 struct Step
 {
@@ -1139,6 +1158,7 @@ constexpr Step steps[] = {
     {75, takeLightPlasma75},
     {76, takeGlHousing76},
     {77, takeMultiRocketHousing77},
+    {78, takeLavaSngHousing78},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 

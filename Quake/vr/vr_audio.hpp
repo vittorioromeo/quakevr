@@ -291,6 +291,8 @@ struct Levels
 
 // Offline renders and measurements (vr_audiotest.cpp): vr_snd_test.
 void test_f();
+// The output stage's own test (vr_audiotest_out.cpp): vr_snd_outtest.
+void outTest_f();
 
 // VR_Init (the commands), VR_Shutdown (Steam Audio's objects, the library).
 void init();

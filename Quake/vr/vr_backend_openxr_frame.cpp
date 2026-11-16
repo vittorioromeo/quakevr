@@ -129,6 +129,7 @@ bool OpenXrBackend::beginFrame(TrackingState& tracking, FrameState& frame)
     }
 
     readInput(tracking.input);
+    frame.gaze = gazeSpace != XR_NULL_HANDLE ? locateGaze(time) : Pose{}; // (vr_foveated_gaze)
 
     tracking.head = locate(viewSpace, time);
     if(tracking.head.valid)
@@ -614,6 +615,19 @@ Pose OpenXrBackend::toPose(const XrPosef& p, bool valid)
     pose.orientation = glm::quat{p.orientation.w, p.orientation.x, p.orientation.y, p.orientation.z};
     pose.valid = valid;
     return pose;
+}
+
+// The eyes' gaze (XR_EXT_eye_gaze_interaction): valid only while the eye tracker tracks it (not in a blink).
+Pose OpenXrBackend::locateGaze(XrTime time) const
+{
+    XrSpaceLocation location{XR_TYPE_SPACE_LOCATION};
+    if(!XR_SUCCEEDED(xrLocateSpace(gazeSpace, worldSpace, time, &location)))
+    {
+        return Pose{};
+    }
+    constexpr XrSpaceLocationFlags needed = XR_SPACE_LOCATION_ORIENTATION_VALID_BIT |
+                                            XR_SPACE_LOCATION_ORIENTATION_TRACKED_BIT;
+    return toPose(location.pose, (location.locationFlags & needed) == needed);
 }
 
 Pose OpenXrBackend::locate(XrSpace space, XrTime time) const

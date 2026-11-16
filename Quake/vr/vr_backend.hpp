@@ -143,6 +143,9 @@ struct FrameState
     // rendered frame again.
     bool hold{false};
     EyeView eyes[2]; // [0] left, [1] right
+    // The eyes' gaze (vr_foveated_gaze: XR_EXT_eye_gaze_interaction; the mock's vr_mock_gaze), in the eyes' space:
+    // -Z its direction. Invalid without eye tracking, or while it is lost (a blink).
+    Pose gaze;
 };
 
 // The part of an eye's image the lenses never show (XR_KHR_visibility_mask's hidden triangle

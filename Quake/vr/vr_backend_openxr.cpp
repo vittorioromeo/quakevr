@@ -193,6 +193,8 @@ void OpenXrBackend::stop()
     }
     getVisibilityMask = nullptr;
 
+    destroySpace(gazeSpace);
+    gazeAction = XR_NULL_HANDLE; // (destroyed with the action set)
     bodytrack::xr::destroy();
     for(XrSpace& space : handSpaces)
     {
@@ -359,6 +361,8 @@ void OpenXrBackend::resetRuntimeState()
     stateTrailText[0] = '\0';
     endReason = SessionEnd::Lost;
     visibilityMaskExtension = false;
+    eyeGazeOffered = false;
+    eyeGazeExtension = false;
 #ifndef _WIN32
     eglExtension = false;
 #endif
@@ -438,6 +442,17 @@ bool OpenXrBackend::createInstance()
         {
             extensions.pushBack(XR_KHR_VISIBILITY_MASK_EXTENSION_NAME);
             visibilityMaskExtension = true;
+        }
+        // Eye tracking for the foveation's centre (vr_foveated_gaze; asked for only when it is on: some runtimes ask the
+        // player's permission or start the eye tracker for it).
+        if(!strcmp(p.extensionName, XR_EXT_EYE_GAZE_INTERACTION_EXTENSION_NAME))
+        {
+            eyeGazeOffered = true;
+            if(vr_foveated_gaze.value != 0.f)
+            {
+                extensions.pushBack(XR_EXT_EYE_GAZE_INTERACTION_EXTENSION_NAME);
+                eyeGazeExtension = true;
+            }
         }
         // Body tracking (vr_bodytrack_xr.cpp): the FB tracker, Meta's full body, fidelity and calibration.
         if(const char* body = bodytrack::xr::wanted(p.extensionName))
@@ -634,6 +649,21 @@ bool OpenXrBackend::createSystem()
             system.graphicsProperties.maxSwapchainImageWidth, system.graphicsProperties.maxSwapchainImageHeight));
     }
 
+    // Eye tracking (vr_foveated_gaze): the extension enabled, and the system's eye tracker able to give the gaze.
+    if(eyeGazeExtension)
+    {
+        XrSystemEyeGazeInteractionPropertiesEXT gaze{XR_TYPE_SYSTEM_EYE_GAZE_INTERACTION_PROPERTIES_EXT};
+        XrSystemProperties props{XR_TYPE_SYSTEM_PROPERTIES};
+        props.next = &gaze;
+        eyeGazeExtension = XR_SUCCEEDED(xrGetSystemProperties(instance, systemId, &props)) &&
+                           gaze.supportsEyeGazeInteraction == XR_TRUE;
+    }
+    xrruntime::logLine(va("OpenXR: eye tracking (XR_EXT_eye_gaze_interaction): %s\n",
+        eyeGazeExtension    ? "on: the foveation follows the gaze (vr_foveated_gaze 1)"
+        : !eyeGazeOffered   ? "not offered by the runtime"
+        : vr_foveated_gaze.value != 0.f ? "offered, but the system has no eye tracker (or it is not shared with the PC)"
+                                        : "offered, not used (vr_foveated_gaze 0)"));
+
     // Required before creating an OpenGL (ES) session.
 #ifdef __ANDROID__
     PFN_xrGetOpenGLESGraphicsRequirementsKHR getRequirements = nullptr;
@@ -650,6 +680,7 @@ bool OpenXrBackend::createSystem()
         reinterpret_cast<const char*>(glGetString(GL_VERSION))));
     return true;
 #else
+    // Required before creating an OpenGL session.
     PFN_xrGetOpenGLGraphicsRequirementsKHR getRequirements = nullptr;
     xrGetInstanceProcAddr(instance, "xrGetOpenGLGraphicsRequirementsKHR",
         reinterpret_cast<PFN_xrVoidFunction*>(&getRequirements));

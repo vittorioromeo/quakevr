@@ -1731,6 +1731,7 @@ void init()
     za::fill(live->channelOf, -1);
     Cmd_AddCommand("vr_snd_info", info_f);
     Cmd_AddCommand("vr_snd_test", test_f);
+    Cmd_AddCommand("vr_snd_outtest", outTest_f);
     Cmd_AddCommand("vr_snd_capture", capture_f);
     Cmd_AddCommand("vr_snd_capture_game", captureGame_f);
     Cmd_AddCommand("vr_snd_bench_spawn", benchSpawn_f);

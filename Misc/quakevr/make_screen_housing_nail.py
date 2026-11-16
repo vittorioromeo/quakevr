@@ -104,6 +104,21 @@ FASTENER_FOOT = (404.0, 179.0)
 FASTENER_HEAD = (246.0, 133.0)
 FASTENER_TIP = (246.0, 128.0)
 
+# The gun the .blend holds (its mesh named after the model): the nailgun, or its lava-nail model
+# (src_models/blend/v_lava/v_lava.blend: v_nail's mesh without the housing, the same grid, its own skin), which takes
+# the same housing, its table entry "lava" and weapons.txt slot 11 (their numbers "nail"'s and slot 3's). v_lava's skin
+# keeps the rim's rows, but its panels moved: the same materials found on it by colour (texel by texel, the least RMS
+# difference: the front's rusted metal 134 texels left and 4 up, the rim's span up to the black seam at x 187, the
+# fasteners' bronze foot and lit silver head).
+GUNS = {
+    "v_nail": dict(STEM="nail", SLOT=3),
+    "v_lava": dict(STEM="lava", SLOT=11, FRONT=(178.0, 166.0, 14.0), RIM_SPAN=(151.0, 186.0),
+                   FASTENER_FOOT=(178.0, 174.0), FASTENER_HEAD=(22.0, 92.0), FASTENER_TIP=(22.0, 90.0)),
+}
+MODEL = next((o.name for o in bpy.data.objects if o.type == 'MESH' and o.name in GUNS), "v_nail")
+globals().update(GUNS[MODEL])
+TAG = "housing_" + STEM
+
 
 def read_weapon():
     """weapons.txt's slot: wpntxt_av, wpntxt_x/y/z, wpntxt_scale and the pitch/yaw/roll (all 0: the glass upright)."""

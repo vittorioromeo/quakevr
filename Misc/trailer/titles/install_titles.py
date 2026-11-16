@@ -1,9 +1,10 @@
-"""Install the QVR Feature Title template (and its fonts) for DaVinci Resolve, for the current user (no admin).
+"""Install the QVR Feature Title and QVR Intro Title templates (and their fonts) for DaVinci Resolve, for the current
+user (no admin).
 
     python Misc/trailer/titles/install_titles.py [--no-fonts] [--no-script] [--dry-run]
 
-- The template goes to %APPDATA%/Blackmagic Design/DaVinci Resolve/Support/Fusion/Templates/Edit/Titles/: Resolve's
-  Edit page lists it under Effects > Titles > Fusion Titles as "QVR Feature Title".
+- The templates go to %APPDATA%/Blackmagic Design/DaVinci Resolve/Support/Fusion/Templates/Edit/Titles/: Resolve's
+  Edit page lists them under Effects > Titles > Fusion Titles as "QVR Feature Title" and "QVR Intro Title".
 - The fonts (DpQuake by Dead Pete, free to distribute with its dpquake.txt; Pirata One, Cinzel, IM Fell English, SIL
   OFL; licences beside them in fonts/) go to
   %LOCALAPPDATA%/Microsoft/Windows/Fonts and are registered under HKCU (Windows' own per-user font install).
@@ -21,7 +22,7 @@ import shutil
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-TEMPLATE = "QVR Feature Title.setting"
+TEMPLATES = ["QVR Feature Title.setting", "QVR Intro Title.setting"]
 FONTS = [  # file, the name Windows registers it under
     ("dpquake_.ttf", "DpQuake (TrueType)"),
     ("PirataOne-Regular.ttf", "Pirata One (TrueType)"),
@@ -76,8 +77,9 @@ def main():
     if os.name != "nt":
         sys.exit("install_titles: Windows only (copy the .setting to Resolve's Fusion/Templates/Edit/Titles by hand)")
     sup = resolve_support()
-    print("Template:")
-    copy(os.path.join(HERE, TEMPLATE), os.path.join(sup, "Templates", "Edit", "Titles"), a.dry_run)
+    print("Templates:")
+    for t in TEMPLATES:
+        copy(os.path.join(HERE, t), os.path.join(sup, "Templates", "Edit", "Titles"), a.dry_run)
     if not a.no_script:
         dst = os.path.join(sup, "Scripts", "Edit", "QVR Apply Titles.py")
         print("Launcher:\n  -> %s" % dst)
