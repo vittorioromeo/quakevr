@@ -425,6 +425,21 @@ void() VR_DMT_HoldBot =
     }
 };
 
+// The bots' off hands held off too (tests 2 and 3, the sword's blow alone): no punch and no reach for his weapon begun
+// (B13d: the held bot's off hand punched him as its sword's blow was parried, its punch's damage read as the blow's
+// landing: vr_dm_test 3's flake).
+void() VR_DMT_HoldOffHands =
+{
+    for(entity p = VR_Player(); p; p = VR_NextPlayer(p))
+    {
+        if(!p.ishuman && (p.flags & FL_CLIENT))
+        {
+            p.vr_botpunch_end = max(p.vr_botpunch_end, time);
+            p.vr_botreach_next = max(p.vr_botreach_next, time + 1);
+        }
+    }
+};
+
 // Weapon `xWid` into `pl`'s main hand: another weapon there let go of first (a frame before: a weapon swapped in the
 // hand is let go of at once), then it given into the empty hand, as VR_DMT_Arm gives.
 void(entity pl, float xWid) VR_DMT_ArmWith =
@@ -509,6 +524,7 @@ void(float ask) VR_DMT_Parry =
         vr_dmt_spot = spot;
         vr_dmt_held++;
         VR_DMT_HoldBot();
+        VR_DMT_HoldOffHands();
         VR_DMT_ArmCrowbar(vr_dmt_human);
         if(vr_dmt_n < VR_DMT_HOLD || VRGetEntWeapon(vr_dmt_human, cVR_MainHand) != WID_CROWBAR)
         {
@@ -533,6 +549,7 @@ void(float ask) VR_DMT_Parry =
     if(vr_dmt_s == 22)
     {
         VR_DMT_HoldBot();
+        VR_DMT_HoldOffHands();
         if(time - vr_dmt_bot.vr_botswing > 0.19 && time - vr_dmt_bot.vr_botswing < 0.21)
         {
             // (at its blow: his crowbar still in his hand, and its blade's line ahead of it)
