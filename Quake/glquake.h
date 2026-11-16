@@ -446,6 +446,8 @@ typedef struct gpulight_s {
 	float gateplane[4], gatelo[4], gatehi[4], gateinverse[3][4], gateshadow[4]; // QVR: a single portal traversal
 } gpulight_t;
 
+#define QVR_WORLD_LIT_SPHERES 16 // QVR: the lights the world's cull splits the lit surfaces by, at most (C4v; more: no split)
+
 typedef struct gpulightbuffer_s {
 	float		lightstyles[MAX_LIGHTSTYLES];
 	gpulight_t	lights[MAX_DLIGHTS];
@@ -514,6 +516,7 @@ extern gpuframedata_t r_framedata;
 void R_AnimateLight (void);
 void R_MarkSurfaces (void);
 const byte *R_ViewVis (void); // QVR: the PVS R_MarkSurfaces chose for the view (VR_WorldLightsCheck)
+void R_MarkSurfacesLate (void); // QVR: the world's cull under the ES profile, after R_PushDlights (C4v: the split by surface)
 qboolean R_CullBox (vec3_t emins, vec3_t emaxs);
 qboolean R_CullModelForEntity (entity_t *e);
 void R_EntityMatrix (float matrix[16], vec3_t origin, vec3_t angles, unsigned char scale);
@@ -664,6 +667,7 @@ void GL_DeleteShaders (void);
 GLuint GL_WorldDecalRetroProgram (int oit, int dither, qboolean pdo); // QVR
 GLuint GL_WorldArraysProgram (GLuint program, qboolean *depthonly); // QVR: the world's textures in arrays (vr/vr_worldarrays.cpp)
 GLuint GL_WorldArraysMergeProgram (void); // QVR
+int GL_WorldRigLightsOff (void); // QVR: the world's programs skip the rig's small lights (C4v; vr_rig_lights_world 0)
 void R_BModelCallTextures (texture_t *t, gltexture_t *out[4]); // QVR: a world call's four maps as the bound path binds them (r_world.c)
 void R_PrewarmDecalPrograms (qboolean pdo); // QVR: those made in the map's load (vr/vr_decals.cpp prepare)
 void R_PrewarmTranslucentDecalPrograms (void); // QVR: the translucent brush models' (vr/vr_decals.cpp prepareTranslucent)

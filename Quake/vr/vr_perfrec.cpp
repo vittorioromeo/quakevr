@@ -67,6 +67,7 @@ struct Row
     int drawcalls{0};
     int dlights{0};
     int unlit{0}; // the frame's views whose world was drawn without the lights' loop (vr_gl_world_unlit)
+    int split{0}; // ... drawn split by surface, the lit ones alone with the loop (vr_gl_world_unlit 2, C4v)
     za::U64 allocs{0};
     int count[VR_PERF_KINDS]{};
     float ms[VR_PERF_KINDS]{};
@@ -174,7 +175,7 @@ void writeHeader()
     }
     fprintf(f, "\n# times in ms; c_ a phase's CPU, g_ its GPU (empty: 0, or not read back); gpu_span the GPU's first to last "
                "timestamp; xr_missed display periods missed; ev_<kind>_n/_ms the frame's events; events their names\n");
-    fprintf(f, "serial,t,map,period,host,busy,xr_period,xr_missed,scale,gpu_span,draws,dlights,unlit,allocs");
+    fprintf(f, "serial,t,map,period,host,busy,xr_period,xr_missed,scale,gpu_span,draws,dlights,unlit,split,allocs");
     char col[48];
     for(int i = 0; i < profile::PhaseCount; i++)
     {
@@ -220,7 +221,7 @@ void writeRow(const Row& r)
     {
         fputc(',', f);
     }
-    fprintf(f, ",%d,%d,%d,%llu", r.drawcalls, r.dlights, r.unlit, static_cast<unsigned long long>(r.allocs));
+    fprintf(f, ",%d,%d,%d,%d,%llu", r.drawcalls, r.dlights, r.unlit, r.split, static_cast<unsigned long long>(r.allocs));
     for(int i = 0; i < profile::PhaseCount; i++)
     {
         putMs(f, r.cpuMs[i]);
@@ -397,6 +398,7 @@ void frame(za::U64 serial, double startS, double periodMs, double hostMs, double
             r.dlights += d.die >= cl.time && d.radius > 0.f ? 1 : 0;
         }
         r.unlit = lighting::takeWorldUnlitViews();
+        r.split = lighting::takeWorldSplitViews();
         const za::U64 allocs = allocsNow();
         r.allocs = allocs - za::min(allocs, rec.allocs0);
         rec.allocs0 = allocs;

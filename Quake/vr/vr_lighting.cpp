@@ -1058,6 +1058,7 @@ struct NoShadow
     float die = -1.f;
 };
 za::Array<NoShadow, MAX_DLIGHTS> noShadows;
+za::Array<NoShadow, MAX_DLIGHTS> rigLights; // (lighting::dlightRig: the same key and death time; C4v)
 
 struct MapSlot
 {
@@ -2329,6 +2330,13 @@ extern "C" void VR_DlightShadow(int index, gpulight_t* out)
     {
         darkplacesLight(index, out);
     }
+    // C4v: a rig light the world's programs skip (vr_rig_lights_world 0: QVR_LITE_RIGNOWORLD; shadow2.w unread for an
+    // unshadowed dynamic light); VR_WorldLightsCheck ignores it too
+    if(index >= 0 && index < MAX_DLIGHTS && out->shadow[2] == 0.f && rigLights[index].key == cl_dlights[index].key &&
+        rigLights[index].die == cl_dlights[index].die && GL_WorldRigLightsOff())
+    {
+        out->shadow2[3] = -1.f;
+    }
 }
 
 extern "C" void VR_AliasShadowClip(void)
@@ -2402,6 +2410,15 @@ extern "C" float VR_SpotCone(const gpulight_t* l, const float point[3])
     }
     const float t = za::clamp(l->spot[3] - glm::dot(axis, d) / len, 0.f, 1.f);
     return 1.f - t * t * (3.f - 2.f * t);
+}
+
+void lighting::dlightRig(const dlight_t* dl)
+{
+    const za::PtrDiffT index = dl - cl_dlights;
+    if(index >= 0 && index < MAX_DLIGHTS)
+    {
+        rigLights[index] = NoShadow{dl->key, dl->die};
+    }
 }
 
 void lighting::dlightNoShadow(const dlight_t* dl)
@@ -2628,6 +2645,13 @@ namespace
 bool worldUnlit = false;  // the last R_PushDlights' answer (single-pass stereo's eye views keep the pass's)
 int worldUnlitViews = 0;  // views drawn unlit since the perf recorder last took them
 bool worldUnlitDraw = false; // VR_WorldUnlit asked in this view (counted once a view)
+// C4v (vr_gl_world_unlit 2): the split by surface. The lights reaching the world (centre, radius) for the GPU's cull
+// to send the surfaces they touch to the lit commands, -1: no split (all lit, or worldUnlit); and whether a light
+// touches a brush entity (they are drawn lit then)
+int worldLitCount = -1;
+float worldLitSpheres[QVR_WORLD_LIT_SPHERES][4];
+bool worldLitBModels = false;
+int worldSplitViews = 0; // views drawn split since the perf recorder last took them
 
 bool sphereTouchesBox(const glm::vec3& c, float r, const float* mins, const float* maxs)
 {
@@ -2748,10 +2772,15 @@ extern "C" void VR_WorldLightsCheck(void)
 {
     worldUnlit = false;
     worldUnlitDraw = false;
+    worldLitCount = -1;
+    worldLitBModels = false;
     if(vr_gl_world_unlit.value == 0.f || !glprogs.world_unlit[0][0] || !cl.worldmodel || !cl.worldmodel->nodes)
     {
         return;
     }
+    // C4v: by surface (vr_gl_world_unlit 2, the lit commands made: r_brush.c): the lights reaching the world kept
+    const bool split = vr_gl_world_unlit.value >= 2.f && gl_bmodel_litcmd_first >= 0;
+    int count = 0;
     for(int i = 0; i < r_framedata.numlights; i++)
     {
         const gpulight_t& l = r_lightbuffer.lights[i];
@@ -2759,6 +2788,10 @@ extern "C" void VR_WorldLightsCheck(void)
         if(l.shadow[3] != 0.f || l.gateplane[0] != 0.f || l.gateplane[1] != 0.f || l.gateplane[2] != 0.f || l.gateplane[3] != 0.f)
         {
             return;
+        }
+        if(l.shadow2[3] < 0.f) // C4v: a rig light the world's shader skips (vr_rig_lights_world 0: VR_DlightShadow)
+        {
+            continue;
         }
         const glm::vec3 c{l.pos[0], l.pos[1], l.pos[2]};
         const float r = l.radius + 4.f;
@@ -2768,12 +2801,51 @@ extern "C" void VR_WorldLightsCheck(void)
         {
             continue;
         }
-        if(sphereTouchesWorld(cl.worldmodel, cl.worldmodel->nodes, c, r) || sphereTouchesBrushEntities(c, r))
+        const bool bmodels = sphereTouchesBrushEntities(c, r);
+        const bool world = sphereTouchesWorld(cl.worldmodel, cl.worldmodel->nodes, c, r);
+        if((world || bmodels) && (!split || (world && count == QVR_WORLD_LIT_SPHERES)))
         {
             return;
         }
+        worldLitBModels = worldLitBModels || bmodels;
+        if(world)
+        {
+            float* s = worldLitSpheres[count++];
+            s[0] = c.x;
+            s[1] = c.y;
+            s[2] = c.z;
+            s[3] = r;
+        }
     }
-    worldUnlit = true;
+    if(count == 0 && !worldLitBModels)
+    {
+        worldUnlit = true;
+        return;
+    }
+    worldLitCount = count;
+}
+
+// R_MarkVisSurfaces (the cull, after R_PushDlights under the split): -1 no split; else the spheres the cull sends the
+// world's lit surfaces by (0 or more), *bmodels nonzero when the brush entities are drawn lit.
+extern "C" int VR_WorldLitSpheres(float spheres[][4], int* bmodels)
+{
+    *bmodels = worldLitBModels ? 1 : 0;
+    if(worldLitCount > 0)
+    {
+        memcpy(spheres, worldLitSpheres, sizeof(worldLitSpheres[0]) * static_cast<size_t>(worldLitCount));
+    }
+    if(worldLitCount >= 0)
+    {
+        worldSplitViews++;
+    }
+    return worldLitCount;
+}
+
+int qvr::lighting::takeWorldSplitViews()
+{
+    const int n = worldSplitViews;
+    worldSplitViews = 0;
+    return n;
 }
 
 extern "C" int VR_WorldUnlit(void)

@@ -54,7 +54,18 @@ typedef struct gpumark_frame_s {
 	GLuint		padding[3];
 	vec3_t		vieworg2;	// QVR: single-pass stereo: the other eye's (a surface either eye faces is kept); else vieworg
 	GLuint		padding2;
+	GLuint		litinfo[4];	// QVR: the ES profile's split by surface (C4v; QVR_LITSPLIT): the spheres, the first lit command, the textures split
+	vec4_t		litspheres[QVR_WORLD_LIT_SPHERES];
 } gpumark_frame_t;
+
+extern int gl_bmodel_litcmd_first, gl_bmodel_litcmd_count; // QVR: the world's lit commands (r_brush.c; C4v)
+// QVR: C4v, the ES profile's split by surface (vr_gl_world_unlit 2): the cull waits for R_PushDlights (R_MarkSurfacesLate)
+// to know the lights reaching the world; this view's split (-1 none: one program for the world; else the world's lit
+// surfaces are in their own commands, drawn with the lights' loop, the rest without), the brush entities lit or not
+static gpumark_frame_t r_markframe;
+static qboolean r_markpending;
+static int r_world_litsplit = -1;
+static qboolean r_world_litbmodels;
 
 byte *SV_FatPVS (vec3_t org, qmodel_t *worldmodel);
 
@@ -81,17 +92,14 @@ const byte *R_ViewVis (void)
 R_MarkVisSurfaces
 ===============
 */
+static void R_DispatchMarkSurfaces (const byte* vis, const gpumark_frame_t *frame);
+
 static void R_MarkVisSurfaces (byte* vis)
 {
 	int			i;
-	GLuint		buf;
-	GLbyte*		ofs;
-	size_t		vissize = (cl.worldmodel->numleafs + 7) >> 3;
-	size_t		nummark = gl_bmodel_marksurf_buffer_size / sizeof (bmodel_gpu_marksurf_t);
 	gpumark_frame_t frame;
 
-	GL_BeginGroup ("Mark surfaces");
-
+	memset (&frame, 0, sizeof (frame)); // QVR: (the split's part)
 	for (i = 0; i < 4; i++)
 	{
 		frame.frustum[i][0] = frustum[i].normal[0];
@@ -109,14 +117,74 @@ static void R_MarkVisSurfaces (byte* vis)
 	frame.oldskyleaf = r_oldskyleaf.value != 0.f;
 	frame.framecount = r_framecount;
 
+	r_world_litsplit = -1; // QVR
+	r_world_litbmodels = false;
+	if (gl_bmodel_litcmd_first >= 0) // QVR: the ES profile's split by surface: after R_PushDlights (R_MarkSurfacesLate)
+	{
+		r_markframe = frame;
+		r_markpending = true;
+		return;
+	}
+	R_DispatchMarkSurfaces (vis, &frame);
+}
+
+/*
+===============
+R_MarkSurfacesLate -- QVR
+
+C4v: the world's cull under the ES profile, after R_PushDlights (vr_lighting.cpp VR_WorldLightsCheck: the lights
+reaching the world): the surfaces a light's sphere touches to their texture's lit command (vr_gl_world_unlit 2).
+===============
+*/
+void R_MarkSurfacesLate (void)
+{
+	int			bmodels = 0;
+
+	if (!r_markpending)
+		return;
+	r_markpending = false;
+	r_world_litsplit = VR_WorldLitSpheres (r_markframe.litspheres, &bmodels);
+	r_world_litbmodels = bmodels != 0;
+	r_markframe.litinfo[0] = (GLuint) q_max (r_world_litsplit, 0);
+	r_markframe.litinfo[1] = (GLuint) gl_bmodel_litcmd_first;
+	r_markframe.litinfo[2] = (GLuint) gl_bmodel_litcmd_count;
+	VR_ProfileBegin ("mark surfaces"); // QVR: profile
+	R_DispatchMarkSurfaces (r_lightsvis, &r_markframe);
+	VR_ProfileEnd ();
+}
+
+static void R_DispatchMarkSurfaces (const byte* vis, const gpumark_frame_t *frame)
+{
+	GLuint		buf;
+	GLbyte*		ofs;
+	size_t		vissize = (cl.worldmodel->numleafs + 7) >> 3;
+	size_t		nummark = gl_bmodel_marksurf_buffer_size / sizeof (bmodel_gpu_marksurf_t);
+#ifdef QVR_TRACY
+	size_t		i;
+#endif
+
+	GL_BeginGroup ("Mark surfaces");
+
 	COMPILE_TIME_ASSERT (vis_alignment_must_be_power_of_2, (VIS_ALIGN & (VIS_ALIGN - 1)) == 0);
 	COMPILE_TIME_ASSERT (vis_alignment_must_be_multiple_of_uint, (VIS_ALIGN & 3) == 0);
 	vissize = (vissize + VIS_ALIGN_MASK) & ~VIS_ALIGN_MASK; // round up
 
 	GL_BeginGroup ("cs: clear indirect draws"); // QVR: (vr_gl_markers)
 	GL_UseProgram (glprogs.clear_indirect);
-	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 1, gl_bmodel_indirect_buffer, 0, cl.worldmodel->texofs[TEXTYPE_COUNT] * sizeof(bmodel_draw_indirect_t));
-	GL_DispatchComputeFunc ((cl.worldmodel->texofs[TEXTYPE_COUNT] + 63) / 64, 1, 1);
+	if (VR_GLESForm (VR_GLES_FORM_GLSL)) // QVR: the ES profile's clear (QVR_LITSPLIT): the whole buffer bound, the world's lit commands cleared too (C4v)
+	{
+		int litcount = r_world_litsplit >= 0 ? gl_bmodel_litcmd_count : 0;
+		GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 1, gl_bmodel_indirect_buffer, 0, gl_bmodel_indirect_buffer_size);
+		GL_Uniform1iFunc (0, cl.worldmodel->texofs[TEXTYPE_COUNT]);
+		GL_Uniform1iFunc (1, q_max (gl_bmodel_litcmd_first, 0));
+		GL_Uniform1iFunc (2, litcount);
+		GL_DispatchComputeFunc ((q_max (cl.worldmodel->texofs[TEXTYPE_COUNT], litcount) + 63) / 64, 1, 1);
+	}
+	else
+	{
+		GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 1, gl_bmodel_indirect_buffer, 0, cl.worldmodel->texofs[TEXTYPE_COUNT] * sizeof(bmodel_draw_indirect_t));
+		GL_DispatchComputeFunc ((cl.worldmodel->texofs[TEXTYPE_COUNT] + 63) / 64, 1, 1);
+	}
 	GL_MemoryBarrierFunc (GL_SHADER_STORAGE_BARRIER_BIT);
 	GL_EndGroup (); // QVR
 
@@ -130,8 +198,8 @@ static void R_MarkVisSurfaces (byte* vis)
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 3, buf, (GLintptr)ofs, vissize);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 4, gl_bmodel_marksurf_buffer, 0, gl_bmodel_marksurf_buffer_size);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 5, gl_bmodel_surf_buffer, 0, cl.worldmodel->numsurfaces * sizeof(bmodel_gpu_surf_t));
-	GL_Upload (GL_UNIFORM_BUFFER, &frame, sizeof(frame), &buf, &ofs);
-	GL_BindBufferRange (GL_UNIFORM_BUFFER, 1, buf, (GLintptr)ofs, sizeof(frame));
+	GL_Upload (GL_UNIFORM_BUFFER, frame, sizeof(*frame), &buf, &ofs);
+	GL_BindBufferRange (GL_UNIFORM_BUFFER, 1, buf, (GLintptr)ofs, sizeof(*frame));
 
 	GL_BeginGroup ("cs: cull and mark world surfaces"); // QVR: (vr_gl_markers)
 	GL_DispatchComputeFunc ((nummark + 63) / 64, 1, 1);
@@ -301,6 +369,12 @@ static bmodel_gpu_call_remap_t		bmodel_call_remap[MAX_BMODEL_DRAWS];
 static int							num_bmodel_calls;
 static GLuint						bmodel_batch_program;
 static int							bmodel_relief_filter; // QVR: R_AddBModelCall keeps 0 every call, 1 only those with parallax relief, 2 only those without (R_DrawSolidSplit)
+// QVR: C4v, the split by surface (r_world_litsplit): R_AddBModelPassCalls adds 0 the world's commands and its lit ones,
+// 1 the unlit part (the world's commands, the brush entities unless lit), 2 the lit part (the world's lit commands, the
+// brush entities if lit); a flush's calls from bmodel_seg_first on (-1: none) drawn with bmodel_seg_program, one gather
+static int							bmodel_lit_mode;
+static int							bmodel_seg_first = -1;
+static GLuint						bmodel_seg_program;
 // QVR: the bound path's world textures in arrays (vr/vr_worldarrays.cpp): this batch may use them; each command's call
 // in the flush's draws of many (CmdCall in the vertex shader) and the flush it was last taken in (one call a command)
 static qboolean						bmodel_arrays_on;
@@ -447,6 +521,7 @@ static void R_ResetBModelCalls (GLuint program)
 {
 	bmodel_batch_program = program;
 	num_bmodel_calls = 0;
+	bmodel_seg_first = -1; // QVR
 	bmodel_arrays_on = false;
 	if (!gl_bindless_able) // QVR: the world's textures in arrays (made here: no call pending)
 	{
@@ -505,10 +580,13 @@ static qboolean R_MergeBModelCallsArrays (qboolean depthonly)
 	for (i = 0; i < num_bmodel_calls; i++)
 	{
 		int key = depthonly ? 0 : bmodel_calls.bound.set[i], cmd = bmodel_calls.bound.cmd[i];
+		int vcmd = gl_bmodel_litcmd_first >= 0 && cmd >= gl_bmodel_litcmd_first ? cmd - gl_bmodel_litcmd_first : cmd; // QVR: a lit command's vertices are its texture's (C4v)
 		bmodel_group_of[i] = -1;
 		merged[i] = false;
 		if (!depthonly && key < 0)
 			continue;
+		if (bmodel_seg_first >= 0 && i >= bmodel_seg_first) // QVR: the second program's calls in groups of their own (C4v)
+			key |= 0x40000000;
 		for (g = 0; g < numgroups; g++)
 			if (bmodel_group_key[g] == key)
 				break;
@@ -525,6 +603,8 @@ static qboolean R_MergeBModelCallsArrays (qboolean depthonly)
 		{
 			bmodel_cmd_stamp[cmd] = bmodel_flush_stamp;
 			bmodel_cmd_call[cmd] = (GLuint) i;
+			if (vcmd != cmd && bmodel_cmd_stamp[vcmd] != bmodel_flush_stamp) // QVR: CmdCall reads the texture's command: its call the same as this one (C4v)
+				bmodel_cmd_call[vcmd] = (GLuint) i;
 			merged[i] = true;
 			groupcount[g]++;
 			groupbase[g] += (GLuint) gl_bmodel_cmdcap[cmd]; // (its capacity, for now)
@@ -579,7 +659,7 @@ static qboolean R_MergeBModelCallsArrays (qboolean depthonly)
 	return numitems > 0;
 }
 
-static void R_DrawBModelCallsArrays (GLuint twin, qboolean depthonly, GLuint cmdbuf, size_t cmdofs, int bound)
+static void R_DrawBModelCallsArrays (GLuint twin, GLuint twin2, qboolean depthonly, GLuint cmdbuf, size_t cmdofs, int bound) // QVR: twin2: the second program's (C4v; 0 none)
 {
 	int			i, g, alone = 0, many = 0;
 	int			numgroups = bmodel_merge.numgroups;
@@ -594,8 +674,10 @@ static void R_DrawBModelCallsArrays (GLuint twin, qboolean depthonly, GLuint cmd
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 6, buf, (GLintptr)ofs, sizeof (bmodel_cmd_call[0]) * q_max (bmodel_cmd_count, 1));
 	for (g = 0; g < numgroups; g++)
 	{
+		if (twin2) // QVR: the group's program (C4v)
+			GL_UseProgram ((bmodel_group_key[g] & 0x40000000) ? twin2 : twin);
 		if (!depthonly)
-			VR_WorldArraysBind (bmodel_group_key[g]);
+			VR_WorldArraysBind (bmodel_group_key[g] & ~0x40000000);
 		if (groupcount[g] > 0)
 		{
 			GL_Uniform1iFunc (0, -1);
@@ -631,12 +713,24 @@ static void R_FlushBModelCalls (void)
 	GLbyte	*ofs;
 	size_t	dstcmdofs;
 	GLuint	twin = 0; // QVR: the program's array twin (the world's textures in arrays: vr/vr_worldarrays.cpp)
+	GLuint	twin2 = 0; // QVR: the second program's (C4v)
+	int		seg; // QVR: the second program's first call (num_bmodel_calls: none)
 	qboolean depthonly = false, merging = false;
 
 	if (!num_bmodel_calls)
 		return;
+	seg = bmodel_seg_first >= 0 && bmodel_seg_first < num_bmodel_calls ? bmodel_seg_first : num_bmodel_calls;
 	if (!gl_bindless_able && bmodel_arrays_on && GL_WorldArraysMergeProgram ()) // QVR
+	{
 		twin = GL_WorldArraysProgram (bmodel_batch_program, &depthonly);
+		if (twin && seg < num_bmodel_calls)
+		{
+			qboolean depthonly2 = false;
+			twin2 = GL_WorldArraysProgram (bmodel_seg_program, &depthonly2);
+			if (!twin2 || depthonly2 != depthonly) // (no twin: every call bound)
+				twin = twin2 = 0;
+		}
+	}
 
 	GL_ReserveDeviceMemory (GL_DRAW_INDIRECT_BUFFER, sizeof (bmodel_draw_indirect_t) * num_bmodel_calls, &cmdbuf, &dstcmdofs);
 
@@ -669,11 +763,18 @@ static void R_FlushBModelCalls (void)
 	{
 		GL_Upload (GL_SHADER_STORAGE_BUFFER, bmodel_calls.bindless.params, sizeof (bmodel_calls.bindless.params[0]) * num_bmodel_calls, &buf, &ofs);
 		GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 1, buf, (GLintptr)ofs, sizeof (bmodel_calls.bindless.params[0]) * num_bmodel_calls);
-		GL_MultiDrawElementsIndirectFunc (GL_TRIANGLES, GL_UNSIGNED_INT, (const void *)dstcmdofs, num_bmodel_calls, sizeof (bmodel_draw_indirect_t));
+		if (seg > 0)
+			GL_MultiDrawElementsIndirectFunc (GL_TRIANGLES, GL_UNSIGNED_INT, (const void *)dstcmdofs, seg, sizeof (bmodel_draw_indirect_t));
+		if (seg < num_bmodel_calls) // QVR: the second program's (C4v)
+		{
+			GL_UseProgram (bmodel_seg_program);
+			GL_MultiDrawElementsIndirectFunc (GL_TRIANGLES, GL_UNSIGNED_INT, (const void *)(dstcmdofs + seg * sizeof (bmodel_draw_indirect_t)), num_bmodel_calls - seg, sizeof (bmodel_draw_indirect_t));
+		}
 	}
 	else
 	{
 		int i, bound = 0;
+		qboolean second = false; // QVR: the second program bound (C4v)
 
 		GL_Upload (GL_SHADER_STORAGE_BUFFER, &bmodel_calls.bound.params, sizeof (bmodel_calls.bound.params[0]) * num_bmodel_calls, &buf, &ofs);
 		GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 1, buf, (GLintptr)ofs, sizeof (bmodel_calls.bound.params[0]) * num_bmodel_calls);
@@ -682,6 +783,11 @@ static void R_FlushBModelCalls (void)
 		{
 			if (twin && (depthonly || bmodel_calls.bound.set[i] >= 0)) // QVR: drawn from the arrays (R_DrawBModelCallsArrays)
 				continue;
+			if (i >= seg && !second) // QVR
+			{
+				GL_UseProgram (bmodel_seg_program);
+				second = true;
+			}
 			bound++;
 			GL_Uniform1iFunc (0, i);
 			GL_BindTextures (0, 2, bmodel_calls.bound.textures[i]);
@@ -691,10 +797,31 @@ static void R_FlushBModelCalls (void)
 			GL_DrawElementsIndirectFunc (GL_TRIANGLES, GL_UNSIGNED_INT, (const byte *)(dstcmdofs + i * sizeof (bmodel_draw_indirect_t)));
 		}
 		if (twin) // QVR
-			R_DrawBModelCallsArrays (twin, depthonly, cmdbuf, dstcmdofs, bound);
+			R_DrawBModelCallsArrays (twin, twin2, depthonly, cmdbuf, dstcmdofs, bound);
 	}
 
 	num_bmodel_calls = 0;
+	if (bmodel_seg_first >= 0) // QVR: the second program's calls go on (an overflow's flush) with it alone (C4v)
+	{
+		bmodel_batch_program = bmodel_seg_program;
+		bmodel_seg_first = -1;
+	}
+}
+
+/*
+=============
+R_BModelCallsSegment -- QVR
+
+C4v: the calls added from here on drawn with `program` in the same flush (one gather: on a tiler a compute pass
+between draws may end the render pass).
+=============
+*/
+static void R_BModelCallsSegment (GLuint program)
+{
+	if (program == bmodel_batch_program && bmodel_seg_first < 0)
+		return;
+	bmodel_seg_first = num_bmodel_calls;
+	bmodel_seg_program = program;
 }
 
 /*
@@ -1005,6 +1132,37 @@ static void R_AddBModelPassCalls (entity_t **ents, int count, textype_t texbegin
 
 /*
 =============
+R_AddBModelPassCallsSplit -- QVR
+
+C4v (QUEST_PLAN.md 6zb): the pass's calls, after R_ResetBModelCalls (program). Split by surface (r_world_litsplit,
+the ES profile's vr_gl_world_unlit 2) with `program` the world's plain one: the world's unlit surfaces (and the brush
+entities unless a light touches one) with its form without the lights' loop, the lit ones with `program`, in one
+flush. Else every call with `program` (the lit commands too: the cull filled them).
+=============
+*/
+static void R_AddBModelPassCallsSplit (entity_t **ents, int count, textype_t texbegin, textype_t texend, brushpass_t pass, GLuint program)
+{
+	int dither, alphatest = pass == BP_ALPHATEST;
+	if (r_world_litsplit >= 0 && (pass == BP_SOLID || pass == BP_ALPHATEST))
+	{
+		dither = R_WorldDither ();
+		if (program == glprogs.world[0][dither][alphatest] && glprogs.world_unlit[dither][alphatest] && num_bmodel_calls == 0)
+		{
+			bmodel_batch_program = glprogs.world_unlit[dither][alphatest];
+			bmodel_lit_mode = 1;
+			R_AddBModelPassCalls (ents, count, texbegin, texend, pass);
+			R_BModelCallsSegment (program);
+			bmodel_lit_mode = 2;
+			R_AddBModelPassCalls (ents, count, texbegin, texend, pass);
+			bmodel_lit_mode = 0;
+			return;
+		}
+	}
+	R_AddBModelPassCalls (ents, count, texbegin, texend, pass);
+}
+
+/*
+=============
 R_DrawSolidSplit
 
 QVR: the opaque world's draws with the parallax depth write (vr_parallax_depth_write) split three ways, `reliefprog`
@@ -1022,7 +1180,7 @@ static void R_DrawSolidSplit (entity_t **ents, int count, textype_t texbegin, te
 	if (r_framedata.parallax3[1] <= 0.f || reliefprog == flatprog)
 	{
 		R_ResetBModelCalls (reliefprog);
-		R_AddBModelPassCalls (ents, count, texbegin, texend, BP_SOLID);
+		R_AddBModelPassCallsSplit (ents, count, texbegin, texend, BP_SOLID, reliefprog); // QVR: (C4v)
 		R_FlushBModelCalls ();
 		return;
 	}
@@ -1202,7 +1360,7 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 	}
 	else
 	{
-		R_AddBModelPassCalls (ents, count, texbegin, texend, pass);
+		R_AddBModelPassCallsSplit (ents, count, texbegin, texend, pass, program); // QVR: (C4v)
 		VR_TemporalMotionWrites (pass <= BP_ALPHATEST && !translucent); // QVR: moving brush models' motion vectors (vr/vr_temporal.cpp)
 		R_FlushBModelCalls ();
 	}
@@ -1250,6 +1408,16 @@ static void R_AddBModelPassCalls (entity_t **ents, int count, textype_t texbegin
 		for (j = model->texofs[texbegin]; j < model->texofs[texend]; j++)
 		{
 			texture_t *t = model->textures[model->usedtextures[j]];
+			if (isworld && r_world_litsplit >= 0 && j < gl_bmodel_litcmd_count) // QVR: split by surface (C4v): its lit command too, or alone
+			{
+				if (bmodel_lit_mode != 2)
+					R_AddBModelCall (model->firstcmd + j, baseinst, numinst, pass != BP_SHOWTRIS ? R_TextureAnimation (t, frame) : 0, zfix, e);
+				if (bmodel_lit_mode != 1)
+					R_AddBModelCall (gl_bmodel_litcmd_first + j, baseinst, numinst, pass != BP_SHOWTRIS ? R_TextureAnimation (t, frame) : 0, zfix, e);
+				continue;
+			}
+			if (bmodel_lit_mode && (isworld ? bmodel_lit_mode == 2 : (bmodel_lit_mode == 2) != r_world_litbmodels)) // QVR: not in this part
+				continue;
 			R_AddBModelCall (model->firstcmd + j, baseinst, numinst, pass != BP_SHOWTRIS ? R_TextureAnimation (t, frame) : 0, zfix, e);
 		}
 

@@ -504,6 +504,12 @@ za::Vector<Item> pageDebugProfiling()
                   "ahead: the cost of big lights on a still scene (vr_test_dlights <count> <radius> <distance>; 0 removes "
                   "them)."),
         command("Remove the Test Lights", "vr_test_dlights 0").help("vr_test_dlights 0: removes the test lights."),
+        command("Rig Lights Off the Walls (Quest)", "vr_rig_lights_world 0")
+            .help("vr_rig_lights_world 0: under the ES profile's plain lights' loop (the Quest), the small lights of your "
+                  "own gear (the guns' screens, the wrist gadget) light your hands and gear only, not the walls: cheaper "
+                  "on the Quest (QUEST_PLAN.md 6zb). The look is the question; vr_rig_lights_world 1 (the default) undoes it."),
+        command("Rig Lights on the Walls", "vr_rig_lights_world 1")
+            .help("vr_rig_lights_world 1 (the default): the rig's small lights light the walls too."),
         command("List the Dynamic Lights", "vr_dlights_list")
             .help("vr_dlights_list: every live dynamic light in the console: its key (who made it), radius, distance from "
                   "the view and colour (QUEST_PLAN.md 6za: which lights a scene's GPU time pays for)."),

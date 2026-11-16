@@ -153,6 +153,7 @@ constexpr presetcore::Row questRows[] = {
     {&vr_torch_lights,                {"2",      "2",      "1"}},
     {&vr_lavanail_lights,             {"2",      "2",      "1"}},
     {&vr_explosion_debris_lights,     {"2",      "2",      "0"}},
+    {&vr_rig_lights_world,            {"1",      "1",      "1"}},     // the rig's small lights on the walls: his look call (0 saves the world's lights' loop near walls; C4v, QUEST_PLAN.md 6zb)
     // Particles, marks, bodies: fill rate, the decal walk, and the CPU's physics (the big cores ~3x slower than a PC's)
     {&vr_particle_max_screen,         {"0.08",   "0.06",   "0.05"}},
     {&vr_particle_halfres,            {"1",      "1",      "1"}},

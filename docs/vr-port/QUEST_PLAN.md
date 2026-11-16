@@ -1519,6 +1519,44 @@ Lights"): each live light's key, radius, distance and colour.
 - PC: dev build 0 warnings; scenario_check PASS (145 run, 0 failed), load_models_test 4/0, flat `timedemo demo1`
   1834 frames, the PC's demo window identical to C4s's.
 
+## 6zb. C4v: the world split by surface where lights reach it; the rig's small lights' switch; the fight's monsters (2026-11-16; adb, unworn)
+
+Method (`scratch/c4v_*`): `c4v_pc.sh` (under `-glescompat` on the PC: a map's start with the Quest preset, the left eye
+with `vr_gl_world_unlit` 0, 1, 2 and 2 with `vr_rig_lights_world 0`, compared), `c4u_ab.sh` interleaved (`ROUNDS`) on
+e1m2's start and on C4k's frozen e1m1 fight (`c4v_fight.sh`), `c4u_play.sh c4v` (the scripted session).
+- **The split by surface** (`vr_gl_world_unlit 2`, the new default; ES only): under the ES profile the map's load makes a
+  second indirect command for each of the world's solid and fence textures (`gl_bmodel_litcmd_first`, r_brush.c), with
+  a copy of the world's index ranges after every other index (the runtime brushes' slots kept). The world's GPU cull
+  (`cull_mark` with `QVR_LITSPLIT`, the ES form only) now runs after R_PushDlights (`R_MarkSurfacesLate`: the view's
+  inputs taken in R_MarkSurfaces) and sends a surface whose box a reaching light's sphere touches (up to 16 spheres from
+  `VR_WorldLightsCheck`; more, a shadowed map light or a portal light: all lit as before) to its texture's lit command.
+  The opaque and fence passes draw the unlit commands (and the brush entities unless a light touches one) with
+  `glprogs.world_unlit`, the lit ones with the world's program, **in one flush** (one gather: `R_BModelCallsSegment`;
+  the array twins' groups kept per program; a lit call's vertices read their texture's command's call, the same
+  data); the depth pre-pass draws both with its one program. No light reaching: the whole-view unlit program as in C4t.
+- **PC equality** (`-glescompat`, the mock): e1m2 (the torches reach the walls: split in both views) and e1m1 (the
+  guns' screen lights): the left eye with the split and unlit against all lit: max 4 of 765, 0.000% over 8. The PC's
+  own programs and order unchanged (the cull's dispatch moves only when the lit commands exist: the ES profile).
+- **e1m2's start** (0.55 fixed, 4 rounds interleaved, GPU span / world brush ms): all lit (`vr_gl_world_unlit 1`) 5.76
+  / 4.08; **split 5.17 / 3.41**; split with `vr_rig_lights_world 0` 4.83 / 3.10; every light off (`r_dynamic 0`, the
+  floor) 4.32 / 2.70. The split costs 18 draws a frame more (the lit part's groups and empty commands; 160 -> 178).
+- **The rig's small lights** (`vr_rig_lights_world`, a cvar, default 1 = the current look; a Quest preset row, "1" at
+  every level: his call): 0 marks the guns' screen lights and the wrist gadget's two (`lighting::dlightRig`;
+  `VR_DlightShadow`: `shadow2.w` -1, unread for an unshadowed light) so the world's plain loop skips them
+  (`QVR_LITE_RIGNOWORLD`, bit 27 of the lite form; only with `vr_gl_lights_plain`'s plain loop) and the reach test
+  ignores them; they still light the hands and gear. **It would save ~0.34 ms at e1m2's start (5.17 -> 4.83), and on
+  e1m1's walk it makes most views unlit** (the PC mock: e1m1's start went from split to unlit). Debug > Profiling: "Rig
+  Lights Off the Walls (Quest)" / "Rig Lights on the Walls".
+- **The fight's monsters** (C4k's frozen fight at e1m1: 6 grunts and 3 dogs closed in, the body off, 0.55 fixed, 4
+  rounds): GPU span 7.38 ms, 231 draws; `r_drawentities 0` 3.26 (98 draws); the same place without the monsters 4.79
+  (148 draws), 3.33 without entities: **the 9 monsters cost ~2.7 ms of GPU (~0.3 each) and 71 draws**; the models'
+  plain form off (`vr_gl_alias_plain 0`) +3.1 ms (it already earns its keep); `vr_dlight_models 0` and the split
+  (`vr_gl_world_unlit 1`) no change (the fight's views were unlit: the rig's lights touched nothing).
+- **The scripted session** (eye-pass frames, period / GPU ms, against C4u's): e1m2 14.1 / 10.0 (14.1 / 10.7); e1m1
+  16.1 / 14.5 (16.7 / 15.0; unlit 24%); the demo (e1m3) 14.0 / 6.1 (14.0 / 6.5). The recorder has a `split` column
+  (views a frame drawn split).
+- PC: dev build 0 warnings; gles_render_test 21/0; scenario_check PASS (145 run, 0 failed); load_models_test 4/0.
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
@@ -1562,4 +1600,4 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C4v (after 6za) — no installs, the headset needed: the world's lights loop where lights do reach the view (e1m2's torches: 2 ms; the world is drawn by GPU-built indirect batches, so per-surface selection means splitting them by R_MarkLights' marks, or the loop's registers cut), the rig's small lights (screen, gadget: 16-36 units) keeping the whole world on the lit program (worth a size floor on the Quest? a look question: his call), e1m1's scripted fight's monsters (220-255 draws) by interleaved A/B (`c4u_ab.sh` with `ROUNDS`); SpaceWarp optional and off. Still open from before: C2h (the world textures' memory under the ES profile), Adreno's wrong derivatives with the retro code out (NORETRO). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d), shadowless dynamic lights on the Quest (6w).
+Next phase: C4w (after 6zb) — no installs, the headset needed: the monsters' cost (~0.3 ms of GPU and ~8 draws each at 0.55: their draws per model, a cheaper form at a distance, their shadows' and weapons' share), the split's 18 extra draws (the lit calls only for the textures a reaching light's sphere touches, from a CPU walk), his look call on `vr_rig_lights_world 0` for the Quest preset (~0.3 ms, e1m1's walk mostly unlit); SpaceWarp optional and off. Still open from before: C2h (the world textures' memory under the ES profile), Adreno's wrong derivatives with the retro code out (NORETRO). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d), shadowless dynamic lights on the Quest (6w).

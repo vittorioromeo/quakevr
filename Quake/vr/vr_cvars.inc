@@ -2068,6 +2068,7 @@ QVR_CVAR(vr_explosion_debris_max, "96", CVAR_ARCHIVE) // oldest retired first, h
 QVR_CVAR(vr_explosion_debris_mp_max, "24", CVAR_ARCHIVE) // most at once in multiplayer (server entities: each in sight costs every remote client's datagram about 26 bytes a frame while it lives); -1: as in single player (vr_explosion_debris_max), 0: none
 QVR_CVAR(vr_explosion_debris_trail, "1", CVAR_ARCHIVE) // trail density, 0 off
 QVR_CVAR(vr_explosion_debris_lights, "8", CVAR_ARCHIVE) // nearest glowing chunks, cap 16 of the shared dlights
+QVR_CVAR(vr_rig_lights_world, "1", CVAR_ARCHIVE) // (C4v, QUEST_PLAN.md 6zb; a cvar: the Quest preset sets it) 1: the rig's small lights (the guns' screen lights, the wrist gadget's two) light the walls as well as the hands and gear. 0 (the Quest preset's choice; his look call, so 1 there for now): they light the player's own models only, the world's shader skipping them (under the ES profile's plain lights' loop: vr_gl_lights_plain, QVR_LITE_RIGNOWORLD) and the world's unlit test ignoring them (vr_gl_world_unlit). No effect elsewhere (the PC's shaders).
 QVR_CVAR(vr_explosion_debris_light_radius, "48", CVAR_ARCHIVE) // units at world scale 1
 
 QVR_CVAR(vr_particle_mult, "1", CVAR_ARCHIVE)         // how many of them

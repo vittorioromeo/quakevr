@@ -1119,6 +1119,10 @@ QVR_WORLD_FS_LIGHT // QVR: light contrast, normal maps in the baked light, specu
 "#if defined(QVR_LITE_PLAINLIGHT) || defined(QVR_PROBE_PLAINLIGHT)\n" // QVR: the ES lite form (C4p, QUEST_PLAN.md 6w): plain lights alone
 "					{\n" // (no dynamic lights' or map lights' shadows, portal lights: their code out of the loop; a spot's cone kept; C4q: DarkPlaces' falloff kept, the Quest preset has it)
 "						uint pk = ofs + uint(j);\n"
+"#ifdef QVR_LITE_RIGNOWORLD\n" // QVR: C4v, the rig's small lights (VR_DlightShadow's mark) on the player's models only
+"						if (Lights[pk].shadow2.w < 0.0)\n"
+"							continue;\n"
+"#endif\n"
 "						vec4 po = vec4(Lights[pk].origin, Lights[pk].radius);\n"
 "						vec3 ptl = po.xyz - rl_pos;\n"
 "						float pml = Lights[pk].minlight;\n"
@@ -2267,11 +2271,24 @@ static const char clear_indirect_compute_shader[] =
 "\n"
 WORLD_DRAW_BUFFER
 "\n"
+"#ifdef QVR_LITSPLIT\n" // QVR: the ES profile's (C4v): the world's commands, then its lit ones (the whole buffer bound)
+"layout(location=0) uniform int WorldCmds;\n"
+"layout(location=1) uniform int LitFirst;\n"
+"layout(location=2) uniform int LitCmds;\n"
+"#endif\n"
+"\n"
 "void main()\n"
 "{\n"
 "	uint thread_id = gl_GlobalInvocationID.x;\n"
+"#ifdef QVR_LITSPLIT\n"
+"	if (thread_id < uint(WorldCmds))\n"
+"		cmds[thread_id].count = 0u;\n"
+"	if (thread_id < uint(LitCmds))\n"
+"		cmds[uint(LitFirst) + thread_id].count = 0u;\n"
+"#else\n"
 "	if (thread_id < uint(cmds.length()))\n"
 "		cmds[thread_id].count = 0u;\n"
+"#endif\n"
 "}\n";
 
 ////////////////////////////////////////////////////////////////
@@ -2450,6 +2467,10 @@ DRAW_ELEMENTS_INDIRECT_COMMAND
 "	uint	oldskyleaf;\n"
 "	uint	framecount;\n"
 "	vec3	vieworg2; // QVR: single-pass stereo: the other eye's (else vieworg)\n"
+"#ifdef QVR_LITSPLIT\n" // QVR: the ES profile's split by surface (C4v, r_world.c R_WorldLitSplit)
+"	uvec4	litinfo; // x the spheres (0: no split), y the first lit command, z the textures split (solid and fences)\n"
+"	vec4	litspheres[" QS_STRINGIFY (QVR_WORLD_LIT_SPHERES) "]; // the lights reaching the world: centre, radius\n"
+"#endif\n"
 "};\n"
 "\n"
 "void main()\n"
@@ -2501,6 +2522,21 @@ DRAW_ELEMENTS_INDIRECT_COMMAND
 "	uint numedges = SURF_NUMEDGES(surfbase);\n"
 "	uint firstvert = SURF_FIRSTVERT(surfbase);\n"
 "	uint cmdbase = texnum * uint(SIZEOF_CMD);\n"
+"#ifdef QVR_LITSPLIT\n" // QVR: a solid or fence surface a light's sphere touches: to its texture's lit command (C4v)
+"	if (texnum < litinfo.z)\n"
+"	{\n"
+"		for (uint l = 0u; l < litinfo.x; l++)\n"
+"		{\n"
+"			vec4 s = litspheres[l];\n"
+"			vec3 d = max(max(mins - s.xyz, s.xyz - maxs), vec3(0.0));\n"
+"			if (dot(d, d) <= s.w * s.w)\n"
+"			{\n"
+"				cmdbase = (litinfo.y + texnum) * uint(SIZEOF_CMD);\n"
+"				break;\n"
+"			}\n"
+"		}\n"
+"	}\n"
+"#endif\n"
 "	// some bsps out there have faces with < 2 edges, which would cause underflow below\n"
 "	numedges = max(numedges, 2u);\n"
 "	uint ofs = CMD_FIRST_INDEX(cmdbase) + atomicAdd(CMD_COUNT(cmdbase), 3u * (numedges - 2u));\n"

@@ -4077,3 +4077,17 @@ His timing notes (extra scope):
   qvr-kit/scratch/titletiming_shots/; `--bake` of the three: 293 s, ap4h yuva444p12le 334 / 360 / 270 frames; a plain
   rerun kept all three baked. Test timelines, bins and jobs (mine and ts_* / QVR - Stab Test) removed from the
   preview project, which is closed again (Resolve left on its untitled project, as found).
+
+## Quest C4v: the world split by surface where lights reach it; the rig's small lights' switch (branch `agent/quest`, 2026-11-16)
+
+- Under the ES profile (the Quest) `vr_gl_world_unlit 2` (new default): where dynamic lights reach the walls, only the
+  surfaces a light's sphere touches are drawn with the world's lights' loop; the rest with the loop-free program, in one
+  flush. The GPU cull sends the lit surfaces to a second command per texture and now runs after the lights are known.
+  e1m2's start (0.55): GPU 5.76 -> 5.17 ms, world 4.08 -> 3.41. The picture the same (PC `-glescompat`: max 4 of 765).
+  The PC's own path unchanged.
+- `vr_rig_lights_world` (cvar, default 1, Quest preset row 1 at every level: his look call): 0 keeps the guns' screen
+  lights and the wrist gadget's lights off the walls (they still light the hands and gear) under the Quest's plain
+  lights' loop: ~0.34 ms more at e1m2's start, and most of e1m1's walk unlit. Debug > Profiling has both settings.
+- e1m1's frozen fight: 9 monsters cost ~2.7 ms of GPU and 71 draws at 0.55; the models' plain form saves 3.1 ms.
+- The perf recorder has a `split` column. PC: scenario_check PASS, load_models_test 4/0, gles_render_test 21/0.
+  Details: QUEST_PLAN.md 6zb.

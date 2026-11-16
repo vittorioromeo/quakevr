@@ -540,6 +540,11 @@ The compute program putting a draw's calls' indices one after another (world_arr
 first time it is needed (only the bound path with the world's textures in arrays uses it).
 ====================
 */
+int GL_WorldRigLightsOff (void) // QVR: the world's programs skip the rig's small lights (C4v; vr_rig_lights_world 0)
+{
+	return (gl_world_lite & (1 << 27)) != 0;
+}
+
 GLuint GL_WorldArraysMergeProgram (void)
 {
 	if (!glprogs.world_arrays_merge && !gl_arrays_merge_tried)
@@ -952,6 +957,8 @@ static void GL_LightsLiteDefines (char *out, size_t size, qboolean world)
 		q_strlcat (out, "; QVR_LITE_ONEFILTER 1", size);
 	if (gl_world_lite & (1 << 26)) // C4p: plain lights alone (vr_gl_lights_plain); C4q: the models' loop too
 		q_strlcat (out, "; QVR_LITE_PLAINLIGHT 1", size);
+	if (world && (gl_world_lite & (1 << 27))) // C4v: the rig's small lights not on the world (vr_rig_lights_world 0)
+		q_strlcat (out, "; QVR_LITE_RIGNOWORLD 1", size);
 }
 
 static const char *GL_WorldLiteDefines (void)
@@ -1110,9 +1117,13 @@ static void GL_CreateShadersAll (void)
 
 	glprogs.debug3d = GL_CreateProgram (debug3d_vertex_shader, debug3d_fragment_shader, "debug3d");
 
-	glprogs.clear_indirect = GL_CreateComputeProgram (clear_indirect_compute_shader, "clear indirect draw params");
+	glprogs.clear_indirect = VR_GLESForm (VR_GLES_FORM_GLSL) // QVR: the ES profile's clears the world's lit commands too (C4v)
+		? GL_CreateComputeProgram (clear_indirect_compute_shader, "clear indirect draw params|QVR_LITSPLIT 1")
+		: GL_CreateComputeProgram (clear_indirect_compute_shader, "clear indirect draw params");
 	glprogs.gather_indirect = GL_CreateComputeProgram (gather_indirect_compute_shader, "indirect draw gather");
-	glprogs.cull_mark = GL_CreateComputeProgram (cull_mark_compute_shader, "cull/mark");
+	glprogs.cull_mark = VR_GLESForm (VR_GLES_FORM_GLSL) // QVR: the ES profile's: the world's lit surfaces to their own commands (C4v)
+		? GL_CreateComputeProgram (cull_mark_compute_shader, "cull/mark|QVR_LITSPLIT 1")
+		: GL_CreateComputeProgram (cull_mark_compute_shader, "cull/mark");
 	glprogs.cluster_lights = GL_CreateComputeProgram (cluster_lights_compute_shader, "light cluster");
 	for (mode = 0; mode < 3; mode++)
 		glprogs.palette_init[mode] = GL_CreateComputeProgram (palette_init_compute_shader, "palette init|MODE %d", mode);

@@ -460,6 +460,10 @@ extern "C" int VR_GLESWorldLite(void)
         // C4q (6x): DarkPlaces' falloff in the plain loops (vr_dlight_falloff 1, the Quest preset's: the bit was never set
         // there before), and the models' loop the same (vr_glsl_alias.h ModelDynamicLights; QVR_PROBE_NOAPLAIN undoes it).
         lite |= 1 << 26;
+        if(vr_rig_lights_world.value == 0.f)
+        {
+            lite |= 1 << 27; // C4v: the rig's small lights skipped by the world's plain loop (QVR_LITE_RIGNOWORLD)
+        }
     }
     if(vr_gl_lights_lite.value != 0.f)
     {

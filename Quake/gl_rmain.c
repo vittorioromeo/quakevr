@@ -1162,6 +1162,7 @@ void R_SetupView (void)
 	VR_ProfileBeginGPU ("lights"); // QVR: profile (clustering)
 	R_PushDlights ();
 	VR_ProfileEnd (); // QVR
+	R_MarkSurfacesLate (); // QVR: the ES profile's world cull, knowing the lights reaching the world (C4v)
 
 	//johnfitz -- cheat-protect some draw modes
 	r_fullbright_cheatsafe = r_lightmap_cheatsafe = false;
