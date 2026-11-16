@@ -5,7 +5,8 @@
 # subtitle: ...        the small line (Cinzel); "|" breaks the line, else it wraps at "wrap:" characters
 # corner: ...          top-right (default), top-left, bottom-left, bottom-right
 # marker: ...          the timeline marker's name, when it is not the title
-# seconds: ...         how long the title is on screen, in and out included (at most the title clip's length, 5 s)
+# seconds: ...         how long the title is on screen, in and out included (default 6; the title clip is 10 s)
+# subdelay: ...        seconds the title is alone before the subtitle comes in (default 1, from the title's in end)
 # in: / out: ...       the in and out animations' lengths in seconds (default: the template's, 40 and 26 frames)
 # intensity: ...       0 to 2: how much blood, flicker and smear (default 1)
 #
@@ -15,13 +16,15 @@
 #                      else at the timeline's start. Its own keys (the defaults above don't apply to it):
 # line1: / line2: / line3:  the three lines (default Quake VR / UNLEASHED / v1.1 Release Trailer); in line1 only a
 #                      leading Q is allowed (the Quake font draws Q as the Quake logo: the template draws its own Q)
-# seconds: ...         on screen, in and out included (default 5, at most the title clip's length, 5 s)
+# hold: ...            seconds everything holds once line 3 is in, before the out (default 3)
+# seconds: ...         on screen, in and out included (default: the lines' in, 1.97 s, + hold + out = 5.57 s)
 # out: ...             the out's length in seconds (default 0.6)
 # blood: ...           0 to 2 (default 1; 0 = clean letters)    intensity: ...  0 to 2 (flicker, shake, glow)
 # backdrop: on / off   a dark full-frame backdrop (default off: transparent, over the footage)
 
 corner: top-right
-seconds: 4.5
+seconds: 6
+subdelay: 1
 
 [Intro]
 line1: Quake VR
