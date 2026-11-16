@@ -3588,3 +3588,52 @@ His note: the titles look great, previewing them in DaVinci takes forever.
   saw "changed"; now only the tools block is hashed (not re-run: see below). **Resolve closed** during the second
   `--bake`'s render (the retest of the reuse path); not reopened (GUI), so the reuse path and `--unbake` are unchecked.
   A bake of both titles took 271 s of wall time (the renders alone should take about 80 s: not explained).
+
+## titlebake: trailer title bakes verified and fixed, longer holds (agent/titlebake, 2026-11-16)
+
+In "QVR Titles Preview" (Resolve Studio 21.1.0.17, restarted by him; his open project was the empty "Untitled
+Project", so nothing to save), on test timelines of my own (removed afterwards).
+- **Why the first bake took 271 s**: the test's intro section was "QVR - Intro", a timeline left by an older test
+  (ti_apply) holding the **pre-titlespeed intro macro with Dark Backdrop on**: section timelines are found by name, and
+  timeline names are unique in a project, so a second trailer timeline with the same marker shares the section. That
+  title renders at 0.73 s/frame vs 0.45 for a fresh one (60-frame renders), and its frames are 4x bigger. With fresh
+  titles a bake of a 2 s intro + 2.5 s title took 85-104 s (73 + 27 s of render, the rest import/placing).
+  apply_titles now says when a baked title was made with an older template (`--rebuild` first) and makes a shared
+  section follow the current trailer's frame size.
+- **The digest was still unstable**: Fusion saves each expression input's last evaluated value next to the
+  expression (they follow the comp's current time and whether it was rendered), and reflows short blocks onto one line
+  or several. A plain rerun after `--bake` went back live, and a second `--bake` re-rendered. Now those values and the
+  whitespace are left out: plain reruns keep baked titles baked, `--bake` reuses them (0.6 s, nothing rendered),
+  `--bake` with Draft on reuses the full-quality bake; a changed subtitle goes back live on a plain run
+  ("unbaked(changed)") and `--bake` re-renders only that title (23 s).
+- **Edits lost after a render, and the crash**: one render per title, each started right after the last, then editing
+  the trailer timeline at once: in one run a baked clip was "placed" but not on the track, in another AppendToTimeline
+  failed, and a render job could not be deleted (left in the queue); the previous worker's Resolve closed in the second
+  render of such a sequence. Now every title to render goes into one batch (one Deliver visit, one StartRendering), the
+  jobs are deleted once Resolve lets go of them (retried up to 30 s), the page and timeline switch back is awaited,
+  and only then are the clips imported and placed; afterwards the track is checked. No crash or lost edit since
+  (6 bakes, back-to-back runs included).
+- `--unbake` put both live nested timelines back; `--draft on` / `off` set both titles' Draft (checked on the
+  comps), and a bake leaves it as it was.
+- Seen, not changed: the same title baked in different Resolve states came out 3.6x bigger at the same picture (PSNR
+  59 dB; low-bit noise in the alpha and colour): first renders after the restart ~0.7 MB/frame, later 2.5 MB/frame.
+
+His timing notes (extra scope):
+- **Title clips are 10 s now**: a title inserted between a timeline's In/Out marks takes their length
+  (Timeline.SetMarkInOut, counted from the timeline's start), so make_section_timeline no longer depends on Resolve's
+  standard generator duration (5 s). Titles made before need `--rebuild` for more than 5 s (apply_titles says so).
+- **Intro**: new published **Hold** (frames, 180 = 3 s at 60 fps) counted from when every line is in (frame 118,
+  1.97 s); the out (0.6 s) follows: 5.57 s in all (was 5 s, with 2.4 s of hold). The out always ends by the clip's
+  end (a hand-inserted 5 s title shortens the hold, as before). titles.txt `[Intro]` `hold:` (3); `seconds:` now
+  defaults to in + hold + out; given, it still sets the out's end.
+- **Feature titles**: **Subtitle Delay** now counts from the end of the title's in, 60 frames (1 s) by default:
+  title in over 0.67 s, alone 1 s, subtitle in over 0.67 s (in by 2.33 s), hold to 5.57 s, out 0.43 s: 6 s by
+  default (was 4.5), so the subtitle keeps its 3.2 s fully on screen. titles.txt `subdelay:` (1); a given `seconds:`
+  shortens the hold, and apply_titles warns when the subtitle would be fully on screen for less than 1.5 s. The rule
+  under the title keeps its own start (frame 5).
+- **Checked** (test trailer: intro + a default 6 s title + a 4.5 s one over a 10 Step generator): `--rebuild` made
+  10 s clips (placed 334, 360, 270 frames); preview mp4 and contact sheet (intro: all in at 1.97 s, full hold to
+  4.97 s, out; feature: title alone at 1.5 s, subtitle in at 2.0 s, hold, out) in
+  qvr-kit/scratch/titletiming_shots/; `--bake` of the three: 293 s, ap4h yuva444p12le 334 / 360 / 270 frames; a plain
+  rerun kept all three baked. Test timelines, bins and jobs (mine and ts_* / QVR - Stab Test) removed from the
+  preview project, which is closed again (Resolve left on its untitled project, as found).
