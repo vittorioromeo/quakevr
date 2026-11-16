@@ -3550,3 +3550,41 @@ The 1.1 readiness audit's baseline regressions. Both were the tests, not the gam
 - **teleporters_chase 5/1**: the same case fails the same way in the 11-14 baseline ("chase dog at framed_sill32:
   never reached the north room", seed 3), which is older than the one-way teleporter change (vr1116b). It is not
   related to that change. Not touched.
+
+## titlespeed: trailer titles faster in Resolve, Draft toggle, --bake (agent/titlespeed, 2026-11-16)
+
+His note: the titles look great, previewing them in DaVinci takes forever.
+- **Measured** (Resolve Studio 21.1, "QVR Titles Preview", Deliver renders of 60 frames, s/frame, the machine's load
+  varies ~10%): feature title 0.23 at 1080p, 0.66 at 4K; intro 0.80 at 1080p, 4.9 at 4K. By pass-through: the Custom
+  tools are nearly all of it (feature: the four Custom tools 0.20 of 0.30; BloodRelief alone 0.135, as it lit the whole
+  blood crop), intro: every Custom tool 0.1-0.5, the full-frame RevealRamp Custom 0.3 (a static ramp). Blurs and noise
+  are minor (GPU).
+- **Lossless speed-ups** (the Custom tool's `if` is lazy): each lighting tool works only where its colour tool shows it
+  (feature MetalRelief / BloodRelief, intro L1Relief / L2Relief: a gate on the colour tool's coverage input, now
+  their Image2; the sweeping light's term only while it is on), each colour tool only where its coverage is above 0
+  (MetalColor, BloodColor, L1Color, L2Color, intermediates included), L1Tail, SplatCov and RuleCol likewise; the
+  intro's RevealRamp is now GPU gradients (two Horizontal and two Vertical Backgrounds, Darken merges, an additive merge
+  with Gain 0). L2Cov's lossless gates measured slower (0.43 -> 0.64 s): left as it was (noted in the generator).
+- **After**: feature 0.13 at 1080p (-45%), 0.21 at 4K (3.2x); intro 0.48 at 1080p (1.7x), 1.9 at 4K (2.6x). Final
+  frames: the feature's 6 stills (in, sweep, hold, out) pixel-identical to before; the intro's 7 stills identical
+  except frame 90 (line 3's reveal edge: 0.004% of pixels, at most 11 levels: the gradients sample half a pixel apart).
+- **Draft (fast preview)** checkbox published on both (Ctl.Draft): the lighting tools return a flat key light and do
+  no lighting work, the feature's HeightBlur and the intro's L1Height off. Flat metal and blood; text, layout, timing,
+  reveal, blood shapes and drips as in the final. A small saving now that the lighting is cheap (4K feature 0.21 ->
+  0.17, intro 1.93 -> 1.90; 1080p about the same). Fusion's HiQ/proxy flags don't help: an Edit-page title's comp
+  reports HiQ true, Proxy false, and nothing tells a preview from a Deliver render, so Draft stays the user's switch
+  (`apply_titles --draft on|off`), and a bake always renders with it off.
+- **`apply_titles.py --bake`**: each title (after the usual update) is rendered once from its section timeline to
+  ProRes 4444 with alpha, "<QVR - section> [<digest>].mov" in "QVR Titles (baked)" next to the trailer's first media
+  file (`--bake-dir`; with no media file, Videos/QVR Titles (baked)/<timeline>), imported into the section's bin (the
+  section's settings in its Comments) and placed on the QVR Titles track in place of the nested timeline. The digest
+  hashes the title comp's tools (node positions and the Draft toggle left out), frame size, rate and length: unchanged
+  titles reuse their clip. A plain run keeps a baked title while its digest matches, else puts it back live and says
+  so; `--unbake` and `--rebuild` put the live titles back. Only the bake's own render job is removed from the queue.
+- **Checked**: `ts_bake_test.py` on a test trailer (10 Step generator, an intro of 2 s and a 2.5 s title at a
+  marker): bake placed both clips (ap4h, 2.000 s and 2.500 s); stills of the trailer live vs baked: titles over the
+  grey steps match (feature frames at most 2 levels; intro 1.5% of pixels 5-18 levels, ProRes). Found: the first
+  digest took the whole exported comp, whose header (CurrentTime, CurrentID, Prefs) changes by itself, so the rerun
+  saw "changed"; now only the tools block is hashed (not re-run: see below). **Resolve closed** during the second
+  `--bake`'s render (the retest of the reuse path); not reopened (GUI), so the reuse path and `--unbake` are unchecked.
+  A bake of both titles took 271 s of wall time (the renders alone should take about 80 s: not explained).

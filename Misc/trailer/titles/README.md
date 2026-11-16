@@ -17,7 +17,7 @@ animation follows; nothing is keyframed.
 |------|------|
 | `QVR Feature Title.setting` | the Fusion title (a macro): Effects > Titles > Fusion Titles > **QVR Feature Title** |
 | `QVR Intro Title.setting` | the full-screen intro title: Effects > Titles > Fusion Titles > **QVR Intro Title** (see "The intro title") |
-| `make_intro_title.py` | generates `QVR Intro Title.setting` (its ~85 tools and expressions are kept as tables there) |
+| `make_intro_title.py` | generates `QVR Intro Title.setting` (its ~90 tools and expressions are kept as tables there) |
 | `install_titles.py` | installs both, the fonts (current user, no admin) and a Workspace > Scripts launcher |
 | `titles.txt` | the intro and the sections: title, subtitle, corner, length |
 | `apply_titles.py` | puts / updates the intro and a title at every section's marker on the current timeline |
@@ -116,9 +116,18 @@ takes, and `rough_cut.py` builds a cut from highlight logs. Import either into R
 the trailer, then mark the section starts and run apply_titles: the titles live on their own track above the
 footage, so re-importing or re-cutting the footage only needs the markers moved and apply_titles run again.
 
-Cost: about 0.25 s a frame at 1080p on the author's machine (the lighting and blood run only on a crop around the
-title); a 4.5 s title renders in about a minute. Resolve's render cache (Playback > Render Cache > Smart) makes
-playback smooth after the first pass.
+Cost on the author's machine (titlespeed, 2026-11-16): a feature title about 0.13 s a frame at 1080p and 0.21 s at
+4K, the intro about 0.48 s and 1.9 s (before: 0.23 / 0.66 and 0.8 / 4.9). The Custom tools (per-pixel interpreted,
+on the CPU) are the cost: the lighting and blood run on crops around the text, and each colour and lighting tool
+works only where its result can show (lossless lazy `if` gates). For real-time playback see "Fast previews".
+
+## Fast previews
+
+- **Draft (fast preview)** (a checkbox on both titles; `apply_titles.py --draft on|off` sets it on every title): flat metal and blood (no relief shading, light sweep or glints); the text, layout, timing, reveal, blood shapes and drips are as in the final. A modest saving (about 15% at 4K, little at 1080p, since the lighting now costs little anyway): bake for real time. Fusion's own proxy/HiQ switches don't reach titles on the Edit page, so Draft is yours to switch off before delivering (`--draft off`); `--bake` always renders at full quality.
+- **`apply_titles.py --bake`** renders each title once to a ProRes 4444 clip with alpha (in *QVR Titles (baked)* next to the trailer's media, or `--bake-dir`) and places it on the QVR Titles track instead of the live title: real-time playback. Always full quality (Draft off). The clip's name carries a digest of the title's comp, frame size and length: unchanged titles reuse their clip; a plain run keeps baked titles baked until one changes (then it goes back live: `--bake` again).
+- **`--unbake`** (or `--rebuild`) puts the live titles back; the section timelines were never touched, so nothing is lost.
+- **Resolve's own**: right-click the titles track's clips > **Render Cache Fusion Output > On** (or Playback > Render Cache > **Smart**): each title renders once in the background, then plays from the cache until changed.
+- **Playback > Timeline Proxy Resolution > Half / Quarter** plays the timeline at a lower resolution while editing (its effect on Fusion titles not measured here); the delivered render is unaffected.
 
 ## Preview
 
