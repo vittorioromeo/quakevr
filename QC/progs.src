@@ -127,6 +127,8 @@ vr_run_ironman.qc
 vr_run_enemyrandom.qc
 vr_run_enemycount.qc
 vr_wpnholster.qc
+// Deathmatch's caps on loose gibs and dropped weapons (after vr_wpnholster.qc's thrown weapons, vr_carry.qc's gibs).
+vr_dmloose.qc
 // Flat-screen play's reload (R, the empty clip): after vr_wpnholster.qc's VRTryReloadWeapon.
 vr_flatreload.qc
 // Flat-screen play's holsters (the holster menu's impulses): after vr_wpnholster.qc and vr_wpnforcegrab.qc.

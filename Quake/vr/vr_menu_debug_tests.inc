@@ -700,6 +700,12 @@ za::Vector<Item> pageDebugTests()
         command("Deathmatch: A Bot Grabs Your Gun", "developer 1; vr_dm_test 6")
             .help("vr_dm_test 6, in a deathmatch with a bot (impulse 100), PvP disarms on for it: hold the shotgun given "
                   "into your main hand (grip held) still; the bot's off hand closes on it and pulls it away."),
+        command("Deathmatch: Gib and Weapon Caps", "developer 1; vr_dm_test 7")
+            .help("vr_dm_test 7, in a deathmatch with a bot (impulse 100): 8 gibs and 5 shotguns laid in front of you under "
+                  "caps of 4 and 3 (vr_dm_gibs_max, vr_dm_weapons_max): out of deathmatch all stay; in it the oldest go."),
+        command("Deathmatch: Respawn Beside a Taken Start", "developer 1; vr_dm_test 8")
+            .help("vr_dm_test 8, in a deathmatch with a bot (impulse 100): you are put on the only start counted and the bot "
+                  "respawned: it comes in beside the start, nobody telefragged."),
         command("Player Disarm: Melee on Your Gun", "developer 1; vr_pd_test 2")
             .help("vr_pd_test 2 (God mode off): a grunt with a gun and an axe, then one with an axe alone, swing at you "
                   "holding the shotgun out, 4 blows each: every blow held back for your weapon near its way ends, the "

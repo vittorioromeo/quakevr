@@ -752,11 +752,214 @@ void(float ask) VR_DMT_Hands =
     }
 };
 
+// vr_dm_test 7 (MP B13b): deathmatch's caps on loose gibs and dropped weapons (vr_dmloose.qc). Under caps of 4 gibs and 3
+// weapons, 8 gibs (6 made long ago, the oldest of all, and 2 now) and 5 weapons (3 going soonest, 2 with a long time
+// left) laid by the human: out of deathmatch nothing goes (single player and coop as they were); in it the oldest gibs go,
+// the youngest stay, at most the cap are left, and the weapons the same.
+// vr_dm_test 8: a respawn with every start taken goes beside one (client.qc VR_DMBesideSpot). Only the first start
+// counted (the others renamed for the test), the human standing on it: the bot respawned (PutClientInServer) is put 48-144
+// units beside it, clear of him, and nobody is telefragged.
+entity vr_dmt_gibs[8];
+entity vr_dmt_wpns[5];
+float vr_dmt_gmax;  // vr_dm_gibs_max before
+float vr_dmt_wmax;  // vr_dm_weapons_max before
+float vr_dmt_wgone; // vr_dml_weapons_gone at the start
+entity vr_dmt_start; // test 8's start
+float vr_dmt_hp;     // the human's health then
+
+void() VR_DMT_LayLoose =
+{
+    makevectors(vr_dmt_human.angles_y * '0 1 0');
+    vector at = vr_dmt_human.origin + v_forward * 64;
+    for(float i = 0; i < 8; i++)
+    {
+        entity g = spawn();
+        setmodel(g, "progs/gib1.mdl");
+        setorigin(g, at + v_right * (i * 8 - 28));
+        g.movetype = MOVETYPE_BOUNCE;
+        g.think = SUB_Remove;
+        g.nextthink = time + 30;
+        VR_MakeGibGrabbable(g);
+        g.vr_gib_made = time; // (6 the oldest of all, 2 the youngest)
+        if(i < 6)
+        {
+            g.vr_gib_made = time - 1000 + i;
+        }
+        vr_dmt_gibs[i] = g;
+    }
+    for(float k = 0; k < 5; k++)
+    {
+        entity w = spawn();
+        MakeThrown(w, vr_dmt_human, WID_SHOTGUN, 0, world, at + v_forward * 24 + v_right * (k * 12 - 24), '0 0 0',
+            '0 0 0', '0 0 0', FALSE, FALSE, 0);
+        SetThrownWeaponTimeout(w, time + 100);
+        if(k < 3)
+        {
+            SetThrownWeaponTimeout(w, time + 0.5 + k * 0.01);
+        }
+        vr_dmt_wpns[k] = w;
+    }
+};
+
+// How many of test 7's gibs (from `a` to `b`) and weapons (`wa` to `wb`) are still there.
+float(float a, float b) VR_DMT_GibsLeft =
+{
+    float n = 0;
+    for(float i = a; i < b; i++)
+    {
+        if(vr_dmt_gibs[i].modelindex != 0 && vr_dmt_gibs[i].vr_gib)
+        {
+            n++;
+        }
+    }
+    return n;
+};
+
+float(float a, float b) VR_DMT_WeaponsLeft =
+{
+    float n = 0;
+    for(float i = a; i < b; i++)
+    {
+        if(vr_dmt_wpns[i].modelindex != 0 && vr_dmt_wpns[i].classname == "thrown_weapon")
+        {
+            n++;
+        }
+    }
+    return n;
+};
+
+void(float ask) VR_DMT_Loose =
+{
+    if(vr_dmt_on != ask)
+    {
+        VR_Test_BeginFlags("dmtest", VR_TEST_LOUD | VR_TEST_ECHO);
+        vr_dmt_on = ask;
+        vr_dmt_chance = cvar_hget(cvarh_vr_player_disarm_chance);
+        vr_dmt_pve = cvar_hget(cvarh_vr_player_disarm);
+        vr_dmt_pvp = cvar_hget(cvarh_vr_player_disarm_pvp);
+        vr_dmt_dm = deathmatch;
+        vr_dmt_gmax = cvar_hget(cvarh_vr_dm_gibs_max);
+        vr_dmt_wmax = cvar_hget(cvarh_vr_dm_weapons_max);
+        vr_dmt_start = world;
+        VR_DMT_To(40, 0);
+    }
+    if(vr_dmt_s == 40) // a living human and bot
+    {
+        vr_dmt_n++;
+        vr_dmt_bot = vr_dmt_human = world;
+        for(entity p = VR_Player(); p; p = VR_NextPlayer(p))
+        {
+            if(p.ishuman && p.health > 0 && !vr_dmt_human) { vr_dmt_human = p; }
+            if(!p.ishuman && (p.flags & FL_CLIENT) && p.health > 0 && !vr_dmt_bot) { vr_dmt_bot = p; }
+        }
+        if((!vr_dmt_bot || !vr_dmt_human) && vr_dmt_n < VR_DMT_GIVEUP)
+        {
+            return;
+        }
+        VR_Test_Check(vr_dmt_dm != 0 && vr_dmt_human && vr_dmt_bot, sprintf("a deathmatch (%g) with a living human (%s) "
+            "and bot (%s)", vr_dmt_dm, vr_dmt_human.netname, vr_dmt_bot.netname));
+        if(vr_dmt_dm == 0 || !vr_dmt_human || !vr_dmt_bot)
+        {
+            VR_DMT_End();
+            return;
+        }
+        if(ask == 7)
+        {
+            cvar_set("vr_dm_gibs_max", "4");
+            cvar_set("vr_dm_weapons_max", "3");
+            deathmatch = 0; // (out of deathmatch first: nothing goes)
+            VR_DMT_LayLoose();
+            VR_DMT_To(41, 3);
+        }
+        else
+        {
+            VR_DMT_To(50, 0);
+        }
+        return;
+    }
+    if(vr_dmt_s < 0)
+    {
+        return;
+    }
+    vr_dmt_n++;
+    if(vr_dmt_wait > 0)
+    {
+        vr_dmt_wait--;
+        return;
+    }
+    if(vr_dmt_s == 41) // out of deathmatch: all there
+    {
+        VR_Test_Check(VR_DMT_GibsLeft(0, 8) == 8 && VR_DMT_WeaponsLeft(0, 5) == 5, sprintf("out of deathmatch the caps "
+            "take nothing: %g of 8 gibs and %g of 5 weapons there", VR_DMT_GibsLeft(0, 8), VR_DMT_WeaponsLeft(0, 5)));
+        deathmatch = vr_dmt_dm;
+        vr_dmt_wgone = vr_dml_weapons_gone;
+        VR_DMT_To(42, 3);
+        return;
+    }
+    if(vr_dmt_s == 42) // in deathmatch: the oldest gone
+    {
+        VR_DMLoose_OldestGib();
+        float gibs = vr_dml_count;
+        VR_Test_Check(VR_DMT_GibsLeft(0, 4) == 0 && VR_DMT_GibsLeft(6, 8) == 2 && gibs <= 4, sprintf("in deathmatch "
+            "the 4 oldest gibs go, the 2 youngest stay, %g left of the cap 4 (the 6 old ones: %g left)", gibs,
+            VR_DMT_GibsLeft(0, 6)));
+        VR_DMLoose_OldestWeapon();
+        float weapons = vr_dml_count;
+        VR_Test_Check(VR_DMT_WeaponsLeft(3, 5) == 2 && weapons <= 3 && vr_dml_weapons_gone - vr_dmt_wgone >= 2,
+            sprintf("... the weapons going soonest go first (%g gone), the 2 youngest stay, %g left of the cap 3",
+            vr_dml_weapons_gone - vr_dmt_wgone, weapons));
+        cvar_set("vr_dm_gibs_max", ftos(vr_dmt_gmax));
+        cvar_set("vr_dm_weapons_max", ftos(vr_dmt_wmax));
+        VR_DMT_End();
+        return;
+    }
+    if(vr_dmt_s == 50) // test 8: only the first start counted, the human on it
+    {
+        vr_dmt_start = find(world, classname, "info_player_deathmatch");
+        for(entity e = find(vr_dmt_start, classname, "info_player_deathmatch"); e;
+            e = find(vr_dmt_start, classname, "info_player_deathmatch"))
+        {
+            e.classname = "info_player_deathmatch_vrtest";
+        }
+        setorigin(vr_dmt_human, vr_dmt_start.origin + '0 0 1');
+        vr_dmt_human.velocity = '0 0 0';
+        vr_dmt_human.health = max(vr_dmt_human.health, 999); // (the other bots' shots meanwhile; a telefrag's 50000 kills)
+        vr_dmt_hp = vr_dmt_human.health;
+        lastspawn = vr_dmt_start;
+        entity os = self;
+        self = vr_dmt_bot;
+        PutClientInServer();
+        self = os;
+        vector at = vr_dmt_bot.origin - '0 0 1';
+        float far = vlen(at - vr_dmt_start.origin);
+        VR_Test_Check(vr_dm_beside && vr_dm_beside.classname == "vr_dm_beside" && vlen(at - vr_dm_beside_at) < 2 &&
+            far >= 47 && far <= 145 && vlen(at - vr_dmt_human.origin) >= 64, sprintf("every start taken: the bot "
+            "respawned beside it, %.0f units from it and %.0f from the human (at %s)", far, vlen(at -
+            vr_dmt_human.origin), vtos(at)));
+        VR_DMT_To(51, 36); // (0.5 s: the spawn's teledeath lasts 0.2 s)
+        return;
+    }
+    if(vr_dmt_s == 51)
+    {
+        VR_Test_Check(vr_dmt_human.health > 0 && vr_dmt_human.deadflag == DEAD_NO && vr_dmt_bot.health > 0,
+            sprintf("... nobody telefragged (the human's health %g, was %g; the bot's %g)", vr_dmt_human.health,
+            vr_dmt_hp, vr_dmt_bot.health));
+        for(entity e = find(world, classname, "info_player_deathmatch_vrtest"); e;
+            e = find(world, classname, "info_player_deathmatch_vrtest"))
+        {
+            e.classname = "info_player_deathmatch";
+        }
+        vr_dmt_human.health = 100;
+        VR_DMT_End();
+    }
+};
+
 void() VR_DMRulesTest_Frame =
 {
     float ask = cvar_hget(cvarh_vr_dm_test);
     if(ask == 1) { VR_DMT_Run(ask); }
     if(ask == 2 || ask == 3) { VR_DMT_Parry(ask); }
     if(ask >= 4 && ask <= 6) { VR_DMT_Hands(ask); }
+    if(ask == 7 || ask == 8) { VR_DMT_Loose(ask); }
 };
 #endif

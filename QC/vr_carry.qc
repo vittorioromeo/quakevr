@@ -3689,9 +3689,10 @@ void(vector xA, vector xB) VR_Gib_TraceHeld =
     // as a gib anywhere (his note 2026-11-08 17:10: shots went through it).
     float best = trace_fraction;
     entity sk = world;
-    for(entity e = nextent(world); e; e = nextent(e))
+    // (the gibs only, by the engine's index: B13b, a walk of every edict a pellet was 4% of a 16-player server's QuakeC)
+    for(entity e = findflags(world, vr_gib, 1); e; e = findflags(e, vr_gib, 1))
     {
-        if(e.vr_gib && e.vr_skewer_p != world)
+        if(e.vr_skewer_p != world)
         {
             float te = VR_Gib_OnLine(e, xA, xB, 1);
             if(te >= 0 && te < best)

@@ -524,15 +524,16 @@ void edicts_f()
         int n;
     };
     za::Vector<Kind> kinds;
-    int used = 0;
+    int used = 0, gibs = 0;
     for(int i = 1; i < qcvm->num_edicts; i++)
     {
-        const edict_t* e = EDICT_NUM(i);
+        edict_t* e = EDICT_NUM(i);
         if(e->free)
         {
             continue;
         }
         used++;
+        gibs += qvr::progs::fieldFloatOr(e, qvr::progs::fields().vr_gib, 0.f) != 0.f ? 1 : 0; // (B13b: deathmatch's cap)
         const char* name = PR_GetString(e->v.classname);
         Kind* k = nullptr;
         for(Kind& c : kinds)
@@ -552,7 +553,7 @@ void edicts_f()
             kinds.pushBack(Kind{name, 1});
         }
     }
-    Con_Printf("mp_edicts: used=%d of %d top:", used, qcvm->max_edicts);
+    Con_Printf("mp_edicts: used=%d of %d gibs=%d top:", used, qcvm->max_edicts, gibs);
     for(int shown = 0; shown < 12; shown++)
     {
         Kind* best = nullptr;

@@ -1004,9 +1004,9 @@ Returns the entity to spawn at
 // dead ones too, and not one 33-49 units away, whom the spawn then telefragged: with 16 players on a map's 6 starts the
 // bots' instant respawns telefragged each other hundreds of times a second (mp_soak), every death dropping weapons until
 // the server ran out of edicts.
-float(entity spot) VR_DMSpotBlocked =
+float(vector org) VR_DMPlaceBlocked =
 {
-    entity thing = findradius(spot.origin, 64);
+    entity thing = findradius(org, 64);
     while(thing)
     {
         if(thing.classname == "player" && thing != self && thing.health > 0 && thing.deadflag == DEAD_NO)
@@ -1016,10 +1016,90 @@ float(entity spot) VR_DMSpotBlocked =
     return FALSE;
 };
 
+float(entity spot) VR_DMSpotBlocked =
+{
+    return VR_DMPlaceBlocked(spot.origin);
+};
+
 .float vr_spawn_wait; // VR (B13): a deathmatch respawn waiting for a clear start: the time it gives up waiting (0: none)
 float VR_DM_SPAWN_WAIT = 2;
 
-// VR (B13): whether a deathmatch start is clear now (VR_DMSpotBlocked); CTF's team starts are not counted (no wait there).
+// VR (B13b, MP_PLAN): every deathmatch start taken by a living player, a place beside one: up to 144 units out round it
+// (8 ways, its own facing first; 48, 96, 144 units), the player's box clear of the level and of solid things there and
+// all the way from the start (the same room, never through a wall), a floor under its feet within 40 units (not a ledge),
+// no liquid at its head, middle or feet, and no living player within 64 units (VR_DMPlaceBlocked). With 16 players on
+// dm3's few starts the bots standing at them were telefragged by the respawns ~100 times in 10 s (mp_soak); the respawn
+// waited up to 2 s, then telefragged as stock Quake did. Its place in vr_dm_beside_at.
+vector vr_dm_beside_at;
+entity vr_dm_beside; // the spot a respawn beside a start takes (classname "vr_dm_beside": made again on each map)
+float(entity spot) VR_DMSpotBeside =
+{
+    for(float r = 48; r <= 144; r = r + 48)
+    {
+        for(float a = 0; a < 360; a = a + 45)
+        {
+            makevectors('0 1 0' * (spot.angles_y + a));
+            vector p = spot.origin + v_forward * r;
+            tracebox(spot.origin, VEC_HULL_MIN, VEC_HULL_MAX, p, TRUE, self); // (the level: a player on the start is no wall)
+            if(trace_fraction < 1 || trace_startsolid || trace_allsolid)
+                continue;
+            tracebox(p, VEC_HULL_MIN, VEC_HULL_MAX, p, FALSE, self); // (and nothing solid there)
+            if(trace_startsolid || trace_allsolid)
+                continue;
+            traceline(p, p - '0 0 64', TRUE, self);
+            if(trace_fraction == 1 || p_z - trace_endpos_z > 24 + 40)
+                continue;
+            if(pointcontents(p + '0 0 22') != CONTENT_EMPTY || pointcontents(p) != CONTENT_EMPTY ||
+               pointcontents(p - '0 0 23') != CONTENT_EMPTY)
+                continue;
+            if(VR_DMPlaceBlocked(p))
+                continue;
+            vr_dm_beside_at = p;
+            return TRUE;
+        }
+    }
+    return FALSE;
+};
+
+// VR (B13b): the first deathmatch start (from `from` on, round) with a clear place beside it (VR_DMSpotBeside), as the spot
+// a respawn takes (vr_dm_beside, facing as the start); world if none.
+entity(entity from) VR_DMBesideSpot =
+{
+    if(from.classname != "info_player_deathmatch")
+        from = world;
+    entity spot = from;
+    for(float k = 0; k < 64; k++)
+    {
+        spot = find(spot, classname, "info_player_deathmatch");
+        if(!spot)
+        {
+            spot = find(world, classname, "info_player_deathmatch");
+            if(!spot)
+                return world;
+        }
+        if(VR_DMSpotBeside(spot))
+        {
+            if(!vr_dm_beside || vr_dm_beside.classname != "vr_dm_beside")
+            {
+                vr_dm_beside = spawn();
+                vr_dm_beside.classname = "vr_dm_beside";
+            }
+            vr_dm_beside.origin = vr_dm_beside_at;
+            vr_dm_beside.angles = spot.angles;
+            dprint(sprintf("dm spawn: every start taken; beside one at %s (%.0f units from it)\n", vtos(vr_dm_beside_at),
+                vlen(vr_dm_beside_at - spot.origin)));
+            return vr_dm_beside;
+        }
+        if(spot == from)
+            return world;
+        if(!from)
+            from = spot; // (from the first: once round)
+    }
+    return world;
+};
+
+// VR (B13): whether a deathmatch start is clear now (VR_DMSpotBlocked), or (B13b) a place beside one; CTF's team starts
+// are not counted (no wait there).
 float() VR_DMSpotClear =
 {
     if(teamplay >= TEAM_CTF)
@@ -1033,7 +1113,7 @@ float() VR_DMSpotClear =
             return TRUE;
         spot = find(spot, classname, "info_player_deathmatch");
     }
-    return FALSE;
+    return VR_DMBesideSpot(lastspawn) != world;
 };
 
 entity() SelectSpawnPoint =
@@ -1121,6 +1201,13 @@ entity() SelectSpawnPoint =
             {
                 if(spot == startspot)
                 {
+                    // VR (B13b): every start taken: a place beside one, if any (not CTF's team starts)
+                    if(t == 0)
+                    {
+                        entity beside = VR_DMBesideSpot(lastspawn);
+                        if(beside)
+                            return beside;
+                    }
                     return startspot;
                 }
 
