@@ -2,11 +2,13 @@
 
 Each section of the 1.1 feature trailer opens with a corner title: a big **title** in the Quake font (DpQuake),
 embossed **metal** (bronze/gunmetal with grime in the cavities and rust patches, a dark outline and drop shadow, a
-faint blood-red under-glow), a grimy red rule, and a small tracked **subtitle** (Cinzel) over a soft dark scrim. In: a
+faint blood-red under-glow), a grimy red rule, and a small tracked **subtitle** (Cinzel, with its own soft drop shadow)
+over a soft dark scrim. In: a
 blood-red ink burn-in from the corner's side (noise-edged reveal, red ink leading the metal, blur and smear settling, a
 dying-torch flicker) while a **light sweeps across the letters** (left to right by default), a moving specular
-highlight on the bevels; the subtitle a few frames later. **Blood** coats the lower edges of the strokes and **drips**
-run down from them, lengthening through the hold; it is wet (its own relief, sharp glints when the light passes, darker
+highlight on the bevels; the subtitle a few frames later. **Blood** lies *behind* the letters (they stay clean and
+readable): it pools out under the strokes' lower edges, seeps around them in patches, and **drips** run down from them,
+lengthening through the hold; it is wet (its own relief, sharp glints when the light passes, darker
 on the shadowed side, a slow glisten). Out: the text burns back into the corner through red embers, blurring away.
 All procedural (Fusion noise, masks, blurs, expressions, Custom tools): change the text or the corner and the
 animation follows; nothing is keyframed.
@@ -70,7 +72,10 @@ Inspector: Title, Subtitle, Corner, **Accent** (the blood colour), **Intensity**
 for gunmetal, redder and darker for rusted iron), **Relief Depth** (0-2: bevel height and width), **Light Sweep**
 (0-2: the sweeping light's brightness; 0 = only the fixed top-left key light), **Sweep Direction** (left to right /
 right to left), **Sweep Start** and **Sweep Length** (frames from the title's first frame), In / Out (frames), Hold
-(frames; 0 = until the clip's end; apply_titles sets it from `seconds:`), Subtitle Delay, Scrim, Margin X / Y (safe
+(frames; 0 = until the clip's end; apply_titles sets it from `seconds:`), Subtitle Delay, Scrim, **Shadow Opacity**
+(0-1, 0.8; 0 = no drop shadows), **Shadow Softness** (blur, 9 px at 1080p) and **Shadow Offset** (down-right, 6 px at
+1080p) for the title's and the subtitle's drop shadows (the subtitle's uses half the softness and offset, as its text
+is smaller; both scale with the frame and follow the in/out blur), Margin X / Y (safe
 area, fractions of the frame), Title size, font and tracking, Subtitle size, font and tracking. Lighting and blood
 follow the title's own extent, so any text length works. A change made
 there by hand is overwritten for the fields apply_titles sets (text, corner, hold, and in/out/intensity when given in
@@ -90,6 +95,9 @@ title); a 4.5 s title renders in about a minute. Resolve's render cache (Playbac
 playback smooth after the first pass.
 
 ## Preview
+
+Blood behind the letters and the drop shadows (trailertitles3): the same two-title sample re-rendered; the shadows
+measured against the previous render (pixels darkened below and right of the subtitle and title, none lightened).
 
 Checked by rendering a two-title sample (top-right and bottom-left, 4 s each, 1080p60, over a dark noise background)
 through Resolve's scripting: the in (burn-in, ink, light sweep), hold (drips lengthened) and out frames, the subtitle

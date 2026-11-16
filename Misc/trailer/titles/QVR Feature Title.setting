@@ -120,6 +120,21 @@
 					Source = "ScrimAmount",
 					Default = 0.72,
 				},
+				ShadowOpacity = InstanceInput {
+					SourceOp = "Ctl",
+					Source = "ShadowOpacity",
+					Default = 0.8,
+				},
+				ShadowSoftness = InstanceInput {
+					SourceOp = "Ctl",
+					Source = "ShadowSoftness",
+					Default = 9,
+				},
+				ShadowOffset = InstanceInput {
+					SourceOp = "Ctl",
+					Source = "ShadowOffset",
+					Default = 6,
+				},
 				MarginX = InstanceInput {
 					SourceOp = "Ctl",
 					Source = "MarginX",
@@ -215,6 +230,9 @@
 						HoldFrames = Input { Value = 0, },
 						SubDelay = Input { Value = 10, },
 						ScrimAmount = Input { Value = 0.72, },
+						ShadowOpacity = Input { Value = 0.8, },
+						ShadowSoftness = Input { Value = 9, },
+						ShadowOffset = Input { Value = 6, },
 						MarginX = Input { Value = 0.06, },
 						MarginY = Input { Value = 0.075, },
 						Gap1 = Input { Value = 0.016, },
@@ -264,6 +282,9 @@
 						HoldFrames = { LINKS_Name = "Hold (frames, 0 = to clip end)", LINKID_DataType = "Number", INPID_InputControl = "SliderControl", INP_Default = 0, INP_Integer = true, INP_MinScale = 0, INP_MaxScale = 600, INP_MinAllowed = 0, ICS_ControlPage = "Controls", },
 						SubDelay = { LINKS_Name = "Subtitle Delay (frames)", LINKID_DataType = "Number", INPID_InputControl = "SliderControl", INP_Default = 10, INP_Integer = true, INP_MinScale = 0, INP_MaxScale = 60, INP_MinAllowed = 0, ICS_ControlPage = "Controls", },
 						ScrimAmount = { LINKS_Name = "Scrim", LINKID_DataType = "Number", INPID_InputControl = "SliderControl", INP_Default = 0.72, INP_MinScale = 0, INP_MaxScale = 1, INP_MinAllowed = 0, INP_MaxAllowed = 1, ICS_ControlPage = "Controls", },
+						ShadowOpacity = { LINKS_Name = "Shadow Opacity", LINKID_DataType = "Number", INPID_InputControl = "SliderControl", INP_Default = 0.8, INP_MinScale = 0, INP_MaxScale = 1, INP_MinAllowed = 0, INP_MaxAllowed = 1, ICS_ControlPage = "Controls", },
+						ShadowSoftness = { LINKS_Name = "Shadow Softness (px at 1080p)", LINKID_DataType = "Number", INPID_InputControl = "SliderControl", INP_Default = 9, INP_MinScale = 0, INP_MaxScale = 30, INP_MinAllowed = 0, ICS_ControlPage = "Controls", },
+						ShadowOffset = { LINKS_Name = "Shadow Offset (px at 1080p)", LINKID_DataType = "Number", INPID_InputControl = "SliderControl", INP_Default = 6, INP_MinScale = 0, INP_MaxScale = 30, INP_MinAllowed = 0, ICS_ControlPage = "Controls", },
 						MarginX = { LINKS_Name = "Margin X", LINKID_DataType = "Number", INPID_InputControl = "SliderControl", INP_Default = 0.06, INP_MinScale = 0, INP_MaxScale = 0.25, ICS_ControlPage = "Controls", },
 						MarginY = { LINKS_Name = "Margin Y", LINKID_DataType = "Number", INPID_InputControl = "SliderControl", INP_Default = 0.075, INP_MinScale = 0, INP_MaxScale = 0.25, ICS_ControlPage = "Controls", },
 						Gap1 = { LINKS_Name = "Gap1", LINKID_DataType = "Number", INPID_InputControl = "SliderControl", INP_Default = 0.016, IC_Visible = false, ICS_ControlPage = "Controls", },
@@ -632,12 +653,14 @@
 						NumberIn3 = Input { Expression = "min(1, Ctl.Blood)", },
 						NumberIn4 = Input { Expression = "Ctl.LT*0.002", },
 						NumberIn7 = Input { Expression = "Lgt.Res", },
-						Setup1 = Input { Value = "9*n7/h1", },
+						Setup1 = Input { Value = "11*n7/h1", },
 						Setup2 = Input { Value = "w1/n7", },
+						Setup3 = Input { Value = "5*n7/w1", },
+						Setup4 = Input { Value = "5*n7/h1", },
 						Intermediate1 = Input { Value = "if(sin(floor(x*s2/4)*78.233)*43758.5 - floor(sin(floor(x*s2/4)*78.233)*43758.5) > n2, 1, 0)", },
 						Intermediate2 = Input { Value = "if(sin(x*s2*0.013 + 2.2) > 0, r3, r2)", },
 						Intermediate3 = Input { Value = "0.5 + 0.25*sin(x*s2*0.061 + sin(y*h1/n7*0.05)*2.3 + n4) + 0.25*sin(y*h1/n7*0.083 + x*s2*0.019 - n4)", },
-						RedExpression = Input { Value = "max(i1*min(1, i2*30)*(1 - r1), n3*r1*((1 - getr1b(x, y - s1))*min(1, max(0, i3 - 0.45)*3) + max(0, i3 - 0.8)*3))", },
+						RedExpression = Input { Value = "max(i1*min(1, i2*30)*(1 - r1), n3*min(1, r1 + (1 - r1)*(getr1b(x, y + s1)*min(1, max(0, i3 - 0.4)*3) + max(max(getr1b(x - s3, y), getr1b(x + s3, y)), getr1b(x, y - s4))*max(0, i3 - 0.72)*3)))", },
 						GreenExpression = Input { Value = "0", },
 						BlueExpression = Input { Value = "0", },
 						AlphaExpression = Input { Value = "1", },
@@ -771,7 +794,7 @@
 					NameSet = true,
 					Inputs = {
 						Input = Input { SourceOp = "ShadowFill", Source = "Output", },
-						Center = Input { Value = { 0.5025, 0.4955 }, },
+						Center = Input { Expression = "Point(0.5 + Ctl.ShadowOffset/1920, 0.5 - Ctl.ShadowOffset/1080)", },
 					},
 					ViewInfo = OperatorInfo { Pos = { 330, -260 } },
 				},
@@ -779,9 +802,46 @@
 					NameSet = true,
 					Inputs = {
 						Input = Input { SourceOp = "ShadowShift", Source = "Output", },
-						XBlurSize = Input { Expression = "9*Lgt.Res", },
+						XBlurSize = Input { Expression = "Lgt.Res*(Ctl.ShadowSoftness + Ctl.Intensity*12*(1 - Ctl.EIn)^2 + 7*Ctl.EOut)", },
 					},
 					ViewInfo = OperatorInfo { Pos = { 440, -260 } },
+				},
+				SubAlpha = BitmapMask {
+					NameSet = true,
+					Inputs = {
+						Image = Input { SourceOp = "SubText", Source = "Output", },
+						Channel = Input { Value = FuID { "Alpha" }, },
+					},
+					ViewInfo = OperatorInfo { Pos = { 110, 300 } },
+				},
+				SubShadowFill = Background {
+					NameSet = true,
+					Inputs = {
+						EffectMask = Input { SourceOp = "SubAlpha", Source = "Mask", },
+						UseFrameFormatSettings = Input { Value = 1, },
+						Width = Input { Value = 1920, },
+						Height = Input { Value = 1080, },
+						TopLeftRed = Input { Value = 0, },
+						TopLeftGreen = Input { Value = 0, },
+						TopLeftBlue = Input { Value = 0, },
+					},
+					ViewInfo = OperatorInfo { Pos = { 220, 300 } },
+				},
+				SubShadowShift = Transform {
+					NameSet = true,
+					Inputs = {
+						Input = Input { SourceOp = "SubShadowFill", Source = "Output", },
+						Center = Input { Expression = "Point(0.5 + 0.5*Ctl.ShadowOffset/1920, 0.5 - 0.5*Ctl.ShadowOffset/1080)", },
+					},
+					ViewInfo = OperatorInfo { Pos = { 330, 300 } },
+				},
+				SubShadowBlur = Blur {
+					NameSet = true,
+					Inputs = {
+						Input = Input { SourceOp = "SubShadowShift", Source = "Output", },
+						XBlurSize = Input { Expression = "Lgt.Res*(0.5*Ctl.ShadowSoftness + Ctl.Intensity*8*(1 - Ctl.ESub)^2 + 5*Ctl.EOut)", },
+					},
+					ViewInfo = OperatorInfo { Pos = { 440, 300 } },
 				},
 
 				RuleShape = RectangleMask {
@@ -857,7 +917,7 @@
 						EffectMask = Input { SourceOp = "TitleMask", Source = "Mask", },
 						Background = Input { SourceOp = "Ctl", Source = "Output", },
 						Foreground = Input { SourceOp = "ShadowBlur", Source = "Output", },
-						Blend = Input { Expression = "0.85*(1 - Ctl.EOut)", },
+						Blend = Input { Expression = "Ctl.ShadowOpacity*(1 - Ctl.EOut)", },
 						PerformDepthMerge = Input { Value = 0, },
 					},
 					ViewInfo = OperatorInfo { Pos = { 550, -60 } },
@@ -884,23 +944,23 @@
 					},
 					ViewInfo = OperatorInfo { Pos = { 880, -60 } },
 				},
-				MergeTitle = Merge {
+				MergeBlood = Merge {
 					NameSet = true,
 					Inputs = {
 						EffectMask = Input { SourceOp = "TitleMask", Source = "Mask", },
 						Background = Input { SourceOp = "MergeInk", Source = "Output", },
-						Foreground = Input { SourceOp = "TitleBlur", Source = "Output", },
+						Foreground = Input { SourceOp = "BloodPlace", Source = "Output", },
 						Blend = Input { Expression = "Ctl.Flick", },
 						PerformDepthMerge = Input { Value = 0, },
 					},
 					ViewInfo = OperatorInfo { Pos = { 990, -60 } },
 				},
-				MergeBlood = Merge {
+				MergeTitle = Merge {
 					NameSet = true,
 					Inputs = {
 						EffectMask = Input { SourceOp = "TitleMask", Source = "Mask", },
-						Background = Input { SourceOp = "MergeTitle", Source = "Output", },
-						Foreground = Input { SourceOp = "BloodPlace", Source = "Output", },
+						Background = Input { SourceOp = "MergeBlood", Source = "Output", },
+						Foreground = Input { SourceOp = "TitleBlur", Source = "Output", },
 						Blend = Input { Expression = "Ctl.Flick", },
 						PerformDepthMerge = Input { Value = 0, },
 					},
@@ -909,18 +969,29 @@
 				MergeRule = Merge {
 					NameSet = true,
 					Inputs = {
-						Background = Input { SourceOp = "MergeBlood", Source = "Output", },
+						Background = Input { SourceOp = "MergeTitle", Source = "Output", },
 						Foreground = Input { SourceOp = "RuleFill", Source = "Output", },
 						Blend = Input { Expression = "0.9*Ctl.Flick", },
 						PerformDepthMerge = Input { Value = 0, },
 					},
 					ViewInfo = OperatorInfo { Pos = { 1100, -60 } },
 				},
-				MergeSub = Merge {
+				MergeSubShadow = Merge {
 					NameSet = true,
 					Inputs = {
 						EffectMask = Input { SourceOp = "SubMask", Source = "Mask", },
 						Background = Input { SourceOp = "MergeRule", Source = "Output", },
+						Foreground = Input { SourceOp = "SubShadowBlur", Source = "Output", },
+						Blend = Input { Expression = "Ctl.ShadowOpacity*(0.5 + 0.5*Ctl.Flick)*(1 - Ctl.EOut)", },
+						PerformDepthMerge = Input { Value = 0, },
+					},
+					ViewInfo = OperatorInfo { Pos = { 1155, -60 } },
+				},
+				MergeSub = Merge {
+					NameSet = true,
+					Inputs = {
+						EffectMask = Input { SourceOp = "SubMask", Source = "Mask", },
+						Background = Input { SourceOp = "MergeSubShadow", Source = "Output", },
 						Foreground = Input { SourceOp = "SubBlur", Source = "Output", },
 						Blend = Input { Expression = "0.5 + 0.5*Ctl.Flick", },
 						PerformDepthMerge = Input { Value = 0, },

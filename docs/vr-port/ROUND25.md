@@ -3340,3 +3340,12 @@ His flat-screen notes (2026-11-16) and the coordinator's disarm-sound item.
 - `ShortcutOptions.DesktopFlat` (default on) adds "Quake VR Unleashed (Flat Screen)" to the desktop; the options page has a checkbox "Desktop shortcut for flat-screen play" (disabled when the desktop shortcut is off); recorded as `InstallChoices.DesktopFlatShortcut`.
 - Old records lack the field and read false: updates keep their old behaviour; fresh installs get it. The Start menu's flat shortcut is unchanged; with the Start menu off, the desktop one is the only flat one (no duplicate path).
 - Self-tests extended (41/41): planner counts, fresh install, off, update, uninstall, old record.
+- Follow-up (agent/trailertitles3), his feedback: blood behind the text, subtle drop shadows. MergeBlood now sits under
+  MergeTitle (order: scrim, title shadow, glow, ink, blood, metal, rule, subtitle shadow, subtitle). The blood coat
+  moved off the strokes (it would be hidden): BloodCov covers the glyph plus a band hanging 11 px below its lower edges
+  and noise patches seeping 5 px around it, so the relief and glints show on the visible rim; drips unchanged. The
+  title's drop shadow (already there, fixed 0.85 / 9 px / ~5 px) is driven by new inputs Shadow Opacity 0.8, Shadow
+  Softness 9 and Shadow Offset 6 (px at 1080p, down-right) and follows the in/out blur; the subtitle gets its own
+  (SubAlpha/SubShadowFill/Shift/Blur, MergeSubShadow under SubMask) at half softness and offset. Checked: the two-title
+  preview re-rendered (contact sheet, closeups); shadows measured against the trailertitles2 render (subtitle box 2.9%
+  of pixels darker by >3 levels, 0.1% lighter).
