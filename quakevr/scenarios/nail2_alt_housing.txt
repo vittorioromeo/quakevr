@@ -1,0 +1,10 @@
+# nail2_alt_housing: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The super nailgun's lava-nail
+# model (v_lava2.mdl) has the default model's ammo screen housing (make_screen_housing_nail2.py): the super nailgun in the
+# right hand, its button switches it to lava nails and back.
+title Super nailgun ammo screen housing on the lava-nail model
+map vrtesthall
+god
+notarget
+cmd impulse 9
+give "Super Nailgun" main
+hint The right hand holds a super nailgun: its ammo screen in a riveted wedge on the receiver's top, tilted up to you. Press its button (flat screen: B) for lava nails: the model changes, the wedge, the rivets and the digits stay the same. Press it again to compare.

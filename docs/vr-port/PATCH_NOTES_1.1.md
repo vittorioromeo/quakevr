@@ -178,7 +178,8 @@ old default move to the new one, and values you changed stay yours.
   and plasma guns' sights.
 - Ammo screens built into the guns in their own housings (shotguns, nail pistol, nailguns, lightning gun, grenade and
   rocket launchers, the multi-rocket, AD's Widowmaker and Plasma Gun): the magazine count big and bright, the total
-  small; it works in the left hand too.
+  small; it works in the left hand too. The lava nailguns and the plasma lightning gun have the same housings and
+  screens.
 - Procedural recoil per weapon (kick, rise and recovery) replaces the baked kick; two-handed recoil for any grip; the
   muzzle rises about the gun's own axis.
 - Barrel heat: barrels glow with sustained fire (Barrel Heat settings).

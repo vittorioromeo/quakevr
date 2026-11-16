@@ -122,6 +122,10 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
 ## 8. Weapons, content and art
 
 - **Ammo type follows the loaded magazine** (2026-10-16): a lava-nail magazine fires lava nails.
+- **One model per gun, not one per ammo type** (2026-11-16, his words): "rather than having different models for the
+  ammo types, we should be able to adjust one single model: add attachments, change parts or textures; maintaining two
+  separate sets of models with different rules is annoying and causes issues." (Today `v_lava`, `v_lava2`,
+  `v_light_plasma` and `v_multi2` each repeat their base's housing, cuts and weapons.txt slot: ROUND25.md, "vr1116c".)
 - **AD enemies' weapons for the player, the Deflector's gun, and AD soldiers' gun models** (2026-10-15/23):
   ARCANE_DIMENSIONS.md, "Open items moved from BACKLOG.md".
 - **Bloody shotguns' own look** (MG3 decision 4): bloody skins for `v_shot`/`v_shot2` while `MG3_BloodyBits()` is set,
