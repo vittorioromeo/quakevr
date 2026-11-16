@@ -70,7 +70,7 @@ Tests:
              muted; push-to-talk released, voice activation; the server's voice budget and B's rate cap hold
              his voice bytes; RNNoise on; no microphone. --lag/--jitter/--loss: B's link; --listen: A hosts.
     dm       (B11) a dedicated deathmatch server on dm4 (fraglimit 3): A and B join at deathmatch starts; two FrikBot bots
-             added (impulse 100): four players listed at both, the bots move; A killed by a bot (vr_hurt) and respawned by his trigger until the bot's frags reach it; the fraglimit ends the match: the intermission at both, their scoreboards the same.
+             added (impulse 100): four players listed at both, the bots move; A killed by a bot (vr_hurt) and respawned by his trigger, then A frags the bots (vr_hurt) to the fraglimit; the fraglimit ends the match: the intermission at both, their scoreboards the same.
     lockstep (B14b) two runs of the same play on a lockstep server (vr_mp_lockstep: one move of each client a world
              step, by number; vr_fixed_frames 1, sv_random_seed 1; its clients vr_mp_lockstep_ahead 4): A and B join
              e1m1, the world held at steps 36, 360 and 720 (vr_mp_lockstep_until) for the inputs (B walks north, A's
@@ -4342,9 +4342,13 @@ BOT_GUN_GRIP = 24.0     # units: ... its gun's model origin at most this far fro
 LOCK_AHEAD = 4
 TRACELOG = 0  # (--tracelog)
 # QuakeC fields a client's moves report from its own drawing, not the world's: the ammo pouch (its body's pose, eased
-# over its frames since the load) and the light on him (its lightmaps and dynamic lights at its own clock).
-LOCK_CLIENT_FIELDS = ("ammopouch", "stl_light")
+# over its frames since the load; their values noted when two runs differ). (B14c) The light on him (stl_light) is
+# compared: under the lockstep each move reads its own afresh (vr_stealth.cpp lightAt), not a tenth of a second's sample
+# at the client's clock with the lightmap's cached spot.
+LOCK_CLIENT_FIELDS = ("ammopouch",)
 LOCK_STEPS = (36, 360, 720)
+LOCK_DM_STEPS = (36, 72, 360, 720)
+LOCK_VALUE_FIELDS = ("ammopouch", "stl_light", "mh_", "vr_posetime")  # (printed where two runs differ)
 LOCK_SERVER = ("+vr_fixed_frames", "1", "+sys_ticrate", "0.002", "+sv_random_seed", "1", "+vr_mp_lockstep", "2",
                "+vr_mp_lockstep_until", str(LOCK_STEPS[0]), "+vr_hull_async", "0")
 LOCK_CLIENT = ("+vr_fixed_frames", "1", "+vr_mock_fast", "1", "+vr_mp_lockstep_ahead", str(LOCK_AHEAD))
@@ -4393,61 +4397,93 @@ def lock_hashes(srv):
     return out
 
 
+def lock_values(srv, ents, names):
+    """The players' values of the QuakeC fields starting with one of `names` (vr_bench_statehash values: each 4-byte
+    slot as a float) -> {"ent field": value}: what two runs' differing fields hold."""
+    out = {}
+    for name in names:
+        since = srv.mark()
+        srv.cmd("vr_bench_statehash values %s %s" % (name, " ".join(str(e) for e in ents)))
+        srv.wait(r"^statevalue end", 10, since, "the %s values" % name)
+        for l in srv.lines[since:]:
+            parts = l.split()
+            if len(parts) == 4 and parts[0] == "statevalue":
+                out["%s %s" % (parts[1], parts[2])] = parts[3]
+    return out
+
+
 def lock_field_diff(f1, f2):
     """The QuakeC fields whose hashes two runs' lock_hashes differ in (names, at most 12)."""
     names = sorted(k for k in set(f1) | set(f2) if f1.get(k) != f2.get(k))
     return ", ".join(names[:12]) + (" (+%d)" % (len(names) - 12) if len(names) > 12 else "")
 
 
-def lockstep_run(s, r):
+def lockstep_run(s, r, dm=False):
     """One lockstep run on e1m1 (coop): A and B (both the mock headset) join; held at each of LOCK_STEPS: the hashes;
     after the first B walks north and A's impulse makes a rottweiler (vr_test_spawn 7) ahead of him, which hunts them
-    (the navmesh's paths); after the second B stops and A strafes. -> {step: hashes}, the stopped games."""
-    tag = "" if r == 1 else str(r)
-    if r > 1:
-        s.port = s.next_port + 10  # (the second run's own ports)
+    (the navmesh's paths); after the second B stops and A strafes. -> {step: hashes}, the stopped games.
+    `dm` (B14c): a deathmatch on dm4 instead, held at each of LOCK_DM_STEPS: after the first A adds a FrikBot bot
+    (impulse 100) and B walks north, after the second A adds another, after the third B stops and A strafes."""
+    tag = ("dm" if dm else "") + ("" if r == 1 else str(r))
+    if r > 1 or dm:
+        s.port = s.next_port + 10  # (each run's own ports)
         s.next_port = s.port + 1
+    mapname = DM_MAP if dm else "e1m1"
     srv = s.server(dedicated=True, name="server" + tag, extra=LOCK_SERVER)
     srv.start()
-    srv.cmd("coop 1; deathmatch 0; skill 1; map e1m1; vr_mp_status")
-    srv.wait(r"mp_server: map=e1m1", 120, what="the server on e1m1")
+    srv.cmd(("coop 0; deathmatch 1; fraglimit 0; timelimit 0; skill 1; map %s; vr_mp_status" if dm else
+             "coop 1; deathmatch 0; skill 1; map %s; vr_mp_status") % mapname)
+    srv.wait(r"mp_server: map=%s" % mapname, 120, what="the server on %s" % mapname)
     a = s.client("A" + tag, extra=LOCK_CLIENT).start()
     b = s.client("B" + tag, extra=LOCK_CLIENT).start()
     a.cmd(s.connect_cmd(a))
-    _, ja = a.wait(r"mp_event: .*joined map=e1m1", 120, what="%s joined" % a.name)
+    _, ja = a.wait(r"mp_event: .*joined map=%s" % mapname, 120, what="%s joined" % a.name)
     b.cmd(s.connect_cmd(b))
-    _, jb = b.wait(r"mp_event: .*joined map=e1m1", 120, what="%s joined" % b.name)
+    _, jb = b.wait(r"mp_event: .*joined map=%s" % mapname, 120, what="%s joined" % b.name)
     ea, eb = int(fields(ja)["self"]), int(fields(jb)["self"])
     clients = ((a, ea), (b, eb))
     if TRACELOG:  # (--tracelog N: both sides' traces of B's move N, vr_mp_predict_tracelog)
         srv.cmd("vr_mp_predict_tracelog %d" % TRACELOG)
         b.cmd("vr_mp_predict_tracelog %d" % TRACELOG)
     hashes = {}
-    lock_hold(srv, clients, LOCK_STEPS[0], first=True)
-    hashes[LOCK_STEPS[0]] = lock_hashes(srv)
-    srv.cmd("vr_test_spawn 7; vr_test_spawn_dist 250")
-    a.cmd("impulse 241")
-    b.cmd("vr_mock_stick off 0 1")
-    lock_hold(srv, clients, LOCK_STEPS[1])
-    hashes[LOCK_STEPS[1]] = lock_hashes(srv)
-    b.cmd("vr_mock_stick off 0 0")
-    a.cmd("vr_mock_stick off 1 0")
-    lock_hold(srv, clients, LOCK_STEPS[2])
-    hashes[LOCK_STEPS[2]] = lock_hashes(srv)
+
+    def held(step, first=False):
+        lock_hold(srv, clients, step, first)
+        hashes[step] = lock_hashes(srv)
+        hashes[step]["values"] = lock_values(srv, (ea, eb), LOCK_VALUE_FIELDS)
+
+    if dm:
+        held(LOCK_DM_STEPS[0], first=True)
+        a.cmd("impulse 100")
+        b.cmd("vr_mock_stick off 0 1")
+        held(LOCK_DM_STEPS[1])
+        a.cmd("impulse 100")
+        held(LOCK_DM_STEPS[2])
+        b.cmd("vr_mock_stick off 0 0")
+        a.cmd("vr_mock_stick off 1 0")
+        held(LOCK_DM_STEPS[3])
+        hashes["players"] = frag_table(a)
+    else:
+        held(LOCK_STEPS[0], first=True)
+        srv.cmd("vr_test_spawn 7; vr_test_spawn_dist 250")
+        a.cmd("impulse 241")
+        b.cmd("vr_mock_stick off 0 1")
+        held(LOCK_STEPS[1])
+        b.cmd("vr_mock_stick off 0 0")
+        a.cmd("vr_mock_stick off 1 0")
+        held(LOCK_STEPS[2])
     hashes["predict"] = predict_report(b)
     for inst in (a, b, srv):
         inst.stop()
-    s.note("run %d: %s" % (r, {st: {k: v for k, v in h.items() if k != "fields"} for st, h in hashes.items()
-                               if st != "predict"}))
+    s.note("run %s: %s" % (tag, {st: {k: v for k, v in h.items() if k not in ("fields", "values")}
+                                 for st, h in hashes.items() if st not in ("predict", "players")}))
     return hashes
 
 
-def lockstep(s):
-    """(B14b) Two lockstep runs of the same play (lockstep_run): at each held step the rigid bodies', the edicts' and
-    the navmesh's and paths' hashes the same in both; the play did something (B moved, the rottweiler has a path)."""
-    h1 = lockstep_run(s, 1)
-    h2 = lockstep_run(s, 2)
-    for step in LOCK_STEPS:
+def lock_compare(s, h1, h2, steps):
+    """Two lockstep runs' hashes at each of `steps` checked equal: the rigid bodies, the navmesh, every edict field but
+    LOCK_CLIENT_FIELDS (noted when they differ, with the players' values of LOCK_VALUE_FIELDS that differ)."""
+    for step in steps:
         for kind in ("physics", "nav"):
             same = h1[step][kind] == h2[step][kind]
             s.check("step %d: the %s hash the same in both runs" % (step, kind), same,
@@ -4461,8 +4497,33 @@ def lockstep(s):
                     {k: f1.get(k) for k in world}, {k: f2.get(k) for k in world})) if world else ""))
         if off:
             s.note("step %d: the client-reported fields that differ: %s" % (step, ", ".join(sorted(off))))
+        v1, v2 = h1[step]["values"], h2[step]["values"]
+        vdiff = sorted(k for k in set(v1) | set(v2) if v1.get(k) != v2.get(k))
+        if vdiff:
+            s.note("step %d: values that differ: %s" % (step, "; ".join("%s: %s | %s" % (k, v1.get(k), v2.get(k))
+                                                                     for k in vdiff[:16])))
     s.check("the play changed the world (the edicts' hash moved on)",
-            len(set(h1[st]["state"] for st in LOCK_STEPS)) == len(LOCK_STEPS))
+            len(set(h1[st]["state"] for st in steps)) == len(steps))
+
+
+def lockstep_dm(s):
+    """(B14c) Two lockstep deathmatch runs on dm4 with two FrikBot bots (lockstep_run dm): the bots' thinking (random()
+    on the server's seeded stream), their waypoints' navigation and their walks through the players' moves the same in
+    both: every hash equal at each held step."""
+    h1 = lockstep_run(s, 1, dm=True)
+    h2 = lockstep_run(s, 2, dm=True)
+    lock_compare(s, h1, h2, LOCK_DM_STEPS)
+    p1, p2 = h1["players"], h2["players"]
+    s.check("four players in each run (A, B, two bots), named and scored the same", len(p1) == 4 and p1 == p2,
+            "%s | %s" % (p1, p2))
+
+
+def lockstep(s):
+    """(B14b) Two lockstep runs of the same play (lockstep_run): at each held step the rigid bodies', the edicts' and
+    the navmesh's and paths' hashes the same in both; the play did something (B moved, the rottweiler has a path)."""
+    h1 = lockstep_run(s, 1)
+    h2 = lockstep_run(s, 2)
+    lock_compare(s, h1, h2, LOCK_STEPS)
     agents = re.search(r"(\d+) agents, paths ([0-9a-f]+) \((\d+) found\)", h1[LOCK_STEPS[2]]["nav"])
     s.check("a monster followed a navmesh path", agents is not None and int(agents.group(3)) > 0,
             h1[LOCK_STEPS[2]]["nav"])
@@ -4491,8 +4552,8 @@ def frag_table(inst, since=0):
 def deathmatch(s):
     """(B11) A dedicated deathmatch server (deathmatch 1, fraglimit 3) on dm4: A and B (B through the proxy) join at
     deathmatch starts; A adds two FrikBot bots (impulse 100): both clients list four players, the bots move;
-    A is killed by a bot (the server's vr_hurt with the bot as attacker) and his trigger respawns him, until the
-    bot's frags reach the fraglimit:
+    A is killed by a bot (the server's vr_hurt with the bot as attacker) and his trigger respawns him; then
+    A's kills of the bots (vr_hurt, A the attacker) reach the fraglimit (B14c: the bots' frags go down in the lava):
     the intermission at both clients, their scoreboards the same."""
     srv = s.server(dedicated=True)
     srv.start()
@@ -4598,7 +4659,7 @@ def deathmatch(s):
     # the bot's frags (and any the bots score by themselves) reach the fraglimit: the intermission
     killer = bots[0]
     kills, respawns, first = 0, 0, None
-    for _ in range(DM_FRAGLIMIT + 2):
+    for _ in range(2):
         if a.find(r"mp_event: .*intermission=[1-9]", since_a):
             break
         since_k = a.mark()
@@ -4630,6 +4691,22 @@ def deathmatch(s):
                 break
     s.check("A killed by the bot, then his trigger respawns him", kills >= 1 and respawns >= 1,
             "%d deaths, %d respawns; the first at %s" % (kills, respawns, first.split("org=")[1] if first else "-"))
+
+    # (B14c) A frags the bots (the server's vr_hurt with A as attacker) until his frags reach the fraglimit: the bots'
+    # own frags can't get there for sure, as dm4's lava takes one off a bot every few seconds (FrikBot's falls, B14b's
+    # failing runs: 17 of them in a minute against the test's 5 kills)
+    a_kills = 0
+    for i in range(DM_FRAGLIMIT * 3):
+        if a.find(r"mp_event: .*intermission=[1-9]", since_a):
+            break
+        mine = frag_table(a).get(ea - 1, ("", 0))[1]
+        if mine >= DM_FRAGLIMIT:
+            break
+        since_f = a.mark()
+        srv.cmd("vr_hurt 1000 %d %d" % (bots[i % 2], ea))  # (a bot dead in the lava now: the other one next)
+        if wait_or_none(a, r"mp_frags: .*slot=%d named=1 .*frags=%d" % (ea - 1, mine + 1), 3, since_f):
+            a_kills += 1
+    s.check("A frags the bots (vr_hurt, A the attacker): his frags count them", a_kills >= 1, "%d kills" % a_kills)
 
     # the fraglimit ends the match
     _, ia = a.wait(r"mp_event: .*intermission=[1-9]", 30, since_a, "the intermission at A")
@@ -4710,6 +4787,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             lagcomp(s)
         elif test == "mp_lockstep":
             lockstep(s)
+        elif test == "mp_lockstep_dm":
+            lockstep_dm(s)
         elif test == "mp_dm":
             deathmatch(s)
         elif test in ("mp_voice", "mp_voice_lossy"):
@@ -4740,7 +4819,7 @@ def print_bytes_table():
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -4777,7 +4856,7 @@ def main():
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep"):
+                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

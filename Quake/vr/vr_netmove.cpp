@@ -7,10 +7,12 @@
 #include "vr_cvars.hpp"
 #include "vr_protocol.hpp"
 #include "vr_testkit.hpp"
+#include "vr_melee_shared.h"
 
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Fmod.hpp"
 #include "Zancle/Math/Round.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -656,6 +658,15 @@ bool serverRunNext(client_t* client, ApplyFn apply)
     slot->counts.run++;
     WireMove m;
     dequantize(slot->moves[next % ring], m);
+    if(m.vr.poseClock >= 0.f)
+    {
+        // (B14c) The poses' clock from the first move the world ran, a step a move: the client's own count starts at
+        // its connection, and the first move the server runs (slot->low, the oldest read since the slot's reset) is a
+        // matter of timing; the melee's speeds over the clock's 10-microsecond steps (.vr_posetime, .mh_hdt) went
+        // apart between runs by one of them.
+        m.vr.poseClock = static_cast<float>(
+            za::fmod(static_cast<double>(next - slot->low) * host_frametime, static_cast<double>(VR_POSE_CLOCK_WRAP)));
+    }
     apply(client, m, true);
     return true;
 }

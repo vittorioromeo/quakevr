@@ -491,12 +491,23 @@ void hurt_f()
         Con_Printf("usage: vr_hurt <damage> [<slot>] [<attacker entity>]\n");
         return;
     }
-    edict_t* player = slotPlayer("vr_hurt", 2);
+    if(!sv.active)
+    {
+        Con_Printf("vr_hurt: not hosting a game\n");
+        return;
+    }
+    const qvr::progs::ServerVm vm;
+    // (B14c: a bot's slot too -- FrikBot's bots are the edicts of slots no client is in: mp_dm's fraglimit reached by A's
+    // kills of a bot, whose frags its own deaths in dm4's lava take away)
+    const int slot = Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) : 0;
+    edict_t* bot = slot >= 0 && slot < svs.maxclients && !svs.clients[slot].active && (isDedicated || deathmatch.value == 0.f)
+                       ? EDICT_NUM(slot + 1)
+                       : nullptr;
+    edict_t* player = bot && !bot->free && !strcmp(PR_GetString(bot->v.classname), "player") ? bot : slotPlayer("vr_hurt", 2);
     if(!player || player->v.health <= 0.f)
     {
         return;
     }
-    const qvr::progs::ServerVm vm;
     edict_t* attacker = qcvm->edicts;
     if(Cmd_Argc() > 3)
     {
