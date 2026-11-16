@@ -113,7 +113,10 @@ is in; apply_titles sets it from `subdelay:`), Scrim, **Shadow Opacity**
 1080p) for the title's and the subtitle's drop shadows (the subtitle's uses half the softness and offset, as its text
 is smaller; both scale with the frame and follow the in/out blur), Margin X / Y (safe
 area, fractions of the frame), Title size, font and tracking, Subtitle size, font and tracking. Lighting and blood
-follow the title's own extent, so any text length works. A change made
+follow the title's own extent, so any text length works. Sizes measured on an image (the text's crop) are real pixels;
+built-in tools (Crop, Background, blurs) take full-resolution pixels and apply Fusion's proxy themselves, so the
+macros divide by the proxy scale `K` that a 1024-wide `ProxyProbe` Background measures (Custom tools use real pixels).
+Keep that rule when adding a pixel-sized input. A change made
 there by hand is overwritten for the fields apply_titles sets (text, corner, hold, and in/out/intensity when given in
 titles.txt) on its next run; the rest stays. To change the default look for every title, edit the inputs' values in
 `QVR Feature Title.setting` (or open a title in the Fusion page, adjust the nodes inside the macro), reinstall, and
@@ -137,7 +140,7 @@ works only where its result can show (lossless lazy `if` gates). For real-time p
 - **`apply_titles.py --bake`** renders each title once to a ProRes 4444 clip with alpha (in *QVR Titles (baked)* next to the trailer's media, or `--bake-dir`) and places it on the QVR Titles track instead of the live title: real-time playback. Always full quality (Draft off). The clip's name carries a digest of the title's comp, frame size and length: unchanged titles reuse their clip without rendering; a plain run keeps baked titles baked until one changes (then it goes back live: `--bake` again). All the titles to render go to the render queue as one batch (only these jobs are taken off it afterwards); the Edit page stays usable but don't edit while it renders. Expect about the live cost per frame: the intro ~0.45 s a frame at 1080p (2.5 min for 5.57 s), a feature title ~0.15 s (1 min for 6 s). A title made with an older template (before the Draft toggle) renders much slower: apply_titles says so; `--rebuild` first.
 - **`--unbake`** (or `--rebuild`) puts the live titles back; the section timelines were never touched, so nothing is lost.
 - **Resolve's own**: right-click the titles track's clips > **Render Cache Fusion Output > On** (or Playback > Render Cache > **Smart**): each title renders once in the background, then plays from the cache until changed.
-- **Playback > Timeline Proxy Resolution > Half / Quarter** plays the timeline at a lower resolution while editing (its effect on Fusion titles not measured here); the delivered render is unaffected.
+- **Playback > Timeline Proxy Resolution > Half / Quarter** plays the timeline at a lower resolution while editing; the delivered render is unaffected. Both titles follow Fusion's proxy scale (introfix, 2026-11-16: before, their crops, canvases and blurs were scaled down twice under a proxy, so the preview showed a fraction of the letters and the metal and blood misplaced). Don't expect it to make the titles much faster: at 1080p and below their cost is per frame, not per pixel (the intro ~0.45 s a frame at 1080p, 540p and 270p alike); it helps at 4K. Bake (or the render cache) for real-time playback.
 
 ## Preview
 
