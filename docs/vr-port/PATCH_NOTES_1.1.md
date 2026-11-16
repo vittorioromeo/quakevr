@@ -400,7 +400,8 @@ old default move to the new one, and values you changed stay yours.
 - The physgun moves ragdolls naturally by the part it holds.
 - Creator tools (flat screen or developer): the Rig Studio, Pose Studio and Grip Editor, the Weapon Studio, the Armour
   Studio, the Ragdoll Tool (`-ragtool`), the animation recorder and the Blade Shape editor.
-- Recording: takes and clips for trailers.
+- Recording: takes and clips for trailers, and a DaVinci Resolve title kit (embossed metal feature titles with blood
+  drips and soft drop shadows).
 - Voice notes with context and an instant replay, and an in-game Checklist with Test buttons, for testers.
 - Every model's source is a Blender file in the repository, with an add-on that exports on save.
 
