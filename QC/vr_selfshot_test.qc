@@ -78,7 +78,21 @@ string(float xCase) VR_SST_Name =
     if(xCase == 1) { return "off forearm"; }
     if(xCase == 2) { return "thigh"; }
     if(xCase == 3) { return "nail at the off forearm"; }
+    if(xCase == 5) { return "flare at the off forearm"; }
     return "nail started inside the off forearm";
+};
+
+// A flare from `xFrom` going `xDir`, as the main hand's flare gun's (VR_ShotLaunched marks it). His note
+// vrtesthall_2026-11-16_00-40-33: your own flare into your arm sets you on fire, as it does an enemy.
+entity(entity p, vector xFrom, vector xDir) VR_SST_Flare =
+{
+    entity oldSelf = self;
+    self = p;
+    entity f = VR_Flare_Launch(xFrom, xDir, cvar_hget(cvarh_vr_flaregun_speed), '0 0 0');
+    VR_ShotLaunched(f, cVR_MainHand);
+    setorigin(f, xFrom);
+    self = oldSelf;
+    return f;
 };
 
 // A nail from `xFrom` going `xDir`, as the main hand's (VR_ShotLaunched marks it).
@@ -134,6 +148,11 @@ void(entity p) VR_SST_Aimed =
             vr_sst_nail = VR_SST_Nail(p, muzzle, normalize(selfhit_point(QVR_SS_PART_OFF_FOREARM, 0.5) - muzzle));
             VR_SST_To(2, 0);
         }
+        else if(vr_sst_case == 5)
+        {
+            vr_sst_nail = VR_SST_Flare(p, muzzle, normalize(selfhit_point(QVR_SS_PART_OFF_FOREARM, 0.5) - muzzle));
+            VR_SST_To(2, 0);
+        }
         else
         {
             vector mid = selfhit_point(QVR_SS_PART_OFF_FOREARM, 0.5);
@@ -167,12 +186,20 @@ void(entity p) VR_SST_Aimed =
         }
         VR_Test_Check(selfhit_info(2) >= 0 && selfhit_info(2) < 1.5 && selfhit_info(3) == part,
             sprintf("%s: wound %.2f units from the hit, on part %g", n, selfhit_info(2), selfhit_info(3)));
+        if(vr_sst_case == 5)
+        {
+            VR_Test_Check(p.burn_fire != world, sprintf("%s: you catch fire (vr_flare_burn %g)", n, cvar_hget(cvarh_vr_flare_burn)));
+            if(p.burn_fire != world)
+            {
+                VR_Burn_Out(p.burn_fire, "the test"); // (the head's damage next: no burn in it)
+            }
+        }
         vr_sst_case++;
         if(vr_sst_case == 2 || vr_sst_case == 3)
         {
             localcmd(strcat(vr_sst_case == 2 ? VR_SST_THIGH_POSE : VR_SST_AIM_POSE, "\n"));
         }
-        VR_SST_To(vr_sst_case <= 4 ? 1 : 3, VR_SST_POSE_FRAMES);
+        VR_SST_To(vr_sst_case <= 5 ? 1 : 3, VR_SST_POSE_FRAMES);
         return;
     }
     if(vr_sst_s == 3)

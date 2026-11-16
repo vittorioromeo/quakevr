@@ -246,6 +246,7 @@ FIXME: walk all entities and NULL out references to this entity
 void ED_Free (edict_t *ed)
 {
 	VR_OnEdictFree (ed); // QVR: its wounds, if any, cleared on the clients (a new entity in its slot starts clean)
+	VR_SoundLoopsFreed (ed); // QVR: and a loop still playing on it stopped (vr/vr_server.cpp)
 	SV_UnlinkEdict (ed);		// unlink from world bsp
 	ED_AddToFreeList (ed);
 

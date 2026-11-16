@@ -971,7 +971,7 @@ weapon 5
     wpntxt_pitch "33.58" // (the housing's plate, make_screen_housing_gl.py; vr_wofs_version 76: was 28.4)
     wpntxt_roll "0.0"
     wpntxt_scale "0.3"
-    wpntxt_x "-2.7"
+    wpntxt_x "-2.71"
     wpntxt_y "-1.645"
     wpntxt_yaw "0"
     wpntxt_z "2.6"
@@ -1050,11 +1050,11 @@ weapon 6
     wpntxt_av "1.0721 2.5959 3.3086"
     wpntxt_pitch "40"
     wpntxt_roll "-0.5"
-    wpntxt_scale "0.25"
-    wpntxt_x "-0.15"
+    wpntxt_scale "0.26"
+    wpntxt_x "-0.2"
     wpntxt_y "-1.05"
     wpntxt_yaw "0.0"
-    wpntxt_z "1.65"
+    wpntxt_z "1.675"
     wpntxtmode "1"
     x "10.1"
     y "7.3"
@@ -1062,8 +1062,8 @@ weapon 6
     z "6.3"
     hs1_type "1"
     hs1_x "1.955872"
-    hs1_y "-5.255043"
-    hs1_z "-6.472252"
+    hs1_y "-5.6"
+    hs1_z "-7.4"
     hs1_pitch "5.073656"
     hs1_yaw "-1.578033"
     hs1_roll "15.679543"
@@ -2813,6 +2813,7 @@ weapon 27
     stock_pitch "10"
     w_heft "0" // AD soldiers' guns
     fx_punch "0.640513"
+    fsight_mode "1"
 }
 
 // slot 28: progs/v_gruntgun.mdl#adv34 (vr_wofs_*_29)
@@ -2903,6 +2904,7 @@ weapon 28
     stock_pitch "10"
     w_heft "0"
     fx_punch "0.640513"
+    fsight_mode "1"
 }
 
 // slot 29: progs/v_gruntgun.mdl#adv5 (vr_wofs_*_30)
@@ -2993,6 +2995,7 @@ weapon 29
     stock_pitch "10"
     w_heft "0"
     fx_punch "0.640513"
+    fsight_mode "1"
 }
 
 // slot 30: progs/v_gruntgun.mdl#adv6 (vr_wofs_*_31)
@@ -3086,6 +3089,7 @@ weapon 30
     fx_stream_shake "1.75"
     fx_stream_haptic "1.25"
     fx_gfx_mask "1442:AAAAAAAAwDgBAAAAAAAAA-vfwjZAAAAAAAMAAAAAAAw__DAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8___________PAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAw__________DAAAAAAAAAAAAAAAAw__7________PAHA_________D"
+    fsight_mode "1"
 }
 
 // slot 31: progs/v_gruntgun.mdl#adv7 (vr_wofs_*_32)
@@ -3178,6 +3182,7 @@ weapon 31
     fx_punch "0.640513"
     fx_stream_shake "1"
     fx_stream_haptic "1"
+    fsight_mode "1"
 }
 
 // slot 32: progs/w_dcrossbow.mdl#gun (vr_wofs_*_33)
@@ -3288,6 +3293,7 @@ weapon 32
     torch_fwd "-0.1315"
     w_heft "0.2" // AD crossbow (10.65 kg, but held as a pistol crossbow)
     fx_punch "0.640513"
+    fsight_mode "1"
 }
 
 // slot 33: progs/v_shadaxe3.mdl#vr (vr_wofs_*_34)
@@ -3485,6 +3491,7 @@ weapon 35
     2h_z "1"
     hand_av "-2.7194 -1.5656 10.8636"
     id "progs/v_plasma.mdl#vr"
+    fsight_mode "1"
     pickup_tier "3"
     muzzle_av "31.8792 0.0195 10.3979"
     muzzle_x "-0.000005"

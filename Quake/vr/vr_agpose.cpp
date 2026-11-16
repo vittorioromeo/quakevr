@@ -579,6 +579,18 @@ constexpr ShippedRow shipped[] = {
     {203141, {11.46f, 2.69f, -3.1f, -0.2f, -1.6f, 0.9f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.38f, -0.89f, -0.27f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // knight, a two-handed melee weapon, Overhead, follow-through
     {203142, {10.16f, 0.3f, 5.74f, 47.4f, -53.2f, -51.5f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.37f, -0.77f, -0.52f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // knight, two melee weapons, Idle / Carry
+    {205000, {3.27f, 2.85f, -3.19f, -27.8f, -25.1f, 4.1f, 2.09f, 3.21f, -0.84f, 28.1f, -25.1f, 9.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // knight, two melee weapons, Ready
+    {205010, {8.56f, -0.91f, 7.61f, 25.4f, 6.5f, 13.6f, 6.47f, 4.9f, 8.38f, -29.4f, -5.f, -3.5f, -0.28f, -0.55f, -0.79f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // knight, two melee weapons, Run
+    {205020, {10.56f, 1.06f, 9.92f, -6.8f, -47.4f, -2.2f, 8.47f, -3.23f, 10.69f, 18.8f, -46.6f, 7.1f, 0.f, 0.f, 0.f, -0.55f, 0.78f, -0.3f, 0.f, 0.f, 0.f}},
+    // knight, two melee weapons, Dual Strike, wind-up
+    {205190, {5.75f, 9.73f, 11.66f, -41.6f, 68.f, -82.5f, 1.91f, -8.2f, 11.83f, 31.7f, 59.5f, 52.4f, 1.19f, 0.33f, -0.18f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // knight, two melee weapons, Dual Strike, blow
+    {205191, {-5.74f, -0.72f, -16.44f, -112.7f, -34.6f, -27.9f, -1.6f, -2.56f, -17.11f, 100.2f, -27.8f, 23.5f, 0.17f, -0.77f, 0.61f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // knight, two melee weapons, Dual Strike, follow-through
+    {205192, {-3.66f, -10.88f, -22.1f, -15.1f, 41.3f, -68.2f, -4.63f, 10.67f, -22.49f, 27.7f, 49.7f, 53.2f, -0.26f, -0.92f, -0.31f, -0.54f, 0.32f, -0.78f, 0.f, 0.f, 0.f}},
     // knight, two guns, Idle / Carry
     {206000, {4.53f, 7.f, -4.86f, 5.4f, 3.9f, 13.8f, 4.97f, -3.12f, -3.91f, -7.1f, 20.5f, -13.6f, -0.78f, -0.55f, -0.3f, -0.45f, 0.89f, 0.f, 0.f, 0.f, 0.f}},
     // knight, two guns, Aim

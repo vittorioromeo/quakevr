@@ -4,7 +4,7 @@
 
 ## Release candidate: please test
 
-This build is the **1.1 release candidate**, for testers: unless something serious turns up, it becomes 1.1.0. Please play it, in VR or on a flat screen, and try the highlights below first: the armed humanoids (disarm them, get disarmed, parry), the active ragdolls, the armour, a run with Run Setup and a mutator or two, Arena Mode, the dagger and the reverse grip, embedded blades, and flat-screen play (`-flatscreenmode`). Found a bug? **Options > Create Bug Report** makes a zip of your logs, crash reports and settings: attach it to a GitHub issue with a line on what happened.
+This build is the **1.1 release candidate**, for testers: unless something serious turns up, it becomes 1.1.0. Please play it, in VR or on a flat screen, and try the highlights below first: the armed humanoids (disarm them, parry), the active ragdolls, the armour, a run with Run Setup and a mutator or two, Arena Mode, the dagger and the reverse grip, embedded blades, and flat-screen play (`-flatscreenmode`). Found a bug? **Options > Create Bug Report** makes a zip of your logs, crash reports and settings: attach it to a GitHub issue with a line on what happened.
 
 ## Highlights
 
@@ -39,7 +39,7 @@ These are in the build for testing. Expect bugs, and expect their balance and se
 
 - Every grunt and enforcer a map spawns is its armed version (Gameplay > Replace All Humanoids), in Quake, the mission packs and Arcane Dimensions; knights and death knights carry their blades and, rarely, guns. Combat > Armed Grunts sets the odds of each weapon tier, dual wielding and a gun with an axe.
 - Disarming: a physical tug-of-war with one or two hands (they hold on, headbutt, shove or fire at you while you pull), a deliberate strike on the weapon or the hand, a shot to the gun, or grabbing the weapon of a downed one. A dual wielder loses only the struck weapon.
-- They can disarm you by the same rules: precise shots and blows on your gun or hand knock it out of your grip to the floor (Combat > Armed Grunts > Disarming: Your Weapon, on by default).
+- They can disarm you by the same rules: precise shots and blows on your gun or hand knock it out of your grip to the floor (Combat > Armed Grunts > Disarming: Your Weapon > You Can Be Disarmed; off by default in 1.1 while it is tuned).
 - Directional parry: the only parry now, for you and for them. A parry that meets the blow's line with yours always blocks; turning your weapon into it at the last moment staggers the attacker far harder than an early or late one. Dog and fiend lunges are parried with a level weapon.
 - Worn backpacks on the ones carrying ranged weapons: lift them off a living enemy, rip them off in a hard pull, or loot them from the body. Replaced enemies never drop extra weapons, only what they hold and their pack.
 - Armour plates on some: helmets, cuirasses and limb plates that dent, crack and fall by the plate a shot meets.

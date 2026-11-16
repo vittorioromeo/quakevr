@@ -347,6 +347,12 @@ QVR_CVAR(vr_obs_password, "", CVAR_ARCHIVE)            // obs-websocket's passwo
 QVR_CVAR(vr_obs_process_check, "1", CVAR_NONE)         // 1: on this PC, connect only while OBS's process runs (obs64.exe), and say when its WebSocket server is off; 0: always try; 2 (test aid): act as if OBS were running
 QVR_CVAR(vr_obs_mock, "0", CVAR_NONE)                  // 1 (tests): no OBS; requests answered by a mock that prints each and makes dummy recording files in vr_obs_mock_dir
 QVR_CVAR(vr_obs_mock_dir, "", CVAR_NONE)               // the mock's recording folder ("": <game dir>/obsmock)
+// Clean recording (Graphics > Recording, his note 2026-11-16): while OBS records (obs::recording(); the mock's too), what
+// is left out of the picture, in the headset too (obs::hides).
+QVR_CVAR(vr_obsrec_ghost_hands, "1", CVAR_ARCHIVE)     // 1: no Ghost Hands while OBS records
+QVR_CVAR(vr_obsrec_debug, "1", CVAR_ARCHIVE)           // 1: no debug markers while OBS records (the weapons' hotspot marks, the profiler's panel)
+QVR_CVAR(vr_obsrec_messages, "1", CVAR_ARCHIVE)        // 1: Recording Mode while OBS records (no tips, wrist messages or head-locked text: qvr::recordingClean)
+QVR_CVAR(vr_obsrec_as_if, "0", CVAR_NONE)              // test aid (Debug > OBS): act as if OBS were recording (the clean recording's options apply)
 // Takes and clips for trailers (vr_takes.cpp; TRAILER.md, "Takes and clips"): OBS's recordings as named, rated takes.
 QVR_CVAR(vr_takes, "1", CVAR_ARCHIVE)                  // 1: each OBS recording is a take: renamed <date>_<scene>_t<NN>_<rating>, rated keep / maybe / reject; 0: OBS's files left alone
 QVR_CVAR(vr_take_scene, "", CVAR_NONE)                 // the scene's name in the takes' names ("": the map's)
@@ -1700,7 +1706,7 @@ QVR_CVAR(vr_flashlight_tilt, "-5", CVAR_ARCHIVE)       // degrees the stored lam
 QVR_CVAR(vr_flashlight_forward, "0.025", CVAR_ARCHIVE)    // metres the belt clip sits further forward,
 QVR_CVAR(vr_flashlight_up, "0.25", CVAR_ARCHIVE)         // up,
 QVR_CVAR(vr_flashlight_out, "-0.05", CVAR_ARCHIVE)        // and out (towards its side)
-QVR_CVAR(vr_flashlight_armor_forward, "0", CVAR_ARCHIVE) // metres more forward on the belt while the armour's plates show on your body (they can pass through the torch); 0 off
+QVR_CVAR(vr_flashlight_armor_forward, "0.03", CVAR_ARCHIVE) // (his, 2026-11-16) metres more forward on the belt while the armour's plates show on your body (they can pass through the torch); 0 off
 QVR_CVAR(vr_flashlight_side, "0", CVAR_ARCHIVE)       // the hip it hangs on: 0 the left, 1 the right
 QVR_CVAR(vr_flashlight_grab_range, "1", CVAR_ARCHIVE) // times how far from the torch a hand reaches it (lit, taken; 9 cm from its axis at 1), 0.25..4
 QVR_CVAR(vr_flashlight_head_range, "1.5", CVAR_ARCHIVE) // times the head's zone's radius (vr_flashlight_head_zone_radius: clipping it on, taking it off), 0.25..4
@@ -2235,6 +2241,7 @@ QVR_CVAR(vr_dropcap_test, "0", CVAR_NONE)                  // the QC tests the c
 QVR_CVAR(vr_dropcap_test_n, "0", CVAR_NONE)
 QVR_CVAR(vr_prop_impact_test, "0", CVAR_NONE)              // the QC runs the props' impact rule test n (vr_propimpact_test.qc; Debug > Gore Tests): 1 every kind tapped, hit, struck hard, smashed held, thrown; propimpact: lines; 4 a fuel tank and a crate as heavy thrown at a grunt and an ogre (fueltankhit: lines)
 QVR_CVAR(vr_footstep_test, "0", CVAR_NONE)               // 1: each biped in turn walks, then runs, by the player; the steps' report (QC vr_footstep_test.qc; vr_footsteps.cpp), `footstep_test: N passed, M failed`
+QVR_CVAR(vr_v1116_test, "0", CVAR_NONE)                 // his 11-16 notes (vr_v1116_test.qc; Debug > Tests > Looping Sounds / Wet Check): 1 a chainsaw knight's loops stopped on each transition; 2 e1m1's bridge grunts never wet
 QVR_CVAR(vr_selfshot_test, "0", CVAR_NONE)               // shooting yourself (vr_selfshot_test.qc; Debug > Tests > Shoot Yourself): 1 aimed at your palm, forearm, thigh; 2 ordinary firing never hits you
 QVR_CVAR(vr_grenfuse_test, "0", CVAR_NONE)             // one fuse for every grenade and the launched ones' countdown (vr_grenfuse_test.qc; Debug > Tests > Grenade Fuses)
 QVR_CVAR(vr_projinherit_test, "0", CVAR_NONE)           // what projectiles keep of your motion (vr_projinherit_test.qc; Debug > Tests > Projectiles Keep Your Motion): 1 mock headset: strafe and hand swing; 2 flat-screen (-flatscreenmode): a fast turn adds nothing
@@ -2607,7 +2614,7 @@ QVR_CVAR(vr_agrunt_repl_common, "0.5", CVAR_ARCHIVE)     // 0..1: the chance one
 QVR_CVAR(vr_agrunt_repl_uncommon, "0.25", CVAR_ARCHIVE)   // 0..1: ... a nailgun, super nailgun or super shotgun (one a player owns)
 QVR_CVAR(vr_agrunt_repl_rare, "0.15", CVAR_ARCHIVE)       // 0..1: ... a launcher, the thunderbolt, a melee weapon, a mission pack's gun (owned; from vr_agrunt_repl_rare_map on)
 QVR_CVAR(vr_agrunt_repl_rare_map, "4", CVAR_ARCHIVE)   // rare weapons only from this map of an episode on (e1m4, hip1m4, ...; 0: any map)
-QVR_CVAR(vr_agrunt_repl_dual, "0.15", CVAR_ARCHIVE)       // 0..1: the chance of a second weapon that pairs (two guns, two blades)
+QVR_CVAR(vr_agrunt_repl_dual, "0.1", CVAR_ARCHIVE)        // (his, 2026-11-16) 0..1: the chance of a second weapon that pairs (two guns, two blades)
 QVR_CVAR(vr_agrunt_repl_gunaxe, "0.15", CVAR_ARCHIVE)     // 0..1: the chance of a gun and a melee weapon (axe or dagger, by vr_agrunt_w_axe/_dagger; the gun, the blade up close)
 QVR_CVAR(vr_agrunt_repl_id, "1", CVAR_ARCHIVE)         // 1: in Quake's own campaigns (id1, Dimension of the Past, the Machine Games' ones) and their custom maps
 QVR_CVAR(vr_agrunt_repl_mp, "1", CVAR_ARCHIVE)         // 1: in the mission packs (Scourge of Armagon, Dissolution of Eternity)
@@ -2670,7 +2677,7 @@ QVR_CVAR(vr_agrunt_shotdisarm_proj_chance, "0.2", CVAR_ARCHIVE) // ... the chanc
 QVR_CVAR(vr_agrunt_shotdisarm_proj_ref, "9", CVAR_ARCHIVE)     // ... the damage that chance is for (a nail's): more damage, more chance
 QVR_CVAR(vr_agrunt_shotdisarm_proj_near, "4", CVAR_ARCHIVE)    // ... units past the weapon or hand a miss still rolls, its chance down to 0 there
 QVR_CVAR(vr_agrunt_shotdisarm_proj_max, "0.8", CVAR_ARCHIVE)   // ... the most one projectile's chance (a rocket's direct hit)
-QVR_CVAR(vr_player_disarm, "1", CVAR_ARCHIVE)                 // 1: enemies' shots and blows on your held weapon or its hand knock it out by the armed grunts' rules (vr_playerdisarm.qc; multiplayer: other players' too)
+QVR_CVAR(vr_player_disarm, "0", CVAR_ARCHIVE)                 // off by default in 1.1 (inconsistent; BACKLOG.md 6). 1: enemies' shots and blows on your held weapon or its hand knock it out by the armed grunts' rules (vr_playerdisarm.qc; multiplayer: other players' too)
 QVR_CVAR(vr_player_disarm_sound, "1", CVAR_ARCHIVE)           // your weapon knocked out: its sounds' volume (the clang at the weapon for everyone near, vr/disarm_clang.wav; the alert to you alone, vr/disarm_sting.wav; 0 silent; QC VR_PD_Disarm)
 QVR_CVAR(vr_player_disarm_chance, "1", CVAR_ARCHIVE)          // times the armed grunts' chance for your weapon (1 the same; at most certain; 0 never)
 QVR_CVAR(vr_pd_test, "0", CVAR_NONE)                          // the player disarm's test (QC vr_playerdisarm_test.qc; Debug > Tests > Player Disarm): 1 shots at your gun and body, the option off
@@ -3716,7 +3723,7 @@ QVR_CVAR(vr_reload_mode_revolver, "-1", CVAR_ARCHIVE) // the heavy revolver's
 // holsters' competition: the one a hand is most within). Pitch, Yaw, Roll: degrees, its top away from the body, about
 // where the hand reaches for it; Size: times the model's.
 QVR_CVAR(vr_ammo_pouch_x, "3", CVAR_ARCHIVE)
-QVR_CVAR(vr_ammo_pouch_armor_x, "0", CVAR_ARCHIVE) // units the pouch moves further forward while the armour's plates show on your body (they can pass through it); 0 off
+QVR_CVAR(vr_ammo_pouch_armor_x, "1.25", CVAR_ARCHIVE) // (his, 2026-11-16) units the pouch moves further forward while the armour's plates show on your body (they can pass through it); 0 off
 QVR_CVAR(vr_ammo_pouch_y, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_z, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_thresh, "5", CVAR_ARCHIVE)
