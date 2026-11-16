@@ -53,6 +53,9 @@ Flat-screen or VR: switch the rocket launcher to its multi-rocket model and look
 Flat-screen or VR: hold the rocket launcher in its multi-rocket model and the normal one, one after the other: the ammo screen on the finger, the grips and the muzzle sit in the same places on both. {test:mrl_vents}
 Hold your gun out towards shooting grunts or an enforcer: shots that hit the gun or your gun hand now and then knock it out of your hand (sparks, ricochet, buzz, flash); it drops to the floor with its ammo and you can pick it up again. Shots on your body never disarm you, fists never. {test:player_disarm}
 A knight's sword or an ogre's chainsaw landing on your weapon held at the wrong angle (not a parry) knocks it out of your hand; a proper parry never does. Combat > Armed Grunts, Disarming: Your Weapon turns it off or scales the chance.
+Hold the nailgun and switch it to lava nails: the lava model has the same bevelled bezel, round fasteners and ammo screen as the default one. {test:nail_alt_housing}
+Hold the super nailgun and switch it to lava nails: the lava model has the same riveted wedge and tilted ammo screen as the default one. {test:nail2_alt_housing}
+Hold the Thunderbolt and switch it to plasma: the plasma model has the same bronze plate, trapezoid window and rivets as the default one. {test:light_alt_housing}
 
 [7. VR: physics, bodies and gore]
 
