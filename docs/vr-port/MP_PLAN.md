@@ -214,7 +214,7 @@ player unchanged.
 | **B11** (part 1 done in B13: `mp_dm`, bots, frags, respawn, the fraglimit; the rest is B11 part 2) | Deathmatch and bots: frags, respawns, DM item rules with VR weapons, FrikBot with VR-aware bodies | `mp_dm` (two clients and two bots, a fraglimit reached) |
 | **B11 part 2** | The rest of B11: deathmatch 1 and 2's item rules with VR weapons (a level weapon taken and respawned, or staying; `vr_item_objects`, force grab), the VR melee and armed systems between players and bots in deathmatch (a blade's hit, a disarm), bots' bodies and hands as the clients draw them, FrikBot's walk through the shared movement (`vr_pmove`), names in the harness | `mp_dm` grown |
 | **B12** (B14 part 1 done: the moves' results client against server, the thread audit; the world's hashes are B14b) | Determinism: Box3D, navmesh and pathfinding hashes equal across runs with several clients; the server-thread audit in multiplayer | hash scenarios |
-| **B13** | Polish and performance: ICE/NAT traversal (optional), server browser, latency HUD, CPU of many players | soak tests |
+| **B13** (done: the browser, the net HUD, B13b's 16 players at real time; ICE/NAT on his OK; the rest is B13c) | Polish and performance: ICE/NAT traversal (optional), server browser, latency HUD, CPU of many players | soak tests |
 
 ## 4. Test harness
 
@@ -2913,4 +2913,59 @@ address as today. Routers with symmetric NAT (a new mapping per destination) def
 forwards the datagrams, a bandwidth cost) or the port forward. IPv6 needs no punching where both have it. The browser
 would list such servers by code with the favourites. Needs his OK for hosting a service.
 
-Next phase: B13b -- the CPU and the link of 16 players: deathmatch caps on loose gibs and dropped weapons, the gibs' touch and trace only while moving, the broadcast datagram culled by sight, a default rate cap; mp_soak's pace and link as checks; B10v's VR checks are his (a real microphone, the spatial mixers).
+### B13b results: the CPU and the link of 16 players (2026-11-16, dev no-LTO build, loopback; `mp_soak` 14/0)
+
+`mp_soak` (dm3, A, B through a proxy, 14 bots; 10 s of the server's game time), before -> after (both in low-impact
+runs, his game open):
+
+| | B13 | B13b |
+|---|---|---|
+| the server's pace | 0.18-0.74 of real time (0.38 at the start of this phase) | 0.99 (it keeps real time) |
+| its frame | Box3D 130 ms, QuakeC 50 ms (VR_Gib_Touch 12%, forcegrabbable_touch 12%, VR_Gib_TraceHeld 4%) | Box3D 1-2 ms, QuakeC ~4 ms (the melee's sweep first) |
+| Box3D at the window's end | 1046 bodies, 856 awake (451 gibs, 345 props) | 274-311 bodies, 125-131 awake (14-20 gibs, 28-45 props) |
+| edicts | 1731 (667 classless: gibs; 274 weapons, 308 records) | 576-613 (~30 loose gibs, 21-32 weapons) |
+| telefrags in the window | ~100-200 of the living | 0 |
+| B's link down | 37 KB/s (35 datagrams/s at the slow pace) | 24 KB/s (77 a second at real pace); 72% of the broadcast's known bytes culled |
+
+- **Deathmatch caps** (`vr_dmloose.qc`, StartFrame): Most Loose Gibs `vr_dm_gibs_max` 64 and Most Dropped Weapons
+  `vr_dm_weapons_max` 32 (0: no cap; Debug > Network rows): past them the oldest go first (a gib by `.vr_gib_made`, a
+  weapon by its deathmatch removal time), never one held, skewered or being force-pulled; small gibs and limbs keep
+  their own caps. Deathmatch only: single player and coop as they were (`vr_dm_test 7` checks both). `.vr_gib` is now in
+  the engine's edict index (`findflags`), so the cap walks the gibs only, and `VR_Gib_TraceHeld` (a pellet's skewered
+  gib) walks them instead of every edict.
+- **The gibs' touch only while it can matter** (vr_physics.cpp `gibTouchIsNothing`): a rigid gib's own touch is no longer
+  called when it can do nothing -- not thrown, past its grace with what it was made in (`vr_gib_spawn_harmless`, the
+  born-in chain), slower than any flung prop hurts (and its 220 u/s splat), the toucher not a BSP mover. The player's hand
+  touch still goes. Behaviour-preserving in single player too: `vr_prop_touch_verify 1` runs each skipped touch and
+  checks no entity, global or message changed (1251 checked on e1m1 with gibs and a walk, none changed; the gib props
+  table 3/3 monsters with it on). Its "trace": the held-gib walk above.
+- **The broadcast culled by sight** (`vr_net_cullbroadcast` 1, vr_server.cpp `VR_WriteBroadcast`): a remote client gets
+  each known message of the unreliable broadcast only if its point is in his fat PVS (particles, temp entities, Quake
+  VR's particles and tracers: either end) or, a sound (and a gore sound), nearer than its falloff reaches at half
+  `vr_snd_falloff` (2000 units at ATTN_NORM; ATTN_NONE always). Messages not known, and what follows one to the next
+  boundary, go to everyone as before; the loopback client gets all of it (single player and a listen host's own view
+  unchanged). `vr_net_broadcast_report [reset]` prints the bytes sent, culled and not known.
+- **A default rate cap**: `vr_net_rate` 80000 B/s (was 0, no cap). 40000 was tried first: the server sends a remote
+  client a datagram every one of its 72 frames, so even dm4 with two bots reached it, his records waited and
+  `vr_dm_test 3`'s parry failed 2 runs of 3 (the lag compensation read an older place); with 0 and 80000 it passed.
+  The rate slider now goes to 160000.
+- **Respawns beside a taken start** (client.qc `VR_DMBesideSpot`): every start with a living player at it (deathmatch,
+  not CTF's team starts), the respawn takes a place 48-144 units beside one (8 ways, the start's facing first): the
+  player's box clear of the level all the way from the start and of solid things there, a floor within 40 units under
+  it, no liquid, no living player within 64 units. Only when there is none does it wait (up to 2 s) and then telefrag as
+  stock Quake did. `vr_dm_test 8`: the human on the only start counted, the bot respawned 96 units beside it, nobody
+  telefragged.
+- **mp_soak's checks** (14): 16 players at both clients, edicts under 2048, loose gibs under the cap (+32 for a frame's
+  deaths) and weapons (+16), frags scored, B's link under 34 KB/s, the server's pace at least 0.8 of real time, the
+  broadcast culled, at most 10 telefrags in the window, nobody left, clean quits.
+- **mp_dm** 22/0 with `vr_dm_test 7` and 8.
+
+Open items:
+- **The rate's pressure on the lag compensation**: under a cap a client's records wait, and the lag compensation judges
+  his parry at a place he had not been sent yet (`vr_dm_test 3` at 40 KB/s). Its rewind should use the places he was
+  actually sent (the acknowledged snapshot's), not the frame's.
+- The server still sends every remote client a datagram each of its 72 frames (~40 KB/s for a small game): a send
+  rate of its own (36 Hz with the interpolation buffer) would halve it.
+- An LTO soak with `--exclusive` for the pace's headroom (this phase's runs were all low-impact).
+
+Next phase: B13c -- the lag compensation's rewind at the places a client was sent (its acknowledged snapshot) under a rate cap, a remote client's send rate (36 Hz) with the interpolation buffer, an LTO soak with --exclusive; B10v's VR checks and the ICE/NAT rendezvous service are his (a real microphone; his OK to host a service).

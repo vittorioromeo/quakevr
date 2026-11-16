@@ -4628,3 +4628,18 @@ His request: bake all 27 title wordings (9 sections x 3) to pick from.
   1635 s (1671 s in all, ~0.17 s a frame), sheet 3 s, reel 40 s (9720 frames = 27 x 360), v1_1trailer reopened on
   Timeline 2 (its own render job left alone). Output `C:\Users\vittorio\Videos\QVR Title Variants\`: 27 clips (ap4h,
   yuva444p12le, 360 frames), the sheet, the reel. A one-clip trial went to the worktree's scratch first.
+
+## MP B13b: 16 players at real time, their link culled (agent/mp, 2026-11-16)
+
+- **Deathmatch caps**: `vr_dm_gibs_max` 64, `vr_dm_weapons_max` 32 (QC vr_dmloose.qc): the oldest loose gibs and
+  dropped weapons go first, never one held; deathmatch only. `.vr_gib` indexed for `findflags`.
+- **Respawn beside a taken start** (client.qc `VR_DMBesideSpot`): a clear place 48-144 units beside a start, no telefrag.
+- **Gib touches spared** when they can do nothing (vr_physics.cpp `gibTouchIsNothing`; checked by `vr_prop_touch_verify`).
+- **The broadcast culled by sight** for remote clients (`vr_net_cullbroadcast` 1; `vr_net_broadcast_report`); the
+  loopback client unchanged. **`vr_net_rate` 80000** by default (40000 starved dm4's lag compensation).
+- **mp_soak** (16 players, dm3): the server 0.38 -> 0.99 of real time, Box3D 130 -> ~2 ms a frame, QuakeC 50 -> 4 ms,
+  living telefrags ~100-200 -> 0, B's link 37 -> 24 KB/s; pace, link, caps, culling and telefrags are checks (14/0).
+  `mp_dm` grew `vr_dm_test 7` (the caps) and 8 (the respawn beside). Details: MP_PLAN.md, "B13b results".
+- **In VR:** host dm3 with 14 bots: smooth, few gibs and guns lying about, no spawn telefrags; join it from another PC
+  with `vr_net_hud 2` (~25 KB/s).
+- **Open (B13c):** the lag compensation under a rate cap (rewind at the places sent), a 36 Hz send rate, an LTO soak.
