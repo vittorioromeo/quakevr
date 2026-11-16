@@ -39,6 +39,7 @@ CTL = [
     ("OutFrames", "Out (frames)", "int", 36, {"min": 1, "max": 240}),
     ("OutAt", "Out Start (frames, 0 = clip end - Out)", "int", 0, {"min": 0, "max": 900}),
     ("Backdrop", "Dark Backdrop", "check", 0, {}),
+    ("Draft", "Draft (fast preview)", "check", 0, {}),
     ("ScrimAmount", "Scrim", "slider", 0.55, {"min": 0, "max": 1, "maxa": 1}),
     ("ShadowOpacity", "Shadow Opacity", "slider", 0.8, {"min": 0, "max": 1, "maxa": 1}),
     ("ShadowSoftness", "Shadow Softness (px at 1080p)", "slider", 12, {"min": 0, "max": 40}),
@@ -88,6 +89,7 @@ PUB = [
     ("Line1", "Ctl", "Line1", "Line 1", {}),
     ("Line2", "L2Text", "StyledText", "Line 2", {}),
     ("Line3", "L3Text", "StyledText", "Line 3", {}),
+    ("Draft", "Ctl", "Draft", None, {}),
     ("Blood", "Ctl", "Blood", None, {}),
     ("AccentRed", "Ctl", "AccentRed", "Blood Colour", {"cg": 1}),
     ("AccentGreen", "Ctl", "AccentGreen", None, {"cg": 1}),
@@ -234,11 +236,29 @@ tool("MergeScrim", "Merge", {"Background": ("BackB", "Output"), "Foreground": ("
                              "PerformDepthMerge": 0}, (-220, 60))
 
 # ---- reveal field: high at the centre, low at the sides, noisy ---------------------------------------------------
-tool("RevealRamp", "Custom", {"Image1": ("Blank", "Output"),
-                              "RedExpression": "1 - 1.5*abs(x - 0.5) - 0.25*abs(y - 0.55)",
-                              "GreenExpression": "1 - 1.5*abs(x - 0.5) - 0.25*abs(y - 0.55)",
-                              "BlueExpression": "1 - 1.5*abs(x - 0.5) - 0.25*abs(y - 0.55)",
-                              "AlphaExpression": "1"}, (-440, 160))
+# RevealRamp = 1 - 1.5|x - 0.5| - 0.25|y - 0.55|, from GPU gradients (a full-frame Custom tool cost ~0.3 s a frame):
+# min(0.1125 + 1.5x, 1.6125 - 1.5x) + min(0.25y, 0.275 - 0.25y); the mins by Darken merges, the sum by an additive
+# merge (Gain 0: the foreground's alpha hides nothing)
+def ramp(name, kind, a, b, pos):
+    """A grey gradient: Horizontal a (left) to b (right), Vertical a (bottom) to b (top)."""
+    far = "TopRight" if kind == "Horizontal" else "TopLeft"
+    near = "TopLeft" if kind == "Horizontal" else "BottomLeft"
+    d = {"UseFrameFormatSettings": 1, "Width": 1920, "Height": 1080, "Type": ("fuid", kind)}
+    for c in ("Red", "Green", "Blue"):
+        d[near + c], d[far + c] = a, b
+    tool(name, "Background", d, pos)
+
+
+ramp("RampH1", "Horizontal", 0.1125, 1.6125, (-660, 140))
+ramp("RampH2", "Horizontal", 1.6125, 0.1125, (-660, 180))
+ramp("RampV1", "Vertical", 0.0, 0.25, (-660, 220))
+ramp("RampV2", "Vertical", 0.275, 0.025, (-660, 260))
+tool("RampH", "Merge", {"Background": ("RampH1", "Output"), "Foreground": ("RampH2", "Output"),
+                        "ApplyMode": ("fuid", "Darken"), "PerformDepthMerge": 0}, (-550, 160))
+tool("RampV", "Merge", {"Background": ("RampV1", "Output"), "Foreground": ("RampV2", "Output"),
+                        "ApplyMode": ("fuid", "Darken"), "PerformDepthMerge": 0}, (-550, 240))
+tool("RevealRamp", "Merge", {"Background": ("RampH", "Output"), "Foreground": ("RampV", "Output"), "Gain": 0,
+                             "PerformDepthMerge": 0}, (-440, 160))
 tool("RevealNoise", "FastNoise", {"UseFrameFormatSettings": 1, "Width": 1920, "Height": 1080, "Detail": 8,
                                   "Contrast": 1.6, "XScale": 9, "SeetheRate": 0.25}, (-330, 160))
 tool("RevealField", "Merge", {"Background": ("RevealRamp", "Output"), "Foreground": ("RevealNoise", "Output"),
@@ -322,21 +342,35 @@ LIGHT_G = ("%s*n4*max(0, (1.7 - 0.45*i1 + 0.55*i2)*i3/1.842)^n3 + n5/(1 + (sqrt(
            "/sqrt(2*((p1x - x)^2 + ((p1y - y)*h1/w1)^2 + n2*n2) + 2*n2*sqrt((p1x - x)^2 + ((p1y - y)*h1/w1)^2 + n2*n2)))^n3")
 
 
-def relief(name, src, G, strength, step, spec_exp, spec_amb, key, light_gain, lh, lr, pos):
+def gated(expr, gate):
+    """The lighting only where the colour tool shows it (`gate`: a test on Image2, the colour tool's own coverage
+    input; zero elsewhere, where the colour tool multiplies it by 0), the sweeping light's term only while it is on.
+    Custom tools evaluate `if` lazily: same image, a fraction of the work."""
+    key, point = expr.split(" + n5/", 1)
+    return "if(%s, %s + if(n5 > 0, n5/%s, 0), 0)" % (gate, key, point)
+
+
+def relief(name, src, G, strength, step, spec_exp, spec_amb, key, light_gain, lh, lr, pos, gate, gate_src):
     tool(name, "Custom", {
         "NumberIn1": "=" + strength, "NumberIn2": "=%r/%s.CW" % (lh, G), "NumberIn3": spec_exp, "NumberIn4": key,
         "NumberIn5": "=%s*Ctl.LightEnv" % light_gain, "NumberIn6": "=%r/%s.CW" % (lr, G), "NumberIn7": "=%s.Res" % G,
+        "NumberIn8": "=Ctl.Draft",
         "PointIn1": "=Point((%s.LX - %s.CX0)/%s.CW, (%s.LY - %s.CY0)/%s.CH)" % (G, G, G, G, G, G),
         "Setup1": "%r*n7/w1" % step, "Setup2": "%r*n7/h1" % step,
-        "Intermediate1": "(getr1d(x - s1, y) - getr1d(x + s1, y))*n1",
-        "Intermediate2": "(getr1d(x, y - s2) - getr1d(x, y + s2))*n1",
-        "Intermediate3": "1/sqrt(i1*i1 + i2*i2 + 1)",
-        "RedExpression": LIGHT_R, "GreenExpression": LIGHT_G % spec_amb, "BlueExpression": "r1", "AlphaExpression": "1",
-        "Image1": (src, "Output")}, pos)
+        "Intermediate1": "if(n8 > 0.5, 0, if(%s, (getr1d(x - s1, y) - getr1d(x + s1, y))*n1, 0))" % gate,
+        "Intermediate2": "if(n8 > 0.5, 0, if(%s, (getr1d(x, y - s2) - getr1d(x, y + s2))*n1, 0))" % gate,
+        "Intermediate3": "if(n8 > 0.5, 1, if(%s, 1/sqrt(i1*i1 + i2*i2 + 1), 1))" % gate,
+        "RedExpression": "if(n8 > 0.5, 0.7*n4, %s)" % gated(LIGHT_R, gate),
+        "GreenExpression": "if(n8 > 0.5, 0, %s)" % gated(LIGHT_G % spec_amb, gate),
+        "BlueExpression": "r1", "AlphaExpression": "1",
+        "Image1": (src, "Output"), "Image2": (gate_src, "Output")}, pos)
 
 
-tool("L1Height", "Blur", {"Input": ("L1Tail", "Output"), "XBlurSize": "=G1.Res*(5 + 7*min(Ctl.Relief, 2))"}, (220, -340))
-relief("L1Relief", "L1Height", "G1", "2.8*Ctl.Relief", 2.4, 22, 0.35, 0.75, "1.6", 0.12, 0.3, (330, -380))
+tool("L1Height", "Blur", {"Input": ("L1Tail", "Output"),
+                          "XBlurSize": "=G1.Res*(5 + 7*min(Ctl.Relief, 2))*(1 - Ctl.Draft)"}, (220, -340))
+# gate: L1Color's coverage i1 > 0 (Image2 = its Image1)
+relief("L1Relief", "L1Height", "G1", "2.8*Ctl.Relief", 2.4, 22, 0.35, 0.75, "1.6", 0.12, 0.3, (330, -380),
+       "r2 > 0.02*a2", "L1Tail")
 tool("L1Grime", "FastNoise", {"Width": "=G1.PW", "Height": "=G1.PH", "Detail": 7, "Contrast": 1.8,
                               "XScale": "=30*G1.CW"}, (330, -420))
 tool("L1Color", "Custom", {
@@ -479,6 +513,7 @@ tool("L2Cov", "Custom", {
     "Intermediate1": "floor(x*w1/n1)",
     "Intermediate2": "(i1 + 0.3 + 0.4*%s)*n1" % H("3.3"),
     "Intermediate3": "getr2b(i2/w1, y)",
+    # (not gated: lossless gates on the drips, flood and pool measured 50% slower here, 0.43 -> 0.64 s a frame)
     "Intermediate4": "min(1, max(0, (1 - i3)/(1 - %s)))" % THR,
     "RedExpression": "max(max(r1, %s)*%s, max(%s, r3))" % (DRIP, FLOOD, POOL),
     "GreenExpression": "r1*%s" % FLOOD, "BlueExpression": "0", "AlphaExpression": "1",
@@ -487,7 +522,8 @@ tool("L2CovBlur", "Blur", {"Input": ("L2Cov", "Output"), "XBlurSize": "=G2.Res*2
      (440, 0))
 tool("L2Height", "Blur", {"Input": ("L2Cov", "Output"), "XBlurSize": "=G2.Res*6", "ClippingMode": ("fuid", "None")},
      (440, 40))
-relief("L2Relief", "L2Height", "G2", "5", 1.6, 60, 0.6, 0.7, "1.8", 0.1, 0.26, (550, 40))
+# gate: L2Color's coverage i1 > 0 (Image2 = its Image1)
+relief("L2Relief", "L2Height", "G2", "5", 1.6, 60, 0.6, 0.7, "1.8", 0.1, 0.26, (550, 40), "r2 > 0.3", "L2CovBlur")
 tool("L2Color", "Custom", {
     "NumberIn1": "=Ctl.AccentRed", "NumberIn2": "=Ctl.AccentGreen", "NumberIn3": "=Ctl.AccentBlue",
     "NumberIn4": "=1 - 0.5*Ctl.EOut", "NumberIn5": "=1.4*Ctl.Glisten",
@@ -552,6 +588,33 @@ tool("Shake", "Transform", {"Input": ("StackE", "Output"),
      (1595, -60))
 tool("MergeAll", "Merge", {"Background": ("MergeScrim", "Output"), "Foreground": ("Shake", "Output"),
                            "PerformDepthMerge": 0}, (1650, -60))
+
+# ======================================================================================================================
+# Speed: Custom tools are per-pixel interpreted (the macro's main cost) and their `if` is lazy, so each colour tool's
+# channels are worked out only where they can differ from what they are elsewhere: (condition, value elsewhere) per
+# channel, each "elsewhere" being exactly what the full expression gives there (lossless; see each note).
+GATES = {
+    # coverage i1 is 0 where alpha is 0 (the text is premultiplied): every channel is 0 there
+    # (the grime and shade intermediates are used only there)
+    "L1Color": ("a1 > 0", {"RedExpression": "0", "GreenExpression": "0", "BlueExpression": "0",
+                           "Intermediate2": "0", "Intermediate3": "0"}),
+    # i1 = 0 at or below 0.3: every channel is i1*(...)
+    "L2Color": ("r1 > 0.3", {"RedExpression": "0", "GreenExpression": "0", "BlueExpression": "0",
+                             "AlphaExpression": "0", "Intermediate2": "0"}),
+    # no tail (i3 <= 0): the max() keeps the O as it is
+    "L1Tail": ("i3 > 0", {"RedExpression": "r1", "GreenExpression": "g1", "BlueExpression": "b1",
+                          "AlphaExpression": "a1"}),
+    # before the splash the factor if(n1 > 0, 1, 0) is 0
+    "SplatCov": ("n1 > 0", {"RedExpression": "0"}),
+    # outside the blade (i3 = 0, so i4 = 0) and with no sparks (n7 = 0) every term is 0
+    "RuleCol": ("i3 + n7 > 0", {"RedExpression": "0", "GreenExpression": "0", "BlueExpression": "0",
+                                "AlphaExpression": "0"}),
+}
+for _name, _typ, _inputs, _pos, _extra in TOOLS:
+    if _name in GATES:
+        _cond, _else = GATES[_name]
+        for _ch, _v in _else.items():
+            _inputs[_ch] = "if(%s, %s, %s)" % (_cond, _inputs[_ch], _v)
 
 # ======================================================================================================================
 LBL = {c[0]: c[1] for c in CTL}
