@@ -1023,6 +1023,8 @@ static const char *GL_AliasPlainDefines (int keep)
 	for (i = 0; i < (int)countof (gl_alias_plain_names); i++)
 		if (mask & (1 << i))
 			q_strlcat (gl_alias_plain_defines, gl_alias_plain_names[i], sizeof (gl_alias_plain_defines));
+	if (gl_world_lite & (1 << 28)) // C4y: lit at their vertices (vr_gl_alias_vlight; vr_glsl_alias.h QVR_ALIAS_VS_VLIGHT)
+		q_strlcat (gl_alias_plain_defines, "; QVR_APLAIN_VLIGHT 1", sizeof (gl_alias_plain_defines));
 	return gl_alias_plain_defines;
 }
 

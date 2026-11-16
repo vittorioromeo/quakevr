@@ -4216,3 +4216,16 @@ His timing notes (extra scope):
   scale (blood: the whole shader; near monsters filling the view). Scripted session: e1m1 period / GPU 16.1 / 14.5 ->
   14.3 / 10.7 ms (its unlit share moved with the unworn controllers), e1m2 14.0 / 9.6, the demo unchanged.
 - PC: dev build 0 warnings; gles_render_test 21/0; scenario_check PASS; load_models_test 4/0. Details: QUEST_PLAN.md 6zd.
+
+## Quest C4y: the live fight split; the skin form; the models' vertex light measured and left off (branch `agent/quest`, 2026-11-16)
+
+- `vr_gl_alias_skin` (tunable, default 1; ES only, Debug > Tunables): your body, which kept the whole models' shader for
+  its skin tone, is drawn by the plain form keeping skin tone, wounds and dents (`glprogs.alias_skin`). The same picture
+  (PC `-glescompat` eyes 0.000% over 8); on the Quest 3 nothing measurable (the body ~0.2 ms in all).
+- `vr_gl_alias_vlight` (tunable, default 0, a probe): the plain, gore and skin forms lit at their vertices. No gain on the
+  Quest 3 (8.37 ms either way), so off: the models' shading cost is not their light's math.
+- e1m1's live fight split: models ~6.4 ms of 10.7 (~1 geometry, the rest fragment shading), lights 0.4, particles 0.
+  The live fight drifts too much to bisect; `scratch/c4y_frozen.sh` freezes it once the monsters are close (stable to
+  0.1 ms). A program remake alone moves a frozen scene by up to 0.6 ms: switches that rebuild shaders need consistent rounds.
+- SpaceWarp: `XR_FB_space_warp` is offered by the runtime; feasible (motion and depth swapchains, a motion pass), not done.
+- PC: dev and LTO builds 0 warnings; gles_render_test 21/0; scenario_check PASS; load_models_test 4/0. Details: QUEST_PLAN.md 6ze.

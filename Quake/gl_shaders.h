@@ -1753,6 +1753,7 @@ ALIAS_INSTANCE_BUFFER
 QVR_ALIAS_VS_FUNCTIONS // QVR: the recoil steadied (ZeroBlend), the poses' occlusion
 QVR_DENT_FUNCTIONS // QVR: flesh dents (vr/vr_dents.cpp)
 QVR_FLATFOV_POINT_GLSL // QVR: flatscreen play's model FOV (vr/vr_flatfov_glsl.h)
+QVR_ALIAS_VS_VLIGHT_DECL // QVR: the plain forms' light at the vertices (C4y)
 "float r_avertexnormal_dot(vec3 vertexnormal, vec3 dir) // from MH \n"
 "{\n"
 "	float d = dot(vertexnormal, dir);\n"
@@ -1834,6 +1835,7 @@ QVR_ALIAS_VS_SHADE // QVR: the model's light direction and shade (vr_model_light
 "	out_color = clamp(inst.LightColor * vec4(vec3(shade), 1.0), 0.0, 1.0);\n"
 "	uint overbright = floatBitsToUint(Fog.w) >> 31;\n"
 "	out_color.rgb = ldexp(out_color.rgb, ivec3(overbright));\n"
+QVR_ALIAS_VS_VLIGHT // QVR: ... worked out (C4y)
 QVR_ALIAS_VS_WOUNDSIDE // QVR: which side's wound mask it reads (your body's: one a side, vr/vr_wounds.cpp)
 QVR_ALIAS_VS_RETRO // QVR: its retro textures' set (your body's: by part, vr/vr_retro.cpp)
 "#ifdef WOUNDPAINT // QVR: drawn into its wound mask (vr/vr_wounds.cpp), laid out by the skin's coordinates\n"

@@ -1624,6 +1624,36 @@ instances' feature bits (`VR_AliasPlainNeeds`) and its triangles.
   the Quest preset has it off.
 - PC: dev build 0 warnings; gles_render_test 21/0; scenario_check PASS (138 run, 0 failed); load_models_test 4/0.
 
+## 6ze. C4y: the live fight split; the skin form; the models' vertex light measured and left off; remakes' noise (2026-11-16; adb, unworn)
+
+Method (`scratch/c4y_*`): `c4y_split.sh` and `c4y_bisect.sh` (the live fight, `c4x_live.sh`, 6 rounds), `c4y_frozen.sh`
+(**new**: the live fight run 500 frames, the monsters close and bleeding, then frozen and particles off: a stable scene
+with the session's near monsters; `c4y_fz1..4.sh`), `c4y_pcskin.sh` / `c4y_pcvl.sh` (PC `-glescompat`, off/on/off eyes).
+- **The live fight's split** (GPU ms, 6 rounds): base 10.72, no entities 4.32, every solid model plain 9.39, plain with a
+  constant fragment shader 5.33 (so the models ~6.4: ~1 of geometry, the rest their fragment shading), the body off
+  -0.17, `r_dynamic 0` -0.36, `r_particles 0` and `vr_particle_halfres 0` nothing (C4x's lights ~1.6 / particles ~1.2
+  were that launch's scene). **The live fight can't bisect**: its rounds drift by 1.5-3 ms as monsters close in and die
+  (the bisect's parts swapped order round to round). The frozen live fight holds to ~0.1 ms within a launch.
+- **The frozen live fight's plain form, bisected** (early-return probes, every solid model plain): constant 7.90, after
+  the look 8.43, after the light 10.24, whole 11.18 (no entities 6.48): the per-pixel light ~1.8, the tail ~0.9.
+- **The skin form** (`vr_gl_alias_skin`, tunable, default 1; ES only): a batch the gore form can't draw that needs only
+  skin tone (gloves, nails) besides wounds and dents is drawn by the plain form keeping those (`glprogs.alias_skin`,
+  `VR_ALIAS_SKIN_NEEDS`, `VR_AliasSkinUse`): your body. PC `-glescompat` eyes 0.000% over 8 off/on/off; headset +0.02 ms
+  (nothing measurable: the body costs ~0.2 ms in all).
+- **The models lit at their vertices** (`vr_gl_alias_vlight`, tunable, **default 0**, a probe; lite bit 28, only with
+  plain lights and no dynamic occlusion): the plain, gore and skin forms' own light (ambient cube, occlusion) and dynamic
+  lights worked out in the vertex shader (`QVR_ALIAS_VS_VLIGHT`; retro lighting keeps its levels, not its blocks; no
+  sheen from the lights). PC eyes 0.000% over 8. **No gain on the headset**: every solid model plain 8.37 / 8.37 ms
+  (4 rounds each, all within 0.1), the shipped forms within the remake noise. The probes' "light" step is not its math.
+- **A remake of the programs is noise by itself**: the same settings, the shaders made again before each part (an unused
+  `vr_gles_define`), the frozen scene's GPU jumps +0.3-0.6 ms in some parts (fz4; fz3's base 9.1 / 10.3 bimodal). Any
+  switch that rebuilds the programs needs its gain consistent over every round, beyond ~0.5 ms.
+- **SpaceWarp** (optional, not done): the runtime offers `XR_FB_space_warp` (startup log). It needs a motion-vector and
+  a depth swapchain an eye (the runtime's recommended size), a motion pass (the TAA path's motion vectors, off on the
+  Quest, are the start), `XrCompositionLayerSpaceWarpInfoFB` on each projection view, and the game at half rate. Feasible;
+  not shipped.
+- PC: dev and LTO builds 0 warnings; gles_render_test 21/0; scenario_check PASS (138 run, 0 failed); load_models_test 4/0.
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
@@ -1667,4 +1697,4 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C4y (after 6zd) — no installs, the headset needed: e1m1's live fight still at the dynres floor (0.55, 10-12 ms of GPU): its models with every one drawn plain still ~3.7 ms over none (near monsters filling the view: fill, not vertices; the body with skin tone on the whole shader), its lights ~1.6 ms and particles ~1.2 (measure with `c4x_live.sh`, interleaved, 6 rounds: a live fight's rounds drift); his look call on `vr_rig_lights_world 0` for the Quest preset (~0.3 ms, e1m1's walk mostly unlit); SpaceWarp optional and off. Still open from before: C2h (the world textures' memory under the ES profile), Adreno's wrong derivatives with the retro code out (NORETRO). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d), shadowless dynamic lights on the Quest (6w).
+Next phase: C4z (after 6ze) — no installs, the headset needed: measure on the frozen live fight (`c4y_frozen.sh`, every round consistent beyond the ~0.5 ms a program remake brings); the models' fragment shading (~2.8-3.3 ms over a constant with every model plain, near monsters filling the view) is neither their light's math nor their look: next suspects the varyings and the instance-buffer reads per pixel (a minimal plain form: texture, vertex light, fog), and the ~1 ms of geometry (the body's 14.6k triangles with its pre-pass, the vertex shader's motion-vector writes); his look call on `vr_rig_lights_world 0`; SpaceWarp (`XR_FB_space_warp`, offered) optional and off. Still open from before: C2h (the world textures' memory under the ES profile), Adreno's wrong derivatives with the retro code out (NORETRO). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d), shadowless dynamic lights on the Quest (6w).

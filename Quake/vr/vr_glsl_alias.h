@@ -441,6 +441,73 @@
 "	}\n" \
 "#endif\n"
 
+// C4y (QUEST_PLAN.md 6ze): the models' plain forms lit at their vertices (QVR_APLAIN_VLIGHT, vr_gl_alias_vlight; the ES
+// profile only, with no shadows or dynamic occlusion; retro lighting keeps its levels, not its blocks): the model's own light times its ambient cube and
+// its occlusion, plus the dynamic lights (the plain loop's falloff and angle, every light tested by its reach; no
+// sheen), worked out per vertex as Quake lit its models, not per pixel. A probe (vr_gl_alias_vlight 0): the early-return
+// probes put ~1.8 ms of a fight's 3.3 ms of the models' shading in the per-pixel light, but this cut gained nothing
+// (the same 8.37 ms with every solid model plain). The declarations (after the instance buffer).
+#define QVR_ALIAS_VS_VLIGHT_DECL \
+"#ifdef QVR_APLAIN_VLIGHT\n" \
+ALIAS_FRAMEDATA_BUFFER \
+LIGHT_BUFFER \
+"layout(location=19) out vec3 out_vlight;\n" \
+"layout(location=20) out vec3 out_vdyn;\n" \
+"vec3 VertexLights(vec3 pos, vec3 n)\n" \
+"{\n" \
+"	vec3 total = vec3(0.);\n" \
+"	if ((ShadowFlags & 8u) == 0u)\n" \
+"		return total;\n" \
+"#ifdef QVR_LITE_NODLFALLOFF\n" \
+"	const bool darkplaces = false;\n" \
+"#else\n" \
+"	bool darkplaces = (ShadowFlags & 16u) != 0u;\n" \
+"#endif\n" \
+"	float unit = (ShadowFlags & 32u) != 0u ? 1.0 / 128.0 : Fog.w < 0. ? 2.0 / 200.0 : 1.0 / 200.0;\n" \
+"	float angleScale = darkplaces ? 1.0 : 2.0;\n" \
+"	uint count = min(NumLights, 64u);\n" \
+"	for (uint k = 0u; k < count; k++)\n" \
+"	{\n" \
+"		if (Lights[k].shadow.w != 0.)\n" \
+"			continue;\n" \
+"		vec4 po = vec4(Lights[k].origin, Lights[k].radius);\n" \
+"		vec3 tl = po.xyz - pos;\n" \
+"		float d2 = dot(tl, tl);\n" \
+"		if (d2 >= po.w * po.w)\n" \
+"			continue;\n" \
+"		float inv = inversesqrt(max(d2, 1e-12));\n" \
+"		vec3 dir = tl * inv;\n" \
+"		float d = d2 * inv;\n" \
+"		vec4 sp = Lights[k].spot;\n" \
+"		float lit = (darkplaces ? clamp((1.0 - d / max(po.w, 1.0)) * 2.0 / (1.0 + (d / max(po.w, 1.0)) * (d / max(po.w, 1.0))), 0.0, 1.0) : (po.w - d) * unit) * (1.0 - smoothstep(0.0, 1.0, sp.w + dot(sp.xyz, dir)));\n" /* DarkPlacesAtten, SpotCone */ \
+"		if (lit <= 0.)\n" \
+"			continue;\n" \
+"		float amb = darkplaces ? Lights[k].minlight : 0.3;\n" \
+"		total += lit * mix(1.0, amb + (1.0 - amb) * angleScale * max(dot(n, dir), 0.0), DlightAngle) * Lights[k].color;\n" \
+"	}\n" \
+"	return total;\n" \
+"}\n" \
+"#endif\n"
+
+// ... and the light (in main, once out_color and out_vao are set): ModelAmbient's cube (no bumps in these forms), the
+// occlusion, the dynamic lights (QVR_ALIAS_FS_LIGHT reads it as the whole light)
+#define QVR_ALIAS_VS_VLIGHT \
+"#ifdef QVR_APLAIN_VLIGHT\n" \
+"	{\n" \
+"		vec3 vn = normalize(out_nor);\n" \
+"		vec3 vamb = vec3(1.0);\n" \
+"		if (inst.Ambient[0].w > 0.)\n" \
+"		{\n" \
+"			vec3 n2 = vn * vn;\n" \
+"			vec3 c = n2.x * inst.Ambient[vn.x >= 0. ? 0 : 1].xyz + n2.y * inst.Ambient[vn.y >= 0. ? 2 : 3].xyz + n2.z * inst.Ambient[vn.z >= 0. ? 4 : 5].xyz;\n" \
+"			vamb = mix(vec3(1.0), c, inst.Ambient[0].w);\n" \
+"		}\n" \
+"		float vvao = clamp(out_vao, 0.0, 1.0);\n" \
+"		out_vlight = out_color.rgb * vamb * vvao;\n" \
+"		out_vdyn = VertexLights(lerpedVert, vn) * sqrt(vvao);\n" \
+"	}\n" \
+"#endif\n"
+
 // the model's light direction and shade (vr_model_light_parity), its outputs
 #define QVR_ALIAS_VS_SHADE \
 "	vec3 lightdir = normalize(mix(vec3(0.70710678, 0.0, 0.70710678), inst.LightDir.xyz, inst.LightDir.w)); // QVR: vr/vr_modellight.cpp\n" \
@@ -701,6 +768,10 @@ SPECULAR_AA_FUNCTIONS
 "layout(location=16) in vec3 in_restpos; // QVR: flesh dents (vr/vr_dents.cpp): where in the model's rest pose\n" \
 "layout(location=17) in vec4 in_restnor; // QVR: ... its normal there, and its flesh (w: 0 a weapon)\n" \
 "layout(location=18) in vec4 in_stump; // QVR: a stump's flesh (StumpFlesh): xyz the rest pose's place, w how near a cut joint (1 its reach)\n" \
+"#ifdef QVR_APLAIN_VLIGHT\n" \
+"layout(location=19) in vec3 in_vlight; // QVR: the own light worked out at the vertices (QVR_ALIAS_VS_VLIGHT)\n" \
+"layout(location=20) in vec3 in_vdyn; // QVR: ... and the dynamic lights\n" \
+"#endif\n" \
 "layout(std430, binding=16) restrict readonly buffer BarrelMaskBuffer { uint BarrelMasks[]; }; // QVR: hot barrels' triangles, a bit each (vr/vr_barrelmask.cpp)\n"
 
 // per-pixel lights, normal maps, ambient, wounds, morphs
@@ -1561,15 +1632,24 @@ QVR_ALIAS_FS_PLAIN
 "	// (in_vao clamped: under foveated rendering's coarse shading a fragment's inputs are interpolated at its block's\n" \
 "	// centre, which can be past the triangle's edge, where in_vao runs on below 0: sqrt gave NaN, drawn white)\n" \
 "	float vao = clamp(in_vao, 0.0, 1.0);\n" \
+"#ifdef QVR_APLAIN_VLIGHT\n" /* C4y: the plain forms' light worked out at the vertices (QVR_ALIAS_VS_VLIGHT) */ \
+"	vec3 own_light = in_vlight;\n" \
+"#else\n" \
 "	float occlusion = vao * DynamicAO(in_pos + EyePos, AONormal(n, in_bumplight.xyz), instances[in_instance].AO.x, in_coord, in_depth);\n" \
 "#ifdef QVR_PROBE_AAMB\n" /* vr_gles_define's probe (C4m): the model's own light the vertex light alone */ \
 "	vec3 own_light = in_color.rgb;\n" \
 "#else\n" \
 "	vec3 own_light = in_color.rgb * ModelBumpShade(n, bumped) * ModelAmbient(n, bumped) * occlusion; // QVR\n" \
 "#endif\n" \
+"#endif\n" \
 "	if (dent.depth > 0.0) // QVR: a dent's bowl shaded by the model's light whatever the bumps' share of it: its far wall lit, its near one dark\n" \
 "		own_light *= max(1.0 + 1.2 * dot(bumped - n * dot(bumped, n), in_bumplight.xyz * inversesqrt(max(dot(in_bumplight.xyz, in_bumplight.xyz), 1e-6))), 0.3);\n" \
+"#ifdef QVR_APLAIN_VLIGHT\n" \
+"	vec3 dyn_light = in_vdyn; // (C4y: no sheen from them)\n" \
+"	spec = vec3(0.0);\n" \
+"#else\n" \
 "	vec3 dyn_light = ModelDynamicLights(n, bumped, spec) * sqrt(vao); // QVR\n" \
+"#endif\n" \
 "	if (RetroLight[5].z > 0.) // QVR: retro lighting's levels (vr_retrolight.h; no derivatives after the discard)\n" \
 "	{\n" \
 "#if ALPHATEST\n" \

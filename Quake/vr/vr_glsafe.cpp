@@ -493,6 +493,13 @@ extern "C" int VR_GLESWorldLite(void)
             lite |= (1 << 21) | ((filter < 0 ? 0 : filter > 3 ? 3 : filter) << 22);
         }
     }
+    if(vr_gl_alias_vlight.value != 0.f && (lite & (1 << 26)) != 0 && (lite & 8) != 0)
+    {
+        // C4y (QUEST_PLAN.md 6ze): the models' plain forms lit at their vertices (gl_shaders.c GL_AliasPlainDefines:
+        // QVR_APLAIN_VLIGHT): only with every light plain and no dynamic occlusion, which they leave out (retro lighting keeps
+        // its levels, not its blocks)
+        lite |= 1 << 28;
+    }
     return lite;
 }
 
