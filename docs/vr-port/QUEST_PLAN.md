@@ -1399,6 +1399,31 @@ shipped, `c4p_abcorr.py`).
 - PC: gles_render_test, scenario_check, load_models_test, dev and LTO builds: see ROUND25's C4p section.
 - Left running for his check: e1m1, `+vr_quest_preset 0 +vr_perf_record 1` (this commit's APK).
 
+## 6x. C4q/C4r: the plain loops with DarkPlaces' falloff; foveation's crash narrowed; the Quest's saves fixed (2026-11-16)
+
+Method (`scratch/c4r_*`, C4q on the headset, unworn; C4r headless: the headset was offline): `c4r_frozen.sh` (6w's
+still scene, 3 big test lights, 0.55 fixed, body off), `c4r_fight.sh` (a live fight, the preset as shipped),
+`c4r_fov.sh` (foveation at launch), `c4s_check.sh` (C4r's checks, for the next session with the headset).
+- **The plain loop was never on with the Quest preset**: it sets `vr_dlight_falloff` 1 (DarkPlaces' falloff), which
+  6w's bit excluded. Now the plain loops take either falloff, and the models' loop has the plain form too (`vr_glsl_alias.h`
+  `ModelDynamicLights`; `QVR_PROBE_NOAPLAIN` undoes it). Still scene, 3 big lights (GPU span / world, ms): full loops
+  16.0-16.1 / 14.3-14.4, plain 9.8-10.3 / 7.7-8.3 (0 lights 6.2-6.4 / 4.6-4.9); the models' plain form alone: no measurable change
+  (+-0.5). Live fight (dynamic resolution at the 0.55 floor): period p50 14.0-14.2 ms either way (72 Hz held), GPU span
+  p50 9.4-10.4 against the full loops' 9.5-10.0, frames over 1.5 periods 1.3-2.2% against 3.0-3.3%, 3-light frames' world
+  6.1-6.2 against 8.7-9.3 ms. The recorder's header now lists the Quest's tunables (`Cvar_FindVar` never found them).
+- **Foveation's crash (`vr_xr_foveation`, guarded by `-xrfoveation`)**: two probes, not saved: `vr_xr_foveation_flags`
+  (1, the scaled bins as before; 0 none, Meta's GLES sample's, read when the eye swapchains are made) and
+  `vr_xr_foveation_probe` (bits: 1 late acquire and the invalidate allowed anyway; 2 the eye image released before it
+  is detached, the old order). The Quest now detaches the eye image and binds no framebuffer of ours before
+  `xrReleaseSwapchainImage`, as Meta's samples do (the PC keeps its order). One launch at level 3 (flags 1, late acquire
+  off): 1,509 frames over four parts, no crash (6w's crashed after ~100); the GPU no lower (world 9.7 ms; the scene
+  isn't drawn into the foveated images outside `vr_xr_direct`). The final APK's form is unchecked (`c4s_check.sh`).
+- **The Quest's saves failed** ("Save error. string -14: a freed engine string", every e1m1 autosave): not a freed
+  string but arm64's pointer tag. `SaveData_KnownString` rejected a pointer with bits above 48 set, and Android's
+  malloc keeps a tag in the top byte (TBI, `0xb4...`), so every malloc'd engine string was saved as none and the save
+  stopped. The check now ignores the top byte on arm64 (the PC's x64 code unchanged). Unchecked on the headset.
+- PC: gles_render_test, scenario_check, load_models_test, dev build 0 warnings; Android: the APK builds (ROUND25).
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
@@ -1442,4 +1467,4 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C4q (after 6w) — no installs: his recorded session (`vr_perf_record`, `perf_report.py`) with the plain lights' loop; the models' lights' loop the same way (a plain form when no light needs shadows); the runtime's foveation crash narrowed (an Adreno/runtime issue with foveated swapchains: Meta's GLES sample setup, a depth swapchain from the runtime) before C5 is worth building; SpaceWarp optional and off. Still open from before: e1m1's save error (a freed engine string), C2h (the world textures' memory under the ES profile), Adreno's wrong derivatives with the retro code out (NORETRO). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d), shadowless dynamic lights on the Quest (6w).
+Next phase: C4s (after 6x) — no installs, the headset needed: `scratch/c4s_check.sh` (the Quest's saves and load, foveation with the new release order); then the GPU's sustained world cost in busy maps (e1m3/demo1's world p50 22 ms at the old floor: re-record `c4o_play.sh` with the plain loops, then the world shader's remaining fixed cost: decals +0.9, lightmap +1.1 ms at 0.9) and the left eye's GPU idle time (its scope 4.3 -> 7.1 ms with no sub-scope: a wait on the swapchain or the runtime inside the eye); SpaceWarp optional and off. Still open from before: C2h (the world textures' memory under the ES profile), Adreno's wrong derivatives with the retro code out (NORETRO). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d), shadowless dynamic lights on the Quest (6w).

@@ -3869,3 +3869,18 @@ The 1.1 readiness audit's baseline regressions. Both were the tests, not the gam
 - **teleporters_chase 5/1**: the same case fails the same way in the 11-14 baseline ("chase dog at framed_sill32:
   never reached the north room", seed 3), which is older than the one-way teleporter change (vr1116b). It is not
   related to that change. Not touched.
+
+## Quest C4q/C4r: the plain loops with DarkPlaces' falloff; foveation's crash narrowed; the Quest's saves fixed (branch `agent/quest`, 2026-11-16)
+
+- C4p's plain lights' loop was never on with the Quest preset (its `vr_dlight_falloff` 1 excluded it): the plain loops
+  now take either falloff, the models' loop too. Still scene, 3 big lights: GPU span 16.0 -> 9.8-10.3 ms; live fight
+  at the 0.55 floor: 72 Hz held, frames over 1.5 periods 3.0-3.3% -> 1.3-2.2%, 3-light frames' world 8.7-9.3 -> 6.1 ms.
+- Foveation's `xrEndFrame` crash: probes `vr_xr_foveation_flags` and `vr_xr_foveation_probe` (not saved); the Quest
+  detaches the eye image before `xrReleaseSwapchainImage` (the PC's order unchanged). Level 3 at launch ran 1,509
+  frames without a crash (it crashed after ~100 before); no GPU gain outside `vr_xr_direct`. Still behind
+  `-xrfoveation`.
+- **Every Quest save failed** ("a freed engine string"): `SaveData_KnownString` took arm64's malloc tag in the pointer's
+  top byte (Android's heap tagging) for a corrupt pointer. The top byte is now ignored on arm64; x64 unchanged.
+  Not yet checked on the headset (offline): `scratch/c4s_check.sh` checks the save and foveation once it is back.
+- PC: dev build 0 warnings, gles_render_test, scenario_check, load_models_test (QUEST_PLAN.md 6x); the Android APK
+  builds. Details: QUEST_PLAN.md 6x.
