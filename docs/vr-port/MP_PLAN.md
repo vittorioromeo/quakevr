@@ -2317,7 +2317,13 @@ Tests:
   their scoreboards the same. Nothing needed fixing: deathmatch, FrikBot's client slots and the scoreboard work over
   the network as they are. New client watch lines (`vr_mptest.cpp`): `mp_frags` (a scoreboard slot named, its frags),
   `mp_event: intermission=`, `died`, `respawned`. `vr_hurt` refuses deathmatch (a cheat), so the death is a bot's.
-- Results: see "B13 suite" below.
+  In the suite, waiting for the bots to kill A and to reach the fraglimit by themselves timed out once (one bot's
+  suicide in 7 minutes): the deaths are now the server's `vr_hurt 1000 <slot> <bot entity>` (the bot credited; the
+  command takes an attacker now and runs in deathmatch on a dedicated server's console, which its players can't send),
+  A respawned by his trigger each time: 10/0, the bot at 4 frags.
+- `mp_test.py suite` (34 scenarios): 31 pass; `mp_predictclimb` 26/2 (the mantle) and `mp_lagcomp` 9/2 (a view time
+  of 1000 ms) pass alone (28/0, 11/0), `mp_dm` as above. scenario_check PASS (141 scenes), load_models_test 4/0,
+  vr_run_check 12/0, the dev and the Release (ThinLTO) builds 0 warnings.
 
 ## For him (B11b)
 
