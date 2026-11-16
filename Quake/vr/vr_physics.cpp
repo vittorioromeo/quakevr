@@ -860,6 +860,41 @@ constexpr float flatFeetReach = 18.f;
     return glm::dot(own, own) < least * least || glm::dot(own - other, own - other) < least * least;
 }
 
+// (B13b) A loose gib's or head's own touch (QC VR_Gib_Touch) when it has nothing to do: rigid, not in a throw, past
+// its grace with what it was made in (VR_Prop_Flung's vr_gib_spawn_harmless and the born-in chain: those touches keep
+// its bookkeeping), slower than any flung prop hurts and than its splat (220 u/s), and the toucher not a BSP mover (the
+// level's: a splat). Then VR_Gib_Touch, forcegrabbable_touch and VR_Prop_Flung change nothing. Players walking over a
+// pile and the props awake in it called it every frame (mp_soak, 16 players: 12% of the server's QuakeC). Only the touch
+// is spared: a player's hand touch still goes (touch's handtouch).
+[[nodiscard]] bool gibTouchIsNothing(edict_t* ent, edict_t* target)
+{
+    const func_t fn = target->v.touch;
+    if(vr_prop_touch_fast.value == 0.f || !fn || fn != progs::bindings().gibTouch || solidOf(ent) == SOLID_BSP ||
+       fieldFloatOr(target, f().vr_gib, 0.f) == 0.f || fieldFloatOr(target, f().vr_rigid, 0.f) == 0.f ||
+       fieldFloatOr(target, f().throwhit, 0.f) == 0.f || f().vr_gib_made < 0 || f().vr_gib_bornin < 0 ||
+       f().vr_gib_bornin_t < 0 || f().carry_letgo < 0)
+    {
+        return false;
+    }
+    const float now = static_cast<float>(qcvm->time);
+    const float made = fieldFloat(target, f().vr_gib_made);
+    if(now < made + za::max(0.f, vr_gib_spawn_harmless.value) + 0.05f)
+    {
+        return false;
+    }
+    constexpr float bornInFlight = 2.f; // (QC VR_GIB_BORNIN_FLIGHT)
+    if(fieldInt(target, f().vr_gib_bornin) == EDICT_TO_PROG(ent) &&
+       (now < fieldFloat(target, f().vr_gib_bornin_t) + 0.15f ||
+        (now < made + bornInFlight + 0.05f && fieldInt(target, f().carry_letgo) == 0)))
+    {
+        return false;
+    }
+    const float least = za::min(200.f, za::max(1.f, vr_prop_impact_min_speed.value * units::metresToUnits()) *
+                                           za::clamp(vr_weight_lenient_min.value, 0.01f, 1.f) * 0.99f);
+    const glm::vec3 own{target->v.velocity[0], target->v.velocity[1], target->v.velocity[2]};
+    return glm::dot(own, own) < least * least;
+}
+
 za::U64 touchVerified = 0;
 // The per-frame dedup for verifyPropTouch: file scope, not function-local statics.
 int touchVerifyFrame = -1;
@@ -944,7 +979,14 @@ void touch(edict_t* ent, edict_t* target)
     if(target->v.touch && (solid == SOLID_TRIGGER || solid == SOLID_NOT_BUT_TOUCHABLE ||
                               vr_gameplayfix_touchsolids.value))
     {
-        callField(target, ent, target->v.touch);
+        if(gibTouchIsNothing(ent, target))
+        {
+            verifyPropTouch(ent, target); // (vr_prop_touch_verify: run anyway, nothing must change)
+        }
+        else
+        {
+            callField(target, ent, target->v.touch);
+        }
     }
 
     const func_t handtouch = fieldFunc(target, f().handtouch);
