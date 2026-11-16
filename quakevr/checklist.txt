@@ -13,6 +13,8 @@ Flat-screen or VR: let a grunt with a gun and an axe walk up to you while you ho
 Flat-screen: press B with the rocket launcher, grenade launcher or thunderbolt: it switches to its other ammo; B again switches back. {test:flat_ammo_key}
 Get your weapon knocked out of your hand by a grunt's shot or blow: a metal clang where it flies and a short alert only you hear, with a buzz on that controller. {test:agrunt_gunaxe_melee}
 Test hall: grenades near the NEW GAME / VR HUB buttons no longer restart the game; only your hand, your step or what you threw presses them.
+Installer: the desktop now also gets a "Quake VR Unleashed (Flat Screen)" shortcut (own checkbox on the options page, on by default; check the Start menu, desktop and an uninstall).
+In start, stand just in front of where the hub's teleporter back to the start comes out, then lean back and reach behind you across that line: your hands stay whole and you never see yourself in a teleporter. {test:start_oneway_exit}
 
 [1. Flat-screen: weapons and hands]
 Flat-screen: turn on Locomotion > Desktop Screen Play > Third-Person Camera and walk the corridor and the doorway: the camera sits over your right shoulder with your whole body in view, pulls in at once when a wall comes behind it (never showing the inside of a wall), eases back out, and moves over the other shoulder at a wall on the right. {test:flat_thirdperson}

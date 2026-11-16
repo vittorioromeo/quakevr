@@ -115,6 +115,7 @@
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="Shortcuts" Style="{StaticResource Body}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,24,0" />
                             <CheckBox IsChecked="{Binding DesktopShortcut}" Content="On the desktop" Margin="0,0,28,0" />
+                            <CheckBox IsChecked="{Binding DesktopFlatShortcut}" IsEnabled="{Binding DesktopShortcut}" Content="Desktop shortcut for flat-screen play" Margin="0,0,28,0" />
                             <CheckBox IsChecked="{Binding StartMenuShortcuts}" Content="In the Start menu" />
                         </StackPanel>
                     </Border>

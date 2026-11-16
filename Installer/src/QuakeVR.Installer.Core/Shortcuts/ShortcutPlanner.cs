@@ -5,6 +5,8 @@ public sealed class ShortcutOptions
     public bool Desktop { get; set; } = true;
     public bool StartMenu { get; set; } = true;
     public bool Flat { get; set; } = true;
+    /// <summary>A flat-screen shortcut on the desktop too (needs <see cref="Desktop"/>).</summary>
+    public bool DesktopFlat { get; set; } = true;
     public bool Log { get; set; } = true;
     /// <summary>Where the desktop shortcut goes (the real desktop, or a test folder).</summary>
     public string? DesktopDir { get; set; }
@@ -30,13 +32,17 @@ public static class ShortcutPlanner
         var list = new List<ShortcutSpec>();
         o = new ShortcutOptions
         {
-            Desktop = o.Desktop, StartMenu = o.StartMenu, Flat = o.Flat, Log = o.Log,
+            Desktop = o.Desktop, StartMenu = o.StartMenu, Flat = o.Flat, DesktopFlat = o.DesktopFlat, Log = o.Log,
             DesktopDir = o.DesktopDir is null ? null : PathUtil.TryNormalize(o.DesktopDir),
             StartMenuDir = o.StartMenuDir is null ? null : PathUtil.TryNormalize(o.StartMenuDir),
         };
         if (o.Desktop && o.DesktopDir is not null)
         {
             list.Add(Launch(o.DesktopDir, Name, LaunchVariant.Vr, "Play Quake VR: Unleashed in your headset"));
+            if (o.DesktopFlat)
+            {
+                list.Add(Launch(o.DesktopDir, Name + " (Flat Screen)", LaunchVariant.Flat, "Play Quake VR: Unleashed on the monitor, without a headset"));
+            }
         }
         // The variants go in the Start menu; without one, beside the desktop shortcut.
         var variants = o.StartMenu && o.StartMenuDir is not null ? Path.Combine(o.StartMenuDir, StartMenuFolder)
@@ -47,7 +53,8 @@ public static class ShortcutPlanner
         }
         if (variants is not null)
         {
-            if (o.Flat)
+            // Beside the desktop shortcut, the flat one is already there when DesktopFlat is on.
+            if (o.Flat && !(o.DesktopFlat && variants == o.DesktopDir))
             {
                 list.Add(Launch(variants, Name + " (Flat Screen)", LaunchVariant.Flat, "Play Quake VR: Unleashed on the monitor, without a headset"));
             }

@@ -1569,6 +1569,11 @@ za::Vector<Item> pageDebugTests()
                   "its opening, 5 headings and 4 speeds, from 64 units out: each time you should be carried through "
                   "seamlessly (a pwt| line a try, then 'walktest: N passed, M failed'). On dm5: Teleporters: you walk "
                   "through dm5's teleporters (Checklist Test)."),
+        command("Check Teleporter Exits (Test)", "vr_portals_selfview_test sides")
+            .help("vr_portals_selfview_test sides: for each teleporter in this map, an eye leant back across where it "
+                  "comes out: drawn from the entrance only for a two-way gate (its exit is another gate's face), never "
+                  "for a one-way exit in the open (start's by the start), then 'vr_portals_selfview_test: N passed, M "
+                  "failed'. The Checklist has a Test scene at start's one-way exit to try it in the headset."),
         header("Cheats"),
         command("God Mode", "god").help("god: takes no damage (again: takes damage)."),
         command("Quad Damage", "impulse 255").help("Quad Damage for 30 seconds."),
