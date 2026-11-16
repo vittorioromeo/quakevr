@@ -504,20 +504,24 @@ struct TouchProvider
 }
 
 // Whether a weapon lying about or in the air rests on or leans against hand `which`'s Box3D body (a gun let go of onto
-// an open palm lies there, over the fist that closes under it), for the local player, who holds a weapon anywhere on
-// it (vr_weapon_grab_anywhere; the view's twohand::groundSpot: others' hands take only handles).
-// (Tests: vr_test_handcontact <hand 0 off|1 main> <0|1>: a weapon whose drawn box is within half a metre of that hand
-// counts as against it, the physics' contact stood in for: vr_pickup_test 17. A gun doesn't stay on the mock's palm.)
+// an open palm lies there, over the fist that closes under it), for any player (vr_weapon_grab_anywhere): every
+// player's hands are Box3D bodies on the server. Where it is carried is his own view's choice (heldpose::grabSpot: the
+// local player's view records it anywhere on it, twohand::groundSpot; a remote client's view, which has no Box3D
+// contact, its fist's spot or the handle). (MP B13d: this was entity 1's alone -- on a dedicated server the first client
+// took a weapon his hand pushed along the floor, a later one's hand pushed it away untaken: mp_disarm's toss retake.)
+// (Tests: vr_test_handcontact <hand 0 off|1 main> <0|1>: a weapon whose drawn box is within half a metre of the local
+// player's hand counts as against it, the physics' contact stood in for: vr_pickup_test 17. A gun doesn't stay on the
+// mock's palm.)
 bool testHandContact[2]{false, false};
 
 [[nodiscard]] bool weaponAgainstHand(edict_t* target, edict_t* player, int which)
 {
     const int h = which == HAND_OFF ? 0 : 1;
-    if(!vr_weapon_grab_anywhere.value || NUM_FOR_EDICT(player) != 1)
+    if(!vr_weapon_grab_anywhere.value)
     {
         return false;
     }
-    if(testHandContact[h] &&
+    if(testHandContact[h] && NUM_FOR_EDICT(player) == 1 &&
         held::nearDrawn(target, fieldVec(player, handPosField(which)), 0.5f * units::metresToUnits()))
     {
         return true;

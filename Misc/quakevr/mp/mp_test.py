@@ -135,11 +135,12 @@ def walk(s, mover, watcher, mover_ent, label, bound_ms, self_bound_ms):
     watcher.wait(r"mp_stop: .*ent=%d self=0" % mover_ent, 10, since_w, "%s stopping" % mover.name)
 
 
-def join(s, listen=False, flat="", lag=0.0, jitter=0.0, loss=0.0, level="e1m1", first=None, srv_first="", b_first=""):
+def join(s, listen=False, flat="", lag=0.0, jitter=0.0, loss=0.0, level="e1m1", first=None, srv_first="", b_first="",
+         a_second=False):
     """A server on `level` (coop 1) and clients A and B joined, each seeing the other -> (server, a, b, ea, eb).
     `first(srv, a, ea)`: A joins alone first and this runs before B connects (a map with one start: A moved off it, or
     B's spawn telefrags him). `srv_first`, `b_first`: console commands the server runs before its map, B before he
-    connects."""
+    connects. `a_second` (a dedicated server): B joins first, A after him (A not entity 1: no rule of entity 1's)."""
     if listen:
         a = srv = s.server(dedicated=False, flat="A" in flat, name="A")
     else:
@@ -154,7 +155,7 @@ def join(s, listen=False, flat="", lag=0.0, jitter=0.0, loss=0.0, level="e1m1", 
         a = s.client("A", flat="A" in flat).start()
     # (B always through a proxy: with no lag it only counts B's traffic)
     b = s.client("B", flat="B" in flat, lag_ms=lag, jitter_ms=jitter, loss=loss, proxy=True).start()
-    if not listen:
+    if not listen and not a_second:
         a.cmd(s.connect_cmd(a))
     if first:
         _, ja = a.wait(r"mp_event: .*joined map=%s" % level, 120, what="A joined %s" % level)
@@ -162,6 +163,9 @@ def join(s, listen=False, flat="", lag=0.0, jitter=0.0, loss=0.0, level="e1m1", 
     if b_first:
         b.cmd(b_first)
     b.cmd(s.connect_cmd(b))
+    if a_second and not listen:
+        b.wait(r"mp_event: .*joined map=%s" % level, 120, what="B joined %s" % level)
+        a.cmd(s.connect_cmd(a))
 
     _, ja = a.wait(r"mp_event: .*joined map=%s" % level, 120, what="A joined %s" % level)
     _, jb = b.wait(r"mp_event: .*joined map=%s" % level, 120, what="B joined %s" % level)
@@ -2564,7 +2568,8 @@ def disarm(s):
     holsters seen by the other. A holds a shotgun out, B faces him; B's hand closes on its grip hotspot and pulls gently:
     it slips off, A keeps it; B grabs again and yanks: the shotgun is B's (A's hand empty). B tosses it to A: it lands by
     A and A's grip takes it. B's holsters (a shotgun given in each slot, one taken out, after his death) as A draws them."""
-    srv, a, b, ea, eb = join(s)
+    # (A second: entity 2 on the dedicated server, as a later player is; the toss's retake by his hand against the gun)
+    srv, a, b, ea, eb = join(s, a_second=True)
     a.cmd("name A")
     b.cmd("name B")
     if AMMO_PART:  # (--part give|use: the rounds alone)
@@ -2627,8 +2632,10 @@ def disarm(s):
     srv.wait(r"grip: A's main hand pressed at", 10, since, "A's grip on the server")
     since = srv.mark()
     a.cmd("vr_mock_button main grip 0")
-    line = retake(srv, a, "main", since, r"weapon: .* taken into the main hand", "vr_mock_hand_to main spot 0 6",
-                  "vr_mock_hand_to main spot 0")
+    # (by its handle, in reach whichever way the toss left it lying: gun mode, vr_weapon_grab_handle_leniency over the
+    # floor; its forend's hotspot (spot 0) could lie turned under the gun, out of the lowest fist's reach: no slack there)
+    line = retake(srv, a, "main", since, r"weapon: .* taken into the main hand", "vr_mock_hand_to main spot -1 6",
+                  "vr_mock_hand_to main spot -1")
     back = weapon_until(s, srv, ea, 4)
     s.check("toss: A's grip takes the shotgun B tossed him (the server's: in his main hand)",
             line is not None and back[-1] == 4, "server: %s; A's main weapon %s" % (line, back))
