@@ -2066,6 +2066,10 @@ QVR_TUNABLE(vr_flat_wall_arm_keep, "9") // a wall pushes a hipfire gun back towa
 QVR_TUNABLE(vr_flat_wall_fold, "5") // in the wall state (a hipfire gun pushed back or tilted at a wall) the arm may fold further, to this far from the shoulder (0..20 units; more than vr_flat_wall_arm_keep: no further), the stock to the chest; less: the gun comes nearer the eyes, more: it tilts more
 QVR_TUNABLE(vr_flat_wall_margin, "4") // a hipfire gun, and the hand on it, counts as clear of a wall only this far off it: the push back and the tilt start this much sooner (0..24 units; 0: only once in it)
 QVR_TUNABLE(vr_flat_mantle_hand_spread, "14") // flatscreen mantle: the hands on the ledge this far apart along its lip (units, 0..32: about his shoulders' width)
+QVR_TUNABLE(vr_flat_ladder_speed, "100") // flatscreen ledge ladder (vr_flat_ladder): how fast he climbs up or down it (units/s, 20..400)
+QVR_TUNABLE(vr_flat_ladder_look_down, "35") // flatscreen ledge ladder: looking down further than this (degrees, 0..90), forward climbs down
+QVR_TUNABLE(vr_flat_ladder_push, "120") // flatscreen ledge ladder: jump pushes off it at this speed away from it (units/s, 0..600; and half that up)
+QVR_TUNABLE(vr_flat_ladder_reach, "16") // flatscreen ledge ladder: how far ahead of his box's front its rungs are looked for (units, 4..48)
 QVR_TUNABLE(vr_flat_hand_collide, "1") // flatscreen: empty hands (the guard, at rest) go back off walls and props as a held weapon does, and a punch or a weapon's swing stops at the surface (vr_flatplay.cpp handOffWall, vr_flatsight.cpp pushBack; 0: they go through, as before)
 QVR_TUNABLE(vr_flat_swing_wind_strikes, "0") // 1: the overhead swing's windup (the raise) may land a blow on what it passes (it knocked a near knight out of the strike's way); 0: only from its top on
 QVR_TUNABLE(vr_flat_swing_path_stop, "1") // a weapon's swing that meets a wall stops where its own path from the frame before met it (0: pulled back towards the shoulder, as before 2026-11-11: a short strike's wall blow could miss)

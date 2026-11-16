@@ -36,6 +36,7 @@ CTL = [
     ("RuleIn", "Rule In (frames)", "int", 26, {"min": 1, "max": 240}),
     ("L3Start", "Line 3 Start (frames)", "int", 84, {"min": 0, "max": 240}),
     ("L3In", "Line 3 In (frames)", "int", 34, {"min": 1, "max": 240}),
+    ("HoldFrames", "Hold (frames, all lines in; 0 = to the clip end)", "int", 180, {"min": 0, "max": 900}),
     ("OutFrames", "Out (frames)", "int", 36, {"min": 1, "max": 240}),
     ("OutAt", "Out Start (frames, 0 = clip end - Out)", "int", 0, {"min": 0, "max": 900}),
     ("Backdrop", "Dark Backdrop", "check", 0, {}),
@@ -54,7 +55,11 @@ CTL = [
 ]
 EXPR = [  # hidden computed values on Ctl
     ("LT", "time - comp.RenderStart"),
-    ("OutStart", "iif(OutAt > 0, OutAt, comp.RenderEnd - comp.RenderStart + 1 - OutFrames)"),
+    # the out: at Out Start when set, else after the hold (from when the last line is in), and always so that it ends
+    # by the clip's end
+    ("OutStart", "iif(OutAt > 0, OutAt, min(comp.RenderEnd - comp.RenderStart + 1 - OutFrames, iif(HoldFrames > 0, "
+                 "max(max(L1Start + L1In, L2Start + L2In), max(RuleStart + RuleIn, L3Start + L3In)) + HoldFrames, "
+                 "1000000)))"),
     ("P1", "min(max((LT - L1Start)/max(L1In, 1), 0), 1)"),
     ("P2", "min(max((LT - L2Start)/max(L2In, 1), 0), 1)"),
     ("PR", "min(max((LT - RuleStart)/max(RuleIn, 1), 0), 1)"),
@@ -111,6 +116,7 @@ PUB = [
     ("RuleIn", "Ctl", "RuleIn", None, {}),
     ("L3Start", "Ctl", "L3Start", None, {}),
     ("L3In", "Ctl", "L3In", None, {}),
+    ("HoldFrames", "Ctl", "HoldFrames", None, {}),
     ("OutFrames", "Ctl", "OutFrames", None, {}),
     ("OutAt", "Ctl", "OutAt", None, {}),
     ("Backdrop", "Ctl", "Backdrop", None, {}),

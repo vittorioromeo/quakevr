@@ -3612,3 +3612,77 @@ His report: hip-firing through a teleporter in flat-screen aimed off; ADS seemed
   0.00; turn90 gate - / 0.00; no gate 0.00 / 0.00; loop (the real shotgun at your own back through T's loop) 223 apart,
   health 100 / 100 before, 100 / 70 after.
 - Checklist Test scene `flat_gate_hipfire` (vrteleporters -256 440, yaw 90, two grunts beyond the gate).
+## Flat-screen ledge ladders (branch agent/flatladder, 2026-11-16)
+
+His request: "ladders" made of individual ledges, like the tutorial's, climbable in flatscreen. Before: walking, jumping
+or holding jump at the tutorial's lesson 3 ladder did nothing (the flat mantle finds a rung but no room on it; the
+platform's lip, 156, is out of a jump's reach); `vr_flatladder_test 9` with the switch off still shows that.
+Found: the tutorial's rungs (x 2953, every 20 from 16) don't stop the player's box (it walks into them to the block's face
+at 2960), so the rung search starts 8 units inside the box's front. id maps have no ladders; AD's are trigger volumes
+(`vr_climb_ladder`), whose holds `ladderHold` makes anywhere in them, so the flat ladder takes them too (not run: no AD
+test here). Vrstart's lookout tower and vrclimb's rung wall are rung ladders as the tutorial's (not run).
+
+What it does (FLATPLAY.md, "Ladders"): `vr_climb.cpp` `flatLadder` (free, after `flatMantle`), `flatLadderFrame` (from
+`hangFrame` when `Climber::flatLadder`), `flatLadderMount`, `findRungs`, `ladderTake`, `ladderGrab`. Shared with the
+headset: `findHold` (a new `lower` argument: holds under Lowest Ledge, only for the mount's search), `holdLedge`, the
+Hanging phase and `transition`, `hangStamina`, `findMantle`/`startMantle`/`mantleStep` (the mount runs the mantle's way
+backwards: `Climber::flatMount`, then `ladderGrab` at its end), `flatMantleHands`, `calcStats` (a weapon hand's grip on
+a rung not sent: `flatShow`), the QC's climbing bits. Flat-only: the keys as the move (`ladderDir`), hand over hand.
+`gripHand` is skipped while on a flat ladder (its grips aren't pressed).
+
+Settings: `vr_flat_ladder` 1 (archived; Desktop Screen Play > Ladders). Tunables (Debug > Tunables): `vr_flat_ladder_speed`
+100 u/s, `_look_down` 35 deg, `_push` 120 u/s (half that up; 180 flew him 170 units onto the barrier), `_reach` 16.
+
+Test: `Misc/quakevr/flatladder_test.sh` (`vr_flatladder_test` in vrtutorial; Debug > Tests > Flat Ladder): up and over
+(5 hand changes, both hands drawn, the feet 156 on the platform), down from the top (lowered on, 77 frames on it, to the
+floor), down looking down (from 62.5), pushed off (landed at x 2811); no ladder at a plain wall, single ledges 48 and 96
+high, the 100 high jump wall, the pit's stairs (walked up to the top); `vr_flat_ladder 0`: none. 9/0 and 1/0. Scene
+`flat_ladder`.
+## titlebake: trailer title bakes verified and fixed, longer holds (agent/titlebake, 2026-11-16)
+
+In "QVR Titles Preview" (Resolve Studio 21.1.0.17, restarted by him; his open project was the empty "Untitled
+Project", so nothing to save), on test timelines of my own (removed afterwards).
+- **Why the first bake took 271 s**: the test's intro section was "QVR - Intro", a timeline left by an older test
+  (ti_apply) holding the **pre-titlespeed intro macro with Dark Backdrop on**: section timelines are found by name, and
+  timeline names are unique in a project, so a second trailer timeline with the same marker shares the section. That
+  title renders at 0.73 s/frame vs 0.45 for a fresh one (60-frame renders), and its frames are 4x bigger. With fresh
+  titles a bake of a 2 s intro + 2.5 s title took 85-104 s (73 + 27 s of render, the rest import/placing).
+  apply_titles now says when a baked title was made with an older template (`--rebuild` first) and makes a shared
+  section follow the current trailer's frame size.
+- **The digest was still unstable**: Fusion saves each expression input's last evaluated value next to the
+  expression (they follow the comp's current time and whether it was rendered), and reflows short blocks onto one line
+  or several. A plain rerun after `--bake` went back live, and a second `--bake` re-rendered. Now those values and the
+  whitespace are left out: plain reruns keep baked titles baked, `--bake` reuses them (0.6 s, nothing rendered),
+  `--bake` with Draft on reuses the full-quality bake; a changed subtitle goes back live on a plain run
+  ("unbaked(changed)") and `--bake` re-renders only that title (23 s).
+- **Edits lost after a render, and the crash**: one render per title, each started right after the last, then editing
+  the trailer timeline at once: in one run a baked clip was "placed" but not on the track, in another AppendToTimeline
+  failed, and a render job could not be deleted (left in the queue); the previous worker's Resolve closed in the second
+  render of such a sequence. Now every title to render goes into one batch (one Deliver visit, one StartRendering), the
+  jobs are deleted once Resolve lets go of them (retried up to 30 s), the page and timeline switch back is awaited,
+  and only then are the clips imported and placed; afterwards the track is checked. No crash or lost edit since
+  (6 bakes, back-to-back runs included).
+- `--unbake` put both live nested timelines back; `--draft on` / `off` set both titles' Draft (checked on the
+  comps), and a bake leaves it as it was.
+- Seen, not changed: the same title baked in different Resolve states came out 3.6x bigger at the same picture (PSNR
+  59 dB; low-bit noise in the alpha and colour): first renders after the restart ~0.7 MB/frame, later 2.5 MB/frame.
+
+His timing notes (extra scope):
+- **Title clips are 10 s now**: a title inserted between a timeline's In/Out marks takes their length
+  (Timeline.SetMarkInOut, counted from the timeline's start), so make_section_timeline no longer depends on Resolve's
+  standard generator duration (5 s). Titles made before need `--rebuild` for more than 5 s (apply_titles says so).
+- **Intro**: new published **Hold** (frames, 180 = 3 s at 60 fps) counted from when every line is in (frame 118,
+  1.97 s); the out (0.6 s) follows: 5.57 s in all (was 5 s, with 2.4 s of hold). The out always ends by the clip's
+  end (a hand-inserted 5 s title shortens the hold, as before). titles.txt `[Intro]` `hold:` (3); `seconds:` now
+  defaults to in + hold + out; given, it still sets the out's end.
+- **Feature titles**: **Subtitle Delay** now counts from the end of the title's in, 60 frames (1 s) by default:
+  title in over 0.67 s, alone 1 s, subtitle in over 0.67 s (in by 2.33 s), hold to 5.57 s, out 0.43 s: 6 s by
+  default (was 4.5), so the subtitle keeps its 3.2 s fully on screen. titles.txt `subdelay:` (1); a given `seconds:`
+  shortens the hold, and apply_titles warns when the subtitle would be fully on screen for less than 1.5 s. The rule
+  under the title keeps its own start (frame 5).
+- **Checked** (test trailer: intro + a default 6 s title + a 4.5 s one over a 10 Step generator): `--rebuild` made
+  10 s clips (placed 334, 360, 270 frames); preview mp4 and contact sheet (intro: all in at 1.97 s, full hold to
+  4.97 s, out; feature: title alone at 1.5 s, subtitle in at 2.0 s, hold, out) in
+  qvr-kit/scratch/titletiming_shots/; `--bake` of the three: 293 s, ap4h yuva444p12le 334 / 360 / 270 frames; a plain
+  rerun kept all three baked. Test timelines, bins and jobs (mine and ts_* / QVR - Stab Test) removed from the
+  preview project, which is closed again (Resolve left on its untitled project, as found).

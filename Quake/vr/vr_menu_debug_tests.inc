@@ -738,6 +738,10 @@ za::Vector<Item> pageDebugTests()
         command("Blood Fountain of a Limb Popped Close", "god; notarget; vr_flatblood_test 5")
             .help("vr_flatblood_test 5 (flat-screen or headset): crouched by a corpse 30, 12 and 4 units off a limb, keeping "
                   "still, the limb pops: its stump's fountain pours from the first frames (flatblood: lines; a screenshot of each)."),
+        command("Flat Ladder", "map vrtutorial; wait60; vr_flatladder_test")
+            .help("vr_flatladder_test (-flatscreenmode only; loads vrtutorial): its lesson 3 rung ladder walked into and "
+                  "climbed over the top, backed onto from its top and climbed down, down looking down, pushed off with "
+                  "jump; and a plain wall, single ledges and stairs walked into: no ladder (flatladder: lines and a verdict)."),
         command("Flat Ledges", "vr_flatmove_test 9")
             .help("vr_flatmove_test 9 (-flatscreenmode only, floating at the surface): the spots within 512 units where "
                   "Quake's jump out of the water lifts you, with the yaw that faces the ledge (flatmove: ledge lines)."),

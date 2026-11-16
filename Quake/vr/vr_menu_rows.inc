@@ -6634,6 +6634,10 @@ QVR_SLIDER(vr_flat_mantle_look, "Mantle Look Up", -90.f, 90.f, 1.f, "%.0f deg", 
     "(vr_flat_mantle_look).")
 QVR_SLIDER(vr_flat_mantle_look_max, "Mantle Look Up Most", 0.f, 90.f, 1.f, "%.0f deg", noExt,
     "Playing on the desktop screen: looking up further than this, no mantle (vr_flat_mantle_look_max).")
+QVR_TOGGLE(vr_flat_ladder, "Ladders",
+    "Playing on the desktop screen (-flatscreenmode): walk forward into a ladder of rungs or stacked ledges to take "
+    "hold of it, as a headset's hands do. Forward climbs it hand over hand (looking down, or back: down), jump pushes "
+    "off, and at the top you climb over (needs Climbing on; tuning: Debug > Tunables; vr_flat_ladder).")
 QVR_SLIDER(vr_flat_mantle_time, "Mantle Window", 0.f, 3.f, 0.05f, "%.2f s", noExt,
     "Playing on the desktop screen: how long after the jump leaves the ground a ledge may still be mantled, the jump "
     "key held all along (vr_flat_mantle_time).")
