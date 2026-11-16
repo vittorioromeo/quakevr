@@ -4186,3 +4186,19 @@ His timing notes (extra scope):
 - e1m1's frozen fight: 9 monsters cost ~2.7 ms of GPU and 71 draws at 0.55; the models' plain form saves 3.1 ms.
 - The perf recorder has a `split` column. PC: scenario_check PASS, load_models_test 4/0, gles_render_test 21/0.
   Details: QUEST_PLAN.md 6zb.
+
+## Quest C4w: the monsters' draws batched, the world models' pre-pass off on the Quest, the split's empty lit draws (branch `agent/quest`, 2026-11-16)
+
+- **Alias sort key (PC bug, from Ironwail)**: every alias model's key was the name's hash masked to 4 bits (16 keys),
+  so models sharing one drew in entity order, a batch each (an armed grunt and its gun interleaved); the models made in
+  memory ("#rig2", "#armor", "#bridge") had no key of their own. `Mod_AliasSortKey` (gl_model.c): 15 bits, both.
+- `vr_alias_batch_posed` (default 1, Debug > Profiling): the world's posed models of one model and skin (armed grunts on
+  the authored rig, their armour, ragdolls; not your own) batch, their bones in one buffer (r_alias.c `R_AliasPosedJoin`).
+- `vr_alias_prepass_world` (default 1: the PC as before; **the Quest preset 0**): the world's models without the depth
+  pre-pass (the Quest draws the eyes apart, so each model batch was two draws).
+- `vr_gl_world_lit_skip` (default 1; ES only): the split by surface draws only the lit commands of textures a reaching
+  light can fill (a CPU walk of the view's PVS leaves, r_world.c `R_WorldLitTextures`).
+- `vr_gl_passes` also lists the frame's alias batches. `vr_rig_lights_world` left at 1 (his call).
+- Headset, e1m1's frozen fight lifted into the unworn headset's downward view (0.55): GPU 4.81 -> 4.00 ms, draws 219 ->
+  149 (the models' share 2.2 -> 1.4 ms); e1m2's start 192 -> 180 draws. PC eyes 0.000% over 8 for each switch.
+- PC: dev build 0 warnings; gles_render_test 21/0; load_models_test 4/0; scenario_check PASS (138 run; a first run failed bench_crowd_ad's placement once, the rerun passed). Details: QUEST_PLAN.md 6zc.

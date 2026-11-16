@@ -254,6 +254,16 @@ extern "C" int VR_AliasCullPosedOn(const entity_t* e, int depth)
     return mode && (!e || depth || !view::keepsBareLight(e)) ? mode : 0;
 }
 
+extern "C" int VR_WorldLitSkip()
+{
+    return vr_gl_world_lit_skip.value != 0.f ? 1 : 0;
+}
+
+extern "C" int VR_AliasBatchPosed()
+{
+    return vr_alias_batch_posed.value != 0.f ? 1 : 0;
+}
+
 extern "C" int VR_AliasDepthPrepass(const entity_t* e)
 {
     // The world's models (no morphs there: VR_AliasMorph's are view entities') (r_alias.c keeps the eligible and the
@@ -261,7 +271,7 @@ extern "C" int VR_AliasDepthPrepass(const entity_t* e)
     // cost more than it saved (GPU benchmark, BENCHMARKS.md).
     if(e && !VR_IsViewEntity(e))
     {
-        return 1;
+        return vr_alias_prepass_world.value != 0.f ? 1 : 0;
     }
     const int group = VR_ViewEntityGroup(e);
     if(group == VR_DRAW_BODY || group == VR_DRAW_MIRROR)

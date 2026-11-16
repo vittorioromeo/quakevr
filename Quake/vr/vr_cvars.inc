@@ -610,6 +610,13 @@ QVR_CVAR(vr_alias_player_first, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Own Models Pre-pass: 1 your hands and what they hold drawn into the depth first (as your
 // body and the world's models are), then shaded once a pixel (not while a gun morphs); 0 shaded as drawn (the A/B).
 QVR_CVAR(vr_alias_prepass_own, "1", CVAR_NONE)
+// Debug > Profiling and Memory > World Models Pre-pass: 1 the world's models (monsters, items) drawn into the depth
+// first, then shaded once a pixel (as before); 0 shaded as drawn: a draw a batch less (the A/B; QUEST_PLAN.md 6zc).
+QVR_CVAR(vr_alias_prepass_world, "1", CVAR_NONE)
+// Debug > Profiling and Memory > Batch Posed Models: 1 the world's posed models of one model and skin (armed grunts on
+// the authored rig, their armour, ragdolls) drawn as one batch, their bones in one buffer; 0 a batch each, as before
+// (the A/B; QUEST_PLAN.md 6zc).
+QVR_CVAR(vr_alias_batch_posed, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Keep Light Casters: 1 each dynamic light's world shadow casters kept between frames
 // while it stays inside the sphere they were collected for (a moving light's collected 24 units wider; vr_lighting.cpp
 // collectWorldCached; vr_shadow_caster_stats); 0 collected again for each light each frame; 2 (a check) the wider set
@@ -2069,6 +2076,10 @@ QVR_CVAR(vr_explosion_debris_mp_max, "24", CVAR_ARCHIVE) // most at once in mult
 QVR_CVAR(vr_explosion_debris_trail, "1", CVAR_ARCHIVE) // trail density, 0 off
 QVR_CVAR(vr_explosion_debris_lights, "8", CVAR_ARCHIVE) // nearest glowing chunks, cap 16 of the shared dlights
 QVR_CVAR(vr_rig_lights_world, "1", CVAR_ARCHIVE) // (C4v, QUEST_PLAN.md 6zb; a cvar: the Quest preset sets it) 1: the rig's small lights (the guns' screen lights, the wrist gadget's two) light the walls as well as the hands and gear. 0 (the Quest preset's choice; his look call, so 1 there for now): they light the player's own models only, the world's shader skipping them (under the ES profile's plain lights' loop: vr_gl_lights_plain, QVR_LITE_RIGNOWORLD) and the world's unlit test ignoring them (vr_gl_world_unlit). No effect elsewhere (the PC's shaders).
+// Debug > Profiling and Memory > Skip Empty Lit Commands (Quest): (C4w, QUEST_PLAN.md 6zc) 1 the world split by surface
+// (vr_gl_world_unlit 2) draws only the lit commands of textures with a surface a reaching light's sphere touches in the
+// view's PVS (r_world.c R_WorldLitTextures: a CPU walk of the leaves); 0 every texture's lit command, as C4v (the A/B).
+QVR_CVAR(vr_gl_world_lit_skip, "1", CVAR_NONE)
 QVR_CVAR(vr_explosion_debris_light_radius, "48", CVAR_ARCHIVE) // units at world scale 1
 
 QVR_CVAR(vr_particle_mult, "1", CVAR_ARCHIVE)         // how many of them

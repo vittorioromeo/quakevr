@@ -881,6 +881,7 @@ void GL_BuildBModelMarkBuffers (void)
 		for (i = 0; i < cl.worldmodel->nummodelsurfaces; i++)
 			numtris += q_max (cl.worldmodel->surfaces[i + cl.worldmodel->firstmodelsurface].numedges, 2) - 2;
 	}
+	R_WorldLitLeavesBuild (); // QVR: which lit commands a view's lights can fill (C4w)
 
 	// count marksurfaces used by worldmodel leafs
 	for (i = 0; i < cl.worldmodel->numleafs; i++)

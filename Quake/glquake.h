@@ -517,6 +517,7 @@ void R_AnimateLight (void);
 void R_MarkSurfaces (void);
 const byte *R_ViewVis (void); // QVR: the PVS R_MarkSurfaces chose for the view (VR_WorldLightsCheck)
 void R_MarkSurfacesLate (void); // QVR: the world's cull under the ES profile, after R_PushDlights (C4v: the split by surface)
+void R_WorldLitLeavesBuild (void); // QVR: the world leaves' boxes for the split's lit commands (C4w, r_world.c)
 qboolean R_CullBox (vec3_t emins, vec3_t emaxs);
 qboolean R_CullModelForEntity (entity_t *e);
 void R_EntityMatrix (float matrix[16], vec3_t origin, vec3_t angles, unsigned char scale);

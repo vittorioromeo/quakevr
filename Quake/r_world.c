@@ -66,6 +66,150 @@ static gpumark_frame_t r_markframe;
 static qboolean r_markpending;
 static int r_world_litsplit = -1;
 static qboolean r_world_litbmodels;
+// QVR: C4w, which of the world's lit commands can get a surface this view (R_WorldLitTextures): only those are drawn
+// (on ES each command is a draw of its own: the empty ones cost 18 draws on e1m2's start); from each leaf's box round
+// its surfaces' boxes (R_WorldLitLeavesBuild, at the map's load)
+static byte *r_world_littex;		// a byte a lit command: 1 drawn
+static int r_world_littexcap;
+static float (*r_litleafbox)[6];	// each leaf's (leafs[i + 1]) box round its surfaces' (mins, maxs; empty: mins > maxs)
+static int r_litleafcount, r_litleafcap;
+static int *r_litsurftex;			// each world surface's lit command (its texture's index; -1: not split)
+static int r_litsurfcap;
+static qboolean r_world_litskip;	// this view's: the empty lit commands skipped (vr_gl_world_lit_skip)
+
+/*
+===============
+R_WorldLitLeavesBuild -- QVR
+
+C4w: each world leaf's box round its surfaces' boxes (the boxes the GPU's cull tests the lights' spheres against), for
+R_WorldLitTextures; at the map's load, when the ES profile's lit commands are made (r_brush.c).
+===============
+*/
+void R_WorldLitLeavesBuild (void)
+{
+	int i, j, k;
+	int *texidx;
+	r_litleafcount = 0;
+	if (gl_bmodel_litcmd_first < 0 || !cl.worldmodel)
+		return;
+	if (cl.worldmodel->numleafs > r_litleafcap)
+	{
+		free (r_litleafbox);
+		r_litleafcap = cl.worldmodel->numleafs;
+		r_litleafbox = (float (*)[6]) malloc (sizeof (r_litleafbox[0]) * r_litleafcap);
+		if (!r_litleafbox)
+			Sys_Error ("R_WorldLitLeavesBuild: out of memory (%d leaves)", r_litleafcap);
+	}
+	if (cl.worldmodel->numsurfaces > r_litsurfcap)
+	{
+		free (r_litsurftex);
+		r_litsurfcap = cl.worldmodel->numsurfaces;
+		r_litsurftex = (int *) malloc (sizeof (r_litsurftex[0]) * r_litsurfcap);
+		if (!r_litsurftex)
+			Sys_Error ("R_WorldLitLeavesBuild: out of memory (%d surfaces)", r_litsurfcap);
+	}
+	texidx = (int *) malloc (sizeof (texidx[0]) * q_max (cl.worldmodel->numtextures, 1)); // (as GL_BuildBModelMarkBuffers' texidx)
+	if (!texidx)
+		Sys_Error ("R_WorldLitLeavesBuild: out of memory (%d textures)", cl.worldmodel->numtextures);
+	for (i = 0; i < cl.worldmodel->numtextures; i++)
+		texidx[i] = -1;
+	for (i = 0; i < cl.worldmodel->texofs[TEXTYPE_COUNT]; i++)
+		texidx[cl.worldmodel->usedtextures[i]] = i;
+	for (i = 0; i < cl.worldmodel->numsurfaces; i++)
+	{
+		const int t = cl.worldmodel->surfaces[i].texinfo->texnum;
+		const int idx = t >= 0 && t < cl.worldmodel->numtextures ? texidx[t] : -1;
+		r_litsurftex[i] = idx >= 0 && idx < gl_bmodel_litcmd_count ? idx : -1;
+	}
+	free (texidx);
+	for (i = 0; i < cl.worldmodel->numleafs; i++)
+	{
+		const mleaf_t *leaf = &cl.worldmodel->leafs[i + 1];
+		float *box = r_litleafbox[i];
+		box[0] = box[1] = box[2] = 1e30f;
+		box[3] = box[4] = box[5] = -1e30f;
+		for (j = 0; j < leaf->nummarksurfaces; j++)
+		{
+			const msurface_t *s = &cl.worldmodel->surfaces[leaf->firstmarksurface[j]];
+			for (k = 0; k < 3; k++)
+			{
+				box[k] = q_min (box[k], s->mins[k]);
+				box[3 + k] = q_max (box[3 + k], s->maxs[k]);
+			}
+		}
+	}
+	r_litleafcount = cl.worldmodel->numleafs;
+	if (r_world_littexcap < gl_bmodel_litcmd_count)
+	{
+		free (r_world_littex);
+		r_world_littexcap = gl_bmodel_litcmd_count;
+		r_world_littex = (byte *) malloc (r_world_littexcap);
+		if (!r_world_littex)
+			Sys_Error ("R_WorldLitLeavesBuild: out of memory (%d textures)", r_world_littexcap);
+	}
+}
+
+/*
+===============
+R_WorldLitTextures -- QVR
+
+C4w: which of the world's lit commands the GPU's cull can send a surface to this view: a texture with a surface whose
+box a sphere touches (the cull's own test, the radius a unit wider) in a leaf of the view's PVS. A superset: the cull
+also drops back faces and what is out of the frustum. Their texture index as the cull's (R_AddBModelPassCalls' j).
+===============
+*/
+static qboolean R_WorldLitTextures (const byte *vis, const vec4_t *spheres, int count)
+{
+	int i, j, l, k;
+	if (!r_world_littex || !r_litsurftex || r_litleafcount != cl.worldmodel->numleafs || !vis)
+		return false;
+	memset (r_world_littex, 0, gl_bmodel_litcmd_count);
+	for (i = 0; i < r_litleafcount; i++)
+	{
+		const float *box = r_litleafbox[i];
+		const mleaf_t *leaf;
+		if (!(vis[i >> 3] & (1 << (i & 7))) || box[0] > box[3])
+			continue;
+		for (l = 0; l < count; l++)
+		{
+			const float *s = spheres[l];
+			float d2 = 0.f, r = s[3] + 1.f;
+			for (k = 0; k < 3; k++)
+			{
+				float d = q_max (q_max (box[k] - s[k], s[k] - box[3 + k]), 0.f);
+				d2 += d * d;
+			}
+			if (d2 <= r * r)
+				break;
+		}
+		if (l == count)
+			continue;
+		leaf = &cl.worldmodel->leafs[i + 1];
+		for (j = 0; j < leaf->nummarksurfaces; j++)
+		{
+			const msurface_t *surf = &cl.worldmodel->surfaces[leaf->firstmarksurface[j]];
+			const int tex = r_litsurftex[leaf->firstmarksurface[j]];
+			if (tex < 0 || r_world_littex[tex])
+				continue;
+			for (l = 0; l < count; l++)
+			{
+				const float *s = spheres[l];
+				float d2 = 0.f, r = s[3] + 1.f;
+				for (k = 0; k < 3; k++)
+				{
+					float d = q_max (q_max (surf->mins[k] - s[k], s[k] - surf->maxs[k]), 0.f);
+					d2 += d * d;
+				}
+				if (d2 <= r * r)
+				{
+					r_world_littex[tex] = 1;
+					break;
+				}
+			}
+		}
+	}
+	return true;
+}
 
 byte *SV_FatPVS (vec3_t org, qmodel_t *worldmodel);
 
@@ -118,6 +262,7 @@ static void R_MarkVisSurfaces (byte* vis)
 	frame.framecount = r_framecount;
 
 	r_world_litsplit = -1; // QVR
+	r_world_litskip = false;
 	r_world_litbmodels = false;
 	if (gl_bmodel_litcmd_first >= 0) // QVR: the ES profile's split by surface: after R_PushDlights (R_MarkSurfacesLate)
 	{
@@ -146,6 +291,7 @@ void R_MarkSurfacesLate (void)
 	r_world_litsplit = VR_WorldLitSpheres (r_markframe.litspheres, &bmodels);
 	r_world_litbmodels = bmodels != 0;
 	r_markframe.litinfo[0] = (GLuint) q_max (r_world_litsplit, 0);
+	r_world_litskip = r_world_litsplit >= 0 && VR_WorldLitSkip () && R_WorldLitTextures (r_lightsvis, r_markframe.litspheres, r_world_litsplit); // QVR: C4w
 	r_markframe.litinfo[1] = (GLuint) gl_bmodel_litcmd_first;
 	r_markframe.litinfo[2] = (GLuint) gl_bmodel_litcmd_count;
 	VR_ProfileBegin ("mark surfaces"); // QVR: profile
@@ -1412,7 +1558,7 @@ static void R_AddBModelPassCalls (entity_t **ents, int count, textype_t texbegin
 			{
 				if (bmodel_lit_mode != 2)
 					R_AddBModelCall (model->firstcmd + j, baseinst, numinst, pass != BP_SHOWTRIS ? R_TextureAnimation (t, frame) : 0, zfix, e);
-				if (bmodel_lit_mode != 1)
+				if (bmodel_lit_mode != 1 && (!r_world_litskip || r_world_littex[j])) // (C4w: a lit command no sphere can fill: not drawn)
 					R_AddBModelCall (gl_bmodel_litcmd_first + j, baseinst, numinst, pass != BP_SHOWTRIS ? R_TextureAnimation (t, frame) : 0, zfix, e);
 				continue;
 			}

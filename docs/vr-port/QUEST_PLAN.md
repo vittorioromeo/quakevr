@@ -1557,6 +1557,39 @@ e1m2's start and on C4k's frozen e1m1 fight (`c4v_fight.sh`), `c4u_play.sh c4v` 
   (views a frame drawn split).
 - PC: dev build 0 warnings; gles_render_test 21/0; scenario_check PASS (145 run, 0 failed); load_models_test 4/0.
 
+## 6zc. C4w: the monsters' draws batched, the world models' pre-pass off on the Quest, the split's empty lit draws (2026-11-16; adb, unworn)
+
+Method (`scratch/c4w_*`): `c4w_pcfight.sh` (C4k's frozen e1m1 fight under `-glescompat` on the PC: the profile tree's
+draws), `c4w_pceq.sh` (its left eye across variants, compared), `c4w_pclit.sh` (e1m2's start, the split's draws and eye),
+`c4w_fight.sh` / `c4w_m2.sh` on the headset (`c4u_ab.sh` interleaved, 4 rounds, 0.55 fixed). The unworn headset now
+lies looking 70 degrees down (`viewpos`): the fight's grunts were out of view, so `c4w_fight.sh` lifts the player 110
+units (noclip) once the fight is frozen. **`vr_gl_passes`** now also lists the frame's alias batches (model, instances,
+draws, entity, skin).
+- **What the monsters drew**: every world model's batch is 2 draws (its depth pre-pass, then its shading; the Quest
+  draws the eyes apart, so the multiview skip of the pre-pass never applied), and the 6 armed grunts were 6 batches
+  (posed: their own bones), their 4 guns 4 batches drawn between them, the armour and its leather 3 batches each.
+- **The alias sort key** (a PC bug, Ironwail's): `Mod_LoadAliasModel` masked the name's hash with `MODSORT_FRAMEMASK`,
+  16 keys for every alias model, so models sharing one were drawn in entity order, one batch each (the grunts and their
+  guns interleaved); and the models made in memory (`VR_SyntheticModel`: "#rig2", "#armor", "#bridge") kept no key of
+  their own. Now `Mod_AliasSortKey` (15 bits of the hash, the alpha-test bit kept) for both: the guns one batch.
+- **Posed models batched** (`vr_alias_batch_posed`, default 1, Debug > Profiling): the world's posed models of one
+  model and skin (not your own) with as many bones, the same surfaces and skin mask join one batch; their bones go into
+  one buffer, each instance's poses offset to its own (`R_AliasPosedJoin`, `R_FlushAliasInstances`): the 6 grunts 1
+  batch, the armour 2 (two skins), its leather 2. PC eye against off: 0.000% over 8 (max 1).
+- **The world models' pre-pass** (`vr_alias_prepass_world`, default 1 = the PC as before; **the Quest preset 0**): off,
+  each batch is shaded as drawn (the Adreno's own early depth test does the rest). PC eye: 0.000% over 8 (max 1).
+- **The headset** (the lifted fight, GPU span / draws): all three before 4.81 / 219; **now 4.00 / 149**; no entities
+  2.61 / 108: the fight's models from 2.2 to 1.4 ms. Apart: the pre-pass off -0.49 ms and -20 draws, the posed batching
+  -0.11 ms and -20 draws (the sort key's guns can't be toggled).
+- **The split's empty lit draws** (`vr_gl_world_lit_skip`, default 1, Debug > Profiling; ES only): on ES each command
+  is a draw of its own, so the split's lit commands (one per solid or fence texture) cost a draw each even when empty.
+  `R_WorldLitTextures` (r_world.c) walks the view's PVS leaves on the CPU (each leaf's box round its surfaces', made at
+  the map's load) and marks the textures with a surface whose box a reaching sphere touches (the cull's own test, a
+  unit wider: a superset); only their lit commands are drawn. PC `-glescompat` e1m2: 174 -> 158 draws (both eyes),
+  eye 0.000% over 8 (max 2). Headset e1m2 start: 192 -> 180 draws, GPU 5.40 -> 5.34 ms.
+- Left at 1: `vr_rig_lights_world` (his look call).
+- PC: dev build 0 warnings; gles_render_test 21/0; load_models_test 4/0; scenario_check PASS (138 run; a first run lost bench_crowd_ad's placed things once, the rerun passed).
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
@@ -1600,4 +1633,4 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C4w (after 6zb) — no installs, the headset needed: the monsters' cost (~0.3 ms of GPU and ~8 draws each at 0.55: their draws per model, a cheaper form at a distance, their shadows' and weapons' share), the split's 18 extra draws (the lit calls only for the textures a reaching light's sphere touches, from a CPU walk), his look call on `vr_rig_lights_world 0` for the Quest preset (~0.3 ms, e1m1's walk mostly unlit); SpaceWarp optional and off. Still open from before: C2h (the world textures' memory under the ES profile), Adreno's wrong derivatives with the retro code out (NORETRO). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d), shadowless dynamic lights on the Quest (6w).
+Next phase: C4x (after 6zc) — no installs, the headset needed: the fight's remaining model cost (~1.4 ms for 9 monsters at 0.55: a cheaper form at a distance, the grunts' vertex work on the authored rig, their shadows' and weapons' share), his look call on `vr_rig_lights_world 0` for the Quest preset (~0.3 ms, e1m1's walk mostly unlit); SpaceWarp optional and off. Still open from before: C2h (the world textures' memory under the ES profile), Adreno's wrong derivatives with the retro code out (NORETRO). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d), shadowless dynamic lights on the Quest (6w).

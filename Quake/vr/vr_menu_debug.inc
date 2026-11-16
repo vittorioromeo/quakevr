@@ -510,6 +510,7 @@ za::Vector<Item> pageDebugProfiling()
                   "on the Quest (QUEST_PLAN.md 6zb). The look is the question; vr_rig_lights_world 1 (the default) undoes it."),
         command("Rig Lights on the Walls", "vr_rig_lights_world 1")
             .help("vr_rig_lights_world 1 (the default): the rig's small lights light the walls too."),
+        row(opt::vr_gl_world_lit_skip),
         command("List the Dynamic Lights", "vr_dlights_list")
             .help("vr_dlights_list: every live dynamic light in the console: its key (who made it), radius, distance from "
                   "the view and colour (QUEST_PLAN.md 6za: which lights a scene's GPU time pays for)."),
@@ -674,6 +675,8 @@ za::Vector<Item> pageDebugProfiling()
         row(opt::vr_alias_cull_posed),
         row(opt::vr_alias_player_first),
         row(opt::vr_alias_prepass_own),
+        row(opt::vr_alias_prepass_world),
+        row(opt::vr_alias_batch_posed),
         command("Lazy OIT Clear Stats", "vr_oit_stats")
             .help("vr_oit_stats: since the last time, the views with a translucent pass, how many drew something "
                   "translucent (water, slime, lava, a translucent model or particles) and how many skipped the clear."),

@@ -154,6 +154,9 @@ constexpr presetcore::Row questRows[] = {
     {&vr_lavanail_lights,             {"2",      "2",      "1"}},
     {&vr_explosion_debris_lights,     {"2",      "2",      "0"}},
     {&vr_rig_lights_world,            {"1",      "1",      "1"}},     // the rig's small lights on the walls: his look call (0 saves the world's lights' loop near walls; C4v, QUEST_PLAN.md 6zb)
+    // Models: the world's models shaded as drawn, no depth pre-pass (the tiler's own early depth test does it): e1m1's
+    // frozen fight -0.49 ms of the Quest 3's GPU, 20 draws fewer, the same picture (C4w, QUEST_PLAN.md 6zc)
+    {&vr_alias_prepass_world,         {"0",      "0",      "0"}},
     // Particles, marks, bodies: fill rate, the decal walk, and the CPU's physics (the big cores ~3x slower than a PC's)
     {&vr_particle_max_screen,         {"0.08",   "0.06",   "0.05"}},
     {&vr_particle_halfres,            {"1",      "1",      "1"}},
