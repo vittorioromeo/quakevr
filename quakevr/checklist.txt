@@ -20,6 +20,7 @@ Let grunts shoot at your held gun and enemies hit it with default settings: it i
 Throw the dagger a few times, then set Debug > Tunables > Dagger Settling: Strength to 0 and throw it again: the dagger no longer comes round point first while a thrown sword still does; back at 1 both are as before.
 Turn on Ghost Hands, hold a heavy gun off your controller so a ghost shows, then start an OBS recording from the menu: the ghost hands, tips and wrist messages disappear while it records and come back when it stops; with Graphics > Recording > No Ghost Hands While Recording off the ghost stays.
 On the Quest Pro via Virtual Desktop with eye tracking forwarded to the PC: turn on Eye-Tracked Foveation (VR Settings, Graphics), restart VR and set vr_foveated_debug 1: the sharp area follows your eyes, and the log says eye tracking is on.
+Trailer titles: intro holds ~3 s with all lines; feature subtitle comes ~1 s after the title; --bake, plain rerun keeps them baked, --unbake restores live
 
 [1. Flat-screen: weapons and hands]
 Flat-screen: turn on Locomotion > Desktop Screen Play > Third-Person Camera and walk the corridor and the doorway: the camera sits over your right shoulder with your whole body in view, pulls in at once when a wall comes behind it (never showing the inside of a wall), eases back out, and moves over the other shoulder at a wall on the right. {test:flat_thirdperson}
