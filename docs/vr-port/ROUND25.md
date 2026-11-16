@@ -3323,6 +3323,25 @@ His flat-screen notes (2026-11-16) and the coordinator's disarm-sound item.
 - Checked in Resolve Studio 21.1 (project "QVR Titles Preview"): two titles rendered at 1080p60, top-right and
   bottom-left; a rerun reports "updated" for both, no duplicates. Not checked: 4K, IM Fell English.
 
+## vr1116c: the alternate-ammo models get the ammo screen housing (agent/vr1116c, 2026-11-16)
+
+His notes (vrfiringrange_2026-11-16_00-26..00-29): the plasma Thunderbolt (`v_light_plasma.mdl`), the lava nailgun
+(`v_lava.mdl`) and the lava super nailgun (`v_lava2.mdl`) still had the old geometry, no enclosure, and the old screen.
+- **Models:** the default models' housing scripts now also run on the alternate .blends: each picks its gun from the
+  mesh's name (`GUNS` in `make_screen_housing_light.py`, `_nail.py`, `_nail2.py`: stem, slot, and for the lava models
+  their own skin's texel places, found by colour, least RMS, since their panels sit elsewhere on the skin; v_lava2 its
+  own ridge/glass reference as its mesh differs within a grid step). Same plate/bezel/wedge, rivets and fasteners.
+  Normal maps re-baked, `fx_gfx_mask` rewritten (slots 11, 12, 15).
+- **Screens:** `vr_screenstyle.cpp` entries `lava`, `lava2`, `light_plasma` with their base's numbers (opening, radius,
+  taper, size, look) and offsets measured on each model. weapons.txt slot 12 (v_lava2) takes slot 4's glass place and
+  tilt (wpntxt_pitch 70.5, x -3.4, z 4.13); slots 11 and 15 already matched 3 and 7; fonts inherit (`inherit`).
+  `vr_wofs_version` 78: `takeLavaSngHousing78` resets a config still holding slot 12's old upright glass. His config has
+  no wpntxt tweaks for these slots.
+- Checked: check_mdl_holes ok on all three (0 see-through, 0 flipped in sight, cracks none wider than 0.01; same as their
+  bases); load_models_test 4/0; scenario_check 144/0 (new scenes `nail_alt_housing`, `nail2_alt_housing`,
+  `light_alt_housing`: the gun, B switches the model). Flat shots default vs alternate, hand view and screen close-up:
+  kit `scratch/vr1116c_shots/`. Dev and ReleaseLTO (1.1.0) builds 0 warnings.
+- Backlog: one model per gun with attachments/parts/skins instead of per-ammo models (his words, BACKLOG.md section 8).
 ## Player disarm off; the dagger's own settling; clean recording; his tuning promoted (branch agent/vr1116d, 2026-11-16)
 
 - **Player disarm off by default for 1.1** (his note vrragtriggers 00:33): `vr_player_disarm` 0 (the feature, its
