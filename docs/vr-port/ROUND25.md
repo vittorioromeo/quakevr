@@ -4571,3 +4571,27 @@ Resolution Half/Quarter, proxies on); a full render works but takes over a minut
   mp_lockstep_throw 29/0, mp_predict 29/0 (the stairs' ulp not seen: walking 340 of 340 exact); the MP suite 39 of 41 under idle priority (his game ran; mp_lockstep 19/0 there), mp_loss 14/1 (A's hands' roughness 0.52 of 0.5, a timing measure) and mp_predictslide 5/1 (B's teleport to its spot) each passing alone (15/0, 13/0). SP:
   scenario_check PASS (138/0), bench_crowd_ad alone 3 of 3 (B14d's failure a flake), load_models 4/0, vrslide 15/0,
   flatslide 26/0, flatladder 2/0, vr_run_check 9/0. Dev and Release (ThinLTO) builds 0 warnings.
+
+## MP B11 part 4: bots punch and grab as players do (agent/mp, 2026-11-16)
+
+- **A bot's off hand is a player's.** Its AI decides (`bot_offhand_ai`); the hand, its grip and its velocity go
+  through the players' code. It punches an enemy within 60 units: its fist is thrust at 6 m/s and struck by the
+  melee's sweep, a player's punch. It takes a dropped gun or a backpack within its reach: the open hand goes there,
+  closes on it, and the hand's touch takes it. With "You Can Be Disarmed by Players" on, it closes its hand on a
+  player's held weapon and pulls it away (the players' grab disarm).
+- **What changed underneath:** bots' walks run the client premove (the hand touches). Their grips go through
+  `VR_HandGrabUtil_UpdateState`. The melee takes hands that move themselves (`VR_HandLinesKept`). A bot's sword swing
+  keeps its traced blow, and its sweep is off during the swing (one blow).
+- **Tests:** `vr_dm_test 4/5/6` in `mp_dm` (20/0), and Debug > Tests "Deathmatch: A Bot Punches You / Takes a Gun by
+  Hand / Grabs Your Gun".
+- **Checks:**
+  - The MP suite: 36 of 38 scenarios clean. mp_dm 20/0, mp_lockstep_dm 22/0 (every hash and move equal in both runs,
+    with the bots' new hands), mp_lockstep_throw 29/0, mp_melee 29/0, mp_disarm 35/0.
+  - The two failures, both seen in earlier phases: mp_climb 10/1 (a mantle) passed 11/0 alone on the second try;
+    mp_lockstep 18/1 (8 of slot 0's 720 moves differed) passed 19/0 alone. Neither has a bot in it, and a human's
+    code path is unchanged.
+  - SP: Melee Only bots (`vr_pickup_test 15`) 13/0, scenario_check PASS (138/0), load_models 4/0, vr_run_check 9/0.
+  - Dev and Release (ThinLTO) builds: 0 warnings.
+- **In VR:** a deathmatch with bots (`impulse 100`, "You Can Be Disarmed by Players" on). Get close to a bot with an
+  empty off hand and it punches. Hold a gun still in front of one and it reaches for it and pulls it away. Drop a gun
+  near a bot and it takes it by hand. Details: MP_PLAN.md, "B11 part 4 results".

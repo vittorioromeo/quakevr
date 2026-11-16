@@ -2804,6 +2804,55 @@ QuakeC's PlayerPreThink parts. Exactly what would change:
   lockstep the walks have no miss at all. Left open (B14's one run).
 - Checks: ROUND25's B14e section.
 
-Next phase: B11's open items -- bots grab (a bot's hand targets and grip timing in bot_setvrfields, the grab disarm
-with a bot) and a bot's fists punch (the punch's swing); B10v's VR checks are his (a real microphone, the spatial
-mixers).
+### B11 part 4 results: bots punch and grab as players do (2026-11-16, dev no-LTO build, loopback; `mp_dm` 20/0)
+
+- **One code path, the AI only deciding.** A bot's off hand is now a player's: FrikBot's AI picks what it does
+  (`bot_offhand_ai`, frikbot/bot_fight.qc, from BotAI), and `bot_setvrfields` moves the hand, sets its grip and its
+  velocity once a frame; everything after that is the players' code.
+- **The fist punches through the melee's sweep.** An enemy within 60 units (origin to origin) and the off hand empty:
+  the fist is drawn back 4 units (0.08 s), thrust at 6 m/s at his middle, 10 units deep (at most 36 units from its
+  chest), held 0.06 s, back in 0.15 s, every 0.5 s. `VR_Melee_Track` and `PlayerVRMeleeImpl` take hands that move
+  themselves, `VR_HandLinesKept` (tracked, or a bot's) where they took `VRHandsTracked`. A bot's poses have no clock of
+  their own (`.vr_posetime` -1, so the melee reads them over the server's frames). The blow is a player's punch: the
+  sweep, `W_FistMelee`, PvP's parry and damage.
+- **The button swing keeps its traced blow.** A bot's sword or axe swing (B11 part 3, part 3) stays W_FireAxe's trace,
+  read by the directional parry. Its main hand's sweep strikes nothing during the swing (`VR_HandButtonSwing`,
+  vr_util.qc), so there is one blow, not two. Tried first: the swing's blow from the sweep alone. It landed 20 but the
+  directional parry did not read it (a sweep's blow on a player has no PvP line yet; mp_melee's swords are the same).
+- **Grabs through the hand's touch and grip.** The bot's walk runs SV_Physics_Client's premove (`VR_ClientPreMove` in
+  `predict::botWalk`: the hands' and weapons' touches, the hands in water) as a client's frame does. Its grips' presses
+  and let-gos go through `VR_HandGrabUtil_UpdateState` (the `ishuman` return is gone: a bot's grip bits are its AI's,
+  the previous frame's kept as Prev). Its hands' `.handvel`/`.offhandvel` are measured from their places against its
+  origin, as a client's controllers send theirs (the grab's speed and pull read them).
+  - **Things lying near:** a dropped gun (`wpnthrow_handtouch`; not a melee weapon, and not the one its own hand just
+    let go of) or a backpack, within 48 units of its chest. The open hand goes there at 1 m/s and closes once it
+    arrives (open at least 0.15 s: the press counts 0.125 s after a let-go). The hand's touch takes it, exactly as a
+    player's grab. A gun in its off hand fires with its main trigger (`button3`) and is let go of once spent.
+  - **The disarm** (`vr_player_disarm_pvp` and `_grab`): the enemy is a player with a weapon in hand and within reach.
+    The hand closes on the weapon's drawn line (its middle, the line `VR_PDG_Gap` measures). The bot stands still while
+    it takes hold (keys 0: the grab's speed counts both bodies), then pulls the hand away from the player's chest at
+    2.5 m/s. `VR_PDG_Hold` takes the weapon into its hand. A reach given up waits 1 s.
+- **Tests** (`vr_dm_test 4-6`, vr_dmrules_test.qc, run by `mp_dm`; Debug > Tests "Deathmatch: A Bot Punches You",
+  "... Takes a Gun by Hand", "... Grabs Your Gun"):
+  - 4, the punch: the bot is held 40 units in front of A, PvP off. Its AI punches him and its off hand's blow lands
+    through the sweep.
+  - 5, the grab: a nailgun is laid 20 units in front of the bot. Its hand takes it ("weapon: Nailgun taken into the
+    off hand"), and the gun is gone from the floor.
+  - 6, the disarm: PvP on, A's shotgun in his gripping hand. "pdisarm: <bot>'s hand 0 takes hold of player's weapon
+    (hand 1), 0.0 units off it, at 0.00 m/s", then the shotgun is in the bot's off hand and A's hand is empty.
+- **Harness:** `frag_table` now reads an `mp_frags:` line that an obituary printed without its newline runs into. A bot
+  that reached the fraglimit itself read as 1 frag. The knock-out check takes the line at A or B: the test's human is
+  the first one alive, which is B when a bot's shot has just killed A.
+- **Checks:**
+  - The MP suite: 36 of 38 scenarios clean. mp_dm 20/0, mp_lockstep_dm 22/0 (every hash and move equal in both runs,
+    with the bots' new hands), mp_lockstep_throw 29/0, mp_melee 29/0, mp_disarm 35/0.
+  - The two failures, both seen in earlier phases: mp_climb 10/1 (a mantle) passed 11/0 alone on the second try;
+    mp_lockstep 18/1 (8 of slot 0's 720 moves differed) passed 19/0 alone. Neither has a bot in it, and a human's
+    code path is unchanged.
+  - SP: Melee Only bots (`vr_pickup_test 15`) 13/0, scenario_check PASS (138/0), load_models 4/0, vr_run_check 9/0.
+  - Dev and Release (ThinLTO) builds: 0 warnings.
+- **Not done:** a gun the bot's off hand took is not in its inventory (FrikBot picks its main weapon from its items):
+  it fires it alongside, then lets it go. A running bot's disarm still stops it to take hold. Bots punch only with an
+  empty off hand (the main hand holds its weapon).
+
+Next phase: B13 -- polish and performance: the server browser, a latency HUD, the CPU of many players (soak tests; ICE/NAT traversal optional); B10v's VR checks are his (a real microphone, the spatial mixers).
