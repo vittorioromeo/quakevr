@@ -16,9 +16,11 @@ animation follows; nothing is keyframed.
 | File | What |
 |------|------|
 | `QVR Feature Title.setting` | the Fusion title (a macro): Effects > Titles > Fusion Titles > **QVR Feature Title** |
-| `install_titles.py` | installs it, the fonts (current user, no admin) and a Workspace > Scripts launcher |
-| `titles.txt` | the sections: title, subtitle, corner, length |
-| `apply_titles.py` | puts / updates a title at every section's marker on the current timeline |
+| `QVR Intro Title.setting` | the full-screen intro title: Effects > Titles > Fusion Titles > **QVR Intro Title** (see "The intro title") |
+| `make_intro_title.py` | generates `QVR Intro Title.setting` (its ~85 tools and expressions are kept as tables there) |
+| `install_titles.py` | installs both, the fonts (current user, no admin) and a Workspace > Scripts launcher |
+| `titles.txt` | the intro and the sections: title, subtitle, corner, length |
+| `apply_titles.py` | puts / updates the intro and a title at every section's marker on the current timeline |
 | `fonts/` | DpQuake (Dead Pete's Quake font; free to distribute, always with its `dpquake.txt`), Cinzel, Pirata One (the previous title face), IM Fell English (alternative subtitle face), the last three with their SIL OFL licences |
 
 Written and checked against DaVinci Resolve Studio 21.1.
@@ -63,6 +65,30 @@ never shown. `apply_titles.py` draws every Q, q, `~` and non-ASCII character of 
 caps), through the macro's TitleCLS character-styling modifier. Typing a title with a Q by hand in the Inspector skips
 this: put it in titles.txt and run apply_titles. A title made with the previous template (no TitleCLS) says so; run
 with `--rebuild`.
+
+## The intro title
+
+**QVR Intro Title** fills the frame, centred: "Quake VR" in DpQuake as lit **metal** (the same relief, grime and
+light sweep as the feature titles, bigger), **UNLEASHED** below in Cinzel Black, widely tracked, made of **fresh
+blood** (wet relief with glints, splashes and splatter, drips running down from the letters and pooling on the rule),
+a grimy metal-and-blood **rule** slicing in from the centre, and **v1.1 Release Trailer** in Cinzel. The lines come in
+one after another (at 60 fps: line 1 from frame 0, the blood from 34 with a jolt, the rule from 66, line 3 from 84),
+hold (the drips lengthen, the pool spreads), then everything burns away into a red-glowing blur over the last 0.6 s. Transparent
+by default, with a soft dark scrim behind the text, so it sits over footage; **Dark Backdrop** puts a full-frame dark
+background under it.
+
+The Q: DpQuake's Q is the Quake logo, so a **leading Q** of line 1 is drawn as DpQuake's own O with a blade-like tail
+built in the macro (it follows the font's size and weight), and "Quake VR" reads as one font. Other Q, q, `~` or
+non-ASCII characters in line 1 would show logos: apply_titles refuses them.
+
+In titles.txt, an `[Intro]` block (keys `line1:`, `line2:`, `line3:`, `seconds:` (5), `out:`, `blood:` (0-2),
+`intensity:`, `backdrop: on/off`, `marker:`) puts it at the timeline marker named **Intro**, or at the timeline's
+start when there is none, as "QVR - Intro" on the same QVR Titles track. Inspector: Line 1-3, Blood, Blood Colour,
+Metal Tint, Relief Depth, Light Sweep (gain, direction, start, length), Intensity, each line's and the rule's Start
+and In (frames), Out, Out Start (0 = the clip's end), Dark Backdrop, Scrim, Shadow Opacity / Softness / Offset,
+Vertical Offset, Rule Width, and each line's size, font and tracking. The timings are frames at 60 fps; on another
+frame rate apply_titles scales them to keep their length in seconds (overwriting hand changes to them). To change the
+default look, edit `make_intro_title.py`, run it, then `install_titles.py` and `apply_titles.py --rebuild`.
 
 ## Tweaking the look
 
