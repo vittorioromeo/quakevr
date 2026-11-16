@@ -248,6 +248,8 @@ float VR_SpotCone (const struct gpulight_s *l, const float point[3]); // how muc
 void VR_PushPortalLights (void);
 void VR_AliasShadowClip (void); // the alias depth program has just been bound
 void VR_PushMapLights (void);							// R_PushDlights, after the dynamic lights
+void VR_WorldLightsCheck (void);						// R_PushDlights, after every light: whether one reaches the world's surfaces (C4t)
+int VR_WorldUnlit (void);								// R_ChooseBModelProgram: nonzero: none reaches them, the world's program without the lights' loop (vr_gl_world_unlit)
 int VR_AliasBonePoses (const struct entity_s *e, const float **matrices); // bone count of an IK-posed skeletal entity (0: none), its 3x4 skinning matrices
 int VR_AliasShadowBonePoses (const struct entity_s *e, const float **matrices); // as VR_AliasBonePoses, for the shadow maps: your body with its head (vr_shadow_head)
 void VR_FlatModelFovNumbers (float out[3], int shadowpass); // r_alias.c: flatscreen play's model FOV: scale (0 none), near, far (vr_flatplay.cpp modelFov)

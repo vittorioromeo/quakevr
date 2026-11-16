@@ -1056,6 +1056,12 @@ static void GL_CreateShadersAll (void)
 			for (mode = 0; mode < 3; mode++)
 				glprogs.world[oit][dither][mode] = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world|OIT %d; DITHER %d; MODE %d%s%s", oit, dither, mode,
 					mode == WORLDSHADER_SOLID ? "; NO_DECAL_RETRO 1" : "", GL_WorldLiteDefines ()); // QVR: the decals' retro textures' code: GL_WorldDecalRetroProgram's; the ES lite form
+	for (dither = 0; dither < 3; dither++) // QVR: the world without the lights' loop, for views no light reaches its surfaces in (C4t, QUEST_PLAN.md 6z: Adreno pays ~4 ms for the loop compiled in)
+		for (mode = 0; mode < 2; mode++)
+			glprogs.world_unlit[dither][mode] = VR_GLESForm (VR_GLES_FORM_GLSL)
+				? GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world|OIT 0; DITHER %d; MODE %d; QVR_NOLIGHTS 1%s%s", dither, mode,
+					mode == WORLDSHADER_SOLID ? "; NO_DECAL_RETRO 1" : "", GL_WorldLiteDefines ())
+				: 0;
 	for (dither = 0; dither < 3; dither++) // QVR: the opaque world writing its parallax hits' depth (vr_parallax_depth_write)
 		glprogs.world_pdo[dither] = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world pdo|OIT 0; DITHER %d; MODE %d; PDO 1; NO_DECAL_RETRO 1", dither, WORLDSHADER_SOLID);
 

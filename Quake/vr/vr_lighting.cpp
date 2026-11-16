@@ -2619,6 +2619,143 @@ extern "C" void VR_PushMapLights(void)
     }
 }
 
+// C4t (QUEST_PLAN.md 6z): the world's program without the lights' loop for a view no light reaches the world's surfaces
+// in. On the Quest 3 the loop merely compiled in cost ~4 ms of the world's shading at 0.9 (Adreno: registers), run or
+// not, and most of a walk has only the guns' screen lights (28 units, at the hands): the picture is the same, a light
+// adding nothing beyond its radius in either falloff.
+namespace
+{
+bool worldUnlit = false;  // the last R_PushDlights' answer (single-pass stereo's eye views keep the pass's)
+int worldUnlitViews = 0;  // views drawn unlit since the perf recorder last took them
+bool worldUnlitDraw = false; // VR_WorldUnlit asked in this view (counted once a view)
+
+bool sphereTouchesBox(const glm::vec3& c, float r, const float* mins, const float* maxs)
+{
+    float d2 = 0.f;
+    for(int i = 0; i < 3; i++)
+    {
+        const float e = c[i] < mins[i] ? mins[i] - c[i] : c[i] > maxs[i] ? c[i] - maxs[i] : 0.f;
+        d2 += e * e;
+    }
+    return d2 <= r * r;
+}
+
+// Whether the sphere touches a surface of the world drawn by its programs (not the sky, not the liquids): the BSP
+// walked as Quake's R_MarkLights, the surfaces on a node whose plane is within r tested by their bounds.
+bool sphereTouchesWorld(const qmodel_t* m, const mnode_t* node, const glm::vec3& c, float r)
+{
+    while(node && node->contents >= 0)
+    {
+        const mplane_t* p = node->plane;
+        const float d = (p->type < 3 ? c[p->type] : c.x * p->normal[0] + c.y * p->normal[1] + c.z * p->normal[2]) - p->dist;
+        if(d > r)
+        {
+            node = node->children[0];
+            continue;
+        }
+        if(d < -r)
+        {
+            node = node->children[1];
+            continue;
+        }
+        const msurface_t* s = m->surfaces + node->firstsurface;
+        for(unsigned i = 0; i < node->numsurfaces; i++, s++)
+        {
+            if(!(s->flags & (SURF_DRAWSKY | SURF_DRAWTURB)) && sphereTouchesBox(c, r, s->mins, s->maxs))
+            {
+                return true;
+            }
+        }
+        if(sphereTouchesWorld(m, node->children[0], c, r))
+        {
+            return true;
+        }
+        node = node->children[1];
+    }
+    return false;
+}
+
+// Whether the sphere touches a brush entity's bounds (unturned: its box; turned: the sphere round its origin holding it).
+bool sphereTouchesBrushEntities(const glm::vec3& c, float r)
+{
+    for(int i = 0; i < cl_numvisedicts; i++)
+    {
+        const entity_t* e = cl_visedicts[i];
+        if(!e || !e->model || e->model->type != mod_brush || e->model == cl.worldmodel)
+        {
+            continue;
+        }
+        const qmodel_t* m = e->model;
+        if(e->angles[0] == 0.f && e->angles[1] == 0.f && e->angles[2] == 0.f)
+        {
+            const float lo[3] = {e->origin[0] + m->mins[0], e->origin[1] + m->mins[1], e->origin[2] + m->mins[2]};
+            const float hi[3] = {e->origin[0] + m->maxs[0], e->origin[1] + m->maxs[1], e->origin[2] + m->maxs[2]};
+            if(sphereTouchesBox(c, r, lo, hi))
+            {
+                return true;
+            }
+            continue;
+        }
+        float reach2 = 0.f;
+        for(int k = 0; k < 3; k++)
+        {
+            const float a = za::max(za::abs(m->mins[k]), za::abs(m->maxs[k]));
+            reach2 += a * a;
+        }
+        const glm::vec3 o{e->origin[0], e->origin[1], e->origin[2]};
+        const float reach = za::sqrt(reach2) + r;
+        if(glm::dot(c - o, c - o) <= reach * reach)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+} // namespace
+
+extern "C" void VR_WorldLightsCheck(void)
+{
+    worldUnlit = false;
+    worldUnlitDraw = false;
+    if(vr_gl_world_unlit.value == 0.f || !glprogs.world_unlit[0][0] || !cl.worldmodel || !cl.worldmodel->nodes)
+    {
+        return;
+    }
+    for(int i = 0; i < r_framedata.numlights; i++)
+    {
+        const gpulight_t& l = r_lightbuffer.lights[i];
+        // a map light, or one through a portal (its place a virtual one): reaching, whatever its sphere
+        if(l.shadow[3] != 0.f || l.gateplane[0] != 0.f || l.gateplane[1] != 0.f || l.gateplane[2] != 0.f || l.gateplane[3] != 0.f)
+        {
+            return;
+        }
+        const glm::vec3 c{l.pos[0], l.pos[1], l.pos[2]};
+        const float r = l.radius + 4.f;
+        if(sphereTouchesWorld(cl.worldmodel, cl.worldmodel->nodes, c, r) || sphereTouchesBrushEntities(c, r))
+        {
+            return;
+        }
+    }
+    worldUnlit = true;
+}
+
+extern "C" int VR_WorldUnlit(void)
+{
+    if(worldUnlit && !worldUnlitDraw)
+    {
+        worldUnlitDraw = true;
+        worldUnlitViews++;
+    }
+    return worldUnlit ? 1 : 0;
+}
+
+int qvr::lighting::takeWorldUnlitViews()
+{
+    const int n = worldUnlitViews;
+    worldUnlitViews = 0;
+    return n;
+}
+
 // R_SetupAliasLighting: nonzero when the shader lights models per pixel (skip the flat add).
 extern "C" int VR_ModelDlightsPerPixel(void)
 {

@@ -962,6 +962,8 @@ static GLuint R_ChooseBModelProgram (qboolean oit, qboolean alphatest, qboolean 
 		return GL_WorldDecalRetroProgram (oit, dither, pdo && !oit);
 	if (pdo && !oit && !alphatest) // QVR: the opaque world writing its parallax hits' depth (vr_parallax_depth_write)
 		return glprogs.world_pdo[dither];
+	if (!oit && glprogs.world_unlit[dither][alphatest] && VR_WorldUnlit ()) // QVR: no light reaches the world: no lights' loop (C4t, ES only)
+		return glprogs.world_unlit[dither][alphatest];
 	return glprogs.world[oit][dither][alphatest];
 }
 

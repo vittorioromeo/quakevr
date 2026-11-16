@@ -1076,7 +1076,11 @@ QVR_WORLD_FS_LIGHT // QVR: light contrast, normal maps in the baked light, specu
 "		return;\n"
 "	}\n"
 "#endif\n"
-"#ifdef QVR_PROBE_NOLOOP\n" // QVR: -glesdefine's probe (C4l): the lights' loop compiled out, the rest of the shader kept
+"#ifdef QVR_NOLIGHTS\n" // QVR: glprogs.world_unlit (C4t): the cluster's inputs still read, under a branch never taken (Adreno's
+"	if (NumLights > 0x7fffffffu)\n" // compiler: its picture broke with them unread, QUEST_PLAN.md 6z)
+"		result.rgb += vec3(in_coord, in_depth);\n"
+"#endif\n"
+"#if defined(QVR_PROBE_NOLOOP) || defined(QVR_NOLIGHTS)\n" // QVR: -glesdefine's probe (C4l): the lights' loop compiled out, the rest of the shader kept; glprogs.world_unlit (C4t)
 "	if (false)\n"
 "#else\n"
 "	if (NumLights > 0u)\n"

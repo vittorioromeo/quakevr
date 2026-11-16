@@ -211,6 +211,7 @@ void R_PushDlights (void)
 
 	VR_PushPortalLights (); // QVR: bounded virtual lights before map shadow entries
 	VR_PushMapLights (); // QVR
+	VR_WorldLightsCheck (); // QVR: none reaching the world's surfaces: its program without the lights' loop (C4t)
 
 	GL_BeginGroup ("Light clustering");
 
