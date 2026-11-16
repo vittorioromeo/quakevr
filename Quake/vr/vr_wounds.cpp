@@ -1530,6 +1530,7 @@ void apply(const Event& ev)
         if(ev.num > 0 && ev.num < cl_max_edicts)
         {
             dents::forget(&cl_entities[ev.num]); // its flesh dents too (vr_dents.cpp)
+            drips::forget(&cl_entities[ev.num]); // and its wetness (the wet coat's shine: wetCoat)
             if(const auto it = maskOf.find(&cl_entities[ev.num]); it != maskOf.end() && !masks[static_cast<za::SizeT>(it->second)].view)
             {
                 const bool weapon = masks[static_cast<za::SizeT>(it->second)].weapon != 0;

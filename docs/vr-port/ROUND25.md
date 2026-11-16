@@ -3322,3 +3322,39 @@ His flat-screen notes (2026-11-16) and the coordinator's disarm-sound item.
   reruns update in place (`--dry-run`, `--rebuild`, `--check`).
 - Checked in Resolve Studio 21.1 (project "QVR Titles Preview"): two titles rendered at 1080p60, top-right and
   bottom-left; a rerun reports "updated" for both, no duplicates. Not checked: 4K, IM Fell English.
+
+## vr1116a: wet shine on the never wet, looping sounds that never stopped, your own flare (branch agent/vr1116a, 2026-11-16)
+
+His notes e1m1_2026-11-16_00-59-25, _01-00-01, e1m2_2026-11-16_01-02-28, vrtesthall_2026-11-16_00-47-47, _00-40-33.
+
+**Wet shine.** Not the wetglint change itself: the drips (vr_drips.cpp `scan`) take a model's box from its frames' bounds,
+and its bottom (`lo.z + 1`) was tested against the world's leaves only. e1m1's bridge over the slime (the grunts by the
+four buttons' door, entities 113 and 118) and e1m2's lifts and bridges over water: the box's bottom lies under the floor,
+inside the bridge's brush, in the slime leaf below it, so the grunts were "in slime up to 16" for ever (soaked every
+scan, never drying; the corpse kept it). Now `groundBox`: over a liquid by the leaves, the bottom is brought up to the floor
+a line from the box's middle meets (`worldtrace::world`: the world and the moving brush models); only things over a liquid
+pay for the trace. Keyed values checked: drips' records are keyed by the cl_entities slot and were forgotten only when the
+slot went unsent (a slot freed and reused within a scan kept them): now also forgotten on the server's removal (wounds'
+KindClear, as the wound masks and dents already were: `drips::forget`). The save's "// qvrwet" lines are matched by edict
+number at the load, which a load restores as saved: right. The wound masks' `wetLeft` decays and is freed with the mask.
+Test `vr_v1116_test 2` (e1m1, `setpos 835 1910 -380`): the grunts killed where they stand (their own blow: no push off
+the bridge), `vr_drips_check` (new; Debug > Tests > Wet Check) 2 s on and again after a save and load: before the fix
+113 and 118 were wet standing; now 1 passed + 1 passed. e1m2 by the ogre's spot: nothing wet.
+
+**Looping sounds.** A loop (a sample with a cue point) plays on its entity's channel until another sound replaces it. The
+server now keeps which entity channels play a loop (vr_server.cpp `VR_SoundLoopNote`, the loop flag read once a map from
+the wav's cue chunk, GetWavinfo): a sound that replaces a loop (misc/null.wav, the stall) goes with the reliable messages
+(a broadcast's sounds are dropped when it is full, as in a big fight: then the knight's idle played on with nothing to
+end it), and an edict freed with a loop still on it has the loop stopped, reliably (`VR_SoundLoopsFreed` from ED_Free:
+the knight's chainsaw removed with its gibbed or freed holder, a flamethrower's tank, a flare, a burning body's fire,
+whatever removes it). QC: the freed-holder path silenced its chainsaw too, and a drop resets the knight's saw sound state
+(taken up again, its idle plays afresh). `vr_snd_loops` lists the loops playing. Test `vr_v1116_test 1` (vrtesthall;
+Debug > Tests > Looping Sounds): a chainsaw knight disarmed, killed, gibbed, shoved then killed, removed: one loop while
+it idles, none `vr_chainsaw_drop_run` + 1.5 s after each: sawloops 10 passed, 0 failed.
+
+**Your own flare.** `VR_Burn_Ignite` refused any victim who was the attacker; now it allows the self-hit being dealt
+(`VR_SelfShot_Live`: your flare, a lava nail into your own body or arms). The self-hit path otherwise matches the enemy
+path: T_Damage (armour, the plate, Quad; vr_selfshot_damage for vr_damage_self), the wound at the point, blood, the
+knockback from the missile, the hand's buzz. Melee-only differences (push, motion credit, Quad sound) don't apply to shots;
+disarm hooks excluded per the brief. `vr_selfshot_test 1` gains a flare at the off forearm: struck, damage, buzz, wound,
+on fire: 34 passed, 0 failed (29 before).

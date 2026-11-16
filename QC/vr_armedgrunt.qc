@@ -939,6 +939,10 @@ void() VR_AG_PropThink =
                 VR_FuelTank_Hush(tk);
                 remove(tk);
             }
+            if(self.weapon == WID_CHAINSAW)
+            {
+                sound(self, CHAN_WEAPON, "misc/null.wav", 1, ATTN_NORM); // (its engine's loop; the engine stops it as it is freed too)
+            }
             self.weaponinst = world;
             remove(self);
             return;
@@ -1250,6 +1254,7 @@ entity(entity g, vector vel) VR_AG_DropHeld =
     if(p.weapon == WID_CHAINSAW)
     {
         sound(p, CHAN_WEAPON, "misc/null.wav", 1, ATTN_NORM); // (its engine's loop: vr_armedgrunt_pose.qc VR_AGP_Saw)
+        g.vr_ag_saw_snd = VR_SAW_LOOP_NONE; // (a chainsaw taken up again: its idle played afresh)
     }
     entity w = CreateThrownWeapon(g, p.weapon, p.weaponflags, inst, p.origin, p.v_angle, vel, randomVec(90),
         FALSE /* disappear on hit */, FALSE /* deal damage */, WeaponIdToThrowDamage(p.weapon));
