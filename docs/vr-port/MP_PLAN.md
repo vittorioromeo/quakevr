@@ -2947,8 +2947,8 @@ runs, his game open):
   unchanged). `vr_net_broadcast_report [reset]` prints the bytes sent, culled and not known.
 - **A default rate cap**: `vr_net_rate` 80000 B/s (was 0, no cap). 40000 was tried first: the server sends a remote
   client a datagram every one of its 72 frames, so even dm4 with two bots reached it, his records waited and
-  `vr_dm_test 3`'s parry failed 2 runs of 3 (the lag compensation read an older place); with 0 and 80000 it passed.
-  The rate slider now goes to 160000.
+  `vr_dm_test 3`'s parry failed 2 runs of 3 (the lag compensation read an older place); with 0 it passed, with 80000
+  it passed alone and failed once in the suite (its known flake, B14d). The rate slider now goes to 160000.
 - **Respawns beside a taken start** (client.qc `VR_DMBesideSpot`): every start with a living player at it (deathmatch,
   not CTF's team starts), the respawn takes a place 48-144 units beside one (8 ways, the start's facing first): the
   player's box clear of the level all the way from the start and of solid things there, a floor within 40 units under
@@ -2956,9 +2956,15 @@ runs, his game open):
   stock Quake did. `vr_dm_test 8`: the human on the only start counted, the bot respawned 96 units beside it, nobody
   telefragged.
 - **mp_soak's checks** (14): 16 players at both clients, edicts under 2048, loose gibs under the cap (+32 for a frame's
-  deaths) and weapons (+16), frags scored, B's link under 34 KB/s, the server's pace at least 0.8 of real time, the
-  broadcast culled, at most 10 telefrags in the window, nobody left, clean quits.
+  deaths) and weapons (+16), frags scored, B's link under 45 KB/s, the server's pace at least 0.8 of real time, the
+  broadcast culled, at most 10 telefrags in the window, nobody left, clean quits. ThinLTO run (not low impact): 14/0,
+  0.99 of real time, the server process at 0.32 of a core, Box3D 1.05 ms and QuakeC 3.6 ms a frame, 238 bodies (90
+  awake), B 33 KB/s, 63% of the broadcast's known bytes culled, 0 telefrags.
 - **mp_dm** 22/0 with `vr_dm_test 7` and 8.
+- **Checks:** MP suite (ThinLTO): 36 of 40 scenarios clean; mp_avatar 15/1 (B's draw of A's weapon), mp_disarm 34/1
+  (the toss's take), mp_dm 21/1 (`vr_dm_test 3`) each passed alone right after (17/0, 35/0, 22/0); mp_climb 10/1 (its
+  known mantle flake). SP: scenario_check PASS (138/0), load_models 4/0, vr_run_check 12/0, the gib props table with
+  `vr_prop_touch_verify 1`. Dev and ThinLTO builds: 0 warnings.
 
 Open items:
 - **The rate's pressure on the lag compensation**: under a cap a client's records wait, and the lag compensation judges

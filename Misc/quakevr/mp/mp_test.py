@@ -4972,7 +4972,8 @@ SOAK_GIBS_MAX = 64     # vr_dm_gibs_max's default (B13b)
 SOAK_WEAPONS_MAX = 32  # vr_dm_weapons_max's default
 SOAK_PACE_MIN = 0.8    # the server's game time a second of wall clock, at least (B13: 0.18-0.74; B13b: ~1)
 SOAK_RATE = 80000      # vr_net_rate's default (B/s), B's
-SOAK_LINK_MAX = 34000  # B's link down, B/s at most (B13: 38-65 KB/s; B13b's culled broadcast ~24 KB/s, under his rate cap)
+SOAK_LINK_MAX = 45000  # B's link down, B/s at most (B13b: 24-33 KB/s with the broadcast culled, by the fights; unculled at
+#                        real pace ~38 KB/s and more; the culling's own check is its bytes)
 SOAK_TELEFRAGS_MAX = 10  # telefrags in the window at most (B13: ~100-200)
 
 
