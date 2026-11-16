@@ -527,7 +527,10 @@ struct Fnv
 // How many maps are lit side by side: vr_relight_parallel, or (0) two from 8 cores. light uses every core it is given
 // (its bounced light most of all), but a small map's run is partly single-threaded, loading and writing: on 32 cores
 // id's episode 1 took 7 s one at a time, 6 two at once, 5 three or four; with Bounced Light 34, 33, 33 and 42 s.
-// Two gain most of it at two thirds of the memory of three (a big map's light takes hundreds of megabytes).
+// Re-measured 2026-11-16 (installerfix, light 2.0.0-alpha11, the default look): six of id's maps 28 s of light one at
+// a time at 31 threads, 27 s six at once at 6 threads each: light keeps the cores busy by itself, so more maps at once
+// buy nothing and cost memory. Two gain most of it at two thirds of the memory of three (a big map's light takes
+// hundreds of megabytes); the batch's biggest maps go first, so it never ends waiting on one big map in one slot.
 [[nodiscard]] int parallelCount(int maps)
 {
     const unsigned cores = za::Thread::hardwareConcurrency();
@@ -537,6 +540,15 @@ struct Fnv
         n = cores >= 8u ? 2 : 1;
     }
     return za::max(1, za::min(za::min(n, maxSlots), maps));
+}
+
+// light's -threads for each of `parallel` maps side by side: all the cores but one (the game keeps one for itself;
+// light also runs below normal priority), shared out, rounded up (a core left idle costs more than a thread too many).
+[[nodiscard]] int threadsEach(int parallel)
+{
+    const int cores = static_cast<int>(za::Thread::hardwareConcurrency());
+    const int spare = za::max(1, cores - 1);
+    return za::max(1, (spare + parallel - 1) / za::max(1, parallel));
 }
 
 // "1:05", "1:02:03".
@@ -1252,10 +1264,12 @@ void startBatch(za::Vector<maps::Source> sources, bool single, bool force, int a
     char current[MAX_QPATH];
     maps::Source here;
     const bool inPlay = currentMap(current, sizeof(current)) && maps::locate(current, here);
+    bool hereFirst = false;
     for(za::SizeT i = 0; inPlay && i < sources.size(); i++)
     {
         if(sources[i].map == here.map && !q_strcasecmp(sources[i].game.cStr(), here.game.cStr()))
         {
+            hereFirst = true;
             if(i > 0)
             {
                 maps::Source first = sources[i];
@@ -1281,10 +1295,13 @@ void startBatch(za::Vector<maps::Source> sources, bool single, bool force, int a
         item.source = ZA_MOVE(s);
         batch.items.pushBack(ZA_MOVE(item));
     }
+    // The biggest maps first (after the map in play): side by side, the batch then ends on small ones, not on a big map
+    // started last that the other slots wait for. (Each map's output is the same in any order.)
+    const za::SizeT firstSorted = hereFirst ? 1u : 0u;
+    za::stableSort(batch.items.begin() + firstSorted, batch.items.end(),
+        [](const Item& a, const Item& b) { return a.weight > b.weight; });
     batch.parallel = parallelCount(static_cast<int>(batch.items.size()));
-    const unsigned cores = za::Thread::hardwareConcurrency();
-    // All the cores but one (the game keeps one for itself; light also runs below normal priority), shared out.
-    batch.threads = za::max(1, (static_cast<int>(cores > 1u ? cores - 1u : 1u)) / batch.parallel);
+    batch.threads = threadsEach(batch.parallel);
     batch.started = Sys_DoubleTime();
     batch.active = true;
     if(!single)
