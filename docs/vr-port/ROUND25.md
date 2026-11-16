@@ -3346,3 +3346,30 @@ normal +y, no gate there), crossing that plane hid his hands and showed him hims
   vrteleporters 32/0 (35 paired sides carried as before); AD: ad_azad 3/0, AD's start, ad_tears, ad_magna no recognised
   sides. turned_exit_test 2/0; teleporter_cross_test cases as its header expects.
 - Checklist Test scene `start_oneway_exit` (start 544 288 24, yaw 90).
+- Follow-up (agent/trailertitles2): title in DpQuake (Dead Pete's Quake font, shipped with its required
+  `dpquake.txt`), lit as embossed metal: the glyph alpha is blurred into a height map and shaded by two Fusion Custom
+  tools (normals from the height gradient; a fixed top-left key light plus a point light sweeping across the title,
+  Blinn-Phong highlights; bronze tint, grime in the cavities, rust patches), dark outline and drop shadow. Blood: a
+  coat on the strokes' lower edges and drips (one-sided directional smears of the glyphs, per-column hashed) that
+  lengthen through the hold, with its own relief lit by the same lights (wet glints, slow glisten). New inputs: Blood,
+  Metal Tint, Relief Depth, Light Sweep, Sweep Direction / Start / Length, Title Tracking (Title Colour is gone: the
+  metal tint replaces it). Lighting and blood run on a crop around the title (0.25 s/frame at 1080p; the full-frame
+  first try was 1.5 s). DpQuake draws Q/q as the Quake logo: apply_titles sets Cinzel Bold on every Q, q, ~ and
+  non-ASCII character through a StyledTextCLS modifier (TitleCLS), by exporting the item's comp, writing the styling
+  array and importing it back (scripting can't set a StyledText). install_titles skips identical installed fonts
+  (an installed font in use can't be overwritten). Checked: two titles at 1080p60, a 4K section render, "Quad Damage".
+
+## Installer: desktop flat-screen shortcut (flatshortcut, 2026-11-16)
+
+- `ShortcutOptions.DesktopFlat` (default on) adds "Quake VR Unleashed (Flat Screen)" to the desktop; the options page has a checkbox "Desktop shortcut for flat-screen play" (disabled when the desktop shortcut is off); recorded as `InstallChoices.DesktopFlatShortcut`.
+- Old records lack the field and read false: updates keep their old behaviour; fresh installs get it. The Start menu's flat shortcut is unchanged; with the Start menu off, the desktop one is the only flat one (no duplicate path).
+- Self-tests extended (41/41): planner counts, fresh install, off, update, uninstall, old record.
+- Follow-up (agent/trailertitles3), his feedback: blood behind the text, subtle drop shadows. MergeBlood now sits under
+  MergeTitle (order: scrim, title shadow, glow, ink, blood, metal, rule, subtitle shadow, subtitle). The blood coat
+  moved off the strokes (it would be hidden): BloodCov covers the glyph plus a band hanging 11 px below its lower edges
+  and noise patches seeping 5 px around it, so the relief and glints show on the visible rim; drips unchanged. The
+  title's drop shadow (already there, fixed 0.85 / 9 px / ~5 px) is driven by new inputs Shadow Opacity 0.8, Shadow
+  Softness 9 and Shadow Offset 6 (px at 1080p, down-right) and follows the in/out blur; the subtitle gets its own
+  (SubAlpha/SubShadowFill/Shift/Blur, MergeSubShadow under SubMask) at half softness and offset. Checked: the two-title
+  preview re-rendered (contact sheet, closeups); shadows measured against the trailertitles2 render (subtitle box 2.9%
+  of pixels darker by >3 levels, 0.1% lighter).
