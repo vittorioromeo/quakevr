@@ -3783,3 +3783,22 @@ His request: bake all 27 title wordings (9 sections x 3) to pick from.
   1635 s (1671 s in all, ~0.17 s a frame), sheet 3 s, reel 40 s (9720 frames = 27 x 360), v1_1trailer reopened on
   Timeline 2 (its own render job left alone). Output `C:\Users\vittorio\Videos\QVR Title Variants\`: 27 clips (ap4h,
   yuva444p12le, 360 frames), the sheet, the reel. A one-clip trial went to the worktree's scratch first.
+
+## promote1116: his ticked items retired, his tuning promoted for 1.1 (agent/promote1116, 2026-11-16)
+
+- **Checklist**: 8 ticked lines retired from checklist.txt (no voice notes after 12:00 to keep any for; ticks match the
+  live line with its `{test:...}` tag stripped): flat B next ammo, disarm off by default, Dagger Settling, clean
+  recording, two trailer-title lines, the flip-grip gate, hard throws. Scenes `flipgrip` and `throw_hard` moved out
+  (nothing else used them); `flat_ammo_key` kept (flat_ammo_key_test.sh plays it). checklist_tests_check 24/0,
+  scenario_check PASS (136 files, 19 tags, 0 missing).
+- **Promoted**: tunables.cfg `vr_throw_point_dagger_align` 1 -> 0.35 (Dagger Settling: Strength, a gentler spring than
+  the swords'); `weapons_data.py promote`: 18 values, slot 24 (the super axe, `vr_wofs_*_25`): its blade shape (bl_org,
+  bl_width, bl_s1..s5 off/side, bl_near added) and muzzle. Poses: `pose_defaults.py`: 0 keys or grips off the defaults.
+  Cvars: nothing gameplay off its default; the rest is personal (calibration, bodycal, menu layout and level, toolgun
+  and rig studio state, window/spectator view, vr_foveated, vr_flat_taa, vr_flat_tp_fov, vr_gore_dents, vr_notes,
+  vr_xr_runtime, version counters, vr_prop_id_72-76).
+- **Test**: `vr_embed_test 47`'s "any way" dagger check asked for at least the swords' count (8 of 8): at 0.35 the
+  daggers come round in 6 of 8 (0 with the settling off). It now asks for most of them (half - 2) and more than off:
+  12/12. PATCH_NOTES: the dagger "settles point first more readily ... with a gentler pull than a sword's".
+- Checks: dev and ReleaseLTO (`QvrReleaseVersion=1.1.0`) 0 warnings; load_models_test 4/0; make_release.ps1 -DryRun:
+  "tunables.cfg: nothing to promote".
