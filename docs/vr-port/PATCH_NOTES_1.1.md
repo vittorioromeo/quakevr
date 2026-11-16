@@ -465,6 +465,8 @@ old default move to the new one, and values you changed stay yours.
   (their axe blows near your weapon were held back and never landed); a parry across the blow still blocks it.
 - Flat-screen: B switches the weapon to its other ammo (rocket and grenade launchers, thunderbolt), rebindable on
   the Flat Keys page.
+- One-way teleporters (start's and id's maps): leaning back across where one comes out no longer hides your hands or
+  shows you yourself in the teleporter you came through.
 - Many smaller fixes and cleanups.
 
 ### Known issues
