@@ -4540,3 +4540,10 @@ Resolution Half/Quarter, proxies on); a full render works but takes over a minut
   whole hold (restarts bounded by its give-up).
 - **New**: a bot's walk prints its `pmtrace:` line too (vr_pmove_trace 1; bots walk from QuakeC's frame, not
   SV_Physics_Client).
+- Checks (his game running: low-impact mode): the MP suite 35 of 37 (mp_dm 17/0, mp_lockstep_dm 20/0); mp_climb 10/1
+  (A's mantle line missing), 11/0 alone; **mp_lockstep 15/2 twice** (`mh_hdt[...]`, and at step 720 the hand's throw
+  fields, differ between its two runs at 360/720; no bot in it, nothing of B14d's runs there: B14c's clock fix holds
+  at normal priority, not under idle priority -- open, B14e). SP: load_models 4/0, vrslide 15/0, flatslide 26/0,
+  flatladder 2/0, vr_run_check 9/0; scenario_check 137/1 (bench_crowd_ad: "what it placed is gone after 3.0 s", an AD
+  crowd's infighting; not rerun). Dev and Release (ThinLTO) 0 warnings. Not started: thrown props under the lockstep,
+  the ammo pouch's determinism.
