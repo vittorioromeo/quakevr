@@ -12,6 +12,7 @@
 #pragma once
 
 #include "vr_engine.hpp"
+#include "vr_slide.hpp"
 
 namespace qvr::pmove
 {
@@ -38,6 +39,7 @@ struct Input
     int buttons{0};                  // protocol::QVR_BUTTON_* (the hands tracked, the flashlight in a hand)
     float handVel[2][3]{};           // the hands' velocities, metres a second (VRGetEntHandVel: the water climb's pull)
     int reels{0};                    // the hands whose B/Y is held (bit 0 the off hand, 1 the main: the grapple's reel)
+    bool slide{false};               // the slide input held (vr_slide: the move's protocol::moveSlideBit; B14)
 };
 
 // The server's rules a move runs by (the server's values, sent with each state: the client replays with them).
@@ -76,6 +78,8 @@ struct Rules
     float crawlTop{0.f};         // ... the stick's crawl speed at most (sv_maxspeed, vr_prone_speed_scale, _stick_scale)
     float crawlFriction{3.f};    // ... its glide out between pulls (vr_prone_crawl_friction, per second)
     float crawlMost{120.f};      // ... its speed at most (vr_prone_crawl_max_speed)
+    bool slide{false};           // a headset's slide runs in the moves (vr_slide.cpp: not flatscreen, not lying down; B14)
+    slide::Tuning slideTuning;   // ... on the server's numbers
 };
 
 // VR_AfterCrawlMove's crawl (vr_physics_water.cpp; ROUND24.md, "Crawling with the arms"): how quickly, per second, the
@@ -237,6 +241,9 @@ struct Body
     Hang hang;                             // hanging: the move's hands run the hang's step (B8i)
     HangSums* hangSums{nullptr};           // ... adding to these (the server's frame part)
     Grapple grapple;                       // a grappling hook's rope holds him: each walking move's step (B8j part 4)
+    slide::Slide slide;                    // the slide (Rules::slide: slide::move in each walking move; B14) ...
+    double slideClock{0.0};                // ... its clock at the move (the server's time; a replay's own from 0)
+    float staminaLeft{1e9f};               // ... the stamina he has (a slide too tired for its first part does not start)
 
     virtual ~Body() = default;
     // The map's contents at a point (SV_PointContents: the world's, a current as water).
@@ -276,6 +283,12 @@ struct Body
     // The grapple's rope went taut (grappleStep), him going away from it at `speed` (QC VR_Grapple_Taut: the twang, the
     // jolt in hand `hand`: the server's QuakeC).
     virtual void grappleTaut(int /*hand*/, float /*speed*/) {}
+    // A part of the slide's stamina due (slide::payParts): the share of it paid (the server's QuakeC pays it).
+    virtual float slidePaid(float part)
+    {
+        staminaLeft -= part;
+        return 1.f;
+    }
 };
 
 // Walls and floors met during the last playerMove (a prediction's "flat ground": none but the floor, no step).

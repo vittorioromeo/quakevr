@@ -66,34 +66,38 @@ Gesture gesture;
     return hull::isFlat(ent) ? slideOn() : true;
 }
 
-int slideMove(edict_t* ent, Slide& s, double now, int onground, const float* wishdir, float wishspeed, float* velocity)
+} // namespace
+
+bool floorNeeded(const Slide& s, bool enabled, bool held)
 {
-    const int num = clientSlot(ent);
-    const bool held = inputHeld(ent, num);
+    return (enabled && held) || s.on;
+}
+
+bool move(Slide& s, const MoveIn& in, const Tuning& t, const float* wishdir, float wishspeed, float* velocity)
+{
+    const bool held = in.held;
     const bool pressed = held && !s.held;
+    const double now = in.now;
     // On the ground: Quake's flag, or the floor right under him and not going up (moving fast, the flag is off every
     // other move: the walk's clip down to the floor sets it only on the moves that meet it).
     // A jump: going up with the jump key held since it (QC PlayerJump clears FL_JUMPRELEASED until the key is let go).
     // Going up alone is no jump: up a ramp or a step at a slide's speed the floor's clip gives him more than jumpedUp.
-    const int flags = static_cast<int>(ent->v.flags);
-    const bool jumped = velocity[2] > jumpedUp && (ent->v.button2 != 0.f || !(flags & FL_JUMPRELEASED));
-    bool floorFound = false;
-    const glm::vec3 normal = floorNormal(ent, floorFound);
-    const bool ground = onground || (floorFound && !jumped);
+    const bool jumped = velocity[2] > jumpedUp && in.jumpHeld;
+    const glm::vec3 normal = in.floorFound ? in.normal : glm::vec3{0.f, 0.f, 1.f};
+    const bool ground = in.onground || (in.floorFound && !jumped);
     const bool landed = ground && !s.grounded;
     s.held = held;
     s.grounded = ground;
     const float zWas = s.lastZ;
-    s.lastZ = ent->v.origin[2];
+    s.lastZ = in.originZ;
     const glm::vec2 vel{velocity[0], velocity[1]};
     const float speed = glm::length(vel);
 
-    if(!enabledFor(ent) || !held || hull::isProne(ent) || ent->v.waterlevel >= 2 ||
-       static_cast<int>(ent->v.movetype) != MOVETYPE_WALK)
+    if(!in.enabled || !held || in.waterLevel >= 2 || !in.walking)
     {
-        s.endWhy = s.on ? (!held ? "the key let go" : hull::isProne(ent) ? "prone" : ent->v.waterlevel >= 2 ? "water" : "not a walk") : s.endWhy;
-        endSlide(s, now);
-        return 0;
+        s.endWhy = s.on ? (!held ? "the key let go" : !in.enabled ? "prone" : in.waterLevel >= 2 ? "water" : "not a walk") : s.endWhy;
+        endSlide(s, now, t.cooldown);
+        return false;
     }
     if(s.on && !ground)
     {
@@ -101,14 +105,14 @@ int slideMove(edict_t* ent, Slide& s, double now, int onground, const float* wis
         {
             s.jumpEnds++;
             s.endWhy = "a jump";
-            endSlide(s, now); // a jump: Quake's air move keeps the speed
+            endSlide(s, now, t.cooldown); // a jump: Quake's air move keeps the speed
         }
         else
         {
             s.airborne = true; // off a ledge: on again when he lands
             s.airSteps++;
         }
-        return 0;
+        return false;
     }
     if(s.on && s.airborne && ground)
     {
@@ -116,22 +120,20 @@ int slideMove(edict_t* ent, Slide& s, double now, int onground, const float* wis
     }
     if(!s.on)
     {
-        const float least = za::clamp(vr_flat_slide_min.value, 0.f, 400.f);
-        if(!ground || (!pressed && !landed) || speed < least || now < s.cooldownUntil)
+        if(!ground || (!pressed && !landed) || speed < t.least || now < s.cooldownUntil)
         {
-            return 0;
+            return false;
         }
         // Too tired for its first part: no slide, a plain crouch (the decision of 2026-11-10: not a weaker slide; the
         // tired run is slower already, vr_stamina_speed).
-        const float part = slideStaminaPart();
-        if(part > 0.f && progs::staminaLeft(ent) + 1e-3f < part)
+        if(t.staminaPart > 0.f && in.staminaLeft + 1e-3f < t.staminaPart)
         {
             s.tiredRefusals++;
             if(vr_flatplay_debug.value)
             {
-                Con_Printf("slide: none: %.1f stamina left, its first part is %.1f\n", progs::staminaLeft(ent), part);
+                Con_Printf("slide: none: %.1f stamina left, its first part is %.1f\n", in.staminaLeft, t.staminaPart);
             }
-            return 0;
+            return false;
         }
         s.on = true;
         s.starts++;
@@ -139,34 +141,63 @@ int slideMove(edict_t* ent, Slide& s, double now, int onground, const float* wis
         s.startSpeed = speed;
         s.startedAt = now;
         s.partsPaid = 0;
-        s.staminaPaid = 0.f;
-        paySlideStamina(ent, s, now);
-        const float top = za::clamp(vr_flat_slide_max.value, 200.f, 1000.f);
-        const float boosted = za::max(speed, za::min(speed + za::clamp(vr_flat_slide_boost.value, 0.f, 200.f), top));
+        s.staminaPaid = 0.f; // (its first part: the caller's payParts, at once)
+        const float boosted = za::max(speed, za::min(speed + t.boost, t.top));
         velocity[0] *= boosted / speed;
         velocity[1] *= boosted / speed;
-        return 1;
+        return true;
     }
     const glm::vec2 wish = wishspeed > 1.f ? glm::vec2{wishdir[0], wishdir[1]} : glm::vec2{0.f};
     s.groundSteps++;
     // Up a step (the last move rose on a level floor: a ramp's rise is its slope's): the speed a ramp as steep would
     // have taken over the step's length, vr_flat_slide_slope * rise / speed. Stairs slow it as a ramp does.
     glm::vec2 stepped = vel;
-    const float rise = ent->v.origin[2] - zWas;
+    const float rise = in.originZ - zWas;
     if(rise > 1.f && rise < 24.f && glm::length(glm::vec2{normal.x, normal.y}) <= 0.02f && speed > 1.f)
     {
-        const float loss = za::clamp(vr_flat_slide_slope.value, 0.f, 2000.f) * rise / za::max(speed, 100.f);
+        const float loss = t.slope * rise / za::max(speed, 100.f);
         stepped *= za::max(0.f, speed - loss) / speed;
     }
-    const SlideStep st = slideStep(stepped, normal, wish, static_cast<float>(host_frametime));
+    const SlideStep st = slideStep(stepped, normal, wish, in.dt, t);
     velocity[0] = st.vel.x;
     velocity[1] = st.vel.y;
     if(st.ended)
     {
         s.endWhy = "slowed";
-        endSlide(s, now); // into the crouch (flatscreen, the key held) or his own height (a headset): the walk's friction from the next move
+        endSlide(s, now, t.cooldown); // into the crouch (flatscreen, the key held) or his own height (a headset): the walk's friction from the next move
     }
-    return 1;
+    return true;
+}
+
+bool stepsUp(const Slide& s)
+{
+    return s.on && !s.airborne && s.grounded;
+}
+
+namespace
+{
+
+// SV_AirMove's slide (VR_SlideMove): `ent`'s move as the shared one sees it.
+int slideMove(edict_t* ent, Slide& s, const Tuning& t, double now, int onground, const float* wishdir, float wishspeed,
+    float* velocity)
+{
+    const int num = clientSlot(ent);
+    MoveIn in;
+    in.held = inputHeld(ent, num);
+    in.enabled = enabledFor(ent) && !hull::isProne(ent);
+    in.waterLevel = static_cast<int>(ent->v.waterlevel);
+    in.walking = static_cast<int>(ent->v.movetype) == MOVETYPE_WALK;
+    in.onground = onground != 0;
+    in.jumpHeld = ent->v.button2 != 0.f || !(static_cast<int>(ent->v.flags) & FL_JUMPRELEASED);
+    if(floorNeeded(s, in.enabled, in.held))
+    {
+        in.normal = floorNormal(ent, in.floorFound);
+    }
+    in.originZ = ent->v.origin[2];
+    in.dt = static_cast<float>(host_frametime);
+    in.now = now;
+    in.staminaLeft = t.staminaPart > 0.f ? progs::staminaLeft(ent) : 0.f;
+    return move(s, in, t, wishdir, wishspeed, velocity) ? 1 : 0;
 }
 
 // ---------------------------------------------------------------------------------------------------------------- tests
@@ -492,30 +523,56 @@ float slideStaminaPart()
 
 void paySlideStamina(edict_t* ent, Slide& s, double now)
 {
-    const float part = slideStaminaPart();
-    const double step = static_cast<double>(za::clamp(vr_flat_slide_stamina_step.value, 0.f, 1.f));
-    while(s.on && part > 0.f && s.partsPaid < slideStaminaParts() &&
-          now - s.startedAt + 1e-6 >= step * static_cast<double>(s.partsPaid))
-    {
-        const float paid = part * progs::staminaEffort(ent, part, "a slide");
-        s.staminaPaid += paid;
-        s.partsPaid++;
-        if(vr_flatplay_debug.value)
+    payParts(s, now, tuning(),
+        [&](float part)
         {
-            Con_Printf("flatmove: slide stamina part %d of %d: %.1f (%.1f in all, %.1f left)\n", s.partsPaid,
-                slideStaminaParts(), paid, s.staminaPaid, progs::staminaLeft(ent));
-        }
+            const float share = progs::staminaEffort(ent, part, "a slide");
+            if(vr_flatplay_debug.value)
+            {
+                Con_Printf("flatmove: slide stamina part %d of %d: %.1f (%.1f in all, %.1f left)\n", s.partsPaid + 1,
+                    slideStaminaParts(), part * share, s.staminaPaid + part * share, progs::staminaLeft(ent));
+            }
+            return share;
+        });
+}
+
+Tuning cvarTuning()
+{
+    Tuning t;
+    t.least = za::clamp(vr_flat_slide_min.value, 0.f, 400.f);
+    t.top = za::clamp(vr_flat_slide_max.value, 200.f, 1000.f);
+    t.boost = za::clamp(vr_flat_slide_boost.value, 0.f, 200.f);
+    t.end = za::clamp(vr_flat_slide_end.value, 0.f, 300.f);
+    t.slope = za::clamp(vr_flat_slide_slope.value, 0.f, 2000.f);
+    t.steer = za::clamp(vr_flat_slide_steer.value, 0.f, 180.f);
+    t.friction = za::clamp(vr_flat_slide_friction.value, 0.f, 1000.f);
+    t.cooldown = za::clamp(vr_flat_slide_cooldown.value, 0.f, 3.f);
+    t.staminaPart = 0.f; // (tuning(): the server's stamina pool)
+    t.staminaStep = za::clamp(vr_flat_slide_stamina_step.value, 0.f, 1.f);
+    t.staminaParts = slideStaminaParts();
+    return t;
+}
+
+Tuning tuning()
+{
+    Tuning t = cvarTuning();
+    t.staminaPart = slideStaminaPart();
+    return t;
+}
+
+void endSlide(Slide& s, double now, float cooldown)
+{
+    if(s.on)
+    {
+        s.cooldownUntil = now + cooldown;
     }
+    s.on = false;
+    s.airborne = false;
 }
 
 void endSlide(Slide& s, double now)
 {
-    if(s.on)
-    {
-        s.cooldownUntil = now + za::clamp(vr_flat_slide_cooldown.value, 0.f, 3.f);
-    }
-    s.on = false;
-    s.airborne = false;
+    endSlide(s, now, tuning().cooldown);
 }
 
 void setHeadsetInput(const edict_t* ent, bool held)
@@ -523,13 +580,10 @@ void setHeadsetInput(const edict_t* ent, bool held)
     const int num = clientSlot(ent);
     if(num >= 0)
     {
+        // (Only the frame's input: the slide's own `held`, a press's edge, is each move's, slide::move's. Cleared here on
+        // a move not held, a remote client's resent older move -- read before his frame's moves ran -- made the next
+        // held move a press his own replay never saw: a slide on the server alone, B14.)
         server.headsetHeld[num] = held;
-        if(!held)
-        {
-            // (Let go: the next press is a press, though the moves' walk ran his frames since, not SV_AirMove's
-            // slideMove: vr_predict.cpp, vr_pmove_own; headsetEngaged.)
-            server.slide[num].held = false;
-        }
     }
 }
 
@@ -542,12 +596,6 @@ bool onServer(const edict_t* ent)
 bool headsetOnServer(const edict_t* ent)
 {
     return !hull::isFlat(ent) && onServer(ent);
-}
-
-bool headsetEngaged(const edict_t* ent)
-{
-    const int num = clientSlot(ent);
-    return num >= 0 && !hull::isFlat(ent) && (server.headsetHeld[num] || server.slide[num].on);
 }
 
 float slideEye()
@@ -568,17 +616,22 @@ bool headsetPose()
 
 SlideStep slideStep(const glm::vec2& vel, const glm::vec3& normal, const glm::vec2& wish, float dt)
 {
+    return slideStep(vel, normal, wish, dt, tuning());
+}
+
+SlideStep slideStep(const glm::vec2& vel, const glm::vec3& normal, const glm::vec2& wish, float dt, const Tuning& t)
+{
     SlideStep out{vel, false};
     // Down the slope: the floor's normal leans toward the way down; its level part is the slope's sine.
     const glm::vec2 down{normal.x, normal.y};
     const float sine = glm::length(down);
     if(sine > 0.02f)
     {
-        out.vel += down * (za::clamp(vr_flat_slide_slope.value, 0.f, 2000.f) * dt);
+        out.vel += down * (t.slope * dt);
     }
     float speed = glm::length(out.vel);
     // The move keys turn it a little.
-    const float steer = glm::radians(za::clamp(vr_flat_slide_steer.value, 0.f, 180.f)) * dt;
+    const float steer = glm::radians(t.steer) * dt;
     if(steer > 0.f && speed > 1.f && glm::length(wish) > 0.1f)
     {
         const float have = za::atan2(out.vel.y, out.vel.x);
@@ -601,12 +654,12 @@ SlideStep slideStep(const glm::vec2& vel, const glm::vec3& normal, const glm::ve
             out.vel = glm::vec2{za::cos(turn), za::sin(turn)} * speed;
         }
     }
-    const float friction = za::clamp(vr_flat_slide_friction.value, 0.f, 1000.f);
-    const float top = za::clamp(vr_flat_slide_max.value, 200.f, 1000.f);
+    const float friction = t.friction;
+    const float top = t.top;
     const float newSpeed = za::min(za::max(0.f, speed - friction * dt), top);
     out.vel = speed > 1e-3f ? out.vel * (newSpeed / speed) : glm::vec2{0.f};
     speed = newSpeed;
-    out.ended = speed < za::clamp(vr_flat_slide_end.value, 0.f, 300.f);
+    out.ended = speed < t.end;
     return out;
 }
 
@@ -679,7 +732,8 @@ extern "C" int VR_SlideMove(edict_t* ent, int onground, const float* wishdir, fl
         s = slide::Slide{}; // a new map (the clock starts again)
     }
     s.lastTime = now;
-    const int out = slide::slideMove(ent, s, now, onground, wishdir, wishspeed, velocity);
+    const slide::Tuning t = slide::tuning();
+    const int out = slide::slideMove(ent, s, t, now, onground, wishdir, wishspeed, velocity);
     // The stamina's later parts as they fall due (in the air too: the same slide), and QC's word of the slide on the
     // ground (.vr_sliding: its charge into a monster, vr_kdtrig.qc VR_KdTrig_SlideCharge).
     slide::paySlideStamina(ent, s, now);
@@ -695,5 +749,5 @@ extern "C" int VR_SlideStepUp(edict_t* ent)
         return 0;
     }
     const slide::Slide& s = slide::state(num);
-    return s.on && !s.airborne && s.grounded ? 1 : 0;
+    return slide::stepsUp(s) ? 1 : 0;
 }

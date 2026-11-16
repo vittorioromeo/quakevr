@@ -88,6 +88,9 @@ struct ServerSlot
     float crawl[2]{0.f, 0.f}; // the crawl's own speed after the frame (physics::crawlState's)
     pmove::Grapple grapple;   // the grapple's rope in his moves after the frame (B8j part 4; not on: none) ...
     int grappleHook{0};       // ... its hook's edict (the reel's ramp goes on while it is the same)
+    bool slideSeen{false};    // his moves' slide input seen since he joined (B14: the slide's numbers in his state)
+    double slideClock{0.0};   // the slide's clock after his last frame's moves (his state's times are against it)
+    float staminaLeft{0.f};   // ... his stamina then (a slide's start in his replay: too tired for its first part)
     // The water's level and type his last move found (the next move's walk or swim goes by them: B11b part 2); not
     // walked last frame: the edict's (the last frame's SV_CheckWater).
     int waterLevel{0}, waterType{CONTENTS_EMPTY};
@@ -269,6 +272,14 @@ struct EdictBody final : pmove::Body
         progs::grappleTaut(ent, grappleHook, hand, speed); // (the twang, the jolt)
         after();
     }
+    float slidePaid(float part) override
+    {
+        store();
+        const float share = progs::staminaEffort(ent, part, "a slide"); // (the pool QuakeC keeps: VR_Stamina_Effort)
+        after();
+        staminaLeft = progs::staminaLeft(ent);
+        return share;
+    }
     bool metBsp(const trace_t& tr) override { return tr.ent && static_cast<int>(tr.ent->v.solid) == SOLID_BSP; }
     bool overDropoff(const float* vel, float speed) override
     {
@@ -377,6 +388,9 @@ void computeRules(edict_t* ent, pmove::Rules& r)
     r.crawlTop = r.crawl ? physics::crawlTop(ent) : 0.f;
     r.crawlFriction = vr_prone_crawl_friction.value;
     r.crawlMost = vr_prone_crawl_max_speed.value;
+    // A headset player's slide (vr_slide, B14): in his moves on the server's numbers (a flatscreen player's is SV_AirMove's).
+    r.slide = !hull::isFlat(ent) && !hull::isProne(ent);
+    r.slideTuning = slide::tuning();
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -386,6 +400,7 @@ struct Past
 {
     za::U32 seq{0};
     vec3_t org{0.f, 0.f, 0.f};
+    vec3_t vel{0.f, 0.f, 0.f};    // (B14: his move's result, compared bit for bit with the server's)
     int on{0};                    // the mover he stood on after it (0: none) ...
     vec3_t liftAt{0.f, 0.f, 0.f}; // ... where the replay had it
 };
@@ -412,6 +427,9 @@ struct ClientPredict
     float jumpDir[2]{0.f, 0.f}; // .movedir's x, y (a water jump's push)
     int waterLevel{0}, waterType{CONTENTS_EMPTY}; // the water his last move found (B11b part 2)
     float crawl[2]{0.f, 0.f};   // the crawl's own speed (lying down: B8g)
+    slide::Slide slide;         // a headset's slide at the state (B14: the times against the replay's clock, 0 there)
+    int slideBits{0};           // ... its record's bits (a snapshot's same record)
+    float staminaLeft{1e9f};    // ... his stamina at the state
     pmove::Mantle mantle;       // mantling: its way and time at the state (B8h)
     pmove::Hang hang;           // hanging: the holds, the hands' last places, the owed at the state (B8i)
     climb::TakeRules take;      // the take's rules (not enabled: none) and press memory at the state (B8j part 2)
@@ -448,6 +466,7 @@ struct ClientPredict
     int swimN{0}, wjN{0}, landMovingN{0}, pushN{0}; // (states swimming, in a water jump; replays landing him on a
                                                  // brush model still moving; replayed moves a mover pushed him)
     int crawlN{0};                               // (states lying down: the lying box, B8g)
+    int slideN{0};                               // (states sliding: a headset's slide, B14)
     int wclimbN{0};                              // (replays climbing him out of the water by hand: B8j part 3)
     int grappleN{0};                             // (states with the grapple's rope in his moves: B8j part 4) ...
     float grappleMax{0.f};                       // ... the longest correction of one
@@ -460,6 +479,11 @@ struct ClientPredict
     float transMax{0.f};                         // ... the longest
     float swimMax{0.f}, liftMax{0.f}; // (liftMax: the lift's own predicted place moved under him, a state)
     float corrMax{0.f}, corrSum{0.f}, flatMax{0.f}, airMax{0.f}, errMax{0.f};
+    // B14: the determinism of his moves -- his replay's result for the move a new state is after, against the server's,
+    // bit for bit (origin; velocity apart: the server's frame may change it after his moves), and FNV-1a hashes of both.
+    int exactN{0}, exactMiss{0}, velMiss{0};
+    float exactMax{0.f}; // (the farthest a result missed by)
+    za::U64 hashSv{14695981039346656037ull}, hashCl{14695981039346656037ull};
 
     // vr_mp_predict_probe.
     bool probing{false};
@@ -726,6 +750,18 @@ struct ClientBody final : pmove::Body
     return VectorLength(d);
 }
 
+// FNV-1a over a vector's bytes (B14's move results).
+[[nodiscard]] za::U64 hashOf(za::U64 h, const float* v)
+{
+    unsigned char bytes[sizeof(vec3_t)];
+    memcpy(bytes, v, sizeof(bytes));
+    for(const unsigned char c : bytes)
+    {
+        h = (h ^ c) * 1099511628211ull;
+    }
+    return h;
+}
+
 // The moves after the server's state replayed: the predicted origin (false: the moves are gone from the ring).
 bool replay(vec3_t out, vec3_t before)
 {
@@ -743,6 +779,9 @@ bool replay(vec3_t out, vec3_t before)
     b.waterType = cp.waterType;
     b.crawl[0] = cp.crawl[0];
     b.crawl[1] = cp.crawl[1];
+    b.slide = cp.slide; // (his moves slide as on the server: B14)
+    b.slideClock = 0.0;
+    b.staminaLeft = cp.staminaLeft;
     b.mantle = cp.mantle;
     b.hang = cp.hang;
     b.grapple = cp.grapple; // (the grapple's rope holds and reels him as on the server: B8j part 4)
@@ -823,6 +862,7 @@ bool replay(vec3_t out, vec3_t before)
         Past& p = cp.cur[s % pastRing];
         p.seq = s;
         VectorCopy(b.origin, p.org);
+        VectorCopy(b.velocity, p.vel);
         p.on = on;
         VectorCopy(liftAt, p.liftAt);
         depth++;
@@ -846,6 +886,23 @@ bool replay(vec3_t out, vec3_t before)
 
     if(cp.fresh)
     {
+        // His move's result against the server's (B14): the last replay's for the move this state is after, bit for bit.
+        const Past& mine = cp.past[cp.seq % pastRing];
+        if(mine.seq == cp.seq && (cp.bits & bitWalked))
+        {
+            const bool same = memcmp(mine.org, cp.origin, sizeof(vec3_t)) == 0;
+            cp.exactN += same ? 1 : 0;
+            cp.exactMiss += same ? 0 : 1;
+            cp.exactMax = q_max(cp.exactMax, dist(mine.org, cp.origin));
+            if(!same && vr_mp_watch.value != 0.f)
+            {
+                Con_Printf("mp_predict_exact_miss: seq=%u mine=%.6f %.6f %.6f sv=%.6f %.6f %.6f states=%d\n", cp.seq,
+                    mine.org[0], mine.org[1], mine.org[2], cp.origin[0], cp.origin[1], cp.origin[2], cp.states);
+            }
+            cp.velMiss += memcmp(mine.vel, cp.velocity, sizeof(vec3_t)) == 0 ? 0 : 1;
+            cp.hashSv = hashOf(cp.hashSv, cp.origin);
+            cp.hashCl = hashOf(cp.hashCl, mine.org);
+        }
         // The correction: the newest move both this replay and the last one predicted, where each put him.
         for(za::U32 s = newest; s > cp.seq; s--)
         {
@@ -1017,6 +1074,7 @@ pmove::Input inputOf(const netmove::WireMove& m)
     in.buttons = m.vr.buttons;
     in.reels = (m.vr.buttons & protocol::QVR_BUTTON_OFFHANDSECONDARY ? 1 : 0) |
                (m.vr.buttons & protocol::QVR_BUTTON_MAINHANDSECONDARY ? 2 : 0); // (the grapple's reel, B8j part 4)
+    in.slide = (m.vr.vrBits0 & protocol::moveSlideBit) != 0; // (vr_slide's gesture: a headset's slide, B14)
     return in;
 }
 
@@ -1065,6 +1123,34 @@ void parseState()
     float crawl[2];
     crawl[0] = MSG_ReadFloat();
     crawl[1] = MSG_ReadFloat();
+    // A headset's slide (B14): its state, the server's numbers once his slide input reached it, its times.
+    const int slideBits = MSG_ReadByte();
+    slide::Slide sl;
+    sl.on = (slideBits & 1) != 0;
+    sl.held = (slideBits & 2) != 0;
+    sl.grounded = (slideBits & 4) != 0;
+    sl.airborne = (slideBits & 8) != 0;
+    sl.lastZ = o[2];
+    slide::Tuning slideTuning = slide::cvarTuning(); // (none sent yet: his own settings', no stamina)
+    float staminaLeft = 1e9f;
+    if(slideBits & 32)
+    {
+        sl.lastZ = MSG_ReadFloat();
+        staminaLeft = MSG_ReadFloat();
+        for(float* f : {&slideTuning.least, &slideTuning.top, &slideTuning.boost, &slideTuning.end, &slideTuning.slope,
+                &slideTuning.steer, &slideTuning.friction, &slideTuning.cooldown, &slideTuning.staminaPart,
+                &slideTuning.staminaStep})
+        {
+            *f = MSG_ReadFloat();
+        }
+        slideTuning.staminaParts = MSG_ReadByte();
+    }
+    if(slideBits & 64)
+    {
+        sl.partsPaid = MSG_ReadByte();
+        sl.cooldownUntil = MSG_ReadFloat(); // (his replay's slide clock starts at 0 at the state)
+        sl.startedAt = -MSG_ReadFloat();
+    }
     pmove::Mantle mantle;
     if(bits & bitMantle)
     {
@@ -1186,7 +1272,7 @@ void parseState()
     }
     // (A snapshot parses its unchanged records again: the same state is not a new one.)
     if(cp.have && seq == cp.seq && bits == cp.bits && VectorCompare(o, cp.origin) && VectorCompare(v, cp.velocity) &&
-        crawl[0] == cp.crawl[0] && crawl[1] == cp.crawl[1] && grapple.len == cp.grapple.len &&
+        crawl[0] == cp.crawl[0] && crawl[1] == cp.crawl[1] && grapple.len == cp.grapple.len && slideBits == cp.slideBits && sl.lastZ == cp.slide.lastZ &&
         memcmp(hang.owed, cp.hang.owed, sizeof(hang.owed)) == 0 &&
         memcmp(hang.grips[0].lastRel, cp.hang.grips[0].lastRel, sizeof(hang.grips[0].lastRel)) == 0 &&
         memcmp(hang.grips[1].lastRel, cp.hang.grips[1].lastRel, sizeof(hang.grips[1].lastRel)) == 0)
@@ -1199,6 +1285,12 @@ void parseState()
     r.waterJumpOut = (bits & bitWaterJumpOut) != 0;
     r.roomscaleOn = (bits & bitRoomscale) != 0;
     r.crawl = (bits & bitCrawl) != 0;
+    r.slide = (slideBits & 16) != 0; // (a headset's slide in his moves: B14)
+    r.slideTuning = slideTuning;
+    cp.slide = sl;
+    cp.slideBits = slideBits;
+    cp.staminaLeft = staminaLeft;
+    cp.slideN += sl.on ? 1 : 0;
     r.waterClimb = (climbBits & 1) != 0;
     r.climbHands = (climbBits >> 1) & 3;
     cp.have = true;
@@ -1268,6 +1360,13 @@ void clientClear()
     cp.landMovingN = keep.landMovingN;
     cp.pushN = keep.pushN;
     cp.crawlN = keep.crawlN;
+    cp.slideN = keep.slideN;
+    cp.exactN = keep.exactN;
+    cp.exactMiss = keep.exactMiss;
+    cp.velMiss = keep.velMiss;
+    cp.exactMax = keep.exactMax;
+    cp.hashSv = keep.hashSv;
+    cp.hashCl = keep.hashCl;
     cp.mantleN = keep.mantleN;
     cp.hangN = keep.hangN;
     cp.hangZ0 = keep.hangZ0;
@@ -1284,22 +1383,26 @@ void report()
     Con_Printf("mp_predict: on=%d plain=%d states=%d frames=%d unpredicted=%d unwalked=%d depth_mean=%.1f corr_n=%d "
                "corr_max=%.3f corr_mean=%.3f flat_n=%d flat_max=%.3f air_n=%d air_max=%.3f ride_n=%d err=%.3f "
                "err_max=%.3f maxspeed=%.1f box=%.1f jump=%.0f swim_n=%d swim_max=%.3f wj_n=%d land_moving=%d "
-               "lift_max=%.3f pushed=%d lying=%d arms=%d crawl_n=%d mantle_n=%d hang_n=%d hang_rise=%.2f trans_n=%d trans_max=%.3f "
-               "wclimb=%d wclimb_n=%d grapple=%d grapple_n=%d grapple_max=%.3f grapple_off_n=%d grapple_off_max=%.3f seq=%u newest=%u\n",
+               "lift_max=%.3f pushed=%d lying=%d arms=%d crawl_n=%d slide_n=%d mantle_n=%d hang_n=%d hang_rise=%.2f trans_n=%d trans_max=%.3f "
+               "wclimb=%d wclimb_n=%d grapple=%d grapple_n=%d grapple_max=%.3f grapple_off_n=%d grapple_off_max=%.3f "
+               "exact_n=%d exact_miss=%d exact_max=%.6f vel_miss=%d hash_sv=%016llx hash_cl=%016llx seq=%u newest=%u\n",
         vr_net_predict.value != 0.f && netmove::clientUses() ? 1 : 0, cp.bits & bitWalked ? 1 : 0, cp.states, cp.frames,
         cp.unpredicted, cp.unWalked, cp.frames > 0 ? static_cast<double>(cp.depthSum) / cp.frames : 0.0, cp.corrN, cp.corrMax,
         cp.corrN > 0 ? cp.corrSum / cp.corrN : 0.f, cp.flatN, cp.flatMax, cp.airN, cp.airMax, cp.rideN, VectorLength(cp.error),
         cp.errMax, cp.rules.maxspeed, cp.rules.boxHeight, cp.rules.jumpSpeed, cp.swimN, cp.swimMax, cp.wjN,
-        cp.landMovingN, cp.liftMax, cp.pushN, cp.bits & bitLying ? 1 : 0, cp.rules.crawl ? 1 : 0, cp.crawlN, cp.mantleN, cp.hangN, cp.hangRise, cp.transN, cp.transMax,
-        cp.rules.waterClimb ? 1 + cp.rules.climbHands : 0, cp.wclimbN, cp.grapple.on ? 1 : 0, cp.grappleN, cp.grappleMax, cp.grappleOffN, cp.grappleOffMax, cp.seq,
+        cp.landMovingN, cp.liftMax, cp.pushN, cp.bits & bitLying ? 1 : 0, cp.rules.crawl ? 1 : 0, cp.crawlN, cp.slideN, cp.mantleN, cp.hangN, cp.hangRise, cp.transN, cp.transMax,
+        cp.rules.waterClimb ? 1 + cp.rules.climbHands : 0, cp.wclimbN, cp.grapple.on ? 1 : 0, cp.grappleN, cp.grappleMax, cp.grappleOffN, cp.grappleOffMax, cp.exactN, cp.exactMiss, cp.exactMax, cp.velMiss,
+        static_cast<unsigned long long>(cp.hashSv), static_cast<unsigned long long>(cp.hashCl), cp.seq,
         netmove::clientNewest());
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(0), "vr_mp_predict_report") && !q_strcasecmp(Cmd_Argv(1), "reset"))
     {
         // (vr_mp_predict_report reset: the counts from here, a test's setup left out; the states read go on)
         cp.frames = cp.unpredicted = cp.unWalked = cp.corrN = cp.flatN = cp.airN = cp.rideN = 0;
-        cp.swimN = cp.wjN = cp.landMovingN = cp.pushN = cp.crawlN = cp.mantleN = cp.hangN = cp.wclimbN = cp.grappleN = cp.grappleOffN = 0;
+        cp.swimN = cp.wjN = cp.landMovingN = cp.pushN = cp.crawlN = cp.slideN = cp.mantleN = cp.hangN = cp.wclimbN = cp.grappleN = cp.grappleOffN = 0;
         cp.hangRise = cp.transMax = cp.grappleMax = cp.grappleOffMax = 0.f;
-        cp.transN = 0;
+        cp.transN = cp.exactN = cp.exactMiss = cp.velMiss = 0;
+        cp.hashSv = cp.hashCl = 14695981039346656037ull;
+        cp.exactMax = 0.f;
         cp.depthSum = 0;
         cp.corrMax = cp.corrSum = cp.flatMax = cp.airMax = cp.errMax = cp.swimMax = cp.liftMax = 0.f;
     }
@@ -1423,7 +1526,7 @@ extern "C" int VR_PredictThink(edict_t* ent)
     const int slot = static_cast<int>(s - serverSlots);
     // (lying down too, B8g: the lying box is the rules' box, the stick's share of the crawl the moves')
     s->plain = movesOneByOne(slot) && static_cast<int>(ent->v.movetype) == MOVETYPE_WALK && ent->v.health > 0.f &&
-               !hull::isFlat(ent) && !slide::headsetEngaged(ent); // (a headset's slide: SV_AirMove's, vr_slide.cpp)
+               !hull::isFlat(ent); // (a headset's slide too: his moves', B14)
     if(s->plain)
     {
         computeRules(ent, s->rules);
@@ -1549,6 +1652,21 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
         b.crawl[0] = crawl[0];
         b.crawl[1] = crawl[1];
     }
+    // A headset's slide (B14: slide::move in his walking moves, as SV_AirMove's for flatscreen play): its state the
+    // server's for his client number, its clock the server's time.
+    const int slideNum = slide::clientSlot(ent);
+    slide::Slide* slid = slideNum >= 0 ? &slide::state(slideNum) : nullptr;
+    if(slid)
+    {
+        if(qcvm->time < slid->lastTime)
+        {
+            *slid = slide::Slide{}; // (a new map: the clock starts again)
+        }
+        slid->lastTime = qcvm->time;
+        b.slide = *slid;
+        b.slideClock = qcvm->time;
+        b.staminaLeft = r.slideTuning.staminaPart > 0.f ? progs::staminaLeft(ent) : 0.f;
+    }
     s->credit = q_min(s->credit + static_cast<float>(host_frametime) * creditRate, creditMost);
     const int slot = static_cast<int>(s - serverSlots);
     pmove::Input newest;
@@ -1557,6 +1675,7 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
     {
         pmove::Input in = s->queue[k];
         newest = in;
+        s->slideSeen = s->slideSeen || in.slide;
         const bool held = in.dt > s->credit;
         if(held)
         {
@@ -1643,6 +1762,17 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
             }
         }
         VR_FindRadius_Dirty(ent);
+    }
+    if(slid)
+    {
+        *slid = b.slide;
+        s->slideClock = b.slideClock;
+        s->staminaLeft = b.staminaLeft;
+        if(!ent->free)
+        {
+            // (QC's word of the slide on the ground, as VR_SlideMove's: its charge into a monster)
+            progs::setFieldFloat(ent, progs::fields().vr_sliding, slid->on && !slid->airborne ? 1.f : 0.f);
+        }
     }
     s->crawl[0] = crawl ? crawl[0] : 0.f;
     s->crawl[1] = crawl ? crawl[1] : 0.f;
@@ -1768,6 +1898,31 @@ extern "C" void VR_WritePredict(sizebuf_t* msg, client_t* client)
     MSG_WriteFloat(msg, ent->v.movedir[1]);
     MSG_WriteFloat(msg, s.crawl[0]);
     MSG_WriteFloat(msg, s.crawl[1]);
+    // A headset's slide (B14): its state; once his moves sent its input, its numbers (the server's: his replay slides
+    // as his moves do here) and, sliding or cooling down, its times against the slide's clock after his moves. An idle
+    // record stays the same.
+    const int slideNum = slide::clientSlot(ent);
+    const slide::Slide sl = slideNum >= 0 ? slide::state(slideNum) : slide::Slide{};
+    const double clock = s.walked ? s.slideClock : sv.qcvm.time;
+    const bool slideTimes = s.slideSeen && (sl.on || sl.cooldownUntil > clock);
+    MSG_WriteByte(msg, (sl.on ? 1 : 0) | (sl.held ? 2 : 0) | (sl.grounded ? 4 : 0) | (sl.airborne ? 8 : 0) |
+                           (r.slide ? 16 : 0) | (s.slideSeen ? 32 : 0) | (slideTimes ? 64 : 0));
+    if(s.slideSeen)
+    {
+        const slide::Tuning& t = r.slideTuning;
+        for(const float f : {sl.lastZ, s.staminaLeft, t.least, t.top, t.boost, t.end, t.slope, t.steer, t.friction,
+                t.cooldown, t.staminaPart, t.staminaStep})
+        {
+            MSG_WriteFloat(msg, f);
+        }
+        MSG_WriteByte(msg, t.staminaParts);
+    }
+    if(slideTimes)
+    {
+        MSG_WriteByte(msg, sl.partsPaid);
+        MSG_WriteFloat(msg, static_cast<float>(sl.cooldownUntil - clock));
+        MSG_WriteFloat(msg, static_cast<float>(clock - sl.startedAt));
+    }
     if(mantling)
     {
         for(const float* p : {mantle.from, mantle.mid, mantle.to})

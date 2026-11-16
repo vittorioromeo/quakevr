@@ -62,6 +62,9 @@ Tests:
              him; a hold taken in the air (B8j part 2); the hands' climb out of the start map's pool (B8j part 3); the
              grapple's reel and hang from vrclimb's ceiling (B8j part 4). --part hang|mantle|airgrab|waterclimb|grapple:
              one alone.
+    predictslide (B14) on e1m1, B 150 ms behind each way and 5% lost slides (vr_slide: the turning stick pulled
+             down) running north: the slide in his moves, his corrections under a unit; twice, the second ended by a
+             jump; at rest where the server has him.
     voice    (B10v) A's voice (a tone in place of his microphone) heard at B: in order through the jitter buffer,
              the tone kept, the delay under 250 ms (+ the added lag); nearer louder, the radio full; his volume,
              muted; push-to-talk released, voice activation; the server's voice budget and B's rate cap hold
@@ -3482,6 +3485,22 @@ def predict_segment(s, b, what, go, states, legs=(), reset=True):
     return pr
 
 
+PREDICT_EXACT_MISS_MOST = 0.01  # B14: a share of his moves' results off the server's (bit for bit) at most ...
+PREDICT_EXACT_OFF_MOST = 0.001  # ... and how far, units (an ulp on a step: the client's trace and SV_Move's)
+
+
+def predict_exact_check(s, what, pr, least=20):
+    """MP_PLAN B14: his moves are deterministic -- his replay's result for the move each new state is after against the
+    server's, bit for bit (the origin; hash_sv and hash_cl, FNV-1a over the states compared, equal when all are): at
+    least `least` compared, at most PREDICT_EXACT_MISS_MOST of them off, none by PREDICT_EXACT_OFF_MOST."""
+    n, miss = int(pr.get("exact_n", 0)), int(pr.get("exact_miss", 999))
+    s.check("B's moves' results equal the server's bit for bit %s (an ulp at most, rarely)" % what,
+            n >= least and miss <= PREDICT_EXACT_MISS_MOST * (n + miss) and
+            float(pr.get("exact_max", 99)) < PREDICT_EXACT_OFF_MOST and (miss > 0 or pr.get("hash_sv") == pr.get("hash_cl")),
+            "%s equal, %s not (by %s at most; velocity: %s not), hashes %s %s" % (
+                n, miss, pr.get("exact_max"), pr.get("vel_miss"), pr.get("hash_sv"), pr.get("hash_cl")))
+
+
 def predict_corr_check(s, what, pr, least=20):
     """The segment's corrections and drawn offset under PREDICT_CORR_MOST (at least `least` states compared)."""
     s.check("B's corrections %s under %.1f unit (and his drawn offset)" % (what, PREDICT_CORR_MOST),
@@ -3713,6 +3732,39 @@ def predict_climb(s):
             predict_waterclimb(s, srv, a, b, eb, first=k == 0)
 
 
+SLIDE_LOSS = 0.05  # mp_predictslide: B's game packets lost, each way (with PREDICT_LAG)
+
+
+def predict_slide(s):
+    """MP_PLAN B14: a headset's slide (vr_slide, experimental) predicted. B, 150 ms behind the server each way with 5%
+    of his packets lost each way, runs north on e1m1's open floor (half a second, to his run's speed) and pulls the turning stick straight down (the move's
+    slide bit): the slide runs in his moves on the server and in his replay (vr_slide.cpp's slide::move, one function
+    for single player's SV_AirMove and the moves; the slide's state and the server's numbers in his state), so his
+    states stay walked move by move and his corrections under a unit; a second take after the cooldown ends with a
+    jump; at rest he stands where the server has him."""
+    srv, a, b, ea, eb = join(s, lag=PREDICT_LAG, loss=SLIDE_LOSS)
+    srv.cmd("vr_mp_watch %d" % PART_WATCH)
+    b.cmd("vr_slide 1; vr_mp_watch %d" % PART_WATCH)
+    takes = (("held to its end", ("", "vr_mock_stick main 0 -1", "", "vr_mock_stick main 0 0; vr_mock_stick off 0 0", "")),
+             ("ended by a jump", ("", "vr_mock_stick main 0 -1", "+jump", "-jump; vr_mock_stick main 0 0; "
+                                  "vr_mock_stick off 0 0", "")))
+    for k, (what, legs) in enumerate(takes):
+        put_at(srv, b, eb, OPEN_SPOT, 90)
+        b.quiet(r"mp_predict_corr: ", 1.0, 20, "B settled at his spot")
+        pr = predict_segment(s, b, "sliding, %s" % what, "vr_mock_stick off 0 1", 36, legs)
+        s.metric("b_predict_slide%d" % (k + 1), pr)
+        s.check("B slid (%s): the server's slide in his states, every one walked move by move" % what,
+                int(pr.get("slide_n", 0)) >= 10 and int(pr.get("unwalked", 1)) == 0 and
+                int(pr.get("unpredicted", 1)) == 0,
+                "%s states sliding, %s unwalked, %s unpredicted" % (pr.get("slide_n"), pr.get("unwalked"),
+                                                                     pr.get("unpredicted")))
+        predict_corr_check(s, "sliding (%s)" % what, pr)
+        predict_exact_check(s, "(sliding, %s)" % what, pr)
+        own = org_of(status(b), "mp_player", "self", 1)
+        sv = org_of(status(srv), "mp_client", "slot", eb - 1)
+        gap = dist(own, sv) if own and sv else 99.0
+        s.check("at rest after the slide (%s) B stands where the server has him (within 1 unit)" % what, gap <= 1.0,
+                "B draws himself at %s, the server has him at %s" % (own, sv))
 def hang_pull_play():
     """Both hands onto vrclimb's ledge, pulled down 0.25 m (the body up: no mantle), held, let up again 0.15 m (the body
     down), held, let go at 4.5 s (he falls to the floor)."""
@@ -3986,6 +4038,7 @@ def predict(s):
     own = org_of(status(b), "mp_player", "self", 1)
     sv = org_of(status(srv), "mp_client", "slot", eb - 1)
     gap = dist(own, sv) if own and sv else 99.0
+    predict_exact_check(s, "(walking on flat ground)", pr, least=50)
     s.check("at rest B stands where the server has him (within 1 unit)", gap <= 1.0,
             "B draws himself at %s, the server has him at %s" % (own, sv))
     # Without prediction (his client draws the server's state): a round trip before his own move shows.
@@ -4504,6 +4557,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             lossy(s)
         elif test == "mp_predict":
             predict(s)
+        elif test == "mp_predictslide":
+            predict_slide(s)
         elif test == "mp_predictclimb":
             predict_climb(s)
         elif test == "mp_disarm":
@@ -4540,7 +4595,7 @@ def print_bytes_table():
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "lagcomp", "disarm", "voice", "dm", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -4575,7 +4630,7 @@ def main():
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "lagcomp", "disarm", "dm"):
+                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)
@@ -4609,6 +4664,7 @@ def main():
         ok = run(args, "mp_loss") and ok
         ok = run(args, "mp_predict") and ok
         ok = run(args, "mp_predictclimb") and ok
+        ok = run(args, "mp_predictslide") and ok
         ok = run(args, "mp_lagcomp") and ok
         ok = run(args, "mp_disarm") and ok
         ok = run(args, "mp_voice") and ok

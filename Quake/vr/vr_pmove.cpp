@@ -103,6 +103,40 @@ void airAccelerate(Body& b, float wishspeed, float* wishveloc, const Rules& r, d
     }
 }
 
+// SV_AirMove's slide (VR_SlideMove; vr_slide.cpp's slide::move, one function for both): a headset player's (B14), on
+// the move's slide input -- true when it moved him on the ground (no friction, no walk). Its stamina's parts as they
+// fall due (in the air too: the same slide), the server's QuakeC paying them (Body::slidePaid).
+bool slideMove(Body& b, const Input& in, const Rules& r, bool onground, const float* wishdir, float wishspeed)
+{
+    slide::Slide& s = b.slide;
+    slide::MoveIn m;
+    m.enabled = r.slide;
+    m.held = in.slide;
+    m.waterLevel = b.waterLevel;
+    m.onground = onground;
+    m.jumpHeld = in.jump || !(b.flags & FL_JUMPRELEASED);
+    if(slide::floorNeeded(s, m.enabled, m.held))
+    {
+        // (slide::floorNormal's: his box 4 units down against the world and the brush models)
+        vec3_t end;
+        VectorCopy(b.origin, end);
+        end[2] -= 4.f;
+        const trace_t tr = b.traceWorld(b.origin, end);
+        if(tr.fraction < 1.f && !tr.startsolid && tr.plane.normal[2] > 0.5f)
+        {
+            m.floorFound = true;
+            m.normal = glm::vec3{tr.plane.normal[0], tr.plane.normal[1], tr.plane.normal[2]};
+        }
+    }
+    m.originZ = b.origin[2];
+    m.dt = static_cast<float>(in.dt);
+    m.now = b.slideClock;
+    m.staminaLeft = b.staminaLeft;
+    const bool moved = slide::move(s, m, r.slideTuning, wishdir, wishspeed, b.velocity);
+    slide::payParts(s, b.slideClock, r.slideTuning, [&](float part) { return b.slidePaid(part); });
+    return moved;
+}
+
 // SV_AirMove for a walking player (the head's yaw steers; the stick's scale and most speed are the rules').
 void airMove(Body& b, const Input& in, const Rules& r, bool onground)
 {
@@ -137,7 +171,11 @@ void airMove(Body& b, const Input& in, const Rules& r, bool onground)
     VectorCopy(wishvel, wishdir);
     wishspeed = VectorNormalize(wishdir);
 
-    if(onground)
+    if(slideMove(b, in, r, onground, wishdir, wishspeed))
+    {
+        // (a slide: its own friction and slope, no walk)
+    }
+    else if(onground)
     {
         friction(b, r, in.dt);
         accelerate(b, wishspeed, wishdir, r, in.dt);
@@ -516,7 +554,7 @@ void walkMove(Body& b, const Input& in, const Rules& r, double dt, MoveNotes* no
     {
         return;
     }
-    if(!oldonground && b.waterLevel == 0)
+    if(!oldonground && b.waterLevel == 0 && !slide::stepsUp(b.slide)) // (a slide on the ground climbs it: VR_SlideStepUp)
     {
         return; // (no stairs up while jumping)
     }
@@ -1381,7 +1419,9 @@ bool mantleStep(Mantle& m, float dt, float* out)
     return t >= 1.f;
 }
 
-void playerMove(Body& b, const Input& in, const Rules& r, MoveNotes* notes)
+namespace
+{
+void playerMoveOne(Body& b, const Input& in, const Rules& r, MoveNotes* notes)
 {
     // (the VR pieces' and QuakeC's frame time: a float, as theirs; sv_user.c's and sv_phys.c's: in.dt, a double)
     const float fdt = static_cast<float>(in.dt);
@@ -1564,6 +1604,13 @@ void playerMove(Body& b, const Input& in, const Rules& r, MoveNotes* notes)
     }
     b.groundAge += fdt;
     b.holdLeft -= fdt;
+}
+} // namespace
+
+void playerMove(Body& b, const Input& in, const Rules& r, MoveNotes* notes)
+{
+    playerMoveOne(b, in, r, notes);
+    b.slideClock += in.dt; // (the slide's clock: every move, hanging and mantling too)
 }
 
 } // namespace qvr::pmove
