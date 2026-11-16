@@ -1044,6 +1044,10 @@ GhostBody ghostBody;
 GhostBody ghostBodyHidden; // (the "hidden" phase's, kept for the verdict)
 GhostBody ghostClimb;       // (the same for climbing: vr_ghost_climb_test)
 GhostBody ghostClimbHidden;
+GhostBody ghostRec;       // (the same while OBS records: vr_obsrec_test)
+GhostBody ghostRecHidden;
+bool obsRecDefaults{false}; // (vr_obsrec_test's "hidden" step: the options at their defaults)
+bool obsRecClean{false};    // (... and Recording Mode on, debug markers hidden, while recording)
 
 // vr_ghost_body_test start | hidden | end: a hand holding an enemy brings no ghost out with vr_ghost_hands_ignore_bodies
 // 1 (the frames since "start", kept by "hidden": the hand drawn on the body far enough off its controller for a ghost,
@@ -1073,6 +1077,48 @@ void ghostBodyTest_f()
     t.check(a.maxAlpha >= 0.02f, name, va("held off its controller enough for a ghost (opacity %.3f)", a.maxAlpha));
     t.check(a.maxDrawn < 0.02f, name, va("No Ghost Holding Bodies on: none drawn (%.3f)", a.maxDrawn));
     t.check(b.maxDrawn >= 0.02f, name, va("off: the same hold shows it (%.3f)", b.maxDrawn));
+    t.verdict(name);
+}
+
+// vr_obsrec_test start | hidden | end: clean recording (his note 2026-11-16): with OBS recording (vr_obsrec_as_if 1) and
+// vr_obsrec_ghost_hands at its default (1) no ghost is drawn though one would be (the frames since "start"); with it 0,
+// the same frames show it (since "hidden"). Also the other options' defaults and their effects while recording.
+// Prints "vr_obsrec_test: N passed, M failed" (Misc/quakevr/obsrec_test.sh).
+void obsRecTest_f()
+{
+    const char* step = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
+    if(!strcmp(step, "start"))
+    {
+        ghostRec = GhostBody{};
+        return;
+    }
+    testkit::Tally t;
+    constexpr const char* name = "vr_obsrec_test";
+    if(!strcmp(step, "hidden"))
+    {
+        ghostRecHidden = ghostRec;
+        ghostRec = GhostBody{};
+        // (while recording, every option at its default: checked here, before the script turns ghost hands' off)
+        obsRecDefaults = true;
+        for(const cvar_t* v : {&vr_obsrec_ghost_hands, &vr_obsrec_debug, &vr_obsrec_messages})
+        {
+            obsRecDefaults = obsRecDefaults && !strcmp(v->default_string, "1") && !strcmp(v->string, "1");
+        }
+        obsRecClean = recordingClean() && obs::hides(obs::Hide::Debug);
+        return;
+    }
+    const GhostBody& a = ghostRecHidden;
+    const GhostBody& b = ghostRec;
+    Con_Printf("%s: hidden: %d frames recording, ghost %.3f measured, %.3f drawn; option off: %d frames, %.3f, %.3f\n", name,
+        a.frames, a.maxAlpha, a.maxDrawn, b.frames, b.maxAlpha, b.maxDrawn);
+    t.check(obsRecDefaults, name, "the clean recording options default on (ghost hands, debug markers, Recording Mode)");
+    t.check(obsRecClean, name, "while recording: Recording Mode on, debug markers hidden");
+    t.check(a.frames > 0 && b.frames > 0, name, "a ghost would show in both phases");
+    t.check(a.maxAlpha >= 0.02f, name, va("held off its controller enough for a ghost (opacity %.3f)", a.maxAlpha));
+    t.check(a.maxDrawn < 0.02f, name, va("OBS recording: no ghost drawn (%.3f)", a.maxDrawn));
+    t.check(b.maxDrawn >= 0.02f, name, va("No Ghost Hands While Recording off: shown (%.3f)", b.maxDrawn));
+    Cvar_SetValueQuick(&vr_obsrec_as_if, 0.f); // (the as-if flag off again: nothing hidden)
+    t.check(!obs::hides(obs::Hide::GhostHands) && !recordingClean(), name, "not recording: nothing hidden");
     t.verdict(name);
 }
 
@@ -1182,6 +1228,7 @@ void updateGripFrame(const hands::State& s, int hand)
         Cmd_AddCommand("vr_ghost_recoil_test", ghostRecoilTest_f);
         Cmd_AddCommand("vr_ghost_body_test", ghostBodyTest_f);
         Cmd_AddCommand("vr_ghost_climb_test", ghostClimbTest_f);
+        Cmd_AddCommand("vr_obsrec_test", obsRecTest_f);
         Cmd_AddCommand("vr_still_grip_test", stillGripTest_f);
     }
     grip::HandFrame f;
@@ -3448,7 +3495,15 @@ void setupGhostHands(const hands::State& s)
             embedProbe.ghost = za::fmax(embedProbe.ghost, alpha);
             embedProbeWrite();
         }
-        if(alpha < 0.02f || bodyHidden || climbHidden || bladeHidden)
+        // OBS recording: none unless asked (vr_obsrec_ghost_hands; his note 2026-11-16).
+        const bool recHidden = obs::hides(obs::Hide::GhostHands);
+        if(vr_obsrec_as_if.value != 0.f || recHidden) // (vr_obsrec_test's measure: recording, as if or for real)
+        {
+            ghostRec.frames++;
+            ghostRec.maxAlpha = za::max(ghostRec.maxAlpha, alpha);
+            ghostRec.maxDrawn = za::max(ghostRec.maxDrawn, recHidden || bodyHidden || climbHidden || bladeHidden ? 0.f : alpha);
+        }
+        if(alpha < 0.02f || bodyHidden || climbHidden || bladeHidden || recHidden)
         {
             continue;
         }

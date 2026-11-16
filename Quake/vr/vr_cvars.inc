@@ -347,6 +347,12 @@ QVR_CVAR(vr_obs_password, "", CVAR_ARCHIVE)            // obs-websocket's passwo
 QVR_CVAR(vr_obs_process_check, "1", CVAR_NONE)         // 1: on this PC, connect only while OBS's process runs (obs64.exe), and say when its WebSocket server is off; 0: always try; 2 (test aid): act as if OBS were running
 QVR_CVAR(vr_obs_mock, "0", CVAR_NONE)                  // 1 (tests): no OBS; requests answered by a mock that prints each and makes dummy recording files in vr_obs_mock_dir
 QVR_CVAR(vr_obs_mock_dir, "", CVAR_NONE)               // the mock's recording folder ("": <game dir>/obsmock)
+// Clean recording (Graphics > Recording, his note 2026-11-16): while OBS records (obs::recording(); the mock's too), what
+// is left out of the picture, in the headset too (obs::hides).
+QVR_CVAR(vr_obsrec_ghost_hands, "1", CVAR_ARCHIVE)     // 1: no Ghost Hands while OBS records
+QVR_CVAR(vr_obsrec_debug, "1", CVAR_ARCHIVE)           // 1: no debug markers while OBS records (the weapons' hotspot marks, the profiler's panel)
+QVR_CVAR(vr_obsrec_messages, "1", CVAR_ARCHIVE)        // 1: Recording Mode while OBS records (no tips, wrist messages or head-locked text: qvr::recordingClean)
+QVR_CVAR(vr_obsrec_as_if, "0", CVAR_NONE)              // test aid (Debug > OBS): act as if OBS were recording (the clean recording's options apply)
 // Takes and clips for trailers (vr_takes.cpp; TRAILER.md, "Takes and clips"): OBS's recordings as named, rated takes.
 QVR_CVAR(vr_takes, "1", CVAR_ARCHIVE)                  // 1: each OBS recording is a take: renamed <date>_<scene>_t<NN>_<rating>, rated keep / maybe / reject; 0: OBS's files left alone
 QVR_CVAR(vr_take_scene, "", CVAR_NONE)                 // the scene's name in the takes' names ("": the map's)
@@ -2670,7 +2676,7 @@ QVR_CVAR(vr_agrunt_shotdisarm_proj_chance, "0.2", CVAR_ARCHIVE) // ... the chanc
 QVR_CVAR(vr_agrunt_shotdisarm_proj_ref, "9", CVAR_ARCHIVE)     // ... the damage that chance is for (a nail's): more damage, more chance
 QVR_CVAR(vr_agrunt_shotdisarm_proj_near, "4", CVAR_ARCHIVE)    // ... units past the weapon or hand a miss still rolls, its chance down to 0 there
 QVR_CVAR(vr_agrunt_shotdisarm_proj_max, "0.8", CVAR_ARCHIVE)   // ... the most one projectile's chance (a rocket's direct hit)
-QVR_CVAR(vr_player_disarm, "1", CVAR_ARCHIVE)                 // 1: enemies' shots and blows on your held weapon or its hand knock it out by the armed grunts' rules (vr_playerdisarm.qc; multiplayer: other players' too)
+QVR_CVAR(vr_player_disarm, "0", CVAR_ARCHIVE)                 // off by default in 1.1 (inconsistent; BACKLOG.md 6). 1: enemies' shots and blows on your held weapon or its hand knock it out by the armed grunts' rules (vr_playerdisarm.qc; multiplayer: other players' too)
 QVR_CVAR(vr_player_disarm_sound, "1", CVAR_ARCHIVE)           // your weapon knocked out: its sounds' volume (the clang at the weapon for everyone near, vr/disarm_clang.wav; the alert to you alone, vr/disarm_sting.wav; 0 silent; QC VR_PD_Disarm)
 QVR_CVAR(vr_player_disarm_chance, "1", CVAR_ARCHIVE)          // times the armed grunts' chance for your weapon (1 the same; at most certain; 0 never)
 QVR_CVAR(vr_pd_test, "0", CVAR_NONE)                          // the player disarm's test (QC vr_playerdisarm_test.qc; Debug > Tests > Player Disarm): 1 shots at your gun and body, the option off

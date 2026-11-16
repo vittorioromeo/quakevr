@@ -13,6 +13,7 @@ float vr_pdt_n;      // frames the state has run
 float vr_pdt_dis0;   // vr_pd_disarms at the case's start
 float vr_pdt_hits0;  // vr_pd_hits then
 float vr_pdt_chance; // vr_player_disarm_chance before the test
+float vr_pdt_was;    // vr_player_disarm before the test (off by default in 1.1)
 entity vr_pdt_shooter; // the case's shooter (a stand-in grunt or enforcer)
 entity vr_pdt_drop;  // the knocked-out weapon
 entity vr_pdt_laser; // the laser case's bolt
@@ -32,7 +33,7 @@ void(float s, float frames) VR_PDT_To =
 
 void() VR_PDT_End =
 {
-    cvar_set("vr_player_disarm", "1");
+    cvar_set("vr_player_disarm", ftos(vr_pdt_was));
     cvar_set("vr_player_disarm_chance", ftos(vr_pdt_chance));
     if(vr_pdt_shooter)
     {
@@ -196,12 +197,13 @@ void(entity p) VR_PDT_Run =
             vr_wpn_dropped = world;
         }
         VR_PDT_Arm(p);
-        cvar_set("vr_player_disarm", "0");
+        localcmd("reset vr_player_disarm\n"); // its default: off in 1.1 (checked in state 7)
         VR_PDT_To(7, VR_PDT_POSE_FRAMES);
         return;
     }
     if(vr_pdt_s == 7)
     {
+        VR_Test_Check(!cvar_hget(cvarh_vr_player_disarm), "vr_player_disarm defaults to 0 (off in 1.1)");
         VR_PDT_Aim(p, FALSE);
         VR_PDT_Blast(p);
         VR_PDT_To(8, 2);
@@ -210,7 +212,7 @@ void(entity p) VR_PDT_Run =
     if(vr_pdt_s == 8)
     {
         VR_Test_Check(vr_pd_disarms == vr_pdt_dis0 && vr_pd_hits == vr_pdt_hits0 && !VRIsHandWeaponless(p, cVR_MainHand),
-            sprintf("vr_player_disarm 0: a blast across the gun does nothing (%g hits, %g disarms)", vr_pd_hits - vr_pdt_hits0,
+            sprintf("vr_player_disarm 0 (the default): a blast across the gun does nothing (%g hits, %g disarms)", vr_pd_hits - vr_pdt_hits0,
             vr_pd_disarms - vr_pdt_dis0));
         VR_PDT_End();
     }
@@ -350,6 +352,7 @@ void() VR_PlayerDisarmTest_Frame =
         VR_Test_BeginFlags("pdtest", VR_TEST_LOUD);
         vr_pdt_on = ask;
         vr_pdt_chance = cvar_hget(cvarh_vr_player_disarm_chance);
+        vr_pdt_was = cvar_hget(cvarh_vr_player_disarm);
         cvar_set("vr_player_disarm", "1");
         cvar_set("vr_player_disarm_chance", "100"); // (certain)
         localcmd(sprintf("%s\n", VR_PDT_POSE));
