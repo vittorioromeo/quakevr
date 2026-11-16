@@ -60,6 +60,21 @@ byte *SV_FatPVS (vec3_t org, qmodel_t *worldmodel);
 
 static byte *r_stereovis; // QVR: single-pass stereo: both eyes' PVS (R_MarkSurfaces)
 static size_t r_stereovissize;
+static byte *r_lightsvis; // QVR: the view's PVS kept for R_PushDlights' reach test (VR_WorldLightsCheck, C4u)
+static size_t r_lightsvissize;
+
+/*
+================
+R_ViewVis -- QVR
+
+The PVS R_MarkSurfaces chose for the view being drawn (both eyes' under single-pass stereo), a bit per leaf; NULL
+before the first view.
+================
+*/
+const byte *R_ViewVis (void)
+{
+	return r_lightsvis;
+}
 
 /*
 ===============
@@ -196,6 +211,16 @@ void R_MarkSurfaces (void)
 	VR_WaterMarkVis (vis); // QVR: the geometric waves' faces seen (vr/vr_water.cpp)
 	R_MarkVisSurfaces (vis);
 	R_AddStaticModels (vis);
+	{ // QVR: kept (the vis buffers are reused): a light lights no pixel of this view unless it reaches a leaf in it
+		size_t size = (((cl.worldmodel->numleafs + 7) >> 3) + VIS_ALIGN_MASK) & ~VIS_ALIGN_MASK; // (as the vis buffers)
+		if (r_lightsvissize < size)
+		{
+			free (r_lightsvis);
+			r_lightsvis = (byte *) malloc (size);
+			r_lightsvissize = size;
+		}
+		memcpy (r_lightsvis, vis, size);
+	}
 }
 
 /*

@@ -4017,3 +4017,15 @@ His note: the titles look great, previewing them in DaVinci takes forever.
   saw "changed"; now only the tools block is hashed (not re-run: see below). **Resolve closed** during the second
   `--bake`'s render (the retest of the reuse path); not reopened (GUI), so the reuse path and `--unbake` are unchecked.
   A bake of both titles took 271 s of wall time (the renders alone should take about 80 s: not explained).
+
+## Quest C4u: demo1's GPU was the player's own models; lights out of view leave the world unlit (branch `agent/quest`, 2026-11-16)
+
+- demo1 on the Quest 3 drew the whole player rig (hands, body, guns, holsters, the wrist gadget) at the controllers'
+  poses since C4t's demo fix, lit per pixel by its own lights at the face: ~18 ms of GPU. In id's demos (other
+  protocols) the head is now placed but the player's models hidden (`hands::demoViewOnly`), on the Quest and under
+  `-glescompat` only: the PC's window shows the flat demo again (identical to before C4t). **demo1: period 21.5 ->
+  14.0 ms, GPU 20.9 -> 6.5.** The eye scopes' "unattributed" time is the Adreno running a pass's draws at its resolve.
+- The world-unlit test (`vr_gl_world_unlit`) now ignores a light whose sphere reaches no leaf of the view's PVS (no
+  gain at e1m2's start: its torches are in the PVS and the unworn controllers' small lights touch the floor).
+- New debug command `vr_dlights_list` (Debug > Profiling): the live dynamic lights with key, radius and distance.
+- PC: scenario_check PASS, load_models_test 4/0, flat timedemo demo1 runs. Details: QUEST_PLAN.md 6za.

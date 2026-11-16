@@ -1485,6 +1485,40 @@ off), `c4t_stages.sh` (the lite world shader cut by stage on the hall's still vi
 - PC: dev build 0 warnings, gles_render_test 21/0; the unlit programs under `-glescompat` on the PC: eye identical
   (but the mock's lights reached the world: the path itself is checked on the headset). PC programs unchanged.
 
+## 6za. C4u: demo1's GPU was the player's own models; lights out of the view's PVS (2026-11-16; adb, unworn)
+
+Method (`scratch/c4u_*`): `c4u_ab.sh` (an A/B in one launch on demo1 or a map; `ROUNDS=n` interleaves the variants n
+times, pooled by `c4o_ab.py` `POOL`; the demo's own timeline swings its GPU 12-23 ms, so only interleaved parts compare),
+`c4u_play.sh` (C4n's scripted session and its maps), `c4u_pcdemo.sh` (demo1 on the PC: the window against C4s's, and
+under `-glescompat`), `c4u_col.py`. New debug command **`vr_dlights_list`** (Debug > Profiling "List the Dynamic
+Lights"): each live light's key, radius, distance and colour.
+- **demo1's "unattributed" eye GPU**: the eye scopes' GPU times are not where the work is on the Adreno (a tiler runs a
+  render pass's draws when the pass resolves: the sub-scopes read ~0, the eye's scope holds the pass; `g_alias` read
+  0.01 ms with ~50 models drawn). The A/B: `r_drawentities 0` 22.2 -> 3.5 ms span, `vr_dlight_models 0` -> 12.0,
+  `r_dynamic 0` -> 10.7; the body, `vr_gl_alias_plain 2`, blob shadows, torch lights: no change. The models were the
+  player's own: C4t's demo fix (hands placed in id's demos) drew the whole rig in the demo (hands, body, two guns,
+  four holsters, the worn gear, from the controllers' poses) with its lights at the face (the guns' screen light, the
+  lava gun's, the wrist gadget's two), lighting them per pixel. The 17 ms `xrWaitFrame` was the GPU-bound wait.
+- **Fix** (`hands::demoViewOnly`): in a demo of another protocol the head is placed (the eyes drawn) but the player's
+  view entities hidden (their lights go with them); and only on the Quest or under `-glescompat`: the PC's window
+  showed the eye's mirror instead of the flat demo (its HUD and gun) since C4t: back to before (the window's
+  screenshot at the same frame 0.000% different from C4s's build; the PC headset blank in id's demos, as before).
+  **demo1 on the Quest 3: period p50 21.5 -> 14.0 ms, GPU 20.9 -> 6.5** (98% eye-pass frames; at the 0.55 floor: 4.3).
+- **The world where lights reach it**: e1m2's start (0.55 fixed) has 4 lights: 2 torches 720 units off and the rig's 2
+  (the screen and gadget lights, at the unworn controllers); the rig's off: still lit (the torches); all off: unlit,
+  GPU 7.0 -> 4.9 ms, world 5.0 -> 3.1. The reach test (C4t) walked the whole BSP: a light round a corner counted.
+  `VR_WorldLightsCheck` now also needs the light's sphere to reach a leaf of the view's PVS (`R_ViewVis`, the copy
+  R_MarkSurfaces keeps; both eyes' under single-pass stereo): conservative (every drawn pixel is in such a leaf).
+  On e1m2's start it changed nothing (still lit: 6.8 ms either way; the torches' leaves are in its PVS, and the rig's
+  lights touch the floor); kept as a correct, cheap cut for rooms whose torches are out of sight.
+- **The scripted session** (`c4u_play.sh`, eye-pass frames, against C4t's): demo1 above; e1m2 14.1 / 10.7 ms (14.0 /
+  10.6); e1m1 16.7 / 15.0 (15.1 / 12.4), unlit 27% of its frames against 77%: the unworn controllers lay elsewhere
+  this time and their small lights touched the floor (the rig's lights decide the unlit share in an unworn session;
+  worn, the hands' lights reach a wall only near one). The scripted fight's monsters (220-255 draws) were not
+  separated from that: the demo's models were the rig's, not monsters'.
+- PC: dev build 0 warnings; scenario_check PASS (145 run, 0 failed), load_models_test 4/0, flat `timedemo demo1`
+  1834 frames, the PC's demo window identical to C4s's.
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
@@ -1528,4 +1562,4 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C4u (after 6z) — no installs, the headset needed: the fights' world with lights reaching it (e1m2's 14.0 / 10.6 ms, e1m1's fight; the loop's ~4 ms of mere presence: per-draw or per-surface selection of the unlit programs, or the loop's registers cut), the demo's ~15 ms of unattributed eye GPU and 17 ms `xrWaitFrame` waits (demo1, 6z), the scripted fight's extra monsters (220-240 draws) checked; SpaceWarp optional and off. Still open from before: C2h (the world textures' memory under the ES profile), Adreno's wrong derivatives with the retro code out (NORETRO). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d), shadowless dynamic lights on the Quest (6w).
+Next phase: C4v (after 6za) — no installs, the headset needed: the world's lights loop where lights do reach the view (e1m2's torches: 2 ms; the world is drawn by GPU-built indirect batches, so per-surface selection means splitting them by R_MarkLights' marks, or the loop's registers cut), the rig's small lights (screen, gadget: 16-36 units) keeping the whole world on the lit program (worth a size floor on the Quest? a look question: his call), e1m1's scripted fight's monsters (220-255 draws) by interleaved A/B (`c4u_ab.sh` with `ROUNDS`); SpaceWarp optional and off. Still open from before: C2h (the world textures' memory under the ES profile), Adreno's wrong derivatives with the retro code out (NORETRO). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d), shadowless dynamic lights on the Quest (6w).

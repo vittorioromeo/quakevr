@@ -513,6 +513,7 @@ extern gpuframedata_t r_framedata;
 
 void R_AnimateLight (void);
 void R_MarkSurfaces (void);
+const byte *R_ViewVis (void); // QVR: the PVS R_MarkSurfaces chose for the view (VR_WorldLightsCheck)
 qboolean R_CullBox (vec3_t emins, vec3_t emaxs);
 qboolean R_CullModelForEntity (entity_t *e);
 void R_EntityMatrix (float matrix[16], vec3_t origin, vec3_t angles, unsigned char scale);

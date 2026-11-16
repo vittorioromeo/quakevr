@@ -2675,6 +2675,37 @@ bool sphereTouchesWorld(const qmodel_t* m, const mnode_t* node, const glm::vec3&
     return false;
 }
 
+// Whether the sphere reaches a leaf of the view's PVS (R_ViewVis: a bit per leaf, leaf 0 the solid one left out).
+bool sphereTouchesVisibleLeaf(const qmodel_t* m, const mnode_t* node, const glm::vec3& c, float r, const byte* vis)
+{
+    while(node && node->contents >= 0)
+    {
+        const mplane_t* p = node->plane;
+        const float d = (p->type < 3 ? c[p->type] : c.x * p->normal[0] + c.y * p->normal[1] + c.z * p->normal[2]) - p->dist;
+        if(d > r)
+        {
+            node = node->children[0];
+            continue;
+        }
+        if(d < -r)
+        {
+            node = node->children[1];
+            continue;
+        }
+        if(sphereTouchesVisibleLeaf(m, node->children[0], c, r, vis))
+        {
+            return true;
+        }
+        node = node->children[1];
+    }
+    if(!node || node->contents == CONTENTS_SOLID)
+    {
+        return false;
+    }
+    const int leaf = static_cast<int>(reinterpret_cast<const mleaf_t*>(node) - m->leafs) - 1;
+    return leaf >= 0 && leaf < m->numleafs && (vis[leaf >> 3] & (1 << (leaf & 7))) != 0;
+}
+
 // Whether the sphere touches a brush entity's bounds (unturned: its box; turned: the sphere round its origin holding it).
 bool sphereTouchesBrushEntities(const glm::vec3& c, float r)
 {
@@ -2731,6 +2762,12 @@ extern "C" void VR_WorldLightsCheck(void)
         }
         const glm::vec3 c{l.pos[0], l.pos[1], l.pos[2]};
         const float r = l.radius + 4.f;
+        // C4u: a light whose sphere reaches no leaf of the view's PVS lights none of its pixels (a torch round a corner)
+        const byte* vis = R_ViewVis();
+        if(vis && !sphereTouchesVisibleLeaf(cl.worldmodel, cl.worldmodel->nodes, c, r, vis))
+        {
+            continue;
+        }
         if(sphereTouchesWorld(cl.worldmodel, cl.worldmodel->nodes, c, r) || sphereTouchesBrushEntities(c, r))
         {
             return;
