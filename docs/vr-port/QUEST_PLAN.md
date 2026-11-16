@@ -1450,6 +1450,41 @@ scopes by map).
   timestamps are garbage (scene setup 99 ms mean, max 14,800): use the recorder's medians (`c4s_ab.py`).
 - No code change; PC unchanged.
 
+## 6z. C4t: e1m1 place by place; the world without the lights' loop; demos in the headset (2026-11-16; adb, unworn)
+
+Method (`scratch/c4t_*`): `c4t_e1m1.sh` (10 places of e1m1 by `setpos`, noclip, 0.55 fixed, each with the body on then
+off), `c4t_stages.sh` (the lite world shader cut by stage on the hall's still view at 0.9: `QVR_PROBE_CUT1/2/3/5`,
+`NOLOOP`, `r_dynamic 0`), `c4t_unlit.sh` (the places with `vr_gl_world_unlit` 1 then 0), `c4i_cap.sh` + `c4t_capcfg.py`
+(the compositor's picture, unlit against lit), `c4t_bins.py`, `c4t_bydl.py`, `c4t_cmp.py`, `c4t_maps.py` (CSV splits).
+- **e1m1's walk is not the problem**: every place holds 72 Hz at 0.55 (period 13.9-14.2 ms, GPU span 4.7-8.4, world
+  3.4-6.8). C4s's e1m1 row was (1) ~12 s of the unworn headset's asleep start (no eye passes, the flat view drawn at
+  0.9: GPU 25.9 ms) and (2) the scripted fight (world 11.6-13.7 ms at 0.55, 220-240 draws: more of the map's own
+  monsters joined it than in the A/B fights' 160-177 draws). **The body**: +0 to +0.9 ms at most places, +2.6 at one
+  (the stairs; it is drawn inside the world's scope, `vr_alias_player_first`); a live fight's body on/off: 8.9 / 8.0,
+  8.6 / 10.0 ms span (noise-sized).
+- **The lite world's cost by stage** (hall, 0.9, world ms): texture 3.9; + decals and the permanent layer 0.9 (no marks
+  laid; 1.3 with 128); + lightmap 0.6; + the light code (contrast, cap, sheen) 0.3; **+ the lights' loop 4.4**, of which
+  the lights themselves 0.4 (`r_dynamic 0`: 10.8 against 11.2): the loop merely compiled in costs ~4 ms (Adreno:
+  registers), and a walk has only the guns' screen lights (28 units, at the hands).
+- **`vr_gl_world_unlit`** (new tunable, 1; Debug > Profiling row "Unlit World Shader (Quest)"; ES only): R_PushDlights
+  tests each light's sphere against the world's BSP (R_MarkLights' walk, the surfaces by their bounds; not sky or
+  liquids) and the brush entities' bounds; a shadowed map light or a portal light counts as reaching. None reaching:
+  the world's programs without the loop (`glprogs.world_unlit[dither][alphatest]`, made under the ES profile only, with
+  their array twins). The picture the same by construction (a light adds nothing past its radius). **Adreno**: with the
+  loop out, the cluster inputs (`in_coord`, `in_depth`) went unread and the Quest 3 drew garbage (one pink blocky
+  texture over the view: `c4t_pair_ul.png`); they are now read under a branch never taken, and the capture matches the
+  lit one (`c4t_pair_ul2.png`). The recorder has an `unlit` column (views a frame).
+- **Gain**: places it applies to (6 of 10; the others had a screen light on a wall): world 4.1-6.3 -> 2.4-4.2 ms, GPU
+  span -1.7 to -2.9 ms at 0.55. The scripted session (`c4o_play.sh c4t demo`, eye-pass frames, against C4s's):
+  **e1m1 period p50 16.9 -> 15.1 ms, GPU 15.1 -> 12.4, world 12.0 -> 9.1** (unlit in 77% of its frames, the fight's
+  too); e1m2 unchanged (14.0 / 10.6: its lights reach the walls).
+- **Demos in the headset (fixed)**: `hands::update` skipped every client without `PRFL_QUAKEVR`, so in id's demos (protocol
+  15) `VR_RenderView` found no head and only the flat view was drawn. Demo playback now places the view; demo1 now
+  has eye passes in 98% of its frames. Its GPU: span p50 20.9 ms, the world only 3.0: the eyes' scopes hold ~15 ms
+  with no sub-scope, CPU waiting 17 ms in `xrWaitFrame` (period 21.5): not yet understood.
+- PC: dev build 0 warnings, gles_render_test 21/0; the unlit programs under `-glescompat` on the PC: eye identical
+  (but the mock's lights reached the world: the path itself is checked on the headset). PC programs unchanged.
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
@@ -1493,4 +1528,4 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C4t (after 6y) — no installs, the headset needed: e1m1's walk (period p50 18.4 ms, GPU 15.9 at the 0.55 floor with the body on: the costliest part of the session) — the world's cost by place as `c4s_e1m3.sh` did for e1m3, and the body's share when in view; then the world shader's remaining fixed cost (decals +0.9, lightmap +1.1 ms at 0.9); SpaceWarp optional and off. Still open from before: C2h (the world textures' memory under the ES profile), Adreno's wrong derivatives with the retro code out (NORETRO), demos drawing nothing in the headset. Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d), shadowless dynamic lights on the Quest (6w).
+Next phase: C4u (after 6z) — no installs, the headset needed: the fights' world with lights reaching it (e1m2's 14.0 / 10.6 ms, e1m1's fight; the loop's ~4 ms of mere presence: per-draw or per-surface selection of the unlit programs, or the loop's registers cut), the demo's ~15 ms of unattributed eye GPU and 17 ms `xrWaitFrame` waits (demo1, 6z), the scripted fight's extra monsters (220-240 draws) checked; SpaceWarp optional and off. Still open from before: C2h (the world textures' memory under the ES profile), Adreno's wrong derivatives with the retro code out (NORETRO). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d), shadowless dynamic lights on the Quest (6w).

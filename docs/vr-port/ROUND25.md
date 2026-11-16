@@ -3967,3 +3967,16 @@ The 1.1 readiness audit's baseline regressions. Both were the tests, not the gam
 - e1m3's 22 ms was `playdemo`'s flat render (no eye passes, nothing submitted to the runtime). e1m3 played holds 72 Hz
   at 0.55 in all 8 places measured (GPU 4.7-11.0 ms). The left eye's extra GPU in fights is not steady (0.3-2.6 ms
   between parts, none frozen, not decals or particles): not pursued. No code change. Details: QUEST_PLAN.md 6y.
+
+## Quest C4t: the world without the lights' loop where none reaches it; demos in the headset (branch `agent/quest`, 2026-11-16)
+
+- e1m1 by place (10 places, 0.55 fixed): 72 Hz everywhere, GPU 4.7-8.4 ms; the body +0 to +0.9 ms (+2.6 at one).
+  C4s's "e1m1 walk" row was the unworn headset's asleep start (flat frames) plus a heavier scripted fight.
+- The lite world shader by stage (0.9): the lights' loop costs ~4 ms merely compiled in (the lights 0.4). New
+  **`vr_gl_world_unlit`** (tunable, 1; ES only; Debug > Profiling): views where no light's sphere touches the world
+  (BSP walk) or a brush entity use world programs without the loop. Adreno drew garbage until the cluster inputs
+  were kept read. Places it applies to: world -1.4 to -2.3 ms, span -1.7 to -2.9 at 0.55; the session's e1m1 period
+  16.9 -> 15.1 ms, GPU 15.1 -> 12.4.
+- **Demos (PC too)**: id's demos drew only the flat view in the headset (`hands::update` needed `PRFL_QUAKEVR`); now
+  drawn in the eyes. demo1's eye GPU (~21 ms, world 3) is open.
+- PC: dev build 0 warnings, gles_render_test 21/0. Details: QUEST_PLAN.md 6z.
