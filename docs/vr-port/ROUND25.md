@@ -4427,3 +4427,15 @@ His timing notes (extra scope):
   qvr-kit/scratch/titletiming_shots/; `--bake` of the three: 293 s, ap4h yuva444p12le 334 / 360 / 270 frames; a plain
   rerun kept all three baked. Test timelines, bins and jobs (mine and ts_* / QVR - Stab Test) removed from the
   preview project, which is closed again (Resolve left on its untitled project, as found).
+
+## MP B10v part 2: the Voice Chat page, a Push-to-Talk key (agent/mp, 2026-11-16)
+
+- **VR Settings > HUD, Haptics and Sound > Voice Chat** (`vr_menu_voicechat.inc`; also from Debug > Reports, whose Voice
+  rows moved there): your line (push-to-talk / voice activation / TALKING, your microphone's level), your voice's and
+  the voices' settings, and a row for each other player: his name, his volume, `((o)) talking` lit green while heard,
+  `muted` (red; `muted, talking` while his frames arrive), with Mute, Quieter, Louder buttons (25% steps, 0-400%).
+- **Push-to-Talk key** `vr_flat_key_voicechat` (CAPSLOCK; Flat Keys and the page): held, push-to-talk.
+- `vr_menu_press "<page> > <row> / <button>"` presses a button row's button.
+- Merge of next: a headset's slide (vr_slide) walks through SV_AirMove while held or sliding (vr_pmove_own had skipped
+  it); flat ladders on the moves' climb. Tests: `mp_test.py voice` 22/0, vrslide_test 1/0, flatladder 2/0, flatslide
+  26/0. Details: MP_PLAN.md, "B10v part 2 results".

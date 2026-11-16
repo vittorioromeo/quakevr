@@ -210,7 +210,7 @@ player unchanged.
 | **B11a-c** (done: B11a, B11b parts 1-2, B11c parts 1-2) | The rest of the B9 review: heldpose's own-player view asks into the slot store; vr_pmove for every player (then monsters); one avatar routine for any player entity | SP hash audits + MP suite |
 | **B12** (was B9; the poses in the snapshot, the rate and its priorities done; the rest is B12b) | Compression and rate: entropy stage with trained tables, per-client rate, priority accumulator | byte budgets per scenario from section 2.3 (`mp_armed`) |
 | **B12b** (done: the entities by their fields and trend, the reliable window's resends; entropy measured, not needed) | The entities' field-level coding (the largest kind left in combat), the fast retransmit of the reliable window, then an entropy stage only if it pays against them | `mp_armed`'s combat budget lowered; a lost reliable chunk resent within a round trip |
-| **B10** | Proximity voice chat: capture, Opus, VAD, noise suppression, push-to-talk, a jitter buffer, voices placed by Steam Audio at the speaker's head; VR and flat; menu rows | `mp_voice` (a test tone from A heard at B, louder near, delay under 250 ms) |
+| **B10** (done: B10v and B10v part 2, the Voice Chat page; his VR checks open) | Proximity voice chat: capture, Opus, VAD, noise suppression, push-to-talk, a jitter buffer, voices placed by Steam Audio at the speaker's head; VR and flat; menu rows | `mp_voice` (a test tone from A heard at B, louder near, delay under 250 ms) |
 | **B11** (part 1 done in B13: `mp_dm`, bots, frags, respawn, the fraglimit; the rest is B11 part 2) | Deathmatch and bots: frags, respawns, DM item rules with VR weapons, FrikBot with VR-aware bodies | `mp_dm` (two clients and two bots, a fraglimit reached) |
 | **B11 part 2** | The rest of B11: deathmatch 1 and 2's item rules with VR weapons (a level weapon taken and respawned, or staying; `vr_item_objects`, force grab), the VR melee and armed systems between players and bots in deathmatch (a blade's hit, a disarm), bots' bodies and hands as the clients draw them, FrikBot's walk through the shared movement (`vr_pmove`), names in the harness | `mp_dm` grown |
 | **B12** | Determinism: Box3D, navmesh and pathfinding hashes equal across runs with several clients; the server-thread audit in multiplayer | hash scenarios |
@@ -2288,7 +2288,42 @@ Tests:
   his voice should come from his head, fade with distance, and show `((o))` over him. Try Voice Activation and the
   Radio (Debug > Reports, the Voice rows), and `vr_voicechat_mute <name>`.
 - Untested headless: a real microphone (and its device choice, vr_note_device) and the two spatial mixers playing the
-  looping voice sound. Flat play has no default key: bind one to `+vr_voicechat`.
+  looping voice sound. (Flat play's key: B10v part 2's Push-to-Talk key, CAPSLOCK.)
+
+### B10v part 2 results: the Voice Chat page, a Push-to-Talk key (2026-11-16, dev no-LTO build, loopback)
+
+- **Voice Chat page** (`vr_menu_voicechat.inc`; VR Settings > HUD, Haptics and Sound > Sound > Voice Chat, also linked
+  from Debug > Reports, whose Voice rows moved here): your line (voice chat off / not in a multiplayer game /
+  push-to-talk / voice activation, waiting / TALKING, with your microphone's level), Your Voice (Voice Chat, Talk With:
+  Push-to-Talk or Voice Activation, Activation Threshold, the Push-to-Talk key, Noise Suppression, Microphone Gain,
+  Microphones), Voices You Hear (Volume, Fade With Distance, Radio, Talking Indicator), **Players**: a row for each
+  other player (his name, his volume in %, `((o)) talking` lit green while heard, `muted` red, `muted, talking` while a
+  muted player's frames arrive: whom to hear again) with Mute/Unmute, Quieter, Louder buttons (25% steps, 0-400%), and
+  developer rows (Players in the console, Report, Self-Test, Voice Budget). The buttons and the console commands
+  (`vr_voicechat_mute`, `vr_voicechat_player_volume`) share `voicechat::setMuted`/`setPlayerVolume`; the page is
+  rebuilt when a player joins or leaves (`voicechat::players()`). Settings stay per name for the game, as before.
+- **Push-to-Talk key** `vr_flat_key_voicechat` (default CAPSLOCK, free in the default binds; Flat Keys and the page):
+  held, push-to-talk (flat play owns it: its bind is off while flat play runs; read in VR too).
+- `vr_menu_press "<page> > <row text's start> / <button>"` presses a button row's button (the Voice Chat page's players,
+  the Checklist's items); a script line's trailing carriage return no longer breaks the label.
+- `vr_voicechat_report` prints each listed player's page row (`mp_voice_row:`).
+
+Tests: `mp_test.py voice` 22/0 (A named VoiceA): his row on B's page "VoiceA 100% ((o)) talking"; Quieter twice: gain
+0.488, "50%"; Louder twice and Mute: frames come, none played, "100% muted, talking"; Unmute: heard again; the
+Push-to-Talk key (vr_mock_key CAPSLOCK) held: heard at B, let go: not sent. vr_menu_path_check 0 missing;
+menu_paths.txt regenerated. Merge of origin/next: flat ladders kept on the moves' climb (findHold's Seeker, the mantle's
+pmove step, the flat ladder's mount at its end), and a headset's slide (vr_slide, experimental) walks through SV_AirMove
+while its input is held or it slides (`slide::headsetEngaged`; vr_pmove_own skipped it: vrslide_test 1/0 again;
+flatladder_test 2/0, flatslide_test 26/0).
+
+### For him (B10v part 2)
+
+- In VR with a second player: VR Settings > HUD, Haptics and Sound > Voice Chat: his row lights while he talks; Mute,
+  Quieter, Louder change what you hear of him. Your line shows TALKING and your microphone's level while you talk.
+- Flat play: hold Caps Lock to talk (Flat Keys > Push-to-Talk to change it).
+- Still untested headless: a real microphone, the two spatial mixers.
+- Open: a headset client's slide on a remote server is not in his moves' replay (his prediction walks it: corrections
+  while sliding; vr_slide is experimental, off by default).
 
 ### B13 results: the join through reordering (selective acks); B11 part 1, deathmatch with bots (2026-11-16, dev no-LTO build, loopback)
 
@@ -2573,4 +2608,9 @@ QuakeC's PlayerPreThink parts. Exactly what would change:
   has none of the local player's interactions (props, reloads, the hand-off: left out under `otherSubject`). The server
   sends a bot's controllers, not hands it cannot draw (no view code on a dedicated server).
 
-Next phase: B10v part 2 -- voice chat's menu page of its own (per-player rows: mute, volume, the speaking light) and its open items in VR (his ears: a real microphone, the spatial mixers); B12d (the poses by their fields) only if a budget needs it. B11 is done (open: bots never grab, a bot's fists never punch).
+- Voice chat's per-player settings (B10v part 2) are on a page of their own, a row a player with buttons, rather than
+  a cycle or slider per player on a fixed page: the rows follow who is in the game (rebuilt when one joins or leaves),
+  and the console commands share the buttons' code. Flat play's push-to-talk is a flat key (CAPSLOCK, free in the
+  default binds) rather than a default bind of `+vr_voicechat`: the Flat Keys page rebinds it, and flat play owns it.
+
+Next phase: B14 (the table's determinism row, "B12" there) -- Box3D, navmesh and pathfinding hashes equal across runs with several clients, the server-thread audit in multiplayer; B11's open items (bots never grab, a bot's fists never punch) if small; B10v's VR checks are his (a real microphone, the spatial mixers).
