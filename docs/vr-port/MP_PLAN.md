@@ -2723,5 +2723,43 @@ QuakeC's PlayerPreThink parts. Exactly what would change:
   cvars 0 every hook returns at once). The lockstep alone 17/0, 17/0, 19/0 earlier. The dev and the Release (ThinLTO)
   builds 0 warnings. Single player checks (scenario_check, load_models_test, vr_run_check) not run this phase.
 
-Next phase: B14c -- mp_dm's intermission timeout (B14b's suite and alone: bisect against 76e305078 first); the lockstep's
-open fields (mh_hdt; the client-reported ammo pouch and light); the SP checks B14b skipped; lockstep hash scenarios for deathmatch with FrikBot bots (dm4: their random() on the server's stream, their navigation) and props thrown by players (Box3D under a client's hand); the step's ulp under the lockstep on mp_predict's stairs; B11's open items (bots never grab, a bot's fists never punch); B10v's VR checks are his (a real microphone, the spatial mixers).
+
+### B14c results: mp_dm's fraglimit, the lockstep's client fields, a lockstep deathmatch with bots (2026-11-16, dev no-LTO build)
+
+- **Single player checks** (B14b skipped them): scenario_check PASS (138 scenes run, 0 failed), load_models_test 4/0
+  (352/0), vrslide 15/0, flatslide PASS (its sections, 26/0 the last), flatladder 2/0, vr_run_check 9/0 (revolver +
+  glass cannon on e1m1, saved; Melee Only on e1m2 `3 1 0 1 0`; the save loaded back).
+- **mp_dm's intermission timeout: not a regression.** B14b's code is all behind the lockstep's cvars (0 there). The logs
+  of every mp_dm run today (B14's included) show dm4's lava killing a FrikBot bot every 3-4 s ("turned into hot slag",
+  "visits the Volcano God"), a frag off each time: the runs that passed reached the fraglimit within 13 s, the two that
+  failed ran a minute (17 lava deaths) and the killer bot's frags never got to 3 by A's 5 deaths. No bisect build was
+  needed: the same rate before and after 76e305078. The test now: A killed by a bot twice and respawned (as before),
+  then A frags the bots (`vr_hurt 1000 <bot's slot> <A>`) until his frags reach the fraglimit: the intermission at both,
+  the scoreboards equal. `vr_hurt` takes a bot's slot (FrikBot's edict of a slot with no client).
+- **Open (not B14c's)**: the bots' lava deaths on dm4 themselves (FrikBot's walk through the players' moves,
+  vr_pmove_bots, at the lava's edges: worth a look with B11's items); `vr_dm_test 3` (the bot's sword parried by A's
+  upright crowbar) failed in 2 of 9 runs today: once parried 0 with damage, once neither read nor landed.
+- **The lockstep's mh_hdt**: the poses' clock counted the client's own moves, but the first move the server runs is
+  the oldest read since the slot's reset, a matter of timing; the clock's 10-microsecond steps then fell differently
+  and the melee history's time steps went apart by one. The server now counts the clock from that first move, a frame a
+  step (vr_netmove.cpp serverRunNext; the client's own count removed).
+- **stl_light deterministic**: under the lockstep the client reads each move's light afresh with an empty lightmap
+  cache (vr_stealth.cpp lightAt), not a 0.1 s sample at its clock since the load with the cached lightmap spot (both
+  phase-dependent). No longer set apart in the check.
+- **The ammo pouch: still set apart** (`LOCK_CLIENT_FIELDS`): its position follows the client's avatar (avatar::Follower,
+  its smoothing over the client's frames since the load), which no move number fixes. Seen once: 1/64 unit in z
+  (-61.42 against -61.41) at step 72 as B starts walking, equal again at 360 and 720.
+- **New**: `vr_bench_statehash values <prefix> <ent>...` prints those edicts' fields' values (`%.9g`); the lockstep
+  checks note the players' values of `ammopouch*`, `stl_light*`, `mh_*`, `vr_posetime` where two runs differ.
+- **New test** `mp_test.py lockstep_dm` (in the suite, 37 scenarios now): two lockstep runs on dm4, A adds a FrikBot bot
+  at step 36 and another at 72, B walks from 36 and stops at 360, A strafes from 360: the physics (27-31 bodies), the
+  edicts' (4149 fields, 247 edicts) and the navmesh hashes equal at 36, 72, 360 and 720, the four players named and
+  scored the same: 20/0. The bots' random() on the server's seeded stream and their waypoint navigation are the same.
+- Checks: mp_lockstep 17/0 three times (stl_light compared from the second), mp_lockstep_dm 20/0, mp_dm 17/0 (16/1 once: vr_dm_test 3's parry, above).
+  Dev and Release (ThinLTO) builds 0 warnings. Thrown props under the lockstep: not started.
+
+Next phase: B14d -- lockstep hash scenarios for props thrown by players (Box3D under a client's hand: the mock's grab
+and throw, mp_grab's steps, under vr_mp_lockstep); the ammo pouch's position deterministic under the lockstep (the
+avatar follower's state at the first move the server runs); the step's ulp under the lockstep on mp_predict's stairs;
+the bots' lava deaths on dm4; vr_dm_test 3's flaky parry; B11's open items (bots never grab, a bot's fists never punch);
+B10v's VR checks are his (a real microphone, the spatial mixers).

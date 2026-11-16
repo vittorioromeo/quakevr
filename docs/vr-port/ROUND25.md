@@ -4501,3 +4501,20 @@ Resolution Half/Quarter, proxies on); a full render works but takes over a minut
   the next `--bake` reused it and placed it (0.2 s). Test timelines, bin and clips removed; his "v1_1trailer" saved
   before and reopened after.
 - After it ships: run `install_titles.py`, restart Resolve, `apply_titles.py --rebuild`.
+
+## MP B14c: mp_dm's fraglimit, the lockstep's client fields, a deathmatch with bots in lockstep (agent/mp, 2026-11-16)
+
+- **mp_dm's intermission timeout** (B14b's 14/1): not a regression of the lockstep (all its hooks are off there). dm4's
+  lava kills a FrikBot bot every 3-4 s in every run since B11 (the logs before B14b too: 4 in 13 s), each a frag off;
+  the passing runs ended before it mattered, the failing ones (17 lava deaths in a minute) never let the killer bot reach
+  the fraglimit. The test now has A frag the bots (`vr_hurt` on a bot's slot, A the attacker) to the fraglimit after
+  his two deaths and respawns. `vr_hurt <damage> <slot>` takes a bot's slot too (its edict, no client in it).
+- **The lockstep's open fields**: the melee history's `mh_hdt` came from the poses' clock counting the client's own
+  moves, and the first move the server runs (the oldest read since the slot's reset) is a matter of timing: the 10 us
+  steps of the clock fell differently. The server now counts it from that first move, a frame a step (vr_netmove.cpp
+  serverRunNext). `stl_light`: under the lockstep a client reads each move's light afresh (not a tenth of a second's
+  sample at its clock, with the lightmap's cached spot): compared now. The ammo pouch stays set apart (its body's pose
+  eased over the frames since the load: 1/64 unit in z at step 72 while B starts walking, equal again by step 360).
+- **New**: `vr_bench_statehash values <prefix> <ent>...` (those fields' values, `%.9g`; the harness notes what two runs
+  hold where they differ). Test `mp_test.py lockstep_dm` (in the suite): two lockstep runs on dm4, A adds two bots at
+  steps 36 and 72, B walks, A strafes: every hash equal at 36, 72, 360 and 720.
