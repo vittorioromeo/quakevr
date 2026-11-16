@@ -3038,6 +3038,7 @@ Open items:
   `mp_browser`: the least ping of up to three searches (698 ms once after the soak: a hitch, not the round trip) -- 10/0.
 - **Checks:** MP suite (dev) 39 of 40 clean: mp_flow 16/0, mp_disarm 35/0, mp_dm 22/0, mp_ground 15/0, mp_browser 10/0 in it; mp_armed failed a rate-cap check under `vr_net_rate 6000` (a snapshot in every datagram: 318 of 360), alone 18/0 then 17/1 on another of its rate checks (nearest poses 1.30x the farthest's, wanted 1.35): its real-time rate checks under a busy PC, not B13d's code -- open. SP: scenario_check PASS (138/0), load_models 4/0, vr_run_check 12/0, autosavenow 4/0, vr_pickup_test 17 5/0. Dev and ThinLTO builds 0 warnings.
 
-Open items: LAN discovery and ICE/NAT need his machines and his OK.
+Open items: mp_armed's rate-cap checks under `vr_net_rate 6000` flake (two different checks, a busy PC); LAN discovery
+and ICE/NAT need his machines and his OK.
 
 Next phase: B11 part 2 -- deathmatch 1 and 2's item rules with VR weapons (level weapons taken and respawned or staying, `vr_item_objects`, force grab), the VR melee and armed systems between players and bots (a blade's hit, a disarm), bots' bodies and hands as clients draw them, FrikBot's walk through vr_pmove, names in the harness (`mp_dm` grown). B10v's VR checks and the ICE/NAT rendezvous service are his.
