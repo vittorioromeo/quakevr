@@ -1115,6 +1115,11 @@ static void GL_CreateShadersAll (void)
 			for (poseverttype = 0; poseverttype < 3; poseverttype++)
 				glprogs.alias_gore[mode][poseverttype] =
 					GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias gore|OIT 0; MODE %d; ALPHATEST 0; POSEVERTTYPE %d; QVR_ALIAS_OPAQUE 1%s%s", mode, poseverttype, GL_AliasLiteDefines (), GL_AliasPlainDefines (VR_ALIAS_GORE_NEEDS));
+	if (VR_GLESForm (VR_GLES_FORM_GLSL) && (gl_world_lite >> 9)) // QVR: ... the skin form, keeping the skin tone too (vr_gl_alias_skin; C4y, QUEST_PLAN.md 6ze)
+		for (mode = 0; mode < 3; mode++)
+			for (poseverttype = 0; poseverttype < 3; poseverttype++)
+				glprogs.alias_skin[mode][poseverttype] =
+					GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias skin|OIT 0; MODE %d; ALPHATEST 0; POSEVERTTYPE %d; QVR_ALIAS_OPAQUE 1%s%s", mode, poseverttype, GL_AliasLiteDefines (), GL_AliasPlainDefines (VR_ALIAS_SKIN_NEEDS));
 	for (poseverttype = 0; poseverttype < 3; poseverttype++) // QVR; MODE 0 (standard) in these: an undefined name in #if is an error in GLSL (strict drivers)
 		glprogs.alias_depth[poseverttype] = GL_CreateProgram (alias_vertex_shader, NULL, "alias depth|MODE 0; POSEVERTTYPE %d", poseverttype);
 	for (poseverttype = 0; poseverttype < 3; poseverttype++) // QVR: into all their faces at once (vr/vr_lighting.cpp)

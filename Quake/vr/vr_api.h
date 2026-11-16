@@ -275,6 +275,7 @@ enum
 };
 int VR_GLESForm (int form);	// nonzero: -glescompat takes the ES form of `form` (VR_GLES_FORM_*) this run
 #define VR_ALIAS_GORE_NEEDS (4 | 8) // C4x: the features the models' gore form keeps (wounds and the wet coat, dents: vr_api_render.h VR_AliasPlainNeeds' bits)
+#define VR_ALIAS_SKIN_NEEDS (1 | 4 | 8) // C4y: ... and its skin form (skin tone, gloves, nails too: your body, bare hands)
 int VR_GLESDefineChanged (void);	// vr_glsafe.cpp: vr_gles_define changed since the ES shaders were made (C4m; GL_WorldLiteCheck)
 int VR_GLESWorldLite (void);	// vr_glsafe.cpp: the world programs' lite form under the ES profile (bits: 1 no parallax, 2 no carved decals; 0 the whole)
 void VR_GLStep (const char *fmt, ...) FUNC_PRINTF(1,2);	// a breadcrumb, before the GL call it names: the crash report's last steps; gl_startup.log while the game starts

@@ -370,6 +370,18 @@ extern "C" int VR_AliasGoreUse(int needs)
     return (needs & static_cast<int>(vr_gl_alias_plain_mask.value) & ~goreKeeps) == 0 ? 1 : 0;
 }
 
+// C4y (QUEST_PLAN.md 6ze): r_alias.c: ... else by its skin form (glprogs.alias_skin) when it needs only the skin tone
+// (gloves, nails) besides those: your body, which kept the whole shader for its skin tone.
+extern "C" int VR_AliasSkinUse(int needs)
+{
+    if(vr_gl_alias_plain.value == 0.f || vr_gl_alias_skin.value == 0.f)
+    {
+        return 0;
+    }
+    constexpr int skinKeeps = 1 | 4 | 8; // as vr_api.h VR_ALIAS_SKIN_NEEDS (gl_shaders.c's skin programs)
+    return (needs & static_cast<int>(vr_gl_alias_plain_mask.value) & ~skinKeeps) == 0 ? 1 : 0;
+}
+
 extern "C" int VR_AliasPlayerFirst(const entity_t* e)
 {
     // Your own models stand nearest the eye: drawn (opaque) before the world, the world's depth pre-pass and shading skip
