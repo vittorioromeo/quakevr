@@ -10,6 +10,7 @@
 #include "vr_cvars.hpp"
 #include "vr_heldpose.hpp"
 #include "vr_tunables.hpp"
+#include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -1555,6 +1556,21 @@ void notePress(float dt)
     const bool on = vr_box3d_press_back.value != 0.f;
     const float most = za::max(vr_box3d_press_max.value, 1.f) * world->m2u / 100.f;
     const int hits = za::min(world->pressHitCount.loadRelaxed(), static_cast<int>(world->pressHits.size()));
+    // (In one order whatever Box3D's workers' timing put them in, MP_PLAN B14: the planes' solve, the deepest and the
+    // 32 planes' cap go by it -- with the step on several threads, 300 bodies awake, the same step pressed otherwise.)
+    za::insertionSort(world->pressHits.begin(), world->pressHits.begin() + hits,
+        [](const World::PressHit& a, const World::PressHit& b)
+        {
+            if(a.client != b.client || a.hand != b.hand || a.prop != b.prop)
+            {
+                return a.client != b.client ? a.client < b.client : a.hand != b.hand ? a.hand < b.hand : a.prop < b.prop;
+            }
+            if(a.sep != b.sep)
+            {
+                return a.sep < b.sep;
+            }
+            return a.n.x != b.n.x ? a.n.x < b.n.x : a.n.y != b.n.y ? a.n.y < b.n.y : a.n.z < b.n.z;
+        });
     for(za::SizeT i = 1; i < world->hands.size(); i++)
     {
         for(int h = 0; h < 2; h++)
