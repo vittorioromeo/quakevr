@@ -437,6 +437,25 @@ out with). Before, looking 60 degrees up he rose 23 units in half a second (78 n
 `Misc/quakevr/flatmove_test.sh` (swim: e1m4's deep water; ledge: the start map's pool), measured by `vr_flatmove_test`
 (Debug > Tests > Flat Move: Speed, Flat Ledges; 8 and 9 find deep water and water-jump ledges near him).
 
+**Ladders** (**Ladders**, `vr_flat_ladder`, 1; his request 2026-11-16). A ladder made of individual ledges (the tutorial's
+rungs, any stack of graspable ledges) climbs as a headset's hands climb it, on the same code (`vr_climb.cpp` `flatLadder`,
+`flatLadderFrame`, `flatLadderMount`): walking forward into one (in the air, back too) finds the ledges facing him in a
+column from 8 units inside his box's front to `vr_flat_ladder_reach` (16) ahead of it (`findRungs`: the grip's `findHold`
+and its checks), and a ladder is two of them one over the other (at most 40 apart in height, 10 along the look) in an arm's
+reach: a plain wall, a single ledge or a stair's steps (each one further on) are none. The hands take the two highest
+(`holdLedge`, each at its side of the rung as the flat mantle's hands), and the body hangs from them as a headset's does
+(`Phase::Hanging`: stamina, a moving brush model carrying it, the QC's climbing bits, the drawn hands and the climbing
+feet; a hand holding a weapon keeps it and is not drawn on its rung). Only the move differs: forward climbs at
+`vr_flat_ladder_speed` (100 u/s), back or forward looking down past `vr_flat_ladder_look_down` (35 deg) climbs down; the
+lower hand goes over the other once under the shoulders (down: the higher under the other's), each a grip's slap. The
+feet go no higher than the top hold, and at the top the headset's mantle takes him over (`findMantle`, `startMantle`, at
+`vr_climb_mantle_height` over the top, the flat mantle's hands on the lip). Down at the ground he stands; at the bottom of
+rungs over a drop he lets go. Jump (a new press) pushes off at `vr_flat_ladder_push` (120 u/s out, half that up). Backing
+off a ladder's top (on it, facing away from the drop, back held at its lip) lowers him onto it: the mantle's way backwards
+(over the lip, then down, 0.3 s, no grunt) to hang where the rung under the top is in reach. Tunables: Debug > Tunables
+(Ladder Climb Speed, Look Down, Push Off, Reach). Test: `Misc/quakevr/flatladder_test.sh` (`vr_flatladder_test`, Debug >
+Tests > Flat Ladder; scene `flat_ladder`).
+
 **Left Ctrl's firing bind, taken and given back.** In the plain game Left Ctrl is the fire key: `bind CTRL +attack` is in
 `Quake/default_cfg.h` and, saved, in `ironwail.cfg` (`bind "CTRL" "+attack"`). The mode needs that same key for the
 crouch, and one key that does both is a crouch that shoots â€” so while flatscreen play runs the engine's binding table

@@ -276,6 +276,9 @@ old default move to the new one, and values you changed stay yours.
 - Keys: Q / E lean (round corners and over the gun at a wall), 3 swaps hands, crouch at a run slides, X lies down,
   V melee, G drops, mouse 4 or R force grabs, mouse 5 shoves, Z bullet time, F7 the toolgun, the middle button the
   holster menu; hold jump at a ledge to mantle onto it.
+- Ladders made of rungs or stacked ledges (like the tutorial's) climb on a flat screen: walk into one and the hands take
+  its rungs hand over hand; forward climbs (looking down, or back: down), jump pushes off, and you climb over the top or
+  back off it onto the ladder (Desktop Screen Play > Ladders).
 - Every flat-play key can be bound from the menu (Desktop Screen Play > Flat Keys).
 - Flat reloading with the guns' own parts, a quick grenade, the drop key and the hand swap.
 - Melee: punches, shoves and overhead swings at the crosshair; a two-handed stance with an empty off hand; the right
