@@ -1706,7 +1706,7 @@ QVR_CVAR(vr_flashlight_tilt, "-5", CVAR_ARCHIVE)       // degrees the stored lam
 QVR_CVAR(vr_flashlight_forward, "0.025", CVAR_ARCHIVE)    // metres the belt clip sits further forward,
 QVR_CVAR(vr_flashlight_up, "0.25", CVAR_ARCHIVE)         // up,
 QVR_CVAR(vr_flashlight_out, "-0.05", CVAR_ARCHIVE)        // and out (towards its side)
-QVR_CVAR(vr_flashlight_armor_forward, "0", CVAR_ARCHIVE) // metres more forward on the belt while the armour's plates show on your body (they can pass through the torch); 0 off
+QVR_CVAR(vr_flashlight_armor_forward, "0.03", CVAR_ARCHIVE) // (his, 2026-11-16) metres more forward on the belt while the armour's plates show on your body (they can pass through the torch); 0 off
 QVR_CVAR(vr_flashlight_side, "0", CVAR_ARCHIVE)       // the hip it hangs on: 0 the left, 1 the right
 QVR_CVAR(vr_flashlight_grab_range, "1", CVAR_ARCHIVE) // times how far from the torch a hand reaches it (lit, taken; 9 cm from its axis at 1), 0.25..4
 QVR_CVAR(vr_flashlight_head_range, "1.5", CVAR_ARCHIVE) // times the head's zone's radius (vr_flashlight_head_zone_radius: clipping it on, taking it off), 0.25..4
@@ -2613,7 +2613,7 @@ QVR_CVAR(vr_agrunt_repl_common, "0.5", CVAR_ARCHIVE)     // 0..1: the chance one
 QVR_CVAR(vr_agrunt_repl_uncommon, "0.25", CVAR_ARCHIVE)   // 0..1: ... a nailgun, super nailgun or super shotgun (one a player owns)
 QVR_CVAR(vr_agrunt_repl_rare, "0.15", CVAR_ARCHIVE)       // 0..1: ... a launcher, the thunderbolt, a melee weapon, a mission pack's gun (owned; from vr_agrunt_repl_rare_map on)
 QVR_CVAR(vr_agrunt_repl_rare_map, "4", CVAR_ARCHIVE)   // rare weapons only from this map of an episode on (e1m4, hip1m4, ...; 0: any map)
-QVR_CVAR(vr_agrunt_repl_dual, "0.15", CVAR_ARCHIVE)       // 0..1: the chance of a second weapon that pairs (two guns, two blades)
+QVR_CVAR(vr_agrunt_repl_dual, "0.1", CVAR_ARCHIVE)        // (his, 2026-11-16) 0..1: the chance of a second weapon that pairs (two guns, two blades)
 QVR_CVAR(vr_agrunt_repl_gunaxe, "0.15", CVAR_ARCHIVE)     // 0..1: the chance of a gun and a melee weapon (axe or dagger, by vr_agrunt_w_axe/_dagger; the gun, the blade up close)
 QVR_CVAR(vr_agrunt_repl_id, "1", CVAR_ARCHIVE)         // 1: in Quake's own campaigns (id1, Dimension of the Past, the Machine Games' ones) and their custom maps
 QVR_CVAR(vr_agrunt_repl_mp, "1", CVAR_ARCHIVE)         // 1: in the mission packs (Scourge of Armagon, Dissolution of Eternity)
@@ -3722,7 +3722,7 @@ QVR_CVAR(vr_reload_mode_revolver, "-1", CVAR_ARCHIVE) // the heavy revolver's
 // holsters' competition: the one a hand is most within). Pitch, Yaw, Roll: degrees, its top away from the body, about
 // where the hand reaches for it; Size: times the model's.
 QVR_CVAR(vr_ammo_pouch_x, "3", CVAR_ARCHIVE)
-QVR_CVAR(vr_ammo_pouch_armor_x, "0", CVAR_ARCHIVE) // units the pouch moves further forward while the armour's plates show on your body (they can pass through it); 0 off
+QVR_CVAR(vr_ammo_pouch_armor_x, "1.25", CVAR_ARCHIVE) // (his, 2026-11-16) units the pouch moves further forward while the armour's plates show on your body (they can pass through it); 0 off
 QVR_CVAR(vr_ammo_pouch_y, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_z, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_thresh, "5", CVAR_ARCHIVE)
