@@ -262,7 +262,7 @@ old default move to the new one, and values you changed stay yours.
 ### Flat-screen play
 
 - `-flatscreenmode` plays the full game without a headset; the installer adds a "Quake VR Unleashed (Flat Screen)"
-  shortcut.
+  shortcut to the desktop (its own checkbox, on by default) and the Start menu.
 - The hands and guns are drawn and simulated as in VR, posed per weapon (pistols, rifles, shoulder launchers) and aimed
   at the crosshair from the muzzle.
 - Mouse: with one weapon, left click fires and right click aims down the sights (hold or toggle); dual wielding, each

@@ -3334,6 +3334,12 @@ His flat-screen notes (2026-11-16) and the coordinator's disarm-sound item.
   non-ASCII character through a StyledTextCLS modifier (TitleCLS), by exporting the item's comp, writing the styling
   array and importing it back (scripting can't set a StyledText). install_titles skips identical installed fonts
   (an installed font in use can't be overwritten). Checked: two titles at 1080p60, a 4K section render, "Quad Damage".
+
+## Installer: desktop flat-screen shortcut (flatshortcut, 2026-11-16)
+
+- `ShortcutOptions.DesktopFlat` (default on) adds "Quake VR Unleashed (Flat Screen)" to the desktop; the options page has a checkbox "Desktop shortcut for flat-screen play" (disabled when the desktop shortcut is off); recorded as `InstallChoices.DesktopFlatShortcut`.
+- Old records lack the field and read false: updates keep their old behaviour; fresh installs get it. The Start menu's flat shortcut is unchanged; with the Start menu off, the desktop one is the only flat one (no duplicate path).
+- Self-tests extended (41/41): planner counts, fresh install, off, update, uninstall, old record.
 - Follow-up (agent/trailertitles3), his feedback: blood behind the text, subtle drop shadows. MergeBlood now sits under
   MergeTitle (order: scrim, title shadow, glow, ink, blood, metal, rule, subtitle shadow, subtitle). The blood coat
   moved off the strokes (it would be hidden): BloodCov covers the glyph plus a band hanging 11 px below its lower edges
