@@ -66,6 +66,7 @@
 #include "vr_twohand.hpp"
 #include "vr_view.hpp"
 #include "vr_ragtool.hpp"
+#include "vr_slide.hpp"
 #include "vr_slidesound.hpp"
 #include "vr_units.hpp"
 #include "vr_weapon_ids.h"
@@ -2436,6 +2437,7 @@ void init()
     Cmd_AddCommand("vr_flatplay_status", status_f);
     Cmd_AddCommand("vr_flat_melee_2h_report", twoHandReport_f); // the two-handed stance's probe (tests)
     flatmove::init(); // the slide and the lean (vr_flatmove.cpp)
+    slide::init(); // the shared slide's headset test (vr_slide.cpp)
     Cmd_AddCommand("+flatcrouch", crouchHold_f); // Left Ctrl's hold, the console's way (a bind or a script can hold it)
     Cmd_AddCommand("-flatcrouch", crouchRelease_f);
     Cmd_AddCommand("vr_prone_toggle", proneToggle_f); // the prone key's toggle (vr_flat_key_prone), the console's way
@@ -2527,7 +2529,7 @@ void frame()
         feel = Feel{};
         keyState = FlatKeys{}; // no crouch held, no key edges: a headset player crouches with his own head
         flatmove::frame(false);
-        slidesound::frame(false);
+        slidesound::frame(vr_slide.value != 0.f); // (a headset's slide, vr_slide: its scrape too)
         flatreload::frame(false);
         flatholster::frame(false);
         flatfgrab::frame(false);

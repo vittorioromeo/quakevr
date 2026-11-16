@@ -34,6 +34,7 @@
 #include "vr_testkit.hpp"
 #include "vr_tips.hpp"
 #include "vr_worldtext.hpp"
+#include "vr_slide.hpp"
 
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Container/InPlaceVector.hpp"
@@ -1066,6 +1067,8 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     // asked as before, with his own head deciding (true).
     const bool flat = (move.vrBits0 & protocol::moveFlatplayBit) != 0;
     const bool flatCrouch = flat && (move.vrBits0 & protocol::moveFlatCrouchBit) != 0;
+    // A headset client's bit 14 is its slide gesture (vr_slide: protocol::moveSlideBit; the shared slide, vr_slide.cpp).
+    slide::setHeadsetInput(ent, !flat && (move.vrBits0 & protocol::moveSlideBit) != 0);
     hull::updateCrouch(ent, move.headPos, !flat || flatCrouch);
     const int crouched = hull::isCrouched(ent) ? (1 << 23) : 0;
     // Lying down (vr_prone; his crouched box then the lowest, vr_prone_height): QC's .vr_prone (no jumping: PlayerJump).

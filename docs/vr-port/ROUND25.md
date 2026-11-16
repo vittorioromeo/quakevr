@@ -3588,3 +3588,50 @@ His note: the titles look great, previewing them in DaVinci takes forever.
   saw "changed"; now only the tools block is hashed (not re-run: see below). **Resolve closed** during the second
   `--bake`'s render (the retest of the reuse path); not reopened (GUI), so the reuse path and `--unbake` are unchecked.
   A bake of both titles took 271 s of wall time (the renders alone should take about 80 s: not explained).
+
+## Sliding in VR (branch agent/vrslide, 2026-11-16)
+
+His request: an experimental option to slide in VR too, off by default, the turning stick pulled down precisely.
+
+**One slide.** The slide's server side moved out of `vr_flatmove.cpp` into `Quake/vr/vr_slide.cpp` / `vr_slide.hpp`
+(namespace `qvr::slide`): its state per client, the start (speed over `vr_flat_slide_min`, the boost), the step
+(`slideStep`: friction, slope, steer, top speed, end), the step up, the stamina parts, the cooldown, the jump/ledge/prone/
+water exits, `.vr_sliding` (the charge), the prop push (`slide::onServer`, `vr_box3d_standing.cpp`). The C hooks are
+renamed `VR_SlideMove` / `VR_SlideStepUp`. Flatscreen and headset run the same code with the same `vr_flat_slide_*`
+tunables; only the input differs: flat, the crouch key (`hull::flatCrouchHeld`, gated by `vr_flat_slide`); a headset, the
+move's bit 14 (`protocol::moveSlideBit`, the same bit as the flat crouch's: a headset client never set it), sent only with
+`vr_slide` on and its stick gesture held (`vr_client.cpp`), read by `slide::setHeadsetInput` (`vr_server.cpp`). The flat
+client side (view drop, pose, tests) stays in `vr_flatmove.cpp`, which takes the slide through using-declarations.
+
+**The gesture** (`slide::stickGesture`, from `vr_input.cpp`'s walking branch): the turning stick pulled at least
+`vr_slide_stick_threshold` (0.85) down, within `vr_slide_stick_angle` (20) degrees of straight down, armed only from the
+middle (a pull out past 0.5 off that cone disarms it until the stick is back under 0.3: a snap or smooth turn swept round
+the rim to straight down never slides). Held while still pulled under -0.5 and within the angle plus 15. While held the
+turning stick's down is no `+movedown` (DPAD_DOWN) and no turn. Only on foot out of the water (swimming or flying the
+stick's down is `+movedown` as before), not while the Smooth + Teleport aim has the stick, and released when a menu or a
+tool takes the sticks. Today the turning stick's down was `+movedown` only (no crouch toggle or menu on it); `vr_slide 0`
+leaves it so to the bit.
+
+**A headset's slide:** his box is the flat slide's crouched one while it is on (`vr_hull.cpp` updateCrouchBox: his eyes
+taken as `slide::slideEye()`, 46 less `vr_flat_crouch_drop` and `vr_flat_slide_drop`, 22: the lowest crouched box),
+his head as it is; after it he stands as his head asks (flat ends into a crouch because the key is still held). No view
+drop and no FOV bonus (flat-only code: `flatmove::slideDrop`, `vr_flatspeedfov.cpp`). The comfort vignette counts a
+slide as a full stick push (`updateComfort`, per `vr_comfort_vignette`). The scrape plays (`vr_slidesound.cpp`). The
+body takes the flat slide's pose (`vr_avatar_pitch.cpp`: trunk leant back, legs out in front) with `vr_slide_body` (1);
+his real head stays standing, so the pose is the flat one hung from a standing head: worth a look in the headset.
+
+**Settings:** `vr_slide` 0 (VR Settings > Locomotion > Sliding (VR, Experimental), after Walk Up Slopes Slowly: the flat
+slide's row is in the Desktop Screen Play part of the same page), `vr_slide_stick_threshold` 0.85,
+`vr_slide_stick_angle` 20, `vr_slide_body` 1; all CVAR_ARCHIVE.
+
+**Tests:** `bash Misc/quakevr/vrslide_test.sh <agent>` (`vr_slide_test`, mock sticks, vrtesthall's long stretch from
+0 -380 facing north, a case per run up to 300 u/s): vr_slide 0 straight down: no slide, `+movedown`'s key pressed; vr_slide
+1: 30 and 45 degrees off down, straight down at 0.7, snap and smooth turns swept round the rim to down, snap and smooth
+turns a little downwards: no slide; straight down from the middle: slid from 309 u/s, peak 400 (boost 80), 1.51 s
+(friction's 1.50), 416 units, ends "slowed" at 128 u/s, box crouched all through, its scrape once, no `+movedown`, up again
+0.01 s after; let go mid-slide: ends "the key let go" 0.03 s after. 15 passed. The flat slide unchanged:
+`flatslide_selftest` 6, `flatslide` 9, `flatslide_hit` 0 and 1 2 each, `flatslide_rough` 4, `flatslideback` 23, all
+passed. Checklist scene `vr_slide` (vrtesthall, vr_slide 1).
+
+**Idea, not built:** real crouching in VR (the headset lowered past the crouch) while running fast could start the same
+slide (the server already has his eye height: a `vr_slide 2` mode).
