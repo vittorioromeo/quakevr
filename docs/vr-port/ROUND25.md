@@ -4270,3 +4270,17 @@ His note: the titles look great, previewing them in DaVinci takes forever.
   saw "changed"; now only the tools block is hashed (not re-run: see below). **Resolve closed** during the second
   `--bake`'s render (the retest of the reuse path); not reopened (GUI), so the reuse path and `--unbake` are unchecked.
   A bake of both titles took 271 s of wall time (the renders alone should take about 80 s: not explained).
+
+## MP B11 part 3, part 3: bots walk as players do; a bot's swing parried (agent/mp, 2026-11-16)
+
+- **Bots walk through the players' movement code** (`vr_pmove_bots`, default 1; Debug > Reports): FrikBot's stick is
+  queued as a move each frame and walked by `VR_PredictThink`/`VR_PredictPhysics`, the same code as your walk and a
+  remote player's: the same speed, steps, slopes, jumps and swimming. 0: FrikBot's own physics, the fallback.
+- **A bot's melee swing can be parried**: its main hand swings its weapon across its front (drawn so at the clients),
+  its blade's line is read by the directional parry: a weapon held across its way stops it. `vr_dm_test 2`/`3`, in
+  `mp_dm` (16/0).
+- **Bots' bodies at their real height** (they were drawn smaller than humans).
+- Disarm rows named as on next: "You Can Be Disarmed", "You Can Be Disarmed by Players".
+- In VR: a deathmatch with bots (`impulse 100`): bots run, jump and take stairs as before; give one a melee weapon
+  (or wait for one out of ammo) and hold yours upright across its swing. Details: MP_PLAN.md, "B11 part 3 results,
+  part 3".

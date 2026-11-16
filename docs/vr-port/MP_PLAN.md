@@ -2420,6 +2420,51 @@ Tests:
   is the player's `W_FireAxe` trace, not a VR swing the parry sees). Bots' fists close as a flat player's guard does
   (gripping), not punching motions; their hands do not swing (a bot's melee has no hand motion to send).
 
+### B11 part 3 results, part 3: bots walk through vr_pmove; a bot's swing parried; bots' bodies at their height (2026-11-16, dev no-LTO build, loopback; `mp_dm` 16/0)
+
+- **origin/next merged** (4 commits, no conflict).
+- **FrikBot's walk through the moves players' walks run** (`vr_pmove_bots`, default 1; Debug > Reports, "Movement: Bots
+  Walk Through Moves"; 0 the fallback: FrikBot's own copy of Quake's physics, `bot_phys.qc`). In BotFrame, after its
+  key emulation (CL_KeyMove), `botmovethink(self.movevect)` (`predict::botThink`) starts the bot's slot's frame as a
+  client's message read starts his (`beginFrame`: the QC move flags cleared) and runs `VR_PredictThink`, which queues
+  its stick as one move (`botInput`: clc_move's forward, side and up; its aim steering it; its jump key; no hands
+  holding). FrikBot's SV_ClientThink then leaves its walk (as sv_user.c leaves a client's), PlayerPreThink sees the
+  same `.vr_movejump`/`.vr_moveswim` a client's does, and its SV_Physics_Client calls `botmovewalk()`
+  (`predict::botWalk`): `VR_PredictPhysics` (gravity, walk or swim, steps, slopes, the jump, the water jump, the
+  close-quarters slowing, the carry and heavy weapons' speed) and the link with its touches, in place of FrikBot's
+  gravity and its phys_obj's SV_FlyMove. PlayerPostThink and BotAI still run after it from the phys_obj's think (as
+  PostPhysics ran them: not inside the bots' loop, the runaway counter). A wall's hold (the walk's `MoveNotes`: a wall
+  met, short of the stick's want as SV_Accelerate reaches it) is told to `frik_obstructed`, as PostPhysics measured
+  its own; FrikBot's step search (botCheckForStep, BruteForceStep) is not needed: the walk steps up 18 itself.
+  One path: the same `VR_PredictThink`/`VR_PredictPhysics` as a remote client's and this game's own player's moves.
+- **A bot's swing parried**: a bot's melee (W_Fire_Melee's button swing, player_axe*: its blow at the third frame) now
+  swings its main hand (`.vr_botswing`; `bot_setvrfields`): raised on its right, swung level across its front (160
+  degrees, 18 units out, straight ahead at the blow, 0.1-0.3 s), the weapon pointing out along the arc. The clients
+  draw it so (its controllers, B11 part 3 part 2's solveBit). Its weapon's line is kept each frame
+  (`VR_HandLinesKept`: tracked hands or a bot's, VR_Parry_GuardFrame) and its W_FireAxe blow on a player is judged by
+  that line as a tracked hand's swing (`vr_melee_blowhand` set: VR_DRP_PvpApplies), so a player's weapon held across
+  its way parries it (the directional parry), else the guard as before. A flat-screen player's button swing is as
+  before (no lines kept: the guard's).
+- **Bots' bodies at their height**: the server sent a bot's body pose at the model's eye height (1.646 m) and the
+  client sized a player without a calibration at that too: bots were drawn smaller than humans (scale 26.2 against
+  29.6). Now its standing eye height (`DEFAULT_VIEWHEIGHT - mins_z`: 46 units, 1.75 m at world scale 1), and a player
+  with no calibration yet is sized by his body pose's standing height (a bot's; a human's until his calibration comes).
+- **Disarm labels as next's**: Armed Grunts > "Disarming: Your Weapon" > "You Can Be Disarmed" (PvE, next's wording;
+  "Off by default: still being tuned") and "You Can Be Disarmed by Players" (PvP); menu_paths.txt regenerated, the
+  calibration board's paths 6 found, 0 missing. PATCH_NOTES/RELEASE_NOTES already say next's.
+- **Tests**: `vr_dm_test 2` and `3` (new, `vr_dmrules_test.qc`, run by `mp_dm`; Debug > Tests "Deathmatch: Parry a
+  Bot's Swing"): a living bot held 40 units in front of A with a sword, A's crowbar given into his gripping main hand
+  (another weapon there let go of first: a weapon swapped in a hand is let go of at once), the bot's swing begun as its
+  button's. 2: A's crowbar low at his side: the blow lands (20 damage; "dirparry: player's blow lands: score 0.00, 76
+  deg off square, gap 13-18 units"). 3: upright across its way (mp_melee's UPRIGHT): "dirparry: player's blow parried by
+  hand 1: score 1.00 (13 deg off square, gap 4.2 units, 0.014 s ago)", no blow lands. Both check that the bot walked
+  through the players' moves that frame (`.vr_movejump`). `mp_dm` 16/0 (two new checks).
+- **The checks**: `mp_test.py suite` all 34 scenarios pass (a first run lost every scenario after mp_bandwidth to port 27500 taken by another run: "Unable to bind"; rerun on `--port 27640`); `vr_pickup_test 15` (Melee Only bots, single player) 13/0. scenario_check PASS (145 scenes), load_models_test 4/0, vr_run_check 12/0 (with Melee
+  Only's `3 1 0 1 0`), the dev and Release (ThinLTO) builds 0 warnings.
+- **Not done**: bots never grab (the grab disarm with a bot: the player's on its gun only); a bot's fists do not punch
+  (a bot cannot punch: its melee is the axe or its melee holster's weapon); FrikBot's AI is unchanged (its jumps and
+  routes were tuned to its own physics: watch for a bot stuck where it used to pass; `vr_pmove_bots 0` is the old walk).
+
 ## For him (B11b)
 
 **His answer (2026-11-16): on.** `vr_pmove_own` defaults to 1 since B11c part 2; 0 stays as the fallback (Debug >
@@ -2528,4 +2573,4 @@ QuakeC's PlayerPreThink parts. Exactly what would change:
   has none of the local player's interactions (props, reloads, the hand-off: left out under `otherSubject`). The server
   sends a bot's controllers, not hands it cannot draw (no view code on a dedicated server).
 
-Next phase: B11 part 3, part 3 -- FrikBot's walk through the shared movement (vr_pmove, its stick as an Input) and parry against a bot's blows (`mp_dm` grown); B12d (the poses by their fields) only if a budget needs it. Voice chat's open items: his ears in VR (a real microphone, the spatial mixers) and a menu page of its own with per-player rows.
+Next phase: B10v part 2 -- voice chat's menu page of its own (per-player rows: mute, volume, the speaking light) and its open items in VR (his ears: a real microphone, the spatial mixers); B12d (the poses by their fields) only if a budget needs it. B11 is done (open: bots never grab, a bot's fists never punch).
