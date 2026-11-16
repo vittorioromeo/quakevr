@@ -318,6 +318,7 @@ QVR_CVAR(vr_mp_watch_dist, "2", CVAR_NONE)           // vr_mp_watch: units from 
 QVR_CVAR(vr_mp_lockstep, "0", CVAR_NONE)             // test (a server, the multiplayer harness's reproducible runs, MP_PLAN B14b): N: the world steps only with N clients in, each step one move of each by number, never by arrival (vr_fixed_frames 1, sv_random_seed); 0 off
 QVR_CVAR(vr_mp_lockstep_until, "0", CVAR_NONE)       // test: vr_mp_lockstep's world held after this step (prints "mp_lockstep: held"); 0 no limit
 QVR_CVAR(vr_mp_lockstep_ahead, "0", CVAR_NONE)       // test (a client of a vr_mp_lockstep server): at most this many moves ahead of the server's acknowledgement (its frames wait, no time passing); 0 off
+QVR_CVAR(vr_mp_lockstep_movelog, "0", CVAR_NONE)     // test (a vr_mp_lockstep server): 1 prints each move it runs, every value as sent ("mp_movelog:" lines, by the move's number from the first): two runs' moves compared
 QVR_CVAR(vr_debug_net, "0", CVAR_NONE)               // 1:each frame the unreliable broadcast (sv.datagram) was full: what QuakeC lost, what a client was not sent; 2: also each second the most sent (vr_server.cpp, VR_BroadcastDest)
 QVR_CVAR(vr_debug_physsound, "0", CVAR_NONE)          // 1: each impact, scrape and grab played; 2: also the hits skipped and each scrape grain
 // Spatial audio (vr_audio.cpp, Steam Audio; ROUND21.md, "Spatial audio (Steam Audio)"). Without phonon.dll: Quake's panning.

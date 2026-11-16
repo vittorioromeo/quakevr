@@ -75,10 +75,18 @@ void VR_MpTestFrame (void);	// once per host frame, before console commands: the
 // VR_LockstepHolds: it does not (no client thinks, no physics, no VR frame end); VR_LockstepRunMove: SV_RunClients, a
 // stepping frame's one move of his, by number (vr_server.cpp). Client: VR_LockstepWaits, at a host frame's start: its
 // moves vr_mp_lockstep_ahead ahead of the server's acknowledgement (the frame only reads: no time passes, no move).
+// (B14e) A client's view is a function of its moves alone: its frames wait (no time passes) until it is in the game,
+// then each waiting frame reads the server's messages up to the one that lets its next move go and no further
+// (VR_LockstepReadsMore: 0 stops), a moving frame reads none (VR_LockstepReadHeld). The server sends a lockstep player
+// one datagram when he is in and then one a step (VR_LockstepSkipsDatagram), and steps only with every player's reliable
+// messages acknowledged: what a client has read when it makes move N is the same every run.
 void VR_LockstepFrameBegin (void);
 int VR_LockstepHolds (void);
 void VR_LockstepRunMove (struct client_s *client);
 int VR_LockstepWaits (void);
+int VR_LockstepReadHeld (void);
+int VR_LockstepReadsMore (void);
+int VR_LockstepSkipsDatagram (int slot);
 void VR_MpNoteConnect (const char *host);	// CL_EstablishConnection: the address a client that leaves for the server's map package joins again (vr_mpdownload.cpp)
 void VR_MpWritePackage (struct sizebuf_s *msg);	// SV_SendServerinfo, to a remote client: QVR_SVC_PACKAGE, the server's map package (vr_mpdownload.cpp)
 int VR_IsActive (void);		// nonzero while vr_enabled is set and a backend session is running: the

@@ -76,11 +76,14 @@ Tests:
              e1m1, the world held at steps 36, 360 and 720 (vr_mp_lockstep_until) for the inputs (B walks north, A's
              impulse 241 makes a rottweiler, A strafes) and the hashes: vr_physics_hash, vr_bench_statehash (its fields
              named when they differ), vr_nav_hash the same in both runs; B's prediction misses the same.
-             --tracelog N: both sides' traces of B's move N (vr_mp_predict_tracelog).
+             --tracelog N: both sides' traces of B's move N (vr_mp_predict_tracelog). (B14e) Every move each player
+             sent the same in both runs (the server's vr_mp_lockstep_movelog), every edict field compared.
+    lockstep_throw (B14e) the same on e1m1 with props thrown: B's shotgun from his main hand, A's axe from his
+             off hand, given into a gripping hand and swung up hard as it lets go; held at 36, 72, 144, 216, 432.
     suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, armed, retransmit, version, avatar, avatarcal, body, prefs, grab,
              teleport, held, ground, campaign, campaign_listen, flow, download, pickup, forcegrab, melee, moves, climb,
              rules, cosmetics, flatbody, loss, predict, predictclimb, lagcomp, disarm, voice, voice with B 50 ms (30 ms
-             jitter, 5% loss) away, dm, lockstep.
+             jitter, 5% loss) away, dm, lockstep, lockstep_throw.
 
 The base folder is a Quake folder with id1 (and hipnotic, rogue, quakevr: -game as the kit's runs). Its
 id1/autoexec.cfg runs in every game: --reset-autoexec empties it first (the kit's test bases: a run's script).
@@ -4341,16 +4344,15 @@ BOT_GUN_GRIP = 24.0     # units: ... its gun's model origin at most this far fro
 # clients at most LOCK_AHEAD moves ahead; the world held at each of LOCK_STEPS for the hashes and the next inputs.
 LOCK_AHEAD = 4
 TRACELOG = 0  # (--tracelog)
-# QuakeC fields a client's moves report from its own drawing, not the world's: the ammo pouch (its body's pose, eased
-# over its frames since the load; their values noted when two runs differ). (B14c) The light on him (stl_light) is
-# compared: under the lockstep each move reads its own afresh (vr_stealth.cpp lightAt), not a tenth of a second's sample
-# at the client's clock with the lightmap's cached spot.
-LOCK_CLIENT_FIELDS = ("ammopouch",)
+# (B14e) Every edict field compared, the client-reported ones too (the ammo pouch, the light on him, the melee history):
+# a lockstep client's frames wait until it is in the game, and each move is made having read the same server messages
+# (vr_mptest.cpp: VR_LockstepReadsMore), so its moves are the same every run, checked move by move (lock_moves_diff).
 LOCK_STEPS = (36, 360, 720)
 LOCK_DM_STEPS = (36, 72, 360, 720)
+LOCK_THROW_STEPS = (36, 72, 144, 216, 432)  # (B14e: the grips, the gives, the throws, in flight, at rest)
 LOCK_VALUE_FIELDS = ("ammopouch", "stl_light", "mh_", "vr_posetime")  # (printed where two runs differ)
 LOCK_SERVER = ("+vr_fixed_frames", "1", "+sys_ticrate", "0.002", "+sv_random_seed", "1", "+vr_mp_lockstep", "2",
-               "+vr_mp_lockstep_until", str(LOCK_STEPS[0]), "+vr_hull_async", "0")
+               "+vr_mp_lockstep_until", str(LOCK_STEPS[0]), "+vr_hull_async", "0", "+vr_mp_lockstep_movelog", "1")
 LOCK_CLIENT = ("+vr_fixed_frames", "1", "+vr_mock_fast", "1", "+vr_mp_lockstep_ahead", str(LOCK_AHEAD))
 
 
@@ -4418,14 +4420,17 @@ def lock_field_diff(f1, f2):
     return ", ".join(names[:12]) + (" (+%d)" % (len(names) - 12) if len(names) > 12 else "")
 
 
-def lockstep_run(s, r, dm=False):
+def lockstep_run(s, r, dm=False, throw=False):
     """One lockstep run on e1m1 (coop): A and B (both the mock headset) join; held at each of LOCK_STEPS: the hashes;
     after the first B walks north and A's impulse makes a rottweiler (vr_test_spawn 7) ahead of him, which hunts them
     (the navmesh's paths); after the second B stops and A strafes. -> {step: hashes}, the stopped games.
     `dm` (B14c): a deathmatch on dm4 instead, held at each of LOCK_DM_STEPS: after the first A adds a FrikBot bot
-    (impulse 100) and B walks north, after the second A adds another, after the third B stops and A strafes."""
-    tag = ("dm" if dm else "") + ("" if r == 1 else str(r))
-    if r > 1 or dm:
+    (impulse 100) and B walks north, after the second A adds another, after the third B stops and A strafes.
+    `throw` (B14e): on e1m1, held at each of LOCK_THROW_STEPS: B grips his main hand low, is given a shotgun into it
+    (impulse 154), swings it up and lets go in one move (the mock's hand that fast: a hard throw), and the prop flies;
+    A grips his off hand and is given an axe (impulse 172: 170 + WID_AXE 2, the off hand) and throws it the same way."""
+    tag = ("dm" if dm else "throw" if throw else "") + ("" if r == 1 else str(r))
+    if r > 1 or dm or throw:
         s.port = s.next_port + 10  # (each run's own ports)
         s.next_port = s.port + 1
     mapname = DM_MAP if dm else "e1m1"
@@ -4452,7 +4457,26 @@ def lockstep_run(s, r, dm=False):
         hashes[step] = lock_hashes(srv)
         hashes[step]["values"] = lock_values(srv, (ea, eb), LOCK_VALUE_FIELDS)
 
-    if dm:
+    if throw:
+        held(LOCK_THROW_STEPS[0], first=True)
+        b.cmd("vr_mock_hand main 0.1 0.25 -0.35 0 0 0; vr_mock_button main grip 1; vr_mock_button off grip 0")
+        a.cmd("vr_mock_hand off -0.1 0.25 -0.35 0 0 0; vr_mock_button off grip 1; vr_mock_button main grip 0")
+        held(LOCK_THROW_STEPS[1])
+        b.cmd("impulse 154")
+        a.cmd("impulse 172")
+        held(LOCK_THROW_STEPS[2])
+        def holding():
+            (lines,) = reports(s, [srv])
+            sv = by_ent(lines, "mp_avatar_sv")
+            return {"A": int(sv.get(ea, {}).get("wpn", [-1, -1])[1]), "B": int(sv.get(eb, {}).get("wpn", [-1])[0])}
+
+        hashes["holding"] = holding()
+        b.cmd("vr_mock_hand main 0.25 1.5 -0.8 -20 0 0; vr_mock_button main grip 0")
+        a.cmd("vr_mock_hand off -0.25 1.5 -0.8 -20 0 0; vr_mock_button off grip 0")
+        held(LOCK_THROW_STEPS[3])
+        hashes["thrown"] = holding()
+        held(LOCK_THROW_STEPS[4])
+    elif dm:
         held(LOCK_DM_STEPS[0], first=True)
         a.cmd("impulse 100")
         b.cmd("vr_mock_stick off 0 1")
@@ -4475,28 +4499,36 @@ def lockstep_run(s, r, dm=False):
     hashes["predict"] = predict_report(b)
     for inst in (a, b, srv):
         inst.stop()
+    hashes["moves"] = lock_moves(srv)
     s.note("run %s: %s" % (tag, {st: {k: v for k, v in h.items() if k not in ("fields", "values")}
-                                 for st, h in hashes.items() if st not in ("predict", "players")}))
+                                 for st, h in hashes.items() if st not in ("predict", "players", "moves")}))
     return hashes
 
 
+def lock_moves(srv):
+    """(B14e) The moves the lockstep world ran, from the server's mp_movelog lines (vr_mp_lockstep_movelog): {(slot,
+    number from his first): [every value as the world got it]}."""
+    moves = {}
+    for l in srv.lines:
+        if l.startswith("mp_movelog: "):
+            f = l.split()
+            moves.setdefault((f[1], int(f[2][4:])), {})[int(f[3][5:])] = [int(x) for x in f[4:]]
+    return {k: sum((p[i] for i in sorted(p)), []) for k, p in moves.items()}
+
+
 def lock_compare(s, h1, h2, steps):
-    """Two lockstep runs' hashes at each of `steps` checked equal: the rigid bodies, the navmesh, every edict field but
-    LOCK_CLIENT_FIELDS (noted when they differ, with the players' values of LOCK_VALUE_FIELDS that differ)."""
+    """Two lockstep runs' hashes at each of `steps` checked equal: the rigid bodies, the navmesh, every edict field
+    (the players' values of LOCK_VALUE_FIELDS noted where they differ); then every move each player sent."""
     for step in steps:
         for kind in ("physics", "nav"):
             same = h1[step][kind] == h2[step][kind]
             s.check("step %d: the %s hash the same in both runs" % (step, kind), same,
                     h1[step][kind] if same else "%s | %s" % (h1[step][kind], h2[step][kind]))
-        # the edicts' fields but those a client reports from its own drawing (LOCK_CLIENT_FIELDS)
         f1, f2 = h1[step]["fields"], h2[step]["fields"]
         off = [k for k in set(f1) | set(f2) if f1.get(k) != f2.get(k)]
-        world = [k for k in off if not k.startswith(LOCK_CLIENT_FIELDS)]
-        s.check("step %d: every edict field the same in both runs (but a client's own reports)" % step, not world and f1,
+        s.check("step %d: every edict field the same in both runs" % step, not off and f1,
                 "%d fields; %s%s" % (len(f1), h1[step]["state"], ("; differ: " + lock_field_diff(
-                    {k: f1.get(k) for k in world}, {k: f2.get(k) for k in world})) if world else ""))
-        if off:
-            s.note("step %d: the client-reported fields that differ: %s" % (step, ", ".join(sorted(off))))
+                    {k: f1.get(k) for k in off}, {k: f2.get(k) for k in off})) if off else ""))
         v1, v2 = h1[step]["values"], h2[step]["values"]
         vdiff = sorted(k for k in set(v1) | set(v2) if v1.get(k) != v2.get(k))
         if vdiff:
@@ -4504,6 +4536,25 @@ def lock_compare(s, h1, h2, steps):
                                                                      for k in vdiff[:16])))
     s.check("the play changed the world (the edicts' hash moved on)",
             len(set(h1[st]["state"] for st in steps)) == len(steps))
+    lock_moves_diff(s, h1, h2)
+
+
+def lock_moves_diff(s, h1, h2):
+    """(B14e) Each player's moves the same in both runs (every value the world got, by number from his first; the
+    lockstep's inputs: a client's view a function of its moves). Where they differ, the first few moves noted with the
+    values' indices (vr_netmove.cpp visitMove's order) and both runs' values."""
+    m1, m2 = h1["moves"], h2["moves"]
+    for slot in sorted(set(k[0] for k in m1) | set(k[0] for k in m2)):
+        r1 = set(k[1] for k in m1 if k[0] == slot)
+        r2 = set(k[1] for k in m2 if k[0] == slot)
+        rels = sorted(r1 & r2)
+        off = [r for r in rels if m1[(slot, r)] != m2[(slot, r)]]
+        s.check("%s: every move the same in both runs" % slot, rels and r1 == r2 and not off,
+                "%d | %d moves, %d differ%s" % (len(r1), len(r2), len(off), (" from %d" % off[0]) if off else ""))
+        for r in off[:6]:
+            v1, v2 = m1[(slot, r)], m2[(slot, r)]
+            idx = [i for i in range(min(len(v1), len(v2))) if v1[i] != v2[i]]
+            s.note("  move %d: %s" % (r, " ".join("[%d]%d|%d" % (i, v1[i], v2[i]) for i in idx[:14])))
 
 
 def lockstep_dm(s):
@@ -4516,6 +4567,23 @@ def lockstep_dm(s):
     p1, p2 = h1["players"], h2["players"]
     s.check("four players in each run (A, B, two bots), named and scored the same", len(p1) == 4 and p1 == p2,
             "%s | %s" % (p1, p2))
+
+
+def lockstep_throw(s):
+    """(B14e) Two lockstep runs of props thrown by players (lockstep_run throw): B's shotgun from his main hand, A's
+    axe from his off hand, given into a gripping hand and thrown hard; every hash equal at each held step (the
+    thrown props' rigid bodies, their flight and their landing), every move the same."""
+    h1 = lockstep_run(s, 1, throw=True)
+    h2 = lockstep_run(s, 2, throw=True)
+    for h, run in ((h1, 1), (h2, 2)):
+        s.check("run %d: each player holds the prop given before his throw (the server's avatars)" % run,
+                h["holding"]["A"] > 0 and h["holding"]["B"] > 0, str(h["holding"]))
+        s.check("run %d: neither holds it after his throw" % run, h["thrown"]["A"] <= 0 and h["thrown"]["B"] <= 0,
+                str(h["thrown"]))
+    lock_compare(s, h1, h2, LOCK_THROW_STEPS)
+    st = LOCK_THROW_STEPS
+    s.check("the throws moved the rigid bodies (the physics hash from the throw on, each held step's its own)",
+            len(set(h1[x]["physics"] for x in st[2:])) == len(st[2:]), " | ".join(h1[x]["physics"] for x in st[2:]))
 
 
 def lockstep(s):
@@ -4789,6 +4857,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             lockstep(s)
         elif test == "mp_lockstep_dm":
             lockstep_dm(s)
+        elif test == "mp_lockstep_throw":
+            lockstep_throw(s)
         elif test == "mp_dm":
             deathmatch(s)
         elif test in ("mp_voice", "mp_voice_lossy"):
@@ -4819,7 +4889,7 @@ def print_bytes_table():
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -4856,7 +4926,7 @@ def main():
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm"):
+                       "campaign", "campaign_listen", "flow", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)
@@ -4897,6 +4967,8 @@ def main():
         ok = run(args, "mp_voice_lossy", 50, 30, 0.05) and ok
         ok = run(args, "mp_dm") and ok
         ok = run(args, "mp_lockstep") and ok
+        ok = run(args, "mp_lockstep_dm") and ok
+        ok = run(args, "mp_lockstep_throw") and ok
         # B's link per scenario (MP_PLAN B7: byte counts against mp_bandwidth's): what the next phases cut.
         print_bytes_table()
         print("mp_suite: %s" % ("passed" if ok else "FAILED"))

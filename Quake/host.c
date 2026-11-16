@@ -1749,6 +1749,26 @@ static void Host_PrintTimes (const double times[], const char *names[], int coun
 
 /*
 ==================
+Host_SendPrespawn
+
+The signon's "prespawn" once the client has loaded the map (QVR: also a lockstep client's waiting frame's, B14e)
+==================
+*/
+static void Host_SendPrespawn (void)
+{
+	if (cl.sendprespawn)
+	{
+		CL_LoadCSProgs();
+
+		cl.sendprespawn = false;
+		MSG_WriteByte (&cls.message, clc_stringcmd);
+		MSG_WriteString (&cls.message, "prespawn");
+		vid.recalc_refdef = true;
+	}
+}
+
+/*
+==================
 Host_Frame
 
 Runs all active servers
@@ -1770,19 +1790,15 @@ void _Host_Frame (double time)
 	}
 
 	// QVR: a client of the harness's lockstep server its moves ahead (vr_mp_lockstep_ahead, B14b): the frame reads the
-	// inbox, the commands and the server's messages, and nothing else: no time passes, no move is made
+	// inbox, the commands and the server's messages, and nothing else: no time passes, no move is made. (B14e) Also until
+	// it is in the game; it reads up to the message its next move waits for, no further (CL_ReadLockstep)
 	if (VR_LockstepWaits ())
 	{
 		VR_MpTestFrame ();
 		Cbuf_Execute ();
 		NET_Poll ();
-		if (cls.state == ca_connected)
-		{
-			double keep = host_frametime;
-			host_frametime = 0;
-			CL_ReadFromServer ();
-			host_frametime = keep;
-		}
+		Host_SendPrespawn ();
+		CL_ReadLockstep ();
 		return;
 	}
 
@@ -1822,15 +1838,7 @@ void _Host_Frame (double time)
 
 	NET_Poll();
 
-	if (cl.sendprespawn)
-	{
-		CL_LoadCSProgs();
-
-		cl.sendprespawn = false;
-		MSG_WriteByte (&cls.message, clc_stringcmd);
-		MSG_WriteString (&cls.message, "prespawn");
-		vid.recalc_refdef = true;
-	}
+	Host_SendPrespawn ();
 
 	CL_AccumulateCmd ();
 

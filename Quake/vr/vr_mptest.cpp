@@ -77,6 +77,7 @@ struct Lockstep
     double lastTime{0.0};
     za::U64 heldPrinted{~0ull};
     long long waits{0};
+    bool greeted[MAX_SCOREBOARD]{}; // (B14e) the server: sent his one datagram since he came in (the next at a step)
 };
 Lockstep lockstep;
 
@@ -592,10 +593,17 @@ extern "C" void VR_LockstepFrameBegin(void)
     bool ready = true;
     for(int i = 0; i < svs.maxclients; i++)
     {
-        if(lockstepPlayer(svs.clients[i]))
+        client_t& c = svs.clients[i];
+        if(i < MAX_SCOREBOARD && !(c.active && c.spawned))
+        {
+            l.greeted[i] = false;
+        }
+        if(lockstepPlayer(c))
         {
             in++;
-            ready = ready && qvr::netmove::serverHasNext(i);
+            // (B14e) his next move read, and every reliable message sent him acknowledged: a step's reliable messages go
+            // right after its datagram, so he reads them before the next step's, every run
+            ready = ready && qvr::netmove::serverHasNext(i) && c.message.cursize == 0 && NET_CanSendMessage(c.netconnection);
         }
     }
     const za::U64 until = static_cast<za::U64>(q_max(qvr::vr_mp_lockstep_until.value, 0.f));
@@ -618,13 +626,52 @@ extern "C" int VR_LockstepHolds(void)
     return qvr::vr_mp_lockstep.value >= 1.f && sv.active && !lockstep.stepping ? 1 : 0;
 }
 
-extern "C" int VR_LockstepWaits(void)
+extern "C" int VR_LockstepSkipsDatagram(int slot)
 {
-    const float ahead = qvr::vr_mp_lockstep_ahead.value;
-    if(ahead < 1.f || !qvr::netmove::clientUses() || qvr::netmove::clientPending() < static_cast<za::U32>(ahead))
+    if(lockstep.stepping || slot < 0 || slot >= MAX_SCOREBOARD || !lockstepPlayer(svs.clients[slot]))
     {
         return 0;
     }
+    if(!lockstep.greeted[slot])
+    {
+        lockstep.greeted[slot] = true; // (his first: its entities end his signon)
+        return 0;
+    }
+    return 1;
+}
+
+namespace
+{
+// (B14e) A lockstep client in the game: its moves go by the server's acknowledgements.
+[[nodiscard]] bool lockstepIn()
+{
+    return qvr::vr_mp_lockstep_ahead.value >= 1.f && qvr::netmove::clientUses() && cls.signon == SIGNONS;
+}
+} // namespace
+
+extern "C" int VR_LockstepReadHeld(void)
+{
+    return lockstepIn() ? 1 : 0;
+}
+
+extern "C" int VR_LockstepReadsMore(void)
+{
+    if(qvr::vr_mp_lockstep_ahead.value < 1.f)
+    {
+        return 1;
+    }
+    return lockstepIn() && qvr::netmove::clientPending() < static_cast<za::U32>(qvr::vr_mp_lockstep_ahead.value) ? 0 : 1;
+}
+
+extern "C" int VR_LockstepWaits(void)
+{
+    const float ahead = qvr::vr_mp_lockstep_ahead.value;
+    if(ahead < 1.f || (lockstepIn() && qvr::netmove::clientPending() < static_cast<za::U32>(ahead)))
+    {
+        return 0;
+    }
+    // (B14e) also until it is in the game: the frames from its start to its first move, as many as the machine's speed
+    // made them, moved its hands' and body's eased states (the throw's, the ammo pouch's) apart between runs
     lockstep.waits++;
     za::ThisThread::sleepFor(za::microseconds(200)); // (the server's step and its acknowledgement are a round trip away)
     return 1;

@@ -638,6 +638,27 @@ namespace
     const za::U32 next = slot.last != 0 ? slot.last + 1 : slot.low;
     return next != 0 && slot.seqs[next % ring] == next ? next : 0;
 }
+
+// vr_mp_lockstep_movelog's scratch (big: off the stack).
+Quant moveLogQuant;
+
+// (B14e) A move the lockstep runs, every value as the world gets it (its pose clock the server's), 64 a line: two runs'
+// moves compared (Misc/quakevr/mp: mp_test.py lock_moves_diff).
+void logMove(int slotNum, za::U32 rel, const WireMove& m)
+{
+    quantize(m, moveLogQuant);
+    const int n = numValues();
+    for(int part = 0; part * 64 < n; part++)
+    {
+        char line[1024];
+        int len = q_snprintf(line, sizeof(line), "mp_movelog: slot=%d rel=%u part=%d", slotNum, rel, part);
+        for(int i = part * 64; i < n && i < part * 64 + 64 && len < static_cast<int>(sizeof(line)) - 16; i++)
+        {
+            len += q_snprintf(line + len, sizeof(line) - static_cast<za::SizeT>(len), " %d", moveLogQuant.v[i]);
+        }
+        Con_Printf("%s\n", line);
+    }
+}
 } // namespace
 
 bool serverHasNext(int slotNum)
@@ -666,6 +687,10 @@ bool serverRunNext(client_t* client, ApplyFn apply)
         // apart between runs by one of them.
         m.vr.poseClock = static_cast<float>(
             za::fmod(static_cast<double>(next - slot->low) * host_frametime, static_cast<double>(VR_POSE_CLOCK_WRAP)));
+    }
+    if(vr_mp_lockstep_movelog.value >= 1.f)
+    {
+        logMove(static_cast<int>(client - svs.clients), next - slot->low, m);
     }
     apply(client, m, true);
     return true;

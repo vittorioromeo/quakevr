@@ -1521,7 +1521,9 @@ void SV_SendClientMessages (void)
 
 		if (host_client->spawned)
 		{
-			if (!SV_SendClientDatagram (host_client))
+			if (VR_LockstepSkipsDatagram (i))
+				; // QVR: the harness's lockstep: a held frame sends its players nothing new (vr_mptest.cpp, B14e)
+			else if (!SV_SendClientDatagram (host_client))
 				continue;
 		}
 		else

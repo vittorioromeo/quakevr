@@ -1132,6 +1132,9 @@ za::Vector<Item> pageDebugReports()
             .help("vr_mp_lockstep_status: the multiplayer harness's reproducible runs (vr_mp_lockstep on a dedicated server, "
                   "vr_mp_lockstep_ahead on its clients): the world's step, whether it is held, each client's newest move "
                   "run; on a client, its moves ahead of the server and whether its frames wait."),
+        toggle("Network: Lockstep Move Log", vr_mp_lockstep_movelog)
+            .help("vr_mp_lockstep_movelog: a lockstep server prints every move it runs, each value as the world gets it "
+                  "(\"mp_movelog:\" lines): the harness compares two runs' moves, the lockstep's inputs."),
         command("Network: Held Weapons", "vr_mp_drawn")
             .help("vr_mp_drawn: each hand's held weapon as this client draws it (its hotspots, the two-handed hold, a weapon "
                   "carried off its handle) and, hosting, as the server places each player's from what his client sent."),

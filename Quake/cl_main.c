@@ -826,6 +826,38 @@ void CL_RelinkEntities (void)
 
 /*
 ===============
+CL_ReadLockstep
+
+QVR: a lockstep client's waiting frame (vr_mp_lockstep_ahead, vr_mptest.cpp B14e): the server's messages read up to the
+one that lets its next move go (or that ends its signon), nothing relinked, no time passing; its signon replies sent.
+===============
+*/
+void CL_ReadLockstep (void)
+{
+	int ret;
+
+	VR_RagdollRestore ();
+	while (cls.state == ca_connected && VR_LockstepReadsMore ())
+	{
+		ret = CL_GetMessage ();
+		if (ret == -1)
+			Host_Error ("CL_ReadLockstep: lost server connection");
+		if (!ret)
+			break;
+		cl.last_received_message = realtime;
+		VR_NoteServerMessage (ret);
+		CL_ParseServerMessage ();
+	}
+	if (cls.state == ca_connected && cls.signon < SIGNONS && cls.message.cursize && NET_CanSendMessage (cls.netcon))
+	{
+		if (NET_SendMessage (cls.netcon, &cls.message) == -1)
+			Host_Error ("CL_ReadLockstep: lost server connection");
+		SZ_Clear (&cls.message);
+	}
+}
+
+/*
+===============
 CL_ReadFromServer
 
 Read all incoming data from the server
@@ -844,6 +876,7 @@ int CL_ReadFromServer (void)
 	VR_RagdollRestore (); // QVR: the ragdolls' own models back (vr/vr_ragdoll.cpp)
 	CL_AdvanceTime ();
 
+	if (!VR_LockstepReadHeld ()) // QVR: a lockstep client's moving frame reads nothing (its waiting frames: CL_ReadLockstep)
 	do
 	{
 		ret = CL_GetMessage ();
