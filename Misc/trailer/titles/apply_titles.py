@@ -286,6 +286,22 @@ def is_baked(name):
     return bool(BAKED_RE.match(name or ""))
 
 
+def digest_text(s):
+    """The part of an exported comp a title's look depends on: the tools block only (the comp's header holds its
+    current time, ids and preferences, which change by themselves), without node positions, the Draft toggle, or the
+    values an expression input last evaluated to (Fusion saves them with the expression: they follow the comp's
+    current time and whether it was rendered, not the look)."""
+    at = s.find("\tTools = ")
+    if at >= 0:
+        s = s[at:block_end(s, at)]
+    s = re.sub(r"\bDraft = Input \{[^}]*\},?", "", s)
+    s = re.sub(r"\n\s*ViewInfo = [^\n]*", "", s)
+    s = re.sub(r"Input \{(?:[^{}]|\{[^{}]*\})*\}",
+               lambda m: re.sub(r"\s*Value = (?:\{[^{}]*\}|[^,\n]*),", "", m.group(0))
+               if "Expression = " in m.group(0) else m.group(0), s)
+    return re.sub(r"\s+", " ", s)       # one line or several: Fusion picks by the block's length
+
+
 def comp_digest(item, extra):
     """A digest of everything the title's look depends on: its exported comp (the macro's inputs, hand tweaks
     included; the Draft toggle left out: a bake always renders at full quality) and the frame size, rate and length."""
@@ -296,12 +312,8 @@ def comp_digest(item, extra):
         s = f.read()
     # only the tools (the comp's own header holds its current time, ids and preferences, which change by themselves),
     # without node positions
-    at = s.find("\tTools = ")
-    if at >= 0:
-        s = s[at:block_end(s, at)]
-    s = re.sub(r"\bDraft = Input \{[^}]*\},?", "", s)
-    s = re.sub(r"\n\s*ViewInfo = [^\n]*", "", s)
-    return hashlib.sha1((s + "\n" + extra).encode("utf-8")).hexdigest()[:10]
+    d = hashlib.sha1((digest_text(s) + "\n" + extra).encode("utf-8")).hexdigest()[:10]
+    return d
 
 
 def bake_folder(main, override):
@@ -325,60 +337,79 @@ def find_clip(folder, name):
     return None
 
 
-def render_bake(resolve, project, st, main, frames, out_dir, stem):
-    """Render frames 0..frames-1 of the section timeline st to out_dir/stem.mov, ProRes 4444 with alpha. -> path."""
-    os.makedirs(out_dir, exist_ok=True)
+def wait_for(test, seconds):
+    """Poll test() (every 0.2 s) until it is true or `seconds` have passed. -> its last result."""
+    end = time.time() + seconds
+    while True:
+        ok = test()
+        if ok or time.time() > end:
+            return ok
+        time.sleep(0.2)
+
+
+def render_bakes(resolve, project, main, todo):
+    """Render the titles in todo ([{st, frames, out_dir, stem, tool}]) to out_dir/stem.mov, ProRes 4444 with alpha,
+    frames 0..frames-1 of each section timeline, with the Draft toggle off. All in one batch: one visit to the Deliver
+    page and one StartRendering. (One render per title, each started as soon as the last ended, lost the next edits
+    now and then: a placed clip vanished, a render job could not be deleted; and Resolve once closed during the
+    second render.) Only our own jobs are taken off the render queue."""
     page = resolve.GetCurrentPage()
-    project.SetCurrentTimeline(st)
-    resolve.OpenPage("deliver")
+    drafts = [(t["tool"], t["tool"].GetInput("Draft")) for t in todo]
+    jobs, t0 = [], time.time()
     try:
+        for tool, draft in drafts:
+            if draft:
+                tool.SetInput("Draft", 0)
+        resolve.OpenPage("deliver")
         codecs = project.GetRenderCodecs("mov") or {}
         codec = next((v for k, v in codecs.items() if "4444" in k and "XQ" not in k), None)
         if codec is None or not project.SetCurrentRenderFormatAndCodec("mov", codec):
             raise RuntimeError("Resolve offers no ProRes 4444 render codec (%s)" % ", ".join(codecs))
-        s0 = st.GetStartFrame()
-        project.SetRenderSettings({"SelectAllFrames": False, "MarkIn": s0, "MarkOut": s0 + frames - 1,
-                                   "TargetDir": out_dir, "CustomName": stem, "ExportVideo": True,
-                                   "ExportAudio": False, "ExportAlpha": True,
-                                   "FormatWidth": int(st.GetSetting("timelineResolutionWidth")),
-                                   "FormatHeight": int(st.GetSetting("timelineResolutionHeight")),
-                                   "FrameRate": float(st.GetSetting("timelineFrameRate"))})
-        job = project.AddRenderJob()
-        if not job or not project.StartRendering([job]):
-            raise RuntimeError("could not start the render of %r" % st.GetName())
-        while project.IsRenderingInProgress():
-            time.sleep(0.25)
-        status = project.GetRenderJobStatus(job) or {}
-        project.DeleteRenderJob(job)    # only ours: the render queue is otherwise left alone
-        if status.get("JobStatus") != "Complete":
-            raise RuntimeError("the render of %r ended %r" % (st.GetName(), status.get("JobStatus")))
+        for t in todo:
+            st = t["st"]
+            os.makedirs(t["out_dir"], exist_ok=True)
+            if not project.SetCurrentTimeline(st):
+                raise RuntimeError("could not open %r to render it" % st.GetName())
+            s0 = st.GetStartFrame()
+            project.SetRenderSettings({"SelectAllFrames": False, "MarkIn": s0, "MarkOut": s0 + t["frames"] - 1,
+                                       "TargetDir": t["out_dir"], "CustomName": t["stem"], "ExportVideo": True,
+                                       "ExportAudio": False, "ExportAlpha": True,
+                                       "FormatWidth": int(st.GetSetting("timelineResolutionWidth")),
+                                       "FormatHeight": int(st.GetSetting("timelineResolutionHeight")),
+                                       "FrameRate": float(st.GetSetting("timelineFrameRate"))})
+            job = project.AddRenderJob()
+            if not job:
+                raise RuntimeError("could not queue the render of %r" % st.GetName())
+            jobs.append(job)
+        if not project.StartRendering(jobs):
+            raise RuntimeError("could not start the renders")
+        wait_for(lambda: not project.IsRenderingInProgress(), 24 * 3600)
+        status = [(project.GetRenderJobStatus(j) or {}).get("JobStatus") for j in jobs]
+        print("apply_titles: rendered %d title%s in %.0f s" % (len(jobs), "" if len(jobs) == 1 else "s",
+                                                               time.time() - t0))
+        bad = ["%s: %s" % (t["stem"], s) for t, s in zip(todo, status) if s != "Complete"]
+        if bad:
+            raise RuntimeError("renders ended badly: %s" % "; ".join(bad))
     finally:
+        # Resolve finishes a job a moment after IsRenderingInProgress turns false: until then the job can't be
+        # deleted, and edits made meanwhile may be lost
+        left = [j for j in jobs if not wait_for(lambda: project.DeleteRenderJob(j), 30)]
+        if left:
+            print("apply_titles: %d render job(s) could not be taken off the render queue" % len(left))
         project.SetCurrentTimeline(main)
         resolve.OpenPage(page or "edit")
-    path = os.path.join(out_dir, stem + ".mov")
-    if not os.path.isfile(path):
-        raise RuntimeError("the baked clip %r was not written" % path)
-    return path
-
-
-def baked_clip(resolve, project, mp, folder, st, main, item, tool, frames, out_dir, name, digest, sec):
-    """The media pool clip of this title baked as it is now: reused when its digest matches, else rendered (with the
-    Draft toggle off) and imported into the section's bin, the section's settings in its Comments."""
-    stem = "%s [%s]" % (name, digest)
-    clip = find_clip(folder, stem + ".mov")
-    if clip is not None:
-        return clip, False
-    path = os.path.join(out_dir, stem + ".mov")
-    rendered = not os.path.isfile(path)
-    if rendered:
-        draft = tool.GetInput("Draft")
-        if draft:
-            tool.SetInput("Draft", 0)
-        try:
-            render_bake(resolve, project, st, main, frames, out_dir, stem)
-        finally:
+        wait_for(lambda: resolve.GetCurrentPage() == (page or "edit")
+                 and project.GetCurrentTimeline().GetUniqueId() == main.GetUniqueId(), 30)
+        for tool, draft in drafts:
             if draft:
                 tool.SetInput("Draft", draft)
+    for t in todo:
+        if not os.path.isfile(t["path"]):
+            raise RuntimeError("the baked clip %r was not written" % t["path"])
+
+
+def import_bake(mp, folder, path, st, frames, sec):
+    """Import a baked clip into the section's bin, the section's settings in its Comments. -> the media pool item."""
     mp.SetCurrentFolder(folder)
     clips = mp.ImportMedia([path]) or []
     if not clips:
@@ -386,7 +417,7 @@ def baked_clip(resolve, project, mp, folder, st, main, item, tool, frames, out_d
     keep = {k: v for k, v in sec.items() if k not in ("line", "intro") and isinstance(v, (str, int, float))}
     clips[0].SetClipProperty("Comments", "QVR title bake of %r (%d frames): %s"
                              % (st.GetName(), frames, json.dumps(keep, sort_keys=True)))
-    return clips[0], rendered
+    return clips[0]
 
 
 def make_section_timeline(project, mp, folder, name, main, template=TEMPLATE):
@@ -429,7 +460,7 @@ def apply(resolve, sections, track_name, dry, rebuild=False, mode=None, bake_dir
     folder = None if dry else find_bin(mp, main.GetName())
     print("apply_titles: timeline %r, %g fps, %d sections, track V%d %r%s"
           % (main.GetName(), fps, len(sections), track, track_name, " (dry run)" if dry else ""))
-    wanted, done, missing = set(), 0, []
+    wanted, done, missing, plans, todo = set(), 0, [], [], []
     for sec in sections:
         frames = main_frames = max(1, round(float(sec["seconds"]) * fps))
         intro = bool(sec.get("intro"))
@@ -460,6 +491,15 @@ def apply(resolve, sections, track_name, dry, rebuild=False, mode=None, bake_dir
             if st is None:
                 st = make_section_timeline(project, mp, folder, name, main, INTRO_TEMPLATE if intro else TEMPLATE)
                 action.append("new")
+            # timeline names are unique in a project: another trailer timeline's section of the same name shares
+            # this one; its frame size follows the current trailer (the title scales with the frame)
+            for k in ("timelineResolutionWidth", "timelineResolutionHeight"):
+                if st.GetSetting(k) != main.GetSetting(k):
+                    st.SetSetting("useCustomSettings", "1")
+                    st.SetSetting(k, main.GetSetting(k))
+            if float(st.GetSetting("timelineFrameRate")) != fps:
+                print("  %-28s %r runs at %s fps, the trailer at %g: --rebuild"
+                      % (sec["title"][:28], name, st.GetSetting("timelineFrameRate"), fps))
             inner = video_items(st, 1)
             tool = title_tool(inner[0], "Line1" if intro else "Corner") if inner else None
             if tool is None:
@@ -480,6 +520,8 @@ def apply(resolve, sections, track_name, dry, rebuild=False, mode=None, bake_dir
         old = placed.get(name)
         want = None if dry else st.GetMediaPoolItem()
         old_name = old.GetName() if old is not None else ""
+        plan = {"sec": sec, "name": name, "at": at, "frames": frames, "main_frames": main_frames, "intro": intro,
+                "action": action, "old": old, "want": want, "st": st}
         if mode == "bake" and dry:
             action.append("bake")
         elif not dry and (mode == "bake" or (mode is None and not rebuild and is_baked(old_name))):
@@ -488,13 +530,36 @@ def apply(resolve, sections, track_name, dry, rebuild=False, mode=None, bake_dir
             if digest is None:
                 print("  %-28s could not export its comp: left live" % sec["title"][:28])
             elif mode == "bake":
-                want, rendered = baked_clip(resolve, project, mp, folder, st, main, inner[0], tool, frames, out_dir,
-                                            name, digest, sec)
-                action.append("baked" if rendered else "baked-reused")
+                if tool.GetInput("Draft") is None:
+                    print("  %-28s made with an older, slower template: --rebuild first for a faster bake"
+                          % sec["title"][:28])
+                stem = "%s [%s]" % (name, digest)
+                plan["want"] = find_clip(folder, stem + ".mov")
+                if plan["want"] is not None:
+                    action.append("baked-reused")
+                else:
+                    plan["bake"] = {"st": st, "frames": frames, "out_dir": out_dir, "stem": stem, "tool": tool,
+                                    "path": os.path.join(out_dir, stem + ".mov")}
+                    if os.path.isfile(plan["bake"]["path"]):
+                        action.append("baked-reused")     # rendered before, not in the bin: imported again
+                    else:
+                        todo.append(plan["bake"])
+                        action.append("baked")
             elif old_name == "%s [%s].mov" % (name, digest):
-                want = old.GetMediaPoolItem()      # still as baked: stays baked
+                plan["want"] = old.GetMediaPoolItem()      # still as baked: stays baked
             else:
                 action.append("unbaked(changed: --bake again)")
+        plans.append(plan)
+    if todo:
+        render_bakes(resolve, project, main, todo)
+    for plan in plans:
+        if "bake" in plan:
+            plan["want"] = import_bake(mp, folder, plan["bake"]["path"], plan["st"], plan["frames"], plan["sec"])
+    if plans and not dry:
+        project.SetCurrentTimeline(main)
+    for plan in plans:
+        sec, name, at, frames, old, want, action = (plan[k] for k in ("sec", "name", "at", "frames", "old", "want",
+                                                                      "action"))
         same = (old is not None and want is not None and old.GetMediaPoolItem() is not None
                 and old.GetMediaPoolItem().GetUniqueId() == want.GetUniqueId())
         if old is not None and int(old.GetStart()) == at and int(old.GetDuration()) == frames and (dry or same):
@@ -518,13 +583,18 @@ def apply(resolve, sections, track_name, dry, rebuild=False, mode=None, bake_dir
                     continue
         done += 1
         print("  %-28s %-12s %s  %s, %s s%s" % (sec["title"][:28], "+".join(action), timecode(at, fps),
-              "full screen" if intro else sec["corner"], sec["seconds"],
-              (" (%d frames)" % frames) if frames != main_frames else ""))
+              "full screen" if plan["intro"] else sec["corner"], sec["seconds"],
+              (" (%d frames)" % frames) if frames != plan["main_frames"] else ""))
     stale = [n for n in placed if n.startswith(PREFIX) and n not in wanted]
     for n in stale:
         print("  %-28s not in titles.txt (or its marker is gone): taken off V%d" % (n[len(PREFIX):][:28], track))
         if not dry:
             main.DeleteClips([placed[n]], False)
+    if not dry:     # what is on the track now, by section: each placed title should be there, at its marker
+        now = {base_name(i.GetName()): (i.GetName(), int(i.GetStart())) for i in video_items(main, track)}
+        lost = [p["name"] for p in plans if now.get(p["name"], ("", None))[1] != p["at"]]
+        if lost:
+            print("apply_titles: not on V%d after placing (run again): %s" % (track, ", ".join(lost)))
     print("apply_titles: %d of %d sections %s, %d removed, %d without a marker%s"
           % (done, len(sections), "planned" if dry else "applied", len(stale), len(missing),
              (": " + ", ".join(missing)) if missing else ""))
