@@ -3014,7 +3014,30 @@ Open items:
   from origin/next or a save still being written when read -- open). SP: scenario_check PASS (138/0), load_models 4/0,
   vr_run_check 12/0. Dev and ThinLTO builds 0 warnings.
 
-Open items: mp_flow's coop autosave listing; the hand pushing a lying weapon short of the grab; B14d's `vr_dm_test 3`
-flake; LAN discovery and ICE/NAT need his machines and his OK.
+### B13d results: B13c's open items (2026-11-16, dev no-LTO)
 
-Next phase: B11 part 2 -- deathmatch 1 and 2's item rules with VR weapons (level weapons taken and respawned or staying, `vr_item_objects`, force grab), the VR melee and armed systems between players and bots (a blade's hit, a disarm), bots' bodies and hands as clients draw them, FrikBot's walk through vr_pmove, names in the harness (`mp_dm` grown); first, mp_flow's coop autosave listing. B10v's VR checks and the ICE/NAT rendezvous service are his.
+- **mp_flow's coop autosave listing: the harness, not a regression.** Single player on a clean origin/next (f6fbfdcaf):
+  `vr_autosave_now`, then `vr_autosave_list cold` and Continue list the new autosave/e1m1 at once; a list read in the
+  same frame as the save's write misses it until the next refresh (as ever: nothing cached). The cause: the harness took
+  the server's coop~e1m2.sav as whole at its last edict's brace (the save thread flushes each edict), before its edict
+  count and its close; A's list in that window skipped it (`Sys_GetFileTime` opens with `FILE_SHARE_READ`: a file open
+  for writing is not listed). Now it waits for the `// N edicts` trailer and lists again (up to 5) while the file may
+  still be open: 4 runs of 4 clean (it failed 1 run in 4 before). `vr_autosave_list cold` now names each save passed
+  over and why (`inspectRefusal`: unreadable, version, format, map, campaign, package).
+- **A hand against a lying weapon takes it, for every player** (vr_physics.cpp `weaponAgainstHand`): it was entity 1's
+  alone -- on a dedicated server the first client's grip took a gun his hand pushed along the floor ("against this
+  hand"), a later client's pushed it away untaken (mp_disarm failed 1 run in 2 with A entity 2, 0 in 8 with A entity
+  1). Where it is carried stays his view's choice (`heldpose::grabSpot`). Single player unchanged (the player is entity
+  1; `vr_pickup_test 17` 5/0). mp_disarm: A joins second (`join(a_second=True)`: entity 2, every run), the toss retaken
+  by its handle (`spot -1`: gun mode with vr_weapon_grab_handle_leniency; its forend's hotspot could lie under the gun,
+  3.8 cm out of the lowest fist's reach, and hotspots get no slack -- his "no extra reach"): 35/0 twice.
+- **The suite's flakes:** `mp_dm`'s `vr_dm_test 3` (B14d's): the held bot's *off hand* punched A while its sword's blow
+  was parried, the punch's damage read as the blow's landing; tests 2 and 3 now hold the bots' off hands too
+  (`VR_DMT_HoldOffHands`: no punch, no reach) -- 22/0 twice. `mp_ground`: the reverse grip cosines (server -0.6, B
+  -0.84, the same hand angles) are compared once they agree within 0.2 (the sword as B draws it catching up) -- 15/0.
+  `mp_browser`: the least ping of up to three searches (698 ms once after the soak: a hitch, not the round trip) -- 10/0.
+- **Checks:** MP suite (dev) 39 of 40 clean: mp_flow 16/0, mp_disarm 35/0, mp_dm 22/0, mp_ground 15/0, mp_browser 10/0 in it; mp_armed failed a rate-cap check under `vr_net_rate 6000` (a snapshot in every datagram: 318 of 360), alone 18/0 then 17/1 on another of its rate checks (nearest poses 1.30x the farthest's, wanted 1.35): its real-time rate checks under a busy PC, not B13d's code -- open. SP: scenario_check PASS (138/0), load_models 4/0, vr_run_check 12/0, autosavenow 4/0, vr_pickup_test 17 5/0. Dev and ThinLTO builds 0 warnings.
+
+Open items: LAN discovery and ICE/NAT need his machines and his OK.
+
+Next phase: B11 part 2 -- deathmatch 1 and 2's item rules with VR weapons (level weapons taken and respawned or staying, `vr_item_objects`, force grab), the VR melee and armed systems between players and bots (a blade's hit, a disarm), bots' bodies and hands as clients draw them, FrikBot's walk through vr_pmove, names in the harness (`mp_dm` grown). B10v's VR checks and the ICE/NAT rendezvous service are his.

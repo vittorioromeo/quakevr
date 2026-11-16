@@ -4659,3 +4659,16 @@ His request: bake all 27 title wordings (9 sections x 3) to pick from.
   autosave not listed (`inspectAutosave`; not B13c's code) -- open. Details: MP_PLAN.md, "B13c results".
 - **In VR:** with a friend over the internet, hit a strafing player (shots and melee land where you saw him); as host
   try Debug > Network: Send Rate 36 with `vr_net_hud 2` on the client (bytes down, smoothness of the others).
+
+## MP B13d: B13c's open items (agent/mp, 2026-11-16)
+
+- **Not a single player regression:** mp_flow's missing coop autosave was the harness reading the server's save before
+  it was closed (a file open for writing is not listed); on origin/next, SP's autosave shows in the list and Continue at
+  once. The harness waits for the save's trailer and lists again; `vr_autosave_list cold` names saves passed over and why.
+- **Weapons against the hand, any player** (vr_physics.cpp `weaponAgainstHand`): a later client's hand no longer pushes a
+  lying gun away untaken (entity 1's alone before). SP unchanged (`vr_pickup_test 17` 5/0).
+- **Flakes:** mp_dm `vr_dm_test 3` (the bot's off-hand punch read as its parried sword's blow), mp_ground (reverse grip
+  cosine compared once agreed), mp_browser (least ping of three searches), mp_disarm (A always entity 2; handle retake).
+- MP suite (dev) 39 of 40 clean: mp_flow 16/0, mp_disarm 35/0, mp_dm 22/0, mp_ground 15/0, mp_browser 10/0 in it; mp_armed failed a rate-cap check under `vr_net_rate 6000` (a snapshot in every datagram: 318 of 360), alone 18/0 then 17/1 on another of its rate checks (nearest poses 1.30x the farthest's, wanted 1.35): its real-time rate checks under a busy PC, not B13d's code -- open. SP: scenario_check PASS (138/0), load_models 4/0, vr_run_check 12/0, autosavenow 4/0, vr_pickup_test 17 5/0. Dev and ThinLTO builds 0 warnings. Details: MP_PLAN.md, "B13d results".
+- **In VR:** with a friend as the second player on a dedicated server, push a dropped shotgun along the floor with your
+  closing hand: it is taken.
