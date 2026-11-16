@@ -4,7 +4,8 @@
 
 - The template goes to %APPDATA%/Blackmagic Design/DaVinci Resolve/Support/Fusion/Templates/Edit/Titles/: Resolve's
   Edit page lists it under Effects > Titles > Fusion Titles as "QVR Feature Title".
-- The fonts (Pirata One, Cinzel, IM Fell English; SIL OFL, licences beside them in fonts/) go to
+- The fonts (DpQuake by Dead Pete, free to distribute with its dpquake.txt; Pirata One, Cinzel, IM Fell English, SIL
+  OFL; licences beside them in fonts/) go to
   %LOCALAPPDATA%/Microsoft/Windows/Fonts and are registered under HKCU (Windows' own per-user font install).
 - A launcher, "QVR Apply Titles.py", goes to .../Support/Fusion/Scripts/Edit/: Workspace > Scripts > QVR Apply Titles
   runs apply_titles.py from this folder on titles.txt beside it (so it works without external scripting too).
@@ -14,6 +15,7 @@ it starts: restart it after the first install (an update to an already listed te
 """
 import argparse
 import ctypes
+import filecmp
 import os
 import shutil
 import sys
@@ -21,6 +23,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE = "QVR Feature Title.setting"
 FONTS = [  # file, the name Windows registers it under
+    ("dpquake_.ttf", "DpQuake (TrueType)"),
     ("PirataOne-Regular.ttf", "Pirata One (TrueType)"),
     ("Cinzel-wght.ttf", "Cinzel (TrueType)"),
     ("IMFellEnglish-Regular.ttf", "IM FELL English Roman (TrueType)"),
@@ -33,8 +36,9 @@ def resolve_support():
 
 def copy(src, dst_dir, dry, name=None):
     dst = os.path.join(dst_dir, name or os.path.basename(src))
-    print("  %s -> %s" % (os.path.basename(src), dst))
-    if not dry:
+    same = os.path.isfile(dst) and filecmp.cmp(src, dst, shallow=False)
+    print("  %s -> %s%s" % (os.path.basename(src), dst, " (already there)" if same else ""))
+    if not dry and not same:  # an installed font in use (Resolve running) can't be overwritten: skip identical ones
         os.makedirs(dst_dir, exist_ok=True)
         shutil.copyfile(src, dst)
     return dst
