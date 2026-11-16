@@ -182,7 +182,17 @@ void QuestExtensions::apply(XrSession session, const XrSwapchain (&eyes)[2])
     }
 
     // The fixed foveation, on both eye swapchains (again for new ones: a resized eye image).
-    const float level = vr_xr_foveation.value;
+    // Guarded (C4p, QUEST_PLAN.md 6w): with foveated eye images the Quest's runtime crashed in xrEndFrame within a few
+    // hundred frames (set at launch or mid-game, drawn through the post-process or straight into them), so a level is
+    // only applied when the game was launched with -xrfoveation (to try it).
+    const bool allowed = COM_CheckParm("-xrfoveation") != 0;
+    const float level = allowed ? vr_xr_foveation.value : 0.f;
+    if(foveation && !allowed && vr_xr_foveation.value > 0.f && !foveationRefusedNoted)
+    {
+        foveationRefusedNoted = true;
+        xrruntime::note("OpenXR: vr_xr_foveation %g not applied: it crashed the Quest's runtime (launch with -xrfoveation to "
+                        "try it)\n", static_cast<double>(vr_xr_foveation.value));
+    }
     const bool newEyes = eyes[0] != foveated[0] || eyes[1] != foveated[1];
     if(foveation && eyes[0] != XR_NULL_HANDLE && eyes[1] != XR_NULL_HANDLE &&
         (level != foveationApplied || (newEyes && level > 0.f)))

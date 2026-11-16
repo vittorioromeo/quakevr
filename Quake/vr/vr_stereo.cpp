@@ -100,6 +100,41 @@ bool creatingFoveated = false; // VR_SceneAttachmentFoveation: the eyes' scene c
 int creatingFoveatedParts = 0;  // and which attachments (vr_gl_foveation_parts)
 GLenum foveationIncomplete = 0; // VR_SceneFoveationIncomplete: a foveated eye framebuffer's status while they are made
 GLuint targetFbo = 0;
+// vr_xr_direct 2 (C5's probe, QUEST_PLAN.md 6w): the eye image with a depth/stencil renderbuffer of its own (no texture:
+// a foveated colour beside an unfoveated depth texture may keep the driver from foveating).
+struct DirectTarget
+{
+    GLuint fbo{0};
+    GLuint depth{0};
+    int width{0};
+    int height{0};
+};
+DirectTarget directTarget;
+
+void bindDirectTarget(GLuint image, int width, int height)
+{
+    using GenFn = void (*)(GLsizei, GLuint*);
+    using BindFn = void (*)(GLenum, GLuint);
+    using StorageFn = void (*)(GLenum, GLenum, GLsizei, GLsizei);
+    using AttachFn = void (*)(GLenum, GLenum, GLenum, GLuint);
+    DirectTarget& d = directTarget;
+    if(!d.fbo)
+    {
+        GL_GenFramebuffersFunc(1, &d.fbo);
+        reinterpret_cast<GenFn>(SDL_GL_GetProcAddress("glGenRenderbuffers"))(1, &d.depth);
+    }
+    if(d.width != width || d.height != height)
+    {
+        d.width = width;
+        d.height = height;
+        reinterpret_cast<BindFn>(SDL_GL_GetProcAddress("glBindRenderbuffer"))(GL_RENDERBUFFER, d.depth);
+        reinterpret_cast<StorageFn>(SDL_GL_GetProcAddress("glRenderbufferStorage"))(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
+    }
+    GL_BindFramebufferFunc(GL_FRAMEBUFFER, d.fbo);
+    GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, image, 0);
+    reinterpret_cast<AttachFn>(SDL_GL_GetProcAddress("glFramebufferRenderbuffer"))(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
+        GL_RENDERBUFFER, d.depth);
+}
 
 // vr_render_scale: the eyes are rendered at the scaled size, post-processed into this texture of
 // that size, and resampled (upscale::resample) into the eye image, which keeps the runtime's size.
@@ -1202,7 +1237,18 @@ extern "C" int VR_RenderView()
 
     // Single-pass stereo (vr_stereo_single.cpp, vr_stereo_single): both eyes' views set up first and the passes ported so
     // far drawn once into both; each eye below draws the rest of its scene from its layer.
-    if(stereosingle::wanted(stereo::eyeTargets.fb.scene.samples))
+    const bool singlePass = stereosingle::wanted(stereo::eyeTargets.fb.scene.samples);
+    // C5's first path (vr_xr_direct, QUEST_PLAN.md 6w; a probe, the ES profile only): the eye's scene drawn straight
+    // into its swapchain image, the image in place of the composite target's colour, no post-process (no tone curve:
+    // colours over 1 clip). Only where the eye is drawn at the image's size or into its lower left part (vr_eye_subimage),
+    // one pass an eye (not single-pass stereo), and the image acquired before the scene.
+    const bool direct = vr_xr_direct.value != 0.f && VR_GLESForm(VR_GLES_FORM_GLSL) && !singlePass && !splitTargets &&
+                        !stereo::resampling;
+    // The Quest's runtime crashed in xrEndFrame (C4p, QUEST_PLAN.md 6w) when foveated eye images (vr_xr_foveation) were
+    // acquired after the scene, or their old colours invalidated: with foveation they are acquired first, not invalidated.
+    const bool xrFoveated = VR_Android() && vr_xr_foveation.value > 0.f && COM_CheckParm("-xrfoveation"); // (guarded)
+    const bool late = lateAcquire && !direct && !xrFoveated;
+    if(singlePass)
     {
         framebufs = stereo::eyeTargets.fb;
         vid.width = width;
@@ -1235,12 +1281,24 @@ extern "C" int VR_RenderView()
             za::genericSwap(stereo::eyeTargets, stereo::rightEyeTargets);
             rightTargetsIn = true;
         }
-        if(!lateAcquire && !acquire(eye, false))
+        unsigned eyeImage = 0;
+        if(!late && !(eyeImage = acquire(eye, false)))
         {
             continue;
         }
 
         framebufs = stereo::eyeTargets.fb;
+        const bool directOwn = direct && eyeImage && vr_xr_direct.value >= 2.f;
+        if(directOwn)
+        {
+            stereo::bindDirectTarget(eyeImage, width, height);
+            framebufs.composite.fbo = stereo::directTarget.fbo;
+        }
+        else if(direct && eyeImage)
+        {
+            GL_BindFramebufferFunc(GL_FRAMEBUFFER, framebufs.composite.fbo);
+            GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, eyeImage, 0);
+        }
         vid.width = width;
         vid.height = height;
         glx = gly = 0;
@@ -1268,6 +1326,20 @@ extern "C" int VR_RenderView()
         temporal::endEye();
         stereosingle::endEye();
         R_AliasEyeCacheBegin(0);
+        // vr_xr_direct: the scene went into the image when it needed no scene target (R_SetupGL); the composite target
+        // gets its own colour back either way.
+        const bool drawnDirect = direct && eyeImage && !GL_NeedsSceneEffects();
+        if(directOwn)
+        {
+            framebufs.composite.fbo = stereo::eyeTargets.fb.composite.fbo;
+            GL_BindFramebufferFunc(GL_FRAMEBUFFER, stereo::directTarget.fbo);
+            GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
+        }
+        else if(direct && eyeImage)
+        {
+            GL_BindFramebufferFunc(GL_FRAMEBUFFER, framebufs.composite.fbo);
+            GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebufs.composite.color_tex, 0);
+        }
         tonemap::glProbe(eye, 0, framebufs.scene.fbo, framebufs.composite.fbo, stereo::targetFbo, width, height, shownWidth,
             shownHeight); // (vr_gl_probe: Debug > Startup)
         dynres::testLoad(eye, framebufs.composite.fbo, width, height); // (vr_dynres_test_load: Debug > Profiling)
@@ -1275,8 +1347,11 @@ extern "C" int VR_RenderView()
             QVR_TRACY_SCOPE(zoneFoveated, "eye: foveated end"); // (profiling builds only: the eye's own steps)
             foveated::endScene(); // begun after the scene's clear (VR_DrawHiddenArea)
         }
-        bloom::apply(framebufs.composite.color_tex, width, height); // added by GL_PostProcess
-        if(lateAcquire && !acquire(eye, true))
+        if(!drawnDirect)
+        {
+            bloom::apply(framebufs.composite.color_tex, width, height); // added by GL_PostProcess
+        }
+        if(late && !acquire(eye, true))
         {
             stereo::renderingEye = false;
             continue;
@@ -1288,14 +1363,17 @@ extern "C" int VR_RenderView()
         const bool shotFinal = vr_eyeshot.value > 0.f && vr_eyeshot.value < 2.f;
         const bool shotUi = vr_eyeshot.value >= 3.f;
         profile::begin("postprocess", true);
-        if(!stereo::resampling && stereo::invalidating())
+        if(!stereo::resampling && stereo::invalidating() && !drawnDirect && !xrFoveated) // (foveated: crashed, C4p)
         {
             // The image's old colours: the post-process writes over all of the eye's part of it, the rest unshown.
             constexpr GLenum color0[] = {GL_COLOR_ATTACHMENT0};
             GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, stereo::targetFbo);
             GL_InvalidateFramebufferFunc(GL_DRAW_FRAMEBUFFER, 1, color0);
         }
-        GL_PostProcess(); // into the image, or the resample target (VR_PostProcessTarget)
+        if(!drawnDirect)
+        {
+            GL_PostProcess(); // into the image, or the resample target (VR_PostProcessTarget)
+        }
         if(!shotFinal && !shotUi)
         {
             tonemap::eyeshot(eye, VR_PostProcessTarget(), framebufs.composite.fbo, width, height);

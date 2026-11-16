@@ -495,6 +495,10 @@ za::Vector<Item> pageDebugProfiling()
         command("Foveate Scene Colours and Depth", "vr_gl_foveation_parts 3")
             .help("vr_gl_foveation_parts 3: Scene Foveation on the eyes' colours and their depth/stencil (and 7: the "
                   "order-independent transparency targets too). A framebuffer the driver won't take turns it off."),
+        command("Scene Straight into the Headset's Images", "vr_xr_direct 1; vr_stereo_single 0")
+            .help("vr_xr_direct 1 (a probe, the Quest only): each eye's scene drawn straight into the headset's image, no "
+                  "post-process (no tone curve: bright colours clip), single-pass stereo off; vr_xr_foveation then reaches "
+                  "the scene. vr_xr_direct 0 and vr_stereo_single 1 undo it."),
         command("Add 3 Big Test Lights", "vr_test_dlights 3")
             .help("vr_test_dlights 3: three lasting dynamic lights as big as an explosion's (radius 350), in a row 160 units "
                   "ahead: the cost of big lights on a still scene (vr_test_dlights <count> <radius> <distance>; 0 removes "

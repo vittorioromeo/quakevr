@@ -679,6 +679,13 @@ bool OpenXrBackend::contextReady(const char* what)
     {
         return true;
     }
+    if(now.api == xrgl::Api::Egl && glctx.api == xrgl::Api::Egl && now.context == glctx.context)
+    {
+        // The session's EGL context, current with another surface (mid-game: the window's, where the session was made
+        // with its own): the runtime's GL calls need the context alone. Making the session's surface current again
+        // failed on the Quest (C4p: the eye swapchains made anew for vr_xr_foveation).
+        return true;
+    }
     const bool made = xrgl::makeCurrent(glctx);
     xrruntime::warn("OpenXR: %s: the game's %s context wasn't current on this thread (%s %p instead of %p): made "
                     "current again: %s\n",
