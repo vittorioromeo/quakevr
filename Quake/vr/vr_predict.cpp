@@ -1857,6 +1857,20 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
 namespace qvr::predict
 {
 
+// A bot just off its floor: lava or slime where its box lands straight down (at most 1024 units).
+[[nodiscard]] bool dropsIntoHarm(edict_t* ent)
+{
+    vec3_t end;
+    VectorCopy(ent->v.origin, end);
+    end[2] -= 1024.f;
+    const trace_t t = SV_Move(ent->v.origin, ent->v.mins, ent->v.maxs, end, MOVE_NOMONSTERS, ent);
+    vec3_t feet;
+    VectorCopy(t.endpos, feet);
+    feet[2] += ent->v.mins[2] + 1.f;
+    const int c = SV_PointContents(feet);
+    return c == CONTENTS_LAVA || c == CONTENTS_SLIME;
+}
+
 int botThink(edict_t* ent, const float* move)
 {
     ServerSlot* s = slotOfEdict(ent);
@@ -1883,33 +1897,66 @@ void botWalk(edict_t* ent, float* obstructed)
     }
     const pmove::Input in = s->n > 0 ? s->queue[s->n - 1] : pmove::Input{};
     const glm::vec3 from{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
-    const float speedBefore = sqrtf(ent->v.velocity[0] * ent->v.velocity[0] + ent->v.velocity[1] * ent->v.velocity[1]);
+    const glm::vec2 velBefore{ent->v.velocity[0], ent->v.velocity[1]};
+    const bool groundBefore = (static_cast<int>(ent->v.flags) & FL_ONGROUND) != 0;
     VR_PredictPhysics(ent);
     if(ent->free)
     {
         return;
     }
+    // (B14d) A walk off a ledge into lava or slime (not a jump, not thrown): held at the edge as walkmove holds a monster,
+    // told to its AI as a wall (its way along its speed). FrikBot's look ahead (frik_obstacles: one line 32 units ahead)
+    // misses a stair's or a narrow ledge's side; walked through the players' moves its bots went into dm4's lava every
+    // few seconds.
+    if(groundBefore && !in.jump && !(static_cast<int>(ent->v.flags) & FL_ONGROUND) && ent->v.velocity[2] <= 0.f &&
+        ent->v.health > 0.f && dropsIntoHarm(ent))
+    {
+        VectorCopy(&from[0], ent->v.origin);
+        ent->v.velocity[0] = ent->v.velocity[1] = ent->v.velocity[2] = 0.f;
+        ent->v.flags = static_cast<float>(static_cast<int>(ent->v.flags) | FL_ONGROUND);
+        SV_LinkEdict(ent, false);
+        VR_PmoveTrace(ent);
+        const float speed = glm::length(velBefore);
+        if(speed > 1e-3f)
+        {
+            obstructed[0] = velBefore.x * static_cast<float>(in.dt);
+            obstructed[1] = velBefore.y * static_cast<float>(in.dt);
+        }
+        return;
+    }
     SV_LinkEdict(ent, true); // (SV_Physics_Client's: the triggers it stands in touched)
-    // Held by a wall: how far short of its stick's want (SV_AirMove's wish on its yaw, at most the rules' speed, reached
-    // as SV_Accelerate reaches it from its speed before) the frame's walk took it, as FrikBot's PostPhysics measured its own.
+    VR_PmoveTrace(ent);      // (a bot's walk runs from QuakeC's frame, not SV_Physics_Client: its line here)
+    // Held by a wall: how far short of its stick's want along the wish (SV_AirMove's wish on its yaw, at most the rules'
+    // speed, reached as SV_Accelerate reaches it from its speed before along that way) the frame's walk took it, as
+    // FrikBot's PostPhysics measured its own (a walkmove to its physics' place failing: a wall). Along the wish only
+    // (B14d): its speed before as a length, or the way across it, counted a turn or a stop as a wall, and the hold told
+    // each frame cleared the ledge's obstruction frik_obstacles had just set (the bots walked off dm4's ledges into
+    // the lava: frik_obstructed with no danger clears a held AI_OBSTRUCTED).
     if(!s->notes.wall || s->notes.swim || (in.forward == 0.f && in.side == 0.f))
     {
         return;
     }
     const float yaw = DEG2RAD(in.steer[YAW]);
     const glm::vec2 fwd{cosf(yaw), sinf(yaw)}, right{sinf(yaw), -cosf(yaw)};
-    glm::vec2 wish = fwd * in.forward + right * in.side;
+    const glm::vec2 wish = fwd * in.forward + right * in.side;
     const float wishSpeed = glm::length(wish);
     if(wishSpeed < 1e-3f)
     {
         return;
     }
+    const glm::vec2 way = wish / wishSpeed;
     const pmove::Rules& r = s->rules;
-    const float want = q_min(q_min(wishSpeed * r.stickScale, r.maxspeed),
-        speedBefore + r.accelerate * q_min(wishSpeed, r.maxspeed) * static_cast<float>(in.dt));
-    wish *= want * static_cast<float>(in.dt) / wishSpeed;
-    obstructed[0] = wish.x - (ent->v.origin[0] - from.x);
-    obstructed[1] = wish.y - (ent->v.origin[1] - from.y);
+    const float top = q_min(wishSpeed * r.stickScale, r.maxspeed);
+    const float along = glm::dot(velBefore, way);
+    const float want = along >= top ? along : q_min(top, along + r.accelerate * top * static_cast<float>(in.dt));
+    const glm::vec2 moved{ent->v.origin[0] - from.x, ent->v.origin[1] - from.y};
+    const float shortBy = want * static_cast<float>(in.dt) - glm::dot(moved, way);
+    if(want <= 0.f || shortBy <= 0.f)
+    {
+        return;
+    }
+    obstructed[0] = way.x * shortBy;
+    obstructed[1] = way.y * shortBy;
 }
 
 } // namespace qvr::predict
