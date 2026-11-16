@@ -664,9 +664,17 @@ za::Vector<Item> pageDebugTests()
                   "(vr_footstep_report). vr_footstep_test 2: 32 grunts hunting you, for the nearest-win budget."),
         command("Shoot Yourself: Aimed", "developer 1; vr_selfshot_test 1")
             .help("vr_selfshot_test 1 (God mode off): your main hand shoots your off hand's palm, your off forearm and "
-                  "your thigh, and two nails into the forearm (one started inside it): each hits that part, hurts, buzzes "
-                  "the off hand and leaves its wound right there. Your head, the option off and another player: never. "
-                  "In a headset it aims from wherever your hands are (hold the off hand out ahead)."),
+                  "your thigh, two nails into the forearm (one started inside it) and a flare into it (you catch fire): "
+                  "each hits that part, hurts, buzzes the off hand and leaves its wound right there. Your head, the option "
+                  "off and another player: never. In a headset it aims from wherever your hands are (hold the off hand out "
+                  "ahead)."),
+        command("Looping Sounds: Chainsaw Knight", "developer 1; god; notarget; vr_v1116_test 1")
+            .help("vr_v1116_test 1 (a map with room ahead): a knight with a chainsaw ahead of you, five times: disarmed, "
+                  "killed, gibbed, shoved down then killed, removed. Listen: its engine stops each time (a dropped one "
+                  "runs on a few seconds, then stalls). vr_snd_loops lists the loops still playing."),
+        command("Wet Check: Nothing Wet Near", "vr_drips_check wetcheck 0")
+            .help("vr_drips_check: lists the things (monsters, bodies, gibs) the drips count as wet, and fails if any is: "
+                  "near no water, none should be (no wet shine on them)."),
         command("Shoot Yourself: Ordinary Firing", "developer 1; vr_selfshot_test 2")
             .help("vr_selfshot_test 2: both hands fire a blast, a nail and a bolt's line from nine ordinary poses (dual, "
                   "arms crossed, cupped, pointing down, kicked up, from the hip, turned): none may hit you."),
@@ -1566,6 +1574,11 @@ za::Vector<Item> pageDebugTests()
                   "its opening, 5 headings and 4 speeds, from 64 units out: each time you should be carried through "
                   "seamlessly (a pwt| line a try, then 'walktest: N passed, M failed'). On dm5: Teleporters: you walk "
                   "through dm5's teleporters (Checklist Test)."),
+        command("Check Teleporter Exits (Test)", "vr_portals_selfview_test sides")
+            .help("vr_portals_selfview_test sides: for each teleporter in this map, an eye leant back across where it "
+                  "comes out: drawn from the entrance only for a two-way gate (its exit is another gate's face), never "
+                  "for a one-way exit in the open (start's by the start), then 'vr_portals_selfview_test: N passed, M "
+                  "failed'. The Checklist has a Test scene at start's one-way exit to try it in the headset."),
         header("Cheats"),
         command("God Mode", "god").help("god: takes no damage (again: takes damage)."),
         command("Quad Damage", "impulse 255").help("Quad Damage for 30 seconds."),

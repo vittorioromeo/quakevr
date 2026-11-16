@@ -30,6 +30,7 @@ dispatch vr_pp_test QC/vr_playerplates_test.qc VR_PP_TestFrame ask
 dispatch vr_flatitems_test QC/vr_flatitems_test.qc VR_FlatItemsTest_Frame ask
 dispatch vr_flatgate_test QC/vr_flatgate_test.qc VR_FlatGateTest_Frame ask
 dispatch vr_selfshot_test QC/vr_selfshot_test.qc VR_SelfShotTest_Frame ask
+dispatch vr_v1116_test QC/vr_v1116_test.qc VR_V1116Test_Frame vr_v16_on
 dispatch vr_pd_test QC/vr_playerdisarm_test.qc VR_PlayerDisarmTest_Frame ask
 dispatch vr_dm_test QC/vr_dmrules_test.qc VR_DMRulesTest_Frame ask
 dispatch vr_projinherit_test QC/vr_projinherit_test.qc VR_ProjInheritTest_Frame ask
@@ -731,8 +732,10 @@ vr_flatgate_test 1        vr_flatgate_test.qc              flat-screen: walks th
 vr_flatgate_test 2        vr_flatgate_test.qc              flat-screen: a plain teleporter (vr_portals_walk 0) still sets the view
 vr_flatgate_test 3        vr_flatgate_test.qc              flat-screen: a level change starts level
 
-vr_selfshot_test 1        vr_selfshot_test.qc              shooting yourself: shots and nails aimed at your palm, forearm, thigh: hit there, damage, buzz, wound at the point; the head met (headshot multiplier, pain sound mid-fire); a grunt's hit mid-fire: pain sound, rate-limited; option off, another player: never
+vr_selfshot_test 1        vr_selfshot_test.qc              shooting yourself: shots, nails and a flare (you catch fire) aimed at your palm, forearm, thigh: hit there, damage, buzz, wound at the point; the head met (headshot multiplier, pain sound mid-fire); a grunt's hit mid-fire: pain sound, rate-limited; option off, another player: never
 vr_selfshot_test 2        vr_selfshot_test.qc              shooting yourself: ordinary firing from a grid of hand poses, both hands: no self-hit
+vr_v1116_test 1          vr_v1116_test.qc                 a chainsaw knight disarmed, killed, gibbed, shoved then killed, removed: no looping sound left playing (vr_snd_loops)
+vr_v1116_test 2          vr_v1116_test.qc                 e1m1's slime bridge grunts killed: nothing wet (vr_drips_check), again after a save and a load
 vr_pd_test       1        vr_playerdisarm_test.qc          the player disarmed: a grunt's blast across your gun knocks it out (forced certain), it lies on the floor with its clip; across your body: no; an enforcer's laser across the gun: out; vr_player_disarm 0: never
 vr_pd_test       2        vr_playerdisarm_test.qc          melee on you holding the shotgun out: a gun-and-axe grunt and an axe-only one, 4 blows each: every blow held back ends, landed blows hurt, each roll on your weapon knocks it out (flat-screen too)
 vr_dm_test       1        vr_dmrules_test.qc               deathmatch with a human and a bot (mp_test.py dm): dm 1 a weapon taken, gone, back after its wait, the bot's let-go weapon removed in 10 s; dm 2 it stays, not taken twice; PvP shots between the human and the bot knock weapons out (sounds), PvP off nothing, PvE only when on

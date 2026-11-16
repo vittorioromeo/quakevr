@@ -3986,3 +3986,118 @@ His flat-screen notes (2026-11-16) and the coordinator's disarm-sound item.
 - **Dedicated server**: the client's cvars its QC reads (`r_wateralpha`, `v_i*_level`) are registered at their defaults
   (they were unknown handles, and every QC test on a dedicated server failed on them).
 - Details and what is left (bots' bodies, FrikBot through vr_pmove, parry with bots): MP_PLAN.md, "B11 part 2 results".
+## vr1116a: wet shine on the never wet, looping sounds that never stopped, your own flare (branch agent/vr1116a, 2026-11-16)
+
+His notes e1m1_2026-11-16_00-59-25, _01-00-01, e1m2_2026-11-16_01-02-28, vrtesthall_2026-11-16_00-47-47, _00-40-33.
+
+**Wet shine.** Not the wetglint change itself: the drips (vr_drips.cpp `scan`) take a model's box from its frames' bounds,
+and its bottom (`lo.z + 1`) was tested against the world's leaves only. e1m1's bridge over the slime (the grunts by the
+four buttons' door, entities 113 and 118) and e1m2's lifts and bridges over water: the box's bottom lies under the floor,
+inside the bridge's brush, in the slime leaf below it, so the grunts were "in slime up to 16" for ever (soaked every
+scan, never drying; the corpse kept it). Now `groundBox`: over a liquid by the leaves, the bottom is brought up to the floor
+a line from the box's middle meets (`worldtrace::world`: the world and the moving brush models); only things over a liquid
+pay for the trace. Keyed values checked: drips' records are keyed by the cl_entities slot and were forgotten only when the
+slot went unsent (a slot freed and reused within a scan kept them): now also forgotten on the server's removal (wounds'
+KindClear, as the wound masks and dents already were: `drips::forget`). The save's "// qvrwet" lines are matched by edict
+number at the load, which a load restores as saved: right. The wound masks' `wetLeft` decays and is freed with the mask.
+Test `vr_v1116_test 2` (e1m1, `setpos 835 1910 -380`): the grunts killed where they stand (their own blow: no push off
+the bridge), `vr_drips_check` (new; Debug > Tests > Wet Check) 2 s on and again after a save and load: before the fix
+113 and 118 were wet standing; now 1 passed + 1 passed. e1m2 by the ogre's spot: nothing wet.
+
+**Looping sounds.** A loop (a sample with a cue point) plays on its entity's channel until another sound replaces it. The
+server now keeps which entity channels play a loop (vr_server.cpp `VR_SoundLoopNote`, the loop flag read once a map from
+the wav's cue chunk, GetWavinfo): a sound that replaces a loop (misc/null.wav, the stall) goes with the reliable messages
+(a broadcast's sounds are dropped when it is full, as in a big fight: then the knight's idle played on with nothing to
+end it), and an edict freed with a loop still on it has the loop stopped, reliably (`VR_SoundLoopsFreed` from ED_Free:
+the knight's chainsaw removed with its gibbed or freed holder, a flamethrower's tank, a flare, a burning body's fire,
+whatever removes it). QC: the freed-holder path silenced its chainsaw too, and a drop resets the knight's saw sound state
+(taken up again, its idle plays afresh). `vr_snd_loops` lists the loops playing. Test `vr_v1116_test 1` (vrtesthall;
+Debug > Tests > Looping Sounds): a chainsaw knight disarmed, killed, gibbed, shoved then killed, removed: one loop while
+it idles, none `vr_chainsaw_drop_run` + 1.5 s after each: sawloops 10 passed, 0 failed.
+
+**Your own flare.** `VR_Burn_Ignite` refused any victim who was the attacker; now it allows the self-hit being dealt
+(`VR_SelfShot_Live`: your flare, a lava nail into your own body or arms). The self-hit path otherwise matches the enemy
+path: T_Damage (armour, the plate, Quad; vr_selfshot_damage for vr_damage_self), the wound at the point, blood, the
+knockback from the missile, the hand's buzz. Melee-only differences (push, motion credit, Quad sound) don't apply to shots;
+disarm hooks excluded per the brief. `vr_selfshot_test 1` gains a flare at the off forearm: struck, damage, buzz, wound,
+on fire: 34 passed, 0 failed (29 before).
+## One-way teleporter exits: hands stay, no self view (agent/vr1116b, 2026-11-16)
+
+Note start_2026-11-16_00-54-53: at start's exit by the start (the hub's teleporter back, side 3: its exit plane y 280,
+normal +y, no gate there), crossing that plane hid his hands and showed him himself in a teleporter.
+- Cause: an unpaired side's exit (`reverseSide`, a plane in the open) was still an aperture for two client-side things.
+  `eyeThrough`'s "back" case (body in front of an exit, eye behind it: meant for the frame after a carry, eye still
+  behind a paired gate's face) drew the eye from the entrance in the hub: looking through that gate he saw the start
+  room and his own body, his hands not drawn there. And `VR_PortalAlias` let the player's own models (hands, guns, held
+  things) be cut by an unpaired exit (the 10-07 change exempted `own` from its "only what moves out" rule): the part
+  behind the plane was drawn back at the hub.
+- Fix (vr_portals.cpp): `eyeThrough` takes the back case only for a paired side; `VR_PortalAlias` never cuts own models
+  at an unpaired exit; `VR_PortalAddPVS` sends the entrance's room for an exit straddle only for a paired side. Paired
+  gates (vrteleporters, two-way custom maps) are unchanged; entrances unchanged.
+- `vr_portals_selfview_test start | end | sides` (Debug > Teleporters, "Check Teleporter Exits (Test)" runs `sides`):
+  each side's exit with a body 6 units in front and an eye 6 behind (carried only if paired and open); `end` also checks
+  the live set-up (eye straddles a one-way exit) and, since `start`, eyes drawn / from another room, own models drawn /
+  cut. `Misc/quakevr/teleporters/selfview_test.sh <agent>`: start, body 8 in front of the exit, head 0.35 m back tilted
+  up (eye 3.0 behind the plane, body 4.8 in front), hands on the plane: 11 passed, 0 failed; without the fix 3/8 (120 of
+  120 eyes drawn from the hub, 4320 own-model draws cut).
+- Sweep (`sides`): start, e1m2, e1m3, e1m5, e1m7, e2m3, e2m6, e3m2, e3m6, e4m3, e4m7, dm2, dm5 all pass (all unpaired);
+  vrteleporters 32/0 (35 paired sides carried as before); AD: ad_azad 3/0, AD's start, ad_tears, ad_magna no recognised
+  sides. turned_exit_test 2/0; teleporter_cross_test cases as its header expects.
+- Checklist Test scene `start_oneway_exit` (start 544 288 24, yaw 90).
+- Follow-up (agent/trailertitles2): title in DpQuake (Dead Pete's Quake font, shipped with its required
+  `dpquake.txt`), lit as embossed metal: the glyph alpha is blurred into a height map and shaded by two Fusion Custom
+  tools (normals from the height gradient; a fixed top-left key light plus a point light sweeping across the title,
+  Blinn-Phong highlights; bronze tint, grime in the cavities, rust patches), dark outline and drop shadow. Blood: a
+  coat on the strokes' lower edges and drips (one-sided directional smears of the glyphs, per-column hashed) that
+  lengthen through the hold, with its own relief lit by the same lights (wet glints, slow glisten). New inputs: Blood,
+  Metal Tint, Relief Depth, Light Sweep, Sweep Direction / Start / Length, Title Tracking (Title Colour is gone: the
+  metal tint replaces it). Lighting and blood run on a crop around the title (0.25 s/frame at 1080p; the full-frame
+  first try was 1.5 s). DpQuake draws Q/q as the Quake logo: apply_titles sets Cinzel Bold on every Q, q, ~ and
+  non-ASCII character through a StyledTextCLS modifier (TitleCLS), by exporting the item's comp, writing the styling
+  array and importing it back (scripting can't set a StyledText). install_titles skips identical installed fonts
+  (an installed font in use can't be overwritten). Checked: two titles at 1080p60, a 4K section render, "Quad Damage".
+
+## Installer: desktop flat-screen shortcut (flatshortcut, 2026-11-16)
+
+- `ShortcutOptions.DesktopFlat` (default on) adds "Quake VR Unleashed (Flat Screen)" to the desktop; the options page has a checkbox "Desktop shortcut for flat-screen play" (disabled when the desktop shortcut is off); recorded as `InstallChoices.DesktopFlatShortcut`.
+- Old records lack the field and read false: updates keep their old behaviour; fresh installs get it. The Start menu's flat shortcut is unchanged; with the Start menu off, the desktop one is the only flat one (no duplicate path).
+- Self-tests extended (41/41): planner counts, fresh install, off, update, uninstall, old record.
+- Follow-up (agent/trailertitles3), his feedback: blood behind the text, subtle drop shadows. MergeBlood now sits under
+  MergeTitle (order: scrim, title shadow, glow, ink, blood, metal, rule, subtitle shadow, subtitle). The blood coat
+  moved off the strokes (it would be hidden): BloodCov covers the glyph plus a band hanging 11 px below its lower edges
+  and noise patches seeping 5 px around it, so the relief and glints show on the visible rim; drips unchanged. The
+  title's drop shadow (already there, fixed 0.85 / 9 px / ~5 px) is driven by new inputs Shadow Opacity 0.8, Shadow
+  Softness 9 and Shadow Offset 6 (px at 1080p, down-right) and follows the in/out blur; the subtitle gets its own
+  (SubAlpha/SubShadowFill/Shift/Blur, MergeSubShadow under SubMask) at half softness and offset. Checked: the two-title
+  preview re-rendered (contact sheet, closeups); shadows measured against the trailertitles2 render (subtitle box 2.9%
+  of pixels darker by >3 levels, 0.1% lighter).
+
+## arenafix: the audit's arena_6 and arena_10 (agent/arenafix, 2026-11-16)
+
+The 1.1 readiness audit's baseline regressions. Both were the tests, not the game; both already failed in the
+2026-11-14 and 11-15 baselines (so older than the RC). Only `QC/vr_arena_test.qc` changed.
+
+- **arena_10 (timeout).** `VR_AT10_Tables` ran 36 cells of 400 armour rolls and 120 plans in one QC call; past 16
+  million statements that is a runaway loop error (Host_Error). The test never printed a verdict and the run waited
+  for its timeout. The armed-humanoid and mutator work of 11-13 made the rolls and plans slightly more expensive,
+  which was enough. In real play a plan runs once per wave and stays far below the limit. Fix: the tables run in
+  parts, one per frame (`vr_at10_part`: the gates, then one part per skill with its rolls and plans, then the rest),
+  and the live wave-5 check follows. Result: 160 passed, 0 failed, the same as the 10-30 baseline.
+- **arena_6 (6/2), "no broken guns".** The audit's runner runs it undrawn (`vr_mock_fast 2`). That run plays out
+  differently, and one of the axes a foe dropped stuck in a wall (`vr_embed`, on since 11-08). A stuck blade has no
+  rigid body while it is stuck, and the scan counted that as "no rigid body". Stuck blades (`VR_AxeStick_IsStuck`)
+  are now skipped in that check.
+- **arena_6, "the map grows no faster than a wave clear's drops".** Test 6 is the only arena test besides 42 that
+  follows the run's director, so since 11-11 it soaks the budget director. Its later waves are bigger, so more gibs,
+  limbs, debris and live foes are in the count at each wave's start. The mock player's hands also swap guns that land
+  at its feet, and each swap leaves its own gun on the floor. The arena's gun cap never counts a gun a player dropped
+  (`vr_monster_drop` 0). That is by design, and so is keeping stuck blades. The floor went 191 -> 214 (limit 13). The
+  per-class counts at each window's wave starts showed no class growing steadily except these guns. Fix:
+  `VR_AT6_Passing` leaves out of the count the things that go away by themselves, the live foes, the player's own
+  guns and stuck blades (with their records). Each wave in the windows prints its count. Result: undrawn 119 -> 123,
+  drawn 119 -> 121; 8 passed, 0 failed both ways (the soak's longest wave was 224-233 s, under AR_STALL 300).
+- **ragdoll_stagger 54/3** (was 52/5): this is the known open item (BACKLOG section 1, "ragdoll_stagger: what is
+  left"), and it is slightly better than before. Not touched.
+- **teleporters_chase 5/1**: the same case fails the same way in the 11-14 baseline ("chase dog at framed_sill32:
+  never reached the north room", seed 3), which is older than the one-way teleporter change (vr1116b). It is not
+  related to that change. Not touched.

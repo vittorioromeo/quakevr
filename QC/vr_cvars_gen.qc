@@ -2053,6 +2053,7 @@ float cvarh_vr_trailer_log;
 float cvarh_vr_trailer_reset;
 float cvarh_vr_tutorial_goto;
 float cvarh_vr_tutorial_started;
+float cvarh_vr_v1116_test;
 float cvarh_vr_verbosebots;
 float cvarh_vr_walltorch;
 float cvarh_vr_walltorch_damage;
@@ -4160,6 +4161,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_trailer_reset = VR_CVar_Make("vr_trailer_reset");
     cvarh_vr_tutorial_goto = VR_CVar_Make("vr_tutorial_goto");
     cvarh_vr_tutorial_started = VR_CVar_Make("vr_tutorial_started");
+    cvarh_vr_v1116_test = VR_CVar_Make("vr_v1116_test");
     cvarh_vr_verbosebots = VR_CVar_Make("vr_verbosebots");
     cvarh_vr_walltorch = VR_CVar_Make("vr_walltorch");
     cvarh_vr_walltorch_damage = VR_CVar_Make("vr_walltorch_damage");

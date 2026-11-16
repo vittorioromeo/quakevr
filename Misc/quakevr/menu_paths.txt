@@ -5968,6 +5968,7 @@ vr_portals_debug_split|2|Debug - Tests|Print Gate Cuts|Advanced VR Options > Deb
 |2|Debug - Tests|Stuck in a Teleporter's Wall?|Advanced VR Options > Debug > Tests > Stuck in a Teleporter's Wall?
 vr_portals_unstick|2|Debug - Tests|Get Out of a Teleporter's Wall|Advanced VR Options > Debug > Tests > Get Out of a Teleporter's Wall
 |2|Debug - Tests|Walk Into Every Teleporter (Test)|Advanced VR Options > Debug > Tests > Walk Into Every Teleporter (Test)
+|2|Debug - Tests|Check Teleporter Exits (Test)|Advanced VR Options > Debug > Tests > Check Teleporter Exits (Test)
 |2|Debug - Tests|God Mode|Advanced VR Options > Debug > Tests > God Mode
 |2|Debug - Tests|Quad Damage|Advanced VR Options > Debug > Tests > Quad Damage
 |2|Debug - Tests|All Weapons|Advanced VR Options > Debug > Tests > All Weapons

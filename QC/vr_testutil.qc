@@ -166,6 +166,7 @@ void() VR_TestsFrame =
     VR_Footstep_TestFrame(); // VR: the enemies' footsteps' test (vr_footstep_test, vr_footstep_test.qc)
     VR_CrouchTest_Frame(); // VR: the crouched box's shots test (vr_crouch_test, vr_crouch_test.qc)
     VR_SelfShotTest_Frame(); // VR: shooting yourself (vr_selfshot_test, vr_selfshot_test.qc)
+    VR_V1116Test_Frame(); // VR: his 11-16 notes: looping sounds stopped, no wet shine on the never wet (vr_v1116_test, vr_v1116_test.qc)
     VR_PlayerDisarmTest_Frame(); // VR: the player disarmed (vr_pd_test, vr_playerdisarm_test.qc)
     VR_DMRulesTest_Frame(); // VR: deathmatch's rules with VR weapons and bots (vr_dm_test, vr_dmrules_test.qc)
     VR_ProjInheritTest_Frame(); // VR: what projectiles keep of your motion (vr_projinherit_test, vr_projinherit_test.qc)

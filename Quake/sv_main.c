@@ -360,7 +360,7 @@ void SV_StartSound (edict_t *entity, int channel, const char *sample, int volume
 void SV_StartSoundPitch (edict_t *entity, int channel, const char *sample, int volume, float attenuation, float pitch)
 {
 	int			sound_num, ent;
-	int			i;
+	int			i, reliable;
 	vec3_t		origin;
 
 	if (volume < 0 || volume > SND_VOLUME_MAX) // QVR: over 255 louder than full (SND_LOUD)
@@ -373,11 +373,6 @@ void SV_StartSoundPitch (edict_t *entity, int channel, const char *sample, int v
 		Host_Error ("SV_StartSound: channel = %i", channel);
 
 	ent = NUM_FOR_EDICT(entity);
-	if (sv.datagram.cursize > MAX_DATAGRAM-24)
-	{
-		VR_SoundLog (ent, channel, sample, volume, 2); // QVR: vr_debug_sound_log (vr/vr_server.cpp)
-		return;
-	}
 
 // find precache number for sound
 	for (sound_num = 1; sound_num < MAX_SOUNDS && sv.sound_precache[sound_num]; sound_num++)
@@ -393,7 +388,15 @@ void SV_StartSoundPitch (edict_t *entity, int channel, const char *sample, int v
 		return;
 	}
 
-	if (VR_GoreSoundMutes (ent, channel)) // QVR: its cry while it chokes (vr/vr_goresound.cpp)
+	// QVR: a loop's end (or a loop again after one this frame) goes reliably: never lost from a full broadcast (vr/vr_server.cpp)
+	reliable = VR_SoundLoopNote (ent, channel, sound_num);
+	if (!reliable && sv.datagram.cursize > MAX_DATAGRAM-24)
+	{
+		VR_SoundLog (ent, channel, sample, volume, 2); // QVR: vr_debug_sound_log (vr/vr_server.cpp)
+		return;
+	}
+
+	if (!reliable && VR_GoreSoundMutes (ent, channel)) // QVR: its cry while it chokes (vr/vr_goresound.cpp)
 	{
 		VR_SoundLog (ent, channel, sample, volume, 3);
 		return;
@@ -403,7 +406,9 @@ void SV_StartSoundPitch (edict_t *entity, int channel, const char *sample, int v
 // directed messages go only to the entity the are targeted on
 	for (i = 0; i < 3; i++)
 		origin[i] = entity->v.origin[i]+0.5*(entity->v.mins[i]+entity->v.maxs[i]);
-	if (SV_WriteSound (&sv.datagram, ent, channel, sound_num, volume, attenuation, origin, pitch))
+	if (reliable)
+		SV_WriteSound (&sv.reliable_datagram, ent, channel, sound_num, volume, attenuation, origin, pitch);
+	else if (SV_WriteSound (&sv.datagram, ent, channel, sound_num, volume, attenuation, origin, pitch))
 		VR_BroadcastMessageEnd (); // QVR: a boundary (vr/vr_server.cpp)
 }
 

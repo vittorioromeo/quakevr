@@ -2269,6 +2269,7 @@ QVR_CVAR(vr_dropcap_test, "0", CVAR_NONE)                  // the QC tests the c
 QVR_CVAR(vr_dropcap_test_n, "0", CVAR_NONE)
 QVR_CVAR(vr_prop_impact_test, "0", CVAR_NONE)              // the QC runs the props' impact rule test n (vr_propimpact_test.qc; Debug > Gore Tests): 1 every kind tapped, hit, struck hard, smashed held, thrown; propimpact: lines; 4 a fuel tank and a crate as heavy thrown at a grunt and an ogre (fueltankhit: lines)
 QVR_CVAR(vr_footstep_test, "0", CVAR_NONE)               // 1: each biped in turn walks, then runs, by the player; the steps' report (QC vr_footstep_test.qc; vr_footsteps.cpp), `footstep_test: N passed, M failed`
+QVR_CVAR(vr_v1116_test, "0", CVAR_NONE)                 // his 11-16 notes (vr_v1116_test.qc; Debug > Tests > Looping Sounds / Wet Check): 1 a chainsaw knight's loops stopped on each transition; 2 e1m1's bridge grunts never wet
 QVR_CVAR(vr_selfshot_test, "0", CVAR_NONE)               // shooting yourself (vr_selfshot_test.qc; Debug > Tests > Shoot Yourself): 1 aimed at your palm, forearm, thigh; 2 ordinary firing never hits you
 QVR_CVAR(vr_grenfuse_test, "0", CVAR_NONE)             // one fuse for every grenade and the launched ones' countdown (vr_grenfuse_test.qc; Debug > Tests > Grenade Fuses)
 QVR_CVAR(vr_projinherit_test, "0", CVAR_NONE)           // what projectiles keep of your motion (vr_projinherit_test.qc; Debug > Tests > Projectiles Keep Your Motion): 1 mock headset: strafe and hand swing; 2 flat-screen (-flatscreenmode): a fast turn adds nothing
