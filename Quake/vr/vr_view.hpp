@@ -512,6 +512,12 @@ void woundTargets(entity_t* out[3]);
 // Multiplayer (MP_PLAN.md, B2b): the hands and held weapons as drawn last ([0] off, [1] main), for the move (the other
 // players draw them: vr_mpavatar.cpp). A weapon whose model the server has not precached is left out (others can't name it).
 void netHands(VrDrawnHand out[2]);
+// Another player's hands placed by the code that places yours (setupWeapon, setupHand; MP_PLAN.md, B11 part 3): a bot's,
+// which no client draws, from its controllers (`pos`, `rot`, world; [0] off, [1] main) and the weapons in them
+// (`model`: model_precache indices, 0 an empty hand; `frame`), written as netHands writes yours (world). His own
+// drawing state (his hands' fit eased from frame to frame) is kept per player entity `player`, swapped in for it.
+void solveHands(int player, const glm::vec3 pos[2], const glm::vec3 rot[2], const int model[2], const int frame[2],
+    VrDrawnHand out[2]);
 // ... and the holsters as drawn last (B6b): their points and the weapons in them, in body::Holster's order (their stats').
 void netHolsters(VrDrawnHolsters& out);
 

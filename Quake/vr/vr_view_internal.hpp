@@ -571,6 +571,11 @@ void place(view::ViewEntity& ve, qmodel_t* model, const glm::vec3& origin, const
 // to the weapon (the ammo screen, the button) is placed from it, never from the hand.
 inline bool weaponCarried[2]{}; // the weapon in the hand is a gun carried by its foregrip (twohand::carriedWeapon)
 inline twohand::HeldAs drawnAs[2]{{glm::vec3{0.f}, glm::vec3{0.f}, true}, {glm::vec3{0.f}, glm::vec3{0.f}, false}};
+// setupWeapon and setupHand placing another player's hands (view::solveHands: a bot's, MP_PLAN.md B11 part 3): his own
+// drawing state swapped in (his jointed hands, his weapons' and hands' entities, his curls), and what only the local
+// player has left out (the hand-off's carry, the reverse grip, a blade in a body, held props and limbs, the torch, the
+// hands on each other's weapon, the reload's parts, the draw from a holster, the morph, the physics' record of the gun).
+inline bool otherSubject{false};
 [[nodiscard]] glm::vec3 composeAngles(const glm::vec3& rot, const glm::vec3& offsets);
 [[nodiscard]] glm::vec3 weaponAngleOffsets(int slot, bool mirrored);
 [[nodiscard]] glm::vec3 idleAttachmentAngles(const glm::vec3& aliasAngles, int slot, bool mirrored, const glm::vec3& offsets);

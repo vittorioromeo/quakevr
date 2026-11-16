@@ -4253,6 +4253,8 @@ def voice(s, listen=False, lag=0.0, jitter=0.0, loss=0.0):
 DM_MAP = "dm4"          # (B11) a small deathmatch map with FrikBot's waypoints compiled in (QC/waypoints)
 DM_FRAGLIMIT = 3
 DM_TIMELIMIT = 8        # minutes: QC's own end of the match (a safety net: the fraglimit must end it first)
+BOT_HAND_GAP = 12.0     # units: a bot's jointed hand drawn at most this far from its controller (B11 part 3)
+BOT_GUN_GRIP = 24.0     # units: ... its gun's model origin at most this far from the hand holding it
 
 
 def frag_table(inst, since=0):
@@ -4324,6 +4326,32 @@ def deathmatch(s):
     moving = [wait_or_none(a, r"mp_move: .*ent=%d self=0" % (slot + 1), 30, since_a) or
               wait_or_none(b, r"mp_move: .*ent=%d self=0" % (slot + 1), 5, since_b) for slot in bots]
     s.check("the bots move (A or B sees each move off)", all(moving), "%s" % moving)
+
+    # (B11 part 3) the bots' bodies: no client draws a bot's hands, so the server sends its controllers and weapons and
+    # each client places them by its own hands' code (view::solveHands: setupWeapon, setupHand), then poses its body on
+    # them as any player's (seen by A or B, whichever has a bot in sight first)
+    solved, posed = None, None
+    for _ in range(40):
+        for c in (a, b):
+            since_s = c.mark()
+            c.cmd("vr_mp_avatars")
+            c.wait(r"mp_avatar_own:", 5, since_s, "an avatars report")
+            for l in c.lines[since_s:]:
+                m = re.match(r"mp_solved: ent=(\d+) hand0=(\d) gap0=(\S+) wpn0=(\S+) grip0=(\S+) hand1=(\d) gap1=(\S+) "
+                             r"wpn1=(\S+) grip1=(\S+)", l)
+                if m and int(m.group(1)) - 1 in bots and m.group(6) == "1" and m.group(8) != "-":
+                    solved = solved or l.strip()
+                    body = body_of(c.lines[since_s:], "mp_body").get(int(m.group(1)))
+                    posed = posed or body
+        if solved and posed:
+            break
+    s.metric("dm_bot_hands", solved)
+    g = re.match(r"mp_solved: ent=\d+ hand0=(\d) gap0=(\S+) wpn0=\S+ grip0=\S+ hand1=(\d) gap1=(\S+) wpn1=(\S+) "
+                 r"grip1=(\S+)", solved or "")
+    s.check("a bot's hands placed by the client's own code: both jointed hands drawn, its gun in its main hand at its "
+            "controller", bool(g) and g.group(1) == "1" and g.group(3) == "1" and float(g.group(2)) < BOT_HAND_GAP and
+            float(g.group(4)) < BOT_HAND_GAP and float(g.group(6)) < BOT_GUN_GRIP, "%s" % solved)
+    s.check("its body posed on them (mp_body, as any player's)", bool(posed), "%s" % (posed and posed.get("model")))
 
     # A is killed by the first bot (the server's vr_hurt with the bot as attacker: a real death, QC's ClientObituary
     # giving the bot his frag) and his trigger brings him back (PlayerDeathThink: the buttons up, then one down), until

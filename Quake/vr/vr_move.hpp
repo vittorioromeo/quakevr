@@ -38,6 +38,10 @@ struct VrDrawnHand
     static constexpr za::U8 handMirrorBit = 2;
     static constexpr za::U8 weaponBit = 4;    // a weapon model drawn (weaponModel: its model_precache index)
     static constexpr za::U8 weaponMirrorBit = 8;
+    // A bot's hand (the server's, B11 part 3): not drawn by a client but its controller (handOrigin, handAngles: QC's
+    // handpos, handrot) and the weapon in it (weaponModel, weaponFrame), for the receiving client to place as it places
+    // its own (view::solveHands). Written: the place, the turn, the model and the frame (11 B).
+    static constexpr za::U8 solveBit = 16;
     static constexpr int fingers = 5, joints = 3;
     za::U8 flags{0};
     glm::vec3 handOrigin{0.f}; // world

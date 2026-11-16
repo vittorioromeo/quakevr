@@ -1838,38 +1838,66 @@ void writeAvatars()
         return;
     }
     const FieldOffsets& f = fields();
-    for(int i = 0; i < svs.maxclients && i < static_cast<int>(clientMoves.size()); i++)
+    const VrDrawnHolsters noHolsters{};
+    const auto v3 = [](const float* v) { return glm::vec3{v[0], v[1], v[2]}; };
+    for(int i = 0; i < svs.maxclients; i++)
     {
         const client_t& c = svs.clients[i];
-        const ClientMove& m = clientMoves[i];
-        if(!c.active || !c.spawned || !c.edict || !m.valid)
+        const ClientMove* const m = i < static_cast<int>(clientMoves.size()) && clientMoves[i].valid ? &clientMoves[i] : nullptr;
+        // A bot (FrikBot: its client slot's entity a "player" whose QC is not a human's, the slot itself not active; MP_PLAN.md,
+        // B11 part 3) has no client to draw its hands: its controllers (QC's handpos, handrot: bot_setvrfields) and
+        // weapons go instead, for each client to place its hands and weapons on as it places its own
+        // (VrDrawnHand::solveBit, view::solveHands); its head at its eyes, its body a standing player's of the default height.
+        edict_t* const ent = c.active ? c.edict : EDICT_NUM(i + 1);
+        const bool bot = !c.active && !ent->free && ent->v.modelindex != 0.f && f.ishuman >= 0 &&
+                         fieldFloatOr(ent, f.ishuman, 1.f) == 0.f && !strcmp(PR_GetString(ent->v.classname), "player");
+        if(!bot && (!c.active || !c.spawned || !c.edict || !m))
         {
             continue;
         }
+        VrBodyPose body;
+        VrDrawnHand drawn[2];
+        if(bot)
+        {
+            body.valid = true;
+            body.yaw = ent->v.v_angle[1];
+            body.headHeight = body.standingHeight = units::modelEyeHeight;
+            for(int h = 0; h < 2; h++)
+            {
+                VrDrawnHand& d = drawn[h];
+                d.flags = VrDrawnHand::solveBit;
+                d.handOrigin = fieldVec(ent, handFields(h).pos);
+                d.handAngles = fieldVec(ent, handFields(h).rot);
+                d.weaponModel = static_cast<za::U16>(h ? SV_ModelIndex(PR_GetString(ent->v.weaponmodel)) : modelIndexOfField(ent, f.weaponmodel2));
+                d.weaponFrame = static_cast<za::U8>(za::clamp(static_cast<int>(h ? ent->v.weaponframe : fieldFloatOr(ent, f.weaponframe2, 0.f)), 0, 255));
+            }
+        }
+        // (offsets from the origin his client placed them from: the hands as drawn on his body, wherever the server has it)
+        const glm::vec3 origin = m ? m->move.origin : v3(ent->v.origin);
         // Written here first: unchanged since the last sent (an idle player), it goes only every vr_net_avatar_keyframe
         // frames (what a lost one or a player just come into sight waits at most).
         byte data[avatarMaxBytes];
         sizebuf_t tmp{};
         tmp.data = data;
         tmp.maxsize = avatarMaxBytes;
-        // (offsets from the origin his client placed them from: the hands as drawn on his body, wherever the server has it)
-        const glm::vec3 origin = m.move.origin;
         MSG_WriteByte(&tmp, svc_quakevr);
         MSG_WriteByte(&tmp, QVR_SVC_AVATAR);
         MSG_WriteShort(&tmp, i + 1);
-        MSG_WriteByte(&tmp, mpavatar::movesByte(c.edict, (m.move.vrBits0 & protocol::moveFlatplayBit) != 0));
-        writeEighths(&tmp, m.move.headPos - m.base); // (rebaseHands moves the head and its base along together)
-        writeAngles16(&tmp, m.move.headAngles);
-        writeBodyPose(&tmp, m.move.body); // (his body's yaw, crouch and lean, as his client poses it: B2d)
-        for(const VrDrawnHand& h : m.move.drawn)
+        MSG_WriteByte(&tmp, mpavatar::movesByte(ent, m && (m->move.vrBits0 & protocol::moveFlatplayBit) != 0));
+        // (rebaseHands moves the head and its base along together)
+        writeEighths(&tmp, m ? m->move.headPos - m->base : v3(ent->v.view_ofs));
+        writeAngles16(&tmp, m ? m->move.headAngles : v3(ent->v.v_angle));
+        writeBodyPose(&tmp, m ? m->move.body : body); // (his body's yaw, crouch and lean, as his client poses it: B2d)
+        const VrDrawnHand* const hands = m ? m->move.drawn : drawn;
+        for(int h = 0; h < 2; h++)
         {
-            writeDrawnHand(&tmp, h, origin);
+            writeDrawnHand(&tmp, hands[h], origin);
         }
-        MSG_WriteLong(&tmp, static_cast<int>(c.edict->v.weapon));
-        MSG_WriteLong(&tmp, static_cast<int>(fieldFloatOr(c.edict, f.weapon2, 0.f)));
-        mpavatar::writeHolds(&tmp, c.edict, origin); // (his climbing holds, as the moves byte says: B5c)
-        writeDrawnHolsters(&tmp, m.move.holsters, origin, false); // (his holstered weapons as he drew them: B6b)
-        MSG_WriteByte(&tmp, mpavatar::gearByte(c.edict));        // (the armour he wears: his pauldrons' colour)
+        MSG_WriteLong(&tmp, static_cast<int>(ent->v.weapon));
+        MSG_WriteLong(&tmp, static_cast<int>(fieldFloatOr(ent, f.weapon2, 0.f)));
+        mpavatar::writeHolds(&tmp, ent, origin); // (his climbing holds, as the moves byte says: B5c)
+        writeDrawnHolsters(&tmp, m ? m->move.holsters : noHolsters, origin, false); // (his holstered weapons as he drew them: B6b)
+        MSG_WriteByte(&tmp, mpavatar::gearByte(ent));        // (the armour he wears: his pauldrons' colour)
 
         if(static_cast<int>(avatarsSent.size()) < svs.maxclients)
         {

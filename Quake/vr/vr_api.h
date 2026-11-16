@@ -51,7 +51,7 @@ int VR_NoLiquidEffects(struct qmodel_s* model, const float* point);
 // Quake VR's network version, sent after NetQuake's in the connect request ("QVR", then this long; net_dgrm.c): a
 // server whose protocol is the VR one rejects a client without it or with another, with the reason (MP_PLAN.md, B2).
 // Raise it with any change to what client and server send each other.
-#define QVR_NET_VERSION				34 // (34: B13's selective acks, the version in the accept reply)
+#define QVR_NET_VERSION				35 // (35: bots' hands solved by the clients, B11 part 3; 34: B13's selective acks, the version in the accept reply)
 // A remote client's moves (vr/vr_netmove.hpp: quantized deltas with repeats; the loopback's stay clc_move; MP_PLAN.md, B7).
 #define QVR_CLC_MOVES				16
 // A client's voice frames (vr/vr_voicechat.hpp: Opus, 20 ms each; MP_PLAN.md, B10v), after his move.

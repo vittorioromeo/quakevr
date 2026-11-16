@@ -100,6 +100,14 @@ float quantizedCurl(float c)
 void writeDrawnHand(sizebuf_t* buf, const VrDrawnHand& h, const glm::vec3& origin)
 {
     MSG_WriteByte(buf, h.flags);
+    if(h.flags & VrDrawnHand::solveBit)
+    {
+        writeEighths(buf, h.handOrigin, origin);
+        writeAngles16(buf, h.handAngles);
+        MSG_WriteShort(buf, h.weaponModel);
+        MSG_WriteByte(buf, h.weaponFrame);
+        return;
+    }
     if(h.flags & VrDrawnHand::handBit)
     {
         writeEighths(buf, h.handOrigin, origin);
@@ -132,6 +140,14 @@ VrDrawnHand readDrawnHand(const glm::vec3& origin)
 {
     VrDrawnHand h;
     h.flags = static_cast<za::U8>(MSG_ReadByte());
+    if(h.flags & VrDrawnHand::solveBit)
+    {
+        h.handOrigin = readEighths(origin);
+        h.handAngles = readAngles16();
+        h.weaponModel = static_cast<za::U16>(MSG_ReadShort());
+        h.weaponFrame = static_cast<za::U8>(MSG_ReadByte());
+        return h;
+    }
     if(h.flags & VrDrawnHand::handBit)
     {
         h.handOrigin = readEighths(origin);

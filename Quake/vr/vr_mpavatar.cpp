@@ -176,6 +176,23 @@ void printAvatar(int e, const Avatar& a, bool hands)
     Con_Printf(" flags=%d %d wmdl=%d %d wpn=%d %d age=%.0f\n", a.hands[0].flags, a.hands[1].flags, a.hands[0].weaponModel,
         a.hands[1].weaponModel, a.weapon, a.weapon2, (realtime - a.received) * 1000.0);
     const Drawn& d = drawn.of[e];
+    if(((a.hands[0].flags | a.hands[1].flags) & VrDrawnHand::solveBit) && d.frame >= host_framecount - 1)
+    {
+        // A bot's hands as placed here (view::solveHands): each jointed hand drawn, how far from its controller (as
+        // received, on his entity as drawn), and its weapon's model and how far from the hand.
+        Con_Printf("mp_solved: ent=%d", e);
+        for(int side = 0; side < 2; side++)
+        {
+            const view::ViewEntity& h = d.hand[side];
+            const view::ViewEntity& w = d.weapon[side];
+            const glm::vec3 ho{h.ent.origin[0], h.ent.origin[1], h.ent.origin[2]};
+            const glm::vec3 wo{w.ent.origin[0], w.ent.origin[1], w.ent.origin[2]};
+            Con_Printf(" hand%d=%d gap%d=%.2f wpn%d=%s grip%d=%.2f", side, h.visible ? 1 : 0, side,
+                glm::length(ho - (d.placedAt + a.hands[side].handOrigin)), side,
+                w.visible && w.ent.model ? w.ent.model->name : "-", side, w.visible ? glm::length(wo - ho) : -1.f);
+        }
+        Con_Printf("\n");
+    }
     if(d.bodyPosed && d.body.ent.model && (d.frame == host_framecount - 1 || d.frame == host_framecount))
     {
         printSkeleton("mp_body", e, d.body.ent.model->name, d.skeleton);
@@ -377,6 +394,28 @@ void setup(int e, const Avatar& a)
     view::HandsDraw in;
     in.origin = origin;
     in.hands = a.hands;
+    // A bot's (VrDrawnHand::solveBit: its controllers and weapons, no client of its own drew them): placed here by the
+    // code that places yours (view::solveHands), then drawn as any player's (B11 part 3).
+    VrDrawnHand solved[2];
+    if((a.hands[0].flags | a.hands[1].flags) & VrDrawnHand::solveBit)
+    {
+        glm::vec3 pos[2], rot[2];
+        int model[2], frame[2];
+        for(int h = 0; h < 2; h++)
+        {
+            pos[h] = origin + a.hands[h].handOrigin;
+            rot[h] = a.hands[h].handAngles;
+            model[h] = a.hands[h].weaponModel;
+            frame[h] = a.hands[h].weaponFrame;
+        }
+        view::solveHands(e, pos, rot, model, frame, solved);
+        for(VrDrawnHand& h : solved)
+        {
+            h.handOrigin -= origin; // (offsets from his entity's origin, as received)
+            h.weaponOrigin -= origin;
+        }
+        in.hands = solved;
+    }
     in.holsters = &a.holsters;
     view::HandsEntities out;
     out.hand = d.hand;
