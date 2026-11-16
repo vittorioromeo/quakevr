@@ -43,8 +43,10 @@ const string Usage = """
     qvr-setup prepare [--target <dir> | --sandbox <dir>] [--quake <dir>] [--relight] [--no-relight]
                       (the game started hidden (-prepare: no headset, no config written): Quake VR's first maps loaded once
                        for its disk caches (vrstart's first load 12 s to under 1 s), then, when the first-start relight is
-                       pending (or --relight), every map relit as the game's first start would; a finished relight removes
-                       the first-start marker. Progress in <install>\quakevr\cache\setup_prepare.txt. Ctrl+C stops it)
+                       pending (or --relight), Quake's and the official mission packs' maps relit as the game's first
+                       start would (not the Map Library's nor Arcane Dimensions': the game's Graphics > Relighting does
+                       those); a finished relight removes the first-start marker. Progress in
+                       <install>\quakevr\cache\setup_prepare.txt. Ctrl+C stops it)
     qvr-setup statement                              (prints the author's statement on AI usage; install needs --accept-statement)
     qvr-setup uninstall --target <dir> [--remove-textures] [--registry-file <json> | --register]
     qvr-setup verify --target <dir>
@@ -199,7 +201,7 @@ ShortcutOptions ShortcutsFor(string? shortcutsDir, InstallChoices? choices) => s
 // The game's preparation run (GamePreparation): its progress on the console; 0 when it got to its end.
 int Prepare(string target, string quake, bool relight)
 {
-    Console.WriteLine($"preparing the game{(relight ? " and relighting every map" : "")} (the game hidden; Ctrl+C stops it)");
+    Console.WriteLine($"preparing the game{(relight ? " and relighting Quake's and the official mission packs' maps" : "")} (the game hidden; Ctrl+C stops it)");
     using var stop = new CancellationTokenSource();
     Console.CancelKeyPress += (_, e) => { e.Cancel = true; stop.Cancel(); };
     var lastStatus = "";

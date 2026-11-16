@@ -3827,3 +3827,19 @@ His request: bake all 27 title wordings (9 sections x 3) to pick from.
   checked as the lightmaps' sorted byte values: sequential vs sequential and sequential vs parallel are identical (0
   of 401,100 differ).
 - Checks: installer 0 warnings, self-tests 41/41; engine dev and ReleaseLTO built.
+
+## relightscope: the installer relights the official maps only (agent/relightscope, 2026-11-17)
+
+- His decision (2026-11-17, "leave them out"): the installer's relight (the preparation run's `-preparerelight` and the
+  first-start marker's fallback; install and update, GUI and CLI) is a new batch set, `vr_relight_batch official`
+  (`maps::Set::Official`): the search path's maps of `gameOrder` (id1, hipnotic, rogue; dopa, mg1, mg3 when on the
+  path) and quakevr's (its own maps pass over as before). Not the Map Library's, AD's or another mod's. The Relighting
+  page's Maps choices are unchanged (`vr_relight_batch_set` 0-4; `official` is the command's word only).
+- Measured (`-list`, the test base): `everything` 111 maps, 481.5 MB (id1 38, hipnotic 18, rogue 17, ad 38); `official`
+  73 maps, 99.1 MB. A player's installed Library packages were in `everything` too.
+- The Library's and AD's maps: no automatic relight at first play exists (none did before either: the marker's batch
+  was the only automatic one). They keep their own light until the player relights them: Graphics > Relighting,
+  Relight This Map, or Many Maps > Map Library / Every Map.
+- Wording: the options page's relight line, the preparation's log lines, the CLI's prepare help and line, the marker
+  file's text, INSTALLER.md (Relit maps, First-start relight, Preparation run). Self-test "game preparation" checks
+  the engine sources use `official` in both places. Installer 0 warnings, self-tests 41/41; engine dev built 0 warnings.

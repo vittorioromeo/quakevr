@@ -3,8 +3,10 @@ namespace QuakeVR.Installer.Core.Packaging;
 /// <summary>
 /// The relight at the first start (the relight component ticked): a marker file in the game folder the game writes in
 /// (<c>&lt;QVR&gt;\quakevr\relight_on_first_start.txt</c>). At its next start, however it is started (the installer's
-/// Play, a shortcut, Steam), the game removes it and relights every map (<c>vr_relight_batch everything</c>, queued by
-/// quake.rc's <c>vr_startgame</c>: Quake/vr/vr_relight.cpp, <c>firstStart</c>). Unticked: no marker, and a marker left by
+/// Play, a shortcut, Steam), the game removes it and relights the stock game's and the official packs' maps
+/// (<c>vr_relight_batch official</c>, queued by quake.rc's <c>vr_startgame</c>: Quake/vr/vr_relight.cpp, <c>firstStart</c>;
+/// not the Map Library's nor Arcane Dimensions' maps, 1-2 minutes each: the game's Graphics > Relighting relights those
+/// when the player asks). Unticked: no marker, and a marker left by
 /// an earlier install is removed. Not in install.json's files: the game deletes it, and the uninstaller removes it.
 /// </summary>
 public static class FirstStartRelight
@@ -45,8 +47,10 @@ public static class FirstStartRelight
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             File.WriteAllText(path,
                 "Written by the Quake VR: Unleashed installer (the relight ticked). At its next start the game relights\r\n" +
-                "every map not relit with these settings yet (vr_relight_batch everything: the maps it relit before\r\n" +
-                "are skipped while they and the settings are unchanged) and removes this file. Remove it to skip that.\r\n");
+                "Quake's and the official mission packs' maps not relit with these settings yet (vr_relight_batch\r\n" +
+                "official: the maps it relit before are skipped while they and the settings are unchanged; the Map\r\n" +
+                "Library's and Arcane Dimensions' maps are relit from Graphics > Relighting) and removes this file.\r\n" +
+                "Remove it to skip that.\r\n");
         }
         else if (File.Exists(path))
         {

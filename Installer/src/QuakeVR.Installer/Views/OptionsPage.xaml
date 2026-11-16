@@ -104,7 +104,7 @@
                             <StackPanel>
                                 <TextBlock Text="Relight the maps (highly recommended)" Style="{StaticResource Body}" FontWeight="SemiBold" />
                                 <TextBlock Style="{StaticResource Small}" Margin="0,2,0,0"
-                                           Text="Light from lamps, lava and glowing panels, made on your PC by the game's Relighting tool at the end of the install (skipped: at the game's first start)." />
+                                           Text="Light from lamps, lava and glowing panels, made on your PC by the game's Relighting tool at the end of the install (skipped: at the game's first start). Quake's and the official mission packs' maps; Map Library and Arcane Dimensions maps are relit in the game (Graphics &gt; Relighting)." />
                                 <TextBlock Style="{StaticResource Small}" Margin="0,2,0,0" Foreground="{StaticResource Faint}"
                                            Text="With see-through water: VisPatch's data for your games is downloaded with it (about 2.5 MB, from SourceForge)." />
                             </StackPanel>

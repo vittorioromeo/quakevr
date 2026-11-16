@@ -706,6 +706,15 @@ var tests = new List<(string Name, Action Body)>
                      src.Contains("line(\"step models\")") && src.Contains("\"result models %d %d %.1f\"") &&
                      src.Contains("\"step campaigns %d %d %s\"") && src.Contains("\"campaign %s ok %.1f models=%d limbs=%d\"") &&
                      src.Contains("\"campaign %s none %.1f\"") && src.Contains("\"campaign %s failed %.1f\""), "the engine's lines");
+                // The installer's relight (this run's and the first-start marker's) is the stock game's and the official
+                // packs' maps only: not the Map Library's nor AD's (the author's decision, 2026-11-17).
+                var relightCpp = File.ReadAllText(Path.Combine(d.FullName, "Quake", "vr", "vr_relight.cpp"));
+                var mapsCpp = File.ReadAllText(Path.Combine(d.FullName, "Quake", "vr", "vr_relight_maps.cpp"));
+                True(src.Contains("\"vr_relight_batch official\\n\"") && !src.Contains("vr_relight_batch everything"), "the preparation relights the official set");
+                True(relightCpp.Contains("Cbuf_InsertText(\"vr_relight_batch official\\n\")") && !relightCpp.Contains("Cbuf_InsertText(\"vr_relight_batch everything"),
+                     "the first-start marker relights the official set");
+                True(relightCpp.Contains("{\"official\", maps::Set::Official}") && mapsCpp.Contains("set == Set::Official && f.rank >="),
+                     "the official set: the batch's word, the stock and official games only");
                 break;
             }
         }
