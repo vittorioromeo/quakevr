@@ -4439,3 +4439,18 @@ His timing notes (extra scope):
 - Merge of next: a headset's slide (vr_slide) walks through SV_AirMove while held or sliding (vr_pmove_own had skipped
   it); flat ladders on the moves' climb. Tests: `mp_test.py voice` 22/0, vrslide_test 1/0, flatladder 2/0, flatslide
   26/0. Details: MP_PLAN.md, "B10v part 2 results".
+
+## MP B14 part 1: a headset's slide predicted, the moves' determinism, the thread audit (agent/mp, 2026-11-16)
+
+- **One slide function**: `slide::move` (vr_slide.cpp) runs flatscreen play's slide in SV_AirMove and a headset's
+  (vr_slide) in the moves (vr_pmove.cpp, the server's and a remote client's replay): a remote headset player's slide is
+  predicted (corrections 0 while sliding, ending, jumping out). Its numbers are `slide::Tuning` (the server's sent to
+  him); its state rides in the moves' body and his state record.
+- **Fix (multiplayer)**: a resent older move no longer clears the slide's press edge on the server (a slide on the
+  server alone).
+- **Fix (single player too, rare)**: Box3D's hand press hits are sorted before notePress (multi-threaded steps, 300
+  bodies awake, pressed in the workers' order).
+- **Determinism check**: `vr_mp_predict_report` compares his moves' results with the server's bit for bit (`exact_n`,
+  `exact_miss`, `exact_max`, hashes `hash_sv`/`hash_cl`; frames that held a move to the server's clock skipped).
+- Tests: `mp_test.py predictslide` (new) 13/0, `predict` 29/0; vrslide_test 15/0, flatslide_test 26/0. Details and the
+  thread audit: MP_PLAN.md, "B14 results, part 1".

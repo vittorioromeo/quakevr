@@ -213,7 +213,7 @@ player unchanged.
 | **B10** (done: B10v and B10v part 2, the Voice Chat page; his VR checks open) | Proximity voice chat: capture, Opus, VAD, noise suppression, push-to-talk, a jitter buffer, voices placed by Steam Audio at the speaker's head; VR and flat; menu rows | `mp_voice` (a test tone from A heard at B, louder near, delay under 250 ms) |
 | **B11** (part 1 done in B13: `mp_dm`, bots, frags, respawn, the fraglimit; the rest is B11 part 2) | Deathmatch and bots: frags, respawns, DM item rules with VR weapons, FrikBot with VR-aware bodies | `mp_dm` (two clients and two bots, a fraglimit reached) |
 | **B11 part 2** | The rest of B11: deathmatch 1 and 2's item rules with VR weapons (a level weapon taken and respawned, or staying; `vr_item_objects`, force grab), the VR melee and armed systems between players and bots in deathmatch (a blade's hit, a disarm), bots' bodies and hands as the clients draw them, FrikBot's walk through the shared movement (`vr_pmove`), names in the harness | `mp_dm` grown |
-| **B12** | Determinism: Box3D, navmesh and pathfinding hashes equal across runs with several clients; the server-thread audit in multiplayer | hash scenarios |
+| **B12** (B14 part 1 done: the moves' results client against server, the thread audit; the world's hashes are B14b) | Determinism: Box3D, navmesh and pathfinding hashes equal across runs with several clients; the server-thread audit in multiplayer | hash scenarios |
 | **B13** | Polish and performance: ICE/NAT traversal (optional), server browser, latency HUD, CPU of many players | soak tests |
 
 ## 4. Test harness
@@ -2616,4 +2616,62 @@ QuakeC's PlayerPreThink parts. Exactly what would change:
   and the console commands share the buttons' code. Flat play's push-to-talk is a flat key (CAPSLOCK, free in the
   default binds) rather than a default bind of `+vr_voicechat`: the Flat Keys page rebinds it, and flat play owns it.
 
-Next phase: B14 (the table's determinism row, "B12" there) -- Box3D, navmesh and pathfinding hashes equal across runs with several clients, the server-thread audit in multiplayer; B11's open items (bots never grab, a bot's fists never punch) if small; B10v's VR checks are his (a real microphone, the spatial mixers).
+### B14 results, part 1: a headset's slide predicted; the moves' determinism; the server-thread audit (2026-11-16, dev no-LTO build, loopback)
+
+- **A headset's slide in the moves** (B10v part 2's open item): vr_slide's slide ran in SV_AirMove only (his frames left
+  the moves while he held its input or slid), so a remote headset player's replay walked where the server slid him:
+  corrections of tens of units while sliding. Now `slide::move` (vr_slide.cpp) is the one slide: SV_AirMove's
+  (`VR_SlideMove`, flatscreen play and a headset's unwalked frames) and the moves' (vr_pmove.cpp `slideMove`, from
+  `airMove`, before the walk's friction) both call it with a `slide::MoveIn` (input held, ground, the jump key, the floor
+  under him when it is needed, his stamina) and a `slide::Tuning` (the vr_flat_slide_* numbers); the stamina's parts are
+  `slide::payParts` (the server's QuakeC pays them: `Body::slidePaid`); a slide on the ground steps up in the moves'
+  walk as in SV_WalkMove (`slide::stepsUp`). The slide's state rides in the moves' `Body` (`slide`, a clock `slideClock`:
+  the server's time on the server, 0 at the state in his replay), the move's slide bit in `pmove::Input::slide`, the
+  server's `Rules::slide` (not flatscreen, not lying down) and numbers. His state record carries a slide byte (on, held,
+  grounded, airborne, the rule) and, once his moves sent the slide's input (`slideSeen`), its last height, his stamina
+  and the server's numbers; sliding or cooling down, the paid parts and its times against the clock after his moves (an
+  idle record stays the same). Before the server's numbers reach him, his replay slides on his own settings without
+  stamina. `vr_mp_predict_report`: `slide_n` (states sliding).
+- **Fixed on the way**: `slide::setHeadsetInput` cleared the slide's `held` on any move read without the bit; a remote
+  client's resent older move (5% loss) cleared it before the frame's moves ran, and the next held move was a press on
+  the server alone (a slide his replay never saw: an 18-unit correction). The press's edge is each move's own now.
+  `slide::headsetEngaged` is gone (the moves no longer skip a headset's slide).
+- **The moves' determinism** (client vs server): on each new state his client compares the last replay's result for the
+  move the state is after with the server's, bit for bit (`exact_n`, `exact_miss`, `exact_max`, `vel_miss`) and folds
+  both into FNV-1a hashes (`hash_sv`, `hash_cl`: equal while every result is); `vr_mp_watch` prints a miss
+  (`mp_predict_exact_miss`). `mp_predict` and `mp_predictslide` check it (`predict_exact_check`: at most 1% off, none by
+  0.001 unit): walking 327 of 327 equal, sliding 178 and 181 of 178 and 181, hashes equal. One run showed one state off
+  by 4e-6 in z on e1m1's stairs (the client's trace against SV_Move's at a step: an ulp; open).
+- **The server-thread audit** (multiplayer; the server frame and the client both run on the main thread):
+  no data race on server state found. Box3D's step on the pool (vr_box3d_threads, 300 bodies awake) runs
+  shouldCollide/preSolve on workers reading edicts and QuakeC fields while the main thread waits (read only: a callback
+  that wrote an edict, ran QuakeC, SV_Move or Con_Printf would race). Its one timing-dependent result, the hands' press
+  hits (an atomic counter's order fed notePress's plane solve and deepest), is sorted now (a separate commit). Still
+  timing-dependent, no race: `vr_hull_async`'s monster box trees (a monster collides with Quake's hulls until its tree is
+  built: the frame it switches is the CPU's), the 128-hit cap's overflow, the held-gun cuts' entry order (looked up by
+  key: harmless). Deterministic by design: the navmesh's builds (land on a fixed server frame: vr_nav_build_frames,
+  vr_nav_job_frames; 0 would make them timing-dependent), the map-load parallel work (merged in index order), the
+  background save (a copy). Thread-local: qcvm, pr_global_struct, com_token and friends.
+- **Not done** (B14b): the world's hashes (vr_physics_hash, the navmesh's, the paths') equal across runs with several clients:
+  the harness's servers run on the wall clock (vr_fixed_frames 0) and its clients' moves land in server frames by their
+  timing, so two runs differ by design; it needs a fixed-step server in the harness first (the moves applied by number,
+  not by arrival). Bots grabbing and punching: not small (left).
+- Tests: `mp_test.py predictslide` (new) 13/0: B 150 ms behind and 5% lost each way runs north on e1m1 and slides
+  (held to its end, then ended by a jump): 69 and 36 states sliding, every one walked move by move, corrections 0.000,
+  at rest where the server has him; before the fix his frames left the moves while sliding. `mp_predict` 29/0.
+- A state whose frame held one of his moves to the server's clock (a burst of moves past his credit, a busy machine:
+  `mp_predict_sv ... held`) is the server's time, not his moves': its record's slide byte says so (bit 128) and the
+  check skips it (`exact_held`). Seen once in the suite: an 11-unit miss at e1m1's step in the air, 12 moves in one
+  server frame, 5 held.
+- Checks: `mp_test.py suite` (35 scenarios) 33 pass; `mp_avatar` 16/1 (a finger curl 0.0630 against 0.0625: no hand
+  code touched) and `mp_predict` 23/2 (the held burst above, then e1m4's water not reached in 20 s on a busy machine)
+  then 17/0 and 29/0 with the held states skipped; `mp_predictslide` 13/0 (three runs). Single player: vrslide_test
+  15/0, flatslide_test 26/0 (25/1 once, then 26/0), flatladder_test 2/0, scenario_check 138/0, load_models_test 4/0,
+  vr_run_check 12/0; the dev and the Release (ThinLTO) builds 0 warnings.
+
+### For him (B14)
+
+- In VR with vr_slide on, on a remote server: sliding should feel as it does alone (no snaps back while sliding, nor
+  at its end or a jump out of it).
+
+Next phase: B14b -- the world's hashes (vr_physics_hash, the navmesh's and the paths') equal across runs with several clients: a fixed-step server in the harness first (its moves applied by number, not arrival), then the hash scenarios; the step's ulp between the client's trace and SV_Move; B11's open items (bots never grab, a bot's fists never punch); B10v's VR checks are his (a real microphone, the spatial mixers).

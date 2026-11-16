@@ -3497,8 +3497,8 @@ def predict_exact_check(s, what, pr, least=20):
     s.check("B's moves' results equal the server's bit for bit %s (an ulp at most, rarely)" % what,
             n >= least and miss <= PREDICT_EXACT_MISS_MOST * (n + miss) and
             float(pr.get("exact_max", 99)) < PREDICT_EXACT_OFF_MOST and (miss > 0 or pr.get("hash_sv") == pr.get("hash_cl")),
-            "%s equal, %s not (by %s at most; velocity: %s not), hashes %s %s" % (
-                n, miss, pr.get("exact_max"), pr.get("vel_miss"), pr.get("hash_sv"), pr.get("hash_cl")))
+            "%s equal, %s not (by %s at most; velocity: %s not; %s held to the server's clock, not compared), hashes %s %s" % (
+                n, miss, pr.get("exact_max"), pr.get("vel_miss"), pr.get("exact_held"), pr.get("hash_sv"), pr.get("hash_cl")))
 
 
 def predict_corr_check(s, what, pr, least=20):

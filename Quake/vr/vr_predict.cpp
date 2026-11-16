@@ -91,6 +91,7 @@ struct ServerSlot
     bool slideSeen{false};    // his moves' slide input seen since he joined (B14: the slide's numbers in his state)
     double slideClock{0.0};   // the slide's clock after his last frame's moves (his state's times are against it)
     float staminaLeft{0.f};   // ... his stamina then (a slide's start in his replay: too tired for its first part)
+    bool heldNow{false};      // a move of his last frame held to the server's clock (his state's bit: B14)
     // The water's level and type his last move found (the next move's walk or swim goes by them: B11b part 2); not
     // walked last frame: the edict's (the last frame's SV_CheckWater).
     int waterLevel{0}, waterType{CONTENTS_EMPTY};
@@ -481,7 +482,7 @@ struct ClientPredict
     float corrMax{0.f}, corrSum{0.f}, flatMax{0.f}, airMax{0.f}, errMax{0.f};
     // B14: the determinism of his moves -- his replay's result for the move a new state is after, against the server's,
     // bit for bit (origin; velocity apart: the server's frame may change it after his moves), and FNV-1a hashes of both.
-    int exactN{0}, exactMiss{0}, velMiss{0};
+    int exactN{0}, exactMiss{0}, velMiss{0}, exactHeld{0};
     float exactMax{0.f}; // (the farthest a result missed by)
     za::U64 hashSv{14695981039346656037ull}, hashCl{14695981039346656037ull};
 
@@ -888,7 +889,8 @@ bool replay(vec3_t out, vec3_t before)
     {
         // His move's result against the server's (B14): the last replay's for the move this state is after, bit for bit.
         const Past& mine = cp.past[cp.seq % pastRing];
-        if(mine.seq == cp.seq && (cp.bits & bitWalked))
+        cp.exactHeld += cp.slideBits & 128 ? 1 : 0; // (a move held to the server's clock: his time, not his moves')
+        if(mine.seq == cp.seq && (cp.bits & bitWalked) && !(cp.slideBits & 128))
         {
             const bool same = memcmp(mine.org, cp.origin, sizeof(vec3_t)) == 0;
             cp.exactN += same ? 1 : 0;
@@ -1364,6 +1366,7 @@ void clientClear()
     cp.exactN = keep.exactN;
     cp.exactMiss = keep.exactMiss;
     cp.velMiss = keep.velMiss;
+    cp.exactHeld = keep.exactHeld;
     cp.exactMax = keep.exactMax;
     cp.hashSv = keep.hashSv;
     cp.hashCl = keep.hashCl;
@@ -1385,13 +1388,13 @@ void report()
                "err_max=%.3f maxspeed=%.1f box=%.1f jump=%.0f swim_n=%d swim_max=%.3f wj_n=%d land_moving=%d "
                "lift_max=%.3f pushed=%d lying=%d arms=%d crawl_n=%d slide_n=%d mantle_n=%d hang_n=%d hang_rise=%.2f trans_n=%d trans_max=%.3f "
                "wclimb=%d wclimb_n=%d grapple=%d grapple_n=%d grapple_max=%.3f grapple_off_n=%d grapple_off_max=%.3f "
-               "exact_n=%d exact_miss=%d exact_max=%.6f vel_miss=%d hash_sv=%016llx hash_cl=%016llx seq=%u newest=%u\n",
+               "exact_n=%d exact_miss=%d exact_max=%.6f vel_miss=%d exact_held=%d hash_sv=%016llx hash_cl=%016llx seq=%u newest=%u\n",
         vr_net_predict.value != 0.f && netmove::clientUses() ? 1 : 0, cp.bits & bitWalked ? 1 : 0, cp.states, cp.frames,
         cp.unpredicted, cp.unWalked, cp.frames > 0 ? static_cast<double>(cp.depthSum) / cp.frames : 0.0, cp.corrN, cp.corrMax,
         cp.corrN > 0 ? cp.corrSum / cp.corrN : 0.f, cp.flatN, cp.flatMax, cp.airN, cp.airMax, cp.rideN, VectorLength(cp.error),
         cp.errMax, cp.rules.maxspeed, cp.rules.boxHeight, cp.rules.jumpSpeed, cp.swimN, cp.swimMax, cp.wjN,
         cp.landMovingN, cp.liftMax, cp.pushN, cp.bits & bitLying ? 1 : 0, cp.rules.crawl ? 1 : 0, cp.crawlN, cp.slideN, cp.mantleN, cp.hangN, cp.hangRise, cp.transN, cp.transMax,
-        cp.rules.waterClimb ? 1 + cp.rules.climbHands : 0, cp.wclimbN, cp.grapple.on ? 1 : 0, cp.grappleN, cp.grappleMax, cp.grappleOffN, cp.grappleOffMax, cp.exactN, cp.exactMiss, cp.exactMax, cp.velMiss,
+        cp.rules.waterClimb ? 1 + cp.rules.climbHands : 0, cp.wclimbN, cp.grapple.on ? 1 : 0, cp.grappleN, cp.grappleMax, cp.grappleOffN, cp.grappleOffMax, cp.exactN, cp.exactMiss, cp.exactMax, cp.velMiss, cp.exactHeld,
         static_cast<unsigned long long>(cp.hashSv), static_cast<unsigned long long>(cp.hashCl), cp.seq,
         netmove::clientNewest());
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(0), "vr_mp_predict_report") && !q_strcasecmp(Cmd_Argv(1), "reset"))
@@ -1400,7 +1403,7 @@ void report()
         cp.frames = cp.unpredicted = cp.unWalked = cp.corrN = cp.flatN = cp.airN = cp.rideN = 0;
         cp.swimN = cp.wjN = cp.landMovingN = cp.pushN = cp.crawlN = cp.slideN = cp.mantleN = cp.hangN = cp.wclimbN = cp.grappleN = cp.grappleOffN = 0;
         cp.hangRise = cp.transMax = cp.grappleMax = cp.grappleOffMax = 0.f;
-        cp.transN = cp.exactN = cp.exactMiss = cp.velMiss = 0;
+        cp.transN = cp.exactN = cp.exactMiss = cp.velMiss = cp.exactHeld = 0;
         cp.hashSv = cp.hashCl = 14695981039346656037ull;
         cp.exactMax = 0.f;
         cp.depthSum = 0;
@@ -1671,12 +1674,14 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
     const int slot = static_cast<int>(s - serverSlots);
     pmove::Input newest;
     s->notes = pmove::MoveNotes{};
+    s->heldNow = false;
     for(int k = 0; k < s->n && !b.removed; k++)
     {
         pmove::Input in = s->queue[k];
         newest = in;
         s->slideSeen = s->slideSeen || in.slide;
         const bool held = in.dt > s->credit;
+        s->heldNow = s->heldNow || held;
         if(held)
         {
             in.dt = s->credit; // (a client running ahead of the server's clock: held to it)
@@ -1900,13 +1905,13 @@ extern "C" void VR_WritePredict(sizebuf_t* msg, client_t* client)
     MSG_WriteFloat(msg, s.crawl[1]);
     // A headset's slide (B14): its state; once his moves sent its input, its numbers (the server's: his replay slides
     // as his moves do here) and, sliding or cooling down, its times against the slide's clock after his moves. An idle
-    // record stays the same.
+    // record stays the same. Bit 128: a move of his frame held to the server's clock (his results' check skips it).
     const int slideNum = slide::clientSlot(ent);
     const slide::Slide sl = slideNum >= 0 ? slide::state(slideNum) : slide::Slide{};
     const double clock = s.walked ? s.slideClock : sv.qcvm.time;
     const bool slideTimes = s.slideSeen && (sl.on || sl.cooldownUntil > clock);
     MSG_WriteByte(msg, (sl.on ? 1 : 0) | (sl.held ? 2 : 0) | (sl.grounded ? 4 : 0) | (sl.airborne ? 8 : 0) |
-                           (r.slide ? 16 : 0) | (s.slideSeen ? 32 : 0) | (slideTimes ? 64 : 0));
+                           (r.slide ? 16 : 0) | (s.slideSeen ? 32 : 0) | (slideTimes ? 64 : 0) | (s.heldNow ? 128 : 0));
     if(s.slideSeen)
     {
         const slide::Tuning& t = r.slideTuning;
