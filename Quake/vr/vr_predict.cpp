@@ -1899,6 +1899,13 @@ void botWalk(edict_t* ent, float* obstructed)
     const glm::vec3 from{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
     const glm::vec2 velBefore{ent->v.velocity[0], ent->v.velocity[1]};
     const bool groundBefore = (static_cast<int>(ent->v.flags) & FL_ONGROUND) != 0;
+    // (MP B11 part 4) SV_Physics_Client's premove, as a client's: its hands' and weapons' touches (a gun or a backpack its
+    // hand closes on taken by the touch's grip, as a player's), its hands in the water.
+    VR_ClientPreMove(ent);
+    if(ent->free)
+    {
+        return;
+    }
     VR_PredictPhysics(ent);
     if(ent->free)
     {

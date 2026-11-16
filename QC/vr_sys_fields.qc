@@ -142,6 +142,20 @@
 .float vr_movewaterclimb; // ... or the hands' climb out (PlayerPreThink: bit 0 on, bits 1-2 the empty hands, as
                           // VR_WaterClimb_FreeHands; CheckWaterJump leaves it to the moves, MP_PLAN B8j part 3)
 .float vr_botswing; // a bot's melee swing began at this time (W_Fire_Melee; bot_setvrfields swings its main hand: MP B11 part 3, part 3)
+// A bot's off hand as a player's (MP B11 part 4; frikbot/bot_fight.qc bot_offhand_ai decides, bot_setvrfields moves it):
+.float vr_botpunch;       // its punch began at this time (0: none)
+.entity vr_botpunch_of;   // ... at whom
+.float vr_botpunch_end;   // its last punch ended at this time
+.entity vr_botreach;      // what its off hand reaches for (a thing lying near, or a player's held weapon; world: none)
+.float vr_botreach_h;     // ... that player's hand holding the weapon
+.float vr_botreach_s;     // ... 1 open, reaching; 2 closed on it; 3 pulling it away (a player's weapon)
+.float vr_botreach_t;     // ... the state's start
+.vector vr_botreach_at;   // ... the hand's place (world)
+.float vr_botreach_next;  // it reaches for nothing before this time (a reach given up)
+.float vr_botvr_t;        // the frame its hands' once-a-frame state was made for (time)
+.vector vr_bothand_rel;   // ... its hands' places from its origin then (their velocity, .handvel)
+.vector vr_botoffhand_rel;
+.float vr_botoffgrip;     // ... its off hand's grip
 .float vr_moveswim; // ... and so does the water's drag (WaterMove leaves it; the engine sets it each frame)
 .float vr_movetakes; // ... and what else his moves may take (the engine sets it each frame: bit 0 the hands' climb out of
                      // the water, B8j part 3; bit 1 the grapple's rope, B8j part 4)

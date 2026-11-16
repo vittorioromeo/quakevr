@@ -2358,6 +2358,7 @@ float vr_parry_count;     // the player's parries so far (T_Damage: VR_Parry's),
 entity vr_parry_count_by;
 float vr_melee_blows;      // a player's melee blows landed so far (T_Damage_VRMelee), the last one's damage, by whom, on what
 float vr_melee_blow_dmg;   // (the tests: vr_dmrules_test.qc's swing of a bot)
+float vr_melee_blow_hand;  // ... 1 + the hand whose blow it was (vr_melee_blowhand; 0 a button's traced blow)
 entity vr_melee_blow_by;
 entity vr_melee_blow_on;
 
@@ -3528,6 +3529,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
         vr_melee_blow_dmg = damage;
         vr_melee_blow_by = attacker;
         vr_melee_blow_on = targ;
+        vr_melee_blow_hand = vr_melee_blowhand;
     }
     if(cvar_hget(cvarh_vr_debug_shots) && (attacker.flags & FL_CLIENT) && targ != attacker)
     {

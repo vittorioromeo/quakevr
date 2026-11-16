@@ -691,6 +691,15 @@ za::Vector<Item> pageDebugTests()
             .help("vr_dm_test 3, in a deathmatch with a bot (impulse 100): the bot is held in front of you with a sword and "
                   "swings it, its hand across its front; hold your crowbar (given) upright on your left, across its way: "
                   "parried, no damage. vr_dm_test 2: the same with your crowbar at your side: the blow lands."),
+        command("Deathmatch: A Bot Punches You", "developer 1; vr_dm_test 4")
+            .help("vr_dm_test 4, in a deathmatch with a bot (impulse 100): the bot is held in front of you and punches you "
+                  "with its empty off hand, its fist struck by the melee's sweep as a player's punch."),
+        command("Deathmatch: A Bot Takes a Gun by Hand", "developer 1; vr_dm_test 5")
+            .help("vr_dm_test 5, in a deathmatch with a bot (impulse 100): a nailgun is laid in front of the bot; its open "
+                  "off hand goes to it and closes on it, the hand's touch takes it."),
+        command("Deathmatch: A Bot Grabs Your Gun", "developer 1; vr_dm_test 6")
+            .help("vr_dm_test 6, in a deathmatch with a bot (impulse 100), PvP disarms on for it: hold the shotgun given "
+                  "into your main hand (grip held) still; the bot's off hand closes on it and pulls it away."),
         command("Player Disarm: Melee on Your Gun", "developer 1; vr_pd_test 2")
             .help("vr_pd_test 2 (God mode off): a grunt with a gun and an axe, then one with an axe alone, swing at you "
                   "holding the shotgun out, 4 blows each: every blow held back for your weapon near its way ends, the "

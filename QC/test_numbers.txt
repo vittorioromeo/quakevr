@@ -741,6 +741,9 @@ vr_pd_test       2        vr_playerdisarm_test.qc          melee on you holding 
 vr_dm_test       1        vr_dmrules_test.qc               deathmatch with a human and a bot (mp_test.py dm): dm 1 a weapon taken, gone, back after its wait, the bot's let-go weapon removed in 10 s; dm 2 it stays, not taken twice; PvP shots between the human and the bot knock weapons out (sounds), PvP off nothing, PvE only when on; the bot's hands apart, the human's grab on its gun (running: too fast; still: held, pulled away: his)
 vr_dm_test       2        vr_dmrules_test.qc               a bot's sword swing at the human (mp_test.py dm): its hand swings it, its blow read by its blade's line (the directional parry, PvP); his crowbar at his side: it lands
 vr_dm_test       3        vr_dmrules_test.qc               the same swing, his crowbar held upright across its way: parried, no damage
+vr_dm_test       4        vr_dmrules_test.qc               a bot's punch (mp_test.py dm): its AI punches the human 40 units ahead, its fist thrust, struck by the melee's sweep: its off hand's blow lands
+vr_dm_test       5        vr_dmrules_test.qc               a bot's grab: a nailgun lying in front of it, its open off hand goes to it and closes, the hand's touch takes it
+vr_dm_test       6        vr_dmrules_test.qc               a bot's grab disarm (PvP on): its off hand closes on the human's shotgun and pulls it away (vr_playerdisarm_grab.qc): the shotgun in its off hand, his hand empty
 
 vr_projinherit_test 1     vr_projinherit_test.qc           projectiles keep your motion: strafing, nails and rockets on the aim, grenades their share; a hand swing in grenades only
 vr_grenfuse_test 1        vr_grenfuse_test.qc              one fuse for every grenade: hand, launcher and ogre grenades go off together after arming, each lit with its countdown (none with vr_grenade_countdown 0)

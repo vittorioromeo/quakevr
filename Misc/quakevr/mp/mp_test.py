@@ -4607,7 +4607,9 @@ def frag_table(inst, since=0):
     """A client's scoreboard from its mp_frags lines since `since`: slot -> (name, frags)."""
     table = {}
     for l in inst.lines[since:]:
-        if l.startswith("mp_frags:"):
+        # (anywhere in the line: an obituary printed without its newline runs into it, "playerHudsonmp_frags: ...")
+        if "mp_frags:" in l:
+            l = l[l.index("mp_frags:"):]
             f = fields(l)
             name = l.split('name="', 1)[1].split('"', 1)[0]
             if f["named"] == "1":
@@ -4657,7 +4659,7 @@ def deathmatch(s):
     # pickup taken and back (dm 1) or staying (dm 2), the bot's let-go weapon removed; disarms between A and a bot (PvP on,
     # PvP off, PvE off by default); the bot's shot knocks A's weapon out: his line at his client. At once (two bots on dm4
     # may reach the fraglimit by themselves in under a minute)
-    since_t, since_ts = a.mark(), srv.mark()
+    since_t, since_ts, since_tb = a.mark(), srv.mark(), b.mark()
     srv.cmd("vr_dm_test 1")
     _, verdict = srv.wait(r"dmtest: \d+ passed, \d+ failed", 60, since_ts, "the deathmatch rules' test's verdict")
     a.wait(r"dmtest: ", 5, since_t, "its lines at A") # (its checks broadcast; the verdict echoed on the server's console)
@@ -4665,8 +4667,10 @@ def deathmatch(s):
     fails = [l for l in a.lines[since_t:] if l.startswith("dmtest: FAIL")]
     s.check("the deathmatch rules' test (items, PvP and PvE disarms with a bot) passes", " 0 failed" in verdict,
             "%s %s" % (verdict.strip(), fails))
-    told = wait_or_none(a, r"Your weapon is knocked out of your hand", 10, since_t)
-    s.check("A is told his weapon was knocked out (the bot's shot)", told is not None, "%s" % (told,))
+    # (the test's human is the first one alive: B when a bot's shot had just killed A)
+    told = (wait_or_none(a, r"Your weapon is knocked out of your hand", 10, since_t) or
+            wait_or_none(b, r"Your weapon is knocked out of your hand", 1, since_tb))
+    s.check("the test's human is told his weapon was knocked out (the bot's shot)", told is not None, "%s" % (told,))
 
     # (B11 part 3, part 3) a bot's sword swing at A, its hand swinging it across its front (bot_setvrfields), its blade's
     # line read by the directional parry as a player's swing: A's crowbar (given by the test) held low at his side, the
@@ -4688,6 +4692,19 @@ def deathmatch(s):
                "by a melee blow" in l]
         s.check("A's crowbar %s (vr_dm_test %d)" % (what, test), " 0 failed" in verdict,
                 "%s %s" % (verdict.strip(), got[-4:]))
+    # (B11 part 4) a bot's off hand as a player's, its AI deciding (bot_offhand_ai), its hand through the players' code:
+    # it punches A 40 units ahead (its fist's blow through the melee's sweep: vr_dm_test 4), takes a nailgun lying in
+    # front of it by its hand's touch and grip (5), and with PvP disarms on closes its hand on A's shotgun (given into his
+    # gripping hand) and pulls it away (6).
+    a.cmd(EMPTY_HAND)
+    for test, what in ((4, "the bot punches A: its fist's blow lands through the melee's sweep"),
+                       (5, "the bot's hand takes a nailgun lying in front of it"),
+                       (6, "the bot's hand closes on A's shotgun and pulls it away")):
+        since_p = srv.mark()
+        srv.cmd("vr_dm_test %d" % test)
+        _, verdict = srv.wait(r"dmtest: \d+ passed, \d+ failed", 30, since_p, "vr_dm_test %d's verdict" % test)
+        got = [l.strip() for l in srv.lines[since_p:] if "dmtest: " in l or "pdisarm: " in l or "weapon: " in l]
+        s.check("%s (vr_dm_test %d)" % (what, test), " 0 failed" in verdict, "%s %s" % (verdict.strip(), got[-6:]))
     a.cmd("vr_mock_button main grip 0; %s" % EMPTY_HAND)
     srv.cmd("vr_debug_carry 0; developer 0; vr_debug_shots 0")
 

@@ -2946,7 +2946,8 @@ void(float xHand, float xInMelee, float* xOutMeleeAttackFinished, float* xOutInM
     // of blow its part and motion make; the hands in a bash's push don't strike, and each thing is struck once a motion.
     // One swing, many things (VR_Melee_Multi): every thing it crosses, each once, and no pause after a blow (each thing
     // struck once a motion: a body crossed the frame after the floor is struck).
-    if(VRHandsTracked(self) && (time >= xInMelee || VR_Melee_Multi(VR_Blow(xHand))) && VR_Melee_Strike(xHand))
+    // (Hands that move themselves: tracked, or a bot's -- its punch and its swing, MP B11 part 4: VR_HandLinesKept.)
+    if(VR_HandLinesKept(self) && (time >= xInMelee || VR_Melee_Multi(VR_Blow(xHand))) && VR_Melee_Strike(xHand))
     {
         VR_Melee_DealAll(xHand);
         VR_Embed_BlowsDone(xHand);

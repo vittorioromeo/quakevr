@@ -1238,6 +1238,10 @@ void() BotFrame =
             if(active_clients & ClientBitFlag(num))
             {
                 frik_obstacles();
+                if(self.vr_botreach.flags & FL_CLIENT)
+                {
+                    self.keys = 0; // QVR: its hand on a player's weapon: it stands to take hold (MP B11 part 4)
+                }
                 CL_KeyMove();
 
                 bot_setvrfields();

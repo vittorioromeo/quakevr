@@ -37,13 +37,9 @@ inline float(entity xEntPlayer, float xHand) VR_HandGrabUtil_Impl_GetLastRelease
 // Public API
 // ----------------------------------------------------------------------------
 
+// (Every player's, a bot's too: its grips are its AI's, bot_setvrfields; MP B11 part 4.)
 void(entity xEntPlayer) VR_HandGrabUtil_UpdateState =
 {
-    if(!xEntPlayer.ishuman)
-    {
-        return;
-    }
-
     VR_HandGrabUtil_Impl_UpdateStateForHand(
         VRGetOffHandGrabbingBit(xEntPlayer),
         VRGetOffHandPrevGrabbingBit(xEntPlayer),

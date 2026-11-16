@@ -1079,6 +1079,7 @@ void() BotAI =
 
     self.button2 = 0;
     self.button0 = 0;
+    self.button3 = 0; // QVR: its off hand's trigger (bot_shoot: a gun its off hand took)
 
     // switch empty weapons
     if(!W_CheckNoAmmo(cVR_MainHand) && random() > 0.3)
@@ -1150,6 +1151,7 @@ void() BotAI =
         if(random() < 0.2)
             bot_weapon_switch(-1);
     bot_dodge_stuff();
+    bot_offhand_ai(); // QVR: its off hand punches, takes what lies near, a player's weapon (bot_fight.qc, MP B11 part 4)
 
     // checks to see if bot needs to start going up for air
     if(self.waterlevel > 2)
