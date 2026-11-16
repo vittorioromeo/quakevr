@@ -25,6 +25,7 @@ Spawn an armed knight with two melee weapons: its idle, ready, run and dual stri
 Trailer intro title: watch qvr-kit\scratch\trailerintro_shots\qvr_intro_1080p60.mp4; is the blood juicy enough and does the custom Q read as DpQuake?
 Flat-screen or VR: play a level with sound and listen to jumps, gunfire and music: clean, with no hiss, static or crackle under them (the console no longer says "loading all sounds as 8bit").
 On the Quest Pro via Virtual Desktop with eye tracking forwarded to the PC: turn on Eye-Tracked Foveation (VR Settings, Graphics), restart VR and set vr_foveated_debug 1: the sharp area follows your eyes, and the log says eye tracking is on.
+Trailer titles: --bake, plain rerun keeps them baked, --unbake restores live; Draft toggle looks flat
 
 [1. Flat-screen: weapons and hands]
 Flat-screen: turn on Locomotion > Desktop Screen Play > Third-Person Camera and walk the corridor and the doorway: the camera sits over your right shoulder with your whole body in view, pulls in at once when a wall comes behind it (never showing the inside of a wall), eases back out, and moves over the other shoulder at a wall on the right. {test:flat_thirdperson}
