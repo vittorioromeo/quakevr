@@ -9,6 +9,9 @@
 //   weapon knocks it out (PvP, vr_player_disarm_pvp 1: the clang and the sting); PvP off: not counted; a monster's
 //   (any non-player's) shot counts only with PvE (vr_player_disarm, off by default); a bot's shot across the human's
 //   held weapon knocks it out too ("Your weapon is knocked out of your hand!" at his client: the harness checks it).
+// - The grab (vr_playerdisarm_grab.qc, B11 part 3): the bot's hands apart (bot_setvrfields); held in front of the human,
+//   his empty hand closed on its gun: running, too fast to take hold of (the grab's speed is against the other's body
+//   too); still, taken hold of, then pulled away from it: the shotgun in his hand.
 // Chance certain (vr_player_disarm_chance 100) while it runs. Ends with `dmtest: N passed, M failed` (to every client,
 // echoed on the server's console).
 
@@ -30,7 +33,9 @@ entity vr_dmt_human;  // the human player
 entity vr_dmt_item;   // the weapon pickup
 entity vr_dmt_drop;   // the weapon the bot's hand let go of for it
 entity vr_dmt_foe;    // a stand-in non-player shooter (PvE)
+vector vr_dmt_spot;   // where the bot is held in front of the human (the grab)
 float VR_DMT_GIVEUP = 216; // frames a waiting state may last (3 s at 72 Hz)
+float VR_DMT_HOLD = 72;    // frames the bot is held there first: the lag compensation's past places of it there too
 
 void(float s, float frames) VR_DMT_To =
 {
@@ -294,6 +299,68 @@ void(float ask) VR_DMT_Run =
         }
         VR_Test_Check(VRIsHandWeaponless(vr_dmt_human, cVR_MainHand) || vr_pd_last_hand == cVR_MainHand,
             sprintf("PvP: the human's weapon knocked out by the bot (%g frames)", vr_dmt_n));
+        makevectors(vr_dmt_human.angles_y * '0 1 0');
+        vr_dmt_spot = vr_dmt_human.origin + v_forward * 40;
+        VR_DMT_To(8, 0);
+        return;
+    }
+    if(vr_dmt_s == 8) // the bot held in front of the human, facing him, its gun in hand (the lag compensation's past
+    {                 // places of it there too: VR_DMT_HOLD frames)
+        VR_DMT_Arm(bot);
+        setorigin(bot, vr_dmt_spot);
+        bot.velocity = '0 0 0';
+        bot.v_angle = bot.angles = vectoangles(vr_dmt_human.origin - vr_dmt_spot);
+        bot.fixangle = TRUE;
+        if(vr_dmt_n < VR_DMT_HOLD)
+        {
+            return;
+        }
+        VR_DMT_To(9, 0);
+        return;
+    }
+    if(vr_dmt_s == 9) // its hands apart; the human's empty hand closed on its gun: a running bot's is too fast to take
+    {                 // hold of, a still one's taken hold of, then pulled away from it: his (the grab, PvP)
+        makevectors(bot.v_angle);
+        vector side = bot.handpos - bot.offhandpos;
+        VR_Test_Check(vlen(side) > 10 && side * v_right > 0, sprintf(
+            "the bot's hands apart, the main on its right (%.1f units apart, %.1f along its right)", vlen(side),
+            side * v_right));
+        VR_Test_Check(VRIsHandEmpty(vr_dmt_human, cVR_MainHand) && !VRIsHandWeaponless(bot, cVR_MainHand),
+            "the human's main hand empty, the bot's holding its gun");
+        entity os = self, him = vr_dmt_human;
+        float lc = lagcompbegin(him);
+        self = bot;
+        float onLine = VR_Parry_WeaponLine(bot, cVR_MainHand);
+        self = os;
+        vector mid = (vr_parry_butt + vr_parry_end) * 0.5, chest = bot.origin + bot.view_ofs * 0.6;
+        if(lc)
+        {
+            lagcompend();
+        }
+        vector wasPos = him.handpos, wasVel = him.handvel;
+        float takes = vr_pdg_takes;
+        him.handpos = mid;
+        bot.velocity = v_forward * 320;
+        float fast = onLine && VR_PDG_Try(him, cVR_MainHand);
+        VR_Test_Check(onLine && !fast && him.vr_pdg_of == world, "a running bot's gun: too fast to take hold of");
+        him.vr_pdg_of = world;
+        bot.velocity = '0 0 0';
+        float held = onLine && VR_PDG_Try(him, cVR_MainHand);
+        VR_Test_Check(held && him.vr_pdg_of == bot, sprintf("the human's hand takes hold of the still bot's gun (%s)",
+            him.vr_pdg_of.netname));
+        if(held)
+        {
+            him.vr_pdg_since = time - 0.1; // (held a moment)
+            vector away = normalize(mid - chest);
+            him.handpos = mid + away;
+            him.handvel = away * (cvar_hget(cvarh_vr_player_disarm_pull) + 1); // (m/s)
+            VR_PDG_Hold(him);
+        }
+        him.handpos = wasPos;
+        him.handvel = wasVel;
+        VR_Test_Check(vr_pdg_takes == takes + 1 && VRGetEntWeapon(him, cVR_MainHand) == WID_SHOTGUN &&
+            VRIsHandWeaponless(bot, cVR_MainHand), sprintf("pulled away: the bot's shotgun in the human's hand (%s)",
+            WeaponIdToWeaponName(VRGetEntWeapon(him, cVR_MainHand))));
         VR_DMT_End();
     }
 };

@@ -388,13 +388,21 @@ void() bot_setvrfields =
     self.handrot = self.v_angle;
     self.offhandrot = self.v_angle;
 
-    makeforward(self.v_angle);
+    // Its hands apart, as a player holds his (MP B11 part 3): the main hand on its right, the off hand on its left, at
+    // the chest, each weapon pointing along its aim from there (the disarms' and the grab's lines of its weapons, its
+    // shots' start).
+    // (v_forward left the aim's, as makeforward left it; the callers' v_right and v_up kept, as it kept them)
+    vector wasR = v_right, wasU = v_up;
+    makevectors(self.v_angle);
+    vector chest = self.origin + '0 0 16' + (v_forward * 8);
 
-    self.handpos = self.origin + '0 0 16' + (v_forward * 8);
-    self.offhandpos = self.origin + '0 0 16' + (v_forward * 8);
+    self.handpos = chest + (v_right * 7);
+    self.offhandpos = chest - (v_right * 7);
 
-    self.muzzlepos = self.origin + '0 0 16' + (v_forward * 32);
-    self.offmuzzlepos = self.origin + '0 0 16' + (v_forward * 32);
+    self.muzzlepos = self.handpos + (v_forward * 24);
+    self.offmuzzlepos = self.offhandpos + (v_forward * 24);
+    v_right = wasR;
+    v_up = wasU;
 
     VRSetTeleporting(self, FALSE);
     VRSetOffHandGrabbingBit(self, TRUE);

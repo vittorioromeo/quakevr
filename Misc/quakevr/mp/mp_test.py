@@ -330,6 +330,27 @@ def wait_or_none(inst, pattern, timeout, after):
         return None
 
 
+def dm_frag_gained(inst, slots, after, timeout):
+    """mp_dm: the first mp_frags line from `after` on where one of `slots` has more frags than its line before (a frag
+    scored: a bot's own suicides may have put its count below 0), or None after `timeout` seconds."""
+    rx = re.compile(r'mp_frags: .*slot=(\d+) .*frags=(-?\d+)')
+    deadline = time.monotonic() + timeout * inst.s.time_scale
+    while True:
+        inst.read()
+        last = {}
+        for i, line in enumerate(inst.lines):
+            m = rx.search(line)
+            if not m or int(m.group(1)) not in slots:
+                continue
+            slot, frags = int(m.group(1)), int(m.group(2))
+            if i >= after and slot in last and frags > last[slot]:
+                return line
+            last[slot] = frags
+        if time.monotonic() > deadline:
+            return None
+        time.sleep(0.05)
+
+
 def retransmit(s):
     """(B12b) The reliable window's resends, B 100 ms away each way: a one-chunk reliable message down (300 B) with its
     chunk dropped is resent at its timeout (twice the round trip measured and a little, under 0.75 s; NetQuake's was a
@@ -4325,7 +4346,8 @@ def deathmatch(s):
         kills += 1
         first = first or died
         if kills == 1:
-            credited = wait_or_none(b, r'mp_frags: .*slot=(%d|%d) .*frags=[1-9]' % (bots[0], bots[1]), 10, since_b)
+            # (a frag up from the bot's count before: its own suicides may have put it below 0)
+            credited = dm_frag_gained(b, (bots[0], bots[1]), since_b, 10)
             s.check("A's death by the bot credits the bot a frag at B", credited is not None, "%s" % credited)
         respawned = None
         for _ in range(30):
