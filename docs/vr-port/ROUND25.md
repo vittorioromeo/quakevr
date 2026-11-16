@@ -4466,3 +4466,38 @@ His timing notes (extra scope):
 - **New commands**: `vr_nav_hash` (navmesh and monsters' paths), `vr_mp_lockstep_status`, `vr_mp_predict_tracelog`.
 - Test: `mp_test.py lockstep` (in the suite): physics, edict and navmesh/path hashes equal across two runs at three
   steps, with walking, strafing and a rottweiler hunting. Details: MP_PLAN.md, "B14b results".
+## introfix: the titles under a proxy, the intro's cost (agent/introfix, 2026-11-16)
+
+His report: previewing the QVR Intro Title lags and never shows the whole picture (Smart cache, Timeline Proxy
+Resolution Half/Quarter, proxies on); a full render works but takes over a minute for 5.6 s.
+- **The proxy bug (both titles).** The macros measure the text image (its Width and DataWindow: real pixels, so half
+  of them under a Half proxy) and fed those numbers to built-in tools whose pixel inputs are full-resolution pixels
+  that Fusion scales by the proxy itself: Crop offsets/sizes, the crops' canvas Backgrounds, the grime and splatter
+  FastNoise sizes, the rule's canvas, and every blur (`G.Res*...`). Under a proxy of scale K they were scaled by K
+  twice: at Half the crops were a quarter of the text from the wrong origin (the letters cut off, the metal, blood and
+  rule misplaced) and the glows, shadows and relief blurs half size. Fix: a `ProxyProbe` Background 1024 wide measures
+  K (`G1.K`, the feature title's `Lgt.K`); the built-in tools get measured pixels divided by K (`/G.K`, blurs
+  `G.FR = Res/K`); the Custom tools keep real pixels (`w1`, `G.Res`). K is 1 without a proxy, also at a lower frame
+  size, so the final picture is unchanged: the intro's 7 stills (frames 20-280) at 1080p and 2 at 960x540, and the
+  feature title's 3 at 1080p, are pixel-identical before/after.
+- **Not reproduced in Resolve itself**: no scripting reaches Playback > Timeline Proxy Resolution or a proxied
+  render (Edit-page title comps report `COMPB_Proxy` false and ignore SetAttrs; the Fusion page takes it but its
+  viewer can't be read back; `comp.Render` with a Saver on an Edit-page title comp **crashed Resolve 21.1**: never
+  again), and GUI control was declined. The fix follows Fusion's proxy rule; **he should check it**: the intro at
+  Half and Quarter vs Full, paused on a hold frame. The lag with Smart cache is Resolve showing what it has while it
+  renders in the background (the cost below).
+- **Cost** (Deliver renders, s/frame, frames 40-99; this session's numbers, ~10% noise): intro 0.46-0.48 at 1080p,
+  0.46 at 960x540, 0.42 at 480x270, 0.69 at 4K (60-89; titlespeed measured 1.9 there in another session); feature 0.145
+  at 1080p. **The cost is per frame, not per pixel** below 4K: passing all 8 Custom tools through drops 0.46 to 0.16,
+  yet a quarter of the pixels saves nothing. So a proxy won't make the titles real-time, and neither did two lossless
+  per-pixel cuts I measured and dropped: L2Cov's per-column hashes, waves and pool width moved into a one-row
+  lookup (24 sines a pixel to none; stills within 7 levels) 0.59 s, L2Cov's unread green channel zeroed 0.52 s, and
+  a Draft switch skipping the relief tools (Dissolve to a flat key light) 0.475 vs 0.467. Untested lead: the per-frame
+  cost may be the ~30 `G1`/`G2` expressions reading `L1Text.Output[0]` / `L2Text.Output[0]` (each a request of the
+  text at frame 0) that every Custom tool's inputs pull in; freezing them would tell.
+- Regenerated (`make_intro_title.py`: 92 tools), installed, and in "QVR Titles Preview" on a test trailer: apply
+  (`--rebuild`) placed both (334 and 360 frames), `--bake` rendered both in 219 s (ap4h, 1920x1080, yuva444p12le);
+  that run left the intro at the timeline's start unplaced ("could not be placed at 216000", apply_titles said so),
+  the next `--bake` reused it and placed it (0.2 s). Test timelines, bin and clips removed; his "v1_1trailer" saved
+  before and reopened after.
+- After it ships: run `install_titles.py`, restart Resolve, `apply_titles.py --rebuild`.

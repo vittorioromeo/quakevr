@@ -713,6 +713,15 @@
 					},
 					ViewInfo = OperatorInfo { Pos = { 0, -460 } },
 				},
+				ProxyProbe = Background {
+					NameSet = true,
+					Inputs = {
+						Width = Input { Value = 1024, },
+						Height = Input { Value = 4, },
+						TopLeftAlpha = Input { Value = 0, },
+					},
+					ViewInfo = OperatorInfo { Pos = { 110, -500 } },
+				},
 				G1 = Background {
 					NameSet = true,
 					Inputs = {
@@ -727,6 +736,8 @@
 						OW = Input { Expression = "(L1Lead.Output[0].DataWindow[3] - L1Lead.Output[0].DataWindow[1])", },
 						OH = Input { Expression = "(L1Lead.Output[0].DataWindow[4] - L1Lead.Output[0].DataWindow[2])", },
 						Res = Input { Expression = "W/1920", },
+						K = Input { Expression = "ProxyProbe.Output[0].Width/1024", },
+						FR = Input { Expression = "Res/K", },
 						OL = Input { Expression = "0.029*L1Text.Size*W", },
 						OB = Input { Expression = "(L1Text.Center.Y + L1Lead.Output[0].DataWindow[2]/L1Lead.Output[0].Height - 0.5)*H", },
 						LX = Input { Expression = "(X1 - 0.3*(X2 - X1) + Ctl.USweep*1.6*(X2 - X1))/W", },
@@ -752,6 +763,8 @@
 						OW = { LINKS_Name = "OW", LINKID_DataType = "Number", INPID_InputControl = "SliderControl", IC_Visible = false, ICS_ControlPage = "Controls", },
 						OH = { LINKS_Name = "OH", LINKID_DataType = "Number", INPID_InputControl = "SliderControl", IC_Visible = false, ICS_ControlPage = "Controls", },
 						Res = { LINKS_Name = "Res", LINKID_DataType = "Number", INPID_InputControl = "SliderControl", IC_Visible = false, ICS_ControlPage = "Controls", },
+						K = { LINKS_Name = "K", LINKID_DataType = "Number", INPID_InputControl = "SliderControl", IC_Visible = false, ICS_ControlPage = "Controls", },
+						FR = { LINKS_Name = "FR", LINKID_DataType = "Number", INPID_InputControl = "SliderControl", IC_Visible = false, ICS_ControlPage = "Controls", },
 						OL = { LINKS_Name = "OL", LINKID_DataType = "Number", INPID_InputControl = "SliderControl", IC_Visible = false, ICS_ControlPage = "Controls", },
 						OB = { LINKS_Name = "OB", LINKID_DataType = "Number", INPID_InputControl = "SliderControl", IC_Visible = false, ICS_ControlPage = "Controls", },
 						LX = { LINKS_Name = "LX", LINKID_DataType = "Number", INPID_InputControl = "SliderControl", IC_Visible = false, ICS_ControlPage = "Controls", },
@@ -771,18 +784,18 @@
 					NameSet = true,
 					Inputs = {
 						Input = Input { SourceOp = "L1Text", Source = "Output", },
-						XOffset = Input { Expression = "G1.PX0", },
-						YOffset = Input { Expression = "G1.PY0", },
-						XSize = Input { Expression = "G1.PW", },
-						YSize = Input { Expression = "G1.PH", },
+						XOffset = Input { Expression = "G1.PX0/G1.K", },
+						YOffset = Input { Expression = "G1.PY0/G1.K", },
+						XSize = Input { Expression = "G1.PW/G1.K", },
+						YSize = Input { Expression = "G1.PH/G1.K", },
 					},
 					ViewInfo = OperatorInfo { Pos = { 0, -340 } },
 				},
 				L1Canvas = Background {
 					NameSet = true,
 					Inputs = {
-						Width = Input { Expression = "G1.PW", },
-						Height = Input { Expression = "G1.PH", },
+						Width = Input { Expression = "G1.PW/G1.K", },
+						Height = Input { Expression = "G1.PH/G1.K", },
 						TopLeftAlpha = Input { Value = 0, },
 					},
 					ViewInfo = OperatorInfo { Pos = { 55, -340 } },
@@ -822,7 +835,7 @@
 					NameSet = true,
 					Inputs = {
 						Input = Input { SourceOp = "L1Tail", Source = "Output", },
-						XBlurSize = Input { Expression = "G1.Res*(5 + 7*min(Ctl.Relief, 2))*(1 - Ctl.Draft)", },
+						XBlurSize = Input { Expression = "G1.FR*(5 + 7*min(Ctl.Relief, 2))*(1 - Ctl.Draft)", },
 					},
 					ViewInfo = OperatorInfo { Pos = { 220, -340 } },
 				},
@@ -855,8 +868,8 @@
 				L1Grime = FastNoise {
 					NameSet = true,
 					Inputs = {
-						Width = Input { Expression = "G1.PW", },
-						Height = Input { Expression = "G1.PH", },
+						Width = Input { Expression = "G1.PW/G1.K", },
+						Height = Input { Expression = "G1.PH/G1.K", },
 						Detail = Input { Value = 7, },
 						Contrast = Input { Value = 1.8, },
 						XScale = Input { Expression = "30*G1.CW", },
@@ -928,7 +941,7 @@
 					NameSet = true,
 					Inputs = {
 						Input = Input { SourceOp = "L1ShadowShift", Source = "Output", },
-						XBlurSize = Input { Expression = "G1.Res*(1*Ctl.ShadowSoftness + Ctl.Intensity*14*(1 - Ctl.E1)^2 + 8*Ctl.EOut)", },
+						XBlurSize = Input { Expression = "G1.FR*(1*Ctl.ShadowSoftness + Ctl.Intensity*14*(1 - Ctl.E1)^2 + 8*Ctl.EOut)", },
 					},
 					ViewInfo = OperatorInfo { Pos = { 880, -460 } },
 				},
@@ -949,7 +962,7 @@
 					NameSet = true,
 					Inputs = {
 						Input = Input { SourceOp = "L1InkFill", Source = "Output", },
-						XBlurSize = Input { Expression = "34*G1.Res", },
+						XBlurSize = Input { Expression = "34*G1.FR", },
 					},
 					ViewInfo = OperatorInfo { Pos = { 770, -340 } },
 				},
@@ -957,7 +970,7 @@
 					NameSet = true,
 					Inputs = {
 						Input = Input { SourceOp = "L1InkFill", Source = "Output", },
-						XBlurSize = Input { Expression = "G1.Res*(1 + Ctl.Intensity*9*(1 - Ctl.E1) + 6*Ctl.EOut)", },
+						XBlurSize = Input { Expression = "G1.FR*(1 + Ctl.Intensity*9*(1 - Ctl.E1) + 6*Ctl.EOut)", },
 					},
 					ViewInfo = OperatorInfo { Pos = { 770, -300 } },
 				},
@@ -965,7 +978,7 @@
 					NameSet = true,
 					Inputs = {
 						Input = Input { SourceOp = "L1Place", Source = "Output", },
-						XBlurSize = Input { Expression = "G1.Res*(Ctl.Intensity*14*(1 - Ctl.E1)^2 + 8*Ctl.EOut)", },
+						XBlurSize = Input { Expression = "G1.FR*(Ctl.Intensity*14*(1 - Ctl.E1)^2 + 8*Ctl.EOut)", },
 					},
 					ViewInfo = OperatorInfo { Pos = { 660, -380 } },
 				},
@@ -1026,8 +1039,8 @@
 				RuleCanvas = Background {
 					NameSet = true,
 					Inputs = {
-						Width = Input { Expression = "2*ceil((Ctl.RuleWidth + 0.06)*G1.W/2)", },
-						Height = Input { Expression = "2*ceil(0.05*G1.H/2)", },
+						Width = Input { Expression = "2*ceil((Ctl.RuleWidth + 0.06)*G1.W/G1.K/2)", },
+						Height = Input { Expression = "2*ceil(0.05*G1.H/G1.K/2)", },
 						TopLeftAlpha = Input { Value = 0, },
 					},
 					ViewInfo = OperatorInfo { Pos = { 0, 380 } },
@@ -1051,7 +1064,7 @@
 						NumberIn1 = Input { Expression = "0.5*Ctl.RuleWidth*G1.W*Ctl.ER*(1 - Ctl.EOut)", },
 						NumberIn2 = Input { Expression = "0.5*Ctl.RuleWidth*G1.W", },
 						NumberIn3 = Input { Expression = "0.0052*G1.H", },
-						NumberIn4 = Input { Expression = "0.5 + (Ctl.USweep - 0.5)*1.2*Ctl.RuleWidth*G1.W/RuleCanvas.Width", },
+						NumberIn4 = Input { Expression = "0.5 + (Ctl.USweep - 0.5)*1.2*Ctl.RuleWidth*G1.W/G1.K/RuleCanvas.Width", },
 						NumberIn5 = Input { Expression = "Ctl.LightEnv", },
 						NumberIn6 = Input { Expression = "G1.Res", },
 						NumberIn7 = Input { Expression = "Ctl.Intensity*iif(Ctl.PR > 0, 1, 0)*(1 - Ctl.PR)^0.6", },
@@ -1115,6 +1128,8 @@
 						Y1 = Input { Expression = "L2Text.Output[0].DataWindow[2]", },
 						Y2 = Input { Expression = "L2Text.Output[0].DataWindow[4]", },
 						Res = Input { Expression = "W/1920", },
+						K = Input { Expression = "G1.K", },
+						FR = Input { Expression = "Res/K", },
 						LX = Input { Expression = "(X1 - 0.3*(X2 - X1) + Ctl.USweep*1.6*(X2 - X1))/W", },
 						LY = Input { Expression = "(Y1 + 0.7*(Y2 - Y1))/H", },
 						PX0 = Input { Expression = "floor(max(0, X1 - 0.06*W))", },
@@ -1139,6 +1154,8 @@
 						Y1 = { LINKS_Name = "Y1", LINKID_DataType = "Number", INPID_InputControl = "SliderControl", IC_Visible = false, ICS_ControlPage = "Controls", },
 						Y2 = { LINKS_Name = "Y2", LINKID_DataType = "Number", INPID_InputControl = "SliderControl", IC_Visible = false, ICS_ControlPage = "Controls", },
 						Res = { LINKS_Name = "Res", LINKID_DataType = "Number", INPID_InputControl = "SliderControl", IC_Visible = false, ICS_ControlPage = "Controls", },
+						K = { LINKS_Name = "K", LINKID_DataType = "Number", INPID_InputControl = "SliderControl", IC_Visible = false, ICS_ControlPage = "Controls", },
+						FR = { LINKS_Name = "FR", LINKID_DataType = "Number", INPID_InputControl = "SliderControl", IC_Visible = false, ICS_ControlPage = "Controls", },
 						LX = { LINKS_Name = "LX", LINKID_DataType = "Number", INPID_InputControl = "SliderControl", IC_Visible = false, ICS_ControlPage = "Controls", },
 						LY = { LINKS_Name = "LY", LINKID_DataType = "Number", INPID_InputControl = "SliderControl", IC_Visible = false, ICS_ControlPage = "Controls", },
 						PX0 = { LINKS_Name = "PX0", LINKID_DataType = "Number", INPID_InputControl = "SliderControl", IC_Visible = false, ICS_ControlPage = "Controls", },
@@ -1159,18 +1176,18 @@
 					NameSet = true,
 					Inputs = {
 						Input = Input { SourceOp = "L2Text", Source = "Output", },
-						XOffset = Input { Expression = "G2.PX0", },
-						YOffset = Input { Expression = "G2.PY0", },
-						XSize = Input { Expression = "G2.PW", },
-						YSize = Input { Expression = "G2.PH", },
+						XOffset = Input { Expression = "G2.PX0/G2.K", },
+						YOffset = Input { Expression = "G2.PY0/G2.K", },
+						XSize = Input { Expression = "G2.PW/G2.K", },
+						YSize = Input { Expression = "G2.PH/G2.K", },
 					},
 					ViewInfo = OperatorInfo { Pos = { 0, 0 } },
 				},
 				L2Canvas = Background {
 					NameSet = true,
 					Inputs = {
-						Width = Input { Expression = "G2.PW", },
-						Height = Input { Expression = "G2.PH", },
+						Width = Input { Expression = "G2.PW/G2.K", },
+						Height = Input { Expression = "G2.PH/G2.K", },
 						TopLeftAlpha = Input { Value = 0, },
 					},
 					ViewInfo = OperatorInfo { Pos = { 55, 0 } },
@@ -1199,7 +1216,7 @@
 					NameSet = true,
 					Inputs = {
 						Input = Input { SourceOp = "L2Full", Source = "Output", },
-						XBlurSize = Input { Expression = "40*G2.Res", },
+						XBlurSize = Input { Expression = "40*G2.FR", },
 						ClippingMode = Input { Value = FuID { "None" }, },
 					},
 					ViewInfo = OperatorInfo { Pos = { 110, 40 } },
@@ -1207,8 +1224,8 @@
 				SplatNoise = FastNoise {
 					NameSet = true,
 					Inputs = {
-						Width = Input { Expression = "G2.PW", },
-						Height = Input { Expression = "G2.PH", },
+						Width = Input { Expression = "G2.PW/G2.K", },
+						Height = Input { Expression = "G2.PH/G2.K", },
 						Detail = Input { Value = 3, },
 						Contrast = Input { Value = 2.4, },
 						XScale = Input { Expression = "G2.PW/(30*G2.Res)", },
@@ -1264,7 +1281,7 @@
 					NameSet = true,
 					Inputs = {
 						Input = Input { SourceOp = "L2Cov", Source = "Output", },
-						XBlurSize = Input { Expression = "G2.Res*2", },
+						XBlurSize = Input { Expression = "G2.FR*2", },
 						ClippingMode = Input { Value = FuID { "None" }, },
 					},
 					ViewInfo = OperatorInfo { Pos = { 440, 0 } },
@@ -1273,7 +1290,7 @@
 					NameSet = true,
 					Inputs = {
 						Input = Input { SourceOp = "L2Cov", Source = "Output", },
-						XBlurSize = Input { Expression = "G2.Res*6", },
+						XBlurSize = Input { Expression = "G2.FR*6", },
 						ClippingMode = Input { Value = FuID { "None" }, },
 					},
 					ViewInfo = OperatorInfo { Pos = { 440, 40 } },
@@ -1388,7 +1405,7 @@
 					NameSet = true,
 					Inputs = {
 						Input = Input { SourceOp = "L2ShadowShift", Source = "Output", },
-						XBlurSize = Input { Expression = "G1.Res*(1*Ctl.ShadowSoftness + 6*Ctl.EOut)", },
+						XBlurSize = Input { Expression = "G1.FR*(1*Ctl.ShadowSoftness + 6*Ctl.EOut)", },
 					},
 					ViewInfo = OperatorInfo { Pos = { 1100, 40 } },
 				},
@@ -1396,7 +1413,7 @@
 					NameSet = true,
 					Inputs = {
 						Input = Input { SourceOp = "L2Place", Source = "Output", },
-						XBlurSize = Input { Expression = "G2.Res*7*Ctl.EOut", },
+						XBlurSize = Input { Expression = "G2.FR*7*Ctl.EOut", },
 					},
 					ViewInfo = OperatorInfo { Pos = { 880, 0 } },
 				},
@@ -1404,7 +1421,7 @@
 					NameSet = true,
 					Inputs = {
 						Input = Input { SourceOp = "L2Mould", Source = "Output", },
-						XBlurSize = Input { Expression = "G2.Res*(1 + 6*(1 - Ctl.Mold) + 7*Ctl.EOut)", },
+						XBlurSize = Input { Expression = "G2.FR*(1 + 6*(1 - Ctl.Mold) + 7*Ctl.EOut)", },
 					},
 					ViewInfo = OperatorInfo { Pos = { 330, -80 } },
 				},
@@ -1504,7 +1521,7 @@
 					NameSet = true,
 					Inputs = {
 						Input = Input { SourceOp = "L3ShadowShift", Source = "Output", },
-						XBlurSize = Input { Expression = "G1.Res*(0.5*Ctl.ShadowSoftness + Ctl.Intensity*8*(1 - Ctl.E3)^2 + 5*Ctl.EOut)", },
+						XBlurSize = Input { Expression = "G1.FR*(0.5*Ctl.ShadowSoftness + Ctl.Intensity*8*(1 - Ctl.E3)^2 + 5*Ctl.EOut)", },
 					},
 					ViewInfo = OperatorInfo { Pos = { 440, 500 } },
 				},
@@ -1512,7 +1529,7 @@
 					NameSet = true,
 					Inputs = {
 						Input = Input { SourceOp = "L3Text", Source = "Output", },
-						XBlurSize = Input { Expression = "G1.Res*(Ctl.Intensity*9*(1 - Ctl.E3)^2 + 5*Ctl.EOut)", },
+						XBlurSize = Input { Expression = "G1.FR*(Ctl.Intensity*9*(1 - Ctl.E3)^2 + 5*Ctl.EOut)", },
 					},
 					ViewInfo = OperatorInfo { Pos = { 110, 460 } },
 				},
