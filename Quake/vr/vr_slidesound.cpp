@@ -6,6 +6,7 @@
 #include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatmove.hpp"
+#include "vr_slide.hpp"
 
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -73,7 +74,7 @@ void frame(bool on)
     const float dt = st.lastTime >= 0.0 ? za::clamp(static_cast<float>(cl.time - st.lastTime), 0.f, 0.1f) : 0.f;
     st.lastTime = cl.time;
     const float volume = za::clamp(vr_flat_slide_sound.value, 0.f, 1.f);
-    const bool sliding = on && flatmove::sliding() && cl.viewentity > 0 && cls.signon == SIGNONS;
+    const bool sliding = on && (flatmove::sliding() || slide::headsetSliding()) && cl.viewentity > 0 && cls.signon == SIGNONS;
     if(sliding && !st.wasSliding)
     {
         st.starts++;

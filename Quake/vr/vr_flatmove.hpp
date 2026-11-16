@@ -2,10 +2,11 @@
 // "Leaning"; ROUND24.md, "Flat-screen slide and lean").
 //
 // The slide (vr_flat_slide, vr_flat_slide_*): crouching while running faster than vr_flat_slide_min starts it, on the
-// server (VR_FlatSlideMove, from SV_AirMove): his speed boosted, then no walking and no ground friction but its own,
-// a slope pulling him down it, until he is slower than vr_flat_slide_end, lets go of the crouch or jumps (a jump keeps the
-// speed: Quake's air move). The client reads the local server's word (sliding) for the view's extra drop and the body's
-// pose (vr_avatar_pitch.cpp: the trunk leant back, the legs out in front).
+// server (the shared slide, vr_slide.cpp, a headset's too with vr_slide: VR_SlideMove, from SV_AirMove): his speed
+// boosted, then no walking and no ground friction but its own, a slope pulling him down it, until he is slower than
+// vr_flat_slide_end, lets go of the crouch or jumps (a jump keeps the speed: Quake's air move). Here, flatscreen play's
+// client side: it reads the local server's word (sliding) for the view's extra drop and the body's pose
+// (vr_avatar_pitch.cpp: the trunk leant back, the legs out in front), and the flat slide's tests.
 //
 // The lean (vr_flat_lean, vr_flat_lean_*): Q / E hold (or toggle) a lean: the eye moves sideways (no further than a
 // trace at its side lets it, vr_flat_lean_margin off the wall), and down as it swings, the view and the held weapon roll,
@@ -51,23 +52,11 @@ void frame(bool on);
 // lip of e1m1's button ramp, a third of a second in the air, the view rose 3.7 units over the body and fell on landing,
 // the gun and the body with it). sliding() is the slide on the ground (its sound, the tests).
 [[nodiscard]] bool slidePose();
-// The server's word: player `ent`'s slide is on (off a ledge mid-slide too); false for anyone else (vr_hull.cpp: no lying down mid-slide; vr_box3d_standing.cpp: a prop slid into).
-[[nodiscard]] bool slideOnServer(const edict_t* ent);
 
 // How much further down the slide puts his eyes now (units; flatplay::crouchDrop adds it).
 [[nodiscard]] float slideDrop();
 // How far behind the eye the slide's leant-back trunk hangs from (units: vr_flat_slide_neck_back; the avatar takes it by
 // its slide share). 0 outside the mode.
 [[nodiscard]] float slideNeckBack();
-
-// One step of the slide on the ground (the self-test drives it directly): the speed along the floor `vel`, the floor's
-// normal, the move keys' way (unit, or zero), seconds. Out: the new speed along the floor; `ended` when it is slower
-// than vr_flat_slide_end.
-struct SlideStep
-{
-    glm::vec2 vel{0.f};
-    bool ended{false};
-};
-[[nodiscard]] SlideStep slideStep(const glm::vec2& vel, const glm::vec3& normal, const glm::vec2& wish, float dt);
 
 } // namespace qvr::flatmove
