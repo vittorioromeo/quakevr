@@ -1383,7 +1383,7 @@ QVR_TOGGLE(vr_player_disarm, "You Can Be Disarmed",
     "Enemies' shots and blows on the weapon you hold, or the hand holding it, can knock it out of your hand by the "
     "same rules as yours on an armed grunt's: shots add up and roll, a projectile rolls once, a blow landing on your "
     "weapon (not a parry) knocks it out. It drops where you can pick it up again, its ammo kept. Fists and empty hands "
-    "never. In multiplayer, other players' too (vr_player_disarm).")
+    "never. In multiplayer, other players' too. Off by default: still being tuned (vr_player_disarm).")
 QVR_SLIDER(vr_player_disarm_sound, "Your Disarm Sound", 0.f, 1.f, 0.05f, "%.2f", ext(),
     "Your weapon knocked out of your hand: the volume of its clang (at the weapon, for everyone near) and of the short "
     "alert only you hear (0: silent) (vr_player_disarm_sound).")
@@ -7144,6 +7144,19 @@ QVR_TOGGLE_BYNAME(vr_obs, "OBS Recording Control",
     "Settings > Enable WebSocket server (port 4455). With Enable Authentication on, its password (Show "
     "Connect Info) goes in the console: vr_obs_password \"...\" (kept in the config in plain text); or "
     "turn authentication off. OBS on another PC: vr_obs_host and vr_obs_port. Off: never looks.")
+QVR_TOGGLE_BYNAME(vr_obsrec_ghost_hands, "No Ghost Hands While Recording",
+    "While OBS records (OBS Recording Control), Ghost Hands are not drawn, in the headset too: clean takes. "
+    "On by default (vr_obsrec_ghost_hands).")
+QVR_TOGGLE_BYNAME(vr_obsrec_debug, "No Debug Markers While Recording",
+    "While OBS records, the debug aids drawn in the world are left out: the weapons' hotspot marks (Show "
+    "Weapon Hotspots) and the profiler's panel. On by default (vr_obsrec_debug).")
+QVR_TOGGLE_BYNAME(vr_obsrec_messages, "Recording Mode While Recording",
+    "While OBS records, Recording Mode is on by itself: no tips, no messages on the wrist gadget and no "
+    "text in front of your head; menus and the wrist gadget's own display stay. On by default "
+    "(vr_obsrec_messages).")
+QVR_TOGGLE_BYNAME(vr_obsrec_as_if, "Clean Recording: Act As If OBS Records",
+    "Test aid: the clean recording's options (Graphics > Recording, Clean Recording) apply as if OBS were "
+    "recording, without OBS. Not saved (vr_obsrec_as_if).")
 QVR_SLIDER_BYNAME(vr_window_smooth, "Smoothing", 0.f, 0.5f, 0.01f, "%.2f s", noExt,
     "How much the head's shake is smoothed out: the view's lag behind your head. 0.1-0.2 s takes out the "
     "shake and keeps turns lively; more glides like a camera operator's.")

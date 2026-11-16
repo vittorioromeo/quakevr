@@ -579,6 +579,13 @@ QVR_TUNABLE(vr_throw_point_time, "0.5") // s: how long after the throw it may
 QVR_TUNABLE(vr_throw_point_angle, "180") // degrees: its point at most this far off its flight as it leaves the hand (180: any)
 QVR_TUNABLE(vr_throw_point_spin, "3") // turns/s across the blade as it leaves the hand: the whole help up to half this, none from it
 QVR_TUNABLE(vr_throw_point_damp, "1") // its damping of the tumble across the blade (1: critical, no overshoot)
+// The dagger's own (his note 2026-11-16): a blade more lenient than the swords (weapons.txt throw_point above 1: the
+// dagger) takes the five above times these (1: as now, the swords' times its throw_point)
+QVR_TUNABLE(vr_throw_point_dagger_align, "1")
+QVR_TUNABLE(vr_throw_point_dagger_time, "1")
+QVR_TUNABLE(vr_throw_point_dagger_angle, "1")
+QVR_TUNABLE(vr_throw_point_dagger_spin, "1")
+QVR_TUNABLE(vr_throw_point_dagger_damp, "1")
 QVR_TUNABLE(vr_shot_push_pellet, "6") // N s, each shotgun and double shotgun pellet's push (monsters' too)
 QVR_TUNABLE(vr_shot_push_nail, "12") // N s, a nail's (the nailgun's, scrags', knights', enforcers' lasers)
 QVR_TUNABLE(vr_shot_push_supernail, "24") // N s, a super nailgun nail's

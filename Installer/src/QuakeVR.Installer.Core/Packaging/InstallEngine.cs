@@ -355,6 +355,7 @@ public sealed class InstallEngine
                     VisPatch = plan.VisPatchArchives.Count > 0 || (old?.Choices.VisPatch ?? false),
                     DesktopShortcut = keepShortcuts ? old!.Choices.DesktopShortcut : plan.Shortcuts.Desktop,
                     StartMenuShortcuts = keepShortcuts ? old!.Choices.StartMenuShortcuts : plan.Shortcuts.StartMenu,
+                    DesktopFlatShortcut = keepShortcuts ? old!.Choices.DesktopFlatShortcut : plan.Shortcuts.DesktopFlat,
                     FlatShortcut = keepShortcuts ? old!.Choices.FlatShortcut : plan.Shortcuts.Flat,
                     LogShortcut = keepShortcuts ? old!.Choices.LogShortcut : plan.Shortcuts.Log,
                     ArcaneDimensions = old?.Choices.ArcaneDimensions ?? false,
