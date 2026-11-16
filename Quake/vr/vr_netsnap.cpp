@@ -993,6 +993,7 @@ struct ServerSlot
     };
     Sent sentLog[sentLogLen];
     int sentHead{0}; // the next to write
+    double nextSendAt{-1.0}; // (B13c, vr_net_sendhz) his next datagram's server time
 };
 za::Vector<ServerSlot> serverSlots;
 
@@ -1139,6 +1140,32 @@ void holdPlayers(const Snapshot* base, za::U32 seq)
 
 } // namespace
 
+bool serverSendsNow(client_t* client)
+{
+    const double hz = vr_net_sendhz.value;
+    constexpr double frame = 1.0 / 72.0;
+    if(hz <= 0.0 || hz >= 72.0 - 0.5 || vr_net_snapshots.value == 0.f || !client || !client->netconnection ||
+        strcmp(NET_QSocketGetAddressString(client->netconnection), "LOCAL") == 0)
+    {
+        return true;
+    }
+    const int slot = static_cast<int>(client - svs.clients);
+    ServerSlot* s = netmove::serverSends(slot) ? slotOf(slot, true) : nullptr;
+    if(!s)
+    {
+        return true; // (NetQuake's datagrams: each frame, as before)
+    }
+    const double now = qcvm->time, period = 1.0 / za::max(hz, 1.0);
+    if(s->nextSendAt >= 0.0 && now + 0.5 * frame < s->nextSendAt && s->nextSendAt - now <= 2.0 * period)
+    {
+        return false;
+    }
+    // (on the beat; a late frame, a new map's clock or a first: from now)
+    const bool beat = s->nextSendAt >= 0.0 && now - s->nextSendAt < period && s->nextSendAt - now <= 2.0 * period;
+    s->nextSendAt = beat ? s->nextSendAt + period : now + period;
+    return true;
+}
+
 bool serverBegin(client_t* client)
 {
     Building& b = building;
@@ -1235,7 +1262,7 @@ void serverEnd(sizebuf_t* msg)
 
     // Its budget (B12): the room left after what is written and the broadcast to come (its events before poses, as when
     // the poses came after it; at most half), and under his rate what his bucket holds after them.
-    const int broadcast = za::min(sv.datagram.cursize, room / 2);
+    const int broadcast = za::min(sv.datagram.cursize + VR_HeldBroadcastBytes(bl.slot), room / 2); // (B13c: and held)
     int budget = room - broadcast;
     if(bl.rate > 0)
     {
@@ -1352,10 +1379,15 @@ void serverReset(int slotNum, bool keepCounts)
         {
             l.time = -1.0;
         }
+        s->nextSendAt = -1.0;
         if(!keepCounts)
         {
             s->counts = {};
         }
+    }
+    if(slotNum >= 0 && slotNum < MAX_SCOREBOARD)
+    {
+        VR_ClearHeldBroadcast(slotNum);
     }
 }
 

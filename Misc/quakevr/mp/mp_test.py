@@ -627,7 +627,10 @@ def avatar(s):
         sv, got, own = by_ent(lines_s, "mp_avatar_sv"), by_ent(lines_b, "mp_avatar"), by_ent(lines_a, "mp_avatar_own")
         if ea in got and sum(got[ea]["curl0"][:15]) / 15.0 >= CLOSED_CURL and ea in sv and ea in own and \
                 own[ea]["wmdl"][1] > 0 and got[ea]["wmdl"][1] > 0 and \
-                max(abs(x - y) for x, y in zip(got[ea]["curl0"], sv[ea]["curl0"])) <= CURL_STEP + 1e-4:
+                max(abs(x - y) for x, y in zip(got[ea]["curl0"], sv[ea]["curl0"])) <= CURL_STEP + 1e-4 and \
+                (1, "weapon") in drawn_at(lines_b, ea):
+            # (B13c: and B's last drawn frame had it: the avatar with the weapon can arrive after the frame B's report
+            # describes was drawn -- under load the suite's flake, "drawn: None" with the model indices equal)
             break
     s.check("B has A's avatar", ea in got, "B has %s; the server %s" % (sorted(got), sorted(sv)))
     s.check("B has no avatar of himself", eb not in got)
@@ -4126,6 +4129,9 @@ def lagcomp(s):
             p_plain += 1 if int(f["plain"]) == ea else 0
     a.cmd("vr_mock_stick off 0 0")
     srv.cmd("vr_net_test_hold 0")
+    sn = client_snap_status(b)  # (B13c: his buffer's delay, the others drawn behind: vr_net_sendhz's cost)
+    s.metric("lagcomp_interp_delay_ms", float(sn.get("delay_ms", -1)))
+    s.note("B's interpolation buffer: delay %s ms, %s holds" % (sn.get("delay_ms"), sn.get("holds")))
     mean = lambda xs: sum(xs) / len(xs) if xs else 99.0
     s.metric("lagcomp_err", {"free": errs, "capped": cap_errs, "capped_frames": cap_frame_errs})
     s.check("A put back where B drew him (%.1f units on average, %.0f at most)" % (LAGCOMP_ERR_MEAN, LAGCOMP_ERR_MOST),
@@ -5153,6 +5159,7 @@ def soak(s):
 
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
     s = Session(args.exe, args.base, args.out, test, port=args.port)
+    s.server_extra = args.server_set.split() if args.server_set else []  # (B13c: e.g. "+vr_net_sendhz 36")
     failure = None
     try:
         if test == "mp_bandwidth":
@@ -5270,6 +5277,7 @@ def main():
     ap.add_argument("--jitter", type=float, default=0.0, help="client B's delay varies by this much, ms")
     ap.add_argument("--loss", type=float, default=0.0, help="client B's game packet loss, 0..1, each way")
     ap.add_argument("--reset-autoexec", action="store_true", help="empty <base>/id1/autoexec.cfg first")
+    ap.add_argument("--server-set", default="", help="the dedicated server's extra command line (e.g. \"+vr_net_sendhz 36\")")
     ap.add_argument("--permove-skip", type=int, default=0,
                     help="predictclimb: the server's vr_net_permove_skip (1 the hands' climb out, 2 the grapple: left to "
                          "QuakeC once a frame; its part should then fail)")

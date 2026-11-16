@@ -321,6 +321,19 @@ void sweepWeaponInsts()
 // takes the buffer back to the last boundary, and QuakeC's broadcast writes then go nowhere until the next one. A
 // client's datagram takes the longest part of it that ends on a boundary and fits after its entities (it was all of it
 // or none).
+// (B13c) A remote client's share of the broadcast of the frames he got no datagram (vr_net_sendhz), for his next one.
+struct HeldBroadcast
+{
+    za::U8 data[DATAGRAM_MTU];
+    int size{0};
+};
+HeldBroadcast heldBroadcast[MAX_SCOREBOARD];
+struct HeldCounts
+{
+    za::U64 held{0}, dropped{0}; // (vr_net_broadcast_report)
+};
+HeldCounts heldCounts;
+
 struct BroadcastRoom
 {
     static constexpr int maxMarks = 1024; // full: every other one is dropped (spread evenly, the last kept)
@@ -1214,11 +1227,14 @@ constexpr float soundMargin = 64.f;     // units more
 void broadcastReport_f()
 {
     const BroadcastSight& s = broadcastSight;
-    Con_Printf("mp_broadcast: sent=%llu culled=%llu unknown=%llu cull=%g\n", static_cast<unsigned long long>(s.sent),
-        static_cast<unsigned long long>(s.culled), static_cast<unsigned long long>(s.unknown), vr_net_cullbroadcast.value);
+    Con_Printf("mp_broadcast: sent=%llu culled=%llu unknown=%llu cull=%g held=%llu held_dropped=%llu\n",
+        static_cast<unsigned long long>(s.sent), static_cast<unsigned long long>(s.culled),
+        static_cast<unsigned long long>(s.unknown), vr_net_cullbroadcast.value,
+        static_cast<unsigned long long>(heldCounts.held), static_cast<unsigned long long>(heldCounts.dropped));
     if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "reset"))
     {
         broadcastSight.sent = broadcastSight.culled = broadcastSight.unknown = 0;
+        heldCounts = HeldCounts{};
     }
 }
 
@@ -1281,6 +1297,64 @@ extern "C" void VR_WriteBroadcast(sizebuf_t* msg, int local, const edict_t* clen
             at += len;
         }
         from = q_max(from, end);
+    }
+}
+
+// (B13c) vr_net_sendhz: a remote snapshot client's frames without a datagram keep his share of each frame's broadcast
+// (culled by his sight as it would have been) for his next datagram, in order before its own frame's (heldBroadcast).
+extern "C" int VR_SendsDatagramNow(client_t* client)
+{
+    return qvr::netsnap::serverSendsNow(client) ? 1 : 0;
+}
+
+extern "C" void VR_HoldBroadcast(client_t* client)
+{
+    const int slot = static_cast<int>(client - svs.clients);
+    if(slot < 0 || slot >= MAX_SCOREBOARD || !client->edict)
+    {
+        return;
+    }
+    HeldBroadcast& h = heldBroadcast[slot];
+    sizebuf_t buf{};
+    buf.data = h.data;
+    buf.maxsize = static_cast<int>(sizeof(h.data));
+    buf.cursize = h.size;
+    const int entities = broadcastRoom.entities; // (its stat: a datagram's entities, not this buffer's)
+    VR_WriteBroadcast(&buf, 0, client->edict);
+    broadcastRoom.entities = entities;
+    heldCounts.held += static_cast<za::U64>(buf.cursize - h.size);
+    h.size = buf.cursize;
+}
+
+extern "C" void VR_WriteHeldBroadcast(sizebuf_t* msg, client_t* client)
+{
+    const int slot = static_cast<int>(client - svs.clients);
+    if(slot < 0 || slot >= MAX_SCOREBOARD || heldBroadcast[slot].size == 0)
+    {
+        return;
+    }
+    HeldBroadcast& h = heldBroadcast[slot];
+    if(msg->cursize + h.size <= msg->maxsize - 1)
+    {
+        SZ_Write(msg, h.data, h.size);
+    }
+    else
+    {
+        heldCounts.dropped += static_cast<za::U64>(h.size); // (no room after the entities: as a broadcast's tail)
+    }
+    h.size = 0;
+}
+
+extern "C" int VR_HeldBroadcastBytes(int slot)
+{
+    return slot >= 0 && slot < MAX_SCOREBOARD ? heldBroadcast[slot].size : 0;
+}
+
+extern "C" void VR_ClearHeldBroadcast(int slot)
+{
+    if(slot >= 0 && slot < MAX_SCOREBOARD)
+    {
+        heldBroadcast[slot].size = 0;
     }
 }
 

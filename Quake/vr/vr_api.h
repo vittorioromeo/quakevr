@@ -474,6 +474,13 @@ void VR_SnapTake (struct sizebuf_s *msg, int at, int key);
 int VR_LagCompBegin (struct edict_s *shooter); // PF_traceline (a MOVE_HITMODEL trace): the targets where he saw them (vr/vr_lagcomp.cpp)
 void VR_LagCompEnd (void);                     // ... and back
 void VR_SnapEnd (struct sizebuf_s *msg);
+// (B13c) A remote snapshot client's send rate (vr_net_sendhz): SV_SendClientMessages sends his datagram this frame (1),
+// or holds his share of the frame's broadcast for the next one (0: VR_HoldBroadcast; VR_WriteHeldBroadcast writes it).
+int VR_SendsDatagramNow (struct client_s *client);
+void VR_HoldBroadcast (struct client_s *client);
+void VR_WriteHeldBroadcast (struct sizebuf_s *msg, struct client_s *client);
+int VR_HeldBroadcastBytes (int slot);
+void VR_ClearHeldBroadcast (int slot); // (a new connection's, a new map's: vr_netsnap.cpp serverReset)
 void VR_InterpFrame (void);				// CL_RelinkEntities, before the entities: the interpolation buffer's clock (vr_netsnap.cpp)
 int VR_InterpEntity (int num, float *origin, float *angles); // ... entity `num` placed from it (a remote server's others, a delay behind): 1, or 0 NetQuake's lerp
 int VR_MoveMerges (struct client_s *client);			// SV_ReadClientMove, at its buttons: not the first move since the server's last frame (its buttons ORed)

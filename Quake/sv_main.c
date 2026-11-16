@@ -1334,6 +1334,7 @@ qboolean SV_SendClientDatagram (client_t *client)
 		VR_SnapEnd (&msg); // QVR: ... with the avatars it sees, delta-coded against the one it acknowledged
 
 // copy the server datagram if there is space
+	VR_WriteHeldBroadcast (&msg, client); // QVR: the frames' before it he got no datagram (vr_net_sendhz, B13c)
 	{
 		// QVR: as much of it as fits, whole messages (it was all or none: a frame of many effects lost them all); a
 		// remote client's only what he can see or hear (B13b: vr/vr_server.cpp)
@@ -1503,6 +1504,29 @@ void SV_SendNop (client_t *client)
 
 /*
 =======================
+SV_HoldClientDatagram
+
+QVR: a frame off a remote client's send rate (vr_net_sendhz, B13c): his share of the frame's broadcast (culled by his
+sight, as SV_WriteEntitiesToClient notes it) kept for his next datagram; the rest (his state, the entities) is sent
+as it is then.
+=======================
+*/
+static void SV_HoldClientDatagram (client_t *client)
+{
+	vec3_t	org;
+	byte	*pvs;
+
+	if (!client->edict || !sv.worldmodel)
+		return;
+	VectorAdd (client->edict->v.origin, client->edict->v.view_ofs, org);
+	pvs = SV_FatPVS (org, sv.worldmodel);
+	VR_PortalAddPVS (pvs, org);
+	VR_NoteClientSight (client->edict, pvs, org);
+	VR_HoldBroadcast (client);
+}
+
+/*
+=======================
 SV_SendClientMessages
 =======================
 */
@@ -1523,6 +1547,8 @@ void SV_SendClientMessages (void)
 		{
 			if (VR_LockstepSkipsDatagram (i))
 				; // QVR: the harness's lockstep: a held frame sends its players nothing new (vr_mptest.cpp, B14e)
+			else if (!VR_SendsDatagramNow (host_client))
+				SV_HoldClientDatagram (host_client); // QVR: off his send rate's beat (vr_net_sendhz, B13c): his broadcast kept
 			else if (!SV_SendClientDatagram (host_client))
 				continue;
 		}

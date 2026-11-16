@@ -251,7 +251,8 @@ class Session:
         print("  " + text, flush=True)
 
     def server(self, dedicated=True, maxplayers=4, flat=False, name="server", extra=()):
-        inst = Instance(self, name, self.port, dedicated=maxplayers if dedicated else 0, flat=flat, extra=extra)
+        more = list(getattr(self, "server_extra", [])) if dedicated else []  # (mp_test.py --server-set)
+        inst = Instance(self, name, self.port, dedicated=maxplayers if dedicated else 0, flat=flat, extra=list(extra) + more)
         self.instances.append(inst)
         return inst
 

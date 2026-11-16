@@ -99,6 +99,8 @@ inline constexpr int keyClasses = 5; // 0 the player state, 1 an entity, 2 an av
 // Server (sv_main.c through vr_api.h). begin: whether this datagram's records go into a snapshot (a remote client that
 // sends QVR_CLC_MOVES, vr_net_snapshots on); then take() cuts each record off the end of `msg`; end() writes the snapshot.
 [[nodiscard]] bool serverBegin(client_t* client);
+// (B13c) vr_net_sendhz: whether a remote snapshot client gets his datagram this server frame (on his beat), else held.
+[[nodiscard]] bool serverSendsNow(client_t* client);
 [[nodiscard]] bool serverRecording();
 void serverTake(sizebuf_t* msg, int at, int key);
 void serverRecord(int key, const za::U8* data, int len);
