@@ -31,6 +31,7 @@
 #include "vr_shock.hpp"
 #include "vr_units.hpp"
 #include "vr_portals.hpp"
+#include "vr_testkit.hpp"
 #include "vr_tips.hpp"
 #include "vr_worldtext.hpp"
 
@@ -424,7 +425,188 @@ void broadcastMark(int at)
     b.marks[b.numMarks++] = at;
 }
 
+// ----------------------------------------------------------------------------
+// The looping sounds the server started (a sample with a cue point: the chainsaw's idle, run and cut, a flamethrower's,
+// a fire's crackle): kept per entity and channel, so that what ends one is never lost and none plays on after its
+// entity (his note vrtesthall_2026-11-16_00-47-47: a knight's chainsaw idling for ever after it died). A sound that
+// replaces a loop (misc/null.wav, the stall) goes with the reliable messages (the broadcast's sounds are dropped when it
+// is full: a big fight's); an entity freed with a loop on it has the loop stopped (VR_SoundLoopsFreed), reliably too.
+struct SoundLoops
+{
+    za::Vector<za::U16> mask;   // per entity number: its channels playing a loop (a bit each, 0 .. SND_MAX_CHANNEL)
+    za::Vector<int> stopFrame;  // per entity number: host_framecount of its last reliable stop (a loop again then: reliable)
+    za::Vector<signed char> isLoop; // per sound number: -1 not read yet, 0, 1 (this map's)
+    const qmodel_t* world{nullptr}; // the map they are of (a new one: all forgotten)
+    char map[64]{};
+    qvr::testkit::Tally tally;       // vr_snd_loops check's
+};
+SoundLoops soundLoops;
+
+void soundLoopsFor()
+{
+    SoundLoops& s = soundLoops;
+    if(s.world != sv.worldmodel || strcmp(s.map, sv.name) != 0)
+    {
+        s.world = sv.worldmodel;
+        q_strlcpy(s.map, sv.name, sizeof(s.map));
+        s.mask.clear();
+        s.stopFrame.clear();
+        s.isLoop.clear();
+    }
+    const auto edicts = static_cast<za::SizeT>(za::max(qcvm->max_edicts, 1));
+    if(s.mask.size() < edicts)
+    {
+        s.mask.resize(edicts, 0);
+        s.stopFrame.resize(edicts, -1);
+    }
+    if(s.isLoop.size() < static_cast<za::SizeT>(MAX_SOUNDS))
+    {
+        s.isLoop.resize(static_cast<za::SizeT>(MAX_SOUNDS), -1);
+    }
+}
+
+// Whether precached sound `num` loops (its file has a cue point: GetWavinfo's loopstart), read once a map.
+bool soundLoops_(int num)
+{
+    signed char& known = soundLoops.isLoop[static_cast<za::SizeT>(num)];
+    if(known < 0)
+    {
+        known = 0;
+        unsigned int pathId = 0;
+        if(byte* data = COM_LoadMallocFile(va("sound/%s", sv.sound_precache[num]), &pathId))
+        {
+            known = GetWavinfo(sv.sound_precache[num], data, com_filesize).loopstart >= 0 ? 1 : 0;
+            free(data);
+        }
+    }
+    return known > 0;
+}
+
+// vr_snd_loops: the loops playing, by the server's account. `vr_snd_loops check <label> [most] [least]`: PASS when
+// `least` (0) to `most` (0) play (tallied); `vr_snd_loops end <name>`: "<name>: N passed, M failed" (the tests' verdict).
+void soundLoops_f()
+{
+    if(!sv.active)
+    {
+        Con_Printf("vr_snd_loops: no server\n");
+        return;
+    }
+    qvr::progs::ServerVm serverVm;
+    soundLoopsFor();
+    SoundLoops& s = soundLoops;
+    const char* const what = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
+    if(!strcmp(what, "end"))
+    {
+        s.tally.verdict(Cmd_Argc() > 2 ? Cmd_Argv(2) : "sndloops");
+        s.tally.reset();
+        return;
+    }
+    int n = 0;
+    za::String list;
+    for(za::SizeT i = 1; i < s.mask.size() && static_cast<int>(i) < qcvm->num_edicts; i++)
+    {
+        for(int c = 0; c <= SND_MAX_CHANNEL; c++)
+        {
+            if(s.mask[i] & (1u << c))
+            {
+                n++;
+                edict_t* const e = EDICT_NUM(static_cast<int>(i));
+                list += va(" %d:%s/%d", static_cast<int>(i), e->free ? "(freed)" : PR_GetString(e->v.classname), c);
+            }
+        }
+    }
+    if(!strcmp(what, "check"))
+    {
+        const int most = Cmd_Argc() > 3 ? Q_atoi(Cmd_Argv(3)) : 0;
+        const int least = Cmd_Argc() > 4 ? Q_atoi(Cmd_Argv(4)) : 0;
+        const bool ok = s.tally.check(n <= most && n >= least);
+        Con_Printf("sndloops %s: %s: %d loops playing (%d .. %d)%s\n", Cmd_Argc() > 2 ? Cmd_Argv(2) : "", ok ? "PASS" : "FAIL", n,
+            least, most, list.cStr());
+        return;
+    }
+    Con_Printf("vr_snd_loops: %d loops playing%s\n", n, list.cStr());
+}
+
 } // namespace
+
+// SV_StartSoundPitch, before its message: sound `num` started on entity `ent`'s `channel`. True when it must go with the
+// reliable messages: it ends a loop there (it is no loop itself), or it is a loop again after such an end this frame
+// (the reliable messages are read after the broadcast: it would be ended by the end before it).
+extern "C" int VR_SoundLoopNote(int ent, int channel, int num)
+{
+    if(ent <= 0 || channel < 0 || channel > SND_MAX_CHANNEL || num <= 0 || num >= MAX_SOUNDS)
+    {
+        return 0;
+    }
+    soundLoopsFor();
+    SoundLoops& s = soundLoops;
+    if(static_cast<za::SizeT>(ent) >= s.mask.size())
+    {
+        return 0;
+    }
+    const auto bit = static_cast<za::U16>(1u << channel);
+    za::U16& m = s.mask[static_cast<za::SizeT>(ent)];
+    if(soundLoops_(num))
+    {
+        m = static_cast<za::U16>(m | bit);
+        return s.stopFrame[static_cast<za::SizeT>(ent)] == host_framecount ? 1 : 0;
+    }
+    if(!(m & bit))
+    {
+        return 0;
+    }
+    m = static_cast<za::U16>(m & ~bit);
+    s.stopFrame[static_cast<za::SizeT>(ent)] = host_framecount;
+    return 1;
+}
+
+// ED_Free: the loops still playing on it stopped (misc/null.wav on each channel, reliably), whatever freed it.
+extern "C" void VR_SoundLoopsFreed(edict_t* ed)
+{
+    if(!sv.active || qcvm != &sv.qcvm)
+    {
+        return;
+    }
+    soundLoopsFor();
+    const int ent = NUM_FOR_EDICT(ed);
+    SoundLoops& s = soundLoops;
+    if(ent <= 0 || static_cast<za::SizeT>(ent) >= s.mask.size() || !s.mask[static_cast<za::SizeT>(ent)])
+    {
+        return;
+    }
+    int null = 0;
+    for(int i = 1; i < MAX_SOUNDS && sv.sound_precache[i]; i++)
+    {
+        if(!strcmp(sv.sound_precache[i], "misc/null.wav"))
+        {
+            null = i;
+            break;
+        }
+    }
+    vec3_t origin;
+    for(int i = 0; i < 3; i++)
+    {
+        origin[i] = ed->v.origin[i] + 0.5f * (ed->v.mins[i] + ed->v.maxs[i]);
+    }
+    for(int c = 0; c <= SND_MAX_CHANNEL; c++)
+    {
+        if(!(s.mask[static_cast<za::SizeT>(ent)] & (1u << c)))
+        {
+            continue;
+        }
+        if(null)
+        {
+            SV_WriteSound(&sv.reliable_datagram, ent, c, null, 255, DEFAULT_SOUND_PACKET_ATTENUATION, origin, 1.f);
+        }
+        else if(c < 8 && ent < 8192)
+        {
+            MSG_WriteByte(&sv.reliable_datagram, svc_stopsound);
+            MSG_WriteShort(&sv.reliable_datagram, (ent << 3) | c);
+        }
+        VR_SoundLog(ent, c, "(its loop stopped: freed)", 255, 0);
+    }
+    s.mask[static_cast<za::SizeT>(ent)] = 0;
+}
 
 // SV_ClearDatagram: the frame's broadcast starts empty (vr_debug_net: the last frame's numbers).
 // Debug > Tests > Log Sounds (vr_debug_sound_log): each sound the server starts printed (its entity, channel, sample,
@@ -1671,6 +1853,7 @@ void init()
 {
     Cmd_AddCommand("vr_dumpplayer", dumpPlayer_f);
     Cmd_AddCommand("vr_net_stats", netStats_f);
+    Cmd_AddCommand("vr_snd_loops", soundLoops_f);
     climb::init();
     foegrab::init();
     legsweep::init();

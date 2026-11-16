@@ -3362,6 +3362,41 @@ His flat-screen notes (2026-11-16) and the coordinator's disarm-sound item.
   slots with no tuning off defaults). Checked by a default-config run: each promoted value prints as its default.
 - Build fix: the tree's `build/qvr_checks/qvr_checks.exe` exited 3 with no output (left over from the deleted build
   folders, not rebuilt as no source was newer): rebuilt with `-t:Rebuild`; the kit's build then passes.
+## vr1116a: wet shine on the never wet, looping sounds that never stopped, your own flare (branch agent/vr1116a, 2026-11-16)
+
+His notes e1m1_2026-11-16_00-59-25, _01-00-01, e1m2_2026-11-16_01-02-28, vrtesthall_2026-11-16_00-47-47, _00-40-33.
+
+**Wet shine.** Not the wetglint change itself: the drips (vr_drips.cpp `scan`) take a model's box from its frames' bounds,
+and its bottom (`lo.z + 1`) was tested against the world's leaves only. e1m1's bridge over the slime (the grunts by the
+four buttons' door, entities 113 and 118) and e1m2's lifts and bridges over water: the box's bottom lies under the floor,
+inside the bridge's brush, in the slime leaf below it, so the grunts were "in slime up to 16" for ever (soaked every
+scan, never drying; the corpse kept it). Now `groundBox`: over a liquid by the leaves, the bottom is brought up to the floor
+a line from the box's middle meets (`worldtrace::world`: the world and the moving brush models); only things over a liquid
+pay for the trace. Keyed values checked: drips' records are keyed by the cl_entities slot and were forgotten only when the
+slot went unsent (a slot freed and reused within a scan kept them): now also forgotten on the server's removal (wounds'
+KindClear, as the wound masks and dents already were: `drips::forget`). The save's "// qvrwet" lines are matched by edict
+number at the load, which a load restores as saved: right. The wound masks' `wetLeft` decays and is freed with the mask.
+Test `vr_v1116_test 2` (e1m1, `setpos 835 1910 -380`): the grunts killed where they stand (their own blow: no push off
+the bridge), `vr_drips_check` (new; Debug > Tests > Wet Check) 2 s on and again after a save and load: before the fix
+113 and 118 were wet standing; now 1 passed + 1 passed. e1m2 by the ogre's spot: nothing wet.
+
+**Looping sounds.** A loop (a sample with a cue point) plays on its entity's channel until another sound replaces it. The
+server now keeps which entity channels play a loop (vr_server.cpp `VR_SoundLoopNote`, the loop flag read once a map from
+the wav's cue chunk, GetWavinfo): a sound that replaces a loop (misc/null.wav, the stall) goes with the reliable messages
+(a broadcast's sounds are dropped when it is full, as in a big fight: then the knight's idle played on with nothing to
+end it), and an edict freed with a loop still on it has the loop stopped, reliably (`VR_SoundLoopsFreed` from ED_Free:
+the knight's chainsaw removed with its gibbed or freed holder, a flamethrower's tank, a flare, a burning body's fire,
+whatever removes it). QC: the freed-holder path silenced its chainsaw too, and a drop resets the knight's saw sound state
+(taken up again, its idle plays afresh). `vr_snd_loops` lists the loops playing. Test `vr_v1116_test 1` (vrtesthall;
+Debug > Tests > Looping Sounds): a chainsaw knight disarmed, killed, gibbed, shoved then killed, removed: one loop while
+it idles, none `vr_chainsaw_drop_run` + 1.5 s after each: sawloops 10 passed, 0 failed.
+
+**Your own flare.** `VR_Burn_Ignite` refused any victim who was the attacker; now it allows the self-hit being dealt
+(`VR_SelfShot_Live`: your flare, a lava nail into your own body or arms). The self-hit path otherwise matches the enemy
+path: T_Damage (armour, the plate, Quad; vr_selfshot_damage for vr_damage_self), the wound at the point, blood, the
+knockback from the missile, the hand's buzz. Melee-only differences (push, motion credit, Quad sound) don't apply to shots;
+disarm hooks excluded per the brief. `vr_selfshot_test 1` gains a flare at the off forearm: struck, damage, buzz, wound,
+on fire: 34 passed, 0 failed (29 before).
 ## One-way teleporter exits: hands stay, no self view (agent/vr1116b, 2026-11-16)
 
 Note start_2026-11-16_00-54-53: at start's exit by the start (the hub's teleporter back, side 3: its exit plane y 280,
@@ -3412,3 +3447,33 @@ normal +y, no gate there), crossing that plane hid his hands and showed him hims
   (SubAlpha/SubShadowFill/Shift/Blur, MergeSubShadow under SubMask) at half softness and offset. Checked: the two-title
   preview re-rendered (contact sheet, closeups); shadows measured against the trailertitles2 render (subtitle box 2.9%
   of pixels darker by >3 levels, 0.1% lighter).
+
+## arenafix: the audit's arena_6 and arena_10 (agent/arenafix, 2026-11-16)
+
+The 1.1 readiness audit's baseline regressions. Both were the tests, not the game; both already failed in the
+2026-11-14 and 11-15 baselines (so older than the RC). Only `QC/vr_arena_test.qc` changed.
+
+- **arena_10 (timeout).** `VR_AT10_Tables` ran 36 cells of 400 armour rolls and 120 plans in one QC call; past 16
+  million statements that is a runaway loop error (Host_Error). The test never printed a verdict and the run waited
+  for its timeout. The armed-humanoid and mutator work of 11-13 made the rolls and plans slightly more expensive,
+  which was enough. In real play a plan runs once per wave and stays far below the limit. Fix: the tables run in
+  parts, one per frame (`vr_at10_part`: the gates, then one part per skill with its rolls and plans, then the rest),
+  and the live wave-5 check follows. Result: 160 passed, 0 failed, the same as the 10-30 baseline.
+- **arena_6 (6/2), "no broken guns".** The audit's runner runs it undrawn (`vr_mock_fast 2`). That run plays out
+  differently, and one of the axes a foe dropped stuck in a wall (`vr_embed`, on since 11-08). A stuck blade has no
+  rigid body while it is stuck, and the scan counted that as "no rigid body". Stuck blades (`VR_AxeStick_IsStuck`)
+  are now skipped in that check.
+- **arena_6, "the map grows no faster than a wave clear's drops".** Test 6 is the only arena test besides 42 that
+  follows the run's director, so since 11-11 it soaks the budget director. Its later waves are bigger, so more gibs,
+  limbs, debris and live foes are in the count at each wave's start. The mock player's hands also swap guns that land
+  at its feet, and each swap leaves its own gun on the floor. The arena's gun cap never counts a gun a player dropped
+  (`vr_monster_drop` 0). That is by design, and so is keeping stuck blades. The floor went 191 -> 214 (limit 13). The
+  per-class counts at each window's wave starts showed no class growing steadily except these guns. Fix:
+  `VR_AT6_Passing` leaves out of the count the things that go away by themselves, the live foes, the player's own
+  guns and stuck blades (with their records). Each wave in the windows prints its count. Result: undrawn 119 -> 123,
+  drawn 119 -> 121; 8 passed, 0 failed both ways (the soak's longest wave was 224-233 s, under AR_STALL 300).
+- **ragdoll_stagger 54/3** (was 52/5): this is the known open item (BACKLOG section 1, "ragdoll_stagger: what is
+  left"), and it is slightly better than before. Not touched.
+- **teleporters_chase 5/1**: the same case fails the same way in the 11-14 baseline ("chase dog at framed_sill32:
+  never reached the north room", seed 3), which is older than the one-way teleporter change (vr1116b). It is not
+  related to that change. Not touched.

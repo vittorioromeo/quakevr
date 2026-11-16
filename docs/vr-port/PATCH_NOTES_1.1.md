@@ -195,7 +195,8 @@ old default move to the new one, and values you changed stay yours.
 - A rolled gun keeps its barrel and sights rigid with the hand.
 - Gun Model Pitch is merged into Hand Pitch (your value carries over).
 - Projectiles keep less of your motion: strafing no longer throws nails and rockets off your aim.
-- Shooting yourself (headset only): your shots hit your own body if you point a weapon at it.
+- Shooting yourself (headset only): your shots hit your own body if you point a weapon at it; your own flare sets you
+  on fire.
 - Thrown magazines hit as light props.
 - Spent enemy guns and empty chainsaws lose their loot beam and can't be force-grabbed; empty magazines are not
   force-grabbed either.
@@ -228,7 +229,8 @@ old default move to the new one, and values you changed stay yours.
 - Lightning leaves burn marks and arcs across water.
 - Blood in water: bloody clouds on the surface, slower under water.
 - Shoreline foam for each liquid: spray for water, a glowing crust for lava, green scum for slime.
-- An even wet coat from liquids, with its glint.
+- An even wet coat from liquids, with its glint (no longer on monsters and bodies over a liquid on a bridge or lift
+  that never touched it).
 
 ### Movement, climbing and body
 
@@ -387,6 +389,8 @@ old default move to the new one, and values you changed stay yours.
 - Your weapon knocked out of your hand: a metal clang where it flies and a short alert only you hear (with a buzz on
   that controller in VR), its volume in Disarming: Your Weapon.
 - Sounds no longer cut each other off; late sounds are kept in saves; fire crackles start again after loading.
+- Looping sounds (a chainsaw's engine, flamethrowers, fires) always stop with their owner: no chainsaw idling on for
+  ever after its knight was disarmed, shoved down, killed or gibbed.
 
 ### Tools and modding
 
@@ -396,7 +400,8 @@ old default move to the new one, and values you changed stay yours.
 - The physgun moves ragdolls naturally by the part it holds.
 - Creator tools (flat screen or developer): the Rig Studio, Pose Studio and Grip Editor, the Weapon Studio, the Armour
   Studio, the Ragdoll Tool (`-ragtool`), the animation recorder and the Blade Shape editor.
-- Recording: takes and clips for trailers; while OBS records, Ghost Hands, debug markers and tips are left out
+- Recording: takes and clips for trailers, and a DaVinci Resolve title kit (embossed metal feature titles with blood
+  drips and soft drop shadows). While OBS records, Ghost Hands, debug markers and tips are left out
   (Graphics > Recording > Clean Recording).
 - Voice notes with context and an instant replay, and an in-game Checklist with Test buttons, for testers.
 - Every model's source is a Blender file in the repository, with an add-on that exports on save.
