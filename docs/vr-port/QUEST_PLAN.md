@@ -1349,6 +1349,56 @@ frozen fights (`sv_freezenonclients 1`, 0.9 fixed) for the rest; `ovrgpuprofiler
 - PC: gles_render_test, scenario_check, load_models_test, dev and LTO builds: see ROUND25's C4o section.
 - Left running for his check: e1m1, `+vr_quest_preset 0 +vr_perf_record 1` (this commit's APK).
 
+## 6w. C4p: big lights' cost was the shadow code beside them; the plain lights' loop; the runtime's foveation guarded; C5's probe (2026-11-16; adb, unworn)
+
+Method (`scratch/c4q_*`): **`vr_test_dlights <count> [radius] [distance]`** (new; Debug > Profiling: "Add 3 Big Test
+Lights", "Remove the Test Lights"): lasting lights as big as an explosion's (350, x1.5 `vr_explosion_light_scale`) in a
+row 160 units ahead, so a big light's cost is measured on a still scene (e1m1's fight hall frozen, 0.55 fixed, the body
+off) in one launch (`c4q_diag1-3.sh`), probes by `vr_gles_define`; then a live fight (`c4q_fight.sh`, the preset as
+shipped, `c4p_abcorr.py`).
+- **Why a big light costs so much on Adreno**: not its work but the code beside it. World GPU at 0.55 (both eyes):
+  0 test lights 4.5-5.1 ms, 1: 9.2, 3: 14.7 (~+3.4 ms each covering the view; the cluster lists are fine: 32x16x32,
+  a light in a pixel's cluster is the loop's one dynamic cost). Probes with 3 lights: the loop compiled out 3.0; a plain
+  point light (`SIMPLELOOP`) 3.6-3.8; no shadow code (`NOSHADOW`) 8.7; no portal path (`NOGATE`) 11.9; the light's
+  members read one by one (`LEANLOAD`) 13.2; the lights' lite form 11.8; **shadows off at run time** (`vr_shadow_dlights
+  0`) **only -0.6**; a short path for plain lights inside the full loop (`FASTLIGHT`) 12.3 (with the lite form 13.3: more
+  code, slower). The radius (350 against 525) changes nothing here (the view covered either way). So the shadow, portal,
+  map-shadow and DarkPlaces code compiled into the loop makes every light's iteration slow (registers: latency not
+  hidden), run or not.
+- **The plain lights' loop** (`vr_gl_lights_plain`, new tunable, 1; ES lite bit 26, `QVR_LITE_PLAINLIGHT`; Debug >
+  Profiling row): with `vr_gl_world_lite` 2, when no light can need that code (`vr_shadow_dlights` 0,
+  `vr_shadow_maplights` 0, `vr_dlight_falloff` 0, no portal lights) the world's loop is Quake's falloff, a spot's cone,
+  the angle and the sheen alone. 3 big lights: world **14.7 -> 7.1-7.6 ms**, the GPU span 16.7 -> 8.8-9.3 (0 lights 4.5
+  -> 4.3). **The Quest preset's `vr_shadow_dlights` now 0** (was 1 / 1 / 0): no dynamic light casts shadows on the
+  Quest (explosions, the flashlight, taken torches); the PC unchanged. A settings change that needs the code rebuilds
+  the shaders (the bit changes).
+- **Live fight** (dynamic resolution at the 0.55 floor, alternating old = one shadowed light and the full loop, new):
+  period p50 14.1-14.4 ms (72 Hz held), CPU 8.2; the world 5.3-5.8 ms in 2-light frames either way; 3-light frames
+  9.6 / 9.8 old against 9.0 / 8.6 new; GPU span p50 8.2-11.4 (under 13.9); frames over 1.5 periods 3.4-7.7%. A real
+  fight's third light is mostly small or brief (the still scene's three full-view lights are the worst case: 9.3 ms
+  span now). The span grew through the session in the left eye's own scope alone (4.3 -> 7.1 ms, no sub-scope: idle
+  time inside it, the runtime's waits), not the lights.
+- **`vr_xr_foveation` (step 3)**: changed mid-game it now makes new eye swapchains (`QuestExtensions::wantNewEyes`; the
+  update on swapchains in use crashed) and that works (several times a launch: the EGL check `contextReady` now accepts
+  the session's context current with the window's surface; making the session's own surface current failed). But
+  **foveated eye images crash the runtime in `xrEndFrame` anyway** (SIGSEGV at 0x30 in libGLESv2_adreno under
+  libvrapiimpl), set at launch too: at once with late acquire or the image's invalidate, after ~100 frames without them,
+  in the post-process path and the direct one. **Guarded**: a level is applied only with `-xrfoveation` on the command
+  line (a console note otherwise); with it, late acquire and the image's invalidate are off. Default 0 as before.
+- **C5's first path** (`vr_xr_direct`, new, 0, not saved; Debug > Profiling "Scene Straight into the Headset's Images";
+  ES only): each eye's scene drawn into its swapchain image (the image in place of the composite target's colour; 2: an
+  FBO of its own with a depth renderbuffer), no post-process (no tone curve: colours over 1 clip; sRGB writes are off on
+  the Quest, so the scene's colours land as the post-process's would without the curve), one pass an eye (single-pass
+  stereo off), the image acquired first, only where the eye fills the image or its lower left part (`vr_eye_subimage`).
+  Works: the post-process's 1.0 ms gone (GPU span 13.2 -> 12.3 at 0.9, single pass off). **Foveation through it: no
+  effect** before the crash (world 10.7-10.9 ms with level 3 against 10.8-11.0 off), so C5's premise (the runtime's
+  foveation reaching the scene) is unproven on the Quest 3's GLES; the depth renderbuffer form (2) crashed before its
+  part. Design for C5 proper, if pursued: multiview (single pass) into 2-layer array swapchains, the tone curve and
+  grade in the scene's last writes (world, models, sprites, particles; translucents blended after the curve), the UI
+  into the same images, dynamic resolution by the layer's `imageRect` (already: `vr_eye_subimage`).
+- PC: gles_render_test, scenario_check, load_models_test, dev and LTO builds: see ROUND25's C4p section.
+- Left running for his check: e1m1, `+vr_quest_preset 0 +vr_perf_record 1` (this commit's APK).
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
@@ -1392,8 +1442,4 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C4p (after 6v) — the world shader's cost per dynamic light on Adreno (a big light ~+5 ms of the world at
-0.65: a cheaper light path under the ES profile, or capping what a light covers), A/B'd in live fights with
-`c4p_fight.sh` + `c4p_abcorr.py`; then foveation through the swapchain (C5: the scene drawn into the runtime's foveated
-images, the tone curve in the scene's shaders) and the `vr_xr_foveation` mid-game crash; his own recorded session
-(`vr_perf_record`) read with `perf_report.py` (now `xr:session` apart); SpaceWarp optional and off; no installs. Still open from before: e1m1's save error (a freed engine string), C5 (multiview into the swapchain), C2h (the world textures' memory under the ES profile), Adreno's wrong derivatives with the retro code out (NORETRO: -1.2 ms if ever made safe). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d).
+Next phase: C4q (after 6w) — no installs: his recorded session (`vr_perf_record`, `perf_report.py`) with the plain lights' loop; the models' lights' loop the same way (a plain form when no light needs shadows); the runtime's foveation crash narrowed (an Adreno/runtime issue with foveated swapchains: Meta's GLES sample setup, a depth swapchain from the runtime) before C5 is worth building; SpaceWarp optional and off. Still open from before: e1m1's save error (a freed engine string), C2h (the world textures' memory under the ES profile), Adreno's wrong derivatives with the retro code out (NORETRO). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d), shadowless dynamic lights on the Quest (6w).

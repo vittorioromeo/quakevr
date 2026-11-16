@@ -3701,3 +3701,16 @@ His flat-screen notes (2026-11-16) and the coordinator's disarm-sound item.
   reruns update in place (`--dry-run`, `--rebuild`, `--check`).
 - Checked in Resolve Studio 21.1 (project "QVR Titles Preview"): two titles rendered at 1080p60, top-right and
   bottom-left; a rerun reports "updated" for both, no duplicates. Not checked: 4K, IM Fell English.
+## Quest C4p: big lights' cost found and cut; vr_xr_foveation guarded; C5's probe (branch `agent/quest`, 2026-11-16)
+
+- A big dynamic light cost the Quest 3 ~3.4 ms of world shading at 0.55 for the shadow/portal/DarkPlaces code compiled
+  into the light loop (run or not), not for its work. `vr_gl_lights_plain` (new tunable, 1, ES only): with every light
+  plain the world's loop has none of it; the Quest preset's `vr_shadow_dlights` now 0 (dynamic lights cast no shadows on
+  the Quest). Three full-view test lights: world 14.7 -> 7.1-7.6 ms, GPU 16.7 -> 9 ms; live fight GPU p50 8-11 ms at the
+  0.55 floor, 72 Hz held at p50. `vr_test_dlights` (new command, Debug > Profiling) for still-scene light costs.
+- `vr_xr_foveation` mid-game now makes new eye swapchains (works), but foveated swapchains crash the runtime in
+  `xrEndFrame` anyway (launch too): applied only with `-xrfoveation`. `vr_xr_direct` (new probe, 0): the scene straight
+  into the swapchain images, no post-process (-1 ms); the runtime's foveation showed no effect through it.
+- PC: gles_render_test 21/0 (a first run lost the arrays check's images, -1 means; 21/0 again), scenario_check 141/0,
+  load_models_test 4/0, dev and LTO builds 0 warnings. Details:
+  QUEST_PLAN.md 6w.
