@@ -295,6 +295,9 @@ za::Vector<Item> pageDebugViews()
         command("Print Navmesh Info", "vr_nav_info")
             .help("vr_nav_info: the map's navmesh input (brushes, clip brushes, triangles) and each monster size class's "
                   "mesh: tiles, polygons, size, built or read from disk and how long it took; the paths found."),
+        command("Print Navmesh Hash", "vr_nav_hash")
+            .help("vr_nav_hash: one hash of the navmesh (its tiles, as doors, lifts and props left them) and one of the "
+                  "monsters' paths, bit for bit: two runs of the same play print the same (determinism tests)."),
         command("Crowd Stall Test (40 s)", "vr_nav_crowdtest 40")
             .help("vr_nav_crowdtest 40: every walker comes at you; each half second one moved under 8 units while over 128 "
                   "away is a stall, given its cause (a monster or a wall in the way, a ledge, in a wall, no chase...). The "
@@ -1125,6 +1128,10 @@ za::Vector<Item> pageDebugReports()
         command("Network: Players Seen", "vr_mp_status")
             .help("vr_mp_status: the players this client sees (entity, name, where, whether the last message carried them) "
                   "and, hosting, the server's clients. The multiplayer harness (Misc/quakevr/mp) reads the same lines."),
+        command("Network: Lockstep Status", "vr_mp_lockstep_status")
+            .help("vr_mp_lockstep_status: the multiplayer harness's reproducible runs (vr_mp_lockstep on a dedicated server, "
+                  "vr_mp_lockstep_ahead on its clients): the world's step, whether it is held, each client's newest move "
+                  "run; on a client, its moves ahead of the server and whether its frames wait."),
         command("Network: Held Weapons", "vr_mp_drawn")
             .help("vr_mp_drawn: each hand's held weapon as this client draws it (its hotspots, the two-handed hold, a weapon "
                   "carried off its handle) and, hosting, as the server places each player's from what his client sent."),

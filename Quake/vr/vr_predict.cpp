@@ -32,6 +32,27 @@ constexpr float creditRate = 1.05f;   // ... earned at this much a second of the
 constexpr int stateKey = netsnap::predictKey; // the snapshot record's key (after the entities and the avatars)
 constexpr int pastRing = 64;          // predictions kept by move number (netmove::ring)
 constexpr float snapAt = 64.f;        // a correction this long is a teleport: drawn at once, not eased
+
+// vr_mp_predict_tracelog <move>: every trace the moves make for that move number (the client's replays of it, the
+// server's run of it), bit for bit ("mp_tracelog:"), to find where a replay leaves the server's result (B14b). 0 off.
+struct TraceLog
+{
+    za::U32 seq{0};
+    bool now{false};
+    const char* side{""};
+};
+TraceLog traceLog;
+
+void logTrace(const char* what, const float* start, const float* end, const trace_t& t)
+{
+    if(!traceLog.now)
+    {
+        return;
+    }
+    Con_Printf("mp_tracelog: %s %s s=%.9g %.9g %.9g e=%.9g %.9g %.9g f=%.9g ep=%.9g %.9g %.9g n=%.6g %.6g %.6g ss=%d as=%d\n",
+        traceLog.side, what, start[0], start[1], start[2], end[0], end[1], end[2], t.fraction, t.endpos[0], t.endpos[1],
+        t.endpos[2], t.plane.normal[0], t.plane.normal[1], t.plane.normal[2], t.startsolid ? 1 : 0, t.allsolid ? 1 : 0);
+}
 constexpr float easeTime = 0.1f;      // a correction's offset decays by e in this long
 constexpr int maxMovers = 6;          // movers in motion sent with a state at most (the nearest by edict order)
 constexpr float moverNear = 1024.f;   // ... within this of him, units
@@ -243,15 +264,21 @@ struct EdictBody final : pmove::Body
     trace_t trace(const float* start, const float* end) override
     {
         store();
-        return SV_Move(const_cast<float*>(start), ent->v.mins, ent->v.maxs, const_cast<float*>(end), MOVE_NORMAL, ent);
+        const trace_t t = SV_Move(const_cast<float*>(start), ent->v.mins, ent->v.maxs, const_cast<float*>(end), MOVE_NORMAL, ent);
+        logTrace("box", start, end, t);
+        return t;
     }
     trace_t line(const float* start, const float* end) override
     {
-        return SV_Move(const_cast<float*>(start), vec3_origin, vec3_origin, const_cast<float*>(end), MOVE_NOMONSTERS, ent);
+        const trace_t t = SV_Move(const_cast<float*>(start), vec3_origin, vec3_origin, const_cast<float*>(end), MOVE_NOMONSTERS, ent);
+        logTrace("line", start, end, t);
+        return t;
     }
     trace_t traceWorld(const float* start, const float* end) override
     {
-        return SV_Move(const_cast<float*>(start), ent->v.mins, ent->v.maxs, const_cast<float*>(end), MOVE_NOMONSTERS, ent);
+        const trace_t t = SV_Move(const_cast<float*>(start), ent->v.mins, ent->v.maxs, const_cast<float*>(end), MOVE_NOMONSTERS, ent);
+        logTrace("world", start, end, t);
+        return t;
     }
     void waterJumped(const float* movedir) override
     {
@@ -644,6 +671,7 @@ struct ClientBody final : pmove::Body
                 best.startsolid = true;
             }
         }
+        logTrace("box", start, end, best);
         return best;
     }
     bool metBsp(const trace_t&) override { return true; }
@@ -680,6 +708,7 @@ struct ClientBody final : pmove::Body
                 best = tr;
             }
         }
+        logTrace("line", start, end, best);
         return best;
     }
     bool overDropoff(const float* vel, float speed) override
@@ -816,7 +845,20 @@ bool replay(vec3_t out, vec3_t before)
         const bool inAir = !(b.flags & FL_ONGROUND);
         const bool hangWas = b.hang.on;
         b.climbedNow = false;
+        traceLog.now = traceLog.seq != 0 && s == traceLog.seq;
+        traceLog.side = "cl";
+        if(traceLog.now)
+        {
+            Con_Printf("mp_tracelog: cl move=%u o=%.9g %.9g %.9g v=%.9g %.9g %.9g fl=%d dt=%.9g\n", s, b.origin[0],
+                b.origin[1], b.origin[2], b.velocity[0], b.velocity[1], b.velocity[2], b.flags, in.dt);
+        }
         pmove::playerMove(b, in, cp.rules, &notes);
+        if(traceLog.now)
+        {
+            Con_Printf("mp_tracelog: cl after o=%.9g %.9g %.9g v=%.9g %.9g %.9g\n", b.origin[0], b.origin[1], b.origin[2],
+                b.velocity[0], b.velocity[1], b.velocity[2]);
+        }
+        traceLog.now = false;
         if(b.climbedNow && cp.fresh)
         {
             cp.wclimbN++;
@@ -1415,6 +1457,10 @@ void init()
 {
     Cmd_AddCommand("vr_mp_predict_report", report);
     Cmd_AddCommand("vr_mp_predict_probe", probe_f);
+    Cmd_AddCommand("vr_mp_predict_tracelog", [] {
+        traceLog.seq = Cmd_Argc() > 1 ? static_cast<za::U32>(Q_atoi(Cmd_Argv(1))) : 0u;
+        Con_Printf("vr_mp_predict_tracelog: %s\n", traceLog.seq != 0 ? va("move %u", traceLog.seq) : "off");
+    });
 }
 
 int waterClimbFrame(edict_t* ent, int hands)
@@ -1689,7 +1735,21 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
         s->credit -= in.dt;
         b.jumpedNow = false;
         b.climbedNow = false;
+        const za::U32 seqNow = netmove::serverLast(slot) - static_cast<za::U32>(s->n - 1 - k);
+        traceLog.now = traceLog.seq != 0 && seqNow == traceLog.seq;
+        traceLog.side = "sv";
+        if(traceLog.now)
+        {
+            Con_Printf("mp_tracelog: sv move=%u o=%.9g %.9g %.9g v=%.9g %.9g %.9g fl=%d dt=%.9g\n", seqNow, b.origin[0],
+                b.origin[1], b.origin[2], b.velocity[0], b.velocity[1], b.velocity[2], b.flags, in.dt);
+        }
         pmove::playerMove(b, in, r, &s->notes);
+        if(traceLog.now)
+        {
+            Con_Printf("mp_tracelog: sv after o=%.9g %.9g %.9g v=%.9g %.9g %.9g\n", b.origin[0], b.origin[1], b.origin[2],
+                b.velocity[0], b.velocity[1], b.velocity[2]);
+        }
+        traceLog.now = false;
         if(b.climbedNow && vr_mp_watch.value != 0.f)
         {
             Con_Printf("mp_predict_wclimb: slot=%d s=%u z=%.2f vz=%.1f\n", slot,

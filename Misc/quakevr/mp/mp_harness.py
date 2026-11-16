@@ -250,8 +250,8 @@ class Session:
         self.notes.append(text)
         print("  " + text, flush=True)
 
-    def server(self, dedicated=True, maxplayers=4, flat=False, name="server"):
-        inst = Instance(self, name, self.port, dedicated=maxplayers if dedicated else 0, flat=flat)
+    def server(self, dedicated=True, maxplayers=4, flat=False, name="server", extra=()):
+        inst = Instance(self, name, self.port, dedicated=maxplayers if dedicated else 0, flat=flat, extra=extra)
         self.instances.append(inst)
         return inst
 

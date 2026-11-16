@@ -731,11 +731,12 @@ void SV_RunClients (void)
 			memset (&host_client->cmd, 0, sizeof(host_client->cmd));
 			continue;
 		}
+		VR_LockstepRunMove (host_client); // QVR: the harness's lockstep: a stepping frame's one move of his, by number (B14b)
 
 // always pause in single player if in console or menus
 // QVR: unless the game runs on under the menu (live preview): his moves (0 there: VR_AdjustMove) still think, so his
 // friction stops him; without it the world moved him on at his last walking speed
-		if (!sv.paused && !VR_RuntimeMenuPause () && (svs.maxclients > 1 || key_dest == key_game || VR_MenuRunsGame ())) // QVR: the runtime's menu pauses
+		if (!sv.paused && !VR_RuntimeMenuPause () && !VR_LockstepHolds () && (svs.maxclients > 1 || key_dest == key_game || VR_MenuRunsGame ())) // QVR: the runtime's menu pauses; the harness's lockstep holds
 			SV_ClientThink ();
 	}
 }

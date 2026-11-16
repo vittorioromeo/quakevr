@@ -538,6 +538,13 @@ void poseMove(VrMove& move)
     move.headPos = hs.head;
     move.poseClock = hs.poseTime >= 0.0 ? static_cast<float>(za::fmod(hs.poseTime, static_cast<double>(VR_POSE_CLOCK_WRAP)))
                                         : -1.f;
+    if(vr_mp_lockstep_ahead.value >= 1.f && netmove::clientUses())
+    {
+        // (the harness's lockstep, B14b: the poses' clock from this connection's first move, a frame a move -- the
+        // headset's clock at it is the load's wall-clock time, and the melee's speeds over its differences went apart
+        // between two runs by an ulp)
+        move.poseClock = static_cast<float>(static_cast<double>(netmove::clientSent()) * host_frametime);
+    }
     // The monsters' senses (QC vr_stealth.qc): his lamp as lit and the light on him, as this client sees them.
     move.lampLit = flashlight::beamNow(move.lampLens, move.lampDir, move.lampRange, move.lampCos);
     move.light = stealth::lightAt(move.origin);

@@ -2534,6 +2534,67 @@ glm::vec3 feet(const edict_t* e)
 // ---------------------------------------------------------------------------------------------------------------------
 // Commands.
 
+// vr_nav_hash: FNV-1a hashes of each class's navmesh (its tiles' bytes: polygons, their flags as the movers and props
+// left them, links) and of the monsters' paths (each agent's polygons, corners and link under way), bit for bit:
+// determinism tests (two runs of the same script print the same; the multiplayer harness's lockstep runs, MP_PLAN B14b).
+void hash_f()
+{
+    if(!state.ready)
+    {
+        Con_Printf("vr_nav_hash: no map\n");
+        return;
+    }
+    const auto mix = [](za::U64& h, const void* data, za::SizeT size) {
+        const auto* bytes = static_cast<const unsigned char*>(data);
+        for(za::SizeT i = 0; i < size; i++)
+        {
+            h = (h ^ bytes[i]) * 1099511628211ull;
+        }
+    };
+    za::U64 mesh = 1469598103934665603ull;
+    int tiles = 0;
+    for(const NavClass& c : state.classes)
+    {
+        if(!c.mesh)
+        {
+            continue;
+        }
+        const dtNavMesh& m = *c.mesh;
+        for(int i = 0; i < m.getMaxTiles(); ++i)
+        {
+            const dtMeshTile* tile = m.getTile(i);
+            if(!tile || !tile->header)
+            {
+                continue;
+            }
+            mix(mesh, &i, sizeof(i));
+            mix(mesh, tile->data, static_cast<za::SizeT>(tile->dataSize));
+            tiles++;
+        }
+    }
+    za::U64 paths = 1469598103934665603ull;
+    int agents = 0;
+    for(za::SizeT n = 0; n < state.agents.size(); n++)
+    {
+        const Agent& a = state.agents[n];
+        if(a.cls < 0)
+        {
+            continue;
+        }
+        agents++;
+        mix(paths, &n, sizeof(n));
+        mix(paths, &a.goal, sizeof(a.goal));
+        mix(paths, a.path.data(), a.path.size() * sizeof(dtPolyRef));
+        mix(paths, a.corners, sizeof(float) * 3 * static_cast<za::SizeT>(a.cornerCount));
+        mix(paths, &a.next, sizeof(a.next));
+        mix(paths, &a.link, sizeof(a.link));
+        mix(paths, &a.phase, sizeof(a.phase));
+    }
+    Con_Printf("vr_nav_hash: %d classes, %d tiles, mesh %016llx; %d agents, paths %016llx (%d found)\n",
+        static_cast<int>(state.classes.size()), tiles, static_cast<unsigned long long>(mesh), agents,
+        static_cast<unsigned long long>(paths), state.paths);
+}
+
 void info_f()
 {
     if(!state.ready)
@@ -3020,6 +3081,7 @@ void teletest_f();  // (below, by the steering)
 void init()
 {
     Cmd_AddCommand("vr_nav_info", info_f);
+    Cmd_AddCommand("vr_nav_hash", hash_f);
     Cmd_AddCommand("vr_nav_cliptest", cliptest_f);
     Cmd_AddCommand("vr_nav_toptest", toptest_f);
     Cmd_AddCommand("vr_nav_links", links_f);

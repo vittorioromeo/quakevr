@@ -12,6 +12,12 @@
 //   clients): who is in, where, whether this frame's message carried them.
 // - `vr_mp_avatars` (Debug > Reports > Network: Player Avatars; vr_mpavatar.cpp): the other players' heads and hands this
 //   client has (QVR_SVC_AVATAR: "mp_avatar:") and, hosting, the server's (from their moves: "mp_avatar_sv:").
+// - The lockstep (B14b: runs that repeat bit for bit): a dedicated server with `vr_mp_lockstep N` steps its world only
+//   once N clients are in and each one's next move (by number) is read, one move of each a step (vr_fixed_frames 1: a
+//   step 1/72 s; sv_random_seed); `vr_mp_lockstep_until S` holds it after step S ("mp_lockstep: held step=S"), for the
+//   harness's commands (hashes, spawns) at a known step. Its clients (`vr_mp_lockstep_ahead K`) make at most K moves
+//   the server has not acknowledged; their frames wait meanwhile (no time passes), so a command a waiting client runs
+//   lands on a known move. `vr_mp_lockstep_status`: "mp_lockstep:", "mp_lockstep_slot:", "mp_lockstep_cl:".
 
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -26,6 +32,9 @@
 #include "vr_teleport.hpp"
 #include "vr_trace.hpp"
 #include "vr_lagcomp.hpp"
+
+#include "Zancle/Chrono/Time.hpp"
+#include "Zancle/Concurrency/Thread.hpp"
 
 #include <chrono>
 #include <stdio.h>
@@ -58,6 +67,18 @@ struct Watched
 constexpr int watchedMost = MAX_SCOREBOARD + 1;
 Watched watched[watchedMost];
 bool joined = false; // signed on to a map (the last frame)
+
+// The harness's lockstep (vr_mp_lockstep, MP_PLAN B14b). Server: whether this frame steps the world, the steps since
+// the map's load (its clock going back: a new map), the step whose hold was printed. Client: frames that waited.
+struct Lockstep
+{
+    bool stepping{true};
+    za::U64 step{0};
+    double lastTime{0.0};
+    za::U64 heldPrinted{~0ull};
+    long long waits{0};
+};
+Lockstep lockstep;
 
 // (B11) The game's score as this client last printed it: each scoreboard slot's name and frags ("mp_frags"), the
 // intermission and its own health ("mp_event: intermission", "died", "respawned").
@@ -504,7 +525,99 @@ void hurt_f()
         player->v.health <= 0.f ? ", dead" : "");
 }
 
+// The lockstep's players: the clients in the game that send moves (a bot has no connection; a listen host's own client
+// sends none: the lockstep is a dedicated server's).
+[[nodiscard]] bool lockstepPlayer(const client_t& c)
+{
+    return c.active && c.spawned && c.netconnection;
+}
+
+// vr_mp_lockstep_status: a server's step, whether it holds, each player's newest move run and whether his next is read;
+// a client's moves ahead of the server's acknowledgement and whether its frames wait.
+void lockstepStatus_f()
+{
+    if(sv.active)
+    {
+        int in = 0;
+        for(int i = 0; i < svs.maxclients; i++)
+        {
+            if(lockstepPlayer(svs.clients[i]))
+            {
+                in++;
+                Con_Printf("mp_lockstep_slot: slot=%d last=%u next=%d\n", i, qvr::netmove::serverLast(i),
+                    qvr::netmove::serverHasNext(i) ? 1 : 0);
+            }
+        }
+        Con_Printf("mp_lockstep: step=%llu held=%d in=%d time=%.4f\n", static_cast<unsigned long long>(lockstep.step),
+            lockstep.stepping ? 0 : 1, in, sv.qcvm.time);
+    }
+    if(qvr::netmove::clientUses())
+    {
+        const za::U32 pending = qvr::netmove::clientPending();
+        const float ahead = qvr::vr_mp_lockstep_ahead.value;
+        Con_Printf("mp_lockstep_cl: newest=%u pending=%u waiting=%d waits=%lld\n", qvr::netmove::clientNewest(), pending,
+            ahead >= 1.f && pending >= static_cast<za::U32>(ahead) ? 1 : 0, lockstep.waits);
+    }
+}
+
 } // namespace
+
+extern "C" void VR_LockstepFrameBegin(void)
+{
+    Lockstep& l = lockstep;
+    const int want = static_cast<int>(qvr::vr_mp_lockstep.value);
+    l.stepping = true;
+    if(want <= 0 || !sv.active)
+    {
+        return;
+    }
+    if(sv.qcvm.time < l.lastTime)
+    {
+        l.step = 0; // (a new map)
+        l.heldPrinted = ~0ull;
+    }
+    l.lastTime = sv.qcvm.time;
+    int in = 0;
+    bool ready = true;
+    for(int i = 0; i < svs.maxclients; i++)
+    {
+        if(lockstepPlayer(svs.clients[i]))
+        {
+            in++;
+            ready = ready && qvr::netmove::serverHasNext(i);
+        }
+    }
+    const za::U64 until = static_cast<za::U64>(q_max(qvr::vr_mp_lockstep_until.value, 0.f));
+    if(in >= want && until != 0 && l.step >= until)
+    {
+        l.stepping = false;
+        if(l.heldPrinted != l.step)
+        {
+            l.heldPrinted = l.step;
+            Con_Printf("mp_lockstep: held step=%llu time=%.4f\n", static_cast<unsigned long long>(l.step), sv.qcvm.time);
+        }
+        return;
+    }
+    l.stepping = in >= want && ready;
+    l.step += l.stepping ? 1 : 0;
+}
+
+extern "C" int VR_LockstepHolds(void)
+{
+    return qvr::vr_mp_lockstep.value >= 1.f && sv.active && !lockstep.stepping ? 1 : 0;
+}
+
+extern "C" int VR_LockstepWaits(void)
+{
+    const float ahead = qvr::vr_mp_lockstep_ahead.value;
+    if(ahead < 1.f || !qvr::netmove::clientUses() || qvr::netmove::clientPending() < static_cast<za::U32>(ahead))
+    {
+        return 0;
+    }
+    lockstep.waits++;
+    za::ThisThread::sleepFor(za::microseconds(200)); // (the server's step and its acknowledgement are a round trip away)
+    return 1;
+}
 
 extern "C" void VR_MpTestInit(void)
 {
@@ -517,6 +630,7 @@ extern "C" void VR_MpTestInit(void)
     Cmd_AddCommand("vr_mp_mark", mark_f);
     Cmd_AddCommand("vr_mp_status", status_f);
     Cmd_AddCommand("vr_mp_trace", trace_f);
+    Cmd_AddCommand("vr_mp_lockstep_status", lockstepStatus_f);
     qvr::netmove::init(); // vr_netmove_selftest
     qvr::predict::init(); // vr_mp_predict_report, vr_mp_predict_probe
     qvr::netsnap::init(); // vr_netsnap_selftest

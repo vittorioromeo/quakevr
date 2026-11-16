@@ -1484,6 +1484,7 @@ void Host_ServerFrame (void)
 
 // check for new clients
 	SV_CheckForNewClients ();
+	VR_LockstepFrameBegin (); // QVR: the harness's lockstep: whether the world steps this frame (vr_mptest.cpp, B14b)
 
 	VR_ServerFrameBegin (); // QVR: this game's own player's view state into his slot (MP_PLAN B11a)
 
@@ -1499,7 +1500,7 @@ void Host_ServerFrame (void)
 // move things around and think
 // always pause in single player if in console or menus
 	VR_ProfileBegin ("SV_Physics"); // QVR: profile
-	if (!sv.paused && !VR_RuntimeMenuPause () && !VR_RagtoolHolds () && !VR_RigStudioHolds () && (svs.maxclients > 1 || key_dest == key_game || VR_MenuRunsGame ())) // QVR: live preview in VR; the runtime's menu pauses; the ragdoll tool's pause
+	if (!sv.paused && !VR_RuntimeMenuPause () && !VR_RagtoolHolds () && !VR_RigStudioHolds () && !VR_LockstepHolds () && (svs.maxclients > 1 || key_dest == key_game || VR_MenuRunsGame ())) // QVR: live preview in VR; the runtime's menu pauses; the ragdoll tool's pause
 		SV_Physics ();
 	VR_ProfileEnd (); // QVR
 
@@ -1519,7 +1520,8 @@ void Host_ServerFrame (void)
 	}
 //johnfitz
 
-	VR_ServerFrameEnd (); // QVR
+	if (!VR_LockstepHolds ()) // QVR: (a held lockstep frame changes nothing: its frame end waits for the step)
+		VR_ServerFrameEnd (); // QVR
 
 // send all messages to the clients
 	VR_ProfileBegin ("send"); // QVR: profile
@@ -1765,6 +1767,23 @@ void _Host_Frame (double time)
 	{
 		VR_TracyAbort();
 		return;			// something bad happened, or the server disconnected
+	}
+
+	// QVR: a client of the harness's lockstep server its moves ahead (vr_mp_lockstep_ahead, B14b): the frame reads the
+	// inbox, the commands and the server's messages, and nothing else: no time passes, no move is made
+	if (VR_LockstepWaits ())
+	{
+		VR_MpTestFrame ();
+		Cbuf_Execute ();
+		NET_Poll ();
+		if (cls.state == ca_connected)
+		{
+			double keep = host_frametime;
+			host_frametime = 0;
+			CL_ReadFromServer ();
+			host_frametime = keep;
+		}
+		return;
 	}
 
 	time = VR_HostFrameTime (time); // QVR: a motion take playing back: its recorded frame times

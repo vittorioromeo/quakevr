@@ -67,6 +67,9 @@ void clientClear();
 // The newest move sent (0: none yet) and a sent move by number, as the server reads it (false: gone from the ring).
 [[nodiscard]] za::U32 clientNewest();
 [[nodiscard]] bool clientMoveAt(za::U32 seq, WireMove& m);
+// The moves sent on this connection the server has not acknowledged (the harness's lockstep: vr_mp_lockstep_ahead).
+[[nodiscard]] za::U32 clientPending();
+[[nodiscard]] za::U32 clientSent(); // the moves sent since clientClear
 
 // Server: QVR_CLC_MOVES's body from client slot `slot`; `apply` runs each move it has not run yet, in order. False: a
 // malformed message (the client dropped).
@@ -77,6 +80,10 @@ void serverWriteAck(sizebuf_t* msg, int slot);
 void serverReset(int slot);
 [[nodiscard]] bool serverSends(int slot); // it sent QVR_CLC_MOVES since its connection or map began (its snapshots too)
 [[nodiscard]] za::U32 serverLast(int slot); // the newest move run (0: none)
+// The harness's lockstep (vr_mp_lockstep: MP_PLAN B14b): serverRead keeps the moves without running them; each world
+// step runs the next one by number (the first: the oldest read since the slot's reset). serverHasNext: it was read.
+[[nodiscard]] bool serverHasNext(int slot);
+bool serverRunNext(client_t* client, ApplyFn apply);
 // vr_mp_status: moves run, lost (never came, repeats included), recovered (run from a repeat), undecodable (the base
 // gone), bytes read.
 struct ServerCounts

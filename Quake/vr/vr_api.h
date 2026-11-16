@@ -70,6 +70,15 @@ void VR_StopDownloads (void);	// Host_Shutdown, before NET_Shutdown (curl_global
 void VR_BeginFrame (void);	// once per host frame, after input events and before console commands
 void VR_MpTestInit (void);	// Host_Init, after VR_Init: the multiplayer test aids (vr_mptest.cpp: -cmdinbox, vr_mp_*)
 void VR_MpTestFrame (void);	// once per host frame, before console commands: the inbox's new lines; vr_mp_watch
+// The harness's lockstep (vr_mp_lockstep, vr_mptest.cpp; MP_PLAN B14b). Server: VR_LockstepFrameBegin decides at a
+// frame's start whether the world steps (every client's next move read, the clients in, vr_mp_lockstep_until not reached);
+// VR_LockstepHolds: it does not (no client thinks, no physics, no VR frame end); VR_LockstepRunMove: SV_RunClients, a
+// stepping frame's one move of his, by number (vr_server.cpp). Client: VR_LockstepWaits, at a host frame's start: its
+// moves vr_mp_lockstep_ahead ahead of the server's acknowledgement (the frame only reads: no time passes, no move).
+void VR_LockstepFrameBegin (void);
+int VR_LockstepHolds (void);
+void VR_LockstepRunMove (struct client_s *client);
+int VR_LockstepWaits (void);
 void VR_MpNoteConnect (const char *host);	// CL_EstablishConnection: the address a client that leaves for the server's map package joins again (vr_mpdownload.cpp)
 void VR_MpWritePackage (struct sizebuf_s *msg);	// SV_SendServerinfo, to a remote client: QVR_SVC_PACKAGE, the server's map package (vr_mpdownload.cpp)
 int VR_IsActive (void);		// nonzero while vr_enabled is set and a backend session is running: the

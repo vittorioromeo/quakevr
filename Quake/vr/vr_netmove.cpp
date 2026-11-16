@@ -4,6 +4,7 @@
 #include "vr_netsnap.hpp"
 #include "vr_engine.hpp"
 #include "vr_api.h"
+#include "vr_cvars.hpp"
 #include "vr_protocol.hpp"
 #include "vr_testkit.hpp"
 
@@ -298,6 +299,7 @@ struct ClientState
 {
     za::U32 nextSeq{1}; // (kept over maps and connections: the server's slot is reset on a new connection)
     za::U32 acked{0};
+    za::U32 first{0};   // the first move sent since clientClear (0: none yet)
     za::U32 seqs[ring]{};
     Quant moves[ring];
 };
@@ -307,6 +309,7 @@ ClientState clientState;
 struct ServerSlot
 {
     za::U32 last{0};
+    za::U32 low{0}; // the lockstep's first move: the oldest read before one ran (0: none read)
     za::U32 seqs[ring]{};
     Quant moves[ring];
     ServerCounts counts;
@@ -452,6 +455,7 @@ void writeMoves(sizebuf_t* buf, const WireMove& m, bool record)
     }
     ClientState& c = clientState;
     const za::U32 seq = c.nextSeq++;
+    c.first = c.first != 0 ? c.first : seq;
     const int at = static_cast<int>(seq % ring);
     quantize(m, c.moves[at]);
     c.seqs[at] = seq;
@@ -494,12 +498,30 @@ void clientClear()
 {
     ClientState& c = clientState;
     c.acked = 0;
+    c.first = 0;
     memset(c.seqs, 0, sizeof(c.seqs));
 }
 
 za::U32 clientNewest()
 {
     return clientState.nextSeq - 1;
+}
+
+za::U32 clientSent()
+{
+    const ClientState& c = clientState;
+    return c.first != 0 ? c.nextSeq - c.first : 0;
+}
+
+za::U32 clientPending()
+{
+    const ClientState& c = clientState;
+    if(c.first == 0)
+    {
+        return 0;
+    }
+    const za::U32 done = c.acked >= c.first ? c.acked : c.first - 1;
+    return c.nextSeq - 1 - done;
 }
 
 bool clientMoveAt(za::U32 seq, WireMove& m)
@@ -537,6 +559,7 @@ bool serverRead(client_t* client, ApplyFn apply)
         slot->counts.undecodable++;
     }
     Quant cur;
+    const bool lockstep = vr_mp_lockstep.value >= 1.f;
     for(int i = 0; i < count; i++)
     {
         const za::U32 s = first + static_cast<za::U32>(i);
@@ -553,6 +576,14 @@ bool serverRead(client_t* client, ApplyFn apply)
         {
             slot->seqs[s % ring] = s;
             slot->moves[s % ring] = cur;
+        }
+        if(lockstep)
+        {
+            if(slot->last == 0 && (slot->low == 0 || s < slot->low))
+            {
+                slot->low = s;
+            }
+            continue; // (kept: the world's step runs it, serverRunNext)
         }
         if(s <= slot->last)
         {
@@ -598,11 +629,43 @@ za::U32 serverLast(int slotNum)
     return slot ? slot->last : 0;
 }
 
+namespace
+{
+[[nodiscard]] za::U32 nextOf(const ServerSlot& slot)
+{
+    const za::U32 next = slot.last != 0 ? slot.last + 1 : slot.low;
+    return next != 0 && slot.seqs[next % ring] == next ? next : 0;
+}
+} // namespace
+
+bool serverHasNext(int slotNum)
+{
+    const ServerSlot* slot = slotOf(slotNum, false);
+    return slot && nextOf(*slot) != 0;
+}
+
+bool serverRunNext(client_t* client, ApplyFn apply)
+{
+    ServerSlot* slot = slotOf(static_cast<int>(client - svs.clients), false);
+    const za::U32 next = slot ? nextOf(*slot) : 0;
+    if(next == 0)
+    {
+        return false;
+    }
+    slot->last = next;
+    slot->counts.run++;
+    WireMove m;
+    dequantize(slot->moves[next % ring], m);
+    apply(client, m, true);
+    return true;
+}
+
 void serverReset(int slotNum)
 {
     if(ServerSlot* slot = slotOf(slotNum, false))
     {
         slot->last = 0;
+        slot->low = 0;
         memset(slot->seqs, 0, sizeof(slot->seqs));
         slot->counts = {};
         slot->sends = false;
