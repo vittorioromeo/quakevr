@@ -3588,3 +3588,27 @@ His note: the titles look great, previewing them in DaVinci takes forever.
   saw "changed"; now only the tools block is hashed (not re-run: see below). **Resolve closed** during the second
   `--bake`'s render (the retest of the reuse path); not reopened (GUI), so the reuse path and `--unbake` are unchecked.
   A bake of both titles took 271 s of wall time (the renders alone should take about 80 s: not explained).
+
+## Flat-screen hip fire through teleporters (agent/flatportalaim, 2026-11-16)
+
+His report: hip-firing through a teleporter in flat-screen aimed off; ADS seemed fine.
+- Cause: the aim's convergence trace (flatsight `lineStop`, used by `crosshairPoint` and the blocked check) did not go
+  through gates: it stopped at the gate's face, so each gun pointed from its muzzle at a point on the gate. The shot
+  (QC pellets, `MOVE_PORTALS`) crossed there and the gate turned the muzzle-to-face way, not the crosshair's: off by the
+  muzzle's angle to the ray times the distance past the exit. ADS has the muzzle nearly on the ray (2 units off).
+- Fix: `worldtrace::shotLine` (vr_trace.hpp; in vr_portals.cpp) traces a line as the shots go, through the gates, with
+  the crossing loop of `VR_PortalTrace` moved into `crossGates` (one function for QC's tracelines and this; QC's
+  `portal_entry`/`portal_exit`/`portal_turn` state untouched by the client's lines, no "from an image" rule for a
+  camera far from the body). It gives `seen` (the stop unfolded onto the line: where the gate's view shows it) and `at`
+  (the far room's place). `lineStop` takes `seen`: the guns aim at the image, their lines cross the gate and come out
+  on the target. With no gate crossed `seen` is SV_Move's endpos as before (non-portal aiming identical). The visor
+  crosshair's shot line (flatxhair `shotHit`) goes through too, so the gun's crosshair sits on what it will hit there.
+  `vr_flat_xhair_probe` adds a line per hand: `gates shot N centre N lands x y z apart U` (the shot as sent and the
+  screen's middle, both traced through the gates, real places).
+- VR: no convergence (the gun shoots where the hand points; the shots already cross gates); VR's laser
+  (`vr_crosshair.cpp aimEnd`) still stops at a gate's face: unchanged, not part of the aim.
+- Test `Misc/quakevr/teleporters/flat_gate_aim_test.sh <agent>` (vrteleporters, flat, shotgun): 6 passed, 0 failed.
+  Apart (units), before / after: hip 160 back from flush_player's gate 11.37 / 0.01; 24 back 35.07 / 0.01; ADS 2.00 /
+  0.00; turn90 gate - / 0.00; no gate 0.00 / 0.00; loop (the real shotgun at your own back through T's loop) 223 apart,
+  health 100 / 100 before, 100 / 70 after.
+- Checklist Test scene `flat_gate_hipfire` (vrteleporters -256 440, yaw 90, two grunts beyond the gate).
