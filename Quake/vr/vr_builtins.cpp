@@ -92,6 +92,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "vr_api.h"
 
+extern "C" cvar_t v_iyaw_level, v_iroll_level, v_ipitch_level; // (view.c)
 
 namespace qvr::progs
 {
@@ -515,6 +516,26 @@ za::Vector<int> cvarPrefs;             // each handle's per-player preference (c
     return cvarHandles[i];
 }
 
+// The client's own cvars the QC reads, which a dedicated server (no renderer, no view) never registers: registered there
+// at their defaults when the QC asks for them, so that its QC reads Quake's defaults (and its tests do not count them as
+// unknown names: MP B11 part 2). Elsewhere: none.
+[[nodiscard]] const cvar_t* dedicatedClientCvar(const char* name)
+{
+    if(cls.state != ca_dedicated)
+    {
+        return nullptr;
+    }
+    for(cvar_t* v : {&r_wateralpha, &v_iyaw_level, &v_iroll_level, &v_ipitch_level})
+    {
+        if(q_strcasecmp(v->name, name) == 0)
+        {
+            Cvar_RegisterVariable(v);
+            return v;
+        }
+    }
+    return nullptr;
+}
+
 void PF_cvar_hmake()
 {
     const char* name = G_STRING(OFS_PARM0);
@@ -522,6 +543,10 @@ void PF_cvar_hmake()
     if(!var)
     {
         var = tunableFind(name); // a tuning constant (vr_tunables.inc)
+    }
+    if(!var)
+    {
+        var = dedicatedClientCvar(name);
     }
     if(!var)
     {
