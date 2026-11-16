@@ -4316,6 +4316,7 @@ QVR_CVAR(vr_flat_mantle_look, "25", CVAR_ARCHIVE)       // flatscreen mantle: de
 QVR_CVAR(vr_flat_mantle_look_max, "90", CVAR_ARCHIVE)   // flatscreen mantle: degrees, the most the view may look up (over it: no mantle; 90 his, 2026-11-08, from 80)
 QVR_CVAR(vr_flat_mantle_grunt_delay, "0.35", CVAR_ARCHIVE) // flatscreen mantle: seconds after the jump left the ground before the mantle's grunt (vr_climb_mantle_grunt) plays, so the jump's own grunt has ended and it is heard (0..1; 0: as the mantle starts)
 QVR_CVAR(vr_flat_mantle_time, "1", CVAR_ARCHIVE)        // flatscreen mantle: seconds after the jump left the ground that a ledge may still be mantled (the jump key held all along)
+QVR_CVAR(vr_flat_ladder, "1", CVAR_ARCHIVE)             // flatscreen play: 1 ledge ladders (vr_climb.cpp flatLadder; needs vr_climb): walking forward into a stack of graspable ledges (rungs) takes hold of them, as a headset's hands do; forward climbs hand over hand (looking down or back: down), jump pushes off, the top mantles over; 0 off (tuning: vr_flat_ladder_speed, _look_down, _push, _reach)
 QVR_CVAR(vr_flat_hud, "1", CVAR_ARCHIVE)               // the status bar at hudstyle 1 (vr_flathud.cpp): 1 flatscreen play's own (portrait and health over the ammo bar in the middle, each hand's ammo at its own bottom corner, the bullet time bar); 0 Ironwail's
 // The visor HUD (vr_visor.cpp; ROUND24.md, "Flat-screen visor HUD"): flatscreen play's HUD as a helmet's visor, the wrist
 // gadget's screens in small 3D panels near the view's corners.
