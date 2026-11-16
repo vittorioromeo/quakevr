@@ -4029,6 +4029,101 @@ His note: the titles look great, previewing them in DaVinci takes forever.
   gain at e1m2's start: its torches are in the PVS and the unworn controllers' small lights touch the floor).
 - New debug command `vr_dlights_list` (Debug > Profiling): the live dynamic lights with key, radius and distance.
 - PC: scenario_check PASS, load_models_test 4/0, flat timedemo demo1 runs. Details: QUEST_PLAN.md 6za.
+## Flat-screen hip fire through teleporters (agent/flatportalaim, 2026-11-16)
+
+His report: hip-firing through a teleporter in flat-screen aimed off; ADS seemed fine.
+- Cause: the aim's convergence trace (flatsight `lineStop`, used by `crosshairPoint` and the blocked check) did not go
+  through gates: it stopped at the gate's face, so each gun pointed from its muzzle at a point on the gate. The shot
+  (QC pellets, `MOVE_PORTALS`) crossed there and the gate turned the muzzle-to-face way, not the crosshair's: off by the
+  muzzle's angle to the ray times the distance past the exit. ADS has the muzzle nearly on the ray (2 units off).
+- Fix: `worldtrace::shotLine` (vr_trace.hpp; in vr_portals.cpp) traces a line as the shots go, through the gates, with
+  the crossing loop of `VR_PortalTrace` moved into `crossGates` (one function for QC's tracelines and this; QC's
+  `portal_entry`/`portal_exit`/`portal_turn` state untouched by the client's lines, no "from an image" rule for a
+  camera far from the body). It gives `seen` (the stop unfolded onto the line: where the gate's view shows it) and `at`
+  (the far room's place). `lineStop` takes `seen`: the guns aim at the image, their lines cross the gate and come out
+  on the target. With no gate crossed `seen` is SV_Move's endpos as before (non-portal aiming identical). The visor
+  crosshair's shot line (flatxhair `shotHit`) goes through too, so the gun's crosshair sits on what it will hit there.
+  `vr_flat_xhair_probe` adds a line per hand: `gates shot N centre N lands x y z apart U` (the shot as sent and the
+  screen's middle, both traced through the gates, real places).
+- VR: no convergence (the gun shoots where the hand points; the shots already cross gates); VR's laser
+  (`vr_crosshair.cpp aimEnd`) still stops at a gate's face: unchanged, not part of the aim.
+- Test `Misc/quakevr/teleporters/flat_gate_aim_test.sh <agent>` (vrteleporters, flat, shotgun): 6 passed, 0 failed.
+  Apart (units), before / after: hip 160 back from flush_player's gate 11.37 / 0.01; 24 back 35.07 / 0.01; ADS 2.00 /
+  0.00; turn90 gate - / 0.00; no gate 0.00 / 0.00; loop (the real shotgun at your own back through T's loop) 223 apart,
+  health 100 / 100 before, 100 / 70 after.
+- Checklist Test scene `flat_gate_hipfire` (vrteleporters -256 440, yaw 90, two grunts beyond the gate).
+## Sliding in VR (branch agent/vrslide, 2026-11-16)
+
+His request: an experimental option to slide in VR too, off by default, the turning stick pulled down precisely.
+
+**One slide.** The slide's server side moved out of `vr_flatmove.cpp` into `Quake/vr/vr_slide.cpp` / `vr_slide.hpp`
+(namespace `qvr::slide`): its state per client, the start (speed over `vr_flat_slide_min`, the boost), the step
+(`slideStep`: friction, slope, steer, top speed, end), the step up, the stamina parts, the cooldown, the jump/ledge/prone/
+water exits, `.vr_sliding` (the charge), the prop push (`slide::onServer`, `vr_box3d_standing.cpp`). The C hooks are
+renamed `VR_SlideMove` / `VR_SlideStepUp`. Flatscreen and headset run the same code with the same `vr_flat_slide_*`
+tunables; only the input differs: flat, the crouch key (`hull::flatCrouchHeld`, gated by `vr_flat_slide`); a headset, the
+move's bit 14 (`protocol::moveSlideBit`, the same bit as the flat crouch's: a headset client never set it), sent only with
+`vr_slide` on and its stick gesture held (`vr_client.cpp`), read by `slide::setHeadsetInput` (`vr_server.cpp`). The flat
+client side (view drop, pose, tests) stays in `vr_flatmove.cpp`, which takes the slide through using-declarations.
+
+**The gesture** (`slide::stickGesture`, from `vr_input.cpp`'s walking branch): the turning stick pulled at least
+`vr_slide_stick_threshold` (0.85) down, within `vr_slide_stick_angle` (20) degrees of straight down, armed only from the
+middle (a pull out past 0.5 off that cone disarms it until the stick is back under 0.3: a snap or smooth turn swept round
+the rim to straight down never slides). Held while still pulled under -0.5 and within the angle plus 15. While held the
+turning stick's down is no `+movedown` (DPAD_DOWN) and no turn. Only on foot out of the water (swimming or flying the
+stick's down is `+movedown` as before), not while the Smooth + Teleport aim has the stick, and released when a menu or a
+tool takes the sticks. Today the turning stick's down was `+movedown` only (no crouch toggle or menu on it); `vr_slide 0`
+leaves it so to the bit.
+
+**A headset's slide:** his box is the flat slide's crouched one while it is on (`vr_hull.cpp` updateCrouchBox: his eyes
+taken as `slide::slideEye()`, 46 less `vr_flat_crouch_drop` and `vr_flat_slide_drop`, 22: the lowest crouched box),
+his head as it is; after it he stands as his head asks (flat ends into a crouch because the key is still held). No view
+drop and no FOV bonus (flat-only code: `flatmove::slideDrop`, `vr_flatspeedfov.cpp`). The comfort vignette counts a
+slide as a full stick push (`updateComfort`, per `vr_comfort_vignette`). The scrape plays (`vr_slidesound.cpp`). The
+body takes the flat slide's pose (`vr_avatar_pitch.cpp`: trunk leant back, legs out in front) with `vr_slide_body` (1);
+his real head stays standing, so the pose is the flat one hung from a standing head: worth a look in the headset.
+
+**Settings:** `vr_slide` 0 (VR Settings > Locomotion > Sliding (VR, Experimental), after Walk Up Slopes Slowly: the flat
+slide's row is in the Desktop Screen Play part of the same page), `vr_slide_stick_threshold` 0.85,
+`vr_slide_stick_angle` 20, `vr_slide_body` 1; all CVAR_ARCHIVE.
+
+**Tests:** `bash Misc/quakevr/vrslide_test.sh <agent>` (`vr_slide_test`, mock sticks, vrtesthall's long stretch from
+0 -380 facing north, a case per run up to 300 u/s): vr_slide 0 straight down: no slide, `+movedown`'s key pressed; vr_slide
+1: 30 and 45 degrees off down, straight down at 0.7, snap and smooth turns swept round the rim to down, snap and smooth
+turns a little downwards: no slide; straight down from the middle: slid from 309 u/s, peak 400 (boost 80), 1.51 s
+(friction's 1.50), 416 units, ends "slowed" at 128 u/s, box crouched all through, its scrape once, no `+movedown`, up again
+0.01 s after; let go mid-slide: ends "the key let go" 0.03 s after. 15 passed. The flat slide unchanged:
+`flatslide_selftest` 6, `flatslide` 9, `flatslide_hit` 0 and 1 2 each, `flatslide_rough` 4, `flatslideback` 23, all
+passed. Checklist scene `vr_slide` (vrtesthall, vr_slide 1).
+
+**Idea, not built:** real crouching in VR (the headset lowered past the crouch) while running fast could start the same
+slide (the server already has his eye height: a `vr_slide 2` mode).
+## Flat-screen ledge ladders (branch agent/flatladder, 2026-11-16)
+
+His request: "ladders" made of individual ledges, like the tutorial's, climbable in flatscreen. Before: walking, jumping
+or holding jump at the tutorial's lesson 3 ladder did nothing (the flat mantle finds a rung but no room on it; the
+platform's lip, 156, is out of a jump's reach); `vr_flatladder_test 9` with the switch off still shows that.
+Found: the tutorial's rungs (x 2953, every 20 from 16) don't stop the player's box (it walks into them to the block's face
+at 2960), so the rung search starts 8 units inside the box's front. id maps have no ladders; AD's are trigger volumes
+(`vr_climb_ladder`), whose holds `ladderHold` makes anywhere in them, so the flat ladder takes them too (not run: no AD
+test here). Vrstart's lookout tower and vrclimb's rung wall are rung ladders as the tutorial's (not run).
+
+What it does (FLATPLAY.md, "Ladders"): `vr_climb.cpp` `flatLadder` (free, after `flatMantle`), `flatLadderFrame` (from
+`hangFrame` when `Climber::flatLadder`), `flatLadderMount`, `findRungs`, `ladderTake`, `ladderGrab`. Shared with the
+headset: `findHold` (a new `lower` argument: holds under Lowest Ledge, only for the mount's search), `holdLedge`, the
+Hanging phase and `transition`, `hangStamina`, `findMantle`/`startMantle`/`mantleStep` (the mount runs the mantle's way
+backwards: `Climber::flatMount`, then `ladderGrab` at its end), `flatMantleHands`, `calcStats` (a weapon hand's grip on
+a rung not sent: `flatShow`), the QC's climbing bits. Flat-only: the keys as the move (`ladderDir`), hand over hand.
+`gripHand` is skipped while on a flat ladder (its grips aren't pressed).
+
+Settings: `vr_flat_ladder` 1 (archived; Desktop Screen Play > Ladders). Tunables (Debug > Tunables): `vr_flat_ladder_speed`
+100 u/s, `_look_down` 35 deg, `_push` 120 u/s (half that up; 180 flew him 170 units onto the barrier), `_reach` 16.
+
+Test: `Misc/quakevr/flatladder_test.sh` (`vr_flatladder_test` in vrtutorial; Debug > Tests > Flat Ladder): up and over
+(5 hand changes, both hands drawn, the feet 156 on the platform), down from the top (lowered on, 77 frames on it, to the
+floor), down looking down (from 62.5), pushed off (landed at x 2811); no ladder at a plain wall, single ledges 48 and 96
+high, the 100 high jump wall, the pit's stairs (walked up to the top); `vr_flat_ladder 0`: none. 9/0 and 1/0. Scene
+`flat_ladder`.
 ## titlebake: trailer title bakes verified and fixed, longer holds (agent/titlebake, 2026-11-16)
 
 In "QVR Titles Preview" (Resolve Studio 21.1.0.17, restarted by him; his open project was the empty "Untitled

@@ -850,8 +850,9 @@ constexpr float ladderRungDepth = 32.f;
 }
 
 [[nodiscard]] za::Optional<Ledge> findHold(edict_t* player, const glm::vec3& hand, const glm::vec3& vel,
-    const glm::vec3& headPos, float radius, float propLow, bool& lenient, LenientStats* stats = nullptr)
+    const glm::vec3& headPos, float radius, float propLow, bool& lenient, LenientStats* stats = nullptr, float lower = 0.f)
 {
+    // (`lower`: holds that much under Lowest Ledge too: the flat ladder's top, at the feet, mounted from over it)
     if(ladderDisabled(hand)) { return za::nullOpt; } // AD support
     LenientStats st;
     lenient = false;
@@ -861,7 +862,7 @@ constexpr float ladderRungDepth = 32.f;
     movers.clear();
     gather(player, hand, radius, found, movers, st);
     const float feet = player->v.origin[2] + player->v.mins[2];
-    const float lowest = feet + vr_climb_min_height.value;
+    const float lowest = feet + vr_climb_min_height.value - lower;
     const auto finish = [&](const Candidate* c) -> za::Optional<Ledge> {
         if(stats)
         {
@@ -1135,6 +1136,16 @@ struct Climber
         glm::vec3 entOrigin{0.f};
     };
     FlatHold flatHolds[2];
+    // Flatscreen play's ledge ladder (flatLadder): hanging from its rungs, both grips on them, moved by the keys.
+    bool flatLadder{false};
+    bool flatShow[2]{false, false}; // each hand drawn on its rung (an empty hand; one holding a weapon keeps it)
+    bool flatJumpWas{false};         // the jump key at the last ladder frame (a new press pushes off)
+    glm::vec3 flatLadderOut{0.f};    // the ladder's way out (towards him)
+    double flatLadderMiss{-1.0};     // when the last search for a ladder ahead found none (searched again 0.1 s later)
+    double flatLadderTry{-1.0};      // when its top's mantle was last looked for
+    int flatLadders{0};              // ladder climbs it started (vr_flatladder_test)
+    bool flatMount{false};           // the mantle's way runs backwards: off the ladder's top onto its rungs (flatLadderMount)
+    Ledge flatMountRungs[2];         // and the rungs it takes there (the higher, the lower)
     // Hanging or slipping: holding on with one hand or both.
     bool hanging() const
     {
@@ -2354,6 +2365,8 @@ void transition(edict_t* ent, Climber& c, Phase to, Why why, const VrMove* move,
             staminaSound(ent, "player/gasp1.wav", staminaWarn());
         }
         letGoAll(c);
+        c.flatLadder = false;
+        c.flatMount = false;
         if(why != Why::NoMove)
         {
             c.noGrabUntil = time + regrabDelay;
@@ -2399,9 +2412,10 @@ void transition(edict_t* ent, Climber& c, Phase to, Why why, const VrMove* move,
         return;
     case Phase::Mantling:
         c.grips[0].active = c.grips[1].active = false;
+        c.flatLadder = false;
         c.flatHolds[0].on = c.flatHolds[1].on = false; // (a flat mantle puts its own after: flatMantle)
         c.owed = glm::vec3{0.f};
-        if(c.gruntAt < 0.0)
+        if(c.gruntAt < 0.0 && !c.flatMount) // (lowering onto a ladder: no effort)
         {
             mantleGrunt(ent); // (a flat mantle's waits for the jump's grunt to end: climbPreThink plays it at gruntAt)
         }
@@ -2443,6 +2457,7 @@ static void climbPreThink(edict_t* ent);
 namespace
 {
 void flatMantle(edict_t* ent, Climber& c, const VrMove* move, double time); // (below)
+void flatLadder(edict_t* ent, Climber& c, const VrMove* move, double time);
 }
 
 extern "C" void VR_ClimbPreThink(edict_t* ent)
@@ -2491,6 +2506,11 @@ static void climbPreThink(edict_t* ent)
     followProps(ent, c);
     for(int h = 0; h < 2; h++)
     {
+        if(c.flatLadder && c.hanging())
+        {
+            c.pressedLastFrame[h] = move && (move->vrBits0 & grabBit[h]); // (a flat ladder's holds are its own: flatLadderFrame)
+            continue;
+        }
         gripHand(ent, c, move, enabled, time, h);
     }
 
@@ -2517,6 +2537,10 @@ static void climbPreThink(edict_t* ent)
     {
         traceFrame(ent, c, move, "free", glm::vec3{0.f}, glm::vec3{0.f});
         flatMantle(ent, c, move, time); // (flatscreen play only: vr_flat_mantle)
+        if(c.phase == Phase::Free)
+        {
+            flatLadder(ent, c, move, time); // (and vr_flat_ladder)
+        }
     }
     else
     {
@@ -2576,6 +2600,8 @@ struct Hang
     glm::vec3 done{0.f};
 };
 
+void ladderGrab(edict_t* ent, Climber& c, const VrMove& move, const Ledge& higher, const Ledge& lower); // (below)
+
 // A mantle's step.
 void mantleStep(edict_t* ent, Climber& c, double time)
 {
@@ -2606,6 +2632,22 @@ void mantleStep(edict_t* ent, Climber& c, double time)
     setVec(ent->v.origin, pos);
     setVec(ent->v.velocity, glm::vec3{0.f});
     ent->v.flags = static_cast<float>(static_cast<int>(ent->v.flags) & ~FL_ONGROUND);
+    if(t >= 1.f && c.flatMount)
+    {
+        // Lowered off a ladder's top onto it (flatLadderMount): its rungs taken there.
+        c.flatMount = false;
+        c.lastOrigin = pos;
+        if(const VrMove* move = server::clientMove(ent))
+        {
+            ladderGrab(ent, c, *move, c.flatMountRungs[0], c.flatMountRungs[1]);
+        }
+        else
+        {
+            transition(ent, c, Phase::Free, Why::NoMove);
+        }
+        SV_CheckWater(ent);
+        return;
+    }
     if(t >= 1.f)
     {
         transition(ent, c, Phase::Free, Why::Mantled);
@@ -3138,6 +3180,397 @@ void flatMantle(edict_t* ent, Climber& c, const VrMove* move, double time)
     startMantle(ent, c, g, mid, to, eye.z - best->top, time);
     flatMantleHands(ent, c, move, g);
 }
+
+// Flatscreen play's ledge ladder (vr_flat_ladder; his request 2026-11-16: "ladders" made of individual ledges, like the
+// tutorial's, climbable on the desktop screen). A headset's hands take its rungs one over the other; here walking into
+// it does: the hands take the rungs as a grip takes a hold (findHold, holdLedge), the hang is the headset's
+// (Phase::Hanging: its stamina, the holds carried by a moving brush model, the QC's climbing bits, the drawn hands and
+// the climbing feet), only the body is moved by the keys instead of by the hands' pull, and the top's mantle is the
+// headset's (findMantle, startMantle, at vr_climb_mantle_height; the flat mantle's hands on the lip). A ladder: two
+// ledges facing him, one over the other (at most ladderGap apart in height, ladderStack along the look), in reach ahead
+// of his box's front (vr_flat_ladder_reach). A plain wall, a single ledge, a stair's steps (each one further on): none.
+constexpr float ladderGap = 40.f;   // units: the most two rungs may be apart in height
+constexpr float ladderStack = 10.f; // and along the look (one over the other)
+constexpr int maxRungs = 16;
+constexpr float ladderInBox = 8.f;  // units: rungs looked for this far inside the box's front too
+
+struct Rungs
+{
+    Ledge at[maxRungs]; // lowest first
+    int count{0};
+};
+
+// The ledges facing along `fwd` in the column vr_flat_ladder_reach ahead of the box's front (`behind`: the column behind
+// its back instead, the ladder's top under it), tops from `low` to `high`, seen from `eye` (findHold's head).
+void findRungs(edict_t* ent, const glm::vec3& eye, const glm::vec3& fwd, float low, float high, Rungs& out, bool behind = false)
+{
+    out.count = 0;
+    // (From ladderInBox inside the box's front, as a ladder's thin rungs needn't stop the box: the tutorial's don't.)
+    const float reach = za::clamp(vr_flat_ladder_reach.value, 4.f, 48.f);
+    const float radius = (reach + ladderInBox) * 0.5f + 4.f;
+    const float ahead = ent->v.maxs[0] + (reach - ladderInBox) * 0.5f;
+    const glm::vec3 column = vec(ent->v.origin) + fwd * (behind ? -ahead : ahead);
+    const float propLow = propLowest(ent, true);
+    const float lower = za::max(0.f, ent->v.origin[2] + ent->v.mins[2] + vr_climb_min_height.value - low);
+    constexpr float step = 6.f; // (finer than any ladder's rungs: each is the nearest hold to one of the points)
+    for(float z = low; z <= high + radius && out.count < maxRungs; z += step)
+    {
+        bool lenient = false;
+        const za::Optional<Ledge> l = findHold(ent, glm::vec3{column.x, column.y, z}, glm::vec3{0.f}, eye, radius, propLow,
+            lenient, nullptr, lower);
+        if(vr_climb_debug.value >= 4.f)
+        {
+            Con_Printf("climb: flat ladder probe (%.1f %.1f %.1f) r %.1f [%.1f..%.1f]: %s\n", column.x, column.y, z, radius, low, high,
+                l ? va("top %.1f out %.2f %.2f hold %.1f %.1f %.1f", l->top, l->out.x, l->out.y, l->hold.x, l->hold.y, l->hold.z) : "none");
+        }
+        if(!l || l->top < low || l->top > high || glm::dot(l->out, fwd) > -0.5f)
+        {
+            continue;
+        }
+        bool known = false;
+        for(int i = 0; i < out.count; i++)
+        {
+            known = known || za::abs(out.at[i].top - l->top) < 2.f;
+        }
+        if(known)
+        {
+            continue;
+        }
+        int i = out.count++;
+        for(; i > 0 && out.at[i - 1].top > l->top; i--)
+        {
+            out.at[i] = out.at[i - 1];
+        }
+        out.at[i] = *l;
+    }
+}
+
+// Which way the keys climb a ladder: forward up (looking down past vr_flat_ladder_look_down: down), back down; 0 none.
+[[nodiscard]] int ladderDir(edict_t* ent, const VrMove& move)
+{
+    const int client = NUM_FOR_EDICT(ent) - 1;
+    if(client < 0 || client >= svs.maxclients)
+    {
+        return 0;
+    }
+    const float forward = svs.clients[client].cmd.forwardmove;
+    if(forward < -1.f)
+    {
+        return -1;
+    }
+    if(forward > 1.f)
+    {
+        return move.headAngles.x > za::clamp(vr_flat_ladder_look_down.value, 0.f, 90.f) ? -1 : 1; // (pitch: down is +)
+    }
+    return 0;
+}
+
+// The shoulders' middle now (the move's, carried with the body since the client placed it).
+[[nodiscard]] glm::vec3 ladderShoulder(edict_t* ent, const VrMove& move)
+{
+    return 0.5f * (shoulderOf(move, 0) + shoulderOf(move, 1)) - move.origin + vec(ent->v.origin);
+}
+
+// Hand `h` takes rung `l`: a grip's hold on it, at its own side of the rung (vr_flat_mantle_hand_spread apart, as the
+// flat mantle's hands), drawn there if it is empty.
+void ladderTake(edict_t* ent, Climber& c, const VrMove& move, int h, const Ledge& l)
+{
+    Grip& g = c.grips[h];
+    g.active = true;
+    g.owned = false;
+    g.serial++;
+    (void)holdLedge(g, l);
+    const glm::vec3 right{-l.out.y, l.out.x, 0.f}; // (facing the rung, away from `out`: his right)
+    const float half = 0.5f * za::clamp(vr_flat_mantle_hand_spread.value, 0.f, 32.f);
+    g.hold = g.lastHold = l.hold + right * (h == 1 ? half : -half);
+    g.allowed = armReach();
+    g.relAtGrab = g.lastRel = handRel(ent, move, h);
+    g.grabOffset = glm::vec3{0.f};
+    c.flatShow[h] = handEmpty(ent, &move, h);
+    if(c.flatShow[h])
+    {
+        physsound::grab(ent, g.hold, l.ent); // (the slap a headset's grip makes)
+    }
+    if(debug())
+    {
+        Con_Printf("climb: flat ladder: %s hand takes the rung at %.1f (feet at %.1f)\n", handName(h), l.top,
+            ent->v.origin[2] + ent->v.mins[2]);
+    }
+}
+
+bool flatLadderMount(edict_t* ent, Climber& c, const VrMove& move, const glm::vec3& fwd, double time); // (below)
+
+// Free: walking into a ladder takes hold of it (forward; in the air, back too; on its top, back lowers onto it).
+void flatLadder(edict_t* ent, Climber& c, const VrMove* move, double time)
+{
+    if(!move || vr_flat_ladder.value == 0.f || !hull::isFlat(ent) || ent->v.waterlevel >= 2.f || time < c.noGrabUntil)
+    {
+        return;
+    }
+    const bool ground = (static_cast<int>(ent->v.flags) & FL_ONGROUND) != 0;
+    const int dir = ladderDir(ent, *move);
+    if(dir == 0 || (c.flatLadderMiss >= 0.0 && time >= c.flatLadderMiss && time - c.flatLadderMiss < 0.1))
+    {
+        return;
+    }
+    const glm::vec3 origin = vec(ent->v.origin);
+    const float yaw = glm::radians(move->headAngles.y);
+    const glm::vec3 fwd{za::cos(yaw), za::sin(yaw), 0.f};
+    if(ground && dir < 0)
+    {
+        // Backing off a ladder's top (facing away from its drop): lowered onto it.
+        if(!flatLadderMount(ent, c, *move, fwd, time))
+        {
+            c.flatLadderMiss = time;
+        }
+        return;
+    }
+    const glm::vec3 shoulder = ladderShoulder(ent, *move);
+    Rungs r;
+    findRungs(ent, move->headPos, fwd, origin.z + ent->v.mins[2] + vr_climb_min_height.value, shoulder.z + armReach(), r);
+    int top = -1; // the higher of the highest two rungs one over the other in reach
+    for(int i = r.count - 1; i > 0 && top < 0; i--)
+    {
+        const Ledge& a = r.at[i - 1];
+        const Ledge& b = r.at[i];
+        const float gap = b.top - a.top;
+        if(gap > 4.f && gap <= ladderGap && za::abs(glm::dot(b.hold - a.hold, fwd)) <= ladderStack &&
+            glm::distance(b.hold, shoulder) <= armReach() + 4.f)
+        {
+            top = i;
+        }
+    }
+    if(vr_climb_debug.value >= 3.f)
+    {
+        Con_Printf("climb: flat ladder search: %d ledges ahead, %s\n", r.count, top >= 0 ? va("rungs at %.1f and %.1f", r.at[top - 1].top, r.at[top].top) : "no ladder");
+    }
+    if(top < 0)
+    {
+        c.flatLadderMiss = ground ? time : -1.0; // (in the air, each frame: a ladder is passed in a few)
+        return;
+    }
+    ladderGrab(ent, c, *move, r.at[top], r.at[top - 1]);
+}
+
+// Takes the ladder: the main hand on the higher rung (the next goes over it), the off hand on the lower; the hang.
+void ladderGrab(edict_t* ent, Climber& c, const VrMove& move, const Ledge& higher, const Ledge& lower)
+{
+    ladderTake(ent, c, move, 1, higher);
+    ladderTake(ent, c, move, 0, lower);
+    c.flatLadder = true;
+    c.flatLadderOut = higher.out;
+    c.flatJumpWas = ent->v.button2 != 0.f; // (a jump held onto it pushes off only when pressed again)
+    c.flatLadderTry = -1.0;
+    c.flatLadders++;
+    c.owed = glm::vec3{0.f};
+    c.noRoom = false;
+    c.lastOrigin = vec(ent->v.origin);
+    setVec(ent->v.velocity, glm::vec3{0.f});
+    transition(ent, c, Phase::Hanging, Why::Took);
+    if(debug())
+    {
+        Con_Printf("climb: flat ladder: takes hold at (%.1f %.1f %.1f), rungs at %.1f and %.1f\n", ent->v.origin[0],
+            ent->v.origin[1], ent->v.origin[2], lower.top, higher.top);
+    }
+}
+
+// Standing on a ladder's top, his back to its drop (facing away from it), back held at its lip: lowered onto it, the
+// mantle's way backwards (over the lip, then down; mantleStep, its time; the hands on the lip as the flat mantle's),
+// to hang with the feet just under where the rung below the top is in reach (vr_climb_min_height), its rungs taken
+// there (ladderGrab). Whether it began.
+bool flatLadderMount(edict_t* ent, Climber& c, const VrMove& move, const glm::vec3& fwd, double time)
+{
+    const glm::vec3 origin = vec(ent->v.origin);
+    const float feet = origin.z + ent->v.mins[2];
+    Rungs r;
+    // (Seen from over the drop, where the head will be: from where it stands the top's corner hides the rungs.)
+    findRungs(ent, move.headPos - fwd * (2.f * ent->v.maxs[0] + 2.f), fwd, feet - ladderGap - 8.f, feet + 8.f, r, true);
+    if(r.count < 2)
+    {
+        return false;
+    }
+    const Ledge& lip = r.at[r.count - 1];
+    const Ledge& below = r.at[r.count - 2];
+    const float gap = lip.top - below.top;
+    if(za::abs(lip.top - feet) > 8.f || gap <= 4.f || gap > ladderGap || za::abs(glm::dot(lip.hold - below.hold, fwd)) > ladderStack ||
+        glm::dot(origin - lip.hold, fwd) > ent->v.maxs[0] + 8.f)
+    {
+        return false;
+    }
+    // Hanging: the box's front just off the lip's line, the feet so the rung under it is just in reach.
+    const glm::vec3 to{lip.hold.x + lip.out.x * (ent->v.maxs[0] + 1.f), lip.hold.y + lip.out.y * (ent->v.maxs[0] + 1.f),
+        below.top - vr_climb_min_height.value - ent->v.mins[2] - 1.f};
+    const glm::vec3 mid{to.x, to.y, origin.z};
+    const trace_t over = tracePlayer(ent, origin, mid);
+    const trace_t down = tracePlayer(ent, mid, to);
+    if(over.startsolid || over.fraction < 1.f || down.allsolid || down.fraction < 1.f)
+    {
+        if(vr_climb_debug.value >= 2.f)
+        {
+            Con_Printf("climb: flat ladder: no way down onto it from its top at %.1f\n", lip.top);
+        }
+        return false;
+    }
+    Grip g;
+    (void)holdLedge(g, lip);
+    c.flatMount = true;
+    c.flatMountRungs[0] = lip;
+    c.flatMountRungs[1] = below;
+    c.lastOrigin = origin;
+    startMantle(ent, c, g, mid, to, 0.f, time);
+    flatMantleHands(ent, c, &move, g);
+    if(debug())
+    {
+        Con_Printf("climb: flat ladder: lowered onto it from its top at %.1f\n", lip.top);
+    }
+    return true;
+}
+
+// A ladder's frame (hangFrame's, for a flat ladder): the jump pushes off; the keys move the body up or down (the feet
+// no higher than the top hold, the shoulders no lower than an arm under the lowest); the hands go hand over hand; the
+// ground ends it going down, the top's mantle going up; the stamina as any hang's.
+int flatLadderFrame(edict_t* ent, Climber& c, const VrMove& move, double time)
+{
+    if(vr_flat_ladder.value == 0.f || !hull::isFlat(ent))
+    {
+        transition(ent, c, Phase::Free, Why::Forced);
+        return 0;
+    }
+    const glm::vec3 out = c.flatLadderOut;
+    const bool jump = ent->v.button2 != 0.f;
+    const bool pushOff = jump && !c.flatJumpWas;
+    c.flatJumpWas = jump;
+    if(pushOff)
+    {
+        transition(ent, c, Phase::Free, Why::Forced);
+        const float push = za::clamp(vr_flat_ladder_push.value, 0.f, 600.f);
+        setVec(ent->v.velocity, out * push + glm::vec3{0.f, 0.f, 0.5f * push});
+        if(debug())
+        {
+            Con_Printf("climb: flat ladder: pushes off at (%.1f %.1f %.1f)\n", ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]);
+        }
+        return 0; // (the usual move from here: it falls away)
+    }
+    const int dir = c.phase == Phase::Slipping ? -1 : ladderDir(ent, move);
+    const float dt = static_cast<float>(host_frametime);
+    const glm::vec3 origin = vec(ent->v.origin);
+    glm::vec3 carry{0.f};
+    int held = 0;
+    float top = -1e9f, low = 1e9f;
+    for(const Grip& g : c.grips)
+    {
+        if(g.active)
+        {
+            carry += holdNow(g) - g.lastHold;
+            held++;
+            top = za::max(top, topNow(g));
+            low = za::min(low, topNow(g));
+        }
+    }
+    if(held > 0)
+    {
+        carry /= static_cast<float>(held);
+    }
+    const float shoulderUp = ladderShoulder(ent, move).z - origin.z;
+    const float speed = c.phase == Phase::Slipping ? slipSink : za::clamp(vr_flat_ladder_speed.value, 20.f, 400.f);
+    glm::vec3 target = origin + carry + glm::vec3{0.f, 0.f, static_cast<float>(dir) * speed * dt} - out * (40.f * dt);
+    const float highest = top - ent->v.mins[2] + 2.f;
+    const float lowest = low - armReach() - shoulderUp;
+    target.z = za::clamp(target.z, za::min(lowest, origin.z + carry.z), za::max(highest, origin.z + carry.z));
+    moveBody(ent, target);
+    const glm::vec3 now = vec(ent->v.origin);
+    setVec(ent->v.velocity, glm::vec3{0.f});
+    ent->v.flags = static_cast<float>(static_cast<int>(ent->v.flags) & ~FL_ONGROUND);
+    c.lastOrigin = now;
+    SV_CheckWater(ent);
+    for(int h = 0; h < 2; h++)
+    {
+        Grip& g = c.grips[h];
+        g.lastHold = holdNow(g);
+        g.lastRel = handRel(ent, move, h);
+        c.flatShow[h] = g.active && handEmpty(ent, &move, h);
+    }
+    if(dir < 0)
+    {
+        // Down at the ground: off the ladder, standing.
+        const trace_t below = tracePlayer(ent, now, now - glm::vec3{0.f, 0.f, 2.f});
+        if(!below.startsolid && below.fraction < 1.f && below.plane.normal[2] >= 0.7f)
+        {
+            transition(ent, c, Phase::Free, Why::Forced);
+            ent->v.flags = static_cast<float>(static_cast<int>(ent->v.flags) | FL_ONGROUND);
+            if(debug())
+            {
+                Con_Printf("climb: flat ladder: down at the ground at (%.1f %.1f %.1f), lets go\n", now.x, now.y, now.z);
+            }
+            return 1;
+        }
+    }
+    // Hand over hand: going up, the lower hand (once under the shoulders) to the rung over the other's; going down, the
+    // higher (once an arm's half over them) to the rung under the other's.
+    const glm::vec3 shoulder = ladderShoulder(ent, move);
+    const int lo = !c.grips[0].active || (c.grips[1].active && topNow(c.grips[1]) < topNow(c.grips[0])) ? 1 : 0;
+    const int hi = 1 - lo;
+    bool atTop = false;
+    if(dir > 0 && topNow(c.grips[lo]) < shoulder.z)
+    {
+        Rungs r;
+        findRungs(ent, move.headPos, -out, topNow(c.grips[hi]) + 4.f, shoulder.z + armReach(), r);
+        if(r.count > 0)
+        {
+            ladderTake(ent, c, move, lo, r.at[0]);
+        }
+        else
+        {
+            atTop = true;
+        }
+    }
+    else if(dir < 0 && topNow(c.grips[hi]) > shoulder.z + 0.5f * armReach())
+    {
+        Rungs r;
+        findRungs(ent, move.headPos, -out, now.z + ent->v.mins[2] + vr_climb_min_height.value, topNow(c.grips[lo]) - 4.f, r);
+        if(r.count > 0)
+        {
+            ladderTake(ent, c, move, hi, r.at[r.count - 1]);
+        }
+    }
+    if(dir < 0 && now.z <= lowest + 0.5f)
+    {
+        // At the bottom of its rungs over a drop (none under the lowest hold in reach): let go, and fall.
+        transition(ent, c, Phase::Free, Why::Forced);
+        if(debug())
+        {
+            Con_Printf("climb: flat ladder: no rung under, lets go at (%.1f %.1f %.1f)\n", now.x, now.y, now.z);
+        }
+        return 1;
+    }
+    // The top: the headset's mantle, the head vr_climb_mantle_height over the top hold, with room on it.
+    const glm::vec3 eye = move.headPos - move.origin + now;
+    const int topHand = topNow(c.grips[1]) >= topNow(c.grips[0]) || !c.grips[0].active ? 1 : 0;
+    const float headAbove = eye.z - topNow(c.grips[topHand]);
+    if(dir > 0 && (atTop || now.z >= highest - 0.5f) && headAbove >= za::clamp(vr_climb_mantle_height.value, 0.f, 40.f) &&
+        !(c.flatLadderTry >= 0.0 && time >= c.flatLadderTry && time - c.flatLadderTry < mantleRetry))
+    {
+        c.flatLadderTry = time;
+        Grip g = c.grips[topHand];
+        glm::vec3 mid, to;
+        if(findMantle(ent, g, mid, to))
+        {
+            startMantle(ent, c, g, mid, to, headAbove, time);
+            flatMantleHands(ent, c, &move, g);
+            return 1;
+        }
+        if(vr_climb_debug.value >= 2.f)
+        {
+            Con_Printf("climb: flat ladder: no room over the top at %.1f\n", topNow(g));
+        }
+    }
+    hangStamina(ent, c, time);
+    if(c.draining && fields().vr_climb_drain >= 0)
+    {
+        fieldFloat(ent, fields().vr_climb_drain) = 1.f;
+    }
+    return 1;
+}
 } // namespace
 
 namespace
@@ -3151,6 +3584,10 @@ int hangFrame(edict_t* ent, Climber& c, double time)
     {
         transition(ent, c, Phase::Free, Why::NoMove);
         return 0;
+    }
+    if(c.flatLadder)
+    {
+        return flatLadderFrame(ent, c, *move, time); // (flatscreen play's ladder: the keys move the body)
     }
 
     // The pull: what the holding hands moved relative to the body since the last frame, the other way, each weighted
@@ -3559,7 +3996,8 @@ void qvr::climb::calcStats(edict_t* ent, int* statsi)
         const Climber::FlatHold* flat = c && !c->grips[h].active && c->phase == Phase::Mantling && c->flatHolds[h].on
                                             ? &c->flatHolds[h]
                                             : nullptr;
-        if(c && (c->grips[h].active || flat))
+        // (A flat ladder's hand holding a weapon keeps it: not drawn on its rung, flatLadderFrame.)
+        if(c && ((c->grips[h].active && (!c->flatLadder || c->flatShow[h])) || flat))
         {
             const glm::vec3& out = flat ? flat->out : c->grips[h].ledge.out;
             const int yaw = static_cast<int>(za::lround(za::atan2(out.y, out.x) / glm::two_pi<float>() * yawSteps)) & 255;
@@ -3716,6 +4154,13 @@ int qvr::climb::flatMantles(edict_t* ent, bool& mantling)
     const Climber* c = climberOf(ent);
     mantling = c && c->phase == Phase::Mantling;
     return c ? c->flatMantles : 0;
+}
+
+int qvr::climb::flatLadders(edict_t* ent, bool& climbing)
+{
+    const Climber* c = climberOf(ent);
+    climbing = c && c->flatLadder && c->hanging();
+    return c ? c->flatLadders : 0;
 }
 
 bool qvr::climb::holding(int hand)

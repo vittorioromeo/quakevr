@@ -331,6 +331,10 @@ void resetFlatKeys()
         row(opt::vr_crouch_speed),
         row(opt::vr_crouch_speed_scale),
         row(opt::vr_slope_walk),
+        row(opt::vr_slide),
+        row(opt::vr_slide_stick_threshold),
+        row(opt::vr_slide_stick_angle),
+        row(opt::vr_slide_body),
         header("Desktop Screen Play"),
         open("Flat Keys", pageIndex(pageFlatKeys))
             .help("The keys flat play reads itself (leans, swap, grab, shove, punch, reload, drop, grenade, bullet time, flashlight, holster menu...): rebind each here, press a key."),
@@ -400,6 +404,7 @@ void resetFlatKeys()
         row(opt::vr_flat_mantle_look_max),
         row(opt::vr_flat_mantle_time),
         row(opt::vr_flat_mantle_grunt_delay),
+        row(opt::vr_flat_ladder),
         row(opt::vr_flat_slide),
         row(opt::vr_flat_tp),
         open("Third-Person Camera", pageIndex(pageFlatThirdPerson))

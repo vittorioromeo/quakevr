@@ -26,6 +26,7 @@
 #include "vr_ledges.hpp"
 #include "vr_progs.hpp"
 #include "vr_testkit.hpp"
+#include "vr_slide.hpp"
 #include "vr_trace.hpp"
 #include "vr_units.hpp"
 
@@ -452,10 +453,10 @@ void updateBodyPitch(const hands::State& s, float dt)
     {
         p.easeTime = CLAMP(0.1f, vr_prone_body_time.value, 3.f); // getting up: lying down's own time
     }
-    // Sliding (flat-screen play, vr_flatmove.cpp): the trunk leant back about the neck until the hips sit
+    // Sliding (flat-screen play, vr_flatmove.cpp; a headset's with vr_slide and vr_slide_body, vr_slide.cpp): the trunk leant back about the neck until the hips sit
     // vr_flat_slide_hip_floor over the floor (at most vr_flat_slide_body_angle), so the hips come forward under the lowered
     // eyes, the buttocks and the legs on the floor in front (solveLeg), only the trunk held up.
-    if(flatplay::active() && flatmove::slidePose() && !swimming && !lying)
+    if((flatplay::active() ? flatmove::slidePose() : slide::headsetPose()) && !swimming && !lying)
     {
         const float drop = neckOverFloor - za::clamp(vr_flat_slide_hip_floor.value, 0.f, 12.f);
         p.target = -slidePitchTarget(vr_flat_slide_body_angle.value, drop, torso, vr_body_torso_back.value * m2w);

@@ -319,7 +319,8 @@ and 230 units); down a slope it gains `vr_flat_slide_slope` (900) times the slop
 (130) it ends in the crouch it is; letting go of the crouch ends it standing; a jump in it keeps the speed (Quake's
 air move), and a ledge it runs off goes on sliding when he lands. The move keys turn it `vr_flat_slide_steer` (40)
 degrees a second. After one, `vr_flat_slide_cooldown` (0.5 s) before the next. The server runs it
-(`VR_FlatSlideMove`, from `SV_AirMove`, `Quake/sv_user.c`), from the move's crouch bit (`hull::flatCrouchHeld`); his
+(`VR_SlideMove`, from `SV_AirMove`, `Quake/sv_user.c`; the shared slide, `Quake/vr/vr_slide.cpp`, a headset's too with
+`vr_slide`: ROUND25.md "Sliding in VR"), from the move's crouch bit (`hull::flatCrouchHeld`); his
 box is the crouched one the key gives. On the ground means Quake's flag or the floor within 4 units and not going up:
 fast over the floor the flag is off every other move. The client reads the local server's slide: his eyes go
 `vr_flat_slide_drop` (6) further down than the crouch (`flatplay::crouchDrop`), and the body's pitch
@@ -435,6 +436,25 @@ stick slowed to `vr_swim_stick_speed` (0.25), the strokes, the glide, and a way 
 out with). Before, looking 60 degrees up he rose 23 units in half a second (78 now), and a pool's edge never let him out.
 `Misc/quakevr/flatmove_test.sh` (swim: e1m4's deep water; ledge: the start map's pool), measured by `vr_flatmove_test`
 (Debug > Tests > Flat Move: Speed, Flat Ledges; 8 and 9 find deep water and water-jump ledges near him).
+
+**Ladders** (**Ladders**, `vr_flat_ladder`, 1; his request 2026-11-16). A ladder made of individual ledges (the tutorial's
+rungs, any stack of graspable ledges) climbs as a headset's hands climb it, on the same code (`vr_climb.cpp` `flatLadder`,
+`flatLadderFrame`, `flatLadderMount`): walking forward into one (in the air, back too) finds the ledges facing him in a
+column from 8 units inside his box's front to `vr_flat_ladder_reach` (16) ahead of it (`findRungs`: the grip's `findHold`
+and its checks), and a ladder is two of them one over the other (at most 40 apart in height, 10 along the look) in an arm's
+reach: a plain wall, a single ledge or a stair's steps (each one further on) are none. The hands take the two highest
+(`holdLedge`, each at its side of the rung as the flat mantle's hands), and the body hangs from them as a headset's does
+(`Phase::Hanging`: stamina, a moving brush model carrying it, the QC's climbing bits, the drawn hands and the climbing
+feet; a hand holding a weapon keeps it and is not drawn on its rung). Only the move differs: forward climbs at
+`vr_flat_ladder_speed` (100 u/s), back or forward looking down past `vr_flat_ladder_look_down` (35 deg) climbs down; the
+lower hand goes over the other once under the shoulders (down: the higher under the other's), each a grip's slap. The
+feet go no higher than the top hold, and at the top the headset's mantle takes him over (`findMantle`, `startMantle`, at
+`vr_climb_mantle_height` over the top, the flat mantle's hands on the lip). Down at the ground he stands; at the bottom of
+rungs over a drop he lets go. Jump (a new press) pushes off at `vr_flat_ladder_push` (120 u/s out, half that up). Backing
+off a ladder's top (on it, facing away from the drop, back held at its lip) lowers him onto it: the mantle's way backwards
+(over the lip, then down, 0.3 s, no grunt) to hang where the rung under the top is in reach. Tunables: Debug > Tunables
+(Ladder Climb Speed, Look Down, Push Off, Reach). Test: `Misc/quakevr/flatladder_test.sh` (`vr_flatladder_test`, Debug >
+Tests > Flat Ladder; scene `flat_ladder`).
 
 **Left Ctrl's firing bind, taken and given back.** In the plain game Left Ctrl is the fire key: `bind CTRL +attack` is in
 `Quake/default_cfg.h` and, saved, in `ironwail.cfg` (`bind "CTRL" "+attack"`). The mode needs that same key for the
@@ -605,6 +625,8 @@ The ironsight's solve is unchanged and still from the eye: only the shoulder it 
 Which grip the free hand takes is chosen from where it would hang off the gun at a level look, without the stance (`levelHang`), so no look changes it; and the stance's free hand goes off its hotspot over a share of its arm (0.78 to 0.98 of its reach from the rest shoulder), not at one.
 
 **The shot near a surface.** What the crosshair is on nearer than 12 past the muzzle isn't pointed at (the aim's limit, below). The gun points along the ray, and the shot is handed the point of the ray level with the muzzle (`shotMuzzle`, `keepMuzzle`), so it lands on the crosshair's point at a wall, on the floor and with the muzzle past the surface. Nothing drawn moves.
+
+**Through a teleporter.** The crosshair's ray, and every line the aim traces (`lineStop`: the gun blocked or not, the visor crosshair's shot line), go on through the see-through teleporters they cross as the shots do (`worldtrace::shotLine`, the same crossing as QC's `MOVE_PORTALS` tracelines: `crossGates`, vr_portals.cpp). The point they give is where the line stops as seen from here: past the gate's face, on the line, where the view through the gate shows what it hit. A gun pointed at that point crosses the gate and comes out onto the thing itself, so a hip shot lands on what the crosshair is on beyond a gate as a sighted one does. (Before, the ray stopped at the gate's face and the guns pointed there; the gate turned the hip shot's way off the crosshair's: 11 units off at 340 past the exit from 160 back, 35 from 24 back, 223 at your own back through vrteleporters' loop.) No gate crossed: the same trace as ever. `Misc/quakevr/teleporters/flat_gate_aim_test.sh`.
 
 **The held weapon** -- **Gun Forward** (`vr_flat_gun_ahead`, 16.5), **Gun Down** (`vr_flat_gun_down`, 0), **Gun Out** (`vr_flat_gun_out`, 1): where the hand stands off its shoulder at a level look: the real shoulder's, which stands 12 lower than the old anchor these were once measured from (14, 12, 4; the level pose is where it was, within half a unit). Forward is along the look; *down* is written as a positive number of units *below*, and *out* as a positive number of units *away from the body's centre line* -- the main hand's right, the off hand's left, which is the side `twohand` measures its grips to. Each is scaled by `vr_flat_reach`, as the pose always was. Gun Out goes with the look (`gunOutAt`, his tuning): from its level value to **Gun Out Looking Down** (`vr_flat_gun_out_down`, -4) straight down and **Gun Out Looking Up** (`vr_flat_gun_out_up`, -4) straight up, along a smooth curve (no corner at level or at the ends); crouched, the level value is **Gun Out Crouched** (`vr_flat_gun_out_crouch`, -2), by how deep (Crouch Gun Out still adds to it). The sweep's `gun_out` column and check hold those four. **Flatscreen Gun With The Crosshair** (`vr_flat_gun_near`, 24, 8..60) is how far the drawn view may stand from his head and still carry the gun with it; below that the gun is left on his body while the view comes down, which is what a small `vr_flat_crouch_drop` with a small keep distance looks like.
 
