@@ -1246,7 +1246,9 @@ extern "C" int VR_RenderView()
                         !stereo::resampling;
     // The Quest's runtime crashed in xrEndFrame (C4p, QUEST_PLAN.md 6w) when foveated eye images (vr_xr_foveation) were
     // acquired after the scene, or their old colours invalidated: with foveation they are acquired first, not invalidated.
-    const bool xrFoveated = VR_Android() && vr_xr_foveation.value > 0.f && COM_CheckParm("-xrfoveation"); // (guarded)
+    // (vr_xr_foveation_probe 1: late acquire and the invalidate allowed anyway, to narrow the crash: C4q, 6x)
+    const int fovProbe = static_cast<int>(vr_xr_foveation_probe.value);
+    const bool xrFoveated = VR_Android() && vr_xr_foveation.value > 0.f && COM_CheckParm("-xrfoveation") && !(fovProbe & 1); // (guarded)
     const bool late = lateAcquire && !direct && !xrFoveated;
     if(singlePass)
     {
@@ -1421,14 +1423,27 @@ extern "C" int VR_RenderView()
         }
 
         stereo::renderingEye = false;
-        profile::begin("xr release", true); // xrReleaseSwapchainImage
-        be->releaseEyeImage(eye);
-        profile::end();
-        ++eyesRendered;
 
-        // Released images belong to the runtime again: do not keep them attached.
+        // Released images belong to the runtime again: do not keep them attached. Detached (and no framebuffer of ours
+        // bound) before the release, as Meta's samples do (C4q: the foveated images' crash, QUEST_PLAN.md 6x;
+        // vr_xr_foveation_probe 2: after it, as before; the PC keeps the old order).
+        const bool detachAfter = !VR_Android() || (fovProbe & 2) != 0;
+        if(detachAfter)
+        {
+            profile::begin("xr release", true);
+            be->releaseEyeImage(eye);
+            profile::end();
+        }
         GL_BindFramebufferFunc(GL_FRAMEBUFFER, stereo::targetFbo);
         GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
+        if(!detachAfter)
+        {
+            GL_BindFramebufferFunc(GL_FRAMEBUFFER, 0);
+            profile::begin("xr release", true); // xrReleaseSwapchainImage
+            be->releaseEyeImage(eye);
+            profile::end();
+        }
+        ++eyesRendered;
 
         QVR_TRACY_SCOPE(zoneMirror, "eye: mirror to window");
         stereo::mirrorToWindow(eye, windowTarget, windowWidth, windowHeight);

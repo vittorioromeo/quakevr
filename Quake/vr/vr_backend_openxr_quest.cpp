@@ -90,7 +90,8 @@ const void* QuestExtensions::swapchainNext(XrSwapchainCreateInfoFoveationFB& sto
         return nullptr;
     }
     storage = XrSwapchainCreateInfoFoveationFB{XR_TYPE_SWAPCHAIN_CREATE_INFO_FOVEATION_FB};
-    storage.flags = XR_SWAPCHAIN_CREATE_FOVEATION_SCALED_BIN_BIT_FB; // (OpenGL ES: the driver's scaled bins)
+    // (OpenGL ES: the driver's scaled bins; 0, vr_xr_foveation_flags 0: Meta's GLES sample's, C4q)
+    storage.flags = vr_xr_foveation_flags.value != 0.f ? XR_SWAPCHAIN_CREATE_FOVEATION_SCALED_BIN_BIT_FB : 0;
     return &storage;
 }
 
