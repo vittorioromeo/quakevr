@@ -702,6 +702,23 @@ vr_touch_release|1|Doom|Release Distance|VR Settings > HUD, Haptics and Sound > 
 vr_touch_hard|1|Doom|Hard Press Depth|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > Hard Press Depth
 vr_touch_haptic|1|Doom|Touch Haptics|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > Touch Haptics
 |0|Doom|Reset This Page|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > Reset This Page
+@page|0|Voice Chat||VR Settings > HUD, Haptics and Sound > Voice Chat
+vr_voicechat|0|Voice Chat|Voice Chat|VR Settings > HUD, Haptics and Sound > Voice Chat > Voice Chat
+vr_voicechat_mode|0|Voice Chat|Talk With|VR Settings > HUD, Haptics and Sound > Voice Chat > Talk With
+vr_voicechat_vad|0|Voice Chat|Activation Threshold|VR Settings > HUD, Haptics and Sound > Voice Chat > Activation Threshold
+|0|Voice Chat|Push-to-Talk|VR Settings > HUD, Haptics and Sound > Voice Chat > Push-to-Talk
+vr_voicechat_denoise|0|Voice Chat|Noise Suppression|VR Settings > HUD, Haptics and Sound > Voice Chat > Noise Suppression
+vr_voicechat_mic_gain|0|Voice Chat|Microphone Gain|VR Settings > HUD, Haptics and Sound > Voice Chat > Microphone Gain
+|0|Voice Chat|Microphones|VR Settings > HUD, Haptics and Sound > Voice Chat > Microphones
+vr_voicechat_volume|0|Voice Chat|Volume|VR Settings > HUD, Haptics and Sound > Voice Chat > Volume
+vr_voicechat_attenuation|0|Voice Chat|Fade With Distance|VR Settings > HUD, Haptics and Sound > Voice Chat > Fade With Distance
+vr_voicechat_radio|0|Voice Chat|Radio|VR Settings > HUD, Haptics and Sound > Voice Chat > Radio
+vr_voicechat_indicator|0|Voice Chat|Talking Indicator|VR Settings > HUD, Haptics and Sound > Voice Chat > Talking Indicator
+|2|Voice Chat|Players (Console)|VR Settings > HUD, Haptics and Sound > Voice Chat > Players (Console)
+|2|Voice Chat|Report|VR Settings > HUD, Haptics and Sound > Voice Chat > Report
+|2|Voice Chat|Self-Test|VR Settings > HUD, Haptics and Sound > Voice Chat > Self-Test
+vr_net_voice_bytes|2|Voice Chat|Voice Budget (Hosting)|VR Settings > HUD, Haptics and Sound > Voice Chat > Voice Budget (Hosting)
+|0|Voice Chat|Reset This Page|VR Settings > HUD, Haptics and Sound > Voice Chat > Reset This Page
 @page|1|Recording||Advanced VR Options > Body and Display > Recording (Window View)
 vr_window_view|1|Recording|Window View|Advanced VR Options > Body and Display > Recording (Window View) > Window View
 vr_window_hud_mirror|1|Recording|Flat HUD on the Mirror|Advanced VR Options > Body and Display > Recording (Window View) > Flat HUD on the Mirror
@@ -1401,6 +1418,10 @@ cl_movespeedkey|1|Locomotion|Running Mult.|Advanced VR Options > Movement > Loco
 vr_crouch_speed|1|Locomotion|Slower When Crouched|Advanced VR Options > Movement > Locomotion > Slower When Crouched
 vr_crouch_speed_scale|1|Locomotion|Crouched Speed|Advanced VR Options > Movement > Locomotion > Crouched Speed
 vr_slope_walk|1|Locomotion|Walk Up Slopes Slowly|Advanced VR Options > Movement > Locomotion > Walk Up Slopes Slowly
+vr_slide|1|Locomotion|Sliding (VR, Experimental)|Advanced VR Options > Movement > Locomotion > Sliding (VR, Experimental)
+vr_slide_stick_threshold|1|Locomotion|Slide Stick Pull|Advanced VR Options > Movement > Locomotion > Slide Stick Pull
+vr_slide_stick_angle|1|Locomotion|Slide Stick Angle|Advanced VR Options > Movement > Locomotion > Slide Stick Angle
+vr_slide_body|1|Locomotion|Slide Body Pose|Advanced VR Options > Movement > Locomotion > Slide Body Pose
 vr_flat_aim_mode|1|Locomotion|Right Click Ironsight|Advanced VR Options > Movement > Locomotion > Right Click Ironsight
 vr_flat_aim_zoom|1|Locomotion|Right Click Aim|Advanced VR Options > Movement > Locomotion > Right Click Aim
 vr_flat_aim_sens|1|Locomotion|Aim Sensitivity|Advanced VR Options > Movement > Locomotion > Aim Sensitivity
@@ -1465,6 +1486,7 @@ vr_flat_mantle_look|1|Locomotion|Mantle Look Up|Advanced VR Options > Movement >
 vr_flat_mantle_look_max|1|Locomotion|Mantle Look Up Most|Advanced VR Options > Movement > Locomotion > Mantle Look Up Most
 vr_flat_mantle_time|1|Locomotion|Mantle Window|Advanced VR Options > Movement > Locomotion > Mantle Window
 vr_flat_mantle_grunt_delay|1|Locomotion|Mantle Grunt Delay|Advanced VR Options > Movement > Locomotion > Mantle Grunt Delay
+vr_flat_ladder|1|Locomotion|Ladders|Advanced VR Options > Movement > Locomotion > Ladders
 vr_flat_slide|1|Locomotion|Slide|Advanced VR Options > Movement > Locomotion > Slide
 vr_flat_tp|1|Locomotion|Third-Person Camera|Advanced VR Options > Movement > Locomotion > Third-Person Camera
 vr_flat_speed_fov|1|Locomotion|Speed FOV|Advanced VR Options > Movement > Locomotion > Speed FOV
@@ -4373,6 +4395,10 @@ vr_flat_wall_arm_keep|2|Tunables|Wall: Push Back Keeps Arm|Advanced VR Options >
 vr_flat_wall_fold|2|Tunables|Wall: Fold Arm To|Advanced VR Options > Debug > Tunables > Wall: Fold Arm To
 vr_flat_wall_margin|2|Tunables|Wall: Keep Off Distance|Advanced VR Options > Debug > Tunables > Wall: Keep Off Distance
 vr_flat_mantle_hand_spread|2|Tunables|Mantle Hands Apart|Advanced VR Options > Debug > Tunables > Mantle Hands Apart
+vr_flat_ladder_speed|2|Tunables|Ladder Climb Speed|Advanced VR Options > Debug > Tunables > Ladder Climb Speed
+vr_flat_ladder_look_down|2|Tunables|Ladder Look Down|Advanced VR Options > Debug > Tunables > Ladder Look Down
+vr_flat_ladder_push|2|Tunables|Ladder Push Off|Advanced VR Options > Debug > Tunables > Ladder Push Off
+vr_flat_ladder_reach|2|Tunables|Ladder Reach|Advanced VR Options > Debug > Tunables > Ladder Reach
 vr_flat_hand_collide|2|Tunables|Wall: Empty Hands And Swings|Advanced VR Options > Debug > Tunables > Wall: Empty Hands And Swings
 vr_flat_swing_wind_strikes|2|Tunables|Swing Windup Strikes|Advanced VR Options > Debug > Tunables > Swing Windup Strikes
 vr_flat_swing_path_stop|2|Tunables|Wall: Swing Stops On Its Path|Advanced VR Options > Debug > Tunables > Wall: Swing Stops On Its Path
@@ -5314,18 +5340,6 @@ vr_net_cullposes|2|Debug - Reports|Network: Cull Poses|Advanced VR Options > Deb
 vr_net_snapposes|2|Debug - Reports|Network: Poses in Snapshots|Advanced VR Options > Debug > Reports > Network: Poses in Snapshots
 vr_net_rate|2|Debug - Reports|Network: Rate Cap|Advanced VR Options > Debug > Reports > Network: Rate Cap
 vr_net_cosmetic_bytes|2|Debug - Reports|Network: Fragments' Bytes|Advanced VR Options > Debug > Reports > Network: Fragments' Bytes
-vr_voicechat|2|Debug - Reports|Voice Chat|Advanced VR Options > Debug > Reports > Voice Chat
-vr_voicechat_mode|2|Debug - Reports|Voice: Voice Activation|Advanced VR Options > Debug > Reports > Voice: Voice Activation
-vr_voicechat_vad|2|Debug - Reports|Voice: Activation Threshold|Advanced VR Options > Debug > Reports > Voice: Activation Threshold
-vr_voicechat_denoise|2|Debug - Reports|Voice: Noise Suppression|Advanced VR Options > Debug > Reports > Voice: Noise Suppression
-vr_voicechat_mic_gain|2|Debug - Reports|Voice: Microphone Gain|Advanced VR Options > Debug > Reports > Voice: Microphone Gain
-vr_voicechat_volume|2|Debug - Reports|Voice: Volume|Advanced VR Options > Debug > Reports > Voice: Volume
-vr_voicechat_attenuation|2|Debug - Reports|Voice: Fade With Distance|Advanced VR Options > Debug > Reports > Voice: Fade With Distance
-vr_voicechat_radio|2|Debug - Reports|Voice: Radio|Advanced VR Options > Debug > Reports > Voice: Radio
-vr_voicechat_indicator|2|Debug - Reports|Voice: Talking Indicator|Advanced VR Options > Debug > Reports > Voice: Talking Indicator
-|2|Debug - Reports|Voice: Players|Advanced VR Options > Debug > Reports > Voice: Players
-|2|Debug - Reports|Voice: Report|Advanced VR Options > Debug > Reports > Voice: Report
-|2|Debug - Reports|Voice: Self-Test|Advanced VR Options > Debug > Reports > Voice: Self-Test
 vr_net_voice_bytes|2|Debug - Reports|Network: Voice Budget|Advanced VR Options > Debug > Reports > Network: Voice Budget
 |2|Debug - Reports|Keyboard Hook|Advanced VR Options > Debug > Reports > Keyboard Hook
 |2|Debug - Reports|Microphones|Advanced VR Options > Debug > Reports > Microphones
@@ -5667,6 +5681,7 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Blood Crouched Over a Corpse|Advanced VR Options > Debug > Tests > Blood Crouched Over a Corpse
 |2|Debug - Tests|Blood Near the Eye: Pictures|Advanced VR Options > Debug > Tests > Blood Near the Eye: Pictures
 |2|Debug - Tests|Blood Fountain of a Limb Popped Close|Advanced VR Options > Debug > Tests > Blood Fountain of a Limb Popped Close
+|2|Debug - Tests|Flat Ladder|Advanced VR Options > Debug > Tests > Flat Ladder
 |2|Debug - Tests|Flat Ledges|Advanced VR Options > Debug > Tests > Flat Ledges
 |2|Debug - Tests|Flat Crouch Trace|Advanced VR Options > Debug > Tests > Flat Crouch Trace
 |2|Debug - Tests|Flat Slide: Self-Test|Advanced VR Options > Debug > Tests > Flat Slide: Self-Test
@@ -8479,6 +8494,7 @@ vr_stealth_light_force|2|Stealth AI Tests|Force the Light on You|Advanced VR Opt
 |1|Flat Keys|Quick Grenade|Advanced VR Options > Movement > Locomotion > Flat Keys > Quick Grenade
 |1|Flat Keys|Bullet Time|Advanced VR Options > Movement > Locomotion > Flat Keys > Bullet Time
 |1|Flat Keys|Flashlight|Advanced VR Options > Movement > Locomotion > Flat Keys > Flashlight
+|1|Flat Keys|Push-to-Talk|Advanced VR Options > Movement > Locomotion > Flat Keys > Push-to-Talk
 |1|Flat Keys|Holster Menu|Advanced VR Options > Movement > Locomotion > Flat Keys > Holster Menu
 |1|Flat Keys|Fly Camera|Advanced VR Options > Movement > Locomotion > Flat Keys > Fly Camera
 |1|Flat Keys|Toolgun|Advanced VR Options > Movement > Locomotion > Flat Keys > Toolgun

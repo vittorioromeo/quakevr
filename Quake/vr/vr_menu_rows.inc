@@ -7377,6 +7377,7 @@ QVR_KEY(vr_flat_key_drop, "Drop", "The key that lets go of what a hand holds (th
 QVR_KEY(vr_flat_key_grenade, "Quick Grenade", "The key that takes a grenade from the back pouch into a free hand.")
 QVR_KEY(vr_flat_key_bullettime, "Bullet Time", "The key that starts and stops bullet time.")
 QVR_KEY(vr_flat_key_flashlight, "Flashlight", "The key that switches the flashlight.")
+QVR_KEY(vr_flat_key_voicechat, "Push-to-Talk", "Multiplayer voice chat: the key you hold to talk (also read in VR, with a keyboard at hand).")
 QVR_KEY(vr_flat_key_holster_menu, "Holster Menu", "The key that opens the holster menu (how it opens and picks: Holster Menu Mode, on Desktop Screen Play).")
 QVR_KEY(vr_flat_key_flycam, "Fly Camera", "The key that turns the fly camera on and off.")
 QVR_KEY(vr_flat_key_toolgun, "Toolgun", "The key that puts the toolgun in the right hand, and gives back what that hand held.")

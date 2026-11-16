@@ -4070,6 +4070,7 @@ def lagcomp(s):
 
 
 VOICE_HZ = 440              # A's test tone (vr_voicechat_test_tone: in place of his microphone)
+VOICE_NAME = "VoiceA"       # A's name (his row on B's Voice Chat page)
 VOICE_DELAY_MS = 250        # A's tone captured -> heard at B (the capture's frame, the server, B's jitter delay and lead)
 VOICE_BUDGET = 8000         # vr_net_voice_bytes' default, B/s (a frame and its copy in the next datagram: ~6.8 KB/s)
 VOICE_LOW_BUDGET = 1500     # the server's budget cut to this: B's voice bytes held to it, frames dropped
@@ -4088,7 +4089,12 @@ def voice_report(inst, hz=VOICE_HZ):
             send = fields(line)
         elif "mp_voice: slot=" in line:
             f = fields(line)
-            speakers[int(f["slot"])] = f
+            speakers.setdefault(int(f["slot"]), {}).update(f)
+        elif "mp_voice_row: slot=" in line:
+            # (the Voice Chat page's row for him: his name, his volume, muted, talking)
+            row = line.split("mp_voice_row: ", 1)[1].strip()
+            slot, text = row.split(" ", 1)
+            speakers.setdefault(int(slot.split("=")[1]), {})["row"] = text
     return send, speakers
 
 
@@ -4140,6 +4146,8 @@ def voice(s, listen=False, lag=0.0, jitter=0.0, loss=0.0):
     srv, a, b, ea, eb = join(s, listen=listen, lag=lag, jitter=jitter, loss=loss)
     sa = ea - 1
     bound = VOICE_DELAY_MS + lag + jitter
+    a.cmd("name %s" % VOICE_NAME)
+    voice_until(s, b, sa, lambda send, sp: sp and sp.get("row", "").startswith(VOICE_NAME), "A's name on B's Voice Chat page")
     since_a, since_b = a.mark(), b.mark()
     a.cmd("vr_voicechat_denoise 0; vr_voicechat_mode 0; vr_voicechat_test_level 0.25; vr_voicechat_test_tone %d; "
           "vr_voicechat_reset; +vr_voicechat" % VOICE_HZ)
@@ -4187,19 +4195,26 @@ def voice(s, listen=False, lag=0.0, jitter=0.0, loss=0.0):
     b.cmd("vr_voicechat_radio 0")
     put_at(srv, a, ea, OPEN_SPOT)
 
-    # his volume, then muted
-    b.cmd("vr_voicechat_player_volume %d 0.5" % ea)
+    # his volume, then muted: from his row on B's Voice Chat page (VR Settings > HUD, Haptics and Sound > Voice Chat),
+    # its buttons pressed as a click would (vr_menu_press "<row> / <button>"; B10v part 2)
+    _, lit = voice_until(s, b, sa, lambda send, sp: sp and sp.get("row", "").startswith(VOICE_NAME), "A's row on B's page")
+    s.check("B's Voice Chat page: A's row, lit while he talks", "talking" in lit["row"] and "100%" in lit["row"],
+            "row \"%s\"" % lit["row"])
+    page = "vr_menu_press Voice Chat > %s / " % VOICE_NAME
+    b.cmd(page + "Quieter; " + page + "Quieter")
     _, half = voice_until(s, b, sa, lambda send, sp: sp and float(sp["dist"]) < near_d + 200 and
                           float(sp["gain"]) < 0.6, "A at half volume")
-    s.check("A's own volume at B (vr_voicechat_player_volume 0.5)", float(half["gain"]) <= 0.5 + 1e-3, "gain %s" % half["gain"])
-    b.cmd("vr_voicechat_player_volume %d 1; vr_voicechat_mute %d 1" % (ea, ea))
+    s.check("A's own volume at B (his row's Quieter twice: 50%)", float(half["gain"]) <= 0.5 + 1e-3 and "50%" in half["row"],
+            "gain %s, row \"%s\"" % (half["gain"], half["row"]))
+    b.cmd(page + "Louder; " + page + "Louder; " + page + "Mute")
     _, muted = voice_until(s, b, sa, lambda send, sp: sp and sp["muted"] == "1" and sp["talking"] == "0", "A muted")
     played0 = voice_out(muted)
     rec0 = int(muted["received"])
     _, later = voice_until(s, b, sa, lambda send, sp: sp and int(sp["received"]) >= rec0 + 25, "frames on while muted")
-    s.check("muted: A's frames still come, none played", voice_out(later) == played0,
-            "received %d -> %s, given out %d -> %d" % (rec0, later["received"], played0, voice_out(later)))
-    b.cmd("vr_voicechat_mute %d 0" % ea)
+    s.check("muted (his row's Mute): A's frames still come, none played; his row says muted, talking",
+            voice_out(later) == played0 and "muted, talking" in later["row"] and "100%" in later["row"],
+            "received %d -> %s, given out %d -> %d, row \"%s\"" % (rec0, later["received"], played0, voice_out(later), later["row"]))
+    b.cmd(page + "Unmute")
     voice_until(s, b, sa, lambda send, sp: sp and sp["talking"] == "1", "A heard again")
 
     # the budgets: the server's (B's voice bytes held to it, frames dropped), B's rate cap (half of it his voice's)
@@ -4229,6 +4244,12 @@ def voice(s, listen=False, lag=0.0, jitter=0.0, loss=0.0):
     voice_until(s, a, sa, lambda send, sp: send.get("sending") == "0", "A's sending stopped")
     _, ended = voice_until(s, b, sa, lambda send, sp: sp and sp["talking"] == "0", "A's spurt over at B")
     s.check("push-to-talk released: A no longer heard talking at B", True, "%s spurts" % ended["spurts"])
+    # the Push-to-Talk key (vr_flat_key_voicechat, CAPSLOCK; B10v part 2) held: sent; let go: not
+    a.cmd("vr_mock_key CAPSLOCK down")
+    voice_until(s, b, sa, lambda send, sp: sp and sp["talking"] == "1", "A heard at B while his Push-to-Talk key is held")
+    a.cmd("vr_mock_key CAPSLOCK up")
+    send, _ = voice_until(s, a, sa, lambda send, sp: send.get("sending") == "0", "A's Push-to-Talk key let go")
+    s.check("the Push-to-Talk key: A sent while it is held, not once let go", True, "%s spurts" % send["spurts"])
     a.cmd("vr_voicechat_mode 1")
     voice_until(s, a, sa, lambda send, sp: send.get("sending") == "1", "voice activation sending the tone")
     a.cmd("vr_voicechat_test_level 0")

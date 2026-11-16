@@ -208,6 +208,7 @@ void resetFlatKeys()
         row(opt::vr_flat_key_grenade),
         row(opt::vr_flat_key_bullettime),
         row(opt::vr_flat_key_flashlight),
+        row(opt::vr_flat_key_voicechat),
         row(opt::vr_flat_key_holster_menu),
         row(opt::vr_flat_key_flycam),
         row(opt::vr_flat_key_toolgun),

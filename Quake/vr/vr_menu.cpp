@@ -30,6 +30,7 @@
 #include "vr_monstervalues.hpp"
 #include "vr_tunables.hpp"
 #include "vr_weaponvalues.hpp"
+#include "vr_voicechat.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -867,6 +868,7 @@ void hologramTestMessage()
 // sv_random_seed...) stay in the console: they mean nothing in the headset.
 
 #include "vr_menu_checklist.inc"
+#include "vr_menu_voicechat.inc" // VR Settings > HUD, Haptics and Sound > Voice Chat
 
 
 
@@ -2356,6 +2358,10 @@ void applyFolds(int page, za::Vector<Item>& list)
         {
             done[page] = false; // an item ticked, Hide Ticked, or the file edited
         }
+    }
+    if(page == pageIndex(pageVoiceChat) && voicePlayersBuilt != voicechat::players())
+    {
+        done[page] = false; // a player joined or left: his row
     }
     if(weightPageStale(PageRef::at(page)))
     {

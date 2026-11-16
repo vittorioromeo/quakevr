@@ -1210,34 +1210,9 @@ za::Vector<Item> pageDebugReports()
             .help("vr_net_cosmetic_bytes: hosting, the most of a remote player's datagram the cosmetic fragments (small gibs, "
                   "explosion chunks) take, the nearest first; the rest wait a frame or two and his game draws them between "
                   "(MP_PLAN B12c: a gib storm's bytes). 0: no budget of their own."),
-        toggle("Voice Chat", vr_voicechat)
-            .help("vr_voicechat: in a multiplayer game, your microphone sent while you talk and the others heard at their "
-                  "heads (MP_PLAN B10v: Opus, RNNoise). Push-to-talk: the off hand's upper button at the mouth (Voice Notes "
-                  "off), or a key bound to +vr_voicechat. Single player: nothing."),
-        toggle("Voice: Voice Activation", vr_voicechat_mode)
-            .help("vr_voicechat_mode: on, you are sent while a voice is heard (no button); off, push-to-talk."),
-        slider("Voice: Activation Threshold", vr_voicechat_vad, 0.1f, 0.95f, 0.05f, "%.2f")
-            .help("vr_voicechat_vad: how sure the noise suppressor must be it hears a voice before voice activation sends."),
-        toggle("Voice: Noise Suppression", vr_voicechat_denoise)
-            .help("vr_voicechat_denoise: your microphone's noise (fans, keys, breath) taken out by RNNoise before it is sent."),
-        slider("Voice: Microphone Gain", vr_voicechat_mic_gain, 0.f, 4.f, 0.25f, "%.2f")
-            .help("vr_voicechat_mic_gain: your microphone's level before it is sent (vr_note_device picks the microphone)."),
-        slider("Voice: Volume", vr_voicechat_volume, 0.f, 2.f, 0.1f, "%.1f")
-            .help("vr_voicechat_volume: the other players' voices; each one's own: vr_voicechat_player_volume, vr_voicechat_mute."),
-        slider("Voice: Fade With Distance", vr_voicechat_attenuation, 0.f, 2.f, 0.1f, "%.1f")
-            .help("vr_voicechat_attenuation: how fast a voice fades with distance (1 as a gunshot, silent at 1000 units; 0.5 at 2000)."),
-        toggle("Voice: Radio", vr_voicechat_radio)
-            .help("vr_voicechat_radio: every voice at full volume wherever its player is; off, at his head, fading with distance."),
-        toggle("Voice: Talking Indicator", vr_voicechat_indicator)
-            .help("vr_voicechat_indicator: ((o)) over a talking player's head, TALKING low in your view while you send."),
-        command("Voice: Players", "vr_voicechat_players")
-            .help("vr_voicechat_players: each player's number, whether you hear or muted him, his volume, who talks. Mute "
-                  "one: vr_voicechat_mute <number or name>; his volume: vr_voicechat_player_volume <number or name> <0-4>."),
-        command("Voice: Report", "vr_voicechat_report")
-            .help("vr_voicechat_report: what you send (frames, bytes, spurts, the level) and each voice heard (frames played, "
-                  "recovered by FEC, concealed, late, the jitter, the gain at his distance); hosting: vr_voicechat_relay."),
-        command("Voice: Self-Test", "vr_voicechat_selftest")
-            .help("vr_voicechat_selftest: Opus and RNNoise in a loop (SNR, bitrate, FEC, concealment, noise) and the jitter buffer."),
+        open("Voice Chat", pageIndex(pageVoiceChat))
+            .help("VR Settings > HUD, Haptics and Sound > Voice Chat: its settings, each player's mute and volume, its "
+                  "Report and Self-Test (MP_PLAN B10v)."),
         slider("Network: Voice Budget", vr_net_voice_bytes, 0.f, 16000.f, 500.f, "%.0f B/s")
             .help("vr_net_voice_bytes: hosting, each player's voice chat bytes a second at most (at most half his rate cap); "
                   "frames waiting over 0.3 s are dropped. 0: no voice relayed."),

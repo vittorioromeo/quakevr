@@ -49,6 +49,19 @@ void parse();
 // The off hand's upper button: push-to-talk at the mouth (Voice Notes off, a multiplayer game, push-to-talk mode).
 [[nodiscard]] bool offhandButton(bool pressed);
 
+// The Voice Chat page (VR Settings > HUD, Haptics and Sound > Voice Chat; vr_menu_voicechat.inc): the other players'
+// rows, by scoreboard slot. listed: a player in the slot, not you. players(): which slots are listed, a bit a slot (the
+// page is built again when it changes). The row's text: his name, his volume, talking (heard, or arriving muted).
+[[nodiscard]] bool listed(int slot);
+[[nodiscard]] unsigned long long players();
+[[nodiscard]] const char* playerLine(int slot);
+[[nodiscard]] bool muted(int slot);
+[[nodiscard]] float playerVolume(int slot);
+void setMuted(int slot, bool on);
+void setPlayerVolume(int slot, float volume);
+// Your own line: off, single player, push-to-talk or voice activation, sending, your microphone's level.
+[[nodiscard]] const char* ownLine();
+
 // The microphone being opened or closed on a worker (Voice Notes' meter waits: SDL opens one device at a time).
 [[nodiscard]] bool deviceBusy();
 

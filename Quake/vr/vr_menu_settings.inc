@@ -539,6 +539,9 @@ void resetBodyEquipment()
         toggle("Spatial Sound", vr_snd_spatial)
             .help("Sounds come from where they are around your head, muffled by walls, with the room's echo. Best with "
                   "headphones."),
+        open("Voice Chat", pageIndex(pageVoiceChat))
+            .help("Multiplayer voice chat: push-to-talk or voice activation, your microphone, the voices' volume, and each "
+                  "other player's mute and volume (who talks lights up)."),
     };
 }
 

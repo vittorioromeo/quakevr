@@ -128,6 +128,31 @@ Capture cap;
 bool pttHeld = false;
 bool pttByHand = false;
 
+} // namespace
+} // namespace qvr::voicechat
+extern "C" qboolean keydown[MAX_KEYS];             // keys.c
+extern "C" int Key_StringToKeynum(const char* str); // keys.c
+namespace qvr::voicechat
+{
+namespace
+{
+
+// Push-to-talk held: +vr_voicechat, the off hand at the mouth, or the Push-to-Talk key (vr_flat_key_voicechat: flat
+// play owns it, VR reads it too) in the game.
+[[nodiscard]] bool pttWanted()
+{
+    const int k = vr_flat_key_voicechat.string[0] ? Key_StringToKeynum(vr_flat_key_voicechat.string) : -1;
+    return pttHeld || (key_dest == key_game && k > 0 && k < MAX_KEYS && keydown[k]);
+}
+
+// The Voice Chat page's texts (playerLine, ownLine).
+struct MenuText
+{
+    char players[MAX_SCOREBOARD][96]{};
+    char own[96]{};
+};
+MenuText menuText;
+
 // ---- Receiving -----------------------------------------------------------------------------------------------------
 
 struct JitterSlot
@@ -168,6 +193,7 @@ struct Speaker
     double idleSince = -1.0;
     bool active = false;   // a channel or the clock running
     double lastHeard = -1.0;
+    double lastVoiced = -1.0; // realtime his last frame with a voice arrived (muted or not: the Voice Chat page)
     bool firstSaid = false;
     char name[32]{};       // the player's name these settings are for
     float volume = 1.f;    // his volume (vr_voicechat_player_volume)
@@ -398,7 +424,7 @@ void encodeFrame(const float* pcm, za::U8 flags)
 void frameDone()
 {
     const bool vadMode = vr_voicechat_mode.value != 0.f;
-    bool want = pttHeld;
+    bool want = pttWanted();
     if(vadMode)
     {
         if(cap.frameVad >= vr_voicechat_vad.value)
@@ -446,7 +472,7 @@ void frameDone()
 // A 10 ms block captured: denoised (its voice probability), into the frame.
 void block(const float* in)
 {
-    const bool needed = pttHeld || cap.sending || vr_voicechat_mode.value != 0.f;
+    const bool needed = pttWanted() || cap.sending || vr_voicechat_mode.value != 0.f;
     float vad = 0.f;
     const float* use = in;
     if(needed && vr_voicechat_denoise.value != 0.f)
@@ -519,9 +545,9 @@ void captureFrame()
     else
     {
         cap.toneLast = -1.0;
-        if(vadMode || cap.pttEver || pttHeld)
+        if(vadMode || cap.pttEver || pttWanted())
         {
-            cap.pttEver = cap.pttEver || pttHeld;
+            cap.pttEver = cap.pttEver || pttWanted();
             openMic();
         }
         if(cap.device)
@@ -867,6 +893,7 @@ void resetSpeaker(Speaker& sp, int slot, bool keepSettings)
     sp.haveTransit = false;
     sp.jitter = 0.0;
     sp.lastArrival = -1.0;
+    sp.lastVoiced = -1.0;
     sp.lastHeard = -1.0;
     sp.firstSaid = false;
     sp.received = sp.played = sp.concealed = sp.recovered = sp.late = sp.overflow = sp.skipped = sp.underruns = 0;
@@ -912,6 +939,10 @@ void receive(int slot, za::U16 seq, za::U8 flags, const za::U8* data, int len)
     sp.prevTransit = transit;
     sp.haveTransit = true;
     sp.lastArrival = now;
+    if(len > 0)
+    {
+        sp.lastVoiced = now; // (muted too: the Voice Chat page shows who talks, to know whom to mute or hear again)
+    }
     if(sp.muted || vr_voicechat.value == 0.f)
     {
         return;
@@ -1071,13 +1102,7 @@ void mute_f()
         return;
     }
     ownSettings(slot);
-    Speaker& sp = speakers[slot];
-    sp.muted = Cmd_Argc() > 2 ? atoi(Cmd_Argv(2)) != 0 : !sp.muted;
-    if(sp.muted)
-    {
-        sp.playing = false;
-    }
-    Con_Printf("Voice chat: %s %s\n", cl.scores[slot].name, sp.muted ? "muted" : "heard");
+    setMuted(slot, Cmd_Argc() > 2 ? atoi(Cmd_Argv(2)) != 0 : !speakers[slot].muted);
 }
 
 void volume_f()
@@ -1093,9 +1118,7 @@ void volume_f()
         Con_Printf("Voice chat: no player \"%s\"\n", Cmd_Argv(1));
         return;
     }
-    ownSettings(slot);
-    speakers[slot].volume = za::clamp(static_cast<float>(Q_atof(Cmd_Argv(2))), 0.f, 4.f);
-    Con_Printf("Voice chat: %s at %.2f\n", cl.scores[slot].name, speakers[slot].volume);
+    setPlayerVolume(slot, static_cast<float>(Q_atof(Cmd_Argv(2))));
 }
 
 void players_f()
@@ -1170,6 +1193,13 @@ void report_f()
             sp.restarts, sp.spurts, sp.dups, sp.stretched, sp.jitter * 1000.0, talking(slot) ? 1 : 0, sp.muted ? 1 : 0, dist,
             distanceGain(dist, attenuation()) * za::clamp(vr_voicechat_volume.value * sp.volume, 0.f, 4.f), share, freq, rms,
             channelOf(const_cast<Speaker&>(sp), slot + 1) ? 1 : 0);
+    }
+    for(int slot = 0; slot < MAX_SCOREBOARD; slot++)
+    {
+        if(listed(slot))
+        {
+            Con_Printf("mp_voice_row: slot=%d %s\n", slot, playerLine(slot)); // (the Voice Chat page's row)
+        }
     }
     Con_Printf("mp_voice: done\n");
 }
@@ -1413,6 +1443,107 @@ void selftest_f()
 }
 
 } // namespace
+
+// ---- The Voice Chat page -------------------------------------------------------------------------------------------
+
+bool listed(int slot)
+{
+    return slot >= 0 && slot < cl.maxclients && slot < MAX_SCOREBOARD && cl.scores[slot].name[0] &&
+           slot + 1 != cl.viewentity && cls.state == ca_connected;
+}
+
+unsigned long long players()
+{
+    unsigned long long bits = 0;
+    for(int slot = 0; slot < MAX_SCOREBOARD && slot < 64; slot++)
+    {
+        bits |= listed(slot) ? 1ull << slot : 0ull;
+    }
+    return bits;
+}
+
+const char* playerLine(int slot)
+{
+    char* line = menuText.players[za::clamp(slot, 0, MAX_SCOREBOARD - 1)];
+    if(!listed(slot))
+    {
+        q_strlcpy(line, "(left)", sizeof(menuText.players[0]));
+        return line;
+    }
+    const Speaker& sp = speakers[slot];
+    const bool mine = q_strcasecmp(sp.name, cl.scores[slot].name) == 0; // (his settings: else a new player's, unmuted)
+    const bool isMuted = mine && sp.muted;
+    const bool voiced = mine && sp.lastVoiced >= 0.0 && realtime - sp.lastVoiced < talkingHold;
+    q_snprintf(line, sizeof(menuText.players[0]), "%s   %.0f%%%s", cl.scores[slot].name,
+        (mine ? sp.volume : 1.f) * 100.f, isMuted ? (voiced ? "   muted, talking" : "   muted") : talking(slot) ? "   ((o)) talking" : "");
+    return line;
+}
+
+bool muted(int slot)
+{
+    return listed(slot) && q_strcasecmp(speakers[slot].name, cl.scores[slot].name) == 0 && speakers[slot].muted;
+}
+
+float playerVolume(int slot)
+{
+    return listed(slot) && q_strcasecmp(speakers[slot].name, cl.scores[slot].name) == 0 ? speakers[slot].volume : 1.f;
+}
+
+void setMuted(int slot, bool on)
+{
+    if(slot < 0 || slot >= MAX_SCOREBOARD || slot >= cl.maxclients)
+    {
+        return;
+    }
+    ownSettings(slot);
+    Speaker& sp = speakers[slot];
+    sp.muted = on;
+    if(sp.muted)
+    {
+        sp.playing = false;
+    }
+    Con_Printf("Voice chat: %s %s\n", cl.scores[slot].name, sp.muted ? "muted" : "heard");
+}
+
+void setPlayerVolume(int slot, float volume)
+{
+    if(slot < 0 || slot >= MAX_SCOREBOARD || slot >= cl.maxclients)
+    {
+        return;
+    }
+    ownSettings(slot);
+    speakers[slot].volume = za::clamp(volume, 0.f, 4.f);
+    Con_Printf("Voice chat: %s at %.2f\n", cl.scores[slot].name, speakers[slot].volume);
+}
+
+const char* ownLine()
+{
+    char* line = menuText.own;
+    const int n = sizeof(menuText.own);
+    if(vr_voicechat.value == 0.f)
+    {
+        q_strlcpy(line, "You: voice chat off", n);
+    }
+    else if(!active())
+    {
+        q_strlcpy(line, "You: not in a multiplayer game", n);
+    }
+    else if(cap.sending)
+    {
+        q_snprintf(line, n, "You: TALKING (level %.0f%%)", za::min(cap.level * 400.f, 100.f));
+    }
+    else if(!cap.device && !testTone())
+    {
+        q_strlcpy(line, vr_voicechat_mode.value != 0.f ? "You: voice activation, the microphone opens"
+                                                       : "You: push-to-talk (held: the microphone opens)", n);
+    }
+    else
+    {
+        q_snprintf(line, n, "You: %s (level %.0f%%)", vr_voicechat_mode.value != 0.f ? "voice activation, waiting" : "push-to-talk",
+            za::min(cap.level * 400.f, 100.f));
+    }
+    return line;
+}
 
 void init()
 {
