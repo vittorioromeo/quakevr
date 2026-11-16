@@ -4518,3 +4518,25 @@ Resolution Half/Quarter, proxies on); a full render works but takes over a minut
 - **New**: `vr_bench_statehash values <prefix> <ent>...` (those fields' values, `%.9g`; the harness notes what two runs
   hold where they differ). Test `mp_test.py lockstep_dm` (in the suite): two lockstep runs on dm4, A adds two bots at
   steps 36 and 72, B walks, A strafes: every hash equal at 36, 72, 360 and 720.
+
+## MP B14d: the bots out of dm4's lava, vr_dm_test 3's flaky parry (agent/mp, 2026-11-16)
+
+- **The bots' lava deaths were vr_pmove_bots'**: a dedicated dm4 server, A and two bots, counted from A's obituaries
+  (`scratch/b14d_lava.py <pmove_bots> <seconds>`): 21 in 150 s with the bots' walk through the players' moves, 0-2 per
+  45-150 s with FrikBot's own physics. Three causes, all fixed:
+  - the walk's "held by a wall" report to FrikBot (vr_predict.cpp botWalk) took the speed before as a length and the way
+    across the wish: a turn or a stop read as a wall every frame, and `frik_obstructed` with no danger *clears* a held
+    AI_OBSTRUCTED, so the ledge obstruction `frik_obstacles` had just set was gone before `frik_dodge_obstruction`
+    read it (the flags went 1/0/1/0 at the pit's edge). Now measured along the wish only, from the speed along it.
+  - FrikBot's look ahead is one line 32 units ahead: a stair's or narrow ledge's side lets the box walk off, and dm4's
+    route down beside the pit is a blind one (AI_BLIND: no obstacle checks at all). `frik_obstacles` now reads lava,
+    slime or the sky below the drop ahead (past its 256-unit trace) as a danger on any route (a blind one given up).
+  - and botWalk holds a bot at the edge (as walkmove holds a monster) when its walk, not a jump, takes it off its floor
+    over lava or slime (its box traced down 1024), told to its AI as a wall.
+  Now 3 in 120 s (one a straight drop after a death, one from a shot); mp_dm's own run: 0.
+- **vr_dm_test 3's flake** (2 of 9 in B14c: "neither read nor landed", "parried 0, damage 20"): the other bot's shots at
+  A (a shot knocks his crowbar out, or him off his place) and A's body moving a little as his pose changes. The test now
+  holds every other bot's attacks off while it runs and the bot's spot follows A until he has stood still through the
+  whole hold (restarts bounded by its give-up).
+- **New**: a bot's walk prints its `pmtrace:` line too (vr_pmove_trace 1; bots walk from QuakeC's frame, not
+  SV_Physics_Client).

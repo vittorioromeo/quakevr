@@ -2758,8 +2758,22 @@ QuakeC's PlayerPreThink parts. Exactly what would change:
 - Checks: mp_lockstep 17/0 three times (stl_light compared from the second), mp_lockstep_dm 20/0, mp_dm 17/0 (16/1 once: vr_dm_test 3's parry, above).
   Dev and Release (ThinLTO) builds 0 warnings. Thrown props under the lockstep: not started.
 
-Next phase: B14d -- lockstep hash scenarios for props thrown by players (Box3D under a client's hand: the mock's grab
+### B14d results: the bots out of dm4's lava, vr_dm_test 3's flake (2026-11-16, dev no-LTO build)
+
+- **The bots' lava deaths: vr_pmove_bots'.** Counted on a dedicated dm4 server with A and two bots
+  (`scratch/b14d_lava.py`): 21 in 150 s walking through the players' moves, 0-2 per 45-150 s with FrikBot's own physics.
+  Fixed three ways (ROUND25 has the details): botWalk's wall report to FrikBot measured along the wish (a turn read as
+  a wall cleared frik_obstacles' ledge flag each frame); frik_obstacles reads lava/slime/sky below a drop past its 256
+  units, on blind routes too (dm4's stairs beside the pit); botWalk holds a bot at the edge when its walk (not a jump)
+  takes it off its floor over lava or slime. Now 3 in 120 s; mp_dm's run 0.
+- **vr_dm_test 3**: the other bot's shots and A's pose step made the blow's outcome a matter of timing: the test holds
+  every other bot's attacks off and the bot's spot follows A until he has stood still through the hold.
+- **Not started** (budget): thrown props under the lockstep, the ammo pouch's determinism, the step's ulp on
+  mp_predict's stairs, B11's open items.
+- Checks: ROUND25's B14d section (the full MP suite and the SP checks).
+
+Next phase: B14e -- lockstep hash scenarios for props thrown by players (Box3D under a client's hand: the mock's grab
 and throw, mp_grab's steps, under vr_mp_lockstep); the ammo pouch's position deterministic under the lockstep (the
 avatar follower's state at the first move the server runs); the step's ulp under the lockstep on mp_predict's stairs;
-the bots' lava deaths on dm4; vr_dm_test 3's flaky parry; B11's open items (bots never grab, a bot's fists never punch);
-B10v's VR checks are his (a real microphone, the spatial mixers).
+B11's open items (bots never grab, a bot's fists never punch); B10v's VR checks are his (a real microphone, the
+spatial mixers).
