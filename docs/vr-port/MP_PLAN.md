@@ -2855,4 +2855,62 @@ QuakeC's PlayerPreThink parts. Exactly what would change:
   it fires it alongside, then lets it go. A running bot's disarm still stops it to take hold. Bots punch only with an
   empty off hand (the main hand holds its weapon).
 
-Next phase: B13 -- polish and performance: the server browser, a latency HUD, the CPU of many players (soak tests; ICE/NAT traversal optional); B10v's VR checks are his (a real microphone, the spatial mixers).
+### B13 results: the server browser, the net HUD, the soak with 16 players (2026-11-16, dev no-LTO build, loopback)
+
+**Server browser** (`vr_serverbrowser.cpp`; menu.c's server list, Multiplayer > Join Game > Server browser, or
+`menu_servers`): one list of the favourite servers (`vr_mp_favourites`, a star), the recent ones (`vr_mp_recent`, the
+last 8 joined, newest first: any join, from the browser, the Join Game address or `connect`) and the LAN's. A search
+broadcasts NetQuake's server-info request and asks each favourite and recent server by its address too (net_dgrm.c),
+so a server on the internet answers as a LAN one. A row: name, map, players, ping (the reply's round trip; the search
+now reads every frame, not every 0.1 s); a listed server that did not answer shows its address and "no reply". Enter (A,
+a click) joins; Y or F (or a click on the star) makes it a favourite or not; Del forgets a recent one; X, Space or the
+last row searches again. Replies are listed at the address they came from (NetQuake: the address the server wrote in
+its reply, its LAN's behind a router). A server on this PC is listed (NetQuake dropped any reply from its own IP; now
+only this game's own server's). Commands: `vr_mp_browse [join|favourite|forget <row>]` (`mp_browser:` rows when the
+search ends), `vr_mp_favourite [<address>]`.
+
+**Net HUD** (`vr_nethud.cpp`, `vr_net_hud` 0; Debug > Reports > Network: Net HUD): joined to a remote server, the top
+right (under the clock and the frame rate) shows `ping` (his moves' acknowledgement round trip: the way there, the
+server frame that ran the move, the datagram back; a server without Quake VR's moves: the reliable chunks'), `loss`
+(unreliable datagrams whose sequence was skipped, of all expected in the last second) and `fix` (his walk's prediction
+corrected by half a unit or more, a second); 2 adds the bytes each way and the reliable resends. `vr_net_hud_report
+[<n>]` prints the values (after n whole windows).
+
+**The CPU of many players** (`mp_soak`: a dedicated deathmatch server on dm3, A, B and 14 FrikBot bots, a window of 10 s
+of the server's game time; `vr_profile` now runs on a dedicated server too; `vr_mp_edicts` counts edicts by class and
+Box3D's bodies):
+
+| Found | Fix |
+|---|---|
+| **Telefrags of the dead.** Quake VR's corpses, dead players and gibs are SOLID_CORPSE (stock: SOLID_NOT), so a spawn's `teledeath` touched them: each respawn at a start "telefragged" the dead players lying there again (an obituary, a frag, their weapons dropped again) and struck every gib in reach 50000 each frame. With 16 players on 6 starts: 933 telefrags in 3 s of game time, the edicts 1067 to 7047, then `ED_Alloc: no free edicts` (the server crashed) | `tdeath_touch` strikes only the living (`health > 0`). Also single player's (a teleporter's destination with gibs or corpses): its own commit |
+| **Starts taken.** A start counted as free with no "player" within 32 units, the dead included; one 33-49 units away was still in the spawn's telefrag box | A start is taken by a living player within 64 units; a respawn with every start taken waits up to 2 s for one to clear (`VR_DMSpotClear`), then spawns as stock Quake did |
+
+Results after the fixes ((`mp_soak` 8/0, dev no-LTO and ThinLTO builds): 16 players listed at both clients, no crash, the edicts ~800 -> ~1200-1750 over the window (were 7047 in 3 s, then the crash); telefrags 933 in 3 s -> 116-206 in 10 s. The server's pace: 0.74 of real time (dev, the best run), 0.18 in the final ThinLTO run (956 bodies, 792 awake: 413 gibs and 330 props awake; the server process at 0.62 of a core) -- the soak's state varies run to run with the bots' fights. MP suite: 39 of 40 scenarios clean, mp_browser 10/0 and mp_nethud 8/0 new; mp_climb 10/1 (its mantle, seen in earlier phases) passed 11/0 alone. SP: scenario_check PASS (138/0), load_models 4/0, vr_run_check 12/0. Dev and Release (ThinLTO) builds: 0 warnings.)
+
+Open items (B13b):
+
+- **The server's pace with 16 players**: a dev build ran 10 s of game time in ~13.6 s of wall clock (0.74 of real
+  time). Its frame: Box3D ~61% (~700 bodies, ~550 awake: ~290 gibs and ~190 props awake, the dead bodies' gibs and the
+  dropped weapons of every death), QuakeC ~27% (`VR_Gib_Touch`, `forcegrabbable_touch`, `VR_Melee_SweepNow`,
+  `VR_Prop_Flung`, `VR_Gib_TraceHeld`: the gibs and props again). Next: deathmatch caps on loose gibs and dropped
+  weapons (the oldest put to sleep or removed), the gibs' touch and trace only while moving; then measure an LTO build
+  with `--exclusive`.
+- **B's link with 16 players**: 40-65 KB/s down (snapshot entities ~28 KB/s, sounds ~7 KB/s, the rest ~21 KB/s:
+  NetQuake's broadcast datagram, particles and sounds to everyone, not culled by sight). `vr_net_rate` (0: no cap)
+  limits it per player; the default cap and culling the broadcast are B13b's.
+- **Living telefrags remain** (~100 in 10 s): bots stand at the starts; the 2 s wait then spawns over them.
+- **LAN discovery** was not tested by the harness (its games are bound to 127.0.0.1: no broadcast reaches them):
+  the broadcast path is NetQuake's, unchanged but for the own-address filter. His check: a server on another PC.
+
+**ICE/NAT traversal (a written design only; no third-party code):** a player behind a home router cannot host without
+forwarding a port. The plan: (1) a tiny rendezvous service (any host both can reach; ours or the player's own) that
+keeps each hosting server's public address as seen from outside (its UDP source address and port) under a short code;
+(2) the joining client asks it for the code, the service tells both sides each other's public address; (3) both send
+UDP probes to each other at once (hole punching: each router opens a mapping for the outgoing probe, so the other's
+probe gets in), over the game's own port and socket (net_dgrm.c's control socket), a CCREQ-style "punch" packet
+ignored by servers that do not know it; (4) on the first probe through, the client sends its connect request to that
+address as today. Routers with symmetric NAT (a new mapping per destination) defeat it: then a relay (the service
+forwards the datagrams, a bandwidth cost) or the port forward. IPv6 needs no punching where both have it. The browser
+would list such servers by code with the favourites. Needs his OK for hosting a service.
+
+Next phase: B13b -- the CPU and the link of 16 players: deathmatch caps on loose gibs and dropped weapons, the gibs' touch and trace only while moving, the broadcast datagram culled by sight, a default rate cap; mp_soak's pace and link as checks; B10v's VR checks are his (a real microphone, the spatial mixers).

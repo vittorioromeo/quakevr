@@ -4595,3 +4595,22 @@ Resolution Half/Quarter, proxies on); a full render works but takes over a minut
 - **In VR:** a deathmatch with bots (`impulse 100`, "You Can Be Disarmed by Players" on). Get close to a bot with an
   empty off hand and it punches. Hold a gun still in front of one and it reaches for it and pulls it away. Drop a gun
   near a bot and it takes it by hand. Details: MP_PLAN.md, "B11 part 4 results".
+
+## MP B13: the server browser, the net HUD, 16 players soaked (agent/mp, 2026-11-16)
+
+- **Server browser** (Multiplayer > Join Game > Server browser; `menu_servers`): favourites (a star), the servers you
+  joined last and the LAN's in one list, with name, map, players and ping. Favourites and recent servers are asked by
+  their address, so an internet server shows up too. A/Enter joins, Y or F (or a click on the star) favourites, Del
+  forgets a recent one, X searches again. Servers on the same PC now show up (NetQuake hid them).
+- **Net HUD** (`vr_net_hud` 1/2; Debug > Reports > Network: Net HUD): ping (your moves' round trip), loss, your walk's
+  corrections a second; 2 adds the bytes each way and the resends.
+- **16-player deathmatch fixes:** telefrags no longer kill the dead again (dead players, corpses and gibs are solid
+  corpses in Quake VR: each respawn re-killed the bodies at the start, dropped their weapons again, until the server
+  ran out of edicts and crashed). Also a single-player fix: a teleport onto gibs no longer strikes each one every frame.
+  A start counts as taken by a living player within 64 units; when all are taken a respawn waits up to 2 s.
+- **Tests:** `mp_browser` 10/0, `mp_nethud` 8/0 (B 50 ms away, 5% loss: ping 117 ms, loss 5.5%), `mp_soak` (dm3, 14
+  bots): 8/0: 16 players, no crash, edicts bounded (were out of edicts in 3 s). MP suite 39 of 40 clean (mp_climb's known mantle flake passed alone); SP scenario_check, load_models, vr_run_check pass; dev and ThinLTO 0 warnings.
+- **In VR:** Join Game > Server browser on two PCs (one hosting): its LAN server listed with a ping; favourite it,
+  join, leave, see it as recent. `vr_net_hud 2` while joined. A 16-player deathmatch (`impulse 100` x14) on dm3.
+- **Open (B13b):** the server runs 16 players at ~0.75 of real time on a dev build (Box3D's gibs and dropped weapons,
+  QuakeC's gib and prop touches); B's link 40-65 KB/s. Details and the NAT traversal design: MP_PLAN.md, "B13 results".
