@@ -452,11 +452,13 @@ extern "C" int VR_GLESWorldLite(void)
         lite |= m.off ? m.bit : 0;
     }
     if(vr_gl_lights_plain.value != 0.f && vr_shadow_dlights.value <= 0.f && vr_shadow_maplights.value <= 0.f &&
-        vr_dlight_falloff.value == 0.f && (vr_portals.value <= 0.f || vr_teleporters.value <= 0.f))
+        (vr_portals.value <= 0.f || vr_teleporters.value <= 0.f))
     {
         // C4p (QUEST_PLAN.md 6w): every light plain (no shadows, portal lights, DarkPlaces falloff): the world's lights'
         // loop without their code, 1 << 26 (gl_shaders.c GL_LightsLiteDefines). The Quest 3 paid ~3.5 ms of the world's
         // shading for each light covering the view with that code merely compiled in (Adreno: registers), ~0.3 without.
+        // C4q (6x): DarkPlaces' falloff in the plain loops (vr_dlight_falloff 1, the Quest preset's: the bit was never set
+        // there before), and the models' loop the same (vr_glsl_alias.h ModelDynamicLights; QVR_PROBE_NOAPLAIN undoes it).
         lite |= 1 << 26;
     }
     if(vr_gl_lights_lite.value != 0.f)

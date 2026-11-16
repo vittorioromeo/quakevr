@@ -743,6 +743,31 @@ SPECULAR_AA_FUNCTIONS
 "		{\n" \
 "			int j = findLSB(mask);\n" \
 "			mask ^= 1u << j;\n" \
+"#if defined(QVR_LITE_PLAINLIGHT) && !defined(QVR_PROBE_NOAPLAIN)\n" /* the ES lite form (C4q, QUEST_PLAN.md 6x): plain lights alone */ \
+"			{\n" /* (no shadow maps: their code out of the loop, the light's members read one by one; a spot's cone, DarkPlaces' falloff kept) */ \
+"				uint pk = ofs + uint(j);\n" \
+"				if (Lights[pk].shadow.w != 0.)\n" \
+"					continue;\n" \
+"				vec4 po = vec4(Lights[pk].origin, Lights[pk].radius);\n" \
+"				vec3 ptl = po.xyz - pos;\n" \
+"				float pd2 = dot(ptl, ptl);\n" \
+"				if (pd2 >= po.w * po.w)\n" \
+"					continue;\n" \
+"				float pinv = inversesqrt(max(pd2, 1e-12));\n" \
+"				vec3 pdir = ptl * pinv;\n" \
+"				vec4 psp = Lights[pk].spot;\n" \
+"				float pd = pd2 * pinv;\n" \
+"				float plit = (darkplaces ? DarkPlacesAtten(pd, po.w) : (po.w - pd) * unit) * (1.0 - smoothstep(0.0, 1.0, psp.w + dot(psp.xyz, pdir)));\n" /* SpotCone */ \
+"				if (plit <= 0.)\n" \
+"					continue;\n" \
+"				float pndl = dot(bumped, pdir);\n" \
+"				vec3 pcol = Lights[pk].color;\n" \
+"				float pamb = darkplaces ? Lights[pk].minlight : 0.3;\n" \
+"				total += plit * mix(1.0, pamb + (1.0 - pamb) * angleScale * max(pndl, 0.0), DlightAngle) * pcol;\n" \
+"				if (LightTweak.z > 0. && pndl > 0.)\n" \
+"					spec += plit * (pow(max(dot(bumped, normalize(pdir + toEye)), 0.0), SpecLobe.x) * SpecLobe.y * LightTweak.z) * pcol;\n" \
+"			}\n" \
+"#else\n" \
 "			Light l = Lights[ofs + uint(j)];\n" \
 "			if (l.shadow.w != 0.)\n" \
 "				continue;\n" \
@@ -767,6 +792,7 @@ SPECULAR_AA_FUNCTIONS
 "			total += lit * mix(1.0, ambient + (1.0 - ambient) * angleScale * max(ndl, 0.0), DlightAngle) * l.color;\n" \
 "			if (LightTweak.z > 0. && ndl > 0.)\n" \
 "				spec += lit * (pow(max(dot(bumped, normalize(dir + toEye)), 0.0), SpecLobe.x) * SpecLobe.y * LightTweak.z) * l.color;\n" \
+"#endif\n" /* (the plain form) */ \
 "		}\n" \
 "	}\n" \
 "	return total;\n" \

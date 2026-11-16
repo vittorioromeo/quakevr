@@ -6,6 +6,7 @@
 #include "vr_dynres.hpp"
 #include "vr_alloccount.hpp"
 #include "vr_api.h"
+#include "vr_tunables_api.hpp"
 
 #include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Base/IntTypes.hpp"
@@ -151,8 +152,9 @@ void writeHeader()
     strftime(when, sizeof when, "%Y-%m-%d %H:%M:%S", localtime(&now));
     fprintf(f, "# Quake VR perf recording (vr_perf_record), %s; GL %s\n", when, gl_renderer ? gl_renderer : "?");
     fprintf(f, "# settings:");
-    const char* const quest[] = {"vr_quest_preset", "vr_gles_define", "vr_gl_lights_lite", "vr_gl_lights_plain", "vr_gl_alias_plain_mask",
-        "vr_gl_world_lite"};
+    // (the Quest's: tuning constants mostly, found by their stand-ins: C4q, Cvar_FindVar never found them)
+    const char* const quest[] = {"vr_gles_define", "vr_dlight_falloff", "vr_gl_lights_lite", "vr_gl_lights_plain",
+        "vr_gl_alias_plain_mask", "vr_gl_world_lite", "vr_xr_foveation", "vr_xr_direct"};
     for(const char* name : profile::settingCvars)
     {
         if(const cvar_t* v = Cvar_FindVar(name))
@@ -162,7 +164,8 @@ void writeHeader()
     }
     for(const char* name : quest)
     {
-        if(const cvar_t* v = Cvar_FindVar(name))
+        const cvar_t* v = Cvar_FindVar(name);
+        if(v || (v = tunableFind(name)) != nullptr)
         {
             fprintf(f, " %s=%s", name, v->string);
         }

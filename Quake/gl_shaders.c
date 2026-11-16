@@ -950,7 +950,7 @@ static void GL_LightsLiteDefines (char *out, size_t size, qboolean world)
 		q_strlcat (out, "; QVR_LITE_NOPORTALLIGHT 1", size);
 	if (gl_world_lite & (1 << 25))
 		q_strlcat (out, "; QVR_LITE_ONEFILTER 1", size);
-	if (world && (gl_world_lite & (1 << 26))) // C4p: plain lights alone (vr_gl_lights_plain)
+	if (gl_world_lite & (1 << 26)) // C4p: plain lights alone (vr_gl_lights_plain); C4q: the models' loop too
 		q_strlcat (out, "; QVR_LITE_PLAINLIGHT 1", size);
 }
 
