@@ -45,8 +45,10 @@ public sealed class PreparationResult
 /// occlusion and normal maps written to the game's disk caches: vrstart's first load 12 s to under 1 s), on the hub the
 /// weapons monsters drop and every model of the game's folders (their collision shapes and skins' normal maps), then the
 /// same for each installed campaign with models of its own, on its start map (Dimension of the Machine, Dawn of the
-/// Machine; the engine passes over the others), then, when the relight is pending, every map relit with the bundled ericw-tools, exactly as the game's first start would (the same
-/// command, <c>vr_relight_batch everything</c>, so the game finds them current and relights nothing). A relight that
+/// Machine; the engine passes over the others), then, when the relight is pending, Quake's and the official packs' maps
+/// relit with the bundled ericw-tools, exactly as the game's first start would (the same command,
+/// <c>vr_relight_batch official</c>, so the game finds them current and relights nothing; not the Map Library's nor Arcane
+/// Dimensions' maps, 1-2 minutes each: the author's decision, 2026-11-17, the game's Graphics > Relighting does those). A relight that
 /// finished removes the first-start marker (<see cref="FirstStartRelight"/>); one that did not (skipped, failed, no
 /// light.exe) leaves it, and the game relights at its first start as before. Never fatal: the install is done already.
 /// </summary>
@@ -109,7 +111,7 @@ public static class GamePreparation
             case "start":
                 r.Started = true;
                 return new PreparationProgress(0, "Preparing the game", $"Preparing the game ({string.Join(' ', words.Skip(1))}): its first maps and every model loaded once" +
-                                                                   (r.RelightAsked ? ", then every map relit" : "") + ", so the first start doesn't wait for them.");
+                                                                   (r.RelightAsked ? ", then Quake's and the official mission packs' maps relit" : "") + ", so the first start doesn't wait for them.");
             case "step" when words.Length >= 5 && words[1] == "maps":
             {
                 var i = Int(words[2]);
@@ -169,7 +171,7 @@ public static class GamePreparation
                     ok ? LogLevel.Info : LogLevel.Warning);
             }
             case "step" when words.Length >= 2 && words[1] == "relight":
-                return new PreparationProgress(MapsShare(r), "Relighting the maps", "Relighting every map with ericw-tools (the game's own relight, as at its first start).");
+                return new PreparationProgress(MapsShare(r), "Relighting the maps", "Relighting Quake's and the official mission packs' maps with ericw-tools (the game's own relight, as at its first start; the Map Library's and Arcane Dimensions' maps: the game's Graphics > Relighting).");
             case "relight" when words.Length >= 2:
             {
                 var percent = Math.Clamp(Int(words[1]), 0, 100);

@@ -35,6 +35,11 @@ enum class Set
     Game,       // its game, or the one named ("hipnotic")
     Library,    // every map of the Map Library's installed packages
     Everything, // every map of every game folder, and the Library's
+    // The installer's relight (vr_prepare.cpp, the first-start marker: relight::firstStart): every map of the stock
+    // game's and the official packs' folders on the search path (gameOrder: id1, hipnotic, rogue, dopa, mg1, mg3) and
+    // quakevr's. Not the Library's, nor AD's or another mod's (1-2 minutes of light each: the author's decision,
+    // 2026-11-17): Graphics > Relighting relights those (Relight This Map, or Maps: Map Library / Every Map).
+    Official,
 };
 
 // The set's maps (no ammo boxes' and other brush models' b_*.bsp), each game's in name order (e1m2 before e1m10),

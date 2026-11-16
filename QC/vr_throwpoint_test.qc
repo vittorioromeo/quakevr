@@ -15,7 +15,8 @@
 //   any   16 throws let go any way as a hand does (throwfix2, his note 2026-11-15 17:58: the dagger "much harder to throw point
 //         first ... still tumbles"): the point 60..170 degrees off, mostly turning towards its flight, the dagger tumbling
 //         14..20 rad/s at 12..20 m/s (a light blade: Max Spin's 20), the sword as fast as its weight lets (12.5 rad/s at most,
-//         10..12 m/s); swords and daggers alternate: the dagger (weapons.txt throw_point) as often point first as the sword.
+//         10..12 m/s); swords and daggers alternate: the dagger (weapons.txt throw_point) point first in most
+//         (his Dagger Settling: Strength 0.35, gentler than the swords').
 // Then the thrown blades' blows (vr_throwdmg_test.qc). Ends `gibthrow: N passed, M failed`.
 void() VR_TD_Start;
 void() VR_TD_Frame;
@@ -366,8 +367,10 @@ void() VR_TP_Frame =
             vr_tp_anyb[1], vr_tp_anyb[2], half));
         VR_Test_Print(sprintf(" daggers off %g, on %g, extreme %g of %g (mean %.0f degrees off, on)\n", vr_tp_anyb[3], vr_tp_anyb[4],
             vr_tp_anyb[5], half, vr_tp_angsum[13] / VR_TP_ANY));
-        VR_Test_Check(vr_tp_anyb[4] >= half - 1 && vr_tp_anyb[4] >= vr_tp_anyb[1],
-            sprintf("daggers let go any way settle point first, at least as often as swords (%g of %g; swords %g)", vr_tp_anyb[4], half, vr_tp_anyb[1]));
+        // (His Dagger Settling: Strength 0.35, promoted 2026-11-16: a gentler spring than the swords', so the daggers no longer
+        // match the swords' 8 of 8; most of them still come round, and more than with the settling off.)
+        VR_Test_Check(vr_tp_anyb[4] >= half - 2 && vr_tp_anyb[4] > vr_tp_anyb[3],
+            sprintf("daggers let go any way settle point first in most throws (%g of %g; off %g; swords %g)", vr_tp_anyb[4], half, vr_tp_anyb[3], vr_tp_anyb[1]));
         VR_TD_Start(); // (the thrown blades' blows: vr_throwdmg_test.qc; it ends the test)
     }
 };

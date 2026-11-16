@@ -8,6 +8,8 @@ public enum ExpansionState
     Incomplete,
     /// <summary>Installed and intact, but the game cannot play it yet (its <c>nativeReady</c> is false: decision 9).</summary>
     DetectedNotSupported,
+    /// <summary>Installed and intact, but a release the game refuses (Arcane Dimensions other than 1.80 patch 1).</summary>
+    OtherVersion,
 }
 
 public sealed record ExpansionInfo(string Folder, string Title, ExpansionState State, string? Root, string Detail);
@@ -25,11 +27,14 @@ public static class ExpansionDetector
     /// <param name="NativeReady">The engine's <c>campaigns[].nativeReady</c>: the game plays it.</param>
     /// <param name="SoloOnly">The engine's <c>soloOnly()</c>: accepted for single player only.</param>
     /// <param name="InBaseDirs">Looked for in the base dirs (else in the owned roots).</param>
-    public sealed record Campaign(string Folder, string Title, bool NativeReady, bool SoloOnly, bool InBaseDirs);
+    /// <param name="Experimental">Not <c>nativeReady</c>, but the game plays it behind a prompt, labelled
+    /// "experimental" (the engine's <c>index == qvr::ad::campaignIndex</c>).</param>
+    public sealed record Campaign(string Folder, string Title, bool NativeReady, bool SoloOnly, bool InBaseDirs, bool Experimental = false);
 
     /// <summary>The engine's <c>campaigns[]</c> table (Quake/vr/vr_gamedir.cpp), less id1. The self-test
-    /// "expansions: readiness matches the engine" reads that file and fails when a title, <c>nativeReady</c> or
-    /// <c>soloOnly()</c> differs from this table: flip a campaign there, then here.</summary>
+    /// "expansions: readiness matches the engine" reads that file and fails when a title, <c>nativeReady</c>,
+    /// <c>soloOnly()</c> or the experimental campaign (<c>qvr::ad::campaignIndex</c>) differs from this table: flip a
+    /// campaign there, then here.</summary>
     public static readonly IReadOnlyList<Campaign> Campaigns =
     [
         new("hipnotic", "Scourge of Armagon", NativeReady: true, SoloOnly: false, InBaseDirs: true),
@@ -37,9 +42,9 @@ public static class ExpansionDetector
         new("dopa", "Dimension of the Past", NativeReady: true, SoloOnly: true, InBaseDirs: false),
         new("mg1", "Dimension of the Machine", NativeReady: true, SoloOnly: true, InBaseDirs: false),
         new("mg3", "Dawn of the Machine", NativeReady: true, SoloOnly: true, InBaseDirs: false),
-        // Arcane Dimensions (ARCANE_DIMENSIONS.md): found in the owned roots (a base dir's ad folder included); the
-        // engine also refuses a release other than 1.80 patch 1, which this table does not check.
-        new("ad", "Arcane Dimensions", NativeReady: false, SoloOnly: true, InBaseDirs: false),
+        // Arcane Dimensions (ARCANE_DIMENSIONS.md): found in the owned roots (a base dir's ad folder included), played
+        // as experimental (behind a prompt); a release other than 1.80 patch 1 is refused (OtherVersion).
+        new("ad", "Arcane Dimensions", NativeReady: false, SoloOnly: true, InBaseDirs: false, Experimental: true),
     ];
 
     /// <summary>The store roots of <c>ownedRoots</c>, lowest priority first.</summary>
@@ -84,7 +89,9 @@ public static class ExpansionDetector
 
     /// <param name="baseDirs">The -basedirs in order: the Quake folder, then the Quake VR folder.</param>
     /// <param name="storeRoots">From <see cref="StoreRoots"/>.</param>
-    public static IReadOnlyList<ExpansionInfo> Detect(IReadOnlyList<string> baseDirs, IReadOnlyList<string> storeRoots)
+    /// <param name="adPin">The Arcane Dimensions release the game plays (tests pass their own; null: 1.80 patch 1).</param>
+    public static IReadOnlyList<ExpansionInfo> Detect(IReadOnlyList<string> baseDirs, IReadOnlyList<string> storeRoots,
+        Packaging.AdPak2Pin? adPin = null)
     {
         var owned = OwnedRoots(storeRoots, baseDirs);
         var result = new List<ExpansionInfo>();
@@ -120,14 +127,19 @@ public static class ExpansionDetector
             }
             var state = status.Status switch
             {
-                PackStatus.Ready => c.NativeReady ? ExpansionState.Ready : ExpansionState.DetectedNotSupported,
+                PackStatus.Ready when c.Folder == Packaging.ArcaneDimensions.Folder && root is not null &&
+                                      !Packaging.ArcaneDimensions.IsLatest(Path.Combine(root, c.Folder), adPin) => ExpansionState.OtherVersion,
+                PackStatus.Ready => c.NativeReady || c.Experimental ? ExpansionState.Ready : ExpansionState.DetectedNotSupported,
                 PackStatus.Incomplete => ExpansionState.Incomplete,
                 _ => ExpansionState.NotFound,
             };
             var detail = state switch
             {
-                ExpansionState.Ready => c.SoloOnly ? "ready (single player)" : "ready",
+                ExpansionState.Ready => c.Experimental ? "ready (experimental)" : c.SoloOnly ? "ready (single player)" : "ready",
                 ExpansionState.DetectedNotSupported => "detected, not yet supported",
+                ExpansionState.OtherVersion => File.Exists(Path.Combine(root!, c.Folder, "pak2.pak"))
+                    ? "another release (its pak2.pak isn't 1.80 patch 1's): only 1.80 patch 1 is played"
+                    : "1.80 or older (no pak2.pak): only 1.80 patch 1 is played",
                 ExpansionState.Incomplete => status.Detail + ": verify the game's files in your store",
                 _ => "not installed",
             };

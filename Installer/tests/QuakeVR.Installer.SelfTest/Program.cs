@@ -242,7 +242,17 @@ var tests = new List<(string Name, Action Body)>
             Eq(row.Ready, c.NativeReady, $"{c.Folder} NativeReady (campaigns[].nativeReady)");
             Eq(soloIndices.Contains(row.Index), c.SoloOnly, $"{c.Folder} SoloOnly (soloOnly({row.Index}))");
         }
-        // The labels follow the flags.
+        // The experimental campaign: the engine's qvr::ad::campaignIndex row, not nativeReady, labelled "experimental".
+        var adIndex = System.Text.RegularExpressions.Regex.Match(source, @"static_assert\(qvr::ad::campaignIndex == (\d+)");
+        True(adIndex.Success, "static_assert(qvr::ad::campaignIndex == N) found in vr_gamedir.cpp");
+        True(source.Contains("index == qvr::ad::campaignIndex ? \"experimental\""), "the engine labels qvr::ad::campaignIndex \"experimental\"");
+        foreach (var c in ExpansionDetector.Campaigns)
+        {
+            var row = rows.Single(r => r.Folder == c.Folder);
+            Eq(row.Index == int.Parse(adIndex.Groups[1].Value), c.Experimental, $"{c.Folder} Experimental (qvr::ad::campaignIndex)");
+            True(!c.Experimental || !c.NativeReady, $"{c.Folder}: experimental is a campaign that is not nativeReady");
+        }
+        // The labels follow the flags (AD's pak2 is this test's pin: the release the game plays).
         var quake = Dir("exp-labels");
         Fixtures.MakeOriginal(quake);
         var rerelease = Path.Combine(quake, "rerelease");
@@ -251,11 +261,23 @@ var tests = new List<(string Name, Action Body)>
         {
             Fixtures.MakePack(c.InBaseDirs ? quake : rerelease, c.Folder);
         }
-        foreach (var e in ExpansionDetector.Detect([quake], []))
+        var p2 = Path.Combine(rerelease, "ad", "pak2.pak");
+        PakFile.Write(p2, [("progs/ad_patch1.mdl", Fixtures.Mdl())]);
+        var sig = ArcaneDimensions.Pak2Signature(p2)!.Value;
+        foreach (var e in ExpansionDetector.Detect([quake], [], new AdPak2Pin(sig.Size, sig.DirSha256)))
         {
             var c = ExpansionDetector.Campaigns.Single(x => x.Folder == e.Folder);
-            Eq(!c.NativeReady ? "detected, not yet supported" : c.SoloOnly ? "ready (single player)" : "ready", e.Detail, $"{e.Folder} label");
+            Eq(c.Experimental ? "ready (experimental)" : !c.NativeReady ? "detected, not yet supported" : c.SoloOnly ? "ready (single player)" : "ready", e.Detail, $"{e.Folder} label");
+            Eq(ExpansionState.Ready, e.State, $"{e.Folder} state");
         }
+        // Another AD release (the real 1.80 patch 1 pin against this fake pak2; then no pak2 at all): said clearly.
+        var other = ExpansionDetector.Detect([quake], []).Single(e => e.Folder == "ad");
+        Eq(ExpansionState.OtherVersion, other.State, "ad: another release");
+        True(other.Detail.Contains("only 1.80 patch 1 is played") && other.Detail.Contains("pak2.pak isn't"), other.Detail);
+        File.Move(p2, p2 + ".moved");
+        other = ExpansionDetector.Detect([quake], []).Single(e => e.Folder == "ad");
+        Eq(ExpansionState.OtherVersion, other.State, "ad: no pak2");
+        Eq("1.80 or older (no pak2.pak): only 1.80 patch 1 is played", other.Detail, "ad: no pak2 label");
     }),
     ("expansions: base dirs for hipnotic/rogue, owned roots for dopa/mg1/mg3, all three ready (single player)", () =>
     {
@@ -684,6 +706,15 @@ var tests = new List<(string Name, Action Body)>
                      src.Contains("line(\"step models\")") && src.Contains("\"result models %d %d %.1f\"") &&
                      src.Contains("\"step campaigns %d %d %s\"") && src.Contains("\"campaign %s ok %.1f models=%d limbs=%d\"") &&
                      src.Contains("\"campaign %s none %.1f\"") && src.Contains("\"campaign %s failed %.1f\""), "the engine's lines");
+                // The installer's relight (this run's and the first-start marker's) is the stock game's and the official
+                // packs' maps only: not the Map Library's nor AD's (the author's decision, 2026-11-17).
+                var relightCpp = File.ReadAllText(Path.Combine(d.FullName, "Quake", "vr", "vr_relight.cpp"));
+                var mapsCpp = File.ReadAllText(Path.Combine(d.FullName, "Quake", "vr", "vr_relight_maps.cpp"));
+                True(src.Contains("\"vr_relight_batch official\\n\"") && !src.Contains("vr_relight_batch everything"), "the preparation relights the official set");
+                True(relightCpp.Contains("Cbuf_InsertText(\"vr_relight_batch official\\n\")") && !relightCpp.Contains("Cbuf_InsertText(\"vr_relight_batch everything"),
+                     "the first-start marker relights the official set");
+                True(relightCpp.Contains("{\"official\", maps::Set::Official}") && mapsCpp.Contains("set == Set::Official && f.rank >="),
+                     "the official set: the batch's word, the stock and official games only");
                 break;
             }
         }

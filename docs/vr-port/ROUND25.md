@@ -4672,3 +4672,62 @@ His request: bake all 27 title wordings (9 sections x 3) to pick from.
 - MP suite (dev) 39 of 40 clean: mp_flow 16/0, mp_disarm 35/0, mp_dm 22/0, mp_ground 15/0, mp_browser 10/0 in it; mp_armed failed a rate-cap check under `vr_net_rate 6000` (a snapshot in every datagram: 318 of 360), alone 18/0 then 17/1 on another of its rate checks (nearest poses 1.30x the farthest's, wanted 1.35): its real-time rate checks under a busy PC, not B13d's code -- open. SP: scenario_check PASS (138/0), load_models 4/0, vr_run_check 12/0, autosavenow 4/0, vr_pickup_test 17 5/0. Dev and ThinLTO builds 0 warnings. Details: MP_PLAN.md, "B13d results".
 - **In VR:** with a friend as the second player on a dedicated server, push a dropped shotgun along the floor with your
   closing hand: it is taken.
+## promote1116: his ticked items retired, his tuning promoted for 1.1 (agent/promote1116, 2026-11-16)
+
+- **Checklist**: 8 ticked lines retired from checklist.txt (no voice notes after 12:00 to keep any for; ticks match the
+  live line with its `{test:...}` tag stripped): flat B next ammo, disarm off by default, Dagger Settling, clean
+  recording, two trailer-title lines, the flip-grip gate, hard throws. Scenes `flipgrip` and `throw_hard` moved out
+  (nothing else used them); `flat_ammo_key` kept (flat_ammo_key_test.sh plays it). checklist_tests_check 24/0,
+  scenario_check PASS (136 files, 19 tags, 0 missing).
+- **Promoted**: tunables.cfg `vr_throw_point_dagger_align` 1 -> 0.35 (Dagger Settling: Strength, a gentler spring than
+  the swords'); `weapons_data.py promote`: 18 values, slot 24 (the super axe, `vr_wofs_*_25`): its blade shape (bl_org,
+  bl_width, bl_s1..s5 off/side, bl_near added) and muzzle. Poses: `pose_defaults.py`: 0 keys or grips off the defaults.
+  Cvars: nothing gameplay off its default; the rest is personal (calibration, bodycal, menu layout and level, toolgun
+  and rig studio state, window/spectator view, vr_foveated, vr_flat_taa, vr_flat_tp_fov, vr_gore_dents, vr_notes,
+  vr_xr_runtime, version counters, vr_prop_id_72-76).
+- **Test**: `vr_embed_test 47`'s "any way" dagger check asked for at least the swords' count (8 of 8): at 0.35 the
+  daggers come round in 6 of 8 (0 with the settling off). It now asks for most of them (half - 2) and more than off:
+  12/12. PATCH_NOTES: the dagger "settles point first more readily ... with a gentler pull than a sword's".
+- Checks: dev and ReleaseLTO (`QvrReleaseVersion=1.1.0`) 0 warnings; load_models_test 4/0; make_release.ps1 -DryRun:
+  "tunables.cfg: nothing to promote".
+
+## installerfix: AD "ready (experimental)", the relight's speed (agent/installerfix, 2026-11-16)
+
+- **AD label**: `ExpansionDetector.Campaign` has `Experimental` (AD's row; the engine's `qvr::ad::campaignIndex`): a
+  found, intact AD is `Ready`, "ready (experimental)" (GUI expansion rows, the CLI and the detection report). A copy that
+  isn't 1.80 patch 1 is the new `ExpansionState.OtherVersion` (a warning row): "another release (its pak2.pak isn't
+  1.80 patch 1's): only 1.80 patch 1 is played" or "1.80 or older (no pak2.pak): ...". The self-test "readiness
+  matches the engine" also checks the experimental row against `static_assert(qvr::ad::campaignIndex == N)` and the
+  engine's "experimental" label, and both AD wrong-version labels. The engine's `vr_campaign_status` said "installed;
+  native support in progress" for AD: now "ready (experimental)".
+- **Relight**: the installer's relight is the game's own (`-preparerelight`: `vr_relight_batch everything`), already
+  parallel (2 maps at once from 8 cores, the cores shared out) and already skipping maps relit with the same settings.
+  Measured on 32 cores (light 2.0.0-alpha11, the default look: -extra4, bounce, dirt), six of id's maps: one at a time
+  at 31 threads 28 s of light; six at once at 6 threads each 27 s (each map 2-4x slower); two at once ~23 s. light
+  keeps the cores busy by itself, so more maps at once was not taken (memory: hundreds of MB a light). Changes: the
+  batch lights the biggest maps first (after the map in play: LPT, so it never ends with one big map in one slot while
+  the other idles), and the threads are rounded up (2 x 16, was 2 x 15). Where the time goes: "everything" includes
+  the Library's and AD's maps; AD's are 1-2 minutes each (ad_mountain 104 s at 15 threads): with AD there, 111 maps
+  took over 20 minutes here before the run was stopped. Not changed (his call): leaving the Library's/AD's maps out of
+  the installer's relight.
+- **Output**: light is not byte-deterministic even run to run at the same settings (the faces' lightmaps are packed
+  in its threads' finishing order: 95% of e3m2.lit's bytes move between two sequential runs), so "byte-identical" was
+  checked as the lightmaps' sorted byte values: sequential vs sequential and sequential vs parallel are identical (0
+  of 401,100 differ).
+- Checks: installer 0 warnings, self-tests 41/41; engine dev and ReleaseLTO built.
+
+## relightscope: the installer relights the official maps only (agent/relightscope, 2026-11-17)
+
+- His decision (2026-11-17, "leave them out"): the installer's relight (the preparation run's `-preparerelight` and the
+  first-start marker's fallback; install and update, GUI and CLI) is a new batch set, `vr_relight_batch official`
+  (`maps::Set::Official`): the search path's maps of `gameOrder` (id1, hipnotic, rogue; dopa, mg1, mg3 when on the
+  path) and quakevr's (its own maps pass over as before). Not the Map Library's, AD's or another mod's. The Relighting
+  page's Maps choices are unchanged (`vr_relight_batch_set` 0-4; `official` is the command's word only).
+- Measured (`-list`, the test base): `everything` 111 maps, 481.5 MB (id1 38, hipnotic 18, rogue 17, ad 38); `official`
+  73 maps, 99.1 MB. A player's installed Library packages were in `everything` too.
+- The Library's and AD's maps: no automatic relight at first play exists (none did before either: the marker's batch
+  was the only automatic one). They keep their own light until the player relights them: Graphics > Relighting,
+  Relight This Map, or Many Maps > Map Library / Every Map.
+- Wording: the options page's relight line, the preparation's log lines, the CLI's prepare help and line, the marker
+  file's text, INSTALLER.md (Relit maps, First-start relight, Preparation run). Self-test "game preparation" checks
+  the engine sources use `official` in both places. Installer 0 warnings, self-tests 41/41; engine dev built 0 warnings.

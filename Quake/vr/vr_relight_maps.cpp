@@ -413,7 +413,7 @@ bool collect(Set set, const char* arg, const char* current, za::Vector<Source>& 
         out.pushBack(ZA_MOVE(s));
         return true;
     }
-    everyMap(all, set != Set::Library, set == Set::Library || set == Set::Everything);
+    everyMap(all, set != Set::Library, set == Set::Library || set == Set::Everything); // (Official: not the Library's)
 
     za::String game, prefix;
     if(set == Set::Episode)
@@ -488,6 +488,11 @@ bool collect(Set set, const char* arg, const char* current, za::Vector<Source>& 
         if(!prefix.empty() && !startsWithEpisode(f.source.map, prefix))
         {
             continue;
+        }
+        if(set == Set::Official && f.rank >= static_cast<int>(sizeof(gameOrder) / sizeof(gameOrder[0])) &&
+            q_strcasecmp(f.source.game.cStr(), "quakevr"))
+        {
+            continue; // AD's, another mod's (the Library's are not collected)
         }
         bool prelit = false;
         if(playable(f.source, prelit))
