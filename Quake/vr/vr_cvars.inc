@@ -646,6 +646,12 @@ QVR_CVAR(vr_upscale, "1", CVAR_ARCHIVE)                // below vr_render_scale 
 QVR_CVAR(vr_upscale_sharpness, "0.5", CVAR_ARCHIVE)    // ... its sharpening, 0 none .. 1 most (FSR: RCAS 2 stops below its most at 0.1, its most at 1; NIS: its slider)
 QVR_CVAR(vr_foveated, "3", CVAR_ARCHIVE)               // fixed foveated rendering (NVIDIA variable-rate shading): 0 off, 1 conservative, 2 balanced, 3 aggressive
 QVR_CVAR(vr_foveated_debug, "0", CVAR_NONE)            // show the shading rates (yellow 2x2, red 4x4) and vr_upscale_radius (cyan) in the eyes and the mirror
+// Eye-tracked foveation (ROUND25.md, "Quest Pro"): the full-rate region follows the eyes' gaze, not the lens centre
+// (XR_EXT_eye_gaze_interaction: Quest Pro via Virtual Desktop with eye tracking forwarded, Varjo, Vive Pro Eye...).
+// The extension is asked for at VR start: a change takes effect at the next one. Off by default until tried.
+QVR_CVAR(vr_foveated_gaze, "0", CVAR_ARCHIVE)
+// Mock backend: a gaze "right up" in degrees from the head's forward ("": no eye tracking), for vr_foveated_gaze.
+QVR_CVAR(vr_mock_gaze, "", CVAR_NONE)
 
 QVR_CVAR(vr_enabled, "0", CVAR_NONE)
 // No main hand setting (ROUND21.md, "Handedness: separate options"): the hands are the physical ones, and each thing

@@ -236,9 +236,7 @@ typedef struct
 	const char *exedir;
 	int	argc;
 	char	**argv;
-	void	*membase;
-	int	memsize;
-	int	numcpus;
+	int	numcpus;	// QVR: no membase/memsize: the heap has no size since nohunk (their 0 made the sound 8-bit)
 	int	errstate;
 } quakeparms_t;
 

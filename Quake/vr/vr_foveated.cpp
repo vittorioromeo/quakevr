@@ -7,6 +7,8 @@
 #include "vr_glutil.hpp"
 #include "vr_profile.hpp"
 #include "vr_upscale.hpp"
+#include "vr_main.hpp"
+#include "vr_testkit.hpp"
 #include "vr_api_render.h"
 
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
@@ -19,8 +21,10 @@
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Tan.hpp"
 
 
@@ -69,8 +73,79 @@ struct RateImage
     int tilesX{0}, tilesY{0};
     upscale::Lens lens;
     float inner{0.f}, outer{0.f};
+    glm::vec2 centre{0.f}; // the full-rate centre (image pixels): the lens centre, or the gaze's (vr_foveated_gaze)
 };
 RateImage images[2];
+za::Vector<unsigned char> rateTexels; // rateImage's texels before the upload (kept: remade as the gaze moves)
+
+// The full-rate centre of the eye's width x height image (pixels; GL: row 0 the bottom): where the gaze meets it
+// (vr_foveated_gaze, while the eye tracker tracks it; `gazed` true), the middle of its tile so the rates are remade
+// only when it moves a tile; else (no tracker, a blink, a gaze off the image) the lens centre.
+glm::vec2 fovealCentre(int eye, const upscale::Lens& lens, int width, int height, bool& gazed)
+{
+    gazed = false;
+    const FrameState& fs = frameState();
+    if(vr_foveated_gaze.value == 0.f || !fs.gaze.valid)
+    {
+        return lens.centre;
+    }
+    const glm::vec3 d =
+        glm::inverse(fs.eyes[eye & 1].pose.orientation) * (fs.gaze.orientation * glm::vec3{0.f, 0.f, -1.f});
+    if(d.z > -0.2f) // (over 78 degrees off the eye's axis)
+    {
+        return lens.centre;
+    }
+    const glm::vec2 p = lens.centre + glm::vec2{d.x / -d.z, d.y / -d.z} * lens.pixelsPerTangent;
+    if(p.x < 0.f || p.y < 0.f || p.x >= static_cast<float>(width) || p.y >= static_cast<float>(height))
+    {
+        return lens.centre;
+    }
+    gazed = true;
+    return {(static_cast<float>(static_cast<int>(p.x) / tileWidth) + 0.5f) * static_cast<float>(tileWidth),
+        (static_cast<float>(static_cast<int>(p.y) / tileHeight) + 0.5f) * static_cast<float>(tileHeight)};
+}
+
+// Each tw x th tile's rate (index into the palette) in a width x height image, from its point nearest `centre`: full
+// rate within `inner` degrees of the view through `centre`, 2x2 to `outer`, 4x4 beyond. `pixels`: each rate's pixels.
+// At the lens centre, the angle from the view axis (its tangent's length); elsewhere (the gaze's), the angle between
+// the two directions.
+void computeRates(int width, int height, int tw, int th, const upscale::Lens& lens, glm::vec2 centre, float inner,
+    float outer, unsigned char* texels, double pixels[3])
+{
+    const int tilesX = (width + tw - 1) / tw;
+    const int tilesY = (height + th - 1) / th;
+    const float tanInner = za::tan(glm::radians(inner));
+    const float tanOuter = za::tan(glm::radians(outer));
+    const float cosInner = za::cos(glm::radians(inner));
+    const float cosOuter = za::cos(glm::radians(outer));
+    const bool atLens = centre == lens.centre;
+    const glm::vec3 axis = glm::normalize(glm::vec3{(centre - lens.centre) / lens.pixelsPerTangent, 1.f});
+    pixels[0] = pixels[1] = pixels[2] = 0.0;
+    for(int ty = 0; ty < tilesY; ty++)
+    {
+        for(int tx = 0; tx < tilesX; tx++)
+        {
+            const float x0 = static_cast<float>(tx * tw), y0 = static_cast<float>(ty * th);
+            const float x1 = za::min(x0 + tw, static_cast<float>(width));
+            const float y1 = za::min(y0 + th, static_cast<float>(height));
+            const glm::vec2 nearest{za::clamp(centre.x, x0, x1), za::clamp(centre.y, y0, y1)};
+            unsigned char rate = 0;
+            if(atLens)
+            {
+                const float t = glm::length((nearest - lens.centre) / lens.pixelsPerTangent);
+                rate = t < tanInner ? 0 : t < tanOuter ? 1 : 2;
+            }
+            else
+            {
+                const float c =
+                    glm::dot(axis, glm::normalize(glm::vec3{(nearest - lens.centre) / lens.pixelsPerTangent, 1.f}));
+                rate = c > cosInner ? 0 : c > cosOuter ? 1 : 2;
+            }
+            texels[static_cast<za::SizeT>(ty) * tilesX + tx] = rate;
+            pixels[rate] += static_cast<double>(x1 - x0) * (y1 - y0);
+        }
+    }
+}
 
 // The angles (degrees from the view axis) within which the shading is full rate, and 2x2; 4x4 beyond.
 void radii(float& inner, float& outer)
@@ -96,8 +171,11 @@ RateImage& rateImage(int eye, int width, int height)
     const upscale::Lens lens = upscale::lens(eye, width, height);
     float inner = 0.f, outer = 0.f;
     radii(inner, outer);
-    if(img.texture && img.width == width && img.height == height && sameLens(img.lens, lens) && img.inner == inner &&
-        img.outer == outer)
+    bool gazed = false;
+    const glm::vec2 centre = fovealCentre(eye, lens, width, height, gazed);
+    const bool sameSetup = img.texture && img.width == width && img.height == height && sameLens(img.lens, lens) &&
+                           img.inner == inner && img.outer == outer;
+    if(sameSetup && img.centre == centre)
     {
         return img;
     }
@@ -119,30 +197,17 @@ RateImage& rateImage(int eye, int width, int height)
         GL_ObjectLabelFunc(GL_TEXTURE, img.texture, -1, eye ? "vr shading rates R" : "vr shading rates L");
     }
 
-    // Each tile's rate from its point nearest the lens centre (so no pixel is shaded coarser than its angle asks).
-    const float tanInner = za::tan(glm::radians(inner));
-    const float tanOuter = za::tan(glm::radians(outer));
-    za::Vector<unsigned char> texels(static_cast<za::SizeT>(tilesX) * tilesY);
+    // Each tile's rate from its point nearest the full-rate centre (so no pixel is shaded coarser than its angle asks).
+    // (Remade each tile the gaze moves: the texels' buffer kept.)
+    rateTexels.resize(static_cast<za::SizeT>(tilesX) * tilesY);
+    unsigned char* texels = rateTexels.data();
     double pixels[3] = {0.0, 0.0, 0.0};
-    for(int ty = 0; ty < tilesY; ty++)
-    {
-        for(int tx = 0; tx < tilesX; tx++)
-        {
-            const float x0 = static_cast<float>(tx * tileWidth), y0 = static_cast<float>(ty * tileHeight);
-            const float x1 = za::min(x0 + tileWidth, static_cast<float>(width));
-            const float y1 = za::min(y0 + tileHeight, static_cast<float>(height));
-            const glm::vec2 nearest{za::clamp(lens.centre.x, x0, x1), za::clamp(lens.centre.y, y0, y1)};
-            const float t = glm::length((nearest - lens.centre) / lens.pixelsPerTangent);
-            const unsigned char rate = t < tanInner ? 0 : t < tanOuter ? 1 : 2;
-            texels[static_cast<za::SizeT>(ty) * tilesX + tx] = rate;
-            pixels[rate] += static_cast<double>(x1 - x0) * (y1 - y0);
-        }
-    }
+    computeRates(width, height, tileWidth, tileHeight, lens, centre, inner, outer, texels, pixels);
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, img.texture);
     GLint alignment = 4;
     glGetIntegerv(GL_UNPACK_ALIGNMENT, &alignment);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, tilesX, tilesY, GL_RED_INTEGER, GL_UNSIGNED_BYTE, texels.data());
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, tilesX, tilesY, GL_RED_INTEGER, GL_UNSIGNED_BYTE, texels);
     glPixelStorei(GL_UNPACK_ALIGNMENT, alignment);
 
     img.width = width;
@@ -152,8 +217,9 @@ RateImage& rateImage(int eye, int width, int height)
     img.lens = lens;
     img.inner = inner;
     img.outer = outer;
+    img.centre = centre;
 
-    if(vr_foveated_debug.value != 0.f)
+    if(vr_foveated_debug.value != 0.f && !sameSetup) // (not each tile the gaze moves)
     {
         const double all = static_cast<double>(width) * height;
         Con_Printf("VR: foveated %c eye %dx%d, %dx%d tiles, full rate within %.0f deg, 2x2 to %.0f: 1x1 %.0f%%, 2x2 "
@@ -438,6 +504,65 @@ void precompilePrograms()
         debugFailed = !debugProgram;
         gfx::ownDeferred(debugProgram, &debugFailed);
     }
+}
+
+void gazeTest_f()
+{
+    constexpr const char* name = "vr_foveated_gaze_test";
+    testkit::Tally tally;
+    // A 1600x1600 eye of 90 degrees (800 pixels a tangent), 16x16 tiles, full rate within 25 degrees, 2x2 to 40.
+    constexpr int size = 1600, tile = 16, tiles = size / tile;
+    upscale::Lens lens;
+    lens.centre = {800.f, 800.f};
+    lens.pixelsPerTangent = {800.f, 800.f};
+    za::Vector<unsigned char> texels(static_cast<za::SizeT>(tiles) * tiles);
+    double pixels[3];
+    auto rateAt = [&](float x, float y) {
+        return texels[static_cast<za::SizeT>(y / tile) * tiles + static_cast<za::SizeT>(x / tile)];
+    };
+    const float tan30 = za::tan(glm::radians(30.f)) * 800.f;
+
+    // At the lens centre (no gaze): the rates as ever, from the view axis.
+    computeRates(size, size, tile, tile, lens, lens.centre, 25.f, 40.f, texels.data(), pixels);
+    tally.check(rateAt(800.f, 800.f) == 0, name, "lens centre: full rate in the middle");
+    tally.check(rateAt(800.f + tan30, 800.f) == 1, name, "lens centre: 2x2 at 30 degrees");
+    tally.check(rateAt(1.f, 1.f) == 2, name, "lens centre: 4x4 in the corner");
+    const double centred = pixels[0];
+
+    // The gaze 30 degrees right: full rate there, 2x2 in the middle (30 degrees off), 4x4 30 degrees left (60 off).
+    computeRates(size, size, tile, tile, lens, {800.f + tan30, 800.f}, 25.f, 40.f, texels.data(), pixels);
+    tally.check(rateAt(800.f + tan30, 800.f) == 0, name, "gaze right: full rate at the gaze");
+    tally.check(rateAt(800.f, 800.f) == 1, name, "gaze right: 2x2 in the middle");
+    tally.check(rateAt(800.f - tan30, 800.f) == 2, name, "gaze right: 4x4 opposite");
+    tally.check(rateAt(800.f + tan30, 800.f + tan30) == 1 || rateAt(800.f + tan30, 800.f + tan30) == 0, name,
+        "gaze right: not 4x4 just above it");
+    Con_Printf("%s: full-rate pixels %.0f%% at the lens centre, %.0f%% with the gaze 30 degrees right\n", name,
+        100.0 * centred / (size * size), 100.0 * pixels[0] / (size * size));
+
+    // The live gaze (the mock's vr_mock_gaze "right up"): the centre where it meets the eye's image, within a tile.
+    if(vr_mock_gaze.string[0])
+    {
+        char* end = nullptr;
+        const float right = strtof(vr_mock_gaze.string, &end);
+        const float up = end ? strtof(end, nullptr) : 0.f;
+        const upscale::Lens live = upscale::lens(0, size, size);
+        const glm::vec2 want =
+            live.centre + glm::vec2{za::tan(glm::radians(right)), za::tan(glm::radians(up))} * live.pixelsPerTangent;
+        const float was = vr_foveated_gaze.value;
+        bool gazed = false;
+        Cvar_SetValueQuick(&vr_foveated_gaze, 0.f);
+        const glm::vec2 off = fovealCentre(0, live, size, size, gazed);
+        tally.check(!gazed && off == live.centre, name, "vr_foveated_gaze 0: the lens centre");
+        Cvar_SetValueQuick(&vr_foveated_gaze, 1.f);
+        const glm::vec2 on = fovealCentre(0, live, size, size, gazed);
+        Cvar_SetValueQuick(&vr_foveated_gaze, was);
+        Con_Printf("%s: mock gaze %s: centre %.0f %.0f (want %.0f %.0f; the lens's %.0f %.0f)\n", name,
+            vr_mock_gaze.string, on.x, on.y, want.x, want.y, live.centre.x, live.centre.y);
+        tally.check(gazed && za::abs(on.x - want.x) <= static_cast<float>(tileWidth) &&
+                        za::abs(on.y - want.y) <= static_cast<float>(tileHeight),
+            name, "mock gaze: the centre follows it");
+    }
+    tally.verdict(name);
 }
 
 } // namespace qvr::foveated

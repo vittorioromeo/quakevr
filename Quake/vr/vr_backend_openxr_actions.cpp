@@ -387,8 +387,17 @@ bool OpenXrBackend::createActions()
     thumbTouchAction = makeAction(XR_ACTION_TYPE_BOOLEAN_INPUT, "thumb_touch", "Thumb resting", true);
     triggerTouchAction = makeAction(XR_ACTION_TYPE_BOOLEAN_INPUT, "trigger_touch", "Index finger on the trigger", true);
     hapticAction = makeAction(XR_ACTION_TYPE_VIBRATION_OUTPUT, "haptic", "Haptics", true);
+    if(eyeGazeExtension)
+    {
+        gazeAction = makeAction(XR_ACTION_TYPE_POSE_INPUT, "eye_gaze", "Eye gaze", false);
+    }
 
     suggestBindings();
+    if(gazeAction != XR_NULL_HANDLE &&
+        !suggest("/interaction_profiles/ext/eye_gaze_interaction", {{&gazeAction, "/user/eyes_ext/input/gaze_ext/pose"}}))
+    {
+        gazeAction = XR_NULL_HANDLE; // (no gaze: the foveation stays at the lens centre)
+    }
 
     XrSessionActionSetsAttachInfo attachInfo{XR_TYPE_SESSION_ACTION_SETS_ATTACH_INFO};
     attachInfo.countActionSets = 1;
@@ -408,6 +417,13 @@ bool OpenXrBackend::createActions()
         {
             return false;
         }
+    }
+    if(gazeAction != XR_NULL_HANDLE)
+    {
+        XrActionSpaceCreateInfo spaceInfo{XR_TYPE_ACTION_SPACE_CREATE_INFO};
+        spaceInfo.action = gazeAction;
+        spaceInfo.poseInActionSpace.orientation.w = 1.f;
+        check(xrCreateActionSpace(session, &spaceInfo, &gazeSpace), "xrCreateActionSpace (eye gaze)"); // (none: no gaze)
     }
 
     return true;

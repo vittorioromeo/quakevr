@@ -32,6 +32,21 @@
 
 static int	buffersize;
 
+// QVR: the system's default output device as SDL reports it at init (SDL_GetDefaultAudioInfo, SDL 2.24): what the
+// stream is converted to (Virtual Desktop's own device is 48 kHz). The log used to name device 0, not the default.
+static struct
+{
+	char	name[128];
+	int		rate, channels;
+} snd_default;
+
+const char *SNDDMA_DefaultDevice (int *rate, int *channels)
+{
+	*rate = snd_default.rate;
+	*channels = snd_default.channels;
+	return snd_default.name;
+}
+
 
 static void SDLCALL paint_audio (void *unused, Uint8 *stream, int len)
 {
@@ -140,12 +155,33 @@ qboolean SNDDMA_Init (dma_t *dma)
 			desired.freq, desired.samples, desired.channels);
 
 	driver = SDL_GetCurrentAudioDriver();
-	device = SDL_GetAudioDeviceName(0, SDL_FALSE);
+	{
+		char *defname = NULL;
+		SDL_AudioSpec defspec;
+		memset (&snd_default, 0, sizeof (snd_default));
+		SDL_zero (defspec);
+		if (SDL_GetDefaultAudioInfo (&defname, &defspec, SDL_FALSE) == 0)
+		{
+			q_strlcpy (snd_default.name, defname ? defname : "(default)", sizeof (snd_default.name));
+			snd_default.rate = defspec.freq;
+			snd_default.channels = defspec.channels;
+			SDL_free (defname);
+		}
+		else
+		{
+			device = SDL_GetAudioDeviceName (0, SDL_FALSE);
+			q_strlcpy (snd_default.name, device ? device : "(UNKNOWN)", sizeof (snd_default.name));
+		}
+		device = snd_default.name;
+	}
 	q_snprintf(drivername, sizeof(drivername), "%s - %s",
 		driver != NULL ? driver : "(UNKNOWN)",
 		device != NULL ? device : "(UNKNOWN)");
 	buffersize = shm->samples * (shm->samplebits / 8);
 	Con_Printf ("SDL audio driver: %s, %d bytes buffer\n", drivername, buffersize);
+	if (snd_default.rate)
+		Con_Printf ("SDL audio device: %d Hz, %d channels (the mix's %d Hz %d-bit converted by SDL)\n",
+			snd_default.rate, snd_default.channels, shm->speed, shm->samplebits);
 
 	shm->buffer = (unsigned char *) VR_HeapCalloc (1, buffersize);
 	if (!shm->buffer)

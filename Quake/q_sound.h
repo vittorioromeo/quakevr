@@ -118,6 +118,8 @@ void S_ExtraUpdate (void);
 void S_MixKick (qboolean extra);	/* QVR: the mix on the thread pool (snd_mixasync), before the screen update (host.c) and in R_RenderScene; without the pool, extra: S_ExtraUpdate */
 void S_MixJoinAt (const char *file, int line);	/* QVR: the pool's mix done (every sound entry point, the cache's frees and moves); a no-op off the main thread */
 #define S_MixJoin() S_MixJoinAt (__FILE__, __LINE__)	/* (snd_mixstats lists the joins by where) */
+void S_TransferTest (dma_t *fmt, const portable_samplepair_t *paint, int n);	/* QVR: the output stage alone into fmt's buffer (vr_snd_outtest) */
+const char *SNDDMA_DefaultDevice (int *rate, int *channels);	/* QVR: the system's default output device as SDL reports it (its name; rate and channels 0 when unknown) */
 
 void S_BlockSound (void);
 void S_UnblockSound (void);
