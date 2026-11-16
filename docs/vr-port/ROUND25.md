@@ -3322,3 +3322,43 @@ His flat-screen notes (2026-11-16) and the coordinator's disarm-sound item.
   reruns update in place (`--dry-run`, `--rebuild`, `--check`).
 - Checked in Resolve Studio 21.1 (project "QVR Titles Preview"): two titles rendered at 1080p60, top-right and
   bottom-left; a rerun reports "updated" for both, no duplicates. Not checked: 4K, IM Fell English.
+
+## Player disarm off; the dagger's own settling; clean recording; his tuning promoted (branch agent/vr1116d, 2026-11-16)
+
+- **Player disarm off by default for 1.1** (his note vrragtriggers 00:33): `vr_player_disarm` 0 (the feature, its
+  chance and sounds stay; the menu row says it is still being tuned). BACKLOG.md 6 holds his notes (unpredictable, some
+  melee and all punches never disarm; PvE on once polished; multiplayer: PvE and PvP settings, PvP on by default).
+  PATCH_NOTES / RELEASE_NOTES no longer say "on by default" nor list "get disarmed" among the highlights. `vr_pd_test 1`
+  now restores the value it found and resets the cvar for its last case: 12/12 (new check "defaults to 0", off: 0 hits,
+  0 disarms; forced on: as before).
+- **The dagger's own point-first settling** (vrtesthall 00:38): Debug > Tunables > Dagger Settling: Strength, Time,
+  Angle, Tumble, Spin Damping (`vr_throw_point_dagger_align/_time/_angle/_spin/_damp`, all 1), multipliers on the
+  swords' Point-First Settling rows for a blade more lenient than the swords (weapons.txt `throw_point` above 1: the
+  dagger, 2), on top of its throw_point. 1 everywhere: unchanged (pointAlign, vr_box3d_step.cpp; it now reads the
+  blade's leniency before its strength and window, early-out at the longer window). `vr_embed_test 47`: 12/12 at
+  defaults; with Dagger Settling: Strength 0 the daggers' "any way" set falls to 0 of 8 point first, swords stay 8 of 8.
+  BACKLOG.md 8: refine the dagger's flight next patch.
+- **Clean recording** (vrtesthall 00:40): Graphics > Recording > Clean Recording (While OBS Records), all on, archived:
+  `vr_obsrec_ghost_hands` (no Ghost Hands), `vr_obsrec_debug` (no weapon hotspot marks, no profiler panel),
+  `vr_obsrec_messages` (Recording Mode by itself: no tips, wrist messages, head-locked text: `qvr::recordingClean`). In
+  the headset too. `obs::hides(Hide)` (vr_obs.cpp, declared in vr_cvars.hpp) is true while `obs::recording()` (OBS or
+  its mock) or the test aid `vr_obsrec_as_if` (Debug > Reports, not saved). Left alone on purpose: the toolgun panel
+  (hiding it in the headset would leave a take unworkable), voice notes' indicator (notes are taken during takes), menus
+  and the wrist gadget's own display. Test `Misc/quakevr/obsrec_test.sh` (`vr_obsrec_test start|hidden|end`): 7/7
+  (recording: ghost 0.350 measured, 0.000 drawn over 60 frames; option off: 0.350 drawn; defaults on; not recording:
+  nothing hidden).
+- **His tuning promoted** (vrtesthall 00:48; his ironwail.cfg, proposed_defaults/2026-11-16_00-48-54.cfg and
+  agrunt_poses_2026-11-16_00-46-19.txt, read only): `pose_defaults.py --write`: the knight's two-melee-weapon keys
+  (205000 Idle, 205010 Ready, 205020 Run, 205190-205192 Dual Strike) and the knight's every-weapon Main grip (0.50 0.50
+  2.00 0 50 0 -> 1.52 0.69 1.37 -7.7 49.4 5.4); the Done file's IK stretch rows dropped (his vr_agrunt_ik_stretch is
+  empty: they only copied inherited values). `weapons_data.py promote`: 13 values (dagger hs1_y/z, wpntxt scale/x/z;
+  slot 5 wpntxt_x; fsight_mode 1 (zoom) on slots 27-32 and 35). Cvars: `vr_agrunt_repl_dual` 0.15 -> 0.1,
+  `vr_ammo_pouch_armor_x` 0 -> 1.25, `vr_flashlight_armor_forward` 0 -> 0.03 (both shipped at 0 "not measured").
+  tunables.cfg: nothing off its defaults. Skipped as personal: window/spectator (vr_window_view, vr_spectator_fov,
+  _scale), vr_foveated, vr_flat_taa, vr_flat_tp_fov 1 (a view/comfort choice), Arms (gloves, nails), ghost hands,
+  vr_notes, vr_show_controller_off_own, vr_gore_dents 0 (a gore preference), vr_autosave_list_all, toolgun, rig studio
+  and takes keys, calibration/comfort/handedness, run state and picks, skill, engine video/audio/input, editor state
+  (grip editor, Armour Studio, not archived), map-set cvars (vr_gameplayfix_*, vr_pickup_scale), vr_prop_id_72-74 (held
+  slots with no tuning off defaults). Checked by a default-config run: each promoted value prints as its default.
+- Build fix: the tree's `build/qvr_checks/qvr_checks.exe` exited 3 with no output (left over from the deleted build
+  folders, not rebuilt as no source was newer): rebuilt with `-t:Rebuild`; the kit's build then passes.
