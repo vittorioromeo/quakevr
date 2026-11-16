@@ -2133,14 +2133,15 @@ def campaign_listen(s):
 
 def saved_text(s, relname, t0, tries=50):
     """The save `relname` (".sav" added) in a game folder under the base, written since `t0` (wall clock) and whole
-    (its last line the closing brace) -> (path, text); (None, "") if none came (at most `tries` looks a tenth apart)."""
+    (its last line the edict count, written just before the save thread closes it: the last edict's brace alone came
+    while the file was still open, and the game lists no file open for writing: Sys_GetFileTime) -> (path, text);
+    (None, "") if none came (at most `tries` looks a tenth apart)."""
     for _ in range(tries):
         for d in os.listdir(s.base):
             path = os.path.join(s.base, d, relname + ".sav")
             if os.path.isfile(path) and os.path.getmtime(path) >= t0 - 1:
                 text = open(path, encoding="latin-1").read()
-                # (whole: its last edict's brace, or the edict count after it)
-                if "\n// qvr_coop " in text and (text.rstrip().endswith("}") or re.search(r"// \d+ edicts\s*$", text)):
+                if "\n// qvr_coop " in text and re.search(r"// \d+ edicts\s*$", text):
                     return path, text
         time.sleep(0.1)
     return None, ""
@@ -2203,10 +2204,15 @@ def flow(s):
             got is not None and path is not None and slots_in == sorted((sa, sb)),
             "save line %s; file %s; slots in %s" % (got and got[1], path, slots_in))
     # the Load Autosave menu's list (vr_autosave_list) has it for a host to load, marked a coop one with its players
-    since_a = a.mark()
-    a.cmd("vr_autosave_list cold")
-    wait_quietly(a, r"vr_autosave_list: \d+ autosaves", 10, since_a, "A's Load Autosave list")
-    row = a.find(r"autosave \d+: autosave/coop~e1m2 \|.*Coop, 2 players", since_a)
+    # (listed again while the server may still be closing it: a file open for writing is not listed)
+    row = None
+    for _ in range(5):
+        since_a = a.mark()
+        a.cmd("vr_autosave_list cold")
+        wait_quietly(a, r"vr_autosave_list: \d+ autosaves", 10, since_a, "A's Load Autosave list")
+        row = a.find(r"autosave \d+: autosave/coop~e1m2 \|.*Coop, 2 players", since_a)
+        if row:
+            break
     s.check("Load Autosave lists the coop autosave (coop~e1m2, Coop, 2 players)", row is not None,
             row[1].strip() if row else "not listed")
 

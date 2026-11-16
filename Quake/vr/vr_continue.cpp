@@ -338,19 +338,27 @@ void migrateFolderAutosaves()
 // tested without a package installed (the tests have no network).
 char testPackage[72]{};
 
+// Why the last inspect refused a save (vr_autosave_list cold names each one passed over).
+const char* inspectRefusal = "";
+bool refused(const char* why)
+{
+    inspectRefusal = why;
+    return false;
+}
+
 // Whether a save would load here, and what it is: its map, its title, its campaign, its map package.
 bool inspect(const Candidate& c, ContinueSave& out, bool verbose, bool coopToo = false)
 {
     za::Vector<char> text; // (a command's working buffer: once per menu opening at most)
-    if(!readSaveHead(c.path, text)) { return false; }
+    if(!readSaveHead(c.path, text)) { return refused("unreadable"); }
     char line[128];
     saveLine(text.data(), 0, line, sizeof(line));
-    if(Q_atoi(line) != SAVEGAME_VERSION) { return false; }
+    if(Q_atoi(line) != SAVEGAME_VERSION) { return refused("another save version"); }
     const char* qvr = strstr(text.data(), "\n// qvr_save ");
     int format = 0;
     // (a coop save, format 2, is not single player's to continue: Load Autosave lists it (coopToo), as Load does)
     if(!qvr || sscanf(qvr + 1, "// qvr_save %d", &format) != 1 ||
-        format > (coopToo ? VR_SAVE_FORMAT : VR_SAVE_FORMAT_SINGLE)) { return false; }
+        format > (coopToo ? VR_SAVE_FORMAT : VR_SAVE_FORMAT_SINGLE)) { return refused("no qvr_save line, or its format"); }
     out.coopPlayers = 0;
     for(const char* s = strstr(text.data(), "\n// qvr_coopslot "); s; s = strstr(s + 1, "\n// qvr_coopslot "))
     {
@@ -359,9 +367,9 @@ bool inspect(const Candidate& c, ContinueSave& out, bool verbose, bool coopToo =
     }
     SaveContext ctx;
     readContext(text.data(), c.path, ctx);
-    if(!ctx.map[0] || !VR_AutosaveAllowed(ctx.map)) { return false; }
+    if(!ctx.map[0] || !VR_AutosaveAllowed(ctx.map)) { return refused("no map, or a Quake VR map"); }
     out.campaign = VR_SaveCampaign(text.data());
-    if(out.campaign < 0) { return false; }
+    if(out.campaign < 0) { return refused("its campaign or packs unavailable"); }
     if(ctx.package[0] && !qvr::mapinstall::installed(za::String{ctx.package}) &&
         (!testPackage[0] || q_strcasecmp(ctx.package, testPackage)))
     {
@@ -378,7 +386,7 @@ bool inspect(const Candidate& c, ContinueSave& out, bool verbose, bool coopToo =
             q_strlcpy(warnedMissing[warnedCount].path, c.path, sizeof(warnedMissing[warnedCount].path));
             warnedMissing[warnedCount++].when = c.when;
         }
-        return false;
+        return refused("its map package not installed");
     }
     q_strlcpy(out.map, ctx.map, sizeof(out.map));
     q_strlcpy(out.title, ctx.mapTitle, sizeof(out.title));
@@ -511,6 +519,7 @@ struct InspectedAutosave
     char path[MAX_OSPATH]{};
     time_t when{0};
     bool loadable{false};
+    const char* refusal{""}; // (why not: inspectRefusal)
     ContinueSave save;
 };
 constexpr int maxInspected = 128;
@@ -524,6 +533,7 @@ bool inspectAutosave(const Candidate& c, ContinueSave& out)
         if(e.when == c.when && !strcmp(e.path, c.path))
         {
             out = e.save;
+            inspectRefusal = e.refusal;
             return e.loadable;
         }
     }
@@ -533,6 +543,7 @@ bool inspectAutosave(const Candidate& c, ContinueSave& out)
     e.when = c.when;
     e.save = ContinueSave{};
     e.loadable = inspect(c, e.save, false, true); // (coop saves too: the launch rows pass over them)
+    e.refusal = e.loadable ? "" : inspectRefusal;
     out = e.save;
     return e.loadable;
 }
@@ -549,7 +560,7 @@ bool ofThisGame(const ContinueSave& s)
 // The loadable autosaves of autosave/ (not the relighting's own), newest first, at most maxAutosaves: this game's only
 // unless vr_autosave_list_all (autosaveHidden: the others').
 int autosaveHidden = 0;
-void refreshAutosaves()
+void refreshAutosaves(bool verbose = false)
 {
     autosaveCount = 0;
     autosaveHidden = 0;
@@ -561,7 +572,11 @@ void refreshAutosaves()
         const Candidate& c = candidates[i];
         if(!strcmp(c.relname, "autosave/relight")) { continue; } // (vr_relight.cpp's batch save)
         ContinueSave found;
-        if(!inspectAutosave(c, found)) { continue; }
+        if(!inspectAutosave(c, found))
+        {
+            if(verbose) { Con_Printf("autosave passed over: %s (%s)\n", c.relname, inspectRefusal); }
+            continue;
+        }
         if(!all && !ofThisGame(found))
         {
             ++autosaveHidden;
@@ -616,15 +631,16 @@ void describeAutosave(const ContinueSave& s, char* line1, size_t size1, char* li
 }
 
 // vr_autosave_list [cold]: the Load Autosave menu's list, printed, and how long reading it took (Debug > Tests > Saves);
-// cold: every file read again, as at the menu's first opening.
+// cold: every file read again, as at the menu's first opening, and each one passed over named with why.
 void autosaveList()
 {
-    if(Cmd_Argc() >= 2 && !strcmp(Cmd_Argv(1), "cold"))
+    const bool cold = Cmd_Argc() >= 2 && !strcmp(Cmd_Argv(1), "cold");
+    if(cold)
     {
         for(InspectedAutosave& e : inspected) { e = InspectedAutosave{}; }
     }
     const double start = Sys_DoubleTime();
-    refreshAutosaves();
+    refreshAutosaves(cold);
     const double ms = (Sys_DoubleTime() - start) * 1000.0;
     for(int i = 0; i < autosaveCount; ++i)
     {
