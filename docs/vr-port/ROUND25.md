@@ -3802,3 +3802,28 @@ His request: bake all 27 title wordings (9 sections x 3) to pick from.
   12/12. PATCH_NOTES: the dagger "settles point first more readily ... with a gentler pull than a sword's".
 - Checks: dev and ReleaseLTO (`QvrReleaseVersion=1.1.0`) 0 warnings; load_models_test 4/0; make_release.ps1 -DryRun:
   "tunables.cfg: nothing to promote".
+
+## installerfix: AD "ready (experimental)", the relight's speed (agent/installerfix, 2026-11-16)
+
+- **AD label**: `ExpansionDetector.Campaign` has `Experimental` (AD's row; the engine's `qvr::ad::campaignIndex`): a
+  found, intact AD is `Ready`, "ready (experimental)" (GUI expansion rows, the CLI and the detection report). A copy that
+  isn't 1.80 patch 1 is the new `ExpansionState.OtherVersion` (a warning row): "another release (its pak2.pak isn't
+  1.80 patch 1's): only 1.80 patch 1 is played" or "1.80 or older (no pak2.pak): ...". The self-test "readiness
+  matches the engine" also checks the experimental row against `static_assert(qvr::ad::campaignIndex == N)` and the
+  engine's "experimental" label, and both AD wrong-version labels. The engine's `vr_campaign_status` said "installed;
+  native support in progress" for AD: now "ready (experimental)".
+- **Relight**: the installer's relight is the game's own (`-preparerelight`: `vr_relight_batch everything`), already
+  parallel (2 maps at once from 8 cores, the cores shared out) and already skipping maps relit with the same settings.
+  Measured on 32 cores (light 2.0.0-alpha11, the default look: -extra4, bounce, dirt), six of id's maps: one at a time
+  at 31 threads 28 s of light; six at once at 6 threads each 27 s (each map 2-4x slower); two at once ~23 s. light
+  keeps the cores busy by itself, so more maps at once was not taken (memory: hundreds of MB a light). Changes: the
+  batch lights the biggest maps first (after the map in play: LPT, so it never ends with one big map in one slot while
+  the other idles), and the threads are rounded up (2 x 16, was 2 x 15). Where the time goes: "everything" includes
+  the Library's and AD's maps; AD's are 1-2 minutes each (ad_mountain 104 s at 15 threads): with AD there, 111 maps
+  took over 20 minutes here before the run was stopped. Not changed (his call): leaving the Library's/AD's maps out of
+  the installer's relight.
+- **Output**: light is not byte-deterministic even run to run at the same settings (the faces' lightmaps are packed
+  in its threads' finishing order: 95% of e3m2.lit's bytes move between two sequential runs), so "byte-identical" was
+  checked as the lightmaps' sorted byte values: sequential vs sequential and sequential vs parallel are identical (0
+  of 401,100 differ).
+- Checks: installer 0 warnings, self-tests 41/41; engine dev and ReleaseLTO built.

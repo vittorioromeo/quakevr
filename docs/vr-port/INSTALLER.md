@@ -462,7 +462,7 @@ the VisPatch step in it (*See-Through Liquids*: the data files in `<QVR>\quakevr
 | 6 | Hosting; code signing | Host on **GitHub releases** (2026-10-08: the vittorioromeo.com feed dropped, GitHub's `latest.json` is the only feed); **no code-signing certificate** (SmartScreen: [section 9](#hosting-and-smartscreen-decision-6)). |
 | 7 | Bundle ericw-tools' `light.exe`? | **Bundle it**, since GPL-3 does not extend to our code: it is a separate program run as its own process (mere aggregation), shipped unmodified with its licence and a source offer. Were that ever in doubt, download it on demand (pinned hash) instead. |
 | 8 | Music | Read the rerelease's music **in place** (worker `music` is doing it), and the original Quake's music too; never copied. |
-| 9 | Expansions the game cannot play yet (none now; mg1 until 2026-10-07, mg3 until 2026-10-08) in the detection page | Shown as **"detected, not yet supported"**. |
+| 9 | Expansions the game cannot play yet (none now; mg1 until 2026-10-07, mg3 until 2026-10-08) in the detection page | Shown as **"detected, not yet supported"**. Arcane Dimensions (experimental, played behind a prompt) shows **"ready (experimental)"**, or, another release than 1.80 patch 1, a warning saying only 1.80 patch 1 is played (2026-11-16). |
 | 10 | Offer VDXR? | **Suggest Virtual Desktop's OpenXR runtime** when Virtual Desktop is installed. |
 | 11 | Steam integration | **Explain how only** (Add a Non-Steam Game); nothing writes `shortcuts.vdf`. |
 
