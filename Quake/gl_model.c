@@ -37,6 +37,7 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer);
 static void Mod_LoadMD3Model (qmodel_t* mod, const char* buffer);
 static qboolean Mod_LoadMD5MeshModel (qmodel_t *mod, const char *buffer);
 static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash);
+static void Mod_AliasSortKey (qmodel_t *mod); // QVR
 
 static void Mod_Print (void);
 
@@ -524,6 +525,8 @@ static qmodel_t *Mod_LoadModelRun (qmodel_t *mod, qboolean crash)
 	VR_ModelSourcesForget (mod); // QVR: the files it was made from (a campaign switch's check: recorded below)
 	if (VR_SyntheticModel (mod)) // QVR: a model made in memory from another (a ragdoll's skinned body, vr/vr_ragdoll.cpp)
 	{
+		if (mod->type == mod_alias)
+			Mod_AliasSortKey (mod); // (its own name's key, not its source's)
 		VR_TracyEnd (); // QVR
 		return mod;
 	}
@@ -3860,7 +3863,22 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 	VR_TRACY_SCOPE("alias cache hand-over");
 	Hunk_MoveToCache (start, &mod->cache, pheader, loadname); // QVR: its hunk blocks, without a copy (ROUND25.md, "nohunk")
 
-	mod->sortkey = ((CRC_Block (mod->name, strlen(mod->name)) >> 1) & MODSORT_FRAMEMASK) << MODSORT_FRAMEBITS;
+	Mod_AliasSortKey (mod); // QVR
+}
+
+/*
+=================
+Mod_AliasSortKey -- QVR
+
+An alias model's key in R_SortEntities: the name's hash over the model bits but the alpha-test bit. It was masked
+with MODSORT_FRAMEMASK: 16 keys for every alias model, so models sharing one were drawn interleaved in entity order,
+a batch each; and the models made in memory (VR_SyntheticModel: an armed grunt's "#rig2", "#armor", "#bridge") kept
+their source's or none (QUEST_PLAN.md 6zc).
+=================
+*/
+static void Mod_AliasSortKey (qmodel_t *mod)
+{
+	mod->sortkey = ((CRC_Block (mod->name, strlen(mod->name)) >> 1) & (MODSORT_MODELMASK >> 1)) << MODSORT_FRAMEBITS;
 	if (mod->flags & MF_HOLEY)
 		mod->sortkey |= MODSORT_ALIAS_ALPHATEST;
 	else
