@@ -192,7 +192,7 @@ ShortcutOptions ShortcutsFor(string? shortcutsDir, InstallChoices? choices) => s
     : new ShortcutOptions
     {
         Desktop = choices?.DesktopShortcut ?? true, StartMenu = choices?.StartMenuShortcuts ?? true,
-        Flat = choices?.FlatShortcut ?? true, Log = choices?.LogShortcut ?? true,
+        Flat = choices?.FlatShortcut ?? true, DesktopFlat = choices?.DesktopFlatShortcut ?? true, Log = choices?.LogShortcut ?? true,
         DesktopDir = Path.Combine(shortcutsDir, "Desktop"), StartMenuDir = Path.Combine(shortcutsDir, "Programs"),
     };
 

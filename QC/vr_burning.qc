@@ -960,10 +960,12 @@ void() VR_Burn_Think =
 // Sets `xVictim` on fire (or keeps it burning: its time from now again, a flame more), lit by `xAttacker` at `xAt`
 // going `xDir`, by xHow (VR_BURN_BLOW, VR_BURN_TOUCH, VR_BURN_NAIL). Its damage is one fire's however often it is lit.
 // vr_burn_len, when over 0: its time instead of the settings' (a player out of lava: vr_burn_lava_player).
+// Never by itself, but for your own shot into your body or arms (vr_selfshot.qc: your flare, your lava nail, as they
+// light an enemy; his note vrtesthall_2026-11-16_00-40-33).
 float vr_burn_len;
 void(entity xVictim, entity xAttacker, vector xAt, vector xDir, float xHow) VR_Burn_Ignite =
 {
-    if(!VR_Burn_Can(xVictim) || xVictim == xAttacker)
+    if(!VR_Burn_Can(xVictim) || (xVictim == xAttacker && !VR_SelfShot_Live(xVictim)))
     {
         return;
     }

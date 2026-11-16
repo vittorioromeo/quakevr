@@ -204,16 +204,26 @@ constexpr float pointSpeedFull = 8.f;  // ... full help from here
 // Returns its share of help this step (0: none; spinAlign then).
 float pointAlign(Slot& s, edict_t* ent, float dt)
 {
-    const float strength = za::max(vr_throw_point_align.value, 0.f);
-    const float window = vr_throw_point_time.value;
     const float age = s.flightAge;
     s.flightAge += dt;
-    if(strength <= 0.f || window <= 0.f || age >= window || dt <= 0.f)
+    // (the longest either set may act: past it, nothing to look up)
+    if(dt <= 0.f || age >= vr_throw_point_time.value * za::max(1.f, vr_throw_point_dagger_time.value))
     {
         return 0.f;
     }
     glm::vec3 hand, tip;
     if(!axestick::pointLine(ent, hand, tip))
+    {
+        return 0.f;
+    }
+    // This blade's leniency (weapons.txt throw_point: the dagger's, a short light blade leaving the hand tumbling faster,
+    // more; his note 2026-11-15): its tumble limit and its spring's strength times it. A blade more lenient than the
+    // swords (the dagger) takes its own set too, times the swords' (Dagger Settling; his note 2026-11-16; 1: the same).
+    const float lenient = axestick::pointLeniency(ent);
+    const bool dagger = lenient > 1.f;
+    const float strength = za::max(vr_throw_point_align.value * (dagger ? vr_throw_point_dagger_align.value : 1.f), 0.f);
+    const float window = vr_throw_point_time.value * (dagger ? vr_throw_point_dagger_time.value : 1.f);
+    if(strength <= 0.f || window <= 0.f || age >= window)
     {
         return 0.f;
     }
@@ -229,13 +239,12 @@ float pointAlign(Slot& s, edict_t* ent, float dt)
         s.flightOff = off; // (the release's: the gates)
         s.flightTumble = glm::length(across);
     }
-    // This blade's leniency (weapons.txt throw_point: the dagger's, a short light blade leaving the hand tumbling faster,
-    // more; his note 2026-11-15): its tumble limit and its spring's strength times it.
-    const float lenient = axestick::pointLeniency(ent);
     const float fast = za::clamp((speed - pointSpeedFrom) / (pointSpeedFull - pointSpeedFrom), 0.f, 1.f);
-    const float tumbleMost = za::max(vr_throw_point_spin.value, 0.f) * glm::two_pi<float>() * lenient;
+    const float spinTurns = vr_throw_point_spin.value * (dagger ? vr_throw_point_dagger_spin.value : 1.f);
+    const float tumbleMost = za::max(spinTurns, 0.f) * glm::two_pi<float>() * lenient;
     const float calm = tumbleMost > 0.f ? za::clamp((tumbleMost - s.flightTumble) / (0.5f * tumbleMost), 0.f, 1.f) : 0.f;
-    const bool aimed = glm::degrees(s.flightOff) <= za::max(vr_throw_point_angle.value, 0.f);
+    const float gate = vr_throw_point_angle.value * (dagger ? vr_throw_point_dagger_angle.value : 1.f);
+    const bool aimed = glm::degrees(s.flightOff) <= za::max(gate, 0.f);
     const float fade = 1.f - (age / window) * (age / window);
     const float share = aimed ? calm * fast * fade : 0.f;
     if(vr_debug_box3d.value != 0.f && (age <= 0.f || static_cast<int>(age * 20.f) != static_cast<int>((age + dt) * 20.f)))
@@ -257,7 +266,8 @@ float pointAlign(Slot& s, edict_t* ent, float dt)
     }
     axis = axisLen > 1e-6f ? axis / axisLen : glm::vec3{0.f};
     const float k = pointStiff * strength * lenient;
-    const float c = za::max(vr_throw_point_damp.value, 0.f) * 2.f * za::sqrt(k);
+    const float damp = vr_throw_point_damp.value * (dagger ? vr_throw_point_dagger_damp.value : 1.f);
+    const float c = za::max(damp, 0.f) * 2.f * za::sqrt(k);
     glm::vec3 accel = (axis * (k * off) - across * c) * share;
     const float a = glm::length(accel);
     const float most = pointMaxAccel * strength * lenient;

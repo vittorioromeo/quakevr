@@ -106,6 +106,12 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
 - **Crouching and crawling** (2026-11-05): a design study. A shot leg cripples, both legs crawl while still fighting
   (unarmed: retreat); generic for every humanoid, IK and aim right in any stance; leaning at corners and ledges.
 - **Gremlins armed** (2026-11-02): Armagon's gremlin already steals and fires the player's gun; check its rig first.
+- **Player disarm: make it consistent, then on for PvE** (his notes vrragtriggers 2026-11-16 00:33, vrtesthall 00:48):
+  off by default for 1.1 (`vr_player_disarm` 0; the feature and its sounds stay). Very inconsistent: hard to predict
+  whether a shot or blow knocks your gun out; some enemy melee never disarms; enemies punching (fists) never disarm you.
+  Needs tuning and fixes (QC/vr_playerdisarm.qc: which blows count, the rolls, feedback before the drop). Once polished,
+  on by default in PvE. Multiplayer: two settings, PvE and PvP; PvP on by default (the MP branch does it), PvE off
+  until this is done.
 
 ## 7. Combat and feel
 
@@ -121,6 +127,9 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
 
 ## 8. Weapons, content and art
 
+- **The dagger's flight, next patch** (his note vrtesthall 2026-11-16 00:38): fine for 1.1; refine its point-first
+  settling, "the dagger is much like an arrow" (Debug > Tunables > Dagger Settling: its own strength, time, angle,
+  tumble and spin damping, times the swords'; vr_box3d_step.cpp pointAlign).
 - **Ammo type follows the loaded magazine** (2026-10-16): a lava-nail magazine fires lava nails.
 - **One model per gun, not one per ammo type** (2026-11-16, his words): "rather than having different models for the
   ammo types, we should be able to adjust one single model: add attachments, change parts or textures; maintaining two

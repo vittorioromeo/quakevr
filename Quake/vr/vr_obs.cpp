@@ -1396,6 +1396,23 @@ bool recording()
     return ready() && mainStatus.active;
 }
 
+// Clean recording (his note 2026-11-16: no Ghost Hands while OBS records; and the other things that never belong in a
+// take): while OBS records, or as if (vr_obsrec_as_if, the Debug page's test aid), each vr_obsrec_* option on.
+bool hides(Hide what)
+{
+    if(vr_obsrec_as_if.value == 0.f && !recording())
+    {
+        return false;
+    }
+    switch(what)
+    {
+        case Hide::GhostHands: return vr_obsrec_ghost_hands.value != 0.f;
+        case Hide::Debug: return vr_obsrec_debug.value != 0.f;
+        case Hide::Messages: return vr_obsrec_messages.value != 0.f;
+    }
+    return false;
+}
+
 void stayConnected(bool on)
 {
     stay = on;

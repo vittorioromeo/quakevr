@@ -52,7 +52,7 @@ constexpr GlobalRow globalDefaults[] = {
     // the shotgun's fore-end in Aim; this turn (a search over the three angles, vr_agrunt_ik_debug 4) leaves it 1-3)
     {3, aggrip::Second, -3.40f, -2.15f, -1.60f, 95.6f, 4.8f, -27.0f},
     // (Vittorio's of 2026-10-31, set in the Rig Studio: the knight's Main and Off, the death knight's Main)
-    {2, aggrip::Main, 0.50f, 0.50f, 2.00f, 0.0f, 50.0f, 0.0f},
+    {2, aggrip::Main, 1.52f, 0.69f, 1.37f, -7.7f, 49.4f, 5.4f},
     {2, aggrip::Off, 3.05f, 1.10f, -0.15f, 31.0f, 113.5f, 119.7f},
     {3, aggrip::Main, 2.60f, 1.00f, 1.95f, 12.0f, -56.0f, -38.0f},
     {3, aggrip::Off, -2.57f, 0.34f, -1.72f, 14.3f, -125.6f, 134.3f},
