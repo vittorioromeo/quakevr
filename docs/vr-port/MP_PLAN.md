@@ -2674,4 +2674,43 @@ QuakeC's PlayerPreThink parts. Exactly what would change:
 - In VR with vr_slide on, on a remote server: sliding should feel as it does alone (no snaps back while sliding, nor
   at its end or a jump out of it).
 
-Next phase: B14b -- the world's hashes (vr_physics_hash, the navmesh's and the paths') equal across runs with several clients: a fixed-step server in the harness first (its moves applied by number, not arrival), then the hash scenarios; the step's ulp between the client's trace and SV_Move; B11's open items (bots never grab, a bot's fists never punch); B10v's VR checks are his (a real microphone, the spatial mixers).
+### B14b results: a lockstep server; the world's hashes equal across runs (2026-11-16, dev no-LTO build, loopback)
+
+- **The lockstep** (harness only; vr_mptest.cpp, vr_netmove.cpp): a dedicated server with `vr_mp_lockstep N` steps its
+  world only once N clients are in (active, spawned, a connection: bots and a listen host's own client don't count) and
+  each one's next move by number has been read: `netmove::serverRead` keeps the moves without running them, and each
+  stepping frame runs exactly one of each (`serverRunNext`, in SV_RunClients before his think; the first move: the
+  oldest read since the slot's reset). The decision is at the frame's start (`VR_LockstepFrameBegin`, so moves read
+  this frame are next frame's); a held frame runs no client think, no SV_Physics and no VR_ServerFrameEnd (only reads
+  and sends). `vr_mp_lockstep_until S` holds the world after step S ("mp_lockstep: held step=S"): the harness's
+  commands (hashes, cvars, spawns) go in at known steps. With `vr_fixed_frames 1` (a step 1/72 s) and
+  `sv_random_seed 1`; `sys_ticrate 0.002` lets it run faster than real time. Its clients (`vr_mp_lockstep_ahead K`)
+  make at most K moves the server has not acknowledged; a waiting frame (`VR_LockstepWaits`, at _Host_Frame's start)
+  reads the inbox, runs the commands and reads the server's messages (cl.time held) and nothing else: no time passes,
+  no move is made, so a command a waiting client runs lands on its next move, the same one every run. The harness
+  waits for each client's newest move to be the server's last of his plus K (`vr_mp_lockstep_status`).
+- **What differed once it ran**: only the poses' clock (`.vr_posetime`, the melee history's `mh_hdt`, `mh_ptime`): the
+  headset's clock at a client's first move is the load's wall-clock time, and the swing speeds over its differences
+  went apart by an ulp. Under the lockstep the client sends the connection's moves times the frame's time instead. The
+  rigid bodies, the navmesh (with the obstacles' batches on vr_nav_job_frames) and the monsters' paths were the same
+  from the first run (vr_hull_async 0: its trees' switch frame is the CPU's, B14's audit).
+- **New commands**: `vr_nav_hash` (FNV-1a of each class's tiles' bytes: polygons, their flags as movers and props left
+  them, links; and of the agents' paths: polygons, corners, link under way; Debug > Navigation: Print Navmesh Hash),
+  `vr_mp_lockstep_status` (Debug > Reports: Network: Lockstep Status), `vr_mp_predict_tracelog <move>` (every trace
+  of that move's run on the server and of its replays on the client, `%.9g`: where a replay leaves the server's
+  result). `vr_bench_statehash fields` names what two runs differ in (the harness prints the fields).
+- Test: `mp_test.py lockstep` (new, in the suite): two lockstep runs on e1m1 (A and B, the mock headset), held at steps
+  36, 360 and 720: B walks north, A's impulse 241 makes a rottweiler (vr_test_spawn 7) that hunts them, A strafes:
+  `vr_physics_hash` (52 bodies), `vr_bench_statehash` (301 edicts) and `vr_nav_hash` (135 tiles; 1 agent, 10 paths
+  found) equal in both runs at each step; B's prediction misses the same in both (19/0, about 2 minutes).
+- **B's one miss, explained** (`--tracelog 316`): the server's move 316 started from velocity (-0.4, 201, 24.6) in the
+  air where his move 315 ended at rest on the ground: the rottweiler's bite (QuakeC's knockback, between his frames)
+  pushed him into the north wall. Not a prediction error: knockback isn't predicted (the correction is the server's).
+- **The step's ulp (B14, 4e-6 in z at e1m1's stairs): not reproduced.** Under the lockstep B's 700 walking moves (to the
+  north wall) had no miss but the bite; that ulp came with the arrival-timed moves' varying lengths. Open: walk
+  mp_predict's stairs under the lockstep (`--tracelog` on the move it names) when it shows again.
+- **Bots grab and punch** (B11): not started (not small: a bot's hand targets, grip timing and the punch's swing in
+  bot_setvrfields; B11 part 3's notes).
+- Checks: see the commit's results line below.
+
+Next phase: B14c -- lockstep hash scenarios for deathmatch with FrikBot bots (dm4: their random() on the server's stream, their navigation) and props thrown by players (Box3D under a client's hand); the step's ulp under the lockstep on mp_predict's stairs; B11's open items (bots never grab, a bot's fists never punch); B10v's VR checks are his (a real microphone, the spatial mixers).

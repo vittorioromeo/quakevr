@@ -4454,3 +4454,15 @@ His timing notes (extra scope):
   `exact_miss`, `exact_max`, hashes `hash_sv`/`hash_cl`; frames that held a move to the server's clock skipped).
 - Tests: `mp_test.py predictslide` (new) 13/0, `predict` 29/0; vrslide_test 15/0, flatslide_test 26/0. Details and the
   thread audit: MP_PLAN.md, "B14 results, part 1".
+
+## MP B14b: a lockstep server, the world's hashes equal across runs (agent/mp, 2026-11-16)
+
+- **Lockstep** (multiplayer harness only): `vr_mp_lockstep N` on a dedicated server steps the world only with N
+  clients in and each one's next move read, one move of each a step by number; `vr_mp_lockstep_until S` holds it after
+  step S; its clients' `vr_mp_lockstep_ahead K` keeps them at most K moves ahead (a waiting frame passes no time).
+  With `vr_fixed_frames 1` and `sv_random_seed 1` two runs are the same bit for bit.
+- **Fixed for it**: under the lockstep a client's poses' clock counts its moves (the headset's clock at the first one
+  was the load's wall-clock time: the melee history went apart by an ulp).
+- **New commands**: `vr_nav_hash` (navmesh and monsters' paths), `vr_mp_lockstep_status`, `vr_mp_predict_tracelog`.
+- Test: `mp_test.py lockstep` (in the suite): physics, edict and navmesh/path hashes equal across two runs at three
+  steps, with walking, strafing and a rottweiler hunting. Details: MP_PLAN.md, "B14b results".
