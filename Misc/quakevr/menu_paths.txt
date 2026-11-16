@@ -4928,6 +4928,7 @@ vr_nav_debug|2|Debug - Views|Show Navmesh|Advanced VR Options > Debug > Views > 
 vr_nav_debug_range|2|Debug - Views|Show Navmesh: Range|Advanced VR Options > Debug > Views > Show Navmesh: Range
 vr_nav_debug_class|2|Debug - Views|Show Navmesh: Size Class|Advanced VR Options > Debug > Views > Show Navmesh: Size Class
 |2|Debug - Views|Print Navmesh Info|Advanced VR Options > Debug > Views > Print Navmesh Info
+|2|Debug - Views|Print Navmesh Hash|Advanced VR Options > Debug > Views > Print Navmesh Hash
 |2|Debug - Views|Crowd Stall Test (40 s)|Advanced VR Options > Debug > Views > Crowd Stall Test (40 s)
 |2|Debug - Views|Check Clip Brushes Block Paths|Advanced VR Options > Debug > Views > Check Clip Brushes Block Paths
 vr_debug_hand_collide|2|Debug - Views|Log Empty Hand Against Held|Advanced VR Options > Debug > Views > Log Empty Hand Against Held
@@ -5316,10 +5317,15 @@ vr_debug_screen_offhand|2|Debug - Reports|Off Hand's Ammo Screen|Advanced VR Opt
 |2|Debug - Reports|Network: Entities Sent|Advanced VR Options > Debug > Reports > Network: Entities Sent
 |2|Debug - Reports|Server Rules|Advanced VR Options > Debug > Reports > Server Rules
 |2|Debug - Reports|Network: Players Seen|Advanced VR Options > Debug > Reports > Network: Players Seen
+|2|Debug - Reports|Network: Lockstep Status|Advanced VR Options > Debug > Reports > Network: Lockstep Status
+vr_mp_lockstep_movelog|2|Debug - Reports|Network: Lockstep Move Log|Advanced VR Options > Debug > Reports > Network: Lockstep Move Log
 |2|Debug - Reports|Network: Held Weapons|Advanced VR Options > Debug > Reports > Network: Held Weapons
 vr_mp_watch|2|Debug - Reports|Network: Watch Players|Advanced VR Options > Debug > Reports > Network: Watch Players
 |2|Debug - Reports|Network: Player Avatars|Advanced VR Options > Debug > Reports > Network: Player Avatars
 |2|Debug - Reports|Network: Player Preferences|Advanced VR Options > Debug > Reports > Network: Player Preferences
+vr_net_hud|2|Debug - Reports|Network: Net HUD|Advanced VR Options > Debug > Reports > Network: Net HUD
+|2|Debug - Reports|Network: Server Browser|Advanced VR Options > Debug > Reports > Network: Server Browser
+|2|Debug - Reports|Network: Edicts in Use|Advanced VR Options > Debug > Reports > Network: Edicts in Use
 vr_mp_download|2|Debug - Reports|Network: Install the Server's Map|Advanced VR Options > Debug > Reports > Network: Install the Server's Map
 vr_mp_avatar_draw|2|Debug - Reports|Network: Draw Player Hands|Advanced VR Options > Debug > Reports > Network: Draw Player Hands
 vr_mp_avatar_lerp|2|Debug - Reports|Network: Smooth Player Hands|Advanced VR Options > Debug > Reports > Network: Smooth Player Hands
@@ -5337,6 +5343,9 @@ vr_pmove_bots|2|Debug - Reports|Movement: Bots Walk Through Moves|Advanced VR Op
 vr_pmove_trace|2|Debug - Reports|Movement: Trace Walk Each Frame|Advanced VR Options > Debug > Reports > Movement: Trace Walk Each Frame
 |2|Debug - Reports|Network: Prediction Report|Advanced VR Options > Debug > Reports > Network: Prediction Report
 vr_net_cullposes|2|Debug - Reports|Network: Cull Poses|Advanced VR Options > Debug > Reports > Network: Cull Poses
+vr_net_cullbroadcast|2|Debug - Reports|Network: Cull the Broadcast|Advanced VR Options > Debug > Reports > Network: Cull the Broadcast
+vr_dm_gibs_max|2|Debug - Reports|Deathmatch: Most Loose Gibs|Advanced VR Options > Debug > Reports > Deathmatch: Most Loose Gibs
+vr_dm_weapons_max|2|Debug - Reports|Deathmatch: Most Dropped Weapons|Advanced VR Options > Debug > Reports > Deathmatch: Most Dropped Weapons
 vr_net_snapposes|2|Debug - Reports|Network: Poses in Snapshots|Advanced VR Options > Debug > Reports > Network: Poses in Snapshots
 vr_net_rate|2|Debug - Reports|Network: Rate Cap|Advanced VR Options > Debug > Reports > Network: Rate Cap
 vr_net_cosmetic_bytes|2|Debug - Reports|Network: Fragments' Bytes|Advanced VR Options > Debug > Reports > Network: Fragments' Bytes
@@ -5662,6 +5671,11 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Player Disarm: Shots on Your Gun|Advanced VR Options > Debug > Tests > Player Disarm: Shots on Your Gun
 |2|Debug - Tests|Deathmatch Rules: Weapons and Bots|Advanced VR Options > Debug > Tests > Deathmatch Rules: Weapons and Bots
 |2|Debug - Tests|Deathmatch: Parry a Bot's Swing|Advanced VR Options > Debug > Tests > Deathmatch: Parry a Bot's Swing
+|2|Debug - Tests|Deathmatch: A Bot Punches You|Advanced VR Options > Debug > Tests > Deathmatch: A Bot Punches You
+|2|Debug - Tests|Deathmatch: A Bot Takes a Gun by Hand|Advanced VR Options > Debug > Tests > Deathmatch: A Bot Takes a Gun by Hand
+|2|Debug - Tests|Deathmatch: A Bot Grabs Your Gun|Advanced VR Options > Debug > Tests > Deathmatch: A Bot Grabs Your Gun
+|2|Debug - Tests|Deathmatch: Gib and Weapon Caps|Advanced VR Options > Debug > Tests > Deathmatch: Gib and Weapon Caps
+|2|Debug - Tests|Deathmatch: Respawn Beside a Taken Start|Advanced VR Options > Debug > Tests > Deathmatch: Respawn Beside a Taken Start
 |2|Debug - Tests|Player Disarm: Melee on Your Gun|Advanced VR Options > Debug > Tests > Player Disarm: Melee on Your Gun
 |2|Debug - Tests|Toolgun: Armed Humanoid Pairs|Advanced VR Options > Debug > Tests > Toolgun: Armed Humanoid Pairs
 |2|Debug - Tests|Projectiles Keep Your Motion|Advanced VR Options > Debug > Tests > Projectiles Keep Your Motion

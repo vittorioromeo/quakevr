@@ -1219,11 +1219,21 @@ za::Vector<Item> pageDebugReports()
         toggle("Network: Cull Poses", vr_net_cullposes)
             .help("vr_net_cullposes: hosting, a remote player gets the armed humanoids' arm poses only of those he can see (on: "
                   "about 1.2 KB less in each of his datagrams on e1m1); off: every pose to every player, as before."),
+        toggle("Network: Cull the Broadcast", vr_net_cullbroadcast)
+            .help("vr_net_cullbroadcast: hosting, a remote player gets the particles, impacts, effects and sounds only of what "
+                  "he can see or hear (on: with 16 players most of them were far fights); off: all of them to everyone, as "
+                  "before. vr_net_broadcast_report: the bytes sent and culled (MP_PLAN B13b)."),
+        slider("Deathmatch: Most Loose Gibs", vr_dm_gibs_max, 0.f, 256.f, 8.f, "%.0f")
+            .help("vr_dm_gibs_max: in deathmatch, the most gibs and heads lying about; past it the oldest go first (not one "
+                  "held). 0: no cap. 16 players left ~450, the server's physics most of its frame (MP_PLAN B13b)."),
+        slider("Deathmatch: Most Dropped Weapons", vr_dm_weapons_max, 0.f, 128.f, 4.f, "%.0f")
+            .help("vr_dm_weapons_max: in deathmatch, the most dropped and thrown weapons lying about (each also gone after "
+                  "10 s); past it the oldest go first. 0: no cap (MP_PLAN B13b)."),
         toggle("Network: Poses in Snapshots", vr_net_snapposes)
             .help("vr_net_snapposes: hosting, a remote player's armed humanoids' arm poses go in his snapshot, coded against the "
                   "ones he has (on); off: each whole every frame, after the other messages, as before."),
-        slider("Network: Rate Cap", vr_net_rate, 0.f, 64000.f, 2000.f, "%.0f B/s")
-            .help("vr_net_rate: on a remote server, the most it sends you a second (0: no cap). Under it the nearest things and "
+        slider("Network: Rate Cap", vr_net_rate, 0.f, 160000.f, 4000.f, "%.0f B/s")
+            .help("vr_net_rate: on a remote server, the most it sends you a second (80000 by default; 0: no cap). Under it the nearest things and "
                   "those ahead of you update first, the far ones wait (MP_PLAN B12); vr_net_bytes shows what you read."),
         slider("Network: Fragments' Bytes", vr_net_cosmetic_bytes, 0.f, 512.f, 16.f, "%.0f B")
             .help("vr_net_cosmetic_bytes: hosting, the most of a remote player's datagram the cosmetic fragments (small gibs, "

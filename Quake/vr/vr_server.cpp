@@ -1045,6 +1045,245 @@ extern "C" int VR_BroadcastSendable(int before, int room)
     return sendable;
 }
 
+// ----------------------------------------------------------------------------
+// (B13b, MP_PLAN) The broadcast culled by sight: NetQuake sent every client the whole unreliable broadcast (sv.datagram:
+// particles, temp entities, sounds, Quake VR's effects) wherever it was; with 16 players most of each remote client's
+// broadcast was fights he could neither see nor hear. Each message whose place is known goes to a remote client only when
+// he could see it (its point in his fat PVS, SV_WriteEntitiesToClient's) or, a sound, hear it (nearer than Quake's
+// falloff reaches at half his vr_snd_falloff: 2000 units at ATTN_NORM, 667 at ATTN_STATIC; ATTN_NONE everywhere). A
+// message not known (and what follows it to the next boundary) goes to everyone, as before. The loopback client (single
+// player, a listen host) gets it all: vr_net_cullbroadcast 0 sends everyone all of it, as before.
+namespace
+{
+
+struct BroadcastSight
+{
+    const edict_t* clent{nullptr}; // the client whose entities were last written this frame (SV_WriteEntitiesToClient)
+    double time{-1.0};
+    glm::vec3 eye{0.f};
+    za::Vector<byte> pvs;
+    // vr_net_broadcast_report: the bytes of known messages sent and culled, and those not known (sent), all clients
+    za::U64 sent{0}, culled{0}, unknown{0};
+};
+BroadcastSight broadcastSight{};
+
+constexpr float soundReachScale = 0.5f; // a sound culled only past where it fades out at vr_snd_falloff 0.5
+constexpr float soundMargin = 64.f;     // units more
+
+[[nodiscard]] int coordBytes()
+{
+    byte bytes[8];
+    sizebuf_t probe{};
+    probe.data = bytes;
+    probe.maxsize = sizeof(bytes);
+    MSG_WriteCoord(&probe, 0.f, sv.protocolflags);
+    return probe.cursize;
+}
+
+// The coordinates at `p` in sv.datagram, as MSG_ReadCoord reads them in the server's protocol.
+[[nodiscard]] glm::vec3 coordsAt(const byte* p)
+{
+    const auto i16 = [](const byte* q) { return static_cast<int16_t>(q[0] | (q[1] << 8)); };
+    const auto i32 = [](const byte* q) { return static_cast<int32_t>(static_cast<uint32_t>(q[0]) | (static_cast<uint32_t>(q[1]) << 8) | (static_cast<uint32_t>(q[2]) << 16) | (static_cast<uint32_t>(q[3]) << 24)); };
+    glm::vec3 org{0.f};
+    for(int k = 0; k < 3; k++)
+    {
+        if(sv.protocolflags & PRFL_FLOATCOORD)
+        {
+            const int32_t bits = i32(p);
+            memcpy(&org[k], &bits, sizeof(float));
+            p += 4;
+        }
+        else if(sv.protocolflags & PRFL_INT32COORD)
+        {
+            org[k] = static_cast<float>(i32(p)) * (1.f / 16.f);
+            p += 4;
+        }
+        else if(sv.protocolflags & PRFL_24BITCOORD)
+        {
+            org[k] = static_cast<float>(i16(p)) + static_cast<float>(p[2]) * (1.f / 255.f);
+            p += 3;
+        }
+        else
+        {
+            org[k] = static_cast<float>(i16(p)) * (1.f / 8.f);
+            p += 2;
+        }
+    }
+    return org;
+}
+
+[[nodiscard]] bool pointSeen(const glm::vec3& p)
+{
+    const BroadcastSight& s = broadcastSight;
+    vec3_t at{p.x, p.y, p.z};
+    const mleaf_t* leaf = Mod_PointInLeaf(at, sv.worldmodel);
+    const int n = leaf ? static_cast<int>(leaf - sv.worldmodel->leafs) - 1 : -1;
+    if(n < 0 || (n >> 3) >= static_cast<int>(s.pvs.size()))
+    {
+        return true; // (in the solid, or not known: sent)
+    }
+    return (s.pvs[static_cast<za::SizeT>(n >> 3)] & (1 << (n & 7))) != 0;
+}
+
+[[nodiscard]] bool soundHeard(const glm::vec3& p, float attenuation)
+{
+    if(attenuation <= 0.f)
+    {
+        return true;
+    }
+    return glm::length(p - broadcastSight.eye) < 1000.f / (attenuation * soundReachScale) + soundMargin;
+}
+
+// The broadcast's message at `at` (before `end`): its length and whether this client sees or hears it. False: not one
+// known (or not whole before `end`).
+[[nodiscard]] bool knownMessage(int at, int end, int& len, bool& seen)
+{
+    const byte* d = sv.datagram.data;
+    const int c = coordBytes();
+    len = 0;
+    seen = true;
+    switch(d[at])
+    {
+        case svc_particle: // [coord3][char3][byte count][byte color]
+            len = 1 + 3 * c + 5;
+            if(at + len > end) return false;
+            seen = pointSeen(coordsAt(d + at + 1));
+            return true;
+        case svc_temp_entity:
+        {
+            len = tempEntityLength(at);
+            if(len <= 0 || at + len > end) return false;
+            const byte type = d[at + 1];
+            if(type == TE_LIGHTNING1 || type == TE_LIGHTNING2 || type == TE_LIGHTNING3 || type == TE_BEAM)
+            {
+                const int from = at + 4 + ((sv.protocolflags & PRFL_QUAKEVR_PROGS) ? 1 : 0);
+                seen = pointSeen(coordsAt(d + from)) || pointSeen(coordsAt(d + from + 3 * c));
+            }
+            else
+            {
+                seen = pointSeen(coordsAt(d + at + 2));
+            }
+            return true;
+        }
+        case svc_sound: // (SV_WriteSound's layout)
+        {
+            int p = at + 1;
+            if(p >= end) return false;
+            const int mask = d[p++];
+            float attenuation = DEFAULT_SOUND_PACKET_ATTENUATION;
+            p += (mask & SND_LOUD) ? 2 : (mask & SND_VOLUME) ? 1 : 0;
+            if(mask & SND_ATTENUATION)
+            {
+                if(p >= end) return false;
+                attenuation = static_cast<float>(d[p++]) / 64.f;
+            }
+            p += (mask & SND_PITCH) ? 2 : 0;
+            p += (mask & SND_LARGEENTITY) ? 3 : 2;
+            p += (mask & SND_LARGESOUND) ? 2 : 1;
+            len = p + 3 * c - at;
+            if(at + len > end) return false;
+            seen = soundHeard(coordsAt(d + p), attenuation);
+            return true;
+        }
+        case svc_quakevr:
+            if(at + 2 > end) return false;
+            switch(d[at + 1])
+            {
+                case QVR_SVC_PARTICLE2: // [coord3 org][char3 dir][byte preset][short count]
+                    len = 2 + 3 * c + 3 + 1 + 2;
+                    if(at + len > end) return false;
+                    seen = pointSeen(coordsAt(d + at + 2));
+                    return true;
+                case QVR_SVC_TRACER: // [short entity][byte hand][coord3 from][coord3 to]
+                    len = 2 + 2 + 1 + 6 * c;
+                    if(at + len > end) return false;
+                    seen = pointSeen(coordsAt(d + at + 5)) || pointSeen(coordsAt(d + at + 5 + 3 * c));
+                    return true;
+                case QVR_SVC_GORESOUND: // [byte kind][short entity][coord3 at][byte strength]: a sound at ATTN_NORM
+                    len = 2 + 1 + 2 + 3 * c + 1;
+                    if(at + len > end) return false;
+                    seen = soundHeard(coordsAt(d + at + 5), 1.f);
+                    return true;
+                default: return false;
+            }
+        default: return false;
+    }
+}
+
+void broadcastReport_f()
+{
+    const BroadcastSight& s = broadcastSight;
+    Con_Printf("mp_broadcast: sent=%llu culled=%llu unknown=%llu cull=%g\n", static_cast<unsigned long long>(s.sent),
+        static_cast<unsigned long long>(s.culled), static_cast<unsigned long long>(s.unknown), vr_net_cullbroadcast.value);
+    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "reset"))
+    {
+        broadcastSight.sent = broadcastSight.culled = broadcastSight.unknown = 0;
+    }
+}
+
+} // namespace
+
+// SV_WriteEntitiesToClient: the client's eye and fat PVS (its teleporters' too), for his broadcast (VR_WriteBroadcast).
+extern "C" void VR_NoteClientSight(const edict_t* clent, const byte* pvs, const float* eye)
+{
+    BroadcastSight& s = broadcastSight;
+    s.clent = clent;
+    s.time = qcvm->time;
+    s.eye = {eye[0], eye[1], eye[2]};
+    const int bytes = (sv.worldmodel->numleafs + 7) >> 3;
+    s.pvs.resize(static_cast<za::SizeT>(bytes));
+    memcpy(s.pvs.data(), pvs, static_cast<size_t>(bytes));
+}
+
+// SV_SendClientDatagram: the broadcast into this client's datagram (`local`: the loopback client's, all of it).
+extern "C" void VR_WriteBroadcast(sizebuf_t* msg, int local, const edict_t* clent)
+{
+    BroadcastSight& s = broadcastSight;
+    if(local || vr_net_cullbroadcast.value == 0.f || s.clent != clent || s.time != qcvm->time || !sv.worldmodel)
+    {
+        const int sendable = VR_BroadcastSendable(msg->cursize, msg->maxsize - msg->cursize - 1);
+        if(sendable > 0)
+        {
+            SZ_Write(msg, sv.datagram.data, sendable);
+        }
+        return;
+    }
+    BroadcastRoom& b = broadcastRoom;
+    b.entities = q_max(b.entities, msg->cursize);
+    int from = 0;
+    for(int i = 0; i <= b.numMarks; i++)
+    {
+        const int end = i < b.numMarks ? b.marks[i] : sv.datagram.cursize;
+        // its messages one by one while they are known; from one that is not, the rest to the boundary whole
+        for(int at = from; at < end;)
+        {
+            int len = 0;
+            bool seen = true;
+            const bool known = knownMessage(at, end, len, seen);
+            if(!known)
+            {
+                len = end - at;
+            }
+            if(!seen)
+            {
+                s.culled += static_cast<za::U64>(len);
+            }
+            else if(msg->cursize + len > msg->maxsize - 1)
+            {
+                b.unsent += len; // (no room: as the whole broadcast's tail had none)
+            }
+            else
+            {
+                SZ_Write(msg, sv.datagram.data + at, len);
+                (known ? s.sent : s.unknown) += static_cast<za::U64>(len);
+            }
+            at += len;
+        }
+        from = q_max(from, end);
+    }
+}
+
 // SV_SendClientMessages, before sv.reliable_datagram is copied to the clients (vr_debug_net 2).
 // ----------------------------------------------------------------------------
 // vr_net_stats: what each client's datagrams carry of the entities (the debris' cost in multiplayer: MULTIPLAYER.md).
@@ -2365,6 +2604,7 @@ void init()
 {
     Cmd_AddCommand("vr_dumpplayer", dumpPlayer_f);
     Cmd_AddCommand("vr_net_stats", netStats_f);
+    Cmd_AddCommand("vr_net_broadcast_report", broadcastReport_f); // [reset]: the broadcast's bytes sent and culled (B13b)
     Cmd_AddCommand("vr_net_reliable_test", netReliableTest_f);
     Cmd_AddCommand("vr_snd_loops", soundLoops_f);
     climb::init();

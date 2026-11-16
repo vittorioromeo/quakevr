@@ -806,6 +806,7 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 	VectorAdd (clent->v.origin, clent->v.view_ofs, org);
 	pvs = SV_FatPVS (org, sv.worldmodel);
 	VR_PortalAddPVS (pvs, org); // QVR: and round the destinations of the teleporters it sees (vr/vr_portals.cpp)
+	VR_NoteClientSight (clent, pvs, org); // QVR: for its broadcast's culling (vr/vr_server.cpp, B13b)
 
 // find the client's orientation
 	AngleVectors (clent->v.v_angle, forward, right, up);
@@ -1334,10 +1335,9 @@ qboolean SV_SendClientDatagram (client_t *client)
 
 // copy the server datagram if there is space
 	{
-		// QVR: as much of it as fits, whole messages (it was all or none: a frame of many effects lost them all)
-		int sendable = VR_BroadcastSendable (msg.cursize, msg.maxsize - msg.cursize - 1);
-		if (sendable > 0)
-			SZ_Write (&msg, sv.datagram.data, sendable);
+		// QVR: as much of it as fits, whole messages (it was all or none: a frame of many effects lost them all); a
+		// remote client's only what he can see or hear (B13b: vr/vr_server.cpp)
+		VR_WriteBroadcast (&msg, Q_strcmp(NET_QSocketGetAddressString(client->netconnection), "LOCAL") == 0, client->edict);
 	}
 	// QVR: the messages about entities it sees (armed humanoids' poses; all of them to the loopback client)
 	VR_WriteScoped (&msg, Q_strcmp(NET_QSocketGetAddressString(client->netconnection), "LOCAL") == 0, snap);

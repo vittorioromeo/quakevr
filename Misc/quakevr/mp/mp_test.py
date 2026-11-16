@@ -4706,6 +4706,15 @@ def deathmatch(s):
         got = [l.strip() for l in srv.lines[since_p:] if "dmtest: " in l or "pdisarm: " in l or "weapon: " in l]
         s.check("%s (vr_dm_test %d)" % (what, test), " 0 failed" in verdict, "%s %s" % (verdict.strip(), got[-6:]))
     a.cmd("vr_mock_button main grip 0; %s" % EMPTY_HAND)
+    # (B13b) deathmatch's caps on loose gibs and dropped weapons, the oldest first, none out of deathmatch (7); a respawn
+    # with every start taken comes in beside one, nobody telefragged (8)
+    for test, what in ((7, "deathmatch's caps take the oldest gibs and weapons, none out of deathmatch"),
+                       (8, "a respawn with every start taken comes in beside one, nobody telefragged")):
+        since_p = srv.mark()
+        srv.cmd("vr_dm_test %d" % test)
+        _, verdict = srv.wait(r"dmtest: \d+ passed, \d+ failed", 30, since_p, "vr_dm_test %d's verdict" % test)
+        got = [l.strip() for l in srv.lines[since_p:] if "dmtest: " in l]
+        s.check("%s (vr_dm_test %d)" % (what, test), " 0 failed" in verdict, "%s %s" % (verdict.strip(), got[-5:]))
     srv.cmd("vr_debug_carry 0; developer 0; vr_debug_shots 0")
 
     # (seen by A or by B: B's start may see neither bot for a while, out of his sight)
@@ -4959,6 +4968,12 @@ SOAK_MAP = "dm3"   # (dm4's few starts: 16 players telefrag each other at their 
 SOAK_BOTS = 14     # A, B and 14 FrikBot bots: 16 players (MAX_SCOREBOARD)
 SOAK_SECONDS = 10  # the window: the server's game time (vr_mp_after)
 SOAK_FRAGS = 5     # at least this many frags scored in it (the bots fight)
+SOAK_GIBS_MAX = 64     # vr_dm_gibs_max's default (B13b)
+SOAK_WEAPONS_MAX = 32  # vr_dm_weapons_max's default
+SOAK_PACE_MIN = 0.8    # the server's game time a second of wall clock, at least (B13: 0.18-0.74; B13b: ~1)
+SOAK_RATE = 80000      # vr_net_rate's default (B/s), B's
+SOAK_LINK_MAX = 34000  # B's link down, B/s at most (B13: 38-65 KB/s; B13b's culled broadcast ~24 KB/s, under his rate cap)
+SOAK_TELEFRAGS_MAX = 10  # telefrags in the window at most (B13: ~100-200)
 
 
 def cpu_seconds(inst):
@@ -5020,10 +5035,11 @@ def soak(s):
         inst.cmd("vr_profile 1; vr_profile_gpu 0")
     a.cmd("vr_net_hud 1")
     b.cmd("vr_net_hud 2")
+    srv.cmd("vr_net_broadcast_report reset")
     t0 = time.monotonic()
     cpu0 = {i.name: cpu_seconds(i) for i in (srv, a, b)}
     p0 = b.proxy.snapshot()
-    a.mark()  # (its lines read up to now: the frags so far)
+    a_window = a.mark()  # (its lines read up to now: the frags so far)
     start = sum(f for _, f in frag_table(a).values())
     since = srv.mark()
     srv.cmd("vr_mp_after %g soak_window_done" % SOAK_SECONDS)
@@ -5041,6 +5057,16 @@ def soak(s):
     s.metric("soak_box3d_awake", int(fields(bx)["awake"]))
     # (B13: a telefrag storm at the starts once dropped two weapons a death until ED_Alloc ran out of its 16384)
     s.check("the server's edicts stay bounded (under 2048 after the window)", used1 < 2048, "%d -> %d" % (used0, used1))
+    # (B13b: deathmatch's caps, the oldest first; a frame's new deaths may add a few before the next frame's trim)
+    fe = fields(ed1)
+    gibs = int(fe.get("gibs", "-1")) - int(fe.get("vr_smallgib", "0")) - int(fe.get("vr_limb", "0"))  # (their own caps)
+    weapons = int(fields(ed1).get("thrown_weapon", "0"))
+    s.metric("soak_gibs", gibs)
+    s.metric("soak_weapons", weapons)
+    s.check("the loose gibs capped (vr_dm_gibs_max %d, a frame's deaths more)" % SOAK_GIBS_MAX,
+            0 <= gibs <= SOAK_GIBS_MAX + 32, "%d gibs and heads" % gibs)
+    s.check("the dropped weapons capped (vr_dm_weapons_max %d, a frame's deaths more)" % SOAK_WEAPONS_MAX,
+            weapons <= SOAK_WEAPONS_MAX + 16, "%d weapons" % weapons)
     a.mark()
     scored = sum(f for _, f in frag_table(a).values()) - start
     p1 = b.proxy.snapshot()
@@ -5054,17 +5080,33 @@ def soak(s):
         span, cpu["server"], cpu["A"], cpu["B"], " (low impact: idle priority)" if s.low_impact else ""))
     w = b.proxy.window(p0, p1)
     s.metric("soak_b_down_bytes_s", w["down"]["bytes_s"])
-    # (B13: B's link and the server's pace are metrics, not checks yet -- 16 players cost ~40-65 KB/s down and the server
-    # ran at 0.7-0.75 of real time on a dev build: MP_PLAN's next phase, B13b)
     s.note("B's link down: %s" % w["down"])
-    s.metric("soak_server_realtime_ratio", round(SOAK_SECONDS / span, 3))
-    s.note("the server's %g s of game time took %.1f s of wall clock (%.2f of real time)" % (SOAK_SECONDS, span,
-                                                                                          SOAK_SECONDS / span))
+    # (B13: the server ran at 0.18-0.74 of real time and B's link took 15-65 KB/s; B13b's caps, culled broadcast, spared
+    # gib touches and rate cap made them checks)
+    s.check("B's link down under %d B/s (his rate cap %d)" % (SOAK_LINK_MAX, SOAK_RATE), w["down"]["bytes_s"] <=
+            SOAK_LINK_MAX, "%d B/s" % w["down"]["bytes_s"])
+    ratio = SOAK_SECONDS / span
+    s.metric("soak_server_realtime_ratio", round(ratio, 3))
+    s.check("the server keeps pace: %g s of its game time in under %.1f s of wall clock" % (
+        SOAK_SECONDS, SOAK_SECONDS / SOAK_PACE_MIN), ratio >= SOAK_PACE_MIN, "%.1f s (%.2f of real time%s)" % (
+        span, ratio, ", low impact" if s.low_impact else ""))
+    since_b = srv.mark()
+    srv.cmd("vr_net_broadcast_report")
+    _, br = srv.wait(r"mp_broadcast: ", 30, since_b, "the server's broadcast report")
+    fb = fields(br)
+    s.metric("soak_broadcast_sent", int(fb["sent"]))
+    s.metric("soak_broadcast_culled", int(fb["culled"]))
+    s.check("the broadcast culled by sight (vr_net_cullbroadcast)", int(fb["culled"]) > 0, br.strip())
     hitches = [l.strip() for l in srv.lines[since:] if l.startswith("vr_profile: hitch")]
     s.note("server hitches: %d; the last: %s" % (len(hitches), hitches[-1] if hitches else "-"))
     telefrags = sum(1 for l in a.lines if "was telefragged by" in l)
     s.metric("soak_telefrags", telefrags)
     s.note("telefrags seen at A (the bots in and the window): %d" % telefrags)
+    in_window = sum(1 for l in a.lines[a_window:] if "was telefragged by" in l)
+    s.metric("soak_telefrags_window", in_window)
+    # (B13: ~100-200 of living players in 10 s, the bots standing at dm3's few starts; B13b's respawn beside a start)
+    s.check("few telefrags in the window (a respawn beside a taken start)", in_window <= SOAK_TELEFRAGS_MAX,
+            "%d" % in_window)
     reports = {}
     for inst in (srv, a, b):
         lines = profile_lines(inst, min(span, 30.0), "%s's profile" % inst.name)

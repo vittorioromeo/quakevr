@@ -564,6 +564,8 @@ void VR_SoundLog (int ent, int channel, const char *sample, int volume, int drop
 int VR_SoundLoopNote (int ent, int channel, int num);	// SV_StartSoundPitch: 1 sends it reliably (a looping sound's end: vr_server.cpp)
 void VR_SoundLoopsFreed (edict_t *ed);					// ED_Free: the loops still playing on it stopped (vr_server.cpp)
 int VR_BroadcastSendable (int before, int room);		// SV_SendClientDatagram: how much of sv.datagram fits in a datagram with room bytes left (before: its bytes so far)
+void VR_NoteClientSight (const edict_t *clent, const byte *pvs, const float *eye);	// SV_WriteEntitiesToClient: his fat PVS and eye, for his broadcast's culling (B13b)
+void VR_WriteBroadcast (struct sizebuf_s *msg, int local, const edict_t *clent);	// SV_SendClientDatagram: the broadcast, a remote client's culled by his sight (vr_net_cullbroadcast)
 void VR_ReliableSent (void);								// SV_SendClientMessages, before sv.reliable_datagram goes to the clients
 
 // Server physics (sv_phys.c, sv_user.c, world.c).
