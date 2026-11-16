@@ -815,6 +815,7 @@ int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budge
         if(c)
         {
             addFrom(sent, cur, *c);
+            sent.records.back().fresh = true; // (his client takes a place from it: B13c's lag compensation)
         }
         cosmeticWritten += e.cosmetic ? body->cursize - entryAt : 0;
         if(tallySent && keyClass(e.key) == 1)
@@ -969,6 +970,8 @@ namespace
 // ---- Server --------------------------------------------------------------------------------------------------------
 
 // Per client slot: the snapshots sent (`ring` back, by sequence number), the newest it acknowledged, the counts.
+constexpr int sentLogLen = 80; // (B13c) snapshots logged for the lag compensation: 1.1 s at 72 Hz, as it keeps
+
 struct ServerSlot
 {
     za::U32 nextSeq{1}; // (kept over maps: a reset forgets the snapshots, so an old acknowledgement matches none)
@@ -979,8 +982,40 @@ struct ServerSlot
     // a burst), and each record's wait (frames it changed and waited: entities, avatars, poses by entity) for its priority
     double tokens{0.0}, filledAt{-1.0};
     za::Vector<za::U16> waits;
+    // (B13c) The lag compensation's log of what he was sent, longer than the ring (his shots look back up to 1 s): each
+    // snapshot's time (its svc_time) and the targets' records in it (players' and monsters' entities, avatars), each
+    // whether it was new or changed there (his client took a place from it)
+    struct Sent
+    {
+        double time{-1.0};
+        za::Vector<za::I32> keys;
+        za::Vector<za::U8> fresh;
+    };
+    Sent sentLog[sentLogLen];
+    int sentHead{0}; // the next to write
 };
 za::Vector<ServerSlot> serverSlots;
+
+// Snapshot `sent` (just encoded) into his log: its targets' records and which were written.
+void logSent(ServerSlot& s, const Snapshot& sent)
+{
+    ServerSlot::Sent& l = s.sentLog[s.sentHead];
+    s.sentHead = (s.sentHead + 1) % sentLogLen;
+    l.time = qcvm->time;
+    l.keys.clear();
+    l.fresh.clear();
+    for(const Record& r : sent.records)
+    {
+        const int cls = keyClass(r.key);
+        const int e = cls == 1 ? r.key : cls == 2 ? r.key - avatarKey : -1;
+        if(e <= 0 || e >= qcvm->num_edicts || (cls == 1 && !(static_cast<int>(EDICT_NUM(e)->v.flags) & (FL_MONSTER | FL_CLIENT))))
+        {
+            continue;
+        }
+        l.keys.pushBack(r.key);
+        l.fresh.pushBack(r.fresh ? 1 : 0);
+    }
+}
 
 constexpr double rateBurst = 0.1;  // s of his rate the bucket holds (at least a full datagram)
 constexpr int netHeader = 8;       // NetQuake's datagram header (the bytes his link carries a datagram besides ours)
@@ -1055,6 +1090,34 @@ Building building;
     }
     const char* name = PR_GetString(ed->v.classname);
     return strcmp(name, "vr_smallgib") == 0 || strcmp(name, "vr_explosion_debris") == 0;
+}
+
+// (B13c, vr_net_test_hold n, a test aid) The other players' entities and avatars wait n snapshots in each n + 1: their
+// records as the base's (unchanged: not sent, both sides keep the base's), as his rate's waits leave them.
+void holdPlayers(const Snapshot* base, za::U32 seq)
+{
+    Building& bl = building;
+    const int hold = static_cast<int>(vr_net_test_hold.value);
+    if(hold <= 0 || !base || seq % static_cast<za::U32>(hold + 1) == 0)
+    {
+        return;
+    }
+    const int own = bl.client && bl.client->edict ? NUM_FOR_EDICT(bl.client->edict) : 0;
+    for(Record& r : bl.cur.records)
+    {
+        const int cls = keyClass(r.key);
+        const int e = cls == 1 ? r.key : cls == 2 ? r.key - avatarKey : -1;
+        const Record* b = e >= 1 && e <= svs.maxclients && e != own ? findKey(*base, r.key) : nullptr;
+        if(b)
+        {
+            r.at = static_cast<za::I32>(bl.cur.bytes.size());
+            r.len = b->len;
+            if(b->len > 0)
+            {
+                bl.cur.bytes.emplaceBackRange(base->data(*b), static_cast<za::SizeT>(b->len));
+            }
+        }
+    }
 }
 
 [[nodiscard]] ServerSlot* slotOf(int slot, bool make)
@@ -1163,6 +1226,7 @@ void serverEnd(sizebuf_t* msg)
         base = &s->snaps[s->acked % ring];
     }
     bl.cur.sortByKey();
+    holdPlayers(base, seq);
     Snapshot& sent = s->snaps[seq % ring];
     sizebuf_t body{};
     body.data = bl.body;
@@ -1240,6 +1304,7 @@ void serverEnd(sizebuf_t* msg)
     }
     bl.chargeSlot = bl.slot;
     sent.seq = seq;
+    logSent(*s, sent);
     MSG_WriteByte(msg, protocol::svc_quakevr);
     MSG_WriteByte(msg, protocol::QVR_SVC_SNAPSHOT);
     const int at = msg->cursize;
@@ -1283,11 +1348,53 @@ void serverReset(int slotNum, bool keepCounts)
         {
             sn.clear();
         }
+        for(ServerSlot::Sent& l : s->sentLog)
+        {
+            l.time = -1.0;
+        }
         if(!keepCounts)
         {
             s->counts = {};
         }
     }
+}
+
+int serverSentTimes(int slotNum, int key, double upTo, double* out, int most, double& oldest, bool& sightBegan)
+{
+    oldest = -1.0;
+    sightBegan = false;
+    const ServerSlot* s = slotOf(slotNum, false);
+    if(!s)
+    {
+        return 0;
+    }
+    int n = 0;
+    for(int k = 1; k <= sentLogLen && n < most; k++)
+    {
+        const ServerSlot::Sent& l = s->sentLog[(s->sentHead - k + 2 * sentLogLen) % sentLogLen];
+        if(l.time < 0.0)
+        {
+            break; // (none yet, or forgotten by a reset)
+        }
+        if(l.time > upTo)
+        {
+            continue; // (made after the message he had read: not drawn yet)
+        }
+        oldest = l.time;
+        const za::I32* const first = l.keys.data();
+        const za::I32* const last = first + l.keys.size();
+        const za::I32* const at = std::lower_bound(first, last, static_cast<za::I32>(key));
+        if(at == last || *at != key)
+        {
+            sightBegan = true;
+            break; // (out of his sight then: his buffer's history of it starts after this one)
+        }
+        if(l.fresh[static_cast<za::SizeT>(at - first)])
+        {
+            out[n++] = l.time;
+        }
+    }
+    return n;
 }
 
 ServerCounts serverCounts(int slotNum)

@@ -238,6 +238,98 @@ void put(edict_t* e, const Entry& in)
     return true;
 }
 
+// (B13c) Where client `slot`'s interpolation buffer drew record `key` at time `t`, from the snapshots he was sent (at or
+// before `upTo`, his newest message's time): the places it took (those whose record was new or changed: under his rate
+// a record waits, and his client holds or lerps between the places it was sent, not the frames between) -> the times of
+// the two places drawn between and how far (f: 0 at `ta`) -> false: no snapshots (NetQuake's datagrams: the frames').
+// As vr_netsnap.cpp's interpEntity and interpNote: past the newest place or before the oldest, held; a place unchanged
+// longer than restGap rested there until a frame before the next.
+constexpr double tick = 1.0 / 72.0;
+constexpr double restGap = 4.0 * tick; // (vr_netsnap.cpp's)
+constexpr double timeSlack = 5e-4;     // (the times through floats: the client's svc_time, his move's)
+constexpr int sentMost = 24;
+
+[[nodiscard]] bool sentAround(int slot, int key, double t, double upTo, double& ta, double& tb, float& f)
+{
+    double times[sentMost + 1];
+    double oldest = -1.0;
+    bool sightBegan = false;
+    int n = netsnap::serverSentTimes(slot, key, upTo + timeSlack, times, sentMost, oldest, sightBegan);
+    if(oldest < 0.0)
+    {
+        return false;
+    }
+    f = 0.f;
+    if(!sightBegan && (n == 0 || oldest < times[n - 1]))
+    {
+        times[n++] = oldest; // (its place before the log: the oldest kept stands for it; unchanged since, it is that)
+    }
+    if(n == 0)
+    {
+        ta = tb = oldest;
+        return true;
+    }
+    int k = 0;
+    while(k < n && times[k] > t + timeSlack)
+    {
+        k++;
+    }
+    if(k == n || k == 0)
+    {
+        ta = tb = times[k == n ? n - 1 : 0]; // (before the oldest place, or past the newest: held)
+        return true;
+    }
+    const double older = times[k], newer = times[k - 1];
+    const double from = newer - older > restGap + 0.5 * tick ? newer - tick : older; // (rested at older until then)
+    ta = older;
+    tb = newer;
+    f = t <= from ? 0.f : static_cast<float>(za::clamp((t - from) / (newer - from), 0.0, 1.0));
+    return true;
+}
+
+// Target `num` as client `slot` drew it at time `t` (`upTo`: his newest message's): its place and hands from the places
+// he was sent (sentAround: the entity's record, the avatar's for the hands), else as entryAt -> false: not kept then.
+[[nodiscard]] bool drawnAt(int slot, int num, double t, double upTo, Entry& out)
+{
+    double ta = 0.0, tb = 0.0;
+    float f = 0.f;
+    if(!sentAround(slot, num, t, upTo, ta, tb, f))
+    {
+        return entryAt(num, t, out);
+    }
+    Entry b;
+    if(!entryAt(num, ta, out))
+    {
+        return false;
+    }
+    if(tb != ta && entryAt(num, tb, b))
+    {
+        bool teleport = false;
+        for(int i = 0; i < 3; i++)
+        {
+            teleport = teleport || za::abs(b.origin[i] - out.origin[i]) > 100.f; // (interpEntity's: no lerp across it)
+        }
+        for(int i = 0; i < 3 && !teleport; i++)
+        {
+            out.origin[i] += (b.origin[i] - out.origin[i]) * f;
+        }
+    }
+    // (the hands: from his avatar's records, which wait on their own)
+    double ha = 0.0, hb = 0.0;
+    float hf = 0.f;
+    Entry h0, h1;
+    if(out.hands && sentAround(slot, netsnap::avatarKey + num, t, upTo, ha, hb, hf) && entryAt(num, ha, h0) && h0.hands)
+    {
+        const bool lerp = hb != ha && entryAt(num, hb, h1) && h1.hands;
+        for(int h = 0; h < 2; h++)
+        {
+            out.handPos[h] = lerp ? h0.handPos[h] + (h1.handPos[h] - h0.handPos[h]) * hf : h0.handPos[h];
+            out.handRot[h] = h0.handRot[h];
+        }
+    }
+    return true;
+}
+
 } // namespace
 
 void serverFrame()
@@ -316,7 +408,7 @@ bool begin(edict_t* shooter, double most)
         }
         Entry then;
         const bool step = static_cast<int>(e->v.movetype) == MOVETYPE_STEP;
-        if(!entryAt(i, step ? stepAt : bufferAt, then))
+        if(!drawnAt(slot, i, step ? stepAt : bufferAt, seen[slot].time, then)) // (B13c: the places he was sent)
         {
             continue;
         }
@@ -440,7 +532,7 @@ void punch_f()
 
 void shot_f()
 {
-    if(cmd_source != src_client || !sv.active || !host_client || !host_client->edict || Cmd_Argc() != 9)
+    if(cmd_source != src_client || !sv.active || !host_client || !host_client->edict || (Cmd_Argc() != 9 && Cmd_Argc() != 13))
     {
         return;
     }
@@ -463,11 +555,27 @@ void shot_f()
     seen[slot] = Seen{true, static_cast<double>(Q_atof(Cmd_Argv(7))), za::clamp(static_cast<double>(Q_atof(Cmd_Argv(8))), 0.0, 1.0)};
     const bool back = begin(self, 1.0); // (his command comes later than his move would: at most 1 s back, not the cvar's)
     const trace_t then = SV_Move(from, vec3_origin, vec3_origin, to, type, self);
+    // (B13c) With the target and where his client drew it: how far from that the rewind put it (`err`), and how far the
+    // server's frame at his view time is (`err_frame`, the rewind before B13c: off when his records waited)
+    float err = -1.f, errFrame = -1.f;
+    const int target = Cmd_Argc() == 13 ? Q_atoi(Cmd_Argv(9)) : 0;
+    if(target > 0 && target < qcvm->num_edicts && !EDICT_NUM(target)->free)
+    {
+        const glm::vec3 drawn{Q_atof(Cmd_Argv(10)), Q_atof(Cmd_Argv(11)), Q_atof(Cmd_Argv(12))};
+        const float* o = EDICT_NUM(target)->v.origin;
+        err = glm::distance(drawn, glm::vec3{o[0], o[1], o[2]});
+        const double now = qcvm->time;
+        Entry fe;
+        if(entryAt(target, za::clamp(seen[slot].time - seen[slot].back, now - 1.0, now), fe))
+        {
+            errFrame = glm::distance(drawn, glm::vec3{fe.origin[0], fe.origin[1], fe.origin[2]});
+        }
+    }
     end();
     seen[slot] = moved;
-    Con_Printf("mp_lagcomp_shot: slot=%d plain=%d rewound=%d back=%d back_ms=%.1f move_ms=%.1f\n", slot,
-        plain.ent ? NUM_FOR_EDICT(plain.ent) : 0, then.ent ? NUM_FOR_EDICT(then.ent) : 0, back ? 1 : 0,
-        back ? saved.backMs : 0.0, moveMs);
+    Con_Printf("mp_lagcomp_shot: slot=%d plain=%d rewound=%d back=%d back_ms=%.1f move_ms=%.1f err=%.2f err_frame=%.2f\n",
+        slot, plain.ent ? NUM_FOR_EDICT(plain.ent) : 0, then.ent ? NUM_FOR_EDICT(then.ent) : 0, back ? 1 : 0,
+        back ? saved.backMs : 0.0, moveMs, err, errFrame);
 }
 
 // "vr_mp_punch <entity>": on a remote server, a test punch (vr_lagcomp_punch): a fist's 32-unit line ending 8 units
@@ -521,8 +629,9 @@ void shoot_f()
     VectorNormalize(dir);
     const double back = netsnap::interpActive() ? za::clamp(cl.mtime[0] - netsnap::interpTime(), 0.0, 1.0) : 0.0;
     char text[200];
-    const int n = q_snprintf(text, sizeof(text), "vr_lagcomp_shot %.2f %.2f %.2f %.2f %.2f %.2f %.4f %.4f", from[0], from[1],
-        from[2], from[0] + dir[0] * 2048.f, from[1] + dir[1] * 2048.f, from[2] + dir[2] * 2048.f, cl.mtime[0], back);
+    const int n = q_snprintf(text, sizeof(text), "vr_lagcomp_shot %.2f %.2f %.2f %.2f %.2f %.2f %.4f %.4f %d %.2f %.2f %.2f",
+        from[0], from[1], from[2], from[0] + dir[0] * 2048.f, from[1] + dir[1] * 2048.f, from[2] + dir[2] * 2048.f,
+        cl.mtime[0], back, ent, at[0], at[1], at[2]);
     if(n > 0 && n < static_cast<int>(sizeof(text)) && client::roomForCommand(n))
     {
         MSG_WriteByte(&cls.message, clc_stringcmd);

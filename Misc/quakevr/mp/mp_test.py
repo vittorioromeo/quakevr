@@ -4073,6 +4073,11 @@ LAGCOMP_LEG_SHOTS = 4      # ... B's test shots at him in each (the first of a l
 LAGCOMP_SHOT_MOST = 800.0   # ms: and his test shot (a reliable command, after the move that would carry a real shot) at most
 LAGCOMP_HIT_LEAST = 0.8    # of the counted shots, judged where B saw him, this many hit him at least
 LAGCOMP_BACK = (250.0, 500.0)  # ms: how far back the others were put for B's shots (his round trip and his buffer's delay)
+LAGCOMP_HOLDS = (3, 6)     # (B13c) the held legs: A's updates to B wait this many snapshots in each one more (the
+                           # server's vr_net_test_hold: as B's rate's waits leave them; 6 past his buffer's rest gap)
+LAGCOMP_ERR_MEAN = 2.0     # units: A put back at most this far from where B drew him, on average ...
+LAGCOMP_ERR_MOST = 6.0     # ... and at most (the shot's command a frame after his draw; coordinates' rounding)
+LAGCOMP_CAP_SHOWS = 3.0    # units: under the cap the frames' rewind (before B13c) is off by this much more on average
 
 
 def lagcomp(s):
@@ -4089,7 +4094,11 @@ def lagcomp(s):
     counted = rewound = plain = 0
     punches = p_rewound = p_plain = 0
     backs, moves = [], []
-    for leg in range(LAGCOMP_LEGS):
+    errs, cap_errs, cap_frame_errs = [], [], []
+    for leg in range(LAGCOMP_LEGS + len(LAGCOMP_HOLDS)):
+        capped = leg >= LAGCOMP_LEGS
+        if capped:
+            srv.cmd("vr_net_test_hold %d" % LAGCOMP_HOLDS[leg - LAGCOMP_LEGS])  # (B13c: the rewind at the places B was sent)
         a.cmd("vr_mock_stick off %d 0" % (1 if leg % 2 == 0 else -1))
         for shot in range(LAGCOMP_LEG_SHOTS):
             since = srv.mark()
@@ -4099,6 +4108,11 @@ def lagcomp(s):
             f = fields(line)
             if shot == 0:
                 continue
+            if capped:
+                cap_errs.append(float(f["err"]))
+                cap_frame_errs.append(float(f["err_frame"]))
+                continue
+            errs.append(float(f["err"]))
             counted += 1
             rewound += 1 if int(f["rewound"]) == ea else 0
             plain += 1 if int(f["plain"]) == ea else 0
@@ -4111,6 +4125,18 @@ def lagcomp(s):
             p_rewound += 1 if int(f["rewound"]) == ea else 0
             p_plain += 1 if int(f["plain"]) == ea else 0
     a.cmd("vr_mock_stick off 0 0")
+    srv.cmd("vr_net_test_hold 0")
+    mean = lambda xs: sum(xs) / len(xs) if xs else 99.0
+    s.metric("lagcomp_err", {"free": errs, "capped": cap_errs, "capped_frames": cap_frame_errs})
+    s.check("A put back where B drew him (%.1f units on average, %.0f at most)" % (LAGCOMP_ERR_MEAN, LAGCOMP_ERR_MOST),
+            bool(errs) and mean(errs) <= LAGCOMP_ERR_MEAN and max(errs) <= LAGCOMP_ERR_MOST,
+            "mean %.2f, most %.2f: %s" % (mean(errs), max(errs or [99]), errs))
+    s.check("A's updates held %s snapshots (as under B's rate cap) too: at the places B was sent" % (LAGCOMP_HOLDS,),
+            bool(cap_errs) and mean(cap_errs) <= LAGCOMP_ERR_MEAN and max(cap_errs) <= LAGCOMP_ERR_MOST,
+            "mean %.2f, most %.2f: %s" % (mean(cap_errs), max(cap_errs or [99]), cap_errs))
+    s.check("the server's frames at his view time (the rewind before B13c) are off by more there",
+            mean(cap_frame_errs) >= mean(cap_errs) + LAGCOMP_CAP_SHOWS,
+            "frames' mean %.2f vs %.2f: %s" % (mean(cap_frame_errs), mean(cap_errs), cap_frame_errs))
     s.metric("lagcomp_punch", {"counted": punches, "rewound": p_rewound, "plain": p_plain})
     s.note("B's punches at A: %d counted, %d landed where B saw him, %d where the server has him now" % (
         punches, p_rewound, p_plain))

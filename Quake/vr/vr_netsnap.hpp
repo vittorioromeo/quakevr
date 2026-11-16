@@ -52,7 +52,8 @@ struct Record
     za::I32 key{0};
     za::I32 at{0};
     za::I32 len{0};
-    bool fresh{false}; // decode's: its entry was in this snapshot (new or changed; not the base's kept: B12c's samples)
+    bool fresh{false}; // its entry was in this snapshot (new or changed; not the base's kept: B12c's samples): decode's,
+                       // and encode's `sent` (B13c: the lag compensation's places he was sent)
 };
 struct Snapshot
 {
@@ -105,6 +106,11 @@ void serverEnd(sizebuf_t* msg);
 void serverCharge(int bytes); // the datagram whose snapshot serverEnd wrote: its size, off his rate's bucket
 void serverAck(int slot, za::U32 seq); // QVR_CLC_MOVES's acknowledgement
 void serverReset(int slot, bool keepCounts = false); // a new connection's (or, counts kept, a new map's spawn)
+// (B13c) What his client drew a record from: the server times of his kept snapshots made at or before `upTo` that
+// carried record `key` new or changed (his interpolation buffer took a place from each), newest first, at most `most`,
+// back to one without the record (out of his sight: his buffer starts again after it) -> their count; `oldest`: the
+// oldest time walked (-1: no snapshots kept, NetQuake's datagrams); `sightBegan`: the walk ended at one without it.
+int serverSentTimes(int slot, int key, double upTo, double* out, int most, double& oldest, bool& sightBegan);
 struct ServerCounts
 {
     int sent{0}, full{0}, delta{0}, cut{0};

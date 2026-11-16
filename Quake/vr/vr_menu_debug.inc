@@ -1235,6 +1235,10 @@ za::Vector<Item> pageDebugReports()
         slider("Network: Rate Cap", vr_net_rate, 0.f, 160000.f, 4000.f, "%.0f B/s")
             .help("vr_net_rate: on a remote server, the most it sends you a second (80000 by default; 0: no cap). Under it the nearest things and "
                   "those ahead of you update first, the far ones wait (MP_PLAN B12); vr_net_bytes shows what you read."),
+        slider("Network: Hold Players' Updates", vr_net_test_hold, 0.f, 8.f, 1.f, "%.0f")
+            .help("vr_net_test_hold: hosting, a test aid: the other players' updates to a remote player wait this many "
+                  "snapshots in each one more, as under his rate cap; his shots and blows still land where his game drew "
+                  "them (the lag compensation rewinds to the places he was sent, MP_PLAN B13c). 0: off."),
         slider("Network: Fragments' Bytes", vr_net_cosmetic_bytes, 0.f, 512.f, 16.f, "%.0f B")
             .help("vr_net_cosmetic_bytes: hosting, the most of a remote player's datagram the cosmetic fragments (small gibs, "
                   "explosion chunks) take, the nearest first; the rest wait a frame or two and his game draws them between "
