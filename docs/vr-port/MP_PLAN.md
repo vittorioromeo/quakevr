@@ -214,7 +214,7 @@ player unchanged.
 | **B11** (part 1 done in B13: `mp_dm`, bots, frags, respawn, the fraglimit; the rest is B11 part 2) | Deathmatch and bots: frags, respawns, DM item rules with VR weapons, FrikBot with VR-aware bodies | `mp_dm` (two clients and two bots, a fraglimit reached) |
 | **B11 part 2** | The rest of B11: deathmatch 1 and 2's item rules with VR weapons (a level weapon taken and respawned, or staying; `vr_item_objects`, force grab), the VR melee and armed systems between players and bots in deathmatch (a blade's hit, a disarm), bots' bodies and hands as the clients draw them, FrikBot's walk through the shared movement (`vr_pmove`), names in the harness | `mp_dm` grown |
 | **B12** (B14 part 1 done: the moves' results client against server, the thread audit; the world's hashes are B14b) | Determinism: Box3D, navmesh and pathfinding hashes equal across runs with several clients; the server-thread audit in multiplayer | hash scenarios |
-| **B13** (done: the browser, the net HUD, B13b's 16 players at real time; ICE/NAT on his OK; the rest is B13c) | Polish and performance: ICE/NAT traversal (optional), server browser, latency HUD, CPU of many players | soak tests |
+| **B13** (done: the browser, the net HUD, B13b's 16 players at real time, B13c's rewind at the places sent and send rate; ICE/NAT on his OK) | Polish and performance: ICE/NAT traversal (optional), server browser, latency HUD, CPU of many players | soak tests |
 
 ## 4. Test harness
 
@@ -2974,4 +2974,47 @@ Open items:
   rate of its own (36 Hz with the interpolation buffer) would halve it.
 - An LTO soak with `--exclusive` for the pace's headroom (this phase's runs were all low-impact).
 
-Next phase: B13c -- the lag compensation's rewind at the places a client was sent (its acknowledged snapshot) under a rate cap, a remote client's send rate (36 Hz) with the interpolation buffer, an LTO soak with --exclusive; B10v's VR checks and the ICE/NAT rendezvous service are his (a real microphone; his OK to host a service).
+### B13c results: the rewind at the places sent, a send rate, the exclusive soak (2026-11-16, dev no-LTO and ThinLTO)
+
+- **The lag compensation rewinds to the places a client was sent** (vr_lagcomp.cpp `sentAround`/`drawnAt`): each remote
+  client's snapshots are logged (vr_netsnap.cpp `logSent`, 80 of them, 1.1 s: their time and the players' and
+  monsters' entity and avatar records, each whether it was written there, new or changed: encode marks `sent`'s records
+  `fresh`). A rewind for his shot, blow or parry places each target as his interpolation buffer drew it: between the
+  two places he was sent around his view time (not the server's frames between), held past the newest or before the
+  oldest, rested until a frame before a place that came after a long wait (interpNote's rest gap), no lerp across a
+  teleport; the hands from the avatar's records, which wait on their own. A record that waited under his rate
+  (`vr_net_rate` 80000, or a gib storm) is then judged where his game still drew it. NetQuake's datagrams (no
+  snapshots): the frames, as before.
+- `vr_net_test_hold <n>` (Debug > Network: Hold Players' Updates, a test aid): the other players' updates to a remote
+  client wait n snapshots in each n + 1, exactly as the rate's waits leave them. `mp_lagcomp` (14 checks) grew: B's test
+  shot sends where he drew A; the server reports how far from that the rewind put A (`err`) and how far the server's
+  frame at his view time is (`err_frame`, the rewind before B13c). Free: 0.03 units on average; A's updates held 3 and 6
+  snapshots: 0.04 (the frames' rewind 4.1-6.7 units off on average, up to 23).
+- **A send rate** (`vr_net_sendhz` 72; Debug > Network: Send Rate): a remote snapshot client's datagrams a second; off
+  his beat the frame's broadcast (culled by his sight) is held for his next datagram (vr_server.cpp `VR_HoldBroadcast`;
+  `vr_net_broadcast_report` counts held and dropped); his state, entities and voice go as they are then. Measured, 72 ->
+  36 Hz: B idle on e1m1 3.2 -> 2.0 KB/s; mp_lagcomp (150 ms lag) 7.5 -> 5.2 KB/s; mp_nethud walking 6.0 -> 3.6 KB/s;
+  mp_soak (16 players) B 27.7 -> 14.6 KB/s, A 33.4 -> 21.4; hits and blows unchanged (mp_lagcomp 14/0 at 36 Hz, `err`
+  0.04), no prediction corrections either way; the cost: the others drawn about a frame later (his buffer's delay
+  follows the longest gap between datagrams, 2 frames; 25.6 ms at 72 Hz). **Default kept at 72**: not clearly better --
+  the rate cap already holds a link, and the others' latency is seen in VR; 36 is the setting for a host with many
+  players or a thin uplink. (mp_nethud's loss check at 36 Hz can read 0% in its one-second window: fewer datagrams.)
+- **The ThinLTO soak, exclusive** (`mp_soak`, 16 players on dm3): 14/0 at 72 and at 36 Hz, the server 0.99 of real time
+  both, Box3D 241 bodies (127 awake) at the window's end.
+- **B13b's suite flakes**: `mp_avatar`'s "B draws A's weapon" was the test (B's report could describe the frame drawn
+  before A's avatar with the weapon came): it now waits for the drawn weapon (17/0 in the suite). `mp_disarm`'s toss
+  retake: the toss's landing (real-time mock play) varies, and on some landings A's hand pushes the shotgun along the
+  floor 1.5 cm short of the fist's grab surface ("against this hand", allowed 0 cm) -- a grab quirk a real hand may meet
+  too (a weapon lying against the hand not taken): open (35/0 in this suite). `mp_dm`'s `vr_dm_test 3` (the bot's blow
+  parried) failed once in the suite again with B13c's rewind (22/0 alone): B14d's open flake, not the rate's waits.
+- **Checks:** MP suite (dev): 37 of 41 clean; mp_ground (its reverse grip cosine), mp_dm (`vr_dm_test 3`), mp_browser
+  (a ping of 698 ms right after the soak) passed alone (15/0, 22/0, 10/0); **mp_flow fails, alone too**: "Load Autosave
+  lists the coop autosave" -- the server's coop~e1m2.sav is written (608 KB) but A's `vr_autosave_list cold` lists only
+  the older coop~e1m2@2 and @3 (vr_continue.cpp's `inspectAutosave` rejects the newest; no save code changed in B13c:
+  from origin/next or a save still being written when read -- open). SP: scenario_check PASS (138/0), load_models 4/0,
+  vr_run_check 12/0. Dev and ThinLTO builds 0 warnings.
+
+Open items: mp_flow's coop autosave listing; the hand pushing a lying weapon short of the grab; B14d's `vr_dm_test 3`
+flake; LAN discovery and ICE/NAT need his machines and his OK.
+
+Next phase: B11 part 2 -- deathmatch 1 and 2's item rules with VR weapons (level weapons taken and respawned or staying, `vr_item_objects`, force grab), the VR melee and armed systems between players and bots (a blade's hit, a disarm), bots' bodies and hands as clients draw them, FrikBot's walk through vr_pmove, names in the harness (`mp_dm` grown); first, mp_flow's coop autosave listing. B10v's VR checks and the ICE/NAT rendezvous service are his.

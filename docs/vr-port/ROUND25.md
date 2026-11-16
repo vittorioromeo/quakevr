@@ -4643,3 +4643,19 @@ His request: bake all 27 title wordings (9 sections x 3) to pick from.
 - **In VR:** host dm3 with 14 bots: smooth, few gibs and guns lying about, no spawn telefrags; join it from another PC
   with `vr_net_hud 2` (~25 KB/s).
 - **Open (B13c):** the lag compensation under a rate cap (rewind at the places sent), a 36 Hz send rate, an LTO soak.
+
+## MP B13c: the rewind at the places sent, a send rate (agent/mp, 2026-11-16)
+
+- **Lag compensation at the places sent** (vr_lagcomp.cpp, vr_netsnap.cpp `logSent`): a remote player's shot, blow or
+  parry is judged with each target where his interpolation buffer drew it from the snapshots he was actually sent;
+  a record that waited under his rate (`vr_net_rate` 80000) no longer puts the target where he had not seen it.
+  `mp_lagcomp`: 0.03-0.04 units from where B drew A, with A's updates held 3 and 6 snapshots (the old rewind 4-7 off).
+  Test aid `vr_net_test_hold` (Debug > Network).
+- **`vr_net_sendhz`** (72; Debug > Network: Send Rate): 36 halves a remote player's datagrams (the broadcast held
+  between): about 35-50% fewer bytes (soak: B 27.7 -> 14.6 KB/s), the others drawn a frame later. Default kept 72.
+- **Exclusive ThinLTO soak** (16 players): 14/0 at 72 and 36 Hz, 0.99 of real time.
+- **Flakes**: mp_avatar's was the test (now waits for B's drawn weapon); mp_disarm's toss: the hand can push a lying
+  weapon 1.5 cm short of the grab (open); mp_dm's `vr_dm_test 3` still B14d's. **mp_flow fails alone**: the newest coop
+  autosave not listed (`inspectAutosave`; not B13c's code) -- open. Details: MP_PLAN.md, "B13c results".
+- **In VR:** with a friend over the internet, hit a strafing player (shots and melee land where you saw him); as host
+  try Debug > Network: Send Rate 36 with `vr_net_hud 2` on the client (bytes down, smoothness of the others).
