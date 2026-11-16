@@ -1,0 +1,50 @@
+DpQuake 2.3 - A quake font for the serious Quake freak
+Copyright © 2000 Dead Pete
+deadpete@iname.com
+http://deadpete.tripod.com/
+
+[----------------------------------------------------]
+[-----------Key combinations for the logos-----------]
+[----------------------------------------------------]
+[ Q         | Quake logo                             ]
+[ q         | Quake logo (small)                     ]
+[ ~         | Quake 2 logo                           ]
+[ Alt-0152  | Quake 2 logo                           ]
+[ Alt-0181  | Quake 2 Cracked logo                   ]
+[ Alt-0131  | Quake Arena logo (Fixed)               ]
+[ Alt-0134  | Quake Arena logo                       ]
+[ Alt-0135  | Quake Arena logo (wide Fixed)          ]
+[ Alt-0163  | Quake Arena logo (wide)                ]
+[ Alt-0162  | id Software logo                       ]
+[ Alt-0240  | id Software logo (cracked)             ]
+[ Alt-0231  | Gear                                   ]
+[ Alt-0199  | Lightning logo                         ]
+[ Alt-0222  | Lightning logo (cracked)               ]
+[ Alt-0164  | Invincibility logo (strait)            ]
+[ Alt-0167  | Invincibility logo (deformed)          ]
+[---+ +------------------+ +-------------------+ +---]
+    | |                  | |                   | |
+[---+ +------------------+ +-------------------+ +---]
+[----------How to use the key combinations:----------]
+[----------------------------------------------------]
+[ Hold down the "Alt" key and, using the keypad at   ]
+[ the right of your keyboard, press the indicated    ]
+[ number code. The zeros do count. Sorry about the   ]
+[ complexity, The next release will probably make it ]
+[ simpler.                                           ]
+[----------------------------------------------------]
+
+You may freely distribute this font, but you must
+ALWAYS include this file!!
+
+The Quake 2 Cracked logo, id Software logo (cracked),
+Gear, Lightning logo, and Lightning logo (cracked) are
+copyright Sean Johnson and are included in this font
+for archival purposes [keeping as many Quake logos/
+characters in one font as possible]. If you are Sean
+Johnson, or know him please email me!
+
+Disclaimer thingy: This is an enhanced version of the
+original "QUAKE" font I found on the web. The stylized
+"Q" and all other logos are copyright id Software (the
+greatest game makers on the face of the planet).
