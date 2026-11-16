@@ -72,6 +72,14 @@ Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk 
 - **Left-handed mode** (2026-11-05): the mouse buttons' routing by hand (`flatplay::routeFire`) mirrored.
 - **Flat-screen two-handed melee pose adjustment** (2026-11-15): he ticked the checklist item for now; the 2H melee pose in
   flat play needs adjusting later; low priority.
+- **Flat keys in Options > Controls, not a separate menu** (2026-11-16, his call): today the flat-screen mode's own keys
+  (`vr_flat_key_*`: leans, swap, grab, shove, punch, reload, ammo, drop, grenade, bullet time, flashlight, holster menu,
+  flycam, toolgun) live in VR Settings > Locomotion > Desktop Screen Play > Flat Keys, apart from the game's bindings in
+  Options > Controls, so players can't find them (GitHub #83: a player wanted the mouse side buttons back; mouse 4 is
+  Force Grab, mouse 5 Shove). Integrate them into Options > Controls' key binding list (a "Quake VR (flat screen)"
+  group, same rebind/clear UI as the binds, conflicts with binds shown both ways), drop the separate page (or keep only
+  a link to Controls), and make the keys play nicely with the bind system (a key bound to both a bind and a flat key:
+  pick one rule and show it). Keep `vr_flat_key_*` working for configs.
 - **The window's graphics** (round 20): float scene, tone mapping, grades and bloom on the window; check each feature
   with VR off.
 
