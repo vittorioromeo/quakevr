@@ -4614,3 +4614,17 @@ Resolution Half/Quarter, proxies on); a full render works but takes over a minut
   join, leave, see it as recent. `vr_net_hud 2` while joined. A 16-player deathmatch (`impulse 100` x14) on dm3.
 - **Open (B13b):** the server runs 16 players at ~0.75 of real time on a dev build (Box3D's gibs and dropped weapons,
   QuakeC's gib and prop touches); B's link 40-65 KB/s. Details and the NAT traversal design: MP_PLAN.md, "B13 results".
+## titlevariants: the trailer's feature-title variants baked (agent/titlevariants, 2026-11-16)
+
+His request: bake all 27 title wordings (9 sections x 3) to pick from.
+- `Misc/trailer/titles/bake_variants.py variants.txt --out <dir> [--project P]`: each line `section | n | title |
+  subtitle` made as apply_titles makes a section's title (make_section_timeline, set_title, the template's defaults:
+  top-right, 6 s) and rendered by apply_titles' render_bakes (one batch, Draft off, only its jobs removed), ProRes 4444
+  with alpha, `<section>_v<n> - <title>.mov` (characters Windows refuses dropped: "No Headset No Problem"); clips
+  already there are kept. Its timelines and bin are removed afterwards. `--project` saves the open (saved) project,
+  bakes in P and reopens it. ffmpeg then writes `contact sheet.png` (the frame at 4 s over dark grey, labelled, 3 a
+  row) and `all variants.mp4`.
+- Run: his v1_1trailer (Timeline 2, 1920x1080 at 60) saved, "QVR Titles Preview" opened, 27 rendered in one batch in
+  1635 s (1671 s in all, ~0.17 s a frame), sheet 3 s, reel 40 s (9720 frames = 27 x 360), v1_1trailer reopened on
+  Timeline 2 (its own render job left alone). Output `C:\Users\vittorio\Videos\QVR Title Variants\`: 27 clips (ap4h,
+  yuva444p12le, 360 frames), the sheet, the reel. A one-clip trial went to the worktree's scratch first.
