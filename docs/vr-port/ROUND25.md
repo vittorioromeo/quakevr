@@ -3884,3 +3884,13 @@ The 1.1 readiness audit's baseline regressions. Both were the tests, not the gam
   Not yet checked on the headset (offline): `scratch/c4s_check.sh` checks the save and foveation once it is back.
 - PC: dev build 0 warnings, gles_render_test, scenario_check, load_models_test (QUEST_PLAN.md 6x); the Android APK
   builds. Details: QUEST_PLAN.md 6x.
+
+## Quest C4s: the Quest's saves work; foveation no longer crashes; e1m3 was the demo (branch `agent/quest`, 2026-11-16)
+
+- On the headset: C4r's save fix works (autosaves, save and load); foveation level 3 with the new release order ran
+  1,041 frames without a crash (no GPU gain, still behind `-xrfoveation`).
+- C4n's scripted session again (plain loops, 0.55 floor): period / GPU p50 e1m1 23.3 / 20.7 -> 18.4 / 15.9 ms, e1m2
+  14.7 / 11.1 -> 14.1 / 10.1, demo1 23.6 / 22.0 -> 19.4 / 18.1; GPU hitches' time over budget 36 s -> 13 s.
+- e1m3's 22 ms was `playdemo`'s flat render (no eye passes, nothing submitted to the runtime). e1m3 played holds 72 Hz
+  at 0.55 in all 8 places measured (GPU 4.7-11.0 ms). The left eye's extra GPU in fights is not steady (0.3-2.6 ms
+  between parts, none frozen, not decals or particles): not pursued. No code change. Details: QUEST_PLAN.md 6y.

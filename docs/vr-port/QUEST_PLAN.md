@@ -1424,6 +1424,32 @@ still scene, 3 big test lights, 0.55 fixed, body off), `c4r_fight.sh` (a live fi
   stopped. The check now ignores the top byte on arm64 (the PC's x64 code unchanged). Unchecked on the headset.
 - PC: gles_render_test, scenario_check, load_models_test, dev build 0 warnings; Android: the APK builds (ROUND25).
 
+## 6y. C4s: the Quest's saves work; foveation no longer crashes; the recorded session again; e1m3 was the demo (2026-11-16; adb, unworn)
+
+Method (`scratch/c4s_*`): `c4s_check.sh` (save, load; foveation at launch), `c4o_play.sh c4s demo` (C4n's scripted
+session, the preset as shipped), `c4s_e1m3.sh` (e1m3 played: a noclip tour of 8 places at 0.55 fixed, body off),
+`c4s_gapab.sh` + `c4s_ab.py` (live-fight A/Bs with the eyes' GPU scopes), `c4s_gap.py`, `c4s_gcols.py` (a CSV's
+scopes by map).
+- **Saves (C4r's fix) work on the headset**: e1m1's autosaves ("Saving game to autosave/e1m1.sav", no "Save error"),
+  `save` then `load` of the same game.
+- **Foveation (`-xrfoveation`, level 3, the scaled bins, detached before the release)**: four parts, 1,041 frames, no
+  crash (0 `SIGSEGV`); GPU span 11.4 ms, world 9.1 at 0.9 (the post-process path: no gain, as 6w). Still guarded.
+- **The scripted session again** (the plain loops, the 0.55 floor), period / GPU span p50 against C4n's (ms): e1m1
+  (walk and fight) 18.4 / 15.9 against 23.3 / 20.7; e1m2 14.1 / 10.1 against 14.7 / 11.1; e1m3 (demo1) 19.4 / 18.1
+  against 23.6 / 22.0. Hitches: GPU world+brush 1,284 (13.4 s over budget in 118 s, was 36.4 s over 2,482), the
+  rest the unworn headset's session (298) and the changelevel's load.
+- **e1m3's cost was the demo, not the map**: during `playdemo` the frame has no eye passes and submits nothing to the
+  runtime (`c_xr_submit` 0, a `swap`: the flat view drawn), so C4n's e1m3 row measured a flat render the headset never
+  shows. **e1m3 played** (8 places, 0.55 fixed): period 13.9-14.1 ms everywhere (72 Hz held), GPU span 4.7-11.0, world
+  3.3-9.3 (the east room the worst). Open: demos show nothing in the headset (a flat-only path); not perf.
+- **The left eye's extra GPU is not a steady cost**: the frozen fight has none (vr_profile: eye L 2.92, eye R 2.72 ms
+  at 0.55); a live fight's medians differ by 0.3 to 2.6 ms between parts of one launch, with no link to decals or
+  particles (`vr_decals 0`, `vr_particles 0`, both: -1.2 to +2.6); the session's e1m1 7.2 against 7.0. The xr acquire
+  wait inside the eye is ~0 (`c_xr_acquire` p50 0.02, the eye's GPU no larger in frames that waited). Not pursued.
+- **vr_profile's means on an unworn headset**: the frames while the session is stopped are drawn flat and their
+  timestamps are garbage (scene setup 99 ms mean, max 14,800): use the recorder's medians (`c4s_ab.py`).
+- No code change; PC unchanged.
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
@@ -1467,4 +1493,4 @@ Sizes are approximate download sizes [I]; versions are the current stable ones a
 
 Also: a Quest 3 (or 3S) in developer mode (Meta Horizon app, an organisation account), a USB-C cable.
 
-Next phase: C4s (after 6x) — no installs, the headset needed: `scratch/c4s_check.sh` (the Quest's saves and load, foveation with the new release order); then the GPU's sustained world cost in busy maps (e1m3/demo1's world p50 22 ms at the old floor: re-record `c4o_play.sh` with the plain loops, then the world shader's remaining fixed cost: decals +0.9, lightmap +1.1 ms at 0.9) and the left eye's GPU idle time (its scope 4.3 -> 7.1 ms with no sub-scope: a wait on the swapchain or the runtime inside the eye); SpaceWarp optional and off. Still open from before: C2h (the world textures' memory under the ES profile), Adreno's wrong derivatives with the retro code out (NORETRO). Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d), shadowless dynamic lights on the Quest (6w).
+Next phase: C4t (after 6y) — no installs, the headset needed: e1m1's walk (period p50 18.4 ms, GPU 15.9 at the 0.55 floor with the body on: the costliest part of the session) — the world's cost by place as `c4s_e1m3.sh` did for e1m3, and the body's share when in view; then the world shader's remaining fixed cost (decals +0.9, lightmap +1.1 ms at 0.9); SpaceWarp optional and off. Still open from before: C2h (the world textures' memory under the ES profile), Adreno's wrong derivatives with the retro code out (NORETRO), demos drawing nothing in the headset. Waiting on his call: the Android Gradle Plugin download (section 7), the armed humanoids' CPU cost (section 6d), shadowless dynamic lights on the Quest (6w).
