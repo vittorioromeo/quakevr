@@ -261,6 +261,9 @@ float(float flag)            frik_recognize_plat;
 float(vector sdir)        frik_KeysForDir;
 void(vector whichway, float danger) frik_obstructed;
 void()                SV_Physics_Client;
+// QVR: this bot's frame walks through the moves players' walks run (botmovethink: vr_pmove.cpp, vr_pmove_bots; MP_PLAN
+// B11 part 3, part 3), else through FrikBot's own copy of the physics (bot_phys.qc)
+float bot_pmove;
 void()                SV_ClientThink;
 void()                 CL_KeyMove;
 
@@ -1239,6 +1242,7 @@ void() BotFrame =
 
                 bot_setvrfields();
 
+                bot_pmove = botmovethink(self.movevect); // QVR: its stick as a player's move (vr_pmove.cpp)
                 SV_ClientThink();
                 SV_Physics_Client();
             }

@@ -1187,6 +1187,10 @@ za::Vector<Item> pageDebugReports()
                   "player's moves and his prediction run, one move a frame. Off: Quake's server physics and QuakeC's "
                   "jump and water code, the old path, kept as the fallback. On by default: one movement module for "
                   "single player, hosting and multiplayer (MP_PLAN B11b)."),
+        toggle("Movement: Bots Walk Through Moves", vr_pmove_bots)
+            .help("vr_pmove_bots: bots (FrikBot) walk through the same move code as players, their stick as a move each "
+                  "frame: the same speed, steps, slopes, jumps, swimming and close-quarters slowing. Off: FrikBot's own "
+                  "copy of Quake's physics in QuakeC, the old path, kept as the fallback (MP_PLAN B11 part 3)."),
         toggle("Movement: Trace Walk Each Frame", vr_pmove_trace)
             .help("vr_pmove_trace: each server frame, every player's place, speed and flags after his physics printed "
                   "(pmtrace: lines), to compare two runs frame by frame. A test aid."),

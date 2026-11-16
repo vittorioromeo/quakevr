@@ -1083,6 +1083,8 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"watersplash", PF_watersplash},
     {"waterclimb", PF_waterclimb},
     {"grapplehold", PF_grapplehold},
+    {"botmovethink", PF_botmovethink},
+    {"botmovewalk", PF_botmovewalk},
     {"fileexists", PF_fileexists},
     {"campaignmusic", PF_campaignmusic},
     {"highlighting", PF_highlighting},

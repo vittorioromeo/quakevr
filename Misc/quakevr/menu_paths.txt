@@ -200,6 +200,7 @@ vr_dynres_max|1|VR Settings - Display and Graphics|Dynamic Highest Scale|VR Sett
 vr_upscale|0|VR Settings - Display and Graphics|Upscaling|VR Settings > Display and Graphics > Upscaling
 vr_upscale_sharpness|0|VR Settings - Display and Graphics|Sharpening|VR Settings > Display and Graphics > Sharpening
 vr_foveated|0|VR Settings - Display and Graphics|Foveated Rendering|VR Settings > Display and Graphics > Foveated Rendering
+vr_foveated_gaze|1|VR Settings - Display and Graphics|Eye-Tracked Foveation|VR Settings > Display and Graphics > Eye-Tracked Foveation
 vr_retro|0|VR Settings - Display and Graphics|Retro Textures|VR Settings > Display and Graphics > Retro Textures
 vr_retrolight|0|VR Settings - Display and Graphics|Retro Lighting|VR Settings > Display and Graphics > Retro Lighting
 vid_fsaa|0|VR Settings - Display and Graphics|Antialiasing|VR Settings > Display and Graphics > Antialiasing
@@ -1033,8 +1034,8 @@ vr_agrunt_shotdisarm_proj_chance|1|Armed Grunts|Projectile: Chance|Advanced VR O
 vr_agrunt_shotdisarm_proj_ref|1|Armed Grunts|Projectile: Reference Damage|Advanced VR Options > Combat > Armed Grunts > Projectile: Reference Damage
 vr_agrunt_shotdisarm_proj_near|1|Armed Grunts|Projectile: Near Miss|Advanced VR Options > Combat > Armed Grunts > Projectile: Near Miss
 vr_agrunt_shotdisarm_proj_max|1|Armed Grunts|Projectile: Most Chance|Advanced VR Options > Combat > Armed Grunts > Projectile: Most Chance
-vr_player_disarm|1|Armed Grunts|Enemies Can Disarm You|Advanced VR Options > Combat > Armed Grunts > Enemies Can Disarm You
-vr_player_disarm_pvp|1|Armed Grunts|Players Can Disarm Each Other|Advanced VR Options > Combat > Armed Grunts > Players Can Disarm Each Other
+vr_player_disarm|1|Armed Grunts|You Can Be Disarmed|Advanced VR Options > Combat > Armed Grunts > You Can Be Disarmed
+vr_player_disarm_pvp|1|Armed Grunts|You Can Be Disarmed by Players|Advanced VR Options > Combat > Armed Grunts > You Can Be Disarmed by Players
 vr_player_disarm_chance|1|Armed Grunts|Your Disarm Chance|Advanced VR Options > Combat > Armed Grunts > Your Disarm Chance
 vr_player_disarm_grab|1|Armed Grunts|Players: Grab and Pull Disarms|Advanced VR Options > Combat > Armed Grunts > Players: Grab and Pull Disarms
 vr_player_disarm_pull|1|Armed Grunts|Players: Disarm Pull|Advanced VR Options > Combat > Armed Grunts > Players: Disarm Pull
@@ -5306,6 +5307,7 @@ vr_net_lagcomp|2|Debug - Reports|Network: Lag Compensation|Advanced VR Options >
 vr_net_permove|2|Debug - Reports|Network: Moves Run One by One|Advanced VR Options > Debug > Reports > Network: Moves Run One by One
 vr_net_permove_skip|2|Debug - Reports|Network: Moves Left to QuakeC|Advanced VR Options > Debug > Reports > Network: Moves Left to QuakeC
 vr_pmove_own|2|Debug - Reports|Movement: Own Walk Through Moves|Advanced VR Options > Debug > Reports > Movement: Own Walk Through Moves
+vr_pmove_bots|2|Debug - Reports|Movement: Bots Walk Through Moves|Advanced VR Options > Debug > Reports > Movement: Bots Walk Through Moves
 vr_pmove_trace|2|Debug - Reports|Movement: Trace Walk Each Frame|Advanced VR Options > Debug > Reports > Movement: Trace Walk Each Frame
 |2|Debug - Reports|Network: Prediction Report|Advanced VR Options > Debug > Reports > Network: Prediction Report
 vr_net_cullposes|2|Debug - Reports|Network: Cull Poses|Advanced VR Options > Debug > Reports > Network: Cull Poses
@@ -5640,9 +5642,12 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Can the Grunt See You?|Advanced VR Options > Debug > Tests > Can the Grunt See You?
 |2|Debug - Tests|Enemy Footsteps Walkabout|Advanced VR Options > Debug > Tests > Enemy Footsteps Walkabout
 |2|Debug - Tests|Shoot Yourself: Aimed|Advanced VR Options > Debug > Tests > Shoot Yourself: Aimed
+|2|Debug - Tests|Looping Sounds: Chainsaw Knight|Advanced VR Options > Debug > Tests > Looping Sounds: Chainsaw Knight
+|2|Debug - Tests|Wet Check: Nothing Wet Near|Advanced VR Options > Debug > Tests > Wet Check: Nothing Wet Near
 |2|Debug - Tests|Shoot Yourself: Ordinary Firing|Advanced VR Options > Debug > Tests > Shoot Yourself: Ordinary Firing
 |2|Debug - Tests|Player Disarm: Shots on Your Gun|Advanced VR Options > Debug > Tests > Player Disarm: Shots on Your Gun
 |2|Debug - Tests|Deathmatch Rules: Weapons and Bots|Advanced VR Options > Debug > Tests > Deathmatch Rules: Weapons and Bots
+|2|Debug - Tests|Deathmatch: Parry a Bot's Swing|Advanced VR Options > Debug > Tests > Deathmatch: Parry a Bot's Swing
 |2|Debug - Tests|Player Disarm: Melee on Your Gun|Advanced VR Options > Debug > Tests > Player Disarm: Melee on Your Gun
 |2|Debug - Tests|Toolgun: Armed Humanoid Pairs|Advanced VR Options > Debug > Tests > Toolgun: Armed Humanoid Pairs
 |2|Debug - Tests|Projectiles Keep Your Motion|Advanced VR Options > Debug > Tests > Projectiles Keep Your Motion

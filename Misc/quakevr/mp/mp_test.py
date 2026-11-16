@@ -4322,6 +4322,29 @@ def deathmatch(s):
     told = wait_or_none(a, r"Your weapon is knocked out of your hand", 10, since_t)
     s.check("A is told his weapon was knocked out (the bot's shot)", told is not None, "%s" % (told,))
 
+    # (B11 part 3, part 3) a bot's sword swing at A, its hand swinging it across its front (bot_setvrfields), its blade's
+    # line read by the directional parry as a player's swing: A's crowbar (given by the test) held low at his side, the
+    # blow lands (vr_dm_test 2); held upright across its way, parried (vr_dm_test 3). The bot walks through the players'
+    # moves meanwhile (vr_pmove_bots).
+    # (his grip held, as a given weapon held through a pose's change wants: the test empties his hand first, then gives
+    # the crowbar into the gripping hand, grip_then_give's order)
+    srv.cmd("vr_debug_carry 2; developer 1; vr_debug_shots 1") # (the grip's, the parry's and the blow's lines)
+    since_g = srv.mark()
+    a.cmd("vr_mock_button main grip 1; %s" % EMPTY_HAND)
+    srv.wait(r"grip: .*main hand pressed at", 10, since_g, "A's main grip on the server")
+    for test, pose, what in ((2, EMPTY_HAND, "at his side: the bot's swing lands"),
+                             (3, UPRIGHT, "upright across its way: the bot's swing parried")):
+        a.cmd(pose)
+        since_p = srv.mark()
+        srv.cmd("vr_dm_test %d" % test)
+        _, verdict = srv.wait(r"dmtest: \d+ passed, \d+ failed", 30, since_p, "vr_dm_test %d's verdict" % test)
+        got = [l.strip() for l in srv.lines[since_p:] if "dmtest: FAIL" in l or "dirparry: " in l or "parry: " in l or
+               "by a melee blow" in l]
+        s.check("A's crowbar %s (vr_dm_test %d)" % (what, test), " 0 failed" in verdict,
+                "%s %s" % (verdict.strip(), got[-4:]))
+    a.cmd("vr_mock_button main grip 0; %s" % EMPTY_HAND)
+    srv.cmd("vr_debug_carry 0; developer 0; vr_debug_shots 0")
+
     # (seen by A or by B: B's start may see neither bot for a while, out of his sight)
     moving = [wait_or_none(a, r"mp_move: .*ent=%d self=0" % (slot + 1), 30, since_a) or
               wait_or_none(b, r"mp_move: .*ent=%d self=0" % (slot + 1), 5, since_b) for slot in bots]

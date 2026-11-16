@@ -34,6 +34,14 @@ int waterClimbFrame(edict_t* ent, int hands);
 // the corner `at` and the path beyond it, `reeling` (B/Y held), the rope's shortest; `hand` the gun's (-1 a holster).
 // One function with a remote client's moves (B9).
 void grappleFrame(edict_t* ent, edict_t* hook, int hand, const float* at, float beyond, bool reeling, float shortest);
+// A bot's walk through the moves a player's walk runs (vr_pmove_bots; MP_PLAN B11 part 3, part 3): FrikBot's frame
+// (QC BotFrame, before its SV_ClientThink) queues its stick `move` (QC's .movevect: clc_move's forward, side, up) as one
+// move and sets the frame's flags as VR_PredictThink sets a client's -> 1: it walks through them this frame.
+int botThink(edict_t* ent, const float* move);
+// ... then its walk (QC SV_Physics_Client's, for FrikBot's gravity and SV_FlyMove): VR_PredictPhysics, linked with its
+// touches as SV_Physics_Client links a client. `obstructed`: how far short of its stick's want the walk fell against a
+// wall this frame (level; zero: not held), for FrikBot's frik_obstructed.
+void botWalk(edict_t* ent, float* obstructed);
 
 // Client.
 void parseState();  // QVR_SVC_PREDICT's body

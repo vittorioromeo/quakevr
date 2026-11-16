@@ -1491,11 +1491,19 @@ void(float xHand) W_FireAxe =
         // HONEY
         VR_DamageCredit_SetWeapon(self, WID_AXE);
 
+        // (a player's button swing whose hand swings it, its weapon's lines kept -- a bot's, VR_HandLinesKept: its blow
+        // on another player judged by its line, as a tracked hand's, VR_DRP_PvpApplies; MP B11 part 3, part 3)
+        float blowWas = vr_melee_blowhand;
+        if(!blowWas && (victim.flags & FL_CLIENT) && VR_HandLinesKept(self))
+        {
+            vr_melee_blowhand = xHand + 1;
+        }
         if(T_Damage_VRMelee(trace_ent, self, self, xdmg))
         {
             VR_HitBloodSplash(victim, org, xdmg);
             bleed = TRUE;
         }
+        vr_melee_blowhand = blowWas;
 
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
@@ -3772,6 +3780,10 @@ void(float xHand, float* xOutAttackFinished) W_Fire_Melee =
        !self.ishuman)
     {
         VR_SoundVaried(self, VRGetGunChannel(xHand), "weapons/ax1.wav", 1, ATTN_NORM);
+        if(!self.ishuman && xHand == cVR_MainHand)
+        {
+            self.vr_botswing = time; // (a bot's hand swings it: bot_setvrfields, its blow at player_axe*3's frame)
+        }
         float r = random();
         if(r < 0.25)
             player_axe1(xHand);

@@ -1847,7 +1847,7 @@ void writeAvatars()
         // A bot (FrikBot: its client slot's entity a "player" whose QC is not a human's, the slot itself not active; MP_PLAN.md,
         // B11 part 3) has no client to draw its hands: its controllers (QC's handpos, handrot: bot_setvrfields) and
         // weapons go instead, for each client to place its hands and weapons on as it places its own
-        // (VrDrawnHand::solveBit, view::solveHands); its head at its eyes, its body a standing player's of the default height.
+        // (VrDrawnHand::solveBit, view::solveHands); its head at its eyes, its body a standing player's of its eye height.
         edict_t* const ent = c.active ? c.edict : EDICT_NUM(i + 1);
         const bool bot = !c.active && !ent->free && ent->v.modelindex != 0.f && f.ishuman >= 0 &&
                          fieldFloatOr(ent, f.ishuman, 1.f) == 0.f && !strcmp(PR_GetString(ent->v.classname), "player");
@@ -1861,7 +1861,10 @@ void writeAvatars()
         {
             body.valid = true;
             body.yaw = ent->v.v_angle[1];
-            body.headHeight = body.standingHeight = units::modelEyeHeight;
+            // (its own eye height, metres: its standing eyes over its feet -- the model's default drew it smaller than a
+            // human of the same box; B11 part 3, part 3. Standing: a dead bot's lowered view is not its height)
+            body.headHeight = body.standingHeight =
+                (static_cast<float>(DEFAULT_VIEWHEIGHT) - ent->v.mins[2]) / units::metresToUnits();
             for(int h = 0; h < 2; h++)
             {
                 VrDrawnHand& d = drawn[h];

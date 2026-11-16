@@ -387,9 +387,167 @@ void(float ask) VR_DMT_Run =
     }
 };
 
+// vr_dm_test 2 and 3 (MP B11 part 3, part 3): a bot's melee swing at the human -- its hand swings its sword across its
+// front (bot_setvrfields), its blade's line kept each frame (VR_Parry_GuardFrame), its blow read by the directional parry
+// as a player's swing (VR_DRP_PvpApplies). 2: the human's crowbar held low at his side (mp_dm's pose): the blow lands. 3:
+// held upright across its way: parried, no damage. The human kept alive (health 999), the bot held in front of him
+// facing him, its own attacks held off; its swing started as its button's (W_Fire_Melee).
+float vr_dmt_blows0;  // vr_melee_blows before the swing
+float vr_dmt_parry0;  // vr_parry_count then
+float vr_dmt_read0;   // vr_drp_pvp_n then
+float vr_dmt_swung;   // the swing's start (time)
+float VR_DMT_SWING_DONE = 0.5; // s after the swing's start: its blow (0.2 s) long past, its hand back at rest
+
+void() VR_DMT_HoldBot =
+{
+    entity bot = vr_dmt_bot;
+    setorigin(bot, vr_dmt_spot);
+    bot.velocity = '0 0 0';
+    bot.v_angle = bot.angles = vectoangles(vr_dmt_human.origin - vr_dmt_spot);
+    bot.fixangle = TRUE;
+    bot.attack_finished = time + 1; // (its own attacks held off: the test's swing only)
+    bot.button0 = 0;
+    if(VRGetEntWeapon(bot, cVR_MainHand) != WID_SWORD)
+    {
+        VR_WeaponUtil_EntAddWeapon(bot, WID_SWORD);
+        VRGiveEntWeapon(bot, cVR_MainHand, WID_SWORD, 0, 0);
+    }
+};
+
+// A crowbar into `pl`'s main hand: another weapon there let go of first (a frame before: a weapon swapped in the hand
+// is let go of at once), then the crowbar given into the empty hand, as VR_DMT_Arm gives.
+void(entity pl) VR_DMT_ArmCrowbar =
+{
+    float wid = VRGetEntWeapon(pl, cVR_MainHand);
+    if(wid == WID_CROWBAR)
+    {
+        return;
+    }
+    entity os = self;
+    self = pl;
+    if(!VRIsHandWeaponless(pl, cVR_MainHand))
+    {
+        DropWeaponInHand(pl, cVR_MainHand, wid, VRGetEntWeaponFlags(pl, cVR_MainHand));
+    }
+    else
+    {
+        VR_WeaponUtil_EntAddWeapon(pl, WID_CROWBAR);
+        VRGiveEntWeapon(pl, cVR_MainHand, WID_CROWBAR, 0, 0);
+        W_SetCurrentAmmoFor(cVR_MainHand);
+    }
+    self = os;
+};
+
+void(float ask) VR_DMT_Parry =
+{
+    if(vr_dmt_on != ask)
+    {
+        VR_Test_BeginFlags("dmtest", VR_TEST_LOUD | VR_TEST_ECHO);
+        vr_dmt_on = ask;
+        vr_dmt_chance = cvar_hget(cvarh_vr_player_disarm_chance);
+        vr_dmt_pve = cvar_hget(cvarh_vr_player_disarm);
+        vr_dmt_pvp = cvar_hget(cvarh_vr_player_disarm_pvp);
+        vr_dmt_dm = deathmatch;
+        cvar_set("vr_player_disarm_pvp", "0"); // (the swing's outcome alone: no roll on his crowbar)
+        VR_DMT_To(20, 0);
+    }
+    if(vr_dmt_s == 20) // a living human and bot
+    {
+        vr_dmt_n++;
+        vr_dmt_bot = vr_dmt_human = world;
+        for(entity p = VR_Player(); p; p = VR_NextPlayer(p))
+        {
+            if(p.ishuman && p.health > 0 && !vr_dmt_human) { vr_dmt_human = p; }
+            if(!p.ishuman && (p.flags & FL_CLIENT) && p.health > 0 && !vr_dmt_bot) { vr_dmt_bot = p; }
+        }
+        if((!vr_dmt_bot || !vr_dmt_human) && vr_dmt_n < VR_DMT_GIVEUP)
+        {
+            return;
+        }
+        VR_Test_Check(deathmatch != 0 && vr_dmt_human && vr_dmt_bot, sprintf("a deathmatch (%g) with a living human (%s) "
+            "and bot (%s)", deathmatch, vr_dmt_human.netname, vr_dmt_bot.netname));
+        if(deathmatch == 0 || !vr_dmt_human || !vr_dmt_bot)
+        {
+            VR_DMT_End();
+            return;
+        }
+        vr_dmt_human.health = 999; // (alive through the blow and the bots' own fight)
+        vr_dmt_bot.takedamage = DAMAGE_NO;
+        makevectors(vr_dmt_human.angles_y * '0 1 0');
+        vr_dmt_spot = vr_dmt_human.origin + v_forward * 40;
+        VR_DMT_To(21, 0);
+    }
+    if(vr_dmt_s < 0)
+    {
+        return;
+    }
+    vr_dmt_n++;
+    if(vr_dmt_s == 21) // the bot held in front of him with its sword, his crowbar drawn in his hand's pose
+    {
+        vr_dmt_human.health = max(vr_dmt_human.health, 999);
+        VR_DMT_HoldBot();
+        VR_DMT_ArmCrowbar(vr_dmt_human);
+        if(vr_dmt_n < VR_DMT_HOLD || VRGetEntWeapon(vr_dmt_human, cVR_MainHand) != WID_CROWBAR)
+        {
+            return;
+        }
+        vr_dmt_blows0 = vr_melee_blows;
+        vr_dmt_parry0 = vr_parry_count;
+        vr_dmt_read0 = vr_drp_pvp_n;
+        entity os = self;
+        self = vr_dmt_bot;
+        // (its button's swing: its hand swings it, the blow at player_axe*3)
+        W_Fire_Melee(cVR_MainHand, &vr_dmt_bot.attack_finished);
+        self = os;
+        vr_dmt_swung = time;
+        VR_Test_Check(vr_dmt_bot.vr_botswing == time, "the bot's sword swing begun (its hand swings it)");
+        // (its walk this frame through the moves a player's walk runs: botmovethink, VR_PredictThink's flag)
+        VR_Test_Check(vr_dmt_bot.vr_movejump == (cvar_hget(cvarh_vr_pmove_bots) != 0), sprintf(
+            "the bot walks through the players' moves as vr_pmove_bots says (%g)", cvar_hget(cvarh_vr_pmove_bots)));
+        VR_DMT_To(22, 0);
+        return;
+    }
+    if(vr_dmt_s == 22)
+    {
+        VR_DMT_HoldBot();
+        if(time - vr_dmt_bot.vr_botswing > 0.19 && time - vr_dmt_bot.vr_botswing < 0.21)
+        {
+            // (at its blow: his crowbar still in his hand, and its blade's line ahead of it)
+            makevectors(vr_dmt_bot.v_angle_y * '0 1 0');
+            handlineat(vr_dmt_bot, cVR_MainHand, 0);
+            VR_Test_Print(sprintf("dmtest: at its blow (%.3f s) its blade %.1f .. %.1f units ahead; his main hand's %s\n",
+                time - vr_dmt_bot.vr_botswing, (vr_blow_a - vr_dmt_bot.origin) * v_forward,
+                (vr_blow_b - vr_dmt_bot.origin) * v_forward, WeaponIdToWeaponName(VRGetEntWeapon(vr_dmt_human, cVR_MainHand))));
+        }
+        if(time - vr_dmt_swung < VR_DMT_SWING_DONE)
+        {
+            return;
+        }
+        // (its blow's own damage: the other bot's shots at him meanwhile not counted)
+        float landed = vr_melee_blows > vr_dmt_blows0 && vr_melee_blow_by == vr_dmt_bot && vr_melee_blow_on == vr_dmt_human;
+        float lost = landed ? vr_melee_blow_dmg : 0;
+        float read = vr_drp_pvp_n > vr_dmt_read0;
+        float parried = vr_parry_count > vr_dmt_parry0 && vr_parry_count_by == vr_dmt_bot;
+        string got = sprintf("damage %g, read by its line %g, parried %g", lost, vr_drp_pvp_n - vr_dmt_read0, parried);
+        VR_Test_Check(read, sprintf("its blow read by its blade's line as a player's swing (%s)", got));
+        if(ask == 2)
+        {
+            VR_Test_Check(landed && lost > 0 && !parried, sprintf("his crowbar held at his side: the blow lands (%s)", got));
+        }
+        else
+        {
+            VR_Test_Check(parried && !landed, sprintf("his crowbar held upright across its way: parried, no damage (%s)",
+                got));
+        }
+        vr_dmt_human.health = 100;
+        VR_DMT_End();
+    }
+};
+
 void() VR_DMRulesTest_Frame =
 {
     float ask = cvar_hget(cvarh_vr_dm_test);
     if(ask == 1) { VR_DMT_Run(ask); }
+    if(ask == 2 || ask == 3) { VR_DMT_Parry(ask); }
 };
 #endif

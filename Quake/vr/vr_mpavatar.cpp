@@ -579,6 +579,12 @@ void setupBody(int e, const Avatar& a, const glm::vec3& origin)
             who.eyeHeight = static_cast<float>(c->v[calFlatHeight]) / 1000.f;
         }
     }
+    else if(a.body.standingHeight > 0.5f)
+    {
+        // (no calibration: his standing eye height as his body pose has it -- a bot's, its eyes over its feet, the
+        // server's: B11 part 3, part 3)
+        who.eyeHeight = a.body.standingHeight;
+    }
     // His velocity from his entity's last two messages; on the ground unless rising or falling fast (the client is not
     // told; a walk down stairs stays on its feet).
     const entity_t& ent = cl_entities[e];

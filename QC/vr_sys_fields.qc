@@ -141,6 +141,7 @@
                         // on Quake's jump out, not the hands' climb: CheckWaterJump leaves it to the moves, MP_PLAN B8f)
 .float vr_movewaterclimb; // ... or the hands' climb out (PlayerPreThink: bit 0 on, bits 1-2 the empty hands, as
                           // VR_WaterClimb_FreeHands; CheckWaterJump leaves it to the moves, MP_PLAN B8j part 3)
+.float vr_botswing; // a bot's melee swing began at this time (W_Fire_Melee; bot_setvrfields swings its main hand: MP B11 part 3, part 3)
 .float vr_moveswim; // ... and so does the water's drag (WaterMove leaves it; the engine sets it each frame)
 .float vr_movetakes; // ... and what else his moves may take (the engine sets it each frame: bit 0 the hands' climb out of
                      // the water, B8j part 3; bit 1 the grapple's rope, B8j part 4)

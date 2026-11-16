@@ -2356,6 +2356,10 @@ float(entity e) VR_Parry_MeleeMonster =
 
 float vr_parry_count;     // the player's parries so far (T_Damage: VR_Parry's), and the last one's attacker (the tests)
 entity vr_parry_count_by;
+float vr_melee_blows;      // a player's melee blows landed so far (T_Damage_VRMelee), the last one's damage, by whom, on what
+float vr_melee_blow_dmg;   // (the tests: vr_dmrules_test.qc's swing of a bot)
+entity vr_melee_blow_by;
+entity vr_melee_blow_on;
 
 // The parry's range from attacker `e` (and its blow's push): a blow struck through the shared rules this frame
 // (fight.qc VR_MeleeBlow and kin: a dragon's tail 250, an armed humanoid's long blade) as far as it reaches, never
@@ -2709,9 +2713,9 @@ float(entity e) VR_Poise_Factor =
 // The pose as for a blow from straight ahead (the view's yaw); a blow parried from the side is never well timed.
 void() VR_Parry_GuardFrame =
 {
-    if(cvar_hget(cvarh_vr_parry) && VRHandsTracked(self))
+    if(cvar_hget(cvarh_vr_parry) && VR_HandLinesKept(self))
     {
-        VR_DRP_HandLines(self); // (a directional parry's timing: vr_dirparry.qc VR_DRP_BecameValid)
+        VR_DRP_HandLines(self); // (a directional parry's timing: vr_dirparry.qc VR_DRP_BecameValid; a bot's swing's line)
     }
     if(!cvar_hget(cvarh_vr_parry) || !cvar_hget(cvarh_vr_parry_balance) || !VRHandsTracked(self))
     {
@@ -3425,6 +3429,11 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
         vr_parry_pvp = TRUE;
         damage = VR_Parry(targ, inflictor, attacker, damage);
         vr_parry_pvp = FALSE;
+        if(vr_parried)
+        {
+            vr_parry_count = vr_parry_count + 1; // (the tests: vr_dmrules_test.qc's parry of a bot's swing)
+            vr_parry_count_by = attacker;
+        }
         if(damage <= 0)
         {
             return FALSE;
@@ -3512,6 +3521,13 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
     if(r && damage > 0 && targ != attacker && (attacker.flags & FL_CLIENT))
     {
         VR_QuadSound(attacker, "a blow landed");
+    }
+    if((attacker.flags & FL_CLIENT) && targ != attacker)
+    {
+        vr_melee_blows = vr_melee_blows + 1;
+        vr_melee_blow_dmg = damage;
+        vr_melee_blow_by = attacker;
+        vr_melee_blow_on = targ;
     }
     if(cvar_hget(cvarh_vr_debug_shots) && (attacker.flags & FL_CLIENT) && targ != attacker)
     {

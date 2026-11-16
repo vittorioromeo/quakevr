@@ -680,6 +680,23 @@ void PF_grapplehold()
         G_VECTOR(OFS_PARM2), G_FLOAT(OFS_PARM3), G_FLOAT(OFS_PARM4) != 0.f, G_FLOAT(OFS_PARM5));
 }
 
+// float botmovethink(vector move): bot self's frame through the moves a player's walk runs (vr_pmove.cpp; vr_pmove_bots:
+// MP_PLAN B11 part 3, part 3): its stick `move` (FrikBot's .movevect) queued as one move, the frame's flags set as a
+// client's (.vr_movejump...). 1: it walks through them this frame (FrikBot's SV_ClientThink then leaves its walk, and its
+// SV_Physics_Client calls botmovewalk for its own gravity and SV_FlyMove), 0: FrikBot's own physics.
+void PF_botmovethink()
+{
+    G_FLOAT(OFS_RETURN) =
+        static_cast<float>(predict::botThink(PROG_TO_EDICT(pr_global_struct->self), G_VECTOR(OFS_PARM0)));
+}
+
+// vector botmovewalk(): bot self's walk this frame (botmovethink's move: gravity, the walk or swim, the steps), linked
+// with its touches -> how far short of its stick's want a wall held it (level; '0 0 0': not held), for frik_obstructed.
+void PF_botmovewalk()
+{
+    predict::botWalk(PROG_TO_EDICT(pr_global_struct->self), G_VECTOR(OFS_RETURN));
+}
+
 // embedsay(text): a line on Embedded Blades' debug panel.
 void PF_embedsay()
 {

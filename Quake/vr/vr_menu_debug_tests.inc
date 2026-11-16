@@ -685,8 +685,12 @@ za::Vector<Item> pageDebugTests()
         command("Deathmatch Rules: Weapons and Bots", "developer 1; vr_dm_test 1")
             .help("vr_dm_test 1, in a deathmatch with a bot (impulse 100): a weapon pickup the bot touches is gone and back "
                   "after its wait (deathmatch 1) or stays (deathmatch 2), the bot's let-go weapon removed; your shot "
-                  "across the bot's weapon knocks it out (PvP), a monster's only with Enemies Can Disarm You, the bot's "
+                  "across the bot's weapon knocks it out (PvP), a monster's only with You Can Be Disarmed, the bot's "
                   "across yours knocks yours out."),
+        command("Deathmatch: Parry a Bot's Swing", "developer 1; vr_dm_test 3")
+            .help("vr_dm_test 3, in a deathmatch with a bot (impulse 100): the bot is held in front of you with a sword and "
+                  "swings it, its hand across its front; hold your crowbar (given) upright on your left, across its way: "
+                  "parried, no damage. vr_dm_test 2: the same with your crowbar at your side: the blow lands."),
         command("Player Disarm: Melee on Your Gun", "developer 1; vr_pd_test 2")
             .help("vr_pd_test 2 (God mode off): a grunt with a gun and an axe, then one with an axe alone, swing at you "
                   "holding the shotgun out, 4 blows each: every blow held back for your weapon near its way ends, the "

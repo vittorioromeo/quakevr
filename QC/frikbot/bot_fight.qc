@@ -380,6 +380,16 @@ void(float brange) bot_weapon_switch =
     W_SetCurrentAmmo();
 };
 
+// Its melee swing's shape (bot_setvrfields): wound up from the swing's start, across from FROM to TO (s), back at rest
+// at END; the arc's degrees, its hand's reach from the body's middle, its height over the origin and its drop across.
+float BOT_SWING_FROM = 0.1;
+float BOT_SWING_TO = 0.3;
+float BOT_SWING_END = 0.45;
+float BOT_SWING_ARC = 160;
+float BOT_SWING_REACH = 18;
+float BOT_SWING_Z = 12;
+float BOT_SWING_DROP = 8;
+
 void() bot_setvrfields =
 {
     if(self.ishuman)
@@ -401,6 +411,23 @@ void() bot_setvrfields =
 
     self.muzzlepos = self.handpos + (v_forward * 24);
     self.offmuzzlepos = self.offhandpos + (v_forward * 24);
+
+    // Its melee swing (MP B11 part 3, part 3; W_Fire_Melee's button swing, player_axe*: its blow at the third frame,
+    // 0.2 s in): the main hand raised on its right, then swung level across its front to its left, the weapon pointing
+    // out along the arc, straight ahead at the blow -- as a player swings his. The clients draw it so (its controllers),
+    // and its weapon's line each frame (VR_Parry_GuardFrame) is what a player's directional parry reads its blow by.
+    float st = time - self.vr_botswing;
+    if(self.vr_botswing > 0 && st >= 0 && st < BOT_SWING_END)
+    {
+        float k = min(1, max(0, (st - BOT_SWING_FROM) / (BOT_SWING_TO - BOT_SWING_FROM)));
+        float ang = BOT_SWING_ARC * (0.5 - k) * 0.0174533; // (radians: its right, ahead at the blow, its left)
+        makevectors(self.v_angle_y * '0 1 0');
+        vector out = (v_forward * cos(ang)) + (v_right * sin(ang));
+        self.handpos = self.origin + '0 0 1' * (BOT_SWING_Z + BOT_SWING_DROP * (0.5 - k)) + (out * BOT_SWING_REACH);
+        self.handrot = vectoangles(out);
+        self.muzzlepos = self.handpos + (out * 24);
+        makevectors(self.v_angle);
+    }
     v_right = wasR;
     v_up = wasU;
 

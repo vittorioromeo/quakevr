@@ -79,6 +79,8 @@ struct ServerSlot
     float credit{creditMost};
     bool plain{false};  // this frame's walk runs move by move (VR_PredictThink)
     bool walked{false}; // ... and it did (VR_PredictPhysics: no hanging, climbing or teleport took the frame)
+    float botMove[3]{0.f, 0.f, 0.f}; // a bot's stick this frame (botThink: QC's .movevect)
+    pmove::MoveNotes notes;          // the walls and floors this frame's moves met (VR_PredictPhysics: a bot's obstruction)
     pmove::Rules rules;
     vec3_t groundNormal{0.f, 0.f, 1.f};
     float groundAge{1e6f};
@@ -143,10 +145,37 @@ void grappleStore(edict_t* hook, const pmove::Grapple& g)
 {
     return vr_pmove_own.value != 0.f && slot >= 0 && slot == clientprefs::ownSlot();
 }
-// A client whose walk runs move by move: a remote one, or this game's own (vr_pmove_own).
+// A bot walked through the moves (vr_pmove_bots, B11 part 3 part 3): FrikBot's, its slot's entity a player with no
+// client; one move a frame, its stick's (botThink).
+[[nodiscard]] bool botMoves(int slot)
+{
+    return vr_pmove_bots.value != 0.f && slot >= 0 && slot < svs.maxclients && !svs.clients[slot].active;
+}
+// A client whose walk runs move by move: a remote one, this game's own (vr_pmove_own), or a bot (vr_pmove_bots).
 [[nodiscard]] bool movesOneByOne(int slot)
 {
-    return remoteMoves(slot) || ownMoves(slot);
+    return remoteMoves(slot) || ownMoves(slot) || botMoves(slot);
+}
+
+// A bot's move this frame (botMoves): its stick (QC's .movevect, FrikBot's key emulation in clc_move's units), its aim
+// steering it (the head's and the view's: a bot's are one), its jump key; no hands holding anything (a bot climbs nothing).
+[[nodiscard]] pmove::Input botInput(const edict_t* ent, const float* move)
+{
+    pmove::Input in;
+    in.dt = host_frametime;
+    in.forward = move[0];
+    in.side = move[1];
+    in.up = move[2];
+    for(int i = 0; i < 3; i++)
+    {
+        in.steer[i] = ent->v.v_angle[i];
+        in.view[i] = ent->v.v_angle[i];
+    }
+    in.jump = ent->v.button2 != 0.f;
+    in.grabs = 0;
+    in.headZ = ent->v.view_ofs[2];
+    in.head[2] = ent->v.view_ofs[2];
+    return in;
 }
 
 // The own player's move this frame (ownMoves): his clc_move (host_client->cmd, read this frame) and his VR block (the
@@ -1356,21 +1385,30 @@ void grappleFrame(edict_t* ent, edict_t* hook, int hand, const float* at, float 
 using namespace qvr;
 using namespace qvr::predict;
 
+namespace qvr::predict
+{
+// A frame's start for the slot's walk (a client's message read, a bot's frame).
+void beginFrame(int slot, edict_t* ent)
+{
+    serverSlots[slot].n = 0; // (moves a frame not walked one by one dropped: it ran the newest, as NetQuake)
+    serverSlots[slot].walked = false;
+    serverSlots[slot].plain = false; // (VR_PredictThink says again: a dead or paused frame does not think)
+    if(ent)
+    {
+        progs::setFieldFloat(ent, progs::fields().vr_movejump, 0.f); // (QuakeC's jump until it does)
+        progs::setFieldFloat(ent, progs::fields().vr_moveswim, 0.f);
+        progs::setFieldFloat(ent, progs::fields().vr_movewaterjump, 0.f);
+        progs::setFieldFloat(ent, progs::fields().vr_movewaterclimb, 0.f);
+    }
+}
+} // namespace qvr::predict
+
 extern "C" void VR_PredictBeginRead(client_t* client)
 {
     const int slot = static_cast<int>(client - svs.clients);
     if(slot >= 0 && slot < MAX_SCOREBOARD)
     {
-        serverSlots[slot].n = 0; // (moves a frame not walked one by one dropped: it ran the newest, as NetQuake)
-        serverSlots[slot].walked = false;
-        serverSlots[slot].plain = false; // (VR_PredictThink says again: a dead or paused frame does not think)
-        if(client->edict)
-        {
-            progs::setFieldFloat(client->edict, progs::fields().vr_movejump, 0.f); // (QuakeC's jump until it does)
-            progs::setFieldFloat(client->edict, progs::fields().vr_moveswim, 0.f);
-            progs::setFieldFloat(client->edict, progs::fields().vr_movewaterjump, 0.f);
-            progs::setFieldFloat(client->edict, progs::fields().vr_movewaterclimb, 0.f);
-        }
+        beginFrame(slot, client->edict);
     }
 }
 
@@ -1392,6 +1430,11 @@ extern "C" int VR_PredictThink(edict_t* ent)
         {
             s->n = 0; // (his one move: this frame's clc_move, for the frame's time)
             s->queue[s->n++] = ownInput(ent);
+        }
+        else if(botMoves(slot))
+        {
+            s->n = 0; // (its one move: its stick this frame, botThink's)
+            s->queue[s->n++] = botInput(ent, s->botMove);
         }
     }
     // (PlayerPreThink leaves his jump to his moves: lying down or AD's boots, QuakeC's; the field clears for the boots)
@@ -1508,6 +1551,7 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
     s->credit = q_min(s->credit + static_cast<float>(host_frametime) * creditRate, creditMost);
     const int slot = static_cast<int>(s - serverSlots);
     pmove::Input newest;
+    s->notes = pmove::MoveNotes{};
     for(int k = 0; k < s->n && !b.removed; k++)
     {
         pmove::Input in = s->queue[k];
@@ -1520,7 +1564,7 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
         s->credit -= in.dt;
         b.jumpedNow = false;
         b.climbedNow = false;
-        pmove::playerMove(b, in, r);
+        pmove::playerMove(b, in, r, &s->notes);
         if(b.climbedNow && vr_mp_watch.value != 0.f)
         {
             Con_Printf("mp_predict_wclimb: slot=%d s=%u z=%.2f vz=%.1f\n", slot,
@@ -1613,6 +1657,66 @@ extern "C" void VR_PredictPhysics(edict_t* ent)
         VR_PortalClientCross(ent); // (VR_ClientRoomscaleMove's, after the move: the room-scale walk ran in the moves)
     }
 }
+
+namespace qvr::predict
+{
+
+int botThink(edict_t* ent, const float* move)
+{
+    ServerSlot* s = slotOfEdict(ent);
+    if(!s || ent->free)
+    {
+        return 0;
+    }
+    const int slot = static_cast<int>(s - serverSlots);
+    beginFrame(slot, ent);
+    for(int i = 0; i < 3; i++)
+    {
+        s->botMove[i] = move[i];
+    }
+    return VR_PredictThink(ent);
+}
+
+void botWalk(edict_t* ent, float* obstructed)
+{
+    obstructed[0] = obstructed[1] = obstructed[2] = 0.f;
+    ServerSlot* s = slotOfEdict(ent);
+    if(!s || !s->plain || ent->free)
+    {
+        return;
+    }
+    const pmove::Input in = s->n > 0 ? s->queue[s->n - 1] : pmove::Input{};
+    const glm::vec3 from{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
+    const float speedBefore = sqrtf(ent->v.velocity[0] * ent->v.velocity[0] + ent->v.velocity[1] * ent->v.velocity[1]);
+    VR_PredictPhysics(ent);
+    if(ent->free)
+    {
+        return;
+    }
+    SV_LinkEdict(ent, true); // (SV_Physics_Client's: the triggers it stands in touched)
+    // Held by a wall: how far short of its stick's want (SV_AirMove's wish on its yaw, at most the rules' speed, reached
+    // as SV_Accelerate reaches it from its speed before) the frame's walk took it, as FrikBot's PostPhysics measured its own.
+    if(!s->notes.wall || s->notes.swim || (in.forward == 0.f && in.side == 0.f))
+    {
+        return;
+    }
+    const float yaw = DEG2RAD(in.steer[YAW]);
+    const glm::vec2 fwd{cosf(yaw), sinf(yaw)}, right{sinf(yaw), -cosf(yaw)};
+    glm::vec2 wish = fwd * in.forward + right * in.side;
+    const float wishSpeed = glm::length(wish);
+    if(wishSpeed < 1e-3f)
+    {
+        return;
+    }
+    const pmove::Rules& r = s->rules;
+    const float want = q_min(q_min(wishSpeed * r.stickScale, r.maxspeed),
+        speedBefore + r.accelerate * q_min(wishSpeed, r.maxspeed) * static_cast<float>(in.dt));
+    wish *= want * static_cast<float>(in.dt) / wishSpeed;
+    obstructed[0] = wish.x - (ent->v.origin[0] - from.x);
+    obstructed[1] = wish.y - (ent->v.origin[1] - from.y);
+}
+
+} // namespace qvr::predict
 
 extern "C" void VR_WritePredict(sizebuf_t* msg, client_t* client)
 {

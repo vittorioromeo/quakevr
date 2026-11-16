@@ -1510,6 +1510,7 @@ float cvarh_vr_player_disarm_slip;
 float cvarh_vr_player_disarm_sound;
 float cvarh_vr_player_plates;
 float cvarh_vr_player_plates_morph_time;
+float cvarh_vr_pmove_bots;
 float cvarh_vr_poise_chances;
 float cvarh_vr_portals_ai_test;
 float cvarh_vr_positional_damage;
@@ -3618,6 +3619,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_player_disarm_sound = VR_CVar_Make("vr_player_disarm_sound");
     cvarh_vr_player_plates = VR_CVar_Make("vr_player_plates");
     cvarh_vr_player_plates_morph_time = VR_CVar_Make("vr_player_plates_morph_time");
+    cvarh_vr_pmove_bots = VR_CVar_Make("vr_pmove_bots");
     cvarh_vr_poise_chances = VR_CVar_Make("vr_poise_chances");
     cvarh_vr_portals_ai_test = VR_CVar_Make("vr_portals_ai_test");
     cvarh_vr_positional_damage = VR_CVar_Make("vr_positional_damage");

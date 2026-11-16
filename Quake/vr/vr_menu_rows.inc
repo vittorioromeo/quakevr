@@ -1379,12 +1379,12 @@ QVR_SLIDER(vr_agrunt_shotdisarm_proj_near, "Projectile: Near Miss", 0.f, 12.f, 0
     "(vr_agrunt_shotdisarm_proj_near).")
 QVR_SLIDER(vr_agrunt_shotdisarm_proj_max, "Projectile: Most Chance", 0.f, 1.f, 0.05f, "%.2f", ext(0.f, 1.f),
     "One projectile's chance at most: a rocket's direct hit (vr_agrunt_shotdisarm_proj_max).")
-QVR_TOGGLE(vr_player_disarm, "Enemies Can Disarm You",
+QVR_TOGGLE(vr_player_disarm, "You Can Be Disarmed",
     "PvE: enemies' shots and blows on the weapon you hold, or the hand holding it, can knock it out of your hand by "
     "the same rules as yours on an armed grunt's: shots add up and roll, a projectile rolls once, a blow landing on "
     "your weapon (not a parry) knocks it out. It drops where you can pick it up again, its ammo kept. Fists and empty "
-    "hands never. Off by default while it is polished (vr_player_disarm).")
-QVR_TOGGLE(vr_player_disarm_pvp, "Players Can Disarm Each Other",
+    "hands never. Off by default: still being tuned (vr_player_disarm).")
+QVR_TOGGLE(vr_player_disarm_pvp, "You Can Be Disarmed by Players",
     "PvP, multiplayer: other players' (and bots') shots and blows on your weapon knock it out by the same rules, and "
     "their grab (below) can take it (vr_player_disarm_pvp).")
 QVR_SLIDER(vr_player_disarm_sound, "Your Disarm Sound", 0.f, 1.f, 0.05f, "%.2f", ext(),
@@ -1394,7 +1394,7 @@ QVR_SLIDER(vr_player_disarm_chance, "Your Disarm Chance", 0.f, 2.f, 0.05f, "%.2f
     "Times the armed grunts' chance when it is your weapon that is hit (1: the same exact rules; at most certain; "
     "0: never) (vr_player_disarm_chance).")
 QVR_TOGGLE(vr_player_disarm_grab, "Players: Grab and Pull Disarms",
-    "Multiplayer, with Players Can Disarm Each Other: an empty hand closed on another player's weapon where it is drawn (no "
+    "Multiplayer, with You Can Be Disarmed by Players: an empty hand closed on another player's weapon where it is drawn (no "
     "faster than Grab: Fastest Hand) and pulled away from him hard enough takes it into your hand. No tug "
     "(vr_player_disarm_grab).")
 QVR_SLIDER(vr_player_disarm_pull, "Players: Disarm Pull", 0.3f, 5.f, 0.1f, "%.1f m/s", ext(0.1f, 20.f),
