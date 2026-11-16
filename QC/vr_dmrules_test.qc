@@ -34,6 +34,7 @@ entity vr_dmt_item;   // the weapon pickup
 entity vr_dmt_drop;   // the weapon the bot's hand let go of for it
 entity vr_dmt_foe;    // a stand-in non-player shooter (PvE)
 vector vr_dmt_spot;   // where the bot is held in front of the human (the grab)
+float vr_dmt_held;    // frames the parry's hold has run in all (its restarts as he moves bounded by VR_DMT_GIVEUP)
 float VR_DMT_GIVEUP = 216; // frames a waiting state may last (3 s at 72 Hz)
 float VR_DMT_HOLD = 72;    // frames the bot is held there first: the lag compensation's past places of it there too
 
@@ -407,6 +408,16 @@ void() VR_DMT_HoldBot =
     bot.fixangle = TRUE;
     bot.attack_finished = time + 1; // (its own attacks held off: the test's swing only)
     bot.button0 = 0;
+    // (B14d: the other bots' too -- a shot knocking his crowbar out of his hand or him off his place made the blow's
+    // outcome a matter of their fight)
+    for(entity p = VR_Player(); p; p = VR_NextPlayer(p))
+    {
+        if(p != bot && !p.ishuman && (p.flags & FL_CLIENT))
+        {
+            p.attack_finished = time + 1;
+            p.button0 = 0;
+        }
+    }
     if(VRGetEntWeapon(bot, cVR_MainHand) != WID_SWORD)
     {
         VR_WeaponUtil_EntAddWeapon(bot, WID_SWORD);
@@ -475,6 +486,7 @@ void(float ask) VR_DMT_Parry =
         vr_dmt_bot.takedamage = DAMAGE_NO;
         makevectors(vr_dmt_human.angles_y * '0 1 0');
         vr_dmt_spot = vr_dmt_human.origin + v_forward * 40;
+        vr_dmt_held = 0;
         VR_DMT_To(21, 0);
     }
     if(vr_dmt_s < 0)
@@ -485,6 +497,16 @@ void(float ask) VR_DMT_Parry =
     if(vr_dmt_s == 21) // the bot held in front of him with its sword, his crowbar drawn in his hand's pose
     {
         vr_dmt_human.health = max(vr_dmt_human.health, 999);
+        // (B14d: the spot follows him -- his pose's change can move his body a little after the spot was taken, a blow
+        // from the old spot then reaching nothing -- and the hold starts again until he has stood still through it)
+        makevectors(vr_dmt_human.angles_y * '0 1 0');
+        vector spot = vr_dmt_human.origin + v_forward * 40;
+        if(vlen(spot - vr_dmt_spot) > 1 && vr_dmt_held < VR_DMT_GIVEUP)
+        {
+            vr_dmt_n = 0;
+        }
+        vr_dmt_spot = spot;
+        vr_dmt_held++;
         VR_DMT_HoldBot();
         VR_DMT_ArmCrowbar(vr_dmt_human);
         if(vr_dmt_n < VR_DMT_HOLD || VRGetEntWeapon(vr_dmt_human, cVR_MainHand) != WID_CROWBAR)
