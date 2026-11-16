@@ -558,6 +558,7 @@ void resetBodyEquipment()
         row(opt::vr_upscale),
         row(opt::vr_upscale_sharpness),
         row(opt::vr_foveated),
+        row(opt::vr_foveated_gaze).advanced(),
     };
 }
 

@@ -3323,6 +3323,25 @@ His flat-screen notes (2026-11-16) and the coordinator's disarm-sound item.
 - Checked in Resolve Studio 21.1 (project "QVR Titles Preview"): two titles rendered at 1080p60, top-right and
   bottom-left; a rerun reports "updated" for both, no duplicates. Not checked: 4K, IM Fell English.
 
+## vr1116c: the alternate-ammo models get the ammo screen housing (agent/vr1116c, 2026-11-16)
+
+His notes (vrfiringrange_2026-11-16_00-26..00-29): the plasma Thunderbolt (`v_light_plasma.mdl`), the lava nailgun
+(`v_lava.mdl`) and the lava super nailgun (`v_lava2.mdl`) still had the old geometry, no enclosure, and the old screen.
+- **Models:** the default models' housing scripts now also run on the alternate .blends: each picks its gun from the
+  mesh's name (`GUNS` in `make_screen_housing_light.py`, `_nail.py`, `_nail2.py`: stem, slot, and for the lava models
+  their own skin's texel places, found by colour, least RMS, since their panels sit elsewhere on the skin; v_lava2 its
+  own ridge/glass reference as its mesh differs within a grid step). Same plate/bezel/wedge, rivets and fasteners.
+  Normal maps re-baked, `fx_gfx_mask` rewritten (slots 11, 12, 15).
+- **Screens:** `vr_screenstyle.cpp` entries `lava`, `lava2`, `light_plasma` with their base's numbers (opening, radius,
+  taper, size, look) and offsets measured on each model. weapons.txt slot 12 (v_lava2) takes slot 4's glass place and
+  tilt (wpntxt_pitch 70.5, x -3.4, z 4.13); slots 11 and 15 already matched 3 and 7; fonts inherit (`inherit`).
+  `vr_wofs_version` 78: `takeLavaSngHousing78` resets a config still holding slot 12's old upright glass. His config has
+  no wpntxt tweaks for these slots.
+- Checked: check_mdl_holes ok on all three (0 see-through, 0 flipped in sight, cracks none wider than 0.01; same as their
+  bases); load_models_test 4/0; scenario_check 144/0 (new scenes `nail_alt_housing`, `nail2_alt_housing`,
+  `light_alt_housing`: the gun, B switches the model). Flat shots default vs alternate, hand view and screen close-up:
+  kit `scratch/vr1116c_shots/`. Dev and ReleaseLTO (1.1.0) builds 0 warnings.
+- Backlog: one model per gun with attachments/parts/skins instead of per-ammo models (his words, BACKLOG.md section 8).
 ## Player disarm off; the dagger's own settling; clean recording; his tuning promoted (branch agent/vr1116d, 2026-11-16)
 
 - **Player disarm off by default for 1.1** (his note vrragtriggers 00:33): `vr_player_disarm` 0 (the feature, its
@@ -3448,6 +3467,44 @@ normal +y, no gate there), crossing that plane hid his hands and showed him hims
   preview re-rendered (contact sheet, closeups); shadows measured against the trailertitles2 render (subtitle box 2.9%
   of pixels darker by >3 levels, 0.1% lighter).
 
+## Quest Pro: hissy sound (a 1.1.0-rc.1 regression for everyone); eye-tracked foveation (agent/questpro, 2026-11-16)
+
+- **Sound: the cause.** nohunk (6a634cdf0, 2026-11-13: the hunk and cache became the heap) stopped setting
+  `host_parms->memsize`; `parms` is static, so it read 0, and S_Init's old "less than 8 MB of heap" rule set
+  `loadas8bit 1` on every start: every sound loaded as 8-bit and the SDL device opened as 8-bit unsigned (snd_sdl.c),
+  a -37 dB quantization hiss and crackle under every sound, flat and VR, every device. His logs (all five kept, 11-15
+  and 11-16) print "loading all sounds as 8bit". In 1.1.0-rc.1, not in beta4 (nohunk came after it); the player's
+  GitHub issue #83 (flat, Realtek + a Logitech USB headset) is the same bug. Not specific to Virtual Desktop.
+- **The fix (on, a bug fix):** the rule removed (snd_dma.c), `membase`/`memsize` removed from `quakeparms_t` so nothing
+  reads them again. `loadas8bit` is still there for anyone who asks for it.
+- **The log** now names the system's default output device and its own rate/channels (SDL_GetDefaultAudioInfo):
+  "SDL audio device: 48000 Hz, 2 channels (the mix's 44100 Hz 16-bit converted by SDL)". It used to name device 0.
+- **Test:** `vr_snd_outtest` (vr_audiotest_out.cpp, through snd_mix.c's S_TransferTest: the real output stage into a
+  test buffer): a -6 dBFS 1 kHz sine at 44.1 and 48 kHz: 16-bit THD+N -86 dB (its truncation, under one step), 8-bit
+  -37 dB (the regression's), plus the live device's format (16-bit) and loadas8bit 0. 6 passed, 0 failed (run with
+  `-Sound`: live 16-bit stereo 44100 Hz on a 48 kHz default device).
+- **If anything still sounds off on the Quest Pro:** start with `-mixspeed 48000` (mix at Virtual Desktop's device rate:
+  no SDL resampling); `_snd_mixahead 0.15` if it crackles under load (underruns). Neither changed by default.
+
+- **Foveation: what his runtime offers.** VDXR 1.1.0 (his qvr_openxr.txt, 34 extensions): XR_EXT_eye_gaze_interaction
+  and XR_FB_eye_tracking_social; no runtime foveation (no XR_FB_foveation, XR_META_foveation_eye_tracked or
+  XR_VARJO_foveated_rendering; those are for Vulkan/D3D swapchains anyway, the game is OpenGL). His GPU has
+  GL_NV_shading_rate_image (vr_foveated, 16x16 tiles), so the eye tracking drives our own foveation.
+- **Built: `vr_foveated_gaze`** (0, archived; VR Settings > Graphics, advanced: "Eye-Tracked Foveation"; needs a VR
+  restart). On, the OpenXR backend enables XR_EXT_eye_gaze_interaction (only then: some runtimes start the tracker or
+  ask permission), checks the system's supportsEyeGazeInteraction, binds an "eye_gaze" pose action to
+  /interaction_profiles/ext/eye_gaze_interaction, and locates it each frame (valid only while ORIENTATION_TRACKED: a
+  blink falls back to the lens centre). FrameState::gaze carries it; vr_foveated.cpp moves the full-rate centre to
+  where the gaze meets each eye's image, snapped to a tile (the rate image is remade only when it moves a tile, ~30k
+  tiles of CPU then), the rates from the angle between the tile's direction and the gaze's. Off or untracked: the
+  rates as before, bit for bit (the lens-centre path is unchanged). The log line "OpenXR: eye tracking
+  (XR_EXT_eye_gaze_interaction): ..." says on / offered not used / no tracker / not offered.
+- **Test:** `vr_foveated_gaze_test` (rates around a gaze 30 degrees right: full there, 2x2 in the middle, 4x4
+  opposite; the mock's gaze, `vr_mock_gaze "right up"` degrees, followed within a tile): 9 passed, 0 failed.
+- **For him:** Virtual Desktop must forward eye tracking to the PC (its Streamer setting; the headset's eye tracking on
+  and calibrated). Then `vr_foveated_gaze 1`, restart VR, check the log line, and `vr_foveated_debug 1` shows the
+  yellow/red rates following the eyes. With gaze on, Aggressive (or `vr_foveated_inner 15`, `_outer 30`) should still
+  look sharp where he looks.
 ## trailerintro: full-screen intro title (agent/trailerintro, 2026-11-16)
 
 - `Misc/trailer/titles/QVR Intro Title.setting` (generated by `make_intro_title.py`, 85 tools): centred, full frame.

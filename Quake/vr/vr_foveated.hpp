@@ -38,4 +38,8 @@ void shadeBoundAsScene(bool on);
 // (width x height), the scene having been sceneWidth x sceneHeight.
 void drawDebug(int eye, GLuint fbo, int width, int height, int sceneWidth, int sceneHeight);
 
+// vr_foveated_gaze_test: the rates around a gaze off the lens centre, and the mock's gaze (vr_mock_gaze) followed
+// (vr_foveated_gaze); "vr_foveated_gaze_test: N passed, M failed".
+void gazeTest_f();
+
 } // namespace qvr::foveated

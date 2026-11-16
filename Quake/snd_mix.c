@@ -156,6 +156,36 @@ static void S_TransferPaintBuffer (int endtime)
 
 /*
 ==============
+S_TransferTest
+
+QVR: the output stage on its own (vr_snd_outtest, vr/vr_audiotest_out.cpp): n stereo frames of paint (the paint
+buffer's scale: a 16-bit sample times 256) through S_TransferPaintBuffer into fmt's buffer, as the mix writes them to
+the device in fmt's format and channels (fmt->samples a power of two, at least n * channels). The pool's mix is
+joined first and the device's callback locked out while shm is fmt; the live buffer and the mix's time untouched.
+==============
+*/
+void S_TransferTest (dma_t *fmt, const portable_samplepair_t *paint, int n)
+{
+	volatile dma_t	*live = shm;
+	int		livetime = paintedtime;
+
+	S_MixJoin ();
+	if (n > PAINTBUFFER_SIZE)
+		n = PAINTBUFFER_SIZE;
+	memcpy (paintbuffer, paint, n * sizeof (*paint));
+	if (live)
+		SNDDMA_LockBuffer ();
+	shm = fmt;
+	paintedtime = 0;
+	S_TransferPaintBuffer (n);
+	shm = live;
+	paintedtime = livetime;
+	if (live)
+		SNDDMA_Submit ();
+}
+
+/*
+==============
 S_MakeBlackmanWindowKernel
 
 Makes a lowpass filter kernel, from equation 16-4 in
