@@ -46,6 +46,8 @@
 #include "vr_weaponstudio.hpp" // (its window pausing his own walking: VR_AdjustMove below)
 #include "vr_flycam.hpp"       // (the flatscreen fly camera has his move keys too: VR_AdjustMove below)
 #include "vr_geom.hpp"
+#include "vr_slide.hpp"
+#include "vr_flatplay.hpp"
 
 #include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Base/Swap.hpp"
@@ -586,7 +588,9 @@ void updateComfort()
     ComfortMotion& c = comfortMotion;
     const int mode = static_cast<int>(vr_comfort_vignette.value);
     const float dt = static_cast<float>(CLAMP(0.0, host_frametime, 0.1));
-    const float moving = mode == 1 || mode == 2 ? za::min(1.f, za::max(glm::length(moveAxes), shoveSlide())) : 0.f;
+    // (A slide, vr_slide, moves you whatever the stick does: as a stick's full push.)
+    const float slid = slide::headsetSliding() ? 1.f : 0.f;
+    const float moving = mode == 1 || mode == 2 ? za::min(1.f, za::max(za::max(glm::length(moveAxes), shoveSlide()), slid)) : 0.f;
     const float turning = mode == 1 || mode == 3 ? za::max(c.turn, c.snapPulse > 0.f ? 1.f : 0.f) : 0.f;
     const float target = key_dest == key_game ? za::max(moving, turning) : 0.f;
     const float tau = target > c.amount ? 0.08f : 0.25f;
@@ -1823,7 +1827,9 @@ void routeSticks(const InputState& in, const HandInput& off, const HandInput& ma
     if(!teleStick.ran)
     {
         teleportStickOff();
+        (void)slide::stickGesture(main.stick, false); // (a menu or a tool has the sticks: no slide gesture held)
     }
+    slide::frame(); // (vr_slide_test)
 }
 
 void routeSticksTo(const InputState& in, const HandInput& off, const HandInput& main, bool active)
@@ -1933,8 +1939,13 @@ void routeSticksTo(const InputState& in, const HandInput& off, const HandInput& 
     {
         // (Smooth + Teleport: the turning stick aiming is no +moveup or +movedown, no turn and no walk.)
         const bool aims = teleportStick(main.stick, 1 - hands::moveHand());
+        // (vr_slide: the turning stick pulled straight down slides, and is then no +movedown and no turn: only on foot out of
+        // the water, where +movedown does nothing -- swimming or flying it is +movedown as ever.)
+        const edict_t* p = progs::localPlayer();
+        const bool onFoot = !p || (static_cast<int>(p->v.movetype) == MOVETYPE_WALK && p->v.waterlevel < 2.f);
+        const bool slides = slide::stickGesture(main.stick, !aims && vr_slide.value != 0.f && onFoot && !flatplay::active());
         stickKey(stickKeys[0], aims ? 0.f : main.stick.y, false);
-        stickKey(stickKeys[1], aims ? 0.f : -main.stick.y, false);
+        stickKey(stickKeys[1], aims || slides ? 0.f : -main.stick.y, false);
         stickKey(stickKeys[2], 0.f, false);
         stickKey(stickKeys[3], 0.f, false);
         // (vr_stick_curve_test drives the moving stick while it runs.)
@@ -1943,7 +1954,7 @@ void routeSticksTo(const InputState& in, const HandInput& off, const HandInput& 
                        ? glm::vec2{deadzone(moving.x), deadzone(moving.y)}
                        : moveHold(moveStick(moving), CLAMP(0.f, static_cast<float>(host_frametime), 0.1f));
         stickDebug(off.stick);
-        if(active && !aims)
+        if(active && !aims && !slides)
         {
             turn(main.stick.x);
         }

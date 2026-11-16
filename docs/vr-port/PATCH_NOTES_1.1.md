@@ -253,6 +253,8 @@ old default move to the new one, and values you changed stay yours.
 - Pickups: bigger zones for ammo, health and backpacks, a cue when you are full, optional auto-collect into the palm,
   and soft light pillars over weapons and magazines lying about.
 - Smooth + Teleport: walk with one stick and teleport with the other.
+- Sliding in VR (experimental, off by default): while running, pull the turning stick straight down to slide, the
+  same slide as on the desktop screen (VR Settings > Locomotion > Sliding).
 - Your hand gives when you press on a braced prop, and hands rest on props instead of sinking in.
 - Player Appearance: gloves (fingerless or full, any colour, worn leather, or in Quake's art style), skin tone, a
   feminine body build, hand shape and voice, painted nails, Ghost Hands, and a Randomize button.

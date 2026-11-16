@@ -319,7 +319,8 @@ and 230 units); down a slope it gains `vr_flat_slide_slope` (900) times the slop
 (130) it ends in the crouch it is; letting go of the crouch ends it standing; a jump in it keeps the speed (Quake's
 air move), and a ledge it runs off goes on sliding when he lands. The move keys turn it `vr_flat_slide_steer` (40)
 degrees a second. After one, `vr_flat_slide_cooldown` (0.5 s) before the next. The server runs it
-(`VR_FlatSlideMove`, from `SV_AirMove`, `Quake/sv_user.c`), from the move's crouch bit (`hull::flatCrouchHeld`); his
+(`VR_SlideMove`, from `SV_AirMove`, `Quake/sv_user.c`; the shared slide, `Quake/vr/vr_slide.cpp`, a headset's too with
+`vr_slide`: ROUND25.md "Sliding in VR"), from the move's crouch bit (`hull::flatCrouchHeld`); his
 box is the crouched one the key gives. On the ground means Quake's flag or the floor within 4 units and not going up:
 fast over the floor the flag is off every other move. The client reads the local server's slide: his eyes go
 `vr_flat_slide_drop` (6) further down than the crouch (`flatplay::crouchDrop`), and the body's pitch

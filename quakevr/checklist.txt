@@ -17,6 +17,7 @@ Trailer titles: intro holds ~3 s with all lines; feature subtitle comes ~1 s aft
 Flat-screen: walk forward into the tutorial's rung ladder (lesson 3): your hands take the rungs and you climb hand over hand at a steady pace, and climb over the top onto the platform. {test:flat_ladder}
 Flat-screen: on the tutorial ladder's top, back off the edge facing away from the drop: you are lowered onto the rungs; hold back (or forward while looking down) to climb down to the floor, and jump on the ladder to push off it. {test:flat_ladder}
 Flat-screen: walking into plain walls, single ledges and stairs never starts a ladder climb, and the jump mantle still works as before. {test:flat_ladder}
+Sliding (VR, experimental; VR Settings > Locomotion): while running, pull the turning stick firmly straight down: you slide as on the desktop screen (faster at first, slowing to a stop; let go to stop, jump to keep the speed), with the slide's scrape and your drawn legs out in front. Check snap and smooth turns never slide, and that the pull feels neither too stiff nor too loose (Slide Stick Pull and Angle). {test:vr_slide}
 
 [1. Flat-screen: weapons and hands]
 
