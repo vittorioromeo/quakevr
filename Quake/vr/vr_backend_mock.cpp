@@ -1936,6 +1936,19 @@ public:
             frame.eyes[eye].pose.position.x += eye == 0 ? -halfIpd : halfIpd;
             frame.eyes[eye].fov = Fov{};
         }
+        // vr_mock_gaze "right up" (degrees from the head's forward): a tracked gaze (vr_foveated_gaze).
+        frame.gaze = Pose{};
+        if(vr_mock_gaze.string[0])
+        {
+            char* end = nullptr;
+            const float right = strtof(vr_mock_gaze.string, &end);
+            const float up = end ? strtof(end, nullptr) : 0.f;
+            frame.gaze = tracking.head;
+            frame.gaze.orientation = tracking.head.orientation *
+                                     glm::angleAxis(glm::radians(-right), glm::vec3{0.f, 1.f, 0.f}) *
+                                     glm::angleAxis(glm::radians(up), glm::vec3{1.f, 0.f, 0.f});
+            frame.gaze.valid = true;
+        }
 
         return true;
     }

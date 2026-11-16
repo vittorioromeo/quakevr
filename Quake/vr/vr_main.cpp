@@ -161,6 +161,7 @@
 #include "vr_selfcollide.hpp"
 #include "vr_gpustats.hpp"
 #include "vr_vram.hpp"
+#include "vr_foveated.hpp"
 #include "vr_jobs.hpp"
 #include "vr_gfx.hpp"
 #include "vr_monsterdata.hpp"
@@ -2346,6 +2347,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_memstats", VR_MemStats_f);
     Cmd_AddCommand("vr_prepare_models", prepare::precacheModels_f); // (Setup's preparation run, vr_prepare.cpp)
     Cmd_AddCommand("vr_vram_report", vram::report_f);
+    Cmd_AddCommand("vr_foveated_gaze_test", foveated::gazeTest_f); // (vr_foveated.cpp: eye-tracked foveation)
     allocsites::registerCommands(); // vr_alloc_sites
     Cmd_AddCommand("vr_crash_test", VR_CrashTest_f);
     lighting::init();
