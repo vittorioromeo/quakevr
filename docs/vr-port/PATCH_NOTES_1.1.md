@@ -375,6 +375,8 @@ old default move to the new one, and values you changed stay yours.
   parallax surface level for props on carved floors.
 - Temporal anti-aliasing (experimental), fractional sample shading and specular antialiasing.
 - Single-pass stereo (experimental).
+- Eye-tracked foveation (experimental, off by default): on headsets whose runtime offers eye gaze (e.g. Quest Pro via
+  Virtual Desktop) on NVIDIA GPUs, full detail follows where you look (Graphics > Eye-Tracked Foveation).
 - Comfort > Soften Flickering Lights smooths animated lights (off by default).
 - The spectator camera is skipped while the desktop window is minimised.
 
