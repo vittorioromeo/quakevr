@@ -3589,6 +3589,32 @@ His note: the titles look great, previewing them in DaVinci takes forever.
   `--bake`'s render (the retest of the reuse path); not reopened (GUI), so the reuse path and `--unbake` are unchecked.
   A bake of both titles took 271 s of wall time (the renders alone should take about 80 s: not explained).
 
+## Flat-screen ledge ladders (branch agent/flatladder, 2026-11-16)
+
+His request: "ladders" made of individual ledges, like the tutorial's, climbable in flatscreen. Before: walking, jumping
+or holding jump at the tutorial's lesson 3 ladder did nothing (the flat mantle finds a rung but no room on it; the
+platform's lip, 156, is out of a jump's reach); `vr_flatladder_test 9` with the switch off still shows that.
+Found: the tutorial's rungs (x 2953, every 20 from 16) don't stop the player's box (it walks into them to the block's face
+at 2960), so the rung search starts 8 units inside the box's front. id maps have no ladders; AD's are trigger volumes
+(`vr_climb_ladder`), whose holds `ladderHold` makes anywhere in them, so the flat ladder takes them too (not run: no AD
+test here). Vrstart's lookout tower and vrclimb's rung wall are rung ladders as the tutorial's (not run).
+
+What it does (FLATPLAY.md, "Ladders"): `vr_climb.cpp` `flatLadder` (free, after `flatMantle`), `flatLadderFrame` (from
+`hangFrame` when `Climber::flatLadder`), `flatLadderMount`, `findRungs`, `ladderTake`, `ladderGrab`. Shared with the
+headset: `findHold` (a new `lower` argument: holds under Lowest Ledge, only for the mount's search), `holdLedge`, the
+Hanging phase and `transition`, `hangStamina`, `findMantle`/`startMantle`/`mantleStep` (the mount runs the mantle's way
+backwards: `Climber::flatMount`, then `ladderGrab` at its end), `flatMantleHands`, `calcStats` (a weapon hand's grip on
+a rung not sent: `flatShow`), the QC's climbing bits. Flat-only: the keys as the move (`ladderDir`), hand over hand.
+`gripHand` is skipped while on a flat ladder (its grips aren't pressed).
+
+Settings: `vr_flat_ladder` 1 (archived; Desktop Screen Play > Ladders). Tunables (Debug > Tunables): `vr_flat_ladder_speed`
+100 u/s, `_look_down` 35 deg, `_push` 120 u/s (half that up; 180 flew him 170 units onto the barrier), `_reach` 16.
+
+Test: `Misc/quakevr/flatladder_test.sh` (`vr_flatladder_test` in vrtutorial; Debug > Tests > Flat Ladder): up and over
+(5 hand changes, both hands drawn, the feet 156 on the platform), down from the top (lowered on, 77 frames on it, to the
+floor), down looking down (from 62.5), pushed off (landed at x 2811); no ladder at a plain wall, single ledges 48 and 96
+high, the 100 high jump wall, the pit's stairs (walked up to the top); `vr_flat_ladder 0`: none. 9/0 and 1/0. Scene
+`flat_ladder`.
 ## titlebake: trailer title bakes verified and fixed, longer holds (agent/titlebake, 2026-11-16)
 
 In "QVR Titles Preview" (Resolve Studio 21.1.0.17, restarted by him; his open project was the empty "Untitled
