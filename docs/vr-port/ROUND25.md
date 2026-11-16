@@ -4547,3 +4547,27 @@ Resolution Half/Quarter, proxies on); a full render works but takes over a minut
   flatladder 2/0, vr_run_check 9/0; scenario_check 137/1 (bench_crowd_ad: "what it placed is gone after 3.0 s", an AD
   crowd's infighting; not rerun). Dev and Release (ThinLTO) 0 warnings. Not started: thrown props under the lockstep,
   the ammo pouch's determinism.
+
+## MP B14e: a lockstep client's moves the same every run, props thrown under the lockstep (agent/mp, 2026-11-16)
+
+- **mp_lockstep's 15/2 (mh_hdt, the throw fields, stl_light)**: the clients' moves themselves differed between runs,
+  seen with the server's new move log (`vr_mp_lockstep_movelog 1`: every value of every move it runs; the harness
+  compares them). A's throw positions, ammo pouch and holsters differed at his first move (the frames from his game's
+  start, as many as the machine's speed made them), then every player's cl.mtime, origin, light and drawn hands: what a
+  client had read by move N was a matter of timing (the next step's datagram read after its move, a held server
+  frame's repeated datagrams moving cl.mtime and the lerp, reliables sent when the last one's ack came). Not idle
+  priority: it failed with his game closed too.
+- **Fixed in the lockstep's own paths** (vr_mptest.cpp, CL_ReadLockstep, SV_SendClientMessages; nothing changes with
+  the lockstep's cvars 0): a lockstep client's frames wait until it is in the game; a waiting frame reads up to the
+  message that lets its next move go, no further, nothing relinked; a moving frame reads none. The server sends a
+  lockstep player one datagram as he comes in and one a step, and steps only with his reliables acknowledged. Now every
+  move equal in both runs (1440), B's prediction exact 719/0 both times, every edict field compared (the ammo pouch,
+  stl_light, the melee history: no field set apart).
+- **New**: `mp_test.py lockstep_throw` (in the suite): B's shotgun and A's axe given into gripping hands and thrown hard
+  (the hand swung up and the grip let go in one move), held at 36/72/144/216/432: the two props become rigid bodies,
+  every hash and every move equal in both runs (29/0). `lockstep_dm` added to the suite's list (it was missing).
+  Debug > Network: Lockstep Move Log.
+- **Checks**: mp_lockstep 17/0 (the move check: 0 of 720 differ for each player), mp_lockstep_dm 22/0,
+  mp_lockstep_throw 29/0, mp_predict 29/0 (the stairs' ulp not seen: walking 340 of 340 exact); the MP suite 39 of 41 under idle priority (his game ran; mp_lockstep 19/0 there), mp_loss 14/1 (A's hands' roughness 0.52 of 0.5, a timing measure) and mp_predictslide 5/1 (B's teleport to its spot) each passing alone (15/0, 13/0). SP:
+  scenario_check PASS (138/0), bench_crowd_ad alone 3 of 3 (B14d's failure a flake), load_models 4/0, vrslide 15/0,
+  flatslide 26/0, flatladder 2/0, vr_run_check 9/0. Dev and Release (ThinLTO) builds 0 warnings.

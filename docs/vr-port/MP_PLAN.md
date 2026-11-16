@@ -2772,8 +2772,38 @@ QuakeC's PlayerPreThink parts. Exactly what would change:
   mp_predict's stairs, B11's open items.
 - Checks: ROUND25's B14d section (the full MP suite and the SP checks).
 
-Next phase: B14e -- lockstep hash scenarios for props thrown by players (Box3D under a client's hand: the mock's grab
-and throw, mp_grab's steps, under vr_mp_lockstep); the ammo pouch's position deterministic under the lockstep (the
-avatar follower's state at the first move the server runs); the step's ulp under the lockstep on mp_predict's stairs;
-B11's open items (bots never grab, a bot's fists never punch); B10v's VR checks are his (a real microphone, the
-spatial mixers).
+### B14e results: a lockstep client's moves the same every run, thrown props under the lockstep (2026-11-16, dev no-LTO build)
+
+- **Why mp_lockstep went 15/2 again** (mh_hdt, the hands' throw fields, stl_light at 360/720; no idle priority needed:
+  it failed at below-normal priority with his game closed): not the server. The server now logs every move it runs
+  (`vr_mp_lockstep_movelog 1`: "mp_movelog:" lines, each value as the world gets it, its pose clock the server's), and
+  two runs' moves differed from the first: A's throw positions, ammo pouch, standing height and holsters at move 0 (the
+  frames from his game's start to his first move, as many as the machine's speed made them, eased those states), and
+  then in both players `time`/`viewBack` (cl.mtime), the origin and every place relative to it, the light, the drawn
+  hands: what a client had read when it made move N depended on timing -- a datagram of the step after (read in the
+  same frame after its move), a held server frame's repeats (each read moves `cl.mtime` and the lerp), the reliables
+  sent when the last one's acknowledgement came.
+- **The fix (test-only paths, behind vr_mp_lockstep / vr_mp_lockstep_ahead)**: a lockstep client's frames wait (no
+  time passes) until it is in the game (signon replies still sent: `CL_ReadLockstep`, `Host_SendPrespawn`); a waiting
+  frame reads the server's messages up to the one that lets its next move go and no further (`VR_LockstepReadsMore`),
+  nothing relinked; a moving frame reads none (`VR_LockstepReadHeld` in CL_ReadFromServer). The server sends a lockstep
+  player one datagram when he comes in and then one a step (`VR_LockstepSkipsDatagram` in SV_SendClientMessages), and
+  steps only with every player's reliable messages acknowledged (a step's reliables go right after its datagram, read
+  before the next step's). Result: every value of every move the same in both runs (1440 moves), B's prediction exact
+  719/0 in both (the rottweiler's bite no longer a miss), every edict field compared: the ammo pouch, the light and the
+  melee history included (`LOCK_CLIENT_FIELDS` gone). The ammo pouch's determinism (B14c's open item) is this.
+- **New test** `mp_test.py lockstep_throw` (in the suite): two lockstep runs on e1m1, held at 36, 72, 144, 216, 432:
+  B grips his main hand low and is given a shotgun into it (impulse 154), A his off hand and an axe (impulse 172);
+  both swing the hand up and let go in one move (the mock's hand that fast: a hard throw); the props become rigid
+  bodies (52 -> 54), fly and land: held before the throw and not after (the server's avatars), every hash equal at
+  each step, every move the same, the physics hash new at each step from the throw (29/0). `lockstep` and
+  `lockstep_dm` check every move too ("slot=N: every move the same in both runs"); `lockstep_dm` was missing from the
+  suite's list: added.
+- **The step's ulp on mp_predict's stairs: not seen again** (mp_predict 29/0: walking 340 of 340 equal, jumping 324,
+  crouched 217, crawling 357, swimming 215; the lift's ride 9 of 178 off, its mover's clock, as before). Under the
+  lockstep the walks have no miss at all. Left open (B14's one run).
+- Checks: ROUND25's B14e section.
+
+Next phase: B11's open items -- bots grab (a bot's hand targets and grip timing in bot_setvrfields, the grab disarm
+with a bot) and a bot's fists punch (the punch's swing); B10v's VR checks are his (a real microphone, the spatial
+mixers).
