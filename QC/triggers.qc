@@ -406,7 +406,11 @@ void() tdeath_touch =
 
     }
 
-    if(other.health)
+    // VR (B13): only the living (stock: any nonzero health). Corpses, dead players and gibs are SOLID_CORPSE here (vr_box3d
+    // corpses; stock: SOLID_NOT, never touched): every spawn at a start "telefragged" the dead players lying there again
+    // (an obituary, a frag, their weapons dropped again: mp_soak's 16 players on dm3's 6 starts, ~35 a game second, until
+    // the edicts ran out) and struck each gib there 50000 every frame of its 0.2 s
+    if(other.health > 0)
     {
         T_Damage(other, self, self, 50000);
     }
