@@ -4222,3 +4222,14 @@ The 1.1 readiness audit's baseline regressions. Both were the tests, not the gam
 - **`vr_dm_test 1`** grows the grab: a running bot's gun is too fast to take hold of; a still one's is held and pulled
   away into the human's hand. 22/0; `mp_dm` 12/0 (its frag credit check now counts a frag up from a bot's suicides).
 - Bots' bodies (their avatars, drawn as a player's) are the next step: MP_PLAN.md, "B11 part 3 results, part 1".
+
+## MP B11 part 3, part 2: bots' bodies (agent/mp, 2026-11-16)
+
+- **Bots have VR bodies** in multiplayer: the server sends a bot's controllers (QC `handpos`/`handrot`) and weapons in
+  its avatar (`VrDrawnHand::solveBit`, `QVR_NET_VERSION` 35); each client places its hands and guns with the same
+  `setupWeapon`/`setupHand` that place yours (`view::solveHands`, the bot's own drawing state swapped in), then draws
+  them and poses its body as any player's. What only the local player has (props, reloads, the hand-off, hotspots,
+  the draw from a holster...) is left out for a bot (`view_detail::otherSubject`); your own hands run as before.
+- `mp_dm` grown: a bot's hands drawn about 5 units from its controllers, its gun in its main hand, its body posed. 14/0.
+- In VR: a deathmatch with bots (`impulse 100`): their hands, guns and bodies; your own hands unchanged.
+- Details: MP_PLAN.md, "B11 part 3 results, part 2".

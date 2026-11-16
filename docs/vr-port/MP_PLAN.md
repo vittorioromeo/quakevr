@@ -2392,6 +2392,34 @@ Tests:
 - **Not done**: FrikBot's walk through `vr_pmove` (its stick as an Input), parry against a bot's blows (FrikBot's axe
   is the player's `W_FireAxe` trace, not a VR swing the parry sees).
 
+### B11 part 3 results, part 2: bots' bodies (2026-11-16, dev no-LTO build, loopback; `mp_dm` 14/0)
+
+- **origin/next merged** (24 commits): three conflicts, all on the player disarm's PvE/PvP split (next made
+  `vr_player_disarm` off by default with its own label; ours keeps the two settings and their labels, his call of
+  2026-11-16). next's PATCH_NOTES/RELEASE_NOTES name the menu row "You Can Be Disarmed": on this branch it is "Enemies
+  Can Disarm You" (to be reconciled when agent/mp lands).
+- **The wire** (`QVR_NET_VERSION` 35): a bot (its client slot's entity a "player" whose QC `ishuman` is 0, the slot not
+  active: FrikBot) now has an avatar. Its hands are `VrDrawnHand::solveBit` records: the controller (QC's `handpos`,
+  `handrot`, which `bot_setvrfields` sets every frame) and the weapon's model and frame, 11 B a hand; its head at its
+  eyes (`view_ofs`, `v_angle`), its body pose a standing player's of the default height (`units::modelEyeHeight`).
+- **The client** (`view::solveHands`, vr_view_hands.cpp): the same `setupWeapon` and `setupHand` that place your hands
+  place a bot's, with its own drawing state swapped in for the time (`SubjectHands` per player entity: the weapons' and
+  jointed hands' entities, `rigHands`, the curls and their biases, `drawnAs`, the carry flag, the ghost's place,
+  `wholeTurn`), then `netHands` writes them as yours are written for the others, and the avatar draws them and poses
+  the body on them exactly as a human's (`view::drawHands`, `avatar::poseOther`). Its curls are a flatscreen player's (a
+  hand holding a weapon or a fist grips; an empty one is open; the grasp then wraps what it holds).
+- **What a bot's hands leave out** (`view_detail::otherSubject`, read only inside setupWeapon/setupHand/heldBy/gripFlip):
+  everything that is the local player's alone -- the hand-off's carry, the reverse grip, a blade in a body, props,
+  limbs and the torch, the hands on each other's weapon (steadyOther, pushOut), the reload's parts, the hotspots, the
+  draw from a holster, the morph, the spent gun's shake, the nail pistol's slide, the Box3D record of the gun, the ammo
+  text. Your own hands run every phase as before (`own` true: each gate is `own && <as before>`).
+- **Check** (`mp_dm`, grown): A or B reports a bot's hands as placed (`mp_solved:` in `vr_mp_avatars`): both jointed
+  hands drawn about 5.2 units from their controllers (the rig's origin from the grip), its rocket launcher in its main
+  hand (5.2 units from the hand's origin), its body posed on them (`mp_body:` for the bot: `progs/vrbody.mdl`). 14/0.
+- **Not done**: FrikBot's walk through `vr_pmove` (its stick as an Input) and parry against a bot's blows (FrikBot's axe
+  is the player's `W_FireAxe` trace, not a VR swing the parry sees). Bots' fists close as a flat player's guard does
+  (gripping), not punching motions; their hands do not swing (a bot's melee has no hand motion to send).
+
 ## For him (B11b)
 
 **His answer (2026-11-16): on.** `vr_pmove_own` defaults to 1 since B11c part 2; 0 stays as the fallback (Debug >
@@ -2494,4 +2522,10 @@ QuakeC's PlayerPreThink parts. Exactly what would change:
   it has) rather than NetQuake's receiver with the window shrunk: a 30 ms jitter reorders most of a window, and
   go-back-N resent most of it each time. A peer that is not Quake VR keeps a one-chunk window (its acks are NetQuake's).
 
-Next phase: B11 part 3, part 2 -- bots' bodies as the clients draw them (the server sends a bot's controller poses and weapons in its avatar, "solve here"; the client's `setupWeapon`/`setupHand` take a subject so a bot's hands and guns are placed by the code that places yours; see "B11 part 3 results, part 1"), then FrikBot's walk through the shared movement (vr_pmove, its stick as an Input) and parry against a bot's blows (`mp_dm` grown); B12d (the poses by their fields) only if a budget needs it. Voice chat's open items: his ears in VR (a real microphone, the spatial mixers) and a menu page of its own with per-player rows.
+- A bot's hands (B11 part 3, part 2) are placed on each client by your hands' own code with the bot's drawing state
+  swapped in (`view::solveHands`), as B2d poses another's body, rather than setupWeapon/setupHand rewritten to take a
+  subject struct everywhere: the local path is unchanged by construction (its phases gated `own && ...`), and a bot
+  has none of the local player's interactions (props, reloads, the hand-off: left out under `otherSubject`). The server
+  sends a bot's controllers, not hands it cannot draw (no view code on a dedicated server).
+
+Next phase: B11 part 3, part 3 -- FrikBot's walk through the shared movement (vr_pmove, its stick as an Input) and parry against a bot's blows (`mp_dm` grown); B12d (the poses by their fields) only if a budget needs it. Voice chat's open items: his ears in VR (a real microphone, the spatial mixers) and a menu page of its own with per-player rows.
