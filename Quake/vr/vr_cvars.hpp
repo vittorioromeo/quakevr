@@ -28,11 +28,23 @@ extern cvar_t vr_backend;
 // gen_vr_cvars_qc reads it from this file.
 inline constexpr int weaponSlotCount = 52;
 
-// Recording mode (vr_recording_clean, the player's; vr_recording_clean_map, the map's: the trailer scene): no tips, no
-// messages on the wrist gadget and no head-locked text, in the headset too.
+namespace obs
+{
+// Clean recording (vr_obs.cpp): what OBS recording now leaves out (vr_obsrec_*; false while it doesn't record).
+enum class Hide
+{
+    GhostHands, // vr_obsrec_ghost_hands
+    Debug,      // vr_obsrec_debug: debug markers (hotspot marks, the profiler's panel)
+    Messages,   // vr_obsrec_messages: Recording Mode (recordingClean)
+};
+[[nodiscard]] bool hides(Hide what);
+} // namespace obs
+
+// Recording mode (vr_recording_clean, the player's; vr_recording_clean_map, the map's: the trailer scene; and while OBS
+// records, vr_obsrec_messages): no tips, no messages on the wrist gadget and no head-locked text, in the headset too.
 [[nodiscard]] inline bool recordingClean()
 {
-    return vr_recording_clean.value != 0.f || vr_recording_clean_map.value != 0.f;
+    return vr_recording_clean.value != 0.f || vr_recording_clean_map.value != 0.f || obs::hides(obs::Hide::Messages);
 }
 
 // The highest reloading mode of any gun: the global vr_reload_mode and the Per-Weapon Reload Overrides (vr_reload_mode_<gun>,

@@ -4690,6 +4690,9 @@ QVR_CYCLE(vr_foveated, "Foveated Rendering",
     "Draws the edges of the view, which the lenses blur anyway, in less detail: faster. NVIDIA graphics "
     "cards only.",
     {0.f, "Off"}, {1.f, "Conservative"}, {2.f, "Balanced"}, {3.f, "Aggressive"})
+QVR_TOGGLE(vr_foveated_gaze, "Eye-Tracked Foveation",
+    "With an eye-tracking headset (Quest Pro via Virtual Desktop with eye tracking shared to the PC, Varjo...): "
+    "the sharp middle of Foveated Rendering follows your eyes. Takes effect at the next VR start.")
 
 // vr_menu_settings.inc: pageVrsGraphics
 QVR_TOGGLE_BYNAME(vr_taa, "Temporal Antialiasing (TAA)",
@@ -7152,6 +7155,19 @@ QVR_TOGGLE_BYNAME(vr_obs, "OBS Recording Control",
     "Settings > Enable WebSocket server (port 4455). With Enable Authentication on, its password (Show "
     "Connect Info) goes in the console: vr_obs_password \"...\" (kept in the config in plain text); or "
     "turn authentication off. OBS on another PC: vr_obs_host and vr_obs_port. Off: never looks.")
+QVR_TOGGLE_BYNAME(vr_obsrec_ghost_hands, "No Ghost Hands While Recording",
+    "While OBS records (OBS Recording Control), Ghost Hands are not drawn, in the headset too: clean takes. "
+    "On by default (vr_obsrec_ghost_hands).")
+QVR_TOGGLE_BYNAME(vr_obsrec_debug, "No Debug Markers While Recording",
+    "While OBS records, the debug aids drawn in the world are left out: the weapons' hotspot marks (Show "
+    "Weapon Hotspots) and the profiler's panel. On by default (vr_obsrec_debug).")
+QVR_TOGGLE_BYNAME(vr_obsrec_messages, "Recording Mode While Recording",
+    "While OBS records, Recording Mode is on by itself: no tips, no messages on the wrist gadget and no "
+    "text in front of your head; menus and the wrist gadget's own display stay. On by default "
+    "(vr_obsrec_messages).")
+QVR_TOGGLE_BYNAME(vr_obsrec_as_if, "Clean Recording: Act As If OBS Records",
+    "Test aid: the clean recording's options (Graphics > Recording, Clean Recording) apply as if OBS were "
+    "recording, without OBS. Not saved (vr_obsrec_as_if).")
 QVR_SLIDER_BYNAME(vr_window_smooth, "Smoothing", 0.f, 0.5f, 0.01f, "%.2f s", noExt,
     "How much the head's shake is smoothed out: the view's lag behind your head. 0.1-0.2 s takes out the "
     "shake and keeps turns lively; more glides like a camera operator's.")

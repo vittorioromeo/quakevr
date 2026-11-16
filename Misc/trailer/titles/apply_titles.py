@@ -13,6 +13,9 @@ Each section gets its own small timeline holding one title, "QVR - <section>", i
 at the marker. Running again updates the text in those timelines in place (the nested copies follow) and moves or
 re-places only what changed: no duplicates. A placed title whose section left titles.txt is taken off the track.
 The track should hold only these titles; anything else on it is left alone (and reported if a title would overlap).
+
+An `[Intro]` block makes the full-screen QVR Intro Title instead (line1/line2/line3, blood, backdrop): it goes at the
+marker named "Intro" (or its `marker:`), or at the timeline's start when there is no such marker.
 """
 import argparse
 import os
@@ -30,6 +33,15 @@ CORNERS = {"top-right": 0, "top-left": 1, "bottom-left": 2, "bottom-right": 3,
            "tr": 0, "tl": 1, "bl": 2, "br": 3}
 DEFAULTS = {"corner": "top-right", "seconds": "4.5", "wrap": "40", "in": "", "out": "", "intensity": ""}
 KEYS = set(DEFAULTS) | {"subtitle", "marker"}
+INTRO_TEMPLATE = "QVR Intro Title"
+INTRO = "intro"                          # the [Intro] block's header (case ignored) and default marker name
+INTRO_DEFAULTS = {"line1": "Quake VR", "line2": "UNLEASHED", "line3": "v1.1 Release Trailer", "seconds": "5",
+                  "marker": "Intro", "out": "", "intensity": "", "blood": "", "backdrop": ""}
+INTRO_KEYS = set(INTRO_DEFAULTS)
+# the intro's timing inputs (frames) and their template defaults, made for 60 fps: scaled on other frame rates
+INTRO_TIMING = {"L1Start": 0, "L1In": 46, "L2Start": 34, "L2In": 44, "RuleStart": 66, "RuleIn": 26, "L3Start": 84,
+                "L3In": 34, "SweepStart": 24, "SweepFrames": 110, "OutFrames": 36}
+ON_OFF = {"on": 1, "yes": 1, "true": 1, "1": 1, "off": 0, "no": 0, "false": 0, "0": 0}
 
 
 # --- titles.txt ----------------------------------------------------------------------------------------------------
@@ -45,15 +57,21 @@ def parse_titles(text):
         m = re.fullmatch(r"\[(.+)\]", line)
         if m:
             cur = {"title": m.group(1).strip(), "line": n}
+            if cur["title"].lower() == INTRO:
+                cur["intro"] = True
             sections.append(cur)
             continue
-        m = re.fullmatch(r"([A-Za-z]+)\s*:\s*(.*)", line)
-        if not m or m.group(1).lower() not in KEYS:
+        m = re.fullmatch(r"([A-Za-z0-9]+)\s*:\s*(.*)", line)
+        keys = INTRO_KEYS if cur is not None and cur.get("intro") else KEYS
+        if not m or m.group(1).lower() not in keys:
             raise ValueError("titles.txt line %d: expected '[Title]' or one of %s: %r"
-                             % (n, ", ".join(sorted(KEYS)), raw))
+                             % (n, ", ".join(sorted(keys)), raw))
         (cur if cur is not None else defaults)[m.group(1).lower()] = m.group(2).strip()
     out = []
     for s in sections:
+        if s.get("intro"):
+            out.append(parse_intro(s))
+            continue
         sec = dict(defaults)
         sec.update(s)
         corner = sec["corner"].lower().replace(" ", "-")
@@ -68,7 +86,25 @@ def parse_titles(text):
     dup = sorted({k for k in keys if keys.count(k) > 1})
     if dup:
         raise ValueError("titles.txt: two sections with the same marker name: %s" % ", ".join(dup))
+    if sum(1 for s in out if s.get("intro")) > 1:
+        raise ValueError("titles.txt: more than one [Intro] block")
     return defaults, out
+
+
+def parse_intro(s):
+    """The [Intro] block: its own defaults (the feature sections' defaults don't apply)."""
+    sec = dict(INTRO_DEFAULTS)
+    sec.update(s)
+    sec["key"] = sec["marker"].strip() or INTRO_DEFAULTS["marker"]
+    # DpQuake draws Q, q and ~ (and codes past ASCII) as id's logos: the template draws a leading Q itself, any other
+    # one would show a logo
+    bad = [ch for ch in sec["line1"][1:] if ch in "Qq~" or ord(ch) > 126]
+    if bad or (sec["line1"][:1] and (sec["line1"][0] == "~" or ord(sec["line1"][0]) > 126)):
+        raise ValueError("titles.txt line %d: line1 %r: only a leading Q can be drawn (the Quake font maps Q, q, ~ "
+                         "and non-ASCII characters to logos)" % (s["line"], sec["line1"]))
+    if sec["backdrop"] and sec["backdrop"].lower() not in ON_OFF:
+        raise ValueError("titles.txt line %d: backdrop %r (on or off)" % (s["line"], sec["backdrop"]))
+    return sec
 
 
 def format_subtitle(sub, wrap):
@@ -126,12 +162,12 @@ def find_timeline(project, name):
     return None
 
 
-def title_tool(item):
+def title_tool(item, published="Corner"):
     comp = item.GetFusionCompByIndex(1)
     if comp is None:
         return None
-    for tool in (comp.GetToolList(False) or {}).values():     # the macro: the tool with the published Corner
-        if tool.GetAttrs().get("TOOLS_RegID") != "MediaOut" and tool.GetInput("Corner") is not None:
+    for tool in (comp.GetToolList(False) or {}).values():  # the macro: the tool with that published input
+        if tool.GetAttrs().get("TOOLS_RegID") != "MediaOut" and tool.GetInput(published) is not None:
             return tool
     return None
 
@@ -207,7 +243,27 @@ def set_title(tool, sec, fps, frames, item=None):
         print("  %-28s Q and other logo glyphs not replaced: run with --rebuild" % sec["title"][:28])
 
 
-def make_section_timeline(project, mp, folder, name, main):
+def set_intro(tool, sec, fps, frames, clip_frames):
+    tool.SetInput("Line1", sec["line1"])
+    tool.SetInput("Line2", sec["line2"])
+    tool.SetInput("Line3", sec["line3"])
+    if abs(fps - 60) > 0.5:  # the template's timings are frames at 60 fps: keep their length in seconds
+        for k, v in INTRO_TIMING.items():
+            tool.SetInput(k, max(1 if k.endswith(("In", "Frames")) else 0, round(v * fps / 60)))
+    if sec["intensity"]:
+        tool.SetInput("Intensity", float(sec["intensity"]))
+    if sec["blood"]:
+        tool.SetInput("Blood", float(sec["blood"]))
+    if sec["backdrop"]:
+        tool.SetInput("Backdrop", ON_OFF[sec["backdrop"].lower()])
+    if sec["out"]:
+        tool.SetInput("OutFrames", max(1, round(float(sec["out"]) * fps)))
+    tout = int(tool.GetInput("OutFrames") or 36)
+    # the out ends with the placed (possibly trimmed) clip; 0 = the title clip's own end
+    tool.SetInput("OutAt", 0 if frames >= clip_frames else max(1, frames - tout))
+
+
+def make_section_timeline(project, mp, folder, name, main, template=TEMPLATE):
     mp.SetCurrentFolder(folder)
     st = mp.CreateEmptyTimeline(name)
     if st is None:
@@ -217,8 +273,8 @@ def make_section_timeline(project, mp, folder, name, main):
         st.SetSetting(k, main.GetSetting(k))
     project.SetCurrentTimeline(st)
     st.SetCurrentTimecode(st.GetStartTimecode())
-    if not st.InsertFusionTitleIntoTimeline(TEMPLATE):
-        raise RuntimeError("could not insert the %r title: is it installed (install_titles.py)?" % TEMPLATE)
+    if not st.InsertFusionTitleIntoTimeline(template):
+        raise RuntimeError("could not insert the %r title: is it installed (install_titles.py)?" % template)
     project.SetCurrentTimeline(main)
     return st
 
@@ -244,7 +300,11 @@ def apply(resolve, sections, track_name, dry, rebuild=False):
     wanted, done, missing = set(), 0, []
     for sec in sections:
         frames = main_frames = max(1, round(float(sec["seconds"]) * fps))
+        intro = bool(sec.get("intro"))
         offs = sorted(by_name.get(sec["key"].lower(), []))
+        if not offs and intro:
+            offs = [0]
+            print("  %-28s no timeline marker named %r: at the timeline's start" % (sec["title"][:28], sec["key"]))
         if not offs:
             missing.append(sec["key"])
             print("  %-28s no timeline marker named %r: skipped" % (sec["title"][:28], sec["key"]))
@@ -266,19 +326,23 @@ def apply(resolve, sections, track_name, dry, rebuild=False):
                     st = None
         if not dry:
             if st is None:
-                st = make_section_timeline(project, mp, folder, name, main)
+                st = make_section_timeline(project, mp, folder, name, main, INTRO_TEMPLATE if intro else TEMPLATE)
                 action.append("new")
             inner = video_items(st, 1)
-            tool = title_tool(inner[0]) if inner else None
+            tool = title_tool(inner[0], "Line1" if intro else "Corner") if inner else None
             if tool is None:
-                print("  %-28s %r holds no QVR Feature Title: skipped" % (sec["title"][:28], name))
+                print("  %-28s %r holds no %s: skipped (--rebuild)"
+                      % (sec["title"][:28], name, INTRO_TEMPLATE if intro else TEMPLATE))
                 continue
             inner_len = int(inner[0].GetDuration())
             if frames > inner_len:
                 print("  %-28s %s s is longer than the title clip (%d frames): shortened"
                       % (sec["title"][:28], sec["seconds"], inner_len))
                 frames = inner_len
-            set_title(tool, sec, fps, frames, inner[0])
+            if intro:
+                set_intro(tool, sec, fps, frames, inner_len)
+            else:
+                set_title(tool, sec, fps, frames, inner[0])
         old = placed.get(name)
         if old is not None and int(old.GetStart()) == at and int(old.GetDuration()) == frames:
             action.append("updated")
@@ -302,7 +366,8 @@ def apply(resolve, sections, track_name, dry, rebuild=False):
                     continue
         done += 1
         print("  %-28s %-12s %s  %s, %s s%s" % (sec["title"][:28], "+".join(action), timecode(at, fps),
-              sec["corner"], sec["seconds"], (" (%d frames)" % frames) if frames != main_frames else ""))
+              "full screen" if intro else sec["corner"], sec["seconds"],
+              (" (%d frames)" % frames) if frames != main_frames else ""))
     stale = [n for n in placed if n.startswith(PREFIX) and n not in wanted]
     for n in stale:
         print("  %-28s not in titles.txt (or its marker is gone): taken off V%d" % (n[len(PREFIX):][:28], track))
@@ -331,6 +396,10 @@ def main():
         _, sections = parse_titles(f.read())
     if a.check:
         for s in sections:
+            if s.get("intro"):
+                print("[%s] marker %r (else the timeline's start), full screen, %s s\n  %s / %s / %s"
+                      % (s["title"], s["key"], s["seconds"], s["line1"], s["line2"], s["line3"]))
+                continue
             print("[%s] marker %r, %s, %s s\n  %s" % (s["title"], s["key"], s["corner"], s["seconds"],
                                                      s["subtitle_text"].replace("\n", "\n  ")))
         print("apply_titles: %d sections parsed" % len(sections))

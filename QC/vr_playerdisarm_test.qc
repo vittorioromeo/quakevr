@@ -197,12 +197,13 @@ void(entity p) VR_PDT_Run =
             vr_wpn_dropped = world;
         }
         VR_PDT_Arm(p);
-        cvar_set("vr_player_disarm", "0");
+        localcmd("reset vr_player_disarm\n"); // its default: off in 1.1 (checked in state 7)
         VR_PDT_To(7, VR_PDT_POSE_FRAMES);
         return;
     }
     if(vr_pdt_s == 7)
     {
+        VR_Test_Check(!cvar_hget(cvarh_vr_player_disarm), "vr_player_disarm defaults to 0 (off in 1.1)");
         VR_PDT_Aim(p, FALSE);
         VR_PDT_Blast(p);
         VR_PDT_To(8, 2);
@@ -211,7 +212,7 @@ void(entity p) VR_PDT_Run =
     if(vr_pdt_s == 8)
     {
         VR_Test_Check(vr_pd_disarms == vr_pdt_dis0 && vr_pd_hits == vr_pdt_hits0 && !VRIsHandWeaponless(p, cVR_MainHand),
-            sprintf("vr_player_disarm 0: a blast across the gun does nothing (%g hits, %g disarms)", vr_pd_hits - vr_pdt_hits0,
+            sprintf("vr_player_disarm 0 (the default): a blast across the gun does nothing (%g hits, %g disarms)", vr_pd_hits - vr_pdt_hits0,
             vr_pd_disarms - vr_pdt_dis0));
         VR_PDT_End();
     }

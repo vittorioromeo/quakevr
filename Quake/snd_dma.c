@@ -312,11 +312,9 @@ void S_Init (void)
 		Cvar_SetQuick (&snd_mixspeed, com_argv[i + 1]);
 	}
 
-	if (host_parms->memsize < 0x800000)
-	{
-		Cvar_SetQuick (&loadas8bit, "1");
-		Con_Printf ("loading all sounds as 8bit\n");
-	}
+	// QVR: no "loading all sounds as 8bit" on a small heap: the heap has no size since nohunk (2026-11-13), and the
+	// memsize it read was 0 from then on, so every start loaded the sounds as 8-bit and opened the device as 8-bit
+	// unsigned (snd_sdl.c): a -42 dB quantization hiss and crackle under every sound (vr_snd_outtest)
 
 	Cvar_SetCallback(&sfxvolume, SND_Callback_sfxvolume);
 	Cvar_SetCallback(&snd_filterquality, &SND_Callback_snd_filterquality);

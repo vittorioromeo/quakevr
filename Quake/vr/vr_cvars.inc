@@ -381,6 +381,12 @@ QVR_CVAR(vr_obs_password, "", CVAR_ARCHIVE)            // obs-websocket's passwo
 QVR_CVAR(vr_obs_process_check, "1", CVAR_NONE)         // 1: on this PC, connect only while OBS's process runs (obs64.exe), and say when its WebSocket server is off; 0: always try; 2 (test aid): act as if OBS were running
 QVR_CVAR(vr_obs_mock, "0", CVAR_NONE)                  // 1 (tests): no OBS; requests answered by a mock that prints each and makes dummy recording files in vr_obs_mock_dir
 QVR_CVAR(vr_obs_mock_dir, "", CVAR_NONE)               // the mock's recording folder ("": <game dir>/obsmock)
+// Clean recording (Graphics > Recording, his note 2026-11-16): while OBS records (obs::recording(); the mock's too), what
+// is left out of the picture, in the headset too (obs::hides).
+QVR_CVAR(vr_obsrec_ghost_hands, "1", CVAR_ARCHIVE)     // 1: no Ghost Hands while OBS records
+QVR_CVAR(vr_obsrec_debug, "1", CVAR_ARCHIVE)           // 1: no debug markers while OBS records (the weapons' hotspot marks, the profiler's panel)
+QVR_CVAR(vr_obsrec_messages, "1", CVAR_ARCHIVE)        // 1: Recording Mode while OBS records (no tips, wrist messages or head-locked text: qvr::recordingClean)
+QVR_CVAR(vr_obsrec_as_if, "0", CVAR_NONE)              // test aid (Debug > OBS): act as if OBS were recording (the clean recording's options apply)
 // Takes and clips for trailers (vr_takes.cpp; TRAILER.md, "Takes and clips"): OBS's recordings as named, rated takes.
 QVR_CVAR(vr_takes, "1", CVAR_ARCHIVE)                  // 1: each OBS recording is a take: renamed <date>_<scene>_t<NN>_<rating>, rated keep / maybe / reject; 0: OBS's files left alone
 QVR_CVAR(vr_take_scene, "", CVAR_NONE)                 // the scene's name in the takes' names ("": the map's)
@@ -680,6 +686,12 @@ QVR_CVAR(vr_upscale, "1", CVAR_ARCHIVE)                // below vr_render_scale 
 QVR_CVAR(vr_upscale_sharpness, "0.5", CVAR_ARCHIVE)    // ... its sharpening, 0 none .. 1 most (FSR: RCAS 2 stops below its most at 0.1, its most at 1; NIS: its slider)
 QVR_CVAR(vr_foveated, "3", CVAR_ARCHIVE)               // fixed foveated rendering (NVIDIA variable-rate shading): 0 off, 1 conservative, 2 balanced, 3 aggressive
 QVR_CVAR(vr_foveated_debug, "0", CVAR_NONE)            // show the shading rates (yellow 2x2, red 4x4) and vr_upscale_radius (cyan) in the eyes and the mirror
+// Eye-tracked foveation (ROUND25.md, "Quest Pro"): the full-rate region follows the eyes' gaze, not the lens centre
+// (XR_EXT_eye_gaze_interaction: Quest Pro via Virtual Desktop with eye tracking forwarded, Varjo, Vive Pro Eye...).
+// The extension is asked for at VR start: a change takes effect at the next one. Off by default until tried.
+QVR_CVAR(vr_foveated_gaze, "0", CVAR_ARCHIVE)
+// Mock backend: a gaze "right up" in degrees from the head's forward ("": no eye tracking), for vr_foveated_gaze.
+QVR_CVAR(vr_mock_gaze, "", CVAR_NONE)
 
 QVR_CVAR(vr_enabled, "0", CVAR_NONE)
 // No main hand setting (ROUND21.md, "Handedness: separate options"): the hands are the physical ones, and each thing
@@ -1734,7 +1746,7 @@ QVR_CVAR(vr_flashlight_tilt, "-5", CVAR_ARCHIVE)       // degrees the stored lam
 QVR_CVAR(vr_flashlight_forward, "0.025", CVAR_ARCHIVE)    // metres the belt clip sits further forward,
 QVR_CVAR(vr_flashlight_up, "0.25", CVAR_ARCHIVE)         // up,
 QVR_CVAR(vr_flashlight_out, "-0.05", CVAR_ARCHIVE)        // and out (towards its side)
-QVR_CVAR(vr_flashlight_armor_forward, "0", CVAR_ARCHIVE) // metres more forward on the belt while the armour's plates show on your body (they can pass through the torch); 0 off
+QVR_CVAR(vr_flashlight_armor_forward, "0.03", CVAR_ARCHIVE) // (his, 2026-11-16) metres more forward on the belt while the armour's plates show on your body (they can pass through the torch); 0 off
 QVR_CVAR(vr_flashlight_side, "0", CVAR_ARCHIVE)       // the hip it hangs on: 0 the left, 1 the right
 QVR_CVAR(vr_flashlight_grab_range, "1", CVAR_ARCHIVE) // times how far from the torch a hand reaches it (lit, taken; 9 cm from its axis at 1), 0.25..4
 QVR_CVAR(vr_flashlight_head_range, "1.5", CVAR_ARCHIVE) // times the head's zone's radius (vr_flashlight_head_zone_radius: clipping it on, taking it off), 0.25..4
@@ -2642,7 +2654,7 @@ QVR_CVAR(vr_agrunt_repl_common, "0.5", CVAR_ARCHIVE)     // 0..1: the chance one
 QVR_CVAR(vr_agrunt_repl_uncommon, "0.25", CVAR_ARCHIVE)   // 0..1: ... a nailgun, super nailgun or super shotgun (one a player owns)
 QVR_CVAR(vr_agrunt_repl_rare, "0.15", CVAR_ARCHIVE)       // 0..1: ... a launcher, the thunderbolt, a melee weapon, a mission pack's gun (owned; from vr_agrunt_repl_rare_map on)
 QVR_CVAR(vr_agrunt_repl_rare_map, "4", CVAR_ARCHIVE)   // rare weapons only from this map of an episode on (e1m4, hip1m4, ...; 0: any map)
-QVR_CVAR(vr_agrunt_repl_dual, "0.15", CVAR_ARCHIVE)       // 0..1: the chance of a second weapon that pairs (two guns, two blades)
+QVR_CVAR(vr_agrunt_repl_dual, "0.1", CVAR_ARCHIVE)        // (his, 2026-11-16) 0..1: the chance of a second weapon that pairs (two guns, two blades)
 QVR_CVAR(vr_agrunt_repl_gunaxe, "0.15", CVAR_ARCHIVE)     // 0..1: the chance of a gun and a melee weapon (axe or dagger, by vr_agrunt_w_axe/_dagger; the gun, the blade up close)
 QVR_CVAR(vr_agrunt_repl_id, "1", CVAR_ARCHIVE)         // 1: in Quake's own campaigns (id1, Dimension of the Past, the Machine Games' ones) and their custom maps
 QVR_CVAR(vr_agrunt_repl_mp, "1", CVAR_ARCHIVE)         // 1: in the mission packs (Scourge of Armagon, Dissolution of Eternity)
@@ -3757,7 +3769,7 @@ QVR_CVAR(vr_reload_mode_revolver, "-1", CVAR_ARCHIVE) // the heavy revolver's
 // holsters' competition: the one a hand is most within). Pitch, Yaw, Roll: degrees, its top away from the body, about
 // where the hand reaches for it; Size: times the model's.
 QVR_CVAR(vr_ammo_pouch_x, "3", CVAR_ARCHIVE)
-QVR_CVAR(vr_ammo_pouch_armor_x, "0", CVAR_ARCHIVE) // units the pouch moves further forward while the armour's plates show on your body (they can pass through it); 0 off
+QVR_CVAR(vr_ammo_pouch_armor_x, "1.25", CVAR_ARCHIVE) // (his, 2026-11-16) units the pouch moves further forward while the armour's plates show on your body (they can pass through it); 0 off
 QVR_CVAR(vr_ammo_pouch_y, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_z, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_thresh, "5", CVAR_ARCHIVE)

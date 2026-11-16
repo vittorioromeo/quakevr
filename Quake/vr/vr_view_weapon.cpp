@@ -1064,7 +1064,7 @@ void drawHotspots(int hand, int edited)
 }
 void showHotspots()
 {
-    if(!vr_show_weapon_hotspots.value)
+    if(!vr_show_weapon_hotspots.value || obs::hides(obs::Hide::Debug)) // (OBS recording: vr_obsrec_debug)
     {
         return;
     }

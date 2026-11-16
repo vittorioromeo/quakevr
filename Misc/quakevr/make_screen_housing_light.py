@@ -55,9 +55,13 @@ from mathutils import Vector
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import housing_common as hc  # noqa: E402
 
-STEM = "light"
-MODEL = "v_light"
-SLOT = 7
+# The gun the .blend holds (its mesh named after the model): the Thunderbolt, or its plasma model
+# (src_models/blend/v_light_plasma/v_light_plasma.blend: v_light's mesh without the housing, its own skin holding
+# v_light's texels at the places below), which takes the same housing, its table entry "light_plasma" and weapons.txt
+# slot 15 (their numbers slot 7's and "light"'s). (stem, slot)
+GUNS = {"v_light": ("light", 7), "v_light_plasma": ("light_plasma", 15)}
+MODEL = next((o.name for o in bpy.data.objects if o.type == 'MESH' and o.name in GUNS), "v_light")
+STEM, SLOT = GUNS[MODEL]
 
 # Measured with vr_debug_screen_where 1 (weapons.txt slot 7's wpntxt offsets, pitch 0, the table's offset 0): the
 # glass's centre (right model -Y, up +Z, upright), and a font pixel 0.07654 model units at wpntxt_scale 0.3: 2.5513 model

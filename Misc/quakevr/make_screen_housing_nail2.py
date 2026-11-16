@@ -97,6 +97,20 @@ FLOOR = (428.0, 51.0)                # behind the glass
 RIVET_X = 481.0
 RIVET_ROWS = (38.0, 33.5, 33.0)      # base ring, top ring, top centre
 
+# The gun the .blend holds (its mesh named after the model): the super nailgun, or its lava-nail model
+# (src_models/blend/v_lava2/v_lava2.blend: its own mesh, the receiver's rear band and ridge as v_nail2's within a grid
+# step, its own grid and skin), which takes the same housing, its table entry "lava2" and weapons.txt slot 12 (its
+# wpntxt values slot 4's). Its skin keeps the block's and the walls' texels; the bezel's paint and the rivets' grey
+# strip found on it by colour (texel by texel, the least RMS difference).
+GUNS = {
+    "v_nail2": dict(STEM="nail2"),
+    "v_lava2": dict(STEM="lava2", RIDGE_FRONT=6.003, GLASS_AT_ZERO=(-0.8868, -0.0530, 8.3389),
+                    PAINT=(6.0, 34.0, 13.0, 25.0), RIVET_X=295.0, RIVET_ROWS=(407.0, 402.5, 402.0)),
+}
+MODEL = next((o.name for o in bpy.data.objects if o.type == 'MESH' and o.name in GUNS), "v_nail2")
+globals().update(GUNS[MODEL])
+TAG = "housing_" + STEM
+
 
 RUN = []  # (the housing_common.Run of this run: its refusals)
 
