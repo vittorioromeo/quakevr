@@ -52,6 +52,19 @@ public:
     explicit ThreadPool(SizeT workerCount);
 
     ////////////////////////////////////////////////////////////
+    /// \brief A function every pool's worker calls once it has found no
+    ///        task for `idleMilliseconds` (once each time it goes idle;
+    ///        null: none, the default)
+    ///
+    /// For per-thread housekeeping a busy thread does as it goes and an idle
+    /// one never would (e.g. a thread-caching allocator's pages that frees on
+    /// other threads emptied). Workers already waiting take it up after their
+    /// next task or wake-up. The hook must not throw, nor wait on the pool.
+    ///
+    ////////////////////////////////////////////////////////////
+    static void setIdleHook(void (*hook)(), int idleMilliseconds) noexcept;
+
+    ////////////////////////////////////////////////////////////
     /// \brief Run all pending tasks, then stop and join all workers
     ///
     /// Tasks still running may keep posting tasks (e.g. through

@@ -191,16 +191,44 @@ static inline int qvrForeign(const void* p)
     return 1;
 }
 
+// ---- The live-block trace (vr_heap_sites; VR_CrtHeapSetTrace) -------------------------------------------------------
+
+static VR_CrtHeapTraceFn qvrTrace; // (null: off; one load a call)
+
+void VR_CrtHeapSetTrace(VR_CrtHeapTraceFn fn)
+{
+    __atomic_store_n(&qvrTrace, fn, __ATOMIC_RELEASE);
+}
+
+static inline void* qvrTraced(void* p, size_t size)
+{
+    const VR_CrtHeapTraceFn fn = __atomic_load_n(&qvrTrace, __ATOMIC_RELAXED);
+    if(__builtin_expect(fn != 0, 0) && p)
+    {
+        fn(p, size);
+    }
+    return p;
+}
+
+static inline void qvrTraceFree(void* p)
+{
+    const VR_CrtHeapTraceFn fn = __atomic_load_n(&qvrTrace, __ATOMIC_RELAXED);
+    if(__builtin_expect(fn != 0, 0))
+    {
+        fn(p, 0);
+    }
+}
+
 // ---- The overrides ------------------------------------------------------------------------------------------------
 
 void* __cdecl malloc(size_t size)
 {
-    return qvrUseMi() ? mi_malloc(size) : qvrCrt.malloc(size);
+    return qvrTraced(qvrUseMi() ? mi_malloc(size) : qvrCrt.malloc(size), size);
 }
 
 void* __cdecl calloc(size_t count, size_t size)
 {
-    return qvrUseMi() ? mi_calloc(count, size) : qvrCrt.calloc(count, size);
+    return qvrTraced(qvrUseMi() ? mi_calloc(count, size) : qvrCrt.calloc(count, size), count * size);
 }
 
 void __cdecl free(void* p)
@@ -209,6 +237,7 @@ void __cdecl free(void* p)
     {
         return;
     }
+    qvrTraceFree(p);
     if(qvrForeign(p))
     {
         qvrCrt.free(p);
@@ -228,12 +257,13 @@ void* __cdecl realloc(void* p, size_t size)
     {
         return qvrCrt.realloc(p, size);
     }
+    qvrTraceFree(p);
     if(size == 0)
     {
         mi_free(p);
         return 0;
     }
-    return mi_realloc(p, size);
+    return qvrTraced(mi_realloc(p, size), size);
 }
 
 size_t __cdecl _msize(void* p)
@@ -266,7 +296,7 @@ void* __cdecl _recalloc(void* p, size_t count, size_t size)
 
 void* __cdecl _aligned_malloc(size_t size, size_t alignment)
 {
-    return qvrUseMi() ? mi_malloc_aligned(size, alignment) : qvrCrt.alignedMalloc(size, alignment);
+    return qvrTraced(qvrUseMi() ? mi_malloc_aligned(size, alignment) : qvrCrt.alignedMalloc(size, alignment), size);
 }
 
 void* __cdecl _aligned_offset_malloc(size_t size, size_t alignment, size_t offset)
@@ -285,6 +315,7 @@ void __cdecl _aligned_free(void* p)
         qvrCrt.alignedFree(p);
         return;
     }
+    qvrTraceFree(p);
     mi_free(p);
 }
 
@@ -298,12 +329,13 @@ void* __cdecl _aligned_realloc(void* p, size_t size, size_t alignment)
     {
         return qvrCrt.alignedRealloc(p, size, alignment);
     }
+    qvrTraceFree(p);
     if(size == 0)
     {
         mi_free(p);
         return 0;
     }
-    return mi_realloc_aligned(p, size, alignment);
+    return qvrTraced(mi_realloc_aligned(p, size, alignment), size);
 }
 
 void* __cdecl _aligned_offset_realloc(void* p, size_t size, size_t alignment, size_t offset)
@@ -479,4 +511,11 @@ unsigned long long VR_CrtHeapForeignCalls(void)
     return 0;
 }
 
+#endif
+
+#if !(defined(QVR_MIMALLOC) && defined(_WIN32))
+void VR_CrtHeapSetTrace(VR_CrtHeapTraceFn fn)
+{
+    (void)fn; // (no override of ours to call it from)
+}
 #endif

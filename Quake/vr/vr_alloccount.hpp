@@ -40,6 +40,12 @@ struct Site
 };
 // The last trace's sites, most first (Windows; elsewhere none), its heap events, and those whose stack didn't fit.
 [[nodiscard]] za::Vector<Site> traceSites(za::U64& total, za::U64& dropped, bool peakFrame = false);
+// vr_heap_sites: every thread's blocks of minSize..maxSize bytes from liveBegin (false: not on this platform) to
+// liveEnd, kept by stack until freed; traceSites then gives each site's blocks still live (count) and their bytes.
+// liveEnd: the blocks traced, those still live, those not placed (a table full).
+[[nodiscard]] bool liveBegin(za::U64 minSize, za::U64 maxSize);
+void liveEnd(za::U64& allocs, za::U64& live, za::U64& dropped);
+[[nodiscard]] bool liveTracing();
 
 } // namespace qvr::alloccount
 

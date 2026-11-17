@@ -6285,6 +6285,10 @@ QVR_CYCLE_BYNAME(vr_memstats_glscan, "Memory Log: GL Count",
 QVR_TOGGLE(vr_memstats_log_gpu, "Memory Log: GPU",
     "Also sample the GPU for the Memory Log (its clocks, slowdowns, and each program's use of it: SteamVR, "
     "Virtual Desktop), on a thread of its own. Off: only while profiling (Performance Profile, the Profiler Panel or its CSV Capture).")
+QVR_CYCLE_BYNAME(vr_heap_thread_tidy, "Heap: Worker Tidy",
+    "vr_heap_thread_tidy: how often each job worker gives back its own heap pages that frees on other threads "
+    "emptied (only the thread that made a page can). Never: a busy server holds more and more of them.",
+    {0.f, "Never"}, {100.f, "100 ms"}, {1000.f, "1 s"}, {10000.f, "10 s"})
 QVR_CYCLE_BYNAME(vr_heap_purge_delay, "Heap: Purge Delay",
     "vr_heap_purge_delay: how long the heap (mimalloc) keeps freed memory before giving it back to the system. "
     "At once: the smallest working set. 1 s, mimalloc's own default: map loads about 15% quicker, 0.3 to 1 GB "
