@@ -360,6 +360,7 @@ void Host_EndGame (const char *message, ...)
 	if (cls.state == ca_dedicated)
 		Sys_Error ("Host_EndGame: %s\n",string);	// dedicated servers exit
 
+	NET_RestoreMessage (); // QVR: (as Host_Error)
 	if (cls.demonum != -1 && cls.demoloop)
 		CL_NextDemo ();
 	else
@@ -407,6 +408,7 @@ void Host_ReportError (const char *error, ...)
 	if (cls.state == ca_dedicated)
 		Sys_Error ("Host_Error: %s\n",string);	// dedicated servers exit
 
+	NET_RestoreMessage (); // QVR: a parse that pointed net_message elsewhere (a snapshot's record) erred: its own again
 	CL_Disconnect ();
 	cls.demonum = -1;
 	cl.intermission = 0; //johnfitz -- for errors during intermissions (changelevel with no map found, etc.)
