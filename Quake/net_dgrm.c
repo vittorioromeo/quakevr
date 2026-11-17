@@ -425,6 +425,18 @@ int	Datagram_GetMessage (qsocket_t *sock)
 		{
 			if (sequence < sock->unreliableReceiveSequence)
 			{
+				if (sock->qvrAcceptStale)
+				{
+					// QVR: (B20) read all the same, marked (a remote client's moves at the server: a jittery link
+					// reorders them past their repeats, and each is idempotent by its number)
+					sock->qvrStaleRead++;
+					length -= NET_HEADERSIZE;
+					SZ_Clear (&net_message);
+					SZ_Write (&net_message, packetBuffer.data, length);
+					net_stalemessage = true;
+					ret = 2;
+					break;
+				}
 				// QVR: (B13) skipped, the reading goes on (NetQuake stopped reading for the frame at one: under
 				// reordering the acks and chunks behind it waited a frame each)
 				Con_DPrintf("Got a stale datagram\n");

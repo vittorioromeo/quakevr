@@ -544,6 +544,9 @@ qboolean SV_ReadClientMessage (void)
 	do
 	{
 nextmsg:
+		// QVR: (B20) a remote client's datagrams overtaken on the way still read, for their moves alone
+		if (host_client->netconnection)
+			NET_AcceptStale (host_client->netconnection, VR_AcceptsStaleMoves (host_client));
 		ret = NET_GetMessage (host_client->netconnection);
 		if (ret == -1)
 		{
@@ -554,6 +557,15 @@ nextmsg:
 			return true;
 
 		MSG_BeginReading ();
+
+		if (net_stalemessage)
+		{
+			// QVR: (B20) only its QVR_CLC_MOVES (idempotent by their numbers: the moves a newer one's repeats no longer
+			// carried fill the move buffer's gap); anything else in it, or a malformed one, dropped as NetQuake did
+			if (MSG_ReadChar () == QVR_CLC_MOVES)
+				VR_ReadStaleQvrMoves (host_client);
+			goto nextmsg;
+		}
 
 		while (1)
 		{

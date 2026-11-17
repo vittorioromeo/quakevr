@@ -310,6 +310,9 @@ struct ClientState
 };
 ClientState clientState;
 
+// (B20) The ticks over which the move buffer measures a client's jitter (2 s at 72 Hz): a spike's depth lasts this long.
+constexpr int lateWindow = 144;
+
 // The server's per client slot: the moves read (`ring` back), the newest run.
 struct ServerSlot
 {
@@ -320,6 +323,14 @@ struct ServerSlot
     Quant moves[ring];
     ServerCounts counts;
     bool sends{false}; // it sent QVR_CLC_MOVES: acknowledged in its datagrams
+    // (B20) The buffer's depth by his link's jitter: each move's lateness when it first came (the buffer's tick count
+    // less its number), the lowest and highest of each tick's over the last `lateWindow` ticks.
+    za::U32 tick{0};           // the buffer's ticks since the slot's reset
+    int lateLo[lateWindow]{};  // ... each tick's lowest lateness (lateAny: any move came in it)
+    int lateHi[lateWindow]{};
+    bool lateAny[lateWindow]{};
+    int curLo{0}, curHi{0};    // ... the coming tick's so far
+    bool curAny{false};
 };
 za::Vector<ServerSlot> serverSlots;
 
@@ -566,8 +577,9 @@ namespace
     return vr_net_movebuffer.value >= 1.f && vr_mp_lockstep.value < 1.f;
 }
 
-// The oldest move kept after the last one run, run (a gap before it: lost) -> false: none kept.
-bool runOldest(client_t* client, ServerSlot& slot, ApplyFn apply)
+// The oldest move kept after the last one run, run (a gap before it: lost) -> false: none kept. (B20) !skipGap: a gap
+// before it waits instead (-> false; *gap set): a move reordered on the way comes a tick or two after a newer one.
+bool runOldest(client_t* client, ServerSlot& slot, ApplyFn apply, bool skipGap = true, bool* gap = nullptr)
 {
     if(slot.read == 0 || slot.read <= slot.last)
     {
@@ -591,9 +603,22 @@ bool runOldest(client_t* client, ServerSlot& slot, ApplyFn apply)
     {
         return false;
     }
+    if(s != from && !skipGap)
+    {
+        if(gap)
+        {
+            *gap = true;
+        }
+        return false;
+    }
     if(slot.last != 0)
     {
         slot.counts.lost += static_cast<int>(s - slot.last - 1);
+        if(s != slot.last + 1 && vr_mp_watch.value >= 3.f)
+        {
+            Con_Printf("mp_netmove_skip: moves %u-%u never came (read %u, tick %u, %s)\n", slot.last + 1, s - 1, slot.read,
+                slot.tick, gap ? "the tick's first" : "over the depth");
+        }
     }
     slot.last = s;
     slot.counts.run++;
@@ -610,9 +635,46 @@ void runWaiting(client_t* client, ServerSlot& slot, ApplyFn apply, za::U32 keep)
     {
     }
 }
+
+// (B20) A buffer tick begun: the moves' lateness read since the last one kept in the window -> the moves left waiting
+// after this tick at most. vr_net_movebuffer at least; with vr_net_movebuffer_max over it, the spread of the lateness
+// over the window (his jitter, a lost packet's move come with the next, a reordered one), up to vr_net_movebuffer_max:
+// a move then runs a whole depth after the earliest of its kind would, never sooner than it may come, so a jittery
+// link's moves still run one a tick (each meeting the movers where his replay met them); a quiet link's depth is the
+// least again once the window has passed (the moves over it run together then: the latency back).
+za::U32 bufferDepth(ServerSlot& slot)
+{
+    const int w = static_cast<int>(slot.tick % static_cast<za::U32>(lateWindow));
+    slot.lateLo[w] = slot.curLo;
+    slot.lateHi[w] = slot.curHi;
+    slot.lateAny[w] = slot.curAny;
+    slot.curAny = false;
+    slot.tick++;
+    const float most = static_cast<float>(ring / 2);
+    const float least = za::clamp(vr_net_movebuffer.value, 1.f, most);
+    const float cap = za::clamp(vr_net_movebuffer_max.value, least, most);
+    if(cap <= least)
+    {
+        return static_cast<za::U32>(least);
+    }
+    bool any = false;
+    int lo = 0, hi = 0;
+    for(int k = 0; k < lateWindow; k++)
+    {
+        if(slot.lateAny[k])
+        {
+            lo = any ? za::min(lo, slot.lateLo[k]) : slot.lateLo[k];
+            hi = any ? za::max(hi, slot.lateHi[k]) : slot.lateHi[k];
+            any = true;
+        }
+    }
+    const float spread = any ? static_cast<float>(hi - lo) : 0.f;
+    slot.counts.spreadMax = za::max(slot.counts.spreadMax, hi - lo);
+    return static_cast<za::U32>(za::clamp(spread, least, cap));
+}
 } // namespace
 
-bool serverRead(client_t* client, ApplyFn apply)
+bool serverRead(client_t* client, ApplyFn apply, bool stale)
 {
     const int slotNum = static_cast<int>(client - svs.clients);
     ServerSlot* slot = slotOf(slotNum, true);
@@ -622,7 +684,10 @@ bool serverRead(client_t* client, ApplyFn apply)
     {
         return false;
     }
-    netsnap::serverAck(slotNum, snapAck);
+    if(!stale)
+    {
+        netsnap::serverAck(slotNum, snapAck); // (B20: an overtaken one's is older)
+    }
     const int count = MSG_ReadByte();
     if(count < 1 || count > repeats + 1 || !readVarint(first) || first == 0)
     {
@@ -638,6 +703,10 @@ bool serverRead(client_t* client, ApplyFn apply)
     Quant cur;
     const bool lockstep = vr_mp_lockstep.value >= 1.f;
     const bool buffered = buffering();
+    if(stale && (!buffered || lockstep))
+    {
+        return true; // (its moves run already or by number: nothing to keep)
+    }
     if(!buffered && slot->read > slot->last)
     {
         runWaiting(client, *slot, apply, 0); // (the buffer just turned off: what it kept runs first, in order)
@@ -653,6 +722,14 @@ bool serverRead(client_t* client, ApplyFn apply)
         if(!decodable)
         {
             continue; // (read past: the message stays in step)
+        }
+        if(buffered && s > slot->last && slot->seqs[s % ring] != s)
+        {
+            // (B20) its lateness, first come: the buffer's ticks less its number (a steady link: the same each move)
+            const int late = static_cast<int>(slot->tick - s);
+            slot->curLo = slot->curAny ? za::min(slot->curLo, late) : late;
+            slot->curHi = slot->curAny ? za::max(slot->curHi, late) : late;
+            slot->curAny = true;
         }
         if(s + static_cast<za::U32>(ring) > slot->last)
         {
@@ -717,6 +794,11 @@ bool serverSends(int slotNum)
 {
     const ServerSlot* slot = slotOf(slotNum, false);
     return slot && slot->sends;
+}
+
+bool serverTakesStale(int slotNum)
+{
+    return serverSends(slotNum) && buffering();
 }
 
 za::U32 serverLast(int slotNum)
@@ -802,12 +884,18 @@ void serverRunBuffered(client_t* client, ApplyFn apply)
         runWaiting(client, *slot, apply, 0); // (turned off: what it kept, at once)
         return;
     }
-    if(!runOldest(client, *slot, apply))
+    const za::U32 keep = bufferDepth(*slot);
+    slot->counts.depth = static_cast<int>(keep);
+    slot->counts.depthMax = za::max(slot->counts.depthMax, slot->counts.depth);
+    // (B20) a gap before the oldest kept (a move reordered on the way) waits while the moves kept are within the depth
+    bool gap = false;
+    if(!runOldest(client, *slot, apply, slot->read - slot->last > keep, &gap))
     {
         slot->counts.ticksNone++;
+        slot->counts.ticksGap += gap ? 1 : 0;
+        slot->counts.waitSum += slot->read > slot->last ? slot->read - slot->last : 0;
         return;
     }
-    const za::U32 keep = static_cast<za::U32>(za::clamp(vr_net_movebuffer.value, 1.f, static_cast<float>(ring / 2)));
     const int before = slot->counts.run;
     runWaiting(client, *slot, apply, keep);
     if(slot->counts.run != before)
@@ -830,6 +918,9 @@ void serverReset(int slotNum)
         slot->read = 0;
         memset(slot->seqs, 0, sizeof(slot->seqs));
         slot->counts = {};
+        slot->tick = 0;
+        memset(slot->lateAny, 0, sizeof(slot->lateAny));
+        slot->curAny = false;
         slot->sends = false;
     }
 }

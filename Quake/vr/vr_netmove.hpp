@@ -76,7 +76,11 @@ void clientClear();
 // Server: QVR_CLC_MOVES's body from client slot `slot`; `apply` runs each move it has not run yet, in order. False: a
 // malformed message (the client dropped).
 using ApplyFn = void (*)(client_t* client, const WireMove& m, bool newest);
-[[nodiscard]] bool serverRead(client_t* client, ApplyFn apply);
+// (B20) stale: a datagram overtaken on the way (net_stalemessage): its snapshot acknowledgement ignored (older), its
+// moves only kept for the buffer (one it no longer waits for: nothing).
+[[nodiscard]] bool serverRead(client_t* client, ApplyFn apply, bool stale = false);
+// (B20) Its overtaken datagrams are read (net_dgrm.c): it sends QVR_CLC_MOVES and the move buffer is on.
+[[nodiscard]] bool serverTakesStale(int slot);
 // The acknowledgement into the client's datagram (QVR_SVC_MOVEACK: the newest move read, kept by the buffer or run),
 // once it sent QVR_CLC_MOVES.
 void serverWriteAck(sizebuf_t* msg, int slot);
@@ -101,6 +105,9 @@ struct ServerCounts
     long long bytes{0};
     int ticksOne{0}, ticksMore{0}, ticksNone{0};
     long long waitSum{0};
+    // (B20) the ticks of ticksNone that waited for a gap (a reordered move), the buffer's depth now and at most, the
+    // moves' lateness spread at most (vr_net_movebuffer_max)
+    int ticksGap{0}, depth{0}, depthMax{0}, spreadMax{0};
 };
 [[nodiscard]] ServerCounts serverCounts(int slot);
 

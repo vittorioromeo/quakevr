@@ -43,6 +43,7 @@ extern cvar_t		hostname;
 
 extern	double		net_time;
 extern	sizebuf_t	net_message;
+extern	qboolean	net_stalemessage; // QVR: (B20) the message just read was overtaken on the way (only a remote client's moves are read so)
 void NET_RestoreMessage (void); // QVR: net_message back on its own buffer, emptied (Host_Error: a parse that pointed it elsewhere, MP_PLAN B19)
 extern	int		net_activeconnections;
 
@@ -57,6 +58,7 @@ struct qsocket_s	*NET_Connect (const char *host);
 // called by client to connect to a host.  Returns -1 if not able to
 
 double NET_QSocketGetTime (const struct qsocket_s *sock);
+void NET_AcceptStale (struct qsocket_s *sock, int on); // QVR: (B20) its overtaken unreliable datagrams read all the same (net_stalemessage)
 const char *NET_QSocketGetAddressString (const struct qsocket_s *sock);
 const char *NET_QSocketGetQvrName (const struct qsocket_s *sock); // QVR: the name in its connect request
 

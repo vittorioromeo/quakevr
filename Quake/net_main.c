@@ -58,10 +58,17 @@ static PollProcedure	slistSendProcedure = {NULL, 0.0, Slist_Send};
 static PollProcedure	slistPollProcedure = {NULL, 0.0, Slist_Poll};
 
 sizebuf_t	net_message;
+qboolean	net_stalemessage; // QVR: (B20) the message NET_GetMessage just read came overtaken (qsocket_t.qvrAcceptStale)
 // QVR: net_message's own buffer. A snapshot's records are parsed with net_message pointed at each (vr_netsnap.cpp), and
 // a Host_Error inside one (a damaged record: mp_fuzz) left it there: the next connection's request overflowed its few
 // bytes (SZ_GetSpace, "B joined again 1 times"). Host_Error puts it back (NET_RestoreMessage).
 static sizebuf_t	net_message_own;
+
+void NET_AcceptStale (qsocket_t *sock, int on)
+{
+	if (sock)
+		sock->qvrAcceptStale = on != 0;
+}
 
 void NET_RestoreMessage (void)
 {
@@ -143,6 +150,7 @@ qsocket_t *NET_NewQSocket (void)
 	sock->qvrNetVersion = 0; // QVR
 	sock->qvrName[0] = 0; // QVR
 	sock->qvrUnreliableRead = sock->qvrUnreliableSkipped = sock->qvrResent = 0; // QVR: (B13) the net HUD's
+	sock->qvrAcceptStale = false; sock->qvrStaleRead = 0; // QVR: (B20) SV_ReadClientMessage opts in for a remote client
 	sock->qvrBytesIn = sock->qvrBytesOut = 0;
 	sock->unreliableSendSequence = 0;
 	sock->sendMessageLength = 0;
@@ -643,6 +651,7 @@ int	NET_GetMessage (qsocket_t *sock)
 	}
 
 	SetNetTime();
+	net_stalemessage = false; // QVR: (B20) set by the driver for an overtaken datagram it still reads
 
 	ret = sfunc.QGetMessage(sock);
 

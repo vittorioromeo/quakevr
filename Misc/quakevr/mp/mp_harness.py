@@ -249,6 +249,9 @@ class Session:
         self.low_impact = author_game_running()
         if self.low_impact:
             self.note("the author's game is running: idle priority (timings are not representative)")
+        elif os.environ.get("QVR_MP_LOW_IMPACT") == "1":  # (B20: a long soak asked to keep out of the machine's way)
+            self.low_impact = True
+            self.note("QVR_MP_LOW_IMPACT: idle priority (timings are not representative)")
 
     def note(self, text):
         self.notes.append(text)

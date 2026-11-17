@@ -385,9 +385,9 @@ void status_f()
             const qvr::netmove::ServerCounts nm = qvr::netmove::serverCounts(i);
             // (B19: the move buffer's ticks running one, more, none; the moves left waiting after them, summed)
             Con_Printf("mp_netmoves: slot=%d run=%d lost=%d recovered=%d undecodable=%d bytes=%lld tick_one=%d tick_more=%d "
-                       "tick_none=%d wait_sum=%lld\n",
+                       "tick_none=%d wait_sum=%lld tick_gap=%d depth=%d depth_max=%d spread_max=%d\n",
                 i, nm.run, nm.lost, nm.recovered, nm.undecodable, nm.bytes, nm.ticksOne, nm.ticksMore, nm.ticksNone,
-                nm.waitSum);
+                nm.waitSum, nm.ticksGap, nm.depth, nm.depthMax, nm.spreadMax); // (B20: the gap waits, the depth)
             // (sent, full, delta, cut, bytes: his snapshots, whole or against the one he acknowledged; B7b)
             const qvr::netsnap::ServerCounts ns = qvr::netsnap::serverCounts(i);
             // (B12: his rate, the changed records that waited for it and the snapshots with any)

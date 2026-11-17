@@ -125,6 +125,10 @@ These stay off in multiplayer (the world can't slow down or stop for one player)
   Browser with the reason (Debug > Reports > Network: Server Timeout, `vr_mp_client_timeout`; 0 waits 5 minutes as Quake did).
 - **A slow link**: `vr_net_rate` (default 80000 bytes a second) caps what the server sends you; lower it on a slow or
   metered connection: the nearest and the things ahead of you are kept up to date first.
+- **A jittery link** (Wi-Fi, a busy connection): the server holds each player's moves as long as his link's jitter
+  needs (up to about 140 ms) and runs them one a tick, so his movement stays even for everyone and lifts meet him where
+  his game showed; on a steady link it is about 28 ms at most. The others see a jittery player that much later. (Debug
+  > Network: Move Buffer and Move Buffer Most, `vr_net_movebuffer` and `vr_net_movebuffer_max`, on the host.)
 - **Can't connect over the internet**: almost always the host's port forwarding (UDP 26000, to the right PC) or a
   firewall. Try from the same LAN first.
 

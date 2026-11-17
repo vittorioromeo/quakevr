@@ -1263,6 +1263,10 @@ za::Vector<Item> pageDebugReports()
             .help("vr_net_movebuffer: hosting, a remote player's moves run one a server tick in order, at most this many "
                   "waiting (more run together): his packets bunched on the way, a lift still meets each move where his "
                   "game's prediction met it (MP_PLAN B19). 0: run as they come."),
+        slider("Network: Move Buffer Most", vr_net_movebuffer_max, 0.f, 16.f, 1.f, "%.0f")
+            .help("vr_net_movebuffer_max: hosting, the move buffer deepens with a player's jitter up to this many moves "
+                  "(his moves' lateness over the last 2 s), so a jittery link's moves still run one a tick; at or under "
+                  "Move Buffer: a fixed depth (MP_PLAN B20)."),
         open("Voice Chat", pageIndex(pageVoiceChat))
             .help("VR Settings > HUD, Haptics and Sound > Voice Chat: its settings, each player's mute and volume, its "
                   "Report and Self-Test (MP_PLAN B10v)."),

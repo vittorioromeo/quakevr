@@ -452,6 +452,8 @@ int VR_ReadVoice (struct client_s *client);			// SV_ReadClientMessage's QVR_CLC_
 void VR_WriteVoiceTo (struct sizebuf_s *msg, struct client_s *client); // SV_SendClientDatagram: the other players' voices
 unsigned char *VR_VoicechatSound (const char *name, int *size); // S_LoadSound: a speaker's looping ring (VR_SndMemory)
 int VR_ReadQvrMoves (struct client_s *client);			// SV_ReadClientMessage's QVR_CLC_MOVES: 0 a malformed one (vr_netmove.cpp)
+int VR_AcceptsStaleMoves (struct client_s *client);		// (B20) a remote client sending QVR_CLC_MOVES under the move buffer: his overtaken datagrams read
+void VR_ReadStaleQvrMoves (struct client_s *client);		// (B20) an overtaken datagram's QVR_CLC_MOVES: only moves the buffer still waits for (vr_netmove.cpp)
 void VR_ApplyClientMove (struct client_s *client, float time, const float *angles, int forward, int side, int up, int buttons, int impulse); // sv_user.c: a move's NetQuake part run (SV_ReadClientMove's, read)
 void VR_WriteMoveAck (struct sizebuf_s *msg, struct client_s *client); // SV_SendClientDatagram: QVR_SVC_MOVEACK (vr_netmove.cpp)
 void VR_PredictBeginRead (struct client_s *client);	// SV_RunClients, before his message: the last frame's queued moves dropped (vr_predict.cpp, B8)

@@ -166,6 +166,9 @@ typedef struct qsocket_s
 	unsigned int	qvrResent;
 	unsigned int	qvrBytesIn;
 	unsigned int	qvrBytesOut;
+	qboolean	qvrAcceptStale;	// QVR: (B20) an unreliable datagram overtaken on the way is still read (net_stalemessage):
+					// a remote client's moves at the server (SV_ReadClientMessage reads only its QVR_CLC_MOVES)
+	unsigned int	qvrStaleRead;	// QVR: ... how many were
 	int		qvrNetVersion;	// QVR: the peer's Quake VR network version from its connect request (0: none; net_dgrm.c)
 	char		qvrName[32];	// QVR: the player's name from its connect request ("": none): a loaded coop game's slot by it
 	unsigned int	unreliableSendSequence;

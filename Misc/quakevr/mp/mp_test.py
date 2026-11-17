@@ -23,7 +23,11 @@ Tests:
              autoexec.cfg, the command line's +commands over it.
     fuzz     (B18) B's packets up corrupted (the proxy's bit flips, cuts, random bytes): the server runs on, A plays
              on; then the server's packets down to B: B's game runs on (left with an error or playing).
-    version  a client of another Quake VR network version (-mpnetversion 1) is rejected with the reason; one of the
+    jitter   (B20) B 150 ms behind each way give or take 30 (reordered) falls onto e1m1's rising lift: none of his moves
+             lost (the server reads his overtaken datagrams), the move buffer deepened with his jitter, the lift's
+             predicted place under a unit. soak --soak-minutes N: the soak kept going N minutes, sampled each minute
+             (memory, edicts, pace, B's link and moves); QVR_MP_LOW_IMPACT=1: idle priority.
+    version a client of another Quake VR network version (-mpnetversion 1) is rejected with the reason; one of the
              same version joins.
     avatar   B has A's avatar (QVR_SVC_AVATAR): head and drawn hands within 2 units of the server's, the main hand's
              angles within 3 degrees, his weapon; none of himself; A closes his off hand: its finger curls at B within a
@@ -3338,6 +3342,42 @@ def buffer_ticks(srv, ent):
     return None
 
 
+def netmoves_of(srv, ent):
+    """(B20) The server's mp_netmoves fields for player `ent` (vr_mp_status), or {}."""
+    for l in status(srv):
+        m = re.match(r"mp_netmoves: slot=(\d+) ", l)
+        if m and int(m.group(1)) == ent - 1:
+            return fields(l)
+    return {}
+
+
+JITTER_MS = 30          # mp_jitter: B's delay varies by this much either way (with PREDICT_LAG): packets reordered
+JITTER_DEPTH_LEAST = 3  # ... the move buffer's depth reached at least (vr_net_movebuffer 2 under a quiet link)
+
+
+def jitter_lift(s):
+    """(B20) The move buffer under a jittery link: B, PREDICT_LAG ms behind each way give or take JITTER_MS (his
+    packets reordered past their repeats), falls onto e1m1's rising lift and rides it (predict_lift). The server reads
+    his overtaken datagrams' moves (none lost: before, NetQuake dropped them, 6-11 of his moves never ran in a lift run
+    at 30 ms, 50-70 at 60 ms) and its buffer deepens with his jitter (vr_net_movebuffer_max), so his moves still run one
+    a tick: the lift's predicted place under a unit (before: 2-4 units every run)."""
+    srv, a, b, ea, eb = join(s, lag=PREDICT_LAG, jitter=JITTER_MS)
+    srv.cmd("vr_mp_watch 3")
+    b.cmd("vr_mp_watch 3")
+    predict_lift(s, srv, a, b, ea, eb)
+    nm = netmoves_of(srv, eb)
+    s.metric("jitter_netmoves", nm)
+    # (a move overtaken past the depth in his first ticks, before the buffer has measured his jitter, may still go)
+    s.check("B's moves lost at the server: 2 at most (his overtaken datagrams read)", nm and 0 <= int(nm.get("lost", -1)) <= 2,
+            "lost %s of %s, stale ticks waited %s" % (nm.get("lost"), nm.get("run"), nm.get("tick_gap")))
+    s.check("the move buffer deepened with his jitter (to %d at least)" % JITTER_DEPTH_LEAST,
+            nm and int(nm.get("depth_max", 0)) >= JITTER_DEPTH_LEAST,
+            "depth now %s, at most %s (spread %s)" % (nm.get("depth"), nm.get("depth_max"), nm.get("spread_max")))
+    pr = s.metrics.get("b_predict_lift", {})
+    s.check("the lift's predicted place under him moved under a unit", float(pr.get("lift_max", 99)) < PREDICT_CORR_MOST,
+            "lift_max %s" % pr.get("lift_max"))
+
+
 def merged_moves(srv, ent):
     """Player `ent`'s moves bunched on the server so far: merged (vr_mp_status `merged=`: a move in a frame with one of
     his already) plus, under the move buffer (B19), the moves it kept waiting a tick (`wait_sum=`) and its ticks with
@@ -3765,6 +3805,7 @@ PREDICT_CORR_MOST = 1.0  # a correction on flat ground (the replay all on the fl
 PREDICT_LEGS = 4         # B walks there and back twice
 PREDICT_LEG_STATES = 72  # each leg: this many of the server's states read (about a second)
 PART, PART_REPEAT, PART_WATCH = "", 1, 1  # --part, --repeat, --watch (predict's segments alone)
+PART_JITTER, PART_LOSS = 0.0, 0.0  # (B20) predict --part: --jitter/--loss on B's link too (with PREDICT_LAG)
 AMMO_PART = ""  # --part give|use: mp_disarm's rounds alone (handed over; loaded into B's gun)
 PERMOVE_SKIP = 0  # --permove-skip: the server's vr_net_permove_skip in predictclimb (a check that its parts fail unpredicted)
 
@@ -4344,7 +4385,7 @@ def predict(s):
     move it ran comes back with that move's number, and his client replays the moves after it from there. His own
     move shows at the frame of his press (without prediction: a round trip, about 22 frames); walking there and back on
     e1m1's flat floor, each new state moves his prediction by under a unit; at rest he stands where the server has him."""
-    srv, a, b, ea, eb = join(s, lag=PREDICT_LAG)
+    srv, a, b, ea, eb = join(s, lag=PREDICT_LAG, jitter=PART_JITTER if PART else 0.0, loss=PART_LOSS if PART else 0.0)
     if PART:
         # (--part: one of its segments alone, `--repeat` times: a flake's cause traced, vr_mp_watch 2)
         srv.cmd("vr_mp_watch %d" % PART_WATCH)
@@ -5678,7 +5719,92 @@ def soak(s):
         s.metric("soak_%s_ping" % what, int(f["ping"]))
     left = [l for inst in (a, b) for l in inst.lines if l.startswith("mp_event:") and l.rstrip().endswith(" left")]
     s.check("nobody left the game", not left, "%s" % left)
+    if SOAK_MINUTES > 0:
+        soak_long(s, srv, a, b, SOAK_MINUTES)
 # ---- (B13's end) ----
+
+
+SOAK_MINUTES = 0           # (B20) --soak-minutes: the long soak after the window (0: none)
+SOAK_LONG_SAMPLE = 60.0    # its samples, a minute of the server's game time apart
+SOAK_LONG_WARMUP = 2       # ... the memory measured from the end of this many (the first minutes fill caches)
+SOAK_LONG_GROWTH_MB = 48   # each game's private bytes may grow by at most this after the warm-up
+SOAK_LONG_EDICTS_MAX = 2048
+
+
+def private_mb(inst):
+    """A game's private bytes (PROCESS_MEMORY_COUNTERS_EX.PrivateUsage, GetProcessMemoryInfo) in MB."""
+    import ctypes
+    from ctypes import wintypes
+
+    class PMC(ctypes.Structure):
+        _fields_ = [("cb", wintypes.DWORD), ("PageFaultCount", wintypes.DWORD)] + [
+            (n, ctypes.c_size_t) for n in ("PeakWorkingSetSize", "WorkingSetSize", "QuotaPeakPagedPoolUsage",
+                                           "QuotaPagedPoolUsage", "QuotaPeakNonPagedPoolUsage",
+                                           "QuotaNonPagedPoolUsage", "PagefileUsage", "PeakPagefileUsage",
+                                           "PrivateUsage")]
+    pmc = PMC()
+    pmc.cb = ctypes.sizeof(PMC)
+    ctypes.windll.psapi.GetProcessMemoryInfo(wintypes.HANDLE(int(inst.proc._handle)), ctypes.byref(pmc), pmc.cb)
+    return pmc.PrivateUsage / (1024.0 * 1024.0)
+
+
+def soak_long(s, srv, a, b, minutes):
+    """(B20) The soak kept going `minutes` minutes of the server's game time, sampled each minute: each game's private
+    bytes, the server's edicts and Box3D bodies, its pace (game time a second of wall clock), B's link down, B's moves as
+    the server ran them (the move buffer). Leaks and drift: each game's memory grows by at most SOAK_LONG_GROWTH_MB after
+    the warm-up, the edicts stay bounded, the server keeps pace every minute, B's link stays under its bound, B's moves
+    are not lost, nobody left. Samples: soak_long.txt."""
+    rows = []
+    p_prev = b.proxy.snapshot()
+    for m in range(1, minutes + 1):
+        t0 = time.monotonic()
+        since = srv.mark()
+        srv.cmd("vr_mp_after %g soak_minute_%d" % (SOAK_LONG_SAMPLE, m))
+        srv.wait(r"mp_after: .*soak_minute_%d\b" % m, SOAK_LONG_SAMPLE * 10, since, "the soak's minute %d" % m)
+        span = time.monotonic() - t0
+        since = srv.mark()
+        srv.cmd("vr_mp_edicts; vr_mp_status")
+        _, ed = srv.wait(r"mp_edicts: ", 30, since, "the server's edicts")
+        _, bx = srv.wait(r"mp_box3d: ", 30, since, "the server's Box3D bodies")
+        _, nm = srv.wait(r"mp_netmoves: slot=1 ", 30, since, "B's moves at the server")
+        p = b.proxy.snapshot()
+        w = b.proxy.window(p_prev, p)
+        p_prev = p
+        fn = fields(nm)
+        row = {"minute": m, "pace": round(SOAK_LONG_SAMPLE / span, 3), "edicts": int(fields(ed)["used"]),
+               "bodies": int(fields(bx)["bodies"]), "down": int(w["down"]["bytes_s"]), "up": int(w["up"]["bytes_s"]),
+               "b_lost": int(fn.get("lost", 0)), "b_run": int(fn.get("run", 0)), "b_depth": int(fn.get("depth", 0))}
+        for inst in (srv, a, b):
+            row["mem_" + inst.name] = round(private_mb(inst), 1)
+        rows.append(row)
+        s.note("soak minute %d: %s" % (m, " ".join("%s=%s" % kv for kv in row.items() if kv[0] != "minute")))
+    with open(os.path.join(s.out, "soak_long.txt"), "w", encoding="utf-8") as f:
+        for row in rows:
+            f.write(" ".join("%s=%s" % kv for kv in row.items()) + "\n")
+    warm = rows[min(SOAK_LONG_WARMUP, len(rows)) - 1]
+    last = rows[-1]
+    for inst in (srv, a, b):
+        k = "mem_" + inst.name
+        grow = last[k] - warm[k]
+        s.metric("soak_long_%s_growth_mb" % k, round(grow, 1))
+        s.check("%s's memory after the warm-up grows by at most %d MB over %d minutes" % (
+            inst.name, SOAK_LONG_GROWTH_MB, minutes), grow <= SOAK_LONG_GROWTH_MB,
+            "%.1f -> %.1f MB (minute %d to %d)" % (warm[k], last[k], warm["minute"], last["minute"]))
+    s.metric("soak_long_edicts_max", max(r["edicts"] for r in rows))
+    s.metric("soak_long_bodies_max", max(r["bodies"] for r in rows))
+    s.metric("soak_long_pace_min", min(r["pace"] for r in rows))
+    s.metric("soak_long_down_max", max(r["down"] for r in rows))
+    s.check("the server's edicts stay under %d every minute" % SOAK_LONG_EDICTS_MAX,
+            all(r["edicts"] < SOAK_LONG_EDICTS_MAX for r in rows), "%s" % [r["edicts"] for r in rows])
+    s.check("the server keeps pace every minute (%.1f of real time at least)" % SOAK_PACE_MIN,
+            all(r["pace"] >= SOAK_PACE_MIN for r in rows), "%s" % [r["pace"] for r in rows])
+    s.check("B's link down under %d B/s every minute" % SOAK_LINK_MAX, all(r["down"] <= SOAK_LINK_MAX for r in rows),
+            "%s" % [r["down"] for r in rows])
+    runs = last["b_run"] + last["b_lost"]
+    s.check("B's moves lost at the server under 1%", runs > 0 and last["b_lost"] <= runs * 0.01,
+            "%d lost of %d" % (last["b_lost"], runs))
+    left = [l for inst in (a, b) for l in inst.lines if l.startswith("mp_event:") and l.rstrip().endswith(" left")]
+    s.check("nobody left the game over the long soak", not left, "%s" % left[:3])
 
 
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
@@ -5762,6 +5888,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             dedicated(s)
         elif test == "mp_vanish":
             vanish(s)
+        elif test == "mp_jitter":
+            jitter_lift(s)
         elif test == "mp_fuzz":
             fuzz(s)
         elif test == "mp_soak":
@@ -5798,7 +5926,7 @@ def print_bytes_table():
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "dedicated", "soak", "suite"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "dedicated", "soak", "jitter", "suite"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -5818,9 +5946,12 @@ def main():
     ap.add_argument("--tracelog", type=int, default=0, help="lockstep: both sides' traces of B's move N (vr_mp_predict_tracelog)")
     ap.add_argument("--repeat", type=int, default=1, help="predict --part: takes in one run (lift: one)")
     ap.add_argument("--watch", type=int, default=1, help="predict --part: vr_mp_watch on the server and B (3: corrections over 0.05 traced)")
+    ap.add_argument("--soak-minutes", type=int, default=0, help="soak: keep going this many minutes of the server's game time after the window, sampled each minute (B20: leaks, drift)")
     args = ap.parse_args()
-    global PART, PART_REPEAT, PART_WATCH, AMMO_PART, PERMOVE_SKIP, TRACELOG
+    global PART, PART_REPEAT, PART_WATCH, PART_JITTER, PART_LOSS, AMMO_PART, PERMOVE_SKIP, TRACELOG, SOAK_MINUTES
     PART, PART_REPEAT, PART_WATCH = args.part, max(1, args.repeat), max(1, args.watch)
+    PART_JITTER, PART_LOSS = args.jitter, args.loss
+    SOAK_MINUTES = max(0, args.soak_minutes)
     PERMOVE_SKIP = args.permove_skip
     TRACELOG = args.tracelog
     AMMO_PART = args.part if args.part in ("give", "use") else ""
@@ -5836,7 +5967,7 @@ def main():
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "dedicated", "soak"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "dedicated", "soak", "jitter"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)
@@ -5885,6 +6016,7 @@ def main():
         ok = run(args, "mp_nethud") and ok
         ok = run(args, "mp_vanish") and ok
         ok = run(args, "mp_fuzz") and ok
+        ok = run(args, "mp_jitter") and ok
         # B's link per scenario (MP_PLAN B7: byte counts against mp_bandwidth's): what the next phases cut.
         print_bytes_table()
         print("mp_suite: %s" % ("passed" if ok else "FAILED"))

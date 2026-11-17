@@ -1744,6 +1744,19 @@ extern "C" int VR_ReadQvrMoves(client_t* client)
     return netmove::serverRead(client, applyNetMove) ? 1 : 0;
 }
 
+extern "C" int VR_AcceptsStaleMoves(client_t* client)
+{
+    return vrProtocol() && client->edict && netmove::serverTakesStale(static_cast<int>(client - svs.clients)) ? 1 : 0;
+}
+
+extern "C" void VR_ReadStaleQvrMoves(client_t* client)
+{
+    if(vrProtocol() && client->edict)
+    {
+        (void)netmove::serverRead(client, applyNetMove, true); // (a malformed overtaken one: dropped, as NetQuake did)
+    }
+}
+
 extern "C" void VR_WriteMoveAck(sizebuf_t* msg, client_t* client)
 {
     netmove::serverWriteAck(msg, static_cast<int>(client - svs.clients));
