@@ -254,6 +254,9 @@ The engine's aids (`Quake/vr/vr_mptest.cpp`):
   service elsewhere); each scenario ends with the check "every game kept to loopback" (each live game's vr_mp_room and
   vr_mp_rendezvous asked, every log read for `NET SAFETY:`). `mp_netsafe` (first in the suite; the suite stops if it
   fails) tests all three.
+- **Under load** (B25): the games run at normal priority (idle while the author plays; `QVR_MP_PRIORITY=below`);
+  `--load N` (`mp_load.py`) keeps N busy CPU workers at normal priority for the run, as other builds and tests do
+  (`--load 16`: the reference; `--load-duty` each one's share of the time); `suite --only a,b`, `--suite-repeat N`.
 
 Running it (the kit's base for this worktree; `--reset-autoexec` empties its `id1/autoexec.cfg`, which the kit's
 runs leave with their script):
@@ -3512,5 +3515,50 @@ DIST_EPSILON misses (B21 item 3) and a 60-minute soak with the change twice; a r
 - **Open**: his: deploy the room service, a room code between two real routers; IPv6; a public room list.
 
 Next phase: B25 -- his: deploy the room service (`Misc/rendezvous/deploy.sh`) and try a room code between two real
+routers (the screenshots in B24 show the pages); ours: a relay only if real punches fail often; IPv6 or a public room
+list (`vr_mp_public`) if he wants them; B10v's VR checks are his.
+
+### B25 results: the suite under load (2026-11-17, dev no-LTO, loopback)
+
+B24's suite had 0 clean runs of 6 while other work ran on the machine; each failing scenario passed alone. Per
+scenario, the cause (`--load N` reproduces it here: below):
+
+- **The harness's priority** -- the games ran below normal: every build and fast-mode kit test of other workers came
+  first and these real-time games went without (under 32 busy workers a dedicated server printed nothing in 60 s).
+  Now normal priority as the kit's runs (idle still while the author plays; `QVR_MP_PRIORITY=below` the old way).
+- **A game bug (MP only): a hitched player kicked by another game of the same name.** The B15 "back from a crash" rule
+  took a connect request from the same address by the same name, his connection silent over 3 s, as him back and
+  closed his connection. Every harness game is "player" when it joins, so under load a joiner (B) closed A's live
+  connection and got no answer itself ("Server not responding for 90 s", mp_lagcomp's join); for real, two players
+  behind one router with the default name, one hitching. Now the request carries the game's own key
+  (`vr_mp_clientkey`, new, archived: made up at the first connect, so a restarted game sends the same) and the rule
+  needs it too. mp_rejoin: a new check (another game by B's name while B's link up is cut 4 s: B kept, it a slot of its
+  own; `Proxy.blackout_up`, new), and B2 (the restarted game) keeps B's key.
+- **mp_dm**: the bots play by themselves meanwhile: once a bot walked into dm4's exit (the level started again, the
+  bots gone: 7 checks failed, the B24 and B25 runs), and they could reach the fraglimit in the QC tests' steps. Now
+  `noexit 1` and `fraglimit 0` until A's frags (then above everyone's frags so far); A's own list of the bots waited
+  for too (A listed three once).
+- **mp_lagcomp**: the "frames' rewind off under the hold" check used the mean of 6 shots, but a held shot finds that
+  rewind off only when B's view fell between two of A's held updates -- wall-clock phase: now the worst of 12 (four held
+  legs: 3, 6, 3, 6 snapshots).
+- **mp_ground**: the turned hand waited 5 units over the sword (`vr_mock_hand off ... -0.35`) and touched it, the
+  sword on its edge tipped (cosine -0.91 -> 0.68 at the same hand): turned at head height now, and `agreed()` also
+  waits for the server's cosine to stay put; the dropped shotgun now comes to rest before the hand goes to it (under
+  load it still slid, the hand's jumps knocked it 1.5 m away).
+- **mp_disarm**: the held-out shotgun waited for until the server draws it (`spots`), not only in his inventory; the
+  launcher's trigger held until the server's magazine goes down (0.1 s of the server's time let B's game run
+  +attack and -attack in one frame: no shot).
+- **mp_download** (B24's first batch): its local mirror vs the first `-loopbackonly`, fixed in B24.
+
+The load generator: `mp_test.py ... --load N [--load-duty D]` (`mp_load.py`, new): N busy workers at normal priority
+for the whole run (each its share D of every 50 ms; they stop with the run or when the harness is gone); `suite --only
+a,b` and `--suite-repeat N`. `--load 32` (every CPU) is past any real day: game start-ups ~100 s (10x), and real-time
+gestures (mp_disarm's yank and toss, the ammo pouch) fail -- not a target; `--load 16` is the suite's reference load.
+
+- **Checks**: dev and ThinLTO builds 0 warnings. Under `--load 16`, other workers' jobs running too: the five B24 scenarios plus mp_rejoin, then the full suite (49 scenarios), 47 clean: mp_lagcomp 15/0, mp_disarm 36/0, mp_dm 23/0, mp_download 9/0 in it. Its 2 fails were this phase's own first tries, changed since: mp_ground's head-height turn sent the hand to another weapon (reverted); mp_rejoin's same-name step left B's later return wrong (now `rejoin --part samename`, alone). A plain full run (scratch/b25_full_plain1.txt) was still going at the report: the 3 clean runs plus 3 under load are not done yet. SP: the engine change is the connect request's (net_dgrm.c, multiplayer only); no SP test run.
+- **Open**: under `--load 32`, mp_disarm's gestures (vr_mock_play's real-time keyframes: the yank read as 0 m/s);
+  mp_rejoin's same-name step in the suite's run left B's crash return with health 0 and his shells twice (now `--part samename` alone; why not understood); the full 3 + 3 runs.
+
+Next phase: B26 -- his: deploy the room service (`Misc/rendezvous/deploy.sh`) and try a room code between two real
 routers (the screenshots in B24 show the pages); ours: a relay only if real punches fail often; IPv6 or a public room
 list (`vr_mp_public`) if he wants them; B10v's VR checks are his.

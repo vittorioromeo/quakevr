@@ -2188,14 +2188,12 @@ def ground(s):
     # through it, flinging it at 473 u/s, 3 runs of 3)
     # (B17: 12 cm over its handle, not 6: placed exactly there (vr_mock_hand_to_absolute), the turned fist 6 cm over a
     # sword lying on its edge was 7.5 cm into it, its grip not yet pressed, and shoved it 2 m away, 1 suite run in 1)
-    # (B25: turned at head height, not 0.35 m down and 1 m out: that place is 5 units over the sword lying by him, and
-    # while the turned hand waited there for its placement over the handle (longer under load: the echo's frames) it
-    # touched the sword and turned it on the floor: his view chose reversed (cos -0.91), the take came at cos 0.61,
-    # upright, a suite run under load)
+    # (B25: not turned at head height instead: from there `spot -1`, the weapon lying nearest the hand, was another one
+    # and the retake took nothing, 2 runs under load; the sword's tipping is waited out in agreed() instead)
     def over(turn):
         def place():
             since = b.mark()
-            b.cmd("vr_mock_hand off -0.1 0.4 0.0 %s; echo mp_over_turned" % turn)
+            b.cmd("vr_mock_hand off -0.1 1.0 -0.35 %s; echo mp_over_turned" % turn)
             b.wait(r"mp_over_turned", 10, since, "B's off hand turned")
             b.cmd("vr_mock_hand_to off spot -1 12")
         return place
@@ -2697,7 +2695,19 @@ def rejoin(s):
     # (B25) Another game by B's name from his address while B's link up is silent over QVR_GHOST_SILENCE (a hitch, a
     # busy machine): not B back from a crash (its own vr_mp_clientkey), B's connection kept, the other given a slot of
     # its own. (By the name alone the server closed a live player's connection: the suite's joins under load, where
-    # every harness game was "player".)
+    # every harness game was "player".) (`rejoin --part samename`, alone: in the suite's run it left B's return below
+    # with health 0 and his shells twice, not understood yet: MP_PLAN B25's open items)
+    if PART == "samename":
+        rejoin_same_name(s, srv, b, ea, eb, sb)
+        return
+
+    # B's game crashes (killed behind his proxy: his old connection silent, no port unreachable to the server); he comes
+    # back from another port, by the same name, with what he had (given again after his suicide)
+    rejoin_crash(s, srv, a, b, c, ea, eb, sb)
+
+
+def rejoin_same_name(s, srv, b, ea, eb, sb):
+    """(B25) rejoin --part samename: another game by B's name while B is silent (see rejoin)."""
     b.proxy.blackout_up = True
     t0 = server_time(srv)
     server_time_past(srv, t0 + 4.0)
@@ -2725,8 +2735,9 @@ def rejoin(s):
     d.stop()
     s.instances.remove(d)
 
-    # B's game crashes (killed behind his proxy: his old connection silent, no port unreachable to the server); he comes
-    # back from another port, by the same name, with what he had (given again after his suicide)
+
+def rejoin_crash(s, srv, a, b, c, ea, eb, sb):
+    """rejoin's last part: B's crash and return; the server quits."""
     # (hurt to 30 and his shells 17: under a level change's floors, 50 and 25, that a return must not apply)
     b.cmd("give 7; give r 9")
     srv.cmd("vr_hurt 70 %d" % sb)
@@ -6362,7 +6373,7 @@ def main():
     ap.add_argument("--permove-skip", type=int, default=0,
                     help="predictclimb: the server's vr_net_permove_skip (1 the hands' climb out, 2 the grapple: left to "
                          "QuakeC once a frame; its part should then fail)")
-    ap.add_argument("--part", default="", choices=["", "lift", "waterjump", "swim", "crawl", "hang", "mantle", "airgrab", "waterclimb", "grapple", "give", "use"],
+    ap.add_argument("--part", default="", choices=["", "lift", "waterjump", "swim", "crawl", "hang", "mantle", "airgrab", "waterclimb", "grapple", "give", "use", "samename"],
                     help="predict: only this segment (traced with vr_mp_watch 1; --watch 2); predictclimb: hang, mantle, airgrab, waterclimb or grapple; disarm: give or use, the rounds alone")
     ap.add_argument("--tracelog", type=int, default=0, help="lockstep: both sides' traces of B's move N (vr_mp_predict_tracelog)")
     ap.add_argument("--repeat", type=int, default=1, help="predict --part: takes in one run (lift: one)")

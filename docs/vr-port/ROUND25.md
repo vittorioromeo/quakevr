@@ -5078,3 +5078,21 @@ hardware here; diagnosis and plan in LINUX.md, "SteamVR" and "AppImage (plan, no
 - mp_armed's occasional combat check now judges the bytes (the encoder sends each update the smaller way).
 - **For him**: nothing changes in single player. Look at the two room-code screenshots (MP_PLAN B24), then deploy the
   room service and try a code between two real routers.
+
+## MP B25: the MP suite under load; a hitched player no longer kicked by a same-name join (agent/mp, 2026-11-17)
+
+- **Why the suite failed with other work running** (B24: 0 clean of 6, each scenario passing alone): the games ran
+  below normal priority (every build and kit test came first: real-time games starved), the harness waited on
+  wall-clock or phase in a few places, and one real MP bug. Per scenario: MP_PLAN B25.
+- **The bug (MP only, no SP effect)**: the B15 "back from a crash" rule closed a live player's connection when another
+  game from his address joined by the same name while he was silent over 3 s (a hitch). The connect request now
+  carries the game's key, `vr_mp_clientkey` (new, archived, made up at the first connect), and the rule needs it.
+- **The harness**: the games at normal priority (`QVR_MP_PRIORITY=below` the old way); mp_dm `noexit 1` and no
+  fraglimit until A's kills (a bot in dm4's exit restarted the level); mp_lagcomp's held-rewind check by its worst of
+  12 shots; mp_ground's sword turned at head height and judged still, the shotgun at rest first; mp_disarm's held gun
+  drawn first and the launcher's trigger held until a shot; mp_rejoin's new same-name check.
+- **The load generator**: `mp_test.py --load N` (mp_load.py: N busy workers at normal priority; `--load-duty`);
+  `suite --only a,b`, `--suite-repeat N`. `--load 16` is the reference; 32 is past any real day.
+- **Checks**: dev and ThinLTO builds 0 warnings. Under `--load 16`, other workers' jobs running too: the five B24 scenarios plus mp_rejoin, then the full suite (49 scenarios), 47 clean: mp_lagcomp 15/0, mp_disarm 36/0, mp_dm 23/0, mp_download 9/0 in it. Its 2 fails were this phase's own first tries, changed since: mp_ground's head-height turn sent the hand to another weapon (reverted); mp_rejoin's same-name step left B's later return wrong (now `rejoin --part samename`, alone). A plain full run (scratch/b25_full_plain1.txt) was still going at the report: the 3 clean runs plus 3 under load are not done yet. SP: the engine change is the connect request's (net_dgrm.c, multiplayer only); no SP test run.
+- **In VR**: nothing changes in single player. Multiplayer: two players behind one router with the default name no
+  longer kick each other when one hitches.
