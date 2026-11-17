@@ -24,7 +24,8 @@ config="${2:-Release}"
 	-DCMAKE_TOOLCHAIN_FILE="$(win "$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake")" \
 	-DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-29 -DANDROID_STL=c++_static \
 	-DCMAKE_BUILD_TYPE="$config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-	-DQVR_SDL2_DIR="$(win "$QVR_SDL2_DIR")"
+	-DQVR_SDL2_DIR="$(win "$QVR_SDL2_DIR")" \
+	-DQVR_QC=OFF # (progs.dat: the PC build's, staged with the game folder; no FTEQCC build for the device)
 keep=()
 [ "${QVR_ANDROID_KEEP_GOING:-0}" = "1" ] && keep=(-- -k 0)
 "$cmakeDir/cmake$exe" --build "$(win "$out")" --target ironwail SDL2 "${keep[@]}"
