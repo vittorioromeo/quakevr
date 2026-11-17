@@ -491,7 +491,15 @@ def armed(s):
     for _ in range(60):  # (his preference up: the server's report of his rate)
         if int(snap_status(srv, eb).get("rate", 0)) == ARMED_RATE:
             break
+    since = srv.mark()
+    srv.cmd("vr_net_posewaits %d" % (eb - 1))  # (B19: the server's waits of B's pose records, from here)
+    srv.wait(r"mp_posewait: done", 10, since)
     w, kinds, prio, sn, _ = net_window(s, srv, b, "rate%d" % ARMED_RATE)
+    since = srv.mark()
+    srv.cmd("vr_net_posewaits")
+    srv.wait(r"mp_posewait: done", 10, since)
+    waits = [(int(fields(l)["ent"]), int(fields(l)["sent"]), float(fields(l)["wait"]), float(fields(l)["weight"]))
+             for l in srv.lines[since:] if l.startswith("mp_posewait: ent=")]
     b.cmd("vr_net_rate 0")
     down = w["down"]["bytes_s"]
     s.check("under vr_net_rate %d: the server holds him to it" % ARMED_RATE, sn and int(sn["rate"]) == ARMED_RATE and
@@ -519,20 +527,28 @@ def armed(s):
     # other updates leave room for most poses every frame or two, every pose comes every frame or two whatever its
     # weight (the share flattens towards 1), and only a tight budget gives shares near the weights' ratio. The fight's
     # traffic is real time (the grunts' shots and moves): B12b's "half way to the weights' ratio" failed 1 run in 4 at
-    # 1.10-1.36 against 1.16-1.49 wanted, with the order right in every one. The check: the order (the highest two
-    # weights' poses more often than the lowest two's); the share against the ratio a metric.
+    # 1.10-1.36 against 1.16-1.49 wanted. Nor are the entries B read a measure of it: a pose goes only when it changed,
+    # and a humanoid idle in the window changes less (a suite run: weights 0.517 and 0.498, 58 and 132 entries). The
+    # check is the server's own (vr_net_posewaits): the frames each changed pose waited before it went, by its weight
+    # then: the highest two weights' waits no longer than the lowest two's, shorter once the lowest wait at all. The
+    # client's share a metric.
     ratio = (sum(p[3] for p in prio[:2]) / max(1e-6, sum(p[3] for p in prio[-2:]))) if len(prio) >= 4 else 1.0
     share = sum(near) / max(1, sum(far))
-    s.metric("armed_rate_share", {"share": round(share, 3), "weights": round(ratio, 3)})
-    if len(prio) < 4:
+    live = sorted((p for p in waits if p[1] >= 10 and alive(srv, p[0])), key=lambda p: -p[3])
+    hi = sum(p[2] for p in live[:2]) / 2 if len(live) >= 4 else 0.0
+    lo = sum(p[2] for p in live[-2:]) / 2 if len(live) >= 4 else 0.0
+    wratio = (sum(p[3] for p in live[:2]) / max(1e-6, sum(p[3] for p in live[-2:]))) if len(live) >= 4 else 1.0
+    s.metric("armed_rate_share", {"share": round(share, 3), "weights": round(ratio, 3), "wait_hi": round(hi, 3),
+                                  "wait_lo": round(lo, 3), "wait_weights": round(wratio, 3)})
+    if len(live) < 4:
         # (the fight killed too many in the window to compare two and two: noted, not failed)
-        s.note("under it: the nearest humanoids' poses against the farthest's not measured: %d alive at the end of %s" % (
-            len(prio), every))
-    s.check("under it: the humanoids weighted most (near, ahead) have their poses more often than the least (weights "
-            "within 1.15 of each other: not told apart)",
-            len(prio) < 4 or ratio < 1.15 or sum(near) > sum(far),
-            "highest two %s, lowest two %s: %.2f (weights %.2f; dist, entries, ent, weight of %s)" % (
-                near, far, share, ratio, every))
+        s.note("under it: the humanoids' pose waits not compared: %d alive with 10 poses sent at the end of %s" % (
+            len(live), waits))
+    s.check("under it: the humanoids weighted most (near, ahead) wait less for their poses to go than the least (the "
+            "server's waits; weights within 1.15 of each other: not told apart)",
+            len(live) < 4 or wratio < 1.15 or (hi <= lo and (lo < 1.05 or hi < lo)),
+            "highest two weights' mean wait %.3f, lowest two's %.3f (weights %.2f; ent, sent, wait, weight of %s); the "
+            "entries B read: highest two %s, lowest two %s" % (hi, lo, wratio, live, near, far))
     cs = client_snap_status(b)
     s.check("under it: none undecodable", cs and int(cs["undecodable"]) == 0, "%s" % cs)
 
@@ -5013,6 +5029,14 @@ def deathmatch(s):
     a.cmd("impulse 100")
     a.wait(r"mp_frags: .*named=1", 10, since_a2, "the second bot named at A")
     b.wait(r"mp_frags: .*named=1", 10, since_b, "the bots named at B")
+    # (B19: B's first bot's name was waited for, the second's not: B listed three once in a suite run; up to 10
+    # more of B's name lines, until he lists four)
+    for _ in range(10):
+        if len(frag_table(b)) >= 4:
+            break
+        since_b = b.mark()
+        if not wait_quietly(b, r"mp_frags: .*named=1", 2, since_b, "another name at B"):
+            break
     ta, tb = frag_table(a), frag_table(b)
     bots = sorted(slot for slot in ta if slot not in (ea - 1, eb - 1))
     s.check("both clients list four players (A, B, two bots)", len(ta) == 4 and len(tb) == 4 and len(bots) == 2,

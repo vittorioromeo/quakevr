@@ -649,6 +649,21 @@ struct SentTally
 };
 za::Vector<SentTally> sentByEnt;
 bool tallySent{false}; // (serverEnd's encode: not the self-test's)
+// (B19) vr_net_posewaits: one client slot's pose records as they went, by entity: how many, the frames each had waited
+// plus one summed, and its weight then summed (the rate's priorities as the server ran them: changed records only, so
+// a pose that changes less often, an idle humanoid's, is not counted as starved; mp_armed)
+struct PoseWait
+{
+    long long sent{0};
+    double waitSum{0.0}, weightSum{0.0};
+};
+struct PoseWaits
+{
+    int slot{-1};
+    za::Vector<PoseWait> byEnt;
+    za::Vector<za::U8> written; // (serverEnd's encode: the pose records it wrote, by entity)
+};
+PoseWaits poseWaits;
 int cosmeticWritten{0}; // (encode's last: its cosmetic fragments' entries' bytes)
 
 } // namespace
@@ -839,6 +854,11 @@ int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budge
             t.bytes += body->cursize - entryAt;
             t.entries++;
             t.whole += e.op == opWhole ? 1 : 0;
+        }
+        if(tallySent && keyClass(e.key) == 4 && e.key - poseKey >= 0 &&
+            e.key - poseKey < static_cast<int>(poseWaits.written.size()))
+        {
+            poseWaits.written[static_cast<za::SizeT>(e.key - poseKey)] = 1;
         }
         prevKey = e.key;
         written++;
@@ -1324,6 +1344,9 @@ void serverEnd(sizebuf_t* msg)
     {
         trend = Trend{&s->snaps[older % ring], static_cast<int>(seq - base->seq), static_cast<int>(base->seq - older)};
     }
+    const bool poseTally = bl.slot == poseWaits.slot;
+    poseWaits.written.clear();
+    poseWaits.written.resize(poseTally ? static_cast<za::SizeT>(ents) : 0, 0);
     tallySent = true;
     encode(base, bl.cur, &body, room, sent, sv.protocolflags, trend.older ? &trend : nullptr, bl.prio.data(), bl.unsent.data(),
         za::min(budget, room), bl.cosmetic.data(), cosmeticBudget > 0 ? cosmeticBudget : -1,
@@ -1342,6 +1365,19 @@ void serverEnd(sizebuf_t* msg)
         if(wi >= 0)
         {
             za::U16& w = s->waits[static_cast<za::SizeT>(wi)];
+            const int pe = bl.cur.records[i].key - poseKey;
+            if(poseTally && keyClass(bl.cur.records[i].key) == 4 && pe >= 0 && pe < ents &&
+                poseWaits.written[static_cast<za::SizeT>(pe)])
+            {
+                if(static_cast<int>(poseWaits.byEnt.size()) < ents)
+                {
+                    poseWaits.byEnt.resize(static_cast<za::SizeT>(ents));
+                }
+                PoseWait& t = poseWaits.byEnt[static_cast<za::SizeT>(pe)];
+                t.sent++;
+                t.waitSum += 1.0 + w;
+                t.weightSum += static_cast<double>(bl.prio[i]) / (1.0 + w);
+            }
             w = bl.unsent[i] ? static_cast<za::U16>(za::min(static_cast<int>(w) + 1, 60000)) : za::U16{0};
         }
         waited += bl.unsent[i];
@@ -2344,6 +2380,25 @@ void init()
             sentByEnt.clear();
         }
         classesReport();
+    });
+    // vr_net_posewaits <slot>: (the server, B19) from now on, client slot <slot>'s pose records as they went; without
+    // an argument, what went since ("mp_posewait: ent=N sent=N wait=<mean frames waited plus one> weight=<mean>")
+    Cmd_AddCommand("vr_net_posewaits", [] {
+        if(Cmd_Argc() > 1)
+        {
+            poseWaits.slot = Q_atoi(Cmd_Argv(1));
+            poseWaits.byEnt.clear();
+        }
+        for(za::SizeT e = 0; e < poseWaits.byEnt.size(); e++)
+        {
+            const PoseWait& t = poseWaits.byEnt[e];
+            if(t.sent > 0)
+            {
+                Con_Printf("mp_posewait: ent=%d sent=%lld wait=%.3f weight=%.3f\n", static_cast<int>(e), t.sent,
+                    t.waitSum / static_cast<double>(t.sent), t.weightSum / static_cast<double>(t.sent));
+            }
+        }
+        Con_Printf("mp_posewait: done\n");
     });
     // vr_net_bytes [reset]: what this client read from its server, by kind ("mp_netbytes:"; reset: from zero)
     Cmd_AddCommand("vr_net_bytes", [] {
