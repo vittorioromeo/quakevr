@@ -625,7 +625,7 @@ qboolean Download_LocalHost (const char *host)
 static curl_socket_t Download_OpenSocket (void *clientp, curlsocktype purpose, struct curl_sockaddr *address)
 {
 	download_t *download = (download_t *) clientp;
-	if (purpose == CURLSOCKTYPE_IPCXN)
+	if (purpose == CURLSOCKTYPE_IPCXN && download->refuse_local)
 	{
 		qboolean local = false;
 		if (address->family == AF_INET)
@@ -639,6 +639,52 @@ static curl_socket_t Download_OpenSocket (void *clientp, curlsocktype purpose, s
 		}
 	}
 	return socket (address->family, address->socktype, address->protocol);
+}
+
+// QVR: (B24, tests) -loopbackonly (net_main.c): a download's URL host only a literal loopback one (127.x.y.z, localhost,
+// [::1]: no name looked up), and each address it connects to 127.0.0.0/8 or ::1 (Download_OpenSocketLoopback: a
+// redirect's too)
+static const unsigned char download_ipv6loopback[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1};
+
+static qboolean Download_LoopbackURL (const char *url)
+{
+	const char	*p = strstr (url, "://");
+	char		host[64];
+	size_t		n;
+	p = p ? p + 3 : url;
+	n = strcspn (p, "/?#");
+	if (memchr (p, '@', n)) // (user info: not ours)
+		return false;
+	if (p[0] == '[')
+		return !q_strncasecmp (p, "[::1]", 5);
+	n = q_min (strcspn (p, ":/?#"), sizeof (host) - 1);
+	memcpy (host, p, n);
+	host[n] = 0;
+	if (!q_strcasecmp (host, "localhost"))
+		return true;
+	{
+		unsigned char a[4];
+		return inet_pton (AF_INET, host, a) == 1 && a[0] == 127;
+	}
+}
+
+static curl_socket_t Download_OpenSocketLoopback (void *clientp, curlsocktype purpose, struct curl_sockaddr *address)
+{
+	download_t *download = (download_t *) clientp;
+	if (purpose == CURLSOCKTYPE_IPCXN)
+	{
+		qboolean loopback = false;
+		if (address->family == AF_INET)
+			loopback = ((const unsigned char *) &((const struct sockaddr_in *) &address->addr)->sin_addr)[0] == 127;
+		else if (address->family == AF_INET6)
+			loopback = !memcmp (&((const struct sockaddr_in6 *) &address->addr)->sin6_addr, download_ipv6loopback, 16);
+		if (!loopback)
+		{
+			download->refused_offhost = true;
+			return CURL_SOCKET_BAD;
+		}
+	}
+	return Download_OpenSocket (clientp, purpose, address);
 }
 #endif
 
@@ -658,9 +704,9 @@ qboolean Download (const char *url, download_t *download)
 	download->response = 0;
 	download->error = NULL;
 
-	if (COM_CheckParm ("-loopbackonly")) // QVR: (B24, tests) net_main.c: never an internet host
+	if (COM_CheckParm ("-loopbackonly") && !Download_LoopbackURL (url)) // QVR: (B24, tests) net_main.c
 	{
-		download->error = "NET SAFETY: refused a download (-loopbackonly)";
+		download->error = "NET SAFETY: refused a download from off this machine (-loopbackonly)";
 		return false;
 	}
 
@@ -703,7 +749,13 @@ qboolean Download (const char *url, download_t *download)
 	// seconds) lets the resolver's thread go instead of waiting for it, so quitting never waits on it either.
 	curl_easy_setopt (curl, CURLOPT_QUICK_EXIT, 1L);
 	download->refused_local = false;
-	if (download->refuse_local) // QVR: no local address (Download_OpenSocket)
+	download->refused_offhost = false;
+	if (COM_CheckParm ("-loopbackonly")) // QVR: (B24, tests) every connection checked (refuse_local's too)
+	{
+		curl_easy_setopt (curl, CURLOPT_OPENSOCKETFUNCTION, Download_OpenSocketLoopback);
+		curl_easy_setopt (curl, CURLOPT_OPENSOCKETDATA, download);
+	}
+	else if (download->refuse_local) // QVR: no local address (Download_OpenSocket)
 	{
 		curl_easy_setopt (curl, CURLOPT_OPENSOCKETFUNCTION, Download_OpenSocket);
 		curl_easy_setopt (curl, CURLOPT_OPENSOCKETDATA, download);
@@ -760,6 +812,8 @@ done:
 		download->error = curl_multi_strerror (mc);
 	if (download->refused_local && download->response != 200) // QVR
 		download->error = "refused: the host is a local address";
+	if (download->refused_offhost) // QVR: (B24)
+		download->error = "NET SAFETY: refused a download's connection off this machine (-loopbackonly)";
 
 	if (header)
 		curl_slist_free_all (header);

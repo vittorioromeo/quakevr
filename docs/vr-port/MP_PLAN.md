@@ -3473,3 +3473,37 @@ his: B10v's VR checks, internet play with two machines, the rendezvous service d
 
 Next phase: B24 -- his: deploy the room service and try a room code between two real routers; ours: the lift's
 DIST_EPSILON misses (B21 item 3) and a 60-minute soak with the change twice; a relay only if real punches fail often.
+
+### B24 results: no test on the internet; the lift exact; a 60-minute soak; the room-code pages (2026-11-17, dev no-LTO, loopback)
+
+- **No test talks to the internet** (a B23 run's dedicated server had sent REGISTER datagrams to vittorioromeo.com):
+  three fences, "Test harness" above. The engine's `-loopbackonly` (net_main.c `NET_LoopbackRefused`/`NET_LoopbackAddr`,
+  net_wins.c, net_udp.c, net_wipx.c, host_cmd.c's Download); the harness's `net_safety_problem` /
+  `command_net_problem` (launches and commands; a name other than localhost counts as off the machine, never looked
+  up); every scenario's "every game kept to loopback" check. `mp_netsafe` (new, first in the suite, 8 checks): the
+  rule's cases, a game not started, a dedicated server hosting a room at 169.254.0.1 (link-local: never routed) and
+  at `qvr-netsafe.invalid` refused by the engine.
+- **The lift's residual (B21 item 3) was two clocks, not DIST_EPSILON**: a replay's lift went on from the entity
+  update's place (to 1/16 unit: up to 1/32 off) by B's move times (0.0139-0.0147 s against the server's ticks of
+  1/72 +- the 1 ms tolerance: 150 u/s x 0.0002 s = 0.03). Now the predict state carries each nearby mover's exact
+  origin and the server's tick (QVR_NET_VERSION 37, 16 bytes more per mover in motion near him), the replay's movers go
+  on by that tick a move (`moverAt` from the exact place; the drawn lift too), and a dedicated server's ticks are
+  exactly host_netinterval (host.c `Host_FixedTicks`: no tolerance without a headset). `predict --part lift`:
+  exact_max 0.058 -> 0.000004 (misses 10 -> 2, both float rounding), lift_max 0.000.
+- **The 60-minute soak** (`soak --soak-minutes 60 --soak-change 20,40`, low impact; `--soak-change` takes a list now):
+  25/0. The server's committed heap 1049 at minute 2, 1070 at 20 (-> 1051 after the change), 1062 at 40 (-> 1032),
+  1060 at 60; its live blocks 884 -> 908 MB, flat from minute 10 (B22's fix holds). A and B +10 and +9 MB. Pace
+  0.999-1.0 every minute, B's link down 7.5-26 KB/s, B's moves 258,855 with 3 lost, Box3D back to 3.1-3.7 MB at each
+  change, edicts 474-586.
+- **The room-code pages, seen** (`mp_test.py roomui`, not in the suite; `menu_joingame [CODE]` and `menu_hostgame`,
+  new console commands): a flat listen host with a local service, his Host Game page ("Room Code UUYLWC (C: copy)")
+  and a player's Join Game page with the code typed in, 960x540 screenshots; the player then joins by it.
+- **mp_armed's combat field share**: the encoder sends each entity update the smaller way, so the share by fields
+  follows the fight (80-97%, B23's fail 79.9% at 6.5 B a record); the check is now on the bytes (mean under 9 B) with
+  the share over half.
+- **Checks**: SUITE_RESULTS
+- **Open**: his: deploy the room service, a room code between two real routers; IPv6; a public room list.
+
+Next phase: B25 -- his: deploy the room service (`Misc/rendezvous/deploy.sh`) and try a room code between two real
+routers (the screenshots in B24 show the pages); ours: a relay only if real punches fail often; IPv6 or a public room
+list (`vr_mp_public`) if he wants them; B10v's VR checks are his.

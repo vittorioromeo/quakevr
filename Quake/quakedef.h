@@ -430,6 +430,7 @@ typedef struct download_s
 	   one was refused (the VR map library: vr/vr_slipseer.cpp, vr/vr_mapinstall.cpp). */
 	qboolean		refuse_local;
 	qboolean		refused_local;
+	qboolean		refused_offhost; // QVR: (B24, tests) -loopbackonly refused a connection off this machine
 } download_t;
 
 qboolean			Download (const char *url, download_t *download);
