@@ -821,6 +821,9 @@ za::Vector<Item> pageDebugProfiling()
                   "process's working set and commit, mimalloc's reserved and committed memory, pages, threads and arenas."),
         command("Heap Statistics", "vr_heap stats")
             .help("vr_heap stats: mimalloc's own statistics table and options in the console. Long output."),
+        command("Physics Memory", "vr_physics_mem")
+            .help("vr_physics_mem: Box3D's live memory, its world's own, the bodies and contacts, and the contact "
+                  "manifolds' pools (kept at their peak until the map changes) and long arrays, with the longest seen."),
         command("Heap Stress", "vr_heap stress 8 2000")
             .help("vr_heap stress [threads] [ms]: 8 threads allocating and freeing for 2 s (a quarter freed by another "
                   "thread), each block checked: million operations a second, the heap's contention. Stalls the game."),
