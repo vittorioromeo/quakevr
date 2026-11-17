@@ -83,6 +83,22 @@ inline void store(const glm::vec3& g, float* out)
     return now + (target - now) * (1.f - za::exp(-dt / tau));
 }
 
+// `value` (with its `rate`, per second) eased toward `target` by a critically damped spring that covers 95% of a step in
+// `time` seconds (no overshoot; 1 - (1 + x) e^-x = 0.95 at x = 4.74). Nothing happens for dt <= 0.
+inline void easeCritical(float& value, float& rate, float target, float time, float dt)
+{
+    if(dt <= 0.f)
+    {
+        return;
+    }
+    const float omega = 4.74f / za::max(0.01f, time);
+    const float x = value - target;
+    const float temp = (rate + omega * x) * dt;
+    const float decay = za::exp(-omega * dt);
+    rate = (rate - omega * temp) * decay;
+    value = target + (x + temp) * decay;
+}
+
 // The point of segment ab nearest p; `t` (when given) is its parameter along ab. A segment with squared length not
 // above `eps` counts as a point at a.
 [[nodiscard]] inline glm::vec3 closestOnSegment(

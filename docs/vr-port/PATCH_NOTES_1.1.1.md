@@ -12,3 +12,11 @@ that ships in 1.1.1.
   95 to 113, the installer's relight of Quake's and the mission packs' maps in 6 minutes instead of 9, and the look is the same (a change of under one step in 255 on average). Maps you relit before stay as
   they are and are not relit again. Its source, with the changes and how to build it, is offered beside every release
   (GPL-3). The setting `vr_relight_bounceextra` (2; 0 = as before) is for comparisons.
+
+## Movement
+
+- **Sliding in VR: the desktop screen's slide, view and body.** While you slide in VR (Sliding (VR, Experimental)),
+  your view now moves quickly but smoothly down to the desktop screen's sliding eye height and back up when the slide
+  ends, on top of your own head's movement; your drawn body takes exactly the desktop screen's slide pose, its legs out
+  on the floor. VR Settings > Locomotion: Slide View (`vr_slide_camera`, on; off keeps the view at your real head) and
+  Slide View Time (`vr_slide_camera_time`, 0.15 s). The comfort vignette counts the view's move as movement.

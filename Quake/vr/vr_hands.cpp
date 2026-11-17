@@ -19,7 +19,9 @@
 #include "vr_timescale.hpp"
 #include "vr_torso.hpp"
 #include "vr_profile.hpp"
+#include "vr_progs.hpp"
 #include "vr_seated.hpp"
+#include "vr_slide.hpp"
 #include "vr_trace.hpp"
 #include "vr_twohand.hpp"
 #include "vr_weapons.hpp"
@@ -705,7 +707,17 @@ void placeTracked(const TrackingState& t, float m2u, float seatedLift)
     // Positions are relative to the play-space floor below the head: the box's middle and the
     // lean.
     const glm::vec3 floorBelowHead{t.head.position.x, 0.f, t.head.position.z};
-    const glm::vec3 base = state.playerOrigin + lean + glm::vec3{0.f, 0.f, vr_floor_offset.value};
+    glm::vec3 base = state.playerOrigin + lean + glm::vec3{0.f, 0.f, vr_floor_offset.value};
+    // Sliding (vr_slide, vr_slide_camera; vr_slide.cpp viewDrop): the whole tracked frame let down, eased, until the eyes
+    // are the flat slide's -- the view, the hands and the body hung from the head all with it, as the flat slide's crouch
+    // lowers its head (placeFlat); the head's own moves stay one to one on top. Its height (headHeight) with it, so the
+    // body's floor stays the box's.
+    const FrameState& frame = frameState();
+    const glm::vec3 eyesTracked =
+        0.5f * (frame.eyes[0].pose.position + frame.eyes[1].pose.position) + glm::vec3{0.f, seatedLift, 0.f};
+    const float slideDrop =
+        slide::viewDrop(base.z + (quakeFromTracking(eyesTracked - floorBelowHead) * m2u).z - state.playerOrigin.z);
+    base.z -= slideDrop;
     const auto toWorld = [&](const glm::vec3& trackingPos) {
         return base + rotateYaw(quakeFromTracking(trackingPos - floorBelowHead) * m2u, turnYaw);
     };
@@ -723,9 +735,21 @@ void placeTracked(const TrackingState& t, float m2u, float seatedLift)
 
     state.head = toWorld(t.head.position);
     state.headAngles = anglesFromTracking(t.head.orientation, turnYaw);
-    state.headHeight = t.head.position.y;
+    state.headHeight = t.head.position.y - slideDrop / m2u;
+    // Sliding: the body's floor (the head less headHeight: vr_avatar.cpp solveTorso) where the flat slide's is, off the
+    // box's floor the slide pose's hips are measured from (vr_avatar_pitch.cpp): Quake's standing eyes (46 over it) less
+    // the flat body's eye height (vr_flat_body_height; placeFlat's head less its headHeight). Not vr_floor_offset's
+    // play-space floor, 2 units over the box's at the defaults (the crouched box another unit up): the legs bent up to it
+    // from the hips, the feet 4 units over the flat slide's.
+    if(const float share = slide::viewDropShare(); share > 0.f)
+    {
+        const edict_t* pl = progs::localPlayer();
+        const float flatFloor =
+            state.playerOrigin.z + (pl != nullptr ? pl->v.mins[2] : -24.f) + 46.f - units::flatBodyEyeHeight() * m2u;
+        const float bodyFloor = state.head.z - state.headHeight * m2u;
+        state.headHeight += share * (bodyFloor - flatFloor) / m2u;
+    }
 
-    const FrameState& frame = frameState();
     for(int eye = 0; eye < 2; eye++)
     {
         state.eyeOrigin[eye] = toWorld(frame.eyes[eye].pose.position + glm::vec3{0.f, seatedLift, 0.f});

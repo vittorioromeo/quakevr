@@ -588,8 +588,9 @@ void updateComfort()
     ComfortMotion& c = comfortMotion;
     const int mode = static_cast<int>(vr_comfort_vignette.value);
     const float dt = static_cast<float>(CLAMP(0.0, host_frametime, 0.1));
-    // (A slide, vr_slide, moves you whatever the stick does: as a stick's full push.)
-    const float slid = slide::headsetSliding() ? 1.f : 0.f;
+    // (A slide, vr_slide, moves you whatever the stick does: as a stick's full push; so does its view drop easing in and
+    // out, vr_slide_camera.)
+    const float slid = slide::headsetSliding() || slide::viewDropMoving() ? 1.f : 0.f;
     const float moving = mode == 1 || mode == 2 ? za::min(1.f, za::max(za::max(glm::length(moveAxes), shoveSlide()), slid)) : 0.f;
     const float turning = mode == 1 || mode == 3 ? za::max(c.turn, c.snapPulse > 0.f ? 1.f : 0.f) : 0.f;
     const float target = key_dest == key_game ? za::max(moving, turning) : 0.f;

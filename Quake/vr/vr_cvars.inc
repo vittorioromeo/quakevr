@@ -4287,6 +4287,8 @@ QVR_CVAR(vr_slide, "0", CVAR_ARCHIVE)                   // experimental: a heads
 QVR_CVAR(vr_slide_stick_threshold, "0.85", CVAR_ARCHIVE) // vr_slide: how far down the turning stick must be pulled (0.5..0.99 of its reach), from the middle
 QVR_CVAR(vr_slide_stick_angle, "20", CVAR_ARCHIVE)      // vr_slide: within this many degrees of straight down (5..45; a turn swept round to it never counts)
 QVR_CVAR(vr_slide_body, "1", CVAR_ARCHIVE)              // vr_slide: the drawn body takes the flat slide's pose (the trunk leant back, the legs out in front); 0 none
+QVR_CVAR(vr_slide_camera, "1", CVAR_ARCHIVE)            // vr_slide: the view (the head, eyes, hands and body with it) eases down to the flat slide's eye height while sliding and back up after, on top of the tracked head (vr_slide.cpp viewDrop); 0 the view stays at the real head
+QVR_CVAR(vr_slide_camera_time, "0.15", CVAR_ARCHIVE)    // vr_slide_camera: seconds (0.05..0.5) the view takes down and back up (95% of the way; critically damped, no overshoot)
 QVR_CVAR(vr_flat_speed_fov, "1", CVAR_ARCHIVE)          // flatscreen play: faster than the run along the floor (a slide, a bunny hop chain) the view widens, eased (vr_flat_speed_fov_*; vr_flatspeedfov.cpp); 0 off
 QVR_CVAR(vr_flat_speed_fov_max, "1.2", CVAR_ARCHIVE)    // the speed FOV: the field of view times this at vr_flat_speed_fov_top and faster (1..1.5)
 QVR_CVAR(vr_flat_speed_fov_from, "340", CVAR_ARCHIVE)   // the speed FOV: none up to this speed along the floor (units/s; 320: the run, sv_maxspeed)
