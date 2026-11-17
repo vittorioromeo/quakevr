@@ -1255,6 +1255,10 @@ za::Vector<Item> pageDebugReports()
             .help("vr_net_cosmetic_bytes: hosting, the most of a remote player's datagram the cosmetic fragments (small gibs, "
                   "explosion chunks) take, the nearest first; the rest wait a frame or two and his game draws them between "
                   "(MP_PLAN B12c: a gib storm's bytes). 0: no budget of their own."),
+        slider("Network: Fragments' Fill", vr_net_cosmetic_fill, 0.f, 1024.f, 32.f, "%.0f B")
+            .help("vr_net_cosmetic_fill: hosting, the fragments take only what a remote player's snapshot's other "
+                  "updates leave under this many bytes (a quarter of their budget at least): a heavy fight leaves a gib "
+                  "storm less, his link in combat under ~35 KB/s (MP_PLAN B18). 0: no such limit."),
         open("Voice Chat", pageIndex(pageVoiceChat))
             .help("VR Settings > HUD, Haptics and Sound > Voice Chat: its settings, each player's mute and volume, its "
                   "Report and Self-Test (MP_PLAN B10v)."),

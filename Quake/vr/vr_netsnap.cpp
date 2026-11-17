@@ -654,7 +654,8 @@ int cosmeticWritten{0}; // (encode's last: its cosmetic fragments' entries' byte
 } // namespace
 
 int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budget, Snapshot& sent, unsigned pflags,
-    const Trend* trend, const float* prio, za::U8* unsent, int soft, const za::U8* cosmetic, int cosmeticBudget)
+    const Trend* trend, const float* prio, za::U8* unsent, int soft, const za::U8* cosmetic, int cosmeticBudget,
+    int cosmeticFill)
 {
     sent.records.clear();
     sent.bytes.clear();
@@ -715,7 +716,14 @@ int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budge
         cosmeticNeed += e.cosmetic ? headMost + e.size : 0;
         entries.emplaceBack(e);
     }
-    // (B12c: the cosmetic fragments' own budget, by priority; without priorities they go as the rest)
+    // (B12c: the cosmetic fragments' own budget, by priority; without priorities they go as the rest. B18: and only the
+    // room the other entries leave under `cosmeticFill` bytes of body: a heavy fight's own updates leave a gib storm
+    // less -- mp_armed's combat link 36.6 KB/s against its 35, a grunt gibbed in the window, 105 B of fragments a datagram)
+    // (a quarter of their budget always: the fragments never all wait)
+    if(cosmeticBudget >= 0 && cosmeticFill > 0)
+    {
+        cosmeticBudget = za::min(cosmeticBudget, za::max(cosmeticBudget / 4, cosmeticFill - (need - cosmeticNeed)));
+    }
     const bool cosmeticOver = prio && cosmeticBudget >= 0 && cosmeticNeed > cosmeticBudget;
     if(need > soft || cosmeticOver)
     {
@@ -1318,7 +1326,8 @@ void serverEnd(sizebuf_t* msg)
     }
     tallySent = true;
     encode(base, bl.cur, &body, room, sent, sv.protocolflags, trend.older ? &trend : nullptr, bl.prio.data(), bl.unsent.data(),
-        za::min(budget, room), bl.cosmetic.data(), cosmeticBudget > 0 ? cosmeticBudget : -1);
+        za::min(budget, room), bl.cosmetic.data(), cosmeticBudget > 0 ? cosmeticBudget : -1,
+        static_cast<int>(vr_net_cosmetic_fill.value));
     tallySent = false;
     int cosmeticWaited = 0;
     for(za::SizeT i = 0; i < n; i++)
@@ -2182,6 +2191,23 @@ void selftest_f()
         check(cosOk, va("the cosmetic fragments' budget of 30 bytes: every other record sent (%d waited), %d of them sent in %d "
                         "bytes (the highest priority among them), %d waited",
                          others, cosSent, cosmeticBytes, cosWaited));
+        // B18: their fill. A budget of 120 bytes under a fill the other records already pass: a quarter of it (30);
+        // under a fill far above them: more than 30, within the 120; every other record sent in both
+        int fillBytes[2]{}, fillOthers = 0;
+        for(int k = 0; k < 2; k++)
+        {
+            memset(unsent, 0, sizeof(unsent));
+            buf.cursize = 0;
+            encode(&t.base, t.cur, &buf, 4096, t.sent, selftestFlags, nullptr, prio, unsent, -1, cosm, 120, k == 0 ? 1 : 100000);
+            fillBytes[k] = cosmeticWritten;
+            for(za::SizeT i = 0; i < n && i < 64; i++)
+            {
+                fillOthers += !cosm[i] && unsent[i] ? 1 : 0;
+            }
+        }
+        check(fillOthers == 0 && fillBytes[0] > 0 && fillBytes[0] <= 30 && fillBytes[1] > 30 && fillBytes[1] <= 120,
+            va("the cosmetic fragments' fill: a quarter of their 120 bytes past it (%d), more under it (%d); every other "
+               "record sent (%d waited)", fillBytes[0], fillBytes[1], fillOthers));
     }
     {
         // B12b: entity updates by their fields. A grunt (300: a long number) and its weapon (301) stepping: origins,

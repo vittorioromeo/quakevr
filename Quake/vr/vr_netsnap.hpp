@@ -83,10 +83,11 @@ struct Trend
     int ahead{0}, span{0};
 };
 // `cosmetic` (one a `cur` record, or nullptr) marks the cosmetic fragments' records, whose changed entries take at most
-// `cosmeticBudget` bytes (by priority, with `prio`; B12c), the rest waiting as a rate's do.
+// `cosmeticBudget` bytes (by priority, with `prio`; B12c), the rest waiting as a rate's do; with `cosmeticFill` (> 0)
+// only what the other entries leave under that many bytes of body (B18).
 int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budget, Snapshot& sent, unsigned pflags,
     const Trend* trend, const float* prio = nullptr, za::U8* unsent = nullptr, int soft = -1, const za::U8* cosmetic = nullptr,
-    int cosmeticBudget = -1);
+    int cosmeticBudget = -1, int cosmeticFill = -1);
 // `tally` (keyClasses counts, or nullptr): each entry's bytes added by its key's class (keyClass).
 [[nodiscard]] bool decode(const Snapshot* base, int bodyLen, Snapshot& out, unsigned pflags, const Trend* trend,
     long long* tally = nullptr);
