@@ -2457,6 +2457,7 @@ void frame(bool on)
         proneDualTestFrame();
         mantleTestFrame();
         ladderTestFrame();
+        slide::poseTestFrame();
     }
 }
 
@@ -2512,7 +2513,8 @@ float slideShare()
 
 float slideNeckBack()
 {
-    return flatplay::active() ? za::clamp(vr_flat_slide_neck_back.value, 0.f, 20.f) : 0.f;
+    // (A headset's slide pose too, vr_slide_body: the same body, vr_slide.cpp.)
+    return flatplay::active() || slide::headsetPose() ? za::clamp(vr_flat_slide_neck_back.value, 0.f, 20.f) : 0.f;
 }
 
 float slideDrop()

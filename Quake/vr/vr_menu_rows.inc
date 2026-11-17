@@ -2545,7 +2545,14 @@ QVR_SLIDER(vr_slide_stick_angle, "Slide Stick Angle", 5.f, 45.f, 1.f, "%.0f deg"
     "turns well clear of it (vr_slide_stick_angle).")
 QVR_TOGGLE(vr_slide_body, "Slide Body Pose",
     "Sliding (VR): your drawn body leans back with its legs out in front while you slide, as on the desktop screen; "
-    "your own head and view are left as they are (vr_slide_body).")
+    "with Slide View on it is the desktop screen's slide pose, hung from the lowered view (vr_slide_body).")
+QVR_TOGGLE(vr_slide_camera, "Slide View",
+    "Sliding (VR): your view moves quickly but smoothly down to the desktop screen's sliding eye height while you slide "
+    "and back up when it ends, on top of your own head's movement (still one to one). Off: the view stays at your real "
+    "head (vr_slide_camera).")
+QVR_SLIDER(vr_slide_camera_time, "Slide View Time", 0.05f, 0.5f, 0.01f, "%.2f s", noExt,
+    "Sliding (VR): how long the view takes down into the slide and back up after it, eased without overshoot "
+    "(vr_slide_camera_time).")
 QVR_CYCLE(vr_snap_turn, "Turning",
     "Smooth: the turning stick turns you steadily (Turn Speed). Snap: each push turns you at once by the angle.",
     {0.f, "Smooth"}, {30.f, "Snap 30"}, {45.f, "Snap 45"}, {90.f, "Snap 90"})

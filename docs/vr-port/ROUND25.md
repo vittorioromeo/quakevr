@@ -4926,3 +4926,68 @@ His decision (2026-11-17, after the kit's `work\ericw\FINDINGS.md`): ship a fork
 - Shipping: the SP part is commit 120427f2c; on next's base `agent/b22-heaptidy` (6e5fc7980): scenario_check 136/0,
   load_models 4/0, vr_run_check 12/0, ThinLTO 0 warnings.
 - **In VR:** nothing to see; the game's memory after a map load is ~300 MB lower (commit charge; the working set less).
+## VR slide: the flat slide's body and eye height (branch agent/vrslide2, 2026-11-17)
+
+His decision: "Sliding pose should be the same as flat screen, and the camera should smoothly but very quickly move to
+the actual sliding head height even in VR. Perhaps add an option." Before, a headset's slide kept his view at his real
+head and hung the flat pose from it (the hips at the flat slide's height off the box's floor, the legs bent up to the
+play-space floor 3 units over it).
+
+**The view** (`slide::viewDrop`, called from `vr_hands.cpp` placeTracked once the tracking is placed): while this
+machine's player slides (`server.slide[1].on`, off a ledge mid-slide too), the whole tracked frame (head, eyes, hands,
+trackers, so the body hung from them) is let down by an eased drop, and `headHeight` with it. As the slide starts it
+takes his real eyes over the box's floor (over the client's origin: the server's moves a unit up into the crouched box
+a frame before); the drop takes them to `slideEye()` (46 less `vr_flat_crouch_drop` and `vr_flat_slide_drop`: 22, the
+flat slide's eyes), his head's own moves since one to one on top (an eye already under it: no drop). Eased by a
+critically damped spring (`geom::easeCritical`, new in `vr_geom.hpp`: avatar's `easePitch` now calls it) that covers
+95% in `vr_slide_camera_time` (0.15 s), no overshoot; back up the same way when the slide ends. The comfort vignette
+counts the drop easing as a move (`viewDropMoving`, `vr_input.cpp` updateComfort). No lying down for 0.5 s after a
+headset slide ends (`slide::headsetRising`, `vr_hull.cpp`): the slide's eyes are `vr_prone_eye`'s own 22 at the
+defaults, and a nod coming back up would have laid him down.
+
+**The body:** the same code as flat's (`vr_avatar_pitch.cpp`'s slide pitch from the eyes over the box, `solveLeg`'s
+legs out in front), now from the flat slide's eyes; the neck back (`vr_flat_slide_neck_back`) too
+(`flatmove::slideNeckBack` for `slide::headsetPose`). The body's floor goes where the flat slide's is, by the drop's
+share (`viewDropShare`): Quake's standing eyes (46 over the box's floor) less the flat body's eye height
+(`units::flatBodyEyeHeight`, `vr_flat_body_height`: 2.8 under the box's floor at the defaults), not
+`vr_floor_offset`'s play-space floor. Not shared: the flat slide's legs turned to the slide's way and the chest back to
+the view (`vr_flat_slide_legs`, flatplay's poseHands: a headset's body yaw is the tracked one), the arms (tracked), and
+the legs' length (a headset's are fitted to the height he stands at: `legFit`).
+
+**Settings:** `vr_slide_camera` 1 (Slide View; 0: the view stays at the real head and the body hangs from it, as
+before), `vr_slide_camera_time` 0.15 (Slide View Time, 0.05..0.5 s), both CVAR_ARCHIVE, in VR Settings > Locomotion
+after Slide Body Pose.
+
+**Tests:** `bash Misc/quakevr/vrslide_test.sh <agent>`: `vr_slide_test` gains the view's checks and a case with
+`vr_slide_camera 0`: straight down, the view from 55.6 (the mock's eyes) to 22.0, lowest 22.0 (no overshoot), 95% in
+0.139 s, back up to 55.6 95% in 0.139 s after it (the let-go case too); with `vr_slide_camera 0` it stays at 55.6
+(55.6 to 56.0). 24 passed. Then `vr_slide_pose_test` (new, `-flatscreenmode`) slides from the same spot and both print
+the body 0.5 s into the slide (`printPose`: the body's floor, the head, the hips, knees and ankles off the head along
+the view and over the box's floor), the headset's sized as the flat one (`vr_height_calibration 1.55`): floor -2.8 and
+-2.8, head 22.0 and 22.1, hips (1.7, +-2.7, 3.7) and (1.6, +-2.7, 3.7), ankles at -0.4 both: worst 0.1 units off. The
+knees and ankles reach further out in the headset (the mock stands taller than 1.55 m: its legs fitted to it).
+## searchfilter: Search's filter row, Both / Cvars / Tunables (agent/searchfilter, 2026-11-17)
+
+- His request (2026-11-17): a filter on the Search page for cvars only, tunables only, or both (the default); none in
+  release builds, which have no tunables.
+- `vr_menu_search.inc`: "Show: [Both] [Cvars] [Tunables]" over the text box (the left column's top; the box, keys and
+  recent list a row lower; the results column unchanged). `searchPageLayout()` wraps `searchLayout()` (the Map Library
+  keeps its own layout, no row). Each `SearchEntry` has `tunable` (on the Tunables page or a Tunables submenu, the page
+  itself too); `runSearch` skips what the choice leaves out, so the results update at once. Cvars = every result not a
+  tunable (the menus' settings, actions and pages). The chosen button is lit with a bar under its label.
+- Input on the shared menu paths (flat mouse and VR laser: `searchMouse` hover, `K_MOUSE1` click; sticks: up from the
+  keys' top row onto the nearest button, across, A or Enter chooses, down back to the keys, up to the corner's buttons;
+  from the corner's buttons down: the chosen filter). Its own help line.
+- Not saved: kept in memory while the game runs, as the typed text is (the page's other UI state is not saved either;
+  only the recent list is, in search_recent.txt).
+- Release builds (`QVR_RELEASE`: the Tunables pages are compiled out): `searchFilterShown` is a `constexpr false`, so
+  no row is laid out or drawn, `searchFilterPasses` lets everything through, and `vr_menu_search -filter` says
+  "no filter".
+- `vr_menu_search [-filter both|cvars|tunables] [-open] <text>`: sets the row (kept) and prints its buttons' spots;
+  the results' line names the choice. New `vr_menu_search_filter_test` (Debug > Tools > Search Filter Test): the counts
+  for "recoil" under each choice (Both 18 = Cvars 12 + Tunables 6, each only its kind), then the mouse's click on
+  Tunables, the laser's trigger on Cvars, the sticks (up, across, A, down); puts the filter and text back; 11/11. In a
+  release build: no row, no tunable indexed, 12 results whatever the filter; 3/3.
+- Checks: dev and ReleaseLTO (`-p:QvrReleaseVersion=1.1.0`) 0 warnings; menu_paths.txt regenerated (9934 entries:
+  the new Debug row plus earlier rounds' unregenerated rows); `vr_menu_path_check maps/vrcalibration.map` 0 missing;
+  scenario_check 136/136 PASS; load_models_test 4/4.

@@ -18,6 +18,7 @@ Run the installer with Arcane Dimensions 1.80 patch 1 in your Quake folder: the 
 Install with the relight on and watch Relighting the maps: the big maps go first and the bar ends on small ones; note the total time in the log, and whether Skip still stops it at once.
 Installer: relighting covers Quake and the mission packs only (Map Library and Arcane Dimensions keep their own lighting; Graphics > Relighting relights them on demand)
 Graphics > Relighting, Relight This Map in e1m1 and in a big map (Arcane Dimensions' ad_mountain) with Bounced Light on: it should take about half as long as before and look the same as the old relight (corners, bounced colour, no blotches on small faces).
+Sliding in VR: your view now dips quickly but smoothly down to the desktop screen's sliding eye height while you slide and comes back up when it ends, your own head still moving one to one; check it feels comfortable (Slide View Time in VR Settings > Locomotion; Slide View off keeps the view at your real head) and that your drawn body lies back with its legs out on the floor as on the desktop screen. {test:vr_slide}
 
 [1. Flat-screen: weapons and hands]
 
@@ -25,6 +26,7 @@ Graphics > Relighting, Relight This Map in e1m1 and in a big map (Arcane Dimensi
 
 [3. Flat-screen: menus, campaigns and the Map Library]
 Installer: install into a fresh folder and pick Snap 45, Left-handed and Medium on "Set up the game": the game has them. Change Turning in the game, run Update, change only Turn Speed: Turning stays yours.
+Flat-screen or VR: open Search (the corner's button), type "recoil", then pick Show: Cvars, Tunables and Both in the new row over the text box (mouse, laser and sticks): the results change at once and only show that kind, Both shows all of them.
 
 [4. VR: body and gear]
 

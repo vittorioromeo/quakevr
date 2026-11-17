@@ -5166,6 +5166,7 @@ vr_memstats_log_gpu|2|Debug - Profiling and Memory|Memory Log: GPU|Advanced VR O
 |2|Debug - Profiling and Memory|Allocation Sites|Advanced VR Options > Debug > Profiling and Memory > Allocation Sites
 |2|Debug - Profiling and Memory|Heap Allocator|Advanced VR Options > Debug > Profiling and Memory > Heap Allocator
 |2|Debug - Profiling and Memory|Heap Statistics|Advanced VR Options > Debug > Profiling and Memory > Heap Statistics
+|2|Debug - Profiling and Memory|Physics Memory|Advanced VR Options > Debug > Profiling and Memory > Physics Memory
 |2|Debug - Profiling and Memory|Heap Stress|Advanced VR Options > Debug > Profiling and Memory > Heap Stress
 vr_heap_purge_delay|2|Debug - Profiling and Memory|Heap: Purge Delay|Advanced VR Options > Debug > Profiling and Memory > Heap: Purge Delay
 |2|Debug - Profiling and Memory|Heap: Return Free Memory|Advanced VR Options > Debug > Profiling and Memory > Heap: Return Free Memory
@@ -5436,6 +5437,7 @@ vr_maps_slipseer_delay|2|Debug - Tools|Slipseer Page Spacing|Advanced VR Options
 vr_maps_allow_local|2|Debug - Tools|Allow Local Map Hosts|Advanced VR Options > Debug > Tools > Allow Local Map Hosts
 |2|Debug - Tools|Pick the First Map|Advanced VR Options > Debug > Tools > Pick the First Map
 |2|Debug - Tools|Search Flash Test|Advanced VR Options > Debug > Tools > Search Flash Test
+|2|Debug - Tools|Search Filter Test|Advanced VR Options > Debug > Tools > Search Filter Test
 |2|Debug - Tools|Menu Stops Walking Test|Advanced VR Options > Debug > Tools > Menu Stops Walking Test
 |2|Debug - Tools|Continue Rows Test|Advanced VR Options > Debug > Tools > Continue Rows Test
 |2|Debug - Tools|List Continue Rows|Advanced VR Options > Debug > Tools > List Continue Rows

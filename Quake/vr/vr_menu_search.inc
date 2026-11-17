@@ -27,7 +27,25 @@ struct SearchEntry
     int page{-1};         // where it is (a page: itself)
     int level{0};         // the Menu Detail it shows from
     bool isPage{false};
+    bool tunable{false};  // on the Tunables pages (a development build's: vr_menu_tunables.inc), the page itself too
 };
+
+// The filter row over the text box (Show: Both, Cvars, Tunables): only a development build's, which has tunables (a
+// release build's are constants: no Tunables pages, no row, every result shown). Cvars: every result not a tunable
+// (the menus' settings, and their actions and pages). Kept while the game runs, as the text is; not saved.
+enum SearchFilter
+{
+    SearchBoth,
+    SearchCvars,
+    SearchTunables,
+    SearchFilterCount
+};
+constexpr const char* searchFilterLabels[SearchFilterCount] = {"Both", "Cvars", "Tunables"};
+#ifdef QVR_RELEASE
+constexpr bool searchFilterShown = false;
+#else
+constexpr bool searchFilterShown = true;
+#endif
 
 struct SearchResult
 {
@@ -57,6 +75,9 @@ struct SearchState
     bool recentLoaded{false};
     int hoverRecent{-1};            // under the laser or the mouse
     int focusRecent{-1};            // the sticks' selection
+    int filter{SearchBoth};         // the filter row's choice (SearchFilter)
+    int hoverFilter{-1};            // its button under the laser or the mouse
+    int focusFilter{-1};            // the sticks' selection
 };
 SearchState search;
 
@@ -434,6 +455,15 @@ void buildSearchIndex()
             }
         }
     }
+    // The Tunables pages (Search's filter row: SearchTunables).
+    const auto onTunables = [](int p) {
+#ifndef QVR_RELEASE
+        return p == pageIndex(pageTunables) || tunablesTitle(p) != nullptr;
+#else
+        (void)p;
+        return false;
+#endif
+    };
     za::String paths[pageCount]; // to each page, itself included: "Advanced VR Options > Combat"
     for(int q = 0; q < queued; q++)
     {
@@ -455,6 +485,7 @@ void buildSearchIndex()
             e.page = p;
             e.level = needs[p];
             e.isPage = true;
+            e.tunable = onTunables(p);
             e.lowLabel = lowered(link[p]);
             e.lowHelp = lowered(pages[p].title);
             e.lowPath = lowered(e.path.cStr());
@@ -472,6 +503,7 @@ void buildSearchIndex()
             e.path = paths[p];
             e.page = p;
             e.level = q_max(needs[p], item.level);
+            e.tunable = onTunables(p);
             e.lowLabel = lowered(item.label);
             e.lowHelp = lowered(item.helpText);
             e.lowPath = lowered(e.path.cStr());
@@ -489,6 +521,16 @@ void buildSearchIndex()
         searchLoadRecent();
     }
     searchResolveRecent();
+}
+
+// The filter row's choice lets the entry through (a release build: every entry).
+[[nodiscard]] bool searchFilterPasses(const SearchEntry& e)
+{
+    if constexpr(!searchFilterShown)
+    {
+        return true;
+    }
+    return search.filter == SearchBoth || e.tunable == (search.filter == SearchTunables);
 }
 
 void runSearch()
@@ -540,6 +582,10 @@ void runSearch()
     }
     for(int i = 0; i < static_cast<int>(search.index.size()); i++)
     {
+        if(!searchFilterPasses(search.index[i]))
+        {
+            continue;
+        }
         bool byCvar = false;
         const float s = searchScore(search.index[i], words, tokens, phrase, byCvar);
         if(s > 0.25f)
@@ -691,6 +737,9 @@ struct SearchLayout
     float resultsTop, resultsBottom;
     float recentTop;          // the recent list under the keyboard: its title's line, its rows under it
     za::Vector<SearchKey> keys;
+    bool filter{false};       // the filter row over the text box (searchPageLayout; the Map Library's page: none)
+    float filterYc{0.f};      // its middle
+    float filterX0[SearchFilterCount]{}, filterX1[SearchFilterCount]{}; // its buttons (SearchFilter)
 };
 
 constexpr float searchResultHeight = 18.f; // a result's two lines (menu y)
@@ -739,6 +788,54 @@ char searchKeyLetters[4][10][2]; // the keyboard's key labels, two chars each, f
     s.keys.pushBack({keyClear, "Clear", s.left + keyW * 8.f + keyGap, s.left + keyW * 10.f - keyGap, y});
     s.recentTop = y + (s.half + 6.f) / s.k;
     return s;
+}
+
+// The Search page's layout: searchLayout's, with the filter row (a development build's) over the text box, at the
+// results' top, and the box, the keys and the recent list a row lower.
+[[nodiscard]] SearchLayout searchPageLayout()
+{
+    SearchLayout s = searchLayout();
+    if constexpr(searchFilterShown)
+    {
+        const float step = (2.f * s.half + 3.f) / s.k;
+        s.filter = true;
+        s.filterYc = s.boxY;
+        s.boxY += step;
+        for(SearchKey& key : s.keys)
+        {
+            key.yc += step;
+        }
+        s.recentTop += step;
+        constexpr float labelWidth = 8.f * 6.f; // "Show: "
+        const float each = (s.split - 6.f - s.left - labelWidth) / static_cast<float>(SearchFilterCount);
+        for(int i = 0; i < SearchFilterCount; i++)
+        {
+            s.filterX0[i] = s.left + labelWidth + each * static_cast<float>(i) + 1.f;
+            s.filterX1[i] = s.left + labelWidth + each * static_cast<float>(i + 1) - 1.f;
+        }
+    }
+    return s;
+}
+
+// The filter row's button under a spot (-1: none, or no row).
+[[nodiscard]] int searchFilterAt(const SearchLayout& s, float x, float y)
+{
+    const float h = (s.half + 1.5f) / s.k;
+    for(int i = 0; s.filter && i < SearchFilterCount; i++)
+    {
+        if(x >= s.filterX0[i] - 1.f && x <= s.filterX1[i] + 1.f && y >= s.filterYc - h && y <= s.filterYc + h)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
+// The filter row's choice made: the results again at once.
+void searchSetFilter(int f)
+{
+    search.filter = CLAMP(0, f, SearchFilterCount - 1);
+    runSearch();
 }
 
 // The recent list's rows that fit above the help (the Map Library's page has none: it reuses the layout).
@@ -820,13 +917,36 @@ void drawSearch()
         buildSearchIndex(); // (opened another way than its button: the menu reopened on it, menu_vr)
         runSearch();
     }
-    const SearchLayout s = searchLayout();
+    const SearchLayout s = searchPageLayout();
     const menupaint::Painter p;
     namespace colors = menupaint::colors;
     const Layout l = layout();
     qpic_t* title = Draw_CachePic("gfx/p_option.lmp");
     M_DrawPic((320 - title->width) / 2, l.top + 4, title);
     M_PrintWhite((320 - 8 * 6) / 2, l.top + 28, "Search");
+
+    // The filter row: the choice lit, a bar under its label.
+    if(s.filter)
+    {
+        searchText(s.left, s.filterYc - 4.f, 8.f, s.filterX0[0] - s.left, "Show:", false);
+        for(int i = 0; i < SearchFilterCount; i++)
+        {
+            const bool hot = search.hoverFilter == i || search.focusFilter == i;
+            const bool chosen = search.filter == i;
+            p.rounded(s.filterX0[i], s.filterX1[i], s.filterYc, s.half, 3.f,
+                hot || chosen ? colors::highlightEdge : colors::boxBorder);
+            p.rounded(s.filterX0[i] + 1.f, s.filterX1[i] - 1.f, s.filterYc, s.half - 1.f, 2.f,
+                hot ? colors::buttonHover : colors::boxFill);
+            const char* label = searchFilterLabels[i];
+            const float w = 8.f * static_cast<float>(strlen(label));
+            searchText((s.filterX0[i] + s.filterX1[i] - w) * 0.5f, s.filterYc - 5.f, 8.f, s.filterX1[i] - s.filterX0[i],
+                label, hot || chosen);
+            if(chosen)
+            {
+                p.rect(s.filterX0[i] + 6.f, s.filterX1[i] - 6.f, s.filterYc + (s.half - 2.5f) / s.k, 0.8f, colors::fill);
+            }
+        }
+    }
 
     // The text box: what is typed, a cursor after it.
     p.rounded(s.left, s.split - 6.f, s.boxY, s.half, 3.f, colors::boxBorder);
@@ -904,7 +1024,12 @@ void drawSearch()
     const int n = static_cast<int>(search.results.size());
     if(n == 0)
     {
-        searchText(x0, s.resultsTop + 2.f, 6.f, width, search.query.empty() ? "Results show here" : "Nothing found", false);
+        searchText(x0, s.resultsTop + 2.f, 6.f, width,
+            search.query.empty()           ? "Results show here"
+            : search.filter == SearchCvars ? "Nothing found (Show: Cvars)"
+            : search.filter == SearchTunables ? "Nothing found (Show: Tunables)"
+                                              : "Nothing found",
+            false);
     }
     for(int r = search.resultScroll; r < n && r < search.resultScroll + search.visibleResults; r++)
     {
@@ -955,7 +1080,10 @@ void drawSearch()
         searchText(s.right - 5.f * static_cast<float>(strlen(more)), s.resultsTop - 7.f, 5.f, width, more, false);
     }
 
-    drawHelp(search.focusRecent >= 0 || search.hoverRecent >= 0
+    drawHelp(search.focusFilter >= 0 || search.hoverFilter >= 0
+                 ? "Show: Both lists the menus' settings and the tunables; Cvars only the settings (their actions and "
+                   "pages too); Tunables only the Tunables pages' constants (a development build's). Not saved."
+             : search.focusRecent >= 0 || search.hoverRecent >= 0
                  ? "Opened recently, the latest first: pick one to open its page on it again, as a result. Kept across "
                    "starts (quakevr/search_recent.txt)."
              : search.focusKey >= 0 || search.hoverKey >= 0 || n == 0
@@ -982,11 +1110,50 @@ void searchScrollTo(int r)
 // The sticks' selection moved across the keys (rows of them, nearest across) and onto the results (right of the keys).
 void searchMove(int dx, int dy)
 {
-    const SearchLayout s = searchLayout();
+    const SearchLayout s = searchPageLayout();
     const int keys = static_cast<int>(s.keys.size());
     const int results = static_cast<int>(search.results.size());
     int recentRows[searchRecentMax];
     const int recents = q_min(searchRecentShown(recentRows), searchRecentRows(s));
+    // The nearest across of the filter row's buttons (or of the keys' top row) to an x.
+    const auto nearest = [&](float x, bool filter) {
+        const auto off = [&](int i) {
+            return za::fabs((filter ? s.filterX0[i] + s.filterX1[i] : s.keys[i].x0 + s.keys[i].x1) * 0.5f - x);
+        };
+        int best = 0;
+        for(int i = 1; i < (filter ? static_cast<int>(SearchFilterCount) : q_min(keys, 10)); i++)
+        {
+            best = off(i) < off(best) ? i : best;
+        }
+        return best;
+    };
+    if(search.focusFilter >= 0)
+    {
+        if(dx != 0)
+        {
+            const int next = search.focusFilter + dx;
+            if(next >= 0 && next < SearchFilterCount)
+            {
+                search.focusFilter = next;
+            }
+            else if(dx > 0 && results > 0)
+            {
+                search.focusFilter = -1;
+                search.focusResult = search.resultScroll;
+            }
+        }
+        else if(dy > 0 && keys > 0)
+        {
+            search.focusKey = nearest((s.filterX0[search.focusFilter] + s.filterX1[search.focusFilter]) * 0.5f, false);
+            search.focusFilter = -1;
+        }
+        else if(dy < 0)
+        {
+            search.focusFilter = -1;
+            menuui::focusToolbar(-1); // up from the filter row: the corner's buttons
+        }
+        return;
+    }
     if(search.focusRecent >= 0)
     {
         if(dx > 0 && results > 0)
@@ -1061,6 +1228,11 @@ void searchMove(int dx, int dy)
     {
         search.focusKey = best;
     }
+    else if(dy < 0 && s.filter)
+    {
+        search.focusKey = -1;
+        search.focusFilter = nearest(xc, true); // up from the top row: the filter row
+    }
     else if(dy < 0)
     {
         search.focusKey = -1;
@@ -1075,7 +1247,7 @@ void searchMove(int dx, int dy)
 
 void searchKey(int key)
 {
-    const SearchLayout s = searchLayout();
+    const SearchLayout s = searchPageLayout();
     switch(key)
     {
         case K_ESCAPE:
@@ -1095,7 +1267,13 @@ void searchKey(int key)
             return;
         case K_ENTER:
         case K_KP_ENTER:
-            // A keyboard's Enter: the recent row or result picked, else the first result.
+            // A keyboard's Enter: the filter, recent row or result picked, else the first result.
+            if(search.focusFilter >= 0)
+            {
+                searchSetFilter(search.focusFilter);
+                S_LocalSound("misc/menu1.wav");
+                return;
+            }
             if(search.focusRecent >= 0)
             {
                 openRecent(search.focusRecent);
@@ -1104,7 +1282,12 @@ void searchKey(int key)
             openResult(search.focusResult >= 0 ? search.focusResult : 0);
             return;
         case K_ABUTTON:
-            if(search.focusRecent >= 0)
+            if(search.focusFilter >= 0)
+            {
+                searchSetFilter(search.focusFilter);
+                S_LocalSound("misc/menu1.wav");
+            }
+            else if(search.focusRecent >= 0)
             {
                 openRecent(search.focusRecent);
             }
@@ -1119,6 +1302,12 @@ void searchKey(int key)
             }
             return;
         case K_MOUSE1:
+            if(const int filter = searchFilterAt(s, m_mousex, m_mousey); filter >= 0)
+            {
+                searchSetFilter(filter);
+                S_LocalSound("misc/menu1.wav");
+                return;
+            }
             for(int i = 0; i < static_cast<int>(s.keys.size()); i++)
             {
                 if(keyHit(s, s.keys[i], m_mousex, m_mousey))
@@ -1141,18 +1330,19 @@ void searchKey(int key)
 
 void searchMouse(float x, float y)
 {
-    const SearchLayout s = searchLayout();
+    const SearchLayout s = searchPageLayout();
+    const int filter = searchFilterAt(s, x, y);
     int key = -1;
-    for(int i = 0; i < static_cast<int>(s.keys.size()) && key < 0; i++)
+    for(int i = 0; i < static_cast<int>(s.keys.size()) && key < 0 && filter < 0; i++)
     {
         key = keyHit(s, s.keys[i], x, y) ? i : -1;
     }
-    const int result = key >= 0 ? -1 : searchResultAt(s, x, y);
-    const int recent = key >= 0 || result >= 0 ? -1 : searchRecentAt(s, x, y);
+    const int result = key >= 0 || filter >= 0 ? -1 : searchResultAt(s, x, y);
+    const int recent = key >= 0 || result >= 0 || filter >= 0 ? -1 : searchRecentAt(s, x, y);
     if((key >= 0 && key != search.hoverKey) || (result >= 0 && result != search.hoverResult) ||
-        (recent >= 0 && recent != search.hoverRecent))
+        (recent >= 0 && recent != search.hoverRecent) || (filter >= 0 && filter != search.hoverFilter))
     {
-        search.focusKey = search.focusResult = search.focusRecent = -1; // the laser's now
+        search.focusKey = search.focusResult = search.focusRecent = search.focusFilter = -1; // the laser's now
         if(ui_mouse_sound.value)
         {
             S_LocalSound("misc/menu1.wav");
@@ -1161,6 +1351,7 @@ void searchMouse(float x, float y)
     search.hoverKey = key;
     search.hoverResult = result;
     search.hoverRecent = recent;
+    search.hoverFilter = filter;
 }
 
 // Search, from any menu (the corner's button): the text as it was left, the results again (the pages may have
@@ -1175,8 +1366,8 @@ void openSearchPage()
     }
     buildSearchIndex();
     runSearch();
-    search.hoverKey = search.hoverResult = search.hoverRecent = -1;
-    search.focusRecent = -1;
+    search.hoverKey = search.hoverResult = search.hoverRecent = search.hoverFilter = -1;
+    search.focusRecent = search.focusFilter = -1;
     search.focusKey = 0;
     openFromAnywhere(target); // (Back: where it was opened from)
 }
@@ -1196,7 +1387,7 @@ void searchRecentCommand(bool clear)
         searchResolveRecent();
         searchSaveRecent();
     }
-    const SearchLayout s = searchLayout();
+    const SearchLayout s = searchPageLayout();
     int shown = 0;
     for(int i = 0; i < static_cast<int>(search.recent.size()); i++)
     {

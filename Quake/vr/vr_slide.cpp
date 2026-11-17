@@ -4,13 +4,17 @@
 #include "vr_slide.hpp"
 
 #include "vr_api.h"
+#include "vr_avatar.hpp"
 #include "vr_cvars.hpp"
+#include "vr_hands.hpp"
 #include "vr_engine.hpp"
+#include "vr_geom.hpp"
 #include "vr_hull.hpp"
 #include "vr_progs.hpp"
 #include "vr_slidesound.hpp"
 #include "vr_testkit.hpp"
 #include "vr_tunables.hpp"
+#include "vr_units.hpp"
 
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Atan2.hpp"
@@ -52,6 +56,23 @@ struct Gesture
 };
 
 Gesture gesture;
+
+// The headset's view drop in a slide (vr_slide_camera; viewDrop): this machine's player, eased.
+struct ViewDrop
+{
+    float drop{0.f};       // units the view is let down now
+    float rate{0.f};       // its speed (units/s), the spring's
+    float want{0.f};       // where it is going
+    float full{0.f};       // the whole way down of the last slide (viewDropShare)
+    float eye{-1.f};       // the real eyes over the box's floor as this slide started (-1: not sliding)
+    double lastTime{-1.0}; // vr_gametime at the last step
+};
+
+ViewDrop view;
+
+// Seconds after a headset player's slide ends that his eyes, let down by the view drop and coming back up, do not lay him
+// down (vr_hull.cpp): the slide's eyes are vr_prone_eye's own height at the defaults (22).
+constexpr double riseGrace = 0.5;
 
 // The input `ent` slides by: a flatscreen player's crouch key, a headset player's stick gesture.
 [[nodiscard]] bool inputHeld(const edict_t* ent, int num)
@@ -217,19 +238,21 @@ struct Case
     bool sweep;     // the stick swept round the rim from straight right to `stick`
     float x, y;     // the turning stick held
     bool letGo;     // let go 0.15 s into the slide
+    int camera;     // vr_slide_camera (the view's drop: checked in the full slides)
 };
 
 constexpr Case cases[] = {
-    {"vr_slide 0: straight down", 0, -1, false, false, 0.f, -1.f, false},
-    {"30 degrees off down", 1, -1, false, false, 0.5f, -0.866f, false},
-    {"45 degrees off down", 1, -1, false, false, -0.707f, -0.707f, false},
-    {"straight down at 0.7 (under the threshold)", 1, -1, false, false, 0.f, -0.7f, false},
-    {"snap turn swept round to down", 1, 45, false, true, 0.f, -1.f, false},
-    {"smooth turn swept round to down", 1, 0, false, true, 0.f, -1.f, false},
-    {"snap turn a little downwards", 1, 45, false, false, 0.9f, -0.43f, false},
-    {"smooth turn a little downwards", 1, 0, false, false, -0.9f, -0.43f, false},
-    {"straight down", 1, -1, true, false, 0.f, -1.f, false},
-    {"straight down, let go mid-slide", 1, -1, true, false, 0.f, -1.f, true},
+    {"vr_slide 0: straight down", 0, -1, false, false, 0.f, -1.f, false, 1},
+    {"30 degrees off down", 1, -1, false, false, 0.5f, -0.866f, false, 1},
+    {"45 degrees off down", 1, -1, false, false, -0.707f, -0.707f, false, 1},
+    {"straight down at 0.7 (under the threshold)", 1, -1, false, false, 0.f, -0.7f, false, 1},
+    {"snap turn swept round to down", 1, 45, false, true, 0.f, -1.f, false, 1},
+    {"smooth turn swept round to down", 1, 0, false, true, 0.f, -1.f, false, 1},
+    {"snap turn a little downwards", 1, 45, false, false, 0.9f, -0.43f, false, 1},
+    {"smooth turn a little downwards", 1, 0, false, false, -0.9f, -0.43f, false, 1},
+    {"straight down", 1, -1, true, false, 0.f, -1.f, false, 1},
+    {"straight down, let go mid-slide", 1, -1, true, false, 0.f, -1.f, true, 1},
+    {"straight down, vr_slide_camera 0", 1, -1, true, false, 0.f, -1.f, false, 0},
 };
 constexpr int caseCount = static_cast<int>(sizeof(cases) / sizeof(cases[0]));
 constexpr int sweepFrames = 12;  // the rim sweep's frames, right to down
@@ -241,8 +264,18 @@ struct VrTest
     int index{0};
     double phaseAt{0.0};
     int frame{0};
-    float slideWas{0.f};   // vr_slide, vr_snap_turn before
+    float slideWas{0.f};   // vr_slide, vr_snap_turn, vr_slide_camera before
     float snapWas{0.f};
+    float cameraWas{1.f};
+    // The view's height (the eyes over the box's floor): before the slide, its lowest in it, when it first came within 5%
+    // of the drop's way down (the flat slide's eyes) and back up after it; the pose printed mid-slide.
+    float eye0{0.f};
+    float eyeMin{0.f};
+    float eyeMax{0.f};
+    double downAt{-1.0};
+    double upAt{-1.0};
+    double slideEndAt{-1.0};
+    bool posed{false};
     int startsWas{0};
     int soundsWas{0};      // the slide sound's starts before
     float startSpeed{0.f};
@@ -276,6 +309,51 @@ void stick(const char* hand, float x, float y)
 void place()
 {
     Cbuf_InsertText("vr_mock_stick main 0 0\nvr_mock_stick off 0 0\nsetpos 0 -380 25 0 90 0\nnoclip 0\nvr_mock_stick off 0 1\n");
+}
+
+// The drawn view's eyes over `pl`'s box's floor.
+[[nodiscard]] float viewEye(const edict_t* pl)
+{
+    const hands::State& s = hands::current();
+    return 0.5f * (s.eyeOrigin[0].z + s.eyeOrigin[1].z) - (pl->v.origin[2] + pl->v.mins[2]);
+}
+
+// One line of the body as last posed (the tests: the flat slide's and the headset's compared, vrslide_test.sh): the head's
+// height over the box's floor, then each hip, knee and ankle (the body's left, then its right) forward of the head along
+// the view's yaw, to its left, and over the floor.
+void printPose(const char* tag, const edict_t* pl)
+{
+    avatar::Skeleton k;
+    if(!avatar::skeleton(k) || !k.legs)
+    {
+        Con_Printf("%s: no body posed\n", tag);
+        return;
+    }
+    const float floorZ = pl->v.origin[2] + pl->v.mins[2];
+    const float yaw = glm::radians(hands::current().headAngles.y);
+    const glm::vec2 fwd{za::cos(yaw), za::sin(yaw)};
+    const glm::vec2 left{-fwd.y, fwd.x};
+    char line[512];
+    const hands::State& s = hands::current();
+    int n = q_snprintf(line, sizeof(line), "%s: pose floor %.1f head %.1f", tag,
+        s.head.z - s.headHeight * units::metresToUnits() - floorZ, k.head.z - floorZ);
+    // (Two lines: a console line wraps past its width.)
+    const glm::vec3* joints[3] = {k.hip, k.knee, k.ankle};
+    for(int j = 0; j < 3; j++)
+    {
+        if(j == 1)
+        {
+            Con_Printf("%s\n", line);
+            n = q_snprintf(line, sizeof(line), "%s: pose legs", tag);
+        }
+        for(int side = 0; side < 2; side++)
+        {
+            const glm::vec3 d = joints[j][side] - k.head;
+            n += q_snprintf(line + n, sizeof(line) - static_cast<size_t>(n), " %.1f %.1f %.1f", glm::dot(glm::vec2{d}, fwd),
+                glm::dot(glm::vec2{d}, left), joints[j][side].z - floorZ);
+        }
+    }
+    Con_Printf("%s\n", line);
 }
 
 void testFrame()
@@ -323,6 +401,9 @@ void testFrame()
                 t.from = glm::vec3{pl->v.origin[0], pl->v.origin[1], pl->v.origin[2]};
                 t.crouchedAll = true;
                 t.downKey = false;
+                t.eye0 = t.eyeMin = t.eyeMax = viewEye(pl);
+                t.downAt = t.upAt = t.slideEndAt = -1.0;
+                t.posed = false;
                 next(2);
                 if(!c.sweep)
                 {
@@ -353,6 +434,23 @@ void testFrame()
             {
                 t.crouchedAll = t.crouchedAll && hull::isCrouched(pl);
             }
+            const float way = t.eye0 - slideEye(); // the view drop's whole way down
+            if(t.slideAt >= 0.0)
+            {
+                const float e = viewEye(pl);
+                t.eyeMin = za::min(t.eyeMin, e);
+                t.eyeMax = za::max(t.eyeMax, e);
+                if(t.downAt < 0.0 && za::abs(e - slideEye()) < 0.05f * way)
+                {
+                    t.downAt = now;
+                }
+                // The body mid-slide, the pose settled (compared with the flat slide's: vrslide_test.sh).
+                if(!t.posed && c.camera != 0 && !c.letGo && now - t.slideAt >= 0.5)
+                {
+                    printPose("vrslide_pose", pl);
+                    t.posed = true;
+                }
+            }
             if(!c.slides)
             {
                 if(inPhase > watchFor)
@@ -376,8 +474,24 @@ void testFrame()
                 {
                     q_snprintf(line, sizeof(line), "%s: it ends (%s) %.2f s after letting go", c.name, s.endWhy, now - t.endAt);
                     check(!strcmp(s.endWhy, "the key let go") && now - t.endAt < 0.1, line);
+                    t.slideEndAt = now;
                     next(3);
                     break;
+                }
+                const float ease = za::clamp(vr_slide_camera_time.value, 0.05f, 0.5f);
+                if(c.camera != 0)
+                {
+                    q_snprintf(line, sizeof(line),
+                        "%s: the view down from %.1f to the flat slide's eyes %.1f (lowest %.1f), 95 percent of the way in %.3f s (ease %.2f s)",
+                        c.name, t.eye0, slideEye(), t.eyeMin, t.downAt - t.slideAt, ease);
+                    check(t.downAt >= 0.0 && t.downAt - t.slideAt <= ease + 0.05 && t.eyeMin > slideEye() - 0.2f &&
+                        t.eyeMin < slideEye() + 0.2f, line);
+                }
+                else
+                {
+                    q_snprintf(line, sizeof(line), "%s: the view stays at the real head (%.1f, %.1f to %.1f)", c.name, t.eye0, t.eyeMin,
+                        t.eyeMax);
+                    check(t.eyeMax - t.eyeMin < 0.5f && za::abs(t.eyeMin - t.eye0) < 0.5f, line);
                 }
                 const float boost = za::clamp(vr_flat_slide_boost.value, 0.f, 200.f);
                 q_snprintf(line, sizeof(line), "%s: slid from %.0f u/s, peak %.0f (boost %.0f), its key not +movedown's (%d)", c.name,
@@ -400,24 +514,40 @@ void testFrame()
                 q_snprintf(line, sizeof(line), "%s: its scrape started once (%d)", c.name, slidesound::starts() - t.soundsWas);
                 check(slidesound::starts() == t.soundsWas + 1, line);
                 stick("main", 0.f, 0.f);
+                t.slideEndAt = now;
                 next(3);
             }
             break;
         }
-        case 3: // standing up again after it (his own head's height)
-            if(!hull::isCrouched(pl))
+        case 3: // standing up again after it (his own head's height), the view back up at it
+        {
+            const float way = t.eye0 - slideEye();
+            if(t.upAt < 0.0 && za::abs(viewEye(pl) - t.eye0) < 0.05f * way)
+            {
+                t.upAt = now;
+            }
+            if(!hull::isCrouched(pl) && (c.camera == 0 || viewDropNow() == 0.f))
             {
                 q_snprintf(line, sizeof(line), "%s: up again after it (%.2f s)", c.name, inPhase);
                 check(true, line);
+                if(c.camera != 0)
+                {
+                    const float ease = za::clamp(vr_slide_camera_time.value, 0.05f, 0.5f);
+                    q_snprintf(line, sizeof(line), "%s: the view back up to the real head %.1f (now %.1f), 95 percent in %.3f s (ease %.2f s)",
+                        c.name, t.eye0, viewEye(pl), t.upAt - t.slideEndAt, ease);
+                    check(t.upAt >= 0.0 && t.upAt - t.slideEndAt <= ease + 0.05 && za::abs(viewEye(pl) - t.eye0) < 0.1f, line);
+                }
                 next(4);
             }
-            else if(inPhase > 0.5)
+            else if(inPhase > 0.8)
             {
-                q_snprintf(line, sizeof(line), "%s: still crouched %.2f s after it", c.name, inPhase);
+                q_snprintf(line, sizeof(line), "%s: still crouched or the view down %.2f s after it (drop %.1f)", c.name, inPhase,
+                    viewDropNow());
                 check(false, line);
                 next(4);
             }
             break;
+        }
         case 4: // the next case
             if(++t.index >= caseCount)
             {
@@ -427,7 +557,7 @@ void testFrame()
             {
                 char cmd[96];
                 const Case& n = cases[t.index];
-                q_snprintf(cmd, sizeof(cmd), "vr_slide %d\n", n.slide);
+                q_snprintf(cmd, sizeof(cmd), "vr_slide %d\nvr_slide_camera %d\n", n.slide, n.camera);
                 Cbuf_InsertText(cmd);
                 if(n.snap >= 0)
                 {
@@ -441,14 +571,40 @@ void testFrame()
         default:
         {
             char cmd[96];
-            q_snprintf(cmd, sizeof(cmd), "vr_mock_stick main 0 0\nvr_mock_stick off 0 0\nvr_slide %g\nvr_snap_turn %g\n", t.slideWas,
-                t.snapWas);
+            q_snprintf(cmd, sizeof(cmd), "vr_mock_stick main 0 0\nvr_mock_stick off 0 0\nvr_slide %g\nvr_snap_turn %g\nvr_slide_camera %g\n",
+                t.slideWas, t.snapWas, t.cameraWas);
             Cbuf_InsertText(cmd);
             t.tally.verdict("vrslide");
             t = VrTest{};
             break;
         }
     }
+}
+
+// vr_slide_pose_test (flatscreen play, vrslide_test.sh; +forward held by the script): from vrtesthall's long stretch, run
+// to a run's speed, the crouch key slides, and 0.5 s into the slide the body as posed is printed (printPose) to compare
+// with the headset's at the same point of its slide (vr_slide_test's "straight down").
+struct PoseTest
+{
+    int phase{0}; // 0 off; 1 running up; 2 sliding
+    double phaseAt{0.0};
+    double slideAt{-1.0};
+};
+
+PoseTest poseTest;
+
+void poseTest_f()
+{
+    if(!sv.active)
+    {
+        Con_Printf("flatslide_pose: a game you host, flatscreen play\n");
+        return;
+    }
+    poseTest = PoseTest{};
+    poseTest.phase = 1;
+    progs::ServerVm vm;
+    poseTest.phaseAt = qcvm->time;
+    Cbuf_InsertText("setpos 0 -380 25 0 90 0\nnoclip 0\n"); // (setpos leaves him noclipping)
 }
 
 void vrTest_f()
@@ -461,6 +617,7 @@ void vrTest_f()
     vrTest = VrTest{};
     vrTest.slideWas = vr_slide.value;
     vrTest.snapWas = vr_snap_turn.value;
+    vrTest.cameraWas = vr_slide_camera.value;
     vrTest.phase = 1;
     progs::ServerVm vm;
     vrTest.phaseAt = qcvm->time;
@@ -565,6 +722,7 @@ void endSlide(Slide& s, double now, float cooldown)
     if(s.on)
     {
         s.cooldownUntil = now + cooldown;
+        s.endedAt = now;
     }
     s.on = false;
     s.airborne = false;
@@ -612,6 +770,78 @@ bool headsetSliding()
 bool headsetPose()
 {
     return vr_slide.value != 0.f && vr_slide_body.value != 0.f && sv.active && svs.maxclients >= 1 && server.slide[1].on;
+}
+
+bool headsetRising(const edict_t* ent)
+{
+    const int num = clientSlot(ent);
+    if(num < 0 || hull::isFlat(ent))
+    {
+        return false;
+    }
+    const Slide& s = server.slide[num];
+    if(s.on || s.endedAt < 0.0)
+    {
+        return false;
+    }
+    progs::ServerVm vm;
+    const double now = qcvm->time;
+    return now >= s.endedAt && now - s.endedAt < riseGrace;
+}
+
+float viewDrop(float eyeOverOrigin)
+{
+    ViewDrop& v = view;
+    const edict_t* pl = sv.active ? progs::localPlayer() : nullptr;
+    const bool on = vr_slide.value != 0.f && vr_slide_camera.value != 0.f && pl != nullptr && svs.maxclients >= 1 &&
+                    server.slide[1].on && pl->v.health > 0.f;
+    // The real eyes over the box's floor as the slide starts: the drop takes them to slideEye from there, so the head's
+    // own moves since stay one to one (an eye already under it: no drop). (Over the client's own origin, the one the view
+    // stands on: the server's moves a unit up into the crouched box a frame before the client's does.)
+    if(on && v.eye < 0.f)
+    {
+        v.eye = eyeOverOrigin - pl->v.mins[2];
+    }
+    else if(!on)
+    {
+        v.eye = -1.f;
+    }
+    v.want = on ? za::max(0.f, v.eye - slideEye()) : 0.f;
+    if(on)
+    {
+        v.full = v.want;
+    }
+    // Stepped once a frame (the hands are placed more than once a frame: dt 0 then).
+    const double now = vr_gametime;
+    double dt = v.lastTime >= 0.0 ? now - v.lastTime : 0.0;
+    if(dt < 0.0 || !sv.active)
+    {
+        v.drop = v.rate = 0.f; // (a new map, a new game: the clock went back)
+        dt = 0.0;
+    }
+    v.lastTime = now;
+    geom::easeCritical(v.drop, v.rate, v.want, za::clamp(vr_slide_camera_time.value, 0.05f, 0.5f),
+        static_cast<float>(za::min(dt, 0.1)));
+    if(v.want == 0.f && v.drop < 0.01f && za::abs(v.rate) < 0.1f)
+    {
+        v.drop = v.rate = 0.f; // settled: exactly the tracked head again
+    }
+    return v.drop;
+}
+
+bool viewDropMoving()
+{
+    return za::abs(view.drop - view.want) > 0.05f;
+}
+
+float viewDropNow()
+{
+    return view.drop;
+}
+
+float viewDropShare()
+{
+    return view.full > 0.01f ? za::clamp(view.drop / view.full, 0.f, 1.f) : 0.f;
 }
 
 SlideStep slideStep(const glm::vec2& vel, const glm::vec3& normal, const glm::vec2& wish, float dt)
@@ -707,6 +937,54 @@ bool gestureHeld()
 void init()
 {
     Cmd_AddCommand("vr_slide_test", vrTest_f);
+    Cmd_AddCommand("vr_slide_pose_test", poseTest_f);
+}
+
+void poseTestFrame()
+{
+    PoseTest& t = poseTest;
+    if(t.phase == 0 || !sv.active)
+    {
+        return;
+    }
+    progs::ServerVm vm;
+    edict_t* pl = progs::localPlayer();
+    if(!pl)
+    {
+        return;
+    }
+    const double now = qcvm->time;
+    const Slide& s = state(1);
+    const float speed = za::sqrt(pl->v.velocity[0] * pl->v.velocity[0] + pl->v.velocity[1] * pl->v.velocity[1]);
+    const bool ground = (static_cast<int>(pl->v.flags) & FL_ONGROUND) != 0;
+    if(now - t.phaseAt > 6.0)
+    {
+        Con_Printf("flatslide_pose: timed out (step %d: speed %.0f, sliding %d, starts %d, refused %d, ended: %s)\n", t.phase, speed,
+            s.on ? 1 : 0, s.starts, s.tiredRefusals, s.endWhy);
+        Cbuf_InsertText("-flatcrouch\n");
+        t = PoseTest{};
+        return;
+    }
+    if(t.phase == 1 && ground && speed > 300.f && !s.on)
+    {
+        Cbuf_InsertText("+flatcrouch\n");
+        t.phase = 2;
+        t.phaseAt = now;
+    }
+    else if(t.phase == 2)
+    {
+        if(s.on && t.slideAt < 0.0)
+        {
+            t.slideAt = now;
+        }
+        if(t.slideAt >= 0.0 && now - t.slideAt >= 0.5)
+        {
+            printPose("flatslide_pose", pl);
+            Con_Printf("flatslide_pose: done\n");
+            Cbuf_InsertText("-flatcrouch\n");
+            t = PoseTest{};
+        }
+    }
 }
 
 void frame()
