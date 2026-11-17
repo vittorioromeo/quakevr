@@ -5020,7 +5020,7 @@ knees and ankles reach further out in the headset (the mock stands taller than 1
   through it by `-natgateway <port>` (net_wins.c, tests only). The harness's games run with `vr_mp_room 0` (never the
   internet service). mp_avatar now waits for the off hand's curls too (it raced a closing hand: 2 fails, then 2/2).
 - **Checks**: dev 0 warnings; MP suite run 1: mp_armed's combat field-share (passed alone) and mp_avatar (fixed
-  above); runs 2 and 3: 3 clean each (46 scenarios, mp_nat 12/0). SP: scenario_check 136/0, load_models 4/0 (vr_run_check not run: no canonical script; nothing SP-side changed but the Join Game page). ThinLTO 0 warnings.
+  above); runs 2 and 3: both clean (46 scenarios, mp_nat 12/0). SP: scenario_check 136/0, load_models 4/0 (vr_run_check not run: no canonical script; nothing SP-side changed but the Join Game page). ThinLTO 0 warnings.
 - **For him**: deploy (`bash Misc/rendezvous/deploy.sh vittorioromeo.com [user]`, UDP 26100 open in any cloud
   firewall); then host with two real routers and join by code. Note: the first smoke run of this session (mp_coop,
   before the harness got `vr_mp_room 0`) let its dedicated server look up vittorioromeo.com and send a few REGISTER

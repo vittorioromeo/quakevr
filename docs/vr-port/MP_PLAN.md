@@ -3460,7 +3460,7 @@ his: B10v's VR checks, internet play with two machines, the rendezvous service d
 - **Tests**: `mp_test.py nat` (12 checks; in the suite: 47 scenarios); `mp_nat.py` NAT routers through `-natgateway`;
   `Misc/rendezvous/test_rendezvous.py` 20/0. The harness: `vr_mp_room 0` for every game.
 - **Checks**: MP suite x3: run 1 two fails (mp_armed's combat field share once, alone 18/0; mp_avatar's off-hand curls
-  raced: the wait now includes them, 2/2), runs 2 and 3: 3 clean each (46 scenarios, mp_nat 12/0). SP: scenario_check 136/0, load_models 4/0 (vr_run_check not run: no canonical script; nothing SP-side changed but the Join Game page). ThinLTO 0 warnings.
+  raced: the wait now includes them, 2/2), runs 2 and 3: both clean (46 scenarios, mp_nat 12/0). SP: scenario_check 136/0, load_models 4/0 (vr_run_check not run: no canonical script; nothing SP-side changed but the Join Game page). ThinLTO 0 warnings.
 - **Open**: real routers (his two machines; a symmetric NAT gives the message, no relay); IPv6; a public room list
   (`vr_mp_public`) not built; the menus not seen in a headset.
 
