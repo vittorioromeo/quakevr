@@ -13,6 +13,12 @@
 
 #include "box3d/types.h"
 
+// QVR (local change, README.md): manifold arrays up to this long come from their count's pool, longer ones from the
+// heap (b3AllocateManifolds)
+#ifndef B3_POOLED_MANIFOLD_COUNT
+#define B3_POOLED_MANIFOLD_COUNT 4
+#endif
+
 #define B3_DEBUG_POINT_CAPACITY 64
 #define B3_DEBUG_LINE_CAPACITY 64
 
@@ -133,6 +139,13 @@ typedef struct b3World
 	// Manifold allocators have one allocator for each manifold count.
 	b3Array( b3BlockAllocator ) manifoldAllocators;
 	b3Mutex* manifoldAllocatorMutex;
+
+	// QVR (local change, README.md): the manifold arrays longer than B3_POOLED_MANIFOLD_COUNT, from b3Alloc (each
+	// count's pool kept 512 arrays of its size at least, for good: quadratic in the longest count a mesh contact
+	// ever had), and the longest count seen (b3World_GetManifoldMemory). Under manifoldAllocatorMutex.
+	int manifoldLargeCount;
+	int64_t manifoldLargeBytes;
+	int manifoldLongestCount;
 
 	// The body id pool is used to allocate and recycle body ids. Body ids
 	// provide a stable identifier for users, but incur caches misses when used
@@ -331,8 +344,25 @@ static inline b3Manifold* b3AllocateManifolds( b3World* world, int count )
 
 	int index = count - 1;
 
+	// QVR (local change, README.md): a long array (a mesh contact's many clusters) from the heap, not a pool of its
+	// own count (b3CreateBlockAllocator's 512 arrays of it, and one such pool for every count below it too, kept until
+	// the world went: a 16-player deathmatch's server grew by ~150 MB in steps, MP_PLAN B21)
+	if ( count > B3_POOLED_MANIFOLD_COUNT )
+	{
+		size_t bytes = (size_t)count * sizeof( b3Manifold );
+		b3Manifold* manifolds = (b3Manifold*)b3Alloc( bytes );
+		b3LockMutex( world->manifoldAllocatorMutex );
+		world->manifoldLargeCount += 1;
+		world->manifoldLargeBytes += (int64_t)bytes;
+		world->manifoldLongestCount = count > world->manifoldLongestCount ? count : world->manifoldLongestCount;
+		b3UnlockMutex( world->manifoldAllocatorMutex );
+		memset( manifolds, 0, bytes );
+		return manifolds;
+	}
+
 	// Need lock because this is called from the parallel narrow phase
 	b3LockMutex( world->manifoldAllocatorMutex );
+	world->manifoldLongestCount = count > world->manifoldLongestCount ? count : world->manifoldLongestCount; // QVR
 	int currentCount = world->manifoldAllocators.count;
 	for ( int i = currentCount; i < count; ++i )
 	{
@@ -351,6 +381,18 @@ static inline void b3FreeManifolds( b3World* world, b3Manifold* manifolds, int c
 {
 	if ( count == 0 )
 	{
+		return;
+	}
+
+	// QVR (local change, README.md): a long array came from the heap (b3AllocateManifolds)
+	if ( count > B3_POOLED_MANIFOLD_COUNT )
+	{
+		size_t bytes = (size_t)count * sizeof( b3Manifold );
+		b3LockMutex( world->manifoldAllocatorMutex );
+		world->manifoldLargeCount -= 1;
+		world->manifoldLargeBytes -= (int64_t)bytes;
+		b3UnlockMutex( world->manifoldAllocatorMutex );
+		b3Free( manifolds, bytes );
 		return;
 	}
 

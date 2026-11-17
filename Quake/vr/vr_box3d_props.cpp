@@ -305,6 +305,44 @@ void freeRetiredHulls()
     }
 }
 
+// The prop hulls' cache (propHulls) cut back once it holds more than propHullsMax: its keys hold each thing's drawn box,
+// and the gibs, heads and dropped things of every size made new ones all along (an arena's 32 waves: ~4000 hulls, a
+// few MB, growing wave after wave until the map changed; MP_PLAN B21). The actors' (frame -1) stay: their slots keep
+// them (Slot::hull). The others are only read as a body is made (the world copies a shape's hull): made again on demand.
+constexpr za::SizeT propHullsMax = 1024;
+za::Vector<PropHullKey> propHullsGone; // (trimPropHulls' scratch)
+
+void trimPropHulls()
+{
+    if(world->propHulls.size() <= propHullsMax)
+    {
+        return;
+    }
+    za::Vector<PropHullKey>& gone = propHullsGone;
+    gone.clear();
+    for(auto& [key, hull] : world->propHulls)
+    {
+        if(key.frame != -1)
+        {
+            gone.pushBack(key);
+            if(hull)
+            {
+                b3DestroyHull(hull);
+            }
+        }
+    }
+    for(const PropHullKey& key : gone)
+    {
+        world->propHulls.erase(key);
+    }
+    hullBuilds.trimmed += static_cast<int>(gone.size());
+    if(vr_debug_box3d.value)
+    {
+        Con_Printf("box3d: %d prop hulls let go, %d kept\n", static_cast<int>(gone.size()),
+            static_cast<int>(world->propHulls.size()));
+    }
+}
+
 // Whether the body made for `s` no longer fits the entity (its model, frame, scale or box changed).
 [[nodiscard]] bool stale(edict_t* ent, Slot& s)
 {
@@ -859,6 +897,7 @@ void syncEntities(float dt)
     {
         freeRetiredHulls();
     }
+    trimPropHulls();
     watchCorpses();
     settleCorpses();
     joinHeldGuns(nullptr, false); // (the guns cut on the pool since: added once done)

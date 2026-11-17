@@ -1126,6 +1126,7 @@ struct HullBuildStats
 {
     int built{0};
     int posted{0}, ahead{0};   // built on the pool ahead (prebuildPropHulls), and taken by propHull
+    int trimmed{0};            // let go of by trimPropHulls (the cache past its most)
     double ms{0.0}, mostMs{0.0};
     struct Slow
     {
