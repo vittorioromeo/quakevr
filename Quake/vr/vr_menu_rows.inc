@@ -6313,6 +6313,10 @@ QVR_TOGGLE(vr_xr_guard, "Runtime Crash Guard",
     "vr_xr_guard: a crash inside the OpenXR runtime while the game makes its eye images or stops it is caught "
     "and logged (qvr_openxr.txt): that VR start fails, Auto tries the next runtime, else the game plays flat. "
     "Off: the game crashes with its report.")
+QVR_TOGGLE(vr_xr_debug, "OpenXR Loader Log",
+    "vr_xr_debug, from the next game start (or before VR first starts): XR_LOADER_DEBUG=all, every message of "
+    "the OpenXR loader (the runtime it reads, the library it loads, why that fails) in qvr_openxr.txt on Linux; "
+    "on Windows in diagnostics mode's debug_output.log. Its errors are logged on Linux without it too.")
 QVR_TOGGLE(vr_xr_api_layers, "OpenXR API Layers",
     "vr_xr_api_layers, from the next VR start: off turns off every implicit OpenXR API layer installed "
     "(overlays, toolkits, capture tools between the game and the runtime) by its own switch. "

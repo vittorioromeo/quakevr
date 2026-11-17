@@ -88,6 +88,21 @@ void keepGraphicsModules();
 // The attempt is SteamVR's (its manifest steamxr_win64.json).
 [[nodiscard]] bool isSteamVR(const Attempt& attempt);
 
+// vr_xr_debug 1: XR_LOADER_DEBUG=all (unless set outside the game), before VR starts (Linux: before video init too). The
+// loader reads it at its first message, so it counts from the next game start when the loader already spoke.
+void loaderDebug();
+
+// Linux: the OpenXR loader's (and the runtime's) stdout and stderr while it loads a runtime (xrEnumerate...,
+// xrCreateInstance), caught and written to the start's log as "OpenXR loader output (<call>): ..." lines; a failed
+// call's error lines to the console too. The loader writes its errors to stderr only (and with XR_LOADER_DEBUG all its
+// messages to stdout), which a player's log never had. (Windows: nothing.)
+void captureLoaderOutput();
+void endLoaderOutput(const char* call, bool failed);
+
+// xrCreateInstance failed with XR_ERROR_RUNTIME_UNAVAILABLE: what to try, for the attempt's runtime (SteamVR on Linux:
+// start it first, the Flatpak's /dev/shm, the logs to read, the other runtimes).
+void runtimeUnavailable(const Attempt& attempt);
+
 // Linux, before SDL's video init (VID_Init; the config's vr_xr_runtime* read first): when a runtime the start would try
 // is SteamVR (whose OpenXR has the GLX binding only, no XR_MNDX_egl_enable), an X server is there (DISPLAY: X11 or
 // XWayland) and the player set no SDL video driver or EGL variable, SDL is asked for X11 with GLX (SDL_VIDEODRIVER=x11,

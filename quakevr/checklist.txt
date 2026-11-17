@@ -19,6 +19,7 @@ Install with the relight on and watch Relighting the maps: the big maps go first
 Installer: relighting covers Quake and the mission packs only (Map Library and Arcane Dimensions keep their own lighting; Graphics > Relighting relights them on demand)
 Graphics > Relighting, Relight This Map in e1m1 and in a big map (Arcane Dimensions' ad_mountain) with Bounced Light on: it should take about half as long as before and look the same as the old relight (corners, bounced colour, no blotches on small faces).
 Sliding in VR: your view now dips quickly but smoothly down to the desktop screen's sliding eye height while you slide and comes back up when it ends, your own head still moving one to one; check it feels comfortable (Slide View Time in VR Settings > Locomotion; Slide View off keeps the view at your real head) and that your drawn body lies back with its legs out on the floor as on the desktop screen. {test:vr_slide}
+Linux #82: Flatpak with SteamVR running: VR starts, or qvr_openxr.txt has OpenXR loader output lines for the report
 
 [1. Flat-screen: weapons and hands]
 

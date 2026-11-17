@@ -53,15 +53,16 @@ struct Known
     Kind kind;
     const char* label;
     const char* manifestName;
-    const char* processes[2]; // (lower case)
+    const char* processes[3]; // (lower case)
     const char* reason;       // why, when one of them runs
     const char* usualPlace;
 };
 
 #ifndef _WIN32
-// Linux: SteamVR's runtime (Monado, WiVRn and the rest: Other, found as the active runtime).
+// Linux: SteamVR's runtime (Monado, WiVRn and the rest: Other, found as the active runtime). Its processes: the server,
+// the compositor, the status window (vrmonitor), matched by /proc/<pid>/comm, the executable's or argv's file name.
 constexpr Known known[] = {
-    {Kind::SteamVR, "SteamVR", "steamxr_linux64.json", {"vrserver", "vrcompositor"}, "running",
+    {Kind::SteamVR, "SteamVR", "steamxr_linux64.json", {"vrserver", "vrcompositor", "vrmonitor"}, "running",
         "~/.steam/steam/steamapps/common/SteamVR/steamxr_linux64.json"},
 };
 
@@ -333,7 +334,121 @@ struct Environment
     za::String active;
     za::Vector<za::String> processes;
     VdSetting vd;
+    bool sandbox = false; // Linux: in a Flatpak sandbox (/.flatpak-info), whose /proc shows its own processes only
 };
+
+#ifndef _WIN32
+// A process's names, to match the known runtimes' (Linux): /proc/<pid>/comm (its name, at most 15 characters), its
+// executable's file name (/proc/<pid>/exe: the other users' are unreadable) and its first two arguments' (argv[0]; argv[1]
+// for a program started through ld.so or a shell, as the Steam Linux Runtime's container may start SteamVR's).
+[[nodiscard]] za::Vector<za::String> processNames(const char* pid)
+{
+    za::Vector<za::String> names;
+    char text[PATH_MAX] = "";
+    if(FILE* f = fopen(va("/proc/%s/comm", pid), "rb"))
+    {
+        if(fgets(text, sizeof(text), f))
+        {
+            text[strcspn(text, "\r\n")] = 0;
+            names.pushBack(za::String{text});
+        }
+        fclose(f);
+    }
+    const ssize_t length = readlink(va("/proc/%s/exe", pid), text, sizeof(text) - 1);
+    if(length > 0)
+    {
+        text[length] = 0;
+        names.pushBack(za::String{fileName(text)});
+    }
+    if(FILE* f = fopen(va("/proc/%s/cmdline", pid), "rb"))
+    {
+        const size_t got = fread(text, 1, sizeof(text) - 1, f);
+        fclose(f);
+        text[got] = 0;
+        const char* arg = text;
+        for(int i = 0; i < 2 && arg < text + got; i++)
+        {
+            if(arg[0])
+            {
+                names.pushBack(za::String{fileName(arg)});
+            }
+            arg += strlen(arg) + 1;
+        }
+    }
+    return names;
+}
+
+// In a Flatpak sandbox: the devices it was given ("dri;all;shm;", /.flatpak-info's [Context] devices), "" outside one.
+[[nodiscard]] za::String flatpakDevices()
+{
+    za::String devices;
+    if(FILE* f = fopen("/.flatpak-info", "rb"))
+    {
+        char line[1024];
+        bool context = false;
+        while(fgets(line, sizeof(line), f))
+        {
+            line[strcspn(line, "\r\n")] = 0;
+            if(line[0] == '[')
+            {
+                context = !strcmp(line, "[Context]");
+            }
+            else if(context && !strncmp(line, "devices=", 8))
+            {
+                devices = line + 8;
+            }
+        }
+        fclose(f);
+    }
+    return devices;
+}
+
+// The sandbox shares the host's /dev/shm (--device=shm). --device=all alone gives the sandbox its own (Flatpak mounts a
+// tmpfs there), where SteamVR's client finds none of its server's shared memory.
+[[nodiscard]] bool sandboxSharesShm()
+{
+    const za::String devices = flatpakDevices();
+    for(const za::String& d : splitList(devices.cStr()))
+    {
+        if(d == za::StringView{"shm"})
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+// The /dev/shm entries that look like SteamVR's, OpenVR's or Steam's (for the report: what a running SteamVR leaves
+// there, as seen from the game; "none" when nothing is).
+[[nodiscard]] za::String vrShmEntries()
+{
+    za::String list;
+    int count = 0;
+    if(DIR* d = opendir("/dev/shm"))
+    {
+        while(const dirent* e = readdir(d))
+        {
+            const za::String name = qvr::strings::lower(e->d_name);
+            bool vr = false;
+            for(const char* word : {"steamvr", "openvr", "vrserver", "vrcompositor", "valve"})
+            {
+                vr = vr || strstr(name.cStr(), word) != nullptr;
+            }
+            if(vr && ++count <= 8)
+            {
+                list += list.empty() ? "" : ", ";
+                list += e->d_name;
+            }
+        }
+        closedir(d);
+    }
+    if(count > 8)
+    {
+        list += va(" (+%d more)", count - 8);
+    }
+    return list.empty() ? za::String{"none"} : list;
+}
+#endif
 
 [[nodiscard]] Environment environment()
 {
@@ -450,7 +565,9 @@ struct Environment
             closedir(d);
         }
     }
-    // The known runtimes' processes: /proc/<pid>/comm (the executable's name, at most 15 characters).
+    // The known runtimes' processes, by each process's names (processNames). In a Flatpak sandbox /proc has the
+    // sandbox's processes only (its own PID namespace): the host's SteamVR can't be seen ("can't tell" in the report).
+    env.sandbox = fileExists("/.flatpak-info");
     if(DIR* proc = opendir("/proc"))
     {
         while(const dirent* e = readdir(proc))
@@ -459,21 +576,17 @@ struct Environment
             {
                 continue;
             }
-            char comm[64] = "";
-            if(FILE* f = fopen(va("/proc/%s/comm", e->d_name), "rb"))
-            {
-                if(!fgets(comm, sizeof(comm), f))
-                {
-                    comm[0] = 0;
-                }
-                fclose(f);
-            }
-            comm[strcspn(comm, "\r\n")] = 0;
+            const za::Vector<za::String> names = processNames(e->d_name);
             for(const Known& k : known)
             {
                 for(const char* process : k.processes)
                 {
-                    if(process && comm[0] && !strcmp(comm, process))
+                    bool match = false;
+                    for(const za::String& name : names)
+                    {
+                        match = match || (process && name == za::StringView{process});
+                    }
+                    if(match)
                     {
                         env.processes.pushBack(za::String{process});
                     }
@@ -1226,8 +1339,22 @@ void describe()
     for(const Known& k : known)
     {
         const char* running = runningProcess(env, k.kind);
-        note("  %s: %s\n", k.label, running ? va("%s running", running) : "not running");
+        note("  %s: %s\n", k.label,
+            running       ? va("%s running", running)
+            : env.sandbox ? "can't tell: the Flatpak sandbox hides the host's processes (Auto: as not running)"
+                          : "not running");
     }
+#ifndef _WIN32
+    if(env.sandbox)
+    {
+        const za::String devices = flatpakDevices();
+        note("  Flatpak sandbox: devices %s; /dev/shm %s\n", devices.empty() ? "none listed" : devices.cStr(),
+            sandboxSharesShm() ? "shared with the host"
+                               : "the sandbox's own (SteamVR's IPC needs the host's: flatpak override --user "
+                                 "--device=shm io.github.vittorioromeo.QuakeVR)");
+    }
+    note("  /dev/shm, SteamVR's or OpenVR's: %s\n", vrShmEntries().cStr());
+#endif
     const bool streamer = runningProcess(env, Kind::VirtualDesktop) != nullptr;
     const char* effect = env.vd.choice == VdChoice::Unknown ? ": Auto as without it"
                          : !streamer                         ? " (ignored: the Streamer isn't running)"
@@ -1383,7 +1510,149 @@ za::String foreignArch(const char* manifest)
 #endif
 }
 
+// vr_xr_debug's XR_LOADER_DEBUG, once set (said once).
+bool loaderDebugSet = false;
+
+#ifndef _WIN32
+// Linux: the loader's (and the runtime's) stdout and stderr while it loads a runtime, caught in a temporary file
+// (captureLoaderOutput .. endLoaderOutput).
+struct LoaderCapture
+{
+    FILE* file = nullptr;
+    int savedOut = -1;
+    int savedErr = -1;
+};
+LoaderCapture loaderCapture;
+#endif
+
 } // namespace
+
+void loaderDebug()
+{
+    if(vr_xr_debug.value == 0.f || loaderDebugSet)
+    {
+        return;
+    }
+    loaderDebugSet = true;
+    const char* outside = getenv("XR_LOADER_DEBUG");
+    if(outside && outside[0])
+    {
+        Con_Printf("OpenXR: vr_xr_debug: XR_LOADER_DEBUG=%s, set outside the game, kept\n", outside);
+        return;
+    }
+#ifdef _WIN32
+    SetEnvironmentVariableA("XR_LOADER_DEBUG", "all");
+    _putenv_s("XR_LOADER_DEBUG", "all");
+    Con_Printf("OpenXR: vr_xr_debug: XR_LOADER_DEBUG=all (Windows: diagnostics mode catches the loader's messages)\n");
+#else
+    setenv("XR_LOADER_DEBUG", "all", 1);
+    Con_Printf("OpenXR: vr_xr_debug: XR_LOADER_DEBUG=all: every message of the OpenXR loader goes to qvr_openxr.txt (it "
+               "reads the variable at its first message: set vr_xr_debug before VR starts, or restart the game)\n");
+#endif
+}
+
+void captureLoaderOutput()
+{
+#ifndef _WIN32
+    LoaderCapture& c = loaderCapture;
+    if(c.file)
+    {
+        return;
+    }
+    fflush(stdout);
+    fflush(stderr);
+    c.file = tmpfile();
+    if(!c.file)
+    {
+        return;
+    }
+    c.savedOut = dup(STDOUT_FILENO);
+    c.savedErr = dup(STDERR_FILENO);
+    dup2(fileno(c.file), STDOUT_FILENO);
+    dup2(fileno(c.file), STDERR_FILENO);
+#endif
+}
+
+void endLoaderOutput(const char* call, bool failed)
+{
+#ifndef _WIN32
+    LoaderCapture& c = loaderCapture;
+    if(!c.file)
+    {
+        return;
+    }
+    fflush(stdout);
+    fflush(stderr);
+    if(c.savedOut >= 0)
+    {
+        dup2(c.savedOut, STDOUT_FILENO);
+        close(c.savedOut);
+    }
+    if(c.savedErr >= 0)
+    {
+        dup2(c.savedErr, STDERR_FILENO);
+        close(c.savedErr);
+    }
+    rewind(c.file);
+    char line[1024];
+    char last[1024] = "";
+    int shown = 0;
+    while(fgets(line, sizeof(line), c.file))
+    {
+        line[strcspn(line, "\r\n")] = 0;
+        // (With XR_LOADER_DEBUG the loader writes each error to stderr and stdout both: once.)
+        if(!line[0] || !strcmp(line, last))
+        {
+            continue;
+        }
+        q_strlcpy(last, line, sizeof(last));
+        logText(va("OpenXR loader output (%s): %s\n", call, line), true);
+        // A failure's errors to the console too (the loader's "Error [GENERAL | ...]" lines; at most 8).
+        if(failed && (strstr(line, "Error") || strstr(line, "error") || strstr(line, "ERROR")) && shown++ < 8)
+        {
+            Con_Warning("OpenXR loader: %s\n", line);
+        }
+    }
+    fclose(c.file);
+    c = LoaderCapture{};
+#else
+    (void)call;
+    (void)failed;
+#endif
+}
+
+void runtimeUnavailable(const Attempt& attempt)
+{
+    const bool steam = isSteamVR(attempt) || attempt.label == za::StringView{"SteamVR"};
+#ifdef _WIN32
+    warn("OpenXR: %s isn't available (XR_ERROR_RUNTIME_UNAVAILABLE): %s, then vr_restart (Options > Restart VR)\n",
+        attempt.label.cStr(), steam ? "start SteamVR and connect the headset" : "start the runtime's app");
+#else
+    const Environment env = environment();
+    const char* running = runningProcess(env, Kind::SteamVR);
+    if(!steam)
+    {
+        warn("OpenXR: %s isn't available (XR_ERROR_RUNTIME_UNAVAILABLE): the loader couldn't load its library (the "
+             "loader's messages: qvr_openxr.txt), or its service isn't running (monado-service, WiVRn's server): start "
+             "it, then vr_restart\n",
+            attempt.label.cStr());
+        return;
+    }
+    warn("OpenXR: SteamVR isn't available (XR_ERROR_RUNTIME_UNAVAILABLE): its client (vrclient.so) didn't load or "
+         "didn't reach SteamVR's server%s\n",
+        running ? va(" (%s is running)", running) : env.sandbox ? "" : " (no vrserver running)");
+    note("  Start SteamVR first and wait for the headset in its window, then vr_restart (Options > Restart VR).\n");
+    if(env.sandbox && !sandboxSharesShm())
+    {
+        note("  The Flatpak sandbox has its own /dev/shm, where SteamVR's client looks for its server: run 'flatpak "
+             "override --user --device=shm io.github.vittorioromeo.QuakeVR' and start the game again.\n");
+    }
+    note("  The loader's messages: qvr_openxr.txt (all of them with vr_xr_debug 1, set before VR starts); SteamVR's: "
+         "~/.local/share/Steam/logs (vrserver.txt, vrclient_*.txt)%s.\n",
+        env.sandbox ? ", which the Flatpak only reads" : "");
+    note("  Other runtimes: Monado, WiVRn (docs/vr-port/LINUX.md, \"SteamVR\").\n");
+#endif
+}
 
 const char* logPath()
 {
@@ -1505,6 +1774,7 @@ bool isSteamVR(const Attempt& attempt)
 void beforeVideoInit()
 {
 #ifndef _WIN32
+    loaderDebug();
     auto set = [](const char* name) {
         const char* v = getenv(name);
         return v && v[0];

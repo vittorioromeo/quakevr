@@ -307,10 +307,7 @@ bool OpenXrBackend::checkFrameCall(XrResult result, const char* what) const
         return true;
     }
     char text[XR_MAX_RESULT_STRING_SIZE] = "";
-    if(instance != XR_NULL_HANDLE)
-    {
-        xrResultToString(instance, result, text);
-    }
+    resultText(instance, result, text);
     xrstall::callFailed(what, static_cast<int>(result), text);
     return false;
 }

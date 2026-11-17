@@ -856,6 +856,7 @@ za::Vector<Item> pageDebugProfiling()
         row(opt::vr_xr_guard),
         row(opt::vr_xr_api_layers),
         row(opt::vr_xr_skip_incompatible_layers),
+        row(opt::vr_xr_debug),
     };
 }
 
