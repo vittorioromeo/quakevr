@@ -3390,6 +3390,12 @@ rendezvous service decision.
   prints) cannot be replayed out of order, and its entities' samples would need inserting into the histories by time.
   Small gain (a midpoint for curved motion under reordering), not cheap: left.
 - **The lift's DIST_EPSILON misses** (item 3): not trivial (the client's replay against SV_PushMove's carry): left.
+- **A client crash under mp_fuzz** (suite run 2): a corrupt packet's svc_time made `R_TextureAnimation`'s frame
+  negative ("infinite cycle" Sys_Error; the light styles read out of bounds too). svc_time is checked as read now
+  (Host_Error) and the texture animation draws frame 0 for such a time (6707b6baa, single player's code too).
+- **Checks:** the full MP suite (dev) 3 runs: 53, 51 and 52 of 53 clean (run 2: mp_rejoin 14/1, "C has the shotgun
+  A let fall", and mp_fuzz's crash above, then 14/0 three times; run 3: mp_held 13/1, a hotspot 0.62 off against
+  0.5, the hand-placement kind of flake). Dev and ThinLTO builds 0 warnings (agent/mp and agent/b21-box3dmem).
 
 Next phase: B22 -- NAT step 1 if he agrees; else the dedicated server's ~55 MB heap steps (16 players, dm3; not
 Box3D; 64 of 236 MB back at a map change): a live-bytes-by-size snapshot of mimalloc's heaps (`mi_heap_visit_blocks`)
