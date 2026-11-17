@@ -1570,6 +1570,124 @@ void qvr::menu::flashTest_f()
     }
 }
 
+// vr_menu_search_filter_test (Debug > Tools; ROUND25.md, "searchfilter"): Search's filter row (Show: Both, Cvars,
+// Tunables). The results for a text under each choice (Cvars: no tunable; Tunables: tunables only; Both: the two
+// together), then each way of choosing: the mouse's click on Tunables, the laser's trigger on Cvars, the sticks (up
+// from the keys onto the row, across, A; down: the keys again). A release build: no row (its layout has none, the
+// filter refused), every result shown. Phases (each queues the next itself): start, open, mouse, laser. The filter and
+// the text are put back. Ends with its verdict line.
+namespace
+{
+struct SearchFilterTest
+{
+    testkit::Tally tally;
+    int filter{SearchBoth}; // before it
+    za::String query;
+    int counts[SearchFilterCount]{};
+};
+SearchFilterTest searchFilterTest;
+constexpr const char* searchFilterTestText = "recoil"; // (both kinds, under searchMaxResults: 12 settings, 6 tunables)
+} // namespace
+
+void qvr::menu::searchFilterTest_f()
+{
+    constexpr const char* name = "menu_search_filter";
+    SearchFilterTest& t = searchFilterTest;
+    auto check = [&](bool ok, const char* what) { t.tally.check(ok, name, what); };
+    const char* phase = Cmd_Argc() > 1 ? Cmd_Argv(1) : "start";
+    // Every result shown under the filter is of its kind.
+    const auto allOf = [&](bool tunable) {
+        return !za::anyOf(search.results.begin(), search.results.end(),
+            [&](const SearchResult& r) { return search.index[r.entry].tunable != tunable; });
+    };
+    const auto finish = [&] {
+        search.filter = t.filter;
+        search.query = t.query;
+        runSearch();
+        t.tally.verdict(name);
+    };
+    const auto spot = [&](int f) {
+        const SearchLayout s = searchPageLayout();
+        return va("%.0f %.0f", (s.filterX0[f] + s.filterX1[f]) * 0.5f, s.filterYc);
+    };
+    if(!strcmp(phase, "start"))
+    {
+        t = SearchFilterTest{};
+        t.filter = search.filter;
+        t.query = search.query;
+        Cbuf_AddText("menu_vr\nwait\nvr_menu_search_filter_test open\n");
+        return;
+    }
+    if(!strcmp(phase, "open"))
+    {
+        openSearchPage();
+        check(key_dest == key_menu && m_state == m_vr && ui().page == pageIndex(pageSearch), "the Search page shown");
+        search.query = searchFilterTestText;
+        if constexpr(!searchFilterShown)
+        {
+            search.filter = SearchTunables; // (ignored: no tunables)
+            runSearch();
+            const bool anyTunable = za::anyOf(search.index.begin(), search.index.end(),
+                [](const SearchEntry& e) { return e.tunable; });
+            Con_Printf("menu_search_filter: a release build, %d results for \"%s\"\n",
+                static_cast<int>(search.results.size()), searchFilterTestText);
+            check(!searchPageLayout().filter, "no filter row (a release build)");
+            check(!anyTunable && !search.results.empty(), "no tunables; every result shown whatever the filter");
+            finish();
+            return;
+        }
+        for(int f = 0; f < SearchFilterCount; f++)
+        {
+            searchSetFilter(f);
+            t.counts[f] = static_cast<int>(search.results.size());
+            Con_Printf("menu_search_filter: \"%s\", show %s: %d results\n", searchFilterTestText, searchFilterLabels[f],
+                t.counts[f]);
+            if(f == SearchCvars || f == SearchTunables)
+            {
+                check(t.counts[f] > 0 && allOf(f == SearchTunables), va("show %s: only its kind, some found",
+                                                                          searchFilterLabels[f]));
+            }
+        }
+        const int both = t.counts[SearchBoth], sum = t.counts[SearchCvars] + t.counts[SearchTunables];
+        check(both < searchMaxResults && both == sum, va("show Both: the two together (%d of %d)", both, sum));
+        check(searchPageLayout().filter, "the filter row laid out");
+        searchSetFilter(SearchBoth);
+        Cbuf_AddText(va("wait\nvr_mock_mouse %s click\nwait\nvr_menu_search_filter_test mouse\n", spot(SearchTunables)));
+        return;
+    }
+    if(!strcmp(phase, "mouse"))
+    {
+        check(search.filter == SearchTunables && allOf(true) &&
+                  static_cast<int>(search.results.size()) == t.counts[SearchTunables],
+            "the mouse's click on Tunables: the tunables' results at once");
+        Cbuf_AddText(va("vr_mock_laser %s\nwait\nwait\nwait\nvr_mock_button main trigger 1\nwait\nwait\nwait\n"
+                        "vr_mock_button main trigger 0\nwait\nwait\nwait\nvr_menu_search_filter_test laser\n",
+            spot(SearchCvars)));
+        return;
+    }
+    if(!strcmp(phase, "laser"))
+    {
+        check(search.filter == SearchCvars && allOf(false) &&
+                  static_cast<int>(search.results.size()) == t.counts[SearchCvars],
+            "the laser's trigger on Cvars: the settings' results");
+        check(search.hoverFilter == SearchCvars, "the laser over Cvars lights it");
+        Cbuf_AddText("vr_mock_laser off\n");
+        // The sticks: up from the keys' top row onto the row (its first button), across twice, A; down again.
+        search.hoverKey = search.hoverResult = search.hoverRecent = search.hoverFilter = -1;
+        search.focusRecent = search.focusResult = search.focusFilter = -1;
+        search.focusKey = 0;
+        searchKey(K_UPARROW);
+        check(search.focusFilter == SearchBoth && search.focusKey < 0, "up from the keys: the filter row's Both");
+        searchKey(K_RIGHTARROW);
+        searchKey(K_RIGHTARROW);
+        searchKey(K_ABUTTON);
+        check(search.filter == SearchTunables && allOf(true), "across to Tunables and A: chosen");
+        searchKey(K_DOWNARROW);
+        check(search.focusFilter < 0 && search.focusKey >= 0 && search.focusKey < 10, "down from the row: the keys' top row");
+        finish();
+    }
+}
+
 // vr_menu_stop_test (Debug > Tools; ROUND25.md, "campvis"): a menu opened while walking stops the player. On e1m1,
 // +forward walks him; the VR Settings opened over the running game (live preview): within 3 frames no movement button
 // is held and the server's last move is 0, then he comes to rest; the menu closed, he stays at rest (nothing resumes
@@ -1699,20 +1817,50 @@ void qvr::menu::search_f()
 {
     if(Cmd_Argc() < 2)
     {
-        Con_Printf("vr_menu_search [-open] <text>: the VR menus' settings, actions and pages matching it, best first "
-                   "(-open: the best opened, as Search's first result picked)\n");
+        Con_Printf("vr_menu_search [-filter both|cvars|tunables] [-open] <text>: the VR menus' settings, actions and "
+                   "pages matching it, best first (-filter: the Search page's filter row set so, kept; a development "
+                   "build's; -open: the best opened, as Search's first result picked)\n");
         return;
     }
-    const bool open = !strcmp(Cmd_Argv(1), "-open");
     buildSearchIndex();
-    const char* text = Cmd_Args();
-    if(open)
+    int arg = 1;
+    if(!strcmp(Cmd_Argv(arg), "-filter") && Cmd_Argc() > arg + 1)
     {
-        text = strstr(text, "-open") + 5;
-        while(*text == ' ')
+        int f = -1;
+        for(int i = 0; i < SearchFilterCount; i++)
         {
-            text++;
+            f = !q_strcasecmp(Cmd_Argv(arg + 1), searchFilterLabels[i]) ? i : f;
         }
+        if(!searchFilterShown || f < 0)
+        {
+            Con_Printf("vr_menu_search: %s\n", searchFilterShown ? "-filter both, cvars or tunables"
+                                                                  : "no filter (a release build: no tunables)");
+            return;
+        }
+        searchSetFilter(f);
+        const SearchLayout s = searchPageLayout();
+        Con_Printf("vr_menu_search: filter %s; its buttons at", searchFilterLabels[search.filter]);
+        for(int i = 0; i < SearchFilterCount; i++)
+        {
+            Con_Printf(" %s %.0f %.0f", searchFilterLabels[i], (s.filterX0[i] + s.filterX1[i]) * 0.5f, s.filterYc);
+        }
+        Con_Printf("\n");
+        arg += 2;
+        if(Cmd_Argc() <= arg)
+        {
+            return;
+        }
+    }
+    const bool open = !strcmp(Cmd_Argv(arg), "-open");
+    arg += open ? 1 : 0;
+    za::String text;
+    for(; arg < Cmd_Argc(); arg++)
+    {
+        if(!text.empty())
+        {
+            text += ' ';
+        }
+        text += Cmd_Argv(arg);
     }
     search.query = text;
     runSearch();
@@ -1726,7 +1874,8 @@ void qvr::menu::search_f()
             search.results.empty() ? "no result" : search.index[search.results[0].entry].label.cStr(), menuShownName());
         return;
     }
-    Con_Printf("vr_menu_search \"%s\": %d results (of %d rows and pages)\n", search.query.cStr(),
+    Con_Printf("vr_menu_search \"%s\"%s: %d results (of %d rows and pages)\n", search.query.cStr(),
+        searchFilterShown ? va(" (show %s)", searchFilterLabels[search.filter]) : "",
         static_cast<int>(search.results.size()), static_cast<int>(search.index.size()));
     for(int r = 0; r < static_cast<int>(search.results.size()) && r < 15; r++)
     {
@@ -1894,7 +2043,9 @@ void qvr::menu::selectEnd(int dir)
 {
     if(m_state == m_vr && ui().page == pageIndex(pageSearch))
     {
-        search.focusKey = 0; // from the corner's buttons: the keys
+        // From the corner's buttons: the filter row's choice (a development build's), else the keys.
+        search.focusKey = searchFilterShown ? -1 : 0;
+        search.focusFilter = searchFilterShown ? search.filter : -1;
         return;
     }
     if(m_state == m_vr && ui().page == pageIndex(pageConsole))
