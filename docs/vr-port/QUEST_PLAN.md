@@ -1654,6 +1654,17 @@ with the session's near monsters; `c4y_fz1..4.sh`), `c4y_pcskin.sh` / `c4y_pcvl.
   not shipped.
 - PC: dev and LTO builds 0 warnings; gles_render_test 21/0; scenario_check PASS (138 run, 0 failed); load_models_test 4/0.
 
+## 6zf. The 1.1.0 refresh: a sideload package for his trip (2026-11-17; no headset)
+
+- `origin/next` (the released 1.1.0, 5187f3e5) merged in: no conflicts (the Quest's ES paths and the PC's behaviour
+  both as they were). The VR APK rebuilt (`scratch/c4b_build.sh vr`: 0 warnings, `check_apk.sh` 18/0, 20.8 MB).
+- The package for a Linux laptop (`<kit>/scratch/quest_apk/`, made by `scratch/questpkg_make.sh`): `QuakeVR.apk`,
+  `quakevr.tar` (the game folder as C4b staged it: git's `quakevr` files less `xr_layers`, `doom`, `sound_tests`, the
+  `.map`s, plus `progs.dat`: 4045 files, 395 MB; no id data) and `README.txt`: adb on Linux, `adb install -r`, the
+  paks through `/data/local/tmp`, the tar stream (`adb exec-in "tar -xf - -C $D" < quakevr.tar`) and the chmod,
+  launching (Unknown Sources, `am start` with `--es args`), logcat, and `vr_android_export` + `run-as` for crash files.
+- PC: dev build 0 warnings (QC 0); gles_render_test 21/0; scenario_check PASS (136 run, 0 failed); load_models_test 4/0.
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,

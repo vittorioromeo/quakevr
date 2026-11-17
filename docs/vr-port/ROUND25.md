@@ -4339,3 +4339,10 @@ His request: bake all 27 title wordings (9 sections x 3) to pick from.
 - Wording: the options page's relight line, the preparation's log lines, the CLI's prepare help and line, the marker
   file's text, INSTALLER.md (Relit maps, First-start relight, Preparation run). Self-test "game preparation" checks
   the engine sources use `official` in both places. Installer 0 warnings, self-tests 41/41; engine dev built 0 warnings.
+
+## Quest 1.1.0 refresh: the sideload package for his trip (branch `agent/quest`, 2026-11-17)
+
+- `origin/next` (1.1.0) merged into `agent/quest` without conflicts; the VR APK rebuilt (0 warnings, `check_apk.sh` 18/0,
+  20.8 MB). A self-contained package for a Linux laptop: the APK, the game folder as one tar (395 MB, no id data) and a
+  README with the adb commands (install, paks, data, launch, logcat, crash files). Details: QUEST_PLAN.md 6zf.
+- PC: dev build 0 warnings (QC 0); gles_render_test 21/0; scenario_check PASS (136 run, 0 failed); load_models_test 4/0.
