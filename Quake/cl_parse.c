@@ -671,6 +671,8 @@ void CL_ParseUpdate (int bits)
 	//johnfitz
 
 	//johnfitz -- moved here from above
+	if (modnum < 0 || modnum >= MAX_MODELS) // QVR: U_MODEL2's high byte past the precache list (a damaged message: mp_fuzz, MP_PLAN B19)
+		Host_Error ("CL_ParseUpdate: bad modnum %d", modnum);
 	model = cl.model_precache[modnum];
 	if (model != ent->model)
 	{
@@ -720,6 +722,8 @@ void CL_ParseBaseline (entity_t *ent, int version) //johnfitz -- added argument
 	//johnfitz -- PROTOCOL_FITZQUAKE
 	bits = (version == 2) ? MSG_ReadByte() : 0;
 	ent->baseline.modelindex = (bits & B_LARGEMODEL) ? MSG_ReadShort() : MSG_ReadByte();
+	if (ent->baseline.modelindex >= MAX_MODELS) // QVR: a damaged message (MP_PLAN B19)
+		Host_Error ("CL_ParseBaseline: bad modelindex %d", ent->baseline.modelindex);
 	ent->baseline.frame = (bits & B_LARGEFRAME) ? MSG_ReadShort() : MSG_ReadByte();
 	//johnfitz
 
@@ -915,6 +919,12 @@ void CL_ParseClientdata (void)
 
 	//johnfitz -- lerping
 	//ericw -- this was done before the upper 8 bits of cl.stats[STAT_WEAPON] were filled in, breaking on large maps like zendar.bsp
+	if (cl.stats[STAT_WEAPON] < 0 || cl.stats[STAT_WEAPON] >= MAX_MODELS) // QVR: a damaged message (MP_PLAN B19)
+	{
+		int bad = cl.stats[STAT_WEAPON];
+		cl.stats[STAT_WEAPON] = 0;
+		Host_Error ("CL_ParseClientdata: bad weapon model %d", bad);
+	}
 	if (cl.viewent.model != cl.model_precache[cl.stats[STAT_WEAPON]])
 	{
 		cl.viewent.lerpflags |= LERP_RESETANIM; //don't lerp animation across model changes
@@ -1339,6 +1349,12 @@ void CL_ParseServerMessage (void)
 				Host_Error ("svc_updatestat: %i is invalid", i); // QVR (MP_PLAN B18): was Sys_Error
 			cl.stats[i] = MSG_ReadLong ();
 			cl.statsf[i] = cl.stats[i];
+			if (i == STAT_WEAPON && (cl.stats[i] < 0 || cl.stats[i] >= MAX_MODELS)) // QVR: view.c indexes the models by it (MP_PLAN B19)
+			{
+				int bad = cl.stats[i];
+				cl.stats[i] = 0;
+				Host_Error ("svc_updatestat: bad weapon model %d", bad);
+			}
 			break;
 
 		case svc_spawnstaticsound:
