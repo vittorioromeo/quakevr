@@ -585,6 +585,8 @@ struct ProgCache
     bool loaded = false;
     bool batch = false; // inside GL_CreateShaders: written at its end
     bool dirty = false;
+    const char* loadNote = "";  // the pack's read, for the start-up trace (VR_StepNote)
+    int hits = 0, misses = 0;   // this batch's programs given back / not in the pack (VR_ProgCacheEnd's note)
 };
 ProgCache progCache;
 
@@ -599,17 +601,24 @@ void progLoad()
 {
     progCache.entries.clear();
     za::Vector<char> bytes;
-    if(!qvr::files::readBytes(progPath(progCache.driver).cStr(), bytes) || bytes.size() < 12 ||
-        memcmp(bytes.data(), progMagic, 4) != 0)
+    if(!qvr::files::readBytes(progPath(progCache.driver).cStr(), bytes))
     {
+        progCache.loadNote = "no pack for this driver yet (the first start, a new driver or a cleared cache)";
+        return;
+    }
+    if(bytes.size() < 12 || memcmp(bytes.data(), progMagic, 4) != 0)
+    {
+        progCache.loadNote = "the pack is not one (cut short or damaged): every program made again";
         return;
     }
     unsigned header[2];
     memcpy(header, bytes.data() + 4, sizeof(header));
     if(header[0] != progVersion)
     {
+        progCache.loadNote = "the pack is an older layout: every program made again";
         return;
     }
+    progCache.loadNote = "read";
     size_t at = 12;
     for(unsigned i = 0; i < header[1]; i++)
     {
@@ -727,8 +736,11 @@ extern "C" void VR_ProgCacheBegin(const char* vendor, const char* renderer, cons
             Sys_DoubleTime() - t0); // load timing (vr_startup_times)
         Con_DPrintf("vr_program_cache: %d programs in %s\n", static_cast<int>(progCache.entries.size()),
             progPath(driver).cStr());
+        VR_StepNote("program cache: %s (%d programs, %s)", progCache.loadNote, static_cast<int>(progCache.entries.size()),
+            progPath(driver).cStr());
     }
     progCache.batch = true;
+    progCache.hits = progCache.misses = 0;
 }
 
 extern "C" const void* VR_ProgCacheFind(unsigned long long key, unsigned* format, int* length)
@@ -736,8 +748,10 @@ extern "C" const void* VR_ProgCacheFind(unsigned long long key, unsigned* format
     ProgEntry* e = progCache.loaded ? progFind(key) : nullptr;
     if(!e || e->data.empty())
     {
+        progCache.misses++;
         return nullptr;
     }
+    progCache.hits++;
     e->used = true;
     *format = e->format;
     *length = static_cast<int>(e->data.size());
@@ -783,6 +797,18 @@ extern "C" void VR_ProgCacheAdd(unsigned long long key, unsigned format, const v
 extern "C" void VR_ProgCacheEnd(void)
 {
     progCache.batch = false;
+    if(progCache.misses)
+    {
+        // (a pack read but programs missing from it: their text changed since it was written, a new build's shaders or
+        // switches: those are compiled from their sources, the slow start, and added)
+        VR_StepNote("program cache: %d from their binaries, %d compiled (%s)", progCache.hits, progCache.misses,
+            progCache.hits ? "not in the pack: their shaders changed since (a new build) or are new"
+                           : "none in the pack matched: a new build's shaders, or no pack");
+    }
+    else
+    {
+        VR_StepNote("program cache: all %d from their binaries", progCache.hits);
+    }
     if(progCache.dirty)
     {
         progWrite();
