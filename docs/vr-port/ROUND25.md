@@ -5056,3 +5056,25 @@ hardware here; diagnosis and plan in LINUX.md, "SteamVR" and "AppImage (plan, no
 - Open: the failure outside the sandbox is unexplained until a player's log has the loader's lines and SteamVR's
   `vrclient_*.txt`; the Flatpak sandbox case not run (no flatpak here); the AppImage needs `appimagetool` in CI (a new
   pinned download): plan only.
+
+## MP B24: no test on the internet; a ridden lift exact; a 60-minute soak; the room-code pages (agent/mp, 2026-11-17)
+
+- **No multiplayer test can reach the internet** (a B23 run had sent room-service datagrams to vittorioromeo.com):
+  every harness game runs with `-loopbackonly` (new command-line flag, tests only: the engine never looks up a name
+  other than localhost, never resolves to, sends to or downloads from anything outside 127.0.0.0/8, no reverse
+  lookups or IPX; each refusal prints `NET SAFETY:`); the harness refuses to start a game or send a command pointing it
+  elsewhere (vr_mp_room 1 with a non-loopback vr_mp_rendezvous, a connect, a room-code join); every scenario ends by
+  asking each game its vr_mp_room / vr_mp_rendezvous and reading every log for `NET SAFETY:`. `mp_netsafe` (new, first
+  in the suite; the suite stops if it fails).
+- **Standing on a lift in multiplayer is now exact** (QVR_NET_VERSION 37): the small leftover between a remote
+  player's prediction and the server on a moving lift (0.03-0.06 units, every other move) came from two clocks, not
+  DIST_EPSILON: the lift's place sent to 1/16 unit and his frames' times against the server's ticks. The predict state
+  now carries the nearby movers' exact places and the server's tick, and a dedicated server's ticks are exactly 1/72 s
+  (host.c; a listen host unchanged). The lift ride: 0.058 -> 0.000004.
+- **A 60-minute soak** with 16 players and two map changes: the server's heap flat (1049 -> 1060 MB, its live blocks
+  884 -> 908 MB, flat from minute 10), pace 0.999-1.0, 3 of B's 258,855 moves lost; B22's heap fix holds.
+- **The room-code pages, seen before trying**: `menu_hostgame` and `menu_joingame [CODE]` (new console commands) open
+  Multiplayer's Host Game and Join Game pages; `mp_test.py roomui` screenshots both flatscreen with a local service.
+- mp_armed's occasional combat check now judges the bytes (the encoder sends each update the smaller way).
+- **For him**: nothing changes in single player. Look at the two room-code screenshots (MP_PLAN B24), then deploy the
+  room service and try a code between two real routers.
