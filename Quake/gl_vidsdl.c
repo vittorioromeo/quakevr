@@ -1814,7 +1814,7 @@ void	VID_Init (void)
 	// config's runtime settings first (and the runtime test environment's, from the command line: TESTING.md).
 	{
 		const char *vr_vars[] = {"vr_xr_runtime", "vr_xr_runtime_json", "vr_xr_runtime_fallback", "vr_xr_test",
-			"vr_xr_test_runtimes", "vr_xr_test_active", "vr_xr_test_processes"};
+			"vr_xr_test_runtimes", "vr_xr_test_active", "vr_xr_test_processes", "vr_xr_debug"};
 		if (CFG_OpenConfig(CONFIG_NAME) == 0 || CFG_OpenConfig("config.cfg") == 0)
 		{
 			CFG_ReadCvars(vr_vars, Q_COUNTOF(vr_vars));
