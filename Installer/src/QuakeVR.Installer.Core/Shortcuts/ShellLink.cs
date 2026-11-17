@@ -14,7 +14,9 @@ public sealed record ShortcutSpec(
     string? IconPath = null,
     int IconIndex = 0);
 
-/// <summary>Reads and writes .lnk files through the shell's own <c>IShellLinkW</c> (COM; no dependency).</summary>
+/// <summary>Reads and writes .lnk files through the shell's own <c>IShellLinkW</c> (COM; no dependency). Windows only:
+/// <see cref="Shortcut"/> picks this or <see cref="DesktopEntry"/> (Linux) by the file's extension.</summary>
+[System.Runtime.Versioning.SupportedOSPlatform("windows")]
 public static class ShellLink
 {
     public static void Save(ShortcutSpec spec)

@@ -20,6 +20,7 @@ public interface IRegistryWriter
 }
 
 /// <summary>The real registry, HKCU only (no administrator rights needed; HKLM is refused).</summary>
+[System.Runtime.Versioning.SupportedOSPlatform("windows")]
 public sealed class WindowsRegistryWriter : IRegistryWriter
 {
     static string SubKey(string key)

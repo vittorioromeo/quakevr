@@ -12,6 +12,12 @@ public enum KnownFolder
     UserProfile,
     /// <summary>The 64-bit system folder (System32 for a 64-bit process), where the VC++ runtime's DLLs are.</summary>
     System64,
+    /// <summary>Linux: $XDG_CONFIG_HOME (~/.config). Not used on Windows.</summary>
+    ConfigHome,
+    /// <summary>Linux: $XDG_CACHE_HOME (~/.cache). Not used on Windows.</summary>
+    CacheHome,
+    /// <summary>Linux: the first of $XDG_CONFIG_DIRS (/etc/xdg). Not used on Windows.</summary>
+    SystemConfig,
 }
 
 /// <summary>
@@ -32,6 +38,10 @@ public interface ISystemProbe
 
     /// <summary>A file's version resource (FileVersion), or null when the file or its version is missing.</summary>
     Version? GetFileVersion(string path);
+
+    /// <summary>The machine's OS: which stores, folders and shortcuts detection and install use (Windows unless the
+    /// probe says otherwise: <see cref="LinuxSystemProbe"/>, a <see cref="MemorySystemProbe"/> set to Linux).</summary>
+    HostOs Os => HostOs.Windows;
 }
 
 public static class SystemProbeExtensions

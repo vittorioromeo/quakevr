@@ -74,7 +74,8 @@ public sealed record DetectionReport(
         sb.AppendLine($"  Virtual Desktop: {(Vr.VirtualDesktopInstalled ? Vr.VirtualDesktopDir ?? "registered runtime" : "not found")}");
         sb.AppendLine($"  SteamVR: {(Vr.SteamVrInstalled ? Vr.SteamVrDir ?? "registered runtime" : "not found")}");
         sb.AppendLine($"  suggest VDXR: {Vr.SuggestVdxr}");
-        sb.AppendLine($"VC++ runtime: {VcRuntime.Installed?.ToString() ?? "not installed"} (needs {VcRuntime.Required}+): {(VcRuntime.Ok ? "ok" : "install or update: " + VcRuntime.Describe())}");
+        sb.AppendLine(VcRuntime.NotNeeded ? "VC++ runtime: not needed (Linux)"
+            : $"VC++ runtime: {VcRuntime.Installed?.ToString() ?? "not installed"} (needs {VcRuntime.Required}+): {(VcRuntime.Ok ? "ok" : "install or update: " + VcRuntime.Describe())}");
         return sb.ToString();
     }
 }

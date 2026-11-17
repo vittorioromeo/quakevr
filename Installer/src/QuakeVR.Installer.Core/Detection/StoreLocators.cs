@@ -19,6 +19,10 @@ public sealed class SteamLocator(ISystemProbe probe)
             probe.GetRegistryString(@"HKLM\SOFTWARE\Valve\Steam", "InstallPath"),
             probe.GetFolder(KnownFolder.ProgramFilesX86) is { } pf ? Path.Combine(pf, "Steam") : null,
         ];
+        if (probe.Os == HostOs.Linux)
+        {
+            candidates = [.. LinuxStores.SteamRoots(probe)];
+        }
         foreach (var c in candidates)
         {
             if (c is not null && PathUtil.TryNormalize(c) is { } p && Directory.Exists(Path.Combine(p, "steamapps")))
@@ -116,6 +120,10 @@ public sealed class GogLocator(ISystemProbe probe)
 
     public string? Find(string gameId)
     {
+        if (probe.Os == HostOs.Linux)
+        {
+            return LinuxStores.HeroicGog(probe, gameId);
+        }
         foreach (var key in new[] { $@"HKLM\SOFTWARE\WOW6432Node\GOG.com\Games\{gameId}", $@"HKLM\SOFTWARE\GOG.com\Games\{gameId}" })
         {
             if (probe.GetRegistryString(key, "path") is { } p && PathUtil.TryNormalize(p) is { } dir && Directory.Exists(dir))
@@ -139,6 +147,10 @@ public sealed class EpicLocator(ISystemProbe probe, string? manifestsDir = null)
 
     public IReadOnlyList<EpicGame> FindQuakeGames()
     {
+        if (probe.Os == HostOs.Linux && manifestsDir is null)
+        {
+            return LinuxStores.LegendaryQuakeGames(probe);
+        }
         var dir = ManifestsDir;
         if (dir is null || !Directory.Exists(dir))
         {

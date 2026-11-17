@@ -32,6 +32,10 @@ public static class PathUtil
             {
                 return path;
             }
+            if (!OperatingSystem.IsWindows())
+            {
+                return full; // (a case-sensitive file system: the path is already the one spelling there is)
+            }
             var root = Path.GetPathRoot(full)!;
             var result = root.ToUpperInvariant();
             foreach (var part in full[root.Length..].Split('\\', StringSplitOptions.RemoveEmptyEntries))
@@ -61,8 +65,11 @@ public static class PathUtil
         return path;
     }
 
+    /// <summary>How paths compare: ignoring case on Windows, exactly on Linux (a case-sensitive file system).</summary>
+    public static StringComparison PathComparison => OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+
     public static bool SamePath(string a, string b) =>
-        string.Equals(TryNormalize(a), TryNormalize(b), StringComparison.OrdinalIgnoreCase);
+        string.Equals(TryNormalize(a), TryNormalize(b), PathComparison);
 
     /// <summary>Whether <paramref name="path"/> is <paramref name="folder"/> or inside it.</summary>
     public static bool IsInside(string path, string folder)
@@ -73,8 +80,9 @@ public static class PathUtil
         {
             return false;
         }
-        return string.Equals(p, f, StringComparison.OrdinalIgnoreCase) ||
-               p.StartsWith(f.EndsWith('\\') ? f : f + "\\", StringComparison.OrdinalIgnoreCase);
+        var separator = Path.DirectorySeparatorChar; // ('\\' on Windows, '/' on Linux)
+        return string.Equals(p, f, PathComparison) ||
+               p.StartsWith(f.EndsWith(separator) ? f : f + separator, PathComparison);
     }
 
     /// <summary>

@@ -27,6 +27,9 @@ public static class LaunchCommand
 {
     public const string Exe = "ironwail.exe";
 
+    /// <summary>The engine's file name: ironwail.exe on Windows, ironwail on Linux (the flatpak's /app/lib/quakevr/ironwail).</summary>
+    public static string ExeName(Platform.HostOs os) => os == Platform.HostOs.Windows ? Exe : "ironwail";
+
     /// <summary>A path for the command line: no trailing backslash (it would escape the closing quote) and quoted.</summary>
     public static string Quote(string path) => "\"" + PathUtil.TrimEnd(path) + "\"";
 

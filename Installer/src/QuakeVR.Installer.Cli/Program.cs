@@ -93,8 +93,11 @@ for (var i = 1; i < args.Length; ++i)
 }
 string? Opt(string key) => options.TryGetValue(key, out var v) ? v[^1] : null;
 bool Flag(string key) => options.ContainsKey(key);
-// The Apps & Features entry: a made-up registry root in a JSON file (tests), the real HKCU only with --register.
-IRegistryWriter? Registry() => Opt("registry-file") is { } rf ? new JsonFileRegistry(rf) : Flag("register") ? new WindowsRegistryWriter() : null;
+// The real machine (Windows, or Linux in the portable build: docs/vr-port/INSTALLER.md, "Cross-platform").
+ISystemProbe HostProbe() => HostPlatform.CreateProbe();
+// The Apps & Features entry: a made-up registry root in a JSON file (tests), the real HKCU only with --register (Linux:
+// the installer's uninstall.json in $XDG_DATA_HOME/QuakeVR-Installer).
+IRegistryWriter? Registry() => Opt("registry-file") is { } rf ? new JsonFileRegistry(rf) : Flag("register") ? HostPlatform.CreateUserRegistry(HostProbe()) : null;
 // --url/--feed (repeatable), else QVR_SETUP_FEED, else the release hosts' feeds.
 List<Uri> Feeds(string key)
 {
@@ -126,12 +129,11 @@ var log = new SyncProgress<InstallProgress>(p =>
 // The default install folder (the window's), and the existing install: the folder given, the Apps & Features entry (read
 // only: the test root of --registry-file, none for a sandbox, else the real HKCU), the default folder.
 InstallDetection FindInstall(Sandbox? sandbox, string? chosen) => InstallDetection.Find(
-    Opt("registry-file") is { } rf ? new JsonFileRegistry(rf) : sandbox is null ? new WindowsRegistryWriter() : null,
+    Opt("registry-file") is { } rf ? new JsonFileRegistry(rf) : sandbox is null ? HostPlatform.CreateUserRegistry(HostProbe()) : null,
     chosen ?? sandbox?.Target, Environment.ProcessPath,
-    sandbox is null ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "QuakeVR") : null);
+    sandbox is null ? HostPlatform.DefaultInstallDir(HostProbe()) : null);
 
-string DownloadsDir(Sandbox? sandbox) => Opt("downloads") ?? sandbox?.Downloads
-    ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "QuakeVR-Installer", "downloads");
+string DownloadsDir(Sandbox? sandbox) => Opt("downloads") ?? sandbox?.Downloads ?? HostPlatform.DownloadsDir(HostProbe());
 
 // The window's download path: the file the feed (or the built-in HD textures) names, with Range resume, size, SHA-256.
 async Task<string> Fetch(HttpClient http, string downloads, string what, FeedFile file)
@@ -158,7 +160,7 @@ string? AlreadyDownloaded(string downloads, FeedFile file)
 // downloaded, checked and unpacked into <install>\ad. Never fatal: a failure leaves the install as it is.
 bool WantAd() => Flag("ad") || Opt("ad-zip") is not null;
 AdCopy? FoundAd(string quake) => ArcaneDimensions.FindExisting(ArcaneDimensions.SearchRoots(
-    Flag("no-stores") ? [] : ExpansionDetector.StoreRoots(new QuakeDetector(new WindowsSystemProbe())), quake));
+    Flag("no-stores") ? [] : ExpansionDetector.StoreRoots(new QuakeDetector(HostProbe())), quake));
 string AdPlanText(AdCopy? found, ResolvedComponent? c) =>
     Opt("ad-zip") is { } z ? $"ad: {z} (local; checked against {c?.File.File ?? "the pin"})" :
     found is { Usable: true } ? $"ad: {ArcaneDimensions.Describe(found)}" :
@@ -255,7 +257,7 @@ async Task<int> InstallCommand(FoundInstall? reinstallOf, ReinstallOptions? rein
     {
         Console.WriteLine("warning: no hdtextures component, in the feed or built in: no HD textures");
     }
-    var packageFile = package is null ? feed?.Package ?? throw new InstallException("the feed names no package") : null;
+    var packageFile = package is null ? feed?.PackageFor(HostPlatform.CurrentRid) ?? throw new InstallException($"the feed names no package for {HostPlatform.CurrentRid}") : null;
     if (dryRun)
     {
         Console.WriteLine(packageFile is null ? $"package: {package} (local)"
@@ -276,7 +278,7 @@ async Task<int> InstallCommand(FoundInstall? reinstallOf, ReinstallOptions? rein
         Console.WriteLine("To install, pass --accept-statement: it answers YES to both claims above.");
         return 3;
     }
-    var probe = new WindowsSystemProbe();
+    var probe = HostProbe();
     var quake = Opt("quake") ?? (reinstallOf is { } ri && Directory.Exists(Path.Combine(ri.Record.QuakeDir, "id1")) ? ri.Record.QuakeDir : null)
         ?? DetectionReport.Run(probe).DefaultQuake?.BaseDir
         ?? throw new InstallException("No Quake found: pass --quake <folder with id1>.");
@@ -399,7 +401,7 @@ async Task<int> UpdateCommand()
     }
     else
     {
-        var file = feed?.Package ?? throw new InstallException("--package or --feed is required (the feed names no package)");
+        var file = feed?.PackageFor(HostPlatform.CurrentRid) ?? throw new InstallException($"--package or --feed is required (the feed names no package for {HostPlatform.CurrentRid})");
         packageVersion = feed.Version;
         Console.WriteLine($"package: {file.File} {feed.Version} ({PathUtil.FormatSize(file.Size)}, sha256 {file.Sha256}) from {string.Join(" then ", file.Urls)}");
         package = AlreadyDownloaded(downloads, file);
@@ -503,7 +505,12 @@ try
     {
         case "detect":
         {
-            var report = DetectionReport.Run(new WindowsSystemProbe(), Opt("epic-manifests"));
+            var report = DetectionReport.Run(HostProbe(), Opt("epic-manifests"));
+            if (HostPlatform.Current != HostOs.Windows)
+            {
+                Console.WriteLine($"Host: {HostPlatform.Current} ({HostPlatform.CurrentRid}); default install folder {HostPlatform.DefaultInstallDir(HostProbe())}; " +
+                                  $"uninstall record {HostPlatform.LinuxUninstallRecordPath(HostProbe())}");
+            }
             Console.Write(report.Format(Opt("qvr")));
             // The existing Quake VR: Unleashed install (what the window's Update screen and qvr-setup update use).
             Console.Write(FindInstall(Opt("sandbox") is { } dsb ? new Sandbox(dsb) : null, Opt("qvr") ?? Opt("target")).Format());
@@ -556,8 +563,12 @@ try
         {
             // The VC++ runtime: what is installed, a redistributable's signature, and what the install would do. Without
             // --dry-run it really installs it when it is missing (one administrator prompt).
-            var info = VcRuntimeDetector.Detect(new WindowsSystemProbe());
+            var info = VcRuntimeDetector.Detect(HostProbe());
             Console.WriteLine($"VC++ runtime: {info.Describe()} ok: {info.Ok}");
+            if (!OperatingSystem.IsWindows())
+            {
+                return 0; // (Linux: nothing to install)
+            }
             using var http = Downloader.CreateClient();
             var redist = VcRedist.ForWindows(http);
             if (Opt("check") is { } check)
@@ -575,7 +586,7 @@ try
             {
                 DryRun = Flag("dry-run"),
                 LocalCopies = Opt("file") is { } file ? [file] : [],
-                DownloadDir = Opt("downloads") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "QuakeVR-Installer", "downloads"),
+                DownloadDir = Opt("downloads") ?? HostPlatform.DownloadsDir(HostProbe()),
             }, log, CancellationToken.None);
             Console.WriteLine($"{result.Outcome}: {result.Message}");
             return result.RuntimeReady || result.Outcome == VcRedistOutcome.DryRun ? 0 : 1;

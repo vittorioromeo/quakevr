@@ -9,6 +9,10 @@ public enum RuntimeKind
     MetaQuestLink,
     WindowsMixedReality,
     Other,
+    /// <summary>Linux: Monado (openxr_monado.json).</summary>
+    Monado,
+    /// <summary>Linux: WiVRn (openxr_wivrn.json), the usual way to play on a Quest from Linux.</summary>
+    WiVRn,
 }
 
 public sealed record OpenXrRuntime(RuntimeKind Kind, string Name, string ManifestPath, bool Enabled, bool ManifestExists);
@@ -40,6 +44,9 @@ public static class VrDetector
             "steamxr_win64.json" => RuntimeKind.SteamVR,
             "oculus_openxr_64.json" => RuntimeKind.MetaQuestLink,
             "mixedrealityruntime.json" => RuntimeKind.WindowsMixedReality,
+            "steamxr_linux64.json" => RuntimeKind.SteamVR,
+            "openxr_monado.json" => RuntimeKind.Monado,
+            "openxr_wivrn.json" => RuntimeKind.WiVRn,
             _ => RuntimeKind.Other,
         };
 
@@ -49,14 +56,58 @@ public static class VrDetector
         RuntimeKind.SteamVR => "SteamVR",
         RuntimeKind.MetaQuestLink => "Meta Quest Link",
         RuntimeKind.WindowsMixedReality => "Windows Mixed Reality",
+        RuntimeKind.Monado => "Monado",
+        RuntimeKind.WiVRn => "WiVRn",
         _ => "Other OpenXR runtime",
     };
 
     static OpenXrRuntime Runtime(string path, bool enabled) =>
         new(Classify(path), DisplayName(Classify(path)), path, enabled, File.Exists(path));
 
+    /// <summary>
+    /// Linux: the OpenXR loader's active_runtime.json, the first of $XDG_CONFIG_HOME/openxr/1, each $XDG_CONFIG_DIRS
+    /// entry's openxr/1, /etc/openxr/1 (the loader's order). It is usually a link to the runtime's manifest
+    /// (openxr_monado.json, steamxr_linux64.json, openxr_wivrn.json): classified by the link's target. There is no list of
+    /// available runtimes on Linux.
+    /// </summary>
+    static VrReport DetectLinux(ISystemProbe probe, SteamLocator steam)
+    {
+        var dirs = new List<string>();
+        if (probe.GetFolder(KnownFolder.ConfigHome) is { } config)
+        {
+            dirs.Add(config);
+        }
+        if (probe is LinuxSystemProbe linux)
+        {
+            dirs.AddRange(linux.ConfigDirs);
+            dirs.Add(linux.SystemPath("/etc"));
+        }
+        else if (probe.GetFolder(KnownFolder.SystemConfig) is { } system)
+        {
+            dirs.Add(system);
+        }
+        OpenXrRuntime? active = null;
+        foreach (var dir in dirs)
+        {
+            var file = Path.Combine(dir, "openxr", "1", "active_runtime.json");
+            var info = new FileInfo(file);
+            if (!info.Exists && info.LinkTarget is null)
+            {
+                continue;
+            }
+            var target = info.LinkTarget is { } t ? Path.GetFullPath(t, Path.GetDirectoryName(file)!) : file;
+            active = new OpenXrRuntime(Classify(target), DisplayName(Classify(target)), target, true, File.Exists(target));
+            break;
+        }
+        return new VrReport(active, [], null, steam.FindApp(SteamLocator.SteamVrAppId));
+    }
+
     public static VrReport Detect(ISystemProbe probe, SteamLocator steam)
     {
+        if (probe.Os == HostOs.Linux)
+        {
+            return DetectLinux(probe, steam);
+        }
         OpenXrRuntime? active = probe.GetRegistryString(OpenXrKey, "ActiveRuntime") is { } a ? Runtime(a, true) : null;
         var available = probe.GetRegistryValueNames(AvailableRuntimesKey)
             .Where(n => n.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
@@ -81,12 +132,16 @@ public sealed record VcRuntimeInfo(Version? Installed, Version Required, IReadOn
     public VcRuntimeInfo(Version? installed, Version required) : this(installed, required, []) { }
 
     /// <summary>The runtime is there, new enough, and so are the DLLs the game imports.</summary>
-    public bool Ok => Installed is not null && Installed >= Required && Problems.Count == 0;
+    public bool Ok => NotNeeded || Installed is not null && Installed >= Required && Problems.Count == 0;
     public const string DownloadUrl = "https://aka.ms/vs/17/release/vc_redist.x64.exe";
+
+    /// <summary>Linux: the engine needs no Visual C++ runtime (its libraries are the system's).</summary>
+    public bool NotNeeded { get; init; }
 
     /// <summary>One line for the Your PC page and the report.</summary>
     public string Describe() =>
-        Ok ? $"{Installed} installed."
+        NotNeeded ? "Not needed on Linux."
+        : Ok ? $"{Installed} installed."
         : Problems.Count > 0 ? string.Join("; ", Problems) + $" (Quake VR needs {Required} or later)."
         : Installed is null ? "Not installed."
         : $"{Installed} is too old (Quake VR needs {Required} or later).";
@@ -112,6 +167,10 @@ public static class VcRuntimeDetector
 
     public static VcRuntimeInfo Detect(ISystemProbe probe)
     {
+        if (probe.Os == HostOs.Linux)
+        {
+            return new VcRuntimeInfo(null, Required) { NotNeeded = true };
+        }
         Version? registry = null;
         foreach (var key in RegistryKeys)
         {

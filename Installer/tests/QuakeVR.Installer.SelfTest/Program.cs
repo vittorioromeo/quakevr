@@ -1892,6 +1892,130 @@ var tests = new List<(string Name, Action Body)>
         Eq(PackageManifest.HashFile(zip2), r3.HdTexturesSha256, "the new pack recorded");
         True(FirstStartRelight.Pending(target), "a new pack: relight at the next start");
     }),
+    ("linux: XDG folders; Quake found in Flatpak Steam (libraryfolders.vdf), Heroic GOG and Epic, Lutris; no VC++ runtime", () =>
+    {
+        // A made-up Linux home (docs/vr-port/INSTALLER.md, "Cross-platform"): every store's files where Linux keeps them.
+        var home = Dir("linux-home");
+        var sys = Dir("linux-root");
+        var env = new Dictionary<string, string> { ["HOME"] = home, ["XDG_CACHE_HOME"] = "relative/ignored" };
+        var probe = new LinuxSystemProbe(k => env.TryGetValue(k, out var v) ? v : null, sys);
+        Eq(HostOs.Linux, ((ISystemProbe)probe).Os, "os");
+        Eq(Path.Combine(home, ".local/share"), probe.GetFolder(KnownFolder.LocalAppData), "data home");
+        Eq(Path.Combine(home, ".cache"), probe.GetFolder(KnownFolder.CacheHome), "a relative XDG_CACHE_HOME is ignored");
+        Eq(Path.Combine(home, ".local/share", "applications"), probe.GetFolder(KnownFolder.StartMenuPrograms), "menu entries");
+        Eq(Path.Combine(sys, "etc/xdg"), probe.GetFolder(KnownFolder.SystemConfig), "system config");
+        Eq<string?>(null, probe.GetFolder(KnownFolder.ProgramFiles), "no Program Files");
+        Eq(Path.Combine(home, "Desktop"), probe.GetFolder(KnownFolder.Desktop), "desktop default");
+        Directory.CreateDirectory(Path.Combine(home, ".config"));
+        File.WriteAllText(Path.Combine(home, ".config", "user-dirs.dirs"), "# x\nXDG_DESKTOP_DIR=\"$HOME/Schreibtisch\"\n");
+        Eq(home + "/Schreibtisch", probe.GetFolder(KnownFolder.Desktop), "desktop from user-dirs.dirs");
+        Eq(Path.Combine(home, ".local/share", "QuakeVR"), HostPlatform.DefaultInstallDir(probe), "default install folder");
+        Eq(Path.Combine(home, ".cache", "QuakeVR-Installer", "downloads"), HostPlatform.DownloadsDir(probe), "downloads");
+
+        // Steam (Flatpak) with Quake in a second library, listed by libraryfolders.vdf.
+        var steam = Path.Combine(home, ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam");
+        var library = Dir("linux-steamlib");
+        Directory.CreateDirectory(Path.Combine(steam, "steamapps"));
+        File.WriteAllText(Path.Combine(steam, "steamapps", "libraryfolders.vdf"),
+            $"\"libraryfolders\"\n{{\n \"0\" {{ \"path\" {JsonString(steam)} }}\n \"1\" {{ \"path\" {JsonString(library)} }}\n}}\n");
+        Directory.CreateDirectory(Path.Combine(library, "steamapps"));
+        File.WriteAllText(Path.Combine(library, "steamapps", "appmanifest_2310.acf"), "\"AppState\"\n{\n \"appid\" \"2310\"\n \"installdir\" \"Quake\"\n}\n");
+        Fixtures.MakeOriginal(Path.Combine(library, "steamapps", "common", "Quake"));
+        // Heroic: GOG (its Flatpak) and Epic (its Legendary).
+        var gog = Dir("linux-gog-quake");
+        Fixtures.MakeOriginal(gog);
+        var heroicFlatpak = Path.Combine(home, ".var", "app", "com.heroicgameslauncher.hgl", "config", "heroic");
+        Directory.CreateDirectory(Path.Combine(heroicFlatpak, "gog_store"));
+        File.WriteAllText(Path.Combine(heroicFlatpak, "gog_store", "installed.json"),
+            $"{{\"installed\": [{{\"appName\": \"1435828198\", \"platform\": \"windows\", \"install_path\": {JsonString(gog)}}}]}}");
+        var epic = Dir("linux-epic-quake");
+        Fixtures.MakeRerelease(epic);
+        var legendary = Path.Combine(home, ".config", "heroic", "legendaryConfig", "legendary");
+        Directory.CreateDirectory(legendary);
+        File.WriteAllText(Path.Combine(legendary, "installed.json"),
+            $"{{\"Quake\": {{\"app_name\": \"Quake\", \"title\": \"Quake\", \"install_path\": {JsonString(epic)}}}, \"Other\": {{\"title\": \"Other\", \"install_path\": \"/nope\"}}}}");
+        // Lutris: a game config whose exe is inside the Quake folder.
+        var lutrisQuake = Dir("linux-lutris-quake");
+        Fixtures.MakeOriginal(lutrisQuake);
+        var lutris = Path.Combine(home, ".local/share", "lutris", "games");
+        Directory.CreateDirectory(lutris);
+        File.WriteAllText(Path.Combine(lutris, "quake-1700000000.yml"), $"game:\n  exe: {Path.Combine(lutrisQuake, "WinQuake.exe")}\n  prefix: /x\nwine: {{}}\n");
+        File.WriteAllText(Path.Combine(lutris, "doom-1.yml"), $"game:\n  exe: {Path.Combine(gog, "x.exe")}\n");
+
+        var found = new QuakeDetector(probe).FindAll();
+        Eq("Steam|Gog|Epic|Lutris", string.Join("|", found.Select(q => q.Store)), "stores in order");
+        True(PathUtil.SamePath(found[0].InstallDir, Path.Combine(library, "steamapps", "common", "Quake")) && found[0].Playable, "steam's quake");
+        True(PathUtil.SamePath(found[1].InstallDir, gog), "heroic gog");
+        True(PathUtil.SamePath(found[2].InstallDir, epic) && found[2].Rerelease.Playable && found[2].Name == "Epic Games (Heroic)", "heroic epic");
+        True(PathUtil.SamePath(found[3].InstallDir, lutrisQuake), "lutris");
+        var report = DetectionReport.Run(probe);
+        True(report.VcRuntime.Ok && report.VcRuntime.NotNeeded, "no VC++ runtime on Linux");
+        True(report.Format(null).Contains("VC++ runtime: not needed (Linux)"), "report line");
+        Eq<OpenXrRuntime?>(null, report.Vr.Active, "no runtime yet");
+        Directory.CreateDirectory(Path.Combine(sys, "etc", "xdg", "openxr", "1"));
+        File.WriteAllText(Path.Combine(sys, "etc", "xdg", "openxr", "1", "active_runtime.json"), "{}");
+        True(DetectionReport.Run(probe).Vr.Active is { Enabled: true, ManifestExists: true }, "active_runtime.json in XDG_CONFIG_DIRS");
+        Eq(RuntimeKind.Monado, VrDetector.Classify("/usr/share/openxr/1/openxr_monado.json"), "monado");
+        Eq(RuntimeKind.WiVRn, VrDetector.Classify("/usr/share/openxr/1/openxr_wivrn.json"), "wivrn");
+        Eq(RuntimeKind.SteamVR, VrDetector.Classify("/home/x/.steam/steam/steamapps/common/SteamVR/steamxr_linux64.json"), "steamvr linux");
+        // The Windows probe is untouched by all this: a Windows machine with the same home finds nothing there.
+        Eq(0, new QuakeDetector(new MemorySystemProbe().SetFolder(KnownFolder.UserProfile, home)).FindAll().Count, "windows ignores Linux stores");
+    }),
+    ("linux: .desktop shortcuts (plan, Exec quoting, round trip, uninstall), system folders refused, the feed's linux-x64 package", () =>
+    {
+        var qvr = Dir("linux-qvr");
+        var quake = Dir("linux-sc-quake");
+        var menu = Path.Combine(Dir("linux-sc"), "applications");
+        var desktop = Path.Combine(Dir("linux-sc"), "Desktop");
+        var opts = new ShortcutOptions { DesktopDir = desktop, StartMenuDir = menu };
+        var win = ShortcutPlanner.Plan(opts, quake, qvr);
+        var lin = ShortcutPlanner.Plan(opts, quake, qvr, HostOs.Linux);
+        Eq(win.Count, lin.Count, "the same shortcuts");
+        True(win.All(s => s.LinkPath.EndsWith(".lnk", StringComparison.Ordinal)) &&
+             win.Where(s => s.Arguments.Length > 0).All(s => s.TargetPath.EndsWith("ironwail.exe", StringComparison.Ordinal) && s.IconPath == s.TargetPath), "windows unchanged");
+        True(lin.All(s => s.LinkPath.EndsWith(".desktop", StringComparison.Ordinal)), "linux: .desktop");
+        True(lin.Where(s => s.Arguments.Length > 0).All(s => Path.GetFileName(s.TargetPath) == "ironwail" && s.IconPath == Path.Combine(qvr, "quakevr.png")), "linux: ironwail, its png icon");
+        var flat = lin.Single(s => s.LinkPath.EndsWith("(Flat Screen).desktop", StringComparison.Ordinal) && s.LinkPath.StartsWith(desktop, StringComparison.Ordinal));
+        var text = DesktopEntry.Format(flat with { TargetPath = "/home/a b/QuakeVR/ironwail", Arguments = "-basedir \"/home/a b/100%$x\" -game quakevr -flatscreenmode" });
+        True(text.Contains("Exec=\"/home/a b/QuakeVR/ironwail\" -basedir \"/home/a b/100%%\\$x\" -game quakevr -flatscreenmode\n"), "exec quoting: " + text);
+        True(text.StartsWith("[Desktop Entry]\nType=Application\n", StringComparison.Ordinal) && text.Contains("Name=Quake VR Unleashed (Flat Screen)\n"), "header and name");
+        var files = lin.Single(s => s.Arguments.Length == 0);
+        True(DesktopEntry.Exec(files).StartsWith("xdg-open ", StringComparison.Ordinal), "the files entry opens the folder");
+        foreach (var s in lin)
+        {
+            DesktopEntry.Save(s);
+        }
+        var back = DesktopEntry.Load(flat.LinkPath);
+        Eq(flat.TargetPath, back.TargetPath, "target read back");
+        Eq(flat.Arguments, back.Arguments, "arguments read back");
+        Eq(flat.WorkingDirectory, back.WorkingDirectory, "path read back");
+        File.WriteAllText(Path.Combine(desktop, "someone else's.desktop"), DesktopEntry.Format(flat with { TargetPath = "/usr/bin/other" }));
+        True(Uninstaller.RemoveShortcut(flat.LinkPath, qvr) && !File.Exists(flat.LinkPath), "our entry removed");
+        True(!Uninstaller.RemoveShortcut(Path.Combine(desktop, "someone else's.desktop"), qvr), "someone else's kept");
+        var ours = lin.Where(s => s.LinkPath.StartsWith(menu, StringComparison.Ordinal)).ToList();
+        foreach (var s in ours)
+        {
+            Uninstaller.RemoveShortcut(s.LinkPath, qvr);
+        }
+        True(!Directory.Exists(Path.Combine(menu, ShortcutPlanner.StartMenuFolder)), "the empty menu folder removed");
+
+        var linuxProbe = new MemorySystemProbe { Os = HostOs.Linux };
+        True(InstallEngine.ValidateTarget("/usr/games/quakevr", quake, linuxProbe) is { } why && why.Contains("root"), "/usr refused");
+        Eq<string?>(null, InstallEngine.ValidateTarget(Path.Combine(Dir("linux-ok"), "QuakeVR"), quake, linuxProbe), "home accepted");
+        Eq<string?>(null, InstallEngine.ValidateTarget("/usr/games/quakevr", quake, new MemorySystemProbe()), "windows: no such rule");
+
+        var sha = new string('a', 64);
+        var old = ReleaseFeed.Parse($"{{\"schema\":1,\"version\":\"1.1.0\",\"package\":{{\"file\":\"QuakeVR.zip\",\"size\":1,\"sha256\":\"{sha}\",\"urls\":[\"https://x/QuakeVR.zip\"]}}}}");
+        Eq("QuakeVR.zip", old.PackageFor("win-x64")?.File, "an old feed: the Windows package");
+        Eq<FeedFile?>(null, old.PackageFor("linux-x64"), "an old feed: no Linux package");
+        True(!System.Text.Json.JsonSerializer.Serialize(old, PackageManifest.Json).Contains("packages"), "no packages key written when there are none");
+        var both = ReleaseFeed.Parse($"{{\"schema\":1,\"version\":\"1.1.0\",\"package\":{{\"file\":\"QuakeVR.zip\",\"size\":1,\"sha256\":\"{sha}\",\"urls\":[\"https://x/a\"]}}," +
+                                     $"\"packages\":{{\"linux-x64\":{{\"file\":\"QuakeVR-linux-x64.zip\",\"size\":2,\"sha256\":\"{sha}\",\"urls\":[\"https://x/b\"]}}}}}}");
+        Eq("QuakeVR.zip", both.PackageFor("win-x64")?.File, "windows still package");
+        Eq("QuakeVR-linux-x64.zip", both.PackageFor("linux-x64")?.File, "linux from packages");
+        Throws<InvalidDataException>(() => ReleaseFeed.Parse($"{{\"schema\":1,\"version\":\"1\",\"packages\":{{\"linux-x64\":{{\"file\":\"x\",\"size\":2,\"sha256\":\"bad\",\"urls\":[\"https://x/b\"]}}}}}}"),
+            "a bad linux entry is refused");
+    }),
 };
 
 static string JsonString(string s) => System.Text.Json.JsonSerializer.Serialize(s);

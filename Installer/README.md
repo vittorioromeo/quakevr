@@ -48,6 +48,10 @@ src\QuakeVR.Installer\bin\Debug\net9.0-windows\QuakeVR-Setup.exe
 about 60 MB, with WPF's native DLLs inside; see INSTALLER.md, "Hosting and SmartScreen").
 `Misc\release\make_release.ps1` does this for a release ([RELEASING.md](../docs/vr-port/RELEASING.md)).
 
+Linux (the CLI only for now; INSTALLER.md, "Cross-platform"): the core builds for `net9.0-windows` and `net9.0`; the CLI
+is the portable build with `-p:QvrPortable=true`: `dotnet build src/QuakeVR.Installer.Cli -p:QvrPortable=true` (checks
+it compiles), `dotnet publish src/QuakeVR.Installer.Cli -c Release -p:QvrPortable=true -r linux-x64 --self-contained`.
+
 ### Command line (the window)
 
 | Option | What |

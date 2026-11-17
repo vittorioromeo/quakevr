@@ -3880,3 +3880,28 @@ His decision (2026-11-17, after the kit's `work\ericw\FINDINGS.md`): ship a fork
   136/136 PASS.
 - Seen, not fixed: `map ad_mountain` run from `vr_relight_whendone` right after a relight (games hipnotic, rogue, ad,
   quakevr) said "Couldn't spawn server"; the same map loads from a script at start.
+
+## The installer on Linux, phase 1: the core and the CLI cross-platform (branch agent/xinstaller, 2026-11-17)
+
+His request: the installer on Linux from the same code; research the Quest APK. The full inventory, the Linux install's
+layout, the feed's change, the Avalonia plan and the Quest research: INSTALLER.md section 15, "Cross-platform".
+
+- **Builds:** `QuakeVR.Installer.Core` targets `net9.0-windows;net9.0`; the CLI stays net9.0-windows unless
+  `-p:QvrPortable=true` (paths and `dotnet run` unchanged for the release scripts). Windows-only classes are
+  `[SupportedOSPlatform("windows")]`: CA1416 (an error) guards the portable build (checked: an unguarded
+  `new WindowsSystemProbe()` fails it).
+- **New:** `HostPlatform` (HostOs, the probe, the user registry, default folders, rid, chmod), `LinuxSystemProbe` (XDG,
+  user-dirs.dirs, a test root), `LinuxStores` (Steam native/Flatpak/Snap roots, Heroic GOG and Epic, Legendary, Lutris
+  ymls), `DesktopEntry` + `Shortcut` (.desktop entries; .lnk or .desktop by extension), `ReleaseFeed.Packages` /
+  `PackageFor(rid)` (latest.json's optional `packages.linux-x64`; schema 1 kept), `VcRuntimeInfo.NotNeeded`,
+  `RuntimeKind.Monado/WiVRn` and Linux active_runtime.json, `KnownFolder.ConfigHome/CacheHome/SystemConfig`,
+  `ISystemProbe.Os` (default Windows).
+- **Changed, Windows-neutral:** `PathUtil` compares by `Path.DirectorySeparatorChar` and exact case only off Windows;
+  `ShortcutPlanner.Plan(..., os)`; install/uninstall go through `Shortcut`; the CLI's probe, registry, default folder and
+  downloads through `HostPlatform` (the same values on Windows); Linux install chmods `ironwail` and the tools.
+- **Tests:** installer 0 warnings; self-tests 43/43 (two new, "linux: ..."); the portable CLI builds; `detect` prints the
+  same report from both builds on Windows.
+- **Open:** not run on Linux: WSL has no .NET and the linux-x64 runtime packs are a download (listed in section 15 for
+  approval). No Linux game package exists yet (layout proposed: the Windows zip's with `ironwail`, `quakevr.png`, Linux
+  tools). Phase 2: the case-insensitive pak lookup (GOG's PAK0.PAK), the disk check's mount point, a running-game
+  check, the Avalonia window.

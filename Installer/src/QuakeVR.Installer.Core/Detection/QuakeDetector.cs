@@ -8,6 +8,8 @@ public enum QuakeStore
     Gog,
     Epic,
     Manual,
+    /// <summary>Linux: a Lutris game (Wine).</summary>
+    Lutris,
 }
 
 /// <summary>
@@ -64,7 +66,17 @@ public sealed class QuakeDetector(ISystemProbe probe, string? epicManifestsDir =
         {
             if (!found.Any(q => PathUtil.SamePath(q.InstallDir, epic.InstallLocation)))
             {
-                found.Add(Describe(QuakeStore.Epic, "Epic Games", epic.InstallLocation));
+                found.Add(Describe(QuakeStore.Epic, probe.Os == HostOs.Linux ? "Epic Games (Heroic)" : "Epic Games", epic.InstallLocation));
+            }
+        }
+        if (probe.Os == HostOs.Linux)
+        {
+            foreach (var lutris in LinuxStores.LutrisQuakeDirs(probe))
+            {
+                if (!found.Any(q => PathUtil.SamePath(q.InstallDir, lutris)))
+                {
+                    found.Add(Describe(QuakeStore.Lutris, "Lutris", lutris));
+                }
             }
         }
         return found;
@@ -109,7 +121,8 @@ public sealed class QuakeDetector(ISystemProbe probe, string? epicManifestsDir =
         }
         var music = (rereleaseRoot is not null ? QuakeData.FindMusic(rereleaseRoot) : null) ?? QuakeData.FindMusic(dir);
         // A zip install of Quake VR (layout A): the engine and the quakevr folder copied into the Quake folder.
-        var existing = File.Exists(Path.Combine(dir, "ironwail.exe")) || Directory.Exists(Path.Combine(dir, "quakevr"))
+        var existing = File.Exists(Path.Combine(dir, "ironwail.exe")) || Directory.Exists(Path.Combine(dir, "quakevr")) ||
+                       (!OperatingSystem.IsWindows() && File.Exists(Path.Combine(dir, "ironwail")))
             ? Path.Combine(dir, "quakevr") : null;
         return new QuakeInstall(store, name, dir, original, rerelease, rereleaseRoot, music, existing);
     }

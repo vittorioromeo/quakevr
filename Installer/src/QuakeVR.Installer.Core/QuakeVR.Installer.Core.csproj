@@ -3,6 +3,12 @@
        Testable without a window (tests/QuakeVR.Installer.SelfTest, the CLI). -->
   <PropertyGroup>
     <RootNamespace>QuakeVR.Installer.Core</RootNamespace>
+    <!-- Cross-platform (docs/vr-port/INSTALLER.md, "Cross-platform"): net9.0-windows is the Windows build, as before
+         (the window and the self-tests use it); net9.0 is the portable one (Linux: qvr-setup published for linux-x64).
+         Windows-only code is marked [SupportedOSPlatform("windows")] and guarded, so the net9.0 build's platform
+         analyzer (CA1416, an error here) catches any unguarded call. -->
+    <TargetFramework></TargetFramework>
+    <TargetFrameworks>net9.0-windows;net9.0</TargetFrameworks>
   </PropertyGroup>
   <ItemGroup>
     <!-- The engine's own lists of each official pack's required files (Quake/vr/vr_gamedir.cpp): one source of truth. -->

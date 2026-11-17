@@ -606,6 +606,164 @@ change kept after a second run of the page, the file not run again.
 
 A setting the game shows only as a button (a preset) needs its case in `dumpSetting` (Quake/vr/vr_menu_paths.inc).
 
+## 15. Cross-platform: Linux (phase 1, 2026-11-17), Quest later
+
+His request (2026-11-17): the same installer on Linux, from the same code; later, the Quest's standalone APK.
+
+### Builds
+
+- `QuakeVR.Installer.Core` targets `net9.0-windows;net9.0`. The Windows build (net9.0-windows: the window, the self-tests,
+  qvr-setup.exe) is the same code path as before; the portable one (net9.0) is what Linux runs. Windows-only classes carry
+  `[SupportedOSPlatform("windows")]` (`WindowsSystemProbe`, `WindowsRegistryWriter`, `ShellLink`), so the net9.0
+  build's platform analyzer (CA1416, an error under TreatWarningsAsErrors) fails on any unguarded call to them.
+- `qvr-setup` (the CLI) stays net9.0-windows by default (output paths and `dotnet run` unchanged for the release
+  scripts); `-p:QvrPortable=true` builds it as net9.0. Linux: `dotnet publish src/QuakeVR.Installer.Cli -c Release
+  -p:QvrPortable=true -r linux-x64 --self-contained -p:PublishSingleFile=true` (needs the linux-x64 runtime and apphost
+  packs: see "Downloads to approve").
+- The window (WPF) stays Windows only: see "GUI on Linux" below.
+
+### Every Windows dependency, and what it is on Linux
+
+| Windows | Where | Linux (done unless marked) |
+|---|---|---|
+| Registry reads (Steam, GOG, OpenXR runtimes, VC++ runtime) | `ISystemProbe` | `LinuxSystemProbe`: no registry (null); the stores are found by their files (below) |
+| Special folders (LocalAppData, Desktop, Programs, ProgramFiles, System32) | `KnownFolder` | XDG: data `$XDG_DATA_HOME` (~/.local/share), new `ConfigHome`, `CacheHome`, `SystemConfig` (/etc/xdg); Desktop from `user-dirs.dirs`; the menu `~/.local/share/applications`; Program Files, ProgramData, System64: null |
+| Apps & Features entry (HKCU Uninstall key) | `IRegistryWriter`, `UninstallEntry` | the same values in a JSON file, `$XDG_DATA_HOME/QuakeVR-Installer/uninstall.json` (`JsonFileRegistry`, already the tests'): update and uninstall find the install as on Windows. The install record in the install folder is unchanged |
+| .lnk shortcuts (IShellLinkW COM) | `ShellLink` | `.desktop` entries (`DesktopEntry`, Desktop Entry spec 1.5): the same set from `ShortcutPlanner.Plan(..., HostOs.Linux)`; Exec quoted per the spec; the folder entry opens with xdg-open; written executable; read back by their `X-QuakeVR-Target` key; uninstall removes only ours, then the empty menu folder. `Shortcut` picks .lnk or .desktop by extension |
+| `ironwail.exe` | `LaunchCommand.Exe` | `LaunchCommand.ExeName(os)`: `ironwail` (the engine's Linux name, as the flatpak's) |
+| Program Files / Windows refused as targets | `InstallEngine.ValidateTarget` | /usr, /opt, /etc, /var, /app, ... refused (needs root) |
+| Disk space (`DriveInfo` of the path root) | install, AD | works, but measures `/`: a target on another mount is checked against `/` (phase 2: the mount point) |
+| File modes | extraction | the staging copy keeps none: `ironwail`, extensionless files and `.sh` under `quakevr/tools` are made 0755 after the install |
+| Path comparisons (case-insensitive, `\`) | `PathUtil` | Linux: exact case, `/` (`PathComparison`, `IsInside`); `RealCase` is a no-op |
+| VC++ runtime check and vc_redist (UAC, Authenticode) | `VcRuntimeDetector`, `VcRedist` | not needed (`VcRuntimeInfo.NotNeeded`, "not needed (Linux)"); the CLI's `vcredist` stops there. Authenticode only ever guarded vc_redist; SHA-256 against the feed stays the trust anchor for everything else |
+| UAC elevation | `ShellElevatedRunner` (vc_redist only) | none: everything is per user |
+| Steam: registry SteamPath | `SteamLocator` | `~/.steam/steam`, `~/.steam/root`, `~/.local/share/Steam`, Flatpak `~/.var/app/com.valvesoftware.Steam/.local/share/Steam` (and `data/Steam`), Snap; then libraryfolders.vdf and appmanifest as on Windows (Quake runs through Proton: the files are the Windows game's) |
+| GOG Galaxy registry | `GogLocator` | Heroic: `~/.config/heroic/gog_store/installed.json` (and the Heroic Flatpak's), by appName 1435828198 / 1739637082 |
+| Epic manifests (ProgramData) | `EpicLocator` | Heroic's Legendary `~/.config/heroic/legendaryConfig/legendary/installed.json`, Legendary's own `~/.config/legendary/installed.json` |
+| (none) | | Lutris: `~/.local/share/lutris/games/*quake*.yml` (and ~/.config/lutris/games): the `exe:`/`working_dir:` path, up to the folder with id1 or rerelease. pga.db (SQLite) is not read |
+| OpenXR runtime (HKLM Khronos keys), Virtual Desktop | `VrDetector` | `active_runtime.json` from `$XDG_CONFIG_HOME/openxr/1`, `$XDG_CONFIG_DIRS`, /etc; classified by its link target (new kinds Monado, WiVRn; steamxr_linux64.json = SteamVR). No Virtual Desktop on Linux |
+| The game's preparation run (`Process.Start ironwail.exe -prepare`) | `GamePreparation` | `ironwail` with the same switches (needs the Linux engine's `-prepare`: untested) |
+| The relight (`quakevr/tools/ericw-tools/light.exe`, the qvr fork) | the game | the game's relight on Linux needs a Linux `light` in the package (the fork's Linux build; ericw-tools' stock releases have one). The install's warning names `light` |
+| Setup's own copy (`QuakeVR-Setup.exe` in the install, the uninstall command) | `SetupCopy` | phase 2 (the Linux window); the CLI uninstalls with `qvr-setup uninstall` |
+| File locks (a running ironwail.exe) | install/update | Linux does not lock open files: an update over a running game replaces them (the game keeps its old copies open). Phase 2: refuse while `ironwail` from the install runs (/proc/*/exe) |
+
+Not done (phase 2): a case-insensitive lookup of `id1/PAK0.PAK` (GOG's Windows files keep upper case; `QuakeData` and
+the Linux engine look for `pak0.pak`), the mount point for the disk check, the running-game check.
+
+### What a Linux install is
+
+- **The game build:** not the flatpak (Flathub's sandbox, its own update channel, `/app` read-only; the installer
+  cannot install or update one without `flatpak` and the user's remote). A **tarball-equivalent zip of the Linux build**
+  in the Windows package's layout instead: `ironwail` (ELF, x86-64), `ironwail.pak`, `quakevr.png` (the flatpak's
+  icon-512.png: the .desktop entries' icon), `quakevr/` (the same game folder: progs.dat, data, settings; Linux tools
+  under `quakevr/tools`), and `manifest.json` made by `qvr-setup manifest` as for Windows. Libraries: the system's
+  (SDL2, the OpenXR loader, as the flatpak's runtime gives), so the package is about the Windows one's size less the
+  DLLs. Built by `Misc/linux/flatpak/build.sh`'s steps (or the kit's WSL build) plus a zip step (phase 2: a
+  `make_release.ps1` step in WSL).
+- **Where:** `$XDG_DATA_HOME/QuakeVR` (~/.local/share/QuakeVR; `--target` for any other). Downloads in
+  `$XDG_CACHE_HOME/QuakeVR-Installer/downloads`. The game writes its config, saves and relit maps there, as on Windows.
+- **Shortcuts:** the desktop's (XDG_DESKTOP_DIR; GNOME also asks to "Allow Launching") and a "Quake VR Unleashed" menu
+  folder of entries in ~/.local/share/applications.
+- **Uninstall record:** `$XDG_DATA_HOME/QuakeVR-Installer/uninstall.json` (the Apps & Features values, in JSON).
+- **The feed:** `latest.json` stays schema 1; an optional `"packages"` object adds other platforms by runtime
+  identifier: `"packages": { "linux-x64": { "file": "QuakeVR-linux-x64.zip", "size": ..., "sha256": ..., "urls": [...] } }`.
+  `"package"` stays the Windows one (older installers ignore the new key, and still work); `ReleaseFeed.PackageFor(rid)`
+  picks (win-x64: `packages.win-x64` if there, else `package`). The CLI's install and update use it; a release without a
+  Linux package says "the feed names no package for linux-x64". Later the Quest's `android-arm64` goes there too.
+
+### Verified (2026-11-17)
+
+- Self-tests 43/43 (41 before, plus two Linux ones: a made-up home with Flatpak Steam + libraryfolders.vdf, Heroic GOG
+  and Epic, Lutris, XDG folders, active_runtime.json; the .desktop plan, quoting, round trip, uninstall, system folders,
+  the feed's linux-x64 package and an old feed). Installer 0 warnings; the portable CLI builds (0 CA1416).
+- `qvr-setup detect` from the net9.0-windows and the portable net9.0 build print the same report on Windows.
+- **Not run on Linux yet:** WSL has no .NET, and publishing self-contained for linux-x64 needs the runtime packs (a
+  download, waiting for approval). Then: publish, `wsl -d archlinux -- <publish dir>/qvr-setup detect`, a sandboxed
+  install of a Linux test package (made from the kit's WSL engine build + the worktree's quakevr folder +
+  `qvr-setup manifest`), `verify`, `uninstall`.
+
+### GUI on Linux: Avalonia (plan, not started)
+
+WPF is Windows only; Avalonia is the closest port (XAML, bindings, styles), MIT, and draws with Skia on Windows, Linux
+and macOS. The view models stay (`ViewModels/`: `Mvvm.cs` is plain INotifyPropertyChanged/ICommand; `MainViewModel`
+and `SettingsViewModels` use `System.Windows` only for the dispatcher, `MessageBox`-style prompts, `Visibility` and
+brushes, which become Avalonia's `Dispatcher.UIThread`, a dialog service, `bool` visibility and Avalonia brushes).
+
+| Part | Size | Port |
+|---|---|---|
+| Views: ShellView, Welcome, Detect, Options, Settings, Install, Done, Support, Statement pages; MainWindow; CreditsWindow (code) | ~1,000 lines XAML | mostly mechanical: same panels, bindings to `{Binding}` with compiled bindings, `Visibility` to `IsVisible` |
+| Themes/Theme.xaml | 876 lines: 36 styles, 33 control templates, 44 triggers, 22 drop shadows, 18 animations | the biggest part: triggers become style selectors (`:pointerover`, `:pressed`, `:checked`), `DropShadowEffect` to `BoxShadow`, storyboards to Avalonia animations/transitions |
+| Skin: FireView (procedural fire), Procedural, FrameClock (CompositionTarget.Rendering), SkinAssets/SkinLoader (Quake textures read at run time) | ~1,300 lines | WriteableBitmap exists in Avalonia; the frame clock becomes `TopLevel.RequestAnimationFrame`; the logic is portable |
+| Audio: SoundEngine/UiSounds (winmm waveOut, 7 P/Invokes) | ~600 lines | Linux: SDL2's audio queue by P/Invoke (libSDL2 is already the game's dependency: no package); Windows keeps winmm |
+| ScreenshotHarness (802 lines, RenderTargetBitmap) | | Avalonia's RenderTargetBitmap; headless runs with Avalonia.Headless |
+| App.xaml.cs, MainWindow (dwmapi dark title bar, kernel32) | | Windows-only bits guarded; Avalonia's `TransparencyLevelHint`/`ExtendClientAreaToDecorationsHint` |
+
+Effort: about 2-3 worker rounds (Theme.xaml and the skin first, then pages, then the harness and screenshot parity
+against the WPF window). The WPF project stays until the Avalonia window passes the screenshot comparisons; then one
+window for both.
+
+Packages to approve (NuGet, all MIT; latest stable on 2026-11-17, re-check at approval):
+
+| Package | Version | Licence | Why |
+|---|---|---|---|
+| Avalonia | 12.1.6 | MIT | the framework |
+| Avalonia.Desktop | 12.1.6 | MIT | Windows (Win32) and Linux (X11) backends; brings Avalonia.Skia, Avalonia.Win32, Avalonia.X11, Avalonia.FreeDesktop |
+| Avalonia.Themes.Simple | 12.1.6 | MIT | base templates under Theme.xaml's own (lighter than Fluent) |
+| Avalonia.Headless | 12.1.6 | MIT | the screenshot harness and self-tests without a window |
+| (transitive) SkiaSharp + SkiaSharp.NativeAssets.Linux, HarfBuzzSharp (+ native), MicroCom.Runtime, Tmds.DBus.Protocol | as Avalonia pins | MIT | drawing, text, Linux desktop integration |
+
+### Quest standalone APK (research; nothing implemented)
+
+The reference: the kit's `scratch/quest_apk/README.txt` (the 2026-11-17 test build: QuakeVR.apk 20.8 MB, the game folder
+as quakevr.tar 395 MB; the paks from the player's Quake). Steps the installer would automate: `adb install -r
+QuakeVR.apk`; PAK0/PAK1 to `/sdcard/Android/data/com.vittorioromeo.quakevr/files/id1` through `/data/local/tmp` (a direct
+push into the app's folder can fail); the quakevr folder as one tar stream (`adb exec-in "tar -xf - -C <dir>"`: a
+folder push fails part-way), then the chmods; never `adb uninstall` (it deletes the folder: saves and config).
+
+How the installer talks to the headset:
+
+- **(a) Bundle Google's adb (platform-tools).** Its licence (the Android SDK License Agreement) forbids redistributing
+  the SDK or parts of it: not shippable inside the installer. Downloading platform-tools on demand from Google
+  (`dl.google.com/android/repository/platform-tools_r<ver>-<os>.zip`, ~6-7 MB, pinned by SHA-256, the licence shown) is
+  allowed: that is what Android Studio and many tools do. adb's source is Apache-2.0 (AOSP), so a self-built adb could be
+  shipped, at the cost of building and signing it ourselves.
+- **(b) A managed client: AdvancedSharpAdbClient** (NuGet 3.7.17, Apache-2.0, a maintained fork of SharpAdbClient). It
+  speaks the adb *server's* protocol: it still needs an adb server running (it can start one from an adb path), so it
+  replaces the command-line parsing, not the binary. Gains: typed install/push/shell with progress; costs: a package,
+  and the binary question remains.
+- **(c) The player's adb** (from Meta Quest Developer Hub, SideQuest, Android Studio, or `android-tools`/`adb` on Linux):
+  found on PATH and in their usual folders; free, but not everyone has one.
+- **USB:** Windows needs Meta's "Oculus ADB Driver" (a download from Meta's developer site, also installed by Meta
+  Quest Developer Hub); Linux needs a udev rule for vendor 2833 (`android-udev-rules`/`android-sdk-platform-tools-common`
+  packages, or one line in /etc/udev/rules.d: root, so the installer prints it rather than writes it).
+- **On the headset:** developer mode (a Meta developer account, then the switch in the Meta Horizon phone app), then the
+  "Allow USB debugging" prompt in the headset at the first connection (`adb devices` says "unauthorized" until then:
+  the installer waits and says so).
+- **Wi-Fi:** after one USB connection, `adb tcpip 5555` + `adb connect <ip>:5555`; slower (5-15 MB/s against 30-40 over
+  USB 3: the 395 MB folder in 30-80 s against ~10-15 s), and the Quest drops it when it sleeps or reboots.
+- **Updates:** the APK with `adb install -r` (keeps the data; a stable release signing key is a must, or Android refuses
+  the update and only an uninstall, which deletes the data, gets past it: the installer would back up saves first).
+  The game folder by manifest: `adb shell sha256sum` (toybox) over the installed files against the package manifest,
+  then only the changed files in one tar stream, as the PC update copies only what differs.
+- **The feed:** `packages.android-arm64` (the APK) and the Quest's game folder (or the PC package's quakevr folder,
+  if the Quest uses the same one: today's tar is the repository's data plus its progs.dat).
+
+**Recommendation:** (c) then (a)-on-demand, driven by plain `adb` process calls (no NuGet package: the README's
+commands are few and already proven; the output is easy to parse). Use the player's adb when there is one; otherwise
+offer to download Google's platform-tools (licence shown, pinned hash) into the installer's data folder. A Quest page in
+the window: connect (USB or Wi-Fi), driver and developer-mode help, then install/update with progress. Reconsider (b)
+only if the process approach's progress reporting is not good enough (adb push prints none when not on a terminal).
+
+### Downloads to approve (none made)
+
+- For the WSL check of the portable CLI (one of):
+  - NuGet `Microsoft.NETCore.App.Runtime.linux-x64` and `Microsoft.NETCore.App.Host.linux-x64`, version 9.0.21 (the
+    installed SDK's runtime), MIT, ~32 MB + ~4 MB: then `dotnet publish ... -r linux-x64 --self-contained` on Windows and
+    the binary runs in WSL as is (what players would get).
+  - Or Arch's `dotnet-runtime-9.0` (+ `dotnet-host`) in the WSL distro (pacman, ~30 MB): runs the already built
+    framework-dependent `bin/<config>/net9.0/qvr-setup.dll` with `dotnet`.
+- For the GUI: the Avalonia packages above. For the Quest: nothing yet (Google's platform-tools only when built).
+
 ## Appendix A: the author's config against a fresh install
 
 Method: the worktree's build, `-vrmock`, `resetall; exec quakevr.cfg; writeconfig` (every setting at its shipped

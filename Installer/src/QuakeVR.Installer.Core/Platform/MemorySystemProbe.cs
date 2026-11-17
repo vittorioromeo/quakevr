@@ -43,4 +43,6 @@ public sealed class MemorySystemProbe : ISystemProbe
         _keys.TryGetValue(key, out var values) ? [.. values.Keys] : [];
 
     public string? GetFolder(KnownFolder folder) => _folders.TryGetValue(folder, out var p) ? p : null;
+
+    public HostOs Os { get; set; } = HostOs.Windows;
 }

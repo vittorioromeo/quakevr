@@ -25,14 +25,24 @@ public sealed class FeedFile
 ///   "package":    { "file": "QuakeVR.zip", "size": ..., "sha256": "...", "urls": ["https://github.com/..."] },
 ///   "components": { "hdtextures": { "file": "quakevr-hq-textures-png-2026-10-03.zip", ... } } }
 /// </code>
+/// Cross-platform (docs/vr-port/INSTALLER.md, "Cross-platform"): an optional <c>"packages"</c> object adds the other
+/// platforms' game packages by runtime identifier, <c>"packages": { "linux-x64": { "file": "QuakeVR-linux-x64.zip", ... } }</c>.
+/// Still schema 1: <c>"package"</c> stays the Windows one, and older installers ignore the new key.
 /// </summary>
 public sealed class ReleaseFeed
 {
     public int Schema { get; set; } = 1;
     public string Version { get; set; } = "";
     public FeedFile? Package { get; set; }
+    /// <summary>Other platforms' packages by runtime identifier (linux-x64); null (not written) when there are none.</summary>
+    public Dictionary<string, FeedFile>? Packages { get; set; }
     public Dictionary<string, FeedFile> Components { get; set; } = [];
     public string? Notes { get; set; }
+
+    /// <summary>The game package for a platform: win-x64 is <see cref="Package"/> (unless <c>packages</c> names one);
+    /// any other is in <see cref="Packages"/>, or null when this release has none for it.</summary>
+    public FeedFile? PackageFor(string rid) =>
+        Packages is { } p && p.TryGetValue(rid, out var f) ? f : rid == "win-x64" ? Package : null;
 
     public static ReleaseFeed Parse(string json)
     {
@@ -41,7 +51,7 @@ public sealed class ReleaseFeed
         {
             throw new InvalidDataException($"release feed schema {feed.Schema}: update the installer");
         }
-        foreach (var f in feed.Components.Values.Append(feed.Package).OfType<FeedFile>())
+        foreach (var f in feed.Components.Values.Append(feed.Package).Concat(feed.Packages?.Values ?? Enumerable.Empty<FeedFile>()).OfType<FeedFile>())
         {
             if (f.Sha256.Length != 64 || f.Urls.Count == 0 || f.Urls.Any(u => !Uri.TryCreate(u, UriKind.Absolute, out var uri) || uri.Scheme is not ("https" or "http")))
             {

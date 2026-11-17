@@ -1,3 +1,5 @@
+using QuakeVR.Installer.Core.Platform;
+
 namespace QuakeVR.Installer.Core.Shortcuts;
 
 public sealed class ShortcutOptions
@@ -23,11 +25,18 @@ public static class ShortcutPlanner
     /// <summary>The Start menu folder of installs made before the "Unleashed" name (removed once empty).</summary>
     public const string LegacyStartMenuFolder = "Quake VR";
 
-    public static IReadOnlyList<ShortcutSpec> Plan(ShortcutOptions o, string quakeDir, string qvrDir)
+    /// <summary>The Linux package's icon (beside the engine; the flatpak's icon-512.png).</summary>
+    public const string LinuxIcon = "quakevr.png";
+
+    /// <summary>The shortcuts for an install. Windows: .lnk files (the Start menu folder in Programs). Linux
+    /// (<paramref name="os"/>): the same set as .desktop entries (the menu folder in ~/.local/share/applications).</summary>
+    public static IReadOnlyList<ShortcutSpec> Plan(ShortcutOptions o, string quakeDir, string qvrDir, HostOs os = HostOs.Windows)
     {
-        var exe = Path.Combine(qvrDir, LaunchCommand.Exe);
+        var exe = Path.Combine(qvrDir, LaunchCommand.ExeName(os));
+        var ext = os == HostOs.Windows ? ".lnk" : DesktopEntry.Extension;
+        var icon = os == HostOs.Windows ? exe : Path.Combine(qvrDir, LinuxIcon);
         ShortcutSpec Launch(string folder, string name, LaunchVariant v, string description) =>
-            new(Path.Combine(folder, name + ".lnk"), exe, LaunchCommand.Arguments(quakeDir, qvrDir, v), qvrDir, description, exe);
+            new(Path.Combine(folder, name + ext), exe, LaunchCommand.Arguments(quakeDir, qvrDir, v), qvrDir, description, icon);
 
         var list = new List<ShortcutSpec>();
         o = new ShortcutOptions
@@ -73,7 +82,7 @@ public static class ShortcutPlanner
             list.Add(Launch(variants!, Name + " (Create Bug Report)", LaunchVariant.BugReport,
                 "Zip the last run's logs into quakevr\\bugreports for a bug report (the game is not started)"));
             var files = Path.Combine(qvrDir, "quakevr");
-            list.Add(new ShortcutSpec(Path.Combine(variants!, Name + " files.lnk"), files, "", files,
+            list.Add(new ShortcutSpec(Path.Combine(variants!, Name + " files" + ext), files, "", files,
                 "Screenshots, notes, saves and settings"));
         }
         return list;

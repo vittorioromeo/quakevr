@@ -124,16 +124,16 @@ public static class Uninstaller
     }
 
     /// <summary>Deletes a shortcut only when it is a .lnk whose target is inside the install (never someone else's
-    /// shortcut of the same name), then its Start menu folder when that is empty.</summary>
+    /// shortcut of the same name), then its Start menu folder when that is empty. Linux: the same for a .desktop entry.</summary>
     public static bool RemoveShortcut(string link, string installDir)
     {
-        if (!link.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase) || !File.Exists(link))
+        if (!Shortcut.IsShortcutFile(link) || !File.Exists(link))
         {
             return false;
         }
         try
         {
-            var spec = ShellLink.Load(link);
+            var spec = Shortcut.Load(link);
             if (!PathUtil.IsInside(spec.TargetPath, installDir))
             {
                 return false;
@@ -146,7 +146,7 @@ public static class Uninstaller
             }
             return true;
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Runtime.InteropServices.COMException)
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Runtime.InteropServices.COMException or PlatformNotSupportedException)
         {
             return false;
         }

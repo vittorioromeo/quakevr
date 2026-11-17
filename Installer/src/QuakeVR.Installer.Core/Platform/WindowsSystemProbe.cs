@@ -3,6 +3,7 @@ using Microsoft.Win32;
 namespace QuakeVR.Installer.Core.Platform;
 
 /// <summary>The real machine: the 64-bit registry view and the shell's special folders. Read-only.</summary>
+[System.Runtime.Versioning.SupportedOSPlatform("windows")]
 public sealed class WindowsSystemProbe : ISystemProbe
 {
     public object? GetRegistryValue(string key, string name)

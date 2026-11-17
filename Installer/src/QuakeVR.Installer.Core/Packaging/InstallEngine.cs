@@ -87,6 +87,17 @@ public sealed class InstallEngine
                        "games in its own folder. Pick a folder in your user profile (the default) or on another drive.";
             }
         }
+        if (probe.Os == HostOs.Linux)
+        {
+            foreach (var system in new[] { "/usr", "/opt", "/etc", "/bin", "/sbin", "/lib", "/lib64", "/var", "/boot", "/proc", "/sys", "/dev", "/app" })
+            {
+                if (PathUtil.IsInside(t, system))
+                {
+                    return "System folders are not writable without root, and the game saves its settings and games in its " +
+                           "own folder. Pick a folder in your home (the default) or on another drive.";
+                }
+            }
+        }
         if (Directory.Exists(t) && !File.Exists(Path.Combine(t, InstallRecord.FileName)) && Directory.EnumerateFileSystemEntries(t).Any())
         {
             return "This folder already has files in it. Pick an empty or new folder.";
@@ -431,10 +442,10 @@ public sealed class InstallEngine
             else
             {
                 Report(0.95, "Creating shortcuts");
-                var specs = ShortcutPlanner.Plan(plan.Shortcuts, quakeDir, target);
+                var specs = ShortcutPlanner.Plan(plan.Shortcuts, quakeDir, target, HostPlatform.Current);
                 foreach (var spec in specs)
                 {
-                    ShellLink.Save(spec);
+                    Shortcut.Save(spec);
                     record.Shortcuts.Add(spec.LinkPath);
                     Report(0.96, "Creating shortcuts", $"Shortcut: {spec.LinkPath}");
                 }
@@ -453,9 +464,23 @@ public sealed class InstallEngine
                                     : "The relight asked for before still runs at the game's next start."
                     : "Relit maps: the relight's inputs are unchanged, so no relight at the next start.");
             }
-            if (relight && !File.Exists(Path.Combine(target, "quakevr", "tools", "ericw-tools", "light.exe")))
+            var light = HostPlatform.Current == HostOs.Windows ? "light.exe" : "light";
+            if (relight && !File.Exists(Path.Combine(target, "quakevr", "tools", "ericw-tools", light)))
             {
-                Report(0.98, "Finishing", "The package has no light.exe: the game will offer to download ericw-tools before relighting.", LogLevel.Warning);
+                Report(0.98, "Finishing", $"The package has no {light}: the game will offer to download ericw-tools before relighting.", LogLevel.Warning);
+            }
+            if (HostPlatform.Current != HostOs.Windows)
+            {
+                // Linux: the copy keeps no file modes, so the engine and the bundled tools are made executable again.
+                HostPlatform.MakeExecutable(Path.Combine(target, LaunchCommand.ExeName(HostOs.Linux)));
+                var tools = Path.Combine(target, "quakevr", "tools");
+                if (Directory.Exists(tools))
+                {
+                    foreach (var tool in Directory.EnumerateFiles(tools, "*", SearchOption.AllDirectories).Where(f => !Path.HasExtension(f) || f.EndsWith(".sh", StringComparison.Ordinal)))
+                    {
+                        HostPlatform.MakeExecutable(tool);
+                    }
+                }
             }
             record.Save(target);
             if (plan.Registry is not null)

@@ -76,7 +76,7 @@ public static class GamePreparation
     {
         var extra = $"-prepare {LaunchCommand.Quote(ProgressPath(installDir))}{(relight ? " -preparerelight" : "")} " +
                     "-vrmock -noconfigwrite -noautoexec -nosound -nomapindex -noaddons -window -width 640 -height 360";
-        var info = new ProcessStartInfo(Path.Combine(installDir, LaunchCommand.Exe), LaunchCommand.Arguments(quakeDir, installDir, LaunchVariant.Vr, extra))
+        var info = new ProcessStartInfo(Path.Combine(installDir, LaunchCommand.ExeName(Platform.HostPlatform.Current)), LaunchCommand.Arguments(quakeDir, installDir, LaunchVariant.Vr, extra))
         {
             WorkingDirectory = installDir,
             UseShellExecute = false,
@@ -214,10 +214,10 @@ public static class GamePreparation
         var result = new PreparationResult { RelightAsked = relight };
         var watch = Stopwatch.StartNew();
         var path = ProgressPath(installDir);
-        var exe = Path.Combine(installDir, LaunchCommand.Exe);
+        var exe = Path.Combine(installDir, LaunchCommand.ExeName(Platform.HostPlatform.Current));
         if (!File.Exists(exe))
         {
-            result.Error = $"{LaunchCommand.Exe} not found";
+            result.Error = $"{Path.GetFileName(exe)} not found";
             return result;
         }
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
