@@ -1934,12 +1934,14 @@ def ground(s):
     # (turned up high in one frame, then put over the sword in the next: `vr_mock_hand_to` steps from the hand's last
     # place, so the two in one frame left it where the turn put it every other time; turned low by the sword, it swept
     # through it, flinging it at 473 u/s, 3 runs of 3)
+    # (B17: 12 cm over its handle, not 6: placed exactly there (vr_mock_hand_to_absolute), the turned fist 6 cm over a
+    # sword lying on its edge was 7.5 cm into it, its grip not yet pressed, and shoved it 2 m away, 1 suite run in 1)
     def over(turn):
         def place():
             since = b.mark()
             b.cmd("vr_mock_hand off -0.1 1.0 -0.35 %s; echo mp_over_turned" % turn)
             b.wait(r"mp_over_turned", 10, since, "B's off hand turned")
-            b.cmd("vr_mock_hand_to off spot -1 6")
+            b.cmd("vr_mock_hand_to off spot -1 12")
         return place
 
     def agreed():
@@ -3866,9 +3868,16 @@ def predict_swim(s, srv, a, b, eb):
     a.wait(r"mp_event: .*joined map=e1m4", 120, since_a, "A on e1m4")
     b.wait(r"mp_event: .*joined map=e1m4", 120, since_b, "B on e1m4")
     b.cmd("notarget; god")  # (his breath runs out under water: no drowning)
-    since = b.mark()
     put_at(srv, b, eb, SWIM_SPOT, 90)
-    b.wait(r"mp_predict_corr: c=\d{3,}", 20, since, "B's prediction put in the water")
+    # (B17: his own place there, not a big correction's line: in a suite run his prediction's first state on e1m4 came
+    # after the put, taken there without a correction, and the wait timed out)
+    own = None
+    for _ in range(100):
+        own = org_of(status(b), "mp_player", "self", 1)
+        if own and math.hypot(own[0] - SWIM_SPOT[0], own[1] - SWIM_SPOT[1]) <= 4:
+            break
+    if not own or math.hypot(own[0] - SWIM_SPOT[0], own[1] - SWIM_SPOT[1]) > 4:
+        raise StepFailed("B's own place never came to the water's spot: %s" % (own,))
     b.quiet(r"mp_predict_corr: ", 1.0, 20, "B settled in the water")
     pr = predict_segment(s, b, "swimming", "", 36,
                          ("vr_mock_stick off 0 0.6", "vr_mock_stick off 0.6 0", "+jump",
