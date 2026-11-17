@@ -3466,6 +3466,7 @@ HOLD_Y, HOLD_FWD = 1.54, -0.63
 CLIMB_LEAN = ("0.000 head 0 1.646 0", "0.600 head 0 1.62 -0.28")
 MV_CLIMB_OFF, MV_CLIMB_MAIN = 64, 128  # vr_mpavatar.hpp: a hand holds a ledge (the server's hold, B5c)
 MANTLE_RISE = 24.0  # units: the mantle puts him on the ledge's top at least this much higher
+MANTLE_TRIES = 3    # the overtop play at most this often (a definite end)
 
 
 def hang_play():
@@ -3506,15 +3507,23 @@ def climb_each(s, srv, mover, watcher, em, ew, label):
     mover.cmd("vr_mock_play; -graboff; -grabmain")
     moves_until(s, srv, mover, watcher, em, label, "lets go", "no holds; the copy climbs no more",
                 lambda sv, cp: not sv & both and not int(cp["moves"][0]) & both and cp.get("climb", [-1.0])[0] == 0.0, 60)
-    start = put_at(srv, mover, em, CLIMB_SPOT, 0)
-    since = srv.mark()
-    play(s, mover, "overtop", overtop_play())
+    # (B17: up to MANTLE_TRIES plays, as a player tries again: the play's keyframes are real time, and on a loaded PC its
+    # coarse frames once took no hold (B8j's flake; the suite's B17 run 2: B left under the ledge, A then never put
+    # there). Each attempt noted.)
     top = None
-    for _ in range(80):
-        at = org_of(status(srv), "mp_client", "slot", em - 1)
-        if at and at[2] - start[2] >= MANTLE_RISE:
-            top = at
+    for attempt in range(MANTLE_TRIES):
+        mover.cmd("vr_mock_play; -graboff; -grabmain")
+        start = put_at(srv, mover, em, CLIMB_SPOT, 0)
+        since = srv.mark()
+        play(s, mover, "overtop", overtop_play())
+        for _ in range(80):
+            at = org_of(status(srv), "mp_client", "slot", em - 1)
+            if at and at[2] - start[2] >= MANTLE_RISE:
+                top = at
+                break
+        if top:
             break
+        s.note("%s: %s's mantle %d took him nowhere: played again" % (label, mover.name, attempt + 1))
     mantled = wait_quietly(srv, r"climb: .*mantle", 1, since, "the server's mantle")
     s.check("%s: %s mantles onto the ledge (the server's: from %s to %s)" % (label, mover.name, start, top),
             top is not None, "the server's mantle line: %s" % (mantled[1].strip() if mantled else None))
