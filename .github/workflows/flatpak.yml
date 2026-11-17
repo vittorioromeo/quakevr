@@ -52,8 +52,9 @@ jobs:
         with:
           manifest-path: Misc/linux/flatpak/io.github.vittorioromeo.QuakeVR.yml
           bundle: ${{ steps.meta.outputs.name }}.flatpak
-          # Downloads, the OpenXR loader and fteqcc stay cached until the manifest changes; Quake VR itself always builds.
-          cache-key: flatpak-builder-${{ hashFiles('Misc/linux/flatpak/io.github.vittorioromeo.QuakeVR.yml') }}
+          # Downloads, the OpenXR loader and fteqcc stay cached until the manifest or the fteqcc module (its own file,
+          # and its patch) changes; Quake VR itself always builds.
+          cache-key: flatpak-builder-${{ hashFiles('Misc/linux/flatpak/io.github.vittorioromeo.QuakeVR.yml', 'Misc/linux/flatpak/fteqcc.json', 'Tools/fteqcc/fte32.patch') }}
           upload-artifact: false
 
       - name: Upload the bundle

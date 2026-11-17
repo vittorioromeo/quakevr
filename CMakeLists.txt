@@ -62,6 +62,7 @@ endif()
 
 add_executable(ironwail ${IWAIL_SRC})
 include(Quake/vr/vr.cmake) # QVR
+include(Misc/cmake/QuakeC.cmake) # QVR: quakevr/progs.dat (not on Windows: the Visual Studio build compiles it)
 if (UNIX)
 	target_link_libraries(ironwail PRIVATE m)
 	set(ENABLE_USERDIRS TRUE CACHE STRING "Enable user directories")

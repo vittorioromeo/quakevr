@@ -5,6 +5,13 @@
 if (MSVC AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 	message(FATAL_ERROR "Quake VR builds with clang-cl on Windows, not MSVC's cl (Zancle, Quake/vr/external/zancle, needs it): configure with -T ClangCL (or -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl)")
 endif()
+# GCC fails part-way through the build, minutes in: it rejects Zancle's __decay builtin in function signatures
+# (vr_jobs.hpp) and instantiates a defaulted za::Pair::operator== eagerly (vr_motion.cpp) (docs/vr-port/LINUX.md).
+# Stop here instead. QVR_ALLOW_GCC=ON tries anyway (a newer GCC, or a Zancle that builds with it).
+option(QVR_ALLOW_GCC "Build with GCC anyway (it fails on Zancle: use clang)" OFF)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT QVR_ALLOW_GCC)
+	message(FATAL_ERROR "Quake VR builds with clang, not GCC (Zancle, Quake/vr/external/zancle, needs it). Use the preset (cmake --preset linux-release), or configure a new build folder with -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ (docs/vr-port/LINUX.md). -DQVR_ALLOW_GCC=ON tries GCC anyway.")
+endif()
 
 file(GLOB QVR_SRC CONFIGURE_DEPENDS
 	"${CMAKE_CURRENT_LIST_DIR}/*.cpp"
