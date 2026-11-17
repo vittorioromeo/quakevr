@@ -543,6 +543,10 @@ QVR_CVAR(vr_diagnostics, "0", CVAR_ARCHIVE)
 // verbose ones in diagnostics mode only): 1 the XR_EXT_debug_utils messenger once the instance is made; 2 also chained to
 // its creation (the loader's messages while it is made); 0 none.
 QVR_CVAR(vr_diagnostics_xr, "1", CVAR_NONE)
+// 1: XR_LOADER_DEBUG=all before VR starts (vr_xr_runtime.hpp, loaderDebug): every OpenXR loader message (which runtime it
+// reads, the library it loads, why it fails) in qvr_openxr.txt on Linux (its stdout and stderr caught), in diagnostics
+// mode's debug_output.log on Windows. The loader reads it once: from the next game start if VR already started.
+QVR_CVAR(vr_xr_debug, "0", CVAR_ARCHIVE)
 // Diagnostics mode's OpenXR core validation layer (Khronos', shipped in quakevr/xr_layers): 1 every OpenXR call checked
 // against the specification, the findings in openxr_validation.log; 0 not loaded (from the next VR start). Never loaded
 // outside diagnostics mode.

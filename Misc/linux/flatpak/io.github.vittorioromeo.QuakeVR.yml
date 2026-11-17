@@ -25,6 +25,9 @@ finish-args:
   - --share=ipc
   # GPU (dri) and the headset's USB/HID devices (and controllers): --device=all includes dri.
   - --device=all
+  # The host's /dev/shm: --device=all alone gives the sandbox its own (a tmpfs), where SteamVR's vrclient finds none of
+  # its server's shared memory and reports the runtime unavailable (GitHub #82; LINUX.md, "SteamVR").
+  - --device=shm
   - --socket=pulseaudio
   # The update check (vr_update.cpp), OBS's websocket (vr_obs.cpp, localhost), multiplayer.
   - --share=network

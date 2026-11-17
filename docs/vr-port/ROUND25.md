@@ -5025,3 +5025,34 @@ knees and ankles reach further out in the headset (the mock stands taller than 1
   firewall); then host with two real routers and join by code. Note: the first smoke run of this session (mp_coop,
   before the harness got `vr_mp_room 0`) let its dedicated server look up vittorioromeo.com and send a few REGISTER
   datagrams to UDP 26100 there (nothing listens yet).
+## SteamVR on Linux: the -51 explained, loader messages logged, the Flatpak's /dev/shm (branch agent/linuxsteamvr, 2026-11-17)
+
+GitHub #82 (Fedora 45, Steam Frame, the Flatpak: "SteamVR: not running", then `xrCreateInstance failed: (-51)`). No
+hardware here; diagnosis and plan in LINUX.md, "SteamVR" and "AppImage (plan, not built)". The reply draft:
+`qvr-kit/scratch/issue82_reply.md` (not posted).
+
+- Failure lines name the XrResult from the specification's list (`oxr::resultText`, `openxr_reflection.h`; the runtime's
+  `xrResultToString` only for codes not in it): a failed `xrCreateInstance` has no instance, so it printed `failed:  (-51)`.
+  Now `XR_ERROR_RUNTIME_UNAVAILABLE (-51)` (check, the frame calls' stall lines, the bindings' suggestion, the
+  enumerate's failure in the log).
+- Linux: the loader's stdout and stderr caught while it loads a runtime (`xrEnumerateInstanceExtensionProperties`,
+  `xrCreateInstance`: `xrruntime::captureLoaderOutput` / `endLoaderOutput`, dup2 onto a `tmpfile`) into
+  `qvr_openxr.txt` as "OpenXR loader output (<call>): ..." lines; a failed `xrCreateInstance`'s error lines (deduplicated:
+  with XR_LOADER_DEBUG the loader writes each to both) to the console, at most 8.
+- `vr_xr_debug` (default 0, archived; Debug > Startup, "OpenXR Loader Log"): XR_LOADER_DEBUG=all before VR starts (on
+  Linux before video init, read from the config early with the other vr_xr_* in gl_vidsdl.c); kept when set outside.
+- `XR_ERROR_RUNTIME_UNAVAILABLE` says what to try (`xrruntime::runtimeUnavailable`): SteamVR on Linux: start it first,
+  in a sandbox without the host's /dev/shm the `flatpak override --user --device=shm` line, the logs, Monado/WiVRn;
+  other runtimes: their service; Windows: start the runtime's app.
+- SteamVR detection on Linux: `vrserver`, `vrcompositor`, `vrmonitor` matched by `comm`, the executable's name and
+  argv[0]/argv[1]'s (`processNames`); in a Flatpak sandbox (`/.flatpak-info`) the report says "can't tell" (Auto: as
+  not running); the report also lists the sandbox's devices, whether /dev/shm is the host's, and the /dev/shm entries
+  that look like SteamVR's/OpenVR's/Steam's (to learn their names from players' logs).
+- Flatpak manifest: `--device=shm` (`--device=all` alone gives a tmpfs /dev/shm of the sandbox's own: the likely -51).
+- Checks: Windows dev and ReleaseLTO 0 warnings; the WSL Linux build 0 new warnings; WSL run (`scratch/ls_wsl_fail.sh`:
+  a SteamVR manifest with a missing library, a fake `vrcompositor` started through ld.so): report "SteamVR:
+  vrcompositor running", the loader's 4 error lines in the console and 14 lines in qvr_openxr.txt with vr_xr_debug,
+  `XR_ERROR_RUNTIME_UNAVAILABLE (-51)`, the hint; xr_runtime_test.sh 103 PASS, 0 FAIL; scenario_check 136/136 PASS.
+- Open: the failure outside the sandbox is unexplained until a player's log has the loader's lines and SteamVR's
+  `vrclient_*.txt`; the Flatpak sandbox case not run (no flatpak here); the AppImage needs `appimagetool` in CI (a new
+  pinned download): plan only.
